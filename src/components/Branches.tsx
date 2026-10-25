@@ -1,15 +1,15 @@
 'use client'
 
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, type TooltipPayload } from 'recharts'
+import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis, type TooltipPayload } from 'recharts'
 import { ChartFrame, formatAmount, useCompactChart } from '@/components/charts'
 import { Num } from '@/components/ui'
 import { useI18n, type MessageKey } from '@/lib/i18n'
 
-const chartSeed: Array<{ area: MessageKey; margin: number }> = [
-  { area: 'area.salmiya', margin: 35.6 },
-  { area: 'area.jahra', margin: 31.4 },
-  { area: 'area.shuwaikh', margin: 28.2 },
-  { area: 'area.hawally', margin: 24.1 },
+const chartSeed: Array<{ area: MessageKey; margin: number; fill: string }> = [
+  { area: 'area.salmiya', margin: 35.6, fill: '#3fb950' },
+  { area: 'area.jahra', margin: 31.4, fill: '#58a6ff' },
+  { area: 'area.shuwaikh', margin: 28.2, fill: '#58a6ff' },
+  { area: 'area.hawally', margin: 24.1, fill: '#f85149' },
 ]
 
 const tableSeed: Array<{
@@ -64,6 +64,7 @@ export default function Branches() {
   const chartRows = chartSeed.map((row) => ({
     name: t(row.area),
     margin: row.margin,
+    fill: row.fill,
   }))
 
   const branches = tableSeed.map((row) => ({
@@ -98,7 +99,11 @@ export default function Branches() {
                   />
                 )}
               />
-              <Bar dataKey="margin" fill="#58a6ff" radius={[4, 4, 0, 0]} name={seriesName} isAnimationActive={false} />
+              <Bar dataKey="margin" radius={[4, 4, 0, 0]} name={seriesName} isAnimationActive={false}>
+                {chartRows.map((row) => (
+                  <Cell key={row.name} fill={row.fill} />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </ChartFrame>

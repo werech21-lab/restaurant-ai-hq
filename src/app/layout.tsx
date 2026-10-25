@@ -12,8 +12,15 @@ const cairo = Cairo({
 })
 
 export const metadata: Metadata = {
-  title: 'Restaurant Group AI HQ',
-  description: 'المقر المركزي الذكي لإدارة مجموعة المطاعم',
+  metadataBase: new URL('https://aetherbi.com'),
+  title: 'Aether BI',
+  description: 'Aether BI — لوحة قيادة مجموعة المطاعم على aetherbi.com',
+  openGraph: {
+    title: 'Aether BI',
+    description: 'Aether BI — لوحة قيادة مجموعة المطاعم على aetherbi.com',
+    url: 'https://aetherbi.com',
+    siteName: 'Aether BI',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

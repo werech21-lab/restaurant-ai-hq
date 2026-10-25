@@ -1,6 +1,6 @@
-# Restaurant Group AI HQ
+# Aether BI
 
-هيكل موقع Next.js لغرفة القيادة الذكية لمجموعة المطاعم.
+لوحة Next.js لقيادة مجموعة المطاعم على [aetherbi.com](https://aetherbi.com).
 
 ## التشغيل
 

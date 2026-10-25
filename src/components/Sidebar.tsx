@@ -136,11 +136,11 @@ export default function Sidebar({
       >
       <div className="flex items-center gap-3 px-5 py-6">
         <div className="grid h-12 w-12 place-items-center rounded-2xl border border-gold-300/35 bg-gradient-to-b from-[#2a2418] to-[#100e0b] text-sm font-semibold text-gold-300 shadow-[inset_0_1px_0_rgba(244,224,184,0.35)]">
-          <span dir="ltr">HQ</span>
+          <span dir="ltr">BI</span>
         </div>
         <div className="min-w-0">
           <p dir="ltr" className="text-[11px] font-semibold tracking-[0.18em] text-gold-400">
-            AI HQ
+            Aether BI
           </p>
           <h1 className="truncate text-[15px] font-bold text-mist-100">{t('brand')}</h1>
         </div>

@@ -53,9 +53,9 @@ function AnswerBody({ answer, onOpen }: { answer: Answer; onOpen: (id: SectionId
         <button
           type="button"
           onClick={() => onOpen(answer.section as SectionId)}
-          className="mt-1 cursor-pointer rounded-full border border-gold-300/30 bg-gold-400/10 px-3 py-1.5 text-xs font-semibold text-gold-300 transition hover:border-gold-300/60 hover:bg-gold-400/20"
+          className="mt-1 cursor-pointer rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700"
         >
-          {t('assistant.openSection')} {t(`nav.${answer.section}` as MessageKey)}
+          {t('assistant.openSection')} · {t(`nav.${answer.section}` as MessageKey)}
         </button>
       ) : null}
     </div>
@@ -89,8 +89,7 @@ export default function Assistant({ onOpen }: { onOpen: (id: SectionId) => void 
     if (open) field.current?.focus()
   }, [open])
 
-  const suggestions = [t('assistant.q1'), t('assistant.q2'), t('assistant.q3')]
-  const fresh = !messages.some((message) => message.role === 'user')
+  const suggestions = [t('assistant.q1'), t('assistant.q2'), t('assistant.q3'), t('assistant.q4'), t('assistant.q5')]
 
   function ask(value: string) {
     const question = value.trim()
@@ -144,41 +143,23 @@ export default function Assistant({ onOpen }: { onOpen: (id: SectionId) => void 
                 </div>
               ) : null
             )}
-            {fresh && !thinking ? (
-              <div>
-                <p className="mb-2 text-[11px] text-mist-500">{t('assistant.suggestions')}</p>
-                <div className="space-y-2">
-                  {suggestions.map((question) => (
-                    <button
-                      key={question}
-                      type="button"
-                      onClick={() => ask(question)}
-                      className="block w-full cursor-pointer rounded-2xl border border-gold-300/15 bg-black/20 px-3 py-2 text-start text-sm leading-6 text-mist-100 transition hover:border-gold-300/40 hover:bg-gold-400/10"
-                    >
-                      {question}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : null}
             {thinking ? <p className="text-xs text-gold-300">…</p> : null}
           </div>
 
           <div className="border-t border-gold-300/10 px-3 py-3">
-            {fresh ? null : (
-              <div className="mb-3 flex flex-wrap gap-1.5">
-                {suggestions.map((question) => (
-                  <button
-                    key={question}
-                    type="button"
-                    onClick={() => ask(question)}
-                    className="cursor-pointer rounded-full border border-gold-300/15 px-2.5 py-1 text-start text-[11px] leading-5 text-mist-300 transition hover:border-gold-300/40 hover:text-mist-100"
-                  >
-                    {question}
-                  </button>
-                ))}
-              </div>
-            )}
+            <p className="mb-2 text-[11px] text-mist-500">{t('assistant.suggestions')}</p>
+            <div className="mb-3 flex flex-wrap gap-1.5">
+              {suggestions.map((question) => (
+                <button
+                  key={question}
+                  type="button"
+                  onClick={() => ask(question)}
+                  className="cursor-pointer rounded-full border border-[#30363d] bg-[#161b22] px-2.5 py-1 text-start text-[11px] leading-5 text-gray-200 transition hover:border-blue-500/50 hover:text-white"
+                >
+                  {question}
+                </button>
+              ))}
+            </div>
             <form
               className="flex items-center gap-2"
               onSubmit={(event) => {

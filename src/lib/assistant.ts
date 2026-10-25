@@ -48,7 +48,7 @@ const intents: { id: Intent; keys: string[] }[] = [
   { id: 'alerts', keys: ['تنبيه', 'تنبيهات', 'alerts', 'alert'] },
   { id: 'decisions', keys: ['قرار', 'قرارات', 'اعتماد', 'decision', 'pending', 'معلقه'] },
   { id: 'finance', keys: ['ماليه', 'ايراد', 'ميزان', 'ربح تشغيلي', 'finance', 'revenue', 'budget', 'profit'] },
-  { id: 'branches', keys: ['الفروع', 'سالميه', 'حولي', 'branches', 'salmiya', 'hawally'] },
+  { id: 'branches', keys: ['قارن الفروع', 'الفروع', 'سالميه', 'حولي', 'الجهراء', 'branches', 'salmiya', 'hawally', 'jahra', 'compare the branches'] },
   { id: 'quality', keys: ['جوده', 'حراره', 'امتثال', 'quality', 'temperature', 'ثلاجه'] },
 ]
 
@@ -75,7 +75,7 @@ function answers(locale: Locale): Record<Intent, Answer> {
   if (locale === 'en') {
     return {
       greeting: {
-        title: 'HQ Assistant',
+        title: 'Aether Assistant',
         paragraphs: [[text('Ask about branch margins, waste, delivery, inventory, alerts, or pending decisions. I answer from the sample data on this dashboard.')]],
       },
       summary: {
@@ -165,6 +165,7 @@ function answers(locale: Locale): Record<Intent, Answer> {
         bullets: [
           [text('Salmiya 03, Pizza Plus: '), num('34,100'), text(' KWD, margin '), num('35.6%'), text(', excellent.')],
           [text('Shuwaikh 01, Burger House: '), num('28,400'), text(' KWD, margin '), num('28.2%'), text(', fair.')],
+          [text('Jahra: margin '), num('31.4%'), text('.')],
           [text('Hawally 05, Burger House: '), num('22,600'), text(' KWD, margin '), num('24.1%'), text(', weak.')],
         ],
       },
@@ -186,7 +187,7 @@ function answers(locale: Locale): Record<Intent, Answer> {
 
   return {
     greeting: {
-      title: 'مساعد المقر',
+      title: 'مساعد Aether',
       paragraphs: [[text('اسأل عن هوامش الفروع، الهدر، التوصيل، المخزون، التنبيهات، أو القرارات المعلقة. أجاوب من البيانات المعروضة في اللوحة.')]],
     },
     summary: {
@@ -276,6 +277,7 @@ function answers(locale: Locale): Record<Intent, Answer> {
       bullets: [
         [text('السالمية 03، بيتزا بلس: '), num('34,100'), text(' د.ك، هامش '), num('35.6%'), text('، ممتاز.')],
         [text('الشويخ 01، برجر هاوس: '), num('28,400'), text(' د.ك، هامش '), num('28.2%'), text('، متوسط.')],
+        [text('الجهراء: هامش '), num('31.4%'), text('.')],
         [text('حولي 05، برجر هاوس: '), num('22,600'), text(' د.ك، هامش '), num('24.1%'), text('، ضعيف.')],
       ],
     },
