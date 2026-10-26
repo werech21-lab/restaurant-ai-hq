@@ -1,0 +1,26 @@
+---
+description: ERP API shape, money, transactions, audit, and locking
+alwaysApply: true
+---
+
+# ERP API and data
+
+Routes live at `/api/v1/<module>/<resource>`. Validate body, params, and query with Zod. Reject invalid input with 400 or 422.
+
+- Status codes: 200, 201, 204, 400, 401, 403, 404, 409, 422, 500.
+- Error body: `{ error: { code: string, message: string, details?: unknown } }`.
+- Lists are cursor-paginated and have a max page size.
+- Create endpoints for financial or inventory records require an `Idempotency-Key` header.
+- Log server failures. Never return stack traces or raw database errors.
+
+```ts
+// Money is integer minor units plus a currency code, never a float.
+type Money = { amountMinor: number; currency: 'KWD' }
+```
+
+- Store timestamps in UTC. Convert only in the UI.
+- Invoice, ledger, and stock writes that belong together run in one database transaction.
+- Do not hard-delete financial records. Reverse them or issue a credit note.
+- Every business create, update, and delete writes an audit row: who, what, when, before, after.
+- Concurrent edits use a `version` column and return 409 on mismatch.
+- Tables that are tenant-scoped include `tenant_id`, `created_at`, `updated_at`, and `created_by`.

@@ -1,0 +1,16 @@
+---
+description: Finance module rules for invoices, payments, tax rounding and approval
+alwaysApply: true
+---
+
+# Finance module
+
+- Tax is per invoice line in basis points. Sum the unrounded line taxes (`net x bps`), then round half up once per invoice. All of it is BigInt in `modules/finance/domain/totals.ts`. Do not round per line and do not use floats.
+- An invoice needs approval only when its total is strictly above `finance_settings.approval_threshold_minor` (5,000.000 KWD by default). Do not hardcode the limit in code or UI. The summary endpoint returns it.
+- Status flow: `draft` → `issued` or `pending_approval` → `issued` → `partially_paid` → `paid`. `void` is final and is refused once any payment exists. Add no new transition without asking.
+- Currency is KWD only. A payment in another currency is a `CurrencyMismatchError`.
+- Invoice and payment creates need an `Idempotency-Key`. Status changes and payments need the invoice `version` and return 409 `version_conflict` on mismatch.
+- Never delete or hand-edit invoices, payments or audit rows. Only draft lines may be replaced, and only inside the draft edit transaction.
+- Browser code imports from `@/modules/finance/client` and `@/modules/crm/client` only. Server code imports from `@/modules/finance` and `@/modules/crm`. Never import `repositories/`, `services/` or `domain/` of another module directly.
+- Finance gets customer data through `findCustomer` from `@/modules/crm`. It stores a `customer_name` snapshot on the invoice and never joins CRM tables.
+- Any change to the rules above needs a finance test (`src/modules/finance/__tests__`). Database behaviour needs a case in `invoice-db.test.ts`.

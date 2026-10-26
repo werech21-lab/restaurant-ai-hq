@@ -1,0 +1,18 @@
+---
+description: CRM module rules for customers, the lead pipeline, quotations and quote-to-cash
+alwaysApply: true
+---
+
+# CRM module
+
+- Customer statuses are `lead`, `prospect`, `active`, `blocked`. Only `active` customers can be invoiced. Never change a customer's status as a side effect of another action. Customers are never deleted: block them.
+- Lead stages `new`, `contacted`, `qualified`, `proposal` move freely. `won` and `lost` are final and make the lead read-only. Probability is 100 when won and 0 when lost, and the database enforces it.
+- Quotation statuses: `draft` → `sent` → `accepted` | `rejected` | `expired`, then `accepted` → `converted`. `rejected`, `expired` and `converted` are final. Only a draft is editable. Add no transition without asking. Accepting only records the customer's decision.
+- A sent quotation past `valid_until` cannot be accepted (409 `quote_expired`). There is no scheduler, so the UI shows it as expired through `effectiveStatus`.
+- A quotation line has the same shape as an invoice line. Tax is per line in basis points, summed unrounded and rounded half up once per document with `computeTotals` from `@/modules/finance/client`. Never round per line, never use floats.
+- Quote-to-cash is `convertQuotation` only, run by the Convert button, in one transaction: lock the quotation and the customer, check stock, check the credit limit, create and submit the invoice with `createInvoiceWithin` and `submitInvoiceWithin` from `@/modules/finance`, mark the quotation converted, win an open lead, write audit rows. Events go out after commit.
+- The invoice is submitted by the normal finance rules, so the approval limit and stock deduction are finance's. CRM never writes `stock_movements` or `invoices` itself and never reads their tables.
+- Credit check: open balance (issued and partially paid invoices) plus the new invoice total must not exceed `credit_limit_minor`, which is 409 `credit_limit_exceeded`. A null limit means no limit.
+- Conversion requires `crm.quotation.convert`, `finance.invoice.create` and `finance.invoice.submit`. It needs an `Idempotency-Key` and the quotation `version`.
+- Browser code imports from `@/modules/crm/client` only. Server code imports from `@/modules/crm`. Screens live in `src/modules/crm/ui/` and use `@/modules/inventory/client` and `@/modules/finance/client` for types and pure rules.
+- Any change to these rules needs a test in `src/modules/crm/__tests__`. Database behaviour needs a case in `crm-db.test.ts`.

@@ -1,0 +1,33 @@
+/** RBAC permissions in the form `<module>.<entity>.<action>`. Roles map to these in the `role_permissions` table. */
+export const permissions = {
+  financeInvoiceRead: 'finance.invoice.read',
+  financeInvoiceCreate: 'finance.invoice.create',
+  financeInvoiceUpdate: 'finance.invoice.update',
+  financeInvoiceSubmit: 'finance.invoice.submit',
+  financeInvoiceApprove: 'finance.invoice.approve',
+  financeInvoiceVoid: 'finance.invoice.void',
+  financePaymentCreate: 'finance.payment.create',
+  crmCustomerRead: 'crm.customer.read',
+  crmCustomerCreate: 'crm.customer.create',
+  crmCustomerUpdate: 'crm.customer.update',
+  crmLeadRead: 'crm.lead.read',
+  crmLeadCreate: 'crm.lead.create',
+  crmLeadUpdate: 'crm.lead.update',
+  crmQuotationRead: 'crm.quotation.read',
+  crmQuotationCreate: 'crm.quotation.create',
+  crmQuotationUpdate: 'crm.quotation.update',
+  crmQuotationAccept: 'crm.quotation.accept',
+  crmQuotationConvert: 'crm.quotation.convert',
+  inventoryItemRead: 'inventory.item.read',
+  inventoryItemCreate: 'inventory.item.create',
+  inventoryItemUpdate: 'inventory.item.update',
+  inventoryWarehouseRead: 'inventory.warehouse.read',
+  inventoryWarehouseCreate: 'inventory.warehouse.create',
+  inventoryWarehouseUpdate: 'inventory.warehouse.update',
+  inventoryStockRead: 'inventory.stock.read',
+  inventoryStockAdjust: 'inventory.stock.adjust',
+} as const
+
+export type Permission = (typeof permissions)[keyof typeof permissions]
+
+export const allPermissions: readonly Permission[] = Object.values(permissions)

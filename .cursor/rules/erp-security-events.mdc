@@ -1,0 +1,17 @@
+---
+description: ERP auth, tenant scope, domain events, and the AI module boundary
+alwaysApply: true
+---
+
+# ERP security and events
+
+- Every endpoint checks authentication and an RBAC permission such as `finance.invoice.approve`.
+- Every query is scoped by tenant, and by the caller's permissions when that matters.
+- Read secrets from environment variables validated at startup. Do not commit them.
+
+Event names are `<module>.<entity>.<past-tense-verb>`, for example `inventory.stock.depleted`. Payloads are typed and versioned.
+
+- Emit an event only after the database transaction commits. Use an outbox when a queue is involved.
+- Handlers are idempotent. A handler failure must not crash the emitter.
+- The AI module may consume events and return suggestions or call another module's public API. It must not write another module's tables.
+- Until a queue is chosen, an in-process emitter is acceptable. Do not add Redis or WebSockets unless asked.

@@ -1,0 +1,19 @@
+---
+description: ERP modular-monolith boundaries, stack, and when to stop and ask
+alwaysApply: true
+---
+
+# ERP core
+
+Match the code already in the repo. If it conflicts with this rule, follow the repo and say so. Do not invent tax, pricing, approval, or accounting rules. Ask instead.
+
+Current Aether BI app conflicts with the target stack: Next.js 14 App Router, Tailwind only (no shadcn), Supabase for products, no Prisma/Drizzle, Zod, Nest, queues, or test runner. Do not replace that stack unless asked. New ERP modules use the layout below.
+
+- TypeScript strict. No `any`. Narrow `unknown`.
+- Modules: `finance`, `crm`, `inventory`, `hr`, `ai` under `src/modules/<module>/`.
+- A module exports only from `index.ts`. No imports of another module's internals and no direct queries of its tables. Cross-module work goes through that public API or a domain event.
+- Layout inside a module: `domain/`, `services/`, `repositories/`, `events/`, `api/v1/`, `schemas/`, `__tests__/`.
+- Shared UI is `src/components/ui/`. Shared infra is `src/lib/` (db, logger, event bus, auth).
+- Schema changes are migrations only: `database/schema/`, `database/migrations/`. Do not hand-edit a migration after it is merged.
+- Business logic stays in `domain/` and `services/`, not in route handlers or React components.
+- For a multi-file change, state a short plan, then implement it step by step.

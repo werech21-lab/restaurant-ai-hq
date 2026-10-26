@@ -1,0 +1,18 @@
+---
+description: Inventory module rules for items, warehouses, the stock ledger and invoice stock deduction
+alwaysApply: true
+---
+
+# Inventory module
+
+- Stock changes only by inserting rows into `stock_movements`. The ledger is append-only: never update or delete a movement. Fix a mistake with a reversing movement.
+- `quantity` is a signed whole number. IN is positive, OUT is negative, a TRANSFER is two rows that share a `reference_id`. Per movement the limit is 1,000,000. No fractions.
+- `stock_balances` and `items.current_stock` are maintained by the `apply_stock_movement` trigger. Never write them from code. `on_hand` must stay at or above zero, and the database enforces it.
+- Lock the affected items in id order (`for update`) before checking shortages, so concurrent writers cannot both pass.
+- Valuation is `current_stock x unit_cost_minor`. Do not invent another costing method (FIFO, average) without asking.
+- Finance deducts stock when an invoice becomes `issued` and restores it when an issued, unpaid invoice is voided. It does this only through `issueInvoiceStock`, `restoreInvoiceStock` and `validateStockLines` from `@/modules/inventory`, inside its own transaction. Finance never reads inventory tables.
+- Insufficient stock blocks the issue with 409 `insufficient_stock`. Do not add backorders or negative stock.
+- An inactive item or warehouse can lose stock but cannot receive it or be sold.
+- Browser code imports from `@/modules/inventory/client` only. Server code imports from `@/modules/inventory`. Screens live in `src/modules/inventory/ui/`.
+- Publish inventory events only after the transaction commits.
+- Any change to these rules needs a test in `src/modules/inventory/__tests__`. Database behaviour needs a case in `inventory-db.test.ts`.

@@ -1,0 +1,14 @@
+---
+description: ERP UI states, shared components, tests, and logging
+alwaysApply: true
+---
+
+# ERP UI and quality
+
+- Reuse `src/components/ui/` before adding a component. The current dashboard uses Tailwind, Cairo, and RTL. Do not add shadcn/ui unless asked.
+- Tables paginate, sort, and filter on the server.
+- Async screens show loading, empty, and error states.
+- Forms use the same Zod schema as the API.
+- No `// TODO`, stubs, or placeholder business logic. If a fact is missing, ask.
+- A service function that contains business logic gets a unit test. Finance and inventory tests cover rounding, zero, negatives, and a currency mismatch.
+- Log through `src/lib/logger`. Do not commit `console.log`.

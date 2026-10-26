@@ -1,6 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
+import Link from 'next/link'
 import type { SectionId } from '@/lib/nav'
 import { navGroups } from '@/lib/nav'
 import { useI18n, type MessageKey } from '@/lib/i18n'
@@ -173,6 +174,33 @@ export default function Sidebar({
           </div>
         ))}
       </nav>
+
+      <div className="px-3 pb-2">
+        <Link
+          href="/erp/finance"
+          className="flex w-full items-center rounded-2xl px-3 py-2.5 text-sm text-mist-400 transition hover:bg-white/[0.03] hover:text-mist-100"
+        >
+          {t('erp.nav')}
+        </Link>
+        <Link
+          href="/erp/inventory"
+          className="flex w-full items-center rounded-2xl px-3 py-2.5 text-sm text-mist-400 transition hover:bg-white/[0.03] hover:text-mist-100"
+        >
+          {t('inv.nav')}
+        </Link>
+        <Link
+          href="/erp/crm"
+          className="flex w-full items-center rounded-2xl px-3 py-2.5 text-sm text-mist-400 transition hover:bg-white/[0.03] hover:text-mist-100"
+        >
+          {t('crm.nav')}
+        </Link>
+        <Link
+          href="/admin"
+          className="flex w-full items-center rounded-2xl px-3 py-2.5 text-sm text-mist-400 transition hover:bg-white/[0.03] hover:text-mist-100"
+        >
+          {t('admin.nav')}
+        </Link>
+      </div>
 
       <div className="m-3 flex items-center gap-3 rounded-2xl border border-gold-300/10 bg-black/20 px-3 py-3">
         <div className="grid h-9 w-9 place-items-center rounded-full border border-gold-300/30 text-sm font-semibold text-gold-300">{t('ownerInitial')}</div>
