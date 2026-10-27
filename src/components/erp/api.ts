@@ -1,3 +1,4 @@
+import { DomainError } from '@/lib/domain-error'
 import type { MessageKey } from '@/lib/i18n'
 
 export class ApiError extends Error {
@@ -113,16 +114,84 @@ const errorKeys: Record<string, MessageKey> = {
   proposal_stale: 'ai.err.proposal_stale',
   customer_already_blocked: 'ai.err.customer_already_blocked',
   condition_invalid: 'ai.err.condition_invalid',
+  order_not_found: 'pro.err.not_found',
+  request_not_found: 'pro.err.not_found',
+  receipt_not_found: 'pro.err.not_found',
+  supplier_not_found: 'pro.err.not_found',
+  order_line_not_found: 'pro.err.not_found',
+  request_line_not_found: 'pro.err.not_found',
+  account_not_found: 'pro.err.not_found',
+  order_not_draft: 'pro.err.order_state',
+  order_not_pending: 'pro.err.order_state',
+  order_not_cancellable: 'pro.err.order_state',
+  order_not_receivable: 'pro.err.order_not_receivable',
+  order_not_invoiceable: 'pro.err.order_not_invoiceable',
+  request_not_draft: 'pro.err.request_state',
+  request_not_submitted: 'pro.err.request_state',
+  request_not_approved: 'pro.err.request_state',
+  request_not_cancellable: 'pro.err.request_state',
+  duplicate_invoice_line: 'pro.err.duplicate_line',
+  duplicate_receipt_line: 'pro.err.duplicate_line',
+  duplicate_request_line: 'pro.err.duplicate_line',
+  over_receipt: 'pro.err.over_receipt',
+  over_invoice: 'pro.err.over_invoice',
+  nothing_to_invoice: 'pro.err.nothing_to_invoice',
+  total_mismatch: 'pro.err.total_mismatch',
+  accounts_not_configured: 'pro.err.accounts_not_configured',
+  accounts_not_distinct: 'pro.err.accounts_not_distinct',
+  account_not_postable: 'pro.err.account_invalid',
+  account_type_invalid: 'pro.err.account_invalid',
+  no_fiscal_period: 'pro.err.no_fiscal_period',
+  period_closed: 'pro.err.period_closed',
+  duplicate_supplier_invoice: 'pro.err.duplicate_supplier_invoice',
+  supplier_blocked: 'pro.err.supplier_blocked',
+  supplier_code_exists: 'pro.err.supplier_code_exists',
+  request_line_unpriced: 'pro.err.request_line_unpriced',
+  zero_invoice: 'pro.err.zero_invoice',
+  currency_mismatch: 'pro.err.currency_mismatch',
+  invoice_not_posted: 'pro.err.invoice_not_posted',
+  rule_violation: 'pro.err.rule_violation',
+  over_return: 'pro.err.over_return',
+  over_credit: 'pro.err.over_credit',
+  over_payment: 'pro.err.over_payment',
+  nothing_to_return: 'pro.err.nothing_to_return',
+  nothing_to_credit: 'pro.err.nothing_to_credit',
+  duplicate_return_line: 'pro.err.duplicate_line',
+  duplicate_credit_line: 'pro.err.duplicate_line',
+  duplicate_allocation: 'pro.err.duplicate_line',
+  invoice_line_not_found: 'pro.err.not_found',
+  return_not_found: 'pro.err.not_found',
+  credit_note_not_found: 'pro.err.not_found',
+  payment_not_found: 'pro.err.not_found',
+  duplicate_supplier_credit_note: 'pro.err.duplicate_supplier_credit_note',
+  duplicate_payment_reference: 'pro.err.duplicate_payment_reference',
+  allocation_mismatch: 'pro.err.allocation_mismatch',
+  supplier_mismatch: 'pro.err.supplier_mismatch',
+  payment_before_invoice: 'pro.err.payment_before_invoice',
+  zero_amount: 'pro.err.zero_amount',
+  invalid_price: 'pro.err.invalid_price',
+  price_variance_exceeded: 'pro.err.price_variance_exceeded',
+  tax_variance_exceeded: 'pro.err.tax_variance_exceeded',
+  invoice_has_payments: 'pro.err.invoice_has_payments',
+  invoice_has_credit_notes: 'pro.err.invoice_has_credit_notes',
+  accounting_locked: 'pro.err.accounting_locked',
+  credit_note_not_posted: 'pro.err.document_not_posted',
+  payment_not_posted: 'pro.err.document_not_posted',
 }
+
+const detailCodes = ['insufficient_stock', 'over_receipt', 'over_invoice', 'over_return', 'over_credit', 'over_payment']
 
 /** The server's own message for errors whose detail helps the user, such as which SKU is short. Otherwise null. */
 export function errorDetail(error: unknown): string | null {
-  if (error instanceof ApiError && error.code === 'insufficient_stock') return error.message
+  if (error instanceof ApiError && detailCodes.includes(error.code)) return error.message
   return null
 }
 
-/** Picks the translated message for a failed request. Unknown codes fall back to a generic message. */
+/**
+ * Picks the translated message for a failed request. A rule the screen checked itself before sending (a DomainError from the
+ * shared pure rules) maps the same way as the server's answer. Unknown codes fall back to a generic message.
+ */
 export function errorKey(error: unknown): MessageKey {
-  if (error instanceof ApiError) return errorKeys[error.code] ?? 'erp.err.generic'
+  if (error instanceof ApiError || error instanceof DomainError) return errorKeys[error.code] ?? 'erp.err.generic'
   return 'erp.err.generic'
 }

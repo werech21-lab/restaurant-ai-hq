@@ -201,6 +201,12 @@ export default function Sidebar({
           {t('inv.nav')}
         </Link>
         <Link
+          href="/erp/procurement"
+          className="flex w-full items-center rounded-2xl px-3 py-2.5 text-sm text-mist-400 transition hover:bg-white/[0.03] hover:text-mist-100"
+        >
+          {t('pro.nav')}
+        </Link>
+        <Link
           href="/erp/crm"
           className="flex w-full items-center rounded-2xl px-3 py-2.5 text-sm text-mist-400 transition hover:bg-white/[0.03] hover:text-mist-100"
         >

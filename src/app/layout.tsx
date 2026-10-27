@@ -23,9 +23,10 @@ export const metadata: Metadata = {
   },
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const locale: Locale = cookies().get('ai-hq-locale')?.value === 'en' ? 'en' : 'ar'
-  const theme: Theme = cookies().get('ai-hq-theme')?.value === 'light' ? 'light' : 'dark'
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const cookieStore = await cookies()
+  const locale: Locale = cookieStore.get('ai-hq-locale')?.value === 'en' ? 'en' : 'ar'
+  const theme: Theme = cookieStore.get('ai-hq-theme')?.value === 'light' ? 'light' : 'dark'
 
   return (
     <html lang={locale} dir={locale === 'en' ? 'ltr' : 'rtl'} data-theme={theme} className={cairo.variable}>

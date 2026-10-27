@@ -5,7 +5,7 @@ import AiWorkspace from '@/modules/ai/ui/AiWorkspace'
 export const dynamic = 'force-dynamic'
 
 export default async function AiPage() {
-  const supabase = createClient()
+  const supabase = await createClient()
   if (!supabase) redirect('/login?next=/erp/ai')
 
   const {

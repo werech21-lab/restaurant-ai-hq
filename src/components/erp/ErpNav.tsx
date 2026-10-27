@@ -63,6 +63,18 @@ const links: readonly NavLink[] = [
     ),
   },
   {
+    href: '/erp/procurement',
+    label: 'erpnav.procurement',
+    exact: false,
+    icon: (
+      <Glyph>
+        <path d="M3 5h2l2 10h10l2-7H6.5" />
+        <circle cx="9" cy="19" r="1.2" />
+        <circle cx="17" cy="19" r="1.2" />
+      </Glyph>
+    ),
+  },
+  {
     href: '/erp/crm',
     label: 'erpnav.crm',
     exact: false,

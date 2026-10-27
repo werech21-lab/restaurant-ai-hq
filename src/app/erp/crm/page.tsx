@@ -5,8 +5,9 @@ import CrmWorkspace from '@/modules/crm/ui/CrmWorkspace'
 
 export const dynamic = 'force-dynamic'
 
-export default async function CrmPage({ searchParams }: { searchParams: { customer?: string | string[] } }) {
-  const supabase = createClient()
+export default async function CrmPage({ searchParams }: { searchParams: Promise<{ customer?: string | string[] }> }) {
+  const query = await searchParams
+  const supabase = await createClient()
   if (!supabase) redirect('/login?next=/erp/crm')
 
   const {
@@ -16,7 +17,7 @@ export default async function CrmPage({ searchParams }: { searchParams: { custom
 
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6">
-      <CrmWorkspace initialCustomerId={deepLinkId(searchParams.customer)} />
+      <CrmWorkspace initialCustomerId={deepLinkId(query.customer)} />
     </main>
   )
 }
