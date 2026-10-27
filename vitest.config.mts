@@ -14,5 +14,8 @@ export default defineConfig({
     // so the default 10 s hook limit fails on a busy machine.
     hookTimeout: 120_000,
     testTimeout: 60_000,
+    // Every database file replays all migrations in memory. Two workers keep the run inside 8 GB machines.
+    // CI and developers can still override this with --maxWorkers.
+    maxWorkers: 2,
   },
 })
