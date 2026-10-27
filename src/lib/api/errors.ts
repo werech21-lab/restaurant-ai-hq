@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-export type ErrorStatus = 400 | 401 | 403 | 404 | 409 | 422 | 500
+export type ErrorStatus = 400 | 401 | 403 | 404 | 409 | 422 | 429 | 500
 
 export type ErrorBody = { error: { code: string; message: string; details?: unknown } }
 

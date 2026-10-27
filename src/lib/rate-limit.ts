@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server'
-import type { ErrorBody } from '@/lib/api/errors'
+import type { NextResponse } from 'next/server'
+import { type ErrorBody, errorResponse } from '@/lib/api/errors'
 
 /**
  * A fixed-window request counter held in the memory of one Node process.
@@ -121,17 +121,11 @@ export const RATE_LIMITED_CODE = 'rate_limited'
 /** The tenant slot for the few calls made before a person belongs to a company. No tenant id can ever equal it. */
 export const SESSION_SCOPE = 'session'
 
-/**
- * 429 in the project's error body. `errorResponse` only types the statuses the rest of the API returns, so this response is
- * built here rather than widening that union.
- */
+/** 429 in the project's error body, with the header that tells a client how long to wait. */
 export function rateLimitedResponse(retryAfterSeconds: number): NextResponse<ErrorBody> {
-  const body: ErrorBody = {
-    error: {
-      code: RATE_LIMITED_CODE,
-      message: 'Too many requests. Wait a moment and try again.',
-      details: { retryAfterSeconds },
-    },
-  }
-  return NextResponse.json(body, { status: 429, headers: { 'Retry-After': String(retryAfterSeconds) } })
+  const response = errorResponse(429, RATE_LIMITED_CODE, 'Too many requests. Wait a moment and try again.', {
+    retryAfterSeconds,
+  })
+  response.headers.set('Retry-After', String(retryAfterSeconds))
+  return response
 }
