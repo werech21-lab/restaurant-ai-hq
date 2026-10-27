@@ -51,6 +51,19 @@ const links: readonly NavLink[] = [
     ),
   },
   {
+    href: '/erp/ledger',
+    label: 'erpnav.ledger',
+    exact: false,
+    icon: (
+      <Glyph>
+        <path d="M5 5.5A1.5 1.5 0 016.5 4H18v16H6.5A1.5 1.5 0 015 18.5v-13z" />
+        <path d="M9 8h6" />
+        <path d="M9 12h6" />
+        <path d="M9 16h3" />
+      </Glyph>
+    ),
+  },
+  {
     href: '/erp/inventory',
     label: 'erpnav.inventory',
     exact: false,
