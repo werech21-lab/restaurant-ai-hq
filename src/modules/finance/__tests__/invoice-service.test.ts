@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AppError } from '@/lib/api/errors'
 import type { AuthContext } from '@/lib/auth/context'
 import { DomainError } from '@/lib/domain-error'
+import { CurrencyMismatchError } from '@/lib/money'
 import type { Invoice, InvoiceLine } from '@/modules/finance/domain/types'
 import type { FinanceEvent } from '@/modules/finance/events'
 
@@ -389,6 +390,30 @@ describe('recordPayment', () => {
       code: 'payment_exceeds_balance',
     })
     expect(repository.insertPayment).not.toHaveBeenCalled()
+    expect(publishFinanceEvents).not.toHaveBeenCalled()
+  })
+
+  it('rejects a non-KWD payment with CurrencyMismatchError before inserting, changing or auditing anything', async () => {
+    vi.mocked(repository.findInvoice).mockResolvedValue(invoice({ status: 'issued' }))
+    await expect(
+      recordPayment(auth, INVOICE_ID, 'key-12345678', { ...body(40_000), currency: 'USD' as unknown as 'KWD' })
+    ).rejects.toBeInstanceOf(CurrencyMismatchError)
+    expect(repository.insertPayment).not.toHaveBeenCalled()
+    expect(repository.applyStatusChange).not.toHaveBeenCalled()
+    expect(writeAudit).not.toHaveBeenCalled()
+    expect(publishFinanceEvents).not.toHaveBeenCalled()
+  })
+
+  it('rejects zero and negative payments with payment_not_positive before inserting anything', async () => {
+    vi.mocked(repository.findInvoice).mockResolvedValue(invoice({ status: 'issued' }))
+    for (const amountMinor of [0, -1, -40_000]) {
+      await expect(recordPayment(auth, INVOICE_ID, 'key-12345678', body(amountMinor))).rejects.toMatchObject({
+        code: 'payment_not_positive',
+      })
+    }
+    expect(repository.insertPayment).not.toHaveBeenCalled()
+    expect(repository.applyStatusChange).not.toHaveBeenCalled()
+    expect(writeAudit).not.toHaveBeenCalled()
     expect(publishFinanceEvents).not.toHaveBeenCalled()
   })
 })

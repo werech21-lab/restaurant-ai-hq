@@ -15,6 +15,7 @@ vi.mock('@/lib/db', async () => {
   return { db: support.testDb, withTransaction: support.testWithTransaction }
 })
 
+import { CurrencyMismatchError } from '@/lib/money'
 import { createCustomer } from '@/modules/crm'
 import {
   approveInvoice,
@@ -240,6 +241,76 @@ describe('payments and void', () => {
     await expectRejection(voidInvoice(authA, draft.id, { version: voided.data.version, reason: 'again' }), { code: 'invalid_transition' })
     const still = await getInvoice(authA, draft.id)
     expect(still.data.number).toBe(draft.number)
+  })
+
+  describe('rejected payments leave no trace', () => {
+    async function snapshot(invoiceId: string) {
+      const database = getPglite()
+      const payments = await database.query<{ count: number }>('select count(*)::int as count from payments where tenant_id = $1', [authA.tenantId])
+      const invoiceAudit = await database.query<{ count: number }>(
+        'select count(*)::int as count from audit_log where tenant_id = $1 and entity_id = $2',
+        [authA.tenantId, invoiceId]
+      )
+      const paymentAudit = await database.query<{ count: number }>(
+        "select count(*)::int as count from audit_log where tenant_id = $1 and entity = 'payment'",
+        [authA.tenantId]
+      )
+      const keys = await database.query<{ count: number }>('select count(*)::int as count from idempotency_keys where tenant_id = $1', [authA.tenantId])
+      const row = await database.query<{ status: string; paid_minor: number; version: number }>(
+        'select status, paid_minor::int as paid_minor, version from invoices where id = $1',
+        [invoiceId]
+      )
+      return {
+        payments: payments.rows[0].count,
+        invoiceAudit: invoiceAudit.rows[0].count,
+        paymentAudit: paymentAudit.rows[0].count,
+        keys: keys.rows[0].count,
+        invoice: row.rows[0],
+        recordedEvents: events.filter((event) => event.name === 'finance.payment.recorded').length,
+      }
+    }
+
+    it('rejects a non-KWD payment with CurrencyMismatchError and changes nothing', async () => {
+      const draft = await createDraft(10_000)
+      const issued = (await submitInvoice(authA, draft.id, { version: draft.version })).data
+      const before = await snapshot(draft.id)
+
+      await expect(
+        recordPayment(authA, draft.id, nextKey(), { ...pay(issued.version, 4_000), currency: 'USD' as unknown as 'KWD' })
+      ).rejects.toBeInstanceOf(CurrencyMismatchError)
+
+      expect(await snapshot(draft.id)).toEqual(before)
+      expect(before.invoice).toEqual({ status: 'issued', paid_minor: 0, version: issued.version })
+      const detail = await getInvoice(authA, draft.id)
+      expect(detail.data).toMatchObject({ status: 'issued', paidMinor: 0, version: issued.version })
+      expect(detail.data.payments).toHaveLength(0)
+    })
+
+    it('still accepts a KWD payment with the same key after a currency mismatch was rejected', async () => {
+      const draft = await createDraft(10_000)
+      const issued = (await submitInvoice(authA, draft.id, { version: draft.version })).data
+      const key = nextKey()
+      await expect(
+        recordPayment(authA, draft.id, key, { ...pay(issued.version, 4_000), currency: 'USD' as unknown as 'KWD' })
+      ).rejects.toBeInstanceOf(CurrencyMismatchError)
+
+      const accepted = await recordPayment(authA, draft.id, key, pay(issued.version, 4_000))
+      expect(accepted.replayed).toBe(false)
+      expect(accepted.body.data.invoice).toMatchObject({ status: 'partially_paid', paidMinor: 4_000 })
+      expect(accepted.body.data.invoice.payments).toHaveLength(1)
+    })
+
+    it('rejects zero and negative payments with payment_not_positive and changes nothing', async () => {
+      const draft = await createDraft(10_000)
+      const issued = (await submitInvoice(authA, draft.id, { version: draft.version })).data
+      const before = await snapshot(draft.id)
+
+      for (const amountMinor of [0, -1, -4_000]) {
+        await expectRejection(recordPayment(authA, draft.id, nextKey(), pay(issued.version, amountMinor)), { code: 'payment_not_positive' })
+      }
+
+      expect(await snapshot(draft.id)).toEqual(before)
+    })
   })
 })
 
