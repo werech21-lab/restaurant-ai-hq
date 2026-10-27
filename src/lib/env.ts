@@ -5,6 +5,7 @@ import { logger } from '@/lib/logger'
 const envSchema = z.object({
   DATABASE_URL: z.string().url(),
   DATABASE_SSL: z.enum(['require', 'verify', 'disable']).default('require'),
+  DATABASE_SSL_CA: z.string().optional(),
   NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
 })
@@ -19,6 +20,7 @@ export function getEnv(): Env {
   const parsed = envSchema.safeParse({
     DATABASE_URL: process.env.DATABASE_URL,
     DATABASE_SSL: process.env.DATABASE_SSL,
+    DATABASE_SSL_CA: process.env.DATABASE_SSL_CA || undefined,
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   })

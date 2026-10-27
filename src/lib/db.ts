@@ -1,4 +1,5 @@
 import { Pool, types, type PoolClient, type QueryResult, type QueryResultRow } from 'pg'
+import { sslOptions } from '@/lib/db-ssl'
 import { getEnv } from '@/lib/env'
 import { errorFields, logger } from '@/lib/logger'
 
@@ -22,7 +23,10 @@ const globalForPool = globalThis as unknown as { erpPool?: Pool }
 function getPool(): Pool {
   if (globalForPool.erpPool) return globalForPool.erpPool
   const env = getEnv()
-  const ssl = env.DATABASE_SSL === 'disable' ? false : env.DATABASE_SSL === 'verify' ? true : { rejectUnauthorized: false }
+  if (process.env.NODE_ENV === 'production' && env.DATABASE_SSL !== 'verify') {
+    logger.warn('The database certificate is not verified. Set DATABASE_SSL=verify (and DATABASE_SSL_CA) in production.')
+  }
+  const ssl = sslOptions(env.DATABASE_SSL, env.DATABASE_SSL_CA)
   const pool = new Pool({ connectionString: env.DATABASE_URL, ssl, max: 5 })
   pool.on('error', (error) => logger.error('Idle database client error', errorFields(error)))
   globalForPool.erpPool = pool

@@ -25,3 +25,6 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
+# staging and production env files hold real credentials
+.env.staging
+.env.production
