@@ -1,6 +1,6 @@
 # Aether BI ERP: architecture
 
-This is a modular monolith inside the existing Next.js 14 app. It is deployed on Vercel and uses Supabase for authentication and Postgres.
+This is a modular monolith inside the existing Next.js 15 app (React 19). It is deployed on Vercel and uses Supabase for authentication and Postgres.
 
 ## What is built and what is not
 
@@ -18,8 +18,11 @@ This is a modular monolith inside the existing Next.js 14 app. It is deployed on
 ```
 restaurant-ai-hqw/
   database/
-    migrations/            0001_core, 0002_crm, 0003_inventory, 0004_finance, 0005_bootstrap, 0006_inventory_ops, 0007_crm_sales, 0008_ai_automation
+    migrations/            0001_core, 0002_crm, 0003_inventory, 0004_finance, 0005_bootstrap, 0006_inventory_ops, 0007_crm_sales, 0008_ai_automation, 0009_products_tenant, 0010_iam (0009 and 0010 are written and tested, not applied anywhere)
   scripts/migrate.mjs      applies migrations in order, refuses to run a migration that was edited after it was applied
+  scripts/staging-validate.mjs  isolation checks for a STAGING database, always rolled back (never run from here)
+  scripts/products-report.mjs   read-only count of products without tenant_id (never run from here)
+  docs/IAM.md, EVENT_DESIGN.md, ERP_CORE_DESIGN.md, STAGING_VALIDATION_PLAN.md   Phase 1.2 designs
   docs/ERP_ARCHITECTURE.md
   src/
     app/
@@ -245,15 +248,36 @@ Limit: on Vercel an in-process emitter only reaches handlers in the same functio
 
 ## Tests
 
-`npm test` runs 474 tests. The integration tests apply the real migrations to an in-process Postgres (PGlite) and run the real repositories and services against it. PGlite is not Supabase, so it does not test the pooled connection or Supabase's real JWT/`auth.uid()`. It does test, through `src/lib/__tests__`:
+`npm test` runs 652 tests. The integration tests apply the real migrations to an in-process Postgres (PGlite) and run the real repositories and services against it. PGlite is not Supabase, so it does not test the pooled connection or Supabase's real JWT/`auth.uid()`. It does test, through `src/lib/__tests__`:
 
 - `auth-context.test.ts`: `authenticate()` and `protectedRoute` (401, 403, tenant header rules, suspended tenant, no error leakage), with Supabase's `getUser` replaced by a fake.
 - `security-db.test.ts`: RLS and privileges as the real `anon` and `authenticated` roles, with Supabase's default grants emulated. Tenant isolation, permission gating, write blocking, closed functions.
 - `migration-safety.test.ts`: a database holding data at `0005` is upgraded to the latest migration and every row must survive. Also the `0006` guard that refuses to run over an old ledger with rows, and a scan that migrations never `delete`, `truncate` or drop a schema.
 - `integrity-db.test.ts`: after a mixed invoice, payment, void, transfer, race and AI restock scenario, the ledger equals the balances, invoices equal their lines and payments, history is append-only and every change has an audit row.
 - `architecture.test.ts`: module import boundaries, no cross-module table access, no `console`, `any` or `ts-ignore` in production code.
+- `api-access-matrix.test.ts`: every API route and method is called as an anonymous caller (401), a caller without the permission (403), a viewer, and a user of another company; the permission each route demands is pinned.
+- `tenant-isolation-db.test.ts`: two companies with two branches (warehouses) each. Reads, updates, payments, stock moves, quotation conversion and AI approvals aimed across companies are refused and leave every table unchanged (row-hash snapshot).
+- `security-headers.test.ts`: the CSP and the other response headers, including that a crafted Supabase URL cannot inject a directive.
+- `migrate-lib.test.ts`: the migration planner (pending, changed, out of order, baseline) and that every baseline sentinel exists in the real migrations.
 
-`npm run lint` (`next lint`, `next/core-web-vitals`) runs ESLint.
+`npm run lint` runs ESLint on `src` and `scripts`.
+- `products-rls-db.test.ts`: the legacy `products` table before and after migration `0009` on a database that already holds rows (company isolation, permissions, sign-up accounts, privilege escalation, no permissive policy in any SQL file).
+- `admin-actions.test.ts` and `db-ssl.test.ts`: the admin server actions and the TLS options.
+- `src/modules/inventory/__tests__/product*.test.ts`: the product service, schemas and exact-fils pricing.
+
+## Identity and access (Phase 1.2)
+
+Invitations and role management live in `src/lib/iam/` (shared infrastructure; `iam` is not one of the five modules in `erp-core.mdc`, so this is a deviation to confirm). Migration `0010_iam.sql` adds `tenant_invitations` (hashed one-time token, `token_hash` unreadable through the database API), the `iam.*` permissions (owner only) and system-role flags. Seven routes under `/api/v1/iam`; six check an RBAC permission, and `invitations/accept` needs only a signed-in session (it is the one documented exception and is tested in the access matrix). No role is ever granted by default and nobody can grant more than they hold. Details: `docs/IAM.md`. The management screens are not built.
+
+Tests added in Phase 1.2: `iam-domain` (17), `iam-db` (33), `invitations-rls-db` (7), `products-report-db` (6), `staging-validation-db` (9), `event-catalogue` (2), plus the access matrix now covers 49 routes and 65 methods.
+
+## Products (tenant owned)
+
+`products` belongs to the inventory module. Browsers can only SELECT, through one policy that checks membership and `inventory.item.read`. Writes go through `product-service.ts` with `inventory.item.create` and `inventory.item.update`, the tenant taken from the caller's database membership, a version check and an audit row. The admin screen uses server actions that call `authenticateUser` (the same checks as `authenticate` without a request object).
+
+## Migration runner
+
+`npm run db:migrate` applies pending migrations. `npm run db:migrate -- --status` is read-only. `npm run db:migrate -- --baseline <file>` is a dry run that lists what it would record. Adding `--confirm` writes rows to `schema_migrations` only; no migration SQL runs. The normal run refuses a database that has tables but no history, a changed file, and an out-of-order history.
 
 ## Conflicts with the rules
 
@@ -283,3 +307,8 @@ Limit: on Vercel an in-process emitter only reaches handlers in the same functio
 ## What this does not claim
 
 The brief asks for something that "outperforms Odoo". I cannot guarantee that. What is here is a small, tested finance slice with keyset pagination, indexes for the list sorts, and database-enforced integrity. Measure it against your own data before comparing.
+
+
+## Phase 1.3 addendum
+
+New modules org (brands, branches), finance ledger (accounts, periods, journal entries) and procurement (suppliers, purchase orders, goods receipts feeding stock_movements through eceivePurchaseWithin). Migrations  011 to  013, none applied to a real database. See PHASE_1_3_REPORT.md and ERP_CORE_DESIGN.md section 12.
