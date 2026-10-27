@@ -23,7 +23,7 @@ vi.mock('@/lib/supabase/server', () => ({
       : null,
 }))
 
-import { authenticate } from '@/lib/auth/context'
+import { authenticate, readSessionPermissions } from '@/lib/auth/context'
 import { allPermissions, permissions, type Permission } from '@/lib/auth/permissions'
 import { protectedRoute, toErrorResponse } from '@/lib/api/route'
 
@@ -84,6 +84,48 @@ afterAll(stopDatabase)
 beforeEach(() => {
   currentUser = null
   supabaseConfigured = true
+})
+
+describe('readSessionPermissions (the display hint a page hands to the screen)', () => {
+  it('lists exactly the permissions of the role, sorted, without duplicates', async () => {
+    const owner = await newOwner()
+    const member = await addMember(owner.tenantId, owner.userId, [permissions.procurementPaymentRead, permissions.financeInvoiceRead])
+    currentUser = { id: member }
+    expect(await readSessionPermissions()).toEqual([permissions.financeInvoiceRead, permissions.procurementPaymentRead].sort())
+  })
+
+  it('is empty for nobody, for an unconfigured server, for a role with nothing and for a stranger', async () => {
+    expect(await readSessionPermissions()).toEqual([])
+    const owner = await newOwner()
+    const empty = await addMember(owner.tenantId, owner.userId, [])
+    currentUser = { id: empty }
+    expect(await readSessionPermissions()).toEqual([])
+    const stranger = randomUUID()
+    await createUser(stranger)
+    currentUser = { id: stranger }
+    expect(await readSessionPermissions()).toEqual([])
+    supabaseConfigured = false
+    expect(await readSessionPermissions()).toEqual([])
+  })
+
+  it('is empty for a user in several companies, because the screen cannot name a tenant', async () => {
+    const tenantA = await newOwner()
+    const tenantB = await newOwner()
+    const shared = await addMember(tenantA.tenantId, tenantA.userId, [permissions.financeInvoiceRead])
+    const roleB = await pg().query<{ id: string }>(`select id from roles where tenant_id = $1 and name = 'viewer'`, [tenantB.tenantId])
+    await pg().query(`insert into tenant_members (tenant_id, user_id, role_id, created_by) values ($1, $2, $3, $4)`, [tenantB.tenantId, shared, roleB.rows[0].id, tenantB.userId])
+    currentUser = { id: shared }
+    expect(await readSessionPermissions()).toEqual([])
+  })
+
+  it('never reports a permission the role does not hold, so it cannot grant anything', async () => {
+    const owner = await newOwner()
+    const viewer = await addMember(owner.tenantId, owner.userId, [permissions.procurementPaymentRead])
+    currentUser = { id: viewer }
+    const shown = await readSessionPermissions()
+    expect(shown).not.toContain(permissions.procurementPaymentCreate)
+    expect(await failure(authenticate(request(), permissions.procurementPaymentCreate))).toMatchObject({ status: 403, code: 'forbidden' })
+  })
 })
 
 describe('authenticate', () => {
@@ -250,7 +292,7 @@ describe('protectedRoute and toErrorResponse', () => {
   })
 
   it('does not run the handler without a session', async () => {
-    const response = await route(request(), { params: {} })
+    const response = await route(request(), { params: Promise.resolve({}) })
     expect(response.status).toBe(401)
     expect(await response.json()).toEqual({ error: { code: 'unauthenticated', message: 'Sign in to continue.' } })
     expect(calls).toBe(0)
@@ -260,7 +302,7 @@ describe('protectedRoute and toErrorResponse', () => {
     const owner = await newOwner()
     const viewer = await addMember(owner.tenantId, owner.userId, [permissions.financeInvoiceRead])
     currentUser = { id: viewer }
-    const response = await route(request(), { params: {} })
+    const response = await route(request(), { params: Promise.resolve({}) })
     expect(response.status).toBe(403)
     expect(calls).toBe(0)
   })
@@ -268,7 +310,7 @@ describe('protectedRoute and toErrorResponse', () => {
   it('runs the handler with the resolved tenant when permitted', async () => {
     const owner = await newOwner()
     currentUser = { id: owner.userId }
-    const response = await route(request(), { params: {} })
+    const response = await route(request(), { params: Promise.resolve({}) })
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ tenantId: owner.tenantId })
   })
