@@ -4,8 +4,10 @@ import { AppError, errorResponse } from '@/lib/api/errors'
 import { authenticate, authenticateSession, type AuthContext, type SessionUser } from '@/lib/auth/context'
 import type { Permission } from '@/lib/auth/permissions'
 import { conflictDomainCodes, DomainError } from '@/lib/domain-error'
+import { checkRequestOrigin, isStateChanging } from '@/lib/http-origin'
 import { errorFields, logger } from '@/lib/logger'
 import { CurrencyMismatchError } from '@/lib/money'
+import { apiRateLimiter, rateLimitedResponse, routeGroup, SESSION_SCOPE, type RateLimitKind } from '@/lib/rate-limit'
 
 type RouteParams = { params: Promise<Record<string, string>> }
 
@@ -54,11 +56,45 @@ export function toErrorResponse(error: unknown, request?: NextRequest): NextResp
   return errorResponse(500, 'internal_error', 'Something went wrong. Try again later.')
 }
 
-/** Wraps a route handler: authenticates, checks the RBAC permission, and converts every failure to the error body. */
+export const CROSS_SITE_CODE = 'cross_site_forbidden'
+
+/**
+ * Refuses a state-changing call that a page on another site made the browser send. It runs before authentication so a
+ * forged request costs no database work, and it never lets anything through that authentication would have refused.
+ */
+function originGuard(request: NextRequest): NextResponse | null {
+  const verdict = checkRequestOrigin(request)
+  if (verdict.allowed) return null
+  logger.warn('Cross-site request refused', {
+    path: request.nextUrl.pathname,
+    method: request.method,
+    refusal: verdict.refusal,
+    observed: verdict.observed,
+  })
+  return errorResponse(403, CROSS_SITE_CODE, 'This request did not come from the application.')
+}
+
+/** Counts the call against the caller's budget for this route group. Reads and writes have separate budgets. */
+function rateGuard(request: NextRequest, tenantId: string, userId: string): NextResponse | null {
+  const kind: RateLimitKind = isStateChanging(request.method) ? 'write' : 'read'
+  const decision = apiRateLimiter.check({ tenantId, userId, group: routeGroup(request.nextUrl.pathname), kind })
+  if (decision.allowed) return null
+  logger.warn('Rate limit reached', { path: request.nextUrl.pathname, method: request.method, kind, tenantId })
+  return rateLimitedResponse(decision.retryAfterSeconds)
+}
+
+/**
+ * Wraps a route handler: refuses cross-site writes, authenticates, checks the RBAC permission, counts the call against the
+ * caller's rate limit, and converts every failure to the error body.
+ */
 export function protectedRoute(permission: Permission, handler: (args: RouteArgs) => Promise<NextResponse>) {
   return async (request: NextRequest, context: RouteParams): Promise<NextResponse> => {
     try {
+      const crossSite = originGuard(request)
+      if (crossSite) return crossSite
       const auth = await authenticate(request, permission)
+      const limited = rateGuard(request, auth.tenantId, auth.userId)
+      if (limited) return limited
       return await handler({ request, auth, params: await context.params })
     } catch (error) {
       return toErrorResponse(error, request)
@@ -75,7 +111,11 @@ export type SessionRouteArgs = { request: NextRequest; session: SessionUser; par
 export function sessionRoute(handler: (args: SessionRouteArgs) => Promise<NextResponse>) {
   return async (request: NextRequest, context: RouteParams): Promise<NextResponse> => {
     try {
+      const crossSite = originGuard(request)
+      if (crossSite) return crossSite
       const session = await authenticateSession()
+      const limited = rateGuard(request, SESSION_SCOPE, session.userId)
+      if (limited) return limited
       return await handler({ request, session, params: await context.params })
     } catch (error) {
       return toErrorResponse(error, request)
