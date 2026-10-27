@@ -20,6 +20,7 @@ export {
   addDays,
   assertWithinCreditLimit,
   canTransition,
+  discountedUnitPrice,
   effectiveStatus,
   INVOICE_DUE_DAYS,
   isPastValidity,

@@ -43,6 +43,13 @@ const APPROVE_SCOPE = 'ai.approval.approve'
 /** Everything an execution can emit. Each module's events are published by that module, after the transaction commits. */
 type EventSink = { ai: AiEvent[]; inventory: InventoryEvent[]; crm: CrmEvent[] }
 
+/** The route checks this too. The service repeats it so no other caller (a job, another module) can decide a request without it. */
+function requireApprover(auth: AuthContext): void {
+  if (!auth.permissions.has(permissions.aiActionApprove)) {
+    throw new AppError(403, 'forbidden', 'You do not have permission to decide AI requests.')
+  }
+}
+
 function notFound(): AppError {
   return new AppError(404, 'not_found', 'The request was not found.')
 }
@@ -245,6 +252,7 @@ export async function approveApproval(
   idempotencyKey: string,
   input: DecideApprovalBody
 ): Promise<IdempotentResult<ApprovalBody>> {
+  requireApprover(auth)
   const sink: EventSink = { ai: [], inventory: [], crm: [] }
   const outcome = await withTransaction((tx) =>
     runIdempotent<ApprovalBody>(
@@ -286,6 +294,7 @@ export async function approveApproval(
 
 /** "رفض". Records the executive's refusal. Nothing else changes. */
 export async function rejectApproval(auth: AuthContext, id: string, input: DecideApprovalBody): Promise<ApprovalBody> {
+  requireApprover(auth)
   const events: AiEvent[] = []
   const body = await withTransaction(async (tx): Promise<ApprovalBody> => {
     const approval = await repository.findApproval(tx, auth.tenantId, id, { lock: true })

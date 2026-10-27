@@ -24,7 +24,7 @@ import { parseThresholds } from '@/modules/ai/domain/thresholds'
 import type { Approval, Insight, InsightDraft, ProposalDraft } from '@/modules/ai/domain/types'
 import { canMoveInsight } from '@/modules/ai/services/insight-service'
 import { activePipeline, monthlyRevenue } from '@/modules/ai/services/dashboard-service'
-import { discountedUnitPrice } from '@/modules/crm/domain/quotation'
+import { discountedUnitPrice } from '@/modules/crm/client'
 import type { InvoiceSummary } from '@/modules/finance/client'
 
 describe('thresholds', () => {
