@@ -32,13 +32,17 @@ export {
   listBalances,
   listMovements,
   listStockSignals,
+  receivePurchaseWithin,
   receiveRestockWithin,
   recordMovement,
   restoreInvoiceStock,
+  returnPurchaseWithin,
   validateStockLines,
 } from '@/modules/inventory/services/stock-service'
+export { createProduct, deleteProduct, listProducts, updateProduct } from '@/modules/inventory/services/product-service'
+export type { ProductBody, ProductPage } from '@/modules/inventory/services/product-service'
 export { publishInventoryEvents } from '@/modules/inventory/events'
 export type { InventoryEvent } from '@/modules/inventory/events'
-export type { InvoiceLineRef, InvoiceStockRef, RestockInput } from '@/modules/inventory/services/stock-service'
+export type { InvoiceLineRef, InvoiceStockRef, PurchaseReceiptInput, PurchaseReturnInput, RestockInput } from '@/modules/inventory/services/stock-service'
 export type * from '@/modules/inventory/domain/types'
 export type { SellingPriceChange } from '@/modules/inventory/services/catalog-service'

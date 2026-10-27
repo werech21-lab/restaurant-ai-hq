@@ -395,6 +395,78 @@ export async function receiveRestockWithin(
   return movement
 }
 
+export type PurchaseReceiptInput = {
+  warehouseId: string
+  /** The id of the goods receipt. It is stored as the reference of every movement. */
+  receiptId: string
+  lines: ReadonlyArray<{ itemId: string; quantity: number }>
+  note: string | null
+}
+
+/**
+ * Books the goods of one receipt: one IN movement per line, referenced to the receipt. The items are locked together in id
+ * order. An inactive item or warehouse cannot receive. It books the stock as received at the item's unit cost and does not
+ * change that cost: how a purchase price becomes stock value is an open decision. Runs inside the caller's transaction, and
+ * the caller publishes the events after commit.
+ */
+export async function receivePurchaseWithin(
+  tx: Queryable,
+  auth: AuthContext,
+  input: PurchaseReceiptInput,
+  events: InventoryEvent[]
+): Promise<StockMovement[]> {
+  const rows: LedgerRow[] = input.lines.flatMap((line) =>
+    planMovement({ type: 'IN', itemId: line.itemId, warehouseId: input.warehouseId, quantity: line.quantity, note: input.note }, randomUUID()).map(
+      (row): LedgerRow => ({ ...row, referenceType: 'purchase_receipt', referenceId: input.receiptId })
+    )
+  )
+  const inserted = await applyLedger(tx, auth, rows, events, { enforceActive: true })
+  return repository.findMovementsByIds(
+    tx,
+    auth.tenantId,
+    inserted.map((movement) => movement.id)
+  )
+}
+
+export type PurchaseReturnInput = {
+  warehouseId: string
+  /** The id of the purchase return. It is stored as the reference of every movement. */
+  returnId: string
+  lines: ReadonlyArray<{ itemId: string; quantity: number }>
+  note: string | null
+}
+
+/**
+ * Takes the goods of one purchase return out of stock: one OUT movement per line, referenced to the return. The items are
+ * locked together in id order and `insufficient_stock` (409) stops the whole return when the warehouse holds less than is sent
+ * back, so stock never goes below zero. An inactive item or warehouse can lose stock. Runs inside the caller's transaction,
+ * and the caller publishes the events after commit.
+ */
+export async function returnPurchaseWithin(
+  tx: Queryable,
+  auth: AuthContext,
+  input: PurchaseReturnInput,
+  events: InventoryEvent[]
+): Promise<StockMovement[]> {
+  const rows: LedgerRow[] = [...input.lines]
+    .sort((a, b) => a.itemId.localeCompare(b.itemId))
+    .map((line) => ({
+      itemId: line.itemId,
+      warehouseId: input.warehouseId,
+      movementType: 'OUT' as const,
+      quantity: -line.quantity,
+      referenceType: 'purchase_return' as const,
+      referenceId: input.returnId,
+      note: input.note,
+    }))
+  const inserted = await applyLedger(tx, auth, rows, events, { enforceActive: false })
+  return repository.findMovementsByIds(
+    tx,
+    auth.tenantId,
+    inserted.map((movement) => movement.id)
+  )
+}
+
 /** Active items with the stock, price and sales figures the AI engine evaluates. `itemIds` null means every active item. */
 export function listStockSignals(
   tx: Queryable,

@@ -10,7 +10,7 @@ export const movementTypes = ['IN', 'OUT', 'TRANSFER'] as const
 export type MovementType = (typeof movementTypes)[number]
 
 /** `restock` is stock received because an approved restock request said so. Its reference is that request's id. */
-export const referenceTypes = ['manual', 'invoice', 'transfer', 'restock'] as const
+export const referenceTypes = ['manual', 'invoice', 'transfer', 'restock', 'purchase_receipt', 'purchase_return'] as const
 export type ReferenceType = (typeof referenceTypes)[number]
 
 /** Largest quantity of one movement, and the largest stock of one item. Keeps every sum inside a safe integer. */
@@ -33,6 +33,25 @@ export type Item = {
   updatedAt: string
   createdBy: string
 }
+
+/** A catalogue product (menu entry). Price is integer fils. Owned by one tenant. Not a stock item: stock lives on Item. */
+export type Product = {
+  id: string
+  name: string
+  category: string
+  priceMinor: number
+  currency: Currency
+  available: boolean
+  version: number
+  createdAt: string
+  updatedAt: string
+  createdBy: string
+}
+
+/** The category given to a product saved without one. */
+export const DEFAULT_PRODUCT_CATEGORY = 'عام'
+/** The legacy column is numeric(10,3), so 9,999,999.999 KWD is the largest price it can hold. */
+export const MAX_PRODUCT_PRICE_MINOR = 9_999_999_999
 
 export type Warehouse = {
   id: string

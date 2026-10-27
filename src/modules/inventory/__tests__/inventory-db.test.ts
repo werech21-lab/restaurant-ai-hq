@@ -26,9 +26,12 @@ import {
   listItems,
   listMovements,
   listWarehouses,
+  receivePurchaseWithin,
   recordMovement,
+  returnPurchaseWithin,
   updateItem,
   updateWarehouse,
+  type InventoryEvent,
   type Item,
   type Warehouse,
 } from '@/modules/inventory'
@@ -459,6 +462,37 @@ describe('stock movements', () => {
 })
 
 describe('database guards', () => {
+  it('accepts a purchase receipt reference only with the receipt id, and keeps it append-only', async () => {
+    const item = await newItem(authA)
+    const insert = (referenceId: string | null) =>
+      getPglite().query<{ id: string }>(
+        `insert into stock_movements (tenant_id, item_id, warehouse_id, movement_type, quantity, reference_type, reference_id, created_by)
+         values ($1, $2, $3, 'IN', 4, 'purchase_receipt', $4, $5) returning id`,
+        [authA.tenantId, item.id, mainWarehouse.id, referenceId, authA.userId]
+      )
+    await expect(insert(null)).rejects.toThrow()
+    const inserted = await insert('55555555-5555-4555-8555-555555555555')
+    expect(await currentStock(item.id)).toBe(4)
+    await expect(getPglite().query('update stock_movements set quantity = 9 where id = $1', [inserted.rows[0].id])).rejects.toThrow()
+  })
+  it('accepts a purchase return reference only with the return id, and a return never takes a balance below zero', async () => {
+    const item = await newItem(authA)
+    await stockIn(authA, item.id, mainWarehouse.id, 5)
+    const insert = (quantity: number, referenceId: string | null) =>
+      getPglite().query<{ id: string }>(
+        `insert into stock_movements (tenant_id, item_id, warehouse_id, movement_type, quantity, reference_type, reference_id, created_by)
+         values ($1, $2, $3, 'OUT', $4, 'purchase_return', $5, $6) returning id`,
+        [authA.tenantId, item.id, mainWarehouse.id, quantity, referenceId, authA.userId]
+      )
+    await expect(insert(-2, null)).rejects.toThrow()
+    const inserted = await insert(-2, '66666666-6666-4666-8666-666666666666')
+    expect(await currentStock(item.id)).toBe(3)
+    await expect(insert(-4, '77777777-7777-4777-8777-777777777777')).rejects.toThrow()
+    expect(await currentStock(item.id)).toBe(3)
+    await expect(getPglite().query('update stock_movements set quantity = -1 where id = $1', [inserted.rows[0].id])).rejects.toThrow()
+    await expect(getPglite().query('delete from stock_movements where id = $1', [inserted.rows[0].id])).rejects.toThrow()
+  })
+
   it('keeps the ledger append-only', async () => {
     const item = await newItem(authA)
     const moved = (await stockIn(authA, item.id, mainWarehouse.id, 3)).body.data.movements[0]
@@ -518,6 +552,97 @@ describe('database guards', () => {
     await insert()
     await expect(insert()).rejects.toThrow()
     expect(await currentStock(item.id)).toBe(9)
+  })
+})
+
+describe('purchase receipts and returns through the public API', () => {
+  const run = async <T,>(work: (tx: Parameters<typeof receivePurchaseWithin>[0], events: InventoryEvent[]) => Promise<T>): Promise<{ result: T; events: InventoryEvent[] }> => {
+    const { withTransaction } = await import('@/lib/db')
+    const collected: InventoryEvent[] = []
+    const result = await withTransaction((tx) => work(tx, collected))
+    return { result, events: collected }
+  }
+
+  it('receives goods in, then takes returned goods out, each movement referenced to its document', async () => {
+    const item = await newItem(authA)
+    const receiptId = '88888888-8888-4888-8888-888888888888'
+    const returnId = '99999999-9999-4999-8999-999999999999'
+    const received = await run((tx, collected) =>
+      receivePurchaseWithin(tx, authA, { warehouseId: mainWarehouse.id, receiptId, lines: [{ itemId: item.id, quantity: 6 }], note: null }, collected)
+    )
+    expect(received.result.map((movement) => [movement.movementType, movement.quantity, movement.referenceType, movement.referenceId])).toEqual([['IN', 6, 'purchase_receipt', receiptId]])
+    const returned = await run((tx, collected) =>
+      returnPurchaseWithin(tx, authA, { warehouseId: mainWarehouse.id, returnId, lines: [{ itemId: item.id, quantity: 4 }], note: 'Damaged' }, collected)
+    )
+    expect(returned.result.map((movement) => [movement.movementType, movement.quantity, movement.referenceType, movement.referenceId, movement.note])).toEqual([
+      ['OUT', -4, 'purchase_return', returnId, 'Damaged'],
+    ])
+    expect(returned.events.length).toBeGreaterThan(0)
+    expect(await currentStock(item.id)).toBe(2)
+    await expectLedgerConsistent(authA.tenantId)
+  })
+
+  it('stops a whole return when one line is short: no stock moves, no row is kept', async () => {
+    const enough = await newItem(authA)
+    const short = await newItem(authA)
+    await stockIn(authA, enough.id, mainWarehouse.id, 5)
+    await stockIn(authA, short.id, mainWarehouse.id, 1)
+    const before = (await getPglite().query<{ n: number }>('select count(*)::int as n from stock_movements where tenant_id = $1', [authA.tenantId])).rows[0].n
+    await expect(
+      run((tx, collected) =>
+        returnPurchaseWithin(
+          tx,
+          authA,
+          { warehouseId: mainWarehouse.id, returnId: 'aaaaaaaa-0000-4000-8000-000000000001', lines: [{ itemId: enough.id, quantity: 5 }, { itemId: short.id, quantity: 2 }], note: null },
+          collected
+        )
+      )
+    ).rejects.toMatchObject({ code: 'insufficient_stock' })
+    expect(await currentStock(enough.id)).toBe(5)
+    expect(await currentStock(short.id)).toBe(1)
+    expect((await getPglite().query<{ n: number }>('select count(*)::int as n from stock_movements where tenant_id = $1', [authA.tenantId])).rows[0].n).toBe(before)
+  })
+
+  it('lets an inactive item or warehouse lose stock through a return, but not receive it', async () => {
+    const item = await newItem(authA)
+    const warehouse = await newWarehouse(authA)
+    await run((tx, collected) =>
+      receivePurchaseWithin(tx, authA, { warehouseId: warehouse.id, receiptId: 'bbbbbbbb-0000-4000-8000-000000000001', lines: [{ itemId: item.id, quantity: 3 }], note: null }, collected)
+    )
+    await updateWarehouse(authA, warehouse.id, { version: 1, name: warehouse.name, location: null, capacity: null, status: 'inactive' })
+    await expect(
+      run((tx, collected) =>
+        receivePurchaseWithin(tx, authA, { warehouseId: warehouse.id, receiptId: 'bbbbbbbb-0000-4000-8000-000000000002', lines: [{ itemId: item.id, quantity: 1 }], note: null }, collected)
+      )
+    ).rejects.toMatchObject({ code: 'warehouse_inactive' })
+    await run((tx, collected) =>
+      returnPurchaseWithin(tx, authA, { warehouseId: warehouse.id, returnId: 'bbbbbbbb-0000-4000-8000-000000000003', lines: [{ itemId: item.id, quantity: 3 }], note: null }, collected)
+    )
+    expect(await onHand(item.id, warehouse.id)).toBe(0)
+  })
+
+  it('refuses a return of zero, a fraction, a negative or more than a movement may carry', async () => {
+    const item = await newItem(authA)
+    await stockIn(authA, item.id, mainWarehouse.id, 5)
+    for (const quantity of [0, -1, 1.5, 1_000_001]) {
+      await expect(
+        run((tx, collected) =>
+          returnPurchaseWithin(tx, authA, { warehouseId: mainWarehouse.id, returnId: 'cccccccc-0000-4000-8000-000000000001', lines: [{ itemId: item.id, quantity }], note: null }, collected)
+        )
+      ).rejects.toBeDefined()
+    }
+    expect(await currentStock(item.id)).toBe(5)
+  })
+
+  it('does not see or move another company stock', async () => {
+    const item = await newItem(authA)
+    await stockIn(authA, item.id, mainWarehouse.id, 5)
+    await expect(
+      run((tx, collected) =>
+        returnPurchaseWithin(tx, authB, { warehouseId: mainWarehouse.id, returnId: 'dddddddd-0000-4000-8000-000000000001', lines: [{ itemId: item.id, quantity: 1 }], note: null }, collected)
+      )
+    ).rejects.toBeDefined()
+    expect(await currentStock(item.id)).toBe(5)
   })
 })
 
