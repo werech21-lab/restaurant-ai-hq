@@ -1,0 +1,108 @@
+// Server-side public API of the Procurement module (suppliers, purchase orders, goods receipts). Browser code imports from './client' instead.
+export {
+  approveOrderHandler,
+  cancelOrderHandler,
+  createOrderHandler,
+  createReceiptHandler,
+  createSupplierHandler,
+  getOrderHandler,
+  getReceiptHandler,
+  getSettingsHandler,
+  getSupplierHandler,
+  listOrdersHandler,
+  listReceiptsHandler,
+  listSuppliersHandler,
+  submitOrderHandler,
+  updateOrderHandler,
+  updateSettingsHandler,
+  updateSupplierHandler,
+} from '@/modules/procurement/api/v1/procurement'
+export {
+  approveRequestHandler,
+  cancelRequestHandler,
+  convertRequestHandler,
+  createRequestHandler,
+  getRequestHandler,
+  listRequestsHandler,
+  rejectRequestHandler,
+  submitRequestHandler,
+  updateRequestHandler,
+} from '@/modules/procurement/api/v1/requests'
+export {
+  createInvoiceHandler,
+  getAccountingHandler,
+  getInvoiceHandler,
+  listInvoicesHandler,
+  updateAccountingHandler,
+  voidInvoiceHandler,
+} from '@/modules/procurement/api/v1/invoices'
+export {
+  approveRequest,
+  cancelRequest,
+  convertRequest,
+  createRequest,
+  getRequest,
+  listRequests,
+  rejectRequest,
+  submitRequest,
+  updateRequest,
+} from '@/modules/procurement/services/request-service'
+export {
+  createCreditNoteHandler,
+  createPaymentHandler,
+  createReturnHandler,
+  getCreditNoteHandler,
+  getPaymentHandler,
+  getReconciliationHandler,
+  getReturnHandler,
+  listCreditNotesHandler,
+  listPaymentsHandler,
+  listReturnsHandler,
+  previewMatchHandler,
+  voidCreditNoteHandler,
+  voidPaymentHandler,
+} from '@/modules/procurement/api/v1/settlement'
+export {
+  createCreditNote,
+  createPayment,
+  createReturn,
+  getCreditNote,
+  getPayment,
+  getReconciliation,
+  getReturn,
+  listCreditNotes,
+  listPayments,
+  listReturns,
+  voidCreditNote,
+  voidPayment,
+} from '@/modules/procurement/services/settlement-service'
+export {
+  createSupplierInvoice,
+  getAccounting,
+  getSupplierInvoice,
+  listSupplierInvoices,
+  previewMatch,
+  updateAccounting,
+  voidSupplierInvoice,
+} from '@/modules/procurement/services/invoice-service'
+export {
+  approveOrder,
+  cancelOrder,
+  createOrder,
+  createReceipt,
+  createSupplier,
+  getOrder,
+  getReceipt,
+  getSettings,
+  getSupplier,
+  listOrders,
+  listReceipts,
+  listSuppliers,
+  submitOrder,
+  updateOrder,
+  updateSettings,
+  updateSupplier,
+} from '@/modules/procurement/services/procurement-service'
+export { publishProcurementEvents } from '@/modules/procurement/events'
+export type { ProcurementEvent } from '@/modules/procurement/events'
+export type * from '@/modules/procurement/domain/types'

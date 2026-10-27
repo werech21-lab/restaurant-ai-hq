@@ -20,4 +20,10 @@ export const conflictDomainCodes: ReadonlySet<string> = new Set([
   'quote_expired',
   'proposal_stale',
   'customer_already_blocked',
+  'over_receipt',
+  'over_invoice',
+  'over_return',
+  'over_credit',
+  'over_payment',
+  'invoice_not_posted',
 ])
