@@ -1,4 +1,5 @@
 import { emit } from '@/lib/events/bus'
+import type { JournalSourceType } from '@/modules/finance/domain/ledger-types'
 
 type EventBase<N extends string, P> = {
   name: N
@@ -25,7 +26,36 @@ export type PaymentRecordedEvent = EventBase<
   InvoiceRef & { paymentId: string; amountMinor: number; paidMinor: number; recordedBy: string }
 >
 
+export type AccountCreatedEvent = EventBase<
+  'finance.account.created',
+  { accountId: string; code: string; accountType: string; createdBy: string }
+>
+export type AccountUpdatedEvent = EventBase<'finance.account.updated', { accountId: string; code: string; isActive: boolean; updatedBy: string }>
+export type PeriodCreatedEvent = EventBase<
+  'finance.period.created',
+  { periodId: string; name: string; startsOn: string; endsOn: string; createdBy: string }
+>
+export type PeriodClosedEvent = EventBase<'finance.period.closed', { periodId: string; name: string; closedBy: string }>
+
+type JournalRef = { entryId: string; number: number; entryDate: string }
+export type JournalCreatedEvent = EventBase<'finance.journal.created', JournalRef & { createdBy: string }>
+export type JournalPostedEvent = EventBase<
+  'finance.journal.posted',
+  JournalRef & { totalMinor: number; currency: 'KWD'; sourceType: JournalSourceType; postedBy: string }
+>
+export type JournalReversedEvent = EventBase<
+  'finance.journal.reversed',
+  JournalRef & { reversalId: string; reversalNumber: number; reversedBy: string }
+>
+
 export type FinanceEvent =
+  | AccountCreatedEvent
+  | AccountUpdatedEvent
+  | PeriodCreatedEvent
+  | PeriodClosedEvent
+  | JournalCreatedEvent
+  | JournalPostedEvent
+  | JournalReversedEvent
   | InvoiceCreatedEvent
   | InvoiceUpdatedEvent
   | InvoiceSubmittedEvent

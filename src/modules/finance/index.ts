@@ -11,6 +11,43 @@ export {
   voidInvoiceHandler,
 } from '@/modules/finance/api/v1/invoices'
 export {
+  closePeriodHandler,
+  createAccountHandler,
+  createJournalEntryHandler,
+  createPeriodHandler,
+  getAccountHandler,
+  getJournalEntryHandler,
+  listAccountsHandler,
+  listJournalEntriesHandler,
+  listPeriodsHandler,
+  postJournalEntryHandler,
+  reverseJournalEntryHandler,
+  trialBalanceHandler,
+  updateAccountHandler,
+  updateJournalEntryHandler,
+} from '@/modules/finance/api/v1/ledger'
+export {
+  closePeriod,
+  createAccount,
+  createJournalEntry,
+  createPeriod,
+  findAccountsWithin,
+  getAccount,
+  getAccountTotalsWithin,
+  getJournalEntry,
+  getTrialBalance,
+  listAccounts,
+  listJournalEntries,
+  listPeriods,
+  postJournalEntry,
+  postSourcedEntryWithin,
+  reverseJournalEntry,
+  reverseSourcedEntryWithin,
+  updateAccount,
+  updateJournalEntry,
+} from '@/modules/finance/services/ledger-service'
+export type { AccountNet, SourceDocumentType, SourcedEntryInput } from '@/modules/finance/services/ledger-service'
+export {
   approveInvoice,
   createInvoice,
   createInvoiceWithin,
@@ -28,4 +65,5 @@ export {
 } from '@/modules/finance/services/invoice-service'
 export { publishFinanceEvents } from '@/modules/finance/events'
 export type * from '@/modules/finance/domain/types'
+export type * from '@/modules/finance/domain/ledger-types'
 export type * from '@/modules/finance/events'
