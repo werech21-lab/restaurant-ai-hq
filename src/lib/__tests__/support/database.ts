@@ -12,7 +12,7 @@ let instance: PGlite | null = null
 
 const supabaseStub = `
   create schema auth;
-  create table auth.users (id uuid primary key);
+  create table auth.users (id uuid primary key, email text);
   create function auth.uid() returns uuid language sql stable as $$ select null::uuid $$;
   create role anon;
   create role authenticated;
@@ -68,8 +68,8 @@ export async function testWithTransaction<T>(fn: (tx: Queryable) => Promise<T>):
   return getPglite().transaction(async (transaction) => fn(adapt(transaction)))
 }
 
-export async function createUser(id: string): Promise<void> {
-  await getPglite().query('insert into auth.users (id) values ($1)', [id])
+export async function createUser(id: string, email: string | null = null): Promise<void> {
+  await getPglite().query('insert into auth.users (id, email) values ($1, $2)', [id, email])
 }
 
 export async function bootstrapTenant(name: string, slug: string, owner: string): Promise<string> {
