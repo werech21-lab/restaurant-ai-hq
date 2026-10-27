@@ -8,15 +8,17 @@ import { describe, expect, it } from 'vitest'
  */
 
 const srcDir = path.join(process.cwd(), 'src')
-const modules = ['finance', 'crm', 'inventory', 'hr', 'ai'] as const
+const modules = ['finance', 'crm', 'inventory', 'hr', 'ai', 'org', 'procurement'] as const
 type ModuleName = (typeof modules)[number]
 
 const ownedTables: Record<ModuleName, string[]> = {
-  finance: ['invoices', 'invoice_lines', 'payments', 'finance_settings'],
+  finance: ['invoices', 'invoice_lines', 'payments', 'finance_settings', 'accounts', 'fiscal_periods', 'journal_entries', 'journal_lines'],
   crm: ['customers', 'contacts', 'crm_leads_pipeline', 'sales_quotations', 'sales_quotation_lines'],
-  inventory: ['items', 'warehouses', 'stock_movements', 'stock_balances'],
+  inventory: ['items', 'warehouses', 'stock_movements', 'stock_balances', 'products'],
   hr: [],
   ai: ['ai_insights_alerts', 'ai_action_approvals', 'erp_automation_rules'],
+  org: ['brands', 'branches'],
+  procurement: ['suppliers', 'procurement_settings', 'purchase_orders', 'purchase_order_lines', 'goods_receipts', 'goods_receipt_lines', 'purchase_requests', 'purchase_request_lines', 'procurement_accounting', 'supplier_invoices', 'supplier_invoice_lines', 'purchase_returns', 'purchase_return_lines', 'supplier_credit_notes', 'supplier_credit_note_lines', 'supplier_payments', 'supplier_payment_allocations'],
 }
 
 type SourceFile = { file: string; relative: string; text: string; owner: ModuleName | null }
@@ -57,7 +59,7 @@ const isBrowserFile = (file: SourceFile) =>
 describe('module boundaries', () => {
   it('finds the module sources it is meant to guard', async () => {
     const files = await sources()
-    for (const name of ['finance', 'crm', 'inventory', 'ai'] as const) {
+    for (const name of ['finance', 'crm', 'inventory', 'ai', 'org', 'procurement'] as const) {
       expect(files.some((file) => file.owner === name && !isTest(file)), name).toBe(true)
     }
   })
