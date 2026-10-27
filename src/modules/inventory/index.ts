@@ -16,10 +16,12 @@ export {
 export {
   createItem,
   createWarehouse,
+  findItemWithin,
   getItem,
   getWarehouse,
   listItems,
   listWarehouses,
+  setSellingPriceWithin,
   updateItem,
   updateWarehouse,
 } from '@/modules/inventory/services/catalog-service'
@@ -29,11 +31,14 @@ export {
   issueInvoiceStock,
   listBalances,
   listMovements,
+  listStockSignals,
+  receiveRestockWithin,
   recordMovement,
   restoreInvoiceStock,
   validateStockLines,
 } from '@/modules/inventory/services/stock-service'
 export { publishInventoryEvents } from '@/modules/inventory/events'
 export type { InventoryEvent } from '@/modules/inventory/events'
-export type { InvoiceLineRef, InvoiceStockRef } from '@/modules/inventory/services/stock-service'
+export type { InvoiceLineRef, InvoiceStockRef, RestockInput } from '@/modules/inventory/services/stock-service'
 export type * from '@/modules/inventory/domain/types'
+export type { SellingPriceChange } from '@/modules/inventory/services/catalog-service'

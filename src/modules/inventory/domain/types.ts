@@ -9,7 +9,8 @@ export type WarehouseStatus = (typeof warehouseStatuses)[number]
 export const movementTypes = ['IN', 'OUT', 'TRANSFER'] as const
 export type MovementType = (typeof movementTypes)[number]
 
-export const referenceTypes = ['manual', 'invoice', 'transfer'] as const
+/** `restock` is stock received because an approved restock request said so. Its reference is that request's id. */
+export const referenceTypes = ['manual', 'invoice', 'transfer', 'restock'] as const
 export type ReferenceType = (typeof referenceTypes)[number]
 
 /** Largest quantity of one movement, and the largest stock of one item. Keeps every sum inside a safe integer. */
@@ -85,6 +86,25 @@ export type StockShortage = {
   warehouseCode: string
   required: number
   available: number
+}
+
+/**
+ * What the AI module reads about one active item: its stock, its prices, how much left in the window, and the
+ * active warehouse that already holds the most of it (where a restock is received). `restockWarehouse` is null
+ * when the tenant has no active warehouse.
+ */
+export type StockSignal = {
+  itemId: string
+  sku: string
+  name: string
+  unit: ItemUnit
+  currentStock: number
+  reorderLevel: number
+  unitCostMinor: number
+  sellingPriceMinor: number
+  version: number
+  outQuantity: number
+  restockWarehouse: { id: string; code: string; name: string } | null
 }
 
 export type ItemDetail = Item & {

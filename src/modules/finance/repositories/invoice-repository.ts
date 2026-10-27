@@ -4,6 +4,9 @@ import type { Queryable } from '@/lib/db'
 import type { Currency } from '@/lib/money'
 import type {
   CustomerFinancials,
+  InvoiceBalance,
+  OverdueInvoiceRef,
+  ReceivableSignal,
   FinanceSettings,
   Invoice,
   InvoiceLine,
@@ -389,4 +392,62 @@ export async function summarize(tx: Queryable, tenantId: string, approvalThresho
     overdueCount: Number(row.overdueCount),
     months: months.rows,
   }
+}
+
+type ReceivableRow = {
+  customerId: string
+  customerName: string
+  overdueMinor: number
+  overdueInvoiceCount: number
+  oldestDaysOverdue: number
+  invoices: OverdueInvoiceRef[]
+}
+
+const RECEIVABLE_INVOICE_LIMIT = 3
+const RECEIVABLE_CUSTOMER_LIMIT = 500
+
+/**
+ * Customers with open invoices overdue by at least minDaysOverdue days (due date on or before today minus that many
+ * days, UTC), the largest overdue amount first. Only those invoices are counted. Read-only, for the AI engine.
+ */
+export async function receivableSignals(tx: Queryable, tenantId: string, minDaysOverdue: number): Promise<ReceivableSignal[]> {
+  const result = await tx.query<ReceivableRow>(
+    `with overdue as (
+       select customer_id, customer_name, id, number, due_date, (total_minor - paid_minor) as balance,
+              ((now() at time zone 'utc')::date - due_date) as days
+       from invoices
+       where tenant_id = $1 and status in ('issued', 'partially_paid')
+         and due_date <= (now() at time zone 'utc')::date - $3::int
+         and total_minor > paid_minor
+     )
+     select o.customer_id as "customerId",
+            (array_agg(o.customer_name order by o.due_date desc, o.id))[1] as "customerName",
+            sum(o.balance)::bigint as "overdueMinor",
+            count(*)::bigint as "overdueInvoiceCount",
+            max(o.days)::int as "oldestDaysOverdue",
+            jsonb_agg(jsonb_build_object('id', o.id, 'number', o.number, 'dueDate', o.due_date::text,
+                                         'balanceMinor', o.balance, 'daysOverdue', o.days)
+                      order by o.balance desc, o.id) as invoices
+     from overdue o
+     group by o.customer_id
+     order by sum(o.balance) desc, o.customer_id
+     limit $2`,
+    [tenantId, RECEIVABLE_CUSTOMER_LIMIT, minDaysOverdue]
+  )
+  return result.rows.map((row) => ({
+    ...row,
+    overdueInvoiceCount: Number(row.overdueInvoiceCount),
+    invoices: row.invoices.slice(0, RECEIVABLE_INVOICE_LIMIT),
+  }))
+}
+
+/** Current status and unpaid balance of the given invoices. Read-only, for the AI engine's recheck before it acts. */
+export async function invoiceBalances(tx: Queryable, tenantId: string, ids: readonly string[]): Promise<InvoiceBalance[]> {
+  if (ids.length === 0) return []
+  const result = await tx.query<InvoiceBalance>(
+    `select id, status, (total_minor - paid_minor)::bigint as "balanceMinor"
+     from invoices where tenant_id = $1 and id = any($2::uuid[])`,
+    [tenantId, [...ids]]
+  )
+  return result.rows
 }

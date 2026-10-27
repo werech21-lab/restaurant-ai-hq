@@ -10,7 +10,7 @@ This is a modular monolith inside the existing Next.js 14 app. It is deployed on
 | `crm` | Built: customers (with a 360 profile), the opportunity pipeline (Kanban), quotations, and one-click quote-to-cash into finance and inventory. API, UI, migration `0007`, tests. |
 | `inventory` | Built: items, warehouses, an append-only stock ledger, balances, reorder alerts, valuation, fast-moving items. API, UI, migration `0006`, tests. Finance deducts and restores stock through its public API. |
 | `hr` | Not started. Folder tree below is the plan. |
-| `ai` | Not started. Rules for it are in `.cursor/rules/erp-security-events.mdc`. |
+| `ai` | Built: a rule engine that scans finance, inventory and CRM data, Arabic insights, proposals the executive approves with one click, live KPIs, the Copilot bar, and the executive command center at `/erp` and `/erp/ai`. API, UI, migration `0008`, tests. |
 | General ledger, credit notes | Not built. You decided: invoices and payments only for now. |
 
 ## Folder tree
@@ -18,7 +18,7 @@ This is a modular monolith inside the existing Next.js 14 app. It is deployed on
 ```
 restaurant-ai-hqw/
   database/
-    migrations/            0001_core, 0002_crm, 0003_inventory, 0004_finance, 0005_bootstrap, 0006_inventory_ops, 0007_crm_sales
+    migrations/            0001_core, 0002_crm, 0003_inventory, 0004_finance, 0005_bootstrap, 0006_inventory_ops, 0007_crm_sales, 0008_ai_automation
   scripts/migrate.mjs      applies migrations in order, refuses to run a migration that was edited after it was applied
   docs/ERP_ARCHITECTURE.md
   src/
@@ -40,9 +40,19 @@ restaurant-ai-hqw/
         inventory/movements/         GET ledger, POST IN | OUT | TRANSFER
         inventory/balances/          GET on-hand per item and warehouse
         inventory/summary/           GET valuation, low stock, fast-moving, warehouse usage
+        ai/dashboard/                GET live KPIs, top alerts
+        ai/insights/ , insights/[id]/ , insights/[id]/acknowledge | resolve   GET, POST
+        ai/approvals/ , approvals/[id]/   GET list or one
+        ai/approvals/[id]/approve | reject   POST (approve needs an Idempotency-Key)
+        ai/scan/                     POST full system scan
+        ai/command/                  POST Copilot bar
+        ai/rules/ , rules/[id]/      GET, PUT
       erp/finance/page.tsx           the finance screen (server page, redirects to /login when signed out)
       erp/inventory/page.tsx         the inventory screen (same guard)
       erp/crm/page.tsx               the CRM screen: pipeline, customers, quotations (same guard)
+      erp/page.tsx                   the executive command center (same guard)
+      erp/ai/page.tsx                AI and automation: decisions, alerts, rules (same guard)
+      erp/layout.tsx                 the shared ERP header, components/erp/ErpNav.tsx
       admin/, login/                 existing product admin and sign-in
     components/
       ui.tsx, charts.tsx             existing shared UI (see "Conflicts with the rules")
@@ -58,7 +68,8 @@ restaurant-ai-hqw/
       crm/       domain/ services/ repositories/ events/ api/v1/ schemas/ __tests__/ index.ts client.ts
       inventory/ domain/ services/ repositories/ events/ api/v1/ schemas/ ui/ __tests__/ index.ts client.ts
       (crm also has ui/: CrmWorkspace, PipelineBoard, CustomerDirectory, CustomerProfile, QuotationList, QuotationBuilder)
-      hr/ (planned)  ai/ (planned)
+      ai/        domain/ services/ repositories/ events/ api/v1/ schemas/ ui/ __tests__/ index.ts client.ts
+      hr/ (planned)
 ```
 
 Each module has two entry points. `index.ts` is the server API: route handlers, services, types. `client.ts` is browser-safe: types, Zod schemas and pure domain rules, so forms use the same schema as the API without bundling `pg`. Other modules and routes import only from these two files.
@@ -157,9 +168,69 @@ Rules I had to choose (change them if they are wrong):
 - Customer create defaults to `active`, so the inline "new customer" in the invoice form keeps working. The invoice form lists active customers only.
 - Arabic strings are new text I wrote. Have a native reviewer read them.
 
+## AI automation and the command center
+
+Migration `0008_ai_automation.sql` adds three tables, all tenant-scoped with `version`, RLS select policies by permission, `set_updated_at` and no-delete triggers:
+
+- `ai_insights_alerts`: severity (`critical`, `warning`, `opportunity`), category (`finance`, `inventory`, `crm`), `title_ar`, `description_ar`, `metric_value` with a `metric_unit` (`fils`, `count`, `days`, `bps`), status (`open`, `acknowledged`, `resolved`), `source_entity_type` and `source_entity_id`. A `fingerprint` identifies the finding, and a unique index allows one live insight per fingerprint. A resolved insight cannot reopen.
+- `ai_action_approvals`: `action_type`, `payload_json`, signed `estimated_impact_fils`, status (`pending`, `approved`, `rejected`, `executed`), `requested_by_ai_at`, `decided_by`, `decided_at`, `result_json`. One pending request per fingerprint. After a decision the payload, impact and type are frozen, and an executed or rejected request is final.
+- `erp_automation_rules`: `rule_key`, `name`, `trigger_event`, `condition_json` (the thresholds), `action_type`, `is_active`. `erp_seed_ai_rules` creates the seven default rules and `erp_bootstrap_tenant` calls it.
+
+`0008` also lets `stock_movements.reference_type` be `restock`. New permissions: `ai.insight.read|update`, `ai.scan.run`, `ai.action.read|approve`, `ai.rule.read|update`. `owner` gets all, `accountant` everything except approve and rule update, `approver` read and approve, `viewer` read. Existing tenants are backfilled.
+
+### The engine
+
+There is no language model. Rules are pure functions over integer fils, BigInt where money is multiplied (`domain/rules.ts`), and the same data always gives the same text. A scan (`scan-service.ts`) reads other modules only through their public API (`listStockSignals`, `listReceivableSignals`, `listStalledLeads`, `getInvoiceBalances`), then upserts insights and requests.
+
+| Rule | Finds | Proposes |
+| --- | --- | --- |
+| `inventory.low_stock` | stock at or below `reorder_level` | `auto_reorder`: quantity and cost in fils |
+| `inventory.fast_depleting` | cover under 14 days from the 30-day OUT average | `auto_reorder` |
+| `finance.payment_reminder` | a customer with overdue invoices of at least 7 days and 1,000.000 KWD | `payment_reminder` |
+| `finance.credit_hold` | overdue 30 days or more | `credit_hold` |
+| `finance.margin_floor` | margin under 20% | `price_adjustment` |
+| `crm.stalled_leads` | open lead, probability 60% or more, unchanged 14 days | `lead_followup` |
+| `crm.discount_incentive` | the same lead has a draft quotation | `discount_approval` (5%) |
+
+Every threshold lives in `erp_automation_rules.condition_json` and is validated on save (422 `condition_invalid`).
+
+Repeatable by design: a finding keeps its fingerprint, so a rescan updates in place and bumps `version` only when the content changes. A full scan resolves insights whose cause is gone and withdraws their pending requests (`rejected` with `decided_by` null, which is not a human decision). After an executive rejects a request, the same finding is not proposed again for the rule's `cooldownDays`. A scan runs under a per-tenant advisory lock. A rule the caller cannot read data for is skipped and reported, and its earlier findings are left alone.
+
+### Approve and execute
+
+`approveApproval` runs in one transaction: lock the request, check `version` (409 `version_conflict`) and that it is `pending`, check the permission of the underlying action as well as `ai.action.approve`, recheck the live data (409 `proposal_stale` if it changed), run the domain action, mark the request `executed` with its result, write the audit row. It needs an `Idempotency-Key`. Each module's events are published after commit. A failure at any step leaves nothing behind (tested with a deactivated warehouse).
+
+| Action | What it does | Through |
+| --- | --- | --- |
+| `auto_reorder` | inserts an IN movement (`reference_type = restock`, `reference_id` = the request) into the active warehouse that holds the most stock, valued at the item's unit cost | inventory `receiveRestockWithin` |
+| `price_adjustment` | raises the selling price to the margin floor | inventory `setSellingPriceWithin` |
+| `credit_hold` | sets the customer to `blocked` | CRM `holdCustomerWithin` |
+| `discount_approval` | applies the percentage to every unit price of the lead's draft quotation, then recomputes totals once | CRM `applyDraftDiscountWithin` |
+| `payment_reminder` | writes the audit row and returns a ready Arabic message with a `wa.me` link | none, nothing is sent |
+| `lead_followup` | same as above for the lead's customer | none, nothing is sent |
+
+### Screens
+
+`/erp` is the executive command center and `/erp/ai` the AI workspace. Both show the five live KPIs (month revenue, receivables with the overdue part, inventory valuation, low-stock count, active pipeline), the Copilot bar and the decisions list. `/erp/ai` adds alerts with server-side filters and the rule editor. `ErpNav` is the header of every `/erp` page. Links from alerts and command results open the record: `/erp/finance?invoice=<id>`, `/erp/inventory?item=<id>`, `/erp/crm?customer=<id>`. The pages check that the id is a UUID.
+
+The Copilot bar sends text to `POST /api/v1/ai/command`. The server reads fixed Arabic and English keyword lists (scan words, finance/inventory/CRM words, critical/warning/opportunity, open/read/resolved). What it does not recognise is searched in invoices, items and customers, limited to what the caller may read.
+
+### Rules I had to choose (change them if they are wrong)
+
+You chose: the default thresholds above, restock as an IN movement without a purchase order, price and discount actions that apply, and `payment_reminder` and `lead_followup` as extra action types because the brief's four types cannot express a reminder.
+
+- Restock is booked as received at unit cost. The ERP has no supplier or purchase-order module, so there is nothing to wait for.
+- The restock target is the larger of `restockMultiplier` times the reorder level and `targetCoverDays` of the 30-day OUT average.
+- Estimated impact is signed: what is collected or protected is positive, what is spent or given up is negative (restock, discount).
+- A discount is only proposed for a lead that has a draft quotation, and it only changes that draft. A sent quotation is never touched.
+- A credit hold uses the existing `blocked` status, so the customer cannot be invoiced until someone sets them back to `active` in CRM.
+- A scan can run for a single item when inventory emits `inventory.item.reorder_level_reached` or `inventory.stock.depleted`. The handlers are registered in `src/instrumentation.ts`. They act as the tenant's creator, who must hold `inventory.stock.read` and `inventory.item.read`. They only add or update, never resolve.
+- The insight and request texts are Arabic only. They do not change with the language switch. All screen labels are translated.
+- Arabic strings are new text I wrote. Have a native reviewer read them.
+
 ## Events
 
-In-process emitter in `src/lib/events/bus.ts`. Names follow `<module>.<entity>.<past-tense-verb>` and carry a version. Finance emits `created`, `updated`, `submitted`, `approved`, `issued`, `voided`, `paid` for invoices and `finance.payment.recorded`. CRM emits `crm.customer.created` / `updated`, `crm.lead.created` / `updated` / `moved` / `won` / `lost` and `crm.quotation.created` / `updated` / `status_changed` / `converted`. Inventory emits `inventory.stock.moved`, `inventory.stock.depleted`, `inventory.item.reorder_level_reached` (once per downward crossing of the level), `inventory.item.created` / `updated` and `inventory.warehouse.created` / `updated`. Reorder alerts are events and the overview list. There is no notification channel yet, so nothing e-mails or pushes.
+In-process emitter in `src/lib/events/bus.ts`. Names follow `<module>.<entity>.<past-tense-verb>` and carry a version. Finance emits `created`, `updated`, `submitted`, `approved`, `issued`, `voided`, `paid` for invoices and `finance.payment.recorded`. CRM emits `crm.customer.created` / `updated`, `crm.lead.created` / `updated` / `moved` / `won` / `lost` and `crm.quotation.created` / `updated` / `status_changed` / `converted`. Inventory emits `inventory.stock.moved`, `inventory.stock.depleted`, `inventory.item.reorder_level_reached` (once per downward crossing of the level), `inventory.item.created` / `updated` and `inventory.warehouse.created` / `updated`. Reorder alerts are events and the overview list. AI emits `ai.insight.detected`, `ai.approval.requested`, `ai.approval.executed`, `ai.approval.rejected` and `ai.scan.completed`. There is no notification channel yet, so nothing e-mails or pushes.
 
 Events are emitted after the transaction commits. A replayed idempotent request emits nothing. A failing handler is logged and never reaches the emitter.
 
@@ -170,11 +241,19 @@ Limit: on Vercel an in-process emitter only reaches handlers in the same functio
 1. Create a Supabase project. Set `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `DATABASE_URL` (transaction pooler string) and `DATABASE_SSL` in `.env.local` and in Vercel. See `.env.example`.
 2. `npm run db:migrate`
 3. Create a user in Supabase Authentication, then in the SQL editor: `select erp_bootstrap_tenant('Your company', 'your-slug', '<that user id>');`
-4. Sign in at `/login` and open `/erp/finance`, `/erp/inventory` or `/erp/crm`. Tenants created before `0006` get the new inventory permissions from the migration's backfill.
+4. Sign in at `/login` and open `/erp` (the command center) or `/erp/finance`, `/erp/inventory`, `/erp/crm`, `/erp/ai`. Press the scan button once to create the first insights. Tenants created before `0006` get the new inventory permissions from the migration's backfill.
 
 ## Tests
 
-`npm test` runs about 300 tests. The integration test applies the real migrations to an in-process Postgres (PGlite) and runs the real repositories and services against it. PGlite is not Supabase, so it does not test RLS policies, the `authenticate()` lookup, or the pooled connection.
+`npm test` runs 474 tests. The integration tests apply the real migrations to an in-process Postgres (PGlite) and run the real repositories and services against it. PGlite is not Supabase, so it does not test the pooled connection or Supabase's real JWT/`auth.uid()`. It does test, through `src/lib/__tests__`:
+
+- `auth-context.test.ts`: `authenticate()` and `protectedRoute` (401, 403, tenant header rules, suspended tenant, no error leakage), with Supabase's `getUser` replaced by a fake.
+- `security-db.test.ts`: RLS and privileges as the real `anon` and `authenticated` roles, with Supabase's default grants emulated. Tenant isolation, permission gating, write blocking, closed functions.
+- `migration-safety.test.ts`: a database holding data at `0005` is upgraded to the latest migration and every row must survive. Also the `0006` guard that refuses to run over an old ledger with rows, and a scan that migrations never `delete`, `truncate` or drop a schema.
+- `integrity-db.test.ts`: after a mixed invoice, payment, void, transfer, race and AI restock scenario, the ledger equals the balances, invoices equal their lines and payments, history is append-only and every change has an audit row.
+- `architecture.test.ts`: module import boundaries, no cross-module table access, no `console`, `any` or `ts-ignore` in production code.
+
+`npm run lint` (`next lint`, `next/core-web-vitals`) runs ESLint.
 
 ## Conflicts with the rules
 
@@ -196,6 +275,10 @@ Limit: on Vercel an in-process emitter only reaches handlers in the same functio
 - "Fast-moving" counts OUT movements only (sales and write-offs), not transfers.
 - The invoice form and stock form list the first 100 items and customers. Past that you need a search box, which is not built.
 - PGlite does not test the inventory RLS policies. Check them once on a real Supabase project.
+
+- AI: the page in the Aether dashboard at `/` (CEORoom) still shows its sample numbers. The live command center is `/erp`, behind sign-in.
+- AI: the screens were checked in the browser against mocked `/api/v1/ai` responses, because this machine has no Supabase project. The API, rules and execution are covered by PGlite tests.
+- AI event handlers live in the process that serves the request, like every other handler here (see the limit under Events).
 
 ## What this does not claim
 

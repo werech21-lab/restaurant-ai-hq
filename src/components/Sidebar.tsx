@@ -177,6 +177,18 @@ export default function Sidebar({
 
       <div className="px-3 pb-2">
         <Link
+          href="/erp"
+          className="flex w-full items-center rounded-2xl px-3 py-2.5 text-sm text-mist-400 transition hover:bg-white/[0.03] hover:text-mist-100"
+        >
+          {t('erpnav.hq')}
+        </Link>
+        <Link
+          href="/erp/ai"
+          className="flex w-full items-center rounded-2xl px-3 py-2.5 text-sm text-mist-400 transition hover:bg-white/[0.03] hover:text-mist-100"
+        >
+          {t('erpnav.ai')}
+        </Link>
+        <Link
           href="/erp/finance"
           className="flex w-full items-center rounded-2xl px-3 py-2.5 text-sm text-mist-400 transition hover:bg-white/[0.03] hover:text-mist-100"
         >

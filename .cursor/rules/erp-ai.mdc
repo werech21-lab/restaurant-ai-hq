@@ -1,0 +1,18 @@
+---
+description: AI module rules for insights, proposals, approvals, automation rules and the Copilot bar
+alwaysApply: true
+---
+
+# AI module
+
+- The engine is deterministic. No language model, no external API. The same data gives the same insights, and thresholds live in `erp_automation_rules.condition_json`, never in code or UI. Money in rules is integer fils, BigInt where it is multiplied.
+- The AI module reads finance, inventory and CRM only through their public API, and acts on them only through "Within" functions such as `receiveRestockWithin`, `setSellingPriceWithin`, `holdCustomerWithin` and `applyDraftDiscountWithin`. It never queries or writes another module's tables.
+- Findings are keyed by `fingerprint`. A rescan updates in place and never duplicates. One live insight and one pending request per fingerprint. Do not remove that key.
+- Nothing is executed before a human approves. Approving needs `ai.action.approve` plus the permission of the underlying action, an `Idempotency-Key` and the request `version`. It rechecks live data and returns 409 `proposal_stale` when the proposal no longer fits.
+- Approval, the domain change, the `executed` mark and the audit rows run in one transaction. Events are published after commit, per module.
+- A request the engine withdraws is `rejected` with `decided_by` null. Only a human decision starts a cooldown.
+- `payment_reminder` and `lead_followup` only write a ready Arabic message and an audit row. Nothing is sent automatically.
+- Insight and proposal text is Arabic and comes from `domain/messages.ts`. Screen labels go through `src/lib/i18n.tsx` in both languages.
+- Add no action type, rule key or status transition without asking. A new rule needs a default in `erp_seed_ai_rules`, a Zod threshold schema in `domain/thresholds.ts`, a pure evaluator with tests, and a case in `ai-db.test.ts`.
+- Browser code imports from `@/modules/ai/client` only. Server code imports from `@/modules/ai`. Screens live in `src/modules/ai/ui/`.
+- Any change to these rules needs a test in `src/modules/ai/__tests__`. Database behaviour needs a case in `ai-db.test.ts`.

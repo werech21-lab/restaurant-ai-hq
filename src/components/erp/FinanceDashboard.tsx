@@ -57,7 +57,8 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
   )
 }
 
-export default function FinanceDashboard() {
+/** initialInvoiceId opens that invoice's panel on arrival, for links from the command center. */
+export default function FinanceDashboard({ initialInvoiceId = null }: { initialInvoiceId?: string | null }) {
   const { t } = useI18n()
   const compact = useCompactChart()
 
@@ -79,7 +80,7 @@ export default function FinanceDashboard() {
 
   const [reload, setReload] = useState(0)
   const keepRows = useRef(false)
-  const [selection, setSelection] = useState<Selection>(null)
+  const [selection, setSelection] = useState<Selection>(initialInvoiceId ? { kind: 'invoice', id: initialInvoiceId } : null)
 
   const buildQuery = useCallback(
     (after: string | null) => {

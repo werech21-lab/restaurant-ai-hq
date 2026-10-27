@@ -14,7 +14,9 @@ import {
   assertEditable,
   assertTransition,
   assertValidUntil,
+  discountedUnitPrice,
   formatQuoteNumber,
+  toInvoiceLines,
   utcDate,
 } from '@/modules/crm/domain/quotation'
 import type { Quotation, QuotationDetail, QuotationStatus } from '@/modules/crm/domain/types'
@@ -171,40 +173,91 @@ export async function createQuotation(
   return outcome
 }
 
+/**
+ * Replaces a draft's header and lines inside the caller's transaction. Only a draft can be edited. The caller publishes
+ * the events after commit.
+ */
+async function updateDraftWithin(
+  tx: Queryable,
+  auth: AuthContext,
+  id: string,
+  input: UpdateQuotationInput,
+  events: CrmEvent[]
+): Promise<QuotationBody> {
+  const current = await repository.findQuotation(tx, auth.tenantId, id, { lock: true })
+  if (!current) throw quotationNotFound()
+  if (current.version !== input.version) throw versionConflict()
+  assertEditable(current)
+  const before = await loadQuotationDetail(tx, auth, current)
+  const { customerName } = await validateDraft(tx, auth.tenantId, input)
+  const totals = computeTotals(input.lines)
+  const updated = await repository.updateDraftHeader(tx, auth.tenantId, id, input.version, {
+    quoteNumber: current.quoteNumber,
+    customerId: input.customerId,
+    customerName,
+    leadId: input.leadId,
+    validUntil: input.validUntil,
+    notes: input.notes,
+    ...totals,
+  })
+  if (!updated) throw versionConflict()
+  await repository.deleteLines(tx, auth.tenantId, id)
+  await repository.insertLines(tx, auth.tenantId, auth.userId, id, input.lines)
+  const after = await loadQuotationDetail(tx, auth, updated)
+  await auditQuotation(tx, auth, id, 'update', before, after)
+  events.push({
+    ...crmEventBase(auth.tenantId),
+    name: 'crm.quotation.updated',
+    payload: { quotationId: id, quoteNumber: updated.quoteNumber, updatedBy: auth.userId },
+  })
+  return { data: after }
+}
+
 /** Replaces a draft's header and lines in one transaction. Only a draft can be edited. */
 export async function updateQuotation(auth: AuthContext, id: string, input: UpdateQuotationInput): Promise<QuotationBody> {
   const events: CrmEvent[] = []
-  const body = await withTransaction(async (tx): Promise<QuotationBody> => {
-    const current = await repository.findQuotation(tx, auth.tenantId, id, { lock: true })
-    if (!current) throw quotationNotFound()
-    if (current.version !== input.version) throw versionConflict()
-    assertEditable(current)
-    const before = await loadQuotationDetail(tx, auth, current)
-    const { customerName } = await validateDraft(tx, auth.tenantId, input)
-    const totals = computeTotals(input.lines)
-    const updated = await repository.updateDraftHeader(tx, auth.tenantId, id, input.version, {
-      quoteNumber: current.quoteNumber,
-      customerId: input.customerId,
-      customerName,
-      leadId: input.leadId,
-      validUntil: input.validUntil,
-      notes: input.notes,
-      ...totals,
-    })
-    if (!updated) throw versionConflict()
-    await repository.deleteLines(tx, auth.tenantId, id)
-    await repository.insertLines(tx, auth.tenantId, auth.userId, id, input.lines)
-    const after = await loadQuotationDetail(tx, auth, updated)
-    await auditQuotation(tx, auth, id, 'update', before, after)
-    events.push({
-      ...crmEventBase(auth.tenantId),
-      name: 'crm.quotation.updated',
-      payload: { quotationId: id, quoteNumber: updated.quoteNumber, updatedBy: auth.userId },
-    })
-    return { data: after }
-  })
+  const body = await withTransaction((tx) => updateDraftWithin(tx, auth, id, input, events))
   await publishCrmEvents(events)
   return body
+}
+
+export type DraftDiscount = {
+  quotationId: string
+  discountBps: number
+  /** The version the request was made against. Any change since then makes the request stale. */
+  expectedVersion: number
+}
+
+/**
+ * Lowers every unit price of a draft quotation by a percentage, inside the caller's transaction, through the same path as
+ * a manual edit (so the totals, stock lines, audit and events follow the normal rules). Refuses with 409 `proposal_stale`
+ * when the quotation is no longer a draft or changed since the request was made.
+ */
+export async function applyDraftDiscountWithin(
+  tx: Queryable,
+  auth: AuthContext,
+  change: DraftDiscount,
+  events: CrmEvent[]
+): Promise<QuotationBody> {
+  const current = await repository.findQuotation(tx, auth.tenantId, change.quotationId, { lock: true })
+  if (!current) throw quotationNotFound()
+  if (current.status !== 'draft' || current.version !== change.expectedVersion) {
+    throw new DomainError('proposal_stale', 'The quotation changed after this request was made.')
+  }
+  const lines = await repository.listLines(tx, auth.tenantId, current.id)
+  if (lines.length === 0) throw new DomainError('proposal_stale', 'The quotation has no lines to discount.')
+  const input: UpdateQuotationInput = {
+    version: current.version,
+    customerId: current.customerId,
+    leadId: current.leadId,
+    validUntil: current.validUntil,
+    notes: current.notes,
+    lines: toInvoiceLines(lines).map((line) => ({
+      ...line,
+      unitPriceMinor: discountedUnitPrice(line.unitPriceMinor, change.discountBps),
+    })),
+  }
+  return updateDraftWithin(tx, auth, current.id, input, events)
 }
 
 type Decision = {

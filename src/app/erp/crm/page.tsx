@@ -1,10 +1,11 @@
 import { redirect } from 'next/navigation'
+import { deepLinkId } from '@/lib/deep-link'
 import { createClient } from '@/lib/supabase/server'
 import CrmWorkspace from '@/modules/crm/ui/CrmWorkspace'
 
 export const dynamic = 'force-dynamic'
 
-export default async function CrmPage() {
+export default async function CrmPage({ searchParams }: { searchParams: { customer?: string | string[] } }) {
   const supabase = createClient()
   if (!supabase) redirect('/login?next=/erp/crm')
 
@@ -14,8 +15,8 @@ export default async function CrmPage() {
   if (!user) redirect('/login?next=/erp/crm')
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-7xl px-4 py-8 sm:px-6">
-      <CrmWorkspace />
+    <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6">
+      <CrmWorkspace initialCustomerId={deepLinkId(searchParams.customer)} />
     </main>
   )
 }

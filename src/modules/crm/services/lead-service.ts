@@ -6,7 +6,7 @@ import { db, withTransaction, type Queryable } from '@/lib/db'
 import { DomainError } from '@/lib/domain-error'
 import { hashRequest, runIdempotent, type IdempotentResult } from '@/lib/idempotency'
 import { assertLeadEditable, assertStageMove, probabilityAfterMove } from '@/modules/crm/domain/lead'
-import type { Lead, StageSummary, TeamMember } from '@/modules/crm/domain/types'
+import type { Lead, StageSummary, StalledLead, TeamMember } from '@/modules/crm/domain/types'
 import { crmEventBase, publishCrmEvents, type CrmEvent } from '@/modules/crm/events'
 import * as customers from '@/modules/crm/repositories/customer-repository'
 import * as repository from '@/modules/crm/repositories/lead-repository'
@@ -214,4 +214,18 @@ export async function winLeadWithin(
     }
   )
   return after
+}
+
+/** Open, likely and quiet leads, for the AI engine. Runs in the caller's transaction. */
+export function listStalledLeads(
+  tx: Queryable,
+  tenantId: string,
+  criteria: { minProbability: number; staleDays: number }
+): Promise<StalledLead[]> {
+  return repository.listStalledLeads(tx, tenantId, criteria)
+}
+
+/** A lead by id, for the AI engine's recheck before it acts. Runs in the caller's transaction. */
+export function findLeadWithin(tx: Queryable, tenantId: string, id: string): Promise<Lead | null> {
+  return repository.findLead(tx, tenantId, id)
 }

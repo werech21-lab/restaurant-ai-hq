@@ -8,8 +8,10 @@ export type {
   InvoiceLine,
   InvoiceStatus,
   InvoiceSummary,
+  OverdueInvoiceRef,
   Payment,
   PaymentMethod,
+  ReceivableSignal,
 } from '@/modules/finance/domain/types'
 export { computeTotals, lineNetMinor, MAX_INVOICE_MINOR } from '@/modules/finance/domain/totals'
 export type { InvoiceTotals } from '@/modules/finance/domain/totals'

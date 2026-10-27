@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useState } from 'react'
 import { apiRequest, errorKey, isAbort } from '@/components/erp/api'
-import { noticeClass, primaryButton, secondaryButton } from '@/components/erp/styles'
+import { errorClass, noticeClass, primaryButton, secondaryButton } from '@/components/erp/styles'
 import { useI18n, type MessageKey } from '@/lib/i18n'
 import type { Item, Warehouse } from '@/modules/inventory/client'
 import { InventoryOverview } from '@/modules/inventory/ui/InventoryOverview'
@@ -20,11 +20,12 @@ type Tab = (typeof tabs)[number]
 type Dialog = { kind: 'item'; item?: Item } | { kind: 'movement'; item?: Item } | null
 
 /** The inventory screen: overview, product catalog, stock movement ledger and warehouses. */
-export default function InventoryWorkspace() {
+export default function InventoryWorkspace({ initialItemId = null }: { initialItemId?: string | null }) {
   const { t } = useI18n()
-  const [tab, setTab] = useState<Tab>('overview')
+  const [tab, setTab] = useState<Tab>(initialItemId ? 'catalog' : 'overview')
   const [dialog, setDialog] = useState<Dialog>(null)
   const [notice, setNotice] = useState<MessageKey | null>(null)
+  const [linkError, setLinkError] = useState<MessageKey | null>(null)
   // Bumped after any change so every tab reloads its data.
   const [reloadToken, setReloadToken] = useState(0)
 
@@ -47,6 +48,18 @@ export default function InventoryWorkspace() {
       })
     return () => controller.abort()
   }, [reloadToken, warehouseReload])
+
+  // A link with an item id opens that item for editing on arrival.
+  useEffect(() => {
+    if (!initialItemId) return
+    const controller = new AbortController()
+    apiRequest<{ data: Item }>(`/api/v1/inventory/items/${initialItemId}`, { signal: controller.signal })
+      .then((payload) => setDialog({ kind: 'item', item: payload.data }))
+      .catch((error: unknown) => {
+        if (!isAbort(error)) setLinkError(errorKey(error))
+      })
+    return () => controller.abort()
+  }, [initialItemId])
 
   useEffect(() => {
     if (!notice) return
@@ -84,6 +97,12 @@ export default function InventoryWorkspace() {
       {notice ? (
         <p role="status" className={`${noticeClass} mb-4`}>
           {t(notice)}
+        </p>
+      ) : null}
+
+      {linkError ? (
+        <p role="alert" className={`${errorClass} mb-4`}>
+          {t(linkError)}
         </p>
       ) : null}
 

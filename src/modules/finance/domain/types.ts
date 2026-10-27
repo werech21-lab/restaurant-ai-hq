@@ -95,3 +95,26 @@ export type InvoiceSummary = {
   overdueCount: number
   months: Array<{ month: string; invoicedMinor: number; collectedMinor: number }>
 }
+
+/** One overdue invoice, as the AI engine reads it. */
+export type OverdueInvoiceRef = {
+  id: string
+  number: string
+  dueDate: string
+  balanceMinor: number
+  daysOverdue: number
+}
+
+/** Everything one customer is overdue on: issued and partially paid invoices whose due date is before today (UTC). */
+export type ReceivableSignal = {
+  customerId: string
+  customerName: string
+  overdueMinor: number
+  overdueInvoiceCount: number
+  oldestDaysOverdue: number
+  /** The largest overdue invoices first, at most three. */
+  invoices: OverdueInvoiceRef[]
+}
+
+/** What one invoice owes right now. */
+export type InvoiceBalance = { id: string; status: InvoiceStatus; balanceMinor: number }

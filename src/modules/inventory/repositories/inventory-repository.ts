@@ -10,6 +10,7 @@ import type {
   MovementType,
   ReferenceType,
   StockBalance,
+  StockSignal,
   StockMovement,
   Warehouse,
   WarehouseStatus,
@@ -443,4 +444,49 @@ export async function fastMovingItems(tx: Queryable, tenantId: string, days: num
     [tenantId, days, limit]
   )
   return result.rows
+}
+
+type StockSignalRow = Omit<StockSignal, 'restockWarehouse'> & {
+  warehouseId: string | null
+  warehouseCode: string | null
+  warehouseName: string | null
+}
+
+/**
+ * Active items with what the AI engine needs: stock, prices, the units that left in the window and the active
+ * warehouse holding the most of the item (ties go to the lowest code). Pass `itemIds` to look at some items only.
+ */
+export async function listStockSignals(
+  tx: Queryable,
+  tenantId: string,
+  windowDays: number,
+  itemIds: readonly string[] | null
+): Promise<StockSignal[]> {
+  const result = await tx.query<StockSignalRow>(
+    `select i.id as "itemId", i.sku, i.name, i.unit, i.current_stock as "currentStock", i.reorder_level as "reorderLevel",
+            i.unit_cost_minor as "unitCostMinor", i.selling_price_minor as "sellingPriceMinor", i.version,
+            coalesce((select -sum(m.quantity) from stock_movements m
+                      where m.tenant_id = i.tenant_id and m.item_id = i.id and m.movement_type = 'OUT'
+                        and m.created_at >= now() - ($2::int * interval '1 day')), 0)::bigint as "outQuantity",
+            w.id as "warehouseId", w.code as "warehouseCode", w.name as "warehouseName"
+     from items i
+     left join lateral (
+       select w2.id, w2.code, w2.name
+       from warehouses w2
+       left join stock_balances sb on sb.tenant_id = w2.tenant_id and sb.warehouse_id = w2.id and sb.item_id = i.id
+       where w2.tenant_id = i.tenant_id and w2.status = 'active'
+       order by coalesce(sb.on_hand, 0) desc, w2.code, w2.id
+       limit 1
+     ) w on true
+     where i.tenant_id = $1 and i.is_active and ($3::uuid[] is null or i.id = any($3::uuid[]))
+     order by i.name, i.id`,
+    [tenantId, windowDays, itemIds === null ? null : [...itemIds]]
+  )
+  return result.rows.map(({ warehouseId, warehouseCode, warehouseName, ...signal }) => ({
+    ...signal,
+    restockWarehouse:
+      warehouseId !== null && warehouseCode !== null && warehouseName !== null
+        ? { id: warehouseId, code: warehouseCode, name: warehouseName }
+        : null,
+  }))
 }

@@ -1,7 +1,16 @@
 import type { Page } from '@/lib/api/cursor'
 import { keysetClauses, toPage, type SortColumn } from '@/lib/api/keyset'
 import type { Queryable } from '@/lib/db'
-import { leadStages, type Lead, type LeadStage, type StageSummary, type TeamMember } from '@/modules/crm/domain/types'
+import {
+  leadStages,
+  type CustomerStatus,
+  type Lead,
+  type LeadStage,
+  type OpenLeadStage,
+  type StageSummary,
+  type StalledLead,
+  type TeamMember,
+} from '@/modules/crm/domain/types'
 import type { CreateLeadInput, LeadSortKey, ListLeadsQuery, UpdateLeadInput } from '@/modules/crm/schemas/lead'
 
 type LeadRow = Omit<Lead, 'createdAt' | 'updatedAt'> & { createdAt: Date; updatedAt: Date }
@@ -181,4 +190,79 @@ export async function listTeam(tx: Queryable, tenantId: string): Promise<TeamMem
     [tenantId]
   )
   return result.rows
+}
+
+type StalledLeadRow = {
+  leadId: string
+  title: string
+  stage: OpenLeadStage
+  probability: number
+  expectedRevenueMinor: number
+  daysStalled: number
+  customerId: string
+  customerName: string
+  customerStatus: CustomerStatus
+  customerPhone: string | null
+  quotationId: string | null
+  quoteNumber: string | null
+  quotationVersion: number | null
+  subtotalMinor: number | null
+  totalMinor: number | null
+}
+
+const STALLED_LEAD_LIMIT = 500
+
+/** Open leads at or above a probability that have not changed for at least `staleDays`, largest expected revenue first. */
+export async function listStalledLeads(
+  tx: Queryable,
+  tenantId: string,
+  criteria: { minProbability: number; staleDays: number }
+): Promise<StalledLead[]> {
+  const result = await tx.query<StalledLeadRow>(
+    `select l.id as "leadId", l.title, l.stage, l.probability, l.expected_revenue_minor as "expectedRevenueMinor",
+            floor(extract(epoch from (now() - l.updated_at)) / 86400)::int as "daysStalled",
+            l.customer_id as "customerId", c.name as "customerName", c.status as "customerStatus", c.phone as "customerPhone",
+            q.id as "quotationId", q.quote_number as "quoteNumber", q.version as "quotationVersion",
+            q.subtotal_minor as "subtotalMinor", q.total_minor as "totalMinor"
+     from crm_leads_pipeline l
+     join customers c on c.tenant_id = l.tenant_id and c.id = l.customer_id
+     left join lateral (
+       select sq.id, sq.quote_number, sq.version, sq.subtotal_minor, sq.total_minor
+       from sales_quotations sq
+       where sq.tenant_id = l.tenant_id and sq.lead_id = l.id and sq.status = 'draft'
+       order by sq.created_at desc, sq.id desc
+       limit 1
+     ) q on true
+     where l.tenant_id = $1 and l.stage in ('new', 'contacted', 'qualified', 'proposal')
+       and l.probability >= $2 and l.updated_at < now() - ($3::int * interval '1 day')
+     order by l.expected_revenue_minor desc, l.id
+     limit $4`,
+    [tenantId, criteria.minProbability, criteria.staleDays, STALLED_LEAD_LIMIT]
+  )
+  return result.rows.map((row) => ({
+    leadId: row.leadId,
+    title: row.title,
+    stage: row.stage,
+    probability: row.probability,
+    expectedRevenueMinor: row.expectedRevenueMinor,
+    daysStalled: row.daysStalled,
+    customerId: row.customerId,
+    customerName: row.customerName,
+    customerStatus: row.customerStatus,
+    customerPhone: row.customerPhone,
+    draftQuotation:
+      row.quotationId !== null &&
+      row.quoteNumber !== null &&
+      row.quotationVersion !== null &&
+      row.subtotalMinor !== null &&
+      row.totalMinor !== null
+        ? {
+            id: row.quotationId,
+            quoteNumber: row.quoteNumber,
+            version: row.quotationVersion,
+            subtotalMinor: row.subtotalMinor,
+            totalMinor: row.totalMinor,
+          }
+        : null,
+  }))
 }

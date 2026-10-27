@@ -131,3 +131,18 @@ export function assertWithinCreditLimit(args: {
     )
   }
 }
+
+/**
+ * A unit price after a percentage discount given in basis points, rounded half up to a whole fils. BigInt, no floats.
+ * Applied per line price. The document totals are then computed once with `computeTotals`.
+ */
+export function discountedUnitPrice(unitPriceMinor: number, discountBps: number): number {
+  if (!Number.isSafeInteger(unitPriceMinor) || unitPriceMinor < 0) {
+    throw new DomainError('discount_invalid', 'The unit price must be a whole amount of fils that is not negative.')
+  }
+  if (!Number.isInteger(discountBps) || discountBps < 1 || discountBps > 10_000) {
+    throw new DomainError('discount_invalid', 'The discount must be between 0.01% and 100%.')
+  }
+  const numerator = BigInt(unitPriceMinor) * BigInt(10_000 - discountBps)
+  return Number((numerator + 5_000n) / 10_000n)
+}

@@ -18,4 +18,6 @@ export const conflictDomainCodes: ReadonlySet<string> = new Set([
   'credit_limit_exceeded',
   'customer_not_active',
   'quote_expired',
+  'proposal_stale',
+  'customer_already_blocked',
 ])

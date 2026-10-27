@@ -25,6 +25,8 @@ import {
 import { computeTotals } from '@/modules/finance/domain/totals'
 import type {
   CustomerFinancials,
+  InvoiceBalance,
+  ReceivableSignal,
   FinanceSettings,
   Invoice,
   InvoiceDetail,
@@ -387,4 +389,14 @@ export function getCustomerFinancials(tx: Queryable, tenantId: string, customerI
 export async function getInvoiceSummary(auth: AuthContext): Promise<{ data: InvoiceSummary }> {
   const settings = await requireSettings(db, auth.tenantId)
   return { data: await repository.summarize(db, auth.tenantId, settings.approvalThresholdMinor) }
+}
+
+/** Customers with open invoices overdue by at least minDaysOverdue days, for the AI engine. Runs in the caller's transaction. */
+export function listReceivableSignals(tx: Queryable, tenantId: string, minDaysOverdue: number): Promise<ReceivableSignal[]> {
+  return repository.receivableSignals(tx, tenantId, minDaysOverdue)
+}
+
+/** Current status and unpaid balance of the given invoices, for the AI engine. Runs in the caller's transaction. */
+export function getInvoiceBalances(tx: Queryable, tenantId: string, ids: readonly string[]): Promise<InvoiceBalance[]> {
+  return repository.invoiceBalances(tx, tenantId, ids)
 }

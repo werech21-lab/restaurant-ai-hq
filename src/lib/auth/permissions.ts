@@ -26,6 +26,13 @@ export const permissions = {
   inventoryWarehouseUpdate: 'inventory.warehouse.update',
   inventoryStockRead: 'inventory.stock.read',
   inventoryStockAdjust: 'inventory.stock.adjust',
+  aiInsightRead: 'ai.insight.read',
+  aiInsightUpdate: 'ai.insight.update',
+  aiScanRun: 'ai.scan.run',
+  aiActionRead: 'ai.action.read',
+  aiActionApprove: 'ai.action.approve',
+  aiRuleRead: 'ai.rule.read',
+  aiRuleUpdate: 'ai.rule.update',
 } as const
 
 export type Permission = (typeof permissions)[keyof typeof permissions]

@@ -26,10 +26,11 @@ type Dialog =
   | null
 
 /** The CRM screen: opportunity pipeline, customer directory with a 360 profile, and quotations. */
-export default function CrmWorkspace() {
+export default function CrmWorkspace({ initialCustomerId = null }: { initialCustomerId?: string | null }) {
   const { t } = useI18n()
-  const [tab, setTab] = useState<Tab>('pipeline')
-  const [dialog, setDialog] = useState<Dialog>(null)
+  const [tab, setTab] = useState<Tab>(initialCustomerId ? 'customers' : 'pipeline')
+  // A link with a customer id opens that customer's profile on arrival.
+  const [dialog, setDialog] = useState<Dialog>(initialCustomerId ? { kind: 'profile', customerId: initialCustomerId } : null)
   const [notice, setNotice] = useState<MessageKey | null>(null)
   const [alert, setAlert] = useState<MessageKey | null>(null)
   // Bumped after any change so every tab and open profile reloads its data.

@@ -29,22 +29,27 @@ export {
 export {
   createCustomer,
   findCustomer,
+  findCustomerContact,
   getCustomer,
   getCustomerProfile,
+  holdCustomerWithin,
   listCustomers,
   updateCustomer,
 } from '@/modules/crm/services/customer-service'
 export {
   createLead,
+  findLeadWithin,
   getLead,
   getStageSummary,
   listLeads,
+  listStalledLeads,
   listTeam,
   moveLead,
   updateLead,
 } from '@/modules/crm/services/lead-service'
 export {
   acceptQuotation,
+  applyDraftDiscountWithin,
   createQuotation,
   expireQuotation,
   getQuotation,
@@ -53,6 +58,8 @@ export {
   sendQuotation,
   updateQuotation,
 } from '@/modules/crm/services/quotation-service'
+export type { DraftDiscount } from '@/modules/crm/services/quotation-service'
 export { convertQuotation } from '@/modules/crm/services/conversion-service'
+export { publishCrmEvents } from '@/modules/crm/events'
 export type * from '@/modules/crm/events'
 export type * from '@/modules/crm/domain/types'

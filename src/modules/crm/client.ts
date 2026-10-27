@@ -38,6 +38,7 @@ export type {
   ActivityKind,
   ConversionResult,
   Customer,
+  CustomerContact,
   CustomerProfile,
   CustomerRef,
   CustomerStatus,
@@ -50,5 +51,6 @@ export type {
   QuotationLine,
   QuotationStatus,
   StageSummary,
+  StalledLead,
   TeamMember,
 } from '@/modules/crm/domain/types'

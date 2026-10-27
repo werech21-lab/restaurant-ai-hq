@@ -3,6 +3,7 @@ import { AppError } from '@/lib/api/errors'
 import { writeAudit } from '@/lib/audit'
 import type { AuthContext } from '@/lib/auth/context'
 import { db, withTransaction, type Queryable } from '@/lib/db'
+import { DomainError } from '@/lib/domain-error'
 import { hashRequest, runIdempotent, type IdempotentResult } from '@/lib/idempotency'
 import type { ItemDetail, Item, Warehouse } from '@/modules/inventory/domain/types'
 import { publishInventoryEvents, type InventoryEvent } from '@/modules/inventory/events'
@@ -188,4 +189,52 @@ export async function getWarehouse(auth: AuthContext, id: string): Promise<Wareh
   const warehouse = await repository.findWarehouse(db, auth.tenantId, id)
   if (!warehouse) throw warehouseNotFound()
   return { data: warehouse }
+}
+
+// ---- AI integration ----
+
+/** Reads an item, locking it when the caller is about to change something that depends on it. Null when it does not exist. */
+export function findItemWithin(tx: Queryable, tenantId: string, id: string, lock: boolean): Promise<Item | null> {
+  return repository.findItem(tx, tenantId, id, { lock })
+}
+
+export type SellingPriceChange = {
+  itemId: string
+  /** The price the request was made against. A different current price means the request is stale. */
+  expectedPriceMinor: number
+  newPriceMinor: number
+}
+
+/**
+ * Changes only the selling price of an item, inside the caller's transaction. Locks the item, refuses when the price is no
+ * longer the one the request was made against (409 `proposal_stale`), then updates with the item's other fields as they are.
+ * The caller publishes the events after commit.
+ */
+export async function setSellingPriceWithin(
+  tx: Queryable,
+  auth: AuthContext,
+  change: SellingPriceChange,
+  events: InventoryEvent[]
+): Promise<Item> {
+  const before = await repository.findItem(tx, auth.tenantId, change.itemId, { lock: true })
+  if (!before) throw itemNotFound()
+  if (before.sellingPriceMinor !== change.expectedPriceMinor) {
+    throw new DomainError('proposal_stale', 'The selling price changed after this request was made.')
+  }
+  const after = await repository.updateItem(tx, auth.tenantId, change.itemId, {
+    version: before.version,
+    name: before.name,
+    unitCostMinor: before.unitCostMinor,
+    sellingPriceMinor: change.newPriceMinor,
+    reorderLevel: before.reorderLevel,
+    isActive: before.isActive,
+  })
+  if (!after) throw versionConflict('item')
+  await audit(tx, auth, 'item', change.itemId, 'update', before, after)
+  events.push({
+    ...eventBase(auth),
+    name: 'inventory.item.updated',
+    payload: { itemId: change.itemId, sku: after.sku, updatedBy: auth.userId },
+  })
+  return after
 }

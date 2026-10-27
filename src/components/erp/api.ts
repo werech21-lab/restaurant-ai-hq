@@ -13,7 +13,7 @@ export class ApiError extends Error {
 }
 
 type RequestOptions = {
-  method?: 'GET' | 'POST' | 'PATCH'
+  method?: 'GET' | 'POST' | 'PATCH' | 'PUT'
   body?: unknown
   idempotencyKey?: string
   signal?: AbortSignal
@@ -110,6 +110,9 @@ const errorKeys: Record<string, MessageKey> = {
   lead_not_found: 'crm.err.lead_not_found',
   not_found: 'crm.err.not_found',
   reference_invalid: 'crm.err.reference_invalid',
+  proposal_stale: 'ai.err.proposal_stale',
+  customer_already_blocked: 'ai.err.customer_already_blocked',
+  condition_invalid: 'ai.err.condition_invalid',
 }
 
 /** The server's own message for errors whose detail helps the user, such as which SKU is short. Otherwise null. */

@@ -18,7 +18,7 @@ import {
   type LedgerRow,
   type MovementRequest,
 } from '@/modules/inventory/domain/stock'
-import type { InventorySummary, StockBalance, StockMovement, StockShortage } from '@/modules/inventory/domain/types'
+import type { InventorySummary, StockBalance, StockMovement, StockShortage, StockSignal } from '@/modules/inventory/domain/types'
 import { publishInventoryEvents, type InventoryEvent } from '@/modules/inventory/events'
 import * as repository from '@/modules/inventory/repositories/inventory-repository'
 import type {
@@ -355,4 +355,52 @@ export async function getSummary(auth: AuthContext, query: SummaryQuery): Promis
       warehouses: warehouses.data,
     },
   }
+}
+// ---- AI integration ----
+
+export type RestockInput = {
+  itemId: string
+  warehouseId: string
+  quantity: number
+  /** The id of the approved restock request. It is stored as the movement reference. */
+  referenceId: string
+  note: string | null
+}
+
+/**
+ * Books received stock for an approved restock request: one IN movement, referenced to the request. It books the stock
+ * as received at the item's unit cost. There is no purchase order or supplier payable in the system to match it to.
+ * Runs inside the caller's transaction. An inactive item or warehouse cannot receive it. The caller publishes the events
+ * after commit.
+ */
+export async function receiveRestockWithin(
+  tx: Queryable,
+  auth: AuthContext,
+  input: RestockInput,
+  events: InventoryEvent[]
+): Promise<StockMovement> {
+  const planned = planMovement(
+    { type: 'IN', itemId: input.itemId, warehouseId: input.warehouseId, quantity: input.quantity, note: input.note },
+    randomUUID()
+  )
+  const rows: LedgerRow[] = planned.map((row) => ({ ...row, referenceType: 'restock', referenceId: input.referenceId }))
+  const inserted = await applyLedger(tx, auth, rows, events, { enforceActive: true })
+  const movements = await repository.findMovementsByIds(
+    tx,
+    auth.tenantId,
+    inserted.map((movement) => movement.id)
+  )
+  const movement = movements[0]
+  if (!movement) throw new DomainError('item_not_found', 'The restock movement could not be read back.')
+  return movement
+}
+
+/** Active items with the stock, price and sales figures the AI engine evaluates. `itemIds` null means every active item. */
+export function listStockSignals(
+  tx: Queryable,
+  tenantId: string,
+  windowDays: number,
+  itemIds: readonly string[] | null
+): Promise<StockSignal[]> {
+  return repository.listStockSignals(tx, tenantId, windowDays, itemIds)
 }

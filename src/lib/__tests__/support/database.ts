@@ -16,6 +16,13 @@ const supabaseStub = `
   create function auth.uid() returns uuid language sql stable as $$ select null::uuid $$;
   create role anon;
   create role authenticated;
+  -- Supabase grants every new public table, sequence and function to these roles by default. Mirroring that here means
+  -- the privilege tests prove the migrations revoke what they must, instead of passing because nothing was granted.
+  alter default privileges in schema public grant all on tables to anon, authenticated;
+  alter default privileges in schema public grant all on sequences to anon, authenticated;
+  alter default privileges in schema public grant all on functions to anon, authenticated;
+  grant usage on schema public to anon, authenticated;
+  grant usage on schema auth to anon, authenticated;
 `
 
 function adapt(source: { query: PGlite['query'] }): Queryable {

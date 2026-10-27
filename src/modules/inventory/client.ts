@@ -11,6 +11,7 @@ export type {
   StockBalance,
   StockMovement,
   StockShortage,
+  StockSignal,
   Warehouse,
   WarehouseStatus,
 } from '@/modules/inventory/domain/types'

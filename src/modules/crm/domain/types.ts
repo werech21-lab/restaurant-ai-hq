@@ -141,3 +141,25 @@ export type CustomerProfile = {
   leads: Lead[]
   activity: ActivityEntry[]
 }
+
+// ---- AI integration ----
+
+/** A customer's contact details for a message the AI engine drafts. Nothing is sent from here. */
+export type CustomerContact = { id: string; name: string; phone: string | null; status: CustomerStatus; version: number }
+
+/** An open lead that has been quiet for a while, with the draft quotation that could carry a discount. */
+export type StalledLead = {
+  leadId: string
+  title: string
+  stage: OpenLeadStage
+  probability: number
+  expectedRevenueMinor: number
+  /** Whole days since the lead last changed. */
+  daysStalled: number
+  customerId: string
+  customerName: string
+  customerStatus: CustomerStatus
+  customerPhone: string | null
+  /** The latest draft quotation of this lead. Null when there is none. */
+  draftQuotation: { id: string; quoteNumber: string; version: number; subtotalMinor: number; totalMinor: number } | null
+}
