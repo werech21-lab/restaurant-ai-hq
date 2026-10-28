@@ -61,6 +61,8 @@ export type Invoice = {
 export type InvoiceDetail = Invoice & {
   lines: InvoiceLine[]
   payments: Payment[]
+  /** The live cost-of-goods entry, when this company issues stock at moving weighted average. Null otherwise. */
+  cogsEntryId: string | null
 }
 
 export type FinanceSettings = {

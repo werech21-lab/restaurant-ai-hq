@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react'
 import { ApiError, apiRequest, errorDetail, errorKey, isAbort, newIdempotencyKey } from '@/components/erp/api'
 import { InvoiceForm } from '@/components/erp/InvoiceForm'
@@ -271,6 +272,15 @@ export function InvoicePanel({ invoiceId, approvalThresholdMinor, onChanged, onC
           </div>
         </dl>
       </div>
+
+      {invoice.cogsEntryId ? (
+        <p className="text-sm text-gray-300">
+          {t('erp.detail.cogs')}{' '}
+          <Link href="/erp/ledger" className="text-[#d4a574] underline">
+            {t('erp.detail.cogsOpen')}
+          </Link>
+        </p>
+      ) : null}
 
       <div>
         <h4 className="mb-2 text-sm font-semibold text-gray-200">{t('erp.detail.payments')}</h4>

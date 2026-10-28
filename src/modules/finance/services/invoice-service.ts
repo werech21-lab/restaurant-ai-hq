@@ -89,11 +89,12 @@ async function lockInvoice(tx: Queryable, tenantId: string, id: string, expected
 }
 
 async function loadDetail(tx: Queryable, tenantId: string, invoice: Invoice): Promise<InvoiceDetail> {
-  const [lines, payments] = await Promise.all([
+  const [lines, payments, cogsEntryId] = await Promise.all([
     repository.listLines(tx, tenantId, invoice.id),
     repository.listPayments(tx, tenantId, invoice.id),
+    findActiveSourcedEntryWithin(tx, tenantId, 'sales_cogs', invoice.id),
   ])
-  return { ...invoice, lines, payments }
+  return { ...invoice, lines, payments, cogsEntryId }
 }
 
 function ref(invoice: Invoice) {

@@ -153,7 +153,7 @@ describe('createInvoice', () => {
   })
 
   it('emits nothing when the request is a replay', async () => {
-    vi.mocked(runIdempotent).mockResolvedValue({ replayed: true, status: 201, body: { data: { ...invoice(), lines: [line], payments: [] } } })
+    vi.mocked(runIdempotent).mockResolvedValue({ replayed: true, status: 201, body: { data: { ...invoice(), lines: [line], payments: [], cogsEntryId: null } } })
     const outcome = await createInvoice(auth, 'key-12345678', input)
     expect(outcome.replayed).toBe(true)
     expect(repository.insertInvoice).not.toHaveBeenCalled()
