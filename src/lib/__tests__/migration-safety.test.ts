@@ -300,9 +300,30 @@ describe('upgrading a database that already holds data', () => {
 
   it('applies from an empty database to the latest schema without error', async () => {
     const { db, remaining } = await databaseAt('0001')
+    expect(remaining).toHaveLength(16)
     await apply(db, remaining)
     expect(await n(db, 'tenants')).toBe(0)
+    expect(await n(db, 'invoices')).toBe(0)
+    expect(await n(db, 'items')).toBe(0)
+    expect(await n(db, 'journal_entries')).toBe(0)
+    expect(await n(db, 'stock_movements')).toBe(0)
     const tables = await db.query<{ n: number }>(`select count(*)::int as n from pg_tables where schemaname = 'public'`)
     expect(tables.rows[0].n).toBeGreaterThan(20)
+
+    const defaults = await db.query<{ table_name: string; column_default: string }>(
+      `select table_name, column_default from information_schema.columns
+       where table_schema = 'public' and column_name = 'costing_method' order by table_name`
+    )
+    expect(defaults.rows.map((row) => row.table_name)).toEqual(['inventory_settings', 'procurement_accounting'])
+    expect(defaults.rows.every((row) => row.column_default.includes('order_price'))).toBe(true)
+
+    const guarded = await db.query<{ name: string; enabled: boolean }>(
+      `select c.relname as name, c.relrowsecurity as enabled
+       from pg_class c join pg_namespace n on n.oid = c.relnamespace
+       where n.nspname = 'public' and c.relname in ('tenants', 'invoices', 'items', 'journal_entries', 'stock_movements')
+       order by c.relname`
+    )
+    expect(guarded.rows.map((row) => row.name)).toEqual(['invoices', 'items', 'journal_entries', 'stock_movements', 'tenants'])
+    expect(guarded.rows.every((row) => row.enabled === true)).toBe(true)
   })
 })

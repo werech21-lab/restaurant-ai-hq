@@ -105,6 +105,20 @@ describe('baseline sentinels against the real migrations', () => {
     expect(Object.keys(baselineSentinels).sort()).toEqual(await names())
   })
 
+  it('plans 0001 through 0017 in filename order for an empty database, then only the remainder', async () => {
+    const all = await names()
+    expect(all).toHaveLength(17)
+    expect(all[0]).toBe('0001_core.sql')
+    expect(all[16]).toBe('0017_inventory_valuation.sql')
+    const described = all.map((name) => ({ name, checksum: 'same' }))
+    expect(planMigrations(described, new Map())).toEqual({ pending: all, upToDate: [], changed: [], unknown: [], gaps: [] })
+    const prefix = new Map(all.slice(0, 10).map((name) => [name, 'same']))
+    const rest = planMigrations(described, prefix)
+    expect(rest.pending).toEqual(all.slice(10))
+    expect(rest.gaps).toEqual([])
+    expect(rest.changed).toEqual([])
+  })
+
   it('finds every sentinel after all migrations, and none of the later ones after 0005', async () => {
     const all = await names()
     const db = new PGlite()

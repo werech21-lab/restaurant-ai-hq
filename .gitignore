@@ -33,3 +33,6 @@ yarn-error.log*
 /playwright-report/
 /test-results/
 /blob-report/
+
+# Supabase CLI cache. The project is not linked to a hosted database.
+/supabase/.temp/
