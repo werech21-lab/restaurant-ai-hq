@@ -28,3 +28,8 @@ yarn-error.log*
 # staging and production env files hold real credentials
 .env.staging
 .env.production
+
+# local browser suite output
+/playwright-report/
+/test-results/
+/blob-report/
