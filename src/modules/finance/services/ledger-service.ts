@@ -459,6 +459,16 @@ export async function postSourcedEntryWithin(
   return posted
 }
 
+/** The live posted entry of a source document, or null when that document did not post one. */
+export async function findActiveSourcedEntryWithin(
+  tx: Queryable,
+  tenantId: string,
+  sourceType: SourceDocumentType,
+  sourceId: string
+): Promise<string | null> {
+  return repository.findActiveSourceEntry(tx, tenantId, sourceType, sourceId)
+}
+
 /**
  * Reverses a posted entry that came from a source document, for the module that owns that document (voiding the invoice).
  * The database refuses to reverse such an entry any other way, so the caller names it in a transaction-local setting first.

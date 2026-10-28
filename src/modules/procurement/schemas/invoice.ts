@@ -81,7 +81,8 @@ export type ListSupplierInvoicesQuery = z.output<typeof listSupplierInvoicesQuer
 
 /**
  * `version` is 0 while the accounts have never been saved. Saving replaces every field, so an omitted one returns to its
- * default: the invoice basis, no GRNI or variance account, and zero tolerance.
+ * default: the invoice basis, no GRNI or variance account, zero tolerance, and the experimental costing method
+ * `moving_weighted_average`. That method needs `cogsAccountId`. Sending `order_price` keeps the previous books.
  */
 export const updateAccountingSchema = z
   .object({
@@ -90,6 +91,11 @@ export const updateAccountingSchema = z
     payableAccountId: uuid,
     inputTaxAccountId: uuid.nullable(),
     accountingBasis: z.enum(['invoice_basis', 'receipt_basis']).default('invoice_basis'),
+    costingMethod: z.enum(['order_price', 'moving_weighted_average']).default('moving_weighted_average'),
+    cogsAccountId: uuid
+      .nullable()
+      .optional()
+      .transform((value) => value ?? null),
     grniAccountId: uuid
       .nullable()
       .optional()
@@ -104,5 +110,9 @@ export const updateAccountingSchema = z
   .refine((value) => value.accountingBasis === 'invoice_basis' || (value.grniAccountId !== null && value.ppvAccountId !== null), {
     message: 'The receipt basis needs a GRNI account and a purchase price variance account',
     path: ['grniAccountId'],
+  })
+  .refine((value) => value.costingMethod === 'order_price' || value.cogsAccountId !== null, {
+    message: 'Moving weighted average needs a cost of goods account',
+    path: ['cogsAccountId'],
   })
 export type UpdateAccountingInput = z.output<typeof updateAccountingSchema>

@@ -12,6 +12,7 @@ export const journalSourceTypes = [
   'purchase_return',
   'supplier_credit_note',
   'supplier_payment',
+  'sales_cogs',
 ] as const
 export type JournalSourceType = (typeof journalSourceTypes)[number]
 

@@ -7,8 +7,10 @@ import { useI18n, type MessageKey } from '@/lib/i18n'
 import { bpsToInput, minorToInput, parseKwdToMinor, parsePercentToBps } from '@/lib/money'
 import {
   accountingBases,
+  costingMethods,
   updateAccountingSchema,
   type AccountingBasis,
+  type CostingMethod,
   updateSettingsSchema,
   type ProcurementAccounting,
   type ProcurementSettings,
@@ -31,6 +33,8 @@ export function AccountingSettings({ reloadToken, onChanged }: { reloadToken: nu
   const [basis, setBasis] = useState<AccountingBasis>('invoice_basis')
   const [grniId, setGrniId] = useState('')
   const [ppvId, setPpvId] = useState('')
+  const [costingMethod, setCostingMethod] = useState<CostingMethod>('moving_weighted_average')
+  const [cogsId, setCogsId] = useState('')
   const [priceTolerance, setPriceTolerance] = useState('0.00')
   const [taxTolerance, setTaxTolerance] = useState('0.000')
   const [threshold, setThreshold] = useState('')
@@ -48,6 +52,8 @@ export function AccountingSettings({ reloadToken, onChanged }: { reloadToken: nu
     setBasis(nextAccounting.accountingBasis)
     setGrniId(nextAccounting.grniAccountId ?? '')
     setPpvId(nextAccounting.ppvAccountId ?? '')
+    setCostingMethod(nextAccounting.costingMethod)
+    setCogsId(nextAccounting.cogsAccountId ?? '')
     setPriceTolerance(bpsToInput(nextAccounting.priceToleranceBps))
     setTaxTolerance(minorToInput(nextAccounting.taxToleranceMinor))
     setThreshold(nextSettings.approvalThresholdMinor === null ? '' : minorToInput(nextSettings.approvalThresholdMinor))
@@ -90,12 +96,15 @@ export function AccountingSettings({ reloadToken, onChanged }: { reloadToken: nu
       accountingBasis: basis,
       grniAccountId: grniId === '' ? null : grniId,
       ppvAccountId: ppvId === '' ? null : ppvId,
+      costingMethod,
+      cogsAccountId: cogsId === '' ? null : cogsId,
       priceToleranceBps: priceBps,
       taxToleranceMinor: taxMinor,
     })
     if (!parsed.success) {
       const needsReceiptAccounts = parsed.error.issues.some((issue) => issue.path[0] === 'grniAccountId')
-      setErrors([needsReceiptAccounts ? 'pro.acct.errReceiptBasis' : 'pro.acct.errRequired'])
+      const needsCosting = parsed.error.issues.some((issue) => issue.path[0] === 'cogsAccountId')
+      setErrors([needsReceiptAccounts ? 'pro.acct.errReceiptBasis' : needsCosting ? 'pro.acct.errCosting' : 'pro.acct.errRequired'])
       return
     }
     void accountsRun.run(async () => {
@@ -193,6 +202,23 @@ export function AccountingSettings({ reloadToken, onChanged }: { reloadToken: nu
           ) : null}
         </div>
         <p className="mt-2 text-xs text-gray-500">{t('pro.acct.basisLocked')}</p>
+
+        <h4 className="mt-6 text-sm font-semibold text-gray-200">{t('pro.acct.costingTitle')}</h4>
+        <p className="mt-1 text-sm text-gray-400">{t('pro.acct.costingHint')}</p>
+        <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <Field label={t('pro.acct.costing')}>
+            <select value={costingMethod} onChange={(event) => setCostingMethod(event.target.value as CostingMethod)} className={inputClass}>
+              {costingMethods.map((value) => (
+                <option key={value} value={value}>
+                  {t(value === 'moving_weighted_average' ? 'pro.acct.costing.mwa' : 'pro.acct.costing.order')}
+                </option>
+              ))}
+            </select>
+          </Field>
+          {costingMethod === 'moving_weighted_average' ? (
+            <AccountSelect type="expense" value={cogsId} onChange={setCogsId} label={t('pro.acct.cogs')} />
+          ) : null}
+        </div>
 
         <h4 className="mt-6 text-sm font-semibold text-gray-200">{t('pro.acct.matchTitle')}</h4>
         <p className="mt-1 text-sm text-gray-400">{t('pro.acct.matchHint')}</p>

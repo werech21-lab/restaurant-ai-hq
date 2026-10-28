@@ -398,7 +398,11 @@ export async function createReceipt(
           {
             warehouseId: input.warehouseId,
             receiptId,
-            lines: planned.map((line) => ({ itemId: line.itemId, quantity: line.quantity })),
+            lines: planned.map((line) => ({
+              itemId: line.itemId,
+              quantity: line.quantity,
+              unitCostMinor: before.lines.find((orderLine) => orderLine.id === line.orderLineId)?.unitCostMinor ?? 0,
+            })),
             note: `Receipt ${number} for purchase order ${current.number}`,
           },
           inventoryEvents

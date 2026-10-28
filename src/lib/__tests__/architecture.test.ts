@@ -14,7 +14,7 @@ type ModuleName = (typeof modules)[number]
 const ownedTables: Record<ModuleName, string[]> = {
   finance: ['invoices', 'invoice_lines', 'payments', 'finance_settings', 'accounts', 'fiscal_periods', 'journal_entries', 'journal_lines'],
   crm: ['customers', 'contacts', 'crm_leads_pipeline', 'sales_quotations', 'sales_quotation_lines'],
-  inventory: ['items', 'warehouses', 'stock_movements', 'stock_balances', 'products'],
+  inventory: ['items', 'warehouses', 'stock_movements', 'stock_balances', 'products', 'inventory_settings', 'item_cost_events'],
   hr: [],
   ai: ['ai_insights_alerts', 'ai_action_approvals', 'erp_automation_rules'],
   org: ['brands', 'branches'],

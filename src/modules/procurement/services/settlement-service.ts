@@ -17,6 +17,7 @@ import {
   type FinanceEvent,
 } from '@/modules/finance'
 import { publishInventoryEvents, returnPurchaseWithin, type InventoryEvent } from '@/modules/inventory'
+import { reclassVariance } from '@/modules/procurement/services/valuation-bridge'
 import { assertInvoiceCurrency, assertTotalMatches } from '@/modules/procurement/domain/invoice'
 import { buildCreditNoteLines, buildPaymentLines, buildReturnLines } from '@/modules/procurement/domain/posting'
 import { buildReconciliation } from '@/modules/procurement/domain/reconcile'
@@ -116,7 +117,7 @@ export async function createReturn(auth: AuthContext, idempotencyKey: string, in
           {
             warehouseId: input.warehouseId,
             returnId,
-            lines: planned.map((line) => ({ itemId: line.itemId, quantity: line.quantity })),
+            lines: planned.map((line) => ({ itemId: line.itemId, quantity: line.quantity, unitCostMinor: line.unitCostMinor })),
             note: `Return ${number} for purchase order ${order.number}`,
           },
           inventoryEvents
@@ -208,6 +209,7 @@ export async function createCreditNote(auth: AuthContext, idempotencyKey: string
         const memo = `Supplier credit note ${input.supplierCreditNoteNumber} - invoice ${invoice.supplierInvoiceNumber}`
         const poNetMinor = valueOfLines(planned.map((line) => ({ quantity: line.quantity, unitCostMinor: line.poUnitCostMinor })))
         const noteId = randomUUID()
+        const reclass = await reclassVariance(tx, auth, 'supplier_credit_note', noteId, planned, 'credit')
         const entry = await postSourcedEntryWithin(
           tx,
           auth,
@@ -216,7 +218,14 @@ export async function createCreditNote(auth: AuthContext, idempotencyKey: string
             memo,
             sourceType: 'supplier_credit_note',
             sourceId: noteId,
-            lines: buildCreditNoteLines(invoice.accountingBasis, totals, poNetMinor, accounting, memo),
+            lines: buildCreditNoteLines(
+              invoice.accountingBasis,
+              totals,
+              poNetMinor,
+              accounting,
+              memo,
+              invoice.accountingBasis === 'receipt_basis' ? reclass : 0
+            ),
           },
           financeEvents
         )

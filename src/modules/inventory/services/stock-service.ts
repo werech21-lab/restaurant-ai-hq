@@ -21,6 +21,7 @@ import {
 import type { InventorySummary, StockBalance, StockMovement, StockShortage, StockSignal } from '@/modules/inventory/domain/types'
 import { publishInventoryEvents, type InventoryEvent } from '@/modules/inventory/events'
 import * as repository from '@/modules/inventory/repositories/inventory-repository'
+import { recordIssueCosts, recordReceiptCosts, recordRestoreCosts, recordReturnCosts, type IssuedCost } from '@/modules/inventory/services/cost-service'
 import type {
   CreateMovementInput,
   ListBalancesQuery,
@@ -261,6 +262,7 @@ export async function findStockShortages(
 /**
  * Takes the stock an invoice sells, one OUT movement per item and warehouse. Runs inside the finance transaction when the
  * invoice becomes issued. Throws `insufficient_stock` (409) when any line cannot be covered, which rolls the whole issue back.
+ * Under moving weighted average the returned amounts are the COGS at the average in force now. Under order price the list is empty.
  */
 export async function issueInvoiceStock(
   tx: Queryable,
@@ -268,7 +270,7 @@ export async function issueInvoiceStock(
   invoice: InvoiceStockRef,
   lines: readonly InvoiceLineRef[],
   events: InventoryEvent[]
-): Promise<void> {
+): Promise<IssuedCost[]> {
   const stockLines: InvoiceStockLine[] = lines.map((line) => ({
     itemId: line.itemId,
     warehouseId: line.warehouseId,
@@ -285,6 +287,12 @@ export async function issueInvoiceStock(
     note: invoice.number,
   }))
   await applyLedger(tx, auth, rows, events, { enforceActive: false })
+  return recordIssueCosts(
+    tx,
+    auth,
+    invoice.id,
+    needs.map((need) => ({ itemId: need.itemId, quantity: need.quantity }))
+  )
 }
 
 /**
@@ -318,6 +326,7 @@ export async function restoreInvoiceStock(
       note: invoice.number,
     }))
   await applyLedger(tx, auth, rows, events, { enforceActive: false })
+  if (rows.length > 0) await recordRestoreCosts(tx, auth, invoice.id)
 }
 
 // ---- reads ----
@@ -399,15 +408,16 @@ export type PurchaseReceiptInput = {
   warehouseId: string
   /** The id of the goods receipt. It is stored as the reference of every movement. */
   receiptId: string
-  lines: ReadonlyArray<{ itemId: string; quantity: number }>
+  /** `unitCostMinor` is the order price. Moving weighted average uses it. Order price ignores it and leaves the catalogue cost. */
+  lines: ReadonlyArray<{ itemId: string; quantity: number; unitCostMinor?: number }>
   note: string | null
 }
 
 /**
  * Books the goods of one receipt: one IN movement per line, referenced to the receipt. The items are locked together in id
- * order. An inactive item or warehouse cannot receive. It books the stock as received at the item's unit cost and does not
- * change that cost: how a purchase price becomes stock value is an open decision. Runs inside the caller's transaction, and
- * the caller publishes the events after commit.
+ * order. An inactive item or warehouse cannot receive. Under order price the catalogue cost is left unchanged. Under moving
+ * weighted average the average is recomputed from the order price and a cost event is appended. Runs inside the caller's
+ * transaction, and the caller publishes the events after commit.
  */
 export async function receivePurchaseWithin(
   tx: Queryable,
@@ -421,6 +431,7 @@ export async function receivePurchaseWithin(
     )
   )
   const inserted = await applyLedger(tx, auth, rows, events, { enforceActive: true })
+  await recordReceiptCosts(tx, auth, input.receiptId, input.lines)
   return repository.findMovementsByIds(
     tx,
     auth.tenantId,
@@ -432,7 +443,8 @@ export type PurchaseReturnInput = {
   warehouseId: string
   /** The id of the purchase return. It is stored as the reference of every movement. */
   returnId: string
-  lines: ReadonlyArray<{ itemId: string; quantity: number }>
+  /** `unitCostMinor` is the order price the receipt used. Moving weighted average removes the stock at that cost. */
+  lines: ReadonlyArray<{ itemId: string; quantity: number; unitCostMinor?: number }>
   note: string | null
 }
 
@@ -460,6 +472,7 @@ export async function returnPurchaseWithin(
       note: input.note,
     }))
   const inserted = await applyLedger(tx, auth, rows, events, { enforceActive: false })
+  await recordReturnCosts(tx, auth, input.returnId, input.lines)
   return repository.findMovementsByIds(
     tx,
     auth.tenantId,

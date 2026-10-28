@@ -176,10 +176,10 @@ try {
   const files = await migrationFiles()
   await applyMigrations(admin, files)
   const applied = (await admin.query('select name from schema_migrations order by name')).rows.map((row) => row.name)
-  const wanted = files.filter((file) => file.name >= '0009' && file.name <= '0016').map((file) => file.name)
+  const wanted = files.filter((file) => file.name >= '0009' && file.name <= '0017').map((file) => file.name)
   const missing = wanted.filter((name) => !applied.includes(name))
   const orderOk = wanted.every((name, index) => applied.indexOf(name) > (index === 0 ? -1 : applied.indexOf(wanted[index - 1])))
-  process.stdout.write(`migrations 0009-0016  ${missing.length === 0 && orderOk ? 'PASS' : 'FAIL'}  applied=${applied.length} missing=${missing.join(',') || 'none'}\n`)
+  process.stdout.write(`migrations 0009-0017  ${missing.length === 0 && orderOk ? 'PASS' : 'FAIL'}  applied=${applied.length} missing=${missing.join(',') || 'none'}\n`)
 
   await admin.query(supabaseUid)
   const isolation = await runIsolationChecks(admin, randomBytes(4).toString('hex'))

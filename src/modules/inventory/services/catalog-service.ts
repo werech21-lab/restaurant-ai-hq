@@ -8,6 +8,7 @@ import { hashRequest, runIdempotent, type IdempotentResult } from '@/lib/idempot
 import type { ItemDetail, Item, Warehouse } from '@/modules/inventory/domain/types'
 import { publishInventoryEvents, type InventoryEvent } from '@/modules/inventory/events'
 import * as repository from '@/modules/inventory/repositories/inventory-repository'
+import { readCostingWithin } from '@/modules/inventory/services/cost-service'
 import type {
   CreateItemInput,
   CreateWarehouseInput,
@@ -95,6 +96,10 @@ export async function updateItem(auth: AuthContext, id: string, input: UpdateIte
     const before = await repository.findItem(tx, auth.tenantId, id, { lock: true })
     if (!before) throw itemNotFound()
     if (before.version !== input.version) throw versionConflict('item')
+    const policy = await readCostingWithin(tx, auth.tenantId)
+    if (policy.method === 'moving_weighted_average' && input.unitCostMinor !== before.unitCostMinor) {
+      throw new AppError(409, 'cost_managed_by_policy', 'The unit cost follows the moving average. It changes through receipts, issues, returns and invoice variances.')
+    }
     const after = await repository.updateItem(tx, auth.tenantId, id, input)
     if (!after) throw versionConflict('item')
     await audit(tx, auth, 'item', id, 'update', before, after)

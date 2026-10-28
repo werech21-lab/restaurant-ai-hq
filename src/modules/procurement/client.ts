@@ -89,6 +89,7 @@ export type {
 } from '@/modules/procurement/schemas/invoice'
 export {
   accountingBases,
+  costingMethods,
   creditNoteStatuses,
   matchIssueCodes,
   matchStatuses,
@@ -98,6 +99,7 @@ export {
 } from '@/modules/procurement/domain/types'
 export type {
   AccountingBasis,
+  CostingMethod,
   MatchIssue,
   MatchIssueCode,
   MatchLine,

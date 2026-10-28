@@ -5,6 +5,7 @@ import type { PlannedInvoiceLine } from '@/modules/procurement/domain/match'
 import { derivePaymentStatus, invoiceBalanceMinor } from '@/modules/procurement/domain/settlement'
 import type {
   AccountingBasis,
+  CostingMethod,
   ProcurementAccounting,
   SupplierInvoice,
   SupplierInvoiceDetail,
@@ -256,6 +257,8 @@ const NO_ACCOUNTING: ProcurementAccounting = {
   inputTaxAccountId: null,
   grniAccountId: null,
   ppvAccountId: null,
+  costingMethod: 'moving_weighted_average',
+  cogsAccountId: null,
   accountingBasis: 'invoice_basis',
   priceToleranceBps: 0,
   taxToleranceMinor: 0,
@@ -266,6 +269,7 @@ export async function findAccounting(tx: Queryable, tenantId: string, options: {
   const result = await tx.query<AccountingRow>(
     `select inventory_account_id as "inventoryAccountId", payable_account_id as "payableAccountId",
             input_tax_account_id as "inputTaxAccountId", grni_account_id as "grniAccountId", ppv_account_id as "ppvAccountId",
+            costing_method as "costingMethod", cogs_account_id as "cogsAccountId",
             accounting_basis as "accountingBasis", price_tolerance_bps as "priceToleranceBps",
             tax_tolerance_minor::text as "taxTolerance", version
      from procurement_accounting where tenant_id = $1${options.lock ? ' for update' : ''}`,
@@ -283,6 +287,8 @@ export type AccountingValues = {
   inputTaxAccountId: string | null
   grniAccountId: string | null
   ppvAccountId: string | null
+  costingMethod: CostingMethod
+  cogsAccountId: string | null
   accountingBasis: AccountingBasis
   priceToleranceBps: number
   taxToleranceMinor: number
@@ -291,8 +297,9 @@ export type AccountingValues = {
 export async function insertAccounting(tx: Queryable, tenantId: string, userId: string, accounts: AccountingValues): Promise<void> {
   await tx.query(
     `insert into procurement_accounting (tenant_id, inventory_account_id, payable_account_id, input_tax_account_id, grni_account_id,
-                                         ppv_account_id, accounting_basis, price_tolerance_bps, tax_tolerance_minor, created_by)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                                         ppv_account_id, costing_method, cogs_account_id, accounting_basis, price_tolerance_bps,
+                                         tax_tolerance_minor, created_by)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
     [
       tenantId,
       accounts.inventoryAccountId,
@@ -300,6 +307,8 @@ export async function insertAccounting(tx: Queryable, tenantId: string, userId: 
       accounts.inputTaxAccountId,
       accounts.grniAccountId,
       accounts.ppvAccountId,
+      accounts.costingMethod,
+      accounts.cogsAccountId,
       accounts.accountingBasis,
       accounts.priceToleranceBps,
       accounts.taxToleranceMinor,
@@ -312,7 +321,8 @@ export async function updateAccounting(tx: Queryable, tenantId: string, version:
   const result = await tx.query(
     `update procurement_accounting
         set inventory_account_id = $3, payable_account_id = $4, input_tax_account_id = $5, grni_account_id = $6, ppv_account_id = $7,
-            accounting_basis = $8, price_tolerance_bps = $9, tax_tolerance_minor = $10, version = version + 1
+            costing_method = $8, cogs_account_id = $9, accounting_basis = $10, price_tolerance_bps = $11, tax_tolerance_minor = $12,
+            version = version + 1
       where tenant_id = $1 and version = $2`,
     [
       tenantId,
@@ -322,6 +332,8 @@ export async function updateAccounting(tx: Queryable, tenantId: string, version:
       accounts.inputTaxAccountId,
       accounts.grniAccountId,
       accounts.ppvAccountId,
+      accounts.costingMethod,
+      accounts.cogsAccountId,
       accounts.accountingBasis,
       accounts.priceToleranceBps,
       accounts.taxToleranceMinor,

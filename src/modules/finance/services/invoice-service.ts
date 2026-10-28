@@ -10,10 +10,12 @@ import { findCustomer } from '@/modules/crm'
 import {
   issueInvoiceStock,
   publishInventoryEvents,
+  readCostingWithin,
   restoreInvoiceStock,
   validateStockLines,
   type InventoryEvent,
 } from '@/modules/inventory'
+import { findActiveSourcedEntryWithin, postSourcedEntryWithin, reverseSourcedEntryWithin } from '@/modules/finance/services/ledger-service'
 import {
   applyPayment,
   approve as approveRule,
@@ -216,6 +218,44 @@ export async function updateInvoice(auth: AuthContext, id: string, input: Update
  * Submits a draft invoice inside the caller's transaction: issued (and stock taken) when the total is within the approval
  * limit, otherwise pending approval. The caller owns the transaction and publishes both event lists after commit.
  */
+/**
+ * Issues the stock and, when the company has chosen moving weighted average, posts COGS at the average in force.
+ * Order price posts nothing to the ledger. A missing COGS account fails the issue instead of skipping the entry.
+ */
+async function postCostOfGoods(
+  tx: Queryable,
+  auth: AuthContext,
+  invoice: { id: string; number: string; issueDate: string },
+  lines: readonly { itemId: string | null; warehouseId: string | null; quantity: number }[],
+  events: FinanceEvent[],
+  stockEvents: InventoryEvent[]
+): Promise<void> {
+  const policy = await readCostingWithin(tx, auth.tenantId)
+  if (policy.method === 'moving_weighted_average' && (!policy.cogsAccountId || !policy.inventoryAccountId)) {
+    throw new AppError(409, 'cogs_account_required', 'Choose a COGS account and an inventory account before issuing stock under moving weighted average.')
+  }
+  const costs = await issueInvoiceStock(tx, auth, { id: invoice.id, number: invoice.number }, lines, stockEvents)
+  if (policy.method !== 'moving_weighted_average') return
+  const amount = costs.reduce((sum, cost) => sum + cost.amountMinor, 0)
+  if (amount <= 0) return
+  const memo = `COGS ${invoice.number}`
+  await postSourcedEntryWithin(
+    tx,
+    auth,
+    {
+      entryDate: invoice.issueDate,
+      memo,
+      sourceType: 'sales_cogs',
+      sourceId: invoice.id,
+      lines: [
+        { accountId: policy.cogsAccountId ?? '', debitMinor: amount, creditMinor: 0, description: memo },
+        { accountId: policy.inventoryAccountId ?? '', debitMinor: 0, creditMinor: amount, description: memo },
+      ],
+    },
+    events
+  )
+}
+
 export async function submitInvoiceWithin(
   tx: Queryable,
   auth: AuthContext,
@@ -245,7 +285,7 @@ export async function submitInvoiceWithin(
   })
   if (updated.status === 'issued') {
     // Stock leaves in the same transaction. Not enough stock throws and the whole submit rolls back.
-    await issueInvoiceStock(tx, auth, { id: updated.id, number: updated.number }, lines, stockEvents)
+    await postCostOfGoods(tx, auth, updated, lines, events, stockEvents)
     events.push({ ...eventBase(auth), name: 'finance.invoice.issued', payload: ref(updated) })
   }
   return loadDetail(tx, auth.tenantId, updated)
@@ -274,7 +314,7 @@ export async function approveInvoice(auth: AuthContext, id: string, input: Versi
     if (!updated) throw versionConflict()
     await audit(tx, auth, 'invoice', id, 'update', current, updated)
     const lines = await repository.listLines(tx, auth.tenantId, id)
-    await issueInvoiceStock(tx, auth, { id: updated.id, number: updated.number }, lines, stockEvents)
+    await postCostOfGoods(tx, auth, updated, lines, events, stockEvents)
     events.push(
       { ...eventBase(auth), name: 'finance.invoice.approved', payload: { ...ref(updated), approvedBy: auth.userId } },
       { ...eventBase(auth), name: 'finance.invoice.issued', payload: ref(updated) }
@@ -299,6 +339,15 @@ export async function voidInvoice(auth: AuthContext, id: string, input: VoidInvo
     await audit(tx, auth, 'invoice', id, 'update', current, updated)
     // Only an issued invoice has taken stock. Void is refused once a payment exists, so this is always an unpaid invoice.
     if (current.status === 'issued') {
+      const cogsId = await findActiveSourcedEntryWithin(tx, auth.tenantId, 'sales_cogs', updated.id)
+      if (cogsId) {
+        await reverseSourcedEntryWithin(
+          tx,
+          auth,
+          { entryId: cogsId, sourceType: 'sales_cogs', entryDate: current.issueDate, memo: `Void COGS ${updated.number}` },
+          events
+        )
+      }
       await restoreInvoiceStock(tx, auth, { id: updated.id, number: updated.number }, stockEvents)
     }
     events.push({

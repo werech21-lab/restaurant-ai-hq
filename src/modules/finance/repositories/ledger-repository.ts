@@ -308,6 +308,22 @@ export async function findReversalOf(tx: Queryable, tenantId: string, id: string
   return result.rows[0]?.id ?? null
 }
 
+/** The posted source entry that has not itself been reversed. Null when the document posted nothing. */
+export async function findActiveSourceEntry(
+  tx: Queryable,
+  tenantId: string,
+  sourceType: string,
+  sourceId: string
+): Promise<string | null> {
+  const result = await tx.query<{ id: string }>(
+    `select e.id from journal_entries e
+      where e.tenant_id = $1 and e.source_type = $2 and e.source_id = $3 and e.status = 'posted'
+        and not exists (select 1 from journal_entries r where r.tenant_id = e.tenant_id and r.reverses_id = e.id)`,
+    [tenantId, sourceType, sourceId]
+  )
+  return result.rows[0]?.id ?? null
+}
+
 export async function listEntries(tx: Queryable, tenantId: string, query: ListJournalEntriesQuery): Promise<Page<JournalEntry>> {
   const params: unknown[] = [tenantId]
   let filters = ''

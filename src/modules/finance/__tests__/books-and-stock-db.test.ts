@@ -209,6 +209,8 @@ async function world(slug: string, basis: Basis): Promise<World> {
     accountingBasis: basis,
     grniAccountId: basis === 'receipt_basis' ? grni.id : null,
     ppvAccountId: basis === 'receipt_basis' ? ppv.id : null,
+    costingMethod: 'order_price',
+    cogsAccountId: null,
     priceToleranceBps: 0,
     taxToleranceMinor: 0,
   })

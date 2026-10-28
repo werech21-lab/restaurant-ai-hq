@@ -15,6 +15,7 @@ import {
   reverseSourcedEntryWithin,
   type FinanceEvent,
 } from '@/modules/finance'
+import { setCostingPolicyWithin } from '@/modules/inventory'
 import { addDays, assertInvoiceCurrency, assertTotalMatches, canInvoiceOrder, canVoidInvoice } from '@/modules/procurement/domain/invoice'
 import { evaluateMatch } from '@/modules/procurement/domain/match'
 import { buildInvoiceLines } from '@/modules/procurement/domain/posting'
@@ -30,6 +31,7 @@ import type {
   VoidSupplierInvoiceInput,
 } from '@/modules/procurement/schemas/invoice'
 import { audit, eventBase, loadDetail as loadOrderDetail, orderNotFound } from '@/modules/procurement/services/procurement-service'
+import { reclassVariance } from '@/modules/procurement/services/valuation-bridge'
 
 export type InvoiceBody = { data: SupplierInvoiceDetail }
 export type AccountingBody = { data: ProcurementAccounting }
@@ -74,6 +76,7 @@ export async function updateAccounting(auth: AuthContext, input: UpdateAccountin
       ...(input.inputTaxAccountId ? [input.inputTaxAccountId] : []),
       ...(input.grniAccountId ? [input.grniAccountId] : []),
       ...(input.ppvAccountId ? [input.ppvAccountId] : []),
+      ...(input.cogsAccountId ? [input.cogsAccountId] : []),
     ]
     if (new Set(ids).size !== ids.length) throw new AppError(422, 'accounts_not_distinct', 'The procurement accounts must all be different.')
     if (input.accountingBasis === 'receipt_basis' && (!input.grniAccountId || !input.ppvAccountId)) {
@@ -89,6 +92,18 @@ export async function updateAccounting(auth: AuthContext, input: UpdateAccountin
     }
     if (input.ppvAccountId && byId.get(input.ppvAccountId)?.type !== 'expense') {
       throw new AppError(422, 'account_type_invalid', 'The purchase price variance account must be an expense account.')
+    }
+    if (input.costingMethod === 'moving_weighted_average' && !input.cogsAccountId) {
+      throw new AppError(422, 'accounts_not_configured', 'Moving weighted average needs a cost of goods account.')
+    }
+    if (input.cogsAccountId && byId.get(input.cogsAccountId)?.type !== 'expense') {
+      throw new AppError(422, 'account_type_invalid', 'The cost of goods account must be an expense account.')
+    }
+    if (before.version > 0 && before.costingMethod !== input.costingMethod) {
+      const receipts = await tx.query('select 1 from goods_receipts where tenant_id = $1 limit 1', [auth.tenantId])
+      if (receipts.rows.length > 0) {
+        throw new AppError(409, 'costing_method_locked', 'The costing method cannot change once a goods receipt exists.')
+      }
     }
     if (found.some((account) => !account.isActive || !account.isPostable)) {
       throw new AppError(422, 'account_not_postable', 'An account is inactive or not postable.')
@@ -106,6 +121,11 @@ export async function updateAccounting(auth: AuthContext, input: UpdateAccountin
       }
       throw error
     }
+    await setCostingPolicyWithin(tx, auth, {
+      method: input.costingMethod,
+      cogsAccountId: input.cogsAccountId,
+      inventoryAccountId: input.inventoryAccountId,
+    })
     const after = await repository.findAccounting(tx, auth.tenantId)
     const first = before.version === 0
     // Version 0 is the defaults the reader synthesises when no row exists yet, so a create has no previous state.
@@ -176,9 +196,17 @@ export async function createSupplierInvoice(
         const totals = { subtotalMinor: result.subtotalMinor, taxMinor: result.taxMinor, totalMinor: result.totalMinor }
         assertTotalMatches(input.expectedTotalMinor, totals)
         const memo = `Supplier invoice ${input.supplierInvoiceNumber} - ${supplier.name}`
-        const postingLines = buildInvoiceLines(accounting.accountingBasis, totals, result.poNetMinor, accounting, memo)
-
         const invoiceId = randomUUID()
+        const reclass = await reclassVariance(tx, auth, 'supplier_invoice', invoiceId, planned, 'invoice')
+        const postingLines = buildInvoiceLines(
+          accounting.accountingBasis,
+          totals,
+          result.poNetMinor,
+          accounting,
+          memo,
+          accounting.accountingBasis === 'receipt_basis' ? reclass : 0
+        )
+
         const entry = await postSourcedEntryWithin(
           tx,
           auth,

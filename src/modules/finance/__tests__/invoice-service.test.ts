@@ -21,9 +21,15 @@ vi.mock('@/lib/idempotency', async () => {
 vi.mock('@/modules/crm', () => ({ findCustomer: vi.fn() }))
 vi.mock('@/modules/inventory', () => ({
   validateStockLines: vi.fn(async () => undefined),
-  issueInvoiceStock: vi.fn(async () => undefined),
+  issueInvoiceStock: vi.fn(async () => []),
   restoreInvoiceStock: vi.fn(async () => undefined),
   publishInventoryEvents: vi.fn(async () => undefined),
+  readCostingWithin: vi.fn(async () => ({ method: 'order_price', cogsAccountId: null, inventoryAccountId: null })),
+}))
+vi.mock('@/modules/finance/services/ledger-service', () => ({
+  postSourcedEntryWithin: vi.fn(),
+  reverseSourcedEntryWithin: vi.fn(),
+  findActiveSourcedEntryWithin: vi.fn(async () => null),
 }))
 vi.mock('@/modules/finance/events', () => ({ publishFinanceEvents: vi.fn(async () => undefined) }))
 vi.mock('@/modules/finance/repositories/invoice-repository', () => ({

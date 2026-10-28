@@ -63,7 +63,15 @@ type World = {
 }
 
 /** The accounting settings of the original invoice-basis cycle: no GRNI, no variance account, no tolerance. */
-const invoiceBasis = { accountingBasis: 'invoice_basis' as const, grniAccountId: null, ppvAccountId: null, priceToleranceBps: 0, taxToleranceMinor: 0 }
+const invoiceBasis = {
+  accountingBasis: 'invoice_basis' as const,
+  costingMethod: 'order_price' as const,
+  cogsAccountId: null,
+  grniAccountId: null,
+  ppvAccountId: null,
+  priceToleranceBps: 0,
+  taxToleranceMinor: 0,
+}
 
 let keyCounter = 0
 const nextKey = () => `p2p-key-${String(++keyCounter).padStart(6, '0')}`
@@ -235,6 +243,8 @@ describe('accounting settings', () => {
       accountingBasis: 'invoice_basis',
       grniAccountId: null,
       ppvAccountId: null,
+      costingMethod: 'moving_weighted_average',
+      cogsAccountId: null,
       priceToleranceBps: 0,
       taxToleranceMinor: 0,
       version: 0,

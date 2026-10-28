@@ -141,6 +141,9 @@ export type PurchaseRequestDetail = PurchaseRequest & { lines: RequestLine[] }
 // ---- accounting ----
 
 export const accountingBases = ['invoice_basis', 'receipt_basis'] as const
+/** `order_price` keeps the catalogue cost. `moving_weighted_average` is the experimental default when a company first saves settings. */
+export const costingMethods = ['order_price', 'moving_weighted_average'] as const
+export type CostingMethod = (typeof costingMethods)[number]
 /**
  * `invoice_basis`: stock reaches the ledger when the supplier invoice is booked. `receipt_basis` (perpetual): it reaches the
  * ledger when it is received, against the GRNI account, and the invoice clears GRNI.
@@ -156,6 +159,9 @@ export type ProcurementAccounting = {
   grniAccountId: string | null
   /** Purchase price variance: an expense account, used on the receipt basis only. */
   ppvAccountId: string | null
+  /** Experimental. `moving_weighted_average` is offered when settings have never been saved; the engine stays on order price until a row is saved. */
+  costingMethod: CostingMethod
+  cogsAccountId: string | null
   accountingBasis: AccountingBasis
   /** The billed price may differ from the order price by this many basis points of the order price. */
   priceToleranceBps: number

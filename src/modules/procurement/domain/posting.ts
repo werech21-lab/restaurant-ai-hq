@@ -10,6 +10,7 @@ import type { AccountingBasis } from '@/modules/procurement/domain/types'
  *   purchase return (receipt basis)   Dr GRNI             value                              Cr inventory         value
  *   supplier invoice, invoice basis   Dr inventory        net     Dr input tax  tax          Cr payable           total
  *   supplier invoice, receipt basis   Dr GRNI             order net   Dr/Cr price variance   Dr input tax  tax    Cr payable  total
+ *   receipt-basis variance still on hand is moved from the variance account to inventory on that new invoice only
  *   credit note, invoice basis        Dr payable          total                              Cr inventory net     Cr input tax  tax
  *   credit note, receipt basis        Dr payable          total   Dr/Cr price variance       Cr GRNI order net    Cr input tax  tax
  *   supplier payment                  Dr payable          amount                             Cr paying account    amount
@@ -50,6 +51,21 @@ function varianceLine(accounts: LedgerAccounts, varianceMinor: number, memo: str
   return [debitSide ? debit(ppv, amount, memo) : credit(ppv, amount, memo)]
 }
 
+/** The part of a price variance that is still in stock. Invoice debits inventory when positive; a credit note credits it. */
+function reclassLine(inventory: string, reclassMinor: number, memo: string, side: 'invoice' | 'credit'): JournalLineInput[] {
+  if (reclassMinor === 0) return []
+  const amount = Math.abs(reclassMinor)
+  const debitInventory = side === 'invoice' ? reclassMinor > 0 : reclassMinor < 0
+  return [debitInventory ? debit(inventory, amount, memo) : credit(inventory, amount, memo)]
+}
+
+function assertReclass(variance: number, reclassMinor: number): void {
+  if (reclassMinor === 0) return
+  if (variance === 0 || Math.sign(reclassMinor) !== Math.sign(variance) || Math.abs(reclassMinor) > Math.abs(variance)) {
+    throw new DomainError('cost_exceeds_stock', 'The inventory reclass is not a portion of this document price variance.')
+  }
+}
+
 export function buildReceiptLines(valueMinor: number, accounts: LedgerAccounts, memo: string): JournalLineInput[] {
   needAmount(valueMinor, 'A goods receipt')
   const inventory = needAccount(accounts.inventoryAccountId, 'Choose the inventory account before receiving goods on the receipt basis.')
@@ -64,8 +80,18 @@ export function buildReturnLines(valueMinor: number, accounts: LedgerAccounts, m
   return [debit(grni, valueMinor, memo), credit(inventory, valueMinor, memo)]
 }
 
-/** `poNetMinor` is the invoiced quantities at the order's prices. It is only used on the receipt basis. */
-export function buildInvoiceLines(basis: AccountingBasis, totals: InvoiceTotals, poNetMinor: number, accounts: LedgerAccounts, memo: string): JournalLineInput[] {
+/**
+ * `poNetMinor` is the invoiced quantities at the order's prices. It is only used on the receipt basis.
+ * `inventoryReclassMinor` is the portion of the price variance still on hand. It is posted on this document only.
+ */
+export function buildInvoiceLines(
+  basis: AccountingBasis,
+  totals: InvoiceTotals,
+  poNetMinor: number,
+  accounts: LedgerAccounts,
+  memo: string,
+  inventoryReclassMinor = 0
+): JournalLineInput[] {
   const payable = needAccount(accounts.payableAccountId, 'Choose the inventory and payable accounts before booking supplier invoices.')
   const inventory = needAccount(accounts.inventoryAccountId, 'Choose the inventory and payable accounts before booking supplier invoices.')
   if (totals.totalMinor <= 0 || totals.subtotalMinor <= 0) {
@@ -74,8 +100,11 @@ export function buildInvoiceLines(basis: AccountingBasis, totals: InvoiceTotals,
   const lines: JournalLineInput[] = []
   if (basis === 'receipt_basis') {
     const grni = needAccount(accounts.grniAccountId, 'Choose the GRNI account before booking supplier invoices on the receipt basis.')
+    const variance = totals.subtotalMinor - poNetMinor
+    assertReclass(variance, inventoryReclassMinor)
     if (poNetMinor > 0) lines.push(debit(grni, poNetMinor, memo))
-    lines.push(...varianceLine(accounts, totals.subtotalMinor - poNetMinor, memo, 'invoice'))
+    lines.push(...varianceLine(accounts, variance - inventoryReclassMinor, memo, 'invoice'))
+    lines.push(...reclassLine(inventory, inventoryReclassMinor, memo, 'invoice'))
   } else {
     lines.push(debit(inventory, totals.subtotalMinor, memo))
   }
@@ -86,7 +115,14 @@ export function buildInvoiceLines(basis: AccountingBasis, totals: InvoiceTotals,
   return lines
 }
 
-export function buildCreditNoteLines(basis: AccountingBasis, totals: InvoiceTotals, poNetMinor: number, accounts: LedgerAccounts, memo: string): JournalLineInput[] {
+export function buildCreditNoteLines(
+  basis: AccountingBasis,
+  totals: InvoiceTotals,
+  poNetMinor: number,
+  accounts: LedgerAccounts,
+  memo: string,
+  inventoryReclassMinor = 0
+): JournalLineInput[] {
   const payable = needAccount(accounts.payableAccountId, 'Choose the inventory and payable accounts before booking credit notes.')
   const inventory = needAccount(accounts.inventoryAccountId, 'Choose the inventory and payable accounts before booking credit notes.')
   if (totals.totalMinor <= 0 || totals.subtotalMinor <= 0) {
@@ -95,8 +131,11 @@ export function buildCreditNoteLines(basis: AccountingBasis, totals: InvoiceTota
   const lines: JournalLineInput[] = [debit(payable, totals.totalMinor, memo)]
   if (basis === 'receipt_basis') {
     const grni = needAccount(accounts.grniAccountId, 'Choose the GRNI account before booking credit notes on the receipt basis.')
+    const variance = totals.subtotalMinor - poNetMinor
+    assertReclass(variance, inventoryReclassMinor)
     if (poNetMinor > 0) lines.push(credit(grni, poNetMinor, memo))
-    lines.push(...varianceLine(accounts, totals.subtotalMinor - poNetMinor, memo, 'credit'))
+    lines.push(...varianceLine(accounts, variance - inventoryReclassMinor, memo, 'credit'))
+    lines.push(...reclassLine(inventory, inventoryReclassMinor, memo, 'credit'))
   } else {
     lines.push(credit(inventory, totals.subtotalMinor, memo))
   }

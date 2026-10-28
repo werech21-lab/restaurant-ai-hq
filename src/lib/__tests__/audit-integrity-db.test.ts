@@ -390,6 +390,8 @@ async function runScenario(auth: AuthContext): Promise<void> {
     accountingBasis: 'receipt_basis',
     grniAccountId: grniAccount.id,
     ppvAccountId: ppvAccount.id,
+    costingMethod: 'order_price',
+    cogsAccountId: null,
     priceToleranceBps: 200,
     taxToleranceMinor: 50,
   })

@@ -38,6 +38,7 @@ export const baselineSentinels = {
       'public.supplier_payment_allocations',
     ],
     '0016_freeze_invoice_notes.sql': ['def:invoices_freeze:new.notes'],
+    '0017_inventory_valuation.sql': ['public.inventory_settings', 'public.item_cost_events'],
   }
 
 /**

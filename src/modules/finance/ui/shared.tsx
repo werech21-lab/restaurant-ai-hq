@@ -37,6 +37,7 @@ export const sourceTypeLabels: Record<JournalSourceType, MessageKey> = {
   purchase_return: 'led.src.purchase_return',
   supplier_credit_note: 'led.src.supplier_credit_note',
   supplier_payment: 'led.src.supplier_payment',
+  sales_cogs: 'led.src.sales_cogs',
 }
 
 export function EntryStatusBadge({ status }: { status: EntryStatus }) {

@@ -39,6 +39,8 @@ export {
   returnPurchaseWithin,
   validateStockLines,
 } from '@/modules/inventory/services/stock-service'
+export { applyPriceVarianceWithin, readCostingWithin, setCostingPolicyWithin } from '@/modules/inventory/services/cost-service'
+export type { IssuedCost } from '@/modules/inventory/services/cost-service'
 export { createProduct, deleteProduct, listProducts, updateProduct } from '@/modules/inventory/services/product-service'
 export type { ProductBody, ProductPage } from '@/modules/inventory/services/product-service'
 export { publishInventoryEvents } from '@/modules/inventory/events'
