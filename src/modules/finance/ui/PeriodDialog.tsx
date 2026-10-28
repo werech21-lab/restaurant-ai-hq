@@ -8,8 +8,9 @@ import { permissions } from '@/lib/auth/permissions'
 import { useI18n, type MessageKey } from '@/lib/i18n'
 import { closePeriodSchema, createPeriodSchema, type FiscalPeriod } from '@/modules/finance/client'
 import { FormIssues, LedgerFailure, PeriodStatusBadge } from '@/modules/finance/ui/shared'
-import { useCan } from '@/modules/procurement/ui/permissions'
-import { dateTimeText, Fact, Field, todayUtc, useRunner } from '@/modules/procurement/ui/shared'
+import { Fact, Field, todayUtc, useRunner } from '@/components/erp/actions'
+import { dateTimeText } from '@/components/erp/common'
+import { useCan } from '@/components/erp/permissions'
 
 type Props = {
   /** The row the list already holds. The API has no endpoint that reads one period on its own. */

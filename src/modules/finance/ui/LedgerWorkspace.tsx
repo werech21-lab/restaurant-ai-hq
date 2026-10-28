@@ -13,9 +13,10 @@ import { JournalEntryDialog } from '@/modules/finance/ui/JournalEntryDialog'
 import { PeriodDialog } from '@/modules/finance/ui/PeriodDialog'
 import { accountTypeLabels, ActiveBadge, EntryStatusBadge, entryStatusLabels, PeriodStatusBadge, sourceTypeLabels } from '@/modules/finance/ui/shared'
 import { TrialBalancePanel } from '@/modules/finance/ui/TrialBalancePanel'
-import { PagedTable } from '@/modules/procurement/ui/PagedTable'
-import { PermissionProvider, useCan } from '@/modules/procurement/ui/permissions'
-import { dateTimeText, minorText } from '@/modules/procurement/ui/shared'
+import { minorText } from '@/components/erp/actions'
+import { dateTimeText } from '@/components/erp/common'
+import { PagedTable } from '@/components/erp/PagedTable'
+import { PermissionProvider, useCan } from '@/components/erp/permissions'
 
 const allTabs = ['accounts', 'entries', 'periods', 'trial'] as const
 type Tab = (typeof allTabs)[number]

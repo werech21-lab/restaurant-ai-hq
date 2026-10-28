@@ -9,8 +9,8 @@ import { useI18n, type MessageKey } from '@/lib/i18n'
 import { accountTypes, createAccountSchema, updateAccountSchema, type Account, type AccountType } from '@/modules/finance/client'
 import { accountTypeLabels, ActiveBadge, FormIssues, LedgerFailure } from '@/modules/finance/ui/shared'
 import { useAccount, useAccounts } from '@/modules/finance/ui/useAccounts'
-import { useCan } from '@/modules/procurement/ui/permissions'
-import { Fact, Field, useRunner } from '@/modules/procurement/ui/shared'
+import { Fact, Field, useRunner } from '@/components/erp/actions'
+import { useCan } from '@/components/erp/permissions'
 
 type Props = {
   account?: Account

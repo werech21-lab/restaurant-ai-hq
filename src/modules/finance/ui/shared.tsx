@@ -4,11 +4,11 @@ import { errorClass, secondaryButton } from '@/components/erp/styles'
 import { Badge } from '@/components/ui'
 import { useI18n, type MessageKey } from '@/lib/i18n'
 import type { AccountType, EntryStatus, JournalSourceType, PeriodStatus } from '@/modules/finance/client'
-import type { Failure } from '@/modules/procurement/ui/shared'
+import type { Failure } from '@/components/erp/actions'
 
 /**
- * The labels and small pieces the ledger screens share. The generic table, paging, form and action primitives come from
- * `@/modules/procurement/ui`, which the architecture guard allows: duplicating them here would leave two copies to fix.
+ * The labels and small pieces the ledger screens share. Tables, paging and form actions come from `@/components/erp`,
+ * which every module screen uses, so finance does not depend on the procurement screens.
  */
 
 export const accountTypeLabels: Record<AccountType, MessageKey> = {

@@ -16,8 +16,9 @@ import {
 import { draftFromJournalLine, draftTotals, emptyJournalLine, journalIssue, journalLinesPayload, type JournalLineDraft } from '@/modules/finance/ui/journal-draft'
 import { JournalLineEditor } from '@/modules/finance/ui/JournalLineEditor'
 import { EntryStatusBadge, FormIssues, LedgerFailure, sourceTypeLabels } from '@/modules/finance/ui/shared'
-import { useCan } from '@/modules/procurement/ui/permissions'
-import { dateTimeText, Fact, Field, minorText, todayUtc, useIdempotencyKey, useRunner, type Phase } from '@/modules/procurement/ui/shared'
+import { Fact, Field, minorText, todayUtc, useIdempotencyKey, useRunner } from '@/components/erp/actions'
+import { dateTimeText, type Phase } from '@/components/erp/common'
+import { useCan } from '@/components/erp/permissions'
 
 type Props = {
   entryId?: string

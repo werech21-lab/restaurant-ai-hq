@@ -7,7 +7,8 @@ import { Badge, Money, Num } from '@/components/ui'
 import { useI18n, type MessageKey } from '@/lib/i18n'
 import { trialBalanceQuerySchema, type TrialBalance } from '@/modules/finance/client'
 import { accountTypeLabels } from '@/modules/finance/ui/shared'
-import { minorText, todayUtc, type Phase } from '@/modules/procurement/ui/shared'
+import { minorText, todayUtc } from '@/components/erp/actions'
+import type { Phase } from '@/components/erp/common'
 
 /**
  * The trial balance of the posted entries up to a date, with an optional opening date. The report comes from the server
