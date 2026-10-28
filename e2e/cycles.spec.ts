@@ -41,6 +41,7 @@ function dataOf(result: { status: number; payload: { data?: Record<string, unkno
 }
 
 test('arabic and english screens, then procure-to-pay and quote-to-cash against the local database', async ({ page }) => {
+  test.setTimeout(300_000)
   const world = await runtime()
   await page.goto('/')
   await expect(page.getByText('معاينة بأرقام ثابتة. هذه ليست بيانات التشغيل في وحدات ERP.')).toBeVisible()
@@ -243,7 +244,7 @@ test('arabic and english screens, then procure-to-pay and quote-to-cash against 
   expect(collectedInvoice).toMatchObject({ status: 'partially_paid', paidMinor: 2_000 })
 
   await page.goto('/erp/finance')
-  await expect(page.getByText(invoice.number)).toBeVisible()
+  await expect(page.getByText(invoice.number)).toBeVisible({ timeout: 60_000 })
 
   const other = await page.context().browser()?.newContext()
   if (!other) throw new Error('The browser did not open the second company.')

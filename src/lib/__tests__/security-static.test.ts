@@ -71,6 +71,19 @@ describe('credentials', () => {
     expect(offenders).toEqual([])
   })
 
+  it('contains no pasted publishable or secret key material', async () => {
+    const markers = ['sb_' + 'secret_', 'sb_' + 'publishable_']
+    const roots = ['src', 'scripts', 'database', 'e2e'].map((name) => path.join(root, name))
+    const offenders: string[] = []
+    for (const directory of roots) {
+      for (const file of await files(directory, isCode)) {
+        const text = await readFile(file, 'utf8')
+        if (markers.some((marker) => text.includes(marker))) offenders.push(path.relative(root, file))
+      }
+    }
+    expect(offenders).toEqual([])
+  })
+
   it('has env examples with placeholders only', async () => {
     for (const name of ['.env.example', '.env.staging.example']) {
       const text = await readFile(path.join(root, name), 'utf8')
