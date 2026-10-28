@@ -8,7 +8,7 @@
 
 ## الاتصال
 
-`.env.staging` مستبعد من Git. آخر تعديل له لا يحتوي `DATABASE_URL`. المفاتيح الموجودة هي عنوان المشروع والمفتاح القابل للنشر و`DATABASE_SSL=verify`. لم تُستخدم كلمات مرور أو مفاتيح نُشرت في المحادثة.
+`.env.staging` مستبعد من Git ولا يحتوي `DATABASE_URL`. `DATABASE_SSL=verify`. لوحة المشروع الحي مفتوحة على مجمع الجلسة: المضيف `aws-0-ap-southeast-1.pooler.supabase.com`، المنفذ `5432`، القاعدة `postgres`، المستخدم `postgres.pikqnlzkoaxoxpahztvc`. كلمة المرور الجديدة ظاهرة في اللوحة حتى التحديث، ولم تُنسخ إلى الملف. لم يُفتح اتصال، ولم تُطبع السلسلة.
 
 المرجع المكتوب `pikqnlzkoaxoxpahtzvc` ما زال `NXDOMAIN` لعنوان الواجهة وعنوان قاعدة البيانات. المشروع الحي الذي اسمه `aether-bi-staging` في الجلسة المصادق عليها هو `pikqnlzkoaxoxpahztvc`، وحالته `ACTIVE_HEALTHY`. فرق الحرفين `ht` و`hz` يمنع اعتبار المرجعين مشروعًا واحدًا عند الاتصال.
 
