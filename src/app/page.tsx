@@ -18,6 +18,7 @@ import Reports from '@/components/Reports'
 import Agents from '@/components/Agents'
 import Settings from '@/components/Settings'
 import Assistant from '@/components/Assistant'
+import ErpHub from '@/components/ErpHub'
 
 export default function Home() {
   const { t } = useI18n()
@@ -69,8 +70,10 @@ export default function Home() {
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_100%_0%,rgba(201,161,90,0.11),transparent_38%),radial-gradient(ellipse_at_0%_100%,rgba(70,86,112,0.08),transparent_42%)]" />
           <div key={activeSection} className="relative mx-auto w-full max-w-6xl animate-fade-up px-3.5 pb-24 pt-5 sm:px-5 sm:pb-28 sm:pt-8 md:px-10 md:pb-28 md:pt-10">
             <p role="note" className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
+              <span className="me-2 rounded bg-amber-500/20 px-1.5 py-0.5 text-[11px] font-semibold tracking-wide">{t('hub.demo')}</span>
               {t('preview.banner')}
             </p>
+            <ErpHub />
             {renderSection()}
           </div>
         </main>

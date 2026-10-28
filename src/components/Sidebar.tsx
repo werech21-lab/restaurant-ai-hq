@@ -148,6 +148,13 @@ export default function Sidebar({
       </div>
 
       <nav className="min-h-0 flex-1 overflow-y-auto px-3 pb-4">
+        <Link
+          href="#erp-apps"
+          onClick={onClose}
+          className="mb-2 flex w-full items-center rounded-2xl border border-gold-300/25 bg-gold-400/10 px-3 py-2.5 text-sm font-semibold text-gold-300"
+        >
+          {t('hub.title')}
+        </Link>
         {navGroups.map((group) => (
           <div key={group.id} className="mt-4 first:mt-1">
             <p className="mb-1.5 px-3 text-[11px] font-medium text-gold-400/70">{t(`group.${group.id}` as MessageKey)}</p>
@@ -193,6 +200,24 @@ export default function Sidebar({
           className="flex w-full items-center rounded-2xl px-3 py-2.5 text-sm text-mist-400 transition hover:bg-white/[0.03] hover:text-mist-100"
         >
           {t('erp.nav')}
+        </Link>
+        <Link
+          href="/erp/ledger"
+          className="flex w-full items-center rounded-2xl px-3 py-2.5 text-sm text-mist-400 transition hover:bg-white/[0.03] hover:text-mist-100"
+        >
+          {t('erpnav.ledger')}
+        </Link>
+        <Link
+          href="/erp/org"
+          className="flex w-full items-center rounded-2xl px-3 py-2.5 text-sm text-mist-400 transition hover:bg-white/[0.03] hover:text-mist-100"
+        >
+          {t('erpnav.org')}
+        </Link>
+        <Link
+          href="/erp/iam"
+          className="flex w-full items-center rounded-2xl px-3 py-2.5 text-sm text-mist-400 transition hover:bg-white/[0.03] hover:text-mist-100"
+        >
+          {t('erpnav.iam')}
         </Link>
         <Link
           href="/erp/inventory"
