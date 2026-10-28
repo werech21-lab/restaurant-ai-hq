@@ -83,9 +83,9 @@ describe('assertMigrationTarget', () => {
     })
   })
 
-  it('ships with no approved remote project', async () => {
+  it('allows only the named staging project', async () => {
     const listed = JSON.parse(await readFile(path.join(process.cwd(), 'database', 'approved-staging-targets.json'), 'utf8')) as { projects: string[] }
-    expect(listed.projects).toEqual([])
+    expect(listed.projects).toEqual(['pikqnlzkoaxoxpahtzvc'])
   })
 })
 
