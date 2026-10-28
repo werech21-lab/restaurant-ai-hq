@@ -63,6 +63,11 @@ async function objectExists(object) {
   if (object.startsWith('fn:')) {
     return (await client.query('select to_regprocedure($1) is not null as ok', [object.slice(3)])).rows[0].ok
   }
+  if (object.startsWith('def:')) {
+    const [name, text] = [object.slice(4, object.indexOf(':', 4)), object.slice(object.indexOf(':', 4) + 1)]
+    const sql = `select exists (select 1 from pg_proc where proname = $1 and pg_get_functiondef(oid) like '%' || $2 || '%') as ok`
+    return (await client.query(sql, [name, text])).rows[0].ok
+  }
   return (await client.query('select to_regclass($1) is not null as ok', [object])).rows[0].ok
 }
 

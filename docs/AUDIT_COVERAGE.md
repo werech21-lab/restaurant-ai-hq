@@ -40,7 +40,7 @@
 | دفعة مورد وتخصيصاتها | `cannot change` / `are immutable`، و`status='void'` يحتاج قيدًا عاكسًا | `cannot be deleted` |
 | إشعار دائن مورد وسطوره | `cannot change` / `are immutable` | `cannot be deleted` |
 | فاتورة مورد وسطورها | `cannot change` / `are immutable` | `cannot be deleted` |
-| فاتورة مبيعات مُصدَرة | المبالغ والتواريخ والعميل والرقم: `cannot change its amounts`؛ السطور: `only change while the invoice is a draft`؛ `paid_minor` لا ينزل | `cannot be deleted` |
+| فاتورة مبيعات مُصدَرة | المبالغ والتواريخ والعميل والرقم والملاحظات: `cannot change its amounts`؛ السطور: `only change while the invoice is a draft`؛ `paid_minor` لا ينزل | `cannot be deleted` |
 
 وإضافة: إلغاء فاتورة مبيعات مدفوعة بتعديل يدوي يصطدم بقيد `invoices_payment_state`؛ وقيد عكسي مزوَّر لا يعكس الأصل سطرًا بسطر يُرفض بـ `mirror`؛ وقيد ناتج عن مستند مشتريات `cannot be reversed` إلا بإلغاء المستند.
 
@@ -56,12 +56,14 @@
 - رصيد المورد = الإجمالي − المدفوع − المُقاصّ (10.500 − 3.000 − 2.100 = 5.400)، محسوبًا من الجداول ومن الخدمة، ويساوي رصيد حساب الدائنين.
 - تقرير `getReconciliation` بلا فروق على الأساسين.
 
-## 2. عيوب رأيتُها في المخرجات الفعلية
+## 2. عيوب ظهرت في المخرجات، وما صار منها
 
-1. **صف تدقيق «إنشاء» يحمل حالة سابقة مُصطنَعة.** `src/modules/procurement/services/procurement-service.ts:158` و`src/modules/procurement/services/invoice-service.ts:110` يكتبان `action = 'create'` عند أول ضبط للإعدادات، لكنهما يمرّران `before` = صف الافتراضات بالنسخة 0 بدل لا شيء. المتوقَّع: `before` فارغ في الإنشاء. الواقع: كائن كامل. لذلك استُثني الكيانان `procurement_settings` و`procurement_accounting` صراحةً من فحص «قبل/بعد» في `audit-integrity-db.test.ts`، مع تعليق يحيل إلى هذا المستند. الكيانات الثمانية والعشرون الأخرى تمرّ.
-2. **`notes` على فاتورة مُصدَرة ليست مجمَّدة في قاعدة البيانات.** مشغّل `invoices_freeze` في `database/migrations/0004_finance.sql:124-145` يُجمِّد الرقم والعميل والعملة والتواريخ والمبالغ فقط. فعليًا: `update invoices set notes = '...'` على فاتورة مدفوعة ينجح (`toBe('ok')` في `books-and-stock-db.test.ts`). الحارس الوحيد هو `assertEditable` في الخدمة. ليس خطأ ماليًا، لكنه بالضبط الفرق بين «ما ترفضه القاعدة» و«ما ترفضه الخدمة».
-3. **البيع يُنقص المخزون ولا يمسّ حساب المخزون.** لا يوجد ترحيل لتكلفة البضاعة المباعة في هذا الإصدار. الاختبار `the boundary of the books-versus-stock identity` يقيس ذلك: 20 وحدة دخلت يدويًا، 6 بيعت بفاتورة مُصدَرة، الرصيد 14، وحساب المخزون صفر. لذلك مطابقة «حساب المخزون = المخزون × سعر الأمر» مُثبَتة على شركات شراء فقط، ولا تصحّ بعد أي بيع.
-4. **`writeAudit` يخزّن `null` كقيمة JSON لا كـ SQL NULL** (`src/lib/audit.ts:24`). أي فحص بـ `before is null` يمرّ دائمًا بلا أن يفحص شيئًا. فحوص هذا الملف تستعمل `jsonb_typeof(...) = 'null'`.
+ثلاثة أُصلحت بعد مراجعة مستقلة، وواحد بقي لأنه قرار محاسبي لا يُخترع:
+
+1. **أُصلح.** أول ضبط لـ `procurement_settings` و`procurement_accounting` كان يُدوَّن `action = 'create'` ومعه `before` = صف الافتراضات بالنسخة 0. النسخة 0 صف يصنعه القارئ حين لا يوجد صف، فالإنشاء صار يكتب `before` فارغًا. فحص «قبل/بعد» في `audit-integrity-db.test.ts` يشمل الكيانين ولم يعد يستثنيهما.
+2. **أُصلح.** مشغّل `invoices_freeze` من 0004 كان يُجمِّد كل الحقول التجارية إلا `notes`، فـ `update invoices set notes = ...` على فاتورة مدفوعة كان ينجح على اتصال المالك. `database/migrations/0016_freeze_invoice_notes.sql` يضيف `notes` إلى المقارنة، والاختبار يثبت أن القاعدة والخدمة ترفضان معًا. **لم يُطبَّق 0016 على أي قاعدة حقيقية.**
+3. **ما زال مفتوحًا، وهو قرار محاسبي.** البيع يُنقص المخزون ولا يمسّ حساب المخزون: لا ترحيل لتكلفة البضاعة المباعة. الاختبار `the boundary of the books-versus-stock identity` يقيس ذلك (20 دخلت، 6 بيعت، الرصيد 14، وحساب المخزون صفر). مطابقة «حساب المخزون = المخزون × سعر الأمر» مُثبَتة على شركات شراء فقط. لا يُضاف هذا القيد قبل قرار صريح.
+4. **أُصلح.** `writeAudit` كان يخزّن غياب الحالة كقيمة JSON `null` لا كـ SQL NULL، فأي فحص بـ `before is null` كان يمرّ بلا أن يفحص شيئًا. الغياب صار SQL NULL، والفحص يقبل الشكلين حتى لا تُقرأ الصفوف القديمة كحالة حاضرة.
 
 ## 3. ادعاءات ما زالت بلا دليل
 
@@ -71,4 +73,4 @@
 - **المسارات غير المُشغَّلة**: `rejectRequest`, `cancelRequest`, `cancelOrder`, `approveOrder`, `rejectQuotation`, `expireQuotation`, `convertQuotation`, `revokeInvitation`, `rejectApproval`, `holdCustomerWithin`, `setSellingPriceWithin`, `applyDraftDiscountWithin`, `receiveRestockWithin` — كلها تكتب تدقيقًا في الكود، ولم يُشغَّل أثرها في هذين الملفين.
 - **التدقيق عبر طبقة الـ route**: الاختبارات تستدعي الخدمات مباشرة، لا عبر `api/v1`.
 - **قيمة المخزون بطريقة تكلفة أخرى** (FIFO أو المتوسط): غير موجودة أصلًا، ولم تُختبر.
-- **PostgreSQL حقيقي**: migrations 0009 إلى 0015 لم تُطبَّق على قاعدة حقيقية، كما في `RELEASE_CLOSEOUT_1_4.md` القسم 6.
+- **PostgreSQL حقيقي**: migrations 0009 إلى 0016 لم تُطبَّق على قاعدة حقيقية، كما في `RELEASE_CLOSEOUT_1_4.md` القسم 6.

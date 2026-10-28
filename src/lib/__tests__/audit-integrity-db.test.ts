@@ -646,15 +646,12 @@ describe('every business write leaves an audit row', () => {
   })
 
   it('keeps before and after in step with the action: create has only after, delete has only before', async () => {
-    // `writeAudit` stores the JSON value `null`, not SQL NULL, so emptiness is `jsonb_typeof(...) = 'null'`.
+    // `writeAudit` stores a state that does not exist as SQL NULL. The JSON value `null` is accepted here as well so an
+    // older row written before that fix does not read as a present state.
     const empty = (column: string) => `coalesce(jsonb_typeof(${column}), 'null') = 'null'`
-    // `procurement_settings` and `procurement_accounting` are left out on purpose: their first write is audited as a
-    // `create` that carries a synthetic `before` (the defaults row with version 0) instead of nothing. That defect is
-    // written up in docs/AUDIT_COVERAGE.md with the two lines that cause it.
     const wrong = await rows<{ action: string; entity: string; id: string }>(
       `select id, entity, action from audit_log
-        where entity not in ('procurement_settings', 'procurement_accounting')
-          and ((action = 'create' and (not ${empty('before')} or ${empty('after')}))
+        where ((action = 'create' and (not ${empty('before')} or ${empty('after')}))
             or (action = 'update' and (${empty('before')} or ${empty('after')}))
             or (action = 'delete' and (${empty('before')} or not ${empty('after')})))`
     )

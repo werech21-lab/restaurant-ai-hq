@@ -3,7 +3,9 @@
 /**
  * What proves a migration is already in the database, for the baseline command. A migration that is not listed here
  * cannot be baselined: add a line when you add a migration, naming an object that only that migration creates.
- * Tables are written `schema.name`, functions `fn:name(argument types)`.
+ * Tables are written `schema.name`, functions `fn:name(argument types)`. A migration that only replaces an existing
+ * function creates no new object, so it names `def:function:text` instead: text that the new body contains and the old
+ * one does not.
  */
 export const baselineSentinels = {
   '0001_core.sql': ['public.tenants', 'public.audit_log'],
@@ -35,6 +37,7 @@ export const baselineSentinels = {
       'public.supplier_payments',
       'public.supplier_payment_allocations',
     ],
+    '0016_freeze_invoice_notes.sql': ['def:invoices_freeze:new.notes'],
   }
 
 /**

@@ -155,7 +155,9 @@ export async function updateSettings(auth: AuthContext, input: UpdateSettingsInp
       throw versionConflict('settings')
     }
     const after = await repository.findSettings(tx, auth.tenantId)
-    await audit(tx, auth, 'procurement_settings', auth.tenantId, before.version === 0 ? 'create' : 'update', before, after)
+    const first = before.version === 0
+    // Version 0 is the defaults the reader synthesises when no row exists yet, so a create has no previous state.
+    await audit(tx, auth, 'procurement_settings', auth.tenantId, first ? 'create' : 'update', first ? null : before, after)
     return after
   })
   return { data: settings }

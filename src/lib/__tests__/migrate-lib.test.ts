@@ -89,6 +89,12 @@ describe('baseline sentinels against the real migrations', () => {
   }
 
   async function exists(db: PGlite, object: string): Promise<boolean> {
+    if (object.startsWith('def:')) {
+      const split = object.indexOf(':', 4)
+      const sql = `select exists (select 1 from pg_proc where proname = $1 and pg_get_functiondef(oid) like '%' || $2 || '%') as ok`
+      const found = await db.query<{ ok: boolean }>(sql, [object.slice(4, split), object.slice(split + 1)])
+      return found.rows[0].ok
+    }
     const result = object.startsWith('fn:')
       ? await db.query<{ ok: boolean }>('select to_regprocedure($1) is not null as ok', [object.slice(3)])
       : await db.query<{ ok: boolean }>('select to_regclass($1) is not null as ok', [object])

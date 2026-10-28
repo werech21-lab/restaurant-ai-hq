@@ -50,7 +50,7 @@ import {
 import type { PurchaseOrderDetail, Supplier, SupplierCreditNoteDetail, SupplierInvoiceDetail, SupplierPaymentDetail } from '@/modules/procurement/client'
 
 /**
- * Two proofs that nothing else in the suite makes, against the real migrations (0001-0015) in an in-process Postgres.
+ * Two proofs that nothing else in the suite makes, against the real migrations in an in-process Postgres.
  *
  * 1. Financial record immutability. A posted journal entry, a sales payment, a supplier payment, a supplier credit note
  *    and an issued sales invoice are attacked twice: once with raw SQL over the server's own owner connection, to show
@@ -507,7 +507,7 @@ describe('what the database itself refuses, with no service in the way', () => {
 // ---------------------------------------------------------------------------------------------------------------------
 
 describe('what only the service refuses', () => {
-  it('refuses to edit an invoice that left draft, which the database alone would allow for a note', async () => {
+  it('refuses to edit an invoice that left draft, including its notes, in the service and in the database', async () => {
     const w = sales.world
     const current = await invoiceRow(w.auth, sales.invoice.id)
     expect(current.status).toBe('paid')
@@ -523,10 +523,12 @@ describe('what only the service refuses', () => {
         })
       )
     ).toBe('not_editable')
-    // The trigger `invoices_freeze` lists the frozen columns, and `notes` is not one of them: the database accepts a
-    // note on a paid invoice. The guard for that is the service rule above, which is why both are tested.
-    expect(await sqlFailure(`update invoices set notes = 'changed behind the service' where id = $1`, [sales.invoice.id])).toBe('ok')
-    expect(await sqlFailure(`update invoices set notes = null where id = $1`, [sales.invoice.id])).toBe('ok')
+    // Migration 0016 added `notes` to the columns `invoices_freeze` compares, so the database refuses the same edit the
+    // service refuses. Both are tested because either one alone would leave a way in.
+    expect(await sqlFailure(`update invoices set notes = 'changed behind the service' where id = $1`, [sales.invoice.id])).toContain('cannot change its amounts')
+    // Writing a column back as it already stands is not a change, so the trigger lets it through and nothing moves.
+    expect(await sqlFailure(`update invoices set notes = notes where id = $1`, [sales.invoice.id])).toBe('ok')
+    expect(await rows<{ notes: string | null }>(`select notes from invoices where id = $1`, [sales.invoice.id])).toEqual([{ notes: null }])
   })
 
   it('refuses to void a sales invoice once it is paid', async () => {
