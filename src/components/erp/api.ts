@@ -14,7 +14,7 @@ export class ApiError extends Error {
 }
 
 type RequestOptions = {
-  method?: 'GET' | 'POST' | 'PATCH' | 'PUT'
+  method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
   body?: unknown
   idempotencyKey?: string
   signal?: AbortSignal
@@ -197,6 +197,30 @@ const errorKeys: Record<string, MessageKey> = {
   unbalanced_entry: 'led.err.unbalanced_entry',
   entry_too_short: 'led.err.entry_too_short',
   invalid_line: 'led.err.invalid_line',
+  brand_not_found: 'org.err.brand_not_found',
+  brand_code_exists: 'org.err.brand_code_exists',
+  brand_has_active_branches: 'org.err.brand_has_active_branches',
+  brand_inactive: 'org.err.brand_inactive',
+  branch_not_found: 'org.err.branch_not_found',
+  branch_code_exists: 'org.err.branch_code_exists',
+  grant_exceeds_permissions: 'iam.err.grant_exceeds_permissions',
+  admin_role_requires_role_manage: 'iam.err.admin_role_requires_role_manage',
+  tenant_suspended: 'iam.err.tenant_suspended',
+  last_admin: 'iam.err.last_admin',
+  role_not_found: 'iam.err.role_not_found',
+  already_member: 'iam.err.already_member',
+  invitation_pending: 'iam.err.invitation_pending',
+  invitation_not_found: 'iam.err.invitation_not_found',
+  invitation_not_pending: 'iam.err.invitation_not_pending',
+  invitation_invalid: 'iam.err.invitation_invalid',
+  email_unconfirmed: 'iam.err.email_unconfirmed',
+  cannot_change_own_role: 'iam.err.cannot_change_own_role',
+  member_not_found: 'iam.err.member_not_found',
+  admin_member_requires_role_manage: 'iam.err.admin_member_requires_role_manage',
+  role_unchanged: 'iam.err.role_unchanged',
+  cannot_remove_self: 'iam.err.cannot_remove_self',
+  role_exists: 'iam.err.role_exists',
+  system_role_locked: 'iam.err.system_role_locked',
 }
 
 const detailCodes = ['insufficient_stock', 'over_receipt', 'over_invoice', 'over_return', 'over_credit', 'over_payment']

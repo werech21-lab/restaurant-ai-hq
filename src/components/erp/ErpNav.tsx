@@ -114,6 +114,33 @@ const links: readonly NavLink[] = [
       </Glyph>
     ),
   },
+  {
+    href: '/erp/org',
+    label: 'erpnav.org',
+    exact: false,
+    icon: (
+      <Glyph>
+        <path d="M4 20h16" />
+        <path d="M6 20V7l6-3 6 3v13" />
+        <path d="M10 20v-4h4v4" />
+        <path d="M9 10h.01" />
+        <path d="M15 10h.01" />
+        <path d="M9 14h.01" />
+        <path d="M15 14h.01" />
+      </Glyph>
+    ),
+  },
+  {
+    href: '/erp/iam',
+    label: 'erpnav.iam',
+    exact: false,
+    icon: (
+      <Glyph>
+        <path d="M12 3l7 3v6c0 4.2-2.8 6.8-7 8-4.2-1.2-7-3.8-7-8V6l7-3z" />
+        <path d="M9 12l2 2 4-4" />
+      </Glyph>
+    ),
+  },
 ]
 
 function isActive(path: string, link: NavLink): boolean {
@@ -121,7 +148,7 @@ function isActive(path: string, link: NavLink): boolean {
   return path === link.href || path.startsWith(`${link.href}/`)
 }
 
-/** The header shared by every ERP screen. It links the command center and the four modules. */
+/** The header shared by every ERP screen. It links the command center and the modules. */
 export default function ErpNav() {
   const { t } = useI18n()
   const path = usePathname() ?? ''
