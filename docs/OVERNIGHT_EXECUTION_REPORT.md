@@ -31,7 +31,7 @@
 
 فاتورة المورد وسند الاستلام، عندما يوجد قيد، يفتحان دفتر الأستاذ على ذلك القيد عبر `?entry=`. اختبار `deep-link`: ملف واحد، اختبار واحد، خروج 0. `tsc` وeslint على الملفات الملموسة خرجا 0.
 
-Staging والإنتاج لم يُمسا.
+Staging والإنتاج لم يُمسا. الالتزام `9b03610` دُفع إلى `origin/cursor/erp-finance-inventory-crm`. معاينة Vercel جاهزة وغير إنتاجية: `https://restaurant-ai-hq-v23-dui6jlav9-werech21-lab.vercel.app` (`dpl_1VFh6PJGNJ4HEyUNZuWGpUUew9AK`). الصفحة الرئيسية فيها المركز و`DEMO` و«مخطط». `/erp/finance` يعيد 307 إلى تسجيل الدخول. الحماية ما زالت `vercel_authentication`. `www.aetherbi.com` لم يُعاد توجيهه.
 
 ## Git
 
