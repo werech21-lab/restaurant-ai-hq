@@ -3,8 +3,6 @@ import {
   TOKEN_PATTERN,
   checkGrant,
   effectiveInvitationStatus,
-  generateInvitationToken,
-  hashInvitationToken,
   invitationExpiry,
   isAdministrativeRole,
   mayManageCurrentRole,
@@ -12,6 +10,7 @@ import {
   permissionsBeyond,
 } from '@/lib/iam/domain'
 import { createInvitationSchema, createRoleSchema, acceptInvitationSchema } from '@/lib/iam/schemas'
+import { generateInvitationToken, hashInvitationToken } from '@/lib/iam/tokens'
 
 const set = (...values: string[]) => new Set(values)
 

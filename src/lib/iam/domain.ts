@@ -1,7 +1,6 @@
-import { createHash, randomBytes } from 'node:crypto'
-
 /**
- * Pure rules for inviting users and managing roles inside a tenant. No database access here.
+ * Pure rules for inviting users and managing roles inside a tenant. No database access and no Node crypto:
+ * the browser imports the Zod schemas, and those schemas import this file. Token generation lives in `tokens.ts`.
  *
  * Why these rules: a person who may invite or edit roles must never be able to create more power than they hold, and nobody
  * becomes an administrator by default. Administrative power is the `iam.*` permission family.
@@ -13,7 +12,6 @@ export const ROLE_MANAGE = 'iam.role.manage'
 
 export const DEFAULT_INVITATION_DAYS = 7
 export const MAX_INVITATION_DAYS = 30
-export const INVITATION_TOKEN_BYTES = 32
 
 export type RoleLike = { permissions: readonly string[] }
 
@@ -62,14 +60,4 @@ export function invitationExpiry(now: Date, days: number): Date {
   return new Date(now.getTime() + days * 86_400_000)
 }
 
-/** A fresh random token (256 bits). It is shown once and never stored. */
-export function generateInvitationToken(): string {
-  return randomBytes(INVITATION_TOKEN_BYTES).toString('base64url')
-}
-
 export const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/
-
-/** The stored form of a token. */
-export function hashInvitationToken(token: string): string {
-  return createHash('sha256').update(token, 'utf8').digest('hex')
-}

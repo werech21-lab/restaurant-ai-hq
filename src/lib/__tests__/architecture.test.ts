@@ -82,10 +82,11 @@ describe('module boundaries', () => {
     const violations: string[] = []
     for (const file of await sources()) {
       if (isTest(file) || !isBrowserFile(file)) continue
+      if (/['"]node:crypto['"]/.test(file.text)) violations.push(`${file.relative} imports node:crypto`)
       for (const specifier of imports(file.text)) {
         const target = moduleImport(specifier)
         if (target && target.subpath === '') violations.push(`${file.relative} imports the server entry ${specifier}`)
-        if (/^@\/lib\/(db|auth\/context|supabase\/server|env)$/.test(specifier)) violations.push(`${file.relative} imports server-only ${specifier}`)
+        if (/^@\/lib\/(db|auth\/context|supabase\/server|env|iam\/tokens)$/.test(specifier)) violations.push(`${file.relative} imports server-only ${specifier}`)
       }
     }
     expect(violations).toEqual([])

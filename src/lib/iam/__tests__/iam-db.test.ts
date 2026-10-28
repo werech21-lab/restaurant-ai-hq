@@ -9,7 +9,7 @@ vi.mock('@/lib/db', async () => {
   return { db: support.testDb, withTransaction: support.testWithTransaction }
 })
 
-import { hashInvitationToken } from '@/lib/iam/domain'
+import { hashInvitationToken } from '@/lib/iam/tokens'
 import {
   acceptInvitation,
   changeMemberRole,

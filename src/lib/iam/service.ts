@@ -8,8 +8,6 @@ import {
   DEFAULT_INVITATION_DAYS,
   ROLE_MANAGE,
   checkGrant,
-  generateInvitationToken,
-  hashInvitationToken,
   invitationExpiry,
   mayManageCurrentRole,
   normalizeEmail,
@@ -17,6 +15,7 @@ import {
   type RoleLike,
 } from '@/lib/iam/domain'
 import { publishIamEvents, stamp, type IamEvent } from '@/lib/iam/events'
+import { generateInvitationToken, hashInvitationToken } from '@/lib/iam/tokens'
 import * as repository from '@/lib/iam/repository'
 import type {
   AcceptInvitationInput,
