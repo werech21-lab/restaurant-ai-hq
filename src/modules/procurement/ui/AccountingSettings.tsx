@@ -205,6 +205,7 @@ export function AccountingSettings({ reloadToken, onChanged }: { reloadToken: nu
 
         <h4 className="mt-6 text-sm font-semibold text-gray-200">{t('pro.acct.costingTitle')}</h4>
         <p className="mt-1 text-sm text-gray-400">{t('pro.acct.costingHint')}</p>
+        {accounting?.version === 0 ? <p className="mt-1 text-xs text-amber-200/90">{t('pro.acct.costingUnsaved')}</p> : null}
         <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Field label={t('pro.acct.costing')}>
             <select value={costingMethod} onChange={(event) => setCostingMethod(event.target.value as CostingMethod)} className={inputClass}>

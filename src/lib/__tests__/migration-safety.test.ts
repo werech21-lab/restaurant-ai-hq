@@ -121,6 +121,7 @@ describe('migration files', () => {
     expect(runner).toContain('was changed after it was applied')
     expect(runner).toContain("client.query('begin')")
     expect(runner).toContain("client.query('rollback')")
+    expect(runner.indexOf('assertMigrationTarget(url')).toBeLessThan(runner.indexOf('new pg.Client'))
     expect(runner).not.toMatch(/\b(truncate|drop\s+(table|schema|database)|delete\s+from)\b/i)
   })
 

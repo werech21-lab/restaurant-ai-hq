@@ -2,7 +2,7 @@ import { readdir, readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { PGlite } from '@electric-sql/pglite'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { assertNothingBeyond, baselineSentinels, isUnbaselined, planBaseline, planMigrations } from '../../../scripts/migrate-lib.mjs'
+import { assertMigrationTarget, assertNothingBeyond, baselineSentinels, isUnbaselined, planBaseline, planMigrations } from '../../../scripts/migrate-lib.mjs'
 
 /** The migration planner is pure. Nothing here connects to a real database. */
 
@@ -49,6 +49,43 @@ describe('planMigrations', () => {
   it('treats an empty history as everything pending', () => {
     expect(planMigrations(files, new Map()).pending).toHaveLength(4)
     expect(planMigrations([], new Map())).toEqual({ pending: [], upToDate: [], changed: [], unknown: [], gaps: [] })
+  })
+})
+
+describe('assertMigrationTarget', () => {
+  function remote(ref: string): string {
+    const parsed = new URL('postgresql://aws-0-region.pooler.supabase.com:5432/postgres')
+    parsed.username = `postgres.${ref}`
+    parsed.password = 'not-a-real-secret'
+    return parsed.toString()
+  }
+
+  it('allows loopback and refuses every remote project that is not approved', () => {
+    expect(assertMigrationTarget('postgresql://127.0.0.1:5432/postgres', { expectHost: undefined, acknowledged: false, approved: [] })).toEqual({
+      scope: 'local',
+      host: '127.0.0.1',
+    })
+    expect(assertMigrationTarget('postgresql://localhost/postgres', { expectHost: undefined, acknowledged: false, approved: [] }).scope).toBe('local')
+    const url = remote('stagingref')
+    expect(() => assertMigrationTarget(url, { expectHost: 'stagingref', acknowledged: false, approved: ['stagingref'] })).toThrow(/without --i-understand-this-is-staging/)
+    expect(() => assertMigrationTarget(url, { expectHost: undefined, acknowledged: true, approved: ['stagingref'] })).toThrow(/--expect-host/)
+    expect(() => assertMigrationTarget(url, { expectHost: 'YOUR_STAGING_PROJECT', acknowledged: true, approved: ['YOUR_STAGING_PROJECT'] })).toThrow(/--expect-host/)
+    expect(() => assertMigrationTarget(url, { expectHost: 'otherref', acknowledged: true, approved: ['otherref'] })).toThrow(/does not point at the project/)
+    expect(() => assertMigrationTarget(url, { expectHost: 'stagingref', acknowledged: true, approved: [] })).toThrow(/not listed/)
+    try {
+      assertMigrationTarget(url, { expectHost: 'stagingref', acknowledged: true, approved: [] })
+    } catch (error) {
+      expect((error as Error).message).not.toContain('not-a-real-secret')
+    }
+    expect(assertMigrationTarget(url, { expectHost: 'stagingref', acknowledged: true, approved: ['stagingref'] })).toEqual({
+      scope: 'staging',
+      host: 'aws-0-region.pooler.supabase.com',
+    })
+  })
+
+  it('ships with no approved remote project', async () => {
+    const listed = JSON.parse(await readFile(path.join(process.cwd(), 'database', 'approved-staging-targets.json'), 'utf8')) as { projects: string[] }
+    expect(listed.projects).toEqual([])
   })
 })
 

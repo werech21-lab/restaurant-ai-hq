@@ -25,14 +25,16 @@
 
 لا تضع هذه القيم في `.env.local` ثم تشغّل `npm run db:migrate`: ذلك الأمر يقرأ `.env.local`. تطبيق Staging، بعد الموافقة، هو:
 
+التطبيق على مستضاف مرفوض إلى أن يُضاف مرجع المشروع إلى `database/approved-staging-targets.json`، ويُمرَّر المرجع نفسه مع الإقرار. الفحص يحدث قبل فتح الاتصال. القائمة الحالية فارغة، لذلك لا مشروع بعيد مسموح.
+
 ```text
-node --env-file=.env.staging scripts/migrate.mjs
+node --env-file=.env.staging scripts/migrate.mjs --expect-host PROJECT_REF --i-understand-this-is-staging
 ```
 
-القراءة فقط، وبعد وجود الملف:
+القراءة فقط، وبعد وجود الملف وموافقة المرجع:
 
 ```text
-npm run db:status:staging
+node --env-file=.env.staging scripts/migrate.mjs --status --expect-host PROJECT_REF --i-understand-this-is-staging
 ```
 
 لا يُشغَّل `scripts/staging-validate.mjs` ولا `scripts/products-report.mjs` ولا أي سكربت يتصل بقاعدة مستضافة من هذه الجلسة.
@@ -43,7 +45,7 @@ npm run db:status:staging
 
 الترتيب المعتمد في المستودع: `0001` ثم `0002` … حتى `0017` بلا فجوات. التالي الحر هو `0018` ولا يُضاف من أجل Staging.
 
-قبل التطبيق على المستضاف: `node --env-file=.env.staging scripts/migrate.mjs --status` ويجب أن يُظهر `0001`–`0017` كـ pending على قاعدة فارغة. بعد الموافقة والتطبيق: كلها `applied`، ولا سطر `CHANGED`.
+قبل التطبيق على المستضاف: أمر `--status` أعلاه، بعد إضافة المرجع إلى القائمة المعتمدة، ويجب أن يُظهر `0001`–`0017` كـ pending على قاعدة فارغة. بعد التطبيق: كلها `applied`، ولا سطر `CHANGED`. قاعدة على `127.0.0.1` لا تحتاج المرجع.
 
 ## 4. حسابات الاختبار
 

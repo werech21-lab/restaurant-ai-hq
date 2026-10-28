@@ -97,6 +97,40 @@ export function assertNothingBeyond(files, applied, through) {
   if (beyond.length > 0) throw new Error(`${beyond.join(', ')} is already recorded after ${through}. Baseline only an empty or shorter history.`)
 }
 
+const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1'])
+
+/**
+ * A remote migration needs three things before any connection: the staging acknowledgement, a project ref that appears in
+ * the connection target, and that same ref in database/approved-staging-targets.json. Loopback is the local trial and
+ * needs none of them. The error text never includes the connection string.
+ */
+export function assertMigrationTarget(url, { expectHost, acknowledged, approved }) {
+  let host = ''
+  let user = ''
+  try {
+    const parsed = new URL(url)
+    host = parsed.hostname
+    user = decodeURIComponent(parsed.username)
+  } catch {
+    throw new Error('DATABASE_URL is not a valid URL.')
+  }
+  if (LOCAL_HOSTS.has(host)) return { scope: 'local', host }
+  if (acknowledged !== true) {
+    throw new Error('Refusing to migrate a remote database without --i-understand-this-is-staging.')
+  }
+  const name = typeof expectHost === 'string' ? expectHost.trim() : ''
+  if (name.length < 6 || name.startsWith('--') || name.includes('YOUR_')) {
+    throw new Error('--expect-host is required and must name the approved staging project.')
+  }
+  if (!`${user}@${host}`.includes(name)) {
+    throw new Error('Refusing to migrate: the connection string does not point at the project named by --expect-host.')
+  }
+  if (!Array.isArray(approved) || !approved.includes(name)) {
+    throw new Error('Refusing to migrate: this project is not listed in database/approved-staging-targets.json.')
+  }
+  return { scope: 'staging', host }
+}
+
 /** Same rules as src/lib/db-ssl.ts, for the migration runner. */
 export function sslOptions(mode, ca) {
   if (mode === 'disable') return false

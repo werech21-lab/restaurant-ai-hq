@@ -17,4 +17,9 @@ export function planBaseline(
 
 export function assertNothingBeyond(files: MigrationFile[], applied: Map<string, string>, through: string): void
 
+export function assertMigrationTarget(
+  url: string,
+  options: { expectHost: string | undefined; acknowledged: boolean; approved: readonly string[] }
+): { scope: 'local' | 'staging'; host: string }
+
 export function sslOptions(mode: string, ca: string | undefined): boolean | { rejectUnauthorized: boolean; ca?: string }

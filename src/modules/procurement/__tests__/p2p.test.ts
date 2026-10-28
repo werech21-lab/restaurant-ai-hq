@@ -13,6 +13,7 @@ import {
 } from '@/modules/procurement/domain/invoice'
 import { canCancelRequest, isRequestEditable, planConversion } from '@/modules/procurement/domain/request'
 import type { OrderLine, RequestLine } from '@/modules/procurement/domain/types'
+import { updateAccountingSchema } from '@/modules/procurement/schemas/invoice'
 
 /** The pure rules of the procure-to-pay cycle: what can be invoiced, how an invoice is posted, and how a request becomes an order. */
 
@@ -219,5 +220,28 @@ describe('purchase requests', () => {
         ])
       )
     ).toBe('duplicate_request_line')
+  })
+})
+
+describe('experimental costing is not the stored production default', () => {
+  const accounts = {
+    version: 0,
+    inventoryAccountId: uuid(1),
+    payableAccountId: uuid(2),
+    inputTaxAccountId: null,
+  }
+
+  it('keeps the invoice basis and refuses moving average until a cost of goods account is sent', () => {
+    const offered = updateAccountingSchema.safeParse(accounts)
+    expect(offered.success).toBe(false)
+    expect(offered.success ? [] : offered.error.issues.map((issue) => issue.path[0])).toContain('cogsAccountId')
+    expect(updateAccountingSchema.parse({ ...accounts, costingMethod: 'order_price' })).toMatchObject({
+      costingMethod: 'order_price',
+      accountingBasis: 'invoice_basis',
+      cogsAccountId: null,
+    })
+    expect(updateAccountingSchema.parse({ ...accounts, costingMethod: 'moving_weighted_average', cogsAccountId: uuid(3) }).costingMethod).toBe(
+      'moving_weighted_average'
+    )
   })
 })

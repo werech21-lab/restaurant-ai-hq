@@ -1,9 +1,14 @@
 // Applies database/migrations/*.sql in order, each inside one transaction.
 //
-//   node --env-file=.env.local scripts/migrate.mjs                              apply pending migrations
+//   node --env-file=.env.local scripts/migrate.mjs                              apply pending migrations on 127.0.0.1
 //   node --env-file=.env.local scripts/migrate.mjs --status                     read-only: show what is applied and pending
 //   node --env-file=.env.local scripts/migrate.mjs --baseline <file>            dry run: show what would be recorded
 //   node --env-file=.env.local scripts/migrate.mjs --baseline <file> --confirm  record migrations up to <file> as applied
+//
+// A remote database is refused unless all three hold, and the check runs before any connection:
+//   --i-understand-this-is-staging
+//   --expect-host <project-ref> matches the host or the pooler user
+//   that same ref is listed in database/approved-staging-targets.json
 //
 // An applied migration whose file has changed is reported and the run stops: merged migrations are never edited.
 // Baseline is for a database that was set up by hand and has no history yet. It only writes rows to schema_migrations
@@ -13,7 +18,7 @@ import { readdir, readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import pg from 'pg'
-import { assertNothingBeyond, isUnbaselined, planBaseline, planMigrations, sslOptions } from './migrate-lib.mjs'
+import { assertMigrationTarget, assertNothingBeyond, isUnbaselined, planBaseline, planMigrations, sslOptions } from './migrate-lib.mjs'
 
 const directory = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'database', 'migrations')
 const args = process.argv.slice(2)
@@ -21,6 +26,9 @@ const statusOnly = args.includes('--status')
 const baselineIndex = args.indexOf('--baseline')
 const baselineThrough = baselineIndex === -1 ? null : args[baselineIndex + 1]
 const confirm = args.includes('--confirm')
+const expectIndex = args.indexOf('--expect-host')
+const expectHost = expectIndex === -1 ? undefined : args[expectIndex + 1]
+const acknowledged = args.includes('--i-understand-this-is-staging')
 
 if (baselineIndex !== -1 && (!baselineThrough || baselineThrough.startsWith('--'))) {
   process.stderr.write('--baseline needs the last migration file to record, for example 0005_bootstrap.sql\n')
@@ -34,6 +42,21 @@ if (!url) {
 }
 const sslMode = process.env.DATABASE_SSL ?? 'require'
 const ssl = sslOptions(sslMode, process.env.DATABASE_SSL_CA)
+
+const approvedPath = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'database', 'approved-staging-targets.json')
+let approved = []
+try {
+  approved = JSON.parse(await readFile(approvedPath, 'utf8')).projects
+} catch {
+  process.stderr.write('database/approved-staging-targets.json could not be read.\n')
+  process.exit(1)
+}
+try {
+  assertMigrationTarget(url, { expectHost, acknowledged, approved })
+} catch (error) {
+  process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`)
+  process.exit(1)
+}
 
 const client = new pg.Client({ connectionString: url, ssl })
 await client.connect()

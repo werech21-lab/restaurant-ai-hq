@@ -1,0 +1,4 @@
+{
+  "note": "Project refs allowed to receive remote migrations. Leave this empty until a free staging project is named and approved. Loopback does not need an entry. Do not add a production ref.",
+  "projects": []
+}
