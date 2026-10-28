@@ -405,9 +405,15 @@ export function InvoiceDialog({ invoiceId, orderId, onChanged, onClose, onBack, 
 
         <p className="text-sm text-gray-400">
           {t('pro.inv.ledger')}{' '}
-          <Link href="/erp/finance" className="text-blue-300 underline">
-            {t('pro.inv.openFinance')}
-          </Link>
+          {invoice.journalEntryId ? (
+            <Link href={`/erp/ledger?entry=${invoice.journalEntryId}`} className="text-blue-300 underline">
+              {t('pro.inv.openLedger')}
+            </Link>
+          ) : (
+            <Link href="/erp/finance" className="text-blue-300 underline">
+              {t('pro.inv.openFinance')}
+            </Link>
+          )}
         </p>
 
         {invoice.status === 'void' ? (

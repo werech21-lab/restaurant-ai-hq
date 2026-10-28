@@ -35,15 +35,15 @@ type Dialog = { kind: 'account'; account?: Account } | { kind: 'entry'; entryId?
  * The general ledger: the chart of accounts, the journal, the fiscal periods and the trial balance. `permissions` come
  * from the server page and only decide what is shown; the API and the database check every request again.
  */
-export default function LedgerWorkspace({ permissions: held }: { permissions: readonly string[] }) {
+export default function LedgerWorkspace({ permissions: held, initialEntryId = null }: { permissions: readonly string[]; initialEntryId?: string | null }) {
   return (
     <PermissionProvider permissions={held}>
-      <Workspace />
+      <Workspace initialEntryId={initialEntryId} />
     </PermissionProvider>
   )
 }
 
-function Workspace() {
+function Workspace({ initialEntryId }: { initialEntryId: string | null }) {
   const { t } = useI18n()
   const canReadAccounts = useCan(tabPermission.accounts)
   const canReadJournal = useCan(tabPermission.entries)
@@ -63,7 +63,7 @@ function Workspace() {
 
   const [chosenTab, setTab] = useState<Tab>('entries')
   const tab: Tab | null = visibleTabs.includes(chosenTab) ? chosenTab : (visibleTabs[0] ?? null)
-  const [dialog, setDialog] = useState<Dialog>(null)
+  const [dialog, setDialog] = useState<Dialog>(initialEntryId ? { kind: 'entry', entryId: initialEntryId } : null)
   const [notice, setNotice] = useState<MessageKey | null>(null)
   // Bumped after any change so every list and the report reload.
   const [reloadToken, setReloadToken] = useState(0)

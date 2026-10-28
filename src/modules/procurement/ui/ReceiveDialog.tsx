@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { apiRequest, errorKey, isAbort } from '@/components/erp/api'
 import { errorClass, inputClass, noticeClass, primaryButton, secondaryButton } from '@/components/erp/styles'
@@ -123,6 +124,14 @@ export function ReceiveDialog({ orderId, onChanged, onClose, onBack }: Props) {
           <p>
             <Num>GR-{done.number}</Num> · <Num>{done.totalQuantity.toLocaleString('en-US')}</Num> {t('pro.ord.units')}
           </p>
+          {done.journalEntryId ? (
+            <p>
+              {t('pro.rcv.ledger')}{' '}
+              <Link href={`/erp/ledger?entry=${done.journalEntryId}`} className="text-blue-300 underline">
+                {t('pro.rcv.openLedger')}
+              </Link>
+            </p>
+          ) : null}
         </div>
         <div className="flex flex-wrap justify-end gap-2">
           <button type="button" onClick={() => onBack(order.id)} className={primaryButton}>

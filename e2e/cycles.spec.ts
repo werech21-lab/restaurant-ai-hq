@@ -41,7 +41,7 @@ function dataOf(result: { status: number; payload: { data?: Record<string, unkno
 }
 
 test('arabic and english screens, then procure-to-pay and quote-to-cash against the local database', async ({ page }) => {
-  test.setTimeout(300_000)
+  test.setTimeout(420_000)
   const world = await runtime()
   await page.goto('/')
   await expect(page.getByText('معاينة بأرقام ثابتة. هذه ليست بيانات التشغيل في وحدات ERP.')).toBeVisible()
@@ -53,7 +53,7 @@ test('arabic and english screens, then procure-to-pay and quote-to-cash against 
   await signIn(page, world.companyA.owner, world.baseUrl)
   await page.goto('/erp/finance')
   await expect(page.getByRole('heading', { name: 'Finance: invoices and payments' })).toBeVisible()
-  await expect(page.getByText(/0\.000/).first()).toBeVisible()
+  await expect(page.getByText(/0\.000/).first()).toBeVisible({ timeout: 60_000 })
   await page.getByRole('button', { name: 'AR', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'المالية: الفواتير والمدفوعات' })).toBeVisible()
 
@@ -124,28 +124,45 @@ test('arabic and english screens, then procure-to-pay and quote-to-cash against 
     ),
     [201]
   )
-  const order = dataOf(
+  const request = dataOf(
     await call(
       page,
       'POST',
-      '/api/v1/procurement/orders',
+      '/api/v1/procurement/requests',
+      { neededBy: null, reason: 'DEMO e2e flour', lines: [{ itemId: item.id, description: 'Flour', quantity: 10 }] },
+      'e2e-request'
+    ),
+    [201]
+  )
+  const submittedRequest = dataOf(await call(page, 'POST', `/api/v1/procurement/requests/${String(request.id)}/submit`, { version: request.version }), [200])
+  const approved = dataOf(await call(page, 'POST', `/api/v1/procurement/requests/${String(request.id)}/approve`, { version: submittedRequest.version }), [200])
+  const requestLines = approved.lines as Array<{ id: string }>
+  const ordered = dataOf(
+    await call(
+      page,
+      'POST',
+      `/api/v1/procurement/requests/${String(approved.id)}/convert`,
       {
+        version: approved.version,
         supplierId: supplier.id,
         orderDate: '2026-10-01',
         expectedDate: null,
         notes: null,
-        lines: [{ itemId: item.id, description: 'Flour', quantity: 10, unitCostMinor: 1_000, taxRateBps: 0 }],
+        lines: [{ requestLineId: requestLines[0].id, unitCostMinor: 1_000, taxRateBps: 0 }],
       },
-      'e2e-order'
+      'e2e-convert-request'
     ),
     [201]
   )
-  const lines = order.lines as Array<{ id: string }>
+  expect(ordered.status).toBe('converted')
+  const order = ordered.order as { id: string; version: number; lines: Array<{ id: string }> }
+  const lines = order.lines
   const submitted = dataOf(await call(page, 'POST', `/api/v1/procurement/orders/${String(order.id)}/submit`, { version: order.version }), [200])
   const receiptBody = { version: submitted.version, warehouseId: warehouse.id, receiptDate: '2026-10-02', notes: null, lines: [{ orderLineId: lines[0].id, quantity: 10 }] }
   const receipt = dataOf(await call(page, 'POST', `/api/v1/procurement/orders/${String(order.id)}/receipts`, receiptBody, 'e2e-receipt'), [201])
   const receiptReplay = dataOf(await call(page, 'POST', `/api/v1/procurement/orders/${String(order.id)}/receipts`, receiptBody, 'e2e-receipt'), [200, 201])
   expect(receiptReplay.id).toBe(receipt.id)
+  expect(receipt.journalEntryId).toBeTruthy()
   dataOf(
     await call(
       page,
@@ -175,6 +192,7 @@ test('arabic and english screens, then procure-to-pay and quote-to-cash against 
     [201]
   )
   expect(billed.currency).toBe('KWD')
+  expect(billed.journalEntryId).toBeTruthy()
   const supplierPayment = dataOf(
     await call(
       page,
