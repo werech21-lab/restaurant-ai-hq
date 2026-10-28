@@ -34,7 +34,9 @@ const secret = randomBytes(32).toString('base64url')
 const dataDir = await mkdtemp(path.join(tmpdir(), 'aether-e2e-pg-'))
 
 function sign(userId) {
-  return `${userId}.${createHmac('sha256', secret).update(userId).digest('base64url')}`
+  const expiresAt = Math.floor(Date.now() / 1000) + 2 * 60 * 60
+  const body = `${userId}.${expiresAt}`
+  return `${body}.${createHmac('sha256', secret).update(body).digest('base64url')}`
 }
 
 async function loadEmbeddedPostgres() {

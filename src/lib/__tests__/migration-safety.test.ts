@@ -91,6 +91,30 @@ describe('migration files', () => {
     expect(numbers).toEqual(files.map((_, index) => index + 1))
   })
 
+  it('rolls a failed migration back and does not record it', async () => {
+    const db = new PGlite()
+    current = db
+    await db.exec('create table schema_migrations (name text primary key, checksum text not null)')
+    const apply = async () => {
+      await db.exec('begin')
+      try {
+        await db.exec('create table migration_probe (n int)')
+        await db.exec('insert into migration_probe (n) values (1)')
+        await db.exec('select * from migration_missing')
+        await db.exec(`insert into schema_migrations (name, checksum) values ('0099_bad.sql', 'abc')`)
+        await db.exec('commit')
+      } catch (error) {
+        await db.exec('rollback')
+        throw error
+      }
+    }
+    await expect(apply()).rejects.toThrow()
+    const table = await db.query<{ name: string | null }>(`select to_regclass('public.migration_probe') as name`)
+    expect(table.rows[0].name).toBeNull()
+    const recorded = await db.query<{ n: number | string }>('select count(*)::int as n from schema_migrations')
+    expect(Number(recorded.rows[0].n)).toBe(0)
+  })
+
   it('runs through the checksum-guarded runner inside one transaction per file and never resets data', async () => {
     const runner = await readFile(path.join(scriptsDir, 'migrate.mjs'), 'utf8')
     expect(runner).toContain('checksum')

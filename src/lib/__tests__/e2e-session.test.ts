@@ -45,13 +45,17 @@ describe('local e2e session gate', () => {
     expect(await e2eUserId(`${userId}.forged`)).toBeNull()
   })
 
-  it('accepts only a cookie signed with the local secret', async () => {
+  it('accepts only a cookie signed with the local secret and still inside its two hours', async () => {
     openGate()
-    const cookie = await signE2eCookie(userId, secret)
-    const nodeMac = createHmac('sha256', secret).update(userId).digest('base64url')
-    expect(cookie).toBe(`${userId}.${nodeMac}`)
+    const expiresAt = Math.floor(Date.now() / 1000) + 60
+    const cookie = await signE2eCookie(userId, secret, expiresAt)
+    const body = `${userId}.${expiresAt}`
+    const nodeMac = createHmac('sha256', secret).update(body).digest('base64url')
+    expect(cookie).toBe(`${body}.${nodeMac}`)
     expect(await e2eUserId(cookie)).toBe(userId)
-    expect(await e2eUserId(`${userId}.${nodeMac.slice(0, -1)}x`)).toBeNull()
+    expect(await e2eUserId(`${body}.${nodeMac.slice(0, -1)}x`)).toBeNull()
     expect(await e2eUserId(undefined)).toBeNull()
+    const expired = await signE2eCookie(userId, secret, Math.floor(Date.now() / 1000) - 5)
+    expect(await e2eUserId(expired)).toBeNull()
   })
 })
