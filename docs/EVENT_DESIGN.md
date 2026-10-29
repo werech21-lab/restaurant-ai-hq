@@ -65,6 +65,12 @@ type BusEvent = {
 | `hr.expense.decided` | hr |
 | `hr.leave.decided` | hr |
 | `hr.payroll.posted` | hr |
+| `governance.archive.routed` | governance |
+| `governance.circular.enforced` | governance |
+| `governance.compliance.blocked` | governance |
+| `governance.contract.analyzed` | governance |
+| `governance.radar.recorded` | governance |
+| `governance.telemetry.recorded` | governance |
 | `iam.invitation.accepted` | `src/lib/iam` |
 | `iam.invitation.created` | `src/lib/iam` |
 | `iam.invitation.revoked` | `src/lib/iam` |

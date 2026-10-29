@@ -46,6 +46,7 @@ export const baselineSentinels = {
   '0022_admin_rbac_audit_logs.sql': ['public.audit_activity_logs'],
   '0023_permission_flag_nulls.sql': ['def:auth_has_permission:coalesce(m.permission_flags'],
   '0024_hr_operations_suite.sql': ['public.hr_employees', 'public.hr_payroll_runs', 'public.enterprise_contracts', 'public.quality_maintenance_tickets'],
+  '0025_autonomous_governance_ocr_ci_suite.sql': ['public.contract_ai_analyses', 'public.regulatory_circulars', 'public.smart_archive_documents', 'public.competitive_intelligence_radar'],
 }
 
 /**

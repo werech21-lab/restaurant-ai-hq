@@ -96,6 +96,17 @@ export const permissions = {
   opsDocumentManage: 'ops.document.manage',
   opsQualityRead: 'ops.quality.read',
   opsQualityManage: 'ops.quality.manage',
+  govContractRead: 'gov.contract.read',
+  govContractAnalyze: 'gov.contract.analyze',
+  govComplianceRead: 'gov.compliance.read',
+  govComplianceEnforce: 'gov.compliance.enforce',
+  govMemoryRead: 'gov.memory.read',
+  govArchiveRead: 'gov.archive.read',
+  govArchiveRoute: 'gov.archive.route',
+  govTelemetryRead: 'gov.telemetry.read',
+  govTelemetryRecord: 'gov.telemetry.record',
+  govRadarRead: 'gov.radar.read',
+  govRadarManage: 'gov.radar.manage',
 } as const
 
 export type Permission = (typeof permissions)[keyof typeof permissions]

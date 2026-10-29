@@ -165,7 +165,7 @@ export async function recordMovementWithin(
   tx: Queryable,
   auth: AuthContext,
   input: {
-    module: 'hr' | 'operations'
+    module: 'hr' | 'operations' | 'governance'
     actionType: string
     entityType: string
     entityId: string

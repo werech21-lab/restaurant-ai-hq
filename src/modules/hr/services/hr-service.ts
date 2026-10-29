@@ -6,6 +6,7 @@ import { withTransaction } from '@/lib/db'
 import { DomainError } from '@/lib/domain-error'
 import { hashRequest, runIdempotent, type IdempotentResult } from '@/lib/idempotency'
 import { recordMovementWithin } from '@/modules/admin'
+import { enforceCompliance, workedMinutes } from '@/modules/governance'
 import { buildEmployeeExpenseLines, buildPayrollLines, getOperationalAccountsWithin, postSourcedEntryWithin, publishFinanceEvents, type FinanceEvent } from '@/modules/finance'
 import { inclusiveDays, payrollTotals, payslipAmounts } from '@/modules/hr/domain/payroll'
 import type { Appraisal, Attendance, Employee, EmployeeExpense, Leave, PayrollRun, Payslip, Shift } from '@/modules/hr/domain/types'
@@ -90,6 +91,9 @@ export function listAttendance(auth: AuthContext): Promise<Attendance[]> {
 export async function createAttendance(auth: AuthContext, key: string, input: CreateAttendanceInput): Promise<IdempotentResult<{ data: { id: string } }>> {
   if (input.checkOut && Date.parse(input.checkOut) < Date.parse(input.checkIn)) {
     throw new DomainError('invalid_date', 'Check-out cannot be earlier than check-in.')
+  }
+  if (input.checkOut) {
+    await enforceCompliance(auth, 'hr.attendance.hours', { workedMinutes: workedMinutes(input.checkIn, input.checkOut) })
   }
   const employee = await withTransaction((tx) => repository.findEmployee(tx, auth.tenantId, input.employeeId))
   if (!employee) throw new AppError(404, 'not_found', 'The employee was not found.')
@@ -219,6 +223,7 @@ export function listExpenses(auth: AuthContext): Promise<EmployeeExpense[]> {
 }
 
 export async function createExpense(auth: AuthContext, key: string, input: CreateExpenseInput): Promise<IdempotentResult<{ data: { id: string } }>> {
+  if (input.cash) await enforceCompliance(auth, 'hr.expense.cash', { cashMinor: input.amountMinor })
   return withTransaction((tx) =>
     runIdempotent(tx, { tenantId: auth.tenantId, scope: 'hr.expense.create', key, requestHash: hashRequest(input) }, async () => {
       const employee = await repository.findEmployee(tx, auth.tenantId, input.employeeId)

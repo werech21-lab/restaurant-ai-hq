@@ -32,7 +32,7 @@ type Activity = {
 type Security = { sessionMinutes: number; booksLocked: boolean; planCode: string; planNameAr: string; version: number }
 type Tab = 'accounts' | 'permissions' | 'activity' | 'security'
 
-const modules = ['', 'finance', 'inventory', 'procurement', 'sales', 'kitchen', 'delivery', 'ai', 'admin', 'hr', 'operations'] as const
+const modules = ['', 'finance', 'inventory', 'procurement', 'sales', 'kitchen', 'delivery', 'ai', 'admin', 'hr', 'operations', 'governance'] as const
 
 function statusKey(status: Status): MessageKey {
   if (status === 'active') return 'admin.status.active'

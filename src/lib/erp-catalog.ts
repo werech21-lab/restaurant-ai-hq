@@ -39,6 +39,17 @@ export const erpCatalog: readonly CatalogItem[] = [
     { href: '/erp/operations?tab=documents', title: 'hub.branch.documents' },
     { href: '/erp/operations?tab=quality', title: 'hub.branch.quality' },
   ] },
+  { id: 'contracts', href: '/erp/contracts', title: 'erpnav.contracts', detail: 'hub.advisor', status: 'ready' },
+  { id: 'compliance', href: '/erp/compliance', title: 'erpnav.compliance', detail: 'hub.compliance', status: 'ready', branches: [
+    { href: '/erp/compliance?tab=laws', title: 'hub.branch.circulars' },
+    { href: '/erp/compliance?tab=gate', title: 'hub.branch.gate' },
+    { href: '/erp/compliance?tab=memory', title: 'hub.branch.memory' },
+  ] },
+  { id: 'archive', href: '/erp/archive', title: 'erpnav.archive', detail: 'hub.archive', status: 'ready' },
+  { id: 'intelligence', href: '/erp/intelligence', title: 'erpnav.intelligence', detail: 'hub.intelligence', status: 'ready', branches: [
+    { href: '/erp/intelligence?tab=radar', title: 'hub.branch.radar' },
+    { href: '/erp/intelligence?tab=telemetry', title: 'hub.branch.telemetry' },
+  ] },
   { id: 'ai', href: '/erp/ai', title: 'erpnav.ai', detail: 'hub.ai', status: 'beta' },
   { id: 'kitchen', href: '/erp/kitchen', title: 'nav.kitchen', detail: 'hub.kitchen', status: 'ready' },
   { id: 'delivery', href: '/erp/delivery', title: 'nav.delivery', detail: 'hub.delivery', status: 'ready' },

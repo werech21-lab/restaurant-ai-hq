@@ -73,6 +73,7 @@ export const createExpenseSchema = z.object({
   employeeId: z.string().uuid(),
   category: z.string().trim().min(1).max(80),
   amountMinor: z.number().int().min(1).max(1_000_000_000_000),
+  cash: z.boolean().optional(),
 })
 export type CreateExpenseInput = z.output<typeof createExpenseSchema>
 

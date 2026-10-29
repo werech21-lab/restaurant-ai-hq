@@ -6,6 +6,7 @@ import { isUniqueViolation } from '@/lib/auth/require'
 import { db, withTransaction, type Queryable } from '@/lib/db'
 import { DomainError } from '@/lib/domain-error'
 import { hashRequest, runIdempotent, type IdempotentResult } from '@/lib/idempotency'
+import { enforceCompliance } from '@/modules/governance'
 import { buildCommissionLines, findAccountsWithin, getOperationalAccountsWithin, postSourcedEntryWithin, publishFinanceEvents, type FinanceEvent } from '@/modules/finance'
 import type { DeliveryOrder, DeliveryPartner, DeliverySettlement } from '@/modules/delivery/domain/types'
 import { publishDeliveryEvents, type DeliveryEvent } from '@/modules/delivery/events'
@@ -43,6 +44,9 @@ export async function createPartner(auth: AuthContext, key: string, input: Creat
 }
 
 export async function createOrder(auth: AuthContext, key: string, input: CreateOrderInput): Promise<IdempotentResult<{ data: DeliveryOrder }>> {
+  if (input.driverLicenseExpiry) {
+    await enforceCompliance(auth, 'delivery.assign_driver', { licenseExpiry: input.driverLicenseExpiry })
+  }
   const events: DeliveryEvent[] = []
   const outcome = await withTransaction((tx) =>
     runIdempotent(tx, { tenantId: auth.tenantId, scope: ORDER_SCOPE, key, requestHash: hashRequest(input) }, async () => {

@@ -20,6 +20,7 @@ export const createOrderSchema = z
     orderedOn: date,
     grossMinor: money,
     commissionMinor: money,
+    driverLicenseExpiry: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
   })
   .refine((value) => value.commissionMinor <= value.grossMinor, { path: ['commissionMinor'], message: 'Commission cannot exceed the order gross.' })
 export type CreateOrderInput = z.output<typeof createOrderSchema>

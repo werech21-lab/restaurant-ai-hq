@@ -3,7 +3,7 @@ import { flagKeys } from '@/lib/auth/member-flags'
 
 export const accountStatuses = ['active', 'suspended', 'revoked', 'deleted'] as const
 export const adminRoles = ['owner', 'admin', 'manager', 'accountant', 'operations', 'viewer', 'approver'] as const
-export const activityModules = ['finance', 'inventory', 'procurement', 'sales', 'kitchen', 'delivery', 'ai', 'admin', 'hr', 'operations'] as const
+export const activityModules = ['finance', 'inventory', 'procurement', 'sales', 'kitchen', 'delivery', 'ai', 'admin', 'hr', 'operations', 'governance'] as const
 
 export const permissionFlagsSchema = z.object({
   can_approve_po: z.boolean(),

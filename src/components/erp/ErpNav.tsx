@@ -181,6 +181,53 @@ const links: readonly NavLink[] = [
     ),
   },
   {
+    href: '/erp/contracts',
+    label: 'erpnav.contracts',
+    exact: false,
+    icon: (
+      <Glyph>
+        <path d="M7 3h8l4 4v14H7z" />
+        <path d="M15 3v4h4" />
+        <path d="M9 12h6" />
+        <path d="M9 16h4" />
+      </Glyph>
+    ),
+  },
+  {
+    href: '/erp/compliance',
+    label: 'erpnav.compliance',
+    exact: false,
+    icon: (
+      <Glyph>
+        <path d="M12 3l7 3v6c0 4.2-2.8 6.8-7 8-4.2-1.2-7-3.8-7-8V6l7-3z" />
+        <path d="M9 12l2 2 4-4" />
+      </Glyph>
+    ),
+  },
+  {
+    href: '/erp/archive',
+    label: 'erpnav.archive',
+    exact: false,
+    icon: (
+      <Glyph>
+        <path d="M4 7h16v12H4z" />
+        <path d="M4 7l2-3h12l2 3" />
+        <path d="M9 12h6" />
+      </Glyph>
+    ),
+  },
+  {
+    href: '/erp/intelligence',
+    label: 'erpnav.intelligence',
+    exact: false,
+    icon: (
+      <Glyph>
+        <circle cx="11" cy="11" r="6" />
+        <path d="M16 16l4 4" />
+      </Glyph>
+    ),
+  },
+  {
     href: '/erp/admin',
     label: 'erpnav.admin',
     exact: false,

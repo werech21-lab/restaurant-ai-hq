@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest'
  */
 
 const srcDir = path.join(process.cwd(), 'src')
-const modules = ['finance', 'crm', 'inventory', 'hr', 'ai', 'org', 'procurement', 'kitchen', 'delivery', 'admin', 'operations'] as const
+const modules = ['finance', 'crm', 'inventory', 'hr', 'ai', 'org', 'procurement', 'kitchen', 'delivery', 'admin', 'operations', 'governance'] as const
 type ModuleName = (typeof modules)[number]
 
 const ownedTables: Record<ModuleName, string[]> = {
@@ -17,6 +17,7 @@ const ownedTables: Record<ModuleName, string[]> = {
   inventory: ['items', 'warehouses', 'stock_movements', 'stock_balances', 'products', 'inventory_settings', 'item_cost_events'],
   hr: ['hr_employees', 'hr_shifts', 'hr_attendances', 'hr_leaves', 'hr_payroll_runs', 'hr_payslips', 'hr_appraisals', 'hr_expenses'],
   operations: ['enterprise_contracts', 'enterprise_documents', 'quality_maintenance_tickets'],
+  governance: ['contract_ai_analyses', 'regulatory_circulars', 'compliance_enforcement_rules', 'compliance_blocked_attempts', 'ai_learning_memory', 'smart_archive_documents', 'employee_behavior_telemetry', 'competitive_intelligence_radar'],
   ai: ['ai_insights_alerts', 'ai_action_approvals', 'erp_automation_rules'],
   org: ['brands', 'branches'],
   procurement: ['suppliers', 'procurement_settings', 'purchase_orders', 'purchase_order_lines', 'goods_receipts', 'goods_receipt_lines', 'purchase_requests', 'purchase_request_lines', 'procurement_accounting', 'supplier_invoices', 'supplier_invoice_lines', 'purchase_returns', 'purchase_return_lines', 'supplier_credit_notes', 'supplier_credit_note_lines', 'supplier_payments', 'supplier_payment_allocations'],
