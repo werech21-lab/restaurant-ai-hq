@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { useI18n } from '@/lib/i18n'
 import { createClient } from '@/lib/supabase/client'
 
-export default function LoginScreen({ ready, next }: { ready: boolean; next: string }) {
+export default function LoginScreen({ next }: { next: string }) {
   const { t } = useI18n()
   return (
     <>
@@ -14,8 +14,8 @@ export default function LoginScreen({ ready, next }: { ready: boolean; next: str
         Aether BI
       </p>
       <h1 className="mt-2 text-2xl font-bold text-gray-100">{t('admin.loginTitle')}</h1>
-      <p className="mt-2 text-sm leading-7 text-gray-400">{ready ? t('admin.loginHint') : t('admin.missing')}</p>
-      {ready ? <LoginForm next={next} /> : null}
+      <p className="mt-2 text-sm leading-7 text-gray-400">{t('admin.loginHint')}</p>
+      <LoginForm next={next} />
       <Link href="/" className="mt-5 inline-block text-sm text-blue-400 hover:text-blue-300">
         {t('admin.back')}
       </Link>
@@ -34,7 +34,10 @@ function LoginForm({ next }: { next: string }) {
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
     const supabase = createClient()
-    if (!supabase) return
+    if (!supabase) {
+      setError(t('admin.loginFailed'))
+      return
+    }
     setPending(true)
     setError('')
     const { error: signInError } = await supabase.auth.signInWithPassword({
