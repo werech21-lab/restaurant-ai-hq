@@ -101,6 +101,17 @@ const links: readonly NavLink[] = [
     ),
   },
   {
+    href: '/erp/aggregator-radar',
+    label: 'erpnav.aggregator',
+    exact: false,
+    icon: (
+      <Glyph>
+        <circle cx="12" cy="12" r="3" />
+        <path d="M12 3v3M12 18v3M3 12h3M18 12h3" />
+      </Glyph>
+    ),
+  },
+  {
     href: '/erp/procurement',
     label: 'erpnav.procurement',
     exact: false,

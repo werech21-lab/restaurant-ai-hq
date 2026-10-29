@@ -161,6 +161,64 @@ export type ExecutiveTask = {
   createdAt: string
 }
 
+export type GeoRankSnapshot = {
+  id: string
+  snapshotIntervalTime: string
+  platformName: 'Talabat' | 'Keeta' | 'Jahez' | 'Snoonu' | 'Deliveroo'
+  geoZoneAr: string
+  ourBrandName: string
+  ourBranchName: string
+  currentRank: number
+  previousRank5mAgo: number
+  rankDelta: number
+  overallRatingBps: number
+  reviewsCount: number
+  estimatedVisitsImpressions: number
+  conversionRateBps: number
+  deliveryEtaMinutes: number
+  deliveryFeeMinor: number
+  minOrderMinor: number
+  logisticsMode: 'platform_fleet' | 'vendor_own_fleet'
+  isSponsoredAdActive: boolean
+  recordedAt: string
+  version: number
+}
+
+export type CompetitorBench = {
+  id: string
+  snapshotId: string
+  platformName: 'Talabat' | 'Keeta' | 'Jahez' | 'Snoonu' | 'Deliveroo'
+  geoZoneAr: string
+  competitorRank: number
+  competitorBrandName: string
+  competitorRatingBps: number
+  competitorReviewsCount: number
+  competitorVisitsEstimate: number
+  competitorEtaMinutes: number
+  competitorDeliveryFeeMinor: number
+  competitorLogisticsMode: 'platform_fleet' | 'vendor_own_fleet'
+  activePromoBadgeAr: string
+  detectedRatingBoostPolicyAr: string
+  gap: { rankGap: number; etaGapMinutes: number; feeGapMinor: number; ratingGapBps: number }
+}
+
+export type EscalationCard = {
+  id: string
+  platformName: 'Talabat' | 'Keeta' | 'Jahez' | 'Snoonu' | 'Deliveroo'
+  geoZoneAr: string
+  ourBranchName: string
+  currentRank: number
+  targetRank: number
+  rootCauseAr: string
+  recommendationAr: string
+  actionType: string
+  estimatedRankJump: number
+  estimatedRevenueUpliftMinor: number
+  status: 'pending' | 'approved_executing' | 'completed'
+  createdAt: string
+  version: number
+}
+
 export type RadarRow = {
   id: string
   competitorName: string

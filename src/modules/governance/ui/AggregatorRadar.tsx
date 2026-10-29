@@ -1,0 +1,244 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { ApiError, apiRequest, errorKey, newIdempotencyKey } from '@/components/erp/api'
+import { PermissionProvider, useCan } from '@/components/erp/permissions'
+import { errorClass, inputClass, labelClass, noticeClass, panelClass, primaryButton, secondaryButton } from '@/components/erp/styles'
+import { permissions } from '@/lib/auth/permissions'
+import { useI18n, type MessageKey } from '@/lib/i18n'
+import { bpsToInput, formatMinor } from '@/lib/money'
+import type { CompetitorBench, EscalationCard, GeoRankSnapshot } from '@/modules/governance/client'
+
+type Board = { snapshots: GeoRankSnapshot[]; competitors: CompetitorBench[]; actions: EscalationCard[] }
+const platforms = ['Talabat', 'Keeta', 'Jahez', 'Snoonu', 'Deliveroo'] as const
+const zones = ['السالمية', 'شرق/مدينة الكويت', 'حولي', 'الفروانية', 'المهبولة', 'الجهراء'] as const
+
+function Workspace() {
+  const { t } = useI18n()
+  const canManage = useCan(permissions.govAggregatorManage)
+  const [platform, setPlatform] = useState('')
+  const [zone, setZone] = useState('')
+  const [branch, setBranch] = useState('')
+  const [phase, setPhase] = useState<'loading' | 'ready' | 'error'>('loading')
+  const [error, setError] = useState<MessageKey>('erp.err.generic')
+  const [detail, setDetail] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [board, setBoard] = useState<Board>({ snapshots: [], competitors: [], actions: [] })
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [reloadToken, setReloadToken] = useState(0)
+
+  function fail(caught: unknown) {
+    if (caught instanceof ApiError) {
+      setDetail(caught.message)
+      setError('erp.err.generic')
+      return
+    }
+    setDetail(null)
+    setError(errorKey(caught))
+  }
+
+  useEffect(() => {
+    const controller = new AbortController()
+    const params = new URLSearchParams()
+    if (platform) params.set('platform', platform)
+    if (zone) params.set('zone', zone)
+    if (branch) params.set('branch', branch)
+    setPhase('loading')
+    apiRequest<{ data: Board }>(`/api/v1/governance/aggregator?${params.toString()}`, { signal: controller.signal })
+      .then((page) => {
+        setBoard(page.data)
+        setSelectedId((current) => (current && page.data.snapshots.some((row) => row.id === current) ? current : page.data.snapshots[0]?.id ?? null))
+        setPhase('ready')
+        setDetail(null)
+      })
+      .catch((caught: unknown) => {
+        if (controller.signal.aborted) return
+        if (caught instanceof ApiError) {
+          setDetail(caught.message)
+          setError('erp.err.generic')
+        } else {
+          setDetail(null)
+          setError(errorKey(caught))
+        }
+        setPhase('error')
+      })
+    return () => controller.abort()
+  }, [platform, zone, branch, reloadToken])
+
+  const selected = board.snapshots.find((row) => row.id === selectedId) ?? null
+  const rivals = selected ? board.competitors.filter((row) => row.snapshotId === selected.id) : []
+  const cards = board.actions.filter((row) => !selected || (row.platformName === selected.platformName && row.geoZoneAr === selected.geoZoneAr))
+
+  async function scan() {
+    setBusy(true)
+    setNotice(null)
+    try {
+      const result = await apiRequest<{ data: { recorded: number } }>('/api/v1/governance/aggregator/scans', {
+        method: 'POST',
+        body: {},
+        idempotencyKey: newIdempotencyKey(),
+      })
+      setNotice(result.data.recorded > 0 ? t('agg.saved') : t('agg.same'))
+      setReloadToken((value) => value + 1)
+    } catch (caught) {
+      fail(caught)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function execute(card: EscalationCard) {
+    setBusy(true)
+    setNotice(null)
+    try {
+      await apiRequest(`/api/v1/governance/aggregator/actions/${card.id}`, {
+        method: 'POST',
+        body: { action: 'execute', version: card.version },
+        idempotencyKey: newIdempotencyKey(),
+      })
+      setNotice(t('agg.saved'))
+      setReloadToken((value) => value + 1)
+    } catch (caught) {
+      fail(caught)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (phase === 'loading' && board.snapshots.length === 0) return <p className="text-sm text-gray-400">{t('agg.loading')}</p>
+  if (phase === 'error' && board.snapshots.length === 0) return <p className={errorClass} role="alert">{detail ?? t(error)}</p>
+
+  return (
+    <div className="space-y-6">
+      <header>
+        <h1 className="text-2xl font-bold text-white">{t('erpnav.aggregator')}</h1>
+        <p className="mt-2 max-w-3xl text-sm text-gray-400">{t('hub.aggregator')}</p>
+      </header>
+      {notice ? <p className={noticeClass}>{notice}</p> : null}
+      {detail ? <p className={errorClass} role="alert">{detail}</p> : null}
+      <div className="flex flex-wrap items-end gap-3">
+        <label className={labelClass}>{t('agg.platform')}
+          <select className={inputClass} value={platform} onChange={(event) => setPlatform(event.target.value)}>
+            <option value="">{t('agg.all')}</option>
+            {platforms.map((item) => <option key={item} value={item}>{t(`agg.platform.${item}` as MessageKey)}</option>)}
+          </select>
+        </label>
+        <label className={labelClass}>{t('agg.zone')}
+          <select className={inputClass} value={zone} onChange={(event) => setZone(event.target.value)}>
+            <option value="">{t('agg.all')}</option>
+            {zones.map((item) => <option key={item} value={item}>{item}</option>)}
+          </select>
+        </label>
+        <label className={labelClass}>{t('agg.branch')}
+          <input className={inputClass} value={branch} onChange={(event) => setBranch(event.target.value)} />
+        </label>
+        {canManage ? <button className={primaryButton} type="button" disabled={busy} onClick={() => void scan()}>{t('agg.scan')}</button> : null}
+      </div>
+
+      <section className={panelClass} id="rank">
+        <h2 className="mb-3 font-semibold text-white">{t('agg.panel.rank')}</h2>
+        {board.snapshots.length === 0 ? <p className="text-sm text-gray-400">{t('agg.empty')}</p> : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] text-sm text-gray-100">
+              <thead className="text-gray-400">
+                <tr>
+                  <th className="px-2 py-2 text-start">{t('agg.platform')}</th>
+                  <th className="px-2 py-2 text-start">{t('agg.zone')}</th>
+                  <th className="px-2 py-2 text-start">{t('agg.branch')}</th>
+                  <th className="px-2 py-2 text-start">{t('agg.rank')}</th>
+                  <th className="px-2 py-2 text-start">{t('agg.delta')}</th>
+                  <th className="px-2 py-2 text-start">{t('agg.rating')}</th>
+                  <th className="px-2 py-2 text-start">{t('agg.visits')}</th>
+                  <th className="px-2 py-2 text-start">{t('agg.eta')}</th>
+                  <th className="px-2 py-2 text-start">{t('agg.fee')}</th>
+                  <th className="px-2 py-2 text-start">{t('agg.fleet')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {board.snapshots.map((row) => (
+                  <tr key={row.id} className={row.id === selectedId ? 'bg-white/5' : undefined} onClick={() => setSelectedId(row.id)}>
+                    <td className="px-2 py-2">{t(`agg.platform.${row.platformName}` as MessageKey)}</td>
+                    <td className="px-2 py-2">{row.geoZoneAr}</td>
+                    <td className="px-2 py-2">{row.ourBranchName}</td>
+                    <td className="px-2 py-2">#{row.currentRank}</td>
+                    <td className={`px-2 py-2 ${row.rankDelta > 0 ? 'text-emerald-300' : row.rankDelta < 0 ? 'text-red-300' : 'text-gray-400'}`}>
+                      {row.rankDelta > 0 ? `▲ +${row.rankDelta}` : row.rankDelta < 0 ? `▼ ${row.rankDelta}` : '0'}
+                    </td>
+                    <td className="px-2 py-2">{bpsToInput(row.overallRatingBps)}</td>
+                    <td className="px-2 py-2">{row.estimatedVisitsImpressions}</td>
+                    <td className="px-2 py-2">{row.deliveryEtaMinutes} {t('agg.minutes')}</td>
+                    <td className="px-2 py-2">{formatMinor(row.deliveryFeeMinor)} {t('admin.kwd')}</td>
+                    <td className="px-2 py-2">{row.logisticsMode === 'platform_fleet' ? t('agg.fleet.platform') : t('agg.fleet.vendor')}{row.isSponsoredAdActive ? ` · ${t('agg.sponsored')}` : ''}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      <section className={panelClass} id="gap">
+        <h2 className="mb-3 font-semibold text-white">{t('agg.panel.gap')}</h2>
+        {!selected ? <p className="text-sm text-gray-400">{t('agg.empty')}</p> : (
+          <div className="grid gap-3 md:grid-cols-4">
+            <article className="rounded-xl border border-white/10 p-3 text-sm text-gray-100">
+              <p className="text-gray-400">{t('agg.ours')}</p>
+              <p className="mt-1 font-semibold">#{selected.currentRank} {selected.ourBranchName}</p>
+              <p>{selected.deliveryEtaMinutes} {t('agg.minutes')}</p>
+              <p>{formatMinor(selected.deliveryFeeMinor)} {t('admin.kwd')}</p>
+              <p>{selected.logisticsMode === 'platform_fleet' ? t('agg.fleet.platform') : t('agg.fleet.vendor')}</p>
+              <p>{t('agg.rating')} {bpsToInput(selected.overallRatingBps)}</p>
+            </article>
+            {rivals.map((row) => (
+              <article key={row.id} className="rounded-xl border border-white/10 p-3 text-sm text-gray-100">
+                <p className="text-gray-400">#{row.competitorRank} {row.competitorBrandName}</p>
+                <p className="mt-1">{t('agg.gap.eta')}: {row.gap.etaGapMinutes}</p>
+                <p>{t('agg.gap.fee')}: {formatMinor(row.gap.feeGapMinor)} {t('admin.kwd')}</p>
+                <p>{t('agg.gap.rating')}: {bpsToInput(Math.max(0, row.gap.ratingGapBps))}</p>
+                <p>{t('agg.gap.rank')}: {row.gap.rankGap}</p>
+                <p>{row.competitorLogisticsMode === 'platform_fleet' ? t('agg.fleet.platform') : t('agg.fleet.vendor')}</p>
+                <p>{t('agg.visits')} {row.competitorVisitsEstimate}</p>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className={panelClass} id="tactics">
+        <h2 className="mb-3 font-semibold text-white">{t('agg.panel.tactics')}</h2>
+        {rivals.length === 0 ? <p className="text-sm text-gray-400">{t('agg.empty')}</p> : rivals.map((row) => (
+          <article key={row.id} className="border-t border-white/10 py-3 text-sm text-gray-100">
+            <p className="font-semibold">#{row.competitorRank} {row.competitorBrandName} — {row.activePromoBadgeAr}</p>
+            <p className="mt-1 text-gray-300">{row.detectedRatingBoostPolicyAr}</p>
+            <p className="mt-1">{t('agg.rating')} {bpsToInput(row.competitorRatingBps)} — {t('agg.reviews')} {row.competitorReviewsCount}</p>
+          </article>
+        ))}
+      </section>
+
+      <section className={panelClass} id="escalation">
+        <h2 className="mb-3 font-semibold text-white">{t('agg.panel.escalation')}</h2>
+        {cards.length === 0 ? <p className="text-sm text-gray-400">{t('agg.empty')}</p> : cards.map((card) => (
+          <article key={card.id} className="border-t border-white/10 py-3 text-sm text-gray-100">
+            <p className="font-semibold">{t(`agg.platform.${card.platformName}` as MessageKey)} — {card.geoZoneAr} — {card.ourBranchName}</p>
+            <p className="mt-1">#{card.currentRank} → #{card.targetRank} · {t(`agg.status.${card.status}` as MessageKey)}</p>
+            <p className="mt-1">{card.rootCauseAr}</p>
+            <p className="mt-1">{card.recommendationAr}</p>
+            <p className="mt-1">{formatMinor(card.estimatedRevenueUpliftMinor)} {t('admin.kwd')}</p>
+            {canManage && card.status === 'pending' ? (
+              <button className={`${secondaryButton} mt-2`} type="button" disabled={busy} onClick={() => void execute(card)}>{t('agg.execute')}</button>
+            ) : null}
+          </article>
+        ))}
+      </section>
+    </div>
+  )
+}
+
+export default function AggregatorRadar({ permissions: granted }: { permissions: readonly string[] }) {
+  return (
+    <PermissionProvider permissions={granted}>
+      <Workspace />
+    </PermissionProvider>
+  )
+}

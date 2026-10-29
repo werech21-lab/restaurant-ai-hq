@@ -14,6 +14,8 @@ export type GovernanceInvestigationOpened = EventBase<'governance.investigation.
 export type GovernanceInvestigationRuled = EventBase<'governance.investigation.ruled', { investigationId: string; caseNumber: string; ruledBy: string }>
 export type GovernanceTaskDispatched = EventBase<'governance.task.dispatched', { taskId: string; dispatchedBy: string }>
 export type GovernanceTaskCompleted = EventBase<'governance.task.completed', { taskId: string; completedBy: string }>
+export type GovernanceAggregatorScanned = EventBase<'governance.aggregator.scanned', { recorded: number; scannedBy: string }>
+export type GovernanceAggregatorEscalated = EventBase<'governance.aggregator.escalated', { actionId: string; targetRank: number; decidedBy: string }>
 export type GovernanceEvent =
   | GovernanceContractAnalyzed
   | GovernanceCircularEnforced
@@ -27,6 +29,8 @@ export type GovernanceEvent =
   | GovernanceInvestigationRuled
   | GovernanceTaskDispatched
   | GovernanceTaskCompleted
+  | GovernanceAggregatorScanned
+  | GovernanceAggregatorEscalated
 
 export async function publishGovernanceEvents(events: readonly GovernanceEvent[]): Promise<void> {
   for (const event of events) await emit(event)

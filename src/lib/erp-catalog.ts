@@ -60,6 +60,12 @@ export const erpCatalog: readonly CatalogItem[] = [
   { id: 'ai', href: '/erp/ai', title: 'erpnav.ai', detail: 'hub.ai', status: 'beta' },
   { id: 'kitchen', href: '/erp/kitchen', title: 'nav.kitchen', detail: 'hub.kitchen', status: 'ready' },
   { id: 'delivery', href: '/erp/delivery', title: 'nav.delivery', detail: 'hub.delivery', status: 'ready' },
+  { id: 'aggregator', href: '/erp/aggregator-radar', title: 'erpnav.aggregator', detail: 'hub.aggregator', status: 'ready', branches: [
+    { href: '/erp/aggregator-radar#rank', title: 'hub.branch.georank' },
+    { href: '/erp/aggregator-radar#gap', title: 'hub.branch.gap' },
+    { href: '/erp/aggregator-radar#tactics', title: 'hub.branch.tactics' },
+    { href: '/erp/aggregator-radar#escalation', title: 'hub.branch.escalation' },
+  ] },
 ]
 
 export function filterCatalog(items: readonly CatalogItem[], query: string, label: (key: MessageKey) => string): CatalogItem[] {

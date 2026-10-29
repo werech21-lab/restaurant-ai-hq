@@ -117,6 +117,8 @@ export const permissions = {
   govTaskDispatch: 'gov.task.dispatch',
   hrAppointmentRead: 'hr.appointment.read',
   hrAppointmentManage: 'hr.appointment.manage',
+  govAggregatorRead: 'gov.aggregator.read',
+  govAggregatorManage: 'gov.aggregator.manage',
 } as const
 
 export type Permission = (typeof permissions)[keyof typeof permissions]

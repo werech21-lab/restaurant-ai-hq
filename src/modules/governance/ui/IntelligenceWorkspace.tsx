@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useState, type FormEvent } from 'react'
 import { apiRequest, errorKey, newIdempotencyKey } from '@/components/erp/api'
 import { PermissionProvider, useCan } from '@/components/erp/permissions'
@@ -83,6 +84,7 @@ function Workspace({ initialTab }: { initialTab: string }) {
     <div className="space-y-4">
       <header>
         <h1 className="text-2xl font-semibold text-gray-50">{t('hub.intelligence')}</h1>
+        <p className="mt-2 text-sm"><Link className="text-blue-300 underline" href="/erp/aggregator-radar">{t('agg.open')}</Link></p>
       </header>
       <div className="flex flex-wrap gap-2">
         {tabs.map((itemTab) => (

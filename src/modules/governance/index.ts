@@ -13,6 +13,7 @@ export {
   recordTelemetryHandler,
   simulateHandler,
 } from '@/modules/governance/api/v1/governance'
+export { aggregatorBoardHandler, escalationActionHandler, scanAggregatorHandler } from '@/modules/governance/api/v1/aggregator'
 export {
   convertMonitoringHandler,
   inquiryActionHandler,
@@ -38,6 +39,7 @@ export {
   recordTelemetry,
   stageArchive,
 } from '@/modules/governance/services/governance-service'
+export { actOnEscalation, aggregatorBoard, scanAggregator } from '@/modules/governance/services/aggregator-service'
 export {
   actOnInquiry,
   actOnTask,

@@ -65,6 +65,8 @@ type BusEvent = {
 | `hr.expense.decided` | hr |
 | `hr.leave.decided` | hr |
 | `hr.payroll.posted` | hr |
+| `governance.aggregator.escalated` | governance |
+| `governance.aggregator.scanned` | governance |
 | `governance.archive.routed` | governance |
 | `governance.circular.enforced` | governance |
 | `governance.compliance.blocked` | governance |

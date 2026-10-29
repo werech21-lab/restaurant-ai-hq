@@ -123,6 +123,7 @@ function Workspace() {
       <header>
         <h1 className="text-2xl font-bold text-mist-100">{t('dwork.title')}</h1>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-mist-400">{t('dwork.lead')}</p>
+        <p className="mt-2 text-sm"><Link className="text-blue-300 underline" href="/erp/aggregator-radar">{t('agg.open')}</Link></p>
       </header>
       {notice ? (
         <p className={noticeClass}>

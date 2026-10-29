@@ -7,7 +7,7 @@ import type { AuthContext } from '@/lib/auth/context'
 import { allPermissions } from '@/lib/auth/permissions'
 import { DomainError } from '@/lib/domain-error'
 import { createPartner, createOrder } from '@/modules/delivery'
-import { analyzeContractFor, listBlocks, actOnTask, actOnViolation, openInquiry, raiseAlert, registerViolation } from '@/modules/governance'
+import { actOnEscalation, aggregatorBoard, analyzeContractFor, listBlocks, actOnTask, actOnViolation, openInquiry, raiseAlert, registerViolation, scanAggregator } from '@/modules/governance'
 import { CLOSE_BLOCKED_MESSAGE } from '@/modules/governance/domain/desk'
 import { createAttendance, createEmployee, createExpense } from '@/modules/hr'
 import { createContract } from '@/modules/operations'
@@ -156,5 +156,73 @@ describe('governance on the live schema', () => {
     })
     expect(dispatched.data.status).toBe('task_dispatched')
     expect(dispatched.data.assignedToEmployee).toBe('فهد العازمي')
+  })
+
+  it('records a five-minute rank, the fleet mode, the top-rank gap, and an approved escalation', async () => {
+    const found = await pg().query<{ name: string | null }>('select to_regclass($1) as name', ['public.aggregator_geo_rank_snapshots'])
+    expect(found.rows[0].name).toBe('aggregator_geo_rank_snapshots')
+    const snapshot = await pg().query<{ id: string }>(
+      `insert into aggregator_geo_rank_snapshots (
+        tenant_id, snapshot_interval_time, platform_name, geo_zone_ar, our_brand_name, our_branch_name,
+        current_rank, previous_rank_5m_ago, rank_delta, overall_rating_bps, reviews_count,
+        estimated_visits_impressions, conversion_rate_bps, delivery_eta_minutes, delivery_fee_minor,
+        min_order_minor, logistics_mode, is_sponsored_ad_active, created_by
+      ) values (
+        $1, '2026-10-29T06:00:00Z', 'Keeta', 'السالمية', 'مجموعة أثير', 'أثير السالمية',
+        8, 9, 1, 420, 860, 4200, 850, 28, 750, 3000, 'vendor_own_fleet', false, $2
+      ) returning id`,
+      [auth.tenantId, auth.userId],
+    )
+    const snapshotId = snapshot.rows[0].id
+    await pg().query(
+      `insert into aggregator_top_competitors_bench (
+        tenant_id, snapshot_id, platform_name, geo_zone_ar, competitor_rank, competitor_brand_name,
+        competitor_rating_bps, competitor_reviews_count, competitor_visits_estimate, competitor_eta_minutes,
+        competitor_delivery_fee_minor, competitor_logistics_mode, active_promo_badge_ar,
+        detected_rating_boost_policy_ar, gap_vs_our_brand_json, created_by
+      ) values (
+        $1, $2, 'Keeta', 'السالمية', 1, 'فريش برجر', 470, 2100, 9000, 22, 0, 'platform_fleet', 'توصيل مجاني',
+        'أسطول التطبيق مع وقت تحضير أقل من 12 دقيقة.',
+        '{"rankGap":7,"etaGapMinutes":6,"feeGapMinor":750,"ratingGapBps":50}'::jsonb, $3
+      )`,
+      [auth.tenantId, snapshotId, auth.userId],
+    )
+    const action = await pg().query<{ id: string }>(
+      `insert into aggregator_rank_escalation_actions (
+        tenant_id, platform_name, geo_zone_ar, our_branch_name, current_rank, target_rank,
+        root_cause_of_lower_rank_ar, algorithmic_recommendation_ar, recommended_action_type,
+        estimated_rank_jump, estimated_revenue_uplift_minor, created_by
+      ) values (
+        $1, 'Keeta', 'السالمية', 'أثير السالمية', 8, 2,
+        'التوصيل على أسطول الشركة.', 'تحويل التوصيل إلى أسطول التطبيق.', 'switch_fleet_mode', 6, 450000, $2
+      ) returning id`,
+      [auth.tenantId, auth.userId],
+    )
+    const board = await aggregatorBoard(auth, { platform: 'Keeta', zone: 'السالمية' })
+    const row = board.snapshots.find((item) => item.id === snapshotId)
+    expect(row?.currentRank).toBe(8)
+    expect(row?.rankDelta).toBe(1)
+    expect(row?.logisticsMode).toBe('vendor_own_fleet')
+    expect(row?.deliveryFeeMinor).toBe(750)
+    expect(board.competitors[0]?.gap).toEqual({ rankGap: 7, etaGapMinutes: 6, feeGapMinor: 750, ratingGapBps: 50 })
+    expect(board.competitors[0]?.competitorLogisticsMode).toBe('platform_fleet')
+    const approved = await actOnEscalation(auth, action.rows[0].id, { action: 'execute', version: 1 })
+    expect(approved.data.status).toBe('approved_executing')
+    const audit = await pg().query<{ description_ar: string }>(
+      `select description_ar from audit_activity_logs where tenant_id = $1 and entity_type = 'aggregator_escalation'`,
+      [auth.tenantId],
+    )
+    expect(audit.rows[0]?.description_ar).toContain('أثير السالمية')
+    const scanned = await scanAggregator(auth, nextKey(), {})
+    expect(scanned.body.data.recorded).toBe(1)
+    const rolled = await pg().query<{ rank_delta: number; logistics_mode: string }>(
+      `select rank_delta, logistics_mode from aggregator_geo_rank_snapshots
+       where tenant_id = $1 and snapshot_interval_time > '2026-10-29T06:00:00Z'`,
+      [auth.tenantId],
+    )
+    expect(rolled.rows[0]?.rank_delta).toBe(0)
+    expect(rolled.rows[0]?.logistics_mode).toBe('vendor_own_fleet')
+    await expect(pg().query(`update aggregator_geo_rank_snapshots set logistics_mode = 'courier' where id = $1`, [snapshotId])).rejects.toThrow(/logistics_mode/)
+    await expect(pg().query(`update aggregator_geo_rank_snapshots set rank_delta = 9 where id = $1`, [snapshotId])).rejects.toThrow(/aggregator_geo_rank_delta_check/)
   })
 })
