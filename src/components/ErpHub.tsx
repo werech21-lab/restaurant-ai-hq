@@ -2,19 +2,32 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import { erpCatalog, filterCatalog, type CatalogStatus } from '@/lib/erp-catalog'
-import { useI18n, type MessageKey } from '@/lib/i18n'
+import { filterSectors, sectorSummary, erpSectors, type SectorMetrics, type SectorSummary } from '@/lib/erp-sectors'
+import { useI18n } from '@/lib/i18n'
+import { formatMinor } from '@/lib/money'
 
-const statusKey: Record<CatalogStatus, MessageKey> = {
-  ready: 'hub.status.ready',
-  beta: 'hub.status.beta',
-  planned: 'hub.status.planned',
+function summaryText(summary: SectorSummary, t: (key: 'sector.ready' | 'sector.kpi.pending' | 'sector.kpi.collected' | 'sector.kpi.journals' | 'sector.kpi.stock' | 'sector.kpi.recipes' | 'sector.kpi.deliveries') => string): string {
+  if (summary.kind === 'pending') return `${t('sector.kpi.pending')} ${summary.pendingApprovals}`
+  if (summary.kind === 'finance') return `${t('sector.kpi.collected')} ${formatMinor(summary.revenueMinor)} · ${t('sector.kpi.journals')} ${summary.postedJournals}`
+  if (summary.kind === 'supply') {
+    return `${t('sector.kpi.stock')} ${summary.stockAlerts} · ${t('sector.kpi.recipes')} ${summary.recipes} · ${t('sector.kpi.deliveries')} ${summary.deliveryOrders}`
+  }
+  return t('sector.ready')
 }
 
-export default function ErpHub({ signedIn = false, devEntry = false }: { signedIn?: boolean; devEntry?: boolean }) {
+export default function ErpHub({
+  signedIn = false,
+  devEntry = false,
+  metrics = null,
+}: {
+  signedIn?: boolean
+  devEntry?: boolean
+  metrics?: SectorMetrics | null
+}) {
   const { t } = useI18n()
   const [query, setQuery] = useState('')
-  const visible = filterCatalog(erpCatalog, query, t)
+  const visible = filterSectors(erpSectors, query, t)
+  const target = (href: string) => (devEntry && !signedIn ? `/dev/owner?next=${encodeURIComponent(href)}` : href)
 
   return (
     <section id="erp-apps" aria-labelledby="erp-apps-title" className="mb-8">
@@ -36,43 +49,32 @@ export default function ErpHub({ signedIn = false, devEntry = false }: { signedI
         </label>
       </div>
       {visible.length === 0 ? <p className="mt-4 text-sm text-mist-400">{t('hub.empty')}</p> : null}
-      <ul className="mt-4 grid gap-3 sm:grid-cols-2">
-        {visible.map((app) => {
-          const target = (href: string) => (devEntry && !signedIn ? `/dev/owner?next=${encodeURIComponent(href)}` : href)
-          const body = (
-            <>
-              <span className="flex items-center justify-between gap-2">
-                <span className="font-semibold text-gold-300">{t(app.title)}</span>
-                <span className="rounded-full border border-gold-300/20 px-2 py-0.5 text-[11px] text-mist-100">{t(statusKey[app.status])}</span>
-              </span>
-              <span className="mt-1 text-sm text-mist-100">{t(app.detail)}</span>
-              <span className="mt-3 text-xs text-mist-400">{app.href ? t(signedIn ? 'hub.open' : 'hub.login') : t('hub.status.planned')}</span>
-            </>
-          )
-          return (
-            <li key={app.id} className="flex h-full flex-col rounded-2xl border border-gold-300/15 bg-ink-900/80 px-4 py-3">
-              {app.href ? (
-                <Link href={target(app.href)} className="flex flex-col rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-400/40">
-                  {body}
-                </Link>
-              ) : (
-                <div className="flex flex-col">{body}</div>
-              )}
-              {app.branches && app.branches.length > 0 ? (
-                <ul className="mt-3 flex flex-wrap gap-2">
-                  {app.branches.map((branch) => (
-                    <li key={branch.href}>
-                      <Link href={target(branch.href)} className="rounded-full border border-gold-300/25 px-2 py-0.5 text-[11px] text-mist-100 hover:border-gold-300/60">
-                        {t(branch.title)}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-            </li>
-          )
-        })}
-      </ul>
+      <div className="mt-4 space-y-4">
+        {visible.map((sector) => (
+          <section key={sector.id} aria-labelledby={`sector-${sector.id}`} className="rounded-2xl border border-gold-300/15 bg-ink-900/80 px-4 py-4">
+            <header className="flex flex-wrap items-center justify-between gap-2">
+              <h3 id={`sector-${sector.id}`} className="text-base font-semibold text-gold-300">
+                {t(sector.title)}
+              </h3>
+              <span className="rounded-full border border-gold-300/20 px-2 py-0.5 text-[11px] text-mist-100">{t('hub.status.ready')}</span>
+            </header>
+            <p className="mt-1 text-xs text-mist-400">{summaryText(sectorSummary(sector.id, metrics), t)}</p>
+            <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+              {sector.links.map((link) => (
+                <li key={link.href}>
+                  <Link
+                    href={target(link.href)}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-gold-300/10 px-3 py-2 text-sm text-mist-100 transition hover:border-gold-300/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-400/40"
+                  >
+                    <span>{t(link.title)}</span>
+                    <span className="shrink-0 text-xs text-gold-300">{t(signedIn ? 'hub.open' : 'hub.login')}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+      </div>
     </section>
   )
 }

@@ -94,15 +94,15 @@ function DocumentStatusBadge({ status }: { status: 'posted' | 'void' }) {
  * notes, payments, suppliers, the ledger reconciliation and the accounting settings. `permissions` come from the server page
  * and only decide what is shown: every API call and database write is checked again.
  */
-export default function ProcurementWorkspace({ permissions: held }: { permissions: readonly string[] }) {
+export default function ProcurementWorkspace({ permissions: held, initialTab }: { permissions: readonly string[]; initialTab?: string }) {
   return (
     <PermissionProvider permissions={held}>
-      <Workspace />
+      <Workspace initialTab={initialTab} />
     </PermissionProvider>
   )
 }
 
-function Workspace() {
+function Workspace({ initialTab }: { initialTab?: string }) {
   const { t } = useI18n()
   const canReadRequests = useCan(tabPermission.requests)
   const canReadOrders = useCan(tabPermission.orders)
@@ -132,7 +132,7 @@ function Workspace() {
     return allTabs.filter((value) => allowed[value])
   }, [canReadRequests, canReadOrders, canReadInvoices, canReadReturns, canReadCredits, canReadPayments, canReadSuppliers, canManageSettings])
 
-  const [chosenTab, setTab] = useState<Tab>('requests')
+  const [chosenTab, setTab] = useState<Tab>(allTabs.includes(initialTab as Tab) ? (initialTab as Tab) : 'requests')
   const tab: Tab | null = visibleTabs.includes(chosenTab) ? chosenTab : (visibleTabs[0] ?? null)
   const [dialog, setDialog] = useState<Dialog>(null)
   const [notice, setNotice] = useState<MessageKey | null>(null)

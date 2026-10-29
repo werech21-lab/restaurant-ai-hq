@@ -35,15 +35,23 @@ type Dialog = { kind: 'account'; account?: Account } | { kind: 'entry'; entryId?
  * The general ledger: the chart of accounts, the journal, the fiscal periods and the trial balance. `permissions` come
  * from the server page and only decide what is shown; the API and the database check every request again.
  */
-export default function LedgerWorkspace({ permissions: held, initialEntryId = null }: { permissions: readonly string[]; initialEntryId?: string | null }) {
+export default function LedgerWorkspace({
+  permissions: held,
+  initialEntryId = null,
+  initialTab,
+}: {
+  permissions: readonly string[]
+  initialEntryId?: string | null
+  initialTab?: string
+}) {
   return (
     <PermissionProvider permissions={held}>
-      <Workspace initialEntryId={initialEntryId} />
+      <Workspace initialEntryId={initialEntryId} initialTab={initialTab} />
     </PermissionProvider>
   )
 }
 
-function Workspace({ initialEntryId }: { initialEntryId: string | null }) {
+function Workspace({ initialEntryId, initialTab }: { initialEntryId: string | null; initialTab?: string }) {
   const { t } = useI18n()
   const canReadAccounts = useCan(tabPermission.accounts)
   const canReadJournal = useCan(tabPermission.entries)
@@ -61,7 +69,7 @@ function Workspace({ initialEntryId }: { initialEntryId: string | null }) {
     return allTabs.filter((value) => allowed[value])
   }, [canReadAccounts, canReadJournal])
 
-  const [chosenTab, setTab] = useState<Tab>('entries')
+  const [chosenTab, setTab] = useState<Tab>(allTabs.includes(initialTab as Tab) ? (initialTab as Tab) : 'entries')
   const tab: Tab | null = visibleTabs.includes(chosenTab) ? chosenTab : (visibleTabs[0] ?? null)
   const [dialog, setDialog] = useState<Dialog>(initialEntryId ? { kind: 'entry', entryId: initialEntryId } : null)
   const [notice, setNotice] = useState<MessageKey | null>(null)

@@ -73,7 +73,7 @@ export default function HomeShell({ metrics, signedIn, devEntry }: { metrics: Co
             <p role="note" className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
               {t('cc.banner')}
             </p>
-            <ErpHub signedIn={signedIn} devEntry={devEntry} />
+            <ErpHub signedIn={signedIn} devEntry={devEntry} metrics={metrics} />
             {renderSection()}
           </div>
         </main>
