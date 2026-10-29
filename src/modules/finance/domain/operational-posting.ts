@@ -43,3 +43,21 @@ export function buildCommissionLines(amountMinor: number, expenseAccountId: stri
     { accountId: cashAccountId, debitMinor: 0, creditMinor: amountMinor, description: memo },
   ]
 }
+
+function buildAccruedExpenseLines(amountMinor: number, expenseAccountId: string, payableAccountId: string, memo: string, what: string): JournalLineInput[] {
+  needAmount(amountMinor, what)
+  return [
+    { accountId: expenseAccountId, debitMinor: amountMinor, creditMinor: 0, description: memo },
+    { accountId: payableAccountId, debitMinor: 0, creditMinor: amountMinor, description: memo },
+  ]
+}
+
+/** Debit salaries expense, credit accrued salaries. The two lines are equal by construction. */
+export function buildPayrollLines(amountMinor: number, expenseAccountId: string, payableAccountId: string, memo: string): JournalLineInput[] {
+  return buildAccruedExpenseLines(amountMinor, expenseAccountId, payableAccountId, memo, 'A payroll run')
+}
+
+/** Debit salaries expense, credit accrued salaries, for an approved employee claim. */
+export function buildEmployeeExpenseLines(amountMinor: number, expenseAccountId: string, payableAccountId: string, memo: string): JournalLineInput[] {
+  return buildAccruedExpenseLines(amountMinor, expenseAccountId, payableAccountId, memo, 'An employee expense')
+}

@@ -7,6 +7,7 @@ import { DEV_OWNER_COOKIE, devOwnerEnabled, devOwnerHostAllowed, devOwnerUserId 
 import { E2E_COOKIE, e2eEnabled, e2eUserId } from '@/lib/auth/e2e-session'
 import { db } from '@/lib/db'
 import { createClient } from '@/lib/supabase/server'
+import { applyPermissionFlags } from '@/lib/auth/member-flags'
 import type { Permission } from '@/lib/auth/permissions'
 
 export type AuthContext = {
@@ -20,7 +21,14 @@ export type SessionUser = { userId: string; email: string | null; emailConfirmed
 
 const tenantHeader = z.string().uuid()
 
-type MembershipRow = { tenant_id: string; permissions: string[] }
+type MembershipRow = { tenant_id: string; permissions: string[]; flags: Record<string, unknown> | null }
+
+const membershipSql = `select m.tenant_id, m.permission_flags as flags,
+            coalesce(array_agg(rp.permission) filter (where rp.permission is not null), '{}') as permissions
+     from tenant_members m
+     join tenants t on t.id = m.tenant_id and t.status = 'active'
+     left join role_permissions rp on rp.role_id = m.role_id
+     where m.user_id = $1 and m.status = 'active'`
 
 /**
  * Supabase when a real session exists. The local cookie is consulted only while the e2e gate is open.
@@ -85,13 +93,8 @@ export async function authenticateUser(permission: Permission, requestedTenant: 
   if (!userId) throw new AppError(401, 'unauthenticated', 'Sign in to continue.')
 
   const memberships = await db.query<MembershipRow>(
-    `select m.tenant_id,
-            coalesce(array_agg(rp.permission) filter (where rp.permission is not null), '{}') as permissions
-     from tenant_members m
-     join tenants t on t.id = m.tenant_id and t.status = 'active'
-     left join role_permissions rp on rp.role_id = m.role_id
-     where m.user_id = $1 and ($2::uuid is null or m.tenant_id = $2::uuid)
-     group by m.tenant_id`,
+    `${membershipSql} and ($2::uuid is null or m.tenant_id = $2::uuid)
+     group by m.tenant_id, m.permission_flags`,
     [userId, requestedTenant]
   )
 
@@ -104,6 +107,7 @@ export async function authenticateUser(permission: Permission, requestedTenant: 
 
   const membership = memberships.rows[0]
   const granted = new Set(membership.permissions)
+  applyPermissionFlags(granted, membership.flags)
   if (!granted.has(permission)) {
     throw new AppError(403, 'forbidden', 'You do not have permission for this action.')
   }
@@ -120,16 +124,14 @@ export async function readSessionPermissions(): Promise<string[]> {
   const userId = await resolveUserId('none')
   if (!userId) return []
   const memberships = await db.query<MembershipRow>(
-    `select m.tenant_id,
-            coalesce(array_agg(rp.permission) filter (where rp.permission is not null), '{}') as permissions
-     from tenant_members m
-     join tenants t on t.id = m.tenant_id and t.status = 'active'
-     left join role_permissions rp on rp.role_id = m.role_id
-     where m.user_id = $1
-     group by m.tenant_id`,
+    `${membershipSql}
+     group by m.tenant_id, m.permission_flags`,
     [userId]
   )
-  return memberships.rows.length === 1 ? [...new Set(memberships.rows[0].permissions)].sort() : []
+  if (memberships.rows.length !== 1) return []
+  const granted = new Set(memberships.rows[0].permissions)
+  applyPermissionFlags(granted, memberships.rows[0].flags)
+  return [...granted].sort()
 }
 
 /** The signed-in user without any tenant. Only for calls a person makes before they belong to a company. */

@@ -179,7 +179,13 @@ describe('the database itself', () => {
       [a.tenantId]
     )
     expect(owner.rows.map((row) => row.permission)).toEqual(['org.branch.manage', 'org.branch.read', 'org.brand.manage', 'org.brand.read'])
-    const viewer = await pg().query(`select 1 from role_permissions rp join roles r on r.id = rp.role_id where r.tenant_id = $1 and r.name <> 'owner' and rp.permission like 'org.%'`, [a.tenantId])
-    expect(viewer.rows).toEqual([])
+    const others = await pg().query<{ name: string; permission: string }>(
+      `select r.name, rp.permission from role_permissions rp join roles r on r.id = rp.role_id where r.tenant_id = $1 and r.name <> 'owner' and rp.permission like 'org.%' order by 1, 2`,
+      [a.tenantId],
+    )
+    expect(others.rows).toEqual([
+      { name: 'admin', permission: 'org.branch.read' },
+      { name: 'manager', permission: 'org.branch.read' },
+    ])
   })
 })

@@ -43,6 +43,9 @@ export const baselineSentinels = {
   '0019_operational_posting.sql': ['public.kitchen_productions', 'public.delivery_settlements'],
   '0020_operational_read_policies.sql': ['fn:erp_operational_read_marker()'],
   '0021_sales_revenue.sql': ['def:journal_entries_source_guard:sales_revenue'],
+  '0022_admin_rbac_audit_logs.sql': ['public.audit_activity_logs'],
+  '0023_permission_flag_nulls.sql': ['def:auth_has_permission:coalesce(m.permission_flags'],
+  '0024_hr_operations_suite.sql': ['public.hr_employees', 'public.hr_payroll_runs', 'public.enterprise_contracts', 'public.quality_maintenance_tickets'],
 }
 
 /**

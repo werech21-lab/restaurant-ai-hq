@@ -69,7 +69,7 @@ export {
   voidInvoice,
 } from '@/modules/finance/services/invoice-service'
 export { publishFinanceEvents } from '@/modules/finance/events'
-export { buildCollectionLines, buildCommissionLines, buildConsumptionLines, buildRevenueLines } from '@/modules/finance/domain/operational-posting'
+export { buildCollectionLines, buildCommissionLines, buildConsumptionLines, buildEmployeeExpenseLines, buildPayrollLines, buildRevenueLines } from '@/modules/finance/domain/operational-posting'
 export type * from '@/modules/finance/domain/types'
 export type * from '@/modules/finance/domain/ledger-types'
 export type * from '@/modules/finance/events'

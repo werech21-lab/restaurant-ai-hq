@@ -62,6 +62,9 @@ type BusEvent = {
 | `finance.payment.recorded` | finance |
 | `finance.period.closed` | finance |
 | `finance.period.created` | finance |
+| `hr.expense.decided` | hr |
+| `hr.leave.decided` | hr |
+| `hr.payroll.posted` | hr |
 | `iam.invitation.accepted` | `src/lib/iam` |
 | `iam.invitation.created` | `src/lib/iam` |
 | `iam.invitation.revoked` | `src/lib/iam` |

@@ -42,6 +42,8 @@ export const sourceTypeLabels: Record<JournalSourceType, MessageKey> = {
   kitchen_issue: 'led.src.kitchen_issue',
   delivery_commission: 'led.src.delivery_commission',
   sales_revenue: 'led.src.sales_revenue',
+  payroll: 'led.src.payroll',
+  employee_expense: 'led.src.employee_expense',
 }
 
 export function EntryStatusBadge({ status }: { status: EntryStatus }) {

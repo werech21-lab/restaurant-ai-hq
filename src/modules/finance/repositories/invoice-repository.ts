@@ -80,12 +80,15 @@ export type OperationalAccounts = {
   collectionAccountId: string | null
   commissionAccountId: string | null
   revenueAccountId: string | null
+  salaryExpenseAccountId: string | null
+  salaryPayableAccountId: string | null
 }
 
 export async function getOperationalAccounts(tx: Queryable, tenantId: string): Promise<OperationalAccounts | null> {
   const result = await tx.query<OperationalAccounts>(
     `select receivable_account_id as "receivableAccountId", collection_account_id as "collectionAccountId",
-            commission_account_id as "commissionAccountId", revenue_account_id as "revenueAccountId"
+            commission_account_id as "commissionAccountId", revenue_account_id as "revenueAccountId",
+            salary_expense_account_id as "salaryExpenseAccountId", salary_payable_account_id as "salaryPayableAccountId"
      from finance_settings where tenant_id = $1`,
     [tenantId]
   )

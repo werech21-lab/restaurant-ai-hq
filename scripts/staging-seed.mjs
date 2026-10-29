@@ -44,14 +44,14 @@ const accounts = [
 const client = new pg.Client({ connectionString: url, ssl: sslOptions(process.env.DATABASE_SSL ?? 'require', process.env.DATABASE_SSL_CA) })
 await client.connect()
 
-function ownerValue(column, id) {
+function ownerValue(column, id, userEmail = email) {
   const now = new Date().toISOString()
   const values = {
     id,
     instance_id: '00000000-0000-0000-0000-000000000000',
     aud: 'authenticated',
     role: 'authenticated',
-    email,
+    email: userEmail,
     encrypted_password: '',
     email_confirmed_at: now,
     confirmation_token: '',
@@ -242,6 +242,57 @@ try {
           and s.revenue_account_id is null`,
       [tenantId]
     )
+  }
+  const memberStatus = await client.query(
+    `select exists (
+       select 1 from information_schema.columns
+       where table_schema = 'public' and table_name = 'tenant_members' and column_name = 'status'
+     ) as ok`
+  )
+  if (memberStatus.rows[0].ok) {
+    const staff = [
+      ['demo-accountant@aether-staging.invalid', 'Chief Accountant', 'accountant', { can_post_journal: true, can_export_reports: true }],
+      ['demo-manager@aether-staging.invalid', 'Branch Manager', 'manager', { can_approve_po: true, can_approve_invoice: true, can_manage_inventory: true, can_export_reports: true }],
+      ['demo-kitchen@aether-staging.invalid', 'Kitchen Supervisor', 'operations', { can_manage_inventory: true }],
+    ]
+    for (const [staffEmail, staffName, roleName, flags] of staff) {
+      const role = await client.query('select id from roles where tenant_id = $1 and name = $2', [tenantId, roleName])
+      if (!role.rows[0]) continue
+      const existing = await client.query('select id from auth.users where lower(email) = $1', [staffEmail])
+      let staffId = existing.rows[0]?.id
+      if (!staffId) {
+        staffId = crypto.randomUUID()
+        const needed = await client.query(
+          `select column_name from information_schema.columns
+           where table_schema = 'auth' and table_name = 'users' and is_nullable = 'NO' and column_default is null
+           order by ordinal_position`
+        )
+        const columns = []
+        const params = []
+        for (const row of needed.rows) {
+          const value = ownerValue(row.column_name, staffId, staffEmail)
+          if (value === undefined) throw new Error(`auth.users needs ${row.column_name}`)
+          columns.push(row.column_name)
+          params.push(value)
+        }
+        if (!columns.includes('email')) {
+          columns.push('email')
+          params.push(staffEmail)
+        }
+        const placeholders = columns.map((_, index) => `$${index + 1}`).join(', ')
+        await client.query(`insert into auth.users (${columns.join(', ')}) values (${placeholders})`, params)
+      }
+      await client.query(
+        `insert into profiles (id, display_name) values ($1, $2) on conflict (id) do update set display_name = excluded.display_name`,
+        [staffId, staffName]
+      )
+      await client.query(
+        `insert into tenant_members (tenant_id, user_id, role_id, status, permission_flags, created_by)
+         values ($1, $2, $3, 'active', $4::jsonb, $5)
+         on conflict (tenant_id, user_id) do nothing`,
+        [tenantId, staffId, role.rows[0].id, JSON.stringify(flags), ownerId]
+      )
+    }
   }
   await client.query('commit')
 

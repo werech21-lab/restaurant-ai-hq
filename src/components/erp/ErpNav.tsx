@@ -156,6 +156,43 @@ const links: readonly NavLink[] = [
     ),
   },
   {
+    href: '/erp/hr',
+    label: 'erpnav.hr',
+    exact: false,
+    icon: (
+      <Glyph>
+        <path d="M8 11a3 3 0 100-6 3 3 0 000 6z" />
+        <path d="M16 11a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" />
+        <path d="M3 19c.6-2.6 2.8-4 5-4s4.4 1.4 5 4" />
+        <path d="M14 15c1.6 0 3.2.8 3.8 2.5" />
+      </Glyph>
+    ),
+  },
+  {
+    href: '/erp/operations',
+    label: 'erpnav.operations',
+    exact: false,
+    icon: (
+      <Glyph>
+        <path d="M4 7h16" />
+        <path d="M4 12h16" />
+        <path d="M4 17h10" />
+      </Glyph>
+    ),
+  },
+  {
+    href: '/erp/admin',
+    label: 'erpnav.admin',
+    exact: false,
+    icon: (
+      <Glyph>
+        <path d="M12 3l7 3v6c0 4.2-2.8 6.8-7 8-4.2-1.2-7-3.8-7-8V6l7-3z" />
+        <path d="M12 8v4" />
+        <path d="M12 16h.01" />
+      </Glyph>
+    ),
+  },
+  {
     href: '/erp/iam',
     label: 'erpnav.iam',
     exact: false,

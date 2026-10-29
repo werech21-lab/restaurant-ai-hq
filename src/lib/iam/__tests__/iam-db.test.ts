@@ -112,13 +112,13 @@ beforeAll(async () => {
 afterAll(stopDatabase)
 
 describe('the migration', () => {
-  it('gives the iam permissions to owners only and flags the four built-in roles as system roles', async () => {
+  it('gives the iam permissions to the owner and admin, and flags the built-in roles as system roles', async () => {
     const holders = await pg().query<{ name: string }>(
-      `select distinct r.name from role_permissions rp join roles r on r.id = rp.role_id where rp.permission like 'iam.%' and r.is_system`
+      `select distinct r.name from role_permissions rp join roles r on r.id = rp.role_id where rp.permission like 'iam.%' and r.is_system order by r.name`
     )
-    expect(holders.rows.map((row) => row.name)).toEqual(['owner'])
+    expect(holders.rows.map((row) => row.name)).toEqual(['admin', 'owner'])
     const system = await pg().query<{ name: string }>(`select name from roles where tenant_id = $1 and is_system order by name`, [owner.tenantId])
-    expect(system.rows.map((row) => row.name)).toEqual(['accountant', 'approver', 'owner', 'viewer'])
+    expect(system.rows.map((row) => row.name)).toEqual(['accountant', 'admin', 'approver', 'manager', 'operations', 'owner', 'viewer'])
   })
 })
 

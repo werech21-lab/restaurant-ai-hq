@@ -65,7 +65,7 @@ async function readFiles() {
   const names = (await readdir(directory)).filter((file) => file.endsWith('.sql')).sort()
   const files = []
   for (const name of names) {
-    const sql = await readFile(path.join(directory, name), 'utf8')
+    const sql = (await readFile(path.join(directory, name), 'utf8')).replace(/\r\n/g, '\n')
     files.push({ name, sql, checksum: createHash('sha256').update(sql).digest('hex') })
   }
   return files

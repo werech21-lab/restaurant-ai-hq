@@ -38,6 +38,7 @@ export default function ErpHub({ signedIn = false, devEntry = false }: { signedI
       {visible.length === 0 ? <p className="mt-4 text-sm text-mist-400">{t('hub.empty')}</p> : null}
       <ul className="mt-4 grid gap-3 sm:grid-cols-2">
         {visible.map((app) => {
+          const target = (href: string) => (devEntry && !signedIn ? `/dev/owner?next=${encodeURIComponent(href)}` : href)
           const body = (
             <>
               <span className="flex items-center justify-between gap-2">
@@ -49,17 +50,25 @@ export default function ErpHub({ signedIn = false, devEntry = false }: { signedI
             </>
           )
           return (
-            <li key={app.id}>
+            <li key={app.id} className="flex h-full flex-col rounded-2xl border border-gold-300/15 bg-ink-900/80 px-4 py-3">
               {app.href ? (
-                <Link
-                  href={devEntry && !signedIn && app.href ? `/dev/owner?next=${encodeURIComponent(app.href)}` : app.href}
-                  className="flex h-full flex-col rounded-2xl border border-gold-300/15 bg-ink-900/80 px-4 py-3 transition hover:border-gold-300/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-400/40"
-                >
+                <Link href={target(app.href)} className="flex flex-col rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-400/40">
                   {body}
                 </Link>
               ) : (
-                <div className="flex h-full flex-col rounded-2xl border border-dashed border-gold-300/20 bg-black/20 px-4 py-3">{body}</div>
+                <div className="flex flex-col">{body}</div>
               )}
+              {app.branches && app.branches.length > 0 ? (
+                <ul className="mt-3 flex flex-wrap gap-2">
+                  {app.branches.map((branch) => (
+                    <li key={branch.href}>
+                      <Link href={target(branch.href)} className="rounded-full border border-gold-300/25 px-2 py-0.5 text-[11px] text-mist-100 hover:border-gold-300/60">
+                        {t(branch.title)}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </li>
           )
         })}

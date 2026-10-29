@@ -17,6 +17,8 @@ export const journalSourceTypes = [
   'kitchen_issue',
   'delivery_commission',
   'sales_revenue',
+  'payroll',
+  'employee_expense',
 ] as const
 export type JournalSourceType = (typeof journalSourceTypes)[number]
 
