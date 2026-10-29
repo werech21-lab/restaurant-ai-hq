@@ -1,8 +1,9 @@
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import type { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { AppError } from '@/lib/api/errors'
+import { DEV_OWNER_COOKIE, devOwnerEnabled, devOwnerHostAllowed, devOwnerUserId } from '@/lib/auth/dev-owner'
 import { E2E_COOKIE, e2eEnabled, e2eUserId } from '@/lib/auth/e2e-session'
 import { db } from '@/lib/db'
 import { createClient } from '@/lib/supabase/server'
@@ -31,6 +32,12 @@ async function resolveUserId(missingClient: 'throw' | 'none'): Promise<string | 
     const local = await e2eUserId(jar.get(E2E_COOKIE)?.value)
     if (local) return local
   }
+  if (devOwnerEnabled()) {
+    const jar = await cookies()
+    const host = (await headers()).get('host')
+    const owner = await devOwnerUserId(jar.get(DEV_OWNER_COOKIE)?.value, host)
+    if (owner) return owner
+  }
   const supabase = await createClient()
   if (!supabase) {
     if (missingClient === 'throw') throw new AppError(500, 'server_misconfigured', 'The server is not configured.')
@@ -44,7 +51,12 @@ async function resolveUserId(missingClient: 'throw' | 'none'): Promise<string | 
 /** Sends an ERP page to the login screen unless a real session, or the local e2e cookie, is present. */
 export async function requirePageUser(nextPath: string): Promise<string> {
   const userId = await resolveUserId('none')
-  if (!userId) redirect(`/login?next=${encodeURIComponent(nextPath)}`)
+  if (!userId) {
+    if (devOwnerEnabled() && devOwnerHostAllowed((await headers()).get('host'))) {
+      redirect(`/dev/owner?next=${encodeURIComponent(nextPath)}`)
+    }
+    redirect(`/login?next=${encodeURIComponent(nextPath)}`)
+  }
   return userId
 }
 

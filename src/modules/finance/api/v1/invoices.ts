@@ -9,6 +9,8 @@ import {
   getInvoiceSummary,
   listInvoices,
   recordPayment,
+  postOpenCollections,
+  postOpenRevenue,
   submitInvoice,
   updateInvoice,
   voidInvoice,
@@ -76,6 +78,24 @@ export async function recordPaymentHandler({ request, auth, params }: RouteArgs)
   const key = requireIdempotencyKey(request)
   const input = await parseBody(request, recordPaymentSchema)
   const outcome = await recordPayment(auth, id, key, input)
+  return NextResponse.json(outcome.body, {
+    status: outcome.status,
+    headers: outcome.replayed ? { 'Idempotent-Replayed': 'true' } : undefined,
+  })
+}
+
+export async function postOpenCollectionsHandler({ request, auth }: RouteArgs): Promise<NextResponse> {
+  const key = requireIdempotencyKey(request)
+  const outcome = await postOpenCollections(auth, key)
+  return NextResponse.json(outcome.body, {
+    status: outcome.status,
+    headers: outcome.replayed ? { 'Idempotent-Replayed': 'true' } : undefined,
+  })
+}
+
+export async function postOpenRevenueHandler({ request, auth }: RouteArgs): Promise<NextResponse> {
+  const key = requireIdempotencyKey(request)
+  const outcome = await postOpenRevenue(auth, key)
   return NextResponse.json(outcome.body, {
     status: outcome.status,
     headers: outcome.replayed ? { 'Idempotent-Replayed': 'true' } : undefined,

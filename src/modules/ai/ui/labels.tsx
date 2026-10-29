@@ -30,6 +30,7 @@ export const actionLabels: Record<ActionType, MessageKey> = {
   price_adjustment: 'ai.action.price_adjustment',
   payment_reminder: 'ai.action.payment_reminder',
   lead_followup: 'ai.action.lead_followup',
+  scenario_choice: 'ai.action.scenario_choice',
 }
 
 export const approvalStatusLabels: Record<ApprovalStatus, MessageKey> = {

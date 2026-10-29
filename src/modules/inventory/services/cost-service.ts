@@ -72,7 +72,13 @@ export async function recordReceiptCosts(tx: Queryable, auth: AuthContext, refer
 }
 
 /** Issues at the average already stored. The average does not change, and the returned amounts are the COGS of this issue. */
-export async function recordIssueCosts(tx: Queryable, auth: AuthContext, referenceId: string, lines: readonly PricedLine[]): Promise<IssuedCost[]> {
+export async function recordIssueCosts(
+  tx: Queryable,
+  auth: AuthContext,
+  referenceId: string,
+  lines: readonly PricedLine[],
+  referenceType = 'invoice'
+): Promise<IssuedCost[]> {
   if (!(await movingAverage(tx, auth.tenantId)) || lines.length === 0) return []
   const ids = [...new Set(lines.map((line) => line.itemId))].sort()
   const locked = await repository.lockItems(tx, auth.tenantId, ids)
@@ -93,7 +99,7 @@ export async function recordIssueCosts(tx: Queryable, auth: AuthContext, referen
       ...snapshot,
       itemId: line.itemId,
       kind: 'issue',
-      referenceType: 'invoice',
+      referenceType,
       referenceId,
     })
     issued.push({ itemId: line.itemId, quantity: line.quantity, unitCostMinor: avg, amountMinor: -snapshot.valueDeltaMinor })

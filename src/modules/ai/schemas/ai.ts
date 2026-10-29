@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { pageQuerySchema } from '@/lib/api/cursor'
-import { actionTypes, approvalStatuses, insightCategories, insightSeverities, insightStatuses } from '@/modules/ai/domain/types'
+import { actionTypes, approvalStatuses, insightCategories, insightSeverities, insightStatuses, scenarioOptionKeys } from '@/modules/ai/domain/types'
 
 export const idParamsSchema = z.object({ id: z.string().uuid() })
 
@@ -49,7 +49,11 @@ const note = z
   .optional()
   .transform((value) => (value === undefined || value === '' ? null : value))
 
-export const decideApprovalSchema = z.object({ version, note })
+export const decideApprovalSchema = z.object({
+  version,
+  note,
+  optionKey: z.enum(scenarioOptionKeys).optional(),
+})
 export type DecideApprovalBody = z.output<typeof decideApprovalSchema>
 
 // ---- rules ----

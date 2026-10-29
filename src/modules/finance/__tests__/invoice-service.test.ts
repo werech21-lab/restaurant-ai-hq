@@ -45,6 +45,7 @@ vi.mock('@/modules/finance/repositories/invoice-repository', () => ({
   insertPayment: vi.fn(),
   listInvoices: vi.fn(),
   summarize: vi.fn(),
+  getOperationalAccounts: vi.fn(async () => null),
 }))
 
 import { writeAudit } from '@/lib/audit'

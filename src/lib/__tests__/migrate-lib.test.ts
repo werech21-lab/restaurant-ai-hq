@@ -85,7 +85,7 @@ describe('assertMigrationTarget', () => {
 
   it('allows only the named staging project', async () => {
     const listed = JSON.parse(await readFile(path.join(process.cwd(), 'database', 'approved-staging-targets.json'), 'utf8')) as { projects: string[] }
-    expect(listed.projects).toEqual(['pikqnlzkoaxoxpahtzvc'])
+    expect(listed.projects).toEqual(['pikqnlzkoaxoxpahztvc'])
   })
 })
 
@@ -142,11 +142,11 @@ describe('baseline sentinels against the real migrations', () => {
     expect(Object.keys(baselineSentinels).sort()).toEqual(await names())
   })
 
-  it('plans 0001 through 0017 in filename order for an empty database, then only the remainder', async () => {
+  it('plans 0001 through 0021 in filename order for an empty database, then only the remainder', async () => {
     const all = await names()
-    expect(all).toHaveLength(17)
+    expect(all).toHaveLength(21)
     expect(all[0]).toBe('0001_core.sql')
-    expect(all[16]).toBe('0017_inventory_valuation.sql')
+    expect(all[20]).toBe('0021_sales_revenue.sql')
     const described = all.map((name) => ({ name, checksum: 'same' }))
     expect(planMigrations(described, new Map())).toEqual({ pending: all, upToDate: [], changed: [], unknown: [], gaps: [] })
     const prefix = new Map(all.slice(0, 10).map((name) => [name, 'same']))

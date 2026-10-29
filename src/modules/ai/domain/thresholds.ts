@@ -56,6 +56,11 @@ const discountIncentiveSchema = z.strictObject({
   cooldownDays,
 })
 
+const costScenariosSchema = z.strictObject({
+  minImpactMinor: z.number().int().min(1).max(MAX_MONEY_MINOR).default(1),
+  cooldownDays,
+})
+
 export type LowStockThresholds = z.output<typeof lowStockSchema>
 export type FastDepletingThresholds = z.output<typeof fastDepletingSchema>
 export type PaymentReminderThresholds = z.output<typeof paymentReminderSchema>
@@ -63,6 +68,7 @@ export type CreditHoldThresholds = z.output<typeof creditHoldSchema>
 export type MarginFloorThresholds = z.output<typeof marginFloorSchema>
 export type StalledLeadsThresholds = z.output<typeof stalledLeadsSchema>
 export type DiscountIncentiveThresholds = z.output<typeof discountIncentiveSchema>
+export type CostScenariosThresholds = z.output<typeof costScenariosSchema>
 
 export type ThresholdsByRule = {
   'inventory.low_stock': LowStockThresholds
@@ -72,6 +78,7 @@ export type ThresholdsByRule = {
   'finance.margin_floor': MarginFloorThresholds
   'crm.stalled_leads': StalledLeadsThresholds
   'crm.discount_incentive': DiscountIncentiveThresholds
+  'operations.cost_scenarios': CostScenariosThresholds
 }
 
 export const thresholdSchemas = {
@@ -82,6 +89,7 @@ export const thresholdSchemas = {
   'finance.margin_floor': marginFloorSchema,
   'crm.stalled_leads': stalledLeadsSchema,
   'crm.discount_incentive': discountIncentiveSchema,
+  'operations.cost_scenarios': costScenariosSchema,
 } as const satisfies Record<RuleKey, z.ZodType>
 
 export type ThresholdParse<K extends RuleKey> =

@@ -10,7 +10,7 @@ export const movementTypes = ['IN', 'OUT', 'TRANSFER'] as const
 export type MovementType = (typeof movementTypes)[number]
 
 /** `restock` is stock received because an approved restock request said so. Its reference is that request's id. */
-export const referenceTypes = ['manual', 'invoice', 'transfer', 'restock', 'purchase_receipt', 'purchase_return'] as const
+export const referenceTypes = ['manual', 'invoice', 'transfer', 'restock', 'purchase_receipt', 'purchase_return', 'kitchen_issue'] as const
 export type ReferenceType = (typeof referenceTypes)[number]
 
 /** Largest quantity of one movement, and the largest stock of one item. Keeps every sum inside a safe integer. */

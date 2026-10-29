@@ -75,6 +75,64 @@ export async function getSettings(tx: Queryable, tenantId: string): Promise<Fina
   return result.rows[0] ?? null
 }
 
+export type OperationalAccounts = {
+  receivableAccountId: string | null
+  collectionAccountId: string | null
+  commissionAccountId: string | null
+  revenueAccountId: string | null
+}
+
+export async function getOperationalAccounts(tx: Queryable, tenantId: string): Promise<OperationalAccounts | null> {
+  const result = await tx.query<OperationalAccounts>(
+    `select receivable_account_id as "receivableAccountId", collection_account_id as "collectionAccountId",
+            commission_account_id as "commissionAccountId", revenue_account_id as "revenueAccountId"
+     from finance_settings where tenant_id = $1`,
+    [tenantId]
+  )
+  return result.rows[0] ?? null
+}
+
+export type UnjournaledPayment = { id: string; amountMinor: number; paidAt: string; invoiceNumber: string }
+
+export async function listUnjournaledPayments(tx: Queryable, tenantId: string): Promise<UnjournaledPayment[]> {
+  const result = await tx.query<{ id: string; amountMinor: number; paidAt: Date; invoiceNumber: string }>(
+    `select p.id, p.amount_minor::bigint as "amountMinor", p.paid_at as "paidAt", i.number as "invoiceNumber"
+     from payments p
+     join invoices i on i.tenant_id = p.tenant_id and i.id = p.invoice_id
+     where p.tenant_id = $1
+       and not exists (
+         select 1 from journal_entries e
+         where e.tenant_id = p.tenant_id and e.source_type = 'customer_collection' and e.source_id = p.id
+       )
+     order by p.paid_at, p.id`,
+    [tenantId]
+  )
+  return result.rows.map((row) => ({ ...row, amountMinor: Number(row.amountMinor), paidAt: row.paidAt.toISOString() }))
+}
+
+export type UnjournaledSale = { id: string; number: string; totalMinor: number; issueDate: string }
+
+export async function listUnjournaledSales(tx: Queryable, tenantId: string): Promise<UnjournaledSale[]> {
+  const result = await tx.query<{ id: string; number: string; totalMinor: number; issueDate: string }>(
+    `select i.id, i.number, i.total_minor::bigint as "totalMinor", i.issue_date::text as "issueDate"
+     from invoices i
+     where i.tenant_id = $1
+       and i.status in ('issued', 'partially_paid', 'paid')
+       and i.total_minor > 0
+       and not exists (
+         select 1 from journal_entries e
+         where e.tenant_id = i.tenant_id and e.source_type = 'sales_revenue' and e.source_id = i.id and e.reverses_id is null
+           and not exists (
+             select 1 from journal_entries r
+             where r.tenant_id = e.tenant_id and r.reverses_id = e.id
+           )
+       )
+     order by i.issue_date, i.id`,
+    [tenantId]
+  )
+  return result.rows.map((row) => ({ ...row, totalMinor: Number(row.totalMinor), issueDate: String(row.issueDate).slice(0, 10) }))
+}
+
 export async function findInvoice(
   tx: Queryable,
   tenantId: string,

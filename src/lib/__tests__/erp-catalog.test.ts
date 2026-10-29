@@ -7,8 +7,9 @@ const label = (key: MessageKey) => key
 describe('ERP catalog', () => {
   it('keeps planned modules off real routes', () => {
     const planned = erpCatalog.filter((item) => item.status === 'planned')
-    expect(planned.length).toBeGreaterThan(0)
     expect(planned.every((item) => item.href === undefined)).toBe(true)
+    expect(erpCatalog.find((item) => item.id === 'kitchen')).toMatchObject({ href: '/erp/kitchen', status: 'ready' })
+    expect(erpCatalog.find((item) => item.id === 'delivery')).toMatchObject({ href: '/erp/delivery', status: 'ready' })
   })
 
   it('filters by the visible title and description', () => {

@@ -1,6 +1,6 @@
 // Read-only look at a staging database. It does not apply migrations and it does not change rows.
 //
-//   node --env-file=.env.staging scripts/staging-inspect.mjs --expect-host pikqnlzkoaxoxpahtzvc --i-understand-this-is-staging
+//   node --env-file=.env.staging scripts/staging-inspect.mjs --expect-host pikqnlzkoaxoxpahztvc --i-understand-this-is-staging
 //
 // The connection string is never printed. A project that is not in database/approved-staging-targets.json is refused
 // before any connection.

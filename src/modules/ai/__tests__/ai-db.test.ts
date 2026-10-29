@@ -220,6 +220,7 @@ describe('scan', () => {
         'finance.payment_reminder',
         'inventory.fast_depleting',
         'inventory.low_stock',
+        'operations.cost_scenarios',
       ].sort()
     )
     expect(result).toMatchObject({ skipped: [], findings: 7, insightsCreated: 7, approvalsCreated: 7, insightsUpdated: 0, insightsResolved: 0 })
@@ -764,7 +765,7 @@ describe('isolation and rules', () => {
     expect((await pendingApprovals(a.auth)).length).toBe(7)
   }, 60_000)
 
-  it('seeds the seven default rules for a new tenant and keeps them editable', async () => {
+  it('seeds the eight default rules for a new tenant and keeps them editable', async () => {
     const auth = await newTenant('rules')
     const rules = (await listRules(auth)).data
     expect(rules.map((rule) => rule.ruleKey).sort()).toEqual([
@@ -775,6 +776,7 @@ describe('isolation and rules', () => {
       'finance.payment_reminder',
       'inventory.fast_depleting',
       'inventory.low_stock',
+      'operations.cost_scenarios',
     ])
     expect(rules.every((rule) => rule.isActive)).toBe(true)
     const low = rules.find((rule) => rule.ruleKey === 'inventory.low_stock')

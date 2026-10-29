@@ -48,6 +48,7 @@ export const actionTypes = [
   'price_adjustment',
   'payment_reminder',
   'lead_followup',
+  'scenario_choice',
 ] as const
 export type ActionType = (typeof actionTypes)[number]
 
@@ -107,6 +108,7 @@ export const ruleKeys = [
   'finance.margin_floor',
   'crm.stalled_leads',
   'crm.discount_incentive',
+  'operations.cost_scenarios',
 ] as const
 export type RuleKey = (typeof ruleKeys)[number]
 
@@ -204,6 +206,17 @@ export type LeadFollowupPayload = {
   daysStalled: number
   customerId: string
   customerName: string
+}
+
+export const scenarioOptionKeys = ['renegotiate', 'adjust_menu', 'reduce_waste'] as const
+export type ScenarioOptionKey = (typeof scenarioOptionKeys)[number]
+
+export type ScenarioOption = {
+  key: ScenarioOptionKey
+  impactMinor: number
+  titleAr: string
+  summaryAr: string
+  newPriceMinor: number | null
 }
 
 export type ProposalDraft = {

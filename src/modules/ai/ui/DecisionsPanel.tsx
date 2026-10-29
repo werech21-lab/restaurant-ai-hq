@@ -6,7 +6,7 @@ import { ApiError, apiRequest, errorKey, isAbort, newIdempotencyKey } from '@/co
 import { dateTimeText, type ListPage, type Phase } from '@/components/erp/common'
 import { dangerButton, errorClass, inputClass, noticeClass, primaryButton, secondaryButton } from '@/components/erp/styles'
 import { useI18n, type MessageKey } from '@/lib/i18n'
-import type { Approval, ApprovalStatus } from '@/modules/ai/client'
+import type { Approval, ApprovalStatus, ScenarioOptionKey } from '@/modules/ai/client'
 import { ActionBadge, ApprovalStatusBadge, Impact, recordHref, refLabels } from '@/modules/ai/ui/labels'
 
 type StatusFilter = ApprovalStatus | 'all'
@@ -14,7 +14,7 @@ type StatusFilter = ApprovalStatus | 'all'
 const filters: readonly StatusFilter[] = ['pending', 'executed', 'rejected', 'all']
 const PAGE_SIZE = 20
 // After these errors the request on screen is out of date, so the list is read again.
-const refreshCodes: ReadonlySet<string> = new Set(['version_conflict', 'invalid_transition', 'not_found'])
+const refreshCodes: ReadonlySet<string> = new Set(['version_conflict', 'invalid_transition', 'not_found', 'proposal_stale'])
 
 function isWhatsappUrl(value: string): boolean {
   return value.startsWith('https://wa.me/')
@@ -80,14 +80,36 @@ type CardProps = {
   approval: Approval
   busy: boolean
   error: MessageKey | null
-  onApprove: (approval: Approval, note: string) => void
+  onApprove: (approval: Approval, note: string, optionKey: ScenarioOptionKey | null) => void
   onReject: (approval: Approval, note: string) => void
+}
+
+type ScenarioChoice = { key: ScenarioOptionKey; titleAr: string; summaryAr: string; impactMinor: number }
+
+function scenarioChoices(payload: Record<string, unknown>): ScenarioChoice[] {
+  const raw = payload.options
+  if (!Array.isArray(raw)) return []
+  return raw.flatMap((item) => {
+    if (!item || typeof item !== 'object') return []
+    const row = item as Record<string, unknown>
+    if (
+      (row.key !== 'renegotiate' && row.key !== 'adjust_menu' && row.key !== 'reduce_waste') ||
+      typeof row.titleAr !== 'string' ||
+      typeof row.summaryAr !== 'string' ||
+      typeof row.impactMinor !== 'number'
+    ) {
+      return []
+    }
+    return [{ key: row.key, titleAr: row.titleAr, summaryAr: row.summaryAr, impactMinor: row.impactMinor }]
+  })
 }
 
 function ApprovalCard({ approval, busy, error, onApprove, onReject }: CardProps) {
   const { t } = useI18n()
   const [noteOpen, setNoteOpen] = useState(false)
   const [note, setNote] = useState('')
+  const choices = approval.actionType === 'scenario_choice' ? scenarioChoices(approval.payloadJson) : []
+  const [optionKey, setOptionKey] = useState<ScenarioOptionKey | null>(choices[0]?.key ?? null)
   const pending = approval.status === 'pending'
 
   return (
@@ -124,6 +146,30 @@ function ApprovalCard({ approval, busy, error, onApprove, onReject }: CardProps)
 
       {pending ? (
         <div className="mt-4 space-y-3">
+          {choices.length > 0 ? (
+            <fieldset className="space-y-2">
+              <legend className="text-sm text-gray-300">{t('ai.scenario.choose')}</legend>
+              {choices.map((choice) => (
+                <label key={choice.key} className="flex items-start gap-2 rounded-lg border border-[#30363d] p-3 text-sm text-gray-200">
+                  <input
+                    type="radio"
+                    name={`scenario-${approval.id}`}
+                    value={choice.key}
+                    checked={optionKey === choice.key}
+                    disabled={busy}
+                    onChange={() => setOptionKey(choice.key)}
+                  />
+                  <span>
+                    <span className="font-semibold">{choice.titleAr}</span>
+                    <span className="mt-1 block text-gray-400">{choice.summaryAr}</span>
+                    <span className="mt-1 block">
+                      <Impact minor={choice.impactMinor} />
+                    </span>
+                  </span>
+                </label>
+              ))}
+            </fieldset>
+          ) : null}
           {noteOpen ? (
             <label className="block text-sm text-gray-400">
               {t('ai.dec.note')}
@@ -138,7 +184,7 @@ function ApprovalCard({ approval, busy, error, onApprove, onReject }: CardProps)
             </label>
           ) : null}
           <div className="flex flex-wrap items-center gap-2">
-            <button type="button" disabled={busy} onClick={() => onApprove(approval, note)} className={primaryButton}>
+            <button type="button" disabled={busy || (choices.length > 0 && optionKey === null)} onClick={() => onApprove(approval, note, optionKey)} className={primaryButton}>
               {busy ? t('ai.dec.working') : t('ai.dec.approve')}
             </button>
             <button type="button" disabled={busy} onClick={() => onReject(approval, note)} className={dangerButton}>
@@ -245,7 +291,7 @@ export function DecisionsPanel({ initialStatus = 'pending', showFilter = false, 
     })
   }
 
-  async function decide(approval: Approval, decision: 'approve' | 'reject', note: string) {
+  async function decide(approval: Approval, decision: 'approve' | 'reject', note: string, optionKey: ScenarioOptionKey | null = null) {
     const id = approval.id
     setBusyFor(id, true)
     setErrors((current) => {
@@ -253,7 +299,11 @@ export function DecisionsPanel({ initialStatus = 'pending', showFilter = false, 
       return rest
     })
     const trimmed = note.trim()
-    const body = trimmed === '' ? { version: approval.version } : { version: approval.version, note: trimmed }
+    const body = {
+      version: approval.version,
+      ...(trimmed === '' ? {} : { note: trimmed }),
+      ...(decision === 'approve' && optionKey ? { optionKey } : {}),
+    }
     try {
       let key = keys.current.get(id)
       if (!key) {
@@ -355,7 +405,7 @@ export function DecisionsPanel({ initialStatus = 'pending', showFilter = false, 
               approval={approval}
               busy={busy.has(approval.id)}
               error={errors[approval.id] ?? null}
-              onApprove={(item, note) => void decide(item, 'approve', note)}
+              onApprove={(item, note, optionKey) => void decide(item, 'approve', note, optionKey)}
               onReject={(item, note) => void decide(item, 'reject', note)}
             />
           ))}

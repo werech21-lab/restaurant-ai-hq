@@ -38,8 +38,12 @@ export const baselineSentinels = {
       'public.supplier_payment_allocations',
     ],
     '0016_freeze_invoice_notes.sql': ['def:invoices_freeze:new.notes'],
-    '0017_inventory_valuation.sql': ['public.inventory_settings', 'public.item_cost_events'],
-  }
+  '0017_inventory_valuation.sql': ['public.inventory_settings', 'public.item_cost_events'],
+  '0018_kitchen_and_delivery_live.sql': ['public.recipes', 'public.kitchen_waste', 'public.delivery_orders'],
+  '0019_operational_posting.sql': ['public.kitchen_productions', 'public.delivery_settlements'],
+  '0020_operational_read_policies.sql': ['fn:erp_operational_read_marker()'],
+  '0021_sales_revenue.sql': ['def:journal_entries_source_guard:sales_revenue'],
+}
 
 /**
  * Compares the migration files with the recorded history.

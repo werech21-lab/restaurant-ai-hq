@@ -6,6 +6,8 @@ export {
   invoiceSummaryHandler,
   listInvoicesHandler,
   recordPaymentHandler,
+  postOpenCollectionsHandler,
+  postOpenRevenueHandler,
   submitInvoiceHandler,
   updateInvoiceHandler,
   voidInvoiceHandler,
@@ -57,13 +59,17 @@ export {
   getInvoiceSummary,
   listInvoices,
   listReceivableSignals,
+  getOperationalAccountsWithin,
   recordPayment,
+  postOpenCollections,
+  postOpenRevenue,
   submitInvoice,
   submitInvoiceWithin,
   updateInvoice,
   voidInvoice,
 } from '@/modules/finance/services/invoice-service'
 export { publishFinanceEvents } from '@/modules/finance/events'
+export { buildCollectionLines, buildCommissionLines, buildConsumptionLines, buildRevenueLines } from '@/modules/finance/domain/operational-posting'
 export type * from '@/modules/finance/domain/types'
 export type * from '@/modules/finance/domain/ledger-types'
 export type * from '@/modules/finance/events'

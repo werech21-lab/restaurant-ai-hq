@@ -44,10 +44,10 @@ test('arabic and english screens, then procure-to-pay and quote-to-cash against 
   test.setTimeout(420_000)
   const world = await runtime()
   await page.goto('/')
-  await expect(page.getByText('معاينة بأرقام ثابتة. هذه ليست بيانات التشغيل في وحدات ERP.')).toBeVisible()
+  await expect(page.getByText('غرفة القيادة تقرأ القاعدة المتصلة. الصفر يعني أنه لا توجد حركة بعد، ولا تُجمع أرقام أكثر من شركة.')).toBeVisible()
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
   await page.getByRole('button', { name: 'EN', exact: true }).click()
-  await expect(page.getByText('Preview with fixed figures. This is not the operational ERP data.')).toBeVisible()
+  await expect(page.getByText('The executive room reads the connected database. Zero means there is no movement yet, and figures from more than one company are not combined.')).toBeVisible()
   await expect(page.locator('html')).toHaveAttribute('dir', 'ltr')
 
   await signIn(page, world.companyA.owner, world.baseUrl)

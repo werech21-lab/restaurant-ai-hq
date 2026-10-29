@@ -490,3 +490,57 @@ export async function listStockSignals(
         : null,
   }))
 }
+
+export type CostVarianceRow = {
+  itemId: string
+  sku: string
+  name: string
+  onHand: number
+  unitCostMinor: number
+  openingUnitMinor: number
+  sellingPriceMinor: number
+}
+
+export async function listCostVariances(tx: Queryable, tenantId: string): Promise<CostVarianceRow[]> {
+  const result = await tx.query<CostVarianceRow>(
+    `select i.id as "itemId", i.sku, i.name, i.current_stock as "onHand",
+            i.unit_cost_minor::bigint as "unitCostMinor", i.selling_price_minor::bigint as "sellingPriceMinor",
+            coalesce((
+              select e.average_before_minor from item_cost_events e
+              where e.tenant_id = i.tenant_id and e.item_id = i.id and e.kind = 'receipt'
+              order by e.created_at desc, e.id desc
+              limit 1
+            ), i.unit_cost_minor)::bigint as "openingUnitMinor"
+     from items i
+     where i.tenant_id = $1 and i.is_active
+     order by i.sku, i.id`,
+    [tenantId]
+  )
+  return result.rows.map((row) => ({
+    ...row,
+    onHand: Number(row.onHand),
+    unitCostMinor: Number(row.unitCostMinor),
+    openingUnitMinor: Number(row.openingUnitMinor),
+    sellingPriceMinor: Number(row.sellingPriceMinor),
+  }))
+}
+
+export async function readItemCosts(
+  tx: Queryable,
+  tenantId: string,
+  ids: readonly string[]
+): Promise<Array<{ itemId: string; unitCostMinor: number; sellingPriceMinor: number; onHand: number }>> {
+  if (ids.length === 0) return []
+  const result = await tx.query<{ itemId: string; unitCostMinor: number; sellingPriceMinor: number; onHand: number }>(
+    `select id as "itemId", unit_cost_minor::bigint as "unitCostMinor", selling_price_minor::bigint as "sellingPriceMinor",
+            current_stock as "onHand"
+     from items where tenant_id = $1 and id = any($2::uuid[])`,
+    [tenantId, [...ids]]
+  )
+  return result.rows.map((row) => ({
+    itemId: row.itemId,
+    unitCostMinor: Number(row.unitCostMinor),
+    sellingPriceMinor: Number(row.sellingPriceMinor),
+    onHand: Number(row.onHand),
+  }))
+}

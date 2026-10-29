@@ -76,6 +76,31 @@ const links: readonly NavLink[] = [
     ),
   },
   {
+    href: '/erp/kitchen',
+    label: 'erpnav.kitchen',
+    exact: false,
+    icon: (
+      <Glyph>
+        <path d="M4 10h16" />
+        <path d="M6 10v8a2 2 0 002 2h8a2 2 0 002-2v-8" />
+        <path d="M9 6V4h6v2" />
+      </Glyph>
+    ),
+  },
+  {
+    href: '/erp/delivery',
+    label: 'erpnav.delivery',
+    exact: false,
+    icon: (
+      <Glyph>
+        <path d="M3 7h11v8H3z" />
+        <path d="M14 10h4l3 3v2h-7" />
+        <circle cx="7" cy="17" r="1.5" />
+        <circle cx="17" cy="17" r="1.5" />
+      </Glyph>
+    ),
+  },
+  {
     href: '/erp/procurement',
     label: 'erpnav.procurement',
     exact: false,

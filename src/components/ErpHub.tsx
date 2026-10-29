@@ -11,7 +11,7 @@ const statusKey: Record<CatalogStatus, MessageKey> = {
   planned: 'hub.status.planned',
 }
 
-export default function ErpHub() {
+export default function ErpHub({ signedIn = false, devEntry = false }: { signedIn?: boolean; devEntry?: boolean }) {
   const { t } = useI18n()
   const [query, setQuery] = useState('')
   const visible = filterCatalog(erpCatalog, query, t)
@@ -45,14 +45,14 @@ export default function ErpHub() {
                 <span className="rounded-full border border-gold-300/20 px-2 py-0.5 text-[11px] text-mist-100">{t(statusKey[app.status])}</span>
               </span>
               <span className="mt-1 text-sm text-mist-100">{t(app.detail)}</span>
-              <span className="mt-3 text-xs text-mist-400">{app.href ? t('hub.login') : t('hub.status.planned')}</span>
+              <span className="mt-3 text-xs text-mist-400">{app.href ? t(signedIn ? 'hub.open' : 'hub.login') : t('hub.status.planned')}</span>
             </>
           )
           return (
             <li key={app.id}>
               {app.href ? (
                 <Link
-                  href={app.href}
+                  href={devEntry && !signedIn && app.href ? `/dev/owner?next=${encodeURIComponent(app.href)}` : app.href}
                   className="flex h-full flex-col rounded-2xl border border-gold-300/15 bg-ink-900/80 px-4 py-3 transition hover:border-gold-300/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-400/40"
                 >
                   {body}

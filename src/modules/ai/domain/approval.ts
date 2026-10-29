@@ -35,6 +35,8 @@ export function underlyingPermissions(actionType: ActionType): Permission[] {
       return [permissions.financeInvoiceRead]
     case 'lead_followup':
       return [permissions.crmLeadRead]
+    case 'scenario_choice':
+      return [permissions.inventoryItemRead]
   }
 }
 

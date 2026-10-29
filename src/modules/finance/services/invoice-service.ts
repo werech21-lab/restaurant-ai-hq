@@ -15,7 +15,8 @@ import {
   validateStockLines,
   type InventoryEvent,
 } from '@/modules/inventory'
-import { findActiveSourcedEntryWithin, postSourcedEntryWithin, reverseSourcedEntryWithin } from '@/modules/finance/services/ledger-service'
+import { findAccountsWithin, findActiveSourcedEntryWithin, postSourcedEntryWithin, reverseSourcedEntryWithin } from '@/modules/finance/services/ledger-service'
+import { buildCollectionLines, buildRevenueLines } from '@/modules/finance/domain/operational-posting'
 import {
   applyPayment,
   approve as approveRule,
@@ -51,6 +52,80 @@ export type PaymentBody = { data: { invoice: InvoiceDetail; payment: Payment } }
 
 const CREATE_SCOPE = 'finance.invoice.create'
 const PAYMENT_SCOPE = 'finance.payment.create'
+const COLLECTION_SCOPE = 'finance.collection.post'
+const REVENUE_SCOPE = 'finance.revenue.post'
+
+function collectionDate(paidAt: string): string {
+  return new Date(paidAt).toISOString().slice(0, 10)
+}
+
+async function bookCollection(
+  tx: Queryable,
+  auth: AuthContext,
+  payment: { id: string; amountMinor: number; paidAt: string },
+  invoiceNumber: string,
+  events: FinanceEvent[]
+): Promise<string | null> {
+  const accounts = await repository.getOperationalAccounts(tx, auth.tenantId)
+  if (!accounts?.receivableAccountId || !accounts.collectionAccountId) return null
+  const existing = await findActiveSourcedEntryWithin(tx, auth.tenantId, 'customer_collection', payment.id)
+  if (existing) return existing
+  const found = await findAccountsWithin(tx, auth.tenantId, [accounts.receivableAccountId, accounts.collectionAccountId])
+  const byId = new Map(found.map((account) => [account.id, account]))
+  const cash = byId.get(accounts.collectionAccountId)
+  const receivable = byId.get(accounts.receivableAccountId)
+  if (!cash || !receivable || cash.type !== 'asset' || receivable.type !== 'asset' || !cash.isPostable || !receivable.isPostable) {
+    throw new DomainError('accounts_not_configured', 'Collection needs a postable asset cash account and a postable asset receivable account.')
+  }
+  const memo = `Collection ${invoiceNumber}`
+  const entry = await postSourcedEntryWithin(
+    tx,
+    auth,
+    {
+      entryDate: collectionDate(payment.paidAt),
+      memo,
+      sourceType: 'customer_collection',
+      sourceId: payment.id,
+      lines: buildCollectionLines(payment.amountMinor, cash.id, receivable.id, memo),
+    },
+    events
+  )
+  return entry.id
+}
+
+async function bookRevenue(
+  tx: Queryable,
+  auth: AuthContext,
+  invoice: { id: string; number: string; issueDate: string; totalMinor: number },
+  events: FinanceEvent[]
+): Promise<string | null> {
+  if (!Number.isSafeInteger(invoice.totalMinor) || invoice.totalMinor <= 0) return null
+  const accounts = await repository.getOperationalAccounts(tx, auth.tenantId)
+  if (!accounts?.receivableAccountId || !accounts.revenueAccountId) return null
+  const existing = await findActiveSourcedEntryWithin(tx, auth.tenantId, 'sales_revenue', invoice.id)
+  if (existing) return existing
+  const found = await findAccountsWithin(tx, auth.tenantId, [accounts.receivableAccountId, accounts.revenueAccountId])
+  const byId = new Map(found.map((account) => [account.id, account]))
+  const receivable = byId.get(accounts.receivableAccountId)
+  const revenue = byId.get(accounts.revenueAccountId)
+  if (!receivable || !revenue || receivable.type !== 'asset' || revenue.type !== 'revenue' || !receivable.isPostable || !revenue.isPostable) {
+    throw new DomainError('accounts_not_configured', 'Sales revenue needs a postable asset receivable account and a postable revenue account.')
+  }
+  const memo = `Sales ${invoice.number}`
+  const entry = await postSourcedEntryWithin(
+    tx,
+    auth,
+    {
+      entryDate: invoice.issueDate,
+      memo,
+      sourceType: 'sales_revenue',
+      sourceId: invoice.id,
+      lines: buildRevenueLines(invoice.totalMinor, receivable.id, revenue.id, memo),
+    },
+    events
+  )
+  return entry.id
+}
 const SEQUENCE_NAME = 'finance.invoice'
 
 function invoiceNotFound(): AppError {
@@ -287,6 +362,7 @@ export async function submitInvoiceWithin(
   if (updated.status === 'issued') {
     // Stock leaves in the same transaction. Not enough stock throws and the whole submit rolls back.
     await postCostOfGoods(tx, auth, updated, lines, events, stockEvents)
+    await bookRevenue(tx, auth, updated, events)
     events.push({ ...eventBase(auth), name: 'finance.invoice.issued', payload: ref(updated) })
   }
   return loadDetail(tx, auth.tenantId, updated)
@@ -316,6 +392,7 @@ export async function approveInvoice(auth: AuthContext, id: string, input: Versi
     await audit(tx, auth, 'invoice', id, 'update', current, updated)
     const lines = await repository.listLines(tx, auth.tenantId, id)
     await postCostOfGoods(tx, auth, updated, lines, events, stockEvents)
+    await bookRevenue(tx, auth, updated, events)
     events.push(
       { ...eventBase(auth), name: 'finance.invoice.approved', payload: { ...ref(updated), approvedBy: auth.userId } },
       { ...eventBase(auth), name: 'finance.invoice.issued', payload: ref(updated) }
@@ -346,6 +423,15 @@ export async function voidInvoice(auth: AuthContext, id: string, input: VoidInvo
           tx,
           auth,
           { entryId: cogsId, sourceType: 'sales_cogs', entryDate: current.issueDate, memo: `Void COGS ${updated.number}` },
+          events
+        )
+      }
+      const revenueId = await findActiveSourcedEntryWithin(tx, auth.tenantId, 'sales_revenue', updated.id)
+      if (revenueId) {
+        await reverseSourcedEntryWithin(
+          tx,
+          auth,
+          { entryId: revenueId, sourceType: 'sales_revenue', entryDate: current.issueDate, memo: `Void sales ${updated.number}` },
           events
         )
       }
@@ -395,6 +481,7 @@ export async function recordPayment(
         if (!updated) throw versionConflict()
         await audit(tx, auth, 'payment', payment.id, 'create', null, payment)
         await audit(tx, auth, 'invoice', id, 'update', current, updated)
+        await bookCollection(tx, auth, payment, updated.number, events)
         events.push({
           ...eventBase(auth),
           name: 'finance.payment.recorded',
@@ -411,6 +498,55 @@ export async function recordPayment(
         }
         const invoice = await loadDetail(tx, auth.tenantId, updated)
         return { status: 201, body: { data: { invoice, payment } } }
+      }
+    )
+  )
+  if (!outcome.replayed) await publishFinanceEvents(events)
+  if (outcome.replayed) {
+    const extra: FinanceEvent[] = []
+    await withTransaction((tx) => bookCollection(tx, auth, outcome.body.data.payment, outcome.body.data.invoice.number, extra))
+    if (extra.length > 0) await publishFinanceEvents(extra)
+  }
+  return outcome
+}
+
+/** Posts a cash/receivable entry for every collection that does not have one yet. */
+export async function postOpenCollections(auth: AuthContext, idempotencyKey: string): Promise<IdempotentResult<{ data: { posted: number } }>> {
+  const events: FinanceEvent[] = []
+  const outcome = await withTransaction((tx) =>
+    runIdempotent<{ data: { posted: number } }>(
+      tx,
+      { tenantId: auth.tenantId, scope: COLLECTION_SCOPE, key: idempotencyKey, requestHash: hashRequest({ scope: COLLECTION_SCOPE }) },
+      async () => {
+        const accounts = await repository.getOperationalAccounts(tx, auth.tenantId)
+        if (!accounts?.receivableAccountId || !accounts.collectionAccountId) {
+          throw new DomainError('accounts_not_configured', 'Choose the cash and receivable accounts before posting collections.')
+        }
+        const open = await repository.listUnjournaledPayments(tx, auth.tenantId)
+        for (const payment of open) await bookCollection(tx, auth, payment, payment.invoiceNumber, events)
+        return { status: 200, body: { data: { posted: open.length } } }
+      }
+    )
+  )
+  if (!outcome.replayed) await publishFinanceEvents(events)
+  return outcome
+}
+
+/** Posts the receivable and sales entry for every issued invoice that does not have one yet. */
+export async function postOpenRevenue(auth: AuthContext, idempotencyKey: string): Promise<IdempotentResult<{ data: { posted: number } }>> {
+  const events: FinanceEvent[] = []
+  const outcome = await withTransaction((tx) =>
+    runIdempotent<{ data: { posted: number } }>(
+      tx,
+      { tenantId: auth.tenantId, scope: REVENUE_SCOPE, key: idempotencyKey, requestHash: hashRequest({ scope: REVENUE_SCOPE }) },
+      async () => {
+        const accounts = await repository.getOperationalAccounts(tx, auth.tenantId)
+        if (!accounts?.receivableAccountId || !accounts.revenueAccountId) {
+          throw new DomainError('accounts_not_configured', 'Choose the receivable and sales accounts before posting sales revenue.')
+        }
+        const open = await repository.listUnjournaledSales(tx, auth.tenantId)
+        for (const invoice of open) await bookRevenue(tx, auth, invoice, events)
+        return { status: 200, body: { data: { posted: open.length } } }
       }
     )
   )
@@ -444,6 +580,10 @@ export async function getInvoiceSummary(auth: AuthContext): Promise<{ data: Invo
 /** Customers with open invoices overdue by at least minDaysOverdue days, for the AI engine. Runs in the caller's transaction. */
 export function listReceivableSignals(tx: Queryable, tenantId: string, minDaysOverdue: number): Promise<ReceivableSignal[]> {
   return repository.receivableSignals(tx, tenantId, minDaysOverdue)
+}
+
+export function getOperationalAccountsWithin(tx: Queryable, tenantId: string): Promise<repository.OperationalAccounts | null> {
+  return repository.getOperationalAccounts(tx, tenantId)
 }
 
 /** Current status and unpaid balance of the given invoices, for the AI engine. Runs in the caller's transaction. */

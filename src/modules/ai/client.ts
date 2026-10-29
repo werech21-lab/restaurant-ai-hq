@@ -6,6 +6,7 @@ export {
   insightSeverities,
   insightStatuses,
   ruleKeys,
+  scenarioOptionKeys,
 } from '@/modules/ai/domain/types'
 export type {
   ActionType,
@@ -27,6 +28,7 @@ export type {
   RuleKey,
   ScanResult,
   ScanSkip,
+  ScenarioOptionKey,
 } from '@/modules/ai/domain/types'
 export { parseCommand } from '@/modules/ai/domain/command'
 export type { ParsedCommand } from '@/modules/ai/domain/command'

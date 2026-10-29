@@ -7,17 +7,21 @@ import { db, withTransaction, type Queryable } from '@/lib/db'
 import { DomainError } from '@/lib/domain-error'
 import { hashRequest, runIdempotent, type IdempotentResult } from '@/lib/idempotency'
 import { assertCanDecide, isRestockStale, missingPermissions } from '@/modules/ai/domain/approval'
-import { formatBps, formatCount, formatKwd, leadFollowupText, paymentReminderText, toDraftMessage, unitLabelAr } from '@/modules/ai/domain/messages'
+import { formatBps, formatCount, formatKwd, leadFollowupText, paymentReminderText, scenarioExecutedText, toDraftMessage, unitLabelAr } from '@/modules/ai/domain/messages'
+import { evaluateCostScenarios } from '@/modules/ai/domain/scenarios'
+import type { ScenarioOptionKey } from '@/modules/ai/domain/types'
 import type { Approval, ExecutionResult } from '@/modules/ai/domain/types'
 import { aiEventBase, publishAiEvents, type AiEvent } from '@/modules/ai/events'
 import * as repository from '@/modules/ai/repositories/ai-repository'
 import type { DecideApprovalBody, ListApprovalsQuery } from '@/modules/ai/schemas/ai'
+import { gatherCostScenario } from '@/modules/ai/services/cost-signals'
 import {
   autoReorderPayloadSchema,
   customerOverduePayloadSchema,
   discountPayloadSchema,
   leadFollowupPayloadSchema,
   priceAdjustmentPayloadSchema,
+  scenarioPayloadSchema,
 } from '@/modules/ai/schemas/payloads'
 import {
   applyDraftDiscountWithin,
@@ -222,7 +226,24 @@ async function executeFollowup(tx: Queryable, auth: AuthContext, approval: Appro
   }
 }
 
-async function execute(tx: Queryable, auth: AuthContext, approval: Approval, sink: EventSink): Promise<ExecutionResult> {
+async function executeScenario(tx: Queryable, auth: AuthContext, approval: Approval, optionKey: ScenarioOptionKey | undefined): Promise<ExecutionResult> {
+  if (!optionKey) throw new AppError(422, 'validation_failed', 'Choose one of the three options before approving.')
+  const payload = scenarioPayloadSchema.parse(approval.payloadJson)
+  const chosen = payload.options.find((option) => option.key === optionKey)
+  if (!chosen) throw stale('That option is no longer on this request.')
+  const fresh = evaluateCostScenarios(await gatherCostScenario(tx, auth.tenantId), 1)
+  const live = fresh[0]?.proposal?.payload
+  const parsed = live ? scenarioPayloadSchema.safeParse(live) : null
+  const current = parsed?.success ? parsed.data.options.find((option) => option.key === optionKey) : undefined
+  if (!current || current.impactMinor !== chosen.impactMinor) throw stale('The amounts on this scenario have changed. Scan again before deciding.')
+  return {
+    summaryAr: scenarioExecutedText(chosen.titleAr, chosen.impactMinor),
+    refs: [],
+    message: null,
+  }
+}
+
+async function execute(tx: Queryable, auth: AuthContext, approval: Approval, sink: EventSink, optionKey: ScenarioOptionKey | undefined): Promise<ExecutionResult> {
   switch (approval.actionType) {
     case 'auto_reorder':
       return executeReorder(tx, auth, approval, sink)
@@ -236,6 +257,8 @@ async function execute(tx: Queryable, auth: AuthContext, approval: Approval, sin
       return executeReminder(tx, auth, approval)
     case 'lead_followup':
       return executeFollowup(tx, auth, approval)
+    case 'scenario_choice':
+      return executeScenario(tx, auth, approval, optionKey)
   }
 }
 
@@ -267,7 +290,7 @@ export async function approveApproval(
         if (missing.length > 0) {
           throw new AppError(403, 'forbidden', `This action also needs: ${missing.join(', ')}.`)
         }
-        const result = await execute(tx, auth, approval, sink)
+        const result = await execute(tx, auth, approval, sink, input.optionKey)
         const updated = await repository.markExecuted(tx, auth.tenantId, id, input.version, auth.userId, input.note, result)
         if (updated === null) throw versionConflict()
         await writeAudit(tx, {

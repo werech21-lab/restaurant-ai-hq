@@ -95,3 +95,29 @@ export function leadFollowupText(args: { customerName: string; leadTitle: string
     'يسعدنا خدمتكم.',
   ].join('\n')
 }
+
+const SCENARIO_TITLES = {
+  renegotiate: 'إعادة التفاوض على سعر المورد',
+  adjust_menu: 'تعديل سعر البيع',
+  reduce_waste: 'خفض الهدر في الوصفة',
+} as const
+
+export function scenarioOptionCopy(
+  key: keyof typeof SCENARIO_TITLES,
+  impactMinor: number,
+  newPriceMinor: number | null
+): { titleAr: string; summaryAr: string } {
+  const money = formatKwd(impactMinor)
+  if (key === 'renegotiate') {
+    return { titleAr: SCENARIO_TITLES.renegotiate, summaryAr: `العودة إلى سعر الشراء السابق توفّر ${money} على الرصيد الحالي.` }
+  }
+  if (key === 'adjust_menu') {
+    const price = newPriceMinor === null ? '' : ` السعر الموضَّح ${formatKwd(newPriceMinor)}.`
+    return { titleAr: SCENARIO_TITLES.adjust_menu, summaryAr: `تغطية الهدر والعمولة من سعر البيع تسترد ${money}.${price}` }
+  }
+  return { titleAr: SCENARIO_TITLES.reduce_waste, summaryAr: `منع تكرار الهدر المسجّل يحمي ${money}.` }
+}
+
+export function scenarioExecutedText(titleAr: string, impactMinor: number): string {
+  return `اعتُمد «${titleAr}» بأثر ${formatKwd(impactMinor)}. القرار محفوظ في سجل التدقيق، ولم يُغيَّر سعر بيع ولا عقد مورد.`
+}

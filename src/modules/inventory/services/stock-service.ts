@@ -480,6 +480,64 @@ export async function returnPurchaseWithin(
   )
 }
 
+function combineQuantities(lines: readonly { itemId: string; quantity: number }[]): { itemId: string; quantity: number }[] {
+  const totals = new Map<string, number>()
+  for (const line of lines) totals.set(line.itemId, (totals.get(line.itemId) ?? 0) + line.quantity)
+  return [...totals.entries()].sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0)).map(([itemId, quantity]) => ({ itemId, quantity }))
+}
+
+/**
+ * Issues raw materials for a kitchen document. Quantity is a positive whole number and is stored negative.
+ * Under moving weighted average the cost is the average already in force. Otherwise it is the item's unit cost.
+ */
+export async function consumeStockWithin(
+  tx: Queryable,
+  auth: AuthContext,
+  input: { referenceId: string; note: string | null; lines: readonly { itemId: string; warehouseId: string; quantity: number }[] },
+  events: InventoryEvent[]
+): Promise<IssuedCost[]> {
+  if (input.lines.length === 0) throw new DomainError('invalid_quantity', 'A kitchen issue needs at least one material.')
+  const rows: LedgerRow[] = input.lines.map((line) => {
+    const [planned] = planMovement({ type: 'OUT', itemId: line.itemId, warehouseId: line.warehouseId, quantity: line.quantity, note: input.note }, input.referenceId)
+    return { ...planned, referenceType: 'kitchen_issue', referenceId: input.referenceId }
+  })
+  await applyLedger(tx, auth, rows, events, { enforceActive: false })
+  const costLines = combineQuantities(input.lines)
+  const moving = await recordIssueCosts(tx, auth, input.referenceId, costLines, 'kitchen_issue')
+  if (moving.length > 0) return moving
+  const locked = await repository.lockItems(tx, auth.tenantId, costLines.map((line) => line.itemId))
+  const byId = new Map(locked.map((item) => [item.id, item]))
+  return costLines.map((line) => {
+    const item = byId.get(line.itemId)
+    if (!item) throw new DomainError('item_not_found', 'The item does not exist.')
+    const amountMinor = line.quantity * item.unitCostMinor
+    if (!Number.isSafeInteger(amountMinor)) throw new DomainError('amount_too_large', 'The issue cost exceeds the maximum allowed amount.')
+    return { itemId: line.itemId, quantity: line.quantity, unitCostMinor: item.unitCostMinor, amountMinor }
+  })
+}
+
+export type CostVariance = {
+  itemId: string
+  sku: string
+  name: string
+  onHand: number
+  unitCostMinor: number
+  openingUnitMinor: number
+  sellingPriceMinor: number
+}
+
+export type ItemCost = { itemId: string; unitCostMinor: number; sellingPriceMinor: number; onHand: number }
+
+/** Latest receipt's average before it, or the current unit cost when the item has no receipt. For the AI engine. */
+export function listCostVariancesWithin(tx: Queryable, tenantId: string): Promise<CostVariance[]> {
+  return repository.listCostVariances(tx, tenantId)
+}
+
+/** Unit costs of the given items. Missing ids are omitted. For another module's own rows. */
+export function readItemCostsWithin(tx: Queryable, tenantId: string, ids: readonly string[]): Promise<ItemCost[]> {
+  return repository.readItemCosts(tx, tenantId, ids)
+}
+
 /** Active items with the stock, price and sales figures the AI engine evaluates. `itemIds` null means every active item. */
 export function listStockSignals(
   tx: Queryable,

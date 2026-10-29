@@ -19,8 +19,8 @@ export const erpCatalog: readonly CatalogItem[] = [
   { id: 'org', href: '/erp/org', title: 'erpnav.org', detail: 'hub.org', status: 'ready' },
   { id: 'iam', href: '/erp/iam', title: 'erpnav.iam', detail: 'hub.iam', status: 'ready' },
   { id: 'ai', href: '/erp/ai', title: 'erpnav.ai', detail: 'hub.ai', status: 'beta' },
-  { id: 'kitchen', title: 'nav.kitchen', detail: 'hub.kitchen', status: 'planned' },
-  { id: 'delivery', title: 'nav.delivery', detail: 'hub.delivery', status: 'planned' },
+  { id: 'kitchen', href: '/erp/kitchen', title: 'nav.kitchen', detail: 'hub.kitchen', status: 'ready' },
+  { id: 'delivery', href: '/erp/delivery', title: 'nav.delivery', detail: 'hub.delivery', status: 'ready' },
 ]
 
 export function filterCatalog(items: readonly CatalogItem[], query: string, label: (key: MessageKey) => string): CatalogItem[] {

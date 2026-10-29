@@ -14,6 +14,8 @@ import {
   evaluatePaymentReminder,
   evaluateStalledLeads,
 } from '@/modules/ai/domain/rules'
+import { evaluateCostScenarios, type CostScenarioInput } from '@/modules/ai/domain/scenarios'
+import { gatherCostScenario } from '@/modules/ai/services/cost-signals'
 import { parseThresholds } from '@/modules/ai/domain/thresholds'
 import type { AutomationRule, Finding, RuleKey, ScanResult, ScanSkip } from '@/modules/ai/domain/types'
 import { aiEventBase, publishAiEvents, type AiEvent } from '@/modules/ai/events'
@@ -71,6 +73,10 @@ class Signals {
     return loaded
   }
 
+  costScenario(): Promise<CostScenarioInput> {
+    return gatherCostScenario(this.tx, this.tenantId)
+  }
+
   /** The customers among these ids that are already blocked. */
   async blockedAmong(customerIds: readonly string[]): Promise<Set<string>> {
     const blocked = new Set<string>()
@@ -100,6 +106,8 @@ function requiredReads(ruleKey: RuleKey): string[] {
       return [permissions.crmLeadRead]
     case 'crm.discount_incentive':
       return [permissions.crmLeadRead, permissions.crmQuotationRead]
+    case 'operations.cost_scenarios':
+      return [permissions.inventoryItemRead]
   }
 }
 
@@ -111,7 +119,8 @@ function isRuleKey(value: string): value is RuleKey {
     value === 'finance.credit_hold' ||
     value === 'finance.margin_floor' ||
     value === 'crm.stalled_leads' ||
-    value === 'crm.discount_incentive'
+    value === 'crm.discount_incentive' ||
+    value === 'operations.cost_scenarios'
   )
 }
 
@@ -166,6 +175,12 @@ async function evaluateRule(rule: AutomationRule, signals: Signals, granted: Rea
       if (!parsed.ok) return { skip: 'invalid_condition' }
       const leads = await signals.stalledLeads(parsed.value.minProbability, parsed.value.staleDays)
       return { findings: evaluateDiscountIncentive(leads, parsed.value), cooldownDays: parsed.value.cooldownDays }
+    }
+    case 'operations.cost_scenarios': {
+      const parsed = parseThresholds(ruleKey, rule.conditionJson)
+      if (!parsed.ok) return { skip: 'invalid_condition' }
+      const pressure = await signals.costScenario()
+      return { findings: evaluateCostScenarios(pressure, parsed.value.minImpactMinor), cooldownDays: parsed.value.cooldownDays }
     }
   }
 }

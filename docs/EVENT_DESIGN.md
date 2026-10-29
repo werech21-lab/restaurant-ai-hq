@@ -45,6 +45,8 @@ type BusEvent = {
 | `crm.quotation.created` | crm |
 | `crm.quotation.status_changed` | crm |
 | `crm.quotation.updated` | crm |
+| `delivery.order.recorded` | delivery |
+| `delivery.order.settled` | delivery |
 | `finance.account.created` | finance |
 | `finance.account.updated` | finance |
 | `finance.invoice.approved` | finance |
@@ -74,6 +76,8 @@ type BusEvent = {
 | `inventory.stock.moved` | inventory |
 | `inventory.warehouse.created` | inventory |
 | `inventory.warehouse.updated` | inventory |
+| `kitchen.production.recorded` | kitchen |
+| `kitchen.waste.recorded` | kitchen |
 | `org.branch.created` | org |
 | `procurement.invoice.posted` | procurement |
 | `procurement.invoice.voided` | procurement |

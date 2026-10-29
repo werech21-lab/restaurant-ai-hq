@@ -78,3 +78,17 @@ export const leadFollowupPayloadSchema: z.ZodType<LeadFollowupPayload> = z.objec
   customerId: id,
   customerName: z.string(),
 })
+
+export const scenarioPayloadSchema = z.object({
+  options: z
+    .array(
+      z.object({
+        key: z.enum(['renegotiate', 'adjust_menu', 'reduce_waste']),
+        impactMinor: z.number().int().min(0).max(1_000_000_000_000),
+        titleAr: z.string().min(1).max(300),
+        summaryAr: z.string().min(1).max(500),
+        newPriceMinor: z.number().int().min(0).max(1_000_000_000).nullable(),
+      })
+    )
+    .length(3),
+})
