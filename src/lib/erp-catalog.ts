@@ -57,13 +57,17 @@ export const erpCatalog: readonly CatalogItem[] = [
     { href: '/erp/governance?tab=monitor', title: 'hub.branch.monitor' },
     { href: '/erp/governance?tab=tasks', title: 'hub.branch.tasks' },
   ] },
-  { id: 'ai', href: '/erp/ai', title: 'erpnav.ai', detail: 'hub.ai', status: 'beta' },
+  { id: 'ai', href: '/erp/ai', title: 'erpnav.ai', detail: 'hub.ai', status: 'ready', branches: [
+    { href: '/erp/ai?tab=decisions', title: 'hub.branch.ai.agents' },
+    { href: '/erp/ai?tab=insights', title: 'hub.branch.ai.simulate' },
+    { href: '/erp/ai?tab=rules', title: 'hub.branch.ai.approvals' },
+  ] },
   { id: 'kitchen', href: '/erp/kitchen', title: 'nav.kitchen', detail: 'hub.kitchen', status: 'ready' },
   { id: 'delivery', href: '/erp/delivery', title: 'nav.delivery', detail: 'hub.delivery', status: 'ready' },
   { id: 'aggregator', href: '/erp/aggregator-radar', title: 'erpnav.aggregator', detail: 'hub.aggregator', status: 'ready', branches: [
-    { href: '/erp/aggregator-radar#rank', title: 'hub.branch.georank' },
+    { href: '/erp/aggregator-radar?view=apps#rank', title: 'hub.branch.platforms' },
+    { href: '/erp/aggregator-radar?view=pulse#rank', title: 'hub.branch.georank' },
     { href: '/erp/aggregator-radar#gap', title: 'hub.branch.gap' },
-    { href: '/erp/aggregator-radar#tactics', title: 'hub.branch.tactics' },
     { href: '/erp/aggregator-radar#escalation', title: 'hub.branch.escalation' },
   ] },
 ]

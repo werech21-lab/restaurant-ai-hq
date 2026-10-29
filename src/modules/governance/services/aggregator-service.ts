@@ -12,6 +12,7 @@ import {
   escalationTransition,
   fiveMinuteBucket,
   logisticsModes,
+  buriedRankRescue,
   recommendEscalation,
   type AggregatorPlatform,
   type EscalationStatus,
@@ -76,38 +77,52 @@ export async function scanAggregator(auth: AuthContext, key: string, input: Scan
         if (await repository.hasOpenAction(tx, auth.tenantId, row.platformName, row.geoZoneAr, row.ourBranchName)) continue
         const leader = competitors.find((item) => item.snapshotId === row.id && item.competitorRank === 1)
         if (!leader) continue
-        const advice = recommendEscalation(
-          {
-            platformName: asPlatform(row.platformName),
-            geoZoneAr: row.geoZoneAr,
-            ourBranchName: row.ourBranchName,
-            currentRank: row.currentRank,
-            etaMinutes: row.deliveryEtaMinutes,
-            deliveryFeeMinor: row.deliveryFeeMinor,
-            logisticsMode: asLogistics(row.logisticsMode),
-            ratingBps: row.overallRatingBps,
-            sponsored: row.isSponsoredAdActive,
-          },
-          {
-            rank: leader.competitorRank,
-            etaMinutes: leader.competitorEtaMinutes,
-            deliveryFeeMinor: leader.competitorDeliveryFeeMinor,
-            logisticsMode: asLogistics(leader.competitorLogisticsMode),
-            ratingBps: leader.competitorRatingBps,
-          },
-        )
-        if (advice.estimatedRankJump < 1 || advice.targetRank > row.currentRank) continue
-        await repository.insertAction(tx, auth.tenantId, auth.userId, {
+        const observation = {
           platformName: asPlatform(row.platformName),
           geoZoneAr: row.geoZoneAr,
           ourBranchName: row.ourBranchName,
           currentRank: row.currentRank,
+          etaMinutes: row.deliveryEtaMinutes,
+          deliveryFeeMinor: row.deliveryFeeMinor,
+          logisticsMode: asLogistics(row.logisticsMode),
+          ratingBps: row.overallRatingBps,
+          sponsored: row.isSponsoredAdActive,
+        }
+        const rescue = buriedRankRescue({
+          platformName: observation.platformName,
+          geoZoneAr: observation.geoZoneAr,
+          currentRank: observation.currentRank,
+          etaMinutes: observation.etaMinutes,
+          acceptanceSeconds: row.avgOrderAcceptanceSeconds,
+          prepMinutes: row.prepTimeMinutes,
+          cancellationBps: row.cancellationRateBps,
+          logisticsMode: observation.logisticsMode,
+        })
+        const advice = rescue ?? recommendEscalation(observation, {
+          rank: leader.competitorRank,
+          etaMinutes: leader.competitorEtaMinutes,
+          deliveryFeeMinor: leader.competitorDeliveryFeeMinor,
+          logisticsMode: asLogistics(leader.competitorLogisticsMode),
+          ratingBps: leader.competitorRatingBps,
+        })
+        if (advice.estimatedRankJump < 1 || advice.targetRank > row.currentRank) continue
+        await repository.insertAction(tx, auth.tenantId, auth.userId, {
+          platformName: observation.platformName,
+          geoZoneAr: observation.geoZoneAr,
+          ourBranchName: observation.ourBranchName,
+          currentRank: observation.currentRank,
           targetRank: advice.targetRank,
           rootCauseAr: advice.rootCauseAr,
           recommendationAr: advice.recommendationAr,
           actionType: advice.actionType,
           estimatedRankJump: advice.estimatedRankJump,
-          estimatedRevenueUpliftMinor: advice.estimatedRevenueUpliftMinor,
+          estimatedRevenueUpliftMinor: rescue?.estimatedMonthlyRevenueUpliftMinor ?? advice.estimatedRevenueUpliftMinor,
+          penaltyDiagnosedAr: rescue?.penaltyDiagnosedAr ?? '',
+          stepByStepPlanAr: rescue?.stepByStepPlanAr ?? '',
+          logisticsSwitchAr: rescue?.logisticsSwitchAr ?? '',
+          ratingBoostTacticAr: rescue?.ratingBoostTacticAr ?? '',
+          estimatedDailyOrdersGain: rescue?.estimatedDailyOrdersGain ?? 0,
+          estimatedMonthlyRevenueUpliftMinor: rescue?.estimatedMonthlyRevenueUpliftMinor ?? 0,
         })
       }
       await writeAudit(tx, { tenantId: auth.tenantId, actorId: auth.userId, entity: 'aggregator_scan', entityId: auth.tenantId, action: 'create', before: null, after: { recorded, bucket } })

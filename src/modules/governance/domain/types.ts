@@ -175,6 +175,10 @@ export type GeoRankSnapshot = {
   reviewsCount: number
   estimatedVisitsImpressions: number
   conversionRateBps: number
+  avgOrderAcceptanceSeconds: number
+  prepTimeMinutes: number
+  cancellationRateBps: number
+  algorithmPenaltyReasonAr: string | null
   deliveryEtaMinutes: number
   deliveryFeeMinor: number
   minOrderMinor: number
@@ -197,8 +201,10 @@ export type CompetitorBench = {
   competitorEtaMinutes: number
   competitorDeliveryFeeMinor: number
   competitorLogisticsMode: 'platform_fleet' | 'vendor_own_fleet'
+  competitorConversionBps: number
   activePromoBadgeAr: string
   detectedRatingBoostPolicyAr: string
+  exactGapAnalysisAr: string
   gap: { rankGap: number; etaGapMinutes: number; feeGapMinor: number; ratingGapBps: number }
 }
 
@@ -214,6 +220,12 @@ export type EscalationCard = {
   actionType: string
   estimatedRankJump: number
   estimatedRevenueUpliftMinor: number
+  penaltyDiagnosedAr: string
+  stepByStepPlanAr: string
+  logisticsSwitchAr: string
+  ratingBoostTacticAr: string
+  estimatedDailyOrdersGain: number
+  estimatedMonthlyRevenueUpliftMinor: number
   status: 'pending' | 'approved_executing' | 'completed'
   createdAt: string
   version: number

@@ -10,6 +10,8 @@ describe('ERP catalog', () => {
     expect(planned.every((item) => item.href === undefined)).toBe(true)
     expect(erpCatalog.find((item) => item.id === 'kitchen')).toMatchObject({ href: '/erp/kitchen', status: 'ready' })
     expect(erpCatalog.find((item) => item.id === 'delivery')).toMatchObject({ href: '/erp/delivery', status: 'ready' })
+    expect(erpCatalog.find((item) => item.id === 'ai')).toMatchObject({ href: '/erp/ai', status: 'ready' })
+    expect(erpCatalog.find((item) => item.id === 'aggregator')?.branches).toHaveLength(4)
   })
 
   it('filters by the visible title and description', () => {

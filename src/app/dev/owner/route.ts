@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { DEV_OWNER_COOKIE, devOwnerEnabled, devOwnerHostAllowed, devOwnerNextPath, signDevOwnerCookie } from '@/lib/auth/dev-owner'
+import { DEV_OWNER_COOKIE, devOwnerEnabled, devOwnerHostAllowed, devOwnerRedirectUrl, signDevOwnerCookie } from '@/lib/auth/dev-owner'
 import { db } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
@@ -20,8 +20,8 @@ export async function GET(request: Request) {
   const userId = owner.rows[0]?.user_id
   if (!userId) return new NextResponse(null, { status: 404 })
 
-  const nextPath = devOwnerNextPath(new URL(request.url).searchParams.get('next'))
-  const response = NextResponse.redirect(new URL(nextPath, request.url))
+  const destination = devOwnerRedirectUrl(host ?? '', new URL(request.url).searchParams.get('next'))
+  const response = NextResponse.redirect(destination)
   response.cookies.set(DEV_OWNER_COOKIE, await signDevOwnerCookie(userId), {
     httpOnly: true,
     sameSite: 'lax',

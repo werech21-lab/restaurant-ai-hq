@@ -13,6 +13,11 @@ export const DEV_OWNER_COOKIE = 'aether_dev_owner'
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const MAX_AGE_SECONDS = 2 * 60 * 60
 
+/** Local hub only: a signed-out visit on this machine should receive the owner cookie before the cards render. */
+export function devOwnerShouldSignIn(signedIn: boolean, host: string | null): boolean {
+  return !signedIn && devOwnerEnabled() && devOwnerHostAllowed(host)
+}
+
 export function devOwnerEnabled(): boolean {
   if (process.env.AETHER_DEV_OWNER !== '1') return false
   if (process.env.NODE_ENV === 'production') return false
@@ -25,6 +30,11 @@ export function devOwnerHostAllowed(host: string | null): boolean {
   if (!host) return false
   const name = host.split(':')[0]?.toLowerCase()
   return name === '127.0.0.1' || name === 'localhost' || name === '[::1]'
+}
+
+/** Keeps the owner redirect on the host that asked for it. A cookie set on 127.0.0.1 is not sent to localhost. */
+export function devOwnerRedirectUrl(host: string, nextValue: string | null): string {
+  return new URL(devOwnerNextPath(nextValue), `http://${host}`).toString()
 }
 
 /** Only a same-site path. Anything else returns the finance screen. */

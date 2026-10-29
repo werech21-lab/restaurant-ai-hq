@@ -144,9 +144,9 @@ describe('baseline sentinels against the real migrations', () => {
 
   it('plans 0001 through 0027 in filename order for an empty database, then only the remainder', async () => {
     const all = await names()
-    expect(all).toHaveLength(27)
+    expect(all).toHaveLength(28)
     expect(all[0]).toBe('0001_core.sql')
-    expect(all[26]).toBe('0027_aggregator_5min_geo_rank_radar.sql')
+    expect(all[27]).toBe('0028_aggregator_rank_rescue_radar.sql')
     const described = all.map((name) => ({ name, checksum: 'same' }))
     expect(planMigrations(described, new Map())).toEqual({ pending: all, upToDate: [], changed: [], unknown: [], gaps: [] })
     const prefix = new Map(all.slice(0, 10).map((name) => [name, 'same']))

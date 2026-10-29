@@ -7,6 +7,7 @@ import {
   gapVsOurs,
   logisticsLabel,
   rankDelta,
+  buriedRankRescue,
   recommendEscalation,
 } from '@/modules/governance/domain/aggregator'
 
@@ -61,6 +62,39 @@ describe('aggregator rank engine', () => {
     expect(advice.recommendationAr).toContain('450.000')
     expect(advice.recommendationAr).toContain('#8')
     expect(advice.recommendationAr).toContain('#2')
+  })
+
+  it('diagnoses a buried rank and plans the climb to the top five', () => {
+    const plan = buriedRankRescue({
+      platformName: 'Talabat',
+      geoZoneAr: 'السالمية',
+      currentRank: 46,
+      etaMinutes: 47,
+      acceptanceSeconds: 95,
+      prepMinutes: 28,
+      cancellationBps: 900,
+      logisticsMode: 'vendor_own_fleet',
+    })
+    expect(plan?.targetRank).toBe(5)
+    expect(plan?.estimatedRankJump).toBe(41)
+    expect(plan?.estimatedDailyOrdersGain).toBe(82)
+    expect(plan?.estimatedMonthlyRevenueUpliftMinor).toBe(19_680_000)
+    expect(plan?.actionType).toBe('switch_fleet_mode')
+    expect(plan?.penaltyAr).toContain('47')
+    expect(plan?.penaltyAr).toContain('95')
+    expect(plan?.penaltyAr).toContain('أسطول الشركة')
+    expect(plan?.recommendationAr).toContain('19680.000')
+    expect(plan?.stepByStepPlanAr).toContain('توصيل التطبيق')
+    expect(buriedRankRescue({
+      platformName: 'Keeta',
+      geoZoneAr: 'السالمية',
+      currentRank: 8,
+      etaMinutes: 28,
+      acceptanceSeconds: 20,
+      prepMinutes: 12,
+      cancellationBps: 100,
+      logisticsMode: 'vendor_own_fleet',
+    })).toBeNull()
   })
 
   it('approves a pending escalation and refuses a completed one', () => {

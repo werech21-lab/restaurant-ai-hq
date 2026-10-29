@@ -204,6 +204,8 @@ describe('governance on the live schema', () => {
     expect(row?.rankDelta).toBe(1)
     expect(row?.logisticsMode).toBe('vendor_own_fleet')
     expect(row?.deliveryFeeMinor).toBe(750)
+    expect(row?.algorithmPenaltyReasonAr).toBeNull()
+    expect(row?.avgOrderAcceptanceSeconds).toBe(0)
     expect(board.competitors[0]?.gap).toEqual({ rankGap: 7, etaGapMinutes: 6, feeGapMinor: 750, ratingGapBps: 50 })
     expect(board.competitors[0]?.competitorLogisticsMode).toBe('platform_fleet')
     const approved = await actOnEscalation(auth, action.rows[0].id, { action: 'execute', version: 1 })
@@ -224,5 +226,9 @@ describe('governance on the live schema', () => {
     expect(rolled.rows[0]?.logistics_mode).toBe('vendor_own_fleet')
     await expect(pg().query(`update aggregator_geo_rank_snapshots set logistics_mode = 'courier' where id = $1`, [snapshotId])).rejects.toThrow(/logistics_mode/)
     await expect(pg().query(`update aggregator_geo_rank_snapshots set rank_delta = 9 where id = $1`, [snapshotId])).rejects.toThrow(/aggregator_geo_rank_delta_check/)
+    await expect(pg().query(
+      `update aggregator_geo_rank_snapshots set current_rank = 46, previous_rank_5m_ago = 48, rank_delta = 2 where id = $1`,
+      [snapshotId],
+    )).rejects.toThrow(/aggregator_geo_rank_penalty_check/)
   })
 })

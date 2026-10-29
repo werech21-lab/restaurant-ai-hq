@@ -168,6 +168,83 @@ export function recommendEscalation(ours: RankObservation, leader: RankLeader): 
   }
 }
 
+const TICKET_MINOR = 8_000
+
+function percentText(bps: number): string {
+  return `${Math.floor(bps / 100)}.${String(bps % 100).padStart(2, '0')}`
+}
+
+export type BuriedObservation = {
+  platformName: AggregatorPlatform
+  geoZoneAr: string
+  currentRank: number
+  etaMinutes: number
+  acceptanceSeconds: number
+  prepMinutes: number
+  cancellationBps: number
+  logisticsMode: LogisticsMode
+}
+
+export type BuriedRescue = {
+  penaltyAr: string
+  targetRank: number
+  estimatedRankJump: number
+  estimatedDailyOrdersGain: number
+  estimatedMonthlyRevenueUpliftMinor: number
+  estimatedRevenueUpliftMinor: number
+  penaltyDiagnosedAr: string
+  stepByStepPlanAr: string
+  logisticsSwitchAr: string
+  ratingBoostTacticAr: string
+  rootCauseAr: string
+  recommendationAr: string
+  actionType: EscalationActionType
+}
+
+/** Deterministic climb from a buried rank (39 and worse) to rank 5. The same inputs always return the same plan. */
+export function buriedRankRescue(input: BuriedObservation): BuriedRescue | null {
+  if (input.currentRank < 39 || input.currentRank > 50) return null
+  const reasons: string[] = []
+  if (input.etaMinutes > 40) reasons.push(`مدة التوصيل ${input.etaMinutes} دقيقة فوق حد 40 دقيقة`)
+  if (input.acceptanceSeconds > 60) reasons.push(`قبول الطلب ${input.acceptanceSeconds} ثانية فوق حد 60 ثانية`)
+  if (input.logisticsMode === 'vendor_own_fleet') reasons.push('التوصيل على أسطول الشركة بلا أولوية التطبيق')
+  if (input.cancellationBps >= 800) reasons.push(`نسبة الإلغاء ${percentText(input.cancellationBps)} بالمئة`)
+  if (reasons.length === 0) reasons.push('الترتيب خارج الصفحة الأولى')
+  const penaltyAr = `الخوارزمية أبقت الفرع في المركز ${input.currentRank} لأن ${reasons.join('، و')}.`
+  const targetRank = 5
+  const jump = input.currentRank - targetRank
+  const daily = Math.min(120, jump * 2)
+  const monthly = daily * TICKET_MINOR * 30
+  const platform = platformAr[input.platformName]
+  const logisticsSwitchAr = input.logisticsMode === 'vendor_own_fleet'
+    ? `حوّل ${input.geoZoneAr} على ${platform} من توصيل شركتنا إلى توصيل التطبيق، وثبّت مدة التوصيل عند 28 دقيقة ورسوم 0.500 د.ك.`
+    : `أبقِ توصيل التطبيق في ${input.geoZoneAr} على ${platform}، واخفض مدة التوصيل إلى 28 دقيقة ورسوم 0.500 د.ك.`
+  const stepByStepPlanAr = [
+    `1. اخفض قبول الطلب من ${input.acceptanceSeconds} ثانية إلى 25 ثانية.`,
+    `2. اخفض التحضير من ${input.prepMinutes} دقيقة إلى 12 دقيقة.`,
+    `3. ${logisticsSwitchAr}`,
+    `4. اخفض الإلغاء من ${percentText(input.cancellationBps)} بالمئة إلى أقل من 2.00 بالمئة.`,
+    '5. فعّل بطاقة تقييم داخل الطلب حتى يرتفع التقييم وتزداد الزيارات.',
+  ].join(' ')
+  const ratingBoostTacticAr = `اطلب تقييماً بعد كل تسليم مكتمل في ${input.geoZoneAr}، وردّ على التقييمات المنخفضة خلال ساعة، حتى تقترب من سياسة المتصدرين.`
+  const recommendationAr = `خطة التصعيد تنقل ${input.geoZoneAr} على ${platform} من المركز ${input.currentRank} إلى المركز ${targetRank}، بزيادة تقديرية ${daily} طلباً يومياً و${minorToInput(monthly)} د.ك شهرياً.`
+  return {
+    penaltyAr,
+    targetRank,
+    estimatedRankJump: jump,
+    estimatedDailyOrdersGain: daily,
+    estimatedMonthlyRevenueUpliftMinor: monthly,
+    estimatedRevenueUpliftMinor: monthly,
+    penaltyDiagnosedAr: penaltyAr,
+    stepByStepPlanAr,
+    logisticsSwitchAr,
+    ratingBoostTacticAr,
+    rootCauseAr: penaltyAr,
+    recommendationAr,
+    actionType: input.logisticsMode === 'vendor_own_fleet' ? 'switch_fleet_mode' : 'reduce_prep_eta',
+  }
+}
+
 export function escalationTransition(status: EscalationStatus, action: 'execute' | 'complete'): EscalationStatus {
   if (action === 'execute' && status === 'pending') return 'approved_executing'
   if (action === 'complete' && status === 'approved_executing') return 'completed'

@@ -27,6 +27,8 @@ const SNAPSHOT = `id, to_char(snapshot_interval_time at time zone 'UTC', 'YYYY-M
   current_rank as "currentRank", previous_rank_5m_ago as "previousRank5mAgo", rank_delta as "rankDelta",
   overall_rating_bps as "overallRatingBps", reviews_count as "reviewsCount",
   estimated_visits_impressions as "estimatedVisitsImpressions", conversion_rate_bps as "conversionRateBps",
+  avg_order_acceptance_seconds as "avgOrderAcceptanceSeconds", prep_time_minutes as "prepTimeMinutes",
+  cancellation_rate_bps as "cancellationRateBps", algorithm_penalty_reason_ar as "algorithmPenaltyReasonAr",
   delivery_eta_minutes as "deliveryEtaMinutes", delivery_fee_minor as "deliveryFeeMinor", min_order_minor as "minOrderMinor",
   logistics_mode as "logisticsMode", is_sponsored_ad_active as "isSponsoredAdActive",
   to_char(recorded_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as "recordedAt", version`
@@ -41,6 +43,9 @@ function snapshot(row: GeoRankSnapshot): GeoRankSnapshot {
     reviewsCount: whole(row.reviewsCount),
     estimatedVisitsImpressions: whole(row.estimatedVisitsImpressions),
     conversionRateBps: whole(row.conversionRateBps),
+    avgOrderAcceptanceSeconds: whole(row.avgOrderAcceptanceSeconds),
+    prepTimeMinutes: whole(row.prepTimeMinutes),
+    cancellationRateBps: whole(row.cancellationRateBps),
     deliveryEtaMinutes: whole(row.deliveryEtaMinutes),
     deliveryFeeMinor: whole(row.deliveryFeeMinor),
     minOrderMinor: whole(row.minOrderMinor),
@@ -53,7 +58,9 @@ const BENCH = `id, snapshot_id as "snapshotId", platform_name as "platformName",
   competitor_rating_bps as "competitorRatingBps", competitor_reviews_count as "competitorReviewsCount",
   competitor_visits_estimate as "competitorVisitsEstimate", competitor_eta_minutes as "competitorEtaMinutes",
   competitor_delivery_fee_minor as "competitorDeliveryFeeMinor", competitor_logistics_mode as "competitorLogisticsMode",
+  competitor_conversion_bps as "competitorConversionBps",
   active_promo_badge_ar as "activePromoBadgeAr", detected_rating_boost_policy_ar as "detectedRatingBoostPolicyAr",
+  exact_gap_analysis_ar as "exactGapAnalysisAr",
   gap_vs_our_brand_json as gap`
 
 type BenchRow = Omit<CompetitorBench, 'gap' | 'competitorRank' | 'competitorRatingBps' | 'competitorReviewsCount' | 'competitorVisitsEstimate' | 'competitorEtaMinutes' | 'competitorDeliveryFeeMinor'> & {
@@ -75,6 +82,7 @@ function bench(row: BenchRow): CompetitorBench {
     competitorVisitsEstimate: whole(row.competitorVisitsEstimate),
     competitorEtaMinutes: whole(row.competitorEtaMinutes),
     competitorDeliveryFeeMinor: whole(row.competitorDeliveryFeeMinor),
+    competitorConversionBps: whole(row.competitorConversionBps),
     gap: asGap(row.gap),
   }
 }
@@ -83,6 +91,10 @@ const ACTION = `id, platform_name as "platformName", geo_zone_ar as "geoZoneAr",
   current_rank as "currentRank", target_rank as "targetRank", root_cause_of_lower_rank_ar as "rootCauseAr",
   algorithmic_recommendation_ar as "recommendationAr", recommended_action_type as "actionType",
   estimated_rank_jump as "estimatedRankJump", estimated_revenue_uplift_minor as "estimatedRevenueUpliftMinor",
+  penalty_diagnosed_ar as "penaltyDiagnosedAr", step_by_step_escalation_plan_ar as "stepByStepPlanAr",
+  logistics_switch_recommendation_ar as "logisticsSwitchAr", rating_boost_tactic_ar as "ratingBoostTacticAr",
+  estimated_daily_orders_gain as "estimatedDailyOrdersGain",
+  estimated_monthly_revenue_uplift_minor as "estimatedMonthlyRevenueUpliftMinor",
   status, to_char(created_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as "createdAt", version`
 
 function action(row: EscalationCard): EscalationCard {
@@ -92,6 +104,8 @@ function action(row: EscalationCard): EscalationCard {
     targetRank: whole(row.targetRank),
     estimatedRankJump: whole(row.estimatedRankJump),
     estimatedRevenueUpliftMinor: whole(row.estimatedRevenueUpliftMinor),
+    estimatedDailyOrdersGain: whole(row.estimatedDailyOrdersGain),
+    estimatedMonthlyRevenueUpliftMinor: whole(row.estimatedMonthlyRevenueUpliftMinor),
     version: whole(row.version),
   }
 }
@@ -103,7 +117,7 @@ export async function listSnapshots(tx: Queryable, tenantId: string, query: Aggr
        and ($2::text is null or platform_name = $2)
        and ($3::text is null or geo_zone_ar = $3)
        and ($4::text is null or our_branch_name = $4 or our_brand_name = $4)
-     order by snapshot_interval_time desc, platform_name, geo_zone_ar
+     order by current_rank desc, snapshot_interval_time desc, platform_name, geo_zone_ar
      limit 80`,
     [tenantId, query.platform ?? null, query.zone ?? null, query.branch ?? null],
   )
@@ -166,12 +180,14 @@ export async function rollForward(tx: Queryable, tenantId: string, actorId: stri
     `insert into aggregator_geo_rank_snapshots (
       tenant_id, snapshot_interval_time, platform_name, geo_zone_ar, our_brand_name, our_branch_name,
       current_rank, previous_rank_5m_ago, rank_delta, overall_rating_bps, reviews_count,
-      estimated_visits_impressions, conversion_rate_bps, delivery_eta_minutes, delivery_fee_minor,
+      estimated_visits_impressions, conversion_rate_bps, avg_order_acceptance_seconds, prep_time_minutes,
+      cancellation_rate_bps, algorithm_penalty_reason_ar, delivery_eta_minutes, delivery_fee_minor,
       min_order_minor, logistics_mode, is_sponsored_ad_active, recorded_at, created_by
     )
     select tenant_id, $2::timestamptz, platform_name, geo_zone_ar, our_brand_name, our_branch_name,
       current_rank, current_rank, 0, overall_rating_bps, reviews_count, estimated_visits_impressions,
-      conversion_rate_bps, delivery_eta_minutes, delivery_fee_minor, min_order_minor, logistics_mode,
+      conversion_rate_bps, avg_order_acceptance_seconds, prep_time_minutes, cancellation_rate_bps,
+      algorithm_penalty_reason_ar, delivery_eta_minutes, delivery_fee_minor, min_order_minor, logistics_mode,
       is_sponsored_ad_active, now(), $3
     from (
       select distinct on (platform_name, geo_zone_ar, our_branch_name) *
@@ -186,13 +202,13 @@ export async function rollForward(tx: Queryable, tenantId: string, actorId: stri
     `insert into aggregator_top_competitors_bench (
       tenant_id, snapshot_id, platform_name, geo_zone_ar, competitor_rank, competitor_brand_name,
       competitor_rating_bps, competitor_reviews_count, competitor_visits_estimate, competitor_eta_minutes,
-      competitor_delivery_fee_minor, competitor_logistics_mode, active_promo_badge_ar,
-      detected_rating_boost_policy_ar, gap_vs_our_brand_json, created_by
+      competitor_delivery_fee_minor, competitor_logistics_mode, competitor_conversion_bps, active_promo_badge_ar,
+      detected_rating_boost_policy_ar, exact_gap_analysis_ar, gap_vs_our_brand_json, created_by
     )
     select n.tenant_id, n.id, n.platform_name, n.geo_zone_ar, c.competitor_rank, c.competitor_brand_name,
       c.competitor_rating_bps, c.competitor_reviews_count, c.competitor_visits_estimate, c.competitor_eta_minutes,
-      c.competitor_delivery_fee_minor, c.competitor_logistics_mode, c.active_promo_badge_ar,
-      c.detected_rating_boost_policy_ar, c.gap_vs_our_brand_json, $3
+      c.competitor_delivery_fee_minor, c.competitor_logistics_mode, c.competitor_conversion_bps, c.active_promo_badge_ar,
+      c.detected_rating_boost_policy_ar, c.exact_gap_analysis_ar, c.gap_vs_our_brand_json, $3
     from aggregator_geo_rank_snapshots n
     join aggregator_geo_rank_snapshots o
       on o.tenant_id = n.tenant_id and o.platform_name = n.platform_name
@@ -237,17 +253,27 @@ export async function insertAction(
     actionType: EscalationActionType
     estimatedRankJump: number
     estimatedRevenueUpliftMinor: number
+    penaltyDiagnosedAr: string
+    stepByStepPlanAr: string
+    logisticsSwitchAr: string
+    ratingBoostTacticAr: string
+    estimatedDailyOrdersGain: number
+    estimatedMonthlyRevenueUpliftMinor: number
   },
 ): Promise<string> {
   const result = await tx.query<{ id: string }>(
     `insert into aggregator_rank_escalation_actions (
       tenant_id, platform_name, geo_zone_ar, our_branch_name, current_rank, target_rank,
       root_cause_of_lower_rank_ar, algorithmic_recommendation_ar, recommended_action_type,
-      estimated_rank_jump, estimated_revenue_uplift_minor, created_by
-    ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) returning id`,
+      estimated_rank_jump, estimated_revenue_uplift_minor, penalty_diagnosed_ar, step_by_step_escalation_plan_ar,
+      logistics_switch_recommendation_ar, rating_boost_tactic_ar, estimated_daily_orders_gain,
+      estimated_monthly_revenue_uplift_minor, created_by
+    ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) returning id`,
     [
       tenantId, input.platformName, input.geoZoneAr, input.ourBranchName, input.currentRank, input.targetRank,
-      input.rootCauseAr, input.recommendationAr, input.actionType, input.estimatedRankJump, input.estimatedRevenueUpliftMinor, actorId,
+      input.rootCauseAr, input.recommendationAr, input.actionType, input.estimatedRankJump, input.estimatedRevenueUpliftMinor,
+      input.penaltyDiagnosedAr, input.stepByStepPlanAr, input.logisticsSwitchAr, input.ratingBoostTacticAr,
+      input.estimatedDailyOrdersGain, input.estimatedMonthlyRevenueUpliftMinor, actorId,
     ],
   )
   return result.rows[0].id

@@ -12,6 +12,8 @@ import type { CompetitorBench, EscalationCard, GeoRankSnapshot } from '@/modules
 type Board = { snapshots: GeoRankSnapshot[]; competitors: CompetitorBench[]; actions: EscalationCard[] }
 const platforms = ['Talabat', 'Keeta', 'Jahez', 'Snoonu', 'Deliveroo'] as const
 const zones = ['السالمية', 'شرق/مدينة الكويت', 'حولي', 'الفروانية', 'المهبولة', 'الجهراء'] as const
+const radarTabs = ['rank', 'gap', 'tactics', 'escalation'] as const
+type RadarTab = (typeof radarTabs)[number]
 
 function Workspace() {
   const { t } = useI18n()
@@ -26,7 +28,18 @@ function Workspace() {
   const [busy, setBusy] = useState(false)
   const [board, setBoard] = useState<Board>({ snapshots: [], competitors: [], actions: [] })
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [tab, setTab] = useState<RadarTab>('rank')
   const [reloadToken, setReloadToken] = useState(0)
+
+  useEffect(() => {
+    const hash = window.location.hash.slice(1)
+    if (hash === 'gap' || hash === 'tactics' || hash === 'escalation' || hash === 'rank') setTab(hash)
+  }, [])
+
+  function openTab(value: RadarTab) {
+    setTab(value)
+    window.history.replaceState(null, '', `#${value}`)
+  }
 
   function fail(caught: unknown) {
     if (caught instanceof ApiError) {
@@ -136,7 +149,24 @@ function Workspace() {
         {canManage ? <button className={primaryButton} type="button" disabled={busy} onClick={() => void scan()}>{t('agg.scan')}</button> : null}
       </div>
 
-      <section className={panelClass} id="rank">
+      <div role="tablist" aria-label={t('erpnav.aggregator')} className="flex flex-wrap gap-1 border-b border-white/10">
+        {radarTabs.map((value) => (
+          <button
+            key={value}
+            type="button"
+            role="tab"
+            id={`agg-tab-${value}`}
+            aria-selected={tab === value}
+            aria-controls={`agg-panel-${value}`}
+            onClick={() => openTab(value)}
+            className={`-mb-px border-b-2 px-3 py-2 text-sm ${tab === value ? 'border-gold-300 font-semibold text-gold-300' : 'border-transparent text-gray-400'}`}
+          >
+            {t(`agg.panel.${value}` as MessageKey)}
+          </button>
+        ))}
+      </div>
+
+      <section className={panelClass} id="rank" role="tabpanel" hidden={tab !== 'rank'} aria-labelledby="agg-tab-rank">
         <h2 className="mb-3 font-semibold text-white">{t('agg.panel.rank')}</h2>
         {board.snapshots.length === 0 ? <p className="text-sm text-gray-400">{t('agg.empty')}</p> : (
           <div className="overflow-x-auto">
@@ -150,6 +180,9 @@ function Workspace() {
                   <th className="px-2 py-2 text-start">{t('agg.delta')}</th>
                   <th className="px-2 py-2 text-start">{t('agg.rating')}</th>
                   <th className="px-2 py-2 text-start">{t('agg.visits')}</th>
+                  <th className="px-2 py-2 text-start">{t('agg.conversion')}</th>
+                  <th className="px-2 py-2 text-start">{t('agg.acceptance')}</th>
+                  <th className="px-2 py-2 text-start">{t('agg.prep')}</th>
                   <th className="px-2 py-2 text-start">{t('agg.eta')}</th>
                   <th className="px-2 py-2 text-start">{t('agg.fee')}</th>
                   <th className="px-2 py-2 text-start">{t('agg.fleet')}</th>
@@ -167,18 +200,29 @@ function Workspace() {
                     </td>
                     <td className="px-2 py-2">{bpsToInput(row.overallRatingBps)}</td>
                     <td className="px-2 py-2">{row.estimatedVisitsImpressions}</td>
+                    <td className="px-2 py-2">{bpsToInput(row.conversionRateBps)}</td>
+                    <td className="px-2 py-2">{row.avgOrderAcceptanceSeconds}</td>
+                    <td className="px-2 py-2">{row.prepTimeMinutes}</td>
                     <td className="px-2 py-2">{row.deliveryEtaMinutes} {t('agg.minutes')}</td>
                     <td className="px-2 py-2">{formatMinor(row.deliveryFeeMinor)} {t('admin.kwd')}</td>
-                    <td className="px-2 py-2">{row.logisticsMode === 'platform_fleet' ? t('agg.fleet.platform') : t('agg.fleet.vendor')}{row.isSponsoredAdActive ? ` · ${t('agg.sponsored')}` : ''}</td>
+                    <td className="px-2 py-2">
+                      <span className={`rounded-full px-2 py-0.5 text-[11px] ${row.logisticsMode === 'platform_fleet' ? 'bg-emerald-900/60 text-emerald-200' : 'bg-amber-900/60 text-amber-100'}`}>
+                        {row.logisticsMode === 'platform_fleet' ? t('agg.fleet.platform') : t('agg.fleet.vendor')}
+                      </span>
+                      {row.isSponsoredAdActive ? ` · ${t('agg.sponsored')}` : ''}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         )}
+        {selected?.algorithmPenaltyReasonAr ? (
+          <p role="alert" className="mt-3 rounded-xl border border-red-400/50 bg-red-950/50 px-3 py-2 text-sm text-red-100">{selected.algorithmPenaltyReasonAr}</p>
+        ) : null}
       </section>
 
-      <section className={panelClass} id="gap">
+      <section className={panelClass} id="gap" role="tabpanel" hidden={tab !== 'gap'} aria-labelledby="agg-tab-gap">
         <h2 className="mb-3 font-semibold text-white">{t('agg.panel.gap')}</h2>
         {!selected ? <p className="text-sm text-gray-400">{t('agg.empty')}</p> : (
           <div className="grid gap-3 md:grid-cols-4">
@@ -189,6 +233,7 @@ function Workspace() {
               <p>{formatMinor(selected.deliveryFeeMinor)} {t('admin.kwd')}</p>
               <p>{selected.logisticsMode === 'platform_fleet' ? t('agg.fleet.platform') : t('agg.fleet.vendor')}</p>
               <p>{t('agg.rating')} {bpsToInput(selected.overallRatingBps)}</p>
+              <p>{t('agg.conversion')} {bpsToInput(selected.conversionRateBps)}</p>
             </article>
             {rivals.map((row) => (
               <article key={row.id} className="rounded-xl border border-white/10 p-3 text-sm text-gray-100">
@@ -199,32 +244,37 @@ function Workspace() {
                 <p>{t('agg.gap.rank')}: {row.gap.rankGap}</p>
                 <p>{row.competitorLogisticsMode === 'platform_fleet' ? t('agg.fleet.platform') : t('agg.fleet.vendor')}</p>
                 <p>{t('agg.visits')} {row.competitorVisitsEstimate}</p>
+                <p>{t('agg.conversion')} {bpsToInput(row.competitorConversionBps)}</p>
+                {row.exactGapAnalysisAr ? <p className="mt-1 text-gray-300">{row.exactGapAnalysisAr}</p> : null}
               </article>
             ))}
           </div>
         )}
       </section>
 
-      <section className={panelClass} id="tactics">
+      <section className={panelClass} id="tactics" role="tabpanel" hidden={tab !== 'tactics'} aria-labelledby="agg-tab-tactics">
         <h2 className="mb-3 font-semibold text-white">{t('agg.panel.tactics')}</h2>
         {rivals.length === 0 ? <p className="text-sm text-gray-400">{t('agg.empty')}</p> : rivals.map((row) => (
           <article key={row.id} className="border-t border-white/10 py-3 text-sm text-gray-100">
             <p className="font-semibold">#{row.competitorRank} {row.competitorBrandName} — {row.activePromoBadgeAr}</p>
             <p className="mt-1 text-gray-300">{row.detectedRatingBoostPolicyAr}</p>
             <p className="mt-1">{t('agg.rating')} {bpsToInput(row.competitorRatingBps)} — {t('agg.reviews')} {row.competitorReviewsCount}</p>
+            <p className="mt-1">{t('agg.visits')} {row.competitorVisitsEstimate} — {t('agg.conversion')} {bpsToInput(row.competitorConversionBps)}</p>
           </article>
         ))}
       </section>
 
-      <section className={panelClass} id="escalation">
+      <section className={panelClass} id="escalation" role="tabpanel" hidden={tab !== 'escalation'} aria-labelledby="agg-tab-escalation">
         <h2 className="mb-3 font-semibold text-white">{t('agg.panel.escalation')}</h2>
         {cards.length === 0 ? <p className="text-sm text-gray-400">{t('agg.empty')}</p> : cards.map((card) => (
           <article key={card.id} className="border-t border-white/10 py-3 text-sm text-gray-100">
             <p className="font-semibold">{t(`agg.platform.${card.platformName}` as MessageKey)} — {card.geoZoneAr} — {card.ourBranchName}</p>
             <p className="mt-1">#{card.currentRank} → #{card.targetRank} · {t(`agg.status.${card.status}` as MessageKey)}</p>
-            <p className="mt-1">{card.rootCauseAr}</p>
-            <p className="mt-1">{card.recommendationAr}</p>
-            <p className="mt-1">{formatMinor(card.estimatedRevenueUpliftMinor)} {t('admin.kwd')}</p>
+            <p className="mt-1">{card.penaltyDiagnosedAr || card.rootCauseAr}</p>
+            <p className="mt-1">{card.stepByStepPlanAr || card.recommendationAr}</p>
+            {card.logisticsSwitchAr ? <p className="mt-1">{card.logisticsSwitchAr}</p> : null}
+            {card.ratingBoostTacticAr ? <p className="mt-1">{card.ratingBoostTacticAr}</p> : null}
+            <p className="mt-1">{t('agg.daily')} {card.estimatedDailyOrdersGain} — {t('agg.monthly')} {formatMinor(card.estimatedMonthlyRevenueUpliftMinor || card.estimatedRevenueUpliftMinor)} {t('admin.kwd')}</p>
             {canManage && card.status === 'pending' ? (
               <button className={`${secondaryButton} mt-2`} type="button" disabled={busy} onClick={() => void execute(card)}>{t('agg.execute')}</button>
             ) : null}

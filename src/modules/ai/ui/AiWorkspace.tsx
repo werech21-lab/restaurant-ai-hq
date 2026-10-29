@@ -17,9 +17,9 @@ const tabs = ['decisions', 'insights', 'rules'] as const
 type Tab = (typeof tabs)[number]
 
 /** الذكاء الاصطناعي والأتمتة: the KPIs and Copilot bar, then decisions with history, alerts, and the rules. */
-export default function AiWorkspace() {
+export default function AiWorkspace({ initialTab = 'decisions' }: { initialTab?: string }) {
   const { t } = useI18n()
-  const [tab, setTab] = useState<Tab>('decisions')
+  const [tab, setTab] = useState<Tab>(tabs.includes(initialTab as Tab) ? (initialTab as Tab) : 'decisions')
   const [reloadToken, setReloadToken] = useState(0)
   const [scan, setScan] = useState<ScanResult | null>(null)
   const { dashboard, phase, error, retry } = useDashboard(reloadToken)
