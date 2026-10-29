@@ -3,6 +3,8 @@ import { parseBody, parseParams } from '@/lib/api/parse'
 import type { RouteArgs } from '@/lib/api/route'
 import { requireIdempotencyKey } from '@/lib/idempotency'
 import {
+  actOnAppointment,
+  bookAppointment,
   createAppraisal,
   createAttendance,
   createEmployee,
@@ -12,6 +14,7 @@ import {
   decideExpense,
   decideLeave,
   listAppraisals,
+  listAppointments,
   listAttendance,
   listEmployees,
   listExpenses,
@@ -23,6 +26,8 @@ import {
   updateEmployee,
 } from '@/modules/hr/services/hr-service'
 import {
+  appointmentActionSchema,
+  bookAppointmentSchema,
   createAppraisalSchema,
   createAttendanceSchema,
   createEmployeeSchema,
@@ -113,4 +118,17 @@ export async function createExpenseHandler({ request, auth }: RouteArgs): Promis
 export async function decideExpenseHandler({ request, auth, params }: RouteArgs): Promise<NextResponse> {
   const { id } = parseParams(params, idParamsSchema)
   return created(await decideExpense(auth, requireIdempotencyKey(request), id, await parseBody(request, decideExpenseSchema)))
+}
+
+export async function listAppointmentsHandler({ auth }: RouteArgs): Promise<NextResponse> {
+  return NextResponse.json({ data: await listAppointments(auth) })
+}
+
+export async function bookAppointmentHandler({ request, auth }: RouteArgs): Promise<NextResponse> {
+  return created(await bookAppointment(auth, requireIdempotencyKey(request), await parseBody(request, bookAppointmentSchema)))
+}
+
+export async function appointmentActionHandler({ request, auth, params }: RouteArgs): Promise<NextResponse> {
+  const { id } = parseParams(params, idParamsSchema)
+  return NextResponse.json(await actOnAppointment(auth, id, await parseBody(request, appointmentActionSchema)))
 }

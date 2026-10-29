@@ -77,6 +77,26 @@ export const createExpenseSchema = z.object({
 })
 export type CreateExpenseInput = z.output<typeof createExpenseSchema>
 
+export const bookAppointmentSchema = z.object({
+  requestCode: z.string().trim().min(1).max(40),
+  employeeName: z.string().trim().min(1).max(200),
+  branchId: z.string().uuid().nullable(),
+  requestType: z.enum(['passport_handover', 'equipment_clearance', 'contract_signing', 'salary_certificate', 'residency_renewal']),
+  actionDirection: z.enum(['pickup_from_hq', 'deliver_to_hq']),
+  appointmentDate: date,
+  appointmentTimeSlot: z.enum(['08:00-08:30', '09:00-09:30', '10:00-10:30', '11:00-11:30', '12:00-12:30', '13:00-13:30']),
+  hqCounterOrOfficer: z.string().trim().min(1).max(120),
+  notesAr: z.string().trim().max(500),
+})
+export type BookAppointmentInput = z.output<typeof bookAppointmentSchema>
+
+export const appointmentActionSchema = z.discriminatedUnion('action', [
+  z.object({ action: z.literal('confirm'), version }),
+  z.object({ action: z.literal('complete'), version }),
+  z.object({ action: z.literal('miss'), version }),
+])
+export type AppointmentActionInput = z.output<typeof appointmentActionSchema>
+
 export const decideExpenseSchema = z.object({
   decision: z.enum(['approved', 'rejected']),
   entryDate: date,

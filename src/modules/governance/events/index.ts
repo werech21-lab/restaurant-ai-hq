@@ -8,6 +8,12 @@ export type GovernanceComplianceBlocked = EventBase<'governance.compliance.block
 export type GovernanceArchiveRouted = EventBase<'governance.archive.routed', { documentId: string; routedToModule: string; routedRecordId: string | null; routedBy: string }>
 export type GovernanceRadarRecorded = EventBase<'governance.radar.recorded', { radarId: string; competitorName: string; recordedBy: string }>
 export type GovernanceTelemetryRecorded = EventBase<'governance.telemetry.recorded', { telemetryId: string; activePath: string; anomalyFlag: boolean; recordedBy: string }>
+export type GovernanceViolationClosed = EventBase<'governance.violation.closed', { violationId: string; violationNumber: string; closedBy: string }>
+export type GovernanceMonitoringConverted = EventBase<'governance.monitoring.converted', { eventId: string; investigationId: string; convertedBy: string }>
+export type GovernanceInvestigationOpened = EventBase<'governance.investigation.opened', { investigationId: string; caseNumber: string; openedBy: string }>
+export type GovernanceInvestigationRuled = EventBase<'governance.investigation.ruled', { investigationId: string; caseNumber: string; ruledBy: string }>
+export type GovernanceTaskDispatched = EventBase<'governance.task.dispatched', { taskId: string; dispatchedBy: string }>
+export type GovernanceTaskCompleted = EventBase<'governance.task.completed', { taskId: string; completedBy: string }>
 export type GovernanceEvent =
   | GovernanceContractAnalyzed
   | GovernanceCircularEnforced
@@ -15,6 +21,12 @@ export type GovernanceEvent =
   | GovernanceArchiveRouted
   | GovernanceRadarRecorded
   | GovernanceTelemetryRecorded
+  | GovernanceViolationClosed
+  | GovernanceMonitoringConverted
+  | GovernanceInvestigationOpened
+  | GovernanceInvestigationRuled
+  | GovernanceTaskDispatched
+  | GovernanceTaskCompleted
 
 export async function publishGovernanceEvents(events: readonly GovernanceEvent[]): Promise<void> {
   for (const event of events) await emit(event)

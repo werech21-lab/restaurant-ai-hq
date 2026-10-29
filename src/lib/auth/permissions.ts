@@ -107,6 +107,16 @@ export const permissions = {
   govTelemetryRecord: 'gov.telemetry.record',
   govRadarRead: 'gov.radar.read',
   govRadarManage: 'gov.radar.manage',
+  govViolationRead: 'gov.violation.read',
+  govViolationManage: 'gov.violation.manage',
+  govMonitorRead: 'gov.monitor.read',
+  govMonitorManage: 'gov.monitor.manage',
+  govInquiryRead: 'gov.inquiry.read',
+  govInquiryManage: 'gov.inquiry.manage',
+  govTaskRead: 'gov.task.read',
+  govTaskDispatch: 'gov.task.dispatch',
+  hrAppointmentRead: 'hr.appointment.read',
+  hrAppointmentManage: 'hr.appointment.manage',
 } as const
 
 export type Permission = (typeof permissions)[keyof typeof permissions]

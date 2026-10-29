@@ -1,4 +1,6 @@
 export {
+  bookAppointmentHandler,
+  appointmentActionHandler,
   createAppraisalHandler,
   createAttendanceHandler,
   createEmployeeHandler,
@@ -8,6 +10,7 @@ export {
   decideExpenseHandler,
   decideLeaveHandler,
   listAppraisalsHandler,
+  listAppointmentsHandler,
   listAttendanceHandler,
   listEmployeesHandler,
   listExpensesHandler,
@@ -19,6 +22,8 @@ export {
   updateEmployeeHandler,
 } from '@/modules/hr/api/v1/hr'
 export {
+  actOnAppointment,
+  bookAppointment,
   createAppraisal,
   createAttendance,
   createEmployee,
@@ -27,6 +32,7 @@ export {
   createShift,
   decideExpense,
   decideLeave,
+  listAppointments,
   listAppraisals,
   listAttendance,
   listEmployees,

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { analyzeContract } from '@/modules/governance/domain/analyze'
+import { CLOSE_BLOCKED_MESSAGE, closeBlocked, violationTransition, taskTransition } from '@/modules/governance/domain/desk'
 import { blockMessage, gateDecision, workedMinutes } from '@/modules/governance/domain/gate'
 import { nextMemory } from '@/modules/governance/domain/learning'
 import { extractArchive } from '@/modules/governance/domain/ocr'
@@ -61,5 +62,18 @@ describe('learning and competitive advice', () => {
   it('states the KWD gap without a float', () => {
     expect(radarAdvice('طلبات', 'رسوم التوصيل', 1250, 900).insightAr).toContain('0.350')
     expect(radarAdvice('كارفور', 'سلة خضار', 1800, 2100).insightAr).toContain('أقل')
+  })
+})
+
+describe('government violation closure', () => {
+  it('refuses a verified close until the statement and the proof are both present', () => {
+    expect(closeBlocked(null, null)).toBe(true)
+    expect(closeBlocked('إفادة', null)).toBe(true)
+    expect(closeBlocked(null, 'archive:proof')).toBe(true)
+    expect(closeBlocked('إفادة', 'archive:proof')).toBe(false)
+    expect(() => violationTransition('assigned', 'close', null, null)).toThrow(CLOSE_BLOCKED_MESSAGE)
+    expect(() => violationTransition('proof_uploaded', 'close', 'إفادة', null)).toThrow(CLOSE_BLOCKED_MESSAGE)
+    expect(violationTransition('proof_uploaded', 'close', 'إفادة', 'archive:proof')).toBe('closed_verified')
+    expect(taskTransition('alert_pending', 'dispatch')).toBe('task_dispatched')
   })
 })

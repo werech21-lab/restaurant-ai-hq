@@ -1,6 +1,6 @@
 import type { Queryable } from '@/lib/db'
-import type { Appraisal, Attendance, Employee, EmployeeExpense, Leave, PayrollRun, Payslip, Shift } from '@/modules/hr/domain/types'
-import type { CreateAppraisalInput, CreateAttendanceInput, CreateEmployeeInput, CreateExpenseInput, CreateLeaveInput, CreateShiftInput, UpdateEmployeeInput } from '@/modules/hr/schemas/hr'
+import type { Appraisal, Appointment, Attendance, Employee, EmployeeExpense, Leave, PayrollRun, Payslip, Shift } from '@/modules/hr/domain/types'
+import type { BookAppointmentInput, CreateAppraisalInput, CreateAttendanceInput, CreateEmployeeInput, CreateExpenseInput, CreateLeaveInput, CreateShiftInput, UpdateEmployeeInput } from '@/modules/hr/schemas/hr'
 
 function iso(value: Date | string | null): string | null {
   if (value === null) return null
@@ -254,4 +254,45 @@ export async function decideExpense(
     [tenantId, id, decision, journalEntryId, version],
   )
   return (result.rowCount ?? 0) > 0
+}
+
+const APPOINTMENT = `id, request_code as "requestCode", employee_name as "employeeName", branch_id as "branchId",
+  request_type as "requestType", action_direction as "actionDirection", appointment_date::text as "appointmentDate",
+  appointment_time_slot as "appointmentTimeSlot", hq_counter_or_officer as "hqCounterOrOfficer", status, notes_ar as "notesAr", version`
+
+export async function listAppointments(tx: Queryable, tenantId: string): Promise<Appointment[]> {
+  const result = await tx.query<Appointment>(
+    `select ${APPOINTMENT} from hr_service_requests_appointments where tenant_id = $1 order by appointment_date, appointment_time_slot limit 100`,
+    [tenantId],
+  )
+  return result.rows.map((row) => ({ ...row, version: Number(row.version) }))
+}
+
+export async function findAppointment(tx: Queryable, tenantId: string, id: string): Promise<Appointment | null> {
+  const result = await tx.query<Appointment>(
+    `select ${APPOINTMENT} from hr_service_requests_appointments where tenant_id = $1 and id = $2 for update`,
+    [tenantId, id],
+  )
+  return result.rows[0] ? { ...result.rows[0], version: Number(result.rows[0].version) } : null
+}
+
+export async function insertAppointment(tx: Queryable, tenantId: string, actorId: string, input: BookAppointmentInput): Promise<Appointment> {
+  const result = await tx.query<Appointment>(
+    `insert into hr_service_requests_appointments (
+      tenant_id, request_code, employee_name, branch_id, request_type, action_direction,
+      appointment_date, appointment_time_slot, hq_counter_or_officer, notes_ar, created_by
+    ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) returning ${APPOINTMENT}`,
+    [tenantId, input.requestCode, input.employeeName, input.branchId, input.requestType, input.actionDirection, input.appointmentDate, input.appointmentTimeSlot, input.hqCounterOrOfficer, input.notesAr, actorId],
+  )
+  return { ...result.rows[0], version: Number(result.rows[0].version) }
+}
+
+export async function saveAppointment(tx: Queryable, tenantId: string, id: string, version: number, status: string): Promise<Appointment | null> {
+  const result = await tx.query<Appointment>(
+    `update hr_service_requests_appointments set status = $3, version = version + 1
+     where tenant_id = $1 and id = $2 and version = $4
+     returning ${APPOINTMENT}`,
+    [tenantId, id, status, version],
+  )
+  return result.rows[0] ? { ...result.rows[0], version: Number(result.rows[0].version) } : null
 }

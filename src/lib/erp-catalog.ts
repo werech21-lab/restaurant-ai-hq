@@ -33,6 +33,7 @@ export const erpCatalog: readonly CatalogItem[] = [
     { href: '/erp/hr?tab=payroll', title: 'hub.branch.payroll' },
     { href: '/erp/hr?tab=appraisals', title: 'hub.branch.appraisals' },
     { href: '/erp/hr?tab=expenses', title: 'hub.branch.expenses' },
+    { href: '/erp/hr?tab=appointments', title: 'hub.branch.appointments' },
   ] },
   { id: 'operations', href: '/erp/operations', title: 'erpnav.operations', detail: 'hub.ops', status: 'ready', branches: [
     { href: '/erp/operations?tab=contracts', title: 'hub.branch.contracts' },
@@ -49,6 +50,12 @@ export const erpCatalog: readonly CatalogItem[] = [
   { id: 'intelligence', href: '/erp/intelligence', title: 'erpnav.intelligence', detail: 'hub.intelligence', status: 'ready', branches: [
     { href: '/erp/intelligence?tab=radar', title: 'hub.branch.radar' },
     { href: '/erp/intelligence?tab=telemetry', title: 'hub.branch.telemetry' },
+  ] },
+  { id: 'governance', href: '/erp/governance', title: 'erpnav.governance', detail: 'hub.governance', status: 'ready', branches: [
+    { href: '/erp/governance?tab=violations', title: 'hub.branch.violations' },
+    { href: '/erp/governance?tab=inquiry', title: 'hub.branch.inquiry' },
+    { href: '/erp/governance?tab=monitor', title: 'hub.branch.monitor' },
+    { href: '/erp/governance?tab=tasks', title: 'hub.branch.tasks' },
   ] },
   { id: 'ai', href: '/erp/ai', title: 'erpnav.ai', detail: 'hub.ai', status: 'beta' },
   { id: 'kitchen', href: '/erp/kitchen', title: 'nav.kitchen', detail: 'hub.kitchen', status: 'ready' },

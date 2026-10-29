@@ -1,4 +1,4 @@
-export type { Appraisal, Attendance, Employee, EmployeeExpense, Leave, PayrollRun, Payslip, Shift } from '@/modules/hr/domain/types'
+export type { Appraisal, Appointment, Attendance, Employee, EmployeeExpense, Leave, PayrollRun, Payslip, Shift } from '@/modules/hr/domain/types'
 export {
   createAppraisalSchema,
   createAttendanceSchema,

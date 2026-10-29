@@ -80,6 +80,87 @@ export type TelemetryRow = {
   recordedAt: string
 }
 
+export type DeskLog = { at: string; action: string; noteAr: string }
+
+export type GovViolation = {
+  id: string
+  violationNumber: string
+  issuingAuthority: string
+  branchId: string | null
+  violationTypeAr: string
+  fineAmountMinor: number
+  assignedEmployeeName: string
+  slaDeadline: string
+  workflowStage: string
+  employeeStatementAr: string | null
+  actionLog: DeskLog[]
+  closureProofDocUrl: string | null
+  isNeglectedFlag: boolean
+  neglected: boolean
+  version: number
+  createdAt: string
+}
+
+export type ConnectedDevice = {
+  id: string
+  deviceType: 'biometric_terminal' | 'ai_camera_cctv' | 'work_phone_mdm'
+  deviceName: string
+  branchId: string | null
+  ipOrStreamUrl: string
+  status: 'online' | 'offline'
+  version: number
+}
+
+export type MonitorEvent = {
+  id: string
+  deviceId: string
+  deviceName: string
+  branchId: string | null
+  employeeName: string
+  violationCategory: string
+  aiConfidenceScore: number
+  snapshotEvidenceRef: string
+  autoActionTakenAr: string
+  status: 'detected' | 'converted_to_investigation' | 'penalized' | 'dismissed'
+  detectedAt: string
+  version: number
+}
+
+export type InquiryStatement = { questionAr: string; answerAr: string }
+
+export type Investigation = {
+  id: string
+  caseNumber: string
+  sourceType: string
+  sourceReferenceId: string | null
+  subjectEmployeeName: string
+  investigatorName: string
+  incidentSummaryAr: string
+  statements: InquiryStatement[]
+  evidenceFiles: string[]
+  legalFindingAr: string | null
+  recommendedDisciplinaryActionAr: string | null
+  managerFinalDecision: string | null
+  status: string
+  version: number
+  createdAt: string
+}
+
+export type ExecutiveTask = {
+  id: string
+  alertCategory: string
+  severity: 'critical' | 'high' | 'medium'
+  titleAr: string
+  aiRecommendationAr: string
+  assignedToEmployee: string | null
+  taskInstructionAr: string
+  dueDate: string | null
+  employeeCompletionReportAr: string | null
+  status: string
+  version: number
+  createdAt: string
+}
+
 export type RadarRow = {
   id: string
   competitorName: string

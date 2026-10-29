@@ -9,10 +9,13 @@ import { recordMovementWithin } from '@/modules/admin'
 import { enforceCompliance, workedMinutes } from '@/modules/governance'
 import { buildEmployeeExpenseLines, buildPayrollLines, getOperationalAccountsWithin, postSourcedEntryWithin, publishFinanceEvents, type FinanceEvent } from '@/modules/finance'
 import { inclusiveDays, payrollTotals, payslipAmounts } from '@/modules/hr/domain/payroll'
-import type { Appraisal, Attendance, Employee, EmployeeExpense, Leave, PayrollRun, Payslip, Shift } from '@/modules/hr/domain/types'
+import { appointmentTransition } from '@/modules/hr/domain/appointments'
+import type { Appraisal, Appointment, Attendance, Employee, EmployeeExpense, Leave, PayrollRun, Payslip, Shift } from '@/modules/hr/domain/types'
 import { publishHrEvents, type HrEvent } from '@/modules/hr/events'
 import * as repository from '@/modules/hr/repositories/hr-repository'
 import type {
+  AppointmentActionInput,
+  BookAppointmentInput,
   CreateAppraisalInput,
   CreateAttendanceInput,
   CreateEmployeeInput,
@@ -277,4 +280,49 @@ export async function decideExpense(auth: AuthContext, key: string, id: string, 
     await publishHrEvents(hrEvents)
   }
   return outcome
+}
+
+export function listAppointments(auth: AuthContext): Promise<Appointment[]> {
+  return withTransaction((tx) => repository.listAppointments(tx, auth.tenantId))
+}
+
+export async function bookAppointment(auth: AuthContext, key: string, input: BookAppointmentInput): Promise<IdempotentResult<{ data: Appointment }>> {
+  const events: HrEvent[] = []
+  const outcome = await withTransaction((tx) =>
+    runIdempotent(tx, { tenantId: auth.tenantId, scope: 'hr.appointment.book', key, requestHash: hashRequest(input) }, async () => {
+      let row: Appointment
+      try {
+        row = await repository.insertAppointment(tx, auth.tenantId, auth.userId, input)
+      } catch (error) {
+        if (isUniqueViolation(error)) throw new AppError(409, 'appointment_exists', 'That request code is already used.')
+        throw error
+      }
+      await writeAudit(tx, { tenantId: auth.tenantId, actorId: auth.userId, entity: 'hr_appointment', entityId: row.id, action: 'create', before: null, after: row })
+      await recordMovementWithin(tx, auth, { module: 'hr', actionType: 'create', entityType: 'hr_appointment', entityId: row.id, descriptionAr: `حجز موعد ${row.requestCode}` })
+      events.push({ ...stamp(auth), name: 'hr.appointment.booked', payload: { appointmentId: row.id, requestCode: row.requestCode, bookedBy: auth.userId } })
+      return { status: 201 as const, body: { data: row } }
+    }),
+  )
+  if (!outcome.replayed) await publishHrEvents(events)
+  return outcome
+}
+
+export async function actOnAppointment(auth: AuthContext, id: string, input: AppointmentActionInput): Promise<{ data: Appointment }> {
+  const events: HrEvent[] = []
+  const data = await withTransaction(async (tx) => {
+    const before = await repository.findAppointment(tx, auth.tenantId, id)
+    if (!before) throw new AppError(404, 'not_found', 'The appointment was not found.')
+    if (before.version !== input.version) throw versionConflict('appointment')
+    const status = appointmentTransition(before.status, input.action)
+    const saved = await repository.saveAppointment(tx, auth.tenantId, id, input.version, status)
+    if (!saved) throw versionConflict('appointment')
+    await writeAudit(tx, { tenantId: auth.tenantId, actorId: auth.userId, entity: 'hr_appointment', entityId: id, action: 'update', before, after: saved })
+    await recordMovementWithin(tx, auth, { module: 'hr', actionType: input.action, entityType: 'hr_appointment', entityId: id, descriptionAr: `${input.action} ${saved.requestCode}` })
+    if (input.action === 'complete') {
+      events.push({ ...stamp(auth), name: 'hr.appointment.completed', payload: { appointmentId: id, requestCode: saved.requestCode, completedBy: auth.userId } })
+    }
+    return saved
+  })
+  await publishHrEvents(events)
+  return { data }
 }

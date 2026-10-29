@@ -4,7 +4,7 @@ import { bootstrapTenant, createUser, getPglite, startDatabase, stopDatabase } f
 import type { AuthContext } from '@/lib/auth/context'
 import { allPermissions } from '@/lib/auth/permissions'
 import { createAccount, createPeriod } from '@/modules/finance'
-import { createEmployee, createExpense, createLeave, decideExpense, decideLeave, runPayroll } from '@/modules/hr'
+import { createEmployee, createExpense, createLeave, decideExpense, decideLeave, runPayroll, bookAppointment, actOnAppointment } from '@/modules/hr'
 import { createContract } from '@/modules/operations'
 
 vi.mock('@/lib/db', async () => {
@@ -71,5 +71,23 @@ describe('payroll on the ledger', () => {
       title: 'Produce', counterparty: 'Palm', startDate: '2019-01-01', endDate: '2020-01-01', valueMinor: 2_400_000, renewalAlertDays: 30, status: 'active',
     })
     expect(contract.body.data.renewalDue).toBe(true)
+  })
+
+  it('books an HQ appointment and completes the handover only after confirmation', async () => {
+    const booked = await bookAppointment(auth, nextKey(), {
+      requestCode: 'HQ-TEST-0001',
+      employeeName: 'فهد العازمي',
+      branchId: null,
+      requestType: 'passport_handover',
+      actionDirection: 'pickup_from_hq',
+      appointmentDate: '2026-11-03',
+      appointmentTimeSlot: '10:00-10:30',
+      hqCounterOrOfficer: 'شباك الوثائق',
+      notesAr: 'استلام جواز',
+    })
+    expect(booked.body.data.status).toBe('booked')
+    const confirmed = await actOnAppointment(auth, booked.body.data.id, { action: 'confirm', version: booked.body.data.version })
+    const done = await actOnAppointment(auth, booked.body.data.id, { action: 'complete', version: confirmed.data.version })
+    expect(done.data.status).toBe('completed_handover')
   })
 })

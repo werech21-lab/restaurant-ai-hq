@@ -16,6 +16,7 @@ export const conflictDomainCodes: ReadonlySet<string> = new Set([
   'cannot_void',
   'insufficient_stock',
   'compliance_blocked',
+  'violation_incomplete',
   'cost_exceeds_stock',
   'credit_limit_exceeded',
   'customer_not_active',

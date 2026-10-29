@@ -7,7 +7,8 @@ import type { AuthContext } from '@/lib/auth/context'
 import { allPermissions } from '@/lib/auth/permissions'
 import { DomainError } from '@/lib/domain-error'
 import { createPartner, createOrder } from '@/modules/delivery'
-import { analyzeContractFor, listBlocks } from '@/modules/governance'
+import { analyzeContractFor, listBlocks, actOnTask, actOnViolation, openInquiry, raiseAlert, registerViolation } from '@/modules/governance'
+import { CLOSE_BLOCKED_MESSAGE } from '@/modules/governance/domain/desk'
 import { createAttendance, createEmployee, createExpense } from '@/modules/hr'
 import { createContract } from '@/modules/operations'
 
@@ -116,5 +117,44 @@ describe('governance on the live schema', () => {
     expect(body.data.routedToModule).toBe('/erp/contracts')
     expect(body.data.amountMinor).toBe(2_400_000)
     expect(body.data.routedRecordId).toBeTruthy()
+  })
+
+  it('refuses to verify a government violation without a statement and a closure proof', async () => {
+    const opened = await registerViolation(auth, nextKey(), {
+      violationNumber: 'KW-TEST-0001',
+      issuingAuthority: 'بلدية الكويت',
+      branchId: null,
+      violationTypeAr: 'لوحة دون ترخيص',
+      fineAmountMinor: 150_000,
+      assignedEmployeeName: 'فهد العازمي',
+      slaDeadline: '2026-11-02',
+    })
+    await expect(actOnViolation(auth, opened.body.data.id, { action: 'close', version: opened.body.data.version })).rejects.toThrow(CLOSE_BLOCKED_MESSAGE)
+    const stage = await pg().query<{ workflow_stage: string }>('select workflow_stage from gov_violations_tracker where id = $1', [opened.body.data.id])
+    expect(stage.rows[0].workflow_stage).toBe('assigned')
+    await expect(pg().query(`update gov_violations_tracker set workflow_stage = 'closed_verified' where id = $1`, [opened.body.data.id])).rejects.toThrow(/gov_violations_close_requires_proof/)
+  })
+
+  it('opens an investigation and dispatches an executive task', async () => {
+    const inquiry = await openInquiry(auth, nextKey(), {
+      caseNumber: 'INV-TEST-0001',
+      sourceType: 'manager_referral',
+      sourceReferenceId: null,
+      subjectEmployeeName: 'يوسف الشمري',
+      investigatorName: 'لجنة التقصي الداخلية',
+      incidentSummaryAr: 'إحالة لفحص تكرار الملاحظة.',
+      evidenceRef: null,
+    })
+    expect(inquiry.body.data.status).toBe('open_summons')
+    const alert = await raiseAlert(auth, nextKey(), { alertCategory: 'employee_neglect', severity: 'critical', titleAr: 'إهمال محضر تجريبي' })
+    const dispatched = await actOnTask(auth, alert.body.data.id, {
+      action: 'dispatch',
+      version: alert.body.data.version,
+      assignedToEmployee: 'فهد العازمي',
+      taskInstructionAr: 'ارفع إثبات الإغلاق اليوم.',
+      dueDate: '2026-11-05',
+    })
+    expect(dispatched.data.status).toBe('task_dispatched')
+    expect(dispatched.data.assignedToEmployee).toBe('فهد العازمي')
   })
 })

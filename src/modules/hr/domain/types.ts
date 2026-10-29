@@ -75,6 +75,21 @@ export type Appraisal = {
   reviewerNotes: string
 }
 
+export type Appointment = {
+  id: string
+  requestCode: string
+  employeeName: string
+  branchId: string | null
+  requestType: string
+  actionDirection: string
+  appointmentDate: string
+  appointmentTimeSlot: string
+  hqCounterOrOfficer: string
+  status: 'booked' | 'confirmed' | 'completed_handover' | 'missed_appointment'
+  notesAr: string
+  version: number
+}
+
 export type EmployeeExpense = {
   id: string
   employeeId: string

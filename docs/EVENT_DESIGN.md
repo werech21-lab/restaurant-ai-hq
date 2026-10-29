@@ -71,6 +71,14 @@ type BusEvent = {
 | `governance.contract.analyzed` | governance |
 | `governance.radar.recorded` | governance |
 | `governance.telemetry.recorded` | governance |
+| `governance.investigation.opened` | governance |
+| `governance.investigation.ruled` | governance |
+| `governance.monitoring.converted` | governance |
+| `governance.task.completed` | governance |
+| `governance.task.dispatched` | governance |
+| `governance.violation.closed` | governance |
+| `hr.appointment.booked` | hr |
+| `hr.appointment.completed` | hr |
 | `iam.invitation.accepted` | `src/lib/iam` |
 | `iam.invitation.created` | `src/lib/iam` |
 | `iam.invitation.revoked` | `src/lib/iam` |

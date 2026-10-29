@@ -228,6 +228,19 @@ const links: readonly NavLink[] = [
     ),
   },
   {
+    href: '/erp/governance',
+    label: 'erpnav.governance',
+    exact: false,
+    icon: (
+      <Glyph>
+        <path d="M8 4h8v4H8z" />
+        <path d="M6 8h12v12H6z" />
+        <path d="M9 12h6" />
+        <path d="M9 16h4" />
+      </Glyph>
+    ),
+  },
+  {
     href: '/erp/admin',
     label: 'erpnav.admin',
     exact: false,

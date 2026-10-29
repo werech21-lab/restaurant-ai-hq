@@ -7,10 +7,10 @@ import { errorClass, inputClass, labelClass, noticeClass, panelClass, primaryBut
 import { permissions } from '@/lib/auth/permissions'
 import { useI18n, type MessageKey } from '@/lib/i18n'
 import { formatMinor, parseKwdToMinor } from '@/lib/money'
-import type { Appraisal, Attendance, Employee, EmployeeExpense, Leave, PayrollRun, Payslip, Shift } from '@/modules/hr/client'
+import type { Appointment, Appraisal, Attendance, Employee, EmployeeExpense, Leave, PayrollRun, Payslip, Shift } from '@/modules/hr/client'
 
-type Tab = 'employees' | 'attendance' | 'leaves' | 'payroll' | 'appraisals' | 'expenses'
-const tabs: readonly Tab[] = ['employees', 'attendance', 'leaves', 'payroll', 'appraisals', 'expenses']
+type Tab = 'employees' | 'attendance' | 'leaves' | 'payroll' | 'appraisals' | 'expenses' | 'appointments'
+const tabs: readonly Tab[] = ['employees', 'attendance', 'leaves', 'payroll', 'appraisals', 'expenses', 'appointments']
 
 function isTab(value: string): value is Tab {
   return (tabs as readonly string[]).includes(value)
@@ -28,6 +28,7 @@ function Workspace({ initialTab }: { initialTab: string }) {
   const canPayroll = useCan(permissions.hrPayrollRun)
   const canAppraisal = useCan(permissions.hrAppraisalManage)
   const canExpense = useCan(permissions.hrExpenseApprove)
+  const canAppointment = useCan(permissions.hrAppointmentManage)
   const [tab, setTab] = useState<Tab>(isTab(initialTab) ? initialTab : 'employees')
   const [phase, setPhase] = useState<'loading' | 'ready' | 'error'>('loading')
   const [error, setError] = useState<MessageKey>('erp.err.generic')
@@ -41,6 +42,14 @@ function Workspace({ initialTab }: { initialTab: string }) {
   const [slips, setSlips] = useState<Payslip[]>([])
   const [appraisals, setAppraisals] = useState<Appraisal[]>([])
   const [expenses, setExpenses] = useState<EmployeeExpense[]>([])
+  const [appointments, setAppointments] = useState<Appointment[]>([])
+  const [apptName, setApptName] = useState('')
+  const [apptDate, setApptDate] = useState(new Date().toISOString().slice(0, 10))
+  const [apptSlot, setApptSlot] = useState('10:00-10:30')
+  const [apptOfficer, setApptOfficer] = useState('')
+  const [apptNotes, setApptNotes] = useState('')
+  const [apptType, setApptType] = useState('passport_handover')
+  const [apptDirection, setApptDirection] = useState('pickup_from_hq')
   const [code, setCode] = useState('')
   const [name, setName] = useState('')
   const [role, setRole] = useState('')
@@ -63,8 +72,9 @@ function Workspace({ initialTab }: { initialTab: string }) {
       apiRequest<{ data: Payslip[] }>('/api/v1/hr/payslips', { signal: controller.signal }),
       apiRequest<{ data: Appraisal[] }>('/api/v1/hr/appraisals', { signal: controller.signal }),
       apiRequest<{ data: EmployeeExpense[] }>('/api/v1/hr/expenses', { signal: controller.signal }),
+      apiRequest<{ data: Appointment[] }>('/api/v1/hr/appointments', { signal: controller.signal }),
     ])
-      .then(([employeePage, shiftPage, attendancePage, leavePage, payrollPage, slipPage, appraisalPage, expensePage]) => {
+      .then(([employeePage, shiftPage, attendancePage, leavePage, payrollPage, slipPage, appraisalPage, expensePage, appointmentPage]) => {
         setEmployees(employeePage.data)
         setShifts(shiftPage.data)
         setAttendance(attendancePage.data)
@@ -73,6 +83,7 @@ function Workspace({ initialTab }: { initialTab: string }) {
         setSlips(slipPage.data)
         setAppraisals(appraisalPage.data)
         setExpenses(expensePage.data)
+        setAppointments(appointmentPage.data)
         setPhase('ready')
       })
       .catch((caught: unknown) => {
@@ -139,6 +150,47 @@ function Workspace({ initialTab }: { initialTab: string }) {
     setBusy(true)
     try {
       await apiRequest(`/api/v1/hr/expenses/${id}`, { method: 'POST', idempotencyKey: newIdempotencyKey(), body: { decision, entryDate, version } })
+      setNotice(t('hr.saved'))
+      load()
+    } catch (caught) {
+      setError(errorKey(caught))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function postAppointment() {
+    setBusy(true)
+    setNotice(null)
+    try {
+      await apiRequest('/api/v1/hr/appointments', {
+        method: 'POST',
+        idempotencyKey: newIdempotencyKey(),
+        body: {
+          requestCode: `HQ-${Date.now().toString(36)}`,
+          employeeName: apptName,
+          branchId: null,
+          requestType: apptType,
+          actionDirection: apptDirection,
+          appointmentDate: apptDate,
+          appointmentTimeSlot: apptSlot,
+          hqCounterOrOfficer: apptOfficer,
+          notesAr: apptNotes,
+        },
+      })
+      setNotice(t('hr.saved'))
+      load()
+    } catch (caught) {
+      setError(errorKey(caught))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function actAppointment(id: string, version: number, action: 'confirm' | 'complete' | 'miss') {
+    setBusy(true)
+    try {
+      await apiRequest(`/api/v1/hr/appointments/${id}`, { method: 'POST', body: { action, version } })
       setNotice(t('hr.saved'))
       load()
     } catch (caught) {
@@ -275,6 +327,39 @@ function Workspace({ initialTab }: { initialTab: string }) {
               {canExpense && row.approvalStatus === 'pending' ? (
                 <button className={primaryButton} type="button" disabled={busy} onClick={() => decideExpense(row.id, row.version, 'approved')}>{t('hr.approve')}</button>
               ) : null}
+            </div>
+          ))}
+        </section>
+      ) : null}
+      {tab === 'appointments' ? (
+        <section className={panelClass}>
+          {canAppointment ? (
+            <form className="mb-4 grid gap-3 sm:grid-cols-2" onSubmit={(event) => {
+              event.preventDefault()
+              void postAppointment()
+            }}>
+              <label className={labelClass}>{t('hr.name')}<input className={inputClass} required value={apptName} onChange={(event) => setApptName(event.target.value)} /></label>
+              <label className={labelClass}>{t('hr.appt.type')}<select className={inputClass} value={apptType} onChange={(event) => setApptType(event.target.value)}>{['passport_handover', 'equipment_clearance', 'contract_signing', 'salary_certificate', 'residency_renewal'].map((item) => <option key={item} value={item}>{t(`hr.appt.type.${item}` as MessageKey)}</option>)}</select></label>
+              <label className={labelClass}>{t('hr.appt.direction')}<select className={inputClass} value={apptDirection} onChange={(event) => setApptDirection(event.target.value)}>{['pickup_from_hq', 'deliver_to_hq'].map((item) => <option key={item} value={item}>{t(`hr.appt.dir.${item}` as MessageKey)}</option>)}</select></label>
+              <label className={labelClass}>{t('hr.appt.slot')}<select className={inputClass} value={apptSlot} onChange={(event) => setApptSlot(event.target.value)}>{['08:00-08:30', '09:00-09:30', '10:00-10:30', '11:00-11:30', '12:00-12:30', '13:00-13:30'].map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
+              <label className={labelClass}>{t('hr.appt.date')}<input className={inputClass} type="date" required value={apptDate} onChange={(event) => setApptDate(event.target.value)} /></label>
+              <label className={labelClass}>{t('hr.appt.officer')}<input className={inputClass} required value={apptOfficer} onChange={(event) => setApptOfficer(event.target.value)} /></label>
+              <label className={labelClass}>{t('hr.appt.notes')}<input className={inputClass} value={apptNotes} onChange={(event) => setApptNotes(event.target.value)} /></label>
+              <div className="flex items-end"><button className={primaryButton} type="submit" disabled={busy}>{t('hr.appt.book')}</button></div>
+            </form>
+          ) : null}
+          {appointments.length === 0 ? <p className="text-sm text-gray-400">{t('hr.empty')}</p> : appointments.map((row) => (
+            <div key={row.id} className="flex flex-wrap items-center gap-3 border-t border-[#30363d] py-3 text-sm">
+              <span>{row.requestCode}</span>
+              <span>{row.employeeName}</span>
+              <span>{t(`hr.appt.type.${row.requestType}` as MessageKey)}</span>
+              <span>{t(`hr.appt.dir.${row.actionDirection}` as MessageKey)}</span>
+              <span>{row.appointmentDate} {row.appointmentTimeSlot}</span>
+              <span>{row.hqCounterOrOfficer}</span>
+              <span>{t(`hr.appt.status.${row.status}` as MessageKey)}</span>
+              {canAppointment && row.status === 'booked' ? <button className={secondaryButton} type="button" disabled={busy} onClick={() => void actAppointment(row.id, row.version, 'confirm')}>{t('hr.appt.confirm')}</button> : null}
+              {canAppointment && row.status === 'confirmed' ? <button className={primaryButton} type="button" disabled={busy} onClick={() => void actAppointment(row.id, row.version, 'complete')}>{t('hr.appt.complete')}</button> : null}
+              {canAppointment && (row.status === 'booked' || row.status === 'confirmed') ? <button className={secondaryButton} type="button" disabled={busy} onClick={() => void actAppointment(row.id, row.version, 'miss')}>{t('hr.appt.miss')}</button> : null}
             </div>
           ))}
         </section>
