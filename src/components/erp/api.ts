@@ -177,6 +177,7 @@ const errorKeys: Record<string, MessageKey> = {
   accounting_locked: 'pro.err.accounting_locked',
   credit_note_not_posted: 'pro.err.document_not_posted',
   payment_not_posted: 'pro.err.document_not_posted',
+  employee_has_history: 'hr.err.history',
   cursor_invalid: 'erp.err.cursor_invalid',
   account_code_exists: 'led.err.account_code_exists',
   account_has_active_children: 'led.err.account_has_active_children',

@@ -18,6 +18,7 @@ export {
   listPayrollHandler,
   listPayslipsHandler,
   listShiftsHandler,
+  removeEmployeeHandler,
   runPayrollHandler,
   updateEmployeeHandler,
 } from '@/modules/hr/api/v1/hr'
@@ -41,6 +42,7 @@ export {
   listPayroll,
   listPayslips,
   listShifts,
+  removeEmployee,
   runPayroll,
   updateEmployee,
 } from '@/modules/hr/services/hr-service'

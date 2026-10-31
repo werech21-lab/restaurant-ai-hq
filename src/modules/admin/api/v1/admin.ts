@@ -8,11 +8,15 @@ import {
   updateSecuritySchema,
   userParamsSchema,
 } from '@/modules/admin/schemas/admin'
-import { createAccount, getSecurity, listAccounts, listActivity, updateAccount, updateSecurity } from '@/modules/admin/services/admin-service'
+import { createAccount, getSecurity, listAccounts, listActivity, purgeDemoPlaceholders, updateAccount, updateSecurity } from '@/modules/admin/services/admin-service'
 
 function clientIp(request: RouteArgs['request']): string | null {
   const forwarded = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? request.headers.get('x-real-ip')?.trim() ?? ''
   return /^(?:\d{1,3}\.){3}\d{1,3}$|^[0-9a-f:]+$/i.test(forwarded) ? forwarded : null
+}
+
+export async function purgeDemoHandler({ auth }: RouteArgs): Promise<NextResponse> {
+  return NextResponse.json({ data: await purgeDemoPlaceholders(auth) })
 }
 
 export async function listAccountsHandler({ auth }: RouteArgs): Promise<NextResponse> {

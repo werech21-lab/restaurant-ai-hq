@@ -133,6 +133,23 @@ export async function getSecurity(auth: AuthContext): Promise<{ data: SecurityRo
   return { data }
 }
 
+export async function purgeDemoPlaceholders(auth: AuthContext): Promise<{ removed: number }> {
+  return withTransaction(async (tx) => {
+    const result = await tx.query<{ removed: number }>('select erp_purge_demo_placeholders()::int as removed')
+    const removed = Number(result.rows[0]?.removed ?? 0)
+    await writeAudit(tx, {
+      tenantId: auth.tenantId,
+      actorId: auth.userId,
+      entity: 'tenant',
+      entityId: auth.tenantId,
+      action: 'update',
+      before: null,
+      after: { purgedEmployees: removed },
+    })
+    return { removed }
+  })
+}
+
 export async function updateSecurity(auth: AuthContext, input: UpdateSecurityInput, ipAddress: string | null): Promise<{ data: SecurityRow }> {
   return withTransaction(async (tx) => {
     const before = await repository.getSecurity(tx, auth.tenantId)

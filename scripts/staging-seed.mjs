@@ -132,6 +132,8 @@ try {
       [tenantId, ownerId]
     )
   }
+  const allowDemoSeed = false
+  if (allowDemoSeed) {
   await client.query(
     `insert into warehouses (tenant_id, code, name, status, created_by)
      values ($1, 'DEMO-MAIN', 'DEMO main warehouse', 'active', $2)
@@ -204,6 +206,7 @@ try {
         [tenantId, partner.rows[0].id, ownerId]
       )
     }
+  }
   }
   const operational = await client.query(
     `select exists (

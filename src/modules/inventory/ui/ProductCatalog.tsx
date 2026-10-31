@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { apiRequest, errorKey, isAbort } from '@/components/erp/api'
-import { errorClass, inputClass, panelClass, secondaryButton } from '@/components/erp/styles'
+import { useCan } from '@/components/erp/permissions'
+import { dangerButton, errorClass, inputClass, panelClass, secondaryButton } from '@/components/erp/styles'
+import { permissions } from '@/lib/auth/permissions'
 import { Money, Num } from '@/components/ui'
 import { useI18n, type MessageKey } from '@/lib/i18n'
 import { formatMinor } from '@/lib/money'
@@ -23,6 +25,7 @@ type Props = {
 /** Product catalog with live search, status and low-stock filters, server-side sorting and paging. */
 export function ProductCatalog({ reloadToken, onEdit, onStockEntry }: Props) {
   const { t } = useI18n()
+  const canUpdate = useCan(permissions.inventoryItemUpdate)
   const [search, setSearch] = useState('')
   const query = useDebounced(search.trim(), 250)
   const [status, setStatus] = useState<StatusFilter>('active')
@@ -206,6 +209,30 @@ export function ProductCatalog({ reloadToken, onEdit, onStockEntry }: Props) {
                       <button type="button" onClick={() => onEdit(item)} className="text-gray-300 hover:text-white">
                         {t('inv.edit')}
                       </button>
+                      {canUpdate && item.isActive ? (
+                        <button
+                          type="button"
+                          className={dangerButton}
+                          onClick={() => {
+                            if (!window.confirm(t('inv.deactivateConfirm'))) return
+                            void apiRequest(`/api/v1/inventory/items/${item.id}`, {
+                              method: 'PATCH',
+                              body: {
+                                version: item.version,
+                                name: item.name,
+                                unitCostMinor: item.unitCostMinor,
+                                sellingPriceMinor: item.sellingPriceMinor,
+                                reorderLevel: item.reorderLevel,
+                                isActive: false,
+                              },
+                            })
+                              .then(() => setReload((value) => value + 1))
+                              .catch((error: unknown) => setMoreError(errorKey(error)))
+                          }}
+                        >
+                          {t('inv.deactivate')}
+                        </button>
+                      ) : null}
                     </div>
                   </td>
                 </tr>

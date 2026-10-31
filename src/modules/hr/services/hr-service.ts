@@ -61,6 +61,21 @@ export async function createEmployee(auth: AuthContext, key: string, input: Crea
   )
 }
 
+export async function removeEmployee(auth: AuthContext, id: string): Promise<{ data: { id: string } }> {
+  return withTransaction(async (tx) => {
+    const before = await repository.findEmployee(tx, auth.tenantId, id)
+    if (!before) throw new AppError(404, 'not_found', 'The employee was not found.')
+    if (await repository.employeeHasPayslip(tx, auth.tenantId, id)) {
+      throw new AppError(409, 'employee_has_history', 'This employee has a payslip, so the row stays.')
+    }
+    const removed = await repository.deleteEmployeeRecord(tx, auth.tenantId, id)
+    if (!removed) throw new AppError(404, 'not_found', 'The employee was not found.')
+    await writeAudit(tx, { tenantId: auth.tenantId, actorId: auth.userId, entity: 'hr_employee', entityId: id, action: 'delete', before, after: null })
+    await recordMovementWithin(tx, auth, { module: 'hr', actionType: 'delete', entityType: 'hr_employee', entityId: id, descriptionAr: `حذف موظف ${before.fullName}` })
+    return { data: { id } }
+  })
+}
+
 export async function updateEmployee(auth: AuthContext, id: string, input: UpdateEmployeeInput): Promise<{ data: Employee }> {
   return withTransaction(async (tx) => {
     const before = await repository.findEmployee(tx, auth.tenantId, id)

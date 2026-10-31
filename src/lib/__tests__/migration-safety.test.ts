@@ -79,6 +79,16 @@ describe('migration files', () => {
         "delete from aggregator_rank_escalation_actions where our_brand_name not in ('فارم براون', 'كرك كافتيريا', 'تشاينا جاردن', 'ذا نودل بار', 'فرانكس ستيك ساندويتش', 'شاورما طحينة') or our_branch_name like 'أثير%' or our_brand_name ilike '%demo%' or our_branch_name ilike '%demo%'",
         "delete from aggregator_geo_rank_snapshots where our_brand_name not in ('فارم براون', 'كرك كافتيريا', 'تشاينا جاردن', 'ذا نودل بار', 'فرانكس ستيك ساندويتش', 'شاورما طحينة') or our_branch_name like 'أثير%' or our_brand_name ilike '%demo%' or our_branch_name ilike '%demo%'",
       ],
+      '0033_purge_demo_placeholders_keep_odoo.sql': [
+        "delete from hr_attendances as row using hr_employees as employee where row.tenant_id = employee.tenant_id and row.employee_id = employee.id and employee.employee_code in ('emp-001', 'emp-002', 'emp-003')",
+        "delete from hr_leaves as row using hr_employees as employee where row.tenant_id = employee.tenant_id and row.employee_id = employee.id and employee.employee_code in ('emp-001', 'emp-002', 'emp-003')",
+        "delete from hr_appraisals as row using hr_employees as employee where row.tenant_id = employee.tenant_id and row.employee_id = employee.id and employee.employee_code in ('emp-001', 'emp-002', 'emp-003')",
+        "delete from hr_expenses as row using hr_employees as employee where row.tenant_id = employee.tenant_id and row.employee_id = employee.id and employee.employee_code in ('emp-001', 'emp-002', 'emp-003')",
+        "delete from hr_payslips as row using hr_employees as employee where row.tenant_id = employee.tenant_id and row.employee_id = employee.id and employee.employee_code in ('emp-001', 'emp-002', 'emp-003')",
+        'delete from hr_payroll_runs as run where not exists ( select 1 from hr_payslips as slip where slip.tenant_id = run.tenant_id and slip.run_id = run.id )',
+        "delete from hr_shifts where name = 'وردية المطبخ الصباحية'",
+        "delete from hr_employees where employee_code in ('emp-001', 'emp-002', 'emp-003')",
+      ],
     })
   })
 
@@ -87,7 +97,7 @@ describe('migration files', () => {
       const sql = (await readFile(path.join(migrationsDir, file), 'utf8')).replace(/--[^\n]*/g, '')
       expect(sql, file).not.toMatch(/\btruncate\b/i)
       expect(sql, file).not.toMatch(/\bdrop\s+(database|schema)\b/i)
-      if (file === '0030_venture_foods_exclusive_brands_radar.sql') continue
+      if (file === '0030_venture_foods_exclusive_brands_radar.sql' || file === '0033_purge_demo_placeholders_keep_odoo.sql') continue
       expect(sql, file).not.toMatch(/\bdelete\s+from\b/i)
     }
   })
@@ -312,7 +322,7 @@ describe('upgrading a database that already holds data', () => {
 
   it('applies from an empty database to the latest schema without error', async () => {
     const { db, remaining } = await databaseAt('0001')
-    expect(remaining).toHaveLength(31)
+    expect(remaining).toHaveLength(32)
     await apply(db, remaining)
     expect(await n(db, 'tenants')).toBe(0)
     expect(await n(db, 'invoices')).toBe(0)

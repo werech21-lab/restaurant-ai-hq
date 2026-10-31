@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ApiError, apiRequest, errorKey, newIdempotencyKey } from '@/components/erp/api'
 import { PermissionProvider, useCan } from '@/components/erp/permissions'
-import { errorClass, inputClass, labelClass, noticeClass, panelClass, primaryButton } from '@/components/erp/styles'
+import { dangerButton, errorClass, inputClass, labelClass, noticeClass, panelClass, primaryButton } from '@/components/erp/styles'
 import { permissions } from '@/lib/auth/permissions'
 import { useI18n, type MessageKey } from '@/lib/i18n'
 import { ODOO_COMPANY_ID, ODOO_ORIGIN, odooConsoleExtractor } from '@/modules/odoo/client'
@@ -14,6 +14,7 @@ type Board = { jobs: { id: string; recordsPulled: number; recordsApplied: number
 function Workspace() {
   const { t } = useI18n()
   const canSync = useCan(permissions.adminOdooSync)
+  const canPurge = useCan(permissions.hrEmployeeManage)
   const snippet = odooConsoleExtractor()
   const snippetRef = useRef<HTMLTextAreaElement>(null)
   const [mode, setMode] = useState<'password' | 'session'>('password')
@@ -43,6 +44,21 @@ function Workspace() {
       })
     return () => controller.abort()
   }, [notice])
+
+  async function purgeDemo() {
+    if (!window.confirm(t('admin.purgeConfirm'))) return
+    setBusy(true)
+    setNotice(null)
+    setDetail(null)
+    try {
+      await apiRequest('/api/v1/admin/demo-purge', { method: 'POST', body: {} })
+      setNotice(t('admin.purgeDone'))
+    } catch (error) {
+      setDetail(error instanceof ApiError ? error.message : t(errorKey(error)))
+    } finally {
+      setBusy(false)
+    }
+  }
 
   async function pull() {
     setBusy(true)
@@ -115,6 +131,7 @@ function Workspace() {
         <h1 className="text-2xl font-bold text-white">{t('odoo.title')}</h1>
         <p className="mt-2 max-w-3xl text-sm text-gray-400">{t('odoo.lead')}</p>
       </header>
+      {canPurge ? <button className={dangerButton} type="button" disabled={busy} onClick={() => void purgeDemo()}>{t('admin.purge')}</button> : null}
       {notice ? <p className={noticeClass}>{notice}</p> : null}
       {detail ? <p className={errorClass} role="alert">{detail}</p> : null}
       {canSync ? (

@@ -22,6 +22,7 @@ import {
   listPayroll,
   listPayslips,
   listShifts,
+  removeEmployee,
   runPayroll,
   updateEmployee,
 } from '@/modules/hr/services/hr-service'
@@ -51,6 +52,11 @@ export async function listEmployeesHandler({ auth }: RouteArgs): Promise<NextRes
 
 export async function createEmployeeHandler({ request, auth }: RouteArgs): Promise<NextResponse> {
   return created(await createEmployee(auth, requireIdempotencyKey(request), await parseBody(request, createEmployeeSchema)))
+}
+
+export async function removeEmployeeHandler({ auth, params }: RouteArgs): Promise<NextResponse> {
+  const { id } = parseParams(params, idParamsSchema)
+  return NextResponse.json(await removeEmployee(auth, id))
 }
 
 export async function updateEmployeeHandler({ request, auth, params }: RouteArgs): Promise<NextResponse> {

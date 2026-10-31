@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useState } from 'react'
 import { apiRequest, errorKey, isAbort } from '@/components/erp/api'
+import { PermissionProvider } from '@/components/erp/permissions'
 import { errorClass, noticeClass, primaryButton, secondaryButton } from '@/components/erp/styles'
 import { useI18n, type MessageKey } from '@/lib/i18n'
 import type { Item, Warehouse } from '@/modules/inventory/client'
@@ -20,7 +21,7 @@ type Tab = (typeof tabs)[number]
 type Dialog = { kind: 'item'; item?: Item } | { kind: 'movement'; item?: Item } | null
 
 /** The inventory screen: overview, product catalog, stock movement ledger and warehouses. */
-export default function InventoryWorkspace({ initialItemId = null }: { initialItemId?: string | null }) {
+export default function InventoryWorkspace({ initialItemId = null, permissions = [] }: { initialItemId?: string | null; permissions?: readonly string[] }) {
   const { t } = useI18n()
   const [tab, setTab] = useState<Tab>(initialItemId ? 'catalog' : 'overview')
   const [dialog, setDialog] = useState<Dialog>(null)
@@ -75,6 +76,7 @@ export default function InventoryWorkspace({ initialItemId = null }: { initialIt
   const closeDialog = useCallback(() => setDialog(null), [])
 
   return (
+    <PermissionProvider permissions={permissions}>
     <div>
       <Link href="/" className="mb-6 inline-block text-sm text-blue-400 hover:text-blue-300">
         {t('erp.back')}
@@ -176,5 +178,6 @@ export default function InventoryWorkspace({ initialItemId = null }: { initialIt
         </Modal>
       ) : null}
     </div>
+    </PermissionProvider>
   )
 }

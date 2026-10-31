@@ -54,6 +54,7 @@ export const baselineSentinels = {
   '0030_venture_foods_exclusive_brands_radar.sql': ['fn:erp_venture_foods_exclusive_marker()'],
   '0031_odoo_migration_engine.sql': ['fn:erp_odoo_sync_marker()'],
   '0032_odoo_venturefoods_extractor.sql': ['fn:erp_odoo_extractor_marker()'],
+  '0033_purge_demo_placeholders_keep_odoo.sql': ['fn:erp_demo_purge_marker()'],
 }
 
 /**

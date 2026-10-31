@@ -3,7 +3,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { apiRequest, errorKey, newIdempotencyKey } from '@/components/erp/api'
 import { PermissionProvider, useCan } from '@/components/erp/permissions'
-import { errorClass, inputClass, labelClass, noticeClass, panelClass, primaryButton, secondaryButton } from '@/components/erp/styles'
+import { dangerButton, errorClass, inputClass, labelClass, noticeClass, panelClass, primaryButton, secondaryButton } from '@/components/erp/styles'
 import { permissions } from '@/lib/auth/permissions'
 import { useI18n, type MessageKey } from '@/lib/i18n'
 import { formatMinor, parseKwdToMinor } from '@/lib/money'
@@ -146,6 +146,22 @@ function Workspace({ initialTab }: { initialTab: string }) {
     }
   }
 
+  async function removeEmployee(employee: Employee) {
+    if (!window.confirm(t('hr.deleteConfirm'))) return
+    setBusy(true)
+    setNotice(null)
+    try {
+      await apiRequest(`/api/v1/hr/employees/${employee.id}`, { method: 'DELETE' })
+      setEmployees((current) => current.filter((row) => row.id !== employee.id))
+      setNotice(t('hr.saved'))
+    } catch (caught) {
+      setError(errorKey(caught))
+      setPhase('error')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function decideExpense(id: string, version: number, decision: 'approved' | 'rejected') {
     setBusy(true)
     try {
@@ -232,7 +248,7 @@ function Workspace({ initialTab }: { initialTab: string }) {
           ) : null}
           {employees.length === 0 ? <p className="text-sm text-gray-400">{t('hr.empty')}</p> : (
             <table className="w-full text-sm">
-              <thead className="text-gray-400"><tr><th className="px-2 py-2 text-start">{t('hr.code')}</th><th className="px-2 py-2 text-start">{t('hr.name')}</th><th className="px-2 py-2 text-start">{t('hr.role')}</th><th className="px-2 py-2 text-start">{t('hr.salary')}</th><th className="px-2 py-2 text-start">{t('hr.residency')}</th><th className="px-2 py-2 text-start">{t('hr.status')}</th></tr></thead>
+              <thead className="text-gray-400"><tr><th className="px-2 py-2 text-start">{t('hr.code')}</th><th className="px-2 py-2 text-start">{t('hr.name')}</th><th className="px-2 py-2 text-start">{t('hr.role')}</th><th className="px-2 py-2 text-start">{t('hr.salary')}</th><th className="px-2 py-2 text-start">{t('hr.residency')}</th><th className="px-2 py-2 text-start">{t('hr.status')}</th><th /></tr></thead>
               <tbody>
                 {employees.map((employee) => (
                   <tr key={employee.id} className="border-t border-[#30363d]">
@@ -242,6 +258,7 @@ function Workspace({ initialTab }: { initialTab: string }) {
                     <td className="px-2 py-3">{formatMinor(employee.basicSalaryMinor)} {kwd}</td>
                     <td className="px-2 py-3">{employee.residencyExpiry ?? '—'}</td>
                     <td className="px-2 py-3">{t(employee.status === 'active' ? 'hr.active' : 'hr.inactive')}</td>
+                    <td className="px-2 py-3">{canEmployees ? <button className={dangerButton} type="button" disabled={busy} onClick={() => void removeEmployee(employee)}>{t('hr.delete')}</button> : null}</td>
                   </tr>
                 ))}
               </tbody>

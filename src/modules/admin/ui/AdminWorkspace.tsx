@@ -64,6 +64,7 @@ function Workspace({ initialTab }: { initialTab: string }) {
   const canInvite = useCan(permissions.iamMemberInvite)
   const canUpdate = useCan(permissions.iamMemberUpdate)
   const canSecure = useCan(permissions.iamRoleManage)
+  const canPurge = useCan(permissions.hrEmployeeManage)
   const [tab, setTab] = useState<Tab>(isTab(initialTab) ? initialTab : 'accounts')
   const [phase, setPhase] = useState<'loading' | 'ready' | 'error'>('loading')
   const [error, setError] = useState<MessageKey>('erp.err.generic')
@@ -217,6 +218,21 @@ function Workspace({ initialTab }: { initialTab: string }) {
     }
   }
 
+  async function purgeDemo() {
+    if (!window.confirm(t('admin.purgeConfirm'))) return
+    setBusy(true)
+    setNotice(null)
+    try {
+      await apiRequest('/api/v1/admin/demo-purge', { method: 'POST', body: {} })
+      setNotice(t('admin.purgeDone'))
+    } catch (caught) {
+      setError(errorKey(caught))
+      setPhase('error')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   if (phase === 'loading') return <p className="text-sm text-gray-400">{t('adm.loading')}</p>
   if (phase === 'error') return <p className={errorClass}>{t(error)}</p>
 
@@ -234,6 +250,7 @@ function Workspace({ initialTab }: { initialTab: string }) {
         <p className="mt-2 max-w-3xl text-sm leading-7 text-gray-400">{t('admin.lead')}</p>
       </header>
       {notice ? <p className={noticeClass}>{notice}</p> : null}
+      {canPurge ? <button className={dangerButton} type="button" disabled={busy} onClick={() => void purgeDemo()}>{t('admin.purge')}</button> : null}
       <div className="flex flex-wrap gap-2">
         {tabs.map((item) => (
           <button key={item.id} type="button" className={tab === item.id ? primaryButton : secondaryButton} onClick={() => setTab(item.id)}>
