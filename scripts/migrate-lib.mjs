@@ -52,6 +52,7 @@ export const baselineSentinels = {
   '0028_aggregator_rank_rescue_radar.sql': ['fn:erp_aggregator_rank_rescue_marker()'],
   '0029_venture_foods_brands_aggregator_radar.sql': ['public.venture_brands', 'fn:erp_venture_foods_brands_marker()'],
   '0030_venture_foods_exclusive_brands_radar.sql': ['fn:erp_venture_foods_exclusive_marker()'],
+  '0031_odoo_migration_engine.sql': ['fn:erp_odoo_sync_marker()'],
 }
 
 /**

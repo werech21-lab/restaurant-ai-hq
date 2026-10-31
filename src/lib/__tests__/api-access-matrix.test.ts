@@ -129,8 +129,8 @@ afterAll(stopDatabase)
 
 describe('the API surface', () => {
   it('finds every route file and method (a count that only moves on purpose)', () => {
-    expect(new Set(cases.map((testCase) => testCase.route)).size).toBe(145)
-    expect(cases.length).toBe(206)
+    expect(new Set(cases.map((testCase) => testCase.route)).size).toBe(147)
+    expect(cases.length).toBe(209)
   })
 })
 

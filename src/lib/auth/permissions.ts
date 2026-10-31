@@ -119,6 +119,8 @@ export const permissions = {
   hrAppointmentManage: 'hr.appointment.manage',
   govAggregatorRead: 'gov.aggregator.read',
   govAggregatorManage: 'gov.aggregator.manage',
+  adminOdooRead: 'admin.odoo.read',
+  adminOdooSync: 'admin.odoo.sync',
 } as const
 
 export type Permission = (typeof permissions)[keyof typeof permissions]

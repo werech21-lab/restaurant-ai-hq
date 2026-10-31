@@ -64,6 +64,7 @@ export const erpCatalog: readonly CatalogItem[] = [
   ] },
   { id: 'kitchen', href: '/erp/kitchen', title: 'nav.kitchen', detail: 'hub.kitchen', status: 'ready' },
   { id: 'delivery', href: '/erp/delivery', title: 'nav.delivery', detail: 'hub.delivery', status: 'ready' },
+  { id: 'odoo', href: '/erp/odoo-sync', title: 'spec.odoo', detail: 'odoo.lead', status: 'ready' },
   { id: 'aggregator', href: '/erp/aggregator-radar', title: 'erpnav.aggregator', detail: 'hub.aggregator', status: 'ready', branches: [
     { href: '/erp/aggregator-radar?view=apps#rank', title: 'hub.branch.platforms' },
     { href: '/erp/aggregator-radar?view=pulse#rank', title: 'hub.branch.georank' },

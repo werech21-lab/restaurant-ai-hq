@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest'
  */
 
 const srcDir = path.join(process.cwd(), 'src')
-const modules = ['finance', 'crm', 'inventory', 'hr', 'ai', 'org', 'procurement', 'kitchen', 'delivery', 'admin', 'operations', 'governance'] as const
+const modules = ['finance', 'crm', 'inventory', 'hr', 'ai', 'org', 'procurement', 'kitchen', 'delivery', 'admin', 'operations', 'governance', 'odoo'] as const
 type ModuleName = (typeof modules)[number]
 
 const ownedTables: Record<ModuleName, string[]> = {
@@ -24,6 +24,7 @@ const ownedTables: Record<ModuleName, string[]> = {
   kitchen: ['recipes', 'recipe_lines', 'kitchen_waste', 'kitchen_productions'],
   delivery: ['delivery_partners', 'delivery_orders', 'delivery_settlements'],
   admin: ['audit_activity_logs', 'tenant_security_settings'],
+  odoo: ['odoo_sync_jobs', 'odoo_imported_staging_records'],
 }
 
 type SourceFile = { file: string; relative: string; text: string; owner: ModuleName | null }

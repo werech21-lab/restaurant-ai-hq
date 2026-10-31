@@ -64,7 +64,7 @@ export default function HomeShell({ metrics, signedIn, devEntry }: { metrics: Co
 
   return (
     <div className="flex h-screen overflow-hidden bg-ink-950 text-mist-100">
-      <Sidebar active={activeSection} onChange={navigate} open={menuOpen} onClose={() => setMenuOpen(false)} />
+      <Sidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar title={t(`nav.${activeSection}` as MessageKey)} onNavigate={navigate} onMenu={() => setMenuOpen(true)} />
         <main className="relative min-w-0 flex-1 overflow-y-auto overflow-x-hidden">

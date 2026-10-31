@@ -19,14 +19,15 @@ describe('ERP sectors', () => {
 
   it('follows the open tab when one route serves two sectors', () => {
     expect(activeSectorId('/erp/procurement', 'invoices')).toBe('finance')
-    expect(activeSectorId('/erp/procurement', null)).toBe('supply')
+    expect(activeSectorId('/erp/procurement', null)).toBe('finance')
     expect(activeSectorId('/erp/operations', 'quality')).toBe('supply')
-    expect(activeSectorId('/erp/operations', 'contracts')).toBe('commercial')
-    expect(activeSectorId('/erp/operations', null)).toBe('commercial')
-    expect(activeSectorId('/erp/governance', 'tasks')).toBe('legal')
+    expect(activeSectorId('/erp/operations', 'contracts')).toBe('supply')
+    expect(activeSectorId('/erp/hr', 'expenses')).toBe('finance')
+    expect(activeSectorId('/erp/governance', 'tasks')).toBe('executive')
     expect(activeSectorId('/erp/hr', 'payroll')).toBe('people')
     expect(activeSectorId('/erp', null)).toBe('executive')
-    expect(activeSectorId('/erp/admin', 'accounts')).toBe('legal')
+    expect(activeSectorId('/erp/admin', 'accounts')).toBe('system')
+    expect(activeSectorId('/erp/odoo-sync', null)).toBe('system')
     expect(activeSectorId('/erp/aggregator-radar', null)).toBe('executive')
   })
 

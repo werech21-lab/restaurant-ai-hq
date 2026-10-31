@@ -1,7 +1,7 @@
 import type { MessageKey } from '@/lib/i18n'
 
 /** The six executive sectors. Every specialty is an existing route. */
-export type SectorId = 'executive' | 'finance' | 'supply' | 'commercial' | 'people' | 'legal'
+export type SectorId = 'executive' | 'finance' | 'supply' | 'people' | 'legal' | 'system'
 
 export type SectorLink = { href: string; title: MessageKey }
 
@@ -33,6 +33,7 @@ export const erpSectors: readonly ErpSector[] = [
       { href: '/erp/ai?tab=decisions', title: 'spec.ai' },
       { href: '/erp/aggregator-radar', title: 'spec.radar' },
       { href: '/erp/intelligence?tab=radar', title: 'spec.market' },
+      { href: '/erp/governance?tab=tasks', title: 'spec.tasks' },
     ],
   },
   {
@@ -40,29 +41,22 @@ export const erpSectors: readonly ErpSector[] = [
     title: 'sector.finance',
     links: [
       { href: '/erp/ledger?tab=entries', title: 'spec.ledger' },
+      { href: '/erp/ledger?tab=accounts', title: 'spec.accounts' },
+      { href: '/erp/procurement?tab=requests', title: 'spec.purchasing' },
       { href: '/erp/finance', title: 'spec.invoices' },
-      { href: '/erp/procurement?tab=invoices', title: 'spec.suppliersPay' },
-      { href: '/erp/ledger?tab=trial', title: 'spec.trial' },
+      { href: '/erp/hr?tab=expenses', title: 'spec.expenses' },
     ],
   },
   {
     id: 'supply',
     title: 'sector.supply',
     links: [
-      { href: '/erp/procurement?tab=requests', title: 'spec.purchasing' },
       { href: '/erp/inventory', title: 'spec.inventory' },
       { href: '/erp/kitchen', title: 'spec.kitchen' },
-      { href: '/erp/delivery', title: 'spec.delivery' },
-      { href: '/erp/operations?tab=quality', title: 'spec.quality' },
-    ],
-  },
-  {
-    id: 'commercial',
-    title: 'sector.commercial',
-    links: [
-      { href: '/erp/crm', title: 'spec.crm' },
       { href: '/erp/org', title: 'spec.org' },
-      { href: '/erp/operations?tab=contracts', title: 'spec.tradeContracts' },
+      { href: '/erp/delivery', title: 'spec.delivery' },
+      { href: '/erp/crm', title: 'spec.crm' },
+      { href: '/erp/operations?tab=quality', title: 'spec.quality' },
     ],
   },
   {
@@ -74,9 +68,7 @@ export const erpSectors: readonly ErpSector[] = [
       { href: '/erp/hr?tab=leaves', title: 'spec.leaves' },
       { href: '/erp/hr?tab=payroll', title: 'spec.payroll' },
       { href: '/erp/hr?tab=appraisals', title: 'spec.appraisals' },
-      { href: '/erp/hr?tab=expenses', title: 'spec.expenses' },
       { href: '/erp/hr?tab=appointments', title: 'spec.appointments' },
-      { href: '/erp/governance?tab=tasks', title: 'spec.tasks' },
     ],
   },
   {
@@ -89,7 +81,13 @@ export const erpSectors: readonly ErpSector[] = [
       { href: '/erp/governance?tab=inquiry', title: 'spec.inquiry' },
       { href: '/erp/governance?tab=monitor', title: 'spec.monitor' },
       { href: '/erp/archive', title: 'spec.archive' },
-      { href: '/erp/operations?tab=documents', title: 'spec.documents' },
+    ],
+  },
+  {
+    id: 'system',
+    title: 'sector.system',
+    links: [
+      { href: '/erp/odoo-sync', title: 'spec.odoo' },
       { href: '/erp/admin?tab=accounts', title: 'spec.admin' },
       { href: '/erp/iam', title: 'spec.iam' },
     ],
@@ -129,20 +127,26 @@ export function effectiveTab(path: string, tab: string | null): string | null {
  * and `/erp/governance` stays in legal even when the task tab was opened from human resources.
  */
 export function activeSectorId(path: string, tab: string | null): SectorId {
-  if (path === '/erp' || path.startsWith('/erp/ai') || path.startsWith('/erp/aggregator-radar') || path.startsWith('/erp/intelligence')) {
-    return 'executive'
-  }
-  if (path.startsWith('/erp/procurement') && (tab === 'invoices' || tab === 'payments')) return 'finance'
-  if (path.startsWith('/erp/finance') || path.startsWith('/erp/ledger')) return 'finance'
-  if (path.startsWith('/erp/operations') && tab === 'quality') return 'supply'
-  if (path.startsWith('/erp/inventory') || path.startsWith('/erp/kitchen') || path.startsWith('/erp/delivery') || path.startsWith('/erp/procurement')) {
+  if (path.startsWith('/erp/odoo-sync') || path.startsWith('/erp/admin') || path.startsWith('/erp/iam')) return 'system'
+  if (path === '/erp' || path.startsWith('/erp/ai') || path.startsWith('/erp/aggregator-radar') || path.startsWith('/erp/intelligence')) return 'executive'
+  if (path.startsWith('/erp/governance') && tab === 'tasks') return 'executive'
+  if (path.startsWith('/erp/hr') && tab === 'expenses') return 'finance'
+  if (path.startsWith('/erp/finance') || path.startsWith('/erp/ledger') || path.startsWith('/erp/procurement')) return 'finance'
+  if (path.startsWith('/erp/hr')) return 'people'
+  if (
+    path.startsWith('/erp/inventory') ||
+    path.startsWith('/erp/kitchen') ||
+    path.startsWith('/erp/delivery') ||
+    path.startsWith('/erp/org') ||
+    path.startsWith('/erp/crm') ||
+    path.startsWith('/erp/operations')
+  ) {
     return 'supply'
   }
-  if (path.startsWith('/erp/operations') && tab === 'documents') return 'legal'
-  if (path.startsWith('/erp/crm') || path.startsWith('/erp/org') || path.startsWith('/erp/operations')) return 'commercial'
-  if (path.startsWith('/erp/hr')) return 'people'
-  if (path.startsWith('/erp/governance')) return 'legal'
-  return 'legal'
+  if (path.startsWith('/erp/contracts') || path.startsWith('/erp/compliance') || path.startsWith('/erp/archive') || path.startsWith('/erp/governance')) {
+    return 'legal'
+  }
+  return 'executive'
 }
 
 export function sectorSummary(id: SectorId, metrics: SectorMetrics | null): SectorSummary {
