@@ -231,4 +231,70 @@ describe('governance on the live schema', () => {
       [snapshotId],
     )).rejects.toThrow(/aggregator_geo_rank_penalty_check/)
   })
+
+  it('keeps the six Venture Foods brands and accepts Ardiya plus a rank past 50', async () => {
+    const table = await pg().query<{ name: string | null }>('select to_regclass($1) as name', ['public.venture_brands'])
+    expect(table.rows[0].name).toBe('venture_brands')
+    await pg().query(
+      `insert into venture_brands (
+        tenant_id, code, name_en, name_ar, cuisine_category_ar, active_branches_count, sort_order, created_by
+      ) values
+        ($1, 'FARM-BROWN', 'Farm Brown', 'فارم براون', 'دجاج مقلي وكرسبي', 4, 1, $2),
+        ($1, 'KARAK-CAFETERIA', 'Karak Cafeteria', 'كرك كافتيريا', 'كرك وشاباتي وكافتيريا', 6, 2, $2),
+        ($1, 'CHINA-GARDEN', 'China Garden', 'تشاينا جاردن', 'صيني وآسيوي', 3, 3, $2),
+        ($1, 'THE-NOODLE-BAR', 'The Noodle Bar', 'ذا نودل بار', 'نودلز ووك آسيوي', 2, 4, $2),
+        ($1, 'FRANKS-STEAK', 'Franks Steak Sandwiches', 'فرانكس ستيك ساندويتش', 'ستيك فيلي وساندويتش', 3, 5, $2),
+        ($1, 'SHAWARMA-TAHINA', 'Shawarma Tahina', 'شاورما طحينة', 'شاورما وشارع شامي', 5, 6, $2)`,
+      [auth.tenantId, auth.userId],
+    )
+    const penalty = 'الخوارزمية أبقت فارم براون في المركز 47 بمنطقة العارضية لأن مدة التوصيل 48 دقيقة فوق حد 40 دقيقة، والتوصيل على أسطول الشركة بلا أولوية التطبيق.'
+    await pg().query(
+      `insert into aggregator_geo_rank_snapshots (
+        tenant_id, snapshot_interval_time, platform_name, geo_zone_ar, our_brand_name, our_branch_name,
+        current_rank, previous_rank_5m_ago, rank_delta, overall_rating_bps, reviews_count,
+        estimated_visits_impressions, conversion_rate_bps, avg_order_acceptance_seconds, prep_time_minutes,
+        cancellation_rate_bps, algorithm_penalty_reason_ar, delivery_eta_minutes, delivery_fee_minor,
+        min_order_minor, logistics_mode, created_by
+      ) values (
+        $1, '2026-12-01T08:00:00Z', 'Talabat', 'العارضية', 'فارم براون', 'فارم براون العارضية',
+        47, 49, 2, 430, 510, 1400, 240, 90, 26, 880, $3, 48, 1250, 2500, 'vendor_own_fleet', $2
+      )`,
+      [auth.tenantId, auth.userId, penalty],
+    )
+    const board = await aggregatorBoard(auth, { branch: 'فارم براون' })
+    expect(board.brands).toHaveLength(6)
+    expect(board.snapshots.map((row) => row.ourBrandName)).toEqual(['فارم براون'])
+    expect(board.snapshots[0]?.currentRank).toBe(47)
+    expect(board.snapshots[0]?.geoZoneAr).toBe('العارضية')
+    expect(board.snapshots[0]?.logisticsMode).toBe('vendor_own_fleet')
+    await expect(pg().query(
+      `insert into venture_brands (tenant_id, code, name_en, name_ar, cuisine_category_ar, active_branches_count, sort_order, created_by)
+       values ($1, 'NO-SUCH', 'No', 'لا', 'لا', 1, 1, $2)`,
+      [auth.tenantId, auth.userId],
+    )).rejects.toThrow(/venture_brands_code_check|code/)
+    await expect(pg().query(
+      `insert into aggregator_geo_rank_snapshots (
+        tenant_id, snapshot_interval_time, platform_name, geo_zone_ar, our_brand_name, our_branch_name,
+        current_rank, previous_rank_5m_ago, rank_delta, overall_rating_bps, reviews_count,
+        estimated_visits_impressions, conversion_rate_bps, delivery_eta_minutes, delivery_fee_minor,
+        min_order_minor, logistics_mode, created_by
+      ) values (
+        $1, '2026-12-01T08:00:00Z', 'Keeta', 'السرة', 'فارم براون', 'فارم براون السرة',
+        10, 10, 0, 450, 10, 10, 10, 20, 500, 2500, 'platform_fleet', $2
+      )`,
+      [auth.tenantId, auth.userId],
+    )).rejects.toThrow(/zone/)
+    await expect(pg().query(
+      `insert into aggregator_geo_rank_snapshots (
+        tenant_id, snapshot_interval_time, platform_name, geo_zone_ar, our_brand_name, our_branch_name,
+        current_rank, previous_rank_5m_ago, rank_delta, overall_rating_bps, reviews_count,
+        estimated_visits_impressions, conversion_rate_bps, algorithm_penalty_reason_ar, delivery_eta_minutes, delivery_fee_minor,
+        min_order_minor, logistics_mode, created_by
+      ) values (
+        $1, '2026-12-01T08:05:00Z', 'Snoonu', 'العارضية', 'فارم براون', 'فارم براون العارضية',
+        61, 61, 0, 410, 10, 10, 10, 'سبب', 50, 1000, 2500, 'vendor_own_fleet', $2
+      )`,
+      [auth.tenantId, auth.userId],
+    )).rejects.toThrow(/current_rank|aggregator_geo_rank_current_check/)
+  })
 })

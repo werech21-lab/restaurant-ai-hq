@@ -6,7 +6,7 @@ import { minorToInput } from '@/lib/money'
 export const aggregatorPlatforms = ['Talabat', 'Keeta', 'Jahez', 'Snoonu', 'Deliveroo'] as const
 export type AggregatorPlatform = (typeof aggregatorPlatforms)[number]
 
-export const aggregatorZones = ['السالمية', 'شرق/مدينة الكويت', 'حولي', 'الفروانية', 'المهبولة', 'الجهراء'] as const
+export const aggregatorZones = ['السالمية', 'شرق/مدينة الكويت', 'حولي', 'الفروانية', 'المهبولة', 'الجهراء', 'العارضية'] as const
 export type AggregatorZone = (typeof aggregatorZones)[number]
 
 export const logisticsModes = ['platform_fleet', 'vendor_own_fleet'] as const
@@ -203,7 +203,7 @@ export type BuriedRescue = {
 
 /** Deterministic climb from a buried rank (39 and worse) to rank 5. The same inputs always return the same plan. */
 export function buriedRankRescue(input: BuriedObservation): BuriedRescue | null {
-  if (input.currentRank < 39 || input.currentRank > 50) return null
+  if (input.currentRank < 39 || input.currentRank > 60) return null
   const reasons: string[] = []
   if (input.etaMinutes > 40) reasons.push(`مدة التوصيل ${input.etaMinutes} دقيقة فوق حد 40 دقيقة`)
   if (input.acceptanceSeconds > 60) reasons.push(`قبول الطلب ${input.acceptanceSeconds} ثانية فوق حد 60 ثانية`)

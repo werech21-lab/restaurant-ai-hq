@@ -50,6 +50,7 @@ export const baselineSentinels = {
   '0026_legal_admin_governance_iot_investigations.sql': ['public.gov_violations_tracker', 'public.connected_devices', 'public.legal_investigations', 'public.executive_alerts_and_tasks', 'public.hr_service_requests_appointments'],
   '0027_aggregator_5min_geo_rank_radar.sql': ['public.aggregator_geo_rank_snapshots', 'public.aggregator_top_competitors_bench', 'public.aggregator_rank_escalation_actions'],
   '0028_aggregator_rank_rescue_radar.sql': ['fn:erp_aggregator_rank_rescue_marker()'],
+  '0029_venture_foods_brands_aggregator_radar.sql': ['public.venture_brands', 'fn:erp_venture_foods_brands_marker()'],
 }
 
 /**

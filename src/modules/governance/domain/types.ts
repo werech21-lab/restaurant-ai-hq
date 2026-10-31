@@ -208,10 +208,19 @@ export type CompetitorBench = {
   gap: { rankGap: number; etaGapMinutes: number; feeGapMinor: number; ratingGapBps: number }
 }
 
+export type VentureBrandRow = {
+  code: string
+  nameEn: string
+  nameAr: string
+  cuisineCategoryAr: string
+  activeBranchesCount: number
+}
+
 export type EscalationCard = {
   id: string
   platformName: 'Talabat' | 'Keeta' | 'Jahez' | 'Snoonu' | 'Deliveroo'
   geoZoneAr: string
+  ourBrandName: string
   ourBranchName: string
   currentRank: number
   targetRank: number

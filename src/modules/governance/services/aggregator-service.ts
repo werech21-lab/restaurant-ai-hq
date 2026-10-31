@@ -18,7 +18,7 @@ import {
   type EscalationStatus,
   type LogisticsMode,
 } from '@/modules/governance/domain/aggregator'
-import type { CompetitorBench, EscalationCard, GeoRankSnapshot } from '@/modules/governance/domain/types'
+import type { CompetitorBench, EscalationCard, GeoRankSnapshot, VentureBrandRow } from '@/modules/governance/domain/types'
 import { publishGovernanceEvents, type GovernanceEvent } from '@/modules/governance/events'
 import * as repository from '@/modules/governance/repositories/aggregator-repository'
 import type { AggregatorQuery, EscalationDecisionInput, ScanInput } from '@/modules/governance/schemas/aggregator'
@@ -46,6 +46,7 @@ function asStatus(value: string): EscalationStatus {
 }
 
 export type AggregatorBoard = {
+  brands: VentureBrandRow[]
   snapshots: GeoRankSnapshot[]
   competitors: CompetitorBench[]
   actions: EscalationCard[]
@@ -53,10 +54,11 @@ export type AggregatorBoard = {
 
 export async function aggregatorBoard(auth: AuthContext, query: AggregatorQuery): Promise<AggregatorBoard> {
   return withTransaction(async (tx) => {
+    const brands = await repository.listBrands(tx, auth.tenantId)
     const snapshots = await repository.listSnapshots(tx, auth.tenantId, query)
     const competitors = await repository.listCompetitors(tx, auth.tenantId, snapshots.map((row) => row.id))
     const actions = await repository.listActions(tx, auth.tenantId, query)
-    return { snapshots, competitors, actions }
+    return { brands, snapshots, competitors, actions }
   })
 }
 
@@ -109,6 +111,7 @@ export async function scanAggregator(auth: AuthContext, key: string, input: Scan
         await repository.insertAction(tx, auth.tenantId, auth.userId, {
           platformName: observation.platformName,
           geoZoneAr: observation.geoZoneAr,
+          ourBrandName: row.ourBrandName,
           ourBranchName: observation.ourBranchName,
           currentRank: observation.currentRank,
           targetRank: advice.targetRank,

@@ -1,6 +1,6 @@
 import type { Queryable } from '@/lib/db'
 import type { AggregatorPlatform, EscalationActionType, RankGap } from '@/modules/governance/domain/aggregator'
-import type { CompetitorBench, EscalationCard, GeoRankSnapshot } from '@/modules/governance/domain/types'
+import type { CompetitorBench, EscalationCard, GeoRankSnapshot, VentureBrandRow } from '@/modules/governance/domain/types'
 import type { AggregatorQuery } from '@/modules/governance/schemas/aggregator'
 
 function whole(value: unknown): number {
@@ -87,7 +87,7 @@ function bench(row: BenchRow): CompetitorBench {
   }
 }
 
-const ACTION = `id, platform_name as "platformName", geo_zone_ar as "geoZoneAr", our_branch_name as "ourBranchName",
+const ACTION = `id, platform_name as "platformName", geo_zone_ar as "geoZoneAr", our_brand_name as "ourBrandName", our_branch_name as "ourBranchName",
   current_rank as "currentRank", target_rank as "targetRank", root_cause_of_lower_rank_ar as "rootCauseAr",
   algorithmic_recommendation_ar as "recommendationAr", recommended_action_type as "actionType",
   estimated_rank_jump as "estimatedRankJump", estimated_revenue_uplift_minor as "estimatedRevenueUpliftMinor",
@@ -110,15 +110,28 @@ function action(row: EscalationCard): EscalationCard {
   }
 }
 
+export async function listBrands(tx: Queryable, tenantId: string): Promise<VentureBrandRow[]> {
+  const result = await tx.query<VentureBrandRow>(
+    `select code, name_en as "nameEn", name_ar as "nameAr", cuisine_category_ar as "cuisineCategoryAr",
+            active_branches_count as "activeBranchesCount"
+     from venture_brands
+     where tenant_id = $1
+     order by sort_order, code`,
+    [tenantId],
+  )
+  return result.rows.map((row) => ({ ...row, activeBranchesCount: whole(row.activeBranchesCount) }))
+}
+
 export async function listSnapshots(tx: Queryable, tenantId: string, query: AggregatorQuery): Promise<GeoRankSnapshot[]> {
   const result = await tx.query<GeoRankSnapshot>(
     `select ${SNAPSHOT} from aggregator_geo_rank_snapshots
      where tenant_id = $1
+       and snapshot_interval_time = (select max(latest.snapshot_interval_time) from aggregator_geo_rank_snapshots latest where latest.tenant_id = $1)
        and ($2::text is null or platform_name = $2)
        and ($3::text is null or geo_zone_ar = $3)
        and ($4::text is null or our_branch_name = $4 or our_brand_name = $4)
-     order by current_rank desc, snapshot_interval_time desc, platform_name, geo_zone_ar
-     limit 80`,
+     order by current_rank desc, platform_name, geo_zone_ar
+     limit 240`,
     [tenantId, query.platform ?? null, query.zone ?? null, query.branch ?? null],
   )
   return result.rows.map(snapshot)
@@ -141,9 +154,9 @@ export async function listActions(tx: Queryable, tenantId: string, query: Aggreg
      where tenant_id = $1
        and ($2::text is null or platform_name = $2)
        and ($3::text is null or geo_zone_ar = $3)
-       and ($4::text is null or our_branch_name = $4)
-     order by created_at desc
-     limit 80`,
+       and ($4::text is null or our_branch_name = $4 or our_brand_name = $4)
+     order by current_rank desc, created_at desc
+     limit 240`,
     [tenantId, query.platform ?? null, query.zone ?? null, query.branch ?? null],
   )
   return result.rows.map(action)
@@ -245,6 +258,7 @@ export async function insertAction(
   input: {
     platformName: AggregatorPlatform
     geoZoneAr: string
+    ourBrandName: string
     ourBranchName: string
     currentRank: number
     targetRank: number
@@ -263,14 +277,14 @@ export async function insertAction(
 ): Promise<string> {
   const result = await tx.query<{ id: string }>(
     `insert into aggregator_rank_escalation_actions (
-      tenant_id, platform_name, geo_zone_ar, our_branch_name, current_rank, target_rank,
+      tenant_id, platform_name, geo_zone_ar, our_brand_name, our_branch_name, current_rank, target_rank,
       root_cause_of_lower_rank_ar, algorithmic_recommendation_ar, recommended_action_type,
       estimated_rank_jump, estimated_revenue_uplift_minor, penalty_diagnosed_ar, step_by_step_escalation_plan_ar,
       logistics_switch_recommendation_ar, rating_boost_tactic_ar, estimated_daily_orders_gain,
       estimated_monthly_revenue_uplift_minor, created_by
-    ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) returning id`,
+    ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) returning id`,
     [
-      tenantId, input.platformName, input.geoZoneAr, input.ourBranchName, input.currentRank, input.targetRank,
+      tenantId, input.platformName, input.geoZoneAr, input.ourBrandName, input.ourBranchName, input.currentRank, input.targetRank,
       input.rootCauseAr, input.recommendationAr, input.actionType, input.estimatedRankJump, input.estimatedRevenueUpliftMinor,
       input.penaltyDiagnosedAr, input.stepByStepPlanAr, input.logisticsSwitchAr, input.ratingBoostTacticAr,
       input.estimatedDailyOrdersGain, input.estimatedMonthlyRevenueUpliftMinor, actorId,

@@ -7,11 +7,11 @@ import { errorClass, inputClass, labelClass, noticeClass, panelClass, primaryBut
 import { permissions } from '@/lib/auth/permissions'
 import { useI18n, type MessageKey } from '@/lib/i18n'
 import { bpsToInput, formatMinor } from '@/lib/money'
-import type { CompetitorBench, EscalationCard, GeoRankSnapshot } from '@/modules/governance/client'
+import { ventureBrands, type CompetitorBench, type EscalationCard, type GeoRankSnapshot, type VentureBrandRow } from '@/modules/governance/client'
 
-type Board = { snapshots: GeoRankSnapshot[]; competitors: CompetitorBench[]; actions: EscalationCard[] }
+type Board = { brands: VentureBrandRow[]; snapshots: GeoRankSnapshot[]; competitors: CompetitorBench[]; actions: EscalationCard[] }
 const platforms = ['Talabat', 'Keeta', 'Jahez', 'Snoonu', 'Deliveroo'] as const
-const zones = ['السالمية', 'شرق/مدينة الكويت', 'حولي', 'الفروانية', 'المهبولة', 'الجهراء'] as const
+const zones = ['السالمية', 'شرق/مدينة الكويت', 'حولي', 'الفروانية', 'المهبولة', 'الجهراء', 'العارضية'] as const
 const radarTabs = ['rank', 'gap', 'tactics', 'escalation'] as const
 type RadarTab = (typeof radarTabs)[number]
 
@@ -26,7 +26,7 @@ function Workspace() {
   const [detail, setDetail] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const [board, setBoard] = useState<Board>({ snapshots: [], competitors: [], actions: [] })
+  const [board, setBoard] = useState<Board>({ brands: [], snapshots: [], competitors: [], actions: [] })
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [tab, setTab] = useState<RadarTab>('rank')
   const [reloadToken, setReloadToken] = useState(0)
@@ -81,7 +81,9 @@ function Workspace() {
 
   const selected = board.snapshots.find((row) => row.id === selectedId) ?? null
   const rivals = selected ? board.competitors.filter((row) => row.snapshotId === selected.id) : []
-  const cards = board.actions.filter((row) => !selected || (row.platformName === selected.platformName && row.geoZoneAr === selected.geoZoneAr))
+  const cards = board.actions.filter((row) => !selected || (row.platformName === selected.platformName && row.geoZoneAr === selected.geoZoneAr && row.ourBranchName === selected.ourBranchName))
+  const activeBrand = ventureBrands.find((item) => item.nameAr === branch) ?? null
+  const liveBrand = activeBrand ? board.brands.find((item) => item.code === activeBrand.code) ?? null : null
 
   async function scan() {
     setBusy(true)
@@ -130,6 +132,34 @@ function Workspace() {
       </header>
       {notice ? <p className={noticeClass}>{notice}</p> : null}
       {detail ? <p className={errorClass} role="alert">{detail}</p> : null}
+      <div role="toolbar" aria-label={t('agg.brand')} className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          aria-pressed={branch === ''}
+          onClick={() => setBranch('')}
+          className={`rounded-full border px-3 py-1.5 text-sm ${branch === '' ? 'border-gold-300 bg-gold-400/15 font-semibold text-gold-300' : 'border-white/15 text-gray-300'}`}
+        >
+          {t('agg.brands.all')}
+        </button>
+        {ventureBrands.map((item) => (
+          <button
+            key={item.code}
+            type="button"
+            aria-pressed={branch === item.nameAr}
+            onClick={() => setBranch(item.nameAr)}
+            className={`rounded-full border px-3 py-1.5 text-sm ${branch === item.nameAr ? 'border-gold-300 bg-gold-400/15 font-semibold text-gold-300' : 'border-white/15 text-gray-300'}`}
+          >
+            {t(item.label)}
+          </button>
+        ))}
+      </div>
+      {activeBrand ? (
+        <p className="text-sm text-gray-300">
+          {t('agg.cuisine')}: {liveBrand?.cuisineCategoryAr ?? activeBrand.cuisineAr}
+          {' · '}
+          {t('agg.branches')} {liveBrand?.activeBranchesCount ?? activeBrand.branches}
+        </p>
+      ) : null}
       <div className="flex flex-wrap items-end gap-3">
         <label className={labelClass}>{t('agg.platform')}
           <select className={inputClass} value={platform} onChange={(event) => setPlatform(event.target.value)}>
@@ -142,9 +172,6 @@ function Workspace() {
             <option value="">{t('agg.all')}</option>
             {zones.map((item) => <option key={item} value={item}>{item}</option>)}
           </select>
-        </label>
-        <label className={labelClass}>{t('agg.branch')}
-          <input className={inputClass} value={branch} onChange={(event) => setBranch(event.target.value)} />
         </label>
         {canManage ? <button className={primaryButton} type="button" disabled={busy} onClick={() => void scan()}>{t('agg.scan')}</button> : null}
       </div>
@@ -173,6 +200,7 @@ function Workspace() {
             <table className="w-full min-w-[720px] text-sm text-gray-100">
               <thead className="text-gray-400">
                 <tr>
+                  <th className="px-2 py-2 text-start">{t('agg.brand')}</th>
                   <th className="px-2 py-2 text-start">{t('agg.platform')}</th>
                   <th className="px-2 py-2 text-start">{t('agg.zone')}</th>
                   <th className="px-2 py-2 text-start">{t('agg.branch')}</th>
@@ -191,6 +219,7 @@ function Workspace() {
               <tbody>
                 {board.snapshots.map((row) => (
                   <tr key={row.id} className={row.id === selectedId ? 'bg-white/5' : undefined} onClick={() => setSelectedId(row.id)}>
+                    <td className="px-2 py-2">{row.ourBrandName}</td>
                     <td className="px-2 py-2">{t(`agg.platform.${row.platformName}` as MessageKey)}</td>
                     <td className="px-2 py-2">{row.geoZoneAr}</td>
                     <td className="px-2 py-2">{row.ourBranchName}</td>
@@ -198,7 +227,7 @@ function Workspace() {
                     <td className={`px-2 py-2 ${row.rankDelta > 0 ? 'text-emerald-300' : row.rankDelta < 0 ? 'text-red-300' : 'text-gray-400'}`}>
                       {row.rankDelta > 0 ? `▲ +${row.rankDelta}` : row.rankDelta < 0 ? `▼ ${row.rankDelta}` : '0'}
                     </td>
-                    <td className="px-2 py-2">{bpsToInput(row.overallRatingBps)}</td>
+                    <td className="px-2 py-2">{bpsToInput(row.overallRatingBps)} · {row.reviewsCount}</td>
                     <td className="px-2 py-2">{row.estimatedVisitsImpressions}</td>
                     <td className="px-2 py-2">{bpsToInput(row.conversionRateBps)}</td>
                     <td className="px-2 py-2">{row.avgOrderAcceptanceSeconds}</td>
@@ -228,7 +257,8 @@ function Workspace() {
           <div className="grid gap-3 md:grid-cols-4">
             <article className="rounded-xl border border-white/10 p-3 text-sm text-gray-100">
               <p className="text-gray-400">{t('agg.ours')}</p>
-              <p className="mt-1 font-semibold">#{selected.currentRank} {selected.ourBranchName}</p>
+              <p className="mt-1 font-semibold">#{selected.currentRank} {selected.ourBrandName}</p>
+              <p>{selected.ourBranchName}</p>
               <p>{selected.deliveryEtaMinutes} {t('agg.minutes')}</p>
               <p>{formatMinor(selected.deliveryFeeMinor)} {t('admin.kwd')}</p>
               <p>{selected.logisticsMode === 'platform_fleet' ? t('agg.fleet.platform') : t('agg.fleet.vendor')}</p>
@@ -268,7 +298,7 @@ function Workspace() {
         <h2 className="mb-3 font-semibold text-white">{t('agg.panel.escalation')}</h2>
         {cards.length === 0 ? <p className="text-sm text-gray-400">{t('agg.empty')}</p> : cards.map((card) => (
           <article key={card.id} className="border-t border-white/10 py-3 text-sm text-gray-100">
-            <p className="font-semibold">{t(`agg.platform.${card.platformName}` as MessageKey)} — {card.geoZoneAr} — {card.ourBranchName}</p>
+            <p className="font-semibold">{card.ourBrandName || card.ourBranchName} — {t(`agg.platform.${card.platformName}` as MessageKey)} — {card.geoZoneAr}</p>
             <p className="mt-1">#{card.currentRank} → #{card.targetRank} · {t(`agg.status.${card.status}` as MessageKey)}</p>
             <p className="mt-1">{card.penaltyDiagnosedAr || card.rootCauseAr}</p>
             <p className="mt-1">{card.stepByStepPlanAr || card.recommendationAr}</p>

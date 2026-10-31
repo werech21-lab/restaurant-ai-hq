@@ -85,6 +85,20 @@ describe('aggregator rank engine', () => {
     expect(plan?.penaltyAr).toContain('أسطول الشركة')
     expect(plan?.recommendationAr).toContain('19680.000')
     expect(plan?.stepByStepPlanAr).toContain('توصيل التطبيق')
+    const buried = buriedRankRescue({
+      platformName: 'Snoonu',
+      geoZoneAr: 'العارضية',
+      currentRank: 52,
+      etaMinutes: 50,
+      acceptanceSeconds: 100,
+      prepMinutes: 30,
+      cancellationBps: 1000,
+      logisticsMode: 'vendor_own_fleet',
+    })
+    expect(buried?.targetRank).toBe(5)
+    expect(buried?.estimatedRankJump).toBe(47)
+    expect(buried?.estimatedDailyOrdersGain).toBe(94)
+    expect(buried?.estimatedMonthlyRevenueUpliftMinor).toBe(22_560_000)
     expect(buriedRankRescue({
       platformName: 'Keeta',
       geoZoneAr: 'السالمية',

@@ -1,3 +1,5 @@
+export { ventureBrands } from '@/modules/governance/domain/venture-brands'
+export type { VentureBrandCode } from '@/modules/governance/domain/venture-brands'
 export type {
   ArchiveDocument,
   BlockedAttempt,
@@ -15,4 +17,5 @@ export type {
   MonitorEvent,
   RadarRow,
   TelemetryRow,
+  VentureBrandRow,
 } from '@/modules/governance/domain/types'
