@@ -55,6 +55,7 @@ export const baselineSentinels = {
   '0031_odoo_migration_engine.sql': ['fn:erp_odoo_sync_marker()'],
   '0032_odoo_venturefoods_extractor.sql': ['fn:erp_odoo_extractor_marker()'],
   '0033_purge_demo_placeholders_keep_odoo.sql': ['fn:erp_demo_purge_marker()'],
+  '0034_odoo_six_divisions_suite.sql': ['public.suite_records', 'fn:erp_odoo_six_divisions_marker()'],
 }
 
 /**

@@ -322,7 +322,7 @@ describe('upgrading a database that already holds data', () => {
 
   it('applies from an empty database to the latest schema without error', async () => {
     const { db, remaining } = await databaseAt('0001')
-    expect(remaining).toHaveLength(32)
+    expect(remaining).toHaveLength(33)
     await apply(db, remaining)
     expect(await n(db, 'tenants')).toBe(0)
     expect(await n(db, 'invoices')).toBe(0)

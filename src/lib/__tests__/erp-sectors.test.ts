@@ -6,8 +6,8 @@ import type { MessageKey } from '@/lib/i18n'
 const label = (key: MessageKey) => key
 
 describe('ERP sectors', () => {
-  it('groups every working module into the six sectors once', () => {
-    expect(erpSectors).toHaveLength(6)
+  it('groups every working module into the seven divisions once', () => {
+    expect(erpSectors).toHaveLength(7)
     const hrefs = erpSectors.flatMap((sector) => sector.links.map((link) => link.href))
     expect(new Set(hrefs).size).toBe(hrefs.length)
     for (const item of erpCatalog) {
@@ -18,17 +18,18 @@ describe('ERP sectors', () => {
   })
 
   it('follows the open tab when one route serves two sectors', () => {
-    expect(activeSectorId('/erp/procurement', 'invoices')).toBe('finance')
-    expect(activeSectorId('/erp/procurement', null)).toBe('finance')
-    expect(activeSectorId('/erp/operations', 'quality')).toBe('supply')
-    expect(activeSectorId('/erp/operations', 'contracts')).toBe('supply')
-    expect(activeSectorId('/erp/hr', 'expenses')).toBe('finance')
+    expect(activeSectorId('/erp/sales-crm', 'pos')).toBe('sales')
+    expect(activeSectorId('/erp/procurement', 'invoices')).toBe('inventory')
+    expect(activeSectorId('/erp/operations', 'quality')).toBe('inventory')
+    expect(activeSectorId('/erp/hr', 'expenses')).toBe('people')
     expect(activeSectorId('/erp/governance', 'tasks')).toBe('executive')
     expect(activeSectorId('/erp/hr', 'payroll')).toBe('people')
     expect(activeSectorId('/erp', null)).toBe('executive')
-    expect(activeSectorId('/erp/admin', 'accounts')).toBe('system')
-    expect(activeSectorId('/erp/odoo-sync', null)).toBe('system')
-    expect(activeSectorId('/erp/aggregator-radar', null)).toBe('executive')
+    expect(activeSectorId('/erp/admin', 'accounts')).toBe('executive')
+    expect(activeSectorId('/erp/odoo-sync', null)).toBe('executive')
+    expect(activeSectorId('/erp/marketing', 'radar')).toBe('marketing')
+    expect(activeSectorId('/erp/projects', 'helpdesk')).toBe('projects')
+    expect(activeSectorId('/erp/aggregator-radar', null)).toBe('marketing')
   })
 
   it('uses live figures only when one company is in scope', () => {
@@ -46,10 +47,16 @@ describe('ERP sectors', () => {
     expect(sectorSummary('finance', metrics)).toEqual({ kind: 'finance', revenueMinor: 19680000, postedJournals: 4 })
     expect(sectorSummary('executive', metrics)).toEqual({ kind: 'pending', pendingApprovals: 2 })
     expect(sectorSummary('people', metrics)).toEqual({ kind: 'ready' })
+    expect(sectorSummary('inventory', metrics)).toEqual({
+      kind: 'supply',
+      stockAlerts: 1,
+      recipes: 3,
+      deliveryOrders: 80,
+    })
   })
 
   it('hides a sector when the search misses every specialty', () => {
-    expect(filterSectors(erpSectors, 'spec.kitchen', label).map((sector) => sector.id)).toEqual(['supply'])
+    expect(filterSectors(erpSectors, 'spec.kitchen', label).map((sector) => sector.id)).toEqual(['inventory'])
     expect(filterSectors(erpSectors, 'missing-specialty', label)).toHaveLength(0)
   })
 })

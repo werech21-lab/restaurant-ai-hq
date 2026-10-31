@@ -121,6 +121,8 @@ export const permissions = {
   govAggregatorManage: 'gov.aggregator.manage',
   adminOdooRead: 'admin.odoo.read',
   adminOdooSync: 'admin.odoo.sync',
+  suiteRead: 'suite.board.read',
+  suiteManage: 'suite.board.manage',
 } as const
 
 export type Permission = (typeof permissions)[keyof typeof permissions]

@@ -8,9 +8,10 @@ import { permissions } from '@/lib/auth/permissions'
 import { useI18n, type MessageKey } from '@/lib/i18n'
 import { formatMinor, parseKwdToMinor } from '@/lib/money'
 import type { Appointment, Appraisal, Attendance, Employee, EmployeeExpense, Leave, PayrollRun, Payslip, Shift } from '@/modules/hr/client'
+import SuperOdooBoard from '@/modules/suite/ui/SuperOdooBoard'
 
-type Tab = 'employees' | 'attendance' | 'leaves' | 'payroll' | 'appraisals' | 'expenses' | 'appointments'
-const tabs: readonly Tab[] = ['employees', 'attendance', 'leaves', 'payroll', 'appraisals', 'expenses', 'appointments']
+type Tab = 'employees' | 'recruitment' | 'attendance' | 'leaves' | 'payroll' | 'appraisals' | 'expenses' | 'appointments'
+const tabs: readonly Tab[] = ['employees', 'recruitment', 'attendance', 'leaves', 'payroll', 'appraisals', 'expenses', 'appointments']
 
 function isTab(value: string): value is Tab {
   return (tabs as readonly string[]).includes(value)
@@ -29,7 +30,10 @@ function Workspace({ initialTab }: { initialTab: string }) {
   const canAppraisal = useCan(permissions.hrAppraisalManage)
   const canExpense = useCan(permissions.hrExpenseApprove)
   const canAppointment = useCan(permissions.hrAppointmentManage)
+  const canSuite = useCan(permissions.suiteManage)
   const [tab, setTab] = useState<Tab>(isTab(initialTab) ? initialTab : 'employees')
+  const [employeeView, setEmployeeView] = useState<'kanban' | 'list'>('kanban')
+  const [departmentFilter, setDepartmentFilter] = useState<string | null>(null)
   const [phase, setPhase] = useState<'loading' | 'ready' | 'error'>('loading')
   const [error, setError] = useState<MessageKey>('erp.err.generic')
   const [notice, setNotice] = useState<string | null>(null)
@@ -217,6 +221,14 @@ function Workspace({ initialTab }: { initialTab: string }) {
   }
 
   const kwd = t('admin.kwd')
+  const departmentCounts = employees.reduce<Record<string, number>>((acc, employee) => {
+    const key = employee.department || '—'
+    acc[key] = (acc[key] ?? 0) + 1
+    return acc
+  }, {})
+  const visibleEmployees = departmentFilter ? employees.filter((employee) => employee.department === departmentFilter) : employees
+  const withoutContract = employees.filter((employee) => employee.basicSalaryMinor === 0).length
+  const openBatchMissing = Math.max(0, employees.length - slips.length)
   if (phase === 'loading') return <p className="text-sm text-gray-400">{t('hr.loading')}</p>
   if (phase === 'error') return <p className={errorClass} role="alert">{t(error)}</p>
 
@@ -233,39 +245,81 @@ function Workspace({ initialTab }: { initialTab: string }) {
         ))}
       </div>
       {tab === 'employees' ? (
-        <section className={panelClass}>
-          {canEmployees ? (
-            <form className="mb-4 grid gap-3 sm:grid-cols-2" onSubmit={addEmployee}>
-              <label className={labelClass}>{t('hr.code')}<input className={inputClass} required value={code} onChange={(event) => setCode(event.target.value)} /></label>
-              <label className={labelClass}>{t('hr.name')}<input className={inputClass} required value={name} onChange={(event) => setName(event.target.value)} /></label>
-              <label className={labelClass}>{t('hr.role')}<input className={inputClass} required value={role} onChange={(event) => setRole(event.target.value)} /></label>
-              <label className={labelClass}>{t('hr.department')}<input className={inputClass} required value={department} onChange={(event) => setDepartment(event.target.value)} /></label>
-              <label className={labelClass}>{t('hr.salary')}<input className={inputClass} required value={salary} onChange={(event) => setSalary(event.target.value)} /></label>
-              <label className={labelClass}>{t('hr.allowances')}<input className={inputClass} required value={allowances} onChange={(event) => setAllowances(event.target.value)} /></label>
-              <label className={labelClass}>{t('hr.residency')}<input className={inputClass} type="date" value={residency} onChange={(event) => setResidency(event.target.value)} /></label>
-              <div className="flex items-end"><button className={primaryButton} type="submit" disabled={busy}>{t('hr.add')}</button></div>
-            </form>
-          ) : null}
-          {employees.length === 0 ? <p className="text-sm text-gray-400">{t('hr.empty')}</p> : (
-            <table className="w-full text-sm">
-              <thead className="text-gray-400"><tr><th className="px-2 py-2 text-start">{t('hr.code')}</th><th className="px-2 py-2 text-start">{t('hr.name')}</th><th className="px-2 py-2 text-start">{t('hr.role')}</th><th className="px-2 py-2 text-start">{t('hr.salary')}</th><th className="px-2 py-2 text-start">{t('hr.residency')}</th><th className="px-2 py-2 text-start">{t('hr.status')}</th><th /></tr></thead>
-              <tbody>
-                {employees.map((employee) => (
-                  <tr key={employee.id} className="border-t border-[#30363d]">
-                    <td className="px-2 py-3">{employee.employeeCode}</td>
-                    <td className="px-2 py-3">{employee.fullName}</td>
-                    <td className="px-2 py-3">{employee.roleTitle}</td>
-                    <td className="px-2 py-3">{formatMinor(employee.basicSalaryMinor)} {kwd}</td>
-                    <td className="px-2 py-3">{employee.residencyExpiry ?? '—'}</td>
-                    <td className="px-2 py-3">{t(employee.status === 'active' ? 'hr.active' : 'hr.inactive')}</td>
-                    <td className="px-2 py-3">{canEmployees ? <button className={dangerButton} type="button" disabled={busy} onClick={() => void removeEmployee(employee)}>{t('hr.delete')}</button> : null}</td>
-                  </tr>
+        <section className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
+          <aside className={`${panelClass} space-y-2`}>
+            <p className="text-xs font-semibold uppercase text-gray-400">{t('suite.facet.department')}</p>
+            <button type="button" className={!departmentFilter ? primaryButton : secondaryButton} onClick={() => setDepartmentFilter(null)}>
+              {t('suite.all')} ({employees.length})
+            </button>
+            {Object.entries(departmentCounts)
+              .sort((a, b) => b[1] - a[1])
+              .map(([name, count]) => (
+                <button
+                  key={name}
+                  type="button"
+                  className={`block w-full rounded-lg px-2 py-1 text-start text-sm ${departmentFilter === name ? 'bg-blue-500/20 text-blue-200' : 'text-gray-300 hover:bg-white/5'}`}
+                  onClick={() => setDepartmentFilter(name)}
+                >
+                  {name} <span className="text-gray-500">({count})</span>
+                </button>
+              ))}
+          </aside>
+          <div className={panelClass}>
+            <div className="mb-4 flex flex-wrap gap-2">
+              <button type="button" className={employeeView === 'kanban' ? primaryButton : secondaryButton} onClick={() => setEmployeeView('kanban')}>{t('suite.view.kanban')}</button>
+              <button type="button" className={employeeView === 'list' ? primaryButton : secondaryButton} onClick={() => setEmployeeView('list')}>{t('suite.view.list')}</button>
+            </div>
+            {canEmployees ? (
+              <form className="mb-4 grid gap-3 sm:grid-cols-2" onSubmit={addEmployee}>
+                <label className={labelClass}>{t('hr.code')}<input className={inputClass} required value={code} onChange={(event) => setCode(event.target.value)} /></label>
+                <label className={labelClass}>{t('hr.name')}<input className={inputClass} required value={name} onChange={(event) => setName(event.target.value)} /></label>
+                <label className={labelClass}>{t('hr.role')}<input className={inputClass} required value={role} onChange={(event) => setRole(event.target.value)} /></label>
+                <label className={labelClass}>{t('hr.department')}<input className={inputClass} required value={department} onChange={(event) => setDepartment(event.target.value)} /></label>
+                <label className={labelClass}>{t('hr.salary')}<input className={inputClass} required value={salary} onChange={(event) => setSalary(event.target.value)} /></label>
+                <label className={labelClass}>{t('hr.allowances')}<input className={inputClass} required value={allowances} onChange={(event) => setAllowances(event.target.value)} /></label>
+                <label className={labelClass}>{t('hr.residency')}<input className={inputClass} type="date" value={residency} onChange={(event) => setResidency(event.target.value)} /></label>
+                <div className="flex items-end"><button className={primaryButton} type="submit" disabled={busy}>{t('hr.add')}</button></div>
+              </form>
+            ) : null}
+            {visibleEmployees.length === 0 ? <p className="text-sm text-gray-400">{t('hr.empty')}</p> : null}
+            {employeeView === 'kanban' && visibleEmployees.length > 0 ? (
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {visibleEmployees.map((employee) => (
+                  <article key={employee.id} className="rounded-xl border border-[#30363d] bg-[#161b22] p-4">
+                    <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-gold-400/20 text-sm font-bold text-gold-300">
+                      {employee.fullName.slice(0, 2).toUpperCase()}
+                    </div>
+                    <p className="font-semibold text-white">{employee.fullName}</p>
+                    <p className="text-xs text-gray-400">{employee.employeeCode} · {employee.roleTitle}</p>
+                    <p className="mt-2 text-sm text-gray-300">{employee.department}</p>
+                    <p className="mt-1 text-sm text-gold-300">{formatMinor(employee.basicSalaryMinor)} {kwd}</p>
+                    {canEmployees ? <button className={`${dangerButton} mt-3`} type="button" disabled={busy} onClick={() => void removeEmployee(employee)}>{t('hr.delete')}</button> : null}
+                  </article>
                 ))}
-              </tbody>
-            </table>
-          )}
+              </div>
+            ) : null}
+            {employeeView === 'list' && visibleEmployees.length > 0 ? (
+              <table className="w-full text-sm">
+                <thead className="text-gray-400"><tr><th className="px-2 py-2 text-start">{t('hr.code')}</th><th className="px-2 py-2 text-start">{t('hr.name')}</th><th className="px-2 py-2 text-start">{t('hr.role')}</th><th className="px-2 py-2 text-start">{t('hr.salary')}</th><th className="px-2 py-2 text-start">{t('hr.residency')}</th><th className="px-2 py-2 text-start">{t('hr.status')}</th><th /></tr></thead>
+                <tbody>
+                  {visibleEmployees.map((employee) => (
+                    <tr key={employee.id} className="border-t border-[#30363d]">
+                      <td className="px-2 py-3">{employee.employeeCode}</td>
+                      <td className="px-2 py-3">{employee.fullName}</td>
+                      <td className="px-2 py-3">{employee.roleTitle}</td>
+                      <td className="px-2 py-3">{formatMinor(employee.basicSalaryMinor)} {kwd}</td>
+                      <td className="px-2 py-3">{employee.residencyExpiry ?? '—'}</td>
+                      <td className="px-2 py-3">{t(employee.status === 'active' ? 'hr.active' : 'hr.inactive')}</td>
+                      <td className="px-2 py-3">{canEmployees ? <button className={dangerButton} type="button" disabled={busy} onClick={() => void removeEmployee(employee)}>{t('hr.delete')}</button> : null}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : null}
+          </div>
         </section>
       ) : null}
+      {tab === 'recruitment' ? <SuperOdooBoard app="recruitment" title="spec.recruitment" canManage={canSuite} /> : null}
       {tab === 'attendance' ? (
         <section className={panelClass}>
           <h2 className="mb-3 text-sm text-gray-300">{t('hr.shift')}</h2>
@@ -307,21 +361,29 @@ function Workspace({ initialTab }: { initialTab: string }) {
         </section>
       ) : null}
       {tab === 'payroll' ? (
-        <section className={panelClass}>
-          {canPayroll ? (
-            <form className="mb-4 flex flex-wrap gap-3" onSubmit={runPayroll}>
-              <label className={labelClass}>{t('hr.period')}<input className={inputClass} required value={period} onChange={(event) => setPeriod(event.target.value)} /></label>
-              <label className={labelClass}>{t('hr.start')}<input className={inputClass} type="date" required value={entryDate} onChange={(event) => setEntryDate(event.target.value)} /></label>
-              <div className="flex items-end"><button className={primaryButton} type="submit" disabled={busy}>{t('hr.run')}</button></div>
-            </form>
-          ) : null}
-          {runs.length === 0 ? <p className="text-sm text-gray-400">{t('hr.empty')}</p> : runs.map((run) => (
-            <p key={run.id} className="text-sm text-gray-100">{run.period} — {t('hr.net')} {formatMinor(run.netMinor)} {kwd}</p>
-          ))}
-          <div className="mt-4 space-y-1">
-            {slips.map((slip) => (
-              <p key={slip.id} className="text-sm text-gray-300">{slip.employeeName} — {t('hr.gross')} {formatMinor(slip.grossMinor)} / {t('hr.net')} {formatMinor(slip.netMinor)} {kwd}</p>
+        <section className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className={panelClass}><p className="text-xs text-gray-400">{t('hr.payroll.warn.contracts')}</p><p className="mt-2 text-2xl font-bold text-white">{withoutContract}</p></div>
+            <div className={panelClass}><p className="text-xs text-gray-400">{t('hr.payroll.warn.batches')}</p><p className="mt-2 text-2xl font-bold text-white">{openBatchMissing}</p></div>
+            <div className={panelClass}><p className="text-xs text-gray-400">{t('hr.payroll.warn.conflicts')}</p><p className="mt-2 text-2xl font-bold text-white">{Math.min(withoutContract, openBatchMissing)}</p></div>
+          </div>
+          <div className={panelClass}>
+            <h2 className="mb-3 text-sm font-semibold text-gray-300">{t('hr.payroll.batches')}</h2>
+            {canPayroll ? (
+              <form className="mb-4 flex flex-wrap gap-3" onSubmit={runPayroll}>
+                <label className={labelClass}>{t('hr.period')}<input className={inputClass} required value={period} onChange={(event) => setPeriod(event.target.value)} /></label>
+                <label className={labelClass}>{t('hr.start')}<input className={inputClass} type="date" required value={entryDate} onChange={(event) => setEntryDate(event.target.value)} /></label>
+                <div className="flex items-end"><button className={primaryButton} type="submit" disabled={busy}>{t('hr.run')}</button></div>
+              </form>
+            ) : null}
+            {runs.length === 0 ? <p className="text-sm text-gray-400">{t('hr.empty')}</p> : runs.map((run) => (
+              <p key={run.id} className="text-sm text-gray-100">{run.period} — {run.status} — {t('hr.net')} {formatMinor(run.netMinor)} {kwd}</p>
             ))}
+            <div className="mt-4 space-y-1">
+              {slips.map((slip) => (
+                <p key={slip.id} className="text-sm text-gray-300">{slip.employeeName} — {t('hr.gross')} {formatMinor(slip.grossMinor)} / {t('hr.net')} {formatMinor(slip.netMinor)} {kwd}</p>
+              ))}
+            </div>
           </div>
         </section>
       ) : null}
