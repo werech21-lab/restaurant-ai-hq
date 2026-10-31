@@ -10,7 +10,7 @@ export const createEmployeeSchema = z.object({
   employeeCode: z.string().trim().min(1).max(20),
   fullName: z.string().trim().min(1).max(200),
   roleTitle: z.string().trim().min(1).max(80),
-  department: z.string().trim().min(1).max(80),
+  department: z.string().trim().min(1).max(200),
   branchId: z.string().uuid().nullable(),
   basicSalaryMinor: money,
   allowancesMinor: money,

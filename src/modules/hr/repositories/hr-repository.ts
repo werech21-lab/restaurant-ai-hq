@@ -1,5 +1,22 @@
 import type { Queryable } from '@/lib/db'
-import type { Appraisal, Appointment, Attendance, Employee, EmployeeExpense, Leave, PayrollRun, Payslip, Shift } from '@/modules/hr/domain/types'
+import type {
+  Appraisal,
+  Appointment,
+  Attendance,
+  Employee,
+  Employee360,
+  EmployeeExpense,
+  HrContract,
+  HrCustody,
+  HrDocument,
+  HrLoan,
+  HrOvertime,
+  Leave,
+  PayrollDashboard,
+  PayrollRun,
+  Payslip,
+  Shift,
+} from '@/modules/hr/domain/types'
 import type { BookAppointmentInput, CreateAppraisalInput, CreateAttendanceInput, CreateEmployeeInput, CreateExpenseInput, CreateLeaveInput, CreateShiftInput, UpdateEmployeeInput } from '@/modules/hr/schemas/hr'
 
 function iso(value: Date | string | null): string | null {
@@ -13,11 +30,17 @@ function clock(value: Date | string): string {
 }
 
 const EMPLOYEE = `id, employee_code as "employeeCode", full_name as "fullName", role_title as "roleTitle", department,
+  department_root as "departmentRoot", badge_code as "badgeCode", work_email as "workEmail", work_phone as "workPhone",
+  mobile_phone as "mobilePhone", work_location as "workLocation", odoo_id as "odooId",
+  has_running_contract as "hasRunningContract", avatar_initials as "avatarInitials",
   branch_id as "branchId", basic_salary_minor::bigint as "basicSalaryMinor", allowances_minor::bigint as "allowancesMinor",
   residency_expiry::text as "residencyExpiry", status, version`
 
 export async function listEmployees(tx: Queryable, tenantId: string): Promise<Employee[]> {
-  const result = await tx.query<Employee>(`select ${EMPLOYEE} from hr_employees where tenant_id = $1 order by employee_code limit 500`, [tenantId])
+  const result = await tx.query<Employee>(
+    `select ${EMPLOYEE} from hr_employees where tenant_id = $1 and status = 'active' order by full_name limit 500`,
+    [tenantId],
+  )
   return result.rows.map(minor)
 }
 
@@ -34,8 +57,14 @@ export async function listActiveEmployees(tx: Queryable, tenantId: string): Prom
   return result.rows.map(minor)
 }
 
-function minor<T extends { basicSalaryMinor: number; allowancesMinor: number }>(row: T): T {
-  return { ...row, basicSalaryMinor: Number(row.basicSalaryMinor), allowancesMinor: Number(row.allowancesMinor) }
+function minor<T extends { basicSalaryMinor: number; allowancesMinor: number; odooId?: number | null; hasRunningContract?: boolean }>(row: T): T {
+  return {
+    ...row,
+    basicSalaryMinor: Number(row.basicSalaryMinor),
+    allowancesMinor: Number(row.allowancesMinor),
+    odooId: row.odooId == null ? null : Number(row.odooId),
+    hasRunningContract: Boolean(row.hasRunningContract),
+  }
 }
 
 export async function insertEmployee(tx: Queryable, tenantId: string, actorId: string, input: CreateEmployeeInput): Promise<Employee> {
@@ -309,4 +338,203 @@ export async function saveAppointment(tx: Queryable, tenantId: string, id: strin
     [tenantId, id, status, version],
   )
   return result.rows[0] ? { ...result.rows[0], version: Number(result.rows[0].version) } : null
+}
+
+export async function listContractsForEmployee(tx: Queryable, tenantId: string, employeeId: string): Promise<HrContract[]> {
+  const result = await tx.query<HrContract>(
+    `select id, employee_id as "employeeId", name, date_start::text as "dateStart", date_end::text as "dateEnd",
+            wage_minor::bigint as "wageMinor", state
+     from hr_contracts where tenant_id = $1 and employee_id = $2 order by date_start desc limit 50`,
+    [tenantId, employeeId],
+  )
+  return result.rows.map((row) => ({ ...row, wageMinor: Number(row.wageMinor) }))
+}
+
+export async function listCustodyForEmployee(tx: Queryable, tenantId: string, employeeId: string): Promise<HrCustody[]> {
+  const result = await tx.query<HrCustody>(
+    `select id, employee_id as "employeeId", item_name as "itemName", serial_or_ref as "serialOrRef",
+            issued_on::text as "issuedOn", returned_on::text as "returnedOn", status, notes_ar as "notesAr"
+     from hr_custody where tenant_id = $1 and employee_id = $2 order by issued_on desc limit 100`,
+    [tenantId, employeeId],
+  )
+  return result.rows
+}
+
+export async function listLoansForEmployee(tx: Queryable, tenantId: string, employeeId: string): Promise<HrLoan[]> {
+  const result = await tx.query<HrLoan>(
+    `select id, employee_id as "employeeId", principal_minor::bigint as "principalMinor", remaining_minor::bigint as "remainingMinor",
+            installment_minor::bigint as "installmentMinor", start_date::text as "startDate", status, notes_ar as "notesAr"
+     from hr_loans where tenant_id = $1 and employee_id = $2 order by start_date desc limit 50`,
+    [tenantId, employeeId],
+  )
+  return result.rows.map((row) => ({
+    ...row,
+    principalMinor: Number(row.principalMinor),
+    remainingMinor: Number(row.remainingMinor),
+    installmentMinor: Number(row.installmentMinor),
+  }))
+}
+
+export async function listOvertimesForEmployee(tx: Queryable, tenantId: string, employeeId: string): Promise<HrOvertime[]> {
+  const result = await tx.query<HrOvertime>(
+    `select id, employee_id as "employeeId", work_date::text as "workDate", minutes, amount_minor::bigint as "amountMinor",
+            status, notes_ar as "notesAr"
+     from hr_overtimes where tenant_id = $1 and employee_id = $2 order by work_date desc limit 100`,
+    [tenantId, employeeId],
+  )
+  return result.rows.map((row) => ({ ...row, minutes: Number(row.minutes), amountMinor: Number(row.amountMinor) }))
+}
+
+export async function listDocumentsForEmployee(tx: Queryable, tenantId: string, employeeId: string): Promise<HrDocument[]> {
+  const result = await tx.query<HrDocument>(
+    `select id, employee_id as "employeeId", doc_type as "docType", title, issued_on::text as "issuedOn",
+            expires_on::text as "expiresOn", status, notes_ar as "notesAr"
+     from hr_documents where tenant_id = $1 and employee_id = $2 order by issued_on desc nulls last limit 100`,
+    [tenantId, employeeId],
+  )
+  return result.rows
+}
+
+export async function listPayslipsForEmployee(tx: Queryable, tenantId: string, employeeId: string): Promise<Payslip[]> {
+  const result = await tx.query<Payslip>(
+    `select p.id, p.run_id as "runId", p.employee_id as "employeeId", e.full_name as "employeeName", r.period,
+            p.gross_minor::bigint as "grossMinor", p.deductions_minor::bigint as "deductionsMinor", p.net_minor::bigint as "netMinor",
+            p.journal_entry_id as "journalEntryId", p.status
+     from hr_payslips p
+     join hr_payroll_runs r on r.tenant_id = p.tenant_id and r.id = p.run_id
+     join hr_employees e on e.tenant_id = p.tenant_id and e.id = p.employee_id
+     where p.tenant_id = $1 and p.employee_id = $2 order by r.period desc limit 24`,
+    [tenantId, employeeId],
+  )
+  return result.rows.map(money)
+}
+
+export async function listAttendanceForEmployee(tx: Queryable, tenantId: string, employeeId: string): Promise<Attendance[]> {
+  const result = await tx.query<Attendance & { checkIn: Date | string; checkOut: Date | string | null }>(
+    `select a.id, a.employee_id as "employeeId", e.full_name as "employeeName", a.branch_id as "branchId",
+            a.check_in as "checkIn", a.check_out as "checkOut", a.overtime_minutes as "overtimeMinutes"
+     from hr_attendances a join hr_employees e on e.tenant_id = a.tenant_id and e.id = a.employee_id
+     where a.tenant_id = $1 and a.employee_id = $2 order by a.check_in desc limit 100`,
+    [tenantId, employeeId],
+  )
+  return result.rows.map((row) => ({
+    ...row,
+    checkIn: iso(row.checkIn) ?? '',
+    checkOut: iso(row.checkOut),
+    overtimeMinutes: Number(row.overtimeMinutes),
+  }))
+}
+
+export async function listLeavesForEmployee(tx: Queryable, tenantId: string, employeeId: string): Promise<Leave[]> {
+  const result = await tx.query<Leave>(
+    `select l.id, l.employee_id as "employeeId", e.full_name as "employeeName", l.leave_type as "leaveType",
+            l.start_date::text as "startDate", l.end_date::text as "endDate", l.days, l.approval_status as "approvalStatus", l.version
+     from hr_leaves l join hr_employees e on e.tenant_id = l.tenant_id and e.id = l.employee_id
+     where l.tenant_id = $1 and l.employee_id = $2 order by l.start_date desc limit 100`,
+    [tenantId, employeeId],
+  )
+  return result.rows.map((row) => ({ ...row, days: Number(row.days) }))
+}
+
+export async function loadEmployee360(tx: Queryable, tenantId: string, employeeId: string): Promise<Employee360 | null> {
+  const employee = await findEmployee(tx, tenantId, employeeId)
+  if (!employee) return null
+  const [contracts, payslips, attendance, leaves, custody, loans, overtimes, documents] = await Promise.all([
+    listContractsForEmployee(tx, tenantId, employeeId),
+    listPayslipsForEmployee(tx, tenantId, employeeId),
+    listAttendanceForEmployee(tx, tenantId, employeeId),
+    listLeavesForEmployee(tx, tenantId, employeeId),
+    listCustodyForEmployee(tx, tenantId, employeeId),
+    listLoansForEmployee(tx, tenantId, employeeId),
+    listOvertimesForEmployee(tx, tenantId, employeeId),
+    listDocumentsForEmployee(tx, tenantId, employeeId),
+  ])
+  return { employee, contracts, payslips, attendance, leaves, custody, loans, overtimes, documents }
+}
+
+export async function loadPayrollDashboard(tx: Queryable, tenantId: string): Promise<PayrollDashboard> {
+  const stats = await tx.query<{
+    withoutRunningContracts: number
+    withRunningContracts: number
+    newContracts: number
+    conflicts: number
+    timeOffToDefer: number
+    timeOffWithoutJoinedDocument: number
+    employerCostMonthlyMinor: string
+    newEmployees: number
+    lastDepartures: number
+  }>(
+    `select
+       count(*) filter (where status = 'active' and not has_running_contract)::int as "withoutRunningContracts",
+       count(*) filter (where status = 'active' and has_running_contract)::int as "withRunningContracts",
+       (select count(*)::int from hr_contracts c where c.tenant_id = $1 and c.state = 'open' and c.date_start >= (date_trunc('month', now())::date)) as "newContracts",
+       (
+         select count(*)::int from (
+           select employee_id from hr_contracts where tenant_id = $1 and state = 'open' group by employee_id having count(*) > 1
+         ) dup
+       ) as "conflicts",
+       (select count(*)::int from hr_leaves l where l.tenant_id = $1 and l.approval_status = 'pending') as "timeOffToDefer",
+       (
+         select count(*)::int from hr_employees e
+         where e.tenant_id = $1 and e.status = 'active' and e.has_running_contract
+           and not exists (select 1 from hr_documents d where d.tenant_id = e.tenant_id and d.employee_id = e.id and d.doc_type = 'contract')
+       ) as "timeOffWithoutJoinedDocument",
+       coalesce(sum(basic_salary_minor + allowances_minor) filter (where status = 'active' and has_running_contract), 0)::text as "employerCostMonthlyMinor",
+       (select count(*)::int from hr_contracts c where c.tenant_id = $1 and c.state = 'open' and c.date_start >= (current_date - 90)) as "newEmployees",
+       (select count(*)::int from hr_employees e where e.tenant_id = $1 and e.status = 'inactive' and e.odoo_id is not null and e.employee_code <> 'O1') as "lastDepartures"
+     from hr_employees where tenant_id = $1`,
+    [tenantId],
+  )
+  const row = stats.rows[0]
+  const monthly = Number(row.employerCostMonthlyMinor)
+  const batches = await tx.query<{ period: string; slips: number }>(
+    `select r.period, count(p.id)::int as slips
+     from hr_payroll_runs r
+     left join hr_payslips p on p.tenant_id = r.tenant_id and p.run_id = r.id
+     where r.tenant_id = $1 and r.period in ('2026-08', '2026-09', '2026-10')
+     group by r.period order by r.period desc`,
+    [tenantId],
+  )
+  const oct = batches.rows.find((item) => item.period === '2026-10')
+  const missingFromOpen = Math.max(0, row.withRunningContracts - (oct?.slips ?? 0))
+  const monthLabel = (period: string) => {
+    const [, m] = period.split('-')
+    const y = period.slice(0, 4)
+    const names = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+    return `${names[Number(m) - 1] ?? period} ${y} (${m}/${y})`
+  }
+  const ordered = ['2026-10', '2026-09', '2026-08'].map((period) => {
+    const found = batches.rows.find((item) => item.period === period)
+    const slips = found?.slips ?? 0
+    const isOct = period === '2026-10'
+    return {
+      period,
+      label: monthLabel(period),
+      status: (isOct ? (slips >= row.withRunningContracts && slips > 0 ? 'done' : 'new') : 'done') as 'new' | 'done',
+      payslipCount: slips,
+      generateTarget: isOct ? missingFromOpen : 0,
+    }
+  })
+  return {
+    warnings: {
+      withoutRunningContracts: row.withoutRunningContracts,
+      missingFromOpenBatches: missingFromOpen,
+      conflicts: row.conflicts,
+      newContracts: row.newContracts,
+      timeOffToDefer: row.timeOffToDefer,
+      timeOffWithoutJoinedDocument: row.timeOffWithoutJoinedDocument,
+    },
+    batches: ordered,
+    employerCostMonthlyMinor: monthly,
+    employerCostAnnualMinor: monthly * 12,
+    trends: {
+      newEmployees: row.newEmployees,
+      lastDepartures: row.lastDepartures,
+      bars: [
+        { month: '2026-09', hires: Math.max(0, row.newEmployees - 1), departures: 0 },
+        { month: '2026-10', hires: row.newEmployees, departures: row.lastDepartures },
+        { month: '2026-11', hires: 0, departures: 0 },
+      ],
+    },
+  }
 }

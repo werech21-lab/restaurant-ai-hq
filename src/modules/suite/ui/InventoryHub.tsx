@@ -41,7 +41,18 @@ function Workspace({ initialTab, itemId, held }: { initialTab: string; itemId: s
         ))}
       </div>
       {tab === 'stock' ? <InventoryWorkspace initialItemId={itemId} permissions={held} /> : null}
-      {tab === 'mrp' ? <SuperOdooBoard app="mrp" title="spec.mrp" canManage={canManage} /> : null}
+      {tab === 'mrp' ? (
+        <div className="space-y-4">
+          <section className={`${panelClass} space-y-3`}>
+            <p className="text-sm text-gray-300">{t('inv.mrp.lead')}</p>
+            <div className="flex flex-wrap gap-2">
+              <Link className={primaryButton} href="/erp/kitchen">{t('spec.kitchen')}</Link>
+              <Link className={secondaryButton} href="/erp/org">{t('spec.org')}</Link>
+            </div>
+          </section>
+          <SuperOdooBoard app="mrp" title="spec.mrp" canManage={canManage} />
+        </div>
+      ) : null}
       {tab === 'purchase' ? (
         <section className={`${panelClass} space-y-3`}>
           <p className="text-sm text-gray-300">{t('spec.purchasing')}</p>

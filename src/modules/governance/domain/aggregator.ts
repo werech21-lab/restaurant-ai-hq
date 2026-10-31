@@ -81,7 +81,7 @@ export function assertLogistics(value: string): LogisticsMode {
 
 export function logisticsLabel(mode: LogisticsMode): { ar: string; en: string } {
   if (mode === 'platform_fleet') return { ar: 'توصيل التطبيق', en: 'Platform fleet' }
-  return { ar: 'توصيل شركتنا', en: 'Our fleet' }
+  return { ar: 'توصيل شركتنا Venture Foods', en: 'Venture Foods company delivery' }
 }
 
 export function gapVsOurs(

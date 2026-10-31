@@ -10,7 +10,7 @@ import { enforceCompliance, workedMinutes } from '@/modules/governance'
 import { buildEmployeeExpenseLines, buildPayrollLines, getOperationalAccountsWithin, postSourcedEntryWithin, publishFinanceEvents, type FinanceEvent } from '@/modules/finance'
 import { inclusiveDays, payrollTotals, payslipAmounts } from '@/modules/hr/domain/payroll'
 import { appointmentTransition } from '@/modules/hr/domain/appointments'
-import type { Appraisal, Appointment, Attendance, Employee, EmployeeExpense, Leave, PayrollRun, Payslip, Shift } from '@/modules/hr/domain/types'
+import type { Appraisal, Appointment, Attendance, Employee, Employee360, EmployeeExpense, Leave, PayrollDashboard, PayrollRun, Payslip, Shift } from '@/modules/hr/domain/types'
 import { publishHrEvents, type HrEvent } from '@/modules/hr/events'
 import * as repository from '@/modules/hr/repositories/hr-repository'
 import type {
@@ -42,6 +42,18 @@ async function salaryAccounts(tx: Parameters<typeof getOperationalAccountsWithin
 
 export function listEmployees(auth: AuthContext): Promise<Employee[]> {
   return withTransaction((tx) => repository.listEmployees(tx, auth.tenantId))
+}
+
+export function getEmployee360(auth: AuthContext, id: string): Promise<Employee360> {
+  return withTransaction(async (tx) => {
+    const row = await repository.loadEmployee360(tx, auth.tenantId, id)
+    if (!row) throw new AppError(404, 'not_found', 'The employee was not found.')
+    return row
+  })
+}
+
+export function getPayrollDashboard(auth: AuthContext): Promise<PayrollDashboard> {
+  return withTransaction((tx) => repository.loadPayrollDashboard(tx, auth.tenantId))
 }
 
 export async function createEmployee(auth: AuthContext, key: string, input: CreateEmployeeInput): Promise<IdempotentResult<{ data: Employee }>> {

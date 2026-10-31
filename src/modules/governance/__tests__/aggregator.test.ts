@@ -42,7 +42,7 @@ describe('aggregator rank engine', () => {
     expect(assertLogistics('platform_fleet')).toBe('platform_fleet')
     expect(assertLogistics('vendor_own_fleet')).toBe('vendor_own_fleet')
     expect(logisticsLabel('platform_fleet').ar).toBe('توصيل التطبيق')
-    expect(logisticsLabel('vendor_own_fleet').ar).toBe('توصيل شركتنا')
+    expect(logisticsLabel('vendor_own_fleet').ar).toBe('توصيل شركتنا Venture Foods')
     expect(() => assertLogistics('courier')).toThrow(DomainError)
   })
 

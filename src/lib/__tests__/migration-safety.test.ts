@@ -89,6 +89,9 @@ describe('migration files', () => {
         "delete from hr_shifts where name = 'وردية المطبخ الصباحية'",
         "delete from hr_employees where employee_code in ('emp-001', 'emp-002', 'emp-003')",
       ],
+      '0035_deep_venture_foods_hr_payroll_rebuild.sql': [
+        "delete from hr_employees where employee_code ~* '^(emp-|demo)' and not exists (select 1 from hr_payslips p where p.tenant_id = hr_employees.tenant_id and p.employee_id = hr_employees.id)",
+      ],
     })
   })
 
@@ -97,7 +100,13 @@ describe('migration files', () => {
       const sql = (await readFile(path.join(migrationsDir, file), 'utf8')).replace(/--[^\n]*/g, '')
       expect(sql, file).not.toMatch(/\btruncate\b/i)
       expect(sql, file).not.toMatch(/\bdrop\s+(database|schema)\b/i)
-      if (file === '0030_venture_foods_exclusive_brands_radar.sql' || file === '0033_purge_demo_placeholders_keep_odoo.sql') continue
+      if (
+        file === '0030_venture_foods_exclusive_brands_radar.sql' ||
+        file === '0033_purge_demo_placeholders_keep_odoo.sql' ||
+        file === '0035_deep_venture_foods_hr_payroll_rebuild.sql'
+      ) {
+        continue
+      }
       expect(sql, file).not.toMatch(/\bdelete\s+from\b/i)
     }
   })
@@ -239,7 +248,7 @@ describe('upgrading a database that already holds data', () => {
     expect(await n(db, 'customers')).toBe(before.customers)
     expect(await n(db, 'contacts')).toBe(before.contacts)
     expect(await n(db, 'crm_leads_pipeline')).toBe(before.deals)
-    expect(await n(db, 'warehouses')).toBe(before.warehouses)
+    expect(await n(db, 'warehouses')).toBeGreaterThanOrEqual(before.warehouses)
     expect(await n(db, 'items')).toBe(before.items)
     expect(await n(db, 'invoices')).toBe(before.invoices)
     expect(await n(db, 'invoice_lines')).toBe(before.lines)
@@ -266,7 +275,9 @@ describe('upgrading a database that already holds data', () => {
       { title: 'Early', stage: 'new', probability: 0, expected_revenue_minor: 1500 },
     ])
 
-    const warehouses = await db.query<{ code: string; status: string }>('select code, status from warehouses order by code')
+    const warehouses = await db.query<{ code: string; status: string }>(
+      `select code, status from warehouses where code in ('A', 'B') order by code`,
+    )
     expect(warehouses.rows).toEqual([
       { code: 'A', status: 'active' },
       { code: 'B', status: 'inactive' },
@@ -322,7 +333,7 @@ describe('upgrading a database that already holds data', () => {
 
   it('applies from an empty database to the latest schema without error', async () => {
     const { db, remaining } = await databaseAt('0001')
-    expect(remaining).toHaveLength(33)
+    expect(remaining).toHaveLength(37)
     await apply(db, remaining)
     expect(await n(db, 'tenants')).toBe(0)
     expect(await n(db, 'invoices')).toBe(0)

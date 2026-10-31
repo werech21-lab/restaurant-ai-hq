@@ -7,6 +7,7 @@ import { PermissionProvider, useCan } from '@/components/erp/permissions'
 import { panelClass, primaryButton, secondaryButton } from '@/components/erp/styles'
 import { permissions } from '@/lib/auth/permissions'
 import { useI18n, type MessageKey } from '@/lib/i18n'
+import AnalyticPnlPanel from '@/modules/suite/ui/AnalyticPnlPanel'
 import SuperOdooBoard from '@/modules/suite/ui/SuperOdooBoard'
 
 type Tab = 'accounting' | 'invoicing' | 'expenses' | 'analytic'
@@ -55,7 +56,12 @@ function Workspace({ initialTab, invoiceId }: { initialTab: string; invoiceId: s
           <Link className={primaryButton} href="/erp/hr?tab=expenses">{t('spec.expenses')}</Link>
         </section>
       ) : null}
-      {tab === 'analytic' ? <SuperOdooBoard app="analytic" title="spec.analytic" canManage={canManage} /> : null}
+      {tab === 'analytic' ? (
+        <div className="space-y-4">
+          <AnalyticPnlPanel />
+          <SuperOdooBoard app="analytic" title="spec.analytic" canManage={canManage} />
+        </div>
+      ) : null}
     </div>
   )
 }

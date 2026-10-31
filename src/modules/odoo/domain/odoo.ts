@@ -25,7 +25,19 @@ export const odooModels = [
 export type OdooModel = (typeof odooModels)[number]
 
 export const odooFields: Record<OdooModel, readonly string[]> = {
-  'hr.employee': ['id', 'name', 'job_title', 'work_email', 'active', 'barcode', 'department_id'],
+  'hr.employee': [
+    'id',
+    'name',
+    'job_title',
+    'work_email',
+    'work_phone',
+    'mobile_phone',
+    'active',
+    'barcode',
+    'department_id',
+    'work_location_id',
+    'address_id',
+  ],
   'hr.contract': ['id', 'name', 'employee_id', 'date_start', 'date_end', 'wage', 'state'],
   'hr.payslip': ['id', 'name', 'employee_id', 'date_from', 'date_to', 'state', 'net_wage'],
   'hr.attendance': ['id', 'employee_id', 'check_in', 'check_out'],

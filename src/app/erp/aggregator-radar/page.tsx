@@ -7,7 +7,7 @@ export default async function AggregatorRadarPage() {
   await requirePageUser('/erp/aggregator-radar')
   const permissions = await readSessionPermissions()
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
+    <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6" suppressHydrationWarning>
       <AggregatorRadar permissions={permissions} />
     </main>
   )

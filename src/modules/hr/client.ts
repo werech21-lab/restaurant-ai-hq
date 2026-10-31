@@ -1,4 +1,21 @@
-export type { Appraisal, Appointment, Attendance, Employee, EmployeeExpense, Leave, PayrollRun, Payslip, Shift } from '@/modules/hr/domain/types'
+export type {
+  Appraisal,
+  Appointment,
+  Attendance,
+  Employee,
+  Employee360,
+  EmployeeExpense,
+  HrContract,
+  HrCustody,
+  HrDocument,
+  HrLoan,
+  HrOvertime,
+  Leave,
+  PayrollDashboard,
+  PayrollRun,
+  Payslip,
+  Shift,
+} from '@/modules/hr/domain/types'
 export {
   createAppraisalSchema,
   createAttendanceSchema,

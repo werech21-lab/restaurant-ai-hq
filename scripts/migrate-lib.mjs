@@ -56,6 +56,17 @@ export const baselineSentinels = {
   '0032_odoo_venturefoods_extractor.sql': ['fn:erp_odoo_extractor_marker()'],
   '0033_purge_demo_placeholders_keep_odoo.sql': ['fn:erp_demo_purge_marker()'],
   '0034_odoo_six_divisions_suite.sql': ['public.suite_records', 'fn:erp_odoo_six_divisions_marker()'],
+  '0035_deep_venture_foods_hr_payroll_rebuild.sql': [
+    'public.hr_contracts',
+    'public.hr_custody',
+    'public.hr_loans',
+    'public.hr_overtimes',
+    'public.hr_documents',
+    'fn:erp_hr_deep_rebuild_marker()',
+  ],
+  '0036_venture_foods_warehouses_branches_analytic.sql': ['fn:erp_vf_warehouses_branches_marker()'],
+  '0037_hr_deep_tables_rls.sql': ['fn:erp_hr_deep_tables_rls_marker()'],
+  '0038_revoke_hr_deep_marker_grants.sql': ['fn:erp_hr_marker_grants_marker()'],
 }
 
 /**

@@ -16,6 +16,8 @@ import {
   listAppraisals,
   listAppointments,
   listAttendance,
+  getEmployee360,
+  getPayrollDashboard,
   listEmployees,
   listExpenses,
   listLeaves,
@@ -48,6 +50,15 @@ function created(outcome: { status: number; body: unknown; replayed: boolean }):
 
 export async function listEmployeesHandler({ auth }: RouteArgs): Promise<NextResponse> {
   return NextResponse.json({ data: await listEmployees(auth) })
+}
+
+export async function employee360Handler({ auth, params }: RouteArgs): Promise<NextResponse> {
+  const { id } = parseParams(params, idParamsSchema)
+  return NextResponse.json({ data: await getEmployee360(auth, id) })
+}
+
+export async function payrollDashboardHandler({ auth }: RouteArgs): Promise<NextResponse> {
+  return NextResponse.json({ data: await getPayrollDashboard(auth) })
 }
 
 export async function createEmployeeHandler({ request, auth }: RouteArgs): Promise<NextResponse> {
