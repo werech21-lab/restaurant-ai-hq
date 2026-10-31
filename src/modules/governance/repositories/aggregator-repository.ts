@@ -22,8 +22,12 @@ function asGap(value: unknown): RankGap {
   }
 }
 
+const VENTURE_BRANDS = `('فارم براون', 'كرك كافتيريا', 'تشاينا جاردن', 'ذا نودل بار', 'فرانكس ستيك ساندويتش', 'شاورما طحينة')`
+
 const SNAPSHOT = `id, to_char(snapshot_interval_time at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as "snapshotIntervalTime",
   platform_name as "platformName", geo_zone_ar as "geoZoneAr", our_brand_name as "ourBrandName", our_branch_name as "ourBranchName",
+  brand_name_ar as "brandNameAr", brand_name_en as "brandNameEn", branch_location_ar as "branchLocationAr",
+  covered_delivery_zones_ar as "coveredDeliveryZonesAr", delivery_zone_status as "deliveryZoneStatus",
   current_rank as "currentRank", previous_rank_5m_ago as "previousRank5mAgo", rank_delta as "rankDelta",
   overall_rating_bps as "overallRatingBps", reviews_count as "reviewsCount",
   estimated_visits_impressions as "estimatedVisitsImpressions", conversion_rate_bps as "conversionRateBps",
@@ -129,6 +133,7 @@ export async function listSnapshots(tx: Queryable, tenantId: string, query: Aggr
        and snapshot_interval_time = (select max(latest.snapshot_interval_time) from aggregator_geo_rank_snapshots latest where latest.tenant_id = $1)
        and ($2::text is null or platform_name = $2)
        and ($3::text is null or geo_zone_ar = $3)
+       and our_brand_name in ${VENTURE_BRANDS}
        and ($4::text is null or our_branch_name = $4 or our_brand_name = $4)
      order by current_rank desc, platform_name, geo_zone_ar
      limit 240`,
@@ -154,6 +159,7 @@ export async function listActions(tx: Queryable, tenantId: string, query: Aggreg
      where tenant_id = $1
        and ($2::text is null or platform_name = $2)
        and ($3::text is null or geo_zone_ar = $3)
+       and our_brand_name in ${VENTURE_BRANDS}
        and ($4::text is null or our_branch_name = $4 or our_brand_name = $4)
      order by current_rank desc, created_at desc
      limit 240`,
@@ -192,12 +198,14 @@ export async function rollForward(tx: Queryable, tenantId: string, actorId: stri
   const inserted = await tx.query<{ id: string }>(
     `insert into aggregator_geo_rank_snapshots (
       tenant_id, snapshot_interval_time, platform_name, geo_zone_ar, our_brand_name, our_branch_name,
+      brand_name_ar, brand_name_en, branch_location_ar, covered_delivery_zones_ar, delivery_zone_status,
       current_rank, previous_rank_5m_ago, rank_delta, overall_rating_bps, reviews_count,
       estimated_visits_impressions, conversion_rate_bps, avg_order_acceptance_seconds, prep_time_minutes,
       cancellation_rate_bps, algorithm_penalty_reason_ar, delivery_eta_minutes, delivery_fee_minor,
       min_order_minor, logistics_mode, is_sponsored_ad_active, recorded_at, created_by
     )
     select tenant_id, $2::timestamptz, platform_name, geo_zone_ar, our_brand_name, our_branch_name,
+      brand_name_ar, brand_name_en, branch_location_ar, covered_delivery_zones_ar, delivery_zone_status,
       current_rank, current_rank, 0, overall_rating_bps, reviews_count, estimated_visits_impressions,
       conversion_rate_bps, avg_order_acceptance_seconds, prep_time_minutes, cancellation_rate_bps,
       algorithm_penalty_reason_ar, delivery_eta_minutes, delivery_fee_minor, min_order_minor, logistics_mode,

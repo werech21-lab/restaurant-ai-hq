@@ -168,6 +168,11 @@ export type GeoRankSnapshot = {
   geoZoneAr: string
   ourBrandName: string
   ourBranchName: string
+  brandNameAr: string
+  brandNameEn: string
+  branchLocationAr: string
+  coveredDeliveryZonesAr: string
+  deliveryZoneStatus: 'مفتوح للتوصيل' | 'مزدحم - نطاق مقلص' | 'خارج نطاق التوصيل'
   currentRank: number
   previousRank5mAgo: number
   rankDelta: number

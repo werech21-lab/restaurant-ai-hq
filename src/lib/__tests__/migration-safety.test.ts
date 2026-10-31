@@ -71,8 +71,14 @@ describe('migration files', () => {
       if (statements.length > 0) found[file] = statements
     }
     // 0006 replaces the thousandths ledger and its derived view. It refuses to run if the old ledger has rows, and converts is_active first.
+    // 0030 deletes only placeholder أثير and demo radar rows. Invoices, stock and payments are untouched, and a check then keeps the six brands.
     expect(found).toEqual({
       '0006_inventory_ops.sql': ['drop view stock_levels', 'drop table stock_movements', 'alter table warehouses drop column is_active'],
+      '0030_venture_foods_exclusive_brands_radar.sql': [
+        "delete from aggregator_top_competitors_bench as bench using aggregator_geo_rank_snapshots as snap where bench.tenant_id = snap.tenant_id and bench.snapshot_id = snap.id and ( snap.our_brand_name not in ('فارم براون', 'كرك كافتيريا', 'تشاينا جاردن', 'ذا نودل بار', 'فرانكس ستيك ساندويتش', 'شاورما طحينة') or snap.our_branch_name like 'أثير%' or snap.our_brand_name ilike '%demo%' or snap.our_branch_name ilike '%demo%' )",
+        "delete from aggregator_rank_escalation_actions where our_brand_name not in ('فارم براون', 'كرك كافتيريا', 'تشاينا جاردن', 'ذا نودل بار', 'فرانكس ستيك ساندويتش', 'شاورما طحينة') or our_branch_name like 'أثير%' or our_brand_name ilike '%demo%' or our_branch_name ilike '%demo%'",
+        "delete from aggregator_geo_rank_snapshots where our_brand_name not in ('فارم براون', 'كرك كافتيريا', 'تشاينا جاردن', 'ذا نودل بار', 'فرانكس ستيك ساندويتش', 'شاورما طحينة') or our_branch_name like 'أثير%' or our_brand_name ilike '%demo%' or our_branch_name ilike '%demo%'",
+      ],
     })
   })
 
@@ -80,8 +86,9 @@ describe('migration files', () => {
     for (const file of await migrationFiles()) {
       const sql = (await readFile(path.join(migrationsDir, file), 'utf8')).replace(/--[^\n]*/g, '')
       expect(sql, file).not.toMatch(/\btruncate\b/i)
-      expect(sql, file).not.toMatch(/\bdelete\s+from\b/i)
       expect(sql, file).not.toMatch(/\bdrop\s+(database|schema)\b/i)
+      if (file === '0030_venture_foods_exclusive_brands_radar.sql') continue
+      expect(sql, file).not.toMatch(/\bdelete\s+from\b/i)
     }
   })
 
@@ -305,7 +312,7 @@ describe('upgrading a database that already holds data', () => {
 
   it('applies from an empty database to the latest schema without error', async () => {
     const { db, remaining } = await databaseAt('0001')
-    expect(remaining).toHaveLength(28)
+    expect(remaining).toHaveLength(29)
     await apply(db, remaining)
     expect(await n(db, 'tenants')).toBe(0)
     expect(await n(db, 'invoices')).toBe(0)

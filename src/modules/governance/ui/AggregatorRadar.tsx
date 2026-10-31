@@ -132,27 +132,6 @@ function Workspace() {
       </header>
       {notice ? <p className={noticeClass}>{notice}</p> : null}
       {detail ? <p className={errorClass} role="alert">{detail}</p> : null}
-      <div role="toolbar" aria-label={t('agg.brand')} className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          aria-pressed={branch === ''}
-          onClick={() => setBranch('')}
-          className={`rounded-full border px-3 py-1.5 text-sm ${branch === '' ? 'border-gold-300 bg-gold-400/15 font-semibold text-gold-300' : 'border-white/15 text-gray-300'}`}
-        >
-          {t('agg.brands.all')}
-        </button>
-        {ventureBrands.map((item) => (
-          <button
-            key={item.code}
-            type="button"
-            aria-pressed={branch === item.nameAr}
-            onClick={() => setBranch(item.nameAr)}
-            className={`rounded-full border px-3 py-1.5 text-sm ${branch === item.nameAr ? 'border-gold-300 bg-gold-400/15 font-semibold text-gold-300' : 'border-white/15 text-gray-300'}`}
-          >
-            {t(item.label)}
-          </button>
-        ))}
-      </div>
       {activeBrand ? (
         <p className="text-sm text-gray-300">
           {t('agg.cuisine')}: {liveBrand?.cuisineCategoryAr ?? activeBrand.cuisineAr}
@@ -161,6 +140,28 @@ function Workspace() {
         </p>
       ) : null}
       <div className="flex flex-wrap items-end gap-3">
+        <div role="toolbar" aria-label={t('agg.brand')} className="flex flex-wrap items-center gap-2">
+          <span className={labelClass}>{t('agg.brand')}</span>
+          <button
+            type="button"
+            aria-pressed={branch === ''}
+            onClick={() => setBranch('')}
+            className={`rounded-full border px-3 py-1.5 text-sm ${branch === '' ? 'border-gold-300 bg-gold-400/15 font-semibold text-gold-300' : 'border-white/15 text-gray-300'}`}
+          >
+            {t('agg.brands.all')}
+          </button>
+          {ventureBrands.map((item) => (
+            <button
+              key={item.code}
+              type="button"
+              aria-pressed={branch === item.nameAr}
+              onClick={() => setBranch(item.nameAr)}
+              className={`rounded-full border px-3 py-1.5 text-sm ${branch === item.nameAr ? 'border-gold-300 bg-gold-400/15 font-semibold text-gold-300' : 'border-white/15 text-gray-300'}`}
+            >
+              {t(item.label)}
+            </button>
+          ))}
+        </div>
         <label className={labelClass}>{t('agg.platform')}
           <select className={inputClass} value={platform} onChange={(event) => setPlatform(event.target.value)}>
             <option value="">{t('agg.all')}</option>
@@ -200,45 +201,45 @@ function Workspace() {
             <table className="w-full min-w-[720px] text-sm text-gray-100">
               <thead className="text-gray-400">
                 <tr>
-                  <th className="px-2 py-2 text-start">{t('agg.brand')}</th>
+                  <th className="px-2 py-2 text-start">{t('agg.col.brand')}</th>
+                  <th className="px-2 py-2 text-start">{t('agg.col.branch')}</th>
                   <th className="px-2 py-2 text-start">{t('agg.platform')}</th>
-                  <th className="px-2 py-2 text-start">{t('agg.zone')}</th>
-                  <th className="px-2 py-2 text-start">{t('agg.branch')}</th>
+                  <th className="px-2 py-2 text-start">{t('agg.col.coverage')}</th>
                   <th className="px-2 py-2 text-start">{t('agg.rank')}</th>
-                  <th className="px-2 py-2 text-start">{t('agg.delta')}</th>
-                  <th className="px-2 py-2 text-start">{t('agg.rating')}</th>
-                  <th className="px-2 py-2 text-start">{t('agg.visits')}</th>
-                  <th className="px-2 py-2 text-start">{t('agg.conversion')}</th>
-                  <th className="px-2 py-2 text-start">{t('agg.acceptance')}</th>
-                  <th className="px-2 py-2 text-start">{t('agg.prep')}</th>
-                  <th className="px-2 py-2 text-start">{t('agg.eta')}</th>
-                  <th className="px-2 py-2 text-start">{t('agg.fee')}</th>
-                  <th className="px-2 py-2 text-start">{t('agg.fleet')}</th>
+                  <th className="px-2 py-2 text-start">{t('agg.col.demand')}</th>
+                  <th className="px-2 py-2 text-start">{t('agg.col.logistics')}</th>
                 </tr>
               </thead>
               <tbody>
                 {board.snapshots.map((row) => (
                   <tr key={row.id} className={row.id === selectedId ? 'bg-white/5' : undefined} onClick={() => setSelectedId(row.id)}>
-                    <td className="px-2 py-2">{row.ourBrandName}</td>
+                    <td className="px-2 py-2">{row.brandNameAr} <span dir="ltr">({row.brandNameEn})</span></td>
+                    <td className="px-2 py-2">{row.branchLocationAr}</td>
                     <td className="px-2 py-2">{t(`agg.platform.${row.platformName}` as MessageKey)}</td>
-                    <td className="px-2 py-2">{row.geoZoneAr}</td>
-                    <td className="px-2 py-2">{row.ourBranchName}</td>
-                    <td className="px-2 py-2">#{row.currentRank}</td>
-                    <td className={`px-2 py-2 ${row.rankDelta > 0 ? 'text-emerald-300' : row.rankDelta < 0 ? 'text-red-300' : 'text-gray-400'}`}>
-                      {row.rankDelta > 0 ? `▲ +${row.rankDelta}` : row.rankDelta < 0 ? `▼ ${row.rankDelta}` : '0'}
+                    <td className="px-2 py-2">
+                      <span>{row.coveredDeliveryZonesAr}</span>
+                      <span className={`mt-1 block w-fit rounded-full px-2 py-0.5 text-[11px] ${row.deliveryZoneStatus === 'مفتوح للتوصيل' ? 'bg-emerald-900/60 text-emerald-200' : row.deliveryZoneStatus === 'خارج نطاق التوصيل' ? 'bg-red-950/70 text-red-100' : 'bg-amber-900/60 text-amber-100'}`}>
+                        {t(row.deliveryZoneStatus === 'مفتوح للتوصيل' ? 'agg.zoneStatus.open' : row.deliveryZoneStatus === 'خارج نطاق التوصيل' ? 'agg.zoneStatus.closed' : 'agg.zoneStatus.tight')}
+                      </span>
                     </td>
-                    <td className="px-2 py-2">{bpsToInput(row.overallRatingBps)} · {row.reviewsCount}</td>
-                    <td className="px-2 py-2">{row.estimatedVisitsImpressions}</td>
-                    <td className="px-2 py-2">{bpsToInput(row.conversionRateBps)}</td>
-                    <td className="px-2 py-2">{row.avgOrderAcceptanceSeconds}</td>
-                    <td className="px-2 py-2">{row.prepTimeMinutes}</td>
-                    <td className="px-2 py-2">{row.deliveryEtaMinutes} {t('agg.minutes')}</td>
-                    <td className="px-2 py-2">{formatMinor(row.deliveryFeeMinor)} {t('admin.kwd')}</td>
+                    <td className="px-2 py-2">
+                      <span>#{row.currentRank}</span>
+                      <span className={`mt-1 block ${row.rankDelta > 0 ? 'text-emerald-300' : row.rankDelta < 0 ? 'text-red-300' : 'text-gray-400'}`}>
+                        {row.rankDelta > 0 ? `▲ +${row.rankDelta}` : row.rankDelta < 0 ? `▼ ${row.rankDelta}` : '0'}
+                      </span>
+                    </td>
+                    <td className="px-2 py-2">
+                      <span>{t('agg.visits')} {row.estimatedVisitsImpressions}</span>
+                      <span className="mt-1 block">{t('agg.conversion')} {bpsToInput(row.conversionRateBps)}</span>
+                      <span className="mt-1 block">{t('agg.rating')} {bpsToInput(row.overallRatingBps)}</span>
+                    </td>
                     <td className="px-2 py-2">
                       <span className={`rounded-full px-2 py-0.5 text-[11px] ${row.logisticsMode === 'platform_fleet' ? 'bg-emerald-900/60 text-emerald-200' : 'bg-amber-900/60 text-amber-100'}`}>
                         {row.logisticsMode === 'platform_fleet' ? t('agg.fleet.platform') : t('agg.fleet.vendor')}
                       </span>
-                      {row.isSponsoredAdActive ? ` · ${t('agg.sponsored')}` : ''}
+                      <span className="mt-1 block">{t('agg.prep')} {row.prepTimeMinutes} {t('agg.minutes')}</span>
+                      <span className="mt-1 block">{row.deliveryEtaMinutes} {t('agg.minutes')}</span>
+                      <span className="mt-1 block">{formatMinor(row.deliveryFeeMinor)} {t('admin.kwd')}</span>
                     </td>
                   </tr>
                 ))}

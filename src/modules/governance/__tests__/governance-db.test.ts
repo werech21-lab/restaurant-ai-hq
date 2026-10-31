@@ -164,11 +164,13 @@ describe('governance on the live schema', () => {
     const snapshot = await pg().query<{ id: string }>(
       `insert into aggregator_geo_rank_snapshots (
         tenant_id, snapshot_interval_time, platform_name, geo_zone_ar, our_brand_name, our_branch_name,
+        brand_name_ar, brand_name_en, branch_location_ar, covered_delivery_zones_ar, delivery_zone_status,
         current_rank, previous_rank_5m_ago, rank_delta, overall_rating_bps, reviews_count,
         estimated_visits_impressions, conversion_rate_bps, delivery_eta_minutes, delivery_fee_minor,
         min_order_minor, logistics_mode, is_sponsored_ad_active, created_by
       ) values (
-        $1, '2026-10-29T06:00:00Z', 'Keeta', 'السالمية', 'مجموعة أثير', 'أثير السالمية',
+        $1, '2026-10-29T06:00:00Z', 'Keeta', 'السالمية', 'فارم براون', 'فارم براون السالمية',
+        'فارم براون', 'Farm Brown', 'فارم براون السالمية', 'السالمية، الرميثية، سلوى، بيان، مشرف', 'مفتوح للتوصيل',
         8, 9, 1, 420, 860, 4200, 850, 28, 750, 3000, 'vendor_own_fleet', false, $2
       ) returning id`,
       [auth.tenantId, auth.userId],
@@ -189,11 +191,11 @@ describe('governance on the live schema', () => {
     )
     const action = await pg().query<{ id: string }>(
       `insert into aggregator_rank_escalation_actions (
-        tenant_id, platform_name, geo_zone_ar, our_branch_name, current_rank, target_rank,
+        tenant_id, platform_name, geo_zone_ar, our_brand_name, our_branch_name, current_rank, target_rank,
         root_cause_of_lower_rank_ar, algorithmic_recommendation_ar, recommended_action_type,
         estimated_rank_jump, estimated_revenue_uplift_minor, created_by
       ) values (
-        $1, 'Keeta', 'السالمية', 'أثير السالمية', 8, 2,
+        $1, 'Keeta', 'السالمية', 'فارم براون', 'فارم براون السالمية', 8, 2,
         'التوصيل على أسطول الشركة.', 'تحويل التوصيل إلى أسطول التطبيق.', 'switch_fleet_mode', 6, 450000, $2
       ) returning id`,
       [auth.tenantId, auth.userId],
@@ -214,7 +216,7 @@ describe('governance on the live schema', () => {
       `select description_ar from audit_activity_logs where tenant_id = $1 and entity_type = 'aggregator_escalation'`,
       [auth.tenantId],
     )
-    expect(audit.rows[0]?.description_ar).toContain('أثير السالمية')
+    expect(audit.rows[0]?.description_ar).toContain('فارم براون السالمية')
     const scanned = await scanAggregator(auth, nextKey(), {})
     expect(scanned.body.data.recorded).toBe(1)
     const rolled = await pg().query<{ rank_delta: number; logistics_mode: string }>(
@@ -251,12 +253,14 @@ describe('governance on the live schema', () => {
     await pg().query(
       `insert into aggregator_geo_rank_snapshots (
         tenant_id, snapshot_interval_time, platform_name, geo_zone_ar, our_brand_name, our_branch_name,
+        brand_name_ar, brand_name_en, branch_location_ar, covered_delivery_zones_ar, delivery_zone_status,
         current_rank, previous_rank_5m_ago, rank_delta, overall_rating_bps, reviews_count,
         estimated_visits_impressions, conversion_rate_bps, avg_order_acceptance_seconds, prep_time_minutes,
         cancellation_rate_bps, algorithm_penalty_reason_ar, delivery_eta_minutes, delivery_fee_minor,
         min_order_minor, logistics_mode, created_by
       ) values (
         $1, '2026-12-01T08:00:00Z', 'Talabat', 'العارضية', 'فارم براون', 'فارم براون العارضية',
+        'فارم براون', 'Farm Brown', 'فارم براون العارضية', 'العارضية، الفروانية، خيطان، العمرية، الرابية', 'مزدحم - نطاق مقلص',
         47, 49, 2, 430, 510, 1400, 240, 90, 26, 880, $3, 48, 1250, 2500, 'vendor_own_fleet', $2
       )`,
       [auth.tenantId, auth.userId, penalty],
@@ -267,6 +271,8 @@ describe('governance on the live schema', () => {
     expect(board.snapshots[0]?.currentRank).toBe(47)
     expect(board.snapshots[0]?.geoZoneAr).toBe('العارضية')
     expect(board.snapshots[0]?.logisticsMode).toBe('vendor_own_fleet')
+    expect(board.snapshots[0]?.coveredDeliveryZonesAr).toContain('خيطان')
+    expect(board.snapshots[0]?.deliveryZoneStatus).toBe('مزدحم - نطاق مقلص')
     await expect(pg().query(
       `insert into venture_brands (tenant_id, code, name_en, name_ar, cuisine_category_ar, active_branches_count, sort_order, created_by)
        values ($1, 'NO-SUCH', 'No', 'لا', 'لا', 1, 1, $2)`,
@@ -275,11 +281,13 @@ describe('governance on the live schema', () => {
     await expect(pg().query(
       `insert into aggregator_geo_rank_snapshots (
         tenant_id, snapshot_interval_time, platform_name, geo_zone_ar, our_brand_name, our_branch_name,
+        brand_name_ar, brand_name_en, branch_location_ar, covered_delivery_zones_ar, delivery_zone_status,
         current_rank, previous_rank_5m_ago, rank_delta, overall_rating_bps, reviews_count,
         estimated_visits_impressions, conversion_rate_bps, delivery_eta_minutes, delivery_fee_minor,
         min_order_minor, logistics_mode, created_by
       ) values (
         $1, '2026-12-01T08:00:00Z', 'Keeta', 'السرة', 'فارم براون', 'فارم براون السرة',
+        'فارم براون', 'Farm Brown', 'فارم براون السرة', 'السالمية، الرميثية، سلوى، بيان، مشرف', 'مفتوح للتوصيل',
         10, 10, 0, 450, 10, 10, 10, 20, 500, 2500, 'platform_fleet', $2
       )`,
       [auth.tenantId, auth.userId],
@@ -287,14 +295,30 @@ describe('governance on the live schema', () => {
     await expect(pg().query(
       `insert into aggregator_geo_rank_snapshots (
         tenant_id, snapshot_interval_time, platform_name, geo_zone_ar, our_brand_name, our_branch_name,
+        brand_name_ar, brand_name_en, branch_location_ar, covered_delivery_zones_ar, delivery_zone_status,
         current_rank, previous_rank_5m_ago, rank_delta, overall_rating_bps, reviews_count,
         estimated_visits_impressions, conversion_rate_bps, algorithm_penalty_reason_ar, delivery_eta_minutes, delivery_fee_minor,
         min_order_minor, logistics_mode, created_by
       ) values (
         $1, '2026-12-01T08:05:00Z', 'Snoonu', 'العارضية', 'فارم براون', 'فارم براون العارضية',
+        'فارم براون', 'Farm Brown', 'فارم براون العارضية', 'العارضية، الفروانية، خيطان، العمرية، الرابية', 'مزدحم - نطاق مقلص',
         61, 61, 0, 410, 10, 10, 10, 'سبب', 50, 1000, 2500, 'vendor_own_fleet', $2
       )`,
       [auth.tenantId, auth.userId],
     )).rejects.toThrow(/current_rank|aggregator_geo_rank_current_check/)
+    await expect(pg().query(
+      `insert into aggregator_geo_rank_snapshots (
+        tenant_id, snapshot_interval_time, platform_name, geo_zone_ar, our_brand_name, our_branch_name,
+        brand_name_ar, brand_name_en, branch_location_ar, covered_delivery_zones_ar, delivery_zone_status,
+        current_rank, previous_rank_5m_ago, rank_delta, overall_rating_bps, reviews_count,
+        estimated_visits_impressions, conversion_rate_bps, delivery_eta_minutes, delivery_fee_minor,
+        min_order_minor, logistics_mode, created_by
+      ) values (
+        $1, '2026-12-01T08:10:00Z', 'Talabat', 'السالمية', 'مجموعة أثير', 'أثير السالمية',
+        'مجموعة أثير', 'Farm Brown', 'أثير السالمية', 'السالمية، الرميثية، سلوى، بيان، مشرف', 'مفتوح للتوصيل',
+        12, 12, 0, 420, 10, 10, 10, 20, 500, 2500, 'platform_fleet', $2
+      )`,
+      [auth.tenantId, auth.userId],
+    )).rejects.toThrow(/aggregator_geo_rank_venture_brand_check/)
   })
 })
