@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ApiError, apiRequest, errorKey, newIdempotencyKey } from '@/components/erp/api'
 import { PermissionProvider, useCan } from '@/components/erp/permissions'
 import { errorClass, inputClass, labelClass, noticeClass, panelClass, primaryButton } from '@/components/erp/styles'
 import { permissions } from '@/lib/auth/permissions'
 import { useI18n, type MessageKey } from '@/lib/i18n'
-import { ODOO_ORIGIN } from '@/modules/odoo/client'
+import { ODOO_COMPANY_ID, ODOO_ORIGIN, odooConsoleExtractor } from '@/modules/odoo/client'
 
 type RecordRow = { id: string; odooModel: string; externalId: string; displayName: string; applyStatus: 'staged' | 'applied' | 'skipped' }
 type Board = { jobs: { id: string; recordsPulled: number; recordsApplied: number; status: string; createdAt: string }[]; records: RecordRow[] }
@@ -14,9 +14,14 @@ type Board = { jobs: { id: string; recordsPulled: number; recordsApplied: number
 function Workspace() {
   const { t } = useI18n()
   const canSync = useCan(permissions.adminOdooSync)
+  const snippet = odooConsoleExtractor()
+  const snippetRef = useRef<HTMLTextAreaElement>(null)
+  const [mode, setMode] = useState<'password' | 'session'>('password')
   const [database, setDatabase] = useState('')
   const [login, setLogin] = useState('')
   const [secret, setSecret] = useState('')
+  const [sessionId, setSessionId] = useState('')
+  const [copied, setCopied] = useState(false)
   const [file, setFile] = useState<File | null>(null)
   const [board, setBoard] = useState<Board>({ jobs: [], records: [] })
   const [phase, setPhase] = useState<'loading' | 'ready' | 'error'>('loading')
@@ -46,10 +51,11 @@ function Workspace() {
     try {
       await apiRequest('/api/v1/admin/odoo', {
         method: 'POST',
-        body: { database, login, secret },
+        body: mode === 'session' ? { sessionId } : { database, login, secret },
         idempotencyKey: newIdempotencyKey(),
       })
       setSecret('')
+      setSessionId('')
       setNotice(t('odoo.saved'))
     } catch (error) {
       setDetail(error instanceof ApiError ? error.message : t(errorKey(error)))
@@ -87,6 +93,18 @@ function Workspace() {
     }
   }
 
+  async function copySnippet() {
+    try {
+      await navigator.clipboard.writeText(snippet)
+    } catch {
+      snippetRef.current?.select()
+      document.execCommand('copy')
+    }
+    setCopied(true)
+  }
+
+  const ready = mode === 'session' ? /^[A-Za-z0-9._-]{8,128}$/.test(sessionId) : database.trim() !== '' && login.trim() !== '' && secret !== ''
+
   const statusKey = (status: RecordRow['applyStatus']): MessageKey => (
     status === 'applied' ? 'odoo.applied' : status === 'skipped' ? 'odoo.skipped' : 'odoo.staged'
   )
@@ -101,21 +119,45 @@ function Workspace() {
       {detail ? <p className={errorClass} role="alert">{detail}</p> : null}
       {canSync ? (
         <section className={panelClass}>
-          <label className={labelClass}>{t('odoo.url')}
-            <input className={inputClass} value={ODOO_ORIGIN} readOnly />
-          </label>
-          <div className="mt-3 grid gap-3 md:grid-cols-3">
-            <label className={labelClass}>{t('odoo.database')}
-              <input className={inputClass} value={database} onChange={(event) => setDatabase(event.target.value)} autoComplete="off" />
+          <h2 className="text-base font-semibold text-white">{t('odoo.console')}</h2>
+          <p className="mt-2 text-sm text-gray-400">{t('odoo.consoleHelp')}</p>
+          <textarea ref={snippetRef} className={`${inputClass} mt-3 font-mono text-xs`} dir="ltr" readOnly rows={8} value={snippet} />
+          <button className={`${primaryButton} mt-4`} type="button" onClick={() => void copySnippet()}>{copied ? t('odoo.copied') : t('odoo.copy')}</button>
+        </section>
+      ) : null}
+      {canSync ? (
+        <section className={panelClass}>
+          <h2 className="text-base font-semibold text-white">{t('odoo.direct')}</h2>
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            <label className={labelClass}>{t('odoo.url')}
+              <input className={inputClass} value={ODOO_ORIGIN} readOnly />
             </label>
-            <label className={labelClass}>{t('odoo.login')}
-              <input className={inputClass} value={login} onChange={(event) => setLogin(event.target.value)} autoComplete="username" />
-            </label>
-            <label className={labelClass}>{t('odoo.secret')}
-              <input className={inputClass} type="password" value={secret} onChange={(event) => setSecret(event.target.value)} autoComplete="current-password" />
+            <label className={labelClass}>{t('odoo.company')}
+              <input className={inputClass} value={String(ODOO_COMPANY_ID)} readOnly />
             </label>
           </div>
-          <button className={`${primaryButton} mt-4`} type="button" disabled={busy || database.trim() === '' || login.trim() === '' || secret === ''} onClick={() => void pull()}>
+          <div className="mt-3 flex gap-2">
+            <button className={primaryButton} type="button" onClick={() => setMode('password')}>{t('odoo.modePassword')}</button>
+            <button className={primaryButton} type="button" onClick={() => setMode('session')}>{t('odoo.modeSession')}</button>
+          </div>
+          {mode === 'password' ? (
+            <div className="mt-3 grid gap-3 md:grid-cols-3">
+              <label className={labelClass}>{t('odoo.database')}
+                <input className={inputClass} value={database} onChange={(event) => setDatabase(event.target.value)} autoComplete="off" />
+              </label>
+              <label className={labelClass}>{t('odoo.login')}
+                <input className={inputClass} value={login} onChange={(event) => setLogin(event.target.value)} autoComplete="username" />
+              </label>
+              <label className={labelClass}>{t('odoo.secret')}
+                <input className={inputClass} type="password" value={secret} onChange={(event) => setSecret(event.target.value)} autoComplete="current-password" />
+              </label>
+            </div>
+          ) : (
+            <label className={`${labelClass} mt-3`}>{t('odoo.session')}
+              <input className={inputClass} type="password" value={sessionId} onChange={(event) => setSessionId(event.target.value)} autoComplete="off" />
+            </label>
+          )}
+          <button className={`${primaryButton} mt-4`} type="button" disabled={busy || !ready} onClick={() => void pull()}>
             {busy ? t('odoo.loading') : t('odoo.pull')}
           </button>
         </section>
@@ -126,7 +168,7 @@ function Workspace() {
             <input
               className={inputClass}
               type="file"
-              accept=".csv,.tsv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              accept=".json,.csv,.tsv,.xlsx,application/json,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
               onChange={(event) => setFile(event.target.files?.[0] ?? null)}
             />
           </label>

@@ -8,6 +8,7 @@ import { createCustomer, listCustomers } from '@/modules/crm'
 import { createEmployee } from '@/modules/hr'
 import { createItem } from '@/modules/inventory'
 import { parseDelimited } from '@/modules/odoo/domain/csv'
+import { recordsFromDump } from '@/modules/odoo/domain/dump'
 import {
   detectModel,
   displayName,
@@ -21,7 +22,7 @@ import {
   type OdooModel,
   type OdooPayload,
 } from '@/modules/odoo/domain/odoo'
-import { fetchOdooModels, liveOdooTransport, type OdooTransport } from '@/modules/odoo/domain/rpc'
+import { fetchOdooModels, fetchOdooSession, liveOdooTransport, liveWebTransport, type OdooTransport } from '@/modules/odoo/domain/rpc'
 import { readXlsxRows } from '@/modules/odoo/domain/sheet'
 import * as repository from '@/modules/odoo/repositories/odoo-repository'
 import type { PullOdooInput } from '@/modules/odoo/schemas/odoo'
@@ -124,7 +125,7 @@ async function settle(auth: AuthContext, rows: Prepared[]): Promise<Prepared[]> 
   return settled
 }
 
-async function store(auth: AuthContext, source: 'jsonrpc' | 'file', database: string | null, login: string | null, models: readonly string[], rows: Prepared[], key: string, requestHash: string): Promise<IdempotentResult<{ data: SyncReport }>> {
+async function store(auth: AuthContext, source: 'jsonrpc' | 'file' | 'web', database: string | null, login: string | null, models: readonly string[], rows: Prepared[], key: string, requestHash: string): Promise<IdempotentResult<{ data: SyncReport }>> {
   const settled = await settle(auth, rows)
   const applied = settled.filter((row) => row.status === 'applied').length
   const staged = settled.filter((row) => row.status === 'staged').length
@@ -148,17 +149,37 @@ async function store(auth: AuthContext, source: 'jsonrpc' | 'file', database: st
   }))
 }
 
-export async function pullOdoo(auth: AuthContext, key: string, input: PullOdooInput, transport: OdooTransport = liveOdooTransport): Promise<IdempotentResult<{ data: SyncReport }>> {
+export async function pullOdoo(
+  auth: AuthContext,
+  key: string,
+  input: PullOdooInput,
+  transport: OdooTransport = liveOdooTransport,
+  webTransport: OdooTransport = liveWebTransport,
+): Promise<IdempotentResult<{ data: SyncReport }>> {
   const models = input.models ?? [...odooModels]
+  if (input.sessionId) {
+    const pulled = await fetchOdooSession(webTransport, input.sessionId, models)
+    const rows = pulled.flatMap((group) => group.rows.map((payload, index) => prepare(group.model, payload, `${group.model}-${index + 1}`, auth.permissions)))
+    return store(auth, 'web', null, null, models, rows, key, hashRequest({ companyId: 1, mode: 'web', models }))
+  }
+  if (!input.database || !input.login || !input.secret) throw new AppError(422, 'validation_failed', 'Provide the database, user and key.')
   const pulled = await fetchOdooModels(transport, input.database, input.login, input.secret, models)
   const rows = pulled.flatMap((group) => group.rows.map((payload, index) => prepare(group.model, payload, `${group.model}-${index + 1}`, auth.permissions)))
-  const hash = hashRequest({ database: input.database, login: input.login, models })
-  return store(auth, 'jsonrpc', input.database, input.login, models, rows, key, hash)
+  return store(auth, 'jsonrpc', input.database, input.login, models, rows, key, hashRequest({ database: input.database, login: input.login, models }))
 }
 
 export async function importOdooFile(auth: AuthContext, key: string, fileName: string, bytes: Uint8Array): Promise<IdempotentResult<{ data: SyncReport }>> {
-  if (bytes.byteLength === 0 || bytes.byteLength > 2_000_000) throw new AppError(422, 'validation_failed', 'The file must be under 2 MB.')
+  if (bytes.byteLength === 0) throw new AppError(422, 'validation_failed', 'The file is empty.')
   const lower = fileName.toLowerCase()
+  const checksum = createHash('sha256').update(bytes).digest('hex')
+  if (lower.endsWith('.json')) {
+    if (bytes.byteLength > 8_000_000) throw new AppError(422, 'validation_failed', 'The JSON file must be under 8 MB.')
+    const read = recordsFromDump(new TextDecoder().decode(bytes))
+    if (!read.ok) throw new AppError(422, read.code, 'The JSON file is not a Venture Foods Odoo dump for company 1.')
+    const rows = read.groups.flatMap((group) => group.rows.map((payload, index) => prepare(group.model, payload, `${group.model}-${index + 1}`, auth.permissions)))
+    return store(auth, 'file', null, null, read.groups.map((group) => group.model), rows, key, hashRequest({ fileName, checksum, models: read.groups.map((group) => group.model) }))
+  }
+  if (bytes.byteLength > 2_000_000) throw new AppError(422, 'validation_failed', 'The file must be under 2 MB.')
   const table = lower.endsWith('.xlsx')
     ? readXlsxRows(bytes)
     : parseDelimited(new TextDecoder().decode(bytes), lower.endsWith('.tsv') ? '\t' : ',')
@@ -168,7 +189,6 @@ export async function importOdooFile(auth: AuthContext, key: string, fileName: s
   if (!model) throw new AppError(422, 'odoo_file_unrecognized', 'The file headers do not match an Odoo export.')
   const records = recordsFromRows(header, body.slice(0, MAX_FILE_ROWS))
   const rows = records.map((payload, index) => prepare(model, payload, `${index + 1}`, auth.permissions))
-  const checksum = createHash('sha256').update(bytes).digest('hex')
   return store(auth, 'file', null, null, [model], rows, key, hashRequest({ fileName, checksum, model }))
 }
 

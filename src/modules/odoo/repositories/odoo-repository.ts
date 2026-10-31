@@ -3,7 +3,7 @@ import type { ApplyTarget, OdooModel, OdooPayload } from '@/modules/odoo/domain/
 
 export type OdooJob = {
   id: string
-  source: 'jsonrpc' | 'file'
+  source: 'jsonrpc' | 'file' | 'web'
   databaseName: string | null
   loginName: string | null
   status: 'completed' | 'failed'
@@ -31,7 +31,7 @@ export async function insertJob(
   tx: Queryable,
   tenantId: string,
   actorId: string,
-  input: { source: 'jsonrpc' | 'file'; databaseName: string | null; loginName: string | null; models: readonly string[] },
+  input: { source: 'jsonrpc' | 'file' | 'web'; databaseName: string | null; loginName: string | null; models: readonly string[] },
 ): Promise<string> {
   const result = await tx.query<{ id: string }>(
     `insert into odoo_sync_jobs (

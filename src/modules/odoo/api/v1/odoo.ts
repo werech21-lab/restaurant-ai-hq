@@ -22,7 +22,7 @@ export async function pullOdooHandler({ request, auth }: RouteArgs): Promise<Nex
 export async function importOdooFileHandler({ request, auth }: RouteArgs): Promise<NextResponse> {
   const key = requireIdempotencyKey(request)
   const type = request.headers.get('content-type') ?? ''
-  if (!type.includes('multipart/form-data')) throw new AppError(422, 'validation_failed', 'Upload a CSV or Excel file.')
+  if (!type.includes('multipart/form-data')) throw new AppError(422, 'validation_failed', 'Upload a JSON, CSV or Excel file.')
   const form = await request.formData()
   const file = form.get('file')
   if (!(file instanceof File)) throw new AppError(422, 'validation_failed', 'Choose a file exported from Odoo.')

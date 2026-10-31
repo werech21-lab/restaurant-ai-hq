@@ -3,16 +3,22 @@ import { permissions, type Permission } from '@/lib/auth/permissions'
 /** The only Odoo host this importer may call. */
 export const ODOO_ORIGIN = 'https://venturefoods.walnutss.com'
 
+export const ODOO_COMPANY_ID = 1
+
 export const odooModels = [
   'hr.employee',
+  'hr.contract',
   'hr.payslip',
   'hr.attendance',
   'hr.leave',
+  'hr.appraisal',
+  'hr.expense',
   'account.account',
   'account.move',
   'product.template',
   'stock.quant',
   'purchase.order',
+  'purchase.requisition',
   'res.partner',
 ] as const
 
@@ -20,14 +26,18 @@ export type OdooModel = (typeof odooModels)[number]
 
 export const odooFields: Record<OdooModel, readonly string[]> = {
   'hr.employee': ['id', 'name', 'job_title', 'work_email', 'active', 'barcode', 'department_id'],
+  'hr.contract': ['id', 'name', 'employee_id', 'date_start', 'date_end', 'wage', 'state'],
   'hr.payslip': ['id', 'name', 'employee_id', 'date_from', 'date_to', 'state', 'net_wage'],
   'hr.attendance': ['id', 'employee_id', 'check_in', 'check_out'],
   'hr.leave': ['id', 'employee_id', 'holiday_status_id', 'date_from', 'date_to', 'state'],
+  'hr.appraisal': ['id', 'employee_id', 'date_close', 'state'],
+  'hr.expense': ['id', 'name', 'employee_id', 'total_amount', 'date', 'state'],
   'account.account': ['id', 'code', 'name', 'account_type'],
   'account.move': ['id', 'name', 'move_type', 'partner_id', 'invoice_date', 'amount_total', 'state', 'currency_id'],
   'product.template': ['id', 'name', 'default_code', 'list_price', 'standard_price', 'active'],
   'stock.quant': ['id', 'product_id', 'location_id', 'quantity'],
   'purchase.order': ['id', 'name', 'partner_id', 'date_order', 'amount_total', 'state'],
+  'purchase.requisition': ['id', 'name', 'state', 'ordering_date'],
   'res.partner': ['id', 'name', 'email', 'phone', 'vat', 'street'],
 }
 
@@ -95,9 +105,13 @@ export type ApplyPlan =
 
 /** Contacts, employees and products can enter their modules. Ledgers, stock and payroll stay staged. */
 export function planApply(model: OdooModel, payload: OdooPayload, granted: ReadonlySet<string>): ApplyPlan {
-  if (model === 'account.account' || model === 'account.move' || model === 'purchase.order') return { status: 'staged', target: null, reason: 'ledger' }
+  if (model === 'account.account' || model === 'account.move' || model === 'purchase.order' || model === 'purchase.requisition') {
+    return { status: 'staged', target: null, reason: 'ledger' }
+  }
   if (model === 'stock.quant') return { status: 'staged', target: null, reason: 'stock' }
-  if (model === 'hr.payslip' || model === 'hr.attendance' || model === 'hr.leave') return { status: 'staged', target: null, reason: 'payroll' }
+  if (model === 'hr.contract' || model === 'hr.payslip' || model === 'hr.attendance' || model === 'hr.leave' || model === 'hr.appraisal' || model === 'hr.expense') {
+    return { status: 'staged', target: null, reason: 'payroll' }
+  }
   const target: ApplyTarget = model === 'res.partner' ? 'customers' : model === 'hr.employee' ? 'hr_employees' : 'items'
   const permission = APPLY_PERMISSION[target]
   if (!permission || !granted.has(permission)) return { status: 'staged', target: null, reason: 'permission' }
@@ -116,6 +130,10 @@ export function detectModel(headers: readonly string[]): OdooModel | null {
   const keys = new Set(headers.map(headerKey))
   const has = (...names: string[]) => names.some((name) => keys.has(name))
   if (has('net_wage', 'payslip')) return 'hr.payslip'
+  if (has('wage', 'date_start')) return 'hr.contract'
+  if (has('total_amount')) return 'hr.expense'
+  if (has('date_close')) return 'hr.appraisal'
+  if (has('ordering_date', 'requisition')) return 'purchase.requisition'
   if (has('check_in')) return 'hr.attendance'
   if (has('holiday_status', 'holiday_status_id')) return 'hr.leave'
   if (has('work_email', 'job_title', 'barcode')) return 'hr.employee'
