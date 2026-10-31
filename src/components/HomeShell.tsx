@@ -63,11 +63,11 @@ export default function HomeShell({ metrics, signedIn, devEntry }: { metrics: Co
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-ink-950 text-mist-100">
+    <div className="flex h-screen overflow-hidden bg-ink-950 text-mist-100" suppressHydrationWarning>
       <Sidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col" suppressHydrationWarning>
         <Topbar title={t(`nav.${activeSection}` as MessageKey)} onNavigate={navigate} onMenu={() => setMenuOpen(true)} />
-        <main className="relative min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
+        <main className="relative min-w-0 flex-1 overflow-y-auto overflow-x-hidden" suppressHydrationWarning>
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_100%_0%,rgba(201,161,90,0.11),transparent_38%),radial-gradient(ellipse_at_0%_100%,rgba(70,86,112,0.08),transparent_42%)]" />
           <div key={activeSection} className="relative mx-auto w-full max-w-6xl animate-fade-up px-3.5 pb-24 pt-5 sm:px-5 sm:pb-28 sm:pt-8 md:px-10 md:pb-28 md:pt-10">
             <p role="note" className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">

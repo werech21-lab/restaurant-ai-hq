@@ -16,13 +16,14 @@ export default function DepartmentTree({ onNavigate }: { onNavigate?: () => void
   const [opened, setOpened] = useState<string>(current)
 
   return (
-    <nav aria-label={t('erpnav.label')} className="space-y-1">
+    <nav aria-label={t('erpnav.label')} className="space-y-1" suppressHydrationWarning>
       {erpSectors.map((sector) => {
         const open = opened === sector.id
         return (
           <div key={sector.id} className="rounded-2xl">
             <button
               type="button"
+              suppressHydrationWarning
               aria-expanded={open}
               onClick={() => setOpened(open ? '' : sector.id)}
               className={`flex w-full items-center justify-between gap-2 rounded-2xl px-3 py-2.5 text-start text-sm font-semibold ${
@@ -40,9 +41,10 @@ export default function DepartmentTree({ onNavigate }: { onNavigate?: () => void
                   const pathOk = base === '/erp' ? path === '/erp' : path === base || path.startsWith(`${base}/`)
                   const active = pathOk && (want === null || want === openTab)
                   return (
-                    <li key={link.href}>
+                    <li key={link.href} suppressHydrationWarning>
                       <Link
                         href={link.href}
+                        suppressHydrationWarning
                         aria-current={active ? 'page' : undefined}
                         onClick={onNavigate}
                         className={`block rounded-xl px-3 py-1.5 text-sm ${

@@ -29,8 +29,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const theme: Theme = cookieStore.get('ai-hq-theme')?.value === 'light' ? 'light' : 'dark'
 
   return (
-    <html lang={locale} dir={locale === 'en' ? 'ltr' : 'rtl'} data-theme={theme} className={cairo.variable}>
-      <body className={`${cairo.className} bg-ink-950 font-cairo text-mist-100 antialiased`}>
+    <html lang={locale} dir={locale === 'en' ? 'ltr' : 'rtl'} data-theme={theme} className={cairo.variable} suppressHydrationWarning>
+      <body className={`${cairo.className} bg-ink-950 font-cairo text-mist-100 antialiased`} suppressHydrationWarning>
         <ThemeProvider initialTheme={theme}>
           <LanguageProvider initialLocale={locale}>{children}</LanguageProvider>
         </ThemeProvider>

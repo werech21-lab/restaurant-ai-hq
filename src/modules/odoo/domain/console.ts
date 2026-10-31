@@ -1,8 +1,21 @@
-import { ODOO_COMPANY_ID, ODOO_ORIGIN, odooFields } from '@/modules/odoo/domain/odoo'
+import { ODOO_COMPANY_ID, ODOO_ORIGIN, odooFields, type OdooModel } from '@/modules/odoo/domain/odoo'
+
+const browserModels = [
+  'hr.employee',
+  'hr.payslip',
+  'hr.attendance',
+  'hr.leave',
+  'product.template',
+  'stock.quant',
+  'purchase.order',
+  'account.account',
+  'account.move',
+  'res.partner',
+] as const satisfies readonly OdooModel[]
 
 /** A same-origin snippet. It uses the open Odoo cookie and downloads a file. It does not send the cookie anywhere else. */
 export function odooConsoleExtractor(): string {
-  const fields = JSON.stringify(odooFields)
+  const fields = JSON.stringify(Object.fromEntries(browserModels.map((model) => [model, [...odooFields[model]]])))
   return `(async function () {
   if (location.origin !== ${JSON.stringify(ODOO_ORIGIN)}) {
     console.error('Open https://venturefoods.walnutss.com first.');
@@ -25,7 +38,7 @@ export function odooConsoleExtractor(): string {
             model: model,
             method: 'search_read',
             args: [[]],
-            kwargs: { fields: fields[model], limit: 200, offset: offset, context: { allowed_company_ids: [${ODOO_COMPANY_ID}] } }
+            kwargs: { fields: fields[model], limit: 200, offset: offset, context: { allowed_company_ids: [${ODOO_COMPANY_ID}], cids: ${ODOO_COMPANY_ID} } }
           }
         })
       });
@@ -39,7 +52,7 @@ export function odooConsoleExtractor(): string {
   const blob = new Blob([JSON.stringify(dump)], { type: 'application/json' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
-  link.download = 'venturefoods_odoo_dump.json';
+  link.download = 'venturefoods_odoo_cids1_dump.json';
   document.body.appendChild(link);
   link.click();
   link.remove();

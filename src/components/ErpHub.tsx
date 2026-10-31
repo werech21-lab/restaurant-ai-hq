@@ -30,7 +30,7 @@ export default function ErpHub({
   const target = (href: string) => (devEntry && !signedIn ? `/dev/owner?next=${encodeURIComponent(href)}` : href)
 
   return (
-    <section id="erp-apps" aria-labelledby="erp-apps-title" className="mb-8">
+    <section id="erp-apps" aria-labelledby="erp-apps-title" className="mb-8" suppressHydrationWarning>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 id="erp-apps-title" className="text-xl font-bold text-mist-100 sm:text-2xl">
@@ -57,11 +57,12 @@ export default function ErpHub({
               <span className="rounded-full border border-gold-300/20 px-2 py-0.5 text-[11px] text-mist-100">{t('hub.status.ready')}</span>
             </summary>
             <p className="mt-1 text-xs text-mist-400">{summaryText(sectorSummary(sector.id, metrics), t)}</p>
-            <ul className="mt-3 grid gap-2 border-s border-gold-300/20 ps-3 sm:grid-cols-2">
+            <ul className="mt-3 grid gap-2 border-s border-gold-300/20 ps-3 sm:grid-cols-2" suppressHydrationWarning>
               {sector.links.map((link) => (
-                <li key={link.href}>
+                <li key={link.href} suppressHydrationWarning>
                   <Link
                     href={target(link.href)}
+                    suppressHydrationWarning
                     className="flex items-center justify-between gap-3 rounded-xl border border-gold-300/10 px-3 py-2 text-sm text-mist-100 transition hover:border-gold-300/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-400/40"
                   >
                     <span>{t(link.title)}</span>

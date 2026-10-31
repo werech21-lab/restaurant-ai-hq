@@ -5,7 +5,7 @@ import GovernancePulse from '@/components/erp/GovernancePulse'
 
 export default function ErpLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen bg-ink-950 text-mist-100 md:flex">
+    <div className="min-h-screen bg-ink-950 text-mist-100 md:flex" suppressHydrationWarning>
       <aside className="w-full border-b border-gold-300/10 bg-ink-900 md:sticky md:top-0 md:h-screen md:w-72 md:shrink-0 md:overflow-y-auto md:border-b-0 md:border-e">
         <div className="px-3 py-4">
           <Suspense fallback={null}>

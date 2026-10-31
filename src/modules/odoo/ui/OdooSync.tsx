@@ -110,7 +110,7 @@ function Workspace() {
   )
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" suppressHydrationWarning>
       <header>
         <h1 className="text-2xl font-bold text-white">{t('odoo.title')}</h1>
         <p className="mt-2 max-w-3xl text-sm text-gray-400">{t('odoo.lead')}</p>
@@ -118,8 +118,8 @@ function Workspace() {
       {notice ? <p className={noticeClass}>{notice}</p> : null}
       {detail ? <p className={errorClass} role="alert">{detail}</p> : null}
       {canSync ? (
-        <section className={panelClass}>
-          <h2 className="text-base font-semibold text-white">{t('odoo.console')}</h2>
+        <section className={`${panelClass} border-gold-300/40`}>
+          <h2 className="text-lg font-bold text-gold-300">{t('odoo.console')}</h2>
           <p className="mt-2 text-sm text-gray-400">{t('odoo.consoleHelp')}</p>
           <textarea ref={snippetRef} className={`${inputClass} mt-3 font-mono text-xs`} dir="ltr" readOnly rows={8} value={snippet} />
           <button className={`${primaryButton} mt-4`} type="button" onClick={() => void copySnippet()}>{copied ? t('odoo.copied') : t('odoo.copy')}</button>
