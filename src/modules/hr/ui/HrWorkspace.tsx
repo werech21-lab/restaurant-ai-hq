@@ -21,6 +21,35 @@ import type {
   Shift,
 } from '@/modules/hr/client'
 import SuperOdooBoard from '@/modules/suite/ui/SuperOdooBoard'
+import { HrDigitalDossier } from '@/components/hr-digital-dossier'
+
+function HrDossierPanel({ employeeCode, employeeName }: { employeeCode: string; employeeName: string }) {
+  const { locale } = useI18n()
+  const [prismaId, setPrismaId] = useState<string | null>(null)
+  useEffect(() => {
+    const controller = new AbortController()
+    fetch('/api/hr/ingest-folder', { credentials: 'same-origin', signal: controller.signal })
+      .then(async (res) => {
+        const json = (await res.json()) as { data?: { employees?: Array<{ id: string; code: string; name: string }> } }
+        const list = json.data?.employees || []
+        const hit =
+          list.find((row) => row.code === employeeCode) ||
+          list.find((row) => row.name.toLowerCase() === employeeName.toLowerCase()) ||
+          null
+        setPrismaId(hit?.id ?? null)
+      })
+      .catch(() => setPrismaId(null))
+    return () => controller.abort()
+  }, [employeeCode, employeeName])
+  if (!prismaId) {
+    return <p className="text-xs text-gray-500">{locale === 'en' ? 'No panel dossier linked yet.' : 'لا توجد خزانة مربوطة في اللوحة بعد.'}</p>
+  }
+  return (
+    <div className="rounded-xl border border-white/10 bg-black/20 p-2">
+      <HrDigitalDossier employeeId={prismaId} locale={locale} />
+    </div>
+  )
+}
 
 type Tab = 'employees' | 'departments' | 'documents' | 'custody' | 'loans' | 'overtimes' | 'attendance' | 'leaves' | 'payroll'
 type PayrollSub = 'dashboard' | 'contracts' | 'affects' | 'entries' | 'payslips' | 'provisions' | 'reporting' | 'config'
@@ -264,6 +293,12 @@ function Workspace({ initialTab }: { initialTab: string }) {
         <div>
           <h1 className="text-2xl font-bold text-white">{t('hr.title')}</h1>
           <p className="mt-2 max-w-3xl text-sm text-gray-400">{t('hr.lead')}</p>
+          <a
+            href="/hr/smart-folder-upload"
+            className="mt-3 inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-emerald-600/25 hover:bg-emerald-500"
+          >
+            {t('hr.smartUpload')}
+          </a>
         </div>
         {tab === 'employees' && canEmployees ? (
           <button className={primaryButton} type="button" onClick={() => setShowCreate(true)}>+ {t('hr.new')}</button>
@@ -653,8 +688,10 @@ function Workspace({ initialTab }: { initialTab: string }) {
               </div>
             ) : null}
             {drawerPane === 'documents' ? (
-              <div className="space-y-2 text-sm">
-                {profile.documents.length === 0 ? <p className="text-gray-400">{t('hr.empty')}</p> : profile.documents.map((row) => (
+              <div className="space-y-3 text-sm">
+                <p className="font-semibold text-emerald-200">{t('hr.dossier')}</p>
+                <HrDossierPanel employeeCode={profile.employee.employeeCode} employeeName={profile.employee.fullName} />
+                {profile.documents.length === 0 ? null : profile.documents.map((row) => (
                   <p key={row.id} className="text-gray-200">{row.title} · {row.docType} · {row.status}</p>
                 ))}
               </div>

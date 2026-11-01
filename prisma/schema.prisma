@@ -479,9 +479,37 @@ model Employee {
   status      String       @default("ACTIVE")
   attendance  Attendance[]
   payrolls    Payroll[]
+  hrDocuments HrDocument[]
 
   @@index([department, status])
   @@index([name])
+}
+
+/// Smart folder ingest dossier row (panel SQLite).
+model HrDocument {
+  id            String    @id @default(cuid())
+  employeeId    String?
+  batchId       String
+  fileName      String
+  relativePath  String
+  category      String
+  mimeType      String    @default("application/octet-stream")
+  sizeBytes     Int       @default(0)
+  /// Small files only (≤ 400KB). Larger docs keep metadata + extracted fields.
+  contentBase64 String?
+  extractedText String?
+  civilId       String?
+  expiryDate    DateTime?
+  matchScore    Float     @default(0)
+  status        String    @default("MATCHED")
+  updatesJson   String    @default("[]")
+  metaJson      String    @default("{}")
+  createdAt     DateTime  @default(now())
+  employee      Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+
+  @@index([employeeId, category])
+  @@index([batchId, status])
+  @@index([expiryDate])
 }
 
 model Attendance {

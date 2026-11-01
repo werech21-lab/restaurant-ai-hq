@@ -11,6 +11,7 @@ import { PAGE_SIZE, pageHref, readQuery, type RawQuery } from "@/lib/pagination"
 import { can, firstAllowedHref } from "@/lib/permissions";
 import { getActiveScope, hrDepartmentTokens } from "@/lib/scope";
 import { listAttendance, listEmployees, listPayroll } from "@/services/hr.service";
+import { HrDigitalDossier } from "@/components/hr-digital-dossier";
 
 export const metadata = { title: "HR & Payroll | AetherBI ERP" };
 
@@ -27,6 +28,7 @@ async function HrContent({ searchParams }: { searchParams: Promise<RawQuery> }) 
   const scopeLabel = locale === "en" ? scope.labelEn : scope.labelAr;
   const tokens = hrDepartmentTokens(scope);
   const tab = query.tab === "attendance" || query.tab === "payroll" ? query.tab : "employees";
+  const selectedDossier = query.doc;
   const now = new Date();
   const year = Number(query.role) || now.getFullYear();
   const month = Number(query.filter) || now.getMonth() + 1;
@@ -53,6 +55,18 @@ async function HrContent({ searchParams }: { searchParams: Promise<RawQuery> }) 
         title={tx(locale, "الموارد البشرية والرواتب", "HR & payroll")}
         description={tx(locale, `ملفات الموظفين والحضور والمسير · ${scopeLabel}`, `Employee records, attendance, and payroll · ${scopeLabel}`)}
       />
+      <div className="mb-4">
+        <a
+          href="/hr/smart-folder-upload"
+          className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-md shadow-emerald-600/20 hover:bg-emerald-700"
+        >
+          {tx(
+            locale,
+            "📁 رفع مجلد الموظفين الذكي (توزيع تلقائي بالـ AI)",
+            "📁 Smart HR Folder Upload (Auto-Distribute)",
+          )}
+        </a>
+      </div>
       <div className="mb-4 flex flex-wrap gap-2">
         <a
           href={pageHref("/hr", { tab: "employees" })}
@@ -131,7 +145,14 @@ async function HrContent({ searchParams }: { searchParams: Promise<RawQuery> }) 
                   <td className="px-4 py-3 font-semibold" dir="ltr">
                     {employee.code}
                   </td>
-                  <td className="px-4 py-3">{employee.name}</td>
+                  <td className="px-4 py-3">
+                    <a
+                      href={pageHref("/hr", { tab: "employees", q: query.q, doc: employee.id, page: query.page })}
+                      className="font-semibold text-emerald-700 hover:underline"
+                    >
+                      {employee.name}
+                    </a>
+                  </td>
                   <td className="px-4 py-3">{employee.jobTitle}</td>
                   <td className="px-4 py-3">{employee.department}</td>
                   <td className="px-4 py-3 text-xs" dir="ltr">
@@ -145,6 +166,18 @@ async function HrContent({ searchParams }: { searchParams: Promise<RawQuery> }) 
             </tbody>
           </table>
           <PaginationBar path="/hr" params={{ tab: "employees", q: query.q }} page={query.page} total={employees.total} />
+        </div>
+      ) : null}
+      {tab === "employees" && selectedDossier ? (
+        <div className="mt-4">
+          <p className="mb-2 text-sm font-semibold text-slate-700">
+            {tx(locale, "الخزانة الرقمية ومستندات الموظف", "Digital HR Dossier")}
+            {" · "}
+            {employees.rows.find((row) => row.id === selectedDossier)?.name ||
+              allEmployees.find((row) => row.id === selectedDossier)?.name ||
+              selectedDossier}
+          </p>
+          <HrDigitalDossier employeeId={selectedDossier} locale={locale} />
         </div>
       ) : null}
       {tab === "attendance" ? (
