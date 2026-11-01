@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+﻿import { Suspense } from "react";
 import { connection } from "next/server";
 import { HrForms } from "@/app/(panel)/hr/hr-forms";
 import { requireUser } from "@/lib/erp-auth";
@@ -75,7 +75,7 @@ async function HrContent({ searchParams }: { searchParams: Promise<RawQuery> }) 
         </a>
         <a
           href="/ess"
-          className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-800"
+          className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-[#11161f] px-5 py-3 text-sm font-bold text-mist-100"
         >
           {tx(locale, "بوابة الموظف /ess", "Employee portal /ess")}
         </a>
@@ -86,7 +86,7 @@ async function HrContent({ searchParams }: { searchParams: Promise<RawQuery> }) 
           className={
             tab === "employees"
               ? "rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white"
-              : "rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold"
+              : "rounded-lg border border-white/10 bg-[#11161f] px-4 py-2 text-sm font-semibold"
           }
         >
           {tx(locale, "الموظفون", "Employees")}
@@ -96,7 +96,7 @@ async function HrContent({ searchParams }: { searchParams: Promise<RawQuery> }) 
           className={
             tab === "attendance"
               ? "rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white"
-              : "rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold"
+              : "rounded-lg border border-white/10 bg-[#11161f] px-4 py-2 text-sm font-semibold"
           }
         >
           {tx(locale, "الحضور", "Attendance")}
@@ -106,14 +106,14 @@ async function HrContent({ searchParams }: { searchParams: Promise<RawQuery> }) 
           className={
             tab === "payroll"
               ? "rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white"
-              : "rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold"
+              : "rounded-lg border border-white/10 bg-[#11161f] px-4 py-2 text-sm font-semibold"
           }
         >
           {tx(locale, "المسير", "Payroll")}
         </a>
         <a
           href="/directory"
-          className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800"
+          className="rounded-lg border border-emerald-500/30 bg-emerald-950/20 px-4 py-2 text-sm font-semibold text-emerald-300"
         >
           {tx(locale, "دليل الهواتف والبدالة", "Phone & PBX Directory")}
         </a>
@@ -126,14 +126,14 @@ async function HrContent({ searchParams }: { searchParams: Promise<RawQuery> }) 
         canEdit={can(user, "hr", "edit")}
       />
       {tab === "employees" ? (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-          <form method="get" className="flex gap-2 border-b border-slate-200 p-4">
+        <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#11161f]">
+          <form method="get" className="flex gap-2 border-b border-white/10 p-4">
             <input type="hidden" name="tab" value="employees" />
             <input
               name="q"
               defaultValue={query.q}
               placeholder={tx(locale, "بحث بالاسم أو الرمز أو القسم", "Search by name, code, or department")}
-              className="w-full max-w-sm rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              className="w-full max-w-sm rounded-lg border border-white/10 px-3 py-2 text-sm"
             />
             <button className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">
               {tx(locale, "بحث", "Search")}
@@ -141,7 +141,7 @@ async function HrContent({ searchParams }: { searchParams: Promise<RawQuery> }) 
           </form>
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 text-slate-500">
+              <tr className="border-b border-white/10 text-mist-400">
                 <th className="px-4 py-3 text-right">{tx(locale, "الرمز", "Code")}</th>
                 <th className="px-4 py-3 text-right">{tx(locale, "الاسم", "Name")}</th>
                 <th className="px-4 py-3 text-right">{tx(locale, "الوظيفة", "Job title")}</th>
@@ -154,7 +154,7 @@ async function HrContent({ searchParams }: { searchParams: Promise<RawQuery> }) 
             </thead>
             <tbody>
               {employees.rows.map((employee) => (
-                <tr key={employee.id} className="border-b border-slate-200">
+                <tr key={employee.id} className="border-b border-white/10">
                   <td className="px-4 py-3 font-semibold" dir="ltr">
                     {employee.code}
                   </td>
@@ -183,7 +183,7 @@ async function HrContent({ searchParams }: { searchParams: Promise<RawQuery> }) 
       ) : null}
       {tab === "employees" && selectedDossier ? (
         <div className="mt-4">
-          <p className="mb-2 text-sm font-semibold text-slate-700">
+          <p className="mb-2 text-sm font-semibold text-mist-200">
             {tx(locale, "الخزانة الرقمية ومستندات الموظف", "Digital HR Dossier")}
             {" · "}
             {employees.rows.find((row) => row.id === selectedDossier)?.name ||
@@ -194,10 +194,10 @@ async function HrContent({ searchParams }: { searchParams: Promise<RawQuery> }) 
         </div>
       ) : null}
       {tab === "attendance" ? (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#11161f]">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 text-slate-500">
+              <tr className="border-b border-white/10 text-mist-400">
                 <th className="px-4 py-3 text-right">{tx(locale, "الموظف", "Employee")}</th>
                 <th className="px-4 py-3 text-right">{tx(locale, "التاريخ", "Date")}</th>
                 <th className="px-4 py-3 text-right">{tx(locale, "الحالة", "Status")}</th>
@@ -206,7 +206,7 @@ async function HrContent({ searchParams }: { searchParams: Promise<RawQuery> }) 
             </thead>
             <tbody>
               {attendance.rows.map((row) => (
-                <tr key={row.id} className="border-b border-slate-200">
+                <tr key={row.id} className="border-b border-white/10">
                   <td className="px-4 py-3">{row.employee.name}</td>
                   <td className="px-4 py-3">{datetimeFor(locale, row.date)}</td>
                   <td className="px-4 py-3">{attendanceLabel(locale, row.status)}</td>
@@ -219,11 +219,11 @@ async function HrContent({ searchParams }: { searchParams: Promise<RawQuery> }) 
         </div>
       ) : null}
       {tab === "payroll" ? (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-          <div className="border-b border-slate-200 p-4">
+        <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#11161f]">
+          <div className="border-b border-white/10 p-4">
             <HrWpsToolbar month={month} year={year} locale={locale} />
           </div>
-          <div className="flex flex-wrap gap-2 border-b border-slate-200 p-4">
+          <div className="flex flex-wrap gap-2 border-b border-white/10 p-4">
             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((item) => (
               <a
                 key={item}
@@ -231,7 +231,7 @@ async function HrContent({ searchParams }: { searchParams: Promise<RawQuery> }) 
                 className={
                   item === month
                     ? "rounded-lg bg-blue-600 px-3 py-1 text-sm font-semibold text-white"
-                    : "rounded-lg border border-slate-200 px-3 py-1 text-sm font-semibold"
+                    : "rounded-lg border border-white/10 px-3 py-1 text-sm font-semibold"
                 }
               >
                 {item}
@@ -240,7 +240,7 @@ async function HrContent({ searchParams }: { searchParams: Promise<RawQuery> }) 
           </div>
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 text-slate-500">
+              <tr className="border-b border-white/10 text-mist-400">
                 <th className="px-4 py-3 text-right">{tx(locale, "الموظف", "Employee")}</th>
                 <th className="px-4 py-3 text-right">{tx(locale, "الأساسي", "Basic")}</th>
                 <th className="px-4 py-3 text-right">{tx(locale, "البدلات", "Allowances")}</th>
@@ -252,7 +252,7 @@ async function HrContent({ searchParams }: { searchParams: Promise<RawQuery> }) 
             </thead>
             <tbody>
               {scopedPayroll.map((row) => (
-                <tr key={row.id} className="border-b border-slate-200">
+                <tr key={row.id} className="border-b border-white/10">
                   <td className="px-4 py-3">
                     <a className="font-semibold text-blue-700" href={`/hr/payroll/${row.id}/print`}>
                       {row.employee.name}

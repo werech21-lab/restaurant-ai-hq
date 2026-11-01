@@ -31,6 +31,7 @@ type PosProduct = {
   category: string
   price: number
   stock: number
+  imageUrl?: string | null
 }
 
 type CartLine = { product: PosProduct; quantity: number; note: string }
@@ -459,6 +460,19 @@ export function PosTerminal({
                     : 'border-gold-300/15 bg-ink-900/90 hover:border-[#00a99d]/50'
                 }`}
               >
+                {product.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={product.imageUrl}
+                    alt={product.name}
+                    className="mb-2 h-24 w-full rounded-xl object-cover border border-white/10"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="mb-2 flex h-24 w-full items-center justify-center rounded-xl border border-white/10 bg-[#0a0d12] text-2xl text-mist-500">
+                    {CAT_ICONS[product.category] ?? '🍽'}
+                  </div>
+                )}
                 <p className="line-clamp-2 min-h-[2.5rem] text-sm font-bold text-mist-100">{product.name}</p>
                 <p className="mt-1 text-[11px] text-mist-500" dir="ltr">
                   {product.code}

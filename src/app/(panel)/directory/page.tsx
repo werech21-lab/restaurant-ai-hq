@@ -1,4 +1,4 @@
-import { Suspense } from 'react'
+﻿import { Suspense } from 'react'
 import { connection } from 'next/server'
 import { requireUser } from '@/lib/erp-auth'
 import { Forbidden, PageHeader, PageSkeleton } from '@/components/erp-ui'
@@ -47,27 +47,27 @@ async function DirectoryContent() {
       />
 
       <div className="flex flex-wrap gap-2 text-sm">
-        <a href="/hr" className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-semibold text-slate-700">
+        <a href="/hr" className="rounded-lg border border-white/10 bg-[#11161f] px-3 py-1.5 font-semibold text-mist-200">
           {tx(locale, 'الموارد البشرية', 'HR')}
         </a>
-        <a href="/warehouses" className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-semibold text-slate-700">
+        <a href="/warehouses" className="rounded-lg border border-white/10 bg-[#11161f] px-3 py-1.5 font-semibold text-mist-200">
           {tx(locale, 'المستودعات والفروع', 'Warehouses')}
         </a>
-        <a href="/erp/aggregator-radar" className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 font-semibold text-emerald-800">
+        <a href="/erp/aggregator-radar" className="rounded-lg border border-emerald-500/30 bg-emerald-950/20 px-3 py-1.5 font-semibold text-emerald-300">
           {tx(locale, 'رادار التوصيل · تنبيهات حصرية', 'Aggregator radar · exclusive alerts')}
         </a>
       </div>
 
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-        <header className="border-b border-slate-200 px-4 py-3">
-          <h2 className="font-semibold text-slate-900">
+      <section className="overflow-hidden rounded-2xl border border-white/10 bg-[#11161f]">
+        <header className="border-b border-white/10 px-4 py-3">
+          <h2 className="font-semibold text-white">
             {tx(locale, 'الإدارة والموظفون — تحويلات وموبايل وإيميل', 'Leadership & staff — EXT / mobile / email')}
           </h2>
         </header>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[880px] text-sm">
             <thead>
-              <tr className="border-b border-slate-200 text-slate-500">
+              <tr className="border-b border-white/10 text-mist-400">
                 <th className="px-4 py-3 text-start">{tx(locale, 'الاسم', 'Name')}</th>
                 <th className="px-4 py-3 text-start">{tx(locale, 'المسمى', 'Title')}</th>
                 <th className="px-4 py-3 text-start">EXT</th>
@@ -79,9 +79,9 @@ async function DirectoryContent() {
             </thead>
             <tbody>
               {linkedPeople.map(({ person, employee }) => (
-                <tr key={`${person.name}-${person.ext ?? person.mobile}`} className="border-b border-slate-100">
-                  <td className="px-4 py-3 font-semibold text-slate-900">{person.name}</td>
-                  <td className="px-4 py-3 text-slate-600">{person.title}</td>
+                <tr key={`${person.name}-${person.ext ?? person.mobile}`} className="border-b border-white/5">
+                  <td className="px-4 py-3 font-semibold text-white">{person.name}</td>
+                  <td className="px-4 py-3 text-mist-300">{person.title}</td>
                   <td className="px-4 py-3" dir="ltr">
                     {person.ext ?? '—'}
                   </td>
@@ -106,7 +106,7 @@ async function DirectoryContent() {
                       '—'
                     )}
                   </td>
-                  <td className="px-4 py-3 text-xs text-slate-500">
+                  <td className="px-4 py-3 text-xs text-mist-400">
                     {employee ? (
                       <span>
                         {employee.code} · {employee.phone || tx(locale, 'مربوط', 'linked')}
@@ -122,17 +122,17 @@ async function DirectoryContent() {
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-        <header className="border-b border-slate-200 px-4 py-3">
-          <h2 className="font-semibold text-slate-900">{tx(locale, 'الخطوط الساخنة للبراندات', 'Brand hotlines')}</h2>
+      <section className="overflow-hidden rounded-2xl border border-white/10 bg-[#11161f]">
+        <header className="border-b border-white/10 px-4 py-3">
+          <h2 className="font-semibold text-white">{tx(locale, 'الخطوط الساخنة للبراندات', 'Brand hotlines')}</h2>
         </header>
         <ul className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
           {VF_BRAND_HOTLINES.map((row) => (
-            <li key={row.brand} className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-sm">
-              <p className="font-semibold text-slate-900">{row.brand}</p>
+            <li key={row.brand} className="rounded-xl border border-white/5 bg-[#0a0d12] p-3 text-sm">
+              <p className="font-semibold text-white">{row.brand}</p>
               <p className="mt-1" dir="ltr">
                 {row.phones.map((phone) => (
-                  <span key={phone} className="mr-2 inline-block text-slate-700">
+                  <span key={phone} className="mr-2 inline-block text-mist-200">
                     {phone}
                   </span>
                 ))}
@@ -147,14 +147,14 @@ async function DirectoryContent() {
         </ul>
       </section>
 
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-        <header className="border-b border-slate-200 px-4 py-3">
-          <h2 className="font-semibold text-slate-900">{tx(locale, 'تحويلات وخطوط الفروع', 'Branch extensions & direct lines')}</h2>
+      <section className="overflow-hidden rounded-2xl border border-white/10 bg-[#11161f]">
+        <header className="border-b border-white/10 px-4 py-3">
+          <h2 className="font-semibold text-white">{tx(locale, 'تحويلات وخطوط الفروع', 'Branch extensions & direct lines')}</h2>
         </header>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-sm">
             <thead>
-              <tr className="border-b border-slate-200 text-slate-500">
+              <tr className="border-b border-white/10 text-mist-400">
                 <th className="px-4 py-3 text-start">{tx(locale, 'الفرع', 'Branch')}</th>
                 <th className="px-4 py-3 text-start">EXT</th>
                 <th className="px-4 py-3 text-start">{tx(locale, 'مباشر', 'Direct')}</th>
@@ -170,10 +170,10 @@ async function DirectoryContent() {
                     branch.warehouseMatch.some((token) => `${row.name} ${row.location ?? ''}`.includes(token)),
                 )
                 return (
-                  <tr key={branch.code + branch.ext} className="border-b border-slate-100">
+                  <tr key={branch.code + branch.ext} className="border-b border-white/5">
                     <td className="px-4 py-3">
-                      <span className="font-semibold text-slate-900">{locale === 'en' ? branch.nameEn : branch.nameAr}</span>
-                      <span className="mt-0.5 block text-xs text-slate-500" dir="ltr">
+                      <span className="font-semibold text-white">{locale === 'en' ? branch.nameEn : branch.nameAr}</span>
+                      <span className="mt-0.5 block text-xs text-mist-400" dir="ltr">
                         {branch.code}
                       </span>
                     </td>
@@ -192,7 +192,7 @@ async function DirectoryContent() {
                         '—'
                       )}
                     </td>
-                    <td className="px-4 py-3 text-xs text-slate-600">
+                    <td className="px-4 py-3 text-xs text-mist-300">
                       {wh ? (
                         <a className="text-blue-700 hover:underline" href={`/warehouses?q=${wh.id}`}>
                           {wh.name}

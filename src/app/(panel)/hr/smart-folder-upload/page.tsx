@@ -1,4 +1,4 @@
-import { Suspense } from 'react'
+﻿import { Suspense } from 'react'
 import { connection } from 'next/server'
 import { requireUser } from '@/lib/erp-auth'
 import { Forbidden, PageHeader, PageSkeleton } from '@/components/erp-ui'
@@ -39,13 +39,13 @@ async function Content() {
         )}
       />
       <div className="flex flex-wrap gap-2 text-sm">
-        <a href="/hr" className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-semibold text-slate-700">
+        <a href="/hr" className="rounded-lg border border-white/10 bg-[#11161f] px-3 py-1.5 font-semibold text-mist-200">
           {tx(locale, 'العودة للموارد البشرية', 'Back to HR')}
         </a>
-        <a href="/erp/hr" className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-semibold text-slate-700">
+        <a href="/erp/hr" className="rounded-lg border border-white/10 bg-[#11161f] px-3 py-1.5 font-semibold text-mist-200">
           {tx(locale, 'ERP HR', 'ERP HR')}
         </a>
-        <a href="/directory" className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 font-semibold text-emerald-800">
+        <a href="/directory" className="rounded-lg border border-emerald-500/30 bg-emerald-950/20 px-3 py-1.5 font-semibold text-emerald-300">
           {tx(locale, 'دليل الهواتف', 'Phone directory')}
         </a>
       </div>

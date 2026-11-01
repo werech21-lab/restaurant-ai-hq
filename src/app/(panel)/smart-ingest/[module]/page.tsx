@@ -32,11 +32,11 @@ async function Content({ moduleParam }: { moduleParam: string }) {
       />
       <div className="flex flex-wrap gap-2 text-sm">
         {meta.launchHrefs.map((href) => (
-          <a key={href} href={href} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-semibold text-slate-700">
+          <a key={href} href={href} className="rounded-lg border border-white/10 bg-[#11161f] px-3 py-1.5 font-semibold text-mist-200 hover:border-emerald-500/40">
             {href}
           </a>
         ))}
-        <a href="/hr/smart-folder-upload" className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 font-semibold text-emerald-800">
+        <a href="/hr/smart-folder-upload" className="rounded-lg border border-emerald-500/30 bg-emerald-950/30 px-3 py-1.5 font-semibold text-emerald-300">
           {tx(locale, 'رفع HR الذكي', 'HR smart upload')}
         </a>
       </div>

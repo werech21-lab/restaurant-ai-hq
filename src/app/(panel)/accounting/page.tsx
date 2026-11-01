@@ -49,8 +49,14 @@ async function AccountingContent({ searchParams }: { searchParams: Promise<RawQu
           `Chart of accounts, dual-entry journals, and trial balance · ${scopeLabel}`,
         )}
       />
-      <div className="mb-4">
+      <div className="mb-4 flex flex-wrap gap-2">
         <SmartIngestLaunchButton module="accounting" locale={locale} />
+        <a
+          href="/accounting/reconciliation"
+          className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-950/30 px-5 py-3 text-sm font-bold text-emerald-300 hover:bg-emerald-950/50"
+        >
+          {tx(locale, '⚡ مركز المطابقة الذكية NBK + طلبات', '⚡ Smart NBK + Delivery Reconciliation')}
+        </a>
       </div>
       <div className="mb-4 flex flex-wrap gap-2">
         {tabs.map((item) => (

@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState } from 'react'
 
@@ -49,19 +49,19 @@ export function HrDigitalDossier({
     locale === 'en' ? 'Digital HR Dossier' : 'الخزانة الرقمية ومستندات الموظف'
 
   if (phase === 'loading') {
-    return <p className="text-sm text-slate-500">{locale === 'en' ? 'Loading dossier…' : 'جارٍ تحميل الخزانة…'}</p>
+    return <p className="text-sm text-mist-400">{locale === 'en' ? 'Loading dossier…' : 'جارٍ تحميل الخزانة…'}</p>
   }
   if (phase === 'error') {
     return <p className="text-sm text-red-600">{locale === 'en' ? 'Could not load dossier' : 'تعذر تحميل الخزانة'}</p>
   }
 
   return (
-    <section className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-      <header className="border-b border-slate-200 px-4 py-3">
-        <h3 className="font-semibold text-slate-900">{title}</h3>
+    <section className="mt-4 overflow-hidden rounded-2xl border border-white/10 bg-[#11161f]">
+      <header className="border-b border-white/10 px-4 py-3">
+        <h3 className="font-semibold text-white">{title}</h3>
       </header>
       {docs.length === 0 ? (
-        <p className="px-4 py-6 text-sm text-slate-500">
+        <p className="px-4 py-6 text-sm text-mist-400">
           {locale === 'en' ? 'No distributed documents yet.' : 'لا توجد مستندات موزّعة بعد.'}
         </p>
       ) : (
@@ -69,8 +69,8 @@ export function HrDigitalDossier({
           {docs.map((doc) => (
             <li key={doc.id} className="flex flex-wrap items-start justify-between gap-2 px-4 py-3 text-sm">
               <div>
-                <p className="font-medium text-slate-900">{doc.fileName}</p>
-                <p className="text-xs text-slate-500">
+                <p className="font-medium text-white">{doc.fileName}</p>
+                <p className="text-xs text-mist-400">
                   {locale === 'en' ? doc.categoryLabelEn : doc.categoryLabelAr}
                   {doc.civilId ? ` · CID ${doc.civilId}` : ''}
                 </p>
@@ -85,7 +85,7 @@ export function HrDigitalDossier({
                     {locale === 'en' ? `Expires in ${doc.daysLeft}d` : `تنتهي خلال ${doc.daysLeft} يوم`}
                   </span>
                 ) : doc.expiryDate ? (
-                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 font-semibold text-emerald-800" dir="ltr">
+                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 font-semibold text-emerald-300" dir="ltr">
                     {doc.expiryDate}
                   </span>
                 ) : (

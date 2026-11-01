@@ -305,7 +305,7 @@ async function routeInventory(hay: string, fileName: string, buf: Buffer | null,
     categoryLabelEn = 'Item master'
   }
 
-  const skuMatch = hay.match(/\b((?:RW|PI|PP)\d{4,}|RICG\d+|RIFB\d+|RI[A-Z]{2}\d+)\b/i)
+  const skuMatch = hay.match(/\b((?:RW|PI|PP)\d{4,}|RICG\d+|RIFB\d+|RIFR\d+|RIKC\d+|RITNB\d+|RITAH\d+|RI[A-Z]{2,}\d+)\b/i)
   let entityKey: string | null = skuMatch?.[1]?.toUpperCase() ?? null
   let entityLabel: string | null = null
   let score = 0.4

@@ -64,14 +64,24 @@ async function PosContent() {
       initialBrandCode={initialBrand}
       initialBranchId={initialBranch}
       warehouseId={scope.warehouseIds[0] ?? ''}
-      products={products.map((product) => ({
-        id: product.id,
-        code: product.code,
-        name: product.name,
-        category: product.category.name,
-        price: product.sellingPrice,
-        stock: product.currentStock,
-      }))}
+      products={products.map((product) => {
+        let imageUrl: string | null = null
+        try {
+          const custom = JSON.parse(product.customData || '{}') as { imageUrl?: string }
+          imageUrl = typeof custom.imageUrl === 'string' ? custom.imageUrl : null
+        } catch {
+          imageUrl = null
+        }
+        return {
+          id: product.id,
+          code: product.code,
+          name: product.name,
+          category: product.category.name,
+          price: product.sellingPrice,
+          stock: product.currentStock,
+          imageUrl,
+        }
+      })}
     />
   )
 }

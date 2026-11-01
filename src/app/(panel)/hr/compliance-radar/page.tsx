@@ -28,10 +28,13 @@ async function Content() {
         )}
       />
       <div className="flex flex-wrap gap-2 text-sm">
-        <a href="/hr" className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-semibold">
+        <a href="/hr" className="rounded-lg border border-white/10 bg-[#11161f] px-3 py-1.5 font-semibold text-white hover:border-emerald-500/40">
           {tx(locale, 'الموارد البشرية', 'HR')}
         </a>
-        <a href="/hr/smart-folder-upload" className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 font-semibold text-emerald-800">
+        <a
+          href="/hr/smart-folder-upload"
+          className="rounded-lg border border-emerald-500/30 bg-emerald-950/30 px-3 py-1.5 font-semibold text-emerald-300 hover:bg-emerald-950/50"
+        >
           {tx(locale, 'رفع المجلد الذكي', 'Smart folder upload')}
         </a>
       </div>

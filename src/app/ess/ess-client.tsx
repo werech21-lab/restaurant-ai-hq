@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState } from 'react'
 import { useI18n } from '@/lib/i18n'
@@ -107,20 +107,20 @@ export function EssPortalClient() {
 
   return (
     <div dir={dir} className="space-y-4">
-      <header className="rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm">
+      <header className="rounded-2xl border border-emerald-500/30 bg-[#11161f] p-5 shadow-sm">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">Venture Foods · ESS</p>
-            <h1 className="mt-1 text-xl font-bold text-slate-900">
+            <h1 className="mt-1 text-xl font-bold text-white">
               {label('بوابة الموظف الذاتية', 'Employee Self-Service')}
             </h1>
-            <p className="mt-1 text-sm text-slate-600">
+            <p className="mt-1 text-sm text-mist-300">
               {label('ادخل برقمك الوظيفي (Barcode) ورمز PIN', 'Sign in with your employee barcode and PIN')}
             </p>
           </div>
           <button
             type="button"
-            className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold"
+            className="rounded-lg border border-white/10 px-2 py-1 text-xs font-semibold"
             onClick={() => setLocale(locale === 'ar' ? 'en' : 'ar')}
           >
             {locale === 'ar' ? 'EN' : 'عربي'}
@@ -129,11 +129,11 @@ export function EssPortalClient() {
       </header>
 
       {!profile ? (
-        <form onSubmit={login} className="space-y-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <label className="block text-sm font-semibold text-slate-700">
+        <form onSubmit={login} className="space-y-3 rounded-2xl border border-white/10 bg-[#11161f] p-5 shadow-sm">
+          <label className="block text-sm font-semibold text-mist-200">
             {label('الرقم الوظيفي / البصمة', 'Employee ID / Barcode')}
             <input
-              className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-3 text-base"
+              className="mt-1 w-full rounded-xl border border-white/15 px-3 py-3 text-base"
               dir="ltr"
               value={code}
               onChange={(e) => setCode(e.target.value)}
@@ -141,10 +141,10 @@ export function EssPortalClient() {
               required
             />
           </label>
-          <label className="block text-sm font-semibold text-slate-700">
+          <label className="block text-sm font-semibold text-mist-200">
             PIN
             <input
-              className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-3 text-base"
+              className="mt-1 w-full rounded-xl border border-white/15 px-3 py-3 text-base"
               dir="ltr"
               type="password"
               value={pin}
@@ -153,7 +153,7 @@ export function EssPortalClient() {
               required
             />
           </label>
-          <p className="text-xs text-slate-500">{label('الرمز الافتراضي لأول دخول: 1234', 'Default first-login PIN: 1234')}</p>
+          <p className="text-xs text-mist-400">{label('الرمز الافتراضي لأول دخول: 1234', 'Default first-login PIN: 1234')}</p>
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
           <button disabled={busy} className="w-full rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white disabled:opacity-60">
             {busy ? '…' : label('دخول', 'Sign in')}
@@ -161,14 +161,14 @@ export function EssPortalClient() {
         </form>
       ) : (
         <div className="space-y-4">
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <section className="rounded-2xl border border-white/10 bg-[#11161f] p-5 shadow-sm">
             <div className="flex items-start justify-between gap-2">
               <div>
-                <h2 className="text-lg font-bold text-slate-900">{profile.employee.name}</h2>
-                <p className="text-sm text-slate-600">
+                <h2 className="text-lg font-bold text-white">{profile.employee.name}</h2>
+                <p className="text-sm text-mist-300">
                   {profile.employee.jobTitle} · {profile.employee.department}
                 </p>
-                <p className="mt-1 text-xs text-slate-500" dir="ltr">
+                <p className="mt-1 text-xs text-mist-400" dir="ltr">
                   ID {profile.employee.code}
                 </p>
               </div>
@@ -178,8 +178,8 @@ export function EssPortalClient() {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h3 className="font-bold text-slate-900">{label('الوثائق الرسمية', 'Official documents')}</h3>
+          <section className="rounded-2xl border border-white/10 bg-[#11161f] p-5 shadow-sm">
+            <h3 className="font-bold text-white">{label('الوثائق الرسمية', 'Official documents')}</h3>
             <ul className="mt-3 space-y-2 text-sm">
               {[
                 [label('مدني / إقامة', 'Civil ID'), profile.employee.civilIdExpiry],
@@ -188,7 +188,7 @@ export function EssPortalClient() {
                 [label('إذن عمل', 'Work permit'), profile.employee.workPermitExpiry],
                 [label('رخصة قيادة', 'Driving license'), profile.employee.drivingLicenseExpiry],
               ].map(([title, value]) => (
-                <li key={String(title)} className="flex justify-between gap-2 border-b border-slate-100 py-2">
+                <li key={String(title)} className="flex justify-between gap-2 border-b border-white/5 py-2">
                   <span>{title}</span>
                   <span dir="ltr">{value ? String(value).slice(0, 10) : '—'}</span>
                 </li>
@@ -196,14 +196,14 @@ export function EssPortalClient() {
             </ul>
           </section>
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h3 className="font-bold text-slate-900">{label('قسائم الراتب', 'Payslips')}</h3>
+          <section className="rounded-2xl border border-white/10 bg-[#11161f] p-5 shadow-sm">
+            <h3 className="font-bold text-white">{label('قسائم الراتب', 'Payslips')}</h3>
             <ul className="mt-3 space-y-2 text-sm">
               {profile.payrolls.length === 0 ? (
-                <li className="text-slate-500">{label('لا توجد قسائم', 'No payslips')}</li>
+                <li className="text-mist-400">{label('لا توجد قسائم', 'No payslips')}</li>
               ) : (
                 profile.payrolls.map((row) => (
-                  <li key={row.id} className="flex justify-between border-b border-slate-100 py-2">
+                  <li key={row.id} className="flex justify-between border-b border-white/5 py-2">
                     <span dir="ltr">
                       {row.year}-{String(row.month).padStart(2, '0')}
                     </span>
@@ -216,13 +216,13 @@ export function EssPortalClient() {
             </ul>
           </section>
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h3 className="font-bold text-slate-900">{label('الحضور والبصمة', 'Attendance')}</h3>
+          <section className="rounded-2xl border border-white/10 bg-[#11161f] p-5 shadow-sm">
+            <h3 className="font-bold text-white">{label('الحضور والبصمة', 'Attendance')}</h3>
             <ul className="mt-3 max-h-56 space-y-2 overflow-auto text-sm">
               {profile.attendance.map((row) => (
-                <li key={row.id} className="border-b border-slate-100 py-2">
+                <li key={row.id} className="border-b border-white/5 py-2">
                   <span dir="ltr">{String(row.date).slice(0, 10)}</span> · {row.status}
-                  <span className="mt-0.5 block text-xs text-slate-500" dir="ltr">
+                  <span className="mt-0.5 block text-xs text-mist-400" dir="ltr">
                     {row.checkIn ? String(row.checkIn).slice(11, 19) : '--:--'} → {row.checkOut ? String(row.checkOut).slice(11, 19) : '--:--'}
                   </span>
                 </li>
@@ -230,19 +230,19 @@ export function EssPortalClient() {
             </ul>
           </section>
 
-          <form onSubmit={submitLeave} className="space-y-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h3 className="font-bold text-slate-900">{label('طلب إجازة', 'Leave request')}</h3>
-            <select className="w-full rounded-xl border border-slate-300 px-3 py-2" value={leaveType} onChange={(e) => setLeaveType(e.target.value as typeof leaveType)}>
+          <form onSubmit={submitLeave} className="space-y-3 rounded-2xl border border-white/10 bg-[#11161f] p-5 shadow-sm">
+            <h3 className="font-bold text-white">{label('طلب إجازة', 'Leave request')}</h3>
+            <select className="w-full rounded-xl border border-white/15 px-3 py-2" value={leaveType} onChange={(e) => setLeaveType(e.target.value as typeof leaveType)}>
               <option value="compensatory">Compensatory Leave</option>
               <option value="legal">Legal Leave</option>
               <option value="sick">Sick Leave</option>
             </select>
             <div className="grid grid-cols-2 gap-2">
-              <input type="date" required className="rounded-xl border border-slate-300 px-3 py-2" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-              <input type="date" required className="rounded-xl border border-slate-300 px-3 py-2" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+              <input type="date" required className="rounded-xl border border-white/15 px-3 py-2" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+              <input type="date" required className="rounded-xl border border-white/15 px-3 py-2" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
             </div>
             <textarea
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-white/15 px-3 py-2 text-sm"
               rows={3}
               placeholder={label('ملاحظة / مرفق تقرير طبي (نص)', 'Note / medical report text')}
               value={note}

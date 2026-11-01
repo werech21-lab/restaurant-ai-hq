@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useCallback, useMemo, useRef, useState } from 'react'
 import JSZip from 'jszip'
@@ -314,13 +314,13 @@ export function SmartFolderUploadClient({ employees: initialEmployees, locale }:
         onDragLeave={() => setDragging(false)}
         onDrop={(e) => void onDrop(e)}
         className={`rounded-2xl border-2 border-dashed p-8 text-center transition ${
-          dragging ? 'border-emerald-500 bg-emerald-50' : 'border-emerald-300 bg-white'
+          dragging ? 'border-emerald-500 bg-emerald-950/20' : 'border-emerald-300 bg-[#11161f]'
         }`}
       >
-        <p className="text-lg font-bold text-emerald-900">
+        <p className="text-lg font-bold text-emerald-300">
           {label('اسحب وأفلت مجلد الموظفين أو ZIP / Excel / PDF / صور هنا', 'Drag & drop HR folder, ZIP, Excel, PDF, or images')}
         </p>
-        <p className="mt-2 text-sm text-slate-600">
+        <p className="mt-2 text-sm text-mist-300">
           {label(
             'فلترة تلقائية لملفات النظام · رفع متوازٍ (3) · ملف واحد لكل طلب تحت حد Vercel',
             'Auto junk filter · parallel pool (3) · 1 file per request under Vercel limits',
@@ -344,7 +344,7 @@ export function SmartFolderUploadClient({ employees: initialEmployees, locale }:
           <button
             type="button"
             disabled={busy}
-            className="rounded-xl border border-emerald-600 px-5 py-3 text-sm font-bold text-emerald-800 hover:bg-emerald-50 disabled:opacity-60"
+            className="rounded-xl border border-emerald-600 px-5 py-3 text-sm font-bold text-emerald-300 hover:bg-emerald-950/20 disabled:opacity-60"
             onClick={() => {
               if (!inputRef.current) return
               inputRef.current.removeAttribute('webkitdirectory')
@@ -367,8 +367,8 @@ export function SmartFolderUploadClient({ employees: initialEmployees, locale }:
       </div>
 
       {pending.length > 0 || ignoredCount > 0 ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <p className="text-sm font-semibold text-slate-900">
+        <div className="rounded-2xl border border-white/10 bg-[#11161f] p-4">
+          <p className="text-sm font-semibold text-white">
             {label(
               `تم العثور على ${pending.length} ملف موظف صالح للرفع (وتم تجاهل ${ignoredCount} ملف نظام غير ذي صلة)`,
               `Found ${pending.length} valid HR files (ignored ${ignoredCount} system/junk files)`,
@@ -384,7 +384,7 @@ export function SmartFolderUploadClient({ employees: initialEmployees, locale }:
               {label('بدء التوزيع الذكي الآن 🚀', 'Start smart distribution now 🚀')}
             </button>
             {busy ? (
-              <button type="button" onClick={togglePause} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-800">
+              <button type="button" onClick={togglePause} className="rounded-xl border border-white/15 px-4 py-2.5 text-sm font-bold text-mist-100">
                 {paused ? label('استئناف ▶', 'Resume ▶') : label('إيقاف مؤقت ⏸', 'Pause ⏸')}
               </button>
             ) : null}
@@ -393,9 +393,9 @@ export function SmartFolderUploadClient({ employees: initialEmployees, locale }:
       ) : null}
 
       {busy || progress.total > 0 ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+        <div className="rounded-2xl border border-white/10 bg-[#11161f] p-4">
           <div className="mb-2 flex items-center justify-between text-sm">
-            <span className="font-semibold text-slate-800">
+            <span className="font-semibold text-mist-100">
               {label('التقدم اللحظي', 'Live progress')}
               {batchId ? ` · ${batchId}` : ''}
               {paused ? ` · ${label('متوقف مؤقتاً', 'paused')}` : ''}
@@ -410,10 +410,10 @@ export function SmartFolderUploadClient({ employees: initialEmployees, locale }:
         </div>
       ) : null}
 
-      {notice ? <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">{notice}</p> : null}
-      {error ? <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">{error}</p> : null}
+      {notice ? <p className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 px-4 py-3 text-sm text-emerald-300">{notice}</p> : null}
+      {error ? <p className="rounded-xl border border-amber-500/30 bg-amber-950/20 px-4 py-3 text-sm text-amber-300">{error}</p> : null}
       {failedNames.length > 0 ? (
-        <details className="rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600">
+        <details className="rounded-xl border border-white/10 bg-[#11161f] p-3 text-xs text-mist-300">
           <summary className="cursor-pointer font-semibold">{label('إعادة المحاولة التلقائية / المتخطاة', 'Auto-retry / skipped list')}</summary>
           <ul className="mt-2 max-h-40 list-disc overflow-auto ps-5" dir="ltr">
             {failedNames.map((name) => (
@@ -424,14 +424,14 @@ export function SmartFolderUploadClient({ employees: initialEmployees, locale }:
       ) : null}
 
       {matchedRows.length > 0 ? (
-        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-          <header className="border-b border-slate-200 px-4 py-3">
-            <h2 className="font-semibold text-slate-900">{label('جدول التوزيع التلقائي', 'Auto-distribution table')}</h2>
+        <section className="overflow-hidden rounded-2xl border border-white/10 bg-[#11161f]">
+          <header className="border-b border-white/10 px-4 py-3">
+            <h2 className="font-semibold text-white">{label('جدول التوزيع التلقائي', 'Auto-distribution table')}</h2>
           </header>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] text-sm">
               <thead>
-                <tr className="border-b border-slate-200 text-slate-500">
+                <tr className="border-b border-white/10 text-mist-400">
                   <th className="px-3 py-2 text-start">{label('الملف', 'File')}</th>
                   <th className="px-3 py-2 text-start">{label('الموظف', 'Employee')}</th>
                   <th className="px-3 py-2 text-start">{label('القسم', 'Category')}</th>
@@ -441,10 +441,10 @@ export function SmartFolderUploadClient({ employees: initialEmployees, locale }:
               </thead>
               <tbody>
                 {matchedRows.map((row) => (
-                  <tr key={row.id} className="border-b border-slate-100">
+                  <tr key={row.id} className="border-b border-white/5">
                     <td className="px-3 py-2">
-                      <p className="font-medium text-slate-900">{row.fileName}</p>
-                      <p className="text-xs text-slate-500" dir="ltr">
+                      <p className="font-medium text-white">{row.fileName}</p>
+                      <p className="text-xs text-mist-400" dir="ltr">
                         {row.relativePath}
                       </p>
                     </td>
@@ -452,7 +452,7 @@ export function SmartFolderUploadClient({ employees: initialEmployees, locale }:
                       {row.employeeName ? (
                         <span>
                           {row.employeeName}
-                          <span className="mt-0.5 block text-xs text-slate-500" dir="ltr">
+                          <span className="mt-0.5 block text-xs text-mist-400" dir="ltr">
                             {row.employeeCode}
                           </span>
                         </span>
@@ -461,11 +461,11 @@ export function SmartFolderUploadClient({ employees: initialEmployees, locale }:
                       )}
                     </td>
                     <td className="px-3 py-2">{locale === 'en' ? row.categoryLabelEn : row.categoryLabelAr}</td>
-                    <td className="px-3 py-2 text-xs text-slate-600" dir="ltr">
+                    <td className="px-3 py-2 text-xs text-mist-300" dir="ltr">
                       {row.updates.join(', ') || '—'}
                     </td>
                     <td className="px-3 py-2">
-                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">{row.status}</span>
+                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-300">{row.status}</span>
                     </td>
                   </tr>
                 ))}
@@ -476,9 +476,9 @@ export function SmartFolderUploadClient({ employees: initialEmployees, locale }:
       ) : null}
 
       {reviewRows.length > 0 ? (
-        <section className="overflow-hidden rounded-2xl border border-amber-200 bg-amber-50/40">
-          <header className="border-b border-amber-200 px-4 py-3">
-            <h2 className="font-semibold text-amber-950">
+        <section className="overflow-hidden rounded-2xl border border-amber-500/30 bg-amber-50/40">
+          <header className="border-b border-amber-500/30 px-4 py-3">
+            <h2 className="font-semibold text-amber-300">
               {label('ملفات تحتاج لتأكيدك السريع (Unmatched / Review Queue)', 'Files needing quick confirmation (Review Queue)')}
             </h2>
           </header>
@@ -486,13 +486,13 @@ export function SmartFolderUploadClient({ employees: initialEmployees, locale }:
             {reviewRows.map((row) => (
               <li key={row.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
                 <div className="min-w-[200px] flex-1">
-                  <p className="font-medium text-slate-900">{row.fileName}</p>
-                  <p className="text-xs text-slate-500" dir="ltr">
+                  <p className="font-medium text-white">{row.fileName}</p>
+                  <p className="text-xs text-mist-400" dir="ltr">
                     {row.relativePath}
                   </p>
                 </div>
                 <select
-                  className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm"
+                  className="rounded-lg border border-white/15 bg-[#11161f] px-2 py-1.5 text-sm"
                   defaultValue=""
                   onChange={(e) => {
                     if (e.target.value) void assign(row.id, e.target.value)
@@ -511,7 +511,7 @@ export function SmartFolderUploadClient({ employees: initialEmployees, locale }:
         </section>
       ) : null}
 
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-mist-400">
         {t('nav.hr')} · {label('الخزائن الرقمية تظهر داخل بطاقة كل موظف بعد الربط', 'Digital dossiers appear on each employee card after matching')}
       </p>
     </div>

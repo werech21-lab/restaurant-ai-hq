@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
 
@@ -42,7 +42,7 @@ export function HrWpsToolbar({ month, year, locale }: { month: number; year: num
   }
 
   return (
-    <div className="mb-4 space-y-2 rounded-2xl border border-slate-200 bg-white p-4">
+    <div className="mb-4 space-y-2 rounded-2xl border border-white/10 bg-[#11161f] p-4">
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
@@ -55,7 +55,7 @@ export function HrWpsToolbar({ month, year, locale }: { month: number; year: num
           type="button"
           disabled={busy}
           onClick={() => void postJournal()}
-          className="rounded-xl border border-emerald-600 bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-900 disabled:opacity-60"
+          className="rounded-xl border border-emerald-600 bg-emerald-950/20 px-4 py-2 text-sm font-bold text-emerald-300 disabled:opacity-60"
         >
           {label('اعتماد وترحيل قيد الرواتب الشهري للمحاسبة', 'Approve & post monthly payroll journal')}
         </button>

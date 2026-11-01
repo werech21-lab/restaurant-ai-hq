@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useCallback, useRef, useState } from 'react'
 import JSZip from 'jszip'
@@ -299,10 +299,10 @@ export function SmartDepartmentFolderUpload({ module, locale }: Props) {
           dragging ? 'border-emerald-400 bg-emerald-950/20' : 'border-emerald-600/50 bg-slate-950/5'
         }`}
       >
-        <p className="text-lg font-bold text-slate-900 dark:text-emerald-50">
+        <p className="text-lg font-bold text-white dark:text-emerald-50">
           {label('اسحب وأفلت مجلد القسم أو ZIP / Excel / PDF / صور', 'Drag & drop department folder, ZIP, Excel, PDF, or images')}
         </p>
-        <p className="mt-2 text-sm text-slate-600">
+        <p className="mt-2 text-sm text-mist-300">
           {label(
             'فلترة نظام تلقائية · رفع متوازٍ (3) · ملف واحد لكل طلب · safeStorageKey',
             'Auto junk filter · parallel pool (3) · 1 file/request · safeStorageKey',
@@ -326,7 +326,7 @@ export function SmartDepartmentFolderUpload({ module, locale }: Props) {
           <button
             type="button"
             disabled={busy}
-            className="rounded-xl border border-emerald-600 px-5 py-3 text-sm font-bold text-emerald-800 hover:bg-emerald-50 disabled:opacity-60"
+            className="rounded-xl border border-emerald-600 px-5 py-3 text-sm font-bold text-emerald-300 hover:bg-emerald-950/20 disabled:opacity-60"
             onClick={() => {
               if (!inputRef.current) return
               inputRef.current.removeAttribute('webkitdirectory')
@@ -352,8 +352,8 @@ export function SmartDepartmentFolderUpload({ module, locale }: Props) {
       </div>
 
       {pending.length > 0 || ignoredCount > 0 ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <p className="text-sm font-semibold text-slate-900">
+        <div className="rounded-2xl border border-white/10 bg-[#11161f] p-4">
+          <p className="text-sm font-semibold text-white">
             {label(
               `تم العثور على ${pending.length} ملف صالح (وتم تجاهل ${ignoredCount} ملف نظام)`,
               `Found ${pending.length} valid files (ignored ${ignoredCount} system files)`,
@@ -369,7 +369,7 @@ export function SmartDepartmentFolderUpload({ module, locale }: Props) {
               {label('بدء التوزيع الذكي الآن 🚀', 'Start smart distribution now 🚀')}
             </button>
             {busy ? (
-              <button type="button" onClick={togglePause} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold">
+              <button type="button" onClick={togglePause} className="rounded-xl border border-white/15 px-4 py-2.5 text-sm font-bold">
                 {paused ? label('استئناف ▶', 'Resume ▶') : label('إيقاف مؤقت ⏸', 'Pause ⏸')}
               </button>
             ) : null}
@@ -378,9 +378,9 @@ export function SmartDepartmentFolderUpload({ module, locale }: Props) {
       ) : null}
 
       {busy || progress.total > 0 ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+        <div className="rounded-2xl border border-white/10 bg-[#11161f] p-4">
           <div className="mb-2 flex items-center justify-between text-sm">
-            <span className="font-semibold text-slate-800">
+            <span className="font-semibold text-mist-100">
               {label('التقدم اللحظي', 'Live progress')}
               {batchId ? ` · ${batchId}` : ''}
               {paused ? ` · ${label('متوقف', 'paused')}` : ''}
@@ -395,11 +395,11 @@ export function SmartDepartmentFolderUpload({ module, locale }: Props) {
         </div>
       ) : null}
 
-      {notice ? <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">{notice}</p> : null}
-      {error ? <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">{error}</p> : null}
+      {notice ? <p className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 px-4 py-3 text-sm text-emerald-300">{notice}</p> : null}
+      {error ? <p className="rounded-xl border border-amber-500/30 bg-amber-950/20 px-4 py-3 text-sm text-amber-300">{error}</p> : null}
 
       {failedNames.length > 0 ? (
-        <details className="rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600">
+        <details className="rounded-xl border border-white/10 bg-[#11161f] p-3 text-xs text-mist-300">
           <summary className="cursor-pointer font-semibold">{label('قائمة المتخطاة / إعادة المحاولة', 'Skipped / retry list')}</summary>
           <ul className="mt-2 max-h-40 list-disc overflow-auto ps-5" dir="ltr">
             {failedNames.map((name) => (
@@ -410,14 +410,14 @@ export function SmartDepartmentFolderUpload({ module, locale }: Props) {
       ) : null}
 
       {rows.length > 0 ? (
-        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-          <header className="border-b border-slate-200 px-4 py-3">
-            <h2 className="font-semibold text-slate-900">{label('جدول التوزيع التلقائي الحي', 'Live auto-distribution table')}</h2>
+        <section className="overflow-hidden rounded-2xl border border-white/10 bg-[#11161f]">
+          <header className="border-b border-white/10 px-4 py-3">
+            <h2 className="font-semibold text-white">{label('جدول التوزيع التلقائي الحي', 'Live auto-distribution table')}</h2>
           </header>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[960px] text-sm">
               <thead>
-                <tr className="border-b border-slate-200 text-slate-500">
+                <tr className="border-b border-white/10 text-mist-400">
                   <th className="px-3 py-2 text-start">{label('الملف', 'File')}</th>
                   <th className="px-3 py-2 text-start">{label('الربط', 'Matched entity')}</th>
                   <th className="px-3 py-2 text-start">{label('فرع/براند', 'Branch/Brand')}</th>
@@ -428,10 +428,10 @@ export function SmartDepartmentFolderUpload({ module, locale }: Props) {
               </thead>
               <tbody>
                 {rows.map((row) => (
-                  <tr key={row.id} className="border-b border-slate-100">
+                  <tr key={row.id} className="border-b border-white/5">
                     <td className="px-3 py-2">
-                      <p className="font-medium text-slate-900">{row.fileName}</p>
-                      <p className="text-xs text-slate-500" dir="ltr">
+                      <p className="font-medium text-white">{row.fileName}</p>
+                      <p className="text-xs text-mist-400" dir="ltr">
                         {row.relativePath}
                       </p>
                       {row.amountKwd != null ? (
@@ -443,7 +443,7 @@ export function SmartDepartmentFolderUpload({ module, locale }: Props) {
                     <td className="px-3 py-2">
                       {row.entityLabel || '—'}
                       {row.entityKey ? (
-                        <span className="mt-0.5 block text-xs text-slate-500" dir="ltr">
+                        <span className="mt-0.5 block text-xs text-mist-400" dir="ltr">
                           {row.entityKey}
                         </span>
                       ) : null}
@@ -452,7 +452,7 @@ export function SmartDepartmentFolderUpload({ module, locale }: Props) {
                       {[row.branchCode, row.brandCode].filter(Boolean).join(' · ') || '—'}
                     </td>
                     <td className="px-3 py-2">{locale === 'en' ? row.categoryLabelEn : row.categoryLabelAr}</td>
-                    <td className="px-3 py-2 text-xs text-slate-600" dir="ltr">
+                    <td className="px-3 py-2 text-xs text-mist-300" dir="ltr">
                       {row.updates.join(', ') || '—'}
                     </td>
                     <td className="px-3 py-2">
@@ -461,8 +461,8 @@ export function SmartDepartmentFolderUpload({ module, locale }: Props) {
                           row.status === 'SKIPPED'
                             ? 'bg-amber-100 text-amber-900'
                             : row.status === 'REVIEW'
-                              ? 'bg-slate-100 text-slate-700'
-                              : 'bg-emerald-100 text-emerald-800'
+                              ? 'bg-slate-100 text-mist-200'
+                              : 'bg-emerald-100 text-emerald-300'
                         }`}
                       >
                         {row.status}
