@@ -38,10 +38,12 @@ function money(input: string): number | null {
   return parseKwdToMinor(input)
 }
 
+const UNSPECIFIED_DEPT = '—'
+
 function countMap(values: Array<string | null | undefined>): Array<[string, number]> {
   const acc: Record<string, number> = {}
   for (const value of values) {
-    const key = value && value.trim() ? value : '—'
+    const key = value && value.trim() ? value : UNSPECIFIED_DEPT
     acc[key] = (acc[key] ?? 0) + 1
   }
   return Object.entries(acc).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
@@ -280,7 +282,7 @@ function Workspace({ initialTab }: { initialTab: string }) {
               </button>
               {departmentCounts.map(([label, count]) => (
                 <button key={label} type="button" className={`block w-full rounded-lg px-2 py-1.5 text-start text-sm ${departmentFilter === label ? 'bg-blue-500/20 text-blue-100' : 'text-gray-300 hover:bg-white/5'}`} onClick={() => setDepartmentFilter(label)}>
-                  {label} <span className="text-gray-500">({count})</span>
+                  {label === UNSPECIFIED_DEPT ? t('hr.dept.unspecified') : label} <span className="text-gray-500">({count})</span>
                 </button>
               ))}
             </div>
@@ -306,22 +308,35 @@ function Workspace({ initialTab }: { initialTab: string }) {
             {visibleEmployees.length === 0 ? <p className="text-sm text-gray-400">{t('hr.empty')}</p> : null}
             {employeeView === 'kanban' && visibleEmployees.length > 0 ? (
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {visibleEmployees.map((employee) => (
+                {visibleEmployees.map((employee) => {
+                  const phone = employee.workPhone || employee.mobilePhone
+                  const email = employee.workEmail
+                  return (
                   <button key={employee.id} type="button" className="rounded-xl border border-[#30363d] bg-[#161b22] p-4 text-start transition hover:border-gold-400/40" onClick={() => { setSelectedId(employee.id); setDrawerPane('contract') }}>
                     <div className="mb-3 flex items-center gap-3">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gold-400/20 text-sm font-bold text-gold-300">
-                        {employee.avatarInitials ?? employee.fullName.slice(0, 2).toUpperCase()}
-                      </div>
+                      {employee.avatarPhoto ? (
+                        <span
+                          role="img"
+                          aria-hidden
+                          className="h-12 w-12 shrink-0 rounded-full bg-cover bg-center"
+                          style={{ backgroundImage: `url(${employee.avatarPhoto})` }}
+                        />
+                      ) : (
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gold-400/20 text-sm font-bold text-gold-300">
+                          {employee.avatarInitials ?? employee.fullName.slice(0, 2).toUpperCase()}
+                        </div>
+                      )}
                       <span className={`h-2.5 w-2.5 rounded-full ${employee.status === 'active' ? 'bg-emerald-400' : 'bg-gray-500'}`} />
                     </div>
                     <p className="font-semibold text-white">{employee.fullName}</p>
                     <p className="text-xs text-gray-400">{employee.roleTitle}</p>
                     <p className="mt-2 text-xs text-gray-300">{t('hr.badge')}: {employee.badgeCode ?? employee.employeeCode}</p>
-                    <p className="text-xs text-gray-400">{employee.workPhone || employee.mobilePhone || '—'}</p>
-                    <p className="truncate text-xs text-gray-400">{employee.workEmail || '—'}</p>
+                    {phone ? <p className="text-xs text-gray-400" dir="ltr">{phone}</p> : null}
+                    {email ? <p className="truncate text-xs text-gray-400" dir="ltr">{email}</p> : null}
                     {employee.workLocation ? <span className="mt-3 inline-block rounded-md bg-white/5 px-2 py-1 text-[11px] text-gold-200">{employee.workLocation}</span> : null}
                   </button>
-                ))}
+                  )
+                })}
               </div>
             ) : null}
             {employeeView === 'list' && visibleEmployees.length > 0 ? (

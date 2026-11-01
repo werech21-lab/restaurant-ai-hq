@@ -19,12 +19,11 @@ function Workspace({ initialTab, held }: { initialTab: string; held: readonly st
   const { t } = useI18n()
   const canManage = useCan(permissions.suiteManage)
   const [tab, setTab] = useState<Tab>(isTab(initialTab) ? initialTab : 'website')
-  const titles: Record<Tab, MessageKey> = {
+  const titles: Record<Exclude<Tab, 'radar'>, MessageKey> = {
     website: 'spec.website',
     ecommerce: 'spec.ecommerce',
     email: 'spec.email',
     automation: 'spec.automation',
-    radar: 'spec.radar',
   }
 
   return (
@@ -35,7 +34,7 @@ function Workspace({ initialTab, held }: { initialTab: string; held: readonly st
       <div className="flex flex-wrap gap-2">
         {tabs.map((item) => (
           <button key={item} type="button" className={tab === item ? primaryButton : secondaryButton} onClick={() => setTab(item)}>
-            {t(titles[item])}
+            {item === 'radar' ? t('erpnav.aggregator') : t(titles[item])}
           </button>
         ))}
       </div>

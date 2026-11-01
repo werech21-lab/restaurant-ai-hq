@@ -37,6 +37,7 @@ export const odooFields: Record<OdooModel, readonly string[]> = {
     'department_id',
     'work_location_id',
     'address_id',
+    'image_128',
   ],
   'hr.contract': ['id', 'name', 'employee_id', 'date_start', 'date_end', 'wage', 'state'],
   'hr.payslip': ['id', 'name', 'employee_id', 'date_from', 'date_to', 'state', 'net_wage'],

@@ -13,6 +13,7 @@ export type Employee = {
   odooId: number | null
   hasRunningContract: boolean
   avatarInitials: string | null
+  avatarPhoto: string | null
   branchId: string | null
   basicSalaryMinor: number
   allowancesMinor: number

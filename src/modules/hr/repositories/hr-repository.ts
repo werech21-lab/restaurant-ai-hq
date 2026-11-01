@@ -33,6 +33,7 @@ const EMPLOYEE = `id, employee_code as "employeeCode", full_name as "fullName", 
   department_root as "departmentRoot", badge_code as "badgeCode", work_email as "workEmail", work_phone as "workPhone",
   mobile_phone as "mobilePhone", work_location as "workLocation", odoo_id as "odooId",
   has_running_contract as "hasRunningContract", avatar_initials as "avatarInitials",
+  avatar_photo as "avatarPhoto",
   branch_id as "branchId", basic_salary_minor::bigint as "basicSalaryMinor", allowances_minor::bigint as "allowancesMinor",
   residency_expiry::text as "residencyExpiry", status, version`
 

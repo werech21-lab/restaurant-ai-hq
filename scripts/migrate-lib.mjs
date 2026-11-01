@@ -67,6 +67,7 @@ export const baselineSentinels = {
   '0036_venture_foods_warehouses_branches_analytic.sql': ['fn:erp_vf_warehouses_branches_marker()'],
   '0037_hr_deep_tables_rls.sql': ['fn:erp_hr_deep_tables_rls_marker()'],
   '0038_revoke_hr_deep_marker_grants.sql': ['fn:erp_hr_marker_grants_marker()'],
+  '0039_hr_employee_avatar_photo.sql': ['fn:erp_hr_avatar_photo_marker()'],
 }
 
 /**

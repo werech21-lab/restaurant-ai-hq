@@ -1,20 +1,29 @@
 import { describe, expect, it } from 'vitest'
-import { erpCatalog } from '@/lib/erp-catalog'
 import { activeSectorId, erpSectors, filterSectors, linkPath, sectorSummary } from '@/lib/erp-sectors'
 import type { MessageKey } from '@/lib/i18n'
 
 const label = (key: MessageKey) => key
 
 describe('ERP sectors', () => {
-  it('groups every working module into the seven divisions once', () => {
+  it('groups modules into seven divisions with unique links and no marketing/inventory duplicates', () => {
     expect(erpSectors).toHaveLength(7)
     const hrefs = erpSectors.flatMap((sector) => sector.links.map((link) => link.href))
     expect(new Set(hrefs).size).toBe(hrefs.length)
-    for (const item of erpCatalog) {
-      if (!item.href) continue
-      const covered = hrefs.some((href) => linkPath(href) === item.href)
-      expect(covered, item.id).toBe(true)
-    }
+
+    const marketing = erpSectors.find((sector) => sector.id === 'marketing')
+    expect(marketing?.links.filter((link) => linkPath(link.href) === '/erp/aggregator-radar' || link.href.includes('tab=radar'))).toHaveLength(1)
+    expect(marketing?.links.some((link) => link.title === 'erpnav.aggregator')).toBe(true)
+    expect(marketing?.links.some((link) => link.title === 'spec.radar')).toBe(false)
+
+    const inventory = erpSectors.find((sector) => sector.id === 'inventory')
+    expect(inventory?.links.map((link) => link.href)).toEqual([
+      '/erp/inventory?tab=stock',
+      '/erp/inventory?tab=mrp',
+      '/erp/inventory?tab=purchase',
+      '/erp/inventory?tab=plm',
+      '/erp/inventory?tab=maintenance',
+    ])
+    expect(inventory?.links.some((link) => ['erpnav.procurement', 'spec.kitchen', 'spec.delivery', 'spec.org', 'spec.quality'].includes(link.title))).toBe(false)
   })
 
   it('follows the open tab when one route serves two sectors', () => {
@@ -56,7 +65,7 @@ describe('ERP sectors', () => {
   })
 
   it('hides a sector when the search misses every specialty', () => {
-    expect(filterSectors(erpSectors, 'spec.kitchen', label).map((sector) => sector.id)).toEqual(['inventory'])
+    expect(filterSectors(erpSectors, 'spec.mrp', label).map((sector) => sector.id)).toEqual(['inventory'])
     expect(filterSectors(erpSectors, 'missing-specialty', label)).toHaveLength(0)
   })
 })
