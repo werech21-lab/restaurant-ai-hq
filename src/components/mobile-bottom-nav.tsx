@@ -22,7 +22,7 @@ const more = [
 export function MobileBottomNav() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  if (pathname === "/login") return null;
+  if (pathname === "/login" || pathname === "/" || pathname === "/download" || pathname === "/home") return null;
   return (
     <nav className="no-print fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white md:hidden">
       {open ? (

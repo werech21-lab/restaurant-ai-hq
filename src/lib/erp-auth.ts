@@ -6,35 +6,40 @@ import { can, type AccessUser, type PermissionAction } from "@/lib/permissions";
 import { SESSION_COOKIE, verifySessionToken } from "@/lib/session";
 
 export const getCurrentUser = cache(async (): Promise<AccessUser | null> => {
-  const jar = await cookies();
-  const token = jar.get(SESSION_COOKIE)?.value;
-  if (!token) return null;
-  const userId = await verifySessionToken(token);
-  if (!userId) return null;
+  try {
+    const jar = await cookies();
+    const token = jar.get(SESSION_COOKIE)?.value;
+    if (!token) return null;
+    const userId = await verifySessionToken(token);
+    if (!userId) return null;
 
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    include: { role: { include: { permissions: true } } },
-  });
-  if (!user || !user.isActive) return null;
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { role: { include: { permissions: true } } },
+    });
+    if (!user || !user.isActive) return null;
 
-  return {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    role: {
-      id: user.role.id,
-      name: user.role.name,
-      isAdmin: user.role.isAdmin,
-      permissions: user.role.permissions.map((permission) => ({
-        module: permission.module,
-        canView: permission.canView,
-        canCreate: permission.canCreate,
-        canEdit: permission.canEdit,
-        canDelete: permission.canDelete,
-      })),
-    },
-  };
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: {
+        id: user.role.id,
+        name: user.role.name,
+        isAdmin: user.role.isAdmin,
+        permissions: user.role.permissions.map((permission) => ({
+          module: permission.module,
+          canView: permission.canView,
+          canCreate: permission.canCreate,
+          canEdit: permission.canEdit,
+          canDelete: permission.canDelete,
+        })),
+      },
+    };
+  } catch {
+    // Never throw into the RSC tree for auth lookups (missing SQLite, slow disk, etc.).
+    return null;
+  }
 });
 
 export async function requireUser() {

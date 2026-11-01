@@ -29,9 +29,15 @@ export const metadata: Metadata = {
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const cookieStore = await cookies()
-  const locale: Locale = cookieStore.get('ai-hq-locale')?.value === 'en' ? 'en' : 'ar'
-  const theme: Theme = cookieStore.get('ai-hq-theme')?.value === 'light' ? 'light' : 'dark'
+  let locale: Locale = 'ar'
+  let theme: Theme = 'dark'
+  try {
+    const cookieStore = await cookies()
+    locale = cookieStore.get('ai-hq-locale')?.value === 'en' ? 'en' : 'ar'
+    theme = cookieStore.get('ai-hq-theme')?.value === 'light' ? 'light' : 'dark'
+  } catch {
+    // Keep safe defaults when cookie store is unavailable during cold start.
+  }
 
   return (
     <html lang={locale} dir={locale === 'en' ? 'ltr' : 'rtl'} data-theme={theme} className={cairo.variable} suppressHydrationWarning>
