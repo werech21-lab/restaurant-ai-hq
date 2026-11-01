@@ -8,9 +8,23 @@ export const PLAN_LABEL: Record<string, string> = {
 
 export function modulesForPlan(plan: string) {
   const all = MODULES.map((item) => item.key);
-  if (plan === "STARTER") return ["dashboard", "inventory", "sales", "pos", "payments"];
+  if (plan === "STARTER") return ["dashboard", "inventory", "sales", "pos", "recipes", "kds", "payments"];
   if (plan === "PRO") {
-    return ["dashboard", "inventory", "warehouses", "purchases", "sales", "pos", "crm", "accounting", "reports", "payments"];
+    return [
+      "dashboard",
+      "inventory",
+      "warehouses",
+      "purchases",
+      "sales",
+      "pos",
+      "recipes",
+      "delivery-hub",
+      "kds",
+      "crm",
+      "accounting",
+      "reports",
+      "payments",
+    ];
   }
   return [...all];
 }

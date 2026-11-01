@@ -15,6 +15,7 @@ import {
   WifiOff,
   StickyNote,
 } from 'lucide-react'
+import { sendToKitchenAction } from '@/app/actions/kds'
 import { createSalesInvoice } from '@/app/actions/sales'
 import { GlobalScopeFilter } from '@/components/GlobalScopeFilter'
 import { useOptionalScope } from '@/components/ScopeProvider'
@@ -292,12 +293,32 @@ export function PosTerminal({
       setError('لا أصناف لإرسالها للمطبخ')
       return
     }
+    setPending(true)
     const notes = cart
       .filter((l) => l.note.trim())
       .map((l) => `${l.product.name}: ${l.note}`)
       .join(' · ')
+    const result = await sendToKitchenAction({
+      brandCode,
+      branchCode: branchId,
+      warehouseId: warehouseId || undefined,
+      orderType,
+      tableNo: tableNo.trim(),
+      notes,
+      items: cart.map((line) => ({
+        productId: line.product.id,
+        name: line.product.name,
+        quantity: line.quantity,
+        note: line.note,
+      })),
+    })
+    setPending(false)
+    if (!result.ok) {
+      setError(result.message)
+      return
+    }
     setNotice(
-      `أُرسلت ${cart.reduce((s, l) => s + l.quantity, 0)} قطعة إلى محطة التحضير (${brands.find((b) => b.code === brandCode)?.nameAr || ''} · ${orderTypes.find((o) => o.id === orderType)?.labelAr || ''}${tableNo ? ` · طاولة ${tableNo}` : ''})${notes ? ` — ملاحظات: ${notes}` : ''}`,
+      `أُرسلت ${cart.reduce((s, l) => s + l.quantity, 0)} قطعة إلى KDS (${brands.find((b) => b.code === brandCode)?.nameAr || ''} · ${orderTypes.find((o) => o.id === orderType)?.labelAr || ''}${tableNo ? ` · طاولة ${tableNo}` : ''})`,
     )
   }
 

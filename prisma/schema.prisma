@@ -92,6 +92,8 @@ model Product {
   warehouseStock WarehouseStock[]
   transferItems StockTransferItem[]
   quotationItems QuotationItem[]
+  menuRecipe    Recipe?
+  recipeLines   RecipeLine[]        @relation("RecipeIngredient")
 
   @@index([categoryId])
   @@index([name, code])
@@ -562,4 +564,131 @@ model NotificationSetting {
   metaAccessToken      String   @default("")
   publicBaseUrl        String   @default("https://erp.aetherbi.com")
   updatedAt            DateTime @updatedAt
+}
+
+// Menu BOM: one recipe per sellable menu product.
+model Recipe {
+  id                    String       @id @default(cuid())
+  menuProductId         String       @unique
+  name                  String
+  nameEn                String       @default("")
+  brandCode             String?
+  wastagePercent        Float        @default(0)
+  targetFoodCostPercent Float        @default(32)
+  active                Boolean      @default(true)
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+  menuProduct           Product      @relation(fields: [menuProductId], references: [id], onDelete: Cascade)
+  lines                 RecipeLine[]
+
+  @@index([brandCode, active])
+}
+
+model RecipeLine {
+  id                   String  @id @default(cuid())
+  recipeId             String
+  ingredientProductId  String
+  quantity             Float
+  unit                 String  @default("g")
+  wastagePercent       Float   @default(0)
+  recipe               Recipe  @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  ingredient           Product @relation("RecipeIngredient", fields: [ingredientProductId], references: [id])
+
+  @@index([recipeId])
+  @@index([ingredientProductId])
+}
+
+model DeliveryPlatform {
+  id                 String          @id @default(cuid())
+  code               String          @unique
+  nameAr             String
+  nameEn             String
+  commissionPercent  Float           @default(15)
+  fixedFeeKwd        Float           @default(0)
+  isActive           Boolean         @default(true)
+  sortOrder          Int             @default(0)
+  orders             DeliveryOrder[]
+  settlements        DeliverySettlement[]
+
+  @@index([isActive, sortOrder])
+}
+
+model DeliveryOrder {
+  id              String           @id @default(cuid())
+  platformCode    String
+  invoiceId       String?
+  invoiceNumber   String           @default("")
+  brandCode       String?
+  branchCode      String?
+  warehouseId     String?
+  grossAmount     Float
+  commissionAmount Float           @default(0)
+  deliveryFee     Float            @default(0)
+  marketingDiscount Float          @default(0)
+  netPayout       Float            @default(0)
+  status          String           @default("OPEN")
+  settledAt       DateTime?
+  settlementId    String?
+  createdAt       DateTime         @default(now())
+  platform        DeliveryPlatform @relation(fields: [platformCode], references: [code])
+  settlement      DeliverySettlement? @relation(fields: [settlementId], references: [id])
+
+  @@index([platformCode, status, createdAt])
+  @@index([brandCode, branchCode])
+  @@index([invoiceId])
+}
+
+model DeliverySettlement {
+  id               String          @id @default(cuid())
+  platformCode     String
+  brandCode        String?
+  periodLabel      String
+  grossAmount      Float
+  commissionAmount Float
+  deliveryFee      Float           @default(0)
+  marketingDiscount Float          @default(0)
+  netPayout        Float
+  journalEntryId   String?
+  status           String          @default("POSTED")
+  createdById      String
+  createdAt        DateTime        @default(now())
+  platform         DeliveryPlatform @relation(fields: [platformCode], references: [code])
+  orders           DeliveryOrder[]
+
+  @@index([platformCode, createdAt])
+}
+
+model KitchenTicket {
+  id            String              @id @default(cuid())
+  ticketNumber  String              @unique
+  invoiceId     String?
+  brandCode     String?
+  branchCode    String?
+  warehouseId   String?
+  orderType     String              @default("dine_in")
+  tableNo       String              @default("")
+  status        String              @default("NEW")
+  notes         String              @default("")
+  createdById   String?
+  createdAt     DateTime            @default(now())
+  startedAt     DateTime?
+  readyAt       DateTime?
+  items         KitchenTicketItem[]
+
+  @@index([status, createdAt])
+  @@index([brandCode, branchCode])
+  @@index([warehouseId, status])
+}
+
+model KitchenTicketItem {
+  id        String        @id @default(cuid())
+  ticketId  String
+  productId String?
+  name      String
+  quantity  Float
+  note      String        @default("")
+  isDone    Boolean       @default(false)
+  ticket    KitchenTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
 }

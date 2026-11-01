@@ -50,7 +50,7 @@ export const getCompany = cache(async (): Promise<CompanyProfile> => {
     phone: org.phone ?? "",
     address: org.address ?? "",
     invoiceFooter: org.invoiceFooter ?? "",
-    enabledModules: parseModules(org.enabledModules, org.plan),
+    enabledModules: Array.from(new Set([...parseModules(org.enabledModules, org.plan), ...MODULES.map((item) => item.key)])),
     subscriptionEndsAt: org.subscriptionEndsAt ? org.subscriptionEndsAt.toISOString() : "",
   };
 });

@@ -10,6 +10,8 @@ import { fail, ok, type ActionResult, type DocumentInput, type PartyInput } from
 import { runLowStockRules } from "@/services/automation.engine";
 import { notifyInvoiceIssued } from "@/services/notification.service";
 import { postReceiptJournal, postSaleJournals } from "@/services/accounting.engine";
+import { platformFromOrderType, recordDeliverySale } from "@/services/delivery.service";
+import { deductRecipeIngredients } from "@/services/recipe.service";
 import { adjustWarehouseStock, resolveWarehouse, warehouseQuantity } from "@/services/warehouse.engine";
 
 export async function saveCustomer(input: PartyInput): Promise<ActionResult> {
@@ -144,16 +146,22 @@ export async function issueInvoiceWithin(
   const due = round2(total - paid);
   let cogs = 0;
   for (const line of input.lines) {
-    const product = await tx.product.findUnique({ where: { id: line.productId } });
+    const product = await tx.product.findUnique({
+      where: { id: line.productId },
+      include: { menuRecipe: { select: { id: true, active: true } } },
+    });
     if (!product) txError("أحد الأصناف لم يعد موجوداً");
-    if (product.currentStock + 0.0001 < line.quantity) {
-      txError(`الكمية غير متوفرة للصنف ${product.name}. المتاح ${formatQty(product.currentStock)}`);
+    const hasBom = Boolean(product.menuRecipe?.active);
+    if (!hasBom) {
+      if (product.currentStock + 0.0001 < line.quantity) {
+        txError(`الكمية غير متوفرة للصنف ${product.name}. المتاح ${formatQty(product.currentStock)}`);
+      }
+      const onHand = await warehouseQuantity(tx, warehouse.id, product.id);
+      if (onHand + 0.0001 < line.quantity) {
+        txError(`الكمية غير متوفرة في ${warehouse.name} للصنف ${product.name}. المتاح ${formatQty(onHand)}`);
+      }
+      cogs = round2(cogs + line.quantity * product.costPrice);
     }
-    const onHand = await warehouseQuantity(tx, warehouse.id, product.id);
-    if (onHand + 0.0001 < line.quantity) {
-      txError(`الكمية غير متوفرة في ${warehouse.name} للصنف ${product.name}. المتاح ${formatQty(onHand)}`);
-    }
-    cogs = round2(cogs + line.quantity * product.costPrice);
   }
   const count = await tx.salesInvoice.count();
   const invoiceNumber = `INV-${String(count + 1).padStart(5, "0")}`;
@@ -180,6 +188,21 @@ export async function issueInvoiceWithin(
     },
   });
   for (const line of input.lines) {
+    const bom = await deductRecipeIngredients(tx, {
+      menuProductId: line.productId,
+      soldQty: line.quantity,
+      warehouseId: warehouse.id,
+      userId: input.userId,
+      reference: invoiceNumber,
+    });
+    if (bom.usedRecipe) {
+      cogs = round2(cogs + bom.ingredientCost);
+      await tx.product.update({
+        where: { id: line.productId },
+        data: { currentStock: { decrement: line.quantity } },
+      });
+      continue;
+    }
     const updated = await tx.product.update({
       where: { id: line.productId },
       data: { currentStock: { decrement: line.quantity } },
@@ -196,6 +219,19 @@ export async function issueInvoiceWithin(
         warehouseId: warehouse.id,
         createdById: input.userId,
       },
+    });
+  }
+  const orderType = input.customData?.orderType;
+  const platformCode = platformFromOrderType(orderType);
+  if (platformCode) {
+    await recordDeliverySale(tx, {
+      platformCode,
+      invoiceId: invoice.id,
+      invoiceNumber,
+      grossAmount: total,
+      brandCode: input.customData?.brandCode,
+      branchCode: input.customData?.branchId,
+      warehouseId: warehouse.id,
     });
   }
   if (due > 0) {
