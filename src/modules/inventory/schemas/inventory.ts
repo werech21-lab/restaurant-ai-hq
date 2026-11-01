@@ -138,6 +138,15 @@ export const listMovementsQuerySchema = pageQuerySchema.extend({
   warehouseId: uuid.optional(),
   type: z.enum(movementTypes).optional(),
   direction: z.enum(['asc', 'desc']).default('desc'),
+  scope: z.enum(['hot', 'archive']).optional(),
+  from: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  to: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
 })
 
 export type ListMovementsQuery = z.output<typeof listMovementsQuerySchema>

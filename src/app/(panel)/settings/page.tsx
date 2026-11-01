@@ -35,6 +35,9 @@ async function SettingsContent() {
             <a className="text-blue-700" href="/settings/aetherbi">
               النطاق
             </a>
+            <a className="text-blue-700" href="/settings/odoo-data-center">
+              بيانات Odoo
+            </a>
             <a className="text-blue-700" href="/settings/payments">
               بوابات الدفع
             </a>

@@ -1,3 +1,6 @@
 export { importOdooFileHandler, odooBoardHandler, pullOdooHandler } from '@/modules/odoo/api/v1/odoo'
+export { odooDataCenterHandler } from '@/modules/odoo/api/v1/data-center'
 export { importOdooFile, odooBoard, pullOdoo } from '@/modules/odoo/services/odoo-service'
+export { getOdooDataCenterReport } from '@/modules/odoo/services/data-center-service'
 export type { SyncReport } from '@/modules/odoo/services/odoo-service'
+export type { OdooDataCenterReport } from '@/modules/odoo/services/data-center-service'

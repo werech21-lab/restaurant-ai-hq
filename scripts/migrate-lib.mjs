@@ -73,6 +73,7 @@ export const baselineSentinels = {
   '0042_scrub_demo_json_and_snapshots.sql': ['fn:erp_scrub_demo_json_marker()'],
   '0043_scrub_demo_infra_json.sql': ['fn:erp_scrub_demo_infra_marker()'],
   '0044_optimize_odoo_indexes.sql': ['fn:erp_optimize_odoo_indexes_marker()'],
+  '0045_odoo_hot_cold_indexes.sql': ['fn:erp_odoo_hot_cold_indexes_marker()'],
 }
 
 /**

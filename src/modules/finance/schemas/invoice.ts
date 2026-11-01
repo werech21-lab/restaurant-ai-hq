@@ -110,6 +110,15 @@ export const listInvoicesQuerySchema = pageQuerySchema.extend({
   q: z.string().trim().max(100).optional(),
   sort: z.enum(invoiceSortKeys).default('createdAt'),
   direction: z.enum(['asc', 'desc']).default('desc'),
+  scope: z.enum(['hot', 'archive']).optional(),
+  from: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  to: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
 })
 
 export type ListInvoicesQuery = z.output<typeof listInvoicesQuerySchema>

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { apiRequest, errorKey, isAbort } from '@/components/erp/api'
+import { DataScopeSwitcher, scopeToQuery, type DataScopeValue } from '@/components/erp/DataScopeSwitcher'
 import { errorClass, inputClass, panelClass, secondaryButton } from '@/components/erp/styles'
 import { Badge, Num } from '@/components/ui'
 import { useI18n, type MessageKey } from '@/lib/i18n'
@@ -22,6 +23,7 @@ export function MovementHistory({ warehouses, reloadToken }: Props) {
   const { t } = useI18n()
   const [type, setType] = useState<MovementType | ''>('')
   const [warehouseId, setWarehouseId] = useState('')
+  const [scope, setScope] = useState<DataScopeValue>({ scope: 'hot', from: '', to: '' })
   const [rows, setRows] = useState<StockMovement[]>([])
   const [cursor, setCursor] = useState<string | null>(null)
   const [phase, setPhase] = useState<Phase>('loading')
@@ -32,13 +34,13 @@ export function MovementHistory({ warehouses, reloadToken }: Props) {
 
   const buildQuery = useCallback(
     (after: string | null) => {
-      const params = new URLSearchParams({ limit: String(PAGE_SIZE), direction: 'desc' })
+      const params = new URLSearchParams({ limit: String(PAGE_SIZE), direction: 'desc', ...scopeToQuery(scope) })
       if (type) params.set('type', type)
       if (warehouseId) params.set('warehouseId', warehouseId)
       if (after) params.set('cursor', after)
       return `/api/v1/inventory/movements?${params.toString()}`
     },
-    [type, warehouseId]
+    [type, warehouseId, scope]
   )
 
   useEffect(() => {
@@ -76,6 +78,9 @@ export function MovementHistory({ warehouses, reloadToken }: Props) {
 
   return (
     <div className={panelClass}>
+      <div className="mb-4">
+        <DataScopeSwitcher value={scope} onChange={setScope} />
+      </div>
       <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <select value={type} onChange={(event) => setType(event.target.value as MovementType | '')} aria-label={t('inv.hist.type')} className={`${inputClass} mt-0`}>
           <option value="">{t('inv.hist.allTypes')}</option>

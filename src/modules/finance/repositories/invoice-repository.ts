@@ -1,5 +1,6 @@
 import type { Page } from '@/lib/api/cursor'
 import { keysetClauses, toPage, type SortColumn } from '@/lib/api/keyset'
+import { appendScopeFilter, resolveScopeBounds } from '@/lib/data-scope'
 import type { Queryable } from '@/lib/pg'
 import type { Currency } from '@/lib/money'
 import type {
@@ -344,6 +345,7 @@ export async function listInvoices(tx: Queryable, tenantId: string, query: ListI
     params.push(`%${query.q.replace(/[\\%_]/g, (character) => `\\${character}`)}%`)
     filters += ` and (number ilike $${params.length} or customer_name ilike $${params.length})`
   }
+  filters = appendScopeFilter(filters, params, 'issue_date', resolveScopeBounds(query))
   const keyset = keysetClauses({
     sortKey: query.sort,
     column: sortColumns[query.sort],

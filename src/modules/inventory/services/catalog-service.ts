@@ -123,7 +123,7 @@ export async function getItem(auth: AuthContext, id: string): Promise<ItemDetail
   if (!item) throw itemNotFound()
   const [balances, movements] = await Promise.all([
     repository.listItemBalances(db, auth.tenantId, id),
-    repository.listMovements(db, auth.tenantId, { itemId: id, limit: DETAIL_MOVEMENTS, direction: 'desc' }),
+    repository.listMovements(db, auth.tenantId, { itemId: id, limit: DETAIL_MOVEMENTS, direction: 'desc', scope: 'archive' }),
   ])
   return { data: { ...item, balances, movements: movements.data } }
 }

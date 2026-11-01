@@ -1,5 +1,6 @@
 import type { Page } from '@/lib/api/cursor'
 import { keysetClauses, toPage, type SortColumn } from '@/lib/api/keyset'
+import { appendScopeFilter, resolveScopeBounds } from '@/lib/data-scope'
 import type { Queryable } from '@/lib/pg'
 import type { Currency } from '@/lib/money'
 import type { LedgerRow } from '@/modules/inventory/domain/stock'
@@ -318,6 +319,7 @@ export async function listMovements(tx: Queryable, tenantId: string, query: List
     params.push(query.type)
     filters += ` and "movementType" = $${params.length}`
   }
+  filters = appendScopeFilter(filters, params, '("createdAt")::date', resolveScopeBounds(query))
   const keyset = keysetClauses({
     sortKey: 'createdAt',
     column: { sql: '"createdAt"', cast: 'timestamptz' },

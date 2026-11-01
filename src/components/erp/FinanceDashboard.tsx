@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis, type TooltipPayload } from 'recharts'
 import { ChartFrame, formatAmount, useCompactChart } from '@/components/charts'
 import { apiRequest, errorKey, isAbort } from '@/components/erp/api'
+import { DataScopeSwitcher, scopeToQuery, type DataScopeValue } from '@/components/erp/DataScopeSwitcher'
 import { InvoiceForm } from '@/components/erp/InvoiceForm'
 import { InvoicePanel } from '@/components/erp/InvoicePanel'
 import { StatusBadge } from '@/components/erp/StatusBadge'
@@ -70,6 +71,7 @@ export default function FinanceDashboard({ initialInvoiceId = null }: { initialI
   const query = useDebounced(search.trim(), 300)
   const [sort, setSort] = useState<InvoiceSortKey>('createdAt')
   const [direction, setDirection] = useState<'asc' | 'desc'>('desc')
+  const [scope, setScope] = useState<DataScopeValue>({ scope: 'hot', from: '', to: '' })
 
   const [rows, setRows] = useState<Invoice[]>([])
   const [cursor, setCursor] = useState<string | null>(null)
@@ -84,13 +86,13 @@ export default function FinanceDashboard({ initialInvoiceId = null }: { initialI
 
   const buildQuery = useCallback(
     (after: string | null) => {
-      const params = new URLSearchParams({ limit: String(PAGE_SIZE), sort, direction })
+      const params = new URLSearchParams({ limit: String(PAGE_SIZE), sort, direction, ...scopeToQuery(scope) })
       if (status) params.set('status', status)
       if (query) params.set('q', query)
       if (after) params.set('cursor', after)
       return `/api/v1/finance/invoices?${params.toString()}`
     },
-    [status, query, sort, direction]
+    [status, query, sort, direction, scope]
   )
 
   useEffect(() => {
@@ -187,6 +189,10 @@ export default function FinanceDashboard({ initialInvoiceId = null }: { initialI
           {t(summaryError)}
         </p>
       ) : null}
+
+      <div className="mb-4">
+        <DataScopeSwitcher value={scope} onChange={setScope} />
+      </div>
 
       <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className={panelClass}>
