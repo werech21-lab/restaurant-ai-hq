@@ -1,6 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, type ReactNode } from 'react'
+import { panelAr, panelEn } from '@/lib/i18n/panel-messages'
 
 export type Locale = 'ar' | 'en'
 
@@ -4722,18 +4723,32 @@ const en: { [K in keyof typeof ar]: string } = {
   'iam.err.system_role_locked': 'Built-in roles cannot be edited.',
 }
 
-export type MessageKey = keyof typeof ar
+export type MessageKey = keyof typeof ar | keyof typeof panelAr
 
-const messages: Record<Locale, typeof ar> = { ar, en }
+const messagesAr = { ...ar, ...panelAr } as Record<MessageKey, string>
+const messagesEn = { ...en, ...panelEn } as Record<MessageKey, string>
+const messages: Record<Locale, Record<MessageKey, string>> = { ar: messagesAr, en: messagesEn }
 const storageKey = 'ai-hq-locale'
 
 type LanguageContextValue = {
   locale: Locale
+  dir: 'rtl' | 'ltr'
   setLocale: (locale: Locale) => void
   t: (key: MessageKey) => string
+  companyName: string
+  money: (value: number) => string
 }
 
 const LanguageContext = createContext<LanguageContextValue | null>(null)
+
+function formatLocaleMoney(value: number, locale: Locale) {
+  const safe = Number.isFinite(value) ? value : 0
+  const negative = safe < 0
+  const [whole, fraction] = Math.abs(safe).toFixed(3).split('.')
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+  const amount = `${negative ? '-' : ''}${grouped}.${fraction}`
+  return locale === 'en' ? `KWD ${amount}` : `${amount} د.ك`
+}
 
 export function LanguageProvider({ initialLocale, children }: { initialLocale: Locale; children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(initialLocale)
@@ -4748,8 +4763,11 @@ export function LanguageProvider({ initialLocale, children }: { initialLocale: L
 
   const value: LanguageContextValue = {
     locale,
+    dir: locale === 'ar' ? 'rtl' : 'ltr',
     setLocale,
-    t: (key) => messages[locale][key],
+    t: (key) => messages[locale][key] ?? messages.ar[key] ?? String(key),
+    companyName: locale === 'en' ? panelEn['panel.company.en'] : panelAr['panel.company.ar'],
+    money: (value) => formatLocaleMoney(value, locale),
   }
 
   return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>
@@ -4761,23 +4779,42 @@ export function useI18n() {
   return value
 }
 
-export function LanguageSwitch() {
+export function LanguageSwitch({ className = '' }: { className?: string }) {
   const { locale, setLocale, t } = useI18n()
   return (
-    <div dir="ltr" role="group" aria-label={t('language')} className="flex rounded-full border border-gold-300/15 bg-black/30 p-0.5 text-[11px] font-semibold">
-      {(['ar', 'en'] as const).map((code) => (
-        <button
-          key={code}
-          type="button"
-          aria-pressed={locale === code}
-          onClick={() => setLocale(code)}
-          className={`cursor-pointer rounded-full px-2.5 py-1 transition ${
-            locale === code ? 'bg-gold-400 text-ink-950' : 'text-mist-300 hover:text-mist-100'
-          }`}
-        >
-          {code === 'ar' ? 'AR' : 'EN'}
-        </button>
-      ))}
+    <div
+      dir="ltr"
+      role="group"
+      aria-label={t('language')}
+      className={`inline-flex items-center gap-1 rounded-full border border-gold-300/20 bg-ink-900/80 p-0.5 text-[11px] font-semibold ${className}`}
+    >
+      <span className="px-1.5 text-mist-400" aria-hidden>
+        🌐
+      </span>
+      <button
+        type="button"
+        aria-pressed={locale === 'en'}
+        onClick={() => setLocale('en')}
+        className={`cursor-pointer rounded-full px-2.5 py-1 transition ${
+          locale === 'en' ? 'bg-gold-400 text-ink-950' : 'text-mist-300 hover:text-mist-100'
+        }`}
+      >
+        EN
+      </button>
+      <button
+        type="button"
+        aria-pressed={locale === 'ar'}
+        onClick={() => setLocale('ar')}
+        className={`cursor-pointer rounded-full px-2.5 py-1 transition ${
+          locale === 'ar' ? 'bg-gold-400 text-ink-950' : 'text-mist-300 hover:text-mist-100'
+        }`}
+      >
+        عربي
+      </button>
     </div>
   )
+}
+
+export function formatMoneyLocale(value: number, locale: Locale) {
+  return formatLocaleMoney(value, locale)
 }

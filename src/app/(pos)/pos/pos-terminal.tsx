@@ -16,7 +16,8 @@ import {
   StickyNote,
 } from 'lucide-react'
 import { createSalesInvoice } from '@/app/actions/sales'
-import { formatMoney, formatQty } from '@/lib/format'
+import { LanguageSwitch, useI18n } from '@/lib/i18n'
+import { formatQty } from '@/lib/format'
 import { enqueueSale, listQueued, removeQueued } from '@/lib/offline-pos'
 import type { OrderTypeId, VentureBranchOption } from '@/lib/venture-branches'
 
@@ -55,6 +56,18 @@ export function PosTerminal({
   orderTypes: Array<{ id: OrderTypeId | string; labelAr: string }>
 }) {
   const router = useRouter()
+  const { t, money, locale } = useI18n()
+  const categoryLabels = useMemo(
+    () =>
+      ({
+        الكل: t('pos.all'),
+        'الوجبات الرئيسية': t('pos.mains'),
+        المشروبات: t('pos.drinks'),
+        الحلويات: t('pos.desserts'),
+        الإضافات: t('pos.extras'),
+      }) as Record<string, string>,
+    [t],
+  )
   const categories = useMemo(() => {
     const fromData = Array.from(new Set(products.map((p) => p.category)))
     const preferred = ['الوجبات الرئيسية', 'المشروبات', 'الحلويات', 'الإضافات']
@@ -266,10 +279,11 @@ export function PosTerminal({
       <header className="sticky top-0 z-30 border-b border-gold-300/15 bg-[#0a0a0a]/95 backdrop-blur">
         <div className="flex flex-wrap items-center gap-2 px-3 py-2.5 sm:gap-3 sm:px-4">
           <a href="/dashboard" className="rounded-lg border border-white/10 px-2.5 py-1.5 text-xs font-semibold text-mist-300 hover:border-[#8cc63f]/40">
-            النظام
+            {t('nav.backSystem')}
           </a>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/venture-foods-logo-dark.svg" alt="Venture Foods" className="hidden h-8 w-auto sm:block" />
+          <LanguageSwitch />
           <select
             className="rounded-lg border border-white/10 bg-ink-900 px-2 py-1.5 text-xs font-semibold text-mist-100"
             value={brandCode}
@@ -307,7 +321,7 @@ export function PosTerminal({
             <input
               value={tableNo}
               onChange={(e) => setTableNo(e.target.value)}
-              placeholder="رقم الطاولة"
+              placeholder={t('pos.table')}
               className="w-24 rounded-lg border border-white/10 bg-ink-900 px-2 py-1.5 text-xs font-bold text-gold-300"
             />
           ) : null}
@@ -318,7 +332,7 @@ export function PosTerminal({
               }`}
             >
               {online ? <Wifi size={12} /> : <WifiOff size={12} />}
-              {online ? 'Online' : 'Offline Ready'}
+              {online ? t('pos.online') : t('pos.offline')}
             </span>
             {queued > 0 ? <span className="text-[11px] font-semibold text-amber-300">طابور: {queued}</span> : null}
           </div>
@@ -335,7 +349,7 @@ export function PosTerminal({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={onBarcode}
-              placeholder="بحث بالاسم أو الباركود · F2"
+              placeholder={t('pos.search')}
               className="w-full rounded-xl border border-white/10 bg-ink-900 py-3 pe-3 ps-10 text-sm text-mist-100 outline-none placeholder:text-mist-500 focus:border-[#8cc63f]/50"
             />
           </div>
@@ -352,7 +366,7 @@ export function PosTerminal({
                 }`}
               >
                 <span className="me-1.5 opacity-80">{CAT_ICONS[item] ?? '•'}</span>
-                {item}
+                {categoryLabels[item] ?? item}
               </button>
             ))}
           </div>
@@ -372,19 +386,19 @@ export function PosTerminal({
                 <p className="mt-1 text-[11px] text-mist-500" dir="ltr">
                   {product.code}
                 </p>
-                <p className="mt-3 text-base font-black text-gold-300">{formatMoney(product.price)}</p>
+                <p className="mt-3 text-base font-black text-gold-300">{money(product.price)}</p>
                 <p
                   className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ${
                     product.stock <= 5 ? 'bg-red-600/25 text-red-300' : 'bg-emerald-600/20 text-emerald-300'
                   }`}
                 >
-                  رصيد {formatQty(product.stock)}
+                  {t('pos.stock')} {formatQty(product.stock)}
                 </p>
               </button>
             ))}
           </div>
           {visible.length === 0 ? (
-            <p className="mt-10 text-center text-sm text-mist-500">لا أصناف مطابقة — اسحب كتالوج Odoo من مركز المزامنة.</p>
+            <p className="mt-10 text-center text-sm text-mist-500">{t('pos.emptyMenu')}</p>
           ) : null}
         </section>
 
@@ -394,14 +408,14 @@ export function PosTerminal({
 
           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto">
             {cart.length === 0 ? (
-              <p className="py-10 text-center text-sm text-mist-500">المس صنفاً لإضافته للفاتورة</p>
+              <p className="py-10 text-center text-sm text-mist-500">{t('pos.emptyCart')}</p>
             ) : (
               cart.map((line) => (
                 <div key={line.product.id} className="rounded-xl border border-white/10 bg-ink-900/80 p-2.5">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-bold">{line.product.name}</p>
-                      <p className="text-[11px] text-mist-500">{formatMoney(line.product.price)} × {formatQty(line.quantity)}</p>
+                      <p className="text-[11px] text-mist-500">{money(line.product.price)} × {formatQty(line.quantity)}</p>
                     </div>
                     <button
                       type="button"
@@ -448,7 +462,7 @@ export function PosTerminal({
                         <StickyNote size={14} />
                       </button>
                     </div>
-                    <p className="text-sm font-black text-gold-300">{formatMoney(line.quantity * line.product.price)}</p>
+                    <p className="text-sm font-black text-gold-300">{money(line.quantity * line.product.price)}</p>
                   </div>
                   {noteLineId === line.product.id ? (
                     <input
@@ -456,11 +470,13 @@ export function PosTerminal({
                       onChange={(e) =>
                         setCart((c) => c.map((item) => (item.product.id === line.product.id ? { ...item, note: e.target.value } : item)))
                       }
-                      placeholder="Preparation Note للمطبخ…"
+                      placeholder={t('pos.prepNote')}
                       className="mt-2 w-full rounded-lg border border-white/10 bg-ink-950 px-2 py-1.5 text-xs text-mist-100"
                     />
                   ) : line.note ? (
-                    <p className="mt-1 text-[11px] text-[#00a99d]">ملاحظة: {line.note}</p>
+                    <p className="mt-1 text-[11px] text-[#00a99d]">
+                      {t('pos.note')}: {line.note}
+                    </p>
                   ) : null}
                 </div>
               ))
@@ -469,11 +485,11 @@ export function PosTerminal({
 
           <div className="mt-3 space-y-2 border-t border-gold-300/15 pt-3">
             <div className="flex justify-between text-sm text-mist-400">
-              <span>المجموع الفرعي</span>
-              <span className="font-semibold text-mist-100">{formatMoney(subtotal)}</span>
+              <span>{t('pos.subtotal')}</span>
+              <span className="font-semibold text-mist-100">{money(subtotal)}</span>
             </div>
             <div className="flex items-center justify-between gap-2 text-sm">
-              <span className="text-mist-400">الخصم</span>
+              <span className="text-mist-400">{t('pos.discount')}</span>
               <input
                 dir="ltr"
                 value={discount}
@@ -482,8 +498,8 @@ export function PosTerminal({
               />
             </div>
             <div className="flex justify-between text-lg font-black">
-              <span>الإجمالي</span>
-              <span className="text-gold-300">{formatMoney(total)}</span>
+              <span>{t('pos.total')}</span>
+              <span className="text-gold-300">{money(total)}</span>
             </div>
 
             {method === 'CASH' ? (
@@ -491,11 +507,13 @@ export function PosTerminal({
                 <input
                   dir="ltr"
                   className="w-full rounded-lg border border-white/10 bg-ink-950 px-3 py-2 text-sm"
-                  placeholder="المبلغ المستلم"
+                  placeholder={t('pos.tendered')}
                   value={tendered}
                   onChange={(e) => setTendered(e.target.value)}
                 />
-                <p className="mt-1 text-xs font-semibold text-mist-400">الباقي {formatMoney(change)}</p>
+                <p className="mt-1 text-xs font-semibold text-mist-400">
+                  {t('pos.change')} {money(change)}
+                </p>
               </div>
             ) : null}
             {method === 'CREDIT' ? (
@@ -519,7 +537,7 @@ export function PosTerminal({
                 }`}
               >
                 <CreditCard size={16} />
-                كي نت KNET
+                {t('pos.knet')}
               </button>
               <button
                 type="button"
@@ -529,7 +547,7 @@ export function PosTerminal({
                 }`}
               >
                 <Banknote size={16} />
-                نقدي Cash
+                {t('pos.cash')}
               </button>
               <button
                 type="button"
@@ -539,7 +557,7 @@ export function PosTerminal({
                 }`}
               >
                 <Link2 size={16} />
-                رابط / ماي فاتورة
+                {t('pos.link')}
               </button>
               <button
                 type="button"
@@ -547,7 +565,7 @@ export function PosTerminal({
                 className="flex items-center justify-center gap-2 rounded-xl border border-[#00a99d]/40 bg-[#00a99d]/15 py-3 text-sm font-bold text-[#7fe0d6]"
               >
                 <ChefHat size={16} />
-                إرسال للمطبخ
+                {t('pos.kitchen')}
               </button>
             </div>
             <button
@@ -556,7 +574,7 @@ export function PosTerminal({
               onClick={() => void checkout(true)}
               className="w-full rounded-2xl bg-gradient-to-l from-[#8cc63f] to-[#00a99d] py-3.5 text-base font-black text-ink-950 disabled:opacity-60"
             >
-              {pending ? 'جارٍ الإصدار…' : 'إصدار وطباعة حراري · Ctrl+P'}
+              {pending ? '…' : t('pos.checkout')}
             </button>
           </div>
         </aside>

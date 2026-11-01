@@ -12,14 +12,17 @@ const CURRENCY_LABEL: Record<string, string> = {
   USD: "د.ك",
 };
 
-/** Kuwait dinar formatting: 3 decimal places (fils) + د.ك */
-export function formatMoney(value: number, currency = "KWD") {
-  const safe = Number.isFinite(value) ? value : 0;
-  const negative = safe < 0;
-  const [whole, fraction] = Math.abs(safe).toFixed(3).split(".");
-  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  const label = CURRENCY_LABEL[currency] ?? "د.ك";
-  return `${negative ? "-" : ""}${grouped}.${fraction} ${label}`;
+/** Kuwait dinar formatting: 3 decimal places (fils). Pass locale `en` for `KWD 0.000`. */
+export function formatMoney(value: number, currency: string | 'ar' | 'en' = 'KWD') {
+  const safe = Number.isFinite(value) ? value : 0
+  const negative = safe < 0
+  const [whole, fraction] = Math.abs(safe).toFixed(3).split('.')
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+  const amount = `${negative ? '-' : ''}${grouped}.${fraction}`
+  if (currency === 'en') return `KWD ${amount}`
+  if (currency === 'ar') return `${amount} د.ك`
+  const label = CURRENCY_LABEL[currency] ?? 'د.ك'
+  return `${amount} ${label}`
 }
 
 export function formatQty(value: number) {

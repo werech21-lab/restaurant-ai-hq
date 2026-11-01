@@ -1,64 +1,64 @@
-"use client";
+'use client'
 
-import { useActionState } from "react";
-import { login } from "@/app/actions/auth";
-import { Alert, btnPrimary, fieldClass, labelClass } from "@/components/erp-ui";
+import { useActionState } from 'react'
+import { login } from '@/app/actions/auth'
+import { Alert, btnPrimary, fieldClass, labelClass } from '@/components/erp-ui'
+import { LanguageSwitch, useI18n } from '@/lib/i18n'
 
 const demos = [
-  { email: "admin@erp.com", name: "أحمد المدير", role: "مدير النظام", desc: "كل الصلاحيات" },
-  { email: "accountant@erp.com", name: "سارة المحاسبة", role: "محاسب", desc: "مشتريات ومبيعات وتقارير ورقابة" },
-  { email: "store@erp.com", name: "خالد أمين المخزن", role: "أمين مخزن", desc: "المخزون فقط" },
-  { email: "sales@erp.com", name: "ليلى المبيعات", role: "مندوب مبيعات", desc: "المبيعات فقط" },
-];
+  { email: 'admin@erp.com', name: 'أحمد المدير', role: 'مدير النظام', desc: 'كل الصلاحيات' },
+  { email: 'accountant@erp.com', name: 'سارة المحاسبة', role: 'محاسب', desc: 'مشتريات ومبيعات وتقارير ورقابة' },
+  { email: 'store@erp.com', name: 'خالد أمين المخزن', role: 'أمين مخزن', desc: 'المخزون فقط' },
+  { email: 'sales@erp.com', name: 'ليلى المبيعات', role: 'مندوب مبيعات', desc: 'المبيعات فقط' },
+]
 
 export function LoginForm() {
-  const [state, action, pending] = useActionState(login, null);
+  const [state, action, pending] = useActionState(login, null)
+  const { t } = useI18n()
 
   return (
     <div className="w-full max-w-md rounded-2xl border border-white/10 bg-ink-900/80 p-6 shadow-sm">
-      <h2 className="text-xl font-bold text-mist-100">تسجيل الدخول</h2>
-      <p className="mt-1 text-sm text-mist-400">لا يوجد تسجيل عام. استخدم حساباً مخوّلاً أو الدخول التجريبي.</p>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h2 className="text-xl font-bold text-mist-100">{t('login.title')}</h2>
+        <LanguageSwitch />
+      </div>
+      <p className="mt-1 text-sm text-mist-400">{t('login.lead')}</p>
       <form action={action} className="mt-5 space-y-4">
         {state?.error ? <Alert kind="error">{state.error}</Alert> : null}
         <div>
           <label className={labelClass} htmlFor="email">
-            البريد الإلكتروني
+            {t('login.email')}
           </label>
           <input id="email" name="email" type="email" required dir="ltr" className={`${fieldClass} text-left`} />
         </div>
         <div>
           <label className={labelClass} htmlFor="password">
-            كلمة المرور
+            {t('login.password')}
           </label>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            required
-            dir="ltr"
-            className={`${fieldClass} text-left`}
-          />
+          <input id="password" name="password" type="password" required dir="ltr" className={`${fieldClass} text-left`} />
         </div>
         <button className={`${btnPrimary} w-full`} disabled={pending}>
-          {pending ? "جارٍ التحقق..." : "دخول"}
+          {pending ? '…' : t('login.submit')}
         </button>
       </form>
       <div className="mt-6">
-        <p className="text-sm font-bold text-mist-100">دخول سريع تجريبي</p>
-        <p className="mt-1 text-xs text-mist-400">كلمة المرور لكل الحسابات: 123456</p>
+        <p className="text-sm font-bold text-mist-100">{t('login.demo')}</p>
+        <p className="mt-1 text-xs text-mist-400" dir="ltr">
+          Password: 123456
+        </p>
         <div className="mt-3 grid gap-2">
           {demos.map((demo) => (
             <button
               key={demo.email}
               type="button"
-              className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-ink-900/80 px-3 py-3 text-right hover:border-blue-600"
+              className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-ink-900/80 px-3 py-3 text-start hover:border-[#8cc63f]/50"
               onClick={() => {
-                const email = document.getElementById("email") as HTMLInputElement | null;
-                const password = document.getElementById("password") as HTMLInputElement | null;
-                if (!email || !password) return;
-                email.value = demo.email;
-                password.value = "123456";
-                email.form?.requestSubmit();
+                const email = document.getElementById('email') as HTMLInputElement | null
+                const password = document.getElementById('password') as HTMLInputElement | null
+                if (!email || !password) return
+                email.value = demo.email
+                password.value = '123456'
+                email.form?.requestSubmit()
               }}
             >
               <span>
@@ -71,5 +71,5 @@ export function LoginForm() {
         </div>
       </div>
     </div>
-  );
+  )
 }

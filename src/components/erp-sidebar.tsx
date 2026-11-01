@@ -1,4 +1,4 @@
-"use client";
+'use client'
 
 import {
   BarChart3,
@@ -22,11 +22,12 @@ import {
   Users,
   Warehouse,
   Zap,
-} from "lucide-react";
-import { usePathname } from "next/navigation";
-import { logout } from "@/app/actions/auth";
-import { LOCKED_MODULES, MODULES, type ModuleKey } from "@/lib/modules";
-import { can, type AccessUser } from "@/lib/permissions";
+} from 'lucide-react'
+import { usePathname } from 'next/navigation'
+import { logout } from '@/app/actions/auth'
+import { LanguageSwitch, useI18n, type MessageKey } from '@/lib/i18n'
+import { LOCKED_MODULES, MODULES, type ModuleKey } from '@/lib/modules'
+import { can, type AccessUser } from '@/lib/permissions'
 
 const icons: Record<ModuleKey, typeof LayoutDashboard> = {
   dashboard: LayoutDashboard,
@@ -41,12 +42,12 @@ const icons: Record<ModuleKey, typeof LayoutDashboard> = {
   hr: IdCard,
   accounting: Landmark,
   automations: Zap,
-  "app-builder": Blocks,
+  'app-builder': Blocks,
   reports: BarChart3,
   audit: ClipboardList,
   saas: Building2,
   payments: CreditCard,
-};
+}
 
 function NavLinks({
   user,
@@ -54,88 +55,92 @@ function NavLinks({
   tone,
   enabledKeys,
 }: {
-  user: AccessUser;
-  pathname: string;
-  tone: "dark" | "light";
-  enabledKeys: string[] | null;
+  user: AccessUser
+  pathname: string
+  tone: 'dark' | 'light'
+  enabledKeys: string[] | null
 }) {
-  const locked = new Set<string>(LOCKED_MODULES);
+  const { t } = useI18n()
+  const locked = new Set<string>(LOCKED_MODULES)
   const items = MODULES.filter((item) => {
-    if (!can(user, item.key, "view")) return false;
-    if (!enabledKeys || locked.has(item.key)) return true;
-    return enabledKeys.includes(item.key);
-  });
+    if (!can(user, item.key, 'view')) return false
+    if (!enabledKeys || locked.has(item.key)) return true
+    return enabledKeys.includes(item.key)
+  })
   const idle =
-    tone === "dark"
-      ? "text-mist-300 hover:bg-ink-800 hover:text-mist-100"
-      : "border border-gold-300/20 bg-ink-900 text-mist-100";
+    tone === 'dark'
+      ? 'text-mist-300 hover:bg-ink-800 hover:text-mist-100'
+      : 'border border-gold-300/20 bg-ink-900 text-mist-100'
   const links = [
-    ...items.map((item) => ({ ...item, icon: icons[item.key] })),
-    { key: "profile", label: "الملف الشخصي", href: "/profile", icon: UserRound },
-  ];
+    ...items.map((item) => ({
+      key: item.key,
+      label: t(item.labelKey as MessageKey),
+      href: item.href,
+      icon: icons[item.key],
+    })),
+    { key: 'profile', label: t('nav.profile'), href: '/profile', icon: UserRound },
+  ]
   return (
     <>
       {links.map((item) => {
-        const Icon = item.icon;
-        const active = pathname === item.href || (item.href !== "/profile" && pathname.startsWith(`${item.href}/`));
+        const Icon = item.icon
+        const active = pathname === item.href || (item.href !== '/profile' && pathname.startsWith(`${item.href}/`))
         return (
           <a
             key={item.key}
             href={item.href}
             className={`flex shrink-0 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold whitespace-nowrap ${
-              active
-                ? "bg-gradient-to-l from-[#8cc63f] to-[#00a99d] text-ink-950"
-                : idle
+              active ? 'bg-gradient-to-l from-[#8cc63f] to-[#00a99d] text-ink-950' : idle
             }`}
           >
             <Icon size={18} />
             {item.label}
           </a>
-        );
+        )
       })}
     </>
-  );
+  )
 }
 
 export function Sidebar({ user, enabledKeys }: { user: AccessUser; enabledKeys: string[] | null }) {
-  const pathname = usePathname();
+  const pathname = usePathname()
+  const { t, companyName } = useI18n()
   return (
     <>
-      <aside className="app-sidebar fixed inset-y-0 right-0 z-30 hidden w-64 flex-col border-l border-gold-300/10 bg-ink-950 text-mist-100 md:flex">
+      <aside className="app-sidebar fixed inset-y-0 start-0 z-30 hidden w-64 flex-col border-e border-gold-300/10 bg-ink-950 text-mist-100 md:flex">
         <div className="border-b border-gold-300/15 px-4 py-5">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center justify-between gap-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/venture-foods-logo-dark.svg" alt="Venture Foods" className="h-12 w-auto object-contain" />
+            <img src="/venture-foods-logo-dark.svg" alt="Venture Foods" className="h-11 w-auto object-contain" />
+            <LanguageSwitch />
           </div>
-          <p className="mt-3 text-[11px] font-semibold leading-4 text-mist-400">
-            شركة فنتشر فودز لإدارة المطاعم ذ.م.م.
-          </p>
-          <p className="mt-1 text-[10px] text-[#8cc63f]">AetherBI · 6 Brands · 10 Branches</p>
+          <p className="mt-3 text-[11px] font-semibold leading-4 text-mist-400">{companyName}</p>
+          <p className="mt-1 text-[10px] text-[#8cc63f]">{t('panel.tagline')}</p>
         </div>
         <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
           <NavLinks user={user} pathname={pathname} tone="dark" enabledKeys={enabledKeys} />
           <a
             href="/download"
             className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold ${
-              pathname === "/download"
-                ? "bg-gradient-to-l from-[#8cc63f] to-[#00a99d] text-ink-950"
-                : "text-mist-300 hover:bg-ink-800"
+              pathname === '/download'
+                ? 'bg-gradient-to-l from-[#8cc63f] to-[#00a99d] text-ink-950'
+                : 'text-mist-300 hover:bg-ink-800'
             }`}
           >
             <Download size={18} />
-            مركز التحميل
+            {t('nav.download')}
           </a>
-          {can(user, "reports", "view") ? (
+          {can(user, 'reports', 'view') ? (
             <a
               href="/bi-analytics"
               className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold ${
-                pathname.startsWith("/bi-analytics")
-                  ? "bg-gradient-to-l from-[#8cc63f] to-[#00a99d] text-ink-950"
-                  : "text-mist-300 hover:bg-ink-800"
+                pathname.startsWith('/bi-analytics')
+                  ? 'bg-gradient-to-l from-[#8cc63f] to-[#00a99d] text-ink-950'
+                  : 'text-mist-300 hover:bg-ink-800'
               }`}
             >
               <LineChart size={18} />
-              ذكاء الأعمال
+              {t('nav.bi')}
             </a>
           ) : null}
         </nav>
@@ -151,7 +156,7 @@ export function Sidebar({ user, enabledKeys }: { user: AccessUser; enabledKeys: 
               className="flex w-full items-center justify-center gap-2 rounded-lg border border-white/10 bg-ink-900 px-3 py-2 text-sm font-semibold text-mist-100 hover:border-gold-300/40"
             >
               <LogOut size={16} />
-              تسجيل الخروج
+              {t('nav.logout')}
             </button>
           </form>
         </div>
@@ -161,10 +166,11 @@ export function Sidebar({ user, enabledKeys }: { user: AccessUser; enabledKeys: 
           <div className="flex items-center gap-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/venture-foods-logo-dark.svg" alt="Venture Foods" className="h-9 w-auto" />
+            <LanguageSwitch />
           </div>
           <form action={logout}>
             <button type="submit" className="text-sm font-semibold text-[#8cc63f]">
-              خروج
+              {t('nav.exit')}
             </button>
           </form>
         </div>
@@ -173,5 +179,5 @@ export function Sidebar({ user, enabledKeys }: { user: AccessUser; enabledKeys: 
         </nav>
       </div>
     </>
-  );
+  )
 }

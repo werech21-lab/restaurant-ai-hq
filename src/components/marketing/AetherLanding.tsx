@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useState, type FormEvent } from 'react'
-import { useI18n } from '@/lib/i18n'
+import { LanguageSwitch, useI18n } from '@/lib/i18n'
 
 const features = [
   { title: 'المحاسبة والمالية', body: 'فواتير، قيود مزدوجة، تحصيل، ومحاسبة تحليلية بالدينار الكويتي (0.000 د.ك).' },
@@ -91,6 +91,7 @@ export default function AetherLanding({ signedIn }: { signedIn: boolean }) {
             AetherBI
           </Link>
           <nav className="flex flex-wrap items-center gap-2">
+            <LanguageSwitch />
             <a href="#features" className="rounded-lg px-3 py-2 text-sm text-mist-300 hover:text-white">{t('land.nav.features')}</a>
             <a href="#pricing" className="rounded-lg px-3 py-2 text-sm text-mist-300 hover:text-white">{t('land.nav.pricing')}</a>
             <a href="#trial" className="rounded-lg px-3 py-2 text-sm text-mist-300 hover:text-white">{t('land.nav.trial')}</a>
