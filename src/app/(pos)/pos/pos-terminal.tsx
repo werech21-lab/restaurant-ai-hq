@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   CreditCard,
@@ -135,11 +135,17 @@ export function PosTerminal({
     }
   }, [])
 
+  const checkoutRef = useRef<(printOnly?: boolean) => Promise<void>>(async () => undefined)
+
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if (event.key === 'F2') {
         event.preventDefault()
         document.getElementById('pos-search')?.focus()
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'p') {
+        event.preventDefault()
+        void checkoutRef.current(true)
       }
     }
     window.addEventListener('keydown', onKey)
@@ -238,6 +244,8 @@ export function PosTerminal({
     setCart([])
     router.push(`/sales/${result.id}/print?layout=thermal`)
   }
+
+  checkoutRef.current = checkout
 
   async function sendKitchen() {
     if (cart.length === 0) {

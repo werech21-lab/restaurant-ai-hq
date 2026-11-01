@@ -114,8 +114,8 @@ async function main() {
   for (const row of partners.slice(0, 400)) {
     const name = String(row.name || '').trim()
     if (!name || name.length < 2) continue
-    const phone = String(row.phone || '').slice(0, 40)
-    const email = String(row.email || '').slice(0, 120)
+    const phone = String(row.phone || row.mobile || '').slice(0, 40)
+    const email = typeof row.email === 'string' ? row.email.slice(0, 120) : ''
     const existing = await prisma.customer.findFirst({ where: { name } })
     if (existing) {
       await prisma.customer.update({ where: { id: existing.id }, data: { phone, email } })
@@ -123,6 +123,32 @@ async function main() {
       await prisma.customer.create({ data: { name: name.slice(0, 200), phone, email, balance: 0 } })
     }
     upsertedPartners += 1
+  }
+
+  const employees = Array.isArray(models['hr.employee']) ? models['hr.employee'] : []
+  let upsertedEmployees = 0
+  for (const row of employees) {
+    const name = String(row.name || '').trim()
+    if (!name || name.length < 2) continue
+    const code = String(row.barcode || `E${row.id}`).replace(/[^\w.-]/g, '').slice(0, 20) || `E${row.id}`
+    const jobTitle = String(row.job_title || 'موظف').slice(0, 80)
+    const department = Array.isArray(row.department_id) ? String(row.department_id[1] || 'عام') : String(row.department_id || 'عام')
+    const phone = String(row.work_phone || row.mobile_phone || '').slice(0, 30)
+    const status = row.active === false ? 'INACTIVE' : 'ACTIVE'
+    const existing = await prisma.employee.findUnique({ where: { code } })
+    const data = {
+      name: name.slice(0, 120),
+      jobTitle,
+      department: department.slice(0, 80),
+      phone,
+      status,
+      basicSalary: 0,
+      allowances: 0,
+      deductions: 0,
+    }
+    if (existing) await prisma.employee.update({ where: { code }, data })
+    else await prisma.employee.create({ data: { code, ...data } })
+    upsertedEmployees += 1
   }
 
   const walkIn = await prisma.customer.findFirst({ where: { name: 'عميل نقدي - الصندوق' } })
@@ -139,7 +165,8 @@ async function main() {
         upsertedProducts,
         partnersInDump: partners.length,
         upsertedPartners,
-        employees: (models['hr.employee'] || []).length,
+        employeesInDump: employees.length,
+        upsertedEmployees,
         payslips: (models['hr.payslip'] || []).length,
       },
       null,
