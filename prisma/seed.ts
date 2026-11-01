@@ -77,6 +77,7 @@ async function main() {
     ];
 
     let adminId = "";
+    let adminRoleId = "";
     for (const role of roles) {
       const created = await tx.role.create({
         data: {
@@ -95,8 +96,23 @@ async function main() {
         },
         include: { users: true },
       });
-      if (role.isAdmin) adminId = created.users[0].id;
+      if (role.isAdmin) {
+        adminId = created.users[0].id;
+        adminRoleId = created.id;
+      }
     }
+
+    // Official AetherBI admin (additive — does not replace admin@erp.com).
+    const aetherHash = await bcrypt.hash("AetherAdmin#2026!", 10);
+    await tx.user.create({
+      data: {
+        name: "Aether Super Admin",
+        email: "admin@aetherbi.com",
+        passwordHash: aetherHash,
+        isActive: true,
+        roleId: adminRoleId,
+      },
+    });
 
     const categoryInput = [
       { key: "elec", name: "معدات مطابخ", description: "أجهزة تحضير وطهي لفروع المطاعم" },

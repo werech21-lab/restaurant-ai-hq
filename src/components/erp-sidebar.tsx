@@ -1,8 +1,10 @@
 'use client'
 
 import {
+  Archive,
   BarChart3,
   Blocks,
+  Brain,
   ClipboardList,
   Building2,
   CreditCard,
@@ -16,7 +18,9 @@ import {
   ChefHat,
   Monitor,
   Package,
+  Radar,
   Receipt,
+  Scale,
   Shield,
   ShoppingCart,
   Truck,
@@ -53,6 +57,44 @@ const icons: Record<ModuleKey, typeof LayoutDashboard> = {
   audit: ClipboardList,
   saas: Building2,
   payments: CreditCard,
+}
+
+const ERP_SUITE = [
+  { key: 'erp-radar', href: '/erp/aggregator-radar', labelKey: 'nav.erpRadar' as MessageKey, icon: Radar },
+  { key: 'erp-intelligence', href: '/erp/intelligence', labelKey: 'nav.erpIntelligence' as MessageKey, icon: Brain },
+  { key: 'erp-governance', href: '/erp/governance', labelKey: 'nav.erpGovernance' as MessageKey, icon: Scale },
+  { key: 'erp-archive', href: '/erp/archive', labelKey: 'nav.erpArchive' as MessageKey, icon: Archive },
+  { key: 'erp-hr', href: '/erp/hr', labelKey: 'nav.erpHr' as MessageKey, icon: IdCard },
+  { key: 'erp-finance', href: '/erp/finance', labelKey: 'nav.erpFinance' as MessageKey, icon: Landmark },
+  { key: 'erp-inventory', href: '/erp/inventory', labelKey: 'nav.erpInventory' as MessageKey, icon: Package },
+  { key: 'erp-odoo', href: '/erp/odoo-sync', labelKey: 'nav.erpOdoo' as MessageKey, icon: Zap },
+] as const
+
+function ErpSuiteLinks({ pathname }: { pathname: string }) {
+  const { t } = useI18n()
+  return (
+    <div className="mt-4 space-y-1 border-t border-gold-300/15 pt-4">
+      <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-gold-300/80">{t('nav.erpSuite')}</p>
+      {ERP_SUITE.map((item) => {
+        const Icon = item.icon
+        const active = pathname === item.href || pathname.startsWith(`${item.href}/`) || pathname.startsWith(item.href)
+        return (
+          <a
+            key={item.key}
+            href={item.href}
+            className={`flex shrink-0 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold whitespace-nowrap ${
+              active
+                ? 'bg-gradient-to-l from-[#8cc63f] to-[#00a99d] text-ink-950'
+                : 'text-mist-300 hover:bg-ink-800 hover:text-mist-100'
+            }`}
+          >
+            <Icon size={18} />
+            {t(item.labelKey)}
+          </a>
+        )
+      })}
+    </div>
+  )
 }
 
 function NavLinks({
@@ -149,6 +191,7 @@ export function Sidebar({ user, enabledKeys }: { user: AccessUser; enabledKeys: 
               {t('nav.bi')}
             </a>
           ) : null}
+          {user.role.isAdmin ? <ErpSuiteLinks pathname={pathname} /> : null}
         </nav>
         <div className="border-t border-gold-300/15 p-4">
           <p className="font-semibold text-mist-100">{user.name}</p>

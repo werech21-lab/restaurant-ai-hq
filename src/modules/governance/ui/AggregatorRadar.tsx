@@ -11,7 +11,7 @@ import { auditAggregatorSettlement, settlementFromSnapshot } from '@/modules/gov
 import { ventureBrands, type CompetitorBench, type EscalationCard, type GeoRankSnapshot, type VentureBrandRow } from '@/modules/governance/client'
 
 type Board = { brands: VentureBrandRow[]; snapshots: GeoRankSnapshot[]; competitors: CompetitorBench[]; actions: EscalationCard[] }
-const platforms = ['Talabat', 'Keeta', 'Jahez', 'Snoonu', 'Deliveroo'] as const
+const platforms = ['Talabat', 'Keeta', 'Jahez', 'Snoonu', 'Deliveroo', 'Cari'] as const
 const zones = ['السالمية', 'شرق/مدينة الكويت', 'حولي', 'الفروانية', 'المهبولة', 'الجهراء', 'العارضية'] as const
 const radarTabs = ['rank', 'gap', 'tactics', 'escalation', 'settle'] as const
 type RadarTab = (typeof radarTabs)[number]

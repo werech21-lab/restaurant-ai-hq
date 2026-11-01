@@ -5,16 +5,23 @@ import { login } from '@/app/actions/auth'
 import { Alert, btnPrimary, fieldClass, labelClass } from '@/components/erp-ui'
 import { LanguageSwitch, useI18n, type MessageKey } from '@/lib/i18n'
 
-const demos: Array<{ email: string; name: MessageKey; role: MessageKey; desc: MessageKey }> = [
-  { email: 'admin@erp.com', name: 'login.demo.admin', role: 'login.demo.adminRole', desc: 'login.demo.adminDesc' },
-  { email: 'accountant@erp.com', name: 'login.demo.acc', role: 'login.demo.accRole', desc: 'login.demo.accDesc' },
-  { email: 'store@erp.com', name: 'login.demo.store', role: 'login.demo.storeRole', desc: 'login.demo.storeDesc' },
-  { email: 'sales@erp.com', name: 'login.demo.sales', role: 'login.demo.salesRole', desc: 'login.demo.salesDesc' },
+const demos: Array<{ email: string; password: string; name: MessageKey; role: MessageKey; desc: MessageKey }> = [
+  {
+    email: 'admin@aetherbi.com',
+    password: 'AetherAdmin#2026!',
+    name: 'login.demo.aether',
+    role: 'login.demo.aetherRole',
+    desc: 'login.demo.aetherDesc',
+  },
+  { email: 'admin@erp.com', password: '123456', name: 'login.demo.admin', role: 'login.demo.adminRole', desc: 'login.demo.adminDesc' },
+  { email: 'accountant@erp.com', password: '123456', name: 'login.demo.acc', role: 'login.demo.accRole', desc: 'login.demo.accDesc' },
+  { email: 'store@erp.com', password: '123456', name: 'login.demo.store', role: 'login.demo.storeRole', desc: 'login.demo.storeDesc' },
+  { email: 'sales@erp.com', password: '123456', name: 'login.demo.sales', role: 'login.demo.salesRole', desc: 'login.demo.salesDesc' },
 ]
 
 export function LoginForm() {
   const [state, action, pending] = useActionState(login, null)
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
 
   return (
     <div className="w-full max-w-md rounded-2xl border border-white/10 bg-ink-900/80 p-6 shadow-sm">
@@ -44,7 +51,9 @@ export function LoginForm() {
       <div className="mt-6">
         <p className="text-sm font-bold text-mist-100">{t('login.demo')}</p>
         <p className="mt-1 text-xs text-mist-400" dir="ltr">
-          Password: 123456
+          {locale === 'en'
+            ? 'Official: admin@aetherbi.com · Demo users: password 123456'
+            : 'الرسمي: admin@aetherbi.com · التجريبي: كلمة المرور 123456'}
         </p>
         <div className="mt-3 grid gap-2">
           {demos.map((demo) => (
@@ -57,7 +66,7 @@ export function LoginForm() {
                 const password = document.getElementById('password') as HTMLInputElement | null
                 if (!email || !password) return
                 email.value = demo.email
-                password.value = '123456'
+                password.value = demo.password
                 email.form?.requestSubmit()
               }}
             >

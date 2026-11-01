@@ -39,7 +39,7 @@ export const VENTURE_BRANDS = [
     id: 'FRANKS-STEAK',
     code: 'FRANKS-STEAK',
     nameAr: 'فرانكس ستيك ساندويتش',
-    nameEn: 'Franks Steak Sandwiches',
+    nameEn: "Frank's Steak Sandwich",
     cuisineAr: 'ستيك فيلي وساندويتش',
     cuisineEn: 'Philly steak sandwiches',
   },
