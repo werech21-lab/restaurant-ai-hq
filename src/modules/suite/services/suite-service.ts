@@ -1,7 +1,7 @@
 import { AppError } from '@/lib/api/errors'
 import { writeAudit } from '@/lib/audit'
 import type { AuthContext } from '@/lib/auth/context'
-import { withTransaction } from '@/lib/db'
+import { withTransaction } from '@/lib/pg'
 import { suiteStages, type SuiteApp } from '@/modules/suite/domain/apps'
 import type { SuiteBoard, SuiteFacet, SuiteRecord } from '@/modules/suite/domain/types'
 import * as repository from '@/modules/suite/repositories/suite-repository'

@@ -1,0 +1,23 @@
+{
+  "name": "AetherBI Enterprise ERP",
+  "short_name": "AetherBI ERP",
+  "description": "نظام AetherBI لإدارة الموارد والمبيعات والمخزون",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0f172a",
+  "theme_color": "#1e40af",
+  "icons": [
+    { "src": "/icons/icon-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
+  ],
+  "shortcuts": [
+    { "name": "نقطة البيع POS", "short_name": "الكاشير", "url": "/pos", "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }] },
+    { "name": "فاتورة جديدة", "short_name": "فاتورة", "url": "/sales", "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }] },
+    { "name": "المخزون", "short_name": "المخزون", "url": "/inventory", "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }] }
+  ]
+}

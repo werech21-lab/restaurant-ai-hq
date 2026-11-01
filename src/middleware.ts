@@ -57,5 +57,6 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/erp/:path*', '/login'],
+  // erp-pro panel login is cookie/JWT based (/login). Keep Supabase guard on legacy HQ routes only.
+  matcher: ['/admin/:path*', '/erp/:path*'],
 }

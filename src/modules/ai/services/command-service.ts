@@ -1,7 +1,7 @@
 import { AppError } from '@/lib/api/errors'
 import type { AuthContext } from '@/lib/auth/context'
 import { permissions } from '@/lib/auth/permissions'
-import { db } from '@/lib/db'
+import { db } from '@/lib/pg'
 import { parseCommand } from '@/modules/ai/domain/command'
 import { formatCount, formatKwd } from '@/modules/ai/domain/messages'
 import type { CommandOutcome, CommandResult, Insight } from '@/modules/ai/domain/types'

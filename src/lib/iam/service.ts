@@ -3,7 +3,7 @@ import { AppError } from '@/lib/api/errors'
 import { writeAudit } from '@/lib/audit'
 import type { AuthContext, SessionUser } from '@/lib/auth/context'
 import { permissions, type Permission } from '@/lib/auth/permissions'
-import { db, withTransaction, type Queryable } from '@/lib/db'
+import { db, withTransaction, type Queryable } from '@/lib/pg'
 import {
   DEFAULT_INVITATION_DAYS,
   ROLE_MANAGE,

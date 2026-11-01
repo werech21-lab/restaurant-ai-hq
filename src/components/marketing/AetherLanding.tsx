@@ -37,7 +37,7 @@ const plans: readonly { name: string; price: string; detail: string; cta: string
 
 export default function AetherLanding({ signedIn }: { signedIn: boolean }) {
   const { t } = useI18n()
-  const erpHref = signedIn ? '/erp' : '/login'
+  const erpHref = signedIn ? '/dashboard' : '/login'
   const [fullName, setFullName] = useState('')
   const [phone, setPhone] = useState('')
   const [companyName, setCompanyName] = useState('')
@@ -51,16 +51,21 @@ export default function AetherLanding({ signedIn }: { signedIn: boolean }) {
     setBusy(true)
     setError(null)
     try {
-      const response = await fetch('/api/v1/marketing/trial-request', {
+      const response = await fetch('/api/public/aetherbi/lead', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ fullName, phone, companyName: companyName || undefined, notes: notes || undefined }),
+        body: JSON.stringify({
+          contactName: fullName,
+          phone,
+          title: companyName ? `طلب تجريبي — ${companyName}` : 'طلب نسخة تجريبية من www.aetherbi.com',
+          message: notes || undefined,
+        }),
       })
       const body: unknown = await response.json().catch(() => null)
       if (!response.ok) {
         const message =
-          typeof body === 'object' && body && 'error' in body && typeof (body as { error: { message?: string } }).error?.message === 'string'
-            ? (body as { error: { message: string } }).error.message
+          typeof body === 'object' && body && body !== null && 'message' in body && typeof (body as { message?: unknown }).message === 'string'
+            ? (body as { message: string }).message
             : t('land.trial.error')
         throw new Error(message)
       }

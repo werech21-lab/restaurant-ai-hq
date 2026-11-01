@@ -1,64 +1,36 @@
-import { Pool, types, type PoolClient, type QueryResult, type QueryResultRow } from 'pg'
-import { sslOptions } from '@/lib/db-ssl'
-import { getEnv } from '@/lib/env'
-import { errorFields, logger } from '@/lib/logger'
+import { copyFileSync, existsSync, mkdirSync } from 'fs'
+import path from 'path'
+import { PrismaClient } from '@prisma/client'
 
-// bigint columns hold integer minor units. They fit in a JS safe integer for every amount this app allows.
-types.setTypeParser(types.builtins.INT8, (value) => {
-  const parsed = Number(value)
-  if (!Number.isSafeInteger(parsed)) {
-    throw new RangeError('Database integer is outside the safe range')
-  }
-  return parsed
-})
-// date columns are calendar dates. Keep them as YYYY-MM-DD strings instead of local-time Date objects.
-types.setTypeParser(types.builtins.DATE, (value) => value)
-
-export interface Queryable {
-  query<R extends QueryResultRow = QueryResultRow>(text: string, params?: unknown[]): Promise<QueryResult<R>>
-}
-
-const globalForPool = globalThis as unknown as { erpPool?: Pool }
-
-function getPool(): Pool {
-  if (globalForPool.erpPool) return globalForPool.erpPool
-  const env = getEnv()
-  if (process.env.NODE_ENV === 'production' && env.DATABASE_SSL !== 'verify') {
-    logger.warn('The database certificate is not verified. Set DATABASE_SSL=verify (and DATABASE_SSL_CA) in production.')
-  }
-  const ssl = sslOptions(env.DATABASE_SSL, env.DATABASE_SSL_CA)
-  const pool = new Pool({ connectionString: env.DATABASE_URL, ssl, max: 5 })
-  pool.on('error', (error) => logger.error('Idle database client error', errorFields(error)))
-  globalForPool.erpPool = pool
-  return pool
-}
-
-export const db: Queryable = {
-  query: <R extends QueryResultRow = QueryResultRow>(text: string, params?: unknown[]) => getPool().query<R>(text, params),
-}
-
-function wrap(client: PoolClient): Queryable {
-  return {
-    query: <R extends QueryResultRow = QueryResultRow>(text: string, params?: unknown[]) => client.query<R>(text, params),
-  }
-}
-
-/** Runs fn inside one database transaction. Commits when fn resolves and rolls back when it throws. */
-export async function withTransaction<T>(fn: (tx: Queryable) => Promise<T>): Promise<T> {
-  const client = await getPool().connect()
-  try {
-    await client.query('begin')
-    const result = await fn(wrap(client))
-    await client.query('commit')
-    return result
-  } catch (error) {
+function prepareDatabaseUrl() {
+  const source = path.join(process.cwd(), 'prisma', 'dev.db')
+  if (process.env.VERCEL) {
+    const targetDir = '/tmp'
+    const target = path.join(targetDir, 'aetherbi-erp.db')
     try {
-      await client.query('rollback')
-    } catch (rollbackError) {
-      logger.error('Rollback failed', errorFields(rollbackError))
+      if (!existsSync(targetDir)) mkdirSync(targetDir, { recursive: true })
+      if (existsSync(source)) copyFileSync(source, target)
+      process.env.DATABASE_URL = `file:${target}`
+      return process.env.DATABASE_URL
+    } catch {
+      // fall through to source path
     }
-    throw error
-  } finally {
-    client.release()
   }
+  const absolute = `file:${source.replace(/\\/g, '/')}`
+  process.env.DATABASE_URL = absolute
+  return absolute
+}
+
+prepareDatabaseUrl()
+
+const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient }
+
+export const prisma =
+  globalForPrisma.prisma ??
+  new PrismaClient({
+    log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
+  })
+
+if (process.env.NODE_ENV !== 'production') {
+  globalForPrisma.prisma = prisma
 }

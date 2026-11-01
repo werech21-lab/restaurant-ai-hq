@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { DEV_OWNER_COOKIE, devOwnerEnabled, devOwnerHostAllowed, devOwnerRedirectUrl, signDevOwnerCookie } from '@/lib/auth/dev-owner'
-import { db } from '@/lib/db'
+import { db } from '@/lib/pg'
 
 export const dynamic = 'force-dynamic'
 

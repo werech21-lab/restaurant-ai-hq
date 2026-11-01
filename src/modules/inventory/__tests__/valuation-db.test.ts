@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { bootstrapTenant, createUser, getPglite, startDatabase, stopDatabase } from '@/lib/__tests__/support/database'
 import type { AuthContext } from '@/lib/auth/context'
 import { allPermissions } from '@/lib/auth/permissions'
-import { withTransaction } from '@/lib/db'
+import { withTransaction } from '@/lib/pg'
 import { createCustomer } from '@/modules/crm'
 import { createAccount, createInvoice, createPeriod, submitInvoice, voidInvoice } from '@/modules/finance'
 import type { Account } from '@/modules/finance/client'
@@ -21,7 +21,7 @@ import {
 } from '@/modules/procurement'
 import type { PurchaseOrderDetail, Supplier } from '@/modules/procurement/client'
 
-vi.mock('@/lib/db', async () => {
+vi.mock('@/lib/pg', async () => {
   const support = await import('@/lib/__tests__/support/database')
   return { db: support.testDb, withTransaction: support.testWithTransaction }
 })

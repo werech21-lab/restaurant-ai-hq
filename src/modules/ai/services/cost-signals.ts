@@ -1,4 +1,4 @@
-import type { Queryable } from '@/lib/db'
+import type { Queryable } from '@/lib/pg'
 import type { CostScenarioInput } from '@/modules/ai/domain/scenarios'
 import { listOpenCommissionWithin } from '@/modules/delivery'
 import { listCostVariancesWithin, readItemCostsWithin } from '@/modules/inventory'

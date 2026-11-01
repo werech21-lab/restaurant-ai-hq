@@ -4,7 +4,11 @@ const { buildSecurityHeaders } = require('./security-headers')
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  serverExternalPackages: ['pg'],
+  serverExternalPackages: ['pg', '@prisma/client', 'prisma'],
+  eslint: {
+    // erp-pro print/download screens use <img> for offline/print fidelity
+    ignoreDuringBuilds: false,
+  },
   async headers() {
     return [
       {

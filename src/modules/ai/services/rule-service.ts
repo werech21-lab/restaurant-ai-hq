@@ -1,7 +1,7 @@
 import { AppError } from '@/lib/api/errors'
 import { writeAudit } from '@/lib/audit'
 import type { AuthContext } from '@/lib/auth/context'
-import { db, withTransaction } from '@/lib/db'
+import { db, withTransaction } from '@/lib/pg'
 import { parseThresholds } from '@/modules/ai/domain/thresholds'
 import { ruleKeys, type AutomationRule, type RuleKey } from '@/modules/ai/domain/types'
 import * as repository from '@/modules/ai/repositories/ai-repository'

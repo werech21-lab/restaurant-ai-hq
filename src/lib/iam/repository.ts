@@ -1,6 +1,6 @@
 import type { Page } from '@/lib/api/cursor'
 import { keysetClauses, toPage } from '@/lib/api/keyset'
-import type { Queryable } from '@/lib/db'
+import type { Queryable } from '@/lib/pg'
 import type { EffectiveInvitationStatus, InvitationStatus } from '@/lib/iam/domain'
 import type { ListInvitationsQuery, ListMembersQuery, ListRolesQuery, UpdateRoleInput } from '@/lib/iam/schemas'
 import type { Invitation, Member, Role } from '@/lib/iam/types'

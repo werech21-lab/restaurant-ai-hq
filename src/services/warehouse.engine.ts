@@ -1,0 +1,34 @@
+import type { Prisma } from "@prisma/client";
+import { round3 } from "@/lib/format";
+import { txError } from "@/lib/tx";
+
+type Tx = Prisma.TransactionClient;
+
+export async function resolveWarehouse(tx: Tx, warehouseId?: string) {
+  if (warehouseId) {
+    const warehouse = await tx.warehouse.findUnique({ where: { id: warehouseId } });
+    if (!warehouse) txError("المستودع غير موجود");
+    return warehouse;
+  }
+  const warehouse = await tx.warehouse.findFirst({ where: { isDefault: true } });
+  if (!warehouse) txError("عرّف مستودعاً افتراضياً قبل تنفيذ الحركة");
+  return warehouse;
+}
+
+export async function warehouseQuantity(tx: Tx, warehouseId: string, productId: string) {
+  const row = await tx.warehouseStock.findUnique({
+    where: { warehouseId_productId: { warehouseId, productId } },
+  });
+  return row?.quantity ?? 0;
+}
+
+export async function adjustWarehouseStock(tx: Tx, warehouseId: string, productId: string, delta: number) {
+  const row = await tx.warehouseStock.findUnique({
+    where: { warehouseId_productId: { warehouseId, productId } },
+  });
+  const next = round3((row?.quantity ?? 0) + delta);
+  if (next < -0.0001) txError("الكمية غير متوفرة في المستودع المحدد");
+  if (row) await tx.warehouseStock.update({ where: { id: row.id }, data: { quantity: next } });
+  else await tx.warehouseStock.create({ data: { warehouseId, productId, quantity: next } });
+  return next;
+}

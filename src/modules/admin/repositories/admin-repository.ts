@@ -1,4 +1,4 @@
-import type { Queryable } from '@/lib/db'
+import type { Queryable } from '@/lib/pg'
 import type { PermissionFlags } from '@/modules/admin/domain/access'
 import type { ListActivityQuery } from '@/modules/admin/schemas/admin'
 

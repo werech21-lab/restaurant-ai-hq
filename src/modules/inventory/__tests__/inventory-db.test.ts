@@ -9,7 +9,7 @@ import {
 import type { AuthContext } from '@/lib/auth/context'
 import { subscribe, type BusEvent } from '@/lib/events/bus'
 
-vi.mock('@/lib/db', async () => {
+vi.mock('@/lib/pg', async () => {
   const support = await import('@/lib/__tests__/support/database')
   return { db: support.testDb, withTransaction: support.testWithTransaction }
 })
@@ -557,7 +557,7 @@ describe('database guards', () => {
 
 describe('purchase receipts and returns through the public API', () => {
   const run = async <T,>(work: (tx: Parameters<typeof receivePurchaseWithin>[0], events: InventoryEvent[]) => Promise<T>): Promise<{ result: T; events: InventoryEvent[] }> => {
-    const { withTransaction } = await import('@/lib/db')
+    const { withTransaction } = await import('@/lib/pg')
     const collected: InventoryEvent[] = []
     const result = await withTransaction((tx) => work(tx, collected))
     return { result, events: collected }

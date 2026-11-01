@@ -11,7 +11,7 @@ import type { Item, Warehouse } from '@/modules/inventory/client'
 import { createOrder, createReceipt, createSupplier, getOrder, submitOrder, updateAccounting } from '@/modules/procurement'
 import type { PurchaseOrderDetail, Supplier } from '@/modules/procurement/client'
 
-vi.mock('@/lib/db', async () => {
+vi.mock('@/lib/pg', async () => {
   const support = await import('@/lib/__tests__/support/database')
   return { db: support.testDb, withTransaction: support.testWithTransaction }
 })

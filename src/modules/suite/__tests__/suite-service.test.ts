@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { bootstrapTenant, createUser, startDatabase, stopDatabase } from '@/lib/__tests__/support/database'
 import type { AuthContext } from '@/lib/auth/context'
 
-vi.mock('@/lib/db', async () => {
+vi.mock('@/lib/pg', async () => {
   const support = await import('@/lib/__tests__/support/database')
   return { db: support.testDb, withTransaction: support.testWithTransaction }
 })

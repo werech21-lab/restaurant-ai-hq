@@ -1,4 +1,4 @@
-import type { Queryable } from '@/lib/db'
+import type { Queryable } from '@/lib/pg'
 import type { AggregatorPlatform, EscalationActionType, RankGap } from '@/modules/governance/domain/aggregator'
 import type { CompetitorBench, EscalationCard, GeoRankSnapshot, VentureBrandRow } from '@/modules/governance/domain/types'
 import type { AggregatorQuery } from '@/modules/governance/schemas/aggregator'

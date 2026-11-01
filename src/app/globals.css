@@ -105,3 +105,32 @@ html[data-theme='light'] ::-webkit-scrollbar-thumb {
     transition-duration: 0.01ms !important;
   }
 }
+
+@media print {
+  .app-sidebar,
+  .app-mobile-nav,
+  .no-print {
+    display: none !important;
+  }
+
+  .app-content {
+    margin: 0 !important;
+    width: 100% !important;
+  }
+
+  body,
+  .app-content {
+    background: #fff !important;
+    padding-bottom: 0 !important;
+  }
+
+  main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  .print-sheet,
+  .statement-sheet {
+    box-shadow: none !important;
+  }
+}

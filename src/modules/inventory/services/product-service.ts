@@ -1,7 +1,7 @@
 import { AppError } from '@/lib/api/errors'
 import { writeAudit } from '@/lib/audit'
 import type { AuthContext } from '@/lib/auth/context'
-import { db, withTransaction } from '@/lib/db'
+import { db, withTransaction } from '@/lib/pg'
 import { permissions, type Permission } from '@/lib/auth/permissions'
 import type { Product } from '@/modules/inventory/domain/types'
 import * as repository from '@/modules/inventory/repositories/product-repository'

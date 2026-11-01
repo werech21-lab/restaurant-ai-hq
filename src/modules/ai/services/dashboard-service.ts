@@ -1,6 +1,6 @@
 import type { AuthContext } from '@/lib/auth/context'
 import { permissions } from '@/lib/auth/permissions'
-import { db } from '@/lib/db'
+import { db } from '@/lib/pg'
 import type { Approval, DashboardKpis, Insight } from '@/modules/ai/domain/types'
 import * as repository from '@/modules/ai/repositories/ai-repository'
 import { getStageSummary } from '@/modules/crm'

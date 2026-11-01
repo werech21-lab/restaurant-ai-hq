@@ -1,5 +1,5 @@
 import type { AuthContext } from '@/lib/auth/context'
-import type { Queryable } from '@/lib/db'
+import type { Queryable } from '@/lib/pg'
 import { DomainError } from '@/lib/domain-error'
 import { applyIssueCost, applyReceiptCost, applyReturnCost, applyVarianceCost } from '@/modules/inventory/domain/valuation'
 import * as costRepository from '@/modules/inventory/repositories/cost-repository'

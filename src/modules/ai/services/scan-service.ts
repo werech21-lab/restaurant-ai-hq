@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { writeAudit } from '@/lib/audit'
 import type { AuthContext } from '@/lib/auth/context'
 import { permissions } from '@/lib/auth/permissions'
-import { withTransaction, type Queryable } from '@/lib/db'
+import { withTransaction, type Queryable } from '@/lib/pg'
 import { inCooldown } from '@/modules/ai/domain/approval'
 import { sameInsight, sameProposal } from '@/modules/ai/domain/compare'
 import {

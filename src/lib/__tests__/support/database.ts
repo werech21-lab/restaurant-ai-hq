@@ -2,7 +2,7 @@ import { readdir, readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { PGlite } from '@electric-sql/pglite'
 import type { QueryResult, QueryResultRow } from 'pg'
-import type { Queryable } from '@/lib/db'
+import type { Queryable } from '@/lib/pg'
 
 /**
  * An in-process Postgres (PGlite) with the real migrations applied. Integration tests run the real repositories and

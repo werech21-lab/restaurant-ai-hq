@@ -1,6 +1,6 @@
 import type { Page } from '@/lib/api/cursor'
 import { keysetClauses, toPage } from '@/lib/api/keyset'
-import type { Queryable } from '@/lib/db'
+import type { Queryable } from '@/lib/pg'
 import type { PlannedInvoiceLine } from '@/modules/procurement/domain/match'
 import { derivePaymentStatus, invoiceBalanceMinor } from '@/modules/procurement/domain/settlement'
 import type {

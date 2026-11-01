@@ -3,7 +3,7 @@ import { AppError } from '@/lib/api/errors'
 import { decodeCursor, encodeCursor } from '@/lib/api/cursor'
 import { keysetClauses, toPage } from '@/lib/api/keyset'
 import { hashRequest, runIdempotent } from '@/lib/idempotency'
-import type { Queryable } from '@/lib/db'
+import type { Queryable } from '@/lib/pg'
 
 const ID_A = '11111111-1111-4111-8111-111111111111'
 const ID_B = '22222222-2222-4222-8222-222222222222'

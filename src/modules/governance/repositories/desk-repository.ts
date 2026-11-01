@@ -1,4 +1,4 @@
-import type { Queryable } from '@/lib/db'
+import type { Queryable } from '@/lib/pg'
 import { showsNeglect } from '@/modules/governance/domain/desk'
 import type { ConnectedDevice, DeskLog, ExecutiveTask, GovViolation, InquiryStatement, Investigation, MonitorEvent } from '@/modules/governance/domain/types'
 import type { LogMonitorInput, OpenInquiryInput, RaiseAlertInput, RegisterViolationInput } from '@/modules/governance/schemas/desk'

@@ -1,4 +1,4 @@
-import type { Queryable } from '@/lib/db'
+import type { Queryable } from '@/lib/pg'
 import type { AuthContext } from '@/lib/auth/context'
 import type { RuleType } from '@/modules/governance/domain/gate'
 import type { MemoryDomain } from '@/modules/governance/domain/learning'

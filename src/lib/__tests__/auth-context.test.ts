@@ -11,7 +11,7 @@ type FakeUser = { id: string } | null
 let currentUser: FakeUser = null
 let supabaseConfigured = true
 
-vi.mock('@/lib/db', async () => {
+vi.mock('@/lib/pg', async () => {
   const support = await import('@/lib/__tests__/support/database')
   return { db: support.testDb, withTransaction: support.testWithTransaction }
 })

@@ -1,6 +1,6 @@
 import type { Page } from '@/lib/api/cursor'
 import { keysetClauses, toPage, type SortColumn } from '@/lib/api/keyset'
-import type { Queryable } from '@/lib/db'
+import type { Queryable } from '@/lib/pg'
 import {
   leadStages,
   type CustomerStatus,

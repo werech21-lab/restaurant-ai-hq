@@ -1,4 +1,4 @@
-import { db } from '@/lib/db'
+import { db } from '@/lib/pg'
 import { logger } from '@/lib/logger'
 
 export type CommandCenterMetrics = {

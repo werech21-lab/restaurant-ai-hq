@@ -1,5 +1,5 @@
 import type { AuthContext } from '@/lib/auth/context'
-import type { Queryable } from '@/lib/db'
+import type { Queryable } from '@/lib/pg'
 import { applyPriceVarianceWithin } from '@/modules/inventory'
 
 type VarianceLine = { itemId: string; quantity: number; unitCostMinor: number; poUnitCostMinor: number }

@@ -8,7 +8,7 @@ import { bootstrapTenant, createUser, getPglite, startDatabase, stopDatabase } f
 
 let currentUser: { id: string } | null = null
 
-vi.mock('@/lib/db', async () => {
+vi.mock('@/lib/pg', async () => {
   const support = await import('@/lib/__tests__/support/database')
   return { db: support.testDb, withTransaction: support.testWithTransaction }
 })

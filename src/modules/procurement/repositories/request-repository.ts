@@ -1,6 +1,6 @@
 import type { Page } from '@/lib/api/cursor'
 import { keysetClauses, toPage } from '@/lib/api/keyset'
-import type { Queryable } from '@/lib/db'
+import type { Queryable } from '@/lib/pg'
 import type { PurchaseRequest, PurchaseRequestDetail, RequestLine } from '@/modules/procurement/domain/types'
 import type { ListRequestsQuery, RequestLineInput } from '@/modules/procurement/schemas/request'
 

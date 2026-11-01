@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import { cookies } from 'next/headers'
 import { Cairo } from 'next/font/google'
+import { MobileBottomNav } from '@/components/mobile-bottom-nav'
+import { PwaRegister } from '@/components/pwa-register'
 import { LanguageProvider, type Locale } from '@/lib/i18n'
 import { ThemeProvider, type Theme } from '@/lib/theme'
 import './globals.css'
@@ -12,14 +14,17 @@ const cairo = Cairo({
 })
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://aetherbi.com'),
-  title: 'Aether BI',
-  description: 'Aether BI — لوحة قيادة مجموعة المطاعم على aetherbi.com',
+  metadataBase: new URL('https://www.aetherbi.com'),
+  title: 'AetherBI',
+  description: 'AetherBI Enterprise ERP & BI — المحاسبة، المخزون، POS، الموارد البشرية والذكاء الاصطناعي',
+  applicationName: 'AetherBI ERP',
+  manifest: '/manifest.json',
+  appleWebApp: { capable: true, title: 'AetherBI ERP', statusBarStyle: 'black-translucent' },
   openGraph: {
-    title: 'Aether BI',
-    description: 'Aether BI — لوحة قيادة مجموعة المطاعم على aetherbi.com',
-    url: 'https://aetherbi.com',
-    siteName: 'Aether BI',
+    title: 'AetherBI',
+    description: 'AetherBI Enterprise ERP & BI على www.aetherbi.com',
+    url: 'https://www.aetherbi.com',
+    siteName: 'AetherBI',
   },
 }
 
@@ -30,9 +35,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang={locale} dir={locale === 'en' ? 'ltr' : 'rtl'} data-theme={theme} className={cairo.variable} suppressHydrationWarning>
-      <body className={`${cairo.className} bg-ink-950 font-cairo text-mist-100 antialiased`} suppressHydrationWarning>
+      <body className={`${cairo.className} min-h-full bg-ink-950 font-cairo text-mist-100 antialiased md:pb-0`} suppressHydrationWarning>
         <ThemeProvider initialTheme={theme}>
-          <LanguageProvider initialLocale={locale}>{children}</LanguageProvider>
+          <LanguageProvider initialLocale={locale}>
+            {children}
+            <MobileBottomNav />
+            <PwaRegister />
+          </LanguageProvider>
         </ThemeProvider>
       </body>
     </html>

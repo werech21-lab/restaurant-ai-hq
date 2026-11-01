@@ -1,0 +1,147 @@
+import { Suspense } from "react";
+import { connection } from "next/server";
+import { Prisma } from "@prisma/client";
+import { requireUser } from "@/lib/erp-auth";
+import { Forbidden, PageSkeleton } from "@/components/erp-ui";
+import { formatDate, formatMoney, formatQty, movementTypeFromQuery, MOVEMENT_LABEL } from "@/lib/format";
+import { PAGE_SIZE, readQuery, type RawQuery } from "@/lib/pagination";
+import { can, firstAllowedHref } from "@/lib/permissions";
+import { prisma } from "@/lib/db";
+import { queryProducts } from "@/lib/stock";
+import { forecastLabels } from "@/services/forecast.service";
+import { InventoryPanel } from "@/app/(panel)/inventory/inventory-panel";
+
+export const metadata = { title: "المخزون | نظام ERP" };
+
+async function InventoryContent({ searchParams }: { searchParams: Promise<RawQuery> }) {
+  await connection();
+  const query = await readQuery(searchParams);
+  const user = await requireUser();
+  if (!can(user, "inventory", "view")) return <Forbidden href={firstAllowedHref(user)} />;
+
+  const tab = query.tab === "categories" || query.tab === "movements" ? query.tab : "products";
+  const skip = (query.page - 1) * PAGE_SIZE;
+  let total = 0;
+  let products: Awaited<ReturnType<typeof queryProducts>>["rows"] = [];
+  let categories: Array<{ id: string; name: string; description: string | null; _count: { products: number } }> = [];
+  let movements: Array<{
+    id: string;
+    type: string;
+    quantity: number;
+    balanceAfter: number;
+    note: string | null;
+    createdAt: Date;
+    product: { name: string; code: string };
+    createdBy: { name: string };
+  }> = [];
+
+  if (tab === "categories") {
+    const where = query.q ? { name: { contains: query.q } } : {};
+    const [count, rows] = await Promise.all([
+      prisma.category.count({ where }),
+      prisma.category.findMany({
+        where,
+        include: { _count: { select: { products: true } } },
+        orderBy: { name: "asc" },
+        skip,
+        take: PAGE_SIZE,
+      }),
+    ]);
+    total = count;
+    categories = rows;
+  } else if (tab === "movements") {
+    const type = movementTypeFromQuery(query.q);
+    const where: Prisma.StockMovementWhereInput = query.q
+      ? {
+          OR: [
+            { note: { contains: query.q } },
+            { product: { name: { contains: query.q } } },
+            { product: { code: { contains: query.q } } },
+            ...(type ? [{ type }] : []),
+          ],
+        }
+      : {};
+    const [count, rows] = await Promise.all([
+      prisma.stockMovement.count({ where }),
+      prisma.stockMovement.findMany({
+        where,
+        include: {
+          product: { select: { name: true, code: true } },
+          createdBy: { select: { name: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: PAGE_SIZE,
+      }),
+    ]);
+    total = count;
+    movements = rows;
+  } else {
+    const result = await queryProducts({
+      q: query.q,
+      page: query.page,
+      lowStock: query.filter === "low_stock",
+    });
+    total = result.total;
+    products = result.rows;
+  }
+
+  const forecasts =
+    tab === "products" ? await forecastLabels(products.map((row) => ({ id: row.id, currentStock: row.currentStock })), new Date()) : new Map<string, string>();
+
+  return (
+    <InventoryPanel
+      tab={tab}
+      q={query.q}
+      page={query.page}
+      total={total}
+      filter={query.filter}
+      canCreate={can(user, "inventory", "create")}
+      canEdit={can(user, "inventory", "edit")}
+      canDelete={can(user, "inventory", "delete")}
+      products={products.map((row) => ({
+        id: row.id,
+        code: row.code,
+        name: row.name,
+        categoryId: row.categoryId,
+        categoryName: row.category.name,
+        costPrice: row.costPrice,
+        sellingPrice: row.sellingPrice,
+        reorderLevel: row.reorderLevel,
+        low: row.currentStock <= row.reorderLevel,
+        costLabel: formatMoney(row.costPrice),
+        sellLabel: formatMoney(row.sellingPrice),
+        stockLabel: formatQty(row.currentStock),
+        reorderLabel: formatQty(row.reorderLevel),
+        forecastLabel: forecasts.get(row.id) ?? "—",
+        customData: row.customData,
+      }))}
+      categories={categories.map((row) => ({
+        id: row.id,
+        name: row.name,
+        description: row.description ?? "",
+        productCount: row._count.products,
+      }))}
+      movements={movements.map((row) => ({
+        id: row.id,
+        dateLabel: formatDate(row.createdAt),
+        productName: row.product.name,
+        code: row.product.code,
+        type: row.type,
+        typeLabel: MOVEMENT_LABEL[row.type] ?? row.type,
+        quantityLabel: formatQty(row.quantity),
+        balanceLabel: formatQty(row.balanceAfter),
+        note: row.note ?? "",
+        userName: row.createdBy.name,
+      }))}
+    />
+  );
+}
+
+export default function InventoryPage({ searchParams }: { searchParams: Promise<RawQuery> }) {
+  return (
+    <Suspense fallback={<PageSkeleton title="المخزون" />}>
+      <InventoryContent searchParams={searchParams} />
+    </Suspense>
+  );
+}

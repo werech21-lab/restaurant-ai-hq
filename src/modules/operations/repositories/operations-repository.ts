@@ -1,4 +1,4 @@
-import type { Queryable } from '@/lib/db'
+import type { Queryable } from '@/lib/pg'
 import type { Contract, EnterpriseDocument, QualityTicket } from '@/modules/operations/domain/types'
 import type { CreateContractInput, CreateDocumentInput, CreateTicketInput, UpdateContractInput, UpdateTicketInput } from '@/modules/operations/schemas/operations'
 

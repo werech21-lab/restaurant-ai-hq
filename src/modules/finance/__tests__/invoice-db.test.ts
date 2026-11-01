@@ -10,7 +10,7 @@ import {
   stopDatabase,
 } from '@/lib/__tests__/support/database'
 
-vi.mock('@/lib/db', async () => {
+vi.mock('@/lib/pg', async () => {
   const support = await import('@/lib/__tests__/support/database')
   return { db: support.testDb, withTransaction: support.testWithTransaction }
 })

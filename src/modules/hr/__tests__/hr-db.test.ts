@@ -7,7 +7,7 @@ import { createAccount, createPeriod } from '@/modules/finance'
 import { createEmployee, createExpense, createLeave, decideExpense, decideLeave, runPayroll, bookAppointment, actOnAppointment } from '@/modules/hr'
 import { createContract } from '@/modules/operations'
 
-vi.mock('@/lib/db', async () => {
+vi.mock('@/lib/pg', async () => {
   const support = await import('@/lib/__tests__/support/database')
   return { db: support.testDb, withTransaction: support.testWithTransaction }
 })

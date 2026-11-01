@@ -1,6 +1,6 @@
 import type { Page } from '@/lib/api/cursor'
 import { keysetClauses, toPage } from '@/lib/api/keyset'
-import type { Queryable } from '@/lib/db'
+import type { Queryable } from '@/lib/pg'
 import type { PlannedCreditLine, PlannedReturnLine } from '@/modules/procurement/domain/settlement'
 import type { ReconciliationFigures } from '@/modules/procurement/domain/reconcile'
 import type {

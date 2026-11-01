@@ -5,7 +5,7 @@ import { allPermissions } from '@/lib/auth/permissions'
 import { bootstrapTenant, createUser, getPglite, startDatabase, stopDatabase } from '@/lib/__tests__/support/database'
 import { createAccount, listAccounts, listActivity, updateAccount, updateSecurity } from '@/modules/admin'
 
-vi.mock('@/lib/db', async () => {
+vi.mock('@/lib/pg', async () => {
   const support = await import('@/lib/__tests__/support/database')
   return { db: support.testDb, withTransaction: support.testWithTransaction }
 })

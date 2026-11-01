@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { protectedRoute, type RouteArgs } from '@/lib/api/route'
 import { permissions } from '@/lib/auth/permissions'
-import { withTransaction } from '@/lib/db'
+import { withTransaction } from '@/lib/pg'
 import { globalSearch } from '@/lib/search/global-search'
 
 export const runtime = 'nodejs'

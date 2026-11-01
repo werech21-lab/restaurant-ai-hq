@@ -10,12 +10,12 @@ import type { AuthContext } from '@/lib/auth/context'
 import { DomainError } from '@/lib/domain-error'
 import { subscribe, type BusEvent } from '@/lib/events/bus'
 
-vi.mock('@/lib/db', async () => {
+vi.mock('@/lib/pg', async () => {
   const support = await import('@/lib/__tests__/support/database')
   return { db: support.testDb, withTransaction: support.testWithTransaction }
 })
 
-import { withTransaction } from '@/lib/db'
+import { withTransaction } from '@/lib/pg'
 import {
   createItem,
   createWarehouse,

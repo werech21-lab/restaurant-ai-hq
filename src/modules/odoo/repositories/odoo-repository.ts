@@ -1,4 +1,4 @@
-import type { Queryable } from '@/lib/db'
+import type { Queryable } from '@/lib/pg'
 import type { ApplyTarget, OdooModel, OdooPayload } from '@/modules/odoo/domain/odoo'
 
 export type OdooJob = {

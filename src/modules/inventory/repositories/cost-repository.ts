@@ -1,4 +1,4 @@
-import type { Queryable } from '@/lib/db'
+import type { Queryable } from '@/lib/pg'
 
 export type CostingMethod = 'order_price' | 'moving_weighted_average'
 

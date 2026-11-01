@@ -1,7 +1,7 @@
 import { AppError } from '@/lib/api/errors'
 import type { AuthContext } from '@/lib/auth/context'
 import { permissions, type Permission } from '@/lib/auth/permissions'
-import { withTransaction } from '@/lib/db'
+import { withTransaction } from '@/lib/pg'
 import { DomainError } from '@/lib/domain-error'
 import { hashRequest, runIdempotent, type IdempotentResult } from '@/lib/idempotency'
 import {

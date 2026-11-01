@@ -6,7 +6,7 @@ import type { AuthContext } from '@/lib/auth/context'
 import { allPermissions } from '@/lib/auth/permissions'
 import { DomainError } from '@/lib/domain-error'
 
-vi.mock('@/lib/db', async () => {
+vi.mock('@/lib/pg', async () => {
   const support = await import('@/lib/__tests__/support/database')
   return { db: support.testDb, withTransaction: support.testWithTransaction }
 })

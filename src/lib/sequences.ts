@@ -1,4 +1,4 @@
-import type { Queryable } from '@/lib/db'
+import type { Queryable } from '@/lib/pg'
 
 /** Returns the next number of a per-tenant sequence. Run it inside the same transaction as the record that uses it. */
 export async function nextSequenceValue(tx: Queryable, tenantId: string, name: string): Promise<number> {

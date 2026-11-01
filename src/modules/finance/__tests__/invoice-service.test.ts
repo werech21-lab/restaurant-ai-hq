@@ -8,7 +8,7 @@ import type { FinanceEvent } from '@/modules/finance/events'
 
 const tx = { query: vi.fn() }
 
-vi.mock('@/lib/db', () => ({
+vi.mock('@/lib/pg', () => ({
   db: { query: vi.fn() },
   withTransaction: async (fn: (client: typeof tx) => Promise<unknown>) => fn(tx),
 }))

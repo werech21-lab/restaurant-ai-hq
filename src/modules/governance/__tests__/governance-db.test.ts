@@ -12,7 +12,7 @@ import { CLOSE_BLOCKED_MESSAGE } from '@/modules/governance/domain/desk'
 import { createAttendance, createEmployee, createExpense } from '@/modules/hr'
 import { createContract } from '@/modules/operations'
 
-vi.mock('@/lib/db', async () => {
+vi.mock('@/lib/pg', async () => {
   const support = await import('@/lib/__tests__/support/database')
   return { db: support.testDb, withTransaction: support.testWithTransaction }
 })

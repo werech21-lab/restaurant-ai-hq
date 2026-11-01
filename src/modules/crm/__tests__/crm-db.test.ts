@@ -10,7 +10,7 @@ import type { AuthContext } from '@/lib/auth/context'
 import { allPermissions, permissions } from '@/lib/auth/permissions'
 import { subscribe, type BusEvent } from '@/lib/events/bus'
 
-vi.mock('@/lib/db', async () => {
+vi.mock('@/lib/pg', async () => {
   const support = await import('@/lib/__tests__/support/database')
   return { db: support.testDb, withTransaction: support.testWithTransaction }
 })

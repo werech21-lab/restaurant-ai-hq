@@ -1,4 +1,4 @@
-import type { Queryable } from '@/lib/db'
+import type { Queryable } from '@/lib/pg'
 import type { SuiteApp } from '@/modules/suite/domain/apps'
 import type { SuiteRecord } from '@/modules/suite/domain/types'
 import type { CreateSuiteRecordInput, UpdateSuiteRecordInput } from '@/modules/suite/schemas/suite'

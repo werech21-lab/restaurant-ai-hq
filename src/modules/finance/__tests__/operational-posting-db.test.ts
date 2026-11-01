@@ -13,7 +13,7 @@ import { createOrder, createPartner, settleOrder } from '@/modules/delivery'
 import { recordProduction, recordWaste } from '@/modules/kitchen'
 import { updateAccounting } from '@/modules/procurement'
 
-vi.mock('@/lib/db', async () => {
+vi.mock('@/lib/pg', async () => {
   const support = await import('@/lib/__tests__/support/database')
   return { db: support.testDb, withTransaction: support.testWithTransaction }
 })

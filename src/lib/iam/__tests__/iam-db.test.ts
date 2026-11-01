@@ -4,7 +4,7 @@ import { bootstrapTenant, createUser, getPglite, startDatabase, stopDatabase } f
 import type { AuthContext, SessionUser } from '@/lib/auth/context'
 import { permissions } from '@/lib/auth/permissions'
 
-vi.mock('@/lib/db', async () => {
+vi.mock('@/lib/pg', async () => {
   const support = await import('@/lib/__tests__/support/database')
   return { db: support.testDb, withTransaction: support.testWithTransaction }
 })
