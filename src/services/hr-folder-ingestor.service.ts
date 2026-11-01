@@ -13,6 +13,7 @@ export const HR_DOC_CATEGORIES = [
   'health_card',
   'driving',
   'contract_payslip',
+  'annual_leave_encashment',
   'sick_medical',
   'avatar',
   'attendance_sheet',
@@ -67,7 +68,8 @@ const CATEGORY_LABELS: Record<HrDocCategory, { ar: string; en: string }> = {
   passport_work: { ar: 'جواز السفر وإذن العمل', en: 'Passport & Work Permit' },
   health_card: { ar: 'كرت الصحة والبلدية', en: 'Municipality Health Card' },
   driving: { ar: 'رخصة القيادة والمخالفات', en: 'Driving License & Traffic' },
-  contract_payslip: { ar: 'عقد العمل وقسائم الراتب', en: 'Employment Contract & Payslips' },
+  contract_payslip: { ar: '📄 العقود والرواتب ومستحقات الإجازات', en: '📄 Contracts, Payslips & Leave Entitlements' },
+  annual_leave_encashment: { ar: '🏖️ الإجازات السنوية وبدل الإجازات', en: '🏖️ Annual Leave & Encashment' },
   sick_medical: { ar: 'الإجازات المرضية والتقارير الطبية', en: 'Sick Leaves & Medical' },
   avatar: { ar: 'الصورة الشخصية', en: 'Employee Avatar/Photo' },
   attendance_sheet: { ar: 'جدول حضور', en: 'Attendance sheet' },
@@ -106,10 +108,27 @@ function classifyPath(relativePath: string, fileName: string, text: string): HrD
   const hay = `${relativePath} ${fileName} ${text}`.toLowerCase()
   if (/civil|iqama|اقامة|إقامة|مدني|residen|civil.?id|cid/.test(hay)) return 'civil_id'
   if (/passport|جواز|شؤون|shoun|work.?permit|visa/.test(hay)) return 'passport_work'
-  if (/health|بلدي|صح[ةه]|municip|medical.?card/.test(hay)) return 'health_card'
-  if (/driv|رخص|مرور|traffic|license/.test(hay)) return 'driving'
-  if (/contract|عقد|payslip|قسيم|راتب|salary|wage/.test(hay) && !/\.xlsx?$|\.csv$/i.test(fileName)) return 'contract_payslip'
-  if (/sick|مرض|medical|تقرير طبي|leave/.test(hay)) return 'sick_medical'
+  if (/health.?card|بلدي|صح[ةه].?كرت|كرت.?صح|municip|medical.?card/.test(hay)) return 'health_card'
+  if (/driv|رخص|مرور|traffic|driving.?licen/.test(hay)) return 'driving'
+  // Leave Encashment / Annual Leave MUST beat sick/medical and generic "leave"
+  if (
+    /encashment|leave[\s._-]*encash|annual[\s._-]*leave|بدل[\s._-]*اجاز|بدل[\s._-]*إجاز|اجازة[\s._-]*سنو|إجازة[\s._-]*سنو|vacation[\s._-]*encash|leave[\s._-]*settlement|leave[\s._-]*pay|leave[\s._-]*cash|cash[\s._-]*leave|بدل[\s._-]*اجازة|مستحقات[\s._-]*اجاز/.test(
+      hay,
+    )
+  ) {
+    return 'annual_leave_encashment'
+  }
+  // Bare annual / vacation leave folders (without "sick")
+  if (/\b(annual|vacation|سنو)\b/.test(hay) && /\b(leave|اجاز|إجاز)\b/.test(hay) && !/sick|مرض/.test(hay)) {
+    return 'annual_leave_encashment'
+  }
+  if (/contract|عقد|payslip|قسيم|راتب|salary|wage|مستحقات/.test(hay) && !/\.xlsx?$|\.csv$/i.test(fileName)) {
+    return 'contract_payslip'
+  }
+  // Sick / medical only when explicitly sick/medical — never bare "leave"
+  if (/sick[\s._-]*leave|مرض|medical[\s._-]*report|تقرير[\s._-]*طبي|اجازة[\s._-]*مرض|إجازة[\s._-]*مرض|\bsick\b/.test(hay)) {
+    return 'sick_medical'
+  }
   if (/\.(jpe?g|png|webp)$/i.test(fileName) && /avatar|photo|صورة|profile|personal|face/.test(hay)) return 'avatar'
   if (/\.(jpe?g|png|webp)$/i.test(fileName) && /\/photos?\/|\/صور|headshot/.test(hay)) return 'avatar'
   return 'other'
@@ -396,181 +415,217 @@ export async function ingestHrFolderBatch(input: {
   for (const file of input.files) {
     const fileName = file.fileName || file.relativePath.split(/[/\\]/).pop() || 'file'
     const relativePath = file.relativePath || fileName
-    const mime = file.mimeType || 'application/octet-stream'
-    const buf = bufferFromBase64(file.contentBase64)
-    const sizeBytes = file.sizeBytes ?? buf?.byteLength ?? 0
-    let text = `${file.textHint || ''} ${textFromBuffer(buf, mime, fileName)}`
-    const updates: string[] = []
-    let category = classifyPath(relativePath, fileName, text)
-    let sheetApplied = 0
+    try {
+      const mime = file.mimeType || 'application/octet-stream'
+      const buf = bufferFromBase64(file.contentBase64)
+      const sizeBytes = file.sizeBytes ?? buf?.byteLength ?? 0
+      let text = `${file.textHint || ''} ${textFromBuffer(buf, mime, fileName)}`
+      const updates: string[] = []
+      let category = classifyPath(relativePath, fileName, text)
+      let sheetApplied = 0
 
-    const isSheet = /\.(xlsx|xls|csv|json)$/i.test(fileName)
-    if (isSheet && buf) {
-      try {
-        let objects: Record<string, unknown>[] = []
-        if (/\.json$/i.test(fileName)) {
-          const parsed = JSON.parse(buf.toString('utf8')) as unknown
-          objects = Array.isArray(parsed) ? (parsed as Record<string, unknown>[]) : [parsed as Record<string, unknown>]
-        } else if (/\.csv$/i.test(fileName)) {
-          objects = csvToObjects(buf.toString('utf8'))
-        } else {
-          objects = sheetToObjects(buf)
-        }
-        const kind = detectSheetKind(objects)
-        if (kind === 'employee') {
-          category = 'employee_sheet'
-          sheetApplied = await applyEmployeeSheet(objects, employees, input.actorId)
-          employees = await prisma.employee.findMany({
-            select: { id: true, code: true, name: true, phone: true, jobTitle: true, department: true },
+      const isSheet = /\.(xlsx|xls|csv|json)$/i.test(fileName)
+      if (isSheet && buf) {
+        try {
+          let objects: Record<string, unknown>[] = []
+          if (/\.json$/i.test(fileName)) {
+            const parsed = JSON.parse(buf.toString('utf8')) as unknown
+            objects = Array.isArray(parsed) ? (parsed as Record<string, unknown>[]) : [parsed as Record<string, unknown>]
+          } else if (/\.csv$/i.test(fileName)) {
+            objects = csvToObjects(buf.toString('utf8'))
+          } else {
+            objects = sheetToObjects(buf)
+          }
+          const kind = detectSheetKind(objects)
+          if (kind === 'employee') {
+            category = 'employee_sheet'
+            sheetApplied = await applyEmployeeSheet(objects, employees, input.actorId)
+            employees = await prisma.employee.findMany({
+              select: { id: true, code: true, name: true, phone: true, jobTitle: true, department: true },
+            })
+            updates.push(`updated_employees:${sheetApplied}`)
+          } else if (kind === 'payroll') {
+            category = 'payroll_sheet'
+            sheetApplied = await applyPayrollSheet(objects, employees)
+            updates.push(`payroll_rows:${sheetApplied}`)
+          } else if (kind === 'attendance') {
+            category = 'attendance_sheet'
+            sheetApplied = await applyAttendanceSheet(objects, employees)
+            updates.push(`attendance_rows:${sheetApplied}`)
+          }
+          appliedRows += sheetApplied
+          text = `${text} ${objects
+            .slice(0, 5)
+            .map((r) => Object.values(r).join(' '))
+            .join(' ')}`
+        } catch (error) {
+          logger.warn('hr_sheet_parse_failed', {
+            fileName,
+            errorMessage: error instanceof Error ? error.message : String(error),
           })
-          updates.push(`updated_employees:${sheetApplied}`)
-        } else if (kind === 'payroll') {
-          category = 'payroll_sheet'
-          sheetApplied = await applyPayrollSheet(objects, employees)
-          updates.push(`payroll_rows:${sheetApplied}`)
-        } else if (kind === 'attendance') {
-          category = 'attendance_sheet'
-          sheetApplied = await applyAttendanceSheet(objects, employees)
-          updates.push(`attendance_rows:${sheetApplied}`)
+          updates.push('sheet_parse_failed')
         }
-        appliedRows += sheetApplied
-        text = `${text} ${objects
-          .slice(0, 5)
-          .map((r) => Object.values(r).join(' '))
-          .join(' ')}`
-      } catch (error) {
-        logger.warn('hr_sheet_parse_failed', {
-          fileName,
-          errorMessage: error instanceof Error ? error.message : String(error),
-        })
-        updates.push('sheet_parse_failed')
       }
-    }
 
-    const resolved = resolveEmployee(`${relativePath} ${fileName} ${text}`, employees)
-    const civilId = extractCivilId(text)
-    const expiry = extractExpiry(text)
-    if (civilId) updates.push(`civil_id:${civilId}`)
-    if (expiry) updates.push(`expiry:${expiry.toISOString().slice(0, 10)}`)
+      const resolved = resolveEmployee(`${relativePath} ${fileName} ${text}`, employees)
+      const civilId = extractCivilId(text)
+      const expiry = extractExpiry(text)
+      if (civilId) updates.push(`civil_id:${civilId}`)
+      if (expiry) updates.push(`expiry:${expiry.toISOString().slice(0, 10)}`)
 
-    let status: IngestResultRow['status'] = 'REVIEW'
-    let employeeId: string | null = null
-    let score = resolved?.score ?? 0
-    if (isSheet && sheetApplied > 0) {
-      status = 'APPLIED'
-      score = Math.max(score, 0.9)
-      matched += 1
-    } else if (resolved && resolved.score >= 0.72) {
-      status = 'MATCHED'
-      employeeId = resolved.emp.id
-      matched += 1
-      if (category === 'avatar' && buf && sizeBytes <= 400_000) {
-        updates.push('avatar_bound')
-      }
-      if (civilId || expiry) {
-        await prisma.activityLog.create({
-          data: {
-            userId: input.actorId,
-            action: 'HR_DOC_META',
-            module: 'hr',
-            details: JSON.stringify({
-              employeeId,
-              category,
-              civilId,
-              expiry: expiry?.toISOString() ?? null,
-              fileName,
-            }),
-          },
-        })
-      }
-    } else {
-      review += 1
-      if (resolved && resolved.score >= 0.45) {
+      let status: IngestResultRow['status'] = 'REVIEW'
+      let employeeId: string | null = null
+      let score = resolved?.score ?? 0
+      if (isSheet && sheetApplied > 0) {
+        status = 'APPLIED'
+        score = Math.max(score, 0.9)
+        matched += 1
+      } else if (resolved && resolved.score >= 0.72) {
+        status = 'MATCHED'
         employeeId = resolved.emp.id
-        score = resolved.score
+        matched += 1
+        if (category === 'avatar' && buf && sizeBytes <= 400_000) {
+          updates.push('avatar_bound')
+        }
+        if (civilId || expiry) {
+          try {
+            await prisma.activityLog.create({
+              data: {
+                userId: input.actorId,
+                action: 'HR_DOC_META',
+                module: 'hr',
+                details: JSON.stringify({
+                  employeeId,
+                  category,
+                  civilId,
+                  expiry: expiry?.toISOString() ?? null,
+                  fileName,
+                }),
+              },
+            })
+          } catch {
+            /* non-fatal */
+          }
+        }
+      } else {
+        review += 1
+        if (resolved && resolved.score >= 0.45) {
+          employeeId = resolved.emp.id
+          score = resolved.score
+        }
       }
-    }
 
-    // Zero-Blob: persist binary outside SQL; DB keeps fileUrl + indexed text only.
-    let fileUrl: string | null = null
-    let fileType: string | null = mime
-    if (buf && sizeBytes > 0) {
-      try {
-        const stored = await storeHrBinary({
-          buffer: buf,
-          fileName,
-          mimeType: mime,
-          employeeCode: employeeId ? employees.find((e) => e.id === employeeId)?.code : null,
-        })
-        fileUrl = stored.fileUrl
-        fileType = stored.fileType
-        updates.push(`stored:${stored.storageKey}`)
-      } catch (error) {
-        logger.warn('hr_file_store_failed', {
-          fileName,
-          errorMessage: error instanceof Error ? error.message : String(error),
-        })
+      // Zero-Blob: persist binary outside SQL; DB keeps fileUrl + indexed text only.
+      let fileUrl: string | null = null
+      let fileType: string | null = mime
+      if (buf && sizeBytes > 0) {
+        try {
+          const stored = await storeHrBinary({
+            buffer: buf,
+            fileName,
+            mimeType: mime,
+            employeeCode: employeeId ? employees.find((e) => e.id === employeeId)?.code : null,
+          })
+          fileUrl = stored.fileUrl
+          fileType = stored.fileType
+          updates.push(`stored:${stored.storageKey}`)
+        } catch (error) {
+          logger.warn('hr_file_store_failed', {
+            fileName,
+            errorMessage: error instanceof Error ? error.message : String(error),
+          })
+        }
       }
-    }
 
-    if (employeeId && expiry) {
-      const patch: Record<string, Date> = {}
-      if (category === 'civil_id') patch.civilIdExpiry = expiry
-      if (category === 'passport_work') {
-        patch.passportExpiry = expiry
-        patch.workPermitExpiry = expiry
+      if (employeeId && expiry) {
+        try {
+          const patch: Record<string, Date> = {}
+          if (category === 'civil_id') patch.civilIdExpiry = expiry
+          if (category === 'passport_work') {
+            patch.passportExpiry = expiry
+            patch.workPermitExpiry = expiry
+          }
+          if (category === 'health_card') patch.healthCardExpiry = expiry
+          if (category === 'driving') patch.drivingLicenseExpiry = expiry
+          if (Object.keys(patch).length) {
+            await prisma.employee.update({ where: { id: employeeId }, data: patch })
+            updates.push('employee_expiry_synced')
+          }
+        } catch {
+          /* non-fatal */
+        }
       }
-      if (category === 'health_card') patch.healthCardExpiry = expiry
-      if (category === 'driving') patch.drivingLicenseExpiry = expiry
-      if (Object.keys(patch).length) {
-        await prisma.employee.update({ where: { id: employeeId }, data: patch })
-        updates.push('employee_expiry_synced')
+      if (employeeId && civilId) {
+        try {
+          await prisma.employee.update({ where: { id: employeeId }, data: { civilId } })
+        } catch {
+          /* non-fatal */
+        }
       }
-    }
-    if (employeeId && civilId) {
-      await prisma.employee.update({ where: { id: employeeId }, data: { civilId } })
-    }
 
-    const created = await prisma.hrDocument.create({
-      data: {
-        employeeId,
-        batchId,
+      const created = await prisma.hrDocument.create({
+        data: {
+          employeeId,
+          batchId,
+          fileName: fileName.slice(0, 500),
+          relativePath: relativePath.slice(0, 2000),
+          category,
+          mimeType: mime.slice(0, 200),
+          sizeBytes,
+          fileUrl,
+          fileType,
+          contentBase64: null,
+          extractedText: text.slice(0, 4000) || null,
+          civilId,
+          expiryDate: expiry,
+          matchScore: score,
+          status,
+          updatesJson: JSON.stringify(updates),
+          metaJson: JSON.stringify({ actorId: input.actorId }),
+        },
+      })
+
+      const emp = employeeId ? employees.find((e) => e.id === employeeId) : null
+      const labels = CATEGORY_LABELS[category]
+      rows.push({
+        id: created.id,
         fileName,
         relativePath,
         category,
-        mimeType: mime,
-        sizeBytes,
-        fileUrl,
-        fileType,
-        contentBase64: null,
-        extractedText: text.slice(0, 4000) || null,
-        civilId,
-        expiryDate: expiry,
+        categoryLabelAr: labels.ar,
+        categoryLabelEn: labels.en,
+        employeeId,
+        employeeName: emp?.name ?? null,
+        employeeCode: emp?.code ?? null,
         matchScore: score,
         status,
-        updatesJson: JSON.stringify(updates),
-        metaJson: JSON.stringify({ actorId: input.actorId }),
-      },
-    })
-
-    const emp = employeeId ? employees.find((e) => e.id === employeeId) : null
-    const labels = CATEGORY_LABELS[category]
-    rows.push({
-      id: created.id,
-      fileName,
-      relativePath,
-      category,
-      categoryLabelAr: labels.ar,
-      categoryLabelEn: labels.en,
-      employeeId,
-      employeeName: emp?.name ?? null,
-      employeeCode: emp?.code ?? null,
-      matchScore: score,
-      status,
-      updates,
-      expiryDate: expiry ? expiry.toISOString().slice(0, 10) : null,
-      civilId,
-    })
+        updates,
+        expiryDate: expiry ? expiry.toISOString().slice(0, 10) : null,
+        civilId,
+      })
+    } catch (error) {
+      logger.warn('hr_ingest_file_soft_skip', {
+        fileName,
+        relativePath,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      })
+      rows.push({
+        id: `skip_${Date.now()}_${rows.length}`,
+        fileName,
+        relativePath,
+        category: 'other',
+        categoryLabelAr: CATEGORY_LABELS.other.ar,
+        categoryLabelEn: CATEGORY_LABELS.other.en,
+        employeeId: null,
+        employeeName: null,
+        employeeCode: null,
+        matchScore: 0,
+        status: 'SKIPPED',
+        updates: ['file_soft_skip'],
+        expiryDate: null,
+        civilId: null,
+      })
+    }
   }
 
   return {

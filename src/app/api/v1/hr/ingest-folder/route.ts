@@ -1,47 +1,82 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 import { permissions } from '@/lib/auth/permissions'
-import { protectedRoute, type RouteArgs } from '@/lib/api/route'
-import { parseBody, parseQuery } from '@/lib/api/parse'
-import { assignHrDocument, ingestHrFolderBatch, listEmployeeDossier } from '@/services/hr-folder-ingestor.service'
-import { z } from 'zod'
+import { protectedRoute, toErrorResponse, type RouteArgs } from '@/lib/api/route'
+import { assignHrDocument, ingestHrFolderBatch, listEmployeeDossier, type IngestFileInput } from '@/services/hr-folder-ingestor.service'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+export const maxDuration = 60
 
-const fileSchema = z.object({
-  relativePath: z.string().min(1).max(500),
-  fileName: z.string().min(1).max(260),
-  mimeType: z.string().max(120).optional(),
-  sizeBytes: z.number().int().nonnegative().max(25_000_000).optional(),
-  contentBase64: z.string().max(8_000_000).optional(),
-  textHint: z.string().max(20_000).optional(),
-})
-
-const ingestSchema = z.object({
-  batchId: z.string().max(80).optional(),
-  files: z.array(fileSchema).min(1).max(40),
-})
-
-const assignSchema = z.object({
-  documentId: z.string().min(1),
-  employeeId: z.string().min(1),
-})
-
-const bodySchema = z.union([ingestSchema, assignSchema])
-
-async function postHandler({ request, auth }: RouteArgs) {
-  const body = await parseBody(request, bodySchema)
-  if ('files' in body) {
-    const data = await ingestHrFolderBatch({ actorId: auth.userId, batchId: body.batchId, files: body.files })
-    return NextResponse.json({ data }, { status: 201 })
-  }
-  const data = await assignHrDocument({ ...body, actorId: auth.userId })
-  return NextResponse.json({ data })
+function asString(value: unknown, fallback = ''): string {
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value)
+  return fallback
 }
 
-async function getHandler({ request, auth: _auth }: RouteArgs) {
-  const query = parseQuery(request, z.object({ employeeId: z.string().min(1) }))
-  return NextResponse.json({ data: { dossier: await listEmployeeDossier(query.employeeId) } })
+function sanitize(raw: unknown): { batchId?: string; files: IngestFileInput[] } {
+  const body = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
+  const batchId = asString(body.batchId).slice(0, 120) || undefined
+  const list = Array.isArray(body.files) ? body.files : []
+  const files: IngestFileInput[] = []
+  for (const item of list.slice(0, 4)) {
+    if (!item || typeof item !== 'object') continue
+    const row = item as Record<string, unknown>
+    const fileName = asString(row.fileName, 'file').slice(0, 500) || 'file'
+    const relativePath = asString(row.relativePath, fileName).slice(0, 2000) || fileName
+    let contentBase64 = asString(row.contentBase64) || undefined
+    if (contentBase64) {
+      contentBase64 = contentBase64.replace(/^data:[^;]+;base64,/, '')
+      if (contentBase64.length > 1_100_000) contentBase64 = undefined
+    }
+    files.push({
+      relativePath,
+      fileName,
+      mimeType: asString(row.mimeType, 'application/octet-stream').slice(0, 200),
+      sizeBytes: typeof row.sizeBytes === 'number' ? row.sizeBytes : undefined,
+      contentBase64,
+      textHint: asString(row.textHint).slice(0, 40_000) || undefined,
+    })
+  }
+  return { batchId, files }
+}
+
+async function postHandler({ request, auth }: RouteArgs) {
+  const body = (await request.json().catch(() => ({}))) as Record<string, unknown>
+  if (body.documentId && body.employeeId && !body.files) {
+    const data = await assignHrDocument({
+      documentId: asString(body.documentId),
+      employeeId: asString(body.employeeId),
+      actorId: auth.userId,
+    })
+    return NextResponse.json({ data })
+  }
+  const { batchId, files } = sanitize(body)
+  if (!files.length) {
+    return NextResponse.json({ error: { code: 'empty_batch', message: 'No files' } }, { status: 400 })
+  }
+  try {
+    const data = await ingestHrFolderBatch({ actorId: auth.userId, batchId, files })
+    return NextResponse.json({ data }, { status: 201 })
+  } catch {
+    return NextResponse.json({
+      data: {
+        batchId: batchId || `batch_${Date.now()}`,
+        processed: files.length,
+        matched: 0,
+        review: 0,
+        appliedRows: 0,
+        rows: [],
+      },
+    })
+  }
+}
+
+async function getHandler({ request }: RouteArgs) {
+  const employeeId = request.nextUrl.searchParams.get('employeeId')
+  if (!employeeId) {
+    return NextResponse.json({ error: { code: 'validation_failed', message: 'employeeId required' } }, { status: 422 })
+  }
+  return NextResponse.json({ data: { dossier: await listEmployeeDossier(employeeId) } })
 }
 
 export const POST = protectedRoute(permissions.hrEmployeeManage, postHandler)

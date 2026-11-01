@@ -16,8 +16,19 @@ function localRoot() {
   return path.join(process.cwd(), 'data', 'hr-files')
 }
 
-function safeName(name: string) {
-  return name.replace(/[^a-zA-Z0-9._-]+/g, '_').slice(0, 120)
+/**
+ * Always sanitize storage object keys.
+ * Spaces, Arabic, parentheses and symbols make Supabase Storage return
+ * "The request did not pass validation".
+ */
+export function safeStorageKey(name: string) {
+  const base = name.split(/[/\\]/).pop() || name
+  const cleaned = base
+    .replace(/[^a-zA-Z0-9._-]/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^[._]+|[._]+$/g, '')
+    .slice(0, 120)
+  return cleaned || 'file'
 }
 
 export type StoredHrFile = {
@@ -35,7 +46,9 @@ export async function storeHrBinary(input: {
 }): Promise<StoredHrFile> {
   const ext = path.extname(input.fileName) || ''
   const hash = createHash('sha1').update(input.buffer).digest('hex').slice(0, 12)
-  const key = `${input.employeeCode || 'unmatched'}/${Date.now()}_${hash}_${safeName(input.fileName || `file${ext}`)}`
+  const folder = safeStorageKey(input.employeeCode || 'unmatched')
+  const leaf = safeStorageKey(input.fileName || `file${ext}`)
+  const key = `${folder}/${Date.now()}_${hash}_${leaf}`
   const fileType = input.mimeType || 'application/octet-stream'
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
