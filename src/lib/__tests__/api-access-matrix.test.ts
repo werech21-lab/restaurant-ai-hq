@@ -39,6 +39,9 @@ const READ_ONLY_POST = new Set(['/api/v1/ai/command'])
  */
 const SESSION_ONLY = new Set(['/api/v1/iam/invitations/accept'])
 
+/** Anonymous marketing endpoints (no session / no RBAC). */
+const PUBLIC_ANON = new Set(['/api/v1/marketing/trial-request'])
+
 async function routeFiles(directory: string): Promise<string[]> {
   const found: string[] = []
   for (const entry of await readdir(directory, { withFileTypes: true })) {
@@ -129,8 +132,8 @@ afterAll(stopDatabase)
 
 describe('the API surface', () => {
   it('finds every route file and method (a count that only moves on purpose)', () => {
-    expect(new Set(cases.map((testCase) => testCase.route)).size).toBe(153)
-    expect(cases.length).toBe(217)
+    expect(new Set(cases.map((testCase) => testCase.route)).size).toBe(154)
+    expect(cases.length).toBe(218)
   })
 })
 
@@ -139,6 +142,7 @@ describe('unauthenticated callers', () => {
     currentUser = null
     const failures: string[] = []
     for (const testCase of cases) {
+      if (PUBLIC_ANON.has(testCase.route)) continue
       const response = await call(testCase)
       const code = await errorCode(response)
       if (response.status !== 401 || code !== 'unauthenticated') failures.push(`${testCase.method} ${testCase.route} -> ${response.status} ${code}`)
@@ -152,7 +156,7 @@ describe('members whose role holds no permission', () => {
     currentUser = { id: noPermissions }
     const failures: string[] = []
     for (const testCase of cases) {
-      if (SESSION_ONLY.has(testCase.route)) continue
+      if (SESSION_ONLY.has(testCase.route) || PUBLIC_ANON.has(testCase.route)) continue
       const response = await call(testCase)
       const code = await errorCode(response)
       if (response.status !== 403 || code !== 'forbidden') failures.push(`${testCase.method} ${testCase.route} -> ${response.status} ${code}`)
@@ -166,7 +170,7 @@ describe('read-only members (the viewer role)', () => {
     currentUser = { id: viewer }
     const failures: string[] = []
     for (const testCase of cases) {
-      if (testCase.method === 'GET' || READ_ONLY_POST.has(testCase.route) || SESSION_ONLY.has(testCase.route)) continue
+      if (testCase.method === 'GET' || READ_ONLY_POST.has(testCase.route) || SESSION_ONLY.has(testCase.route) || PUBLIC_ANON.has(testCase.route)) continue
       const response = await call(testCase)
       const code = await errorCode(response)
       if (response.status !== 403 || code !== 'forbidden') failures.push(`${testCase.method} ${testCase.route} -> ${response.status} ${code}`)
@@ -198,7 +202,7 @@ describe('callers who name a company they do not belong to', () => {
     currentUser = { id: owner.userId }
     const failures: string[] = []
     for (const testCase of cases) {
-      if (SESSION_ONLY.has(testCase.route)) continue
+      if (SESSION_ONLY.has(testCase.route) || PUBLIC_ANON.has(testCase.route)) continue
       const response = await call(testCase, { 'x-tenant-id': other.tenantId })
       const code = await errorCode(response)
       if (response.status !== 403 || code !== 'no_tenant_access') failures.push(`${testCase.method} ${testCase.route} -> ${response.status} ${code}`)
@@ -210,7 +214,7 @@ describe('callers who name a company they do not belong to', () => {
     currentUser = { id: owner.userId }
     const failures: string[] = []
     for (const testCase of cases) {
-      if (SESSION_ONLY.has(testCase.route)) continue
+      if (SESSION_ONLY.has(testCase.route) || PUBLIC_ANON.has(testCase.route)) continue
       const response = await call(testCase, { 'x-tenant-id': "' or 1=1 --" })
       if (response.status !== 400) failures.push(`${testCase.method} ${testCase.route} -> ${response.status}`)
     }

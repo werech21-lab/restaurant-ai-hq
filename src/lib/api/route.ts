@@ -104,6 +104,25 @@ export function protectedRoute(permission: Permission, handler: (args: RouteArgs
 
 export type SessionRouteArgs = { request: NextRequest; session: SessionUser; params: Record<string, string> }
 
+export type PublicRouteArgs = { request: NextRequest; params: Record<string, string> }
+
+/**
+ * Anonymous marketing endpoints (trial / contact). Origin and rate limits still apply; there is no session.
+ */
+export function publicRoute(handler: (args: PublicRouteArgs) => Promise<NextResponse>) {
+  return async (request: NextRequest, context: RouteParams): Promise<NextResponse> => {
+    try {
+      const crossSite = originGuard(request)
+      if (crossSite) return crossSite
+      const limited = rateGuard(request, 'public', request.headers.get('x-forwarded-for') ?? 'anon')
+      if (limited) return limited
+      return await handler({ request, params: await context.params })
+    } catch (error) {
+      return toErrorResponse(error, request)
+    }
+  }
+}
+
 /**
  * For the few calls a signed-in person makes before they belong to any company (accepting an invitation).
  * It proves who they are and nothing more: the handler must not read or change tenant data without its own checks.

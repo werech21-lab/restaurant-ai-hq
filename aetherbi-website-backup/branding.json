@@ -1,0 +1,82 @@
+{
+  "capturedAt": "2026-11-01T06:07:09.005Z",
+  "origin": "https://www.aetherbi.com",
+  "title": "Aether BI",
+  "description": "Aether BI — لوحة قيادة مجموعة المطاعم على aetherbi.com",
+  "lang": "ar",
+  "dir": "rtl",
+  "theme": "dark",
+  "assetCount": 12,
+  "downloaded": [
+    {
+      "rel": "/_next/static/css/26a9dbcd5ae9a889.css?dpl=dpl_NgiSzq63a5Ht9zuqTGQqkD7y4Z8n",
+      "bytes": 45775,
+      "status": 200
+    },
+    {
+      "rel": "/_next/static/chunks/webpack-32a392dba67f6ae0.js?dpl=dpl_NgiSzq63a5Ht9zuqTGQqkD7y4Z8n",
+      "bytes": 3895,
+      "status": 200
+    },
+    {
+      "rel": "/_next/static/chunks/4bd1b696-100b9d70ed4e49c1.js?dpl=dpl_NgiSzq63a5Ht9zuqTGQqkD7y4Z8n",
+      "bytes": 173025,
+      "status": 200
+    },
+    {
+      "rel": "/_next/static/chunks/1255-5e1b915d1ebcff49.js?dpl=dpl_NgiSzq63a5Ht9zuqTGQqkD7y4Z8n",
+      "bytes": 175113,
+      "status": 200
+    },
+    {
+      "rel": "/_next/static/chunks/main-app-b7ac91ae224968d9.js?dpl=dpl_NgiSzq63a5Ht9zuqTGQqkD7y4Z8n",
+      "bytes": 572,
+      "status": 200
+    },
+    {
+      "rel": "/_next/static/chunks/2910-d5d4693695e6cd52.js?dpl=dpl_NgiSzq63a5Ht9zuqTGQqkD7y4Z8n",
+      "bytes": 243020,
+      "status": 200
+    },
+    {
+      "rel": "/_next/static/chunks/app/layout-2c40fe75078ff477.js?dpl=dpl_NgiSzq63a5Ht9zuqTGQqkD7y4Z8n",
+      "bytes": 1052,
+      "status": 200
+    },
+    {
+      "rel": "/_next/static/chunks/2619-04bc32f026a0d946.js?dpl=dpl_NgiSzq63a5Ht9zuqTGQqkD7y4Z8n",
+      "bytes": 8564,
+      "status": 200
+    },
+    {
+      "rel": "/_next/static/chunks/8295-6a755075a076840f.js?dpl=dpl_NgiSzq63a5Ht9zuqTGQqkD7y4Z8n",
+      "bytes": 395753,
+      "status": 200
+    },
+    {
+      "rel": "/_next/static/chunks/1157-82bd2dc5040ce31c.js?dpl=dpl_NgiSzq63a5Ht9zuqTGQqkD7y4Z8n",
+      "bytes": 35630,
+      "status": 200
+    },
+    {
+      "rel": "/_next/static/chunks/app/page-f893ef01d7f8b072.js?dpl=dpl_NgiSzq63a5Ht9zuqTGQqkD7y4Z8n",
+      "bytes": 79529,
+      "status": 200
+    },
+    {
+      "rel": "/_next/static/chunks/polyfills-42372ed130431b0a.js?dpl=dpl_NgiSzq63a5Ht9zuqTGQqkD7y4Z8n",
+      "bytes": 112594,
+      "status": 200
+    }
+  ],
+  "visualIdentity": {
+    "primaryFont": "Cairo",
+    "paletteHint": [
+      "ink-950",
+      "gold accents",
+      "mist text",
+      "dark executive BI"
+    ],
+    "productName": "Aether BI / AetherBI"
+  }
+}
