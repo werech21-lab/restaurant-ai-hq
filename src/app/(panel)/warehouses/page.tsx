@@ -54,6 +54,14 @@ async function WarehousesContent({ searchParams }: { searchParams: Promise<RawQu
           "Per-warehouse stock balances and branch transfers without changing company-wide totals.",
         )}
       />
+      <div className="mb-4">
+        <a
+          href="/directory"
+          className="inline-flex rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800"
+        >
+          {tx(locale, "دليل الهواتف والبدالة للفروع", "Branch phone & PBX directory")}
+        </a>
+      </div>
       <WarehouseForms
         canCreate={can(user, "warehouses", "create")}
         warehouses={warehouses.map((warehouse) => ({ id: warehouse.id, name: warehouse.name }))}
@@ -69,9 +77,15 @@ async function WarehousesContent({ searchParams }: { searchParams: Promise<RawQu
                 ? "rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white"
                 : "rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold"
             }
+            title={warehouse.managerName || warehouse.location || undefined}
           >
             {warehouse.name}
             {warehouse.isDefault ? tx(locale, " · افتراضي", " · Default") : ""}
+            {warehouse.managerName ? (
+              <span className="mt-0.5 block text-[10px] font-normal opacity-90" dir="ltr">
+                {warehouse.managerName}
+              </span>
+            ) : null}
           </a>
         ))}
       </div>

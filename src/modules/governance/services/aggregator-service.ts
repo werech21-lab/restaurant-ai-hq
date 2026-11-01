@@ -21,6 +21,7 @@ import {
 import type { CompetitorBench, EscalationCard, GeoRankSnapshot, VentureBrandRow } from '@/modules/governance/domain/types'
 import { publishGovernanceEvents, type GovernanceEvent } from '@/modules/governance/events'
 import * as repository from '@/modules/governance/repositories/aggregator-repository'
+import { fireExclusiveRadarAlerts } from '@/modules/governance/services/aggregator-radar-alerts'
 import type { AggregatorQuery, EscalationDecisionInput, ScanInput } from '@/modules/governance/schemas/aggregator'
 
 function stamp(auth: AuthContext) {
@@ -134,7 +135,16 @@ export async function scanAggregator(auth: AuthContext, key: string, input: Scan
       return { status: 201 as const, body: { data: { recorded, bucket } } }
     }),
   )
-  if (!outcome.replayed) await publishGovernanceEvents(events)
+  if (!outcome.replayed) {
+    await publishGovernanceEvents(events)
+    // Instant Offline / Busy / TGO alerts → exclusive 3 recipients only (peak hours).
+    try {
+      const board = await aggregatorBoard(auth, {})
+      await fireExclusiveRadarAlerts(board.snapshots)
+    } catch {
+      // Never fail the scan if alert channels are unavailable.
+    }
+  }
   return outcome
 }
 

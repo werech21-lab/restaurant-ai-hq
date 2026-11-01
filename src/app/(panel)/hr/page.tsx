@@ -84,6 +84,12 @@ async function HrContent({ searchParams }: { searchParams: Promise<RawQuery> }) 
         >
           {tx(locale, "المسير", "Payroll")}
         </a>
+        <a
+          href="/directory"
+          className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800"
+        >
+          {tx(locale, "دليل الهواتف والبدالة", "Phone & PBX Directory")}
+        </a>
       </div>
       <HrForms
         employees={allEmployees.map((employee) => ({ id: employee.id, name: employee.name }))}
@@ -113,6 +119,7 @@ async function HrContent({ searchParams }: { searchParams: Promise<RawQuery> }) 
                 <th className="px-4 py-3 text-right">{tx(locale, "الاسم", "Name")}</th>
                 <th className="px-4 py-3 text-right">{tx(locale, "الوظيفة", "Job title")}</th>
                 <th className="px-4 py-3 text-right">{tx(locale, "القسم", "Department")}</th>
+                <th className="px-4 py-3 text-right">{tx(locale, "موبايل / بريد", "Mobile / email")}</th>
                 <th className="px-4 py-3 text-right">{tx(locale, "الأساسي", "Basic")}</th>
                 <th className="px-4 py-3 text-right">{tx(locale, "البدلات", "Allowances")}</th>
                 <th className="px-4 py-3 text-right">{tx(locale, "الاستقطاع", "Deductions")}</th>
@@ -127,6 +134,9 @@ async function HrContent({ searchParams }: { searchParams: Promise<RawQuery> }) 
                   <td className="px-4 py-3">{employee.name}</td>
                   <td className="px-4 py-3">{employee.jobTitle}</td>
                   <td className="px-4 py-3">{employee.department}</td>
+                  <td className="px-4 py-3 text-xs" dir="ltr">
+                    {employee.phone || "—"}
+                  </td>
                   <td className="px-4 py-3">{moneyFor(locale, employee.basicSalary)}</td>
                   <td className="px-4 py-3">{moneyFor(locale, employee.allowances)}</td>
                   <td className="px-4 py-3">{moneyFor(locale, employee.deductions)}</td>

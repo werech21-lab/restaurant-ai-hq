@@ -70,6 +70,7 @@ const ERP_SUITE = [
   { key: 'kds', href: '/kds', labelKey: 'nav.kds' as MessageKey, icon: ChefHat, live: false },
   { key: 'central-kitchen', href: '/central-kitchen', labelKey: 'nav.centralKitchen' as MessageKey, icon: Factory, live: false },
   { key: 'stock-count', href: '/stock-count', labelKey: 'nav.stockCount' as MessageKey, icon: ClipboardCheck, live: false },
+  { key: 'directory', href: '/directory', labelKey: 'nav.directory' as MessageKey, icon: Contact, live: false },
 ] as const
 
 function ErpSuiteLinks({ pathname }: { pathname: string }) {

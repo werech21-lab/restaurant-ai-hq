@@ -10,11 +10,64 @@ import { bpsToInput, formatMinor } from '@/lib/money'
 import { auditAggregatorSettlement, settlementFromSnapshot } from '@/modules/governance/domain/commission-auditor'
 import { ventureBrands, type CompetitorBench, type EscalationCard, type GeoRankSnapshot, type VentureBrandRow } from '@/modules/governance/client'
 
-type Board = { brands: VentureBrandRow[]; snapshots: GeoRankSnapshot[]; competitors: CompetitorBench[]; actions: EscalationCard[] }
+type ExclusiveRecipient = {
+  id: string
+  name: string
+  title: string
+  email: string
+  mobile: string
+  mobileE164: string
+  ext: string
+  direct: string | null
+  channels: string
+}
+type Board = {
+  brands: VentureBrandRow[]
+  snapshots: GeoRankSnapshot[]
+  competitors: CompetitorBench[]
+  actions: EscalationCard[]
+  exclusiveAlertRecipients?: ExclusiveRecipient[]
+}
 const platforms = ['Talabat', 'Keeta', 'Jahez', 'Snoonu', 'Deliveroo', 'Cari'] as const
 const zones = ['السالمية', 'شرق/مدينة الكويت', 'حولي', 'الفروانية', 'المهبولة', 'الجهراء', 'العارضية'] as const
 const radarTabs = ['rank', 'gap', 'tactics', 'escalation', 'settle'] as const
 type RadarTab = (typeof radarTabs)[number]
+
+const FALLBACK_RECIPIENTS: ExclusiveRecipient[] = [
+  {
+    id: 'abdullah-abdulghafar',
+    name: 'Abdullah Abdulghafar',
+    title: 'Executive Secretary',
+    email: 'Sec@venturefoodskw.com',
+    mobile: '+965 97386418',
+    mobileE164: '+96597386418',
+    ext: '102',
+    direct: '22469500',
+    channels: 'Active: WhatsApp + Telegram + Email',
+  },
+  {
+    id: 'choukrallah-nassif',
+    name: 'Choukrallah Nassif',
+    title: 'Operations Manager',
+    email: 'operations@venturefoodskw.com',
+    mobile: '+965 90061400',
+    mobileE164: '+96590061400',
+    ext: '120',
+    direct: null,
+    channels: 'Active: WhatsApp + Telegram + Email',
+  },
+  {
+    id: 'abdulrahman-mohamed',
+    name: 'Abdulrahman Mohamed Gamaledin',
+    title: 'Marketing Coordinator',
+    email: 'abdelrahmanm@venturefoodskw.com',
+    mobile: '+965 90998227',
+    mobileE164: '+96590998227',
+    ext: '130',
+    direct: null,
+    channels: 'Active: WhatsApp + Telegram + Email',
+  },
+]
 
 function Workspace() {
   const { t } = useI18n()
@@ -27,10 +80,12 @@ function Workspace() {
   const [detail, setDetail] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const [board, setBoard] = useState<Board>({ brands: [], snapshots: [], competitors: [], actions: [] })
+  const [board, setBoard] = useState<Board>({ brands: [], snapshots: [], competitors: [], actions: [], exclusiveAlertRecipients: FALLBACK_RECIPIENTS })
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [tab, setTab] = useState<RadarTab>('rank')
   const [reloadToken, setReloadToken] = useState(0)
+  const [testBusy, setTestBusy] = useState(false)
+  const [testLinks, setTestLinks] = useState<Array<{ name: string; whatsapp: string; telegram: string; email: string }> | null>(null)
 
   useEffect(() => {
     const hash = window.location.hash.slice(1)
@@ -128,6 +183,44 @@ function Workspace() {
     }
   }
 
+  async function sendTestAlert() {
+    setTestBusy(true)
+    setNotice(null)
+    setTestLinks(null)
+    try {
+      const result = await apiRequest<{
+        data: {
+          channels: Array<{ name: string; whatsapp: { href: string }; telegram: { href: string }; emailChannel: { href: string } }>
+        }
+      }>('/api/v1/governance/aggregator/alerts/test', {
+        method: 'POST',
+        body: {},
+        idempotencyKey: newIdempotencyKey(),
+      })
+      const links = result.data.channels.map((row) => ({
+        name: row.name,
+        whatsapp: row.whatsapp.href,
+        telegram: row.telegram.href,
+        email: row.emailChannel.href,
+      }))
+      setTestLinks(links)
+      setNotice(t('agg.alert.test.ok'))
+      for (const link of links) {
+        if (link.whatsapp) window.open(link.whatsapp, '_blank', 'noopener,noreferrer')
+      }
+      const firstTg = links.find((row) => row.telegram)?.telegram
+      if (firstTg) window.open(firstTg, '_blank', 'noopener,noreferrer')
+      const firstMail = links.find((row) => row.email)?.email
+      if (firstMail) window.location.href = firstMail
+    } catch (caught) {
+      fail(caught)
+    } finally {
+      setTestBusy(false)
+    }
+  }
+
+  const recipients = board.exclusiveAlertRecipients?.length ? board.exclusiveAlertRecipients : FALLBACK_RECIPIENTS
+
   if (phase === 'loading' && board.snapshots.length === 0) return <p className="text-sm text-gray-400">{t('agg.loading')}</p>
   if (phase === 'error' && board.snapshots.length === 0) return <p className={errorClass} role="alert">{detail ?? t(error)}</p>
 
@@ -137,6 +230,71 @@ function Workspace() {
         <h1 className="text-2xl font-bold text-white">{t('erpnav.aggregator')}</h1>
         <p className="mt-2 max-w-3xl text-sm text-gray-400">{t('hub.aggregator')}</p>
       </header>
+
+      <section className="rounded-2xl border border-emerald-400/30 bg-emerald-950/40 p-4 shadow-[0_0_40px_rgba(16,185,129,0.08)]" aria-labelledby="radar-alert-recipients">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 id="radar-alert-recipients" className="text-base font-bold text-emerald-100">
+              {t('agg.alert.recipients.title')}
+            </h2>
+            <p className="mt-1 text-xs text-emerald-200/80">{t('agg.alert.recipients.lead')}</p>
+          </div>
+          <span className="rounded-full border border-emerald-400/40 bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold text-emerald-200">
+            🟢 Active: WhatsApp + Telegram + Email
+          </span>
+        </div>
+        <ul className="mt-4 grid gap-3 md:grid-cols-3">
+          {recipients.map((person) => (
+            <li key={person.id} className="rounded-xl border border-white/10 bg-black/20 p-3 text-sm text-gray-100">
+              <p className="font-semibold text-white">{person.name}</p>
+              <p className="text-xs text-gray-400">{person.title}{person.ext ? ` · EXT ${person.ext}` : ''}</p>
+              <p className="mt-2" dir="ltr">
+                <a className="text-emerald-300 underline-offset-2 hover:underline" href={`mailto:${person.email}`}>
+                  {person.email}
+                </a>
+              </p>
+              <p className="mt-1 font-medium tracking-wide text-gold-300" dir="ltr">
+                {person.mobile}
+              </p>
+            </li>
+          ))}
+        </ul>
+        {canManage ? (
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <button className={primaryButton} type="button" disabled={testBusy || busy} onClick={() => void sendTestAlert()}>
+              {testBusy ? t('agg.alert.test.sending') : t('agg.alert.test')}
+            </button>
+            <p className="text-xs text-gray-400">{t('agg.alert.recipients.lock')}</p>
+          </div>
+        ) : null}
+        {testLinks ? (
+          <div className="mt-3 flex flex-wrap gap-2 text-xs">
+            {testLinks.map((link) => (
+              <span key={link.name} className="rounded-lg border border-white/10 px-2 py-1 text-gray-300">
+                {link.name}:{' '}
+                {link.whatsapp ? (
+                  <a className="text-emerald-300" href={link.whatsapp} target="_blank" rel="noreferrer">
+                    WA
+                  </a>
+                ) : null}
+                {' · '}
+                {link.telegram ? (
+                  <a className="text-sky-300" href={link.telegram} target="_blank" rel="noreferrer">
+                    TG
+                  </a>
+                ) : null}
+                {' · '}
+                {link.email ? (
+                  <a className="text-amber-200" href={link.email}>
+                    Email
+                  </a>
+                ) : null}
+              </span>
+            ))}
+          </div>
+        ) : null}
+      </section>
+
       {notice ? <p className={noticeClass}>{notice}</p> : null}
       {detail ? <p className={errorClass} role="alert">{detail}</p> : null}
       {activeBrand ? (

@@ -13,7 +13,12 @@ export {
   recordTelemetryHandler,
   simulateHandler,
 } from '@/modules/governance/api/v1/governance'
-export { aggregatorBoardHandler, escalationActionHandler, scanAggregatorHandler } from '@/modules/governance/api/v1/aggregator'
+export {
+  aggregatorBoardHandler,
+  escalationActionHandler,
+  scanAggregatorHandler,
+  testRadarAlertHandler,
+} from '@/modules/governance/api/v1/aggregator'
 export {
   convertMonitoringHandler,
   inquiryActionHandler,
