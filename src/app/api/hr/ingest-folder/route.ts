@@ -14,7 +14,8 @@ const fileSchema = z.object({
   fileName: z.string().min(1).max(260),
   mimeType: z.string().max(120).optional(),
   sizeBytes: z.number().int().nonnegative().max(25_000_000).optional(),
-  contentBase64: z.string().max(8_000_000).optional(),
+  /** Transient transport only — never persisted in SQL (Zero-Blob). */
+  contentBase64: z.string().max(2_500_000).optional(),
   textHint: z.string().max(20_000).optional(),
 })
 

@@ -4,6 +4,7 @@
 import * as XLSX from 'xlsx'
 import { prisma } from '@/lib/db'
 import { logger } from '@/lib/logger'
+import { storeHrBinary } from '@/lib/hr-file-storage'
 import { matchDirectoryPerson } from '@/lib/vf-contact-directory'
 
 export const HR_DOC_CATEGORIES = [
@@ -490,7 +491,46 @@ export async function ingestHrFolderBatch(input: {
       }
     }
 
-    const storeContent = buf && sizeBytes > 0 && sizeBytes <= 400_000 ? (file.contentBase64 || buf.toString('base64')) : null
+    // Zero-Blob: persist binary outside SQL; DB keeps fileUrl + indexed text only.
+    let fileUrl: string | null = null
+    let fileType: string | null = mime
+    if (buf && sizeBytes > 0) {
+      try {
+        const stored = await storeHrBinary({
+          buffer: buf,
+          fileName,
+          mimeType: mime,
+          employeeCode: employeeId ? employees.find((e) => e.id === employeeId)?.code : null,
+        })
+        fileUrl = stored.fileUrl
+        fileType = stored.fileType
+        updates.push(`stored:${stored.storageKey}`)
+      } catch (error) {
+        logger.warn('hr_file_store_failed', {
+          fileName,
+          errorMessage: error instanceof Error ? error.message : String(error),
+        })
+      }
+    }
+
+    if (employeeId && expiry) {
+      const patch: Record<string, Date> = {}
+      if (category === 'civil_id') patch.civilIdExpiry = expiry
+      if (category === 'passport_work') {
+        patch.passportExpiry = expiry
+        patch.workPermitExpiry = expiry
+      }
+      if (category === 'health_card') patch.healthCardExpiry = expiry
+      if (category === 'driving') patch.drivingLicenseExpiry = expiry
+      if (Object.keys(patch).length) {
+        await prisma.employee.update({ where: { id: employeeId }, data: patch })
+        updates.push('employee_expiry_synced')
+      }
+    }
+    if (employeeId && civilId) {
+      await prisma.employee.update({ where: { id: employeeId }, data: { civilId } })
+    }
+
     const created = await prisma.hrDocument.create({
       data: {
         employeeId,
@@ -500,7 +540,9 @@ export async function ingestHrFolderBatch(input: {
         category,
         mimeType: mime,
         sizeBytes,
-        contentBase64: storeContent,
+        fileUrl,
+        fileType,
+        contentBase64: null,
         extractedText: text.slice(0, 4000) || null,
         civilId,
         expiryDate: expiry,
@@ -604,7 +646,8 @@ export async function listEmployeeDossier(employeeId: string) {
       expiryDate: expiry ? expiry.toISOString().slice(0, 10) : null,
       daysLeft,
       expiryStatus: daysLeft == null ? 'none' : daysLeft < 0 ? 'expired' : daysLeft <= 30 ? 'soon' : 'ok',
-      hasContent: Boolean(doc.contentBase64),
+      hasContent: Boolean(doc.fileUrl),
+      fileUrl: doc.fileUrl,
       createdAt: doc.createdAt.toISOString(),
       updates: JSON.parse(doc.updatesJson || '[]') as string[],
     }

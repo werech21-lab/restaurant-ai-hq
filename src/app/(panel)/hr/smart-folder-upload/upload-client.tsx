@@ -25,9 +25,10 @@ type ResultRow = {
 type Props = { employees: Emp[]; locale: 'ar' | 'en' }
 
 const CHUNK = 8
-const MAX_INLINE = 350_000
+/** Zero-bloat: only send compressible/small payloads; server stores outside SQL. */
+const MAX_INLINE = 1_200_000
 
-function fileToBase64(file: File): Promise<string> {
+function fileToBase64(file: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => {
@@ -38,6 +39,29 @@ function fileToBase64(file: File): Promise<string> {
     reader.onerror = () => reject(reader.error || new Error('read_failed'))
     reader.readAsDataURL(file)
   })
+}
+
+/** Client-side image compression before upload (JPEG ≤ 1280px / quality 0.72). */
+async function compressImageIfNeeded(file: File): Promise<File> {
+  if (!/^image\/(jpeg|png|webp)$/i.test(file.type) || file.size < 180_000) return file
+  try {
+    const bitmap = await createImageBitmap(file)
+    const max = 1280
+    const scale = Math.min(1, max / Math.max(bitmap.width, bitmap.height))
+    const width = Math.max(1, Math.round(bitmap.width * scale))
+    const height = Math.max(1, Math.round(bitmap.height * scale))
+    const canvas = document.createElement('canvas')
+    canvas.width = width
+    canvas.height = height
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return file
+    ctx.drawImage(bitmap, 0, 0, width, height)
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.72))
+    if (!blob) return file
+    return new File([blob], file.name.replace(/\.\w+$/, '.jpg'), { type: 'image/jpeg' })
+  } catch {
+    return file
+  }
 }
 
 async function expandZip(file: File): Promise<File[]> {
@@ -110,9 +134,10 @@ export function SmartFolderUploadClient({ employees: initialEmployees, locale }:
       for (let i = 0; i < expanded.length; i += CHUNK) {
         const slice = expanded.slice(i, i + CHUNK)
         const payloadFiles = []
-        for (const file of slice) {
+        for (const raw of slice) {
+          const file = await compressImageIfNeeded(raw)
           const relativePath =
-            (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name
+            (raw as File & { webkitRelativePath?: string }).webkitRelativePath || file.name
           const sizeBytes = file.size
           let contentBase64: string | undefined
           let textHint: string | undefined
@@ -121,7 +146,6 @@ export function SmartFolderUploadClient({ employees: initialEmployees, locale }:
           } else if (/\.(txt|csv|json|md)$/i.test(file.name)) {
             textHint = (await file.text()).slice(0, 15000)
           } else {
-            // metadata-only for oversized binaries
             textHint = `${relativePath} ${file.name}`
           }
           payloadFiles.push({

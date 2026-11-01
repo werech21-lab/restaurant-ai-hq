@@ -293,12 +293,32 @@ function Workspace({ initialTab }: { initialTab: string }) {
         <div>
           <h1 className="text-2xl font-bold text-white">{t('hr.title')}</h1>
           <p className="mt-2 max-w-3xl text-sm text-gray-400">{t('hr.lead')}</p>
-          <a
-            href="/hr/smart-folder-upload"
-            className="mt-3 inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-emerald-600/25 hover:bg-emerald-500"
-          >
-            {t('hr.smartUpload')}
-          </a>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <a
+              href="/hr/smart-folder-upload"
+              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-emerald-600/25 hover:bg-emerald-500"
+            >
+              {t('hr.smartUpload')}
+            </a>
+            <a
+              href="/hr/compliance-radar"
+              className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-bold text-white hover:bg-amber-400"
+            >
+              {t('hr.complianceRadar')}
+            </a>
+            <a
+              href="/ess"
+              className="inline-flex items-center gap-2 rounded-xl border border-white/20 px-4 py-2.5 text-sm font-bold text-white hover:bg-white/5"
+            >
+              {t('hr.ess')}
+            </a>
+            <a
+              href={`/api/hr/wps-export?month=${period.slice(5, 7)}&year=${period.slice(0, 4)}&download=1`}
+              className="inline-flex items-center gap-2 rounded-xl border border-gold-300/40 px-4 py-2.5 text-sm font-bold text-gold-200 hover:bg-gold-400/10"
+            >
+              {t('hr.wpsExport')}
+            </a>
+          </div>
         </div>
         {tab === 'employees' && canEmployees ? (
           <button className={primaryButton} type="button" onClick={() => setShowCreate(true)}>+ {t('hr.new')}</button>

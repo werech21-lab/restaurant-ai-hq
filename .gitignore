@@ -37,5 +37,8 @@ yarn-error.log*
 # Supabase CLI cache. The project is not linked to a hosted database.
 /supabase/.temp/
 
+# HR zero-blob local object store (binaries never in SQL)
+/data/hr-files/
+
 # Vercel link metadata. It is not a secret, and it is not part of the app.
 .vercel

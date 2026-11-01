@@ -71,6 +71,7 @@ const ERP_SUITE = [
   { key: 'central-kitchen', href: '/central-kitchen', labelKey: 'nav.centralKitchen' as MessageKey, icon: Factory, live: false },
   { key: 'stock-count', href: '/stock-count', labelKey: 'nav.stockCount' as MessageKey, icon: ClipboardCheck, live: false },
   { key: 'directory', href: '/directory', labelKey: 'nav.directory' as MessageKey, icon: Contact, live: false },
+  { key: 'ess', href: '/ess', labelKey: 'nav.ess' as MessageKey, icon: IdCard, live: false },
 ] as const
 
 function ErpSuiteLinks({ pathname }: { pathname: string }) {

@@ -12,6 +12,7 @@ import { can, firstAllowedHref } from "@/lib/permissions";
 import { getActiveScope, hrDepartmentTokens } from "@/lib/scope";
 import { listAttendance, listEmployees, listPayroll } from "@/services/hr.service";
 import { HrDigitalDossier } from "@/components/hr-digital-dossier";
+import { HrWpsToolbar } from "@/components/hr-wps-toolbar";
 
 export const metadata = { title: "HR & Payroll | AetherBI ERP" };
 
@@ -55,7 +56,7 @@ async function HrContent({ searchParams }: { searchParams: Promise<RawQuery> }) 
         title={tx(locale, "الموارد البشرية والرواتب", "HR & payroll")}
         description={tx(locale, `ملفات الموظفين والحضور والمسير · ${scopeLabel}`, `Employee records, attendance, and payroll · ${scopeLabel}`)}
       />
-      <div className="mb-4">
+      <div className="mb-4 flex flex-wrap gap-2">
         <a
           href="/hr/smart-folder-upload"
           className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-md shadow-emerald-600/20 hover:bg-emerald-700"
@@ -65,6 +66,18 @@ async function HrContent({ searchParams }: { searchParams: Promise<RawQuery> }) 
             "📁 رفع مجلد الموظفين الذكي (توزيع تلقائي بالـ AI)",
             "📁 Smart HR Folder Upload (Auto-Distribute)",
           )}
+        </a>
+        <a
+          href="/hr/compliance-radar"
+          className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-5 py-3 text-sm font-bold text-white shadow-md hover:bg-amber-600"
+        >
+          {tx(locale, "🛡️ رادار الإقامات وكروت البلدية", "🛡️ Residency & Health Card Radar")}
+        </a>
+        <a
+          href="/ess"
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-800"
+        >
+          {tx(locale, "بوابة الموظف /ess", "Employee portal /ess")}
         </a>
       </div>
       <div className="mb-4 flex flex-wrap gap-2">
@@ -207,6 +220,9 @@ async function HrContent({ searchParams }: { searchParams: Promise<RawQuery> }) 
       ) : null}
       {tab === "payroll" ? (
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+          <div className="border-b border-slate-200 p-4">
+            <HrWpsToolbar month={month} year={year} locale={locale} />
+          </div>
           <div className="flex flex-wrap gap-2 border-b border-slate-200 p-4">
             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((item) => (
               <a

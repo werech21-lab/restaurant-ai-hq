@@ -466,26 +466,43 @@ model QuotationItem {
 }
 
 model Employee {
-  id          String       @id @default(cuid())
-  code        String       @unique
-  name        String
-  jobTitle    String
-  department  String
-  phone       String?
-  basicSalary Float        @default(0)
-  allowances  Float        @default(0)
-  deductions  Float        @default(0)
-  hireDate    DateTime     @default(now())
-  status      String       @default("ACTIVE")
-  attendance  Attendance[]
-  payrolls    Payroll[]
-  hrDocuments HrDocument[]
+  id                     String       @id @default(cuid())
+  /// Odoo barcode / fingerprint badge (indexed for ESS login + WPS export).
+  code                   String       @unique
+  name                   String
+  jobTitle               String
+  department             String
+  phone                  String?
+  basicSalary            Float        @default(0)
+  allowances             Float        @default(0)
+  deductions             Float        @default(0)
+  hireDate               DateTime     @default(now())
+  status                 String       @default("ACTIVE")
+  /// bcrypt hash for /ess self-service PIN (default seeded as 1234).
+  pinHash                String?
+  civilId                String?
+  iban                   String?
+  bankName               String?
+  civilIdExpiry          DateTime?
+  passportExpiry         DateTime?
+  healthCardExpiry       DateTime?
+  workPermitExpiry       DateTime?
+  drivingLicenseExpiry   DateTime?
+  attendance             Attendance[]
+  payrolls               Payroll[]
+  hrDocuments            HrDocument[]
 
   @@index([department, status])
   @@index([name])
+  @@index([code])
+  @@index([civilIdExpiry])
+  @@index([passportExpiry])
+  @@index([healthCardExpiry])
+  @@index([workPermitExpiry])
+  @@index([drivingLicenseExpiry])
 }
 
-/// Smart folder ingest dossier row (panel SQLite).
+/// Smart folder ingest dossier row (panel SQLite) — Zero-Blob: never store large Base64 here.
 model HrDocument {
   id            String    @id @default(cuid())
   employeeId    String?
@@ -495,7 +512,10 @@ model HrDocument {
   category      String
   mimeType      String    @default("application/octet-stream")
   sizeBytes     Int       @default(0)
-  /// Small files only (≤ 400KB). Larger docs keep metadata + extracted fields.
+  /// External object path / public API URL (Supabase Storage or local hr-files).
+  fileUrl       String?
+  fileType      String?
+  /// Deprecated — kept nullable for migration; writers must leave this null.
   contentBase64 String?
   extractedText String?
   civilId       String?
@@ -510,6 +530,7 @@ model HrDocument {
   @@index([employeeId, category])
   @@index([batchId, status])
   @@index([expiryDate])
+  @@index([fileType])
 }
 
 model Attendance {
