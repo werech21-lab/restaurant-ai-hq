@@ -1,50 +1,40 @@
-import { ventureBrands } from '@/modules/governance/domain/venture-brands'
-
-const KUWAIT_AREAS = [
-  'السالمية',
-  'حولي',
-  'الفروانية',
-  'الجابرية',
-  'الجهراء',
-  'الفحيحيل',
-  'الشويخ',
-  'مبارك الكبير',
-  'بيان',
-  'كيفان',
-] as const
+import { VENTURE_BRANCHES, VENTURE_BRANDS, brandById } from '@/lib/venture-hierarchy'
 
 export type VentureBranchOption = {
   id: string
   brandCode: string
   brandNameAr: string
+  brandNameEn: string
   nameAr: string
+  nameEn: string
   area: string
+  areaEn: string
 }
 
-/** Deterministic 6×N branch list for POS branch/brand picker (Kuwait). */
+/** The 10 operating branches for POS / scope pickers. */
 export function ventureBranchOptions(): VentureBranchOption[] {
-  const rows: VentureBranchOption[] = []
-  for (const brand of ventureBrands) {
-    const count = Math.min(brand.branches, KUWAIT_AREAS.length)
-    for (let i = 0; i < count; i += 1) {
-      const area = KUWAIT_AREAS[i]!
-      rows.push({
-        id: `${brand.code}-${i + 1}`,
-        brandCode: brand.code,
-        brandNameAr: brand.nameAr,
-        nameAr: `${brand.nameAr} · ${area}`,
-        area,
-      })
+  return VENTURE_BRANCHES.map((branch) => {
+    const brand = brandById(branch.brandId)!
+    return {
+      id: branch.id,
+      brandCode: branch.brandId,
+      brandNameAr: brand.nameAr,
+      brandNameEn: brand.nameEn,
+      nameAr: branch.nameAr,
+      nameEn: branch.nameEn,
+      area: branch.areaAr,
+      areaEn: branch.areaEn,
     }
-  }
-  return rows
+  })
 }
 
 export const ORDER_TYPES = [
-  { id: 'dine_in', labelAr: 'محلي Dine-in' },
-  { id: 'takeaway', labelAr: 'سفري Takeaway' },
-  { id: 'delivery', labelAr: 'توصيل Delivery' },
-  { id: 'aggregator', labelAr: 'طلبات / جاهز / ديليفرو' },
+  { id: 'dine_in', labelAr: 'محلي Dine-in', labelEn: 'Dine-in' },
+  { id: 'takeaway', labelAr: 'سفري Takeaway', labelEn: 'Takeaway' },
+  { id: 'delivery', labelAr: 'توصيل Delivery', labelEn: 'Delivery' },
+  { id: 'aggregator', labelAr: 'طلبات / جاهز / ديليفرو', labelEn: 'Talabat / Jahez / Deliveroo' },
 ] as const
 
 export type OrderTypeId = (typeof ORDER_TYPES)[number]['id']
+
+export { VENTURE_BRANDS, VENTURE_BRANCHES }

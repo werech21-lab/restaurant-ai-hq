@@ -9,6 +9,7 @@ import { PAGE_SIZE, pageHref, readQuery, type RawQuery } from "@/lib/pagination"
 import { can, firstAllowedHref } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
 import { costOfGoods, inventoryValuation, salesSummary } from "@/lib/reports";
+import { getActiveScope } from "@/lib/scope";
 import { listPayments } from "@/services/report.service";
 import { forecastLabels } from "@/services/forecast.service";
 
@@ -20,6 +21,7 @@ async function ReportsContent({ searchParams }: { searchParams: Promise<RawQuery
   const user = await requireUser();
   if (!can(user, "reports", "view")) return <Forbidden href={firstAllowedHref(user)} />;
 
+  const scope = await getActiveScope(query);
   const tab = ["stock", "customers", "suppliers", "payments"].includes(query.tab) ? query.tab : "pnl";
   const now = new Date();
   const { start, end } = monthRange(now);
@@ -29,7 +31,7 @@ async function ReportsContent({ searchParams }: { searchParams: Promise<RawQuery
     <div>
       <PageHeader
         title="التقارير"
-        description="أرباح وتكلفة مخزون وأرصدة الديون وسندات القبض والصرف."
+        description={`أرباح وتكلفة مخزون وأرصدة الديون · ${scope.labelAr}`}
         actions={<ExportCsvButton kind="reports" filename="reports.csv" />}
       />
       <div className="mb-4 flex flex-wrap gap-2">
@@ -49,8 +51,12 @@ async function ReportsContent({ searchParams }: { searchParams: Promise<RawQuery
           سندات القبض والصرف
         </a>
       </div>
-      {tab === "pnl" ? <ProfitReport start={start} end={end} monthLabel={formatMonth(now)} /> : null}
-      {tab === "stock" ? <StockReport q={query.q} page={query.page} skip={skip} /> : null}
+      {tab === "pnl" ? (
+        <ProfitReport start={start} end={end} monthLabel={formatMonth(now)} warehouseIds={scope.warehouseIds} />
+      ) : null}
+      {tab === "stock" ? (
+        <StockReport q={query.q} page={query.page} skip={skip} warehouseIds={scope.warehouseIds} />
+      ) : null}
       {tab === "customers" ? <DebtReport kind="customers" q={query.q} page={query.page} skip={skip} /> : null}
       {tab === "suppliers" ? <DebtReport kind="suppliers" q={query.q} page={query.page} skip={skip} /> : null}
       {tab === "payments" ? <PaymentsReport q={query.q} page={query.page} skip={skip} /> : null}
@@ -58,12 +64,22 @@ async function ReportsContent({ searchParams }: { searchParams: Promise<RawQuery
   );
 }
 
-async function ProfitReport({ start, end, monthLabel }: { start: Date; end: Date; monthLabel: string }) {
+async function ProfitReport({
+  start,
+  end,
+  monthLabel,
+  warehouseIds,
+}: {
+  start: Date
+  end: Date
+  monthLabel: string
+  warehouseIds: string[]
+}) {
   const [monthSales, allSales, monthCogs, allCogs] = await Promise.all([
-    salesSummary(start, end),
-    salesSummary(),
-    costOfGoods(start, end),
-    costOfGoods(),
+    salesSummary(start, end, warehouseIds),
+    salesSummary(undefined, undefined, warehouseIds),
+    costOfGoods(start, end, warehouseIds),
+    costOfGoods(undefined, undefined, warehouseIds),
   ]);
   const blocks = [
     { label: `مبيعات ${monthLabel}`, value: monthSales.total },
@@ -87,23 +103,74 @@ async function ProfitReport({ start, end, monthLabel }: { start: Date; end: Date
   );
 }
 
-async function StockReport({ q, page, skip }: { q: string; page: number; skip: number }) {
-  const where = q ? { OR: [{ name: { contains: q } }, { code: { contains: q } }] } : {};
-  const [valuation, total, rows] = await Promise.all([
-    inventoryValuation(),
-    prisma.product.count({ where }),
-    prisma.product.findMany({
-      where,
-      orderBy: { name: "asc" },
-      skip,
-      take: PAGE_SIZE,
-      select: { id: true, code: true, name: true, currentStock: true, costPrice: true, sellingPrice: true },
-    }),
-  ]);
+async function StockReport({
+  q,
+  page,
+  skip,
+  warehouseIds,
+}: {
+  q: string
+  page: number
+  skip: number
+  warehouseIds: string[]
+}) {
+  const valuation = await inventoryValuation(warehouseIds)
+  let rows: Array<{
+    id: string
+    code: string
+    name: string
+    currentStock: number
+    costPrice: number
+    sellingPrice: number
+  }> = []
+  let total = 0
+  if (warehouseIds.length) {
+    const stocks = await prisma.warehouseStock.findMany({
+      where: { warehouseId: { in: warehouseIds } },
+      include: { product: { select: { id: true, code: true, name: true, costPrice: true, sellingPrice: true } } },
+    })
+    const merged = new Map<string, (typeof rows)[number]>()
+    for (const row of stocks) {
+      const prev = merged.get(row.productId)
+      if (prev) prev.currentStock += row.quantity
+      else {
+        merged.set(row.productId, {
+          id: row.product.id,
+          code: row.product.code,
+          name: row.product.name,
+          currentStock: row.quantity,
+          costPrice: row.product.costPrice,
+          sellingPrice: row.product.sellingPrice,
+        })
+      }
+    }
+    rows = Array.from(merged.values())
+    if (q) {
+      const needle = q.toLowerCase()
+      rows = rows.filter((row) => row.name.toLowerCase().includes(needle) || row.code.toLowerCase().includes(needle))
+    }
+    rows.sort((a, b) => a.name.localeCompare(b.name, 'ar'))
+    total = rows.length
+    rows = rows.slice(skip, skip + PAGE_SIZE)
+  } else {
+    const where = q ? { OR: [{ name: { contains: q } }, { code: { contains: q } }] } : {}
+    const [count, productRows] = await Promise.all([
+      prisma.product.count({ where }),
+      prisma.product.findMany({
+        where,
+        orderBy: { name: 'asc' },
+        skip,
+        take: PAGE_SIZE,
+        select: { id: true, code: true, name: true, currentStock: true, costPrice: true, sellingPrice: true },
+      }),
+    ])
+    total = count
+    rows = productRows
+  }
   const forecasts = await forecastLabels(
     rows.map((row) => ({ id: row.id, currentStock: row.currentStock })),
     new Date(),
-  );
+  )
   return (
     <div>
       <div className="mb-4 grid gap-4 md:grid-cols-2">

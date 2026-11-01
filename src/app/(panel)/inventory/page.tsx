@@ -7,6 +7,7 @@ import { formatDate, formatMoney, formatQty, movementTypeFromQuery, MOVEMENT_LAB
 import { PAGE_SIZE, readQuery, type RawQuery } from "@/lib/pagination";
 import { can, firstAllowedHref } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
+import { getActiveScope, movementWhereForScope } from "@/lib/scope";
 import { queryProducts } from "@/lib/stock";
 import { forecastLabels } from "@/services/forecast.service";
 import { InventoryPanel } from "@/app/(panel)/inventory/inventory-panel";
@@ -19,6 +20,7 @@ async function InventoryContent({ searchParams }: { searchParams: Promise<RawQue
   const user = await requireUser();
   if (!can(user, "inventory", "view")) return <Forbidden href={firstAllowedHref(user)} />;
 
+  const scope = await getActiveScope(query);
   const tab = query.tab === "categories" || query.tab === "movements" ? query.tab : "products";
   const skip = (query.page - 1) * PAGE_SIZE;
   let total = 0;
@@ -51,16 +53,19 @@ async function InventoryContent({ searchParams }: { searchParams: Promise<RawQue
     categories = rows;
   } else if (tab === "movements") {
     const type = movementTypeFromQuery(query.q);
-    const where: Prisma.StockMovementWhereInput = query.q
-      ? {
-          OR: [
-            { note: { contains: query.q } },
-            { product: { name: { contains: query.q } } },
-            { product: { code: { contains: query.q } } },
-            ...(type ? [{ type }] : []),
-          ],
-        }
-      : {};
+    const where: Prisma.StockMovementWhereInput = {
+      ...movementWhereForScope(scope.warehouseIds),
+      ...(query.q
+        ? {
+            OR: [
+              { note: { contains: query.q } },
+              { product: { name: { contains: query.q } } },
+              { product: { code: { contains: query.q } } },
+              ...(type ? [{ type }] : []),
+            ],
+          }
+        : {}),
+    };
     const [count, rows] = await Promise.all([
       prisma.stockMovement.count({ where }),
       prisma.stockMovement.findMany({
@@ -81,6 +86,7 @@ async function InventoryContent({ searchParams }: { searchParams: Promise<RawQue
       q: query.q,
       page: query.page,
       lowStock: query.filter === "low_stock",
+      warehouseIds: scope.warehouseIds,
     });
     total = result.total;
     products = result.rows;

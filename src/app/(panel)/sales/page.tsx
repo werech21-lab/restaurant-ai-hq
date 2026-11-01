@@ -13,6 +13,7 @@ import { formatDate, formatMoney, formatQty } from "@/lib/format";
 import { PAGE_SIZE, pageHref, readQuery, type RawQuery } from "@/lib/pagination";
 import { can, firstAllowedHref } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
+import { getActiveScope, salesWhereForScope } from "@/lib/scope";
 import { invoiceText, payUrl, waLink } from "@/lib/whatsapp";
 
 export const metadata = { title: "المبيعات | نظام ERP" };
@@ -25,6 +26,7 @@ async function SalesContent({ searchParams }: { searchParams: Promise<RawQuery> 
   const user = await requireUser();
   if (!can(user, "sales", "view")) return <Forbidden href={firstAllowedHref(user)} />;
 
+  const scope = await getActiveScope(query);
   const tab = query.tab === "parties" ? "parties" : "documents";
   const status = statuses.has(query.status) ? query.status : "";
   const skip = (query.page - 1) * PAGE_SIZE;
@@ -59,6 +61,7 @@ async function SalesContent({ searchParams }: { searchParams: Promise<RawQuery> 
     parties = rows;
   } else {
     const where: Prisma.SalesInvoiceWhereInput = {
+      ...salesWhereForScope(scope.warehouseIds),
       ...(status ? { status } : {}),
       ...(query.q
         ? { OR: [{ invoiceNumber: { contains: query.q } }, { customer: { name: { contains: query.q } } }] }

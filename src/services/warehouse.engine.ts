@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { round3 } from "@/lib/format";
+import { getActiveScope } from "@/lib/scope";
 import { txError } from "@/lib/tx";
 
 type Tx = Prisma.TransactionClient;
@@ -9,6 +10,15 @@ export async function resolveWarehouse(tx: Tx, warehouseId?: string) {
     const warehouse = await tx.warehouse.findUnique({ where: { id: warehouseId } });
     if (!warehouse) txError("المستودع غير موجود");
     return warehouse;
+  }
+  try {
+    const scope = await getActiveScope();
+    if (scope.warehouseIds[0]) {
+      const scoped = await tx.warehouse.findUnique({ where: { id: scope.warehouseIds[0] } });
+      if (scoped) return scoped;
+    }
+  } catch {
+    // Cookie store may be unavailable outside a request; fall through to default.
   }
   const warehouse = await tx.warehouse.findFirst({ where: { isDefault: true } });
   if (!warehouse) txError("عرّف مستودعاً افتراضياً قبل تنفيذ الحركة");

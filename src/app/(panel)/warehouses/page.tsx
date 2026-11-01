@@ -8,6 +8,7 @@ import { formatDate, formatQty } from "@/lib/format";
 import { isModuleEnabled } from "@/lib/modules-db";
 import { PAGE_SIZE, pageHref, readQuery, type RawQuery } from "@/lib/pagination";
 import { can, firstAllowedHref } from "@/lib/permissions";
+import { getActiveScope, warehouseWhereForScope } from "@/lib/scope";
 import { listTransfers, listWarehouses, warehouseStock } from "@/services/warehouse.service";
 
 export const metadata = { title: "المستودعات | نظام ERP" };
@@ -18,8 +19,21 @@ async function WarehousesContent({ searchParams }: { searchParams: Promise<RawQu
   if (!can(user, "warehouses", "view")) return <Forbidden href={firstAllowedHref(user)} />;
   if (!(await isModuleEnabled("warehouses"))) return <DisabledModule title="المستودعات" />;
   const query = await readQuery(searchParams);
-  const warehouses = await listWarehouses();
-  const selected = warehouses.find((warehouse) => warehouse.id === query.q)?.id ?? warehouses[0]?.id ?? "";
+  const scope = await getActiveScope(query);
+  const allWarehouses = await listWarehouses();
+  const scopeFilter = warehouseWhereForScope(scope);
+  const warehouses = Object.keys(scopeFilter).length
+    ? allWarehouses.filter((warehouse) => {
+        if ("code" in scopeFilter && scopeFilter.code) return warehouse.code === scopeFilter.code;
+        if ("brandCode" in scopeFilter && scopeFilter.brandCode) return warehouse.brandCode === scopeFilter.brandCode;
+        return true;
+      })
+    : allWarehouses;
+  const selected =
+    (scope.warehouseIds[0] && warehouses.find((warehouse) => warehouse.id === scope.warehouseIds[0])?.id) ||
+    warehouses.find((warehouse) => warehouse.id === query.q)?.id ||
+    warehouses[0]?.id ||
+    "";
   const [stocks, transfers, products] = await Promise.all([
     selected ? warehouseStock(selected) : Promise.resolve([]),
     listTransfers((query.page - 1) * PAGE_SIZE, PAGE_SIZE),

@@ -7,6 +7,7 @@ import { ACCOUNT_TYPE_LABEL, formatDate, formatMoney } from "@/lib/format";
 import { isModuleEnabled } from "@/lib/modules-db";
 import { PAGE_SIZE, pageHref, readQuery, type RawQuery } from "@/lib/pagination";
 import { can, firstAllowedHref } from "@/lib/permissions";
+import { getActiveScope } from "@/lib/scope";
 import { chartOfAccounts, listJournals, trialBalance } from "@/services/accounting.service";
 
 export const metadata = { title: "المحاسبة | نظام ERP" };
@@ -24,6 +25,7 @@ async function AccountingContent({ searchParams }: { searchParams: Promise<RawQu
   if (!can(user, "accounting", "view")) return <Forbidden href={firstAllowedHref(user)} />;
   if (!(await isModuleEnabled("accounting"))) return <DisabledModule title="المحاسبة" />;
   const query = await readQuery(searchParams);
+  const scope = await getActiveScope(query);
   const tab = TABS.some((item) => item.key === query.tab) ? query.tab : "chart";
   const [accounts, trial, journals] = await Promise.all([
     chartOfAccounts(),
@@ -34,7 +36,10 @@ async function AccountingContent({ searchParams }: { searchParams: Promise<RawQu
 
   return (
     <div>
-      <PageHeader title="المحاسبة" description="شجرة الحسابات، قيود اليومية المزدوجة، وميزان المراجعة." />
+      <PageHeader
+        title="المحاسبة"
+        description={`شجرة الحسابات، قيود اليومية المزدوجة، وميزان المراجعة · ${scope.labelAr}`}
+      />
       <div className="mb-4 flex flex-wrap gap-2">
         {TABS.map((item) => (
           <a

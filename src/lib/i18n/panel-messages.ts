@@ -89,6 +89,11 @@ export const panelAr = {
   'receipt.thanks': 'شكراً لتعاملكم · Thank you for dining with us',
   'receipt.qr': 'رمز QR · QR code',
   'lang.switch': 'اللغة / Language',
+  'scope.brand': 'البراند',
+  'scope.branch': 'الفرع',
+  'scope.allBrands': '🏢 كل البراندات (All 6 Brands)',
+  'scope.allBranches': '📍 كل الفروع (All 10 Branches)',
+  'scope.reset': 'Reset / عرض الكل',
 } as const
 
 export const panelEn: { [K in keyof typeof panelAr]: string } = {
@@ -181,6 +186,11 @@ export const panelEn: { [K in keyof typeof panelAr]: string } = {
   'receipt.thanks': 'Thank you for dining with us · شكراً لتعاملكم',
   'receipt.qr': 'QR code · رمز QR',
   'lang.switch': 'Language / اللغة',
+  'scope.brand': 'Brand',
+  'scope.branch': 'Branch',
+  'scope.allBrands': '🏢 All 6 Brands',
+  'scope.allBranches': '📍 All 10 Branches',
+  'scope.reset': 'Reset / Show all',
 }
 
 export type PanelMessageKey = keyof typeof panelAr

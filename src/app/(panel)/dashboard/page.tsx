@@ -1,53 +1,61 @@
-import { Suspense } from "react";
-import { connection } from "next/server";
-import { redirect } from "next/navigation";
-import { requireUser } from "@/lib/erp-auth";
-import { PageHeader, PageSkeleton, cardClass } from "@/components/erp-ui";
-import { StatCard } from "@/components/ui/stat-card";
-import { formatDate, formatMoney, formatMonth, formatQty, monthRange } from "@/lib/format";
-import { can, firstAllowedHref } from "@/lib/permissions";
-import { prisma } from "@/lib/db";
-import { costOfGoods, purchaseSummary, salesSummary } from "@/lib/reports";
-import { countLowStock, listLowStock } from "@/lib/stock";
-import { StatusBadge } from "@/components/erp-ui";
+import { Suspense } from 'react'
+import { connection } from 'next/server'
+import { redirect } from 'next/navigation'
+import { requireUser } from '@/lib/erp-auth'
+import { PageHeader, PageSkeleton, cardClass } from '@/components/erp-ui'
+import { StatCard } from '@/components/ui/stat-card'
+import { formatDate, formatMoney, formatMonth, formatQty, monthRange } from '@/lib/format'
+import { can, firstAllowedHref } from '@/lib/permissions'
+import { prisma } from '@/lib/db'
+import { costOfGoods, purchaseSummary, salesSummary } from '@/lib/reports'
+import { getActiveScope, purchaseOrderNumbersForScope, salesWhereForScope } from '@/lib/scope'
+import { countLowStock, listLowStock } from '@/lib/stock'
+import { StatusBadge } from '@/components/erp-ui'
 
-export const metadata = { title: "لوحة التحكم | نظام ERP" };
+export const metadata = { title: 'لوحة التحكم | نظام ERP' }
 
 async function DashboardContent() {
-  await connection();
-  const user = await requireUser();
-  if (!can(user, "dashboard", "view")) redirect(firstAllowedHref(user));
+  await connection()
+  const user = await requireUser()
+  if (!can(user, 'dashboard', 'view')) redirect(firstAllowedHref(user))
 
-  const now = new Date();
-  const { start, end } = monthRange(now);
+  const scope = await getActiveScope()
+  const now = new Date()
+  const { start, end } = monthRange(now)
+  const purchaseNumbers = await purchaseOrderNumbersForScope(scope.warehouseIds)
   const [sales, purchases, lowCount, lowItems, recentSales, recentPurchases] = await Promise.all([
-    salesSummary(start, end),
-    purchaseSummary(start, end),
-    countLowStock(),
-    listLowStock(5),
+    salesSummary(start, end, scope.warehouseIds),
+    purchaseSummary(start, end, purchaseNumbers),
+    countLowStock(scope.warehouseIds),
+    listLowStock(5, scope.warehouseIds),
     prisma.salesInvoice.findMany({
-      orderBy: { createdAt: "desc" },
+      where: salesWhereForScope(scope.warehouseIds),
+      orderBy: { createdAt: 'desc' },
       take: 5,
       include: { customer: { select: { name: true } } },
     }),
     prisma.purchaseOrder.findMany({
-      orderBy: { createdAt: "desc" },
+      where: purchaseNumbers ? { orderNumber: { in: purchaseNumbers.length ? purchaseNumbers : ['__none__'] } } : {},
+      orderBy: { createdAt: 'desc' },
       take: 5,
       include: { supplier: { select: { name: true } } },
     }),
-  ]);
-  const monthCogs = await costOfGoods(start, end);
+  ])
+  const monthCogs = await costOfGoods(start, end, scope.warehouseIds)
 
   const cards = [
-    { href: "/sales", label: `مبيعات ${formatMonth(now)}`, value: formatMoney(sales.total), danger: false },
-    { href: "/purchases", label: `مشتريات ${formatMonth(now)}`, value: formatMoney(purchases.total), danger: false },
-    { href: "/sales", label: "عدد فواتير الشهر", value: String(sales.count), danger: false },
-    { href: "/inventory?filter=low_stock", label: "أصناف تحت حد الطلب", value: String(lowCount), danger: true },
-  ];
+    { href: '/sales', label: `مبيعات ${formatMonth(now)}`, value: formatMoney(sales.total), danger: false },
+    { href: '/purchases', label: `مشتريات ${formatMonth(now)}`, value: formatMoney(purchases.total), danger: false },
+    { href: '/sales', label: 'عدد فواتير الشهر', value: String(sales.count), danger: false },
+    { href: '/inventory?filter=low_stock', label: 'أصناف تحت حد الطلب', value: String(lowCount), danger: true },
+  ]
 
   return (
     <div>
-      <PageHeader title={`مرحباً ${user.name}`} description={`ملخص ${formatMonth(now)} · AetherBI Enterprise ERP`} />
+      <PageHeader
+        title={`مرحباً ${user.name}`}
+        description={`ملخص ${formatMonth(now)} · ${scope.labelAr} · AetherBI Enterprise ERP`}
+      />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {cards.map((card) => (
           <StatCard key={card.label} href={card.href} label={card.label} value={card.value} danger={card.danger} />
@@ -57,7 +65,9 @@ async function DashboardContent() {
         <section className={`${cardClass} p-5`}>
           <h2 className="font-bold text-mist-100">مجمل ربح الشهر</h2>
           <p className="mt-3 text-2xl font-bold text-[#8cc63f]">{formatMoney(sales.total - monthCogs)}</p>
-          <p className="mt-2 text-sm text-mist-400">المبيعات {formatMoney(sales.total)} − التكلفة {formatMoney(monthCogs)}</p>
+          <p className="mt-2 text-sm text-mist-400">
+            المبيعات {formatMoney(sales.total)} − التكلفة {formatMoney(monthCogs)}
+          </p>
         </section>
         <section className={`${cardClass} p-5 lg:col-span-2`}>
           <div className="mb-3 flex items-center justify-between">
@@ -112,7 +122,7 @@ async function DashboardContent() {
         />
       </div>
     </div>
-  );
+  )
 }
 
 function PreviewTable({
@@ -120,9 +130,9 @@ function PreviewTable({
   href,
   rows,
 }: {
-  title: string;
-  href: string;
-  rows: Array<{ id: string; primary: string; secondary: string; amount: string; date: string; status: string }>;
+  title: string
+  href: string
+  rows: Array<{ id: string; primary: string; secondary: string; amount: string; date: string; status: string }>
 }) {
   return (
     <section className={`${cardClass} overflow-hidden`}>
@@ -156,7 +166,7 @@ function PreviewTable({
         </tbody>
       </table>
     </section>
-  );
+  )
 }
 
 export default function DashboardPage() {
@@ -164,5 +174,5 @@ export default function DashboardPage() {
     <Suspense fallback={<PageSkeleton title="لوحة التحكم" />}>
       <DashboardContent />
     </Suspense>
-  );
+  )
 }

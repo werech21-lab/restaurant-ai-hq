@@ -7,6 +7,7 @@ import { formatDate, formatMoney, formatQty } from "@/lib/format";
 import { isModuleEnabled } from "@/lib/modules-db";
 import { PAGE_SIZE, pageHref, readQuery, type RawQuery } from "@/lib/pagination";
 import { can, firstAllowedHref } from "@/lib/permissions";
+import { getActiveScope, hrDepartmentTokens } from "@/lib/scope";
 import { listAttendance, listEmployees, listPayroll } from "@/services/hr.service";
 
 export const metadata = { title: "الموارد البشرية | نظام ERP" };
@@ -24,22 +25,36 @@ async function HrContent({ searchParams }: { searchParams: Promise<RawQuery> }) 
   if (!can(user, "hr", "view")) return <Forbidden href={firstAllowedHref(user)} />;
   if (!(await isModuleEnabled("hr"))) return <DisabledModule title="الموارد البشرية" />;
   const query = await readQuery(searchParams);
+  const scope = await getActiveScope(query);
+  const tokens = hrDepartmentTokens(scope);
   const tab = query.tab === "attendance" || query.tab === "payroll" ? query.tab : "employees";
   const now = new Date();
   const year = Number(query.role) || now.getFullYear();
   const month = Number(query.filter) || now.getMonth() + 1;
+  const scopeQuery =
+    tab === "employees"
+      ? [query.q, tokens[0]].filter(Boolean).join(" ").trim()
+      : tokens[0] || "";
   const [employees, attendance, payroll] = await Promise.all([
-    listEmployees((query.page - 1) * PAGE_SIZE, PAGE_SIZE, tab === "employees" ? query.q : ""),
+    listEmployees((query.page - 1) * PAGE_SIZE, PAGE_SIZE, scopeQuery),
     listAttendance((query.page - 1) * PAGE_SIZE, PAGE_SIZE),
     listPayroll(year, month),
   ]);
-  const allEmployees = tab === "employees" ? employees.rows : (await listEmployees(0, 200, "")).rows;
+  const allEmployees = tab === "employees" ? employees.rows : (await listEmployees(0, 200, tokens[0] || "")).rows;
+  const scopedPayroll =
+    tokens.length === 0
+      ? payroll
+      : payroll.filter((row) =>
+          tokens.some((token) =>
+            `${row.employee.department} ${row.employee.name}`.toLowerCase().includes(token.toLowerCase()),
+          ),
+        );
 
   return (
     <div>
       <PageHeader
         title="الموارد البشرية والرواتب"
-        description="ملفات الموظفين، حضور اليوم، ومسير شهري يخصم الغياب وربع يوم عن كل تأخير ثم يُرحّل قيداً عند الصرف."
+        description={`ملفات الموظفين والحضور والمسير · ${scope.labelAr}`}
       />
       <div className="mb-4 flex flex-wrap gap-2">
         <a href={pageHref("/hr", { tab: "employees" })} className={tab === "employees" ? "rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white" : "rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold"}>الموظفون</a>
@@ -136,7 +151,7 @@ async function HrContent({ searchParams }: { searchParams: Promise<RawQuery> }) 
               </tr>
             </thead>
             <tbody>
-              {payroll.map((row) => (
+              {scopedPayroll.map((row) => (
                 <tr key={row.id} className="border-b border-slate-200">
                   <td className="px-4 py-3">
                     <a className="font-semibold text-blue-700" href={`/hr/payroll/${row.id}/print`}>{row.employee.name}</a>

@@ -278,6 +278,8 @@ model JournalEntryLine {
 
 model Warehouse {
   id           String            @id @default(cuid())
+  code         String?           @unique
+  brandCode    String?
   name         String
   location     String?
   managerName  String?
@@ -289,6 +291,7 @@ model Warehouse {
   invoices     SalesInvoice[]
 
   @@index([name])
+  @@index([brandCode])
 }
 
 model WarehouseStock {

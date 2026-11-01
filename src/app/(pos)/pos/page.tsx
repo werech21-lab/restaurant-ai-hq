@@ -5,8 +5,9 @@ import { requireUser } from '@/lib/erp-auth'
 import { prisma } from '@/lib/db'
 import { isModuleEnabled } from '@/lib/modules-db'
 import { can, firstAllowedHref } from '@/lib/permissions'
+import { getActiveScope } from '@/lib/scope'
 import { ORDER_TYPES, ventureBranchOptions } from '@/lib/venture-branches'
-import { ventureBrands } from '@/modules/governance/domain/venture-brands'
+import { VENTURE_BRANDS } from '@/lib/venture-hierarchy'
 
 export const metadata = { title: 'كاشير المطاعم | فنتشر فودز · AetherBI' }
 export const dynamic = 'force-dynamic'
@@ -35,6 +36,7 @@ async function PosContent() {
     )
   }
 
+  const scope = await getActiveScope()
   const [products, customers, walkIn] = await Promise.all([
     prisma.product.findMany({
       take: 500,
@@ -45,13 +47,23 @@ async function PosContent() {
     prisma.customer.findFirst({ where: { name: 'عميل نقدي - الصندوق' }, select: { id: true } }),
   ])
 
+  const initialBrand = scope.brandId ?? VENTURE_BRANDS[0].id
+  const initialBranch =
+    scope.branchId ??
+    ventureBranchOptions().find((b) => b.brandCode === initialBrand)?.id ??
+    ventureBranchOptions()[0]?.id ??
+    ''
+
   return (
     <PosTerminal
       walkInId={walkIn?.id ?? ''}
       customers={customers}
-      brands={ventureBrands.map((b) => ({ code: b.code, nameAr: b.nameAr }))}
+      brands={VENTURE_BRANDS.map((b) => ({ code: b.code, nameAr: b.nameAr, nameEn: b.nameEn }))}
       branches={ventureBranchOptions()}
       orderTypes={[...ORDER_TYPES]}
+      initialBrandCode={initialBrand}
+      initialBranchId={initialBranch}
+      warehouseId={scope.warehouseIds[0] ?? ''}
       products={products.map((product) => ({
         id: product.id,
         code: product.code,

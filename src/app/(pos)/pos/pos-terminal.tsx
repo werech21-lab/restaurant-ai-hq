@@ -16,6 +16,8 @@ import {
   StickyNote,
 } from 'lucide-react'
 import { createSalesInvoice } from '@/app/actions/sales'
+import { GlobalScopeFilter } from '@/components/GlobalScopeFilter'
+import { useOptionalScope } from '@/components/ScopeProvider'
 import { LanguageSwitch, useI18n } from '@/lib/i18n'
 import { formatQty } from '@/lib/format'
 import { enqueueSale, listQueued, removeQueued } from '@/lib/offline-pos'
@@ -47,16 +49,23 @@ export function PosTerminal({
   brands,
   branches,
   orderTypes,
+  initialBrandCode,
+  initialBranchId,
+  warehouseId,
 }: {
   products: PosProduct[]
   walkInId: string
   customers: Array<{ id: string; name: string }>
-  brands: Array<{ code: string; nameAr: string }>
+  brands: Array<{ code: string; nameAr: string; nameEn?: string }>
   branches: VentureBranchOption[]
   orderTypes: Array<{ id: OrderTypeId | string; labelAr: string }>
+  initialBrandCode?: string
+  initialBranchId?: string
+  warehouseId?: string
 }) {
   const router = useRouter()
   const { t, money, locale } = useI18n()
+  const scope = useOptionalScope()
   const categoryLabels = useMemo(
     () =>
       ({
@@ -75,8 +84,19 @@ export function PosTerminal({
     return ['الكل', ...preferred.filter((c) => fromData.includes(c)), ...rest]
   }, [products])
 
-  const [brandCode, setBrandCode] = useState(brands[0]?.code ?? '')
-  const [branchId, setBranchId] = useState(() => branches.find((b) => b.brandCode === brands[0]?.code)?.id ?? branches[0]?.id ?? '')
+  const [brandCode, setBrandCode] = useState(initialBrandCode || brands[0]?.code || '')
+  const [branchId, setBranchId] = useState(
+    () =>
+      initialBranchId ||
+      branches.find((b) => b.brandCode === (initialBrandCode || brands[0]?.code))?.id ||
+      branches[0]?.id ||
+      '',
+  )
+
+  useEffect(() => {
+    if (scope?.brandId) setBrandCode(scope.brandId)
+    if (scope?.branchId) setBranchId(scope.branchId)
+  }, [scope?.brandId, scope?.branchId])
   const [orderType, setOrderType] = useState<string>(orderTypes[0]?.id ?? 'dine_in')
   const [tableNo, setTableNo] = useState('')
   const [category, setCategory] = useState('الكل')
@@ -223,7 +243,14 @@ export function PosTerminal({
       partyId,
       paidAmount: method === 'CREDIT' ? 0 : total,
       paymentMethod: method,
+      warehouseId: warehouseId || undefined,
       items: cart.map((line) => ({ productId: line.product.id, quantity: line.quantity, price: line.product.price })),
+      customData: {
+        brandCode,
+        branchId,
+        orderType,
+        tableNo: tableNo.trim(),
+      },
     }
     if (!navigator.onLine) {
       await enqueueSale({ id: crypto.randomUUID(), createdAt: new Date().toISOString(), ...payload })
@@ -284,25 +311,34 @@ export function PosTerminal({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/venture-foods-logo-dark.svg" alt="Venture Foods" className="hidden h-8 w-auto sm:block" />
           <LanguageSwitch />
+          <GlobalScopeFilter compact />
           <select
             className="rounded-lg border border-white/10 bg-ink-900 px-2 py-1.5 text-xs font-semibold text-mist-100"
             value={brandCode}
-            onChange={(e) => setBrandCode(e.target.value)}
+            onChange={(e) => {
+              const next = e.target.value
+              setBrandCode(next)
+              scope?.setBrand(next as never)
+            }}
           >
             {brands.map((b) => (
               <option key={b.code} value={b.code}>
-                {b.nameAr}
+                {locale === 'en' && b.nameEn ? b.nameEn : b.nameAr}
               </option>
             ))}
           </select>
           <select
             className="max-w-[11rem] rounded-lg border border-white/10 bg-ink-900 px-2 py-1.5 text-xs font-semibold text-mist-100 sm:max-w-none"
             value={branchId}
-            onChange={(e) => setBranchId(e.target.value)}
+            onChange={(e) => {
+              const next = e.target.value
+              setBranchId(next)
+              scope?.setBranch(next as never)
+            }}
           >
             {brandBranches.map((b) => (
               <option key={b.id} value={b.id}>
-                {b.nameAr}
+                {locale === 'en' ? b.nameEn : b.nameAr}
               </option>
             ))}
           </select>

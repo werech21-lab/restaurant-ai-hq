@@ -8,7 +8,7 @@ import { fail, ok } from "@/lib/types";
 import { adjustWarehouseStock, warehouseQuantity } from "@/services/warehouse.engine";
 
 export async function listWarehouses() {
-  return prisma.warehouse.findMany({ orderBy: [{ isDefault: "desc" }, { name: "asc" }], take: 25 });
+  return prisma.warehouse.findMany({ orderBy: [{ isDefault: "desc" }, { name: "asc" }], take: 50 });
 }
 
 export async function warehouseStock(warehouseId: string) {

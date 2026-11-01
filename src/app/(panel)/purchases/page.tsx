@@ -17,6 +17,7 @@ import { formatDate, formatMoney, formatQty } from "@/lib/format";
 import { PAGE_SIZE, pageHref, readQuery, type RawQuery } from "@/lib/pagination";
 import { can, firstAllowedHref } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
+import { getActiveScope, purchaseOrderNumbersForScope } from "@/lib/scope";
 
 export const metadata = { title: "المشتريات | نظام ERP" };
 
@@ -28,6 +29,8 @@ async function PurchasesContent({ searchParams }: { searchParams: Promise<RawQue
   const user = await requireUser();
   if (!can(user, "purchases", "view")) return <Forbidden href={firstAllowedHref(user)} />;
 
+  const scope = await getActiveScope(query);
+  const purchaseNumbers = await purchaseOrderNumbersForScope(scope.warehouseIds);
   const tab = query.tab === "parties" ? "parties" : "documents";
   const status = statuses.has(query.status) ? query.status : "";
   const skip = (query.page - 1) * PAGE_SIZE;
@@ -62,6 +65,9 @@ async function PurchasesContent({ searchParams }: { searchParams: Promise<RawQue
     parties = rows;
   } else {
     const where: Prisma.PurchaseOrderWhereInput = {
+      ...(purchaseNumbers
+        ? { orderNumber: { in: purchaseNumbers.length ? purchaseNumbers : ["__none__"] } }
+        : {}),
       ...(status ? { status } : {}),
       ...(query.q
         ? { OR: [{ orderNumber: { contains: query.q } }, { supplier: { name: { contains: query.q } } }] }
