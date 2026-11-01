@@ -23,7 +23,7 @@ async function PaymentsContent({ searchParams }: { searchParams: Promise<RawQuer
   const query = await readQuery(searchParams);
   const [links, organizations] = await Promise.all([
     listPaymentLinks((query.page - 1) * PAGE_SIZE, PAGE_SIZE, query.q),
-    prisma.organization.findMany({ where: { isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    prisma.organization.findMany({ where: { isActive: true }, orderBy: { name: "asc" }, take: 25, select: { id: true, name: true } }),
   ]);
   const canCreate = can(user, "payments", "create") || can(user, "sales", "create");
   return (

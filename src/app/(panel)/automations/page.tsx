@@ -17,7 +17,7 @@ async function AutomationsContent() {
   if (!(await isModuleEnabled("automations"))) return <DisabledModule title="الأتمتة" />;
   const [rules, suppliers] = await Promise.all([
     listRules(),
-    prisma.supplier.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    prisma.supplier.findMany({ orderBy: { name: "asc" }, take: 25, select: { id: true, name: true } }),
   ]);
   return (
     <div>

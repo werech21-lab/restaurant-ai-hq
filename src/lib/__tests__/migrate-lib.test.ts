@@ -144,7 +144,7 @@ describe('baseline sentinels against the real migrations', () => {
 
   it('plans 0001 through 0027 in filename order for an empty database, then only the remainder', async () => {
     const all = await names()
-    expect(all).toHaveLength(43)
+    expect(all).toHaveLength(44)
     expect(all[0]).toBe('0001_core.sql')
     expect(all[27]).toBe('0028_aggregator_rank_rescue_radar.sql')
     expect(all[28]).toBe('0029_venture_foods_brands_aggregator_radar.sql')

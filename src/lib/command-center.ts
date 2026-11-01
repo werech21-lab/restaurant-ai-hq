@@ -1,3 +1,4 @@
+import { unstable_cache } from 'next/cache'
 import { db } from '@/lib/pg'
 import { logger } from '@/lib/logger'
 
@@ -29,11 +30,7 @@ const empty: CommandCenterMetrics = {
   commissionMinor: 0,
 }
 
-/**
- * Live figures for the executive room. One active company is shown. Zero rows stay zero.
- * More than one company is not combined on this public page: the signed-in ERP screens stay tenant-scoped.
- */
-export async function loadCommandCenter(): Promise<CommandCenterMetrics> {
+async function queryCommandCenter(): Promise<CommandCenterMetrics> {
   try {
     const tenants = await db.query<{ id: string }>("select id from tenants where status = 'active' order by created_at")
     if (tenants.rows.length !== 1) return empty
@@ -85,4 +82,12 @@ export async function loadCommandCenter(): Promise<CommandCenterMetrics> {
     logger.error('Command center query failed', { name: error instanceof Error ? error.name : 'unknown' })
     return empty
   }
+}
+
+/**
+ * Live figures for the executive room. Aggregations stay in SQL; results are cached briefly
+ * so Odoo-scale payment/item tables are not rescanned on every landing hit.
+ */
+export async function loadCommandCenter(): Promise<CommandCenterMetrics> {
+  return unstable_cache(queryCommandCenter, ['command-center-metrics'], { revalidate: 30 })()
 }

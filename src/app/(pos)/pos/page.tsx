@@ -29,11 +29,11 @@ async function PosContent() {
   }
   const [products, customers, walkIn] = await Promise.all([
     prisma.product.findMany({
+      take: 25,
       orderBy: { name: "asc" },
-      take: 200,
       include: { category: { select: { name: true } } },
     }),
-    prisma.customer.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    prisma.customer.findMany({ orderBy: { name: "asc" }, take: 25, select: { id: true, name: true } }),
     prisma.customer.findFirst({ where: { name: "عميل نقدي - الصندوق" }, select: { id: true } }),
   ]);
   return (

@@ -24,6 +24,10 @@ export type SuiteBoard = {
   app: SuiteApp
   stages: readonly string[]
   records: SuiteRecord[]
+  total: number
+  page: number
+  pageSize: number
+  stageCounts: Record<string, number>
   facets: {
     department: SuiteFacet[]
     location: SuiteFacet[]

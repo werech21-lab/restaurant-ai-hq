@@ -479,7 +479,8 @@ export async function listStockSignals(
        limit 1
      ) w on true
      where i.tenant_id = $1 and i.is_active and ($3::uuid[] is null or i.id = any($3::uuid[]))
-     order by i.name, i.id`,
+     order by i.name, i.id
+     limit 200`,
     [tenantId, windowDays, itemIds === null ? null : [...itemIds]]
   )
   return result.rows.map(({ warehouseId, warehouseCode, warehouseName, ...signal }) => ({

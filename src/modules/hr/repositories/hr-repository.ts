@@ -39,7 +39,7 @@ const EMPLOYEE = `id, employee_code as "employeeCode", full_name as "fullName", 
 
 export async function listEmployees(tx: Queryable, tenantId: string): Promise<Employee[]> {
   const result = await tx.query<Employee>(
-    `select ${EMPLOYEE} from hr_employees where tenant_id = $1 and status = 'active' order by full_name limit 500`,
+    `select ${EMPLOYEE} from hr_employees where tenant_id = $1 and status = 'active' order by full_name limit 25`,
     [tenantId],
   )
   return result.rows.map(minor)
@@ -129,7 +129,7 @@ export async function listAttendance(tx: Queryable, tenantId: string): Promise<A
     `select a.id, a.employee_id as "employeeId", e.full_name as "employeeName", a.branch_id as "branchId",
             a.check_in as "checkIn", a.check_out as "checkOut", a.overtime_minutes as "overtimeMinutes"
      from hr_attendances a join hr_employees e on e.tenant_id = a.tenant_id and e.id = a.employee_id
-     where a.tenant_id = $1 order by a.check_in desc limit 500`,
+     where a.tenant_id = $1 order by a.check_in desc limit 25`,
     [tenantId],
   )
   return result.rows.map((row) => ({ ...row, checkIn: iso(row.checkIn) ?? '', checkOut: iso(row.checkOut), overtimeMinutes: Number(row.overtimeMinutes) }))
@@ -149,7 +149,7 @@ export async function listLeaves(tx: Queryable, tenantId: string): Promise<Leave
     `select l.id, l.employee_id as "employeeId", e.full_name as "employeeName", l.leave_type as "leaveType",
             l.start_date::text as "startDate", l.end_date::text as "endDate", l.days, l.approval_status as "approvalStatus", l.version
      from hr_leaves l join hr_employees e on e.tenant_id = l.tenant_id and e.id = l.employee_id
-     where l.tenant_id = $1 order by l.start_date desc limit 500`,
+     where l.tenant_id = $1 order by l.start_date desc limit 25`,
     [tenantId],
   )
   return result.rows.map((row) => ({ ...row, days: Number(row.days) }))
@@ -193,7 +193,7 @@ export async function listPayslips(tx: Queryable, tenantId: string): Promise<Pay
      from hr_payslips p
      join hr_payroll_runs r on r.tenant_id = p.tenant_id and r.id = p.run_id
      join hr_employees e on e.tenant_id = p.tenant_id and e.id = p.employee_id
-     where p.tenant_id = $1 order by r.period desc, e.employee_code limit 500`,
+     where p.tenant_id = $1 order by r.period desc, e.employee_code limit 25`,
     [tenantId],
   )
   return result.rows.map(money)
@@ -259,7 +259,7 @@ export async function listExpenses(tx: Queryable, tenantId: string): Promise<Emp
     `select x.id, x.employee_id as "employeeId", e.full_name as "employeeName", x.category, x.amount_minor::bigint as "amountMinor",
             x.approval_status as "approvalStatus", x.journal_entry_id as "journalEntryId", x.version
      from hr_expenses x join hr_employees e on e.tenant_id = x.tenant_id and e.id = x.employee_id
-     where x.tenant_id = $1 order by x.created_at desc limit 500`,
+     where x.tenant_id = $1 order by x.created_at desc limit 25`,
     [tenantId],
   )
   return result.rows.map((row) => ({ ...row, amountMinor: Number(row.amountMinor) }))

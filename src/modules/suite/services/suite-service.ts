@@ -3,34 +3,53 @@ import { writeAudit } from '@/lib/audit'
 import type { AuthContext } from '@/lib/auth/context'
 import { withTransaction } from '@/lib/pg'
 import { suiteStages, type SuiteApp } from '@/modules/suite/domain/apps'
-import type { SuiteBoard, SuiteFacet, SuiteRecord } from '@/modules/suite/domain/types'
+import type { SuiteBoard, SuiteRecord } from '@/modules/suite/domain/types'
 import * as repository from '@/modules/suite/repositories/suite-repository'
 import type { CreateSuiteRecordInput, UpdateSuiteRecordInput } from '@/modules/suite/schemas/suite'
 
-function countFacet(records: SuiteRecord[], pick: (row: SuiteRecord) => string): SuiteFacet[] {
-  const map = new Map<string, number>()
-  for (const row of records) {
-    const label = pick(row).trim()
-    if (!label) continue
-    map.set(label, (map.get(label) ?? 0) + 1)
-  }
-  return [...map.entries()]
-    .map(([label, count]) => ({ key: label, label, count }))
-    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+export type BoardQuery = {
+  page?: number
+  pageSize?: number
+  facetKind?: 'department' | 'location' | 'brand'
+  facetValue?: string
 }
 
-export async function getBoard(auth: AuthContext, app: SuiteApp): Promise<{ data: SuiteBoard }> {
+export async function getBoard(auth: AuthContext, app: SuiteApp, query: BoardQuery = {}): Promise<{ data: SuiteBoard }> {
   return withTransaction(async (tx) => {
-    const records = await repository.listRecords(tx, auth.tenantId, app)
+    const facets = await repository.listFacets(tx, auth.tenantId, app)
+    if (app === 'analytic') {
+      const rows = await repository.listAnalyticMatrixRows(tx, auth.tenantId)
+      return {
+        data: {
+          app,
+          stages: suiteStages[app],
+          records: rows,
+          total: rows.length,
+          page: 1,
+          pageSize: rows.length || 25,
+          stageCounts: Object.fromEntries(facets.stages.map((row) => [row.label, row.count])),
+          facets: {
+            department: facets.department,
+            location: facets.location,
+            brand: facets.brand,
+          },
+        },
+      }
+    }
+    const page = await repository.listRecords(tx, auth.tenantId, app, query)
     return {
       data: {
         app,
         stages: suiteStages[app],
-        records,
+        records: page.rows,
+        total: page.total,
+        page: page.page,
+        pageSize: page.pageSize,
+        stageCounts: Object.fromEntries(facets.stages.map((row) => [row.label, row.count])),
         facets: {
-          department: countFacet(records, (row) => row.department),
-          location: countFacet(records, (row) => row.branchName),
-          brand: countFacet(records, (row) => row.brandName),
+          department: facets.department,
+          location: facets.location,
+          brand: facets.brand,
         },
       },
     }
@@ -66,7 +85,7 @@ export async function updateRecord(
     if (!suiteStages[app].includes(input.stage)) {
       throw new AppError(422, 'validation_failed', 'The stage is not valid for this board.')
     }
-    const before = (await repository.listRecords(tx, auth.tenantId, app)).find((row) => row.id === id)
+    const before = await repository.findRecord(tx, auth.tenantId, app, id)
     if (!before) throw new AppError(404, 'not_found', 'The record was not found.')
     const row = await repository.updateRecord(tx, auth.tenantId, app, id, input)
     if (!row) throw new AppError(409, 'version_conflict', 'This record changed. Reload and try again.')

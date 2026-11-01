@@ -4,8 +4,8 @@ import { prisma } from "@/lib/db";
 import { fail, ok } from "@/lib/types";
 
 export async function listRules() {
-  const rules = await prisma.automationRule.findMany({ orderBy: { createdAt: "desc" } });
-  const suppliers = await prisma.supplier.findMany({ select: { id: true, name: true } });
+  const rules = await prisma.automationRule.findMany({ orderBy: { createdAt: "desc" }, take: 25 });
+  const suppliers = await prisma.supplier.findMany({ take: 25, select: { id: true, name: true } });
   const names = new Map(suppliers.map((supplier) => [supplier.id, supplier.name]));
   return rules.map((rule) => ({ ...rule, supplierName: rule.supplierId ? names.get(rule.supplierId) ?? "" : "" }));
 }

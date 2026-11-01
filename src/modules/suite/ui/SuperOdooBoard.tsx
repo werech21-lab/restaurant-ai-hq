@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { apiRequest, errorKey, newIdempotencyKey } from '@/components/erp/api'
 import { errorClass, inputClass, labelClass, noticeClass, panelClass, primaryButton, secondaryButton } from '@/components/erp/styles'
 import { useI18n, type MessageKey } from '@/lib/i18n'
@@ -10,10 +10,20 @@ import type { SuiteApp, SuiteBoard, SuiteRecord } from '@/modules/suite/client'
 type View = 'kanban' | 'list' | 'gantt'
 type FacetKey = 'department' | 'location' | 'brand'
 
+function boardUrl(app: SuiteApp, page: number, facet: { kind: FacetKey; value: string } | null) {
+  const params = new URLSearchParams({ page: String(page) })
+  if (facet) {
+    params.set('facetKind', facet.kind)
+    params.set('facetValue', facet.value)
+  }
+  return `/api/v1/suite/${app}?${params.toString()}`
+}
+
 export default function SuperOdooBoard({ app, title, canManage }: { app: SuiteApp; title: MessageKey; canManage: boolean }) {
   const { t } = useI18n()
   const [board, setBoard] = useState<SuiteBoard | null>(null)
   const [view, setView] = useState<View>('kanban')
+  const [page, setPage] = useState(1)
   const [phase, setPhase] = useState<'loading' | 'ready' | 'error'>('loading')
   const [error, setError] = useState<MessageKey>('erp.err.generic')
   const [notice, setNotice] = useState<string | null>(null)
@@ -30,10 +40,10 @@ export default function SuperOdooBoard({ app, title, canManage }: { app: SuiteAp
   useEffect(() => {
     const controller = new AbortController()
     setPhase('loading')
-    apiRequest<{ data: SuiteBoard }>(`/api/v1/suite/${app}`, { signal: controller.signal })
-      .then((page) => {
-        setBoard(page.data)
-        setStage(page.data.stages[0] ?? 'new')
+    apiRequest<{ data: SuiteBoard }>(boardUrl(app, page, facet), { signal: controller.signal })
+      .then((payload) => {
+        setBoard(payload.data)
+        setStage(payload.data.stages[0] ?? 'new')
         setPhase('ready')
       })
       .catch((caught) => {
@@ -42,14 +52,14 @@ export default function SuperOdooBoard({ app, title, canManage }: { app: SuiteAp
         setPhase('error')
       })
     return () => controller.abort()
-  }, [app])
+  }, [app, page, facet])
 
   function reload() {
     setPhase('loading')
-    apiRequest<{ data: SuiteBoard }>(`/api/v1/suite/${app}`)
-      .then((page) => {
-        setBoard(page.data)
-        setStage(page.data.stages[0] ?? 'new')
+    apiRequest<{ data: SuiteBoard }>(boardUrl(app, page, facet))
+      .then((payload) => {
+        setBoard(payload.data)
+        setStage(payload.data.stages[0] ?? 'new')
         setPhase('ready')
       })
       .catch((caught) => {
@@ -57,16 +67,6 @@ export default function SuperOdooBoard({ app, title, canManage }: { app: SuiteAp
         setPhase('error')
       })
   }
-
-  const rows = useMemo(() => {
-    if (!board) return []
-    if (!facet) return board.records
-    return board.records.filter((row) => {
-      if (facet.kind === 'department') return row.department === facet.value
-      if (facet.kind === 'location') return row.branchName === facet.value
-      return row.brandName === facet.value
-    })
-  }, [board, facet])
 
   async function create(event: FormEvent) {
     event.preventDefault()
@@ -78,15 +78,13 @@ export default function SuperOdooBoard({ app, title, canManage }: { app: SuiteAp
         method: 'POST',
         idempotencyKey: newIdempotencyKey(),
         body: {
-          title: titleValue,
+          title: titleValue.trim(),
           stage,
-          brandName: brand,
-          branchName: branch,
-          department,
-          assignee,
+          brandName: brand.trim(),
+          branchName: branch.trim(),
+          department: department.trim(),
+          assignee: assignee.trim(),
           amountMinor: 0,
-          startsOn: new Date().toISOString().slice(0, 10),
-          endsOn: null,
         },
       })
       setOpenCreate(false)
@@ -103,11 +101,12 @@ export default function SuperOdooBoard({ app, title, canManage }: { app: SuiteAp
 
   async function move(row: SuiteRecord, nextStage: string) {
     setBusy(true)
+    setNotice(null)
     try {
       await apiRequest(`/api/v1/suite/${app}/${row.id}`, {
         method: 'PATCH',
+        idempotencyKey: newIdempotencyKey(),
         body: {
-          version: row.version,
           title: row.title,
           stage: nextStage,
           brandName: row.brandName,
@@ -117,24 +116,35 @@ export default function SuperOdooBoard({ app, title, canManage }: { app: SuiteAp
           amountMinor: row.amountMinor,
           startsOn: row.startsOn,
           endsOn: row.endsOn,
+          version: row.version,
         },
       })
       setNotice(t('suite.saved'))
       reload()
     } catch (caught) {
       setError(errorKey(caught))
+      setPhase('error')
     } finally {
       setBusy(false)
     }
   }
 
-  if (phase === 'loading') return <p className="text-sm text-gray-400">{t('suite.loading')}</p>
-  if (phase === 'error' || !board) return <p className={errorClass} role="alert">{t(error)}</p>
+  if (phase === 'loading' && !board) return <p className="text-sm text-gray-400">{t('suite.loading')}</p>
+  if (phase === 'error' && !board) return <p className={errorClass}>{t(error)}</p>
+  if (!board) return null
+
+  const rows = board.records
+  const totalPages = Math.max(1, Math.ceil(board.total / Math.max(1, board.pageSize)))
 
   return (
     <section className="space-y-4">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold text-white">{t(title)}</h2>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-white">{t(title)}</h2>
+          <p className="text-xs text-gray-500">
+            {board.total} · {board.page}/{totalPages}
+          </p>
+        </div>
         <div className="flex flex-wrap gap-2">
           {(['kanban', 'list', 'gantt'] as const).map((item) => (
             <button key={item} type="button" className={view === item ? primaryButton : secondaryButton} onClick={() => setView(item)}>
@@ -142,18 +152,18 @@ export default function SuperOdooBoard({ app, title, canManage }: { app: SuiteAp
             </button>
           ))}
           {canManage ? (
-            <button type="button" className={primaryButton} onClick={() => setOpenCreate(true)} disabled={busy}>
+            <button type="button" className={primaryButton} onClick={() => setOpenCreate(true)}>
               {t('suite.create')}
             </button>
           ) : null}
         </div>
-      </header>
+      </div>
       {notice ? <p className={noticeClass}>{notice}</p> : null}
+      {phase === 'error' ? <p className={errorClass}>{t(error)}</p> : null}
       <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
         <aside className={`${panelClass} space-y-4`}>
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">{t('suite.filters')}</p>
-          <button type="button" className={!facet ? primaryButton : secondaryButton} onClick={() => setFacet(null)}>
-            {t('suite.all')} ({board.records.length})
+          <button type="button" className={secondaryButton} onClick={() => { setFacet(null); setPage(1) }}>
+            {t('suite.all')}
           </button>
           {(
             [
@@ -171,7 +181,10 @@ export default function SuperOdooBoard({ app, title, canManage }: { app: SuiteAp
                   className={`block w-full rounded-lg px-2 py-1 text-start text-sm ${
                     facet?.kind === kind && facet.value === item.key ? 'bg-blue-500/20 text-blue-200' : 'text-gray-300 hover:bg-white/5'
                   }`}
-                  onClick={() => setFacet({ kind, value: item.key })}
+                  onClick={() => {
+                    setFacet({ kind, value: item.key })
+                    setPage(1)
+                  }}
                 >
                   {item.label} <span className="text-gray-500">({item.count})</span>
                 </button>
@@ -186,7 +199,7 @@ export default function SuperOdooBoard({ app, title, canManage }: { app: SuiteAp
               {board.stages.map((column) => (
                 <div key={column} className="rounded-xl border border-[#30363d] bg-black/20 p-3">
                   <p className="mb-2 text-xs font-semibold uppercase text-gray-400">
-                    {column} ({rows.filter((row) => row.stage === column).length})
+                    {column} ({board.stageCounts[column] ?? 0})
                   </p>
                   <div className="space-y-2">
                     {rows
@@ -267,6 +280,19 @@ export default function SuperOdooBoard({ app, title, canManage }: { app: SuiteAp
               })}
             </div>
           ) : null}
+          <div className="mt-4 flex items-center justify-between gap-2">
+            <button type="button" className={secondaryButton} disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>
+              ‹
+            </button>
+            <button
+              type="button"
+              className={secondaryButton}
+              disabled={page >= totalPages}
+              onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
+            >
+              ›
+            </button>
+          </div>
         </div>
       </div>
       {openCreate ? (

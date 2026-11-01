@@ -4,7 +4,8 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = env("DATABASE_URL")
+  // Local erp-pro file DB. Runtime path is overridden in src/lib/db.ts so Postgres DATABASE_URL stays intact.
+  url      = "file:./dev.db"
 }
 
 model Role {
