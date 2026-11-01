@@ -9,6 +9,7 @@ import { useI18n, type MessageKey } from '@/lib/i18n'
 import { bpsToInput, formatMinor } from '@/lib/money'
 import { auditAggregatorSettlement, settlementFromSnapshot } from '@/modules/governance/domain/commission-auditor'
 import { ventureBrands, type CompetitorBench, type EscalationCard, type GeoRankSnapshot, type VentureBrandRow } from '@/modules/governance/client'
+import { SmartIngestLink } from '@/components/SmartIngestLink'
 
 type ExclusiveRecipient = {
   id: string
@@ -226,8 +227,9 @@ function Workspace() {
 
   return (
     <div className="space-y-6">
-      <header>
+      <header className="space-y-3">
         <h1 className="text-2xl font-bold text-white">{t('erpnav.aggregator')}</h1>
+        <SmartIngestLink module="sales_delivery" />
         <p className="mt-2 max-w-3xl text-sm text-gray-400">{t('hub.aggregator')}</p>
       </header>
 

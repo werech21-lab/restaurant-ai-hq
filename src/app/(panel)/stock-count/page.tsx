@@ -8,6 +8,7 @@ import { can, firstAllowedHref } from '@/lib/permissions'
 import { getActiveScope } from '@/lib/scope'
 import { countLowStock, listLowStock } from '@/lib/stock'
 import { formatQty } from '@/lib/format'
+import { SmartIngestLaunchButton } from '@/components/SmartIngestLaunchButton'
 
 export const metadata = { title: 'Stock Count | AetherBI' }
 export const dynamic = 'force-dynamic'
@@ -35,6 +36,7 @@ async function StockCountContent() {
         )}
         actions={
           <div className="flex flex-wrap gap-2">
+            <SmartIngestLaunchButton module="inventory" locale={locale} />
             <Link href="/inventory?tab=movements" className={btnPrimary}>
               {tx(locale, 'حركات المخزون', 'Stock movements')}
             </Link>

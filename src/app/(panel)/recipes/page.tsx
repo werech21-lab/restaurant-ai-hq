@@ -10,6 +10,7 @@ import { getLocale, tx } from '@/lib/i18n/server'
 import { getActiveScope } from '@/lib/scope'
 import { VENTURE_BRANDS } from '@/lib/venture-hierarchy'
 import { listRecipeCosts } from '@/services/recipe.service'
+import { SmartIngestLaunchButton } from '@/components/SmartIngestLaunchButton'
 
 export const metadata = { title: 'الوصفات وتكلفة الغذاء | AetherBI' }
 export const dynamic = 'force-dynamic'
@@ -43,6 +44,9 @@ async function RecipesContent() {
           `${scopeLabel} · BOM + food cost % + atomic discount on sale`,
         )}
       />
+      <div className="mb-4">
+        <SmartIngestLaunchButton module="inventory" locale={locale} />
+      </div>
       <RecipesPanel
         rows={rows}
         products={products}

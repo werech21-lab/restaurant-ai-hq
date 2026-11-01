@@ -7,6 +7,7 @@ import { permissions } from '@/lib/auth/permissions'
 import { useI18n, type MessageKey } from '@/lib/i18n'
 import CrmWorkspace from '@/modules/crm/ui/CrmWorkspace'
 import SuperOdooBoard from '@/modules/suite/ui/SuperOdooBoard'
+import { SmartIngestLink } from '@/components/SmartIngestLink'
 
 type Tab = 'crm' | 'sales' | 'pos' | 'subscriptions'
 const tabs: readonly Tab[] = ['crm', 'sales', 'pos', 'subscriptions']
@@ -28,9 +29,10 @@ function Workspace({ initialTab }: { initialTab: string }) {
 
   return (
     <div className="space-y-6">
-      <header>
+      <header className="space-y-3">
         <h1 className="text-2xl font-bold text-white">{t('sector.sales')}</h1>
         <p className="mt-2 max-w-3xl text-sm text-gray-400">{t('hub.crm')}</p>
+        <SmartIngestLink module="crm_projects" />
       </header>
       <div className="flex flex-wrap gap-2">
         {tabs.map((item) => (

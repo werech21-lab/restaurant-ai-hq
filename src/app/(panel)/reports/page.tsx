@@ -15,6 +15,7 @@ import { costOfGoods, inventoryValuation, salesSummary } from "@/lib/reports";
 import { getActiveScope } from "@/lib/scope";
 import { listPayments } from "@/services/report.service";
 import { forecastLabels } from "@/services/forecast.service";
+import { SmartIngestLaunchButton } from "@/components/SmartIngestLaunchButton";
 
 export const metadata = { title: "Reports | AetherBI ERP" };
 
@@ -40,6 +41,9 @@ async function ReportsContent({ searchParams }: { searchParams: Promise<RawQuery
         description={tx(locale, `أرباح وتكلفة مخزون وأرصدة الديون · ${scopeLabel}`, `P&L, inventory valuation, and balances · ${scopeLabel}`)}
         actions={<ExportCsvButton kind="reports" filename="reports.csv" />}
       />
+      <div className="mb-4">
+        <SmartIngestLaunchButton module="accounting" locale={locale} />
+      </div>
       <div className="mb-4 flex flex-wrap gap-2">
         <a href="/reports?tab=pnl" className={tab === "pnl" ? btnPrimary : btnGhost}>
           {tx(locale, "الأرباح والخسائر", "Profit & loss")}

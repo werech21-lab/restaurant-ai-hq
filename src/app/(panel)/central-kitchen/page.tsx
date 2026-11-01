@@ -6,6 +6,7 @@ import { Forbidden, PageHeader, PageSkeleton, btnPrimary, btnGhost, cardClass } 
 import { getLocale, tx } from '@/lib/i18n/server'
 import { can, firstAllowedHref } from '@/lib/permissions'
 import { getActiveScope } from '@/lib/scope'
+import { SmartIngestLaunchButton } from '@/components/SmartIngestLaunchButton'
 
 export const metadata = { title: 'Central Kitchen | AetherBI' }
 export const dynamic = 'force-dynamic'
@@ -30,6 +31,9 @@ async function CentralKitchenContent() {
           `${scopeLabel} · BOM recipes, ingredient deduction, and operational waste`,
         )}
       />
+      <div className="mb-4">
+        <SmartIngestLaunchButton module="inventory" locale={locale} />
+      </div>
       <div className={`${cardClass} grid gap-4 p-6 sm:grid-cols-2`}>
         <div>
           <h2 className="text-lg font-bold text-mist-100">{tx(locale, 'الوصفات وتكلفة الغذاء', 'Recipes & food cost')}</h2>

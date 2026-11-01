@@ -9,6 +9,7 @@ import { permissions } from '@/lib/auth/permissions'
 import { useI18n, type MessageKey } from '@/lib/i18n'
 import AnalyticPnlPanel from '@/modules/suite/ui/AnalyticPnlPanel'
 import SuperOdooBoard from '@/modules/suite/ui/SuperOdooBoard'
+import { SmartIngestLink } from '@/components/SmartIngestLink'
 
 type Tab = 'accounting' | 'invoicing' | 'expenses' | 'analytic'
 const tabs: readonly Tab[] = ['accounting', 'invoicing', 'expenses', 'analytic']
@@ -30,8 +31,9 @@ function Workspace({ initialTab, invoiceId }: { initialTab: string; invoiceId: s
 
   return (
     <div className="space-y-6">
-      <header>
+      <header className="space-y-3">
         <h1 className="text-2xl font-bold text-white">{t('sector.finance')}</h1>
+        <SmartIngestLink module="accounting" />
       </header>
       <div className="flex flex-wrap gap-2">
         {tabs.map((item) => (

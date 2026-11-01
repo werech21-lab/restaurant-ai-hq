@@ -16,6 +16,7 @@ import { can, firstAllowedHref } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
 import { getActiveScope, salesWhereForScope } from "@/lib/scope";
 import { invoiceText, payUrl, waLink } from "@/lib/whatsapp";
+import { SmartIngestLaunchButton } from "@/components/SmartIngestLaunchButton";
 
 export const metadata = { title: "Sales | AetherBI ERP" };
 
@@ -99,6 +100,9 @@ async function SalesContent({ searchParams }: { searchParams: Promise<RawQuery> 
 
   return (
     <div>
+      <div className="mb-4">
+        <SmartIngestLaunchButton module="sales_delivery" locale={locale} />
+      </div>
       {detail ? (
         <DocumentDetail
           closeHref={pageHref("/sales", { tab, q: query.q, status, page: query.page })}

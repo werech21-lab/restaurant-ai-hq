@@ -19,6 +19,7 @@ import { PAGE_SIZE, pageHref, readQuery, type RawQuery } from "@/lib/pagination"
 import { can, firstAllowedHref } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
 import { getActiveScope, purchaseOrderNumbersForScope } from "@/lib/scope";
+import { SmartIngestLaunchButton } from "@/components/SmartIngestLaunchButton";
 
 export const metadata = { title: "Purchases | AetherBI ERP" };
 
@@ -98,6 +99,9 @@ async function PurchasesContent({ searchParams }: { searchParams: Promise<RawQue
 
   return (
     <div>
+      <div className="mb-4">
+        <SmartIngestLaunchButton module="purchases" locale={locale} />
+      </div>
       {detail ? (
         <DocumentDetail
           closeHref={pageHref("/purchases", { tab, q: query.q, status, page: query.page })}

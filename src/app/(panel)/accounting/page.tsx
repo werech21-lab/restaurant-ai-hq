@@ -10,6 +10,7 @@ import { PAGE_SIZE, pageHref, readQuery, type RawQuery } from "@/lib/pagination"
 import { can, firstAllowedHref } from "@/lib/permissions";
 import { getActiveScope } from "@/lib/scope";
 import { chartOfAccounts, listJournals, trialBalance } from "@/services/accounting.service";
+import { SmartIngestLaunchButton } from "@/components/SmartIngestLaunchButton";
 
 export const metadata = { title: "Accounting | AetherBI" };
 
@@ -48,6 +49,9 @@ async function AccountingContent({ searchParams }: { searchParams: Promise<RawQu
           `Chart of accounts, dual-entry journals, and trial balance · ${scopeLabel}`,
         )}
       />
+      <div className="mb-4">
+        <SmartIngestLaunchButton module="accounting" locale={locale} />
+      </div>
       <div className="mb-4 flex flex-wrap gap-2">
         {tabs.map((item) => (
           <a

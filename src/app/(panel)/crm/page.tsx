@@ -10,6 +10,7 @@ import { isModuleEnabled } from "@/lib/modules-db";
 import { PAGE_SIZE, pageHref, readQuery, type RawQuery } from "@/lib/pagination";
 import { can, firstAllowedHref } from "@/lib/permissions";
 import { listLeads, listQuotations } from "@/services/crm.service";
+import { SmartIngestLaunchButton } from "@/components/SmartIngestLaunchButton";
 
 export const metadata = { title: "CRM | AetherBI ERP" };
 
@@ -40,6 +41,9 @@ async function CrmContent({ searchParams }: { searchParams: Promise<RawQuery> })
           "Sales pipeline and one-step conversion of accepted quotes to stock and ledger entries.",
         )}
       />
+      <div className="mb-4">
+        <SmartIngestLaunchButton module="crm_projects" locale={locale} />
+      </div>
       <div className="mb-4 flex gap-2">
         <a
           href={pageHref("/crm", { tab: "board" })}

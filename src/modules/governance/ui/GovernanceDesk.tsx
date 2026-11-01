@@ -8,6 +8,7 @@ import { permissions } from '@/lib/auth/permissions'
 import { useI18n, type MessageKey } from '@/lib/i18n'
 import { formatMinor, parseKwdToMinor } from '@/lib/money'
 import type { ConnectedDevice, ExecutiveTask, GovViolation, Investigation, MonitorEvent } from '@/modules/governance/client'
+import { SmartIngestLink } from '@/components/SmartIngestLink'
 
 type Tab = 'violations' | 'inquiry' | 'monitor' | 'tasks' | 'gate'
 const tabs: readonly Tab[] = ['violations', 'inquiry', 'monitor', 'tasks', 'gate']
@@ -150,8 +151,9 @@ function Workspace({ initialTab }: { initialTab: string }) {
 
   return (
     <div className="space-y-6">
-      <header>
+      <header className="space-y-3">
         <h1 className="text-2xl font-bold text-white">{t('desk.title')}</h1>
+        <SmartIngestLink module="governance" />
         <p className="mt-2 max-w-3xl text-sm text-gray-400">{t('desk.lead')}</p>
       </header>
       {notice ? <p className={noticeClass}>{notice}</p> : null}

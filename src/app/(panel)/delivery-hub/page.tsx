@@ -8,6 +8,7 @@ import { can, firstAllowedHref } from '@/lib/permissions'
 import { getLocale, tx } from '@/lib/i18n/server'
 import { getActiveScope } from '@/lib/scope'
 import { aggregatorSummary, listOpenOrders } from '@/services/delivery.service'
+import { SmartIngestLaunchButton } from '@/components/SmartIngestLaunchButton'
 
 export const metadata = { title: 'منصات التوصيل | AetherBI' }
 export const dynamic = 'force-dynamic'
@@ -36,6 +37,9 @@ async function DeliveryHubContent() {
         title={tx(locale, 'منصات التوصيل', 'Delivery aggregators')}
         description={`${scopeLabel} · Talabat · Deliveroo · Jahez · Cari · In-House`}
       />
+      <div className="mb-4">
+        <SmartIngestLaunchButton module="sales_delivery" locale={locale} />
+      </div>
       <DeliveryHubPanel
         platforms={platforms}
         orders={orders.map((order) => ({

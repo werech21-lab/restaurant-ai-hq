@@ -25,6 +25,7 @@ import {
 import { useI18n } from "@/lib/i18n";
 import { pageHref } from "@/lib/pagination";
 import type { SearchHit } from "@/lib/types";
+import { SmartIngestLink } from "@/components/SmartIngestLink";
 
 export type ProductRow = {
   id: string;
@@ -102,6 +103,7 @@ export function InventoryPanel({
         }
         actions={
           <div className="flex flex-wrap gap-2">
+            <SmartIngestLink module="inventory" />
             <ExportCsvButton kind="inventory" filename="inventory.csv" />
             {active === "categories" && canCreate ? (
               <button type="button" className={btnPrimary} onClick={() => setCategory("new")}>

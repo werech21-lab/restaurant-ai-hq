@@ -11,6 +11,7 @@ import { PAGE_SIZE, pageHref, readQuery, type RawQuery } from "@/lib/pagination"
 import { can, firstAllowedHref } from "@/lib/permissions";
 import { getActiveScope, warehouseWhereForScope } from "@/lib/scope";
 import { listTransfers, listWarehouses, warehouseStock } from "@/services/warehouse.service";
+import { SmartIngestLaunchButton } from "@/components/SmartIngestLaunchButton";
 
 export const metadata = { title: "Warehouses | AetherBI ERP" };
 
@@ -54,6 +55,9 @@ async function WarehousesContent({ searchParams }: { searchParams: Promise<RawQu
           "Per-warehouse stock balances and branch transfers without changing company-wide totals.",
         )}
       />
+      <div className="mb-4">
+        <SmartIngestLaunchButton module="inventory" locale={locale} />
+      </div>
       <div className="mb-4">
         <a
           href="/directory"

@@ -8,6 +8,7 @@ import { permissions } from '@/lib/auth/permissions'
 import { useI18n, type MessageKey } from '@/lib/i18n'
 import { formatMinor } from '@/lib/money'
 import type { BlockedAttempt, Circular, EnforcementRule, LearningMemory } from '@/modules/governance/client'
+import { SmartIngestLink } from '@/components/SmartIngestLink'
 
 type Tab = 'laws' | 'gate' | 'memory'
 const tabs: readonly Tab[] = ['laws', 'gate', 'memory']
@@ -109,8 +110,9 @@ function Workspace({ initialTab }: { initialTab: string }) {
 
   return (
     <div className="space-y-4">
-      <header>
+      <header className="space-y-3">
         <h1 className="text-2xl font-semibold text-gray-50">{t('hub.compliance')}</h1>
+        <SmartIngestLink module="governance" />
       </header>
       <div className="flex flex-wrap gap-2">
         {tabs.map((item) => (

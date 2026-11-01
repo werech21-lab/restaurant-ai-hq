@@ -6,6 +6,7 @@ import { primaryButton, secondaryButton } from '@/components/erp/styles'
 import { permissions } from '@/lib/auth/permissions'
 import { useI18n, type MessageKey } from '@/lib/i18n'
 import SuperOdooBoard from '@/modules/suite/ui/SuperOdooBoard'
+import { SmartIngestLink } from '@/components/SmartIngestLink'
 
 type Tab = 'project' | 'timesheets' | 'helpdesk'
 const tabs: readonly Tab[] = ['project', 'timesheets', 'helpdesk']
@@ -27,8 +28,9 @@ function Workspace({ initialTab }: { initialTab: string }) {
 
   return (
     <div className="space-y-6">
-      <header>
+      <header className="space-y-3">
         <h1 className="text-2xl font-bold text-white">{t('sector.projects')}</h1>
+        <SmartIngestLink module="crm_projects" />
       </header>
       <div className="flex flex-wrap gap-2">
         {tabs.map((item) => (

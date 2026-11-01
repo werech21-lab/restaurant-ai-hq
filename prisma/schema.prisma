@@ -533,6 +533,39 @@ model HrDocument {
   @@index([fileType])
 }
 
+/// Cross-department smart folder ingest — Zero-Blob (fileUrl only, never large Base64).
+model DeptIngestDocument {
+  id            String    @id @default(cuid())
+  module        String
+  batchId       String
+  fileName      String
+  relativePath  String
+  category      String
+  mimeType      String    @default("application/octet-stream")
+  sizeBytes     Int       @default(0)
+  fileUrl       String?
+  fileType      String?
+  extractedText String?
+  entityKey     String?
+  entityLabel   String?
+  branchCode    String?
+  brandCode     String?
+  amountMinor   Int?
+  currency      String    @default("KWD")
+  expiryDate    DateTime?
+  matchScore    Float     @default(0)
+  status        String    @default("MATCHED")
+  updatesJson   String    @default("[]")
+  metaJson      String    @default("{}")
+  createdAt     DateTime  @default(now())
+
+  @@index([module, batchId])
+  @@index([module, status, createdAt])
+  @@index([entityKey])
+  @@index([expiryDate])
+  @@index([branchCode, brandCode])
+}
+
 model Attendance {
   id          String   @id @default(cuid())
   employeeId  String
