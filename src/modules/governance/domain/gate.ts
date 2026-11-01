@@ -1,13 +1,14 @@
-export const gateActions = ['delivery.assign_driver', 'hr.attendance.hours', 'hr.expense.cash'] as const
+export const gateActions = ['delivery.assign_driver', 'hr.attendance.hours', 'hr.expense.cash', 'hr.residency.check'] as const
 export type GateAction = (typeof gateActions)[number]
 
-export const ruleTypes = ['expired_driver_license', 'max_working_hours', 'cash_ceiling_kwd'] as const
+export const ruleTypes = ['expired_driver_license', 'max_working_hours', 'cash_ceiling_kwd', 'expired_residency'] as const
 export type RuleType = (typeof ruleTypes)[number]
 
 export type ActiveRule = { ruleCode: string; ruleType: RuleType; thresholdValue: number }
 
 export type GateFacts = {
   licenseExpiry?: string | null
+  residencyExpiry?: string | null
   workedMinutes?: number
   cashMinor?: number
 }
@@ -16,6 +17,7 @@ const ruleTypeByAction: Record<GateAction, RuleType> = {
   'delivery.assign_driver': 'expired_driver_license',
   'hr.attendance.hours': 'max_working_hours',
   'hr.expense.cash': 'cash_ceiling_kwd',
+  'hr.residency.check': 'expired_residency',
 }
 
 export function ruleTypeFor(action: GateAction): RuleType {
@@ -42,6 +44,10 @@ export function gateDecision(
   if (!rule) return { blocked: false }
   if (action === 'delivery.assign_driver') {
     if (!facts.licenseExpiry || facts.licenseExpiry >= asOf) return { blocked: false }
+    return { blocked: true, ruleCode: rule.ruleCode }
+  }
+  if (action === 'hr.residency.check') {
+    if (!facts.residencyExpiry || facts.residencyExpiry >= asOf) return { blocked: false }
     return { blocked: true, ruleCode: rule.ruleCode }
   }
   if (action === 'hr.attendance.hours') {

@@ -177,13 +177,20 @@ function Workspace({ initialTab }: { initialTab: string }) {
     }
   }
 
-  async function runPayroll(event?: FormEvent) {
+  async function runPayroll(event?: FormEvent, periodOverride?: string) {
     event?.preventDefault()
+    const usePeriod = periodOverride ?? period
+    const useEntryDate = usePeriod === '2026-10' ? '2026-10-31' : entryDate
     setBusy(true)
     setNotice(null)
     try {
-      await apiRequest('/api/v1/hr/payroll', { method: 'POST', idempotencyKey: newIdempotencyKey(), body: { period, entryDate, deductions: [] } })
-      setNotice(t('hr.saved'))
+      await apiRequest('/api/v1/hr/payroll', {
+        method: 'POST',
+        idempotencyKey: newIdempotencyKey(),
+        body: { period: usePeriod, entryDate: useEntryDate, deductions: [] },
+      })
+      if (periodOverride) setPeriod(periodOverride)
+      setNotice(usePeriod === '2026-10' ? t('hr.pay.branchPosted') : t('hr.saved'))
       load()
     } catch (caught) {
       setError(errorKey(caught))
@@ -333,7 +340,11 @@ function Workspace({ initialTab }: { initialTab: string }) {
                     <p className="mt-2 text-xs text-gray-300">{t('hr.badge')}: {employee.badgeCode ?? employee.employeeCode}</p>
                     {phone ? <p className="text-xs text-gray-400" dir="ltr">{phone}</p> : null}
                     {email ? <p className="truncate text-xs text-gray-400" dir="ltr">{email}</p> : null}
-                    {employee.workLocation ? <span className="mt-3 inline-block rounded-md bg-white/5 px-2 py-1 text-[11px] text-gold-200">{employee.workLocation}</span> : null}
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {employee.odooId ? <span className="rounded-md bg-emerald-500/15 px-2 py-1 text-[11px] text-emerald-200">{t('hr.contact.odoo')}</span> : null}
+                      {!phone && !email ? <span className="rounded-md bg-white/5 px-2 py-1 text-[11px] text-gray-400">{t('hr.contact.missing')}</span> : null}
+                      {employee.workLocation ? <span className="rounded-md bg-white/5 px-2 py-1 text-[11px] text-gold-200">{employee.workLocation}</span> : null}
+                    </div>
                   </button>
                   )
                 })}
@@ -471,8 +482,15 @@ function Workspace({ initialTab }: { initialTab: string }) {
                       <p className="font-medium text-white">{batch.label}</p>
                       <p className="text-xs text-gray-400">[{batch.status === 'new' ? t('hr.pay.batch.new') : t('hr.pay.batch.done')} — {batch.payslipCount} {t('hr.pay.payslips')}]</p>
                       {batch.status === 'new' && batch.generateTarget > 0 && canPayroll ? (
-                        <button className={`${primaryButton} mt-2`} type="button" disabled={busy} onClick={() => { setPeriod(batch.period); void runPayroll() }}>
-                          {t('hr.pay.generate')} {batch.generateTarget}
+                        <button
+                          className={`${primaryButton} mt-2`}
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void runPayroll(undefined, batch.period)}
+                        >
+                          {batch.period === '2026-10'
+                            ? `${t('hr.pay.generateOct')} (${batch.generateTarget} ${t('hr.pay.payslips')})`
+                            : `${t('hr.pay.generate')} ${batch.generateTarget}`}
                         </button>
                       ) : null}
                     </div>

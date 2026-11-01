@@ -68,6 +68,10 @@ export const baselineSentinels = {
   '0037_hr_deep_tables_rls.sql': ['fn:erp_hr_deep_tables_rls_marker()'],
   '0038_revoke_hr_deep_marker_grants.sql': ['fn:erp_hr_marker_grants_marker()'],
   '0039_hr_employee_avatar_photo.sql': ['fn:erp_hr_avatar_photo_marker()'],
+  '0040_governance_residency_hard_stop.sql': ['fn:erp_gov_residency_hard_stop_marker()'],
+  '0041_scrub_demo_tokens_staging.sql': ['fn:erp_scrub_demo_tokens_marker()'],
+  '0042_scrub_demo_json_and_snapshots.sql': ['fn:erp_scrub_demo_json_marker()'],
+  '0043_scrub_demo_infra_json.sql': ['fn:erp_scrub_demo_infra_marker()'],
 }
 
 /**

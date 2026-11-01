@@ -24,6 +24,9 @@ describe('compliance gate', () => {
     expect(gateDecision([cash], 'hr.expense.cash', { cashMinor: 50_000 }, '2026-10-29').blocked).toBe(false)
     expect(gateDecision([cash], 'hr.expense.cash', { cashMinor: 50_001 }, '2026-10-29')).toEqual({ blocked: true, ruleCode: 'CIRC-KW-2026-03' })
     expect(gateDecision([], 'hr.expense.cash', { cashMinor: 80_000 }, '2026-10-29').blocked).toBe(false)
+    const residency = { ruleCode: 'CIRC-KW-2026-06', ruleType: 'expired_residency' as const, thresholdValue: 0 }
+    expect(gateDecision([residency], 'hr.residency.check', { residencyExpiry: '2020-01-01' }, '2026-10-29').blocked).toBe(true)
+    expect(gateDecision([residency], 'hr.residency.check', { residencyExpiry: '2026-12-01' }, '2026-10-29').blocked).toBe(false)
   })
 })
 

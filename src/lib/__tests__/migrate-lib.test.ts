@@ -144,7 +144,7 @@ describe('baseline sentinels against the real migrations', () => {
 
   it('plans 0001 through 0027 in filename order for an empty database, then only the remainder', async () => {
     const all = await names()
-    expect(all).toHaveLength(39)
+    expect(all).toHaveLength(43)
     expect(all[0]).toBe('0001_core.sql')
     expect(all[27]).toBe('0028_aggregator_rank_rescue_radar.sql')
     expect(all[28]).toBe('0029_venture_foods_brands_aggregator_radar.sql')
@@ -158,6 +158,10 @@ describe('baseline sentinels against the real migrations', () => {
     expect(all[36]).toBe('0037_hr_deep_tables_rls.sql')
     expect(all[37]).toBe('0038_revoke_hr_deep_marker_grants.sql')
     expect(all[38]).toBe('0039_hr_employee_avatar_photo.sql')
+    expect(all[39]).toBe('0040_governance_residency_hard_stop.sql')
+    expect(all[40]).toBe('0041_scrub_demo_tokens_staging.sql')
+    expect(all[41]).toBe('0042_scrub_demo_json_and_snapshots.sql')
+    expect(all[42]).toBe('0043_scrub_demo_infra_json.sql')
     const described = all.map((name) => ({ name, checksum: 'same' }))
     expect(planMigrations(described, new Map())).toEqual({ pending: all, upToDate: [], changed: [], unknown: [], gaps: [] })
     const prefix = new Map(all.slice(0, 10).map((name) => [name, 'same']))

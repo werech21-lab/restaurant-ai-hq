@@ -196,10 +196,21 @@ export async function runPayroll(auth: AuthContext, key: string, input: RunPayro
       }
       const slips = employees.map((employee) => {
         const amounts = payslipAmounts(employee.basicSalaryMinor, employee.allowancesMinor, deductions.get(employee.id) ?? 0)
-        return { employeeId: employee.id, ...amounts }
+        return { employeeId: employee.id, branch: employee.workLocation?.trim() || 'الإدارة العامة / قيد التوزيع', ...amounts }
       })
       const totals = payrollTotals(slips)
       if (totals.netMinor <= 0) throw new DomainError('zero_amount', 'A payroll run needs a net amount above zero.')
+      const byBranch = new Map<string, { count: number; netMinor: number }>()
+      for (const slip of slips) {
+        const bucket = byBranch.get(slip.branch) ?? { count: 0, netMinor: 0 }
+        bucket.count += 1
+        bucket.netMinor += slip.netMinor
+        byBranch.set(slip.branch, bucket)
+      }
+      const branchDistribution = [...byBranch.entries()]
+        .sort((a, b) => b[1].netMinor - a[1].netMinor || a[0].localeCompare(b[0]))
+        .map(([branch, stats]) => ({ branch, payslipCount: stats.count, netMinor: stats.netMinor }))
+      const branchMemo = branchDistribution.map((row) => `${row.branch}: ${row.payslipCount}`).join(' · ')
       let runId: string
       try {
         runId = await repository.insertPayrollRun(tx, auth.tenantId, auth.userId, { period: input.period, ...totals })
@@ -207,17 +218,18 @@ export async function runPayroll(auth: AuthContext, key: string, input: RunPayro
         if (isUniqueViolation(error)) throw new DomainError('invalid_transition', 'That payroll period was already run.')
         throw error
       }
-      for (const slip of slips) await repository.insertPayslip(tx, auth.tenantId, auth.userId, { runId, ...slip })
+      for (const slip of slips) await repository.insertPayslip(tx, auth.tenantId, auth.userId, { runId, employeeId: slip.employeeId, grossMinor: slip.grossMinor, deductionsMinor: slip.deductionsMinor, netMinor: slip.netMinor })
       const accounts = await salaryAccounts(tx, auth.tenantId)
+      const memo = `مسير رواتب ${input.period} — حسب الفروع: ${branchMemo}`
       const entry = await postSourcedEntryWithin(tx, auth, {
         entryDate: input.entryDate,
-        memo: `مسير رواتب ${input.period}`,
+        memo,
         sourceType: 'payroll',
         sourceId: runId,
-        lines: buildPayrollLines(totals.netMinor, accounts.expenseId, accounts.payableId, `مسير رواتب ${input.period}`),
+        lines: buildPayrollLines(totals.netMinor, accounts.expenseId, accounts.payableId, memo),
       }, financeEvents)
       await repository.markPayrollPosted(tx, auth.tenantId, runId, entry.id)
-      await writeAudit(tx, { tenantId: auth.tenantId, actorId: auth.userId, entity: 'hr_payroll_run', entityId: runId, action: 'create', before: null, after: { period: input.period, ...totals, journalEntryId: entry.id } })
+      await writeAudit(tx, { tenantId: auth.tenantId, actorId: auth.userId, entity: 'hr_payroll_run', entityId: runId, action: 'create', before: null, after: { period: input.period, ...totals, journalEntryId: entry.id, branchDistribution } })
       await recordMovementWithin(tx, auth, { module: 'hr', actionType: 'posted', entityType: 'payroll_run', entityId: runId, descriptionAr: `ترحيل مسير الرواتب ${input.period}`, amountMinor: totals.netMinor })
       hrEvents.push({ ...stamp(auth), name: 'hr.payroll.posted', payload: { runId, period: input.period, netMinor: totals.netMinor, journalEntryId: entry.id, postedBy: auth.userId } })
       const data: PayrollRun = { id: runId, period: input.period, ...totals, journalEntryId: entry.id, status: 'posted' }

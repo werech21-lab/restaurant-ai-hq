@@ -1,4 +1,5 @@
 import { Suspense, type ReactNode } from 'react'
+import CommandPalette from '@/components/erp/CommandPalette'
 import DepartmentTree from '@/components/erp/DepartmentTree'
 import ErpNav from '@/components/erp/ErpNav'
 import GovernancePulse from '@/components/erp/GovernancePulse'
@@ -19,6 +20,7 @@ export default function ErpLayout({ children }: { children: ReactNode }) {
         </Suspense>
         <GovernancePulse />
         {children}
+        <CommandPalette />
       </div>
     </div>
   )

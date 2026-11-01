@@ -16,7 +16,8 @@ function isTab(value: string): value is Tab {
   return (tabs as readonly string[]).includes(value)
 }
 
-type ActionType = 'delivery.assign_driver' | 'hr.attendance.hours' | 'hr.expense.cash'
+type ActionType = 'delivery.assign_driver' | 'hr.attendance.hours' | 'hr.expense.cash' | 'hr.residency.check'
+type HrAlert = { id: string; fullName: string; residencyExpiry: string | null; workLocation: string | null }
 
 function Workspace({ initialTab }: { initialTab: string }) {
   const { t } = useI18n()
@@ -30,22 +31,28 @@ function Workspace({ initialTab }: { initialTab: string }) {
   const [rules, setRules] = useState<EnforcementRule[]>([])
   const [blocks, setBlocks] = useState<BlockedAttempt[]>([])
   const [memory, setMemory] = useState<LearningMemory[]>([])
+  const [hrAlerts, setHrAlerts] = useState<HrAlert[]>([])
   const [action, setAction] = useState<ActionType>('delivery.assign_driver')
 
   function load() {
     const controller = new AbortController()
+    const asOf = new Date().toISOString().slice(0, 10)
     setPhase('loading')
     Promise.all([
       apiRequest<{ data: Circular[] }>('/api/v1/governance/circulars', { signal: controller.signal }),
       apiRequest<{ data: EnforcementRule[] }>('/api/v1/governance/rules', { signal: controller.signal }),
       apiRequest<{ data: BlockedAttempt[] }>('/api/v1/governance/blocks', { signal: controller.signal }),
       apiRequest<{ data: LearningMemory[] }>('/api/v1/governance/memory', { signal: controller.signal }),
+      apiRequest<{ data: HrAlert[] }>('/api/v1/hr/employees', { signal: controller.signal }).catch(() => ({ data: [] as HrAlert[] })),
     ])
-      .then(([circularPage, rulePage, blockPage, memoryPage]) => {
+      .then(([circularPage, rulePage, blockPage, memoryPage, employeePage]) => {
         setCirculars(circularPage.data)
         setRules(rulePage.data)
         setBlocks(blockPage.data)
         setMemory(memoryPage.data)
+        setHrAlerts(
+          employeePage.data.filter((row) => row.residencyExpiry && row.residencyExpiry <= asOf.slice(0, 10)),
+        )
         setError(null)
         setPhase('ready')
       })
@@ -81,7 +88,9 @@ function Workspace({ initialTab }: { initialTab: string }) {
       ? { actionType: action, licenseExpiry: '2020-01-01' }
       : action === 'hr.attendance.hours'
         ? { actionType: action, workedMinutes: 9 * 60 }
-        : { actionType: action, cashMinor: 80_000 }
+        : action === 'hr.residency.check'
+          ? { actionType: action, residencyExpiry: '2020-01-01' }
+          : { actionType: action, cashMinor: 80_000 }
     try {
       await apiRequest('/api/v1/governance/compliance/simulate', { method: 'POST', body })
       setNotice(t('gov.allowed'))
@@ -129,6 +138,22 @@ function Workspace({ initialTab }: { initialTab: string }) {
       ) : null}
       {phase === 'ready' && tab === 'gate' ? (
         <section className={panelClass}>
+          <h2 className="mb-3 text-sm font-semibold text-amber-200">{t('gov.tab.gatekeeper')}</h2>
+          <div className="mb-4 space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">{t('gov.gate.residency')}</p>
+            {hrAlerts.length === 0 ? <p className="text-sm text-gray-400">{t('gov.empty')}</p> : hrAlerts.slice(0, 40).map((row) => (
+              <p key={row.id} className="rounded-lg border border-rose-500/30 bg-rose-950/30 px-3 py-2 text-sm text-rose-100">
+                {row.fullName} — {t('gov.gate.expired')} {row.residencyExpiry}
+                {row.workLocation ? ` · ${row.workLocation}` : ''}
+              </p>
+            ))}
+            <p className="pt-2 text-xs font-semibold uppercase tracking-wide text-gray-400">{t('gov.gate.license')}</p>
+            {circulars.filter((row) => row.regulationCode.includes('2026-01') || row.titleAr.includes('رخص') || row.titleAr.includes('فرع')).slice(0, 8).map((row) => (
+              <p key={row.id} className="rounded-lg border border-amber-500/30 bg-amber-950/20 px-3 py-2 text-sm text-amber-100">
+                {row.regulationCode} — {row.titleAr}
+              </p>
+            ))}
+          </div>
           {canEnforce ? (
             <form className="mb-4 flex flex-wrap items-end gap-3" onSubmit={(event) => void simulate(event)}>
               <label className={labelClass}>{t('gov.rule')}
@@ -136,6 +161,7 @@ function Workspace({ initialTab }: { initialTab: string }) {
                   <option value="delivery.assign_driver">{t('gov.action.license')}</option>
                   <option value="hr.attendance.hours">{t('gov.action.hours')}</option>
                   <option value="hr.expense.cash">{t('gov.action.cash')}</option>
+                  <option value="hr.residency.check">{t('gov.action.residency')}</option>
                 </select>
               </label>
               <button className={primaryButton} type="submit" disabled={busy}>{t('gov.simulate')}</button>

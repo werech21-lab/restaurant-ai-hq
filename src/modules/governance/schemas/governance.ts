@@ -16,6 +16,7 @@ export type EnforceInput = z.output<typeof enforceSchema>
 export const simulateSchema = z.object({
   actionType: z.enum(gateActions),
   licenseExpiry: date.nullable().optional(),
+  residencyExpiry: date.nullable().optional(),
   workedMinutes: z.number().int().min(0).max(24 * 60).optional(),
   cashMinor: money.optional(),
 })

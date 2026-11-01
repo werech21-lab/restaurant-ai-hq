@@ -7,12 +7,13 @@ import { errorClass, inputClass, labelClass, noticeClass, panelClass, primaryBut
 import { permissions } from '@/lib/auth/permissions'
 import { useI18n, type MessageKey } from '@/lib/i18n'
 import { bpsToInput, formatMinor } from '@/lib/money'
+import { auditAggregatorSettlement, settlementFromSnapshot } from '@/modules/governance/domain/commission-auditor'
 import { ventureBrands, type CompetitorBench, type EscalationCard, type GeoRankSnapshot, type VentureBrandRow } from '@/modules/governance/client'
 
 type Board = { brands: VentureBrandRow[]; snapshots: GeoRankSnapshot[]; competitors: CompetitorBench[]; actions: EscalationCard[] }
 const platforms = ['Talabat', 'Keeta', 'Jahez', 'Snoonu', 'Deliveroo'] as const
 const zones = ['السالمية', 'شرق/مدينة الكويت', 'حولي', 'الفروانية', 'المهبولة', 'الجهراء', 'العارضية'] as const
-const radarTabs = ['rank', 'gap', 'tactics', 'escalation'] as const
+const radarTabs = ['rank', 'gap', 'tactics', 'escalation', 'settle'] as const
 type RadarTab = (typeof radarTabs)[number]
 
 function Workspace() {
@@ -33,7 +34,7 @@ function Workspace() {
 
   useEffect(() => {
     const hash = window.location.hash.slice(1)
-    if (hash === 'gap' || hash === 'tactics' || hash === 'escalation' || hash === 'rank') setTab(hash)
+    if (hash === 'gap' || hash === 'tactics' || hash === 'escalation' || hash === 'rank' || hash === 'settle') setTab(hash)
   }, [])
 
   function openTab(value: RadarTab) {
@@ -311,6 +312,43 @@ function Workspace() {
             ) : null}
           </article>
         ))}
+      </section>
+
+      <section className={panelClass} id="settle" role="tabpanel" hidden={tab !== 'settle'} aria-labelledby="agg-tab-settle">
+        <h2 className="mb-1 font-semibold text-white">{t('agg.panel.settle')}</h2>
+        <p className="mb-3 text-sm text-gray-400">{t('agg.settle.lead')}</p>
+        {!selected ? <p className="text-sm text-gray-400">{t('agg.empty')}</p> : (() => {
+          const audit = auditAggregatorSettlement(settlementFromSnapshot({
+            deliveryFeeMinor: selected.deliveryFeeMinor,
+            logisticsMode: selected.logisticsMode,
+            currentRank: selected.currentRank,
+            pageViews: selected.estimatedVisitsImpressions,
+            ordersCount: Math.round((selected.estimatedVisitsImpressions * selected.conversionRateBps) / 10_000),
+            avgTicketMinor: Math.max(selected.minOrderMinor, selected.deliveryFeeMinor * 8),
+            commissionBps: 2500,
+          }))
+          return (
+            <div className="grid gap-3 md:grid-cols-3">
+              <article className="rounded-xl border border-white/10 p-3 text-sm text-gray-100">
+                <p className="text-gray-400">{t('agg.settle.platform')}</p>
+                <p className="mt-2 text-lg font-semibold text-gold-300">{formatMinor(audit.platformNetMarginMinor)} {t('admin.kwd')}</p>
+                <p className="mt-1 text-xs text-gray-400">{t('agg.settle.margin')}</p>
+              </article>
+              <article className="rounded-xl border border-white/10 p-3 text-sm text-gray-100">
+                <p className="text-gray-400">{t('agg.settle.fleet')}</p>
+                <p className="mt-2 text-lg font-semibold text-gold-300">{formatMinor(audit.fleetNetMarginMinor)} {t('admin.kwd')}</p>
+                <p className="mt-1 text-xs text-gray-400">{t('agg.settle.better')}: {audit.better === 'fleet' ? t('agg.settle.fleet') : audit.better === 'platform' ? t('agg.settle.platform') : '—'}</p>
+              </article>
+              <article className="rounded-xl border border-white/10 p-3 text-sm text-gray-100">
+                <p className="text-gray-400">{t('agg.settle.rankTrack')}</p>
+                <p className="mt-2 text-lg font-semibold text-white">{audit.rankTrackLabel}</p>
+                <p className="mt-3 text-gray-400">{t('agg.settle.funnel')}</p>
+                <p className="mt-1">{t('agg.settle.visits')}: {selected.estimatedVisitsImpressions}</p>
+                <p>{t('agg.settle.conversion')}: {bpsToInput(audit.conversionBps)}</p>
+              </article>
+            </div>
+          )
+        })()}
       </section>
     </div>
   )

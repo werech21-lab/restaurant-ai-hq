@@ -9,8 +9,9 @@ import { useI18n, type MessageKey } from '@/lib/i18n'
 import { formatMinor, parseKwdToMinor } from '@/lib/money'
 import type { ConnectedDevice, ExecutiveTask, GovViolation, Investigation, MonitorEvent } from '@/modules/governance/client'
 
-type Tab = 'violations' | 'inquiry' | 'monitor' | 'tasks'
-const tabs: readonly Tab[] = ['violations', 'inquiry', 'monitor', 'tasks']
+type Tab = 'violations' | 'inquiry' | 'monitor' | 'tasks' | 'gate'
+const tabs: readonly Tab[] = ['violations', 'inquiry', 'monitor', 'tasks', 'gate']
+type HrAlert = { id: string; fullName: string; residencyExpiry: string | null; workLocation: string | null }
 
 function isTab(value: string): value is Tab {
   return (tabs as readonly string[]).includes(value)
@@ -37,6 +38,7 @@ function Workspace({ initialTab }: { initialTab: string }) {
   const [devices, setDevices] = useState<ConnectedDevice[]>([])
   const [events, setEvents] = useState<MonitorEvent[]>([])
   const [tasks, setTasks] = useState<ExecutiveTask[]>([])
+  const [hrAlerts, setHrAlerts] = useState<HrAlert[]>([])
   const [statement, setStatement] = useState('')
   const [proof, setProof] = useState('archive:closure-proof')
   const [question, setQuestion] = useState('')
@@ -77,18 +79,21 @@ function Workspace({ initialTab }: { initialTab: string }) {
   useEffect(() => {
     const controller = new AbortController()
     setPhase('loading')
+    const asOf = new Date().toISOString().slice(0, 10)
     Promise.all([
       apiRequest<{ data: GovViolation[] }>('/api/v1/governance/violations', { signal: controller.signal }),
       apiRequest<{ data: Investigation[] }>('/api/v1/governance/investigations', { signal: controller.signal }),
       apiRequest<{ data: { devices: ConnectedDevice[]; events: MonitorEvent[] } }>('/api/v1/governance/monitoring', { signal: controller.signal }),
       apiRequest<{ data: ExecutiveTask[] }>('/api/v1/governance/tasks', { signal: controller.signal }),
+      apiRequest<{ data: HrAlert[] }>('/api/v1/hr/employees', { signal: controller.signal }).catch(() => ({ data: [] as HrAlert[] })),
     ])
-      .then(([violationPage, inquiryPage, monitorPage, taskPage]) => {
+      .then(([violationPage, inquiryPage, monitorPage, taskPage, employeePage]) => {
         setViolations(violationPage.data)
         setInquiries(inquiryPage.data)
         setDevices(monitorPage.data.devices)
         setEvents(monitorPage.data.events)
         setTasks(taskPage.data)
+        setHrAlerts(employeePage.data.filter((row) => row.residencyExpiry && row.residencyExpiry <= asOf))
         setPhase('ready')
         setDetail(null)
       })
@@ -317,6 +322,25 @@ function Workspace({ initialTab }: { initialTab: string }) {
                 </div>
               ) : null}
             </article>
+          ))}
+        </section>
+      ) : null}
+
+      {tab === 'gate' ? (
+        <section className={panelClass}>
+          <h2 className="mb-3 text-sm font-semibold text-amber-200">{t('gov.tab.gatekeeper')}</h2>
+          <p className="mb-3 text-xs text-gray-400">{t('gov.gate.residency')}</p>
+          {hrAlerts.length === 0 ? <p className="text-sm text-gray-400">{t('gov.empty')}</p> : hrAlerts.slice(0, 50).map((row) => (
+            <p key={row.id} className="border-t border-rose-500/20 py-2 text-sm text-rose-100">
+              {row.fullName} — {t('gov.gate.expired')} {row.residencyExpiry}
+              {row.workLocation ? ` · ${row.workLocation}` : ''}
+            </p>
+          ))}
+          <p className="mb-2 mt-4 text-xs text-gray-400">{t('gov.gate.license')}</p>
+          {violations.filter((row) => /رخص|license|فرع|بلدية/i.test(`${row.violationTypeAr} ${row.issuingAuthority}`)).slice(0, 12).map((row) => (
+            <p key={row.id} className="border-t border-amber-500/20 py-2 text-sm text-amber-100">
+              {row.violationNumber} — {row.violationTypeAr} · {row.issuingAuthority}
+            </p>
           ))}
         </section>
       ) : null}

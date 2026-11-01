@@ -21,6 +21,7 @@ const attemptText: Record<GateAction, { module: 'hr' | 'delivery'; text: string 
   'delivery.assign_driver': { module: 'delivery', text: 'تعيين طلب توصيل لسائق برخصة منتهية' },
   'hr.attendance.hours': { module: 'hr', text: 'تسجيل ساعات وردية تتجاوز الحد القانوني' },
   'hr.expense.cash': { module: 'hr', text: 'تسجيل مصروف نقدي أعلى من السقف المعتمد' },
+  'hr.residency.check': { module: 'hr', text: 'تشغيل موظف بإقامة أو بطاقة صحية منتهية' },
 }
 
 function stamp(auth: AuthContext) {
@@ -64,6 +65,7 @@ export async function enforceCompliance(auth: AuthContext, action: GateAction, f
 export async function simulateCompliance(auth: AuthContext, input: SimulateInput): Promise<{ blocked: false }> {
   await enforceCompliance(auth, input.actionType, {
     licenseExpiry: input.licenseExpiry,
+    residencyExpiry: input.residencyExpiry,
     workedMinutes: input.workedMinutes,
     cashMinor: input.cashMinor,
   })

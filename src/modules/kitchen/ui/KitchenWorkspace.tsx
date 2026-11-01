@@ -114,6 +114,10 @@ function Workspace() {
       <header>
         <h1 className="text-2xl font-bold text-mist-100">{t('kwork.title')}</h1>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-mist-400">{t('kwork.lead')}</p>
+        <div className="mt-4 rounded-2xl border border-gold-300/20 bg-gold-400/5 px-4 py-3">
+          <p className="text-sm font-semibold text-gold-300">{t('kwork.backflush')}</p>
+          <p className="mt-1 text-xs text-mist-400">{t('kwork.backflush.hint')}</p>
+        </div>
       </header>
       {notice ? (
         <p className={noticeClass}>
@@ -200,13 +204,19 @@ function Workspace() {
         </ul>
       </section>
       <section>
-        <h2 className="mb-2 font-semibold text-mist-100">{t('kwork.waste')}</h2>
+        <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="font-semibold text-mist-100">{t('kwork.waste')}</h2>
+          <p className="text-xs text-rose-200">
+            {t('kwork.wasteVariance')}:{' '}
+            {formatMinor(waste.reduce((sum, row) => sum + ('costMinor' in row ? Number((row as KitchenWaste & ConsumptionResult).costMinor) : 0), 0))} {t('admin.kwd')}
+          </p>
+        </div>
         {waste.length === 0 ? <p className="text-sm text-mist-400">{t('kwork.empty')}</p> : null}
         <ul className="space-y-2 text-sm">
           {waste.map((row) => (
             <li key={row.id} className="rounded-xl border border-gold-300/10 px-3 py-2 text-mist-100">
               {row.wastedOn} · {row.quantity} · {row.reason}
-              {'costMinor' in row ? ` · ${formatMinor((row as KitchenWaste & ConsumptionResult).costMinor)}` : ''}
+              {'costMinor' in row ? ` · ${formatMinor((row as KitchenWaste & ConsumptionResult).costMinor)} ${t('admin.kwd')}` : ''}
             </li>
           ))}
         </ul>
@@ -217,7 +227,8 @@ function Workspace() {
         <ul className="space-y-2 text-sm">
           {productions.map((row) => (
             <li key={row.id} className="rounded-xl border border-gold-300/10 px-3 py-2 text-mist-100">
-              {row.producedOn} · {row.batches}
+              {row.producedOn} · {row.batches} · {t('kwork.backflush')}
+              {'costMinor' in row ? ` · ${formatMinor((row as KitchenProduction & ConsumptionResult).costMinor)} ${t('admin.kwd')}` : ''}
             </li>
           ))}
         </ul>
