@@ -25,8 +25,11 @@ async function Content() {
             <Link className="text-blue-700" href="/settings">
               الإعدادات
             </Link>
-            <Link className="text-blue-700" href="/erp/odoo-sync">
-              مزامنة Odoo
+            <Link className="text-[#8cc63f]" href="/settings/odoo-sync">
+              سحب مباشر walnutss
+            </Link>
+            <Link className="text-[#8cc63f]" href="/erp/odoo-sync">
+              مزامنة ERP
             </Link>
           </div>
         }
