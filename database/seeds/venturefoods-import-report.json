@@ -1,0 +1,38 @@
+{
+  "dumpPath": "C:\\Users\\sec\\Downloads\\restaurant-ai-hq-complete\\restaurant-ai-hqw\\database\\seeds\\venturefoods_odoo_cids1_dump.json",
+  "sqlite": "C:\\Users\\sec\\Downloads\\restaurant-ai-hq-complete\\restaurant-ai-hqw\\prisma\\dev.db",
+  "counts": {
+    "accounts": 820,
+    "customers": 268,
+    "suppliers": 11,
+    "journalEntries": 1000,
+    "products": 1147,
+    "warehouses": 10,
+    "warehouseStock": 545,
+    "stockMovements": 259,
+    "employees": 166,
+    "contractsOpen": 142,
+    "contracts": 618,
+    "payslips": 841,
+    "attendance": 912,
+    "leaves": 936,
+    "appraisals": 50,
+    "expenses": 1000
+  },
+  "dumpSizes": {
+    "hr.employee": 166,
+    "hr.contract": 618,
+    "hr.payslip": 1000,
+    "hr.attendance": 1000,
+    "hr.leave": 1000,
+    "hr.appraisal": 58,
+    "hr.expense": 1000,
+    "account.account": 820,
+    "account.move": 1000,
+    "product.template": 1000,
+    "stock.quant": 1000,
+    "purchase.order": 0,
+    "purchase.requisition": 0,
+    "res.partner": 1000
+  }
+}
