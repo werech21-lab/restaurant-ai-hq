@@ -5,6 +5,12 @@ import { z } from 'zod'
 import { AppError } from '@/lib/api/errors'
 import { DEV_OWNER_COOKIE, devOwnerEnabled, devOwnerHostAllowed, devOwnerUserId } from '@/lib/auth/dev-owner'
 import { E2E_COOKIE, e2eEnabled, e2eUserId } from '@/lib/auth/e2e-session'
+import {
+  getPanelSessionUser,
+  panelBridgePermissionSet,
+  panelBridgeUserId,
+  resolvePanelBridgeTenantId,
+} from '@/lib/auth/panel-bridge'
 import { db } from '@/lib/pg'
 import { createClient } from '@/lib/supabase/server'
 import { applyPermissionFlags } from '@/lib/auth/member-flags'
@@ -59,13 +65,14 @@ async function resolveUserId(missingClient: 'throw' | 'none'): Promise<string | 
 /** Sends an ERP page to the login screen unless a real session, or the local e2e cookie, is present. */
 export async function requirePageUser(nextPath: string): Promise<string> {
   const userId = await resolveUserId('none')
-  if (!userId) {
-    if (devOwnerEnabled() && devOwnerHostAllowed((await headers()).get('host'))) {
-      redirect(`/dev/owner?next=${encodeURIComponent(nextPath)}`)
-    }
-    redirect(`/login?next=${encodeURIComponent(nextPath)}`)
+  if (userId) return userId
+  // Additive bridge: panel Prisma session (admin@aetherbi.com / admin@erp.com) may open /erp/*.
+  const panel = await getPanelSessionUser()
+  if (panel) return panelBridgeUserId(panel.id)
+  if (devOwnerEnabled() && devOwnerHostAllowed((await headers()).get('host'))) {
+    redirect(`/dev/owner?next=${encodeURIComponent(nextPath)}`)
   }
-  return userId
+  redirect(`/login?next=${encodeURIComponent(nextPath)}`)
 }
 
 /**
@@ -89,29 +96,38 @@ export async function authenticateUser(permission: Permission, requestedTenant: 
   if (requestedTenant !== null && !tenantHeader.safeParse(requestedTenant).success) {
     throw new AppError(400, 'tenant_invalid', 'The tenant must be a UUID.')
   }
-  const userId = await resolveUserId('throw')
-  if (!userId) throw new AppError(401, 'unauthenticated', 'Sign in to continue.')
+  // Prefer Supabase/e2e/dev-owner; fall back to panel Prisma admin (additive bridge).
+  const userId = await resolveUserId('none')
+  if (userId) {
+    const memberships = await db.query<MembershipRow>(
+      `${membershipSql} and ($2::uuid is null or m.tenant_id = $2::uuid)
+       group by m.tenant_id, m.permission_flags`,
+      [userId, requestedTenant],
+    )
 
-  const memberships = await db.query<MembershipRow>(
-    `${membershipSql} and ($2::uuid is null or m.tenant_id = $2::uuid)
-     group by m.tenant_id, m.permission_flags`,
-    [userId, requestedTenant]
-  )
+    if (memberships.rows.length === 0) {
+      throw new AppError(403, 'no_tenant_access', 'You do not have access to this tenant.')
+    }
+    if (memberships.rows.length > 1) {
+      throw new AppError(400, 'tenant_required', 'Send the x-tenant-id header to choose a tenant.')
+    }
 
-  if (memberships.rows.length === 0) {
-    throw new AppError(403, 'no_tenant_access', 'You do not have access to this tenant.')
-  }
-  if (memberships.rows.length > 1) {
-    throw new AppError(400, 'tenant_required', 'Send the x-tenant-id header to choose a tenant.')
+    const membership = memberships.rows[0]
+    const granted = new Set(membership.permissions)
+    applyPermissionFlags(granted, membership.flags)
+    if (!granted.has(permission)) {
+      throw new AppError(403, 'forbidden', 'You do not have permission for this action.')
+    }
+    return { userId, tenantId: membership.tenant_id, permissions: granted }
   }
 
-  const membership = memberships.rows[0]
-  const granted = new Set(membership.permissions)
-  applyPermissionFlags(granted, membership.flags)
-  if (!granted.has(permission)) {
-    throw new AppError(403, 'forbidden', 'You do not have permission for this action.')
-  }
-  return { userId, tenantId: membership.tenant_id, permissions: granted }
+  const panel = await getPanelSessionUser()
+  if (!panel?.role.isAdmin) throw new AppError(401, 'unauthenticated', 'Sign in to continue.')
+  const tenantId = requestedTenant ?? (await resolvePanelBridgeTenantId())
+  if (!tenantId) throw new AppError(403, 'no_tenant_access', 'No active tenant is available for the panel bridge.')
+  const granted = panelBridgePermissionSet()
+  if (!granted.has(permission)) throw new AppError(403, 'forbidden', 'You do not have permission for this action.')
+  return { userId: panelBridgeUserId(panel.id), tenantId, permissions: granted }
 }
 
 /**
@@ -122,16 +138,21 @@ export async function authenticateUser(permission: Permission, requestedTenant: 
  */
 export async function readSessionPermissions(): Promise<string[]> {
   const userId = await resolveUserId('none')
-  if (!userId) return []
-  const memberships = await db.query<MembershipRow>(
-    `${membershipSql}
-     group by m.tenant_id, m.permission_flags`,
-    [userId]
-  )
-  if (memberships.rows.length !== 1) return []
-  const granted = new Set(memberships.rows[0].permissions)
-  applyPermissionFlags(granted, memberships.rows[0].flags)
-  return [...granted].sort()
+  if (userId) {
+    const memberships = await db.query<MembershipRow>(
+      `${membershipSql}
+       group by m.tenant_id, m.permission_flags`,
+      [userId],
+    )
+    if (memberships.rows.length === 1) {
+      const granted = new Set(memberships.rows[0].permissions)
+      applyPermissionFlags(granted, memberships.rows[0].flags)
+      return [...granted].sort()
+    }
+  }
+  const panel = await getPanelSessionUser()
+  if (panel?.role.isAdmin) return [...panelBridgePermissionSet()].sort()
+  return []
 }
 
 /** The signed-in user without any tenant. Only for calls a person makes before they belong to a company. */

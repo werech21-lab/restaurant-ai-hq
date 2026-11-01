@@ -80,6 +80,12 @@ function Workspace() {
     return () => controller.abort()
   }, [platform, zone, branch, reloadToken])
 
+  // Live 5-minute radar refresh (same cadence as the governance scan engine).
+  useEffect(() => {
+    const timer = window.setInterval(() => setReloadToken((value) => value + 1), 5 * 60 * 1000)
+    return () => window.clearInterval(timer)
+  }, [])
+
   const selected = board.snapshots.find((row) => row.id === selectedId) ?? null
   const rivals = selected ? board.competitors.filter((row) => row.snapshotId === selected.id) : []
   const cards = board.actions.filter((row) => !selected || (row.platformName === selected.platformName && row.geoZoneAr === selected.geoZoneAr && row.ourBranchName === selected.ourBranchName))

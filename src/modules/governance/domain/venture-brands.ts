@@ -6,7 +6,7 @@ export const ventureBrands = [
   { code: 'KARAK-CAFETERIA', nameEn: 'Karak Cafeteria', nameAr: 'كرك كافتيريا', cuisineAr: 'كرك وشاباتي وكافتيريا', branches: 6, label: 'agg.brand.karak' },
   { code: 'CHINA-GARDEN', nameEn: 'China Garden', nameAr: 'تشاينا جاردن', cuisineAr: 'صيني وآسيوي', branches: 3, label: 'agg.brand.china' },
   { code: 'THE-NOODLE-BAR', nameEn: 'The Noodle Bar', nameAr: 'ذا نودل بار', cuisineAr: 'نودلز ووك آسيوي', branches: 2, label: 'agg.brand.noodle' },
-  { code: 'FRANKS-STEAK', nameEn: 'Franks Steak Sandwiches', nameAr: 'فرانكس ستيك ساندويتش', cuisineAr: 'ستيك فيلي وساندويتش', branches: 3, label: 'agg.brand.franks' },
+  { code: 'FRANKS-STEAK', nameEn: "Frank's Steak Sandwich", nameAr: 'فرانكس ستيك ساندويتش', cuisineAr: 'ستيك فيلي وساندويتش', branches: 3, label: 'agg.brand.franks' },
   { code: 'SHAWARMA-TAHINA', nameEn: 'Shawarma Tahina', nameAr: 'شاورما طحينة', cuisineAr: 'شاورما وشارع شامي', branches: 5, label: 'agg.brand.shawarma' },
 ] as const satisfies readonly { code: string; nameEn: string; nameAr: string; cuisineAr: string; branches: number; label: MessageKey }[]
 
