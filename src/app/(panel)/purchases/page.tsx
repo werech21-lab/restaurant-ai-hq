@@ -13,18 +13,20 @@ import { requireUser } from "@/lib/erp-auth";
 import { DocumentDetail } from "@/components/document-detail";
 import { TradePanel } from "@/components/trade-panel";
 import { Forbidden, PageSkeleton } from "@/components/erp-ui";
-import { formatDate, formatMoney, formatQty } from "@/lib/format";
+import { formatQty } from "@/lib/format";
+import { dateFor, getLocale, moneyFor, tx } from "@/lib/i18n/server";
 import { PAGE_SIZE, pageHref, readQuery, type RawQuery } from "@/lib/pagination";
 import { can, firstAllowedHref } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
 import { getActiveScope, purchaseOrderNumbersForScope } from "@/lib/scope";
 
-export const metadata = { title: "المشتريات | نظام ERP" };
+export const metadata = { title: "Purchases | AetherBI ERP" };
 
 const statuses = new Set(["PAID", "PARTIAL", "UNPAID"]);
 
 async function PurchasesContent({ searchParams }: { searchParams: Promise<RawQuery> }) {
   await connection();
+  const locale = await getLocale();
   const query = await readQuery(searchParams);
   const user = await requireUser();
   if (!can(user, "purchases", "view")) return <Forbidden href={firstAllowedHref(user)} />;
@@ -99,30 +101,34 @@ async function PurchasesContent({ searchParams }: { searchParams: Promise<RawQue
       {detail ? (
         <DocumentDetail
           closeHref={pageHref("/purchases", { tab, q: query.q, status, page: query.page })}
-          title="أمر شراء"
+          title={tx(locale, "أمر شراء", "Purchase order")}
           number={detail.orderNumber}
-          partyLabel="المورد"
+          partyLabel={tx(locale, "المورد", "Supplier")}
           party={detail.supplier.name}
-          dateLabel={formatDate(detail.createdAt)}
+          dateLabel={dateFor(locale, detail.createdAt)}
           status={detail.status}
-          totalLabel={formatMoney(detail.totalAmount)}
-          paidLabel={formatMoney(detail.paidAmount)}
-          dueLabel={formatMoney(detail.totalAmount - detail.paidAmount)}
+          totalLabel={moneyFor(locale, detail.totalAmount)}
+          paidLabel={moneyFor(locale, detail.paidAmount)}
+          dueLabel={moneyFor(locale, detail.totalAmount - detail.paidAmount)}
           printHref={`/purchases/${detail.id}/print`}
           lines={detail.items.map((item) => ({
             id: item.id,
             name: item.product.name,
             code: item.product.code,
             quantity: formatQty(item.quantity),
-            price: formatMoney(item.unitCost),
-            total: formatMoney(item.totalCost),
+            price: moneyFor(locale, item.unitCost),
+            total: moneyFor(locale, item.totalCost),
           }))}
         />
       ) : null}
       <TradePanel
         basePath="/purchases"
-        title="المشتريات والموردون"
-        description="أمر الشراء يزيد المخزون، يسجل حركة وارد، ويحمّل المورد بالمبلغ المتبقي."
+        title={tx(locale, "المشتريات والموردون", "Purchases & suppliers")}
+        description={tx(
+          locale,
+          "أمر الشراء يزيد المخزون، يسجل حركة وارد، ويحمّل المورد بالمبلغ المتبقي.",
+          "Each purchase order increases stock, records an inbound movement, and updates supplier payable balance.",
+        )}
         tab={tab}
         q={query.q}
         page={query.page}
@@ -131,14 +137,18 @@ async function PurchasesContent({ searchParams }: { searchParams: Promise<RawQue
         canCreate={can(user, "purchases", "create")}
         canEdit={can(user, "purchases", "edit")}
         canDelete={can(user, "purchases", "delete")}
-        createLabel="أمر شراء جديد"
-        partyNoun="المورد"
-        partyPlural="الموردون"
-        paymentTitle="تسجيل دفعة لمورد"
-        paymentHint="تُخصم الدفعة من رصيد المورد وتوزَّع على أقدم الأوامر غير المسددة."
+        createLabel={tx(locale, "أمر شراء جديد", "New purchase order")}
+        partyNoun={tx(locale, "المورد", "Supplier")}
+        partyPlural={tx(locale, "الموردون", "Suppliers")}
+        paymentTitle={tx(locale, "تسجيل دفعة لمورد", "Record supplier payment")}
+        paymentHint={tx(
+          locale,
+          "تُخصم الدفعة من رصيد المورد وتوزَّع على أقدم الأوامر غير المسددة.",
+          "Payment reduces supplier balance and applies to oldest unpaid orders.",
+        )}
         mode="purchase"
         priceKey="costPrice"
-        submitLabel="حفظ أمر الشراء"
+        submitLabel={tx(locale, "حفظ أمر الشراء", "Save purchase order")}
         searchParties={searchSuppliers}
         createDocument={createPurchaseOrder}
         saveParty={saveSupplier}
@@ -149,9 +159,9 @@ async function PurchasesContent({ searchParams }: { searchParams: Promise<RawQue
           id: row.id,
           number: row.orderNumber,
           party: row.supplier.name,
-          dateLabel: formatDate(row.createdAt),
-          totalLabel: formatMoney(row.totalAmount),
-          paidLabel: formatMoney(row.paidAmount),
+          dateLabel: dateFor(locale, row.createdAt),
+          totalLabel: moneyFor(locale, row.totalAmount),
+          paidLabel: moneyFor(locale, row.paidAmount),
           status: row.status,
         }))}
         parties={parties.map((row) => ({
@@ -160,7 +170,7 @@ async function PurchasesContent({ searchParams }: { searchParams: Promise<RawQue
           phone: row.phone ?? "",
           email: row.email ?? "",
           balance: row.balance,
-          balanceLabel: formatMoney(row.balance),
+          balanceLabel: moneyFor(locale, row.balance),
           customData: row.customData,
         }))}
       />
@@ -170,7 +180,7 @@ async function PurchasesContent({ searchParams }: { searchParams: Promise<RawQue
 
 export default function PurchasesPage({ searchParams }: { searchParams: Promise<RawQuery> }) {
   return (
-    <Suspense fallback={<PageSkeleton title="المشتريات" />}>
+    <Suspense fallback={<PageSkeleton title="Purchases" />}>
       <PurchasesContent searchParams={searchParams} />
     </Suspense>
   );

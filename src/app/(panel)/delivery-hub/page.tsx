@@ -5,6 +5,7 @@ import { requireUser } from '@/lib/erp-auth'
 import { DisabledModule, Forbidden, PageHeader, PageSkeleton } from '@/components/erp-ui'
 import { isModuleEnabled } from '@/lib/modules-db'
 import { can, firstAllowedHref } from '@/lib/permissions'
+import { getLocale, tx } from '@/lib/i18n/server'
 import { getActiveScope } from '@/lib/scope'
 import { aggregatorSummary, listOpenOrders } from '@/services/delivery.service'
 
@@ -15,9 +16,13 @@ async function DeliveryHubContent() {
   await connection()
   const user = await requireUser()
   if (!can(user, 'delivery-hub', 'view')) return <Forbidden href={firstAllowedHref(user)} />
-  if (!(await isModuleEnabled('delivery-hub'))) return <DisabledModule title="منصات التوصيل" />
+  const locale = await getLocale()
+  if (!(await isModuleEnabled('delivery-hub'))) {
+    return <DisabledModule title={tx(locale, 'منصات التوصيل', 'Delivery aggregators')} />
+  }
 
   const scope = await getActiveScope()
+  const scopeLabel = locale === 'en' ? scope.labelEn : scope.labelAr
   const filter = {
     brandCode: scope.brandId,
     branchCode: scope.branchId,
@@ -28,8 +33,8 @@ async function DeliveryHubContent() {
   return (
     <div>
       <PageHeader
-        title="منصات التوصيل · Kuwait Delivery Hub"
-        description={`${scope.labelAr} · Talabat · Deliveroo · Jahez · Cari · In-House`}
+        title={tx(locale, 'منصات التوصيل', 'Delivery aggregators')}
+        description={`${scopeLabel} · Talabat · Deliveroo · Jahez · Cari · In-House`}
       />
       <DeliveryHubPanel
         platforms={platforms}
@@ -52,7 +57,7 @@ async function DeliveryHubContent() {
 
 export default function DeliveryHubPage() {
   return (
-    <Suspense fallback={<PageSkeleton title="منصات التوصيل" />}>
+    <Suspense fallback={<PageSkeleton title="Delivery" />}>
       <DeliveryHubContent />
     </Suspense>
   )

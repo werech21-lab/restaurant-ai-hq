@@ -3,13 +3,13 @@
 import { useActionState } from 'react'
 import { login } from '@/app/actions/auth'
 import { Alert, btnPrimary, fieldClass, labelClass } from '@/components/erp-ui'
-import { LanguageSwitch, useI18n } from '@/lib/i18n'
+import { LanguageSwitch, useI18n, type MessageKey } from '@/lib/i18n'
 
-const demos = [
-  { email: 'admin@erp.com', name: 'أحمد المدير', role: 'مدير النظام', desc: 'كل الصلاحيات' },
-  { email: 'accountant@erp.com', name: 'سارة المحاسبة', role: 'محاسب', desc: 'مشتريات ومبيعات وتقارير ورقابة' },
-  { email: 'store@erp.com', name: 'خالد أمين المخزن', role: 'أمين مخزن', desc: 'المخزون فقط' },
-  { email: 'sales@erp.com', name: 'ليلى المبيعات', role: 'مندوب مبيعات', desc: 'المبيعات فقط' },
+const demos: Array<{ email: string; name: MessageKey; role: MessageKey; desc: MessageKey }> = [
+  { email: 'admin@erp.com', name: 'login.demo.admin', role: 'login.demo.adminRole', desc: 'login.demo.adminDesc' },
+  { email: 'accountant@erp.com', name: 'login.demo.acc', role: 'login.demo.accRole', desc: 'login.demo.accDesc' },
+  { email: 'store@erp.com', name: 'login.demo.store', role: 'login.demo.storeRole', desc: 'login.demo.storeDesc' },
+  { email: 'sales@erp.com', name: 'login.demo.sales', role: 'login.demo.salesRole', desc: 'login.demo.salesDesc' },
 ]
 
 export function LoginForm() {
@@ -62,10 +62,10 @@ export function LoginForm() {
               }}
             >
               <span>
-                <span className="block text-sm font-bold text-mist-100">{demo.name}</span>
-                <span className="block text-xs text-mist-400">{demo.desc}</span>
+                <span className="block text-sm font-bold text-mist-100">{t(demo.name)}</span>
+                <span className="block text-xs text-mist-400">{t(demo.desc)}</span>
               </span>
-              <span className="rounded-full bg-[#00a99d] px-2.5 py-1 text-xs font-bold text-white">{demo.role}</span>
+              <span className="rounded-full bg-[#00a99d] px-2.5 py-1 text-xs font-bold text-white">{t(demo.role)}</span>
             </button>
           ))}
         </div>

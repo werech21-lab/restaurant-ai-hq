@@ -59,13 +59,14 @@ export function PosTerminal({
   customers: Array<{ id: string; name: string }>
   brands: Array<{ code: string; nameAr: string; nameEn?: string }>
   branches: VentureBranchOption[]
-  orderTypes: Array<{ id: OrderTypeId | string; labelAr: string }>
+  orderTypes: Array<{ id: OrderTypeId | string; labelAr: string; labelEn?: string }>
   initialBrandCode?: string
   initialBranchId?: string
   warehouseId?: string
 }) {
   const router = useRouter()
   const { t, money, locale } = useI18n()
+  const en = locale === 'en'
   const scope = useOptionalScope()
   const categoryLabels = useMemo(
     () =>
@@ -224,20 +225,24 @@ export function PosTerminal({
   async function checkout(printOnly = false) {
     setError('')
     if (cart.length === 0) {
-      setError('السلة فارغة')
+      setError(en ? 'Cart is empty.' : 'السلة فارغة')
       return
     }
     if (orderType === 'dine_in' && !tableNo.trim()) {
-      setError('أدخل رقم الطاولة للطلب المحلي')
+      setError(en ? 'Enter a table number for dine-in.' : 'أدخل رقم الطاولة للطلب المحلي')
       return
     }
     const partyId = method === 'CREDIT' ? customerId : walkInId || customerId
     if (!partyId) {
-      setError('عميل الصندوق غير موجود. اسحب بيانات Odoo أو أعد التغذية.')
+      setError(
+        en
+          ? 'Walk-in customer is missing. Pull Odoo data or re-seed.'
+          : 'عميل الصندوق غير موجود. اسحب بيانات Odoo أو أعد التغذية.',
+      )
       return
     }
     if (method === 'CREDIT' && partyId === walkInId) {
-      setError('اختر عميلاً للبيع الآجل / رابط الدفع')
+      setError(en ? 'Choose a customer for credit / pay link.' : 'اختر عميلاً للبيع الآجل / رابط الدفع')
       return
     }
     const payload = {
@@ -257,7 +262,11 @@ export function PosTerminal({
       await enqueueSale({ id: crypto.randomUUID(), createdAt: new Date().toISOString(), ...payload })
       setCart([])
       setQueued((count) => count + 1)
-      setNotice('وضع Offline Ready — حُفظت الفاتورة محلياً للمزامنة لاحقاً.')
+      setNotice(
+        en
+          ? 'Offline Ready — invoice saved locally for sync later.'
+          : 'وضع Offline Ready — حُفظت الفاتورة محلياً للمزامنة لاحقاً.',
+      )
       return
     }
     setPending(true)
@@ -269,19 +278,19 @@ export function PosTerminal({
       setPending(false)
       setCart([])
       setQueued((count) => count + 1)
-      setNotice('تعذر الوصول للسيرفر. حُفظت الفاتورة Offline.')
+      setNotice(en ? 'Could not reach the server. Invoice saved offline.' : 'تعذر الوصول للسيرفر. حُفظت الفاتورة Offline.')
       return
     }
     setPending(false)
     if (!result.ok || !result.id) {
-      setError(result.ok ? 'تعذر إصدار الإيصال' : result.message)
+      setError(result.ok ? (en ? 'Could not issue the receipt.' : 'تعذر إصدار الإيصال') : result.message)
       return
     }
     if (printOnly || method !== 'CREDIT') {
       router.push(`/sales/${result.id}/print?layout=thermal`)
       return
     }
-    setNotice(`صدرت الفاتورة — جاهزة لرابط الدفع / ماي فاتورة`)
+    setNotice(en ? 'Invoice issued — ready for pay link / MyFatoorah.' : `صدرت الفاتورة — جاهزة لرابط الدفع / ماي فاتورة`)
     setCart([])
     router.push(`/sales/${result.id}/print?layout=thermal`)
   }
@@ -290,7 +299,7 @@ export function PosTerminal({
 
   async function sendKitchen() {
     if (cart.length === 0) {
-      setError('لا أصناف لإرسالها للمطبخ')
+      setError(en ? 'No items to send to the kitchen.' : 'لا أصناف لإرسالها للمطبخ')
       return
     }
     setPending(true)
@@ -317,8 +326,15 @@ export function PosTerminal({
       setError(result.message)
       return
     }
+    const brand = brands.find((b) => b.code === brandCode)
+    const order = orderTypes.find((o) => o.id === orderType)
+    const brandLabel = en && brand?.nameEn ? brand.nameEn : brand?.nameAr || ''
+    const orderLabel = en && order?.labelEn ? order.labelEn : order?.labelAr || ''
+    const pieces = cart.reduce((s, l) => s + l.quantity, 0)
     setNotice(
-      `أُرسلت ${cart.reduce((s, l) => s + l.quantity, 0)} قطعة إلى KDS (${brands.find((b) => b.code === brandCode)?.nameAr || ''} · ${orderTypes.find((o) => o.id === orderType)?.labelAr || ''}${tableNo ? ` · طاولة ${tableNo}` : ''})`,
+      en
+        ? `Sent ${pieces} item(s) to KDS (${brandLabel} · ${orderLabel}${tableNo ? ` · Table ${tableNo}` : ''})`
+        : `أُرسلت ${pieces} قطعة إلى KDS (${brandLabel} · ${orderLabel}${tableNo ? ` · طاولة ${tableNo}` : ''})`,
     )
   }
 
@@ -370,7 +386,7 @@ export function PosTerminal({
           >
             {orderTypes.map((o) => (
               <option key={o.id} value={o.id}>
-                {o.labelAr}
+                {en && o.labelEn ? o.labelEn : o.labelAr}
               </option>
             ))}
           </select>
@@ -391,7 +407,11 @@ export function PosTerminal({
               {online ? <Wifi size={12} /> : <WifiOff size={12} />}
               {online ? t('pos.online') : t('pos.offline')}
             </span>
-            {queued > 0 ? <span className="text-[11px] font-semibold text-amber-300">طابور: {queued}</span> : null}
+            {queued > 0 ? (
+              <span className="text-[11px] font-semibold text-amber-300">
+                {en ? `Queue: ${queued}` : `طابور: ${queued}`}
+              </span>
+            ) : null}
           </div>
         </div>
       </header>
@@ -478,7 +498,7 @@ export function PosTerminal({
                       type="button"
                       className="rounded-lg p-1.5 text-red-400 hover:bg-red-600/20"
                       onClick={() => setCart((c) => c.filter((item) => item.product.id !== line.product.id))}
-                      aria-label="حذف"
+                      aria-label={en ? 'Remove' : 'حذف'}
                     >
                       <Trash2 size={14} />
                     </button>
@@ -514,7 +534,7 @@ export function PosTerminal({
                         type="button"
                         className="ms-1 grid h-9 w-9 place-items-center rounded-lg border border-white/15 text-[#00a99d]"
                         onClick={() => setNoteLineId(noteLineId === line.product.id ? null : line.product.id)}
-                        title="ملاحظة مطبخ"
+                        title={t('pos.note')}
                       >
                         <StickyNote size={14} />
                       </button>

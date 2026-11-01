@@ -1,6 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, type ReactNode } from 'react'
+import { useRouter } from 'next/navigation'
 import { panelAr, panelEn } from '@/lib/i18n/panel-messages'
 
 export type Locale = 'ar' | 'en'
@@ -541,10 +542,33 @@ const ar = {
   'land.hero.lead': 'منظومة AetherBI Enterprise ERP & BI لمجموعات المطاعم: محاسبة، مخزون، POS، موارد بشرية، CRM، وذكاء اصطناعي حتمي على aetherbi.com.',
   'land.hero.trialCta': 'اطلب نسختك التجريبية',
   'land.hero.panelLabel': 'لوحة القيادة التنفيذية',
+  'land.hero.bullet1': '6 أقسام أودو متكاملة',
+  'land.hero.bullet2': '6 براندات × 10 فروع',
+  'land.hero.bullet3': 'محرك AI حتمي + بوابة حوكمة',
   'land.features.title': 'ماذا تقدّم المنظومة؟',
   'land.features.lead': 'ستة أقسام تشغيلية مترابطة مع حوكمة وإشعارات فورية للقرار.',
+  'land.feat.finance.title': 'المحاسبة والمالية',
+  'land.feat.finance.body': 'فواتير آلية، قيود مزدوجة، وتحصيل ومحاسبة تحليلية بالدينار الكويتي (0.000 د.ك).',
+  'land.feat.inventory.title': 'المخزون والتصنيع',
+  'land.feat.inventory.body': 'خصم ذري للمواد، وصفات BOM، ضبط الهدر، وتكلفة غذاء دقيقة.',
+  'land.feat.pos.title': 'الكاشير POS والمبيعات',
+  'land.feat.pos.body': 'كاشير مطاعم لمسي، عروض أسعار، وتحويل العرض إلى فاتورة بضغطة واحدة.',
+  'land.feat.hr.title': 'الموارد البشرية',
+  'land.feat.hr.body': 'أكثر من 165 موظفاً حقيقياً، مسيرات رواتب، حضور، وتتبع الإقامات.',
+  'land.feat.crm.title': 'عروض الأسعار CRM',
+  'land.feat.crm.body': 'متابعة الفرص، عقود التموين للشركات، وتحويل فوري إلى نقد.',
+  'land.feat.ai.title': 'الذكاء الاصطناعي والحوكمة',
+  'land.feat.ai.body': 'محرك قرارات حتمي، رادار منصات التوصيل، وضوابط رقابية.',
   'land.pricing.title': 'الباقات والاشتراكات',
   'land.pricing.lead': 'أسعار SaaS شهرية بالدينار الكويتي للشركات التي تريد تشغيل AetherBI سحابياً.',
+  'land.plan.starter.detail': 'فرع واحد · حتى 25 مستخدماً · محاسبة ومخزون أساسية',
+  'land.plan.starter.cta': 'ابدأ التجربة',
+  'land.plan.growth.detail': 'حتى 5 فروع · POS + CRM + HR · رادار التطبيقات',
+  'land.plan.growth.cta': 'الأنسب للمجموعات',
+  'land.plan.enterprise.price': 'مخصص',
+  'land.plan.enterprise.detail': 'فروع غير محدودة · حوكمة كاملة · تكامل أودو · دعم أولوية',
+  'land.plan.enterprise.cta': 'تحدث مع المبيعات',
+  'land.plan.perMonth': 'د.ك / شهر',
   'land.trial.title': 'اطلب نسختك التجريبية / تواصل معنا',
   'land.trial.lead': 'أدخل اسمك ورقمك؛ يُسجَّل الطلب تلقائياً كفرصة في CRM ويُبلَّغ المدير على تليجرام وواتساب عند تفعيل الإشعارات.',
   'land.trial.name': 'الاسم الكامل',
@@ -555,6 +579,9 @@ const ar = {
   'land.trial.sending': 'جارٍ الإرسال…',
   'land.trial.success': 'تم استلام طلبك وتسجيله في CRM.',
   'land.trial.error': 'تعذّر إرسال الطلب. حاول مرة أخرى.',
+  'land.footer': 'AetherBI · www.aetherbi.com · شركة فنتشر فودز لإدارة المطاعم ذ.م.م.',
+  'land.trial.leadTitle': 'طلب تجريبي',
+  'land.trial.leadTitleNamed': 'طلب تجريبي —',
   'search.open': 'بحث ⌘K',
   'search.title': 'بحث سريع في المنصة',
   'search.placeholder': 'موظف، شارة 2090، براند، فرع، صنف، فاتورة، قسم…',
@@ -2900,10 +2927,33 @@ const en: { [K in keyof typeof ar]: string } = {
   'land.hero.lead': 'AetherBI Enterprise ERP & BI for restaurant groups: finance, inventory, POS, HR, CRM, and deterministic AI on aetherbi.com.',
   'land.hero.trialCta': 'Request a trial',
   'land.hero.panelLabel': 'Executive command surface',
+  'land.hero.bullet1': '6 Integrated Enterprise Divisions',
+  'land.hero.bullet2': '6 Brands × 10 Operating Branches',
+  'land.hero.bullet3': 'Deterministic AI Engine + Governance Gate',
   'land.features.title': 'What the platform delivers',
   'land.features.lead': 'Six connected operating divisions with governance and instant decision alerts.',
+  'land.feat.finance.title': 'Finance & Double-Entry Accounting',
+  'land.feat.finance.body': 'Automated invoices, dual-entry ledger, and analytical accounting in KWD 0.000.',
+  'land.feat.inventory.title': 'Inventory, BOM & Central Kitchen',
+  'land.feat.inventory.body': 'Auto-ingredient deduction, recipes, wastage control, and accurate food costing.',
+  'land.feat.pos.title': 'POS Terminal & Sales Operations',
+  'land.feat.pos.body': 'Touch-ready restaurant POS, quotations, and 1-click invoice conversion.',
+  'land.feat.hr.title': 'HR, Attendance & Payroll',
+  'land.feat.hr.body': '165+ real staff records, monthly payroll runs, attendance, and residency tracking.',
+  'land.feat.crm.title': 'CRM & Quotations Pipeline',
+  'land.feat.crm.body': 'Lead tracking, corporate catering contracts, and instant cash conversion.',
+  'land.feat.ai.title': 'Executive AI & Governance',
+  'land.feat.ai.body': 'Deterministic decision engine, delivery aggregator radar, and audit controls.',
   'land.pricing.title': 'Plans & subscriptions',
   'land.pricing.lead': 'Monthly SaaS pricing in KWD for companies running AetherBI in the cloud.',
+  'land.plan.starter.detail': '1 branch · up to 25 users · core finance & inventory',
+  'land.plan.starter.cta': 'Start trial',
+  'land.plan.growth.detail': 'Up to 5 branches · POS + CRM + HR · aggregator radar',
+  'land.plan.growth.cta': 'Best for restaurant groups',
+  'land.plan.enterprise.price': 'Custom Enterprise',
+  'land.plan.enterprise.detail': 'Unlimited branches · full governance · Odoo sync · priority support',
+  'land.plan.enterprise.cta': 'Talk to sales',
+  'land.plan.perMonth': 'KWD / mo',
   'land.trial.title': 'Request a trial / contact us',
   'land.trial.lead': 'Enter your name and phone; the request is saved as a CRM lead and managers are notified on Telegram and WhatsApp when notify credentials are set.',
   'land.trial.name': 'Full name',
@@ -2914,6 +2964,9 @@ const en: { [K in keyof typeof ar]: string } = {
   'land.trial.sending': 'Sending…',
   'land.trial.success': 'Your request was received and saved in CRM.',
   'land.trial.error': 'Could not send the request. Please try again.',
+  'land.footer': 'AetherBI · www.aetherbi.com · Venture Foods Restaurants Management Co. W.L.L.',
+  'land.trial.leadTitle': 'Trial request',
+  'land.trial.leadTitleNamed': 'Trial request —',
   'search.open': 'Search ⌘K',
   'search.title': 'Quick platform search',
   'search.placeholder': 'Employee, badge 2090, brand, branch, item, invoice, module…',
@@ -4750,15 +4803,26 @@ function formatLocaleMoney(value: number, locale: Locale) {
   return locale === 'en' ? `KWD ${amount}` : `${amount} د.ك`
 }
 
+function writeLocaleCookies(next: Locale) {
+  const maxAge = 60 * 60 * 24 * 365
+  const payload = `${next}; path=/; max-age=${maxAge}; samesite=lax`
+  document.cookie = `${storageKey}=${payload}`
+  document.cookie = `NEXT_LOCALE=${payload}`
+  document.cookie = `vf_lang=${payload}`
+}
+
 export function LanguageProvider({ initialLocale, children }: { initialLocale: Locale; children: ReactNode }) {
+  const router = useRouter()
   const [locale, setLocaleState] = useState<Locale>(initialLocale)
 
   function setLocale(next: Locale) {
     setLocaleState(next)
     document.documentElement.lang = next
     document.documentElement.dir = next === 'ar' ? 'rtl' : 'ltr'
-    document.cookie = `${storageKey}=${next}; path=/; max-age=31536000; samesite=lax`
+    writeLocaleCookies(next)
     window.localStorage.setItem(storageKey, next)
+    window.localStorage.setItem('NEXT_LOCALE', next)
+    router.refresh()
   }
 
   const value: LanguageContextValue = {

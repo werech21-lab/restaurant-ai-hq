@@ -4,20 +4,24 @@ import { WarehouseForms } from "@/app/(panel)/warehouses/warehouse-forms";
 import { requireUser } from "@/lib/erp-auth";
 import { DisabledModule, Forbidden, PageHeader, PageSkeleton, PaginationBar } from "@/components/erp-ui";
 import { prisma } from "@/lib/db";
-import { formatDate, formatQty } from "@/lib/format";
+import { formatQty } from "@/lib/format";
+import { datetimeFor, getLocale, tx } from "@/lib/i18n/server";
 import { isModuleEnabled } from "@/lib/modules-db";
 import { PAGE_SIZE, pageHref, readQuery, type RawQuery } from "@/lib/pagination";
 import { can, firstAllowedHref } from "@/lib/permissions";
 import { getActiveScope, warehouseWhereForScope } from "@/lib/scope";
 import { listTransfers, listWarehouses, warehouseStock } from "@/services/warehouse.service";
 
-export const metadata = { title: "المستودعات | نظام ERP" };
+export const metadata = { title: "Warehouses | AetherBI ERP" };
 
 async function WarehousesContent({ searchParams }: { searchParams: Promise<RawQuery> }) {
   await connection();
+  const locale = await getLocale();
   const user = await requireUser();
   if (!can(user, "warehouses", "view")) return <Forbidden href={firstAllowedHref(user)} />;
-  if (!(await isModuleEnabled("warehouses"))) return <DisabledModule title="المستودعات" />;
+  if (!(await isModuleEnabled("warehouses"))) {
+    return <DisabledModule title={tx(locale, "المستودعات", "Warehouses")} />;
+  }
   const query = await readQuery(searchParams);
   const scope = await getActiveScope(query);
   const allWarehouses = await listWarehouses();
@@ -42,7 +46,14 @@ async function WarehousesContent({ searchParams }: { searchParams: Promise<RawQu
 
   return (
     <div>
-      <PageHeader title="المستودعات والفروع" description="رصيد كل صنف في كل مستودع، وتحويل الكميات بين الفروع دون تغيير إجمالي المخزون." />
+      <PageHeader
+        title={tx(locale, "المستودعات والفروع", "Warehouses & branches")}
+        description={tx(
+          locale,
+          "رصيد كل صنف في كل مستودع، وتحويل الكميات بين الفروع دون تغيير إجمالي المخزون.",
+          "Per-warehouse stock balances and branch transfers without changing company-wide totals.",
+        )}
+      />
       <WarehouseForms
         canCreate={can(user, "warehouses", "create")}
         warehouses={warehouses.map((warehouse) => ({ id: warehouse.id, name: warehouse.name }))}
@@ -60,7 +71,7 @@ async function WarehousesContent({ searchParams }: { searchParams: Promise<RawQu
             }
           >
             {warehouse.name}
-            {warehouse.isDefault ? " · افتراضي" : ""}
+            {warehouse.isDefault ? tx(locale, " · افتراضي", " · Default") : ""}
           </a>
         ))}
       </div>
@@ -68,22 +79,26 @@ async function WarehousesContent({ searchParams }: { searchParams: Promise<RawQu
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-200 text-slate-500">
-              <th className="px-4 py-3 text-right">الصنف</th>
-              <th className="px-4 py-3 text-right">الرمز</th>
-              <th className="px-4 py-3 text-right">رصيد هذا المستودع</th>
-              <th className="px-4 py-3 text-right">إجمالي الشركة</th>
+              <th className="px-4 py-3 text-right">{tx(locale, "الصنف", "Item")}</th>
+              <th className="px-4 py-3 text-right">{tx(locale, "الرمز", "Code")}</th>
+              <th className="px-4 py-3 text-right">{tx(locale, "رصيد هذا المستودع", "This warehouse")}</th>
+              <th className="px-4 py-3 text-right">{tx(locale, "إجمالي الشركة", "Company total")}</th>
             </tr>
           </thead>
           <tbody>
             {stocks.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-slate-500">لا يوجد رصيد في هذا المستودع.</td>
+                <td colSpan={4} className="px-4 py-8 text-center text-slate-500">
+                  {tx(locale, "لا يوجد رصيد في هذا المستودع.", "No stock in this warehouse.")}
+                </td>
               </tr>
             ) : (
               stocks.map((row) => (
                 <tr key={row.id} className="border-b border-slate-200 last:border-0">
                   <td className="px-4 py-3">{row.product.name}</td>
-                  <td className="px-4 py-3" dir="ltr">{row.product.code}</td>
+                  <td className="px-4 py-3" dir="ltr">
+                    {row.product.code}
+                  </td>
                   <td className="px-4 py-3 font-bold">{formatQty(row.quantity)}</td>
                   <td className="px-4 py-3">{formatQty(row.product.currentStock)}</td>
                 </tr>
@@ -93,25 +108,31 @@ async function WarehousesContent({ searchParams }: { searchParams: Promise<RawQu
         </table>
       </div>
       <div className="rounded-2xl border border-slate-200 bg-white">
-        <div className="border-b border-slate-200 px-4 py-3 font-bold">سجل التحويلات</div>
+        <div className="border-b border-slate-200 px-4 py-3 font-bold">
+          {tx(locale, "سجل التحويلات", "Transfer log")}
+        </div>
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-200 text-slate-500">
-              <th className="px-4 py-3 text-right">الرقم</th>
-              <th className="px-4 py-3 text-right">من</th>
-              <th className="px-4 py-3 text-right">إلى</th>
-              <th className="px-4 py-3 text-right">الأصناف</th>
-              <th className="px-4 py-3 text-right">التاريخ</th>
+              <th className="px-4 py-3 text-right">{tx(locale, "الرقم", "Number")}</th>
+              <th className="px-4 py-3 text-right">{tx(locale, "من", "From")}</th>
+              <th className="px-4 py-3 text-right">{tx(locale, "إلى", "To")}</th>
+              <th className="px-4 py-3 text-right">{tx(locale, "الأصناف", "Items")}</th>
+              <th className="px-4 py-3 text-right">{tx(locale, "التاريخ", "Date")}</th>
             </tr>
           </thead>
           <tbody>
             {transfers.rows.map((row) => (
               <tr key={row.id} className="border-b border-slate-200 last:border-0">
-                <td className="px-4 py-3 font-semibold" dir="ltr">{row.transferNumber}</td>
+                <td className="px-4 py-3 font-semibold" dir="ltr">
+                  {row.transferNumber}
+                </td>
                 <td className="px-4 py-3">{row.fromWarehouse.name}</td>
                 <td className="px-4 py-3">{row.toWarehouse.name}</td>
-                <td className="px-4 py-3">{row.items.map((item) => `${item.product.name} (${formatQty(item.quantity)})`).join("، ")}</td>
-                <td className="px-4 py-3">{formatDate(row.createdAt)}</td>
+                <td className="px-4 py-3">
+                  {row.items.map((item) => `${item.product.name} (${formatQty(item.quantity)})`).join(locale === "en" ? ", " : "، ")}
+                </td>
+                <td className="px-4 py-3">{datetimeFor(locale, row.createdAt)}</td>
               </tr>
             ))}
           </tbody>
@@ -124,7 +145,7 @@ async function WarehousesContent({ searchParams }: { searchParams: Promise<RawQu
 
 export default function WarehousesPage({ searchParams }: { searchParams: Promise<RawQuery> }) {
   return (
-    <Suspense fallback={<PageSkeleton title="المستودعات" />}>
+    <Suspense fallback={<PageSkeleton title="Warehouses" />}>
       <WarehousesContent searchParams={searchParams} />
     </Suspense>
   );

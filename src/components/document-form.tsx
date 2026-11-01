@@ -7,6 +7,7 @@ import { CustomFields } from "@/components/custom-fields";
 import { SearchSelect } from "@/components/search-select";
 import { Alert, btnGhost, btnPrimary, fieldClass, labelClass } from "@/components/erp-ui";
 import { formatMoney, formatQty } from "@/lib/format";
+import { useI18n } from "@/lib/i18n";
 import type { ActionResult, DocumentInput, SearchHit } from "@/lib/types";
 
 type Line = {
@@ -35,6 +36,9 @@ export function DocumentForm({
   submitLabel: string;
   onSubmit: (input: DocumentInput) => Promise<ActionResult>;
 }) {
+  const { locale, t } = useI18n();
+  const en = locale === "en";
+  const savingLabel = t("trade.saving");
   const [party, setParty] = useState<SearchHit | null>(null);
   const [paid, setPaid] = useState("0");
   const [discount, setDiscount] = useState("0");
@@ -51,7 +55,7 @@ export function DocumentForm({
 
   function addProduct(hit: SearchHit) {
     if (lines.some((line) => line.productId === hit.id)) {
-      setError("الصنف مضاف مسبقاً في المستند");
+      setError(en ? "This item is already on the document." : "الصنف مضاف مسبقاً في المستند");
       return;
     }
     setError("");
@@ -97,16 +101,21 @@ export function DocumentForm({
         search={searchParties}
         onSelect={setParty}
       />
-      <SearchSelect label="إضافة صنف" placeholder="ابحث بالاسم أو الرمز" search={searchProducts} onSelect={addProduct} />
+      <SearchSelect
+        label={en ? "Add item" : "إضافة صنف"}
+        placeholder={t("inv.search")}
+        search={searchProducts}
+        onSelect={addProduct}
+      />
       {mode === "sale" ? <CustomFields entityType="INVOICE" onChange={setCustomData} /> : null}
       <div className="overflow-hidden rounded-xl border border-slate-200">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-200 text-slate-500">
-              <th className="px-3 py-2 text-right font-semibold">الصنف</th>
-              <th className="px-3 py-2 text-right font-semibold">الكمية</th>
-              <th className="px-3 py-2 text-right font-semibold">السعر</th>
-              <th className="px-3 py-2 text-right font-semibold">الإجمالي</th>
+              <th className="px-3 py-2 text-right font-semibold">{t("receipt.item")}</th>
+              <th className="px-3 py-2 text-right font-semibold">{t("receipt.qty")}</th>
+              <th className="px-3 py-2 text-right font-semibold">{t("receipt.price")}</th>
+              <th className="px-3 py-2 text-right font-semibold">{t("receipt.lineTotal")}</th>
               <th className="px-3 py-2" />
             </tr>
           </thead>
@@ -114,7 +123,7 @@ export function DocumentForm({
             {lines.length === 0 ? (
               <tr>
                 <td colSpan={5} className="px-3 py-6 text-center text-slate-500">
-                  أضف صنفاً واحداً على الأقل
+                  {en ? "Add at least one item." : "أضف صنفاً واحداً على الأقل"}
                 </td>
               </tr>
             ) : null}
@@ -126,7 +135,11 @@ export function DocumentForm({
                   <td className="px-3 py-2">
                     <p className="font-semibold text-slate-900">{line.label}</p>
                     {shortage ? (
-                      <p className="text-xs font-bold text-red-600">أكبر من المتاح ({formatQty(line.stock)})</p>
+                      <p className="text-xs font-bold text-red-600">
+                        {en
+                          ? `Exceeds available (${formatQty(line.stock)})`
+                          : `أكبر من المتاح (${formatQty(line.stock)})`}
+                      </p>
                     ) : null}
                   </td>
                   <td className="px-3 py-2">
@@ -176,29 +189,41 @@ export function DocumentForm({
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {mode === "sale" ? (
           <div>
-            <label className={labelClass}>الخصم</label>
+            <label className={labelClass}>{t("receipt.discount")}</label>
             <input dir="ltr" className={fieldClass} value={discount} onChange={(event) => setDiscount(event.target.value)} />
           </div>
         ) : null}
         <div>
-          <label className={labelClass}>{mode === "sale" ? "المبلغ المحصّل الآن" : "المبلغ المدفوع الآن"}</label>
+          <label className={labelClass}>
+            {mode === "sale"
+              ? en
+                ? "Amount collected now"
+                : "المبلغ المحصّل الآن"
+              : en
+                ? "Amount paid now"
+                : "المبلغ المدفوع الآن"}
+          </label>
           <input dir="ltr" className={fieldClass} value={paid} onChange={(event) => setPaid(event.target.value)} />
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-3">
-          <p className="text-xs text-slate-500">{mode === "sale" ? "الصافي بعد الخصم" : "الإجمالي"}</p>
+          <p className="text-xs text-slate-500">
+            {mode === "sale" ? t("receipt.net") : en ? "Total" : "الإجمالي"}
+          </p>
           <p className="text-lg font-bold">{formatMoney(mode === "sale" ? net : total)}</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-3">
-          <p className="text-xs text-slate-500">المتبقي على الحساب</p>
+          <p className="text-xs text-slate-500">{t("receipt.due")}</p>
           <p className="text-lg font-bold text-blue-700">{formatMoney(due)}</p>
         </div>
       </div>
       <div className="flex justify-end gap-2">
         <button type="submit" className={btnPrimary} disabled={pending}>
           <Plus size={16} />
-          {pending ? "جارٍ الحفظ..." : submitLabel}
+          {pending ? savingLabel : submitLabel}
         </button>
-        <span className={btnGhost}>عدد الأصناف: {lines.length}</span>
+        <span className={btnGhost}>
+          {en ? `Line items: ${lines.length}` : `عدد الأصناف: ${lines.length}`}
+        </span>
       </div>
     </form>
   );

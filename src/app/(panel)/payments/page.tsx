@@ -4,8 +4,8 @@ import { PaymentCreateForms } from "@/app/(panel)/payments/payment-forms";
 import { requireUser } from "@/lib/erp-auth";
 import { DataCard, DisabledModule, Forbidden, PageHeader, PageSkeleton, PaginationBar, StatusBadge } from "@/components/erp-ui";
 import { prisma } from "@/lib/db";
-import { formatDate, formatMoney } from "@/lib/format";
 import { PROVIDER_LABEL } from "@/lib/gateways";
+import { datetimeFor, getLocale, moneyFor, tx } from "@/lib/i18n/server";
 import { WhatsAppButton } from "@/components/whatsapp-button";
 import { payLinkText, payUrl, waLink } from "@/lib/whatsapp";
 import { isModuleEnabled } from "@/lib/modules-db";
@@ -13,13 +13,16 @@ import { PAGE_SIZE, readQuery, type RawQuery } from "@/lib/pagination";
 import { can, firstAllowedHref } from "@/lib/permissions";
 import { listPaymentLinks } from "@/services/payment-gateway.service";
 
-export const metadata = { title: "المدفوعات الإلكترونية | نظام ERP" };
+export const metadata = { title: "Online Payments | AetherBI ERP" };
 
 async function PaymentsContent({ searchParams }: { searchParams: Promise<RawQuery> }) {
   await connection();
+  const locale = await getLocale();
   const user = await requireUser();
   if (!can(user, "payments", "view") && !can(user, "sales", "view")) return <Forbidden href={firstAllowedHref(user)} />;
-  if (!(await isModuleEnabled("payments"))) return <DisabledModule title="المدفوعات" />;
+  if (!(await isModuleEnabled("payments"))) {
+    return <DisabledModule title={tx(locale, "المدفوعات", "Payments")} />;
+  }
   const query = await readQuery(searchParams);
   const [links, organizations] = await Promise.all([
     listPaymentLinks((query.page - 1) * PAGE_SIZE, PAGE_SIZE, query.q),
@@ -29,11 +32,15 @@ async function PaymentsContent({ searchParams }: { searchParams: Promise<RawQuer
   return (
     <div>
       <PageHeader
-        title="روابط الدفع الإلكتروني"
-        description="رابط عام للفاتورة أو لاشتراك الشركة. الدفع التجريبي يرحّل قيد البنك ويحدّث الفاتورة أو تاريخ الاشتراك."
+        title={tx(locale, "روابط الدفع الإلكتروني", "Online payment links")}
+        description={tx(
+          locale,
+          "رابط عام للفاتورة أو لاشتراك الشركة. الدفع التجريبي يرحّل قيد البنك ويحدّث الفاتورة أو تاريخ الاشتراك.",
+          "Public links for invoices or subscriptions. Test payments post bank entries and update invoices or subscription dates.",
+        )}
         actions={
           <a href="/settings/payments" className="text-sm font-semibold text-blue-700">
-            إعداد البوابات
+            {tx(locale, "إعداد البوابات", "Gateway settings")}
           </a>
         }
       />
@@ -43,11 +50,11 @@ async function PaymentsContent({ searchParams }: { searchParams: Promise<RawQuer
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-slate-500">
-                <th className="px-4 py-3 text-right font-semibold">البيان</th>
-                <th className="px-4 py-3 text-right font-semibold">البوابة</th>
-                <th className="px-4 py-3 text-right font-semibold">المبلغ</th>
-                <th className="px-4 py-3 text-right font-semibold">الحالة</th>
-                <th className="px-4 py-3 text-right font-semibold">التاريخ</th>
+                <th className="px-4 py-3 text-right font-semibold">{tx(locale, "البيان", "Description")}</th>
+                <th className="px-4 py-3 text-right font-semibold">{tx(locale, "البوابة", "Gateway")}</th>
+                <th className="px-4 py-3 text-right font-semibold">{tx(locale, "المبلغ", "Amount")}</th>
+                <th className="px-4 py-3 text-right font-semibold">{tx(locale, "الحالة", "Status")}</th>
+                <th className="px-4 py-3 text-right font-semibold">{tx(locale, "التاريخ", "Date")}</th>
               </tr>
             </thead>
             <tbody>
@@ -55,18 +62,18 @@ async function PaymentsContent({ searchParams }: { searchParams: Promise<RawQuer
                 <tr key={row.id} className="border-b border-slate-200 last:border-0">
                   <td className="px-4 py-3">
                     <a className="font-bold text-blue-700" href={`/pay/${row.token}`}>
-                      {row.invoice?.invoiceNumber ?? row.organization?.name ?? "رابط دفع"}
+                      {row.invoice?.invoiceNumber ?? row.organization?.name ?? tx(locale, "رابط دفع", "Payment link")}
                     </a>
                     {row.invoice?.customer.phone ? (
                       <div className="mt-1">
                         <WhatsAppButton
-                          label="إرسال رابط الدفع عبر واتساب"
+                          label={tx(locale, "إرسال رابط الدفع عبر واتساب", "Send payment link via WhatsApp")}
                           href={waLink(
                             row.invoice.customer.phone,
                             payLinkText({
                               name: row.invoice.customer.name,
                               number: row.invoice.invoiceNumber,
-                              amount: formatMoney(row.amount, row.currency),
+                              amount: moneyFor(locale, row.amount),
                               url: payUrl(row.token),
                             }),
                           )}
@@ -75,11 +82,11 @@ async function PaymentsContent({ searchParams }: { searchParams: Promise<RawQuer
                     ) : null}
                   </td>
                   <td className="px-4 py-3">{PROVIDER_LABEL[row.gatewayProvider] ?? row.gatewayProvider}</td>
-                  <td className="px-4 py-3 font-semibold">{formatMoney(row.amount, row.currency)}</td>
+                  <td className="px-4 py-3 font-semibold">{moneyFor(locale, row.amount)}</td>
                   <td className="px-4 py-3">
                     <StatusBadge status={row.status} />
                   </td>
-                  <td className="px-4 py-3">{formatDate(row.paidAt ?? row.createdAt)}</td>
+                  <td className="px-4 py-3">{datetimeFor(locale, row.paidAt ?? row.createdAt)}</td>
                 </tr>
               ))}
             </tbody>
@@ -93,7 +100,7 @@ async function PaymentsContent({ searchParams }: { searchParams: Promise<RawQuer
 
 export default function PaymentsPage({ searchParams }: { searchParams: Promise<RawQuery> }) {
   return (
-    <Suspense fallback={<PageSkeleton title="المدفوعات" />}>
+    <Suspense fallback={<PageSkeleton title="Payments" />}>
       <PaymentsContent searchParams={searchParams} />
     </Suspense>
   );

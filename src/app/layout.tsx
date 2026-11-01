@@ -33,7 +33,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   let theme: Theme = 'dark'
   try {
     const cookieStore = await cookies()
-    locale = cookieStore.get('ai-hq-locale')?.value === 'en' ? 'en' : 'ar'
+    const raw =
+      cookieStore.get('NEXT_LOCALE')?.value ||
+      cookieStore.get('ai-hq-locale')?.value ||
+      cookieStore.get('vf_lang')?.value
+    locale = raw === 'en' ? 'en' : 'ar'
     theme = cookieStore.get('ai-hq-theme')?.value === 'light' ? 'light' : 'dark'
   } catch {
     // Keep safe defaults when cookie store is unavailable during cold start.

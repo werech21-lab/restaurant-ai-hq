@@ -8,7 +8,7 @@ import { can, firstAllowedHref, type PermissionSnapshot } from "@/lib/permission
 import { prisma } from "@/lib/db";
 import { RolesPanel } from "@/app/(panel)/roles/roles-panel";
 
-export const metadata = { title: "الأدوار والصلاحيات | نظام ERP" };
+export const metadata = { title: "Roles | AetherBI" };
 
 function matrix(rows: Array<{ module: string; canView: boolean; canCreate: boolean; canEdit: boolean; canDelete: boolean }>) {
   const byModule = new Map(rows.map((row) => [row.module, row]));
@@ -82,7 +82,7 @@ async function RolesContent({ searchParams }: { searchParams: Promise<RawQuery> 
 
 export default function RolesPage({ searchParams }: { searchParams: Promise<RawQuery> }) {
   return (
-    <Suspense fallback={<PageSkeleton title="الأدوار" />}>
+    <Suspense fallback={<PageSkeleton title="Roles" />}>
       <RolesContent searchParams={searchParams} />
     </Suspense>
   );

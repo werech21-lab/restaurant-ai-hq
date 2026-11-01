@@ -9,19 +9,21 @@ import { DocumentDetail } from "@/components/document-detail";
 import { WhatsAppButton } from "@/components/whatsapp-button";
 import { TradePanel } from "@/components/trade-panel";
 import { Forbidden, PageSkeleton } from "@/components/erp-ui";
-import { formatDate, formatMoney, formatQty } from "@/lib/format";
+import { formatQty } from "@/lib/format";
+import { dateFor, getLocale, moneyFor, tx } from "@/lib/i18n/server";
 import { PAGE_SIZE, pageHref, readQuery, type RawQuery } from "@/lib/pagination";
 import { can, firstAllowedHref } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
 import { getActiveScope, salesWhereForScope } from "@/lib/scope";
 import { invoiceText, payUrl, waLink } from "@/lib/whatsapp";
 
-export const metadata = { title: "المبيعات | نظام ERP" };
+export const metadata = { title: "Sales | AetherBI ERP" };
 
 const statuses = new Set(["PAID", "PARTIAL", "UNPAID"]);
 
 async function SalesContent({ searchParams }: { searchParams: Promise<RawQuery> }) {
   await connection();
+  const locale = await getLocale();
   const query = await readQuery(searchParams);
   const user = await requireUser();
   if (!can(user, "sales", "view")) return <Forbidden href={firstAllowedHref(user)} />;
@@ -100,16 +102,16 @@ async function SalesContent({ searchParams }: { searchParams: Promise<RawQuery> 
       {detail ? (
         <DocumentDetail
           closeHref={pageHref("/sales", { tab, q: query.q, status, page: query.page })}
-          title="فاتورة بيع"
+          title={tx(locale, "فاتورة بيع", "Sales invoice")}
           number={detail.invoiceNumber}
-          partyLabel="العميل"
+          partyLabel={tx(locale, "العميل", "Customer")}
           party={detail.customer.name}
-          dateLabel={formatDate(detail.createdAt)}
+          dateLabel={dateFor(locale, detail.createdAt)}
           status={detail.status}
-          discountLabel={formatMoney(detail.discount)}
-          totalLabel={formatMoney(detail.totalAmount)}
-          paidLabel={formatMoney(detail.paidAmount)}
-          dueLabel={formatMoney(detail.totalAmount - detail.paidAmount)}
+          discountLabel={moneyFor(locale, detail.discount)}
+          totalLabel={moneyFor(locale, detail.totalAmount)}
+          paidLabel={moneyFor(locale, detail.paidAmount)}
+          dueLabel={moneyFor(locale, detail.totalAmount - detail.paidAmount)}
           printHref={`/sales/${detail.id}/print`}
           extra={
             <div className="flex flex-wrap items-center gap-3 border-t border-slate-200 px-5 py-4">
@@ -117,7 +119,7 @@ async function SalesContent({ searchParams }: { searchParams: Promise<RawQuery> 
                 <InvoicePayLinkButton invoiceId={detail.id} existingToken={pendingLink?.token} />
               ) : null}
               <WhatsAppButton
-                label="إرسال الفاتورة عبر واتساب"
+                label={tx(locale, "إرسال الفاتورة عبر واتساب", "Send invoice via WhatsApp")}
                 href={waLink(
                   detail.customer.phone ?? "",
                   invoiceText({
@@ -126,9 +128,9 @@ async function SalesContent({ searchParams }: { searchParams: Promise<RawQuery> 
                     lines: detail.items.map((item) => ({
                       name: item.product.name,
                       quantity: formatQty(item.quantity),
-                      total: formatMoney(item.totalPrice),
+                      total: moneyFor(locale, item.totalPrice),
                     })),
-                    total: formatMoney(detail.totalAmount),
+                    total: moneyFor(locale, detail.totalAmount),
                     payUrl: pendingLink ? payUrl(pendingLink.token) : undefined,
                   }),
                 )}
@@ -140,15 +142,19 @@ async function SalesContent({ searchParams }: { searchParams: Promise<RawQuery> 
             name: item.product.name,
             code: item.product.code,
             quantity: formatQty(item.quantity),
-            price: formatMoney(item.unitPrice),
-            total: formatMoney(item.totalPrice),
+            price: moneyFor(locale, item.unitPrice),
+            total: moneyFor(locale, item.totalPrice),
           }))}
         />
       ) : null}
       <TradePanel
         basePath="/sales"
-        title="المبيعات والعملاء"
-        description="الفاتورة تتحقق من الكمية، تخصم المخزون، وتسجل الخصم وسند القبض ومديونية العميل في معاملة واحدة."
+        title={tx(locale, "المبيعات والعملاء", "Sales & customers")}
+        description={tx(
+          locale,
+          "الفاتورة تتحقق من الكمية، تخصم المخزون، وتسجل الخصم وسند القبض ومديونية العميل في معاملة واحدة.",
+          "Each invoice validates stock, deducts inventory, and records discount, receipt, and customer balance in one transaction.",
+        )}
         tab={tab}
         q={query.q}
         page={query.page}
@@ -157,14 +163,18 @@ async function SalesContent({ searchParams }: { searchParams: Promise<RawQuery> 
         canCreate={can(user, "sales", "create")}
         canEdit={can(user, "sales", "edit")}
         canDelete={can(user, "sales", "delete")}
-        createLabel="فاتورة جديدة"
-        partyNoun="العميل"
-        partyPlural="العملاء"
-        paymentTitle="تحصيل دفعة من عميل"
-        paymentHint="يُخصم التحصيل من مديونية العميل ويوزَّع على أقدم الفواتير غير المسددة."
+        createLabel={tx(locale, "فاتورة جديدة", "New invoice")}
+        partyNoun={tx(locale, "العميل", "Customer")}
+        partyPlural={tx(locale, "العملاء", "Customers")}
+        paymentTitle={tx(locale, "تحصيل دفعة من عميل", "Collect customer payment")}
+        paymentHint={tx(
+          locale,
+          "يُخصم التحصيل من مديونية العميل ويوزَّع على أقدم الفواتير غير المسددة.",
+          "Payment reduces customer balance and applies to oldest unpaid invoices.",
+        )}
         mode="sale"
         priceKey="sellingPrice"
-        submitLabel="حفظ فاتورة البيع"
+        submitLabel={tx(locale, "حفظ فاتورة البيع", "Save sales invoice")}
         searchParties={searchCustomers}
         createDocument={createSalesInvoice}
         saveParty={saveCustomer}
@@ -174,9 +184,9 @@ async function SalesContent({ searchParams }: { searchParams: Promise<RawQuery> 
           id: row.id,
           number: row.invoiceNumber,
           party: row.customer.name,
-          dateLabel: formatDate(row.createdAt),
-          totalLabel: formatMoney(row.totalAmount),
-          paidLabel: formatMoney(row.paidAmount),
+          dateLabel: dateFor(locale, row.createdAt),
+          totalLabel: moneyFor(locale, row.totalAmount),
+          paidLabel: moneyFor(locale, row.paidAmount),
           status: row.status,
         }))}
         parties={parties.map((row) => ({
@@ -185,7 +195,7 @@ async function SalesContent({ searchParams }: { searchParams: Promise<RawQuery> 
           phone: row.phone ?? "",
           email: row.email ?? "",
           balance: row.balance,
-          balanceLabel: formatMoney(row.balance),
+          balanceLabel: moneyFor(locale, row.balance),
           customData: row.customData,
         }))}
       />
@@ -195,7 +205,7 @@ async function SalesContent({ searchParams }: { searchParams: Promise<RawQuery> 
 
 export default function SalesPage({ searchParams }: { searchParams: Promise<RawQuery> }) {
   return (
-    <Suspense fallback={<PageSkeleton title="المبيعات" />}>
+    <Suspense fallback={<PageSkeleton title="Sales" />}>
       <SalesContent searchParams={searchParams} />
     </Suspense>
   );

@@ -4,7 +4,10 @@ import { requireUser } from "@/lib/erp-auth";
 import { DataCard, Forbidden, PageHeader, PageSkeleton, PaginationBar, btnGhost, btnPrimary } from "@/components/erp-ui";
 import { ExportCsvButton } from "@/components/ui/export-button";
 import { StatCard } from "@/components/ui/stat-card";
-import { formatDate, formatMoney, formatMonth, formatQty, monthRange } from "@/lib/format";
+import { formatQty, monthRange } from "@/lib/format";
+import type { Locale } from "@/lib/i18n";
+import { paymentVoucherLabel } from "@/lib/i18n/auto-translate";
+import { datetimeFor, getLocale, moneyFor, monthFor, tx } from "@/lib/i18n/server";
 import { PAGE_SIZE, pageHref, readQuery, type RawQuery } from "@/lib/pagination";
 import { can, firstAllowedHref } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
@@ -13,67 +16,72 @@ import { getActiveScope } from "@/lib/scope";
 import { listPayments } from "@/services/report.service";
 import { forecastLabels } from "@/services/forecast.service";
 
-export const metadata = { title: "التقارير | نظام ERP" };
+export const metadata = { title: "Reports | AetherBI ERP" };
 
 async function ReportsContent({ searchParams }: { searchParams: Promise<RawQuery> }) {
   await connection();
+  const locale = await getLocale();
   const query = await readQuery(searchParams);
   const user = await requireUser();
   if (!can(user, "reports", "view")) return <Forbidden href={firstAllowedHref(user)} />;
 
   const scope = await getActiveScope(query);
+  const scopeLabel = locale === "en" ? scope.labelEn : scope.labelAr;
   const tab = ["stock", "customers", "suppliers", "payments"].includes(query.tab) ? query.tab : "pnl";
   const now = new Date();
   const { start, end } = monthRange(now);
   const skip = (query.page - 1) * PAGE_SIZE;
+  const monthLabel = monthFor(locale, now);
 
   return (
     <div>
       <PageHeader
-        title="التقارير"
-        description={`أرباح وتكلفة مخزون وأرصدة الديون · ${scope.labelAr}`}
+        title={tx(locale, "التقارير", "Reports")}
+        description={tx(locale, `أرباح وتكلفة مخزون وأرصدة الديون · ${scopeLabel}`, `P&L, inventory valuation, and balances · ${scopeLabel}`)}
         actions={<ExportCsvButton kind="reports" filename="reports.csv" />}
       />
       <div className="mb-4 flex flex-wrap gap-2">
         <a href="/reports?tab=pnl" className={tab === "pnl" ? btnPrimary : btnGhost}>
-          الأرباح والخسائر
+          {tx(locale, "الأرباح والخسائر", "Profit & loss")}
         </a>
         <a href="/reports?tab=stock" className={tab === "stock" ? btnPrimary : btnGhost}>
-          تقييم المخزون
+          {tx(locale, "تقييم المخزون", "Inventory valuation")}
         </a>
         <a href="/reports?tab=customers" className={tab === "customers" ? btnPrimary : btnGhost}>
-          ديون العملاء
+          {tx(locale, "ديون العملاء", "Customer receivables")}
         </a>
         <a href="/reports?tab=suppliers" className={tab === "suppliers" ? btnPrimary : btnGhost}>
-          ديون الموردين
+          {tx(locale, "ديون الموردين", "Supplier payables")}
         </a>
         <a href="/reports?tab=payments" className={tab === "payments" ? btnPrimary : btnGhost}>
-          سندات القبض والصرف
+          {tx(locale, "سندات القبض والصرف", "Receipts & payments")}
         </a>
       </div>
       {tab === "pnl" ? (
-        <ProfitReport start={start} end={end} monthLabel={formatMonth(now)} warehouseIds={scope.warehouseIds} />
+        <ProfitReport locale={locale} start={start} end={end} monthLabel={monthLabel} warehouseIds={scope.warehouseIds} />
       ) : null}
       {tab === "stock" ? (
-        <StockReport q={query.q} page={query.page} skip={skip} warehouseIds={scope.warehouseIds} />
+        <StockReport locale={locale} q={query.q} page={query.page} skip={skip} warehouseIds={scope.warehouseIds} />
       ) : null}
-      {tab === "customers" ? <DebtReport kind="customers" q={query.q} page={query.page} skip={skip} /> : null}
-      {tab === "suppliers" ? <DebtReport kind="suppliers" q={query.q} page={query.page} skip={skip} /> : null}
-      {tab === "payments" ? <PaymentsReport q={query.q} page={query.page} skip={skip} /> : null}
+      {tab === "customers" ? <DebtReport locale={locale} kind="customers" q={query.q} page={query.page} skip={skip} /> : null}
+      {tab === "suppliers" ? <DebtReport locale={locale} kind="suppliers" q={query.q} page={query.page} skip={skip} /> : null}
+      {tab === "payments" ? <PaymentsReport locale={locale} q={query.q} page={query.page} skip={skip} /> : null}
     </div>
   );
 }
 
 async function ProfitReport({
+  locale,
   start,
   end,
   monthLabel,
   warehouseIds,
 }: {
-  start: Date
-  end: Date
-  monthLabel: string
-  warehouseIds: string[]
+  locale: Locale;
+  start: Date;
+  end: Date;
+  monthLabel: string;
+  warehouseIds: string[];
 }) {
   const [monthSales, allSales, monthCogs, allCogs] = await Promise.all([
     salesSummary(start, end, warehouseIds),
@@ -82,57 +90,63 @@ async function ProfitReport({
     costOfGoods(undefined, undefined, warehouseIds),
   ]);
   const blocks = [
-    { label: `مبيعات ${monthLabel}`, value: monthSales.total },
-    { label: `تكلفة البضاعة ${monthLabel}`, value: monthCogs },
-    { label: `مجمل الربح ${monthLabel}`, value: monthSales.total - monthCogs },
-    { label: "إجمالي المبيعات", value: allSales.total },
-    { label: "إجمالي تكلفة البضاعة المباعة", value: allCogs },
-    { label: "مجمل الربح التراكمي", value: allSales.total - allCogs },
+    { label: tx(locale, `مبيعات ${monthLabel}`, `Sales · ${monthLabel}`), value: monthSales.total },
+    { label: tx(locale, `تكلفة البضاعة ${monthLabel}`, `COGS · ${monthLabel}`), value: monthCogs },
+    { label: tx(locale, `مجمل الربح ${monthLabel}`, `Gross profit · ${monthLabel}`), value: monthSales.total - monthCogs },
+    { label: tx(locale, "إجمالي المبيعات", "Total sales"), value: allSales.total },
+    { label: tx(locale, "إجمالي تكلفة البضاعة المباعة", "Total COGS"), value: allCogs },
+    { label: tx(locale, "مجمل الربح التراكمي", "Cumulative gross profit"), value: allSales.total - allCogs },
   ];
   return (
     <div>
       <div className="grid gap-4 md:grid-cols-3">
         {blocks.map((block) => (
-          <StatCard key={block.label} label={block.label} value={formatMoney(block.value)} />
+          <StatCard key={block.label} label={block.label} value={moneyFor(locale, block.value)} />
         ))}
       </div>
       <p className="mt-4 text-sm text-slate-600">
-        مجمل الربح = المبيعات − تكلفة الكميات المباعة بسعر تكلفة الصنف الحالي. عدد فواتير {monthLabel}: {monthSales.count}.
+        {tx(
+          locale,
+          `مجمل الربح = المبيعات − تكلفة الكميات المباعة بسعر تكلفة الصنف الحالي. عدد فواتير ${monthLabel}: ${monthSales.count}.`,
+          `Gross profit = sales minus COGS at current item cost. Invoices in ${monthLabel}: ${monthSales.count}.`,
+        )}
       </p>
     </div>
   );
 }
 
 async function StockReport({
+  locale,
   q,
   page,
   skip,
   warehouseIds,
 }: {
-  q: string
-  page: number
-  skip: number
-  warehouseIds: string[]
+  locale: Locale;
+  q: string;
+  page: number;
+  skip: number;
+  warehouseIds: string[];
 }) {
-  const valuation = await inventoryValuation(warehouseIds)
+  const valuation = await inventoryValuation(warehouseIds);
   let rows: Array<{
-    id: string
-    code: string
-    name: string
-    currentStock: number
-    costPrice: number
-    sellingPrice: number
-  }> = []
-  let total = 0
+    id: string;
+    code: string;
+    name: string;
+    currentStock: number;
+    costPrice: number;
+    sellingPrice: number;
+  }> = [];
+  let total = 0;
   if (warehouseIds.length) {
     const stocks = await prisma.warehouseStock.findMany({
       where: { warehouseId: { in: warehouseIds } },
       include: { product: { select: { id: true, code: true, name: true, costPrice: true, sellingPrice: true } } },
-    })
-    const merged = new Map<string, (typeof rows)[number]>()
+    });
+    const merged = new Map<string, (typeof rows)[number]>();
     for (const row of stocks) {
-      const prev = merged.get(row.productId)
-      if (prev) prev.currentStock += row.quantity
+      const prev = merged.get(row.productId);
+      if (prev) prev.currentStock += row.quantity;
       else {
         merged.set(row.productId, {
           id: row.product.id,
@@ -141,66 +155,78 @@ async function StockReport({
           currentStock: row.quantity,
           costPrice: row.product.costPrice,
           sellingPrice: row.product.sellingPrice,
-        })
+        });
       }
     }
-    rows = Array.from(merged.values())
+    rows = Array.from(merged.values());
     if (q) {
-      const needle = q.toLowerCase()
-      rows = rows.filter((row) => row.name.toLowerCase().includes(needle) || row.code.toLowerCase().includes(needle))
+      const needle = q.toLowerCase();
+      rows = rows.filter((row) => row.name.toLowerCase().includes(needle) || row.code.toLowerCase().includes(needle));
     }
-    rows.sort((a, b) => a.name.localeCompare(b.name, 'ar'))
-    total = rows.length
-    rows = rows.slice(skip, skip + PAGE_SIZE)
+    rows.sort((a, b) => a.name.localeCompare(b.name, locale === "en" ? "en" : "ar"));
+    total = rows.length;
+    rows = rows.slice(skip, skip + PAGE_SIZE);
   } else {
-    const where = q ? { OR: [{ name: { contains: q } }, { code: { contains: q } }] } : {}
+    const where = q ? { OR: [{ name: { contains: q } }, { code: { contains: q } }] } : {};
     const [count, productRows] = await Promise.all([
       prisma.product.count({ where }),
       prisma.product.findMany({
         where,
-        orderBy: { name: 'asc' },
+        orderBy: { name: "asc" },
         skip,
         take: PAGE_SIZE,
         select: { id: true, code: true, name: true, currentStock: true, costPrice: true, sellingPrice: true },
       }),
-    ])
-    total = count
-    rows = productRows
+    ]);
+    total = count;
+    rows = productRows;
   }
   const forecasts = await forecastLabels(
     rows.map((row) => ({ id: row.id, currentStock: row.currentStock })),
     new Date(),
-  )
+  );
   return (
     <div>
       <div className="mb-4 grid gap-4 md:grid-cols-2">
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-600">قيمة المخزون بسعر التكلفة</p>
-          <p className="mt-2 text-2xl font-bold">{formatMoney(valuation.costValue)}</p>
+          <p className="text-sm text-slate-600">{tx(locale, "قيمة المخزون بسعر التكلفة", "Inventory at cost")}</p>
+          <p className="mt-2 text-2xl font-bold">{moneyFor(locale, valuation.costValue)}</p>
         </section>
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-600">قيمة المخزون بسعر البيع</p>
-          <p className="mt-2 text-2xl font-bold">{formatMoney(valuation.sellValue)}</p>
+          <p className="text-sm text-slate-600">{tx(locale, "قيمة المخزون بسعر البيع", "Inventory at sell price")}</p>
+          <p className="mt-2 text-2xl font-bold">{moneyFor(locale, valuation.sellValue)}</p>
         </section>
       </div>
       <DataCard>
         <form method="get" className="flex gap-2 border-b border-slate-200 p-4">
           <input type="hidden" name="tab" value="stock" />
-          <input name="q" defaultValue={q} placeholder="بحث عن صنف" className="w-full max-w-sm rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" />
-          <button className={btnPrimary}>بحث</button>
+          <input
+            name="q"
+            defaultValue={q}
+            placeholder={tx(locale, "بحث عن صنف", "Search items")}
+            className="w-full max-w-sm rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+          />
+          <button className={btnPrimary}>{tx(locale, "بحث", "Search")}</button>
         </form>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-slate-500">
-                <th className="px-4 py-3 text-right font-semibold">الصنف</th>
-                <th className="px-4 py-3 text-right font-semibold">الكمية</th>
-                <th className="px-4 py-3 text-right font-semibold">التكلفة</th>
-                <th className="px-4 py-3 text-right font-semibold">البيع</th>
-                <th className="px-4 py-3 text-right font-semibold">قيمة التكلفة</th>
-                <th className="px-4 py-3 text-right font-semibold">قيمة البيع</th>
-                <th className="px-4 py-3 text-right font-semibold" title="الرصيد الحالي مقسوماً على متوسط الصادر اليومي منذ أول حركة صادر">
-                  التوقع الذكي للنفاد
+                <th className="px-4 py-3 text-right font-semibold">{tx(locale, "الصنف", "Item")}</th>
+                <th className="px-4 py-3 text-right font-semibold">{tx(locale, "الكمية", "Qty")}</th>
+                <th className="px-4 py-3 text-right font-semibold">{tx(locale, "التكلفة", "Cost")}</th>
+                <th className="px-4 py-3 text-right font-semibold">{tx(locale, "البيع", "Sell")}</th>
+                <th className="px-4 py-3 text-right font-semibold">{tx(locale, "قيمة التكلفة", "Cost value")}</th>
+                <th className="px-4 py-3 text-right font-semibold">{tx(locale, "قيمة البيع", "Sell value")}</th>
+                <th
+                  className="px-4 py-3 text-right font-semibold"
+                  title={tx(
+                    locale,
+                    "الرصيد الحالي مقسوماً على متوسط الصادر اليومي منذ أول حركة صادر",
+                    "Current stock divided by average daily outbound since first OUT movement",
+                  )}
+                >
+                  {tx(locale, "التوقع الذكي للنفاد", "Smart depletion forecast")}
                 </th>
               </tr>
             </thead>
@@ -214,10 +240,10 @@ async function StockReport({
                     </p>
                   </td>
                   <td className="px-4 py-3">{formatQty(row.currentStock)}</td>
-                  <td className="px-4 py-3">{formatMoney(row.costPrice)}</td>
-                  <td className="px-4 py-3">{formatMoney(row.sellingPrice)}</td>
-                  <td className="px-4 py-3 font-semibold">{formatMoney(row.currentStock * row.costPrice)}</td>
-                  <td className="px-4 py-3 font-semibold">{formatMoney(row.currentStock * row.sellingPrice)}</td>
+                  <td className="px-4 py-3">{moneyFor(locale, row.costPrice)}</td>
+                  <td className="px-4 py-3">{moneyFor(locale, row.sellingPrice)}</td>
+                  <td className="px-4 py-3 font-semibold">{moneyFor(locale, row.currentStock * row.costPrice)}</td>
+                  <td className="px-4 py-3 font-semibold">{moneyFor(locale, row.currentStock * row.sellingPrice)}</td>
                   <td className="px-4 py-3 text-xs font-semibold">{forecasts.get(row.id) ?? "—"}</td>
                 </tr>
               ))}
@@ -231,11 +257,13 @@ async function StockReport({
 }
 
 async function DebtReport({
+  locale,
   kind,
   q,
   page,
   skip,
 }: {
+  locale: Locale;
   kind: "customers" | "suppliers";
   q: string;
   page: number;
@@ -261,33 +289,42 @@ async function DebtReport({
   return (
     <div>
       <section className="mb-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <p className="text-sm text-slate-600">{isCustomer ? "إجمالي مديونية العملاء" : "إجمالي المستحق للموردين"}</p>
-        <p className="mt-2 text-2xl font-bold">{formatMoney(totalSum._sum.balance ?? 0)}</p>
+        <p className="text-sm text-slate-600">
+          {isCustomer
+            ? tx(locale, "إجمالي مديونية العملاء", "Total customer receivables")
+            : tx(locale, "إجمالي المستحق للموردين", "Total supplier payables")}
+        </p>
+        <p className="mt-2 text-2xl font-bold">{moneyFor(locale, totalSum._sum.balance ?? 0)}</p>
       </section>
       <DataCard>
         <form method="get" className="flex gap-2 border-b border-slate-200 p-4">
           <input type="hidden" name="tab" value={kind} />
-          <input name="q" defaultValue={q} placeholder="بحث بالاسم أو الهاتف" className="w-full max-w-sm rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" />
-          <button className={btnPrimary}>بحث</button>
+          <input
+            name="q"
+            defaultValue={q}
+            placeholder={tx(locale, "بحث بالاسم أو الهاتف", "Search by name or phone")}
+            className="w-full max-w-sm rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+          />
+          <button className={btnPrimary}>{tx(locale, "بحث", "Search")}</button>
           <a href={pageHref("/reports", { tab: kind })} className={btnGhost}>
-            مسح
+            {tx(locale, "مسح", "Clear")}
           </a>
         </form>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-slate-500">
-                <th className="px-4 py-3 text-right font-semibold">الاسم</th>
-                <th className="px-4 py-3 text-right font-semibold">الهاتف</th>
-                <th className="px-4 py-3 text-right font-semibold">البريد</th>
-                <th className="px-4 py-3 text-right font-semibold">الرصيد</th>
+                <th className="px-4 py-3 text-right font-semibold">{tx(locale, "الاسم", "Name")}</th>
+                <th className="px-4 py-3 text-right font-semibold">{tx(locale, "الهاتف", "Phone")}</th>
+                <th className="px-4 py-3 text-right font-semibold">{tx(locale, "البريد", "Email")}</th>
+                <th className="px-4 py-3 text-right font-semibold">{tx(locale, "الرصيد", "Balance")}</th>
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="px-4 py-10 text-center text-slate-500">
-                    لا توجد أرصدة مستحقة.
+                    {tx(locale, "لا توجد أرصدة مستحقة.", "No outstanding balances.")}
                   </td>
                 </tr>
               ) : (
@@ -300,7 +337,7 @@ async function DebtReport({
                     <td className="px-4 py-3" dir="ltr">
                       {row.email || "—"}
                     </td>
-                    <td className="px-4 py-3 font-bold">{formatMoney(row.balance)}</td>
+                    <td className="px-4 py-3 font-bold">{moneyFor(locale, row.balance)}</td>
                   </tr>
                 ))
               )}
@@ -313,49 +350,54 @@ async function DebtReport({
   );
 }
 
-async function PaymentsReport({ q, page, skip }: { q: string; page: number; skip: number }) {
+async function PaymentsReport({ locale, q, page, skip }: { locale: Locale; q: string; page: number; skip: number }) {
   const data = await listPayments({ q, skip, take: PAGE_SIZE });
   return (
     <div>
       <div className="mb-4 grid gap-4 md:grid-cols-2">
-        <StatCard label="إجمالي سندات القبض" value={formatMoney(data.receipts)} />
-        <StatCard label="إجمالي سندات الصرف" value={formatMoney(data.payments)} />
+        <StatCard label={tx(locale, "إجمالي سندات القبض", "Total receipts")} value={moneyFor(locale, data.receipts)} />
+        <StatCard label={tx(locale, "إجمالي سندات الصرف", "Total payments")} value={moneyFor(locale, data.payments)} />
       </div>
       <DataCard>
         <form method="get" className="flex gap-2 border-b border-slate-200 p-4">
           <input type="hidden" name="tab" value="payments" />
-          <input name="q" defaultValue={q} placeholder="بحث بالمرجع أو البيان" className="w-full max-w-sm rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" />
-          <button className={btnPrimary}>بحث</button>
+          <input
+            name="q"
+            defaultValue={q}
+            placeholder={tx(locale, "بحث بالمرجع أو البيان", "Search by reference or description")}
+            className="w-full max-w-sm rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+          />
+          <button className={btnPrimary}>{tx(locale, "بحث", "Search")}</button>
           <a href={pageHref("/reports", { tab: "payments" })} className={btnGhost}>
-            مسح
+            {tx(locale, "مسح", "Clear")}
           </a>
         </form>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-slate-500">
-                <th className="px-4 py-3 text-right font-semibold">التاريخ</th>
-                <th className="px-4 py-3 text-right font-semibold">النوع</th>
-                <th className="px-4 py-3 text-right font-semibold">الطرف</th>
-                <th className="px-4 py-3 text-right font-semibold">المبلغ</th>
-                <th className="px-4 py-3 text-right font-semibold">المرجع</th>
-                <th className="px-4 py-3 text-right font-semibold">المستخدم</th>
+                <th className="px-4 py-3 text-right font-semibold">{tx(locale, "التاريخ", "Date")}</th>
+                <th className="px-4 py-3 text-right font-semibold">{tx(locale, "النوع", "Type")}</th>
+                <th className="px-4 py-3 text-right font-semibold">{tx(locale, "الطرف", "Party")}</th>
+                <th className="px-4 py-3 text-right font-semibold">{tx(locale, "المبلغ", "Amount")}</th>
+                <th className="px-4 py-3 text-right font-semibold">{tx(locale, "المرجع", "Reference")}</th>
+                <th className="px-4 py-3 text-right font-semibold">{tx(locale, "المستخدم", "User")}</th>
               </tr>
             </thead>
             <tbody>
               {data.rows.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-10 text-center text-slate-500">
-                    لا توجد سندات مطابقة.
+                    {tx(locale, "لا توجد سندات مطابقة.", "No matching vouchers.")}
                   </td>
                 </tr>
               ) : (
                 data.rows.map((row) => (
                   <tr key={row.id} className="border-b border-slate-200 last:border-0">
-                    <td className="px-4 py-3">{formatDate(row.createdAt)}</td>
-                    <td className="px-4 py-3 font-semibold">{row.type === "RECEIPT" ? "سند قبض" : "سند صرف"}</td>
+                    <td className="px-4 py-3">{datetimeFor(locale, row.createdAt)}</td>
+                    <td className="px-4 py-3 font-semibold">{paymentVoucherLabel(locale, row.type)}</td>
                     <td className="px-4 py-3">{row.partyName}</td>
-                    <td className="px-4 py-3 font-bold">{formatMoney(row.amount)}</td>
+                    <td className="px-4 py-3 font-bold">{moneyFor(locale, row.amount)}</td>
                     <td className="px-4 py-3" dir="ltr">
                       {row.reference || "—"}
                     </td>
@@ -374,7 +416,7 @@ async function PaymentsReport({ q, page, skip }: { q: string; page: number; skip
 
 export default function ReportsPage({ searchParams }: { searchParams: Promise<RawQuery> }) {
   return (
-    <Suspense fallback={<PageSkeleton title="التقارير" />}>
+    <Suspense fallback={<PageSkeleton title="Reports" />}>
       <ReportsContent searchParams={searchParams} />
     </Suspense>
   );

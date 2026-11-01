@@ -1,5 +1,16 @@
+'use client'
+
 import { pageCount, pageHref, PAGE_SIZE } from "@/lib/pagination";
-import { STATUS_LABEL, statusTone } from "@/lib/format";
+import { statusTone } from "@/lib/format";
+import { useI18n, type MessageKey } from "@/lib/i18n";
+
+const STATUS_I18N: Record<string, MessageKey> = {
+  DRAFT: 'status.draft',
+  PAID: 'status.paid',
+  PARTIAL: 'status.partial',
+  UNPAID: 'status.unpaid',
+  PENDING: 'status.pending',
+}
 
 export function cx(...parts: Array<string | false | null | undefined>) {
   return parts.filter(Boolean).join(" ");
@@ -47,17 +58,20 @@ export function DataCard({ children }: { children: React.ReactNode }) {
 }
 
 export function StatusBadge({ status }: { status: string }) {
+  const { t } = useI18n()
+  const key = STATUS_I18N[status]
   return (
     <span className={cx("inline-flex rounded-full px-2.5 py-1 text-xs font-bold", statusTone(status))}>
-      {STATUS_LABEL[status] ?? status}
+      {key ? t(key) : status}
     </span>
   );
 }
 
 export function LowStockBadge() {
+  const { t } = useI18n()
   return (
     <span className="inline-flex rounded-full bg-red-600 px-2.5 py-1 text-xs font-bold text-white">
-      تحت حد الطلب
+      {t('status.lowStock')}
     </span>
   );
 }
@@ -87,57 +101,77 @@ export function PaginationBar({
   page: number;
   total: number;
 }) {
+  const { locale } = useI18n()
   const pages = pageCount(total);
   const from = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const to = Math.min(page * PAGE_SIZE, total);
   const prev = pageHref(path, { ...params, page: page - 1 });
   const next = pageHref(path, { ...params, page: page + 1 });
+  const empty = locale === 'en' ? 'No records' : 'لا توجد سجلات'
+  const range = locale === 'en' ? `Showing ${from}–${to} of ${total}` : `عرض ${from}–${to} من ${total}`
+  const prevLabel = locale === 'en' ? 'Previous' : 'السابق'
+  const nextLabel = locale === 'en' ? 'Next' : 'التالي'
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 px-4 py-3 text-sm">
-      <span className="text-mist-400">
-        {total === 0 ? "لا توجد سجلات" : `عرض ${from}–${to} من ${total}`}
-      </span>
+      <span className="text-mist-400">{total === 0 ? empty : range}</span>
       <div className="flex items-center gap-2">
-        {page <= 1 ? <span className={btnMuted}>السابق</span> : <a className={btnGhost} href={prev}>السابق</a>}
+        {page <= 1 ? <span className={btnMuted}>{prevLabel}</span> : <a className={btnGhost} href={prev}>{prevLabel}</a>}
         <span className="min-w-16 text-center font-semibold text-mist-100">
           {page} / {pages}
         </span>
-        {page >= pages ? <span className={btnMuted}>التالي</span> : <a className={btnGhost} href={next}>التالي</a>}
+        {page >= pages ? <span className={btnMuted}>{nextLabel}</span> : <a className={btnGhost} href={next}>{nextLabel}</a>}
       </div>
     </div>
   );
 }
 
 export function PageSkeleton({ title }: { title: string }) {
+  const { locale } = useI18n()
   return (
     <div className="space-y-4">
       <div className="h-10 w-48 rounded-lg bg-ink-800" />
       <div className={cx(cardClass, "p-6")}>
-        <p className="text-sm font-semibold text-mist-300">جارٍ تحميل {title}...</p>
+        <p className="text-sm font-semibold text-mist-300">
+          {locale === 'en' ? `Loading ${title}…` : `جارٍ تحميل ${title}...`}
+        </p>
       </div>
     </div>
   );
 }
 
 export function DisabledModule({ title }: { title: string }) {
+  const { locale, t } = useI18n()
   return (
     <div className={cx(cardClass, "p-8 text-center")}>
-      <h2 className="text-xl font-bold text-mist-100">{title} معطلة</h2>
-      <p className="mt-2 text-sm text-mist-400">فعّل الوحدة من مدير التطبيقات لتظهر شاشاتها وتعود للعمل.</p>
+      <h2 className="text-xl font-bold text-mist-100">
+        {locale === 'en' ? `${title} is disabled` : `${title} معطلة`}
+      </h2>
+      <p className="mt-2 text-sm text-mist-400">
+        {locale === 'en'
+          ? 'Enable the module from App Builder to restore its screens.'
+          : 'فعّل الوحدة من مدير التطبيقات لتظهر شاشاتها وتعود للعمل.'}
+      </p>
       <a href="/app-builder" className={cx(btnPrimary, "mt-5")}>
-        مدير التطبيقات
+        {t('nav.app-builder')}
       </a>
     </div>
   );
 }
 
 export function Forbidden({ href }: { href: string }) {
+  const { locale } = useI18n()
   return (
     <div className={cx(cardClass, "p-8 text-center")}>
-      <h2 className="text-xl font-bold text-mist-100">ليست لديك صلاحية عرض هذه الصفحة</h2>
-      <p className="mt-2 text-sm text-mist-400">اطلب من مدير النظام منح الصلاحية المناسبة لدورك.</p>
+      <h2 className="text-xl font-bold text-mist-100">
+        {locale === 'en' ? 'You do not have permission to view this page' : 'ليست لديك صلاحية عرض هذه الصفحة'}
+      </h2>
+      <p className="mt-2 text-sm text-mist-400">
+        {locale === 'en'
+          ? 'Ask a system admin to grant the required role permission.'
+          : 'اطلب من مدير النظام منح الصلاحية المناسبة لدورك.'}
+      </p>
       <a href={href} className={cx(btnPrimary, "mt-5")}>
-        الانتقال إلى صفحتك
+        {locale === 'en' ? 'Go to your home page' : 'الانتقال إلى صفحتك'}
       </a>
     </div>
   );

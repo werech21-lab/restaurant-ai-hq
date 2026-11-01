@@ -22,6 +22,7 @@ import {
   fieldClass,
   labelClass,
 } from "@/components/erp-ui";
+import { useI18n } from "@/lib/i18n";
 import { pageHref } from "@/lib/pagination";
 import type { SearchHit } from "@/lib/types";
 
@@ -83,6 +84,8 @@ export function InventoryPanel({
   canDelete: boolean;
 }) {
   const router = useRouter();
+  const { locale, t } = useI18n();
+  const en = locale === "en";
   const [product, setProduct] = useState<ProductRow | "new" | null>(null);
   const [category, setCategory] = useState<CategoryRow | "new" | null>(null);
   const active = tab === "categories" || tab === "movements" ? tab : "products";
@@ -91,52 +94,63 @@ export function InventoryPanel({
   return (
     <div>
       <PageHeader
-        title="المخزون والأصناف"
-        description="الأقسام والأصناف والرصيد الافتتاحي وحركات المخزون بترقيم من الخادم."
+        title={en ? "Inventory & items" : "المخزون والأصناف"}
+        description={
+          en
+            ? "Categories, items, opening stock, and stock movements with server-side paging."
+            : "الأقسام والأصناف والرصيد الافتتاحي وحركات المخزون بترقيم من الخادم."
+        }
         actions={
           <div className="flex flex-wrap gap-2">
             <ExportCsvButton kind="inventory" filename="inventory.csv" />
             {active === "categories" && canCreate ? (
               <button type="button" className={btnPrimary} onClick={() => setCategory("new")}>
                 <Plus size={16} />
-                قسم جديد
+                {en ? "New category" : "قسم جديد"}
               </button>
             ) : null}
             {active === "products" && canCreate ? (
               <button type="button" className={btnPrimary} onClick={() => setProduct("new")}>
                 <Plus size={16} />
-                صنف جديد
+                {en ? "New item" : "صنف جديد"}
               </button>
             ) : null}
           </div>
         }
       />
       <div className="mb-4 flex flex-wrap gap-2">
-        <Tab href="/inventory?tab=products" active={active === "products"} label="الأصناف" />
-        <Tab href="/inventory?tab=categories" active={active === "categories"} label="الأقسام" />
-        <Tab href="/inventory?tab=movements" active={active === "movements"} label="حركات المخزون" />
+        <Tab href="/inventory?tab=products" active={active === "products"} label={en ? "Items" : "الأصناف"} />
+        <Tab href="/inventory?tab=categories" active={active === "categories"} label={en ? "Categories" : "الأقسام"} />
+        <Tab href="/inventory?tab=movements" active={active === "movements"} label={t("inv.tab.movements")} />
       </div>
       <DataCard>
         <form method="get" className="flex flex-wrap items-center gap-2 border-b border-slate-200 p-4">
           <input type="hidden" name="tab" value={active} />
           {filter && active === "products" ? <input type="hidden" name="filter" value={filter} /> : null}
-          <input name="q" defaultValue={q} placeholder="بحث بالاسم أو الرمز" className={`${fieldClass} max-w-sm`} />
-          <button className={btnPrimary}>بحث</button>
+          <input
+            name="q"
+            defaultValue={q}
+            placeholder={t("inv.search")}
+            className={`${fieldClass} max-w-sm`}
+          />
+          <button className={btnPrimary}>{t("admin.searchButton")}</button>
           <a href={pageHref("/inventory", { tab: active })} className={btnGhost}>
-            مسح
+            {t("action.clear")}
           </a>
           {active === "products" ? (
             <a
               href={filter === "low_stock" ? "/inventory?tab=products" : "/inventory?tab=products&filter=low_stock"}
               className={filter === "low_stock" ? btnDanger : btnGhost}
             >
-              تحت حد الطلب
+              {t("inv.filter.lowOnly")}
             </a>
           ) : null}
         </form>
         {active === "products" && filter === "low_stock" ? (
           <p className="border-b border-slate-200 bg-red-600 px-4 py-2 text-sm font-bold text-white">
-            يتم عرض الأصناف التي وصلت كميتها إلى حد الطلب أو أقل.
+            {en
+              ? "Showing items at or below reorder level."
+              : "يتم عرض الأصناف التي وصلت كميتها إلى حد الطلب أو أقل."}
           </p>
         ) : null}
         <div className="overflow-x-auto">
@@ -147,7 +161,7 @@ export function InventoryPanel({
               canDelete={canDelete}
               onEdit={setProduct}
               onDelete={async (row) => {
-                if (!confirm(`حذف ${row.name}؟`)) return;
+                if (!confirm(en ? `Delete ${row.name}?` : `حذف ${row.name}؟`)) return;
                 const result = await deleteProduct(row.id);
                 if (!result.ok) alert(result.message);
                 else router.refresh();
@@ -161,7 +175,7 @@ export function InventoryPanel({
               canDelete={canDelete}
               onEdit={setCategory}
               onDelete={async (row) => {
-                if (!confirm(`حذف قسم ${row.name}؟`)) return;
+                if (!confirm(en ? `Delete category ${row.name}?` : `حذف قسم ${row.name}؟`)) return;
                 const result = await deleteCategory(row.id);
                 if (!result.ok) alert(result.message);
                 else router.refresh();
@@ -217,29 +231,38 @@ function ProductsTable({
   onEdit: (row: ProductRow) => void;
   onDelete: (row: ProductRow) => void;
 }) {
+  const { locale } = useI18n();
+  const en = locale === "en";
   return (
     <table className="w-full text-sm">
       <thead>
         <tr className="border-b border-slate-200 text-slate-500">
-          <th className="px-4 py-3 text-right font-semibold">الرمز</th>
-          <th className="px-4 py-3 text-right font-semibold">الصنف</th>
-          <th className="px-4 py-3 text-right font-semibold">القسم</th>
-          <th className="px-4 py-3 text-right font-semibold">التكلفة</th>
-          <th className="px-4 py-3 text-right font-semibold">البيع</th>
-          <th className="px-4 py-3 text-right font-semibold">الكمية</th>
-          <th className="px-4 py-3 text-right font-semibold">حد الطلب</th>
-          <th className="px-4 py-3 text-right font-semibold" title="الرصيد الحالي مقسوماً على متوسط الصادر اليومي منذ أول حركة صادر">
-            التوقع الذكي للنفاد
+          <th className="px-4 py-3 text-right font-semibold">{en ? "Code" : "الرمز"}</th>
+          <th className="px-4 py-3 text-right font-semibold">{en ? "Item" : "الصنف"}</th>
+          <th className="px-4 py-3 text-right font-semibold">{en ? "Category" : "القسم"}</th>
+          <th className="px-4 py-3 text-right font-semibold">{en ? "Cost" : "التكلفة"}</th>
+          <th className="px-4 py-3 text-right font-semibold">{en ? "Sell" : "البيع"}</th>
+          <th className="px-4 py-3 text-right font-semibold">{en ? "Qty" : "الكمية"}</th>
+          <th className="px-4 py-3 text-right font-semibold">{en ? "Reorder" : "حد الطلب"}</th>
+          <th
+            className="px-4 py-3 text-right font-semibold"
+            title={
+              en
+                ? "On-hand divided by average daily outbound since first OUT movement"
+                : "الرصيد الحالي مقسوماً على متوسط الصادر اليومي منذ أول حركة صادر"
+            }
+          >
+            {en ? "Smart stockout forecast" : "التوقع الذكي للنفاد"}
           </th>
-          <th className="px-4 py-3 text-right font-semibold">الحالة</th>
-          <th className="px-4 py-3 text-right font-semibold">إجراءات</th>
+          <th className="px-4 py-3 text-right font-semibold">{en ? "Status" : "الحالة"}</th>
+          <th className="px-4 py-3 text-right font-semibold">{en ? "Actions" : "إجراءات"}</th>
         </tr>
       </thead>
       <tbody>
         {rows.length === 0 ? (
           <tr>
             <td colSpan={10} className="px-4 py-10 text-center text-slate-500">
-              لا توجد أصناف مطابقة.
+              {en ? "No matching items." : "لا توجد أصناف مطابقة."}
             </td>
           </tr>
         ) : (
@@ -258,7 +281,9 @@ function ProductsTable({
               <td className="px-4 py-3 font-bold">{row.stockLabel}</td>
               <td className="px-4 py-3">{row.reorderLabel}</td>
               <td className="px-4 py-3 text-xs font-semibold text-slate-700">{row.forecastLabel}</td>
-              <td className="px-4 py-3">{row.low ? <LowStockBadge /> : <span className="text-emerald-700">متوفر</span>}</td>
+              <td className="px-4 py-3">
+                {row.low ? <LowStockBadge /> : <span className="text-emerald-700">{en ? "In stock" : "متوفر"}</span>}
+              </td>
               <td className="px-4 py-3">
                 <div className="flex gap-2">
                   {canEdit ? (
@@ -294,21 +319,23 @@ function CategoriesTable({
   onEdit: (row: CategoryRow) => void;
   onDelete: (row: CategoryRow) => void;
 }) {
+  const { locale } = useI18n();
+  const en = locale === "en";
   return (
     <table className="w-full text-sm">
       <thead>
         <tr className="border-b border-slate-200 text-slate-500">
-          <th className="px-4 py-3 text-right font-semibold">القسم</th>
-          <th className="px-4 py-3 text-right font-semibold">الوصف</th>
-          <th className="px-4 py-3 text-right font-semibold">عدد الأصناف</th>
-          <th className="px-4 py-3 text-right font-semibold">إجراءات</th>
+          <th className="px-4 py-3 text-right font-semibold">{en ? "Category" : "القسم"}</th>
+          <th className="px-4 py-3 text-right font-semibold">{en ? "Description" : "الوصف"}</th>
+          <th className="px-4 py-3 text-right font-semibold">{en ? "Items" : "عدد الأصناف"}</th>
+          <th className="px-4 py-3 text-right font-semibold">{en ? "Actions" : "إجراءات"}</th>
         </tr>
       </thead>
       <tbody>
         {rows.length === 0 ? (
           <tr>
             <td colSpan={4} className="px-4 py-10 text-center text-slate-500">
-              لا توجد أقسام.
+              {en ? "No categories." : "لا توجد أقسام."}
             </td>
           </tr>
         ) : (
@@ -340,24 +367,26 @@ function CategoriesTable({
 }
 
 function MovementsTable({ rows }: { rows: MovementRow[] }) {
+  const { locale } = useI18n();
+  const en = locale === "en";
   return (
     <table className="w-full text-sm">
       <thead>
         <tr className="border-b border-slate-200 text-slate-500">
-          <th className="px-4 py-3 text-right font-semibold">التاريخ</th>
-          <th className="px-4 py-3 text-right font-semibold">الصنف</th>
-          <th className="px-4 py-3 text-right font-semibold">النوع</th>
-          <th className="px-4 py-3 text-right font-semibold">الكمية</th>
-          <th className="px-4 py-3 text-right font-semibold">الرصيد بعد الحركة</th>
-          <th className="px-4 py-3 text-right font-semibold">البيان</th>
-          <th className="px-4 py-3 text-right font-semibold">المستخدم</th>
+          <th className="px-4 py-3 text-right font-semibold">{en ? "Date" : "التاريخ"}</th>
+          <th className="px-4 py-3 text-right font-semibold">{en ? "Item" : "الصنف"}</th>
+          <th className="px-4 py-3 text-right font-semibold">{en ? "Type" : "النوع"}</th>
+          <th className="px-4 py-3 text-right font-semibold">{en ? "Qty" : "الكمية"}</th>
+          <th className="px-4 py-3 text-right font-semibold">{en ? "Balance after" : "الرصيد بعد الحركة"}</th>
+          <th className="px-4 py-3 text-right font-semibold">{en ? "Note" : "البيان"}</th>
+          <th className="px-4 py-3 text-right font-semibold">{en ? "User" : "المستخدم"}</th>
         </tr>
       </thead>
       <tbody>
         {rows.length === 0 ? (
           <tr>
             <td colSpan={7} className="px-4 py-10 text-center text-slate-500">
-              لا توجد حركات مطابقة.
+              {en ? "No matching movements." : "لا توجد حركات مطابقة."}
             </td>
           </tr>
         ) : (
@@ -400,6 +429,9 @@ function ProductDialog({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { locale, t } = useI18n();
+  const en = locale === "en";
+  const savingLabel = t("trade.saving");
   const [category, setCategory] = useState<SearchHit | null>(
     row ? { id: row.categoryId, label: row.categoryName } : null,
   );
@@ -428,50 +460,56 @@ function ProductDialog({
   }
 
   return (
-    <Modal title={row ? "تعديل صنف" : "صنف جديد"} onClose={onClose}>
+    <Modal title={row ? (en ? "Edit item" : "تعديل صنف") : en ? "New item" : "صنف جديد"} onClose={onClose}>
       <form onSubmit={submit} className="space-y-3">
         {error ? <Alert kind="error">{error}</Alert> : null}
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <label className={labelClass}>الرمز</label>
+            <label className={labelClass}>{en ? "Code" : "الرمز"}</label>
             <input name="code" dir="ltr" defaultValue={row?.code ?? ""} className={`${fieldClass} text-left`} required />
           </div>
           <div>
-            <label className={labelClass}>الاسم</label>
+            <label className={labelClass}>{en ? "Name" : "الاسم"}</label>
             <input name="name" defaultValue={row?.name ?? ""} className={fieldClass} required />
           </div>
         </div>
         <SearchSelect
-          label="القسم"
-          placeholder="ابحث عن قسم"
+          label={en ? "Category" : "القسم"}
+          placeholder={en ? "Search category" : "ابحث عن قسم"}
           selectedLabel={category?.label}
           search={searchCategories}
           onSelect={setCategory}
         />
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <label className={labelClass}>سعر التكلفة</label>
+            <label className={labelClass}>{en ? "Cost price" : "سعر التكلفة"}</label>
             <input name="costPrice" dir="ltr" defaultValue={row?.costPrice ?? 0} className={fieldClass} required />
           </div>
           <div>
-            <label className={labelClass}>سعر البيع</label>
+            <label className={labelClass}>{en ? "Sell price" : "سعر البيع"}</label>
             <input name="sellingPrice" dir="ltr" defaultValue={row?.sellingPrice ?? 0} className={fieldClass} required />
           </div>
           {row ? null : (
             <div>
-              <label className={labelClass}>الرصيد الافتتاحي</label>
+              <label className={labelClass}>{en ? "Opening stock" : "الرصيد الافتتاحي"}</label>
               <input name="openingStock" dir="ltr" defaultValue={0} className={fieldClass} required />
             </div>
           )}
           <div>
-            <label className={labelClass}>حد الطلب</label>
+            <label className={labelClass}>{en ? "Reorder level" : "حد الطلب"}</label>
             <input name="reorderLevel" dir="ltr" defaultValue={row?.reorderLevel ?? 0} className={fieldClass} required />
           </div>
         </div>
         <CustomFields entityType="PRODUCT" initial={parseCustom(row?.customData)} />
-        {row ? <p className="text-xs text-slate-500">الكمية الحالية لا تُعدَّل من هنا، بل عبر الشراء والبيع.</p> : null}
+        {row ? (
+          <p className="text-xs text-slate-500">
+            {en
+              ? "Current quantity is not edited here — it changes via purchases and sales."
+              : "الكمية الحالية لا تُعدَّل من هنا، بل عبر الشراء والبيع."}
+          </p>
+        ) : null}
         <button className={btnPrimary} disabled={pending}>
-          {pending ? "جارٍ الحفظ..." : "حفظ الصنف"}
+          {pending ? savingLabel : en ? "Save item" : "حفظ الصنف"}
         </button>
       </form>
     </Modal>
@@ -487,6 +525,9 @@ function CategoryDialog({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { locale, t } = useI18n();
+  const en = locale === "en";
+  const savingLabel = t("trade.saving");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   async function submit(event: React.FormEvent<HTMLFormElement>) {
@@ -503,19 +544,19 @@ function CategoryDialog({
     else onSaved();
   }
   return (
-    <Modal title={row ? "تعديل قسم" : "قسم جديد"} onClose={onClose}>
+    <Modal title={row ? (en ? "Edit category" : "تعديل قسم") : en ? "New category" : "قسم جديد"} onClose={onClose}>
       <form onSubmit={submit} className="space-y-3">
         {error ? <Alert kind="error">{error}</Alert> : null}
         <div>
-          <label className={labelClass}>الاسم</label>
+          <label className={labelClass}>{en ? "Name" : "الاسم"}</label>
           <input name="name" defaultValue={row?.name ?? ""} className={fieldClass} required />
         </div>
         <div>
-          <label className={labelClass}>الوصف</label>
+          <label className={labelClass}>{en ? "Description" : "الوصف"}</label>
           <input name="description" defaultValue={row?.description ?? ""} className={fieldClass} />
         </div>
         <button className={btnPrimary} disabled={pending}>
-          {pending ? "جارٍ الحفظ..." : "حفظ القسم"}
+          {pending ? savingLabel : en ? "Save category" : "حفظ القسم"}
         </button>
       </form>
     </Modal>

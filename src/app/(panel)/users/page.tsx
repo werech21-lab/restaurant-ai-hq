@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { connection } from "next/server";
 import { requireUser } from "@/lib/erp-auth";
 import { Forbidden, PageSkeleton } from "@/components/erp-ui";
-import { formatDate } from "@/lib/format";
+import { datetimeFor, getLocale } from "@/lib/i18n/server";
 import { PAGE_SIZE, readQuery, type RawQuery } from "@/lib/pagination";
 import { can, firstAllowedHref } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
@@ -12,6 +12,7 @@ export const metadata = { title: "المستخدمون | نظام ERP" };
 
 async function UsersContent({ searchParams }: { searchParams: Promise<RawQuery> }) {
   await connection();
+  const locale = await getLocale();
   const query = await readQuery(searchParams);
   const user = await requireUser();
   if (!can(user, "users", "view")) return <Forbidden href={firstAllowedHref(user)} />;
@@ -45,7 +46,7 @@ async function UsersContent({ searchParams }: { searchParams: Promise<RawQuery> 
         isActive: row.isActive,
         roleId: row.role.id,
         roleName: row.role.name,
-        createdAtLabel: formatDate(row.createdAt),
+        createdAtLabel: datetimeFor(locale, row.createdAt),
       }))}
     />
   );
@@ -53,7 +54,7 @@ async function UsersContent({ searchParams }: { searchParams: Promise<RawQuery> 
 
 export default function UsersPage({ searchParams }: { searchParams: Promise<RawQuery> }) {
   return (
-    <Suspense fallback={<PageSkeleton title="المستخدمين" />}>
+    <Suspense fallback={<PageSkeleton title="Users" />}>
       <UsersContent searchParams={searchParams} />
     </Suspense>
   );

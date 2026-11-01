@@ -20,6 +20,7 @@ import {
   fieldClass,
   labelClass,
 } from "@/components/erp-ui";
+import { useI18n } from "@/lib/i18n";
 import { pageHref } from "@/lib/pagination";
 import type { ActionResult, DocumentInput, PartyInput, SearchHit } from "@/lib/types";
 
@@ -101,6 +102,8 @@ export function TradePanel({
   confirmDraft?: (id: string) => Promise<ActionResult>;
 }) {
   const router = useRouter();
+  const { locale, t } = useI18n();
+  const en = locale === "en";
   const active = tab === "parties" ? "parties" : "documents";
   const [creating, setCreating] = useState(false);
   const [party, setParty] = useState<PartyRow | "new" | null>(null);
@@ -126,7 +129,7 @@ export function TradePanel({
             {active === "parties" && canCreate ? (
               <button type="button" className={btnPrimary} onClick={() => setParty("new")}>
                 <Plus size={16} />
-                {partyNoun} جديد
+                {en ? `New ${partyNoun}` : `${partyNoun} جديد`}
               </button>
             ) : null}
           </div>
@@ -134,7 +137,13 @@ export function TradePanel({
       />
       <div className="mb-4 flex gap-2">
         <a href={pageHref(basePath, { tab: "documents" })} className={active === "documents" ? btnPrimary : btnGhost}>
-          {mode === "sale" ? "فواتير البيع" : "أوامر الشراء"}
+          {mode === "sale"
+            ? en
+              ? "Sales invoices"
+              : "فواتير البيع"
+            : en
+              ? "Purchase orders"
+              : "أوامر الشراء"}
         </a>
         <a href={pageHref(basePath, { tab: "parties" })} className={active === "parties" ? btnPrimary : btnGhost}>
           {partyPlural}
@@ -143,19 +152,24 @@ export function TradePanel({
       <DataCard>
         <form method="get" className="flex flex-wrap gap-2 border-b border-slate-200 p-4">
           <input type="hidden" name="tab" value={active} />
-          <input name="q" defaultValue={q} placeholder="بحث" className={`${fieldClass} max-w-sm`} />
+          <input
+            name="q"
+            defaultValue={q}
+            placeholder={t("action.search")}
+            className={`${fieldClass} max-w-sm`}
+          />
           {active === "documents" ? (
             <select name="status" defaultValue={status} className={`${fieldClass} max-w-48`}>
-              <option value="">كل الحالات</option>
-              <option value="PAID">مدفوعة</option>
-              <option value="PARTIAL">مدفوعة جزئياً</option>
-              <option value="UNPAID">غير مدفوعة</option>
-              {mode === "purchase" ? <option value="DRAFT">مسودة</option> : null}
+              <option value="">{en ? "All statuses" : "كل الحالات"}</option>
+              <option value="PAID">{t("status.paid")}</option>
+              <option value="PARTIAL">{t("status.partial")}</option>
+              <option value="UNPAID">{t("status.unpaid")}</option>
+              {mode === "purchase" ? <option value="DRAFT">{t("status.draft")}</option> : null}
             </select>
           ) : null}
-          <button className={btnPrimary}>بحث</button>
+          <button className={btnPrimary}>{t("action.search")}</button>
           <a href={pageHref(basePath, { tab: active })} className={btnGhost}>
-            مسح
+            {t("action.clear")}
           </a>
         </form>
         <div className="overflow-x-auto">
@@ -163,20 +177,20 @@ export function TradePanel({
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-slate-500">
-                  <th className="px-4 py-3 text-right font-semibold">الرقم</th>
+                  <th className="px-4 py-3 text-right font-semibold">{en ? "Number" : "الرقم"}</th>
                   <th className="px-4 py-3 text-right font-semibold">{partyNoun}</th>
-                  <th className="px-4 py-3 text-right font-semibold">التاريخ</th>
-                  <th className="px-4 py-3 text-right font-semibold">الإجمالي</th>
-                  <th className="px-4 py-3 text-right font-semibold">المدفوع</th>
-                  <th className="px-4 py-3 text-right font-semibold">الحالة</th>
-                  <th className="px-4 py-3 text-right font-semibold">إجراءات</th>
+                  <th className="px-4 py-3 text-right font-semibold">{en ? "Date" : "التاريخ"}</th>
+                  <th className="px-4 py-3 text-right font-semibold">{en ? "Total" : "الإجمالي"}</th>
+                  <th className="px-4 py-3 text-right font-semibold">{en ? "Paid" : "المدفوع"}</th>
+                  <th className="px-4 py-3 text-right font-semibold">{en ? "Status" : "الحالة"}</th>
+                  <th className="px-4 py-3 text-right font-semibold">{en ? "Actions" : "إجراءات"}</th>
                 </tr>
               </thead>
               <tbody>
                 {orders.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-4 py-10 text-center text-slate-500">
-                      لا توجد مستندات مطابقة.
+                      {en ? "No matching documents." : "لا توجد مستندات مطابقة."}
                     </td>
                   </tr>
                 ) : (
@@ -198,11 +212,11 @@ export function TradePanel({
                             className="font-semibold text-blue-700"
                             href={pageHref(basePath, { tab: active, q, status, page, doc: row.id })}
                           >
-                            التفاصيل
+                            {en ? "Details" : "التفاصيل"}
                           </a>
                           <a className="inline-flex items-center gap-1 font-semibold text-blue-700" href={`${basePath}/${row.id}/print`}>
                             <Printer size={14} />
-                            عرض وطباعة الفاتورة
+                            {en ? "View & print invoice" : "عرض وطباعة الفاتورة"}
                           </a>
                           {row.status === "DRAFT" && confirmDraft ? (
                             <button
@@ -214,7 +228,7 @@ export function TradePanel({
                                 else router.refresh();
                               }}
                             >
-                              اعتماد المسودة واستلام المخزون
+                              {en ? "Confirm draft & receive stock" : "اعتماد المسودة واستلام المخزون"}
                             </button>
                           ) : null}
                         </div>
@@ -228,18 +242,26 @@ export function TradePanel({
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-slate-500">
-                  <th className="px-4 py-3 text-right font-semibold">الاسم</th>
-                  <th className="px-4 py-3 text-right font-semibold">الهاتف</th>
-                  <th className="px-4 py-3 text-right font-semibold">البريد</th>
-                  <th className="px-4 py-3 text-right font-semibold">{mode === "sale" ? "مديونية العميل" : "مستحق للمورد"}</th>
-                  <th className="px-4 py-3 text-right font-semibold">إجراءات</th>
+                  <th className="px-4 py-3 text-right font-semibold">{en ? "Name" : "الاسم"}</th>
+                  <th className="px-4 py-3 text-right font-semibold">{en ? "Phone" : "الهاتف"}</th>
+                  <th className="px-4 py-3 text-right font-semibold">{en ? "Email" : "البريد"}</th>
+                  <th className="px-4 py-3 text-right font-semibold">
+                    {mode === "sale"
+                      ? en
+                        ? "Customer balance"
+                        : "مديونية العميل"
+                      : en
+                        ? "Payable to supplier"
+                        : "مستحق للمورد"}
+                  </th>
+                  <th className="px-4 py-3 text-right font-semibold">{en ? "Actions" : "إجراءات"}</th>
                 </tr>
               </thead>
               <tbody>
                 {parties.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-4 py-10 text-center text-slate-500">
-                      لا توجد نتائج.
+                      {en ? "No results." : "لا توجد نتائج."}
                     </td>
                   </tr>
                 ) : (
@@ -276,7 +298,7 @@ export function TradePanel({
                               type="button"
                               className={btnDanger}
                               onClick={async () => {
-                                if (!confirm(`حذف ${row.name}؟`)) return;
+                                if (!confirm(en ? `Delete ${row.name}?` : `حذف ${row.name}؟`)) return;
                                 const result = await removeParty(row.id);
                                 if (!result.ok) alert(result.message);
                                 else router.refresh();
@@ -301,7 +323,7 @@ export function TradePanel({
           <DocumentForm
             mode={mode}
             partyLabel={partyNoun}
-            partyPlaceholder={`ابحث عن ${partyNoun}`}
+            partyPlaceholder={en ? `Search ${partyNoun}` : `ابحث عن ${partyNoun}`}
             searchParties={searchParties}
             priceKey={priceKey}
             submitLabel={submitLabel}
@@ -318,7 +340,7 @@ export function TradePanel({
       ) : null}
       {party ? (
         <PartyDialog
-          title={party === "new" ? `${partyNoun} جديد` : `تعديل ${partyNoun}`}
+          title={party === "new" ? (en ? `New ${partyNoun}` : `${partyNoun} جديد`) : en ? `Edit ${partyNoun}` : `تعديل ${partyNoun}`}
           row={party === "new" ? null : party}
           entityType={mode === "sale" ? "CUSTOMER" : "SUPPLIER"}
           onClose={() => setParty(null)}
@@ -366,6 +388,8 @@ function PartyDialog({
   onClose: () => void;
   onSave: (input: PartyInput) => Promise<ActionResult>;
 }) {
+  const { locale, t } = useI18n();
+  const en = locale === "en";
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   async function submit(event: React.FormEvent<HTMLFormElement>) {
@@ -388,20 +412,20 @@ function PartyDialog({
       <form onSubmit={submit} className="space-y-3">
         {error ? <Alert kind="error">{error}</Alert> : null}
         <div>
-          <label className={labelClass}>الاسم</label>
+          <label className={labelClass}>{en ? "Name" : "الاسم"}</label>
           <input name="name" defaultValue={row?.name ?? ""} className={fieldClass} required />
         </div>
         <div>
-          <label className={labelClass}>الهاتف</label>
+          <label className={labelClass}>{en ? "Phone" : "الهاتف"}</label>
           <input name="phone" dir="ltr" defaultValue={row?.phone ?? ""} className={`${fieldClass} text-left`} />
         </div>
         <div>
-          <label className={labelClass}>البريد</label>
+          <label className={labelClass}>{en ? "Email" : "البريد"}</label>
           <input name="email" dir="ltr" defaultValue={row?.email ?? ""} className={`${fieldClass} text-left`} />
         </div>
         <CustomFields entityType={entityType} initial={parseCustom(row?.customData)} />
         <button className={btnPrimary} disabled={pending}>
-          {pending ? "جارٍ الحفظ..." : "حفظ"}
+          {pending ? (en ? "Saving…" : "جارٍ الحفظ...") : t("action.save")}
         </button>
       </form>
     </Modal>
@@ -423,6 +447,8 @@ function PaymentDialog({
   onClose: () => void;
   onSave: (amount: number) => Promise<ActionResult>;
 }) {
+  const { locale } = useI18n();
+  const en = locale === "en";
   const [amount, setAmount] = useState(String(max));
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
@@ -440,13 +466,15 @@ function PaymentDialog({
       >
         {error ? <Alert kind="error">{error}</Alert> : null}
         <p className="text-sm text-slate-600">{hint}</p>
-        <p className="font-bold text-slate-900">الرصيد الحالي: {balanceLabel}</p>
+        <p className="font-bold text-slate-900">
+          {en ? "Current balance:" : "الرصيد الحالي:"} {balanceLabel}
+        </p>
         <div>
-          <label className={labelClass}>المبلغ</label>
+          <label className={labelClass}>{en ? "Amount" : "المبلغ"}</label>
           <input dir="ltr" className={fieldClass} value={amount} onChange={(event) => setAmount(event.target.value)} />
         </div>
         <button className={btnPrimary} disabled={pending}>
-          {pending ? "جارٍ التسجيل..." : "تسجيل الدفعة"}
+          {pending ? (en ? "Posting…" : "جارٍ التسجيل...") : en ? "Record payment" : "تسجيل الدفعة"}
         </button>
       </form>
     </Modal>

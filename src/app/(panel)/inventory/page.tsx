@@ -3,7 +3,9 @@ import { connection } from "next/server";
 import { Prisma } from "@prisma/client";
 import { requireUser } from "@/lib/erp-auth";
 import { Forbidden, PageSkeleton } from "@/components/erp-ui";
-import { formatDate, formatMoney, formatQty, movementTypeFromQuery, MOVEMENT_LABEL } from "@/lib/format";
+import { formatQty, movementTypeFromQuery } from "@/lib/format";
+import { movementLabel } from "@/lib/i18n/auto-translate";
+import { datetimeFor, getLocale, moneyFor } from "@/lib/i18n/server";
 import { PAGE_SIZE, readQuery, type RawQuery } from "@/lib/pagination";
 import { can, firstAllowedHref } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
@@ -12,10 +14,11 @@ import { queryProducts } from "@/lib/stock";
 import { forecastLabels } from "@/services/forecast.service";
 import { InventoryPanel } from "@/app/(panel)/inventory/inventory-panel";
 
-export const metadata = { title: "المخزون | نظام ERP" };
+export const metadata = { title: "Inventory | AetherBI" };
 
 async function InventoryContent({ searchParams }: { searchParams: Promise<RawQuery> }) {
   await connection();
+  const locale = await getLocale();
   const query = await readQuery(searchParams);
   const user = await requireUser();
   if (!can(user, "inventory", "view")) return <Forbidden href={firstAllowedHref(user)} />;
@@ -115,8 +118,8 @@ async function InventoryContent({ searchParams }: { searchParams: Promise<RawQue
         sellingPrice: row.sellingPrice,
         reorderLevel: row.reorderLevel,
         low: row.currentStock <= row.reorderLevel,
-        costLabel: formatMoney(row.costPrice),
-        sellLabel: formatMoney(row.sellingPrice),
+        costLabel: moneyFor(locale, row.costPrice),
+        sellLabel: moneyFor(locale, row.sellingPrice),
         stockLabel: formatQty(row.currentStock),
         reorderLabel: formatQty(row.reorderLevel),
         forecastLabel: forecasts.get(row.id) ?? "—",
@@ -130,11 +133,11 @@ async function InventoryContent({ searchParams }: { searchParams: Promise<RawQue
       }))}
       movements={movements.map((row) => ({
         id: row.id,
-        dateLabel: formatDate(row.createdAt),
+        dateLabel: datetimeFor(locale, row.createdAt),
         productName: row.product.name,
         code: row.product.code,
         type: row.type,
-        typeLabel: MOVEMENT_LABEL[row.type] ?? row.type,
+        typeLabel: movementLabel(locale, row.type),
         quantityLabel: formatQty(row.quantity),
         balanceLabel: formatQty(row.balanceAfter),
         note: row.note ?? "",
@@ -146,7 +149,7 @@ async function InventoryContent({ searchParams }: { searchParams: Promise<RawQue
 
 export default function InventoryPage({ searchParams }: { searchParams: Promise<RawQuery> }) {
   return (
-    <Suspense fallback={<PageSkeleton title="المخزون" />}>
+    <Suspense fallback={<PageSkeleton title="Inventory" />}>
       <InventoryContent searchParams={searchParams} />
     </Suspense>
   );

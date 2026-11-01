@@ -6,6 +6,7 @@ import { DisabledModule, Forbidden, PageHeader, PageSkeleton } from '@/component
 import { prisma } from '@/lib/db'
 import { isModuleEnabled } from '@/lib/modules-db'
 import { can, firstAllowedHref } from '@/lib/permissions'
+import { getLocale, tx } from '@/lib/i18n/server'
 import { getActiveScope } from '@/lib/scope'
 import { VENTURE_BRANDS } from '@/lib/venture-hierarchy'
 import { listRecipeCosts } from '@/services/recipe.service'
@@ -15,11 +16,14 @@ export const dynamic = 'force-dynamic'
 
 async function RecipesContent() {
   await connection()
+  const locale = await getLocale()
   const user = await requireUser()
   if (!can(user, 'recipes', 'view')) return <Forbidden href={firstAllowedHref(user)} />
-  if (!(await isModuleEnabled('recipes'))) return <DisabledModule title="الوصفات وتكلفة الغذاء" />
-
+  if (!(await isModuleEnabled('recipes'))) {
+    return <DisabledModule title={tx(locale, 'الوصفات وتكلفة الغذاء', 'Recipes & food cost')} />
+  }
   const scope = await getActiveScope()
+  const scopeLabel = locale === 'en' ? scope.labelEn : scope.labelAr
   const [rows, products] = await Promise.all([
     listRecipeCosts({ brandCode: scope.brandId }),
     prisma.product.findMany({
@@ -32,8 +36,12 @@ async function RecipesContent() {
   return (
     <div>
       <PageHeader
-        title="الوصفات وتكلفة الغذاء · Recipes & Food Cost"
-        description={`${scope.labelAr} · BOM + Food Cost % + خصم ذري عند البيع`}
+        title={tx(locale, 'الوصفات وتكلفة الغذاء', 'Recipes & food cost')}
+        description={tx(
+          locale,
+          `${scopeLabel} · BOM + نسبة تكلفة الغذاء + خصم ذري عند البيع`,
+          `${scopeLabel} · BOM + food cost % + atomic discount on sale`,
+        )}
       />
       <RecipesPanel
         rows={rows}
@@ -49,7 +57,7 @@ async function RecipesContent() {
 
 export default function RecipesPage() {
   return (
-    <Suspense fallback={<PageSkeleton title="الوصفات" />}>
+    <Suspense fallback={<PageSkeleton title="Recipes" />}>
       <RecipesContent />
     </Suspense>
   )
