@@ -2,6 +2,7 @@ import { cache } from "react";
 import { prisma } from "@/lib/db";
 import { MODULES } from "@/lib/modules";
 import { parseModules } from "@/lib/plans";
+import { VENTURE_FOODS } from "@/lib/venture-foods";
 
 export type CompanyProfile = {
   id: string;
@@ -25,15 +26,15 @@ export const getCompany = cache(async (): Promise<CompanyProfile> => {
   if (!org) {
     return {
       id: "",
-      name: "مؤسسة النور",
-      slug: "noor",
+      name: VENTURE_FOODS.nameAr,
+      slug: "venture-foods",
       plan: "ENTERPRISE",
-      currency: "SAR",
+      currency: VENTURE_FOODS.currency,
       taxRate: 0,
       taxNumber: "",
-      phone: "",
-      address: "",
-      invoiceFooter: "شكراً لتعاملكم مع مؤسسة النور",
+      phone: VENTURE_FOODS.phonePrefix,
+      address: VENTURE_FOODS.address,
+      invoiceFooter: VENTURE_FOODS.invoiceFooter,
       enabledModules: MODULES.map((item) => item.key),
       subscriptionEndsAt: "",
     };
@@ -43,7 +44,7 @@ export const getCompany = cache(async (): Promise<CompanyProfile> => {
     name: org.name,
     slug: org.slug,
     plan: org.plan,
-    currency: org.currency,
+    currency: org.currency === "SAR" ? "KWD" : org.currency || "KWD",
     taxRate: org.taxRate,
     taxNumber: org.taxNumber ?? "",
     phone: org.phone ?? "",

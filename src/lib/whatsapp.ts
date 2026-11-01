@@ -1,10 +1,15 @@
 import { ERP_ORIGIN } from "@/lib/site";
 
+/** Normalize phone digits for Kuwait (+965). Legacy 05… Saudi patterns map to Kuwait when 8 local digits. */
 export function phoneDigits(phone: string) {
   let digits = phone.replace(/[^\d]/g, "");
   if (digits.startsWith("00")) digits = digits.slice(2);
-  if (digits.startsWith("05") && digits.length === 10) digits = `966${digits.slice(1)}`;
-  if (digits.startsWith("5") && digits.length === 9) digits = `966${digits}`;
+  if (digits.startsWith("965")) return digits;
+  // Kuwait mobile: 8 digits starting with 5/6/9
+  if (digits.length === 8 && /^[569]/.test(digits)) return `965${digits}`;
+  // Local forms like 965xxxxxxxx already handled; strip leading 0 from 05xxxxxxxx → treat last 8
+  if (digits.startsWith("0") && digits.length === 9) return `965${digits.slice(1)}`;
+  if (digits.length === 8) return `965${digits}`;
   return digits;
 }
 
@@ -28,7 +33,7 @@ export function invoiceText(input: {
   const items = input.lines.map((line) => `- ${line.name} × ${line.quantity} = ${line.total}`).join("\n");
   return [
     `مرحباً ${input.customerName}`,
-    `فاتورتكم ${input.number} من نظام AetherBI ERP`,
+    `فاتورتكم ${input.number} من شركة فنتشر فودز لإدارة المطاعم ذ.م.م.`,
     items,
     `الإجمالي: ${input.total}`,
     input.payUrl ? `رابط الدفع المباشر: ${input.payUrl}` : `التفاصيل: ${ERP_ORIGIN}`,
@@ -43,7 +48,7 @@ export function quoteText(input: { name: string; number: string; lines: Array<{ 
 }
 
 export function statementText(input: { name: string; balance: string }) {
-  return [`مرحباً ${input.name}`, `كشف حسابكم لدى AetherBI ERP`, `الرصيد: ${input.balance}`, ERP_ORIGIN].join("\n");
+  return [`مرحباً ${input.name}`, `كشف حسابكم لدى فنتشر فودز`, `الرصيد: ${input.balance}`, ERP_ORIGIN].join("\n");
 }
 
 export function payLinkText(input: { name: string; number: string; amount: string; url: string }) {

@@ -30,7 +30,7 @@ export function SettingsForm({
     setError("");
     const result = await saveCompanySettingsAction({
       name: String(form.get("name") || ""),
-      currency: String(form.get("currency") || "SAR"),
+      currency: String(form.get("currency") || "KWD"),
       taxRate: Number(form.get("taxRate") || 0),
       taxNumber: String(form.get("taxNumber") || ""),
       phone: String(form.get("phone") || ""),
@@ -46,7 +46,7 @@ export function SettingsForm({
   }
 
   return (
-    <form onSubmit={submit} className="max-w-2xl space-y-3 rounded-2xl border border-slate-200 bg-white p-4">
+    <form onSubmit={submit} className="max-w-2xl space-y-3 rounded-2xl border border-gold-300/15 bg-ink-900/80 p-4 text-mist-100">
       {error ? <Alert kind="error">{error}</Alert> : null}
       {message ? <Alert kind="ok">{message}</Alert> : null}
       <div>
@@ -56,10 +56,8 @@ export function SettingsForm({
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label className={labelClass}>العملة</label>
-          <select name="currency" defaultValue={initial.currency} className={fieldClass}>
-            <option value="SAR">ريال سعودي (ر.س)</option>
+          <select name="currency" defaultValue="KWD" className={fieldClass}>
             <option value="KWD">دينار كويتي (د.ك)</option>
-            <option value="USD">دولار ($)</option>
           </select>
         </div>
         <div>

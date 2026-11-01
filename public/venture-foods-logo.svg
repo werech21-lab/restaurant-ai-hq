@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 220" role="img" aria-label="Venture Foods">
+  <defs>
+    <linearGradient id="vfHex" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8cc63f"/>
+      <stop offset="100%" stop-color="#00a99d"/>
+    </linearGradient>
+  </defs>
+  <!-- honeycomb mark -->
+  <g transform="translate(28,28)">
+    <polygon points="70,8 118,36 118,92 70,120 22,92 22,36" fill="none" stroke="#8cc63f" stroke-width="10" stroke-linejoin="round"/>
+    <polygon points="118,36 166,64 166,120 118,148 70,120 70,64" fill="none" stroke="#00a99d" stroke-width="10" stroke-linejoin="round"/>
+    <polygon points="70,64 118,92 118,148 70,176 22,148 22,92" fill="url(#vfHex)" opacity="0.92"/>
+  </g>
+  <!-- wordmark -->
+  <g fill="#111111" font-family="Arial Black, Arial, sans-serif">
+    <text x="220" y="92" font-size="48" font-weight="900" letter-spacing="1">VENTURE</text>
+    <text x="220" y="148" font-size="48" font-weight="900" letter-spacing="4" fill="#8cc63f">FOODS</text>
+  </g>
+  <text x="220" y="188" fill="#00a99d" font-family="Arial, sans-serif" font-size="16" font-weight="700" letter-spacing="2">RESTAURANTS MANAGEMENT · KUWAIT</text>
+</svg>

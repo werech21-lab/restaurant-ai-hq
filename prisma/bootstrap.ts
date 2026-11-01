@@ -96,10 +96,10 @@ export async function seedEnterprise(tx: Tx, adminId: string) {
   }
 
   const main = await tx.warehouse.create({
-    data: { name: "المستودع الرئيسي", location: "الرياض", managerName: "خالد أمين المخزن", isDefault: true },
+    data: { name: "المستودع المركزي — الشويخ", location: "الكويت · الشويخ الصناعية", managerName: "خالد أمين المخزن", isDefault: true },
   });
   const branch = await tx.warehouse.create({
-    data: { name: "فرع المبيعات", location: "جدة", managerName: "ليلى المبيعات", isDefault: false },
+    data: { name: "مخزن فروع حولي", location: "الكويت · حولي", managerName: "ليلى المبيعات", isDefault: false },
   });
   const products = await tx.product.findMany();
   for (const product of products) {
@@ -174,14 +174,14 @@ export async function seedEnterprise(tx: Tx, adminId: string) {
     data: { customData: JSON.stringify({ "تاريخ انتهاء الصلاحية": "2027-06-30" }) },
   });
   await tx.customer.update({
-    where: { id: (await tx.customer.findFirstOrThrow({ where: { name: "مكتب رواد الأعمال" } })).id },
-    data: { customData: JSON.stringify({ "الرقم الضريبي": "300123456700003" }) },
+    where: { id: (await tx.customer.findFirstOrThrow({ where: { name: "كاترينغ الأعمال — السالمية" } })).id },
+    data: { customData: JSON.stringify({ "الرقم الضريبي": "KW-VF-2026-001" }) },
   });
   await tx.customer.create({
     data: { name: "عميل نقدي - الصندوق", phone: "", email: "", balance: 0 },
   });
 
-  const supplier = await tx.supplier.findFirstOrThrow({ where: { name: "تجارة قطع الغيار المتحدة" } });
+  const supplier = await tx.supplier.findFirstOrThrow({ where: { name: "تموينات فنتشر المركزية" } });
   await tx.automationRule.create({
     data: {
       name: "إعادة طلب عند النقص",
@@ -199,15 +199,15 @@ export async function seedEnterprise(tx: Tx, adminId: string) {
   const ends = new Date("2027-10-31T00:00:00.000Z");
   await tx.organization.create({
     data: {
-      name: "مؤسسة النور",
-      slug: "noor",
+      name: "شركة فنتشر فودز لإدارة المطاعم ذ.م.م.",
+      slug: "venture-foods",
       plan: "ENTERPRISE",
-      currency: "SAR",
-      taxRate: 15,
-      taxNumber: "300123456700003",
-      phone: "0110000000",
-      address: "الرياض",
-      invoiceFooter: "شكراً لتعاملكم مع مؤسسة النور",
+      currency: "KWD",
+      taxRate: 0,
+      taxNumber: "KW-VF-2026-001",
+      phone: "+96522000000",
+      address: "دولة الكويت",
+      invoiceFooter: "شكراً لتعاملكم مع شركة فنتشر فودز لإدارة المطاعم ذ.م.م.",
       enabledModules: JSON.stringify(modulesForPlan("ENTERPRISE")),
       isDefault: true,
       isActive: true,
@@ -216,13 +216,13 @@ export async function seedEnterprise(tx: Tx, adminId: string) {
   });
   await tx.organization.create({
     data: {
-      name: "شركة الأفق للتجارة",
-      slug: "ofoq",
+      name: "فنتشر فودز — فرع تشاينا جاردن",
+      slug: "china-garden-kw",
       plan: "PRO",
       currency: "KWD",
       taxRate: 0,
-      taxNumber: "123456789",
-      address: "الكويت",
+      taxNumber: "KW-VF-CG-01",
+      address: "الكويت · السالمية",
       enabledModules: JSON.stringify(modulesForPlan("PRO")),
       isActive: true,
       subscriptionEndsAt: new Date("2027-03-01T00:00:00.000Z"),
@@ -230,10 +230,10 @@ export async function seedEnterprise(tx: Tx, adminId: string) {
   });
   await tx.organization.create({
     data: {
-      name: "متجر البداية",
-      slug: "starter-shop",
+      name: "فنتشر فودز — كرك كافتيريا",
+      slug: "karak-cafeteria-kw",
       plan: "STARTER",
-      currency: "USD",
+      currency: "KWD",
       taxRate: 0,
       enabledModules: JSON.stringify(modulesForPlan("STARTER")),
       isActive: true,
@@ -243,20 +243,20 @@ export async function seedEnterprise(tx: Tx, adminId: string) {
 
   const schoolLead = await tx.lead.create({
     data: {
-      title: "توريد أجهزة لمدرسة النور",
+      title: "عقد كاترينغ شركات — مدينة الكويت",
       contactName: "مدير المشتريات",
-      phone: "0550001111",
-      email: "school-lead@example.test",
-      expectedValue: 15000,
+      phone: "55000111",
+      email: "corporate-lead@venturefoods.kw",
+      expectedValue: 4500,
       stage: "PROPOSAL",
       assignedToId: adminId,
-      notes: "بانتظار اعتماد عرض اللابتوب",
+      notes: "عرض توريد يومي لفروع المكاتب",
     },
   });
   await tx.lead.create({
     data: {
-      title: "عقد صيانة سنوي",
-      contactName: "مكتب رواد الأعمال",
+      title: "توريد مركزي لفروع حولي",
+      contactName: "كاترينغ الأعمال — السالمية",
       phone: "0551112233",
       expectedValue: 8000,
       stage: "QUALIFIED",

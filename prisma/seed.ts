@@ -99,10 +99,10 @@ async function main() {
     }
 
     const categoryInput = [
-      { key: "elec", name: "أجهزة إلكترونية", description: "حواسيب وطابعات وملحقاتها" },
-      { key: "office", name: "مستلزمات مكتبية", description: "ورق وأحبار وأثاث مكتبي" },
-      { key: "food", name: "مواد غذائية", description: "سلع تموينية للبيع بالجملة" },
-      { key: "parts", name: "قطع غيار", description: "قطع سيارات ومصابيح" },
+      { key: "elec", name: "معدات مطابخ", description: "أجهزة تحضير وطهي لفروع المطاعم" },
+      { key: "office", name: "تغليف وتقديم", description: "عبوات، أكواب، ومستلزمات الخدمة" },
+      { key: "food", name: "مواد غذائية طازجة", description: "لحوم، خضار، وأساسيات المطبخ" },
+      { key: "parts", name: "مشروبات وكرك", description: "شاي، قهوة، ومشروبات الفروع" },
     ];
     const categoryIds = new Map<string, string>();
     for (const category of categoryInput) {
@@ -113,21 +113,21 @@ async function main() {
     }
 
     const productInput = [
-      { code: "EL-1001", name: "لابتوب ديل 15", cat: "elec", cost: 2500, sell: 3200, open: 10, reorder: 3 },
-      { code: "EL-1002", name: "طابعة ليزر أحادية", cat: "elec", cost: 800, sell: 1100, open: 8, reorder: 2 },
-      { code: "EL-1003", name: "ماوس لاسلكي", cat: "elec", cost: 25, sell: 45, open: 40, reorder: 15 },
-      { code: "OF-2001", name: "ورق تصوير A4", cat: "office", cost: 12, sell: 18, open: 100, reorder: 30 },
-      { code: "OF-2002", name: "حبر طابعة أسود", cat: "office", cost: 40, sell: 65, open: 5, reorder: 20 },
-      { code: "OF-2003", name: "كرسي مكتب شبكي", cat: "office", cost: 180, sell: 260, open: 12, reorder: 4 },
-      { code: "FD-3001", name: "أرز بسمتي 5 كجم", cat: "food", cost: 22, sell: 32, open: 50, reorder: 20 },
-      { code: "FD-3002", name: "زيت طبخ 1.5 لتر", cat: "food", cost: 15, sell: 24, open: 6, reorder: 25 },
-      { code: "FD-3003", name: "سكر ناعم 2 كجم", cat: "food", cost: 8, sell: 13, open: 60, reorder: 15 },
-      { code: "PT-4001", name: "فلتر زيت سيارة", cat: "parts", cost: 35, sell: 55, open: 3, reorder: 10 },
-      { code: "PT-4002", name: "بطارية سيارة 70 أمبير", cat: "parts", cost: 220, sell: 310, open: 6, reorder: 3 },
-      { code: "PT-4003", name: "مصباح LED 12 واط", cat: "parts", cost: 6, sell: 12, open: 80, reorder: 20 },
-      { code: "EL-1004", name: "شاشة 24 بوصة", cat: "elec", cost: 450, sell: 650, open: 14, reorder: 4 },
-      { code: "OF-2004", name: "دباسة مكتبية", cat: "office", cost: 8, sell: 15, open: 2, reorder: 12 },
-      { code: "FD-3004", name: "شاي أسود 100 كيس", cat: "food", cost: 18, sell: 28, open: 30, reorder: 8 },
+      { code: "EL-1001", name: "قلاية ضغط صناعية", cat: "elec", cost: 185.5, sell: 245.0, open: 10, reorder: 3 },
+      { code: "EL-1002", name: "ثلاجة عرض أفقية", cat: "elec", cost: 320.0, sell: 410.0, open: 8, reorder: 2 },
+      { code: "EL-1003", name: "خلاط صناعي للمطبخ", cat: "elec", cost: 45.0, sell: 68.0, open: 40, reorder: 15 },
+      { code: "OF-2001", name: "علبة تغليف ورقية كبيرة", cat: "office", cost: 0.085, sell: 0.14, open: 100, reorder: 30 },
+      { code: "OF-2002", name: "أكواب ورقية 12 أونصة", cat: "office", cost: 0.045, sell: 0.08, open: 5, reorder: 20 },
+      { code: "OF-2003", name: "صواني تقديم ستانلس", cat: "office", cost: 4.5, sell: 7.25, open: 12, reorder: 4 },
+      { code: "FD-3001", name: "أرز بسمتي 5 كجم", cat: "food", cost: 2.75, sell: 3.9, open: 50, reorder: 20 },
+      { code: "FD-3002", name: "زيت قلي نباتي 16 لتر", cat: "food", cost: 6.5, sell: 8.75, open: 6, reorder: 25 },
+      { code: "FD-3003", name: "دجاج طازج كرتون 10 كجم", cat: "food", cost: 9.5, sell: 12.5, open: 60, reorder: 15 },
+      { code: "PT-4001", name: "شاي كرك فاخر 1 كجم", cat: "parts", cost: 3.25, sell: 4.9, open: 3, reorder: 10 },
+      { code: "PT-4002", name: "طحينة شاورما 5 كجم", cat: "parts", cost: 5.5, sell: 7.8, open: 6, reorder: 3 },
+      { code: "PT-4003", name: "نودلز صيني مجفف 5 كجم", cat: "parts", cost: 2.1, sell: 3.4, open: 80, reorder: 20 },
+      { code: "EL-1004", name: "شواية ستيك غاز", cat: "elec", cost: 145.0, sell: 195.0, open: 14, reorder: 4 },
+      { code: "OF-2004", name: "مناديل طاولات فاخرة", cat: "office", cost: 1.1, sell: 1.85, open: 2, reorder: 12 },
+      { code: "FD-3004", name: "خضار مشكلة طازجة", cat: "food", cost: 1.65, sell: 2.4, open: 30, reorder: 8 },
     ];
     const productIds = new Map<string, string>();
     for (const product of productInput) {
@@ -160,10 +160,10 @@ async function main() {
     }
 
     const supplierInput = [
-      { key: "tech", name: "شركة الأفق للتقنية", phone: "0501112233", email: "ofoq@suppliers.test" },
-      { key: "paper", name: "مؤسسة الورق الذهبي", phone: "0502223344", email: "paper@suppliers.test" },
-      { key: "parts", name: "تجارة قطع الغيار المتحدة", phone: "0503334455", email: "parts@suppliers.test" },
-      { key: "food", name: "تموينات السهل", phone: "0504445566", email: "food@suppliers.test" },
+      { key: "tech", name: "معدات المطابخ الكويتية", phone: "50001122", email: "kitchen@suppliers.kw" },
+      { key: "paper", name: "تعبئة وتغليف الخليج", phone: "50002233", email: "pack@suppliers.kw" },
+      { key: "parts", name: "تموينات فنتشر المركزية", phone: "50003344", email: "central@venturefoods.kw" },
+      { key: "food", name: "مزارع ولحوم الكويت", phone: "50004455", email: "fresh@suppliers.kw" },
     ];
     const supplierIds = new Map<string, string>();
     for (const supplier of supplierInput) {
@@ -174,10 +174,10 @@ async function main() {
     }
 
     const customerInput = [
-      { key: "rowad", name: "مكتب رواد الأعمال", phone: "0551112233", email: "rowad@customers.test" },
-      { key: "school", name: "مدرسة النور الأهلية", phone: "0552223344", email: "noor@customers.test" },
-      { key: "shop", name: "بقالة الحي", phone: "0553334455", email: "bakala@customers.test" },
-      { key: "workshop", name: "ورشة السلام", phone: "0554445566", email: "salam@customers.test" },
+      { key: "rowad", name: "كاترينغ الأعمال — السالمية", phone: "55001122", email: "catering@customers.kw" },
+      { key: "school", name: "عقود شركات — الشرق", phone: "55002233", email: "corporate@customers.kw" },
+      { key: "shop", name: "توصيل فارم براون — حولي", phone: "55003344", email: "farmbrown@customers.kw" },
+      { key: "workshop", name: "توصيل شاورما طحينة — الفروانية", phone: "55004455", email: "shawarma@customers.kw" },
     ];
     const customerIds = new Map<string, string>();
     for (const customer of customerInput) {

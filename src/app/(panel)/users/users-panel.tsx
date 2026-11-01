@@ -69,7 +69,7 @@ export function UsersPanel({
         }
       />
       <DataCard>
-        <form method="get" className="flex flex-wrap gap-2 border-b border-slate-200 p-4">
+        <form method="get" className="flex flex-wrap gap-2 border-b border-white/10 p-4">
           <input name="q" defaultValue={q} placeholder="بحث بالاسم أو البريد" className={`${fieldClass} max-w-sm`} />
           <button className={btnPrimary}>بحث</button>
           <a href="/users" className={btnGhost}>
@@ -79,7 +79,7 @@ export function UsersPanel({
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 text-slate-500">
+              <tr className="border-b border-white/10 text-mist-400">
                 <th className="px-4 py-3 text-right font-semibold">الاسم</th>
                 <th className="px-4 py-3 text-right font-semibold">البريد</th>
                 <th className="px-4 py-3 text-right font-semibold">الدور</th>
@@ -91,13 +91,13 @@ export function UsersPanel({
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-slate-500">
+                  <td colSpan={6} className="px-4 py-10 text-center text-mist-400">
                     لا يوجد مستخدمون مطابقون.
                   </td>
                 </tr>
               ) : (
                 rows.map((row) => (
-                  <tr key={row.id} className="border-b border-slate-200 last:border-0">
+                  <tr key={row.id} className="border-b border-white/10 last:border-0">
                     <td className="px-4 py-3 font-semibold">{row.name}</td>
                     <td className="px-4 py-3" dir="ltr">
                       {row.email}

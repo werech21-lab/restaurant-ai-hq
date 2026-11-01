@@ -55,26 +55,26 @@ async function DashboardContent() {
       </div>
       <div className="mt-4 grid gap-4 lg:grid-cols-3">
         <section className={`${cardClass} p-5`}>
-          <h2 className="font-bold text-slate-900">مجمل ربح الشهر</h2>
-          <p className="mt-3 text-2xl font-bold text-blue-700">{formatMoney(sales.total - monthCogs)}</p>
-          <p className="mt-2 text-sm text-slate-600">المبيعات {formatMoney(sales.total)} − التكلفة {formatMoney(monthCogs)}</p>
+          <h2 className="font-bold text-mist-100">مجمل ربح الشهر</h2>
+          <p className="mt-3 text-2xl font-bold text-[#8cc63f]">{formatMoney(sales.total - monthCogs)}</p>
+          <p className="mt-2 text-sm text-mist-400">المبيعات {formatMoney(sales.total)} − التكلفة {formatMoney(monthCogs)}</p>
         </section>
         <section className={`${cardClass} p-5 lg:col-span-2`}>
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="font-bold text-slate-900">أشد الأصناف نقصاً</h2>
-            <a href="/inventory?filter=low_stock" className="text-sm font-semibold text-blue-700">
+            <h2 className="font-bold text-mist-100">أشد الأصناف نقصاً</h2>
+            <a href="/inventory?filter=low_stock" className="text-sm font-semibold text-[#8cc63f]">
               عرض الكل
             </a>
           </div>
           {lowItems.length === 0 ? (
-            <p className="text-sm text-slate-600">لا توجد أصناف تحت حد الطلب.</p>
+            <p className="text-sm text-mist-400">لا توجد أصناف تحت حد الطلب.</p>
           ) : (
             <ul className="space-y-2">
               {lowItems.map((item) => (
-                <li key={item.id} className="flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2">
+                <li key={item.id} className="flex items-center justify-between rounded-xl border border-white/10 px-3 py-2">
                   <span>
                     <span className="font-semibold">{item.name}</span>
-                    <span className="mr-2 text-xs text-slate-500">{item.code}</span>
+                    <span className="mr-2 text-xs text-mist-400">{item.code}</span>
                   </span>
                   <span className="text-sm font-bold text-red-600">
                     {formatQty(item.currentStock)} / حد {formatQty(item.reorderLevel)}
@@ -128,7 +128,7 @@ function PreviewTable({
     <section className={`${cardClass} overflow-hidden`}>
       <div className="flex items-center justify-between px-5 py-4">
         <h2 className="font-bold">{title}</h2>
-        <a href={href} className="text-sm font-semibold text-blue-700">
+        <a href={href} className="text-sm font-semibold text-[#8cc63f]">
           السجل الكامل
         </a>
       </div>
@@ -136,16 +136,16 @@ function PreviewTable({
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td className="px-5 py-6 text-slate-500">لا توجد مستندات بعد.</td>
+              <td className="px-5 py-6 text-mist-400">لا توجد مستندات بعد.</td>
             </tr>
           ) : (
             rows.map((row) => (
-              <tr key={row.id} className="border-t border-slate-200">
+              <tr key={row.id} className="border-t border-white/10">
                 <td className="px-5 py-3">
                   <p className="font-semibold">{row.primary}</p>
-                  <p className="text-xs text-slate-500">{row.secondary}</p>
+                  <p className="text-xs text-mist-400">{row.secondary}</p>
                 </td>
-                <td className="px-3 py-3 text-slate-600">{row.date}</td>
+                <td className="px-3 py-3 text-mist-400">{row.date}</td>
                 <td className="px-3 py-3 font-semibold">{row.amount}</td>
                 <td className="px-5 py-3">
                   <StatusBadge status={row.status} />

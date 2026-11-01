@@ -7,17 +7,18 @@ export function round3(value: number) {
 }
 
 const CURRENCY_LABEL: Record<string, string> = {
-  SAR: "ر.س",
   KWD: "د.ك",
-  USD: "$",
+  SAR: "د.ك",
+  USD: "د.ك",
 };
 
-export function formatMoney(value: number, currency = "SAR") {
+/** Kuwait dinar formatting: 3 decimal places (fils) + د.ك */
+export function formatMoney(value: number, currency = "KWD") {
   const safe = Number.isFinite(value) ? value : 0;
   const negative = safe < 0;
-  const [whole, fraction] = Math.abs(safe).toFixed(2).split(".");
+  const [whole, fraction] = Math.abs(safe).toFixed(3).split(".");
   const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  const label = CURRENCY_LABEL[currency] ?? "ر.س";
+  const label = CURRENCY_LABEL[currency] ?? "د.ك";
   return `${negative ? "-" : ""}${grouped}.${fraction} ${label}`;
 }
 
@@ -27,10 +28,24 @@ export function formatQty(value: number) {
   return safe.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
 }
 
+const KUWAIT_TZ = "Asia/Kuwait";
+
 export function formatDate(value: Date | string) {
   const date = value instanceof Date ? value : new Date(value);
-  const pad = (part: number) => String(part).padStart(2, "0");
-  return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  try {
+    return new Intl.DateTimeFormat("ar-KW", {
+      timeZone: KUWAIT_TZ,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(date);
+  } catch {
+    const pad = (part: number) => String(part).padStart(2, "0");
+    return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  }
 }
 
 export function formatMonth(value: Date) {
@@ -111,7 +126,7 @@ export function movementTypeFromQuery(query: string) {
 
 export function statusTone(status: string) {
   if (status === "PAID") return "bg-emerald-600 text-white";
-  if (status === "DRAFT") return "bg-blue-600 text-white";
+  if (status === "DRAFT") return "bg-[#00a99d] text-white";
   if (status === "PARTIAL" || status === "PENDING") return "bg-amber-500 text-white";
   return "bg-red-600 text-white";
 }

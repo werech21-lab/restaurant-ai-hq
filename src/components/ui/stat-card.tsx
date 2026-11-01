@@ -13,8 +13,8 @@ export function StatCard({
 }) {
   const body = (
     <>
-      <p className="text-sm font-semibold text-slate-600">{label}</p>
-      <p className={`mt-3 text-2xl font-bold ${danger ? "text-red-600" : "text-slate-900"}`}>{value}</p>
+      <p className="text-sm font-semibold text-mist-400">{label}</p>
+      <p className={`mt-3 text-2xl font-bold ${danger ? "text-red-600" : "text-mist-100"}`}>{value}</p>
     </>
   );
   if (!href) {

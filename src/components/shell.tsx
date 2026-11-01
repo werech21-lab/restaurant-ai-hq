@@ -26,10 +26,10 @@ export async function Shell({ children }: { children: React.ReactNode }) {
   const visibleKeys = (enabledKeys ?? company.enabledModules).filter((key) => planKeys.has(key) || locked.has(key));
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-ink-950 text-mist-100">
       <Sidebar user={user} enabledKeys={visibleKeys} />
       <div className="app-content min-h-screen md:mr-64">
-        <header className="no-print sticky top-0 z-20 border-b border-slate-200 bg-white">
+        <header className="no-print sticky top-0 z-20 border-b border-gold-300/15 bg-ink-950/90 backdrop-blur">
           <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-3 md:px-8">
             <NotificationBell
               count={count + notices.length}
@@ -47,11 +47,11 @@ export async function Shell({ children }: { children: React.ReactNode }) {
                 href: notice.href ?? "/automations",
               }))}
             />
-            <p className="text-sm font-bold text-slate-900">{company.name}</p>
+            <p className="max-w-[55%] truncate text-sm font-bold text-gold-300">{company.name}</p>
           </div>
         </header>
         <InstallAppBanner />
-        <main className="mx-auto w-full max-w-7xl px-4 py-6 md:px-8">{children}</main>
+        <main className="mx-auto w-full max-w-7xl px-4 py-6 text-mist-100 md:px-8">{children}</main>
       </div>
       <AssistantWidget />
     </div>

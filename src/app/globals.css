@@ -64,6 +64,35 @@ html[data-theme='light'] .text-sky-300 {
 body {
   min-height: 100vh;
   text-rendering: optimizeLegibility;
+  background: rgb(var(--ink-950));
+  color: rgb(var(--mist-100));
+}
+
+/* Panel tables: never inherit washed-out mist on white leftovers */
+.app-content table {
+  color: rgb(var(--mist-100));
+}
+.app-content thead th {
+  color: rgb(var(--mist-300));
+}
+.app-content tbody td {
+  color: rgb(var(--mist-100));
+}
+.app-content .text-slate-900,
+.app-content .text-slate-800 {
+  color: rgb(var(--mist-100)) !important;
+}
+.app-content .text-slate-700,
+.app-content .text-slate-600,
+.app-content .text-slate-500 {
+  color: rgb(var(--mist-400)) !important;
+}
+.app-content .bg-white {
+  background-color: rgb(var(--ink-900) / 0.88) !important;
+  color: rgb(var(--mist-100));
+}
+.app-content .border-slate-200 {
+  border-color: rgba(244, 224, 184, 0.12) !important;
 }
 
 /*

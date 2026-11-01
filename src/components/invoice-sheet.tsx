@@ -63,11 +63,12 @@ export function InvoiceSheet({ data, initialMode = "a4" }: { data: InvoiceSheetD
       >
         <header className={`flex items-start justify-between gap-4 border-b border-slate-900 pb-4 ${thermal ? "flex-col" : ""}`}>
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600 text-xs font-bold text-white">BI</div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/venture-foods-logo.svg" alt="Venture Foods" className="h-12 w-auto object-contain" />
             <div>
-              <p className="text-lg font-bold">{data.companyName || "AetherBI"}</p>
-              <p className="text-xs font-semibold text-slate-700">AetherBI Enterprise ERP</p>
-              <p className="text-xs text-slate-600">{data.companyMeta || "نظام إدارة الموارد"}</p>
+              <p className="text-lg font-bold">{data.companyName || "شركة فنتشر فودز لإدارة المطاعم ذ.م.م."}</p>
+              <p className="text-xs font-semibold text-slate-700">VENTURE FOODS · KUWAIT · د.ك</p>
+              <p className="text-xs text-slate-600">{data.companyMeta || "AetherBI Enterprise ERP"}</p>
             </div>
           </div>
           <div className={thermal ? "" : "text-left"}>

@@ -16,10 +16,11 @@ export default function ErpNav() {
     <header className="sticky top-0 z-30 border-b border-gold-300/10 bg-ink-950/90 backdrop-blur" suppressHydrationWarning>
       <div className="mx-auto flex w-full max-w-7xl items-center gap-3 px-4 py-2.5 sm:px-6" suppressHydrationWarning>
         <Link href="/" className="flex shrink-0 items-center gap-2.5" title={t('erpnav.home')} suppressHydrationWarning>
-          <span className="grid h-9 w-9 place-items-center rounded-xl border border-gold-300/35 bg-gradient-to-b from-[#2a2418] to-[#100e0b] text-xs font-semibold text-gold-300">
-            <span dir="ltr">BI</span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/venture-foods-logo-dark.svg" alt="Venture Foods" className="h-9 w-auto object-contain" />
+          <span dir="ltr" className="hidden text-[11px] font-semibold tracking-[0.12em] text-[#8cc63f] sm:inline">
+            Venture Foods
           </span>
-          <span dir="ltr" className="hidden text-[11px] font-semibold tracking-[0.18em] text-gold-400 sm:inline">Aether BI</span>
         </Link>
         <p className="min-w-0 flex-1 truncate text-sm font-semibold text-gold-300">{t(sector.title)}</p>
         <LanguageSwitch />

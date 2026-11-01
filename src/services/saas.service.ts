@@ -6,7 +6,7 @@ import { fail, ok } from "@/lib/types";
 import { modulesForPlan, parseModules } from "@/lib/plans";
 
 const PLANS = ["STARTER", "PRO", "ENTERPRISE"] as const;
-const CURRENCIES = ["KWD", "SAR", "USD"] as const;
+const CURRENCIES = ["KWD"] as const;
 
 function slugify(value: string) {
   const latin = value
@@ -46,7 +46,7 @@ export async function saveOrganization(input: {
   const name = cleanText(input.name, 140);
   if (name.length < 2) return fail("اسم الشركة مطلوب");
   const plan = (PLANS as readonly string[]).includes(input.plan) ? input.plan : "STARTER";
-  const currency = (CURRENCIES as readonly string[]).includes(input.currency) ? input.currency : "SAR";
+  const currency = (CURRENCIES as readonly string[]).includes(input.currency) ? input.currency : "KWD";
   const slug = slugify(input.slug || name);
   const taxRate = Number(input.taxRate);
   if (!Number.isFinite(taxRate) || taxRate < 0 || taxRate > 100) return fail("نسبة الضريبة بين 0 و 100");

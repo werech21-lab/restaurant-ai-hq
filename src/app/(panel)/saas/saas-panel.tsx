@@ -45,7 +45,7 @@ export function SaasPanel({
       name: String(form.get("name") || ""),
       slug: String(form.get("slug") || ""),
       plan: String(form.get("plan") || "STARTER"),
-      currency: String(form.get("currency") || "SAR"),
+      currency: String(form.get("currency") || "KWD"),
       taxRate: Number(form.get("taxRate") || 0),
       taxNumber: String(form.get("taxNumber") || ""),
       phone: "",
@@ -82,10 +82,10 @@ export function SaasPanel({
     <div className="space-y-4">
       {error ? <Alert kind="error">{error}</Alert> : null}
       {message ? <Alert kind="ok">{message}</Alert> : null}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+      <div className="overflow-hidden rounded-2xl border border-white/10 bg-ink-900/80">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-200 text-slate-500">
+            <tr className="border-b border-white/10 text-mist-400">
               <th className="px-4 py-3 text-right">الشركة</th>
               <th className="px-4 py-3 text-right">الباقة</th>
               <th className="px-4 py-3 text-right">العملة</th>
@@ -95,10 +95,10 @@ export function SaasPanel({
           </thead>
           <tbody>
             {organizations.map((org) => (
-              <tr key={org.id} className="border-b border-slate-200">
+              <tr key={org.id} className="border-b border-white/10">
                 <td className="px-4 py-3">
-                  <button type="button" className="font-bold text-blue-700" onClick={() => setSelected(org.id)}>{org.name}</button>
-                  {org.isDefault ? <span className="mr-2 rounded-full bg-blue-600 px-2 py-0.5 text-xs text-white">افتراضية</span> : null}
+                  <button type="button" className="font-bold text-[#8cc63f]" onClick={() => setSelected(org.id)}>{org.name}</button>
+                  {org.isDefault ? <span className="mr-2 rounded-full bg-[#00a99d] px-2 py-0.5 text-xs text-white">افتراضية</span> : null}
                 </td>
                 <td className="px-4 py-3">{PLAN_LABEL[org.plan] ?? org.plan}</td>
                 <td className="px-4 py-3" dir="ltr">{org.currency}</td>
@@ -110,7 +110,7 @@ export function SaasPanel({
         </table>
       </div>
       {canEdit ? (
-        <form onSubmit={createOrg} className="grid gap-2 rounded-2xl border border-slate-200 bg-white p-4 md:grid-cols-3">
+        <form onSubmit={createOrg} className="grid gap-2 rounded-2xl border border-white/10 bg-ink-900/80 p-4 md:grid-cols-3">
           <p className="font-bold md:col-span-3">شركة مشتركة جديدة</p>
           <input name="name" className={fieldClass} placeholder="اسم الشركة" required />
           <input name="slug" className={fieldClass} placeholder="المعرّف اللاتيني" dir="ltr" />
@@ -120,9 +120,7 @@ export function SaasPanel({
             <option value="ENTERPRISE">مؤسسات</option>
           </select>
           <select name="currency" className={fieldClass} defaultValue="KWD">
-            <option value="KWD">دينار كويتي</option>
-            <option value="SAR">ريال سعودي</option>
-            <option value="USD">دولار</option>
+            <option value="KWD">دينار كويتي (د.ك)</option>
           </select>
           <input name="taxRate" dir="ltr" className={fieldClass} placeholder="نسبة الضريبة" defaultValue="0" />
           <input name="taxNumber" className={fieldClass} placeholder="الرقم الضريبي" />
@@ -131,7 +129,7 @@ export function SaasPanel({
         </form>
       ) : null}
       {current && canEdit ? (
-        <form onSubmit={saveModules} className="rounded-2xl border border-slate-200 bg-white p-4">
+        <form onSubmit={saveModules} className="rounded-2xl border border-white/10 bg-ink-900/80 p-4">
           <p className="mb-3 font-bold">وحدات باقة {current.name}</p>
           <div className="grid gap-2 md:grid-cols-3">
             {moduleOptions.map((item) => (
@@ -142,8 +140,8 @@ export function SaasPanel({
             ))}
           </div>
           <button className={`${btnPrimary} mt-3`} disabled={pending}>حفظ وحدات الباقة</button>
-          <p className="mt-2 text-sm text-slate-600">
-            <a className="font-semibold text-blue-700" href="/settings">إعدادات الشركة الافتراضية والعملة والفاتورة الرسمية</a>
+          <p className="mt-2 text-sm text-mist-400">
+            <a className="font-semibold text-[#8cc63f]" href="/settings">إعدادات الشركة الافتراضية والعملة والفاتورة الرسمية</a>
           </p>
         </form>
       ) : null}

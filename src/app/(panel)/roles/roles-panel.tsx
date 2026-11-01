@@ -46,10 +46,10 @@ function Matrix({
   onChange: (next: PermissionSnapshot[]) => void;
 }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-200">
+    <div className="overflow-x-auto rounded-xl border border-white/10">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-slate-200 text-slate-500">
+          <tr className="border-b border-white/10 text-mist-400">
             <th className="px-3 py-2 text-right font-semibold">القسم</th>
             {actions.map(([, label]) => (
               <th key={label} className="px-3 py-2 text-center font-semibold">
@@ -68,7 +68,7 @@ function Matrix({
               canDelete: false,
             };
             return (
-              <tr key={module.key} className="border-b border-slate-200 last:border-0">
+              <tr key={module.key} className="border-b border-white/10 last:border-0">
                 <td className="px-3 py-2 font-semibold">{module.label}</td>
                 {actions.map(([key]) => (
                   <td key={key} className="px-3 py-2 text-center">
@@ -143,7 +143,7 @@ export function RolesPanel({
       />
       <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
         <DataCard>
-          <form method="get" className="flex gap-2 border-b border-slate-200 p-3">
+          <form method="get" className="flex gap-2 border-b border-white/10 p-3">
             <input name="q" defaultValue={q} placeholder="بحث عن دور" className={fieldClass} />
             <button className={btnPrimary}>بحث</button>
           </form>
@@ -152,15 +152,15 @@ export function RolesPanel({
               <a
                 key={role.id}
                 href={pageHref("/roles", { q, page, role: role.id })}
-                className={`block border-b border-slate-200 px-4 py-3 ${selected?.id === role.id ? "bg-blue-600 text-white" : "bg-white"}`}
+                className={`block border-b border-white/10 px-4 py-3 ${selected?.id === role.id ? "bg-[#00a99d] text-white" : "bg-ink-900/80"}`}
               >
                 <p className="font-bold">{role.name}</p>
-                <p className={`text-xs ${selected?.id === role.id ? "text-white" : "text-slate-500"}`}>
+                <p className={`text-xs ${selected?.id === role.id ? "text-white" : "text-mist-400"}`}>
                   {role.userCount} مستخدم {role.isAdmin ? "• مدير" : ""}
                 </p>
               </a>
             ))}
-            {rows.length === 0 ? <p className="p-4 text-sm text-slate-500">لا توجد أدوار.</p> : null}
+            {rows.length === 0 ? <p className="p-4 text-sm text-mist-400">لا توجد أدوار.</p> : null}
           </div>
           <PaginationBar path="/roles" params={{ q, role: selected?.id }} page={page} total={total} />
         </DataCard>
@@ -174,7 +174,7 @@ export function RolesPanel({
           />
         ) : (
           <DataCard>
-            <p className="p-6 text-sm text-slate-600">اختر دوراً لعرض مصفوفة الصلاحيات.</p>
+            <p className="p-6 text-sm text-mist-400">اختر دوراً لعرض مصفوفة الصلاحيات.</p>
           </DataCard>
         )}
       </div>

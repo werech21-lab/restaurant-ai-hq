@@ -15,9 +15,9 @@ export function LoginForm() {
   const [state, action, pending] = useActionState(login, null);
 
   return (
-    <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h2 className="text-xl font-bold text-slate-900">تسجيل الدخول</h2>
-      <p className="mt-1 text-sm text-slate-600">لا يوجد تسجيل عام. استخدم حساباً مخوّلاً أو الدخول التجريبي.</p>
+    <div className="w-full max-w-md rounded-2xl border border-white/10 bg-ink-900/80 p-6 shadow-sm">
+      <h2 className="text-xl font-bold text-mist-100">تسجيل الدخول</h2>
+      <p className="mt-1 text-sm text-mist-400">لا يوجد تسجيل عام. استخدم حساباً مخوّلاً أو الدخول التجريبي.</p>
       <form action={action} className="mt-5 space-y-4">
         {state?.error ? <Alert kind="error">{state.error}</Alert> : null}
         <div>
@@ -44,14 +44,14 @@ export function LoginForm() {
         </button>
       </form>
       <div className="mt-6">
-        <p className="text-sm font-bold text-slate-900">دخول سريع تجريبي</p>
-        <p className="mt-1 text-xs text-slate-500">كلمة المرور لكل الحسابات: 123456</p>
+        <p className="text-sm font-bold text-mist-100">دخول سريع تجريبي</p>
+        <p className="mt-1 text-xs text-mist-400">كلمة المرور لكل الحسابات: 123456</p>
         <div className="mt-3 grid gap-2">
           {demos.map((demo) => (
             <button
               key={demo.email}
               type="button"
-              className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-3 text-right hover:border-blue-600"
+              className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-ink-900/80 px-3 py-3 text-right hover:border-blue-600"
               onClick={() => {
                 const email = document.getElementById("email") as HTMLInputElement | null;
                 const password = document.getElementById("password") as HTMLInputElement | null;
@@ -62,10 +62,10 @@ export function LoginForm() {
               }}
             >
               <span>
-                <span className="block text-sm font-bold text-slate-900">{demo.name}</span>
-                <span className="block text-xs text-slate-500">{demo.desc}</span>
+                <span className="block text-sm font-bold text-mist-100">{demo.name}</span>
+                <span className="block text-xs text-mist-400">{demo.desc}</span>
               </span>
-              <span className="rounded-full bg-blue-600 px-2.5 py-1 text-xs font-bold text-white">{demo.role}</span>
+              <span className="rounded-full bg-[#00a99d] px-2.5 py-1 text-xs font-bold text-white">{demo.role}</span>
             </button>
           ))}
         </div>

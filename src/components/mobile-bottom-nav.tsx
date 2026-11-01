@@ -24,11 +24,11 @@ export function MobileBottomNav() {
   const [open, setOpen] = useState(false);
   if (pathname === "/login" || pathname === "/" || pathname === "/download" || pathname === "/home") return null;
   return (
-    <nav className="no-print fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white md:hidden">
+    <nav className="no-print fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-ink-900/80 md:hidden">
       {open ? (
-        <div className="grid grid-cols-2 gap-2 border-b border-slate-200 p-3">
+        <div className="grid grid-cols-2 gap-2 border-b border-white/10 p-3">
           {more.map((item) => (
-            <a key={item.href} href={item.href} className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold text-slate-800">
+            <a key={item.href} href={item.href} className="rounded-xl border border-white/10 px-3 py-2 text-sm font-bold text-mist-100">
               {item.label}
             </a>
           ))}
@@ -38,12 +38,12 @@ export function MobileBottomNav() {
         {links.map((item) => {
           const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
           return (
-            <a key={item.href} href={item.href} className={`px-1 py-3 text-center text-xs font-bold ${active ? "text-blue-700" : "text-slate-600"}`}>
+            <a key={item.href} href={item.href} className={`px-1 py-3 text-center text-xs font-bold ${active ? "text-[#8cc63f]" : "text-mist-400"}`}>
               {item.label}
             </a>
           );
         })}
-        <button type="button" className="px-1 py-3 text-center text-xs font-bold text-slate-600" onClick={() => setOpen((value) => !value)}>
+        <button type="button" className="px-1 py-3 text-center text-xs font-bold text-mist-400" onClick={() => setOpen((value) => !value)}>
           القائمة
         </button>
       </div>
