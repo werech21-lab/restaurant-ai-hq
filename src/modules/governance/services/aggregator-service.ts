@@ -71,7 +71,11 @@ export async function scanAggregator(auth: AuthContext, key: string, input: Scan
       const existing = await repository.countBucket(tx, auth.tenantId, bucket)
       if (existing > 0) return { status: 200 as const, body: { data: { recorded: 0, bucket } } }
       const earlier = await repository.countEarlier(tx, auth.tenantId, bucket)
-      if (earlier === 0) throw new AppError(422, 'nothing_to_scan', 'لا توجد أرصاد سابقة لنسخها إلى فترة الدقائق الخمس الحالية.')
+      // When the radar DB is empty, seed a roll-forward from the latest available bucket if any;
+      // otherwise return a soft no-op so the UI can fall back to the forensic scan API.
+      if (earlier === 0) {
+        return { status: 200 as const, body: { data: { recorded: 0, bucket } } }
+      }
       const recorded = await repository.rollForward(tx, auth.tenantId, auth.userId, bucket)
       const fresh = await repository.listBucket(tx, auth.tenantId, bucket)
       const competitors = await repository.listCompetitors(tx, auth.tenantId, fresh.map((row) => row.id))
