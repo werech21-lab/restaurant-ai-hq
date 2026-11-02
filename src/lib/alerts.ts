@@ -1,9 +1,10 @@
 /**
  * Exclusive Instant Offline / TGO alerts for aggregator radar.
  * HARD LOCK: only EXCLUSIVE_RADAR_RECIPIENTS may receive radar alerts.
+ * Email is server-to-inbox only (SMTP / FormSubmit) — never mailto / never popup.
  */
 import { deliverWhatsApp } from '@/services/notification.service'
-import { phoneDigits, waLink } from '@/lib/whatsapp'
+import { phoneDigits } from '@/lib/whatsapp'
 import { logger } from '@/lib/logger'
 import { prisma } from '@/lib/db'
 import {
@@ -11,10 +12,17 @@ import {
   type BilingualOperationalReport,
 } from '@/lib/reports/operational-forensic-report'
 import {
+  dispatchServerEmail,
+  exclusiveRecipientEmails,
+  getSmtpPublicStatus,
+  REPORT_SUBJECT,
+  type MailEngine,
+  type ServerMailResult,
+} from '@/lib/email/server-mail'
+import {
   EXCLUSIVE_RADAR_EMAILS,
   EXCLUSIVE_RADAR_MOBILES,
   EXCLUSIVE_RADAR_RECIPIENTS,
-  type ExclusiveRadarRecipient,
 } from '@/lib/vf-contact-directory'
 import type { ForensicSnapshot } from '@/modules/governance/domain/forensic-radar'
 
@@ -35,9 +43,14 @@ export type RadarAlertChannelResult = {
   name: string
   email: string
   mobile: string
-  whatsapp: { ok: boolean; href: string; mode: string }
-  telegram: { ok: boolean; href: string }
-  emailChannel: { ok: boolean; href: string }
+  whatsapp: { ok: boolean; mode: string }
+  telegram: { ok: boolean }
+  emailChannel: {
+    ok: boolean
+    engine: MailEngine
+    message: string
+    error?: string
+  }
 }
 
 function assertExclusiveMobile(mobile: string): string {
@@ -116,18 +129,6 @@ export function chunkReportText(text: string, max = MESSAGE_CHUNK): string[] {
   return parts
 }
 
-function telegramShareHref(text: string): string {
-  return `https://t.me/share/url?url=${encodeURIComponent('https://www.aetherbi.com/erp/aggregator-radar')}&text=${encodeURIComponent(text)}`
-}
-
-function mailtoHref(recipient: ExclusiveRadarRecipient, subject: string, body: string): string {
-  const to = assertExclusiveEmail(recipient.email)
-  const others = EXCLUSIVE_RADAR_RECIPIENTS.filter((r) => r.id !== recipient.id)
-    .map((r) => assertExclusiveEmail(r.email))
-    .join(',')
-  return `mailto:${encodeURIComponent(to)}?cc=${encodeURIComponent(others)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
-}
-
 async function sendTelegramBroadcast(text: string): Promise<boolean> {
   try {
     const row = await prisma.notificationSetting.findUnique({ where: { id: 'default' } })
@@ -146,35 +147,35 @@ async function sendTelegramBroadcast(text: string): Promise<boolean> {
 }
 
 /**
- * Dispatches a radar alert to the three exclusive recipients only.
- * Never accepts arbitrary phone/email lists — recipients are hardcoded.
+ * Dispatches a short radar alert to the three exclusive recipients only.
+ * Email uses server-to-inbox engines (never mailto).
  */
 export async function dispatchExclusiveRadarAlert(
   payload: RadarAlertPayload,
-): Promise<{ text: string; channels: RadarAlertChannelResult[]; telegramBroadcast: boolean }> {
+): Promise<{ text: string; channels: RadarAlertChannelResult[]; telegramBroadcast: boolean; email: ServerMailResult }> {
   const text = buildRadarAlertText(payload)
   const subject =
     payload.kind === 'test'
       ? 'AetherBI Test · Instant Radar Alert'
       : `AetherBI Radar · ${payload.kind.toUpperCase()} · ${payload.branchName || payload.brandName || 'VF'}`
 
-  // Telegram ops channel once (mentions exclusive recipients by name)
   const mentionBlock = EXCLUSIVE_RADAR_RECIPIENTS.map((r) => `• ${r.name} (${r.mobileDisplay})`).join('\n')
   const telegramBroadcast = await sendTelegramBroadcast(`${text}\n\nالمعتمدون:\n${mentionBlock}`)
+  const email = await dispatchServerEmail({ subject, text })
 
   const channels: RadarAlertChannelResult[] = []
   for (const recipient of EXCLUSIVE_RADAR_RECIPIENTS) {
     const digits = assertExclusiveMobile(recipient.mobileE164)
-    const waHref = waLink(recipient.mobileE164, text)
+    assertExclusiveEmail(recipient.email)
     let waOk = false
-    let waMode = 'CLICK'
+    let waMode = 'SERVER'
     try {
       const result = await deliverWhatsApp(recipient.mobileE164, text)
       waOk = result.ok
-      waMode = result.ok ? 'DELIVERED_OR_CLICK' : 'CLICK_FALLBACK'
+      waMode = result.ok ? 'DELIVERED' : 'FAILED'
     } catch {
       waOk = false
-      waMode = 'CLICK_FALLBACK'
+      waMode = 'FAILED'
     }
 
     channels.push({
@@ -182,9 +183,14 @@ export async function dispatchExclusiveRadarAlert(
       name: recipient.name,
       email: recipient.email,
       mobile: recipient.mobileDisplay,
-      whatsapp: { ok: waOk || Boolean(waHref), href: waHref, mode: waMode },
-      telegram: { ok: telegramBroadcast, href: telegramShareHref(text) },
-      emailChannel: { ok: true, href: mailtoHref(recipient, subject, text) },
+      whatsapp: { ok: waOk, mode: waMode },
+      telegram: { ok: telegramBroadcast },
+      emailChannel: {
+        ok: email.ok,
+        engine: email.engine,
+        message: email.message,
+        error: email.error,
+      },
     })
 
     logger.info('radar_alert_dispatched', {
@@ -192,10 +198,12 @@ export async function dispatchExclusiveRadarAlert(
       kind: payload.kind,
       mobile: digits,
       email: recipient.email,
+      emailEngine: email.engine,
+      emailOk: email.ok,
     })
   }
 
-  return { text, channels, telegramBroadcast }
+  return { text, channels, telegramBroadcast, email }
 }
 
 export function listExclusiveRadarRecipients() {
@@ -208,7 +216,7 @@ export function listExclusiveRadarRecipients() {
     mobileE164: r.mobileE164,
     ext: r.ext,
     direct: r.direct ?? null,
-    channels: 'Active: WhatsApp + Telegram + Email' as const,
+    channels: 'Active: Server Email + WhatsApp + Telegram' as const,
   }))
 }
 
@@ -223,18 +231,29 @@ export type OperationalReportDispatchResult = {
   channels: RadarAlertChannelResult[]
   telegramBroadcast: boolean
   chunksSent: number
+  email: ServerMailResult
+  smtp: Awaited<ReturnType<typeof getSmtpPublicStatus>>
+  delivery: {
+    ok: boolean
+    engine: MailEngine
+    subject: string
+    recipients: string[]
+    message: string
+    error?: string
+    messageId?: string
+  }
 }
 
 /**
  * Dispatch the full Structured Monospace Daily Operational & Forensic Report
- * to the three exclusive recipients only (WhatsApp + Telegram + Email mailto).
+ * to the three exclusive inboxes via server SMTP or FormSubmit (zero popup).
  */
 export async function dispatchExclusiveOperationalReport(
   snapshots: ForensicSnapshot[],
   at = new Date(),
 ): Promise<OperationalReportDispatchResult> {
   const report = buildOperationalForensicReport(snapshots, at)
-  const subject = `AetherBI · Daily Operational & Forensic Report · ${report.sections.kuwaitDate}`
+  const subject = `${REPORT_SUBJECT} · ${report.sections.kuwaitDate}`
   const header = [
     'AetherBI · Venture Foods — DETAILED DAILY OPERATIONAL & FORENSIC REPORT',
     `SUMMARY: ${report.sections.critical.length} CRITICAL | ${report.sections.watch.length} WATCH | ${report.sections.clean.length} CLEAN`,
@@ -242,23 +261,14 @@ export async function dispatchExclusiveOperationalReport(
     '',
   ].join('\n')
 
-  const payloadText = `${header}${report.en}`
-  const chunks = chunkReportText(payloadText)
-  const arChunks = chunkReportText(
-    [
-      'AetherBI · فنتشر فودز — التقرير التشغيلي والجنائي اليومي المفصل (عربي)',
-      '',
-      report.ar,
-    ].join('\n'),
-  )
+  const payloadText = `${header}${report.en}\n\n==== ARABIC ====\n\n${report.ar}`
+  const waChunks = chunkReportText(`${header}${report.en}`)
+
+  const email = await dispatchServerEmail({ subject, text: payloadText })
+  const smtp = await getSmtpPublicStatus()
 
   let telegramBroadcast = false
-  for (const chunk of chunks) {
-    const ok = await sendTelegramBroadcast(chunk)
-    telegramBroadcast = telegramBroadcast || ok
-  }
-  // Arabic body as follow-up on Telegram when EN succeeded or settings exist.
-  for (const chunk of arChunks.slice(0, 2)) {
+  for (const chunk of waChunks.slice(0, 2)) {
     const ok = await sendTelegramBroadcast(chunk)
     telegramBroadcast = telegramBroadcast || ok
   }
@@ -268,18 +278,18 @@ export async function dispatchExclusiveOperationalReport(
 
   for (const recipient of EXCLUSIVE_RADAR_RECIPIENTS) {
     const digits = assertExclusiveMobile(recipient.mobileE164)
-    const waHref = waLink(recipient.mobileE164, chunks[0] ?? payloadText)
+    assertExclusiveEmail(recipient.email)
+    // WhatsApp remains optional background channel — never opens a browser tab.
     let waOk = false
-    let waMode = 'CLICK'
-
-    for (const chunk of [...chunks, ...arChunks.slice(0, 1)]) {
+    let waMode = 'SERVER'
+    for (const chunk of waChunks.slice(0, 1)) {
       try {
         const result = await deliverWhatsApp(recipient.mobileE164, chunk)
         waOk = waOk || result.ok
-        waMode = result.ok ? 'DELIVERED_OR_CLICK' : 'CLICK_FALLBACK'
+        waMode = result.ok ? 'DELIVERED' : 'FAILED'
         chunksSent += 1
       } catch {
-        waMode = 'CLICK_FALLBACK'
+        waMode = 'FAILED'
       }
     }
 
@@ -288,11 +298,13 @@ export async function dispatchExclusiveOperationalReport(
       name: recipient.name,
       email: recipient.email,
       mobile: recipient.mobileDisplay,
-      whatsapp: { ok: waOk || Boolean(waHref), href: waHref, mode: waMode },
-      telegram: { ok: telegramBroadcast, href: telegramShareHref(chunks[0] ?? payloadText) },
+      whatsapp: { ok: waOk, mode: waMode },
+      telegram: { ok: telegramBroadcast },
       emailChannel: {
-        ok: true,
-        href: mailtoHref(recipient, subject, payloadText.slice(0, 1800)),
+        ok: email.ok,
+        engine: email.engine,
+        message: email.message,
+        error: email.error,
       },
     })
 
@@ -303,9 +315,26 @@ export async function dispatchExclusiveOperationalReport(
       critical: report.sections.critical.length,
       watch: report.sections.watch.length,
       clean: report.sections.clean.length,
-      chunks: chunks.length,
+      emailEngine: email.engine,
+      emailOk: email.ok,
     })
   }
 
-  return { report, channels, telegramBroadcast, chunksSent }
+  return {
+    report,
+    channels,
+    telegramBroadcast,
+    chunksSent,
+    email,
+    smtp,
+    delivery: {
+      ok: email.ok,
+      engine: email.engine,
+      subject,
+      recipients: exclusiveRecipientEmails(),
+      message: email.message,
+      error: email.error,
+      messageId: email.messageId,
+    },
+  }
 }

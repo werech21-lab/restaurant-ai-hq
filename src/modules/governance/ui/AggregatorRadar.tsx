@@ -60,10 +60,34 @@ type BoardPayload = {
     mobileE164?: string
     mobileDisplay?: string
   }>
+  smtp?: {
+    configured: boolean
+    enabled: boolean
+    from: string
+    host: string
+    port: number
+  }
   recorded?: number
   alerted?: boolean
   scannedAt?: string
   bucket?: string
+}
+
+type DeliveryFeedback = {
+  ok: boolean
+  engine: string
+  subject: string
+  recipients: string[]
+  message: string
+  error?: string
+  messageId?: string
+  summary?: {
+    critical: number
+    watch: number
+    clean: number
+    kuwaitDate: string
+    kuwaitTime: string
+  }
 }
 
 const EMPTY_REPORT: ForensicReport = {
@@ -142,6 +166,7 @@ function normalizeBoard(raw: unknown, previous: BoardPayload | null = null): Boa
     exclusiveAlertRecipients: Array.isArray(data.exclusiveAlertRecipients)
       ? data.exclusiveAlertRecipients
       : previous?.exclusiveAlertRecipients,
+    smtp: data.smtp ?? previous?.smtp,
     recorded: num(data.recorded, rows.length),
     alerted: Boolean(data.alerted),
     scannedAt: String(scannedAt),
@@ -260,6 +285,11 @@ function Workspace() {
   const [platform, setPlatform] = useState('')
   const [board, setBoard] = useState<BoardPayload | null>(null)
   const [alertBusy, setAlertBusy] = useState(false)
+  const [smtpBusy, setSmtpBusy] = useState(false)
+  const [smtpFrom, setSmtpFrom] = useState('sec@venturefoodskw.com')
+  const [smtpPass, setSmtpPass] = useState('')
+  const [smtpStatus, setSmtpStatus] = useState<BoardPayload['smtp'] | null>(null)
+  const [delivery, setDelivery] = useState<DeliveryFeedback | null>(null)
   const boardRef = useRef<BoardPayload | null>(null)
   boardRef.current = board
 
@@ -277,6 +307,10 @@ function Workspace() {
       const next = normalizeBoard(page.data, boardRef.current)
       if (!next) throw new Error('invalid_radar_payload')
       setBoard(next)
+      if (next.smtp) {
+        setSmtpStatus(next.smtp)
+        if (next.smtp.from) setSmtpFrom(next.smtp.from)
+      }
       setCountdownSeed(num(next.nextScanInSec || next.autoScanIntervalSec, 300))
       setPhase('ready')
       setError(null)
@@ -356,24 +390,78 @@ function Workspace() {
     }
   }, [brandId, branchId, platform, canManage, busy, en, t])
 
-  async function sendInstantAlert() {
-    setAlertBusy(true)
+  async function saveSmtpAndActivate() {
+    setSmtpBusy(true)
+    setError(null)
     setNotice(null)
     try {
       const result = await apiRequest<{
-        data: { channels: Array<{ name: string; whatsapp: { href: string }; telegram: { href: string }; emailChannel: { href: string } }> }
-      }>('/api/v1/governance/aggregator/alerts/test', {
+        data: { smtp: NonNullable<BoardPayload['smtp']>; message: string }
+      }>('/api/aggregator-radar/smtp', {
         method: 'POST',
-        body: {},
-        idempotencyKey: newIdempotencyKey(),
+        body: { fromEmail: smtpFrom.trim() || 'sec@venturefoodskw.com', smtpPass },
       })
+      setSmtpStatus(result.data.smtp)
+      setSmtpPass('')
       setNotice(
         en
-          ? 'Detailed Daily Operational & Forensic Report dispatched to the three exclusive recipients.'
-          : 'أُرسل التقرير التشغيلي والجنائي المفصل للمستلمين الثلاثة المعتمدين.',
+          ? result.data.message || 'SMTP activated — automatic server-to-inbox dispatch is on.'
+          : 'تم تفعيل SMTP — الإرسال المباشر من السيرفر إلى صناديق الوارد يعمل الآن.',
       )
-      for (const link of result.data.channels) {
-        if (link.whatsapp?.href) window.open(link.whatsapp.href, '_blank', 'noopener,noreferrer')
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : t(errorKey(caught)))
+    } finally {
+      setSmtpBusy(false)
+    }
+  }
+
+  async function sendInstantAlert() {
+    setAlertBusy(true)
+    setNotice(null)
+    setError(null)
+    setDelivery(null)
+    try {
+      const result = await apiRequest<{
+        data: {
+          delivery: DeliveryFeedback
+          smtp?: BoardPayload['smtp']
+          summary: DeliveryFeedback['summary'] & {
+            critical: number
+            watch: number
+            clean: number
+            kuwaitDate: string
+            kuwaitTime: string
+          }
+          channels: Array<{
+            name: string
+            email: string
+            emailChannel: { ok: boolean; engine: string; message: string; error?: string }
+            whatsapp: { ok: boolean; mode: string }
+            telegram: { ok: boolean }
+          }>
+        }
+      }>('/api/aggregator-radar/alert', {
+        method: 'POST',
+        body: {},
+      })
+      if (result.data.smtp) setSmtpStatus(result.data.smtp)
+      const feedback: DeliveryFeedback = {
+        ...result.data.delivery,
+        summary: result.data.summary,
+      }
+      setDelivery(feedback)
+      if (feedback.ok) {
+        setNotice(
+          en
+            ? `Server delivered via ${feedback.engine.toUpperCase()} to Sec / operations / abdelrahmanm — no mailto popup.`
+            : `وُصل من السيرفر عبر ${feedback.engine.toUpperCase()} إلى Sec / operations / abdelrahmanm — بدون mailto.`,
+        )
+      } else {
+        setError(
+          en
+            ? `Delivery failed (${feedback.engine}): ${feedback.error || feedback.message}`
+            : `فشل التسليم (${feedback.engine}): ${feedback.error || feedback.message}`,
+        )
       }
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : t(errorKey(caught)))
@@ -500,6 +588,68 @@ function Workspace() {
         </div>
       </header>
 
+      {!(smtpStatus?.enabled || smtpStatus?.configured) && canManage ? (
+        <section className="rounded-2xl border border-amber-400/40 bg-amber-950/40 p-4" aria-labelledby="smtp-activate-bar">
+          <h2 id="smtp-activate-bar" className="text-sm font-bold text-amber-100">
+            {en
+              ? 'Activate direct server-to-inbox SMTP (no mailto / no popup)'
+              : 'تفعيل SMTP للإرسال المباشر من السيرفر إلى صندوق الوارد (بدون mailto)'}
+          </h2>
+          <p className="mt-1 text-xs text-amber-100/80">
+            {en
+              ? 'Until SMTP is saved, the server still sends via FormSubmit HTTP relay to the three exclusive inboxes. Save a Google App Password once — no redeploy needed.'
+              : 'حتى حفظ SMTP، السيرفر يرسل عبر بوابة FormSubmit مباشرة للمستلمين الثلاثة. احفظ Google App Password مرة واحدة — بدون إعادة نشر.'}
+          </p>
+          <div className="mt-3 flex flex-wrap items-end gap-3">
+            <label className="block text-xs text-amber-100/90">
+              {en ? 'From email' : 'البريد المرسل'}
+              <input
+                className="mt-1 block w-64 rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+                dir="ltr"
+                value={smtpFrom}
+                onChange={(e) => setSmtpFrom(e.target.value)}
+                placeholder="sec@venturefoodskw.com"
+                autoComplete="username"
+              />
+            </label>
+            <label className="block text-xs text-amber-100/90">
+              {en ? 'Google App Password / SMTP Password' : 'كلمة مرور التطبيق / SMTP'}
+              <input
+                className="mt-1 block w-72 rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+                dir="ltr"
+                type="password"
+                value={smtpPass}
+                onChange={(e) => setSmtpPass(e.target.value)}
+                placeholder="xxxx xxxx xxxx xxxx"
+                autoComplete="current-password"
+              />
+            </label>
+            <button
+              type="button"
+              className={primaryButton}
+              disabled={smtpBusy || smtpPass.trim().length < 8}
+              onClick={() => void saveSmtpAndActivate()}
+            >
+              {smtpBusy
+                ? en
+                  ? 'Saving…'
+                  : 'جارٍ الحفظ…'
+                : en
+                  ? 'Save & activate direct inbox dispatch'
+                  : 'حفظ وتفعيل الإرسال التلقائي المباشر للأبد'}
+            </button>
+          </div>
+        </section>
+      ) : null}
+
+      {(smtpStatus?.enabled || smtpStatus?.configured) && (
+        <p className="rounded-xl border border-emerald-400/30 bg-emerald-950/30 px-3 py-2 text-xs text-emerald-100">
+          {en
+            ? `SMTP active · from ${smtpStatus.from} · ${smtpStatus.host}:${smtpStatus.port} · server-to-inbox only`
+            : `SMTP مفعّل · من ${smtpStatus.from} · ${smtpStatus.host}:${smtpStatus.port} · إرسال سيرفر مباشر فقط`}
+        </p>
+      )}
+
       <section className="rounded-2xl border border-red-400/30 bg-red-950/30 p-4" aria-labelledby="radar-alert-bar">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -508,16 +658,16 @@ function Workspace() {
             </h2>
             <p className="mt-1 text-xs text-red-100/80">
               {en
-                ? 'Detailed Daily Operational & Forensic Report (structured monospace) goes only to these three (WhatsApp + Telegram + Email).'
-                : 'التقرير التشغيلي والجنائي اليومي المفصل (نص مهيكل) يُرسل حصرياً لهؤلاء الثلاثة (واتساب + تيليجرام + بريد).'}
+                ? 'Server sends the Detailed Daily Operational & Forensic Report straight to these three inboxes (SMTP or FormSubmit). No mailto. No external windows.'
+                : 'السيرفر يرسل التقرير التشغيلي والجنائي المفصل مباشرة إلى صناديق هؤلاء الثلاثة (SMTP أو FormSubmit). بدون mailto وبدون نوافذ خارجية.'}
             </p>
           </div>
           {canManage ? (
             <button className={primaryButton} type="button" disabled={alertBusy || busy} onClick={() => void sendInstantAlert()}>
               {alertBusy
                 ? en
-                  ? 'Sending detailed report…'
-                  : 'جارٍ إرسال التقرير المفصل…'
+                  ? 'Sending from server…'
+                  : 'جارٍ الإرسال من السيرفر…'
                 : en
                   ? '📋 Send Detailed Daily Operational & Forensic Report'
                   : '📋 إرسال التقرير التشغيلي والجنائي المفصل'}
@@ -529,10 +679,8 @@ function Workspace() {
             <li key={person.id} className="rounded-xl border border-white/10 bg-black/25 p-3 text-sm text-gray-100">
               <p className="font-semibold text-white">{person.name}</p>
               <p className="text-xs text-gray-400">{person.title}</p>
-              <p className="mt-2" dir="ltr">
-                <a className="text-emerald-300 underline-offset-2 hover:underline" href={`mailto:${person.email}`}>
-                  {person.email}
-                </a>
+              <p className="mt-2 text-emerald-300" dir="ltr">
+                {person.email}
               </p>
               <p className="mt-1 font-medium tracking-wide text-gold-300" dir="ltr">
                 {'mobile' in person ? person.mobile : ''}
@@ -540,6 +688,46 @@ function Workspace() {
             </li>
           ))}
         </ul>
+
+        {delivery ? (
+          <div
+            className={`mt-4 rounded-xl border p-3 text-sm ${
+              delivery.ok
+                ? 'border-emerald-400/40 bg-emerald-950/40 text-emerald-50'
+                : 'border-red-400/40 bg-red-950/50 text-red-50'
+            }`}
+            role="status"
+          >
+            <p className="font-semibold">
+              {delivery.ok
+                ? en
+                  ? `Delivery OK · engine ${delivery.engine.toUpperCase()}`
+                  : `تم التسليم · المحرك ${delivery.engine.toUpperCase()}`
+                : en
+                  ? `Delivery FAILED · engine ${delivery.engine.toUpperCase()}`
+                  : `فشل التسليم · المحرك ${delivery.engine.toUpperCase()}`}
+            </p>
+            <p className="mt-1 text-xs opacity-90">{delivery.message}</p>
+            {delivery.error ? <p className="mt-1 text-xs text-red-200">{delivery.error}</p> : null}
+            <p className="mt-2 text-xs" dir="ltr">
+              To: {delivery.recipients.join(' · ')}
+            </p>
+            <p className="mt-1 text-xs" dir="ltr">
+              Subject: {delivery.subject}
+            </p>
+            {delivery.messageId ? (
+              <p className="mt-1 text-xs opacity-80" dir="ltr">
+                Message-ID: {delivery.messageId}
+              </p>
+            ) : null}
+            {delivery.summary ? (
+              <p className="mt-2 text-xs">
+                SUMMARY: {delivery.summary.critical} CRITICAL · {delivery.summary.watch} WATCH · {delivery.summary.clean}{' '}
+                CLEAN · {delivery.summary.kuwaitDate} {delivery.summary.kuwaitTime} Asia/Kuwait
+              </p>
+            ) : null}
+          </div>
+        ) : null}
       </section>
 
       <div className="flex flex-wrap items-center gap-3">

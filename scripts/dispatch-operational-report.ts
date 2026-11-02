@@ -1,6 +1,6 @@
 /**
  * One-shot local dispatch of the Detailed Daily Operational & Forensic Report
- * to Sec / operations / abdelrahmanm only.
+ * to Sec / operations / abdelrahmanm only (server-to-inbox, no mailto).
  *
  *   npx tsx scripts/dispatch-operational-report.ts
  */
@@ -22,13 +22,17 @@ async function main() {
     penaltyKwd: (result.report.sections.penaltyMinor / 1000).toFixed(3),
     telegramBroadcast: result.telegramBroadcast,
     chunksSent: result.chunksSent,
+    delivery: result.delivery,
+    smtp: result.smtp,
     recipients: result.channels.map((c) => ({
       name: c.name,
       email: c.email,
       mobile: c.mobile,
       whatsapp: c.whatsapp.mode,
       telegram: c.telegram.ok,
-      emailHref: Boolean(c.emailChannel.href),
+      emailOk: c.emailChannel.ok,
+      emailEngine: c.emailChannel.engine,
+      emailMessage: c.emailChannel.message,
     })),
     previewChars: result.report.en.length,
   }

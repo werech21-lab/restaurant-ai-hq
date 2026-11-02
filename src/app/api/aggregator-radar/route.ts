@@ -4,6 +4,7 @@ import { permissions } from '@/lib/auth/permissions'
 import { protectedRoute } from '@/lib/api/route'
 import { forensicBoard } from '@/modules/governance/services/forensic-radar-service'
 import type { ForensicReportPeriod } from '@/modules/governance/domain/forensic-radar'
+import { getSmtpPublicStatus } from '@/lib/email/server-mail'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -17,10 +18,12 @@ export const GET = protectedRoute(permissions.govAggregatorRead, async ({ reques
     platform: url.searchParams.get('platform'),
     period: period === 'weekly' || period === 'monthly' ? period : 'daily',
   })
+  const smtp = await getSmtpPublicStatus()
   return NextResponse.json({
     data: {
       ...board,
       exclusiveAlertRecipients: listExclusiveRadarRecipients(),
+      smtp,
     },
   })
 })

@@ -8,6 +8,7 @@ import { aggregatorQuerySchema, escalationDecisionSchema, scanSchema } from '@/m
 import { actOnEscalation, aggregatorBoard, scanAggregator } from '@/modules/governance/services/aggregator-service'
 import { buildForensicMatrix } from '@/modules/governance/domain/forensic-radar'
 import { listForensicHistory } from '@/modules/governance/services/forensic-radar-service'
+import { getSmtpPublicStatus } from '@/lib/email/server-mail'
 
 function created(outcome: { status: number; body: unknown; replayed: boolean }): NextResponse {
   return NextResponse.json(outcome.body, { status: outcome.status, headers: outcome.replayed ? { 'Idempotent-Replayed': 'true' } : undefined })
@@ -15,10 +16,12 @@ function created(outcome: { status: number; body: unknown; replayed: boolean }):
 
 export async function aggregatorBoardHandler({ request, auth }: RouteArgs): Promise<NextResponse> {
   const board = await aggregatorBoard(auth, parseQuery(request, aggregatorQuerySchema))
+  const smtp = await getSmtpPublicStatus()
   return NextResponse.json({
     data: {
       ...board,
       exclusiveAlertRecipients: listExclusiveRadarRecipients(),
+      smtp,
     },
   })
 }
@@ -33,6 +36,8 @@ export async function testRadarAlertHandler({ auth }: RouteArgs): Promise<NextRe
       telegramBroadcast: result.telegramBroadcast,
       channels: result.channels,
       chunksSent: result.chunksSent,
+      delivery: result.delivery,
+      smtp: result.smtp,
       summary: {
         critical: result.report.sections.critical.length,
         watch: result.report.sections.watch.length,

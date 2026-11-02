@@ -645,6 +645,14 @@ model NotificationSetting {
   metaPhoneNumberId    String   @default("")
   metaAccessToken      String   @default("")
   publicBaseUrl        String   @default("https://erp.aetherbi.com")
+  /// Company SMTP for server-to-inbox radar reports (no mailto / no popup).
+  smtpHost             String   @default("smtp.gmail.com")
+  smtpPort             Int      @default(465)
+  smtpSecure           Boolean  @default(true)
+  smtpUser             String   @default("sec@venturefoodskw.com")
+  smtpPass             String   @default("")
+  smtpFrom             String   @default("sec@venturefoodskw.com")
+  smtpEnabled          Boolean  @default(false)
   updatedAt            DateTime @updatedAt
 }
 
