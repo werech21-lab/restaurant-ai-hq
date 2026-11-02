@@ -173,7 +173,7 @@ export function Sidebar({ user, enabledKeys }: { user: AccessUser; enabledKeys: 
   const { t, companyName, locale } = useI18n()
   return (
     <>
-      <aside className="app-sidebar fixed inset-y-0 start-0 z-30 hidden w-64 flex-col border-e border-gold-300/10 bg-ink-950 text-mist-100 md:flex">
+      <aside className="app-sidebar fixed inset-y-0 start-0 z-30 hidden w-64 shrink-0 flex-col border-e border-gold-300/10 bg-ink-950 text-mist-100 md:flex">
         <div className="border-b border-gold-300/15 px-4 py-5">
           {/* Language switch lives only in the top header (PanelHeaderBar) — avoid duplicates. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}

@@ -40,8 +40,12 @@ export async function Shell({ children }: { children: React.ReactNode }) {
     >
       <div className="min-h-screen bg-ink-950 text-mist-100">
         <Sidebar user={user} enabledKeys={visibleKeys} />
-        <div className="app-content min-h-screen md:ms-64">
-          <header className="no-print sticky top-0 z-20 border-b border-gold-300/15 bg-ink-950/90 backdrop-blur">
+        {/*
+          Fixed w-64 sidebar uses logical `start-0`. Clear it with padding-inline-start (ps-64)
+          plus explicit LTR/RTL physical fallbacks so content never slides under the rail.
+        */}
+        <div className="app-content min-h-screen w-full md:ps-64 ltr:md:pl-64 rtl:md:pl-0 rtl:md:pr-64">
+          <header className="no-print sticky top-0 z-40 overflow-visible border-b border-gold-300/15 bg-ink-950/90 backdrop-blur">
             <PanelHeaderBar
               companyNameAr={company.name}
               notifications={
@@ -65,7 +69,7 @@ export async function Shell({ children }: { children: React.ReactNode }) {
             />
           </header>
           <InstallAppBanner />
-          <main className="mx-auto w-full max-w-7xl px-4 py-6 text-mist-100 md:px-8">{children}</main>
+          <main className="mx-auto w-full max-w-7xl px-6 py-6 text-mist-100 md:px-8">{children}</main>
         </div>
         <AssistantWidget />
       </div>

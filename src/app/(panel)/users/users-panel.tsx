@@ -70,7 +70,7 @@ export function UsersPanel({
             {canCreate ? (
               <button type="button" className={btnPrimary} onClick={() => setEditing("new")}>
                 <Plus size={16} />
-                {en ? "+ New User" : "+ مستخدم جديد"}
+                {en ? "New User" : "مستخدم جديد"}
               </button>
             ) : null}
           </div>

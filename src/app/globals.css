@@ -66,6 +66,13 @@ body {
   text-rendering: optimizeLegibility;
   background: rgb(var(--ink-950));
   color: rgb(var(--mist-100));
+  overflow-x: clip;
+}
+
+/* Keep main column clear of the fixed w-64 sidebar in both writing modes */
+.app-content {
+  box-sizing: border-box;
+  min-width: 0;
 }
 
 /* Panel tables: never inherit washed-out mist on white leftovers */
