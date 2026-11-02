@@ -9,6 +9,10 @@ const nextConfig = {
     // erp-pro print/download screens use <img> for offline/print fidelity
     ignoreDuringBuilds: false,
   },
+  async rewrites() {
+    // Canonical P&L lives at /reports?tab=pnl; keep /reports/pnl as a stable alias (200).
+    return [{ source: '/reports/pnl', destination: '/reports?tab=pnl' }]
+  },
   async headers() {
     return [
       {
