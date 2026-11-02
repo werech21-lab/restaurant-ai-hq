@@ -367,7 +367,11 @@ function Workspace() {
         body: {},
         idempotencyKey: newIdempotencyKey(),
       })
-      setNotice(en ? 'Exclusive alert dispatched to the three recipients.' : 'أُرسل الإنذار الحصري للمستلمين الثلاثة.')
+      setNotice(
+        en
+          ? 'Detailed Daily Operational & Forensic Report dispatched to the three exclusive recipients.'
+          : 'أُرسل التقرير التشغيلي والجنائي المفصل للمستلمين الثلاثة المعتمدين.',
+      )
       for (const link of result.data.channels) {
         if (link.whatsapp?.href) window.open(link.whatsapp.href, '_blank', 'noopener,noreferrer')
       }
@@ -504,19 +508,19 @@ function Workspace() {
             </h2>
             <p className="mt-1 text-xs text-red-100/80">
               {en
-                ? 'Forced Offline / Busy / forced TGO 17% alerts go only to these three (WhatsApp + Telegram + Email).'
-                : 'تنبيهات الإغلاق القسري وتقليص التغطية وتحويل TGO 17% تُرسل حصرياً لهؤلاء الثلاثة.'}
+                ? 'Detailed Daily Operational & Forensic Report (structured monospace) goes only to these three (WhatsApp + Telegram + Email).'
+                : 'التقرير التشغيلي والجنائي اليومي المفصل (نص مهيكل) يُرسل حصرياً لهؤلاء الثلاثة (واتساب + تيليجرام + بريد).'}
             </p>
           </div>
           {canManage ? (
             <button className={primaryButton} type="button" disabled={alertBusy || busy} onClick={() => void sendInstantAlert()}>
               {alertBusy
                 ? en
-                  ? 'Sending…'
-                  : 'جارٍ الإرسال…'
+                  ? 'Sending detailed report…'
+                  : 'جارٍ إرسال التقرير المفصل…'
                 : en
-                  ? '🚨 Send offline incident alert to the three'
-                  : '🚨 إرسال تنبيه حادثة إغلاق فوري للثلاثة'}
+                  ? '📋 Send Detailed Daily Operational & Forensic Report'
+                  : '📋 إرسال التقرير التشغيلي والجنائي المفصل'}
             </button>
           ) : null}
         </div>

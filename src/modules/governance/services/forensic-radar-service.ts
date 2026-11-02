@@ -1,4 +1,4 @@
-import { dispatchExclusiveRadarAlert } from '@/lib/alerts'
+import { dispatchExclusiveOperationalReport } from '@/lib/alerts'
 import type { AuthContext } from '@/lib/auth/context'
 import { logger } from '@/lib/logger'
 import {
@@ -80,20 +80,17 @@ export async function runForensicScan(
     (row) => row.status === 'forced_offline' || (row.mode === 'TGO' && row.status === 'busy_throttled'),
   )
   if (opts.alert !== false && incidents.length > 0) {
-    const sample = incidents[0]
     try {
-      await dispatchExclusiveRadarAlert({
-        kind: sample.status === 'forced_offline' ? 'forced_offline' : 'tgo_forced',
-        brandName: sample.brandNameEn,
-        branchName: sample.areaEn,
-        platformName: sample.platform,
-        zoneStatus: sample.status,
-        logisticsMode: sample.mode === 'TGO' ? 'platform_fleet (TGO 17%)' : 'vendor_own_fleet (TMP 10%)',
-        detailAr: `فحص جنائي لحظي بواسطة ${auth.userId}: ${incidents.length} حادثة Offline/TGO خلال ${snapshot.bucket}.`,
-      })
+      const historySnaps = listForensicHistory()
+      await dispatchExclusiveOperationalReport(historySnaps.length ? historySnaps : [snapshot])
       alerted = true
+      logger.info('forensic_daily_report_dispatched', {
+        userId: auth.userId,
+        incidents: incidents.length,
+        bucket: snapshot.bucket,
+      })
     } catch (error) {
-      logger.warn('Forensic radar alert skipped', { error: String(error) })
+      logger.warn('Forensic operational report skipped', { error: String(error) })
     }
   }
   const board = forensicBoard(opts)
