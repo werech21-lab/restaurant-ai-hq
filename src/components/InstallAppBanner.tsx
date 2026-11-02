@@ -1,69 +1,142 @@
-"use client";
+'use client'
 
-import { useEffect, useState } from "react";
-import { btnPrimary } from "@/components/erp-ui";
+import { useEffect, useState } from 'react'
+import { btnPrimary } from '@/components/erp-ui'
+import { useI18n } from '@/lib/i18n'
 
-type InstallPrompt = Event & { prompt: () => Promise<void> };
+const DISMISS_KEY = 'aetherbi_pwa_dismissed'
 
-function isIos() {
-  const ua = navigator.userAgent;
-  const apple = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-  const nav = navigator as Navigator & { standalone?: boolean };
-  const standalone = window.matchMedia("(display-mode: standalone)").matches || Boolean(nav.standalone);
-  return apple && !standalone;
+type BeforeInstallPromptEvent = Event & {
+  prompt: () => Promise<void>
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
+}
+
+function isStandalone(): boolean {
+  if (typeof window === 'undefined') return true
+  const nav = window.navigator as Navigator & { standalone?: boolean }
+  return window.matchMedia('(display-mode: standalone)').matches || Boolean(nav.standalone)
+}
+
+function isIosDevice(): boolean {
+  if (typeof window === 'undefined') return false
+  const ua = window.navigator.userAgent
+  return (
+    /iPad|iPhone|iPod/.test(ua) ||
+    (window.navigator.platform === 'MacIntel' && window.navigator.maxTouchPoints > 1)
+  )
 }
 
 export function InstallAppBanner() {
-  const [prompt, setPrompt] = useState<InstallPrompt | null>(null);
-  const [ios, setIos] = useState(false);
-  const [hidden, setHidden] = useState(false);
+  const { locale } = useI18n()
+  const en = locale === 'en'
+  const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null)
+  const [hidden, setHidden] = useState(true)
+  const [tip, setTip] = useState<string | null>(null)
+  const [ios, setIos] = useState(false)
 
   useEffect(() => {
-    if (sessionStorage.getItem("aetherbi-install-hidden") === "1") setHidden(true);
-    setIos(isIos());
+    if (typeof window === 'undefined') return
+    if (window.localStorage.getItem(DISMISS_KEY) === 'true') {
+      setHidden(true)
+      return
+    }
+    if (isStandalone()) {
+      setHidden(true)
+      return
+    }
+    setIos(isIosDevice())
+    setHidden(false)
+
     const onPrompt = (event: Event) => {
-      event.preventDefault();
-      setPrompt(event as InstallPrompt);
-    };
-    window.addEventListener("beforeinstallprompt", onPrompt);
-    return () => window.removeEventListener("beforeinstallprompt", onPrompt);
-  }, []);
+      event.preventDefault()
+      setDeferred(event as BeforeInstallPromptEvent)
+    }
+    window.addEventListener('beforeinstallprompt', onPrompt)
 
-  if (hidden || (!prompt && !ios)) return null;
+    const onInstalled = () => {
+      window.localStorage.setItem(DISMISS_KEY, 'true')
+      setHidden(true)
+      setDeferred(null)
+    }
+    window.addEventListener('appinstalled', onInstalled)
 
-  function dismiss() {
-    sessionStorage.setItem("aetherbi-install-hidden", "1");
-    setHidden(true);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onPrompt)
+      window.removeEventListener('appinstalled', onInstalled)
+    }
+  }, [])
+
+  if (hidden) return null
+
+  const copy = en
+    ? {
+        text: '📲 Install AetherBI ERP directly on your device for instant desktop & mobile access.',
+        iosText:
+          '📲 On iPhone: tap Share, then Add to Home Screen to install AetherBI ERP without the App Store.',
+        install: 'Install App',
+        dismiss: 'Dismiss ✕',
+        tip: 'Use the install icon in the Chrome address bar (monitor icon next to the star), then this banner will hide.',
+      }
+    : {
+        text: '📲 ثبّت تطبيق AetherBI ERP مباشرة على جهازك للوصول السريع بدون متجر.',
+        iosText:
+          '📲 على آيفون: اضغط مشاركة ثم «إضافة إلى الشاشة الرئيسية» لتثبيت AetherBI ERP بدون متجر.',
+        install: 'تثبيت التطبيق الآن',
+        dismiss: 'إغلاق ✕',
+        tip: 'استخدم أيقونة التثبيت في شريط عنوان Chrome (أيقونة الجهاز بجانب النجمة)، ثم سيُخفى هذا الشريط.',
+      }
+
+  function persistDismiss() {
+    window.localStorage.setItem(DISMISS_KEY, 'true')
+    setHidden(true)
+    setDeferred(null)
+  }
+
+  async function onInstall() {
+    if (deferred) {
+      try {
+        await deferred.prompt()
+        await deferred.userChoice
+      } catch {
+        // ignore prompt errors — still hide after attempt
+      }
+      setDeferred(null)
+      persistDismiss()
+      return
+    }
+    setTip(copy.tip)
+    window.setTimeout(() => {
+      persistDismiss()
+    }, 4500)
   }
 
   return (
-    <div className="no-print border-b border-slate-200 bg-white px-4 py-3 md:px-8">
+    <div
+      className="no-print border-b border-slate-200 bg-white px-4 py-3 md:px-8"
+      data-no-translate=""
+      dir={en ? 'ltr' : 'rtl'}
+      lang={en ? 'en' : 'ar'}
+      style={{ unicodeBidi: 'isolate' }}
+    >
       <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-3">
-        {ios ? (
-          <p className="text-sm font-semibold text-slate-800">
-            لتثبيت التطبيق على آيفون: اضغط زر المشاركة Share بالأسفل ثم اختر إضافة إلى الشاشة الرئيسية Add to Home Screen.
-          </p>
-        ) : (
-          <p className="text-sm font-semibold text-slate-800">ثبّت AetherBI ERP على هذا الجهاز من غير متجر.</p>
-        )}
-        <div className="flex gap-2">
-          {prompt ? (
-            <button
-              type="button"
-              className={btnPrimary}
-              onClick={async () => {
-                await prompt.prompt();
-                setPrompt(null);
-              }}
-            >
-              تثبيت التطبيق على الجهاز (Install App)
+        <p className="text-sm font-semibold text-slate-800" dir={en ? 'ltr' : 'rtl'}>
+          {tip ? tip : ios ? copy.iosText : copy.text}
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          {!ios || deferred ? (
+            <button type="button" className={btnPrimary} onClick={() => void onInstall()}>
+              {copy.install}
             </button>
           ) : null}
-          <button type="button" className="text-sm font-semibold text-slate-500" onClick={dismiss}>
-            إغلاق
+          <button
+            type="button"
+            className="rounded-lg px-3 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100"
+            onClick={persistDismiss}
+          >
+            {copy.dismiss}
           </button>
         </div>
       </div>
     </div>
-  );
+  )
 }
