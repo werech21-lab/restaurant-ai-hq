@@ -105,8 +105,9 @@ function hash(input: string): number {
   return h >>> 0
 }
 
-export function formatKwdMinor(minor: number, locale: 'ar' | 'en' = 'en'): string {
-  const amount = (Math.round(minor) / 1000).toFixed(3)
+export function formatKwdMinor(minor: number | null | undefined, locale: 'ar' | 'en' = 'en'): string {
+  const safe = Number.isFinite(Number(minor)) ? Math.round(Number(minor)) : 0
+  const amount = (safe / 1000).toFixed(3)
   return locale === 'en' ? `${amount} KWD` : `${amount} د.ك`
 }
 

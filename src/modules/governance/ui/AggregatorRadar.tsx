@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ApiError, apiRequest, errorKey, newIdempotencyKey } from '@/components/erp/api'
 import { PermissionProvider, useCan } from '@/components/erp/permissions'
 import { errorClass, noticeClass, panelClass, primaryButton, secondaryButton } from '@/components/erp/styles'
@@ -60,16 +60,157 @@ type BoardPayload = {
     mobileE164?: string
     mobileDisplay?: string
   }>
+  recorded?: number
+  alerted?: boolean
+  scannedAt?: string
+  bucket?: string
+}
+
+const EMPTY_REPORT: ForensicReport = {
+  period: 'daily',
+  generatedAt: new Date(0).toISOString(),
+  totalOfflineMinutes: 0,
+  tmpGmvMinor: 0,
+  tgoGmvMinor: 0,
+  penaltyMinor: 0,
+  lostSalesMinor: 0,
+  claimMinor: 0,
+  byBrand: [],
+  timeline: [],
+  weekdays: [],
+}
+
+function num(value: unknown, fallback = 0): number {
+  const n = Number(value)
+  return Number.isFinite(n) ? n : fallback
+}
+
+function safeFixed(value: unknown, digits = 3): string {
+  return num(value).toFixed(digits)
+}
+
+/** Crash-proof normalizer for GET/POST radar payloads (scan used to omit `snapshot`). */
+function normalizeBoard(raw: unknown, previous: BoardPayload | null = null): BoardPayload | null {
+  if (!raw || typeof raw !== 'object') return previous
+  const data = raw as Partial<BoardPayload> & { scannedAt?: string; bucket?: string }
+  const rows = Array.isArray(data.rows) ? data.rows : previous?.rows ?? []
+  const kpis = (data.kpis ?? previous?.kpis) as ForensicKpis | undefined
+  if (!kpis) return previous
+  const reportRaw = (data.report ?? previous?.report) as ForensicReport | undefined
+  const report: ForensicReport = reportRaw
+    ? {
+        period: reportRaw.period ?? 'daily',
+        generatedAt: reportRaw.generatedAt || new Date().toISOString(),
+        totalOfflineMinutes: num(reportRaw.totalOfflineMinutes),
+        tmpGmvMinor: num(reportRaw.tmpGmvMinor),
+        tgoGmvMinor: num(reportRaw.tgoGmvMinor),
+        penaltyMinor: num(reportRaw.penaltyMinor),
+        lostSalesMinor: num(reportRaw.lostSalesMinor),
+        claimMinor: num(reportRaw.claimMinor),
+        byBrand: Array.isArray(reportRaw.byBrand) ? reportRaw.byBrand : [],
+        timeline: Array.isArray(reportRaw.timeline) ? reportRaw.timeline : [],
+        weekdays: Array.isArray(reportRaw.weekdays) ? reportRaw.weekdays : [],
+      }
+    : previous?.report ?? EMPTY_REPORT
+  const scannedAt =
+    data.snapshot?.scannedAt ||
+    data.scannedAt ||
+    previous?.snapshot?.scannedAt ||
+    new Date().toISOString()
+  const bucket = data.snapshot?.bucket || data.bucket || previous?.snapshot?.bucket || scannedAt
+  return {
+    rows,
+    kpis: {
+      ...kpis,
+      onlineCount: num(kpis.onlineCount),
+      offlineCount: num(kpis.offlineCount),
+      busyCount: num(kpis.busyCount),
+      tmpOrderShareBps: num(kpis.tmpOrderShareBps),
+      tgoOrderShareBps: num(kpis.tgoOrderShareBps),
+      totalOfflineMinutes: num(kpis.totalOfflineMinutes),
+      financialImpactMinor: num(kpis.financialImpactMinor),
+      commissionPenaltyMinor: num(kpis.commissionPenaltyMinor),
+      lostSalesMinor: num(kpis.lostSalesMinor),
+      mpAccount: kpis.mpAccount || previous?.kpis.mpAccount || '101513',
+      tgoAccount: kpis.tgoAccount || previous?.kpis.tgoAccount || '101512',
+    },
+    report,
+    historyCount: num(data.historyCount, previous?.historyCount ?? 0),
+    nextScanInSec: num(data.nextScanInSec, 300),
+    autoScanIntervalSec: num(data.autoScanIntervalSec, 300),
+    snapshot: { bucket: String(bucket), scannedAt: String(scannedAt) },
+    exclusiveAlertRecipients: Array.isArray(data.exclusiveAlertRecipients)
+      ? data.exclusiveAlertRecipients
+      : previous?.exclusiveAlertRecipients,
+    recorded: num(data.recorded, rows.length),
+    alerted: Boolean(data.alerted),
+    scannedAt: String(scannedAt),
+    bucket: String(bucket),
+  }
 }
 
 function pad2(n: number) {
-  return String(n).padStart(2, '0')
+  return String(Math.max(0, Math.floor(num(n)))).padStart(2, '0')
 }
 
 function formatCountdown(sec: number) {
-  const s = Math.max(0, sec)
+  const s = Math.max(0, Math.floor(num(sec)))
   return `${pad2(Math.floor(s / 60))}:${pad2(s % 60)}`
 }
+
+/** Isolated countdown — does NOT re-render the forensic matrix every second. */
+const ScanCountdown = memo(function ScanCountdown({
+  initialSec,
+  autoScan,
+  onExpire,
+  en,
+}: {
+  initialSec: number
+  autoScan: boolean
+  onExpire: () => void
+  en: boolean
+}) {
+  const [sec, setSec] = useState(() => Math.max(1, Math.floor(num(initialSec, 300))))
+  const onExpireRef = useRef(onExpire)
+  onExpireRef.current = onExpire
+  const scanningRef = useRef(false)
+
+  useEffect(() => {
+    setSec(Math.max(1, Math.floor(num(initialSec, 300))))
+  }, [initialSec])
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setSec((value) => {
+        if (!autoScan) return value
+        if (value <= 1) {
+          if (!scanningRef.current) {
+            scanningRef.current = true
+            queueMicrotask(() => {
+              try {
+                onExpireRef.current()
+              } finally {
+                window.setTimeout(() => {
+                  scanningRef.current = false
+                }, 1500)
+              }
+            })
+          }
+          return 300
+        }
+        return value - 1
+      })
+    }, 1000)
+    return () => window.clearInterval(timer)
+  }, [autoScan])
+
+  return (
+    <span className="rounded-full border border-white/10 px-3 py-1" data-live-timer="" data-no-translate="">
+      {en ? 'Next auto-scan' : 'الفحص التلقائي التالي'}:{' '}
+      <strong className="text-emerald-300 tabular-nums">{formatCountdown(sec)}</strong>
+    </span>
+  )
+})
 
 function statusBadge(status: ForensicRow['status'], en: boolean) {
   if (status === 'online') {
@@ -114,11 +255,13 @@ function Workspace() {
   const [busy, setBusy] = useState(false)
   const [scanProgress, setScanProgress] = useState(0)
   const [autoScan, setAutoScan] = useState(true)
-  const [countdown, setCountdown] = useState(300)
+  const [countdownSeed, setCountdownSeed] = useState(300)
   const [period, setPeriod] = useState<ForensicReportPeriod>('daily')
   const [platform, setPlatform] = useState('')
   const [board, setBoard] = useState<BoardPayload | null>(null)
   const [alertBusy, setAlertBusy] = useState(false)
+  const boardRef = useRef<BoardPayload | null>(null)
+  boardRef.current = board
 
   const brandId = scope?.brandId ?? null
   const branchId = scope?.branchId ?? null
@@ -131,8 +274,10 @@ function Workspace() {
       if (platform) params.set('platform', platform)
       params.set('period', period)
       const page = await apiRequest<{ data: BoardPayload }>(`/api/aggregator-radar?${params.toString()}`, { signal })
-      setBoard(page.data)
-      setCountdown(page.data.nextScanInSec || page.data.autoScanIntervalSec || 300)
+      const next = normalizeBoard(page.data, boardRef.current)
+      if (!next) throw new Error('invalid_radar_payload')
+      setBoard(next)
+      setCountdownSeed(num(next.nextScanInSec || next.autoScanIntervalSec, 300))
       setPhase('ready')
       setError(null)
     },
@@ -141,9 +286,15 @@ function Workspace() {
 
   useEffect(() => {
     const controller = new AbortController()
-    setPhase('loading')
+    setPhase((prev) => (boardRef.current ? prev : 'loading'))
     load(controller.signal).catch((caught: unknown) => {
       if (controller.signal.aborted) return
+      // Keep last good board — never blank the screen on a soft reload failure.
+      if (boardRef.current) {
+        setPhase('ready')
+        setError(caught instanceof ApiError ? caught.message : t(errorKey(caught)))
+        return
+      }
       setPhase('error')
       setError(caught instanceof ApiError ? caught.message : t(errorKey(caught)))
     })
@@ -154,7 +305,6 @@ function Workspace() {
     if (!canManage || busy) return
     setBusy(true)
     setNotice(null)
-    setError(null)
     setScanProgress(8)
     const tick = window.setInterval(() => {
       setScanProgress((value) => (value >= 92 ? value : value + 7))
@@ -167,38 +317,44 @@ function Workspace() {
         body: { brandId, branchId, platform: platform || undefined, alert: true },
         idempotencyKey: newIdempotencyKey(),
       })
+      const next = normalizeBoard(result.data, boardRef.current)
+      if (!next) {
+        setNotice(en ? 'Scan returned incomplete data — keeping previous matrix.' : 'بيانات الفحص ناقصة — الإبقاء على المصفوفة الحالية.')
+        setCountdownSeed(300)
+        return
+      }
       setScanProgress(100)
-      setBoard(result.data)
-      setCountdown(result.data.autoScanIntervalSec || 300)
+      setBoard(next)
+      setCountdownSeed(num(next.autoScanIntervalSec, 300))
+      setError(null)
+      const scannedLabel = (() => {
+        try {
+          return new Date(next.snapshot.scannedAt).toLocaleTimeString(en ? 'en-GB' : 'ar-KW')
+        } catch {
+          return '—'
+        }
+      })()
       setNotice(
         en
-          ? `Forensic scan complete · ${result.data.recorded} cells · ${new Date(result.data.scannedAt).toLocaleTimeString()}`
-          : `اكتمل الفحص الجنائي · ${result.data.recorded} خلية · ${new Date(result.data.scannedAt).toLocaleTimeString('ar-KW')}`,
+          ? `Forensic scan complete · ${num(next.recorded, next.rows.length)} cells · ${scannedLabel}`
+          : `اكتمل الفحص الجنائي · ${num(next.recorded, next.rows.length)} خلية · ${scannedLabel}`,
       )
       setPhase('ready')
     } catch (caught) {
+      // CRITICAL: never clear board on auto/manual scan failure.
+      setNotice(
+        en
+          ? 'Scan delayed or failed — live matrix kept. Retrying on next cycle.'
+          : 'تأخر أو فشل الفحص — المصفوفة الحية محفوظة. سيُعاد في الدورة التالية.',
+      )
       setError(caught instanceof ApiError ? caught.message : t(errorKey(caught)))
+      setCountdownSeed(300)
     } finally {
       window.clearInterval(tick)
       setBusy(false)
       window.setTimeout(() => setScanProgress(0), 600)
     }
   }, [brandId, branchId, platform, canManage, busy, en, t])
-
-  // Countdown + auto-scan every 5 minutes.
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setCountdown((value) => {
-        if (!autoScan) return value
-        if (value <= 1) {
-          void runScan()
-          return 300
-        }
-        return value - 1
-      })
-    }, 1000)
-    return () => window.clearInterval(timer)
-  }, [autoScan, runScan])
 
   async function sendInstantAlert() {
     setAlertBusy(true)
@@ -223,7 +379,7 @@ function Workspace() {
   }
 
   function exportCsv() {
-    if (!board) return
+    if (!board || !Array.isArray(board.rows)) return
     const header = [
       'brand',
       'branch',
@@ -239,17 +395,17 @@ function Workspace() {
     ]
     const lines = board.rows.map((row) =>
       [
-        row.brandNameEn,
-        cleanBranchLabel(row.branchNameEn, row.areaEn),
-        row.areaEn,
-        row.platform,
-        row.status,
-        row.mode,
-        row.offlineMinutes,
-        (row.commissionPenaltyMinor / 1000).toFixed(3),
-        (row.lostSalesMinor / 1000).toFixed(3),
-        (row.financialImpactMinor / 1000).toFixed(3),
-        row.accountCode,
+        row?.brandNameEn ?? '',
+        cleanBranchLabel(row?.branchNameEn ?? '', row?.areaEn ?? ''),
+        row?.areaEn ?? '',
+        row?.platform ?? '',
+        row?.status ?? '',
+        row?.mode ?? '',
+        num(row?.offlineMinutes),
+        safeFixed(num(row?.commissionPenaltyMinor) / 1000),
+        safeFixed(num(row?.lostSalesMinor) / 1000),
+        safeFixed(num(row?.financialImpactMinor) / 1000),
+        row?.accountCode ?? '',
       ].join(','),
     )
     const blob = new Blob([`\uFEFF${header.join(',')}\n${lines.join('\n')}`], { type: 'text/csv;charset=utf-8' })
@@ -273,15 +429,20 @@ function Workspace() {
       : FALLBACK_ALERT_RECIPIENTS.map((r) => ({ ...r }))
 
   const lastScanLabel = useMemo(() => {
-    if (!board?.snapshot.scannedAt) return '—'
-    return new Date(board.snapshot.scannedAt).toLocaleTimeString(en ? 'en-GB' : 'ar-KW', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false,
-      timeZone: 'Asia/Kuwait',
-    })
-  }, [board?.snapshot.scannedAt, en])
+    const iso = board?.snapshot?.scannedAt ?? board?.scannedAt
+    if (!iso) return '—'
+    try {
+      return new Date(iso).toLocaleTimeString(en ? 'en-GB' : 'ar-KW', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+        timeZone: 'Asia/Kuwait',
+      })
+    } catch {
+      return '—'
+    }
+  }, [board?.snapshot?.scannedAt, board?.scannedAt, en])
 
   if (phase === 'loading' && !board) {
     return <p className="text-sm text-gray-400">{en ? 'Loading forensic radar…' : 'جارٍ تحميل الرادار الجنائي…'}</p>
@@ -297,7 +458,7 @@ function Workspace() {
   const kpis = board?.kpis
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-no-translate="">
       <header className="space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -313,12 +474,10 @@ function Workspace() {
           <SmartIngestLink module="sales_delivery" />
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs text-gray-300">
-          <span className="rounded-full border border-white/10 px-3 py-1">
+          <span className="rounded-full border border-white/10 px-3 py-1" data-live-timer="">
             {en ? 'Last Scan' : 'آخر فحص'}: <strong className="text-gold-300">{lastScanLabel}</strong>
           </span>
-          <span className="rounded-full border border-white/10 px-3 py-1">
-            {en ? 'Next auto-scan' : 'الفحص التلقائي التالي'}: <strong className="text-emerald-300">{formatCountdown(countdown)}</strong>
-          </span>
+          <ScanCountdown initialSec={countdownSeed} autoScan={autoScan} onExpire={() => void runScan()} en={en} />
           <button
             type="button"
             className={`rounded-full border px-3 py-1 font-semibold ${autoScan ? 'border-emerald-400/50 bg-emerald-950/50 text-emerald-200' : 'border-white/15 text-gray-400'}`}
@@ -444,7 +603,7 @@ function Workspace() {
           <article className={panelClass}>
             <p className="text-xs text-gray-400">{en ? 'Talabat TGO 17% vs TMP 10%' : 'رصد TGO 17% مقابل TMP 10%'}</p>
             <p className="mt-2 text-sm text-gray-200">
-              TMP {(kpis.tmpOrderShareBps / 100).toFixed(1)}% · TGO {(kpis.tgoOrderShareBps / 100).toFixed(1)}%
+              TMP {safeFixed(num(kpis.tmpOrderShareBps) / 100, 1)}% · TGO {safeFixed(num(kpis.tgoOrderShareBps) / 100, 1)}%
             </p>
             <p className="mt-2 text-[11px] text-gray-400" dir="ltr">
               {kpis.mpAccount} MP 10% · {kpis.tgoAccount} Go 17%
@@ -470,7 +629,7 @@ function Workspace() {
         <h2 className="mb-3 font-semibold text-white">
           {en ? 'Live Forensic Matrix — TMP vs TGO & Offline Tracker' : 'مصفوفة الرصد الجنائي الحي — TMP مقابل TGO وتتبع الإغلاق'}
         </h2>
-        {!board || board.rows.length === 0 ? (
+        {!board || !Array.isArray(board.rows) || board.rows.length === 0 ? (
           <p className="text-sm text-gray-400">{en ? 'No rows in current scope. Run a scan.' : 'لا صفوف في النطاق الحالي. شغّل فحصاً.'}</p>
         ) : (
           <div className="overflow-x-auto">
@@ -489,6 +648,7 @@ function Workspace() {
               </thead>
               <tbody>
                 {board.rows.map((row) => {
+                  if (!row) return null
                   const status = statusBadge(row.status, en)
                   const mode = modeBadge(row.mode, en)
                   const area = en ? row.areaEn : row.areaAr
@@ -619,12 +779,12 @@ function Workspace() {
                   </tr>
                 </thead>
                 <tbody>
-                  {board.report.byBrand.map((row) => (
-                    <tr key={row.brandId} className="border-t border-white/5">
-                      <td className="px-2 py-2">{displayBrandName(row.brandNameEn, row.brandNameAr, locale)}</td>
-                      <td className="px-2 py-2">{row.offlineMinutes}</td>
-                      <td className="px-2 py-2">{formatKwdMinor(row.penaltyMinor, locale)}</td>
-                      <td className="px-2 py-2 text-gold-300">{formatKwdMinor(row.impactMinor, locale)}</td>
+                  {(board.report.byBrand ?? []).map((row) => (
+                    <tr key={row?.brandId ?? row?.brandNameEn} className="border-t border-white/5">
+                      <td className="px-2 py-2">{displayBrandName(row?.brandNameEn ?? '', row?.brandNameAr ?? '', locale)}</td>
+                      <td className="px-2 py-2">{num(row?.offlineMinutes)}</td>
+                      <td className="px-2 py-2">{formatKwdMinor(row?.penaltyMinor, locale)}</td>
+                      <td className="px-2 py-2 text-gold-300">{formatKwdMinor(row?.impactMinor, locale)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -635,14 +795,14 @@ function Workspace() {
               <div>
                 <h3 className="mb-2 font-semibold text-white">{en ? '24h timeline (5-minute cadence)' : 'خط زمني 24 ساعة (كل 5 دقائق)'}</h3>
                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                  {board.report.timeline.slice(0, 24).map((slot) => (
-                    <div key={slot.hourLabel} className="rounded-lg border border-white/10 px-3 py-2 text-xs">
-                      <p className="font-semibold text-gold-200">{slot.hourLabel}</p>
+                  {(board.report.timeline ?? []).slice(0, 24).map((slot, idx) => (
+                    <div key={slot?.hourLabel ?? idx} className="rounded-lg border border-white/10 px-3 py-2 text-xs">
+                      <p className="font-semibold text-gold-200">{slot?.hourLabel ?? '—'}</p>
                       <p>
-                        {en ? 'Offline' : 'إغلاق'}: {slot.offlineMinutes}m
+                        {en ? 'Offline' : 'إغلاق'}: {num(slot?.offlineMinutes)}m
                       </p>
                       <p>
-                        TGO: {slot.tgoForcedCount} · {formatKwdMinor(slot.impactMinor, locale)}
+                        TGO: {num(slot?.tgoForcedCount)} · {formatKwdMinor(slot?.impactMinor, locale)}
                       </p>
                     </div>
                   ))}
@@ -654,13 +814,13 @@ function Workspace() {
               <div>
                 <h3 className="mb-2 font-semibold text-white">{en ? 'Weekday / period breakdown' : 'تفصيل الأيام / الفترة'}</h3>
                 <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                  {board.report.weekdays.map((day) => (
-                    <li key={day.dayLabel} className="rounded-lg border border-white/10 px-3 py-2 text-xs">
-                      <p className="font-semibold text-gold-200">{day.dayLabel}</p>
+                  {(board.report.weekdays ?? []).map((day, idx) => (
+                    <li key={day?.dayLabel ?? idx} className="rounded-lg border border-white/10 px-3 py-2 text-xs">
+                      <p className="font-semibold text-gold-200">{day?.dayLabel ?? '—'}</p>
                       <p>
-                        {en ? 'Offline' : 'إغلاق'}: {day.offlineMinutes}m · TGO {day.tgoForcedCount}
+                        {en ? 'Offline' : 'إغلاق'}: {num(day?.offlineMinutes)}m · TGO {num(day?.tgoForcedCount)}
                       </p>
-                      <p>{formatKwdMinor(day.impactMinor, locale)}</p>
+                      <p>{formatKwdMinor(day?.impactMinor, locale)}</p>
                     </li>
                   ))}
                 </ul>

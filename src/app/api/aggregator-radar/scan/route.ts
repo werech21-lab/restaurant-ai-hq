@@ -22,16 +22,20 @@ export const POST = protectedRoute(permissions.govAggregatorManage, async ({ req
   return NextResponse.json(
     {
       data: {
-        recorded: board.recorded,
-        alerted: board.alerted,
-        bucket: board.snapshot.bucket,
-        scannedAt: board.snapshot.scannedAt,
+        recorded: board.recorded ?? 0,
+        alerted: Boolean(board.alerted),
+        bucket: board.snapshot?.bucket ?? new Date().toISOString(),
+        scannedAt: board.snapshot?.scannedAt ?? new Date().toISOString(),
+        snapshot: {
+          bucket: board.snapshot?.bucket ?? new Date().toISOString(),
+          scannedAt: board.snapshot?.scannedAt ?? new Date().toISOString(),
+        },
         kpis: board.kpis,
-        rows: board.rows,
+        rows: Array.isArray(board.rows) ? board.rows : [],
         report: board.report,
-        historyCount: board.historyCount,
-        nextScanInSec: board.nextScanInSec,
-        autoScanIntervalSec: board.autoScanIntervalSec,
+        historyCount: Number(board.historyCount) || 0,
+        nextScanInSec: Number(board.nextScanInSec) || 300,
+        autoScanIntervalSec: Number(board.autoScanIntervalSec) || 300,
       },
     },
     { status: 201 },

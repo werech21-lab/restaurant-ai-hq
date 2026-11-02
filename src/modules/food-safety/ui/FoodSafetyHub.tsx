@@ -79,7 +79,11 @@ function LiveCountdown({ expiresAt, status }: { expiresAt: string; status: strin
       : status === 'fefo'
         ? 'text-amber-300'
         : 'text-emerald-300'
-  return <span className={`font-mono text-base font-black tabular-nums ${color}`}>{parts.display}</span>
+  return (
+    <span className={`font-mono text-base font-black tabular-nums ${color}`} data-live-timer="" data-no-translate="">
+      {parts.display}
+    </span>
+  )
 }
 
 function openLabelHtml(html: string, title: string) {
