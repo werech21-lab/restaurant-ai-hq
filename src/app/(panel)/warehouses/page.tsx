@@ -42,8 +42,23 @@ async function WarehousesContent({ searchParams }: { searchParams: Promise<RawQu
   const [stocks, transfers, products] = await Promise.all([
     selected ? warehouseStock(selected) : Promise.resolve([]),
     listTransfers((query.page - 1) * PAGE_SIZE, PAGE_SIZE),
-    prisma.product.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, code: true }, take: 200 }),
+    prisma.product.findMany({
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, code: true },
+      take: 500,
+    }),
   ]);
+
+  const transferProducts = products.filter((product) => {
+    const name = product.name.toLowerCase();
+    const code = product.code.toUpperCase();
+    if (/^\d+%\s*on\s+your\s+order/i.test(product.name)) return false;
+    if (name.includes("on your order")) return false;
+    if (name.includes("3rd party") || name.includes("delivery charges")) return false;
+    if (/\b(10|15|20|25|30|50)%\b/.test(name) && name.includes("order")) return false;
+    if (code.startsWith("DISC") || code.startsWith("CPN") || code.startsWith("PROMO")) return false;
+    return true;
+  });
 
   return (
     <div>
@@ -69,7 +84,7 @@ async function WarehousesContent({ searchParams }: { searchParams: Promise<RawQu
       <WarehouseForms
         canCreate={can(user, "warehouses", "create")}
         warehouses={warehouses.map((warehouse) => ({ id: warehouse.id, name: warehouse.name }))}
-        products={products}
+        products={transferProducts}
       />
       <div className="mb-4 flex flex-wrap gap-2">
         {warehouses.map((warehouse) => (

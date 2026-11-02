@@ -3,12 +3,13 @@
 import { useEffect, useRef } from 'react'
 import { usePathname } from 'next/navigation'
 import { useI18n } from '@/lib/i18n'
-import { ARABIC_RE, translateArabicText } from '@/lib/i18n/auto-dictionary'
+import { ARABIC_RE, translateArabicText } from '@/lib/i18n/comprehensive-ar-en-map'
 
-const ATTRS = ['placeholder', 'title', 'aria-label', 'alt'] as const
+const ATTRS = ['placeholder', 'title', 'aria-label', 'alt', 'aria-description'] as const
 const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'CODE', 'PRE', 'TEXTAREA'])
 const ORIGINAL_ATTR = 'data-original-ar'
 const ATTR_ORIGINAL_PREFIX = 'data-original-ar-'
+const VALUE_ORIGINAL = 'data-original-ar-value'
 
 function shouldSkip(node: Node): boolean {
   if (node.nodeType === Node.ELEMENT_NODE) {
@@ -33,6 +34,7 @@ function translateTextNode(node: Text, toEn: boolean) {
   if (toEn) {
     if (!ARABIC_RE.test(current)) return
     rememberOriginal(parent, ORIGINAL_ATTR, current)
+    // Prefer translating the full parent textContent for option/button labels when single child.
     const next = translateArabicText(current)
     if (next !== current) node.nodeValue = next
     return
@@ -60,6 +62,37 @@ function translateAttributes(el: HTMLElement, toEn: boolean) {
       if (original != null) el.setAttribute(attr, original)
     }
   }
+
+  // <option> / <optgroup> labels sometimes live only in the value attribute or label attr.
+  if (el instanceof HTMLOptionElement || el.tagName === 'OPTGROUP') {
+    const label = el.getAttribute('label')
+    if (label && ARABIC_RE.test(label)) {
+      const storeKey = `${ATTR_ORIGINAL_PREFIX}label`
+      if (toEn) {
+        rememberOriginal(el, storeKey, label)
+        el.setAttribute('label', translateArabicText(label))
+      } else {
+        const original = el.getAttribute(storeKey)
+        if (original != null) el.setAttribute('label', original)
+      }
+    }
+  }
+
+  // Selected value display for native selects: translate option textContent is enough,
+  // but also repair hybrid leftovers like "Save المستودع" on buttons.
+  if (el instanceof HTMLButtonElement || el instanceof HTMLLabelElement || el instanceof HTMLSpanElement) {
+    const text = el.childNodes.length === 1 && el.childNodes[0].nodeType === Node.TEXT_NODE ? el.textContent : null
+    if (text && ARABIC_RE.test(text)) {
+      if (toEn) {
+        rememberOriginal(el, VALUE_ORIGINAL, text)
+        const next = translateArabicText(text)
+        if (next !== text && el.firstChild) el.firstChild.nodeValue = next
+      } else {
+        const original = el.getAttribute(VALUE_ORIGINAL)
+        if (original != null && el.firstChild) el.firstChild.nodeValue = original
+      }
+    }
+  }
 }
 
 function translateTitle(toEn: boolean, titleOriginalRef: { current: string | null }) {
@@ -68,7 +101,6 @@ function translateTitle(toEn: boolean, titleOriginalRef: { current: string | nul
       if (titleOriginalRef.current == null) titleOriginalRef.current = document.title
       document.title = translateArabicText(document.title)
     } else if (titleOriginalRef.current && ARABIC_RE.test(titleOriginalRef.current)) {
-      // React may have already set a mixed title — keep EN mapping of original.
       document.title = translateArabicText(titleOriginalRef.current)
     }
   } else if (titleOriginalRef.current != null) {
@@ -91,7 +123,7 @@ function walk(root: Node, toEn: boolean) {
 
 /**
  * Client-side safety net: when locale === "en", wipe residual Arabic from the live DOM
- * (server HTML, DB labels, hard-coded strings). Switching back to AR restores originals.
+ * including <option> labels, placeholders, titles, and hybrid leftovers ("Save المستودع").
  */
 export function GlobalAutoTranslator() {
   const { locale } = useI18n()
@@ -115,42 +147,38 @@ export function GlobalAutoTranslator() {
 
     run()
     const raf = window.requestAnimationFrame(run)
-    const t1 = window.setTimeout(run, 50)
-    const t2 = window.setTimeout(run, 250)
-    const t3 = window.setTimeout(run, 800)
+    const t1 = window.setTimeout(run, 40)
+    const t2 = window.setTimeout(run, 200)
+    const t3 = window.setTimeout(run, 700)
+    const t4 = window.setTimeout(run, 1600)
 
     const observer = new MutationObserver((mutations) => {
       if (!toEn) {
-        // Still allow AR restore on subtree inserts that already carry originals.
         run()
         return
       }
-      let needs = false
       for (const mutation of mutations) {
         if (mutation.type === 'characterData') {
-          const text = mutation.target.nodeValue ?? ''
-          if (ARABIC_RE.test(text)) {
-            needs = true
-            break
+          if (ARABIC_RE.test(mutation.target.nodeValue ?? '')) {
+            run()
+            return
           }
         }
         if (mutation.type === 'childList' && mutation.addedNodes.length) {
-          needs = true
-          break
+          run()
+          return
         }
         if (mutation.type === 'attributes') {
-          const el = mutation.target as HTMLElement
           const attr = mutation.attributeName
-          if (attr && ATTRS.includes(attr as (typeof ATTRS)[number])) {
-            const value = el.getAttribute(attr) ?? ''
-            if (ARABIC_RE.test(value)) {
-              needs = true
-              break
-            }
+          if (!attr) continue
+          const el = mutation.target as HTMLElement
+          const value = el.getAttribute(attr) ?? ''
+          if (ARABIC_RE.test(value)) {
+            run()
+            return
           }
         }
       }
-      if (needs) run()
     })
 
     observer.observe(document.body, {
@@ -158,7 +186,7 @@ export function GlobalAutoTranslator() {
       childList: true,
       characterData: true,
       attributes: true,
-      attributeFilter: [...ATTRS],
+      attributeFilter: [...ATTRS, 'label'],
     })
 
     return () => {
@@ -167,6 +195,7 @@ export function GlobalAutoTranslator() {
       window.clearTimeout(t1)
       window.clearTimeout(t2)
       window.clearTimeout(t3)
+      window.clearTimeout(t4)
     }
   }, [locale, pathname])
 

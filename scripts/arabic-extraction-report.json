@@ -1,0 +1,254 @@
+{
+  "generatedAt": "2026-11-02T07:10:44.443Z",
+  "filesScanned": 805,
+  "uniquePhrasesFound": 4167,
+  "mapEntries": 3784,
+  "coveredExactOrPaired": 2081,
+  "coveredByFallback": 86,
+  "coveredBySubstringBake": 1606,
+  "stillUnmappedAtGeneration": 394,
+  "topFiles": [
+    {
+      "file": "src\\lib\\i18n\\comprehensive-ar-en-map.ts",
+      "count": 3745
+    },
+    {
+      "file": "src\\lib\\i18n.tsx",
+      "count": 2393
+    },
+    {
+      "file": "src\\lib\\assistant.ts",
+      "count": 181
+    },
+    {
+      "file": "src\\services\\assistant.service.ts",
+      "count": 172
+    },
+    {
+      "file": "src\\lib\\i18n\\panel-messages.ts",
+      "count": 153
+    },
+    {
+      "file": "src\\services\\universal-folder-ingestor.service.ts",
+      "count": 119
+    },
+    {
+      "file": "src\\services\\report.service.ts",
+      "count": 115
+    },
+    {
+      "file": "src\\modules\\ai\\domain\\rules.ts",
+      "count": 91
+    },
+    {
+      "file": "src\\modules\\ai\\domain\\command.ts",
+      "count": 87
+    },
+    {
+      "file": "src\\modules\\governance\\domain\\aggregator.ts",
+      "count": 77
+    },
+    {
+      "file": "src\\services\\hr-folder-ingestor.service.ts",
+      "count": 65
+    },
+    {
+      "file": "src\\app\\(panel)\\inventory\\inventory-panel.tsx",
+      "count": 54
+    },
+    {
+      "file": "src\\services\\payment-gateway.service.ts",
+      "count": 51
+    },
+    {
+      "file": "src\\app\\(panel)\\reports\\page.tsx",
+      "count": 48
+    },
+    {
+      "file": "src\\services\\rbac.service.ts",
+      "count": 44
+    },
+    {
+      "file": "src\\services\\sales.service.ts",
+      "count": 42
+    },
+    {
+      "file": "src\\lib\\format.ts",
+      "count": 41
+    },
+    {
+      "file": "prisma\\seed.ts",
+      "count": 41
+    },
+    {
+      "file": "src\\services\\purchases.service.ts",
+      "count": 38
+    },
+    {
+      "file": "src\\lib\\i18n\\auto-translate.ts",
+      "count": 37
+    },
+    {
+      "file": "src\\lib\\venture-foods-team.ts",
+      "count": 37
+    },
+    {
+      "file": "src\\components\\trade-panel.tsx",
+      "count": 34
+    },
+    {
+      "file": "src\\modules\\ai\\domain\\messages.ts",
+      "count": 34
+    },
+    {
+      "file": "src\\app\\(panel)\\app-builder\\app-builder-panel.tsx",
+      "count": 32
+    },
+    {
+      "file": "src\\app\\(panel)\\hr\\page.tsx",
+      "count": 32
+    },
+    {
+      "file": "src\\lib\\venture-hierarchy.ts",
+      "count": 32
+    },
+    {
+      "file": "src\\services\\crm.service.ts",
+      "count": 32
+    },
+    {
+      "file": "src\\services\\inventory.service.ts",
+      "count": 32
+    },
+    {
+      "file": "src\\app\\(pos)\\pos\\pos-terminal.tsx",
+      "count": 31
+    },
+    {
+      "file": "src\\app\\(panel)\\hr\\smart-folder-upload\\upload-client.tsx",
+      "count": 30
+    },
+    {
+      "file": "src\\app\\(panel)\\crm\\crm-board.tsx",
+      "count": 29
+    },
+    {
+      "file": "src\\app\\(panel)\\users\\users-panel.tsx",
+      "count": 29
+    },
+    {
+      "file": "src\\app\\(panel)\\hr\\compliance-radar\\radar-client.tsx",
+      "count": 28
+    },
+    {
+      "file": "src\\app\\(panel)\\settings\\aetherbi\\domain-panel.tsx",
+      "count": 28
+    },
+    {
+      "file": "src\\components\\SmartDepartmentFolderUpload.tsx",
+      "count": 28
+    },
+    {
+      "file": "src\\services\\hr.service.ts",
+      "count": 27
+    },
+    {
+      "file": "src\\services\\notification.service.ts",
+      "count": 27
+    },
+    {
+      "file": "src\\app\\(panel)\\accounting\\page.tsx",
+      "count": 25
+    },
+    {
+      "file": "src\\app\\(panel)\\hr\\hr-forms.tsx",
+      "count": 24
+    },
+    {
+      "file": "src\\app\\(panel)\\saas\\saas-panel.tsx",
+      "count": 24
+    }
+  ],
+  "sampleUnmapped": [
+    "مفتاح البوابة وسر الويب هوك مطلوبان",
+    "البيع الآجل لا يحصّل مبلغاً فورياً",
+    "أُرسلت الرسالة عبر واتساب الرسمي",
+    "ليست لديك صلاحية عرض هذه الصفحة",
+    "أجهزة تحضير وطهي لفروع المطاعم",
+    "المسير موجود مسبقاً لهذا الشهر",
+    "عبوات، أكواب، ومستلزمات الخدمة",
+    "كمية المكوّن يجب أن تكون موجبة",
+    "لا يوجد مدير نظام لتسجيل القيد",
+    "ليست لديك صلاحية ربط تليجرام",
+    "القيد يحتاج سطرين على الأقل",
+    "رابط الدفع غير قابل للتحصيل",
+    "فحص حالة اتصال الدومين الحي",
+    "ليست لديك صلاحية نقطة البيع",
+    "جدول التوزيع التلقائي الحي",
+    "الرصيد الافتتاحي غير صالح",
+    "كشف حسابكم لدى فنتشر فودز",
+    "تطبيق سطح المكتب والجوال",
+    "إشعارات تليجرام وواتساب",
+    "الرابط لا يطابق البوابة",
+    "انتهت صلاحية رابط الدفع",
+    "تنزيل النسخة الاحتياطية",
+    "توليد رابط دفع إلكتروني",
+    "عبدالله عبدالغفار عويرة",
+    "نسخة سطح المكتب لويندوز",
+    "إحالة للشؤون القانونية",
+    "العرض لا يحتوي أصنافاً",
+    "العودة للموارد البشرية",
+    "النسخة المحلية الأبدية",
+    "تموينات فنتشر المركزية",
+    "جسم الويب هوك غير صالح",
+    "سر الويب هوك غير مضبوط",
+    "سرعة الاستعلام المفهرس",
+    "علبة تغليف ورقية كبيرة",
+    "ما هي الأصناف الناقصة؟",
+    "مزود البوابة غير معروف",
+    "معدات المطابخ الكويتية",
+    "نسخة المشروع والبيانات",
+    "وسيلة الدفع غير مدعومة",
+    "اختر مستودعين مختلفين",
+    "تثبيت فوري على الجهاز",
+    "تم تسجيل الدفع سابقاً",
+    "جدول التوزيع التلقائي",
+    "حالة الاتصال والزوّار",
+    "دليل الهواتف والبدالة",
+    "رابط الدفع الإلكتروني",
+    "كرك وشاباتي وكافتيريا",
+    "المساعد الذكي للنظام",
+    "رابط الدفع غير موجود",
+    "عرض البيانات الممتدة",
+    "لجنة التقصي الداخلية",
+    "وضع واتساب غير معروف",
+    "أضف سطرين على الأقل",
+    "التوقع الذكي للنفاد",
+    "تعبئة وتغليف الخليج",
+    "توليد رابط الاشتراك",
+    "ستيك فيلي وساندويتش",
+    "التذكرة غير موجودة",
+    "المستخدم غير موجود",
+    "تعذر إصدار الإيصال",
+    "تعذر تحميل الخزانة",
+    "سندات القبض والصرف",
+    "صواني تقديم ستانلس",
+    "مزارع ولحوم الكويت",
+    "نظام إدارة الموارد",
+    "خلاط صناعي للمطبخ",
+    "شاورما وشارع شامي",
+    "كم مشتريات الشهر؟",
+    "لا توجد حركة صادر",
+    "لم يُجلب حساب بعد",
+    "مبيعات نقاط البيع",
+    "مواد غذائية طازجة",
+    "الرصيد الافتتاحي",
+    "العودة للمشتريات",
+    "المحفز غير مدعوم",
+    "المعرّف اللاتيني",
+    "الوجبات الرئيسية",
+    "تم تسجيل التسوية",
+    "خضار مشكلة طازجة",
+    "دجاج مقلي وكرسبي"
+  ]
+}
