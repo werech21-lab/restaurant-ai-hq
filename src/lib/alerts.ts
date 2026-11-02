@@ -241,6 +241,7 @@ export type OperationalReportDispatchResult = {
     message: string
     error?: string
     messageId?: string
+    response?: string
   }
 }
 
@@ -335,6 +336,7 @@ export async function dispatchExclusiveOperationalReport(
       message: email.message,
       error: email.error,
       messageId: email.messageId,
+      response: email.response,
     },
   }
 }

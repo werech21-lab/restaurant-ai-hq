@@ -81,6 +81,7 @@ type DeliveryFeedback = {
   message: string
   error?: string
   messageId?: string
+  response?: string
   summary?: {
     critical: number
     watch: number
@@ -285,9 +286,6 @@ function Workspace() {
   const [platform, setPlatform] = useState('')
   const [board, setBoard] = useState<BoardPayload | null>(null)
   const [alertBusy, setAlertBusy] = useState(false)
-  const [smtpBusy, setSmtpBusy] = useState(false)
-  const [smtpFrom, setSmtpFrom] = useState('sec@venturefoodskw.com')
-  const [smtpPass, setSmtpPass] = useState('')
   const [smtpStatus, setSmtpStatus] = useState<BoardPayload['smtp'] | null>(null)
   const [delivery, setDelivery] = useState<DeliveryFeedback | null>(null)
   const boardRef = useRef<BoardPayload | null>(null)
@@ -307,10 +305,7 @@ function Workspace() {
       const next = normalizeBoard(page.data, boardRef.current)
       if (!next) throw new Error('invalid_radar_payload')
       setBoard(next)
-      if (next.smtp) {
-        setSmtpStatus(next.smtp)
-        if (next.smtp.from) setSmtpFrom(next.smtp.from)
-      }
+      if (next.smtp) setSmtpStatus(next.smtp)
       setCountdownSeed(num(next.nextScanInSec || next.autoScanIntervalSec, 300))
       setPhase('ready')
       setError(null)
@@ -389,31 +384,6 @@ function Workspace() {
       window.setTimeout(() => setScanProgress(0), 600)
     }
   }, [brandId, branchId, platform, canManage, busy, en, t])
-
-  async function saveSmtpAndActivate() {
-    setSmtpBusy(true)
-    setError(null)
-    setNotice(null)
-    try {
-      const result = await apiRequest<{
-        data: { smtp: NonNullable<BoardPayload['smtp']>; message: string }
-      }>('/api/aggregator-radar/smtp', {
-        method: 'POST',
-        body: { fromEmail: smtpFrom.trim() || 'sec@venturefoodskw.com', smtpPass },
-      })
-      setSmtpStatus(result.data.smtp)
-      setSmtpPass('')
-      setNotice(
-        en
-          ? result.data.message || 'SMTP activated — automatic server-to-inbox dispatch is on.'
-          : 'تم تفعيل SMTP — الإرسال المباشر من السيرفر إلى صناديق الوارد يعمل الآن.',
-      )
-    } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : t(errorKey(caught)))
-    } finally {
-      setSmtpBusy(false)
-    }
-  }
 
   async function sendInstantAlert() {
     setAlertBusy(true)
@@ -588,67 +558,13 @@ function Workspace() {
         </div>
       </header>
 
-      {!(smtpStatus?.enabled || smtpStatus?.configured) && canManage ? (
-        <section className="rounded-2xl border border-amber-400/40 bg-amber-950/40 p-4" aria-labelledby="smtp-activate-bar">
-          <h2 id="smtp-activate-bar" className="text-sm font-bold text-amber-100">
-            {en
-              ? 'Activate direct server-to-inbox SMTP (no mailto / no popup)'
-              : 'تفعيل SMTP للإرسال المباشر من السيرفر إلى صندوق الوارد (بدون mailto)'}
-          </h2>
-          <p className="mt-1 text-xs text-amber-100/80">
-            {en
-              ? 'Until SMTP is saved, the server still sends via FormSubmit HTTP relay to the three exclusive inboxes. Save a Google App Password once — no redeploy needed.'
-              : 'حتى حفظ SMTP، السيرفر يرسل عبر بوابة FormSubmit مباشرة للمستلمين الثلاثة. احفظ Google App Password مرة واحدة — بدون إعادة نشر.'}
-          </p>
-          <div className="mt-3 flex flex-wrap items-end gap-3">
-            <label className="block text-xs text-amber-100/90">
-              {en ? 'From email' : 'البريد المرسل'}
-              <input
-                className="mt-1 block w-64 rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
-                dir="ltr"
-                value={smtpFrom}
-                onChange={(e) => setSmtpFrom(e.target.value)}
-                placeholder="sec@venturefoodskw.com"
-                autoComplete="username"
-              />
-            </label>
-            <label className="block text-xs text-amber-100/90">
-              {en ? 'Google App Password / SMTP Password' : 'كلمة مرور التطبيق / SMTP'}
-              <input
-                className="mt-1 block w-72 rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
-                dir="ltr"
-                type="password"
-                value={smtpPass}
-                onChange={(e) => setSmtpPass(e.target.value)}
-                placeholder="xxxx xxxx xxxx xxxx"
-                autoComplete="current-password"
-              />
-            </label>
-            <button
-              type="button"
-              className={primaryButton}
-              disabled={smtpBusy || smtpPass.trim().length < 8}
-              onClick={() => void saveSmtpAndActivate()}
-            >
-              {smtpBusy
-                ? en
-                  ? 'Saving…'
-                  : 'جارٍ الحفظ…'
-                : en
-                  ? 'Save & activate direct inbox dispatch'
-                  : 'حفظ وتفعيل الإرسال التلقائي المباشر للأبد'}
-            </button>
-          </div>
-        </section>
-      ) : null}
-
-      {(smtpStatus?.enabled || smtpStatus?.configured) && (
-        <p className="rounded-xl border border-emerald-400/30 bg-emerald-950/30 px-3 py-2 text-xs text-emerald-100">
-          {en
-            ? `SMTP active · from ${smtpStatus.from} · ${smtpStatus.host}:${smtpStatus.port} · server-to-inbox only`
-            : `SMTP مفعّل · من ${smtpStatus.from} · ${smtpStatus.host}:${smtpStatus.port} · إرسال سيرفر مباشر فقط`}
-        </p>
-      )}
+      <p
+        className="rounded-xl border border-emerald-400/40 bg-emerald-950/40 px-3 py-2 text-sm font-semibold text-emerald-100"
+        role="status"
+        dir="ltr"
+      >
+        🟢 Google Workspace Direct SMTP Active (sec@venturefoodskw.com -&gt; 3 Authorized Recipients)
+      </p>
 
       <section className="rounded-2xl border border-red-400/30 bg-red-950/30 p-4" aria-labelledby="radar-alert-bar">
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -658,8 +574,8 @@ function Workspace() {
             </h2>
             <p className="mt-1 text-xs text-red-100/80">
               {en
-                ? 'Server sends the Detailed Daily Operational & Forensic Report straight to these three inboxes (SMTP or FormSubmit). No mailto. No external windows.'
-                : 'السيرفر يرسل التقرير التشغيلي والجنائي المفصل مباشرة إلى صناديق هؤلاء الثلاثة (SMTP أو FormSubmit). بدون mailto وبدون نوافذ خارجية.'}
+                ? 'Server sends the Detailed Daily Operational & Forensic Report via Google Workspace SMTP (sec@venturefoodskw.com) to these three inboxes only. No mailto. No popups. No FormSubmit.'
+                : 'السيرفر يرسل التقرير التشغيلي والجنائي المفصل عبر Google Workspace SMTP (sec@venturefoodskw.com) إلى هؤلاء الثلاثة فقط. بدون mailto وبدون نوافذ وبدون FormSubmit.'}
             </p>
           </div>
           {canManage ? (
@@ -718,6 +634,11 @@ function Workspace() {
             {delivery.messageId ? (
               <p className="mt-1 text-xs opacity-80" dir="ltr">
                 Message-ID: {delivery.messageId}
+              </p>
+            ) : null}
+            {delivery.response ? (
+              <p className="mt-1 text-xs opacity-80" dir="ltr">
+                SMTP: {delivery.response}
               </p>
             ) : null}
             {delivery.summary ? (
