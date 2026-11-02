@@ -1,8 +1,11 @@
 import {
+  brandScopeLabel,
   computeExpiry,
   defaultStorageMode,
   getShelfLifeRule,
   listShelfLifeRules,
+  primaryOwnerBrand,
+  ruleAllowedAtSiteBrand,
   resolveShelfHours,
   type BrandScope,
   type ShelfCategory,
@@ -113,6 +116,15 @@ export function createShelfLifeBatch(input: CreateBatchInput) {
   if (!site) throw new Error('site_not_found')
   const rule = getShelfLifeRule(input.itemCode)
   if (!rule) throw new Error('item_not_found')
+  if (!ruleAllowedAtSiteBrand(rule, site.brandId)) {
+    throw new Error('brand_item_site_mismatch')
+  }
+  const owner = primaryOwnerBrand(rule)
+  if (input.brandId && input.brandId !== 'SHARED' && input.brandId !== 'CENTRAL-KITCHEN') {
+    if (owner !== 'SHARED' && owner !== input.brandId) {
+      throw new Error('brand_item_mismatch')
+    }
+  }
   const mode: StorageMode = input.storageMode ?? defaultStorageMode(rule)
   const shelfHours = resolveShelfHours(rule, mode)
   if (shelfHours == null) throw new Error('storage_mode_not_allowed')
@@ -120,12 +132,15 @@ export function createShelfLifeBatch(input: CreateBatchInput) {
   const expiresAt = computeExpiry(preparedAt, shelfHours)
   const cls = classifyShelfLife(expiresAt.toISOString(), new Date(), rule.fefoWarnHours)
   const barcode = buildBrotherBarcode(rule.code, preparedAt.toISOString(), site.id)
+  const brandId = site.brandId ?? (owner === 'SHARED' ? null : owner)
+  const brandNameEn = site.brandId ? site.brandNameEn : brandScopeLabel(owner, true)
+  const brandNameAr = site.brandId ? site.brandNameAr : brandScopeLabel(owner, false)
   const row: ShelfLifeBatch = {
     id: `BATCH-${Date.now()}`,
     siteId: site.id,
-    brandId: input.brandId ?? site.brandId,
-    brandNameEn: site.brandNameEn,
-    brandNameAr: site.brandNameAr,
+    brandId,
+    brandNameEn,
+    brandNameAr,
     itemCode: rule.code,
     itemNameEn: rule.nameEn,
     itemNameAr: rule.nameAr,
@@ -146,7 +161,7 @@ export function createShelfLifeBatch(input: CreateBatchInput) {
   }
   addBatch(row)
   const labelInput = {
-    brandName: site.brandNameEn,
+    brandName: brandNameEn,
     siteName: site.nameEn,
     itemCode: rule.code,
     itemName: rule.nameEn,

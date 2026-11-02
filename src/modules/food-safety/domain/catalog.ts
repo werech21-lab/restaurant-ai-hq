@@ -38,15 +38,15 @@ export const COLD_UNIT_SPECS: readonly ColdUnitSpec[] = [
   { kind: 'beverage_chiller', nameEn: 'Beverage / Pepsi Chiller', nameAr: 'براد المشروبات / بيبسي', targetC: 4, warnAboveC: 7, criticalAboveC: 10 },
 ]
 
-/** Extra sites beyond the 10 operating branches (CK + warehouses). */
+/** Extra sites beyond the 10 operating branches (CK + brand locations for HACCP). */
 export const EXTRA_SITES = [
   {
     id: 'CK-QURAIN',
     brandId: null as string | null,
     areaEn: 'Al-Qurain',
     areaAr: 'القرين',
-    nameEn: 'Central Kitchen (CK) · Aswaq Al-Qurain',
-    nameAr: 'المطبخ المركزي · أسواق القرين',
+    nameEn: 'Central Kitchen · Al-Qurain',
+    nameAr: 'المطبخ المركزي · القرين',
   },
   {
     id: 'WH-QURAIN',
@@ -56,21 +56,23 @@ export const EXTRA_SITES = [
     nameEn: 'Main Warehouse · Aswaq Al-Qurain',
     nameAr: 'المستودع الرئيسي · أسواق القرين',
   },
+  // Farm Brown
   {
-    id: 'WH-ARDIYA',
+    id: 'FB-ALKOUT',
     brandId: 'FARM-BROWN',
-    areaEn: 'Ardiya Warehouse',
-    areaAr: 'مستودع العارضية',
-    nameEn: 'Warehouse · Ardiya',
-    nameAr: 'مستودع · العارضية',
+    areaEn: 'Al-Kout Mall',
+    areaAr: 'الكوت مول',
+    nameEn: 'Farm Brown · Al-Kout Mall',
+    nameAr: 'فارم براون · الكوت مول',
   },
+  // China Garden
   {
-    id: 'CG-ASSIMA',
+    id: 'CG-SALMIYA',
     brandId: 'CHINA-GARDEN',
-    areaEn: 'Assima Mall',
-    areaAr: 'العاصمة مول',
-    nameEn: 'China Garden · Assima Mall',
-    nameAr: 'تشاينا جاردن · العاصمة مول',
+    areaEn: 'Salmiya',
+    areaAr: 'السالمية',
+    nameEn: 'China Garden · Salmiya',
+    nameAr: 'تشاينا جاردن · السالمية',
   },
   {
     id: 'CG-360',
@@ -81,12 +83,112 @@ export const EXTRA_SITES = [
     nameAr: 'تشاينا جاردن · 360 مول',
   },
   {
-    id: 'FB-ALKOUT',
-    brandId: 'FARM-BROWN',
+    id: 'CG-ASSIMA',
+    brandId: 'CHINA-GARDEN',
+    areaEn: 'Assima Mall',
+    areaAr: 'العاصمة مول',
+    nameEn: 'China Garden · Assima Mall',
+    nameAr: 'تشاينا جاردن · العاصمة مول',
+  },
+  {
+    id: 'CG-AVENUES',
+    brandId: 'CHINA-GARDEN',
+    areaEn: 'The Avenues',
+    areaAr: 'الأفنيوز',
+    nameEn: 'China Garden · The Avenues',
+    nameAr: 'تشاينا جاردن · الأفنيوز',
+  },
+  {
+    id: 'CG-KOUT',
+    brandId: 'CHINA-GARDEN',
     areaEn: 'Al-Kout Mall',
     areaAr: 'الكوت مول',
-    nameEn: 'Farm Brown · Al-Kout Mall',
-    nameAr: 'فارم براون · الكوت مول',
+    nameEn: 'China Garden · Al-Kout Mall',
+    nameAr: 'تشاينا جاردن · الكوت مول',
+  },
+  {
+    id: 'CG-JAHRA',
+    brandId: 'CHINA-GARDEN',
+    areaEn: 'Jahra',
+    areaAr: 'الجهراء',
+    nameEn: 'China Garden · Jahra',
+    nameAr: 'تشاينا جاردن · الجهراء',
+  },
+  // Frank's
+  {
+    id: 'FS-SALMIYA',
+    brandId: 'FRANKS-STEAK',
+    areaEn: 'Salmiya',
+    areaAr: 'السالمية',
+    nameEn: "Frank's · Salmiya",
+    nameAr: 'فرانكس · السالمية',
+  },
+  {
+    id: 'FS-ARDIYA',
+    brandId: 'FRANKS-STEAK',
+    areaEn: 'Ardiya',
+    areaAr: 'العارضية',
+    nameEn: "Frank's · Ardiya",
+    nameAr: 'فرانكس · العارضية',
+  },
+  {
+    id: 'FS-QURAIN',
+    brandId: 'FRANKS-STEAK',
+    areaEn: 'Aswaq Al-Qurain',
+    areaAr: 'أسواق القرين',
+    nameEn: "Frank's · Aswaq Al-Qurain",
+    nameAr: 'فرانكس · أسواق القرين',
+  },
+  // The Noodle Bar
+  {
+    id: 'NB-PROMENADE',
+    brandId: 'THE-NOODLE-BAR',
+    areaEn: 'Promenade Mall',
+    areaAr: 'بروميناد مول',
+    nameEn: 'The Noodle Bar · Promenade Mall',
+    nameAr: 'ذا نودل بار · بروميناد مول',
+  },
+  {
+    id: 'NB-KOUT',
+    brandId: 'THE-NOODLE-BAR',
+    areaEn: 'Al-Kout Mall',
+    areaAr: 'الكوت مول',
+    nameEn: 'The Noodle Bar · Al-Kout Mall',
+    nameAr: 'ذا نودل بار · الكوت مول',
+  },
+  // Karak
+  {
+    id: 'KK-SALMIYA',
+    brandId: 'KARAK-CAFETERIA',
+    areaEn: 'Salmiya',
+    areaAr: 'السالمية',
+    nameEn: 'Karak Cafeteria · Salmiya',
+    nameAr: 'كرك كافتيريا · السالمية',
+  },
+  {
+    id: 'KK-PROMENADE',
+    brandId: 'KARAK-CAFETERIA',
+    areaEn: 'Promenade Mall',
+    areaAr: 'بروميناد مول',
+    nameEn: 'Karak Cafeteria · Promenade Mall',
+    nameAr: 'كرك كافتيريا · بروميناد مول',
+  },
+  // Shawarma Tahina
+  {
+    id: 'ST-PROMENADE',
+    brandId: 'SHAWARMA-TAHINA',
+    areaEn: 'Promenade Mall',
+    areaAr: 'بروميناد مول',
+    nameEn: 'Shawarma Tahina · Promenade Mall',
+    nameAr: 'شاورما طحينة · بروميناد مول',
+  },
+  {
+    id: 'ST-QURAIN',
+    brandId: 'SHAWARMA-TAHINA',
+    areaEn: 'Aswaq Al-Qurain',
+    areaAr: 'أسواق القرين',
+    nameEn: 'Shawarma Tahina · Aswaq Al-Qurain',
+    nameAr: 'شاورما طحينة · أسواق القرين',
   },
 ] as const
 

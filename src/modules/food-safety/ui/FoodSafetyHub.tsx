@@ -13,7 +13,10 @@ import {
   formatKuwaitStamp,
   getShelfLifeRule,
   PREP_CATALOG,
+  primaryOwnerBrand,
   resolveShelfHours,
+  ruleAllowedAtSiteBrand,
+  ruleMatchesBrandFilter,
   SHELF_LIFE_MATRIX,
   storageModeLabel,
   type BrandScope,
@@ -56,15 +59,24 @@ const REASONS: { value: SpoilageReason; ar: string; en: string }[] = [
 ]
 
 const BRAND_FILTERS: BrandScope[] = [
-  'CENTRAL-KITCHEN',
   'FARM-BROWN',
   'CHINA-GARDEN',
   'FRANKS-STEAK',
   'KARAK-CAFETERIA',
   'THE-NOODLE-BAR',
   'SHAWARMA-TAHINA',
+  'CENTRAL-KITCHEN',
   'SHARED',
 ]
+
+/** Purge legacy browser caches that may hold cross-brand polluted batches. */
+const BATCH_LS_KEYS = [
+  'vf_food_safety_batches',
+  'vf_food_safety_batches_v1',
+  'vf_food_safety_board',
+  'vf_food_safety_matrix',
+] as const
+const BATCH_LS_V2 = 'vf_food_safety_batches_v2'
 
 function LiveCountdown({ expiresAt, status }: { expiresAt: string; status: string }) {
   const [now, setNow] = useState(() => Date.now())
@@ -142,6 +154,19 @@ export default function FoodSafetyHub() {
   const previewExpiry = previewHours != null ? new Date(Date.now() + previewHours * 3_600_000) : null
 
   useEffect(() => {
+    if (typeof window === 'undefined') return
+    for (const key of BATCH_LS_KEYS) window.localStorage.removeItem(key)
+    window.localStorage.setItem(BATCH_LS_V2, JSON.stringify({ version: 2, clearedAt: Date.now() }))
+  }, [])
+
+  useEffect(() => {
+    if (scope?.brandId) {
+      setMatrixBrand(scope.brandId)
+      setGenBrand(scope.brandId as BrandScope)
+    }
+  }, [scope?.brandId])
+
+  useEffect(() => {
     if (!selectedRule) return
     if (!allowedModes.includes(batchMode)) setBatchMode(defaultStorageMode(selectedRule))
   }, [selectedRule, allowedModes, batchMode])
@@ -160,7 +185,13 @@ export default function FoodSafetyHub() {
     try {
       const res = await apiRequest<{ data: FoodSafetyBoard }>(`/api/food-safety${qs}`)
       setBoard(res.data)
-      if (!batchSite && res.data.sites[0]) setBatchSite(res.data.sites.find((s) => s.id === 'CK-QURAIN')?.id ?? res.data.sites[0].id)
+      if (!batchSite && res.data.sites[0]) {
+        const preferred =
+          res.data.sites.find((s) => s.brandId === (scope?.brandId ?? null)) ??
+          res.data.sites.find((s) => s.id === 'CK-QURAIN') ??
+          res.data.sites[0]
+        setBatchSite(preferred.id)
+      }
       if (!checkSite && res.data.sites[0]) setCheckSite(res.data.sites[0].id)
       if (!dispSite && res.data.sites[0]) setDispSite(res.data.sites[0].id)
     } catch (err) {
@@ -168,7 +199,7 @@ export default function FoodSafetyHub() {
     } finally {
       setLoading(false)
     }
-  }, [qs, en, batchSite, checkSite, dispSite])
+  }, [qs, en, batchSite, checkSite, dispSite, scope?.brandId])
 
   useEffect(() => {
     void load()
@@ -181,20 +212,46 @@ export default function FoodSafetyHub() {
     if (siteUnits[0] && !siteUnits.some((u) => u.id === checkUnit)) setCheckUnit(siteUnits[0].id)
   }, [siteUnits, checkUnit])
 
+  const activeBrandFilter = (matrixBrand || scope?.brandId || '') as BrandScope | ''
+
   const filteredMatrix = useMemo(() => {
     const q = matrixQ.trim().toLowerCase()
     return SHELF_LIFE_MATRIX.filter((r) => {
       if (matrixCat && r.category !== matrixCat) return false
-      if (matrixBrand) {
-        const b = matrixBrand as BrandScope
-        if (!r.brands.includes(b) && !r.brands.includes('SHARED')) {
-          if (b !== 'CENTRAL-KITCHEN' || !r.brands.includes('CENTRAL-KITCHEN')) return false
-        }
-      }
+      if (!ruleMatchesBrandFilter(r, activeBrandFilter || null)) return false
       if (!q) return true
       return r.code.toLowerCase().includes(q) || r.nameEn.toLowerCase().includes(q) || r.nameAr.includes(q)
     })
-  }, [matrixBrand, matrixCat, matrixQ])
+  }, [activeBrandFilter, matrixCat, matrixQ])
+
+  const sitesForGenerator = useMemo(() => {
+    if (!board) return []
+    if (genBrand === 'SHARED') return board.sites
+    if (genBrand === 'CENTRAL-KITCHEN') {
+      return board.sites.filter((s) => s.id === 'CK-QURAIN' || s.brandId == null)
+    }
+    return board.sites.filter((s) => s.brandId === genBrand || s.id === 'CK-QURAIN')
+  }, [board, genBrand])
+
+  useEffect(() => {
+    if (!sitesForGenerator.length) return
+    if (!sitesForGenerator.some((s) => s.id === batchSite)) {
+      setBatchSite(sitesForGenerator.find((s) => s.brandId === genBrand)?.id ?? sitesForGenerator[0]!.id)
+    }
+  }, [sitesForGenerator, batchSite, genBrand])
+
+  const visibleBatches = useMemo(() => {
+    if (!board) return []
+    return board.batches.filter((b) => {
+      if (!activeBrandFilter) return true
+      const rule = getShelfLifeRule(b.itemCode)
+      if (rule && !ruleMatchesBrandFilter(rule, activeBrandFilter)) return false
+      if (b.brandId && activeBrandFilter !== 'CENTRAL-KITCHEN' && activeBrandFilter !== 'SHARED') {
+        if (b.brandId !== activeBrandFilter) return false
+      }
+      return true
+    })
+  }, [board, activeBrandFilter])
 
   async function createBatchAndPrint() {
     setBusy(true)
@@ -404,12 +461,31 @@ export default function FoodSafetyHub() {
   ]
 
   const catalogOptions = useMemo(() => {
-    if (genBrand === 'SHARED' || genBrand === 'CENTRAL-KITCHEN') return PREP_CATALOG
     return PREP_CATALOG.filter((p) => {
       const rule = getShelfLifeRule(p.code)
-      return rule?.brands.includes(genBrand) || rule?.brands.includes('SHARED') || rule?.brands.includes('CENTRAL-KITCHEN')
+      if (!rule) return false
+      if (!ruleMatchesBrandFilter(rule, genBrand)) return false
+      const site = board?.sites.find((s) => s.id === batchSite)
+      if (site && !ruleAllowedAtSiteBrand(rule, site.brandId)) return false
+      return true
     })
-  }, [genBrand])
+  }, [genBrand, board, batchSite])
+
+  useEffect(() => {
+    if (!catalogOptions.length) return
+    if (!catalogOptions.some((p) => p.code === batchCode)) {
+      setBatchCode(catalogOptions[0]!.code)
+    }
+  }, [catalogOptions, batchCode])
+
+  function resetBrandFilters() {
+    setMatrixBrand('')
+    setMatrixCat('')
+    setMatrixQ('')
+    setGenBrand('SHARED')
+    scope?.reset()
+    setNotice(en ? 'Reset — showing all 6 brands with each SKU on its real brand/branch.' : 'إعادة تعيين — عرض كل البراندات الـ 6 بمواقعها الحقيقية.')
+  }
 
   return (
     <div className="space-y-5 text-gray-100" dir={en ? 'ltr' : 'rtl'}>
@@ -504,9 +580,9 @@ export default function FoodSafetyHub() {
                 </select>
               </label>
               <label className="block text-sm">
-                <span className={labelClass}>{en ? 'Site / CK' : 'الفرع / المطبخ المركزي'}</span>
+                <span className={labelClass}>{en ? 'Site / CK (same brand only)' : 'الفرع / المطبخ المركزي (نفس البراند فقط)'}</span>
                 <select className={inputClass} value={batchSite} onChange={(e) => setBatchSite(e.target.value)}>
-                  {board.sites.map((s) => (
+                  {sitesForGenerator.map((s) => (
                     <option key={s.id} value={s.id}>
                       {en ? s.nameEn : s.nameAr}
                     </option>
@@ -577,7 +653,17 @@ export default function FoodSafetyHub() {
           </section>
 
           <section className={`${panelClass} space-y-3`}>
-            <h2 className="text-lg font-bold">{en ? 'Live FEFO Countdown Matrix' : 'جدول العد التنازلي الحي للدفعات'}</h2>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-lg font-bold">{en ? 'Live FEFO Countdown Matrix' : 'جدول العد التنازلي الحي للدفعات'}</h2>
+              <button type="button" className={secondaryButton} onClick={resetBrandFilters}>
+                {en ? 'Reset — Show All' : 'إعادة تعيين - عرض الكل'}
+              </button>
+            </div>
+            <p className="text-xs text-gray-500">
+              {en
+                ? `Strict brand ownership · showing ${visibleBatches.length} batches${activeBrandFilter ? ` for ${brandScopeLabel(activeBrandFilter as BrandScope, true)}` : ' (all 6 brands)'}. Location & LOT always follow the SKU’s real brand/branch — never the filter label alone.`
+                : `ملكية براند صارمة · عرض ${visibleBatches.length} دفعة${activeBrandFilter ? ` لـ ${brandScopeLabel(activeBrandFilter as BrandScope, false)}` : ' (كل البراندات الـ 6)'}. الموقع وLOT يتبعان براند/فرع الصنف الحقيقي — وليس اسم الفلتر.`}
+            </p>
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead className="text-left text-xs uppercase text-gray-500">
@@ -593,15 +679,35 @@ export default function FoodSafetyHub() {
                   </tr>
                 </thead>
                 <tbody>
-                  {board.batches.map((b) => {
+                  {visibleBatches.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="px-2 py-6 text-center text-gray-500">
+                        {en
+                          ? 'No batches for this brand. Reset to show all, or register a batch for an owned SKU.'
+                          : 'لا توجد دفعات لهذا البراند. أعد التعيين لعرض الكل، أو سجّل دفعة لصنف مملوك لهذا البراند.'}
+                      </td>
+                    </tr>
+                  ) : null}
+                  {visibleBatches.map((b) => {
                     const site = board.sites.find((s) => s.id === b.siteId)
+                    const rule = getShelfLifeRule(b.itemCode)
+                    const owner = rule ? primaryOwnerBrand(rule) : null
+                    const locationLabel = en
+                      ? site?.nameEn ?? `${b.brandNameEn} · ${b.siteId}`
+                      : site?.nameAr ?? `${b.brandNameAr} · ${b.siteId}`
                     return (
                       <tr key={b.id} className={`border-t border-[#30363d] ${b.status === 'expired' ? 'bg-red-950/30' : b.status === 'fefo' ? 'bg-amber-950/20' : ''}`}>
                         <td className="px-2 py-2">
                           <div className="font-semibold">[{b.itemCode}] {en ? b.itemNameEn : b.itemNameAr}</div>
-                          <div className="text-[10px] text-gray-500">{b.barcode}</div>
+                          <div className="text-[10px] text-cyan-400/80">
+                            {owner ? brandScopeLabel(owner, en) : en ? b.brandNameEn : b.brandNameAr}
+                          </div>
+                          <div className="text-[10px] text-gray-500 font-mono" dir="ltr">{b.barcode}</div>
                         </td>
-                        <td className="px-2 py-2 text-gray-300">{en ? site?.nameEn : site?.nameAr}</td>
+                        <td className="px-2 py-2 text-gray-300">
+                          <div>{locationLabel}</div>
+                          <div className="text-[10px] text-gray-500" dir="ltr">{b.siteId}</div>
+                        </td>
                         <td className="px-2 py-2">{storageModeLabel(b.storageMode, en)} · {b.shelfHoursApplied}h</td>
                         <td className="px-2 py-2 font-mono text-xs">{formatKuwaitStamp(new Date(b.preparedAt))}</td>
                         <td className="px-2 py-2 font-mono text-xs font-bold">{formatKuwaitStamp(new Date(b.expiresAt))}</td>
@@ -660,9 +766,16 @@ export default function FoodSafetyHub() {
             </div>
             <div className="grid gap-3 md:grid-cols-3">
               <label className="block text-sm">
-                <span className={labelClass}>{en ? 'Filter brand' : 'فلتر البراند'}</span>
-                <select className={inputClass} value={matrixBrand} onChange={(e) => setMatrixBrand(e.target.value)}>
-                  <option value="">{en ? 'All brands' : 'كل البراندات'}</option>
+                <span className={labelClass}>{en ? 'Filter brand (strict)' : 'فلتر البراند (صارم)'}</span>
+                <select
+                  className={inputClass}
+                  value={matrixBrand}
+                  onChange={(e) => {
+                    setMatrixBrand(e.target.value)
+                    if (e.target.value && e.target.value !== 'SHARED') setGenBrand(e.target.value as BrandScope)
+                  }}
+                >
+                  <option value="">{en ? 'All brands (Reset)' : 'كل البراندات (إعادة تعيين)'}</option>
                   {BRAND_FILTERS.map((b) => (
                     <option key={b} value={b}>
                       {brandScopeLabel(b, en)}

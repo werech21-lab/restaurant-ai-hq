@@ -4,7 +4,10 @@ import {
   countdownParts,
   formatKuwaitStamp,
   getShelfLifeRule,
+  listShelfLifeRules,
+  primaryOwnerBrand,
   resolveShelfHours,
+  ruleMatchesBrandFilter,
   SHELF_LIFE_MATRIX,
 } from '@/lib/food-safety/shelf-life-matrix'
 import { classifyShelfLife, computeScrapLossMinor, formatKwdMinor } from '@/modules/food-safety/domain/shelf-life'
@@ -26,6 +29,27 @@ describe('HACCP shelf-life matrix', () => {
     expect(getShelfLifeRule('PP03200')?.hours.chiller).toBe(120)
     expect(resolveShelfHours(getShelfLifeRule('PP03126')!, 'freezer')).toBe(720)
     expect(resolveShelfHours(getShelfLifeRule('PP03126')!, 'line_prep')).toBeNull()
+  })
+
+  it('enforces exclusive brand ownership — China Garden never owns Farm Brown / Franks SKUs', () => {
+    expect(primaryOwnerBrand(getShelfLifeRule('PP03192')!)).toBe('FARM-BROWN')
+    expect(primaryOwnerBrand(getShelfLifeRule('PP03255')!)).toBe('FARM-BROWN')
+    expect(primaryOwnerBrand(getShelfLifeRule('PP03199')!)).toBe('FRANKS-STEAK')
+    expect(primaryOwnerBrand(getShelfLifeRule('PP03159')!)).toBe('CHINA-GARDEN')
+    expect(ruleMatchesBrandFilter(getShelfLifeRule('PP03192')!, 'CHINA-GARDEN')).toBe(false)
+    expect(ruleMatchesBrandFilter(getShelfLifeRule('PP03199')!, 'CHINA-GARDEN')).toBe(false)
+    expect(ruleMatchesBrandFilter(getShelfLifeRule('PP03159')!, 'CHINA-GARDEN')).toBe(true)
+    const cgOnly = listShelfLifeRules({ brand: 'CHINA-GARDEN' })
+    expect(cgOnly.every((r) => r.ownerBrand === 'CHINA-GARDEN' || r.ownerBrand === 'SHARED')).toBe(true)
+    expect(cgOnly.some((r) => r.code === 'PP03192')).toBe(false)
+    expect(cgOnly.some((r) => r.code === 'PP03199')).toBe(false)
+    expect(cgOnly.some((r) => r.code === 'PP03159')).toBe(true)
+
+    const board = getFoodSafetyBoard({ brandId: 'CHINA-GARDEN' })
+    expect(board.batches.every((b) => b.brandId === 'CHINA-GARDEN')).toBe(true)
+    expect(board.batches.some((b) => b.itemCode === 'PP03192')).toBe(false)
+    expect(board.batches.some((b) => b.itemCode === 'PP03199')).toBe(false)
+    expect(board.sites.every((s) => s.brandId === 'CHINA-GARDEN')).toBe(true)
   })
 
   it('formats Kuwait stamps and live countdown', () => {

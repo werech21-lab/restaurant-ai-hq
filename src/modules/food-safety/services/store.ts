@@ -1,5 +1,10 @@
 import {
+  brandScopeLabel,
   defaultStorageMode,
+  getShelfLifeRule,
+  primaryOwnerBrand,
+  ruleAllowedAtSiteBrand,
+  ruleMatchesBrandFilter,
   SHELF_LIFE_MATRIX,
 } from '@/lib/food-safety/shelf-life-matrix'
 import {
@@ -34,11 +39,19 @@ type Store = {
   seeded: boolean
 }
 
-const g = globalThis as typeof globalThis & { __vfFoodSafetyStore?: Store }
+/** v2 wipes cross-brand seed pollution (China Garden showing Farm Brown / Frank's). */
+const STORE_KEY = '__vfFoodSafetyStoreV2' as const
+
+const g = globalThis as typeof globalThis & {
+  __vfFoodSafetyStore?: Store
+  __vfFoodSafetyStoreV2?: Store
+}
 
 function store(): Store {
-  if (!g.__vfFoodSafetyStore) {
-    g.__vfFoodSafetyStore = {
+  // Drop legacy in-memory store so bad cross-brand batches cannot survive redeploys of the process.
+  if (g.__vfFoodSafetyStore) delete g.__vfFoodSafetyStore
+  if (!g[STORE_KEY]) {
+    g[STORE_KEY] = {
       units: new Map(),
       readings: [],
       checkIns: [],
@@ -48,7 +61,7 @@ function store(): Store {
       seeded: false,
     }
   }
-  return g.__vfFoodSafetyStore
+  return g[STORE_KEY]!
 }
 
 function hash(seed: string): number {
@@ -121,12 +134,21 @@ export function ensureSeeded(now = new Date()): void {
     }
   }
 
-  // Seed FEFO batches across CK + a few branches from HACCP matrix
-  const prepSites = sites.filter((x) => x.id === 'CK-QURAIN' || x.id.startsWith('FB-') || x.id.startsWith('CG-') || x.id.startsWith('ST-'))
-  const seedRules = SHELF_LIFE_MATRIX.filter((_, i) => i % 3 === 0).slice(0, 12)
+  // Seed FEFO batches ONLY at sites owned by the SKU's brand (or CK). Never mix brands.
+  const seedRules = SHELF_LIFE_MATRIX.filter((r) => r.ownerBrand !== 'SHARED')
   let bi = 0
   for (const prep of seedRules) {
-    for (const site of prepSites.slice(0, 3)) {
+    const owner = primaryOwnerBrand(prep)
+    const compatibleSites = sites.filter(
+      (site) =>
+        site.id === 'CK-QURAIN' ||
+        (site.brandId != null && ruleAllowedAtSiteBrand(prep, site.brandId)),
+    )
+    // Prefer brand branches first, then CK — never a foreign brand site.
+    const brandSites = compatibleSites.filter((site) => site.brandId === owner)
+    const ckSites = compatibleSites.filter((site) => site.id === 'CK-QURAIN')
+    const pick = [...brandSites.slice(0, 2), ...ckSites.slice(0, 1)]
+    for (const site of pick) {
       bi += 1
       const mode = defaultStorageMode(prep)
       const shelfHours = prep.hours[mode] ?? 24
@@ -134,12 +156,15 @@ export function ensureSeeded(now = new Date()): void {
       const preparedAt = new Date(now.getTime() - hoursAgo * 3_600_000)
       const expiresAt = new Date(preparedAt.getTime() + shelfHours * 3_600_000)
       const cls = classifyShelfLife(expiresAt.toISOString(), now, prep.fefoWarnHours)
+      const brandId = site.brandId ?? owner
+      const brandNameEn = site.brandId ? site.brandNameEn : brandScopeLabel(owner, true)
+      const brandNameAr = site.brandId ? site.brandNameAr : brandScopeLabel(owner, false)
       const batch: ShelfLifeBatch = {
-        id: `BATCH-${bi.toString().padStart(4, '0')}`,
+        id: `BATCH-V2-${bi.toString().padStart(4, '0')}`,
         siteId: site.id,
-        brandId: site.brandId,
-        brandNameEn: site.brandNameEn,
-        brandNameAr: site.brandNameAr,
+        brandId,
+        brandNameEn,
+        brandNameAr,
         itemCode: prep.code,
         itemNameEn: prep.nameEn,
         itemNameAr: prep.nameAr,
@@ -309,10 +334,21 @@ export function buildBoard(filter?: { brandId?: string | null; branchId?: string
   refreshBatchStatuses(new Date())
   let sites = listFoodSafetySites()
   if (filter?.branchId) sites = sites.filter((x) => x.id === filter.branchId)
-  else if (filter?.brandId) sites = sites.filter((x) => x.brandId === filter.brandId)
+  else if (filter?.brandId) {
+    // Brand scope: that brand's branches only (CK excluded — avoids false "China Garden" location on CK rows).
+    sites = sites.filter((x) => x.brandId === filter.brandId)
+  }
   const siteIds = new Set(sites.map((x) => x.id))
   const units = [...s.units.values()].filter((u) => siteIds.has(u.siteId))
-  const batches = s.batches.filter((b) => siteIds.has(b.siteId))
+  const batches = s.batches.filter((b) => {
+    if (!siteIds.has(b.siteId)) return false
+    if (!filter?.brandId) return true
+    // Strict item ownership — never show Farm Brown SKU under China Garden filter.
+    if (b.brandId && b.brandId !== filter.brandId) return false
+    const rule = getShelfLifeRule(b.itemCode)
+    if (rule && !ruleMatchesBrandFilter(rule, filter.brandId)) return false
+    return true
+  })
   const checkIns = s.checkIns.filter((c) => siteIds.has(c.siteId)).slice(0, 40)
   const disposals = s.disposals.filter((d) => siteIds.has(d.siteId)).slice(0, 40)
   const alerts = s.alerts.filter((a) => siteIds.has(a.siteId)).slice(0, 40)
