@@ -16,7 +16,9 @@
     "db:import:venturefoods": "tsx scripts/import-venturefoods-odoo-dump.ts",
     "db:odoo-indexes": "tsx scripts/apply-odoo-indexes.ts",
     "postinstall": "prisma generate",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "ingest:direct": "tsx scripts/direct-db-ingest.ts",
+    "ingest:desktop": "tsx scripts/direct-db-ingest.ts --scan-desktop-docs"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

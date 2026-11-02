@@ -458,3 +458,239 @@ export async function processSmartDropzoneBatch(input: {
 }
 
 export { emptySmartDropzoneCounters as emptyCounters } from '@/modules/smart-dropzone/domain/departments'
+
+export type LocalIngestFileInput = {
+  relativePath: string
+  fileName: string
+  mimeType?: string
+  sizeBytes?: number
+  /** Locally extracted text / sheet peek (preferred — zero bandwidth). */
+  textContent?: string
+  /** Optional binary when --upload-binaries is set. */
+  buffer?: Buffer | null
+  /** SHA-256 hex for idempotent upsert. */
+  sha256: string
+  forceDepartment?: SmartDropzoneDepartment
+}
+
+/**
+ * Direct local-to-DB upsert (CLI). Default: index + extracted fields only (no cloud binary).
+ * Idempotent on sha256 → stable id `sdz_sha_<hash40>`.
+ */
+export async function upsertLocalSmartDropzoneBatch(input: {
+  actorId: string
+  batchId?: string
+  uploadBinaries?: boolean
+  files: LocalIngestFileInput[]
+}): Promise<RouterBatchResult & { inserted: number; updated: number; skipped: number }> {
+  const batchId = input.batchId || `local_${Date.now()}`
+  const counters = Object.fromEntries(SMART_DROPZONE_DEPARTMENTS.map((d) => [d, 0])) as Record<
+    SmartDropzoneDepartment,
+    number
+  >
+  const rows: RouterResultRow[] = []
+  let inserted = 0
+  let updated = 0
+  let skipped = 0
+
+  for (const file of input.files) {
+    const sha = file.sha256.replace(/[^a-f0-9]/gi, '').toLowerCase()
+    if (sha.length < 32) {
+      skipped += 1
+      continue
+    }
+    const id = `sdz_sha_${sha.slice(0, 40)}`
+    const fileName = (file.fileName || 'file').slice(0, 500)
+    const relativePath = (file.relativePath || fileName).slice(0, 2000)
+    const mimeType = (file.mimeType || 'application/octet-stream').slice(0, 200)
+    const extracted = [file.textContent || '', relativePath, fileName].join('\n').slice(0, 50000)
+    const hay = normalize(`${relativePath} ${fileName} ${extracted}`)
+    const classified = classify(hay)
+    const overridden = Boolean(
+      file.forceDepartment && SMART_DROPZONE_DEPARTMENTS.includes(file.forceDepartment),
+    )
+    const department = overridden ? file.forceDepartment! : classified.dept
+    const meta = DEPT_META[department]
+    const amountKwd = extractAmountKwd(extracted)
+    const branchCode = detectBranch(hay)
+    const brandCode = detectBrand(hay)
+    const entity = entityFrom(hay, department, fileName)
+    const updates = buildUpdates(department, {
+      amountKwd,
+      branchCode,
+      brandCode,
+      entityLabel: entity.label,
+      fileName,
+    })
+    const score = overridden ? Math.max(classified.score, 0.9) : classified.score
+    const status = score >= 0.45 ? 'APPLIED' : score >= 0.25 ? 'MATCHED' : 'REVIEW'
+
+    let fileUrl: string | null = null
+    if (
+      input.uploadBinaries &&
+      file.buffer &&
+      file.buffer.byteLength > 0 &&
+      file.buffer.byteLength < 8_000_000
+    ) {
+      try {
+        const stored = await storeDeptBinary({
+          buffer: file.buffer,
+          fileName,
+          mimeType,
+          module: `smart_dropzone/${meta.module}`,
+          entityKey: entity.key,
+        })
+        fileUrl = stored.fileUrl
+      } catch (error) {
+        logger.warn('smart_dropzone_local_upload_failed', {
+          fileName,
+          errorMessage: error instanceof Error ? error.message : String(error),
+        })
+      }
+    }
+
+    const existing = await prisma.deptIngestDocument.findUnique({ where: { id } }).catch(() => null)
+    const data = {
+      module: `smart_dropzone:${department}`,
+      batchId,
+      fileName,
+      relativePath,
+      category: department,
+      mimeType,
+      sizeBytes: file.sizeBytes ?? file.buffer?.byteLength ?? 0,
+      fileUrl: fileUrl ?? existing?.fileUrl ?? null,
+      fileType: mimeType,
+      extractedText: extracted.slice(0, 8000),
+      entityKey: `sha256:${sha}`,
+      entityLabel: entity.label,
+      branchCode,
+      brandCode,
+      amountMinor: amountKwd != null ? Math.round(amountKwd * 1000) : null,
+      currency: 'KWD' as const,
+      matchScore: score,
+      status,
+      updatesJson: JSON.stringify([
+        '⚡ محقون مباشرة عبر قاعدة البيانات (Zero-Bandwidth Local Ingest)',
+        ...updates.ar,
+      ]),
+      metaJson: JSON.stringify({
+        actorId: input.actorId,
+        updatesEn: [
+          '⚡ Direct DB inject (Zero-Bandwidth Local Ingest)',
+          ...updates.en,
+        ],
+        href: meta.href,
+        overridden,
+        departmentLabelEn: meta.en,
+        departmentLabelAr: meta.ar,
+        source: 'local_direct_db',
+        sha256: sha,
+        localPath: relativePath,
+      }),
+    }
+
+    try {
+      if (existing) {
+        await prisma.deptIngestDocument.update({ where: { id }, data })
+        updated += 1
+      } else {
+        await prisma.deptIngestDocument.create({ data: { id, ...data } })
+        inserted += 1
+      }
+    } catch (error) {
+      skipped += 1
+      logger.warn('smart_dropzone_local_upsert_failed', {
+        fileName,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      })
+      continue
+    }
+
+    counters[department] += 1
+    rows.push({
+      id,
+      fileName,
+      relativePath,
+      mimeType,
+      department,
+      departmentLabelAr: meta.ar,
+      departmentLabelEn: meta.en,
+      href: meta.href,
+      archiveHref: `/erp/archive?q=${encodeURIComponent(fileName)}`,
+      entityKey: `sha256:${sha}`,
+      entityLabel: entity.label,
+      brandCode,
+      branchCode,
+      amountKwd,
+      matchScore: score,
+      status,
+      updates: ['⚡ محقون مباشرة عبر قاعدة البيانات (Zero-Bandwidth Local Ingest)', ...updates.ar],
+      updatesEn: ['⚡ Direct DB inject (Zero-Bandwidth Local Ingest)', ...updates.en],
+      fileUrl: data.fileUrl,
+      previewUrl: data.fileUrl,
+      overridden,
+    })
+  }
+
+  logger.info('smart_dropzone_local_batch_done', {
+    batchId,
+    inserted,
+    updated,
+    skipped,
+    processed: rows.length,
+  })
+
+  return { batchId, processed: rows.length, counters, rows, inserted, updated, skipped }
+}
+
+export async function listSmartDropzoneDocuments(limit = 200) {
+  const rows = await prisma.deptIngestDocument.findMany({
+    where: { module: { startsWith: 'smart_dropzone' } },
+    orderBy: { createdAt: 'desc' },
+    take: Math.min(500, Math.max(1, limit)),
+  })
+  return rows.map((row) => {
+    let meta: Record<string, unknown> = {}
+    try {
+      meta = JSON.parse(row.metaJson || '{}') as Record<string, unknown>
+    } catch {
+      meta = {}
+    }
+    let updates: string[] = []
+    let updatesEn: string[] = []
+    try {
+      updates = JSON.parse(row.updatesJson || '[]') as string[]
+    } catch {
+      updates = []
+    }
+    if (Array.isArray(meta.updatesEn)) updatesEn = meta.updatesEn as string[]
+    const department = (String(row.category || 'governance') as SmartDropzoneDepartment) || 'governance'
+    const deptMeta = DEPT_META[department] || DEPT_META.governance
+    return {
+      id: row.id,
+      fileName: row.fileName,
+      relativePath: row.relativePath,
+      mimeType: row.mimeType,
+      department,
+      departmentLabelAr: String(meta.departmentLabelAr || deptMeta.ar),
+      departmentLabelEn: String(meta.departmentLabelEn || deptMeta.en),
+      href: String(meta.href || deptMeta.href),
+      archiveHref: `/erp/archive?q=${encodeURIComponent(row.fileName)}`,
+      entityKey: row.entityKey,
+      entityLabel: row.entityLabel,
+      brandCode: row.brandCode,
+      branchCode: row.branchCode,
+      amountKwd: row.amountMinor != null ? row.amountMinor / 1000 : null,
+      matchScore: row.matchScore,
+      status: row.status,
+      updates,
+      updatesEn: updatesEn.length ? updatesEn : updates,
+      fileUrl: row.fileUrl,
+      previewUrl: row.fileUrl,
+      overridden: Boolean(meta.overridden),
+      source: String(meta.source || 'web_upload'),
+      sha256: typeof meta.sha256 === 'string' ? meta.sha256 : null,
+      createdAt: row.createdAt.toISOString(),
+    }
+  })
+}

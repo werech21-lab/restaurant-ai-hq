@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useI18n } from '@/lib/i18n'
 import {
   emptySmartDropzoneCounters,
@@ -29,6 +29,9 @@ type LedgerRow = {
   fileUrl: string | null
   previewUrl: string | null
   overridden: boolean
+  source?: string
+  sha256?: string | null
+  createdAt?: string
 }
 
 type QueuedFile = {
@@ -83,6 +86,30 @@ export default function SmartDropzonePortal() {
     return rows.slice(start, start + PAGE_SIZE)
   }, [rows, page])
   const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE))
+
+  useEffect(() => {
+    const controller = new AbortController()
+    void fetch('/api/smart-dropzone/list?limit=300', {
+      signal: controller.signal,
+      headers: { Accept: 'application/json' },
+    })
+      .then(async (response) => {
+        if (!response.ok) return
+        const payload = (await response.json()) as { data?: { rows?: LedgerRow[] } }
+        const existing = payload.data?.rows || []
+        if (!existing.length) return
+        setRows(existing)
+        const next = emptySmartDropzoneCounters()
+        for (const row of existing) {
+          if (row.department in next) next[row.department] += 1
+        }
+        setCounters(next)
+      })
+      .catch(() => {
+        /* ignore abort / auth soft-fail on first paint */
+      })
+    return () => controller.abort()
+  }, [])
 
   const addFiles = useCallback((list: FileList | File[], basePath = '') => {
     const next: QueuedFile[] = []
@@ -286,6 +313,22 @@ export default function SmartDropzonePortal() {
         ))}
       </div>
 
+      <section className="rounded-3xl border border-emerald-400/25 bg-gradient-to-br from-emerald-950/40 via-[#0f141c] to-[#0f141c] p-5">
+        <h2 className="text-base font-bold text-emerald-200">
+          {en
+            ? '⚡ Zero-Bandwidth Local Direct-DB Ingest'
+            : '⚡ الحقن المحلي المباشر في قاعدة البيانات (Zero-Bandwidth)'}
+        </h2>
+        <p className="mt-2 max-w-4xl text-sm leading-relaxed text-mist-300">
+          {en
+            ? 'Managers: drop files into the project folder local-dropzone (or drag a folder onto Direct-DB-Ingest.bat). Run npm run ingest:direct on this PC. The CLI parses Excel/Word/PDF locally, classifies into the 7 departments, and upserts extracted records into the database with SHA-256 idempotency — without uploading raw binaries by default (≈99% less bandwidth). Optional: --upload-binaries.'
+            : 'للمدير: ألقِ الملفات في مجلد local-dropzone داخل المشروع (أو اسحب مجلداً فوق Direct-DB-Ingest.bat). شغّل npm run ingest:direct على هذا الجهاز. يقرأ السكربت Excel/Word/PDF محلياً، يصنّفها للأقسام السبعة، ويحقن السجلات المستخرجة مباشرة في قاعدة البيانات ببصمة SHA-256 دون رفع الملفات الخام افتراضياً (توفير إنترنت ≈99%). اختياري: --upload-binaries.'}
+        </p>
+        <p className="mt-3 font-mono text-xs text-emerald-300/90" dir="ltr">
+          npm run ingest:direct · npm run ingest:desktop · Direct-DB-Ingest.bat
+        </p>
+      </section>
+
       <section
         onDragOver={(e) => {
           e.preventDefault()
@@ -399,6 +442,13 @@ export default function SmartDropzonePortal() {
                       <p className="text-xs text-mist-500" dir="ltr">
                         {row.relativePath}
                       </p>
+                      {row.source === 'local_direct_db' ? (
+                        <span className="mt-2 inline-flex rounded-lg border border-emerald-400/40 bg-emerald-500/10 px-2 py-1 text-[10px] font-bold leading-snug text-emerald-200">
+                          {en
+                            ? '⚡ Direct DB inject (Zero-Bandwidth Local Ingest)'
+                            : '⚡ محقون مباشرة عبر قاعدة البيانات (Zero-Bandwidth Local Ingest)'}
+                        </span>
+                      ) : null}
                     </td>
                     <td className="px-3 py-3">
                       <p className="font-semibold text-gold-200">
