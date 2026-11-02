@@ -19,6 +19,8 @@ import {
   fieldClass,
   labelClass,
 } from "@/components/erp-ui";
+import { useI18n } from "@/lib/i18n";
+import { displayRoleName, displayTeamName } from "@/lib/venture-foods-team";
 import type { SearchHit } from "@/lib/types";
 
 export type UserRow = {
@@ -49,20 +51,26 @@ export function UsersPanel({
   canDelete: boolean;
 }) {
   const router = useRouter();
+  const { locale } = useI18n();
+  const en = locale === "en";
   const [editing, setEditing] = useState<UserRow | "new" | null>(null);
 
   return (
     <div>
       <PageHeader
-        title="المستخدمون"
-        description="إضافة الحسابات وتغيير الأدوار أو إيقافها دون حذف أثر الحركات."
+        title={en ? "Users Management" : "المستخدمون"}
+        description={
+          en
+            ? "Create accounts, assign roles, or deactivate users while preserving full audit trails."
+            : "إضافة الحسابات وتغيير الأدوار أو إيقافها دون حذف أثر الحركات."
+        }
         actions={
           <div className="flex flex-wrap gap-2">
             <ExportCsvButton kind="users" filename="users.csv" />
             {canCreate ? (
               <button type="button" className={btnPrimary} onClick={() => setEditing("new")}>
                 <Plus size={16} />
-                مستخدم جديد
+                {en ? "+ New User" : "+ مستخدم جديد"}
               </button>
             ) : null}
           </div>
@@ -70,44 +78,49 @@ export function UsersPanel({
       />
       <DataCard>
         <form method="get" className="flex flex-wrap gap-2 border-b border-white/10 p-4">
-          <input name="q" defaultValue={q} placeholder="بحث بالاسم أو البريد" className={`${fieldClass} max-w-sm`} />
-          <button className={btnPrimary}>بحث</button>
+          <input
+            name="q"
+            defaultValue={q}
+            placeholder={en ? "Search by name or email..." : "بحث بالاسم أو البريد"}
+            className={`${fieldClass} max-w-sm`}
+          />
+          <button className={btnPrimary}>{en ? "Search" : "بحث"}</button>
           <a href="/users" className={btnGhost}>
-            مسح
+            {en ? "Clear" : "مسح"}
           </a>
         </form>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-white/10 text-mist-400">
-                <th className="px-4 py-3 text-right font-semibold">الاسم</th>
-                <th className="px-4 py-3 text-right font-semibold">البريد</th>
-                <th className="px-4 py-3 text-right font-semibold">الدور</th>
-                <th className="px-4 py-3 text-right font-semibold">الحالة</th>
-                <th className="px-4 py-3 text-right font-semibold">تاريخ الإنشاء</th>
-                <th className="px-4 py-3 text-right font-semibold">إجراءات</th>
+                <th className="px-4 py-3 text-right font-semibold">{en ? "Name" : "الاسم"}</th>
+                <th className="px-4 py-3 text-right font-semibold">{en ? "Email" : "البريد"}</th>
+                <th className="px-4 py-3 text-right font-semibold">{en ? "Role" : "الدور"}</th>
+                <th className="px-4 py-3 text-right font-semibold">{en ? "Status" : "الحالة"}</th>
+                <th className="px-4 py-3 text-right font-semibold">{en ? "Created At" : "تاريخ الإنشاء"}</th>
+                <th className="px-4 py-3 text-right font-semibold">{en ? "Actions" : "إجراءات"}</th>
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-10 text-center text-mist-400">
-                    لا يوجد مستخدمون مطابقون.
+                    {en ? "No matching users." : "لا يوجد مستخدمون مطابقون."}
                   </td>
                 </tr>
               ) : (
                 rows.map((row) => (
                   <tr key={row.id} className="border-b border-white/10 last:border-0">
-                    <td className="px-4 py-3 font-semibold">{row.name}</td>
+                    <td className="px-4 py-3 font-semibold">{displayTeamName(row.name, locale)}</td>
                     <td className="px-4 py-3" dir="ltr">
                       {row.email}
                     </td>
-                    <td className="px-4 py-3">{row.roleName}</td>
+                    <td className="px-4 py-3">{displayRoleName(row.roleName, locale)}</td>
                     <td className="px-4 py-3">
                       <span
                         className={`rounded-full px-2.5 py-1 text-xs font-bold text-white ${row.isActive ? "bg-emerald-600" : "bg-red-600"}`}
                       >
-                        {row.isActive ? "نشط" : "موقوف"}
+                        {row.isActive ? (en ? "Active" : "نشط") : en ? "Inactive" : "موقوف"}
                       </span>
                     </td>
                     <td className="px-4 py-3">{row.createdAtLabel}</td>
@@ -116,7 +129,7 @@ export function UsersPanel({
                         {canEdit ? (
                           <button type="button" className={btnGhost} onClick={() => setEditing(row)}>
                             <Pencil size={14} />
-                            تعديل
+                            {en ? "Edit" : "تعديل"}
                           </button>
                         ) : null}
                         {canDelete ? (
@@ -124,7 +137,8 @@ export function UsersPanel({
                             type="button"
                             className={btnDanger}
                             onClick={async () => {
-                              if (!confirm(`حذف ${row.name}؟`)) return;
+                              const label = displayTeamName(row.name, locale);
+                              if (!confirm(en ? `Delete ${label}?` : `حذف ${label}؟`)) return;
                               const result = await deleteUser(row.id);
                               if (!result.ok) alert(result.message);
                               else router.refresh();
@@ -166,7 +180,11 @@ function UserDialog({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const [role, setRole] = useState<SearchHit | null>(row ? { id: row.roleId, label: row.roleName } : null);
+  const { locale } = useI18n();
+  const en = locale === "en";
+  const [role, setRole] = useState<SearchHit | null>(
+    row ? { id: row.roleId, label: displayRoleName(row.roleName, locale) } : null,
+  );
   const [active, setActive] = useState(row?.isActive ?? true);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
@@ -192,34 +210,41 @@ function UserDialog({
   }
 
   return (
-    <Modal title={row ? "تعديل مستخدم" : "مستخدم جديد"} onClose={onClose}>
+    <Modal title={row ? (en ? "Edit User" : "تعديل مستخدم") : en ? "New User" : "مستخدم جديد"} onClose={onClose}>
       <form onSubmit={submit} className="space-y-3">
         {error ? <Alert kind="error">{error}</Alert> : null}
         <div>
-          <label className={labelClass}>الاسم</label>
-          <input name="name" defaultValue={row?.name ?? ""} className={fieldClass} required />
+          <label className={labelClass}>{en ? "Name" : "الاسم"}</label>
+          <input
+            name="name"
+            defaultValue={row ? displayTeamName(row.name, locale) : ""}
+            className={fieldClass}
+            required
+          />
         </div>
         <div>
-          <label className={labelClass}>البريد الإلكتروني</label>
+          <label className={labelClass}>{en ? "Email" : "البريد الإلكتروني"}</label>
           <input name="email" type="email" dir="ltr" defaultValue={row?.email ?? ""} className={`${fieldClass} text-left`} required />
         </div>
         <div>
-          <label className={labelClass}>{row ? "كلمة مرور جديدة (اختياري)" : "كلمة المرور"}</label>
+          <label className={labelClass}>
+            {row ? (en ? "New password (optional)" : "كلمة مرور جديدة (اختياري)") : en ? "Password" : "كلمة المرور"}
+          </label>
           <input name="password" type="password" dir="ltr" className={`${fieldClass} text-left`} placeholder="123456" />
         </div>
         <SearchSelect
-          label="الدور"
-          placeholder="ابحث عن دور"
+          label={en ? "Role" : "الدور"}
+          placeholder={en ? "Search for a role" : "ابحث عن دور"}
           selectedLabel={role?.label}
           search={searchRoles}
           onSelect={setRole}
         />
         <label className="flex items-center gap-2 text-sm font-semibold">
           <input type="checkbox" checked={active} onChange={(event) => setActive(event.target.checked)} />
-          الحساب نشط
+          {en ? "Account active" : "الحساب نشط"}
         </label>
         <button className={btnPrimary} disabled={pending}>
-          {pending ? "جارٍ الحفظ..." : "حفظ"}
+          {pending ? (en ? "Saving…" : "جارٍ الحفظ...") : en ? "Save" : "حفظ"}
         </button>
       </form>
     </Modal>

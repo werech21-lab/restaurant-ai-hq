@@ -4,14 +4,25 @@ import { useState } from "react";
 import { Sparkles, X } from "lucide-react";
 import { askAssistant } from "@/app/actions/assistant";
 import type { AssistantReply } from "@/services/assistant.service";
+import { useI18n } from "@/lib/i18n";
 
-const examples = ["كم مبيعات اليوم؟", "كم مبيعات الشهر؟", "ما هي الأصناف الناقصة؟", "من هم أكثر العملاء مديونية؟", "متى ينفد المخزون؟"];
+const examplesAr = ["كم مبيعات اليوم؟", "كم مبيعات الشهر؟", "ما هي الأصناف الناقصة؟", "من هم أكثر العملاء مديونية؟", "متى ينفد المخزون؟"];
+const examplesEn = [
+  "What are today’s sales?",
+  "What are this month’s sales?",
+  "Which items are low on stock?",
+  "Who are the top debtors?",
+  "When will stock run out?",
+];
 
 export function AssistantWidget() {
+  const { locale } = useI18n();
+  const en = locale === "en";
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   const [pending, setPending] = useState(false);
   const [messages, setMessages] = useState<Array<{ role: "user" | "assistant"; text?: string; reply?: AssistantReply }>>([]);
+  const examples = en ? examplesEn : examplesAr;
 
   async function send(value: string) {
     const question = value.trim();
@@ -32,20 +43,29 @@ export function AssistantWidget() {
       {open ? (
         <section className="mb-3 flex h-[32rem] w-[22rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
           <header className="flex items-center justify-between bg-slate-900 px-4 py-3 text-white">
-            <p className="font-bold">المساعد الذكي للنظام</p>
-            <button type="button" onClick={() => setOpen(false)} className="rounded-lg p-1" aria-label="إغلاق المساعد">
+            <p className="font-bold">{en ? "AI System Assistant" : "المساعد الذكي للنظام"}</p>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="rounded-lg p-1"
+              aria-label={en ? "Close assistant" : "إغلاق المساعد"}
+            >
               <X size={16} />
             </button>
           </header>
           <div className="flex-1 space-y-3 overflow-y-auto bg-slate-50 p-3">
             {messages.length === 0 ? (
               <div className="space-y-2">
-                <p className="text-sm text-slate-600">اسأل عن المبيعات أو النواقص أو المديونيات. الإجابة من قاعدة البيانات المحلية.</p>
+                <p className="text-sm text-slate-600">
+                  {en
+                    ? "Ask about sales, shortages, or receivables. Answers come from the local database."
+                    : "اسأل عن المبيعات أو النواقص أو المديونيات. الإجابة من قاعدة البيانات المحلية."}
+                </p>
                 {examples.map((example) => (
                   <button
                     key={example}
                     type="button"
-                    className="block w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-right text-sm font-semibold text-slate-800"
+                    className={`block w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 ${en ? "text-left" : "text-right"}`}
                     onClick={() => send(example)}
                   >
                     {example}
@@ -92,7 +112,9 @@ export function AssistantWidget() {
                 ),
               )
             )}
-            {pending ? <p className="text-sm font-semibold text-slate-500">جارٍ تحليل البيانات...</p> : null}
+            {pending ? (
+              <p className="text-sm font-semibold text-slate-500">{en ? "Analyzing data…" : "جارٍ تحليل البيانات..."}</p>
+            ) : null}
           </div>
           <form
             className="flex gap-2 border-t border-slate-200 p-3"
@@ -104,11 +126,11 @@ export function AssistantWidget() {
             <input
               value={text}
               onChange={(event) => setText(event.target.value)}
-              placeholder="اكتب سؤالك"
+              placeholder={en ? "Type your question" : "اكتب سؤالك"}
               className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-600"
             />
             <button type="submit" className="rounded-lg bg-blue-600 px-3 text-sm font-bold text-white" disabled={pending}>
-              إرسال
+              {en ? "Send" : "إرسال"}
             </button>
           </form>
         </section>
@@ -119,7 +141,7 @@ export function AssistantWidget() {
         className="flex items-center gap-2 rounded-full bg-blue-600 px-4 py-3 text-sm font-bold text-white shadow-lg"
       >
         <Sparkles size={16} />
-        المساعد الذكي للنظام
+        {en ? "AI System Assistant" : "المساعد الذكي للنظام"}
       </button>
     </div>
   );

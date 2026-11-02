@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Download } from "lucide-react";
 import { exportTable } from "@/app/actions/export";
 import { btnGhost } from "@/components/erp-ui";
+import { useI18n } from "@/lib/i18n";
 
 export function ExportCsvButton({
   kind,
@@ -15,6 +16,8 @@ export function ExportCsvButton({
   query?: string;
 }) {
   const [pending, setPending] = useState(false);
+  const { locale } = useI18n();
+  const en = locale === "en";
 
   async function download() {
     setPending(true);
@@ -35,7 +38,7 @@ export function ExportCsvButton({
   return (
     <button type="button" className={btnGhost} onClick={download} disabled={pending}>
       <Download size={16} />
-      {pending ? "جارٍ التصدير..." : "تصدير إلى Excel/CSV"}
+      {pending ? (en ? "Exporting…" : "جارٍ التصدير...") : en ? "Export Excel/CSV" : "تصدير إلى Excel/CSV"}
     </button>
   );
 }

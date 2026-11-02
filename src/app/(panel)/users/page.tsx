@@ -1,25 +1,36 @@
 import { Suspense } from "react";
+import type { Metadata } from "next";
 import { connection } from "next/server";
 import { requireUser } from "@/lib/erp-auth";
 import { Forbidden, PageSkeleton } from "@/components/erp-ui";
-import { datetimeFor, getLocale } from "@/lib/i18n/server";
+import { datetimeFor, getLocale, tx } from "@/lib/i18n/server";
 import { PAGE_SIZE, readQuery, type RawQuery } from "@/lib/pagination";
 import { can, firstAllowedHref } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
 import { UsersPanel } from "@/app/(panel)/users/users-panel";
+import { ensureVentureFoodsTeam } from "@/lib/ensure-venture-foods-team";
 
-export const metadata = { title: "المستخدمون | نظام ERP" };
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale();
+  return {
+    title: tx(locale, "المستخدمون | نظام ERP", "Users Management | AetherBI ERP"),
+  };
+}
 
 async function UsersContent({ searchParams }: { searchParams: Promise<RawQuery> }) {
   await connection();
+  await ensureVentureFoodsTeam();
   const locale = await getLocale();
   const query = await readQuery(searchParams);
   const user = await requireUser();
   if (!can(user, "users", "view")) return <Forbidden href={firstAllowedHref(user)} />;
 
-  const where = query.q
-    ? { OR: [{ name: { contains: query.q } }, { email: { contains: query.q } }] }
-    : {};
+  const where = {
+    NOT: { name: { startsWith: "[retired]" } },
+    ...(query.q
+      ? { OR: [{ name: { contains: query.q } }, { email: { contains: query.q } }] }
+      : {}),
+  };
   const [total, rows] = await Promise.all([
     prisma.user.count({ where }),
     prisma.user.findMany({

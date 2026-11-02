@@ -4873,6 +4873,8 @@ export function LanguageSwitch({ className = '' }: { className?: string }) {
     <div
       dir="ltr"
       role="group"
+      data-language-switch=""
+      data-no-translate=""
       aria-label={t('language')}
       className={`inline-flex items-center gap-1 rounded-full border border-gold-300/20 bg-ink-900/80 p-0.5 text-[11px] font-semibold ${className}`}
     >

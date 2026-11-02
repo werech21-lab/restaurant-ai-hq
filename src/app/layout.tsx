@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { cookies } from 'next/headers'
 import { Cairo } from 'next/font/google'
+import { GlobalAutoTranslator } from '@/components/GlobalAutoTranslator'
 import { MobileBottomNav } from '@/components/mobile-bottom-nav'
 import { PwaRegister } from '@/components/pwa-register'
 import { LanguageProvider, type Locale } from '@/lib/i18n'
@@ -16,7 +17,7 @@ const cairo = Cairo({
 export const metadata: Metadata = {
   metadataBase: new URL('https://www.aetherbi.com'),
   title: 'AetherBI',
-  description: 'AetherBI Enterprise ERP & BI — المحاسبة، المخزون، POS، الموارد البشرية والذكاء الاصطناعي',
+  description: 'AetherBI Enterprise ERP & BI — Accounting, Inventory, POS, HR, and AI',
   applicationName: 'AetherBI ERP',
   manifest: '/manifest.json',
   appleWebApp: { capable: true, title: 'AetherBI ERP', statusBarStyle: 'black-translucent' },
@@ -48,6 +49,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className={`${cairo.className} min-h-full bg-ink-950 font-cairo text-mist-100 antialiased md:pb-0`} suppressHydrationWarning>
         <ThemeProvider initialTheme={theme}>
           <LanguageProvider initialLocale={locale}>
+            <GlobalAutoTranslator />
             {children}
             <MobileBottomNav />
             <PwaRegister />

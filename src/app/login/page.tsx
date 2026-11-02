@@ -2,7 +2,7 @@ import { LoginForm } from '@/app/login/login-form'
 import { LoginHero } from '@/app/login/login-hero'
 import { ensureOfficialAdmin } from '@/lib/ensure-official-admin'
 
-export const metadata = { title: 'Sign in | فنتشر فودز · AetherBI' }
+export const metadata = { title: 'Sign in | Venture Foods · AetherBI' }
 export const dynamic = 'force-dynamic'
 
 export default async function LoginPage() {

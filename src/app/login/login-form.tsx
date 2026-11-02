@@ -13,10 +13,10 @@ const demos: Array<{ email: string; password: string; name: MessageKey; role: Me
     role: 'login.demo.aetherRole',
     desc: 'login.demo.aetherDesc',
   },
-  { email: 'admin@erp.com', password: '123456', name: 'login.demo.admin', role: 'login.demo.adminRole', desc: 'login.demo.adminDesc' },
-  { email: 'accountant@erp.com', password: '123456', name: 'login.demo.acc', role: 'login.demo.accRole', desc: 'login.demo.accDesc' },
-  { email: 'store@erp.com', password: '123456', name: 'login.demo.store', role: 'login.demo.storeRole', desc: 'login.demo.storeDesc' },
-  { email: 'sales@erp.com', password: '123456', name: 'login.demo.sales', role: 'login.demo.salesRole', desc: 'login.demo.salesDesc' },
+  { email: 'ahmed@venturefoodskw.com', password: '123456', name: 'login.demo.admin', role: 'login.demo.adminRole', desc: 'login.demo.adminDesc' },
+  { email: 'mohameda@venturefoodskw.com', password: '123456', name: 'login.demo.acc', role: 'login.demo.accRole', desc: 'login.demo.accDesc' },
+  { email: 'warehouse@venturefoodskw.com', password: '123456', name: 'login.demo.store', role: 'login.demo.storeRole', desc: 'login.demo.storeDesc' },
+  { email: 'abdelrahmanm@venturefoodskw.com', password: '123456', name: 'login.demo.sales', role: 'login.demo.salesRole', desc: 'login.demo.salesDesc' },
 ]
 
 export function LoginForm() {

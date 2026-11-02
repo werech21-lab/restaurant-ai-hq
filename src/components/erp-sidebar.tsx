@@ -37,6 +37,7 @@ import { logout } from '@/app/actions/auth'
 import { useI18n, type MessageKey } from '@/lib/i18n'
 import { LOCKED_MODULES, MODULES, type ModuleKey } from '@/lib/modules'
 import { can, type AccessUser } from '@/lib/permissions'
+import { displayRoleName, displayTeamName } from '@/lib/venture-foods-team'
 
 const icons: Record<ModuleKey, typeof LayoutDashboard> = {
   dashboard: LayoutDashboard,
@@ -167,7 +168,7 @@ function NavLinks({
 
 export function Sidebar({ user, enabledKeys }: { user: AccessUser; enabledKeys: string[] | null }) {
   const pathname = usePathname()
-  const { t, companyName } = useI18n()
+  const { t, companyName, locale } = useI18n()
   return (
     <>
       <aside className="app-sidebar fixed inset-y-0 start-0 z-30 hidden w-64 flex-col border-e border-gold-300/10 bg-ink-950 text-mist-100 md:flex">
@@ -207,8 +208,8 @@ export function Sidebar({ user, enabledKeys }: { user: AccessUser; enabledKeys: 
           <ErpSuiteLinks pathname={pathname} />
         </nav>
         <div className="border-t border-gold-300/15 p-4">
-          <p className="font-semibold text-mist-100">{user.name}</p>
-          <p className="text-xs text-mist-400">{user.role.name}</p>
+          <p className="font-semibold text-mist-100">{displayTeamName(user.name, locale)}</p>
+          <p className="text-xs text-mist-400">{displayRoleName(user.role.name, locale)}</p>
           <p className="text-xs text-mist-500" dir="ltr">
             {user.email}
           </p>

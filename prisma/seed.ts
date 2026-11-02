@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { paymentStatus, round2 } from "../src/lib/format";
 import { MODULES as MODULE_DEFS } from "../src/lib/modules";
+import { AETHER_ADMIN_PASSWORD, VF_TEAM } from "../src/lib/venture-foods-team";
 import { clearEnterprise, seedEnterprise } from "./bootstrap";
 
 const prisma = new PrismaClient();
@@ -45,74 +46,45 @@ async function main() {
     await tx.permission.deleteMany();
     await tx.role.deleteMany();
 
-    const roles = [
-      {
-        name: "مدير النظام",
-        description: "صلاحيات كاملة على كل وحدات النظام",
-        isAdmin: true,
-        permissions: permissionsFor(true, []),
-        user: { name: "أحمد المدير", email: "admin@erp.com" },
-      },
-      {
-        name: "محاسب",
-        description: "المشتريات والمبيعات والمحاسبة والتقارير",
-        isAdmin: false,
-        permissions: permissionsFor(false, ["purchases", "sales", "accounting"], ["reports", "audit", "automations", "crm", "hr", "payments"]),
-        user: { name: "سارة المحاسبة", email: "accountant@erp.com" },
-      },
-      {
-        name: "أمين مخزن",
-        description: "المخزون والمستودعات",
-        isAdmin: false,
-        permissions: permissionsFor(false, ["inventory", "warehouses"]),
-        user: { name: "خالد أمين المخزن", email: "store@erp.com" },
-      },
-      {
-        name: "مندوب مبيعات",
-        description: "فواتير البيع ونقطة البيع وروابط الدفع",
-        isAdmin: false,
-        permissions: permissionsFor(false, ["sales", "pos", "crm", "payments"]),
-        user: { name: "ليلى المبيعات", email: "sales@erp.com" },
-      },
-    ];
-
+    // Venture Foods leadership team (canonical English names; AR labels via i18n display helpers).
+    const aetherHash = await bcrypt.hash(AETHER_ADMIN_PASSWORD, 10);
     let adminId = "";
     let adminRoleId = "";
-    for (const role of roles) {
+    const roleIdByKey = new Map<string, string>();
+
+    for (const member of VF_TEAM) {
       const created = await tx.role.create({
         data: {
-          name: role.name,
-          description: role.description,
-          isAdmin: role.isAdmin,
-          permissions: { create: role.permissions },
-          users: {
-            create: {
-              name: role.user.name,
-              email: role.user.email,
-              passwordHash,
-              isActive: true,
-            },
+          name: member.roleEn,
+          description: member.roleDescriptionEn,
+          isAdmin: member.isAdmin,
+          permissions: {
+            create: permissionsFor(
+              member.isAdmin,
+              member.writeModules,
+              member.viewOnlyModules ?? [],
+            ),
           },
         },
-        include: { users: true },
       });
-      if (role.isAdmin) {
-        adminId = created.users[0].id;
-        adminRoleId = created.id;
+      roleIdByKey.set(member.key, created.id);
+      if (member.isAdmin) adminRoleId = created.id;
+
+      for (const email of member.emails) {
+        const hash =
+          email.toLowerCase() === "admin@aetherbi.com" ? aetherHash : passwordHash;
+        const user = await tx.user.create({
+          data: {
+            name: member.nameEn,
+            email,
+            passwordHash: hash,
+            isActive: true,
+            roleId: created.id,
+          },
+        });
+        if (member.isAdmin && !adminId) adminId = user.id;
       }
     }
-
-    // Official AetherBI admin (additive — does not replace admin@erp.com).
-    const aetherHash = await bcrypt.hash("AetherAdmin#2026!", 10);
-    await tx.user.create({
-      data: {
-        name: "Aether Super Admin",
-        email: "admin@aetherbi.com",
-        passwordHash: aetherHash,
-        isActive: true,
-        roleId: adminRoleId,
-      },
-    });
 
     const categoryInput = [
       { key: "elec", name: "معدات مطابخ", description: "أجهزة تحضير وطهي لفروع المطاعم" },
