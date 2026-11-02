@@ -36,6 +36,7 @@ export const erpCatalog: readonly CatalogItem[] = [
   { id: 'crm', href: '/erp/crm', title: 'erpnav.crm', detail: 'hub.crm', status: 'ready' },
   { id: 'org', href: '/erp/org', title: 'erpnav.org', detail: 'hub.org', status: 'ready' },
   { id: 'kitchen', href: '/erp/kitchen', title: 'nav.kitchen', detail: 'hub.kitchen', status: 'ready' },
+  { id: 'food-safety', href: '/erp/food-safety', title: 'nav.foodSafety', detail: 'hub.foodSafety', status: 'ready' },
   { id: 'delivery', href: '/erp/delivery', title: 'nav.delivery', detail: 'hub.delivery', status: 'ready' },
   { id: 'operations', href: '/erp/operations', title: 'erpnav.operations', detail: 'hub.ops', status: 'ready' },
   { id: 'contracts', href: '/erp/contracts', title: 'erpnav.contracts', detail: 'hub.advisor', status: 'ready' },

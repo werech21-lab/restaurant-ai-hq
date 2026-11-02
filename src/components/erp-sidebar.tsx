@@ -31,6 +31,7 @@ import {
   Zap,
   ClipboardCheck,
   Factory,
+  ThermometerSnowflake,
 } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import { logout } from '@/app/actions/auth'
@@ -64,6 +65,7 @@ const icons: Record<ModuleKey, typeof LayoutDashboard> = {
 
 const ERP_SUITE = [
   { key: 'erp-radar', href: '/erp/aggregator-radar', labelKey: 'nav.erpRadar' as MessageKey, icon: Radar, live: true },
+  { key: 'food-safety', href: '/erp/food-safety', labelKey: 'nav.foodSafety' as MessageKey, icon: ThermometerSnowflake, live: true },
   { key: 'erp-intelligence', href: '/erp/intelligence', labelKey: 'nav.erpIntelligence' as MessageKey, icon: Brain, live: false },
   { key: 'erp-governance', href: '/erp/governance', labelKey: 'nav.erpGovernance' as MessageKey, icon: Scale, live: false },
   { key: 'erp-archive', href: '/erp/archive', labelKey: 'nav.erpArchive' as MessageKey, icon: Archive, live: false },
