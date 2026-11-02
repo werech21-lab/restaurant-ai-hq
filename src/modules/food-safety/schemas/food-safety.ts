@@ -30,6 +30,8 @@ export const createBatchSchema = z.object({
   preparedBy: z.string().min(2).max(80),
   quantity: z.number().int().min(1).max(10_000),
   preparedAt: z.string().datetime().optional(),
+  storageMode: z.enum(['freezer', 'chiller', 'line_prep', 'thawed_chiller', 'grill_skewer']).optional(),
+  brandId: z.string().max(40).nullable().optional(),
 })
 
 export type CreateBatchInput = z.output<typeof createBatchSchema>

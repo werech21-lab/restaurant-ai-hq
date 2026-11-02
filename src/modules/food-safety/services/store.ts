@@ -1,8 +1,11 @@
 import {
+  defaultStorageMode,
+  SHELF_LIFE_MATRIX,
+} from '@/lib/food-safety/shelf-life-matrix'
+import {
   COLD_UNIT_SPECS,
   listFoodSafetySites,
   MAINTENANCE_CONTACT,
-  PREP_CATALOG,
   SCRAP_ACCOUNT_CODE,
   SCRAP_ACCOUNT_NAME_AR,
   SCRAP_ACCOUNT_NAME_EN,
@@ -118,16 +121,19 @@ export function ensureSeeded(now = new Date()): void {
     }
   }
 
-  // Seed FEFO batches across CK + a few branches
-  const prepSites = sites.filter((x) => x.id === 'CK-QURAIN' || x.id.startsWith('FB-') || x.id.startsWith('CG-'))
+  // Seed FEFO batches across CK + a few branches from HACCP matrix
+  const prepSites = sites.filter((x) => x.id === 'CK-QURAIN' || x.id.startsWith('FB-') || x.id.startsWith('CG-') || x.id.startsWith('ST-'))
+  const seedRules = SHELF_LIFE_MATRIX.filter((_, i) => i % 3 === 0).slice(0, 12)
   let bi = 0
-  for (const prep of PREP_CATALOG) {
-    for (const site of prepSites.slice(0, 4)) {
+  for (const prep of seedRules) {
+    for (const site of prepSites.slice(0, 3)) {
       bi += 1
-      const hoursAgo = (hash(`${prep.code}:${site.id}`) % 70) + 1
+      const mode = defaultStorageMode(prep)
+      const shelfHours = prep.hours[mode] ?? 24
+      const hoursAgo = (hash(`${prep.code}:${site.id}`) % Math.max(6, Math.floor(shelfHours * 0.9))) + 1
       const preparedAt = new Date(now.getTime() - hoursAgo * 3_600_000)
-      const expiresAt = new Date(preparedAt.getTime() + prep.shelfLifeHours * 3_600_000)
-      const cls = classifyShelfLife(expiresAt.toISOString(), now)
+      const expiresAt = new Date(preparedAt.getTime() + shelfHours * 3_600_000)
+      const cls = classifyShelfLife(expiresAt.toISOString(), now, prep.fefoWarnHours)
       const batch: ShelfLifeBatch = {
         id: `BATCH-${bi.toString().padStart(4, '0')}`,
         siteId: site.id,
@@ -145,6 +151,12 @@ export function ensureSeeded(now = new Date()): void {
         barcode: buildBrotherBarcode(prep.code, preparedAt.toISOString(), site.id),
         status: cls.status,
         hoursRemaining: cls.hoursRemaining,
+        msRemaining: cls.msRemaining,
+        storageMode: mode,
+        shelfHoursApplied: shelfHours,
+        keepTempEn: prep.keepTempEn,
+        keepTempAr: prep.keepTempAr,
+        fefoWarnHours: prep.fefoWarnHours,
       }
       s.batches.push(batch)
     }
@@ -156,9 +168,10 @@ export function ensureSeeded(now = new Date()): void {
 function refreshBatchStatuses(now: Date): void {
   const s = store()
   for (const batch of s.batches) {
-    const cls = classifyShelfLife(batch.expiresAt, now)
+    const cls = classifyShelfLife(batch.expiresAt, now, batch.fefoWarnHours ?? 6)
     batch.status = cls.status
     batch.hoursRemaining = cls.hoursRemaining
+    batch.msRemaining = cls.msRemaining
   }
 }
 
@@ -332,6 +345,7 @@ export function buildBoard(filter?: { brandId?: string | null; branchId?: string
       scrapLossMinorToday,
       openAlerts: alerts.length,
     },
+    matrixCount: SHELF_LIFE_MATRIX.length,
     scrapAccount: {
       code: SCRAP_ACCOUNT_CODE,
       nameEn: SCRAP_ACCOUNT_NAME_EN,

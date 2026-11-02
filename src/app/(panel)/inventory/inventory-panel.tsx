@@ -124,6 +124,9 @@ export function InventoryPanel({
         <Tab href="/inventory?tab=products" active={active === "products"} label={en ? "Items" : "الأصناف"} />
         <Tab href="/inventory?tab=categories" active={active === "categories"} label={en ? "Categories" : "الأقسام"} />
         <Tab href="/inventory?tab=movements" active={active === "movements"} label={t("inv.tab.movements")} />
+        <a href="/erp/food-safety" className={btnGhost}>
+          {en ? "Food Safety & FEFO" : "سلامة الغذاء وFEFO"}
+        </a>
       </div>
       <DataCard>
         <form method="get" className="flex flex-wrap items-center gap-2 border-b border-slate-200 p-4">

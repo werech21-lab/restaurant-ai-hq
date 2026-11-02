@@ -70,6 +70,12 @@ export type ShelfLifeBatch = {
   barcode: string
   status: ShelfLifeStatus
   hoursRemaining: number
+  msRemaining: number
+  storageMode: 'freezer' | 'chiller' | 'line_prep' | 'thawed_chiller' | 'grill_skewer'
+  shelfHoursApplied: number
+  keepTempEn: string
+  keepTempAr: string
+  fefoWarnHours: number
 }
 
 export type SpoilageDisposal = {
@@ -133,6 +139,7 @@ export type FoodSafetyBoard = {
     scrapLossMinorToday: number
     openAlerts: number
   }
+  matrixCount: number
   scrapAccount: { code: string; nameEn: string; nameAr: string }
   maintenance: {
     name: string

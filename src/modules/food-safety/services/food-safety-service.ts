@@ -1,5 +1,15 @@
+import {
+  computeExpiry,
+  defaultStorageMode,
+  getShelfLifeRule,
+  listShelfLifeRules,
+  resolveShelfHours,
+  type BrandScope,
+  type ShelfCategory,
+  type StorageMode,
+} from '@/lib/food-safety/shelf-life-matrix'
 import { listFoodSafetySites, PREP_CATALOG, SCRAP_ACCOUNT_CODE } from '@/modules/food-safety/domain/catalog'
-import { buildBrotherBarcode, brotherLabelPayload, classifyShelfLife, computeScrapLossMinor } from '@/modules/food-safety/domain/shelf-life'
+import { brotherLabelHtml, brotherLabelPayload, buildBrotherBarcode, classifyShelfLife, computeScrapLossMinor } from '@/modules/food-safety/domain/shelf-life'
 import type { ShiftCheckIn, ShelfLifeBatch, SpoilageDisposal } from '@/modules/food-safety/domain/types'
 import { evaluateVision } from '@/modules/food-safety/domain/vision'
 import type { CreateBatchInput, DisposeInput, ShiftCheckInInput, TelemetryInput } from '@/modules/food-safety/schemas/food-safety'
@@ -15,6 +25,23 @@ import {
 
 export function getFoodSafetyBoard(filter?: { brandId?: string | null; branchId?: string | null }) {
   return buildBoard(filter)
+}
+
+export function getShelfLifeMatrix(filter?: {
+  brand?: string | null
+  category?: string | null
+  query?: string | null
+}) {
+  const rules = listShelfLifeRules({
+    brand: filter?.brand as BrandScope | null,
+    category: filter?.category as ShelfCategory | null,
+    query: filter?.query,
+  })
+  return {
+    count: rules.length,
+    rules,
+    catalog: PREP_CATALOG,
+  }
 }
 
 export async function ingestTelemetry(input: TelemetryInput) {
@@ -84,39 +111,64 @@ export async function submitShiftCheckIn(input: ShiftCheckInInput) {
 export function createShelfLifeBatch(input: CreateBatchInput) {
   const site = listFoodSafetySites().find((s) => s.id === input.siteId)
   if (!site) throw new Error('site_not_found')
-  const prep = PREP_CATALOG.find((p) => p.code === input.itemCode)
-  if (!prep) throw new Error('item_not_found')
+  const rule = getShelfLifeRule(input.itemCode)
+  if (!rule) throw new Error('item_not_found')
+  const mode: StorageMode = input.storageMode ?? defaultStorageMode(rule)
+  const shelfHours = resolveShelfHours(rule, mode)
+  if (shelfHours == null) throw new Error('storage_mode_not_allowed')
   const preparedAt = input.preparedAt ? new Date(input.preparedAt) : new Date()
-  const expiresAt = new Date(preparedAt.getTime() + prep.shelfLifeHours * 3_600_000)
-  const cls = classifyShelfLife(expiresAt.toISOString(), new Date())
+  const expiresAt = computeExpiry(preparedAt, shelfHours)
+  const cls = classifyShelfLife(expiresAt.toISOString(), new Date(), rule.fefoWarnHours)
+  const barcode = buildBrotherBarcode(rule.code, preparedAt.toISOString(), site.id)
   const row: ShelfLifeBatch = {
     id: `BATCH-${Date.now()}`,
     siteId: site.id,
-    brandId: site.brandId,
+    brandId: input.brandId ?? site.brandId,
     brandNameEn: site.brandNameEn,
     brandNameAr: site.brandNameAr,
-    itemCode: prep.code,
-    itemNameEn: prep.nameEn,
-    itemNameAr: prep.nameAr,
+    itemCode: rule.code,
+    itemNameEn: rule.nameEn,
+    itemNameAr: rule.nameAr,
     preparedAt: preparedAt.toISOString(),
     expiresAt: expiresAt.toISOString(),
     preparedBy: input.preparedBy,
     quantity: input.quantity,
-    unitCostMinor: prep.unitCostMinor,
-    barcode: buildBrotherBarcode(prep.code, preparedAt.toISOString(), site.id),
+    unitCostMinor: rule.unitCostMinor,
+    barcode,
     status: cls.status,
     hoursRemaining: cls.hoursRemaining,
+    msRemaining: cls.msRemaining,
+    storageMode: mode,
+    shelfHoursApplied: shelfHours,
+    keepTempEn: rule.keepTempEn,
+    keepTempAr: rule.keepTempAr,
+    fefoWarnHours: rule.fefoWarnHours,
   }
   addBatch(row)
-  const label = brotherLabelPayload({
-    itemName: prep.nameEn,
+  const labelInput = {
+    brandName: site.brandNameEn,
+    siteName: site.nameEn,
+    itemCode: rule.code,
+    itemName: rule.nameEn,
     preparedAt: preparedAt.toISOString(),
     expiresAt: expiresAt.toISOString(),
+    shelfHours,
+    keepTemp: rule.keepTempEn,
     preparedBy: input.preparedBy,
-    barcode: row.barcode,
-    siteName: site.nameEn,
-  })
-  return { batch: row, label }
+    barcode,
+    storageMode: mode,
+  }
+  return {
+    batch: row,
+    label: brotherLabelPayload(labelInput),
+    labelHtml: brotherLabelHtml(labelInput),
+    preview: {
+      shelfHours,
+      storageMode: mode,
+      expiresAtKuwait: expiresAt.toISOString(),
+      fefoWarnHours: rule.fefoWarnHours,
+    },
+  }
 }
 
 export function printBatchLabel(batchId: string) {
@@ -124,22 +176,32 @@ export function printBatchLabel(batchId: string) {
   const batch = board.batches.find((b) => b.id === batchId)
   if (!batch) throw new Error('batch_not_found')
   const site = board.sites.find((s) => s.id === batch.siteId)
-  const label = brotherLabelPayload({
+  const labelInput = {
+    brandName: batch.brandNameEn,
+    siteName: site?.nameEn ?? batch.siteId,
+    itemCode: batch.itemCode,
     itemName: batch.itemNameEn,
     preparedAt: batch.preparedAt,
     expiresAt: batch.expiresAt,
+    shelfHours: batch.shelfHoursApplied,
+    keepTemp: batch.keepTempEn,
     preparedBy: batch.preparedBy,
     barcode: batch.barcode,
-    siteName: site?.nameEn ?? batch.siteId,
-  })
-  return { batch, label }
+    storageMode: batch.storageMode,
+  }
+  return {
+    batch,
+    label: brotherLabelPayload(labelInput),
+    labelHtml: brotherLabelHtml(labelInput),
+  }
 }
 
 export async function disposeSpoilage(input: DisposeInput) {
   const site = listFoodSafetySites().find((s) => s.id === input.siteId)
   if (!site) throw new Error('site_not_found')
+  const rule = getShelfLifeRule(input.itemCode)
   const prep = PREP_CATALOG.find((p) => p.code === input.itemCode)
-  const unitCost = input.unitCostMinor ?? prep?.unitCostMinor ?? 500
+  const unitCost = input.unitCostMinor ?? rule?.unitCostMinor ?? prep?.unitCostMinor ?? 500
   const lossMinor = computeScrapLossMinor(input.quantity, unitCost)
   const journalRef = `SCRAP-${SCRAP_ACCOUNT_CODE}-${Date.now()}`
   const row: SpoilageDisposal = {
@@ -148,8 +210,8 @@ export async function disposeSpoilage(input: DisposeInput) {
     siteNameEn: site.nameEn,
     siteNameAr: site.nameAr,
     itemCode: input.itemCode,
-    itemNameEn: prep?.nameEn ?? input.itemCode,
-    itemNameAr: prep?.nameAr ?? input.itemCode,
+    itemNameEn: rule?.nameEn ?? prep?.nameEn ?? input.itemCode,
+    itemNameAr: rule?.nameAr ?? prep?.nameAr ?? input.itemCode,
     quantity: input.quantity,
     reason: input.reason,
     photoName: input.photoName,
@@ -184,4 +246,18 @@ export async function disposeSpoilage(input: DisposeInput) {
     },
     dispatch,
   }
+}
+
+export async function alertExclusiveForBatch(batchId: string) {
+  const board = buildBoard()
+  const batch = board.batches.find((b) => b.id === batchId)
+  if (!batch) throw new Error('batch_not_found')
+  const site = board.sites.find((s) => s.id === batch.siteId)
+  return dispatchFoodSafetyAlerts({
+    kind: 'spoilage',
+    siteNameEn: site?.nameEn ?? batch.siteId,
+    siteNameAr: site?.nameAr ?? batch.siteId,
+    detailEn: `EXPIRED batch ${batch.itemCode} ${batch.itemNameEn} · LOT ${batch.barcode} — ban use and dispose to 420001`,
+    detailAr: `دفعة منتهية ${batch.itemCode} ${batch.itemNameAr} · LOT ${batch.barcode} — حظر الاستخدام وإعدام إلى 420001`,
+  })
 }

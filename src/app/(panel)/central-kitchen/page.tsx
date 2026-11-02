@@ -79,6 +79,21 @@ async function CentralKitchenContent() {
             {tx(locale, 'فتح الجرد', 'Open stock count')}
           </Link>
         </div>
+        <div>
+          <h2 className="text-lg font-bold text-mist-100">
+            {tx(locale, 'سلامة الغذاء ومصفوفة الصلاحية', 'Food safety & shelf-life matrix')}
+          </h2>
+          <p className="mt-2 text-sm text-mist-400">
+            {tx(
+              locale,
+              'ساعات صلاحية HACCP لتحضيرات PP03* ومواد RW01*، عدّاد FEFO حي، وملصقات Brother DK-2205.',
+              'HACCP shelf-life hours for PP03* preps and RW01* raw items, live FEFO countdown, and Brother DK-2205 labels.',
+            )}
+          </p>
+          <Link href="/erp/food-safety" className={`${btnPrimary} mt-4`}>
+            {tx(locale, 'فتح سلامة الغذاء والبرادات', 'Open Food Safety & Cold Chain')}
+          </Link>
+        </div>
       </div>
     </div>
   )

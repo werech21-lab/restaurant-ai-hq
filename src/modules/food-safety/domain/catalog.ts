@@ -1,3 +1,8 @@
+import {
+  defaultStorageMode,
+  SHELF_LIFE_MATRIX,
+  type StorageMode,
+} from '@/lib/food-safety/shelf-life-matrix'
 import { VENTURE_BRANCHES, VENTURE_BRANDS } from '@/lib/venture-hierarchy'
 
 export const SCRAP_ACCOUNT_CODE = '420001'
@@ -132,20 +137,23 @@ export type PrepCatalogItem = {
   nameAr: string
   shelfLifeHours: number
   unitCostMinor: number
+  storageModes: StorageMode[]
+  defaultMode: StorageMode
 }
 
-/** Central kitchen prep batches commonly labeled Brother DK-2205. */
-export const PREP_CATALOG: readonly PrepCatalogItem[] = [
-  { code: 'PP03-CBRINE', nameEn: 'Chicken Brined FB', nameAr: 'دجاج منقوع فارم براون', shelfLifeHours: 48, unitCostMinor: 1850 },
-  { code: 'PP03-MONG', nameEn: 'Mongolian Sauce', nameAr: 'صلصة مونغوليان', shelfLifeHours: 72, unitCostMinor: 420 },
-  { code: 'PP03-DYN', nameEn: 'Dynamite Sauce', nameAr: 'صلصة دايناميت', shelfLifeHours: 72, unitCostMinor: 380 },
-  { code: 'PP03-NOOD', nameEn: 'Steamed Noodles', nameAr: 'نودلز مطهو بالبخار', shelfLifeHours: 24, unitCostMinor: 290 },
-  { code: 'PP03-DUMP', nameEn: 'Chicken Dumpling', nameAr: 'دامبلنغ دجاج', shelfLifeHours: 36, unitCostMinor: 640 },
-  { code: 'PP03-SHAW', nameEn: 'Beef Shawarma Skewer', nameAr: 'سيخ شاورما لحم', shelfLifeHours: 30, unitCostMinor: 2100 },
-  { code: 'RW-VEG-MIX', nameEn: 'Fresh Mixed Vegetables', nameAr: 'خضار مشكلة طازجة', shelfLifeHours: 18, unitCostMinor: 550 },
-  { code: 'RW-SALAD', nameEn: 'Salad Mix Opened', nameAr: 'خلطة سلطات مفتوحة', shelfLifeHours: 12, unitCostMinor: 480 },
-  { code: 'RW-CHIX', nameEn: 'Raw Chicken Portion', nameAr: 'حصة دجاج نيء', shelfLifeHours: 24, unitCostMinor: 1650 },
-]
+/** Derived from HACCP master matrix (Odoo PP03* / RW01*). */
+export const PREP_CATALOG: readonly PrepCatalogItem[] = SHELF_LIFE_MATRIX.map((r) => {
+  const mode = defaultStorageMode(r)
+  return {
+    code: r.code,
+    nameEn: r.nameEn,
+    nameAr: r.nameAr,
+    shelfLifeHours: r.hours[mode] ?? 24,
+    unitCostMinor: r.unitCostMinor,
+    storageModes: (Object.keys(r.hours) as StorageMode[]).filter((m) => r.hours[m] != null),
+    defaultMode: mode,
+  }
+})
 
 export const MAINTENANCE_CONTACT = {
   name: 'Rabih Anis Yehia',
