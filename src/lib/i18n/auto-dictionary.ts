@@ -284,6 +284,17 @@ export const AR_TO_EN: Record<string, string> = {
   'قسيمة الراتب': 'Payslip',
   'عرض السعر': 'Quotation',
   'د.ك': 'KWD',
+  'تنبيهات المخزون': 'Inventory alerts',
+  'تنبيهات الأتمتة': 'Automation alerts',
+  'تنبيهات المدير': 'Manager alerts',
+  'التنبيهات': 'Alerts',
+  'تنبيهات': 'Alerts',
+  'أصناف تحت حد الطلب': 'Items below reorder',
+  'لا توجد تنبيهات': 'No alerts',
+  'المخزون فوق حد الطلب.': 'Stock is above reorder levels.',
+  'عرض كل النواقص': 'View all shortages',
+  'صنف يحتاج إعادة طلب': 'item needs reorder',
+  'صنفاً يحتاج إعادة طلب': 'items need reorder',
 }
 
 /** Sorted once for longest-match phrase replacement. */
