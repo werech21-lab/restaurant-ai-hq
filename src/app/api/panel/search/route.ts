@@ -163,12 +163,15 @@ export async function GET(request: NextRequest) {
       select: { id: true, fileName: true, module: true, entityLabel: true },
     })
     for (const row of deptDocs) {
+      const smartDrop = String(row.module || '').startsWith('smart_dropzone')
       hits.push({
         id: row.id,
         kind: 'document',
         title: row.fileName,
         subtitle: `${row.module}${row.entityLabel ? ` · ${row.entityLabel}` : ''}`,
-        href: `/smart-ingest/${row.module}`,
+        href: smartDrop
+          ? `/erp/smart-dropzone`
+          : `/smart-ingest/${String(row.module).replace(/^smart_dropzone:/, '')}`,
       })
     }
   } catch {

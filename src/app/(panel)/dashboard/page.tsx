@@ -85,6 +85,19 @@ async function DashboardContent() {
           `${monthLabel} summary · ${scopeLabel} · AetherBI Enterprise ERP`,
         )}
       />
+      <a
+        href="/erp/smart-dropzone"
+        className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-gold-300/30 bg-gradient-to-l from-[#8cc63f]/15 to-[#00a99d]/10 px-4 py-3 text-sm font-bold text-mist-100 hover:border-gold-300/60"
+      >
+        <span>
+          {tx(
+            locale,
+            '🧠 بوابة الفرز والأرشفة الذكية الشاملة (AI Auto-Router)',
+            '🧠 AI Smart Dropzone & Auto-Router',
+          )}
+        </span>
+        <span className="text-gold-300">{tx(locale, 'افتح الآن', 'Open now')}</span>
+      </a>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {cards.map((card) => (
           <StatCard key={card.label} href={card.href} label={card.label} value={card.value} danger={card.danger} />

@@ -32,6 +32,7 @@ import {
   ClipboardCheck,
   Factory,
   ThermometerSnowflake,
+  Sparkles,
 } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import { logout } from '@/app/actions/auth'
@@ -64,6 +65,7 @@ const icons: Record<ModuleKey, typeof LayoutDashboard> = {
 }
 
 const ERP_SUITE = [
+  { key: 'smart-dropzone', href: '/erp/smart-dropzone', labelKey: 'nav.smartDropzone' as MessageKey, icon: Sparkles, live: true },
   { key: 'erp-radar', href: '/erp/aggregator-radar', labelKey: 'nav.erpRadar' as MessageKey, icon: Radar, live: true },
   { key: 'food-safety', href: '/erp/food-safety', labelKey: 'nav.foodSafety' as MessageKey, icon: ThermometerSnowflake, live: true },
   { key: 'erp-intelligence', href: '/erp/intelligence', labelKey: 'nav.erpIntelligence' as MessageKey, icon: Brain, live: false },
