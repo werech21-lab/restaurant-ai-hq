@@ -4,7 +4,7 @@ import { protectedRoute } from '@/lib/api/route'
 import { dispatchExclusiveOperationalReport, listExclusiveRadarRecipients } from '@/lib/alerts'
 import { buildForensicMatrix } from '@/modules/governance/domain/forensic-radar'
 import { listForensicHistory } from '@/modules/governance/services/forensic-radar-service'
-import { getSmtpPublicStatus } from '@/lib/email/server-mail'
+import { dispatchServerEmail, getSmtpPublicStatus } from '@/lib/email/server-mail'
 import { logger } from '@/lib/logger'
 
 export const runtime = 'nodejs'
@@ -13,9 +13,37 @@ export const dynamic = 'force-dynamic'
 /**
  * POST /api/aggregator-radar/alert
  * Server-to-inbox dispatch of the Detailed Daily Operational & Forensic Report
- * to the three exclusive recipients (SMTP → FormSubmit fallback). Zero mailto.
+ * or Instant Talabat Go Area Blackout Alert to the three exclusive recipients.
  */
-export const POST = protectedRoute(permissions.govAggregatorManage, async ({ auth }) => {
+export const POST = protectedRoute(permissions.govAggregatorManage, async ({ request, auth }) => {
+  let body: any = null
+  try {
+    body = await request.json()
+  } catch {
+    body = null
+  }
+
+  if (body?.kind === 'talabat_area_alert') {
+    const text = body.emailText || 'Talabat Go Area Blackout Alert'
+    const subject = `🚨 المناطق السكنية المغلقة أو المشغولة حالياً في توصيل طلبات (Talabat Go Busy & Hidden Areas Report) · ${new Date().toLocaleDateString('en-GB')}`
+    const delivery = await dispatchServerEmail({ subject, text })
+
+    logger.info('talabat_area_alert_api', {
+      userId: auth.userId,
+      ok: delivery.ok,
+      engine: delivery.engine,
+    })
+
+    return NextResponse.json({
+      data: {
+        delivery,
+        recipients: listExclusiveRadarRecipients(),
+        subject,
+        preview: text.slice(0, 1500),
+      },
+    })
+  }
+
   const history = listForensicHistory()
   const snapshots = history.length ? history : [buildForensicMatrix()]
   const result = await dispatchExclusiveOperationalReport(snapshots)
