@@ -177,13 +177,18 @@ async function resolveSmtpAuth(): Promise<{
   return { host, port, secure, user, pass, from }
 }
 
-async function sendViaSmtp(subject: string, text: string, html: string): Promise<ServerMailResult> {
+async function sendViaSmtp(
+  subject: string,
+  text: string,
+  html: string,
+  customTo?: string[],
+): Promise<ServerMailResult> {
   const auth = await resolveSmtpAuth()
   if (!auth) {
     return { ok: false, engine: 'none', message: 'SMTP not configured', error: 'smtp_not_configured' }
   }
 
-  const to = exclusiveRecipientEmails()
+  const to = customTo && customTo.length > 0 ? customTo : exclusiveRecipientEmails()
   const attempts: Array<{ port: number; secure: boolean }> = [
     { port: 465, secure: true },
     { port: 587, secure: false },
@@ -250,6 +255,7 @@ function toHtmlPre(text: string): string {
 export async function dispatchServerEmail(input: {
   subject?: string
   text: string
+  to?: string[]
 }): Promise<ServerMailResult> {
   const subject = input.subject?.trim() || REPORT_SUBJECT
   const html = toHtmlPre(input.text)
@@ -263,7 +269,7 @@ export async function dispatchServerEmail(input: {
       error: 'smtp_not_configured',
     }
   }
-  return sendViaSmtp(subject, input.text, html)
+  return sendViaSmtp(subject, input.text, html, input.to)
 }
 
 export { REPORT_SUBJECT, DEFAULT_FROM, DEFAULT_HOST, DEFAULT_PORT }

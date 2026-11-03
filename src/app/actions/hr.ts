@@ -19,6 +19,15 @@ export async function saveEmployeeAction(input: {
   allowances: number;
   deductions: number;
   status: string;
+  civilId?: string;
+  iban?: string;
+  bankName?: string;
+  hireDate?: string;
+  civilIdExpiry?: string;
+  passportExpiry?: string;
+  healthCardExpiry?: string;
+  workPermitExpiry?: string;
+  drivingLicenseExpiry?: string;
 }) {
   return done(await saveEmployee(input));
 }

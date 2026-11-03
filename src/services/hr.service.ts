@@ -52,6 +52,15 @@ export async function saveEmployee(input: {
   allowances: number;
   deductions: number;
   status: string;
+  civilId?: string;
+  iban?: string;
+  bankName?: string;
+  hireDate?: string;
+  civilIdExpiry?: string;
+  passportExpiry?: string;
+  healthCardExpiry?: string;
+  workPermitExpiry?: string;
+  drivingLicenseExpiry?: string;
 }) {
   const gate = await checkPermission("hr", input.id ? "edit" : "create");
   if (!gate.allowed || !gate.user) return fail(gate.message || "ممنوع");
@@ -59,6 +68,11 @@ export async function saveEmployee(input: {
   const code = cleanText(input.code, 30).toUpperCase();
   const name = cleanText(input.name, 120);
   if (code.length < 2 || name.length < 2) return fail("رمز الموظف والاسم مطلوبان");
+  const parseDateOpt = (val?: string) => {
+    if (!val) return undefined;
+    const d = new Date(val);
+    return Number.isNaN(d.getTime()) ? undefined : d;
+  };
   const data = {
     code,
     name,
@@ -68,7 +82,16 @@ export async function saveEmployee(input: {
     basicSalary: round2(Number(input.basicSalary) || 0),
     allowances: round2(Number(input.allowances) || 0),
     deductions: round2(Number(input.deductions) || 0),
-    status: input.status === "INACTIVE" ? "INACTIVE" : "ACTIVE",
+    status: ["ACTIVE", "INACTIVE", "ON_VACATION", "OVERSEAS_PIPELINE"].includes(input.status) ? input.status : "ACTIVE",
+    ...(input.civilId !== undefined ? { civilId: cleanText(input.civilId, 20) } : {}),
+    ...(input.iban !== undefined ? { iban: cleanText(input.iban, 34).toUpperCase() } : {}),
+    ...(input.bankName !== undefined ? { bankName: cleanText(input.bankName, 80) } : {}),
+    ...(parseDateOpt(input.hireDate) ? { hireDate: parseDateOpt(input.hireDate) } : {}),
+    ...(parseDateOpt(input.civilIdExpiry) ? { civilIdExpiry: parseDateOpt(input.civilIdExpiry) } : {}),
+    ...(parseDateOpt(input.passportExpiry) ? { passportExpiry: parseDateOpt(input.passportExpiry) } : {}),
+    ...(parseDateOpt(input.healthCardExpiry) ? { healthCardExpiry: parseDateOpt(input.healthCardExpiry) } : {}),
+    ...(parseDateOpt(input.workPermitExpiry) ? { workPermitExpiry: parseDateOpt(input.workPermitExpiry) } : {}),
+    ...(parseDateOpt(input.drivingLicenseExpiry) ? { drivingLicenseExpiry: parseDateOpt(input.drivingLicenseExpiry) } : {}),
   };
   if (input.id) await prisma.employee.update({ where: { id: input.id }, data });
   else await prisma.employee.create({ data });

@@ -1,0 +1,1699 @@
+'use client'
+
+import { useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { generatePayrollAction, payPayrollAction } from '@/app/actions/hr'
+import { HrDigitalDossier } from '@/components/hr-digital-dossier'
+import { HrWpsToolbar } from '@/components/hr-wps-toolbar'
+import {
+  INITIAL_OVERSEAS_CANDIDATES,
+  LEAVE_VACATION_RECORDS,
+  LOANS_AND_DISCIPLINARY_RECORDS,
+  MANDOUB_PRO_QUEUE,
+  OVERSEAS_STAGES,
+  PAM_QUOTA_LIST,
+  SHIFT_ROSTER_RECORDS,
+  STAFF_HOUSING_FLATS,
+  calculateKuwaitEosb,
+  type HrCommandTabKey,
+  type OverseasCandidate,
+  type OverseasStage,
+} from './hr-enterprise-data'
+import { HrExecutiveReportsHub, type HrEmployeeSummary } from './HrExecutiveReportsHub'
+import { HrOfficialLettersHub } from './HrOfficialLettersHub'
+import { NewEmployeeWizardModal } from './NewEmployeeWizardModal'
+
+export type HrPayrollRow = {
+  id: string
+  month: number
+  year: number
+  employeeId: string
+  employeeCode: string
+  employeeName: string
+  department: string
+  basicSalary: number
+  totalAllowances: number
+  totalDeductions: number
+  netSalary: number
+  absentDays: number
+  lateDays: number
+  status: string
+}
+
+export type HrAttendanceRow = {
+  id: string
+  employeeCode: string
+  employeeName: string
+  date: string
+  status: string
+  hoursWorked: number
+}
+
+type Props = {
+  locale: 'ar' | 'en'
+  initialTab?: string
+  employees: HrEmployeeSummary[]
+  payrollRows: HrPayrollRow[]
+  attendanceRows: HrAttendanceRow[]
+  year: number
+  month: number
+  canCreate: boolean
+  canEdit: boolean
+}
+
+const COMMAND_TABS: Array<{
+  key: HrCommandTabKey
+  icon: string
+  ar: string
+  en: string
+}> = [
+  {
+    key: 'employees',
+    icon: '👥',
+    ar: '1. سجل الموظفين والتعيين',
+    en: '1. Employees & Onboarding Wizard',
+  },
+  {
+    key: 'recruitment',
+    icon: '✈️',
+    ar: '2. الاستقدام الخارجي وفيزا 18',
+    en: '2. Overseas Recruitment & Visa 18',
+  },
+  {
+    key: 'residency',
+    icon: '🆔',
+    ar: '3. الإقامات والبلدية ومهام المندوب',
+    en: '3. Residency, Health Cards & PRO Queue',
+  },
+  {
+    key: 'payroll',
+    icon: '💰',
+    ar: '4. مسير الرواتب وحماية الأجور WPS',
+    en: '4. Payroll, Payslips & NBK WPS',
+  },
+  {
+    key: 'leaves',
+    icon: '🏖️',
+    ar: '5. الإجازات وتذاكر السفر',
+    en: '5. Leaves, Air Tickets & Vacation',
+  },
+  {
+    key: 'attendance',
+    icon: '⏱️',
+    ar: '6. البصمة والشفتات والإضافي',
+    en: '6. Attendance, Shift Roster & Overtime',
+  },
+  {
+    key: 'loans',
+    icon: '💳',
+    ar: '7. السلف والقروض والجزاءات',
+    en: '7. Loans, Advances & Disciplinary',
+  },
+  {
+    key: 'housing',
+    icon: '🏢',
+    ar: '8. سكن العمال والمواصلات',
+    en: '8. Staff Accommodation & Transport',
+  },
+  {
+    key: 'eosb',
+    icon: '⚖️',
+    ar: '9. حاسبة نهاية الخدمة والمخالصات',
+    en: '9. Kuwait EOSB Calculator & Offboarding',
+  },
+  {
+    key: 'letters',
+    icon: '🖨️',
+    ar: '10. الشهادات والعقود الرسمية',
+    en: '10. 1-Click Official HR Letters & Contracts',
+  },
+  {
+    key: 'reports',
+    icon: '📊',
+    ar: 'مركز التقارير الـ 12 الشامل',
+    en: '12 Executive HR Reports Hub',
+  },
+]
+
+function daysUntil(dateIso: string | null): number | null {
+  if (!dateIso) return null
+  const ms = new Date(dateIso).getTime() - Date.now()
+  return Math.ceil(ms / 86_400_000)
+}
+
+export function EnterpriseHrCommandHub({
+  locale,
+  initialTab,
+  employees,
+  payrollRows,
+  attendanceRows,
+  year,
+  month,
+  canCreate,
+  canEdit,
+}: Props) {
+  const router = useRouter()
+  const en = locale === 'en'
+
+  const validInitialTab = COMMAND_TABS.find((t) => t.key === initialTab)?.key || 'employees'
+  const [activeTab, setActiveTab] = useState<HrCommandTabKey>(validInitialTab)
+  const [wizardOpen, setWizardOpen] = useState(false)
+  const [selectedDossierEmpId, setSelectedDossierEmpId] = useState<string | null>(null)
+
+  // Filters for Tab 1 (Employees)
+  const [searchQ, setSearchQ] = useState('')
+  const [brandFilter, setBrandFilter] = useState('ALL')
+  const [statusFilter, setStatusFilter] = useState('ALL')
+
+  // State for Tab 2 (Overseas Recruitment)
+  const [candidates, setCandidates] = useState<OverseasCandidate[]>(INITIAL_OVERSEAS_CANDIDATES)
+  const [showNewOverseasForm, setShowNewOverseasForm] = useState(false)
+  const [ovName, setOvName] = useState('')
+  const [ovNationality, setOvNationality] = useState('India')
+  const [ovPassport, setOvPassport] = useState('Z9910234')
+  const [ovRole, setOvRole] = useState('Wok Chef')
+  const [ovBrand, setOvBrand] = useState('China Garden')
+  const [ovBranch, setOvBranch] = useState('Salmiya Branch')
+  const [ovAgencyKwd, setOvAgencyKwd] = useState('120.000')
+  const [ovVisaKwd, setOvVisaKwd] = useState('70.000')
+  const [ovMedicalKwd, setOvMedicalKwd] = useState('45.000')
+  const [ovFlightKwd, setOvFlightKwd] = useState('95.000')
+  const [ovSalaryKwd, setOvSalaryKwd] = useState('260.000')
+
+  // State for Tab 4 (Interactive Payroll Calculator)
+  const [calcBasic, setCalcBasic] = useState('300.000')
+  const [calcAllowances, setCalcAllowances] = useState('75.000')
+  const [calcOvertime, setCalcOvertime] = useState('22.500')
+  const [calcLoans, setCalcLoans] = useState('25.000')
+  const [calcAbsencePenalties, setCalcAbsencePenalties] = useState('0.000')
+  const [calcIsKuwaitiPifss, setCalcIsKuwaitiPifss] = useState(false)
+  const [payrollBusy, setPayrollBusy] = useState(false)
+  const [payrollNotice, setPayrollNotice] = useState<string | null>(null)
+
+  // State for Tab 9 (Kuwait EOSB Indemnity Calculator)
+  const [eosbEmpId, setEosbEmpId] = useState<string>(employees[0]?.id || '')
+  const [eosbReason, setEosbReason] = useState<'RESIGNATION' | 'TERMINATION' | 'CONTRACT_EXPIRY'>('TERMINATION')
+  const [eosbLastDate, setEosbLastDate] = useState<string>(new Date().toISOString().slice(0, 10))
+  const [eosbUnusedLeaveDays, setEosbUnusedLeaveDays] = useState<string>('24')
+  const [eosbWorkedDaysFinalMonth, setEosbWorkedDaysFinalMonth] = useState<string>('20')
+  const [eosbLoanBalance, setEosbLoanBalance] = useState<string>('0.000')
+
+  // State for Alert Dispatch (Stage 3: 3 Exclusive Recipients + Sheyam Hekmat)
+  const [alertBusy, setAlertBusy] = useState(false)
+  const [alertFeedback, setAlertFeedback] = useState<string | null>(null)
+
+  const filteredEmployees = useMemo(() => {
+    return employees.filter((emp) => {
+      if (brandFilter !== 'ALL' && !emp.department.toLowerCase().includes(brandFilter.toLowerCase())) {
+        return false
+      }
+      if (statusFilter !== 'ALL' && emp.status !== statusFilter) {
+        return false
+      }
+      if (!searchQ.trim()) return true
+      const q = searchQ.toLowerCase()
+      return (
+        emp.name.toLowerCase().includes(q) ||
+        emp.code.toLowerCase().includes(q) ||
+        emp.jobTitle.toLowerCase().includes(q) ||
+        emp.department.toLowerCase().includes(q) ||
+        (emp.civilId || '').toLowerCase().includes(q)
+      )
+    })
+  }, [employees, brandFilter, statusFilter, searchQ])
+
+  const eosbSelectedEmployee = useMemo(
+    () => employees.find((e) => e.id === eosbEmpId) || employees[0],
+    [employees, eosbEmpId],
+  )
+
+  const eosbCalculation = useMemo(
+    () =>
+      calculateKuwaitEosb({
+        hireDate: eosbSelectedEmployee?.hireDate || '2020-03-01',
+        lastWorkingDate: eosbLastDate,
+        basicSalaryKwd: eosbSelectedEmployee?.basicSalary ?? 280,
+        allowancesKwd: eosbSelectedEmployee?.allowances ?? 60,
+        reason: eosbReason,
+        unusedLeaveDays: Number(eosbUnusedLeaveDays) || 0,
+        workedDaysInFinalMonth: Number(eosbWorkedDaysFinalMonth) || 0,
+        outstandingLoanKwd: Number(eosbLoanBalance) || 0,
+      }),
+    [
+      eosbSelectedEmployee,
+      eosbLastDate,
+      eosbReason,
+      eosbUnusedLeaveDays,
+      eosbWorkedDaysFinalMonth,
+      eosbLoanBalance,
+    ],
+  )
+
+  const pifssDeduction = calcIsKuwaitiPifss
+    ? ((Number(calcBasic) || 0) + (Number(calcAllowances) || 0)) * 0.105
+    : 0
+  const calcNetSalary = Math.max(
+    0,
+    (Number(calcBasic) || 0) +
+      (Number(calcAllowances) || 0) +
+      (Number(calcOvertime) || 0) -
+      (Number(calcLoans) || 0) -
+      (Number(calcAbsencePenalties) || 0) -
+      pifssDeduction,
+  )
+
+  async function dispatchInstantHrAlert(kind: 'residency_health' | 'overseas_arrival', candidateName?: string) {
+    setAlertBusy(true)
+    setAlertFeedback(null)
+    try {
+      const res = await fetch('/api/hr/alert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kind,
+          candidateName,
+        }),
+      })
+      const payload = (await res.json()) as {
+        data?: { urgentCount?: number; timestamp?: string }
+        error?: { message?: string }
+      }
+      if (!res.ok) throw new Error(payload.error?.message || 'Alert failed')
+      setAlertFeedback(
+        en
+          ? `✅ Instant HR Compliance & Arrival Alert dispatched to: Sec@venturefoodskw.com, operations@venturefoodskw.com, abdelrahmanm@venturefoodskw.com & HR Manager Sheyam Hekmat (sheyamh@venturefoodskw.com).`
+          : `✅ تم إرسال التنبيه الفوري بنجاح إلى الثلاثة المعتمدين (Sec@ · operations@ · abdelrahmanm@) ومديرة الموارد البشرية شيام حكمت (sheyamh@venturefoodskw.com).`,
+      )
+    } catch (err) {
+      setAlertFeedback(
+        err instanceof Error
+          ? err.message
+          : en
+            ? 'Failed to dispatch alert'
+            : 'تعذر إرسال التنبيه',
+      )
+    } finally {
+      setAlertBusy(false)
+    }
+  }
+
+  function handleAddOverseasCandidate(e: React.FormEvent) {
+    e.preventDefault()
+    if (!ovName.trim()) return
+    const nextItem: OverseasCandidate = {
+      id: `ov-${Date.now()}`,
+      refCode: `OV-2026-${108 + candidates.length}`,
+      fullNameEn: ovName.trim(),
+      fullNameAr: ovName.trim(),
+      nationalityEn: ovNationality,
+      nationalityAr: ovNationality,
+      passportNo: ovPassport.trim(),
+      roleEn: ovRole.trim(),
+      roleAr: ovRole.trim(),
+      brandEn: ovBrand,
+      brandAr: ovBrand,
+      branchEn: ovBranch,
+      branchAr: ovBranch,
+      stage: 'REQUISITION',
+      visa18Number: 'PAM-REQ-NEW',
+      arrivalEta: '2026-12-20',
+      agencyFeeKwd: Number(ovAgencyKwd) || 0,
+      visaFeeKwd: Number(ovVisaKwd) || 0,
+      medicalAndCardKwd: Number(ovMedicalKwd) || 0,
+      flightTicketKwd: Number(ovFlightKwd) || 0,
+      offeredBasicKwd: Number(ovSalaryKwd) || 0,
+    }
+    setCandidates((prev) => [nextItem, ...prev])
+    setOvName('')
+    setShowNewOverseasForm(false)
+  }
+
+  function advanceCandidateStage(id: string, nextStage: OverseasStage) {
+    setCandidates((prev) => prev.map((c) => (c.id === id ? { ...c, stage: nextStage } : c)))
+  }
+
+  const totalPamCeiling = PAM_QUOTA_LIST.reduce((s, q) => s + q.allowedCeiling, 0)
+  const totalPamRegistered = PAM_QUOTA_LIST.reduce((s, q) => s + q.registeredCount, 0)
+  const totalPamVacancies = Math.max(0, totalPamCeiling - totalPamRegistered)
+
+  return (
+    <div className="space-y-6 text-mist-100" dir={en ? 'ltr' : 'rtl'} style={{ background: '#0a0d12' }}>
+      {/* Executive Top Header */}
+      <header className="rounded-3xl border border-white/10 bg-gradient-to-br from-[#121824] via-[#0d1118] to-[#0a0d12] p-6 shadow-xl">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="space-y-1.5">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-gold-300">
+              {en
+                ? 'Venture Foods Restaurant Management W.L.L. · Kuwait Labor Law No. 6/2010'
+                : 'شركة فنتشر فودز لإدارة المطاعم ذ.م.م. · قانون العمل الكويتي رقم 6 لسنة 2010'}
+            </p>
+            <h1 className="text-2xl font-black text-white sm:text-3xl">
+              {en
+                ? '🏛️ Enterprise HRMS & Overseas Recruitment Command Center'
+                : '🏛️ منظومة الموارد البشرية والاستقدام الخارجي المتكاملة (Enterprise HRMS)'}
+            </h1>
+            <p className="max-w-3xl text-xs sm:text-sm text-mist-300">
+              {en
+                ? `6 Brands · 10 Branches & Central Kitchen · ${employees.length} Active Staff · 618 Contracts · 1,000 Odoo Payslips · PAM (Asahal) & Kuwait Municipality Linked`
+                : `6 براندات · 10 فروع والمطبخ المركزي · ${employees.length} موظفاً مسجلاً · 618 عقد عمل · 1,000 قسيمة راتب مستوردة · ربط كامل مع القوى العاملة (أسهل) وبلدية الكويت`}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setWizardOpen(true)}
+              className="rounded-2xl bg-gradient-to-l from-[#8cc63f] to-[#10b981] px-5 py-3 text-xs sm:text-sm font-black text-ink-950 shadow-lg hover:brightness-110"
+            >
+              {en ? '➕ New Employee Wizard (4 Steps)' : '➕ إنشاء موظف جديد (New Employee Wizard)'}
+            </button>
+            <button
+              type="button"
+              disabled={alertBusy}
+              onClick={() => void dispatchInstantHrAlert('residency_health')}
+              className="rounded-2xl border border-amber-400/40 bg-amber-500/15 px-4 py-3 text-xs font-black text-amber-200 hover:bg-amber-500/25 disabled:opacity-50"
+            >
+              {alertBusy
+                ? en
+                  ? 'Sending Alert…'
+                  : 'جارٍ الإرسال…'
+                : en
+                  ? '🔔 Alert 3 Approved + HR Manager (Sheyam)'
+                  : '🔔 إرسال تنبيه الإقامات والوصول للثلاثة المعتمدين + مديرة الـ HR'}
+            </button>
+            <a
+              href="/hr/smart-folder-upload"
+              className="rounded-2xl border border-emerald-400/35 bg-emerald-950/40 px-4 py-3 text-xs font-bold text-emerald-200 hover:bg-emerald-950/60"
+            >
+              {en ? '📁 AI Smart HR Folder Upload' : '📁 رفع مجلد الموظفين الذكي'}
+            </a>
+            <a
+              href="/ess"
+              className="rounded-2xl border border-white/15 bg-[#11161f] px-4 py-3 text-xs font-bold text-mist-100 hover:border-white/30"
+            >
+              {en ? '📱 Employee Self-Service (/ess)' : '📱 بوابة الموظف الذاتية (/ess)'}
+            </a>
+          </div>
+        </div>
+
+        {/* Authorized Alert Recipients Banner */}
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/10 bg-black/30 px-4 py-2.5 text-[11px] text-mist-300">
+          <span>
+            {en
+              ? '🛡️ Linked Compliance & Airport Arrival Dispatch Recipients:'
+              : '🛡️ المستلمون المعتمدون لتنبيهات الإقامات وكروت البلدية ووصول العمالة من المطار:'}
+          </span>
+          <span className="font-mono text-emerald-300" dir="ltr">
+            Sec@venturefoodskw.com · operations@venturefoodskw.com · abdelrahmanm@venturefoodskw.com · sheyamh@venturefoodskw.com (Sheyam Hekmat)
+          </span>
+        </div>
+
+        {alertFeedback ? (
+          <p className="mt-3 rounded-xl border border-emerald-400/40 bg-emerald-950/40 px-4 py-2.5 text-xs font-semibold text-emerald-100">
+            {alertFeedback}
+          </p>
+        ) : null}
+      </header>
+
+      {/* 10 Specialized HR Command Tabs + 12 Reports Center */}
+      <nav
+        aria-label={en ? 'HR Command Tabs' : 'تبويبات منظومة الموارد البشرية'}
+        className="flex flex-wrap gap-2 rounded-3xl border border-white/10 bg-[#0f141c] p-3"
+      >
+        {COMMAND_TABS.map((t) => {
+          const isCurrent = activeTab === t.key
+          return (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setActiveTab(t.key)}
+              className={`rounded-2xl px-3.5 py-2.5 text-xs font-black transition ${
+                isCurrent
+                  ? 'bg-gradient-to-l from-emerald-500 to-teal-500 text-ink-950 shadow-md shadow-emerald-950/50'
+                  : 'border border-white/10 bg-[#141b26] text-mist-200 hover:border-emerald-400/40 hover:text-white'
+              }`}
+            >
+              {t.icon} {en ? t.en : t.ar}
+            </button>
+          )
+        })}
+      </nav>
+
+      {/* =====================================================================
+          TAB 1: EMPLOYEES & ONBOARDING WIZARD
+         ===================================================================== */}
+      {activeTab === 'employees' ? (
+        <section className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <article className="rounded-2xl border border-white/10 bg-[#0f141c] p-4">
+              <p className="text-xs text-mist-400">
+                {en ? 'Total Registered Employees (Odoo Sync)' : 'إجمالي الموظفين المسجلين (مستورد من Odoo)'}
+              </p>
+              <p className="mt-1 text-2xl font-black text-white">{employees.length}</p>
+              <p className="mt-1 text-[11px] text-emerald-300">
+                {en ? 'Across 6 Brands, 10 Branches & CK' : 'موزعين على 6 براندات و10 فروع والمطبخ المركزي'}
+              </p>
+            </article>
+            <article className="rounded-2xl border border-white/10 bg-[#0f141c] p-4">
+              <p className="text-xs text-mist-400">
+                {en ? 'Historical Employment Contracts' : 'إجمالي عقود العمل المؤرشفة (hr.contract)'}
+              </p>
+              <p className="mt-1 text-2xl font-black text-gold-300">618</p>
+              <p className="mt-1 text-[11px] text-mist-400">
+                {en ? 'Kuwait Labor Law Art. 24 & 51 Compliant' : 'متوافقة مع قانون العمل الكويتي رقم 6/2010'}
+              </p>
+            </article>
+            <article className="rounded-2xl border border-white/10 bg-[#0f141c] p-4">
+              <p className="text-xs text-mist-400">
+                {en ? 'Historical Payslips (hr.payslip)' : 'قسائم الرواتب التاريخية المستوردة (hr.payslip)'}
+              </p>
+              <p className="mt-1 text-2xl font-black text-emerald-300">1,000</p>
+              <p className="mt-1 text-[11px] text-mist-400">
+                {en ? '3-Decimal Precision (0.000 KWD)' : 'بدقة 3 خانات عشرية (0.000 د.ك)'}
+              </p>
+            </article>
+            <article className="rounded-2xl border border-white/10 bg-[#0f141c] p-4">
+              <p className="text-xs text-mist-400">
+                {en ? 'Active Overseas Visa 18 Pipeline' : 'مرشحو الاستقدام الخارجي (فيزا 18 نشطة)'}
+              </p>
+              <p className="mt-1 text-2xl font-black text-sky-300">{candidates.length}</p>
+              <p className="mt-1 text-[11px] text-mist-400">
+                {en ? 'India · Philippines · Egypt · Nepal · Sri Lanka' : 'الهند · الفلبين · مصر · نيبال · سريلانكا'}
+              </p>
+            </article>
+          </div>
+
+          <div className="rounded-3xl border border-white/10 bg-[#0f141c] p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  value={searchQ}
+                  onChange={(e) => setSearchQ(e.target.value)}
+                  placeholder={
+                    en
+                      ? 'Search by name, barcode, Civil ID, job title, or branch…'
+                      : 'بحث بالاسم، رقم البصمة، الرقم المدني، الوظيفة، أو الفرع…'
+                  }
+                  className="w-72 rounded-xl border border-white/15 bg-[#141b26] px-3.5 py-2 text-xs text-white"
+                />
+                <select
+                  value={brandFilter}
+                  onChange={(e) => setBrandFilter(e.target.value)}
+                  className="rounded-xl border border-white/15 bg-[#141b26] px-3 py-2 text-xs text-white"
+                >
+                  <option value="ALL">{en ? 'All Brands & Branches' : 'جميع البراندات والفروع'}</option>
+                  <option value="China Garden">China Garden — تشاينا جاردن</option>
+                  <option value="Noodle">The Noodle Bar — ذا نودل بار</option>
+                  <option value="Karak">Karak Cafeteria — كرك كافيتريا</option>
+                  <option value="Farm Brown">Farm Brown — فارم براون</option>
+                  <option value="Frank">Frank&apos;s Steak — فرانكس ستيك</option>
+                  <option value="Tahina">Tahina — شاورما طحينة</option>
+                  <option value="Kitchen">Central Kitchen — المطبخ المركزي</option>
+                </select>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="rounded-xl border border-white/15 bg-[#141b26] px-3 py-2 text-xs text-white"
+                >
+                  <option value="ALL">{en ? 'All Work Statuses' : 'جميع حالات العمل'}</option>
+                  <option value="ACTIVE">{en ? 'Active on Duty' : 'على رأس العمل'}</option>
+                  <option value="ON_VACATION">{en ? 'On Vacation Abroad' : 'في إجازة سفر'}</option>
+                  <option value="OVERSEAS_PIPELINE">{en ? 'Overseas Visa 18 Pipeline' : 'قيد الاستقدام من الخارج'}</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-mist-400">
+                  {en
+                    ? `Showing ${filteredEmployees.length} of ${employees.length} employees`
+                    : `عرض ${filteredEmployees.length} من أصل ${employees.length} موظفاً`}
+                </span>
+                {canCreate ? (
+                  <button
+                    type="button"
+                    onClick={() => setWizardOpen(true)}
+                    className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-black text-white hover:bg-emerald-500"
+                  >
+                    {en ? '➕ New Employee Wizard' : '➕ إنشاء موظف جديد'}
+                  </button>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="mt-4 max-h-[540px] overflow-auto">
+              <table className="min-w-[980px] w-full text-xs">
+                <thead className="sticky top-0 bg-[#0a0d12] text-mist-400">
+                  <tr>
+                    <th className="px-3 py-2.5 text-start">{en ? 'Barcode' : 'رقم البصمة'}</th>
+                    <th className="px-3 py-2.5 text-start">{en ? 'Employee Name' : 'اسم الموظف'}</th>
+                    <th className="px-3 py-2.5 text-start">{en ? 'Job Title' : 'المسمى الوظيفي'}</th>
+                    <th className="px-3 py-2.5 text-start">{en ? 'Brand / Branch / Dept' : 'البراند / الفرع / القسم'}</th>
+                    <th className="px-3 py-2.5 text-start">{en ? 'Basic (KWD)' : 'الأساسي (د.ك)'}</th>
+                    <th className="px-3 py-2.5 text-start">{en ? 'Allowances (KWD)' : 'البدلات (د.ك)'}</th>
+                    <th className="px-3 py-2.5 text-start">{en ? 'Net Package (KWD)' : 'الصافي (د.ك)'}</th>
+                    <th className="px-3 py-2.5 text-start">{en ? 'Status & Dossier' : 'الحالة والخزانة'}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredEmployees.map((emp) => {
+                    const net = Math.max(0, emp.basicSalary + emp.allowances - emp.deductions)
+                    return (
+                      <tr key={emp.id} className="border-t border-white/5 hover:bg-white/[0.02]">
+                        <td className="px-3 py-2.5 font-mono font-bold text-gold-300" dir="ltr">
+                          {emp.code}
+                        </td>
+                        <td className="px-3 py-2.5 font-bold text-white">{emp.name}</td>
+                        <td className="px-3 py-2.5 text-mist-200">{emp.jobTitle}</td>
+                        <td className="px-3 py-2.5 text-mist-300">{emp.department}</td>
+                        <td className="px-3 py-2.5 font-mono text-mist-200" dir="ltr">
+                          {emp.basicSalary.toFixed(3)}
+                        </td>
+                        <td className="px-3 py-2.5 font-mono text-mist-200" dir="ltr">
+                          {emp.allowances.toFixed(3)}
+                        </td>
+                        <td className="px-3 py-2.5 font-mono font-bold text-emerald-300" dir="ltr">
+                          {net.toFixed(3)} KWD
+                        </td>
+                        <td className="px-3 py-2.5">
+                          <div className="flex items-center gap-2">
+                            <span className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-200">
+                              {emp.status === 'ON_VACATION'
+                                ? en
+                                  ? 'On Vacation'
+                                  : 'في إجازة سفر'
+                                : emp.status === 'OVERSEAS_PIPELINE'
+                                  ? en
+                                    ? 'Visa 18 Pipeline'
+                                    : 'قيد الاستقدام'
+                                  : en
+                                    ? 'Active on Duty'
+                                    : 'على رأس العمل'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setSelectedDossierEmpId((prev) => (prev === emp.id ? null : emp.id))
+                              }
+                              className="rounded-lg border border-white/15 bg-black/40 px-2 py-1 text-[10px] font-semibold text-gold-200 hover:border-gold-300"
+                            >
+                              {en ? '📂 Digital Dossier' : '📂 الخزانة الرقمية'}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {selectedDossierEmpId ? (
+            <div className="rounded-3xl border border-emerald-400/30 bg-[#0f141c] p-5">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-sm font-black text-emerald-200">
+                  {en ? '📂 Employee Digital Dossier & Archived Documents' : '📂 الخزانة الرقمية ومستندات الموظف'}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setSelectedDossierEmpId(null)}
+                  className="text-xs text-mist-400 hover:text-white"
+                >
+                  {en ? 'Close ✕' : 'إغلاق ✕'}
+                </button>
+              </div>
+              <HrDigitalDossier employeeId={selectedDossierEmpId} locale={locale} />
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
+      {/* =====================================================================
+          TAB 2: OVERSEAS RECRUITMENT & VISA 18 PIPELINE + PAM QUOTA TRACKER
+         ===================================================================== */}
+      {activeTab === 'recruitment' ? (
+        <section className="space-y-6">
+          {/* PAM Quota Tracker */}
+          <div className="rounded-3xl border border-white/10 bg-[#0f141c] p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-gold-300">
+                  {en
+                    ? 'Public Authority for Manpower (PAM / Asahal) — License Quota Tracker'
+                    : 'الهيئة العامة للقوى العاملة (بوابة أسهل) — لوحة كوتا وتقدير الاحتياج للرخص والفروع'}
+                </p>
+                <h2 className="mt-1 text-lg font-black text-white">
+                  {en
+                    ? `PAM Ceiling: ${totalPamCeiling} · Registered: ${totalPamRegistered} · Available Vacancies: ${totalPamVacancies}`
+                    : `سقف تقدير الاحتياج: ${totalPamCeiling} · المسجلون حالياً: ${totalPamRegistered} · الشواغر المتاحة للاستقدام: ${totalPamVacancies}`}
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowNewOverseasForm((v) => !v)}
+                className="rounded-2xl bg-gradient-to-l from-emerald-500 to-teal-500 px-5 py-2.5 text-xs font-black text-ink-950 shadow-lg hover:brightness-110"
+              >
+                {en
+                  ? '➕ Request New Overseas Worker (Visa 18)'
+                  : '➕ طلب استقدام عامل جديد من الخارج (فيزا 18)'}
+              </button>
+            </div>
+
+            {showNewOverseasForm ? (
+              <form
+                onSubmit={handleAddOverseasCandidate}
+                className="mt-4 grid gap-3 rounded-2xl border border-emerald-400/30 bg-[#131a26] p-4 sm:grid-cols-4"
+              >
+                <input
+                  required
+                  value={ovName}
+                  onChange={(e) => setOvName(e.target.value)}
+                  placeholder={en ? 'Candidate Full Name' : 'اسم المرشح الكامل'}
+                  className="rounded-xl border border-white/15 bg-[#0d1118] px-3 py-2 text-xs text-white"
+                />
+                <select
+                  value={ovNationality}
+                  onChange={(e) => setOvNationality(e.target.value)}
+                  className="rounded-xl border border-white/15 bg-[#0d1118] px-3 py-2 text-xs text-white"
+                >
+                  <option value="India">{en ? 'India' : 'الهند (India)'}</option>
+                  <option value="Philippines">{en ? 'Philippines' : 'الفلبين (Philippines)'}</option>
+                  <option value="Egypt">{en ? 'Egypt' : 'مصر (Egypt)'}</option>
+                  <option value="Nepal">{en ? 'Nepal' : 'نيبال (Nepal)'}</option>
+                  <option value="Sri Lanka">{en ? 'Sri Lanka' : 'سريلانكا (Sri Lanka)'}</option>
+                  <option value="Bangladesh">{en ? 'Bangladesh' : 'بنغلاديش (Bangladesh)'}</option>
+                </select>
+                <input
+                  value={ovPassport}
+                  onChange={(e) => setOvPassport(e.target.value)}
+                  placeholder={en ? 'Passport Number' : 'رقم الجواز'}
+                  className="rounded-xl border border-white/15 bg-[#0d1118] px-3 py-2 text-xs font-mono text-white"
+                />
+                <input
+                  value={ovRole}
+                  onChange={(e) => setOvRole(e.target.value)}
+                  placeholder={en ? 'Job Role (e.g. Wok Chef)' : 'المهنة المطلوبة'}
+                  className="rounded-xl border border-white/15 bg-[#0d1118] px-3 py-2 text-xs text-white"
+                />
+                <input
+                  value={ovBrand}
+                  onChange={(e) => setOvBrand(e.target.value)}
+                  placeholder={en ? 'Brand' : 'البراند'}
+                  className="rounded-xl border border-white/15 bg-[#0d1118] px-3 py-2 text-xs text-white"
+                />
+                <input
+                  value={ovBranch}
+                  onChange={(e) => setOvBranch(e.target.value)}
+                  placeholder={en ? 'Branch' : 'الفرع'}
+                  className="rounded-xl border border-white/15 bg-[#0d1118] px-3 py-2 text-xs text-white"
+                />
+                <input
+                  dir="ltr"
+                  value={ovAgencyKwd}
+                  onChange={(e) => setOvAgencyKwd(e.target.value)}
+                  placeholder={en ? 'Agency Fee KWD' : 'رسوم المكتب د.ك'}
+                  className="rounded-xl border border-white/15 bg-[#0d1118] px-3 py-2 text-xs font-mono text-white"
+                />
+                <input
+                  dir="ltr"
+                  value={ovFlightKwd}
+                  onChange={(e) => setOvFlightKwd(e.target.value)}
+                  placeholder={en ? 'Flight Ticket KWD' : 'تذكرة الطيران د.ك'}
+                  className="rounded-xl border border-white/15 bg-[#0d1118] px-3 py-2 text-xs font-mono text-white"
+                />
+                <div className="sm:col-span-4 flex items-center justify-between">
+                  <span className="text-xs text-emerald-300" dir="ltr">
+                    {en ? 'Estimated Total Recruitment Cost:' : 'إجمالي تكلفة الاستقدام التقديرية:'}{' '}
+                    {(
+                      (Number(ovAgencyKwd) || 0) +
+                      (Number(ovVisaKwd) || 0) +
+                      (Number(ovMedicalKwd) || 0) +
+                      (Number(ovFlightKwd) || 0)
+                    ).toFixed(3)}{' '}
+                    KWD
+                  </span>
+                  <button
+                    type="submit"
+                    className="rounded-xl bg-emerald-600 px-5 py-2 text-xs font-black text-white hover:bg-emerald-500"
+                  >
+                    {en ? 'Save Overseas Requisition' : 'اعتماد وإضافة لخط الاستقدام'}
+                  </button>
+                </div>
+              </form>
+            ) : null}
+
+            <div className="mt-4 overflow-x-auto">
+              <table className="min-w-[880px] w-full text-xs">
+                <thead className="bg-black/40 text-mist-400">
+                  <tr>
+                    <th className="px-3 py-2 text-start">{en ? 'License Code' : 'كود الرخصة'}</th>
+                    <th className="px-3 py-2 text-start">{en ? 'PAM File No' : 'رقم ملف القوى العاملة'}</th>
+                    <th className="px-3 py-2 text-start">{en ? 'Brand & Branch' : 'البراند والفرع'}</th>
+                    <th className="px-3 py-2 text-start">{en ? 'Allowed PAM Ceiling' : 'السقف المسموح (تقدير الاحتياج)'}</th>
+                    <th className="px-3 py-2 text-start">{en ? 'Registered Staff' : 'المسجلون حالياً'}</th>
+                    <th className="px-3 py-2 text-start">{en ? 'Open Overseas Visas' : 'فيز خارجية قيد الإجراء'}</th>
+                    <th className="px-3 py-2 text-start">{en ? 'Available Quota Vacancies' : 'الشواغر المتاحة'}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {PAM_QUOTA_LIST.map((q) => {
+                    const avail = Math.max(0, q.allowedCeiling - q.registeredCount)
+                    return (
+                      <tr key={q.licenseCode} className="border-t border-white/5">
+                        <td className="px-3 py-2.5 font-mono font-bold text-gold-300" dir="ltr">
+                          {q.licenseCode}
+                        </td>
+                        <td className="px-3 py-2.5 font-mono text-mist-300" dir="ltr">
+                          {q.pamFileNumber}
+                        </td>
+                        <td className="px-3 py-2.5 font-semibold text-white">
+                          {en ? `${q.brandEn} · ${q.branchEn}` : `${q.brandAr} · ${q.branchAr}`}
+                        </td>
+                        <td className="px-3 py-2.5 font-mono font-bold text-white">{q.allowedCeiling}</td>
+                        <td className="px-3 py-2.5 font-mono text-mist-200">{q.registeredCount}</td>
+                        <td className="px-3 py-2.5 font-mono text-sky-300">{q.openOverseasVisas}</td>
+                        <td className="px-3 py-2.5">
+                          <span className="rounded-lg border border-emerald-400/30 bg-emerald-500/15 px-2.5 py-0.5 font-mono font-bold text-emerald-300">
+                            {avail} {en ? 'open slots' : 'شاغر متاح'}
+                          </span>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* 7-Stage Overseas Recruitment Pipeline */}
+          <div className="rounded-3xl border border-white/10 bg-[#0f141c] p-5">
+            <h3 className="text-base font-black text-white">
+              {en
+                ? '✈️ 7-Stage Overseas Recruitment & Visa 18 Pipeline (India, Philippines, Egypt, Nepal, Sri Lanka, Bangladesh)'
+                : '✈️ خط أنابيب الاستقدام الخارجي وفيزا مادة 18 (7 مراحل من طلب الاحتياج حتى البطاقة المدنية)'}
+            </h3>
+
+            <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+              {OVERSEAS_STAGES.map((stg) => {
+                const count = candidates.filter((c) => c.stage === stg.key).length
+                return (
+                  <div key={stg.key} className={`rounded-2xl border p-3 ${stg.badgeColor}`}>
+                    <p className="text-[11px] font-bold">{en ? stg.en : stg.ar}</p>
+                    <p className="mt-1 text-xl font-black">{count}</p>
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="mt-4 overflow-x-auto">
+              <table className="min-w-[980px] w-full text-xs">
+                <thead className="bg-black/40 text-mist-400">
+                  <tr>
+                    <th className="px-3 py-2 text-start">{en ? 'Ref & Passport' : 'المرجع والجواز'}</th>
+                    <th className="px-3 py-2 text-start">{en ? 'Candidate & Country' : 'اسم المرشح والدولة'}</th>
+                    <th className="px-3 py-2 text-start">{en ? 'Role & Target Branch' : 'المهنة والفرع الطالب'}</th>
+                    <th className="px-3 py-2 text-start">{en ? 'Current Pipeline Stage (1–7)' : 'المرحلة الحالية (1–7)'}</th>
+                    <th className="px-3 py-2 text-start">{en ? 'Visa 18 & Arrival ETA' : 'رقم فيزا 18 وموعد الوصول'}</th>
+                    <th className="px-3 py-2 text-start">{en ? 'Landing Cost (0.000 KWD)' : 'تكلفة الاستقدام (0.000 د.ك)'}</th>
+                    <th className="px-3 py-2 text-start">{en ? 'Actions' : 'إجراءات'}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {candidates.map((c) => {
+                    const totalCost =
+                      c.agencyFeeKwd + c.visaFeeKwd + c.medicalAndCardKwd + c.flightTicketKwd
+                    return (
+                      <tr key={c.id} className="border-t border-white/5 align-top">
+                        <td className="px-3 py-3 font-mono" dir="ltr">
+                          <p className="font-bold text-gold-300">{c.refCode}</p>
+                          <p className="text-[11px] text-mist-400">Pass: {c.passportNo}</p>
+                        </td>
+                        <td className="px-3 py-3">
+                          <p className="font-bold text-white">{en ? c.fullNameEn : c.fullNameAr}</p>
+                          <p className="text-[11px] text-emerald-300">
+                            🌍 {en ? c.nationalityEn : c.nationalityAr}
+                          </p>
+                        </td>
+                        <td className="px-3 py-3">
+                          <p className="font-semibold text-mist-100">{en ? c.roleEn : c.roleAr}</p>
+                          <p className="text-[11px] text-mist-400">
+                            {en ? `${c.brandEn} · ${c.branchEn}` : `${c.brandAr} · ${c.branchAr}`}
+                          </p>
+                        </td>
+                        <td className="px-3 py-3">
+                          <select
+                            value={c.stage}
+                            onChange={(e) =>
+                              advanceCandidateStage(c.id, e.target.value as OverseasStage)
+                            }
+                            className="rounded-xl border border-white/15 bg-black/50 px-2.5 py-1.5 text-xs text-white"
+                          >
+                            {OVERSEAS_STAGES.map((s) => (
+                              <option key={s.key} value={s.key}>
+                                {en ? s.en : s.ar}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className="px-3 py-3 font-mono" dir="ltr">
+                          <p className="text-sky-300">{c.visa18Number}</p>
+                          <p className="text-[11px] text-mist-400">ETA: {c.arrivalEta}</p>
+                        </td>
+                        <td className="px-3 py-3 font-mono" dir="ltr">
+                          <p className="font-bold text-emerald-300">{totalCost.toFixed(3)} KWD</p>
+                          <p className="text-[10px] text-mist-400">
+                            Salary: {c.offeredBasicKwd.toFixed(3)} KWD
+                          </p>
+                        </td>
+                        <td className="px-3 py-3">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void dispatchInstantHrAlert('overseas_arrival', c.fullNameEn)
+                            }
+                            className="rounded-xl border border-amber-400/40 bg-amber-500/15 px-2.5 py-1 text-[11px] font-bold text-amber-200 hover:bg-amber-500/25"
+                          >
+                            {en ? '✈️ Alert Airport Arrival' : '✈️ إشعار وصول المطار'}
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {/* =====================================================================
+          TAB 3: RESIDENCY, MUNICIPALITY HEALTH CARDS & PRO / MANDOUB QUEUE
+         ===================================================================== */}
+      {activeTab === 'residency' ? (
+        <section className="space-y-6">
+          {/* Mandoub / PRO Daily Action Queue */}
+          <div className="rounded-3xl border border-white/10 bg-[#0f141c] p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-amber-300">
+                  {en
+                    ? 'Daily Government Relations (GRO / Mandoub) Action Queue'
+                    : 'جدول مهام المندوب اليومي (أسهل · القوى العاملة · شؤون الإقامة · البلدية · البطاقة المدنية)'}
+                </p>
+                <h2 className="mt-1 text-lg font-black text-white">
+                  {en
+                    ? '🆔 Active Government Transactions & Official Renewal Fees (KWD)'
+                    : '🆔 المعاملات الحكومية الجارية ورسوم التجديد الرسمية بالدينار الكويتي'}
+                </h2>
+              </div>
+              <a
+                href="/hr/compliance-radar"
+                className="rounded-xl bg-amber-500 px-4 py-2 text-xs font-black text-ink-950 hover:bg-amber-400"
+              >
+                {en ? '🛡️ Open Full Compliance Radar' : '🛡️ فتح رادار الامتثال الكامل'}
+              </a>
+            </div>
+
+            <div className="mt-4 overflow-x-auto">
+              <table className="min-w-[920px] w-full text-xs">
+                <thead className="bg-black/40 text-mist-400">
+                  <tr>
+                    <th className="px-3 py-2 text-start">{en ? 'Tx Ref' : 'رقم المعاملة'}</th>
+                    <th className="px-3 py-2 text-start">{en ? 'Employee' : 'الموظف'}</th>
+                    <th className="px-3 py-2 text-start">{en ? 'Authority' : 'الجهة الحكومية'}</th>
+                    <th className="px-3 py-2 text-start">{en ? 'Transaction Description' : 'تفاصيل المعاملة'}</th>
+                    <th className="px-3 py-2 text-start">{en ? 'Gov Fee (KWD)' : 'الرسوم الحكومية'}</th>
+                    <th className="px-3 py-2 text-start">{en ? 'Due Date & PRO' : 'موعد الإنجاز والمندوب'}</th>
+                    <th className="px-3 py-2 text-start">{en ? 'Status' : 'الحالة'}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {MANDOUB_PRO_QUEUE.map((task) => (
+                    <tr key={task.id} className="border-t border-white/5">
+                      <td className="px-3 py-2.5 font-mono font-bold text-gold-300" dir="ltr">
+                        {task.txCode}
+                      </td>
+                      <td className="px-3 py-2.5 font-semibold text-white">
+                        [{task.employeeCode}] {en ? task.employeeNameEn : task.employeeNameAr}
+                      </td>
+                      <td className="px-3 py-2.5 text-emerald-300">
+                        {en ? task.authorityEn : task.authorityAr}
+                      </td>
+                      <td className="px-3 py-2.5 text-mist-200">
+                        {en ? task.taskEn : task.taskAr}
+                      </td>
+                      <td className="px-3 py-2.5 font-mono font-bold text-white" dir="ltr">
+                        {task.govFeeKwd.toFixed(3)} KWD
+                      </td>
+                      <td className="px-3 py-2.5 text-[11px] text-mist-300" dir="ltr">
+                        {task.dueDate} · {task.assignedPro}
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <span className="rounded-lg border border-sky-400/30 bg-sky-500/15 px-2 py-0.5 text-[10px] font-bold text-sky-200">
+                          {task.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Unified Expiry Ledger */}
+          <div className="rounded-3xl border border-white/10 bg-[#0f141c] p-5">
+            <h3 className="text-base font-black text-white">
+              {en
+                ? '📋 Unified Expiry Matrix (Article 18 Residency, PAM Work Permit, Civil ID, Passport, Municipality Health Card & Driver License)'
+                : '📋 الكشف الموحد لتواريخ انتهاء (الإقامة مادة 18، إذن العمل، البطاقة المدنية، الجواز، كرت صحة البلدية، ورخصة القيادة)'}
+            </h3>
+            <div className="mt-4 max-h-[480px] overflow-auto">
+              <table className="min-w-[960px] w-full text-xs">
+                <thead className="sticky top-0 bg-[#0a0d12] text-mist-400">
+                  <tr>
+                    <th className="px-3 py-2 text-start">{en ? 'Barcode & Name' : 'الباركود والاسم'}</th>
+                    <th className="px-3 py-2 text-start">{en ? 'Civil ID & Residency (Art. 18)' : 'البطاقة المدنية والإقامة'}</th>
+                    <th className="px-3 py-2 text-start">{en ? 'PAM Work Permit' : 'إذن العمل (أسهل)'}</th>
+                    <th className="px-3 py-2 text-start">{en ? 'Municipality Health Card' : 'شهادة صحة البلدية'}</th>
+                    <th className="px-3 py-2 text-start">{en ? 'Passport Expiry' : 'انتهاء جواز السفر'}</th>
+                    <th className="px-3 py-2 text-start">{en ? 'Remaining Days' : 'عداد الأيام المتبقية'}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {employees.slice(0, 80).map((emp) => {
+                    const civExp = emp.civilIdExpiry || '2027-04-15'
+                    const wpExp = emp.workPermitExpiry || civExp
+                    const hcExp = emp.healthCardExpiry || '2027-01-20'
+                    const passExp = emp.passportExpiry || '2028-09-30'
+                    const minDays = Math.min(
+                      daysUntil(civExp) ?? 365,
+                      daysUntil(hcExp) ?? 365,
+                      daysUntil(wpExp) ?? 365,
+                    )
+                    return (
+                      <tr key={emp.id} className="border-t border-white/5">
+                        <td className="px-3 py-2.5">
+                          <p className="font-bold text-white">
+                            [{emp.code}] {emp.name}
+                          </p>
+                          <p className="text-[11px] text-mist-400">{emp.department}</p>
+                        </td>
+                        <td className="px-3 py-2.5 font-mono text-mist-200" dir="ltr">
+                          {civExp}
+                        </td>
+                        <td className="px-3 py-2.5 font-mono text-mist-200" dir="ltr">
+                          {wpExp}
+                        </td>
+                        <td className="px-3 py-2.5 font-mono text-emerald-300" dir="ltr">
+                          {hcExp}
+                        </td>
+                        <td className="px-3 py-2.5 font-mono text-mist-200" dir="ltr">
+                          {passExp}
+                        </td>
+                        <td className="px-3 py-2.5 font-mono font-bold" dir="ltr">
+                          <span
+                            className={`rounded-lg px-2 py-0.5 text-[11px] ${
+                              minDays <= 30
+                                ? 'bg-red-500/20 text-red-300'
+                                : minDays <= 60
+                                  ? 'bg-amber-500/20 text-amber-300'
+                                  : 'bg-emerald-500/15 text-emerald-300'
+                            }`}
+                          >
+                            {minDays} {en ? 'days' : 'يوماً'}
+                          </span>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {/* =====================================================================
+          TAB 4: PAYROLL, PAYSLIPS & NBK WPS
+         ===================================================================== */}
+      {activeTab === 'payroll' ? (
+        <section className="space-y-6">
+          {/* Interactive Kuwait Payroll & PIFSS Calculator */}
+          <div className="rounded-3xl border border-emerald-400/30 bg-[#0f141c] p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-emerald-400">
+                  {en
+                    ? 'Automated Kuwait Payroll & PIFSS Calculator (0.000 KWD)'
+                    : 'حاسبة المسير التلقائية وحماية الأجور والتأمينات الاجتماعية للكويتيين (PIFSS)'}
+                </p>
+                <h2 className="mt-1 text-lg font-black text-white">
+                  {en
+                    ? '💰 Monthly Payroll Engine · NBK WPS SIF Export · Official Payslips'
+                    : '💰 محرك الرواتب الشهري (الأساسي + البدلات + الإضافي − السلف − الغياب والجزاءات − التأمينات PIFSS)'}
+                </h2>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <a
+                  href={`/api/hr/wps-export?month=${month}&year=${year}&download=1`}
+                  className="rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2.5 text-xs font-black text-ink-950 shadow-md hover:brightness-110"
+                >
+                  {en
+                    ? '🏦 Export NBK WPS SIF File'
+                    : '🏦 تصدير ملف حماية الأجور للبنك الوطني NBK WPS SIF'}
+                </a>
+                {canEdit ? (
+                  <button
+                    type="button"
+                    disabled={payrollBusy}
+                    onClick={async () => {
+                      setPayrollBusy(true)
+                      const res = await generatePayrollAction(year, month)
+                      setPayrollBusy(false)
+                      setPayrollNotice(res.message || null)
+                      router.refresh()
+                    }}
+                    className="rounded-xl border border-gold-300/40 bg-gold-400/15 px-4 py-2.5 text-xs font-black text-gold-200 hover:bg-gold-400/25"
+                  >
+                    {en ? `⚙️ Generate ${month}/${year} Payroll` : `⚙️ توليد مسير شهر ${month}/${year}`}
+                  </button>
+                ) : null}
+                {canEdit ? (
+                  <button
+                    type="button"
+                    disabled={payrollBusy}
+                    onClick={async () => {
+                      setPayrollBusy(true)
+                      const res = await payPayrollAction(year, month, 'BANK')
+                      setPayrollBusy(false)
+                      setPayrollNotice(res.message || null)
+                      router.refresh()
+                    }}
+                    className="rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-xs font-bold text-white hover:bg-white/20"
+                  >
+                    {en ? '💳 Settle via NBK Bank' : '💳 اعتماد وصرف عبر البنك'}
+                  </button>
+                ) : null}
+              </div>
+            </div>
+
+            {payrollNotice ? (
+              <p className="mt-3 rounded-xl border border-emerald-400/30 bg-emerald-950/30 px-3 py-2 text-xs text-emerald-200">
+                {payrollNotice}
+              </p>
+            ) : null}
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-6">
+              <label className="block text-xs text-mist-300">
+                {en ? 'Basic Salary (KWD)' : 'الراتب الأساسي (د.ك)'}
+                <input
+                  dir="ltr"
+                  value={calcBasic}
+                  onChange={(e) => setCalcBasic(e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-white/15 bg-[#141b26] px-3 py-2 font-mono text-xs text-white"
+                />
+              </label>
+              <label className="block text-xs text-mist-300">
+                {en ? 'Allowances (KWD)' : 'البدلات الثابتة (د.ك)'}
+                <input
+                  dir="ltr"
+                  value={calcAllowances}
+                  onChange={(e) => setCalcAllowances(e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-white/15 bg-[#141b26] px-3 py-2 font-mono text-xs text-white"
+                />
+              </label>
+              <label className="block text-xs text-mist-300">
+                {en ? 'Overtime Pay (KWD)' : 'أجر الساعات الإضافية (د.ك)'}
+                <input
+                  dir="ltr"
+                  value={calcOvertime}
+                  onChange={(e) => setCalcOvertime(e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-white/15 bg-[#141b26] px-3 py-2 font-mono text-xs text-emerald-300"
+                />
+              </label>
+              <label className="block text-xs text-mist-300">
+                {en ? 'Loan Installment (KWD)' : 'قسط السلفة (د.ك)'}
+                <input
+                  dir="ltr"
+                  value={calcLoans}
+                  onChange={(e) => setCalcLoans(e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-white/15 bg-[#141b26] px-3 py-2 font-mono text-xs text-amber-300"
+                />
+              </label>
+              <label className="block text-xs text-mist-300">
+                {en ? 'Absence / Penalties (KWD)' : 'الغياب والجزاءات (د.ك)'}
+                <input
+                  dir="ltr"
+                  value={calcAbsencePenalties}
+                  onChange={(e) => setCalcAbsencePenalties(e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-white/15 bg-[#141b26] px-3 py-2 font-mono text-xs text-red-300"
+                />
+              </label>
+              <div className="rounded-xl border border-gold-400/30 bg-gold-500/10 p-2.5">
+                <label className="flex items-center gap-1.5 text-[11px] font-bold text-gold-200">
+                  <input
+                    type="checkbox"
+                    checked={calcIsKuwaitiPifss}
+                    onChange={(e) => setCalcIsKuwaitiPifss(e.target.checked)}
+                  />
+                  <span>{en ? 'Kuwaiti PIFSS (10.5%)' : 'تأمينات الكويتيين PIFSS'}</span>
+                </label>
+                <p className="mt-1 font-mono text-base font-black text-gold-300" dir="ltr">
+                  {calcNetSalary.toFixed(3)} KWD
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-white/10 bg-[#0f141c] p-5">
+            <HrWpsToolbar month={month} year={year} locale={locale} />
+            <div className="max-h-[500px] overflow-auto">
+              <table className="min-w-[940px] w-full text-xs">
+                <thead className="sticky top-0 bg-[#0a0d12] text-mist-400">
+                  <tr>
+                    <th className="px-3 py-2.5 text-start">{en ? 'Barcode & Employee' : 'الباركود والموظف'}</th>
+                    <th className="px-3 py-2.5 text-start">{en ? 'Brand / Branch' : 'البراند / الفرع'}</th>
+                    <th className="px-3 py-2.5 text-start">{en ? 'Basic (KWD)' : 'الأساسي (د.ك)'}</th>
+                    <th className="px-3 py-2.5 text-start">{en ? 'Allowances (KWD)' : 'البدلات (د.ك)'}</th>
+                    <th className="px-3 py-2.5 text-start">{en ? 'Deductions (KWD)' : 'الاستقطاعات (د.ك)'}</th>
+                    <th className="px-3 py-2.5 text-start">{en ? 'Net Salary (KWD)' : 'الصافي (د.ك)'}</th>
+                    <th className="px-3 py-2.5 text-start">{en ? 'Payslip Print' : 'طباعة القسيمة'}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(payrollRows.length > 0
+                    ? payrollRows
+                    : employees.map((e) => ({
+                        id: e.id,
+                        month,
+                        year,
+                        employeeId: e.id,
+                        employeeCode: e.code,
+                        employeeName: e.name,
+                        department: e.department,
+                        basicSalary: e.basicSalary,
+                        totalAllowances: e.allowances,
+                        totalDeductions: e.deductions,
+                        netSalary: Math.max(0, e.basicSalary + e.allowances - e.deductions),
+                        absentDays: 0,
+                        lateDays: 0,
+                        status: 'ACTIVE',
+                      }))
+                  ).map((row) => (
+                    <tr key={row.id} className="border-t border-white/5">
+                      <td className="px-3 py-2.5 font-bold text-white">
+                        [{row.employeeCode}] {row.employeeName}
+                      </td>
+                      <td className="px-3 py-2.5 text-mist-300">{row.department}</td>
+                      <td className="px-3 py-2.5 font-mono" dir="ltr">
+                        {row.basicSalary.toFixed(3)}
+                      </td>
+                      <td className="px-3 py-2.5 font-mono" dir="ltr">
+                        {row.totalAllowances.toFixed(3)}
+                      </td>
+                      <td className="px-3 py-2.5 font-mono text-amber-300" dir="ltr">
+                        {row.totalDeductions.toFixed(3)}
+                      </td>
+                      <td className="px-3 py-2.5 font-mono font-bold text-emerald-300" dir="ltr">
+                        {row.netSalary.toFixed(3)} KWD
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <a
+                          href={payrollRows.length > 0 ? `/hr/payroll/${row.id}/print` : '#'}
+                          onClick={(e) => {
+                            if (payrollRows.length === 0) {
+                              e.preventDefault()
+                              setActiveTab('letters')
+                            }
+                          }}
+                          className="rounded-lg border border-gold-300/40 bg-gold-400/10 px-2.5 py-1 text-[11px] font-bold text-gold-200 hover:bg-gold-400/20"
+                        >
+                          {en ? '📄 Print Payslip' : '📄 طباعة قسيمة راتب'}
+                        </a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {/* =====================================================================
+          TAB 5: LEAVES, AIR TICKETS & VACATION TRACKER
+         ===================================================================== */}
+      {activeTab === 'leaves' ? (
+        <section className="space-y-6">
+          <div className="rounded-3xl border border-white/10 bg-[#0f141c] p-5">
+            <h2 className="text-lg font-black text-white">
+              {en
+                ? '🏖️ Leaves, Annual Flight Tickets & Airport Return Tracker (Kuwait Labor Law Art. 69 & 70)'
+                : '🏖️ إدارة الإجازات السنوية والمرضية وتذاكر السفر ومتابعة العودة من السفر'}
+            </h2>
+            <p className="mt-1 text-xs text-mist-400">
+              {en
+                ? 'Statutory Sick Leave Tiers (Art. 69): 15 days @ 100% pay · 10 days @ 75% pay · 10 days @ 50% pay · 10 days @ 25% pay · 30 days unpaid. Annual Leave: 30 paid days/year.'
+                : 'شرائح الإجازات المرضية (مادة 69): 15 يوماً بأجر كامل · 10 أيام بـ 75% · 10 أيام بـ 50% · 10 أيام بـ 25% · 30 يوماً بدون أجر. الإجازة السنوية: 30 يوماً مدفوعة.'}
+            </p>
+
+            <div className="mt-4 overflow-x-auto">
+              <table className="min-w-[940px] w-full text-xs">
+                <thead className="bg-black/40 text-mist-400">
+                  <tr>
+                    <th className="px-3 py-2.5 text-start">{en ? 'Employee' : 'الموظف'}</th>
+                    <th className="px-3 py-2.5 text-start">{en ? 'Brand / Dept' : 'البراند / القسم'}</th>
+                    <th className="px-3 py-2.5 text-start">{en ? 'Leave Type' : 'نوع الإجازة'}</th>
+                    <th className="px-3 py-2.5 text-start">{en ? 'Accrued / Requested' : 'الرصيد / المطلوب'}</th>
+                    <th className="px-3 py-2.5 text-start">{en ? 'Departure & Return' : 'تاريخ المغادرة والعودة'}</th>
+                    <th className="px-3 py-2.5 text-start">{en ? 'Destination & Airline Ticket' : 'الوجهة وتذكرة الطيران'}</th>
+                    <th className="px-3 py-2.5 text-start">{en ? 'Status' : 'الحالة'}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {LEAVE_VACATION_RECORDS.map((lv) => (
+                    <tr key={lv.id} className="border-t border-white/5">
+                      <td className="px-3 py-3 font-bold text-white">
+                        [{lv.employeeCode}] {en ? lv.employeeNameEn : lv.employeeNameAr}
+                      </td>
+                      <td className="px-3 py-3 text-mist-300">{en ? lv.brandEn : lv.brandAr}</td>
+                      <td className="px-3 py-3 font-semibold text-gold-300">{lv.leaveType}</td>
+                      <td className="px-3 py-3 font-mono" dir="ltr">
+                        {lv.annualBalanceDays}d / {lv.requestedDays}d
+                      </td>
+                      <td className="px-3 py-3 font-mono text-mist-200" dir="ltr">
+                        {lv.departureDate} → {lv.expectedReturnDate}
+                      </td>
+                      <td className="px-3 py-3">
+                        <p className="text-white">{en ? lv.destinationEn : lv.destinationAr}</p>
+                        <p className="font-mono text-[11px] text-emerald-300" dir="ltr">
+                          {lv.airlineRef} · {lv.ticketCostKwd.toFixed(3)} KWD
+                        </p>
+                      </td>
+                      <td className="px-3 py-3">
+                        <span className="rounded-lg border border-emerald-400/30 bg-emerald-500/15 px-2.5 py-0.5 text-[10px] font-bold text-emerald-200">
+                          {lv.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {/* =====================================================================
+          TAB 6: ATTENDANCE, SHIFT ROSTER & OVERTIME
+         ===================================================================== */}
+      {activeTab === 'attendance' ? (
+        <section className="space-y-6">
+          <div className="rounded-3xl border border-white/10 bg-[#0f141c] p-5">
+            <h2 className="text-lg font-black text-white">
+              {en
+                ? '⏱️ Biometric Attendance, 10-Branch Shift Roster & Statutory Overtime (1.25x / 1.50x / 2.00x)'
+                : '⏱️ سجل البصمة الفعلي، جدول شفتات الفروع الـ 10 والمطبخ المركزي، واعتماد الساعات الإضافية'}
+            </h2>
+            <p className="mt-1 text-xs text-mist-400">
+              {en
+                ? 'Kuwait Labor Law Art. 64–68: Regular Day Overtime = 1.25x · Weekly Rest Day = 1.50x · Official Public Holiday = 2.00x.'
+                : 'معاملات الساعات الإضافية وفق قانون العمل الكويتي: يوم عادي 1.25x · يوم الراحة الأسبوعية 1.50x · عطلة رسمية 2.00x.'}
+            </p>
+
+            <div className="mt-4 overflow-x-auto">
+              <table className="min-w-[920px] w-full text-xs">
+                <thead className="bg-black/40 text-mist-400">
+                  <tr>
+                    <th className="px-3 py-2.5 text-start">{en ? 'Employee' : 'الموظف'}</th>
+                    <th className="px-3 py-2.5 text-start">{en ? 'Branch / Kitchen' : 'الفرع / المطبخ'}</th>
+                    <th className="px-3 py-2.5 text-start">{en ? 'Assigned Shift' : 'الوردية المجدولة'}</th>
+                    <th className="px-3 py-2.5 text-start">{en ? 'Check-In / Out' : 'بصمة الدخول / الخروج'}</th>
+                    <th className="px-3 py-2.5 text-start">{en ? 'Regular / OT Hours' : 'الساعات العادية / الإضافي'}</th>
+                    <th className="px-3 py-2.5 text-start">{en ? 'Multiplier & OT Pay' : 'المعامل وقيمة الإضافي'}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {SHIFT_ROSTER_RECORDS.map((sh) => (
+                    <tr key={sh.id} className="border-t border-white/5">
+                      <td className="px-3 py-2.5 font-bold text-white">
+                        [{sh.employeeCode}] {en ? sh.employeeNameEn : sh.employeeNameAr}
+                      </td>
+                      <td className="px-3 py-2.5 text-mist-300">
+                        {en ? sh.branchEn : sh.branchAr}
+                      </td>
+                      <td className="px-3 py-2.5 font-mono text-gold-300" dir="ltr">
+                        {sh.shiftTime}
+                      </td>
+                      <td className="px-3 py-2.5 font-mono text-mist-200" dir="ltr">
+                        {sh.checkIn} → {sh.checkOut}
+                      </td>
+                      <td className="px-3 py-2.5 font-mono" dir="ltr">
+                        {sh.regularHours}h + {sh.overtimeHours}h OT
+                      </td>
+                      <td className="px-3 py-2.5 font-mono font-bold text-emerald-300" dir="ltr">
+                        {sh.overtimeMultiplier}x · {sh.overtimePayKwd.toFixed(3)} KWD
+                      </td>
+                    </tr>
+                  ))}
+                  {attendanceRows.slice(0, 25).map((att) => (
+                    <tr key={att.id} className="border-t border-white/5">
+                      <td className="px-3 py-2.5 font-semibold text-white">
+                        [{att.employeeCode}] {att.employeeName}
+                      </td>
+                      <td className="px-3 py-2.5 text-mist-400">
+                        {en ? 'Biometric Terminal' : 'جهاز البصمة'}
+                      </td>
+                      <td className="px-3 py-2.5 font-mono text-mist-300" dir="ltr">
+                        {att.date}
+                      </td>
+                      <td className="px-3 py-2.5 text-emerald-300">{att.status}</td>
+                      <td className="px-3 py-2.5 font-mono" dir="ltr">
+                        {att.hoursWorked}h
+                      </td>
+                      <td className="px-3 py-2.5 font-mono text-mist-400" dir="ltr">
+                        1.00x
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {/* =====================================================================
+          TAB 7: LOANS, ADVANCES & DISCIPLINARY ACTIONS
+         ===================================================================== */}
+      {activeTab === 'loans' ? (
+        <section className="space-y-6">
+          <div className="rounded-3xl border border-white/10 bg-[#0f141c] p-5">
+            <h2 className="text-lg font-black text-white">
+              {en
+                ? '💳 Staff Loans, Monthly Installments & Legal Disciplinary Register'
+                : '💳 سجل السلف والقروض والأقساط الشهرية والإنذارات والجزاءات القانونية'}
+            </h2>
+            <p className="mt-1 text-xs text-mist-400">
+              {en
+                ? 'Kuwait Labor Law Art. 31 & 59: Monthly loan deductions may not exceed 10% of salary; disciplinary penalties may not exceed 5 days pay per month.'
+                : 'مادة 31 و59 من قانون العمل الكويتي: لا يجوز أن يزيد قسط السلفة عن 10% من الراتب، ولا يتجاوز خصم الجزاء التأديبي 5 أيام في الشهر الواحد.'}
+            </p>
+
+            <div className="mt-4 overflow-x-auto">
+              <table className="min-w-[920px] w-full text-xs">
+                <thead className="bg-black/40 text-mist-400">
+                  <tr>
+                    <th className="px-3 py-2.5 text-start">{en ? 'Employee & Branch' : 'الموظف والفرع'}</th>
+                    <th className="px-3 py-2.5 text-start">{en ? 'Record Type' : 'نوع السجل'}</th>
+                    <th className="px-3 py-2.5 text-start">{en ? 'Description' : 'البيان والتفاصيل'}</th>
+                    <th className="px-3 py-2.5 text-start">{en ? 'Total Loan (KWD)' : 'إجمالي السلفة (د.ك)'}</th>
+                    <th className="px-3 py-2.5 text-start">{en ? 'Monthly Deduction (KWD)' : 'القسط الشهري (د.ك)'}</th>
+                    <th className="px-3 py-2.5 text-start">{en ? 'Remaining Balance (KWD)' : 'الرصيد المتبقي (د.ك)'}</th>
+                    <th className="px-3 py-2.5 text-start">{en ? 'Disciplinary Penalty' : 'خصم الجزاء'}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {LOANS_AND_DISCIPLINARY_RECORDS.map((row) => (
+                    <tr key={row.id} className="border-t border-white/5">
+                      <td className="px-3 py-3">
+                        <p className="font-bold text-white">
+                          [{row.employeeCode}] {en ? row.employeeNameEn : row.employeeNameAr}
+                        </p>
+                        <p className="text-[11px] text-mist-400">
+                          {en ? row.branchEn : row.branchAr}
+                        </p>
+                      </td>
+                      <td className="px-3 py-3 font-semibold text-gold-300">{row.recordType}</td>
+                      <td className="px-3 py-3 text-mist-200">
+                        {en ? row.titleEn : row.titleAr}
+                      </td>
+                      <td className="px-3 py-3 font-mono" dir="ltr">
+                        {row.totalLoanKwd.toFixed(3)} KWD
+                      </td>
+                      <td className="px-3 py-3 font-mono text-amber-300" dir="ltr">
+                        {row.monthlyInstallmentKwd.toFixed(3)} KWD
+                      </td>
+                      <td className="px-3 py-3 font-mono font-bold text-emerald-300" dir="ltr">
+                        {row.remainingBalanceKwd.toFixed(3)} KWD
+                      </td>
+                      <td className="px-3 py-3 font-mono text-red-300" dir="ltr">
+                        {row.penaltyDaysDeducted > 0
+                          ? `${row.penaltyDaysDeducted}d (${row.penaltyAmountKwd.toFixed(3)} KWD)`
+                          : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {/* =====================================================================
+          TAB 8: STAFF ACCOMMODATION & TRANSPORT
+         ===================================================================== */}
+      {activeTab === 'housing' ? (
+        <section className="space-y-6">
+          <div className="rounded-3xl border border-white/10 bg-[#0f141c] p-5">
+            <h2 className="text-lg font-black text-white">
+              {en
+                ? '🏢 Company Staff Accommodation Flats & Daily Bus Transport Routes'
+                : '🏢 سجل شقق سكن موظفي الشركة وخطوط باصات المواصلات اليومية'}
+            </h2>
+            <div className="mt-4 grid gap-4 lg:grid-cols-3">
+              {STAFF_HOUSING_FLATS.map((flat) => (
+                <article
+                  key={flat.id}
+                  className="rounded-2xl border border-white/10 bg-[#141b26] p-4 space-y-2.5"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-xs font-bold text-gold-300" dir="ltr">
+                      {flat.flatCode}
+                    </span>
+                    <span className="rounded-lg border border-emerald-400/30 bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-bold text-emerald-200">
+                      {flat.occupiedCount} / {flat.capacity} {en ? 'Beds Occupied' : 'مقيم حالياً'}
+                    </span>
+                  </div>
+                  <p className="text-sm font-black text-white">
+                    {en
+                      ? `${flat.areaEn} · ${flat.buildingEn}`
+                      : `${flat.areaAr} · ${flat.buildingAr}`}
+                  </p>
+                  <p className="text-xs text-mist-300">{flat.flatNumber}</p>
+                  <div className="rounded-xl border border-white/10 bg-black/30 p-2.5 text-xs">
+                    <p className="font-semibold text-mist-400">
+                      {en ? 'Occupants:' : 'الموظفون القاطنون بالشقة:'}
+                    </p>
+                    <p className="mt-1 text-mist-200">
+                      {(en ? flat.occupantsEn : flat.occupantsAr).join(' · ')}
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-between text-xs pt-1">
+                    <span className="font-mono font-bold text-emerald-300" dir="ltr">
+                      Rent: {flat.monthlyRentKwd.toFixed(3)} KWD/mo
+                    </span>
+                    <span className="font-mono text-mist-400" dir="ltr">
+                      Lease Exp: {flat.leaseExpiryDate}
+                    </span>
+                  </div>
+                  <p className="border-t border-white/10 pt-2 text-[11px] text-sky-300">
+                    🚌 {en ? flat.busRouteEn : flat.busRouteAr} ({en ? flat.driverNameEn : flat.driverNameAr})
+                  </p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {/* =====================================================================
+          TAB 9: KUWAIT EOSB INDEMNITY CALCULATOR & OFFBOARDING
+         ===================================================================== */}
+      {activeTab === 'eosb' ? (
+        <section className="space-y-6">
+          <div className="rounded-3xl border border-gold-400/30 bg-[#0f141c] p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-gold-300">
+                  {en
+                    ? 'Kuwait Labor Law No. 6 of 2010 (Articles 51, 52, 53 & 70) — Interactive EOSB Calculator'
+                    : 'حاسبة مستحقات نهاية الخدمة والمخالصة النهائية وفق قانون العمل الكويتي رقم 6 لسنة 2010'}
+                </p>
+                <h2 className="mt-1 text-xl font-black text-white">
+                  {en
+                    ? '⚖️ End-of-Service Indemnity (EOSB), Leave Encashment & Final Settlement Calculator'
+                    : '⚖️ حساب مكافأة نهاية الخدمة (15 يوماً لأول 5 سنوات + 30 يوماً لما زاد) ونسب الاستقالة القانونية'}
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('letters')
+                }}
+                className="rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-2.5 text-xs font-black text-ink-950 shadow-lg hover:brightness-110"
+              >
+                {en
+                  ? '🖨️ Print Final Clearance & Settlement Form'
+                  : '🖨️ طباعة إقرار المخالصة النهائية وإخلاء الطرف'}
+              </button>
+            </div>
+
+            <div className="mt-5 grid gap-4 sm:grid-cols-3 lg:grid-cols-6">
+              <label className="block text-xs font-semibold text-mist-300 sm:col-span-2">
+                {en ? 'Select Employee' : 'اختر الموظف'}
+                <select
+                  value={eosbEmpId}
+                  onChange={(e) => setEosbEmpId(e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-white/15 bg-[#141b26] px-3 py-2 text-xs text-white"
+                >
+                  {employees.map((e) => (
+                    <option key={e.id} value={e.id}>
+                      [{e.code}] {e.name} — {e.basicSalary.toFixed(3)} KWD
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block text-xs font-semibold text-mist-300">
+                {en ? 'Separation Reason (Art. 51 / 53)' : 'سبب انتهاء الخدمة'}
+                <select
+                  value={eosbReason}
+                  onChange={(e) =>
+                    setEosbReason(
+                      e.target.value as 'RESIGNATION' | 'TERMINATION' | 'CONTRACT_EXPIRY',
+                    )
+                  }
+                  className="mt-1 w-full rounded-xl border border-white/15 bg-[#141b26] px-3 py-2 text-xs text-white"
+                >
+                  <option value="RESIGNATION">
+                    {en ? 'Resignation (استقالة — Art. 53)' : 'استقالة (Resignation — مادة 53)'}
+                  </option>
+                  <option value="TERMINATION">
+                    {en ? 'Termination by Employer (إنهاء خدمات — 100%)' : 'إنهاء خدمات (Termination — 100%)'}
+                  </option>
+                  <option value="CONTRACT_EXPIRY">
+                    {en ? 'Contract Expiry (انتهاء عقد — 100%)' : 'انتهاء مدة العقد (Contract Expiry — 100%)'}
+                  </option>
+                </select>
+              </label>
+
+              <label className="block text-xs font-semibold text-mist-300">
+                {en ? 'Last Working Day' : 'تاريخ آخر يوم عمل'}
+                <input
+                  type="date"
+                  dir="ltr"
+                  value={eosbLastDate}
+                  onChange={(e) => setEosbLastDate(e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-white/15 bg-[#141b26] px-3 py-2 text-xs text-white"
+                />
+              </label>
+
+              <label className="block text-xs font-semibold text-mist-300">
+                {en ? 'Unused Leave Balance (Days)' : 'رصيد الإجازات غير المستعمل (يوم)'}
+                <input
+                  dir="ltr"
+                  value={eosbUnusedLeaveDays}
+                  onChange={(e) => setEosbUnusedLeaveDays(e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-white/15 bg-[#141b26] px-3 py-2 font-mono text-xs text-white"
+                />
+              </label>
+
+              <label className="block text-xs font-semibold text-mist-300">
+                {en ? 'Outstanding Loan Balance (KWD)' : 'رصيد السلف المتبقي (د.ك)'}
+                <input
+                  dir="ltr"
+                  value={eosbLoanBalance}
+                  onChange={(e) => setEosbLoanBalance(e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-white/15 bg-[#141b26] px-3 py-2 font-mono text-xs text-amber-300"
+                />
+              </label>
+            </div>
+
+            {/* Calculation Breakdown Cards */}
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-2xl border border-white/10 bg-[#141b26] p-4">
+                <p className="text-xs text-mist-400">
+                  {en ? 'Exact Length of Service' : 'مدة الخدمة الفعلية'}
+                </p>
+                <p className="mt-1 text-xl font-black text-white">
+                  {en
+                    ? `${eosbCalculation.years}y · ${eosbCalculation.months}m · ${eosbCalculation.days}d`
+                    : `${eosbCalculation.years} سنة · ${eosbCalculation.months} شهر · ${eosbCalculation.days} يوم`}
+                </p>
+                <p className="mt-1 text-[11px] text-emerald-300">
+                  {en
+                    ? `Remuneration Base: ${eosbCalculation.remunerationBaseKwd.toFixed(3)} KWD (26-day rate: ${eosbCalculation.dailyWage26Kwd.toFixed(3)} KWD)`
+                    : `الراتب الشامل للحساب: ${eosbCalculation.remunerationBaseKwd.toFixed(3)} د.ك (أجر اليوم /26: ${eosbCalculation.dailyWage26Kwd.toFixed(3)} د.ك)`}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-[#141b26] p-4">
+                <p className="text-xs text-mist-400">
+                  {en ? 'Full Gross Indemnity & Statutory Ratio' : 'إجمالي المكافأة ونسبة الاستحقاق القانونية'}
+                </p>
+                <p className="mt-1 font-mono text-xl font-black text-gold-300" dir="ltr">
+                  {eosbCalculation.netIndemnityPayableKwd.toFixed(3)} KWD
+                </p>
+                <p className="mt-1 text-[11px] text-mist-300">
+                  {en
+                    ? eosbCalculation.resignationEntitlementLabelEn
+                    : eosbCalculation.resignationEntitlementLabelAr}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-[#141b26] p-4">
+                <p className="text-xs text-mist-400">
+                  {en
+                    ? 'Leave Encashment + Final Month Pay'
+                    : 'بدل رصيد الإجازات + راتب أيام الشهر الأخير'}
+                </p>
+                <p className="mt-1 font-mono text-xl font-black text-sky-300" dir="ltr">
+                  {(eosbCalculation.leaveEncashmentKwd + eosbCalculation.finalMonthSalaryKwd).toFixed(3)} KWD
+                </p>
+                <p className="mt-1 text-[11px] text-mist-400" dir="ltr">
+                  Leave: {eosbCalculation.leaveEncashmentKwd.toFixed(3)} + Days:{' '}
+                  {eosbCalculation.finalMonthSalaryKwd.toFixed(3)} KWD
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-emerald-400/40 bg-emerald-500/15 p-4">
+                <p className="text-xs font-bold text-emerald-200">
+                  {en ? 'FINAL NET SETTLEMENT PAYABLE' : 'صافي المخالصة النهائية المستحق للصرف'}
+                </p>
+                <p className="mt-1 font-mono text-2xl font-black text-white" dir="ltr">
+                  {eosbCalculation.finalSettlementNetKwd.toFixed(3)} KWD
+                </p>
+                <p className="mt-1 text-[11px] text-emerald-200">
+                  {en ? 'After deducting outstanding loans' : 'بعد خصم رصيد السلف المتبقي'}
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {/* =====================================================================
+          TAB 10: OFFICIAL HR LETTERS & CONTRACTS
+         ===================================================================== */}
+      {activeTab === 'letters' ? (
+        <HrOfficialLettersHub en={en} employees={employees} />
+      ) : null}
+
+      {/* =====================================================================
+          STAGE 2: 12 EXECUTIVE HR REPORTS CENTER
+         ===================================================================== */}
+      {activeTab === 'reports' ? (
+        <HrExecutiveReportsHub en={en} employees={employees} />
+      ) : null}
+
+      {/* 4-Step New Employee Wizard Modal */}
+      <NewEmployeeWizardModal
+        open={wizardOpen}
+        onClose={() => setWizardOpen(false)}
+        en={en}
+      />
+    </div>
+  )
+}
