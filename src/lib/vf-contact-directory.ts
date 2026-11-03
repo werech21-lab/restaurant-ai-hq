@@ -121,7 +121,7 @@ export const VF_BRANCHES: VfBranchContact[] = [
   { code: 'QRN', nameAr: 'فرع أسواق القرين', nameEn: 'Aswaq Al Qurain Branch', ext: '406', direct: '22213211', email: 'alqurain@venturefoodskw.com', warehouseMatch: ['Qurain', 'القرين'] },
   { code: 'ASM', nameAr: 'فرع العاصمة مول', nameEn: 'Assima Mall Branch', ext: '407', direct: '22243446', email: 'assimamallcg@venturefoodskw.com', warehouseMatch: ['Assima', 'العاصمة', 'ASM'] },
   { code: 'PRM', nameAr: 'فرع البروميناد مول', nameEn: 'Promenade Mall Branch', ext: '408', direct: '22212230', email: 'promenademall@venturefoodskw.com', warehouseMatch: ['Promenade', 'البروميناد', 'PRM'] },
-  { code: 'JAH', nameAr: 'فرع الجهراء', nameEn: 'Tasty Snacks Jahra Branch', ext: '410', direct: '22212232', email: 'tsjahra@venturefoodskw.com', warehouseMatch: ['Jahra', 'الجهراء'] },
+  { code: 'FRW', nameAr: 'فرع الفروانية', nameEn: 'Farwaniya Branch', ext: '410', direct: '22212232', email: 'farwaniya@venturefoodskw.com', warehouseMatch: ['Farwaniya', 'الفروانية'] },
   { code: 'SHW', nameAr: 'فرع الشويخ', nameEn: 'Shuwaikh Branch', ext: '402', direct: '22243836', warehouseMatch: ['Shuwaikh', 'الشويخ'] },
   { code: 'CK', nameAr: 'المطبخ المركزي', nameEn: 'Central Kitchen', ext: '501', direct: '302', email: 'CK@venturefoodskw.com', warehouseMatch: ['Central Kitchen', 'CK', 'المطبخ'] },
 ]

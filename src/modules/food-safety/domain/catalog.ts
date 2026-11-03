@@ -107,12 +107,12 @@ export const EXTRA_SITES = [
     nameAr: 'تشاينا جاردن · الكوت مول',
   },
   {
-    id: 'CG-JAHRA',
+    id: 'CG-360',
     brandId: 'CHINA-GARDEN',
-    areaEn: 'Jahra',
-    areaAr: 'الجهراء',
-    nameEn: 'China Garden · Jahra',
-    nameAr: 'تشاينا جاردن · الجهراء',
+    areaEn: 'South Surra (360 Mall)',
+    areaAr: 'جنوب السرة (مول 360)',
+    nameEn: 'China Garden · 360 Mall',
+    nameAr: 'تشاينا جاردن · مول 360',
   },
   // Frank's
   {

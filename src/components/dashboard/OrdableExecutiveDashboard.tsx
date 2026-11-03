@@ -347,13 +347,13 @@ export function OrdableExecutiveDashboard({
               onChange={(e) => setSelectedBranch(e.target.value)}
               className="rounded-xl border border-slate-700 bg-slate-900/90 px-3 py-1.5 font-bold text-white focus:outline-none focus:border-emerald-500/50"
             >
-              <option value="ALL">{isAr ? 'كل الفروع (10 فروع + مطبخ القرين)' : 'All 10 Branches'}</option>
+              <option value="ALL">{isAr ? 'كافة الفروع النشطة (9 فروع + مطبخ القرين)' : 'All Active Branches'}</option>
               <option value="SALMIYA">فرع السالمية (شارع سالم المبارك)</option>
               <option value="AVENUES">فرع مجمع الأفنيوز (المرحلة 2)</option>
               <option value="HAWALLY">فرع حولي (شارع بيروت)</option>
               <option value="FARWANIYA">فرع الفروانية (حبيب مناور)</option>
               <option value="MAHBOULA">فرع المهبولة (الشريط الساحلي)</option>
-              <option value="JAHRA">فرع الجهراء (مرزوق المتعب)</option>
+              <option value="ARDIYA">فرع العارضية الحرفية (Ardiya)</option>
               <option value="KHAITAN">فرع خيطان (عثمان بن عفان)</option>
               <option value="BNEID">فرع بنيد القار (شارع الاستقلال)</option>
               <option value="RAI">فرع الري (طريق الغزالي السريع)</option>

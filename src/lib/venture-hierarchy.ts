@@ -81,12 +81,12 @@ export const VENTURE_BRANCHES = [
     nameEn: 'Karak Cafeteria · Hawally',
   },
   {
-    id: 'KK-JAHRA',
+    id: 'KK-QURAIN',
     brandId: 'KARAK-CAFETERIA',
-    areaAr: 'الجهراء',
-    areaEn: 'Jahra',
-    nameAr: 'كرك كافتيريا · الجهراء',
-    nameEn: 'Karak Cafeteria · Jahra',
+    areaAr: 'أسواق القرين',
+    areaEn: 'Aswaq Al-Qurain',
+    nameAr: 'كرك كافتيريا · أسواق القرين (المطبخ المركزي)',
+    nameEn: 'Karak Cafeteria · Aswaq Al-Qurain',
   },
   {
     id: 'CG-FARWANIYA',

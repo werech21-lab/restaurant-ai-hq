@@ -131,12 +131,12 @@ const VENTURE_WAREHOUSES: BranchWarehouseCard[] = [
     readinessScore: 93,
   },
   {
-    id: 'wh-jahra',
-    code: 'FB-JAHRA',
-    nameAr: 'مستودع فرع الجهراء (مجمع الخيمة مول)',
-    nameEn: 'Jahra Al-Khaima Mall Warehouse',
-    areaAr: 'الجهراء · محافظة الجهراء',
-    areaEn: 'Jahra · Jahra Governorate',
+    id: 'wh-ardiya-fb',
+    code: 'FB-ARDIYA',
+    nameAr: 'مستودع فرع العارضية الحرفية',
+    nameEn: 'Ardiya Craft Area Warehouse',
+    areaAr: 'العارضية الحرفية · محافظة الفروانية',
+    areaEn: 'Ardiya · Farwaniya Governorate',
     brandCode: 'Farm Brown',
     stockValueKwd: 5890.0,
     skuCount: { raw: 15, prep: 12, pack: 15 },
@@ -739,7 +739,7 @@ export function VentureWarehousesHub({
                   <option value="CG-HAWALLI">فرع حولي (China Garden)</option>
                   <option value="FR-ARDIYA">فرع العارضية (Frank&apos;s)</option>
                   <option value="TH-MAHBOULA">فرع المهبولة (Tahina)</option>
-                  <option value="FB-JAHRA">فرع الجهراء (Farm Brown)</option>
+                  <option value="FB-ARDIYA">فرع العارضية (Farm Brown)</option>
                   <option value="NB-SHARQ">فرع شرق (The Noodle Bar)</option>
                 </select>
               </div>

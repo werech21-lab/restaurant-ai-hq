@@ -30,7 +30,7 @@ const BRANCHES = [
   'Ardiya Branch',
   'Promenade Mall Branch',
   'Aswaq Al-Qurain Branch',
-  'Jahra Branch',
+  'Farwaniya Branch',
   'Shuwaikh Branch',
   'Central Kitchen — Qurain',
 ]

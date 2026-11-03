@@ -7,7 +7,6 @@ import { useI18n, type MessageKey } from '@/lib/i18n'
 
 const chartSeed: Array<{ area: MessageKey; margin: number; fill: string }> = [
   { area: 'area.salmiya', margin: 35.6, fill: '#3fb950' },
-  { area: 'area.jahra', margin: 31.4, fill: '#58a6ff' },
   { area: 'area.shuwaikh', margin: 28.2, fill: '#58a6ff' },
   { area: 'area.hawally', margin: 24.1, fill: '#f85149' },
 ]

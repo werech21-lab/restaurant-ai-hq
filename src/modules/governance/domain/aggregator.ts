@@ -6,7 +6,7 @@ import { minorToInput } from '@/lib/money'
 export const aggregatorPlatforms = ['Talabat', 'Keeta', 'Jahez', 'Snoonu', 'Deliveroo', 'Cari'] as const
 export type AggregatorPlatform = (typeof aggregatorPlatforms)[number]
 
-export const aggregatorZones = ['السالمية', 'شرق/مدينة الكويت', 'حولي', 'الفروانية', 'المهبولة', 'الجهراء', 'العارضية'] as const
+export const aggregatorZones = ['السالمية', 'شرق/مدينة الكويت', 'حولي', 'الفروانية', 'المهبولة', 'أسواق القرين', 'العارضية'] as const
 export type AggregatorZone = (typeof aggregatorZones)[number]
 
 export const logisticsModes = ['platform_fleet', 'vendor_own_fleet'] as const

@@ -4,6 +4,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react'
 import {
   VENTURE_BRANDS,
   INITIAL_BRANCH_PROFILES,
+  PERMANENTLY_CLOSED_BRANCHES,
   HISTORICAL_CHRONOLOGICAL_INCIDENTS,
   calculateGeoRadarKpis,
   formatTalabatAreaAlertEmail,
@@ -53,8 +54,60 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
 
   const isEn = activeLocale === 'en'
 
-  const [branches, setBranches] = useState<BranchRadarProfile[]>(INITIAL_BRANCH_PROFILES)
-  const [incidents, setIncidents] = useState<ChronologicalIncident[]>(HISTORICAL_CHRONOLOGICAL_INCIDENTS)
+  // Branch status control map (true = active, false = paused/closed)
+  const [branchStatusMap, setBranchStatusMap] = useState<Record<string, boolean>>({})
+  const [showBranchManagerModal, setShowBranchManagerModal] = useState<boolean>(false)
+
+  // Load custom branch status from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('vf_branch_status_map')
+      if (saved) {
+        setBranchStatusMap(JSON.parse(saved))
+      }
+    } catch {}
+  }, [])
+
+  // Toggle active/inactive for any branch
+  const handleToggleBranch = useCallback((branchId: string) => {
+    setBranchStatusMap((prev) => {
+      const isCurrentlyActive = prev[branchId] !== false
+      const updated = { ...prev, [branchId]: !isCurrentlyActive }
+      try {
+        localStorage.setItem('vf_branch_status_map', JSON.stringify(updated))
+        window.dispatchEvent(new CustomEvent('vf_branch_status_changed', { detail: updated }))
+      } catch {}
+      return updated
+    })
+  }, [])
+
+  // Reset all branches to active
+  const handleResetAllBranches = useCallback(() => {
+    const fresh: Record<string, boolean> = {}
+    INITIAL_BRANCH_PROFILES.forEach((b) => {
+      fresh[b.branchId] = true
+    })
+    setBranchStatusMap(fresh)
+    try {
+      localStorage.setItem('vf_branch_status_map', JSON.stringify(fresh))
+      window.dispatchEvent(new CustomEvent('vf_branch_status_changed', { detail: fresh }))
+    } catch {}
+  }, [])
+
+  // Active branches in the radar (only truly active branches)
+  const operationalBranches = useMemo(() => {
+    return INITIAL_BRANCH_PROFILES.filter((b) => branchStatusMap[b.branchId] !== false)
+  }, [branchStatusMap])
+
+  // Incidents filtered by active branches
+  const activeIncidents = useMemo(() => {
+    const activeBranchNamesAr = new Set(operationalBranches.map((b) => b.branchNameAr))
+    const activeBranchNamesEn = new Set(operationalBranches.map((b) => b.branchNameEn))
+    return HISTORICAL_CHRONOLOGICAL_INCIDENTS.filter(
+      (inc) => activeBranchNamesAr.has(inc.branchNameAr) || activeBranchNamesEn.has(inc.branchNameEn)
+    )
+  }, [operationalBranches])
+
   const [selectedBrand, setSelectedBrand] = useState<string>('all')
   const [selectedBranch, setSelectedBranch] = useState<string>('all')
   const [selectedStatus, setSelectedStatus] = useState<string>('all')
@@ -65,12 +118,12 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
   const [alertFeedback, setAlertFeedback] = useState<{ ok: boolean; message: string } | null>(null)
   const [showClaimModal, setShowClaimModal] = useState<boolean>(false)
 
-  // Real-time KPIs
-  const kpis = useMemo(() => calculateGeoRadarKpis(branches), [branches])
+  // Real-time KPIs computed dynamically from operational branches
+  const kpis = useMemo(() => calculateGeoRadarKpis(operationalBranches), [operationalBranches])
 
-  // Filter branches and zones
+  // Filter branches and zones for display
   const filteredBranches = useMemo(() => {
-    return branches
+    return operationalBranches
       .filter((b) => {
         if (selectedBranch !== 'all' && b.branchId !== selectedBranch) return false
         if (selectedBrand !== 'all') {
@@ -107,34 +160,34 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
         }
       })
       .filter((b) => b.zones.length > 0)
-  }, [branches, selectedBrand, selectedBranch, selectedStatus, searchQuery])
+  }, [operationalBranches, selectedBrand, selectedBranch, selectedStatus, searchQuery])
 
   // Trigger live area probe simulation
   const handleRunLiveProbe = useCallback(() => {
     setIsProbing(true)
     setProbeNotice(
       isEn
-        ? 'Sending geospatial probe pings and polling Talabat customer API across Kuwait delivery zones...'
-        : 'جاري إرسال مجسات الفحص الجغرافي واستعلام واجهة برمجة طلبات لكافة مناطق الكويت...'
+        ? `Sending geospatial probe pings and polling Talabat customer API across ${kpis.totalMonitoredZones} Kuwait delivery zones...`
+        : `جاري إرسال مجسات الفحص الجغرافي واستعلام واجهة برمجة طلبات لـ ${kpis.totalMonitoredZones} منطقة سكنية في الكويت...`
     )
     setTimeout(() => {
       setIsProbing(false)
       const nowStr = new Date().toLocaleTimeString(isEn ? 'en-US' : 'ar-KW', { hour: '2-digit', minute: '2-digit' })
       setProbeNotice(
         isEn
-          ? `✅ Live scan of 73 Kuwait residential delivery zones completed at ${nowStr}. Detected 9 temporarily busy zones and 6 polygon-cut areas.`
-          : `✅ تم اكتمال فحص 73 منطقة سكنية في الكويت بنجاح عند ${nowStr}. تم رصد 9 مناطق مشغولة و 6 مناطق مقطوعة مضلعياً.`
+          ? `✅ Live scan of ${kpis.totalMonitoredZones} Kuwait residential delivery zones completed at ${nowStr}. Detected ${kpis.busyZonesCount} temporarily busy zones and ${kpis.hiddenZonesCount} polygon-cut areas across ${operationalBranches.length} active branches.`
+          : `✅ تم اكتمال فحص ${kpis.totalMonitoredZones} منطقة سكنية في الكويت بنجاح عند ${nowStr}. تم رصد ${kpis.busyZonesCount} مناطق مشغولة و ${kpis.hiddenZonesCount} مناطق مقطوعة مضلعياً عبر ${operationalBranches.length} أفرع نشطة.`
       )
       setTimeout(() => setProbeNotice(null), 8000)
     }, 1200)
-  }, [isEn])
+  }, [isEn, kpis, operationalBranches.length])
 
   // Send instant alert email to the 3 designated executives
   const handleSendInstantAlert = useCallback(async () => {
     setIsSendingAlert(true)
     setAlertFeedback(null)
     try {
-      const emailText = formatTalabatAreaAlertEmail(branches, kpis)
+      const emailText = formatTalabatAreaAlertEmail(operationalBranches, kpis)
       const res = await fetch('/api/aggregator-radar/alert', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -170,7 +223,7 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
       setIsSendingAlert(false)
       setTimeout(() => setAlertFeedback(null), 9000)
     }
-  }, [branches, kpis, isEn])
+  }, [operationalBranches, kpis, isEn])
 
   // Download official SLA claim file
   const handleDownloadClaimFile = () => {
@@ -180,6 +233,7 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
       '========================================================================================',
       `Generated: ${new Date().toISOString()}`,
       `Audit Period: Current Day (Cumulative Month-to-Date)`,
+      `Active Branches: ${operationalBranches.length}`,
       `Total Monitored Residential Zones: ${kpis.totalMonitoredZones}`,
       `Online & Visible Zones: ${kpis.onlineZonesCount} (${kpis.onlineZonesPct}%)`,
       `Temporarily Busy Zones (Algorithm Cut): ${kpis.busyZonesCount}`,
@@ -188,9 +242,9 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
       `Forced TGO Commission Difference (17% vs 10%): ${kpis.totalTgoPenaltiesKwd.toFixed(3)} KWD`,
       `Total Claimed Compensation: ${kpis.totalFinancialImpactKwd.toFixed(3)} KWD`,
       '----------------------------------------------------------------------------------------',
-      'DETAILED BREAKDOWN BY AFFECTED BRANCH AND ZONE:',
+      'DETAILED BREAKDOWN BY AFFECTED ACTIVE BRANCH AND ZONE:',
       '----------------------------------------------------------------------------------------',
-      ...branches.flatMap((b) =>
+      ...operationalBranches.flatMap((b) =>
         b.zones
           .filter((z) => z.status !== 'ONLINE_VISIBLE')
           .map(
@@ -224,8 +278,8 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
             <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-3.5 py-1 text-xs font-black uppercase tracking-wider text-amber-300">
               <span className="h-2 w-2 animate-ping rounded-full bg-amber-400" />
               {isEn
-                ? 'Kuwait Geo-Spatial Delivery Radar · Talabat Go (TGO) Polygon Sentinel'
-                : 'رادار الرصد الجغرافي الكويتي · حارس مضلعات طلبات جو (TGO)'}
+                ? `Kuwait Geo-Spatial Delivery Radar · ${operationalBranches.length} Active Branches · Talabat Go Sentinel`
+                : `رادار الرصد الجغرافي الكويتي · ${operationalBranches.length} فروع نشطة · حارس مضلعات طلبات جو`}
             </div>
             <h1 className="mt-3 text-2xl font-black text-white sm:text-3xl lg:text-4xl">
               {isEn ? (
@@ -237,17 +291,28 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
             <p className="mt-2 max-w-3xl text-sm leading-relaxed text-amber-200/80 sm:text-base">
               {isEn ? (
                 <>
-                  Real-time customer-perspective geo-probing across all 10 branches &amp; 73 residential delivery zones in Kuwait — tracking busy states, polygon shrinking, and lost revenue.
+                  Real-time customer-perspective geo-probing across {operationalBranches.length} active branches &amp; {kpis.totalMonitoredZones} residential delivery zones in Kuwait — tracking busy states, polygon shrinking, and lost revenue.
                 </>
               ) : (
                 <>
-                  رصد جغرافي استقصائي حي من منظور العملاء لكافة فروع الشركة الـ 10 و 73 منطقة سكنية مغطاة في الكويت — تتبع فوري لظاهرة &quot;مشغول&quot; وتآكل نطاق التوصيل والمبيعات المفقودة عمداً.
+                  رصد جغرافي استقصائي حي من منظور العملاء لكافة فروع الشركة النشطة الـ {operationalBranches.length} و {kpis.totalMonitoredZones} منطقة سكنية مغطاة في الكويت — تتبع فوري لظاهرة &quot;مشغول&quot; وتآكل نطاق التوصيل والمبيعات المفقودة عمداً.
                 </>
               )}
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            {/* Manage Active Branches Button */}
+            <button
+              type="button"
+              onClick={() => setShowBranchManagerModal(true)}
+              className="inline-flex items-center gap-2 rounded-2xl border border-amber-400/50 bg-gradient-to-r from-amber-600/30 to-amber-700/40 px-4 py-3.5 text-sm font-black text-amber-200 backdrop-blur transition hover:border-amber-400 hover:bg-amber-600/50 hover:text-white"
+            >
+              <span>⚙️</span>
+              <span>{isEn ? 'Manage Active Branches' : 'إدارة الفروع النشطة / إغلاق فرع'}</span>
+            </button>
+
+            {/* Run Live Area Visibility Probe */}
             <button
               type="button"
               disabled={isProbing}
@@ -260,7 +325,7 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                   </svg>
-                  <span>{isEn ? 'Probing 73 Zones...' : 'جارٍ الفحص الجغرافي لـ 73 منطقة...'}</span>
+                  <span>{isEn ? `Probing ${kpis.totalMonitoredZones} Zones...` : `جارٍ الفحص لـ ${kpis.totalMonitoredZones} منطقة...`}</span>
                 </>
               ) : (
                 <>
@@ -270,6 +335,7 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
               )}
             </button>
 
+            {/* Send Alert to Approved Emails */}
             <button
               type="button"
               disabled={isSendingAlert}
@@ -292,6 +358,7 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
               )}
             </button>
 
+            {/* Export SLA Claim Report */}
             <button
               type="button"
               onClick={() => setShowClaimModal(true)}
@@ -328,7 +395,9 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
           </div>
           <div className="mt-2 text-3xl font-black text-white">{kpis.totalMonitoredZones}</div>
           <div className="mt-1 text-xs text-gray-400">
-            {isEn ? '73 Residential Areas in Kuwait' : '73 منطقة سكنية في الكويت'}
+            {isEn
+              ? `${kpis.totalMonitoredZones} Residential Areas (${operationalBranches.length} Active Branches)`
+              : `${kpis.totalMonitoredZones} منطقة سكنية (${operationalBranches.length} فروع نشطة)`}
           </div>
         </div>
 
@@ -354,7 +423,7 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
           </div>
           <div className="mt-2 text-3xl font-black text-amber-300">{kpis.busyZonesCount}</div>
           <div className="mt-1 text-xs text-amber-400/80">
-            {isEn ? '9 Temporarily Busy Areas' : '9 مناطق مغلقة مؤقتاً "مشغول"'}
+            {isEn ? `${kpis.busyZonesCount} Temporarily Busy Areas` : `${kpis.busyZonesCount} مناطق مغلقة مؤقتاً "مشغول"`}
           </div>
         </div>
 
@@ -366,7 +435,7 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
           </div>
           <div className="mt-2 text-3xl font-black text-red-300">{kpis.hiddenZonesCount}</div>
           <div className="mt-1 text-xs text-red-400/80">
-            {isEn ? '6 Polygon-Cut / Hidden Areas' : '6 مناطق تم تقليص نطاقها بالكامل'}
+            {isEn ? `${kpis.hiddenZonesCount} Polygon-Cut / Hidden Areas` : `${kpis.hiddenZonesCount} مناطق تم تقليص نطاقها بالكامل`}
           </div>
         </div>
 
@@ -407,7 +476,7 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
             </select>
           </div>
 
-          {/* Branch Filter */}
+          {/* Branch Filter (Only Operational Active Branches) */}
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold text-gray-400">{isEn ? 'Branch:' : 'الفرع:'}</span>
             <select
@@ -415,8 +484,10 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
               onChange={(e) => setSelectedBranch(e.target.value)}
               className="rounded-xl border border-white/10 bg-[#1a1c22] px-3 py-2 text-xs font-semibold text-white focus:border-amber-400 focus:outline-none"
             >
-              <option value="all">{isEn ? 'All 10 Branches' : 'كافة الأفرع (10)'}</option>
-              {branches.map((b) => (
+              <option value="all">
+                {isEn ? `All Active Branches (${operationalBranches.length})` : `كافة الأفرع النشطة (${operationalBranches.length})`}
+              </option>
+              {operationalBranches.map((b) => (
                 <option key={b.branchId} value={b.branchId}>
                   {isEn ? b.branchNameEn : b.branchNameAr}
                 </option>
@@ -454,7 +525,7 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
       </div>
 
       {/* ---------------------------------------------------------------------- */}
-      {/* 10 BRANCHES RADAR CARDS GRID                                           */}
+      {/* ACTIVE BRANCHES RADAR CARDS GRID                                       */}
       {/* ---------------------------------------------------------------------- */}
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         {filteredBranches.map((branch) => {
@@ -630,12 +701,12 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
             </h2>
             <p className="text-xs text-gray-400">
               {isEn
-                ? 'Real-time forensic audit trail of every blackout, busy state, and forced commission detected today'
-                : 'سجل تتبع لحظي لكل انقطاع أو تحويل إجباري تم رصده اليوم عبر شبكة الفروع'}
+                ? `Real-time forensic audit trail across ${operationalBranches.length} active branches in Kuwait`
+                : `سجل تتبع لحظي لكل انقطاع أو تحويل إجباري تم رصده اليوم عبر شبكة الفروع النشطة (${operationalBranches.length} فروع)`}
             </p>
           </div>
           <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-300">
-            {incidents.length} {isEn ? 'Logged Incidents Today' : 'حدث جنائي مرصود اليوم'}
+            {activeIncidents.length} {isEn ? 'Logged Incidents Today' : 'حدث جنائي مرصود اليوم'}
           </span>
         </div>
 
@@ -655,7 +726,7 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {incidents.map((inc) => {
+              {activeIncidents.map((inc) => {
                 let badgeClass = 'text-amber-400'
                 let badgeText = isEn ? '🟡 Busy in Area' : '🟡 مشغول بالمنطقة'
                 if (inc.status === 'AREA_CLOSED_HIDDEN') {
@@ -723,6 +794,182 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
       </div>
 
       {/* ---------------------------------------------------------------------- */}
+      {/* MANAGE ACTIVE BRANCHES MODAL (Step 2)                                  */}
+      {/* ---------------------------------------------------------------------- */}
+      {showBranchManagerModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md">
+          <div
+            className="relative max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-3xl border border-amber-500/40 bg-[#121316] p-6 shadow-2xl sm:p-8"
+            dir={isEn ? 'ltr' : 'rtl'}
+          >
+            {/* Header */}
+            <div className="flex items-start justify-between border-b border-white/10 pb-4">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-0.5 text-xs font-bold text-amber-300">
+                  <span>⚙️ Operations Management Control</span>
+                </div>
+                <h3 className="mt-2 text-xl font-black text-white">
+                  {isEn
+                    ? 'Manage Active Branches & Outage Control'
+                    : 'إدارة الفروع النشطة وإيقاف الأفرع (Manage Active Branches)'}
+                </h3>
+                <p className="mt-1 text-xs text-gray-400">
+                  {isEn
+                    ? 'Toggle operational status for any branch. Changes reflect immediately across the Geo-Zone Radar, KPIs, and reports.'
+                    : 'لوحة تحكم مدير العمليات لتفعيل أو استبعاد أي فرع من رادار التوصيل والتقارير التنفيذية فورياً.'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowBranchManagerModal(false)}
+                className="rounded-full p-2 text-gray-400 hover:bg-white/10 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Quick Summary Badge */}
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-500/20 bg-amber-950/20 p-3.5 text-xs">
+              <span className="font-bold text-amber-300">
+                {isEn
+                  ? `Active Operating Branches: ${operationalBranches.length} of ${INITIAL_BRANCH_PROFILES.length}`
+                  : `الأفرع النشطة قيد التشغيل: ${operationalBranches.length} من أصل ${INITIAL_BRANCH_PROFILES.length} فروع`}
+              </span>
+              <button
+                type="button"
+                onClick={handleResetAllBranches}
+                className="rounded-xl border border-amber-400/30 bg-amber-500/20 px-3 py-1 font-bold text-amber-200 transition hover:bg-amber-500/40 hover:text-white"
+              >
+                {isEn ? '↺ Reset All 9 Branches to Active' : '↺ تفعيل كافة الفروع الـ 9 المعتمدة'}
+              </button>
+            </div>
+
+            {/* Active Branches Table/Cards */}
+            <div className="mt-5 space-y-3">
+              <div className="text-xs font-black text-gray-400 uppercase tracking-wider">
+                {isEn ? 'Active Venture Foods Branches:' : 'فروع فنتشر فودز المعتمدة للتشغيل:'}
+              </div>
+
+              {INITIAL_BRANCH_PROFILES.map((branch) => {
+                const isActive = branchStatusMap[branch.branchId] !== false
+                return (
+                  <div
+                    key={branch.branchId}
+                    className={`flex flex-wrap items-center justify-between gap-4 rounded-2xl border p-4 transition ${
+                      isActive
+                        ? 'border-white/10 bg-[#17191f] hover:border-amber-500/30'
+                        : 'border-red-500/30 bg-red-950/10 opacity-75'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className={`h-3 w-3 rounded-full ${isActive ? 'bg-emerald-400' : 'bg-red-500'}`} />
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-white text-sm">
+                            {isEn ? branch.branchNameEn : branch.branchNameAr}
+                          </span>
+                          <span className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-[10px] text-gray-400">
+                            {branch.branchCode}
+                          </span>
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          {isEn ? branch.primaryBrandNameEn : branch.primaryBrandNameAr} • {branch.totalZonesCount}{' '}
+                          {isEn ? 'monitored zones' : 'مناطق سكنية مغطاة'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                          isActive
+                            ? 'bg-emerald-500/20 text-emerald-300'
+                            : 'bg-red-500/20 text-red-300'
+                        }`}
+                      >
+                        {isActive
+                          ? isEn
+                            ? '🟢 Active'
+                            : '🟢 نشط بالرادار'
+                          : isEn
+                            ? '🔴 Paused'
+                            : '🔴 متوقف مؤقتاً'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleBranch(branch.branchId)}
+                        className={`cursor-pointer rounded-xl px-4 py-2 text-xs font-bold transition shadow ${
+                          isActive
+                            ? 'border border-red-500/40 bg-red-950/40 text-red-300 hover:bg-red-900/50'
+                            : 'border border-emerald-500/40 bg-emerald-950/40 text-emerald-300 hover:bg-emerald-900/50'
+                        }`}
+                      >
+                        {isActive
+                          ? isEn
+                            ? 'Pause Branch'
+                            : 'إيقاف الفرع'
+                          : isEn
+                            ? 'Activate Branch'
+                            : 'تفعيل الفرع'}
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Permanently Closed Branches Section (Jahra) */}
+            <div className="mt-6 border-t border-white/10 pt-5">
+              <div className="mb-3 text-xs font-black text-rose-400 uppercase tracking-wider flex items-center gap-2">
+                <span>🛑</span>
+                <span>
+                  {isEn
+                    ? 'Permanently Closed Branches (Excluded from Operations):'
+                    : 'فروع مغلقة نهائياً (مستبعدة تماماً من العمليات والرادار):'}
+                </span>
+              </div>
+
+              {PERMANENTLY_CLOSED_BRANCHES.map((cb) => (
+                <div
+                  key={cb.branchId}
+                  className="rounded-2xl border border-rose-500/30 bg-rose-950/15 p-4 text-xs text-rose-200"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="font-bold text-white text-sm">
+                      {isEn ? cb.branchNameEn : cb.branchNameAr}
+                    </div>
+                    <span className="rounded-full border border-rose-500/40 bg-rose-500/20 px-3 py-0.5 text-[11px] font-black text-rose-300">
+                      {isEn ? '🔴 Permanently Closed' : '🔴 مغلق نهائياً ومفسوخ العقد'}
+                    </span>
+                  </div>
+                  <div className="mt-1 text-gray-300">
+                    {isEn ? cb.reasonEn : cb.reasonAr}
+                  </div>
+                  <div className="mt-2 text-[11px] text-gray-400">
+                    {isEn ? 'Excluded zones:' : 'المناطق المستبعدة بالكامل:'}{' '}
+                    <span className="font-semibold text-gray-300">
+                      {(isEn ? cb.zonesEn : cb.zonesAr).join(' · ')}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="mt-6 flex justify-end border-t border-white/10 pt-4">
+              <button
+                type="button"
+                onClick={() => setShowBranchManagerModal(false)}
+                className="rounded-2xl border border-amber-400/40 bg-gradient-to-r from-amber-500 to-amber-600 px-6 py-2.5 text-xs font-black text-black shadow-lg shadow-amber-900/40 transition hover:brightness-110"
+              >
+                {isEn ? 'Save & Close' : 'حفظ وإغلاق'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------------------------------------------------------------------- */}
       {/* SLA PENALTY CLAIM MODAL                                                */}
       {/* ---------------------------------------------------------------------- */}
       {showClaimModal && (
@@ -771,11 +1018,11 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
               </div>
 
               <div className="flex justify-between rounded-xl border border-white/5 bg-[#17191f] p-3">
-                <span className="text-gray-400">{isEn ? 'Audit Period:' : 'الفترة المحاسبية:'}</span>
+                <span className="text-gray-400">{isEn ? 'Audit Scope:' : 'نطاق التدقيق الفعلي:'}</span>
                 <span className="font-bold text-white">
                   {isEn
-                    ? 'Current Day (Cumulative Month-to-Date Audit)'
-                    : 'اليوم الحالي (مع فحص تراكمي للشهر)'}
+                    ? `${operationalBranches.length} Active Branches · ${kpis.totalMonitoredZones} Residential Zones`
+                    : `${operationalBranches.length} أفرع نشطة معتمدة · ${kpis.totalMonitoredZones} منطقة سكنية`}
                 </span>
               </div>
 
