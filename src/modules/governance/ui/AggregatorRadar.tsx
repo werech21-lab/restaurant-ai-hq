@@ -8,6 +8,8 @@ import { useOptionalScope } from '@/components/ScopeProvider'
 import { permissions } from '@/lib/auth/permissions'
 import { useI18n } from '@/lib/i18n'
 import {
+  buildForensicMatrix,
+  buildForensicReport,
   cleanBranchLabel,
   displayBrandName,
   formatKwdMinor,
@@ -286,7 +288,23 @@ function Workspace() {
   const [countdownSeed, setCountdownSeed] = useState(300)
   const [period, setPeriod] = useState<ForensicReportPeriod>('daily')
   const [platform, setPlatform] = useState('')
-  const [board, setBoard] = useState<BoardPayload | null>(null)
+  const initialSnapshot = useMemo<BoardPayload>(() => {
+    const snap = buildForensicMatrix()
+    const report = buildForensicReport([snap], 'daily')
+    return {
+      kpis: snap.kpis,
+      rows: snap.rows,
+      recorded: snap.rows.length,
+      scannedAt: snap.scannedAt,
+      bucket: snap.bucket,
+      report,
+      snapshot: snap,
+      historyCount: 1,
+      nextScanInSec: 300,
+      autoScanIntervalSec: 300,
+    }
+  }, [])
+  const [board, setBoard] = useState<BoardPayload>(initialSnapshot)
   const [alertBusy, setAlertBusy] = useState(false)
   const [smtpStatus, setSmtpStatus] = useState<BoardPayload['smtp'] | null>(null)
   const [delivery, setDelivery] = useState<DeliveryFeedback | null>(null)
@@ -508,9 +526,7 @@ function Workspace() {
     }
   }, [board?.snapshot?.scannedAt, board?.scannedAt, en])
 
-  if (phase === 'loading' && !board) {
-    return <p className="text-sm text-gray-400">{en ? 'Loading forensic radar…' : 'جارٍ تحميل الرادار الجنائي…'}</p>
-  }
+
   if (phase === 'error' && !board) {
     return (
       <p className={errorClass} role="alert">
