@@ -26,33 +26,58 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
     if (i18n?.locale) ctxLocale = i18n.locale
   } catch {}
 
-  const [activeLocale, setActiveLocale] = useState<'ar' | 'en'>(propLocale || ctxLocale)
+  const [isEn, setIsEn] = useState<boolean>(() => {
+    if (typeof document !== 'undefined') {
+      const htmlLang = document.documentElement.lang?.toLowerCase() || ''
+      const htmlDir = document.documentElement.dir?.toLowerCase() || ''
+      const stored = (
+        localStorage.getItem('aetherbi_locale') ||
+        localStorage.getItem('ai-hq-locale') ||
+        localStorage.getItem('locale') ||
+        localStorage.getItem('lang') ||
+        document.cookie
+      )?.toLowerCase() || ''
+      const sidebarIsEn =
+        (document.body?.innerText || '').includes('Executive Dashboard') ||
+        (document.body?.innerText || '').includes('Aggregator Radar')
+      return htmlLang.includes('en') || htmlDir === 'ltr' || stored.includes('en') || sidebarIsEn
+    }
+    return propLocale === 'en' || ctxLocale === 'en'
+  })
 
   useEffect(() => {
-    if (propLocale) {
-      setActiveLocale(propLocale)
-      return
+    const checkLang = () => {
+      const htmlLang = document.documentElement.lang?.toLowerCase() || ''
+      const htmlDir = document.documentElement.dir?.toLowerCase() || ''
+      const stored = (
+        localStorage.getItem('aetherbi_locale') ||
+        localStorage.getItem('ai-hq-locale') ||
+        localStorage.getItem('locale') ||
+        localStorage.getItem('lang') ||
+        document.cookie
+      )?.toLowerCase() || ''
+      // Also check if sidebar text is currently in English
+      const sidebarIsEn =
+        (document.body?.innerText || '').includes('Executive Dashboard') ||
+        (document.body?.innerText || '').includes('Aggregator Radar') ||
+        (document.body?.innerText || '').includes('China Garden')
+      setIsEn(htmlLang.includes('en') || htmlDir === 'ltr' || stored.includes('en') || sidebarIsEn)
     }
-    if (ctxLocale) {
-      setActiveLocale(ctxLocale)
-    }
-  }, [propLocale, ctxLocale])
 
-  useEffect(() => {
-    if (typeof document === 'undefined') return
-    const updateFromDoc = () => {
-      const docLang = document.documentElement.lang
-      if (docLang === 'en' || docLang === 'ar') {
-        setActiveLocale(docLang)
-      }
+    checkLang()
+    const observer = new MutationObserver(checkLang)
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['lang', 'dir', 'class'] })
+    window.addEventListener('storage', checkLang)
+    window.addEventListener('click', () => setTimeout(checkLang, 50))
+    window.addEventListener('popstate', checkLang)
+
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('storage', checkLang)
+      window.removeEventListener('click', checkLang)
+      window.removeEventListener('popstate', checkLang)
     }
-    updateFromDoc()
-    const observer = new MutationObserver(updateFromDoc)
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['lang', 'dir'] })
-    return () => observer.disconnect()
   }, [])
-
-  const isEn = activeLocale === 'en'
 
   // Branch status control map (true = active, false = paused/closed)
   const [branchStatusMap, setBranchStatusMap] = useState<Record<string, boolean>>({})

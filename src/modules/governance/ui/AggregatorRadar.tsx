@@ -274,8 +274,61 @@ function modeBadge(mode: ForensicRow['mode'], en: boolean) {
 }
 
 function Workspace() {
-  const { t, locale } = useI18n()
-  const en = locale === 'en'
+  const { t, locale: ctxLocale } = useI18n()
+  const [isEn, setIsEn] = useState<boolean>(() => {
+    if (typeof document !== 'undefined') {
+      const htmlLang = document.documentElement.lang?.toLowerCase() || ''
+      const htmlDir = document.documentElement.dir?.toLowerCase() || ''
+      const stored = (
+        localStorage.getItem('aetherbi_locale') ||
+        localStorage.getItem('ai-hq-locale') ||
+        localStorage.getItem('locale') ||
+        localStorage.getItem('lang') ||
+        document.cookie
+      )?.toLowerCase() || ''
+      const sidebarIsEn =
+        (document.body?.innerText || '').includes('Executive Dashboard') ||
+        (document.body?.innerText || '').includes('Aggregator Radar')
+      return htmlLang.includes('en') || htmlDir === 'ltr' || stored.includes('en') || sidebarIsEn
+    }
+    return ctxLocale === 'en'
+  })
+
+  useEffect(() => {
+    const checkLang = () => {
+      const htmlLang = document.documentElement.lang?.toLowerCase() || ''
+      const htmlDir = document.documentElement.dir?.toLowerCase() || ''
+      const stored = (
+        localStorage.getItem('aetherbi_locale') ||
+        localStorage.getItem('ai-hq-locale') ||
+        localStorage.getItem('locale') ||
+        localStorage.getItem('lang') ||
+        document.cookie
+      )?.toLowerCase() || ''
+      const sidebarIsEn =
+        (document.body?.innerText || '').includes('Executive Dashboard') ||
+        (document.body?.innerText || '').includes('Aggregator Radar') ||
+        (document.body?.innerText || '').includes('China Garden')
+      setIsEn(htmlLang.includes('en') || htmlDir === 'ltr' || stored.includes('en') || sidebarIsEn)
+    }
+
+    checkLang()
+    const observer = new MutationObserver(checkLang)
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['lang', 'dir', 'class'] })
+    window.addEventListener('storage', checkLang)
+    window.addEventListener('click', () => setTimeout(checkLang, 50))
+    window.addEventListener('popstate', checkLang)
+
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('storage', checkLang)
+      window.removeEventListener('click', checkLang)
+      window.removeEventListener('popstate', checkLang)
+    }
+  }, [])
+
+  const en = isEn
+  const locale: 'ar' | 'en' = isEn ? 'en' : 'ar'
   const scope = useOptionalScope()
   const canManage = useCan(permissions.govAggregatorManage)
   // Unified Aggregator Radar & Talabat Sentinel view
