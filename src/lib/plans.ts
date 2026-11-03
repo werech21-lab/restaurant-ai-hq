@@ -1,42 +1,15 @@
 import { MODULES } from "@/lib/modules";
 
 export const PLAN_LABEL: Record<string, string> = {
-  STARTER: "البداية",
-  PRO: "احترافية",
   ENTERPRISE: "مؤسسات",
+  LIFETIME: "رخصة مؤسسية دائمة",
 };
 
-export function modulesForPlan(plan: string) {
-  const all = MODULES.map((item) => item.key);
-  if (plan === "STARTER") return ["dashboard", "inventory", "sales", "pos", "recipes", "kds", "payments"];
-  if (plan === "PRO") {
-    return [
-      "dashboard",
-      "inventory",
-      "warehouses",
-      "purchases",
-      "sales",
-      "pos",
-      "recipes",
-      "delivery-hub",
-      "kds",
-      "crm",
-      "accounting",
-      "reports",
-      "payments",
-    ];
-  }
-  return [...all];
+export function modulesForPlan(_plan?: string) {
+  // Venture Foods Restaurant Management Co. W.L.L. owns an unrestricted enterprise lifetime license.
+  return MODULES.map((item) => item.key);
 }
 
-export function parseModules(raw: string, plan: string) {
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (Array.isArray(parsed) && parsed.every((item) => typeof item === "string") && parsed.length > 0) {
-      return parsed as string[];
-    }
-  } catch {
-    return modulesForPlan(plan);
-  }
-  return modulesForPlan(plan);
+export function parseModules(_raw?: string, _plan?: string) {
+  return MODULES.map((item) => item.key);
 }

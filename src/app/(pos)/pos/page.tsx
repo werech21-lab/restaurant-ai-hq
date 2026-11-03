@@ -8,12 +8,18 @@ import { can, firstAllowedHref } from '@/lib/permissions'
 import { getActiveScope } from '@/lib/scope'
 import { ORDER_TYPES, ventureBranchOptions } from '@/lib/venture-branches'
 import { VENTURE_BRANDS } from '@/lib/venture-hierarchy'
+import { getLocale } from '@/lib/i18n/server'
+import { VenturePosHub } from '@/components/pos/VenturePosHub'
 
-export const metadata = { title: 'كاشير المطاعم | فنتشر فودز · AetherBI' }
+export const metadata = {
+  title: 'كاشير ونقاط البيع الميدانية | Venture Foods W.L.L. · AetherBI',
+  description: 'نظام نقاط البيع، إغلاق الوردية الأعمى Z-Report، وتسوية K-Net وNBK لشركة فنتشر فودز لإدارة المطاعم ذ.م.م.',
+}
 export const dynamic = 'force-dynamic'
 
 async function PosContent() {
   await connection()
+  const locale = await getLocale()
   const user = await requireUser()
   if (!can(user, 'pos', 'view') && !can(user, 'pos', 'create')) {
     return (
@@ -54,7 +60,7 @@ async function PosContent() {
     ventureBranchOptions()[0]?.id ??
     ''
 
-  return (
+  const legacyTerminal = (
     <PosTerminal
       walkInId={walkIn?.id ?? ''}
       customers={customers}
@@ -84,11 +90,13 @@ async function PosContent() {
       })}
     />
   )
+
+  return <VenturePosHub locale={locale === 'en' ? 'en' : 'ar'} liveChildren={legacyTerminal} />
 }
 
 export default function PosPage() {
   return (
-    <Suspense fallback={<div className="p-8 font-bold text-mist-100">جارٍ فتح كاشير المطاعم...</div>}>
+    <Suspense fallback={<div className="p-8 font-bold text-mist-100">جارٍ فتح مركز نقاط البيع والرقابة المالية...</div>}>
       <PosContent />
     </Suspense>
   )

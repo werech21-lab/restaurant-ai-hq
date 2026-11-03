@@ -18,7 +18,6 @@ export const MODULES = [
   { key: 'automations', labelKey: 'nav.automations', label: 'الأتمتة', href: '/automations' },
   { key: 'reports', labelKey: 'nav.reports', label: 'التقارير', href: '/reports' },
   { key: 'audit', labelKey: 'nav.audit', label: 'سجل الرقابة', href: '/audit' },
-  { key: 'saas', labelKey: 'nav.saas', label: 'المنصة والاشتراكات', href: '/saas' },
   { key: 'payments', labelKey: 'nav.payments', label: 'المدفوعات الإلكترونية', href: '/payments' },
   { key: 'app-builder', labelKey: 'nav.app-builder', label: 'مدير التطبيقات', href: '/app-builder' },
 ] as const satisfies ReadonlyArray<{

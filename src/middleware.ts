@@ -13,7 +13,7 @@ export async function middleware(request: NextRequest) {
     if (devOwnerEnabled() && devOwnerHostAllowed(request.headers.get('host'))) {
       const owner = await devOwnerUserId(request.cookies.get(DEV_OWNER_COOKIE)?.value, request.headers.get('host'))
       if (owner) return NextResponse.next()
-      if (path.startsWith('/admin') || path.startsWith('/erp')) {
+      if (path.startsWith('/admin')) {
         const url = request.nextUrl.clone()
         url.pathname = '/dev/owner'
         url.searchParams.set('next', `${path}${request.nextUrl.search}`)
@@ -40,7 +40,7 @@ export async function middleware(request: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser()
 
-    if (!user && (path.startsWith('/admin') || path.startsWith('/erp'))) {
+    if (!user && path.startsWith('/admin')) {
       const url = request.nextUrl.clone()
       url.pathname = '/login'
       url.searchParams.set('next', path)
@@ -63,5 +63,5 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   // erp-pro panel login is cookie/JWT based (/login). Keep Supabase guard on legacy HQ routes only.
-  matcher: ['/admin/:path*', '/erp/:path*'],
+  matcher: ['/admin/:path*'],
 }

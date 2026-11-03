@@ -33,6 +33,7 @@ import {
   Factory,
   ThermometerSnowflake,
   Sparkles,
+  Store,
 } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import { logout } from '@/app/actions/auth'
@@ -59,12 +60,12 @@ const icons: Record<ModuleKey, typeof LayoutDashboard> = {
   automations: Zap,
   reports: BarChart3,
   audit: ClipboardList,
-  saas: Building2,
   payments: CreditCard,
   'app-builder': Blocks,
 }
 
 const ERP_SUITE = [
+  { key: 'events-projects', href: '/erp/events-projects', labelKey: 'nav.eventsProjects' as MessageKey, icon: Store, live: true },
   { key: 'smart-dropzone', href: '/erp/smart-dropzone', labelKey: 'nav.smartDropzone' as MessageKey, icon: Sparkles, live: true },
   { key: 'erp-radar', href: '/erp/aggregator-radar', labelKey: 'nav.erpRadar' as MessageKey, icon: Radar, live: true },
   { key: 'food-safety', href: '/erp/food-safety', labelKey: 'nav.foodSafety' as MessageKey, icon: ThermometerSnowflake, live: true },

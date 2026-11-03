@@ -76,6 +76,7 @@ export const erpSectors: readonly ErpSector[] = [
     id: 'projects',
     title: 'sector.projects',
     links: [
+      { href: '/erp/events-projects', title: 'spec.eventsProjects' },
       { href: '/erp/projects?tab=project', title: 'spec.project' },
       { href: '/erp/projects?tab=timesheets', title: 'spec.timesheets' },
       { href: '/erp/projects?tab=helpdesk', title: 'spec.helpdesk' },

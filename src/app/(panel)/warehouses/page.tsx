@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { connection } from "next/server";
 import { WarehouseForms } from "@/app/(panel)/warehouses/warehouse-forms";
 import { requireUser } from "@/lib/erp-auth";
-import { DisabledModule, Forbidden, PageHeader, PageSkeleton, PaginationBar } from "@/components/erp-ui";
+import { DisabledModule, Forbidden, PageSkeleton, PaginationBar } from "@/components/erp-ui";
 import { prisma } from "@/lib/db";
 import { formatQty } from "@/lib/format";
 import { datetimeFor, getLocale, tx } from "@/lib/i18n/server";
@@ -12,8 +12,12 @@ import { can, firstAllowedHref } from "@/lib/permissions";
 import { getActiveScope, warehouseWhereForScope } from "@/lib/scope";
 import { listTransfers, listWarehouses, warehouseStock } from "@/services/warehouse.service";
 import { SmartIngestLaunchButton } from "@/components/SmartIngestLaunchButton";
+import { VentureWarehousesHub } from "@/components/warehouses/VentureWarehousesHub";
 
-export const metadata = { title: "Warehouses | AetherBI ERP" };
+export const metadata = {
+  title: "المستودعات وسلاسل الإمداد | Venture Foods W.L.L.",
+  description: "المطبخ المركزي بالقرين والمستودعات الـ 10 لشركة فنتشر فودز لإدارة المطاعم ذ.م.م.",
+};
 
 async function WarehousesContent({ searchParams }: { searchParams: Promise<RawQuery> }) {
   await connection();
@@ -60,112 +64,77 @@ async function WarehousesContent({ searchParams }: { searchParams: Promise<RawQu
     return true;
   });
 
-  return (
-    <div>
-      <PageHeader
-        title={tx(locale, "المستودعات والفروع", "Warehouses & branches")}
-        description={tx(
-          locale,
-          "رصيد كل صنف في كل مستودع، وتحويل الكميات بين الفروع دون تغيير إجمالي المخزون.",
-          "Per-warehouse stock balances and branch transfers without changing company-wide totals.",
-        )}
-      />
-      <div className="mb-4">
+  const legacyLiveChildren = (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-700/60 pb-3">
+        <h4 className="text-sm font-bold text-amber-400">
+          {tx(locale, "إدارة مستودعات قاعدة البيانات الحية (Prisma DB)", "Prisma Database Warehouses & Stock")}
+        </h4>
         <SmartIngestLaunchButton module="inventory" locale={locale} />
-      </div>
-      <div className="mb-4">
-        <a
-          href="/directory"
-          className="inline-flex rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800"
-        >
-          {tx(locale, "دليل الهواتف والبدالة للفروع", "Branch phone & PBX directory")}
-        </a>
       </div>
       <WarehouseForms
         canCreate={can(user, "warehouses", "create")}
-        warehouses={warehouses.map((warehouse) => ({ id: warehouse.id, name: warehouse.name }))}
+        warehouses={warehouses.map((w) => ({ id: w.id, name: w.name }))}
         products={transferProducts}
       />
-      <div className="mb-4 flex flex-wrap gap-2">
-        {warehouses.map((warehouse) => (
-          <a
-            key={warehouse.id}
-            href={pageHref("/warehouses", { q: warehouse.id })}
-            className={
-              warehouse.id === selected
-                ? "rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white"
-                : "rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold"
-            }
-            title={warehouse.managerName || warehouse.location || undefined}
-          >
-            {warehouse.name}
-            {warehouse.isDefault ? tx(locale, " · افتراضي", " · Default") : ""}
-            {warehouse.managerName ? (
-              <span className="mt-0.5 block text-[10px] font-normal opacity-90" dir="ltr">
-                {warehouse.managerName}
-              </span>
-            ) : null}
-          </a>
-        ))}
-      </div>
-      <div className="mb-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+      <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-900/60">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-200 text-slate-500">
+            <tr className="border-b border-slate-800 text-slate-400">
               <th className="px-4 py-3 text-right">{tx(locale, "الصنف", "Item")}</th>
-              <th className="px-4 py-3 text-right">{tx(locale, "الرمز", "Code")}</th>
-              <th className="px-4 py-3 text-right">{tx(locale, "رصيد هذا المستودع", "This warehouse")}</th>
-              <th className="px-4 py-3 text-right">{tx(locale, "إجمالي الشركة", "Company total")}</th>
+              <th className="px-4 py-3 text-right">{tx(locale, "الكود", "Code")}</th>
+              <th className="px-4 py-3 text-right">{tx(locale, "الكمية بالمستودع", "Quantity")}</th>
+              <th className="px-4 py-3 text-right">{tx(locale, "الرصيد الكلي", "Total")}</th>
             </tr>
           </thead>
           <tbody>
             {stocks.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-slate-500">
-                  {tx(locale, "لا يوجد رصيد في هذا المستودع.", "No stock in this warehouse.")}
+                <td colSpan={4} className="px-4 py-6 text-center text-slate-500">
+                  {tx(locale, "لا يوجد رصيد مسجل في هذا المستودع.", "No stock recorded in this warehouse.")}
                 </td>
               </tr>
             ) : (
               stocks.map((row) => (
-                <tr key={row.id} className="border-b border-slate-200 last:border-0">
-                  <td className="px-4 py-3">{row.product.name}</td>
-                  <td className="px-4 py-3" dir="ltr">
+                <tr key={row.id} className="border-b border-slate-800/60 last:border-0 hover:bg-slate-900/40">
+                  <td className="px-4 py-3 font-semibold text-white">{row.product.name}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-slate-400" dir="ltr">
                     {row.product.code}
                   </td>
-                  <td className="px-4 py-3 font-bold">{formatQty(row.quantity)}</td>
-                  <td className="px-4 py-3">{formatQty(row.product.currentStock)}</td>
+                  <td className="px-4 py-3 font-bold text-amber-300">{formatQty(row.quantity)}</td>
+                  <td className="px-4 py-3 text-slate-400">{formatQty(row.product.currentStock)}</td>
                 </tr>
               ))
             )}
           </tbody>
         </table>
       </div>
-      <div className="rounded-2xl border border-slate-200 bg-white">
-        <div className="border-b border-slate-200 px-4 py-3 font-bold">
-          {tx(locale, "سجل التحويلات", "Transfer log")}
+      <div className="rounded-xl border border-slate-800 bg-slate-900/60 overflow-hidden">
+        <div className="border-b border-slate-800 px-4 py-3 font-bold text-white text-xs">
+          {tx(locale, "سجل التحويلات المنفذة بقاعدة البيانات", "Database Transfer Log")}
         </div>
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-200 text-slate-500">
-              <th className="px-4 py-3 text-right">{tx(locale, "الرقم", "Number")}</th>
-              <th className="px-4 py-3 text-right">{tx(locale, "من", "From")}</th>
-              <th className="px-4 py-3 text-right">{tx(locale, "إلى", "To")}</th>
-              <th className="px-4 py-3 text-right">{tx(locale, "الأصناف", "Items")}</th>
-              <th className="px-4 py-3 text-right">{tx(locale, "التاريخ", "Date")}</th>
+            <tr className="border-b border-slate-800 text-slate-400 text-xs">
+              <th className="px-4 py-2 text-right">{tx(locale, "الرقم", "Number")}</th>
+              <th className="px-4 py-2 text-right">{tx(locale, "من", "From")}</th>
+              <th className="px-4 py-2 text-right">{tx(locale, "إلى", "To")}</th>
+              <th className="px-4 py-2 text-right">{tx(locale, "الأصناف", "Items")}</th>
+              <th className="px-4 py-2 text-right">{tx(locale, "التاريخ", "Date")}</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-slate-800/60 text-xs">
             {transfers.rows.map((row) => (
-              <tr key={row.id} className="border-b border-slate-200 last:border-0">
-                <td className="px-4 py-3 font-semibold" dir="ltr">
+              <tr key={row.id} className="hover:bg-slate-900/40">
+                <td className="px-4 py-2 font-mono text-amber-400" dir="ltr">
                   {row.transferNumber}
                 </td>
-                <td className="px-4 py-3">{row.fromWarehouse.name}</td>
-                <td className="px-4 py-3">{row.toWarehouse.name}</td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-2 text-slate-300">{row.fromWarehouse.name}</td>
+                <td className="px-4 py-2 text-slate-300">{row.toWarehouse.name}</td>
+                <td className="px-4 py-2 text-slate-400">
                   {row.items.map((item) => `${item.product.name} (${formatQty(item.quantity)})`).join(locale === "en" ? ", " : "، ")}
                 </td>
-                <td className="px-4 py-3">{datetimeFor(locale, row.createdAt)}</td>
+                <td className="px-4 py-2 text-slate-400">{datetimeFor(locale, row.createdAt)}</td>
               </tr>
             ))}
           </tbody>
@@ -173,6 +142,13 @@ async function WarehousesContent({ searchParams }: { searchParams: Promise<RawQu
         <PaginationBar path="/warehouses" params={{ q: selected }} page={query.page} total={transfers.total} />
       </div>
     </div>
+  );
+
+  return (
+    <VentureWarehousesHub
+      locale={locale === "en" ? "en" : "ar"}
+      liveChildren={legacyLiveChildren}
+    />
   );
 }
 

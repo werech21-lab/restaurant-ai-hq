@@ -11,8 +11,12 @@ import { getActiveScope } from '@/lib/scope'
 import { VENTURE_BRANDS } from '@/lib/venture-hierarchy'
 import { listRecipeCosts } from '@/services/recipe.service'
 import { SmartIngestLaunchButton } from '@/components/SmartIngestLaunchButton'
+import { VentureRecipesHub } from '@/components/recipes/VentureRecipesHub'
 
-export const metadata = { title: 'الوصفات وتكلفة الغذاء | AetherBI' }
+export const metadata = {
+  title: 'الوصفات وتكلفة الغذاء BOM | Venture Foods W.L.L. · AetherBI',
+  description: 'محاسبة تكاليف الوصفات متعددة المستويات، تحليل الانحراف النظري مقابل الفعلي، ومحاكي ربحية القنوات لشركة فنتشر فودز لإدارة المطاعم ذ.م.م.',
+}
 export const dynamic = 'force-dynamic'
 
 async function RecipesContent() {
@@ -34,17 +38,12 @@ async function RecipesContent() {
     }),
   ])
 
-  return (
-    <div>
-      <PageHeader
-        title={tx(locale, 'الوصفات وتكلفة الغذاء', 'Recipes & food cost')}
-        description={tx(
-          locale,
-          `${scopeLabel} · BOM + نسبة تكلفة الغذاء + خصم ذري عند البيع`,
-          `${scopeLabel} · BOM + food cost % + atomic discount on sale`,
-        )}
-      />
-      <div className="mb-4">
+  const legacyChildren = (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-700/60 pb-3">
+        <h4 className="text-sm font-bold text-emerald-400">
+          {tx(locale, "إدارة وصفات قاعدة البيانات الحية (Prisma DB)", "Prisma Database Recipes & BOM Setup")}
+        </h4>
         <SmartIngestLaunchButton module="inventory" locale={locale} />
       </div>
       <RecipesPanel
@@ -57,6 +56,8 @@ async function RecipesContent() {
       />
     </div>
   )
+
+  return <VentureRecipesHub locale={locale === 'en' ? 'en' : 'ar'} liveChildren={legacyChildren} />
 }
 
 export default function RecipesPage() {

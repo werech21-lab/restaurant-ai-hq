@@ -20,8 +20,12 @@ import { can, firstAllowedHref } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
 import { getActiveScope, purchaseOrderNumbersForScope } from "@/lib/scope";
 import { SmartIngestLaunchButton } from "@/components/SmartIngestLaunchButton";
+import { VenturePurchasesHub } from "@/components/purchases/VenturePurchasesHub";
 
-export const metadata = { title: "Purchases | AetherBI ERP" };
+export const metadata = {
+  title: "المشتريات والموردين | Venture Foods W.L.L.",
+  description: "مركز قيادة المشتريات والمطابقة الثلاثية لشركة فنتشر فودز لإدارة المطاعم ذ.م.م.",
+};
 
 const statuses = new Set(["PAID", "PARTIAL", "UNPAID"]);
 
@@ -68,70 +72,55 @@ async function PurchasesContent({ searchParams }: { searchParams: Promise<RawQue
     parties = rows;
   } else {
     const where: Prisma.PurchaseOrderWhereInput = {
-      ...(purchaseNumbers
-        ? { orderNumber: { in: purchaseNumbers.length ? purchaseNumbers : ["__none__"] } }
-        : {}),
+      ...(purchaseNumbers ? { orderNumber: { in: purchaseNumbers.length ? purchaseNumbers : ["__none__"] } } : {}),
       ...(status ? { status } : {}),
       ...(query.q
-        ? { OR: [{ orderNumber: { contains: query.q } }, { supplier: { name: { contains: query.q } } }] }
+        ? {
+            OR: [
+              { orderNumber: { contains: query.q } },
+              { supplier: { name: { contains: query.q } } },
+              { supplier: { phone: { contains: query.q } } },
+            ],
+          }
         : {}),
     };
     const [count, rows] = await Promise.all([
       prisma.purchaseOrder.count({ where }),
       prisma.purchaseOrder.findMany({
         where,
-        include: { supplier: { select: { name: true } } },
         orderBy: { createdAt: "desc" },
         skip,
         take: PAGE_SIZE,
+        select: {
+          id: true,
+          orderNumber: true,
+          totalAmount: true,
+          paidAmount: true,
+          status: true,
+          createdAt: true,
+          supplier: { select: { name: true } },
+        },
       }),
     ]);
     total = count;
     orders = rows;
   }
 
-  const detail = query.doc
-    ? await prisma.purchaseOrder.findUnique({
-        where: { id: query.doc },
-        include: { supplier: true, items: { include: { product: true } } },
-      })
-    : null;
-
-  return (
-    <div>
-      <div className="mb-4">
+  const legacyLiveChildren = (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-700/60 pb-3">
+        <h4 className="text-sm font-bold text-blue-400">
+          {tx(locale, "فواتير ومستندات الشراء الحية بقاعدة البيانات (Prisma DB)", "Prisma Database Purchase Transactions")}
+        </h4>
         <SmartIngestLaunchButton module="purchases" locale={locale} />
       </div>
-      {detail ? (
-        <DocumentDetail
-          closeHref={pageHref("/purchases", { tab, q: query.q, status, page: query.page })}
-          title={tx(locale, "أمر شراء", "Purchase order")}
-          number={detail.orderNumber}
-          partyLabel={tx(locale, "المورد", "Supplier")}
-          party={detail.supplier.name}
-          dateLabel={dateFor(locale, detail.createdAt)}
-          status={detail.status}
-          totalLabel={moneyFor(locale, detail.totalAmount)}
-          paidLabel={moneyFor(locale, detail.paidAmount)}
-          dueLabel={moneyFor(locale, detail.totalAmount - detail.paidAmount)}
-          printHref={`/purchases/${detail.id}/print`}
-          lines={detail.items.map((item) => ({
-            id: item.id,
-            name: item.product.name,
-            code: item.product.code,
-            quantity: formatQty(item.quantity),
-            price: moneyFor(locale, item.unitCost),
-            total: moneyFor(locale, item.totalCost),
-          }))}
-        />
-      ) : null}
       <TradePanel
         basePath="/purchases"
         title={tx(locale, "المشتريات والموردون", "Purchases & suppliers")}
         description={tx(
           locale,
           "أمر الشراء يزيد المخزون، يسجل حركة وارد، ويحمّل المورد بالمبلغ المتبقي.",
-          "Each purchase order increases stock, records an inbound movement, and updates supplier payable balance.",
+          "Each purchase order increases stock, records an inbound movement, and updates supplier payable balance."
         )}
         tab={tab}
         q={query.q}
@@ -148,7 +137,7 @@ async function PurchasesContent({ searchParams }: { searchParams: Promise<RawQue
         paymentHint={tx(
           locale,
           "تُخصم الدفعة من رصيد المورد وتوزَّع على أقدم الأوامر غير المسددة.",
-          "Payment reduces supplier balance and applies to oldest unpaid orders.",
+          "Payment reduces supplier balance and applies to oldest unpaid orders."
         )}
         mode="purchase"
         priceKey="costPrice"
@@ -179,6 +168,13 @@ async function PurchasesContent({ searchParams }: { searchParams: Promise<RawQue
         }))}
       />
     </div>
+  );
+
+  return (
+    <VenturePurchasesHub
+      locale={locale === "en" ? "en" : "ar"}
+      liveChildren={legacyLiveChildren}
+    />
   );
 }
 
