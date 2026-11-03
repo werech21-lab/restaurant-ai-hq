@@ -80,7 +80,7 @@ export async function dispatchFoodSafetyAlerts(payload: FoodSafetyAlertDispatch)
       whatsapp: { ok: waOk, href, mode: 'link' },
       telegram: {
         ok: true,
-        href: `https://t.me/share/url?url=${encodeURIComponent('https://www.aetherbi.com/erp/food-safety')}&text=${encodeURIComponent(text)}`,
+        href: `https://t.me/share/url?url=${encodeURIComponent('https://aetherbi.com/erp/food-safety')}&text=${encodeURIComponent(text)}`,
       },
       emailChannel: {
         ok: true,

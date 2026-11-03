@@ -10,6 +10,6 @@ export async function POST(request: Request) {
   const headers = corsHeaders(request);
   const body = (await request.json().catch(() => null)) as { path?: unknown } | null;
   const path = cleanText(body?.path, 160) || "/";
-  await prisma.siteVisit.create({ data: { source: "www.aetherbi.com", path } });
+  await prisma.siteVisit.create({ data: { source: "aetherbi.com", path } });
   return Response.json({ ok: true }, { headers });
 }

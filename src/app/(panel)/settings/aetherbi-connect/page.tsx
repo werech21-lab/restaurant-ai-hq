@@ -14,8 +14,8 @@ async function ConnectContent() {
   const user = await requireUser();
   if (!can(user, "saas", "view") && !can(user, "crm", "view")) return <Forbidden href={firstAllowedHref(user)} />;
   const [visits, leads] = await Promise.all([
-    prisma.siteVisit.count({ where: { source: "www.aetherbi.com" } }),
-    prisma.lead.count({ where: { source: "www.aetherbi.com" } }),
+    prisma.siteVisit.count({ where: { source: { in: ["www.aetherbi.com", "aetherbi.com"] } } }),
+    prisma.lead.count({ where: { source: { in: ["www.aetherbi.com", "aetherbi.com"] } } }),
   ]);
   let domainMessage = "النطاق غير متصل بعد";
   try {
@@ -26,7 +26,7 @@ async function ConnectContent() {
   }
   return (
     <div>
-      <PageHeader title="إدارة الربط مع www.aetherbi.com" description="كود الأداة، حالة الدومين، وعدد الزيارات والطلبات القادمة من الموقع." />
+      <PageHeader title="إدارة الربط مع aetherbi.com" description="كود الأداة، حالة الدومين، وعدد الزيارات والطلبات القادمة من الموقع." />
       <ConnectPanel visits={visits} leads={leads} domainMessage={domainMessage} />
     </div>
   );

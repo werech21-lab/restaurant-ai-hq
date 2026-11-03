@@ -7,6 +7,14 @@ import { supabaseEnv } from '@/lib/supabase/env'
 
 export async function middleware(request: NextRequest) {
   try {
+    const host = request.headers.get('host') || ''
+    if (host.toLowerCase().startsWith('www.aetherbi.com')) {
+      const url = request.nextUrl.clone()
+      url.host = 'aetherbi.com'
+      url.protocol = 'https'
+      return NextResponse.redirect(url, { status: 301 })
+    }
+
     const path = request.nextUrl.pathname
 
     // Unconditional open access to all ERP, operations, POS, KDS, recipes, and API routes
@@ -85,5 +93,7 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*'],
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|manifest.json|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
+  ],
 }

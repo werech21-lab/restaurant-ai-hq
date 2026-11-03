@@ -10,7 +10,7 @@ export function ConnectPanel({ visits, leads, domainMessage }: { visits: number;
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <section className={`${cardClass} space-y-3 p-5`}>
-        <h2 className="font-bold">كود التضمين في www.aetherbi.com</h2>
+        <h2 className="font-bold">كود التضمين في aetherbi.com</h2>
         <pre className="overflow-x-auto rounded-lg bg-slate-900 p-4 text-xs text-white" dir="ltr">{snippet}</pre>
         <button
           type="button"

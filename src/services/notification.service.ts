@@ -256,7 +256,7 @@ export async function notifyInvoiceIssued(invoiceId: string) {
 }
 
 export async function notifyWebsiteLead(input: { name: string; phone: string; title: string }) {
-  const text = `طلب من www.aetherbi.com\n${input.name}\n${input.phone}\n${input.title}`;
+  const text = `طلب من aetherbi.com\n${input.name}\n${input.phone}\n${input.title}`;
   try {
     await sendTelegramText(text);
   } catch {

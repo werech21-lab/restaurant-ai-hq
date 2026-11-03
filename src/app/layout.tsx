@@ -15,7 +15,7 @@ const cairo = Cairo({
 })
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://www.aetherbi.com'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://aetherbi.com'),
   title: 'AetherBI',
   description: 'AetherBI Enterprise ERP & BI — Accounting, Inventory, POS, HR, and AI',
   applicationName: 'AetherBI ERP',
@@ -23,8 +23,8 @@ export const metadata: Metadata = {
   appleWebApp: { capable: true, title: 'AetherBI ERP', statusBarStyle: 'black-translucent' },
   openGraph: {
     title: 'AetherBI',
-    description: 'AetherBI Enterprise ERP & BI على www.aetherbi.com',
-    url: 'https://www.aetherbi.com',
+    description: 'AetherBI Enterprise ERP & BI على aetherbi.com',
+    url: 'https://aetherbi.com',
     siteName: 'AetherBI',
   },
 }

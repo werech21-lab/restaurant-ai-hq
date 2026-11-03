@@ -63,7 +63,7 @@ export default function AetherLanding({ signedIn }: { signedIn: boolean }) {
     try {
       const title = companyName
         ? `${t('land.trial.leadTitleNamed')} ${companyName}`
-        : `${t('land.trial.leadTitle')} · www.aetherbi.com`
+        : `${t('land.trial.leadTitle')} · aetherbi.com`
       const response = await fetch('/api/public/aetherbi/lead', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },

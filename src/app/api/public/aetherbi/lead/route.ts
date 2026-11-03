@@ -19,7 +19,7 @@ export async function POST(request: Request) {
   const contactName = cleanText(body?.contactName, 80);
   const phone = cleanText(body?.phone, 30);
   const email = cleanEmail(body?.email);
-  const title = cleanText(body?.title, 120) || "طلب نسخة تجريبية من www.aetherbi.com";
+  const title = cleanText(body?.title, 120) || "طلب نسخة تجريبية من aetherbi.com";
   const message = cleanText(body?.message, 400);
   if (contactName.length < 2 || phone.length < 6) {
     return Response.json({ ok: false, message: "الاسم والهاتف مطلوبان" }, { status: 400, headers });
@@ -31,8 +31,8 @@ export async function POST(request: Request) {
       phone,
       email,
       stage: "NEW",
-      source: "www.aetherbi.com",
-      notes: message || "وارد من نموذج www.aetherbi.com",
+      source: "aetherbi.com",
+      notes: message || "وارد من نموذج aetherbi.com",
     },
   });
   await notifyWebsiteLead({ name: contactName, phone, title }).catch(() => undefined);

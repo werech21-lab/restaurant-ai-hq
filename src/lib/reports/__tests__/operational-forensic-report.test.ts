@@ -32,7 +32,7 @@ describe('operational-forensic-report', () => {
     expect(text).toContain('Sec@venturefoodskw.com')
     expect(text).toContain('operations@venturefoodskw.com')
     expect(text).toContain('abdelrahmanm@venturefoodskw.com')
-    expect(text).toContain('https://www.aetherbi.com/erp/aggregator-radar')
+    expect(text).toContain('https://aetherbi.com/erp/aggregator-radar')
     expect(text).toContain('SUMMARY:')
   })
 

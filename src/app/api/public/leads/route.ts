@@ -31,7 +31,7 @@ export async function POST(request: Request) {
       phone,
       email,
       stage: "NEW",
-      notes: "وارد من www.aetherbi.com",
+      notes: "وارد من aetherbi.com",
     },
   });
   return Response.json({ ok: true, message: "تم تسجيل الفرصة" }, { headers });

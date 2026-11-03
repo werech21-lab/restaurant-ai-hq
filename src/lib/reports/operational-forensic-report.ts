@@ -14,7 +14,7 @@ import {
   type ForensicSnapshot,
 } from '@/modules/governance/domain/forensic-radar'
 
-export const OPERATIONAL_REPORT_RADAR_URL = 'https://www.aetherbi.com/erp/aggregator-radar'
+export const OPERATIONAL_REPORT_RADAR_URL = 'https://aetherbi.com/erp/aggregator-radar'
 
 export type ReportLocale = 'en' | 'ar'
 

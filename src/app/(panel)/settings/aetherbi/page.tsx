@@ -16,7 +16,7 @@ async function DomainContent() {
     <div>
       <PageHeader
         title="لوحة إعداد الدومين الفرعي (erp.aetherbi.com)"
-        description={`النظام يستقبل الزوار على ${ERP_ORIGIN} ويرتبط بموقع www.aetherbi.com لنموذج العملاء وزر الدخول.`}
+        description={`النظام يستقبل الزوار على ${ERP_ORIGIN} ويرتبط بموقع aetherbi.com لنموذج العملاء وزر الدخول.`}
       />
       <DomainPanel />
     </div>
