@@ -65,6 +65,7 @@ import {
   type EXBMenuItem,
   type HistoricalBenchmarkRecord,
 } from '@/lib/events/venture-events-engine'
+import AIContractRiskAnalyzer from '@/components/events/AIContractRiskAnalyzer'
 
 export default function VentureEventsHub() {
   const { locale } = useI18n()
@@ -378,6 +379,17 @@ export default function VentureEventsHub() {
 
             <button
               onClick={() => {
+                setViewMode('studio')
+                setStudioTab('contract_analyzer')
+              }}
+              className="inline-flex items-center gap-2 rounded-2xl border border-gold-400/50 bg-gradient-to-r from-gold-400/20 to-amber-500/20 px-4 py-2.5 text-xs font-black text-gold-300 shadow-lg shadow-gold-500/10 hover:border-gold-400 hover:bg-gold-400/30 active:scale-95 transition-all"
+            >
+              <FileText className="h-4 w-4 text-gold-400" />
+              <span>{isAr ? '📄 تحليل عقد فعالية جديد بالذكاء الاصطناعي (PDF)' : 'AI Contract Risk Analyzer'}</span>
+            </button>
+
+            <button
+              onClick={() => {
                 setStudioTab('approval_pack')
                 setTimeout(() => window.print(), 300)
               }}
@@ -459,6 +471,18 @@ export default function VentureEventsHub() {
           {/* Studio Sub-Navigation Tabs */}
           <div className="flex items-center gap-2 overflow-x-auto rounded-2xl border border-white/10 bg-[#0d1118] p-1.5 scrollbar-none">
             <button
+              onClick={() => setStudioTab('contract_analyzer')}
+              className={`flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-black transition-all ${
+                studioTab === 'contract_analyzer'
+                  ? 'bg-gradient-to-r from-gold-400 to-amber-500 text-ink-950 shadow-md'
+                  : 'text-mist-400 hover:bg-white/5 hover:text-white'
+              }`}
+            >
+              <FileText className="h-4 w-4" />
+              <span>{isAr ? '📄 محلل عقود الفعاليات الذكي (كشتة المارينا 1976)' : 'AI Contract Risk Analyzer'}</span>
+            </button>
+
+            <button
               onClick={() => setStudioTab('feasibility')}
               className={`flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-black transition-all ${
                 studioTab === 'feasibility'
@@ -518,6 +542,36 @@ export default function VentureEventsHub() {
               <span>{isAr ? '🗺️ المخطط الهندسي وحقيبة الاعتماد الرسمي' : 'Site Map & Approval Pack'}</span>
             </button>
           </div>
+
+          {/* ----------------- SUB-TAB 0: AI CONTRACT RISK ANALYZER ----------------- */}
+          {studioTab === 'contract_analyzer' && (
+            <AIContractRiskAnalyzer
+              isAr={isAr}
+              onApplyToSimulator={(params) => {
+                setEventNameAr(params.eventNameAr)
+                setEventNameEn(params.eventNameEn)
+                setOrganizerAr(params.organizerAr)
+                setLocationAr(params.locationAr)
+                setStartDate(params.startDate)
+                setEndDate(params.endDate)
+                setBoothCount(params.boothCount)
+                setBoothLengthM(params.boothLengthM)
+                setBoothWidthM(params.boothWidthM)
+                setTotalRentKwd(params.totalRentKwd)
+                setFitoutKwd(params.fitoutKwd)
+                setStaffCount(params.staffCount)
+                setDailyWageKwd(params.dailyWageKwd)
+                setExpectedAovKwd(params.expectedAovKwd)
+                setEstimatedCogsPct(params.estimatedCogsPct)
+                setMarketingOpexKwd(params.marketingOpexKwd)
+                setBaselineDailyOrders(params.baselineDailyOrders)
+                setSelectedBrands(params.selectedBrands)
+                setStudioTab('feasibility')
+                showToast(isAr ? 'تم تطبيق أرقام عقد كشتة المارينا بنجاح في محاكي الجدوى!' : 'Applied Marina Kashta contract data to feasibility simulator!')
+              }}
+              onNavigateTab={(tab) => setStudioTab(tab)}
+            />
+          )}
 
           {/* ----------------- SUB-TAB 1: 3-SCENARIO FEASIBILITY SIMULATOR ----------------- */}
           {studioTab === 'feasibility' && (
