@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
+import { useI18n } from '@/lib/i18n'
 import {
   ENTERPRISE_DEPARTMENTS,
   getAllEnterpriseReports,
@@ -47,6 +48,12 @@ interface Props {
 }
 
 export function DepartmentalReportsHub({ initialReportId, locale = 'ar', liveDbChildren }: Props) {
+  let ctxLocale: 'ar' | 'en' | null = null
+  try {
+    const i18n = useI18n()
+    if (i18n?.locale) ctxLocale = i18n.locale
+  } catch {}
+
   const [selectedReportId, setSelectedReportId] = useState<string | null>(initialReportId || null)
   const [activeDeptFilter, setActiveDeptFilter] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
@@ -55,6 +62,24 @@ export function DepartmentalReportsHub({ initialReportId, locale = 'ar', liveDbC
   const [periodFilter, setPeriodFilter] = useState('OCT_2026')
   const [isPrintMode, setIsPrintMode] = useState(false)
   const [currentLocale, setCurrentLocale] = useState<'ar' | 'en'>(locale)
+
+  useEffect(() => {
+    if (ctxLocale) setCurrentLocale(ctxLocale)
+  }, [ctxLocale])
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    const updateFromDoc = () => {
+      const docLang = document.documentElement.lang
+      if (docLang === 'en' || docLang === 'ar') {
+        setCurrentLocale(docLang)
+      }
+    }
+    updateFromDoc()
+    const observer = new MutationObserver(updateFromDoc)
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['lang', 'dir'] })
+    return () => observer.disconnect()
+  }, [])
   const [showLiveDb, setShowLiveDb] = useState(false)
   const [sortKey, setSortKey] = useState<string | null>(null)
   const [sortAsc, setSortAsc] = useState<boolean>(true)

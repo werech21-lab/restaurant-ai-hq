@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import {
   Calendar,
   MapPin,
@@ -69,7 +69,27 @@ import AIContractRiskAnalyzer from '@/components/events/AIContractRiskAnalyzer'
 
 export default function VentureEventsHub() {
   const { locale } = useI18n()
-  const isAr = locale === 'ar'
+  const [activeLocale, setActiveLocale] = useState<'ar' | 'en'>(locale || 'ar')
+
+  useEffect(() => {
+    if (locale) setActiveLocale(locale)
+  }, [locale])
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    const updateFromDoc = () => {
+      const docLang = document.documentElement.lang
+      if (docLang === 'en' || docLang === 'ar') {
+        setActiveLocale(docLang)
+      }
+    }
+    updateFromDoc()
+    const observer = new MutationObserver(updateFromDoc)
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['lang', 'dir'] })
+    return () => observer.disconnect()
+  }, [])
+
+  const isAr = activeLocale === 'ar'
 
   // Master Studio Mode: 'studio' (Future Events Studio) vs 'archive' (Historical Benchmark Archive)
   const [viewMode, setViewMode] = useState<'studio' | 'archive'>('studio')

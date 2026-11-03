@@ -758,7 +758,7 @@ function Workspace() {
 
       {/* 🗺️ رادار مناطق التوصيل وحالة الأفرع في توصيل طلبات (Talabat Go Areas & Busy Time Radar) */}
       <section className="mb-8">
-        <TalabatGeoZoneRadar />
+        <TalabatGeoZoneRadar locale={locale} />
       </section>
 
       <section className={panelClass}>

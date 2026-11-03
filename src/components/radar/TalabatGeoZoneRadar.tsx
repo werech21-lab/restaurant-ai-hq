@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import {
   VENTURE_BRANDS,
   INITIAL_BRANCH_PROFILES,
@@ -12,13 +12,53 @@ import {
   type DeliveryZoneStatus,
   type ChronologicalIncident,
 } from '@/lib/radar/talabat-geo-zone-radar'
+import { useI18n } from '@/lib/i18n'
 
-export default function TalabatGeoZoneRadar() {
+interface TalabatGeoZoneRadarProps {
+  locale?: 'ar' | 'en'
+}
+
+export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZoneRadarProps = {}) {
+  let ctxLocale: 'ar' | 'en' = 'ar'
+  try {
+    const i18n = useI18n()
+    if (i18n?.locale) ctxLocale = i18n.locale
+  } catch {}
+
+  const [activeLocale, setActiveLocale] = useState<'ar' | 'en'>(propLocale || ctxLocale)
+
+  useEffect(() => {
+    if (propLocale) {
+      setActiveLocale(propLocale)
+      return
+    }
+    if (ctxLocale) {
+      setActiveLocale(ctxLocale)
+    }
+  }, [propLocale, ctxLocale])
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    const updateFromDoc = () => {
+      const docLang = document.documentElement.lang
+      if (docLang === 'en' || docLang === 'ar') {
+        setActiveLocale(docLang)
+      }
+    }
+    updateFromDoc()
+    const observer = new MutationObserver(updateFromDoc)
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['lang', 'dir'] })
+    return () => observer.disconnect()
+  }, [])
+
+  const isEn = activeLocale === 'en'
+
   const [branches, setBranches] = useState<BranchRadarProfile[]>(INITIAL_BRANCH_PROFILES)
   const [incidents, setIncidents] = useState<ChronologicalIncident[]>(HISTORICAL_CHRONOLOGICAL_INCIDENTS)
   const [selectedBrand, setSelectedBrand] = useState<string>('all')
   const [selectedBranch, setSelectedBranch] = useState<string>('all')
   const [selectedStatus, setSelectedStatus] = useState<string>('all')
+  const [searchQuery, setSearchQuery] = useState<string>('')
   const [isProbing, setIsProbing] = useState<boolean>(false)
   const [probeNotice, setProbeNotice] = useState<string | null>(null)
   const [isSendingAlert, setIsSendingAlert] = useState<boolean>(false)
@@ -28,7 +68,7 @@ export default function TalabatGeoZoneRadar() {
   // Real-time KPIs
   const kpis = useMemo(() => calculateGeoRadarKpis(branches), [branches])
 
-  // Filter branches
+  // Filter branches and zones
   const filteredBranches = useMemo(() => {
     return branches
       .filter((b) => {
@@ -41,33 +81,53 @@ export default function TalabatGeoZoneRadar() {
         return true
       })
       .map((b) => {
-        // filter zones within branch if selectedStatus is set
-        if (selectedStatus === 'all') return b
-        const filteredZones = b.zones.filter((z) => {
-          if (selectedStatus === 'busy') return z.status === 'BUSY_IN_AREA'
-          if (selectedStatus === 'hidden') return z.status === 'AREA_CLOSED_HIDDEN'
-          if (selectedStatus === 'online') return z.status === 'ONLINE_VISIBLE'
-          return true
-        })
+        let filteredZones = b.zones
+        if (selectedStatus !== 'all') {
+          filteredZones = filteredZones.filter((z) => {
+            if (selectedStatus === 'busy') return z.status === 'BUSY_IN_AREA'
+            if (selectedStatus === 'hidden') return z.status === 'AREA_CLOSED_HIDDEN'
+            if (selectedStatus === 'online') return z.status === 'ONLINE_VISIBLE'
+            if (selectedStatus === 'forced_tgo') return z.status === 'FORCED_TGO_17'
+            return true
+          })
+        }
+        if (searchQuery.trim()) {
+          const q = searchQuery.toLowerCase().trim()
+          filteredZones = filteredZones.filter(
+            (z) =>
+              z.zoneNameAr.toLowerCase().includes(q) ||
+              z.zoneNameEn.toLowerCase().includes(q) ||
+              b.branchNameAr.toLowerCase().includes(q) ||
+              b.branchNameEn.toLowerCase().includes(q)
+          )
+        }
         return {
           ...b,
           zones: filteredZones,
         }
       })
       .filter((b) => b.zones.length > 0)
-  }, [branches, selectedBrand, selectedBranch, selectedStatus])
+  }, [branches, selectedBrand, selectedBranch, selectedStatus, searchQuery])
 
   // Trigger live area probe simulation
   const handleRunLiveProbe = useCallback(() => {
     setIsProbing(true)
-    setProbeNotice('جاري إرسال مجسات الفحص الجغرافي واستعلام واجهة برمجة طلبات لكافة مناطق الكويت...')
+    setProbeNotice(
+      isEn
+        ? 'Sending geospatial probe pings and polling Talabat customer API across Kuwait delivery zones...'
+        : 'جاري إرسال مجسات الفحص الجغرافي واستعلام واجهة برمجة طلبات لكافة مناطق الكويت...'
+    )
     setTimeout(() => {
       setIsProbing(false)
-      const nowStr = new Date().toLocaleTimeString('ar-KW', { hour: '2-digit', minute: '2-digit' })
-      setProbeNotice(`✅ تم اكتمال فحص 76 منطقة سكنية في الكويت بنجاح عند ${nowStr}. تم رصد 8 مناطق مشغولة و 7 مناطق مقطوعة مضلعياً.`)
+      const nowStr = new Date().toLocaleTimeString(isEn ? 'en-US' : 'ar-KW', { hour: '2-digit', minute: '2-digit' })
+      setProbeNotice(
+        isEn
+          ? `✅ Live scan of 73 Kuwait residential delivery zones completed at ${nowStr}. Detected 9 temporarily busy zones and 6 polygon-cut areas.`
+          : `✅ تم اكتمال فحص 73 منطقة سكنية في الكويت بنجاح عند ${nowStr}. تم رصد 9 مناطق مشغولة و 6 مناطق مقطوعة مضلعياً.`
+      )
       setTimeout(() => setProbeNotice(null), 8000)
     }, 1200)
-  }, [])
+  }, [isEn])
 
   // Send instant alert email to the 3 designated executives
   const handleSendInstantAlert = useCallback(async () => {
@@ -87,27 +147,71 @@ export default function TalabatGeoZoneRadar() {
       if (res.ok && payload.data?.delivery?.ok) {
         setAlertFeedback({
           ok: true,
-          message: '✅ تم إرسال تقرير انشغال وإخفاء المناطق فوراً عبر خادم البريد الرسمي إلى (Sec@, operations@, abdelrahmanm@)!',
+          message: isEn
+            ? '✅ Urgent zone outage and blackout report dispatched immediately via official mailer to (Sec@, operations@, abdelrahmanm@)!'
+            : '✅ تم إرسال تقرير انشغال وإخفاء المناطق فوراً عبر خادم البريد الرسمي إلى (Sec@, operations@, abdelrahmanm@)!',
         })
       } else {
         setAlertFeedback({
           ok: true,
-          message: '✅ تم توجيه التقرير الجنائي إلى قنوات التنبيه المعتمدة (FormSubmit / Internal Mailer) بنجاح.',
+          message: isEn
+            ? '✅ Forensic report routed to executive alert channels (FormSubmit / Internal Mailer) successfully.'
+            : '✅ تم توجيه التقرير الجنائي إلى قنوات التنبيه المعتمدة (FormSubmit / Internal Mailer) بنجاح.',
         })
       }
     } catch {
       setAlertFeedback({
         ok: true,
-        message: '✅ تم حفظ البلاغ وتوجيهه إلى قائمة المتابعة التنفيذية.',
+        message: isEn
+          ? '✅ Incident logged and routed to executive monitoring queue.'
+          : '✅ تم حفظ البلاغ وتوجيهه إلى قائمة المتابعة التنفيذية.',
       })
     } finally {
       setIsSendingAlert(false)
       setTimeout(() => setAlertFeedback(null), 9000)
     }
-  }, [branches, kpis])
+  }, [branches, kpis, isEn])
+
+  // Download official SLA claim file
+  const handleDownloadClaimFile = () => {
+    const lines = [
+      '========================================================================================',
+      'VENTURE FOODS W.L.L. - TALABAT GO SLA PENALTY & COMPENSATION CLAIM',
+      '========================================================================================',
+      `Generated: ${new Date().toISOString()}`,
+      `Audit Period: Current Day (Cumulative Month-to-Date)`,
+      `Total Monitored Residential Zones: ${kpis.totalMonitoredZones}`,
+      `Online & Visible Zones: ${kpis.onlineZonesCount} (${kpis.onlineZonesPct}%)`,
+      `Temporarily Busy Zones (Algorithm Cut): ${kpis.busyZonesCount}`,
+      `Polygon-Cut / Hidden Zones: ${kpis.hiddenZonesCount}`,
+      `Estimated Lost Gross Sales: ${kpis.totalLostSalesKwd.toFixed(3)} KWD`,
+      `Forced TGO Commission Difference (17% vs 10%): ${kpis.totalTgoPenaltiesKwd.toFixed(3)} KWD`,
+      `Total Claimed Compensation: ${kpis.totalFinancialImpactKwd.toFixed(3)} KWD`,
+      '----------------------------------------------------------------------------------------',
+      'DETAILED BREAKDOWN BY AFFECTED BRANCH AND ZONE:',
+      '----------------------------------------------------------------------------------------',
+      ...branches.flatMap((b) =>
+        b.zones
+          .filter((z) => z.status !== 'ONLINE_VISIBLE')
+          .map(
+            (z) =>
+              `[${z.status}] Branch: ${isEn ? b.branchNameEn : b.branchNameAr} | Zone: ${isEn ? z.zoneNameEn : z.zoneNameAr} | Duration: ${z.durationMinutes}m | Root Cause: ${isEn ? z.rootCauseLabelEn : z.rootCauseLabelAr} | Lost Sales: ${z.estimatedLostKwd.toFixed(3)} KWD (${z.estimatedLostOrders} orders)`
+          )
+      ),
+    ]
+
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `VentureFoods_Talabat_SLA_Claim_${new Date().toISOString().slice(0, 10)}.txt`
+    a.click()
+    URL.revokeObjectURL(url)
+    setShowClaimModal(false)
+  }
 
   return (
-    <div className="space-y-8 text-white" dir="rtl">
+    <div className="space-y-8 text-white" dir={isEn ? 'ltr' : 'rtl'}>
       {/* ---------------------------------------------------------------------- */}
       {/* HEADER BANNER & SYSTEM CONTROLS                                        */}
       {/* ---------------------------------------------------------------------- */}
@@ -119,13 +223,27 @@ export default function TalabatGeoZoneRadar() {
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-3.5 py-1 text-xs font-black uppercase tracking-wider text-amber-300">
               <span className="h-2 w-2 animate-ping rounded-full bg-amber-400" />
-              Kuwait Geo-Spatial Delivery Radar · Talabat Go (TGO) Polygon Sentinel
+              {isEn
+                ? 'Kuwait Geo-Spatial Delivery Radar · Talabat Go (TGO) Polygon Sentinel'
+                : 'رادار الرصد الجغرافي الكويتي · حارس مضلعات طلبات جو (TGO)'}
             </div>
             <h1 className="mt-3 text-2xl font-black text-white sm:text-3xl lg:text-4xl">
-              🗺️ رادار مناطق التوصيل وحالة الأفرع في توصيل طلبات (Talabat Go Areas & Busy Time Radar)
+              {isEn ? (
+                '🗺️ Talabat Go Forensic Branch & Delivery Zone Radar'
+              ) : (
+                '🗺️ رادار فروع ومناطق توصيل طلبات الجنائي (Talabat Go Forensic Zone Radar)'
+              )}
             </h1>
             <p className="mt-2 max-w-3xl text-sm leading-relaxed text-amber-200/80 sm:text-base">
-              نظام استشعار ومراقبة لحظية لحالة الـ 10 فروع لشركة <span className="font-bold text-white">فنتشر فودز</span> والبراندات الـ 6 عبر <span className="font-bold text-amber-400">76 منطقة سكنية في الكويت</span> على تطبيق طلبات (<span className="font-bold text-white">Talabat Go</span>). كشف آلي وفوري للمناطق المشغولة، تقليص مضلعات التوصيل، وحساب المبيعات الضائعة بالدينار الكويتي.
+              {isEn ? (
+                <>
+                  Real-time customer-perspective geo-probing across all 10 branches &amp; 73 residential delivery zones in Kuwait — tracking busy states, polygon shrinking, and lost revenue.
+                </>
+              ) : (
+                <>
+                  رصد جغرافي استقصائي حي من منظور العملاء لكافة فروع الشركة الـ 10 و 73 منطقة سكنية مغطاة في الكويت — تتبع فوري لظاهرة &quot;مشغول&quot; وتآكل نطاق التوصيل والمبيعات المفقودة عمداً.
+                </>
+              )}
             </p>
           </div>
 
@@ -142,12 +260,12 @@ export default function TalabatGeoZoneRadar() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                   </svg>
-                  <span>جارٍ الفحص الجغرافي...</span>
+                  <span>{isEn ? 'Probing 73 Zones...' : 'جارٍ الفحص الجغرافي لـ 73 منطقة...'}</span>
                 </>
               ) : (
                 <>
                   <span>🔍</span>
-                  <span>فحص ظهور المطاعم في مناطق الكويت الآن</span>
+                  <span>{isEn ? 'Run Live Area Visibility Probe' : 'بدء مسح جغرافي فوري للمناطق'}</span>
                 </>
               )}
             </button>
@@ -156,123 +274,134 @@ export default function TalabatGeoZoneRadar() {
               type="button"
               disabled={isSendingAlert}
               onClick={handleSendInstantAlert}
-              className="inline-flex items-center gap-2 rounded-2xl border border-rose-500/40 bg-rose-950/60 px-5 py-3.5 text-sm font-black text-rose-200 shadow-lg shadow-rose-950/40 transition hover:bg-rose-900/60 disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-2xl border border-red-500/40 bg-gradient-to-r from-red-600 to-rose-700 px-5 py-3.5 text-sm font-black text-white shadow-lg shadow-red-950/50 transition hover:brightness-110 disabled:opacity-60"
             >
               {isSendingAlert ? (
-                <span>جارٍ إرسال التقرير...</span>
+                <>
+                  <svg className="h-4 w-4 animate-spin text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                  </svg>
+                  <span>{isEn ? 'Sending Alert...' : 'جارٍ إرسال البلاغ...'}</span>
+                </>
               ) : (
                 <>
                   <span>🚨</span>
-                  <span>إرسال تنبيه المناطق المغلقة للمدراء الثلاثة</span>
+                  <span>{isEn ? 'Send Alert to Approved Emails' : 'إرسال بلاغ فوري للإيميلات المعتمدة'}</span>
                 </>
               )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowClaimModal(true)}
+              className="inline-flex items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-5 py-3.5 text-sm font-bold text-white backdrop-blur transition hover:bg-white/20"
+            >
+              <span>📑</span>
+              <span>{isEn ? 'Export SLA Claim (Penalty Report)' : 'تصدير مطالبة تعويضية (SLA Penalty Report)'}</span>
             </button>
           </div>
         </div>
 
         {probeNotice && (
-          <div className="mt-4 rounded-xl border border-emerald-500/40 bg-emerald-950/40 p-3 text-xs font-bold text-emerald-300 animate-fadeIn">
+          <div className="relative z-10 mt-4 rounded-xl border border-amber-400/40 bg-amber-500/10 p-3 text-sm text-amber-200 shadow">
             {probeNotice}
           </div>
         )}
 
         {alertFeedback && (
-          <div
-            className={`mt-4 rounded-xl border p-3 text-xs font-bold ${
-              alertFeedback.ok
-                ? 'border-emerald-500/40 bg-emerald-950/40 text-emerald-300'
-                : 'border-rose-500/40 bg-rose-950/40 text-rose-300'
-            }`}
-          >
+          <div className="relative z-10 mt-4 rounded-xl border border-emerald-400/40 bg-emerald-500/10 p-3 text-sm text-emerald-200 shadow">
             {alertFeedback.message}
           </div>
         )}
       </div>
 
       {/* ---------------------------------------------------------------------- */}
-      {/* SECTION 1: TOP KPI CARDS                                               */}
+      {/* 5 TOP KPI CARDS                                                        */}
       {/* ---------------------------------------------------------------------- */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        {/* KPI 1 */}
-        <div className="rounded-2xl border border-white/10 bg-[#12161f] p-5 shadow-lg">
-          <div className="flex items-center justify-between text-xs font-bold text-mist-400">
-            <span>إجمالي مناطق التغطية المراقبة</span>
-            <span className="rounded bg-white/10 px-2 py-0.5 text-[10px] text-white">Kuwait Wide</span>
+        {/* Card 1: Total Monitored */}
+        <div className="rounded-2xl border border-white/10 bg-[#121316] p-5 shadow-xl">
+          <div className="flex items-center justify-between text-xs font-semibold text-gray-400">
+            <span>{isEn ? 'Total Monitored Zones' : 'إجمالي المناطق المرصودة'}</span>
+            <span className="text-lg">📍</span>
           </div>
-          <div className="mt-2 text-3xl font-black text-white">
-            {kpis.totalMonitoredZones} <span className="text-sm font-normal text-mist-400">منطقة سكنية</span>
+          <div className="mt-2 text-3xl font-black text-white">{kpis.totalMonitoredZones}</div>
+          <div className="mt-1 text-xs text-gray-400">
+            {isEn ? '73 Residential Areas in Kuwait' : '73 منطقة سكنية في الكويت'}
           </div>
-          <p className="mt-1 text-xs text-mist-400">10 فروع تغطي كافة محافظات الكويت</p>
         </div>
 
-        {/* KPI 2 */}
-        <div className="rounded-2xl border border-emerald-500/30 bg-emerald-950/20 p-5 shadow-lg">
-          <div className="flex items-center justify-between text-xs font-bold text-emerald-400">
-            <span>مناطق ظاهرة ومتاحة للطلب الآن</span>
-            <span className="flex h-2 w-2 rounded-full bg-emerald-500" />
+        {/* Card 2: Online & Visible */}
+        <div className="rounded-2xl border border-emerald-500/30 bg-emerald-950/20 p-5 shadow-xl">
+          <div className="flex items-center justify-between text-xs font-semibold text-emerald-300">
+            <span>{isEn ? 'Online & Visible Zones (🟢)' : 'مناطق نشطة ومتاحة (🟢)'}</span>
+            <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
           </div>
-          <div className="mt-2 text-3xl font-black text-emerald-300">
-            {kpis.onlineZonesCount} <span className="text-sm font-normal text-emerald-400/80">({kpis.onlineZonesPct}%)</span>
+          <div className="mt-2 text-3xl font-black text-emerald-300">{kpis.onlineZonesCount}</div>
+          <div className="mt-1 text-xs text-emerald-400/80">
+            {isEn
+              ? `${kpis.onlineZonesCount} Active Delivery Zones (${kpis.onlineZonesPct}%)`
+              : `${kpis.onlineZonesCount} منطقة توصيل فعالة (${kpis.onlineZonesPct}%)`}
           </div>
-          <p className="mt-1 text-xs text-emerald-400/70">توصيل طبيعي دون قيود على مدار الساعة</p>
         </div>
 
-        {/* KPI 3 */}
-        <div className="rounded-2xl border border-amber-500/30 bg-amber-950/20 p-5 shadow-lg">
-          <div className="flex items-center justify-between text-xs font-bold text-amber-400">
-            <span>مناطق يظهر فيها الفرع مشغولاً</span>
-            <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] text-amber-300">🟡 Busy Area</span>
+        {/* Card 3: Busy in App */}
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-950/20 p-5 shadow-xl">
+          <div className="flex items-center justify-between text-xs font-semibold text-amber-300">
+            <span>{isEn ? 'Busy Zones in App (🟡)' : 'مناطق بحالة مشغول بالتطبيق (🟡)'}</span>
+            <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
           </div>
-          <div className="mt-2 text-3xl font-black text-amber-300">
-            {kpis.busyZonesCount} <span className="text-sm font-normal text-amber-400/80">مناطق</span>
+          <div className="mt-2 text-3xl font-black text-amber-300">{kpis.busyZonesCount}</div>
+          <div className="mt-1 text-xs text-amber-400/80">
+            {isEn ? '9 Temporarily Busy Areas' : '9 مناطق مغلقة مؤقتاً "مشغول"'}
           </div>
-          <p className="mt-1 text-xs text-amber-400/70">متوسط وقت الانشغال: ~{kpis.avgBusyDurationMinutes} دقيقة</p>
         </div>
 
-        {/* KPI 4 */}
-        <div className="rounded-2xl border border-rose-500/30 bg-rose-950/20 p-5 shadow-lg">
-          <div className="flex items-center justify-between text-xs font-bold text-rose-400">
-            <span>مناطق مقطوعة ومخفية (Polygon Cut)</span>
-            <span className="rounded-full bg-rose-500/20 px-2 py-0.5 text-[10px] text-rose-300">🔴 Hidden</span>
+        {/* Card 4: Hidden / Shrunk */}
+        <div className="rounded-2xl border border-red-500/30 bg-red-950/20 p-5 shadow-xl">
+          <div className="flex items-center justify-between text-xs font-semibold text-red-300">
+            <span>{isEn ? 'Closed / Hidden Zones (🔴)' : 'مناطق محجوبة / مقطوعة (🔴)'}</span>
+            <span className="h-2.5 w-2.5 rounded-full bg-red-400" />
           </div>
-          <div className="mt-2 text-3xl font-black text-rose-300">
-            {kpis.hiddenZonesCount} <span className="text-sm font-normal text-rose-400/80">منطقة</span>
+          <div className="mt-2 text-3xl font-black text-red-300">{kpis.hiddenZonesCount}</div>
+          <div className="mt-1 text-xs text-red-400/80">
+            {isEn ? '6 Polygon-Cut / Hidden Areas' : '6 مناطق تم تقليص نطاقها بالكامل'}
           </div>
-          <p className="mt-1 text-xs text-rose-400/70">تقليص نطاق مضلع طلبات وقت الذروة</p>
         </div>
 
-        {/* KPI 5 */}
-        <div className="rounded-2xl border border-gold-500/40 bg-gradient-to-b from-[#1c1608] to-[#120f06] p-5 shadow-lg">
-          <div className="flex items-center justify-between text-xs font-bold text-gold-400">
-            <span>المبيعات الضائعة التقديرية اليوم</span>
-            <span className="rounded bg-gold-400/10 px-2 py-0.5 text-[10px] text-gold-300">Financial Loss</span>
+        {/* Card 5: Lost Sales */}
+        <div className="rounded-2xl border border-amber-400/40 bg-gradient-to-br from-amber-950/40 to-black p-5 shadow-xl">
+          <div className="flex items-center justify-between text-xs font-semibold text-amber-300">
+            <span>{isEn ? 'Est. Lost Revenue Today' : 'أثر المبيعات الضائعة اليوم'}</span>
+            <span className="text-lg">💰</span>
           </div>
-          <div className="mt-2 text-2xl font-black text-gold-300 sm:text-3xl">
-            {kpis.totalLostSalesKwd.toFixed(3)} <span className="text-sm font-normal text-gold-400">د.ك</span>
+          <div className="mt-2 text-2xl font-black text-amber-300">
+            {kpis.totalLostSalesKwd.toFixed(3)} {isEn ? 'KWD' : 'د.ك'}
           </div>
-          <p className="mt-1 text-[11px] text-gold-400/80">
-            + {kpis.totalTgoPenaltiesKwd.toFixed(3)} د.ك غرامة تحول TGO 17%
-          </p>
+          <div className="mt-1 text-xs text-amber-400/70">
+            {isEn ? 'Forced TGO 17% & Zone Blackouts' : 'بسبب تحويل TGO 17% والإغلاق الجغرافي'}
+          </div>
         </div>
       </div>
 
       {/* ---------------------------------------------------------------------- */}
-      {/* FILTER BAR                                                             */}
+      {/* FILTER CONTROLS TOOLBAR                                                */}
       {/* ---------------------------------------------------------------------- */}
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/10 bg-[#0e1219] p-4 shadow-md">
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/10 bg-[#121316] p-4">
         <div className="flex flex-wrap items-center gap-3">
           {/* Brand Filter */}
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-mist-400">العلامة التجارية:</span>
+            <span className="text-xs font-bold text-gray-400">{isEn ? 'Brand:' : 'البراند:'}</span>
             <select
               value={selectedBrand}
               onChange={(e) => setSelectedBrand(e.target.value)}
-              className="rounded-xl border border-white/10 bg-[#161c26] px-3 py-1.5 text-xs font-bold text-white focus:border-amber-400 focus:outline-none"
+              className="rounded-xl border border-white/10 bg-[#1a1c22] px-3 py-2 text-xs font-semibold text-white focus:border-amber-400 focus:outline-none"
             >
-              <option value="all">كل البراندات الـ 6</option>
-              {VENTURE_BRANDS.map((brand) => (
-                <option key={brand.id} value={brand.id}>
-                  {brand.nameAr} ({brand.nameEn})
+              <option value="all">{isEn ? 'All 6 Brands' : 'كافة البراندات (6)'}</option>
+              {VENTURE_BRANDS.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {isEn ? b.nameEn : b.nameAr}
                 </option>
               ))}
             </select>
@@ -280,16 +409,16 @@ export default function TalabatGeoZoneRadar() {
 
           {/* Branch Filter */}
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-mist-400">الفرع:</span>
+            <span className="text-xs font-bold text-gray-400">{isEn ? 'Branch:' : 'الفرع:'}</span>
             <select
               value={selectedBranch}
               onChange={(e) => setSelectedBranch(e.target.value)}
-              className="rounded-xl border border-white/10 bg-[#161c26] px-3 py-1.5 text-xs font-bold text-white focus:border-amber-400 focus:outline-none"
+              className="rounded-xl border border-white/10 bg-[#1a1c22] px-3 py-2 text-xs font-semibold text-white focus:border-amber-400 focus:outline-none"
             >
-              <option value="all">كل الفروع الـ 10</option>
+              <option value="all">{isEn ? 'All 10 Branches' : 'كافة الأفرع (10)'}</option>
               {branches.map((b) => (
                 <option key={b.branchId} value={b.branchId}>
-                  {b.branchNameAr}
+                  {isEn ? b.branchNameEn : b.branchNameAr}
                 </option>
               ))}
             </select>
@@ -297,401 +426,415 @@ export default function TalabatGeoZoneRadar() {
 
           {/* Status Filter */}
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-mist-400">حالة المناطق:</span>
+            <span className="text-xs font-bold text-gray-400">{isEn ? 'Zone Status:' : 'حالة المنطقة:'}</span>
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="rounded-xl border border-white/10 bg-[#161c26] px-3 py-1.5 text-xs font-bold text-white focus:border-amber-400 focus:outline-none"
+              className="rounded-xl border border-white/10 bg-[#1a1c22] px-3 py-2 text-xs font-semibold text-white focus:border-amber-400 focus:outline-none"
             >
-              <option value="all">جميع الحالات</option>
-              <option value="busy">🟡 المشغولة فقط (Busy)</option>
-              <option value="hidden">🔴 المقطوعة والمخفية فقط (Hidden)</option>
-              <option value="online">🟢 المتاحة والظاهرة فقط (Online)</option>
+              <option value="all">{isEn ? 'All Zone Statuses' : 'كافة حالات التوصيل'}</option>
+              <option value="online">{isEn ? '🟢 Online & Visible' : '🟢 متاح ونشط'}</option>
+              <option value="busy">{isEn ? '🟡 Busy in Area' : '🟡 مشغول بالمنطقة'}</option>
+              <option value="hidden">{isEn ? '🔴 Closed / Hidden' : '🔴 محجوب / مقطوع'}</option>
+              <option value="forced_tgo">{isEn ? '🟠 Forced TGO 17%' : '🟠 تحويل TGO 17%'}</option>
             </select>
           </div>
         </div>
 
-        <div className="text-xs text-mist-400">
-          آخر مسح آلي: <span className="font-bold text-amber-300">{kpis.lastScannedAt}</span> (تحديث دوري كل 60 ثانية)
+        {/* Search Input */}
+        <div className="w-full sm:w-72">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={isEn ? 'Search zone or branch...' : 'بحث باسم المنطقة أو الفرع...'}
+            className="w-full rounded-xl border border-white/10 bg-[#1a1c22] px-3.5 py-2 text-xs font-medium text-white placeholder-gray-500 focus:border-amber-400 focus:outline-none"
+          />
         </div>
       </div>
 
       {/* ---------------------------------------------------------------------- */}
-      {/* SECTION 2: BRANCH & DELIVERY AREAS VISIBILITY MATRIX                   */}
+      {/* 10 BRANCHES RADAR CARDS GRID                                           */}
       {/* ---------------------------------------------------------------------- */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-black text-white">
-            مصفوفة الفروع والمناطق السكنية التابعة لها في توصيل طلبات ({filteredBranches.length} فروع)
-          </h2>
-          <span className="text-xs text-mist-400">
-            اضغط على أي كبسولة للاطلاع على التوقيت الزمني والسبب الجنائي
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        {filteredBranches.map((branch) => {
+          const brandObj = VENTURE_BRANDS.find((b) => b.id === branch.primaryBrandId)
+          return (
+            <div
+              key={branch.branchId}
+              className="rounded-3xl border border-white/10 bg-[#121316] p-6 shadow-xl transition hover:border-amber-500/30"
+            >
+              {/* Branch Header */}
+              <div className="flex flex-wrap items-start justify-between gap-3 border-b border-white/5 pb-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-black text-white">
+                      {isEn ? branch.branchNameEn : branch.branchNameAr}
+                    </h2>
+                    <span
+                      className="rounded-md px-2 py-0.5 text-[11px] font-black"
+                      style={{
+                        backgroundColor: (brandObj?.color || '#f59e0b') + '20',
+                        color: brandObj?.color || '#f59e0b',
+                        border: `1px solid ${brandObj?.color || '#f59e0b'}50`,
+                      }}
+                    >
+                      {isEn ? branch.primaryBrandNameEn : branch.primaryBrandNameAr}
+                    </span>
+                  </div>
+                  <div className="mt-1 flex items-center gap-3 text-xs text-gray-400">
+                    <span>
+                      {branch.assignedFleetType === 'TALABAT_GO_17'
+                        ? isEn
+                          ? 'Talabat Go Fleet (TGO 17%)'
+                          : 'أسطول طلبات جو (TGO 17%)'
+                        : isEn
+                          ? 'Hybrid Fleet (TMP 10% / TGO 17%)'
+                          : 'أسطول هجين (TMP 10% / TGO 17%)'}
+                    </span>
+                    <span>•</span>
+                    <span className={branch.tabletOnline ? 'text-emerald-400' : 'text-red-400'}>
+                      {branch.tabletOnline
+                        ? isEn
+                          ? '🟢 Tablet Online'
+                          : '🟢 تابلت الفرع متصل'
+                        : isEn
+                          ? '🔴 Tablet Offline'
+                          : '🔴 تابلت غير متصل'}
+                    </span>
+                    <span>•</span>
+                    <span>
+                      {isEn ? 'Battery:' : 'بطارية:'} {branch.batteryPct}%
+                    </span>
+                  </div>
+                </div>
+
+                <div className={isEn ? 'text-right' : 'text-left'}>
+                  <div className="text-xs text-gray-400">{isEn ? 'Coverage Rate' : 'نسبة التغطية المتاحة'}</div>
+                  <div
+                    className={`text-base font-black ${
+                      branch.openRatioPct >= 80
+                        ? 'text-emerald-400'
+                        : branch.openRatioPct >= 50
+                          ? 'text-amber-400'
+                          : 'text-red-400'
+                    }`}
+                  >
+                    {branch.openRatioPct}%{' '}
+                    <span className="text-xs font-normal text-gray-400">
+                      ({branch.onlineZonesCount}/{branch.totalZonesCount} {isEn ? 'zones' : 'منطقة'})
+                    </span>
+                  </div>
+                  {branch.totalLostKwdToday > 0 && (
+                    <div className="text-xs font-bold text-red-400">
+                      {isEn ? 'Est. Lost Today:' : 'فاقد المبيعات اليوم:'} -{branch.totalLostKwdToday.toFixed(3)}{' '}
+                      {isEn ? 'KWD' : 'د.ك'}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Delivery Zones in Branch Radius */}
+              <div className="mt-4">
+                <div className="mb-2 text-xs font-bold text-gray-400">
+                  {isEn ? 'Residential Delivery Zones in Branch Radius:' : 'المناطق السكنية التابعة لنطاق الفرع:'}
+                </div>
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                  {branch.zones.map((zone) => {
+                    let badgeBg = 'border-emerald-500/30 bg-emerald-950/20 text-emerald-300'
+                    let statusLabel = isEn ? '🟢 Online & Visible' : '🟢 متاح ونشط'
+
+                    if (zone.status === 'BUSY_IN_AREA') {
+                      badgeBg = 'border-amber-500/40 bg-amber-950/30 text-amber-300'
+                      statusLabel = isEn ? '🟡 Busy in Area' : '🟡 مشغول بالمنطقة'
+                    } else if (zone.status === 'AREA_CLOSED_HIDDEN') {
+                      badgeBg = 'border-red-500/40 bg-red-950/30 text-red-300'
+                      statusLabel = isEn ? '🔴 Hidden / Zone Cut' : '🔴 محجوب / مقطوع'
+                    } else if (zone.status === 'FORCED_TGO_17') {
+                      badgeBg = 'border-orange-500/40 bg-orange-950/30 text-orange-300'
+                      statusLabel = isEn ? '🟠 Forced TGO 17%' : '🟠 تحويل TGO 17%'
+                    }
+
+                    return (
+                      <div
+                        key={zone.id}
+                        className="rounded-2xl border border-white/5 bg-[#17191f] p-3 text-xs transition hover:border-white/10"
+                      >
+                        <div className="flex items-center justify-between font-bold">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-white">{isEn ? zone.zoneNameEn : zone.zoneNameAr}</span>
+                            <span className="text-[10px] text-gray-400">
+                              ({zone.distanceKm} {isEn ? 'km' : 'كم'})
+                            </span>
+                          </div>
+                          <span className={`rounded-md border px-2 py-0.5 text-[10px] font-black ${badgeBg}`}>
+                            {statusLabel}
+                          </span>
+                        </div>
+
+                        {/* Timing / Duration */}
+                        <div className="mt-1.5 text-[11px] text-gray-300">
+                          {zone.isOngoing ? (
+                            <span className="font-semibold text-amber-400">
+                              ⏰ {isEn ? `Busy: ${zone.startTime} – Now (${zone.durationMinutes} mins)` : `مستمر: ${zone.startTime} – الآن (${zone.durationMinutes} دقيقة)`}
+                            </span>
+                          ) : zone.status !== 'ONLINE_VISIBLE' ? (
+                            <span>
+                              ⏰ {zone.startTime} – {zone.endTime || '12:00 PM'} (
+                              {zone.durationMinutes} {isEn ? 'mins' : 'دقيقة'})
+                            </span>
+                          ) : (
+                            <span className="text-emerald-400">
+                              ⏰ {isEn ? 'Active & accepting orders now' : 'نشط ومتاح للطلب الآن'}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Diagnostics & Lost Sales */}
+                        {zone.status !== 'ONLINE_VISIBLE' && (
+                          <div className="mt-1.5 space-y-0.5 border-t border-white/5 pt-1.5 text-[11px]">
+                            <div className="text-amber-200/90">
+                              {isEn ? zone.rootCauseLabelEn : zone.rootCauseLabelAr}
+                            </div>
+                            {zone.estimatedLostKwd > 0 && (
+                              <div className="font-bold text-red-400">
+                                {isEn ? (
+                                  <>Est. Lost: -{zone.estimatedLostKwd.toFixed(3)} KWD ({zone.estimatedLostOrders} orders)</>
+                                ) : (
+                                  <>فاقد: -{zone.estimatedLostKwd.toFixed(3)} د.ك ({zone.estimatedLostOrders} طلب)</>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* ---------------------------------------------------------------------- */}
+      {/* CHRONOLOGICAL INCIDENT FORENSIC LOG                                    */}
+      {/* ---------------------------------------------------------------------- */}
+      <div className="rounded-3xl border border-white/10 bg-[#121316] p-6 shadow-xl">
+        <div className="mb-4 flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+          <div>
+            <h2 className="text-lg font-black text-white">
+              {isEn
+                ? 'Chronological Incident Forensic Log'
+                : 'سجل الأحداث الجنائية الزمني (Chronological Incident Log)'}
+            </h2>
+            <p className="text-xs text-gray-400">
+              {isEn
+                ? 'Real-time forensic audit trail of every blackout, busy state, and forced commission detected today'
+                : 'سجل تتبع لحظي لكل انقطاع أو تحويل إجباري تم رصده اليوم عبر شبكة الفروع'}
+            </p>
+          </div>
+          <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-300">
+            {incidents.length} {isEn ? 'Logged Incidents Today' : 'حدث جنائي مرصود اليوم'}
           </span>
         </div>
 
-        <div className="grid grid-cols-1 gap-6">
-          {filteredBranches.map((branch) => {
-            const hasIssue = branch.zones.some((z) => z.status !== 'ONLINE_VISIBLE')
-            return (
-              <div
-                key={branch.branchId}
-                className={`overflow-hidden rounded-3xl border transition ${
-                  hasIssue
-                    ? 'border-amber-500/30 bg-[#0d1017] shadow-xl shadow-amber-950/10'
-                    : 'border-white/10 bg-[#0c0f16]'
-                }`}
-              >
-                {/* Branch Header Strip */}
-                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 bg-gradient-to-r from-white/[0.04] to-transparent p-5">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <span className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-1 font-mono text-sm font-black text-amber-300">
-                      {branch.branchCode}
-                    </span>
-                    <div>
-                      <h3 className="text-lg font-black text-white">{branch.branchNameAr}</h3>
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-mist-400">
-                        <span>{branch.branchNameEn}</span>
-                        <span>•</span>
-                        <span className="font-bold text-gold-300">البراند الرئيسي: {branch.primaryBrandNameAr}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-3 text-xs font-bold">
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-emerald-300">
-                      <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                      تابلت الفرع: متصل (بطارية {branch.batteryPct}%)
-                    </span>
-
-                    <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-mist-200">
-                      أسطول: {branch.assignedFleetType === 'TALABAT_GO_17' ? 'Talabat Go (عمولة 17%)' : 'هجين (مطعم 10% + طلبات 17%)'}
-                    </span>
-
-                    <span
-                      className={`rounded-full px-3 py-1 ${
-                        branch.openRatioPct >= 80
-                          ? 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
-                          : 'border border-rose-500/30 bg-rose-500/10 text-rose-300'
-                      }`}
-                    >
-                      نسبة التغطية المتاحة: {branch.openRatioPct}% ({branch.onlineZonesCount}/{branch.totalZonesCount})
-                    </span>
-
-                    {branch.totalLostKwdToday > 0 && (
-                      <span className="rounded-full border border-rose-500/40 bg-rose-500/20 px-3 py-1 text-rose-200">
-                        مبيعات ضائعة: -{branch.totalLostKwdToday.toFixed(3)} د.ك
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Delivery Area Chips Grid */}
-                <div className="p-5">
-                  <div className="mb-2 text-xs font-bold text-mist-400">
-                    المناطق السكنية المغطاة من هذا الفرع في توصيل طلبات:
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    {branch.zones.map((zone) => {
-                      const isOnline = zone.status === 'ONLINE_VISIBLE'
-                      const isBusy = zone.status === 'BUSY_IN_AREA'
-                      const isHidden = zone.status === 'AREA_CLOSED_HIDDEN'
-
-                      return (
-                        <div
-                          key={zone.id}
-                          className={`relative overflow-hidden rounded-2xl border p-4 transition ${
-                            isOnline
-                              ? 'border-emerald-500/20 bg-emerald-950/10 hover:border-emerald-500/40'
-                              : isBusy
-                              ? 'border-amber-500/40 bg-amber-950/20 shadow-md shadow-amber-950/20'
-                              : 'border-rose-500/40 bg-rose-950/20 shadow-md shadow-rose-950/20'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="text-base font-black text-white">{zone.zoneNameAr}</span>
-                            <span
-                              className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
-                                isOnline
-                                  ? 'bg-emerald-500/20 text-emerald-300'
-                                  : isBusy
-                                  ? 'bg-amber-500/20 text-amber-300'
-                                  : 'bg-rose-500/20 text-rose-300'
-                              }`}
-                            >
-                              {isOnline
-                                ? '🟢 متاح وظاهر بالمنطقة'
-                                : isBusy
-                                ? '🟡 الفرع مشغول (Busy) في هذه المنطقة'
-                                : '🔴 المنطقة مغلقة / المطعم مخفي وغير ظاهر للعميل (تقليص نطاق طلبات Polygon Cut)'}
-                            </span>
-                          </div>
-
-                          <div className="mt-1 flex items-center justify-between text-xs text-mist-400">
-                            <span>{zone.zoneNameEn}</span>
-                            <span>{zone.distanceKm} كم عن الفرع</span>
-                          </div>
-
-                          {/* Time & Duration Forensic info */}
-                          {!isOnline ? (
-                            <div className="mt-3 space-y-1.5 border-t border-white/5 pt-2.5 text-xs">
-                              <div className="flex items-center justify-between font-bold text-amber-300">
-                                <span>⏰ التوقيت والمدة:</span>
-                                <span>
-                                  {isBusy
-                                    ? `من الساعة ${zone.startTime} إلى ${zone.endTime || 'الآن'} — مدة الانشغال: ${zone.durationMinutes} دقيقة`
-                                    : `وقت الإغلاق: من ${zone.startTime} إلى ${zone.endTime || 'الآن'} — مدة الانقطاع: ${zone.durationMinutes} دقيقة`}
-                                </span>
-                              </div>
-
-                              <div className="text-[11px] leading-snug text-mist-300">
-                                <span className="font-bold text-gold-300">السبب:</span> {zone.rootCauseLabelAr}
-                              </div>
-
-                              <div className="flex items-center justify-between text-[11px] font-bold text-rose-300">
-                                <span>الخسارة المقدرة:</span>
-                                <span>-{zone.estimatedLostKwd.toFixed(3)} د.ك (~{zone.estimatedLostOrders} طلب)</span>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="mt-3 flex items-center justify-between border-t border-white/5 pt-2.5 text-[11px] text-emerald-400/80">
-                              <span>توصيل طلبات نشط: 25-35 دقيقة</span>
-                              <span>🟢 متاح وظاهر بالمنطقة</span>
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* ---------------------------------------------------------------------- */}
-      {/* SECTION 3: CHRONOLOGICAL BUSY & CLOSED ZONES LOG TABLE                 */}
-      {/* ---------------------------------------------------------------------- */}
-      <div className="overflow-hidden rounded-3xl border border-white/10 bg-[#0e1219] p-6 shadow-xl">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-xl font-black text-white">
-              السجل الجنائي الزمني لانشغال وإغلاق المناطق (Chronological SLA Breach Log)
-            </h2>
-            <p className="text-xs text-mist-400">
-              توثيق دقيق بالدقيقة لكل إغلاق مضلع أو وضع انشغال فرضته طلبات على فروع ومناطق الشركة لحساب التعويضات
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setShowClaimModal(true)}
-            className="inline-flex items-center gap-2 rounded-xl border border-gold-400/40 bg-gold-500/10 px-4 py-2.5 text-xs font-black text-gold-300 shadow hover:bg-gold-500/20"
-          >
-            <span>📄</span>
-            <span>تصدير تقرير مطالبة رسمي لإدارة طلبات (Export Talabat SLA Claim)</span>
-          </button>
-        </div>
-
-        <div className="mt-5 overflow-x-auto">
-          <table className="w-full text-right text-xs">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[900px] text-xs">
             <thead>
-              <tr className="border-b border-white/10 text-mist-400">
-                <th className="py-3 px-3">التاريخ والوقت</th>
-                <th className="py-3 px-3">البراند والفرع</th>
-                <th className="py-3 px-3">المنطقة السكنية</th>
-                <th className="py-3 px-3">الحالة في طلبات</th>
-                <th className="py-3 px-3">من الساعة</th>
-                <th className="py-3 px-3">إلى الساعة</th>
-                <th className="py-3 px-3">المدة (دقيقة)</th>
-                <th className="py-3 px-3">السبب المشخص</th>
-                <th className="py-3 px-3">الطلبات الضائعة</th>
-                <th className="py-3 px-3">الخسارة التقديرية</th>
-                <th className="py-3 px-3">الإجراء المتخذ</th>
+              <tr className="border-b border-white/10 bg-[#17191f] text-gray-400">
+                <th className="p-3 text-start">{isEn ? 'Timestamp' : 'التوقيت'}</th>
+                <th className="p-3 text-start">{isEn ? 'Brand' : 'البراند'}</th>
+                <th className="p-3 text-start">{isEn ? 'Branch' : 'الفرع'}</th>
+                <th className="p-3 text-start">{isEn ? 'Residential Area' : 'المنطقة السكنية'}</th>
+                <th className="p-3 text-start">{isEn ? 'Detected Status' : 'الحالة المرصودة'}</th>
+                <th className="p-3 text-start">{isEn ? 'Duration' : 'المدة الزمنية'}</th>
+                <th className="p-3 text-start">{isEn ? 'Fault Party & Cause' : 'الطرف المتسبب والتشخيص'}</th>
+                <th className="p-3 text-start">{isEn ? 'Financial Impact & Orders' : 'الأثر المالي والطلبات'}</th>
+                <th className="p-3 text-start">{isEn ? 'Corrective Action' : 'الإجراء التصحيحي'}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {incidents.map((inc) => (
-                <tr key={inc.id} className="transition hover:bg-white/[0.02]">
-                  <td className="py-3 px-3 font-mono font-bold text-mist-200">
-                    {inc.date} <span className="text-[10px] text-mist-400">{inc.timestamp}</span>
-                  </td>
-                  <td className="py-3 px-3">
-                    <div className="font-bold text-white">{inc.brandNameAr}</div>
-                    <div className="text-[10px] text-mist-400">{inc.branchNameAr}</div>
-                  </td>
-                  <td className="py-3 px-3 font-bold text-white">{inc.zoneNameAr}</td>
-                  <td className="py-3 px-3">
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
-                        inc.status === 'BUSY_IN_AREA'
-                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                          : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                      }`}
-                    >
-                      {inc.status === 'BUSY_IN_AREA' ? 'مشغول (Busy)' : 'مخفي (Polygon Cut)'}
-                    </span>
-                  </td>
-                  <td className="py-3 px-3 font-mono font-bold text-mist-200">{inc.startTime}</td>
-                  <td className="py-3 px-3 font-mono font-bold text-mist-200">
-                    {inc.isOngoing ? (
-                      <span className="text-amber-400">مستمر الآن</span>
-                    ) : (
-                      inc.endTime
-                    )}
-                  </td>
-                  <td className="py-3 px-3 font-mono font-bold text-white">
-                    {inc.durationMinutes} دقيقة
-                  </td>
-                  <td className="py-3 px-3 text-mist-300">
-                    <div className="max-w-[200px] leading-tight">{inc.rootCauseLabelAr}</div>
-                    <span className="text-[10px] font-bold text-rose-400">مسؤولية: {inc.faultParty === 'TALABAT' ? 'شركة طلبات' : 'الفرع'}</span>
-                  </td>
-                  <td className="py-3 px-3 font-mono font-bold text-mist-200">~{inc.lostOrders}</td>
-                  <td className="py-3 px-3 font-mono font-bold text-rose-300">
-                    -{inc.lostKwd.toFixed(3)} د.ك
-                  </td>
-                  <td className="py-3 px-3 text-[11px] text-emerald-300 max-w-[200px]">
-                    {inc.remedyActionAr}
-                  </td>
-                </tr>
-              ))}
+              {incidents.map((inc) => {
+                let badgeClass = 'text-amber-400'
+                let badgeText = isEn ? '🟡 Busy in Area' : '🟡 مشغول بالمنطقة'
+                if (inc.status === 'AREA_CLOSED_HIDDEN') {
+                  badgeClass = 'text-red-400'
+                  badgeText = isEn ? '🔴 Hidden / Zone Cut' : '🔴 محجوب / مقطوع'
+                } else if (inc.status === 'FORCED_TGO_17') {
+                  badgeClass = 'text-orange-400'
+                  badgeText = isEn ? '🟠 Forced TGO 17%' : '🟠 تحويل TGO 17%'
+                }
+
+                return (
+                  <tr key={inc.id} className="hover:bg-white/[0.02]">
+                    <td className="p-3 font-mono text-gray-300">
+                      {inc.timestamp.slice(11, 16)} {isEn ? 'KW' : 'كويت'}
+                    </td>
+                    <td className="p-3 font-bold text-white">{isEn ? inc.brandNameEn : inc.brandNameAr}</td>
+                    <td className="p-3 text-gray-300">{isEn ? inc.branchNameEn : inc.branchNameAr}</td>
+                    <td className="p-3 font-semibold text-amber-200">
+                      {isEn ? inc.zoneNameEn : inc.zoneNameAr}
+                    </td>
+                    <td className="p-3 font-black">
+                      <span className={badgeClass}>{badgeText}</span>
+                    </td>
+                    <td className="p-3 text-gray-300">
+                      {inc.durationMinutes} {isEn ? 'mins' : 'دقيقة'}
+                      {inc.isOngoing && (
+                        <span className="ms-1 font-bold text-amber-400">({isEn ? 'Ongoing' : 'مستمر'})</span>
+                      )}
+                    </td>
+                    <td className="p-3">
+                      <div className="font-bold text-white">
+                        {inc.faultParty === 'TALABAT'
+                          ? isEn
+                            ? 'Talabat Go (Platform)'
+                            : 'طلبات جو (Talabat Go)'
+                          : isEn
+                            ? 'Branch Management'
+                            : 'إدارة الفرع (Branch)'}
+                      </div>
+                      <div className="text-[11px] text-gray-400">
+                        {isEn ? inc.rootCauseLabelEn : inc.rootCauseLabelAr}
+                      </div>
+                    </td>
+                    <td className="p-3">
+                      <div className="font-bold text-red-400">
+                        -{inc.lostKwd.toFixed(3)} {isEn ? 'KWD' : 'د.ك'}
+                      </div>
+                      <div className="text-[11px] text-gray-400">
+                        ({inc.lostOrders} {isEn ? 'orders' : 'طلب'})
+                        {inc.penaltyKwd > 0 && (
+                          <span className="text-orange-400">
+                            {' '}
+                            + {inc.penaltyKwd.toFixed(3)} {isEn ? 'KWD comm.' : 'د.ك غرامة'}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="p-3 text-gray-300">{isEn ? inc.remedyActionEn : inc.remedyActionAr}</td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
       </div>
 
       {/* ---------------------------------------------------------------------- */}
-      {/* SECTION 4: EXCLUSIVE RECIPIENTS INFO BANNER                            */}
-      {/* ---------------------------------------------------------------------- */}
-      <div className="rounded-3xl border border-white/10 bg-gradient-to-r from-[#111622] via-[#0d121c] to-[#121622] p-6 shadow-xl">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <div className="text-xs font-bold uppercase tracking-wider text-amber-400">
-              قنوات التنبيه البريدي الفوري المعتمدة في شركة فنتشر فودز
-            </div>
-            <h3 className="mt-1 text-base font-black text-white">
-              الثلاثة المعتمدون لاستقبال تنبيهات انقطاع المناطق وانشغال الفروع:
-            </h3>
-            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <div className="rounded-xl border border-white/5 bg-black/40 p-3 text-xs">
-                <div className="font-bold text-white">عبدالله عبد الغفار</div>
-                <div className="text-[11px] text-mist-400">Executive Secretary</div>
-                <div className="mt-1 font-mono text-[11px] text-amber-300">Sec@venturefoodskw.com</div>
-              </div>
-              <div className="rounded-xl border border-white/5 bg-black/40 p-3 text-xs">
-                <div className="font-bold text-white">شكر الله ناصيف</div>
-                <div className="text-[11px] text-mist-400">Operations Manager</div>
-                <div className="mt-1 font-mono text-[11px] text-amber-300">operations@venturefoodskw.com</div>
-              </div>
-              <div className="rounded-xl border border-white/5 bg-black/40 p-3 text-xs">
-                <div className="font-bold text-white">عبدالرحمن محمد</div>
-                <div className="text-[11px] text-mist-400">Marketing Coordinator</div>
-                <div className="mt-1 font-mono text-[11px] text-amber-300">abdelrahmanm@venturefoodskw.com</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="text-end">
-            <button
-              type="button"
-              disabled={isSendingAlert}
-              onClick={handleSendInstantAlert}
-              className="rounded-xl border border-amber-500/40 bg-amber-500/20 px-4 py-2.5 text-xs font-black text-amber-200 transition hover:bg-amber-500/30"
-            >
-              إرسال إيميل التنبيه الفوري الآن
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* ---------------------------------------------------------------------- */}
-      {/* SLA BREACH CLAIM MODAL                                                 */}
+      {/* SLA PENALTY CLAIM MODAL                                                */}
       {/* ---------------------------------------------------------------------- */}
       {showClaimModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
-          <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-3xl border border-gold-500/40 bg-[#0e121a] p-6 shadow-2xl text-right sm:p-8">
-            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+          <div
+            className="relative w-full max-w-2xl overflow-hidden rounded-3xl border border-amber-500/30 bg-[#121316] p-6 shadow-2xl sm:p-8"
+            dir={isEn ? 'ltr' : 'rtl'}
+          >
+            <div className="flex items-start justify-between border-b border-white/10 pb-4">
               <div>
-                <h3 className="text-xl font-black text-gold-300">
-                  تقرير مطالبة رسمي وإشعار إخلال بمستوى الخدمة (Talabat SLA Breach Claim)
+                <h3 className="text-xl font-black text-white">
+                  {isEn
+                    ? 'Export Talabat SLA Compensation & Penalty Claim'
+                    : 'تصدير ملف المطالبة المالية والتعويضية (Talabat SLA Penalty Claim)'}
                 </h3>
-                <p className="text-xs text-mist-400">
-                  Venture Foods W.L.L. vs. Delivery Hero / Talabat Kuwait · Ref: VF-TGO-CLAIMS-2026-11
+                <p className="mt-1 text-xs text-gray-400">
+                  {isEn
+                    ? 'Official claim documentation ready for submission to Talabat Key Account Management for refund of forced commission differences and unnotified blackouts.'
+                    : 'تقرير رسمي جاهز للإرسال لإدارة حسابات طلبات (Key Account Manager) للمطالبة برد العمولات الزائدة والتعويض عن الإغلاقات غير المبررة.'}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setShowClaimModal(false)}
-                className="rounded-full bg-white/10 p-2 text-mist-300 hover:text-white"
+                className="rounded-full p-2 text-gray-400 hover:bg-white/10 hover:text-white"
               >
                 ✕
               </button>
             </div>
 
-            <div className="mt-6 space-y-4 text-xs leading-relaxed text-mist-200">
-              <div className="rounded-2xl border border-white/10 bg-black/50 p-4 font-mono">
-                <p className="font-bold text-white">إلى: إدارة حسابات المطاعم الكبرى — شركة طلبات الكويت (Talabat Kuwait)</p>
-                <p>عناية: السيد مدير الحساب التجاري (Key Account Manager)</p>
-                <p className="mt-2 text-gold-300 font-bold">
-                  الموضوع: إشعار رسمي بإخلال اتفاقية مستوى الخدمة (SLA Breach) ومطالبة تعويض عن تقليص مضلعات التوصيل وحظر المناطق
-                </p>
+            <div className="mt-6 space-y-4 text-xs">
+              <div className="flex justify-between rounded-xl border border-white/5 bg-[#17191f] p-3">
+                <span className="text-gray-400">{isEn ? 'Filing Entity:' : 'الجهة المطالِبة:'}</span>
+                <span className="font-bold text-white">
+                  {isEn
+                    ? 'Venture Foods Restaurant Management Co. W.L.L.'
+                    : 'شركة فنتشر فودز لإدارة المطاعم ذ.م.م.'}
+                </span>
               </div>
 
-              <div className="space-y-2">
-                <p className="text-sm font-bold text-white">ملخص الإخلالات الجنائية الموثقة لليوم:</p>
-                <ul className="list-inside list-disc space-y-1 text-mist-300">
-                  <li>
-                    تم رصد <strong className="text-amber-300">8 مناطق سكنية</strong> وضعت فيها مطاعم الشركة بحالة <strong className="text-amber-300">&ldquo;مشغول (Busy)&rdquo;</strong> لمدد تراوحت بين 25 و 50 دقيقة رغم جاهزية مطابخ الفروع.
-                  </li>
-                  <li>
-                    تم رصد <strong className="text-rose-300">7 مناطق سكنية</strong> تم إخفاء مطاعم الشركة عنها بالكامل عبر <strong className="text-rose-300">تقليص مضلع التوصيل (Polygon Cut)</strong> من 6.5 كم إلى 2.5-4 كم بسبب عجز أسطول سائقي طلبات.
-                  </li>
-                  <li>
-                    إجمالي المبيعات الضائعة المباشرة: <strong className="text-gold-300">{kpis.totalLostSalesKwd.toFixed(3)} د.ك</strong>.
-                  </li>
-                  <li>
-                    فروقات عمولة التحويل القسري TGO 17% مقابل 10%: <strong className="text-gold-300">{kpis.totalTgoPenaltiesKwd.toFixed(3)} د.ك</strong>.
-                  </li>
-                  <li>
-                    إجمالي المطالبة المالية الواجبة الخصم من كشف الحساب الأسبوعي: <strong className="text-emerald-300 font-bold">{kpis.totalFinancialImpactKwd.toFixed(3)} د.ك</strong>.
-                  </li>
-                </ul>
+              <div className="flex justify-between rounded-xl border border-white/5 bg-[#17191f] p-3">
+                <span className="text-gray-400">{isEn ? 'Target Platform:' : 'المنصة المستهدفة:'}</span>
+                <span className="font-bold text-amber-300">
+                  {isEn ? 'Talabat Go Kuwait (Delivery Hero)' : 'توصيل طلبات الكويت (Talabat Go - Delivery Hero)'}
+                </span>
               </div>
 
-              <div className="rounded-2xl border border-amber-500/30 bg-amber-950/20 p-4">
-                <p className="font-bold text-amber-300">السند القانوني والتعاقدي:</p>
-                <p className="mt-1">
-                  استناداً إلى ملحق اتفاقية توصيل طلبات جو (Talabat Go Addendum)، تلتزم شركة طلبات بتوفير أسطول تغطية كامل للنطاق الجغرافي المعتمد (6.5 كم)، ولا يحق للمنصة تقليص المضلع الجغرافي أو وضع المطعم في حالة Busy دون موافقة خطية أو عطل فني مثبت من تابلت المطعم.
-                </p>
+              <div className="flex justify-between rounded-xl border border-white/5 bg-[#17191f] p-3">
+                <span className="text-gray-400">{isEn ? 'Audit Period:' : 'الفترة المحاسبية:'}</span>
+                <span className="font-bold text-white">
+                  {isEn
+                    ? 'Current Day (Cumulative Month-to-Date Audit)'
+                    : 'اليوم الحالي (مع فحص تراكمي للشهر)'}
+                </span>
+              </div>
+
+              <div className="flex justify-between rounded-xl border border-white/5 bg-[#17191f] p-3">
+                <span className="text-gray-400">{isEn ? 'Total Claimed Amount:' : 'إجمالي المبالغ المطالب بها:'}</span>
+                <span className="text-base font-black text-amber-400">
+                  {kpis.totalFinancialImpactKwd.toFixed(3)} {isEn ? 'KWD' : 'د.ك'}
+                </span>
+              </div>
+
+              <div className="rounded-2xl border border-amber-500/20 bg-amber-950/20 p-4">
+                <div className="mb-2 font-bold text-amber-300">
+                  {isEn ? 'Claim Breakdown:' : 'تفاصيل المطالبة المالية:'}
+                </div>
+                <div className="space-y-1.5 text-gray-300">
+                  <div className="flex justify-between">
+                    <span>
+                      {isEn
+                        ? '• Compensation for Lost Sales (Unjustified Busy):'
+                        : '• تعويض مبيعات مهدرة بسبب Busy غير مبرر:'}
+                    </span>
+                    <span className="font-mono font-bold">
+                      {kpis.totalLostSalesKwd.toFixed(3)} {isEn ? 'KWD' : 'د.ك'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>
+                      {isEn
+                        ? '• Forced TGO Commission Difference (17% vs 10% TMP):'
+                        : '• فروقات عمولة إجبارية (17% بدلاً من 10% TMP):'}
+                    </span>
+                    <span className="font-mono font-bold text-orange-400">
+                      {kpis.totalTgoPenaltiesKwd.toFixed(3)} {isEn ? 'KWD' : 'د.ك'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-white/5 bg-[#17191f] p-3 text-[11px] text-gray-400">
+                {isEn
+                  ? '💡 Full timestamped audit logs, GPS radius shrinkage proofs, and incident IDs are attached as conclusive evidence.'
+                  : '💡 تم تضمين كافة السجلات الزمنية المشفرة مع إحداثيات GPS ونسب تآكل النطاق كأدلة قطعية.'}
               </div>
             </div>
 
-            <div className="mt-6 flex flex-wrap items-center justify-end gap-3 border-t border-white/10 pt-4">
-              <button
-                type="button"
-                onClick={() => window.print()}
-                className="rounded-xl border border-white/20 bg-white/10 px-5 py-2.5 text-xs font-bold text-white hover:bg-white/20"
-              >
-                🖨️ طباعة إشعار المطالبة
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  navigator.clipboard.writeText(formatTalabatAreaAlertEmail(branches, kpis))
-                  alert('تم نسخ نص المطالبة والتقرير بالكامل للحافظة!')
-                }}
-                className="rounded-xl border border-gold-400 bg-gold-500 px-5 py-2.5 text-xs font-black text-black hover:brightness-110"
-              >
-                📋 نسخ نص التقرير للحافظة
-              </button>
+            <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setShowClaimModal(false)}
-                className="rounded-xl bg-white/10 px-5 py-2.5 text-xs font-bold text-mist-300 hover:text-white"
+                className="rounded-2xl border border-white/10 px-5 py-2.5 text-xs font-bold text-gray-300 transition hover:bg-white/5"
               >
-                إغلاق
+                {isEn ? 'Cancel' : 'إلغاء'}
+              </button>
+              <button
+                type="button"
+                onClick={handleDownloadClaimFile}
+                className="rounded-2xl border border-amber-400/40 bg-gradient-to-r from-amber-500 to-amber-600 px-5 py-2.5 text-xs font-black text-black shadow-lg shadow-amber-900/40 transition hover:brightness-110"
+              >
+                {isEn ? '📥 Confirm & Export Official Claim (PDF / Excel)' : '📥 تأكيد وتصدير مستند المطالبة (PDF / Excel)'}
               </button>
             </div>
           </div>

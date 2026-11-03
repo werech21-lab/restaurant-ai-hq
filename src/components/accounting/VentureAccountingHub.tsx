@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import { useI18n } from '@/lib/i18n'
 import {
   Landmark,
   FileSpreadsheet,
@@ -36,8 +37,32 @@ export function VentureAccountingHub({
   locale?: 'ar' | 'en'
   liveChildren?: React.ReactNode
 }) {
+  let ctxLocale: 'ar' | 'en' | null = null
+  try {
+    const i18n = useI18n()
+    if (i18n?.locale) ctxLocale = i18n.locale
+  } catch {}
+
   const [activeTab, setActiveTab] = useState<'pnl' | 'banking' | 'pettyCash' | 'journals' | 'chart' | 'aging' | 'glBridge' | 'eventsFinance' | 'leases' | 'fleet' | 'legacy'>('pnl')
   const [currentLocale, setCurrentLocale] = useState<'ar' | 'en'>(locale)
+
+  useEffect(() => {
+    if (ctxLocale) setCurrentLocale(ctxLocale)
+  }, [ctxLocale])
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    const updateFromDoc = () => {
+      const docLang = document.documentElement.lang
+      if (docLang === 'en' || docLang === 'ar') {
+        setCurrentLocale(docLang)
+      }
+    }
+    updateFromDoc()
+    const observer = new MutationObserver(updateFromDoc)
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['lang', 'dir'] })
+    return () => observer.disconnect()
+  }, [])
   const [showNewEntryModal, setShowNewEntryModal] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
 
