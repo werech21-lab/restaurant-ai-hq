@@ -363,11 +363,24 @@ export default function SmartDropzonePortal() {
     [busy, normalizeAndAutoStart],
   )
 
+  useEffect(() => {
+    if (folderInputRef.current) {
+      folderInputRef.current.removeAttribute('accept')
+      folderInputRef.current.setAttribute('webkitdirectory', '')
+      folderInputRef.current.setAttribute('directory', '')
+      folderInputRef.current.setAttribute('mozdirectory', '')
+    }
+  }, [])
+
   const openNativeFolderPicker = useCallback(
     async (e?: React.MouseEvent) => {
       if (e) e.stopPropagation()
       if (busy) return
       if (folderInputRef.current) {
+        folderInputRef.current.removeAttribute('accept')
+        folderInputRef.current.setAttribute('webkitdirectory', '')
+        folderInputRef.current.setAttribute('directory', '')
+        folderInputRef.current.setAttribute('mozdirectory', '')
         folderInputRef.current.click()
         return
       }
@@ -629,7 +642,6 @@ export default function SmartDropzonePortal() {
           ref={folderInputRef}
           type="file"
           multiple
-          {...({ webkitdirectory: '', directory: '' } as any)}
           className="hidden"
           onChange={handleFilesSelected}
         />

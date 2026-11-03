@@ -1,6 +1,6 @@
-﻿'use client'
+'use client'
 
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import JSZip from 'jszip'
 import { useI18n } from '@/lib/i18n'
 
@@ -112,11 +112,67 @@ async function mapPool<T, R>(items: T[], limit: number, worker: (item: T, index:
   return results
 }
 
+async function collectFilesFromDroppedItems(dataTransfer: DataTransfer): Promise<File[]> {
+  const items = dataTransfer.items
+  if (!items || !items.length) {
+    return Array.from(dataTransfer.files || [])
+  }
+  const entries: FileSystemEntry[] = []
+  for (const item of Array.from(items)) {
+    const entry = item.webkitGetAsEntry?.()
+    if (entry) entries.push(entry)
+  }
+  if (!entries.length) {
+    return Array.from(dataTransfer.files || [])
+  }
+  const files: File[] = []
+  async function traverse(entry: FileSystemEntry) {
+    if (entry.isFile) {
+      await new Promise<void>((resolve) => {
+        ;(entry as FileSystemFileEntry).file(
+          (f) => {
+            files.push(f)
+            resolve()
+          },
+          () => resolve(),
+        )
+      })
+    } else if (entry.isDirectory) {
+      const reader = (entry as FileSystemDirectoryEntry).createReader()
+      const readBatch = () =>
+        new Promise<FileSystemEntry[]>((resolve, reject) => {
+          reader.readEntries(resolve, reject)
+        })
+      for (;;) {
+        const batch = await readBatch()
+        if (!batch.length) break
+        for (const child of batch) {
+          await traverse(child)
+        }
+      }
+    }
+  }
+  for (const entry of entries) {
+    await traverse(entry)
+  }
+  return files.length ? files : Array.from(dataTransfer.files || [])
+}
+
 export function SmartFolderUploadClient({ employees: initialEmployees, locale }: Props) {
   const { t, dir } = useI18n()
-  const inputRef = useRef<HTMLInputElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const folderInputRef = useRef<HTMLInputElement>(null)
   const pauseRef = useRef(false)
   const [employees, setEmployees] = useState(initialEmployees)
+
+  useEffect(() => {
+    if (folderInputRef.current) {
+      folderInputRef.current.removeAttribute('accept')
+      folderInputRef.current.setAttribute('webkitdirectory', '')
+      folderInputRef.current.setAttribute('directory', '')
+      folderInputRef.current.setAttribute('mozdirectory', '')
+    }
+  }, [])
   const [dragging, setDragging] = useState(false)
   const [pending, setPending] = useState<File[]>([])
   const [ignoredCount, setIgnoredCount] = useState(0)
@@ -283,7 +339,8 @@ export function SmartFolderUploadClient({ employees: initialEmployees, locale }:
   async function onDrop(event: React.DragEvent) {
     event.preventDefault()
     setDragging(false)
-    void prepareSelection(Array.from(event.dataTransfer.files || []))
+    const collected = await collectFilesFromDroppedItems(event.dataTransfer)
+    void prepareSelection(collected)
   }
 
   async function assign(documentId: string, employeeId: string) {
@@ -332,11 +389,13 @@ export function SmartFolderUploadClient({ employees: initialEmployees, locale }:
             disabled={busy}
             className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow hover:bg-emerald-700 disabled:opacity-60"
             onClick={() => {
-              if (!inputRef.current) return
-              inputRef.current.setAttribute('webkitdirectory', '')
-              inputRef.current.setAttribute('directory', '')
-              inputRef.current.multiple = true
-              inputRef.current.click()
+              if (!folderInputRef.current) return
+              folderInputRef.current.removeAttribute('accept')
+              folderInputRef.current.setAttribute('webkitdirectory', '')
+              folderInputRef.current.setAttribute('directory', '')
+              folderInputRef.current.setAttribute('mozdirectory', '')
+              folderInputRef.current.multiple = true
+              folderInputRef.current.click()
             }}
           >
             {label('اختيار مجلد كامل', 'Choose full folder')}
@@ -346,23 +405,28 @@ export function SmartFolderUploadClient({ employees: initialEmployees, locale }:
             disabled={busy}
             className="rounded-xl border border-emerald-600 px-5 py-3 text-sm font-bold text-emerald-300 hover:bg-emerald-950/20 disabled:opacity-60"
             onClick={() => {
-              if (!inputRef.current) return
-              inputRef.current.removeAttribute('webkitdirectory')
-              inputRef.current.removeAttribute('directory')
-              inputRef.current.multiple = true
-              inputRef.current.click()
+              if (!fileInputRef.current) return
+              fileInputRef.current.multiple = true
+              fileInputRef.current.click()
             }}
           >
             {label('اختيار ملفات / ZIP', 'Choose files / ZIP')}
           </button>
         </div>
         <input
-          ref={inputRef}
+          ref={fileInputRef}
           type="file"
           className="hidden"
           multiple
           onChange={onInputChange}
           accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip"
+        />
+        <input
+          ref={folderInputRef}
+          type="file"
+          className="hidden"
+          multiple
+          onChange={onInputChange}
         />
       </div>
 
