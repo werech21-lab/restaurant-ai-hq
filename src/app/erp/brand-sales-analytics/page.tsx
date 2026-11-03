@@ -1,10 +1,13 @@
 import { BrandSalesAnalyticsDashboard } from '@/modules/brand-sales-analytics/ui/BrandSalesAnalyticsDashboard'
-import { requirePageUser } from '@/lib/auth/context'
 
 export const dynamic = 'force-dynamic'
 
-export default async function BrandSalesAnalyticsPage() {
-  await requirePageUser('/erp/brand-sales-analytics')
+export const metadata = {
+  title: 'تحليلات مبيعات البراندات وأداء الفروع | Venture Foods W.L.L. · AetherBI',
+  description: 'لوحة التحليلات المتقدمة لمبيعات العلامات التجارية وأداء الفروع والقنوات لشهر أكتوبر 2026 لشركة فنتشر فودز.',
+}
+
+export default function BrandSalesAnalyticsPage() {
   return (
     <main className="mx-auto w-full max-w-[1600px] px-3 py-6 sm:px-6">
       <BrandSalesAnalyticsDashboard />

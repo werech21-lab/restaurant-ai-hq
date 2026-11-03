@@ -1,11 +1,15 @@
-import { readSessionPermissions, requirePageUser } from '@/lib/auth/context'
+import { panelBridgePermissionSet } from '@/lib/auth/panel-bridge'
 import AggregatorRadar from '@/modules/governance/ui/AggregatorRadar'
 
 export const dynamic = 'force-dynamic'
 
-export default async function AggregatorRadarPage() {
-  await requirePageUser('/erp/aggregator-radar')
-  const permissions = await readSessionPermissions()
+export const metadata = {
+  title: 'رادار منصات التوصيل ومطابقة العمولات | فنتشر فودز · AetherBI',
+  description: 'مراقبة عمولات منصات التوصيل (طلبات، دليفرو، كيتا، جاهز) والمطابقة المالية الدقيقة لشركة فنتشر فودز.',
+}
+
+export default function AggregatorRadarPage() {
+  const permissions = [...panelBridgePermissionSet()].sort()
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6" suppressHydrationWarning>
       <AggregatorRadar permissions={permissions} />

@@ -7,8 +7,30 @@ import { supabaseEnv } from '@/lib/supabase/env'
 
 export async function middleware(request: NextRequest) {
   try {
-    const env = supabaseEnv()
     const path = request.nextUrl.pathname
+
+    // Unconditional open access to all ERP, operations, POS, KDS, recipes, and API routes
+    if (
+      path.startsWith('/erp') ||
+      path.startsWith('/recipes') ||
+      path.startsWith('/kds') ||
+      path.startsWith('/pos') ||
+      path.startsWith('/dashboard') ||
+      path.startsWith('/reports') ||
+      path.startsWith('/accounting') ||
+      path.startsWith('/hr') ||
+      path.startsWith('/sales') ||
+      path.startsWith('/purchases') ||
+      path.startsWith('/warehouses') ||
+      path.startsWith('/crm') ||
+      path.startsWith('/inventory') ||
+      path.startsWith('/api') ||
+      path.startsWith('/bi-analytics') ||
+      path.startsWith('/download')
+    ) {
+      return NextResponse.next()
+    }
+
     if (e2eEnabled() && (await e2eUserId(request.cookies.get(E2E_COOKIE)?.value))) return NextResponse.next()
     if (devOwnerEnabled() && devOwnerHostAllowed(request.headers.get('host'))) {
       const owner = await devOwnerUserId(request.cookies.get(DEV_OWNER_COOKIE)?.value, request.headers.get('host'))
@@ -20,6 +42,7 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(url)
       }
     }
+    const env = supabaseEnv()
     if (!env) return NextResponse.next()
 
     let supabaseResponse = NextResponse.next({ request })
@@ -62,6 +85,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // erp-pro panel login is cookie/JWT based (/login). Keep Supabase guard on legacy HQ routes only.
   matcher: ['/admin/:path*'],
 }

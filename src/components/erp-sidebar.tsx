@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import {
   Archive,
   BarChart3,
@@ -89,7 +90,7 @@ function ErpSuiteLinks({ pathname }: { pathname: string }) {
         const Icon = item.icon
         const active = pathname === item.href || pathname.startsWith(`${item.href}/`)
         return (
-          <a
+          <Link
             key={item.key}
             href={item.href}
             className={`flex shrink-0 items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold whitespace-nowrap ${
@@ -111,7 +112,7 @@ function ErpSuiteLinks({ pathname }: { pathname: string }) {
                 LIVE
               </span>
             ) : null}
-          </a>
+          </Link>
         )
       })}
     </div>
@@ -158,7 +159,7 @@ function NavLinks({
         const Icon = item.icon
         const active = pathname === item.href || (item.href !== '/profile' && pathname.startsWith(`${item.href}/`))
         return (
-          <a
+          <Link
             key={item.key}
             href={item.href}
             className={`flex shrink-0 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold whitespace-nowrap ${
@@ -167,7 +168,7 @@ function NavLinks({
           >
             <Icon size={18} />
             {item.label}
-          </a>
+          </Link>
         )
       })}
     </>
