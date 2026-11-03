@@ -1,22 +1,19 @@
 'use client'
 
+import React from 'react'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import {
   Archive,
   BarChart3,
   Blocks,
   Brain,
-  ClipboardList,
-  Building2,
-  CreditCard,
+  ChefHat,
   Contact,
   IdCard,
   Landmark,
-  Download,
-  LineChart,
   LayoutDashboard,
   LogOut,
-  ChefHat,
   Monitor,
   Package,
   Radar,
@@ -24,246 +21,206 @@ import {
   Scale,
   Shield,
   ShoppingCart,
-  Truck,
-  UserRound,
+  Sparkles,
+  Store,
+  ThermometerSnowflake,
   Users,
   UtensilsCrossed,
   Warehouse,
   Zap,
-  ClipboardCheck,
-  Factory,
-  ThermometerSnowflake,
-  Sparkles,
-  Store,
 } from 'lucide-react'
-import { usePathname } from 'next/navigation'
 import { logout } from '@/app/actions/auth'
-import { useI18n, type MessageKey } from '@/lib/i18n'
-import { LOCKED_MODULES, MODULES, type ModuleKey } from '@/lib/modules'
-import { can, type AccessUser } from '@/lib/permissions'
+import { useI18n } from '@/lib/i18n'
+import type { AccessUser } from '@/lib/permissions'
+import { can } from '@/lib/permissions'
 import { displayRoleName, displayTeamName } from '@/lib/venture-foods-team'
 
-const icons: Record<ModuleKey, typeof LayoutDashboard> = {
-  dashboard: LayoutDashboard,
-  users: Users,
-  roles: Shield,
-  inventory: Package,
-  warehouses: Warehouse,
-  purchases: ShoppingCart,
-  sales: Receipt,
-  crm: Contact,
-  pos: Monitor,
-  recipes: UtensilsCrossed,
-  'delivery-hub': Truck,
-  kds: ChefHat,
-  hr: IdCard,
-  accounting: Landmark,
-  automations: Zap,
-  reports: BarChart3,
-  audit: ClipboardList,
-  payments: CreditCard,
-  'app-builder': Blocks,
+interface NavItem {
+  key: string
+  href: string
+  labelAr: string
+  labelEn: string
+  icon: React.ComponentType<{ size?: number; className?: string }>
+  live?: boolean
 }
 
-const ERP_SUITE = [
-  { key: 'events-projects', href: '/erp/events-projects', labelKey: 'nav.eventsProjects' as MessageKey, icon: Store, live: true },
-  { key: 'smart-dropzone', href: '/erp/smart-dropzone', labelKey: 'nav.smartDropzone' as MessageKey, icon: Sparkles, live: true },
-  { key: 'erp-radar', href: '/erp/aggregator-radar', labelKey: 'nav.erpRadar' as MessageKey, icon: Radar, live: true },
-  { key: 'food-safety', href: '/erp/food-safety', labelKey: 'nav.foodSafety' as MessageKey, icon: ThermometerSnowflake, live: true },
-  { key: 'erp-intelligence', href: '/erp/intelligence', labelKey: 'nav.erpIntelligence' as MessageKey, icon: Brain, live: false },
-  { key: 'erp-governance', href: '/erp/governance', labelKey: 'nav.erpGovernance' as MessageKey, icon: Scale, live: false },
-  { key: 'erp-archive', href: '/erp/archive', labelKey: 'nav.erpArchive' as MessageKey, icon: Archive, live: false },
-  { key: 'recipes', href: '/recipes', labelKey: 'nav.recipes' as MessageKey, icon: UtensilsCrossed, live: false },
-  { key: 'kds', href: '/kds', labelKey: 'nav.kds' as MessageKey, icon: ChefHat, live: false },
-  { key: 'central-kitchen', href: '/central-kitchen', labelKey: 'nav.centralKitchen' as MessageKey, icon: Factory, live: false },
-  { key: 'stock-count', href: '/stock-count', labelKey: 'nav.stockCount' as MessageKey, icon: ClipboardCheck, live: false },
-  { key: 'directory', href: '/directory', labelKey: 'nav.directory' as MessageKey, icon: Contact, live: false },
-  { key: 'ess', href: '/ess', labelKey: 'nav.ess' as MessageKey, icon: IdCard, live: false },
-] as const
-
-function ErpSuiteLinks({ pathname }: { pathname: string }) {
-  const { t } = useI18n()
-  return (
-    <div className="mt-4 space-y-1 border-t border-gold-300/15 pt-4">
-      <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-gold-300/80">{t('nav.erpSuite')}</p>
-      {ERP_SUITE.map((item) => {
-        const Icon = item.icon
-        const active = pathname === item.href || pathname.startsWith(`${item.href}/`)
-        return (
-          <Link
-            key={item.key}
-            href={item.href}
-            className={`flex shrink-0 items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold whitespace-nowrap ${
-              active
-                ? 'bg-gradient-to-l from-[#8cc63f] to-[#00a99d] text-ink-950'
-                : 'text-mist-300 hover:bg-ink-800 hover:text-mist-100'
-            }`}
-          >
-            <span className="inline-flex min-w-0 items-center gap-3">
-              <Icon size={18} className="shrink-0" />
-              <span className="truncate">{t(item.labelKey)}</span>
-            </span>
-            {item.live ? (
-              <span
-                className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-black tracking-wide ${
-                  active ? 'bg-ink-950/20 text-ink-950' : 'bg-red-500/20 text-red-300'
-                }`}
-              >
-                LIVE
-              </span>
-            ) : null}
-          </Link>
-        )
-      })}
-    </div>
-  )
+interface NavSection {
+  id: string
+  titleAr: string
+  titleEn: string
+  items: NavItem[]
 }
 
-function NavLinks({
-  user,
-  pathname,
-  tone,
-  enabledKeys,
-  excludeKeys = [],
-}: {
-  user: AccessUser
-  pathname: string
-  tone: 'dark' | 'light'
-  enabledKeys: string[] | null
-  excludeKeys?: string[]
-}) {
-  const { t } = useI18n()
-  const locked = new Set<string>(LOCKED_MODULES)
-  const items = MODULES.filter((item) => {
-    if (excludeKeys.includes(item.key)) return false
-    if (!can(user, item.key, 'view')) return false
-    if (!enabledKeys || locked.has(item.key)) return true
-    return enabledKeys.includes(item.key)
-  })
-  const idle =
-    tone === 'dark'
-      ? 'text-mist-300 hover:bg-ink-800 hover:text-mist-100'
-      : 'border border-gold-300/20 bg-ink-900 text-mist-100'
-  const links = [
-    ...items.map((item) => ({
-      key: item.key,
-      label: t(item.labelKey as MessageKey),
-      href: item.href,
-      icon: icons[item.key],
-    })),
-    { key: 'profile', label: t('nav.profile'), href: '/profile', icon: UserRound },
-  ]
-  return (
-    <>
-      {links.map((item) => {
-        const Icon = item.icon
-        const active = pathname === item.href || (item.href !== '/profile' && pathname.startsWith(`${item.href}/`))
-        return (
-          <Link
-            key={item.key}
-            href={item.href}
-            className={`flex shrink-0 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold whitespace-nowrap ${
-              active ? 'bg-gradient-to-l from-[#8cc63f] to-[#00a99d] text-ink-950' : idle
-            }`}
-          >
-            <Icon size={18} />
-            {item.label}
-          </Link>
-        )
-      })}
-    </>
-  )
-}
+const SIDEBAR_SECTIONS: NavSection[] = [
+  {
+    id: 'executive-bi',
+    titleAr: 'القيادة والتحليلات',
+    titleEn: 'Executive & BI',
+    items: [
+      { key: 'dashboard', href: '/dashboard', labelAr: 'لوحة التحكم', labelEn: 'Executive Dashboard', icon: LayoutDashboard },
+      { key: 'reports', href: '/reports', labelAr: 'التقارير الشاملة', labelEn: 'Executive Reports', icon: BarChart3 },
+      { key: 'sales', href: '/sales', labelAr: 'المبيعات والقنوات', labelEn: 'Sales & Channels', icon: Receipt },
+      { key: 'erp-radar', href: '/erp/aggregator-radar', labelAr: 'رادار التوصيل', labelEn: 'Aggregator Radar', icon: Radar, live: true },
+    ],
+  },
+  {
+    id: 'restaurant-ops',
+    titleAr: 'التشغيل الميداني والمطبخ',
+    titleEn: 'Restaurant Operations',
+    items: [
+      { key: 'pos', href: '/pos', labelAr: 'نقطة البيع', labelEn: 'POS Terminal', icon: Monitor },
+      { key: 'kds', href: '/kds', labelAr: 'شاشة المطبخ KDS', labelEn: 'Kitchen Display (KDS)', icon: ChefHat },
+      { key: 'recipes', href: '/recipes', labelAr: 'الوصفات وتكلفة الغذاء', labelEn: 'Recipes & Food Cost', icon: UtensilsCrossed },
+      { key: 'food-safety', href: '/erp/food-safety', labelAr: 'سلامة الغذاء والبرادات', labelEn: 'Food Safety & HACCP', icon: ThermometerSnowflake, live: true },
+    ],
+  },
+  {
+    id: 'supply-chain',
+    titleAr: 'المخزون وسلسلة الإمداد',
+    titleEn: 'Supply Chain & Inventory',
+    items: [
+      { key: 'inventory', href: '/inventory', labelAr: 'المخزون', labelEn: 'Inventory', icon: Package },
+      { key: 'warehouses', href: '/warehouses', labelAr: 'المستودعات والفروع', labelEn: 'Warehouses & Branches', icon: Warehouse },
+      { key: 'purchases', href: '/purchases', labelAr: 'المشتريات', labelEn: 'Purchases & Vendors', icon: ShoppingCart },
+    ],
+  },
+  {
+    id: 'finance-hr-events',
+    titleAr: 'المالية، الموارد البشرية، والفعاليات',
+    titleEn: 'Finance, HR & Events',
+    items: [
+      { key: 'accounting', href: '/accounting', labelAr: 'المحاسبة والمالية', labelEn: 'Finance & Accounting', icon: Landmark },
+      { key: 'hr', href: '/hr', labelAr: 'الموارد البشرية والرواتب', labelEn: 'HR & Kuwait Labor 6/2010', icon: IdCard },
+      { key: 'events-projects', href: '/erp/events-projects', labelAr: 'المعارض والمخيمات والفعاليات', labelEn: 'Events, Camps & Projects', icon: Store },
+      { key: 'crm', href: '/crm', labelAr: 'علاقات العملاء والكاترينج', labelEn: 'CRM & Catering', icon: Contact },
+    ],
+  },
+  {
+    id: 'ai-governance',
+    titleAr: 'الذكاء الاصطناعي والحوكمة',
+    titleEn: 'AI & Governance',
+    items: [
+      { key: 'smart-dropzone', href: '/erp/smart-dropzone', labelAr: 'الفرز والأرشفة الذكية', labelEn: 'AI Smart Dropzone', icon: Sparkles, live: true },
+      { key: 'erp-intelligence', href: '/erp/intelligence', labelAr: 'غرفة القرار الذكي', labelEn: 'Decision Intelligence', icon: Brain },
+      { key: 'erp-governance', href: '/erp/governance', labelAr: 'الحوكمة والامتثال', labelEn: 'Governance & Compliance', icon: Scale },
+      { key: 'erp-archive', href: '/erp/archive', labelAr: 'أرشفة OCR', labelEn: 'OCR Smart Archive', icon: Archive },
+    ],
+  },
+  {
+    id: 'system-access',
+    titleAr: 'الإعدادات وإدارة النظام',
+    titleEn: 'System & Access Control',
+    items: [
+      { key: 'automations', href: '/automations', labelAr: 'الأتمتة', labelEn: 'Automations & Alerts', icon: Zap },
+      { key: 'users', href: '/users', labelAr: 'المستخدمون', labelEn: 'Users & Staff', icon: Users },
+      { key: 'roles', href: '/roles', labelAr: 'الأدوار والصلاحيات', labelEn: 'Roles & Permissions', icon: Shield },
+      { key: 'app-builder', href: '/app-builder', labelAr: 'مدير التطبيقات', labelEn: 'App Manager', icon: Blocks },
+    ],
+  },
+]
 
-export function Sidebar({ user, enabledKeys }: { user: AccessUser; enabledKeys: string[] | null }) {
+export function Sidebar({ user }: { user: AccessUser; enabledKeys?: string[] | null }) {
   const pathname = usePathname()
   const { t, companyName, locale } = useI18n()
-  return (
-    <>
-      <aside className="app-sidebar fixed inset-y-0 start-0 z-30 hidden w-64 shrink-0 flex-col border-e border-gold-300/10 bg-ink-950 text-mist-100 md:flex">
-        <div className="border-b border-gold-300/15 px-4 py-5">
-          {/* Language switch lives only in the top header (PanelHeaderBar) — avoid duplicates. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/venture-foods-logo-dark.svg" alt="Venture Foods" className="h-11 w-auto object-contain" />
-          <p className="mt-3 text-[11px] font-semibold leading-4 text-mist-400">{companyName}</p>
-          <p className="mt-1 text-[10px] text-[#8cc63f]">{t('panel.tagline')}</p>
-        </div>
-        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-          <NavLinks user={user} pathname={pathname} tone="dark" enabledKeys={enabledKeys} excludeKeys={['app-builder']} />
-          <a
-            href="/download"
-            className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold ${
-              pathname === '/download'
-                ? 'bg-gradient-to-l from-[#8cc63f] to-[#00a99d] text-ink-950'
-                : 'text-mist-300 hover:bg-ink-800'
-            }`}
-          >
-            <Download size={18} />
-            {t('nav.download')}
-          </a>
-          {can(user, 'reports', 'view') ? (
-            <a
-              href="/bi-analytics"
-              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold ${
-                pathname.startsWith('/bi-analytics')
-                  ? 'bg-gradient-to-l from-[#8cc63f] to-[#00a99d] text-ink-950'
-                  : 'text-mist-300 hover:bg-ink-800'
-              }`}
-            >
-              <LineChart size={18} />
-              {t('nav.bi')}
-            </a>
-          ) : null}
-          <ErpSuiteLinks pathname={pathname} />
+  const isAr = locale === 'ar'
 
-          {/* مدير التطبيقات (App Manager) في نهاية القائمة الجانبية تماماً أسفل منظومة ERP المتقدمة وقبل تسجيل الخروج */}
-          {can(user, 'app-builder', 'view') && (!enabledKeys || enabledKeys.includes('app-builder') || LOCKED_MODULES.includes('app-builder')) ? (
-            <div className="mt-4 border-t border-gold-300/15 pt-3">
-              <a
-                href="/app-builder"
-                className={`flex shrink-0 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold whitespace-nowrap ${
-                  pathname === '/app-builder' || pathname.startsWith('/app-builder/')
-                    ? 'bg-gradient-to-l from-[#8cc63f] to-[#00a99d] text-ink-950'
-                    : 'text-mist-400 hover:bg-ink-800 hover:text-mist-100'
-                }`}
-              >
-                <Blocks size={18} />
-                <span>{t('nav.app-builder')}</span>
-              </a>
-            </div>
-          ) : null}
-        </nav>
-        <div className="border-t border-gold-300/15 p-4">
-          <p className="font-semibold text-mist-100">{displayTeamName(user.name, locale)}</p>
-          <p className="text-xs text-mist-400">{displayRoleName(user.role.name, locale)}</p>
-          <p className="text-xs text-mist-500" dir="ltr">
-            {user.email}
-          </p>
-          <form action={logout} className="mt-3">
-            <button
-              type="submit"
-              className="flex w-full items-center justify-center gap-2 rounded-lg border border-white/10 bg-ink-900 px-3 py-2 text-sm font-semibold text-mist-100 hover:border-gold-300/40"
-            >
-              <LogOut size={16} />
-              {t('nav.logout')}
-            </button>
-          </form>
-        </div>
-      </aside>
-      <div className="app-mobile-nav sticky top-0 z-20 border-b border-gold-300/15 bg-ink-950 md:hidden">
-        <div className="flex items-center justify-between px-4 py-3">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/venture-foods-logo-dark.svg" alt="Venture Foods" className="h-9 w-auto" />
-          <form action={logout}>
-            <button type="submit" className="text-sm font-semibold text-[#8cc63f]">
-              {t('nav.exit')}
-            </button>
-          </form>
-        </div>
-        <nav className="flex gap-2 overflow-x-auto px-4 pb-3">
-          <NavLinks user={user} pathname={pathname} tone="light" enabledKeys={enabledKeys} />
-        </nav>
+  return (
+    <aside className="app-sidebar fixed inset-y-0 start-0 z-30 hidden w-64 shrink-0 flex-col border-e border-slate-800/80 bg-[#0a0d14] text-mist-100 md:flex">
+      {/* Brand Header */}
+      <div className="border-b border-slate-800/80 px-4 py-4 bg-[#07090e]">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/venture-foods-logo-dark.svg" alt="Venture Foods" className="h-10 w-auto object-contain" />
+        <p className="mt-2.5 text-[11px] font-bold leading-4 text-slate-300 truncate">{companyName}</p>
+        <p className="mt-0.5 text-[10px] font-semibold text-[#8cc63f]">{t('panel.tagline')}</p>
       </div>
-    </>
+
+      {/* Navigation Sections */}
+      <nav className="flex-1 space-y-4 overflow-y-auto px-2.5 py-3">
+        {SIDEBAR_SECTIONS.map((section, idx) => {
+          const visibleItems = section.items.filter((item) => {
+            if (user.role.isAdmin) return true
+            // If non-admin user, check permission
+            return can(user, item.key, 'view')
+          })
+
+          if (visibleItems.length === 0) return null
+
+          return (
+            <div key={section.id} className={idx > 0 ? 'border-t border-slate-800/60 pt-3' : ''}>
+              <div className="px-3 pb-1.5 flex items-center justify-between">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                  {isAr ? section.titleAr : section.titleEn}
+                </span>
+              </div>
+
+              <div className="space-y-0.5">
+                {visibleItems.map((item) => {
+                  const Icon = item.icon
+                  const active =
+                    pathname === item.href ||
+                    (item.href !== '/dashboard' && pathname.startsWith(`${item.href}/`))
+
+                  return (
+                    <Link
+                      key={item.key}
+                      href={item.href}
+                      className={`group flex shrink-0 items-center justify-between gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all ${
+                        active
+                          ? 'bg-gradient-to-l from-[#8cc63f] to-[#00a99d] text-ink-950 shadow-sm font-bold'
+                          : 'text-slate-300 hover:bg-slate-900/90 hover:text-white'
+                      }`}
+                    >
+                      <span className="inline-flex min-w-0 items-center gap-2.5">
+                        <Icon
+                          size={17}
+                          className={`shrink-0 transition-colors ${
+                            active ? 'text-ink-950' : 'text-slate-400 group-hover:text-emerald-400'
+                          }`}
+                        />
+                        <span className="truncate">{isAr ? item.labelAr : item.labelEn}</span>
+                      </span>
+
+                      {item.live ? (
+                        <span
+                          className={`shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-black tracking-wide ${
+                            active
+                              ? 'bg-ink-950/20 text-ink-950'
+                              : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                          }`}
+                        >
+                          LIVE
+                        </span>
+                      ) : null}
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })}
+      </nav>
+
+      {/* User Footer */}
+      <div className="border-t border-slate-800/80 bg-[#07090e] p-3">
+        <div className="flex items-center gap-2.5 px-1 py-1">
+          <div className="h-8 w-8 rounded-full bg-gradient-to-br from-[#8cc63f] to-[#00a99d] text-ink-950 flex items-center justify-center font-bold text-xs shrink-0 shadow-inner">
+            {user.name.slice(0, 1)}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="font-bold text-xs text-white truncate">{displayTeamName(user.name, locale)}</p>
+            <p className="text-[10px] text-slate-400 truncate">{displayRoleName(user.role.name, locale)}</p>
+          </div>
+        </div>
+        <form action={logout} className="mt-2.5">
+          <button
+            type="submit"
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-800 bg-slate-900/90 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:border-slate-700 hover:bg-slate-800 hover:text-white transition-all shadow-sm"
+          >
+            <LogOut size={14} />
+            <span>{t('nav.logout')}</span>
+          </button>
+        </form>
+      </div>
+    </aside>
   )
 }
