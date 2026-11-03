@@ -26,6 +26,20 @@ function isIosDevice(): boolean {
   )
 }
 
+function isDismissed(): boolean {
+  if (typeof window === 'undefined') return true
+  try {
+    if (window.localStorage.getItem(DISMISS_KEY) === 'true') return true
+  } catch {}
+  try {
+    if (window.sessionStorage.getItem(DISMISS_KEY) === 'true') return true
+  } catch {}
+  try {
+    if (typeof document !== 'undefined' && document.cookie.includes(`${DISMISS_KEY}=true`)) return true
+  } catch {}
+  return false
+}
+
 export function InstallAppBanner() {
   const { locale } = useI18n()
   const en = locale === 'en'
@@ -34,9 +48,24 @@ export function InstallAppBanner() {
   const [tip, setTip] = useState<string | null>(null)
   const [ios, setIos] = useState(false)
 
+  function persistDismiss() {
+    try {
+      window.localStorage.setItem(DISMISS_KEY, 'true')
+    } catch {}
+    try {
+      window.sessionStorage.setItem(DISMISS_KEY, 'true')
+    } catch {}
+    try {
+      const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:'
+      document.cookie = `${DISMISS_KEY}=true; path=/; max-age=31536000; SameSite=Lax${isHttps ? '; Secure' : ''}`
+    } catch {}
+    setHidden(true)
+    setDeferred(null)
+  }
+
   useEffect(() => {
     if (typeof window === 'undefined') return
-    if (window.localStorage.getItem(DISMISS_KEY) === 'true') {
+    if (isDismissed()) {
       setHidden(true)
       return
     }
@@ -54,9 +83,7 @@ export function InstallAppBanner() {
     window.addEventListener('beforeinstallprompt', onPrompt)
 
     const onInstalled = () => {
-      window.localStorage.setItem(DISMISS_KEY, 'true')
-      setHidden(true)
-      setDeferred(null)
+      persistDismiss()
     }
     window.addEventListener('appinstalled', onInstalled)
 
@@ -85,12 +112,6 @@ export function InstallAppBanner() {
         dismiss: 'إغلاق ✕',
         tip: 'استخدم أيقونة التثبيت في شريط عنوان Chrome (أيقونة الجهاز بجانب النجمة)، ثم سيُخفى هذا الشريط.',
       }
-
-  function persistDismiss() {
-    window.localStorage.setItem(DISMISS_KEY, 'true')
-    setHidden(true)
-    setDeferred(null)
-  }
 
   async function onInstall() {
     if (deferred) {
@@ -130,7 +151,7 @@ export function InstallAppBanner() {
           ) : null}
           <button
             type="button"
-            className="rounded-lg px-3 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100"
+            className="rounded-lg px-3 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100 transition-colors"
             onClick={persistDismiss}
           >
             {copy.dismiss}

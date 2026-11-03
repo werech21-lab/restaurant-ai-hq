@@ -57,11 +57,11 @@ const icons: Record<ModuleKey, typeof LayoutDashboard> = {
   hr: IdCard,
   accounting: Landmark,
   automations: Zap,
-  'app-builder': Blocks,
   reports: BarChart3,
   audit: ClipboardList,
   saas: Building2,
   payments: CreditCard,
+  'app-builder': Blocks,
 }
 
 const ERP_SUITE = [
@@ -122,15 +122,18 @@ function NavLinks({
   pathname,
   tone,
   enabledKeys,
+  excludeKeys = [],
 }: {
   user: AccessUser
   pathname: string
   tone: 'dark' | 'light'
   enabledKeys: string[] | null
+  excludeKeys?: string[]
 }) {
   const { t } = useI18n()
   const locked = new Set<string>(LOCKED_MODULES)
   const items = MODULES.filter((item) => {
+    if (excludeKeys.includes(item.key)) return false
     if (!can(user, item.key, 'view')) return false
     if (!enabledKeys || locked.has(item.key)) return true
     return enabledKeys.includes(item.key)
@@ -184,7 +187,7 @@ export function Sidebar({ user, enabledKeys }: { user: AccessUser; enabledKeys: 
           <p className="mt-1 text-[10px] text-[#8cc63f]">{t('panel.tagline')}</p>
         </div>
         <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-          <NavLinks user={user} pathname={pathname} tone="dark" enabledKeys={enabledKeys} />
+          <NavLinks user={user} pathname={pathname} tone="dark" enabledKeys={enabledKeys} excludeKeys={['app-builder']} />
           <a
             href="/download"
             className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold ${
@@ -210,6 +213,23 @@ export function Sidebar({ user, enabledKeys }: { user: AccessUser; enabledKeys: 
             </a>
           ) : null}
           <ErpSuiteLinks pathname={pathname} />
+
+          {/* مدير التطبيقات (App Manager) في نهاية القائمة الجانبية تماماً أسفل منظومة ERP المتقدمة وقبل تسجيل الخروج */}
+          {can(user, 'app-builder', 'view') && (!enabledKeys || enabledKeys.includes('app-builder') || LOCKED_MODULES.includes('app-builder')) ? (
+            <div className="mt-4 border-t border-gold-300/15 pt-3">
+              <a
+                href="/app-builder"
+                className={`flex shrink-0 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold whitespace-nowrap ${
+                  pathname === '/app-builder' || pathname.startsWith('/app-builder/')
+                    ? 'bg-gradient-to-l from-[#8cc63f] to-[#00a99d] text-ink-950'
+                    : 'text-mist-400 hover:bg-ink-800 hover:text-mist-100'
+                }`}
+              >
+                <Blocks size={18} />
+                <span>{t('nav.app-builder')}</span>
+              </a>
+            </div>
+          ) : null}
         </nav>
         <div className="border-t border-gold-300/15 p-4">
           <p className="font-semibold text-mist-100">{displayTeamName(user.name, locale)}</p>
