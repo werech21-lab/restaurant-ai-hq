@@ -122,7 +122,7 @@ export default function TalabatGeoZoneRadar() {
               Kuwait Geo-Spatial Delivery Radar · Talabat Go (TGO) Polygon Sentinel
             </div>
             <h1 className="mt-3 text-2xl font-black text-white sm:text-3xl lg:text-4xl">
-              رادار فروع ومناطق توصيل طلبات الجنائي
+              🗺️ رادار مناطق التوصيل وحالة الأفرع في توصيل طلبات (Talabat Go Areas & Busy Time Radar)
             </h1>
             <p className="mt-2 max-w-3xl text-sm leading-relaxed text-amber-200/80 sm:text-base">
               نظام استشعار ومراقبة لحظية لحالة الـ 10 فروع لشركة <span className="font-bold text-white">فنتشر فودز</span> والبراندات الـ 6 عبر <span className="font-bold text-amber-400">76 منطقة سكنية في الكويت</span> على تطبيق طلبات (<span className="font-bold text-white">Talabat Go</span>). كشف آلي وفوري للمناطق المشغولة، تقليص مضلعات التوصيل، وحساب المبيعات الضائعة بالدينار الكويتي.
@@ -420,10 +420,10 @@ export default function TalabatGeoZoneRadar() {
                               }`}
                             >
                               {isOnline
-                                ? '🟢 ظاهر ومتاح'
+                                ? '🟢 متاح وظاهر بالمنطقة'
                                 : isBusy
-                                ? '🟡 مشغول في المنطقة'
-                                : '🔴 المطعم مخفي'}
+                                ? '🟡 الفرع مشغول (Busy) في هذه المنطقة'
+                                : '🔴 المنطقة مغلقة / المطعم مخفي وغير ظاهر للعميل (تقليص نطاق طلبات Polygon Cut)'}
                             </span>
                           </div>
 
@@ -438,9 +438,9 @@ export default function TalabatGeoZoneRadar() {
                               <div className="flex items-center justify-between font-bold text-amber-300">
                                 <span>⏰ التوقيت والمدة:</span>
                                 <span>
-                                  {zone.isOngoing
-                                    ? `منذ ${zone.startTime} (مستمر - ${zone.durationMinutes} دقيقة)`
-                                    : `من ${zone.startTime} إلى ${zone.endTime} (${zone.durationMinutes} دقيقة)`}
+                                  {isBusy
+                                    ? `من الساعة ${zone.startTime} إلى ${zone.endTime || 'الآن'} — مدة الانشغال: ${zone.durationMinutes} دقيقة`
+                                    : `وقت الإغلاق: من ${zone.startTime} إلى ${zone.endTime || 'الآن'} — مدة الانقطاع: ${zone.durationMinutes} دقيقة`}
                                 </span>
                               </div>
 
@@ -456,7 +456,7 @@ export default function TalabatGeoZoneRadar() {
                           ) : (
                             <div className="mt-3 flex items-center justify-between border-t border-white/5 pt-2.5 text-[11px] text-emerald-400/80">
                               <span>توصيل طلبات نشط: 25-35 دقيقة</span>
-                              <span>بدون حظر</span>
+                              <span>🟢 متاح وظاهر بالمنطقة</span>
                             </div>
                           )}
                         </div>

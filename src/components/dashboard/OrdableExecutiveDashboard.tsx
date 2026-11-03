@@ -195,7 +195,7 @@ export function OrdableExecutiveDashboard({
   const brandsLeaderboard = [
     { nameAr: 'تشاينا جاردن (China Garden)', nameEn: 'China Garden', kwd: 141662.650, pct: 84.8, color: '#ef4444' },
     { nameAr: "فرانكس ستيك وبرجر (Frank's)", nameEn: "Frank's Steak", kwd: 16222.260, pct: 9.7, color: '#f59e0b' },
-    { nameAr: 'شاورما طحينة (Tahina Shack)', nameEn: 'Tahina Shack', kwd: 4424.850, pct: 2.6, color: '#10b981' },
+    { nameAr: 'شاورما طحينة (Tahina)', nameEn: 'Tahina', kwd: 4424.850, pct: 2.6, color: '#10b981' },
     { nameAr: 'فارم براون الصحي (Farm Brown)', nameEn: 'Farm Brown', kwd: 2661.900, pct: 1.6, color: '#84cc16' },
     { nameAr: 'ذا نودل بار (The Noodle Bar)', nameEn: 'The Noodle Bar', kwd: 1676.950, pct: 1.0, color: '#06b6d4' },
     { nameAr: 'كرك كافتيريا (Karak Cafeteria)', nameEn: 'Karak Cafeteria', kwd: 443.550, pct: 0.3, color: '#8b5cf6' },
@@ -311,7 +311,7 @@ export function OrdableExecutiveDashboard({
               <option value="ALL">{isAr ? 'كل البراندات (6 براندات)' : 'All 6 Brands'}</option>
               <option value="CHINA">تشاينا جاردن (China Garden - 84.8%)</option>
               <option value="FRANKS">فرانكس ستيك وبرجر (Frank&apos;s - 9.7%)</option>
-              <option value="TAHINA">شاورما طحينة (Tahina Shack - 2.6%)</option>
+              <option value="TAHINA">شاورما طحينة (Tahina - 2.6%)</option>
               <option value="FARMBROWN">فارم براون الصحي (Farm Brown - 1.6%)</option>
               <option value="NOODLE">ذا نودل بار (The Noodle Bar - 1.0%)</option>
               <option value="KARAK">كرك كافتيريا (Karak Cafeteria - 0.3%)</option>

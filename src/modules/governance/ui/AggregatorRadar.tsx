@@ -276,7 +276,7 @@ function Workspace() {
   const en = locale === 'en'
   const scope = useOptionalScope()
   const canManage = useCan(permissions.govAggregatorManage)
-  const [radarViewTab, setRadarViewTab] = useState<'talabat_geo_radar' | 'commission_audit'>('talabat_geo_radar')
+  // Unified Aggregator Radar & Talabat Sentinel view
   const [phase, setPhase] = useState<'loading' | 'ready' | 'error'>('loading')
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -560,40 +560,7 @@ function Workspace() {
         </div>
       </header>
 
-      {/* Primary Radar View Switcher */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-white/10 pb-4">
-        <button
-          type="button"
-          onClick={() => setRadarViewTab('talabat_geo_radar')}
-          className={`flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-black transition ${
-            radarViewTab === 'talabat_geo_radar'
-              ? 'border border-amber-500/50 bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-amber-500/10 text-amber-300 shadow-lg shadow-amber-950/40'
-              : 'border border-white/10 bg-white/5 text-mist-400 hover:text-white'
-          }`}
-        >
-          <span>🛰️</span>
-          <span>رادار فروع ومناطق توصيل طلبات (Talabat Go Zone, Polygon & Busy Time Radar)</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setRadarViewTab('commission_audit')}
-          className={`flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-black transition ${
-            radarViewTab === 'commission_audit'
-              ? 'border border-emerald-500/50 bg-gradient-to-r from-emerald-500/20 to-teal-500/10 text-emerald-300 shadow-lg shadow-emerald-950/40'
-              : 'border border-white/10 bg-white/5 text-mist-400 hover:text-white'
-          }`}
-        >
-          <span>📊</span>
-          <span>مصفوفة تدقيق عمولات المنصات وحالة التابلت (Platform Commission & Tablet Matrix)</span>
-        </button>
-      </div>
-
-      {radarViewTab === 'talabat_geo_radar' ? (
-        <TalabatGeoZoneRadar />
-      ) : (
-        <>
-          <p
+                <p
             className="rounded-xl border border-emerald-400/40 bg-emerald-950/40 px-3 py-2 text-sm font-semibold text-emerald-100"
             role="status"
             dir="ltr"
@@ -772,6 +739,11 @@ function Workspace() {
           </article>
         </section>
       ) : null}
+
+      {/* 🗺️ رادار مناطق التوصيل وحالة الأفرع في توصيل طلبات (Talabat Go Areas & Busy Time Radar) */}
+      <section className="mb-8">
+        <TalabatGeoZoneRadar />
+      </section>
 
       <section className={panelClass}>
         <h2 className="mb-3 font-semibold text-white">
@@ -977,8 +949,6 @@ function Workspace() {
           </div>
         ) : null}
       </section>
-        </>
-      )}
     </div>
   )
 }

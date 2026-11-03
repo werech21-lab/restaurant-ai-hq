@@ -5,7 +5,7 @@
 import { VENTURE_BRANCHES, VENTURE_BRANDS, type VentureBrandId } from '@/lib/venture-hierarchy'
 import { fiveMinuteBucket } from '@/modules/governance/domain/aggregator'
 
-export const FORENSIC_PLATFORMS = ['Talabat', 'Deliveroo', 'Jahez', 'Cari', 'Keeta', 'Snoonu'] as const
+export const FORENSIC_PLATFORMS = ['Talabat', 'Deliveroo', 'Jahez', 'Keeta'] as const
 export type ForensicPlatform = (typeof FORENSIC_PLATFORMS)[number]
 
 export const TALABAT_MP_ACCOUNT = '101513' // Talabat MP — 10%
