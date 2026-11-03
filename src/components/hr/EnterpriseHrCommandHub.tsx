@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { generatePayrollAction, payPayrollAction } from '@/app/actions/hr'
 import { HrDigitalDossier } from '@/components/hr-digital-dossier'
@@ -22,6 +22,13 @@ import {
 import { HrExecutiveReportsHub, type HrEmployeeSummary } from './HrExecutiveReportsHub'
 import { HrOfficialLettersHub } from './HrOfficialLettersHub'
 import { NewEmployeeWizardModal } from './NewEmployeeWizardModal'
+import { SmartPhotoDocAutoMatcherModal } from './SmartPhotoDocAutoMatcherModal'
+import {
+  loadCustomAvatars,
+  getEmployeeAvatarUrl,
+  saveCustomAvatar,
+  compressImageFile,
+} from './hr-avatar-utils'
 import {
   VENTURE_EMPLOYEES,
   VENTURE_DEPARTMENTS,
@@ -176,6 +183,41 @@ export function EnterpriseHrCommandHub({
   const [searchQ, setSearchQ] = useState('')
   const [brandFilter, setBrandFilter] = useState('ALL')
   const [statusFilter, setStatusFilter] = useState('ALL')
+  const [autoMatcherOpen, setAutoMatcherOpen] = useState(false)
+  const [customAvatars, setCustomAvatars] = useState<Record<string, string>>({})
+
+  // Real-time synchronization of custom avatars from localStorage and window events
+  useEffect(() => {
+    setCustomAvatars(loadCustomAvatars())
+
+    const handleAvatarUpdated = (e: any) => {
+      if (e.detail?.code && e.detail?.dataUrl) {
+        setCustomAvatars((prev) => ({ ...prev, [e.detail.code]: e.detail.dataUrl }))
+      }
+    }
+    const handleBatchUpdated = (e: any) => {
+      if (e.detail) {
+        setCustomAvatars((prev) => ({ ...prev, ...e.detail }))
+      }
+    }
+
+    window.addEventListener('venture-avatar-updated', handleAvatarUpdated)
+    window.addEventListener('venture-avatar-batch-updated', handleBatchUpdated)
+
+    return () => {
+      window.removeEventListener('venture-avatar-updated', handleAvatarUpdated)
+      window.removeEventListener('venture-avatar-batch-updated', handleBatchUpdated)
+    }
+  }, [])
+
+  const handleSingleEmployeePhotoUpload = async (empCode: string, file: File) => {
+    try {
+      const compressed = await compressImageFile(file, 320, 0.85)
+      saveCustomAvatar(empCode, compressed)
+    } catch (err) {
+      console.error('Failed to upload single avatar:', err)
+    }
+  }
 
   // State for Tab 2 (Overseas Recruitment)
   const [candidates, setCandidates] = useState<OverseasCandidate[]>(INITIAL_OVERSEAS_CANDIDATES)
@@ -688,6 +730,15 @@ export function EnterpriseHrCommandHub({
                       : `عرض ${filteredVentureEmployees.length} من أصل ${VENTURE_EMPLOYEES.length} موظفاً`}
                   </span>
 
+                  <button
+                    type="button"
+                    onClick={() => setAutoMatcherOpen(true)}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-sky-400/40 bg-sky-600/30 px-3.5 py-2 text-xs font-black text-sky-200 hover:bg-sky-500 hover:text-white transition-all shadow-md shadow-sky-950/40"
+                  >
+                    <span>📸</span>
+                    <span>{en ? 'Sync Photos & Docs' : 'استيراد صور وأوراق الموظفين'}</span>
+                  </button>
+
                   {canCreate ? (
                     <button
                       type="button"
@@ -713,13 +764,48 @@ export function EnterpriseHrCommandHub({
                         {/* Card Top: Avatar, Status Dot, Flag, Barcode */}
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-center gap-2.5">
-                            <div className="relative">
-                              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500/20 via-sky-500/20 to-emerald-500/20 border border-white/15 font-black text-white text-sm shadow-inner">
-                                {emp.nameEn
-                                  .split(' ')
-                                  .map((n) => n[0])
-                                  .slice(0, 2)
-                                  .join('')}
+                            <div className="relative group/avatar">
+                              <div className="relative flex h-12 w-12 overflow-hidden rounded-xl border border-white/20 bg-[#162030] shadow-inner">
+                                <img
+                                  src={getEmployeeAvatarUrl(emp, customAvatars)}
+                                  alt={emp.nameEn}
+                                  className="h-full w-full object-cover transition-transform duration-200 group-hover/avatar:scale-105"
+                                  loading="lazy"
+                                  onError={(e) => {
+                                    const target = e.currentTarget
+                                    target.style.display = 'none'
+                                    if (target.nextElementSibling) {
+                                      (target.nextElementSibling as HTMLElement).style.display = 'flex'
+                                    }
+                                  }}
+                                />
+                                <div className="hidden h-full w-full items-center justify-center bg-gradient-to-br from-amber-500/20 via-sky-500/20 to-emerald-500/20 font-black text-white text-xs">
+                                  {emp.nameEn
+                                    .split(' ')
+                                    .map((n) => n[0])
+                                    .slice(0, 2)
+                                    .join('')}
+                                </div>
+
+                                {/* 1-Click Upload Camera Overlay on Hover */}
+                                <label
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover/avatar:opacity-100 transition-opacity cursor-pointer text-xs"
+                                  title={en ? 'Upload photo for this employee' : 'رفع صورة لهذا الموظف'}
+                                >
+                                  <span>📷</span>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                      if (e.target.files && e.target.files[0]) {
+                                        handleSingleEmployeePhotoUpload(emp.code, e.target.files[0])
+                                        e.target.value = ''
+                                      }
+                                    }}
+                                  />
+                                </label>
                               </div>
                               <span
                                 className={`absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full border-2 border-[#121824] ${
@@ -849,12 +935,34 @@ export function EnterpriseHrCommandHub({
                             #{emp.code}
                           </td>
                           <td className="px-3 py-2.5">
-                            <div className="font-bold text-white flex items-center gap-1.5">
-                              <span>{isArabic ? emp.nameAr : emp.nameEn}</span>
-                              <span className="text-xs">{emp.flag}</span>
-                            </div>
-                            <div className="text-[10px] text-mist-400 font-medium" dir="ltr">
-                              {emp.nameEn}
+                            <div className="flex items-center gap-2.5">
+                              <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-lg border border-white/15 bg-[#162030]">
+                                <img
+                                  src={getEmployeeAvatarUrl(emp, customAvatars)}
+                                  alt={emp.nameEn}
+                                  className="h-full w-full object-cover"
+                                  loading="lazy"
+                                  onError={(e) => {
+                                    const target = e.currentTarget
+                                    target.style.display = 'none'
+                                    if (target.nextElementSibling) {
+                                      (target.nextElementSibling as HTMLElement).style.display = 'flex'
+                                    }
+                                  }}
+                                />
+                                <div className="hidden h-full w-full items-center justify-center bg-white/5 text-[10px] font-bold text-white">
+                                  {emp.nameEn.slice(0, 2)}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="font-bold text-white flex items-center gap-1.5">
+                                  <span>{isArabic ? emp.nameAr : emp.nameEn}</span>
+                                  <span className="text-xs">{emp.flag}</span>
+                                </div>
+                                <div className="text-[10px] text-mist-400 font-medium" dir="ltr">
+                                  {emp.nameEn}
+                                </div>
+                              </div>
                             </div>
                           </td>
                           <td className="px-3 py-2.5 text-mist-200">
@@ -2000,6 +2108,12 @@ export function EnterpriseHrCommandHub({
         open={wizardOpen}
         onClose={() => setWizardOpen(false)}
         en={en}
+      />
+
+      {/* Smart Auto-Matcher Modal for Bulk Employee Photos & Documents */}
+      <SmartPhotoDocAutoMatcherModal
+        isOpen={autoMatcherOpen}
+        onClose={() => setAutoMatcherOpen(false)}
       />
     </div>
   )

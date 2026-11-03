@@ -1,7 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import type { VentureEmployee } from './venture-employees-directory'
+import {
+  getEmployeeAvatarUrl,
+  saveCustomAvatar,
+  compressImageFile,
+  loadCustomAvatars,
+  loadCustomDocs,
+  saveCustomDocs,
+} from './hr-avatar-utils'
 
 type Props = {
   employee: VentureEmployee | null
@@ -19,10 +27,92 @@ export function EmployeeProfileModal360({ employee, isOpen, onClose, locale }: P
   const [notes, setNotes] = useState<Array<{ date: string; actionAr: string; actionEn: string; user: string }>>([])
   const [newNoteInput, setNewNoteInput] = useState('')
 
+  const [customAvatars, setCustomAvatars] = useState<Record<string, string>>({})
+  const [customDocs, setCustomDocs] = useState<Record<string, any[]>>({})
+  const photoFileInputRef = useRef<HTMLInputElement>(null)
+  const docFileInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    setCustomAvatars(loadCustomAvatars())
+    setCustomDocs(loadCustomDocs())
+
+    const handleAvatarUpdated = (e: any) => {
+      if (e.detail?.code && e.detail?.dataUrl) {
+        setCustomAvatars((prev) => ({ ...prev, [e.detail.code]: e.detail.dataUrl }))
+      }
+    }
+    const handleBatchUpdated = (e: any) => {
+      if (e.detail) {
+        setCustomAvatars((prev) => ({ ...prev, ...e.detail }))
+      }
+    }
+    const handleDocsUpdated = (e: any) => {
+      if (e.detail?.code && e.detail?.newDoc) {
+        setCustomDocs((prev) => ({
+          ...prev,
+          [e.detail.code]: [e.detail.newDoc, ...(prev[e.detail.code] || [])],
+        }))
+      }
+    }
+
+    window.addEventListener('venture-avatar-updated', handleAvatarUpdated)
+    window.addEventListener('venture-avatar-batch-updated', handleBatchUpdated)
+    window.addEventListener('venture-docs-updated', handleDocsUpdated)
+
+    return () => {
+      window.removeEventListener('venture-avatar-updated', handleAvatarUpdated)
+      window.removeEventListener('venture-avatar-batch-updated', handleBatchUpdated)
+      window.removeEventListener('venture-docs-updated', handleDocsUpdated)
+    }
+  }, [])
+
   if (!isOpen || !employee) return null
 
   const en = locale === 'en'
   const isArabic = !en
+
+  const handleProfilePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || !e.target.files[0] || !employee) return
+    try {
+      const file = e.target.files[0]
+      const compressed = await compressImageFile(file, 320, 0.85)
+      saveCustomAvatar(employee.code, compressed)
+      setPrintAlert(
+        en ? '📸 Employee profile photo updated successfully.' : '📸 تم تحديث الصورة الشخصية للموظف بنجاح.'
+      )
+      setTimeout(() => setPrintAlert(null), 3500)
+    } catch (err) {
+      console.error(err)
+    }
+    e.target.value = ''
+  }
+
+  const handleDirectDocUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || !e.target.files[0] || !employee) return
+    const file = e.target.files[0]
+    const reader = new FileReader()
+    reader.onload = () => {
+      const dataUrl = reader.result as string
+      const newDoc = {
+        id: `custom-doc-${Date.now()}`,
+        nameAr: file.name,
+        nameEn: file.name,
+        fileName: file.name,
+        size: `${(file.size / 1024).toFixed(1)} KB`,
+        uploadDate: new Date().toISOString().slice(0, 10),
+        statusAr: 'مستند مخصص مؤرشف',
+        statusEn: 'Custom Archived Document',
+        dataUrl,
+      }
+      saveCustomDocs(employee.code, newDoc)
+      setPrintAlert(
+        en ? '📁 Document uploaded and archived in dossier.' : '📁 تم رفع وأرشفة المستند بنجاح في ملف الموظف.'
+      )
+      setTimeout(() => setPrintAlert(null), 3500)
+    }
+    reader.readAsDataURL(file)
+    e.target.value = ''
+  }
 
   const copyIban = () => {
     navigator.clipboard?.writeText(employee.iban)
@@ -141,10 +231,16 @@ export function EmployeeProfileModal360({ employee, isOpen, onClose, locale }: P
             >
               <div className="flex items-center gap-1 text-sm">
                 <span>📄</span>
-                <span className="font-black text-white text-base">{employee.documents.length}</span>
+                <span className="font-black text-white text-base">
+                  {employee.documents.length + (customDocs[employee.code]?.length || 0)}
+                </span>
               </div>
               <span className="mt-1 text-[11px] font-bold">{en ? 'Documents' : 'المستندات'}</span>
-              <span className="text-[9px] text-mist-400">{en ? '6 Official Files' : '6 ملفات معتمدة'}</span>
+              <span className="text-[9px] text-mist-400">
+                {en
+                  ? `${employee.documents.length + (customDocs[employee.code]?.length || 0)} Files`
+                  : `${employee.documents.length + (customDocs[employee.code]?.length || 0)} ملفات معتمدة`}
+              </span>
             </button>
 
             {/* 2. Leave Balance */}
@@ -239,14 +335,46 @@ export function EmployeeProfileModal360({ employee, isOpen, onClose, locale }: P
           {/* 3. HEADER IDENTITY BLOCK */}
           <div className="rounded-3xl border border-white/10 bg-[#121824] p-5 shadow-inner">
             <div className="flex flex-col md:flex-row items-start md:items-center gap-5">
-              {/* Avatar Photo */}
-              <div className="relative">
-                <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500/20 via-sky-500/20 to-emerald-500/20 border-2 border-white/20 text-3xl font-black text-white shadow-xl">
-                  {employee.nameEn
-                    .split(' ')
-                    .map((n) => n[0])
-                    .slice(0, 2)
-                    .join('')}
+              {/* Avatar Photo with Hover 1-Click Upload */}
+              <div className="relative group/photo">
+                <input
+                  ref={photoFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleProfilePhotoChange}
+                />
+                <div className="relative flex h-24 w-24 overflow-hidden items-center justify-center rounded-2xl border-2 border-white/20 bg-[#162030] text-3xl font-black text-white shadow-xl">
+                  <img
+                    src={getEmployeeAvatarUrl(employee, customAvatars)}
+                    alt={employee.nameEn}
+                    className="h-full w-full object-cover transition-transform duration-200 group-hover/photo:scale-105"
+                    onError={(e) => {
+                      const target = e.currentTarget
+                      target.style.display = 'none'
+                      if (target.nextElementSibling) {
+                        (target.nextElementSibling as HTMLElement).style.display = 'flex'
+                      }
+                    }}
+                  />
+                  <div className="hidden h-full w-full items-center justify-center bg-gradient-to-br from-amber-500/20 via-sky-500/20 to-emerald-500/20 text-3xl font-black text-white">
+                    {employee.nameEn
+                      .split(' ')
+                      .map((n) => n[0])
+                      .slice(0, 2)
+                      .join('')}
+                  </div>
+
+                  {/* 1-Click Upload Overlay Button on Hover */}
+                  <button
+                    type="button"
+                    onClick={() => photoFileInputRef.current?.click()}
+                    className="absolute inset-0 flex flex-col items-center justify-center bg-black/65 opacity-0 group-hover/photo:opacity-100 transition-opacity cursor-pointer text-xs font-bold text-white backdrop-blur-[2px]"
+                    title={en ? 'Click to change photo' : 'انقر لتغيير الصورة الشخصية'}
+                  >
+                    <span className="text-2xl">📷</span>
+                    <span className="text-[10px] mt-0.5 font-bold">{en ? 'Change' : 'تغيير'}</span>
+                  </button>
                 </div>
                 <span
                   className={`absolute -bottom-1.5 -right-1.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-[#121824] text-xs ${
@@ -598,13 +726,26 @@ export function EmployeeProfileModal360({ employee, isOpen, onClose, locale }: P
             </div>
           ) : null}
 
-          {/* 7. TAB 3: DOCUMENTS VAULT (6 OFFICIAL FILES) */}
+          {/* 7. TAB 3: DOCUMENTS VAULT (6 OFFICIAL FILES + CUSTOM UPLOADS) */}
           {activeTab === 'docs' ? (
             <div className="space-y-4 animate-in fade-in duration-150">
+              <input
+                ref={docFileInputRef}
+                type="file"
+                accept="image/*,.pdf,.doc,.docx"
+                className="hidden"
+                onChange={handleDirectDocUpload}
+              />
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-black text-white">
-                    {en ? '📂 Archived Official Documents & Digital Dossier (6 Files)' : '📂 المستندات الرسمية المؤرشفة والخزانة الرقمية للموظف (6 ملفات)'}
+                    {en
+                      ? `📂 Archived Official Documents & Digital Dossier (${
+                          employee.documents.length + (customDocs[employee.code]?.length || 0)
+                        } Files)`
+                      : `📂 المستندات الرسمية المؤرشفة والخزانة الرقمية للموظف (${
+                          employee.documents.length + (customDocs[employee.code]?.length || 0)
+                        } ملفات)`}
                   </h3>
                   <p className="text-xs text-mist-400 mt-0.5">
                     {en
@@ -614,14 +755,68 @@ export function EmployeeProfileModal360({ employee, isOpen, onClose, locale }: P
                 </div>
                 <button
                   type="button"
-                  onClick={() => alert(en ? 'Document upload wizard is ready.' : 'نافذة رفع مستند جديد جاهزة.')}
-                  className="rounded-xl bg-amber-500/20 border border-amber-400/40 px-3 py-1.5 text-xs font-bold text-amber-200 hover:bg-amber-500/30"
+                  onClick={() => docFileInputRef.current?.click()}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500/20 border border-amber-400/40 px-3.5 py-2 text-xs font-bold text-amber-200 hover:bg-amber-500/30 transition-all hover:scale-105"
                 >
-                  {en ? '+ Upload New Document' : '+ رفع مستند جديد'}
+                  <span>➕</span>
+                  <span>{en ? '+ Upload New Document' : '+ رفع مستند جديد'}</span>
                 </button>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {/* 1. Custom Uploaded Documents from Folder/Direct Upload */}
+                {(customDocs[employee.code] || []).map((doc) => (
+                  <div
+                    key={doc.id}
+                    className="flex items-start justify-between gap-3 rounded-2xl border border-sky-500/30 bg-sky-950/20 p-4 hover:border-sky-400/50 transition-all"
+                  >
+                    <div className="flex items-start gap-3">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-500/20 border border-sky-500/30 text-xl">
+                        📁
+                      </span>
+                      <div className="space-y-1">
+                        <p className="text-xs font-bold text-sky-200">
+                          {isArabic ? doc.nameAr : doc.nameEn}
+                        </p>
+                        <p className="font-mono text-[11px] text-mist-300" dir="ltr">
+                          {doc.fileName} · {doc.size}
+                        </p>
+                        <div className="flex items-center gap-2 pt-0.5">
+                          <span className="rounded-md bg-sky-500/20 px-2 py-0.5 text-[10px] font-bold text-sky-300 border border-sky-500/30">
+                            {isArabic ? doc.statusAr : doc.statusEn}
+                          </span>
+                          <span className="text-[10px] text-mist-400">
+                            {en ? `Uploaded: ${doc.uploadDate}` : `تاريخ الأرشفة: ${doc.uploadDate}`}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5 shrink-0">
+                      {doc.dataUrl ? (
+                        <>
+                          <a
+                            href={doc.dataUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center justify-center rounded-lg border border-white/15 bg-white/5 px-2.5 py-1 text-[11px] font-semibold text-mist-200 hover:border-white/30 hover:text-white"
+                          >
+                            {en ? 'Preview' : 'معاينة'}
+                          </a>
+                          <a
+                            href={doc.dataUrl}
+                            download={doc.fileName}
+                            className="inline-flex items-center justify-center rounded-lg bg-sky-500/20 border border-sky-500/30 px-2.5 py-1 text-[11px] font-bold text-sky-200 hover:bg-sky-500/30"
+                          >
+                            {en ? 'Download' : 'تحميل'}
+                          </a>
+                        </>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+
+                {/* 2. Standard 6 Compliance Documents */}
                 {employee.documents.map((doc, idx) => (
                   <div
                     key={doc.id}
