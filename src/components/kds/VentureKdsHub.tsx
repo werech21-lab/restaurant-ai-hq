@@ -91,9 +91,9 @@ export const INITIAL_KDS_TICKETS: KdsTicket[] = [
     id: 'tk-102',
     ticketNo: 'TK-4820',
     orderRef: 'ORD-POS-1042',
-    brandId: 'thinnies',
-    brandNameAr: 'ثينيز برجر',
-    brandNameEn: 'Thinnies Burger',
+    brandId: 'chinagarden',
+    brandNameAr: 'تشاينا جاردن',
+    brandNameEn: 'China Garden',
     channelAr: 'صالة Dine-In',
     channelEn: 'Dine-In Table #4',
     channelBadge: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30',
@@ -105,8 +105,8 @@ export const INITIAL_KDS_TICKETS: KdsTicket[] = [
     status: 'PREPPING',
     items: [
       {
-        nameAr: 'ثينيز سماش دبل كلاسيك',
-        nameEn: 'Thinnies Double Smash Burger',
+        nameAr: 'دجاج كانتون تشاينا جاردن المميز',
+        nameEn: 'China Garden Special Canton Chicken',
         qty: 2,
         sku: 'TH01',
         notes: 'إكسترا مخلل وجبن أمريكي',
@@ -116,7 +116,7 @@ export const INITIAL_KDS_TICKETS: KdsTicket[] = [
           { code: 'RW01-CH01', nameAr: 'جبن شيدر أمريكي', nameEn: 'Cheddar Cheese', qty: '4 slices', costKwd: 0.280 },
         ],
         prepIngredients: [
-          { code: 'PP03-THS', nameAr: 'صوص ثينيز السري (القرين)', nameEn: 'Thinnies Secret Sauce', qty: '50ml', costKwd: 0.140 },
+          { code: 'PP03-CGS', nameAr: 'صوص كانتون الخاص (القرين)', nameEn: 'Canton Secret Sauce', qty: '60ml', costKwd: 0.144 },
         ],
         packagingItems: [
           { code: 'PI02-WRP', nameAr: 'ورق تغليف برجر مشمع', nameEn: 'Waxed Burger Wrap', qty: '2 pcs', costKwd: 0.060 },
@@ -143,8 +143,8 @@ export const INITIAL_KDS_TICKETS: KdsTicket[] = [
     ticketNo: 'TK-4821',
     orderRef: 'ORD-DLV-8831',
     brandId: 'shawarma',
-    brandNameAr: 'شاورما شاك',
-    brandNameEn: 'Shawarma Shack',
+    brandNameAr: 'شاورما طحينة',
+    brandNameEn: 'Tahina',
     channelAr: 'دليفرو Deliveroo',
     channelEn: 'Deliveroo',
     channelBadge: 'bg-teal-500/20 text-teal-400 border border-teal-500/30',
@@ -233,7 +233,7 @@ export function VentureKdsHub({
   const [wasteCost, setWasteCost] = useState("2.750")
   const [wasteLogs, setWasteLogs] = useState<Array<{ id: string; time: string; item: string; station: string; cook: string; reason: string; cost: number; gl: string }>>([
     { id: 'WST-401', time: '11:45 ص', item: 'ستيك ريب آي 300 غرام (MS01)', station: 'محطة الجريل', cook: 'الشيف رافي', reason: 'احتراق على الجريل درجة Well Done مفرطة', cost: 2.750, gl: '501020 هدر مطبخ' },
-    { id: 'WST-402', time: '12:15 م', item: '2x برجر ثينيز سماش (TH01)', station: 'محطة المقليات', cook: 'شيف بيلال', reason: 'خطأ كاشير - تكرار إضافة المكونات', cost: 1.560, gl: '501020 هدر مطبخ' },
+    { id: 'WST-402', time: '12:15 م', item: '2x دجاج كانتون تشاينا جاردن (CG01)', station: 'محطة المقليات', cook: 'شيف بيلال', reason: 'خطأ كاشير - تكرار إضافة المكونات', cost: 1.560, gl: '501020 هدر مطبخ' },
     { id: 'WST-403', time: '01:10 م', item: 'طبق نودلز روبيان (NB01)', station: 'محطة الووك', cook: 'شيف أرون', reason: 'طلب العميل بدون فلفل وتم تحضيره حاراً', cost: 1.220, gl: '501020 هدر مطبخ' },
   ])
 
@@ -405,8 +405,8 @@ export function VentureKdsHub({
               {[
                 { id: 'ALL', labelAr: 'جميع المحطات (5)', labelEn: 'All Stations (5)' },
                 { id: 'GRILL', labelAr: 'الجريل والستيك (فرانكس)', labelEn: 'Grill & Steak' },
-                { id: 'FRYER', labelAr: 'المقليات والبرجر (ثينيز/أوفر سايزد)', labelEn: 'Fryer & Burgers' },
-                { id: 'SHAWARMA', labelAr: 'شاورما شاك والخبز', labelEn: 'Shawarma & Bakery' },
+                { id: 'WOK', labelAr: 'الووك والصيني (تشاينا جاردن)', labelEn: 'Wok & Asian (China Garden)' },
+                { id: 'SHAWARMA', labelAr: 'شاورما طحينة والمقبلات', labelEn: 'Tahina Shawarma & Appetizers' },
                 { id: 'WOK', labelAr: 'الووك والنودلز', labelEn: 'Wok & Noodles' },
                 { id: 'PACKING', labelAr: 'التغليف والتسليم Dispatch', labelEn: 'Packing & Dispatch' },
               ].map((st) => (
@@ -777,7 +777,7 @@ export function VentureKdsHub({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
               { stationAr: 'محطة الجريل والستيك (فرانكس)', stationEn: "Grill & Steak (Frank's)", avgTime: '11.2 دقيقة', target: '12.0 دقيقة', throughput: '48 طبق/ساعة', laborCost: '0.450 د.ك', badge: 'text-amber-400' },
-              { stationAr: 'محطة المقليات والبرجر (ثينيز)', stationEn: 'Fryer & Burgers (Thinnies)', avgTime: '6.4 دقائق', target: '7.0 دقائق', throughput: '110 طلب/ساعة', laborCost: '0.280 د.ك', badge: 'text-emerald-400' },
+              { stationAr: 'محطة الووك والصيني (تشاينا جاردن)', stationEn: 'Wok & Asian (China Garden)', avgTime: '6.4 دقائق', target: '7.0 دقائق', throughput: '110 طلب/ساعة', laborCost: '0.280 د.ك', badge: 'text-emerald-400' },
               { stationAr: 'محطة الشاورما والخبز', stationEn: 'Shawarma & Bakery', avgTime: '4.8 دقائق', target: '5.5 دقائق', throughput: '140 ساندوتش/ساعة', laborCost: '0.210 د.ك', badge: 'text-emerald-400' },
               { stationAr: 'محطة الووك والنودلز الآسيوي', stationEn: 'Wok & Noodle Station', avgTime: '7.8 دقائق', target: '8.5 دقائق', throughput: '55 طبق/ساعة', laborCost: '0.380 د.ك', badge: 'text-blue-400' },
             ].map((st, idx) => (

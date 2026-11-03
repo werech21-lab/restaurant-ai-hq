@@ -219,7 +219,7 @@ export function DepartmentalReportsHub({ initialReportId, locale = 'ar', liveDbC
               {isAr ? 'مركز التقارير المؤسسية الشامل (Ordable Style)' : 'Enterprise Ordable-Style Reports Suite'}
             </span>
             <span className="rounded-full bg-slate-800 px-2.5 py-0.5 text-xs text-slate-400 font-mono">
-              Venture Foods W.L.L. · CR 412891
+              Venture Foods W.L.L. · Lic. 2021/22838
             </span>
           </div>
           <h1 className="mt-1 text-2xl font-black text-white sm:text-3xl tracking-tight">
@@ -516,13 +516,13 @@ export function DepartmentalReportsHub({ initialReportId, locale = 'ar', liveDbC
                   onChange={(e) => setBrandFilter(e.target.value)}
                   className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-white focus:outline-none"
                 >
-                  <option value="ALL">{isAr ? 'جميع البراندات (All 6 Brands)' : 'All 6 Brands'}</option>
-                  <option value="Frank">{isAr ? "فرانكس ستيك (Frank's)" : "Frank's Steak"}</option>
-                  <option value="Thinnies">{isAr ? 'ثينيز برجر (Thinnies)' : 'Thinnies Burger'}</option>
-                  <option value="Over">{isAr ? 'أوفر سايزد (Over Sized)' : 'Over Sized'}</option>
-                  <option value="Shawarma">{isAr ? 'شاورما شاك (Shawarma Shack)' : 'Shawarma Shack'}</option>
-                  <option value="Farm">{isAr ? 'فارم براون (Farm Brown)' : 'Farm Brown'}</option>
-                  <option value="Noodle">{isAr ? 'ذا نودل بار (The Noodle Bar)' : 'The Noodle Bar'}</option>
+                  <option value="ALL">{isAr ? 'جميع البراندات الـ 6 (All 6 Brands)' : 'All 6 Brands'}</option>
+                  <option value="China">{isAr ? 'تشاينا جاردن (China Garden - 84.8%)' : 'China Garden (84.8%)'}</option>
+                  <option value="Frank">{isAr ? "فرانكس (Frank's - 9.7%)" : "Frank's (9.7%)"}</option>
+                  <option value="Tahina">{isAr ? 'شاورما طحينة (Tahina - 2.6%)' : 'Tahina (2.6%)'}</option>
+                  <option value="Farm">{isAr ? 'فارم براون (Farm Brown - 1.6%)' : 'Farm Brown (1.6%)'}</option>
+                  <option value="Noodle">{isAr ? 'ذا نودل بار (The Noodle Bar - 1.0%)' : 'The Noodle Bar (1.0%)'}</option>
+                  <option value="Karak">{isAr ? 'كرك كافتيريا (Karak Cafeteria - 0.3%)' : 'Karak Cafeteria (0.3%)'}</option>
                 </select>
               </div>
 

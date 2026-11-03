@@ -181,13 +181,12 @@ export function VentureAccountingHub({
                 </thead>
                 <tbody className="divide-y divide-slate-800/60 text-slate-200">
                   {[
-                    { center: "فرانكس ستيك (Frank's Steak)", rev: '89,520.000', cogs: '27,750.000', labor: '24,100.000', comm: '10,800.000', rent: '8,500.000', net: '18,370.000' },
-                    { center: 'ثينيز برجر (Thinnies Burger)', rev: '38,980.000', cogs: '12,470.000', labor: '11,200.000', comm: '4,850.000', rent: '4,200.000', net: '6,260.000' },
-                    { center: 'أوفر سايزد برجر (Over Sized)', rev: '18,740.000', cogs: '6,180.000', labor: '5,400.000', comm: '2,240.000', rent: '2,100.000', net: '2,820.000' },
-                    { center: 'شاورما شاك (Shawarma Shack)', rev: '15,070.000', cogs: '4,670.000', labor: '4,800.000', comm: '1,420.000', rent: '1,900.000', net: '2,280.000' },
-                    { center: 'فارم براون (Farm Brown)', rev: '2,662.000', cogs: '850.000', labor: '1,200.000', comm: '320.000', rent: '900.000', net: '-608.000' },
-                    { center: 'ذا نودل بار (The Noodle Bar)', rev: '1,677.000', cogs: '530.000', labor: '1,050.000', comm: '180.000', rent: '600.000', net: '-683.000' },
-                    { center: 'كرك كافيتريا (Karak Cafeteria)', rev: '443.000', cogs: '84.000', labor: '500.000', comm: '47.000', rent: '300.000', net: '-488.000' },
+                    { center: 'تشاينا جاردن (China Garden)', rev: '141,662.650', cogs: '43,915.000', labor: '36,830.000', comm: '15,580.000', rent: '12,500.000', net: '32,837.650' },
+                    { center: "فرانكس (Frank's)", rev: '16,222.260', cogs: '5,028.900', labor: '4,217.000', comm: '1,784.000', rent: '1,500.000', net: '3,692.360' },
+                    { center: 'شاورما طحينة (Tahina)', rev: '4,424.850', cogs: '1,371.700', labor: '1,150.000', comm: '486.000', rent: '400.000', net: '1,017.150' },
+                    { center: 'فارم براون (Farm Brown)', rev: '2,661.900', cogs: '825.000', labor: '750.000', comm: '290.000', rent: '300.000', net: '496.900' },
+                    { center: 'ذا نودل بار (The Noodle Bar)', rev: '1,676.950', cogs: '520.000', labor: '500.000', comm: '184.000', rent: '200.000', net: '272.950' },
+                    { center: 'كرك كافتيريا (Karak Cafeteria)', rev: '443.550', cogs: '110.000', labor: '150.000', comm: '48.000', rent: '50.000', net: '85.550' },
                   ].map((row, idx) => (
                     <tr key={idx} className="hover:bg-slate-900/40 transition-colors">
                       <td className="px-4 py-3 font-semibold text-white">{row.center}</td>

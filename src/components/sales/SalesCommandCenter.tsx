@@ -315,8 +315,8 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
             },
             {
               id: 'menu' as SalesTabId,
-              labelAr: '🍽️ هندسة المنيو ومصفوفة بوسطن',
-              labelEn: 'Menu Engineering & BCG',
+              labelAr: '🍽️ مصفوفة ربحية الأصناف وهندسة المنيو',
+              labelEn: 'Menu Profitability Matrix',
             },
             {
               id: 'slow-movers' as SalesTabId,
@@ -848,13 +848,13 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
         )}
 
         {/* ======================================================== */}
-        {/* TAB 3: Menu Engineering & BCG Matrix */}
+        {/* TAB 3: Menu Engineering & Profitability Matrix */}
         {/* ======================================================== */}
         {activeTab === 'menu' && (
           <div className="space-y-6">
             {/* BCG 4 Quadrants Visual Summary */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {/* Stars */}
+              {/* Top Performers */}
               <button
                 type="button"
                 onClick={() => setSelectedBCG(selectedBCG === 'Star' ? 'ALL' : 'Star')}
@@ -871,7 +871,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                   </span>
                 </div>
                 <h4 className="mt-2 text-sm font-bold text-white">
-                  {isAr ? 'النجوم (Stars)' : 'Stars'}
+                  {isAr ? 'الأصناف الذهبية الرائدة (Top Performers)' : 'Top Performers'}
                 </h4>
                 <p className="text-[11px] text-slate-400">
                   {isAr ? 'ربحية عالية + شعبية عالية' : 'High Margin + High Popularity'}
@@ -881,7 +881,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                 </p>
               </button>
 
-              {/* Plowhorses */}
+              {/* High-Demand Staples */}
               <button
                 type="button"
                 onClick={() => setSelectedBCG(selectedBCG === 'Plowhorse' ? 'ALL' : 'Plowhorse')}
@@ -898,7 +898,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                   </span>
                 </div>
                 <h4 className="mt-2 text-sm font-bold text-white">
-                  {isAr ? 'خيول الجر (Plowhorses)' : 'Plowhorses'}
+                  {isAr ? 'الأصناف عالية الطلب (High-Demand Staples)' : 'High-Demand Staples'}
                 </h4>
                 <p className="text-[11px] text-slate-400">
                   {isAr ? 'شعبية عالية + ربحية منخفضة' : 'High Popularity + Low Margin'}
@@ -908,7 +908,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                 </p>
               </button>
 
-              {/* Puzzles */}
+              {/* High-Margin Opportunities */}
               <button
                 type="button"
                 onClick={() => setSelectedBCG(selectedBCG === 'Puzzle' ? 'ALL' : 'Puzzle')}
@@ -925,7 +925,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                   </span>
                 </div>
                 <h4 className="mt-2 text-sm font-bold text-white">
-                  {isAr ? 'الألغاز (Puzzles)' : 'Puzzles'}
+                  {isAr ? 'أصناف واعدة عالية الربح (High-Margin Opportunities)' : 'High-Margin Opportunities'}
                 </h4>
                 <p className="text-[11px] text-slate-400">
                   {isAr ? 'ربحية عالية + شعبية منخفضة' : 'High Margin + Low Popularity'}
@@ -935,7 +935,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                 </p>
               </button>
 
-              {/* Dogs */}
+              {/* Slow-Moving Items */}
               <button
                 type="button"
                 onClick={() => setSelectedBCG(selectedBCG === 'Dog' ? 'ALL' : 'Dog')}
@@ -952,7 +952,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                   </span>
                 </div>
                 <h4 className="mt-2 text-sm font-bold text-white">
-                  {isAr ? 'الأعباء (Dogs)' : 'Dogs'}
+                  {isAr ? 'الأصناف الراكدة ضعيفة الأداء (Slow-Moving Items)' : 'Slow-Moving Items'}
                 </h4>
                 <p className="text-[11px] text-slate-400">
                   {isAr ? 'ربحية منخفضة + شعبية منخفضة' : 'Low Margin + Low Popularity'}
@@ -987,7 +987,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                     type="button"
                     onClick={() =>
                       handleExportCSV(
-                        'VentureFoods-Menu-BCG-Matrix.csv',
+                        'VentureFoods-Menu-Profitability-Matrix.csv',
                         filteredMenuItems.map(
                           (i) =>
                             `${i.nameEn},${i.nameAr},${i.brand},${i.categoryEn},${i.priceKwd},${i.costPriceKwd},${i.marginPercent}%,${i.unitsSold},${i.salesKwd},${i.classification}`
@@ -1014,7 +1014,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                       <th className="px-4 py-3 text-end">{isAr ? 'هامش الربح' : 'Margin %'}</th>
                       <th className="px-4 py-3 text-end">{isAr ? 'الكمية المباعة' : 'Units Sold'}</th>
                       <th className="px-4 py-3 text-end">{isAr ? 'إجمالي المبيعات' : 'Sales KWD'}</th>
-                      <th className="px-4 py-3 text-center">{isAr ? 'مصفوفة بوسطن' : 'BCG Class'}</th>
+                      <th className="px-4 py-3 text-center">{isAr ? 'تصنيف الربحية' : 'Classification'}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5 text-slate-300">
@@ -1053,7 +1053,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                             {item.classification === 'Star'
                               ? '⭐ Star'
                               : item.classification === 'Plowhorse'
-                              ? '🐎 Plowhorse'
+                              ? '📦 High Demand'
                               : item.classification === 'Puzzle'
                               ? '🧩 Puzzle'
                               : '🐕 Dog'}

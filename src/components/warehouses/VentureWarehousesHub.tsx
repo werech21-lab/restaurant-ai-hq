@@ -77,7 +77,7 @@ const VENTURE_WAREHOUSES: BranchWarehouseCard[] = [
     nameEn: 'Hawalli Branch Warehouse',
     areaAr: 'حولي · محافظة حولي',
     areaEn: 'Hawalli · Hawally Governorate',
-    brandCode: 'Thinnies',
+    brandCode: 'China Garden',
     stockValueKwd: 8950.0,
     skuCount: { raw: 20, prep: 15, pack: 20 },
     chillerTemp: '+3.4°C',
@@ -107,7 +107,7 @@ const VENTURE_WAREHOUSES: BranchWarehouseCard[] = [
     nameEn: 'Ardiya Craft Hub Warehouse',
     areaAr: 'العارضية الحرفية · محافظة الفروانية',
     areaEn: 'Ardiya Craft · Farwaniya Governorate',
-    brandCode: 'Over Sized',
+    brandCode: "Frank's",
     stockValueKwd: 7820.0,
     skuCount: { raw: 18, prep: 14, pack: 18 },
     chillerTemp: '+3.2°C',
@@ -122,7 +122,7 @@ const VENTURE_WAREHOUSES: BranchWarehouseCard[] = [
     nameEn: 'Mahboula Coastal Warehouse',
     areaAr: 'المهبولة · محافظة الأحمدي',
     areaEn: 'Mahboula · Ahmadi Governorate',
-    brandCode: 'Shawarma Shack',
+    brandCode: 'Tahina',
     stockValueKwd: 6420.0,
     skuCount: { raw: 16, prep: 12, pack: 16 },
     chillerTemp: '+3.0°C',
@@ -197,7 +197,7 @@ const VENTURE_WAREHOUSES: BranchWarehouseCard[] = [
     nameEn: 'Fintas Express Warehouse',
     areaAr: 'الفنطاس · محافظة الأحمدي',
     areaEn: 'Fintas · Ahmadi Governorate',
-    brandCode: 'Thinnies',
+    brandCode: 'China Garden',
     stockValueKwd: 4790.0,
     skuCount: { raw: 14, prep: 10, pack: 14 },
     chillerTemp: '+3.4°C',
@@ -492,7 +492,7 @@ export function VentureWarehousesHub({
                 <tbody className="divide-y divide-slate-800/60 text-slate-200">
                   {[
                     { id: 'TR-202611-081', from: 'المطبخ المركزي (القرين)', to: 'فرع السالمية (Frank\'s)', items: '40 كجم برجر أنجوس + 12 لتر ترفل صوص', val: '420.000', driver: 'سوريش كاليان · شاحنة مبردة #14', status: 'تم الاستلام والمطابقة', time: '11:45 ص' },
-                    { id: 'TR-202611-082', from: 'المطبخ المركزي (القرين)', to: 'فرع حولي (Thinnies)', items: '35 كجم فيليه دجاج + 800 خبز بطاطس', val: '315.500', driver: 'محمد سليم · شاحنة مبردة #08', status: 'في الطريق للتسليم', time: '12:10 م' },
+                    { id: 'TR-202611-082', from: 'المطبخ المركزي (القرين)', to: 'فرع حولي (China Garden)', items: '35 كجم فيليه دجاج + 800 خبز بطاطس', val: '315.500', driver: 'محمد سليم · شاحنة مبردة #08', status: 'في الطريق للتسليم', time: '12:10 م' },
                     { id: 'TR-202611-083', from: 'المطبخ المركزي (القرين)', to: 'فرع الشويخ (Frank\'s)', items: '60 كجم ستيك شيت + 18 لتر صوص خاص', val: '680.000', driver: 'طارق عبدالحليم · شاحنة مبردة #02', status: 'قيد التجهيز بالقرين', time: '12:30 م' },
                     { id: 'TR-202611-084', from: 'المطبخ المركزي (القرين)', to: 'فرع المهبولة (Shawarma)', items: '50 كجم سيخ شاورما متبل جاهز', val: '385.000', driver: 'راجو شارما · شاحنة مبردة #11', status: 'طلب معتمد من الفرع', time: '12:45 م' },
                   ].map((tr, idx) => (
@@ -554,9 +554,9 @@ export function VentureWarehousesHub({
                 <tbody className="divide-y divide-slate-800/60 text-slate-200">
                   {[
                     { code: 'PP03-ANGUS-102', name: 'أقراص لحم أنجوس متبلة 150 جم', brand: 'Frank\'s Steak', yield: '180 كجم (1,200 قرص)', cost: '486.000', expiry: '06 نوفمبر 2026 (72h)', qc: 'معتمد ومختوم QC' },
-                    { code: 'PP03-CHIK-088', name: 'صدور دجاج كرسبي منقوعة باللبن والأعشاب', brand: 'Thinnies', yield: '120 كجم (600 صدر)', cost: '216.000', expiry: '06 نوفمبر 2026 (72h)', qc: 'معتمد ومختوم QC' },
+                    { code: 'PP03-CHIK-088', name: 'صدور دجاج كرسبي منقوعة باللبن والأعشاب', brand: 'China Garden', yield: '120 كجم (600 صدر)', cost: '216.000', expiry: '06 نوفمبر 2026 (72h)', qc: 'معتمد ومختوم QC' },
                     { code: 'PP03-SAUCE-TRUF', name: 'صلصة الكمأة والمايونيز الإيطالي (Truffle)', brand: 'Frank\'s Steak', yield: '45 لتر', cost: '135.000', expiry: '10 نوفمبر 2026 (7d)', qc: 'معتمد ومختوم QC' },
-                    { code: 'PP03-SHAW-CHIK', name: 'شاورما دجاج متبلة خلطة لبنانية خاصة', brand: 'Shawarma Shack', yield: '150 كجم (3 أسياخ)', cost: '315.000', expiry: '05 نوفمبر 2026 (48h)', qc: 'معتمد ومختوم QC' },
+                    { code: 'PP03-SHAW-CHIK', name: 'شاورما دجاج متبلة خلطة لبنانية خاصة', brand: 'Tahina', yield: '150 كجم (3 أسياخ)', cost: '315.000', expiry: '05 نوفمبر 2026 (48h)', qc: 'معتمد ومختوم QC' },
                     { code: 'PP03-DOUGH-CHP', name: 'عجينة شباتي مجهزة ومقطعة بالزبدة', brand: 'Karak Cafeteria', yield: '900 قرص', cost: '72.000', expiry: '05 نوفمبر 2026 (48h)', qc: 'معتمد ومختوم QC' },
                   ].map((row, idx) => (
                     <tr key={idx} className="hover:bg-slate-900/40 transition-colors">
@@ -736,9 +736,9 @@ export function VentureWarehousesHub({
                 <label className="block font-semibold text-slate-300 mb-1">{isAr ? 'إلى الفرع المستلم:' : 'Destination Branch:'}</label>
                 <select className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-white focus:outline-none">
                   <option value="FB-SALMIYA">فرع السالمية (Frank&apos;s Steak)</option>
-                  <option value="TH-HAWALLI">فرع حولي (Thinnies)</option>
-                  <option value="OS-ARDIYA">فرع العارضية (Over Sized)</option>
-                  <option value="SH-MAHBOULA">فرع المهبولة (Shawarma Shack)</option>
+                  <option value="CG-HAWALLI">فرع حولي (China Garden)</option>
+                  <option value="FR-ARDIYA">فرع العارضية (Frank&apos;s)</option>
+                  <option value="TH-MAHBOULA">فرع المهبولة (Tahina)</option>
                   <option value="FB-JAHRA">فرع الجهراء (Farm Brown)</option>
                   <option value="NB-SHARQ">فرع شرق (The Noodle Bar)</option>
                 </select>

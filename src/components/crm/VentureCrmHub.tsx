@@ -168,10 +168,10 @@ export function VentureCrmHub({
                 <tbody className="divide-y divide-slate-800/60 text-slate-200">
                   {[
                     { client: 'شركة مشاريع الكويت القابضة (كيبكو)', scope: 'بوفيه غداء تنفيذي وضيافة مؤتمرات', pax: '120 فرد', val: '6,450.000', paid: '5,200.000', brand: "Frank's Steak", stage: 'ساري ومنفذ' },
-                    { client: 'مجموعة التمدين العقارية (360 مول)', scope: 'إعاشة فعاليات مهرجان التسوق', pax: '350 فرد', val: '4,800.000', paid: '4,800.000', brand: 'Thinnies Burger', stage: 'مكتمل ومسدد' },
-                    { client: 'جامعة الخليج للعلوم والتكنولوجيا (GUST)', scope: 'تشغيل ركن كافتيريا الطلاب', pax: '450 وجبة/يوم', val: '9,200.000', paid: '6,400.000', brand: 'Shawarma Shack', stage: 'ساري ومنفذ' },
+                    { client: 'مجموعة التمدين العقارية (360 مول)', scope: 'إعاشة فعاليات مهرجان التسوق', pax: '350 فرد', val: '4,800.000', paid: '4,800.000', brand: 'China Garden', stage: 'مكتمل ومسدد' },
+                    { client: 'جامعة الخليج للعلوم والتكنولوجيا (GUST)', scope: 'تشغيل ركن كافتيريا الطلاب', pax: '450 وجبة/يوم', val: '9,200.000', paid: '6,400.000', brand: 'Tahina', stage: 'ساري ومنفذ' },
                     { client: 'بنك بوبيان - الإدارة العامة', scope: 'ضيافة اجتماعات مجالس الإدارة', pax: '80 فرد', val: '3,900.000', paid: '3,900.000', brand: "Frank's Steak", stage: 'مكتمل ومسدد' },
-                    { client: 'أرض المعارض الدولية (مشرف - صالة 4)', scope: 'كشك طعام سريع بمعرض العطور والسيارات', pax: '600 وجبة/يوم', val: '8,400.000', paid: '4,200.000', brand: 'Over Sized', stage: 'تجهيز وتوريد' },
+                    { client: 'أرض المعارض الدولية (مشرف - صالة 4)', scope: 'كشك طعام سريع بمعرض العطور والسيارات', pax: '600 وجبة/يوم', val: '8,400.000', paid: '4,200.000', brand: "Frank's", stage: 'تجهيز وتوريد' },
                     { client: 'نادي القادسية الرياضي', scope: 'وجبات رياضية غنية بالبروتين للفرق الأولى', pax: '60 لاعب', val: '3,600.000', paid: '2,600.000', brand: 'Farm Brown', stage: 'ساري ومنفذ' },
                   ].map((row, idx) => (
                     <tr key={idx} className="hover:bg-slate-900/40 transition-colors">
@@ -232,9 +232,9 @@ export function VentureCrmHub({
                   {[
                     { name: 'الشيخ فهد الأحمد الصباح', phone: '+965 9988 1234', tier: '💎 Platinum VIP', orders: 48, spend: '642.500', aov: '13.385', fav: "Frank's Steak", last: 'أمس 09:30 م' },
                     { name: 'د. يوسف العبدالله الرومي', phone: '+965 9772 4411', tier: '🥇 Gold VIP', orders: 34, spend: '412.000', aov: '12.117', fav: "Frank's Steak", last: 'منذ يومين' },
-                    { name: 'م. نورة فيصل الخالد', phone: '+965 9441 8822', tier: '🥇 Gold VIP', orders: 29, spend: '298.500', aov: '10.293', fav: 'Thinnies Burger', last: 'منذ 3 أيام' },
-                    { name: 'أحمد مشعل الغانم', phone: '+965 9660 3399', tier: '🥈 Silver VIP', orders: 22, spend: '245.000', aov: '11.136', fav: 'Over Sized', last: 'منذ أسبوع' },
-                    { name: 'سارة جاسم المرزوق', phone: '+965 9005 7711', tier: '🥈 Silver VIP', orders: 19, spend: '185.000', aov: '9.736', fav: 'Shawarma Shack', last: 'منذ 5 أيام' },
+                    { name: 'م. نورة فيصل الخالد', phone: '+965 9441 8822', tier: '🥇 Gold VIP', orders: 29, spend: '298.500', aov: '10.293', fav: 'China Garden', last: 'منذ 3 أيام' },
+                    { name: 'أحمد مشعل الغانم', phone: '+965 9660 3399', tier: '🥈 Silver VIP', orders: 22, spend: '245.000', aov: '11.136', fav: "Frank's", last: 'منذ أسبوع' },
+                    { name: 'سارة جاسم المرزوق', phone: '+965 9005 7711', tier: '🥈 Silver VIP', orders: 19, spend: '185.000', aov: '9.736', fav: 'Tahina', last: 'منذ 5 أيام' },
                   ].map((vip, idx) => (
                     <tr key={idx} className="hover:bg-slate-900/40 transition-colors">
                       <td className="px-4 py-3 font-semibold text-white">{vip.name}</td>
@@ -284,8 +284,8 @@ export function VentureCrmHub({
                 <tbody className="divide-y divide-slate-800/60 text-slate-200">
                   {[
                     { cust: 'بدر ناصر (طلبات)', branch: 'فرع السالمية (Frank\'s)', rating: '⭐⭐⭐⭐⭐', text: 'ستيك ترفل ممتاز ووصل حاراً ومقرمشاً خلال 22 دقيقة', action: 'شكر العميل ومنحه كود خصم 10%', status: 'مغلق بنجاح' },
-                    { cust: 'فاطمة العوضي (صالة الفرع)', branch: 'فرع حولي (Thinnies)', rating: '⭐⭐⭐⭐', text: 'طعم البرجر رائع ولكن التكييف كان بارداً جداً بالصالة', action: 'تعديل منظم الحرارة بالفرع فورياً', status: 'مغلق بنجاح' },
-                    { cust: 'محمد السبيعي (دليفرو)', branch: 'فرع العارضية (Over Sized)', rating: '⭐⭐⭐', text: 'تم نسيان علبة صوص إضافية بالطلب المسلم', action: 'تعويض بقسيمة مجانية 3 د.ك للطلب القادم', status: 'تم الصلح والتعويض' },
+                    { cust: 'فاطمة العوضي (صالة الفرع)', branch: 'فرع حولي (China Garden)', rating: '⭐⭐⭐⭐', text: 'طعم البرجر رائع ولكن التكييف كان بارداً جداً بالصالة', action: 'تعديل منظم الحرارة بالفرع فورياً', status: 'مغلق بنجاح' },
+                    { cust: 'محمد السبيعي (دليفرو)', branch: "فرع العارضية (Frank's)", rating: '⭐⭐⭐', text: 'تم نسيان علبة صوص إضافية بالطلب المسلم', action: 'تعويض بقسيمة مجانية 3 د.ك للطلب القادم', status: 'تم الصلح والتعويض' },
                     { cust: 'خلود الهاجري (واتساب مباشر)', branch: 'فرع المهبولة (Shawarma)', rating: '⭐⭐⭐⭐⭐', text: 'شاورما ممتازة والخبز اللبناني طازج وخفيف', action: 'ترقية الحساب لفئة الفضة', status: 'مغلق بنجاح' },
                   ].map((row, idx) => (
                     <tr key={idx} className="hover:bg-slate-900/40 transition-colors">
@@ -325,8 +325,8 @@ export function VentureCrmHub({
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {[
               { title: 'بوكس الجمعات العائلي (Weekend Gathering Box)', brand: 'Frank\'s Steak', target: 'عملاء الويكند والصالة', reach: '4,850 مستلم', conv: '18.4% تحويل', rev: '3,840 د.ك مبيعات', active: true },
-              { title: 'عرض غداء الدوامات والمكاتب (Office Lunch Combo)', brand: 'Thinnies Burger', target: 'موظفي شرق والشويخ', reach: '3,200 مستلم', conv: '22.1% تحويل', rev: '2,950 د.ك مبيعات', active: true },
-              { title: 'مهرجان الشاورما الوطني (Shawarma Feast)', brand: 'Shawarma Shack', target: 'قاعدة عملاء التوصيل', reach: '6,100 مستلم', conv: '15.8% تحويل', rev: '4,120 د.ك مبيعات', active: true },
+              { title: 'عرض غداء الدوامات والمكاتب (Office Lunch Combo)', brand: 'China Garden', target: 'موظفي شرق والشويخ', reach: '3,200 مستلم', conv: '22.1% تحويل', rev: '2,950 د.ك مبيعات', active: true },
+              { title: 'مهرجان الشاورما الوطني (Shawarma Feast)', brand: 'Tahina', target: 'قاعدة عملاء التوصيل', reach: '6,100 مستلم', conv: '15.8% تحويل', rev: '4,120 د.ك مبيعات', active: true },
             ].map((c, idx) => (
               <div key={idx} className="rounded-2xl border border-slate-800 bg-[#0d131f] p-5 space-y-3">
                 <div className="flex items-center justify-between">
@@ -403,10 +403,12 @@ export function VentureCrmHub({
               <div>
                 <label className="block font-semibold text-slate-300 mb-1">{isAr ? 'البراند المفضل للتوريد:' : 'Assigned Brand:'}</label>
                 <select className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-white focus:outline-none">
-                  <option value="FRANK">Frank&apos;s Steak (ستيك وبرجر فاخر)</option>
-                  <option value="THIN">Thinnies (برجر سريع وخفيف)</option>
-                  <option value="SHAW">Shawarma Shack (بوفيه شاورما ومقبلات)</option>
-                  <option value="OVER">Over Sized (وجبات عملاقة للشباب)</option>
+                  <option value="CHINA">تشاينا جاردن (China Garden) - المطبخ الصيني والآسيوي</option>
+                  <option value="FRANK">فرانكس (Frank&apos;s) - ستيك وبرجر فاخر</option>
+                  <option value="TAHINA">شاورما طحينة (Tahina) - شاورما ومقبلات</option>
+                  <option value="FARMBROWN">فارم براون (Farm Brown) - وجبات صحية وعضوية</option>
+                  <option value="NOODLE">ذا نودل بار (The Noodle Bar) - نودلز وأطباق آسيوية</option>
+                  <option value="KARAK">كرك كافتيريا (Karak Cafeteria) - شاي كرك وسندويشات خفيفة</option>
                 </select>
               </div>
 

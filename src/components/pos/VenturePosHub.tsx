@@ -50,19 +50,16 @@ export const POS_CATALOG: MenuItem[] = [
   { id: 'fr-03', code: 'MS03', nameAr: 'برجر ترافل أنجوس ديلوكس', nameEn: 'Angus Truffle Deluxe Burger', brandId: 'franks', brandNameAr: "فرانكس ستيك", brandNameEn: "Frank's Steak", categoryAr: 'البرجر والساندوتش', categoryEn: 'Burgers & Sandwiches', sellingPrice: 4.500, cogsEstimate: 1.150, packagingCost: 0.250 },
   { id: 'fr-04', code: 'MS04', nameAr: 'بطاطا كريسبي بالجبن والبيكون', nameEn: 'Loaded Cheese & Bacon Fries', brandId: 'franks', brandNameAr: "فرانكس ستيك", brandNameEn: "Frank's Steak", categoryAr: 'المقبلات والجانبية', categoryEn: 'Appetizers & Sides', sellingPrice: 2.250, cogsEstimate: 0.520, packagingCost: 0.180 },
 
-  // Thinnies Burger
-  { id: 'th-01', code: 'TH01', nameAr: 'ثينيز سماش برجر دبل كلاسيك', nameEn: 'Thinnies Classic Double Smash Burger', brandId: 'thinnies', brandNameAr: 'ثينيز برجر', brandNameEn: 'Thinnies Burger', categoryAr: 'البرجر والساندوتش', categoryEn: 'Burgers & Sandwiches', sellingPrice: 2.950, cogsEstimate: 0.780, packagingCost: 0.220, badge: 'Best Seller' },
-  { id: 'th-02', code: 'TH02', nameAr: 'ثينيز تريبل تشيز برجر', nameEn: 'Thinnies Triple Cheese Burger', brandId: 'thinnies', brandNameAr: 'ثينيز برجر', brandNameEn: 'Thinnies Burger', categoryAr: 'البرجر والساندوتش', categoryEn: 'Burgers & Sandwiches', sellingPrice: 3.650, cogsEstimate: 0.990, packagingCost: 0.220 },
-  { id: 'th-03', code: 'TH03', nameAr: 'بطاطا كرينكل مقرمشة', nameEn: 'Crinkle Cut Crispy Fries', brandId: 'thinnies', brandNameAr: 'ثينيز برجر', brandNameEn: 'Thinnies Burger', categoryAr: 'المقبلات والجانبية', categoryEn: 'Appetizers & Sides', sellingPrice: 1.100, cogsEstimate: 0.220, packagingCost: 0.120 },
+  // China Garden
+  { id: 'cg-01', code: 'CG01', nameAr: 'دجاج كانتون تشاينا جاردن المميز', nameEn: 'China Garden Special Canton Chicken', brandId: 'chinagarden', brandNameAr: 'تشاينا جاردن', brandNameEn: 'China Garden', categoryAr: 'الأطباق الصينية والآسيوية', categoryEn: 'Chinese & Asian Mains', sellingPrice: 4.500, cogsEstimate: 1.150, packagingCost: 0.250, badge: 'Best Seller' },
+  { id: 'cg-02', code: 'CG02', nameAr: 'روبيان سويت آند سور مع أرز مقلي', nameEn: 'Sweet & Sour Shrimp with Fried Rice', brandId: 'chinagarden', brandNameAr: 'تشاينا جاردن', brandNameEn: 'China Garden', categoryAr: 'الأطباق الصينية والآسيوية', categoryEn: 'Chinese & Asian Mains', sellingPrice: 5.250, cogsEstimate: 1.450, packagingCost: 0.300 },
+  { id: 'cg-03', code: 'CG03', nameAr: 'دجاج بالكاجو والخضار المشكلة', nameEn: 'Cashew Nut Chicken with Mixed Veggies', brandId: 'chinagarden', brandNameAr: 'تشاينا جاردن', brandNameEn: 'China Garden', categoryAr: 'الأطباق الصينية والآسيوية', categoryEn: 'Chinese & Asian Mains', sellingPrice: 4.250, cogsEstimate: 1.050, packagingCost: 0.250 },
+  { id: 'cg-04', code: 'CG04', nameAr: 'سبرينغ رول خضار مقرمش (4 حبات)', nameEn: 'Crispy Veggie Spring Rolls (4 Pcs)', brandId: 'chinagarden', brandNameAr: 'تشاينا جاردن', brandNameEn: 'China Garden', categoryAr: 'المقبلات والجانبية', categoryEn: 'Appetizers & Sides', sellingPrice: 1.750, cogsEstimate: 0.380, packagingCost: 0.150 },
 
-  // Over Sized
-  { id: 'ov-01', code: 'OV01', nameAr: 'أوفر سايزد دبل بيكون كرانش', nameEn: 'Over Sized Double Bacon Crunch', brandId: 'oversized', brandNameAr: 'أوفر سايزد', brandNameEn: 'Over Sized', categoryAr: 'البرجر والساندوتش', categoryEn: 'Burgers & Sandwiches', sellingPrice: 3.900, cogsEstimate: 1.050, packagingCost: 0.250 },
-  { id: 'ov-02', code: 'OV02', nameAr: 'أوفر سايزد تشيكن زنجر جامبو', nameEn: 'Jumbo Zinger Crispy Chicken', brandId: 'oversized', brandNameAr: 'أوفر سايزد', brandNameEn: 'Over Sized', categoryAr: 'البرجر والساندوتش', categoryEn: 'Burgers & Sandwiches', sellingPrice: 3.450, cogsEstimate: 0.890, packagingCost: 0.250 },
-
-  // Shawarma Shack
-  { id: 'sh-01', code: 'SH01', nameAr: 'صحن شاورما لحم عربي مع طحينة', nameEn: 'Arabic Beef Shawarma Platter', brandId: 'shawarma', brandNameAr: 'شاورما شاك', brandNameEn: 'Shawarma Shack', categoryAr: 'الشاورما والساندوتش', categoryEn: 'Shawarma Platters', sellingPrice: 2.850, cogsEstimate: 0.720, packagingCost: 0.200 },
-  { id: 'sh-02', code: 'SH02', nameAr: 'شاورما دجاج صاج بالثوم والمخلل', nameEn: 'Chicken Saj Shawarma with Garlic', brandId: 'shawarma', brandNameAr: 'شاورما شاك', brandNameEn: 'Shawarma Shack', categoryAr: 'الشاورما والساندوتش', categoryEn: 'Shawarma Platters', sellingPrice: 1.750, cogsEstimate: 0.420, packagingCost: 0.150 },
-  { id: 'sh-03', code: 'SH03', nameAr: 'بوكس شاورما ميني للمشاركة (12 قطعة)', nameEn: 'Mini Shawarma Gathering Box (12 Pcs)', brandId: 'shawarma', brandNameAr: 'شاورما شاك', brandNameEn: 'Shawarma Shack', categoryAr: 'بوكسات الجمعات', categoryEn: 'Gathering Boxes', sellingPrice: 7.500, cogsEstimate: 1.950, packagingCost: 0.650 },
+  // Tahina
+  { id: 'th-01', code: 'SH01', nameAr: 'صحن شاورما لحم عربي مع طحينة', nameEn: 'Arabic Beef Shawarma Platter', brandId: 'tahina', brandNameAr: 'شاورما طحينة', brandNameEn: 'Tahina', categoryAr: 'الشاورما والساندوتش', categoryEn: 'Shawarma Platters', sellingPrice: 2.850, cogsEstimate: 0.720, packagingCost: 0.200, badge: 'Top Item' },
+  { id: 'th-02', code: 'SH02', nameAr: 'شاورما دجاج صاج بالثوم والمخلل', nameEn: 'Chicken Saj Shawarma with Garlic', brandId: 'tahina', brandNameAr: 'شاورما طحينة', brandNameEn: 'Tahina', categoryAr: 'الشاورما والساندوتش', categoryEn: 'Shawarma Platters', sellingPrice: 1.750, cogsEstimate: 0.420, packagingCost: 0.150 },
+  { id: 'th-03', code: 'SH03', nameAr: 'بوكس شاورما ميني للمشاركة (12 قطعة)', nameEn: 'Mini Shawarma Gathering Box (12 Pcs)', brandId: 'tahina', brandNameAr: 'شاورما طحينة', brandNameEn: 'Tahina', categoryAr: 'بوكسات الجمعات', categoryEn: 'Gathering Boxes', sellingPrice: 7.500, cogsEstimate: 1.950, packagingCost: 0.650 },
 
   // Farm Brown
   { id: 'fb-01', code: 'FB01', nameAr: 'أومليت فارم براون بالسبانخ والفيتا', nameEn: 'Farm Brown Spinach & Feta Omelette', brandId: 'farmbrown', brandNameAr: 'فارم براون', brandNameEn: 'Farm Brown', categoryAr: 'الفطور والبرانش', categoryEn: 'Breakfast & Brunch', sellingPrice: 3.250, cogsEstimate: 0.680, packagingCost: 0.250 },
@@ -333,12 +330,12 @@ export function VenturePosHub({
             <div className="flex flex-wrap items-center gap-1.5">
               {[
                 { id: 'ALL', labelAr: 'جميع البراندات الـ 6', labelEn: 'All 6 Brands' },
-                { id: 'franks', labelAr: "فرانكس ستيك", labelEn: "Frank's Steak" },
-                { id: 'thinnies', labelAr: 'ثينيز برجر', labelEn: 'Thinnies Burger' },
-                { id: 'oversized', labelAr: 'أوفر سايزد', labelEn: 'Over Sized' },
-                { id: 'shawarma', labelAr: 'شاورما شاك', labelEn: 'Shawarma Shack' },
+                { id: 'chinagarden', labelAr: 'تشاينا جاردن', labelEn: 'China Garden' },
+                { id: 'franks', labelAr: "فرانكس", labelEn: "Frank's" },
+                { id: 'tahina', labelAr: 'شاورما طحينة', labelEn: 'Tahina' },
                 { id: 'farmbrown', labelAr: 'فارم براون', labelEn: 'Farm Brown' },
-                { id: 'noodle', labelAr: 'نودل بار وكرك', labelEn: 'The Noodle Bar' },
+                { id: 'noodle', labelAr: 'ذا نودل بار', labelEn: 'The Noodle Bar' },
+                { id: 'karak', labelAr: 'كرك كافتيريا', labelEn: 'Karak Cafeteria' },
               ].map((b) => (
                 <button
                   key={b.id}
@@ -814,7 +811,7 @@ export function VenturePosHub({
                 {[
                   { ref: 'AUD-VD-9021', type: 'VOID إلغاء صنف', typeColor: 'text-amber-400 bg-amber-500/10', items: '2x برجر ترافل أنجوس (MS03)', amount: 9.000, reason: 'خطأ إدخال كاشير قبل التحضير', manager: 'شكرالله ناصيف (PIN 4412)', cc: 'فرانكس الأفنيوز CC-FR-AV' },
                   { ref: 'AUD-RF-1044', type: 'REFUND مرتجع نقدي', typeColor: 'text-rose-400 bg-rose-500/10', items: '1x ستيك ريب آي 300غ (MS01)', amount: 9.850, reason: 'طلب العميل درجة نضج Medium Well وتم تقديمها Rare', manager: 'عبدالله عبد الغفار (PIN 1092)', cc: 'مردودات مبيعات 401090' },
-                  { ref: 'AUD-ST-0038', type: 'STAFF 0-KD وجبة موظف', typeColor: 'text-purple-400 bg-purple-500/10', items: '1x ثينيز دبل كلاسيك + بطاطا (TH01)', amount: 4.050, reason: 'وجبة موظف الوردية الصباحية - شيف فرايز', manager: 'عبدالرحمن محمد (PIN 7701)', cc: 'مصروف وجبات موظفين 502010' },
+                  { ref: 'AUD-ST-0038', type: 'STAFF 0-KD وجبة موظف', typeColor: 'text-purple-400 bg-purple-500/10', items: '1x دجاج كانتون تشاينا جاردن + أرز (CG01)', amount: 4.050, reason: 'وجبة موظف الوردية الصباحية - شيف فرايز', manager: 'عبدالرحمن محمد (PIN 7701)', cc: 'مصروف وجبات موظفين 502010' },
                   { ref: 'AUD-DC-3180', type: 'DISCOUNT خصم ضيافة', typeColor: 'text-blue-400 bg-blue-500/10', items: 'فاتورة طاولة VIP #12', amount: 3.500, reason: 'خصم اعتذار عن تأخير المشروبات 10 دقائق', manager: 'شكرالله ناصيف (PIN 4412)', cc: 'خصومات مسموح بها 401080' },
                 ].map((row, idx) => (
                   <tr key={idx} className="hover:bg-slate-800/40 transition-colors font-sans">

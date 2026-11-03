@@ -69,28 +69,28 @@ export const DETAILED_RECIPES: MultiLevelBomRecipe[] = [
   },
   {
     id: 'rec-02',
-    sku: 'TH01',
-    nameAr: 'ثينيز سماش برجر دبل كلاسيك',
-    nameEn: 'Thinnies Classic Double Smash Burger',
-    brandId: 'thinnies',
-    brandNameAr: 'ثينيز برجر',
-    brandNameEn: 'Thinnies Burger',
-    categoryAr: 'البرجر والساندوتش',
-    categoryEn: 'Burgers & Sandwiches',
-    sellingPrice: 2.950,
-    targetCostPercent: 26.0,
+    sku: 'CG01',
+    nameAr: 'دجاج كانتون تشاينا جاردن المميز',
+    nameEn: 'China Garden Special Canton Chicken',
+    brandId: 'chinagarden',
+    brandNameAr: 'تشاينا جاردن',
+    brandNameEn: 'China Garden',
+    categoryAr: 'الأطباق الصينية والآسيوية',
+    categoryEn: 'Chinese & Asian Mains',
+    sellingPrice: 4.500,
+    targetCostPercent: 25.5,
     rawLevel1: [
-      { code: 'RW01-BF04', nameAr: 'لحم مفروم طازج 80/20', nameEn: 'Fresh Minced Beef 80/20', qty: '180g', unitCost: 3.800, yieldPercent: 88.0, costKwd: 0.684 },
-      { code: 'RW01-BN01', nameAr: 'خبز بريوش طازج محمص', nameEn: 'Brioche Bun', qty: '1 pc', unitCost: 0.120, yieldPercent: 100, costKwd: 0.120 },
-      { code: 'RW01-CH01', nameAr: 'شرائح جبن شيدر أمريكي', nameEn: 'Cheddar Cheese Slices', qty: '2 slices', unitCost: 0.060, yieldPercent: 100, costKwd: 0.120 },
-      { code: 'RW01-PCK', nameAr: 'مخلل خيار حلو مقطع', nameEn: 'Sweet Pickle Chips', qty: '20g', unitCost: 0.850, yieldPercent: 100, costKwd: 0.017 },
+      { code: 'RW01-CK01', nameAr: 'صدور دجاج طازجة مقطعة مكعبات', nameEn: 'Fresh Diced Chicken Breast', qty: '220g', unitCost: 2.400, yieldPercent: 92.0, costKwd: 0.528 },
+      { code: 'RW01-VG01', nameAr: 'فلفل رومي وبصل وجزر طازج', nameEn: 'Mixed Bell Peppers & Onions', qty: '120g', unitCost: 0.650, yieldPercent: 95.0, costKwd: 0.078 },
+      { code: 'RW01-RC01', nameAr: 'أرز بسمتي أبيض مطهو بالبخار', nameEn: 'Steamed Jasmine Rice', qty: '200g', unitCost: 0.550, yieldPercent: 100, costKwd: 0.110 },
+      { code: 'RW01-SS01', nameAr: 'زيت سمسم وصلصة صويا فاخرة', nameEn: 'Sesame Oil & Premium Soy Sauce', qty: '25ml', unitCost: 1.800, yieldPercent: 100, costKwd: 0.045 },
     ],
     prepLevel2: [
-      { code: 'PP03-THS', nameAr: 'صوص ثينيز السري (المطبخ المركزي بالقرين)', nameEn: 'Thinnies Secret Sauce', qty: '40ml', unitCost: 2.200, costKwd: 0.088 },
+      { code: 'PP03-CGS', nameAr: 'خلطة صوص كانتون السرية (المطبخ المركزي بالقرين)', nameEn: 'China Garden Canton Secret Sauce', qty: '60ml', unitCost: 2.400, costKwd: 0.144 },
     ],
     packagingLevel3: [
-      { code: 'PI02-WRP', nameAr: 'ورق لف برجر مطبوع مقاوم للزيوت', nameEn: 'Greaseproof Burger Wrap', qty: '1 pc', unitCost: 0.035, costKwd: 0.035 },
-      { code: 'PI02-BOX', nameAr: 'بوكس كرافت برجر بفتحات تهوية', nameEn: 'Vented Kraft Burger Box', qty: '1 unit', unitCost: 0.075, costKwd: 0.075 },
+      { code: 'PI02-BOX', nameAr: 'علبة وجبات صينية حرارية محكمة الإغلاق', nameEn: 'Thermal Asian Meal Container', qty: '1 unit', unitCost: 0.120, costKwd: 0.120 },
+      { code: 'PI02-CUT', nameAr: 'طقم شوكة وعيدان أكل صينية ومحارم', nameEn: 'Chopsticks & Cutlery Kit', qty: '1 set', unitCost: 0.045, costKwd: 0.045 },
     ],
   },
   {
@@ -98,9 +98,9 @@ export const DETAILED_RECIPES: MultiLevelBomRecipe[] = [
     sku: 'SH01',
     nameAr: 'صحن شاورما لحم عربي مع طحينة',
     nameEn: 'Arabic Beef Shawarma Platter',
-    brandId: 'shawarma',
-    brandNameAr: 'شاورما شاك',
-    brandNameEn: 'Shawarma Shack',
+    brandId: 'tahina',
+    brandNameAr: 'شاورما طحينة',
+    brandNameEn: 'Tahina',
     categoryAr: 'الشاورما والبلاتر',
     categoryEn: 'Shawarma Platters',
     sellingPrice: 2.850,
@@ -693,7 +693,7 @@ export function VentureRecipesHub({
             <div className="rounded-xl border border-slate-800 bg-slate-950 p-4 space-y-2">
               <div className="text-[11px] text-slate-400">{isAr ? 'المنتج الوسيط التحضيري' : 'Target Sub-Recipe'}</div>
               <div className="text-base font-black text-white">صوص الترافل المميز (PP03-TRF)</div>
-              <div className="text-xs text-amber-400">{isAr ? 'تحضير مسبق للبرجر والستيك' : 'Special Prep for Frank\'s & Thinnies'}</div>
+              <div className="text-xs text-amber-400">{isAr ? 'تحضير مسبق للستيك والدجاج الكانتون' : 'Special Prep for Frank\'s & China Garden'}</div>
             </div>
 
             <div className="rounded-xl border border-slate-800 bg-slate-950 p-4 space-y-2">

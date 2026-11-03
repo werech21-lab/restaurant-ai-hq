@@ -1311,13 +1311,13 @@ export const STRATEGIC_15_REPORTS: StrategicReportMeta[] = [
   },
   {
     id: 3,
-    titleEn: '3. Boston BCG Menu Engineering Matrix',
-    titleAr: '3. مصفوفة بوسطن الرباعية لهندسة المنيو (Stars, Plowhorses, Puzzles, Dogs)',
+    titleEn: '3. Menu Engineering & Item Profitability Matrix',
+    titleAr: '3. مصفوفة ربحية وهندسة أصناف المنيو (Top Performers, High-Demand, High-Margin, Slow-Moving)',
     categoryEn: 'Menu Intelligence',
     categoryAr: 'هندسة منيو',
     summaryEn: 'Classification of all 364 items by gross margin contribution and order popularity.',
     summaryAr: 'تصنيف أصناف المنيو الـ 364 حسب الشعبية ومعدل المساهمة في الهامش الربحي.',
-    filename: 'VF-Report-03-BCG-Menu-Matrix-Oct2026.csv',
+    filename: 'VF-Report-03-Menu-Profitability-Matrix-Oct2026.csv',
   },
   {
     id: 4,

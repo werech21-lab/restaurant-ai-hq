@@ -807,7 +807,7 @@ export function BrandSalesAnalyticsDashboard({ locale = 'ar' }: Props) {
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4">
           <div>
             <h2 className="text-xl font-black text-white">
-              {en ? '🍳 Menu Engineering Matrix & Category Breakdown' : '🍳 مصفوفة هندسة المنيو وتوزيع الأصناف (BCG / Kasavana)'}
+              {en ? '🍳 Menu Engineering Matrix & Category Breakdown' : '🍳 تحليل هندسة المنيو ومصفوفة ربحية الأصناف'}
             </h2>
             <p className="text-xs text-mist-400">
               {en
@@ -823,7 +823,7 @@ export function BrandSalesAnalyticsDashboard({ locale = 'ar' }: Props) {
             <div className="flex items-center justify-between">
               <span className="text-lg">⭐</span>
               <span className="rounded-md bg-emerald-400/20 px-2 py-0.5 text-[10px] font-black text-emerald-300">
-                STARS (نجوم)
+                TOP PERFORMERS (الأصناف الذهبية الرائدة)
               </span>
             </div>
             <p className="text-sm font-black text-white">
@@ -843,7 +843,7 @@ export function BrandSalesAnalyticsDashboard({ locale = 'ar' }: Props) {
             <div className="flex items-center justify-between">
               <span className="text-lg">🐎</span>
               <span className="rounded-md bg-sky-400/20 px-2 py-0.5 text-[10px] font-black text-sky-300">
-                PLOWHORSES (أحصنة العمل)
+                HIGH-DEMAND STAPLES (الأصناف عالية الطلب)
               </span>
             </div>
             <p className="text-sm font-black text-white">
@@ -863,7 +863,7 @@ export function BrandSalesAnalyticsDashboard({ locale = 'ar' }: Props) {
             <div className="flex items-center justify-between">
               <span className="text-lg">🧩</span>
               <span className="rounded-md bg-gold-400/20 px-2 py-0.5 text-[10px] font-black text-gold-300">
-                PUZZLES (ألغاز المنيو)
+                HIGH-MARGIN (أصناف واعدة عالية الربح)
               </span>
             </div>
             <p className="text-sm font-black text-white">
@@ -883,7 +883,7 @@ export function BrandSalesAnalyticsDashboard({ locale = 'ar' }: Props) {
             <div className="flex items-center justify-between">
               <span className="text-lg">🐶</span>
               <span className="rounded-md bg-rose-400/20 px-2 py-0.5 text-[10px] font-black text-rose-300">
-                DOGS (أصناف متعثرة)
+                SLOW-MOVING (الأصناف الراكدة ضعيفة الأداء)
               </span>
             </div>
             <p className="text-sm font-black text-white">

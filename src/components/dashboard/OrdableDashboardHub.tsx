@@ -194,21 +194,21 @@ export function OrdableDashboardHub({
 
   // Brands Contribution
   const brands = [
-    { name: "فرانكس ستيك وبرجر (Frank's)", nameEn: "Frank's Steak & Burgers", share: 53.6, sales: 89561.40, orders: 9092, aov: 9.850, color: '#f59e0b' },
-    { name: 'ثينيز برجر وشيكات (Thinnies)', nameEn: 'Thinnies Burger', share: 23.3, sales: 38932.48, orders: 8427, aov: 4.620, color: '#06b6d4' },
-    { name: 'أوفر سايزد برجر (Over Sized)', nameEn: 'Over Sized Burger', share: 11.2, sales: 18714.32, orders: 4215, aov: 4.440, color: '#ec4899' },
-    { name: 'شاورما طحينة (Tahina Shack)', nameEn: 'Shawarma Shack & Tahina', share: 9.0, sales: 15038.29, orders: 5371, aov: 2.800, color: '#10b981' },
-    { name: 'فارم براون الصحي (Farm Brown)', nameEn: 'Farm Brown Healthy', share: 1.6, sales: 2673.47, orders: 1842, aov: 1.450, color: '#84cc16' },
-    { name: 'ذا نودل بار وكرك (Noodle Bar)', nameEn: 'The Noodle Bar & Karak', share: 1.3, sales: 2172.20, orders: 1596, aov: 1.360, color: '#8b5cf6' },
+    { name: "تشاينا جاردن (China Garden)", nameEn: "China Garden", share: 84.8, sales: 141662.65, orders: 25900, aov: 5.470, color: '#f59e0b' },
+    { name: "فرانكس (Frank's)", nameEn: "Frank's", share: 9.7, sales: 16222.26, orders: 1647, aov: 9.850, color: '#ef4444' },
+    { name: "شاورما طحينة (Tahina)", nameEn: "Tahina", share: 2.6, sales: 4424.85, orders: 1580, aov: 2.800, color: '#10b981' },
+    { name: "فارم براون (Farm Brown)", nameEn: "Farm Brown", share: 1.6, sales: 2661.90, orders: 1835, aov: 1.450, color: '#84cc16' },
+    { name: "ذا نودل بار (The Noodle Bar)", nameEn: "The Noodle Bar", share: 1.0, sales: 1676.95, orders: 1233, aov: 1.360, color: '#06b6d4' },
+    { name: "كرك كافتيريا (Karak Cafeteria)", nameEn: "Karak Cafeteria", share: 0.3, sales: 443.55, orders: 326, aov: 1.360, color: '#8b5cf6' },
   ]
 
   // Top 5 Star Items
   const topItems = [
-    { code: 'MS01', nameAr: 'فرانكس سموك هاوس برجر', nameEn: 'Frank\'s Smokehouse Burger', brand: "Frank's", qty: 4120, rev: 16892.00, badge: '⭐ بطل المبيعات' },
-    { code: 'TH01', nameAr: 'ثينيز دبل كلاسيك برجر', nameEn: 'Thinnies Double Classic', brand: 'Thinnies', qty: 3850, rev: 11165.00, badge: '🔥 الأكثر طلباً' },
-    { code: 'OS02', nameAr: 'أوفر سايزد تريبل ماكس', nameEn: 'Over Sized Triple Max', brand: 'Over Sized', qty: 2410, rev: 8676.00, badge: '⚡ الحجم العائلي' },
+    { code: 'CG01', nameAr: 'دجاج كانتون تشاينا جاردن المميز', nameEn: 'China Garden Special Canton Chicken', brand: 'China Garden', qty: 6420, rev: 28890.00, badge: '⭐ بطل المبيعات' },
+    { code: 'MS01', nameAr: 'فرانكس سموك هاوس برجر', nameEn: 'Frank\'s Smokehouse Burger', brand: "Frank's", qty: 4120, rev: 16892.00, badge: '🔥 الأكثر طلباً' },
     { code: 'SH01', nameAr: 'شاورما لحم طحينة سوبريم', nameEn: 'Tahina Meat Shawarma Supreme', brand: 'Tahina', qty: 4680, rev: 7488.00, badge: '🎯 أسرع تسليم' },
     { code: 'PP03', nameAr: 'ستريبس دجاج فارم براون المقرمش', nameEn: 'Farm Brown Chicken Strips', brand: 'Farm Brown', qty: 3120, rev: 5616.00, badge: '🌿 الخيار الصحي' },
+    { code: 'NB01', nameAr: 'نودلز كانتون بالخضار واللحم', nameEn: 'The Noodle Bar Canton Noodles', brand: 'The Noodle Bar', qty: 2150, rev: 4300.00, badge: '🍜 الأكثر شعبية' },
   ]
 
   // Top Delivery Zones in Kuwait
