@@ -9,6 +9,7 @@ import { can, firstAllowedHref } from "@/lib/permissions";
 import { listAttendance, listEmployees, listPayroll } from "@/services/hr.service";
 import { ensureComplianceBaselines } from "@/services/hr-compliance.service";
 import { EnterpriseHrCommandHub } from "@/components/hr/EnterpriseHrCommandHub";
+import { VENTURE_EMPLOYEES } from "@/components/hr/venture-employees-directory";
 
 export const metadata = { title: "Enterprise HRMS & Overseas Recruitment | AetherBI ERP" };
 
@@ -36,27 +37,37 @@ async function HrContent({ searchParams }: { searchParams: Promise<RawQuery> }) 
 
   const toDateStr = (d: Date | null | undefined) => (d ? d.toISOString().slice(0, 10) : null);
 
-  const serializedEmployees = employeesPack.rows.map((emp) => ({
-    id: emp.id,
-    code: emp.code,
-    name: emp.name,
-    jobTitle: emp.jobTitle,
-    department: emp.department,
-    phone: emp.phone,
-    basicSalary: emp.basicSalary,
-    allowances: emp.allowances,
-    deductions: emp.deductions,
-    status: emp.status,
-    hireDate: toDateStr(emp.hireDate) || "2021-01-01",
-    civilId: emp.civilId,
-    iban: emp.iban,
-    bankName: emp.bankName,
-    civilIdExpiry: toDateStr(emp.civilIdExpiry),
-    passportExpiry: toDateStr(emp.passportExpiry),
-    healthCardExpiry: toDateStr(emp.healthCardExpiry),
-    workPermitExpiry: toDateStr(emp.workPermitExpiry),
-    drivingLicenseExpiry: toDateStr(emp.drivingLicenseExpiry),
-  }));
+  const phantomCodes = new Set(['100', '200', '300', '400', '433', '500', '600', '700', '800', '900', '950', 'ENABLE-1', '10', 'VF103', 'VF104', 'VF140']);
+  const sanitizedDbRows = employeesPack.rows.filter((emp) => !phantomCodes.has(emp.code));
+
+  // Build serialized employees using VENTURE_EMPLOYEES directory for authentic bilingual quadruple names & titles
+  const serializedEmployees = VENTURE_EMPLOYEES.map((ve) => {
+    const dbEmp = sanitizedDbRows.find((r) => r.code === ve.code);
+    const displayName = locale === 'ar' ? ve.nameAr : ve.nameEn;
+    const displayJobTitle = locale === 'ar' ? ve.jobTitleAr : ve.jobTitleEn;
+    const displayDept = locale === 'ar' ? ve.departmentAr : ve.department;
+    return {
+      id: dbEmp?.id || ve.id,
+      code: ve.code,
+      name: displayName,
+      jobTitle: displayJobTitle,
+      department: displayDept,
+      phone: ve.phone,
+      basicSalary: dbEmp?.basicSalary ?? ve.basicSalary,
+      allowances: dbEmp?.allowances ?? ve.allowances,
+      deductions: dbEmp?.deductions ?? ve.deductions,
+      status: ve.status,
+      hireDate: dbEmp ? (toDateStr(dbEmp.hireDate) || ve.hireDate) : ve.hireDate,
+      civilId: ve.civilId,
+      iban: ve.iban,
+      bankName: ve.bankName,
+      civilIdExpiry: ve.civilIdExpiry,
+      passportExpiry: ve.passportExpiry,
+      healthCardExpiry: ve.healthCardExpiry,
+      workPermitExpiry: ve.workPermitExpiry,
+      drivingLicenseExpiry: null,
+    };
+  });
 
   const serializedPayroll = payrollRows.map((row) => ({
     id: row.id,

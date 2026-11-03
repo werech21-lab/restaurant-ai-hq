@@ -22,6 +22,13 @@ import {
 import { HrExecutiveReportsHub, type HrEmployeeSummary } from './HrExecutiveReportsHub'
 import { HrOfficialLettersHub } from './HrOfficialLettersHub'
 import { NewEmployeeWizardModal } from './NewEmployeeWizardModal'
+import {
+  VENTURE_EMPLOYEES,
+  VENTURE_DEPARTMENTS,
+  VENTURE_WORK_LOCATIONS,
+  type VentureEmployee,
+} from './venture-employees-directory'
+import { EmployeeProfileModal360 } from './EmployeeProfileModal360'
 
 export type HrPayrollRow = {
   id: string
@@ -154,13 +161,18 @@ export function EnterpriseHrCommandHub({
 }: Props) {
   const router = useRouter()
   const en = locale === 'en'
+  const isArabic = !en
 
   const validInitialTab = COMMAND_TABS.find((t) => t.key === initialTab)?.key || 'employees'
   const [activeTab, setActiveTab] = useState<HrCommandTabKey>(validInitialTab)
   const [wizardOpen, setWizardOpen] = useState(false)
   const [selectedDossierEmpId, setSelectedDossierEmpId] = useState<string | null>(null)
 
-  // Filters for Tab 1 (Employees)
+  // Filters & View Mode for Tab 1 (Employees Directory)
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards')
+  const [selectedDepartment, setSelectedDepartment] = useState<string>('ALL')
+  const [selectedLocation, setSelectedLocation] = useState<string>('ALL')
+  const [selectedProfileEmployee, setSelectedProfileEmployee] = useState<VentureEmployee | null>(null)
   const [searchQ, setSearchQ] = useState('')
   const [brandFilter, setBrandFilter] = useState('ALL')
   const [statusFilter, setStatusFilter] = useState('ALL')
@@ -221,6 +233,35 @@ export function EnterpriseHrCommandHub({
       )
     })
   }, [employees, brandFilter, statusFilter, searchQ])
+
+  const filteredVentureEmployees = useMemo(() => {
+    return VENTURE_EMPLOYEES.filter((emp) => {
+      if (selectedDepartment !== 'ALL' && emp.department !== selectedDepartment) {
+        return false
+      }
+      if (selectedLocation !== 'ALL' && emp.workLocation !== selectedLocation) {
+        return false
+      }
+      if (statusFilter !== 'ALL' && emp.status !== statusFilter) {
+        return false
+      }
+      if (!searchQ.trim()) return true
+      const q = searchQ.toLowerCase().trim()
+      return (
+        emp.nameAr.toLowerCase().includes(q) ||
+        emp.nameEn.toLowerCase().includes(q) ||
+        emp.code.toLowerCase().includes(q) ||
+        emp.jobTitleAr.toLowerCase().includes(q) ||
+        emp.jobTitleEn.toLowerCase().includes(q) ||
+        emp.department.toLowerCase().includes(q) ||
+        emp.departmentAr.toLowerCase().includes(q) ||
+        emp.workLocation.toLowerCase().includes(q) ||
+        emp.workLocationAr.toLowerCase().includes(q) ||
+        emp.civilId.toLowerCase().includes(q) ||
+        emp.phone.toLowerCase().includes(q)
+      )
+    })
+  }, [selectedDepartment, selectedLocation, statusFilter, searchQ])
 
   const eosbSelectedEmployee = useMemo(
     () => employees.find((e) => e.id === eosbEmpId) || employees[0],
@@ -440,18 +481,19 @@ export function EnterpriseHrCommandHub({
       </nav>
 
       {/* =====================================================================
-          TAB 1: EMPLOYEES & ONBOARDING WIZARD
+          TAB 1: EMPLOYEES DIRECTORY & ODOO KANBAN CARDS WITH LEFT SIDEBAR
          ===================================================================== */}
       {activeTab === 'employees' ? (
         <section className="space-y-4">
+          {/* Top 4 KPI Metrics */}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <article className="rounded-2xl border border-white/10 bg-[#0f141c] p-4">
               <p className="text-xs text-mist-400">
                 {en ? 'Total Registered Employees (Odoo Sync)' : 'إجمالي الموظفين المسجلين (مستورد من Odoo)'}
               </p>
-              <p className="mt-1 text-2xl font-black text-white">{employees.length}</p>
+              <p className="mt-1 text-2xl font-black text-white">{VENTURE_EMPLOYEES.length}</p>
               <p className="mt-1 text-[11px] text-emerald-300">
-                {en ? 'Across 6 Brands, 10 Branches & CK' : 'موزعين على 6 براندات و10 فروع والمطبخ المركزي'}
+                {en ? 'Across 6 Brands, 9 Locations & CK (Jahra Closed)' : 'موزعين على 6 براندات و9 مواقع والمطبخ المركزي (الجهراء مغلق)'}
               </p>
             </article>
             <article className="rounded-2xl border border-white/10 bg-[#0f141c] p-4">
@@ -483,133 +525,398 @@ export function EnterpriseHrCommandHub({
             </article>
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-[#0f141c] p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <input
-                  value={searchQ}
-                  onChange={(e) => setSearchQ(e.target.value)}
-                  placeholder={
-                    en
-                      ? 'Search by name, barcode, Civil ID, job title, or branch…'
-                      : 'بحث بالاسم، رقم البصمة، الرقم المدني، الوظيفة، أو الفرع…'
-                  }
-                  className="w-72 rounded-xl border border-white/15 bg-[#141b26] px-3.5 py-2 text-xs text-white"
-                />
-                <select
-                  value={brandFilter}
-                  onChange={(e) => setBrandFilter(e.target.value)}
-                  className="rounded-xl border border-white/15 bg-[#141b26] px-3 py-2 text-xs text-white"
-                >
-                  <option value="ALL">{en ? 'All Brands & Branches' : 'جميع البراندات والفروع'}</option>
-                  <option value="China Garden">China Garden — تشاينا جاردن</option>
-                  <option value="Noodle">The Noodle Bar — ذا نودل بار</option>
-                  <option value="Karak">Karak Cafeteria — كرك كافيتريا</option>
-                  <option value="Farm Brown">Farm Brown — فارم براون</option>
-                  <option value="Frank">Frank&apos;s Steak — فرانكس ستيك</option>
-                  <option value="Tahina">Tahina — شاورما طحينة</option>
-                  <option value="Kitchen">Central Kitchen — المطبخ المركزي</option>
-                </select>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="rounded-xl border border-white/15 bg-[#141b26] px-3 py-2 text-xs text-white"
-                >
-                  <option value="ALL">{en ? 'All Work Statuses' : 'جميع حالات العمل'}</option>
-                  <option value="ACTIVE">{en ? 'Active on Duty' : 'على رأس العمل'}</option>
-                  <option value="ON_VACATION">{en ? 'On Vacation Abroad' : 'في إجازة سفر'}</option>
-                  <option value="OVERSEAS_PIPELINE">{en ? 'Overseas Visa 18 Pipeline' : 'قيد الاستقدام من الخارج'}</option>
-                </select>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-mist-400">
-                  {en
-                    ? `Showing ${filteredEmployees.length} of ${employees.length} employees`
-                    : `عرض ${filteredEmployees.length} من أصل ${employees.length} موظفاً`}
-                </span>
-                {canCreate ? (
-                  <button
-                    type="button"
-                    onClick={() => setWizardOpen(true)}
-                    className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-black text-white hover:bg-emerald-500"
-                  >
-                    {en ? '➕ New Employee Wizard' : '➕ إنشاء موظف جديد'}
-                  </button>
-                ) : null}
-              </div>
-            </div>
-
-            <div className="mt-4 max-h-[540px] overflow-auto">
-              <table className="min-w-[980px] w-full text-xs">
-                <thead className="sticky top-0 bg-[#0a0d12] text-mist-400">
-                  <tr>
-                    <th className="px-3 py-2.5 text-start">{en ? 'Barcode' : 'رقم البصمة'}</th>
-                    <th className="px-3 py-2.5 text-start">{en ? 'Employee Name' : 'اسم الموظف'}</th>
-                    <th className="px-3 py-2.5 text-start">{en ? 'Job Title' : 'المسمى الوظيفي'}</th>
-                    <th className="px-3 py-2.5 text-start">{en ? 'Brand / Branch / Dept' : 'البراند / الفرع / القسم'}</th>
-                    <th className="px-3 py-2.5 text-start">{en ? 'Basic (KWD)' : 'الأساسي (د.ك)'}</th>
-                    <th className="px-3 py-2.5 text-start">{en ? 'Allowances (KWD)' : 'البدلات (د.ك)'}</th>
-                    <th className="px-3 py-2.5 text-start">{en ? 'Net Package (KWD)' : 'الصافي (د.ك)'}</th>
-                    <th className="px-3 py-2.5 text-start">{en ? 'Status & Dossier' : 'الحالة والخزانة'}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredEmployees.map((emp) => {
-                    const net = Math.max(0, emp.basicSalary + emp.allowances - emp.deductions)
+          {/* Main Layout: Left Filter Sidebar + Employees Cards/Table Area */}
+          <div className="flex flex-col lg:flex-row gap-5 items-start">
+            {/* LEFT FILTER SIDEBAR (Exact Odoo/Walnut SS Design) */}
+            <aside className="w-full lg:w-64 xl:w-72 shrink-0 space-y-4">
+              {/* Department Filter Section */}
+              <div className="rounded-3xl border border-white/10 bg-[#0f141c] p-4 space-y-2.5 shadow-sm">
+                <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-gold-300 flex items-center gap-1.5">
+                    <span>🏢</span>
+                    <span>{en ? 'DEPARTMENT' : 'الأقسام الإدارية'}</span>
+                  </h3>
+                  <span className="text-[10px] text-mist-400 font-mono">166 Staff</span>
+                </div>
+                <div className="space-y-1 max-h-[320px] overflow-y-auto pr-1">
+                  {VENTURE_DEPARTMENTS.map((dept) => {
+                    const isSelected = selectedDepartment === dept.key
                     return (
-                      <tr key={emp.id} className="border-t border-white/5 hover:bg-white/[0.02]">
-                        <td className="px-3 py-2.5 font-mono font-bold text-gold-300" dir="ltr">
-                          {emp.code}
-                        </td>
-                        <td className="px-3 py-2.5 font-bold text-white">{emp.name}</td>
-                        <td className="px-3 py-2.5 text-mist-200">{emp.jobTitle}</td>
-                        <td className="px-3 py-2.5 text-mist-300">{emp.department}</td>
-                        <td className="px-3 py-2.5 font-mono text-mist-200" dir="ltr">
-                          {emp.basicSalary.toFixed(3)}
-                        </td>
-                        <td className="px-3 py-2.5 font-mono text-mist-200" dir="ltr">
-                          {emp.allowances.toFixed(3)}
-                        </td>
-                        <td className="px-3 py-2.5 font-mono font-bold text-emerald-300" dir="ltr">
-                          {net.toFixed(3)} KWD
-                        </td>
-                        <td className="px-3 py-2.5">
-                          <div className="flex items-center gap-2">
-                            <span className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-200">
-                              {emp.status === 'ON_VACATION'
-                                ? en
-                                  ? 'On Vacation'
-                                  : 'في إجازة سفر'
-                                : emp.status === 'OVERSEAS_PIPELINE'
-                                  ? en
-                                    ? 'Visa 18 Pipeline'
-                                    : 'قيد الاستقدام'
-                                  : en
-                                    ? 'Active on Duty'
-                                    : 'على رأس العمل'}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setSelectedDossierEmpId((prev) => (prev === emp.id ? null : emp.id))
-                              }
-                              className="rounded-lg border border-white/15 bg-black/40 px-2 py-1 text-[10px] font-semibold text-gold-200 hover:border-gold-300"
-                            >
-                              {en ? '📂 Digital Dossier' : '📂 الخزانة الرقمية'}
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
+                      <button
+                        key={dept.key}
+                        type="button"
+                        onClick={() => setSelectedDepartment(dept.key)}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all text-start ${
+                          isSelected
+                            ? 'bg-amber-500/20 text-amber-200 border border-amber-400/40 font-black shadow-sm'
+                            : 'text-mist-300 hover:bg-white/5 hover:text-white'
+                        }`}
+                      >
+                        <span className="truncate pr-1">
+                          {dept.key === 'ALL'
+                            ? en ? 'All Departments' : 'جميع الأقسام'
+                            : isArabic ? dept.ar : dept.en}
+                        </span>
+                        <span
+                          className={`rounded-lg px-2 py-0.5 text-[10px] font-mono shrink-0 ${
+                            isSelected ? 'bg-amber-400 text-black font-black' : 'bg-white/10 text-mist-300'
+                          }`}
+                        >
+                          {dept.count}
+                        </span>
+                      </button>
                     )
                   })}
-                </tbody>
-              </table>
+                </div>
+              </div>
+
+              {/* Work Location Filter Section (NO JAHRA!) */}
+              <div className="rounded-3xl border border-white/10 bg-[#0f141c] p-4 space-y-2.5 shadow-sm">
+                <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-gold-300 flex items-center gap-1.5">
+                    <span>📍</span>
+                    <span>{en ? 'WORK LOCATION' : 'مواقع العمل والفروع'}</span>
+                  </h3>
+                  <span className="text-[10px] text-mist-400 font-mono">9 Locations</span>
+                </div>
+                <div className="space-y-1 max-h-[320px] overflow-y-auto pr-1">
+                  {VENTURE_WORK_LOCATIONS.map((loc) => {
+                    const isSelected = selectedLocation === loc.key
+                    return (
+                      <button
+                        key={loc.key}
+                        type="button"
+                        onClick={() => setSelectedLocation(loc.key)}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all text-start ${
+                          isSelected
+                            ? 'bg-sky-500/20 text-sky-200 border border-sky-400/40 font-black shadow-sm'
+                            : 'text-mist-300 hover:bg-white/5 hover:text-white'
+                        }`}
+                      >
+                        <span className="truncate pr-1">
+                          {loc.key === 'ALL'
+                            ? en ? 'All Locations' : 'جميع مواقع العمل'
+                            : isArabic ? loc.ar : loc.en}
+                        </span>
+                        <span
+                          className={`rounded-lg px-2 py-0.5 text-[10px] font-mono shrink-0 ${
+                            isSelected ? 'bg-sky-400 text-black font-black' : 'bg-white/10 text-mist-300'
+                          }`}
+                        >
+                          {loc.count}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            </aside>
+
+            {/* MAIN CONTENT AREA: SEARCH & CARDS / TABLE */}
+            <div className="flex-1 w-full rounded-3xl border border-white/10 bg-[#0f141c] p-5 space-y-4">
+              {/* Controls Bar: Search, Filters, View Mode Toggle, Count */}
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    value={searchQ}
+                    onChange={(e) => setSearchQ(e.target.value)}
+                    placeholder={
+                      en
+                        ? 'Search by name, barcode, Civil ID, job title, or location…'
+                        : 'بحث بالاسم، رقم البصمة، الرقم المدني، المسمى، أو الموقع…'
+                    }
+                    className="w-72 rounded-xl border border-white/15 bg-[#141b26] px-3.5 py-2 text-xs text-white placeholder-mist-500 focus:border-amber-400 focus:outline-none"
+                  />
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="rounded-xl border border-white/15 bg-[#141b26] px-3 py-2 text-xs text-white focus:outline-none"
+                  >
+                    <option value="ALL">{en ? 'All Work Statuses' : 'جميع حالات العمل'}</option>
+                    <option value="ACTIVE">{en ? 'Active on Duty' : 'على رأس العمل'}</option>
+                    <option value="ON_VACATION">{en ? 'On Vacation Abroad' : 'في إجازة سفر خارج البلاد'}</option>
+                  </select>
+
+                  {(selectedDepartment !== 'ALL' || selectedLocation !== 'ALL' || searchQ) ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedDepartment('ALL')
+                        setSelectedLocation('ALL')
+                        setSearchQ('')
+                        setStatusFilter('ALL')
+                      }}
+                      className="rounded-xl border border-white/15 bg-white/5 px-2.5 py-1.5 text-[11px] font-semibold text-mist-300 hover:text-white"
+                    >
+                      {en ? '✕ Reset Filters' : '✕ مسح الفلاتر'}
+                    </button>
+                  ) : null}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2.5">
+                  {/* View Mode Toggle Buttons */}
+                  <div className="flex items-center rounded-xl border border-white/15 bg-[#141b26] p-1">
+                    <button
+                      type="button"
+                      onClick={() => setViewMode('cards')}
+                      className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
+                        viewMode === 'cards'
+                          ? 'bg-amber-500 text-black shadow-md'
+                          : 'text-mist-300 hover:text-white'
+                      }`}
+                    >
+                      <span>🪪</span>
+                      <span>{en ? 'Cards View' : 'عرض البطاقات'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setViewMode('table')}
+                      className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
+                        viewMode === 'table'
+                          ? 'bg-amber-500 text-black shadow-md'
+                          : 'text-mist-300 hover:text-white'
+                      }`}
+                    >
+                      <span>📋</span>
+                      <span>{en ? 'Table View' : 'عرض الجدول'}</span>
+                    </button>
+                  </div>
+
+                  <span className="text-xs text-mist-400 font-mono">
+                    {en
+                      ? `Showing ${filteredVentureEmployees.length} of ${VENTURE_EMPLOYEES.length}`
+                      : `عرض ${filteredVentureEmployees.length} من أصل ${VENTURE_EMPLOYEES.length} موظفاً`}
+                  </span>
+
+                  {canCreate ? (
+                    <button
+                      type="button"
+                      onClick={() => setWizardOpen(true)}
+                      className="rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-black text-white hover:bg-emerald-500 transition-colors"
+                    >
+                      {en ? '➕ New Employee Wizard' : '➕ إنشاء موظف جديد'}
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+
+              {/* VIEW 1: ODOO-STYLE PHOTO CARDS GRID */}
+              {viewMode === 'cards' ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 mt-2 max-h-[750px] overflow-y-auto pr-1">
+                  {filteredVentureEmployees.map((emp) => (
+                    <article
+                      key={emp.id}
+                      onClick={() => setSelectedProfileEmployee(emp)}
+                      className="group relative flex flex-col justify-between rounded-2xl border border-white/10 bg-[#121824] p-4 hover:border-amber-400/50 hover:bg-[#161f2e] transition-all cursor-pointer shadow-sm hover:shadow-xl"
+                    >
+                      <div>
+                        {/* Card Top: Avatar, Status Dot, Flag, Barcode */}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-2.5">
+                            <div className="relative">
+                              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500/20 via-sky-500/20 to-emerald-500/20 border border-white/15 font-black text-white text-sm shadow-inner">
+                                {emp.nameEn
+                                  .split(' ')
+                                  .map((n) => n[0])
+                                  .slice(0, 2)
+                                  .join('')}
+                              </div>
+                              <span
+                                className={`absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full border-2 border-[#121824] ${
+                                  emp.status === 'ACTIVE' ? 'bg-emerald-500' : 'bg-amber-500'
+                                }`}
+                                title={emp.status === 'ACTIVE' ? 'على رأس العمل' : 'في إجازة سفر'}
+                              />
+                            </div>
+
+                            <div>
+                              <div className="flex items-center gap-1">
+                                <span className="font-mono text-xs font-black text-amber-300">
+                                  #{emp.code}
+                                </span>
+                                <span className="text-sm" title={emp.nationalityAr}>
+                                  {emp.flag}
+                                </span>
+                              </div>
+                              <span className="text-[10px] text-mist-400 block font-mono" dir="ltr">
+                                {emp.phone}
+                              </span>
+                            </div>
+                          </div>
+
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                              emp.status === 'ACTIVE'
+                                ? 'border border-emerald-400/30 bg-emerald-500/10 text-emerald-300'
+                                : 'border border-amber-400/30 bg-amber-500/10 text-amber-300'
+                            }`}
+                          >
+                            {emp.status === 'ACTIVE'
+                              ? en ? 'On Duty' : 'على رأس العمل'
+                              : en ? 'Vacation' : 'في إجازة'}
+                          </span>
+                        </div>
+
+                        {/* Names: Arabic prominent + English beneath */}
+                        <div className="mt-3">
+                          <h4 className="text-sm font-black text-white group-hover:text-amber-300 transition-colors line-clamp-1">
+                            {isArabic ? emp.nameAr : emp.nameEn}
+                          </h4>
+                          <p className="text-[11px] text-mist-400 font-medium line-clamp-1" dir="ltr">
+                            {emp.nameEn}
+                          </p>
+                        </div>
+
+                        {/* Job Title & Department & Location */}
+                        <div className="mt-2.5 space-y-1">
+                          <p className="text-xs font-bold text-amber-200/90 line-clamp-1">
+                            💼 {isArabic ? emp.jobTitleAr : emp.jobTitleEn}
+                          </p>
+                          <p className="text-[11px] text-mist-300 line-clamp-1">
+                            🏢 {isArabic ? emp.departmentAr : emp.department}
+                          </p>
+                          <p className="text-[11px] text-mist-400 line-clamp-1">
+                            📍 {isArabic ? emp.workLocationAr : emp.workLocation}
+                          </p>
+                        </div>
+
+                        {/* Identifiers & Salary */}
+                        <div className="mt-3 pt-2.5 border-t border-white/5 space-y-1 text-[11px]">
+                          <div className="flex items-center justify-between text-mist-300">
+                            <span className="font-mono text-mist-400 text-[10px]" dir="ltr">
+                              ID: {emp.civilId}
+                            </span>
+                            <span className="font-mono text-emerald-300 font-bold" dir="ltr">
+                              {emp.netSalary.toFixed(3)} KWD
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="mt-3 pt-2 border-t border-white/5 flex items-center justify-between gap-2">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setSelectedProfileEmployee(emp)
+                          }}
+                          className="flex-1 rounded-xl bg-amber-500/15 border border-amber-500/30 py-1.5 text-center text-xs font-bold text-amber-200 hover:bg-amber-500/30 transition-colors"
+                        >
+                          {en ? '🪪 360° Profile' : '🪪 عرض الملف الشامل'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setSelectedDossierEmpId(emp.id)
+                          }}
+                          className="rounded-xl bg-white/5 border border-white/10 px-2.5 py-1.5 text-xs font-medium text-mist-300 hover:bg-white/10 hover:text-white transition-colors"
+                          title={en ? 'Digital Dossier' : 'الخزانة الرقمية'}
+                        >
+                          📂
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : null}
+
+              {/* VIEW 2: FINANCIAL & BARCODE TABLE */}
+              {viewMode === 'table' ? (
+                <div className="mt-2 max-h-[700px] overflow-auto rounded-2xl border border-white/10">
+                  <table className="min-w-[980px] w-full text-xs">
+                    <thead className="sticky top-0 bg-[#0a0d12] text-mist-400 z-10">
+                      <tr>
+                        <th className="px-3 py-2.5 text-start">{en ? 'Barcode' : 'رقم البصمة'}</th>
+                        <th className="px-3 py-2.5 text-start">{en ? 'Employee Name' : 'اسم الموظف'}</th>
+                        <th className="px-3 py-2.5 text-start">{en ? 'Job Title' : 'المسمى الوظيفي'}</th>
+                        <th className="px-3 py-2.5 text-start">{en ? 'Department & Location' : 'القسم ومقر العمل'}</th>
+                        <th className="px-3 py-2.5 text-start">{en ? 'Basic (KWD)' : 'الأساسي'}</th>
+                        <th className="px-3 py-2.5 text-start">{en ? 'Allowances' : 'البدلات'}</th>
+                        <th className="px-3 py-2.5 text-start">{en ? 'Net Package' : 'الصافي'}</th>
+                        <th className="px-3 py-2.5 text-start">{en ? 'Status & Actions' : 'الحالة والإجراء'}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredVentureEmployees.map((emp) => (
+                        <tr
+                          key={emp.id}
+                          onClick={() => setSelectedProfileEmployee(emp)}
+                          className="border-t border-white/5 hover:bg-white/[0.04] transition-colors cursor-pointer"
+                        >
+                          <td className="px-3 py-2.5 font-mono font-bold text-amber-300" dir="ltr">
+                            #{emp.code}
+                          </td>
+                          <td className="px-3 py-2.5">
+                            <div className="font-bold text-white flex items-center gap-1.5">
+                              <span>{isArabic ? emp.nameAr : emp.nameEn}</span>
+                              <span className="text-xs">{emp.flag}</span>
+                            </div>
+                            <div className="text-[10px] text-mist-400 font-medium" dir="ltr">
+                              {emp.nameEn}
+                            </div>
+                          </td>
+                          <td className="px-3 py-2.5 text-mist-200">
+                            <div>{isArabic ? emp.jobTitleAr : emp.jobTitleEn}</div>
+                            <div className="text-[10px] text-mist-400" dir="ltr">{emp.phone}</div>
+                          </td>
+                          <td className="px-3 py-2.5 text-mist-300">
+                            <div>{isArabic ? emp.departmentAr : emp.department}</div>
+                            <div className="text-[10px] text-mist-400">📍 {isArabic ? emp.workLocationAr : emp.workLocation}</div>
+                          </td>
+                          <td className="px-3 py-2.5 font-mono text-mist-200" dir="ltr">
+                            {emp.basicSalary.toFixed(3)}
+                          </td>
+                          <td className="px-3 py-2.5 font-mono text-mist-200" dir="ltr">
+                            {emp.allowances.toFixed(3)}
+                          </td>
+                          <td className="px-3 py-2.5 font-mono font-bold text-emerald-300" dir="ltr">
+                            {emp.netSalary.toFixed(3)} KWD
+                          </td>
+                          <td className="px-3 py-2.5">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`rounded-lg px-2 py-0.5 text-[10px] font-bold ${
+                                  emp.status === 'ACTIVE'
+                                    ? 'border border-emerald-400/30 bg-emerald-500/10 text-emerald-300'
+                                    : 'border border-amber-400/30 bg-amber-500/10 text-amber-300'
+                                }`}
+                              >
+                                {emp.status === 'ACTIVE' ? (en ? 'On Duty' : 'على رأس العمل') : (en ? 'Vacation' : 'في إجازة')}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setSelectedProfileEmployee(emp)
+                                }}
+                                className="rounded-lg border border-amber-400/30 bg-amber-500/15 px-2 py-1 text-[10px] font-bold text-amber-200 hover:bg-amber-500/30"
+                              >
+                                {en ? '360° Profile' : 'الملف الشامل'}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
             </div>
           </div>
 
+          {/* Full 360° Employee Profile Modal */}
+          <EmployeeProfileModal360
+            employee={selectedProfileEmployee}
+            isOpen={selectedProfileEmployee !== null}
+            onClose={() => setSelectedProfileEmployee(null)}
+            locale={locale}
+          />
+
+          {/* Digital Dossier View if triggered */}
           {selectedDossierEmpId ? (
-            <div className="rounded-3xl border border-emerald-400/30 bg-[#0f141c] p-5">
+            <div className="rounded-3xl border border-emerald-400/30 bg-[#0f141c] p-5 mt-4">
               <div className="mb-3 flex items-center justify-between">
                 <h3 className="text-sm font-black text-emerald-200">
                   {en ? '📂 Employee Digital Dossier & Archived Documents' : '📂 الخزانة الرقمية ومستندات الموظف'}
