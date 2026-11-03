@@ -20,6 +20,8 @@ export type RouterFileInput = {
   sizeBytes?: number
   contentBase64?: string
   textHint?: string
+  sha256?: string
+  source?: string
   /** Optional human override of AI department */
   forceDepartment?: SmartDropzoneDepartment
 }
@@ -46,6 +48,8 @@ export type RouterResultRow = {
   fileUrl: string | null
   previewUrl: string | null
   overridden: boolean
+  source?: string
+  sha256?: string | null
 }
 
 export type RouterBatchResult = {
@@ -331,7 +335,7 @@ export async function processSmartDropzoneBatch(input: {
   >
   const rows: RouterResultRow[] = []
 
-  for (const file of input.files.slice(0, 8)) {
+  for (const file of input.files.slice(0, 24)) {
     const fileName = (file.fileName || 'file').slice(0, 500)
     const relativePath = (file.relativePath || fileName).slice(0, 2000)
     const mimeType = (file.mimeType || 'application/octet-stream').slice(0, 200)
@@ -380,39 +384,48 @@ export async function processSmartDropzoneBatch(input: {
       }
     }
 
-    const id = `sdz_${Date.now()}_${rows.length}_${Math.random().toString(36).slice(2, 8)}`
+    const cleanSha = (file.sha256 || '').replace(/[^a-f0-9]/gi, '').toLowerCase()
+    const id =
+      cleanSha.length >= 32
+        ? `sdz_sha_${cleanSha.slice(0, 40)}`
+        : `sdz_${Date.now()}_${rows.length}_${Math.random().toString(36).slice(2, 8)}`
+    const sourceLabel = file.source || (cleanSha ? 'browser_local_reader' : 'web_upload')
+    const data = {
+      module: `smart_dropzone:${department}`,
+      batchId,
+      fileName,
+      relativePath,
+      category: department,
+      mimeType,
+      sizeBytes: file.sizeBytes ?? buf?.byteLength ?? 0,
+      fileUrl,
+      fileType: mimeType,
+      extractedText: extracted.slice(0, 8000),
+      entityKey: cleanSha.length >= 32 ? `sha256:${cleanSha}` : entity.key,
+      entityLabel: entity.label,
+      branchCode,
+      brandCode,
+      amountMinor: amountKwd != null ? Math.round(amountKwd * 1000) : null,
+      currency: 'KWD' as const,
+      matchScore: score,
+      status,
+      updatesJson: JSON.stringify(updates.ar),
+      metaJson: JSON.stringify({
+        actorId: input.actorId,
+        updatesEn: updates.en,
+        href: meta.href,
+        overridden,
+        departmentLabelEn: meta.en,
+        departmentLabelAr: meta.ar,
+        source: sourceLabel,
+        sha256: cleanSha || null,
+      }),
+    }
     try {
-      await prisma.deptIngestDocument.create({
-        data: {
-          id,
-          module: `smart_dropzone:${department}`,
-          batchId,
-          fileName,
-          relativePath,
-          category: department,
-          mimeType,
-          sizeBytes: file.sizeBytes ?? buf?.byteLength ?? 0,
-          fileUrl,
-          fileType: mimeType,
-          extractedText: extracted.slice(0, 8000),
-          entityKey: entity.key,
-          entityLabel: entity.label,
-          branchCode,
-          brandCode,
-          amountMinor: amountKwd != null ? Math.round(amountKwd * 1000) : null,
-          currency: 'KWD',
-          matchScore: score,
-          status,
-          updatesJson: JSON.stringify(updates.ar),
-          metaJson: JSON.stringify({
-            actorId: input.actorId,
-            updatesEn: updates.en,
-            href: meta.href,
-            overridden,
-            departmentLabelEn: meta.en,
-            departmentLabelAr: meta.ar,
-          }),
-        },
+      await prisma.deptIngestDocument.upsert({
+        where: { id },
+        create: { id, ...data },
+        update: data,
       })
     } catch (error) {
       logger.warn('smart_dropzone_db_write_failed', {
@@ -432,7 +445,7 @@ export async function processSmartDropzoneBatch(input: {
       departmentLabelEn: meta.en,
       href: meta.href,
       archiveHref: `/erp/archive?q=${encodeURIComponent(fileName)}`,
-      entityKey: entity.key,
+      entityKey: cleanSha.length >= 32 ? `sha256:${cleanSha}` : entity.key,
       entityLabel: entity.label,
       brandCode,
       branchCode,
@@ -444,6 +457,8 @@ export async function processSmartDropzoneBatch(input: {
       fileUrl,
       previewUrl: fileUrl,
       overridden,
+      source: sourceLabel,
+      sha256: cleanSha || null,
     })
   }
 

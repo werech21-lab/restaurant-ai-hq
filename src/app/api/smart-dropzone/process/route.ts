@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
   const list = Array.isArray(body.files) ? body.files : []
   const files: RouterFileInput[] = []
 
-  for (const item of list.slice(0, 8)) {
+  for (const item of list.slice(0, 24)) {
     if (!item || typeof item !== 'object') continue
     const row = item as Record<string, unknown>
     const fileName = safeName(asString(row.fileName || row.name, 'file').slice(0, 500) || 'file')
@@ -69,7 +69,9 @@ export async function POST(request: NextRequest) {
       mimeType: asString(row.mimeType || row.type, 'application/octet-stream').slice(0, 200),
       sizeBytes: asNumber(row.sizeBytes ?? row.size),
       contentBase64,
-      textHint: asString(row.textHint || row.text).slice(0, 40_000) || undefined,
+      textHint: asString(row.textHint || row.text || row.extractedText).slice(0, 40_000) || undefined,
+      sha256: asString(row.sha256 || row.fingerprint).slice(0, 128) || undefined,
+      source: asString(row.source).slice(0, 64) || undefined,
       forceDepartment: parseDept(row.forceDepartment || row.department),
     })
   }
