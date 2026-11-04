@@ -36,6 +36,7 @@ import {
   type VentureEmployee,
 } from './venture-employees-directory'
 import { EmployeeProfileModal360 } from './EmployeeProfileModal360'
+import { OdooPlanningGanttView } from './OdooPlanningGanttView'
 
 export type HrPayrollRow = {
   id: string
@@ -86,6 +87,12 @@ const COMMAND_TABS: Array<{
     icon: '👥',
     ar: '1. سجل الموظفين والتعيين',
     en: '1. Employees & Onboarding Wizard',
+  },
+  {
+    key: 'planningGantt',
+    icon: '📅',
+    ar: 'مخطط الشفتات وتخطيط الدوام (أودو Gantt)',
+    en: 'Weekly Shift Planning (Odoo Gantt)',
   },
   {
     key: 'recruitment',
@@ -578,7 +585,7 @@ export function EnterpriseHrCommandHub({
                     <span>🏢</span>
                     <span>{en ? 'DEPARTMENT' : 'الأقسام الإدارية'}</span>
                   </h3>
-                  <span className="text-[10px] text-mist-400 font-mono">166 Staff</span>
+                  <span className="text-[10px] text-mist-400 font-mono">{en ? '166 Staff' : '166 موظفاً'}</span>
                 </div>
                 <div className="space-y-1 max-h-[320px] overflow-y-auto pr-1">
                   {VENTURE_DEPARTMENTS.map((dept) => {
@@ -619,7 +626,7 @@ export function EnterpriseHrCommandHub({
                     <span>📍</span>
                     <span>{en ? 'WORK LOCATION' : 'مواقع العمل والفروع'}</span>
                   </h3>
-                  <span className="text-[10px] text-mist-400 font-mono">9 Locations</span>
+                  <span className="text-[10px] text-mist-400 font-mono">{en ? '9 Locations' : '9 مواقع عمل'}</span>
                 </div>
                 <div className="space-y-1 max-h-[320px] overflow-y-auto pr-1">
                   {VENTURE_WORK_LOCATIONS.map((loc) => {
@@ -1044,7 +1051,16 @@ export function EnterpriseHrCommandHub({
       ) : null}
 
       {/* =====================================================================
-          TAB 2: OVERSEAS RECRUITMENT & VISA 18 PIPELINE + PAM QUOTA TRACKER
+          TAB 2: ODOO SHIFT PLANNING GANTT, WORKFORCE UNITS & SALARY BENCHMARKS
+         ===================================================================== */}
+      {activeTab === 'planningGantt' ? (
+        <section className="space-y-6">
+          <OdooPlanningGanttView locale={en ? 'en' : 'ar'} />
+        </section>
+      ) : null}
+
+      {/* =====================================================================
+          TAB 3: OVERSEAS RECRUITMENT & VISA 18 PIPELINE + PAM QUOTA TRACKER
          ===================================================================== */}
       {activeTab === 'recruitment' ? (
         <section className="space-y-6">

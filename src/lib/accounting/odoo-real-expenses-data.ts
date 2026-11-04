@@ -63,6 +63,38 @@ export const ODOO_EXPENSES_TOTAL_KWD = 51154.950
 export const ODOO_EXPENSES_TOTAL_TX = 2213
 
 // ------------------------------------------------------------------------------
+// SETTLEMENT INDICATOR METRICS (LAST 365 DAYS ODOO LEDGER STATUS)
+// ------------------------------------------------------------------------------
+export const ODOO_SETTLEMENT_METRICS = {
+  txCount365: 1359,
+  pendingUploadKwd: 141.000,
+  pendingApprovalKwd: 0.000,
+  payableChequesKwd: 104.000,
+}
+
+export interface OdooTopLicenseTx {
+  id: string
+  date: string
+  descAr: string
+  descEn: string
+  beneficiaryAr: string
+  beneficiaryEn: string
+  custodianAr: string
+  custodianEn: string
+  branchAr: string
+  branchEn: string
+  brandAr: string
+  brandEn: string
+  accountCode: string
+  amountKwd: number
+  docRef: string
+  categoryAr: string
+  categoryEn: string
+  statusAr: string
+  statusEn: string
+}
+
+// ------------------------------------------------------------------------------
 // 1. THE 25 AUDITED EXPENSE CATEGORIES FROM ODOO HR.EXPENSE (51,154.950 KWD)
 // ------------------------------------------------------------------------------
 export const ODOO_EXPENSE_CATEGORIES_25: OdooExpenseCategory[] = [
@@ -412,6 +444,19 @@ export const ODOO_CUSTODIANS_7: OdooCustodian[] = [
     statusEn: 'Audited & Reconciled',
   },
   {
+    id: 'sheila',
+    nameAr: 'شيلا أمبوس بولبولي',
+    nameEn: 'Sheila Ambos Bulboli',
+    roleAr: 'عهدة التشغيل والإسناد الإداري للفروع',
+    roleEn: 'Branch Operations Support & Field Petty Cash',
+    txCount: 205,
+    totalKwd: 2624.630,
+    pct: 5.13,
+    accountCode: '7140 / 6150',
+    statusAr: 'مدققة ومطابقة',
+    statusEn: 'Audited & Reconciled',
+  },
+  {
     id: 'amjad',
     nameAr: 'أمجد سمير جرجس ميخائيل',
     nameEn: 'Amjad Samir Gerges Mikhail',
@@ -421,6 +466,19 @@ export const ODOO_CUSTODIANS_7: OdooCustodian[] = [
     totalKwd: 1389.000,
     pct: 2.72,
     accountCode: '1144 / 7540 / 8300',
+    statusAr: 'مدققة ومطابقة',
+    statusEn: 'Audited & Reconciled',
+  },
+  {
+    id: 'nader',
+    nameAr: 'نادر نزهي (عهدة التوريدات والتركيبات الكهربائية)',
+    nameEn: 'Nader Nozhy (Electrical Supplies & Cabling)',
+    roleAr: 'توريد وتركيب مستلزمات وتمديدات كهربائية للمواقع والمطابخ',
+    roleEn: 'Supply & Installation of Electrical Cabling & Fixtures',
+    txCount: 1,
+    totalKwd: 398.800,
+    pct: 0.78,
+    accountCode: '7120',
     statusAr: 'مدققة ومطابقة',
     statusEn: 'Audited & Reconciled',
   },
@@ -451,6 +509,19 @@ export const ODOO_CUSTODIANS_7: OdooCustodian[] = [
     statusEn: 'Audited & Reconciled',
   },
   {
+    id: 'nousha',
+    nameAr: 'نوشا أسانار شريف',
+    nameEn: 'Nousha Assanar Sharif',
+    roleAr: 'عهدة مشتريات تشغيلية ومصروفات طارئة',
+    roleEn: 'Emergency Operations & Field Supplies Custody',
+    txCount: 2,
+    totalKwd: 40.000,
+    pct: 0.08,
+    accountCode: '7140',
+    statusAr: 'مدققة ومطابقة',
+    statusEn: 'Audited & Reconciled',
+  },
+  {
     id: 'tushar',
     nameAr: 'توشار سونار بهات',
     nameEn: 'Tushar Sonar Bhat',
@@ -464,6 +535,8 @@ export const ODOO_CUSTODIANS_7: OdooCustodian[] = [
     statusEn: 'Audited & Reconciled',
   },
 ]
+
+export const ODOO_CUSTODIANS_ALL = ODOO_CUSTODIANS_7
 
 // ------------------------------------------------------------------------------
 // 3. REAL DETAILED TRANSACTIONS: SANAD PRO STATEMENT (GOV CLEARANCES & RESIDENCIES)
@@ -1032,5 +1105,221 @@ export const ODOO_RABIH_MAINTENANCE_DETAILS: OdooDetailedTransaction[] = [
     docRef: 'CK-FLTR-350',
     statusAr: 'معتمد ومُرحل',
     statusEn: 'Approved & Posted',
+  },
+]
+
+// ------------------------------------------------------------------------------
+// 5. TOP GOVERNMENT CLEARANCES, ADVERTISING & RESIDENCY TRANSACTIONS (ODOO REAL)
+// ------------------------------------------------------------------------------
+export const ODOO_TOP_SANAD_LICENSES_TRANSACTIONS: OdooTopLicenseTx[] = [
+  {
+    id: 'SND-LIC-001',
+    date: '14/10/2026',
+    descAr: 'ترخيص إعلانات البلدية — فرع بروميناد مول (عبر سند)',
+    descEn: 'Municipality Advertising License — Promenade Mall Branch (via Sanad)',
+    beneficiaryAr: 'بلدية الكويت — ترخيص وتجديد إعلانات تجارية وشاشات',
+    beneficiaryEn: 'Kuwait Municipality — Commercial Ads & Screens',
+    custodianAr: 'سند للتعقيب والخدمات الحكومية',
+    custodianEn: 'Sanad PRO Services',
+    branchAr: 'بروميناد مول — حولي',
+    branchEn: 'Promenade Mall — Hawally',
+    brandAr: 'برجر & تشيز',
+    brandEn: 'Burger & Cheese',
+    accountCode: '1144 / 7540',
+    amountKwd: 1000.000,
+    docRef: 'SND-BLD-PRM-1000',
+    categoryAr: 'تراخيص إعلانات وشاشات تجارية',
+    categoryEn: 'Municipal Ads & Commercial Screens',
+    statusAr: 'مدققة ومعتمدة ومرحلة',
+    statusEn: 'Audited, Approved & Posted',
+  },
+  {
+    id: 'SND-LIC-002',
+    date: '08/10/2026',
+    descAr: 'تجديد ترخيص إعلانات الفروع (عبر سند)',
+    descEn: 'Branches Advertising Licenses Renewal (via Sanad)',
+    beneficiaryAr: 'بلدية الكويت — تجديد رخص إعلانات الواجهات لمواقع الفروع',
+    beneficiaryEn: 'Kuwait Municipality — Facade Signboards Renewal',
+    custodianAr: 'سند للتعقيب والخدمات الحكومية',
+    custodianEn: 'Sanad PRO Services',
+    branchAr: 'الفروع العامة',
+    branchEn: 'General Branches',
+    brandAr: 'فنتشر فودز المركزية',
+    brandEn: 'Venture Foods HQ',
+    accountCode: '1144 / 7540',
+    amountKwd: 800.000,
+    docRef: 'SND-BLD-RENEW-800',
+    categoryAr: 'تراخيص إعلانات وشاشات تجارية',
+    categoryEn: 'Municipal Ads & Commercial Screens',
+    statusAr: 'مدققة ومعتمدة ومرحلة',
+    statusEn: 'Audited, Approved & Posted',
+  },
+  {
+    id: 'SND-LIC-003',
+    date: '11/10/2026',
+    descAr: 'ترخيص الشاشات الإعلانية — فرع الأفنيوز مول (عبر سند)',
+    descEn: 'Advertising Screens License — The Avenues Mall Branch (via Sanad)',
+    beneficiaryAr: 'بلدية الكويت — تصريح شاشات عرض وتسويق رقمية داخلية',
+    beneficiaryEn: 'Kuwait Municipality — Digital Display Screens Permit',
+    custodianAr: 'سند للتعقيب والخدمات الحكومية',
+    custodianEn: 'Sanad PRO Services',
+    branchAr: 'الأفنيوز مول — الري',
+    branchEn: 'The Avenues Mall — Al Rai',
+    brandAr: 'واغيو برجر وفارم براون',
+    brandEn: 'Wagyu Burger & Farm Brown',
+    accountCode: '1144 / 7540',
+    amountKwd: 800.000,
+    docRef: 'SND-BLD-AVN-800',
+    categoryAr: 'تراخيص إعلانات وشاشات تجارية',
+    categoryEn: 'Municipal Ads & Commercial Screens',
+    statusAr: 'مدققة ومعتمدة ومرحلة',
+    statusEn: 'Audited, Approved & Posted',
+  },
+  {
+    id: 'SND-LIC-004',
+    date: '18/10/2026',
+    descAr: 'ترخيص إعلانات — فرع السالمية تشاينا جاردن (عبر سند)',
+    descEn: 'Advertising License — Salmiya China Garden Branch (via Sanad)',
+    beneficiaryAr: 'بلدية الكويت — لوحات وإعلانات فرع السالمية الواجهة الرئيسية',
+    beneficiaryEn: 'Kuwait Municipality — Salmiya Main Facade Signboards',
+    custodianAr: 'سند للتعقيب والخدمات الحكومية',
+    custodianEn: 'Sanad PRO Services',
+    branchAr: 'السالمية — شارع سالم المبارك',
+    branchEn: 'Salmiya — Salem Al-Mubarak St.',
+    brandAr: 'تشاينا جاردن',
+    brandEn: 'China Garden',
+    accountCode: '1144 / 7540',
+    amountKwd: 600.000,
+    docRef: 'SND-BLD-SLM-600',
+    categoryAr: 'تراخيص إعلانات وشاشات تجارية',
+    categoryEn: 'Municipal Ads & Commercial Screens',
+    statusAr: 'مدققة ومعتمدة ومرحلة',
+    statusEn: 'Audited, Approved & Posted',
+  },
+  {
+    id: 'SND-LIC-005',
+    date: '22/10/2026',
+    descAr: 'ترخيص إعلانات — فرع العاصمة مول (عبر سند)',
+    descEn: 'Advertising License — Assima Mall Branch (via Sanad)',
+    beneficiaryAr: 'بلدية الكويت — اعتماد لوحات ولافتات المحل في العاصمة مول',
+    beneficiaryEn: 'Kuwait Municipality — Assima Mall Signage Approval',
+    custodianAr: 'سند للتعقيب والخدمات الحكومية',
+    custodianEn: 'Sanad PRO Services',
+    branchAr: 'العاصمة مول — شرق',
+    branchEn: 'Assima Mall — Sharq',
+    brandAr: 'واغيو برجر',
+    brandEn: 'Wagyu Burger',
+    accountCode: '1144 / 7540',
+    amountKwd: 400.000,
+    docRef: 'SND-BLD-CAP-400',
+    categoryAr: 'تراخيص إعلانات وشاشات تجارية',
+    categoryEn: 'Municipal Ads & Commercial Screens',
+    statusAr: 'مدققة ومعتمدة ومرحلة',
+    statusEn: 'Audited, Approved & Posted',
+  },
+  {
+    id: 'SND-LIC-006',
+    date: '25/10/2026',
+    descAr: 'ترخيص الشاشات الإعلانية — فرع 360 مول (عبر سند)',
+    descEn: 'Advertising Screens License — 360 Mall Branch (via Sanad)',
+    beneficiaryAr: 'بلدية الكويت — رخصة شاشات إلكترونية وقوائم رقمية',
+    beneficiaryEn: 'Kuwait Municipality — Electronic Digital Menus & Screens',
+    custodianAr: 'سند للتعقيب والخدمات الحكومية',
+    custodianEn: 'Sanad PRO Services',
+    branchAr: '360 مول — الزهراء',
+    branchEn: '360 Mall — Al-Zahra',
+    brandAr: 'فارم براون',
+    brandEn: 'Farm Brown',
+    accountCode: '1144 / 7540',
+    amountKwd: 400.000,
+    docRef: 'SND-BLD-360-400',
+    categoryAr: 'تراخيص إعلانات وشاشات تجارية',
+    categoryEn: 'Municipal Ads & Commercial Screens',
+    statusAr: 'مدققة ومعتمدة ومرحلة',
+    statusEn: 'Audited, Approved & Posted',
+  },
+  {
+    id: 'NDR-ELE-001',
+    date: '19/10/2026',
+    descAr: 'توريد وتركيب مستلزمات وتمديدات كهربائية (عبر نادر نزهي)',
+    descEn: 'Supply & Installation of Electrical Cabling & Fixtures (via Nader Nozhy)',
+    beneficiaryAr: 'نادر نزهي — مقاولات وتوريدات كهربائية وصيانة فنية معتمدة',
+    beneficiaryEn: 'Nader Nozhy — Approved Electrical Supplies & Setup',
+    custodianAr: 'نادر نزهي (عهدة التوريدات والتركيبات الكهربائية)',
+    custodianEn: 'Nader Nozhy (Electrical Custody)',
+    branchAr: 'المطبخ المركزي والفروع',
+    branchEn: 'Central Kitchen & Branches',
+    brandAr: 'فنتشر فودز المركزية',
+    brandEn: 'Venture Foods HQ',
+    accountCode: '7120',
+    amountKwd: 398.800,
+    docRef: 'NDR-INV-398',
+    categoryAr: 'صيانة وتجهيزات كهربائية',
+    categoryEn: 'Electrical Maintenance & Fixtures',
+    statusAr: 'مدققة ومعتمدة ومرحلة',
+    statusEn: 'Audited, Approved & Posted',
+  },
+  {
+    id: 'SND-TRF-001',
+    date: '16/10/2026',
+    descAr: 'سداد مخالفات مرورية مرتبطة بتجديد الإقامة (عبر سند)',
+    descEn: 'Payment of Traffic Violations for Residency Renewal (via Sanad)',
+    beneficiaryAr: 'الإدارة العامة للمرور — تسوية مخالفات مركبات أسطول التوصيل (تُخصم من السائقين)',
+    beneficiaryEn: 'General Traffic Dept — Fleet Vehicles Fines (Deducted from Drivers)',
+    custodianAr: 'سند للتعقيب والخدمات الحكومية',
+    custodianEn: 'Sanad PRO Services',
+    branchAr: 'أسطول التوصيل والخدمات اللوجستية',
+    branchEn: 'Fleet Logistics Hub',
+    brandAr: 'الخدمات المشتركة',
+    brandEn: 'Shared Fleet Services',
+    accountCode: '1150',
+    amountKwd: 270.000,
+    docRef: 'SND-TRF-270',
+    categoryAr: 'مخالفات مرورية مستردة من ذمم السائقين',
+    categoryEn: 'Traffic Fines (Receivable from Drivers)',
+    statusAr: 'مدققة ومرحلة للخصم من الرواتب',
+    statusEn: 'Audited & Queued for Payroll Deduction',
+  },
+  {
+    id: 'SND-RES-001',
+    date: '06/10/2026',
+    descAr: 'إصدار إقامة أول مرة — الموظف ديباك تشودري (عبر سند)',
+    descEn: 'First-Time Residency Issuance — Deepak Choudhary (via Sanad)',
+    beneficiaryAr: 'شؤون الإقامة والقوى العاملة والضمان الصحي والبطاقة المدنية والكرت',
+    beneficiaryEn: 'Residency Affairs, PAM, Health Insurance, PACI & Baladiya',
+    custodianAr: 'سند للتعقيب والخدمات الحكومية',
+    custodianEn: 'Sanad PRO Services',
+    branchAr: 'إدارة العمليات والفروع',
+    branchEn: 'Branch Operations',
+    brandAr: 'فنتشر فودز',
+    brandEn: 'Venture Foods',
+    accountCode: '1142 / 6150',
+    amountKwd: 212.250,
+    docRef: 'SND-VISA-212',
+    categoryAr: 'استقدام وإصدار إقامات جديدة',
+    categoryEn: 'New Visa 18 Issuance & Government Fees',
+    statusAr: 'مدققة ومعتمدة ومرحلة',
+    statusEn: 'Audited, Approved & Posted',
+  },
+  {
+    id: 'SND-RES-002',
+    date: '05/10/2026',
+    descAr: 'إصدار إذن عمل وإقامة أول مرة — الموظف نيرانجان (عبر سند)',
+    descEn: 'First-Time Work Permit & Residency — Niranjan (via Sanad)',
+    beneficiaryAr: 'الهيئة العامة للقوى العاملة ووزارة الداخلية والضمان الصحي',
+    beneficiaryEn: 'PAM Work Permit, MOI Residency & Health Insurance',
+    custodianAr: 'سند للتعقيب والخدمات الحكومية',
+    custodianEn: 'Sanad PRO Services',
+    branchAr: 'وحدة الإنتاج والمطبخ المركزي',
+    branchEn: 'Qurain Central Kitchen',
+    brandAr: 'فنتشر فودز',
+    brandEn: 'Venture Foods',
+    accountCode: '1142 / 6150',
+    amountKwd: 212.250,
+    docRef: 'SND-VISA-213',
+    categoryAr: 'استقدام وإصدار إقامات جديدة',
+    categoryEn: 'New Visa 18 Issuance & Government Fees',
+    statusAr: 'مدققة ومعتمدة ومرحلة',
+    statusEn: 'Audited, Approved & Posted',
   },
 ]

@@ -35,6 +35,8 @@ import {
   ODOO_CUSTODIANS_7,
   ODOO_SANAD_STATEMENT_DETAILS,
   ODOO_RABIH_MAINTENANCE_DETAILS,
+  ODOO_TOP_SANAD_LICENSES_TRANSACTIONS,
+  ODOO_SETTLEMENT_METRICS,
   ODOO_EXPENSES_TOTAL_KWD,
   ODOO_EXPENSES_TOTAL_TX,
 } from '@/lib/accounting/odoo-real-expenses-data'
@@ -94,7 +96,7 @@ export function VentureAccountingHub({
   const [notice, setNotice] = useState<string | null>(null)
 
   // Odoo Real Expenses & Petty Cash Sub-Tabs State
-  const [pettySubTab, setPettySubTab] = useState<'categories' | 'custodians' | 'sanad' | 'rabih'>('categories')
+  const [pettySubTab, setPettySubTab] = useState<'categories' | 'custodians' | 'sanad' | 'rabih' | 'topLicenses'>('categories')
   const [pettySearch, setPettySearch] = useState('')
 
   const isAr = currentLocale === 'ar'
@@ -127,6 +129,13 @@ export function VentureAccountingHub({
         : 'Tx ID,Date,Badge ID,Employee Name,Description,Dual Cost Center,Branch,Brand,Account Code,Amount (KWD),Doc Ref,Status\n'
       ODOO_SANAD_STATEMENT_DETAILS.forEach((t) => {
         csvContent += `"${t.id}","${t.date}","${t.badgeId || ''}","${isAr ? t.employeeNameAr || '' : t.employeeNameEn || ''}","${isAr ? t.descAr : t.descEn}","${isAr ? t.costCenterAr : t.costCenterEn}","${isAr ? t.branchAr : t.branchEn}","${isAr ? t.brandAr : t.brandEn}","${t.accountCode}","${t.amountKwd.toFixed(3)}","${t.docRef}","${isAr ? t.statusAr : t.statusEn}"\n`
+      })
+    } else if (pettySubTab === 'topLicenses') {
+      csvContent += isAr
+        ? 'رقم المعاملة,التاريخ,بيان الترخيص,المستفيد والجهة,المسؤول,الفرع,البراند,رمز الحساب,المبلغ (د.ك),رقم المستند,الحالة\n'
+        : 'Tx ID,Date,License Description,Beneficiary,Custodian,Branch,Brand,GL Code,Amount (KWD),Doc Ref,Status\n'
+      ODOO_TOP_SANAD_LICENSES_TRANSACTIONS.forEach((t) => {
+        csvContent += `"${t.id}","${t.date}","${isAr ? t.descAr : t.descEn}","${isAr ? t.beneficiaryAr : t.beneficiaryEn}","${isAr ? t.custodianAr : t.custodianEn}","${isAr ? t.branchAr : t.branchEn}","${isAr ? t.brandAr : t.brandEn}","${t.accountCode}","${t.amountKwd.toFixed(3)}","${t.docRef}","${isAr ? t.statusAr : t.statusEn}"\n`
       })
     } else {
       csvContent += isAr
@@ -427,6 +436,23 @@ export function VentureAccountingHub({
           )
         })
 
+        const filteredTopLicenses = ODOO_TOP_SANAD_LICENSES_TRANSACTIONS.filter((item) => {
+          if (!query) return true
+          return (
+            item.id.toLowerCase().includes(query) ||
+            item.descAr.toLowerCase().includes(query) ||
+            item.descEn.toLowerCase().includes(query) ||
+            item.beneficiaryAr.toLowerCase().includes(query) ||
+            item.beneficiaryEn.toLowerCase().includes(query) ||
+            item.branchAr.toLowerCase().includes(query) ||
+            item.branchEn.toLowerCase().includes(query) ||
+            item.brandAr.toLowerCase().includes(query) ||
+            item.brandEn.toLowerCase().includes(query) ||
+            item.docRef.toLowerCase().includes(query) ||
+            item.accountCode.toLowerCase().includes(query)
+          )
+        })
+
         return (
           <div className="space-y-6">
             {/* Header & Badges */}
@@ -534,15 +560,21 @@ export function VentureAccountingHub({
                   },
                   {
                     key: 'custodians' as const,
-                    labelAr: '👥 أصحاب العهد الـ 7 الفعليين وكشوف الحسابات',
-                    labelEn: '7 Real Custodians Ledgers',
-                    count: 7,
+                    labelAr: '👥 أصحاب العهد الفعليين وكشوف الحسابات',
+                    labelEn: 'Real Custodians Ledgers',
+                    count: ODOO_CUSTODIANS_7.length,
                   },
                   {
                     key: 'sanad' as const,
                     labelAr: '🏛️ كشف (سند) للتعقيب وبصمات الإقامات',
                     labelEn: 'Sanad PRO Gov Clearance & Staff Badges',
                     count: ODOO_SANAD_STATEMENT_DETAILS.length,
+                  },
+                  {
+                    key: 'topLicenses' as const,
+                    labelAr: '🏛️ كبار معاملات التراخيص والإعلانات عبر (سند)',
+                    labelEn: 'Top Sanad Permits & Ads Clearances',
+                    count: ODOO_TOP_SANAD_LICENSES_TRANSACTIONS.length,
                   },
                   {
                     key: 'rabih' as const,
@@ -677,85 +709,138 @@ export function VentureAccountingHub({
               </div>
             )}
 
-            {/* SUB-VIEW 2: THE 7 REAL CUSTODIANS */}
+            {/* SUB-VIEW 2: REAL CUSTODIANS & SETTLEMENT STATUS */}
             {pettySubTab === 'custodians' && (
-              <div className="rounded-2xl border border-slate-800 bg-[#0d131f] overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-slate-800 bg-slate-900/60 text-xs font-semibold text-slate-400">
-                        <th className="px-4 py-3 text-right">{isAr ? 'المسؤول / صاحب العهدة' : 'Custodian'}</th>
-                        <th className="px-4 py-3 text-right">{isAr ? 'الدور التشغيلي / الغرض من العهدة' : 'Role / Purpose'}</th>
-                        <th className="px-4 py-3 text-center">{isAr ? 'الحسابات المحاسبية المحملة' : 'Odoo Accounts'}</th>
-                        <th className="px-4 py-3 text-center">{isAr ? 'عدد المعاملات' : 'Tx Count'}</th>
-                        <th className="px-4 py-3 text-right">{isAr ? 'إجمالي المصروف (د.ك)' : 'Total Spent (KWD)'}</th>
-                        <th className="px-4 py-3 text-center w-36">{isAr ? 'الحصة %' : 'Share %'}</th>
-                        <th className="px-4 py-3 text-center">{isAr ? 'حالة الاعتماد' : 'Audit Status'}</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800/60 text-slate-200">
-                      {filteredCustodians.map((c) => (
-                        <tr key={c.id} className="hover:bg-slate-900/40 transition-colors">
-                          <td className="px-4 py-3">
-                            <span className="font-bold text-white block">{isAr ? c.nameAr : c.nameEn}</span>
-                            <span className="text-[11px] text-slate-500">{isAr ? c.nameEn : c.nameAr}</span>
-                          </td>
-                          <td className="px-4 py-3 text-xs text-slate-300">
-                            {isAr ? c.roleAr : c.roleEn}
-                          </td>
-                          <td className="px-4 py-3 text-center font-mono text-xs text-amber-300">
-                            <span className="rounded bg-slate-800 px-2 py-0.5 border border-slate-700">
-                              {c.accountCode}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-center font-mono font-semibold text-slate-300">
-                            {c.txCount.toLocaleString()} {isAr ? 'معاملة' : 'txns'}
-                          </td>
-                          <td className="px-4 py-3 text-right font-mono font-bold text-emerald-400">
-                            {c.totalKwd.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} {isAr ? 'د.ك' : 'KWD'}
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              <div className="h-1.5 w-full rounded-full bg-slate-800 overflow-hidden">
-                                <div
-                                  className="h-full rounded-full bg-blue-500"
-                                  style={{ width: `${Math.min(100, c.pct * 1.5)}%` }}
-                                />
-                              </div>
-                              <span className="text-xs font-mono font-bold text-slate-300 w-12 text-left">
-                                {c.pct.toFixed(2)}%
+              <div className="space-y-4">
+                {/* Settlement Indicator Metrics Bar (Real Odoo 365 Days Status) */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="rounded-2xl border border-white/10 bg-[#0d131f] p-3.5 space-y-1">
+                    <span className="text-[11px] font-bold text-slate-400">
+                      {isAr ? 'إجمالي معاملات آخر 365 يوماً' : 'Total Txns (Last 365 Days)'}
+                    </span>
+                    <p className="text-xl font-black text-white font-mono">
+                      {ODOO_SETTLEMENT_METRICS.txCount365.toLocaleString()} {isAr ? 'معاملة' : 'txns'}
+                    </p>
+                    <span className="text-[10px] text-emerald-400 font-semibold">
+                      {isAr ? 'مدققة من شاشات أودو' : 'Audited via Odoo'}
+                    </span>
+                  </div>
+
+                  <div className="rounded-2xl border border-amber-500/20 bg-amber-950/20 p-3.5 space-y-1">
+                    <span className="text-[11px] font-bold text-amber-300">
+                      {isAr ? 'بانتظار الرفع' : 'Pending Upload'}
+                    </span>
+                    <p className="text-xl font-black text-amber-400 font-mono">
+                      {ODOO_SETTLEMENT_METRICS.pendingUploadKwd.toFixed(3)} {isAr ? 'د.ك' : 'KWD'}
+                    </p>
+                    <span className="text-[10px] text-slate-400">
+                      {isAr ? 'فواتير قيد التجهيز' : 'Draft Invoices'}
+                    </span>
+                  </div>
+
+                  <div className="rounded-2xl border border-blue-500/20 bg-blue-950/20 p-3.5 space-y-1">
+                    <span className="text-[11px] font-bold text-blue-300">
+                      {isAr ? 'بانتظار الاعتماد' : 'Pending Approval'}
+                    </span>
+                    <p className="text-xl font-black text-blue-400 font-mono">
+                      {ODOO_SETTLEMENT_METRICS.pendingApprovalKwd.toFixed(3)} {isAr ? 'د.ك' : 'KWD'}
+                    </p>
+                    <span className="text-[10px] text-emerald-300 font-semibold">
+                      {isAr ? 'صفر — تم اعتماد الكشوف' : '0.000 — 100% Approved'}
+                    </span>
+                  </div>
+
+                  <div className="rounded-2xl border border-emerald-500/20 bg-emerald-950/20 p-3.5 space-y-1">
+                    <span className="text-[11px] font-bold text-emerald-300">
+                      {isAr ? 'مستحقة الصرف والشيكات' : 'Payable Cheques & Dues'}
+                    </span>
+                    <p className="text-xl font-black text-emerald-400 font-mono">
+                      {ODOO_SETTLEMENT_METRICS.payableChequesKwd.toFixed(3)} {isAr ? 'د.ك' : 'KWD'}
+                    </p>
+                    <span className="text-[10px] text-emerald-400">
+                      {isAr ? 'جاهزة لإصدار الشيكات' : 'Ready for Payment'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-800 bg-[#0d131f] overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-slate-800 bg-slate-900/60 text-xs font-semibold text-slate-400">
+                          <th className="px-4 py-3 text-right">{isAr ? 'المسؤول / صاحب العهدة' : 'Custodian'}</th>
+                          <th className="px-4 py-3 text-right">{isAr ? 'الدور التشغيلي / الغرض من العهدة' : 'Role / Purpose'}</th>
+                          <th className="px-4 py-3 text-center">{isAr ? 'الحسابات المحاسبية المحملة' : 'Odoo Accounts'}</th>
+                          <th className="px-4 py-3 text-center">{isAr ? 'عدد المعاملات' : 'Tx Count'}</th>
+                          <th className="px-4 py-3 text-right">{isAr ? 'إجمالي المصروف (د.ك)' : 'Total Spent (KWD)'}</th>
+                          <th className="px-4 py-3 text-center w-36">{isAr ? 'الحصة %' : 'Share %'}</th>
+                          <th className="px-4 py-3 text-center">{isAr ? 'حالة الاعتماد' : 'Audit Status'}</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/60 text-slate-200">
+                        {filteredCustodians.map((c) => (
+                          <tr key={c.id} className="hover:bg-slate-900/40 transition-colors">
+                            <td className="px-4 py-3">
+                              <span className="font-bold text-white block">{isAr ? c.nameAr : c.nameEn}</span>
+                              <span className="text-[11px] text-slate-500">{isAr ? c.nameEn : c.nameAr}</span>
+                            </td>
+                            <td className="px-4 py-3 text-xs text-slate-300">
+                              {isAr ? c.roleAr : c.roleEn}
+                            </td>
+                            <td className="px-4 py-3 text-center font-mono text-xs text-amber-300">
+                              <span className="rounded bg-slate-800 px-2 py-0.5 border border-slate-700">
+                                {c.accountCode}
                               </span>
-                            </div>
+                            </td>
+                            <td className="px-4 py-3 text-center font-mono font-semibold text-slate-300">
+                              {c.txCount.toLocaleString()} {isAr ? 'معاملة' : 'txns'}
+                            </td>
+                            <td className="px-4 py-3 text-right font-mono font-bold text-emerald-400">
+                              {c.totalKwd.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} {isAr ? 'د.ك' : 'KWD'}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <div className="h-1.5 w-full rounded-full bg-slate-800 overflow-hidden">
+                                  <div
+                                    className="h-full rounded-full bg-blue-500"
+                                    style={{ width: `${Math.min(100, c.pct * 1.5)}%` }}
+                                  />
+                                </div>
+                                <span className="text-xs font-mono font-bold text-slate-300 w-12 text-left">
+                                  {c.pct.toFixed(2)}%
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-400 border border-emerald-500/20">
+                                <CheckCircle2 size={12} />
+                                {isAr ? c.statusAr : c.statusEn}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot className="border-t-2 border-slate-700 bg-slate-900/80 font-bold text-white">
+                        <tr>
+                          <td colSpan={3} className="px-4 py-3 text-right text-xs uppercase tracking-wider text-slate-300">
+                            {isAr ? `إجمالي كشوف العهد الفعلية (${filteredCustodians.length} أصحاب عهد):` : `Total Real Custodians (${filteredCustodians.length}):`}
                           </td>
+                          <td className="px-4 py-3 text-center font-mono text-amber-400">
+                            {filteredCustodians.reduce((s, c) => s + c.txCount, 0).toLocaleString()} {isAr ? 'معاملة' : 'txns'}
+                          </td>
+                          <td className="px-4 py-3 text-right font-mono text-emerald-400 text-base font-black">
+                            {filteredCustodians.reduce((s, c) => s + c.totalKwd, 0).toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} {isAr ? 'د.ك' : 'KWD'}
+                          </td>
+                          <td className="px-4 py-3 text-center font-mono text-slate-300">100.00%</td>
                           <td className="px-4 py-3 text-center">
-                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-400 border border-emerald-500/20">
-                              <CheckCircle2 size={12} />
-                              {isAr ? c.statusAr : c.statusEn}
+                            <span className="inline-flex rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-xs text-emerald-300 border border-emerald-500/40">
+                              {isAr ? 'مطابق 100%' : '100% Balanced'}
                             </span>
                           </td>
                         </tr>
-                      ))}
-                    </tbody>
-                    <tfoot className="border-t-2 border-slate-700 bg-slate-900/80 font-bold text-white">
-                      <tr>
-                        <td colSpan={3} className="px-4 py-3 text-right text-xs uppercase tracking-wider text-slate-300">
-                          {isAr ? 'إجمالي العهد الـ 7 الفعلية:' : 'Total 7 Real Custodians:'}
-                        </td>
-                        <td className="px-4 py-3 text-center font-mono text-amber-400">
-                          {ODOO_EXPENSES_TOTAL_TX.toLocaleString()} {isAr ? 'معاملة' : 'txns'}
-                        </td>
-                        <td className="px-4 py-3 text-right font-mono text-emerald-400 text-base font-black">
-                          {ODOO_EXPENSES_TOTAL_KWD.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} {isAr ? 'د.ك' : 'KWD'}
-                        </td>
-                        <td className="px-4 py-3 text-center font-mono text-slate-300">100.00%</td>
-                        <td className="px-4 py-3 text-center">
-                          <span className="inline-flex rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-xs text-emerald-300 border border-emerald-500/40">
-                            {isAr ? 'مطابق 100%' : '100% Balanced'}
-                          </span>
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
+                      </tfoot>
+                    </table>
+                  </div>
                 </div>
               </div>
             )}
@@ -839,6 +924,100 @@ export function VentureAccountingHub({
                           </tr>
                         ))}
                       </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* SUB-VIEW 5: TOP GOVERNMENT CLEARANCES, ADVERTISING & RESIDENCY TRANSACTIONS VIA SANAD */}
+            {pettySubTab === 'topLicenses' && (
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center justify-between text-xs text-slate-400 bg-slate-900/40 p-3 rounded-xl border border-slate-800 gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-amber-400">🏛️ {isAr ? 'كبار معاملات التراخيص والإعلانات عبر (سند)' : 'Top Government Permits & Ads Clearances'}</span>
+                    <span>—</span>
+                    <span>{isAr ? 'توثيق تراخيص إعلانات وشاشات بلدية الكويت (بروميناد، الأفنيوز، السالمية، العاصمة، 360) وتمديدات الكهرباء والإقامات' : 'Kuwait Municipality Ads Permits, Electrical Setup, & Residency Issuance'}</span>
+                  </div>
+                  <span className="font-mono text-emerald-400 font-bold">
+                    {filteredTopLicenses.reduce((s, t) => s + t.amountKwd, 0).toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} {isAr ? 'د.ك' : 'KWD'} ({filteredTopLicenses.length} {isAr ? 'معاملات' : 'txns'})
+                  </span>
+                </div>
+
+                <div className="rounded-2xl border border-slate-800 bg-[#0d131f] overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-slate-800 bg-slate-900/60 text-xs font-semibold text-slate-400">
+                          <th className="px-4 py-3 text-right">{isAr ? 'رقم المعاملة والتاريخ' : 'Tx ID & Date'}</th>
+                          <th className="px-4 py-3 text-right">{isAr ? 'بيان الترخيص والمعاملة الحكومية' : 'License / Description'}</th>
+                          <th className="px-4 py-3 text-right">{isAr ? 'الجهة والمستفيد' : 'Entity / Beneficiary'}</th>
+                          <th className="px-4 py-3 text-center">{isAr ? 'مركز التكلفة المزدوج (الفرع | البراند)' : 'Dual Cost Center'}</th>
+                          <th className="px-4 py-3 text-center">{isAr ? 'رمز الحساب' : 'GL Code'}</th>
+                          <th className="px-4 py-3 text-right">{isAr ? 'المبلغ (د.ك)' : 'Amount (KWD)'}</th>
+                          <th className="px-4 py-3 text-center">{isAr ? 'رقم المستند' : 'Doc Ref'}</th>
+                          <th className="px-4 py-3 text-center">{isAr ? 'الحالة' : 'Status'}</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/60 text-slate-200">
+                        {filteredTopLicenses.map((item) => (
+                          <tr key={item.id} className="hover:bg-slate-900/40 transition-colors">
+                            <td className="px-4 py-3">
+                              <span className="font-mono font-bold text-amber-400 block">{item.id}</span>
+                              <span className="text-[11px] text-slate-500 font-mono">{item.date}</span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="font-bold text-white block text-xs">
+                                {isAr ? item.descAr : item.descEn}
+                              </span>
+                              <span className="text-[10px] text-slate-400">
+                                {isAr ? item.categoryAr : item.categoryEn}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-xs text-slate-300">
+                              <span className="block text-slate-200 font-semibold">{isAr ? item.beneficiaryAr : item.beneficiaryEn}</span>
+                              <span className="text-[10px] text-slate-500">{isAr ? item.custodianAr : item.custodianEn}</span>
+                            </td>
+                            <td className="px-4 py-3 text-center text-xs">
+                              <span className="inline-flex rounded-full bg-slate-800/90 border border-slate-700 px-2.5 py-0.5 font-semibold text-slate-200">
+                                {isAr ? `${item.branchAr} | ${item.brandAr}` : `${item.branchEn} | ${item.brandEn}`}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-center font-mono text-[11px] text-amber-300">
+                              <span className="rounded bg-amber-500/10 border border-amber-500/20 px-2 py-0.5">
+                                {item.accountCode}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-right font-mono font-bold text-emerald-400 text-sm">
+                              {item.amountKwd.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} {isAr ? 'د.ك' : 'KWD'}
+                            </td>
+                            <td className="px-4 py-3 text-center font-mono text-[11px] text-slate-400">
+                              {item.docRef}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-400 border border-emerald-500/20">
+                                <CheckCircle2 size={12} />
+                                {isAr ? item.statusAr : item.statusEn}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot className="border-t-2 border-slate-700 bg-slate-900/80 font-bold text-white">
+                        <tr>
+                          <td colSpan={5} className="px-4 py-3 text-right text-xs uppercase tracking-wider text-slate-300">
+                            {isAr ? 'إجمالي كبار معاملات التراخيص والإعلانات (10 معاملات موثقة):' : 'Total Top Licenses & Clearances (10 Transactions):'}
+                          </td>
+                          <td className="px-4 py-3 text-right font-mono text-emerald-400 text-base font-black">
+                            {filteredTopLicenses.reduce((s, t) => s + t.amountKwd, 0).toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} {isAr ? 'د.ك' : 'KWD'}
+                          </td>
+                          <td colSpan={2} className="px-4 py-3 text-center">
+                            <span className="inline-flex rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-xs text-emerald-300 border border-emerald-500/40">
+                              {isAr ? 'معتمدة ومرحلة بالكامل' : '100% Approved & Posted'}
+                            </span>
+                          </td>
+                        </tr>
+                      </tfoot>
                     </table>
                   </div>
                 </div>

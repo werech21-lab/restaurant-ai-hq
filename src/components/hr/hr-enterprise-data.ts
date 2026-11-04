@@ -7,6 +7,7 @@
 
 export type HrCommandTabKey =
   | 'employees'
+  | 'planningGantt'
   | 'recruitment'
   | 'residency'
   | 'payroll'
