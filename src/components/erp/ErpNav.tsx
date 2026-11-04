@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
+import { ThemeToggle } from '@/components/ThemeToggle'
 import { LanguageSwitch, useI18n } from '@/lib/i18n'
 import { activeSectorId, erpSectors } from '@/lib/erp-sectors'
 
@@ -23,6 +24,7 @@ export default function ErpNav() {
           </span>
         </Link>
         <p className="min-w-0 flex-1 truncate text-sm font-semibold text-gold-300">{t(sector.title)}</p>
+        <ThemeToggle />
         <LanguageSwitch />
       </div>
     </header>

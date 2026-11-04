@@ -38,7 +38,7 @@ export async function Shell({ children }: { children: React.ReactNode }) {
         labelEn: scope.labelEn,
       }}
     >
-      <div className="min-h-screen bg-ink-950 text-mist-100">
+      <div className="app-shell min-h-screen bg-ink-950 text-mist-100">
         <Sidebar user={user} enabledKeys={visibleKeys} />
         {/*
           Fixed w-64 sidebar uses logical `start-0`. Clear it with padding-inline-start (ps-64)

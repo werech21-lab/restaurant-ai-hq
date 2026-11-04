@@ -2,6 +2,7 @@
 
 import { GlobalScopeFilter } from '@/components/GlobalScopeFilter'
 import { PanelSpotlight } from '@/components/PanelSpotlight'
+import { ThemeToggle } from '@/components/ThemeToggle'
 import { LanguageSwitch, useI18n } from '@/lib/i18n'
 
 export function PanelHeaderBar({
@@ -26,6 +27,7 @@ export function PanelHeaderBar({
         <div className="relative z-[60] flex shrink-0 items-center gap-2 overflow-visible sm:gap-3">
           {notifications}
           <PanelSpotlight />
+          <ThemeToggle />
           <LanguageSwitch />
         </div>
       </div>

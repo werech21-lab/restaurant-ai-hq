@@ -3,7 +3,8 @@
 @tailwind utilities;
 
 :root,
-html[data-theme='dark'] {
+html[data-theme='dark'],
+html.dark {
   color-scheme: dark;
   --ink-950: 7 8 11;
   --ink-900: 13 16 21;
@@ -22,43 +23,24 @@ html[data-theme='dark'] {
   --shadow-lift: inset 0 1px 0 rgba(244, 224, 184, 0.16), 0 22px 44px -30px rgba(0, 0, 0, 0.55);
 }
 
-html[data-theme='light'] {
+html[data-theme='light'],
+html.light-mode {
   color-scheme: light;
-  --ink-950: 246 241 232;
-  --ink-900: 255 252 247;
-  --ink-800: 255 253 249;
-  --ink-700: 239 230 216;
-  --ink-600: 227 216 198;
-  --mist-100: 28 24 20;
-  --mist-300: 63 56 48;
-  --mist-400: 94 86 76;
-  --mist-500: 122 113 102;
-  --gold-300: 122 78 24;
-  --gold-400: 138 90 30;
-  --gold-500: 176 132 62;
-  --gold-600: 92 62 20;
-  --shadow-card: 0 16px 36px -28px rgba(70, 48, 16, 0.35);
-  --shadow-lift: 0 18px 36px -26px rgba(70, 48, 16, 0.28);
-}
-
-html[data-theme='light'] .text-rose-300,
-html[data-theme='light'] .text-rose-400 {
-  color: #be123c;
-}
-
-html[data-theme='light'] .text-emerald-300,
-html[data-theme='light'] .text-emerald-400 {
-  color: #047857;
-}
-
-html[data-theme='light'] .text-amber-200,
-html[data-theme='light'] .text-amber-300 {
-  color: #b45309;
-}
-
-html[data-theme='light'] .text-sky-200,
-html[data-theme='light'] .text-sky-300 {
-  color: #0369a1;
+  --ink-950: 248 250 252;
+  --ink-900: 255 255 255;
+  --ink-800: 241 245 249;
+  --ink-700: 226 232 240;
+  --ink-600: 203 213 225;
+  --mist-100: 15 23 42;
+  --mist-300: 51 65 85;
+  --mist-400: 71 85 105;
+  --mist-500: 100 116 139;
+  --gold-300: 180 83 9;
+  --gold-400: 146 64 14;
+  --gold-500: 202 138 4;
+  --gold-600: 161 98 7;
+  --shadow-card: 0 4px 20px -2px rgba(15, 23, 42, 0.06), 0 1px 3px 0 rgba(15, 23, 42, 0.04);
+  --shadow-lift: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
 }
 
 body {
@@ -75,31 +57,517 @@ body {
   min-width: 0;
 }
 
-/* Panel tables: never inherit washed-out mist on white leftovers */
-.app-content table {
+/* Dark Mode Table & Text Fallbacks */
+html[data-theme='dark'] .app-content table,
+html:not([data-theme='light']) .app-content table {
   color: rgb(var(--mist-100));
 }
-.app-content thead th {
+html[data-theme='dark'] .app-content thead th,
+html:not([data-theme='light']) .app-content thead th {
   color: rgb(var(--mist-300));
 }
-.app-content tbody td {
+html[data-theme='dark'] .app-content tbody td,
+html:not([data-theme='light']) .app-content tbody td {
   color: rgb(var(--mist-100));
 }
-.app-content .text-slate-900,
-.app-content .text-slate-800 {
+html[data-theme='dark'] .app-content .text-slate-900,
+html[data-theme='dark'] .app-content .text-slate-800,
+html:not([data-theme='light']) .app-content .text-slate-900,
+html:not([data-theme='light']) .app-content .text-slate-800 {
   color: rgb(var(--mist-100)) !important;
 }
-.app-content .text-slate-700,
-.app-content .text-slate-600,
-.app-content .text-slate-500 {
+html[data-theme='dark'] .app-content .text-slate-700,
+html[data-theme='dark'] .app-content .text-slate-600,
+html[data-theme='dark'] .app-content .text-slate-500,
+html:not([data-theme='light']) .app-content .text-slate-700,
+html:not([data-theme='light']) .app-content .text-slate-600,
+html:not([data-theme='light']) .app-content .text-slate-500 {
   color: rgb(var(--mist-400)) !important;
 }
-.app-content .bg-white {
+html[data-theme='dark'] .app-content .bg-white,
+html:not([data-theme='light']) .app-content .bg-white {
   background-color: rgb(var(--ink-900) / 0.88) !important;
   color: rgb(var(--mist-100));
 }
-.app-content .border-slate-200 {
+html[data-theme='dark'] .app-content .border-slate-200,
+html:not([data-theme='light']) .app-content .border-slate-200 {
   border-color: rgba(244, 224, 184, 0.12) !important;
+}
+
+/* ==========================================================================
+   ENTERPRISE CRISP LIGHT MODE CSS ENGINE (HOTEL LUXURY GRADE)
+   ========================================================================== */
+
+/* 1. Page Background & Layout Shell */
+html[data-theme='light'] body,
+html.light-mode body,
+html[data-theme='light'] .app-shell,
+html.light-mode .app-shell,
+html[data-theme='light'] div.min-h-screen.bg-ink-950,
+html.light-mode div.min-h-screen.bg-ink-950,
+html[data-theme='light'] .app-content,
+html.light-mode .app-content {
+  background-color: #F8FAFC !important;
+  color: #0F172A !important;
+}
+
+html[data-theme='light'] main,
+html.light-mode main {
+  color: #0F172A !important;
+}
+
+/* 2. Top Header Bar */
+html[data-theme='light'] header,
+html.light-mode header {
+  background-color: rgba(255, 255, 255, 0.94) !important;
+  border-color: #E2E8F0 !important;
+  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.05) !important;
+}
+html[data-theme='light'] header p.text-gold-300,
+html.light-mode header p.text-gold-300 {
+  color: #0F172A !important;
+  font-weight: 800 !important;
+}
+
+/* 3. Sidebar (app-sidebar) */
+html[data-theme='light'] .app-sidebar,
+html.light-mode .app-sidebar {
+  background-color: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
+  box-shadow: 2px 0 12px 0 rgba(15, 23, 42, 0.04) !important;
+  color: #1E293B !important;
+}
+html[data-theme='light'] .app-sidebar .bg-\[\#07090e\],
+html.light-mode .app-sidebar .bg-\[\#07090e\] {
+  background-color: #F8FAFC !important;
+  border-color: #E2E8F0 !important;
+}
+html[data-theme='light'] .app-sidebar p.text-slate-300,
+html.light-mode .app-sidebar p.text-slate-300 {
+  color: #0F172A !important;
+}
+html[data-theme='light'] .app-sidebar span.text-slate-400,
+html.light-mode .app-sidebar span.text-slate-400 {
+  color: #64748B !important;
+  font-weight: 700 !important;
+}
+html[data-theme='light'] .app-sidebar a.text-slate-300,
+html.light-mode .app-sidebar a.text-slate-300 {
+  color: #334155 !important;
+}
+html[data-theme='light'] .app-sidebar a.text-slate-300:hover,
+html.light-mode .app-sidebar a.text-slate-300:hover {
+  background-color: #F1F5F9 !important;
+  color: #0F172A !important;
+}
+html[data-theme='light'] .app-sidebar .border-slate-800\/80,
+html[data-theme='light'] .app-sidebar .border-slate-800\/60,
+html[data-theme='light'] .app-sidebar .border-slate-800,
+html.light-mode .app-sidebar .border-slate-800\/80,
+html.light-mode .app-sidebar .border-slate-800\/60,
+html.light-mode .app-sidebar .border-slate-800 {
+  border-color: #E2E8F0 !important;
+}
+html[data-theme='light'] .app-sidebar button,
+html.light-mode .app-sidebar button {
+  background-color: #F1F5F9 !important;
+  border-color: #E2E8F0 !important;
+  color: #334155 !important;
+}
+html[data-theme='light'] .app-sidebar button:hover,
+html.light-mode .app-sidebar button:hover {
+  background-color: #E2E8F0 !important;
+  color: #0F172A !important;
+}
+
+/* 4. Cards, Panels, Modals, and Main Containers */
+html[data-theme='light'] .bg-\[\#0a0d12\],
+html[data-theme='light'] .bg-\[\#0a0d14\],
+html[data-theme='light'] .bg-\[\#07090e\],
+html[data-theme='light'] .bg-\[\#07090f\],
+html[data-theme='light'] .bg-\[\#090d14\],
+html[data-theme='light'] .bg-\[\#090d16\],
+html[data-theme='light'] .bg-\[\#0b0e14\],
+html[data-theme='light'] .bg-\[\#0b0e15\],
+html[data-theme='light'] .bg-\[\#0b0f17\],
+html[data-theme='light'] .bg-\[\#0c1017\],
+html[data-theme='light'] .bg-\[\#0d0f12\],
+html[data-theme='light'] .bg-\[\#0d1017\],
+html[data-theme='light'] .bg-\[\#0d1117\],
+html[data-theme='light'] .bg-\[\#0d1118\],
+html[data-theme='light'] .bg-\[\#0d1219\],
+html[data-theme='light'] .bg-\[\#0d121c\],
+html[data-theme='light'] .bg-\[\#0d121d\],
+html[data-theme='light'] .bg-\[\#0d131f\],
+html[data-theme='light'] .bg-\[\#0f141c\],
+html[data-theme='light'] .bg-\[\#0f141d\],
+html[data-theme='light'] .bg-\[\#0f1420\],
+html[data-theme='light'] .bg-\[\#0f1422\],
+html[data-theme='light'] .bg-\[\#101622\],
+html[data-theme='light'] .bg-\[\#11161f\],
+html[data-theme='light'] .bg-\[\#111722\],
+html[data-theme='light'] .bg-\[\#111827\],
+html[data-theme='light'] .bg-\[\#111927\],
+html[data-theme='light'] .bg-\[\#121316\],
+html[data-theme='light'] .bg-\[\#121824\],
+html[data-theme='light'] .bg-\[\#121926\],
+html[data-theme='light'] .bg-\[\#131924\],
+html[data-theme='light'] .bg-\[\#131a26\],
+html[data-theme='light'] .bg-\[\#141b26\],
+html[data-theme='light'] .bg-\[\#161b22\],
+html[data-theme='light'] .bg-\[\#161f2e\],
+html[data-theme='light'] .bg-\[\#162030\],
+html[data-theme='light'] .bg-\[\#17191f\],
+html[data-theme='light'] .bg-\[\#1a1c22\],
+html[data-theme='light'] .bg-\[\#1c2128\],
+html[data-theme='light'] .bg-slate-950,
+html[data-theme='light'] .bg-slate-900,
+html[data-theme='light'] .bg-slate-900\/90,
+html[data-theme='light'] .bg-slate-900\/80,
+html[data-theme='light'] .bg-slate-900\/50,
+html[data-theme='light'] .bg-ink-950,
+html[data-theme='light'] .bg-ink-900,
+html[data-theme='light'] .bg-ink-800,
+html.light-mode .bg-\[\#0a0d12\],
+html.light-mode .bg-\[\#0a0d14\],
+html.light-mode .bg-\[\#07090e\],
+html.light-mode .bg-\[\#07090f\],
+html.light-mode .bg-\[\#090d14\],
+html.light-mode .bg-\[\#090d16\],
+html.light-mode .bg-\[\#0b0e14\],
+html.light-mode .bg-\[\#0b0e15\],
+html.light-mode .bg-\[\#0b0f17\],
+html.light-mode .bg-\[\#0c1017\],
+html.light-mode .bg-\[\#0d0f12\],
+html.light-mode .bg-\[\#0d1017\],
+html.light-mode .bg-\[\#0d1117\],
+html.light-mode .bg-\[\#0d1118\],
+html.light-mode .bg-\[\#0d1219\],
+html.light-mode .bg-\[\#0d121c\],
+html.light-mode .bg-\[\#0d121d\],
+html.light-mode .bg-\[\#0d131f\],
+html.light-mode .bg-\[\#0f141c\],
+html.light-mode .bg-\[\#0f141d\],
+html.light-mode .bg-\[\#0f1420\],
+html.light-mode .bg-\[\#0f1422\],
+html.light-mode .bg-\[\#101622\],
+html.light-mode .bg-\[\#11161f\],
+html.light-mode .bg-\[\#111722\],
+html.light-mode .bg-\[\#111827\],
+html.light-mode .bg-\[\#111927\],
+html.light-mode .bg-\[\#121316\],
+html.light-mode .bg-\[\#121824\],
+html.light-mode .bg-\[\#121926\],
+html.light-mode .bg-\[\#131924\],
+html.light-mode .bg-\[\#131a26\],
+html.light-mode .bg-\[\#141b26\],
+html.light-mode .bg-\[\#161b22\],
+html.light-mode .bg-\[\#161f2e\],
+html.light-mode .bg-\[\#162030\],
+html.light-mode .bg-\[\#17191f\],
+html.light-mode .bg-\[\#1a1c22\],
+html.light-mode .bg-\[\#1c2128\],
+html.light-mode .bg-slate-950,
+html.light-mode .bg-slate-900,
+html.light-mode .bg-slate-900\/90,
+html.light-mode .bg-slate-900\/80,
+html.light-mode .bg-slate-900\/50,
+html.light-mode .bg-ink-950,
+html.light-mode .bg-ink-900,
+html.light-mode .bg-ink-800 {
+  background-color: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06), 0 1px 3px 0 rgba(15, 23, 42, 0.04) !important;
+}
+
+/* Secondary nested surfaces and subtle panel fills */
+html[data-theme='light'] .bg-slate-800,
+html[data-theme='light'] .bg-slate-800\/90,
+html[data-theme='light'] .bg-slate-800\/80,
+html[data-theme='light'] .bg-slate-800\/60,
+html[data-theme='light'] .bg-slate-800\/50,
+html[data-theme='light'] .bg-slate-800\/40,
+html[data-theme='light'] .bg-slate-800\/30,
+html[data-theme='light'] .bg-slate-800\/20,
+html[data-theme='light'] .bg-black\/20,
+html[data-theme='light'] .bg-black\/30,
+html[data-theme='light'] .bg-black\/40,
+html[data-theme='light'] .bg-white\/\[0\.02\],
+html[data-theme='light'] .bg-white\/\[0\.04\],
+html[data-theme='light'] .bg-white\/5,
+html.light-mode .bg-slate-800,
+html.light-mode .bg-slate-800\/90,
+html.light-mode .bg-slate-800\/80,
+html.light-mode .bg-slate-800\/60,
+html.light-mode .bg-slate-800\/50,
+html.light-mode .bg-slate-800\/40,
+html.light-mode .bg-slate-800\/30,
+html.light-mode .bg-slate-800\/20,
+html.light-mode .bg-black\/20,
+html.light-mode .bg-black\/30,
+html.light-mode .bg-black\/40,
+html.light-mode .bg-white\/\[0\.02\],
+html.light-mode .bg-white\/\[0\.04\],
+html.light-mode .bg-white\/5 {
+  background-color: #F8FAFC !important;
+  border-color: #E2E8F0 !important;
+}
+
+/* 5. Typography & Contrast Assurance */
+/* Primary Headings, Titles, and Financial Figures */
+html[data-theme='light'] .text-white,
+html[data-theme='light'] .text-slate-100,
+html[data-theme='light'] .text-slate-200,
+html[data-theme='light'] .text-mist-100,
+html.light-mode .text-white,
+html.light-mode .text-slate-100,
+html.light-mode .text-slate-200,
+html.light-mode .text-mist-100 {
+  color: #0F172A !important;
+}
+
+/* Secondary Subtitles, Meta, and Descriptions */
+html[data-theme='light'] .text-slate-300,
+html[data-theme='light'] .text-slate-400,
+html[data-theme='light'] .text-mist-300,
+html[data-theme='light'] .text-mist-400,
+html.light-mode .text-slate-300,
+html.light-mode .text-slate-400,
+html.light-mode .text-mist-300,
+html.light-mode .text-mist-400 {
+  color: #475569 !important;
+}
+
+/* Muted Captions and Micro Labels */
+html[data-theme='light'] .text-slate-500,
+html[data-theme='light'] .text-slate-600,
+html[data-theme='light'] .text-mist-500,
+html.light-mode .text-slate-500,
+html.light-mode .text-slate-600,
+html.light-mode .text-mist-500 {
+  color: #64748B !important;
+}
+
+/* Accent Gold Labels */
+html[data-theme='light'] .text-gold-300,
+html[data-theme='light'] .text-gold-400,
+html.light-mode .text-gold-300,
+html.light-mode .text-gold-400 {
+  color: #B45309 !important;
+  font-weight: 700 !important;
+}
+
+/* 6. Soft Luxury Borders */
+html[data-theme='light'] .border-slate-800,
+html[data-theme='light'] .border-slate-800\/80,
+html[data-theme='light'] .border-slate-800\/60,
+html[data-theme='light'] .border-slate-800\/50,
+html[data-theme='light'] .border-slate-800\/40,
+html[data-theme='light'] .border-slate-700,
+html[data-theme='light'] .border-slate-700\/50,
+html[data-theme='light'] .border-slate-700\/40,
+html[data-theme='light'] .border-white\/5,
+html[data-theme='light'] .border-white\/10,
+html[data-theme='light'] .border-white\/15,
+html[data-theme='light'] .border-white\/20,
+html[data-theme='light'] .border-gold-300\/10,
+html[data-theme='light'] .border-gold-300\/15,
+html[data-theme='light'] .border-gold-300\/20,
+html[data-theme='light'] .border-gold-300\/25,
+html[data-theme='light'] .border-\[\#30363d\],
+html[data-theme='light'] .border-\[\#121824\],
+html.light-mode .border-slate-800,
+html.light-mode .border-slate-800\/80,
+html.light-mode .border-slate-800\/60,
+html.light-mode .border-slate-800\/50,
+html.light-mode .border-slate-800\/40,
+html.light-mode .border-slate-700,
+html.light-mode .border-slate-700\/50,
+html.light-mode .border-slate-700\/40,
+html.light-mode .border-white\/5,
+html.light-mode .border-white\/10,
+html.light-mode .border-white\/15,
+html.light-mode .border-white\/20,
+html.light-mode .border-gold-300\/10,
+html.light-mode .border-gold-300\/15,
+html.light-mode .border-gold-300\/20,
+html.light-mode .border-gold-300\/25,
+html.light-mode .border-\[\#30363d\],
+html.light-mode .border-\[\#121824\] {
+  border-color: #E2E8F0 !important;
+}
+
+/* 7. Tables & Data Grids */
+html[data-theme='light'] table,
+html.light-mode table {
+  color: #0F172A !important;
+}
+html[data-theme='light'] thead th,
+html.light-mode thead th {
+  background-color: #F8FAFC !important;
+  color: #475569 !important;
+  border-color: #E2E8F0 !important;
+  font-weight: 800 !important;
+}
+html[data-theme='light'] tbody tr,
+html.light-mode tbody tr {
+  border-color: #F1F5F9 !important;
+}
+html[data-theme='light'] tbody tr:hover,
+html.light-mode tbody tr:hover {
+  background-color: #F8FAFC !important;
+}
+html[data-theme='light'] tbody td,
+html.light-mode tbody td {
+  color: #1E293B !important;
+  border-color: #F1F5F9 !important;
+}
+
+/* 8. Form Inputs, Selects, and Textareas */
+html[data-theme='light'] input:not([type='checkbox']):not([type='radio']),
+html[data-theme='light'] select,
+html[data-theme='light'] textarea,
+html.light-mode input:not([type='checkbox']):not([type='radio']),
+html.light-mode select,
+html.light-mode textarea {
+  background-color: #FFFFFF !important;
+  color: #0F172A !important;
+  border-color: #CBD5E1 !important;
+}
+html[data-theme='light'] input::placeholder,
+html[data-theme='light'] textarea::placeholder,
+html.light-mode input::placeholder,
+html.light-mode textarea::placeholder {
+  color: #94A3B8 !important;
+}
+html[data-theme='light'] input:focus,
+html[data-theme='light'] select:focus,
+html[data-theme='light'] textarea:focus,
+html.light-mode input:focus,
+html.light-mode select:focus,
+html.light-mode textarea:focus {
+  border-color: #3B82F6 !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
+}
+
+/* 9. Badges, Indicators, and Status Pills */
+/* Vibrant Green */
+html[data-theme='light'] .text-emerald-400,
+html[data-theme='light'] .text-emerald-300,
+html[data-theme='light'] .text-emerald-500,
+html.light-mode .text-emerald-400,
+html.light-mode .text-emerald-300,
+html.light-mode .text-emerald-500 {
+  color: #059669 !important;
+}
+html[data-theme='light'] .bg-emerald-500\/10,
+html[data-theme='light'] .bg-emerald-500\/20,
+html[data-theme='light'] .bg-emerald-950\/40,
+html[data-theme='light'] .bg-emerald-900\/20,
+html.light-mode .bg-emerald-500\/10,
+html.light-mode .bg-emerald-500\/20,
+html.light-mode .bg-emerald-950\/40,
+html.light-mode .bg-emerald-900\/20 {
+  background-color: #ECFDF5 !important;
+  border-color: #A7F3D0 !important;
+  color: #065F46 !important;
+}
+
+/* Vibrant Red / Rose */
+html[data-theme='light'] .text-rose-400,
+html[data-theme='light'] .text-red-400,
+html[data-theme='light'] .text-rose-300,
+html[data-theme='light'] .text-red-300,
+html.light-mode .text-rose-400,
+html.light-mode .text-red-400,
+html.light-mode .text-rose-300,
+html.light-mode .text-red-300 {
+  color: #DC2626 !important;
+}
+html[data-theme='light'] .bg-rose-500\/10,
+html[data-theme='light'] .bg-red-500\/10,
+html[data-theme='light'] .bg-rose-500\/20,
+html[data-theme='light'] .bg-red-500\/20,
+html[data-theme='light'] .bg-rose-950\/40,
+html[data-theme='light'] .bg-red-950\/40,
+html.light-mode .bg-rose-500\/10,
+html.light-mode .bg-red-500\/10,
+html.light-mode .bg-rose-500\/20,
+html.light-mode .bg-red-500\/20,
+html.light-mode .bg-rose-950\/40,
+html.light-mode .bg-red-950\/40 {
+  background-color: #FEF2F2 !important;
+  border-color: #FECACA !important;
+  color: #991B1B !important;
+}
+
+/* Vibrant Amber / Yellow */
+html[data-theme='light'] .text-amber-400,
+html[data-theme='light'] .text-amber-300,
+html[data-theme='light'] .text-amber-200,
+html.light-mode .text-amber-400,
+html.light-mode .text-amber-300,
+html.light-mode .text-amber-200 {
+  color: #D97706 !important;
+}
+html[data-theme='light'] .bg-amber-500\/10,
+html[data-theme='light'] .bg-amber-500\/20,
+html[data-theme='light'] .bg-amber-950\/40,
+html[data-theme='light'] .bg-amber-900\/20,
+html.light-mode .bg-amber-500\/10,
+html.light-mode .bg-amber-500\/20,
+html.light-mode .bg-amber-950\/40,
+html.light-mode .bg-amber-900\/20 {
+  background-color: #FFFBEB !important;
+  border-color: #FDE68A !important;
+  color: #92400E !important;
+}
+
+/* Vibrant Blue / Sky */
+html[data-theme='light'] .text-sky-400,
+html[data-theme='light'] .text-blue-400,
+html[data-theme='light'] .text-sky-300,
+html[data-theme='light'] .text-blue-300,
+html.light-mode .text-sky-400,
+html.light-mode .text-blue-400,
+html.light-mode .text-sky-300,
+html.light-mode .text-blue-300 {
+  color: #2563EB !important;
+}
+html[data-theme='light'] .bg-sky-500\/10,
+html[data-theme='light'] .bg-blue-500\/10,
+html[data-theme='light'] .bg-sky-500\/20,
+html[data-theme='light'] .bg-blue-500\/20,
+html[data-theme='light'] .bg-sky-950\/40,
+html[data-theme='light'] .bg-blue-950\/40,
+html.light-mode .bg-sky-500\/10,
+html.light-mode .bg-blue-500\/10,
+html.light-mode .bg-sky-500\/20,
+html.light-mode .bg-blue-500\/20,
+html.light-mode .bg-sky-950\/40,
+html.light-mode .bg-blue-950\/40 {
+  background-color: #EFF6FF !important;
+  border-color: #BFDBFE !important;
+  color: #1E40AF !important;
+}
+
+/* Vibrant Purple / Violet */
+html[data-theme='light'] .text-purple-400,
+html[data-theme='light'] .text-violet-400,
+html.light-mode .text-purple-400,
+html.light-mode .text-violet-400 {
+  color: #7C3AED !important;
+}
+html[data-theme='light'] .bg-purple-500\/10,
+html[data-theme='light'] .bg-purple-500\/20,
+html[data-theme='light'] .bg-purple-950\/40,
+html.light-mode .bg-purple-500\/10,
+html.light-mode .bg-purple-500\/20,
+html.light-mode .bg-purple-950\/40 {
+  background-color: #FAF5FF !important;
+  border-color: #E9D5FF !important;
+  color: #6B21A8 !important;
 }
 
 /*
@@ -127,9 +595,10 @@ body {
   border-radius: 999px;
 }
 
-html[data-theme='light'] ::-webkit-scrollbar-thumb {
-  background: #c9b89a;
-  border-color: #f6f1e8;
+html[data-theme='light'] ::-webkit-scrollbar-thumb,
+html.light-mode ::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border: 2px solid #F8FAFC;
 }
 
 @media (prefers-reduced-motion: reduce) {

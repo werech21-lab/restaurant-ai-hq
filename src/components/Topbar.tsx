@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { SectionId } from '@/lib/nav'
 import { searchIndex, sectionIds } from '@/lib/nav'
 import { LanguageSwitch, useI18n, type MessageKey } from '@/lib/i18n'
+import { ThemeToggle } from '@/components/ThemeToggle'
 
 function Glyph({ children }: { children: React.ReactNode }) {
   return (
@@ -141,6 +142,7 @@ export default function Topbar({
 
       <div className="order-2 flex items-center gap-2 sm:order-3">
         <p className="hidden text-sm text-mist-400 xl:block">{dateLabel}</p>
+        <ThemeToggle />
         <LanguageSwitch />
         <div ref={notesRef} className="relative">
           <button

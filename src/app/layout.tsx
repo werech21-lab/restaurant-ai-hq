@@ -39,14 +39,30 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       cookieStore.get('ai-hq-locale')?.value ||
       cookieStore.get('vf_lang')?.value
     locale = raw === 'en' ? 'en' : 'ar'
-    theme = cookieStore.get('ai-hq-theme')?.value === 'light' ? 'light' : 'dark'
+    const themeCookie =
+      cookieStore.get('aetherbi_theme_mode')?.value ||
+      cookieStore.get('ai-hq-theme')?.value
+    theme = themeCookie === 'light' ? 'light' : 'dark'
   } catch {
     // Keep safe defaults when cookie store is unavailable during cold start.
   }
 
   return (
-    <html lang={locale} dir={locale === 'en' ? 'ltr' : 'rtl'} data-theme={theme} className={cairo.variable} suppressHydrationWarning>
-      <body className={`${cairo.className} min-h-full bg-ink-950 font-cairo text-mist-100 antialiased md:pb-0`} suppressHydrationWarning>
+    <html
+      lang={locale}
+      dir={locale === 'en' ? 'ltr' : 'rtl'}
+      data-theme={theme}
+      className={`${cairo.variable} ${theme === 'light' ? 'light-mode' : 'dark'}`}
+      suppressHydrationWarning
+    >
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('aetherbi_theme_mode')||localStorage.getItem('ai-hq-theme')||(document.cookie.match(/(?:^|;\\s*)(?:aetherbi_theme_mode|ai-hq-theme)=([^;]+)/)||[])[1]||'dark';document.documentElement.dataset.theme=t;if(t==='light'){document.documentElement.classList.add('light-mode');document.documentElement.classList.remove('dark');}else{document.documentElement.classList.add('dark');document.documentElement.classList.remove('light-mode');}}catch(e){}})();`,
+          }}
+        />
+      </head>
+      <body className={`${cairo.className} min-h-full font-cairo antialiased md:pb-0`} suppressHydrationWarning>
         <ThemeProvider initialTheme={theme}>
           <LanguageProvider initialLocale={locale}>
             <GlobalAutoTranslator />
