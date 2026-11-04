@@ -67,18 +67,18 @@ export function AppBuilderPanel({ modules, fields, canEdit }: { modules: ModuleC
       
       {/* 1. Modules Section */}
       <section className="space-y-3">
-        <h2 className="text-lg font-bold text-mist-100">وحدات وتطبيقات النظام التشغيلية</h2>
+        <h2 className="text-lg font-bold text-slate-900 dark:text-mist-100">وحدات وتطبيقات النظام التشغيلية</h2>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {modules.map((module) => (
             <article
               key={module.key}
-              className="flex flex-col justify-between rounded-2xl border border-gold-300/15 bg-ink-900/80 p-5 shadow-[var(--shadow-card)]"
+              className="flex flex-col justify-between rounded-2xl border border-slate-200 dark:border-gold-300/15 bg-white dark:bg-ink-900/80 p-5 shadow-[var(--shadow-card)]"
             >
               <div>
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-base font-bold text-mist-100">{module.name}</p>
-                    <p className="mt-1.5 text-xs leading-relaxed text-mist-400">{module.description}</p>
+                    <p className="text-base font-bold text-slate-900 dark:text-mist-100">{module.name}</p>
+                    <p className="mt-1.5 text-xs leading-relaxed text-slate-600 dark:text-mist-400">{module.description}</p>
                   </div>
                   <span
                     className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold text-white ${
@@ -90,7 +90,7 @@ export function AppBuilderPanel({ modules, fields, canEdit }: { modules: ModuleC
                 </div>
               </div>
               {canEdit ? (
-                <div className="mt-4 pt-3 border-t border-white/10">
+                <div className="mt-4 pt-3 border-t border-slate-100 dark:border-white/10">
                   <button
                     type="button"
                     className="rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white hover:bg-emerald-500 transition-colors disabled:opacity-50"
@@ -111,8 +111,8 @@ export function AppBuilderPanel({ modules, fields, canEdit }: { modules: ModuleC
       </section>
 
       {/* 2. Custom Fields Builder Section */}
-      <section className="w-full max-w-none rounded-2xl border border-gold-300/15 bg-ink-900/80 p-5 shadow-[var(--shadow-card)] space-y-4">
-        <h2 className="text-lg font-bold text-mist-100">إضافة حقل مخصص جديد للنظام</h2>
+      <section className="w-full max-w-none rounded-2xl border border-slate-200 dark:border-gold-300/15 bg-white dark:bg-ink-900/80 p-5 shadow-[var(--shadow-card)] space-y-4">
+        <h2 className="text-lg font-bold text-slate-900 dark:text-mist-100">إضافة حقل مخصص جديد للنظام</h2>
         {canEdit ? (
           <form onSubmit={addField} className="grid gap-4 md:grid-cols-2">
             <div>
@@ -155,28 +155,28 @@ export function AppBuilderPanel({ modules, fields, canEdit }: { modules: ModuleC
         ) : null}
 
         <div className="pt-2">
-          <h3 className="text-base font-bold text-mist-100 mb-3">الحقول المخصصة الحالية</h3>
+          <h3 className="text-base font-bold text-slate-900 dark:text-mist-100 mb-3">الحقول المخصصة الحالية</h3>
           {fields.length === 0 ? (
-            <p className="py-6 text-center text-sm text-mist-400">
+            <p className="py-6 text-center text-sm text-slate-500 dark:text-mist-400">
               لا توجد حقول مخصصة مضافة حالياً.
             </p>
           ) : (
-            <div className="overflow-x-auto rounded-xl border border-white/10">
+            <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-white/10">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-white/10 bg-white/5 text-mist-400">
+                  <tr className="border-b border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-slate-700 dark:text-mist-400">
                     <th className="px-4 py-3 text-right font-semibold">الكيان المستهدف</th>
                     <th className="px-4 py-3 text-right font-semibold">اسم الحقل المخصص</th>
                     <th className="px-4 py-3 text-right font-semibold">نوع البيانات</th>
                     <th className="px-4 py-3 text-right font-semibold">الإجراءات</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/10 text-mist-200">
+                <tbody className="divide-y divide-slate-200 dark:divide-white/10 text-slate-900 dark:text-mist-200">
                   {fields.map((field) => (
                     <tr key={field.id} className="hover:bg-white/5 transition-colors">
-                      <td className="px-4 py-3 font-semibold">{ENTITY_LABEL[field.entityType] ?? field.entityType}</td>
-                      <td className="px-4 py-3 font-semibold text-gold-300">{field.fieldName}</td>
-                      <td className="px-4 py-3">{FIELD_TYPE_LABEL[field.fieldType] ?? field.fieldType}</td>
+                      <td className="px-4 py-3 font-semibold text-slate-900 dark:text-mist-100">{ENTITY_LABEL[field.entityType] ?? field.entityType}</td>
+                      <td className="px-4 py-3 font-semibold text-amber-700 dark:text-gold-300">{field.fieldName}</td>
+                      <td className="px-4 py-3 text-slate-700 dark:text-mist-200">{FIELD_TYPE_LABEL[field.fieldType] ?? field.fieldType}</td>
                       <td className="px-4 py-3">
                         {canEdit ? (
                           <button

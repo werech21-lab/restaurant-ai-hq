@@ -58,39 +58,39 @@ body {
 }
 
 /* Dark Mode Table & Text Fallbacks */
-html[data-theme='dark'] .app-content table,
-html:not([data-theme='light']) .app-content table {
+html.dark .app-content table,
+html[data-theme='dark'] .app-content table {
   color: rgb(var(--mist-100));
 }
-html[data-theme='dark'] .app-content thead th,
-html:not([data-theme='light']) .app-content thead th {
+html.dark .app-content thead th,
+html[data-theme='dark'] .app-content thead th {
   color: rgb(var(--mist-300));
 }
-html[data-theme='dark'] .app-content tbody td,
-html:not([data-theme='light']) .app-content tbody td {
+html.dark .app-content tbody td,
+html[data-theme='dark'] .app-content tbody td {
   color: rgb(var(--mist-100));
 }
+html.dark .app-content .text-slate-900,
+html.dark .app-content .text-slate-800,
 html[data-theme='dark'] .app-content .text-slate-900,
-html[data-theme='dark'] .app-content .text-slate-800,
-html:not([data-theme='light']) .app-content .text-slate-900,
-html:not([data-theme='light']) .app-content .text-slate-800 {
+html[data-theme='dark'] .app-content .text-slate-800 {
   color: rgb(var(--mist-100)) !important;
 }
+html.dark .app-content .text-slate-700,
+html.dark .app-content .text-slate-600,
+html.dark .app-content .text-slate-500,
 html[data-theme='dark'] .app-content .text-slate-700,
 html[data-theme='dark'] .app-content .text-slate-600,
-html[data-theme='dark'] .app-content .text-slate-500,
-html:not([data-theme='light']) .app-content .text-slate-700,
-html:not([data-theme='light']) .app-content .text-slate-600,
-html:not([data-theme='light']) .app-content .text-slate-500 {
+html[data-theme='dark'] .app-content .text-slate-500 {
   color: rgb(var(--mist-400)) !important;
 }
-html[data-theme='dark'] .app-content .bg-white,
-html:not([data-theme='light']) .app-content .bg-white {
+html.dark .app-content .bg-white,
+html[data-theme='dark'] .app-content .bg-white {
   background-color: rgb(var(--ink-900) / 0.88) !important;
   color: rgb(var(--mist-100));
 }
-html[data-theme='dark'] .app-content .border-slate-200,
-html:not([data-theme='light']) .app-content .border-slate-200 {
+html.dark .app-content .border-slate-200,
+html[data-theme='dark'] .app-content .border-slate-200 {
   border-color: rgba(244, 224, 184, 0.12) !important;
 }
 
@@ -313,39 +313,111 @@ html.light-mode .bg-white\/5 {
   border-color: #E2E8F0 !important;
 }
 
-/* 5. Typography & Contrast Assurance */
-/* Primary Headings, Titles, and Financial Figures */
-html[data-theme='light'] .text-white,
+/* 5. Typography & Contrast Assurance (100% Crisp Contrast in Light Mode) */
+/* All Headings in Light Mode */
+html[data-theme='light'] h1,
+html[data-theme='light'] h2,
+html[data-theme='light'] h3,
+html[data-theme='light'] h4,
+html[data-theme='light'] h5,
+html[data-theme='light'] h6,
+html.light-mode h1,
+html.light-mode h2,
+html.light-mode h3,
+html.light-mode h4,
+html.light-mode h5,
+html.light-mode h6 {
+  color: #0F172A !important;
+}
+
+/* Primary Titles, Headings, and Figures */
+html[data-theme='light'] .text-white:not(button):not([role='alert']):not(.badge):not(.bg-blue-600 *):not(.bg-emerald-600 *):not(.bg-red-600 *):not(.bg-slate-900 *),
 html[data-theme='light'] .text-slate-100,
 html[data-theme='light'] .text-slate-200,
+html[data-theme='light'] .text-gray-50,
+html[data-theme='light'] .text-gray-100,
+html[data-theme='light'] .text-gray-200,
+html[data-theme='light'] .text-zinc-50,
+html[data-theme='light'] .text-zinc-100,
+html[data-theme='light'] .text-zinc-200,
 html[data-theme='light'] .text-mist-100,
-html.light-mode .text-white,
+html.light-mode .text-white:not(button):not([role='alert']):not(.badge):not(.bg-blue-600 *):not(.bg-emerald-600 *):not(.bg-red-600 *):not(.bg-slate-900 *),
 html.light-mode .text-slate-100,
 html.light-mode .text-slate-200,
+html.light-mode .text-gray-50,
+html.light-mode .text-gray-100,
+html.light-mode .text-gray-200,
+html.light-mode .text-zinc-50,
+html.light-mode .text-zinc-100,
+html.light-mode .text-zinc-200,
 html.light-mode .text-mist-100 {
   color: #0F172A !important;
 }
 
-/* Secondary Subtitles, Meta, and Descriptions */
+/* Secondary Subtitles, Meta, Descriptions & Form Labels */
+html[data-theme='light'] label,
+html.light-mode label,
 html[data-theme='light'] .text-slate-300,
 html[data-theme='light'] .text-slate-400,
+html[data-theme='light'] .text-gray-300,
+html[data-theme='light'] .text-gray-400,
+html[data-theme='light'] .text-zinc-300,
+html[data-theme='light'] .text-zinc-400,
 html[data-theme='light'] .text-mist-300,
 html[data-theme='light'] .text-mist-400,
 html.light-mode .text-slate-300,
 html.light-mode .text-slate-400,
+html.light-mode .text-gray-300,
+html.light-mode .text-gray-400,
+html.light-mode .text-zinc-300,
+html.light-mode .text-zinc-400,
 html.light-mode .text-mist-300,
 html.light-mode .text-mist-400 {
-  color: #475569 !important;
+  color: #334155 !important;
 }
 
 /* Muted Captions and Micro Labels */
 html[data-theme='light'] .text-slate-500,
 html[data-theme='light'] .text-slate-600,
+html[data-theme='light'] .text-gray-500,
+html[data-theme='light'] .text-gray-600,
+html[data-theme='light'] .text-zinc-500,
+html[data-theme='light'] .text-zinc-600,
 html[data-theme='light'] .text-mist-500,
 html.light-mode .text-slate-500,
 html.light-mode .text-slate-600,
+html.light-mode .text-gray-500,
+html.light-mode .text-gray-600,
+html.light-mode .text-zinc-500,
+html.light-mode .text-zinc-600,
 html.light-mode .text-mist-500 {
   color: #64748B !important;
+}
+
+/* Ensure vibrant colored buttons maintain crisp white text in Light Mode */
+html[data-theme='light'] button.bg-blue-600,
+html[data-theme='light'] button.bg-emerald-600,
+html[data-theme='light'] button.bg-red-600,
+html[data-theme='light'] .bg-blue-600,
+html[data-theme='light'] .bg-emerald-600,
+html[data-theme='light'] .bg-red-600,
+html[data-theme='light'] .bg-slate-900,
+html.light-mode button.bg-blue-600,
+html.light-mode button.bg-emerald-600,
+html.light-mode button.bg-red-600,
+html.light-mode .bg-blue-600,
+html.light-mode .bg-emerald-600,
+html.light-mode .bg-red-600,
+html.light-mode .bg-slate-900 {
+  color: #FFFFFF !important;
+}
+html[data-theme='light'] .bg-blue-600 *,
+html[data-theme='light'] .bg-emerald-600 *,
+html[data-theme='light'] .bg-red-600 *,
+html.light-mode .bg-blue-600 *,
+html.light-mode .bg-emerald-600 *,
+html.light-mode .bg-red-600 * {
+  color: #FFFFFF !important;
 }
 
 /* Accent Gold Labels */

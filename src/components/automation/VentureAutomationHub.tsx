@@ -348,26 +348,26 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
   return (
     <div
       dir={isRtl ? 'rtl' : 'ltr'}
-      className="w-full max-w-none min-h-screen bg-[#0a0d12] text-slate-100 p-3 sm:p-6 space-y-6"
+      className="w-full max-w-none min-h-screen bg-slate-50 dark:bg-[#0a0d12] text-slate-900 dark:text-slate-100 p-3 sm:p-6 space-y-6"
     >
       {/* ========================================================================= */}
       {/* 1. TOP HEADER                                                             */}
       {/* ========================================================================= */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-5">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
         <div>
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-400">
               <Zap size={14} className="animate-pulse" />
               {isAr ? 'محرك الأتمتة والعمليات الذكية' : 'Enterprise Automation Engine'}
             </span>
-            <span className="rounded-full bg-slate-800 px-2.5 py-0.5 text-xs text-slate-400">
+            <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 text-xs text-slate-700 dark:text-slate-400">
               {isAr ? 'شركة فنتشر فودز لإدارة المطاعم ذ.م.م.' : 'Venture Foods Restaurant Management Co. W.L.L.'}
             </span>
           </div>
-          <h1 className="mt-1 text-2xl font-black text-white sm:text-3xl">
+          <h1 className="mt-1 text-2xl font-black text-slate-900 dark:text-white sm:text-3xl">
             {isAr ? 'مركز قيادة مسارات الأتمتة والرادارات الحية' : 'Operational Workflows & Real-Time System Monitors'}
           </h1>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-600 dark:text-slate-400">
             {isAr
               ? '6 مسارات أتمتة تشغيلية ورادارات رقابية متصلة مباشرة بسيرفرات الشركة والبريد المؤسسي'
               : '6 live operational workflows & monitors connected directly to Venture Foods systems & SMTP'}
@@ -410,7 +410,7 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
       {/* ========================================================================= */}
       {/* 2. SMTP & WEBHOOK LIVE STATUS BAR                                         */}
       {/* ========================================================================= */}
-      <div className="rounded-2xl border border-slate-800 bg-[#0d131f] p-5 shadow-xl">
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0d131f] p-5 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           {/* Engine Status */}
           <div className="flex items-start sm:items-center gap-3">
@@ -420,14 +420,14 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
             <div>
               <div className="flex items-center gap-2">
                 <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                <span className="text-sm font-bold text-white">
+                <span className="text-sm font-bold text-slate-900 dark:text-white">
                   {isAr ? 'خادم البريد المؤسسي موثق ونشط' : 'Google Workspace SMTP Active'}
                 </span>
                 <span className="font-mono text-xs text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20" dir="ltr">
                   sec@venturefoodskw.com
                 </span>
               </div>
-              <p className="mt-0.5 text-xs text-slate-400">
+              <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">
                 {isAr
                   ? 'خادم البريد المؤسسي موثق ويعمل على منفذ SSL 465 لإرسال التنبيهات الفورية المشفرة'
                   : 'Enterprise SMTP authenticated on SSL port 465 delivering encrypted instant dispatches'}
@@ -437,17 +437,17 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
 
           {/* 3 Dedicated Stakeholders */}
           <div className="flex flex-col items-start lg:items-end">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+            <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
               {isAr ? 'المستلمون الثلاثة المعتمدون حصرياً:' : 'Exclusively Verified Recipients:'}
             </span>
             <div className="mt-1.5 flex flex-wrap gap-1.5">
-              <span className="inline-flex items-center gap-1 rounded-md border border-slate-700 bg-slate-800 px-2 py-1 text-[11px] text-slate-200" dir="ltr">
+              <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 px-2 py-1 text-[11px] text-slate-800 dark:text-slate-200" dir="ltr">
                 <span className="font-semibold text-emerald-400">{isAr ? 'عبدالله:' : 'Abdullah:'}</span> Sec@venturefoodskw.com
               </span>
-              <span className="inline-flex items-center gap-1 rounded-md border border-slate-700 bg-slate-800 px-2 py-1 text-[11px] text-slate-200" dir="ltr">
+              <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 px-2 py-1 text-[11px] text-slate-800 dark:text-slate-200" dir="ltr">
                 <span className="font-semibold text-blue-400">{isAr ? 'شكرالله:' : 'Choukrallah:'}</span> operations@venturefoodskw.com
               </span>
-              <span className="inline-flex items-center gap-1 rounded-md border border-slate-700 bg-slate-800 px-2 py-1 text-[11px] text-slate-200" dir="ltr">
+              <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 px-2 py-1 text-[11px] text-slate-800 dark:text-slate-200" dir="ltr">
                 <span className="font-semibold text-amber-400">{isAr ? 'عبدالرحمن:' : 'Abdulrahman:'}</span> abdelrahmanm@venturefoodskw.com
               </span>
             </div>
@@ -460,11 +460,11 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
       {/* ========================================================================= */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-base font-bold text-white sm:text-lg">
+          <h2 className="flex items-center gap-2 text-base font-bold text-slate-900 dark:text-white sm:text-lg">
             <Sliders size={18} className="text-emerald-400" />
             {isAr ? 'محركات الأتمتة الـ 6 الخاصة بشركة فنتشر فودز' : '6 Venture Foods Operational Workflows'}
           </h2>
-          <span className="text-xs text-slate-400">
+          <span className="text-xs text-slate-600 dark:text-slate-400">
             {workflows.filter((w) => w.isActive).length} / {workflows.length} {isAr ? 'مسارات نشطة' : 'Active'}
           </span>
         </div>
@@ -475,13 +475,13 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
               key={wf.id}
               className={`flex flex-col justify-between rounded-2xl border p-5 transition-all duration-200 shadow-sm ${
                 wf.isActive
-                  ? 'border-slate-800 bg-[#0d131f] hover:border-slate-700'
-                  : 'border-slate-800/50 bg-[#0a0d12]/60 opacity-60'
+                  ? 'border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0d131f] hover:border-slate-300 dark:hover:border-slate-700'
+                  : 'border-slate-200/50 dark:border-slate-800/50 bg-slate-50/60 dark:bg-[#0a0d12]/60 opacity-60'
               }`}
             >
               <div>
                 {/* Header */}
-                <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-3">
                   <div className="flex items-center gap-2">
                     <span className="text-xl">{wf.icon}</span>
                     <div>
@@ -508,17 +508,17 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
                 </div>
 
                 {/* Title */}
-                <h3 className="mt-3 text-base font-bold text-white">
+                <h3 className="mt-3 text-base font-bold text-slate-900 dark:text-white">
                   {isAr ? wf.titleAr : wf.titleEn}
                 </h3>
 
                 {/* Trigger & Action Box */}
-                <div className="mt-3 space-y-2 rounded-xl bg-slate-900/60 p-3 text-xs">
+                <div className="mt-3 space-y-2 rounded-xl bg-slate-50 dark:bg-slate-900/60 p-3 text-xs border border-slate-100 dark:border-transparent">
                   <div>
                     <span className="font-bold text-amber-400">
                       {isAr ? '⚡ شرط التحفيز والتفعيل:' : '⚡ Trigger:'}
                     </span>
-                    <p className="mt-0.5 text-slate-300">
+                    <p className="mt-0.5 text-slate-700 dark:text-slate-300">
                       {isAr ? wf.triggerAr : wf.triggerEn}
                     </p>
                   </div>
@@ -526,7 +526,7 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
                     <span className="font-bold text-emerald-400">
                       {isAr ? '🎯 الإجراء التلقائي المعتمد:' : '🎯 Action:'}
                     </span>
-                    <p className="mt-0.5 text-slate-300">
+                    <p className="mt-0.5 text-slate-700 dark:text-slate-300">
                       {isAr ? wf.actionAr : wf.actionEn}
                     </p>
                   </div>
@@ -573,11 +573,11 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
       {/* ========================================================================= */}
       {/* 4. LIVE EXECUTION LOG                                                     */}
       {/* ========================================================================= */}
-      <div className="rounded-2xl border border-slate-800 bg-[#0d131f] shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between border-b border-slate-800 px-5 py-4">
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0d131f] shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-5 py-4">
           <div className="flex items-center gap-2">
             <Server size={18} className="text-emerald-400" />
-            <h2 className="text-sm font-bold text-white sm:text-base">
+            <h2 className="text-sm font-bold text-slate-900 dark:text-white sm:text-base">
               {isAr ? 'سجل التنفيذ والتشغيل الحي للعمليات' : 'Live Automation Execution Log'}
             </h2>
           </div>
@@ -589,7 +589,7 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-800 bg-slate-900/60 text-xs font-semibold uppercase text-slate-400">
+              <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 text-xs font-semibold uppercase text-slate-700 dark:text-slate-400">
                 <th className="px-4 py-3 text-right">{isAr ? 'الوقت والتاريخ' : 'Timestamp'}</th>
                 <th className="px-4 py-3 text-right">{isAr ? 'كود المسار' : 'Workflow Code'}</th>
                 <th className="px-4 py-3 text-right">{isAr ? 'اسم المسار' : 'Workflow Name'}</th>
@@ -598,7 +598,7 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
                 <th className="px-4 py-3 text-center">{isAr ? 'الحالة' : 'Status'}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 text-slate-200">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-slate-800 dark:text-slate-200">
               {logs.map((log) => (
                 <tr key={log.id} className="hover:bg-slate-900/40 transition-colors">
                   <td className="px-4 py-3 font-mono text-xs text-slate-400 whitespace-nowrap">
@@ -607,10 +607,10 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
                   <td className="px-4 py-3 font-mono text-xs font-bold text-emerald-400 whitespace-nowrap">
                     {log.workflowCode}
                   </td>
-                  <td className="px-4 py-3 font-semibold text-white whitespace-nowrap">
+                  <td className="px-4 py-3 font-semibold text-slate-900 dark:text-white whitespace-nowrap">
                     {isAr ? log.workflowTitleAr : log.workflowTitleEn}
                   </td>
-                  <td className="px-4 py-3 text-xs text-slate-300">
+                  <td className="px-4 py-3 text-xs text-slate-700 dark:text-slate-300">
                     {isAr ? log.detailsAr : log.detailsEn}
                   </td>
                   <td className="px-4 py-3 text-center font-mono text-xs text-slate-400">

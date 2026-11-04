@@ -26,12 +26,12 @@ export const btnMuted =
   "inline-flex items-center justify-center rounded-lg border border-white/10 bg-ink-800 px-4 py-2 text-sm font-semibold text-mist-500";
 export const fieldClass =
   "w-full rounded-lg border border-white/10 bg-ink-950 px-3 py-2 text-sm text-mist-100 outline-none placeholder:text-mist-500 focus:border-[#8cc63f]/60";
-export const labelClass = "mb-1 block text-sm font-semibold text-mist-300";
+export const labelClass = "mb-1 block text-sm font-semibold text-slate-700 dark:text-mist-300";
 export const cardClass =
   "rounded-2xl border border-gold-300/15 bg-ink-900/80 text-mist-100 shadow-[var(--shadow-card)]";
-export const tableHeadClass = "bg-ink-800/90 text-mist-300";
-export const tableCellClass = "text-mist-100";
-export const mutedTextClass = "text-mist-400";
+export const tableHeadClass = "bg-slate-50 dark:bg-ink-800/90 text-slate-700 dark:text-mist-300";
+export const tableCellClass = "text-slate-900 dark:text-mist-100";
+export const mutedTextClass = "text-slate-600 dark:text-mist-400";
 
 export function PageHeader({
   title,
@@ -45,8 +45,8 @@ export function PageHeader({
   return (
     <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 className="text-2xl font-bold text-mist-100">{title}</h1>
-        {description ? <p className="mt-1 text-sm text-mist-400">{description}</p> : null}
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-mist-100 sm:text-3xl">{title}</h1>
+        {description ? <p className="mt-1 text-sm text-slate-600 dark:text-mist-400">{description}</p> : null}
       </div>
       {actions}
     </div>

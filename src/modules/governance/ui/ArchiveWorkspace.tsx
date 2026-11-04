@@ -120,9 +120,9 @@ function Workspace() {
   return (
     <div className="w-full max-w-none space-y-4">
       <header>
-        <h1 className="text-2xl font-semibold text-gray-50">{t('hub.archive')}</h1>
+        <h1 className="text-2xl font-semibold text-slate-900 dark:text-gray-50">{t('hub.archive')}</h1>
       </header>
-      {phase === 'loading' ? <p className="text-sm text-gray-400">{t('gov.loading')}</p> : null}
+      {phase === 'loading' ? <p className="text-sm text-slate-600 dark:text-gray-400">{t('gov.loading')}</p> : null}
       {error ? <p className={errorClass}>{t(error)}</p> : null}
       {notice ? <p className={noticeClass} role="status">{notice}</p> : null}
       {phase === 'ready' ? (
@@ -140,7 +140,7 @@ function Workspace() {
             </form>
           ) : null}
           {rows.length === 0 ? <p className="text-sm text-gray-400">{t('gov.empty')}</p> : rows.map((row) => (
-            <p key={row.id} className="border-t border-[#30363d] py-2 text-sm text-gray-100">
+            <p key={row.id} className="border-t border-slate-200 dark:border-[#30363d] py-2 text-sm text-slate-900 dark:text-gray-100">
               {row.fileName} — {t(`gov.cat.${row.documentCategory}` as MessageKey)} — {formatMinor(row.amountMinor)} {t('currency')} — {en ? row.routedToModule : moduleLabelAr(row.routedToModule)} — {en ? row.status : statusLabelAr(row.status)}
             </p>
           ))}
@@ -149,11 +149,11 @@ function Workspace() {
 
       {localRows.length > 0 ? (
         <section className={panelClass}>
-          <h2 className="mb-3 text-lg font-semibold text-gray-50">
+          <h2 className="mb-3 text-lg font-semibold text-slate-900 dark:text-gray-50">
             {en ? 'Smart Dropzone / Local Direct-DB ledger' : 'دفتر الفرز الذكي / الحقن المحلي المباشر'}
           </h2>
           {localRows.map((row) => (
-            <div key={row.id} className="border-t border-[#30363d] py-2 text-sm text-gray-100">
+            <div key={row.id} className="border-t border-slate-200 dark:border-[#30363d] py-2 text-sm text-slate-900 dark:text-gray-100">
               <p>
                 {row.fileName} — {en ? row.departmentLabelEn : row.departmentLabelAr} —{' '}
                 {row.entityLabel || '—'} —{' '}
