@@ -14,7 +14,7 @@ export function PanelHeaderBar({
   const { locale, companyName } = useI18n()
   const title = locale === 'en' ? companyName : 'شركة فنتشر فودز لإدارة المطاعم ذ.م.م.'
   return (
-    <div className="relative z-40 mx-auto flex w-full max-w-7xl items-center justify-between gap-3 overflow-visible px-6 py-3 md:px-8">
+    <div className="relative z-40 mx-auto flex w-full max-w-[1600px] items-center justify-between gap-3 overflow-visible px-4 py-3 sm:px-6 md:px-8">
       {/*
         Brand title on the sidebar side (inline-start) and tools on the free edge (inline-end)
         Clean single-row top bar: Company Name, Notifications, Spotlight Search, Theme Toggle, Language Switch.

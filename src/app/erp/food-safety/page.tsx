@@ -3,14 +3,14 @@ import FoodSafetyHub from '@/modules/food-safety/ui/FoodSafetyHub'
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: 'سلامة الغذاء ومراقبة درجات حرارة البرادات والـ HACCP | فنتشر فودز · AetherBI',
-  description: 'نظام إدارة سلامة الغذاء والصلاحيات ومطابقة بلدية الكويت والهيئة العامة للغذاء والتغذية لشركة فنتشر فودز.',
+  title: 'منظومة سلامة الغذاء ومراقبة درجات التبريد والرقابة الصحية | فنتشر فودز · AetherBI',
+  description: 'الرصد اللحظي لثلاجات وغرف تبريد الفروع الـ 9 والمطبخ المركزي بالقرين، سجلات الفحص اليومي لبلدية الكويت والهيئة العامة للغذاء، وصيانة معدات التبريد.',
 }
 
 export default function FoodSafetyPage() {
   return (
-    <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6">
+    <div className="w-full">
       <FoodSafetyHub />
-    </main>
+    </div>
   )
 }

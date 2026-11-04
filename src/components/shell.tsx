@@ -69,7 +69,7 @@ export async function Shell({ children }: { children: React.ReactNode }) {
             />
           </header>
           <InstallAppBanner />
-          <main className="mx-auto w-full max-w-7xl px-6 py-6 text-mist-100 md:px-8">{children}</main>
+          <main className="mx-auto w-full max-w-[1600px] px-4 py-6 text-mist-100 sm:px-6 md:px-8">{children}</main>
         </div>
         <AssistantWidget />
       </div>

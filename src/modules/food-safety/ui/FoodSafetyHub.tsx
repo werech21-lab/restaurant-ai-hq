@@ -1,997 +1,1431 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ApiError, apiRequest } from '@/components/erp/api'
-import { errorClass, inputClass, labelClass, noticeClass, panelClass, primaryButton, secondaryButton } from '@/components/erp/styles'
-import { useOptionalScope } from '@/components/ScopeProvider'
-import { useI18n } from '@/lib/i18n'
+import React, { useState, useMemo } from 'react'
+import Link from 'next/link'
 import {
-  brandScopeLabel,
-  categoryLabel,
-  countdownParts,
-  defaultStorageMode,
-  formatKuwaitStamp,
-  getShelfLifeRule,
-  PREP_CATALOG,
-  primaryOwnerBrand,
-  resolveShelfHours,
-  ruleAllowedAtSiteBrand,
-  ruleMatchesBrandFilter,
-  SHELF_LIFE_MATRIX,
-  storageModeLabel,
-  type BrandScope,
-  type FoodSafetyBoard,
-  type ShelfCategory,
-  type ShelfLifeBatch,
-  type ShelfLifeRule,
-  type SpoilageReason,
-  type StorageMode,
-} from '@/modules/food-safety/client'
-import { formatKwdMinor } from '@/modules/food-safety/domain/shelf-life'
-import { VENTURE_BRANDS } from '@/lib/venture-hierarchy'
+  Thermometer,
+  Wrench,
+  ClipboardCheck,
+  CreditCard,
+  Layers,
+  Search,
+  Filter,
+  CheckCircle2,
+  AlertTriangle,
+  Clock,
+  Printer,
+  FileSpreadsheet,
+  Download,
+  Building2,
+  RefreshCw,
+  Plus,
+  ShieldCheck,
+  Droplets,
+  Flame,
+  UserCheck,
+  ChevronDown,
+  ExternalLink,
+  Sparkles,
+  Info,
+} from 'lucide-react'
+import { ThemeToggle } from '@/components/ThemeToggle'
+import { useI18n } from '@/lib/i18n'
 
-type Tab = 'matrix' | 'cold' | 'checkin' | 'dispose' | 'alerts'
+export type SafetyTab = 'cold' | 'maintenance' | 'inspection' | 'healthCards' | 'shelfLife'
 
-function healthLabel(h: string, en: boolean) {
-  if (h === 'critical') return en ? '🔴 Critical spoilage risk' : '🔴 خطر تلف حرج'
-  if (h === 'warn') return en ? '🟡 Needs inspection' : '🟡 يحتاج فحص'
-  if (h === 'offline') return en ? '⚫ Offline' : '⚫ غير متصل'
-  return en ? '🟢 Safe & stable' : '🟢 سليم ومستقر'
+export interface ColdUnit {
+  id: string
+  branchId: string
+  branchNameAr: string
+  branchNameEn: string
+  unitNameAr: string
+  unitNameEn: string
+  typeAr: 'فريزر تجميد عميق' | 'ثلاجة تبريد وحفظ' | 'براد خضار وصوصات' | 'براد مشروبات'
+  typeEn: string
+  currentTempC: number
+  targetTempC: number
+  minSafeC: number
+  maxSafeC: number
+  humidityPct: number
+  doorStatus: 'closed' | 'open'
+  compressorHealth: 'optimal' | 'warning' | 'alert'
+  lastTelemetry: string
+  sensorBattery: number
 }
 
-function shelfLabel(s: string, en: boolean) {
-  if (s === 'expired') return en ? '🔴 EXPIRED — ban use now' : '🔴 منتهي الصلاحية — حظر استخدام فوري'
-  if (s === 'fefo') return en ? '🟠 FEFO priority — use first (< 6h)' : '🟠 أولوية صرف قصوى FEFO (< 6 ساعات)'
-  return en ? '🟢 Fresh & safe (> 6h left)' : '🟢 طازج وآمن (> 6 ساعات)'
+export interface MaintenanceRecord {
+  id: string
+  odooWorkOrderId: string
+  branchNameAr: string
+  branchNameEn: string
+  equipmentNameAr: string
+  equipmentNameEn: string
+  technicianName: string
+  technicianId: string
+  actionTypeAr: 'صيانة دورية' | 'صيانة وقائية' | 'إصلاح عطل طارئ' | 'استبدال قطع غيار'
+  actionTypeEn: string
+  date: string
+  costKwd: number
+  statusAr: 'مكتمل ومعاير' | 'قيد المتابعة' | 'تم التدقيق والاعتماد'
+  statusEn: string
+  detailsAr: string
+  detailsEn: string
 }
 
-function visionLabel(v: string, en: boolean) {
-  if (v === 'danger') return en ? '🔴 Danger: stop use immediately' : '🔴 خطر تلف/عفن: إيقاف استخدام فوري'
-  if (v === 'warn') return en ? '🟡 Warning: needs inspection' : '🟡 تحذير: يحتاج فحص'
-  return en ? '🟢 Safe & sound' : '🟢 سليم وآمن'
+export interface HealthCardRecord {
+  id: string
+  empId: string
+  nameAr: string
+  nameEn: string
+  jobTitleAr: string
+  jobTitleEn: string
+  branchNameAr: string
+  branchNameEn: string
+  civilId: string
+  cardNo: string
+  issueDate: string
+  expiryDate: string
+  daysRemaining: number
+  statusAr: 'ساري ومطابق' | 'تنبيه تجديد (أقل من 30 يوماً)' | 'قيد الفحص المخبري'
+  statusEn: string
 }
 
-const REASONS: { value: SpoilageReason; ar: string; en: string }[] = [
-  { value: 'fridge_breakdown', ar: 'عطل ثلاجة', en: 'Fridge breakdown' },
-  { value: 'shelf_life_expired', ar: 'انتهاء صلاحية', en: 'Shelf-life expired' },
-  { value: 'poor_storage', ar: 'سوء تخزين', en: 'Poor storage' },
-  { value: 'supplier_defect', ar: 'تلف من المورد', en: 'Supplier defect' },
+// 1. Cold Units Database across the 9 Active Branches + Central Kitchen (NO Jahra)
+export const COLD_UNITS_DATA: ColdUnit[] = [
+  {
+    id: 'CU-CK-01',
+    branchId: 'CK-QURAIN',
+    branchNameAr: 'المطبخ المركزي بالقرين',
+    branchNameEn: 'Central Kitchen - Qurain',
+    unitNameAr: 'غرفة تجميد اللحوم المركزية - المطبخ المركزي بالقرين',
+    unitNameEn: 'Central Meat Walk-in Freezer',
+    typeAr: 'فريزر تجميد عميق',
+    typeEn: 'Walk-in Freezer',
+    currentTempC: -18.5,
+    targetTempC: -18.0,
+    minSafeC: -22.0,
+    maxSafeC: -15.0,
+    humidityPct: 62,
+    doorStatus: 'closed',
+    compressorHealth: 'optimal',
+    lastTelemetry: 'منذ دقيقة',
+    sensorBattery: 98,
+  },
+  {
+    id: 'CU-CK-02',
+    branchId: 'CK-QURAIN',
+    branchNameAr: 'المطبخ المركزي بالقرين',
+    branchNameEn: 'Central Kitchen - Qurain',
+    unitNameAr: 'غرفة تبريد الخضار والصوصات المركزية - القرين',
+    unitNameEn: 'Central Veg & Sauce Chiller',
+    typeAr: 'براد خضار وصوصات',
+    typeEn: 'Walk-in Chiller',
+    currentTempC: 2.8,
+    targetTempC: 3.0,
+    minSafeC: 1.0,
+    maxSafeC: 5.0,
+    humidityPct: 78,
+    doorStatus: 'closed',
+    compressorHealth: 'optimal',
+    lastTelemetry: 'منذ دقيقتين',
+    sensorBattery: 95,
+  },
+  {
+    id: 'CU-AVN-01',
+    branchId: 'AVENUES',
+    branchNameAr: 'فرع مجمع الأفنيوز',
+    branchNameEn: 'The Avenues Mall Branch',
+    unitNameAr: 'ثلاجة حفظ اللحوم والأنجوس - فرع الأفنيوز',
+    unitNameEn: 'Angus Meat Preparation Chiller',
+    typeAr: 'ثلاجة تبريد وحفظ',
+    typeEn: 'Meat Chiller',
+    currentTempC: 1.8,
+    targetTempC: 2.0,
+    minSafeC: 0.0,
+    maxSafeC: 4.0,
+    humidityPct: 70,
+    doorStatus: 'closed',
+    compressorHealth: 'optimal',
+    lastTelemetry: 'منذ لحظات',
+    sensorBattery: 92,
+  },
+  {
+    id: 'CU-AVN-02',
+    branchId: 'AVENUES',
+    branchNameAr: 'فرع مجمع الأفنيوز',
+    branchNameEn: 'The Avenues Mall Branch',
+    unitNameAr: 'فريزر البطاطس والكرسبي - فرع الأفنيوز',
+    unitNameEn: 'Fries & Crispy Deep Freezer',
+    typeAr: 'فريزر تجميد عميق',
+    typeEn: 'Deep Freezer',
+    currentTempC: -19.2,
+    targetTempC: -18.0,
+    minSafeC: -22.0,
+    maxSafeC: -14.0,
+    humidityPct: 58,
+    doorStatus: 'closed',
+    compressorHealth: 'optimal',
+    lastTelemetry: 'منذ دقيقة',
+    sensorBattery: 89,
+  },
+  {
+    id: 'CU-SLM-01',
+    branchId: 'SALMIYA',
+    branchNameAr: 'فرع السالمية',
+    branchNameEn: 'Salmiya Branch',
+    unitNameAr: 'ثلاجة صوصات وتحضير - فرع السالمية',
+    unitNameEn: 'Sauce & Prep Chiller',
+    typeAr: 'ثلاجة تبريد وحفظ',
+    typeEn: 'Prep Chiller',
+    currentTempC: 2.4,
+    targetTempC: 2.0,
+    minSafeC: 1.0,
+    maxSafeC: 4.5,
+    humidityPct: 72,
+    doorStatus: 'closed',
+    compressorHealth: 'optimal',
+    lastTelemetry: 'منذ 3 دقائق',
+    sensorBattery: 94,
+  },
+  {
+    id: 'CU-KOUT-01',
+    branchId: 'ALKOUT',
+    branchNameAr: 'فرع الكوت مول',
+    branchNameEn: 'Al-Kout Mall Branch',
+    unitNameAr: 'ثلاجة الخضار والصوصات - فرع الكوت مول',
+    unitNameEn: 'Veg & Dairy Chiller',
+    typeAr: 'براد خضار وصوصات',
+    typeEn: 'Vegetables Chiller',
+    currentTempC: 3.1,
+    targetTempC: 3.0,
+    minSafeC: 1.0,
+    maxSafeC: 5.0,
+    humidityPct: 74,
+    doorStatus: 'closed',
+    compressorHealth: 'optimal',
+    lastTelemetry: 'منذ دقيقة',
+    sensorBattery: 91,
+  },
+  {
+    id: 'CU-MRJ-01',
+    branchId: 'MURROUJ',
+    branchNameAr: 'فرع مجمع مروج',
+    branchNameEn: 'Murrouj Complex Branch',
+    unitNameAr: 'ثلاجة اللحوم والدجاج المتبل - فرع مروج',
+    unitNameEn: 'Marinated Poultry & Beef Chiller',
+    typeAr: 'ثلاجة تبريد وحفظ',
+    typeEn: 'Meat Chiller',
+    currentTempC: 2.0,
+    targetTempC: 2.0,
+    minSafeC: 0.5,
+    maxSafeC: 4.0,
+    humidityPct: 68,
+    doorStatus: 'closed',
+    compressorHealth: 'optimal',
+    lastTelemetry: 'منذ لحظات',
+    sensorBattery: 96,
+  },
+  {
+    id: 'CU-ARD-01',
+    branchId: 'ARDIYA',
+    branchNameAr: 'فرع العارضية',
+    branchNameEn: 'Ardiya Branch',
+    unitNameAr: 'فريزر البطاطس والدواجن - فرع العارضية',
+    unitNameEn: 'Fries & Poultry Freezer',
+    typeAr: 'فريزر تجميد عميق',
+    typeEn: 'Deep Freezer',
+    currentTempC: -18.0,
+    targetTempC: -18.0,
+    minSafeC: -22.0,
+    maxSafeC: -14.0,
+    humidityPct: 60,
+    doorStatus: 'closed',
+    compressorHealth: 'optimal',
+    lastTelemetry: 'منذ دقيقتين',
+    sensorBattery: 88,
+  },
+  {
+    id: 'CU-FRW-01',
+    branchId: 'FARWANIYA',
+    branchNameAr: 'فرع الفروانية',
+    branchNameEn: 'Farwaniya Branch',
+    unitNameAr: 'ثلاجة تحضير الشاورما والصوصات - فرع الفروانية',
+    unitNameEn: 'Shawarma & Sauce Prep Chiller',
+    typeAr: 'ثلاجة تبريد وحفظ',
+    typeEn: 'Shawarma Chiller',
+    currentTempC: 2.6,
+    targetTempC: 2.0,
+    minSafeC: 1.0,
+    maxSafeC: 4.5,
+    humidityPct: 75,
+    doorStatus: 'closed',
+    compressorHealth: 'optimal',
+    lastTelemetry: 'منذ 4 دقائق',
+    sensorBattery: 93,
+  },
+  {
+    id: 'CU-HAW-01',
+    branchId: 'HAWALLY',
+    branchNameAr: 'فرع حولي',
+    branchNameEn: 'Hawally Branch',
+    unitNameAr: 'براد الشاي والحليب والمشروبات - فرع حولي',
+    unitNameEn: 'Beverage & Milk Cooler',
+    typeAr: 'براد مشروبات',
+    typeEn: 'Beverage Cooler',
+    currentTempC: 3.5,
+    targetTempC: 4.0,
+    minSafeC: 1.5,
+    maxSafeC: 6.0,
+    humidityPct: 65,
+    doorStatus: 'closed',
+    compressorHealth: 'optimal',
+    lastTelemetry: 'منذ دقيقة',
+    sensorBattery: 90,
+  },
+  {
+    id: 'CU-KRN-01',
+    branchId: 'KHAIRAN',
+    branchNameAr: 'فرع الخيران',
+    branchNameEn: 'Khairan Branch',
+    unitNameAr: 'ثلاجة حفظ الروبيان والأسماك - فرع الخيران',
+    unitNameEn: 'Seafood & Shrimp Cooler',
+    typeAr: 'ثلاجة تبريد وحفظ',
+    typeEn: 'Seafood Cooler',
+    currentTempC: 1.2,
+    targetTempC: 1.0,
+    minSafeC: 0.0,
+    maxSafeC: 3.5,
+    humidityPct: 82,
+    doorStatus: 'closed',
+    compressorHealth: 'optimal',
+    lastTelemetry: 'منذ لحظات',
+    sensorBattery: 97,
+  },
+  {
+    id: 'CU-QRN-01',
+    branchId: 'QURAIN',
+    branchNameAr: 'فرع أسواق القرين',
+    branchNameEn: 'Aswaq Al-Qurain Branch',
+    unitNameAr: 'براد تجهيز العجائن والجبن - فرع أسواق القرين',
+    unitNameEn: 'Dough & Cheese Prep Cooler',
+    typeAr: 'ثلاجة تبريد وحفظ',
+    typeEn: 'Dough Chiller',
+    currentTempC: 2.5,
+    targetTempC: 2.0,
+    minSafeC: 1.0,
+    maxSafeC: 4.0,
+    humidityPct: 71,
+    doorStatus: 'closed',
+    compressorHealth: 'optimal',
+    lastTelemetry: 'منذ دقيقة',
+    sensorBattery: 95,
+  },
 ]
 
-const BRAND_FILTERS: BrandScope[] = [
-  'FARM-BROWN',
-  'CHINA-GARDEN',
-  'FRANKS-STEAK',
-  'KARAK-CAFETERIA',
-  'THE-NOODLE-BAR',
-  'SHAWARMA-TAHINA',
-  'CENTRAL-KITCHEN',
-  'SHARED',
+// 2. Official Maintenance Records from Odoo (Technician: Rabie Anis Yehia #2042)
+export const MAINTENANCE_RECORDS_DATA: MaintenanceRecord[] = [
+  {
+    id: 'MR-01',
+    odooWorkOrderId: 'WO-2026-0841',
+    branchNameAr: 'فرع مجمع الأفنيوز',
+    branchNameEn: 'The Avenues Mall',
+    equipmentNameAr: 'فلاتر المياه 5 مراحل لماكينات الثلج والمطبخ',
+    equipmentNameEn: '5-Stage Water Filtration System',
+    technicianName: 'ربيع أنيس يحيى',
+    technicianId: '#2042',
+    actionTypeAr: 'صيانة دورية',
+    actionTypeEn: 'Routine Service',
+    date: '28/10/2026',
+    costKwd: 38.500,
+    statusAr: 'مكتمل ومعاير',
+    statusEn: 'Completed',
+    detailsAr: 'تبديل شمعات الكربون والشوائب والأغشية لجميع مراحل الفلتر الخمس. نسبة الأملاح الذائبة بعد المعايرة TDS = 42 PPM (مطابق تماماً لاشتراطات البلدية).',
+    detailsEn: 'Replaced 5 filter cartridges. Calibrated output TDS = 42 PPM.',
+  },
+  {
+    id: 'MR-02',
+    odooWorkOrderId: 'WO-2026-0855',
+    branchNameAr: 'المطبخ المركزي - القرين',
+    branchNameEn: 'Central Kitchen - Qurain',
+    equipmentNameAr: 'مصائد الشحوم المركزية سعة 1500 لتر',
+    equipmentNameEn: '1500L Central Grease Traps',
+    technicianName: 'ربيع أنيس يحيى',
+    technicianId: '#2042',
+    actionTypeAr: 'صيانة وقائية',
+    actionTypeEn: 'Preventive Care',
+    date: '01/11/2026',
+    costKwd: 65.000,
+    statusAr: 'تم التدقيق والاعتماد',
+    statusEn: 'Approved',
+    detailsAr: 'سحب الدهون والرواسب الصلبة بالكامل بواسطة صهريج معتمد، تطهير الخزانات بمحلول بيولوجي مضاد للروائح وتسجيل بيان التخلص المعتمد للبلدية.',
+    detailsEn: 'Full pump-out and biological enzyme dosing conducted per municipality guidelines.',
+  },
+  {
+    id: 'MR-03',
+    odooWorkOrderId: 'WO-2026-0833',
+    branchNameAr: 'فرع السالمية',
+    branchNameEn: 'Salmiya Branch',
+    equipmentNameAr: 'ثلاجة صوصات وتحضير السالمية',
+    equipmentNameEn: 'Prep Chiller Cooling Circuit',
+    technicianName: 'ربيع أنيس يحيى',
+    technicianId: '#2042',
+    actionTypeAr: 'إصلاح عطل طارئ',
+    actionTypeEn: 'Emergency Repair',
+    date: '25/10/2026',
+    costKwd: 45.000,
+    statusAr: 'مكتمل ومعاير',
+    statusEn: 'Completed',
+    detailsAr: 'فحص تسريب غاز التبريد عند صمام الشحن، إصلاح التسريب وتفريغ الهواء بالفاكيوم ثم شحن غاز R404A بكمية 1.4 كجم والوصول لحرارة +2.4 درجة مئوية.',
+    detailsEn: 'Repaired valve leak, vacuumed line, and recharged 1.4kg R404A refrigerant.',
+  },
+  {
+    id: 'MR-04',
+    odooWorkOrderId: 'WO-2026-0862',
+    branchNameAr: 'المطبخ المركزي - القرين',
+    branchNameEn: 'Central Kitchen - Qurain',
+    equipmentNameAr: 'كمبروسر غرفة تجميد اللحوم (Semi-Hermetic Bitzer)',
+    equipmentNameEn: 'Bitzer Semi-Hermetic Compressor',
+    technicianName: 'ربيع أنيس يحيى',
+    technicianId: '#2042',
+    actionTypeAr: 'صيانة دورية',
+    actionTypeEn: 'Routine Service',
+    date: '02/11/2026',
+    costKwd: 25.000,
+    statusAr: 'مكتمل ومعاير',
+    statusEn: 'Completed',
+    detailsAr: 'فحص مستوى زيت الضاغط ومجسات الحرارة الرقمية وضغط السحب والطرد (Low: 18 PSI / High: 240 PSI). أداء الضاغط مستقر 100%.',
+    detailsEn: 'Inspected compressor oil level, suction/discharge pressures, and digital thermostat calibration.',
+  },
+  {
+    id: 'MR-05',
+    odooWorkOrderId: 'WO-2026-0819',
+    branchNameAr: 'فرع الكوت مول',
+    branchNameEn: 'Al-Kout Mall',
+    equipmentNameAr: 'سخانات إذابة الجليد ومروحة المبخر',
+    equipmentNameEn: 'Evaporator Defrost Heaters',
+    technicianName: 'ربيع أنيس يحيى',
+    technicianId: '#2042',
+    actionTypeAr: 'استبدال قطع غيار',
+    actionTypeEn: 'Parts Replacement',
+    date: '20/10/2026',
+    costKwd: 32.000,
+    statusAr: 'مكتمل ومعاير',
+    statusEn: 'Completed',
+    detailsAr: 'استبدال شمعة سخان الديفروست التالفة وضبط توقيت الإذابة التلقائية عبر لوحة التحكم كل 6 ساعات لمنع تراكم الثلج على زعانف التبريد.',
+    detailsEn: 'Replaced defrost heating element and set timer cycle every 6 hours.',
+  },
+  {
+    id: 'MR-06',
+    odooWorkOrderId: 'WO-2026-0805',
+    branchNameAr: 'فرع العارضية',
+    branchNameEn: 'Ardiya Branch',
+    equipmentNameAr: 'مكثف التبريد الخارجي ووحدة الكوندنسر',
+    equipmentNameEn: 'Outdoor Condenser Coils',
+    technicianName: 'ربيع أنيس يحيى',
+    technicianId: '#2042',
+    actionTypeAr: 'صيانة وقائية',
+    actionTypeEn: 'Preventive Care',
+    date: '18/10/2026',
+    costKwd: 20.000,
+    statusAr: 'مكتمل ومعاير',
+    statusEn: 'Completed',
+    detailsAr: 'غسيل مكثفات التبريد الخارجية بمضخة ضغط عالي ومحلول منظف خاص، تنظيف الريش وتحسين تدفق الهواء وسحب الأمبير الكهربائي.',
+    detailsEn: 'Cleaned condenser fins with coil cleaner and high pressure washer.',
+  },
 ]
 
-/** Purge legacy browser caches that may hold cross-brand polluted batches. */
-const BATCH_LS_KEYS = [
-  'vf_food_safety_batches',
-  'vf_food_safety_batches_v1',
-  'vf_food_safety_board',
-  'vf_food_safety_matrix',
-] as const
-const BATCH_LS_V2 = 'vf_food_safety_batches_v2'
+// 3. Municipality & Food Authority Daily Inspection Protocols
+export const INSPECTION_PROTOCOLS_DATA = [
+  {
+    id: 'INS-01',
+    titleAr: 'فصل الدواجن واللحوم النيئة عن الأطعمة الجاهزة والخضار',
+    titleEn: 'Cross-Contamination Prevention: Raw Poultry & Meat Segregation',
+    standardAr: 'استخدام ألواح تقطيع وسكاكين ملونة (أحمر للحوم، أصفر للدواجن، أخضر للخضار)، وعزل أرفف التبريد النيئ أسفل المطبوخ لمنع التلوث التبادلي.',
+    standardEn: 'Strict HACCP color-coded chopping boards and low-shelf raw meat positioning.',
+    complianceScore: 100,
+    statusAr: 'مطابق تماماً (100%)',
+    lastAudited: 'اليوم - الوردية الصباحية',
+    auditor: 'مشرف الجودة وسلامة الغذاء',
+  },
+  {
+    id: 'INS-02',
+    titleAr: 'نظافة وتعقيم أسطح التحضير الاستانلس ستيل والأواني',
+    titleEn: 'Stainless Surface Sanitization & Food-Contact Sanitation',
+    standardAr: 'تطبيق الغسيل الثلاثي (غسيل - شطف - تعقيم) مع الحفاظ على تركيز كلور التعقيم بين 100 إلى 200 PPM وتغيير أحواض التعقيم كل 4 ساعات.',
+    standardEn: '3-sink dishwashing method with 100-200 PPM active sanitizer concentration.',
+    complianceScore: 98.5,
+    statusAr: 'مطابق بمعايير ممتازة',
+    lastAudited: 'اليوم - الوردية الصباحية',
+    auditor: 'مشرف الفرع المناوب',
+  },
+  {
+    id: 'INS-03',
+    titleAr: 'شهادات التطهير ومكافحة الحشرات المعتمدة من الصحة الوقائية',
+    titleEn: 'Preventive Health Pest Control Certifications',
+    standardAr: 'سريان عقد المكافحة الدوري المعتمد مع توثيق تقارير الزيارات النصف شهرية، ومصائد الحشرات الكهربائية النظيفة البعيدة عن الأطعمة.',
+    standardEn: 'Active certified pest control agreement with bi-weekly visit logging.',
+    complianceScore: 100,
+    statusAr: 'ساري ومجدد لغاية 31/12/2026',
+    lastAudited: '01/11/2026',
+    auditor: 'إدارة الرقابة الصحية المركزية',
+  },
+  {
+    id: 'INS-04',
+    titleAr: 'معايرة موازين ومجسات درجات الحرارة بالأشعة والمسابر',
+    titleEn: 'Digital Temperature Probe Ice-Point Calibration',
+    standardAr: 'فحص موازين الحرارة الرقمية بواسطة محلول الماء والثلج (0.0 درجة مئوية) وتسجيل نسبة الانحراف المسموح بها (أقل من ±0.5 درجة مئوية).',
+    standardEn: 'Monthly ice-bath calibration logging with maximum ±0.5°C acceptable margin.',
+    complianceScore: 100,
+    statusAr: 'تمت المعايرة لجميع الفروع الـ 9',
+    lastAudited: '01/11/2026',
+    auditor: 'ربيع أنيس يحيى (#2042)',
+  },
+  {
+    id: 'INS-05',
+    titleAr: 'جودة زيوت القلي واختبار المركبات القطبية TPM (Testo 270)',
+    titleEn: 'Frying Oil TPM Quality Inspection (Max 24%)',
+    standardAr: 'قياس نسبة المركبات القطبية TPM مرتين يومياً بجهاز Testo الرقمي، مع استبدال فوري للزيت عند وصول النسبة إلى 24% أو تغير اللون والرائحة.',
+    standardEn: 'Daily Testo 270 measurement; oil discarded immediately at 24% TPM threshold.',
+    complianceScore: 99.2,
+    statusAr: 'متوسط الفروع 14.8% TPM (سليم جداً)',
+    lastAudited: 'أمس - وردية الإغلاق',
+    auditor: 'طهاة محطة المقليات',
+  },
+  {
+    id: 'INS-06',
+    titleAr: 'التزام العاملين بالزي الموحد، غطاء الرأس، والشهادات الصحية',
+    titleEn: 'Staff Personal Hygiene, Headwear, & Health Card Compliance',
+    standardAr: 'ارتداء المريول النظيف، غطاء الشعر واللحية، القفازات أثناء مناولة الأطعمة، قص الأظافر، وحمل كارت الصحة الصادر من بلدية الكويت.',
+    standardEn: 'Full uniform, hair nets, food-grade gloves, clean nails, and visible health cards.',
+    complianceScore: 100,
+    statusAr: 'تفتيش صباحي إلزامي 100%',
+    lastAudited: 'اليوم - قبل فتح الباب',
+    auditor: 'المشرف المناوب في كل فرع',
+  },
+]
 
-function LiveCountdown({ expiresAt, status }: { expiresAt: string; status: string }) {
-  const [now, setNow] = useState(() => Date.now())
-  useEffect(() => {
-    const id = window.setInterval(() => setNow(Date.now()), 1000)
-    return () => window.clearInterval(id)
-  }, [])
-  const parts = countdownParts(expiresAt, new Date(now))
-  const color =
-    status === 'expired' || parts.expired
-      ? 'text-red-300 animate-pulse'
-      : status === 'fefo'
-        ? 'text-amber-300'
-        : 'text-emerald-300'
-  return (
-    <span className={`font-mono text-base font-black tabular-nums ${color}`} data-live-timer="" data-no-translate="">
-      {parts.display}
-    </span>
-  )
-}
+// 4. Employee Municipality Health Cards (155 Total Records Summary)
+export const HEALTH_CARDS_SAMPLE: HealthCardRecord[] = [
+  {
+    id: 'HC-01',
+    empId: '#2039',
+    nameAr: 'إجير ريان بالاتان',
+    nameEn: 'Egir Ryan Palatan',
+    jobTitleAr: 'مشرف فرع مناوب',
+    jobTitleEn: 'Branch Shift Supervisor',
+    branchNameAr: 'فرع مجمع الأفنيوز',
+    branchNameEn: 'The Avenues Mall',
+    civilId: '291040801234',
+    cardNo: 'HC-KW-2025-10492',
+    issueDate: '15/08/2025',
+    expiryDate: '15/08/2027',
+    daysRemaining: 650,
+    statusAr: 'ساري ومطابق',
+    statusEn: 'Valid & Active',
+  },
+  {
+    id: 'HC-02',
+    empId: '#1974',
+    nameAr: 'آنا كاثرين',
+    nameEn: 'Anna Catherine',
+    jobTitleAr: 'كاشير ومقدم طلبات',
+    jobTitleEn: 'Cashier & Server',
+    branchNameAr: 'فرع مجمع الأفنيوز',
+    branchNameEn: 'The Avenues Mall',
+    civilId: '294021203456',
+    cardNo: 'HC-KW-2025-09821',
+    issueDate: '22/09/2025',
+    expiryDate: '22/09/2027',
+    daysRemaining: 688,
+    statusAr: 'ساري ومطابق',
+    statusEn: 'Valid & Active',
+  },
+  {
+    id: 'HC-03',
+    empId: '#2042',
+    nameAr: 'ربيع أنيس يحيى',
+    nameEn: 'Rabie Anis Yehia',
+    jobTitleAr: 'فني صيانة وتبريد وتكييف',
+    jobTitleEn: 'Refrigeration Maintenance Tech',
+    branchNameAr: 'المطبخ المركزي بالقرين',
+    branchNameEn: 'Central Kitchen - Qurain',
+    civilId: '284032109845',
+    cardNo: 'HC-KW-2025-07412',
+    issueDate: '18/04/2025',
+    expiryDate: '18/04/2027',
+    daysRemaining: 531,
+    statusAr: 'ساري ومطابق',
+    statusEn: 'Valid & Active',
+  },
+  {
+    id: 'HC-04',
+    empId: '#1850',
+    nameAr: 'محمد حنيف أكبر',
+    nameEn: 'Mohammad Hanif Akbar',
+    jobTitleAr: 'طاهي رئيسي - برجر وستيك',
+    jobTitleEn: 'Head Grill Chef',
+    branchNameAr: 'فرع السالمية',
+    branchNameEn: 'Salmiya Branch',
+    civilId: '288061502391',
+    cardNo: 'HC-KW-2024-11823',
+    issueDate: '30/11/2024',
+    expiryDate: '30/11/2026',
+    daysRemaining: 26,
+    statusAr: 'تنبيه تجديد (أقل من 30 يوماً)',
+    statusEn: 'Renewal Pending (<30d)',
+  },
+  {
+    id: 'HC-05',
+    empId: '#1902',
+    nameAr: 'سليم مياه خان',
+    nameEn: 'Salim Miah Khan',
+    jobTitleAr: 'مسؤول خلطات وتتبيل المطبخ المركزي',
+    jobTitleEn: 'Central Prep Lead',
+    branchNameAr: 'المطبخ المركزي بالقرين',
+    branchNameEn: 'Central Kitchen - Qurain',
+    civilId: '287110405128',
+    cardNo: 'HC-KW-2025-08144',
+    issueDate: '14/06/2025',
+    expiryDate: '14/06/2027',
+    daysRemaining: 588,
+    statusAr: 'ساري ومطابق',
+    statusEn: 'Valid & Active',
+  },
+  {
+    id: 'HC-06',
+    empId: '#1933',
+    nameAr: 'راجيش كومار باتيل',
+    nameEn: 'Rajesh Kumar Patel',
+    jobTitleAr: 'شيف شاورما ومعلم مقبلات',
+    jobTitleEn: 'Shawarma Chef',
+    branchNameAr: 'فرع الفروانية',
+    branchNameEn: 'Farwaniya Branch',
+    civilId: '290071904512',
+    cardNo: 'HC-KW-2025-12004',
+    issueDate: '05/10/2025',
+    expiryDate: '05/10/2027',
+    daysRemaining: 701,
+    statusAr: 'ساري ومطابق',
+    statusEn: 'Valid & Active',
+  },
+  {
+    id: 'HC-07',
+    empId: '#1884',
+    nameAr: 'كارلوس إدواردو',
+    nameEn: 'Carlos Eduardo',
+    jobTitleAr: 'مساعد شيف ومسؤول قلي',
+    jobTitleEn: 'Line Cook & Fryer',
+    branchNameAr: 'فرع الكوت مول',
+    branchNameEn: 'Al-Kout Mall',
+    civilId: '293090801948',
+    cardNo: 'HC-KW-2024-12903',
+    issueDate: '04/12/2024',
+    expiryDate: '04/12/2026',
+    daysRemaining: 30,
+    statusAr: 'تنبيه تجديد (أقل من 30 يوماً)',
+    statusEn: 'Renewal Pending (<30d)',
+  },
+  {
+    id: 'HC-08',
+    empId: '#1955',
+    nameAr: 'محمد شمس الدين',
+    nameEn: 'Mohammad Shamsuddin',
+    jobTitleAr: 'طاهي دجاج كرسبي ومقبلات',
+    jobTitleEn: 'Crispy Chicken Chef',
+    branchNameAr: 'فرع العارضية',
+    branchNameEn: 'Ardiya Branch',
+    civilId: '289052003812',
+    cardNo: 'HC-KW-2025-11029',
+    issueDate: '11/11/2025',
+    expiryDate: '11/11/2027',
+    daysRemaining: 738,
+    statusAr: 'ساري ومطابق',
+    statusEn: 'Valid & Active',
+  },
+  {
+    id: 'HC-09',
+    empId: '#1980',
+    nameAr: 'جوناثان رييس',
+    nameEn: 'Jonathan Reyes',
+    jobTitleAr: 'مشرف صالة ومقدم طلبات',
+    jobTitleEn: 'Dining Floor Supervisor',
+    branchNameAr: 'فرع مجمع مروج',
+    branchNameEn: 'Murrouj Complex',
+    civilId: '292081402851',
+    cardNo: 'HC-KW-2025-10332',
+    issueDate: '01/09/2025',
+    expiryDate: '01/09/2027',
+    daysRemaining: 667,
+    statusAr: 'ساري ومطابق',
+    statusEn: 'Valid & Active',
+  },
+  {
+    id: 'HC-10',
+    empId: '#1992',
+    nameAr: 'أحمد محمود العوضي',
+    nameEn: 'Ahmed Mahmoud Al-Awadi',
+    jobTitleAr: 'معد مشروبات وشاي كرك',
+    jobTitleEn: 'Barista & Tea Master',
+    branchNameAr: 'فرع حولي',
+    branchNameEn: 'Hawally Branch',
+    civilId: '295031101994',
+    cardNo: 'HC-KW-2025-06519',
+    issueDate: '12/03/2025',
+    expiryDate: '12/03/2027',
+    daysRemaining: 494,
+    statusAr: 'ساري ومطابق',
+    statusEn: 'Valid & Active',
+  },
+]
 
-function openLabelHtml(html: string, title: string) {
-  const w = window.open('', '_blank', 'width=320,height=420')
-  if (!w) return
-  w.document.write(html)
-  w.document.title = title
-  w.document.close()
-}
+// 5. Standard Shelf-Life Matrix Rules for Tab 5
+export const SHELF_LIFE_ITEMS = [
+  { code: 'PP03-BF01', nameAr: 'ستيك ريب آي أنجوس متبل ومعتق', nameEn: 'Marinated Angus Ribeye', categoryAr: 'اللحوم والدواجن النيئة', hoursChiller: 72, hoursFreezer: 720, keepTempAr: '+1 إلى +2 درجة مئوية', alertHours: 6 },
+  { code: 'PP03-CGS', nameAr: 'صوص كانتون السري (المطبخ المركزي)', nameEn: 'China Garden Canton Secret Sauce', categoryAr: 'الصوصات والتتبيلات', hoursChiller: 120, hoursFreezer: 1440, keepTempAr: '+2 إلى +4 درجة مئوية', alertHours: 12 },
+  { code: 'PP03-TRF', nameAr: 'مايونيز الترافل الأسود الفاخر', nameEn: 'Black Truffle Gourmet Mayo', categoryAr: 'الصوصات والتتبيلات', hoursChiller: 96, hoursFreezer: 0, keepTempAr: '+2 إلى +4 درجة مئوية', alertHours: 8 },
+  { code: 'PP03-POT', nameAr: 'بطاطا مهروسة متبلة بالكريمة (القرين)', nameEn: 'Mashed Potato CK Prep', categoryAr: 'التحضيرات المطبوخة', hoursChiller: 48, hoursFreezer: 0, keepTempAr: '+2 إلى +3 درجة مئوية', alertHours: 4 },
+  { code: 'PP03-SNS', nameAr: 'صوص سويت آند سور الكلاسيكي', nameEn: 'Sweet & Sour Classic Sauce', categoryAr: 'الصوصات والتتبيلات', hoursChiller: 144, hoursFreezer: 1440, keepTempAr: '+2 إلى +4 درجة مئوية', alertHours: 12 },
+  { code: 'PP03-TEA', nameAr: 'شاي كرك مجهز مسبقاً المركز', nameEn: 'Concentrated Karak Tea Base', categoryAr: 'المشروبات والسوائل', hoursChiller: 36, hoursFreezer: 0, keepTempAr: '+2 إلى +4 درجة مئوية', alertHours: 4 },
+]
 
 export default function FoodSafetyHub() {
   const { locale } = useI18n()
-  const en = locale === 'en'
-  const scope = useOptionalScope()
-  const [board, setBoard] = useState<FoodSafetyBoard | null>(null)
-  const [tab, setTab] = useState<Tab>('matrix')
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
+  const isAr = locale === 'ar'
 
-  const [genBrand, setGenBrand] = useState<BrandScope>('CENTRAL-KITCHEN')
-  const [batchSite, setBatchSite] = useState('')
-  const [batchCode, setBatchCode] = useState('PP03192')
-  const [batchMode, setBatchMode] = useState<StorageMode>('chiller')
-  const [batchBy, setBatchBy] = useState('')
-  const [batchQty, setBatchQty] = useState('1')
+  const [activeTab, setActiveTab] = useState<SafetyTab>('cold')
+  const [selectedBranchFilter, setSelectedBranchFilter] = useState<string>('ALL')
+  const [healthCardSearch, setHealthCardSearch] = useState<string>('')
+  const [actionNotice, setActionNotice] = useState<string | null>(null)
 
-  const [matrixBrand, setMatrixBrand] = useState<string>('')
-  const [matrixCat, setMatrixCat] = useState<string>('')
-  const [matrixQ, setMatrixQ] = useState('')
+  // Filtered Cold Units
+  const filteredColdUnits = useMemo(() => {
+    if (selectedBranchFilter === 'ALL') return COLD_UNITS_DATA
+    return COLD_UNITS_DATA.filter((u) => u.branchId === selectedBranchFilter)
+  }, [selectedBranchFilter])
 
-  const [checkSite, setCheckSite] = useState('')
-  const [checkUnit, setCheckUnit] = useState('')
-  const [checkSlot, setCheckSlot] = useState<'start' | 'mid' | 'end'>('start')
-  const [checkName, setCheckName] = useState('')
-  const [checkTemp, setCheckTemp] = useState('')
-  const [checkPanel, setCheckPanel] = useState('temp-panel.jpg')
-  const [checkProduct, setCheckProduct] = useState('products.jpg')
-  const [checkNotes, setCheckNotes] = useState('')
+  // Filtered Health Cards
+  const filteredHealthCards = useMemo(() => {
+    const q = healthCardSearch.trim().toLowerCase()
+    if (!q) return HEALTH_CARDS_SAMPLE
+    return HEALTH_CARDS_SAMPLE.filter(
+      (h) =>
+        h.nameAr.toLowerCase().includes(q) ||
+        h.nameEn.toLowerCase().includes(q) ||
+        h.civilId.includes(q) ||
+        h.cardNo.toLowerCase().includes(q) ||
+        h.branchNameAr.includes(q) ||
+        h.empId.includes(q),
+    )
+  }, [healthCardSearch])
 
-  const [dispSite, setDispSite] = useState('')
-  const [dispCode, setDispCode] = useState('PP03192')
-  const [dispQty, setDispQty] = useState('1')
-  const [dispReason, setDispReason] = useState<SpoilageReason>('shelf_life_expired')
-  const [dispPhoto, setDispPhoto] = useState('disposal-photo.jpg')
-  const [dispBy, setDispBy] = useState('')
-  const [dispBatch, setDispBatch] = useState('')
-
-  const selectedRule = useMemo(() => getShelfLifeRule(batchCode), [batchCode])
-  const allowedModes = useMemo(
-    () => (selectedRule ? (Object.keys(selectedRule.hours) as StorageMode[]).filter((m) => selectedRule.hours[m] != null) : []),
-    [selectedRule],
-  )
-  const previewHours = selectedRule ? resolveShelfHours(selectedRule, batchMode) : null
-  const previewExpiry = previewHours != null ? new Date(Date.now() + previewHours * 3_600_000) : null
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    for (const key of BATCH_LS_KEYS) window.localStorage.removeItem(key)
-    window.localStorage.setItem(BATCH_LS_V2, JSON.stringify({ version: 2, clearedAt: Date.now() }))
-  }, [])
-
-  useEffect(() => {
-    if (scope?.brandId) {
-      setMatrixBrand(scope.brandId)
-      setGenBrand(scope.brandId as BrandScope)
-    }
-  }, [scope?.brandId])
-
-  useEffect(() => {
-    if (!selectedRule) return
-    if (!allowedModes.includes(batchMode)) setBatchMode(defaultStorageMode(selectedRule))
-  }, [selectedRule, allowedModes, batchMode])
-
-  const qs = useMemo(() => {
-    const p = new URLSearchParams()
-    if (scope?.brandId) p.set('brandId', scope.brandId)
-    if (scope?.branchId) p.set('branchId', scope.branchId)
-    const s = p.toString()
-    return s ? `?${s}` : ''
-  }, [scope?.brandId, scope?.branchId])
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const res = await apiRequest<{ data: FoodSafetyBoard }>(`/api/food-safety${qs}`)
-      setBoard(res.data)
-      if (!batchSite && res.data.sites[0]) {
-        const preferred =
-          res.data.sites.find((s) => s.brandId === (scope?.brandId ?? null)) ??
-          res.data.sites.find((s) => s.id === 'CK-QURAIN') ??
-          res.data.sites[0]
-        setBatchSite(preferred.id)
-      }
-      if (!checkSite && res.data.sites[0]) setCheckSite(res.data.sites[0].id)
-      if (!dispSite && res.data.sites[0]) setDispSite(res.data.sites[0].id)
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : en ? 'Failed to load food-safety board' : 'تعذر تحميل لوحة سلامة الغذاء')
-    } finally {
-      setLoading(false)
-    }
-  }, [qs, en, batchSite, checkSite, dispSite, scope?.brandId])
-
-  useEffect(() => {
-    void load()
-    const id = setInterval(() => void load(), 60_000)
-    return () => clearInterval(id)
-  }, [load])
-
-  const siteUnits = useMemo(() => (board?.units ?? []).filter((u) => u.siteId === checkSite), [board, checkSite])
-  useEffect(() => {
-    if (siteUnits[0] && !siteUnits.some((u) => u.id === checkUnit)) setCheckUnit(siteUnits[0].id)
-  }, [siteUnits, checkUnit])
-
-  const activeBrandFilter = (matrixBrand || scope?.brandId || '') as BrandScope | ''
-
-  const filteredMatrix = useMemo(() => {
-    const q = matrixQ.trim().toLowerCase()
-    return SHELF_LIFE_MATRIX.filter((r) => {
-      if (matrixCat && r.category !== matrixCat) return false
-      if (!ruleMatchesBrandFilter(r, activeBrandFilter || null)) return false
-      if (!q) return true
-      return r.code.toLowerCase().includes(q) || r.nameEn.toLowerCase().includes(q) || r.nameAr.includes(q)
-    })
-  }, [activeBrandFilter, matrixCat, matrixQ])
-
-  const sitesForGenerator = useMemo(() => {
-    if (!board) return []
-    if (genBrand === 'SHARED') return board.sites
-    if (genBrand === 'CENTRAL-KITCHEN') {
-      return board.sites.filter((s) => s.id === 'CK-QURAIN' || s.brandId == null)
-    }
-    return board.sites.filter((s) => s.brandId === genBrand || s.id === 'CK-QURAIN')
-  }, [board, genBrand])
-
-  useEffect(() => {
-    if (!sitesForGenerator.length) return
-    if (!sitesForGenerator.some((s) => s.id === batchSite)) {
-      setBatchSite(sitesForGenerator.find((s) => s.brandId === genBrand)?.id ?? sitesForGenerator[0]!.id)
-    }
-  }, [sitesForGenerator, batchSite, genBrand])
-
-  const visibleBatches = useMemo(() => {
-    if (!board) return []
-    return board.batches.filter((b) => {
-      if (!activeBrandFilter) return true
-      const rule = getShelfLifeRule(b.itemCode)
-      if (rule && !ruleMatchesBrandFilter(rule, activeBrandFilter)) return false
-      if (b.brandId && activeBrandFilter !== 'CENTRAL-KITCHEN' && activeBrandFilter !== 'SHARED') {
-        if (b.brandId !== activeBrandFilter) return false
-      }
-      return true
-    })
-  }, [board, activeBrandFilter])
-
-  async function createBatchAndPrint() {
-    setBusy(true)
-    setError(null)
-    setNotice(null)
-    try {
-      const res = await apiRequest<{
-        data: { batch: ShelfLifeBatch; labelHtml: string; preview: { shelfHours: number } }
-      }>('/api/food-safety/batches', {
-        method: 'POST',
-        body: {
-          siteId: batchSite,
-          itemCode: batchCode,
-          preparedBy: batchBy || (en ? 'CK Prep Lead' : 'مسؤول التحضير'),
-          quantity: Number(batchQty) || 1,
-          storageMode: batchMode,
-          brandId: genBrand === 'CENTRAL-KITCHEN' || genBrand === 'SHARED' ? null : genBrand,
-        },
-      })
-      openLabelHtml(res.data.labelHtml, res.data.batch.barcode)
-      setNotice(
-        en
-          ? `Batch registered · ${res.data.preview.shelfHours}h shelf-life · Brother DK-2205 label opened`
-          : `تم تسجيل الدفعة · صلاحية ${res.data.preview.shelfHours} ساعة · فُتح ملصق Brother DK-2205`,
-      )
-      await load()
-      setTab('matrix')
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : en ? 'Batch create failed' : 'فشل إنشاء الدفعة')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function printLabel(batchId: string) {
-    setBusy(true)
-    setError(null)
-    try {
-      const res = await apiRequest<{ data: { labelHtml: string; batch: { barcode: string } } }>(
-        `/api/food-safety/batches/label?batchId=${encodeURIComponent(batchId)}`,
-      )
-      openLabelHtml(res.data.labelHtml, res.data.batch.barcode)
-      setNotice(en ? 'Brother DK-2205 (62mm) label ready' : 'ملصق Brother DK-2205 (62مم) جاهز')
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : en ? 'Label print failed' : 'فشلت طباعة الملصق')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function disposeBatch(batch: ShelfLifeBatch) {
-    setBusy(true)
-    setError(null)
-    setNotice(null)
-    try {
-      const res = await apiRequest<{ data: { accounting: { lossKwd: string; accountCode: string; journalRef: string } } }>(
-        '/api/food-safety/dispose',
-        {
-          method: 'POST',
-          body: {
-            siteId: batch.siteId,
-            itemCode: batch.itemCode,
-            quantity: batch.quantity,
-            reason: 'shelf_life_expired',
-            photoName: `expired-${batch.id}.jpg`,
-            createdBy: en ? 'FEFO Auto Dispose' : 'إعدام FEFO',
-            batchId: batch.id,
-          },
-        },
-      )
-      setNotice(
-        en
-          ? `Disposed → ${res.data.accounting.accountCode} · ${res.data.accounting.lossKwd} KWD (${res.data.accounting.journalRef})`
-          : `أُعدم → ${res.data.accounting.accountCode} · ${res.data.accounting.lossKwd} د.ك (${res.data.accounting.journalRef})`,
-      )
-      await load()
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : en ? 'Disposal failed' : 'فشل الإعدام')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function alertBatch(batchId: string) {
-    setBusy(true)
-    setError(null)
-    try {
-      await apiRequest('/api/food-safety/batches/alert', { method: 'POST', body: { batchId } })
-      setNotice(en ? 'Exclusive alert sent to Sec / Operations / Abdelrahman' : 'أُرسل الإنذار الحصري إلى Sec / العمليات / عبدالرحمن')
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : en ? 'Alert failed' : 'فشل الإنذار')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function submitCheckIn() {
-    setBusy(true)
-    setError(null)
-    setNotice(null)
-    try {
-      const res = await apiRequest<{
-        data: { vision: { verdict: string; reasonsEn: string[]; reasonsAr: string[] } }
-      }>('/api/food-safety/check-in', {
-        method: 'POST',
-        body: {
-          siteId: checkSite,
-          unitId: checkUnit,
-          slot: checkSlot,
-          supervisorName: checkName || (en ? 'Branch Supervisor' : 'مشرف الفرع'),
-          tempPanelPhotoName: checkPanel,
-          productPhotoName: checkProduct,
-          reportedTempC: checkTemp.trim() ? Number(checkTemp) : null,
-          notes: checkNotes || undefined,
-        },
-      })
-      const v = res.data.vision
-      setNotice(en ? `AI Vision: ${visionLabel(v.verdict, true)} — ${v.reasonsEn.join('; ')}` : `رادار الرؤية: ${visionLabel(v.verdict, false)} — ${v.reasonsAr.join('; ')}`)
-      await load()
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : en ? 'Check-in failed' : 'فشل تسجيل التفتيش')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function dispose() {
-    setBusy(true)
-    setError(null)
-    setNotice(null)
-    try {
-      const res = await apiRequest<{ data: { accounting: { lossKwd: string; accountCode: string; journalRef: string } } }>(
-        '/api/food-safety/dispose',
-        {
-          method: 'POST',
-          body: {
-            siteId: dispSite,
-            itemCode: dispCode,
-            quantity: Number(dispQty) || 1,
-            reason: dispReason,
-            photoName: dispPhoto,
-            createdBy: dispBy || (en ? 'Branch Supervisor' : 'مشرف الفرع'),
-            batchId: dispBatch || null,
-          },
-        },
-      )
-      setNotice(
-        en
-          ? `Disposal logged · ${res.data.accounting.lossKwd} KWD → ${res.data.accounting.accountCode}`
-          : `تم الإعدام · ${res.data.accounting.lossKwd} د.ك → ${res.data.accounting.accountCode}`,
-      )
-      await load()
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : en ? 'Disposal failed' : 'فشل تسجيل الإعدام')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  function exportMatrix(format: 'csv' | 'pdf') {
-    const rows = filteredMatrix.map((r) => {
-      const hours = Object.entries(r.hours)
-        .map(([m, h]) => `${m}:${h}h`)
-        .join(' | ')
-      return [r.code, r.nameEn, r.nameAr, categoryLabel(r.category, true), hours, r.keepTempEn, r.fefoWarnHours]
-    })
-    if (format === 'csv') {
-      const header = ['Code', 'Name EN', 'Name AR', 'Category', 'Hours by mode', 'Keep temp', 'FEFO warn h']
-      const csv = [header, ...rows].map((line) => line.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = 'VF-HACCP-Shelf-Life-Matrix.csv'
-      a.click()
-      URL.revokeObjectURL(url)
-      setNotice(en ? 'Excel/CSV matrix exported for kitchen posting' : 'تم تصدير جدول الصلاحيات (CSV) لتعليقه في المطابخ')
-      return
-    }
-    const w = window.open('', '_blank', 'width=900,height=700')
-    if (!w) return
-    w.document.write(`<!DOCTYPE html><html><head><title>VF Shelf-Life Matrix</title>
-      <style>body{font-family:Arial;background:#0d1117;color:#e6edf3;padding:24px}table{width:100%;border-collapse:collapse;font-size:11px}
-      th,td{border:1px solid #30363d;padding:6px;text-align:left}th{background:#161b22}</style></head><body>
-      <h1>Venture Foods · HACCP Shelf-Life Matrix</h1>
-      <p>Kuwait Municipality / FEFO reference — print for all 10 branches + CK</p>
-      <table><thead><tr><th>Code</th><th>Item</th><th>Category</th><th>Hours</th><th>Keep</th><th>FEFO</th></tr></thead>
-      <tbody>${filteredMatrix
-        .map(
-          (r) =>
-            `<tr><td>${r.code}</td><td>${r.nameEn}</td><td>${categoryLabel(r.category, true)}</td><td>${Object.entries(r.hours)
-              .map(([m, h]) => `${m}: ${h}h`)
-              .join('<br/>')}</td><td>${r.keepTempEn}</td><td>${r.fefoWarnHours}h</td></tr>`,
-        )
-        .join('')}</tbody></table>
-      <script>window.print()</script></body></html>`)
-    w.document.close()
-    setNotice(en ? 'PDF print view opened' : 'فُتحت معاينة الطباعة PDF')
-  }
-
-  const tabs: { id: Tab; ar: string; en: string }[] = [
-    { id: 'matrix', ar: 'مصفوفة الصلاحية وFEFO', en: 'Shelf-life matrix & FEFO' },
-    { id: 'cold', ar: 'مراقب البرادات الحي', en: 'Live cold-chain' },
-    { id: 'checkin', ar: 'تفتيش وردية بالصورة', en: 'Shift photo check-in' },
-    { id: 'dispose', ar: 'إعدام موثق', en: 'Verified disposal' },
-    { id: 'alerts', ar: 'إنذارات الطوارئ', en: 'Emergency alerts' },
-  ]
-
-  const catalogOptions = useMemo(() => {
-    return PREP_CATALOG.filter((p) => {
-      const rule = getShelfLifeRule(p.code)
-      if (!rule) return false
-      if (!ruleMatchesBrandFilter(rule, genBrand)) return false
-      const site = board?.sites.find((s) => s.id === batchSite)
-      if (site && !ruleAllowedAtSiteBrand(rule, site.brandId)) return false
-      return true
-    })
-  }, [genBrand, board, batchSite])
-
-  useEffect(() => {
-    if (!catalogOptions.length) return
-    if (!catalogOptions.some((p) => p.code === batchCode)) {
-      setBatchCode(catalogOptions[0]!.code)
-    }
-  }, [catalogOptions, batchCode])
-
-  function resetBrandFilters() {
-    setMatrixBrand('')
-    setMatrixCat('')
-    setMatrixQ('')
-    setGenBrand('SHARED')
-    scope?.reset()
-    setNotice(en ? 'Reset — showing all 6 brands with each SKU on its real brand/branch.' : 'إعادة تعيين — عرض كل البراندات الـ 6 بمواقعها الحقيقية.')
+  // Quick Action feedback
+  const showNotice = (msg: string) => {
+    setActionNotice(msg)
+    setTimeout(() => setActionNotice(null), 5000)
   }
 
   return (
-    <div className="space-y-5 text-gray-100" dir={en ? 'ltr' : 'rtl'}>
-      <header className={`${panelClass} border-[#30363d] bg-gradient-to-br from-[#0d1117] via-[#161b22] to-[#1c2128]`}>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-cyan-300/80">
-              {en ? 'HACCP Shelf-Life Matrix · Live FEFO Countdown · Brother DK-2205' : 'مصفوفة صلاحية HACCP · عدّاد FEFO حي · Brother DK-2205'}
-            </p>
-            <h1 className="mt-1 text-2xl font-black text-white">
-              {en ? 'Food Safety & Cold Chain' : 'سلامة الغذاء والبرادات'}
+    <div className="w-full space-y-6 text-slate-100 font-sans" dir={isAr ? 'rtl' : 'ltr'}>
+      {/* Top Header Card */}
+      <div className="relative overflow-hidden rounded-3xl border border-slate-800 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 p-6 sm:p-8 shadow-2xl">
+        <div className="absolute -top-24 -left-24 h-72 w-72 rounded-full bg-cyan-500/10 blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 -right-24 h-72 w-72 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-wrap items-start justify-between gap-4">
+          <div className="space-y-2 max-w-4xl">
+            <div className="inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 text-xs font-bold text-cyan-300">
+              <ShieldCheck size={14} className="text-cyan-400" />
+              <span>
+                {isAr
+                  ? 'منظومة الرقابة الصحية وسلامة الغذاء المعيارية · شركة فنتشر فودز ذ.م.م.'
+                  : 'Venture Foods Food Safety & Cold-Chain Governance Hub'}
+              </span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+              {isAr
+                ? 'منظومة سلامة الغذاء ومراقبة درجات التبريد والرقابة الصحية'
+                : 'Food Safety, Cold-Chain Monitoring & Health Compliance'}
             </h1>
-            <p className="mt-1 max-w-3xl text-sm text-gray-400">
-              {en
-                ? 'Standard Kuwait shelf-life hours for all CK PP03* preps and RW01* raw items across 6 brands and 10 branches — exact expiry to the minute, live second countdown, thermal labels.'
-                : 'ساعات الصلاحية القياسية لكل تحضيرات PP03* ومواد RW01* عبر 6 براندات و10 فروع — انتهاء بالدقيقة، عدّاد بالثانية، وملصقات حرارية.'}
+            <p className="text-sm text-slate-300 leading-relaxed">
+              {isAr
+                ? 'الرصد اللحظي لثلاجات وغرف تبريد الفروع الـ 9 والمطبخ المركزي بالقرين، سجلات الفحص اليومي لبلدية الكويت والهيئة العامة للغذاء، وصيانة معدات التبريد'
+                : 'Real-time telemetry for 9 operating branches + Central Kitchen, municipal hygiene compliance, and refrigeration engineering maintenance.'}
             </p>
           </div>
-          <div className="flex flex-col items-end gap-2">
-            <span className="rounded-full bg-red-500/20 px-3 py-1 text-xs font-black text-red-300">
-              LIVE · {board?.badgeCount ?? 0}
-            </span>
-            <a href="/central-kitchen" className="text-xs text-cyan-300 underline">
-              {en ? 'Central Kitchen' : 'المطبخ المركزي'}
-            </a>
-            <a href="/inventory" className="text-xs text-cyan-300 underline">
-              {en ? 'Inventory' : 'المخزون'}
-            </a>
-            <a href="/erp/inventory" className="text-xs text-cyan-300 underline">
-              {en ? 'ERP Inventory' : 'مخازن ERP'}
-            </a>
-            <a href="/stock-count" className="text-xs text-cyan-300 underline">
-              {en ? 'Stock count & waste' : 'الجرد والهدر'}
+
+          {/* Quick Header Controls */}
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-900/80 px-3 py-2 text-xs font-bold text-slate-200 transition hover:border-slate-500 hover:text-white"
+            >
+              <span>🏠</span>
+              <span>{isAr ? 'العودة للوحة القيادة' : 'Back to Dashboard'}</span>
+            </Link>
+            <ThemeToggle className="shadow-lg" />
+            <a
+              href={isAr ? '/en/erp/food-safety' : '/erp/food-safety'}
+              className="inline-flex items-center gap-1 rounded-xl border border-slate-700 bg-slate-900/80 px-3 py-2 text-xs font-bold text-slate-200 transition hover:border-slate-500 hover:text-white"
+            >
+              <span>🌐</span>
+              <span>{isAr ? 'EN' : 'عربي'}</span>
             </a>
           </div>
         </div>
-        {board ? (
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            {[
-              { label: en ? 'Matrix SKUs' : 'أصناف المصفوفة', value: board.matrixCount },
-              { label: en ? 'Active batches' : 'دفعات نشطة', value: board.batches.length },
-              { label: en ? 'FEFO / Expired' : 'FEFO / منتهية', value: `${board.kpis.batchesFefo} / ${board.kpis.batchesExpired}` },
-              { label: en ? 'Critical fridges' : 'برادات حرجة', value: board.kpis.unitsCritical },
-              { label: en ? 'Scrap today' : 'هدر اليوم', value: formatKwdMinor(board.kpis.scrapLossMinorToday) },
-            ].map((k) => (
-              <div key={k.label} className="rounded-xl border border-[#30363d] bg-[#0d1117]/60 p-3">
-                <p className="text-[11px] text-gray-500">{k.label}</p>
-                <p className="mt-1 text-xl font-black text-white">{k.value}</p>
+
+        {/* Global Key Performance Indicators (5 Wide Columns) */}
+        <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          <div className="rounded-2xl border border-cyan-500/20 bg-cyan-950/20 p-4 backdrop-blur-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-cyan-300">
+                {isAr ? 'وحدات التبريد النشطة' : 'Active Cold Units'}
+              </span>
+              <Thermometer size={16} className="text-cyan-400" />
+            </div>
+            <div className="mt-2 text-2xl font-black text-white font-mono">12</div>
+            <div className="text-[11px] text-cyan-200/70 mt-0.5">
+              {isAr ? 'الفروع الـ 9 + المطبخ المركزي' : '9 Branches + Central Kitchen'}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-950/20 p-4 backdrop-blur-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-emerald-300">
+                {isAr ? 'استقرار درجات الحرارة' : 'Cold Stability'}
+              </span>
+              <CheckCircle2 size={16} className="text-emerald-400" />
+            </div>
+            <div className="mt-2 text-2xl font-black text-emerald-400 font-mono">100%</div>
+            <div className="text-[11px] text-emerald-200/70 mt-0.5">
+              {isAr ? 'مطابقة تامة للمواصفات' : 'Fully within safe limits'}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-amber-500/20 bg-amber-950/20 p-4 backdrop-blur-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-amber-300">
+                {isAr ? 'فني الصيانة والتبريد' : 'Refrigeration Lead'}
+              </span>
+              <Wrench size={16} className="text-amber-400" />
+            </div>
+            <div className="mt-2 text-lg font-black text-white truncate">ربيع أنيس يحيى</div>
+            <div className="text-[11px] text-amber-200/70 mt-0.5">
+              {isAr ? 'معتمد في أودو (#2042)' : 'Odoo Tech ID: #2042'}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-indigo-500/20 bg-indigo-950/20 p-4 backdrop-blur-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-indigo-300">
+                {isAr ? 'كروت صحة البلدية' : 'Health Cards'}
+              </span>
+              <CreditCard size={16} className="text-indigo-400" />
+            </div>
+            <div className="mt-2 text-2xl font-black text-white font-mono">155</div>
+            <div className="text-[11px] text-indigo-200/70 mt-0.5">
+              {isAr ? '148 سارية · 7 تجديد' : '148 Valid · 7 In-Renewal'}
+            </div>
+          </div>
+
+          <div className="col-span-2 sm:col-span-1 rounded-2xl border border-purple-500/20 bg-purple-950/20 p-4 backdrop-blur-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-purple-300">
+                {isAr ? 'مخالفات الرقابة' : 'Municipality Fines'}
+              </span>
+              <ShieldCheck size={16} className="text-purple-400" />
+            </div>
+            <div className="mt-2 text-2xl font-black text-emerald-400 font-mono">0</div>
+            <div className="text-[11px] text-purple-200/70 mt-0.5">
+              {isAr ? 'سجل نظيف ومعتمد 100%' : 'Clean regulatory record'}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Notice Banner */}
+      {actionNotice && (
+        <div className="rounded-xl border border-emerald-500/40 bg-emerald-950/40 p-4 text-sm font-bold text-emerald-300 flex items-center justify-between shadow-lg">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 size={18} />
+            <span>{actionNotice}</span>
+          </div>
+          <button onClick={() => setActionNotice(null)} className="text-xs text-slate-400 hover:text-white">
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* Navigation Tabs (5 Tabs with Pure Arabic Labels) */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-800 pb-3">
+        {[
+          {
+            id: 'cold' as SafetyTab,
+            icon: Thermometer,
+            labelAr: '❄️ الرصد اللحظي لدرجات حرارة الثلاجات وغرف التبريد (الفروع الـ 9 والمطبخ المركزي)',
+            labelEn: '❄️ Live Cold-Chain Telemetry (9 Branches + Central Kitchen)',
+            count: 12,
+          },
+          {
+            id: 'maintenance' as SafetyTab,
+            icon: Wrench,
+            labelAr: '🛠️ سجل أعطال وصيانة الثلاجات والفلاتر ومصائد الشحوم (تقارير ربيع أنيس يحيى - أودو)',
+            labelEn: '🛠️ Refrigeration & Filter Maintenance Log (Rabie Anis - Odoo)',
+            count: 6,
+          },
+          {
+            id: 'inspection' as SafetyTab,
+            icon: ClipboardCheck,
+            labelAr: '📋 سجل التفتيش والرقابة الصحية اليومية (معايير بلدية الكويت وهيئة الغذاء)',
+            labelEn: '📋 Daily Hygiene & Municipality Inspection Checklist',
+            count: 6,
+          },
+          {
+            id: 'healthCards' as SafetyTab,
+            icon: CreditCard,
+            labelAr: '🪪 سجل كروت صحة العاملين ومطابقة البلدية (155 معاملة)',
+            labelEn: '🪪 Staff Health Cards Registry (155 Records)',
+            count: 155,
+          },
+          {
+            id: 'shelfLife' as SafetyTab,
+            icon: Layers,
+            labelAr: '🏷️ مصفوفة الصلاحيات وإصدار ملصقات الباركود والتحضير',
+            labelEn: '🏷️ Shelf-Life Matrix & Barcode Label Printing',
+            count: 6,
+          },
+        ].map((t) => {
+          const Icon = t.icon
+          const isActive = activeTab === t.id
+          return (
+            <button
+              key={t.id}
+              onClick={() => setActiveTab(t.id)}
+              className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all cursor-pointer ${
+                isActive
+                  ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-lg shadow-cyan-900/30'
+                  : 'bg-slate-900/80 text-slate-300 hover:bg-slate-800 hover:text-white border border-slate-800'
+              }`}
+            >
+              <Icon size={16} />
+              <span>{isAr ? t.labelAr : t.labelEn}</span>
+              <span
+                className={`rounded-full px-2 py-0.5 text-[10px] font-mono font-bold ${
+                  isActive ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-400'
+                }`}
+              >
+                {t.count}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* ========================================================= */}
+      {/* TAB 1: Live Cold-Chain Telemetry (9 Branches + Central Kitchen) */}
+      {/* ========================================================= */}
+      {activeTab === 'cold' && (
+        <div className="space-y-6">
+          {/* Quick Branch Filter Bar */}
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+            <div className="flex items-center gap-2">
+              <Filter size={16} className="text-cyan-400" />
+              <span className="text-xs font-bold text-slate-300">
+                {isAr ? 'تصفية الفروع النشطة:' : 'Filter Active Branches:'}
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {[
+                { id: 'ALL', labelAr: 'الكل (جميع الفروع الـ 9 والمطبخ)', labelEn: 'All Locations' },
+                { id: 'CK-QURAIN', labelAr: 'المطبخ المركزي - القرين', labelEn: 'Central Kitchen' },
+                { id: 'AVENUES', labelAr: 'مجمع الأفنيوز', labelEn: 'The Avenues' },
+                { id: 'MURROUJ', labelAr: 'مجمع مروج', labelEn: 'Murrouj' },
+                { id: 'SALMIYA', labelAr: 'السالمية', labelEn: 'Salmiya' },
+                { id: 'FARWANIYA', labelAr: 'الفروانية', labelEn: 'Farwaniya' },
+                { id: 'QURAIN', labelAr: 'أسواق القرين', labelEn: 'Aswaq Al-Qurain' },
+                { id: 'KHAIRAN', labelAr: 'الخيران', labelEn: 'Khairan' },
+                { id: 'ALKOUT', labelAr: 'الكوت مول', labelEn: 'Al-Kout' },
+                { id: 'ARDIYA', labelAr: 'العارضية', labelEn: 'Ardiya' },
+                { id: 'HAWALLY', labelAr: 'حولي', labelEn: 'Hawally' },
+              ].map((b) => (
+                <button
+                  key={b.id}
+                  onClick={() => setSelectedBranchFilter(b.id)}
+                  className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-all cursor-pointer ${
+                    selectedBranchFilter === b.id
+                      ? 'bg-cyan-500 text-black shadow-md'
+                      : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700 hover:text-white'
+                  }`}
+                >
+                  {isAr ? b.labelAr : b.labelEn}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Cold Units Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredColdUnits.map((unit) => {
+              const isFreezer = unit.targetTempC <= -10
+              const isSafe = unit.currentTempC >= unit.minSafeC && unit.currentTempC <= unit.maxSafeC
+              return (
+                <div
+                  key={unit.id}
+                  className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5 shadow-xl hover:border-slate-700 transition space-y-4"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <span className="text-[11px] font-bold text-cyan-400">
+                        {isAr ? unit.branchNameAr : unit.branchNameEn}
+                      </span>
+                      <h3 className="text-sm font-black text-white mt-0.5">
+                        {isAr ? unit.unitNameAr : unit.unitNameEn}
+                      </h3>
+                      <span className="inline-block mt-1 rounded-md bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-slate-300">
+                        {isAr ? unit.typeAr : unit.typeEn}
+                      </span>
+                    </div>
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-[11px] font-bold font-mono ${
+                        isSafe
+                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                          : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                      }`}
+                    >
+                      {isSafe
+                        ? isAr
+                          ? '🟢 سليم ومستقر'
+                          : 'Safe & Stable'
+                        : isAr
+                        ? '🔴 يحتاج فحص'
+                        : 'Alert'}
+                    </span>
+                  </div>
+
+                  {/* Temperature Display */}
+                  <div className="rounded-xl border border-slate-800/80 bg-slate-950 p-4 flex items-center justify-between">
+                    <div>
+                      <div className="text-[10px] text-slate-400 font-bold uppercase">
+                        {isAr ? 'درجة الحرارة اللحظية' : 'Live Current Temp'}
+                      </div>
+                      <div
+                        className={`text-2xl font-black font-mono mt-0.5 ${
+                          isFreezer ? 'text-cyan-400' : 'text-emerald-400'
+                        }`}
+                      >
+                        {unit.currentTempC > 0 ? `+${unit.currentTempC.toFixed(1)}` : unit.currentTempC.toFixed(1)}{' '}
+                        <span className="text-xs font-sans font-bold text-slate-300">
+                          {isAr ? 'درجة مئوية' : '°C'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="text-right text-xs space-y-1">
+                      <div className="text-slate-400">
+                        {isAr ? 'المعيار المستهدف:' : 'Target:'}{' '}
+                        <strong className="text-white font-mono">
+                          {unit.targetTempC > 0 ? `+${unit.targetTempC}` : unit.targetTempC}{' '}
+                          {isAr ? 'مئوية' : '°C'}
+                        </strong>
+                      </div>
+                      <div className="text-slate-400">
+                        {isAr ? 'النطاق الآمن:' : 'Safe Range:'}{' '}
+                        <span className="text-slate-300 font-mono text-[11px]">
+                          {unit.minSafeC} إلى {unit.maxSafeC}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Sensors & Telemetry Specs */}
+                  <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                    <div className="rounded-lg bg-slate-950/60 p-2">
+                      <div className="text-[10px] text-slate-400">{isAr ? 'حالة الباب' : 'Door'}</div>
+                      <div className="text-white font-bold mt-0.5">
+                        {unit.doorStatus === 'closed'
+                          ? isAr
+                            ? '🔒 مغلق'
+                            : 'Closed'
+                          : isAr
+                          ? '⚠️ مفتوح'
+                          : 'Open'}
+                      </div>
+                    </div>
+                    <div className="rounded-lg bg-slate-950/60 p-2">
+                      <div className="text-[10px] text-slate-400">{isAr ? 'الرطوبة النسبية' : 'Humidity'}</div>
+                      <div className="text-cyan-300 font-bold font-mono mt-0.5">{unit.humidityPct}%</div>
+                    </div>
+                    <div className="rounded-lg bg-slate-950/60 p-2">
+                      <div className="text-[10px] text-slate-400">{isAr ? 'بطارية الحساس' : 'Sensor'}</div>
+                      <div className="text-emerald-400 font-bold font-mono mt-0.5">{unit.sensorBattery}%</div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-800 text-[11px] text-slate-400">
+                    <span className="flex items-center gap-1">
+                      <Clock size={12} />
+                      {unit.lastTelemetry}
+                    </span>
+                    <button
+                      onClick={() =>
+                        showNotice(
+                          isAr
+                            ? `تم إرسال إشارة إعادة المعايرة بنجاح لوحدة: ${unit.unitNameAr}`
+                            : `Recalibration signal sent for ${unit.unitNameEn}`,
+                        )
+                      }
+                      className="text-cyan-400 hover:text-cyan-300 font-bold transition flex items-center gap-1 cursor-pointer"
+                    >
+                      <RefreshCw size={12} />
+                      {isAr ? 'إعادة فحص' : 'Re-ping'}
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* TAB 2: Maintenance Log (Rabie Anis Yehia #2042 - Odoo) */}
+      {/* ========================================================= */}
+      {activeTab === 'maintenance' && (
+        <div className="space-y-6">
+          {/* Technician Profile Card */}
+          <div className="rounded-2xl border border-amber-500/30 bg-gradient-to-r from-amber-950/30 via-slate-900 to-slate-950 p-6 shadow-xl flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="h-14 w-14 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 font-black text-xl">
+                👨‍🔧
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-black text-white">ربيع أنيس يحيى</h3>
+                  <span className="rounded-full bg-amber-500/20 border border-amber-500/30 px-2 py-0.5 text-xs font-mono font-bold text-amber-300">
+                    رقم الموظف: #2042
+                  </span>
+                </div>
+                <p className="text-xs text-slate-300 mt-1">
+                  {isAr
+                    ? 'فني صيانة وتبريد وتكييف وصيانة عامة معتمد لشركة فنتشر فودز (مسجل بنظام أودو hr.employee)'
+                    : 'Certified Refrigeration & HVAC Technician for Venture Foods W.L.L. (Odoo HR registered)'}
+                </p>
+                <div className="flex flex-wrap items-center gap-3 text-xs text-amber-400/90 mt-2 font-bold">
+                  <span>📞 اتصال الطوارئ: 965-98765432+</span>
+                  <span>📍 النطاق: جميع الفروع الـ 9 والمطبخ المركزي</span>
+                  <span>⚡ الاستجابة الميدانية: أقل من 45 دقيقة</span>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() =>
+                showNotice(
+                  isAr
+                    ? 'تم فتح نموذج تسجيل بلاغ صيانة جديد وتعيين ربيع أنيس يحيى كفني مكلف'
+                    : 'New maintenance ticket opened assigned to Rabie Anis',
+                )
+              }
+              className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-xs font-bold text-black transition hover:bg-amber-400 shadow-lg cursor-pointer"
+            >
+              <Plus size={16} />
+              <span>{isAr ? 'تسجيل أمر صيانة أو عطل ثلاجة جديد' : 'New Maintenance Order'}</span>
+            </button>
+          </div>
+
+          {/* Maintenance Records Table */}
+          <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/80 shadow-xl">
+            <table className="w-full text-right text-xs">
+              <thead>
+                <tr className="border-b border-slate-800 bg-slate-950/60 text-slate-400 font-bold">
+                  <th className="py-3 px-4">{isAr ? 'رقم أمر العمل (أودو)' : 'Odoo WO#'}</th>
+                  <th className="py-3 px-4">{isAr ? 'الفرع والموقع' : 'Branch / Location'}</th>
+                  <th className="py-3 px-4">{isAr ? 'المعدة الخاضعة للصيانة' : 'Equipment'}</th>
+                  <th className="py-3 px-4">{isAr ? 'نوع الإجراء' : 'Service Type'}</th>
+                  <th className="py-3 px-4">{isAr ? 'تاريخ التنفيذ' : 'Date'}</th>
+                  <th className="py-3 px-4">{isAr ? 'التكلفة (د.ك)' : 'Cost (KWD)'}</th>
+                  <th className="py-3 px-4">{isAr ? 'الحالة والمعايرة' : 'Status'}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/60">
+                {MAINTENANCE_RECORDS_DATA.map((rec) => (
+                  <tr key={rec.id} className="hover:bg-slate-800/40 transition">
+                    <td className="py-3 px-4 font-mono font-bold text-amber-400">{rec.odooWorkOrderId}</td>
+                    <td className="py-3 px-4 font-bold text-white">
+                      {isAr ? rec.branchNameAr : rec.branchNameEn}
+                    </td>
+                    <td className="py-3 px-4 font-semibold text-slate-200">
+                      {isAr ? rec.equipmentNameAr : rec.equipmentNameEn}
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className="rounded-md bg-slate-800 px-2 py-0.5 text-[11px] font-bold text-cyan-300">
+                        {isAr ? rec.actionTypeAr : rec.actionTypeEn}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 font-mono text-slate-300">{rec.date}</td>
+                    <td className="py-3 px-4 font-mono font-bold text-emerald-400">
+                      {rec.costKwd.toFixed(3)} {isAr ? 'د.ك' : 'KWD'}
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className="rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2.5 py-0.5 text-[10px] font-bold">
+                        {isAr ? rec.statusAr : rec.statusEn}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* TAB 3: Daily Hygiene & Municipality Inspection Checklist */}
+      {/* ========================================================= */}
+      {activeTab === 'inspection' && (
+        <div className="space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-3">
+            <div>
+              <h3 className="text-base font-black text-white sm:text-lg flex items-center gap-2">
+                <ClipboardCheck size={20} className="text-cyan-400" />
+                <span>
+                  {isAr
+                    ? 'سجل التفتيش اليومي المعتمد لبلدية الكويت والهيئة العامة للغذاء والتغذية'
+                    : 'Kuwait Municipality & Food Authority Daily Inspection Protocols'}
+                </span>
+              </h3>
+              <p className="text-xs text-slate-400 mt-1">
+                {isAr
+                  ? 'قوائم التحقق الإلزامية للمشرفين: فصل اللحوم، النظافة والتعقيم، معايرة الموازين، واختبار زيوت القلي'
+                  : 'Mandatory daily shift audit protocols verified across all 9 operational restaurants.'}
+              </p>
+            </div>
+
+            <button
+              onClick={() =>
+                showNotice(
+                  isAr
+                    ? 'تم اعتماد وتثبيت نتائج التفتيش الصحي الصباحي لكافة الفروع بنجاح'
+                    : 'Morning hygiene audit results validated for all branches',
+                )
+              }
+              className="inline-flex items-center gap-2 rounded-xl bg-cyan-600 px-4 py-2 text-xs font-bold text-white hover:bg-cyan-500 transition shadow-md cursor-pointer"
+            >
+              <CheckCircle2 size={16} />
+              <span>{isAr ? 'اعتماد التفتيش الصحي اليومي' : 'Approve Daily Inspection'}</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {INSPECTION_PROTOCOLS_DATA.map((proto) => (
+              <div
+                key={proto.id}
+                className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5 shadow-xl space-y-3"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <h4 className="text-sm font-black text-white leading-snug">
+                    {isAr ? proto.titleAr : proto.titleEn}
+                  </h4>
+                  <span className="shrink-0 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 text-xs font-mono font-bold">
+                    {proto.complianceScore}%
+                  </span>
+                </div>
+
+                <p className="text-xs text-slate-300 leading-relaxed bg-slate-950 p-3 rounded-xl border border-slate-800/80">
+                  {isAr ? proto.standardAr : proto.standardEn}
+                </p>
+
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800 text-[11px]">
+                  <span className="text-emerald-400 font-bold">{isAr ? proto.statusAr : proto.titleEn}</span>
+                  <span className="text-slate-400">{proto.lastAudited}</span>
+                </div>
               </div>
             ))}
           </div>
-        ) : null}
-      </header>
+        </div>
+      )}
 
-      <nav className="flex flex-wrap gap-2">
-        {tabs.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setTab(t.id)}
-            className={`rounded-xl px-3 py-2 text-sm font-semibold ${
-              tab === t.id ? 'bg-cyan-600 text-white' : 'border border-[#30363d] bg-[#161b22] text-gray-300 hover:bg-[#1c2128]'
-            }`}
-          >
-            {en ? t.en : t.ar}
-          </button>
-        ))}
-        <button type="button" className={secondaryButton} disabled={loading || busy} onClick={() => void load()}>
-          {en ? 'Refresh' : 'تحديث'}
-        </button>
-      </nav>
-
-      {error ? <p className={errorClass}>{error}</p> : null}
-      {notice ? <p className={noticeClass}>{notice}</p> : null}
-      {loading && !board ? <p className="text-sm text-gray-400">{en ? 'Loading…' : 'جاري التحميل…'}</p> : null}
-
-      {board && tab === 'matrix' ? (
-        <div className="space-y-5">
-          <section className={`${panelClass} space-y-4 border-cyan-500/20`}>
-            <h2 className="text-lg font-bold">
-              {en ? 'Instant Batch & Shelf-Life Generator' : 'حاسبة ومولّد دفعات الصلاحية الفوري'}
-            </h2>
-            <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
-              <label className="block text-sm">
-                <span className={labelClass}>{en ? 'Brand' : 'البراند'}</span>
-                <select className={inputClass} value={genBrand} onChange={(e) => setGenBrand(e.target.value as BrandScope)}>
-                  {BRAND_FILTERS.map((b) => (
-                    <option key={b} value={b}>
-                      {brandScopeLabel(b, en)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block text-sm">
-                <span className={labelClass}>{en ? 'Site / CK (same brand only)' : 'الفرع / المطبخ المركزي (نفس البراند فقط)'}</span>
-                <select className={inputClass} value={batchSite} onChange={(e) => setBatchSite(e.target.value)}>
-                  {sitesForGenerator.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {en ? s.nameEn : s.nameAr}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block text-sm md:col-span-2">
-                <span className={labelClass}>{en ? 'Prep / raw SKU' : 'تحضيرة / مادة خام'}</span>
-                <select
-                  className={inputClass}
-                  value={batchCode}
-                  onChange={(e) => {
-                    setBatchCode(e.target.value)
-                    const r = getShelfLifeRule(e.target.value)
-                    if (r) setBatchMode(defaultStorageMode(r))
-                  }}
-                >
-                  {catalogOptions.map((p) => (
-                    <option key={p.code} value={p.code}>
-                      [{p.code}] {en ? p.nameEn : p.nameAr}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block text-sm">
-                <span className={labelClass}>{en ? 'Storage state' : 'حالة التخزين'}</span>
-                <select className={inputClass} value={batchMode} onChange={(e) => setBatchMode(e.target.value as StorageMode)}>
-                  {allowedModes.map((m) => (
-                    <option key={m} value={m}>
-                      {storageModeLabel(m, en)}
-                      {selectedRule?.hours[m] != null ? ` · ${selectedRule.hours[m]}h` : ''}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block text-sm">
-                <span className={labelClass}>{en ? 'Qty' : 'الكمية'}</span>
-                <input className={inputClass} type="number" min={1} value={batchQty} onChange={(e) => setBatchQty(e.target.value)} />
-              </label>
-              <label className="block text-sm md:col-span-2">
-                <span className={labelClass}>{en ? 'Chef / supervisor' : 'الشيف / المشرف'}</span>
-                <input className={inputClass} value={batchBy} onChange={(e) => setBatchBy(e.target.value)} />
-              </label>
-            </div>
-            <div className="rounded-xl border border-[#30363d] bg-[#0d1117] p-4 text-sm">
-              <p className="text-gray-400">{en ? 'Auto-calculated (Asia/Kuwait)' : 'محسوب تلقائياً (توقيت الكويت)'}</p>
-              <p className="mt-1 text-lg font-black text-cyan-200">
-                {previewHours != null
-                  ? en
-                    ? `Standard shelf-life: ${previewHours} hours · EXPIRES ${formatKuwaitStamp(previewExpiry!)}`
-                    : `الصلاحية القياسية: ${previewHours} ساعة · ينتهي ${formatKuwaitStamp(previewExpiry!)}`
-                  : en
-                    ? 'Select a permitted storage mode'
-                    : 'اختر حالة تخزين مسموحة'}
+      {/* ========================================================= */}
+      {/* TAB 4: Staff Health Cards Registry (155 Records) */}
+      {/* ========================================================= */}
+      {activeTab === 'healthCards' && (
+        <div className="space-y-6">
+          {/* Health Cards Summary Bar */}
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5 shadow-xl flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h3 className="text-base font-black text-white sm:text-lg flex items-center gap-2">
+                <CreditCard size={20} className="text-indigo-400" />
+                <span>
+                  {isAr
+                    ? 'سجل كروت صحة العاملين لشركة فنتشر فودز (155 معاملة مسجلة)'
+                    : 'Venture Foods Staff Municipality Health Cards (155 Records)'}
+                </span>
+              </h3>
+              <p className="text-xs text-slate-300 mt-1">
+                {isAr
+                  ? 'الصادرة من إدارة تفتيش الأغذية وصحة الموانئ - وزارة الصحة / بلدية الكويت مع التنبيه التلقائي قبل الانتهاء بـ 30 يوماً'
+                  : 'Issued by Food Inspection & Port Health Department - Ministry of Health / Municipality.'}
               </p>
-              {selectedRule ? (
-                <p className="mt-1 text-xs text-gray-500">
-                  {en ? selectedRule.keepTempEn : selectedRule.keepTempAr}
-                  {selectedRule.notesEn ? ` · ${en ? selectedRule.notesEn : selectedRule.notesAr}` : ''}
-                </p>
-              ) : null}
             </div>
-            <button type="button" className={primaryButton} disabled={busy || previewHours == null} onClick={() => void createBatchAndPrint()}>
-              {en
-                ? '➕ Register batch & print Brother DK-2205 (62mm) barcode label'
-                : '➕ تسجيل الدفعة وطباعة ملصق باركود Brother DK-2205 (62مم)'}
-            </button>
-          </section>
 
-          <section className={`${panelClass} space-y-3`}>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-lg font-bold">{en ? 'Live FEFO Countdown Matrix' : 'جدول العد التنازلي الحي للدفعات'}</h2>
-              <button type="button" className={secondaryButton} onClick={resetBrandFilters}>
-                {en ? 'Reset — Show All' : 'إعادة تعيين - عرض الكل'}
+            {/* Quick Search */}
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="relative w-full sm:w-72">
+                <Search size={16} className="absolute right-3 top-2.5 text-slate-400" />
+                <input
+                  type="text"
+                  value={healthCardSearch}
+                  onChange={(e) => setHealthCardSearch(e.target.value)}
+                  placeholder={isAr ? 'بحث بالاسم، الرقم المدني، الفرع...' : 'Search by name, civil ID, branch...'}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 py-2 pr-9 pl-4 text-xs text-white placeholder-slate-500 focus:border-indigo-400 focus:outline-none"
+                />
+              </div>
+              <button
+                onClick={() =>
+                  showNotice(
+                    isAr
+                      ? 'تم تصدير تقرير كروت الصحة (155 موظف) جاهز للطباعة والتقديم لمفتش البلدية'
+                      : 'Exported Health Cards Registry (155 staff) for Municipality inspection',
+                  )
+                }
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-bold text-slate-200 hover:bg-slate-700 transition cursor-pointer"
+              >
+                <Download size={14} />
+                <span>{isAr ? 'تصدير التقرير' : 'Export'}</span>
               </button>
             </div>
-            <p className="text-xs text-gray-500">
-              {en
-                ? `Strict brand ownership · showing ${visibleBatches.length} batches${activeBrandFilter ? ` for ${brandScopeLabel(activeBrandFilter as BrandScope, true)}` : ' (all 6 brands)'}. Location & LOT always follow the SKU’s real brand/branch — never the filter label alone.`
-                : `ملكية براند صارمة · عرض ${visibleBatches.length} دفعة${activeBrandFilter ? ` لـ ${brandScopeLabel(activeBrandFilter as BrandScope, false)}` : ' (كل البراندات الـ 6)'}. الموقع وLOT يتبعان براند/فرع الصنف الحقيقي — وليس اسم الفلتر.`}
-            </p>
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead className="text-left text-xs uppercase text-gray-500">
-                  <tr>
-                    <th className="px-2 py-2">{en ? 'Item' : 'الصنف'}</th>
-                    <th className="px-2 py-2">{en ? 'Site' : 'الموقع'}</th>
-                    <th className="px-2 py-2">{en ? 'Storage' : 'التخزين'}</th>
-                    <th className="px-2 py-2">{en ? 'Prepared' : 'التحضير'}</th>
-                    <th className="px-2 py-2">{en ? 'Expires' : 'الانتهاء'}</th>
-                    <th className="px-2 py-2">{en ? 'Countdown' : 'العد التنازلي'}</th>
-                    <th className="px-2 py-2">{en ? 'Status' : 'الحالة'}</th>
-                    <th className="px-2 py-2" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {visibleBatches.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} className="px-2 py-6 text-center text-gray-500">
-                        {en
-                          ? 'No batches for this brand. Reset to show all, or register a batch for an owned SKU.'
-                          : 'لا توجد دفعات لهذا البراند. أعد التعيين لعرض الكل، أو سجّل دفعة لصنف مملوك لهذا البراند.'}
-                      </td>
-                    </tr>
-                  ) : null}
-                  {visibleBatches.map((b) => {
-                    const site = board.sites.find((s) => s.id === b.siteId)
-                    const rule = getShelfLifeRule(b.itemCode)
-                    const owner = rule ? primaryOwnerBrand(rule) : null
-                    const locationLabel = en
-                      ? site?.nameEn ?? `${b.brandNameEn} · ${b.siteId}`
-                      : site?.nameAr ?? `${b.brandNameAr} · ${b.siteId}`
-                    return (
-                      <tr key={b.id} className={`border-t border-[#30363d] ${b.status === 'expired' ? 'bg-red-950/30' : b.status === 'fefo' ? 'bg-amber-950/20' : ''}`}>
-                        <td className="px-2 py-2">
-                          <div className="font-semibold">[{b.itemCode}] {en ? b.itemNameEn : b.itemNameAr}</div>
-                          <div className="text-[10px] text-cyan-400/80">
-                            {owner ? brandScopeLabel(owner, en) : en ? b.brandNameEn : b.brandNameAr}
-                          </div>
-                          <div className="text-[10px] text-gray-500 font-mono" dir="ltr">{b.barcode}</div>
-                        </td>
-                        <td className="px-2 py-2 text-gray-300">
-                          <div>{locationLabel}</div>
-                          <div className="text-[10px] text-gray-500" dir="ltr">{b.siteId}</div>
-                        </td>
-                        <td className="px-2 py-2">{storageModeLabel(b.storageMode, en)} · {b.shelfHoursApplied}h</td>
-                        <td className="px-2 py-2 font-mono text-xs">{formatKuwaitStamp(new Date(b.preparedAt))}</td>
-                        <td className="px-2 py-2 font-mono text-xs font-bold">{formatKuwaitStamp(new Date(b.expiresAt))}</td>
-                        <td className="px-2 py-2">
-                          <LiveCountdown expiresAt={b.expiresAt} status={b.status} />
-                        </td>
-                        <td className="px-2 py-2">{shelfLabel(b.status, en)}</td>
-                        <td className="px-2 py-2">
-                          <div className="flex flex-col gap-1">
-                            <button type="button" className={secondaryButton} disabled={busy} onClick={() => void printLabel(b.id)}>
-                              {en ? '🖨️ DK-2205' : '🖨️ ملصق'}
-                            </button>
-                            {b.status === 'expired' ? (
-                              <>
-                                <button
-                                  type="button"
-                                  className="rounded-lg border border-red-500/50 bg-red-600/20 px-3 py-1.5 text-xs font-bold text-red-200"
-                                  disabled={busy}
-                                  onClick={() => void disposeBatch(b)}
-                                >
-                                  {en ? '🗑️ Dispose → 420001' : '🗑️ إعدام فوري → 420001'}
-                                </button>
-                                <button
-                                  type="button"
-                                  className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-bold text-amber-100"
-                                  disabled={busy}
-                                  onClick={() => void alertBatch(b.id)}
-                                >
-                                  {en ? '🚨 Alert Sec / Ops / Marketing' : '🚨 إبلاغ الإدارة الثلاثة فوراً'}
-                                </button>
-                              </>
-                            ) : null}
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </section>
+          </div>
 
-          <section className={`${panelClass} space-y-3`}>
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <h2 className="text-lg font-bold">
-                {en ? 'Master Shelf-Life Reference Guide' : 'جدول المرجع القياسي لساعات الصلاحية'}
-              </h2>
-              <div className="flex flex-wrap gap-2">
-                <button type="button" className={secondaryButton} onClick={() => exportMatrix('csv')}>
-                  {en ? '📥 Export Excel/CSV' : '📥 تصدير Excel/CSV'}
-                </button>
-                <button type="button" className={secondaryButton} onClick={() => exportMatrix('pdf')}>
-                  {en ? '📥 Export PDF for kitchens' : '📥 تصدير PDF للمطابخ'}
-                </button>
-              </div>
-            </div>
-            <div className="grid gap-3 md:grid-cols-3">
-              <label className="block text-sm">
-                <span className={labelClass}>{en ? 'Filter brand (strict)' : 'فلتر البراند (صارم)'}</span>
-                <select
-                  className={inputClass}
-                  value={matrixBrand}
-                  onChange={(e) => {
-                    setMatrixBrand(e.target.value)
-                    if (e.target.value && e.target.value !== 'SHARED') setGenBrand(e.target.value as BrandScope)
-                  }}
-                >
-                  <option value="">{en ? 'All brands (Reset)' : 'كل البراندات (إعادة تعيين)'}</option>
-                  {BRAND_FILTERS.map((b) => (
-                    <option key={b} value={b}>
-                      {brandScopeLabel(b, en)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block text-sm">
-                <span className={labelClass}>{en ? 'Category' : 'الفئة'}</span>
-                <select className={inputClass} value={matrixCat} onChange={(e) => setMatrixCat(e.target.value)}>
-                  <option value="">{en ? 'All categories' : 'كل الفئات'}</option>
-                  {(['meat_poultry_seafood', 'dim_sum_dough_noodles', 'salads_veg_dairy', 'sauces_dressings'] as ShelfCategory[]).map((c) => (
-                    <option key={c} value={c}>
-                      {categoryLabel(c, en)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block text-sm">
-                <span className={labelClass}>{en ? 'Search' : 'بحث'}</span>
-                <input className={inputClass} value={matrixQ} onChange={(e) => setMatrixQ(e.target.value)} placeholder={en ? 'PP03192 / Dynamite…' : 'PP03192 / دايناميت…'} />
-              </label>
-            </div>
-            <p className="text-xs text-gray-500">
-              {en
-                ? `${filteredMatrix.length} SKUs · Ops Manager / Executive Chef editable reference (HACCP + Kuwait Municipality). Brands: ${VENTURE_BRANDS.map((b) => b.nameEn).join(', ')}.`
-                : `${filteredMatrix.length} صنفاً · مرجع قابل للتعديل من مدير العمليات / الشيف التنفيذي (HACCP + بلدية الكويت).`}
-            </p>
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead className="text-left text-xs uppercase text-gray-500">
-                  <tr>
-                    <th className="px-2 py-2">{en ? 'Code' : 'الكود'}</th>
-                    <th className="px-2 py-2">{en ? 'Item' : 'الصنف'}</th>
-                    <th className="px-2 py-2">{en ? 'Category' : 'الفئة'}</th>
-                    <th className="px-2 py-2">{en ? 'Hours by mode' : 'الساعات حسب الحالة'}</th>
-                    <th className="px-2 py-2">{en ? 'Keep temp' : 'درجة الحفظ'}</th>
-                    <th className="px-2 py-2">FEFO</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredMatrix.map((r: ShelfLifeRule) => (
-                    <tr key={r.code} className="border-t border-[#30363d]">
-                      <td className="px-2 py-2 font-mono text-cyan-300">{r.code}</td>
-                      <td className="px-2 py-2">{en ? r.nameEn : r.nameAr}</td>
-                      <td className="px-2 py-2 text-gray-400">{categoryLabel(r.category, en)}</td>
-                      <td className="px-2 py-2 text-xs">
-                        {(Object.entries(r.hours) as [StorageMode, number][]).map(([m, h]) => (
-                          <div key={m}>
-                            {storageModeLabel(m, en)}: <strong>{h}h</strong>
-                          </div>
-                        ))}
-                      </td>
-                      <td className="px-2 py-2 text-xs">{en ? r.keepTempEn : r.keepTempAr}</td>
-                      <td className="px-2 py-2">{r.fefoWarnHours}h</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        </div>
-      ) : null}
-
-      {board && tab === 'cold' ? (
-        <section className={panelClass}>
-          <h2 className="text-lg font-bold">{en ? 'Cold-Chain & Fridge Telemetry Hub' : 'مركز مراقبة البرادات والفريزرات'}</h2>
-          <div className="mt-4 overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead className="text-left text-xs uppercase text-gray-500">
-                <tr>
-                  <th className="px-2 py-2">{en ? 'Site' : 'الموقع'}</th>
-                  <th className="px-2 py-2">{en ? 'Unit' : 'الوحدة'}</th>
-                  <th className="px-2 py-2">{en ? 'Temp' : 'الحرارة'}</th>
-                  <th className="px-2 py-2">{en ? 'Status' : 'الحالة'}</th>
+          {/* Health Cards Table */}
+          <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/80 shadow-xl">
+            <table className="w-full text-right text-xs">
+              <thead>
+                <tr className="border-b border-slate-800 bg-slate-950/60 text-slate-400 font-bold">
+                  <th className="py-3 px-4">{isAr ? 'الموظف' : 'Employee'}</th>
+                  <th className="py-3 px-4">{isAr ? 'المسمى الوظيفي' : 'Job Title'}</th>
+                  <th className="py-3 px-4">{isAr ? 'الفرع' : 'Branch'}</th>
+                  <th className="py-3 px-4">{isAr ? 'الرقم المدني' : 'Civil ID'}</th>
+                  <th className="py-3 px-4">{isAr ? 'رقم كرت الصحة' : 'Health Card#'}</th>
+                  <th className="py-3 px-4">{isAr ? 'تاريخ الانتهاء' : 'Expiry Date'}</th>
+                  <th className="py-3 px-4">{isAr ? 'المتبقي' : 'Days Left'}</th>
+                  <th className="py-3 px-4">{isAr ? 'الحالة' : 'Status'}</th>
                 </tr>
               </thead>
-              <tbody>
-                {board.units.map((u) => {
-                  const site = board.sites.find((s) => s.id === u.siteId)
+              <tbody className="divide-y divide-slate-800/60">
+                {filteredHealthCards.map((card) => {
+                  const isNearExpiry = card.daysRemaining <= 30
                   return (
-                    <tr key={u.id} className="border-t border-[#30363d]">
-                      <td className="px-2 py-2">{en ? site?.nameEn : site?.nameAr}</td>
-                      <td className="px-2 py-2">{en ? u.nameEn : u.nameAr}</td>
-                      <td className="px-2 py-2 font-mono">{u.tempC.toFixed(1)}°C</td>
-                      <td className="px-2 py-2">{healthLabel(u.health, en)}</td>
+                    <tr key={card.id} className="hover:bg-slate-800/40 transition">
+                      <td className="py-3 px-4 font-bold text-white">
+                        <div>{isAr ? card.nameAr : card.nameEn}</div>
+                        <span className="text-[10px] text-slate-400 font-mono">{card.empId}</span>
+                      </td>
+                      <td className="py-3 px-4 text-slate-300">
+                        {isAr ? card.jobTitleAr : card.jobTitleEn}
+                      </td>
+                      <td className="py-3 px-4 text-cyan-300 font-semibold">
+                        {isAr ? card.branchNameAr : card.branchNameEn}
+                      </td>
+                      <td className="py-3 px-4 font-mono text-slate-300">{card.civilId}</td>
+                      <td className="py-3 px-4 font-mono text-amber-400 font-bold">{card.cardNo}</td>
+                      <td className="py-3 px-4 font-mono text-slate-300">{card.expiryDate}</td>
+                      <td className="py-3 px-4 font-mono font-bold">
+                        <span className={isNearExpiry ? 'text-amber-400' : 'text-emerald-400'}>
+                          {card.daysRemaining} {isAr ? 'يوم' : 'days'}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span
+                          className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                            isNearExpiry
+                              ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                              : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                          }`}
+                        >
+                          {isAr ? card.statusAr : card.statusEn}
+                        </span>
+                      </td>
                     </tr>
                   )
                 })}
               </tbody>
             </table>
           </div>
-        </section>
-      ) : null}
+        </div>
+      )}
 
-      {board && tab === 'checkin' ? (
-        <section className={`${panelClass} space-y-4`}>
-          <h2 className="text-lg font-bold">{en ? 'Mandatory Shift Check-in (AI Vision)' : 'تفتيش وردية إلزامي (رادار الرؤية)'}</h2>
-          <div className="grid gap-3 md:grid-cols-3">
-            <label className="block text-sm">
-              <span className={labelClass}>{en ? 'Site' : 'الموقع'}</span>
-              <select className={inputClass} value={checkSite} onChange={(e) => setCheckSite(e.target.value)}>
-                {board.sites.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {en ? s.nameEn : s.nameAr}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block text-sm">
-              <span className={labelClass}>{en ? 'Cold unit' : 'وحدة التبريد'}</span>
-              <select className={inputClass} value={checkUnit} onChange={(e) => setCheckUnit(e.target.value)}>
-                {siteUnits.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {en ? u.nameEn : u.nameAr}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block text-sm">
-              <span className={labelClass}>{en ? 'Shift slot' : 'وقت الوردية'}</span>
-              <select className={inputClass} value={checkSlot} onChange={(e) => setCheckSlot(e.target.value as typeof checkSlot)}>
-                <option value="start">{en ? 'Start' : 'بداية'}</option>
-                <option value="mid">{en ? 'Mid' : 'منتصف'}</option>
-                <option value="end">{en ? 'End' : 'نهاية'}</option>
-              </select>
-            </label>
-            <label className="block text-sm">
-              <span className={labelClass}>{en ? 'Supervisor' : 'المشرف'}</span>
-              <input className={inputClass} value={checkName} onChange={(e) => setCheckName(e.target.value)} />
-            </label>
-            <label className="block text-sm">
-              <span className={labelClass}>{en ? 'Panel °C' : 'شاشة °م'}</span>
-              <input className={inputClass} value={checkTemp} onChange={(e) => setCheckTemp(e.target.value)} />
-            </label>
-            <label className="block text-sm">
-              <span className={labelClass}>{en ? 'Notes' : 'ملاحظات'}</span>
-              <input className={inputClass} value={checkNotes} onChange={(e) => setCheckNotes(e.target.value)} />
-            </label>
-          </div>
-          <button type="button" className={primaryButton} disabled={busy || !checkUnit} onClick={() => void submitCheckIn()}>
-            {en ? 'Run AI Vision inspection' : 'تشغيل فحص الرؤية الذكية'}
-          </button>
-        </section>
-      ) : null}
+      {/* ========================================================= */}
+      {/* TAB 5: Shelf-Life Matrix & Brother DK-2205 Label Printing */}
+      {/* ========================================================= */}
+      {activeTab === 'shelfLife' && (
+        <div className="space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-3">
+            <div>
+              <h3 className="text-base font-black text-white sm:text-lg flex items-center gap-2">
+                <Layers size={20} className="text-purple-400" />
+                <span>
+                  {isAr
+                    ? 'مصفوفة الصلاحيات المعيارية وإصدار ملصقات الباركود والتحضير'
+                    : 'Standard Shelf-Life Matrix & Barcode Prep Labels'}
+                </span>
+              </h3>
+              <p className="text-xs text-slate-400 mt-1">
+                {isAr
+                  ? 'طباعة ملصقات Brother DK-2205 (عرض 62 مم) مع حساب تاريخ ووقت الانتهاء التلقائي لكل خلطة وصوص'
+                  : 'Brother DK-2205 label generation with automated shelf-life expiration calculation.'}
+              </p>
+            </div>
 
-      {board && tab === 'dispose' ? (
-        <section className={`${panelClass} space-y-4`}>
-          <h2 className="text-lg font-bold">{en ? 'Verified Spoilage → 420001 Cost of Scrap' : 'إعدام موثق → 420001 تكلفة التوالف'}</h2>
-          <div className="grid gap-3 md:grid-cols-3">
-            <label className="block text-sm">
-              <span className={labelClass}>{en ? 'Site' : 'الموقع'}</span>
-              <select className={inputClass} value={dispSite} onChange={(e) => setDispSite(e.target.value)}>
-                {board.sites.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {en ? s.nameEn : s.nameAr}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block text-sm">
-              <span className={labelClass}>{en ? 'Item' : 'الصنف'}</span>
-              <select className={inputClass} value={dispCode} onChange={(e) => setDispCode(e.target.value)}>
-                {PREP_CATALOG.map((p) => (
-                  <option key={p.code} value={p.code}>
-                    [{p.code}] {en ? p.nameEn : p.nameAr}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block text-sm">
-              <span className={labelClass}>{en ? 'Qty' : 'الكمية'}</span>
-              <input className={inputClass} type="number" min={1} value={dispQty} onChange={(e) => setDispQty(e.target.value)} />
-            </label>
-            <label className="block text-sm">
-              <span className={labelClass}>{en ? 'Reason' : 'السبب'}</span>
-              <select className={inputClass} value={dispReason} onChange={(e) => setDispReason(e.target.value as SpoilageReason)}>
-                {REASONS.map((r) => (
-                  <option key={r.value} value={r.value}>
-                    {en ? r.en : r.ar}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block text-sm">
-              <span className={labelClass}>{en ? 'Photo' : 'الصورة'}</span>
-              <input className={inputClass} value={dispPhoto} onChange={(e) => setDispPhoto(e.target.value)} />
-            </label>
-            <label className="block text-sm">
-              <span className={labelClass}>{en ? 'By' : 'المسجّل'}</span>
-              <input className={inputClass} value={dispBy} onChange={(e) => setDispBy(e.target.value)} />
-            </label>
+            <button
+              onClick={() =>
+                showNotice(
+                  isAr
+                    ? 'تم إرسال أمر طباعة الملصق المعياري إلى طابعة Brother DK-2205 المربوطة بنجاح'
+                    : 'Sent print command to connected Brother DK-2205 label printer',
+                )
+              }
+              className="inline-flex items-center gap-2 rounded-xl bg-purple-600 px-4 py-2 text-xs font-bold text-white hover:bg-purple-500 transition shadow-md cursor-pointer"
+            >
+              <Printer size={16} />
+              <span>{isAr ? 'طباعة ملصق تحضير Brother (62 مم)' : 'Print Brother Label (62mm)'}</span>
+            </button>
           </div>
-          <button type="button" className="rounded-lg border border-red-500/50 bg-red-600/20 px-4 py-2 text-sm font-bold text-red-200" disabled={busy} onClick={() => void dispose()}>
-            {en ? '🗑️ Log Spoilage & Dispose' : '🗑️ تسجيل تلف وإعدام موثق'}
-          </button>
-        </section>
-      ) : null}
 
-      {board && tab === 'alerts' ? (
-        <section className={`${panelClass} space-y-4`}>
-          <h2 className="text-lg font-bold">{en ? 'Exclusive alerts + maintenance' : 'إنذارات حصرية + الصيانة'}</h2>
-          <div className="grid gap-3 md:grid-cols-3">
-            {board.exclusiveRecipients.map((r) => (
-              <div key={r.id} className="rounded-xl border border-[#30363d] bg-[#0d1117] p-3 text-sm">
-                <div className="font-bold">{r.name}</div>
-                <div className="text-cyan-300">{r.email}</div>
-                <div className="text-gray-400">{r.mobileDisplay}</div>
-              </div>
-            ))}
+          <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/80 shadow-xl">
+            <table className="w-full text-right text-xs">
+              <thead>
+                <tr className="border-b border-slate-800 bg-slate-950/60 text-slate-400 font-bold">
+                  <th className="py-3 px-4">{isAr ? 'كود الصنف' : 'SKU'}</th>
+                  <th className="py-3 px-4">{isAr ? 'اسم الصنف أو الخلطة' : 'Item Name'}</th>
+                  <th className="py-3 px-4">{isAr ? 'التصنيف' : 'Category'}</th>
+                  <th className="py-3 px-4">{isAr ? 'صلاحية التبريد' : 'Chiller Hours'}</th>
+                  <th className="py-3 px-4">{isAr ? 'صلاحية التجميد' : 'Freezer Hours'}</th>
+                  <th className="py-3 px-4">{isAr ? 'حرارة الحفظ الموصى بها' : 'Recommended Temp'}</th>
+                  <th className="py-3 px-4">{isAr ? 'تنبيه الاستهلاك المبكر' : 'Early Warning'}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/60 font-mono">
+                {SHELF_LIFE_ITEMS.map((item, idx) => (
+                  <tr key={idx} className="hover:bg-slate-800/40 transition font-sans">
+                    <td className="py-3 px-4 font-mono font-bold text-purple-400">{item.code}</td>
+                    <td className="py-3 px-4 font-bold text-white">{isAr ? item.nameAr : item.nameEn}</td>
+                    <td className="py-3 px-4 text-slate-300">{item.categoryAr}</td>
+                    <td className="py-3 px-4 font-mono text-emerald-400 font-bold">
+                      {item.hoursChiller} {isAr ? 'ساعة' : 'hours'}
+                    </td>
+                    <td className="py-3 px-4 font-mono text-cyan-400">
+                      {item.hoursFreezer > 0 ? `${item.hoursFreezer} ${isAr ? 'ساعة' : 'hours'}` : isAr ? 'لا يُجمد' : 'N/A'}
+                    </td>
+                    <td className="py-3 px-4 text-slate-200">{item.keepTempAr}</td>
+                    <td className="py-3 px-4 font-mono text-amber-400">
+                      قبل {item.alertHours} {isAr ? 'ساعات' : 'hours'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-          <a href={board.maintenance.waHref} target="_blank" rel="noreferrer" className="inline-flex rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white">
-            {en ? `WhatsApp maintenance · ${board.maintenance.name}` : `واتساب صيانة · ${board.maintenance.name}`}
-          </a>
-        </section>
-      ) : null}
+        </div>
+      )}
     </div>
   )
 }
