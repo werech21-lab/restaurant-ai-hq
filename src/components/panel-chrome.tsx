@@ -2,7 +2,6 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { ChevronDown } from 'lucide-react'
 import { PanelSpotlight } from '@/components/PanelSpotlight'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { LanguageSwitch, useI18n } from '@/lib/i18n'
@@ -26,22 +25,18 @@ export function PanelHeaderBar({
           {title}
         </p>
 
-        {/* Diyar Style Quick Nav Links with Chevron Down */}
+        {/* Same four stations as the sidebar */}
         <nav className="hidden lg:flex items-center gap-5 text-xs font-semibold !text-slate-200">
-          <Link href="/dashboard" className="flex items-center gap-1 hover:!text-[#38BDF8] transition-colors" style={{ color: '#E2E8F0' }}>
-            <span>{isAr ? 'لوحة التحكم' : 'Dashboard'}</span>
-          </Link>
-          <div className="relative group flex items-center gap-1 cursor-pointer hover:!text-[#38BDF8] transition-colors" style={{ color: '#E2E8F0' }}>
-            <span>{isAr ? 'الخدمات والعمليات' : 'Services & Ops'}</span>
-            <ChevronDown size={12} className="opacity-70 group-hover:translate-y-0.5 transition-transform" />
-          </div>
-          <div className="relative group flex items-center gap-1 cursor-pointer hover:!text-[#38BDF8] transition-colors" style={{ color: '#E2E8F0' }}>
-            <span>{isAr ? 'المخزون والتشغيل' : 'Supply Chain'}</span>
-            <ChevronDown size={12} className="opacity-70 group-hover:translate-y-0.5 transition-transform" />
-          </div>
-          <Link href="/reports" className="flex items-center gap-1 hover:!text-[#38BDF8] transition-colors" style={{ color: '#E2E8F0' }}>
-            <span>{isAr ? 'التقارير المالية' : 'Financials'}</span>
-          </Link>
+          {[
+            { href: '/dashboard', ar: 'الملخص والتوصيات', en: 'Summary' },
+            { href: '/erp/sales-scorecard', ar: 'تحليل المبيعات', en: 'Sales analysis' },
+            { href: '/erp/aggregator-radar', ar: 'تطبيقات التوصيل', en: 'Delivery apps' },
+            { href: '/automations', ar: 'التنبيهات', en: 'Alerts' },
+          ].map((item) => (
+            <Link key={item.href} href={item.href} className="flex items-center gap-1 hover:!text-[#38BDF8] transition-colors" style={{ color: '#E2E8F0' }}>
+              <span>{isAr ? item.ar : item.en}</span>
+            </Link>
+          ))}
         </nav>
       </div>
 
