@@ -10,10 +10,13 @@ import { prisma } from "@/lib/db";
 import { UsersPanel } from "@/app/(panel)/users/users-panel";
 import { ensureVentureFoodsTeam } from "@/lib/ensure-venture-foods-team";
 
+export const dynamic = "force-dynamic";
+
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale();
   return {
-    title: tx(locale, "المستخدمون | نظام ERP", "Users Management | AetherBI ERP"),
+    title: tx(locale, "إدارة المستخدمين والصلاحيات | شركة فنتشر فودز ذ.م.م.", "Users & Permissions Management | Venture Foods W.L.L."),
+    description: "إدارة حسابات المستخدمين وصلاحيات الوصول لشركة فنتشر فودز لإدارة المطاعم ذ.م.م.",
   };
 }
 
@@ -65,8 +68,10 @@ async function UsersContent({ searchParams }: { searchParams: Promise<RawQuery> 
 
 export default function UsersPage({ searchParams }: { searchParams: Promise<RawQuery> }) {
   return (
-    <Suspense fallback={<PageSkeleton title="Users" />}>
-      <UsersContent searchParams={searchParams} />
-    </Suspense>
+    <div className="w-full max-w-none">
+      <Suspense fallback={<PageSkeleton title="إدارة المستخدمين والصلاحيات" />}>
+        <UsersContent searchParams={searchParams} />
+      </Suspense>
+    </div>
   );
 }
