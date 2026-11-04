@@ -54,45 +54,45 @@ interface NavSection {
 const SIDEBAR_SECTIONS: NavSection[] = [
   {
     id: 'executive-bi',
-    titleAr: 'القيادة والتحليلات',
+    titleAr: 'القيادة والذكاء التنفيذي',
     titleEn: 'Executive & BI',
     items: [
-      { key: 'dashboard', href: '/dashboard', labelAr: 'لوحة التحكم', labelEn: 'Executive Dashboard', icon: LayoutDashboard },
-      { key: 'reports', href: '/reports', labelAr: 'التقارير الشاملة', labelEn: 'Executive Reports', icon: BarChart3 },
+      { key: 'dashboard', href: '/dashboard', labelAr: 'لوحة القيادة التنفيذية', labelEn: 'Executive Dashboard', icon: LayoutDashboard },
+      { key: 'reports', href: '/reports', labelAr: 'التقارير المؤسسية', labelEn: 'Executive Reports', icon: BarChart3 },
       { key: 'sales', href: '/sales', labelAr: 'المبيعات والقنوات', labelEn: 'Sales & Channels', icon: Receipt },
-      { key: 'erp-radar', href: '/erp/aggregator-radar', labelAr: 'رادار التوصيل', labelEn: 'Aggregator Radar', icon: Radar, live: true },
+      { key: 'erp-radar', href: '/erp/aggregator-radar', labelAr: 'رادار منصات التوصيل', labelEn: 'Aggregator Radar', icon: Radar, live: true },
     ],
   },
   {
     id: 'restaurant-ops',
-    titleAr: 'التشغيل الميداني والمطبخ',
+    titleAr: 'عمليات المطاعم والتشغيل',
     titleEn: 'Restaurant Operations',
     items: [
-      { key: 'pos', href: '/pos', labelAr: 'نقطة البيع', labelEn: 'POS Terminal', icon: Monitor },
+      { key: 'pos', href: '/pos', labelAr: 'نقطة البيع POS', labelEn: 'POS Terminal', icon: Monitor },
       { key: 'kds', href: '/kds', labelAr: 'شاشة المطبخ KDS', labelEn: 'Kitchen Display (KDS)', icon: ChefHat },
-      { key: 'recipes', href: '/recipes', labelAr: 'الوصفات وتكلفة الغذاء', labelEn: 'Recipes & Food Cost', icon: UtensilsCrossed },
-      { key: 'food-safety', href: '/erp/food-safety', labelAr: 'سلامة الغذاء والبرادات', labelEn: 'Food Safety & HACCP', icon: ThermometerSnowflake, live: true },
+      { key: 'recipes', href: '/recipes', labelAr: 'الوصفات وتكاليف الطعام', labelEn: 'Recipes & Food Cost', icon: UtensilsCrossed },
+      { key: 'food-safety', href: '/erp/food-safety', labelAr: 'سلامة الغذاء والهاسب', labelEn: 'Food Safety & HACCP', icon: ThermometerSnowflake, live: true },
     ],
   },
   {
     id: 'supply-chain',
-    titleAr: 'المخزون وسلسلة الإمداد',
+    titleAr: 'سلاسل الإمداد والمخزون',
     titleEn: 'Supply Chain & Inventory',
     items: [
-      { key: 'inventory', href: '/inventory', labelAr: 'المخزون', labelEn: 'Inventory', icon: Package },
-      { key: 'warehouses', href: '/warehouses', labelAr: 'المستودعات والفروع', labelEn: 'Warehouses & Branches', icon: Warehouse },
-      { key: 'purchases', href: '/purchases', labelAr: 'المشتريات', labelEn: 'Purchases & Vendors', icon: ShoppingCart },
+      { key: 'inventory', href: '/inventory', labelAr: 'المخزون وحركات المواد', labelEn: 'Inventory', icon: Package },
+      { key: 'warehouses', href: '/warehouses', labelAr: 'الفروع والمستودعات', labelEn: 'Warehouses & Branches', icon: Warehouse },
+      { key: 'purchases', href: '/purchases', labelAr: 'المشتريات والموردين', labelEn: 'Purchases & Vendors', icon: ShoppingCart },
     ],
   },
   {
     id: 'finance-hr-events',
-    titleAr: 'المالية، الموارد البشرية، والفعاليات',
+    titleAr: 'المالية والموارد والفعاليات',
     titleEn: 'Finance, HR & Events',
     items: [
-      { key: 'accounting', href: '/accounting', labelAr: 'المحاسبة والمالية', labelEn: 'Finance & Accounting', icon: Landmark },
-      { key: 'hr', href: '/hr', labelAr: 'الموارد البشرية والرواتب', labelEn: 'HR & Kuwait Labor 6/2010', icon: IdCard },
-      { key: 'events-projects', href: '/erp/events-projects', labelAr: 'المعارض والمخيمات والفعاليات', labelEn: 'Events, Camps & Projects', icon: Store },
-      { key: 'crm', href: '/crm', labelAr: 'علاقات العملاء والكاترينج', labelEn: 'CRM & Catering', icon: Contact },
+      { key: 'accounting', href: '/accounting', labelAr: 'المحاسبة والشجرة المالية', labelEn: 'Finance & Accounting', icon: Landmark },
+      { key: 'hr', href: '/hr', labelAr: 'الموارد البشرية وقانون العمل', labelEn: 'HR & Kuwait Labor 6/2010', icon: IdCard },
+      { key: 'events-projects', href: '/erp/events-projects', labelAr: 'المشاريع والفعاليات والمخيمات', labelEn: 'Events, Camps & Projects', icon: Store },
+      { key: 'crm', href: '/crm', labelAr: 'علاقات العملاء والتموين', labelEn: 'CRM & Catering', icon: Contact },
     ],
   },
   {
@@ -100,19 +100,19 @@ const SIDEBAR_SECTIONS: NavSection[] = [
     titleAr: 'الذكاء الاصطناعي والحوكمة',
     titleEn: 'AI & Governance',
     items: [
-      { key: 'smart-dropzone', href: '/erp/smart-dropzone', labelAr: 'الفرز والأرشفة الذكية', labelEn: 'AI Smart Dropzone', icon: Sparkles, live: true },
-      { key: 'erp-intelligence', href: '/erp/intelligence', labelAr: 'غرفة القرار الذكي', labelEn: 'Decision Intelligence', icon: Brain },
+      { key: 'smart-dropzone', href: '/erp/smart-dropzone', labelAr: 'السحب الذكي للمستندات', labelEn: 'AI Smart Dropzone', icon: Sparkles, live: true },
+      { key: 'erp-intelligence', href: '/erp/intelligence', labelAr: 'ذكاء القرارات التشغيلية', labelEn: 'Decision Intelligence', icon: Brain },
       { key: 'erp-governance', href: '/erp/governance', labelAr: 'الحوكمة والامتثال', labelEn: 'Governance & Compliance', icon: Scale },
-      { key: 'erp-archive', href: '/erp/archive', labelAr: 'أرشفة OCR', labelEn: 'OCR Smart Archive', icon: Archive },
+      { key: 'erp-archive', href: '/erp/archive', labelAr: 'أرشيف المستندات OCR', labelEn: 'OCR Smart Archive', icon: Archive },
     ],
   },
   {
     id: 'system-access',
-    titleAr: 'الإعدادات وإدارة النظام',
+    titleAr: 'المنظومة وإدارة الوصول',
     titleEn: 'System & Access Control',
     items: [
-      { key: 'automations', href: '/automations', labelAr: 'الأتمتة', labelEn: 'Automations & Alerts', icon: Zap },
-      { key: 'users', href: '/users', labelAr: 'المستخدمون', labelEn: 'Users & Staff', icon: Users },
+      { key: 'automations', href: '/automations', labelAr: 'الأتمتة والتنبيهات', labelEn: 'Automations & Alerts', icon: Zap },
+      { key: 'users', href: '/users', labelAr: 'المستخدمون وفريق العمل', labelEn: 'Users & Staff', icon: Users },
       { key: 'roles', href: '/roles', labelAr: 'الأدوار والصلاحيات', labelEn: 'Roles & Permissions', icon: Shield },
       { key: 'app-builder', href: '/app-builder', labelAr: 'مدير التطبيقات', labelEn: 'App Manager', icon: Blocks },
     ],
@@ -139,7 +139,6 @@ export function Sidebar({ user }: { user: AccessUser; enabledKeys?: string[] | n
         {SIDEBAR_SECTIONS.map((section, idx) => {
           const visibleItems = section.items.filter((item) => {
             if (user.role.isAdmin) return true
-            // If non-admin user, check permission
             return can(user, item.key, 'view')
           })
 

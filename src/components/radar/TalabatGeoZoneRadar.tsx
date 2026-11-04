@@ -4,7 +4,6 @@ import { useState, useMemo, useCallback, useEffect } from 'react'
 import {
   VENTURE_BRANDS,
   INITIAL_BRANCH_PROFILES,
-  PERMANENTLY_CLOSED_BRANCHES,
   HISTORICAL_CHRONOLOGICAL_INCIDENTS,
   calculateGeoRadarKpis,
   formatTalabatAreaAlertEmail,
@@ -250,40 +249,83 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
     }
   }, [operationalBranches, kpis, isEn])
 
-  // Download official SLA claim file
+  // Download official SLA claim file (CSV Format)
   const handleDownloadClaimFile = () => {
-    const lines = [
-      '========================================================================================',
-      'VENTURE FOODS W.L.L. - TALABAT GO SLA PENALTY & COMPENSATION CLAIM',
-      '========================================================================================',
-      `Generated: ${new Date().toISOString()}`,
-      `Audit Period: Current Day (Cumulative Month-to-Date)`,
-      `Active Branches: ${operationalBranches.length}`,
-      `Total Monitored Residential Zones: ${kpis.totalMonitoredZones}`,
-      `Online & Visible Zones: ${kpis.onlineZonesCount} (${kpis.onlineZonesPct}%)`,
-      `Temporarily Busy Zones (Algorithm Cut): ${kpis.busyZonesCount}`,
-      `Polygon-Cut / Hidden Zones: ${kpis.hiddenZonesCount}`,
-      `Estimated Lost Gross Sales: ${kpis.totalLostSalesKwd.toFixed(3)} KWD`,
-      `Forced TGO Commission Difference (17% vs 10%): ${kpis.totalTgoPenaltiesKwd.toFixed(3)} KWD`,
-      `Total Claimed Compensation: ${kpis.totalFinancialImpactKwd.toFixed(3)} KWD`,
-      '----------------------------------------------------------------------------------------',
-      'DETAILED BREAKDOWN BY AFFECTED ACTIVE BRANCH AND ZONE:',
-      '----------------------------------------------------------------------------------------',
-      ...operationalBranches.flatMap((b) =>
-        b.zones
-          .filter((z) => z.status !== 'ONLINE_VISIBLE')
-          .map(
-            (z) =>
-              `[${z.status}] Branch: ${isEn ? b.branchNameEn : b.branchNameAr} | Zone: ${isEn ? z.zoneNameEn : z.zoneNameAr} | Duration: ${z.durationMinutes}m | Root Cause: ${isEn ? z.rootCauseLabelEn : z.rootCauseLabelAr} | Lost Sales: ${z.estimatedLostKwd.toFixed(3)} KWD (${z.estimatedLostOrders} orders)`
-          )
-      ),
+    const headers = [
+      'Incident ID',
+      'Branch Code',
+      'Branch Name',
+      'Zone Code',
+      'Zone Name',
+      'Status',
+      'Start Time',
+      'End Time',
+      'Duration (Minutes)',
+      'Root Cause',
+      'Lost Orders',
+      'Lost Gross Sales (KWD)',
+      'Forced TGO Penalty (KWD)',
+      'Total Claim Amount (KWD)',
+      'Talabat Go SLA Breach Type',
     ]
 
-    const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' })
+    const rows: string[][] = []
+
+    // From active branches & zones
+    operationalBranches.forEach((b) => {
+      b.zones
+        .filter((z) => z.status !== 'ONLINE_VISIBLE')
+        .forEach((z) => {
+          const tgoPenalty = z.status === 'FORCED_TGO_17' ? z.estimatedLostKwd * 0.07 : 0
+          const totalClaim = z.estimatedLostKwd + tgoPenalty
+          rows.push([
+            `INC-${b.branchId}-${z.id}`,
+            b.branchId,
+            `"${isEn ? b.branchNameEn : b.branchNameAr}"`,
+            z.id,
+            `"${isEn ? z.zoneNameEn : z.zoneNameAr}"`,
+            z.status,
+            `"${z.startTime || '13:00'}"`,
+            `"${z.endTime || 'Ongoing'}"`,
+            `${z.durationMinutes}`,
+            `"${isEn ? z.rootCauseLabelEn : z.rootCauseLabelAr}"`,
+            `${z.estimatedLostOrders}`,
+            z.estimatedLostKwd.toFixed(3),
+            tgoPenalty.toFixed(3),
+            totalClaim.toFixed(3),
+            `"${z.status === 'FORCED_TGO_17' ? 'Forced TGO 17% vs TMP 10%' : 'Zone Blackout / Hidden Restaurant'}"`,
+          ])
+        })
+    })
+
+    // From historical incidents
+    activeIncidents.forEach((inc) => {
+      const totalClaim = inc.lostKwd + inc.penaltyKwd
+      rows.push([
+        inc.id,
+        inc.branchNameEn.slice(0, 3).toUpperCase(),
+        `"${isEn ? inc.branchNameEn : inc.branchNameAr}"`,
+        inc.id,
+        `"${isEn ? inc.zoneNameEn : inc.zoneNameAr}"`,
+        inc.status,
+        `"${inc.startTime}"`,
+        `"${inc.endTime}"`,
+        `${inc.durationMinutes}`,
+        `"${isEn ? inc.rootCauseLabelEn : inc.rootCauseLabelAr}"`,
+        `${inc.lostOrders}`,
+        inc.lostKwd.toFixed(3),
+        inc.penaltyKwd.toFixed(3),
+        totalClaim.toFixed(3),
+        `"${inc.status === 'FORCED_TGO_17' ? 'Forced TGO 17% vs TMP 10%' : 'Zone Blackout / Hidden Restaurant'}"`,
+      ])
+    })
+
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `VentureFoods_Talabat_SLA_Claim_${new Date().toISOString().slice(0, 10)}.txt`
+    a.download = `VentureFoods_Talabat_SLA_Claim_${new Date().toISOString().slice(0, 10)}.csv`
     a.click()
     URL.revokeObjectURL(url)
     setShowClaimModal(false)
@@ -941,43 +983,6 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
                   </div>
                 )
               })}
-            </div>
-
-            {/* Permanently Closed Branches Section (Jahra) */}
-            <div className="mt-6 border-t border-white/10 pt-5">
-              <div className="mb-3 text-xs font-black text-rose-400 uppercase tracking-wider flex items-center gap-2">
-                <span>🛑</span>
-                <span>
-                  {isEn
-                    ? 'Permanently Closed Branches (Excluded from Operations):'
-                    : 'فروع مغلقة نهائياً (مستبعدة تماماً من العمليات والرادار):'}
-                </span>
-              </div>
-
-              {PERMANENTLY_CLOSED_BRANCHES.map((cb) => (
-                <div
-                  key={cb.branchId}
-                  className="rounded-2xl border border-rose-500/30 bg-rose-950/15 p-4 text-xs text-rose-200"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="font-bold text-white text-sm">
-                      {isEn ? cb.branchNameEn : cb.branchNameAr}
-                    </div>
-                    <span className="rounded-full border border-rose-500/40 bg-rose-500/20 px-3 py-0.5 text-[11px] font-black text-rose-300">
-                      {isEn ? '🔴 Permanently Closed' : '🔴 مغلق نهائياً ومفسوخ العقد'}
-                    </span>
-                  </div>
-                  <div className="mt-1 text-gray-300">
-                    {isEn ? cb.reasonEn : cb.reasonAr}
-                  </div>
-                  <div className="mt-2 text-[11px] text-gray-400">
-                    {isEn ? 'Excluded zones:' : 'المناطق المستبعدة بالكامل:'}{' '}
-                    <span className="font-semibold text-gray-300">
-                      {(isEn ? cb.zonesEn : cb.zonesAr).join(' · ')}
-                    </span>
-                  </div>
-                </div>
-              ))}
             </div>
 
             {/* Modal Footer */}

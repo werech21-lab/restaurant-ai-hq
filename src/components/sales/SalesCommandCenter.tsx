@@ -77,7 +77,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
 
   // Menu Search & Filter
   const [menuSearch, setMenuSearch] = useState('')
-  const [selectedBCG, setSelectedBCG] = useState<'ALL' | 'Star' | 'Plowhorse' | 'Puzzle' | 'Dog'>('ALL')
+  const [selectedQuadrant, setSelectedQuadrant] = useState<'ALL' | 'TopPerformer' | 'HighDemand' | 'HighMargin' | 'SlowMover'>('ALL')
 
   // Playbook execution toast / tracker
   const [executedPlaybooks, setExecutedPlaybooks] = useState<Record<string, number>>({})
@@ -112,15 +112,15 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
   const filteredMenuItems = useMemo(() => {
     return TOP_BEST_SELLERS.filter((item) => {
       const matchBrand = selectedBrand === 'ALL' || item.brand === selectedBrand
-      const matchBCG = selectedBCG === 'ALL' || item.classification === selectedBCG
+      const matchQuadrant = selectedQuadrant === 'ALL' || item.classification === selectedQuadrant
       const matchSearch =
         !menuSearch ||
         item.nameAr.toLowerCase().includes(menuSearch.toLowerCase()) ||
         item.nameEn.toLowerCase().includes(menuSearch.toLowerCase()) ||
         item.brand.toLowerCase().includes(menuSearch.toLowerCase())
-      return matchBrand && matchBCG && matchSearch
+      return matchBrand && matchQuadrant && matchSearch
     })
-  }, [selectedBrand, selectedBCG, menuSearch])
+  }, [selectedBrand, selectedQuadrant, menuSearch])
 
   // Filtered branch performance
   const filteredBranches = useMemo(() => {
@@ -252,7 +252,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
               <option value="Keeta">Keeta (كيتا)</option>
               <option value="Talabat MP">{isAr ? 'طلبات ماركت (Talabat MP)' : 'Talabat MP'}</option>
               <option value="Deliveroo Core">Deliveroo Core (ديليفرو)</option>
-              <option value="Ordable">Ordable (أوردابل)</option>
+              <option value="Direct">Direct Web (الموقع المباشر)</option>
               <option value="Snoonu">Snoonu (سنونو)</option>
               <option value="Jahez">Jahez (جاهز)</option>
               <option value="Phone">{isAr ? 'الهاتف (Phone)' : 'Phone'}</option>
@@ -852,14 +852,14 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
         {/* ======================================================== */}
         {activeTab === 'menu' && (
           <div className="space-y-6">
-            {/* BCG 4 Quadrants Visual Summary */}
+            {/* Quadrant 4 Quadrants Visual Summary */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {/* Top Performers */}
               <button
                 type="button"
-                onClick={() => setSelectedBCG(selectedBCG === 'Star' ? 'ALL' : 'Star')}
+                onClick={() => setSelectedQuadrant((prev) => (prev === 'TopPerformer' ? 'ALL' : 'TopPerformer'))}
                 className={`text-start rounded-2xl border p-4 transition-all ${
-                  selectedBCG === 'Star'
+                  selectedQuadrant === 'TopPerformer'
                     ? 'border-emerald-500 bg-emerald-950/40 ring-2 ring-emerald-500/30'
                     : 'border-emerald-500/30 bg-emerald-950/20 hover:border-emerald-500/60'
                 }`}
@@ -884,9 +884,9 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
               {/* High-Demand Staples */}
               <button
                 type="button"
-                onClick={() => setSelectedBCG(selectedBCG === 'Plowhorse' ? 'ALL' : 'Plowhorse')}
+                onClick={() => setSelectedQuadrant((prev) => (prev === 'HighDemand' ? 'ALL' : 'HighDemand'))}
                 className={`text-start rounded-2xl border p-4 transition-all ${
-                  selectedBCG === 'Plowhorse'
+                  selectedQuadrant === 'HighDemand'
                     ? 'border-sky-500 bg-sky-950/40 ring-2 ring-sky-500/30'
                     : 'border-sky-500/30 bg-sky-950/20 hover:border-sky-500/60'
                 }`}
@@ -911,9 +911,9 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
               {/* High-Margin Opportunities */}
               <button
                 type="button"
-                onClick={() => setSelectedBCG(selectedBCG === 'Puzzle' ? 'ALL' : 'Puzzle')}
+                onClick={() => setSelectedQuadrant((prev) => (prev === 'HighMargin' ? 'ALL' : 'HighMargin'))}
                 className={`text-start rounded-2xl border p-4 transition-all ${
-                  selectedBCG === 'Puzzle'
+                  selectedQuadrant === 'HighMargin'
                     ? 'border-amber-500 bg-amber-950/40 ring-2 ring-amber-500/30'
                     : 'border-amber-500/30 bg-amber-950/20 hover:border-amber-500/60'
                 }`}
@@ -938,9 +938,9 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
               {/* Slow-Moving Items */}
               <button
                 type="button"
-                onClick={() => setSelectedBCG(selectedBCG === 'Dog' ? 'ALL' : 'Dog')}
+                onClick={() => setSelectedQuadrant((prev) => (prev === 'SlowMover' ? 'ALL' : 'SlowMover'))}
                 className={`text-start rounded-2xl border p-4 transition-all ${
-                  selectedBCG === 'Dog'
+                  selectedQuadrant === 'SlowMover'
                     ? 'border-rose-500 bg-rose-950/40 ring-2 ring-rose-500/30'
                     : 'border-rose-500/30 bg-rose-950/20 hover:border-rose-500/60'
                 }`}
@@ -1041,22 +1041,22 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                         <td className="px-4 py-3 text-center">
                           <span
                             className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
-                              item.classification === 'Star'
+                              item.classification === 'TopPerformer'
                                 ? 'bg-emerald-500/20 text-emerald-300'
-                                : item.classification === 'Plowhorse'
+                                : item.classification === 'HighDemand'
                                 ? 'bg-sky-500/20 text-sky-300'
-                                : item.classification === 'Puzzle'
+                                : item.classification === 'HighMargin'
                                 ? 'bg-amber-500/20 text-amber-300'
                                 : 'bg-rose-500/20 text-rose-300'
                             }`}
                           >
-                            {item.classification === 'Star'
-                              ? '⭐ Star'
-                              : item.classification === 'Plowhorse'
+                            {item.classification === 'TopPerformer'
+                              ? '⭐ صنف رائد (Top Performer)'
+                              : item.classification === 'HighDemand'
                               ? '📦 High Demand'
-                              : item.classification === 'Puzzle'
-                              ? '🧩 Puzzle'
-                              : '🐕 Dog'}
+                              : item.classification === 'HighMargin'
+                              ? '💎 واعد عالي الربح (High-Margin)'
+                              : '⚠️ راكد ضعيف الأداء (Slow-Moving)'}
                           </span>
                         </td>
                       </tr>

@@ -220,7 +220,7 @@ export const ENTERPRISE_DEPARTMENTS: EnterpriseDepartmentDef[] = [
           cost: m.costPriceKwd.toFixed(3),
           marginPct: m.marginPercent.toFixed(1) + '%',
           salesQty: m.unitsSold.toLocaleString(),
-          quadrant: m.classification === 'Star' ? '⭐ صنف رائد (Top Performer)' : m.classification === 'Plowhorse' ? '📦 عالي الطلب (High Demand)' : m.classification === 'Puzzle' ? '💎 واعد عالي الربح' : '⚠️ صنف راكد (Slow Mover)',
+          quadrant: (m.classification === 'TopPerformer') ? '⭐ الأصناف الذهبية الرائدة (Top Performers)' : (m.classification === 'HighDemand') ? '📦 الأصناف عالية الطلب (High-Demand Staples)' : (m.classification === 'HighMargin') ? '💎 أصناف واعدة عالية الربح (High-Margin Opportunities)' : '⚠️ الأصناف الراكدة ضعيفة الأداء (Slow-Moving Items)',
         })),
       },
       {

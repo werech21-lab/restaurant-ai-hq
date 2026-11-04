@@ -28,6 +28,7 @@ import {
 } from 'lucide-react'
 import { AutomatedGlBridge } from '@/components/finance/AutomatedGlBridge'
 import { VENTURE_FOODS_EVENTS } from '@/lib/events/venture-events-engine'
+import { KuwaitCoaBridgeView } from './KuwaitCoaBridgeView'
 import Link from 'next/link'
 
 export function VentureAccountingHub({
@@ -43,7 +44,25 @@ export function VentureAccountingHub({
     if (i18n?.locale) ctxLocale = i18n.locale
   } catch {}
 
-  const [activeTab, setActiveTab] = useState<'pnl' | 'banking' | 'pettyCash' | 'journals' | 'chart' | 'aging' | 'glBridge' | 'eventsFinance' | 'leases' | 'fleet' | 'legacy'>('pnl')
+  const [activeTab, setActiveTab] = useState<
+    | 'pnl'
+    | 'fourWall'
+    | 'coa4d'
+    | 'amcHub'
+    | 'expiryRadar'
+    | 'hrBridge'
+    | 'transitRecon'
+    | 'banking'
+    | 'pettyCash'
+    | 'journals'
+    | 'chart'
+    | 'aging'
+    | 'glBridge'
+    | 'eventsFinance'
+    | 'leases'
+    | 'fleet'
+    | 'legacy'
+  >('pnl')
   const [currentLocale, setCurrentLocale] = useState<'ar' | 'en'>(locale)
 
   useEffect(() => {
@@ -128,14 +147,20 @@ export function VentureAccountingHub({
         </div>
       )}
 
-      {/* 6 Specialized Tabs Navigation */}
+      {/* Specialized Tabs Navigation */}
       <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-800 pb-3">
         {[
-          { key: 'pnl', labelAr: '📊 قائمة الدخل ومراكز تكلفة البراندات والفروع', labelEn: 'Brand & Branch P&L Cost Centers', icon: FileSpreadsheet },
-          { key: 'banking', labelAr: '🏦 البنوك، الخزينة، وتسوية K-Net والمنصات', labelEn: 'NBK Accounts, K-Net & Platform Recon', icon: Landmark },
+          { key: 'pnl', labelAr: '📊 قائمة الدخل ومراكز تكلفة البراندات', labelEn: 'Brand P&L Cost Centers', icon: FileSpreadsheet },
+          { key: 'fourWall', labelAr: '🏬 قائمة الدخل التشغيلي للفرع (Four-Wall P&L)', labelEn: 'Four-Wall Store P&L Benchmark', icon: Store },
+          { key: 'coa4d', labelAr: '🗂️ شجرة الحسابات الكويتية 4D (1000–8300)', labelEn: 'Kuwait 4D COA (1000–8300)', icon: Scale },
+          { key: 'amcHub', labelAr: '🛠️ عقود الصيانة والمداخن والحشرات (AMC & SLA Gate)', labelEn: 'AMC Contracts Hub & SLA Gate', icon: ShieldCheck },
+          { key: 'expiryRadar', labelAr: '⏳ رادار انتهاء العقود واسترداد التأمينات (Expiry Radar)', labelEn: 'Expiry & Deposit Refund Radar', icon: Calendar },
+          { key: 'hrBridge', labelAr: '👥 جسر الربط المالي السباعي (7-Way HR Bridge)', labelEn: '7-Way HR ↔ Finance ↔ Ops Bridge', icon: ArrowRightLeft },
+          { key: 'transitRecon', labelAr: '🚚 تسويات المنصات والتحويلات (1139 Transit)', labelEn: 'Transit & Platform Settlement', icon: Truck },
+          { key: 'banking', labelAr: '🏦 البنوك، الخزينة، وتسوية K-Net', labelEn: 'NBK Accounts & K-Net Recon', icon: Landmark },
           { key: 'pettyCash', labelAr: '💼 إدارة العهد النقدية والمصروفات النثرية', labelEn: 'Branch & PRO Petty Cash', icon: Wallet },
           { key: 'journals', labelAr: '📒 دفتر اليومية والقيود وسندات الصرف/القبض', labelEn: 'Journal Entries & Vouchers', icon: BookOpen },
-          { key: 'chart', labelAr: '🗂️ شجرة الحسابات وميزان المراجعة (820 حساباً)', labelEn: 'Chart of Accounts & Trial Balance', icon: Scale },
+          { key: 'chart', labelAr: '📑 ميزان المراجعة ودليل الحسابات (820 حساباً)', labelEn: 'Trial Balance & Chart of Accounts', icon: Scale },
           { key: 'aging', labelAr: '🧾 الذمم المدينة والدائنة ومخصصات نهاية الخدمة', labelEn: 'AR/AP Aging & EOSB Provisions', icon: Receipt },
           { key: 'glBridge', labelAr: '🔗 الربط المالي والقيود التلقائية (POS / KDS / Recipes)', labelEn: 'Automated GL Bridge (Field Ops)', icon: ArrowRightLeft },
           { key: 'eventsFinance', labelAr: '🎪 مالية المعارض والمخيمات والفعاليات', labelEn: 'Events & Camps Financials', icon: Store },
@@ -233,6 +258,16 @@ export function VentureAccountingHub({
           </div>
         </div>
       )}
+
+      {/* ========================================================================= */}
+      {/* KUWAIT 4D COA & MASTER BRIDGE SUBVIEWS                                    */}
+      {/* ========================================================================= */}
+      {activeTab === 'fourWall' && <KuwaitCoaBridgeView isAr={isAr} activeSubView="fourWallPnl" />}
+      {activeTab === 'coa4d' && <KuwaitCoaBridgeView isAr={isAr} activeSubView="coa4d" />}
+      {activeTab === 'amcHub' && <KuwaitCoaBridgeView isAr={isAr} activeSubView="amcHub" />}
+      {activeTab === 'expiryRadar' && <KuwaitCoaBridgeView isAr={isAr} activeSubView="expiryRadar" />}
+      {activeTab === 'hrBridge' && <KuwaitCoaBridgeView isAr={isAr} activeSubView="hrBridge" />}
+      {activeTab === 'transitRecon' && <KuwaitCoaBridgeView isAr={isAr} activeSubView="transitRecon" />}
 
       {/* ========================================================================= */}
       {/* TAB 2: BANKING & K-NET / AGGREGATOR RECON                                  */}

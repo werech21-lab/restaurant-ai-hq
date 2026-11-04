@@ -97,12 +97,12 @@ export async function runSmartReconciliation(actorId: string) {
     for (const doc of ingest) {
       const amount = doc.amountMinor != null ? doc.amountMinor / 1000 : 0
       const hay = `${doc.fileName} ${doc.relativePath} ${doc.entityLabel || ''} ${doc.extractedText || ''}`.toLowerCase()
-      if (!/nbk|10143|10212|talabat|deliveroo|jahez|cari|keeta|snoonu|وطني|طلبات/.test(hay) && amount <= 0) continue
+      if (!/nbk|10143|10212|talabat|deliveroo|jahez|keeta|snoonu|وطني|طلبات/.test(hay) && amount <= 0) continue
       matches.push({
         id: doc.id,
         source: doc.fileName,
         platform: doc.entityLabel,
-        channel: /talabat|deliveroo|jahez|cari|keeta|snoonu|طلبات/.test(hay) ? (/tgo|17/.test(hay) ? 'TGO' : /mp|10/.test(hay) ? 'MP' : 'UNKNOWN') : 'BANK',
+        channel: /talabat|deliveroo|jahez|keeta|snoonu|طلبات/.test(hay) ? (/tgo|17/.test(hay) ? 'TGO' : /mp|10/.test(hay) ? 'MP' : 'UNKNOWN') : 'BANK',
         expectedCommissionBps: /17/.test(hay) ? 1700 : /10/.test(hay) ? 1000 : 0,
         gross: amount,
         commission: 0,

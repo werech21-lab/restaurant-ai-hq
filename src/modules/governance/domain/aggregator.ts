@@ -3,7 +3,7 @@ import { minorToInput } from '@/lib/money'
 
 /** Entered aggregator observations. The same inputs always produce the same rank advice. */
 
-export const aggregatorPlatforms = ['Talabat', 'Keeta', 'Jahez', 'Snoonu', 'Deliveroo', 'Cari'] as const
+export const aggregatorPlatforms = ['Talabat', 'Keeta', 'Jahez', 'Snoonu', 'Deliveroo'] as const
 export type AggregatorPlatform = (typeof aggregatorPlatforms)[number]
 
 export const aggregatorZones = ['السالمية', 'شرق/مدينة الكويت', 'حولي', 'الفروانية', 'المهبولة', 'أسواق القرين', 'العارضية'] as const
@@ -24,7 +24,6 @@ const platformAr: Record<AggregatorPlatform, string> = {
   Jahez: 'جاهز',
   Snoonu: 'سنونو',
   Deliveroo: 'ديليفرو',
-  Cari: 'كاري',
 }
 
 export type RankObservation = {

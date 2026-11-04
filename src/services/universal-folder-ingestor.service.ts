@@ -496,7 +496,7 @@ async function routeSalesDelivery(
     [/talabat|طلبات/i, 'TALABAT', 'كشف طلبات Talabat', 'Talabat settlement'],
     [/deliveroo|ديليفرو/i, 'DELIVEROO', 'كشف ديليفرو', 'Deliveroo settlement'],
     [/jahez|جاهز/i, 'JAHEZ', 'كشف جاهز', 'Jahez settlement'],
-    [/\bcari\b|كاري/i, 'CARI', 'كشف كاري', 'Cari settlement'],
+    
     [/keeta|كيتا/i, 'KEETA', 'كشف كيتا', 'Keeta settlement'],
     [/snoonu|سنونو/i, 'SNOONU', 'كشف سنونو', 'Snoonu settlement'],
   ]

@@ -35,7 +35,7 @@ async function DeliveryHubContent() {
     <div>
       <PageHeader
         title={tx(locale, 'منصات التوصيل', 'Delivery aggregators')}
-        description={`${scopeLabel} · Talabat · Deliveroo · Jahez · Cari · In-House`}
+        description={`${scopeLabel} · Talabat · Deliveroo · Jahez · In-House`}
       />
       <div className="mb-4">
         <SmartIngestLaunchButton module="sales_delivery" locale={locale} />

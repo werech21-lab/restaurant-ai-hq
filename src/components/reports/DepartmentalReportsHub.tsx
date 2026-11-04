@@ -241,18 +241,18 @@ export function DepartmentalReportsHub({ initialReportId, locale = 'ar', liveDbC
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-bold text-emerald-400">
               <CheckCircle2 size={12} />
-              {isAr ? 'مركز التقارير المؤسسية الشامل (Ordable Style)' : 'Enterprise Ordable-Style Reports Suite'}
+              {isAr ? 'مركز التقارير المؤسسية الشامل (AetherBI Executive Suite)' : 'Enterprise AetherBI-Style Reports Suite'}
             </span>
             <span className="rounded-full bg-slate-800 px-2.5 py-0.5 text-xs text-slate-400 font-mono">
               Venture Foods W.L.L. · Lic. 2021/22838
             </span>
           </div>
           <h1 className="mt-1 text-2xl font-black text-white sm:text-3xl tracking-tight">
-            {isAr ? 'دليل التقارير التنفيذية ومحرك التحليل التفصيلي' : 'Executive Reports Directory & Ordable Drill-Down'}
+            {isAr ? 'دليل التقارير التنفيذية ومحرك التحليل التفصيلي' : 'Executive Reports Directory & AetherBI Drill-Down'}
           </h1>
           <p className="text-xs text-slate-400 mt-0.5">
             {isAr
-              ? 'مكتبة التقارير الرسمية المصنفة عبر 7 قطاعات بأسلوب Ordable، مزودة بأشرطة التقدم المرئية وإمكانية الفرز والتصدير'
+              ? 'مكتبة التقارير الرسمية المصنفة عبر 7 قطاعات بأسلوب AetherBI، مزودة بأشرطة التقدم المرئية وإمكانية الفرز والتصدير'
               : 'Official company report repository classified across 7 operating departments with inline visual bars'}
           </p>
         </div>
@@ -326,7 +326,7 @@ export function DepartmentalReportsHub({ initialReportId, locale = 'ar', liveDbC
 
       {/* 2. CONDITIONAL VIEW: DIRECTORY vs DRILL-DOWN REPORT VIEWER */}
       {!selectedReportId || !currentReport ? (
-        /* VIEW 1: ORDABLE-STYLE DEPARTMENTAL DIRECTORY */
+        /* VIEW 1: AETHERBI-STYLE DEPARTMENTAL DIRECTORY */
         <div className="space-y-8">
           {/* Quick Hero Metrics Bar */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -352,7 +352,7 @@ export function DepartmentalReportsHub({ initialReportId, locale = 'ar', liveDbC
             </div>
           </div>
 
-          {/* Search & Ordable Department Category Tabs */}
+          {/* Search & AetherBI Department Category Tabs */}
           <div className="space-y-4">
             {/* Search Input */}
             <div className="relative w-full max-w-md">
@@ -374,7 +374,7 @@ export function DepartmentalReportsHub({ initialReportId, locale = 'ar', liveDbC
               )}
             </div>
 
-            {/* Ordable 7-Category Tab Navigation Bar */}
+            {/* AetherBI 7-Category Tab Navigation Bar */}
             <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto pb-1">
               {[
                 { id: 'all', labelAr: 'جميع القطاعات', labelEn: 'All Divisions', icon: Sparkles },
@@ -476,7 +476,7 @@ export function DepartmentalReportsHub({ initialReportId, locale = 'ar', liveDbC
           </div>
         </div>
       ) : (
-        /* VIEW 2: ORDABLE-STYLE DRILL-DOWN REPORT VIEWER */
+        /* VIEW 2: AETHERBI-STYLE DRILL-DOWN REPORT VIEWER */
         <div className="space-y-6">
           {/* Top Bar with Back Button & Actions */}
           <div className="rounded-2xl border border-slate-800 bg-[#0d131f] p-5 shadow-xl">
@@ -579,7 +579,7 @@ export function DepartmentalReportsHub({ initialReportId, locale = 'ar', liveDbC
             </div>
           </div>
 
-          {/* Ordable Executive KPI Cards */}
+          {/* AetherBI Executive KPI Cards */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
             {currentReport.kpis.map((kpi, idx) => (
               <div
@@ -654,13 +654,13 @@ export function DepartmentalReportsHub({ initialReportId, locale = 'ar', liveDbC
             </div>
           )}
 
-          {/* Rich Ordable Data Table with Inline Visual Progress Bars */}
+          {/* Rich AetherBI Data Table with Inline Visual Progress Bars */}
           <div className="rounded-2xl border border-slate-800 bg-[#0b0f17] shadow-xl overflow-hidden">
             <div className="flex items-center justify-between border-b border-slate-800 px-5 py-3.5">
               <div className="flex items-center gap-2">
                 <FileText size={16} className="text-emerald-400" />
                 <h3 className="text-sm font-black text-white">
-                  {isAr ? 'الجدول التفصيلي الكامل (Ordable Table Engine)' : 'Complete Ordable Detailed Table'}
+                  {isAr ? 'الجدول التفصيلي الكامل (AetherBI Table Engine)' : 'Complete AetherBI Detailed Table'}
                 </h3>
                 <span className="rounded-full bg-slate-800 px-2 py-0.5 text-xs font-mono text-slate-400">
                   {filteredTableRows.length} {isAr ? 'سجل' : 'Rows'}
@@ -775,7 +775,7 @@ export function DepartmentalReportsHub({ initialReportId, locale = 'ar', liveDbC
                   )}
                 </tbody>
 
-                {/* Ordable Total Summary Row */}
+                {/* AetherBI Total Summary Row */}
                 <tfoot>
                   <tr className="border-t-2 border-slate-700 bg-slate-900/90 font-bold text-xs">
                     <td className="px-4 py-3 text-slate-300 font-sans">

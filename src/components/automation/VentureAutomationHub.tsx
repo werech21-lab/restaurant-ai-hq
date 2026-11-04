@@ -365,12 +365,12 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
             </span>
           </div>
           <h1 className="mt-1 text-2xl font-black text-white sm:text-3xl">
-            {isAr ? 'مركز قيادة مسارات الأتمتة والرادارات الحية' : 'Operational Workflows & Real-Time Watchdogs'}
+            {isAr ? 'مركز قيادة مسارات الأتمتة والرادارات الحية' : 'Operational Workflows & Real-Time System Monitors'}
           </h1>
           <p className="text-xs text-slate-400">
             {isAr
               ? '6 مسارات أتمتة تشغيلية ورادارات رقابية متصلة مباشرة بسيرفرات الشركة والبريد المؤسسي'
-              : '6 live operational workflows & watchdogs connected directly to Venture Foods systems & SMTP'}
+              : '6 live operational workflows & monitors connected directly to Venture Foods systems & SMTP'}
           </p>
         </div>
 

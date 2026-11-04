@@ -20,7 +20,7 @@ export type ChannelKey =
   | 'Keeta'
   | 'Talabat MP'
   | 'Deliveroo Core'
-  | 'Ordable'
+  | 'Direct'
   | 'Snoonu'
   | 'Jahez'
   | 'Phone'
@@ -70,7 +70,7 @@ export type MenuItemAnalytics = {
   salesKwd: number
   costPriceKwd: number
   marginPercent: number
-  classification: 'Star' | 'Plowhorse' | 'Puzzle' | 'Dog'
+  classification: 'TopPerformer' | 'HighDemand' | 'HighMargin' | 'SlowMover'
   shareOfBrandPercent: number
 }
 
@@ -181,7 +181,7 @@ export const ACTION_PLAYBOOKS: PlaybookAction[] = [
     titleAr: '7. الإيقاف التدريجي واستغلال مساحة المطبخ لمنتج جديد',
     taglineEn: 'Delist smoothly if velocity does not respond within 30 days of testing.',
     taglineAr: 'إلغاء الصنف وسحبه بهدوء إذا لم يستجب بعد 30 يوماً وتخصيص محطته لمنتج واعد.',
-    descriptionEn: 'If a Dog item consistently delivers < 0.1% sales despite playbook execution, retire it to free up station capacity and ingredient prep time.',
+    descriptionEn: 'If a Slow-Moving item consistently delivers < 0.1% sales despite playbook execution, retire it to free up station capacity and ingredient prep time.',
     descriptionAr: 'إذا ظل الصنف يحقق أقل من 0.1% من المبيعات بعد تجربة الحلول، يتم استبعاده لإفساح المجال لابتكار أصناف جديدة مطلوبة.',
     expectedImpactEn: 'Cleanses menu clutter and saves 18 prep minutes daily',
     expectedImpactAr: 'تنظيف المنيو من التشتيت وتوفير 18 دقيقة تحضير يومياً',
@@ -350,7 +350,7 @@ export const OCTOBER_CHANNEL_SCORECARDS: ChannelScorecardRow[] = [
     dessertsPercent: 2.4,
   },
   {
-    channel: 'Ordable',
+    channel: 'Direct',
     channelAr: 'أورردابل (الطلب المباشر أونلاين)',
     orders: 420,
     netSalesKwd: 5392.8,
@@ -442,7 +442,7 @@ export const TOP_BEST_SELLERS: MenuItemAnalytics[] = [
     salesKwd: 12043.2,
     costPriceKwd: 0.72,
     marginPercent: 73.8,
-    classification: 'Star',
+    classification: 'TopPerformer',
     shareOfBrandPercent: 7.2,
   },
   {
@@ -457,7 +457,7 @@ export const TOP_BEST_SELLERS: MenuItemAnalytics[] = [
     salesKwd: 9940.0,
     costPriceKwd: 1.15,
     marginPercent: 67.1,
-    classification: 'Star',
+    classification: 'TopPerformer',
     shareOfBrandPercent: 6.0,
   },
   {
@@ -472,7 +472,7 @@ export const TOP_BEST_SELLERS: MenuItemAnalytics[] = [
     salesKwd: 8710.0,
     costPriceKwd: 1.05,
     marginPercent: 67.7,
-    classification: 'Star',
+    classification: 'TopPerformer',
     shareOfBrandPercent: 5.2,
   },
   {
@@ -487,7 +487,7 @@ export const TOP_BEST_SELLERS: MenuItemAnalytics[] = [
     salesKwd: 7595.0,
     costPriceKwd: 0.85,
     marginPercent: 72.6,
-    classification: 'Star',
+    classification: 'TopPerformer',
     shareOfBrandPercent: 4.5,
   },
   {
@@ -502,7 +502,7 @@ export const TOP_BEST_SELLERS: MenuItemAnalytics[] = [
     salesKwd: 6720.0,
     costPriceKwd: 0.42,
     marginPercent: 80.0,
-    classification: 'Star',
+    classification: 'TopPerformer',
     shareOfBrandPercent: 4.0,
   },
   {
@@ -517,7 +517,7 @@ export const TOP_BEST_SELLERS: MenuItemAnalytics[] = [
     salesKwd: 4890.5,
     costPriceKwd: 1.38,
     marginPercent: 62.2,
-    classification: 'Star',
+    classification: 'TopPerformer',
     shareOfBrandPercent: 30.1,
   },
   {
@@ -532,7 +532,7 @@ export const TOP_BEST_SELLERS: MenuItemAnalytics[] = [
     salesKwd: 4768.5,
     costPriceKwd: 0.38,
     marginPercent: 77.0,
-    classification: 'Star',
+    classification: 'TopPerformer',
     shareOfBrandPercent: 2.9,
   },
   {
@@ -547,7 +547,7 @@ export const TOP_BEST_SELLERS: MenuItemAnalytics[] = [
     salesKwd: 4544.0,
     costPriceKwd: 0.92,
     marginPercent: 71.3,
-    classification: 'Star',
+    classification: 'TopPerformer',
     shareOfBrandPercent: 2.7,
   },
   {
@@ -562,7 +562,7 @@ export const TOP_BEST_SELLERS: MenuItemAnalytics[] = [
     salesKwd: 3612.0,
     costPriceKwd: 0.55,
     marginPercent: 73.8,
-    classification: 'Star',
+    classification: 'TopPerformer',
     shareOfBrandPercent: 22.3,
   },
   {
@@ -577,7 +577,7 @@ export const TOP_BEST_SELLERS: MenuItemAnalytics[] = [
     salesKwd: 1920.0,
     costPriceKwd: 0.48,
     marginPercent: 61.6,
-    classification: 'Star',
+    classification: 'TopPerformer',
     shareOfBrandPercent: 43.4,
   },
   {
@@ -592,7 +592,7 @@ export const TOP_BEST_SELLERS: MenuItemAnalytics[] = [
     salesKwd: 3276.0,
     costPriceKwd: 1.25,
     marginPercent: 65.3,
-    classification: 'Plowhorse',
+    classification: 'HighDemand',
     shareOfBrandPercent: 2.0,
   },
   {
@@ -607,7 +607,7 @@ export const TOP_BEST_SELLERS: MenuItemAnalytics[] = [
     salesKwd: 512.0,
     costPriceKwd: 0.82,
     marginPercent: 72.2,
-    classification: 'Puzzle',
+    classification: 'HighMargin',
     shareOfBrandPercent: 30.5,
   },
   {
@@ -622,7 +622,7 @@ export const TOP_BEST_SELLERS: MenuItemAnalytics[] = [
     salesKwd: 840.0,
     costPriceKwd: 1.1,
     marginPercent: 61.4,
-    classification: 'Plowhorse',
+    classification: 'HighDemand',
     shareOfBrandPercent: 31.6,
   },
   {
@@ -637,7 +637,7 @@ export const TOP_BEST_SELLERS: MenuItemAnalytics[] = [
     salesKwd: 3012.5,
     costPriceKwd: 0.22,
     marginPercent: 82.4,
-    classification: 'Star',
+    classification: 'TopPerformer',
     shareOfBrandPercent: 1.8,
   },
   {
@@ -652,7 +652,7 @@ export const TOP_BEST_SELLERS: MenuItemAnalytics[] = [
     salesKwd: 185.0,
     costPriceKwd: 0.65,
     marginPercent: 74.0,
-    classification: 'Puzzle',
+    classification: 'HighMargin',
     shareOfBrandPercent: 41.7,
   },
 ]
@@ -963,7 +963,7 @@ export const OCTOBER_AGGREGATOR_AUDIT: AggregatorAuditRow[] = [
     settlementCycle: 'Bi-weekly',
   },
   {
-    channel: 'Ordable',
+    channel: 'Direct',
     channelAr: 'أوردابل (الطلب الرقمي المباشر 3%)',
     grossSalesKwd: 5392.8,
     commissionRatePercent: 3.0,

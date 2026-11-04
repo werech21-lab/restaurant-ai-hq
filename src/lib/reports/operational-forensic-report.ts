@@ -415,8 +415,8 @@ export function renderOperationalReportText(sections: OperationalReportSections,
   )
   lines.push(
     L === 'ar'
-      ? 'التغطية: طلبات (TMP 10% مقابل TGO 17%)، Deliveroo، جاهز، كاري، كيتا، سنونو'
-      : 'Coverage: Talabat (TMP 10% vs TGO 17%), Deliveroo, Jahez, Cari, Keeta, Snoonu',
+      ? 'التغطية: طلبات (TMP 10% مقابل TGO 17%)، Deliveroo، جاهز، كيتا، سنونو'
+      : 'Coverage: Talabat (TMP 10% vs TGO 17%), Deliveroo, Jahez, Keeta, Snoonu',
   )
   lines.push(brandFeedNote(L))
   lines.push(

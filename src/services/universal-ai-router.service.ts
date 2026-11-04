@@ -119,7 +119,7 @@ const RULES: Array<{ dept: SmartDropzoneDepartment; weight: number; pattern: Reg
   { dept: 'inventory_recipes', weight: 14, pattern: /\b(recipe\s*card|بطاقة\s*وصفة|\bbom\b|stock\s*count|جرد|menu|منيو|rw01|pp03|pi02|ricg|rifb|rikc|ritn|exta)\b/i },
   { dept: 'inventory_recipes', weight: 8, pattern: /\b(rw|pp|pi|ri)[a-z0-9]{2,}\b/i },
   // Sales / aggregators
-  { dept: 'sales_aggregators', weight: 14, pattern: /\b(talabat|طلبات|deliveroo|ديليفرو|jahez|جاهز|cari|keeta|snoonu|\btmp\b|\btgo\b|settlement|pos\s*sales)\b/i },
+  { dept: 'sales_aggregators', weight: 14, pattern: /\b(talabat|طلبات|deliveroo|ديليفرو|jahez|جاهز|keeta|snoonu|\btmp\b|\btgo\b|settlement|pos\s*sales)\b/i },
   // Governance
   { dept: 'governance', weight: 12, pattern: /\b(رخصة\s*تجارية|commercial\s*license|fire\s*license|ترخيص|عقد\s*إيجار|lease|بلدية|دفتر\s*سيارة|vehicle)\b/i },
   // CRM / catering

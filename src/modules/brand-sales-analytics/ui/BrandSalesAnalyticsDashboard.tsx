@@ -234,7 +234,7 @@ export function BrandSalesAnalyticsDashboard({ locale = 'ar' }: Props) {
                 <option value="Keeta">Keeta (كيتا)</option>
                 <option value="Talabat MP">Talabat MP (طلبات ماركتبليس 10%)</option>
                 <option value="Deliveroo Core">Deliveroo Core (ديليفرو)</option>
-                <option value="Ordable">Ordable (أورردابل أونلاين)</option>
+                <option value="Direct">Direct (الموقع المباشر)</option>
                 <option value="Snoonu">Snoonu (سنونو)</option>
                 <option value="Jahez">Jahez (جاهز)</option>
                 <option value="Phone">Phone (الهاتف والبدالة)</option>
@@ -611,7 +611,7 @@ export function BrandSalesAnalyticsDashboard({ locale = 'ar' }: Props) {
             </h2>
             <p className="text-xs text-mist-400">
               {en
-                ? 'Shop Sales, Talabat Go/MP, Keeta, Deliveroo, Ordable, Snoonu, Jahez, Phone, and Whatsapp.'
+                ? 'Shop Sales, Talabat Go/MP, Keeta, Deliveroo, Direct Web, Snoonu, Jahez, Phone, and Whatsapp.'
                 : 'مبيعات الصالة، طلبات جو وماركتبليس، كيتا، ديليفرو، أورردابل، سنونو، جاهز، الهاتف، والواتساب.'}
             </p>
           </div>
@@ -971,9 +971,9 @@ export function BrandSalesAnalyticsDashboard({ locale = 'ar' }: Props) {
                     <td className="px-3 py-2.5">
                       <span
                         className={`rounded-lg px-2 py-0.5 text-[10px] font-bold ${
-                          item.classification === 'Star'
+                          item.classification === 'TopPerformer'
                             ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/30'
-                            : item.classification === 'Plowhorse'
+                            : item.classification === 'HighDemand'
                               ? 'bg-sky-500/20 text-sky-300 border border-sky-400/30'
                               : 'bg-gold-500/20 text-gold-300 border border-gold-400/30'
                         }`}
