@@ -25,7 +25,7 @@ async function Content() {
         title={tx(locale, 'مركز المطابقة الذكية · NBK + منصات التوصيل', 'Smart Reconciliation · NBK + Delivery')}
         description={tx(
           locale,
-          'مطابقة إيداعات البنك الوطني (10143/10212) مع كشوفات طلبات/ديليفرو/جاهز — كشف نقص الإيداع وعمولات TGO 17% مقابل MP 10%.',
+          'مطابقة إيداعات البنك الوطني (10143/10212) مع كشوفات طلبات/ديليفرو/جاهز — كشف نقص الإيداع وعمولات توصيل المنصة 17% مقابل أسطول الشركة 10%.',
           'Match NBK deposits (10143/10212) with Talabat/Deliveroo/Jahez settlements — flag shortfalls and TGO 17% vs MP 10%.',
         )}
       />

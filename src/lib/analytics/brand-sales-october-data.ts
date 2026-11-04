@@ -325,7 +325,7 @@ export const OCTOBER_CHANNEL_SCORECARDS: ChannelScorecardRow[] = [
   },
   {
     channel: 'Talabat MP',
-    channelAr: 'طلبات ماركتبليس (توصيل المطعم 10%)',
+    channelAr: 'طلبات ماركت بليس (أسطول فنتشر فودز 10%)',
     orders: 1940,
     netSalesKwd: 17848.0,
     sharePercent: 10.7,
@@ -932,7 +932,7 @@ export const OCTOBER_AGGREGATOR_AUDIT: AggregatorAuditRow[] = [
   },
   {
     channel: 'Talabat MP',
-    channelAr: 'طلبات ماركتبليس (توصيل المطعم 10%)',
+    channelAr: 'طلبات ماركت بليس (أسطول فنتشر فودز 10%)',
     grossSalesKwd: 17848.0,
     commissionRatePercent: 10.0,
     commissionAmountKwd: 1784.8,

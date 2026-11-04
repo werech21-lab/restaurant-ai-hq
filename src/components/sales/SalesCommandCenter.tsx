@@ -759,9 +759,37 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                   <tbody className="divide-y divide-white/5 text-slate-300">
                     {OCTOBER_AGGREGATOR_AUDIT.map((row) => (
                       <tr key={row.channel} className="hover:bg-white/[0.02]">
-                        <td className="px-4 py-3 font-bold text-white">
-                          {isAr ? row.channelAr : row.channel}
-                          <div className="text-[10px] text-slate-500">{row.settlementCycle}</div>
+                        <td className="whitespace-nowrap px-4 py-3 align-middle">
+                          <div className="flex flex-col items-start gap-1 whitespace-nowrap">
+                            {row.channel === 'Talabat MP' ? (
+                              <>
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap bg-emerald-50 text-emerald-800 border border-emerald-300 dark:bg-emerald-950/70 dark:text-emerald-300 dark:border-emerald-700/60 shadow-xs">
+                                  {isAr ? '🚚 أسطول فنتشر فودز · 10%' : '🚚 Venture Fleet · 10%'}
+                                </span>
+                                <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 pr-1">
+                                  {isAr ? 'توصيل خاص بالشركة · معرف #101513' : 'Own Fleet · ID #101513'}
+                                </span>
+                              </>
+                            ) : row.channel === 'Talabat Go' ? (
+                              <>
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap bg-rose-50 text-rose-800 border border-rose-300 dark:bg-rose-950/70 dark:text-rose-300 dark:border-rose-700/60 shadow-xs">
+                                  {isAr ? '🚨 توصيل المنصة · 17% (فرق +7%)' : '🚨 Platform Fleet · 17% (+7% gap)'}
+                                </span>
+                                <span className="text-[11px] font-medium text-rose-600/80 dark:text-rose-400/80 pr-1">
+                                  {isAr ? 'سائق المنصة · معرف #101512' : 'Aggregator Driver · ID #101512'}
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="font-bold text-slate-900 dark:text-white">
+                                  {isAr ? row.channelAr : row.channel}
+                                </span>
+                                <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                                  {row.settlementCycle}
+                                </span>
+                              </>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-3 text-end font-mono">
                           {row.grossSalesKwd.toLocaleString(undefined, { minimumFractionDigits: 2 })}

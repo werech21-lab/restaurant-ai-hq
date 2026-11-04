@@ -231,9 +231,9 @@ export function AetherBiExecutiveDashboard({
   // Channels Breakdown (Official active Kuwait channels - 100% Arabic when isAr)
   const channels = [
     { nameAr: 'المبيعات المباشرة بالصالات والسفري', nameEn: 'Shop Sales (Dine-In/Takeaway)', pct: 35.3, kwd: 58972.250, color: '#10b981' },
-    { nameAr: 'طلبات جو (توصيل المنصة 17%)', nameEn: 'Talabat Go (17%)', pct: 33.3, kwd: 55715.210, color: '#ea580c' },
+    { nameAr: 'طلبات جو (توصيل المنصة 17%)', nameEn: 'Talabat Go (Platform Fleet 17%)', pct: 33.3, kwd: 55715.210, color: '#ea580c' },
     { nameAr: 'منصة كيتا', nameEn: 'Keeta Platform', pct: 21.3, kwd: 35607.550, color: '#eab308' },
-    { nameAr: 'طلبات ماركت بليس (توصيل المطعم 10%)', nameEn: 'Talabat Marketplace (TMP 10%)', pct: 3.9, kwd: 6557.250, color: '#f97316' },
+    { nameAr: 'طلبات ماركت بليس (توصيل المطعم 10%)', nameEn: 'Talabat Marketplace (Venture Fleet 10%)', pct: 3.9, kwd: 6557.250, color: '#f97316' },
     { nameAr: 'منصة ديليفرو', nameEn: 'Deliveroo', pct: 3.6, kwd: 5996.740, color: '#06b6d4' },
     { nameAr: 'الموقع والتطبيق المباشر', nameEn: 'Direct Web & Online App', pct: 2.6, kwd: 4243.160, color: '#8b5cf6' },
   ]

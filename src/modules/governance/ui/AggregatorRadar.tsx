@@ -244,32 +244,36 @@ const ScanCountdown = memo(function ScanCountdown({
 function statusBadge(status: ForensicRow['status'], en: boolean) {
   if (status === 'online') {
     return {
-      className: 'bg-emerald-900/70 text-emerald-100',
+      className: 'bg-emerald-50 text-emerald-800 border border-emerald-300 dark:bg-emerald-950/70 dark:text-emerald-300 dark:border-emerald-700/60 shadow-xs',
       label: en ? '🟢 Online' : '🟢 متصل',
     }
   }
   if (status === 'forced_offline') {
     return {
-      className: 'bg-red-950/80 text-red-100',
+      className: 'bg-rose-50 text-rose-800 border border-rose-300 dark:bg-rose-950/70 dark:text-rose-300 dark:border-rose-700/60 shadow-xs',
       label: en ? '🔴 Forced Offline' : '🔴 إغلاق قسري',
     }
   }
   return {
-    className: 'bg-amber-900/70 text-amber-100',
+    className: 'bg-amber-50 text-amber-800 border border-amber-300 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-700/60 shadow-xs',
     label: en ? '🟠 Busy / Throttled' : '🟠 مزدحم / نطاق مقلص',
   }
 }
 
-function modeBadge(mode: ForensicRow['mode'], en: boolean) {
+function modeBadge(mode: ForensicRow['mode'], en: boolean, accountCode?: string) {
   if (mode === 'TMP') {
     return {
-      className: 'bg-emerald-900/70 text-emerald-100',
-      label: en ? '🚚 TMP — Venture fleet (10%)' : '🚚 TMP — توصيل فنتشر فودز (10%)',
+      badgeClass: 'bg-emerald-50 text-emerald-800 border border-emerald-300 dark:bg-emerald-950/70 dark:text-emerald-300 dark:border-emerald-700/60 shadow-xs',
+      badgeLabel: en ? '🚚 Venture Fleet · 10%' : '🚚 أسطول فنتشر فودز · 10%',
+      subClass: 'text-slate-500 dark:text-slate-400',
+      subLabel: en ? `Own Fleet · ID #${accountCode || '101513'}` : `توصيل خاص بالشركة · معرف #${accountCode || '101513'}`,
     }
   }
   return {
-    className: 'bg-red-950/80 text-red-100',
-    label: en ? '🚨 TGO — Platform fleet (17% | +7% loss)' : '🚨 TGO — توصيل المنصة (17% | خسارة +7%)',
+    badgeClass: 'bg-rose-50 text-rose-800 border border-rose-300 dark:bg-rose-950/70 dark:text-rose-300 dark:border-rose-700/60 shadow-xs',
+    badgeLabel: en ? '🚨 Platform Fleet · 17% (+7% gap)' : '🚨 توصيل المنصة · 17% (فرق +7%)',
+    subClass: 'text-rose-600/80 dark:text-rose-400/80',
+    subLabel: en ? `Aggregator Driver · ID #${accountCode || '101512'}` : `سائق المنصة · معرف #${accountCode || '101512'}`,
   }
 }
 
@@ -601,7 +605,7 @@ function Workspace() {
             <p className="mt-2 max-w-3xl text-sm text-gray-400">
               {en
                 ? 'Live 5-minute detector for Forced Offline / Busy coverage cuts and Talabat TGO 17% vs TMP 10% commission abuse across all 6 brands × 10 branches.'
-                : 'كاشف لحظي كل 5 دقائق لإغلاق الفروع القسري وتقليص التغطية وتحويل العمولة من TMP 10% إلى TGO 17% عبر 6 براندات × 10 فروع.'}
+                : 'رصد لحظي كل 5 دقائق لكشف الإغلاق القسري وحجب التغطية وتحويل التوصيل من أسطول فنتشر فودز 10% إلى توصيل المنصة 17% عبر 6 علامات تجارية و 10 فروع.'}
             </p>
           </div>
           <SmartIngestLink module="sales_delivery" />
@@ -778,19 +782,19 @@ function Workspace() {
           <article className={panelClass}>
             <p className="text-xs text-gray-400">{en ? 'Live Branch Status' : 'حالة البراندات والفروع الآن'}</p>
             <p className="mt-2 text-lg font-bold text-emerald-300">
-              🟢 {kpis.onlineCount} {en ? 'ONLINE (TMP 10%)' : 'متصل (TMP 10%)'}
+              🟢 {kpis.onlineCount} {en ? 'ONLINE (Venture Fleet 10%)' : 'متصل (أسطول فنتشر فودز 10%)'}
             </p>
             <p className="mt-1 text-sm text-red-300">
               🔴 {kpis.offlineCount} {en ? 'FORCED OFFLINE' : 'إغلاق قسري'} · 🟠 {kpis.busyCount} {en ? 'BUSY' : 'مزدحم'}
             </p>
           </article>
           <article className={panelClass}>
-            <p className="text-xs text-gray-400">{en ? 'Talabat TGO 17% vs TMP 10%' : 'رصد TGO 17% مقابل TMP 10%'}</p>
+            <p className="text-xs text-gray-400">{en ? 'Talabat Platform 17% vs Venture Fleet 10%' : 'رصد توصيل المنصة 17% مقابل أسطول فنتشر فودز 10%'}</p>
             <p className="mt-2 text-sm text-gray-200">
-              TMP {safeFixed(num(kpis.tmpOrderShareBps) / 100, 1)}% · TGO {safeFixed(num(kpis.tgoOrderShareBps) / 100, 1)}%
+              {en ? `Venture Fleet ${safeFixed(num(kpis.tmpOrderShareBps) / 100, 1)}% · Platform ${safeFixed(num(kpis.tgoOrderShareBps) / 100, 1)}%` : `أسطول فنتشر فودز ${safeFixed(num(kpis.tmpOrderShareBps) / 100, 1)}% · توصيل المنصة ${safeFixed(num(kpis.tgoOrderShareBps) / 100, 1)}%`}
             </p>
             <p className="mt-2 text-[11px] text-gray-400" dir="ltr">
-              {kpis.mpAccount} MP 10% · {kpis.tgoAccount} Go 17%
+              {en ? `Fleet ID #${kpis.mpAccount} (10%) · Platform ID #${kpis.tgoAccount} (17%)` : `معرف أسطول الشركة #${kpis.mpAccount} (10%) · معرف توصيل المنصة #${kpis.tgoAccount} (17%)`}
             </p>
           </article>
           <article className={panelClass}>
@@ -816,53 +820,57 @@ function Workspace() {
 
       <section className={panelClass}>
         <h2 className="mb-3 font-semibold text-white">
-          {en ? 'Live Forensic Matrix — TMP vs TGO & Offline Tracker' : 'مصفوفة الرصد الجنائي الحي — TMP مقابل TGO وتتبع الإغلاق'}
+          {en ? 'Live Forensic Matrix — Venture Fleet vs Platform & Offline Tracker' : 'مصفوفة الرصد الجنائي الحي — أسطول فنتشر فودز مقابل توصيل المنصة وتتبع الإغلاق'}
         </h2>
         {!board || !Array.isArray(board.rows) || board.rows.length === 0 ? (
           <p className="text-sm text-gray-400">{en ? 'No rows in current scope. Run a scan.' : 'لا صفوف في النطاق الحالي. شغّل فحصاً.'}</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[980px] text-sm text-gray-100">
-              <thead className="text-gray-400">
+            <table className="w-full min-w-[980px] text-sm text-slate-900 dark:text-gray-100">
+              <thead className="border-b border-slate-200 dark:border-white/10 text-slate-500 dark:text-gray-400">
                 <tr>
-                  <th className="px-2 py-2 text-start">{en ? 'Brand' : 'البراند'}</th>
-                  <th className="px-2 py-2 text-start">{en ? 'Branch / Area' : 'الفرع / المنطقة'}</th>
-                  <th className="px-2 py-2 text-start">{en ? 'Platform' : 'المنصة'}</th>
-                  <th className="px-2 py-2 text-start">{en ? 'Live Status' : 'الحالة اللحظية'}</th>
-                  <th className="px-2 py-2 text-start">{en ? 'Active Mode' : 'قناة التوصيل'}</th>
-                  <th className="px-2 py-2 text-start">{en ? 'Offline Period' : 'فترة الإغلاق'}</th>
-                  <th className="px-2 py-2 text-start">{en ? 'Impact KWD' : 'الأثر المالي'}</th>
-                  <th className="px-2 py-2 text-start">{en ? 'Action' : 'إجراء'}</th>
+                  <th className="whitespace-nowrap px-4 py-3 text-start">{en ? 'Brand' : 'البراند'}</th>
+                  <th className="whitespace-nowrap px-4 py-3 text-start">{en ? 'Branch / Area' : 'الفرع / المنطقة'}</th>
+                  <th className="whitespace-nowrap px-4 py-3 text-start">{en ? 'Platform' : 'المنصة'}</th>
+                  <th className="whitespace-nowrap px-4 py-3 text-start">{en ? 'Live Status' : 'الحالة اللحظية'}</th>
+                  <th className="whitespace-nowrap px-4 py-3 text-start">{en ? 'Delivery Channel' : 'قناة التوصيل'}</th>
+                  <th className="whitespace-nowrap px-4 py-3 text-start">{en ? 'Offline Period' : 'فترة الإغلاق'}</th>
+                  <th className="whitespace-nowrap px-4 py-3 text-start">{en ? 'Financial Impact' : 'الأثر المالي'}</th>
+                  <th className="whitespace-nowrap px-4 py-3 text-start">{en ? 'Action' : 'إجراء'}</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-slate-100 dark:divide-white/5">
                 {board.rows.map((row) => {
                   if (!row) return null
                   const status = statusBadge(row.status, en)
-                  const mode = modeBadge(row.mode, en)
+                  const mode = modeBadge(row.mode, en, row.accountCode)
                   const area = en ? row.areaEn : row.areaAr
                   const branch = en ? cleanBranchLabel(row.branchNameEn, row.areaEn) : row.branchNameAr
                   return (
-                    <tr key={row.id} className="border-t border-white/5">
-                      <td className="px-2 py-2 font-semibold">{displayBrandName(row.brandNameEn, row.brandNameAr, locale)}</td>
-                      <td className="px-2 py-2">
-                        <span className="block">{branch}</span>
-                        <span className="text-[11px] text-gray-400">{area}</span>
+                    <tr key={row.id} className="hover:bg-slate-500/5 transition">
+                      <td className="whitespace-nowrap px-4 py-3 font-semibold">{displayBrandName(row.brandNameEn, row.brandNameAr, locale)}</td>
+                      <td className="whitespace-nowrap px-4 py-3">
+                        <span className="block font-medium">{branch}</span>
+                        <span className="text-[11px] text-slate-400 dark:text-gray-400">{area}</span>
                       </td>
-                      <td className="px-2 py-2">{row.platform}</td>
-                      <td className="px-2 py-2">
-                        <span className={`rounded-full px-2 py-0.5 text-[11px] ${status.className}`}>{status.label}</span>
+                      <td className="whitespace-nowrap px-4 py-3 font-medium">{row.platform}</td>
+                      <td className="whitespace-nowrap px-4 py-3">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold whitespace-nowrap ${status.className}`}>{status.label}</span>
                       </td>
-                      <td className="px-2 py-2">
-                        <span className={`rounded-full px-2 py-0.5 text-[11px] ${mode.className}`}>{mode.label}</span>
-                        <span className="mt-1 block text-[10px] text-gray-500" dir="ltr">
-                          {row.accountCode}
-                        </span>
+                      <td className="whitespace-nowrap py-3 px-4 align-middle">
+                        <div className="flex flex-col items-start gap-1 whitespace-nowrap">
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap ${mode.badgeClass}`}>
+                            {mode.badgeLabel}
+                          </span>
+                          <span className={`text-[11px] font-medium pr-1 ${mode.subClass}`}>
+                            {mode.subLabel}
+                          </span>
+                        </div>
                       </td>
-                      <td className="px-2 py-2 text-xs text-gray-300">
+                      <td className="whitespace-nowrap px-4 py-3 text-xs text-slate-600 dark:text-gray-300">
                         {row.offlineMinutes > 0 ? (
                           <>
-                            <span className="block">
+                            <span className="block font-medium">
                               {row.offlineFromIso
                                 ? new Date(row.offlineFromIso).toLocaleTimeString(en ? 'en-GB' : 'ar-KW', {
                                     hour: '2-digit',
@@ -881,23 +889,23 @@ function Workspace() {
                                   })
                                 : '—'}
                             </span>
-                            <span className="text-amber-200">
+                            <span className="text-amber-600 dark:text-amber-300 font-bold">
                               {en ? `Duration: ${row.offlineMinutes} min` : `المدة: ${row.offlineMinutes} دقيقة`}
                             </span>
                           </>
                         ) : (
-                          <span className="text-gray-500">{en ? 'No offline window' : 'لا فترة إغلاق'}</span>
+                          <span className="text-slate-400 dark:text-gray-500">{en ? 'No offline window' : 'لا فترة إغلاق'}</span>
                         )}
                       </td>
-                      <td className="px-2 py-2 font-semibold text-gold-300">{formatKwdMinor(row.financialImpactMinor, locale)}</td>
-                      <td className="px-2 py-2">
+                      <td className="whitespace-nowrap px-4 py-3 font-semibold text-amber-600 dark:text-gold-300">{formatKwdMinor(row.financialImpactMinor, locale)}</td>
+                      <td className="whitespace-nowrap px-4 py-3">
                         <button
                           type="button"
                           className={secondaryButton}
                           disabled={!canManage || busy}
                           onClick={() => void runScan()}
                         >
-                          {en ? '⚡ Reopen TMP 10% + log' : '⚡ إعادة فتح TMP 10% + توثيق'}
+                          {en ? '⚡ Reopen Venture Fleet 10% + log' : '⚡ إعادة فتح أسطول الشركة 10% + توثيق'}
                         </button>
                       </td>
                     </tr>
@@ -944,11 +952,11 @@ function Workspace() {
                 <p className="mt-1 text-xl font-bold">{board.report.totalOfflineMinutes}</p>
               </article>
               <article className="rounded-xl border border-white/10 p-3">
-                <p className="text-gray-400">TMP GMV</p>
+                <p className="text-gray-400">{en ? 'Venture Fleet GMV (10%)' : 'مبيعات أسطول فنتشر فودز (10%)'}</p>
                 <p className="mt-1 text-xl font-bold text-emerald-300">{formatKwdMinor(board.report.tmpGmvMinor, locale)}</p>
               </article>
               <article className="rounded-xl border border-white/10 p-3">
-                <p className="text-gray-400">TGO GMV</p>
+                <p className="text-gray-400">{en ? 'Platform Fleet GMV (17%)' : 'مبيعات توصيل المنصة (17%)'}</p>
                 <p className="mt-1 text-xl font-bold text-red-300">{formatKwdMinor(board.report.tgoGmvMinor, locale)}</p>
               </article>
               <article className="rounded-xl border border-white/10 p-3">
@@ -991,7 +999,7 @@ function Workspace() {
                         {en ? 'Offline' : 'إغلاق'}: {num(slot?.offlineMinutes)}m
                       </p>
                       <p>
-                        TGO: {num(slot?.tgoForcedCount)} · {formatKwdMinor(slot?.impactMinor, locale)}
+                        {en ? `Platform Fleet (17%): ${num(slot?.tgoForcedCount)} · ${formatKwdMinor(slot?.impactMinor, locale)}` : `توصيل المنصة (17%): ${num(slot?.tgoForcedCount)} · ${formatKwdMinor(slot?.impactMinor, locale)}`}
                       </p>
                     </div>
                   ))}
@@ -1007,7 +1015,7 @@ function Workspace() {
                     <li key={day?.dayLabel ?? idx} className="rounded-lg border border-white/10 px-3 py-2 text-xs">
                       <p className="font-semibold text-gold-200">{day?.dayLabel ?? '—'}</p>
                       <p>
-                        {en ? 'Offline' : 'إغلاق'}: {num(day?.offlineMinutes)}m · TGO {num(day?.tgoForcedCount)}
+                        {en ? `Offline: ${num(day?.offlineMinutes)}m · Platform: ${num(day?.tgoForcedCount)}` : `إغلاق: ${num(day?.offlineMinutes)} دقيقة · توصيل المنصة: ${num(day?.tgoForcedCount)}`}
                       </p>
                       <p>{formatKwdMinor(day?.impactMinor, locale)}</p>
                     </li>

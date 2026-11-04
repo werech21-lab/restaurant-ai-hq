@@ -517,7 +517,7 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
             {kpis.totalLostSalesKwd.toFixed(3)} {isEn ? 'KWD' : 'د.ك'}
           </div>
           <div className="mt-1 text-xs text-amber-400/70">
-            {isEn ? 'Forced TGO 17% & Zone Blackouts' : 'بسبب تحويل TGO 17% والإغلاق الجغرافي'}
+            {isEn ? 'Platform Fleet 17% & Zone Blackouts' : 'بسبب تحويل توصيل المنصة 17% والإغلاق الجغرافي'}
           </div>
         </div>
       </div>
@@ -575,7 +575,7 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
               <option value="online">{isEn ? '🟢 Online & Visible' : '🟢 متاح ونشط'}</option>
               <option value="busy">{isEn ? '🟡 Busy in Area' : '🟡 مشغول بالمنطقة'}</option>
               <option value="hidden">{isEn ? '🔴 Closed / Hidden' : '🔴 محجوب / مقطوع'}</option>
-              <option value="forced_tgo">{isEn ? '🟠 Forced TGO 17%' : '🟠 تحويل TGO 17%'}</option>
+              <option value="forced_tgo">{isEn ? '🚨 Forced Platform Fleet 17%' : '🚨 تحويل توصيل المنصة 17%'}</option>
             </select>
           </div>
         </div>
@@ -625,11 +625,11 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
                     <span>
                       {branch.assignedFleetType === 'TALABAT_GO_17'
                         ? isEn
-                          ? 'Talabat Go Fleet (TGO 17%)'
-                          : 'أسطول طلبات جو (TGO 17%)'
+                          ? 'Talabat Go Fleet (17%)'
+                          : 'أسطول توصيل المنصة (17%)'
                         : isEn
-                          ? 'Hybrid Fleet (TMP 10% / TGO 17%)'
-                          : 'أسطول هجين (TMP 10% / TGO 17%)'}
+                          ? 'Hybrid Fleet (Company 10% / Platform 17%)'
+                          : 'أسطول هجين (أسطول فنتشر فودز 10% / توصيل المنصة 17%)'}
                     </span>
                     <span>•</span>
                     <span className={branch.tabletOnline ? 'text-emerald-400' : 'text-red-400'}>
@@ -690,8 +690,8 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
                       badgeBg = 'border-red-500/40 bg-red-950/30 text-red-300'
                       statusLabel = isEn ? '🔴 Hidden / Zone Cut' : '🔴 محجوب / مقطوع'
                     } else if (zone.status === 'FORCED_TGO_17') {
-                      badgeBg = 'border-orange-500/40 bg-orange-950/30 text-orange-300'
-                      statusLabel = isEn ? '🟠 Forced TGO 17%' : '🟠 تحويل TGO 17%'
+                      badgeBg = 'border-rose-300 bg-rose-50 text-rose-800 dark:border-rose-700/60 dark:bg-rose-950/70 dark:text-rose-300'
+                      statusLabel = isEn ? '🚨 Forced Platform Fleet 17%' : '🚨 تحويل توصيل المنصة 17%'
                     }
 
                     return (
@@ -801,8 +801,8 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
                   badgeClass = 'text-red-400'
                   badgeText = isEn ? '🔴 Hidden / Zone Cut' : '🔴 محجوب / مقطوع'
                 } else if (inc.status === 'FORCED_TGO_17') {
-                  badgeClass = 'text-orange-400'
-                  badgeText = isEn ? '🟠 Forced TGO 17%' : '🟠 تحويل TGO 17%'
+                  badgeClass = 'text-rose-600 dark:text-rose-400'
+                  badgeText = isEn ? '🚨 Forced Platform Fleet 17%' : '🚨 تحويل توصيل المنصة 17%'
                 }
 
                 return (
@@ -1082,8 +1082,8 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
                   <div className="flex justify-between">
                     <span>
                       {isEn
-                        ? '• Forced TGO Commission Difference (17% vs 10% TMP):'
-                        : '• فروقات عمولة إجبارية (17% بدلاً من 10% TMP):'}
+                        ? '• Forced Platform Commission Difference (17% vs 10% Venture Fleet):'
+                        : '• فروقات عمولة إجبارية (17% توصيل المنصة بدلاً من 10% أسطول فنتشر فودز):'}
                     </span>
                     <span className="font-mono font-bold text-orange-400">
                       {kpis.totalTgoPenaltiesKwd.toFixed(3)} {isEn ? 'KWD' : 'د.ك'}
