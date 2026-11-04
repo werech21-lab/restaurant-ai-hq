@@ -13,7 +13,7 @@ import { VenturePosHub } from '@/components/pos/VenturePosHub'
 
 export const metadata = {
   title: 'كاشير ونقاط البيع الميدانية | Venture Foods W.L.L. · AetherBI',
-  description: 'نظام نقاط البيع، إغلاق الوردية الأعمى Z-Report، وتسوية K-Net وNBK لشركة فنتشر فودز لإدارة المطاعم ذ.م.م.',
+  description: 'نظام نقاط البيع الموحد، إغلاق الوردية الأعمى ومطابقة الصندوق، وتسوية الدفع الإلكتروني والبنكي لشركة فنتشر فودز لإدارة المطاعم ذ.م.م.',
 }
 export const dynamic = 'force-dynamic'
 

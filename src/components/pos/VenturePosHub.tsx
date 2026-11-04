@@ -72,26 +72,188 @@ export const POS_CATALOG: MenuItem[] = [
 ]
 
 export const ORDER_CHANNELS = [
-  { id: 'DINE_IN', labelAr: 'محلي (صالة)', labelEn: 'Dine-In', commissionRate: 0.0, packagingReq: false, badgeColor: 'bg-emerald-500/20 text-emerald-400' },
-  { id: 'TAKEAWAY', labelAr: 'سفري', labelEn: 'Takeaway', commissionRate: 0.0, packagingReq: true, badgeColor: 'bg-blue-500/20 text-blue-400' },
-  { id: 'TMP_10', labelAr: 'توصيل خاص (10%)', labelEn: 'Talabat TMP (10%)', commissionRate: 0.10, packagingReq: true, badgeColor: 'bg-amber-500/20 text-amber-400' },
-  { id: 'TGO_17', labelAr: 'طلبات (17%)', labelEn: 'Talabat GO (17%)', commissionRate: 0.17, packagingReq: true, badgeColor: 'bg-orange-500/20 text-orange-400' },
-  { id: 'KEETA', labelAr: 'كيتا (12%)', labelEn: 'Keeta (12%)', commissionRate: 0.12, packagingReq: true, badgeColor: 'bg-yellow-500/20 text-yellow-400' },
-  { id: 'DELIVEROO', labelAr: 'دليفرو (18%)', labelEn: 'Deliveroo (18%)', commissionRate: 0.18, packagingReq: true, badgeColor: 'bg-teal-500/20 text-teal-400' },
-  { id: 'JAHEZ', labelAr: 'جاهز (15%)', labelEn: 'Jahez (15%)', commissionRate: 0.15, packagingReq: true, badgeColor: 'bg-red-500/20 text-red-400' },
-  { id: 'STAFF_0KD', labelAr: '🍽️ وجبة موظف (برقم البصمة - حساب 5230)', labelEn: 'Staff Meal (0 KD)', commissionRate: 0.0, isStaffMeal: true, packagingReq: false, badgeColor: 'bg-purple-500/20 text-purple-400' },
+  {
+    id: 'TAKEAWAY',
+    labelAr: 'سفري / استلام كاونتر',
+    labelEn: 'Takeaway / Counter Pickup',
+    subLabelAr: 'مباشر 0% عمولة',
+    subLabelEn: 'Direct 0% Commission',
+    commissionRate: 0.0,
+    packagingReq: true,
+    badgeColor: 'bg-blue-500/20 text-blue-400',
+  },
+  {
+    id: 'DINE_IN',
+    labelAr: 'طلب محلي بالفرع',
+    labelEn: 'Dine-In / Store Order',
+    subLabelAr: 'مباشر 0% عمولة',
+    subLabelEn: 'Direct 0% Commission',
+    commissionRate: 0.0,
+    packagingReq: false,
+    badgeColor: 'bg-emerald-500/20 text-emerald-400',
+  },
+  {
+    id: 'TMP_10',
+    labelAr: 'توصيل أسطول الشركة (10%)',
+    labelEn: 'Talabat TMP Fleet (10%)',
+    subLabelAr: 'طلبات توصيل خاص',
+    subLabelEn: 'Talabat TMP Fleet',
+    commissionRate: 0.10,
+    packagingReq: true,
+    badgeColor: 'bg-amber-500/20 text-amber-400',
+  },
+  {
+    id: 'TGO_17',
+    labelAr: 'منصة طلبات (17%)',
+    labelEn: 'Talabat GO (17%)',
+    subLabelAr: 'توصيل أسطول طلبات',
+    subLabelEn: 'Talabat Fleet Delivery',
+    commissionRate: 0.17,
+    packagingReq: true,
+    badgeColor: 'bg-orange-500/20 text-orange-400',
+  },
+  {
+    id: 'KEETA',
+    labelAr: 'منصة كيتا (12%)',
+    labelEn: 'Keeta (12%)',
+    subLabelAr: 'عمولة المنصة 12%',
+    subLabelEn: 'Platform Fee 12%',
+    commissionRate: 0.12,
+    packagingReq: true,
+    badgeColor: 'bg-yellow-500/20 text-yellow-400',
+  },
+  {
+    id: 'DELIVEROO',
+    labelAr: 'منصة ديليفرو (18%)',
+    labelEn: 'Deliveroo (18%)',
+    subLabelAr: 'عمولة المنصة 18%',
+    subLabelEn: 'Platform Fee 18%',
+    commissionRate: 0.18,
+    packagingReq: true,
+    badgeColor: 'bg-teal-500/20 text-teal-400',
+  },
+  {
+    id: 'JAHEZ',
+    labelAr: 'منصة جاهز (15%)',
+    labelEn: 'Jahez (15%)',
+    subLabelAr: 'عمولة المنصة 15%',
+    subLabelEn: 'Platform Fee 15%',
+    commissionRate: 0.15,
+    packagingReq: true,
+    badgeColor: 'bg-red-500/20 text-red-400',
+  },
+  {
+    id: 'STAFF_0KD',
+    labelAr: 'وجبة موظف معتمدة (0 د.ك)',
+    labelEn: 'Staff Meal (0 KD)',
+    subLabelAr: 'ترحل لحساب 5230 بسعر التكلفة',
+    subLabelEn: 'GL Account 5230 at Cost',
+    commissionRate: 0.0,
+    isStaffMeal: true,
+    packagingReq: false,
+    badgeColor: 'bg-purple-500/20 text-purple-400',
+  },
 ]
+
+export interface BranchStaffMember {
+  id: string
+  nameAr: string
+  nameEn: string
+  roleAr: string
+  roleEn: string
+}
+
+export interface BranchStaffInfo {
+  fullLabelAr: string
+  fullLabelEn: string
+  staffList: BranchStaffMember[]
+}
+
+export const BRANCH_STAFF_MAP: Record<string, BranchStaffInfo> = {
+  AVENUES: {
+    fullLabelAr: 'المشرف المناوب: إجير ريان بالاتان (#2039) · الكاشير: آنا كاثرين (#1974)',
+    fullLabelEn: 'Duty Supervisor: Ejeir Ryan Palatan (#2039) · Cashier: Anna Katherine (#1974)',
+    staffList: [
+      { id: '2039', nameAr: 'المشرف المناوب: إجير ريان بالاتان (#2039)', nameEn: 'Duty Supervisor: Ejeir Ryan Palatan (#2039)', roleAr: 'مشرف مناوب', roleEn: 'Duty Supervisor' },
+      { id: '1974', nameAr: 'الكاشير: آنا كاثرين (#1974)', nameEn: 'Cashier: Anna Katherine (#1974)', roleAr: 'كاشير الفرع', roleEn: 'Branch Cashier' },
+    ],
+  },
+  SALMIYA: {
+    fullLabelAr: 'المشرفة المناوبة: عصمت أحمد عبد الرزاق (#1508) · الكاشير: ديلشان (#2001)',
+    fullLabelEn: 'Duty Supervisor: Ismat Ahmed Abdelrazzaq (#1508) · Cashier: Dilshan (#2001)',
+    staffList: [
+      { id: '1508', nameAr: 'المشرفة المناوبة: عصمت أحمد عبد الرزاق (#1508)', nameEn: 'Duty Supervisor: Ismat Ahmed Abdelrazzaq (#1508)', roleAr: 'مشرفة مناوبة', roleEn: 'Duty Supervisor' },
+      { id: '2001', nameAr: 'الكاشير: ديلشان (#2001)', nameEn: 'Cashier: Dilshan (#2001)', roleAr: 'كاشير الفرع', roleEn: 'Branch Cashier' },
+    ],
+  },
+  HAWALLI: {
+    fullLabelAr: 'المشرفة المناوبة: دونا ماري أفيلا (#2028)',
+    fullLabelEn: 'Duty Supervisor: Donna Marie Avila (#2028)',
+    staffList: [
+      { id: '2028', nameAr: 'المشرفة المناوبة: دونا ماري أفيلا (#2028)', nameEn: 'Duty Supervisor: Donna Marie Avila (#2028)', roleAr: 'مشرفة مناوبة', roleEn: 'Duty Supervisor' },
+    ],
+  },
+  SHUWAIKH: {
+    fullLabelAr: 'مدير الفرع المناوب: جيري تيلاديرو (#1300)',
+    fullLabelEn: 'Duty Branch Manager: Jerry Tilladero (#1300)',
+    staffList: [
+      { id: '1300', nameAr: 'مدير الفرع المناوب: جيري تيلاديرو (#1300)', nameEn: 'Duty Branch Manager: Jerry Tilladero (#1300)', roleAr: 'مدير فرع مناوب', roleEn: 'Duty Branch Manager' },
+    ],
+  },
+  KHIRAN: {
+    fullLabelAr: 'المشرفة المناوبة: كريستينا هيرنانديز (#2088)',
+    fullLabelEn: 'Duty Supervisor: Christina Hernandez (#2088)',
+    staffList: [
+      { id: '2088', nameAr: 'المشرفة المناوبة: كريستينا هيرنانديز (#2088)', nameEn: 'Duty Supervisor: Christina Hernandez (#2088)', roleAr: 'مشرفة مناوبة', roleEn: 'Duty Supervisor' },
+    ],
+  },
+  JABRIYA: {
+    fullLabelAr: 'المشرف المناوب: بايجو كونومال (#1973)',
+    fullLabelEn: 'Duty Supervisor: Baiju Kunnummal (#1973)',
+    staffList: [
+      { id: '1973', nameAr: 'المشرف المناوب: بايجو كونومال (#1973)', nameEn: 'Duty Supervisor: Baiju Kunnummal (#1973)', roleAr: 'مشرف مناوب', roleEn: 'Duty Supervisor' },
+    ],
+  },
+  ARDHIYA: {
+    fullLabelAr: 'المشرف المناوب: ديليرام أدهيكاري (#1954)',
+    fullLabelEn: 'Duty Supervisor: Diliram Adhikari (#1954)',
+    staffList: [
+      { id: '1954', nameAr: 'المشرف المناوب: ديليرام أدهيكاري (#1954)', nameEn: 'Duty Supervisor: Diliram Adhikari (#1954)', roleAr: 'مشرف مناوب', roleEn: 'Duty Supervisor' },
+    ],
+  },
+  QURAIN_CK: {
+    fullLabelAr: 'مسؤول الفرع: بابو تشاند رانا (#1279)',
+    fullLabelEn: 'Branch In-Charge: Babu Chand Rana (#1279)',
+    staffList: [
+      { id: '1279', nameAr: 'مسؤول الفرع: بابو تشاند رانا (#1279)', nameEn: 'Branch In-Charge: Babu Chand Rana (#1279)', roleAr: 'مسؤول الفرع', roleEn: 'Branch In-Charge' },
+    ],
+  },
+  MAHBOULA: {
+    fullLabelAr: 'مشرف الفرع: طاقم العمليات الميداني (#2012)',
+    fullLabelEn: 'Branch Supervisor: Field Operations (#2012)',
+    staffList: [
+      { id: '2012', nameAr: 'مشرف الفرع: طاقم العمليات الميداني (#2012)', nameEn: 'Branch Supervisor: Field Operations (#2012)', roleAr: 'مشرف فرع', roleEn: 'Branch Supervisor' },
+    ],
+  },
+  SABAH_SALEM: {
+    fullLabelAr: 'مشرف الفرع: طاقم العمليات الميداني (#2015)',
+    fullLabelEn: 'Branch Supervisor: Field Operations (#2015)',
+    staffList: [
+      { id: '2015', nameAr: 'مشرف الفرع: طاقم العمليات الميداني (#2015)', nameEn: 'Branch Supervisor: Field Operations (#2015)', roleAr: 'مشرف فرع', roleEn: 'Branch Supervisor' },
+    ],
+  },
+}
 
 export const BRANCH_OPTIONS = [
   { id: 'AVENUES', nameAr: 'فرع مجمع الأفنيوز', nameEn: 'The Avenues Mall', code: 'BR-AV' },
-  { id: 'KHIRAN', nameAr: 'فرع الخيران أوتلت', nameEn: 'Al-Khiran Outlet', code: 'BR-KH' },
   { id: 'SALMIYA', nameAr: 'فرع السالمية شارع سالم المبارك', nameEn: 'Salmiya Salem Al-Mubarak', code: 'BR-SL' },
-  { id: 'JABRIYA', nameAr: 'فرع الجابرية', nameEn: 'Jabriya Branch', code: 'BR-JB' },
-  { id: 'QURAIN_CK', nameAr: 'المطبخ المركزي بالقرين', nameEn: 'Al-Qurain Central Kitchen', code: 'BR-CK' },
-  { id: 'HAWALLI', nameAr: 'فرع حولي كيتشن', nameEn: 'Hawalli Cloud Kitchen', code: 'BR-HW' },
-  { id: 'SHUWAIKH', nameAr: 'فرع الشويخ الصناعية', nameEn: 'Shuwaikh Industrial', code: 'BR-SW' },
-  { id: 'MAHBOULA', nameAr: 'فرع المهبولة الساحلي', nameEn: 'Mahboula Coastal', code: 'BR-MH' },
+  { id: 'HAWALLI', nameAr: 'فرع بروميناد حولي', nameEn: 'Hawalli Promenade', code: 'BR-HW' },
+  { id: 'SHUWAIKH', nameAr: 'فرع 360 مول والشويخ', nameEn: '360 Mall & Shuwaikh', code: 'BR-SW' },
+  { id: 'KHIRAN', nameAr: 'فرع الكوت مول والخيران أوتلت', nameEn: 'Al Kout Mall & Khiran', code: 'BR-KH' },
+  { id: 'JABRIYA', nameAr: 'فرع العاصمة مول والجابرية', nameEn: 'Al Asimah Mall & Jabriya', code: 'BR-JB' },
   { id: 'ARDHIYA', nameAr: 'فرع العارضية الحرفية', nameEn: 'Ardhiya Craft Area', code: 'BR-AR' },
+  { id: 'QURAIN_CK', nameAr: 'فرع أسواق القرين / المطبخ المركزي', nameEn: 'Aswaq Al-Qurain / Central Kitchen', code: 'BR-CK' },
+  { id: 'MAHBOULA', nameAr: 'فرع المهبولة الساحلي', nameEn: 'Mahboula Coastal', code: 'BR-MH' },
   { id: 'SABAH_SALEM', nameAr: 'فرع صباح السالم', nameEn: 'Sabah Al-Salem Branch', code: 'BR-SS' },
 ]
 
@@ -111,7 +273,8 @@ export function VenturePosHub({
   const [selectedBrand, setSelectedBrand] = useState('ALL')
   const [selectedCategory, setSelectedCategory] = useState('ALL')
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedChannel, setSelectedChannel] = useState('DINE_IN')
+  const [selectedChannel, setSelectedChannel] = useState('TAKEAWAY')
+  const [selectedCashier, setSelectedCashier] = useState<string>('AUTO')
 
   // Cart State
   const [cart, setCart] = useState<Array<{ item: MenuItem; qty: number }>>([
@@ -134,6 +297,19 @@ export function VenturePosHub({
   const [safeDropBagNo, setSafeDropBagNo] = useState('BG-2026-9042')
   const [pettyExpenseAmount, setPettyExpenseAmount] = useState('3.500')
   const [pettyExpenseReason, setPettyExpenseReason] = useState('شراء كيس ثلج طارئ ونعناع طازج')
+
+    const currentBranchStaff = BRANCH_STAFF_MAP[selectedBranch] || BRANCH_STAFF_MAP.AVENUES
+  let activeStaffDisplay = isAr ? currentBranchStaff.fullLabelAr : currentBranchStaff.fullLabelEn
+  if (selectedCashier === 'AWAIRA_2049') {
+    activeStaffDisplay = isAr
+      ? 'المشرف العام: عبد الله عبد الغفار عويره (#2049 — الإدارة التنفيذية)'
+      : 'Executive Supervisor: Abdullah Awaira (#2049 — Executive Mgmt)'
+  } else if (selectedCashier !== 'AUTO') {
+    const found = currentBranchStaff.staffList.find((s) => s.id === selectedCashier)
+    if (found) {
+      activeStaffDisplay = isAr ? found.nameAr : found.nameEn
+    }
+  }
 
   const currentChannelObj = ORDER_CHANNELS.find((c) => c.id === selectedChannel) || ORDER_CHANNELS[0]
 
@@ -204,22 +380,41 @@ export function VenturePosHub({
       {/* Top Header Bar */}
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-5">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-400">
               <Monitor size={14} />
               {isAr ? 'منظومة نقاط البيع والرقابة المالية الميدانية' : 'Enterprise Multi-Brand POS & Field Control'}
             </span>
-            <span className="rounded-full bg-slate-800 px-2.5 py-0.5 text-xs text-slate-400">
-              {isAr ? 'شفت الكاشير #104 · محمد العتيبي' : 'Cashier Shift #104 · Mohammed Al-Otaibi'}
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-500/30 bg-indigo-950/60 px-3 py-1 text-xs font-bold text-indigo-300">
+              <UserCheck size={13} className="text-indigo-400" />
+              <span>{activeStaffDisplay}</span>
             </span>
+            <select
+              value={selectedCashier}
+              onChange={(e) => setSelectedCashier(e.target.value)}
+              aria-label={isAr ? 'اختيار الكاشير أو المشرف' : 'Select Cashier or Supervisor'}
+              className="rounded-xl border border-slate-700 bg-slate-900/90 px-2.5 py-1 text-[11px] font-bold text-slate-300 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            >
+              <option value="AUTO">
+                {isAr ? 'تلقائي: طاقم الفرع المناوب' : 'Auto: Duty Branch Staff'}
+              </option>
+              {currentBranchStaff.staffList.map((st) => (
+                <option key={st.id} value={st.id}>
+                  {isAr ? st.nameAr : st.nameEn}
+                </option>
+              ))}
+              <option value="AWAIRA_2049">
+                {isAr ? 'عبد الله عبد الغفار عويره (#2049 — الإدارة التنفيذية)' : 'Abdullah Awaira (#2049 — Executive Mgmt)'}
+              </option>
+            </select>
           </div>
-          <h1 className="mt-1 text-2xl font-black text-white sm:text-3xl">
+          <h1 className="mt-2 text-2xl font-black text-white sm:text-3xl tracking-tight">
             {isAr ? 'مركز عمليات الكاشير والضبط المالي بالفرع' : 'Branch POS Terminal & Internal Financial Control'}
           </h1>
-          <p className="text-xs text-slate-400">
+          <p className="mt-2 text-xs leading-relaxed text-slate-400 max-w-4xl">
             {isAr
-              ? 'البيع متعدد البراندات والقنوات، إغلاق الوردية الأعمى ومطابقة الصندوق، تسويات الدفع الإلكتروني والبنكي، ورقابة الإلغاءات والهدر'
-              : 'Multi-brand terminal, blind shift close, NBK/K-Net reconciliations, and automated GL bridge'}
+              ? 'نظام نقاط البيع الموحد للعلامات التجارية الست، إغلاق الوردية الأعمى ومطابقة الصندوق، تسوية كي نت والبنوك، ورقابة الهدر والإلغاءات'
+              : 'Unified POS system for all 6 brands, blind shift close & cash reconciliation, K-Net & bank settlement, and waste & void control'}
           </p>
         </div>
 
@@ -230,12 +425,15 @@ export function VenturePosHub({
             className="flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-bold text-slate-200 hover:border-emerald-500/50 hover:bg-slate-800 transition-all shadow-sm"
           >
             <span>🏠</span>
-            <span>{isAr ? 'لوحة القيادة' : 'Dashboard'}</span>
+            <span>{isAr ? 'العودة للوحة القيادة' : 'Back to Dashboard'}</span>
           </a>
 
           <select
             value={selectedBranch}
-            onChange={(e) => setSelectedBranch(e.target.value)}
+            onChange={(e) => {
+              setSelectedBranch(e.target.value)
+              setSelectedCashier('AUTO')
+            }}
             className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-bold text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
           >
             {BRANCH_OPTIONS.map((b) => (
@@ -251,7 +449,7 @@ export function VenturePosHub({
             onClick={() => setCurrentLocale(isAr ? 'en' : 'ar')}
             className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700 transition-all"
           >
-            {isAr ? 'English (LTR)' : 'عربي (RTL)'}
+            {isAr ? 'EN | عربي' : 'عربي | EN'}
           </button>
         </div>
       </div>
@@ -267,16 +465,16 @@ export function VenturePosHub({
         </div>
       )}
 
-                  {/* 6 Specialized POS Control Units Tabs */}
+      {/* 7 Specialized POS Control Units Tabs */}
       <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-800 pb-3">
         {[
-          { key: 'terminal', labelAr: '🖥️ شاشة الكاشير متعددة البراندات', labelEn: 'Multi-Brand POS Terminal', icon: Monitor },
+          { key: 'terminal', labelAr: '🖥️ شاشة الكاشير متعددة العلامات', labelEn: 'Multi-Brand POS Terminal', icon: Monitor },
           { key: 'zReport', labelAr: '🔒 إغلاق الوردية الأعمى ومطابقة الصندوق', labelEn: 'Blind Shift Close & Reconciliation', icon: Lock },
-          { key: 'tender', labelAr: '💳 تسوية طرق الدفع وعمولات البنوك والمنصات', labelEn: 'Tender Split & NBK Recon', icon: CreditCard },
-          { key: 'voids', labelAr: '🛡️ رقابة الخصومات، الإلغاءات، وتدقيق العمليات', labelEn: 'Voids, Refunds & Audit', icon: ShieldAlert },
+          { key: 'tender', labelAr: '💳 تسوية طرق الدفع وعمولات البنوك والمنصات', labelEn: 'Tender Split & Platform Reconciliation', icon: CreditCard },
+          { key: 'voids', labelAr: '🛡️ رقابة الخصومات، الإلغاءات، ووجبات الموظفين', labelEn: 'Discounts, Voids & Staff Meals Control', icon: ShieldAlert },
           { key: 'safeDrop', labelAr: '💵 إيداعات الخزنة والمصروفات النثرية بالفرع', labelEn: 'Safe Drops & Branch Petty Cash', icon: Wallet },
-          { key: 'glBridge', labelAr: '🔗 القيد المالي والقيود التلقائية الرباعية', labelEn: 'Automated 4D Financial GL Bridge', icon: ArrowRightLeft },
-          ...(liveChildren ? [{ key: 'legacy', labelAr: '⚙️ محرك قاعدة البيانات', labelEn: 'Database POS Engine', icon: Building2 }] : []),
+          { key: 'glBridge', labelAr: '🔗 الربط المالي والقيود التلقائية الرباعية', labelEn: 'Automated 4D Financial Bridge', icon: ArrowRightLeft },
+          ...(liveChildren ? [{ key: 'legacy', labelAr: '⚙️ حالة الاتصال وقاعدة البيانات المحلية', labelEn: 'Local Engine & Connection Status', icon: Building2 }] : []),
         ].map((tab) => {
           const Icon = tab.icon
           const active = activeTab === tab.key
@@ -299,11 +497,6 @@ export function VenturePosHub({
 
       {/* TAB 1: Multi-Brand POS Terminal */}
       {activeTab === 'terminal' && (
-        liveChildren ? (
-          <div className="rounded-2xl border border-slate-800/80 overflow-hidden shadow-2xl">
-            {liveChildren}
-          </div>
-        ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Catalog & Filter Section (8 cols) */}
           <div className="lg:col-span-8 space-y-4">
@@ -330,11 +523,7 @@ export function VenturePosHub({
                     >
                       <span className="font-bold">{isAr ? ch.labelAr : ch.labelEn}</span>
                       <span className="text-[10px] text-slate-400 mt-0.5">
-                        {ch.commissionRate > 0
-                          ? isAr ? `عمولة ${(ch.commissionRate * 100).toFixed(0)}%` : `${(ch.commissionRate * 100).toFixed(0)}% Aggregator Fee`
-                          : ch.isStaffMeal
-                          ? isAr ? 'وجبة مجانية معتمدة' : 'Authorized 100% Discount'
-                          : isAr ? 'مباشر 0% عمولة' : 'Direct 0% Commission'}
+                        {isAr ? ch.subLabelAr : ch.subLabelEn}
                       </span>
                     </button>
                   )
@@ -445,7 +634,7 @@ export function VenturePosHub({
                         {isAr ? currentChannelObj.labelAr : currentChannelObj.labelEn}
                       </span>
                       <span className="text-[10px] text-slate-400">
-                        {isAr ? 'طاولة #08' : 'Table #08'}
+                        {isAr ? 'رقم الطلب الندائي: #108' : 'Calling Order: #108'}
                       </span>
                     </div>
                   </div>
@@ -527,7 +716,7 @@ export function VenturePosHub({
                         onClick={() => {
                           if (staffMealPin === '4412' || staffMealPin.length >= 4) {
                             setStaffMealAuthorized(true)
-                            setNotice(isAr ? 'تم اعتماد وجبة الموظف المجانية ومطابقة حساب المصروف 502010' : 'Staff meal authorized under GL 502010')
+                            setNotice(isAr ? 'تم اعتماد وجبة الموظف المجانية ومطابقة حساب المصروف 5230' : 'Staff meal authorized under GL 5230')
                           }
                         }}
                         className="rounded-lg bg-purple-600 px-2.5 py-1 text-xs font-bold text-white hover:bg-purple-500"
@@ -576,7 +765,7 @@ export function VenturePosHub({
                     className="flex items-center justify-center gap-1.5 rounded-xl bg-emerald-500 py-3 text-xs font-bold text-black hover:bg-emerald-400 transition-all shadow-lg shadow-emerald-500/10 disabled:opacity-50"
                   >
                     <Send size={14} />
-                    {isAr ? 'إرسال فوري لشاشة المطبخ' : 'Send to Kitchen (KDS)'}
+                    {isAr ? 'إرسال فوري لشاشة المطبخ' : 'Send to Kitchen'}
                   </button>
 
                   <button
@@ -615,7 +804,6 @@ export function VenturePosHub({
             </div>
           </div>
         </div>
-        )
       )}
 
       {/* TAB 2: Blind Shift Close & Z-Report Reconciliation */}
@@ -630,7 +818,7 @@ export function VenturePosHub({
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">
                   {isAr
-                    ? 'يدخل الكاشير النقد الفعلي المعدود ومجاميع إيصالات K-Net والفيزا دون رؤية مبيعات النظام، لمنع التلاعب وكشف العجز أو الزيادة آلياً'
+                    ? 'يدخل الكاشير النقد الفعلي المعدود ومجاميع إيصالات أجهزة كي نت والبطاقات دون رؤية مبيعات النظام، لمنع التلاعب وكشف العجز أو الزيادة آلياً'
                     : 'Cashier counts actual cash & terminal slips blind without seeing book totals to audit cash variance accurately'}
                 </p>
               </div>
@@ -645,7 +833,7 @@ export function VenturePosHub({
               <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-4 space-y-2">
                 <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
                   <Coins size={15} className="text-emerald-400" />
-                  {isAr ? 'النقد الفعلي المعدود بالدرج (Actual Cash KWD)' : 'Actual Cash Count in Drawer (KWD)'}
+                  {isAr ? 'النقد الفعلي المعدود بالدرج (د.ك)' : 'Actual Cash Count in Drawer (KWD)'}
                 </label>
                 <input
                   type="text"
@@ -662,7 +850,7 @@ export function VenturePosHub({
               <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-4 space-y-2">
                 <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
                   <CreditCard size={15} className="text-blue-400" />
-                  {isAr ? 'مجموع إيصالات أجهزة كي نت (K-Net Batches)' : 'K-Net Terminal Settlement Total (KWD)'}
+                  {isAr ? 'مجموع إيصالات أجهزة كي نت الميدانية (د.ك)' : 'K-Net Terminal Settlement Total (KWD)'}
                 </label>
                 <input
                   type="text"
@@ -671,7 +859,7 @@ export function VenturePosHub({
                   className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3.5 py-2.5 font-mono text-sm font-bold text-blue-400 focus:outline-none focus:border-blue-500"
                 />
                 <p className="text-[11px] text-slate-500">
-                  {isAr ? 'تقرير التسوية من جهاز نقاط البيع البنكي POS' : 'Batch close slip from bank terminal'}
+                  {isAr ? 'تقرير التسوية من جهاز نقاط البيع البنكي' : 'Batch close slip from bank terminal'}
                 </p>
               </div>
 
@@ -679,7 +867,7 @@ export function VenturePosHub({
               <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-4 space-y-2">
                 <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
                   <CreditCard size={15} className="text-purple-400" />
-                  {isAr ? 'مجموع البطاقات الائتمانية (Visa / MC)' : 'Credit Card Settlement Total (KWD)'}
+                  {isAr ? 'مجموع البطاقات الائتمانية (د.ك)' : 'Credit Card Settlement Total (KWD)'}
                 </label>
                 <input
                   type="text"
@@ -708,14 +896,14 @@ export function VenturePosHub({
                   onClick={() => {
                     setNotice(
                       isAr
-                        ? 'تم اعتماد إغلاق الوردية رسمياً، وتوليد القيد المحاسبي اليومي الآلي وترحيله إلى دفتر الأستاذ العام في Odoo!'
+                        ? 'تم اعتماد إغلاق الوردية رسمياً، وتوليد القيد المحاسبي اليومي الآلي وترحيله إلى دفتر الأستاذ العام!'
                         : 'Shift closed, Z-Report signed off and automated daily GL voucher posted to Odoo!'
                     )
                   }}
                   className="flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-2.5 text-xs font-black text-black hover:bg-emerald-400 transition-all"
                 >
                   <CheckCircle2 size={16} />
-                  {isAr ? 'ترحيل قيد إغلاق الوردية إلى المحاسبة (Odoo GL)' : 'Post Z-Report Closing Voucher to Odoo'}
+                  {isAr ? 'ترحيل قيد إغلاق الوردية إلى المحاسبة العامة' : 'Post Closing Voucher to General Ledger'}
                 </button>
               )}
             </div>
@@ -732,7 +920,7 @@ export function VenturePosHub({
                   <div className="rounded-xl border border-slate-800 bg-slate-950 p-3.5">
                     <div className="text-[11px] text-slate-400">{isAr ? 'المجموع الفعلي المعدود' : 'Total Counted'}</div>
                     <div className="text-base font-black text-emerald-400 mt-1">1,750.600 <span className="text-xs text-slate-400">د.ك</span></div>
-                    <div className="text-[10px] text-slate-500">{isAr ? 'كاش + كي نت + فيزا' : 'Cash + K-Net + Visa'}</div>
+                    <div className="text-[10px] text-slate-500">{isAr ? 'نقداً + كي نت + بطاقات ائتمان' : 'Cash + K-Net + Visa'}</div>
                   </div>
                   <div className="rounded-xl border border-slate-800 bg-slate-950 p-3.5">
                     <div className="text-[11px] text-slate-400">{isAr ? 'الفارق والعجز/الزيادة' : 'Variance (Over/Short)'}</div>
@@ -757,11 +945,11 @@ export function VenturePosHub({
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
             <div>
               <h3 className="text-base font-black text-white sm:text-lg">
-                {isAr ? 'تسوية طرق الدفع وعمولات البنوك والمنصات (Tender Split & Net Bank Deposit)' : 'Tender Split & Net Bank Deposit Recon'}
+                {isAr ? 'تسوية طرق الدفع وعمولات البنوك والمنصات وتوريد الحساب البنكي' : 'Tender Split & Net Bank Deposit Recon'}
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
                 {isAr
-                  ? 'صافي الإيداع المتوقع في حساب الشركة ببنك الكويت الوطني (NBK) بعد خصم عمولات كي نت وبوابات الدفع ومنصات التوصيل'
+                  ? 'صافي الإيداع المتوقع في حساب الشركة ببنك الكويت الوطني بعد خصم عمولات كي نت وبوابات الدفع ومنصات التوصيل'
                   : 'Audited net settlement deposited to NBK after bank processing fees and delivery commissions'}
               </p>
             </div>
@@ -775,19 +963,19 @@ export function VenturePosHub({
                   <th className="py-3 px-3 text-left">{isAr ? 'إجمالي المبيعات (د.ك)' : 'Gross Sales (KWD)'}</th>
                   <th className="py-3 px-3 text-center">{isAr ? 'نسبة العمولة' : 'Fee Rate'}</th>
                   <th className="py-3 px-3 text-left">{isAr ? 'مبلغ العمولة المحسوم (د.ك)' : 'Commission Deducted (KWD)'}</th>
-                  <th className="py-3 px-3 text-left">{isAr ? 'صافي التوريد للبنك NBK (د.ك)' : 'Net Bank Deposit (KWD)'}</th>
+                  <th className="py-3 px-3 text-left">{isAr ? 'صافي التوريد للبنك الوطني (د.ك)' : 'Net Bank Deposit (KWD)'}</th>
                   <th className="py-3 px-3 text-center">{isAr ? 'دورة التسوية' : 'Settlement Cycle'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60 font-mono">
                 {[
-                  { nameAr: 'نقد بالدرج (Cash in Hand)', nameEn: 'Cash in Hand', gross: 412.500, rate: '0.0%', fee: 0.000, net: 412.500, cycle: 'توريد خزينة فوري', badge: 'text-emerald-400' },
-                  { nameAr: 'كي نت K-Net (بنك الكويت الوطني)', nameEn: 'K-Net Gateway (NBK)', gross: 895.750, rate: '0.050 د.ك + 0.25%', fee: 14.850, net: 880.900, cycle: 'T+1 يوم عمل', badge: 'text-blue-400' },
-                  { nameAr: 'فيزا وماستركارد (Visa/Mastercard)', nameEn: 'Credit Cards', gross: 312.000, rate: '1.75%', fee: 5.460, net: 306.540, cycle: 'T+2 يوم عمل', badge: 'text-purple-400' },
-                  { nameAr: 'طلبات جو Talabat GO (أسطول المنصة)', nameEn: 'Talabat GO (TGO)', gross: 386.400, rate: '17.0%', fee: 65.688, net: 320.712, cycle: 'أسبوعي الأربعاء', badge: 'text-orange-400' },
-                  { nameAr: 'طلبات ماركت بليس TMP (توصيل الفرع)', nameEn: 'Talabat TMP (Fleet)', gross: 215.000, rate: '10.0%', fee: 21.500, net: 193.500, cycle: 'أسبوعي الأربعاء', badge: 'text-amber-400' },
-                  { nameAr: 'كيتا Keeta (التوصيل السريع)', nameEn: 'Keeta Delivery', gross: 140.000, rate: '12.0%', fee: 16.800, net: 123.200, cycle: 'نصف شهري', badge: 'text-yellow-400' },
-                  { nameAr: 'دليفرو Deliveroo', nameEn: 'Deliveroo Kuwait', gross: 95.500, rate: '18.0%', fee: 17.190, net: 78.310, cycle: 'أسبوعي الإثنين', badge: 'text-teal-400' },
+                  { nameAr: 'نقد بالدرج', nameEn: 'Cash in Hand', gross: 412.500, rate: '0.0%', fee: 0.000, net: 412.500, cycle: 'توريد خزينة فوري', badge: 'text-emerald-400' },
+                  { nameAr: 'شبكة كي نت (بنك الكويت الوطني)', nameEn: 'K-Net Gateway (NBK)', gross: 895.750, rate: '0.050 د.ك + 0.25%', fee: 14.850, net: 880.900, cycle: 'T+1 يوم عمل', badge: 'text-blue-400' },
+                  { nameAr: 'البطاقات الائتمانية العالمية', nameEn: 'Credit Cards', gross: 312.000, rate: '1.75%', fee: 5.460, net: 306.540, cycle: 'T+2 يوم عمل', badge: 'text-purple-400' },
+                  { nameAr: 'منصة طلبات (توصيل أسطول المنصة 17%)', nameEn: 'Talabat GO (TGO)', gross: 386.400, rate: '17.0%', fee: 65.688, net: 320.712, cycle: 'أسبوعي الأربعاء', badge: 'text-orange-400' },
+                  { nameAr: 'منصة طلبات (توصيل أسطول الشركة 10%)', nameEn: 'Talabat TMP (Fleet)', gross: 215.000, rate: '10.0%', fee: 21.500, net: 193.500, cycle: 'أسبوعي الأربعاء', badge: 'text-amber-400' },
+                  { nameAr: 'منصة كيتا (12%)', nameEn: 'Keeta Delivery', gross: 140.000, rate: '12.0%', fee: 16.800, net: 123.200, cycle: 'نصف شهري', badge: 'text-yellow-400' },
+                  { nameAr: 'منصة ديليفرو (18%)', nameEn: 'Deliveroo Kuwait', gross: 95.500, rate: '18.0%', fee: 17.190, net: 78.310, cycle: 'أسبوعي الإثنين', badge: 'text-teal-400' },
                 ].map((row, idx) => (
                   <tr key={idx} className="hover:bg-slate-800/40 transition-colors">
                     <td className="py-3 px-3 font-sans font-bold text-white flex items-center gap-2">
@@ -824,7 +1012,7 @@ export function VenturePosHub({
             <div>
               <h3 className="text-base font-black text-white sm:text-lg flex items-center gap-2">
                 <ShieldAlert size={18} className="text-rose-400" />
-                {isAr ? 'سجل رقابة الإلغاءات، الخصومات، ووجبات الـ 0 د.ك' : 'Voids, Refunds, Discounts & 0-KD Staff Meals Forensic Audit'}
+                {isAr ? 'سجل رقابة الخصومات، الإلغاءات، ووجبات الموظفين' : 'Discounts, Voids & Staff Meals Audit'}
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
                 {isAr
@@ -844,28 +1032,28 @@ export function VenturePosHub({
                   <th className="py-3 px-3 text-left">{isAr ? 'المبلغ (د.ك)' : 'Amount (KWD)'}</th>
                   <th className="py-3 px-3">{isAr ? 'السبب والمسوغ التشغيلي' : 'Reason / Justification'}</th>
                   <th className="py-3 px-3">{isAr ? 'المشرف المعتمد' : 'Authorized Manager'}</th>
-                  <th className="py-3 px-3">{isAr ? 'مركز التكلفة Odoo' : 'Cost Center'}</th>
+                  <th className="py-3 px-3">{isAr ? 'مركز التكلفة المحاسبي' : 'Cost Center'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60 font-mono">
                 {[
-                  { ref: 'AUD-VD-9021', type: 'VOID إلغاء صنف', typeColor: 'text-amber-400 bg-amber-500/10', items: '2x برجر ترافل أنجوس (MS03)', amount: 9.000, reason: 'خطأ إدخال كاشير قبل التحضير', manager: 'شكرالله ناصيف (PIN 4412)', cc: 'فرانكس الأفنيوز CC-FR-AV' },
-                  { ref: 'AUD-RF-1044', type: 'REFUND مرتجع نقدي', typeColor: 'text-rose-400 bg-rose-500/10', items: '1x ستيك ريب آي 300غ (MS01)', amount: 9.850, reason: 'طلب العميل درجة نضج Medium Well وتم تقديمها Rare', manager: 'عبدالله عبد الغفار (PIN 1092)', cc: 'مردودات مبيعات 401090' },
-                  { ref: 'AUD-ST-0038', type: 'STAFF 0-KD وجبة موظف', typeColor: 'text-purple-400 bg-purple-500/10', items: '1x دجاج كانتون تشاينا جاردن + أرز (CG01)', amount: 4.050, reason: 'وجبة موظف الوردية الصباحية - شيف فرايز', manager: 'عبدالرحمن محمد (PIN 7701)', cc: 'مصروف وجبات موظفين 502010' },
-                  { ref: 'AUD-DC-3180', type: 'DISCOUNT خصم ضيافة', typeColor: 'text-blue-400 bg-blue-500/10', items: 'فاتورة طاولة VIP #12', amount: 3.500, reason: 'خصم اعتذار عن تأخير المشروبات 10 دقائق', manager: 'شكرالله ناصيف (PIN 4412)', cc: 'خصومات مسموح بها 401080' },
+                  { ref: 'AUD-VD-9021', typeAr: 'إلغاء صنف معتمد', typeEn: 'Authorized Void', typeColor: 'text-amber-400 bg-amber-500/10', itemsAr: '2x برجر ترافل أنجوس (MS03)', itemsEn: '2x Angus Truffle Burger (MS03)', amount: 9.000, reasonAr: 'خطأ إدخال كاشير قبل التحضير', reasonEn: 'Cashier error before prep', managerAr: 'شكرالله ناصيف (رمز 4412)', managerEn: 'Shokrallah Nassif (#4412)', ccAr: 'فرانكس الأفنيوز CC-FR-AV', ccEn: 'Franks Avenues' },
+                  { ref: 'AUD-RF-1044', typeAr: 'مرتجع نقدي للعميل', typeEn: 'Cash Refund', typeColor: 'text-rose-400 bg-rose-500/10', itemsAr: '1x ستيك ريب آي 300غ (MS01)', itemsEn: '1x Ribeye Steak 300g (MS01)', amount: 9.850, reasonAr: 'طلب العميل درجة نضج محددة وتم تعديلها', reasonEn: 'Customer steak doneness preference', managerAr: 'عبد الله عبد الغفار عويره (#2049)', managerEn: 'Abdullah Awaira (#2049)', ccAr: 'مردودات مبيعات 401090', ccEn: 'Sales Returns 401090' },
+                  { ref: 'AUD-ST-0038', typeAr: 'وجبة موظف مصرحة', typeEn: 'Staff Meal', typeColor: 'text-purple-400 bg-purple-500/10', itemsAr: '1x دجاج كانتون تشاينا جاردن + أرز (CG01)', itemsEn: '1x Canton Chicken + Rice (CG01)', amount: 4.050, reasonAr: 'وجبة موظف الوردية الصباحية - شيف تحضير', reasonEn: 'Morning shift staff meal', managerAr: 'عبد الرحمن محمد (رمز 7701)', managerEn: 'Abdulrahman Mohammed (#7701)', ccAr: 'مصروف وجبات موظفين 5230', ccEn: 'Staff Meals 5230' },
+                  { ref: 'AUD-DC-3180', typeAr: 'خصم ضيافة استثنائي', typeEn: 'Hospitality Discount', typeColor: 'text-blue-400 bg-blue-500/10', itemsAr: 'طلب ندائي رقم #108', itemsEn: 'Calling Order #108', amount: 3.500, reasonAr: 'خصم اعتذار عن تأخير المشروبات 10 دقائق', reasonEn: 'Drink delay apology discount', managerAr: 'شكرالله ناصيف (رمز 4412)', managerEn: 'Shokrallah Nassif (#4412)', ccAr: 'خصومات مسموح بها 401080', ccEn: 'Allowed Discounts 401080' },
                 ].map((row, idx) => (
                   <tr key={idx} className="hover:bg-slate-800/40 transition-colors font-sans">
                     <td className="py-3 px-3 font-mono font-bold text-slate-300">{row.ref}</td>
                     <td className="py-3 px-3">
                       <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${row.typeColor}`}>
-                        {row.type}
+                        {isAr ? row.typeAr : row.typeEn}
                       </span>
                     </td>
-                    <td className="py-3 px-3 font-semibold text-white">{row.items}</td>
+                    <td className="py-3 px-3 font-semibold text-white">{isAr ? row.itemsAr : row.itemsEn}</td>
                     <td className="py-3 px-3 font-mono font-black text-rose-400 text-left">{row.amount.toFixed(3)}</td>
-                    <td className="py-3 px-3 text-slate-300 text-xs">{row.reason}</td>
-                    <td className="py-3 px-3 text-slate-300">{row.manager}</td>
-                    <td className="py-3 px-3 font-mono text-[11px] text-indigo-400">{row.cc}</td>
+                    <td className="py-3 px-3 text-slate-300 text-xs">{isAr ? row.reasonAr : row.reasonEn}</td>
+                    <td className="py-3 px-3 text-slate-300">{isAr ? row.managerAr : row.managerEn}</td>
+                    <td className="py-3 px-3 font-mono text-[11px] text-indigo-400">{isAr ? row.ccAr : row.ccEn}</td>
                   </tr>
                 ))}
               </tbody>
@@ -881,11 +1069,11 @@ export function VenturePosHub({
           <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5 shadow-xl space-y-4">
             <h3 className="text-base font-black text-white flex items-center gap-2">
               <Lock size={17} className="text-emerald-400" />
-              {isAr ? 'توريد نقد الخزنة للبنك (Safe Drop Outflow)' : 'Cash Safe Drop to Bank Transit'}
+              {isAr ? 'توريد نقد الخزنة للبنك' : 'Cash Safe Drop to Bank Transit'}
             </h3>
             <p className="text-xs text-slate-400">
               {isAr
-                ? 'تفريغ فائض النقد من درج الكاشير وإيداعه في خزنة الفرع الحديدية أو تسليمه لسيارة نقل الأموال لبنك NBK'
+                ? 'تفريغ فائض النقد من درج الكاشير وإيداعه في خزنة الفرع الحديدية أو تسليمه لسيارة نقل الأموال للبنك الوطني'
                 : 'Transfer excess cash from drawer to branch drop-safe or NBK armored courier'}
             </p>
 
@@ -901,7 +1089,7 @@ export function VenturePosHub({
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-300">{isAr ? 'رقم كيس الإيداع البنكي المشمع (Seal Bag #):' : 'Armored Bag Seal #:'}</label>
+                <label className="text-xs font-bold text-slate-300">{isAr ? 'رقم كيس الإيداع البنكي المشمع:' : 'Armored Bag Seal #:'}</label>
                 <input
                   type="text"
                   value={safeDropBagNo}
@@ -925,7 +1113,7 @@ export function VenturePosHub({
           <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5 shadow-xl space-y-4">
             <h3 className="text-base font-black text-white flex items-center gap-2">
               <Wallet size={17} className="text-amber-400" />
-              {isAr ? 'صرف نثريات طارئة من الدرج (Petty Cash Out)' : 'Emergency Branch Petty Cash Out'}
+              {isAr ? 'صرف نثريات طارئة من الدرج' : 'Emergency Branch Petty Cash Out'}
             </h3>
             <p className="text-xs text-slate-400">
               {isAr
@@ -970,6 +1158,13 @@ export function VenturePosHub({
       {/* TAB 6: Automated Financial GL Bridge */}
       {activeTab === 'glBridge' && (
         <AutomatedGlBridge locale={currentLocale} />
+      )}
+
+      {/* TAB 7: Live Database POS Engine & Connection Status */}
+      {activeTab === 'legacy' && liveChildren && (
+        <div className="rounded-2xl border border-slate-800/80 overflow-hidden shadow-2xl">
+          {liveChildren}
+        </div>
       )}
 
       

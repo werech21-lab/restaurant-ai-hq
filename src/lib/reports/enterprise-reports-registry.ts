@@ -543,7 +543,7 @@ export const ENTERPRISE_DEPARTMENTS: EnterpriseDepartmentDef[] = [
           { key: 'status', labelAr: 'حالة القيد الآلي', labelEn: 'GL Post Status', align: 'center', isBadge: true },
         ],
         rows: [
-          { branch: 'فرع مجمع الأفنيوز - صباحي #104', cashier: 'محمد العتيبي', bookSales: '1,845.250', countedTotal: '1,845.250', diffKwd: '0.000', status: 'متطابق ومرحل' },
+          { branch: 'فرع مجمع الأفنيوز - صباحي #104', cashier: 'آنا كاثرين (#1974)', bookSales: '1,845.250', countedTotal: '1,845.250', diffKwd: '0.000', status: 'متطابق ومرحل' },
           { branch: 'فرع الخيران أوتلت - مسائي #105', cashier: 'بدر الشمري', bookSales: '1,420.800', countedTotal: '1,420.800', diffKwd: '0.000', status: 'متطابق ومرحل' },
           { branch: 'فرع السالمية شارع سالم المبارك', cashier: 'أحمد الرشيدي', bookSales: '980.500', countedTotal: '980.000', diffKwd: '-0.500', status: 'عجز طفيف معتمد' },
           { branch: 'فرع حولي كيتشن - توصيل', cashier: 'سالم الكندري', bookSales: '1,150.300', countedTotal: '1,150.300', diffKwd: '0.000', status: 'متطابق ومرحل' },

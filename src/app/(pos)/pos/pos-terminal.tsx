@@ -159,7 +159,7 @@ export function PosTerminal({
     if (scope?.branchId) setBranchId(scope.branchId)
   }, [scope?.brandId, scope?.branchId])
 
-  const [orderType, setOrderType] = useState<string>(orderTypes[0]?.id ?? 'dine_in')
+  const [orderType, setOrderType] = useState<string>(orderTypes[0]?.id ?? 'takeaway')
   const [tableNo, setTableNo] = useState('')
   const [selectedBrandTab, setSelectedBrandTab] = useState<OfficialBrandId>('ALL')
   const [query, setQuery] = useState('')
@@ -349,7 +349,7 @@ export function PosTerminal({
   function handleCancelStaffMeal() {
     setActiveStaffMeal(null)
     setMethod('CARD')
-    setOrderType('dine_in')
+    setOrderType('takeaway')
     setNotice(en ? 'Staff meal mode canceled.' : 'تم إلغاء وضع وجبة الموظف.')
   }
 
@@ -360,7 +360,7 @@ export function PosTerminal({
       return
     }
     if (orderType === 'dine_in' && !tableNo.trim() && !isStaffMeal) {
-      setError(en ? 'Enter a table number for dine-in.' : 'أدخل رقم الطاولة للطلب المحلي')
+      setError(en ? 'Enter calling order # for store order.' : 'أدخل رقم الطلب الندائي للطلب المحلي')
       return
     }
 
@@ -491,8 +491,8 @@ export function PosTerminal({
     const pieces = cart.reduce((s, l) => s + l.quantity, 0)
     setNotice(
       en
-        ? `Sent ${pieces} item(s) to KDS (${brandLabel} · ${orderLabel}${tableNo ? ` · Table ${tableNo}` : ''})`
-        : `أُرسلت ${pieces} قطعة إلى KDS (${brandLabel} · ${orderLabel}${tableNo ? ` · طاولة ${tableNo}` : ''})`,
+        ? `Sent ${pieces} item(s) to Kitchen (${brandLabel} · ${orderLabel}${tableNo ? ` · Order #${tableNo}` : ''})`
+        : `أُرسلت ${pieces} قطعة إلى شاشة المطبخ (${brandLabel} · ${orderLabel}${tableNo ? ` · رقم النداء #${tableNo}` : ''})`,
     )
   }
 
@@ -578,7 +578,7 @@ export function PosTerminal({
             <input
               value={tableNo}
               onChange={(e) => setTableNo(e.target.value)}
-              placeholder={en ? 'Table #' : 'رقم الطاولة'}
+              placeholder={en ? 'Order #108' : 'رقم النداء #108'}
               className="w-24 rounded-lg border border-white/10 bg-ink-900 px-2.5 py-1.5 text-xs font-bold text-gold-300"
             />
           ) : null}

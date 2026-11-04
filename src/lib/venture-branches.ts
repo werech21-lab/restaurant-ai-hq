@@ -29,13 +29,14 @@ export function ventureBranchOptions(): VentureBranchOption[] {
 }
 
 export const ORDER_TYPES = [
-  { id: 'dine_in', labelAr: 'طلبات الصالة (محلي)', labelEn: 'Dine-in' },
-  { id: 'takeaway', labelAr: 'طلبات سفري واستلام', labelEn: 'Takeaway' },
-  { id: 'talabat', labelAr: 'طلبات — توصيل أسطول الشركة (10%)', labelEn: 'Talabat Fleet (10%)' },
+  { id: 'takeaway', labelAr: 'سفري / استلام كاونتر', labelEn: 'Takeaway / Counter Pickup' },
+  { id: 'dine_in', labelAr: 'طلب محلي بالفرع', labelEn: 'Dine-In / Store Order' },
+  { id: 'talabat', labelAr: 'توصيل أسطول الشركة (10%)', labelEn: 'Talabat Fleet (10%)' },
+  { id: 'talabat_go', labelAr: 'منصة طلبات (17%)', labelEn: 'Talabat GO (17%)' },
+  { id: 'keeta', labelAr: 'منصة كيتا (12%)', labelEn: 'Keeta (12%)' },
   { id: 'deliveroo', labelAr: 'منصة ديليفرو (18%)', labelEn: 'Deliveroo (18%)' },
   { id: 'jahez', labelAr: 'منصة جاهز (15%)', labelEn: 'Jahez (15%)' },
-  { id: 'in_house', labelAr: 'الموقع الإلكتروني والاتصال المباشر', labelEn: 'Direct Web & Call' },
-  { id: 'staff_meal', labelAr: '🍽️ صرف وجبة موظف (برقم البصمة)', labelEn: '🍽️ Staff Meal (by Badge ID)' },
+  { id: 'staff_meal', labelAr: 'وجبة موظف معتمدة (0 د.ك)', labelEn: 'Staff Meal (0 KD)' },
 ] as const
 
 export type OrderTypeId = (typeof ORDER_TYPES)[number]['id']
