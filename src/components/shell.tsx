@@ -1,7 +1,6 @@
 import { connection } from 'next/server'
 import { requireUser } from '@/lib/erp-auth'
 import { AssistantWidget } from '@/components/assistant-widget'
-import { InstallAppBanner } from '@/components/InstallAppBanner'
 import { NotificationBell } from '@/components/notification-bell'
 import { PanelHeaderBar } from '@/components/panel-chrome'
 import { ScopeProvider } from '@/components/ScopeProvider'
@@ -68,8 +67,7 @@ export async function Shell({ children }: { children: React.ReactNode }) {
               }
             />
           </header>
-          <InstallAppBanner />
-          <main className="mx-auto w-full max-w-[1600px] px-4 py-6 text-mist-100 sm:px-6 md:px-8">{children}</main>
+          <main className="w-full max-w-none px-4 py-6 text-mist-100 sm:px-6 lg:px-8">{children}</main>
         </div>
         <AssistantWidget />
       </div>

@@ -15,8 +15,8 @@ import { SmartIngestLaunchButton } from "@/components/SmartIngestLaunchButton";
 import { VentureWarehousesHub } from "@/components/warehouses/VentureWarehousesHub";
 
 export const metadata = {
-  title: "المستودعات وسلاسل الإمداد | Venture Foods W.L.L.",
-  description: "المطبخ المركزي بالقرين والمستودعات الـ 10 لشركة فنتشر فودز لإدارة المطاعم ذ.م.م.",
+  title: "المستودعات ومخازن الفروع | شركة فنتشر فودز · AetherBI",
+  description: "المطبخ المركزي والمستودع الرئيسي بالقرين ومخازن الفروع الـ 9 النشطة لشركة فنتشر فودز لإدارة المطاعم ذ.م.م.",
 };
 
 async function WarehousesContent({ searchParams }: { searchParams: Promise<RawQuery> }) {
