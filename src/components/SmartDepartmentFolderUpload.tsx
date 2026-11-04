@@ -370,14 +370,24 @@ export function SmartDepartmentFolderUpload({ module, locale }: Props) {
             type="button"
             disabled={busy}
             className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow hover:bg-emerald-700 disabled:opacity-60"
-            onClick={() => {
-              if (!folderInputRef.current) return
-              folderInputRef.current.removeAttribute('accept')
-              folderInputRef.current.setAttribute('webkitdirectory', '')
-              folderInputRef.current.setAttribute('directory', '')
-              folderInputRef.current.setAttribute('mozdirectory', '')
-              folderInputRef.current.multiple = true
-              folderInputRef.current.click()
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              if (busy) return
+              const input = document.createElement('input')
+              input.type = 'file'
+              input.multiple = true
+              input.setAttribute('webkitdirectory', '')
+              input.setAttribute('directory', '')
+              input.setAttribute('mozdirectory', '')
+              input.onchange = (ev: Event) => {
+                const target = ev.target as HTMLInputElement
+                const files = Array.from(target.files || [])
+                if (files.length > 0) {
+                  void prepareSelection(files)
+                }
+              }
+              input.click()
             }}
           >
             {label('اختيار مجلد كامل', 'Choose full folder')}

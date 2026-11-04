@@ -543,7 +543,22 @@ export function SmartPhotoDocAutoMatcherModal({
             <div className="flex flex-wrap items-center justify-center gap-3">
               <button
                 type="button"
-                onClick={() => folderInputRef.current?.click()}
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  const input = document.createElement('input')
+                  input.type = 'file'
+                  input.multiple = true
+                  input.setAttribute('webkitdirectory', '')
+                  input.setAttribute('directory', '')
+                  input.setAttribute('mozdirectory', '')
+                  input.onchange = (ev: Event) => {
+                    const target = ev.target as HTMLInputElement
+                    const files = Array.from(target.files || [])
+                    if (files.length > 0) handleFiles(files)
+                  }
+                  input.click()
+                }}
                 className="inline-flex items-center gap-2 rounded-2xl bg-sky-600 px-5 py-3 text-xs font-black text-white shadow-lg hover:bg-sky-500 transition-all hover:scale-105"
               >
                 <span>📂</span>

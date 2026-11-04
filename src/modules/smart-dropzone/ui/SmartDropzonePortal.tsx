@@ -336,88 +336,43 @@ export default function SmartDropzonePortal() {
     [normalizeAndAutoStart],
   )
 
-  const openNativeFilesPicker = useCallback(
-    async (e?: React.MouseEvent) => {
-      if (e) e.stopPropagation()
+  const triggerFilesUpload = useCallback(
+    (e?: React.MouseEvent) => {
+      if (e) {
+        e.preventDefault()
+        e.stopPropagation()
+      }
       if (busy) return
-      // Always trigger the hidden native <input type="file" multiple /> directly on user gesture
-      // for 100% reliable 1-click Windows Explorer opening across all browsers.
       if (fileInputRef.current) {
+        fileInputRef.current.value = ''
         fileInputRef.current.click()
-        return
-      }
-      const win = window as Window & {
-        showOpenFilePicker?: (opts?: unknown) => Promise<Array<{ getFile: () => Promise<File> }>>
-      }
-      if (typeof win.showOpenFilePicker === 'function') {
-        try {
-          const handles = await win.showOpenFilePicker({ multiple: true })
-          const files: File[] = []
-          for (const h of handles) files.push(await h.getFile())
-          normalizeAndAutoStart(files)
-        } catch {
-          /* user cancelled */
-        }
       }
     },
-    [busy, normalizeAndAutoStart],
+    [busy],
   )
 
-  useEffect(() => {
-    if (folderInputRef.current) {
-      folderInputRef.current.removeAttribute('accept')
-      folderInputRef.current.setAttribute('webkitdirectory', '')
-      folderInputRef.current.setAttribute('directory', '')
-      folderInputRef.current.setAttribute('mozdirectory', '')
-    }
-  }, [])
-
-  const openNativeFolderPicker = useCallback(
-    async (e?: React.MouseEvent) => {
-      if (e) e.stopPropagation()
+  const triggerFolderUpload = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
       if (busy) return
-      if (folderInputRef.current) {
-        folderInputRef.current.removeAttribute('accept')
-        folderInputRef.current.setAttribute('webkitdirectory', '')
-        folderInputRef.current.setAttribute('directory', '')
-        folderInputRef.current.setAttribute('mozdirectory', '')
-        folderInputRef.current.click()
-        return
-      }
-      const win = window as Window & {
-        showDirectoryPicker?: () => Promise<{
-          name: string
-          values: () => AsyncIterable<{
-            kind: 'file' | 'directory'
-            name: string
-            getFile?: () => Promise<File>
-          }>
-        }>
-      }
-      if (typeof win.showDirectoryPicker === 'function') {
-        try {
-          const dirHandle = await win.showDirectoryPicker()
-          const collected: QueuedFile[] = []
-          for await (const entry of dirHandle.values()) {
-            if (entry.kind === 'file' && entry.getFile) {
-              const f = await entry.getFile()
-              const rel = `${dirHandle.name}/${f.name}`
-              if (acceptFile(f, rel)) {
-                collected.push({
-                  key: `${rel}::${f.size}::${f.lastModified}`,
-                  file: f,
-                  relativePath: rel,
-                })
-              }
-            }
-          }
-          if (collected.length) void runInstantLocalParseAndRoute(collected)
-        } catch {
-          /* user cancelled */
+      const input = document.createElement('input')
+      input.type = 'file'
+      input.multiple = true
+      input.setAttribute('webkitdirectory', '')
+      input.setAttribute('directory', '')
+      input.setAttribute('mozdirectory', '')
+      // STRICT WARNING: NEVER set input.accept here!
+      input.onchange = (ev: Event) => {
+        const target = ev.target as HTMLInputElement
+        const files = Array.from(target.files || [])
+        if (files.length > 0) {
+          normalizeAndAutoStart(files)
         }
       }
+      input.click()
     },
-    [busy, runInstantLocalParseAndRoute],
+    [busy, normalizeAndAutoStart],
   )
 
   async function collectDroppedDirectoryEntries(
@@ -580,7 +535,10 @@ export default function SmartDropzonePortal() {
       <section
         role="button"
         tabIndex={0}
-        onClick={() => fileInputRef.current?.click()}
+        onClick={(e) => {
+          if ((e.target as HTMLElement).closest('button') !== null) return
+          triggerFilesUpload(e)
+        }}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault()
@@ -614,8 +572,8 @@ export default function SmartDropzonePortal() {
           <button
             type="button"
             disabled={busy}
-            className="w-full sm:w-auto rounded-2xl bg-gradient-to-l from-[#8cc63f] via-[#38b261] to-[#10b981] px-6 py-4 text-base font-black text-ink-950 shadow-lg shadow-emerald-950/50 transition hover:brightness-110 disabled:opacity-50"
-            onClick={(e) => void openNativeFilesPicker(e)}
+            className="w-full sm:w-auto rounded-2xl bg-gradient-to-l from-[#8cc63f] via-[#38b261] to-[#10b981] px-6 py-4 text-base font-black text-ink-950 shadow-lg shadow-emerald-950/50 transition hover:brightness-110 disabled:opacity-50 cursor-pointer"
+            onClick={triggerFilesUpload}
           >
             💻 فتح الكمبيوتر لاختيار الملفات (Browse PC Files - PDF, Excel, Word, Images)
           </button>
@@ -623,8 +581,8 @@ export default function SmartDropzonePortal() {
           <button
             type="button"
             disabled={busy}
-            className="w-full sm:w-auto rounded-2xl border border-teal-400/50 bg-gradient-to-l from-[#00a99d] to-[#0284c7] px-6 py-4 text-base font-black text-white shadow-lg shadow-cyan-950/50 transition hover:brightness-110 disabled:opacity-50"
-            onClick={(e) => void openNativeFolderPicker(e)}
+            className="w-full sm:w-auto rounded-2xl border border-teal-400/50 bg-gradient-to-l from-[#00a99d] to-[#0284c7] px-6 py-4 text-base font-black text-white shadow-lg shadow-cyan-950/50 transition hover:brightness-110 disabled:opacity-50 cursor-pointer"
+            onClick={triggerFolderUpload}
           >
             📁 فتح الكمبيوتر لاختيار مجلد كامل (Select Full Folder from PC)
           </button>
@@ -638,13 +596,7 @@ export default function SmartDropzonePortal() {
           className="hidden"
           onChange={handleFilesSelected}
         />
-        <input
-          ref={folderInputRef}
-          type="file"
-          multiple
-          className="hidden"
-          onChange={handleFilesSelected}
-        />
+
 
         {busy ? (
           <div
