@@ -218,6 +218,7 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
         body: JSON.stringify({
           kind: 'talabat_area_alert',
           emailText,
+          manualTrigger: true,
         }),
       })
       const payload = await res.json()

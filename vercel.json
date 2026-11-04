@@ -1,5 +1,11 @@
 {
   "framework": "nextjs",
+  "crons": [
+    {
+      "path": "/api/aggregator-radar/alert",
+      "schedule": "59 20 * * *"
+    }
+  ],
   "redirects": [
     {
       "source": "/:path*",

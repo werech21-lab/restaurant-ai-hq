@@ -416,7 +416,7 @@ function Workspace() {
         data: BoardPayload & { recorded: number; alerted: boolean; scannedAt: string }
       }>('/api/aggregator-radar/scan', {
         method: 'POST',
-        body: { brandId, branchId, platform: platform || undefined, alert: true },
+        body: { brandId, branchId, platform: platform || undefined, alert: false },
         idempotencyKey: newIdempotencyKey(),
       })
       const next = normalizeBoard(result.data, boardRef.current)
@@ -485,7 +485,7 @@ function Workspace() {
         }
       }>('/api/aggregator-radar/alert', {
         method: 'POST',
-        body: {},
+        body: { manualTrigger: true },
       })
       if (result.data.smtp) setSmtpStatus(result.data.smtp)
       const feedback: DeliveryFeedback = {
