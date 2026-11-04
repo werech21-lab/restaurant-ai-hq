@@ -491,7 +491,7 @@ export default function AIContractRiskAnalyzer({
           </div>
 
           <div className="rounded-2xl border border-gold-400/30 bg-gold-400/10 p-3 text-center">
-            <span className="text-[10px] text-gold-300 font-bold uppercase">{isAr ? 'إجمالي مصاريف OPEX' : 'Total OPEX'}</span>
+            <span className="text-[10px] text-gold-300 font-bold uppercase">{isAr ? 'إجمالي المصاريف التشغيلية' : 'Total OPEX'}</span>
             <div className="text-base font-black text-gold-200">3,250.000 <span className="text-[10px] text-white">د.ك</span></div>
             <p className="mt-1 text-[10px] text-gold-300 font-bold">التعادل: 4,167 د.ك (43 طلب/يوم)</p>
           </div>
@@ -555,7 +555,7 @@ export default function AIContractRiskAnalyzer({
                 <span>+2,233.400 د.ك (31.8%)</span>
               </div>
               <div className="mt-2 flex items-center justify-between text-[11px] font-bold text-emerald-300">
-                <span>عائد الاستثمار (ROI): ▲ 68.7%</span>
+                <span>{isAr ? 'عائد الاستثمار: ▲ 68.7%' : 'ROI: ▲ 68.7%'}</span>
                 <span>التعادل في اليوم 22</span>
               </div>
             </div>
@@ -585,7 +585,7 @@ export default function AIContractRiskAnalyzer({
                 <span>+4,160.000 د.ك (43.8%)</span>
               </div>
               <div className="mt-2 flex items-center justify-between text-[11px] font-bold text-cyan-300">
-                <span>عائد الاستثمار (ROI): ▲ 128.0%</span>
+                <span>{isAr ? 'عائد الاستثمار: ▲ 128.0%' : 'ROI: ▲ 128.0%'}</span>
                 <span>التعادل في اليوم 16</span>
               </div>
             </div>
@@ -599,10 +599,10 @@ export default function AIContractRiskAnalyzer({
           <div>
             <div className="flex items-center gap-2">
               <span className="rounded-full bg-cyan-500/20 px-3 py-1 text-xs font-black text-cyan-300 border border-cyan-500/30">
-                EXB Menu China Garden · Marina Kashta
+                {isAr ? 'قائمة معارض تشاينا جاردن · كشتة المارينا' : 'EXB Menu China Garden · Marina Kashta'}
               </span>
               <span className="rounded-full bg-rose-500/20 px-2.5 py-0.5 text-[11px] font-bold text-rose-300">
-                100% بدون غاز (Electric Only)
+                {isAr ? '100% تشغيل كهربائي بدون غاز' : '100% Electric Only (No Gas)'}
               </span>
             </div>
             <h3 className="mt-2 text-xl font-black text-white">
@@ -702,7 +702,7 @@ export default function AIContractRiskAnalyzer({
             <div>
               <h3 className="text-lg font-black text-white flex items-center gap-2">
                 <CheckCircle2 className="h-5 w-5 text-emerald-400" />
-                <span>{isAr ? 'خطة إدارة المشروع التنفيذية لكشتة المارينا (Action Plan)' : 'Marina Kashta Milestone Execution Plan'}</span>
+                <span>{isAr ? 'خطة إدارة المشروع التنفيذية لكشتة المارينا' : 'Marina Kashta Milestone Execution Plan'}</span>
               </h3>
               <p className="mt-1 text-xs text-mist-400">
                 {isAr

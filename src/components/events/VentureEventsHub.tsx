@@ -333,7 +333,7 @@ export default function VentureEventsHub() {
   return (
     <div
       dir={isAr ? 'rtl' : 'ltr'}
-      className="min-h-screen space-y-6 bg-[#07090e] p-4 text-mist-100 antialiased sm:p-6 lg:p-8"
+      className="w-full max-w-none min-h-screen space-y-6 bg-[#07090e] p-4 text-mist-100 antialiased sm:p-6 lg:p-8"
     >
       {/* Toast Notification */}
       {toastMessage && (
@@ -357,9 +357,7 @@ export default function VentureEventsHub() {
                   ? 'استوديو تخطيط ودراسة جدوى الفعاليات القادمة الذكي'
                   : 'Next-Gen Future Event Planner, AI Feasibility & EXB Menu Studio'}
               </span>
-              <span className="rounded-full bg-gold-300/20 px-1.5 py-0.2 text-[10px] text-gold-200">
-                CR 412891
-              </span>
+              <span className="rounded-full bg-gold-300/20 px-1.5 py-0.2 text-[10px] text-gold-200">{isAr ? 'س.ت: 412891' : 'CR 412891'}</span>
             </div>
 
             <h1 className="text-2xl font-black tracking-tight text-white sm:text-3xl lg:text-4xl">
@@ -367,7 +365,7 @@ export default function VentureEventsHub() {
             </h1>
             <p className="max-w-3xl text-sm font-medium text-mist-300">
               {isAr
-                ? 'محاكي الـ 3 سيناريوهات المالية، رادار اختيار البراند الأمثل، مولّد منيو المعارض الرسمي (EXB Menu 6FB)، وحقيبة الاعتماد التنفيذية لشركة فنتشر فودز لإدارة المطاعم ذ.م.م.'
+                ? 'محاكي السيناريوهات المالية الثلاثة، رادار اختيار العلامة التجارية المثلى، مولّد قائمة المعارض الرسمية، وحقيبة الاعتماد التنفيذية لشركة فنتشر فودز لإدارة المطاعم ذ.م.م.'
                 : '3-Scenario P&L Simulator, AI Brand Selector, Official EXB Menu Generator (6FB), and 1-Click Executive Approval Pack.'}
             </p>
           </div>
@@ -405,7 +403,7 @@ export default function VentureEventsHub() {
               className="inline-flex items-center gap-2 rounded-2xl border border-gold-400/50 bg-gradient-to-r from-gold-400/20 to-amber-500/20 px-4 py-2.5 text-xs font-black text-gold-300 shadow-lg shadow-gold-500/10 hover:border-gold-400 hover:bg-gold-400/30 active:scale-95 transition-all"
             >
               <FileText className="h-4 w-4 text-gold-400" />
-              <span>{isAr ? '📄 تحليل عقد فعالية جديد بالذكاء الاصطناعي (PDF)' : 'AI Contract Risk Analyzer'}</span>
+              <span>{isAr ? '📄 تحليل عقد فعالية جديد بالذكاء الاصطناعي' : 'AI Contract Risk Analyzer'}</span>
             </button>
 
             <button
@@ -433,7 +431,7 @@ export default function VentureEventsHub() {
             <span className="text-[10px] text-mist-400 uppercase font-bold">{isAr ? 'الإيجار اليومي' : 'Daily Rent'}</span>
             <div className="text-base font-black text-white">
               {threeScenarios.dailyRentKwd.toFixed(3)}{' '}
-              <span className="text-[10px] text-gold-400">KWD/d</span>
+              <span className="text-[10px] text-gold-400">{isAr ? 'د.ك/يوم' : 'KWD/d'}</span>
             </div>
             <span className="text-[10px] text-mist-400">{isAr ? 'إجمالي:' : 'Total:'} {totalRentKwd.toLocaleString()} د.ك</span>
           </div>
@@ -442,7 +440,7 @@ export default function VentureEventsHub() {
             <span className="text-[10px] text-mist-400 uppercase font-bold">{isAr ? 'مبيعات التعادل اليومية' : 'Daily Break-Even'}</span>
             <div className="text-base font-black text-cyan-300">
               {threeScenarios.realistic.dailyBreakEvenSalesKwd.toFixed(0)}{' '}
-              <span className="text-[10px] text-gold-400">KWD/d</span>
+              <span className="text-[10px] text-gold-400">{isAr ? 'د.ك/يوم' : 'KWD/d'}</span>
             </div>
             <span className="text-[10px] text-mist-400">{threeScenarios.realistic.dailyBreakEvenOrders} {isAr ? 'طلباً/يوم' : 'orders/d'}</span>
           </div>
@@ -466,9 +464,9 @@ export default function VentureEventsHub() {
             <span className="text-[10px] text-mist-400 uppercase font-bold">{isAr ? 'صافي الربح المتوقع' : 'Realistic Net Profit'}</span>
             <div className="text-base font-black text-gold-300">
               {threeScenarios.realistic.netProfitKwd.toLocaleString('en-US', { minimumFractionDigits: 0 })}{' '}
-              <span className="text-[10px] text-gold-400">KWD</span>
+              <span className="text-[10px] text-gold-400">{isAr ? 'د.ك' : 'KWD'}</span>
             </div>
-            <span className="text-[10px] text-emerald-400 font-bold">▲ {threeScenarios.realistic.roiPercent.toFixed(1)}% ROI</span>
+            <span className="text-[10px] text-emerald-400 font-bold">▲ {threeScenarios.realistic.roiPercent.toFixed(1)}% {isAr ? 'عائد استثمار' : 'ROI'}</span>
           </div>
 
           <div className="rounded-2xl border border-white/5 bg-black/40 p-3">
@@ -499,7 +497,7 @@ export default function VentureEventsHub() {
               }`}
             >
               <FileText className="h-4 w-4" />
-              <span>{isAr ? '📄 محلل عقود الفعاليات الذكي (كشتة المارينا 1976)' : 'AI Contract Risk Analyzer'}</span>
+              <span>{isAr ? '📄 محلل عقود الفعاليات الذكي (كشتة المارينا)' : 'AI Contract Risk Analyzer'}</span>
             </button>
 
             <button
@@ -511,7 +509,7 @@ export default function VentureEventsHub() {
               }`}
             >
               <Calculator className="h-4 w-4" />
-              <span>{isAr ? '🔮 دراسة الجدوى ومحاكي الـ 3 سيناريوهات' : '3-Scenario Feasibility Simulator'}</span>
+              <span>{isAr ? '🔮 دراسة الجدوى ومحاكي السيناريوهات الثلاثة' : '3-Scenario Feasibility Simulator'}</span>
             </button>
 
             <button
@@ -523,7 +521,7 @@ export default function VentureEventsHub() {
               }`}
             >
               <ChefHat className="h-4 w-4" />
-              <span>{isAr ? '🎯 مستشار البراند الأمثل للفعالية' : 'AI Brand-Fit Recommender'}</span>
+              <span>{isAr ? '🎯 مستشار العلامة التجارية المثلى للفعالية' : 'AI Brand-Fit Recommender'}</span>
             </button>
 
             <button
@@ -535,7 +533,7 @@ export default function VentureEventsHub() {
               }`}
             >
               <Tag className="h-4 w-4" />
-              <span>{isAr ? '📋 مولّد منيو المعارض وتسعير تعويض الإيجار' : 'Smart EXB Menu & Price Optimizer'}</span>
+              <span>{isAr ? '📋 مولّد قائمة المعارض وتسعير تعويض الإيجار' : 'Smart EXB Menu & Price Optimizer'}</span>
             </button>
 
             <button
@@ -672,7 +670,7 @@ export default function VentureEventsHub() {
                   <div className="space-y-1">
                     <div className="flex justify-between text-[11px]">
                       <span className="font-bold text-mist-300">{isAr ? 'إجمالي الإيجار المطلوب:' : 'Total Booth Rent:'}</span>
-                      <span className="font-bold text-gold-300">{totalRentKwd} KWD</span>
+                      <span className="font-bold text-gold-300">{totalRentKwd} {isAr ? 'د.ك' : 'KWD'}</span>
                     </div>
                     <input
                       type="range"
@@ -684,7 +682,7 @@ export default function VentureEventsHub() {
                       className="w-full accent-gold-400"
                     />
                     <div className="text-[10px] text-mist-400">
-                      {isAr ? 'الإيجار اليومي:' : 'Daily:'} {threeScenarios.dailyRentKwd.toFixed(3)} KWD/d
+                      {isAr ? 'الإيجار اليومي:' : 'Daily:'} {threeScenarios.dailyRentKwd.toFixed(3)} {isAr ? 'د.ك/يوم' : 'KWD/d'}
                     </div>
                   </div>
 
@@ -714,7 +712,7 @@ export default function VentureEventsHub() {
                   <div className="space-y-1">
                     <div className="flex justify-between text-[11px]">
                       <span className="font-bold text-mist-300">{isAr ? 'تكلفة الديكور والـ Fit-out:' : 'Fit-out & Decor:'}</span>
-                      <span className="font-bold text-white">{fitoutKwd} KWD</span>
+                      <span className="font-bold text-white">{fitoutKwd} {isAr ? 'د.ك' : 'KWD'}</span>
                     </div>
                     <input
                       type="range"
@@ -747,8 +745,8 @@ export default function VentureEventsHub() {
                   {/* Expected AOV */}
                   <div className="space-y-1">
                     <div className="flex justify-between text-[11px]">
-                      <span className="font-bold text-mist-300">{isAr ? 'متوسط الفاتورة المستهدف:' : 'Expected AOV:'}</span>
-                      <span className="font-bold text-gold-300">{expectedAovKwd.toFixed(3)} KWD</span>
+                      <span className="font-bold text-mist-300">{isAr ? 'متوسط قيمة الطلب المستهدف:' : 'Expected AOV:'}</span>
+                      <span className="font-bold text-gold-300">{expectedAovKwd.toFixed(3)} {isAr ? 'د.ك' : 'KWD'}</span>
                     </div>
                     <input
                       type="range"
@@ -781,7 +779,7 @@ export default function VentureEventsHub() {
                   {/* Estimated COGS % */}
                   <div className="space-y-1">
                     <div className="flex justify-between text-[11px]">
-                      <span className="font-bold text-mist-300">{isAr ? 'تكلفة الطعام والتغليف COGS %:' : 'Target COGS %:'}</span>
+                      <span className="font-bold text-mist-300">{isAr ? 'نسبة تكلفة الأطعمة والتغليف:' : 'Target COGS %:'}</span>
                       <span className="font-bold text-emerald-400">{estimatedCogsPct}%</span>
                     </div>
                     <input
@@ -847,7 +845,7 @@ export default function VentureEventsHub() {
 
                     <div className="text-xs text-mist-400">
                       {isAr ? 'تأمين مسترد مقدر:' : 'Est. Security Deposit:'}{' '}
-                      <strong className="text-cyan-300 font-mono">{threeScenarios.securityDepositKwd.toLocaleString()} KWD</strong>
+                      <strong className="text-cyan-300 font-mono">{threeScenarios.securityDepositKwd.toLocaleString()} {isAr ? 'د.ك' : 'KWD'}</strong>
                     </div>
                   </div>
                 </div>
@@ -888,64 +886,64 @@ export default function VentureEventsHub() {
                       {/* Gross Revenue */}
                       <tr className="hover:bg-white/[0.02]">
                         <td className="px-5 py-3 font-sans font-bold text-white">
-                          {isAr ? 'إجمالي المبيعات المحققة (Gross Sales)' : 'Gross Revenue'}
+                          {isAr ? 'إجمالي المبيعات المحققة' : 'Gross Revenue'}
                         </td>
                         <td className="px-4 py-3 text-end text-amber-300 font-bold">
-                          {threeScenarios.conservative.grossSalesKwd.toLocaleString('en-US', { minimumFractionDigits: 3 })} KWD
+                          {threeScenarios.conservative.grossSalesKwd.toLocaleString('en-US', { minimumFractionDigits: 3 })} {isAr ? 'د.ك' : 'KWD'}
                         </td>
                         <td className="px-5 py-3 text-end font-black text-gold-300 bg-gold-400/5 text-sm">
-                          {threeScenarios.realistic.grossSalesKwd.toLocaleString('en-US', { minimumFractionDigits: 3 })} KWD
+                          {threeScenarios.realistic.grossSalesKwd.toLocaleString('en-US', { minimumFractionDigits: 3 })} {isAr ? 'د.ك' : 'KWD'}
                         </td>
                         <td className="px-4 py-3 text-end text-emerald-400 font-black text-sm">
-                          {threeScenarios.optimistic.grossSalesKwd.toLocaleString('en-US', { minimumFractionDigits: 3 })} KWD
+                          {threeScenarios.optimistic.grossSalesKwd.toLocaleString('en-US', { minimumFractionDigits: 3 })} {isAr ? 'د.ك' : 'KWD'}
                         </td>
                       </tr>
 
                       {/* Daily Sales Velocity */}
                       <tr className="hover:bg-white/[0.02]">
                         <td className="px-5 py-3 font-sans text-mist-300">
-                          {isAr ? 'المبيعات اليومية (Daily Velocity)' : 'Daily Velocity'}
+                          {isAr ? 'المبيعات اليومية' : 'Daily Velocity'}
                         </td>
                         <td className="px-4 py-3 text-end text-mist-300">
-                          {threeScenarios.conservative.dailySalesKwd.toFixed(3)} KWD/d
+                          {threeScenarios.conservative.dailySalesKwd.toFixed(3)} {isAr ? 'د.ك/يوم' : 'KWD/d'}
                         </td>
                         <td className="px-5 py-3 text-end font-bold text-cyan-300 bg-gold-400/5">
-                          {threeScenarios.realistic.dailySalesKwd.toFixed(3)} KWD/d
+                          {threeScenarios.realistic.dailySalesKwd.toFixed(3)} {isAr ? 'د.ك/يوم' : 'KWD/d'}
                         </td>
                         <td className="px-4 py-3 text-end text-emerald-300">
-                          {threeScenarios.optimistic.dailySalesKwd.toFixed(3)} KWD/d
+                          {threeScenarios.optimistic.dailySalesKwd.toFixed(3)} {isAr ? 'د.ك/يوم' : 'KWD/d'}
                         </td>
                       </tr>
 
                       {/* COGS */}
                       <tr className="hover:bg-white/[0.02]">
                         <td className="px-5 py-3 font-sans text-mist-300">
-                          {isAr ? `تكلفة الطعام والتغليف COGS (${estimatedCogsPct}%)` : `Food & Packaging COGS (${estimatedCogsPct}%)`}
+                          {isAr ? `تكلفة الطعام والتغليف (${estimatedCogsPct}%)` : `Food & Packaging COGS (${estimatedCogsPct}%)`}
                         </td>
                         <td className="px-4 py-3 text-end text-rose-300">
-                          {threeScenarios.conservative.cogsKwd.toFixed(3)} KWD
+                          {threeScenarios.conservative.cogsKwd.toFixed(3)} {isAr ? 'د.ك' : 'KWD'}
                         </td>
                         <td className="px-5 py-3 text-end font-bold text-rose-300 bg-gold-400/5">
-                          {threeScenarios.realistic.cogsKwd.toFixed(3)} KWD
+                          {threeScenarios.realistic.cogsKwd.toFixed(3)} {isAr ? 'د.ك' : 'KWD'}
                         </td>
                         <td className="px-4 py-3 text-end text-rose-300">
-                          {threeScenarios.optimistic.cogsKwd.toFixed(3)} KWD
+                          {threeScenarios.optimistic.cogsKwd.toFixed(3)} {isAr ? 'د.ك' : 'KWD'}
                         </td>
                       </tr>
 
                       {/* Gross Profit */}
                       <tr className="hover:bg-white/[0.02]">
                         <td className="px-5 py-3 font-sans font-bold text-emerald-400">
-                          {isAr ? 'إجمالي الربح (Gross Profit)' : 'Gross Profit'}
+                          {isAr ? 'إجمالي الربح' : 'Gross Profit'}
                         </td>
                         <td className="px-4 py-3 text-end text-mist-200">
-                          {threeScenarios.conservative.grossProfitKwd.toFixed(3)} KWD
+                          {threeScenarios.conservative.grossProfitKwd.toFixed(3)} {isAr ? 'د.ك' : 'KWD'}
                         </td>
                         <td className="px-5 py-3 text-end font-bold text-emerald-400 bg-gold-400/5">
-                          {threeScenarios.realistic.grossProfitKwd.toFixed(3)} KWD
+                          {threeScenarios.realistic.grossProfitKwd.toFixed(3)} {isAr ? 'د.ك' : 'KWD'}
                         </td>
                         <td className="px-4 py-3 text-end text-emerald-300 font-bold">
-                          {threeScenarios.optimistic.grossProfitKwd.toFixed(3)} KWD
+                          {threeScenarios.optimistic.grossProfitKwd.toFixed(3)} {isAr ? 'د.ك' : 'KWD'}
                         </td>
                       </tr>
 
@@ -964,7 +962,7 @@ export default function VentureEventsHub() {
                         </td>
                         <td className="px-5 py-3 text-end font-bold bg-gold-400/5">
                           <span className={threeScenarios.realistic.rentWarning ? 'text-rose-400' : 'text-emerald-400'}>
-                            {totalRentKwd.toFixed(3)} KWD ({threeScenarios.realistic.rentToSalesPercent.toFixed(1)}%)
+                            {totalRentKwd.toFixed(3)} {isAr ? 'د.ك' : 'KWD'} ({threeScenarios.realistic.rentToSalesPercent.toFixed(1)}%)
                           </span>
                         </td>
                         <td className="px-4 py-3 text-end text-mist-300">
@@ -985,7 +983,7 @@ export default function VentureEventsHub() {
                       {/* Fit-Out & Marketing */}
                       <tr className="hover:bg-white/[0.02]">
                         <td className="px-5 py-3 font-sans text-mist-400">
-                          {isAr ? 'الديكور والتسويق التأسيسي (Fit-out & Mktg)' : 'Fit-Out & Pre-Opening'}
+                          {isAr ? 'التجهيزات والديكور والتسويق' : 'Fit-Out & Pre-Opening'}
                         </td>
                         <td className="px-4 py-3 text-end text-mist-400">{(fitoutKwd + marketingOpexKwd).toFixed(3)}</td>
                         <td className="px-5 py-3 text-end text-mist-300 bg-gold-400/5">{(fitoutKwd + marketingOpexKwd).toFixed(3)}</td>
@@ -995,22 +993,22 @@ export default function VentureEventsHub() {
                       {/* Net Profit */}
                       <tr className="hover:bg-white/[0.02] border-t-2 border-white/20 bg-black/40">
                         <td className="px-5 py-4 font-sans font-black text-white text-sm">
-                          {isAr ? 'صافي الربح التقديري (Net Profit)' : 'Net Profit (KWD)'}
+                          {isAr ? 'صافي الربح التقديري' : 'Net Profit (KWD)'}
                         </td>
                         <td className="px-4 py-4 text-end font-bold text-amber-300 text-sm">
-                          {threeScenarios.conservative.netProfitKwd.toLocaleString('en-US', { minimumFractionDigits: 3 })} KWD
+                          {threeScenarios.conservative.netProfitKwd.toLocaleString('en-US', { minimumFractionDigits: 3 })} {isAr ? 'د.ك' : 'KWD'}
                           <div className="text-[10px] text-mist-400 font-normal">
                             ({threeScenarios.conservative.netProfitMarginPercent.toFixed(1)}% {isAr ? 'هامش' : 'margin'})
                           </div>
                         </td>
                         <td className="px-5 py-4 text-end font-black text-gold-300 bg-gold-400/10 text-base">
-                          {threeScenarios.realistic.netProfitKwd.toLocaleString('en-US', { minimumFractionDigits: 3 })} KWD
+                          {threeScenarios.realistic.netProfitKwd.toLocaleString('en-US', { minimumFractionDigits: 3 })} {isAr ? 'د.ك' : 'KWD'}
                           <div className="text-[10px] text-emerald-400 font-bold">
                             ({threeScenarios.realistic.netProfitMarginPercent.toFixed(1)}% {isAr ? 'هامش صافي' : 'net margin'})
                           </div>
                         </td>
                         <td className="px-4 py-4 text-end font-black text-emerald-400 text-base">
-                          {threeScenarios.optimistic.netProfitKwd.toLocaleString('en-US', { minimumFractionDigits: 3 })} KWD
+                          {threeScenarios.optimistic.netProfitKwd.toLocaleString('en-US', { minimumFractionDigits: 3 })} {isAr ? 'د.ك' : 'KWD'}
                           <div className="text-[10px] text-emerald-300 font-bold">
                             ({threeScenarios.optimistic.netProfitMarginPercent.toFixed(1)}% {isAr ? 'هامش صافي' : 'net margin'})
                           </div>
@@ -1020,7 +1018,7 @@ export default function VentureEventsHub() {
                       {/* ROI */}
                       <tr className="hover:bg-white/[0.02]">
                         <td className="px-5 py-3 font-sans font-bold text-white">
-                          {isAr ? 'العائد على الاستثمار (ROI %)' : 'Return on Investment (ROI %)'}
+                          {isAr ? 'العائد على الاستثمار' : 'Return on Investment (ROI %)'}
                         </td>
                         <td className="px-4 py-3 text-end font-bold text-amber-300">
                           ▲ {threeScenarios.conservative.roiPercent.toFixed(1)}%
@@ -1039,20 +1037,20 @@ export default function VentureEventsHub() {
                           {isAr ? 'نقطة التعادل اليومية بالدينار والطلبات' : 'Daily Break-Even Requirement'}
                         </td>
                         <td className="px-4 py-3 text-end text-mist-300">
-                          {threeScenarios.conservative.dailyBreakEvenSalesKwd.toFixed(0)} KWD ({threeScenarios.conservative.dailyBreakEvenOrders} {isAr ? 'طلب' : 'ord'})
+                          {threeScenarios.conservative.dailyBreakEvenSalesKwd.toFixed(0)} {isAr ? 'د.ك' : 'KWD'} ({threeScenarios.conservative.dailyBreakEvenOrders} {isAr ? 'طلب' : 'ord'})
                         </td>
                         <td className="px-5 py-3 text-end font-bold text-cyan-300 bg-gold-400/5">
-                          {threeScenarios.realistic.dailyBreakEvenSalesKwd.toFixed(0)} KWD ({threeScenarios.realistic.dailyBreakEvenOrders} {isAr ? 'طلب' : 'ord'})
+                          {threeScenarios.realistic.dailyBreakEvenSalesKwd.toFixed(0)} {isAr ? 'د.ك' : 'KWD'} ({threeScenarios.realistic.dailyBreakEvenOrders} {isAr ? 'طلب' : 'ord'})
                         </td>
                         <td className="px-4 py-3 text-end text-mist-300">
-                          {threeScenarios.optimistic.dailyBreakEvenSalesKwd.toFixed(0)} KWD ({threeScenarios.optimistic.dailyBreakEvenOrders} {isAr ? 'طلب' : 'ord'})
+                          {threeScenarios.optimistic.dailyBreakEvenSalesKwd.toFixed(0)} {isAr ? 'د.ك' : 'KWD'} ({threeScenarios.optimistic.dailyBreakEvenOrders} {isAr ? 'طلب' : 'ord'})
                         </td>
                       </tr>
 
                       {/* Break-Even Day */}
                       <tr className="hover:bg-white/[0.02]">
                         <td className="px-5 py-3 font-sans font-bold text-emerald-400">
-                          {isAr ? 'يوم استرداد رأس المال الكامل (Break-Even Day)' : 'Break-Even Day'}
+                          {isAr ? 'يوم استرداد رأس المال الكامل' : 'Break-Even Day'}
                         </td>
                         <td className="px-4 py-3 text-end text-mist-200">
                           {isAr ? `اليوم ${threeScenarios.conservative.breakEvenDay}` : `Day ${threeScenarios.conservative.breakEvenDay}`}
@@ -1089,12 +1087,12 @@ export default function VentureEventsHub() {
                           <span className="font-bold text-emerald-400">{b.realisticSalesKwd.toLocaleString('en-US', { minimumFractionDigits: 3 })} KWD</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-mist-400">{isAr ? 'التكلفة COGS:' : 'COGS:'}</span>
-                          <span className="text-rose-300">{b.realisticCogsKwd.toFixed(3)} KWD</span>
+                          <span className="text-mist-400">{isAr ? 'التكلفة:' : 'COGS:'}</span>
+                          <span className="text-rose-300">{b.realisticCogsKwd.toFixed(3)} {isAr ? 'د.ك' : 'KWD'}</span>
                         </div>
                         <div className="flex justify-between border-t border-white/5 pt-1">
                           <span className="text-mist-400">{isAr ? 'الربح الإجمالي:' : 'Gross Profit:'}</span>
-                          <span className="font-bold text-gold-300">{b.realisticGrossProfitKwd.toFixed(3)} KWD</span>
+                          <span className="font-bold text-gold-300">{b.realisticGrossProfitKwd.toFixed(3)} {isAr ? 'د.ك' : 'KWD'}</span>
                         </div>
                       </div>
                     </div>
@@ -1225,7 +1223,7 @@ export default function VentureEventsHub() {
                     </div>
                     <p className="text-xs text-mist-300 line-clamp-2">{isAr ? b.strengthsAr : b.strengthsEn}</p>
                     <div className="flex items-center justify-between text-xs text-mist-400 border-t border-white/5 pt-2 font-mono">
-                      <span>ROI تاريخي:</span>
+                      <span>{isAr ? 'عائد استثمار تاريخي:' : 'Historical ROI:'}</span>
                       <span className="font-bold text-emerald-400">▲ {b.historicalRoiPercent}%</span>
                     </div>
                   </div>
@@ -1351,7 +1349,7 @@ export default function VentureEventsHub() {
                         <th className="px-4 py-3.5 text-end font-black text-gold-300 bg-gold-400/5">
                           {isAr ? 'سعر المعرض الجديد' : 'New EXB Price'}
                         </th>
-                        <th className="px-3 py-3.5 text-end text-rose-300">{isAr ? 'التكلفة COGS' : 'Cost KWD'}</th>
+                        <th className="px-3 py-3.5 text-end text-rose-300">{isAr ? 'التكلفة المباشرة' : 'Cost KWD'}</th>
                         <th className="px-3 py-3.5 text-center">{isAr ? 'الهامش %' : 'Margin %'}</th>
                         <th className="px-3 py-3.5 text-center">{isAr ? 'سرعة التحضير' : 'Speed'}</th>
                       </tr>
@@ -1390,7 +1388,7 @@ export default function VentureEventsHub() {
                             <td className="px-3 py-3 text-end text-mist-400">{item.standardBranchPriceKwd.toFixed(3)}</td>
                             <td className="px-3 py-3 text-end text-mist-500">{item.previousExbPriceKwd.toFixed(3)}</td>
                             <td className="px-4 py-3 text-end font-black text-gold-300 bg-gold-400/5 text-sm">
-                              {item.recommendedExbPriceKwd.toFixed(3)} KWD
+                              {item.recommendedExbPriceKwd.toFixed(3)} {isAr ? 'د.ك' : 'KWD'}
                             </td>
                             <td className="px-3 py-3 text-end text-rose-300 font-bold">{item.foodPackagingCogsKwd.toFixed(3)}</td>
                             <td className="px-3 py-3 text-center font-bold text-emerald-400">{marginPct.toFixed(1)}%</td>
@@ -1444,10 +1442,10 @@ export default function VentureEventsHub() {
                         <th className="px-3 py-3.5 text-center">{isAr ? 'الموسم والأيام' : 'Days'}</th>
                         <th className="px-3 py-3.5 text-end">{isAr ? 'الإيجار اليومي' : 'Daily Rent'}</th>
                         <th className="px-4 py-3.5 text-end">{isAr ? 'المبيعات اليومية' : 'Daily Sales'}</th>
-                        <th className="px-3 py-3.5 text-end text-cyan-300">{isAr ? 'تعادل يومي' : 'Daily BEP'}</th>
+                        <th className="px-3 py-3.5 text-end text-cyan-300">{isAr ? 'التعادل اليومي' : 'Daily BEP'}</th>
                         <th className="px-3 py-3.5 text-center">{isAr ? 'نسبة الإيجار' : 'Rent %'}</th>
                         <th className="px-4 py-3.5 text-end">{isAr ? 'صافي الربح' : 'Net Profit'}</th>
-                        <th className="px-3 py-3.5 text-center">{isAr ? 'العائد ROI' : 'ROI %'}</th>
+                        <th className="px-3 py-3.5 text-center">{isAr ? 'العائد على الاستثمار' : 'ROI %'}</th>
                         <th className="px-4 py-3.5 text-start">{isAr ? 'القرار الاستشاري' : 'Advisory Status'}</th>
                       </tr>
                     </thead>
@@ -1458,12 +1456,12 @@ export default function VentureEventsHub() {
                           ★ {isAr ? eventNameAr : eventNameEn} ({isAr ? 'المقترح الجديد' : 'Target Planned'})
                         </td>
                         <td className="px-3 py-4 text-center text-white">{calculatedDays} {isAr ? 'يوماً' : 'd'}</td>
-                        <td className="px-3 py-4 text-end text-white">{threeScenarios.dailyRentKwd.toFixed(3)} KWD</td>
+                        <td className="px-3 py-4 text-end text-white">{threeScenarios.dailyRentKwd.toFixed(3)} {isAr ? 'د.ك' : 'KWD'}</td>
                         <td className="px-4 py-4 text-end text-emerald-400 font-black">
-                          {threeScenarios.realistic.dailySalesKwd.toFixed(3)} KWD
+                          {threeScenarios.realistic.dailySalesKwd.toFixed(3)} {isAr ? 'د.ك' : 'KWD'}
                         </td>
                         <td className="px-3 py-4 text-end text-cyan-300">
-                          {threeScenarios.realistic.dailyBreakEvenSalesKwd.toFixed(0)} KWD
+                          {threeScenarios.realistic.dailyBreakEvenSalesKwd.toFixed(0)} {isAr ? 'د.ك' : 'KWD'}
                         </td>
                         <td className="px-3 py-4 text-center">
                           <span className={threeScenarios.realistic.rentWarning ? 'text-rose-400' : 'text-emerald-400'}>
@@ -1471,7 +1469,7 @@ export default function VentureEventsHub() {
                           </span>
                         </td>
                         <td className="px-4 py-4 text-end text-gold-300 font-black">
-                          {threeScenarios.realistic.netProfitKwd.toLocaleString('en-US', { minimumFractionDigits: 0 })} KWD
+                          {threeScenarios.realistic.netProfitKwd.toLocaleString('en-US', { minimumFractionDigits: 0 })} {isAr ? 'د.ك' : 'KWD'}
                         </td>
                         <td className="px-3 py-4 text-center text-purple-300 font-black">
                           ▲ {threeScenarios.realistic.roiPercent.toFixed(1)}%
@@ -1672,7 +1670,7 @@ export default function VentureEventsHub() {
                         <td className="border border-slate-300 p-2">{threeScenarios.optimistic.grossSalesKwd.toFixed(3)} د.ك</td>
                       </tr>
                       <tr>
-                        <td className="border border-slate-300 p-2 text-start font-sans">تكلفة الأغذية COGS ({estimatedCogsPct}%)</td>
+                        <td className="border border-slate-300 p-2 text-start font-sans">تكلفة الأطعمة والتغليف ({estimatedCogsPct}%)</td>
                         <td className="border border-slate-300 p-2">{threeScenarios.conservative.cogsKwd.toFixed(3)} د.ك</td>
                         <td className="border border-slate-300 p-2 bg-slate-50">{threeScenarios.realistic.cogsKwd.toFixed(3)} د.ك</td>
                         <td className="border border-slate-300 p-2">{threeScenarios.optimistic.cogsKwd.toFixed(3)} د.ك</td>
@@ -1690,7 +1688,7 @@ export default function VentureEventsHub() {
                         <td className="border border-slate-300 p-2">{threeScenarios.optimistic.netProfitKwd.toFixed(3)} د.ك</td>
                       </tr>
                       <tr>
-                        <td className="border border-slate-300 p-2 text-start font-sans">العائد على الاستثمار (ROI %)</td>
+                        <td className="border border-slate-300 p-2 text-start font-sans">العائد على الاستثمار</td>
                         <td className="border border-slate-300 p-2">▲ {threeScenarios.conservative.roiPercent.toFixed(1)}%</td>
                         <td className="border border-slate-300 p-2 font-bold bg-slate-50">▲ {threeScenarios.realistic.roiPercent.toFixed(1)}%</td>
                         <td className="border border-slate-300 p-2">▲ {threeScenarios.optimistic.roiPercent.toFixed(1)}%</td>
@@ -1784,7 +1782,7 @@ export default function VentureEventsHub() {
                     <th className="px-4 py-3.5 text-end">{isAr ? 'المبيعات' : 'Sales'}</th>
                     <th className="px-3 py-3.5 text-end text-cyan-300">{isAr ? 'السرعة اليومية' : 'Daily Velocity'}</th>
                     <th className="px-4 py-3.5 text-end">{isAr ? 'صافي الربح' : 'Net Profit'}</th>
-                    <th className="px-3 py-3.5 text-center">{isAr ? 'العائد ROI' : 'ROI %'}</th>
+                    <th className="px-3 py-3.5 text-center">{isAr ? 'العائد على الاستثمار' : 'ROI %'}</th>
                     <th className="px-3 py-3.5 text-center">{isAr ? 'التأمين' : 'Deposit'}</th>
                   </tr>
                 </thead>
@@ -1799,7 +1797,7 @@ export default function VentureEventsHub() {
                       <td className="px-3 py-3.5 text-center text-white">{evt.daysCount} d</td>
                       <td className="px-3 py-3.5 text-end text-rose-300">{evt.costs.totalCostsKwd.toFixed(3)}</td>
                       <td className="px-4 py-3.5 text-end font-bold text-emerald-400">{evt.revenue.grossSalesKwd.toFixed(3)}</td>
-                      <td className="px-3 py-3.5 text-end text-cyan-300">{evt.revenue.dailySalesVelocityKwd.toFixed(0)} KWD/d</td>
+                      <td className="px-3 py-3.5 text-end text-cyan-300">{evt.revenue.dailySalesVelocityKwd.toFixed(0)} {isAr ? 'د.ك' : 'KWD'}/d</td>
                       <td className="px-4 py-3.5 text-end font-bold text-gold-300">{evt.profitability.netProfitKwd.toFixed(3)}</td>
                       <td className="px-3 py-3.5 text-center text-purple-300 font-bold">▲ {evt.profitability.roiPercent.toFixed(1)}%</td>
                       <td className="px-3 py-3.5 text-center font-sans">
@@ -1808,7 +1806,7 @@ export default function VentureEventsHub() {
                             ? 'bg-emerald-500/20 text-emerald-300'
                             : 'bg-amber-500/20 text-amber-300'
                         }`}>
-                          {evt.costs.securityDepositKwd.toFixed(0)} KWD ({evt.costs.securityDepositStatus})
+                          {evt.costs.securityDepositKwd.toFixed(0)} {isAr ? 'د.ك' : 'KWD'} ({evt.costs.securityDepositStatus})
                         </span>
                       </td>
                     </tr>
