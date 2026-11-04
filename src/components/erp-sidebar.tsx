@@ -105,29 +105,50 @@ export function Sidebar({ user }: { user: AccessUser; enabledKeys?: string[] | n
   return (
     <aside className="app-sidebar fixed inset-y-0 start-0 z-30 hidden w-64 shrink-0 flex-col border-e border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0c1017] text-slate-800 dark:text-slate-200 md:flex">
       {/* Brand Header */}
-      <div className="border-b border-slate-200 dark:border-slate-800/80 px-4 py-4 bg-slate-50/50 dark:bg-[#080b10]">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/venture-foods-logo-dark.svg" alt={isAr ? 'فنتشر فودز' : 'Venture Foods'} className="h-10 w-auto object-contain" />
-        <div className="mt-3 flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0"></span>
-          <p className="text-[13px] font-black text-slate-900 dark:text-white leading-tight">
-            {isAr ? 'نظام الإدارة المالية والتشغيلية' : 'Financial & Operations Management System'}
-          </p>
+      <div className="shrink-0 border-b border-slate-200 dark:border-slate-800/80 px-4 pt-5 pb-4 bg-slate-50/50 dark:bg-[#080b10]">
+        <div className="flex items-center gap-3">
+          <div
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#0B1D42] text-base font-black tracking-wide"
+            style={{ color: '#FFFFFF' }}
+            aria-hidden
+          >
+            VF
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-black leading-tight text-slate-900 dark:text-white">{isAr ? 'فنتشر فودز' : 'Venture Foods'}</p>
+            <p className="text-[11px] font-semibold leading-tight text-slate-500 dark:text-slate-400" dir="ltr">
+              Venture Foods W.L.L.
+            </p>
+          </div>
         </div>
 
-        {/* Elegant clear unclipped info badge without truncate */}
-        <div className="mt-2.5 px-3 py-2.5 rounded-xl bg-[#F1F5F9] dark:bg-slate-800/80 border border-slate-300/80 dark:border-slate-700/80 text-right leading-relaxed shadow-sm">
+        <p className="mt-3 flex items-center text-[13px] font-black leading-snug text-slate-900 dark:text-white">
+          <span className="mr-1 ml-2 inline-block h-2 w-2 shrink-0 rounded-full bg-emerald-500"></span>
+          <span>{isAr ? 'نظام الإدارة المالية والتشغيلية' : 'Financial & Operations Management System'}</span>
+        </p>
+
+        {/* Company info: three independent centred lines, nothing truncated */}
+        <div
+          dir={isAr ? 'rtl' : 'ltr'}
+          className="mt-2.5 space-y-1.5 rounded-xl border border-slate-300/80 bg-[#F1F5F9] px-4 py-3 text-center leading-relaxed shadow-sm dark:border-slate-700/80 dark:bg-slate-800/80"
+        >
           <p className="text-xs font-bold text-[#0F172A] dark:text-slate-100" style={{ color: '#0F172A' }}>
-            {isAr ? 'شركة فنتشر فودز ذ.م.م. (ترخيص 2021/22838)' : 'Venture Foods W.L.L. (Lic. 2021/22838)'}
+            {isAr ? 'شركة فنتشر فودز لإدارة المطاعم ذ.م.م.' : 'Venture Foods Restaurant Management W.L.L.'}
           </p>
-          <p className="mt-1 text-xs font-bold text-[#1E3A8A] dark:text-sky-400" style={{ color: '#1E3A8A' }}>
-            {isAr ? '6 علامات تجارية · 9 فروع نشطة · مطبخ القرين' : '6 Brands · 9 Active Branches · Central Kitchen'}
+          <p>
+            <span className="inline-block whitespace-nowrap rounded-full border border-slate-300 bg-white px-2.5 py-0.5 text-xs font-bold text-[#0F172A]" style={{ color: '#0F172A' }}>
+              {isAr ? 'ترخيص رقم: ' : 'Licence No: '}
+              <span dir="ltr" className="inline-block tabular-nums">2021/22838</span>
+            </span>
+          </p>
+          <p className="text-xs font-bold text-[#1E3A8A] dark:text-sky-400" style={{ color: '#1E3A8A' }}>
+            {isAr ? '6 علامات تجارية · 9 فروع · مطبخ القرين' : '6 Brands · 9 Branches · Central Kitchen'}
           </p>
         </div>
       </div>
 
       {/* Navigation Sections */}
-      <nav className="flex-1 space-y-4 overflow-y-auto px-2.5 py-3">
+      <nav className="min-h-0 flex-1 space-y-4 overflow-y-auto px-2.5 py-3 pb-28">
         {SIDEBAR_SECTIONS.map((section, idx) => {
           const visibleItems = section.items.filter((item) => {
             if (user.role.isAdmin) return true
@@ -182,14 +203,14 @@ export function Sidebar({ user }: { user: AccessUser; enabledKeys?: string[] | n
       </nav>
 
       {/* User Footer */}
-      <div className="border-t border-slate-200 dark:border-slate-800/80 bg-slate-50/50 dark:bg-[#080b10] p-3">
-        <div className="flex items-center gap-2.5 px-1 py-1">
+      <div className="shrink-0 border-t border-slate-200 dark:border-slate-800/80 bg-slate-50/50 dark:bg-[#080b10] px-4 py-3">
+        <div className="flex items-center gap-2.5 py-1">
           <div className="h-8 w-8 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-white flex items-center justify-center font-bold text-xs shrink-0 border border-slate-300 dark:border-slate-700">
             {user.name.slice(0, 1)}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="font-bold text-xs text-slate-900 dark:text-white truncate">{displayTeamName(user.name, locale)}</p>
-            <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">{displayRoleName(user.role.name, locale)}</p>
+            <p className="font-bold text-xs leading-snug text-slate-900 dark:text-white break-words">{displayTeamName(user.name, locale)}</p>
+            <p className="text-[11px] leading-snug text-slate-500 dark:text-slate-400 break-words">{displayRoleName(user.role.name, locale)}</p>
           </div>
         </div>
         <form action={logout} className="mt-2">

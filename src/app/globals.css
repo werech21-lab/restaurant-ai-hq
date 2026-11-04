@@ -868,3 +868,103 @@ html.light-mode ::-webkit-scrollbar-thumb {
     box-shadow: none !important;
   }
 }
+
+/* ==========================================================================
+   RTL number safety: numeric spans never flip % / signs or mix with Arabic
+   ========================================================================== */
+span.tabular-nums {
+  direction: ltr;
+  unicode-bidi: isolate;
+  display: inline-block;
+}
+
+/* ==========================================================================
+   Aggregator radar: light theme scope (data and logic untouched).
+   The radar was written for a dark shell; on the white shell its light-grey
+   and gold text disappeared. These rules apply only inside .radar-light.
+   ========================================================================== */
+.radar-light { color: #0F172A; }
+
+/* surfaces */
+.radar-light [class~="bg-[#1c2128]"],
+.radar-light [class~="bg-[#17191f]"],
+.radar-light [class~="bg-[#121316]"],
+.radar-light [class~="bg-[#1a1c22]"],
+.radar-light [class~="bg-ink-900"],
+.radar-light [class~="bg-black/25"] {
+  background-color: #FFFFFF !important;
+}
+.radar-light [class~="border-[#30363d]"],
+.radar-light [class~="border-white/5"],
+.radar-light [class~="border-white/10"],
+.radar-light [class~="border-white/15"],
+.radar-light [class~="border-white/20"] {
+  border-color: #E2E8F0 !important;
+}
+.radar-light [class~="bg-white/5"],
+.radar-light [class~="bg-white/10"],
+.radar-light [class~="bg-white/20"] {
+  background-color: #E2E8F0 !important;
+}
+.radar-light [class~="bg-red-950/30"],
+.radar-light [class~="bg-red-950/50"],
+.radar-light [class~="bg-red-950/20"],
+.radar-light [class~="bg-red-950/10"],
+.radar-light [class~="bg-red-950/40"],
+.radar-light [class~="bg-red-500/20"] {
+  background-color: #FEF2F2 !important;
+  border-color: #FECACA !important;
+}
+.radar-light [class~="bg-emerald-950/40"],
+.radar-light [class~="bg-emerald-950/50"],
+.radar-light [class~="bg-emerald-950/20"],
+.radar-light [class~="bg-emerald-500/10"],
+.radar-light [class~="bg-emerald-500/20"] {
+  background-color: #ECFDF5 !important;
+  border-color: #A7F3D0 !important;
+}
+.radar-light [class~="bg-amber-950/20"],
+.radar-light [class~="bg-amber-950/30"],
+.radar-light [class~="bg-amber-500/10"],
+.radar-light [class~="bg-amber-500/20"],
+.radar-light [class~="bg-amber-400/10"] {
+  background-color: #FFFBEB !important;
+  border-color: #FDE68A !important;
+}
+.radar-light [class~="bg-gold-400/10"],
+.radar-light [class~="bg-gold-400/15"] {
+  background-color: #EFF6FF !important;
+  border-color: #BFDBFE !important;
+}
+
+/* text */
+.radar-light .text-white,
+.radar-light .text-gray-100,
+.radar-light .text-gray-200 { color: #0F172A !important; }
+.radar-light .text-gray-300 { color: #1E293B !important; }
+.radar-light .text-gray-400,
+.radar-light .text-gray-500 { color: #475569 !important; }
+.radar-light .text-gold-200,
+.radar-light .text-gold-300 { color: #1E3A8A !important; }
+.radar-light .text-emerald-50,
+.radar-light .text-emerald-100,
+.radar-light .text-emerald-200,
+.radar-light .text-emerald-300,
+.radar-light .text-emerald-400 { color: #047857 !important; }
+.radar-light .text-red-100,
+.radar-light .text-red-200,
+.radar-light .text-red-300,
+.radar-light .text-red-400,
+.radar-light .text-rose-300,
+.radar-light .text-rose-400\/80 { color: #B91C1C !important; }
+.radar-light .text-amber-200,
+.radar-light .text-amber-300,
+.radar-light .text-amber-400 { color: #B45309 !important; }
+
+/* legible sizes inside cards and tables */
+.radar-light .text-xs { font-size: 0.8125rem; font-weight: 600; }
+.radar-light .text-sm { font-weight: 600; }
+
+/* solid buttons keep white text */
+.radar-light button.bg-blue-600,
+.radar-light button.bg-blue-600 * { color: #FFFFFF !important; }

@@ -1,6 +1,5 @@
 import { connection } from 'next/server'
 import { requireUser } from '@/lib/erp-auth'
-import { AssistantWidget } from '@/components/assistant-widget'
 import { NotificationBell } from '@/components/notification-bell'
 import { PanelHeaderBar } from '@/components/panel-chrome'
 import { ScopeProvider } from '@/components/ScopeProvider'
@@ -69,7 +68,6 @@ export async function Shell({ children }: { children: React.ReactNode }) {
           </header>
           <main className="w-full max-w-none min-h-screen px-4 py-6 sm:px-6 lg:px-8 bg-[#F4F6F9] dark:bg-[#070D18] text-slate-900 dark:text-slate-100">{children}</main>
         </div>
-        <AssistantWidget />
       </div>
     </ScopeProvider>
   )

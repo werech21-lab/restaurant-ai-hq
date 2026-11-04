@@ -595,7 +595,7 @@ function Workspace() {
   const kpis = board?.kpis
 
   return (
-    <div className="space-y-6" data-no-translate="">
+    <div className="radar-light space-y-6" data-no-translate="">
       <header className="space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -793,7 +793,7 @@ function Workspace() {
             <p className="mt-2 text-sm text-gray-200">
               {en ? `Venture Fleet ${safeFixed(num(kpis.tmpOrderShareBps) / 100, 1)}% · Platform ${safeFixed(num(kpis.tgoOrderShareBps) / 100, 1)}%` : `أسطول فنتشر فودز ${safeFixed(num(kpis.tmpOrderShareBps) / 100, 1)}% · توصيل المنصة ${safeFixed(num(kpis.tgoOrderShareBps) / 100, 1)}%`}
             </p>
-            <p className="mt-2 text-[11px] text-gray-400" dir="ltr">
+            <p className="mt-2 text-xs text-gray-400" dir="ltr">
               {en ? `Fleet ID #${kpis.mpAccount} (10%) · Platform ID #${kpis.tgoAccount} (17%)` : `معرف أسطول الشركة #${kpis.mpAccount} (10%) · معرف توصيل المنصة #${kpis.tgoAccount} (17%)`}
             </p>
           </article>
@@ -805,7 +805,7 @@ function Workspace() {
           <article className={panelClass}>
             <p className="text-xs text-gray-400">{en ? '7% Commission Penalty & Lost Sales' : 'فارق العمولة 7% + المبيعات الضائعة'}</p>
             <p className="mt-2 text-2xl font-bold text-gold-300">{formatKwdMinor(kpis.financialImpactMinor, locale)}</p>
-            <p className="mt-1 text-[11px] text-gray-400">
+            <p className="mt-1 text-xs text-gray-400">
               {en ? 'Penalty' : 'فارق'}: {formatKwdMinor(kpis.commissionPenaltyMinor, locale)} · {en ? 'Lost' : 'ضائع'}:{' '}
               {formatKwdMinor(kpis.lostSalesMinor, locale)}
             </p>
@@ -851,18 +851,18 @@ function Workspace() {
                       <td className="whitespace-nowrap px-4 py-3 font-semibold">{displayBrandName(row.brandNameEn, row.brandNameAr, locale)}</td>
                       <td className="whitespace-nowrap px-4 py-3">
                         <span className="block font-medium">{branch}</span>
-                        <span className="text-[11px] text-slate-400 dark:text-gray-400">{area}</span>
+                        <span className="text-xs text-slate-400 dark:text-gray-400">{area}</span>
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 font-medium">{row.platform}</td>
                       <td className="whitespace-nowrap px-4 py-3">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold whitespace-nowrap ${status.className}`}>{status.label}</span>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold whitespace-nowrap ${status.className}`}>{status.label}</span>
                       </td>
                       <td className="whitespace-nowrap py-3 px-4 align-middle">
                         <div className="whitespace-nowrap inline-flex items-center gap-2">
                           <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap ${mode.badgeClass}`}>
                             {mode.badgeLabel}
                           </span>
-                          <span className={`text-[11px] font-medium whitespace-nowrap ${mode.subClass}`}>
+                          <span className={`text-xs font-medium whitespace-nowrap ${mode.subClass}`}>
                             ({mode.subLabel})
                           </span>
                         </div>

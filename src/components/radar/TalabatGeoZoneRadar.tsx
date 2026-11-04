@@ -611,7 +611,7 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
                       {isEn ? branch.branchNameEn : branch.branchNameAr}
                     </h2>
                     <span
-                      className="rounded-md px-2 py-0.5 text-[11px] font-black"
+                      className="rounded-md px-2 py-0.5 text-xs font-black"
                       style={{
                         backgroundColor: (brandObj?.color || '#f59e0b') + '20',
                         color: brandObj?.color || '#f59e0b',
@@ -702,17 +702,17 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
                         <div className="flex items-center justify-between font-bold">
                           <div className="flex items-center gap-1.5">
                             <span className="text-white">{isEn ? zone.zoneNameEn : zone.zoneNameAr}</span>
-                            <span className="text-[10px] text-gray-400">
+                            <span className="text-xs text-gray-400">
                               ({zone.distanceKm} {isEn ? 'km' : 'كم'})
                             </span>
                           </div>
-                          <span className={`rounded-md border px-2 py-0.5 text-[10px] font-black ${badgeBg}`}>
+                          <span className={`rounded-md border px-2 py-0.5 text-xs font-black ${badgeBg}`}>
                             {statusLabel}
                           </span>
                         </div>
 
                         {/* Timing / Duration */}
-                        <div className="mt-1.5 text-[11px] text-gray-300">
+                        <div className="mt-1.5 text-xs text-gray-300">
                           {zone.isOngoing ? (
                             <span className="font-semibold text-amber-400">
                               ⏰ {isEn ? `Busy: ${zone.startTime} – Now (${zone.durationMinutes} mins)` : `مستمر: ${zone.startTime} – الآن (${zone.durationMinutes} دقيقة)`}
@@ -731,7 +731,7 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
 
                         {/* Diagnostics & Lost Sales */}
                         {zone.status !== 'ONLINE_VISIBLE' && (
-                          <div className="mt-1.5 space-y-0.5 border-t border-white/5 pt-1.5 text-[11px]">
+                          <div className="mt-1.5 space-y-0.5 border-t border-white/5 pt-1.5 text-xs">
                             <div className="text-amber-200/90">
                               {isEn ? zone.rootCauseLabelEn : zone.rootCauseLabelAr}
                             </div>
@@ -834,7 +834,7 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
                             ? 'Branch Management'
                             : 'إدارة الفرع (Branch)'}
                       </div>
-                      <div className="text-[11px] text-gray-400">
+                      <div className="text-xs text-gray-400">
                         {isEn ? inc.rootCauseLabelEn : inc.rootCauseLabelAr}
                       </div>
                     </td>
@@ -842,7 +842,7 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
                       <div className="font-bold text-red-400">
                         -{inc.lostKwd.toFixed(3)} {isEn ? 'KWD' : 'د.ك'}
                       </div>
-                      <div className="text-[11px] text-gray-400">
+                      <div className="text-xs text-gray-400">
                         ({inc.lostOrders} {isEn ? 'orders' : 'طلب'})
                         {inc.penaltyKwd > 0 && (
                           <span className="text-orange-400">
@@ -936,7 +936,7 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
                           <span className="font-bold text-white text-sm">
                             {isEn ? branch.branchNameEn : branch.branchNameAr}
                           </span>
-                          <span className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-[10px] text-gray-400">
+                          <span className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-xs text-gray-400">
                             {branch.branchCode}
                           </span>
                         </div>
@@ -1092,7 +1092,7 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
                 </div>
               </div>
 
-              <div className="rounded-xl border border-white/5 bg-[#17191f] p-3 text-[11px] text-gray-400">
+              <div className="rounded-xl border border-white/5 bg-[#17191f] p-3 text-xs text-gray-400">
                 {isEn
                   ? '💡 Full timestamped audit logs, GPS radius shrinkage proofs, and incident IDs are attached as conclusive evidence.'
                   : '💡 تم تضمين كافة السجلات الزمنية المشفرة مع إحداثيات GPS ونسب تآكل النطاق كأدلة قطعية.'}
