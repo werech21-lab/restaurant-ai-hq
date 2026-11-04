@@ -23,7 +23,7 @@ import { SmartIngestLaunchButton } from "@/components/SmartIngestLaunchButton";
 import { VenturePurchasesHub } from "@/components/purchases/VenturePurchasesHub";
 
 export const metadata = {
-  title: "المشتريات والموردين | Venture Foods W.L.L.",
+  title: "المشتريات والموردون | شركة فنتشر فودز ذ.م.م.",
   description: "مركز قيادة المشتريات والمطابقة الثلاثية لشركة فنتشر فودز لإدارة المطاعم ذ.م.م.",
 };
 
