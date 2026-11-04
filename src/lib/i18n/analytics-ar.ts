@@ -112,11 +112,11 @@ export const ANALYTICS_AR: Record<string, string> = {
   'High-impact menu items evaluated by order volume, basket attachment, discount bleed, and kitchen prep.':
     'أصناف المنيو الأعلى أثراً مقيَّمة بحسب حجم الطلبات وإضافات السلة وتسرّب الخصومات وتحضير المطبخ.',
   'Odoo ERP financial, central kitchen & maintenance audit scorecard': 'بطاقة التدقيق المالي والمطبخ المركزي والصيانة في أودو',
-  'Direct reconciliation with Odoo general ledger (2,213 entries), Qurain Central Kitchen COGS, and Rabih maintenance custody.':
-    'مطابقة مباشرة مع دفتر الأستاذ العام في أودو (2,213 قيداً) وتكلفة أغذية مطبخ القرين المركزي وعهدة صيانة ربيع.',
+  'Direct reconciliation with Odoo general ledger (2,213 entries), Central Kitchen COGS, and Rabih maintenance custody.':
+    'مطابقة مباشرة مع دفتر الأستاذ العام في أودو (2,213 قيداً) وتكلفة أغذية المطبخ المركزي وعهدة صيانة ربيع.',
   'Long-tail menu candidates for pruning (Prep & waste reduction)': 'أصناف الذيل الطويل المرشحة للحذف (تقليل التحضير والهدر)',
-  '332 of 364 items generate only 20% of sales. Removing low-rotation SKUs reduces Qurain Central Kitchen waste.':
-    '332 صنفاً من أصل 364 تحقق 20% فقط من المبيعات. حذف الأصناف بطيئة الدوران يقلل هدر مطبخ القرين المركزي.',
+  '332 of 364 items generate only 20% of sales. Removing low-rotation SKUs reduces Central Kitchen waste.':
+    '332 صنفاً من أصل 364 تحقق 20% فقط من المبيعات. حذف الأصناف بطيئة الدوران يقلل هدر المطبخ المركزي.',
   'Brand × Channel combination scorecard': 'بطاقة أداء تركيبات العلامة × القناة',
   'Top brand-channel pairs showing lead item, average basket size, and drink attachment rate.':
     'أعلى أزواج العلامة والقناة مع الصنف الرائد ومتوسط حجم السلة ونسبة إضافة المشروبات.',
@@ -132,8 +132,8 @@ export const ANALYTICS_AR: Record<string, string> = {
     'طلبات طلبات جو وكيتا بنسبة مشروبات أقل من 13% مقابل 41.2% في المحل. أضف خطوة اختيار مشروب إلزامية في الكومبو.',
   'Odoo COGS & Central Kitchen variance': 'انحراف تكلفة الأغذية والمطبخ المركزي في أودو',
   'COGS +0.8%': 'تكلفة الأغذية +0.8%',
-  'Qurain Central Kitchen poultry marination waste pushed COGS to 24.8% (KWD 41,438.856). Enforce batch weight logs.':
-    'هدر تتبيل الدجاج في مطبخ القرين المركزي رفع تكلفة الأغذية إلى 24.8% (KWD 41,438.856). فعّل سجلات أوزان الدفعات.',
+  'Central Kitchen poultry marination waste pushed COGS to 24.8% (KWD 41,438.856). Enforce batch weight logs.':
+    'هدر تتبيل الدجاج في المطبخ المركزي رفع تكلفة الأغذية إلى 24.8% (KWD 41,438.856). فعّل سجلات أوزان الدفعات.',
   'High-margin signature & combo anchors': 'أصناف مميزة وكومبو عالية الهامش',
   'Expand combo': 'وسّع الكومبو',
   "Frank's (69.8% starters) & Talabat MP (KWD 9.28 avg order) prove high bundle elasticity. Replicate across brands.":
@@ -173,17 +173,17 @@ export const ANALYTICS_AR: Record<string, string> = {
   'Discount watch': 'مراقبة الخصم',
   'Brand discount rate is 4.9% (double group average). Replace flat percentage discounts with free drink above KWD 6.000.':
     'نسبة الخصم في العلامة 4.9% (ضعف متوسط المجموعة). استبدل الخصم النسبي بمشروب مجاني للطلبات فوق KWD 6.000.',
-  'Qurain prep watch': 'مراقبة تحضير القرين',
-  'Linked to Qurain Central Kitchen poultry batching (+0.8% COGS variance). Standardize 140g portioning weight.':
-    'مرتبط بتجهيز الدجاج في مطبخ القرين المركزي (انحراف تكلفة +0.8%). وحّد وزن الحصة عند 140 جراماً.',
+  'Central kitchen prep watch': 'مراقبة تحضير المطبخ المركزي',
+  'Linked to Central Kitchen poultry batching (+0.8% COGS variance). Standardize 140g portioning weight.':
+    'مرتبط بتجهيز الدجاج في المطبخ المركزي (انحراف تكلفة +0.8%). وحّد وزن الحصة عند 140 جراماً.',
 
   // ---- Odoo audit table
-  'Central Kitchen · Qurain': 'المطبخ المركزي · القرين',
+  'Central Kitchen': 'المطبخ المركزي',
   'COGS / Raw Poultry & Sauces': 'تكلفة الأغذية / الدواجن النيئة والصلصات',
   'Odoo MRP & Stock': 'التصنيع والمخزون في أودو',
   'Tighten BOM': 'شدّد مواصفات الوصفة',
-  'Actual Food Cost is 24.8% vs 24.0% standard (KWD 1,336 variance). Audit chicken marination yield in Qurain Central Kitchen.':
-    'تكلفة الأغذية الفعلية 24.8% مقابل 24.0% معيارية (انحراف KWD 1,336). دقّق مردود تتبيل الدجاج في مطبخ القرين المركزي.',
+  'Actual Food Cost is 24.8% vs 24.0% standard (KWD 1,336 variance). Audit chicken marination yield in Central Kitchen.':
+    'تكلفة الأغذية الفعلية 24.8% مقابل 24.0% معيارية (انحراف KWD 1,336). دقّق مردود تتبيل الدجاج في المطبخ المركزي.',
   'Maintenance · Al-Kout & Salmiya': 'الصيانة · الكوت والسالمية',
   'Custody & Maintenance (Rabih)': 'العهد والصيانة (ربيع)',
   'Odoo Petty Cash': 'النثرية في أودو',

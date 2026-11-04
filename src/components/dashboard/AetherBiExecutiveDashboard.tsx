@@ -79,7 +79,7 @@ const RECS: {
   },
   {
     id: 'REC-03', priority: 'high',
-    deptEn: 'Qurain central kitchen (food cost)', deptAr: 'المطبخ المركزي بالقرين (تكلفة الأغذية)',
+    deptEn: 'Central kitchen (food cost)', deptAr: 'المطبخ المركزي (تكلفة الأغذية)',
     issueEn: 'Food cost drifted to 24.8% (KWD 41,438.856) from 24.0% because of chicken marinade waste.',
     issueAr: 'انحراف تكلفة الأغذية إلى 24.8% (41,438.856 د.ك) بدلاً من 24.0% نتيجة هدر تتبيل الدجاج.',
     fixEn: 'Pre-weigh marinade portions (140 g) and tie central-kitchen issues to daily POS sales.',
@@ -100,8 +100,8 @@ const RECS: {
     deptEn: 'Menu engineering (364 items)', deptAr: 'هندسة المنيو (364 صنفاً)',
     issueEn: 'Only 32 items make 80% of sales while 332 items make 20% and add prep and storage waste.',
     issueAr: '32 صنفاً فقط تحقق 80% من المبيعات بينما 332 صنفاً تحقق 20% وترفع هدر التحضير والتخزين.',
-    fixEn: 'Delist the weakest 45 items (under 20 orders a month) to ease prep pressure in Qurain and the branches.',
-    fixAr: 'إلغاء أضعف 45 صنفاً (أقل من 20 طلباً بالشهر) لتخفيف ضغط التحضير في مطبخ القرين والفروع.',
+    fixEn: 'Delist the weakest 45 items (under 20 orders a month) to ease prep pressure in the central kitchen and the branches.',
+    fixAr: 'إلغاء أضعف 45 صنفاً (أقل من 20 طلباً بالشهر) لتخفيف ضغط التحضير في المطبخ المركزي والفروع.',
     impact: 584,
   },
 ]
@@ -194,7 +194,7 @@ export function AetherBiExecutiveDashboard({ locale: _unused }: { locale?: strin
             <span>{T('Venture Foods Restaurant Management W.L.L. · Odoo data (2,213 journal entries)', 'شركة فنتشر فودز لإدارة المطاعم ذ.م.م. · بيانات أودو (2,213 قيد يومي)')}</span>
           </div>
           <h1 className="mt-1 text-xl font-extrabold !text-slate-900 md:text-2xl">{T('Financial & Analytical Report and Recommendations', 'التقرير المالي والتحليلي ومحرك التوصيات')}</h1>
-          <p className="mt-0.5 text-xs text-slate-500">{T('6 brands, 11 sales channels and the Qurain central kitchen. Static data: browsing uses no AI tokens.', '6 علامات تجارية و11 قناة بيع ومطبخ القرين المركزي. بيانات ثابتة: التصفح لا يستهلك أي توكنات.')}</p>
+          <p className="mt-0.5 text-xs text-slate-500">{T('6 brands, 11 sales channels and the central kitchen. Static data: browsing uses no AI tokens.', '6 علامات تجارية و11 قناة بيع والمطبخ المركزي. بيانات ثابتة: التصفح لا يستهلك أي توكنات.')}</p>
         </div>
         <span className="self-start rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-sm lg:self-auto" style={{ color: '#FFFFFF' }}>{T('October 2026', 'أكتوبر 2026')}</span>
       </div>

@@ -313,7 +313,7 @@ const DIAGNOSTIC_BUCKETS = [
     color: "#F97316",
     badge: "COGS +0.8%",
     badgeColor: "border-orange-500 text-orange-800 bg-orange-50",
-    rule: "Qurain Central Kitchen poultry marination waste pushed COGS to 24.8% (KWD 41,438.856). Enforce batch weight logs.",
+    rule: "Central Kitchen poultry marination waste pushed COGS to 24.8% (KWD 41,438.856). Enforce batch weight logs.",
   },
   {
     label: "High-margin signature & combo anchors",
@@ -438,16 +438,16 @@ const ITEM_DIAGNOSTICS_TABLE_1 = [
     sales: 1607.6,
     avgPrice: 3.14,
     sharePct: 1.0,
-    badge: "Qurain prep watch",
+    badge: "Central kitchen prep watch",
     badgeStyle: "border-orange-600 text-orange-800 bg-orange-50",
-    note: "Linked to Qurain Central Kitchen poultry batching (+0.8% COGS variance). Standardize 140g portioning weight.",
+    note: "Linked to Central Kitchen poultry batching (+0.8% COGS variance). Standardize 140g portioning weight.",
   },
 ];
 
 // Operational & Odoo Financial Action Table 2 (Matches 2nd Screenshot Lower Table)
 const ODOO_OPERATIONAL_TABLE_2 = [
   {
-    sector: "Central Kitchen · Qurain",
+    sector: "Central Kitchen",
     account: "COGS / Raw Poultry & Sauces",
     module: "Odoo MRP & Stock",
     entries: 418,
@@ -455,7 +455,7 @@ const ODOO_OPERATIONAL_TABLE_2 = [
     variancePct: "+0.8%",
     badge: "Tighten BOM",
     badgeStyle: "border-amber-600 text-amber-800 bg-amber-50",
-    action: "Actual Food Cost is 24.8% vs 24.0% standard (KWD 1,336 variance). Audit chicken marination yield in Qurain Central Kitchen.",
+    action: "Actual Food Cost is 24.8% vs 24.0% standard (KWD 1,336 variance). Audit chicken marination yield in Central Kitchen.",
   },
   {
     sector: "Maintenance · Al-Kout & Salmiya",
@@ -1295,7 +1295,7 @@ export default function BrandSalesOdooReportPage() {
              ========================================== */}
           <div className="bg-white border border-gray-200 rounded-md p-4">
             <div className="text-[12px] font-semibold text-gray-900"> {tr("Odoo ERP financial, central kitchen & maintenance audit scorecard")} </div>
-            <div className="text-[10px] text-gray-400 mb-3"> {tr("Direct reconciliation with Odoo general ledger (2,213 entries), Qurain Central Kitchen COGS, and Rabih maintenance custody.")} </div>
+            <div className="text-[10px] text-gray-400 mb-3"> {tr("Direct reconciliation with Odoo general ledger (2,213 entries), Central Kitchen COGS, and Rabih maintenance custody.")} </div>
             <div className="max-h-[260px] overflow-y-auto border-t border-gray-100">
               <table className="w-full text-[11px] border-collapse">
                 <thead className="sticky top-0 bg-white border-b border-gray-200 text-gray-400">
@@ -1350,7 +1350,7 @@ export default function BrandSalesOdooReportPage() {
             {/* Left: Low-volume tail items & kitchen waste */}
             <div className="bg-white border border-gray-200 rounded-md p-4">
               <div className="text-[12px] font-semibold text-gray-900"> {tr("Long-tail menu candidates for pruning (Prep & waste reduction)")} </div>
-              <div className="text-[10px] text-gray-400 mb-3"> {tr("332 of 364 items generate only 20% of sales. Removing low-rotation SKUs reduces Qurain Central Kitchen waste.")} </div>
+              <div className="text-[10px] text-gray-400 mb-3"> {tr("332 of 364 items generate only 20% of sales. Removing low-rotation SKUs reduces Central Kitchen waste.")} </div>
               <div className="max-h-[220px] overflow-y-auto border-t border-gray-100">
                 <table className="w-full text-[11px] border-collapse">
                   <thead className="sticky top-0 bg-white border-b border-gray-200 text-gray-400">

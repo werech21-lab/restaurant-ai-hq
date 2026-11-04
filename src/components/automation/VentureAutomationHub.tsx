@@ -65,13 +65,13 @@ const INITIAL_WORKFLOWS: AutomationWorkflow[] = [
   {
     id: 'wf-stock',
     code: 'VF-NOTIF-02',
-    titleAr: 'تنبيه نقص مخزون مطبخ القرين',
-    titleEn: 'Al-Qurain Central Kitchen Stock Alert',
+    titleAr: 'تنبيه نقص مخزون المطبخ المركزي',
+    titleEn: 'Central Kitchen Stock Alert',
     departmentAr: 'المخزون والتوريد',
     departmentEn: 'Inventory & Supply',
-    triggerAr: 'نزول رصيد أي مادة خام أو مواد تغليف أو أصناف تحضير مركزي في مطبخ القرين عن الحد الأدنى المحدد',
-    triggerEn: 'Item stock level in Al-Qurain drops below standard reorder threshold',
-    actionAr: 'إنشاء مسودة طلب شراء آلياً وتنبيه مسؤولي العمليات ومستودع المطبخ المركزي بالقرين',
+    triggerAr: 'نزول رصيد أي مادة خام أو مواد تغليف أو أصناف تحضير مركزي في المطبخ المركزي عن الحد الأدنى المحدد',
+    triggerEn: 'Item stock level in the central kitchen drops below standard reorder threshold',
+    actionAr: 'إنشاء مسودة طلب شراء آلياً وتنبيه مسؤولي العمليات ومستودع المطبخ المركزي',
     actionEn: 'Generate draft purchase order and alert Operations and Central Kitchen Commissary',
     scheduleAr: 'عند حركة المخزون',
     scheduleEn: 'On stock movement',
@@ -208,12 +208,12 @@ const INITIAL_LOGS: ExecutionLogItem[] = [
   {
     id: 'log-4',
     workflowCode: 'VF-NOTIF-02',
-    workflowTitleAr: 'تنبيه نقص مخزون مطبخ القرين',
+    workflowTitleAr: 'تنبيه نقص مخزون المطبخ المركزي',
     workflowTitleEn: 'Central Kitchen Stock Alert',
     timestamp: '04 نوفمبر 2026 - 07:14:30',
     status: 'SUCCESS',
-    detailsAr: 'إصدار مسودة أمر تزويد مستودع المطبخ المركزي بالقرين رقم 002-202611',
-    detailsEn: 'Generated stock replenishment draft PO-202611-002 for Al-Qurain Kitchen',
+    detailsAr: 'إصدار مسودة أمر تزويد مستودع المطبخ المركزي رقم 002-202611',
+    detailsEn: 'Generated stock replenishment draft PO-202611-002 for the central kitchen',
     durationMs: 290,
   },
   {
@@ -652,7 +652,7 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
                   className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-white focus:outline-none"
                 >
                   <option value="المبيعات وتطبيقات التوصيل">{isAr ? 'المبيعات وتطبيقات التوصيل' : 'Sales & Channels'}</option>
-                  <option value="المخزون ومطبخ القرين">{isAr ? 'المخزون ومطبخ القرين' : 'Inventory & Commissary'}</option>
+                  <option value="المخزون والمطبخ المركزي">{isAr ? 'المخزون والمطبخ المركزي' : 'Inventory & Commissary'}</option>
                   <option value="الجودة وسلامة الغذاء">{isAr ? 'الجودة وسلامة الغذاء' : 'QA & Food Safety'}</option>
                   <option value="المالية والمحاسبة">{isAr ? 'المالية والمحاسبة' : 'Finance & Accounting'}</option>
                   <option value="شؤون الموظفين">{isAr ? 'شؤون الموظفين' : 'HR & Personnel'}</option>

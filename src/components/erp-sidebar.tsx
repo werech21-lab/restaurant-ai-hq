@@ -39,7 +39,7 @@ const SIDEBAR_SECTIONS: NavSection[] = [
     items: [
       { key: 'dashboard', href: '/dashboard', labelAr: 'الملخص المالي والتوصيات', labelEn: 'Financial Summary & Recommendations', icon: LayoutDashboard },
       // permission follows the existing "reports" module so non-admin roles that can see reports can open it
-      { key: 'reports', href: '/erp/sales-scorecard', labelAr: 'التحليل التفصيلي للمبيعات والأصناف', labelEn: 'Sales & Items Detailed Analysis', icon: FileText },
+      { key: 'reports', href: '/erp/sales-scorecard', labelAr: 'تحليل المبيعات والأصناف', labelEn: 'Sales & Items Analysis', icon: FileText },
       { key: 'erp-radar', href: '/erp/aggregator-radar', labelAr: 'متابعة تطبيقات التوصيل', labelEn: 'Delivery Aggregator Control', icon: Store },
       { key: 'automations', href: '/automations', labelAr: 'التنبيهات التلقائية', labelEn: 'Automated Notifications', icon: Zap },
     ],
@@ -52,13 +52,13 @@ export function Sidebar({ user }: { user: AccessUser; enabledKeys?: string[] | n
   const isAr = locale === 'ar'
 
   return (
-    <aside className="app-sidebar fixed inset-y-0 start-0 z-30 hidden w-64 shrink-0 flex-col border-e border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0c1017] text-slate-800 dark:text-slate-200 md:flex">
+    <aside className="app-sidebar fixed inset-y-0 start-0 z-30 hidden w-64 shrink-0 flex-col overflow-hidden border-e border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0c1017] text-slate-800 dark:text-slate-200 md:flex">
       {/* Brand Header */}
       <div className="shrink-0 border-b border-slate-200 dark:border-slate-800/80 px-4 pt-5 pb-4 bg-slate-50/50 dark:bg-[#080b10]">
         <div className="flex items-center gap-3">
           <div
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#0B1D42] text-base font-black tracking-wide"
-            style={{ color: '#FFFFFF' }}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-base font-black tracking-wide"
+            style={{ backgroundColor: '#0F172A', color: '#FFFFFF' }}
             aria-hidden
           >
             VF
@@ -91,13 +91,13 @@ export function Sidebar({ user }: { user: AccessUser; enabledKeys?: string[] | n
             </span>
           </p>
           <p className="text-xs font-bold text-[#1E3A8A] dark:text-sky-400" style={{ color: '#1E3A8A' }}>
-            {isAr ? '6 علامات تجارية · 9 فروع نشطة · مطبخ القرين' : '6 Brands · 9 Active Branches · Central Kitchen'}
+            {isAr ? '6 علامات تجارية · 9 فروع نشطة' : '6 Brands · 9 Active Branches'}
           </p>
         </div>
       </div>
 
       {/* Navigation Sections */}
-      <nav className="min-h-0 flex-1 space-y-4 overflow-y-auto px-2.5 py-3 pb-28">
+      <nav className="min-h-0 flex-1 space-y-4 overflow-y-auto px-2.5 py-3 pb-6">
         {SIDEBAR_SECTIONS.map((section, idx) => {
           const visibleItems = section.items.filter((item) => {
             if (user.role.isAdmin) return true
