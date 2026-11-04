@@ -7,10 +7,11 @@
 
 export type HrCommandTabKey =
   | 'employees'
+  | 'payroll'
   | 'planningGantt'
+  | 'expensesCustody'
   | 'recruitment'
   | 'residency'
-  | 'payroll'
   | 'leaves'
   | 'attendance'
   | 'loans'

@@ -37,6 +37,13 @@ import {
 } from './venture-employees-directory'
 import { EmployeeProfileModal360 } from './EmployeeProfileModal360'
 import { OdooPlanningGanttView } from './OdooPlanningGanttView'
+import { ODOO_LEADERSHIP_SALARY_BENCHMARKS } from '@/lib/hr/odoo-hr-dashboard-data'
+import {
+  ODOO_REAL_EXPENSE_SHEETS,
+  ODOO_SANAD_STATEMENT_DETAILS,
+  ODOO_CUSTODIANS_7,
+} from '@/lib/accounting/odoo-real-expenses-data'
+import Link from 'next/link'
 
 export type HrPayrollRow = {
   id: string
@@ -84,69 +91,75 @@ const COMMAND_TABS: Array<{
 }> = [
   {
     key: 'employees',
-    icon: '👥',
-    ar: '1. سجل الموظفين والتعيين',
-    en: '1. Employees & Onboarding Wizard',
+    icon: '🪪',
+    ar: '1. دليل وبطاقات الموظفين (166 موظفاً)',
+    en: '1. Employee Directory & 360 Profiles (166 Staff)',
+  },
+  {
+    key: 'payroll',
+    icon: '📋',
+    ar: '2. مسير الرواتب وحماية الأجور وسلم الوظائف',
+    en: '2. Payroll, NBK WPS & Leadership Salary Scale',
   },
   {
     key: 'planningGantt',
     icon: '📅',
-    ar: 'مخطط الشفتات وتخطيط الدوام (أودو Gantt)',
-    en: 'Weekly Shift Planning (Odoo Gantt)',
+    ar: '3. مخطط الشفتات والدوام الأسبوعي',
+    en: '3. Weekly Shift Planning & Gantt Roster',
+  },
+  {
+    key: 'expensesCustody',
+    icon: '💼',
+    ar: '4. تقارير عهد ومصروفات الموظفين والإقامات',
+    en: '4. Employee Expense Sheets & Residency Tracking',
   },
   {
     key: 'recruitment',
     icon: '✈️',
-    ar: '2. الاستقدام الخارجي وفيزا 18',
-    en: '2. Overseas Recruitment & Visa 18',
+    ar: '5. الاستقدام الخارجي وفيزا 18',
+    en: '5. Overseas Recruitment & Visa 18',
   },
   {
     key: 'residency',
     icon: '🆔',
-    ar: '3. الإقامات والبلدية ومهام المندوب',
-    en: '3. Residency, Health Cards & PRO Queue',
-  },
-  {
-    key: 'payroll',
-    icon: '💰',
-    ar: '4. مسير الرواتب وحماية الأجور WPS',
-    en: '4. Payroll, Payslips & NBK WPS',
+    ar: '6. الإقامات والبلدية ومتابعة المندوب',
+    en: '6. Residencies, Health Cards & PRO Queue',
   },
   {
     key: 'leaves',
     icon: '🏖️',
-    ar: '5. الإجازات وتذاكر السفر',
-    en: '5. Leaves, Air Tickets & Vacation',
+    ar: '7. الإجازات وتذاكر السفر',
+    en: '7. Leaves, Air Tickets & Vacation',
   },
   {
     key: 'attendance',
     icon: '⏱️',
-    ar: '6. البصمة والشفتات والإضافي',
-    en: '6. Attendance, Shift Roster & Overtime',
+    ar: '8. البصمة والشفتات والإضافي',
+    en: '8. Attendance, Shift Roster & Overtime',
   },
   {
     key: 'loans',
     icon: '💳',
-    ar: '7. السلف والقروض والجزاءات',
-    en: '7. Loans, Advances & Disciplinary',
+    ar: '9. السلف والقروض والجزاءات',
+    en: '9. Loans, Advances & Disciplinary',
   },
   {
     key: 'housing',
     icon: '🏢',
-    ar: '8. سكن العمال والمواصلات',
-    en: '8. Staff Accommodation & Transport',
+    ar: '10. سكن العمال والمواصلات',
+    en: '10. Staff Accommodation & Transport',
   },
   {
     key: 'eosb',
     icon: '⚖️',
-    ar: '9. حاسبة نهاية الخدمة والمخالصات',
-    en: '9. Kuwait EOSB Calculator & Offboarding',
+    ar: '11. حاسبة نهاية الخدمة والمخالصات',
+    en: '11. Kuwait EOSB Calculator & Offboarding',
   },
   {
     key: 'letters',
     icon: '🖨️',
-    ar: '10. الشهادات والعقود الرسمية',
-    en: '10. 1-Click Official HR Letters & Contracts',
+    ar: '12. الشهادات والعقود الرسمية',
+    en: '12. 1-Click Official HR Letters & Contracts',
   },
   {
     key: 'reports',
@@ -1060,6 +1073,145 @@ export function EnterpriseHrCommandHub({
       ) : null}
 
       {/* =====================================================================
+          TAB 4: EMPLOYEE EXPENSE SHEETS & RESIDENCY TRACKING
+         ===================================================================== */}
+      {activeTab === 'expensesCustody' ? (
+        <section className="space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-4 bg-[#0f141c] p-6 rounded-3xl border border-white/10">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-400">
+                  💼 {en ? 'Employee Expense Sheets & Custodies' : 'تقارير عهد ومصروفات الموظفين والإقامات'}
+                </span>
+                <span className="rounded-full bg-slate-800 px-2.5 py-0.5 text-xs text-slate-400">
+                  {en ? 'Odoo hr.expense.sheet Sync' : 'مطابقة شاشة تصفية العهد Odoo'}
+                </span>
+              </div>
+              <h2 className="mt-2 text-xl font-black text-white">
+                {en
+                  ? 'Employee Operational Custodies, Expense Reports & Sanad Clearances'
+                  : 'كشوفات عهد الموظفين التشغيلية ومصروفات الإقامات والبلدية الموثقة'}
+              </h2>
+              <p className="text-xs text-mist-400 mt-1 max-w-2xl">
+                {en
+                  ? 'Central monitoring for all 9 official petty cash holders, municipal permits, and PAM work permits clearances linked directly to accounting.'
+                  : 'متابعة مركزية لتقارير تصفية العهد الـ 9 الرسمية وتراخيص البلدية وأذونات العمل وربطها المباشر بقسم المحاسبة.'}
+              </p>
+            </div>
+
+            <Link
+              href="/accounting?tab=pettyCash"
+              className="flex items-center gap-2 rounded-2xl bg-gradient-to-l from-emerald-500 to-teal-500 px-5 py-3 text-xs sm:text-sm font-black text-ink-950 shadow-lg hover:brightness-110"
+            >
+              <span>🏛️</span>
+              <span>{en ? 'Open Accounting Petty Cash Hub ↵' : 'فتح مركز تسوية العهد والمصروفات بالمحاسبة ↵'}</span>
+            </Link>
+          </div>
+
+          {/* Quick Metrics */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="rounded-2xl border border-white/10 bg-[#0f141c] p-4">
+              <p className="text-xs text-mist-400">{en ? 'Total Custodians' : 'أصحاب العهد المعتمدون'}</p>
+              <p className="mt-1 text-2xl font-black text-white">9</p>
+              <p className="mt-1 text-[11px] text-emerald-300">{en ? 'Across Ops, Kitchen, HR & PRO' : 'العمليات، الصيانة، الموارد البشرية والتعقيب'}</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-[#0f141c] p-4">
+              <p className="text-xs text-mist-400">{en ? 'Total Audited Custody OPEX' : 'إجمالي المصروفات المدققة'}</p>
+              <p className="mt-1 text-2xl font-black text-emerald-300">51,154.950 {en ? 'KWD' : 'د.ك'}</p>
+              <p className="mt-1 text-[11px] text-mist-400">{en ? '2,213 Audited Transactions' : '2,213 معاملة مدققة'}</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-[#0f141c] p-4">
+              <p className="text-xs text-mist-400">{en ? 'Submitted Expense Sheets' : 'تقارير التصفية المرفوعة'}</p>
+              <p className="mt-1 text-2xl font-black text-amber-300">{ODOO_REAL_EXPENSE_SHEETS.length}</p>
+              <p className="mt-1 text-[11px] text-mist-400">{en ? 'All Reports Odoo Module' : 'شاشة All Reports الرسمية'}</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-[#0f141c] p-4">
+              <p className="text-xs text-mist-400">{en ? 'Sanad Clearances & Residencies' : 'كشوفات سند للإقامات'}</p>
+              <p className="mt-1 text-2xl font-black text-sky-300">{ODOO_SANAD_STATEMENT_DETAILS.length}</p>
+              <p className="mt-1 text-[11px] text-mist-400">{en ? 'Health Insurance & PAM Permits' : 'الضمان الصحي وأذونات العمل'}</p>
+            </div>
+          </div>
+
+          {/* Custodians Summary Cards */}
+          <div className="rounded-3xl border border-white/10 bg-[#0f141c] p-5">
+            <h3 className="text-base font-black text-white mb-3">
+              {en ? '👥 Official Petty Cash Custodians & Expense Ledgers' : '👥 أصحاب العهد التشغيلية المعتمدون في الشركة'}
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {ODOO_CUSTODIANS_7.map((c) => (
+                <div key={c.id} className="rounded-2xl border border-white/10 bg-[#141b26] p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-white text-xs">{en ? c.nameEn : c.nameAr}</span>
+                    <span className="font-mono text-xs font-black text-emerald-400">{c.totalKwd.toFixed(3)} {en ? 'KWD' : 'د.ك'}</span>
+                  </div>
+                  <p className="text-[11px] text-mist-400">{en ? c.roleEn : c.roleAr}</p>
+                  <div className="flex items-center justify-between text-[10px] text-slate-500 pt-2 border-t border-white/5 font-mono">
+                    <span>{c.txCount} {en ? 'txns' : 'معاملة'}</span>
+                    <span className="text-amber-400">{c.accountCode}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Odoo Expense Sheets Table Preview */}
+          <div className="rounded-3xl border border-white/10 bg-[#0f141c] p-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-black text-white">
+                {en ? '📋 Recent Staff Expense Reports (Odoo hr.expense.sheet)' : '📋 تقارير تصفية العهد المرفوعة للأقسام والفروع'}
+              </h3>
+              <Link
+                href="/accounting?tab=pettyCash"
+                className="text-xs text-emerald-400 hover:underline font-bold"
+              >
+                {en ? 'View & Pay in Accounting ↵' : 'عرض واعتماد وصرف الشيكات بالمحاسبة ↵'}
+              </Link>
+            </div>
+            <div className="overflow-x-auto rounded-2xl border border-white/10">
+              <table className="w-full text-xs">
+                <thead className="bg-black/40 text-mist-400 font-bold">
+                  <tr>
+                    <th className="px-3 py-2.5 text-start">{en ? 'Report No & Date' : 'رقم التقرير والتاريخ'}</th>
+                    <th className="px-3 py-2.5 text-start">{en ? 'Custodian' : 'صاحب العهدة'}</th>
+                    <th className="px-3 py-2.5 text-start">{en ? 'Description & Works' : 'بيان التقرير والأعمال'}</th>
+                    <th className="px-3 py-2.5 text-start">{en ? 'Cost Center' : 'مركز التكلفة'}</th>
+                    <th className="px-3 py-2.5 text-end">{en ? 'Amount (KWD)' : 'المبلغ (د.ك)'}</th>
+                    <th className="px-3 py-2.5 text-center">{en ? 'Approval' : 'الاعتماد'}</th>
+                    <th className="px-3 py-2.5 text-center">{en ? 'Payment Status' : 'حالة السداد'}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5 text-slate-200">
+                  {ODOO_REAL_EXPENSE_SHEETS.slice(0, 8).map((sheet) => (
+                    <tr key={sheet.id} className="hover:bg-white/[0.02]">
+                      <td className="px-3 py-2.5 font-mono text-amber-300 font-bold">{sheet.reportNo}</td>
+                      <td className="px-3 py-2.5 font-bold text-white">{en ? sheet.custodianNameEn : sheet.custodianNameAr}</td>
+                      <td className="px-3 py-2.5 max-w-xs truncate">{en ? sheet.titleEn : sheet.titleAr}</td>
+                      <td className="px-3 py-2.5 text-slate-400">{en ? sheet.costCenterEn : sheet.costCenterAr}</td>
+                      <td className="px-3 py-2.5 text-end font-mono font-bold text-emerald-400">{sheet.amountKwd.toFixed(3)} {en ? 'KWD' : 'د.ك'}</td>
+                      <td className="px-3 py-2.5 text-center">
+                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                          sheet.adminApproval === 'approved' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                        }`}>
+                          {sheet.adminApproval === 'approved' ? (en ? '🟢 Approved' : '🟢 معتمد إدارياً') : (en ? '🔵 Submitted' : '🔵 مرسل للاعتماد')}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2.5 text-center">
+                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                          sheet.paymentStatus === 'paid' ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/15 text-rose-300 border border-rose-500/30'
+                        }`}>
+                          {sheet.paymentStatus === 'paid' ? (en ? '🟢 Paid' : '🟢 تم الدفع') : (en ? '🔴 Not Paid' : '🔴 غير مدفوع')}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {/* =====================================================================
           TAB 3: OVERSEAS RECRUITMENT & VISA 18 PIPELINE + PAM QUOTA TRACKER
          ===================================================================== */}
       {activeTab === 'recruitment' ? (
@@ -1469,6 +1621,69 @@ export function EnterpriseHrCommandHub({
          ===================================================================== */}
       {activeTab === 'payroll' ? (
         <section className="space-y-6">
+          {/* Approved Leadership & Key Roles Salary Benchmarks (Odoo Official Scale) */}
+          <div className="rounded-3xl border border-amber-500/30 bg-[#0f141c] p-5 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-400">
+                    💼 {en ? 'Approved Leadership Salary Benchmarks' : 'سلم الرواتب المعتمدة للوظائف والقيادات'}
+                  </span>
+                  <span className="rounded-full bg-slate-800 px-2.5 py-0.5 text-xs text-slate-400">
+                    {en ? '10 Key Leadership Positions' : '10 وظائف رئيسية من لوحة أودو الرسمية'}
+                  </span>
+                </div>
+                <h3 className="mt-1 text-lg font-black text-white">
+                  {en
+                    ? 'Executive & Operational Leadership Compensation Benchmark (WPS Registered)'
+                    : 'هيكل الرواتب المعتمدة للقيادات والوظائف التشغيلية (المسجلة في WPS بنك الكويت الوطني)'}
+                </h3>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto rounded-2xl border border-white/10">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-white/10 bg-white/5 text-slate-400 font-bold uppercase tracking-wider">
+                    <th className="px-4 py-3 text-center w-12">#</th>
+                    <th className="px-4 py-3 text-start">{en ? 'Position / Role' : 'المسمى الوظيفي والمسؤولية'}</th>
+                    <th className="px-4 py-3 text-center">{en ? 'Department Unit' : 'القطاع الإداري'}</th>
+                    <th className="px-4 py-3 text-center">{en ? 'Organizational Tier' : 'الدرجة التنظيمية'}</th>
+                    <th className="px-4 py-3 text-end">{en ? 'Approved Salary (KWD)' : 'الراتب المعتمد (د.ك)'}</th>
+                    <th className="px-4 py-3 text-center">{en ? 'WPS Status' : 'حالة الاعتماد'}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5 text-slate-200">
+                  {ODOO_LEADERSHIP_SALARY_BENCHMARKS.map((item) => (
+                    <tr key={item.rank} className="hover:bg-white/[0.02] transition-colors">
+                      <td className="px-4 py-3 text-center font-mono text-slate-500 font-bold">{item.rank}</td>
+                      <td className="px-4 py-3">
+                        <span className="font-black text-white block">{en ? item.roleEn : item.roleAr}</span>
+                        <span className="text-[10px] text-slate-400">{en ? item.roleAr : item.roleEn}</span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className="inline-flex rounded-full bg-slate-800 px-2 py-0.5 text-[10px] text-slate-300 font-semibold border border-slate-700">
+                          {en ? item.categoryEn : item.categoryAr}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center font-semibold text-amber-300">
+                        {en ? item.levelEn : item.levelAr}
+                      </td>
+                      <td className="px-4 py-3 text-end font-mono font-black text-emerald-400 text-sm">
+                        {item.salaryKwd.toFixed(3)} {en ? 'KWD' : 'د.ك'}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-400 border border-emerald-500/20">
+                          <span>✓</span>
+                          {en ? item.statusEn : item.statusAr}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
           {/* Interactive Kuwait Payroll & PIFSS Calculator */}
           <div className="rounded-3xl border border-emerald-400/30 bg-[#0f141c] p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">

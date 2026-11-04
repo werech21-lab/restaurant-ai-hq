@@ -39,6 +39,9 @@ import {
   ODOO_SETTLEMENT_METRICS,
   ODOO_EXPENSES_TOTAL_KWD,
   ODOO_EXPENSES_TOTAL_TX,
+  ODOO_REAL_EXPENSE_SHEETS,
+  ODOO_EXPENSE_SHEET_CUSTODIANS,
+  type OdooExpenseSheetReport,
 } from '@/lib/accounting/odoo-real-expenses-data'
 
 export function VentureAccountingHub({
@@ -96,8 +99,14 @@ export function VentureAccountingHub({
   const [notice, setNotice] = useState<string | null>(null)
 
   // Odoo Real Expenses & Petty Cash Sub-Tabs State
-  const [pettySubTab, setPettySubTab] = useState<'categories' | 'custodians' | 'sanad' | 'rabih' | 'topLicenses'>('categories')
+  const [pettySubTab, setPettySubTab] = useState<'expenseSheets' | 'categories' | 'custodians' | 'sanad' | 'topLicenses' | 'rabih'>('expenseSheets')
   const [pettySearch, setPettySearch] = useState('')
+  const [expenseSheetReports, setExpenseSheetReports] = useState<OdooExpenseSheetReport[]>(ODOO_REAL_EXPENSE_SHEETS)
+  const [selectedExpenseCustodian, setSelectedExpenseCustodian] = useState<string>('ALL')
+  const [selectedSheetIds, setSelectedSheetIds] = useState<string[]>([])
+  const [showChequeModal, setShowChequeModal] = useState(false)
+  const [chequeBank, setChequeBank] = useState<'CBK' | 'NBK'>('CBK')
+  const [chequeRef, setChequeRef] = useState('CHQ-2026-9041')
 
   const isAr = currentLocale === 'ar'
   const isRtl = isAr
@@ -107,9 +116,53 @@ export function VentureAccountingHub({
     setTimeout(() => setNotice(null), 4000)
   }
 
+  const handleBatchChequePayment = () => {
+    const targetIds = selectedSheetIds.length > 0
+      ? selectedSheetIds
+      : expenseSheetReports.filter(s => s.adminApproval === 'approved' && s.paymentStatus === 'not_paid').map(s => s.id)
+
+    if (targetIds.length === 0) {
+      showToast(isAr ? 'لا توجد تقارير معتمدة وغير مدفوعة محددة للصرف' : 'No approved unpaid reports available for payment')
+      return
+    }
+
+    const todayStr = new Date().toLocaleDateString('en-GB')
+    const bankNameAr = chequeBank === 'CBK' ? 'البنك التجاري الكويتي (Commercial Bank)' : 'بنك الكويت الوطني (الوطني K-Net)'
+    const bankNameEn = chequeBank === 'CBK' ? 'Commercial Bank of Kuwait (CBK)' : 'National Bank of Kuwait (NBK)'
+
+    setExpenseSheetReports(prev => prev.map(sheet => {
+      if (targetIds.includes(sheet.id)) {
+        return {
+          ...sheet,
+          paymentStatus: 'paid',
+          paymentChequeRef: chequeRef,
+          paymentDate: todayStr,
+          payingBankAr: bankNameAr,
+          payingBankEn: bankNameEn,
+        }
+      }
+      return sheet
+    }))
+
+    setSelectedSheetIds([])
+    setShowChequeModal(false)
+    showToast(
+      isAr
+        ? `تم بنجاح إصدار شيك السداد رقم (${chequeRef}) وترحيل المصروفات لمراكز تكلفة الفروع والبراندات`
+        : `Payment cheque (${chequeRef}) issued & expenses posted to branch cost centers successfully`
+    )
+  }
+
   const handleExportPettyCsv = () => {
     let csvContent = '\uFEFF' // UTF-8 BOM for Excel
-    if (pettySubTab === 'categories') {
+    if (pettySubTab === 'expenseSheets') {
+      csvContent += isAr
+        ? 'رقم التقرير,التاريخ,صاحب العهدة,بيان التقرير والأعمال المنفذة,مركز التكلفة,العلامة التجارية,المبلغ (د.ك),رمز الحساب,الاعتماد الإداري,حالة السداد,المرجع البنكي\n'
+        : 'Report No,Date,Custodian,Description & Works,Cost Center,Brand,Amount (KWD),GL Code,Admin Approval,Payment Status,Bank Ref\n'
+      expenseSheetReports.forEach((s) => {
+        csvContent += `"${s.reportNo}","${s.date}","${isAr ? s.custodianNameAr : s.custodianNameEn}","${isAr ? s.descriptionAr : s.descriptionEn}","${isAr ? s.costCenterAr : s.costCenterEn}","${isAr ? s.brandAr : s.brandEn}","${s.amountKwd.toFixed(3)}","${s.accountCode}","${s.adminApproval === 'approved' ? (isAr ? 'معتمد إدارياً' : 'Approved') : (isAr ? 'مرسل للاعتماد' : 'Submitted')}","${s.paymentStatus === 'paid' ? (isAr ? 'تم الدفع وإصدار الشيك' : 'Paid') : (isAr ? 'غير مدفوع — بانتظار الشيك' : 'Not Paid')}","${s.paymentChequeRef || ''}"\n`
+      })
+    } else if (pettySubTab === 'categories') {
       csvContent += isAr
         ? 'الترتيب,فئة المصروف,رمز الحساب,مركز التكلفة,عدد الحركات,المبلغ (د.ك),النسبة %\n'
         : 'Rank,Expense Category,Account Code,Cost Center Tag,Tx Count,Amount (KWD),Percentage %\n'
@@ -453,6 +506,27 @@ export function VentureAccountingHub({
           )
         })
 
+        const filteredExpenseSheets = expenseSheetReports.filter((sheet) => {
+          if (selectedExpenseCustodian !== 'ALL' && sheet.custodianId !== selectedExpenseCustodian) {
+            return false
+          }
+          if (!query) return true
+          return (
+            sheet.reportNo.toLowerCase().includes(query) ||
+            sheet.custodianNameAr.toLowerCase().includes(query) ||
+            sheet.custodianNameEn.toLowerCase().includes(query) ||
+            sheet.titleAr.toLowerCase().includes(query) ||
+            sheet.titleEn.toLowerCase().includes(query) ||
+            sheet.descriptionAr.toLowerCase().includes(query) ||
+            sheet.descriptionEn.toLowerCase().includes(query) ||
+            sheet.costCenterAr.toLowerCase().includes(query) ||
+            sheet.costCenterEn.toLowerCase().includes(query) ||
+            sheet.brandAr.toLowerCase().includes(query) ||
+            sheet.brandEn.toLowerCase().includes(query) ||
+            sheet.accountCode.toLowerCase().includes(query)
+          )
+        })
+
         return (
           <div className="space-y-6">
             {/* Header & Badges */}
@@ -553,6 +627,12 @@ export function VentureAccountingHub({
               <div className="flex flex-wrap gap-2">
                 {[
                   {
+                    key: 'expenseSheets' as const,
+                    labelAr: '📑 تقارير تصفية العهد والمصروفات (All Reports)',
+                    labelEn: 'Expense Reports Sheets (All Reports)',
+                    count: expenseSheetReports.length,
+                  },
+                  {
                     key: 'categories' as const,
                     labelAr: '📊 فئات المصروفات الـ 25 (51,154.950 د.ك)',
                     labelEn: '25 Expense Categories (51,154.950 KWD)',
@@ -621,6 +701,518 @@ export function VentureAccountingHub({
                 />
               </div>
             </div>
+
+            {/* ========================================================================= */}
+            {/* SUB-VIEW 0: ODOO HR.EXPENSE.SHEET (ALL REPORTS — APPROVAL VS PAYMENT)     */}
+            {/* ========================================================================= */}
+            {pettySubTab === 'expenseSheets' && (() => {
+              const eligibleForPayment = filteredExpenseSheets.filter(
+                (s) => s.adminApproval === 'approved' && s.paymentStatus === 'not_paid'
+              )
+              const isAllSelected =
+                eligibleForPayment.length > 0 &&
+                eligibleForPayment.every((s) => selectedSheetIds.includes(s.id))
+
+              const handleSelectAll = () => {
+                if (isAllSelected) {
+                  setSelectedSheetIds([])
+                } else {
+                  setSelectedSheetIds(eligibleForPayment.map((s) => s.id))
+                }
+              }
+
+              const handleToggleSheet = (id: string) => {
+                setSelectedSheetIds((prev) =>
+                  prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+                )
+              }
+
+              const totalFilteredKwd = filteredExpenseSheets.reduce((s, r) => s + r.amountKwd, 0)
+              const approvedKwd = filteredExpenseSheets
+                .filter((r) => r.adminApproval === 'approved')
+                .reduce((s, r) => s + r.amountKwd, 0)
+              const unpaidKwd = filteredExpenseSheets
+                .filter((r) => r.paymentStatus === 'not_paid')
+                .reduce((s, r) => s + r.amountKwd, 0)
+              const paidKwd = filteredExpenseSheets
+                .filter((r) => r.paymentStatus === 'paid')
+                .reduce((s, r) => s + r.amountKwd, 0)
+
+              const activeCustodianInfo = ODOO_EXPENSE_SHEET_CUSTODIANS.find(
+                (c) => c.id === selectedExpenseCustodian
+              )
+
+              return (
+                <div className="space-y-6">
+                  {/* Executive KPI Summary Bar */}
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <div className="rounded-2xl border border-white/10 bg-[#0d131f] p-4 space-y-1">
+                      <span className="text-[11px] font-bold text-slate-400">
+                        {isAr ? 'إجمالي تقارير التصفية المرفوعة' : 'Total Expense Sheets'}
+                      </span>
+                      <p className="text-xl font-black text-white font-mono">
+                        {totalFilteredKwd.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} {isAr ? 'د.ك' : 'KWD'}
+                      </p>
+                      <div className="flex items-center justify-between text-[11px] text-slate-500 font-mono">
+                        <span>{filteredExpenseSheets.length} {isAr ? 'تقارير' : 'reports'}</span>
+                        <span className="text-emerald-400 font-bold">100%</span>
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-emerald-500/20 bg-emerald-950/20 p-4 space-y-1">
+                      <span className="text-[11px] font-bold text-emerald-300">
+                        {isAr ? '🟢 معتمد إدارياً (جاهز للصرف)' : '🟢 Approved (Ready to Pay)'}
+                      </span>
+                      <p className="text-xl font-black text-emerald-400 font-mono">
+                        {approvedKwd.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} {isAr ? 'د.ك' : 'KWD'}
+                      </p>
+                      <div className="flex items-center justify-between text-[11px] text-slate-400">
+                        <span>{filteredExpenseSheets.filter((r) => r.adminApproval === 'approved').length} {isAr ? 'معتمد' : 'Approved'}</span>
+                        <span className="text-emerald-400 font-bold">
+                          {totalFilteredKwd > 0 ? ((approvedKwd / totalFilteredKwd) * 100).toFixed(1) : 0}%
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-rose-500/20 bg-rose-950/20 p-4 space-y-1">
+                      <span className="text-[11px] font-bold text-rose-300">
+                        {isAr ? '🔴 غير مدفوع — بانتظار الشيك' : '🔴 Not Paid — Pending Cheque'}
+                      </span>
+                      <p className="text-xl font-black text-rose-400 font-mono">
+                        {unpaidKwd.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} {isAr ? 'د.ك' : 'KWD'}
+                      </p>
+                      <div className="flex items-center justify-between text-[11px] text-slate-400">
+                        <span>{filteredExpenseSheets.filter((r) => r.paymentStatus === 'not_paid').length} {isAr ? 'بانتظار الصرف' : 'Unpaid'}</span>
+                        <span className="text-rose-400 font-bold">
+                          {totalFilteredKwd > 0 ? ((unpaidKwd / totalFilteredKwd) * 100).toFixed(1) : 0}%
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-blue-500/20 bg-blue-950/20 p-4 space-y-1">
+                      <span className="text-[11px] font-bold text-blue-300">
+                        {isAr ? '🟢 تم الدفع وإصدار الشيك' : '🟢 Paid & Cheque Issued'}
+                      </span>
+                      <p className="text-xl font-black text-blue-400 font-mono">
+                        {paidKwd.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} {isAr ? 'د.ك' : 'KWD'}
+                      </p>
+                      <div className="flex items-center justify-between text-[11px] text-slate-400">
+                        <span>{filteredExpenseSheets.filter((r) => r.paymentStatus === 'paid').length} {isAr ? 'شيكات مسددة' : 'Paid'}</span>
+                        <span className="text-blue-400 font-bold">
+                          {totalFilteredKwd > 0 ? ((paidKwd / totalFilteredKwd) * 100).toFixed(1) : 0}%
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Main Master Layout: Custodian Sidebar Filter + Reports Table */}
+                  <div className="flex flex-col lg:flex-row gap-5 items-start">
+                    {/* SIDEBAR FILTER: 8/9 REAL CUSTODIANS & REPRESENTATIVES */}
+                    <aside className="w-full lg:w-72 xl:w-80 shrink-0 space-y-3">
+                      <div className="rounded-2xl border border-slate-800 bg-[#0d131f] p-4 space-y-3 shadow-lg">
+                        <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                          <h4 className="text-xs font-black uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
+                            <span>👥</span>
+                            <span>{isAr ? 'أصحاب العهد والمندوبون (أودو)' : 'Custodians & Representatives'}</span>
+                          </h4>
+                          <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-mono text-slate-400">
+                            {ODOO_EXPENSE_SHEET_CUSTODIANS.length - 1} {isAr ? 'أصحاب عهد' : 'Custodians'}
+                          </span>
+                        </div>
+
+                        <div className="space-y-1.5 max-h-[560px] overflow-y-auto pr-1">
+                          {ODOO_EXPENSE_SHEET_CUSTODIANS.map((cust) => {
+                            const isSelected = selectedExpenseCustodian === cust.id
+                            const stats =
+                              cust.id === 'ALL'
+                                ? {
+                                    count: expenseSheetReports.length,
+                                    total: expenseSheetReports.reduce((s, r) => s + r.amountKwd, 0),
+                                  }
+                                : {
+                                    count: expenseSheetReports.filter((r) => r.custodianId === cust.id).length,
+                                    total: expenseSheetReports
+                                      .filter((r) => r.custodianId === cust.id)
+                                      .reduce((s, r) => s + r.amountKwd, 0),
+                                  }
+
+                            return (
+                              <button
+                                key={cust.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedExpenseCustodian(cust.id)
+                                  setSelectedSheetIds([])
+                                }}
+                                className={`w-full flex flex-col p-2.5 rounded-xl text-xs transition-all text-start border ${
+                                  isSelected
+                                    ? 'bg-amber-500/15 border-amber-500/40 text-amber-200 font-bold shadow-md'
+                                    : 'border-slate-800/80 bg-slate-900/40 text-slate-300 hover:bg-slate-800/60 hover:text-white'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between w-full">
+                                  <span className="font-black text-white text-xs truncate">
+                                    {isAr ? cust.nameAr : cust.nameEn}
+                                  </span>
+                                  <span
+                                    className={`rounded px-1.5 py-0.5 text-[10px] font-mono shrink-0 font-bold ${
+                                      isSelected
+                                        ? 'bg-amber-400 text-black'
+                                        : 'bg-slate-800 text-slate-300'
+                                    }`}
+                                  >
+                                    {stats.count}
+                                  </span>
+                                </div>
+                                <div className="mt-1 flex items-center justify-between text-[10px] text-slate-400 w-full">
+                                  <span className="truncate max-w-[170px]">
+                                    {isAr ? cust.roleAr : cust.roleEn}
+                                  </span>
+                                  <span className="font-mono font-bold text-emerald-400 shrink-0">
+                                    {stats.total.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} {isAr ? 'د.ك' : 'KWD'}
+                                  </span>
+                                </div>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    </aside>
+
+                    {/* MAIN CONTENT AREA: BATCH PAYMENT ACTION BAR & TABLE */}
+                    <div className="flex-1 w-full space-y-4">
+                      {/* Top Action & Batch Cheque Issuance Bar */}
+                      <div className="flex flex-wrap items-center justify-between gap-3 bg-[#0d131f] p-4 rounded-2xl border border-slate-800">
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={handleSelectAll}
+                            className="rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-1 text-xs font-bold text-slate-200 hover:bg-slate-700"
+                          >
+                            {isAllSelected
+                              ? isAr
+                                ? 'إلغاء تحديد الكل'
+                                : 'Deselect All'
+                              : isAr
+                              ? `تحديد المعتمد للصرف (${eligibleForPayment.length})`
+                              : `Select All Approved (${eligibleForPayment.length})`}
+                          </button>
+
+                          {selectedSheetIds.length > 0 && (
+                            <span className="text-xs text-amber-300 font-bold">
+                              {isAr
+                                ? `تم تحديد ${selectedSheetIds.length} تقارير بقيمة ${filteredExpenseSheets
+                                    .filter((s) => selectedSheetIds.includes(s.id))
+                                    .reduce((acc, s) => acc + s.amountKwd, 0)
+                                    .toFixed(3)} د.ك`
+                                : `Selected ${selectedSheetIds.length} reports (${filteredExpenseSheets
+                                    .filter((s) => selectedSheetIds.includes(s.id))
+                                    .reduce((acc, s) => acc + s.amountKwd, 0)
+                                    .toFixed(3)} KWD)`}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Batch Cheque Issuance Trigger Button */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (selectedSheetIds.length === 0 && eligibleForPayment.length > 0) {
+                              setSelectedSheetIds(eligibleForPayment.map((s) => s.id))
+                            }
+                            setShowChequeModal(true)
+                          }}
+                          className="flex items-center gap-2 rounded-xl bg-gradient-to-l from-emerald-600 to-teal-600 px-4 py-2.5 text-xs font-black text-white shadow-lg shadow-emerald-950/50 hover:brightness-110 transition-all"
+                        >
+                          <CreditCard size={15} />
+                          <span>
+                            {isAr
+                              ? `🏦 إصدار شيك سداد للتقارير المعتمدة (تحويل من غير مدفوع 🔴 إلى مدفوع 🟢)`
+                              : `🏦 Issue Payment Cheque for Approved Reports (Not Paid 🔴 to Paid 🟢)`}
+                          </span>
+                        </button>
+                      </div>
+
+                      {/* Expense Reports Sheet Table */}
+                      <div className="rounded-2xl border border-slate-800 bg-[#0d131f] overflow-hidden shadow-xl">
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="border-b border-slate-800 bg-slate-900/80 text-slate-300 font-bold uppercase tracking-wider">
+                                <th className="px-3 py-3 text-center w-10">
+                                  <input
+                                    type="checkbox"
+                                    checked={isAllSelected}
+                                    onChange={handleSelectAll}
+                                    className="h-3.5 w-3.5 rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-0 cursor-pointer"
+                                  />
+                                </th>
+                                <th className="px-3 py-3 text-right">{isAr ? 'رقم التقرير والتاريخ' : 'Report No & Date'}</th>
+                                <th className="px-3 py-3 text-right">{isAr ? 'صاحب العهدة / الموظف' : 'Custodian / Employee'}</th>
+                                <th className="px-4 py-3 text-right">{isAr ? 'بيان التقرير التفصيلي والأعمال المنفذة' : 'Report Description & Works'}</th>
+                                <th className="px-3 py-3 text-center">{isAr ? 'مركز التكلفة (الفرع / المقر)' : 'Cost Center'}</th>
+                                <th className="px-3 py-3 text-center">{isAr ? 'العلامة التجارية' : 'Brand'}</th>
+                                <th className="px-3 py-3 text-right">{isAr ? 'الإجمالي (د.ك)' : 'Total (KWD)'}</th>
+                                <th className="px-3 py-3 text-center">{isAr ? 'الاعتماد الإداري' : 'Admin Approval'}</th>
+                                <th className="px-4 py-3 text-center">{isAr ? 'حالة السداد المالي' : 'Payment Status'}</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-800/60 text-slate-200">
+                              {filteredExpenseSheets.map((sheet) => {
+                                const isSelected = selectedSheetIds.includes(sheet.id)
+                                const isPaid = sheet.paymentStatus === 'paid'
+                                const isApproved = sheet.adminApproval === 'approved'
+
+                                return (
+                                  <tr
+                                    key={sheet.id}
+                                    className={`transition-colors hover:bg-slate-900/40 ${
+                                      isSelected ? 'bg-emerald-950/20' : ''
+                                    }`}
+                                  >
+                                    {/* Selection Checkbox */}
+                                    <td className="px-3 py-3 text-center">
+                                      <input
+                                        type="checkbox"
+                                        disabled={isPaid || !isApproved}
+                                        checked={isSelected}
+                                        onChange={() => handleToggleSheet(sheet.id)}
+                                        className="h-3.5 w-3.5 rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-0 disabled:opacity-30 cursor-pointer"
+                                      />
+                                    </td>
+
+                                    {/* Report No & Date */}
+                                    <td className="px-3 py-3 font-mono">
+                                      <span className="font-bold text-amber-300 block">{sheet.reportNo}</span>
+                                      <span className="text-[10px] text-slate-500">{sheet.date}</span>
+                                    </td>
+
+                                    {/* Custodian Name */}
+                                    <td className="px-3 py-3">
+                                      <span className="font-bold text-white block">
+                                        {isAr ? sheet.custodianNameAr : sheet.custodianNameEn}
+                                      </span>
+                                      <span className="text-[10px] text-slate-500 font-mono">
+                                        {sheet.accountCode}
+                                      </span>
+                                    </td>
+
+                                    {/* Description & Works */}
+                                    <td className="px-4 py-3 max-w-md">
+                                      <p className="font-bold text-white leading-tight">
+                                        {isAr ? sheet.titleAr : sheet.titleEn}
+                                      </p>
+                                      <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">
+                                        {isAr ? sheet.descriptionAr : sheet.descriptionEn}
+                                      </p>
+                                    </td>
+
+                                    {/* Cost Center */}
+                                    <td className="px-3 py-3 text-center">
+                                      <span className="inline-flex rounded-full bg-slate-800 px-2 py-0.5 text-[11px] text-slate-200 border border-slate-700">
+                                        {isAr ? sheet.costCenterAr : sheet.costCenterEn}
+                                      </span>
+                                    </td>
+
+                                    {/* Brand */}
+                                    <td className="px-3 py-3 text-center text-xs text-amber-300">
+                                      {isAr ? sheet.brandAr : sheet.brandEn}
+                                    </td>
+
+                                    {/* Amount KWD */}
+                                    <td className="px-3 py-3 text-right font-mono font-black text-emerald-400 text-sm">
+                                      {sheet.amountKwd.toFixed(3)} {isAr ? 'د.ك' : 'KWD'}
+                                    </td>
+
+                                    {/* Admin Approval Status */}
+                                    <td className="px-3 py-3 text-center">
+                                      {sheet.adminApproval === 'approved' ? (
+                                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-bold text-emerald-400 border border-emerald-500/20">
+                                          <CheckCircle2 size={12} />
+                                          {isAr ? '🟢 معتمد إدارياً' : 'Approved'}
+                                        </span>
+                                      ) : (
+                                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2.5 py-0.5 text-[11px] font-bold text-blue-400 border border-blue-500/20">
+                                          <span className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse" />
+                                          {isAr ? '🔵 مرسل للاعتماد' : 'Submitted'}
+                                        </span>
+                                      )}
+                                    </td>
+
+                                    {/* Financial Payment Status */}
+                                    <td className="px-4 py-3 text-center">
+                                      {sheet.paymentStatus === 'paid' ? (
+                                        <div className="space-y-0.5">
+                                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-black text-emerald-400 border border-emerald-500/30">
+                                            <CheckCircle2 size={12} />
+                                            {isAr ? '🟢 تم الدفع وإصدار الشيك' : 'Paid & Cheque Issued'}
+                                          </span>
+                                          {sheet.paymentChequeRef && (
+                                            <span className="block text-[10px] font-mono text-slate-400">
+                                              {sheet.paymentChequeRef} · {sheet.paymentDate}
+                                            </span>
+                                          )}
+                                        </div>
+                                      ) : sheet.paymentStatus === 'in_settlement' ? (
+                                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2.5 py-0.5 text-[11px] font-black text-amber-400 border border-amber-500/30">
+                                          <AlertTriangle size={12} />
+                                          {isAr ? '🟠 قيد التسوية البنكية' : 'In Settlement'}
+                                        </span>
+                                      ) : (
+                                        <div className="flex flex-col items-center gap-1">
+                                          <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/15 px-2.5 py-0.5 text-[11px] font-black text-rose-400 border border-rose-500/30">
+                                            <span className="h-1.5 w-1.5 rounded-full bg-rose-400" />
+                                            {isAr ? '🔴 غير مدفوع — بانتظار إصدار الشيك' : 'Not Paid — Pending Cheque'}
+                                          </span>
+                                          {isApproved && (
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                setSelectedSheetIds([sheet.id])
+                                                setShowChequeModal(true)
+                                              }}
+                                              className="text-[10px] text-emerald-400 hover:underline font-bold"
+                                            >
+                                              {isAr ? 'صرف شيك الآن ↵' : 'Pay via Cheque ↵'}
+                                            </button>
+                                          )}
+                                        </div>
+                                      )}
+                                    </td>
+                                  </tr>
+                                )
+                              })}
+                            </tbody>
+                            <tfoot className="border-t-2 border-slate-700 bg-slate-900/90 font-bold text-white">
+                              <tr>
+                                <td colSpan={6} className="px-4 py-3 text-right uppercase tracking-wider text-slate-300">
+                                  {isAr ? 'إجمالي تقارير التصفية الحالية المفلترة:' : 'Total Filtered Expense Reports:'}
+                                </td>
+                                <td className="px-3 py-3 text-right font-mono text-emerald-400 text-sm font-black">
+                                  {totalFilteredKwd.toFixed(3)} {isAr ? 'د.ك' : 'KWD'}
+                                </td>
+                                <td colSpan={2} className="px-4 py-3 text-center text-xs text-slate-400 font-normal">
+                                  {isAr
+                                    ? `معتمد: ${approvedKwd.toFixed(3)} د.ك | غير مدفوع: ${unpaidKwd.toFixed(3)} د.ك | مسدد بشيك: ${paidKwd.toFixed(3)} د.ك`
+                                    : `Approved: ${approvedKwd.toFixed(3)} | Unpaid: ${unpaidKwd.toFixed(3)} | Paid: ${paidKwd.toFixed(3)}`}
+                                </td>
+                              </tr>
+                            </tfoot>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* MODAL: BATCH CHEQUE ISSUANCE & COST CENTER POSTING */}
+                  {showChequeModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+                      <div className="w-full max-w-xl rounded-3xl border border-emerald-500/40 bg-[#0d131f] p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95">
+                        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                          <div className="flex items-center gap-2">
+                            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                              <CreditCard size={18} />
+                            </span>
+                            <div>
+                              <h3 className="text-base font-black text-white">
+                                {isAr ? 'إصدار شيك سداد مالي وترحيل محاسبي' : 'Issue Payment Cheque & Post to Ledger'}
+                              </h3>
+                              <p className="text-[11px] text-slate-400">
+                                {isAr ? 'تحويل التقارير المعتمدة من غير مدفوع 🔴 إلى مدفوع 🟢' : 'Convert approved reports from Not Paid 🔴 to Paid 🟢'}
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setShowChequeModal(false)}
+                            className="text-slate-400 hover:text-white text-sm"
+                          >
+                            ✕
+                          </button>
+                        </div>
+
+                        <div className="space-y-4 text-xs">
+                          {/* Selected Reports Overview */}
+                          <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 space-y-2">
+                            <div className="flex items-center justify-between text-slate-300 font-bold">
+                              <span>{isAr ? 'عدد التقارير المعتمدة المشمولة بالصرف:' : 'Approved Reports for Payment:'}</span>
+                              <span className="text-white font-mono text-sm">
+                                {selectedSheetIds.length > 0 ? selectedSheetIds.length : eligibleForPayment.length} {isAr ? 'تقارير' : 'reports'}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between text-slate-300 font-bold border-t border-slate-800 pt-2">
+                              <span>{isAr ? 'إجمالي قيمة الشيك الإجمالية:' : 'Total Cheque Amount:'}</span>
+                              <span className="text-emerald-400 font-mono text-base font-black">
+                                {(selectedSheetIds.length > 0
+                                  ? filteredExpenseSheets.filter((s) => selectedSheetIds.includes(s.id))
+                                  : eligibleForPayment
+                                ).reduce((s, r) => s + r.amountKwd, 0).toFixed(3)} {isAr ? 'د.ك' : 'KWD'}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Bank & Cheque Reference Inputs */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                              <label className="text-[11px] font-bold text-slate-400 block">
+                                {isAr ? 'الحساب البنكي المسحوب عليه الشيك:' : 'Paying Bank Account:'}
+                              </label>
+                              <select
+                                value={chequeBank}
+                                onChange={(e) => setChequeBank(e.target.value as 'CBK' | 'NBK')}
+                                className="w-full rounded-xl border border-slate-700 bg-slate-850 px-3 py-2 text-xs text-white focus:border-emerald-500 focus:outline-none"
+                              >
+                                <option value="CBK">{isAr ? 'البنك التجاري الكويتي (Commercial Bank)' : 'Commercial Bank of Kuwait (CBK)'}</option>
+                                <option value="NBK">{isAr ? 'بنك الكويت الوطني (الوطني K-Net)' : 'National Bank of Kuwait (NBK)'}</option>
+                              </select>
+                            </div>
+
+                            <div className="space-y-1.5">
+                              <label className="text-[11px] font-bold text-slate-400 block">
+                                {isAr ? 'رقم الشيك / المرجع المصرفي:' : 'Cheque / Ref No:'}
+                              </label>
+                              <input
+                                type="text"
+                                value={chequeRef}
+                                onChange={(e) => setChequeRef(e.target.value)}
+                                placeholder="CHQ-2026-XXXX"
+                                className="w-full rounded-xl border border-slate-700 bg-slate-850 px-3 py-2 text-xs text-white font-mono focus:border-emerald-500 focus:outline-none"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Posting Note */}
+                          <div className="rounded-xl border border-blue-500/20 bg-blue-950/20 p-3 text-[11px] text-blue-300 leading-relaxed">
+                            <span>ℹ️ </span>
+                            {isAr
+                              ? 'سيتم ترحيل قيد الصرف تلقائياً إلى دفتر اليومية المحاسبي وتحميل كل بند ومصروف على مركز تكلفة الفرع والبراند المعني فور اعتماد الشيك.'
+                              : 'Journal entry will be posted automatically with each line allocated to its corresponding branch and brand cost center.'}
+                          </div>
+                        </div>
+
+                        {/* Modal Action Buttons */}
+                        <div className="flex items-center justify-end gap-3 border-t border-slate-800 pt-3">
+                          <button
+                            type="button"
+                            onClick={() => setShowChequeModal(false)}
+                            className="rounded-xl border border-slate-700 bg-slate-850 px-4 py-2 text-xs font-bold text-slate-300 hover:bg-slate-800"
+                          >
+                            {isAr ? 'إلغاء' : 'Cancel'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleBatchChequePayment}
+                            className="rounded-xl bg-gradient-to-l from-emerald-600 to-teal-600 px-5 py-2 text-xs font-black text-white hover:brightness-110 shadow-lg shadow-emerald-950/50"
+                          >
+                            {isAr ? 'تأكيد إصدار الشيك والترحيل المحاسبي' : 'Confirm Cheque & Post Entry'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
 
             {/* SUB-VIEW 1: THE 25 AUDITED CATEGORIES */}
             {pettySubTab === 'categories' && (
