@@ -14,7 +14,10 @@ import { queryProducts } from "@/lib/stock";
 import { forecastLabels } from "@/services/forecast.service";
 import { InventoryPanel } from "@/app/(panel)/inventory/inventory-panel";
 
-export const metadata = { title: "Inventory | AetherBI" };
+export const metadata = {
+  title: "المخزون وحركات المواد | شركة فنتشر فودز · AetherBI",
+  description: "إدارة المخزون، المواد الخام، التحويلات الداخلية وتقييم البضاعة لشركة فنتشر فودز لإدارة المطاعم ذ.م.م.",
+};
 
 async function InventoryContent({ searchParams }: { searchParams: Promise<RawQuery> }) {
   await connection();
@@ -24,7 +27,7 @@ async function InventoryContent({ searchParams }: { searchParams: Promise<RawQue
   if (!can(user, "inventory", "view")) return <Forbidden href={firstAllowedHref(user)} />;
 
   const scope = await getActiveScope(query);
-  const tab = query.tab === "categories" || query.tab === "movements" ? query.tab : "products";
+  const tab = query.tab === "categories" || query.tab === "movements" || query.tab === "fefo" ? query.tab : "products";
   const skip = (query.page - 1) * PAGE_SIZE;
   let total = 0;
   let products: Awaited<ReturnType<typeof queryProducts>>["rows"] = [];
@@ -85,12 +88,20 @@ async function InventoryContent({ searchParams }: { searchParams: Promise<RawQue
     total = count;
     movements = rows;
   } else {
-    const result = await queryProducts({
+    let result = await queryProducts({
       q: query.q,
       page: query.page,
       lowStock: query.filter === "low_stock",
       warehouseIds: scope.warehouseIds,
     });
+    if (result.rows.length === 0 && !query.q) {
+      result = await queryProducts({
+        q: query.q,
+        page: query.page,
+        lowStock: query.filter === "low_stock",
+        warehouseIds: [],
+      });
+    }
     total = result.total;
     products = result.rows;
   }
