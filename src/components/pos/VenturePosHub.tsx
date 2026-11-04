@@ -26,6 +26,7 @@ import {
   Percent,
 } from 'lucide-react'
 import { AutomatedGlBridge } from '@/components/finance/AutomatedGlBridge'
+import { ThemeToggle } from '@/components/ThemeToggle'
 
 export interface MenuItem {
   id: string
@@ -71,14 +72,14 @@ export const POS_CATALOG: MenuItem[] = [
 ]
 
 export const ORDER_CHANNELS = [
-  { id: 'DINE_IN', labelAr: 'صالة Dine-In', labelEn: 'Dine-In', commissionRate: 0.0, packagingReq: false, badgeColor: 'bg-emerald-500/20 text-emerald-400' },
-  { id: 'TAKEAWAY', labelAr: 'سفري Takeaway', labelEn: 'Takeaway', commissionRate: 0.0, packagingReq: true, badgeColor: 'bg-blue-500/20 text-blue-400' },
-  { id: 'TMP_10', labelAr: 'توصيل خاص TMP 10%', labelEn: 'Talabat TMP (10%)', commissionRate: 0.10, packagingReq: true, badgeColor: 'bg-amber-500/20 text-amber-400' },
-  { id: 'TGO_17', labelAr: 'طلبات TGO 17%', labelEn: 'Talabat GO (17%)', commissionRate: 0.17, packagingReq: true, badgeColor: 'bg-orange-500/20 text-orange-400' },
-  { id: 'KEETA', labelAr: 'كيتا Keeta 12%', labelEn: 'Keeta (12%)', commissionRate: 0.12, packagingReq: true, badgeColor: 'bg-yellow-500/20 text-yellow-400' },
-  { id: 'DELIVEROO', labelAr: 'دليفرو Deliveroo 18%', labelEn: 'Deliveroo (18%)', commissionRate: 0.18, packagingReq: true, badgeColor: 'bg-teal-500/20 text-teal-400' },
-  { id: 'JAHEZ', labelAr: 'جاهز Jahez 15%', labelEn: 'Jahez (15%)', commissionRate: 0.15, packagingReq: true, badgeColor: 'bg-red-500/20 text-red-400' },
-  { id: 'STAFF_0KD', labelAr: 'موظفين 0 KD Staff Meal', labelEn: 'Staff Meal (0 KD)', commissionRate: 0.0, isStaffMeal: true, packagingReq: false, badgeColor: 'bg-purple-500/20 text-purple-400' },
+  { id: 'DINE_IN', labelAr: 'محلي (صالة)', labelEn: 'Dine-In', commissionRate: 0.0, packagingReq: false, badgeColor: 'bg-emerald-500/20 text-emerald-400' },
+  { id: 'TAKEAWAY', labelAr: 'سفري', labelEn: 'Takeaway', commissionRate: 0.0, packagingReq: true, badgeColor: 'bg-blue-500/20 text-blue-400' },
+  { id: 'TMP_10', labelAr: 'توصيل خاص (10%)', labelEn: 'Talabat TMP (10%)', commissionRate: 0.10, packagingReq: true, badgeColor: 'bg-amber-500/20 text-amber-400' },
+  { id: 'TGO_17', labelAr: 'طلبات (17%)', labelEn: 'Talabat GO (17%)', commissionRate: 0.17, packagingReq: true, badgeColor: 'bg-orange-500/20 text-orange-400' },
+  { id: 'KEETA', labelAr: 'كيتا (12%)', labelEn: 'Keeta (12%)', commissionRate: 0.12, packagingReq: true, badgeColor: 'bg-yellow-500/20 text-yellow-400' },
+  { id: 'DELIVEROO', labelAr: 'دليفرو (18%)', labelEn: 'Deliveroo (18%)', commissionRate: 0.18, packagingReq: true, badgeColor: 'bg-teal-500/20 text-teal-400' },
+  { id: 'JAHEZ', labelAr: 'جاهز (15%)', labelEn: 'Jahez (15%)', commissionRate: 0.15, packagingReq: true, badgeColor: 'bg-red-500/20 text-red-400' },
+  { id: 'STAFF_0KD', labelAr: '🍽️ وجبة موظف (برقم البصمة - حساب 5230)', labelEn: 'Staff Meal (0 KD)', commissionRate: 0.0, isStaffMeal: true, packagingReq: false, badgeColor: 'bg-purple-500/20 text-purple-400' },
 ]
 
 export const BRANCH_OPTIONS = [
@@ -236,6 +237,8 @@ export function VenturePosHub({
             ))}
           </select>
 
+          <ThemeToggle />
+
           <button
             onClick={() => setCurrentLocale(isAr ? 'en' : 'ar')}
             className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700 transition-all"
@@ -259,13 +262,12 @@ export function VenturePosHub({
       {/* 6 Specialized POS Control Units Tabs */}
       <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-800 pb-3">
         {[
-          { key: 'terminal', labelAr: '🖥️ شاشة الكاشير متعددة البراندات', labelEn: 'Multi-Brand POS Terminal', icon: Monitor },
+          { key: 'terminal', labelAr: '🖥️ شاشة الكاشير ونقاط البيع الميدانية', labelEn: 'Multi-Brand POS Terminal', icon: Monitor },
           { key: 'zReport', labelAr: '🔒 إغلاق الوردية الأعمى ومطابقة الصندوق Z-Report', labelEn: 'Blind Shift Close & Z-Report', icon: Lock },
           { key: 'tender', labelAr: '💳 تسوية طرق الدفع وعمولات البنوك والمنصات', labelEn: 'Tender Split & NBK Recon', icon: CreditCard },
           { key: 'voids', labelAr: '🛡️ رقابة الخصومات، الإلغاءات، ووجبات الـ 0 د.ك', labelEn: 'Voids, Refunds & 0-KD Audit', icon: ShieldAlert },
           { key: 'safeDrop', labelAr: '💵 إيداعات الخزنة والمصروفات النثرية بالفرع', labelEn: 'Safe Drops & Branch Petty Cash', icon: Wallet },
           { key: 'glBridge', labelAr: '🔗 الربط المالي والقيود التلقائية (GL Bridge)', labelEn: 'Automated Financial GL Bridge', icon: ArrowRightLeft },
-          ...(liveChildren ? [{ key: 'legacy', labelAr: '⚙️ شاشة نقطة البيع في قاعدة البيانات (DB)', labelEn: 'Database POS Terminal', icon: Building2 }] : []),
         ].map((tab) => {
           const Icon = tab.icon
           const active = activeTab === tab.key
@@ -288,6 +290,11 @@ export function VenturePosHub({
 
       {/* TAB 1: Multi-Brand POS Terminal */}
       {activeTab === 'terminal' && (
+        liveChildren ? (
+          <div className="rounded-2xl border border-slate-800/80 overflow-hidden shadow-2xl">
+            {liveChildren}
+          </div>
+        ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Catalog & Filter Section (8 cols) */}
           <div className="lg:col-span-8 space-y-4">
@@ -576,6 +583,7 @@ export function VenturePosHub({
             </div>
           </div>
         </div>
+        )
       )}
 
       {/* TAB 2: Blind Shift Close & Z-Report Reconciliation */}
@@ -932,12 +940,7 @@ export function VenturePosHub({
         <AutomatedGlBridge locale={currentLocale} />
       )}
 
-      {/* TAB 7: Legacy DB Children */}
-      {activeTab === 'legacy' && liveChildren && (
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
-          {liveChildren}
-        </div>
-      )}
+      
     </div>
   )
 }

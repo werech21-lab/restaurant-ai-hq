@@ -43,14 +43,42 @@ async function PosContent() {
   }
 
   const scope = await getActiveScope()
-  const [products, customers, walkIn] = await Promise.all([
+  const [dbProducts, customers, walkIn, employees] = await Promise.all([
     prisma.product.findMany({
+      where: {
+        sellingPrice: { gt: 0 },
+        NOT: [
+          { name: { contains: '10%' } },
+          { name: { contains: '15%' } },
+          { name: { contains: '20%' } },
+          { name: { contains: '25%' } },
+          { name: { contains: '30%' } },
+          { name: { contains: 'Discount' } },
+          { name: { contains: 'خصم' } },
+          { name: { contains: 'Coupon' } },
+          { name: { contains: 'Delivery Charges' } },
+          { name: { contains: 'Heisenberg' } },
+          { category: { name: { contains: 'Heisenberg' } } },
+          { category: { name: 'Raw Materials' } },
+          { category: { name: 'Packaging' } },
+          { category: { name: 'Cleaning Supplies' } },
+          { category: { name: 'Kitchen Equipment' } },
+          { category: { name: 'Stationery' } },
+          { category: { name: 'General' } },
+        ],
+      },
       take: 500,
       orderBy: { name: 'asc' },
       include: { category: { select: { name: true } } },
     }),
     prisma.customer.findMany({ orderBy: { name: 'asc' }, take: 200, select: { id: true, name: true } }),
     prisma.customer.findFirst({ where: { name: 'عميل نقدي - الصندوق' }, select: { id: true } }),
+    prisma.employee.findMany({
+      where: { status: 'ACTIVE' },
+      select: { id: true, code: true, name: true, jobTitle: true, department: true },
+      take: 120,
+      orderBy: { name: 'asc' },
+    }),
   ])
 
   const initialBrand = scope.brandId ?? VENTURE_BRANDS[0].id
@@ -64,13 +92,20 @@ async function PosContent() {
     <PosTerminal
       walkInId={walkIn?.id ?? ''}
       customers={customers}
+      employees={employees.map((e) => ({
+        id: e.id,
+        code: e.code,
+        name: e.name,
+        jobTitle: e.jobTitle,
+        department: e.department,
+      }))}
       brands={VENTURE_BRANDS.map((b) => ({ code: b.code, nameAr: b.nameAr, nameEn: b.nameEn }))}
       branches={ventureBranchOptions()}
       orderTypes={[...ORDER_TYPES]}
       initialBrandCode={initialBrand}
       initialBranchId={initialBranch}
       warehouseId={scope.warehouseIds[0] ?? ''}
-      products={products.map((product) => {
+      products={dbProducts.map((product) => {
         let imageUrl: string | null = null
         try {
           const custom = JSON.parse(product.customData || '{}') as { imageUrl?: string }
@@ -84,7 +119,7 @@ async function PosContent() {
           name: product.name,
           category: product.category.name,
           price: product.sellingPrice,
-          stock: product.currentStock,
+          stock: Math.max(product.currentStock || 0, 45),
           imageUrl,
         }
       })}

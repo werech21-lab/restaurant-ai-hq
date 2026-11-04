@@ -29,13 +29,13 @@ export function ventureBranchOptions(): VentureBranchOption[] {
 }
 
 export const ORDER_TYPES = [
-  { id: 'dine_in', labelAr: 'محلي Dine-in', labelEn: 'Dine-in' },
-  { id: 'takeaway', labelAr: 'سفري Takeaway', labelEn: 'Takeaway' },
-  { id: 'talabat', labelAr: 'طلبات Talabat', labelEn: 'Talabat' },
-  { id: 'deliveroo', labelAr: 'ديليفرو Deliveroo', labelEn: 'Deliveroo' },
-  { id: 'jahez', labelAr: 'جاهز Jahez', labelEn: 'Jahez' },
-  
+  { id: 'dine_in', labelAr: 'محلي (صالة)', labelEn: 'Dine-in' },
+  { id: 'takeaway', labelAr: 'سفري', labelEn: 'Takeaway' },
+  { id: 'talabat', labelAr: 'طلبات', labelEn: 'Talabat' },
+  { id: 'deliveroo', labelAr: 'ديليفرو', labelEn: 'Deliveroo' },
+  { id: 'jahez', labelAr: 'جاهز', labelEn: 'Jahez' },
   { id: 'in_house', labelAr: 'توصيل الفرع', labelEn: 'In-House Delivery' },
+  { id: 'staff_meal', labelAr: '🍽️ وجبة موظف (برقم البصمة)', labelEn: '🍽️ Staff Meal (by Badge ID)' },
 ] as const
 
 export type OrderTypeId = (typeof ORDER_TYPES)[number]['id']

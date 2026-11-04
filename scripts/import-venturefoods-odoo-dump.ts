@@ -72,7 +72,6 @@ function brandFromSku(code: string): BrandMap {
   if (/^(RIKC|CTKC|EXKC)/.test(c)) return { brand: 'Karak Cafeteria', category: 'Karak Cafeteria', kind: 'menu' }
   if (/^(RITNB|CTTNB|RITN|CTTN)/.test(c)) return { brand: 'The Noodle Bar', category: 'The Noodle Bar', kind: 'menu' }
   if (/^(RITAH|CTTAH|EXTAH|RITA|CTTA|EXTA)/.test(c)) return { brand: 'Shawarma Tahina', category: 'Shawarma Tahina', kind: 'menu' }
-  if (/^RIHB/.test(c)) return { brand: 'Heisenberg', category: 'Heisenberg', kind: 'menu' }
   if (/^RITS/.test(c)) return { brand: 'Tasty Snacks', category: 'Tasty Snacks', kind: 'menu' }
   if (/^RIFDC|^RIFD/.test(c)) return { brand: 'School Canteen', category: 'School Canteen', kind: 'menu' }
   if (/^RW/.test(c)) return { brand: 'Central Kitchen', category: 'Raw Materials', kind: 'raw' }
@@ -366,7 +365,6 @@ async function main() {
     'Karak Cafeteria',
     'The Noodle Bar',
     'Shawarma Tahina',
-    'Heisenberg',
     'Tasty Snacks',
     'School Canteen',
     'Raw Materials',
