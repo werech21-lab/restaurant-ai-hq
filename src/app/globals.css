@@ -396,32 +396,49 @@ html:not(.dark) .bg-white\/5 {
 }
 
 /* 5. Typography & Contrast Assurance (100% Crisp Contrast in Light Mode) */
-/* All Headings in Light Mode */
-html[data-theme='light'] h1,
-html[data-theme='light'] h2,
-html[data-theme='light'] h3,
-html[data-theme='light'] h4,
-html[data-theme='light'] h5,
-html[data-theme='light'] h6,
-html.light-mode h1,
-html.light-mode h2,
-html.light-mode h3,
-html.light-mode h4,
-html.light-mode h5,
-html.light-mode h6,
-html.light h1,
-html.light h2,
-html.light h3,
-html.light h4,
-html.light h5,
-html.light h6,
-html:not(.dark) h1,
-html:not(.dark) h2,
-html:not(.dark) h3,
-html:not(.dark) h4,
-html:not(.dark) h5,
-html:not(.dark) h6 {
+/* All Headings in Light Mode - Strictly excluding any navy hero or navy cards */
+html[data-theme='light'] h1:not(.diyar-hero-header *):not(.diyar-navy-card *):not(.bg-\[\#0B1D42\] *):not(.bg-\[\#040B1C\] *),
+html[data-theme='light'] h2:not(.diyar-hero-header *):not(.diyar-navy-card *):not(.bg-\[\#0B1D42\] *):not(.bg-\[\#040B1C\] *),
+html[data-theme='light'] h3:not(.diyar-hero-header *):not(.diyar-navy-card *):not(.bg-\[\#0B1D42\] *):not(.bg-\[\#040B1C\] *),
+html[data-theme='light'] h4:not(.diyar-hero-header *):not(.diyar-navy-card *):not(.bg-\[\#0B1D42\] *):not(.bg-\[\#040B1C\] *),
+html[data-theme='light'] h5:not(.diyar-hero-header *):not(.diyar-navy-card *):not(.bg-\[\#0B1D42\] *):not(.bg-\[\#040B1C\] *),
+html[data-theme='light'] h6:not(.diyar-hero-header *):not(.diyar-navy-card *):not(.bg-\[\#0B1D42\] *):not(.bg-\[\#040B1C\] *),
+html.light-mode h1:not(.diyar-hero-header *):not(.diyar-navy-card *):not(.bg-\[\#0B1D42\] *):not(.bg-\[\#040B1C\] *),
+html.light-mode h2:not(.diyar-hero-header *):not(.diyar-navy-card *):not(.bg-\[\#0B1D42\] *):not(.bg-\[\#040B1C\] *),
+html.light-mode h3:not(.diyar-hero-header *):not(.diyar-navy-card *):not(.bg-\[\#0B1D42\] *):not(.bg-\[\#040B1C\] *),
+html.light-mode h4:not(.diyar-hero-header *):not(.diyar-navy-card *):not(.bg-\[\#0B1D42\] *):not(.bg-\[\#040B1C\] *),
+html.light-mode h5:not(.diyar-hero-header *):not(.diyar-navy-card *):not(.bg-\[\#0B1D42\] *):not(.bg-\[\#040B1C\] *),
+html.light-mode h6:not(.diyar-hero-header *):not(.diyar-navy-card *):not(.bg-\[\#0B1D42\] *):not(.bg-\[\#040B1C\] *),
+html.light h1:not(.diyar-hero-header *):not(.diyar-navy-card *):not(.bg-\[\#0B1D42\] *):not(.bg-\[\#040B1C\] *),
+html.light h2:not(.diyar-hero-header *):not(.diyar-navy-card *):not(.bg-\[\#0B1D42\] *):not(.bg-\[\#040B1C\] *),
+html.light h3:not(.diyar-hero-header *):not(.diyar-navy-card *):not(.bg-\[\#0B1D42\] *):not(.bg-\[\#040B1C\] *),
+html.light h4:not(.diyar-hero-header *):not(.diyar-navy-card *):not(.bg-\[\#0B1D42\] *):not(.bg-\[\#040B1C\] *),
+html.light h5:not(.diyar-hero-header *):not(.diyar-navy-card *):not(.bg-\[\#0B1D42\] *):not(.bg-\[\#040B1C\] *),
+html.light h6:not(.diyar-hero-header *):not(.diyar-navy-card *):not(.bg-\[\#0B1D42\] *):not(.bg-\[\#040B1C\] *),
+html:not(.dark) h1:not(.diyar-hero-header *):not(.diyar-navy-card *):not(.bg-\[\#0B1D42\] *):not(.bg-\[\#040B1C\] *),
+html:not(.dark) h2:not(.diyar-hero-header *):not(.diyar-navy-card *):not(.bg-\[\#0B1D42\] *):not(.bg-\[\#040B1C\] *),
+html:not(.dark) h3:not(.diyar-hero-header *):not(.diyar-navy-card *):not(.bg-\[\#0B1D42\] *):not(.bg-\[\#040B1C\] *),
+html:not(.dark) h4:not(.diyar-hero-header *):not(.diyar-navy-card *):not(.bg-\[\#0B1D42\] *):not(.bg-\[\#040B1C\] *),
+html:not(.dark) h5:not(.diyar-hero-header *):not(.diyar-navy-card *):not(.bg-\[\#0B1D42\] *):not(.bg-\[\#040B1C\] *),
+html:not(.dark) h6:not(.diyar-hero-header *):not(.diyar-navy-card *):not(.bg-\[\#0B1D42\] *):not(.bg-\[\#040B1C\] *) {
   color: #0F172A !important;
+}
+
+/* Enforce pure white text inside navy hero banner and navy cards under all circumstances */
+.diyar-hero-header h1,
+html[data-theme='light'] .diyar-hero-header h1,
+html.light-mode .diyar-hero-header h1,
+html:not(.dark) .diyar-hero-header h1 {
+  color: #FFFFFF !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+}
+
+.diyar-hero-header p,
+html[data-theme='light'] .diyar-hero-header p,
+html.light-mode .diyar-hero-header p,
+html:not(.dark) .diyar-hero-header p {
+  color: #F8FAFC !important;
+  -webkit-text-fill-color: #F8FAFC !important;
 }
 
 /* Primary Titles, Headings, and Figures */

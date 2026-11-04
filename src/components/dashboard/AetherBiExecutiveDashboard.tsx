@@ -585,13 +585,30 @@ export function AetherBiExecutiveDashboard({ locale = 'ar' }: { locale?: string 
             <span className="text-[11px] text-emerald-300 font-bold" style={{ color: '#6EE7B7' }}>محدث لحظياً</span>
           </div>
 
-          {/* Exact Required Title */}
+          {/* Exact Required Title: Bulletproof Pure White without any text-transparent */}
           <h1
             className="text-3xl sm:text-5xl font-black !text-white tracking-tight drop-shadow-md"
-            style={{ color: '#FFFFFF', textShadow: '0 2px 14px rgba(56, 189, 248, 0.35)' }}
+            style={{
+              color: '#FFFFFF',
+              WebkitTextFillColor: '#FFFFFF',
+              opacity: 1,
+              textShadow: '0 2px 14px rgba(56, 189, 248, 0.35)',
+            }}
           >
             الملخص المالي والتشغيلي والتحليل المقارن — أكتوبر 2026
           </h1>
+
+          {/* Sub-headline: Pure Bright White (#F8FAFC) */}
+          <p
+            className="font-semibold text-base sm:text-lg !text-[#F8FAFC] max-w-3xl mx-auto leading-relaxed"
+            style={{
+              color: '#F8FAFC',
+              WebkitTextFillColor: '#F8FAFC',
+              opacity: 1,
+            }}
+          >
+            التقرير المالي والتشغيلي المعتمد لفترة أكتوبر 2026 — 6 علامات تجارية و9 فروع نشطة ومطبخ القرين المركزي
+          </p>
 
           {/* Dynamic Narrative Summary Box */}
           <div className="rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 p-4 sm:p-5 max-w-4xl mx-auto shadow-inner">

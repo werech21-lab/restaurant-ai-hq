@@ -108,17 +108,21 @@ export function Sidebar({ user }: { user: AccessUser; enabledKeys?: string[] | n
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/venture-foods-logo-dark.svg" alt={isAr ? 'فنتشر فودز' : 'Venture Foods'} className="h-10 w-auto object-contain" />
         <div className="mt-3 flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
-          <p className="text-[13px] font-black text-slate-900 dark:text-white truncate">
+          <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0"></span>
+          <p className="text-[13px] font-black text-slate-900 dark:text-white leading-tight">
             {isAr ? 'نظام الإدارة المالية والتشغيلية' : 'Financial & Operations Management System'}
           </p>
         </div>
-        <p className="mt-0.5 text-[11px] font-semibold text-slate-600 dark:text-slate-400 truncate">
-          {isAr ? 'شركة فنتشر فودز ذ.م.م. (ترخيص 2021/22838)' : 'Venture Foods W.L.L. (Lic. 2021/22838)'}
-        </p>
-        <p className="mt-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 truncate">
-          {isAr ? '6 علامات تجارية · 9 فروع نشطة · مطبخ القرين' : '6 Brands · 9 Active Branches · Central Kitchen'}
-        </p>
+
+        {/* Elegant clear unclipped info badge without truncate */}
+        <div className="mt-2.5 px-3 py-2.5 rounded-xl bg-[#F1F5F9] dark:bg-slate-800/80 border border-slate-300/80 dark:border-slate-700/80 text-right leading-relaxed shadow-sm">
+          <p className="text-xs font-bold text-[#0F172A] dark:text-slate-100" style={{ color: '#0F172A' }}>
+            {isAr ? 'شركة فنتشر فودز ذ.م.م. (ترخيص 2021/22838)' : 'Venture Foods W.L.L. (Lic. 2021/22838)'}
+          </p>
+          <p className="mt-1 text-xs font-bold text-[#1E3A8A] dark:text-sky-400" style={{ color: '#1E3A8A' }}>
+            {isAr ? '6 علامات تجارية · 9 فروع نشطة · مطبخ القرين' : '6 Brands · 9 Active Branches · Central Kitchen'}
+          </p>
+        </div>
       </div>
 
       {/* Navigation Sections */}
