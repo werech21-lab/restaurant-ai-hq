@@ -143,16 +143,16 @@ export const INTERNAL_TRANSFERS_DATA: MovementRow[] = [
   { id: "mv-01", dateLabel: "04/11/2026 10:30", productName: "لحم أنجوس مفروم 80/20 + صوص كانتون", code: "RW01-BF03 / PP03-CGS", type: "OUT", typeLabel: "تحويل داخلي صادر", quantityLabel: "150 كجم / 20 جالون", balanceLabel: "2,000 كجم", note: "شحنة تبريد من المطبخ المركزي بالقرين إلى فرع الأفنيوز", userName: "سليم مياه خان (مسؤول التحضير)", fromLocation: "المطبخ المركزي بالقرين", toLocation: "فرع مجمع الأفنيوز", statusLabel: "🚚 بالطريق (بانتظار الوزن وتأكيد مدير الفرع)" },
   { id: "mv-02", dateLabel: "04/11/2026 09:15", productName: "صدور دجاج متبلة + خبز بريوش طازج", code: "RW01-CK01 / RW01-BN01", type: "OUT", typeLabel: "تحويل داخلي صادر", quantityLabel: "200 كجم / 400 حبة", balanceLabel: "3,250 كجم", note: "شحنة تبريد صباحية يومية لفرع السالمية", userName: "سليم مياه خان (القرين)", fromLocation: "المطبخ المركزي بالقرين", toLocation: "فرع السالمية", statusLabel: "✅ تم استلام ووزن الشحنة ومطابقتها" },
   { id: "mv-03", dateLabel: "03/11/2026 16:45", productName: "طحينة سمسم سائلة + ثومية القرين", code: "RW01-TAH / PP03-GAR", type: "OUT", typeLabel: "تحويل داخلي صادر", quantityLabel: "15 سطل / 20 سطل", balanceLabel: "105 سطل", note: "توريد تحضيرات الشاورما لفرع الفروانية", userName: "سليم مياه خان (القرين)", fromLocation: "المطبخ المركزي بالقرين", toLocation: "فرع الفروانية", statusLabel: "✅ تم الاستلام والتخزين المبرد" },
-  { id: "mv-04", dateLabel: "03/11/2026 11:20", productName: "لحم بلاك أنجوس ريب آي أسترالي مبرد", code: "RW01-BF01", type: "IN", typeLabel: "توريد موردين GRN", quantityLabel: "1,500 كجم", balanceLabel: "1,420 كجم", note: "استلام شحنة لحوم مبردة من شركة المواشي الكويتية (فاتورة PO-2026-119)", userName: "ربيع أنيس يحيى (فني الجودة)", fromLocation: "المورد: شركة المواشي", toLocation: "المطبخ المركزي بالقرين", statusLabel: "✅ فحص معتمد وحرارة +1.2 مئوية" },
+  { id: "mv-04", dateLabel: "03/11/2026 11:20", productName: "لحم بلاك أنجوس ريب آي أسترالي مبرد", code: "RW01-BF01", type: "IN", typeLabel: "توريد موردين (سند استلام مخزني)", quantityLabel: "1,500 كجم", balanceLabel: "1,420 كجم", note: "استلام شحنة لحوم مبردة من شركة المواشي الكويتية (سند شراء رقم 119)", userName: "ربيع أنيس يحيى (فني الجودة)", fromLocation: "المورد: شركة المواشي", toLocation: "المطبخ المركزي بالقرين", statusLabel: "✅ فحص معتمد وحرارة +1.2 مئوية" },
   { id: "mv-05", dateLabel: "02/11/2026 14:10", productName: "علب ستيك حرارية فرانكس + أكياس كرافت", code: "PK02-STK / PK02-BAG", type: "OUT", typeLabel: "تحويل داخلي صادر", quantityLabel: "40 كرتون / 50 كرتون", balanceLabel: "140 كرتون", note: "تحويل مواد تغليف لمخزن فرع الكوت مول", userName: "مستودع أسواق القرين", fromLocation: "مستودع أسواق القرين", toLocation: "فرع الكوت مول", statusLabel: "✅ تم الاستلام المطابق" },
 ];
 
 export const SHELF_LIFE_FEFO_DATA = [
   { batchNo: "LOT-20261104-01", itemCode: "PP03-CGS", itemNameAr: "صوص كانتون الصيني السري (القرين)", categoryAr: "منتجات نصف مصنعة", prepDate: "04/11/2026 08:00", expiryDate: "09/11/2026 08:00", daysRemaining: 5, locationAr: "المطبخ المركزي - القرين", priorityAr: "🟢 طازج وآمن (5 أيام)" },
-  { batchNo: "LOT-20261103-04", itemCode: "RW01-CK02", itemNameAr: "أفخاذ دجاج مسحبة ومتبلة للشاورما", categoryAr: "مواد خام غذائية", prepDate: "03/11/2026 14:00", expiryDate: "06/11/2026 14:00", daysRemaining: 2, locationAr: "فرع الفروانية - براد الشاورما", priorityAr: "🟠 أولوية صرف قصوى FEFO (يومان)" },
+  { batchNo: "LOT-20261103-04", itemCode: "RW01-CK02", itemNameAr: "أفخاذ دجاج مسحبة ومتبلة للشاورما", categoryAr: "مواد خام غذائية", prepDate: "03/11/2026 14:00", expiryDate: "06/11/2026 14:00", daysRemaining: 2, locationAr: "فرع الفروانية - براد الشاورما", priorityAr: "🟠 أولوية صرف قصوى (الوارد أولاً يصرف أولاً · يومان)" },
   { batchNo: "LOT-20261104-03", itemCode: "PP03-TRF", itemNameAr: "مايونيز الترافل الأسود الفاخر", categoryAr: "منتجات نصف مصنعة", prepDate: "04/11/2026 09:30", expiryDate: "08/11/2026 09:30", daysRemaining: 4, locationAr: "المطبخ المركزي - القرين", priorityAr: "🟢 طازج وآمن (4 أيام)" },
   { batchNo: "LOT-20261102-02", itemCode: "PP03-MSH", itemNameAr: "بطاطا مهروسة متبلة بالكريمة", categoryAr: "منتجات نصف مصنعة", prepDate: "02/11/2026 11:00", expiryDate: "04/11/2026 23:00", daysRemaining: 0, locationAr: "فرع مجمع مروج - ثلاجة التحضير", priorityAr: "🔴 تنبيه: ينتهي اليوم (صرف فوري)" },
-  { batchNo: "LOT-20261103-01", itemCode: "RW01-BN01", itemNameAr: "خبز بريوش طازج يومي للبرجر", categoryAr: "مواد خام غذائية", prepDate: "03/11/2026 06:00", expiryDate: "05/11/2026 18:00", daysRemaining: 1, locationAr: "فرع مجمع الأفنيوز", priorityAr: "🟠 أولوية صرف قصوى FEFO (24 ساعة)" },
+  { batchNo: "LOT-20261103-01", itemCode: "RW01-BN01", itemNameAr: "خبز بريوش طازج يومي للبرجر", categoryAr: "مواد خام غذائية", prepDate: "03/11/2026 06:00", expiryDate: "05/11/2026 18:00", daysRemaining: 1, locationAr: "فرع مجمع الأفنيوز", priorityAr: "🟠 أولوية صرف قصوى (الوارد أولاً يصرف أولاً · 24 ساعة)" },
 ];
 
 export function InventoryPanel({
@@ -347,7 +347,7 @@ export function InventoryPanel({
           </button>
 
           {/* Export to Excel */}
-          <ExportCsvButton kind="inventory" filename="venture-foods-inventory.csv" />
+          <ExportCsvButton kind="inventory" filename="venture-foods-inventory.csv" label={en ? "Export Excel Table" : "📥 تصدير جدول المخزون (إكسل)"} />
 
           {/* Add New Category Button */}
           {active === "categories" && canCreate && (
@@ -436,7 +436,7 @@ export function InventoryPanel({
                   <input
                     name="q"
                     defaultValue={q}
-                    placeholder={en ? "Search by name or code..." : "ابحث بالاسم أو الكود..."}
+                    placeholder={en ? "Search by item name or code..." : "ابحث باسم الصنف أو رمزه التعريفي..."}
                     className={`${fieldClass} pr-9 w-full`}
                   />
                 </div>
@@ -555,7 +555,7 @@ export function InventoryPanel({
                 {en ? "Stock Movements & Internal Transfers Log (GL 1139)" : "سجل حركة المخزون والتحويلات الداخلية بين القرين والفروع (حساب 1139)"}
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
-                {en ? "Audited ledger for incoming vendor shipments, branch transfers, and weigh receipt verifications." : "متابعة سندات التوريد GRN، التحويلات الخارجة، وأوزان استلام مديري الفروع."}
+                {en ? "Audited ledger for incoming vendor shipments, branch transfers, and weigh receipt verifications." : "متابعة سندات استلام التوريد، التحويلات الخارجة، وأوزان استلام مديري الفروع."}
               </p>
             </div>
             <span className="rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30 px-3 py-1 text-xs font-bold font-mono">
@@ -609,7 +609,7 @@ export function InventoryPanel({
         <DataCard>
           <div className="p-4 border-b border-slate-800/80">
             <h3 className="text-sm font-black text-white">
-              {en ? "Shelf-Life Expiration & FEFO Priority Consumption Tracking" : "سجل تواريخ الصلاحية وأولوية الصرف (الوارد أولاً يُصرف أولاً - FEFO)"}
+              {en ? "Shelf-Life Expiration & FEFO Priority Consumption Tracking" : "سجل تواريخ الصلاحية وأولوية الصرف (الوارد أولاً يُصرف أولاً)"}
             </h3>
             <p className="text-xs text-slate-400 mt-0.5">
               {en ? "Prioritized batch consumption to prevent food waste and maintain municipality freshness compliance." : "توجيه الفروع والمطبخ المركزي لاستهلاك التشغيلات الأقدم للحفاظ على سلامة الغذاء ومنع الهدر."}
@@ -619,7 +619,7 @@ export function InventoryPanel({
             <table className="w-full text-sm text-right">
               <thead>
                 <tr className="border-b border-slate-800 bg-slate-950/60 text-slate-400 font-bold text-xs">
-                  <th className="px-4 py-3">{en ? "Batch LOT#" : "رقم التشغيلة (LOT)"}</th>
+                  <th className="px-4 py-3">{en ? "Batch LOT#" : "رقم تشغيلة الدفعة"}</th>
                   <th className="px-4 py-3">{en ? "Item" : "الصنف والمادة"}</th>
                   <th className="px-4 py-3">{en ? "Category" : "التصنيف"}</th>
                   <th className="px-4 py-3">{en ? "Prep Date" : "تاريخ التحضير"}</th>

@@ -10,10 +10,12 @@ export function ExportCsvButton({
   kind,
   filename,
   query,
+  label,
 }: {
   kind: string;
   filename: string;
   query?: string;
+  label?: string;
 }) {
   const [pending, setPending] = useState(false);
   const { locale } = useI18n();
@@ -38,7 +40,7 @@ export function ExportCsvButton({
   return (
     <button type="button" className={btnGhost} onClick={download} disabled={pending}>
       <Download size={16} />
-      {pending ? (en ? "Exporting…" : "جارٍ التصدير...") : en ? "Export Excel/CSV" : "تصدير إلى Excel/CSV"}
+      {pending ? (en ? "Exporting…" : "جارٍ التصدير...") : label || (en ? "Export Excel Table" : "📥 تصدير جدول المخزون (إكسل)")}
     </button>
   );
 }

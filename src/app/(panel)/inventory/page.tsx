@@ -15,7 +15,7 @@ import { forecastLabels } from "@/services/forecast.service";
 import { InventoryPanel } from "@/app/(panel)/inventory/inventory-panel";
 
 export const metadata = {
-  title: "المخزون وحركات المواد | شركة فنتشر فودز · AetherBI",
+  title: "المخزون وحركات المواد | شركة فنتشر فودز ذ.م.م.",
   description: "إدارة المخزون، المواد الخام، التحويلات الداخلية وتقييم البضاعة لشركة فنتشر فودز لإدارة المطاعم ذ.م.م.",
 };
 
