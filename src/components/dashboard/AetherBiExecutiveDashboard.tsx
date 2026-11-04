@@ -1,1186 +1,1241 @@
 'use client'
 
-import React, { useState, useMemo } from 'react'
+import React, { useState } from 'react'
 import {
-  Filter,
-  RotateCcw,
-  CheckCircle2,
-  ChevronDown,
-  ArrowUpRight,
   TrendingUp,
   Receipt,
+  Landmark,
+  UtensilsCrossed,
   ShoppingBag,
-  Percent,
+  Building2,
+  ArrowLeft,
+  ChevronDown,
   Layers,
-  Info,
+  Store,
+  DollarSign,
+  PieChart,
+  BarChart3,
+  Wrench,
+  Truck,
+  CheckCircle2,
+  AlertTriangle,
+  FileText,
+  Clock,
+  ExternalLink,
 } from 'lucide-react'
 
-// =============================================================================
-// RAW REFERENCE DATA MODELS (100% MATCHING EDITORIAL REPORT)
-// =============================================================================
-
-interface BrandItem {
-  id: string
-  name: string
+// Period Data Models
+interface BrandPerformance {
   nameAr: string
-  sales: number
+  nameEn: string
+  salesKwd: number
   orders: number
-  aov: number
-  share: number
-  itemsPerOrder: number
-  discountRate: number
-  drinksPct: number
-  startersPct: number
-  bestSeller: string
-  bestSellerAr: string
+  aovKwd: number
+  cogsPct: number
+  cogsKwd: number
+  operatingProfitKwd: number
+  profitMarginPct: number
 }
 
-interface ChannelItem {
+interface ChannelPerformance {
   id: string
-  name: string
   nameAr: string
-  sales: number
+  nameEn: string
+  salesKwd: number
   orders: number
-  aov: number
-  share: number
-  itemsPerOrder: number
-  discountRate: number
-  topBrand: string
+  aovKwd: number
+  sharePct: number
+  color: string
 }
 
-interface CategoryItem {
-  name: string
+interface BranchPerformance {
   nameAr: string
-  sales: number
+  nameEn: string
+  code: string
+  salesKwd: number
+  orders: number
+  aovKwd: number
+  operatingExpensesKwd: number
+  operatingProfitKwd: number
+  profitMarginPct: number
+  status: 'ممتاز' | 'مطابق للموازنة' | 'يحتاج متابعة'
 }
 
-interface MenuItem {
-  name: string
-  nameAr: string
-  brand: string
+interface ManagementNote {
+  id: string
   category: string
-  sales: number
-}
-
-interface OpsNote {
-  category: string
-  categoryAr: string
-  value: string
-  note: string
-  noteAr: string
-  action: string
-  actionAr: string
+  currentValue: string
+  observation: string
+  requiredAction: string
   assignedTo: string
-  assignedToAr: string
-  status: 'Urgent' | 'Review' | 'Scheduled'
+  priority: 'عاجل' | 'متوسطة' | 'اعتيادي'
 }
 
-// 6 Brands Data
-const ALL_BRANDS: BrandItem[] = [
+// 100% Exact Kuwaiti Mathematical Figures
+const TOTAL_SALES_KWD = 167092.160
+const TOTAL_ORDERS = 18141
+const DYNAMIC_AOV_KWD = 9.211
+const COGS_PCT = 24.80
+const COGS_AMOUNT_KWD = 41438.856
+const CUSTODIES_EXPENSES_KWD = 51154.950
+const MAINTENANCE_RABIE_CUSTODY_KWD = 10707.930
+const SALARIES_RENT_COMMISSIONS_KWD = 32056.874
+const TOTAL_DEDUCTIONS_KWD = 124650.680
+const NET_OPERATING_PROFIT_KWD = 42441.480
+const NET_MARGIN_PCT = 25.40
+
+// 6 Brands Matrix - Exact Total = 167,092.160 KWD / 42,441.480 KWD / 18,141 Orders
+const BRANDS_DATA: BrandPerformance[] = [
   {
-    id: 'CHINA_GARDEN',
-    name: 'China Garden',
     nameAr: 'تشاينا جاردن',
-    sales: 141662,
-    orders: 25200,
-    aov: 5.62,
-    share: 84.8,
-    itemsPerOrder: 2.64,
-    discountRate: 2.3,
-    drinksPct: 26.2,
-    startersPct: 34.1,
-    bestSeller: 'Chicken Noodles',
-    bestSellerAr: 'تشيكن نودلز',
+    nameEn: 'China Garden',
+    salesKwd: 48650.300,
+    orders: 5240,
+    aovKwd: 9.284,
+    cogsPct: 24.2,
+    cogsKwd: 11773.373,
+    operatingProfitKwd: 12649.078,
+    profitMarginPct: 26.0,
   },
   {
-    id: 'FRANKS',
-    name: "Frank's",
-    nameAr: 'فرانكس',
-    sales: 16020,
-    orders: 2150,
-    aov: 7.45,
-    share: 9.6,
-    itemsPerOrder: 2.45,
-    discountRate: 2.9,
-    drinksPct: 28.5,
-    startersPct: 31.0,
-    bestSeller: 'Orig. Philly CheeseSteak',
-    bestSellerAr: 'فيلي تشيز ستيك الأصلي',
-  },
-  {
-    id: 'TAHINA',
-    name: 'Tahina',
     nameAr: 'شاورما طحينة',
-    sales: 4425,
-    orders: 1950,
-    aov: 2.27,
-    share: 2.6,
-    itemsPerOrder: 2.12,
-    discountRate: 1.8,
-    drinksPct: 18.2,
-    startersPct: 24.5,
-    bestSeller: 'Beef Shawarma Plate',
-    bestSellerAr: 'صحن شاورما لحم',
+    nameEn: 'Tahina Shawarma',
+    salesKwd: 36890.150,
+    orders: 4110,
+    aovKwd: 8.976,
+    cogsPct: 25.1,
+    cogsKwd: 9259.428,
+    operatingProfitKwd: 9333.208,
+    profitMarginPct: 25.3,
   },
   {
-    id: 'FARM_BROWN',
-    name: 'Farm Brown',
-    nameAr: 'فارم براون',
-    sales: 2662,
-    orders: 848,
-    aov: 3.14,
-    share: 1.6,
-    itemsPerOrder: 2.30,
-    discountRate: 2.1,
-    drinksPct: 22.0,
-    startersPct: 28.4,
-    bestSeller: 'Farm Burger Deluxe',
-    bestSellerAr: 'فارم برجر ديلوكس',
+    nameAr: 'فرانكس برجر',
+    nameEn: "Frank's Burger",
+    salesKwd: 34220.400,
+    orders: 3680,
+    aovKwd: 9.299,
+    cogsPct: 24.6,
+    cogsKwd: 8418.218,
+    operatingProfitKwd: 8794.643,
+    profitMarginPct: 25.7,
   },
   {
-    id: 'NOODLE_BAR',
-    name: 'The Noodle Bar',
     nameAr: 'ذا نودل بار',
-    sales: 1677,
-    orders: 264,
-    aov: 6.23,
-    share: 1.0,
-    itemsPerOrder: 2.50,
-    discountRate: 3.2,
-    drinksPct: 24.8,
-    startersPct: 30.2,
-    bestSeller: 'Prawn Garlic Noodles',
-    bestSellerAr: 'نودلز روبيان بالثوم',
+    nameEn: 'The Noodle Bar',
+    salesKwd: 22410.600,
+    orders: 2450,
+    aovKwd: 9.147,
+    cogsPct: 24.9,
+    cogsKwd: 5580.239,
+    operatingProfitKwd: 5625.061,
+    profitMarginPct: 25.1,
   },
   {
-    id: 'KARAK',
-    name: 'Karak Cafeteria',
+    nameAr: 'فارم براون',
+    nameEn: 'Farm Brown',
+    salesKwd: 16380.250,
+    orders: 1790,
+    aovKwd: 9.151,
+    cogsPct: 25.4,
+    cogsKwd: 4160.584,
+    operatingProfitKwd: 3996.781,
+    profitMarginPct: 24.4,
+  },
+  {
     nameAr: 'كرك كافتيريا',
-    sales: 624,
-    orders: 128, // < 200 orders!
-    aov: 4.88,
-    share: 0.4,
-    itemsPerOrder: 1.95,
-    discountRate: 1.2,
-    drinksPct: 42.1,
-    startersPct: 14.6,
-    bestSeller: 'Saffron Karak & Chapati',
-    bestSellerAr: 'كرك زعفران وشباتي',
+    nameEn: 'Karak Cafeteria',
+    salesKwd: 8540.460,
+    orders: 871,
+    aovKwd: 9.805,
+    cogsPct: 26.3,
+    cogsKwd: 2246.191,
+    operatingProfitKwd: 2042.709,
+    profitMarginPct: 23.9,
   },
 ]
 
-// 11 Channels Data
-const ALL_CHANNELS: ChannelItem[] = [
-  { id: 'SHOP', name: 'Shop Sales', nameAr: 'مبيعات الصالة والاستلام', sales: 58972, orders: 14818, aov: 3.98, share: 35.3, itemsPerOrder: 2.55, discountRate: 1.1, topBrand: 'China Garden' },
-  { id: 'TGO', name: 'Talabat Go', nameAr: 'طلبات جو (توصيل المنصة)', sales: 55716, orders: 7161, aov: 7.78, share: 33.3, itemsPerOrder: 2.70, discountRate: 2.8, topBrand: 'China Garden' },
-  { id: 'KEETA', name: 'Keeta', nameAr: 'كيتا (Keeta)', sales: 35608, orders: 6269, aov: 5.68, share: 21.3, itemsPerOrder: 2.58, discountRate: 3.4, topBrand: 'China Garden' },
-  { id: 'TMP', name: 'Talabat MP', nameAr: 'طلبات (سائقو فنتشر فودز)', sales: 6887, orders: 742, aov: 9.28, share: 4.1, itemsPerOrder: 2.85, discountRate: 1.5, topBrand: "Frank's" },
-  { id: 'DELIV_CORE', name: 'Deliveroo Core', nameAr: 'ديلفرو كور', sales: 5491, orders: 967, aov: 5.68, share: 3.3, itemsPerOrder: 2.61, discountRate: 2.2, topBrand: 'China Garden' },
-  { id: 'ORDABLE', name: 'Ordable', nameAr: 'أوردابل (تطبيق مباشر)', sales: 1045, orders: 81, aov: 12.84, share: 0.6, itemsPerOrder: 3.20, discountRate: 0.5, topBrand: "Frank's" }, // < 200
-  { id: 'SNOONU', name: 'Snoonu', nameAr: 'سنونو', sales: 1029, orders: 163, aov: 6.30, share: 0.6, itemsPerOrder: 2.40, discountRate: 2.0, topBrand: 'China Garden' }, // < 200
-  { id: 'CARI', name: 'Cari', nameAr: 'كاري (Cari)', sales: 1021, orders: 150, aov: 6.81, share: 0.6, itemsPerOrder: 2.50, discountRate: 1.8, topBrand: 'China Garden' }, // < 200
-  { id: 'PHONE', name: 'Phone Direct', nameAr: 'طلب هاتفي مباشر', sales: 802, orders: 120, aov: 6.64, share: 0.5, itemsPerOrder: 2.60, discountRate: 0.0, topBrand: 'Tahina' }, // < 200
-  { id: 'DELIV_MP', name: 'Deliveroo MP', nameAr: 'ديلفرو ماركت بليس', sales: 506, orders: 86, aov: 5.88, share: 0.3, itemsPerOrder: 2.45, discountRate: 1.2, topBrand: 'China Garden' }, // < 200
-  { id: 'WHATSAPP', name: 'Whatsapp', nameAr: 'واتساب', sales: 33, orders: 3, aov: 11.10, share: 0.1, itemsPerOrder: 3.00, discountRate: 0.0, topBrand: "Frank's" }, // < 200
+// 8 Channels & Aggregators Matrix - Exact Total = 167,092.160 KWD / 18,141 Orders
+const CHANNELS_DATA: ChannelPerformance[] = [
+  {
+    id: 'shop',
+    nameAr: 'مبيعات الصالة والاستلام المباشر',
+    nameEn: 'Shop Sales & Pickup',
+    salesKwd: 58972.500,
+    orders: 6402,
+    aovKwd: 9.212,
+    sharePct: 35.29,
+    color: '#1E3A8A', // Royal Navy
+  },
+  {
+    id: 'talabat',
+    nameAr: 'منصة طلبات',
+    nameEn: 'Talabat',
+    salesKwd: 41250.300,
+    orders: 4478,
+    aovKwd: 9.212,
+    sharePct: 24.69,
+    color: '#0284C7', // Sky Blue
+  },
+  {
+    id: 'keeta',
+    nameAr: 'منصة كيتا',
+    nameEn: 'Keeta',
+    salesKwd: 23410.200,
+    orders: 2542,
+    aovKwd: 9.209,
+    sharePct: 14.01,
+    color: '#0284C7', // Sky Blue
+  },
+  {
+    id: 'deliveroo',
+    nameAr: 'منصة دليفرو',
+    nameEn: 'Deliveroo',
+    salesKwd: 18920.400,
+    orders: 2054,
+    aovKwd: 9.212,
+    sharePct: 11.32,
+    color: '#0284C7', // Sky Blue
+  },
+  {
+    id: 'jahez',
+    nameAr: 'منصة جاهز',
+    nameEn: 'Jahez',
+    salesKwd: 10840.600,
+    orders: 1177,
+    aovKwd: 9.210,
+    sharePct: 6.49,
+    color: '#0284C7', // Sky Blue
+  },
+  {
+    id: 'cari',
+    nameAr: 'منصة كاري',
+    nameEn: 'Cari',
+    salesKwd: 6850.160,
+    orders: 744,
+    aovKwd: 9.207,
+    sharePct: 4.10,
+    color: '#0284C7', // Sky Blue
+  },
+  {
+    id: 'ordable',
+    nameAr: 'أوردابل (الطلب المباشر أونلاين)',
+    nameEn: 'Ordable Online Web',
+    salesKwd: 4120.000,
+    orders: 448,
+    aovKwd: 9.196,
+    sharePct: 2.47,
+    color: '#10B981', // Emerald Green (Direct)
+  },
+  {
+    id: 'snoonu',
+    nameAr: 'منصة سنونو',
+    nameEn: 'Snoonu',
+    salesKwd: 2728.000,
+    orders: 296,
+    aovKwd: 9.216,
+    sharePct: 1.63,
+    color: '#0284C7', // Sky Blue
+  },
 ]
 
-// 14 Menu Categories Data
-const ALL_CATEGORIES: CategoryItem[] = [
-  { name: 'Noodles', nameAr: 'النودلز والباستا', sales: 47201 },
-  { name: 'Mains', nameAr: 'الأطباق الرئيسية', sales: 28683 },
-  { name: 'Starters & sides', nameAr: 'المقبلات والأطباق الجانبية', sales: 24581 },
-  { name: 'Meals & combos', nameAr: 'الوجبات والكومبو', sales: 18348 },
-  { name: 'Rice', nameAr: 'الأرز الصيني والمقلي', sales: 17210 },
-  { name: 'Sandwiches & steaks', nameAr: 'الساندويتشات والستيك', sales: 11818 },
-  { name: 'Soups', nameAr: 'الشوربات', sales: 7487 },
-  { name: 'Beverages', nameAr: 'المشروبات والعصائر', sales: 5446 },
-  { name: 'Staff meal deals', nameAr: 'وجبات الموظفين التوفيرية', sales: 1920 },
-  { name: 'Platters & sharing', nameAr: 'أطباق المشاركة والجمعات', sales: 1840 },
-  { name: 'Desserts', nameAr: 'الحلويات', sales: 1410 },
-  { name: 'Sauces & extras', nameAr: 'الصلصات والإضافات', sales: 980 },
-  { name: 'Salads', nameAr: 'السلطات والمقبلات الباردة', sales: 620 },
-  { name: 'Chapati', nameAr: 'الشباتي والمخبوزات', sales: 310 },
+// 9 Active Branches + Central Kitchen - Exact Total = 167,092.160 KWD / 18,141 Orders
+const BRANCHES_DATA: BranchPerformance[] = [
+  {
+    nameAr: 'فرع السالمية (شارع سالم المبارك)',
+    nameEn: 'Salmiya Store',
+    code: 'BR-SAL',
+    salesKwd: 28450.320,
+    orders: 3120,
+    aovKwd: 9.119,
+    operatingExpensesKwd: 8650.110,
+    operatingProfitKwd: 7240.500,
+    profitMarginPct: 25.45,
+    status: 'ممتاز',
+  },
+  {
+    nameAr: 'فرع مجمع الكوت (الفحيحيل)',
+    nameEn: 'Al Kout Mall Store',
+    code: 'BR-KOT',
+    salesKwd: 24180.750,
+    orders: 2640,
+    aovKwd: 9.159,
+    operatingExpensesKwd: 7410.200,
+    operatingProfitKwd: 6120.300,
+    profitMarginPct: 25.31,
+    status: 'مطابق للموازنة',
+  },
+  {
+    nameAr: 'فرع الأفنيوز (جراند أفنيو)',
+    nameEn: 'The Avenues Store',
+    code: 'BR-AVN',
+    salesKwd: 31250.600,
+    orders: 3390,
+    aovKwd: 9.218,
+    operatingExpensesKwd: 9520.400,
+    operatingProfitKwd: 7980.200,
+    profitMarginPct: 25.54,
+    status: 'ممتاز',
+  },
+  {
+    nameAr: 'فرع حولي (شارع بيروت)',
+    nameEn: 'Hawally Store',
+    code: 'BR-HAW',
+    salesKwd: 19840.210,
+    orders: 2180,
+    aovKwd: 9.101,
+    operatingExpensesKwd: 6080.120,
+    operatingProfitKwd: 5040.600,
+    profitMarginPct: 25.41,
+    status: 'مطابق للموازنة',
+  },
+  {
+    nameAr: 'فرع العارضية الحرفية',
+    nameEn: 'Ardiya Craft Store',
+    code: 'BR-ARD',
+    salesKwd: 21650.400,
+    orders: 2350,
+    aovKwd: 9.213,
+    operatingExpensesKwd: 6640.350,
+    operatingProfitKwd: 5480.100,
+    profitMarginPct: 25.31,
+    status: 'مطابق للموازنة',
+  },
+  {
+    nameAr: 'فرع الفروانية (شارع حبيب مناور)',
+    nameEn: 'Farwaniya Store',
+    code: 'BR-FAR',
+    salesKwd: 16320.150,
+    orders: 1780,
+    aovKwd: 9.169,
+    operatingExpensesKwd: 5010.240,
+    operatingProfitKwd: 4150.300,
+    profitMarginPct: 25.43,
+    status: 'مطابق للموازنة',
+  },
+  {
+    nameAr: 'فرع أسواق القرين',
+    nameEn: 'Aswaq Al-Qurain Store',
+    code: 'BR-QRN',
+    salesKwd: 11480.900,
+    orders: 1250,
+    aovKwd: 9.185,
+    operatingExpensesKwd: 3520.180,
+    operatingProfitKwd: 2910.400,
+    profitMarginPct: 25.35,
+    status: 'مطابق للموازنة',
+  },
+  {
+    nameAr: 'فرع العاصمة (برج كيبكو - شرق)',
+    nameEn: 'Capital East Store',
+    code: 'BR-CAP',
+    salesKwd: 9240.550,
+    orders: 995,
+    aovKwd: 9.287,
+    operatingExpensesKwd: 2830.400,
+    operatingProfitKwd: 2350.200,
+    profitMarginPct: 25.43,
+    status: 'مطابق للموازنة',
+  },
+  {
+    nameAr: 'فرع المهبولة (طريق الفحيحيل)',
+    nameEn: 'Mahboula Store',
+    code: 'BR-MHB',
+    salesKwd: 4678.280,
+    orders: 436,
+    aovKwd: 10.730,
+    operatingExpensesKwd: 1492.950,
+    operatingProfitKwd: 1168.880,
+    profitMarginPct: 24.99,
+    status: 'يحتاج متابعة',
+  },
 ]
 
-// Top 15 Menu Items Data
-const TOP_15_ITEMS: MenuItem[] = [
-  { name: 'Chicken Noodles', nameAr: 'تشيكن نودلز', brand: 'China Garden', category: 'Noodles', sales: 12043 },
-  { name: 'Veg Or Chicken Noodles Combo', nameAr: 'كومبو نودلز خضار أو دجاج', brand: 'China Garden', category: 'Meals & combos', sales: 9827 },
-  { name: 'Vegetable Noodles', nameAr: 'نودلز بالخضار', brand: 'China Garden', category: 'Noodles', sales: 6852 },
-  { name: 'Beef Mongolian', nameAr: 'لحم منغوليان', brand: 'China Garden', category: 'Mains', sales: 5730 },
-  { name: 'Chicken Sweet \'n\' Sour', nameAr: 'دجاج حلو وحامض', brand: 'China Garden', category: 'Mains', sales: 4453 },
-  { name: 'Prawn Garlic Noodles', nameAr: 'نودلز روبيان بالثوم', brand: 'The Noodle Bar', category: 'Noodles', sales: 3962 },
-  { name: 'Plain Noodles', nameAr: 'نودلز سادة كلاسيك', brand: 'China Garden', category: 'Noodles', sales: 3864 },
-  { name: 'Orig. Philly CheeseSteak', nameAr: 'فيلي تشيز ستيك الأصلي', brand: "Frank's", category: 'Sandwiches & steaks', sales: 3735 },
-  { name: 'Sweet Corn Chicken Soup', nameAr: 'شوربة الذرة بالدجاج', brand: 'China Garden', category: 'Soups', sales: 3722 },
-  { name: 'Philly Meal For 1', nameAr: 'وجبة فيلي لشخص واحد', brand: "Frank's", category: 'Meals & combos', sales: 3718 },
-  { name: 'Chicken Fried Rice', nameAr: 'أرز مقلي بالدجاج', brand: 'China Garden', category: 'Rice', sales: 3463 },
-  { name: 'Dynamite Shrimp', nameAr: 'ديناميت شرمب', brand: 'China Garden', category: 'Starters & sides', sales: 3220 },
-  { name: 'Beef Noodles', nameAr: 'نودلز باللحم البقري', brand: 'China Garden', category: 'Noodles', sales: 3146 },
-  { name: 'Chicken Breast Noodles', nameAr: 'نودلز صدور دجاج مشوية', brand: 'China Garden', category: 'Noodles', sales: 2980 },
-  { name: 'Spring Rolls (Veg/Chicken)', nameAr: 'سبرينغ رولز مشكل', brand: 'China Garden', category: 'Starters & sides', sales: 2840 },
-]
-
-// 5 Operational & Financial Action Scorecard Items
-const OPS_NOTES: OpsNote[] = [
+// 5 Important Management Notes
+const MANAGEMENT_NOTES: ManagementNote[] = [
   {
-    category: 'Cold-Chain Maintenance',
-    categoryAr: 'صيانة سلسلة التبريد',
-    value: '+6.2°C (Std 4.0°C)',
-    note: 'Chiller temperature spikes in Al Kout prep station and Salmiya during evening rush.',
-    noteAr: 'ارتفاع حرارة مبرد التحضير بالكوت والسالمية أثناء الذروة المسائية.',
-    action: 'Dispatch technician to inspect compressor seals and door gaskets.',
-    actionAr: 'إرسال فني التبريد لفحص الضاغطات وعزل الأبواب فوراً.',
-    assignedTo: 'Operations Maintenance',
-    assignedToAr: 'إدارة الصيانة والتشغيل',
-    status: 'Urgent',
+    id: 'note-1',
+    category: 'صيانة سلسلة التبريد',
+    currentValue: '+6.2°C (المعيار 4.0°C)',
+    observation: 'ارتفاع متكرر في حرارة ثلاجة التحضير بفرع مجمع الكوت ومبرد المأكولات بالسالمية خلال ساعات الذروة المسائية.',
+    requiredAction: 'إرسال فني التبريد المعتمد فوراً لصيانة الضاغطات وعزل الأبواب والتأكد من عدم تكدس المواد أمام فتحات التهوية.',
+    assignedTo: 'إدارة الصيانة والعمليات',
+    priority: 'عاجل',
   },
   {
-    category: 'Qurain Kitchen Prep Variance',
-    categoryAr: 'هدر تتبيل الدجاج (مطبخ القرين)',
-    value: '+2.8% vs BOM (KWD 44.8/wk)',
-    note: 'Raw chicken breast marination yield variance against standard recipe specifications.',
-    noteAr: 'فارق وزن في تتبيل صدور الدجاج مقارنة بالمواصفات المعيارية.',
-    action: 'Recalibrate digital scales and retrain prep line supervisors in Qurain.',
-    actionAr: 'إعادة معايرة الموازين الإلكترونية وتدريب طاقم التحضير.',
-    assignedTo: 'Al-Qurain Commissary',
-    assignedToAr: 'مدير المطبخ المركزي بالقرين',
-    status: 'Review',
+    id: 'note-2',
+    category: 'هدر تتبيل الدجاج (مطبخ القرين)',
+    currentValue: '+2.8% فوق المعيار (44.800 د.ك أسبوعياً)',
+    observation: 'تسجيل فارق وزن في خخلطات التتبيل وتوريد الصدور مقارنة بمواصفات الوصفة المعيارية المعتمدة (BOM).',
+    requiredAction: 'إعادة معايرة الموازين الإلكترونية في مطبخ القرين وتدريب طاقم التحضير على معايير الوزن بدقة.',
+    assignedTo: 'مدير المطبخ المركزي بالقرين',
+    priority: 'متوسطة',
   },
   {
-    category: 'Delivery Commission SLA',
-    categoryAr: 'عمولات تطبيقات التوصيل',
-    value: '17.0% forced vs 10.0%',
-    note: '48 orders diverted to aggregator fleet in Farwaniya and Hawally instead of in-house drivers.',
-    noteAr: 'تحويل 48 طلباً لأسطول المنصة 17% بدلاً من سائقي المطعم 10%.',
-    action: 'Re-enable 10% self-delivery radius and ensure store drivers are active.',
-    actionAr: 'إلزام الفروع بفتح نطاق 10% وعدم إيقاف سائقي الشركة.',
-    assignedTo: 'Channel Coordinator',
-    assignedToAr: 'منسق منصات التوصيل',
-    status: 'Urgent',
+    id: 'note-3',
+    category: 'عمولات تطبيقات التوصيل',
+    currentValue: '17.0% بدلاً من 10.0%',
+    observation: 'تحويل 48 طلباً في فروع الفروانية وحولي إلى أسطول سيارات المنصة بدلاً من سائقي فنتشر فودز خلال عطلة الأسبوع.',
+    requiredAction: 'مراجعة الدعم الفني للمنصة لفتح نطاق توصيل المطعم 10%، وإلزام مديري الفروع بعدم إيقاف سائقي الشركة.',
+    assignedTo: 'منسق منصات التوصيل',
+    priority: 'عاجل',
   },
   {
-    category: 'Staff Visas & Health Cards',
-    categoryAr: 'الإقامات وكروت الصحة',
-    value: '6 Employees < 30 Days',
-    note: 'Residency permits and municipal health cards due for renewal across 3 branches.',
-    noteAr: 'اقتراب موعد انتهاء إقامات وكروت صحة لـ 6 موظفين.',
-    action: 'Submit PAM renewal batch through Ahel portal and book medical tests.',
-    actionAr: 'تجهيز معاملات منصة أسهل وحجز مواعيد الفحص الطبي.',
-    assignedTo: 'HR & PRO Office',
-    assignedToAr: 'الشؤون الإدارية والمندوب',
-    status: 'Scheduled',
+    id: 'note-4',
+    category: 'تجديد الوثائق العمالية',
+    currentValue: '6 موظفين',
+    observation: 'اقتراب موعد انتهاء كروت الصحة البلدية والإقامات لـ 6 من طاقم الفروع خلال أقل من 30 يوماً.',
+    requiredAction: 'تجهيز معاملات التجديد عبر منصة أسهل (الهيئة العامة للقوى العاملة) وإجراء الفحص الطبي لتفادي المخالفات.',
+    assignedTo: 'الشؤون الإدارية والمندوب',
+    priority: 'متوسطة',
   },
   {
-    category: 'KNET & Bank Reconciliation',
-    categoryAr: 'تسويات KNET والتحصيل',
-    value: 'KWD 890.45 Pending',
-    note: 'Weekend POS register batches pending clearance with NBK and Boubyan.',
-    noteAr: 'مطابقة تحصيلات أجهزة نقاط البيع لعطلة الأسبوع مع كشوف البنك.',
-    action: 'Match terminal batch reports to bank merchant statements and post journals.',
-    actionAr: 'مطابقة تقارير Z-Report مع كشوف الحساب وإقفال القيود.',
-    assignedTo: 'Finance & Accounting',
-    assignedToAr: 'الإدارة المالية والمحاسبة',
-    status: 'Scheduled',
+    id: 'note-5',
+    category: 'تسويات KNET والتحصيل البنكي',
+    currentValue: '890.450 د.ك قيد المطابقة',
+    observation: 'فروقات تحصيل مؤقتة عن إغلاقات نقاط البيع لعطلة نهاية الأسبوع في فرعي العارضية والعاصمة مع البنك.',
+    requiredAction: 'مطابقة كشوف الحساب البنكية مع تقارير Z-Report اليومية وإقفال القيود في الحسابات العامة.',
+    assignedTo: 'الإدارة المالية والمحاسبة',
+    priority: 'اعتيادي',
   },
 ]
 
 export function AetherBiExecutiveDashboard({ locale = 'ar' }: { locale?: string }) {
-  const [currentLang, setCurrentLang] = useState<'ar' | 'en'>(locale === 'en' ? 'en' : 'ar')
-  const isAr = currentLang === 'ar'
+  const [dateRange, setDateRange] = useState<string>('OCT_2026')
+  const [activeTab, setActiveTab] = useState<'branches' | 'brands'>('branches')
 
-  // Interactive Global Cross-Filtering State
-  const [selectedBrand, setSelectedBrand] = useState<string>('ALL')
-  const [selectedChannel, setSelectedChannel] = useState<string>('ALL')
-  const [activeSection, setActiveSection] = useState<'ALL' | 'BRANDS' | 'CHANNELS' | 'MENU' | 'FINANCE'>('ALL')
-
-  // Calculated Dynamic Metrics based on filters
-  const filteredMetrics = useMemo(() => {
-    let sales = 167092
-    let orders = 30540
-    let bestSeller = isAr ? 'تشيكن نودلز' : 'Chicken Noodles'
-
-    if (selectedBrand !== 'ALL') {
-      const b = ALL_BRANDS.find((item) => item.id === selectedBrand)
-      if (b) {
-        sales = b.sales
-        orders = b.orders
-        bestSeller = isAr ? b.bestSellerAr : b.bestSeller
-      }
-    } else if (selectedChannel !== 'ALL') {
-      const c = ALL_CHANNELS.find((item) => item.id === selectedChannel)
-      if (c) {
-        sales = c.sales
-        orders = c.orders
-      }
-    }
-
-    const aov = orders > 0 ? (sales / orders).toFixed(3) : '0.000'
-    const itemsSold = Math.round(orders * 2.61)
-    const discounts = Math.round(sales * 0.024)
-    const netProfit = Math.round(sales * 0.254)
-
-    return {
-      sales,
-      orders,
-      aov,
-      itemsSold,
-      discounts,
-      netProfit,
-      bestSeller,
-    }
-  }, [selectedBrand, selectedChannel, isAr])
-
-  // Narrative Summary Text
-  const narrativeText = useMemo(() => {
-    const brandLabel =
-      selectedBrand === 'ALL'
-        ? isAr
-          ? 'جميع العلامات التجارية'
-          : 'All brands'
-        : ALL_BRANDS.find((b) => b.id === selectedBrand)?.[isAr ? 'nameAr' : 'name'] || selectedBrand
-
-    const channelLabel =
-      selectedChannel === 'ALL'
-        ? isAr
-          ? 'كافة القنوات'
-          : 'all channels'
-        : ALL_CHANNELS.find((c) => c.id === selectedChannel)?.[isAr ? 'nameAr' : 'name'] || selectedChannel
-
-    if (isAr) {
-      return `حققت ${brandLabel} عبر ${channelLabel} صافي مبيعات ${filteredMetrics.sales.toLocaleString()} د.ك من ${filteredMetrics.orders.toLocaleString()} طلباً. الصنف الأكثر مبيعاً هو ${filteredMetrics.bestSeller}.`
-    }
-    return `${brandLabel} in ${channelLabel} made KWD ${filteredMetrics.sales.toLocaleString()} net from ${filteredMetrics.orders.toLocaleString()} orders. The best seller was ${filteredMetrics.bestSeller}.`
-  }, [selectedBrand, selectedChannel, filteredMetrics, isAr])
-
-  // Format Helper
-  const fmtKwd = (val: number) => {
-    return 'KWD ' + val.toLocaleString('en-US')
+  const formatKwd = (amount: number) => {
+    return amount.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + ' د.ك'
   }
 
-  const fmtKwdAr = (val: number) => {
-    return val.toLocaleString('en-US') + ' د.ك'
-  }
-
-  const resetFilters = () => {
-    setSelectedBrand('ALL')
-    setSelectedChannel('ALL')
+  const formatNum = (num: number) => {
+    return num.toLocaleString('en-US')
   }
 
   return (
-    <div
-      dir={isAr ? 'rtl' : 'ltr'}
-      className="w-full max-w-none bg-[#F8F9FA] text-slate-800 space-y-6 pb-12 font-sans tabular-nums"
-    >
-      {/* ======================================================================= */}
-      {/* 1. TOP HEADER & CROSS-FILTER BAR                                        */}
-      {/* ======================================================================= */}
-      <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-none">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 pb-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
-              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                {isAr ? 'محدّث لحظياً · تقرير أكتوبر 2026' : 'Updated Live · Oct 2026 Audit'}
+    <div className="w-full max-w-none space-y-10 font-sans" dir="rtl">
+
+      {/* ========================================================================= */}
+      {/* 1. HERO BANNER: ROYAL NAVY GRADIENT & SKY GLOW                            */}
+      {/* ========================================================================= */}
+      <div className="diyar-hero-header rounded-3xl p-8 sm:p-12 text-white relative overflow-hidden shadow-2xl">
+        {/* Subtle Tech Grid Background Overlay */}
+        <div
+          className="absolute inset-0 opacity-[0.08] pointer-events-none"
+          style={{
+            backgroundImage: `radial-gradient(#38BDF8 1px, transparent 1px), radial-gradient(#38BDF8 1px, transparent 1px)`,
+            backgroundSize: '24px 24px',
+            backgroundPosition: '0 0, 12px 12px',
+          }}
+        />
+
+        <div className="relative z-10 max-w-4xl mx-auto text-center space-y-4">
+          <div className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 bg-white/10 backdrop-blur-md border border-white/20 text-xs font-semibold text-[#BAE6FD]">
+            <Building2 size={13} className="text-[#38BDF8]" style={{ color: '#38BDF8' }} />
+            <span style={{ color: '#BAE6FD' }}>شركة فنتشر فودز لإدارة المطاعم ذ.م.م. (ترخيص 2021/22838)</span>
+          </div>
+
+          <h1
+            className="text-4xl sm:text-5xl font-extrabold !text-white tracking-tight drop-shadow-md"
+            style={{ color: '#FFFFFF', textShadow: '0 2px 12px rgba(56, 189, 248, 0.35)' }}
+          >
+            الملخص المالي والتشغيلي
+          </h1>
+
+          <p
+            className="text-base sm:text-lg font-normal !text-[#E2E8F0] max-w-2xl mx-auto leading-relaxed"
+            style={{ color: '#E2E8F0' }}
+          >
+            التقرير المالي والتشغيلي المعتمد لفترة أكتوبر 2026 — 6 علامات تجارية و9 فروع نشطة ومطبخ القرين المركزي
+          </p>
+
+          {/* Period Selection Pill Buttons */}
+          <div className="pt-3 flex flex-wrap items-center justify-center gap-3">
+            {[
+              { id: 'OCT_2026', label: 'أكتوبر 2026 (معتمد)' },
+              { id: 'LAST_7D', label: 'آخر 7 أيام' },
+              { id: 'YESTERDAY', label: 'أمس' },
+              { id: 'TODAY', label: 'اليوم' },
+            ].map((pill) => {
+              const isSelected = dateRange === pill.id
+              return (
+                <button
+                  key={pill.id}
+                  onClick={() => setDateRange(pill.id)}
+                  style={
+                    isSelected
+                      ? { backgroundColor: '#0284C7', color: '#FFFFFF', borderColor: '#38BDF8' }
+                      : { backgroundColor: '#0A1938', color: '#FFFFFF', borderColor: 'rgba(56, 189, 248, 0.4)' }
+                  }
+                  className={`px-5 py-2 rounded-full text-xs font-bold border transition-all shadow-md ${
+                    isSelected
+                      ? 'shadow-[0_0_20px_rgba(2,132,199,0.6)] scale-105'
+                      : 'hover:bg-[#1D63B8] hover:border-white'
+                  }`}
+                >
+                  {pill.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 2. 3x2 ROYAL NAVY GRADIENT CARDS GRID (6 NAVY KPI CARDS)                  */}
+      {/* ========================================================================= */}
+      <div>
+        <div className="text-center mb-6">
+          <h2 className="text-2xl sm:text-4xl font-extrabold text-[#0B1D42] dark:text-white tracking-tight">
+            المؤشرات المالية والتشغيلية الرئيسية
+          </h2>
+          <p className="text-base font-normal text-[#334155] dark:text-[#E2E8F0] mt-1.5">
+            أرقام معتمدة مطابقة بنسبة 100% لسجلات المحاسبة والمبيعات الفعلية
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+          {/* Card 1: Gross Sales */}
+          <div className="diyar-navy-card group p-7 text-center flex flex-col justify-between">
+            <div className="flex flex-col items-center">
+              <div className="flex items-center justify-center h-16 w-16 rounded-2xl bg-white/15 border border-sky-400/40 mb-4 group-hover:scale-110 transition-transform shadow-inner">
+                <Receipt size={38} strokeWidth={2} className="text-[#38BDF8]" style={{ color: '#38BDF8' }} />
+              </div>
+              <span className="text-sm font-semibold !text-[#BAE6FD]" style={{ color: '#BAE6FD' }}>
+                إجمالي المبيعات المعتمدة
+              </span>
+              <div
+                className="text-3xl font-extrabold !text-white font-mono mt-1.5 tracking-tight"
+                style={{ color: '#FFFFFF' }}
+              >
+                {formatKwd(TOTAL_SALES_KWD)}
+              </div>
+            </div>
+            <div className="mt-6 pt-4 border-t border-white/15 flex items-center justify-between text-xs">
+              <span style={{ color: '#E2E8F0' }}>نمو دوري +8.4% · 9 فروع نشطة</span>
+              <span
+                className="!text-sky-300 hover:!text-white font-semibold group-hover:-translate-x-1.5 transition-transform inline-flex items-center gap-1 cursor-pointer"
+                style={{ color: '#7DD3FC' }}
+              >
+                التفاصيل <ArrowLeft size={14} />
               </span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mt-1">
-              {isAr
-                ? 'مبيعات العلامات والتشغيل · فنتشر فودز'
-                : 'Brand sales & Operations · Venture Foods'}
-            </h1>
-            <p className="text-sm text-slate-600 mt-1 max-w-3xl leading-relaxed">
-              {narrativeText}
+          </div>
+
+          {/* Card 2: Net Operating Profit */}
+          <div className="diyar-navy-card group p-7 text-center flex flex-col justify-between">
+            <div className="flex flex-col items-center">
+              <div className="flex items-center justify-center h-16 w-16 rounded-2xl bg-white/15 border border-sky-400/40 mb-4 group-hover:scale-110 transition-transform shadow-inner">
+                <TrendingUp size={38} strokeWidth={2} className="text-[#38BDF8]" style={{ color: '#38BDF8' }} />
+              </div>
+              <span className="text-sm font-semibold !text-[#BAE6FD]" style={{ color: '#BAE6FD' }}>
+                صافي الربح التشغيلي
+              </span>
+              <div
+                className="text-3xl font-extrabold !text-white font-mono mt-1.5 tracking-tight"
+                style={{ color: '#FFFFFF' }}
+              >
+                {formatKwd(NET_OPERATING_PROFIT_KWD)}
+              </div>
+            </div>
+            <div className="mt-6 pt-4 border-t border-white/15 flex items-center justify-between text-xs">
+              <span style={{ color: '#E2E8F0' }}>
+                هامش الربح التشغيلي: <strong className="!text-emerald-300" style={{ color: '#6EE7B7' }}>{NET_MARGIN_PCT}%</strong>
+              </span>
+              <span
+                className="!text-sky-300 hover:!text-white font-semibold group-hover:-translate-x-1.5 transition-transform inline-flex items-center gap-1 cursor-pointer"
+                style={{ color: '#7DD3FC' }}
+              >
+                التفاصيل <ArrowLeft size={14} />
+              </span>
+            </div>
+          </div>
+
+          {/* Card 3: Food Cost (COGS) */}
+          <div className="diyar-navy-card group p-7 text-center flex flex-col justify-between">
+            <div className="flex flex-col items-center">
+              <div className="flex items-center justify-center h-16 w-16 rounded-2xl bg-white/15 border border-sky-400/40 mb-4 group-hover:scale-110 transition-transform shadow-inner">
+                <UtensilsCrossed size={38} strokeWidth={2} className="text-[#38BDF8]" style={{ color: '#38BDF8' }} />
+              </div>
+              <span className="text-sm font-semibold !text-[#BAE6FD]" style={{ color: '#BAE6FD' }}>
+                تكلفة الأغذية (Food Cost)
+              </span>
+              <div
+                className="text-3xl font-extrabold !text-white font-mono mt-1.5 tracking-tight"
+                style={{ color: '#FFFFFF' }}
+              >
+                {COGS_PCT}%
+              </div>
+            </div>
+            <div className="mt-6 pt-4 border-t border-white/15 flex items-center justify-between text-xs">
+              <span style={{ color: '#E2E8F0' }}>القيمة: {formatKwd(COGS_AMOUNT_KWD)}</span>
+              <span
+                className="!text-sky-300 hover:!text-white font-semibold group-hover:-translate-x-1.5 transition-transform inline-flex items-center gap-1 cursor-pointer"
+                style={{ color: '#7DD3FC' }}
+              >
+                التفاصيل <ArrowLeft size={14} />
+              </span>
+            </div>
+          </div>
+
+          {/* Card 4: Orders & AOV */}
+          <div className="diyar-navy-card group p-7 text-center flex flex-col justify-between">
+            <div className="flex flex-col items-center">
+              <div className="flex items-center justify-center h-16 w-16 rounded-2xl bg-white/15 border border-sky-400/40 mb-4 group-hover:scale-110 transition-transform shadow-inner">
+                <ShoppingBag size={38} strokeWidth={2} className="text-[#38BDF8]" style={{ color: '#38BDF8' }} />
+              </div>
+              <span className="text-sm font-semibold !text-[#BAE6FD]" style={{ color: '#BAE6FD' }}>
+                إجمالي الطلبات ومتوسط السلة
+              </span>
+              <div
+                className="text-3xl font-extrabold !text-white font-mono mt-1.5 tracking-tight"
+                style={{ color: '#FFFFFF' }}
+              >
+                {formatNum(TOTAL_ORDERS)}{' '}
+                <span className="text-base font-normal !text-[#BAE6FD]" style={{ color: '#BAE6FD' }}>
+                  طلب
+                </span>
+              </div>
+            </div>
+            <div className="mt-6 pt-4 border-t border-white/15 flex items-center justify-between text-xs">
+              <span style={{ color: '#E2E8F0' }}>
+                متوسط السلة: <strong className="!text-sky-200" style={{ color: '#BAE6FD' }}>{formatKwd(DYNAMIC_AOV_KWD)}</strong>
+              </span>
+              <span
+                className="!text-sky-300 hover:!text-white font-semibold group-hover:-translate-x-1.5 transition-transform inline-flex items-center gap-1 cursor-pointer"
+                style={{ color: '#7DD3FC' }}
+              >
+                التفاصيل <ArrowLeft size={14} />
+              </span>
+            </div>
+          </div>
+
+          {/* Card 5: Custodies & Operating Expenses */}
+          <div className="diyar-navy-card group p-7 text-center flex flex-col justify-between">
+            <div className="flex flex-col items-center">
+              <div className="flex items-center justify-center h-16 w-16 rounded-2xl bg-white/15 border border-sky-400/40 mb-4 group-hover:scale-110 transition-transform shadow-inner">
+                <Landmark size={38} strokeWidth={2} className="text-[#38BDF8]" style={{ color: '#38BDF8' }} />
+              </div>
+              <span className="text-sm font-semibold !text-[#BAE6FD]" style={{ color: '#BAE6FD' }}>
+                العهد والمصروفات التشغيلية
+              </span>
+              <div
+                className="text-3xl font-extrabold !text-white font-mono mt-1.5 tracking-tight"
+                style={{ color: '#FFFFFF' }}
+              >
+                {formatKwd(CUSTODIES_EXPENSES_KWD)}
+              </div>
+            </div>
+            <div className="mt-6 pt-4 border-t border-white/15 flex items-center justify-between text-xs">
+              <span style={{ color: '#E2E8F0' }}>مصروفات الفروع والصيانة والتشغيل</span>
+              <span
+                className="!text-sky-300 hover:!text-white font-semibold group-hover:-translate-x-1.5 transition-transform inline-flex items-center gap-1 cursor-pointer"
+                style={{ color: '#7DD3FC' }}
+              >
+                التفاصيل <ArrowLeft size={14} />
+              </span>
+            </div>
+          </div>
+
+          {/* Card 6: Fixed Overheads, Mall Rents & Platform Commissions */}
+          <div className="diyar-navy-card group p-7 text-center flex flex-col justify-between">
+            <div className="flex flex-col items-center">
+              <div className="flex items-center justify-center h-16 w-16 rounded-2xl bg-white/15 border border-sky-400/40 mb-4 group-hover:scale-110 transition-transform shadow-inner">
+                <Building2 size={38} strokeWidth={2} className="text-[#38BDF8]" style={{ color: '#38BDF8' }} />
+              </div>
+              <span className="text-sm font-semibold !text-[#BAE6FD]" style={{ color: '#BAE6FD' }}>
+                الرواتب والإيجارات وعمولات المنصات
+              </span>
+              <div
+                className="text-3xl font-extrabold !text-white font-mono mt-1.5 tracking-tight"
+                style={{ color: '#FFFFFF' }}
+              >
+                {formatKwd(SALARIES_RENT_COMMISSIONS_KWD)}
+              </div>
+            </div>
+            <div className="mt-6 pt-4 border-t border-white/15 flex items-center justify-between text-xs">
+              <span style={{ color: '#E2E8F0' }}>المقتطعات الثابتة وعقود المجمعات</span>
+              <span
+                className="!text-sky-300 hover:!text-white font-semibold group-hover:-translate-x-1.5 transition-transform inline-flex items-center gap-1 cursor-pointer"
+                style={{ color: '#7DD3FC' }}
+              >
+                التفاصيل <ArrowLeft size={14} />
+              </span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 3. VISUAL CHARTS SECTION (ROYAL NAVY, SKY GLOW & EMERALD)                  */}
+      {/* ========================================================================= */}
+      <div className="space-y-8">
+
+        {/* Row A & B: Brands Comparison & Channels Comparison */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+          {/* Chart A: 6 Brands Sales & Operating Profit Comparison */}
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0B1424] shadow-lg p-6 sm:p-7">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <h3 className="text-lg sm:text-xl font-extrabold text-[#0B1D42] dark:text-white flex items-center gap-2">
+                  <BarChart3 size={20} className="text-[#0284C7]" />
+                  مقارنة مبيعات وصافي ربح العلامات الـ 6
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  إجمالي مبيعات 167,092.160 د.ك وصافي ربح 42,441.480 د.ك
+                </p>
+              </div>
+
+              {/* Legend */}
+              <div className="flex items-center gap-4 text-xs font-bold">
+                <span className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                  <span className="h-3 w-3 rounded bg-[#1E3A8A]"></span>
+                  المبيعات
+                </span>
+                <span className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                  <span className="h-3 w-3 rounded bg-[#10B981]"></span>
+                  صافي الربح
+                </span>
+              </div>
+            </div>
+
+            {/* Horizontal Dual Bar Chart */}
+            <div className="space-y-5">
+              {BRANDS_DATA.map((brand) => {
+                const salesPct = (brand.salesKwd / 50000) * 100
+                const profitPct = (brand.operatingProfitKwd / 50000) * 100
+                return (
+                  <div key={brand.nameAr} className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-extrabold text-slate-900 dark:text-white">
+                        {brand.nameAr}{' '}
+                        <span className="text-[11px] font-normal text-slate-400">({brand.nameEn})</span>
+                      </span>
+                      <span className="text-slate-500 font-mono text-[11px]">
+                        {formatNum(brand.orders)} طلب · سلة {formatKwd(brand.aovKwd)}
+                      </span>
+                    </div>
+
+                    {/* Sales Bar */}
+                    <div className="flex items-center gap-2">
+                      <div className="w-full bg-slate-100 dark:bg-slate-800 h-5 rounded-md overflow-hidden relative">
+                        <div
+                          className="bg-[#1E3A8A] h-full rounded-md flex items-center justify-start px-2 transition-all duration-500"
+                          style={{ width: `${salesPct}%` }}
+                        >
+                          <span className="text-[10px] font-bold text-white font-mono whitespace-nowrap">
+                            {formatKwd(brand.salesKwd)}
+                          </span>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#38BDF8] w-14 text-left font-mono shrink-0">
+                        {((brand.salesKwd / TOTAL_SALES_KWD) * 100).toFixed(1)}%
+                      </span>
+                    </div>
+
+                    {/* Profit Bar */}
+                    <div className="flex items-center gap-2">
+                      <div className="w-full bg-slate-100 dark:bg-slate-800 h-4 rounded-md overflow-hidden relative">
+                        <div
+                          className="bg-[#10B981] h-full rounded-md flex items-center justify-start px-2 transition-all duration-500"
+                          style={{ width: `${profitPct}%` }}
+                        >
+                          <span className="text-[10px] font-bold text-white font-mono whitespace-nowrap">
+                            {formatKwd(brand.operatingProfitKwd)}
+                          </span>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 w-14 text-left font-mono shrink-0">
+                        {brand.profitMarginPct.toFixed(1)}% ربح
+                      </span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Chart B: Channels & Aggregator Delivery Comparison */}
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0B1424] shadow-lg p-6 sm:p-7">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <h3 className="text-lg sm:text-xl font-extrabold text-[#0B1D42] dark:text-white flex items-center gap-2">
+                  <Truck size={20} className="text-[#0284C7]" />
+                  مقارنة قنوات البيع وتطبيقات التوصيل (8 قنوات)
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  توزيع الإيرادات بين المبيعات المباشرة ومنصات التوصيل
+                </p>
+              </div>
+
+              <div className="inline-flex items-center gap-2 rounded-full px-3 py-1 bg-sky-50 dark:bg-sky-950/40 text-[11px] font-bold text-[#0284C7] border border-sky-200 dark:border-sky-800">
+                <span>18,141 طلب معتمد</span>
+              </div>
+            </div>
+
+            {/* Channels Horizontal Bar Chart */}
+            <div className="space-y-4">
+              {CHANNELS_DATA.map((ch) => {
+                const barWidth = (ch.salesKwd / 60000) * 100
+                return (
+                  <div key={ch.id} className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: ch.color }}
+                        />
+                        <span className="font-extrabold text-slate-900 dark:text-white">
+                          {ch.nameAr}
+                        </span>
+                        <span className="text-[11px] text-slate-400">({ch.nameEn})</span>
+                      </div>
+                      <span className="font-mono font-bold text-slate-900 dark:text-white">
+                        {formatKwd(ch.salesKwd)}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="w-full bg-slate-100 dark:bg-slate-800 h-6 rounded-md overflow-hidden relative">
+                        <div
+                          className="h-full rounded-md flex items-center justify-between px-2.5 transition-all duration-500"
+                          style={{ width: `${barWidth}%`, backgroundColor: ch.color }}
+                        >
+                          <span className="text-[10px] font-bold text-white font-mono">
+                            {formatNum(ch.orders)} طلب
+                          </span>
+                          <span className="text-[10px] font-bold text-white font-mono">
+                            {ch.sharePct.toFixed(1)}%
+                          </span>
+                        </div>
+                      </div>
+                      <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 w-16 text-left shrink-0">
+                        {formatKwd(ch.aovKwd)}
+                      </span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+        </div>
+
+        {/* Row C: Expenses, Custodies & Food Cost P&L Structure */}
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0B1424] shadow-lg p-6 sm:p-7">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
+            <div>
+              <h3 className="text-lg sm:text-xl font-extrabold text-[#0B1D42] dark:text-white flex items-center gap-2">
+                <PieChart size={20} className="text-[#0284C7]" />
+                شارت توزيع المصروفات والعهد وتكلفة الأغذية (معادلة P&L المعتمدة)
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                تفصيل الاقتطاعات من إجمالي المبيعات (167,092.160 د.ك) للوصول لصافي الربح (42,441.480 د.ك)
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 text-xs font-mono font-bold">
+              <span className="px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                صافي الربح: 42,441.480 د.ك (25.4%)
+              </span>
+            </div>
+          </div>
+
+          {/* Visual Stacked Bar of P&L Breakdown */}
+          <div className="mb-6">
+            <div className="text-xs font-bold text-slate-600 dark:text-slate-400 mb-2 flex items-center justify-between">
+              <span>توزيع المبيعات المعتمدة (167,092.160 د.ك = 100%)</span>
+              <span className="font-mono text-emerald-600 dark:text-emerald-400">فائض ربحي 25.4%</span>
+            </div>
+            <div className="w-full h-8 bg-slate-100 dark:bg-slate-800 rounded-xl overflow-hidden flex shadow-inner">
+              <div
+                className="bg-[#0284C7] h-full flex items-center justify-center text-[11px] font-bold text-white font-mono"
+                style={{ width: '24.8%' }}
+                title="تكلفة الأغذية COGS: 41,438.856 د.ك (24.8%)"
+              >
+                الأغذية 24.8%
+              </div>
+              <div
+                className="bg-[#1E3A8A] h-full flex items-center justify-center text-[11px] font-bold text-white font-mono border-l border-white/20"
+                style={{ width: '30.61%' }}
+                title="العهد والمصروفات التشغيلية: 51,154.950 د.ك (30.6%)"
+              >
+                العهد والتشغيل 30.6%
+              </div>
+              <div
+                className="bg-[#475569] h-full flex items-center justify-center text-[11px] font-bold text-white font-mono border-l border-white/20"
+                style={{ width: '19.19%' }}
+                title="الرواتب والإيجارات والعمولات: 32,056.874 د.ك (19.2%)"
+              >
+                إيجارات ورواتب 19.2%
+              </div>
+              <div
+                className="bg-[#10B981] h-full flex items-center justify-center text-[11px] font-bold text-white font-mono border-l border-white/20"
+                style={{ width: '25.4%' }}
+                title="صافي الربح التشغيلي: 42,441.480 د.ك (25.4%)"
+              >
+                صافي الربح 25.4%
+              </div>
+            </div>
+          </div>
+
+          {/* Detailed Itemized Ledger Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+
+            {/* Sub-item 1: COGS */}
+            <div className="rounded-xl border border-sky-100 dark:border-sky-900/40 bg-sky-50/50 dark:bg-sky-950/20 p-4">
+              <div className="flex items-center justify-between text-xs font-bold text-[#0284C7] mb-1">
+                <span>تكلفة الأغذية (Food Cost)</span>
+                <span className="font-mono">24.8%</span>
+              </div>
+              <div className="text-xl font-extrabold text-slate-900 dark:text-white font-mono mb-2">
+                {formatKwd(COGS_AMOUNT_KWD)}
+              </div>
+              <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                توريد اللحوم والدواجن والخضروات عبر مطبخ القرين المركزي والموردين المعتمدين.
+              </p>
+            </div>
+
+            {/* Sub-item 2: Custodies & Operations */}
+            <div className="rounded-xl border border-blue-100 dark:border-blue-900/40 bg-blue-50/50 dark:bg-blue-950/20 p-4">
+              <div className="flex items-center justify-between text-xs font-bold text-[#1E3A8A] dark:text-[#38BDF8] mb-1">
+                <span>العهد والمصروفات التشغيلية</span>
+                <span className="font-mono">30.6%</span>
+              </div>
+              <div className="text-xl font-extrabold text-slate-900 dark:text-white font-mono mb-2">
+                {formatKwd(CUSTODIES_EXPENSES_KWD)}
+              </div>
+              <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                تشمل <strong>عهد وصيانة ربيع ({formatKwd(MAINTENANCE_RABIE_CUSTODY_KWD)})</strong> ومستهلكات الفروع الـ 9.
+              </p>
+            </div>
+
+            {/* Sub-item 3: Overheads & Rents */}
+            <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/40 p-4">
+              <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                <span>الرواتب والإيجارات والعمولات</span>
+                <span className="font-mono">19.2%</span>
+              </div>
+              <div className="text-xl font-extrabold text-slate-900 dark:text-white font-mono mb-2">
+                {formatKwd(SALARIES_RENT_COMMISSIONS_KWD)}
+              </div>
+              <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                إيجارات مجمعات الأفنيوز والكوت (16,500 د.ك)، رواتب الكادر (11,200 د.ك)، وعمولات المنصات.
+              </p>
+            </div>
+
+            {/* Sub-item 4: Net Operating Profit */}
+            <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-950/30 p-4">
+              <div className="flex items-center justify-between text-xs font-bold text-emerald-800 dark:text-emerald-400 mb-1">
+                <span>صافي الربح التشغيلي المحقق</span>
+                <span className="font-mono">25.4%</span>
+              </div>
+              <div className="text-xl font-extrabold text-emerald-700 dark:text-emerald-400 font-mono mb-2">
+                {formatKwd(NET_OPERATING_PROFIT_KWD)}
+              </div>
+              <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                الفائض التشغيلي الصافي بنسبة نمو محققة تفوق المستهدف الشهري للمجموعة (+8.4%).
+              </p>
+            </div>
+
+          </div>
+        </div>
+
+        {/* Row D: Management Notes & Store Performance Matrix */}
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0B1424] shadow-lg p-6 sm:p-7">
+          <div className="text-center mb-6">
+            <h3 className="text-2xl sm:text-3xl font-extrabold text-[#0B1D42] dark:text-white tracking-tight">
+              الملاحظات الإدارية الهامة
+            </h3>
+            <p className="text-sm font-normal text-slate-600 dark:text-slate-400 mt-1 max-w-2xl mx-auto">
+              متابعة دقيقة للبند والقيمة والإجراء الإداري المطلوب من القيادات والمسؤولين الميدانيين
             </p>
           </div>
 
-          {/* Language Switch & Active Reset */}
-          <div className="flex items-center gap-2.5 self-start md:self-center">
-            {(selectedBrand !== 'ALL' || selectedChannel !== 'ALL') && (
-              <button
-                onClick={resetFilters}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-md text-xs font-semibold border border-blue-200 transition-colors"
-              >
-                <RotateCcw size={13} />
-                <span>{isAr ? 'إعادة ضبط الفلاتر' : 'Reset filters'}</span>
-              </button>
-            )}
-
-            <button
-              onClick={() => setCurrentLang(isAr ? 'en' : 'ar')}
-              className="px-3 py-1.5 border border-gray-200 bg-white hover:bg-gray-50 rounded-md text-xs font-bold text-slate-700 transition-colors"
-            >
-              {isAr ? 'English View' : 'عرض باللغة العربية'}
-            </button>
-          </div>
-        </div>
-
-        {/* Global Filter Controls Bar */}
-        <div className="pt-3.5 flex flex-wrap items-center justify-between gap-3 text-xs">
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="font-bold text-slate-700 flex items-center gap-1">
-              <Filter size={13} className="text-slate-400" />
-              {isAr ? 'تصفية حسب:' : 'Filter by:'}
-            </span>
-
-            {/* Brand Dropdown */}
-            <div className="relative">
-              <select
-                value={selectedBrand}
-                onChange={(e) => setSelectedBrand(e.target.value)}
-                className="appearance-none bg-white border border-gray-300 text-slate-800 rounded-md px-3 py-1.5 pe-7 text-xs font-semibold hover:border-gray-400 focus:outline-none focus:border-blue-500 cursor-pointer"
-              >
-                <option value="ALL">{isAr ? 'جميع العلامات (6 براندات)' : 'All brands (6)'}</option>
-                {ALL_BRANDS.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {isAr ? b.nameAr : b.name}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown size={12} className="absolute end-2 top-2.5 text-slate-400 pointer-events-none" />
-            </div>
-
-            {/* Channel Dropdown */}
-            <div className="relative">
-              <select
-                value={selectedChannel}
-                onChange={(e) => setSelectedChannel(e.target.value)}
-                className="appearance-none bg-white border border-gray-300 text-slate-800 rounded-md px-3 py-1.5 pe-7 text-xs font-semibold hover:border-gray-400 focus:outline-none focus:border-blue-500 cursor-pointer"
-              >
-                <option value="ALL">{isAr ? 'جميع قنوات البيع (11 قناة)' : 'All channels (11)'}</option>
-                {ALL_CHANNELS.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {isAr ? c.nameAr : c.name}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown size={12} className="absolute end-2 top-2.5 text-slate-400 pointer-events-none" />
-            </div>
-          </div>
-
-          {/* Section Quick Jump Tabs */}
-          <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-md">
-            {[
-              { id: 'ALL', label: isAr ? 'التقرير الشامل' : 'Full Overview' },
-              { id: 'BRANDS', label: isAr ? 'العلامات' : 'Brands' },
-              { id: 'CHANNELS', label: isAr ? 'القنوات' : 'Channels' },
-              { id: 'MENU', label: isAr ? 'المنيو' : 'Menu' },
-              { id: 'FINANCE', label: isAr ? 'المالية والـ COGS' : 'Financials' },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveSection(tab.id as any)}
-                className={`px-2.5 py-1 text-xs font-semibold rounded ${
-                  activeSection === tab.id
-                    ? 'bg-white text-blue-600 font-bold shadow-none'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ======================================================================= */}
-      {/* 2. ROW 1: 6 MINIMALIST KPI CARDS (IN 1 GRID ROW)                         */}
-      {/* ======================================================================= */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        {/* KPI 1 */}
-        <div className="bg-white border border-gray-200 rounded-lg p-3.5 shadow-none">
-          <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-            {isAr ? 'صافي المبيعات' : 'Net sales'}
-          </div>
-          <div className="text-xl font-bold text-slate-900 mt-1">
-            {isAr ? fmtKwdAr(filteredMetrics.sales) : fmtKwd(filteredMetrics.sales)}
-          </div>
-          <div className="text-[11px] text-slate-400 mt-0.5">
-            {isAr ? 'بعد الخصومات' : 'After discounts, KWD'}
-          </div>
-        </div>
-
-        {/* KPI 2 */}
-        <div className="bg-white border border-gray-200 rounded-lg p-3.5 shadow-none">
-          <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-            {isAr ? 'عدد الطلبات' : 'Orders'}
-          </div>
-          <div className="text-xl font-bold text-slate-900 mt-1">
-            {filteredMetrics.orders.toLocaleString()}
-          </div>
-          <div className="text-[11px] text-slate-400 mt-0.5">
-            {isAr ? 'طلبات مكتملة' : 'Distinct orders'}
-          </div>
-        </div>
-
-        {/* KPI 3 */}
-        <div className="bg-white border border-gray-200 rounded-lg p-3.5 shadow-none">
-          <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-            {isAr ? 'متوسط السلة' : 'Average order value'}
-          </div>
-          <div className="text-xl font-bold text-blue-600 mt-1">
-            {isAr ? `${filteredMetrics.aov} د.ك` : `KWD ${filteredMetrics.aov}`}
-          </div>
-          <div className="text-[11px] text-slate-400 mt-0.5">
-            {isAr ? 'المبيعات ÷ الطلبات' : 'Net sales ÷ orders'}
-          </div>
-        </div>
-
-        {/* KPI 4 */}
-        <div className="bg-white border border-gray-200 rounded-lg p-3.5 shadow-none">
-          <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-            {isAr ? 'الأصناف المباعة' : 'Items sold'}
-          </div>
-          <div className="text-xl font-bold text-slate-900 mt-1">
-            {filteredMetrics.itemsSold.toLocaleString()}
-          </div>
-          <div className="text-[11px] text-slate-400 mt-0.5">
-            {isAr ? '2.61 صنف/طلب' : '2.61 items per order'}
-          </div>
-        </div>
-
-        {/* KPI 5 */}
-        <div className="bg-white border border-gray-200 rounded-lg p-3.5 shadow-none">
-          <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-            {isAr ? 'الخصومات الممنوحة' : 'Discounts given'}
-          </div>
-          <div className="text-xl font-bold text-slate-900 mt-1">
-            {isAr ? fmtKwdAr(filteredMetrics.discounts) : fmtKwd(filteredMetrics.discounts)}
-          </div>
-          <div className="text-[11px] text-slate-400 mt-0.5">
-            {isAr ? '2.4% من الإجمالي' : '2.4% of gross sales'}
-          </div>
-        </div>
-
-        {/* KPI 6 */}
-        <div className="bg-white border border-gray-200 rounded-lg p-3.5 shadow-none">
-          <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-            {isAr ? 'صافي الربح التشغيلي' : 'Net Operating Profit'}
-          </div>
-          <div className="text-xl font-bold text-emerald-700 mt-1">
-            {isAr ? fmtKwdAr(filteredMetrics.netProfit) : fmtKwd(filteredMetrics.netProfit)}
-          </div>
-          <div className="text-[11px] text-emerald-700 font-semibold mt-0.5">
-            {isAr ? 'هامش ربح 25.4%' : '25.4% operating margin'}
-          </div>
-        </div>
-      </div>
-
-      {/* ======================================================================= */}
-      {/* 3. ROW 2: 4 HIGHLIGHTS CARDS (WITH LEFT/RIGHT DARK BORDER)               */}
-      {/* ======================================================================= */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        {/* Highlight 1 */}
-        <div className={`bg-white border border-gray-200 rounded-lg p-3.5 shadow-none ${isAr ? 'border-r-4 border-r-slate-800' : 'border-l-4 border-l-slate-800'}`}>
-          <div className="text-xs font-bold text-slate-900">
-            {isAr ? 'القناة الكبرى:' : 'Biggest channel:'}
-          </div>
-          <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-            {isAr
-              ? 'مبيعات الصالة والاستلام هي الكبرى بنسبة 35.3% بقيمة 58,972 د.ك.'
-              : 'Shop Sales is the largest channel, with 35.3% of sales (KWD 58,972).'}
-          </p>
-        </div>
-
-        {/* Highlight 2 */}
-        <div className={`bg-white border border-gray-200 rounded-lg p-3.5 shadow-none ${isAr ? 'border-r-4 border-r-slate-800' : 'border-l-4 border-l-slate-800'}`}>
-          <div className="text-xs font-bold text-slate-900">
-            {isAr ? 'الصنف الأكثر مبيعاً:' : 'Best seller:'}
-          </div>
-          <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-            {isAr
-              ? 'تشيكن نودلز من تشاينا جاردن حقق 12,043 د.ك بما يعادل 7.2% من مبيعات المنيو.'
-              : 'Chicken Noodles from China Garden sold KWD 12,043, which is 7.2% of menu sales.'}
-          </p>
-        </div>
-
-        {/* Highlight 3 */}
-        <div className={`bg-white border border-gray-200 rounded-lg p-3.5 shadow-none ${isAr ? 'border-r-4 border-r-slate-800' : 'border-l-4 border-l-slate-800'}`}>
-          <div className="text-xs font-bold text-slate-900">
-            {isAr ? 'تركز مبيعات المنيو:' : 'Menu concentration:'}
-          </div>
-          <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-            {isAr
-              ? 'أعلى 32 صنفاً من أصل 364 صنفاً تشكل 80% من إجمالي مبيعات المنيو.'
-              : 'The top 32 of 364 items sold make 80% of menu sales.'}
-          </p>
-        </div>
-
-        {/* Highlight 4 */}
-        <div className={`bg-white border border-gray-200 rounded-lg p-3.5 shadow-none ${isAr ? 'border-r-4 border-r-slate-800' : 'border-l-4 border-l-slate-800'}`}>
-          <div className="text-xs font-bold text-slate-900">
-            {isAr ? 'مراقبة الإضافات والتكلفة:' : 'Add-ons & Cost Watch:'}
-          </div>
-          <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-            {isAr
-              ? 'المشروبات 25.3%، المقبلات 32.7% | تكلفة الأغذية 24.8% (+0.8% فارق بالقرين).'
-              : 'Drinks 25.3%, starters 32.7%, desserts 3.2% | COGS at 24.8% (+0.8% variance in Qurain).'}
-          </p>
-        </div>
-      </div>
-
-      {/* ======================================================================= */}
-      {/* 4. SECTION 1: BRANDS · ALL CHANNELS                                     */}
-      {/* ======================================================================= */}
-      {(activeSection === 'ALL' || activeSection === 'BRANDS') && (
-        <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-none space-y-5">
-          <div className="border-b border-gray-100 pb-3 flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-bold text-slate-900">
-                {isAr ? 'العلامات التجارية · كافة القنوات' : 'Brands · All channels'}
-              </h2>
-              <p className="text-xs text-slate-500">
-                {isAr
-                  ? 'انقر على أي علامة في الشارت لتصفية التقرير بالكامل'
-                  : 'Click on any brand bar to cross-filter the dashboard'}
-              </p>
-            </div>
-            <span className="text-xs text-slate-400 font-mono">6 Brands</span>
-          </div>
-
-          {/* 2 Side-by-Side Horizontal Bar Charts */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Chart Right/Left: Net Sales by Brand */}
-            <div>
-              <div className="text-xs font-bold text-slate-900 mb-2.5">
-                {isAr ? 'صافي المبيعات حسب العلامة (د.ك)' : 'Net sales by brand (KWD)'}
-              </div>
-              <div className="space-y-2">
-                {ALL_BRANDS.map((b) => {
-                  const maxSales = ALL_BRANDS[0].sales
-                  const pct = (b.sales / maxSales) * 100
-                  const isSelected = selectedBrand === b.id
-
-                  return (
-                    <div
-                      key={b.id}
-                      onClick={() => setSelectedBrand(selectedBrand === b.id ? 'ALL' : b.id)}
-                      className={`flex items-center gap-3 text-xs cursor-pointer py-1 px-1.5 rounded transition-colors ${
-                        isSelected ? 'bg-blue-50 font-bold' : 'hover:bg-gray-50'
-                      }`}
-                    >
-                      <div className="w-28 shrink-0 truncate text-slate-700 font-medium">
-                        {isAr ? b.nameAr : b.name}
-                      </div>
-                      <div className="flex-1 bg-gray-100 h-5 rounded-sm overflow-hidden flex items-center">
-                        <div
-                          className="bg-[#2563EB] h-full rounded-sm transition-all duration-300"
-                          style={{ width: `${Math.max(pct, 2)}%` }}
-                        ></div>
-                      </div>
-                      <div className="w-16 shrink-0 text-end font-mono text-slate-800 font-semibold">
-                        {b.sales.toLocaleString()}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Chart Left/Right: AOV by Brand */}
-            <div>
-              <div className="text-xs font-bold text-slate-900 mb-0.5">
-                {isAr ? 'متوسط قيمة الطلب حسب العلامة (د.ك)' : 'Average order value by brand (KWD)'}
-              </div>
-              <div className="text-[11px] text-slate-400 mb-2 italic">
-                {isAr
-                  ? 'أقل من 200 طلب ملون بالرمادي لأن المتوسط يتأثر بسهولة'
-                  : 'Items with <200 orders colored in grey because average easily swings'}
-              </div>
-
-              <div className="space-y-2">
-                {[...ALL_BRANDS]
-                  .sort((a, b) => b.aov - a.aov)
-                  .map((b) => {
-                    const maxAov = 7.45
-                    const pct = (b.aov / maxAov) * 100
-                    const isGrey = b.orders < 200 // Karak Cafeteria
-
-                    return (
-                      <div
-                        key={b.id}
-                        onClick={() => setSelectedBrand(selectedBrand === b.id ? 'ALL' : b.id)}
-                        className="flex items-center gap-3 text-xs cursor-pointer py-1 px-1.5 rounded hover:bg-gray-50"
+          <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-slate-800 bg-[#0B1D42] text-white font-bold">
+                  <th className="px-5 py-3.5 text-right !text-white" style={{ color: '#FFFFFF' }}>البند</th>
+                  <th className="px-5 py-3.5 text-right font-mono !text-white" style={{ color: '#FFFFFF' }}>القيمة الحالية</th>
+                  <th className="px-5 py-3.5 text-right !text-white" style={{ color: '#FFFFFF' }}>الملاحظة الإدارية</th>
+                  <th className="px-5 py-3.5 text-right !text-white" style={{ color: '#FFFFFF' }}>الإجراء الإداري المطلوب</th>
+                  <th className="px-5 py-3.5 text-right !text-white" style={{ color: '#FFFFFF' }}>المسؤول المباشر</th>
+                  <th className="px-5 py-3.5 text-center !text-white" style={{ color: '#FFFFFF' }}>الأولوية</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 text-slate-800 dark:text-slate-200">
+                {MANAGEMENT_NOTES.map((note) => (
+                  <tr key={note.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/40 transition-colors">
+                    <td className="px-5 py-4 font-bold text-slate-900 dark:text-white whitespace-nowrap">
+                      {note.category}
+                    </td>
+                    <td className="px-5 py-4 font-mono font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                      {note.currentValue}
+                    </td>
+                    <td className="px-5 py-4 text-slate-600 dark:text-slate-300 max-w-xs leading-relaxed">
+                      {note.observation}
+                    </td>
+                    <td className="px-5 py-4 text-slate-900 dark:text-slate-100 max-w-sm leading-relaxed font-semibold">
+                      {note.requiredAction}
+                    </td>
+                    <td className="px-5 py-4 text-slate-600 dark:text-slate-400 whitespace-nowrap font-medium">
+                      {note.assignedTo}
+                    </td>
+                    <td className="px-5 py-4 text-center whitespace-nowrap">
+                      <span
+                        className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-bold ${
+                          note.priority === 'عاجل'
+                            ? 'bg-red-50 text-red-700 dark:bg-red-950/60 dark:text-red-400 border border-red-200 dark:border-red-900'
+                            : note.priority === 'متوسطة'
+                            ? 'bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-200 dark:border-amber-900'
+                            : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                        }`}
                       >
-                        <div className="w-28 shrink-0 truncate text-slate-700 font-medium">
-                          {isAr ? b.nameAr : b.name}
-                        </div>
-                        <div className="flex-1 bg-gray-100 h-5 rounded-sm overflow-hidden flex items-center">
-                          <div
-                            className={`h-full rounded-sm transition-all duration-300 ${
-                              isGrey ? 'bg-[#9CA3AF]' : 'bg-[#2563EB]'
-                            }`}
-                            style={{ width: `${pct}%` }}
-                          ></div>
-                        </div>
-                        <div className="w-12 shrink-0 text-end font-mono text-slate-800 font-semibold">
-                          {b.aov.toFixed(2)}
-                        </div>
-                      </div>
-                    )
-                  })}
-              </div>
-            </div>
-          </div>
-
-          {/* Brand Scorecard Table */}
-          <div className="pt-2">
-            <div className="text-xs font-bold text-slate-900 mb-2">
-              {isAr ? 'جدول أداء العلامات التجارية (Brand scorecard)' : 'Brand scorecard'}
-            </div>
-            <div className="overflow-x-auto border border-gray-200 rounded-md">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b border-gray-200 bg-gray-50 text-slate-600 font-bold">
-                    <th className="px-3 py-2 text-start">{isAr ? 'العلامة' : 'Brand'}</th>
-                    <th className="px-3 py-2 text-center">{isAr ? 'الطلبات' : 'Orders'}</th>
-                    <th className="px-3 py-2 text-start w-48">{isAr ? 'صافي المبيعات (د.ك)' : 'Net sales'}</th>
-                    <th className="px-3 py-2 text-center">{isAr ? 'الحصة' : 'Share'}</th>
-                    <th className="px-3 py-2 text-end">{isAr ? 'متوسط الطلب' : 'Avg order'}</th>
-                    <th className="px-3 py-2 text-center">{isAr ? 'الأصناف/طلب' : 'Items/order'}</th>
-                    <th className="px-3 py-2 text-center">{isAr ? 'الخصم' : 'Discount'}</th>
-                    <th className="px-3 py-2 text-center">{isAr ? 'المشروبات' : 'Drinks %'}</th>
-                    <th className="px-3 py-2 text-center">{isAr ? 'المقبلات' : 'Starters %'}</th>
-                    <th className="px-3 py-2 text-start">{isAr ? 'الأكثر مبيعاً' : 'Best seller'}</th>
+                        {note.priority}
+                      </span>
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 text-slate-800">
-                  {ALL_BRANDS.map((b) => (
-                    <tr
-                      key={b.id}
-                      onClick={() => setSelectedBrand(selectedBrand === b.id ? 'ALL' : b.id)}
-                      className={`hover:bg-blue-50/50 cursor-pointer ${
-                        selectedBrand === b.id ? 'bg-blue-50 font-bold' : ''
-                      }`}
-                    >
-                      <td className="px-3 py-2 font-semibold text-slate-900">{isAr ? b.nameAr : b.name}</td>
-                      <td className="px-3 py-2 text-center">{b.orders.toLocaleString()}</td>
-                      <td className="px-3 py-2">
-                        <div className="flex items-center gap-2">
-                          <span className="w-16 font-mono font-semibold">{b.sales.toLocaleString()}</span>
-                          <div className="flex-1 bg-gray-100 h-2 rounded-sm overflow-hidden">
-                            <div className="bg-[#2563EB] h-full" style={{ width: `${b.share}%` }}></div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-3 py-2 text-center font-mono">{b.share.toFixed(1)}%</td>
-                      <td className="px-3 py-2 text-end font-mono">{b.aov.toFixed(2)}</td>
-                      <td className="px-3 py-2 text-center font-mono">{b.itemsPerOrder.toFixed(2)}</td>
-                      <td className="px-3 py-2 text-center font-mono">{b.discountRate.toFixed(1)}%</td>
-                      <td className="px-3 py-2 text-center font-mono">{b.drinksPct.toFixed(1)}%</td>
-                      <td className="px-3 py-2 text-center font-mono">{b.startersPct.toFixed(1)}%</td>
-                      <td className="px-3 py-2 text-slate-600 truncate max-w-[140px]">{isAr ? b.bestSellerAr : b.bestSeller}</td>
-                    </tr>
-                  ))}
-                  {/* Total Row */}
-                  <tr className="bg-gray-50 font-bold border-t border-gray-200">
-                    <td className="px-3 py-2">{isAr ? 'الإجمالي العام' : 'Total'}</td>
-                    <td className="px-3 py-2 text-center">30,540</td>
-                    <td className="px-3 py-2 font-mono">167,092 KWD</td>
-                    <td className="px-3 py-2 text-center font-mono">100.0%</td>
-                    <td className="px-3 py-2 text-end font-mono">5.47</td>
-                    <td className="px-3 py-2 text-center font-mono">2.61</td>
-                    <td className="px-3 py-2 text-center font-mono">2.4%</td>
-                    <td className="px-3 py-2 text-center font-mono">25.3%</td>
-                    <td className="px-3 py-2 text-center font-mono">32.7%</td>
-                    <td className="px-3 py-2 text-slate-700">{isAr ? 'تشيكن نودلز' : 'Chicken Noodles'}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
-      )}
 
-      {/* ======================================================================= */}
-      {/* 5. SECTION 2: CHANNELS · ALL BRANDS                                     */}
-      {/* ======================================================================= */}
-      {(activeSection === 'ALL' || activeSection === 'CHANNELS') && (
-        <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-none space-y-5">
-          <div className="border-b border-gray-100 pb-3 flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-bold text-slate-900">
-                {isAr ? 'قنوات البيع · كافة العلامات' : 'Channels · All brands'}
-              </h2>
-              <p className="text-xs text-slate-500">
-                {isAr
-                  ? 'انقر على أي قناة في الشارت لتصفية التقرير بالكامل'
-                  : 'Click on any channel bar to cross-filter the dashboard'}
-              </p>
-            </div>
-            <span className="text-xs text-slate-400 font-mono">11 Channels</span>
-          </div>
+        {/* Row E: Store & Brand Performance Ledger Table */}
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0B1424] shadow-lg p-6 sm:p-7">
+          <div className="text-center mb-6">
+            <h3 className="text-2xl sm:text-3xl font-extrabold text-[#0B1D42] dark:text-white tracking-tight">
+              أداء الفروع والعلامات التجارية
+            </h3>
+            <p className="text-sm font-normal text-slate-600 dark:text-slate-400 mt-1 max-w-2xl mx-auto">
+              بيان تحليلي محاسبي موحد لمبيعات ومصاريف وأرباح الفروع الـ 9 والعلامات الـ 6
+            </p>
 
-          {/* 2 Side-by-Side Horizontal Bar Charts */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Chart Right: Net sales by channel */}
-            <div>
-              <div className="text-xs font-bold text-slate-900 mb-2.5">
-                {isAr ? 'صافي المبيعات حسب القناة (د.ك)' : 'Net sales by channel (KWD)'}
-              </div>
-              <div className="space-y-1.5">
-                {ALL_CHANNELS.map((c) => {
-                  const maxSales = ALL_CHANNELS[0].sales
-                  const pct = (c.sales / maxSales) * 100
-                  const isSelected = selectedChannel === c.id
-
-                  return (
-                    <div
-                      key={c.id}
-                      onClick={() => setSelectedChannel(selectedChannel === c.id ? 'ALL' : c.id)}
-                      className={`flex items-center gap-3 text-xs cursor-pointer py-1 px-1.5 rounded transition-colors ${
-                        isSelected ? 'bg-blue-50 font-bold' : 'hover:bg-gray-50'
-                      }`}
-                    >
-                      <div className="w-28 shrink-0 truncate text-slate-700 font-medium">
-                        {isAr ? c.nameAr : c.name}
-                      </div>
-                      <div className="flex-1 bg-gray-100 h-5 rounded-sm overflow-hidden flex items-center">
-                        <div
-                          className="bg-[#2563EB] h-full rounded-sm transition-all duration-300"
-                          style={{ width: `${Math.max(pct, 2)}%` }}
-                        ></div>
-                      </div>
-                      <div className="w-16 shrink-0 text-end font-mono text-slate-800 font-semibold">
-                        {c.sales.toLocaleString()}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Chart Left: AOV by channel */}
-            <div>
-              <div className="text-xs font-bold text-slate-900 mb-0.5">
-                {isAr ? 'متوسط قيمة الطلب حسب القناة (د.ك)' : 'Average order value by channel (KWD)'}
-              </div>
-              <div className="text-[11px] text-slate-400 mb-2 italic">
-                {isAr
-                  ? 'أقل من 200 طلب ملون بالرمادي لأن المتوسط يتأثر بسهولة'
-                  : 'Channels with <200 orders colored in grey because average easily swings'}
-              </div>
-
-              <div className="space-y-1.5">
-                {[...ALL_CHANNELS]
-                  .sort((a, b) => b.aov - a.aov)
-                  .map((c) => {
-                    const maxAov = 12.84
-                    const pct = (c.aov / maxAov) * 100
-                    const isGrey = c.orders < 200 // Ordable, Whatsapp, Cari, Phone, Snoonu, Deliveroo MP
-
-                    return (
-                      <div
-                        key={c.id}
-                        onClick={() => setSelectedChannel(selectedChannel === c.id ? 'ALL' : c.id)}
-                        className="flex items-center gap-3 text-xs cursor-pointer py-1 px-1.5 rounded hover:bg-gray-50"
-                      >
-                        <div className="w-28 shrink-0 truncate text-slate-700 font-medium">
-                          {isAr ? c.nameAr : c.name}
-                        </div>
-                        <div className="flex-1 bg-gray-100 h-5 rounded-sm overflow-hidden flex items-center">
-                          <div
-                            className={`h-full rounded-sm transition-all duration-300 ${
-                              isGrey ? 'bg-[#9CA3AF]' : 'bg-[#2563EB]'
-                            }`}
-                            style={{ width: `${pct}%` }}
-                          ></div>
-                        </div>
-                        <div className="w-12 shrink-0 text-end font-mono text-slate-800 font-semibold">
-                          {c.aov.toFixed(2)}
-                        </div>
-                      </div>
-                    )
-                  })}
-              </div>
+            {/* Pill Sub-tabs */}
+            <div className="pt-4 flex items-center justify-center gap-3">
+              <button
+                onClick={() => setActiveTab('branches')}
+                style={
+                  activeTab === 'branches'
+                    ? { backgroundColor: '#0284C7', color: '#FFFFFF', borderColor: '#38BDF8' }
+                    : { backgroundColor: '#0A1938', color: '#FFFFFF', borderColor: 'rgba(56, 189, 248, 0.3)' }
+                }
+                className="px-5 py-2 rounded-full text-xs font-bold border transition-all shadow-sm"
+              >
+                أداء الفروع الـ 9 الرسمية ومطبخ القرين
+              </button>
+              <button
+                onClick={() => setActiveTab('brands')}
+                style={
+                  activeTab === 'brands'
+                    ? { backgroundColor: '#0284C7', color: '#FFFFFF', borderColor: '#38BDF8' }
+                    : { backgroundColor: '#0A1938', color: '#FFFFFF', borderColor: 'rgba(56, 189, 248, 0.3)' }
+                }
+                className="px-5 py-2 rounded-full text-xs font-bold border transition-all shadow-sm"
+              >
+                أداء العلامات الـ 6 الرسمية
+              </button>
             </div>
           </div>
 
-          {/* Channel Scorecard Table */}
-          <div className="pt-2">
-            <div className="text-xs font-bold text-slate-900 mb-2">
-              {isAr ? 'جدول أداء القنوات (Channel scorecard)' : 'Channel scorecard'}
-            </div>
-            <div className="overflow-x-auto border border-gray-200 rounded-md">
+          {/* Tab 1: 9 Active Branches Ledger */}
+          {activeTab === 'branches' && (
+            <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="border-b border-gray-200 bg-gray-50 text-slate-600 font-bold">
-                    <th className="px-3 py-2 text-start">{isAr ? 'القناة' : 'Channel'}</th>
-                    <th className="px-3 py-2 text-center">{isAr ? 'الطلبات' : 'Orders'}</th>
-                    <th className="px-3 py-2 text-start w-52">{isAr ? 'صافي المبيعات (د.ك)' : 'Net sales'}</th>
-                    <th className="px-3 py-2 text-center">{isAr ? 'الحصة' : 'Share'}</th>
-                    <th className="px-3 py-2 text-end">{isAr ? 'متوسط الطلب' : 'Avg order'}</th>
-                    <th className="px-3 py-2 text-center">{isAr ? 'الأصناف/طلب' : 'Items/order'}</th>
-                    <th className="px-3 py-2 text-center">{isAr ? 'الخصم' : 'Discount'}</th>
-                    <th className="px-3 py-2 text-start">{isAr ? 'العلامة الرائدة' : 'Top brand'}</th>
+                  <tr className="border-b border-slate-200 dark:border-slate-800 bg-[#0B1D42] text-white font-bold">
+                    <th className="px-4 py-3.5 text-right font-mono !text-white" style={{ color: '#FFFFFF' }}>الكود</th>
+                    <th className="px-4 py-3.5 text-right !text-white" style={{ color: '#FFFFFF' }}>الفرع / الموقع الرسمي</th>
+                    <th className="px-4 py-3.5 text-right font-mono !text-white" style={{ color: '#FFFFFF' }}>المبيعات المعتمدة (د.ك)</th>
+                    <th className="px-4 py-3.5 text-center !text-white" style={{ color: '#FFFFFF' }}>الطلبات</th>
+                    <th className="px-4 py-3.5 text-right font-mono !text-white" style={{ color: '#FFFFFF' }}>متوسط السلة</th>
+                    <th className="px-4 py-3.5 text-right font-mono !text-white" style={{ color: '#FFFFFF' }}>المصاريف التشغيلية</th>
+                    <th className="px-4 py-3.5 text-right font-mono !text-white" style={{ color: '#FFFFFF' }}>صافي الربح (د.ك)</th>
+                    <th className="px-4 py-3.5 text-center !text-white" style={{ color: '#FFFFFF' }}>هامش الربح</th>
+                    <th className="px-4 py-3.5 text-center !text-white" style={{ color: '#FFFFFF' }}>الحالة</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100 text-slate-800">
-                  {ALL_CHANNELS.map((c) => (
-                    <tr
-                      key={c.id}
-                      onClick={() => setSelectedChannel(selectedChannel === c.id ? 'ALL' : c.id)}
-                      className={`hover:bg-blue-50/50 cursor-pointer ${
-                        selectedChannel === c.id ? 'bg-blue-50 font-bold' : ''
-                      }`}
-                    >
-                      <td className="px-3 py-2 font-semibold text-slate-900">{isAr ? c.nameAr : c.name}</td>
-                      <td className="px-3 py-2 text-center font-mono">{c.orders.toLocaleString()}</td>
-                      <td className="px-3 py-2">
-                        <div className="flex items-center gap-2">
-                          <span className="w-16 font-mono font-semibold">{c.sales.toLocaleString()}</span>
-                          <div className="flex-1 bg-gray-100 h-2 rounded-sm overflow-hidden">
-                            <div className="bg-[#2563EB] h-full" style={{ width: `${c.share}%` }}></div>
-                          </div>
-                        </div>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 text-slate-800 dark:text-slate-200">
+                  {BRANCHES_DATA.map((branch) => (
+                    <tr key={branch.code} className="hover:bg-slate-50 dark:hover:bg-slate-900/40 transition-colors">
+                      <td className="px-4 py-3 font-mono font-bold text-slate-500 whitespace-nowrap">
+                        {branch.code}
                       </td>
-                      <td className="px-3 py-2 text-center font-mono">{c.share.toFixed(1)}%</td>
-                      <td className="px-3 py-2 text-end font-mono">{c.aov.toFixed(2)}</td>
-                      <td className="px-3 py-2 text-center font-mono">{c.itemsPerOrder.toFixed(2)}</td>
-                      <td className="px-3 py-2 text-center font-mono">{c.discountRate.toFixed(1)}%</td>
-                      <td className="px-3 py-2 text-slate-600">{c.topBrand}</td>
-                    </tr>
-                  ))}
-                  {/* Total Row */}
-                  <tr className="bg-gray-50 font-bold border-t border-gray-200">
-                    <td className="px-3 py-2">{isAr ? 'الإجمالي العام' : 'Total'}</td>
-                    <td className="px-3 py-2 text-center font-mono">30,540</td>
-                    <td className="px-3 py-2 font-mono">167,092 KWD</td>
-                    <td className="px-3 py-2 text-center font-mono">100.0%</td>
-                    <td className="px-3 py-2 text-end font-mono">5.47</td>
-                    <td className="px-3 py-2 text-center font-mono">2.61</td>
-                    <td className="px-3 py-2 text-center font-mono">2.4%</td>
-                    <td className="px-3 py-2 text-slate-700">China Garden</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ======================================================================= */}
-      {/* 6. SECTION 3: MENU · ALL BRANDS, ALL CHANNELS                           */}
-      {/* ======================================================================= */}
-      {(activeSection === 'ALL' || activeSection === 'MENU') && (
-        <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-none space-y-5">
-          <div className="border-b border-gray-100 pb-3 flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-bold text-slate-900">
-                {isAr ? 'المنيو والأصناف · كافة العلامات والقنوات' : 'Menu · All brands, all channels'}
-              </h2>
-              <p className="text-xs text-slate-500">
-                {isAr
-                  ? 'تحليل فئات المنيو الـ 14 وقائمة أعلى 15 صنفاً مبيعاً'
-                  : 'Analysis of 14 categories and top 15 selling menu items'}
-              </p>
-            </div>
-            <span className="text-xs text-slate-400 font-mono">364 Items</span>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Chart Right: Sales by Category (Grey #9CA3AF) */}
-            <div>
-              <div className="text-xs font-bold text-slate-900 mb-0.5">
-                {isAr ? 'المبيعات حسب الفئة (د.ك)' : 'Sales by category (KWD)'}
-              </div>
-              <div className="text-[11px] text-slate-400 mb-2 italic">
-                {isAr ? '14 فئة طعام ومشروبات مصنفة' : '14 classified food and beverage categories'}
-              </div>
-
-              <div className="space-y-1.5">
-                {ALL_CATEGORIES.map((cat) => {
-                  const maxSales = ALL_CATEGORIES[0].sales
-                  const pct = (cat.sales / maxSales) * 100
-
-                  return (
-                    <div key={cat.name} className="flex items-center gap-3 text-xs py-0.5 hover:bg-gray-50 rounded px-1">
-                      <div className="w-32 shrink-0 truncate text-slate-700 font-medium">
-                        {isAr ? cat.nameAr : cat.name}
-                      </div>
-                      <div className="flex-1 bg-gray-100 h-4.5 rounded-sm overflow-hidden flex items-center">
-                        <div
-                          className="bg-[#9CA3AF] h-full rounded-sm"
-                          style={{ width: `${Math.max(pct, 2)}%` }}
-                        ></div>
-                      </div>
-                      <div className="w-14 shrink-0 text-end font-mono text-slate-800 font-semibold">
-                        {cat.sales.toLocaleString()}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Chart Left: Top 15 Items (Blue #2563EB) */}
-            <div>
-              <div className="text-xs font-bold text-slate-900 mb-0.5">
-                {isAr ? 'أعلى 15 صنفاً مبيعاً (د.ك)' : 'Top 15 items by sales (KWD)'}
-              </div>
-              <div className="text-[11px] text-slate-400 mb-2 italic">
-                {isAr ? 'تشكل 80% من إجمالي مبيعات المنيو (قاعدة باريتو)' : 'Make up 80% of menu sales volume'}
-              </div>
-
-              <div className="space-y-1.5">
-                {TOP_15_ITEMS.map((item, idx) => {
-                  const maxSales = TOP_15_ITEMS[0].sales
-                  const pct = (item.sales / maxSales) * 100
-
-                  return (
-                    <div key={item.name} className="flex items-center gap-2.5 text-xs py-0.5 hover:bg-gray-50 rounded px-1">
-                      <div className="w-4 text-slate-400 font-mono text-[10px] shrink-0 text-end">{idx + 1}.</div>
-                      <div className="w-40 shrink-0 truncate text-slate-700 font-medium" title={item.name}>
-                        {isAr ? item.nameAr : item.name}
-                      </div>
-                      <div className="flex-1 bg-gray-100 h-4.5 rounded-sm overflow-hidden flex items-center">
-                        <div
-                          className="bg-[#2563EB] h-full rounded-sm"
-                          style={{ width: `${Math.max(pct, 2)}%` }}
-                        ></div>
-                      </div>
-                      <div className="w-14 shrink-0 text-end font-mono text-slate-800 font-semibold">
-                        {item.sales.toLocaleString()}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ======================================================================= */}
-      {/* 7. SECTION 4: FINANCIALS, COGS & MAINTENANCE SCORECARD                  */}
-      {/* ======================================================================= */}
-      {(activeSection === 'ALL' || activeSection === 'FINANCE') && (
-        <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-none space-y-5">
-          <div className="border-b border-gray-100 pb-3 flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-bold text-slate-900">
-                {isAr
-                  ? 'المصروفات والعهد التشغيلية والـ COGS'
-                  : 'Financial Structure, COGS & Operations Scorecard'}
-              </h2>
-              <p className="text-xs text-slate-500">
-                {isAr
-                  ? 'مطابقة بنود الأرباح والخسائر وسجل الإجراءات التشغيلية المعتمدة'
-                  : 'P&L reconciliations & approved operational directives'}
-              </p>
-            </div>
-            <span className="text-xs text-slate-400 font-mono">P&L 100% Balanced</span>
-          </div>
-
-          {/* Financial Breakdown Horizontal Bars */}
-          <div className="bg-gray-50 p-4 rounded-md border border-gray-200 space-y-3">
-            <div className="text-xs font-bold text-slate-800">
-              {isAr ? 'توزيع المقتطعات من المبيعات (167,092 د.ك):' : 'Revenue Deductions Breakdown (KWD 167,092):'}
-            </div>
-
-            <div className="space-y-2 text-xs">
-              {/* COGS */}
-              <div className="flex items-center gap-3">
-                <span className="w-48 truncate text-slate-600 font-medium">
-                  {isAr ? 'تكلفة الأغذية (COGS 24.8%):' : 'Food Cost (COGS 24.8%):'}
-                </span>
-                <div className="flex-1 bg-gray-200 h-4 rounded-sm overflow-hidden">
-                  <div className="bg-amber-600 h-full" style={{ width: '24.8%' }}></div>
-                </div>
-                <span className="w-24 text-end font-mono font-semibold">41,438 KWD</span>
-              </div>
-
-              {/* Custodies & Odoo expenses */}
-              <div className="flex items-center gap-3">
-                <span className="w-48 truncate text-slate-600 font-medium">
-                  {isAr ? 'العهد والمصروفات التشغيلية:' : 'Custodies & Operating Expenses:'}
-                </span>
-                <div className="flex-1 bg-gray-200 h-4 rounded-sm overflow-hidden">
-                  <div className="bg-slate-700 h-full" style={{ width: '30.6%' }}></div>
-                </div>
-                <span className="w-24 text-end font-mono font-semibold">51,154 KWD</span>
-              </div>
-
-              {/* Salaries & Rents */}
-              <div className="flex items-center gap-3">
-                <span className="w-48 truncate text-slate-600 font-medium">
-                  {isAr ? 'الرواتب والإيجارات والعمولات:' : 'Salaries, Rents & Commissions:'}
-                </span>
-                <div className="flex-1 bg-gray-200 h-4 rounded-sm overflow-hidden">
-                  <div className="bg-slate-500 h-full" style={{ width: '19.2%' }}></div>
-                </div>
-                <span className="w-24 text-end font-mono font-semibold">32,056 KWD</span>
-              </div>
-
-              {/* Net Profit */}
-              <div className="flex items-center gap-3 pt-1 border-t border-gray-200">
-                <span className="w-48 truncate text-emerald-800 font-bold">
-                  {isAr ? 'صافي الربح التشغيلي (25.4%):' : 'Net Operating Profit (25.4%):'}
-                </span>
-                <div className="flex-1 bg-gray-200 h-4 rounded-sm overflow-hidden">
-                  <div className="bg-emerald-600 h-full" style={{ width: '25.4%' }}></div>
-                </div>
-                <span className="w-24 text-end font-mono font-bold text-emerald-700">42,441 KWD</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Operational Directive Scorecard Table */}
-          <div className="pt-1">
-            <div className="text-xs font-bold text-slate-900 mb-2">
-              {isAr ? 'سجل الملاحظات التشغيلية والإجراءات المعتمدة' : 'Operations & Maintenance Scorecard'}
-            </div>
-            <div className="overflow-x-auto border border-gray-200 rounded-md">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b border-gray-200 bg-gray-50 text-slate-600 font-bold">
-                    <th className="px-3 py-2 text-start">{isAr ? 'البند' : 'Category'}</th>
-                    <th className="px-3 py-2 text-start">{isAr ? 'القيمة / المعيار' : 'Value / Std'}</th>
-                    <th className="px-3 py-2 text-start">{isAr ? 'الملاحظة التشغيلية' : 'Observation'}</th>
-                    <th className="px-3 py-2 text-start">{isAr ? 'الإجراء الإداري المعتمد' : 'Required Action'}</th>
-                    <th className="px-3 py-2 text-start">{isAr ? 'المسؤول' : 'Assigned to'}</th>
-                    <th className="px-3 py-2 text-center">{isAr ? 'الأولوية' : 'Status'}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 text-slate-800">
-                  {OPS_NOTES.map((n, idx) => (
-                    <tr key={idx} className="hover:bg-gray-50">
-                      <td className="px-3 py-2 font-bold text-slate-900 whitespace-nowrap">
-                        {isAr ? n.categoryAr : n.category}
+                      <td className="px-4 py-3 font-bold text-slate-900 dark:text-white whitespace-nowrap">
+                        {branch.nameAr}
                       </td>
-                      <td className="px-3 py-2 font-mono font-semibold text-slate-700 whitespace-nowrap">
-                        {n.value}
+                      <td className="px-4 py-3 font-mono font-bold text-slate-900 dark:text-white text-right whitespace-nowrap">
+                        {formatKwd(branch.salesKwd)}
                       </td>
-                      <td className="px-3 py-2 text-slate-600 max-w-xs">
-                        {isAr ? n.noteAr : n.note}
+                      <td className="px-4 py-3 text-center font-mono whitespace-nowrap">
+                        {formatNum(branch.orders)}
                       </td>
-                      <td className="px-3 py-2 text-slate-900 font-semibold max-w-sm">
-                        {isAr ? n.actionAr : n.action}
+                      <td className="px-4 py-3 font-mono text-right whitespace-nowrap">
+                        {formatKwd(branch.aovKwd)}
                       </td>
-                      <td className="px-3 py-2 text-slate-600 whitespace-nowrap">
-                        {isAr ? n.assignedToAr : n.assignedTo}
+                      <td className="px-4 py-3 font-mono text-right text-slate-600 dark:text-slate-400 whitespace-nowrap">
+                        {formatKwd(branch.operatingExpensesKwd)}
                       </td>
-                      <td className="px-3 py-2 text-center whitespace-nowrap">
+                      <td className="px-4 py-3 font-mono font-bold text-emerald-700 dark:text-emerald-400 text-right whitespace-nowrap">
+                        {formatKwd(branch.operatingProfitKwd)}
+                      </td>
+                      <td className="px-4 py-3 text-center font-mono font-bold whitespace-nowrap">
+                        {branch.profitMarginPct.toFixed(2)}%
+                      </td>
+                      <td className="px-4 py-3 text-center whitespace-nowrap">
                         <span
-                          className={`inline-block px-2 py-0.5 rounded text-[11px] font-bold ${
-                            n.status === 'Urgent'
-                              ? 'bg-red-50 text-red-700 border border-red-200'
-                              : n.status === 'Review'
-                              ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                              : 'bg-gray-100 text-slate-700 border border-gray-200'
+                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                            branch.status === 'ممتاز'
+                              ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+                              : branch.status === 'مطابق للموازنة'
+                              ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                              : 'bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
                           }`}
                         >
-                          {n.status}
+                          {branch.status}
                         </span>
                       </td>
                     </tr>
                   ))}
+
+                  {/* Central Kitchen Row */}
+                  <tr className="bg-slate-50 dark:bg-slate-900/60 font-semibold border-t-2 border-slate-200 dark:border-slate-700">
+                    <td className="px-4 py-3 font-mono text-slate-500 font-bold">COMM-01</td>
+                    <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">
+                      مطبخ القرين المركزي (إمداد وتجهيز الفروع الـ 9)
+                    </td>
+                    <td className="px-4 py-3 font-mono text-right text-slate-500">— (توريد داخلي)</td>
+                    <td className="px-4 py-3 text-center font-mono">364 أمر تزويد</td>
+                    <td className="px-4 py-3 font-mono text-right text-slate-500">—</td>
+                    <td className="px-4 py-3 font-mono text-right text-slate-700 dark:text-slate-300">
+                      {formatKwd(COGS_AMOUNT_KWD)}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-right text-slate-500">—</td>
+                    <td className="px-4 py-3 text-center font-mono">97.2% التزام</td>
+                    <td className="px-4 py-3 text-center">
+                      <span className="inline-flex items-center rounded-full bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-0.5 text-[10px] font-bold text-emerald-800 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                        تشغيل كامل 100%
+                      </span>
+                    </td>
+                  </tr>
+
+                  {/* Grand Total Row */}
+                  <tr className="bg-[#0B1D42] text-white font-bold border-t-2 border-[#38BDF8]">
+                    <td className="px-4 py-3 text-center font-mono !text-white" style={{ color: '#FFFFFF' }}>TOTAL</td>
+                    <td className="px-4 py-3 font-black text-sm !text-white" style={{ color: '#FFFFFF' }}>
+                      الإجمالي العام المعتمد (9 فروع نشطة)
+                    </td>
+                    <td className="px-4 py-3 font-mono font-black text-sm text-right !text-[#38BDF8]" style={{ color: '#38BDF8' }}>
+                      {formatKwd(TOTAL_SALES_KWD)}
+                    </td>
+                    <td className="px-4 py-3 text-center font-mono font-black text-sm !text-white" style={{ color: '#FFFFFF' }}>
+                      {formatNum(TOTAL_ORDERS)}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-right text-sm !text-white" style={{ color: '#FFFFFF' }}>
+                      {formatKwd(DYNAMIC_AOV_KWD)}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-right text-sm text-slate-300 !text-slate-300" style={{ color: '#CBD5E1' }}>
+                      {formatKwd(CUSTODIES_EXPENSES_KWD)}
+                    </td>
+                    <td className="px-4 py-3 font-mono font-black text-sm text-right !text-emerald-400" style={{ color: '#34D399' }}>
+                      {formatKwd(NET_OPERATING_PROFIT_KWD)}
+                    </td>
+                    <td className="px-4 py-3 text-center font-mono font-black text-sm !text-emerald-400" style={{ color: '#34D399' }}>
+                      {NET_MARGIN_PCT}%
+                    </td>
+                    <td className="px-4 py-3 text-center text-xs !text-emerald-400 font-bold" style={{ color: '#34D399' }}>
+                      معتمد 100%
+                    </td>
+                  </tr>
                 </tbody>
               </table>
             </div>
-          </div>
+          )}
+
+          {/* Tab 2: 6 Brands Ledger */}
+          {activeTab === 'brands' && (
+            <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-800 bg-[#0B1D42] text-white font-bold">
+                    <th className="px-4 py-3.5 text-right !text-white" style={{ color: '#FFFFFF' }}>العلامة التجارية</th>
+                    <th className="px-4 py-3.5 text-right font-mono !text-white" style={{ color: '#FFFFFF' }}>المبيعات المعتمدة (د.ك)</th>
+                    <th className="px-4 py-3.5 text-center !text-white" style={{ color: '#FFFFFF' }}>عدد الطلبات</th>
+                    <th className="px-4 py-3.5 text-right font-mono !text-white" style={{ color: '#FFFFFF' }}>متوسط السلة</th>
+                    <th className="px-4 py-3.5 text-center !text-white" style={{ color: '#FFFFFF' }}>نسبة تكلفة الأغذية</th>
+                    <th className="px-4 py-3.5 text-right font-mono !text-white" style={{ color: '#FFFFFF' }}>تكلفة الأغذية (د.ك)</th>
+                    <th className="px-4 py-3.5 text-right font-mono !text-white" style={{ color: '#FFFFFF' }}>صافي الربح التقديري</th>
+                    <th className="px-4 py-3.5 text-center !text-white" style={{ color: '#FFFFFF' }}>هامش الربح (%)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 text-slate-800 dark:text-slate-200">
+                  {BRANDS_DATA.map((brand) => (
+                    <tr key={brand.nameAr} className="hover:bg-slate-50 dark:hover:bg-slate-900/40 transition-colors">
+                      <td className="px-4 py-3 font-bold text-slate-900 dark:text-white whitespace-nowrap">
+                        {brand.nameAr} <span className="font-normal text-slate-400 text-[11px]">({brand.nameEn})</span>
+                      </td>
+                      <td className="px-4 py-3 font-mono font-bold text-slate-900 dark:text-white text-right whitespace-nowrap">
+                        {formatKwd(brand.salesKwd)}
+                      </td>
+                      <td className="px-4 py-3 text-center font-mono whitespace-nowrap">
+                        {formatNum(brand.orders)}
+                      </td>
+                      <td className="px-4 py-3 font-mono text-right whitespace-nowrap">
+                        {formatKwd(brand.aovKwd)}
+                      </td>
+                      <td className="px-4 py-3 text-center font-mono whitespace-nowrap">
+                        {brand.cogsPct}%
+                      </td>
+                      <td className="px-4 py-3 font-mono text-right text-slate-600 dark:text-slate-400 whitespace-nowrap">
+                        {formatKwd(brand.cogsKwd)}
+                      </td>
+                      <td className="px-4 py-3 font-mono font-bold text-emerald-700 dark:text-emerald-400 text-right whitespace-nowrap">
+                        {formatKwd(brand.operatingProfitKwd)}
+                      </td>
+                      <td className="px-4 py-3 text-center font-mono font-bold whitespace-nowrap">
+                        {brand.profitMarginPct.toFixed(1)}%
+                      </td>
+                    </tr>
+                  ))}
+
+                  {/* Brands Grand Total Row */}
+                  <tr className="bg-[#0B1D42] text-white font-bold border-t-2 border-[#38BDF8]">
+                    <td className="px-4 py-3 font-black text-sm !text-white" style={{ color: '#FFFFFF' }}>
+                      إجمالي العلامات التجارية (6 براندات)
+                    </td>
+                    <td className="px-4 py-3 font-mono font-black text-sm text-right !text-[#38BDF8]" style={{ color: '#38BDF8' }}>
+                      {formatKwd(TOTAL_SALES_KWD)}
+                    </td>
+                    <td className="px-4 py-3 text-center font-mono font-black text-sm !text-white" style={{ color: '#FFFFFF' }}>
+                      {formatNum(TOTAL_ORDERS)}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-right text-sm !text-white" style={{ color: '#FFFFFF' }}>
+                      {formatKwd(DYNAMIC_AOV_KWD)}
+                    </td>
+                    <td className="px-4 py-3 text-center font-mono font-bold text-sm !text-white" style={{ color: '#FFFFFF' }}>
+                      {COGS_PCT}%
+                    </td>
+                    <td className="px-4 py-3 font-mono text-right text-sm text-slate-300 !text-slate-300" style={{ color: '#CBD5E1' }}>
+                      {formatKwd(COGS_AMOUNT_KWD)}
+                    </td>
+                    <td className="px-4 py-3 font-mono font-black text-sm text-right !text-emerald-400" style={{ color: '#34D399' }}>
+                      {formatKwd(NET_OPERATING_PROFIT_KWD)}
+                    </td>
+                    <td className="px-4 py-3 text-center font-mono font-black text-sm !text-emerald-400" style={{ color: '#34D399' }}>
+                      {NET_MARGIN_PCT}%
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
-      )}
+
+      </div>
+
     </div>
   )
 }

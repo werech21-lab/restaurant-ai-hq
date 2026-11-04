@@ -56,19 +56,30 @@ body {
    DIYAR UNITED INSPIRED ENTERPRISE THEME (ROYAL NAVY & SKY GLOW)
    ========================================================================== */
 .diyar-hero-header {
-  background: linear-gradient(135deg, #040B1C 0%, #0B1D42 100%);
+  background: linear-gradient(135deg, #040B1C 0%, #0B1D42 100%) !important;
   border-bottom: 2px solid rgba(0, 168, 232, 0.4);
   box-shadow: 0 4px 25px rgba(0, 168, 232, 0.15);
+  color: #FFFFFF !important;
+}
+
+.diyar-hero-header h1 {
+  color: #FFFFFF !important;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.diyar-hero-header p {
+  color: #E2E8F0 !important;
 }
 
 .diyar-navy-card {
-  background: linear-gradient(145deg, #1E3A8A 0%, #0F2356 50%, #07112B 100%);
+  background: linear-gradient(145deg, #1E3A8A 0%, #0F2356 50%, #07112B 100%) !important;
   border: 1px solid rgba(56, 189, 248, 0.25);
   box-shadow: 0 15px 30px -10px rgba(7, 17, 43, 0.45);
   border-radius: 20px;
   position: relative;
   overflow: hidden;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  color: #FFFFFF !important;
 }
 
 .diyar-navy-card:hover {
@@ -77,12 +88,37 @@ body {
   box-shadow: 0 20px 40px -10px rgba(0, 168, 232, 0.35);
 }
 
+.diyar-navy-card .kpi-number,
+.diyar-navy-card [data-kpi-val] {
+  color: #FFFFFF !important;
+}
+
+.diyar-navy-card .kpi-sub,
+.diyar-navy-card [data-kpi-sub] {
+  color: #BAE6FD !important;
+}
+
+.diyar-navy-card .kpi-footer,
+.diyar-navy-card [data-kpi-footer] {
+  color: #E2E8F0 !important;
+}
+
+.diyar-navy-card .kpi-link,
+.diyar-navy-card [data-kpi-link] {
+  color: #7DD3FC !important;
+}
+
+.diyar-navy-card .kpi-link:hover,
+.diyar-navy-card [data-kpi-link]:hover {
+  color: #FFFFFF !important;
+}
+
 .diyar-pill-btn {
   border-radius: 9999px;
   padding: 0.625rem 1.75rem;
   background-color: #0A1938;
   border: 1px solid #38BDF8;
-  color: #FFFFFF;
+  color: #FFFFFF !important;
   font-weight: 700;
   display: inline-flex;
   align-items: center;
@@ -95,6 +131,13 @@ body {
   background-color: #1D63B8;
   border-color: #FFFFFF;
   box-shadow: 0 4px 15px rgba(56, 189, 248, 0.3);
+}
+
+/* Bulletproof text color for all Navy themed tables and headers */
+thead.bg-\[\#0B1D42\] th,
+tr.bg-\[\#0B1D42\] th,
+tr.bg-\[\#0B1D42\] td {
+  color: #FFFFFF !important;
 }
 
 .diyar-glow-container {
