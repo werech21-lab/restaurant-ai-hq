@@ -87,7 +87,7 @@ export function RecipesPanel({
 
       {(canCreate || canEdit) && (
         <section className={`${cardClass} space-y-3 p-5`}>
-          <h2 className="font-bold text-mist-100">{editingId ? t('action.edit') : t('action.add')} · BOM</h2>
+          <h2 className="font-bold text-mist-100">{editingId ? t('action.edit') : t('action.add')} · {locale === 'en' ? 'BOM' : 'بطاقة الوصفة والمكونات المعيارية'}</h2>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             <div>
               <label className={labelClass}>{locale === 'en' ? 'Menu item' : 'صنف المنيو'}</label>
@@ -167,9 +167,9 @@ export function RecipesPanel({
                     setLines(next)
                   }}
                 >
-                  <option value="g">g</option>
-                  <option value="ml">ml</option>
-                  <option value="pc">pc</option>
+                  <option value="g">{locale === 'en' ? 'g' : 'غرام'}</option>
+                  <option value="ml">{locale === 'en' ? 'ml' : 'مل'}</option>
+                  <option value="pc">{locale === 'en' ? 'pc' : 'حبة'}</option>
                 </select>
                 <input
                   className={fieldClass}
@@ -219,7 +219,7 @@ export function RecipesPanel({
                 <th className="px-4 py-3 text-start">{locale === 'en' ? 'Recipe' : 'الوصفة'}</th>
                 <th className="px-4 py-3 text-start">{locale === 'en' ? 'Sell' : 'البيع'}</th>
                 <th className="px-4 py-3 text-start">{locale === 'en' ? 'Food cost' : 'تكلفة الغذاء'}</th>
-                <th className="px-4 py-3 text-start">Food Cost %</th>
+                <th className="px-4 py-3 text-start">{locale === 'en' ? 'Food Cost %' : 'نسبة تكلفة الغذاء %'}</th>
                 <th className="px-4 py-3 text-start">{locale === 'en' ? 'Margin' : 'الهامش'}</th>
                 <th className="px-4 py-3 text-start">{locale === 'en' ? 'Actions' : 'إجراءات'}</th>
               </tr>

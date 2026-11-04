@@ -11,7 +11,7 @@ import { SmartIngestLaunchButton } from '@/components/SmartIngestLaunchButton'
 import { VentureRecipesHub } from '@/components/recipes/VentureRecipesHub'
 
 export const metadata = {
-  title: 'الوصفات وتكلفة الغذاء BOM | Venture Foods W.L.L. · AetherBI',
+  title: 'الوصفات وهندسة تكلفة الغذاء المعيارية | Venture Foods W.L.L. · AetherBI',
   description: 'محاسبة تكاليف الوصفات وهندسة المنيو لشركة فنتشر فودز لإدارة المطاعم ذ.م.م.',
 }
 
@@ -44,7 +44,7 @@ async function RecipesContent() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-700/60 pb-3">
         <h4 className="text-sm font-bold text-emerald-400">
-          {tx(locale, 'تكويد وربط الوصفات وقوائم المواد (Prisma DB)', 'Prisma Database Recipes & BOM Setup')}
+          {tx(locale, 'تكويد وربط الوصفات وقوائم المواد في قاعدة البيانات', 'Database Recipes & Material Setup')}
         </h4>
         <SmartIngestLaunchButton module="inventory" locale={locale} />
       </div>
