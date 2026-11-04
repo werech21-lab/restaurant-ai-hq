@@ -29,6 +29,9 @@ import {
 import { AutomatedGlBridge } from '@/components/finance/AutomatedGlBridge'
 import { VENTURE_FOODS_EVENTS } from '@/lib/events/venture-events-engine'
 import { KuwaitCoaBridgeView } from './KuwaitCoaBridgeView'
+import { OdooExpenseSingleModal, type NewExpensePayload } from './OdooExpenseSingleModal'
+import { OdooExpenseSheetModal, type NewExpenseSheetPayload } from './OdooExpenseSheetModal'
+
 import Link from 'next/link'
 import {
   ODOO_EXPENSE_CATEGORIES_25,
@@ -107,6 +110,9 @@ export function VentureAccountingHub({
   const [showChequeModal, setShowChequeModal] = useState(false)
   const [chequeBank, setChequeBank] = useState<'CBK' | 'NBK'>('CBK')
   const [chequeRef, setChequeRef] = useState('CHQ-2026-9041')
+  const [showSingleExpenseModal, setShowSingleExpenseModal] = useState(false)
+  const [showExpenseSheetModal, setShowExpenseSheetModal] = useState(false)
+  const [selectedSheetForModal, setSelectedSheetForModal] = useState<OdooExpenseSheetReport | null>(null)
 
   const isAr = currentLocale === 'ar'
   const isRtl = isAr
@@ -114,6 +120,64 @@ export function VentureAccountingHub({
   const showToast = (msg: string) => {
     setNotice(msg)
     setTimeout(() => setNotice(null), 4000)
+  }
+
+  const handleSaveNewExpense = (payload: NewExpensePayload) => {
+    const newSheet: OdooExpenseSheetReport = {
+      id: `sheet_exp_${Date.now()}`,
+      reportNo: `EXP/2026/${Math.floor(1000 + Math.random() * 9000)}`,
+      date: payload.date,
+      custodianId: payload.custodianId,
+      custodianNameAr: payload.custodianId === 'sanad' ? 'سند' : payload.custodianId === 'rabih' ? 'ربيع أنيس يحيى' : 'الموظف المسؤول',
+      custodianNameEn: payload.custodianId === 'sanad' ? 'Sanad' : payload.custodianId === 'rabih' ? 'Rabih Anis Yahya' : 'Responsible Staff',
+      titleAr: payload.descriptionAr,
+      titleEn: payload.descriptionEn,
+      descriptionAr: payload.descriptionAr,
+      descriptionEn: payload.descriptionEn,
+      costCenterAr: 'الفروع ومراكز التكلفة المعتمدة',
+      costCenterEn: 'Approved Branch Cost Centers',
+      brandAr: 'البراندات الرسمية',
+      brandEn: 'Official Brands',
+      amountKwd: payload.amountKwd,
+      accountCode: '40355 / 7120',
+      adminApproval: payload.status === 'approved' || payload.status === 'paid' ? 'approved' : 'submitted',
+      paymentStatus: payload.status === 'paid' ? 'paid' : 'not_paid',
+    }
+    setExpenseSheetReports([newSheet, ...expenseSheetReports])
+    showToast(
+      isAr
+        ? `تم تسجيل المصروف بنجاح (${payload.amountKwd.toFixed(3)} د.ك) وتحديث رصيد العهدة الدفتري.`
+        : `Expense successfully registered (${payload.amountKwd.toFixed(3)} KWD) and posted.`
+    )
+  }
+
+  const handleSaveNewExpenseSheet = (payload: NewExpenseSheetPayload) => {
+    const newSheet: OdooExpenseSheetReport = {
+      id: `sheet_${Date.now()}`,
+      reportNo: payload.reportNo,
+      date: payload.date,
+      custodianId: payload.custodianId,
+      custodianNameAr: payload.custodianNameAr,
+      custodianNameEn: payload.custodianNameEn,
+      titleAr: payload.titleAr,
+      titleEn: payload.titleEn,
+      descriptionAr: payload.titleAr,
+      descriptionEn: payload.titleEn,
+      costCenterAr: 'الفروع الـ 9 والمطبخ المركزي',
+      costCenterEn: '9 Branches & Central Kitchen',
+      brandAr: 'البراندات الـ 6 الرسمية',
+      brandEn: '6 Official Brands',
+      amountKwd: payload.amountKwd,
+      accountCode: '1142 / 6150 / 7120',
+      adminApproval: payload.adminApproval,
+      paymentStatus: payload.paymentStatus,
+    }
+    setExpenseSheetReports([newSheet, ...expenseSheetReports])
+    showToast(
+      isAr
+        ? `تم إنشاء واعتماد كشف التصفية المجمع (${payload.reportNo}) بقيمة ${payload.amountKwd.toFixed(3)} د.ك.`
+        : `Expense report sheet (${payload.reportNo}) created for ${payload.amountKwd.toFixed(3)} KWD.`
+    )
   }
 
   const handleBatchChequePayment = () => {
@@ -913,24 +977,49 @@ export function VentureAccountingHub({
                           )}
                         </div>
 
-                        {/* Batch Cheque Issuance Trigger Button */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (selectedSheetIds.length === 0 && eligibleForPayment.length > 0) {
-                              setSelectedSheetIds(eligibleForPayment.map((s) => s.id))
-                            }
-                            setShowChequeModal(true)
-                          }}
-                          className="flex items-center gap-2 rounded-xl bg-gradient-to-l from-emerald-600 to-teal-600 px-4 py-2.5 text-xs font-black text-white shadow-lg shadow-emerald-950/50 hover:brightness-110 transition-all"
-                        >
-                          <CreditCard size={15} />
-                          <span>
-                            {isAr
-                              ? `🏦 إصدار شيك سداد للتقارير المعتمدة (تحويل من غير مدفوع 🔴 إلى مدفوع 🟢)`
-                              : `🏦 Issue Payment Cheque for Approved Reports (Not Paid 🔴 to Paid 🟢)`}
-                          </span>
-                        </button>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {/* Button 1: New Single Expense */}
+                          <button
+                            type="button"
+                            onClick={() => setShowSingleExpenseModal(true)}
+                            className="flex items-center gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3.5 py-2 text-xs font-black text-emerald-400 hover:bg-emerald-500/20 shadow-sm transition-all"
+                          >
+                            <Plus size={14} />
+                            <span>{isAr ? '➕ تسجيل مصروف فردي جديد' : '➕ New Single Expense'}</span>
+                          </button>
+
+                          {/* Button 2: New Expense Report Sheet */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedSheetForModal(null)
+                              setShowExpenseSheetModal(true)
+                            }}
+                            className="flex items-center gap-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3.5 py-2 text-xs font-black text-amber-300 hover:bg-amber-500/20 shadow-sm transition-all"
+                          >
+                            <FileSpreadsheet size={14} />
+                            <span>{isAr ? '📑 إنشاء تقرير كشف مجمع' : '📑 New Expense Report Sheet'}</span>
+                          </button>
+
+                          {/* Batch Cheque Issuance Trigger Button */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (selectedSheetIds.length === 0 && eligibleForPayment.length > 0) {
+                                setSelectedSheetIds(eligibleForPayment.map((s) => s.id))
+                              }
+                              setShowChequeModal(true)
+                            }}
+                            className="flex items-center gap-2 rounded-xl bg-gradient-to-l from-emerald-600 to-teal-600 px-4 py-2 text-xs font-black text-white shadow-lg shadow-emerald-950/50 hover:brightness-110 transition-all"
+                          >
+                            <CreditCard size={15} />
+                            <span>
+                              {isAr
+                                ? `🏦 إصدار شيك سداد للتقارير المعتمدة`
+                                : `🏦 Issue Payment Cheque for Approved Reports`}
+                            </span>
+                          </button>
+                        </div>
                       </div>
 
                       {/* Expense Reports Sheet Table */}
@@ -1210,6 +1299,23 @@ export function VentureAccountingHub({
                       </div>
                     </div>
                   )}
+                  {/* Odoo Single Expense Registration Modal */}
+                  <OdooExpenseSingleModal
+                    isOpen={showSingleExpenseModal}
+                    onClose={() => setShowSingleExpenseModal(false)}
+                    onSave={handleSaveNewExpense}
+                  />
+
+                  {/* Odoo Expense Report Sheet Modal */}
+                  <OdooExpenseSheetModal
+                    isOpen={showExpenseSheetModal}
+                    onClose={() => {
+                      setShowExpenseSheetModal(false)
+                      setSelectedSheetForModal(null)
+                    }}
+                    onSave={handleSaveNewExpenseSheet}
+                    existingSheet={selectedSheetForModal}
+                  />
                 </div>
               )
             })()}

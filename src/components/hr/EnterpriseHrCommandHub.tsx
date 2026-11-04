@@ -23,6 +23,10 @@ import { HrExecutiveReportsHub, type HrEmployeeSummary } from './HrExecutiveRepo
 import { HrOfficialLettersHub } from './HrOfficialLettersHub'
 import { NewEmployeeWizardModal } from './NewEmployeeWizardModal'
 import { SmartPhotoDocAutoMatcherModal } from './SmartPhotoDocAutoMatcherModal'
+import { OdooExpenseSingleModal, type NewExpensePayload } from '@/components/accounting/OdooExpenseSingleModal'
+import { OdooExpenseSheetModal, type NewExpenseSheetPayload } from '@/components/accounting/OdooExpenseSheetModal'
+import type { OdooExpenseSheetReport } from '@/lib/accounting/odoo-real-expenses-data'
+
 import {
   loadCustomAvatars,
   getEmployeeAvatarUrl,
@@ -275,6 +279,12 @@ export function EnterpriseHrCommandHub({
   // State for Alert Dispatch (Stage 3: 3 Exclusive Recipients + Sheyam Hekmat)
   const [alertBusy, setAlertBusy] = useState(false)
   const [alertFeedback, setAlertFeedback] = useState<string | null>(null)
+
+  // State for Odoo hr.expense & hr.expense.sheet Modals in HR
+  const [showHrExpenseSingleModal, setShowHrExpenseSingleModal] = useState(false)
+  const [showHrExpenseSheetModal, setShowHrExpenseSheetModal] = useState(false)
+  const [selectedHrSheetForModal, setSelectedHrSheetForModal] = useState<OdooExpenseSheetReport | null>(null)
+  const [hrExpenseSheets, setHrExpenseSheets] = useState<OdooExpenseSheetReport[]>(ODOO_REAL_EXPENSE_SHEETS)
 
   const filteredEmployees = useMemo(() => {
     return employees.filter((emp) => {
@@ -1099,13 +1109,36 @@ export function EnterpriseHrCommandHub({
               </p>
             </div>
 
-            <Link
-              href="/accounting?tab=pettyCash"
-              className="flex items-center gap-2 rounded-2xl bg-gradient-to-l from-emerald-500 to-teal-500 px-5 py-3 text-xs sm:text-sm font-black text-ink-950 shadow-lg hover:brightness-110"
-            >
-              <span>🏛️</span>
-              <span>{en ? 'Open Accounting Petty Cash Hub ↵' : 'فتح مركز تسوية العهد والمصروفات بالمحاسبة ↵'}</span>
-            </Link>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowHrExpenseSingleModal(true)}
+                className="flex items-center gap-1.5 rounded-2xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-xs sm:text-sm font-black text-emerald-400 hover:bg-emerald-500/20 shadow-sm transition-all"
+              >
+                <span>➕</span>
+                <span>{en ? 'New Single Expense' : 'تسجيل مصروف فردي جديد'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedHrSheetForModal(null)
+                  setShowHrExpenseSheetModal(true)
+                }}
+                className="flex items-center gap-1.5 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs sm:text-sm font-black text-amber-300 hover:bg-amber-500/20 shadow-sm transition-all"
+              >
+                <span>📑</span>
+                <span>{en ? 'New Expense Report Sheet' : 'إنشاء تقرير تصفية عهدة مجمع'}</span>
+              </button>
+
+              <Link
+                href="/accounting?tab=pettyCash"
+                className="flex items-center gap-2 rounded-2xl bg-gradient-to-l from-emerald-500 to-teal-500 px-5 py-3 text-xs sm:text-sm font-black text-ink-950 shadow-lg hover:brightness-110"
+              >
+                <span>🏛️</span>
+                <span>{en ? 'Open Accounting Petty Cash Hub ↵' : 'فتح مركز تسوية العهد بالمحاسبة ↵'}</span>
+              </Link>
+            </div>
           </div>
 
           {/* Quick Metrics */}
@@ -1181,9 +1214,20 @@ export function EnterpriseHrCommandHub({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5 text-slate-200">
-                  {ODOO_REAL_EXPENSE_SHEETS.slice(0, 8).map((sheet) => (
+                  {hrExpenseSheets.slice(0, 10).map((sheet) => (
                     <tr key={sheet.id} className="hover:bg-white/[0.02]">
-                      <td className="px-3 py-2.5 font-mono text-amber-300 font-bold">{sheet.reportNo}</td>
+                      <td className="px-3 py-2.5 font-mono">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedHrSheetForModal(sheet)
+                            setShowHrExpenseSheetModal(true)
+                          }}
+                          className="text-amber-300 font-bold hover:underline"
+                        >
+                          {sheet.reportNo}
+                        </button>
+                      </td>
                       <td className="px-3 py-2.5 font-bold text-white">{en ? sheet.custodianNameEn : sheet.custodianNameAr}</td>
                       <td className="px-3 py-2.5 max-w-xs truncate">{en ? sheet.titleEn : sheet.titleAr}</td>
                       <td className="px-3 py-2.5 text-slate-400">{en ? sheet.costCenterEn : sheet.costCenterAr}</td>
@@ -2346,6 +2390,69 @@ export function EnterpriseHrCommandHub({
         isOpen={autoMatcherOpen}
         onClose={() => setAutoMatcherOpen(false)}
       />
+
+      {/* Odoo Single Expense Registration Modal */}
+      <OdooExpenseSingleModal
+        isOpen={showHrExpenseSingleModal}
+        onClose={() => setShowHrExpenseSingleModal(false)}
+        onSave={(payload) => {
+          const newSheet: OdooExpenseSheetReport = {
+            id: `sheet_hr_${Date.now()}`,
+            reportNo: `EXP/HR/2026/${Math.floor(1000 + Math.random() * 9000)}`,
+            date: payload.date,
+            custodianId: payload.custodianId,
+            custodianNameAr: payload.custodianId === 'sanad' ? 'سند' : payload.custodianId === 'rabih' ? 'ربيع أنيس يحيى' : 'الموظف المسؤول',
+            custodianNameEn: payload.custodianId === 'sanad' ? 'Sanad' : payload.custodianId === 'rabih' ? 'Rabih Anis Yahya' : 'Responsible Staff',
+            titleAr: payload.descriptionAr,
+            titleEn: payload.descriptionEn,
+            descriptionAr: payload.descriptionAr,
+            descriptionEn: payload.descriptionEn,
+            costCenterAr: 'الفروع ومراكز التكلفة المعتمدة',
+            costCenterEn: 'Approved Branch Cost Centers',
+            brandAr: 'البراندات الرسمية',
+            brandEn: 'Official Brands',
+            amountKwd: payload.amountKwd,
+            accountCode: '40355 / 7120',
+            adminApproval: payload.status === 'approved' || payload.status === 'paid' ? 'approved' : 'submitted',
+            paymentStatus: payload.status === 'paid' ? 'paid' : 'not_paid',
+          }
+          setHrExpenseSheets([newSheet, ...hrExpenseSheets])
+        }}
+      />
+
+      {/* Odoo Expense Report Sheet Modal */}
+      <OdooExpenseSheetModal
+        isOpen={showHrExpenseSheetModal}
+        onClose={() => {
+          setShowHrExpenseSheetModal(false)
+          setSelectedHrSheetForModal(null)
+        }}
+        onSave={(payload) => {
+          const newSheet: OdooExpenseSheetReport = {
+            id: `sheet_hr_${Date.now()}`,
+            reportNo: payload.reportNo,
+            date: payload.date,
+            custodianId: payload.custodianId,
+            custodianNameAr: payload.custodianNameAr,
+            custodianNameEn: payload.custodianNameEn,
+            titleAr: payload.titleAr,
+            titleEn: payload.titleEn,
+            descriptionAr: payload.titleAr,
+            descriptionEn: payload.titleEn,
+            costCenterAr: 'الفروع الـ 9 والمطبخ المركزي',
+            costCenterEn: '9 Branches & Central Kitchen',
+            brandAr: 'البراندات الـ 6 الرسمية',
+            brandEn: '6 Official Brands',
+            amountKwd: payload.amountKwd,
+            accountCode: '1142 / 6150 / 7120',
+            adminApproval: payload.adminApproval,
+            paymentStatus: payload.paymentStatus,
+          }
+          setHrExpenseSheets([newSheet, ...hrExpenseSheets])
+        }}
+        existingSheet={selectedHrSheetForModal}
+      />
+
     </div>
   )
 }
