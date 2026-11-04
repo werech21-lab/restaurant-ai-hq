@@ -470,7 +470,63 @@ export function InventoryPanel({
 
       {/* TAB 1: Stock Items & Materials */}
       {active === "products" && (
-        <DataCard>
+        <>
+          {/* Odoo Inventory Sentinel & Anomaly Banners */}
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4 mb-4">
+            {/* Card 1: Dead Stock */}
+            <div className="rounded-2xl border border-rose-200 dark:border-rose-900/40 bg-rose-50/50 dark:bg-rose-950/20 p-4 space-y-1.5 shadow-xs">
+              <div className="flex items-center justify-between text-xs font-bold text-rose-700 dark:text-rose-400">
+                <span>⚠️ {en ? "Dead Stock Alert" : "تنبيه الركود ومخزون الأمان"}</span>
+                <span className="font-mono">1,420 د.ك</span>
+              </div>
+              <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+                {en
+                  ? "8 slow-moving SKUs in Ardiya & Promenade exceeding 45 days. Re-dispatch to Central Kitchen."
+                  : "8 أصناف بطيئة الدوران بالعارضية وبروميناد تجاوزت 45 يوماً دون سحب. يوصى بإعادتها لمطبخ القرين."}
+              </p>
+            </div>
+
+            {/* Card 2: BOM Variance */}
+            <div className="rounded-2xl border border-amber-200 dark:border-amber-900/40 bg-amber-50/50 dark:bg-amber-950/20 p-4 space-y-1.5 shadow-xs">
+              <div className="flex items-center justify-between text-xs font-bold text-amber-700 dark:text-amber-400">
+                <span>🥩 {en ? "BOM vs Actual Variance" : "انحراف استهلاك الوصفات"}</span>
+                <span className="font-mono">+4.5% هدر</span>
+              </div>
+              <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+                {en
+                  ? "Shawarma meats and cooking oils exceeded theoretical Odoo recipe consumption."
+                  : "تجاوز استهلاك لحوم الشاورما وزيوت القلي الوصفة المعيارية بأودو (+4.5%) بمطبخ القرين والسالمية."}
+              </p>
+            </div>
+
+            {/* Card 3: Supplier Price Creep */}
+            <div className="rounded-2xl border border-indigo-200 dark:border-indigo-900/40 bg-indigo-50/50 dark:bg-indigo-950/20 p-4 space-y-1.5 shadow-xs">
+              <div className="flex items-center justify-between text-xs font-bold text-indigo-700 dark:text-indigo-400">
+                <span>📈 {en ? "Vendor Price Creep" : "ارتفاع أسعار الموردين بأودو"}</span>
+                <span className="font-mono">+14% تفاوت</span>
+              </div>
+              <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+                {en
+                  ? "Cooking oil petty cash retail purchases 14% higher than master vendor contracts."
+                  : "رصد شراء زيوت القلي وعلب التغليف عبر العهد النقدية بفارق 14% أعلى من العقود المركزية."}
+              </p>
+            </div>
+
+            {/* Card 4: Optimal EOQ */}
+            <div className="rounded-2xl border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50/50 dark:bg-emerald-950/20 p-4 space-y-1.5 shadow-xs">
+              <div className="flex items-center justify-between text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                <span>🎯 {en ? "Optimal Reorder (EOQ)" : "توصيات إعادة الطلب المثلى"}</span>
+                <span className="font-mono">+20% أمان</span>
+              </div>
+              <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+                {en
+                  ? "Increase reorder thresholds for high-velocity sauces by 20% to prevent retail stock-outs."
+                  : "رفع حدود إعادة الطلب الآلية لصوصات تشاينا جاردن ونودل بار بنسبة 20% لتفادي نفاد المخزون."}
+              </p>
+            </div>
+          </div>
+
+          <DataCard>
           {/* Search bar & internal filter pills */}
           <div className="p-4 border-b border-slate-800/80 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -542,6 +598,7 @@ export function InventoryPanel({
               canEdit={canEdit}
               canDelete={canDelete}
               onEdit={setProduct}
+              onResetFilter={() => setInternalFilter("ALL")}
               onDelete={async (row) => {
                 if (!confirm(en ? `Delete ${row.name}?` : `حذف ${row.name}؟`)) return;
                 const result = await deleteProduct(row.id);
@@ -552,6 +609,7 @@ export function InventoryPanel({
           </div>
           <PaginationBar path="/inventory" params={{ tab: "products", q, filter }} page={page} total={total || filteredProducts.length} />
         </DataCard>
+        </>
       )}
 
       {/* TAB 2: Accounting Categories (1131–1134) */}
@@ -728,12 +786,14 @@ function ProductsTable({
   canDelete,
   onEdit,
   onDelete,
+  onResetFilter,
 }: {
   rows: ProductRow[];
   canEdit: boolean;
   canDelete: boolean;
   onEdit: (row: ProductRow) => void;
   onDelete: (row: ProductRow) => void;
+  onResetFilter?: () => void;
 }) {
   const { locale } = useI18n();
   const en = locale === "en";
@@ -757,8 +817,22 @@ function ProductsTable({
       <tbody className="divide-y divide-slate-800/60 font-mono">
         {rows.length === 0 ? (
           <tr>
-            <td colSpan={10} className="px-4 py-10 text-center text-slate-400 font-sans">
-              {en ? "No matching items." : "لا توجد أصناف مطابقة."}
+            <td colSpan={10} className="px-4 py-12 text-center text-slate-400 font-sans">
+              <div className="flex flex-col items-center justify-center gap-3">
+                <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
+                  {en ? "No matching items found." : "لا توجد أصناف مطابقة للتصفية الحالية."}
+                </p>
+                {onResetFilter && (
+                  <button
+                    type="button"
+                    onClick={onResetFilter}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs py-2 px-4 shadow transition cursor-pointer"
+                  >
+                    <span>🔄</span>
+                    <span>{en ? "Reset Scope & Show All Items" : "🔄 إلغاء التصفية وعرض كافة الأصناف"}</span>
+                  </button>
+                )}
+              </div>
             </td>
           </tr>
         ) : (

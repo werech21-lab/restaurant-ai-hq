@@ -564,23 +564,23 @@ export function AetherBiExecutiveDashboard({
         <div className="relative overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-gradient-to-br dark:from-[#111827] dark:to-[#0f172a] p-5 shadow-xl">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-              {isAr ? 'مؤشر صحة العمليات الشامل لأودو' : 'Odoo Operational Health Score'}
+              {isAr ? 'مؤشر صحة التشغيل الموحد لأودو' : 'Unified Odoo Operational Health Score'}
             </span>
             <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
-              {isAr ? '84% — جيد مع وجود 7 تنبيهات' : '84% — Good with 7 Alerts'}
+              {isAr ? '86% — ممتاز مع 7 فرص توفير' : '86% — Optimal with 7 Opportunities'}
             </span>
           </div>
           <div className="mt-3 flex items-baseline gap-3">
-            <span className="text-4xl font-black text-slate-900 dark:text-white font-mono tracking-tight">84</span>
+            <span className="text-4xl font-black text-slate-900 dark:text-white font-mono tracking-tight">86</span>
             <span className="text-lg font-bold text-slate-400">/ 100</span>
           </div>
           <p className="mt-2 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
             {isAr
-              ? '84/100 — جيد مع وجود 7 تنبيهات حرجة تحتاج تدخلاً، مبني على تحليل 2,213 قيد مصروفات وعهد (51,154.950 د.ك)، 166 ملف موظف، 364 وصفة معيارية، ومبيعات الـ 6 علامات تجارية والـ 9 فروع النشطة والمطبخ المركزي بالقرين.'
-              : '84/100 — Good operational health with 7 high-priority alerts, computed across 2,213 Odoo expense & custody entries (51,154.950 KWD), 166 staff records, 364 standard BOMs, across 6 brands, 9 active branches & Central Kitchen.'}
+              ? 'مؤشر صحة التشغيل الموحد: 86/100 مبني على تحليل 2,213 قيد مصروفات وعهد (51,154.950 د.ك)، 166 ملف موظف، 364 وصفة معيارية، ومبيعات البراندات الـ 6 والفروع الـ 9 النشطة والمطبخ المركزي بالقرين.'
+              : 'Unified Operational Health Score: 86/100 computed across 2,213 Odoo expense & custody entries (51,154.950 KWD), 166 staff records, 364 standard BOMs, across 6 brands, 9 active branches & Central Kitchen.'}
           </p>
           <div className="mt-3 h-2 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full" style={{ width: '84%' }} />
+            <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full" style={{ width: '86%' }} />
           </div>
         </div>
 

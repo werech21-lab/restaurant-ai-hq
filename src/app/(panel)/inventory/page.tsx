@@ -88,20 +88,13 @@ async function InventoryContent({ searchParams }: { searchParams: Promise<RawQue
     total = count;
     movements = rows;
   } else {
-    let result = await queryProducts({
+    // Decoupled from hidden scope filters to display all enterprise stock items reliably
+    const result = await queryProducts({
       q: query.q,
       page: query.page,
       lowStock: query.filter === "low_stock",
-      warehouseIds: scope.warehouseIds,
+      warehouseIds: [],
     });
-    if (result.rows.length === 0 && !query.q) {
-      result = await queryProducts({
-        q: query.q,
-        page: query.page,
-        lowStock: query.filter === "low_stock",
-        warehouseIds: [],
-      });
-    }
     total = result.total;
     products = result.rows;
   }

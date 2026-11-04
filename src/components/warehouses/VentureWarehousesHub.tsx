@@ -604,20 +604,20 @@ export function VentureWarehousesHub({
   }, [searchQ, filterRegion]);
 
   return (
-    <div dir={isAr ? "rtl" : "ltr"} className="w-full max-w-none text-slate-100 space-y-6 font-sans">
+    <div dir={isAr ? "rtl" : "ltr"} className="w-full max-w-none text-slate-900 dark:text-slate-100 space-y-6 font-sans">
       {/* Top Header Card */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-5">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-400">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-600 dark:text-amber-400">
               <Warehouse size={14} />
               {isAr ? "إدارة المستودعات وشبكة الإمداد الداخلي" : "Internal Warehouses & Supply Network"}
             </span>
-            <span className="rounded-full bg-slate-800/90 border border-slate-700/80 px-2.5 py-0.5 text-xs font-bold text-emerald-400">
+            <span className="rounded-full bg-slate-100 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700/80 px-2.5 py-0.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
               {isAr ? "المطبخ المركزي بالقرين + 9 فروع نشطة" : "Central Kitchen Qurain + 9 Active Branches"}
             </span>
           </div>
-          <h1 className="mt-2 text-2xl font-black text-white sm:text-3xl tracking-tight">
+          <h1 className="mt-2 text-2xl font-black text-slate-900 dark:text-white sm:text-3xl tracking-tight">
             {isAr
               ? "شبكة المستودعات ومخازن الفروع والتحويلات اللوجستية"
               : "Warehouse Network, Branch Stores & Logistics Hub"}
