@@ -7,18 +7,13 @@ import {
   Landmark,
   UtensilsCrossed,
   ShoppingBag,
-  Store,
   Building2,
-  Calendar,
   CheckCircle2,
-  AlertCircle,
   Clock,
-  ArrowUpRight,
-  Filter,
-  DollarSign,
-  PieChart as PieChartIcon,
-  BarChart3,
+  ArrowLeft,
+  ChevronDown,
   Layers,
+  Store,
 } from 'lucide-react'
 
 // Period Data Models
@@ -311,7 +306,6 @@ const WEEKLY_TREND = [
 export function AetherBiExecutiveDashboard({ locale = 'ar' }: { locale?: string }) {
   const [dateRange, setDateRange] = useState<string>('OCT_2026')
   const [activeTab, setActiveTab] = useState<'branches' | 'brands'>('branches')
-  const [selectedBrandFilter, setSelectedBrandFilter] = useState<string>('ALL')
 
   const formatKwd = (amount: number) => {
     return amount.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + ' د.ك'
@@ -322,36 +316,38 @@ export function AetherBiExecutiveDashboard({ locale = 'ar' }: { locale?: string 
   }
 
   return (
-    <div className="w-full max-w-none space-y-6 text-slate-900 dark:text-slate-100" dir="rtl">
+    <div className="w-full max-w-none space-y-10 text-slate-900 dark:text-slate-100 font-sans" dir="rtl">
 
       {/* ========================================================================= */}
-      {/* 1. TOP HEADER & METADATA                                                  */}
+      {/* 1. DIYAR HERO BANNER: ROYAL NAVY GRADIENT & SKY GLOW                      */}
       {/* ========================================================================= */}
-      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#101522] p-5 shadow-sm">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-md bg-slate-100 dark:bg-slate-800 px-2.5 py-1 text-xs font-bold text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
-                <Building2 size={13} className="text-slate-600 dark:text-slate-400" />
-                شركة فنتشر فودز لإدارة المطاعم ذ.م.م.
-              </span>
-              <span className="rounded-md bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
-                ترخيص تجاري رقم 2021/22838
-              </span>
-              <span className="rounded-md bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 text-xs font-semibold text-slate-600 dark:text-slate-400">
-                6 علامات تجارية · 9 فروع نشطة · مطبخ القرين المركزي
-              </span>
-            </div>
-            <h1 className="mt-2 text-2xl font-black text-slate-900 dark:text-white sm:text-3xl">
-              الملخص المالي والتشغيلي | شركة فنتشر فودز ذ.م.م.
-            </h1>
-            <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">
-              التقرير المحاسبي والتشغيلي المعتمد للفترة المالية المنتهية في أكتوبر 2026 — مدقق ومطابق بنسبة 100%
-            </p>
+      <div className="diyar-hero-header rounded-3xl p-8 sm:p-12 text-white relative overflow-hidden">
+        {/* Subtle Tech Grid Background Overlay */}
+        <div
+          className="absolute inset-0 opacity-[0.07] pointer-events-none"
+          style={{
+            backgroundImage: `radial-gradient(#38BDF8 1px, transparent 1px), radial-gradient(#38BDF8 1px, transparent 1px)`,
+            backgroundSize: '24px 24px',
+            backgroundPosition: '0 0, 12px 12px',
+          }}
+        />
+
+        <div className="relative z-10 max-w-4xl mx-auto text-center space-y-4">
+          <div className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 bg-white/10 backdrop-blur-md border border-white/20 text-xs font-semibold text-[#BAE6FD]">
+            <Building2 size={13} className="text-[#38BDF8]" />
+            <span>شركة فنتشر فودز لإدارة المطاعم ذ.م.م. (ترخيص 2021/22838)</span>
           </div>
 
-          {/* Date Selector Pills */}
-          <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 p-1">
+          <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight font-sans">
+            الملخص المالي والتشغيلي
+          </h1>
+
+          <p className="text-base sm:text-lg font-normal text-[#E2E8F0] max-w-2xl mx-auto leading-relaxed">
+            التقرير المالي والتشغيلي المعتمد لفترة أكتوبر 2026 — 6 علامات تجارية و9 فروع نشطة ومطبخ القرين المركزي
+          </p>
+
+          {/* Centered Pill Buttons for Period Selection */}
+          <div className="pt-2 flex flex-wrap items-center justify-center gap-2.5">
             {[
               { id: 'OCT_2026', label: 'أكتوبر 2026 (معتمد)' },
               { id: 'LAST_7D', label: 'آخر 7 أيام' },
@@ -361,10 +357,10 @@ export function AetherBiExecutiveDashboard({ locale = 'ar' }: { locale?: string 
               <button
                 key={pill.id}
                 onClick={() => setDateRange(pill.id)}
-                className={`rounded-md px-3 py-1.5 text-xs font-bold transition-all ${
+                className={`diyar-pill-btn text-xs ${
                   dateRange === pill.id
-                    ? 'bg-slate-900 text-white dark:bg-emerald-500 dark:text-black shadow-sm'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800'
+                    ? 'bg-[#1D63B8] border-white shadow-[0_0_15px_rgba(56,189,248,0.5)]'
+                    : ''
                 }`}
               >
                 {pill.label}
@@ -375,160 +371,183 @@ export function AetherBiExecutiveDashboard({ locale = 'ar' }: { locale?: string 
       </div>
 
       {/* ========================================================================= */}
-      {/* 2. PART A: KEY FINANCIAL METRICS (4 LARGE CRISP CARDS)                    */}
+      {/* 2. DIYAR 3x2 ROYAL NAVY GRADIENT CARDS GRID (3 COLS, GAP-6)               */}
       {/* ========================================================================= */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-
-        {/* Card 1: Gross Sales */}
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#101522] p-5 shadow-sm">
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-            <span className="text-xs font-bold uppercase tracking-wider">إجمالي المبيعات المعتمدة</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-              <Receipt size={16} />
-            </div>
-          </div>
-          <div className="mt-3">
-            <div className="text-2xl font-black text-slate-900 dark:text-white sm:text-3xl font-mono tracking-tight">
-              {formatKwd(TOTAL_SALES_KWD)}
-            </div>
-            <div className="mt-2 flex items-center justify-between text-xs border-t border-slate-100 dark:border-slate-800/80 pt-2 text-slate-600 dark:text-slate-400">
-              <span>الفترة: أكتوبر 2026 كاملة</span>
-              <span className="font-bold text-emerald-700 dark:text-emerald-400">+8.4% نمو دوري</span>
-            </div>
-          </div>
+      <div>
+        <div className="text-center mb-6">
+          <h2 className="text-2xl sm:text-4xl font-extrabold text-[#0B1D42] dark:text-white tracking-tight">
+            المؤشرات المالية والتشغيلية الرئيسية
+          </h2>
+          <p className="text-base font-normal text-[#334155] dark:text-[#E2E8F0] mt-1.5">
+            أرقام معتمدة مطابقة بنسبة 100% لسجلات المحاسبة والمبيعات الفعلية
+          </p>
         </div>
 
-        {/* Card 2: Net Operating Profit */}
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#101522] p-5 shadow-sm">
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-            <span className="text-xs font-bold uppercase tracking-wider">صافي الربح التشغيلي</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400">
-              <TrendingUp size={16} />
-            </div>
-          </div>
-          <div className="mt-3">
-            <div className="text-2xl font-black text-emerald-700 dark:text-emerald-400 sm:text-3xl font-mono tracking-tight">
-              {formatKwd(NET_OPERATING_PROFIT_KWD)}
-            </div>
-            <div className="mt-2 flex items-center justify-between text-xs border-t border-slate-100 dark:border-slate-800/80 pt-2 text-slate-600 dark:text-slate-400">
-              <span>هامش الربح التشغيلي:</span>
-              <span className="font-extrabold text-emerald-700 dark:text-emerald-400 font-mono">{NET_MARGIN_PCT}%</span>
-            </div>
-          </div>
-        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 
-        {/* Card 3: Food Cost (COGS) */}
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#101522] p-5 shadow-sm">
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-            <span className="text-xs font-bold uppercase tracking-wider">تكلفة الأغذية (Food Cost)</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-              <UtensilsCrossed size={16} />
+          {/* Card 1: Gross Sales */}
+          <div className="diyar-navy-card group p-7 text-center flex flex-col justify-between">
+            <div className="flex flex-col items-center">
+              <div className="flex items-center justify-center h-16 w-16 rounded-2xl bg-white/10 border border-white/15 mb-4 group-hover:scale-110 transition-transform">
+                <Receipt size={44} strokeWidth={1.75} className="text-white" />
+              </div>
+              <span className="text-sm font-semibold text-[#BAE6FD]">إجمالي المبيعات المعتمدة</span>
+              <div className="text-2xl sm:text-3xl font-extrabold text-white font-mono mt-1 tracking-tight">
+                {formatKwd(TOTAL_SALES_KWD)}
+              </div>
+            </div>
+            <div className="mt-6 pt-4 border-t border-white/15 flex items-center justify-between text-xs text-[#E2E8F0]">
+              <span>نمو دوري +8.4% · 9 فروع نشطة</span>
+              <span className="text-white font-bold group-hover:-translate-x-1.5 transition-transform inline-flex items-center gap-1">
+                تفاصيل <ArrowLeft size={14} />
+              </span>
             </div>
           </div>
-          <div className="mt-3">
-            <div className="text-2xl font-black text-slate-900 dark:text-white sm:text-3xl font-mono tracking-tight">
-              {COGS_PCT}%
+
+          {/* Card 2: Net Operating Profit */}
+          <div className="diyar-navy-card group p-7 text-center flex flex-col justify-between">
+            <div className="flex flex-col items-center">
+              <div className="flex items-center justify-center h-16 w-16 rounded-2xl bg-white/10 border border-white/15 mb-4 group-hover:scale-110 transition-transform">
+                <TrendingUp size={44} strokeWidth={1.75} className="text-white" />
+              </div>
+              <span className="text-sm font-semibold text-[#BAE6FD]">صافي الربح التشغيلي</span>
+              <div className="text-2xl sm:text-3xl font-extrabold text-white font-mono mt-1 tracking-tight">
+                {formatKwd(NET_OPERATING_PROFIT_KWD)}
+              </div>
             </div>
-            <div className="mt-2 flex items-center justify-between text-xs border-t border-slate-100 dark:border-slate-800/80 pt-2 text-slate-600 dark:text-slate-400">
+            <div className="mt-6 pt-4 border-t border-white/15 flex items-center justify-between text-xs text-[#E2E8F0]">
+              <span>هامش الربح التشغيلي: <strong>{NET_MARGIN_PCT}%</strong></span>
+              <span className="text-white font-bold group-hover:-translate-x-1.5 transition-transform inline-flex items-center gap-1">
+                تفاصيل <ArrowLeft size={14} />
+              </span>
+            </div>
+          </div>
+
+          {/* Card 3: Food Cost (COGS) */}
+          <div className="diyar-navy-card group p-7 text-center flex flex-col justify-between">
+            <div className="flex flex-col items-center">
+              <div className="flex items-center justify-center h-16 w-16 rounded-2xl bg-white/10 border border-white/15 mb-4 group-hover:scale-110 transition-transform">
+                <UtensilsCrossed size={44} strokeWidth={1.75} className="text-white" />
+              </div>
+              <span className="text-sm font-semibold text-[#BAE6FD]">تكلفة الأغذية (Food Cost)</span>
+              <div className="text-2xl sm:text-3xl font-extrabold text-white font-mono mt-1 tracking-tight">
+                {COGS_PCT}%
+              </div>
+            </div>
+            <div className="mt-6 pt-4 border-t border-white/15 flex items-center justify-between text-xs text-[#E2E8F0]">
               <span>القيمة: {formatKwd(COGS_AMOUNT_KWD)}</span>
-              <span className="font-semibold text-slate-500">ضمن المعيار (25%)</span>
+              <span className="text-white font-bold group-hover:-translate-x-1.5 transition-transform inline-flex items-center gap-1">
+                تفاصيل <ArrowLeft size={14} />
+              </span>
             </div>
           </div>
-        </div>
 
-        {/* Card 4: Orders & AOV */}
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#101522] p-5 shadow-sm">
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-            <span className="text-xs font-bold uppercase tracking-wider">إجمالي الطلبات ومتوسط السلة</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-              <ShoppingBag size={16} />
+          {/* Card 4: Orders & AOV */}
+          <div className="diyar-navy-card group p-7 text-center flex flex-col justify-between">
+            <div className="flex flex-col items-center">
+              <div className="flex items-center justify-center h-16 w-16 rounded-2xl bg-white/10 border border-white/15 mb-4 group-hover:scale-110 transition-transform">
+                <ShoppingBag size={44} strokeWidth={1.75} className="text-white" />
+              </div>
+              <span className="text-sm font-semibold text-[#BAE6FD]">إجمالي الطلبات ومتوسط السلة</span>
+              <div className="text-2xl sm:text-3xl font-extrabold text-white font-mono mt-1 tracking-tight">
+                {formatNum(TOTAL_ORDERS)} <span className="text-base font-normal text-[#BAE6FD]">طلب</span>
+              </div>
+            </div>
+            <div className="mt-6 pt-4 border-t border-white/15 flex items-center justify-between text-xs text-[#E2E8F0]">
+              <span>متوسط السلة: <strong>{formatKwd(DYNAMIC_AOV_KWD)}</strong></span>
+              <span className="text-white font-bold group-hover:-translate-x-1.5 transition-transform inline-flex items-center gap-1">
+                تفاصيل <ArrowLeft size={14} />
+              </span>
             </div>
           </div>
-          <div className="mt-3">
-            <div className="text-2xl font-black text-slate-900 dark:text-white sm:text-3xl font-mono tracking-tight">
-              {formatNum(TOTAL_ORDERS)} <span className="text-sm font-semibold text-slate-500">طلب</span>
-            </div>
-            <div className="mt-2 flex items-center justify-between text-xs border-t border-slate-100 dark:border-slate-800/80 pt-2 text-slate-600 dark:text-slate-400">
-              <span>متوسط قيمة الطلب:</span>
-              <span className="font-extrabold text-slate-900 dark:text-white font-mono">{formatKwd(DYNAMIC_AOV_KWD)}</span>
-            </div>
-          </div>
-        </div>
 
-      </div>
+          {/* Card 5: Custodies & Operating Expenses */}
+          <div className="diyar-navy-card group p-7 text-center flex flex-col justify-between">
+            <div className="flex flex-col items-center">
+              <div className="flex items-center justify-center h-16 w-16 rounded-2xl bg-white/10 border border-white/15 mb-4 group-hover:scale-110 transition-transform">
+                <Landmark size={44} strokeWidth={1.75} className="text-white" />
+              </div>
+              <span className="text-sm font-semibold text-[#BAE6FD]">العهد والمصروفات التشغيلية</span>
+              <div className="text-2xl sm:text-3xl font-extrabold text-white font-mono mt-1 tracking-tight">
+                {formatKwd(CUSTODIES_EXPENSES_KWD)}
+              </div>
+            </div>
+            <div className="mt-6 pt-4 border-t border-white/15 flex items-center justify-between text-xs text-[#E2E8F0]">
+              <span>مصروفات الفروع والصيانة والتشغيل</span>
+              <span className="text-white font-bold group-hover:-translate-x-1.5 transition-transform inline-flex items-center gap-1">
+                تفاصيل <ArrowLeft size={14} />
+              </span>
+            </div>
+          </div>
 
-      {/* P&L Breakdown Ribbon */}
-      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 p-4 text-xs font-mono">
-        <div className="flex flex-wrap items-center justify-between gap-3 text-slate-700 dark:text-slate-300">
-          <div className="flex items-center gap-1.5 font-sans font-bold text-slate-900 dark:text-white">
-            <Landmark size={14} className="text-slate-500" />
-            <span>معادلة الأرباح والخسائر الرسمية (P&L):</span>
+          {/* Card 6: Fixed Overheads, Mall Rents & Commissions */}
+          <div className="diyar-navy-card group p-7 text-center flex flex-col justify-between">
+            <div className="flex flex-col items-center">
+              <div className="flex items-center justify-center h-16 w-16 rounded-2xl bg-white/10 border border-white/15 mb-4 group-hover:scale-110 transition-transform">
+                <Building2 size={44} strokeWidth={1.75} className="text-white" />
+              </div>
+              <span className="text-sm font-semibold text-[#BAE6FD]">الرواتب والإيجارات وعمولات المنصات</span>
+              <div className="text-2xl sm:text-3xl font-extrabold text-white font-mono mt-1 tracking-tight">
+                {formatKwd(SALARIES_RENT_COMMISSIONS_KWD)}
+              </div>
+            </div>
+            <div className="mt-6 pt-4 border-t border-white/15 flex items-center justify-between text-xs text-[#E2E8F0]">
+              <span>المقتطعات الثابتة وعقود المجمعات</span>
+              <span className="text-white font-bold group-hover:-translate-x-1.5 transition-transform inline-flex items-center gap-1">
+                تفاصيل <ArrowLeft size={14} />
+              </span>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-4 text-xs">
-            <span>المبيعات: <strong>{formatKwd(TOTAL_SALES_KWD)}</strong></span>
-            <span className="text-slate-400">−</span>
-            <span>تكلفة الأغذية ({COGS_PCT}%): <strong>{formatKwd(COGS_AMOUNT_KWD)}</strong></span>
-            <span className="text-slate-400">−</span>
-            <span>العهد والمصروفات: <strong>{formatKwd(CUSTODIES_EXPENSES_KWD)}</strong></span>
-            <span className="text-slate-400">−</span>
-            <span>الرواتب والإيجارات والعمولات: <strong>{formatKwd(SALARIES_RENT_COMMISSIONS_KWD)}</strong></span>
-            <span className="text-slate-400">=</span>
-            <span className="text-emerald-700 dark:text-emerald-400 font-bold">صافي الربح: {formatKwd(NET_OPERATING_PROFIT_KWD)} ({NET_MARGIN_PCT}%)</span>
-          </div>
+
         </div>
       </div>
 
       {/* ========================================================================= */}
-      {/* 3. PART B: IMPORTANT MANAGEMENT NOTES TABLE                                */}
+      {/* 3. SECTION: IMPORTANT MANAGEMENT NOTES (CLEAN WHITE CARD CONTAINER)       */}
       {/* ========================================================================= */}
-      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#101522] shadow-sm overflow-hidden">
-        <div className="border-b border-slate-200 dark:border-slate-800 px-5 py-4 bg-slate-50/50 dark:bg-slate-900/40 flex items-center justify-between">
-          <div>
-            <h2 className="text-base font-bold text-slate-900 dark:text-white">
-              الملاحظات الإدارية الهامة
-            </h2>
-            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-              متابعة مباشرة للإجراءات والمهام المطلوبة من الإدارات والمديرين الميدانيين
-            </p>
-          </div>
-          <span className="text-xs font-semibold text-slate-500">
-            {MANAGEMENT_NOTES.length} ملاحظات نشطة
-          </span>
+      <div className="rounded-2xl border border-[#E2E8F0] dark:border-slate-800 bg-white dark:bg-[#0B1424] shadow-xl p-6 sm:p-8">
+        <div className="text-center mb-6">
+          <h2 className="text-2xl sm:text-4xl font-extrabold text-[#0B1D42] dark:text-white tracking-tight">
+            الملاحظات الإدارية الهامة
+          </h2>
+          <p className="text-base font-normal text-[#334155] dark:text-[#E2E8F0] mt-1.5 max-w-2xl mx-auto">
+            متابعة دقيقة للبند والقيمة والإجراء الإداري المطلوب من القيادات والمسؤولين الميدانيين
+          </p>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
           <table className="w-full text-xs">
             <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-100/70 dark:bg-slate-900/80 font-bold text-slate-700 dark:text-slate-300">
-                <th className="px-4 py-3 text-right">البند</th>
-                <th className="px-4 py-3 text-right">القيمة الحالية</th>
-                <th className="px-4 py-3 text-right">الملاحظة الإدارية</th>
-                <th className="px-4 py-3 text-right">الإجراء الإداري المطلوب</th>
-                <th className="px-4 py-3 text-right">المسؤول المباشر</th>
-                <th className="px-4 py-3 text-center">الأولوية</th>
+              <tr className="border-b border-slate-200 dark:border-slate-800 bg-[#0B1D42] text-white font-bold">
+                <th className="px-5 py-3.5 text-right">البند</th>
+                <th className="px-5 py-3.5 text-right font-mono">القيمة الحالية</th>
+                <th className="px-5 py-3.5 text-right">الملاحظة الإدارية</th>
+                <th className="px-5 py-3.5 text-right">الإجراء الإداري المطلوب</th>
+                <th className="px-5 py-3.5 text-right">المسؤول المباشر</th>
+                <th className="px-5 py-3.5 text-center">الأولوية</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-slate-800 dark:text-slate-200">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 text-slate-800 dark:text-slate-200">
               {MANAGEMENT_NOTES.map((note) => (
-                <tr key={note.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-900/40 transition-colors">
-                  <td className="px-4 py-3 font-bold text-slate-900 dark:text-white whitespace-nowrap">
+                <tr key={note.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/40 transition-colors">
+                  <td className="px-5 py-4 font-bold text-slate-900 dark:text-white whitespace-nowrap">
                     {note.category}
                   </td>
-                  <td className="px-4 py-3 font-mono font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                  <td className="px-5 py-4 font-mono font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap">
                     {note.currentValue}
                   </td>
-                  <td className="px-4 py-3 text-slate-700 dark:text-slate-300 max-w-xs leading-relaxed">
+                  <td className="px-5 py-4 text-slate-600 dark:text-slate-300 max-w-xs leading-relaxed">
                     {note.observation}
                   </td>
-                  <td className="px-4 py-3 text-slate-900 dark:text-slate-100 max-w-sm leading-relaxed font-semibold">
+                  <td className="px-5 py-4 text-slate-900 dark:text-slate-100 max-w-sm leading-relaxed font-semibold">
                     {note.requiredAction}
                   </td>
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400 whitespace-nowrap font-medium">
+                  <td className="px-5 py-4 text-slate-600 dark:text-slate-400 whitespace-nowrap font-medium">
                     {note.assignedTo}
                   </td>
-                  <td className="px-4 py-3 text-center whitespace-nowrap">
+                  <td className="px-5 py-4 text-center whitespace-nowrap">
                     <span
-                      className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-bold ${
+                      className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-bold ${
                         note.priority === 'عاجل'
                           ? 'bg-red-50 text-red-700 dark:bg-red-950/60 dark:text-red-400 border border-red-200 dark:border-red-900'
                           : note.priority === 'متوسطة'
@@ -547,64 +566,73 @@ export function AetherBiExecutiveDashboard({ locale = 'ar' }: { locale?: string 
       </div>
 
       {/* ========================================================================= */}
-      {/* 4. PART C: CLEAN FINANCIAL TREND CHART                                    */}
+      {/* 4. SECTION: FINANCIAL TREND DYNAMICS (CLEAN WHITE CARD CONTAINER)         */}
       {/* ========================================================================= */}
-      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#101522] p-5 shadow-sm">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-          <div>
-            <h2 className="text-base font-bold text-slate-900 dark:text-white">
-              تطور المبيعات وصافي الربح وتكلفة الأغذية
-            </h2>
-            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-              تحليل أسبوعي تراكمي خلال شهر أكتوبر 2026 (جميع القيم بالدينار الكويتي د.ك)
-            </p>
-          </div>
-          <div className="flex items-center gap-4 text-xs font-semibold">
-            <span className="flex items-center gap-1.5">
-              <span className="h-3 w-3 rounded-sm bg-slate-800 dark:bg-slate-300"></span>
-              المبيعات
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-3 w-3 rounded-sm bg-emerald-600 dark:bg-emerald-400"></span>
-              صافي الربح
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-3 w-3 rounded-sm bg-amber-500"></span>
-              تكلفة الأغذية
-            </span>
-          </div>
+      <div className="rounded-2xl border border-[#E2E8F0] dark:border-slate-800 bg-white dark:bg-[#0B1424] shadow-xl p-6 sm:p-8">
+        <div className="text-center mb-6">
+          <h2 className="text-2xl sm:text-4xl font-extrabold text-[#0B1D42] dark:text-white tracking-tight">
+            تطور الإيرادات وصافي الأرباح
+          </h2>
+          <p className="text-base font-normal text-[#334155] dark:text-[#E2E8F0] mt-1.5 max-w-2xl mx-auto">
+            مؤشرات الأداء الأسبوعية لشهر أكتوبر 2026 بالدينار الكويتي (د.ك)
+          </p>
         </div>
 
-        {/* Clean Weekly Bars Matrix */}
-        <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Legend */}
+        <div className="flex items-center justify-center gap-6 mb-6 text-xs font-bold">
+          <span className="flex items-center gap-2 text-slate-800 dark:text-slate-200">
+            <span className="h-3.5 w-3.5 rounded-sm bg-[#1E3A8A]"></span>
+            المبيعات المعتمدة
+          </span>
+          <span className="flex items-center gap-2 text-slate-800 dark:text-slate-200">
+            <span className="h-3.5 w-3.5 rounded-sm bg-[#10B981]"></span>
+            صافي الربح التشغيلي
+          </span>
+          <span className="flex items-center gap-2 text-slate-800 dark:text-slate-200">
+            <span className="h-3.5 w-3.5 rounded-sm bg-[#00A8E8]"></span>
+            تكلفة الأغذية (COGS)
+          </span>
+        </div>
+
+        {/* 4 Weekly Trend Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {WEEKLY_TREND.map((item, idx) => (
-            <div key={idx} className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/50 p-4">
-              <div className="text-xs font-bold text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-800 pb-2">
+            <div
+              key={idx}
+              className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/60 p-5 shadow-sm hover:border-[#38BDF8] transition-colors"
+            >
+              <div className="text-xs font-extrabold text-[#0B1D42] dark:text-white border-b border-slate-200 dark:border-slate-800 pb-2.5">
                 {item.weekAr}
               </div>
-              <div className="mt-3 space-y-2.5 text-xs">
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-500 dark:text-slate-400">المبيعات:</span>
-                  <span className="font-mono font-bold text-slate-900 dark:text-white">{formatKwd(item.sales)}</span>
-                </div>
-                <div className="w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
-                  <div className="bg-slate-800 dark:bg-slate-300 h-full rounded-full" style={{ width: '100%' }}></div>
-                </div>
-
-                <div className="flex items-center justify-between pt-1">
-                  <span className="text-slate-500 dark:text-slate-400">صافي الربح ({item.margin}%):</span>
-                  <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400">{formatKwd(item.profit)}</span>
-                </div>
-                <div className="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                  <div className="bg-emerald-600 dark:bg-emerald-400 h-full rounded-full" style={{ width: `${item.margin}%` }}></div>
+              <div className="mt-3.5 space-y-3 text-xs">
+                <div>
+                  <div className="flex items-center justify-between text-slate-600 dark:text-slate-400 mb-1">
+                    <span>المبيعات:</span>
+                    <span className="font-mono font-bold text-slate-900 dark:text-white">{formatKwd(item.sales)}</span>
+                  </div>
+                  <div className="w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                    <div className="bg-[#1E3A8A] h-full rounded-full" style={{ width: '100%' }}></div>
+                  </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-1">
-                  <span className="text-slate-500 dark:text-slate-400">تكلفة الأغذية:</span>
-                  <span className="font-mono font-bold text-amber-700 dark:text-amber-400">{formatKwd(item.cogs)}</span>
+                <div>
+                  <div className="flex items-center justify-between text-slate-600 dark:text-slate-400 mb-1">
+                    <span>صافي الربح ({item.margin}%):</span>
+                    <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400">{formatKwd(item.profit)}</span>
+                  </div>
+                  <div className="w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                    <div className="bg-[#10B981] h-full rounded-full" style={{ width: `${item.margin}%` }}></div>
+                  </div>
                 </div>
-                <div className="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                  <div className="bg-amber-500 h-full rounded-full" style={{ width: '24.8%' }}></div>
+
+                <div>
+                  <div className="flex items-center justify-between text-slate-600 dark:text-slate-400 mb-1">
+                    <span>تكلفة الأغذية (24.8%):</span>
+                    <span className="font-mono font-bold text-[#00A8E8]">{formatKwd(item.cogs)}</span>
+                  </div>
+                  <div className="w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                    <div className="bg-[#00A8E8] h-full rounded-full" style={{ width: '24.8%' }}></div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -613,37 +641,35 @@ export function AetherBiExecutiveDashboard({ locale = 'ar' }: { locale?: string 
       </div>
 
       {/* ========================================================================= */}
-      {/* 5. PART D: STORE & BRAND PERFORMANCE MATRIX (FORMAL ACCOUNTING LEDGER)     */}
+      {/* 5. SECTION: STORE & BRAND PERFORMANCE MATRIX (FORMAL ACCOUNTING LEDGER)   */}
       {/* ========================================================================= */}
-      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#101522] shadow-sm overflow-hidden">
-        <div className="border-b border-slate-200 dark:border-slate-800 px-5 py-4 bg-slate-50/50 dark:bg-slate-900/40 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-base font-bold text-slate-900 dark:text-white">
-              أداء الفروع والعلامات التجارية
-            </h2>
-            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-              بيان تفصيلي محاسبي لمبيعات ومصاريف وأرباح الفروع الـ 9 والعلامات الـ 6
-            </p>
-          </div>
+      <div className="rounded-2xl border border-[#E2E8F0] dark:border-slate-800 bg-white dark:bg-[#0B1424] shadow-xl p-6 sm:p-8">
+        <div className="text-center mb-6">
+          <h2 className="text-2xl sm:text-4xl font-extrabold text-[#0B1D42] dark:text-white tracking-tight">
+            أداء الفروع والعلامات التجارية
+          </h2>
+          <p className="text-base font-normal text-[#334155] dark:text-[#E2E8F0] mt-1.5 max-w-2xl mx-auto">
+            بيان تحليلي محاسبي موحد لمبيعات ومصاريف وأرباح الفروع الـ 9 والعلامات الـ 6
+          </p>
 
-          {/* Sub-tabs: Branches vs Brands */}
-          <div className="flex items-center gap-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 p-1">
+          {/* Centered Pill Sub-tabs */}
+          <div className="pt-4 flex items-center justify-center gap-3">
             <button
               onClick={() => setActiveTab('branches')}
-              className={`rounded-md px-3 py-1.5 text-xs font-bold transition-all ${
+              className={`diyar-pill-btn text-xs ${
                 activeTab === 'branches'
-                  ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  ? 'bg-[#1D63B8] border-white shadow-[0_0_15px_rgba(56,189,248,0.5)]'
+                  : 'bg-[#0A1938] opacity-80'
               }`}
             >
               أداء الفروع الـ 9 الرسمية
             </button>
             <button
               onClick={() => setActiveTab('brands')}
-              className={`rounded-md px-3 py-1.5 text-xs font-bold transition-all ${
+              className={`diyar-pill-btn text-xs ${
                 activeTab === 'brands'
-                  ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  ? 'bg-[#1D63B8] border-white shadow-[0_0_15px_rgba(56,189,248,0.5)]'
+                  : 'bg-[#0A1938] opacity-80'
               }`}
             >
               أداء العلامات الـ 6 الرسمية
@@ -653,25 +679,25 @@ export function AetherBiExecutiveDashboard({ locale = 'ar' }: { locale?: string 
 
         {/* Tab 1: 9 Active Branches Ledger */}
         {activeTab === 'branches' && (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
             <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-100/70 dark:bg-slate-900/80 font-bold text-slate-700 dark:text-slate-300">
-                  <th className="px-4 py-3 text-right">كود الفرع</th>
-                  <th className="px-4 py-3 text-right">الفرع / الموقع الرسمي</th>
-                  <th className="px-4 py-3 text-right font-mono">المبيعات المعتمدة (د.ك)</th>
-                  <th className="px-4 py-3 text-center">عدد الطلبات</th>
-                  <th className="px-4 py-3 text-right font-mono">متوسط السلة (د.ك)</th>
-                  <th className="px-4 py-3 text-right font-mono">المصاريف التشغيلية (د.ك)</th>
-                  <th className="px-4 py-3 text-right font-mono">صافي الربح (د.ك)</th>
-                  <th className="px-4 py-3 text-center">هامش الربح (%)</th>
-                  <th className="px-4 py-3 text-center">الحالة</th>
+                <tr className="border-b border-slate-200 dark:border-slate-800 bg-[#0B1D42] text-white font-bold">
+                  <th className="px-4 py-3.5 text-right font-mono">الكود</th>
+                  <th className="px-4 py-3.5 text-right">الفرع / الموقع الرسمي</th>
+                  <th className="px-4 py-3.5 text-right font-mono">المبيعات المعتمدة (د.ك)</th>
+                  <th className="px-4 py-3.5 text-center">الطلبات</th>
+                  <th className="px-4 py-3.5 text-right font-mono">متوسط السلة</th>
+                  <th className="px-4 py-3.5 text-right font-mono">المصاريف التشغيلية</th>
+                  <th className="px-4 py-3.5 text-right font-mono">صافي الربح (د.ك)</th>
+                  <th className="px-4 py-3.5 text-center">هامش الربح</th>
+                  <th className="px-4 py-3.5 text-center">الحالة</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-slate-800 dark:text-slate-200">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 text-slate-800 dark:text-slate-200">
                 {BRANCHES_DATA.map((branch) => (
-                  <tr key={branch.code} className="hover:bg-slate-50/60 dark:hover:bg-slate-900/40 transition-colors">
-                    <td className="px-4 py-3 font-mono text-slate-500 font-bold whitespace-nowrap">
+                  <tr key={branch.code} className="hover:bg-slate-50 dark:hover:bg-slate-900/40 transition-colors">
+                    <td className="px-4 py-3 font-mono font-bold text-slate-500 whitespace-nowrap">
                       {branch.code}
                     </td>
                     <td className="px-4 py-3 font-bold text-slate-900 dark:text-white whitespace-nowrap">
@@ -697,7 +723,7 @@ export function AetherBiExecutiveDashboard({ locale = 'ar' }: { locale?: string 
                     </td>
                     <td className="px-4 py-3 text-center whitespace-nowrap">
                       <span
-                        className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-bold ${
+                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
                           branch.status === 'ممتاز'
                             ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
                             : branch.status === 'مطابق للموازنة'
@@ -717,9 +743,7 @@ export function AetherBiExecutiveDashboard({ locale = 'ar' }: { locale?: string 
                   <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">
                     مطبخ القرين المركزي (إمداد وتجهيز الفروع الـ 9)
                   </td>
-                  <td className="px-4 py-3 font-mono text-right text-slate-600 dark:text-slate-400">
-                    — (توريد داخلي)
-                  </td>
+                  <td className="px-4 py-3 font-mono text-right text-slate-500">— (توريد داخلي)</td>
                   <td className="px-4 py-3 text-center font-mono">364 أمر تزويد</td>
                   <td className="px-4 py-3 font-mono text-right text-slate-500">—</td>
                   <td className="px-4 py-3 font-mono text-right text-slate-700 dark:text-slate-300">
@@ -728,19 +752,19 @@ export function AetherBiExecutiveDashboard({ locale = 'ar' }: { locale?: string 
                   <td className="px-4 py-3 font-mono text-right text-slate-500">—</td>
                   <td className="px-4 py-3 text-center font-mono">97.2% التزام</td>
                   <td className="px-4 py-3 text-center">
-                    <span className="inline-flex items-center rounded-md bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 text-[11px] font-bold text-emerald-800 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                    <span className="inline-flex items-center rounded-full bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-0.5 text-[10px] font-bold text-emerald-800 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
                       تشغيل كامل 100%
                     </span>
                   </td>
                 </tr>
 
                 {/* Grand Total Row */}
-                <tr className="bg-slate-900 text-white dark:bg-slate-950 font-bold border-t-2 border-slate-900 dark:border-emerald-500">
+                <tr className="bg-[#0B1D42] text-white font-bold border-t-2 border-[#38BDF8]">
                   <td className="px-4 py-3 text-center font-mono">TOTAL</td>
                   <td className="px-4 py-3 font-black text-sm">
                     الإجمالي العام المعتمد (9 فروع نشطة)
                   </td>
-                  <td className="px-4 py-3 font-mono font-black text-sm text-right text-emerald-400">
+                  <td className="px-4 py-3 font-mono font-black text-sm text-right text-[#38BDF8]">
                     {formatKwd(TOTAL_SALES_KWD)}
                   </td>
                   <td className="px-4 py-3 text-center font-mono font-black text-sm">
@@ -759,7 +783,7 @@ export function AetherBiExecutiveDashboard({ locale = 'ar' }: { locale?: string 
                     {NET_MARGIN_PCT}%
                   </td>
                   <td className="px-4 py-3 text-center text-xs text-emerald-400 font-bold">
-                    معتمد ومطابق 100%
+                    معتمد 100%
                   </td>
                 </tr>
               </tbody>
@@ -769,23 +793,23 @@ export function AetherBiExecutiveDashboard({ locale = 'ar' }: { locale?: string 
 
         {/* Tab 2: 6 Brands Ledger */}
         {activeTab === 'brands' && (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
             <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-100/70 dark:bg-slate-900/80 font-bold text-slate-700 dark:text-slate-300">
-                  <th className="px-4 py-3 text-right">العلامة التجارية</th>
-                  <th className="px-4 py-3 text-right font-mono">المبيعات المعتمدة (د.ك)</th>
-                  <th className="px-4 py-3 text-center">عدد الطلبات</th>
-                  <th className="px-4 py-3 text-right font-mono">متوسط السلة (د.ك)</th>
-                  <th className="px-4 py-3 text-center">نسبة تكلفة الأغذية (%)</th>
-                  <th className="px-4 py-3 text-right font-mono">تكلفة الأغذية (د.ك)</th>
-                  <th className="px-4 py-3 text-right font-mono">صافي الربح التقديري (د.ك)</th>
-                  <th className="px-4 py-3 text-center">هامش الربح (%)</th>
+                <tr className="border-b border-slate-200 dark:border-slate-800 bg-[#0B1D42] text-white font-bold">
+                  <th className="px-4 py-3.5 text-right">العلامة التجارية</th>
+                  <th className="px-4 py-3.5 text-right font-mono">المبيعات المعتمدة (د.ك)</th>
+                  <th className="px-4 py-3.5 text-center">عدد الطلبات</th>
+                  <th className="px-4 py-3.5 text-right font-mono">متوسط السلة</th>
+                  <th className="px-4 py-3.5 text-center">نسبة تكلفة الأغذية</th>
+                  <th className="px-4 py-3.5 text-right font-mono">تكلفة الأغذية (د.ك)</th>
+                  <th className="px-4 py-3.5 text-right font-mono">صافي الربح التقديري</th>
+                  <th className="px-4 py-3.5 text-center">هامش الربح (%)</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-slate-800 dark:text-slate-200">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 text-slate-800 dark:text-slate-200">
                 {BRANDS_DATA.map((brand) => (
-                  <tr key={brand.nameAr} className="hover:bg-slate-50/60 dark:hover:bg-slate-900/40 transition-colors">
+                  <tr key={brand.nameAr} className="hover:bg-slate-50 dark:hover:bg-slate-900/40 transition-colors">
                     <td className="px-4 py-3 font-bold text-slate-900 dark:text-white whitespace-nowrap">
                       {brand.nameAr} <span className="font-normal text-slate-400 text-[11px]">({brand.nameEn})</span>
                     </td>
@@ -814,11 +838,11 @@ export function AetherBiExecutiveDashboard({ locale = 'ar' }: { locale?: string 
                 ))}
 
                 {/* Brands Grand Total Row */}
-                <tr className="bg-slate-900 text-white dark:bg-slate-950 font-bold border-t-2 border-slate-900 dark:border-emerald-500">
+                <tr className="bg-[#0B1D42] text-white font-bold border-t-2 border-[#38BDF8]">
                   <td className="px-4 py-3 font-black text-sm">
                     إجمالي العلامات التجارية (6 براندات)
                   </td>
-                  <td className="px-4 py-3 font-mono font-black text-sm text-right text-emerald-400">
+                  <td className="px-4 py-3 font-mono font-black text-sm text-right text-[#38BDF8]">
                     {formatKwd(TOTAL_SALES_KWD)}
                   </td>
                   <td className="px-4 py-3 text-center font-mono font-black text-sm">

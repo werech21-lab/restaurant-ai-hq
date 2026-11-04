@@ -44,7 +44,7 @@ export async function Shell({ children }: { children: React.ReactNode }) {
           plus explicit LTR/RTL physical fallbacks so content never slides under the rail.
         */}
         <div className="app-content min-h-screen w-full md:ps-64 ltr:md:pl-64 rtl:md:pl-0 rtl:md:pr-64">
-          <header className="no-print sticky top-0 z-40 overflow-visible border-b border-gold-300/15 bg-ink-950/90 backdrop-blur">
+          <header className="no-print sticky top-0 z-40 overflow-visible border-b-2 border-[#00A8E8]/40 bg-gradient-to-r from-[#040B1C] to-[#0B1D42] text-white shadow-[0_4px_25px_rgba(0,168,232,0.18)] backdrop-blur">
             <PanelHeaderBar
               companyNameAr={company.name}
               notifications={
@@ -67,7 +67,7 @@ export async function Shell({ children }: { children: React.ReactNode }) {
               }
             />
           </header>
-          <main className="w-full max-w-none px-4 py-6 text-mist-100 sm:px-6 lg:px-8">{children}</main>
+          <main className="w-full max-w-none diyar-glow-container min-h-screen px-4 py-6 text-slate-900 dark:text-slate-100 sm:px-6 lg:px-8">{children}</main>
         </div>
         <AssistantWidget />
       </div>

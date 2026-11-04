@@ -5,9 +5,24 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
+        sans: ['var(--font-cairo)', 'var(--font-poppins)', 'Cairo', 'Poppins', 'sans-serif'],
         cairo: ['var(--font-cairo)', 'Cairo', 'sans-serif'],
+        poppins: ['var(--font-poppins)', 'Poppins', 'sans-serif'],
+        mono: ['var(--font-poppins)', 'monospace'],
       },
       colors: {
+        diyar: {
+          navyDark: '#040B1C',
+          navyDeep: '#0B1D42',
+          navyCard: '#0F2356',
+          navyBottom: '#07112B',
+          royalBlue: '#1E3A8A',
+          royalLight: '#1D63B8',
+          skyGlow: '#00A8E8',
+          skyLight: '#38BDF8',
+          skyIce: '#BAE6FD',
+          skyPale: '#E0F2FE',
+        },
         ink: {
           950: 'rgb(var(--ink-950) / <alpha-value>)',
           900: 'rgb(var(--ink-900) / <alpha-value>)',

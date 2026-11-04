@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { cookies } from 'next/headers'
-import { Cairo } from 'next/font/google'
+import { Cairo, Poppins } from 'next/font/google'
 import { GlobalAutoTranslator } from '@/components/GlobalAutoTranslator'
 import { MobileBottomNav } from '@/components/mobile-bottom-nav'
 import { PwaRegister } from '@/components/pwa-register'
@@ -12,6 +12,14 @@ const cairo = Cairo({
   subsets: ['arabic', 'latin'],
   display: 'swap',
   variable: '--font-cairo',
+  weight: ['400', '500', '600', '700', '800', '900'],
+})
+
+const poppins = Poppins({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-poppins',
+  weight: ['400', '500', '600', '700', '800', '900'],
 })
 
 export const metadata: Metadata = {
@@ -52,7 +60,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       lang={locale}
       dir={locale === 'en' ? 'ltr' : 'rtl'}
       data-theme={theme}
-      className={`${cairo.variable} ${theme === 'light' ? 'light light-mode' : 'dark'}`}
+      className={`${cairo.variable} ${poppins.variable} font-sans ${theme === 'light' ? 'light light-mode' : 'dark'}`}
       suppressHydrationWarning
     >
       <head>
