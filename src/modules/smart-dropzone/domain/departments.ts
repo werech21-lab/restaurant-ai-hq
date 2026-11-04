@@ -18,13 +18,13 @@ export const SMART_DROPZONE_DEPT_CARDS: Array<{
   ar: string
   en: string
 }> = [
-  { key: 'hr', icon: '👥', ar: 'الموارد البشرية والإقامات (HR)', en: 'HR & Residencies' },
-  { key: 'accounting', icon: '💰', ar: 'المحاسبة والبنوك (Accounting)', en: 'Accounting & Banks' },
-  { key: 'purchases', icon: '🛒', ar: 'المشتريات والموردين (Purchases)', en: 'Purchases & Vendors' },
-  { key: 'inventory_recipes', icon: '🍲', ar: 'الوصفات والمخزون والمنيو', en: 'Recipes & Inventory' },
-  { key: 'sales_aggregators', icon: '🛵', ar: 'المبيعات ومنصات التوصيل', en: 'Sales & Aggregators' },
-  { key: 'governance', icon: '⚖️', ar: 'التراخيص والشؤون القانونية', en: 'Licenses & Legal' },
-  { key: 'crm_catering', icon: '🤝', ar: 'الكاترينج والعملاء (CRM)', en: 'CRM & Catering' },
+  { key: 'hr', icon: '👥', ar: 'الموارد البشرية وشؤون العاملين والإقامات', en: 'HR & Residencies' },
+  { key: 'accounting', icon: '💰', ar: 'المحاسبة والمالية والقيود والبنوك', en: 'Accounting & Banks' },
+  { key: 'purchases', icon: '🛒', ar: 'المشتريات والموردين وفواتير الشراء', en: 'Purchases & Vendors' },
+  { key: 'inventory_recipes', icon: '🍲', ar: 'الوصفات وتكاليف الطعام والمخزون', en: 'Recipes & Inventory' },
+  { key: 'sales_aggregators', icon: '🛵', ar: 'المبيعات وتطبيقات التوصيل والعمولات', en: 'Sales & Aggregators' },
+  { key: 'governance', icon: '⚖️', ar: 'التراخيص والحوكمة والشؤون القانونية', en: 'Licenses & Legal' },
+  { key: 'crm_catering', icon: '🤝', ar: 'علاقات العملاء والكاترينج والشركات', en: 'CRM & Catering' },
 ]
 
 export function emptySmartDropzoneCounters(): Record<SmartDropzoneDepartment, number> {

@@ -503,7 +503,7 @@ export default function SmartDropzonePortal() {
   const pct = progress.total > 0 ? Math.min(100, Math.round((progress.done / progress.total) * 100)) : 0
 
   return (
-    <div className="space-y-6 text-mist-100" dir={en ? 'ltr' : 'rtl'} data-no-translate="">
+    <div className="w-full max-w-none space-y-6 text-mist-100" dir={en ? 'ltr' : 'rtl'} data-no-translate="">
       <header className="space-y-2">
         <p className="text-xs font-bold uppercase tracking-[0.16em] text-gold-300/80">
           AetherBI · Venture Foods
@@ -565,7 +565,7 @@ export default function SmartDropzonePortal() {
         <p className="mt-2 text-sm text-mist-300">
           {en
             ? 'Instant auto-start upon selection · Local in-browser reader (PDF · Excel · Word · CSV · Images) · 99% bandwidth saved'
-            : 'يبدأ الفرز تلقائياً فور اختيار الملفات · قراءة محلية داخل المتصفح (PDF · Excel · Word · CSV · صور) بدون استهلاك الإنترنت'}
+            : 'يبدأ الفرز والتحليل تلقائياً فور اختيار الملفات · قراءة محلية داخل المتصفح فائقة السرعة بدون استهلاك الإنترنت'}
         </p>
 
         <div className="mt-6 flex flex-col items-center justify-center gap-4 sm:flex-row">
