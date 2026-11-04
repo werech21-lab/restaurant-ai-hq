@@ -54,6 +54,7 @@ const SIDEBAR_SECTIONS: NavSection[] = [
       { key: 'sales', href: '/sales', labelAr: 'المبيعات وتطبيقات التوصيل', labelEn: 'Sales & Delivery Channels', icon: Receipt },
       { key: 'accounting', href: '/accounting', labelAr: 'المصاريف والعهد والحسابات', labelEn: 'Expenses, Custody & Accounts', icon: Landmark },
       { key: 'reports', href: '/reports', labelAr: 'التقارير المالية', labelEn: 'Financial Reports', icon: BarChart3 },
+      { key: 'sales-scorecard', href: '/erp/sales-scorecard', labelAr: 'التحليل التفصيلي للمبيعات والأصناف', labelEn: 'Sales & Items Scorecard', icon: FileText },
     ],
   },
   {
