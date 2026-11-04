@@ -399,9 +399,9 @@ export const ODOO_CUSTODIANS_7: OdooCustodian[] = [
     statusEn: 'Audited & Reconciled',
   },
   {
-    id: 'gerlene',
-    nameAr: 'جيرلين لوجويا ليباندو',
-    nameEn: 'Gerlene Logoya Libando',
+    id: 'shyam',
+    nameAr: 'شيام — عهدة الموارد البشرية والشؤون الإدارية (سابقاً: جيرلين)',
+    nameEn: 'Shyam — HR & Admin Petty Cash (Prev: Jerrelyn)',
     roleAr: 'عهدة الموارد البشرية والشؤون الإدارية والتنقلات',
     roleEn: 'HR, Admin Office & Staff Welfare Custody',
     txCount: 713,

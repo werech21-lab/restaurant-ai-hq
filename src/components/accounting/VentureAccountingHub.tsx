@@ -501,7 +501,7 @@ export function VentureAccountingHub({
 
               <div className="rounded-2xl border border-purple-500/30 bg-purple-950/20 p-4 space-y-1">
                 <span className="text-[11px] font-bold text-purple-400 uppercase tracking-wider">
-                  {isAr ? 'الموارد البشرية والإدارية (جيرلين)' : 'HR & Admin (Gerlene)'}
+                  {isAr ? 'الموارد البشرية والإدارية (شيام)' : 'HR & Admin (Shyam)'}
                 </span>
                 <p className="text-xl font-black text-white font-mono">7,053.980 {isAr ? 'د.ك' : 'KWD'}</p>
                 <div className="flex items-center justify-between text-[11px] text-slate-400">

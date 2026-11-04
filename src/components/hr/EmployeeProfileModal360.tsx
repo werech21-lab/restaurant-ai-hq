@@ -548,12 +548,20 @@ export function EmployeeProfileModal360({ employee, isOpen, onClose, locale }: P
                       <span className="font-bold text-amber-200">{isArabic ? employee.managerNameAr : employee.managerNameEn}</span>
                     </div>
                     <div className="flex justify-between border-b border-white/5 pb-1.5">
+                      <span className="text-mist-400">{en ? 'Custody & Time Off Approver:' : 'مسؤول اعتماد العهد والإجازات:'}</span>
+                      <span className="font-bold text-emerald-400">
+                        {en ? 'Shyam - HR & Admin' : 'شيام (قسم الموارد البشرية والشؤون الإدارية)'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between border-b border-white/5 pb-1.5">
                       <span className="text-mist-400">{en ? 'Expense & Petty Cash Approver:' : 'معتمد المصروفات والنثريات:'}</span>
                       <span className="font-bold text-white">أحمد عصام الإبراهيم (CEO)</span>
                     </div>
                     <div className="flex justify-between border-b border-white/5 pb-1.5">
                       <span className="text-mist-400">{en ? 'Leaves & Vacation Approver:' : 'معتمد الإجازات وتذاكر السفر:'}</span>
-                      <span className="font-bold text-white">شيم حكمت الجاسم (HR Manager)</span>
+                      <span className="font-bold text-white">
+                        {en ? 'Shyam - HR & Admin' : 'شيام (قسم الموارد البشرية والشؤون الإدارية)'}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-mist-400">{en ? 'WPS Payroll Authorization:' : 'اعتماد تحويل الرواتب WPS:'}</span>

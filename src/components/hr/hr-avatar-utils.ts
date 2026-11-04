@@ -70,7 +70,7 @@ const FLAGSHIP_PORTRAITS: Record<string, string> = {
   'VF106': 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=300&h=300&fit=crop&crop=face&q=80',
   // 1715: Amgad Samir (GRO / Mandoob)
   '1715': 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=300&h=300&fit=crop&crop=face&q=80',
-  // 2112: Sheyam Hekmat (HR & Admin Manager)
+  // 2112: Shyam (HR & Admin)
   '2112': 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=300&h=300&fit=crop&crop=face&q=80',
   // 2113: Zahraa Ali (HR Assistant)
   '2113': 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=300&h=300&fit=crop&crop=face&q=80',
