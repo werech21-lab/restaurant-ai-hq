@@ -350,7 +350,7 @@ export const ENTERPRISE_DEPARTMENTS: EnterpriseDepartmentDef[] = [
         breakdown: [
           { labelAr: 'سند للتعقيب والخدمات الحكومية', labelEn: 'Sanad PRO Services', value: 31646.75, percent: 61.86, color: '#3b82f6' },
           { labelAr: 'ربيع عطا طه (صيانة المطابخ ومخيم السفير)', labelEn: 'Rabih Atta Taha (Maintenance & Safir)', value: 10899.72, percent: 21.31, color: '#f59e0b' },
-          { labelAr: 'شيام — عهدة الموارد البشرية والشؤون الإدارية (سابقاً: جيرلين)', labelEn: 'Shyam — HR & Admin (Prev: Jerrelyn)', value: 7053.98, percent: 13.79, color: '#8b5cf6' },
+          { labelAr: 'شيام — عهدة الموارد البشرية والشؤون الإدارية', labelEn: 'Shyam — HR & Admin', value: 7053.98, percent: 13.79, color: '#8b5cf6' },
           { labelAr: 'أمجد سمير جرجس ميخائيل (المرور والرخص)', labelEn: 'Amjad Samir (Traffic & Licensing)', value: 1389.0, percent: 2.72, color: '#ef4444' },
           { labelAr: 'باقي العهد التشغيلية (راشد، شكرالله، توشار)', labelEn: 'Other Field Custodians', value: 165.5, percent: 0.32, color: '#10b981' },
         ],

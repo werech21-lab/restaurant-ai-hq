@@ -11,7 +11,7 @@ import { ensureComplianceBaselines } from "@/services/hr-compliance.service";
 import { EnterpriseHrCommandHub } from "@/components/hr/EnterpriseHrCommandHub";
 import { VENTURE_EMPLOYEES } from "@/components/hr/venture-employees-directory";
 
-export const metadata = { title: "Enterprise HRMS & Overseas Recruitment | AetherBI ERP" };
+export const metadata = { title: "الموارد البشرية وشؤون العاملين | شركة فنتشر فودز ذ.م.م." };
 
 async function HrContent({ searchParams }: { searchParams: Promise<RawQuery> }) {
   await connection();
@@ -96,7 +96,7 @@ async function HrContent({ searchParams }: { searchParams: Promise<RawQuery> }) 
   }));
 
   return (
-    <div style={{ background: "#0a0d12" }} className="min-h-screen">
+    <div style={{ background: "#0a0d12" }} className="w-full max-w-none min-h-screen">
       <EnterpriseHrCommandHub
         locale={locale}
         initialTab={query.tab}

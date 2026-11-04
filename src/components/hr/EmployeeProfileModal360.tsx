@@ -555,7 +555,7 @@ export function EmployeeProfileModal360({ employee, isOpen, onClose, locale }: P
                     </div>
                     <div className="flex justify-between border-b border-white/5 pb-1.5">
                       <span className="text-mist-400">{en ? 'Expense & Petty Cash Approver:' : 'معتمد المصروفات والنثريات:'}</span>
-                      <span className="font-bold text-white">أحمد عصام الإبراهيم (CEO)</span>
+                      <span className="font-bold text-white">أحمد عصام الإبراهيم (الرئيس التنفيذي)</span>
                     </div>
                     <div className="flex justify-between border-b border-white/5 pb-1.5">
                       <span className="text-mist-400">{en ? 'Leaves & Vacation Approver:' : 'معتمد الإجازات وتذاكر السفر:'}</span>
@@ -564,8 +564,8 @@ export function EmployeeProfileModal360({ employee, isOpen, onClose, locale }: P
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-mist-400">{en ? 'WPS Payroll Authorization:' : 'اعتماد تحويل الرواتب WPS:'}</span>
-                      <span className="font-bold text-emerald-300">هاني فيليب خليل (CFO)</span>
+                      <span className="text-mist-400">{en ? 'WPS Payroll Authorization:' : 'اعتماد تحويل الرواتب (نظام حماية الأجور):'}</span>
+                      <span className="font-bold text-emerald-300">هاني فيليب خليل (المدير المالي التنفيذي)</span>
                     </div>
                   </div>
                 </div>

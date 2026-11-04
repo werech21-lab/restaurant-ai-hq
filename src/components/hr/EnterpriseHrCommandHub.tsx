@@ -450,7 +450,7 @@ export function EnterpriseHrCommandHub({
   const totalPamVacancies = Math.max(0, totalPamCeiling - totalPamRegistered)
 
   return (
-    <div className="space-y-6 text-mist-100" dir={en ? 'ltr' : 'rtl'} style={{ background: '#0a0d12' }}>
+    <div className="w-full max-w-none space-y-6 text-mist-100" dir={en ? 'ltr' : 'rtl'} style={{ background: '#0a0d12' }}>
       {/* Executive Top Header */}
       <header className="rounded-3xl border border-white/10 bg-gradient-to-br from-[#121824] via-[#0d1118] to-[#0a0d12] p-6 shadow-xl">
         <div className="flex flex-wrap items-start justify-between gap-4">
@@ -463,7 +463,7 @@ export function EnterpriseHrCommandHub({
             <h1 className="text-2xl font-black text-white sm:text-3xl">
               {en
                 ? '🏛️ Enterprise HRMS & Overseas Recruitment Command Center'
-                : '🏛️ منظومة الموارد البشرية والاستقدام الخارجي المتكاملة (Enterprise HRMS)'}
+                : '🏛️ منظومة الموارد البشرية والقوى العاملة والاتفاقيات (شركة فنتشر فودز ذ.م.م.)'}
             </h1>
             <p className="max-w-3xl text-xs sm:text-sm text-mist-300">
               {en
@@ -478,7 +478,7 @@ export function EnterpriseHrCommandHub({
               onClick={() => setWizardOpen(true)}
               className="rounded-2xl bg-gradient-to-l from-[#8cc63f] to-[#10b981] px-5 py-3 text-xs sm:text-sm font-black text-ink-950 shadow-lg hover:brightness-110"
             >
-              {en ? '➕ New Employee Wizard (4 Steps)' : '➕ إنشاء موظف جديد (New Employee Wizard)'}
+              {en ? '➕ New Employee Wizard (4 Steps)' : '➕ إضافة موظف جديد (المعالج الذكي)'}
             </button>
             <button
               type="button"
@@ -492,7 +492,7 @@ export function EnterpriseHrCommandHub({
                   : 'جارٍ الإرسال…'
                 : en
                   ? '🔔 Alert 3 Approved + HR Manager (Sheyam)'
-                  : '🔔 إرسال تنبيه الإقامات والوصول للثلاثة المعتمدين + مديرة الـ HR'}
+                  : '🔔 إرسال تنبيه الإقامات والوصول للمسؤولين المعتمدين + مسؤولة الموارد البشرية (شيام)'}
             </button>
             <a
               href="/hr/smart-folder-upload"
@@ -504,7 +504,7 @@ export function EnterpriseHrCommandHub({
               href="/ess"
               className="rounded-2xl border border-white/15 bg-[#11161f] px-4 py-3 text-xs font-bold text-mist-100 hover:border-white/30"
             >
-              {en ? '📱 Employee Self-Service (/ess)' : '📱 بوابة الموظف الذاتية (/ess)'}
+              {en ? '📱 Employee Self-Service (/ess)' : '📱 بوابة الخدمة الذاتية للموظفين'}
             </a>
           </div>
         </div>
@@ -561,7 +561,7 @@ export function EnterpriseHrCommandHub({
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <article className="rounded-2xl border border-white/10 bg-[#0f141c] p-4">
               <p className="text-xs text-mist-400">
-                {en ? 'Total Registered Employees (Odoo Sync)' : 'إجمالي الموظفين المسجلين (مستورد من Odoo)'}
+                {en ? 'Total Registered Employees (Odoo Sync)' : 'إجمالي الموظفين المسجلين (المعتمد في أودو)'}
               </p>
               <p className="mt-1 text-2xl font-black text-white">{VENTURE_EMPLOYEES.length}</p>
               <p className="mt-1 text-[11px] text-emerald-300">
@@ -570,7 +570,7 @@ export function EnterpriseHrCommandHub({
             </article>
             <article className="rounded-2xl border border-white/10 bg-[#0f141c] p-4">
               <p className="text-xs text-mist-400">
-                {en ? 'Historical Employment Contracts' : 'إجمالي عقود العمل المؤرشفة (hr.contract)'}
+                {en ? 'Historical Employment Contracts' : 'إجمالي عقود العمل المعتمدة والمؤرشفة'}
               </p>
               <p className="mt-1 text-2xl font-black text-gold-300">618</p>
               <p className="mt-1 text-[11px] text-mist-400">
@@ -579,7 +579,7 @@ export function EnterpriseHrCommandHub({
             </article>
             <article className="rounded-2xl border border-white/10 bg-[#0f141c] p-4">
               <p className="text-xs text-mist-400">
-                {en ? 'Historical Payslips (hr.payslip)' : 'قسائم الرواتب التاريخية المستوردة (hr.payslip)'}
+                {en ? 'Historical Payslips (hr.payslip)' : 'قسائم الرواتب التاريخية المستوردة من أودو'}
               </p>
               <p className="mt-1 text-2xl font-black text-emerald-300">1,000</p>
               <p className="mt-1 text-[11px] text-mist-400">
@@ -1094,7 +1094,7 @@ export function EnterpriseHrCommandHub({
                   💼 {en ? 'Employee Expense Sheets & Custodies' : 'تقارير عهد ومصروفات الموظفين والإقامات'}
                 </span>
                 <span className="rounded-full bg-slate-800 px-2.5 py-0.5 text-xs text-slate-400">
-                  {en ? 'Odoo hr.expense.sheet Sync' : 'مطابقة شاشة تصفية العهد Odoo'}
+                  {en ? 'Odoo hr.expense.sheet Sync' : 'مطابقة شاشة تصفية العهد في أودو'}
                 </span>
               </div>
               <h2 className="mt-2 text-xl font-black text-white">
@@ -1156,7 +1156,7 @@ export function EnterpriseHrCommandHub({
             <div className="rounded-2xl border border-white/10 bg-[#0f141c] p-4">
               <p className="text-xs text-mist-400">{en ? 'Submitted Expense Sheets' : 'تقارير التصفية المرفوعة'}</p>
               <p className="mt-1 text-2xl font-black text-amber-300">{ODOO_REAL_EXPENSE_SHEETS.length}</p>
-              <p className="mt-1 text-[11px] text-mist-400">{en ? 'All Reports Odoo Module' : 'شاشة All Reports الرسمية'}</p>
+              <p className="mt-1 text-[11px] text-mist-400">{en ? 'All Reports Odoo Module' : 'سجل تقارير العهد المعتمدة في أودو'}</p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-[#0f141c] p-4">
               <p className="text-xs text-mist-400">{en ? 'Sanad Clearances & Residencies' : 'كشوفات سند للإقامات'}</p>
@@ -1303,12 +1303,12 @@ export function EnterpriseHrCommandHub({
                   onChange={(e) => setOvNationality(e.target.value)}
                   className="rounded-xl border border-white/15 bg-[#0d1118] px-3 py-2 text-xs text-white"
                 >
-                  <option value="India">{en ? 'India' : 'الهند (India)'}</option>
-                  <option value="Philippines">{en ? 'Philippines' : 'الفلبين (Philippines)'}</option>
-                  <option value="Egypt">{en ? 'Egypt' : 'مصر (Egypt)'}</option>
-                  <option value="Nepal">{en ? 'Nepal' : 'نيبال (Nepal)'}</option>
-                  <option value="Sri Lanka">{en ? 'Sri Lanka' : 'سريلانكا (Sri Lanka)'}</option>
-                  <option value="Bangladesh">{en ? 'Bangladesh' : 'بنغلاديش (Bangladesh)'}</option>
+                  <option value="India">{en ? 'India' : 'الهند'}</option>
+                  <option value="Philippines">{en ? 'Philippines' : 'الفلبين'}</option>
+                  <option value="Egypt">{en ? 'Egypt' : 'مصر'}</option>
+                  <option value="Nepal">{en ? 'Nepal' : 'نيبال'}</option>
+                  <option value="Sri Lanka">{en ? 'Sri Lanka' : 'سريلانكا'}</option>
+                  <option value="Bangladesh">{en ? 'Bangladesh' : 'بنغلاديش'}</option>
                 </select>
                 <input
                   value={ovPassport}
@@ -1846,7 +1846,7 @@ export function EnterpriseHrCommandHub({
                     checked={calcIsKuwaitiPifss}
                     onChange={(e) => setCalcIsKuwaitiPifss(e.target.checked)}
                   />
-                  <span>{en ? 'Kuwaiti PIFSS (10.5%)' : 'تأمينات الكويتيين PIFSS'}</span>
+                  <span>{en ? 'Kuwaiti PIFSS (10.5%)' : 'التأمينات الاجتماعية للكويتيين (10.5%)'}</span>
                 </label>
                 <p className="mt-1 font-mono text-base font-black text-gold-300" dir="ltr">
                   {calcNetSalary.toFixed(3)} KWD
@@ -2258,13 +2258,13 @@ export function EnterpriseHrCommandHub({
                   className="mt-1 w-full rounded-xl border border-white/15 bg-[#141b26] px-3 py-2 text-xs text-white"
                 >
                   <option value="RESIGNATION">
-                    {en ? 'Resignation (استقالة — Art. 53)' : 'استقالة (Resignation — مادة 53)'}
+                    {en ? 'Resignation (Art. 53)' : 'استقالة (المادة 53 من قانون العمل)'}
                   </option>
                   <option value="TERMINATION">
-                    {en ? 'Termination by Employer (إنهاء خدمات — 100%)' : 'إنهاء خدمات (Termination — 100%)'}
+                    {en ? 'Termination (100%)' : 'إنهاء خدمات (استحقاق كامل 100%)'}
                   </option>
                   <option value="CONTRACT_EXPIRY">
-                    {en ? 'Contract Expiry (انتهاء عقد — 100%)' : 'انتهاء مدة العقد (Contract Expiry — 100%)'}
+                    {en ? 'Contract Expiry (100%)' : 'انتهاء مدة العقد (استحقاق كامل 100%)'}
                   </option>
                 </select>
               </label>
