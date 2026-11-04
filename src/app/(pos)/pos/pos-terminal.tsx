@@ -503,9 +503,10 @@ export function PosTerminal({
         <div className="flex flex-wrap items-center gap-2 px-3 py-2.5 sm:gap-3 sm:px-4">
           <a
             href="/dashboard"
-            className="rounded-lg border border-white/10 px-2.5 py-1.5 text-xs font-semibold text-mist-300 hover:border-[#8cc63f]/40 hover:text-white transition"
+            className="flex items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1.5 text-xs font-semibold text-mist-300 hover:border-[#8cc63f]/40 hover:text-white transition"
           >
-            {en ? 'Back to System' : 'العودة للنظام'}
+            <span>🏠</span>
+            <span>{en ? 'Dashboard' : 'لوحة القيادة'}</span>
           </a>
 
           <div className="hidden items-center gap-2 sm:flex">
@@ -955,7 +956,7 @@ export function PosTerminal({
                 className="flex items-center justify-center gap-1.5 rounded-xl border border-[#00a99d]/40 bg-[#00a99d]/15 py-2.5 text-xs font-bold text-[#7fe0d6]"
               >
                 <ChefHat size={14} />
-                {en ? 'Kitchen (KDS)' : 'المطبخ (KDS)'}
+                {en ? 'Send to Kitchen (KDS)' : 'إرسال فوري لشاشة المطبخ'}
               </button>
             </div>
 
@@ -970,7 +971,7 @@ export function PosTerminal({
               }`}
             >
               <UserCheck size={14} />
-              <span>{en ? '🍽️ Staff Meal (by Badge ID · Account 5230)' : '🍽️ وجبة موظف (برقم البصمة · حساب 5230)'}</span>
+              <span>{en ? '🍽️ Record as Staff Meal (Posted to Acc 5230 at Cost)' : '🍽️ تسجيل كوجبة موظف (يرحل لحساب 5230 بسعر التكلفة)'}</span>
             </button>
 
             {/* Checkout / Issue Receipt Button */}

@@ -218,13 +218,21 @@ export function VenturePosHub({
           </h1>
           <p className="text-xs text-slate-400">
             {isAr
-              ? 'البيع متعدد البراندات والقنوات، إغلاق الوردية الأعمى Z-Report، تسوية K-Net وNBK، ورقابة الإلغاءات والهدر'
+              ? 'البيع متعدد البراندات والقنوات، إغلاق الوردية الأعمى ومطابقة الصندوق، تسويات الدفع الإلكتروني والبنكي، ورقابة الإلغاءات والهدر'
               : 'Multi-brand terminal, blind shift close, NBK/K-Net reconciliations, and automated GL bridge'}
           </p>
         </div>
 
         {/* Action Controls */}
         <div className="flex flex-wrap items-center gap-2.5">
+          <a
+            href="/dashboard"
+            className="flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-bold text-slate-200 hover:border-emerald-500/50 hover:bg-slate-800 transition-all shadow-sm"
+          >
+            <span>🏠</span>
+            <span>{isAr ? 'لوحة القيادة' : 'Dashboard'}</span>
+          </a>
+
           <select
             value={selectedBranch}
             onChange={(e) => setSelectedBranch(e.target.value)}
@@ -259,15 +267,16 @@ export function VenturePosHub({
         </div>
       )}
 
-      {/* 6 Specialized POS Control Units Tabs */}
+                  {/* 6 Specialized POS Control Units Tabs */}
       <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-800 pb-3">
         {[
-          { key: 'terminal', labelAr: '🖥️ شاشة الكاشير ونقاط البيع الميدانية', labelEn: 'Multi-Brand POS Terminal', icon: Monitor },
-          { key: 'zReport', labelAr: '🔒 إغلاق الوردية الأعمى ومطابقة الصندوق Z-Report', labelEn: 'Blind Shift Close & Z-Report', icon: Lock },
+          { key: 'terminal', labelAr: '🖥️ شاشة الكاشير متعددة البراندات', labelEn: 'Multi-Brand POS Terminal', icon: Monitor },
+          { key: 'zReport', labelAr: '🔒 إغلاق الوردية الأعمى ومطابقة الصندوق', labelEn: 'Blind Shift Close & Reconciliation', icon: Lock },
           { key: 'tender', labelAr: '💳 تسوية طرق الدفع وعمولات البنوك والمنصات', labelEn: 'Tender Split & NBK Recon', icon: CreditCard },
-          { key: 'voids', labelAr: '🛡️ رقابة الخصومات، الإلغاءات، ووجبات الـ 0 د.ك', labelEn: 'Voids, Refunds & 0-KD Audit', icon: ShieldAlert },
+          { key: 'voids', labelAr: '🛡️ رقابة الخصومات، الإلغاءات، وتدقيق العمليات', labelEn: 'Voids, Refunds & Audit', icon: ShieldAlert },
           { key: 'safeDrop', labelAr: '💵 إيداعات الخزنة والمصروفات النثرية بالفرع', labelEn: 'Safe Drops & Branch Petty Cash', icon: Wallet },
-          { key: 'glBridge', labelAr: '🔗 الربط المالي والقيود التلقائية (GL Bridge)', labelEn: 'Automated Financial GL Bridge', icon: ArrowRightLeft },
+          { key: 'glBridge', labelAr: '🔗 القيد المالي والقيود التلقائية الرباعية', labelEn: 'Automated 4D Financial GL Bridge', icon: ArrowRightLeft },
+          ...(liveChildren ? [{ key: 'legacy', labelAr: '⚙️ محرك قاعدة البيانات', labelEn: 'Database POS Engine', icon: Building2 }] : []),
         ].map((tab) => {
           const Icon = tab.icon
           const active = activeTab === tab.key
@@ -567,7 +576,7 @@ export function VenturePosHub({
                     className="flex items-center justify-center gap-1.5 rounded-xl bg-emerald-500 py-3 text-xs font-bold text-black hover:bg-emerald-400 transition-all shadow-lg shadow-emerald-500/10 disabled:opacity-50"
                   >
                     <Send size={14} />
-                    {isAr ? 'إرسال للمطبخ (KDS)' : 'Send to Kitchen (KDS)'}
+                    {isAr ? 'إرسال فوري لشاشة المطبخ' : 'Send to Kitchen (KDS)'}
                   </button>
 
                   <button
@@ -579,6 +588,29 @@ export function VenturePosHub({
                     {isAr ? 'دفع وطباعة الفاتورة' : 'Pay & Print'}
                   </button>
                 </div>
+
+                {/* Staff Meal Button (Account 5230) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOrderDiscount(100);
+                    setStaffMealPin('4412');
+                    setStaffMealAuthorized(true);
+                    setNotice(
+                      isAr
+                        ? 'تم تسجيل الطلب كوجبة موظف (خصم 100%) وترحيل التكلفة إلى حساب 5230 (تكلفة وجبات الموظفين)!'
+                        : 'Staff meal recorded (100% discount) and routed to GL Account 5230 (Staff Meals at Cost).'
+                    );
+                  }}
+                  className="w-full mt-2 flex items-center justify-center gap-2 rounded-xl border border-purple-500/40 bg-purple-950/50 py-3 text-xs font-black text-purple-300 hover:bg-purple-900/50 hover:border-purple-400 transition-all shadow-md"
+                >
+                  <UserCheck size={15} />
+                  <span>
+                    {isAr
+                      ? '🍽️ تسجيل كوجبة موظف (يرحل لحساب 5230 بسعر التكلفة)'
+                      : '🍽️ Record as Staff Meal (Posted to Acc 5230 at Cost)'}
+                  </span>
+                </button>
               </div>
             </div>
           </div>
@@ -594,7 +626,7 @@ export function VenturePosHub({
               <div>
                 <h3 className="text-base font-black text-white sm:text-lg flex items-center gap-2">
                   <Lock size={18} className="text-amber-400" />
-                  {isAr ? 'إغلاق الوردية الأعمى ومطابقة الصندوق (Blind Shift Close & Z-Report)' : 'Blind Shift Close & Z-Report Reconciliation'}
+                  {isAr ? 'إغلاق الوردية الأعمى ومطابقة الصندوق' : 'Blind Shift Close & Reconciliation'}
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">
                   {isAr
@@ -668,7 +700,7 @@ export function VenturePosHub({
                 className="flex items-center gap-2 rounded-xl bg-amber-500 px-5 py-2.5 text-xs font-black text-black hover:bg-amber-400 transition-all shadow-lg shadow-amber-500/10"
               >
                 <Eye size={16} />
-                {isAr ? 'كشف تقرير الـ Z-Report ومطابقة الفروقات الدفترية' : 'Reveal Z-Report & Audit Variance'}
+                {isAr ? 'كشف تقرير إغلاق الصندوق ومطابقة الفروقات الدفترية' : 'Reveal Shift Report & Audit Variance'}
               </button>
 
               {blindZRevealed && (
