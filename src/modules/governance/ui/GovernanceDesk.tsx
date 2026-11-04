@@ -150,7 +150,7 @@ function Workspace({ initialTab }: { initialTab: string }) {
   if (phase === 'error') return <p className={errorClass} role="alert">{detail ?? t(error)}</p>
 
   return (
-    <div className="space-y-6">
+    <div className="w-full max-w-none space-y-6">
       <header className="space-y-3">
         <h1 className="text-2xl font-bold text-white">{t('desk.title')}</h1>
         <SmartIngestLink module="governance" />
