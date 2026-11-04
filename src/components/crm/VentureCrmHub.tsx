@@ -44,7 +44,7 @@ export function VentureCrmHub({
   return (
     <div
       dir={isRtl ? 'rtl' : 'ltr'}
-      className="min-h-screen bg-[#0a0d12] text-slate-100 p-3 sm:p-6 space-y-6"
+      className="w-full max-w-none min-h-screen bg-[#0a0d12] text-slate-100 p-3 sm:p-6 space-y-6"
     >
       {/* Top Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-5">
@@ -99,10 +99,10 @@ export function VentureCrmHub({
       <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-800 pb-3">
         {[
           { key: 'catering', labelAr: '🍱 عقود الكاترينج، الشركات، والمقاصف', labelEn: 'B2B Catering & Corporate Contracts', icon: UtensilsCrossed },
-          { key: 'vip', labelAr: '👑 كبار العملاء وتحليل الولاء (VIP LTV)', labelEn: 'VIP Customers & Repeat Analytics', icon: Crown },
+          { key: 'vip', labelAr: '👑 كبار العملاء ومؤشرات الولاء الدائم', labelEn: 'VIP Customers & Repeat Analytics', icon: Crown },
           { key: 'feedback', labelAr: '💬 مركز جودة الخدمة ومعالجة الملاحظات', labelEn: 'Service Reviews & Incident Resolution', icon: MessageSquare },
           { key: 'campaigns', labelAr: '🎁 الحملات الترويجية وعروض الواتساب', labelEn: 'Seasonal Campaigns & WhatsApp Offers', icon: Gift },
-          ...(liveChildren ? [{ key: 'legacy', labelAr: '⚙️ لوحة الفرص وعروض الأسعار (DB)', labelEn: 'Database Leads & Quotes', icon: Building2 }] : []),
+          ...(liveChildren ? [{ key: 'legacy', labelAr: '⚙️ لوحة الفرص وعروض الأسعار المعتمدة', labelEn: 'Database Leads & Quotes', icon: Building2 }] : []),
         ].map((tab) => {
           const Icon = tab.icon
           const active = activeTab === tab.key
@@ -158,7 +158,7 @@ export function VentureCrmHub({
                   <tr className="border-b border-slate-800 bg-slate-900/60 text-xs font-semibold uppercase text-slate-400">
                     <th className="px-4 py-3 text-right">{isAr ? 'الشركة / الجهة المتعاقدة' : 'Corporate Account'}</th>
                     <th className="px-4 py-3 text-right">{isAr ? 'طبيعة العقد' : 'Contract Scope'}</th>
-                    <th className="px-4 py-3 text-center">{isAr ? 'عدد الأفراد (PAX)' : 'Daily PAX'}</th>
+                    <th className="px-4 py-3 text-center">{isAr ? 'عدد الأفراد والوجبات' : 'Daily PAX'}</th>
                     <th className="px-4 py-3 text-right">{isAr ? 'قيمة العقد (د.ك)' : 'Contract Value'}</th>
                     <th className="px-4 py-3 text-right">{isAr ? 'المسدد (د.ك)' : 'Collected'}</th>
                     <th className="px-4 py-3 text-center">{isAr ? 'البراند المورد' : 'Assigned Brand'}</th>
@@ -167,12 +167,12 @@ export function VentureCrmHub({
                 </thead>
                 <tbody className="divide-y divide-slate-800/60 text-slate-200">
                   {[
-                    { client: 'شركة مشاريع الكويت القابضة (كيبكو)', scope: 'بوفيه غداء تنفيذي وضيافة مؤتمرات', pax: '120 فرد', val: '6,450.000', paid: '5,200.000', brand: "Frank's Steak", stage: 'ساري ومنفذ' },
-                    { client: 'مجموعة التمدين العقارية (360 مول)', scope: 'إعاشة فعاليات مهرجان التسوق', pax: '350 فرد', val: '4,800.000', paid: '4,800.000', brand: 'China Garden', stage: 'مكتمل ومسدد' },
-                    { client: 'جامعة الخليج للعلوم والتكنولوجيا (GUST)', scope: 'تشغيل ركن كافتيريا الطلاب', pax: '450 وجبة/يوم', val: '9,200.000', paid: '6,400.000', brand: 'Tahina', stage: 'ساري ومنفذ' },
-                    { client: 'بنك بوبيان - الإدارة العامة', scope: 'ضيافة اجتماعات مجالس الإدارة', pax: '80 فرد', val: '3,900.000', paid: '3,900.000', brand: "Frank's Steak", stage: 'مكتمل ومسدد' },
-                    { client: 'أرض المعارض الدولية (مشرف - صالة 4)', scope: 'كشك طعام سريع بمعرض العطور والسيارات', pax: '600 وجبة/يوم', val: '8,400.000', paid: '4,200.000', brand: "Frank's", stage: 'تجهيز وتوريد' },
-                    { client: 'نادي القادسية الرياضي', scope: 'وجبات رياضية غنية بالبروتين للفرق الأولى', pax: '60 لاعب', val: '3,600.000', paid: '2,600.000', brand: 'Farm Brown', stage: 'ساري ومنفذ' },
+                    { client: 'شركة مشاريع الكويت القابضة (كيبكو)', scope: 'بوفيه غداء تنفيذي وضيافة مؤتمرات', pax: '120 فرد', val: '6,450.000', paid: '5,200.000', brand: isAr ? 'فرانكس ستيك' : "Frank's Steak", stage: 'ساري ومنفذ' },
+                    { client: 'مجموعة التمدين العقارية (360 مول)', scope: 'إعاشة فعاليات مهرجان التسوق', pax: '350 فرد', val: '4,800.000', paid: '4,800.000', brand: isAr ? 'تشاينا جاردن' : 'China Garden', stage: 'مكتمل ومسدد' },
+                    { client: 'جامعة الخليج للعلوم والتكنولوجيا (GUST)', scope: 'تشغيل ركن كافتيريا الطلاب', pax: '450 وجبة/يوم', val: '9,200.000', paid: '6,400.000', brand: isAr ? 'شاورما طحينة' : 'Tahina', stage: 'ساري ومنفذ' },
+                    { client: 'بنك بوبيان - الإدارة العامة', scope: 'ضيافة اجتماعات مجالس الإدارة', pax: '80 فرد', val: '3,900.000', paid: '3,900.000', brand: isAr ? 'فرانكس ستيك' : "Frank's Steak", stage: 'مكتمل ومسدد' },
+                    { client: 'أرض المعارض الدولية (مشرف - صالة 4)', scope: 'كشك طعام سريع بمعرض العطور والسيارات', pax: '600 وجبة/يوم', val: '8,400.000', paid: '4,200.000', brand: isAr ? 'فرانكس' : "Frank's", stage: 'تجهيز وتوريد' },
+                    { client: 'نادي القادسية الرياضي', scope: 'وجبات رياضية غنية بالبروتين للفرق الأولى', pax: '60 لاعب', val: '3,600.000', paid: '2,600.000', brand: isAr ? 'فارم براون' : 'Farm Brown', stage: 'ساري ومنفذ' },
                   ].map((row, idx) => (
                     <tr key={idx} className="hover:bg-slate-900/40 transition-colors">
                       <td className="px-4 py-3 font-semibold text-white">{row.client}</td>
@@ -206,7 +206,7 @@ export function VentureCrmHub({
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-base font-bold text-white">
-              {isAr ? 'سجل كبار العملاء المميزين (VIP Loyalty & Lifetime Value)' : 'VIP Customer Profiles & Lifetime Value'}
+              {isAr ? 'سجل كبار العملاء المميزين ومؤشرات الولاء' : 'VIP Customer Profiles & Lifetime Value'}
             </h3>
             <span className="text-xs text-amber-400 font-semibold">
               {isAr ? 'قنوات الطلب المباشر: الصالة، الواتساب، والموقع الإلكتروني' : 'Direct Channels: Shop, WhatsApp & Web'}
@@ -230,11 +230,11 @@ export function VentureCrmHub({
                 </thead>
                 <tbody className="divide-y divide-slate-800/60 text-slate-200">
                   {[
-                    { name: 'الشيخ فهد الأحمد الصباح', phone: '+965 9988 1234', tier: '💎 Platinum VIP', orders: 48, spend: '642.500', aov: '13.385', fav: "Frank's Steak", last: 'أمس 09:30 م' },
-                    { name: 'د. يوسف العبدالله الرومي', phone: '+965 9772 4411', tier: '🥇 Gold VIP', orders: 34, spend: '412.000', aov: '12.117', fav: "Frank's Steak", last: 'منذ يومين' },
-                    { name: 'م. نورة فيصل الخالد', phone: '+965 9441 8822', tier: '🥇 Gold VIP', orders: 29, spend: '298.500', aov: '10.293', fav: 'China Garden', last: 'منذ 3 أيام' },
-                    { name: 'أحمد مشعل الغانم', phone: '+965 9660 3399', tier: '🥈 Silver VIP', orders: 22, spend: '245.000', aov: '11.136', fav: "Frank's", last: 'منذ أسبوع' },
-                    { name: 'سارة جاسم المرزوق', phone: '+965 9005 7711', tier: '🥈 Silver VIP', orders: 19, spend: '185.000', aov: '9.736', fav: 'Tahina', last: 'منذ 5 أيام' },
+                    { name: 'الشيخ فهد الأحمد الصباح', phone: '+965 9988 1234', tier: isAr ? '💎 بلاتينيوم كبار العملاء' : '💎 Platinum VIP', orders: 48, spend: '642.500', aov: '13.385', fav: isAr ? 'فرانكس ستيك' : "Frank's Steak", last: 'أمس 09:30 م' },
+                    { name: 'د. يوسف العبدالله الرومي', phone: '+965 9772 4411', tier: isAr ? '🥇 ذهبي كبار العملاء' : '🥇 Gold VIP', orders: 34, spend: '412.000', aov: '12.117', fav: isAr ? 'فرانكس ستيك' : "Frank's Steak", last: 'منذ يومين' },
+                    { name: 'م. نورة فيصل الخالد', phone: '+965 9441 8822', tier: isAr ? '🥇 ذهبي كبار العملاء' : '🥇 Gold VIP', orders: 29, spend: '298.500', aov: '10.293', fav: isAr ? 'تشاينا جاردن' : 'China Garden', last: 'منذ 3 أيام' },
+                    { name: 'أحمد مشعل الغانم', phone: '+965 9660 3399', tier: isAr ? '🥈 فضي كبار العملاء' : '🥈 Silver VIP', orders: 22, spend: '245.000', aov: '11.136', fav: isAr ? 'فرانكس' : "Frank's", last: 'منذ أسبوع' },
+                    { name: 'سارة جاسم المرزوق', phone: '+965 9005 7711', tier: isAr ? '🥈 فضي كبار العملاء' : '🥈 Silver VIP', orders: 19, spend: '185.000', aov: '9.736', fav: isAr ? 'شاورما طحينة' : 'Tahina', last: 'منذ 5 أيام' },
                   ].map((vip, idx) => (
                     <tr key={idx} className="hover:bg-slate-900/40 transition-colors">
                       <td className="px-4 py-3 font-semibold text-white">{vip.name}</td>
@@ -283,10 +283,10 @@ export function VentureCrmHub({
                 </thead>
                 <tbody className="divide-y divide-slate-800/60 text-slate-200">
                   {[
-                    { cust: 'بدر ناصر (طلبات)', branch: 'فرع السالمية (Frank\'s)', rating: '⭐⭐⭐⭐⭐', text: 'ستيك ترفل ممتاز ووصل حاراً ومقرمشاً خلال 22 دقيقة', action: 'شكر العميل ومنحه كود خصم 10%', status: 'مغلق بنجاح' },
-                    { cust: 'فاطمة العوضي (صالة الفرع)', branch: 'فرع حولي (China Garden)', rating: '⭐⭐⭐⭐', text: 'طعم البرجر رائع ولكن التكييف كان بارداً جداً بالصالة', action: 'تعديل منظم الحرارة بالفرع فورياً', status: 'مغلق بنجاح' },
-                    { cust: 'محمد السبيعي (دليفرو)', branch: "فرع العارضية (Frank's)", rating: '⭐⭐⭐', text: 'تم نسيان علبة صوص إضافية بالطلب المسلم', action: 'تعويض بقسيمة مجانية 3 د.ك للطلب القادم', status: 'تم الصلح والتعويض' },
-                    { cust: 'خلود الهاجري (واتساب مباشر)', branch: 'فرع المهبولة (Shawarma)', rating: '⭐⭐⭐⭐⭐', text: 'شاورما ممتازة والخبز اللبناني طازج وخفيف', action: 'ترقية الحساب لفئة الفضة', status: 'مغلق بنجاح' },
+                    { cust: 'بدر ناصر (طلبات)', branch: isAr ? 'فرع السالمية (فرانكس)' : "فرع السالمية (Frank's)", rating: '⭐⭐⭐⭐⭐', text: 'ستيك ترفل ممتاز ووصل حاراً ومقرمشاً خلال 22 دقيقة', action: 'شكر العميل ومنحه كود خصم 10%', status: 'مغلق بنجاح' },
+                    { cust: 'فاطمة العوضي (صالة الفرع)', branch: isAr ? 'فرع حولي (تشاينا جاردن)' : 'فرع حولي (China Garden)', rating: '⭐⭐⭐⭐', text: 'طعم البرجر رائع ولكن التكييف كان بارداً جداً بالصالة', action: 'تعديل منظم الحرارة بالفرع فورياً', status: 'مغلق بنجاح' },
+                    { cust: 'محمد السبيعي (دليفرو)', branch: isAr ? 'فرع العارضية (فرانكس)' : "فرع العارضية (Frank's)", rating: '⭐⭐⭐', text: 'تم نسيان علبة صوص إضافية بالطلب المسلم', action: 'تعويض بقسيمة مجانية 3 د.ك للطلب القادم', status: 'تم الصلح والتعويض' },
+                    { cust: 'خلود الهاجري (واتساب مباشر)', branch: isAr ? 'فرع المهبولة (شاورما طحينة)' : 'فرع المهبولة (Shawarma)', rating: '⭐⭐⭐⭐⭐', text: 'شاورما ممتازة والخبز اللبناني طازج وخفيف', action: 'ترقية الحساب لفئة الفضة', status: 'مغلق بنجاح' },
                   ].map((row, idx) => (
                     <tr key={idx} className="hover:bg-slate-900/40 transition-colors">
                       <td className="px-4 py-3 font-semibold text-white">{row.cust}</td>
@@ -318,15 +318,15 @@ export function VentureCrmHub({
               {isAr ? 'إدارة الحملات الترويجية المباشرة ورسائل الواتساب' : 'Promotional Campaigns & Direct WhatsApp Broadcasts'}
             </h3>
             <span className="text-xs text-purple-400 font-semibold">
-              {isAr ? 'عائد إنفاق إعلاني مباشر (ROAS): 8.4x' : 'Direct WhatsApp ROAS: 8.4x'}
+              {isAr ? 'عائد الإنفاق الإعلاني المباشر: 8.4x' : 'Direct WhatsApp ROAS: 8.4x'}
             </span>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {[
-              { title: 'بوكس الجمعات العائلي (Weekend Gathering Box)', brand: 'Frank\'s Steak', target: 'عملاء الويكند والصالة', reach: '4,850 مستلم', conv: '18.4% تحويل', rev: '3,840 د.ك مبيعات', active: true },
-              { title: 'عرض غداء الدوامات والمكاتب (Office Lunch Combo)', brand: 'China Garden', target: 'موظفي شرق والشويخ', reach: '3,200 مستلم', conv: '22.1% تحويل', rev: '2,950 د.ك مبيعات', active: true },
-              { title: 'مهرجان الشاورما الوطني (Shawarma Feast)', brand: 'Tahina', target: 'قاعدة عملاء التوصيل', reach: '6,100 مستلم', conv: '15.8% تحويل', rev: '4,120 د.ك مبيعات', active: true },
+              { title: isAr ? 'بوكس الجمعات العائلي' : 'Weekend Gathering Box', brand: isAr ? 'فرانكس ستيك' : "Frank's Steak", target: 'عملاء الويكند والصالة', reach: '4,850 مستلم', conv: '18.4% تحويل', rev: '3,840 د.ك مبيعات', active: true },
+              { title: isAr ? 'عرض غداء الدوامات والمكاتب' : 'Office Lunch Combo', brand: isAr ? 'تشاينا جاردن' : 'China Garden', target: 'موظفي شرق والشويخ', reach: '3,200 مستلم', conv: '22.1% تحويل', rev: '2,950 د.ك مبيعات', active: true },
+              { title: isAr ? 'مهرجان الشاورما الوطني' : 'Shawarma Feast', brand: isAr ? 'شاورما طحينة' : 'Tahina', target: 'قاعدة عملاء التوصيل', reach: '6,100 مستلم', conv: '15.8% تحويل', rev: '4,120 د.ك مبيعات', active: true },
             ].map((c, idx) => (
               <div key={idx} className="rounded-2xl border border-slate-800 bg-[#0d131f] p-5 space-y-3">
                 <div className="flex items-center justify-between">
@@ -403,12 +403,12 @@ export function VentureCrmHub({
               <div>
                 <label className="block font-semibold text-slate-300 mb-1">{isAr ? 'البراند المفضل للتوريد:' : 'Assigned Brand:'}</label>
                 <select className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-white focus:outline-none">
-                  <option value="CHINA">تشاينا جاردن (China Garden) - المطبخ الصيني والآسيوي</option>
-                  <option value="FRANK">فرانكس (Frank&apos;s) - ستيك وبرجر فاخر</option>
-                  <option value="TAHINA">شاورما طحينة (Tahina) - شاورما ومقبلات</option>
-                  <option value="FARMBROWN">فارم براون (Farm Brown) - وجبات صحية وعضوية</option>
-                  <option value="NOODLE">ذا نودل بار (The Noodle Bar) - نودلز وأطباق آسيوية</option>
-                  <option value="KARAK">كرك كافتيريا (Karak Cafeteria) - شاي كرك وسندويشات خفيفة</option>
+                  <option value="CHINA">{isAr ? 'تشاينا جاردن - المطبخ الصيني والآسيوي' : 'China Garden - Asian & Chinese'}</option>
+                  <option value="FRANK">{isAr ? 'فرانكس - ستيك وبرجر فاخر' : "Frank's - Premium Steak & Burger"}</option>
+                  <option value="TAHINA">{isAr ? 'شاورما طحينة - شاورما ومقبلات' : 'Tahina - Shawarma & Appetizers'}</option>
+                  <option value="FARMBROWN">{isAr ? 'فارم براون - وجبات صحية وعضوية' : 'Farm Brown - Healthy & Organic'}</option>
+                  <option value="NOODLE">{isAr ? 'ذا نودل بار - نودلز وأطباق آسيوية' : 'The Noodle Bar - Asian Noodles'}</option>
+                  <option value="KARAK">{isAr ? 'كرك كافتيريا - شاي كرك وفطائر خفيفة' : 'Karak Cafeteria - Karak Tea & Snacks'}</option>
                 </select>
               </div>
 

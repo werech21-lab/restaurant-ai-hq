@@ -14,8 +14,8 @@ import { SmartIngestLaunchButton } from "@/components/SmartIngestLaunchButton";
 import { VentureCrmHub } from "@/components/crm/VentureCrmHub";
 
 export const metadata = {
-  title: "علاقات العملاء والكاترينج | Venture Foods W.L.L.",
-  description: "عقود الكاترينج وكبار العملاء لشركة فنتشر فودز لإدارة المطاعم ذ.م.م.",
+  title: "علاقات العملاء والكاترينج وعقود الشركات | شركة فنتشر فودز ذ.م.م.",
+  description: "منظومة علاقات العملاء، عقود الكاترينج والشركات، وبرامج الولاء لشركة فنتشر فودز لإدارة المطاعم ذ.م.م.",
 };
 
 async function CrmContent({ searchParams }: { searchParams: Promise<RawQuery> }) {
@@ -39,7 +39,7 @@ async function CrmContent({ searchParams }: { searchParams: Promise<RawQuery> })
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-700/60 pb-3">
         <h4 className="text-sm font-bold text-purple-400">
-          {tx(locale, "لوحة الفرص وعروض الأسعار في قاعدة البيانات (Prisma DB)", "Prisma Database CRM Leads & Quotations")}
+          {tx(locale, "لوحة الفرص وعروض الأسعار المعتمدة", "CRM Leads & Quotations")}
         </h4>
         <SmartIngestLaunchButton module="crm_projects" locale={locale} />
       </div>

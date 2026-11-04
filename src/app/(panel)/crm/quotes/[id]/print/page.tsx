@@ -11,7 +11,7 @@ import { can, firstAllowedHref } from "@/lib/permissions";
 import { qrDataUrl } from "@/lib/qr";
 import { quoteText, waLink } from "@/lib/whatsapp";
 
-export const metadata = { title: "طباعة عرض سعر | نظام ERP" };
+export const metadata = { title: "طباعة عرض سعر كاترينج | شركة فنتشر فودز ذ.م.م." };
 
 const QUOTE_STATUS: Record<string, string> = {
   DRAFT: "مسودة",
