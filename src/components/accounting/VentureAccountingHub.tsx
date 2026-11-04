@@ -30,6 +30,14 @@ import { AutomatedGlBridge } from '@/components/finance/AutomatedGlBridge'
 import { VENTURE_FOODS_EVENTS } from '@/lib/events/venture-events-engine'
 import { KuwaitCoaBridgeView } from './KuwaitCoaBridgeView'
 import Link from 'next/link'
+import {
+  ODOO_EXPENSE_CATEGORIES_25,
+  ODOO_CUSTODIANS_7,
+  ODOO_SANAD_STATEMENT_DETAILS,
+  ODOO_RABIH_MAINTENANCE_DETAILS,
+  ODOO_EXPENSES_TOTAL_KWD,
+  ODOO_EXPENSES_TOTAL_TX,
+} from '@/lib/accounting/odoo-real-expenses-data'
 
 export function VentureAccountingHub({
   locale = 'ar',
@@ -85,12 +93,59 @@ export function VentureAccountingHub({
   const [showNewEntryModal, setShowNewEntryModal] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
 
+  // Odoo Real Expenses & Petty Cash Sub-Tabs State
+  const [pettySubTab, setPettySubTab] = useState<'categories' | 'custodians' | 'sanad' | 'rabih'>('categories')
+  const [pettySearch, setPettySearch] = useState('')
+
   const isAr = currentLocale === 'ar'
   const isRtl = isAr
 
   const showToast = (msg: string) => {
     setNotice(msg)
     setTimeout(() => setNotice(null), 4000)
+  }
+
+  const handleExportPettyCsv = () => {
+    let csvContent = '\uFEFF' // UTF-8 BOM for Excel
+    if (pettySubTab === 'categories') {
+      csvContent += isAr
+        ? 'الترتيب,فئة المصروف,رمز الحساب,مركز التكلفة,عدد الحركات,المبلغ (د.ك),النسبة %\n'
+        : 'Rank,Expense Category,Account Code,Cost Center Tag,Tx Count,Amount (KWD),Percentage %\n'
+      ODOO_EXPENSE_CATEGORIES_25.forEach((c) => {
+        csvContent += `"${c.rank}","${isAr ? c.nameAr : c.nameEn}","${c.accountCode}","${isAr ? c.tagAr : c.tagEn}","${c.txCount}","${c.amountKwd.toFixed(3)}","${c.pct}%"\n`
+      })
+    } else if (pettySubTab === 'custodians') {
+      csvContent += isAr
+        ? 'المسؤول / صاحب العهدة,الوظيفة / الغرض,رمز الحساب,عدد المعاملات,إجمالي المصروف (د.ك),النسبة %,الحالة\n'
+        : 'Custodian,Role / Purpose,Account Code,Tx Count,Total Spent (KWD),Percentage %,Status\n'
+      ODOO_CUSTODIANS_7.forEach((c) => {
+        csvContent += `"${isAr ? c.nameAr : c.nameEn}","${isAr ? c.roleAr : c.roleEn}","${c.accountCode}","${c.txCount}","${c.totalKwd.toFixed(3)}","${c.pct}%","${isAr ? c.statusAr : c.statusEn}"\n`
+      })
+    } else if (pettySubTab === 'sanad') {
+      csvContent += isAr
+        ? 'رقم الحركة,التاريخ,رقم البصمة,اسم الموظف,بيان المعاملة,مركز التكلفة المزدوج,الفرع,البراند,رمز الحساب,المبلغ (د.ك),رقم المستند,الحالة\n'
+        : 'Tx ID,Date,Badge ID,Employee Name,Description,Dual Cost Center,Branch,Brand,Account Code,Amount (KWD),Doc Ref,Status\n'
+      ODOO_SANAD_STATEMENT_DETAILS.forEach((t) => {
+        csvContent += `"${t.id}","${t.date}","${t.badgeId || ''}","${isAr ? t.employeeNameAr || '' : t.employeeNameEn || ''}","${isAr ? t.descAr : t.descEn}","${isAr ? t.costCenterAr : t.costCenterEn}","${isAr ? t.branchAr : t.branchEn}","${isAr ? t.brandAr : t.brandEn}","${t.accountCode}","${t.amountKwd.toFixed(3)}","${t.docRef}","${isAr ? t.statusAr : t.statusEn}"\n`
+      })
+    } else {
+      csvContent += isAr
+        ? 'رقم السند,التاريخ,المسؤول,طبيعة الصيانة والبيان,الموقع / مركز التكلفة,الفرع,البراند,رمز الحساب,المبلغ (د.ك),المستند,الحالة\n'
+        : 'Voucher ID,Date,Custodian,Maintenance Description,Location / Cost Center,Branch,Brand,Account Code,Amount (KWD),Doc Ref,Status\n'
+      ODOO_RABIH_MAINTENANCE_DETAILS.forEach((t) => {
+        csvContent += `"${t.id}","${t.date}","${isAr ? t.custodianAr : t.custodianEn}","${isAr ? t.descAr : t.descEn}","${isAr ? t.costCenterAr : t.costCenterEn}","${isAr ? t.branchAr : t.branchEn}","${isAr ? t.brandAr : t.brandEn}","${t.accountCode}","${t.amountKwd.toFixed(3)}","${t.docRef}","${isAr ? t.statusAr : t.statusEn}"\n`
+      })
+    }
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `VentureFoods_Odoo_Expenses_${pettySubTab}_2026.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    showToast(isAr ? 'تم تصدير كشف الحساب بنجاح إلى ملف إكسل (CSV)' : 'Statement exported successfully to CSV')
   }
 
   return (
@@ -122,12 +177,6 @@ export function VentureAccountingHub({
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setCurrentLocale(isAr ? 'en' : 'ar')}
-            className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-700"
-          >
-            {isAr ? 'English (LTR)' : 'عربي (RTL)'}
-          </button>
-          <button
             onClick={() => setShowNewEntryModal(true)}
             className="flex items-center gap-1.5 rounded-xl bg-emerald-500 px-4 py-2 text-xs font-bold text-black hover:bg-emerald-400 transition-all shadow-lg shadow-emerald-500/10"
           >
@@ -158,7 +207,7 @@ export function VentureAccountingHub({
           { key: 'hrBridge', labelAr: '👥 جسر الربط المالي السباعي (7-Way HR Bridge)', labelEn: '7-Way HR ↔ Finance ↔ Ops Bridge', icon: ArrowRightLeft },
           { key: 'transitRecon', labelAr: '🚚 تسويات المنصات والتحويلات (1139 Transit)', labelEn: 'Transit & Platform Settlement', icon: Truck },
           { key: 'banking', labelAr: '🏦 البنوك، الخزينة، وتسوية K-Net', labelEn: 'NBK Accounts & K-Net Recon', icon: Landmark },
-          { key: 'pettyCash', labelAr: '💼 إدارة العهد النقدية والمصروفات النثرية', labelEn: 'Branch & PRO Petty Cash', icon: Wallet },
+          { key: 'pettyCash', labelAr: '🏛️ أعمال التعقيب الحكومي وكشوف مصروفات (سند) والعهد التشغيلية', labelEn: '🏛️ PRO Government Clearance, Sanad & Petty Cash Hub', icon: Wallet },
           { key: 'journals', labelAr: '📒 دفتر اليومية والقيود وسندات الصرف/القبض', labelEn: 'Journal Entries & Vouchers', icon: BookOpen },
           { key: 'chart', labelAr: '📑 ميزان المراجعة ودليل الحسابات (820 حساباً)', labelEn: 'Trial Balance & Chart of Accounts', icon: Scale },
           { key: 'aging', labelAr: '🧾 الذمم المدينة والدائنة ومخصصات نهاية الخدمة', labelEn: 'AR/AP Aging & EOSB Provisions', icon: Receipt },
@@ -320,63 +369,555 @@ export function VentureAccountingHub({
       )}
 
       {/* ========================================================================= */}
-      {/* TAB 3: BRANCH & PRO PETTY CASH MANAGEMENT                                 */}
+      {/* TAB 3: BRANCH & PRO PETTY CASH & REAL ODOO EXPENSES (51,154.950 KWD)       */}
       {/* ========================================================================= */}
-      {activeTab === 'pettyCash' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-bold text-white">
-              {isAr ? 'إدارة العهد النقدية لمديري الفروع ومناديب الشؤون والبلدية' : 'Branch & PRO Petty Cash Reconciliation'}
-            </h3>
-            <span className="text-xs text-amber-400 font-semibold">
-              {isAr ? 'إجمالي العهد الدوارة: 7,500.000 د.ك' : 'Total Revolving Petty Cash: 7,500 KWD'}
-            </span>
-          </div>
+      {activeTab === 'pettyCash' && (() => {
+        const query = pettySearch.trim().toLowerCase()
 
-          <div className="rounded-2xl border border-slate-800 bg-[#0d131f] overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-800 bg-slate-900/60 text-xs font-semibold uppercase text-slate-400">
-                    <th className="px-4 py-3 text-right">{isAr ? 'الموقع / المسؤول' : 'Custodian / Branch'}</th>
-                    <th className="px-4 py-3 text-right">{isAr ? 'الغرض من العهدة' : 'Custody Purpose'}</th>
-                    <th className="px-4 py-3 text-right">{isAr ? 'سقف العهدة (د.ك)' : 'Ceiling (KWD)'}</th>
-                    <th className="px-4 py-3 text-right">{isAr ? 'المصروف بفواتير' : 'Spent (Invoices)'}</th>
-                    <th className="px-4 py-3 text-right">{isAr ? 'المتبقي كاش' : 'Cash Remaining'}</th>
-                    <th className="px-4 py-3 text-center">{isAr ? 'حالة التصفية' : 'Replenishment'}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/60 text-slate-200">
-                  {[
-                    { name: 'طارق الشريف (المطبخ المركزي)', role: 'مشتريات طارئة ومحروقات شاحنات', limit: '1,500.000', spent: '1,120.000', rem: '380.000', status: 'تستحق الاستعاضة' },
-                    { name: 'أحمد العوضي (مندوب الشؤون والبلدية)', role: 'رسوم معاملات إقامات وبطاقات بلدية', limit: '2,000.000', spent: '1,450.000', rem: '550.000', status: 'تستحق الاستعاضة' },
-                    { name: 'راجيش باتيل (فرع السالمية)', role: 'نثريات صيانة وتنظيف وتغليف فوري', limit: '500.000', spent: '180.000', rem: '320.000', status: 'رصيد كافٍ' },
-                    { name: 'محمد إبراهيم (فرع حولي)', role: 'نثريات صيانة وضيافة', limit: '500.000', spent: '220.000', rem: '280.000', status: 'رصيد كافٍ' },
-                    { name: 'سوريش كاليان (فرع العارضية)', role: 'نثريات صيانة وتصليح دراجات توصيل', limit: '500.000', spent: '340.000', rem: '160.000', status: 'تستحق الاستعاضة' },
-                  ].map((row, idx) => (
-                    <tr key={idx} className="hover:bg-slate-900/40 transition-colors">
-                      <td className="px-4 py-3 font-semibold text-white">{row.name}</td>
-                      <td className="px-4 py-3 text-xs text-slate-400">{row.role}</td>
-                      <td className="px-4 py-3 font-mono font-bold text-white text-right">{row.limit}</td>
-                      <td className="px-4 py-3 font-mono text-rose-400 text-right">{row.spent}</td>
-                      <td className="px-4 py-3 font-mono text-emerald-400 text-right">{row.rem}</td>
-                      <td className="px-4 py-3 text-center">
-                        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold border ${
-                          row.status.includes('الاستعاضة')
-                            ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                            : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                        }`}>
-                          {row.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        const filteredCategories = ODOO_EXPENSE_CATEGORIES_25.filter((cat) => {
+          if (!query) return true
+          return (
+            cat.nameAr.toLowerCase().includes(query) ||
+            cat.nameEn.toLowerCase().includes(query) ||
+            cat.tagAr.toLowerCase().includes(query) ||
+            cat.tagEn.toLowerCase().includes(query) ||
+            cat.accountCode.toLowerCase().includes(query)
+          )
+        })
+
+        const filteredCustodians = ODOO_CUSTODIANS_7.filter((cust) => {
+          if (!query) return true
+          return (
+            cust.nameAr.toLowerCase().includes(query) ||
+            cust.nameEn.toLowerCase().includes(query) ||
+            cust.roleAr.toLowerCase().includes(query) ||
+            cust.roleEn.toLowerCase().includes(query) ||
+            cust.accountCode.toLowerCase().includes(query)
+          )
+        })
+
+        const filteredSanad = ODOO_SANAD_STATEMENT_DETAILS.filter((item) => {
+          if (!query) return true
+          return (
+            item.id.toLowerCase().includes(query) ||
+            (item.badgeId && item.badgeId.toLowerCase().includes(query)) ||
+            (item.employeeNameAr && item.employeeNameAr.toLowerCase().includes(query)) ||
+            (item.employeeNameEn && item.employeeNameEn.toLowerCase().includes(query)) ||
+            item.descAr.toLowerCase().includes(query) ||
+            item.descEn.toLowerCase().includes(query) ||
+            item.costCenterAr.toLowerCase().includes(query) ||
+            item.costCenterEn.toLowerCase().includes(query) ||
+            item.docRef.toLowerCase().includes(query) ||
+            item.branchAr.toLowerCase().includes(query) ||
+            item.brandAr.toLowerCase().includes(query)
+          )
+        })
+
+        const filteredRabih = ODOO_RABIH_MAINTENANCE_DETAILS.filter((item) => {
+          if (!query) return true
+          return (
+            item.id.toLowerCase().includes(query) ||
+            item.descAr.toLowerCase().includes(query) ||
+            item.descEn.toLowerCase().includes(query) ||
+            item.costCenterAr.toLowerCase().includes(query) ||
+            item.costCenterEn.toLowerCase().includes(query) ||
+            item.docRef.toLowerCase().includes(query) ||
+            item.branchAr.toLowerCase().includes(query) ||
+            item.brandAr.toLowerCase().includes(query)
+          )
+        })
+
+        return (
+          <div className="space-y-6">
+            {/* Header & Badges */}
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-400">
+                    <Wallet size={14} />
+                    {isAr ? 'كشوف المصروفات والعهد المدققة من نظام أودو الرسمي' : 'Audited Odoo hr.expense Official Ledger'}
+                  </span>
+                  <span className="rounded-full bg-slate-800 px-2.5 py-0.5 text-xs text-slate-400">
+                    {isAr ? '2,213 معاملة مدققة ومرحلة' : '2,213 Audited Transactions'}
+                  </span>
+                </div>
+                <h3 className="mt-1 text-xl font-black text-white">
+                  {isAr
+                    ? 'أعمال التعقيب الحكومي وكشوف مصروفات (سند) والعهد التشغيلية والصيانة'
+                    : 'PRO Government Clearance, Sanad Statement & Operational Custody Hub'}
+                </h3>
+                <p className="text-xs text-slate-400">
+                  {isAr
+                    ? 'مطابقة بيانات شاشة المصروفات الفعلية لشركة فنتشر فودز (51,154.950 د.ك) عبر 25 فئة و7 أصحاب عهد'
+                    : 'Reconciled actual Odoo hr.expense data for Venture Foods (51,154.950 KWD) across 25 categories and 7 custodians'}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleExportPettyCsv}
+                  className="flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-850 px-3.5 py-2 text-xs font-bold text-slate-200 hover:bg-slate-800 transition-all"
+                >
+                  <Download size={14} />
+                  {isAr ? 'تصدير الكشف (CSV)' : 'Export Statement (CSV)'}
+                </button>
+              </div>
             </div>
+
+            {/* KPI Cards Grid */}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+              <div className="rounded-2xl border border-emerald-500/30 bg-emerald-950/20 p-4 space-y-1">
+                <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider">
+                  {isAr ? 'إجمالي المصروفات المدققة' : 'Total Audited OPEX'}
+                </span>
+                <p className="text-xl font-black text-white font-mono">51,154.950 {isAr ? 'د.ك' : 'KWD'}</p>
+                <div className="flex items-center justify-between text-[11px] text-slate-400">
+                  <span>{isAr ? '2,213 معاملة' : '2,213 Txns'}</span>
+                  <span className="text-emerald-400 font-bold">100%</span>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-blue-500/30 bg-blue-950/20 p-4 space-y-1">
+                <span className="text-[11px] font-bold text-blue-400 uppercase tracking-wider">
+                  {isAr ? 'كشوفات (سند) للتعقيب والإقامات' : 'Sanad PRO Clearance'}
+                </span>
+                <p className="text-xl font-black text-white font-mono">31,646.750 {isAr ? 'د.ك' : 'KWD'}</p>
+                <div className="flex items-center justify-between text-[11px] text-slate-400">
+                  <span>{isAr ? '844 معاملة' : '844 Txns'}</span>
+                  <span className="text-blue-400 font-bold">61.86%</span>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-amber-500/30 bg-amber-950/20 p-4 space-y-1">
+                <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider">
+                  {isAr ? 'صيانة المطابخ والفروع (ربيع طه)' : 'Kitchen Maintenance (Rabih)'}
+                </span>
+                <p className="text-xl font-black text-white font-mono">10,899.720 {isAr ? 'د.ك' : 'KWD'}</p>
+                <div className="flex items-center justify-between text-[11px] text-slate-400">
+                  <span>{isAr ? '538 معاملة' : '538 Txns'}</span>
+                  <span className="text-amber-400 font-bold">21.31%</span>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-purple-500/30 bg-purple-950/20 p-4 space-y-1">
+                <span className="text-[11px] font-bold text-purple-400 uppercase tracking-wider">
+                  {isAr ? 'الموارد البشرية والإدارية (جيرلين)' : 'HR & Admin (Gerlene)'}
+                </span>
+                <p className="text-xl font-black text-white font-mono">7,053.980 {isAr ? 'د.ك' : 'KWD'}</p>
+                <div className="flex items-center justify-between text-[11px] text-slate-400">
+                  <span>{isAr ? '713 معاملة' : '713 Txns'}</span>
+                  <span className="text-purple-400 font-bold">13.79%</span>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-rose-500/30 bg-rose-950/20 p-4 space-y-1 col-span-2 sm:col-span-1">
+                <span className="text-[11px] font-bold text-rose-400 uppercase tracking-wider">
+                  {isAr ? 'المرور والتراخيص والمطافئ (أمجد)' : 'Traffic & Licensing (Amjad)'}
+                </span>
+                <p className="text-xl font-black text-white font-mono">1,389.000 {isAr ? 'د.ك' : 'KWD'}</p>
+                <div className="flex items-center justify-between text-[11px] text-slate-400">
+                  <span>{isAr ? '92 معاملة' : '92 Txns'}</span>
+                  <span className="text-rose-400 font-bold">2.72%</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Sub-Tabs Navigation */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
+              <div className="flex flex-wrap gap-2">
+                {[
+                  {
+                    key: 'categories' as const,
+                    labelAr: '📊 فئات المصروفات الـ 25 (51,154.950 د.ك)',
+                    labelEn: '25 Expense Categories (51,154.950 KWD)',
+                    count: 25,
+                  },
+                  {
+                    key: 'custodians' as const,
+                    labelAr: '👥 أصحاب العهد الـ 7 الفعليين وكشوف الحسابات',
+                    labelEn: '7 Real Custodians Ledgers',
+                    count: 7,
+                  },
+                  {
+                    key: 'sanad' as const,
+                    labelAr: '🏛️ كشف (سند) للتعقيب وبصمات الإقامات',
+                    labelEn: 'Sanad PRO Gov Clearance & Staff Badges',
+                    count: ODOO_SANAD_STATEMENT_DETAILS.length,
+                  },
+                  {
+                    key: 'rabih' as const,
+                    labelAr: '🛠️ صيانة المطابخ والفروع ومخيم السفير (ربيع طه)',
+                    labelEn: 'Kitchen & Safir Camp Maintenance (Rabih)',
+                    count: ODOO_RABIH_MAINTENANCE_DETAILS.length,
+                  },
+                ].map((st) => {
+                  const active = pettySubTab === st.key
+                  return (
+                    <button
+                      key={st.key}
+                      onClick={() => setPettySubTab(st.key)}
+                      className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-all ${
+                        active
+                          ? 'bg-slate-100 text-black shadow-lg shadow-white/10'
+                          : 'bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-slate-200 border border-slate-800'
+                      }`}
+                    >
+                      <span>{isAr ? st.labelAr : st.labelEn}</span>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-mono ${
+                        active ? 'bg-slate-300 text-black' : 'bg-slate-800 text-slate-400'
+                      }`}>
+                        {st.count}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* Search Bar */}
+              <div className="relative w-full sm:w-72">
+                <Search size={14} className="absolute top-1/2 -translate-y-1/2 right-3 text-slate-500 pointer-events-none" />
+                <input
+                  type="text"
+                  value={pettySearch}
+                  onChange={(e) => setPettySearch(e.target.value)}
+                  placeholder={
+                    isAr
+                      ? 'بحث بالاسم، البصمة، الفرع، أو الحساب...'
+                      : 'Search by name, badge, branch or account...'
+                  }
+                  className="w-full rounded-xl border border-slate-800 bg-[#0d131f] py-2 pr-9 pl-3 text-xs text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            {/* SUB-VIEW 1: THE 25 AUDITED CATEGORIES */}
+            {pettySubTab === 'categories' && (
+              <div className="rounded-2xl border border-slate-800 bg-[#0d131f] overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-800 bg-slate-900/60 text-xs font-semibold text-slate-400">
+                        <th className="px-4 py-3 text-center w-12">#</th>
+                        <th className="px-4 py-3 text-right">{isAr ? 'فئة المصروف (أودو الرسمية)' : 'Odoo Expense Category'}</th>
+                        <th className="px-4 py-3 text-center">{isAr ? 'رمز الحساب المحاسبي' : 'Account Code'}</th>
+                        <th className="px-4 py-3 text-center">{isAr ? 'مركز التكلفة / الوسم' : 'Analytic Tag'}</th>
+                        <th className="px-4 py-3 text-center">{isAr ? 'عدد الحركات' : 'Tx Count'}</th>
+                        <th className="px-4 py-3 text-right">{isAr ? 'المبلغ الإجمالي (د.ك)' : 'Total Amount (KWD)'}</th>
+                        <th className="px-4 py-3 text-center w-40">{isAr ? 'النسبة من الإجمالي %' : 'Share %'}</th>
+                        <th className="px-4 py-3 text-center">{isAr ? 'الحالة' : 'Status'}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60 text-slate-200">
+                      {filteredCategories.map((c) => (
+                        <tr key={c.id} className="hover:bg-slate-900/40 transition-colors">
+                          <td className="px-4 py-3 text-center font-mono text-xs text-slate-500">{c.rank}</td>
+                          <td className="px-4 py-3">
+                            <span className="font-bold text-white block">{isAr ? c.nameAr : c.nameEn}</span>
+                            <span className="text-[11px] text-slate-500">{isAr ? c.nameEn : c.nameAr}</span>
+                          </td>
+                          <td className="px-4 py-3 text-center font-mono text-xs text-amber-300">
+                            <span className="rounded bg-amber-500/10 border border-amber-500/20 px-2 py-0.5">
+                              {c.accountCode}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="inline-flex rounded-full bg-slate-800 px-2.5 py-0.5 text-xs text-slate-300">
+                              {isAr ? c.tagAr : c.tagEn}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center font-mono font-semibold text-slate-300">
+                            {c.txCount.toLocaleString()} {isAr ? 'معاملة' : 'txns'}
+                          </td>
+                          <td className="px-4 py-3 text-right font-mono font-bold text-emerald-400">
+                            {c.amountKwd.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} {isAr ? 'د.ك' : 'KWD'}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <div className="h-1.5 w-full rounded-full bg-slate-800 overflow-hidden">
+                                <div
+                                  className="h-full rounded-full bg-emerald-500"
+                                  style={{ width: `${Math.min(100, c.pct * 3)}%` }}
+                                />
+                              </div>
+                              <span className="text-xs font-mono font-bold text-slate-300 w-12 text-left">
+                                {c.pct.toFixed(2)}%
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-400 border border-emerald-500/20">
+                              <CheckCircle2 size={12} />
+                              {isAr ? 'مدققة ومرحلة' : 'Audited & Posted'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="border-t-2 border-slate-700 bg-slate-900/80 font-bold text-white">
+                      <tr>
+                        <td colSpan={4} className="px-4 py-3 text-right text-xs uppercase tracking-wider text-slate-300">
+                          {isAr ? 'الإجمالي العام المدقق (25 فئة مصروفات):' : 'Audited Grand Total (25 Categories):'}
+                        </td>
+                        <td className="px-4 py-3 text-center font-mono text-amber-400">
+                          {ODOO_EXPENSES_TOTAL_TX.toLocaleString()} {isAr ? 'معاملة' : 'txns'}
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono text-emerald-400 text-base font-black">
+                          {ODOO_EXPENSES_TOTAL_KWD.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} {isAr ? 'د.ك' : 'KWD'}
+                        </td>
+                        <td className="px-4 py-3 text-center font-mono text-slate-300">100.00%</td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="inline-flex rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-xs text-emerald-300 border border-emerald-500/40">
+                            {isAr ? 'مطابق 100%' : '100% Balanced'}
+                          </span>
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* SUB-VIEW 2: THE 7 REAL CUSTODIANS */}
+            {pettySubTab === 'custodians' && (
+              <div className="rounded-2xl border border-slate-800 bg-[#0d131f] overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-800 bg-slate-900/60 text-xs font-semibold text-slate-400">
+                        <th className="px-4 py-3 text-right">{isAr ? 'المسؤول / صاحب العهدة' : 'Custodian'}</th>
+                        <th className="px-4 py-3 text-right">{isAr ? 'الدور التشغيلي / الغرض من العهدة' : 'Role / Purpose'}</th>
+                        <th className="px-4 py-3 text-center">{isAr ? 'الحسابات المحاسبية المحملة' : 'Odoo Accounts'}</th>
+                        <th className="px-4 py-3 text-center">{isAr ? 'عدد المعاملات' : 'Tx Count'}</th>
+                        <th className="px-4 py-3 text-right">{isAr ? 'إجمالي المصروف (د.ك)' : 'Total Spent (KWD)'}</th>
+                        <th className="px-4 py-3 text-center w-36">{isAr ? 'الحصة %' : 'Share %'}</th>
+                        <th className="px-4 py-3 text-center">{isAr ? 'حالة الاعتماد' : 'Audit Status'}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60 text-slate-200">
+                      {filteredCustodians.map((c) => (
+                        <tr key={c.id} className="hover:bg-slate-900/40 transition-colors">
+                          <td className="px-4 py-3">
+                            <span className="font-bold text-white block">{isAr ? c.nameAr : c.nameEn}</span>
+                            <span className="text-[11px] text-slate-500">{isAr ? c.nameEn : c.nameAr}</span>
+                          </td>
+                          <td className="px-4 py-3 text-xs text-slate-300">
+                            {isAr ? c.roleAr : c.roleEn}
+                          </td>
+                          <td className="px-4 py-3 text-center font-mono text-xs text-amber-300">
+                            <span className="rounded bg-slate-800 px-2 py-0.5 border border-slate-700">
+                              {c.accountCode}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center font-mono font-semibold text-slate-300">
+                            {c.txCount.toLocaleString()} {isAr ? 'معاملة' : 'txns'}
+                          </td>
+                          <td className="px-4 py-3 text-right font-mono font-bold text-emerald-400">
+                            {c.totalKwd.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} {isAr ? 'د.ك' : 'KWD'}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <div className="h-1.5 w-full rounded-full bg-slate-800 overflow-hidden">
+                                <div
+                                  className="h-full rounded-full bg-blue-500"
+                                  style={{ width: `${Math.min(100, c.pct * 1.5)}%` }}
+                                />
+                              </div>
+                              <span className="text-xs font-mono font-bold text-slate-300 w-12 text-left">
+                                {c.pct.toFixed(2)}%
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-400 border border-emerald-500/20">
+                              <CheckCircle2 size={12} />
+                              {isAr ? c.statusAr : c.statusEn}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="border-t-2 border-slate-700 bg-slate-900/80 font-bold text-white">
+                      <tr>
+                        <td colSpan={3} className="px-4 py-3 text-right text-xs uppercase tracking-wider text-slate-300">
+                          {isAr ? 'إجمالي العهد الـ 7 الفعلية:' : 'Total 7 Real Custodians:'}
+                        </td>
+                        <td className="px-4 py-3 text-center font-mono text-amber-400">
+                          {ODOO_EXPENSES_TOTAL_TX.toLocaleString()} {isAr ? 'معاملة' : 'txns'}
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono text-emerald-400 text-base font-black">
+                          {ODOO_EXPENSES_TOTAL_KWD.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} {isAr ? 'د.ك' : 'KWD'}
+                        </td>
+                        <td className="px-4 py-3 text-center font-mono text-slate-300">100.00%</td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="inline-flex rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-xs text-emerald-300 border border-emerald-500/40">
+                            {isAr ? 'مطابق 100%' : '100% Balanced'}
+                          </span>
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* SUB-VIEW 3: SANAD PRO STATEMENT DETAILS */}
+            {pettySubTab === 'sanad' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between text-xs text-slate-400 bg-slate-900/40 p-3 rounded-xl border border-slate-800">
+                  <span>
+                    {isAr
+                      ? 'كشف معاملات سند للتعقيب والإقامات الحكومية — توثيق رسوم الضمان الصحي، الداخلية، القوى العاملة، البطاقة المدنية، والبلدية'
+                      : 'Sanad Statement PRO Clearances — Audited breakdown for Health Insurance, MOI, PAM, PACI & Baladiya Cards'}
+                  </span>
+                  <span className="font-mono text-emerald-400 font-bold">
+                    31,646.750 {isAr ? 'د.ك' : 'KWD'} (844 {isAr ? 'معاملة' : 'txns'})
+                  </span>
+                </div>
+
+                <div className="rounded-2xl border border-slate-800 bg-[#0d131f] overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-slate-800 bg-slate-900/60 text-xs font-semibold text-slate-400">
+                          <th className="px-4 py-3 text-right">{isAr ? 'رقم الحركة والتاريخ' : 'Tx ID & Date'}</th>
+                          <th className="px-4 py-3 text-right">{isAr ? 'رقم البصمة والموظف' : 'Badge ID & Employee'}</th>
+                          <th className="px-4 py-3 text-right">{isAr ? 'بيان المعاملة الحكومية والرسوم الموثقة' : 'Clearance Breakdown & Scope'}</th>
+                          <th className="px-4 py-3 text-center">{isAr ? 'مركز التكلفة المزدوج (الفرع | البراند)' : 'Dual Cost Center'}</th>
+                          <th className="px-4 py-3 text-center">{isAr ? 'الحساب' : 'GL Code'}</th>
+                          <th className="px-4 py-3 text-right">{isAr ? 'المبلغ (د.ك)' : 'Amount (KWD)'}</th>
+                          <th className="px-4 py-3 text-center">{isAr ? 'رقم المستند' : 'Doc Ref'}</th>
+                          <th className="px-4 py-3 text-center">{isAr ? 'الحالة' : 'Status'}</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/60 text-slate-200">
+                        {filteredSanad.map((item) => (
+                          <tr key={item.id} className="hover:bg-slate-900/40 transition-colors">
+                            <td className="px-4 py-3">
+                              <span className="font-mono font-bold text-amber-400 block">{item.id}</span>
+                              <span className="text-[11px] text-slate-500 font-mono">{item.date}</span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                {item.badgeId && (
+                                  <span className="font-mono font-bold text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded">
+                                    #{item.badgeId}
+                                  </span>
+                                )}
+                                <div>
+                                  <span className="font-bold text-white block text-xs">
+                                    {isAr ? item.employeeNameAr : item.employeeNameEn}
+                                  </span>
+                                  <span className="text-[10px] text-slate-500">
+                                    {isAr ? item.employeeNameEn : item.employeeNameAr}
+                                  </span>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-xs text-slate-300 max-w-md">
+                              {isAr ? item.descAr : item.descEn}
+                            </td>
+                            <td className="px-4 py-3 text-center text-xs">
+                              <span className="inline-flex rounded-full bg-slate-800/90 border border-slate-700 px-2.5 py-0.5 font-semibold text-slate-200">
+                                {isAr ? item.costCenterAr : item.costCenterEn}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-center font-mono text-[11px] text-amber-300">
+                              {item.accountCode}
+                            </td>
+                            <td className="px-4 py-3 text-right font-mono font-bold text-emerald-400">
+                              {item.amountKwd.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} {isAr ? 'د.ك' : 'KWD'}
+                            </td>
+                            <td className="px-4 py-3 text-center font-mono text-[11px] text-slate-400">
+                              {item.docRef}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-400 border border-emerald-500/20">
+                                <CheckCircle2 size={12} />
+                                {isAr ? item.statusAr : item.statusEn}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* SUB-VIEW 4: RABIH ATTA TAHA MAINTENANCE DETAILS */}
+            {pettySubTab === 'rabih' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between text-xs text-slate-400 bg-slate-900/40 p-3 rounded-xl border border-slate-800">
+                  <span>
+                    {isAr
+                      ? 'كشف عهدة صيانة المطابخ والفروع ومخيم السفير (ربيع عطا طه) — توثيق أعمال التكييف، التبريد، السباكة، وتمديدات المخيم'
+                      : 'Rabih Atta Taha Maintenance Custody — Documenting Kitchen, AC, Refrigeration & Safir Camp Setups'}
+                  </span>
+                  <span className="font-mono text-emerald-400 font-bold">
+                    10,899.720 {isAr ? 'د.ك' : 'KWD'} (538 {isAr ? 'معاملة' : 'txns'})
+                  </span>
+                </div>
+
+                <div className="rounded-2xl border border-slate-800 bg-[#0d131f] overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-slate-800 bg-slate-900/60 text-xs font-semibold text-slate-400">
+                          <th className="px-4 py-3 text-right">{isAr ? 'رقم السند والتاريخ' : 'Voucher ID & Date'}</th>
+                          <th className="px-4 py-3 text-right">{isAr ? 'الموقع / مركز التكلفة' : 'Location / Cost Center'}</th>
+                          <th className="px-4 py-3 text-right">{isAr ? 'طبيعة الصيانة والأعمال المنفذة' : 'Maintenance Description & Scope'}</th>
+                          <th className="px-4 py-3 text-center">{isAr ? 'الفرع والبراند' : 'Branch & Brand'}</th>
+                          <th className="px-4 py-3 text-center">{isAr ? 'رمز الحساب' : 'GL Code'}</th>
+                          <th className="px-4 py-3 text-right">{isAr ? 'المبلغ (د.ك)' : 'Amount (KWD)'}</th>
+                          <th className="px-4 py-3 text-center">{isAr ? 'رقم الفاتورة / المستند' : 'Doc Ref'}</th>
+                          <th className="px-4 py-3 text-center">{isAr ? 'الحالة' : 'Status'}</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/60 text-slate-200">
+                        {filteredRabih.map((item) => (
+                          <tr key={item.id} className="hover:bg-slate-900/40 transition-colors">
+                            <td className="px-4 py-3">
+                              <span className="font-mono font-bold text-amber-400 block">{item.id}</span>
+                              <span className="text-[11px] text-slate-500 font-mono">{item.date}</span>
+                            </td>
+                            <td className="px-4 py-3 text-xs font-bold text-white">
+                              {isAr ? item.costCenterAr : item.costCenterEn}
+                            </td>
+                            <td className="px-4 py-3 text-xs text-slate-300 max-w-md">
+                              {isAr ? item.descAr : item.descEn}
+                            </td>
+                            <td className="px-4 py-3 text-center text-xs">
+                              <span className="inline-flex rounded-full bg-slate-800/90 border border-slate-700 px-2.5 py-0.5 text-slate-200">
+                                {isAr ? item.branchAr : item.branchEn}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-center font-mono text-[11px] text-amber-300">
+                              {item.accountCode}
+                            </td>
+                            <td className="px-4 py-3 text-right font-mono font-bold text-emerald-400">
+                              {item.amountKwd.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} {isAr ? 'د.ك' : 'KWD'}
+                            </td>
+                            <td className="px-4 py-3 text-center font-mono text-[11px] text-slate-400">
+                              {item.docRef}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-400 border border-emerald-500/20">
+                                <CheckCircle2 size={12} />
+                                {isAr ? item.statusAr : item.statusEn}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* ========================================================================= */}
       {/* TAB 4: GENERAL JOURNAL ENTRIES & VOUCHERS                                 */}

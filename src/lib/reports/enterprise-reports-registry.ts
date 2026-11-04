@@ -8,6 +8,7 @@ import {
   type BranchPerformanceRow,
   type MenuItemAnalytics,
 } from '@/lib/analytics/brand-sales-october-data'
+import { ODOO_EXPENSE_CATEGORIES_25 } from '@/lib/accounting/odoo-real-expenses-data'
 
 export interface ReportColumn {
   key: string
@@ -324,6 +325,56 @@ export const ENTERPRISE_DEPARTMENTS: EnterpriseDepartmentDef[] = [
     descriptionAr: 'قوائم الأرباح والخسائر، ميزان المراجعة Odoo، ديون العملاء والموردين، وحركة الخزينة والكي نت',
     descriptionEn: 'P&L income statement, Odoo trial balance, receivables, payables & K-Net audits',
     reports: [
+      {
+        id: 'odoo-real-expenses-2213',
+        departmentId: 'finance',
+        titleAr: 'كشف المصروفات والعهد التشغيلية والحكومية المدققة Odoo (51,154.950 د.ك)',
+        titleEn: 'Audited Odoo Expenses, PRO & Custodians Ledger (51,154.950 KWD)',
+        code: 'VF-EXP-01',
+        summaryAr: 'سجل المصروفات الفعلي المستخرج من شاشة أودو الرسمية hr.expense (2,213 معاملة) مصنفة عبر 25 فئة و7 أصحاب عهد شاملة سند للتعقيب وصيانة الفروع',
+        summaryEn: 'Official audited Odoo hr.expense ledger comprising 2,213 transactions (51,154.950 KWD) across 25 categories and 7 custodians',
+        headlineMetricAr: '51,154.950 د.ك (2,213 معاملة)',
+        headlineMetricEn: '51,154.950 KWD (2,213 Txns)',
+        recordCount: 25,
+        auditedDate: 'أكتوبر 2026',
+        kpis: [
+          { labelAr: 'إجمالي المصروفات المدققة', labelEn: 'Audited Grand Total', value: '51,154.950 د.ك', change: '100%', trend: 'up', subtextAr: 'مطابق لشاشة hr.expense', subtextEn: '100% matched with Odoo' },
+          { labelAr: 'عدد الحركات المحاسبية', labelEn: 'Total Transactions', value: '2,213 معاملة', trend: 'neutral', subtextAr: 'مدعمة بالفواتير والسندات', subtextEn: 'Supported with vouchers' },
+          { labelAr: 'كشوفات سند للتعقيب والإقامات', labelEn: 'Sanad PRO Clearances', value: '31,646.750 د.ك', change: '61.86%', trend: 'up', subtextAr: '844 حركة تجديد وضمان', subtextEn: '844 PRO renewals' },
+          { labelAr: 'صيانة المطابخ والفروع (ربيع طه)', labelEn: 'Kitchen Maintenance (Rabih)', value: '10,899.720 د.ك', change: '21.31%', trend: 'up', subtextAr: '538 حركة صيانة وفروع', subtextEn: '538 maintenance items' },
+          { labelAr: 'الموارد البشرية والإدارية (جيرلين)', labelEn: 'HR & Admin (Gerlene)', value: '7,053.980 د.ك', change: '13.79%', trend: 'up', subtextAr: '713 حركة إدارية وإعاشة', subtextEn: '713 admin & welfare items' },
+          { labelAr: 'العلاقات الحكومية والمرور (أمجد)', labelEn: 'Traffic & Licensing (Amjad)', value: '1,389.000 د.ك', change: '2.72%', trend: 'up', subtextAr: '92 حركة رخص وتوثيق', subtextEn: '92 licenses & attestations' },
+        ],
+        breakdownTitleAr: 'توزيع المصروفات حسب كبار أصحاب العهد الفعليين',
+        breakdownTitleEn: 'Expense Allocation by Primary Custodians',
+        breakdown: [
+          { labelAr: 'سند للتعقيب والخدمات الحكومية', labelEn: 'Sanad PRO Services', value: 31646.75, percent: 61.86, color: '#3b82f6' },
+          { labelAr: 'ربيع عطا طه (صيانة المطابخ ومخيم السفير)', labelEn: 'Rabih Atta Taha (Maintenance & Safir)', value: 10899.72, percent: 21.31, color: '#f59e0b' },
+          { labelAr: 'جيرلين لوجويا ليباندو (HR والشؤون الإدارية)', labelEn: 'Gerlene Logoya (HR & Admin)', value: 7053.98, percent: 13.79, color: '#8b5cf6' },
+          { labelAr: 'أمجد سمير جرجس ميخائيل (المرور والرخص)', labelEn: 'Amjad Samir (Traffic & Licensing)', value: 1389.0, percent: 2.72, color: '#ef4444' },
+          { labelAr: 'باقي العهد التشغيلية (راشد، شكرالله، توشار)', labelEn: 'Other Field Custodians', value: 165.5, percent: 0.32, color: '#10b981' },
+        ],
+        columns: [
+          { key: 'rank', labelAr: 'الترتيب', labelEn: 'Rank', align: 'center' },
+          { key: 'category', labelAr: 'فئة المصروف Odoo', labelEn: 'Expense Category', align: 'left' },
+          { key: 'accountCode', labelAr: 'رمز الحساب', labelEn: 'Account Code', align: 'center' },
+          { key: 'tag', labelAr: 'مركز التكلفة / الوسم', labelEn: 'Analytic Tag', align: 'center' },
+          { key: 'txCount', labelAr: 'عدد الحركات', labelEn: 'Tx Count', align: 'center' },
+          { key: 'amountKwd', labelAr: 'المبلغ الإجمالي (د.ك)', labelEn: 'Total Amount (KWD)', align: 'right', isCurrency: true },
+          { key: 'pct', labelAr: 'النسبة %', labelEn: 'Share %', align: 'center', isPercent: true },
+          { key: 'status', labelAr: 'حالة المطابقة', labelEn: 'Status', align: 'center', isBadge: true },
+        ],
+        rows: ODOO_EXPENSE_CATEGORIES_25.map((c) => ({
+          rank: c.rank,
+          category: c.nameAr,
+          accountCode: c.accountCode,
+          tag: c.tagAr,
+          txCount: `${c.txCount} معاملة`,
+          amountKwd: c.amountKwd.toFixed(3),
+          pct: `${c.pct.toFixed(2)}%`,
+          status: 'مدققة ومرحلة',
+        })),
+      },
       {
         id: 'pnl-income-statement',
         departmentId: 'finance',
