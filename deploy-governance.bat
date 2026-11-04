@@ -1,6 +1,0 @@
-@echo off
-cd /d "C:\Users\hp\OneDrive\Desktop\restaurant-ai-hq-complete\restaurant-ai-hq-complete\restaurant-ai-hqw"
-git add .
-git commit -m "fix(governance-fullwidth-and-pure-arabic): force 100% full-width on governance and regulatory compliance page, permanently purge scope banner and PWA banner, and enforce 100% pure Arabic"
-git push origin main
-npx.cmd vercel --prod --yes
