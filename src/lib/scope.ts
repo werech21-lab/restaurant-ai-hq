@@ -82,19 +82,19 @@ function scopeLabels(brandId: VentureBrandId | null, branchId: VentureBranchId |
   const branch = branchById(branchId)
   if (branch && brand) {
     return {
-      labelAr: `النطاق الحالي: ${brand.nameAr} — ${branch.areaAr}`,
-      labelEn: `Active scope: ${brand.nameEn} — ${branch.areaEn}`,
+      labelAr: `${brand.nameAr} — ${branch.areaAr}`,
+      labelEn: `${brand.nameEn} — ${branch.areaEn}`,
     }
   }
   if (brand) {
     return {
-      labelAr: `النطاق الحالي: ${brand.nameAr} — كل الفروع`,
-      labelEn: `Active scope: ${brand.nameEn} — all branches`,
+      labelAr: `${brand.nameAr} — كل الفروع`,
+      labelEn: `${brand.nameEn} — all branches`,
     }
   }
   return {
-    labelAr: 'النطاق الحالي: كل العلامات التجارية — كل الفروع النشطة (9)',
-    labelEn: 'Active scope: All 6 brands — All 9 active branches',
+    labelAr: 'كل العلامات التجارية — كل الفروع النشطة (9)',
+    labelEn: 'All 6 brands — All 9 active branches',
   }
 }
 

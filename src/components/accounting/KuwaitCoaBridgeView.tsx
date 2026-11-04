@@ -94,11 +94,11 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
     link.href = url
     link.download = `VentureFoods_Kuwait_COA_1000-8300_${new Date().toISOString().slice(0, 10)}.csv`
     link.click()
-    showToast(isAr ? '✅ تم تصدير شجرة الحسابات القياسية بنجاح (CSV) بدقة 3 خانات عشرية!' : '✅ Kuwait 4D Chart of Accounts exported successfully!')
+    showToast(isAr ? '✅ تم تصدير شجرة الحسابات القياسية بنجاح (إكسل) بدقة 3 خانات عشرية!' : '✅ Kuwait 4D Chart of Accounts exported successfully!')
   }
 
   return (
-    <div className="space-y-6">
+    <div className="w-full max-w-none space-y-6">
       {actionNotice && (
         <div className="rounded-xl border border-emerald-500/40 bg-emerald-950/60 p-3 text-xs font-bold text-emerald-300 shadow-lg flex items-center justify-between">
           <span>{actionNotice}</span>
@@ -118,11 +118,11 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
                   {isAr ? 'قائمة الدخل المعيارية لمطاعم الكويت' : 'Kuwait Multi-Brand & Four-Wall Store P&L'}
                 </span>
                 <h2 className="text-xl font-black text-white mt-1">
-                  {isAr ? 'نموذج قائمة الدخل التشغيلي للفرع والبراند (Four-Wall P&L)' : 'Store Four-Wall EBITDA & Controllable Margin Statement'}
+                  {isAr ? 'نموذج قائمة الدخل التشغيلي للفرع والبراند (تحليل أرباح الجدران الأربعة)' : 'Store Four-Wall EBITDA & Controllable Margin Statement'}
                 </h2>
                 <p className="text-xs text-slate-400 mt-0.5">
                   {isAr
-                    ? 'تسلسل الدخل المعياري لشركة فنتشر فودز: مجمل الربح 65%-73% · التكلفة الأولية Prime Cost (45%-55%) · صافي تشغيلي الفرع 10%-20%'
+                    ? 'تسلسل الدخل المعياري لشركة فنتشر فودز: مجمل الربح 65%-73% · التكلفة الأولية المعيارية (الأغذية والأجور 45%-55%) · صافي تشغيلي الفرع 10%-20%'
                     : 'Kuwait F&B benchmark: Gross Margin 65%-73% · Prime Cost 45%-55% · Controllable Profit 20%-35% · Store EBITDA 10%-20%'}
                 </p>
               </div>
@@ -147,7 +147,7 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
               </div>
 
               <div className="rounded-xl border border-slate-800 bg-[#0d121d] p-3.5">
-                <span className="text-[11px] font-bold text-slate-400">{isAr ? '2. إجمالي COGS (المستهدف 27%-35%)' : '2. Total COGS (27%-35%)'}</span>
+                <span className="text-[11px] font-bold text-slate-400">{isAr ? '2. إجمالي تكلفة البضاعة المباعة (المستهدف 27%-35%)' : '2. Total COGS (27%-35%)'}</span>
                 <div className="mt-2 flex items-baseline justify-between">
                   <span className="text-lg font-black text-amber-400">-{pnl.totalCogs.toLocaleString(undefined, { minimumFractionDigits: 3 })} د.ك</span>
                   <span className="text-xs font-mono font-bold text-amber-400">30.1%</span>
@@ -169,7 +169,7 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
               </div>
 
               <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-3.5">
-                <span className="text-[11px] font-bold text-emerald-400">{isAr ? '4. التكلفة الأولية Prime Cost (45%-55%)' : '4. Prime Cost (COGS + Labor 45%-55%)'}</span>
+                <span className="text-[11px] font-bold text-emerald-400">{isAr ? '4. التكلفة الأولية المعيارية (الأغذية والعمالة 45%-55%)' : '4. Prime Cost (COGS + Labor 45%-55%)'}</span>
                 <div className="mt-2 flex items-baseline justify-between">
                   <span className="text-lg font-black text-white">{pnl.primeCost.toLocaleString(undefined, { minimumFractionDigits: 3 })} د.ك</span>
                   <span className="text-xs font-mono font-bold text-emerald-400">49.7% ✅</span>
@@ -269,7 +269,7 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
                     <td className="py-2 px-3 text-end text-rose-300">2.8%</td>
                   </tr>
                   <tr>
-                    <td className="py-2 px-3 ps-6 text-slate-300">{isAr ? '(-) مخصص مكافأة نهاية الخدمة (IAS 19 / المادة 51) والإجازات' : '(-) Monthly EOSB & Leave Amortization'}</td>
+                    <td className="py-2 px-3 ps-6 text-slate-300">{isAr ? '(-) مخصص مكافأة نهاية الخدمة (المادة 51 من قانون العمل الكويتي) والإجازات' : '(-) Monthly EOSB & Leave Amortization'}</td>
                     <td className="py-2 px-3 text-center text-slate-500">6130-6140</td>
                     <td className="py-2 px-3 text-center text-slate-500">2% - 3%</td>
                     <td className="py-2 px-3 text-end text-rose-300">-{(pnl.laborEosbProvision + pnl.laborLeaveTickets).toFixed(3)}</td>
@@ -318,7 +318,7 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
                     <td className="py-2 px-3 text-end text-rose-300">5.5%</td>
                   </tr>
                   <tr className="bg-cyan-950/30 font-bold text-cyan-300">
-                    <td className="py-2.5 px-3">{isAr ? '= الربح التشغيلي القابل للتحكم (Controllable Profit - يحاسب عليه مدير التشغيل والفرع)' : '= Controllable Store Profit (Operations Target)'}</td>
+                    <td className="py-2.5 px-3">{isAr ? '= الربح التشغيلي الخاضع لرقابة مدير الفرع والتشغيل' : '= Controllable Store Profit (Operations Target)'}</td>
                     <td className="py-2.5 px-3 text-center">-</td>
                     <td className="py-2.5 px-3 text-center">20% - 35%</td>
                     <td className="py-2.5 px-3 text-end">{pnl.controllableProfit.toFixed(3)}</td>
@@ -334,8 +334,8 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
                     <td className="py-2 px-3 text-end text-rose-300">15.1%</td>
                   </tr>
                   <tr className="bg-emerald-900/30 font-black text-emerald-400">
-                    <td className="py-3 px-3">{isAr ? '= صافي ربح الفرع قبل الإدارة العامة (Store EBITDA / Four-Wall Profit)' : '= Four-Wall Store EBITDA Profit'}</td>
-                    <td className="py-3 px-3 text-center">EBITDA</td>
+                    <td className="py-3 px-3">{isAr ? '= صافي ربح الفرع قبل المصروفات العامة (الربح التشغيلي للجدران الأربعة)' : '= Four-Wall Store EBITDA Profit'}</td>
+                    <td className="py-3 px-3 text-center">{isAr ? 'الربح التشغيلي' : 'EBITDA'}</td>
                     <td className="py-3 px-3 text-center">10% - 20%</td>
                     <td className="py-3 px-3 text-end">{pnl.storeEbitda.toFixed(3)}</td>
                     <td className="py-3 px-3 text-end">15.2% ✅</td>
@@ -348,7 +348,7 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
                     <td className="py-2 px-3 text-end text-slate-400">4.5%</td>
                   </tr>
                   <tr className="bg-emerald-500/20 border-t-2 border-emerald-500 font-black text-emerald-300">
-                    <td className="py-3.5 px-3 text-sm">{isAr ? '🏆 صافي الربح النهائي للشركة (Net Profit)' : '🏆 Venture Foods Final Net Profit'}</td>
+                    <td className="py-3.5 px-3 text-sm">{isAr ? '🏆 صافي الربح النهائي للشركة' : '🏆 Venture Foods Final Net Profit'}</td>
                     <td className="py-3.5 px-3 text-center text-emerald-400">FINAL</td>
                     <td className="py-3.5 px-3 text-center text-emerald-400">7% - 14%</td>
                     <td className="py-3.5 px-3 text-end text-base text-white">{pnl.netProfit.toFixed(3)} د.ك</td>
@@ -370,10 +370,10 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4">
               <div>
                 <span className="text-[10px] font-bold text-amber-400 uppercase tracking-widest">
-                  {isAr ? 'مركز عقود الصيانة الدورية ومكافحة الحشرات والمداخن (AMC & Pest Control Hub)' : 'Operations ↔ Accounting Preventative Maintenance Hub'}
+                  {isAr ? 'مركز عقود الصيانة الدورية ومكافحة الحشرات ومداخن المطابخ' : 'Operations ↔ Accounting Preventative Maintenance Hub'}
                 </span>
                 <h2 className="text-xl font-black text-white mt-1">
-                  {isAr ? 'بوابة تأكيد الإنجاز التشغيلي قبل الصرف المحاسبي (Operational SLA Gate)' : 'Automated SLA Payment Gate & Contract Allocation'}
+                  {isAr ? 'بوابة التحقق التشغيلي من مستوى الخدمة قبل الصرف المحاسبي' : 'Automated SLA Payment Gate & Contract Allocation'}
                 </h2>
                 <p className="text-xs text-slate-400 mt-0.5">
                   {isAr
@@ -384,7 +384,7 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
               <div className="flex gap-2">
                 <span className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-1 text-xs font-black text-rose-400 flex items-center gap-1.5">
                   <ShieldAlert size={14} />
-                  {isAr ? 'عقد موقوف الصرف تلقائياً (SLA Hold): 1' : 'SLA Payment Hold: 1'}
+                  {isAr ? 'عقد موقوف الصرف تلقائياً لعدم اكتمال شروط الخدمة: 1' : 'SLA Payment Hold: 1'}
                 </span>
               </div>
             </div>
@@ -462,7 +462,7 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
                             onClick={() => showToast(isAr ? '⛔ تم تفعيل إيقاف الصرف التلقائي حتى قيام شركة الشعلة بتسليم شهادات الإطفاء' : '⛔ SLA Payment Hold active pending KFSD inspection')}
                             className="rounded-lg bg-rose-600 hover:bg-rose-500 px-3 py-1 text-[11px] font-black text-white shadow-md transition"
                           >
-                            {isAr ? '⛔ إيقاف الصرف مفعل (SLA Hold)' : '⛔ SLA Payment Hold Active'}
+                            {isAr ? '⛔ إيقاف الصرف مفعل لعدم اكتمال شروط الخدمة' : '⛔ SLA Payment Hold Active'}
                           </button>
                         )}
                       </div>
@@ -571,7 +571,7 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
                 </h2>
                 <p className="text-xs text-slate-400 mt-0.5">
                   {isAr
-                    ? 'يربط بيانات الـ 166 موظفاً الفعليين بنظام قيود اليومية الآلية (WPS، إطفاء الإقامات، مخصص المادة 51، سكن العمال، ووجبات الموظفين)'
+                    ? 'يربط بيانات الـ 166 موظفاً الفعليين بنظام قيود اليومية الآلية (حماية الأجور، إطفاء الإقامات، مخصص المادة 51، سكن العمال، ووجبات الموظفين)'
                     : 'Real-time bidirectional posting between biometric attendance, HR records, and General Ledger accounts'}
                 </p>
               </div>
@@ -610,11 +610,11 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
 
                   <div className="mt-3 pt-3 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2 text-xs">
                     <div className="flex items-center gap-2">
-                      <span className="text-emerald-400 font-bold">{isAr ? 'مدين (Dr):' : 'Debit (Dr):'}</span>
+                      <span className="text-emerald-400 font-bold">{isAr ? 'مدين:' : 'Debit (Dr):'}</span>
                       <span className="font-mono text-slate-200">{b.debitAccount}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-rose-400 font-bold">{isAr ? 'دائن (Cr):' : 'Credit (Cr):'}</span>
+                      <span className="text-rose-400 font-bold">{isAr ? 'دائن:' : 'Credit (Cr):'}</span>
                       <span className="font-mono text-slate-200">{b.creditAccount}</span>
                     </div>
                   </div>
@@ -634,7 +634,7 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between border-b border-slate-800 pb-4">
               <div>
                 <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">
-                  {isAr ? 'الهيكلة المحاسبية الكويتية رباعية الأبعاد (4D Kuwait F&B COA 1000–8300)' : 'Standard Kuwait F&B 4D Chart of Accounts'}
+                  {isAr ? 'الهيكلة المحاسبية المعتمدة لمطاعم الكويت (1000–8300)' : 'Standard Kuwait F&B 4D Chart of Accounts'}
                 </span>
                 <h2 className="text-xl font-black text-white mt-1">
                   {isAr ? 'شجرة الحسابات القياسية لمطاعم الكويت والأبعاد الأربعة الإجبارية' : 'Enterprise 4D Chart of Accounts (3 Decimal Precision)'}
@@ -652,7 +652,7 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
                   className="rounded-xl border border-emerald-500/40 bg-emerald-600 hover:bg-emerald-500 px-4 py-2 text-xs font-bold text-white shadow-lg transition flex items-center gap-1.5"
                 >
                   <Download size={14} />
-                  <span>{isAr ? 'تصدير شجرة الحسابات (CSV)' : 'Export COA CSV'}</span>
+                  <span>{isAr ? 'تصدير شجرة الحسابات (إكسل)' : 'Export COA CSV'}</span>
                 </button>
               </div>
             </div>
@@ -660,18 +660,18 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
             {/* 4D Dimensions Selector Bar */}
             <div className="mt-4 rounded-xl border border-slate-800 bg-[#0d121d] p-3.5 space-y-3">
               <span className="text-[11px] font-bold text-slate-400 block">
-                {isAr ? '🏷️ أبعاد التخصيص المحاسبي الـ 4 (Mandatory 4 Dimensions):' : '🏷️ The 4 Mandatory Accounting Dimensions:'}
+                {isAr ? '🏷️ الأبعاد الأربعة الإلزامية للتوجيه المالي ومراكز التكلفة:' : '🏷️ The 4 Mandatory Accounting Dimensions:'}
               </span>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs">
                 {/* Brand */}
                 <div>
-                  <label className="text-[10px] text-slate-400 block mb-1">{isAr ? '1. البراند (Brand):' : '1. Brand:'}</label>
+                  <label className="text-[10px] text-slate-400 block mb-1">{isAr ? '1. العلامة التجارية:' : '1. Brand:'}</label>
                   <select
                     value={selectedBrand}
                     onChange={(e) => setSelectedBrand(e.target.value)}
                     className="w-full rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-slate-200 text-xs focus:border-emerald-500"
                   >
-                    <option value="ALL">{isAr ? 'جميع البراندات الـ 6 الرسمية + HQ' : 'All 6 Brands + HQ'}</option>
+                    <option value="ALL">{isAr ? 'جميع البراندات الـ 6 الرسمية + المقر الرئيسي' : 'All 6 Brands + HQ'}</option>
                     {KUWAIT_DIMENSION_BRANDS.map((b) => (
                       <option key={b.code} value={b.code}>{b.code} · {isAr ? b.nameAr : b.nameEn}</option>
                     ))}
@@ -680,7 +680,7 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
 
                 {/* Location */}
                 <div>
-                  <label className="text-[10px] text-slate-400 block mb-1">{isAr ? '2. الموقع / مركز التكلفة (Location):' : '2. Location / Cost Center:'}</label>
+                  <label className="text-[10px] text-slate-400 block mb-1">{isAr ? '2. الموقع ومستودع الفرع:' : '2. Location / Cost Center:'}</label>
                   <select
                     value={selectedLoc}
                     onChange={(e) => setSelectedLoc(e.target.value)}
@@ -695,13 +695,13 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
 
                 {/* Department */}
                 <div>
-                  <label className="text-[10px] text-slate-400 block mb-1">{isAr ? '3. القسم التشغيلي (Department):' : '3. Department:'}</label>
+                  <label className="text-[10px] text-slate-400 block mb-1">{isAr ? '3. القسم التشغيلي وموقع العمل:' : '3. Department:'}</label>
                   <select
                     value={selectedDept}
                     onChange={(e) => setSelectedDept(e.target.value)}
                     className="w-full rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-slate-200 text-xs focus:border-emerald-500"
                   >
-                    <option value="ALL">{isAr ? 'جميع الأقسام (BOH / FOH / DEL / ADM)' : 'All Departments'}</option>
+                    <option value="ALL">{isAr ? 'جميع الأقسام (المطبخ / الصالة / التوصيل / الإدارة)' : 'All Departments'}</option>
                     {KUWAIT_DIMENSION_DEPARTMENTS.map((d) => (
                       <option key={d.code} value={d.code}>{d.code} · {isAr ? d.nameAr : d.nameEn}</option>
                     ))}
@@ -710,7 +710,7 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
 
                 {/* Channel */}
                 <div>
-                  <label className="text-[10px] text-slate-400 block mb-1">{isAr ? '4. قناة البيع (Channel):' : '4. Sales Channel:'}</label>
+                  <label className="text-[10px] text-slate-400 block mb-1">{isAr ? '4. قناة البيع وقناة التوزيع:' : '4. Sales Channel:'}</label>
                   <select
                     value={selectedChannel}
                     onChange={(e) => setSelectedChannel(e.target.value)}
@@ -822,7 +822,7 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
                   {isAr ? 'دورة التسويات والتحويلات المركزية' : 'Platform Clearing & Central Kitchen Transit'}
                 </span>
                 <h2 className="text-xl font-black text-white mt-1">
-                  {isAr ? 'مطابقة ذمم المنصات (1121–1125) ومخزون التحويلات (1139 Inventory in Transit)' : 'Platform Clearing & In-Transit Depletion Control'}
+                  {isAr ? 'مطابقة ذمم المنصات (1121–1125) ومخزون التحويلات (1139 بضاعة بالطريق بين القرين والفروع)' : 'Platform Clearing & In-Transit Depletion Control'}
                 </h2>
                 <p className="text-xs text-slate-400 mt-0.5">
                   {isAr

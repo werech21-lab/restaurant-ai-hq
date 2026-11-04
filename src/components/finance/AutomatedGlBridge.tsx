@@ -253,7 +253,7 @@ export function AutomatedGlBridge({
               className="flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3.5 py-2 text-xs font-bold text-slate-200 hover:bg-slate-700 transition-all"
             >
               <Download size={14} />
-              {isAr ? 'تصدير القيود Odoo CSV' : 'Export Odoo Journal CSV'}
+              {isAr ? 'تصدير قيود اليومية المعتمدة (إكسل)' : 'Export Odoo Journal CSV'}
             </button>
           </div>
         </div>
@@ -272,26 +272,26 @@ export function AutomatedGlBridge({
         {/* Live Balance Summary KPI Cards */}
         <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-3.5">
-            <div className="text-[11px] font-medium text-slate-400">{isAr ? 'إجمالي المدين (Debit)' : 'Total Debit Postings'}</div>
+            <div className="text-[11px] font-medium text-slate-400">{isAr ? 'إجمالي المدين' : 'Total Debit Postings'}</div>
             <div className="text-lg font-black text-emerald-400 mt-1">{totalDebits.toFixed(3)} <span className="text-xs text-slate-400">{isAr ? 'د.ك' : 'KWD'}</span></div>
             <div className="text-[10px] text-slate-400 mt-0.5">{isAr ? 'الأصول والمصروفات' : 'Assets & Direct Costs'}</div>
           </div>
           <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-3.5">
-            <div className="text-[11px] font-medium text-slate-400">{isAr ? 'إجمالي الدائن (Credit)' : 'Total Credit Postings'}</div>
+            <div className="text-[11px] font-medium text-slate-400">{isAr ? 'إجمالي الدائن' : 'Total Credit Postings'}</div>
             <div className="text-lg font-black text-cyan-400 mt-1">{totalCredits.toFixed(3)} <span className="text-xs text-slate-400">{isAr ? 'د.ك' : 'KWD'}</span></div>
             <div className="text-[10px] text-slate-400 mt-0.5">{isAr ? 'الإيرادات والمخزون' : 'Revenues & Inventory'}</div>
           </div>
           <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-3.5">
-            <div className="text-[11px] font-medium text-slate-400">{isAr ? 'فارق التوازن (Variance)' : 'Imbalance / Diff'}</div>
+            <div className="text-[11px] font-medium text-slate-400">{isAr ? 'فارق التوازن' : 'Imbalance / Diff'}</div>
             <div className={`text-lg font-black mt-1 ${imbalance === 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
               {imbalance.toFixed(3)} <span className="text-xs text-slate-400">{isAr ? 'د.ك' : 'KWD'}</span>
             </div>
             <div className="text-[10px] text-emerald-400/90 mt-0.5">{isAr ? 'متزن محاسبياً 100%' : '100% Balanced'}</div>
           </div>
           <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-3.5">
-            <div className="text-[11px] font-medium text-slate-400">{isAr ? 'ربط شجرة Odoo' : 'Odoo COA Linkage'}</div>
+            <div className="text-[11px] font-medium text-slate-400">{isAr ? 'ربط شجرة حسابات أودو' : 'Odoo COA Linkage'}</div>
             <div className="text-lg font-black text-indigo-400 mt-1">820 <span className="text-xs text-slate-400">{isAr ? 'حساباً' : 'Accounts'}</span></div>
-            <div className="text-[10px] text-slate-400 mt-0.5">{isAr ? 'ترحيل فوري Live Sync' : 'Real-time GL posting'}</div>
+            <div className="text-[10px] text-slate-400 mt-0.5">{isAr ? 'ترحيل ومزامنة فورية' : 'Real-time GL posting'}</div>
           </div>
         </div>
       </div>
@@ -396,10 +396,10 @@ export function AutomatedGlBridge({
                       <thead>
                         <tr className="border-b border-slate-800 text-[11px] text-slate-400">
                           <th className="py-2 px-3 text-left font-mono">{isAr ? 'رمز الحساب' : 'Code'}</th>
-                          <th className="py-2 px-3">{isAr ? 'اسم الحساب في شجرة Odoo' : 'Odoo Account Name'}</th>
+                          <th className="py-2 px-3">{isAr ? 'اسم الحساب في شجرة أودو' : 'Odoo Account Name'}</th>
                           <th className="py-2 px-3">{isAr ? 'مركز التكلفة التحليلي' : 'Analytic CC'}</th>
-                          <th className="py-2 px-3 text-left">{isAr ? 'مدين Debit (د.ك)' : 'Debit (KWD)'}</th>
-                          <th className="py-2 px-3 text-left">{isAr ? 'دائن Credit (د.ك)' : 'Credit (KWD)'}</th>
+                          <th className="py-2 px-3 text-left">{isAr ? 'المدين (د.ك)' : 'Debit (KWD)'}</th>
+                          <th className="py-2 px-3 text-left">{isAr ? 'الدائن (د.ك)' : 'Credit (KWD)'}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-800/50">

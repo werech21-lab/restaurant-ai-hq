@@ -271,7 +271,7 @@ export function VentureAccountingHub({
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
-    showToast(isAr ? 'تم تصدير كشف الحساب بنجاح إلى ملف إكسل (CSV)' : 'Statement exported successfully to CSV')
+    showToast(isAr ? 'تم تصدير كشف الحساب بنجاح إلى ملف إكسل' : 'Statement exported successfully to CSV')
   }
 
   return (
@@ -288,7 +288,7 @@ export function VentureAccountingHub({
               {isAr ? 'المحاسبة والمالية والتدقيق المالي الشامل' : 'Corporate Finance & General Ledger'}
             </span>
             <span className="rounded-full bg-slate-800 px-2.5 py-0.5 text-xs text-slate-400">
-              {isAr ? 'فنتشر فودز ذ.م.م. (820 حساباً Odoo)' : 'Venture Foods W.L.L. (820 Odoo Accounts)'}
+              {isAr ? 'فنتشر فودز ذ.م.م. (820 حساباً بأودو)' : 'Venture Foods W.L.L. (820 Odoo Accounts)'}
             </span>
           </div>
           <h1 className="mt-1 text-2xl font-black text-white sm:text-3xl">
@@ -451,7 +451,7 @@ export function VentureAccountingHub({
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-base font-bold text-white">
-              {isAr ? 'حسابات البنوك الرسمية وتسوية مدفوعات K-NET وتطبيقات التوصيل' : 'Official Bank Accounts & K-NET / Platform Settlement'}
+              {isAr ? 'حسابات البنوك الرسمية وتسوية مدفوعات كي نت وتطبيقات التوصيل' : 'Official Bank Accounts & K-NET / Platform Settlement'}
             </h3>
             <span className="text-xs text-emerald-400 font-semibold">
               {isAr ? 'رصيد النقدية والبنوك: 142,850.000 د.ك' : 'Total Bank & Cash Balances: 142,850 KWD'}
@@ -623,7 +623,7 @@ export function VentureAccountingHub({
                   className="flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-850 px-3.5 py-2 text-xs font-bold text-slate-200 hover:bg-slate-800 transition-all"
                 >
                   <Download size={14} />
-                  {isAr ? 'تصدير الكشف (CSV)' : 'Export Statement (CSV)'}
+                  {isAr ? 'تصدير الكشف (إكسل)' : 'Export Statement (CSV)'}
                 </button>
               </div>
             </div>
@@ -1251,8 +1251,8 @@ export function VentureAccountingHub({
                                 onChange={(e) => setChequeBank(e.target.value as 'CBK' | 'NBK')}
                                 className="w-full rounded-xl border border-slate-700 bg-slate-850 px-3 py-2 text-xs text-white focus:border-emerald-500 focus:outline-none"
                               >
-                                <option value="CBK">{isAr ? 'البنك التجاري الكويتي (Commercial Bank)' : 'Commercial Bank of Kuwait (CBK)'}</option>
-                                <option value="NBK">{isAr ? 'بنك الكويت الوطني (الوطني K-Net)' : 'National Bank of Kuwait (NBK)'}</option>
+                                <option value="CBK">{isAr ? 'البنك التجاري الكويتي (الحساب التشغيلي الرئيسي)' : 'Commercial Bank of Kuwait (CBK)'}</option>
+                                <option value="NBK">{isAr ? 'بنك الكويت الوطني (نقاط بيع كي نت)' : 'National Bank of Kuwait (NBK)'}</option>
                               </select>
                             </div>
 
@@ -1818,8 +1818,8 @@ export function VentureAccountingHub({
                     <th className="px-4 py-3 text-right">{isAr ? 'رقم القيد' : 'Entry No'}</th>
                     <th className="px-4 py-3 text-right">{isAr ? 'التاريخ' : 'Date'}</th>
                     <th className="px-4 py-3 text-right">{isAr ? 'البيان والوصف المحاسبي' : 'Narrative'}</th>
-                    <th className="px-4 py-3 text-right">{isAr ? 'المدين (Debit)' : 'Debit (KWD)'}</th>
-                    <th className="px-4 py-3 text-right">{isAr ? 'الدائن (Credit)' : 'Credit (KWD)'}</th>
+                    <th className="px-4 py-3 text-right">{isAr ? 'المدين' : 'Debit (KWD)'}</th>
+                    <th className="px-4 py-3 text-right">{isAr ? 'الدائن' : 'Credit (KWD)'}</th>
                     <th className="px-4 py-3 text-center">{isAr ? 'المستخدم والمراجع' : 'Auditor'}</th>
                   </tr>
                 </thead>
@@ -1853,10 +1853,10 @@ export function VentureAccountingHub({
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-base font-bold text-white">
-              {isAr ? 'شجرة الحسابات وميزان المراجعة الموحد المستورد من Odoo (820 حساباً)' : 'Odoo Chart of Accounts & Unified Trial Balance'}
+              {isAr ? 'شجرة الحسابات وميزان المراجعة الموحد المعتمد في أودو (820 حساباً)' : 'Odoo Chart of Accounts & Unified Trial Balance'}
             </h3>
             <span className="text-xs text-slate-400">
-              {isAr ? 'تطابق محاسبي تام بين Odoo ودفاتر فنتشر فودز' : '100% Synced with Odoo Data Lake'}
+              {isAr ? 'تطابق محاسبي تام بين نظام أودو ودفاتر فنتشر فودز' : '100% Synced with Odoo Data Lake'}
             </span>
           </div>
 
@@ -1989,7 +1989,7 @@ export function VentureAccountingHub({
             </div>
 
             <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-              <span className="text-xs font-semibold text-slate-400">{isAr ? 'التأمينات المستردة المعلقة (GL 110400)' : 'Pending Deposits'}</span>
+              <span className="text-xs font-semibold text-slate-400">{isAr ? 'التأمينات المستردة المعلقة (حساب 110400)' : 'Pending Deposits'}</span>
               <div className="mt-2 text-xl font-black text-cyan-300 font-mono">
                 {VENTURE_FOODS_EVENTS.filter(e => e.costs.securityDepositStatus === 'pending').reduce((acc, e) => acc + e.costs.securityDepositKwd, 0).toLocaleString('en-US', { minimumFractionDigits: 3 })} KWD
               </div>
@@ -2102,7 +2102,7 @@ export function VentureAccountingHub({
             </div>
 
             <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-              <span className="text-xs font-semibold text-slate-400">{isAr ? 'التأمينات الإيجارية المستردة (GL 110400)' : 'Security Deposits in GL'}</span>
+              <span className="text-xs font-semibold text-slate-400">{isAr ? 'التأمينات الإيجارية المستردة (حساب 110400)' : 'Security Deposits in GL'}</span>
               <div className="mt-2 text-xl font-black text-cyan-300 font-mono">24,500.000 KWD</div>
               <span className="text-[10px] text-slate-400">{isAr ? 'تأمينات فروع وسكنات معتمدة' : 'Recoverable upon vacate'}</span>
             </div>
@@ -2185,7 +2185,7 @@ export function VentureAccountingHub({
             <div className="overflow-hidden rounded-2xl border border-slate-800 bg-[#0d131f]">
               <div className="border-b border-slate-800 px-5 py-3.5 bg-slate-900/40">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">
-                  {isAr ? '2. سكنات الموظفين والعمالة (GL 502040)' : '2. Staff Housing & Flats (GL 502040)'}
+                  {isAr ? '2. سكنات الموظفين والعمالة (حساب 502040)' : '2. Staff Housing & Flats (GL 502040)'}
                 </h4>
               </div>
               <div className="p-4 space-y-3">
@@ -2282,13 +2282,13 @@ export function VentureAccountingHub({
             </div>
 
             <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-              <span className="text-xs font-semibold text-slate-400">{isAr ? 'صيانة الكراجات وقطع الغيار (GL 503010)' : 'Garage Repairs & Parts'}</span>
+              <span className="text-xs font-semibold text-slate-400">{isAr ? 'صيانة الكراجات وقطع الغيار (حساب 503010)' : 'Garage Repairs & Parts'}</span>
               <div className="mt-2 text-xl font-black text-amber-400 font-mono">1,280.000 KWD</div>
               <span className="text-[10px] text-slate-400">{isAr ? 'كراجات الشويخ والري المعتمدة' : 'Approved Shuwaikh workshops'}</span>
             </div>
 
             <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-              <span className="text-xs font-semibold text-slate-400">{isAr ? 'محروقات وبترول الأسطول (GL 503020)' : 'Fuel & Petrol (Monthly)'}</span>
+              <span className="text-xs font-semibold text-slate-400">{isAr ? 'محروقات وبترول الأسطول (حساب 503020)' : 'Fuel & Petrol (Monthly)'}</span>
               <div className="mt-2 text-xl font-black text-emerald-400 font-mono">1,420.000 KWD</div>
               <span className="text-[10px] text-emerald-300 font-bold">{isAr ? 'كروت الأولى وبترول الوطنية' : 'Oula & KNPC Fuel Cards'}</span>
             </div>
@@ -2296,7 +2296,7 @@ export function VentureAccountingHub({
             <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
               <span className="text-xs font-semibold text-slate-400">{isAr ? 'المخالفات المرورية المربوطة بالرواتب' : 'Driver Traffic Fines'}</span>
               <div className="mt-2 text-xl font-black text-rose-400 font-mono">285.000 KWD</div>
-              <span className="text-[10px] text-rose-300 font-bold">100% {isAr ? 'مربوطة بخصم مسير الرواتب (GL 210500)' : 'Linked to WPS Payroll'}</span>
+              <span className="text-[10px] text-rose-300 font-bold">100% {isAr ? 'مربوطة بخصم مسير الرواتب (حساب 210500)' : 'Linked to WPS Payroll'}</span>
             </div>
           </div>
 
@@ -2304,7 +2304,7 @@ export function VentureAccountingHub({
           <div className="overflow-hidden rounded-2xl border border-slate-800 bg-[#0d131f]">
             <div className="border-b border-slate-800 px-5 py-3.5 bg-slate-900/40 flex items-center justify-between">
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">
-                {isAr ? '1. فواتير وتصليحات كراجات صيانة المركبات والتبريد (GL 503010)' : '1. Garage Repair Orders & Chiller Maintenance (GL 503010)'}
+                {isAr ? '1. فواتير وتصليحات كراجات صيانة المركبات والتبريد (حساب 503010)' : '1. Garage Repair Orders & Chiller Maintenance (GL 503010)'}
               </h4>
               <span className="text-[11px] text-slate-400 font-mono">{isAr ? 'كراجات الشويخ الصناعية المعتمدة' : 'Shuwaikh Industrial Hub'}</span>
             </div>
@@ -2349,7 +2349,7 @@ export function VentureAccountingHub({
           <div className="overflow-hidden rounded-2xl border border-slate-800 bg-[#0d131f]">
             <div className="border-b border-slate-800 px-5 py-3.5 bg-slate-900/40 flex items-center justify-between">
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">
-                {isAr ? '2. رادار المخالفات المرورية وربطها التلقائي بخصومات رواتب السائقين (GL 210500)' : '2. Traffic Violations & Automated Driver Payroll Deductions (GL 210500)'}
+                {isAr ? '2. رادار المخالفات المرورية وربطها التلقائي بخصومات رواتب السائقين (حساب 210500)' : '2. Traffic Violations & Automated Driver Payroll Deductions (GL 210500)'}
               </h4>
               <span className="text-[11px] text-rose-400 font-mono font-bold">{isAr ? 'إجمالي المخالفات المسجلة: 285.000 د.ك' : 'Total Fines: 285.000 KWD'}</span>
             </div>
@@ -2435,7 +2435,7 @@ export function VentureAccountingHub({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-300 mb-1">{isAr ? 'الحساب المدين (Dr):' : 'Debit Account:'}</label>
+                  <label className="block font-semibold text-slate-300 mb-1">{isAr ? 'الحساب المدين:' : 'Debit Account:'}</label>
                   <select className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-white focus:outline-none">
                     <option value="101100">101100 - بنك الكويت الوطني NBK</option>
                     <option value="105000">105000 - مخزون المواد الغذائية</option>
@@ -2443,7 +2443,7 @@ export function VentureAccountingHub({
                   </select>
                 </div>
                 <div>
-                  <label className="block font-semibold text-slate-300 mb-1">{isAr ? 'الحساب الدائن (Cr):' : 'Credit Account:'}</label>
+                  <label className="block font-semibold text-slate-300 mb-1">{isAr ? 'الحساب الدائن:' : 'Credit Account:'}</label>
                   <select className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-white focus:outline-none">
                     <option value="401000">401000 - إيرادات مبيعات الفروع</option>
                     <option value="102000">102000 - نقدية وصناديق الفروع</option>
@@ -2453,7 +2453,7 @@ export function VentureAccountingHub({
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-300 mb-1">{isAr ? 'المبلغ بالدينار الكويتي (KWD):' : 'Amount in KWD:'}</label>
+                <label className="block font-semibold text-slate-300 mb-1">{isAr ? 'المبلغ بالدينار الكويتي:' : 'Amount in KWD:'}</label>
                 <input
                   type="number"
                   step="0.001"
