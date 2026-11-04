@@ -11,8 +11,10 @@ export const dynamic = 'force-dynamic'
 
 export default function DashboardPage() {
   return (
-    <Suspense fallback={<PageSkeleton title="مركز القيادة والتحكم التنفيذي" />}>
-      <AetherBiExecutiveDashboard locale="ar" />
-    </Suspense>
+    <div className="w-full max-w-none">
+      <Suspense fallback={<PageSkeleton title="مركز القيادة والتحكم التنفيذي" />}>
+        <AetherBiExecutiveDashboard locale="ar" />
+      </Suspense>
+    </div>
   )
 }

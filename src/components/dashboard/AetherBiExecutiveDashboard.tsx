@@ -279,10 +279,10 @@ export function AetherBiExecutiveDashboard({
   return (
     <div
       dir={isRtl ? 'rtl' : 'ltr'}
-      className="min-h-screen bg-[#090d16] text-slate-100 p-4 sm:p-7 space-y-6"
+      className="w-full max-w-none min-h-screen bg-slate-50 dark:bg-[#090d16] text-slate-900 dark:text-slate-100 p-4 sm:p-7 space-y-6"
     >
       {/* 1. TOP BAR: TITLE + STATUS + INTERACTIVE DATE PILLS */}
-      <div className="rounded-2xl border border-slate-800/80 bg-[#111827]/90 p-5 shadow-2xl backdrop-blur-xl transition-all hover:border-slate-700/80">
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-[#111827]/90 p-5 shadow-xl backdrop-blur-xl transition-all hover:border-slate-300 dark:hover:border-slate-700/80">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <div className="flex flex-wrap items-center gap-2">
@@ -293,14 +293,14 @@ export function AetherBiExecutiveDashboard({
                 </span>
                 {isAr ? '🟢 9 فروع نشطة متصلة الآن — المطبخ المركزي 100%' : '🟢 9 Active Branches Online · Central Kitchen 100%'}
               </span>
-              <span className="rounded-full border border-slate-700/50 bg-slate-800/70 px-2.5 py-0.5 text-xs font-mono text-slate-300">
+              <span className="rounded-full border border-slate-200 dark:border-slate-700/50 bg-slate-100 dark:bg-slate-800/70 px-2.5 py-0.5 text-xs font-mono text-slate-700 dark:text-slate-300">
                 {isAr ? 'منظومة الإدارة المركزية المتكاملة — شركة فنتشر فودز لإدارة المطاعم' : 'AetherBI Enterprise Engine v2.6 · Venture Foods'}
               </span>
             </div>
-            <h1 className="mt-2 text-2xl font-black text-white sm:text-3xl tracking-tight">
+            <h1 className="mt-2 text-2xl font-black text-slate-900 dark:text-white sm:text-3xl tracking-tight">
               {isAr ? 'مركز القيادة والتحكم التنفيذي | شركة فنتشر فودز ذ.م.م.' : 'Executive Command Center | Venture Foods W.L.L.'}
             </h1>
-            <p className="mt-0.5 text-xs text-slate-400">
+            <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">
               {isAr
                 ? 'لوحة القيادة الموحدة: 6 علامات تجارية رسمية، 9 فروع نشطة، وإجمالي مبيعات الفترة 167,092.160 د.ك'
                 : 'Unified AetherBI Command Dashboard: 6 official brands, 9 active branches & October revenue 167,092.160 KWD'}
@@ -309,7 +309,7 @@ export function AetherBiExecutiveDashboard({
 
           {/* Interactive Date Range Pills */}
           <div className="flex flex-wrap items-center gap-2.5">
-            <div className="flex items-center rounded-xl border border-slate-800 bg-slate-900/90 p-1 shadow-inner">
+            <div className="flex items-center rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/90 p-1 shadow-inner">
               {[
                 { id: 'TODAY', labelAr: 'اليوم', labelEn: 'Today' },
                 { id: 'YESTERDAY', labelAr: 'أمس', labelEn: 'Yesterday' },
@@ -325,7 +325,7 @@ export function AetherBiExecutiveDashboard({
                     className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all duration-200 ${
                       active
                         ? 'bg-emerald-500 text-black font-extrabold shadow-lg shadow-emerald-500/25 scale-[1.02]'
-                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800/60'
                     }`}
                   >
                     {isAr ? pill.labelAr : pill.labelEn}
@@ -337,15 +337,15 @@ export function AetherBiExecutiveDashboard({
         </div>
 
         {/* Clean Filter Dropdowns Bar (9 Active Branches Only - No Jahra) */}
-        <div className="mt-4 pt-3.5 border-t border-slate-800/60 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="mt-4 pt-3.5 border-t border-slate-200 dark:border-slate-800/60 flex flex-wrap items-center justify-between gap-3 text-xs">
           <div className="flex flex-wrap items-center gap-2.5">
-            <span className="text-slate-400 font-semibold">{isAr ? 'نطاق العرض:' : 'Scope Filter:'}</span>
+            <span className="text-slate-700 dark:text-slate-400 font-semibold">{isAr ? 'نطاق العرض:' : 'Scope Filter:'}</span>
 
             {/* Brands Dropdown */}
             <select
               value={selectedBrand}
               onChange={(e) => setSelectedBrand(e.target.value)}
-              className="rounded-lg border border-slate-700 bg-slate-900/90 px-3 py-1.5 text-xs font-bold text-white focus:border-emerald-500 focus:outline-none"
+              className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/90 px-3 py-1.5 text-xs font-bold text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
             >
               <option value="ALL">{isAr ? 'جميع العلامات التجارية (6)' : 'All 6 Official Brands'}</option>
               <option value="CHINA_GARDEN">{isAr ? 'تشاينا جاردن' : 'China Garden'}</option>
@@ -360,7 +360,7 @@ export function AetherBiExecutiveDashboard({
             <select
               value={selectedBranch}
               onChange={(e) => setSelectedBranch(e.target.value)}
-              className="rounded-lg border border-slate-700 bg-slate-900/90 px-3 py-1.5 text-xs font-bold text-white focus:border-emerald-500 focus:outline-none"
+              className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/90 px-3 py-1.5 text-xs font-bold text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
             >
               <option value="ALL">{isAr ? 'جميع الفروع النشطة (9) + المطبخ المركزي' : 'All 9 Active Branches + Central Kitchen'}</option>
               <option value="SLM">{isAr ? 'فرع السالمية' : 'Salmiya'}</option>
@@ -387,9 +387,9 @@ export function AetherBiExecutiveDashboard({
       {/* 2. THE 4 HERO KPI CARDS */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {/* Metric 1: Net Sales */}
-        <div className="relative overflow-hidden rounded-2xl border border-slate-800/80 bg-gradient-to-br from-[#111827] to-[#0f172a] p-5 shadow-xl transition-all hover:border-slate-700 hover:shadow-2xl">
+        <div className="relative overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-gradient-to-br dark:from-[#111827] dark:to-[#0f172a] p-5 shadow-xl transition-all hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-2xl">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-bold uppercase tracking-wider">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
               {isAr ? 'صافي الإيرادات والمبيعات' : 'Net Revenue'}
             </span>
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
@@ -397,10 +397,10 @@ export function AetherBiExecutiveDashboard({
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-white sm:text-3xl font-mono tracking-tight">
+            <span className="text-2xl font-black text-slate-900 dark:text-white sm:text-3xl font-mono tracking-tight">
               {metrics.netSales.toLocaleString(undefined, { minimumFractionDigits: 3 })}
             </span>
-            <span className="text-xs font-bold text-slate-400">{isAr ? 'د.ك' : 'KWD'}</span>
+            <span className="text-xs font-bold text-slate-600 dark:text-slate-400">{isAr ? 'د.ك' : 'KWD'}</span>
           </div>
           <div className="mt-2.5 flex items-center gap-1.5 text-xs">
             <span className="inline-flex items-center font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20 font-mono">
@@ -411,9 +411,9 @@ export function AetherBiExecutiveDashboard({
         </div>
 
         {/* Metric 2: Total Orders */}
-        <div className="relative overflow-hidden rounded-2xl border border-slate-800/80 bg-gradient-to-br from-[#111827] to-[#0f172a] p-5 shadow-xl transition-all hover:border-slate-700 hover:shadow-2xl">
+        <div className="relative overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-gradient-to-br dark:from-[#111827] dark:to-[#0f172a] p-5 shadow-xl transition-all hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-2xl">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-bold uppercase tracking-wider">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
               {isAr ? 'إجمالي الطلبات' : 'Total Orders'}
             </span>
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
@@ -421,10 +421,10 @@ export function AetherBiExecutiveDashboard({
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-white sm:text-3xl font-mono tracking-tight">
+            <span className="text-2xl font-black text-slate-900 dark:text-white sm:text-3xl font-mono tracking-tight">
               {metrics.orders.toLocaleString()}
             </span>
-            <span className="text-xs font-bold text-slate-400">{isAr ? 'طلباً' : 'orders'}</span>
+            <span className="text-xs font-bold text-slate-600 dark:text-slate-400">{isAr ? 'طلباً' : 'orders'}</span>
           </div>
           <div className="mt-2.5 flex items-center justify-between text-xs text-slate-400">
             <span className="inline-flex items-center font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-md border border-blue-500/20 font-mono">
@@ -437,9 +437,9 @@ export function AetherBiExecutiveDashboard({
         </div>
 
         {/* Metric 3: Average Order Value */}
-        <div className="relative overflow-hidden rounded-2xl border border-slate-800/80 bg-gradient-to-br from-[#111827] to-[#0f172a] p-5 shadow-xl transition-all hover:border-slate-700 hover:shadow-2xl">
+        <div className="relative overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-gradient-to-br dark:from-[#111827] dark:to-[#0f172a] p-5 shadow-xl transition-all hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-2xl">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-bold uppercase tracking-wider">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
               {isAr ? 'متوسط قيمة الفاتورة' : 'Average Order (AOV)'}
             </span>
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
@@ -447,10 +447,10 @@ export function AetherBiExecutiveDashboard({
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-white sm:text-3xl font-mono tracking-tight">
+            <span className="text-2xl font-black text-slate-900 dark:text-white sm:text-3xl font-mono tracking-tight">
               {metrics.aov.toFixed(3)}
             </span>
-            <span className="text-xs font-bold text-slate-400">{isAr ? 'د.ك' : 'KWD'}</span>
+            <span className="text-xs font-bold text-slate-600 dark:text-slate-400">{isAr ? 'د.ك' : 'KWD'}</span>
           </div>
           <div className="mt-2.5 flex items-center justify-between text-xs text-slate-400">
             <span className="inline-flex items-center font-bold text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-md border border-purple-500/20 font-mono">
@@ -463,9 +463,9 @@ export function AetherBiExecutiveDashboard({
         </div>
 
         {/* Metric 4: Net Payout */}
-        <div className="relative overflow-hidden rounded-2xl border border-slate-800/80 bg-gradient-to-br from-[#111827] to-[#0f172a] p-5 shadow-xl transition-all hover:border-slate-700 hover:shadow-2xl">
+        <div className="relative overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-gradient-to-br dark:from-[#111827] dark:to-[#0f172a] p-5 shadow-xl transition-all hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-2xl">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-bold uppercase tracking-wider">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
               {isAr ? 'صافي التحويل البنكي الفعلي' : 'Net Bank Payout'}
             </span>
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
@@ -473,10 +473,10 @@ export function AetherBiExecutiveDashboard({
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-white sm:text-3xl font-mono tracking-tight">
+            <span className="text-2xl font-black text-slate-900 dark:text-white sm:text-3xl font-mono tracking-tight">
               {metrics.netPayout.toLocaleString(undefined, { minimumFractionDigits: 3 })}
             </span>
-            <span className="text-xs font-bold text-slate-400">{isAr ? 'د.ك' : 'KWD'}</span>
+            <span className="text-xs font-bold text-slate-600 dark:text-slate-400">{isAr ? 'د.ك' : 'KWD'}</span>
           </div>
           <div className="mt-2.5 flex items-center justify-between text-xs text-slate-400">
             <span className="inline-flex items-center font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20 font-mono">
@@ -490,13 +490,13 @@ export function AetherBiExecutiveDashboard({
       </div>
 
       {/* 3. MAIN SMOOTH AREA & VELOCITY CHART */}
-      <div className="rounded-2xl border border-slate-800/80 bg-[#111827]/90 p-5 shadow-xl">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-slate-800/80 pb-4">
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-[#111827]/90 p-5 shadow-xl">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 dark:border-slate-800/80 pb-4">
           <div>
-            <h2 className="text-lg font-black text-white">
+            <h2 className="text-lg font-black text-slate-900 dark:text-white">
               {isAr ? 'منحنى تطور المبيعات والطلبات اليومي' : 'AetherBI Smooth Revenue & Orders Trendline'}
             </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
               {isAr
                 ? 'مقارنة الأداء اليومي ومعدل نمو الإيرادات والطلبات مع الفترة السابقة'
                 : 'Trendline velocity & revenue run rate comparing current vs prior cycle'}
@@ -504,7 +504,7 @@ export function AetherBiExecutiveDashboard({
           </div>
 
           {/* Metric Selector Toggle */}
-          <div className="flex items-center rounded-xl border border-slate-800 bg-slate-900/90 p-1">
+          <div className="flex items-center rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/90 p-1">
             {[
               { id: 'sales', labelAr: 'المبيعات (د.ك)', labelEn: 'Sales (KWD)' },
               { id: 'orders', labelAr: 'الطلبات', labelEn: 'Orders' },
@@ -516,7 +516,7 @@ export function AetherBiExecutiveDashboard({
                 className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
                   chartMetric === btn.id
                     ? 'bg-emerald-500 text-black shadow'
-                    : 'text-slate-400 hover:text-white'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 {isAr ? btn.labelAr : btn.labelEn}
@@ -651,11 +651,11 @@ export function AetherBiExecutiveDashboard({
         </div>
 
         {/* Legend */}
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-4 border-t border-slate-800/80 pt-3 text-xs text-slate-400">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-4 border-t border-slate-200 dark:border-slate-800/80 pt-3 text-xs text-slate-600 dark:text-slate-400">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <span className="h-3 w-3 rounded-full bg-emerald-500 inline-block"></span>
-              <span className="text-white font-semibold">{isAr ? 'الفترة الحالية (الفعلي)' : 'Current Period'}</span>
+              <span className="text-slate-900 dark:text-white font-semibold">{isAr ? 'الفترة الحالية (الفعلي)' : 'Current Period'}</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="h-0.5 w-4 border-t-2 border-dashed border-slate-400 inline-block"></span>
@@ -671,10 +671,10 @@ export function AetherBiExecutiveDashboard({
       {/* 4. VISUAL BREAKDOWN GRID */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* CARD A: CHANNELS BREAKDOWN */}
-        <div className="rounded-2xl border border-slate-800/80 bg-[#111827]/90 p-5 shadow-xl">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-[#111827]/90 p-5 shadow-xl">
+          <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
             <div>
-              <h3 className="text-base font-black text-white">
+              <h3 className="text-base font-black text-slate-900 dark:text-white">
                 {isAr ? 'توزيع المبيعات عبر قنوات التوصيل والصالات' : 'Sales by Order Channel & Aggregators'}
               </h3>
               <p className="text-xs text-slate-400">
@@ -703,11 +703,11 @@ export function AetherBiExecutiveDashboard({
               <div key={idx} className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: ch.color }} />
-                  <span className="font-semibold text-slate-200 truncate">{isAr ? ch.nameAr : ch.nameEn}</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">{isAr ? ch.nameAr : ch.nameEn}</span>
                 </div>
                 <div className="flex items-center gap-3 shrink-0 font-mono">
                   <span className="text-slate-400">{ch.kwd.toLocaleString(undefined, { minimumFractionDigits: 3 })} {isAr ? 'د.ك' : 'KWD'}</span>
-                  <span className="font-bold text-white w-12 text-end">{ch.pct}%</span>
+                  <span className="font-bold text-slate-900 dark:text-white w-12 text-end">{ch.pct}%</span>
                 </div>
               </div>
             ))}
@@ -715,10 +715,10 @@ export function AetherBiExecutiveDashboard({
         </div>
 
         {/* CARD B: BRANDS LEADERBOARD */}
-        <div className="rounded-2xl border border-slate-800/80 bg-[#111827]/90 p-5 shadow-xl">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-[#111827]/90 p-5 shadow-xl">
+          <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
             <div>
-              <h3 className="text-base font-black text-white">
+              <h3 className="text-base font-black text-slate-900 dark:text-white">
                 {isAr ? 'ترتيب العلامات التجارية الـ 6 الرسمية حسب المبيعات' : 'Official 6 Brands Performance Leaderboard'}
               </h3>
               <p className="text-xs text-slate-400">
@@ -738,9 +738,9 @@ export function AetherBiExecutiveDashboard({
             {brandsLeaderboard.map((b, idx) => (
               <div key={idx} className="space-y-1">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="font-bold text-white">{isAr ? b.nameAr : b.nameEn}</span>
+                  <span className="font-bold text-slate-900 dark:text-white">{isAr ? b.nameAr : b.nameEn}</span>
                   <div className="flex items-center gap-2 font-mono">
-                    <span className="text-slate-300 font-bold">{b.kwd.toLocaleString(undefined, { minimumFractionDigits: 3 })} {isAr ? 'د.ك' : 'KWD'}</span>
+                    <span className="text-slate-800 dark:text-slate-300 font-bold">{b.kwd.toLocaleString(undefined, { minimumFractionDigits: 3 })} {isAr ? 'د.ك' : 'KWD'}</span>
                     <span className="text-slate-400 w-12 text-end font-semibold">{b.pct}%</span>
                   </div>
                 </div>
@@ -759,9 +759,9 @@ export function AetherBiExecutiveDashboard({
       {/* 5. BOTTOM 3 INSIGHT CARDS */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* CARD 1: BEST SELLERS */}
-        <div className="rounded-2xl border border-slate-800/80 bg-[#111827]/90 p-5 shadow-xl">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-            <h3 className="text-sm font-black text-white flex items-center gap-2">
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-[#111827]/90 p-5 shadow-xl">
+          <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+            <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
               <Flame size={16} className="text-amber-400" />
               <span>{isAr ? 'الأصناف الأكثر مبيعاً' : 'Best Selling Items'}</span>
             </h3>
@@ -769,16 +769,16 @@ export function AetherBiExecutiveDashboard({
           </div>
           <div className="mt-3 space-y-2.5">
             {topProducts.map((p, i) => (
-              <div key={i} className="flex items-center justify-between rounded-xl bg-slate-900/60 p-2.5 text-xs">
+              <div key={i} className="flex items-center justify-between rounded-xl border border-slate-100 dark:border-transparent bg-slate-50 dark:bg-slate-900/60 p-2.5 text-xs">
                 <div className="min-w-0 flex items-center gap-2">
                   <span className="font-mono font-bold text-emerald-400 text-xs">{p.rank}</span>
                   <div className="truncate">
-                    <div className="font-bold text-white truncate">{isAr ? p.nameAr : p.nameEn}</div>
+                    <div className="font-bold text-slate-900 dark:text-white truncate">{isAr ? p.nameAr : p.nameEn}</div>
                     <span className="text-[10px] text-slate-400">{isAr ? p.brandAr : p.brandEn}</span>
                   </div>
                 </div>
                 <div className="text-end font-mono shrink-0">
-                  <div className="font-bold text-white">{p.rev.toLocaleString(undefined, { minimumFractionDigits: 3 })} {isAr ? 'د.ك' : 'KWD'}</div>
+                  <div className="font-bold text-slate-900 dark:text-white">{p.rev.toLocaleString(undefined, { minimumFractionDigits: 3 })} {isAr ? 'د.ك' : 'KWD'}</div>
                   <span className="text-[10px] text-amber-400 font-sans">{isAr ? p.badgeAr : p.badgeEn}</span>
                 </div>
               </div>
@@ -787,9 +787,9 @@ export function AetherBiExecutiveDashboard({
         </div>
 
         {/* CARD 2: TOP PERFORMING BRANCHES (9 Active Branches Only) */}
-        <div className="rounded-2xl border border-slate-800/80 bg-[#111827]/90 p-5 shadow-xl">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-            <h3 className="text-sm font-black text-white flex items-center gap-2">
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-[#111827]/90 p-5 shadow-xl">
+          <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+            <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
               <Building2 size={16} className="text-blue-400" />
               <span>{isAr ? 'الفروع الأعلى أداءً في الكويت' : 'Top Kuwait Branches'}</span>
             </h3>
@@ -799,7 +799,7 @@ export function AetherBiExecutiveDashboard({
             {topBranches.map((br, i) => (
               <div key={i} className="space-y-1">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="font-bold text-slate-200">{isAr ? br.nameAr : br.nameEn}</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">{isAr ? br.nameAr : br.nameEn}</span>
                   <span className="font-mono text-emerald-400 font-bold">{br.sales.toLocaleString()} {isAr ? 'د.ك' : 'KWD'}</span>
                 </div>
                 <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
@@ -814,9 +814,9 @@ export function AetherBiExecutiveDashboard({
         </div>
 
         {/* CARD 3: PAYMENT GATEWAYS BREAKDOWN */}
-        <div className="rounded-2xl border border-slate-800/80 bg-[#111827]/90 p-5 shadow-xl">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-            <h3 className="text-sm font-black text-white flex items-center gap-2">
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-[#111827]/90 p-5 shadow-xl">
+          <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+            <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
               <CreditCard size={16} className="text-purple-400" />
               <span>{isAr ? 'طرق الدفع والتسويات البنكية' : 'Payment Methods Breakdown'}</span>
             </h3>
@@ -828,7 +828,7 @@ export function AetherBiExecutiveDashboard({
                 <div className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
                     <span className="h-2 w-2 rounded-full" style={{ backgroundColor: pm.color }} />
-                    <span className="font-bold text-slate-200">{isAr ? pm.nameAr : pm.nameEn}</span>
+                    <span className="font-bold text-slate-800 dark:text-slate-200">{isAr ? pm.nameAr : pm.nameEn}</span>
                   </div>
                   <span className="font-mono text-slate-300 font-bold">{pm.pct}% ({pm.kwd.toLocaleString()} {isAr ? 'د.ك' : 'KWD'})</span>
                 </div>
@@ -842,14 +842,14 @@ export function AetherBiExecutiveDashboard({
             ))}
           </div>
 
-          <div className="mt-5 rounded-xl border border-slate-800 bg-slate-900/60 p-3 text-[11px] text-slate-400 space-y-1">
+          <div className="mt-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 p-3 text-[11px] text-slate-600 dark:text-slate-400 space-y-1">
             <div className="flex items-center justify-between">
               <span>{isAr ? 'فترة التسوية في بنك الكويت الوطني:' : 'NBK Clearing Cycle:'}</span>
               <strong className="text-emerald-400 font-mono">{isAr ? 'خلال 24 ساعة عمل (T+1)' : 'T + 1 (24 Hours)'}</strong>
             </div>
             <div className="flex items-center justify-between">
               <span>{isAr ? 'مطابقة الكاش اليومية بالخزينة:' : 'Daily Safe Cash Recon:'}</span>
-              <strong className="text-white font-mono">{isAr ? '100% مطابقة تامة' : '100% Balanced'}</strong>
+              <strong className="text-slate-900 dark:text-white font-mono">{isAr ? '100% مطابقة تامة' : '100% Balanced'}</strong>
             </div>
           </div>
         </div>
