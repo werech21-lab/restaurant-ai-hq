@@ -277,7 +277,7 @@ export function VentureAccountingHub({
   return (
     <div
       dir={isRtl ? 'rtl' : 'ltr'}
-      className="min-h-screen bg-[#0a0d12] text-slate-100 p-3 sm:p-6 space-y-6"
+      className="w-full max-w-none text-slate-100 space-y-6 font-sans"
     >
       {/* Top Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-5">
@@ -325,23 +325,23 @@ export function VentureAccountingHub({
       {/* Specialized Tabs Navigation */}
       <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-800 pb-3">
         {[
-          { key: 'pnl', labelAr: '📊 قائمة الدخل ومراكز تكلفة البراندات', labelEn: 'Brand P&L Cost Centers', icon: FileSpreadsheet },
-          { key: 'fourWall', labelAr: '🏬 قائمة الدخل التشغيلي للفرع (Four-Wall P&L)', labelEn: 'Four-Wall Store P&L Benchmark', icon: Store },
-          { key: 'coa4d', labelAr: '🗂️ شجرة الحسابات الكويتية 4D (1000–8300)', labelEn: 'Kuwait 4D COA (1000–8300)', icon: Scale },
-          { key: 'amcHub', labelAr: '🛠️ عقود الصيانة والمداخن والحشرات (AMC & SLA Gate)', labelEn: 'AMC Contracts Hub & SLA Gate', icon: ShieldCheck },
-          { key: 'expiryRadar', labelAr: '⏳ رادار انتهاء العقود واسترداد التأمينات (Expiry Radar)', labelEn: 'Expiry & Deposit Refund Radar', icon: Calendar },
-          { key: 'hrBridge', labelAr: '👥 جسر الربط المالي السباعي (7-Way HR Bridge)', labelEn: '7-Way HR ↔ Finance ↔ Ops Bridge', icon: ArrowRightLeft },
-          { key: 'transitRecon', labelAr: '🚚 تسويات المنصات والتحويلات (1139 Transit)', labelEn: 'Transit & Platform Settlement', icon: Truck },
-          { key: 'banking', labelAr: '🏦 البنوك، الخزينة، وتسوية K-Net', labelEn: 'NBK Accounts & K-Net Recon', icon: Landmark },
-          { key: 'pettyCash', labelAr: '🏛️ أعمال التعقيب الحكومي وكشوف مصروفات (سند) والعهد التشغيلية', labelEn: '🏛️ PRO Government Clearance, Sanad & Petty Cash Hub', icon: Wallet },
-          { key: 'journals', labelAr: '📒 دفتر اليومية والقيود وسندات الصرف/القبض', labelEn: 'Journal Entries & Vouchers', icon: BookOpen },
-          { key: 'chart', labelAr: '📑 ميزان المراجعة ودليل الحسابات (820 حساباً)', labelEn: 'Trial Balance & Chart of Accounts', icon: Scale },
-          { key: 'aging', labelAr: '🧾 الذمم المدينة والدائنة ومخصصات نهاية الخدمة', labelEn: 'AR/AP Aging & EOSB Provisions', icon: Receipt },
-          { key: 'glBridge', labelAr: '🔗 الربط المالي والقيود التلقائية (POS / KDS / Recipes)', labelEn: 'Automated GL Bridge (Field Ops)', icon: ArrowRightLeft },
-          { key: 'eventsFinance', labelAr: '🎪 مالية المعارض والمخيمات والفعاليات', labelEn: 'Events & Camps Financials', icon: Store },
-          { key: 'leases', labelAr: '🏢 سجل الإيجارات والفروع وسكن العمال والمخازن', labelEn: 'Leases, Branches, Housing & Rent Burden', icon: Building2 },
-          { key: 'fleet', labelAr: '🚗 أسطول المركبات والصيانة والوقود ومخالفات السائقين', labelEn: 'Fleet, Garage Repairs, Fuel & Driver Fines', icon: Truck },
-          ...(liveChildren ? [{ key: 'legacy', labelAr: '⚙️ قيود واستعلامات قاعدة البيانات (DB)', labelEn: 'Database Ledger Queries', icon: Building2 }] : []),
+          { key: 'pnl', labelAr: '📊 قائمة الدخل ومراكز تكلفة البراندات الـ 6 المعتمدة', labelEn: 'Brand P&L Cost Centers', icon: FileSpreadsheet },
+          { key: 'fourWall', labelAr: '📋 قائمة الدخل المعيارية للفرع والبراند (تحليل الربحية الأربعة)', labelEn: 'Four-Wall Store P&L Benchmark', icon: Store },
+          { key: 'coa4d', labelAr: '🗂️ شجرة الحسابات القياسية المعتمدة (1000–8300 بدقة الفلس الكويتي)', labelEn: 'Kuwait 4D COA (1000–8300)', icon: Scale },
+          { key: 'amcHub', labelAr: '🛠️ بوابة رقابة عقود الصيانة الدورية ومكافحة الحشرات ومداخن المطابخ', labelEn: 'AMC Contracts Hub & SLA Gate', icon: ShieldCheck },
+          { key: 'expiryRadar', labelAr: '⏳ مخصص المصروفات المدفوعة مقدماً وإطفاؤها الشهري (1146)', labelEn: 'Prepaid Expenses & Expiry Radar', icon: Calendar },
+          { key: 'hrBridge', labelAr: '👥 جسر الربط المالي وإقفال الرواتب ومخصص نهاية الخدمة', labelEn: '7-Way HR ↔ Finance ↔ Ops Bridge', icon: ArrowRightLeft },
+          { key: 'transitRecon', labelAr: '🚚 حساب البضاعة بالطريق بين القرين والفروع وتحويلات المطبخ المركزي (1139)', labelEn: 'Transit & Platform Settlement (1139)', icon: Truck },
+          { key: 'banking', labelAr: '🏦 حسابات التسوية الوسيطة (كي نت 1121 ومنصات التوصيل 1123–1125)', labelEn: 'NBK Accounts & K-Net Recon', icon: Landmark },
+          { key: 'pettyCash', labelAr: '🏛️ مركز تدقيق كشوف وإصدار شيكات مكتب التعقيب الحكومي (سند)', labelEn: 'PRO Government Clearance & Sanad Hub', icon: Wallet },
+          { key: 'journals', labelAr: '📒 دفتر اليومية وقيد السندات البنكية وإصدار الشيكات', labelEn: 'Journal Entries & Bank Vouchers', icon: BookOpen },
+          { key: 'chart', labelAr: '📑 ميزان المراجعة ودليل الحسابات (820 حساباً بأودو)', labelEn: 'Trial Balance & Chart of Accounts', icon: Scale },
+          { key: 'aging', labelAr: '🧾 الذمم المدينة والدائنة ومخصصات نهاية الخدمة (المادة 51)', labelEn: 'AR/AP Aging & EOSB Provisions', icon: Receipt },
+          { key: 'glBridge', labelAr: '🔗 الدورة المالية والقيود التلقائية المترابطة (نقطة البيع والمطبخ والمخزون)', labelEn: 'Automated GL Bridge (Field Ops)', icon: ArrowRightLeft },
+          { key: 'eventsFinance', labelAr: '🎪 مالية المعارض والمخيمات وفعاليات البراندات', labelEn: 'Events & Camps Financials', icon: Store },
+          { key: 'leases', labelAr: '🏢 سجل الإيجارات وعقود فروع ومطابخ وسكن الشركة', labelEn: 'Leases, Branches, Housing & Rent Burden', icon: Building2 },
+          { key: 'fleet', labelAr: '🚗 سجل أصول الشركة، الصيانة، الوقود، ومخالفات السائقين المرتبطة بالإقامة', labelEn: 'Fleet, Garage Repairs, Fuel & Driver Fines', icon: Truck },
+          ...(liveChildren ? [{ key: 'legacy', labelAr: '⚙️ مراجعة القيود المحاسبية وحالة مزامنة قاعدة البيانات', labelEn: 'Database Ledger Queries', icon: Building2 }] : []),
         ].map((tab) => {
           const Icon = tab.icon
           const active = activeTab === tab.key
@@ -374,17 +374,17 @@ export function VentureAccountingHub({
               <span className="text-[11px] text-slate-500">{isAr ? '30,543 طلباً معتمداً' : '30,543 orders'}</span>
             </div>
             <div className="rounded-xl border border-slate-800 bg-[#0f172a]/60 p-4">
-              <span className="text-xs text-slate-400">{isAr ? 'تكلفة الأغذية والتعبئة (COGS)' : 'Food Cost (COGS)'}</span>
+              <span className="text-xs text-slate-400">{isAr ? 'تكلفة الأغذية والمواد التموينية والتعبئة' : 'Food Cost (COGS)'}</span>
               <p className="mt-1 text-2xl font-black text-rose-400">52,634.000 {isAr ? 'د.ك' : 'KWD'}</p>
               <span className="text-[11px] text-slate-500">{isAr ? '31.5% نسبة تكلفة الغذاء' : '31.5% of revenue'}</span>
             </div>
             <div className="rounded-xl border border-slate-800 bg-[#0f172a]/60 p-4">
-              <span className="text-xs text-slate-400">{isAr ? 'مجمل الربح (Gross Profit)' : 'Gross Profit'}</span>
+              <span className="text-xs text-slate-400">{isAr ? 'مجمل الربح الإجمالي' : 'Gross Profit'}</span>
               <p className="mt-1 text-2xl font-black text-emerald-400">114,458.000 {isAr ? 'د.ك' : 'KWD'}</p>
               <span className="text-[11px] text-slate-500">{isAr ? '68.5% هامش إجمالي' : '68.5% gross margin'}</span>
             </div>
             <div className="rounded-xl border border-slate-800 bg-[#0f172a]/60 p-4">
-              <span className="text-xs text-slate-400">{isAr ? 'صافي الربح التشغيلي (EBITDA)' : 'Operating EBITDA'}</span>
+              <span className="text-xs text-slate-400">{isAr ? 'صافي الربح التشغيلي قبل الإهلاك' : 'Operating EBITDA'}</span>
               <p className="mt-1 text-2xl font-black text-cyan-400">38,410.000 {isAr ? 'د.ك' : 'KWD'}</p>
               <span className="text-[11px] text-slate-500">{isAr ? '23.0% عائد تشغيلي صافي' : '23.0% net margin'}</span>
             </div>
@@ -395,23 +395,23 @@ export function VentureAccountingHub({
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-800 bg-slate-900/60 text-xs font-semibold uppercase text-slate-400">
-                    <th className="px-4 py-3 text-right">{isAr ? 'مركز التكلفة / البراند' : 'Cost Center / Brand'}</th>
+                    <th className="px-4 py-3 text-right">{isAr ? 'مركز التكلفة / العلامة التجارية' : 'Cost Center / Brand'}</th>
                     <th className="px-4 py-3 text-right">{isAr ? 'الإيراد الإجمالي' : 'Revenue (KWD)'}</th>
-                    <th className="px-4 py-3 text-right">{isAr ? 'تكلفة الأغذية (COGS)' : 'Food Cost'}</th>
-                    <th className="px-4 py-3 text-right">{isAr ? 'الرواتب والأجور (WPS)' : 'Labor OPEX'}</th>
-                    <th className="px-4 py-3 text-right">{isAr ? 'عمولات التوصيل' : 'Commissions'}</th>
-                    <th className="px-4 py-3 text-right">{isAr ? 'الإيجارات والمرافق' : 'Rent & Utilities'}</th>
-                    <th className="px-4 py-3 text-right">{isAr ? 'صافي الربح (د.ك)' : 'Net Profit'}</th>
+                    <th className="px-4 py-3 text-right">{isAr ? 'تكلفة الأغذية والخامات' : 'Food Cost'}</th>
+                    <th className="px-4 py-3 text-right">{isAr ? 'الرواتب والأجور المعتمدة (حماية الأجور)' : 'Labor OPEX'}</th>
+                    <th className="px-4 py-3 text-right">{isAr ? 'عمولات منصات التوصيل' : 'Commissions'}</th>
+                    <th className="px-4 py-3 text-right">{isAr ? 'الإيجارات ومرافق الفروع' : 'Rent & Utilities'}</th>
+                    <th className="px-4 py-3 text-right">{isAr ? 'صافي الربح التشغيلي (د.ك)' : 'Net Profit'}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60 text-slate-200">
                   {[
-                    { center: 'تشاينا جاردن (China Garden)', rev: '141,662.650', cogs: '43,915.000', labor: '36,830.000', comm: '15,580.000', rent: '12,500.000', net: '32,837.650' },
-                    { center: "فرانكس (Frank's)", rev: '16,222.260', cogs: '5,028.900', labor: '4,217.000', comm: '1,784.000', rent: '1,500.000', net: '3,692.360' },
-                    { center: 'شاورما طحينة (Tahina)', rev: '4,424.850', cogs: '1,371.700', labor: '1,150.000', comm: '486.000', rent: '400.000', net: '1,017.150' },
-                    { center: 'فارم براون (Farm Brown)', rev: '2,661.900', cogs: '825.000', labor: '750.000', comm: '290.000', rent: '300.000', net: '496.900' },
-                    { center: 'ذا نودل بار (The Noodle Bar)', rev: '1,676.950', cogs: '520.000', labor: '500.000', comm: '184.000', rent: '200.000', net: '272.950' },
-                    { center: 'كرك كافتيريا (Karak Cafeteria)', rev: '443.550', cogs: '110.000', labor: '150.000', comm: '48.000', rent: '50.000', net: '85.550' },
+                    { center: isAr ? 'تشاينا جاردن' : 'China Garden', rev: '141,662.650', cogs: '43,915.000', labor: '36,830.000', comm: '15,580.000', rent: '12,500.000', net: '32,837.650' },
+                    { center: isAr ? 'فرانكس' : "Frank's", rev: '16,222.260', cogs: '5,028.900', labor: '4,217.000', comm: '1,784.000', rent: '1,500.000', net: '3,692.360' },
+                    { center: isAr ? 'شاورما طحينة' : 'Tahina', rev: '4,424.850', cogs: '1,371.700', labor: '1,150.000', comm: '486.000', rent: '400.000', net: '1,017.150' },
+                    { center: isAr ? 'فارم براون' : 'Farm Brown', rev: '2,661.900', cogs: '825.000', labor: '750.000', comm: '290.000', rent: '300.000', net: '496.900' },
+                    { center: isAr ? 'ذا نودل بار' : 'The Noodle Bar', rev: '1,676.950', cogs: '520.000', labor: '500.000', comm: '184.000', rent: '200.000', net: '272.950' },
+                    { center: isAr ? 'كرك كافتيريا' : 'Karak Cafeteria', rev: '443.550', cogs: '110.000', labor: '150.000', comm: '48.000', rent: '50.000', net: '85.550' },
                   ].map((row, idx) => (
                     <tr key={idx} className="hover:bg-slate-900/40 transition-colors">
                       <td className="px-4 py-3 font-semibold text-white">{row.center}</td>

@@ -14,7 +14,7 @@ import { SmartIngestLaunchButton } from "@/components/SmartIngestLaunchButton";
 import { VentureAccountingHub } from "@/components/accounting/VentureAccountingHub";
 
 export const metadata = {
-  title: "المحاسبة والمالية | Venture Foods W.L.L.",
+  title: "المحاسبة والشجرة المالية | شركة فنتشر فودز ذ.م.م.",
   description: "مركز القيادة المالي ومراكز تكلفة البراندات والفروع لشركة فنتشر فودز لإدارة المطاعم ذ.م.م.",
 };
 

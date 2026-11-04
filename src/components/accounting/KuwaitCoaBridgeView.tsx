@@ -195,7 +195,7 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
                 <tbody className="divide-y divide-slate-800/60 font-mono">
                   {/* Revenue Lines */}
                   <tr className="bg-slate-900/40 font-bold">
-                    <td className="py-2 px-3 text-white">{isAr ? 'إجمالي المبيعات (Gross Sales)' : 'Gross Sales'}</td>
+                    <td className="py-2 px-3 text-white">{isAr ? 'إجمالي المبيعات' : 'Gross Sales'}</td>
                     <td className="py-2 px-3 text-center text-slate-400">4110-4130</td>
                     <td className="py-2 px-3 text-center text-slate-400">100% - 105%</td>
                     <td className="py-2 px-3 text-end text-white">{pnl.grossSales.toFixed(3)}</td>
@@ -209,7 +209,7 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
                     <td className="py-2 px-3 text-end">4.2%</td>
                   </tr>
                   <tr className="bg-emerald-950/20 font-black text-emerald-400">
-                    <td className="py-2.5 px-3">{isAr ? '= صافي المبيعات المعتمد (Net Sales)' : '= Net Sales'}</td>
+                    <td className="py-2.5 px-3">{isAr ? '= صافي المبيعات المعتمد' : '= Net Sales'}</td>
                     <td className="py-2.5 px-3 text-center">4000</td>
                     <td className="py-2.5 px-3 text-center">100.0%</td>
                     <td className="py-2.5 px-3 text-end">{pnl.netSales.toFixed(3)}</td>
@@ -218,35 +218,35 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
 
                   {/* COGS Lines */}
                   <tr>
-                    <td className="py-2 px-3 ps-6 text-slate-300">{isAr ? '(-) تكلفة الأطعمة المباشرة (Food Cost)' : '(-) Direct Food Cost'}</td>
+                    <td className="py-2 px-3 ps-6 text-slate-300">{isAr ? '(-) تكلفة الأطعمة المباشرة' : '(-) Direct Food Cost'}</td>
                     <td className="py-2 px-3 text-center text-slate-500">5110</td>
                     <td className="py-2 px-3 text-center text-slate-500">24% - 27%</td>
                     <td className="py-2 px-3 text-end text-amber-300">-{pnl.foodCost.toFixed(3)}</td>
                     <td className="py-2 px-3 text-end text-amber-300">23.0%</td>
                   </tr>
                   <tr>
-                    <td className="py-2 px-3 ps-6 text-slate-300">{isAr ? '(-) تكلفة المشروبات والكرك (Beverage Cost)' : '(-) Direct Beverage Cost'}</td>
+                    <td className="py-2 px-3 ps-6 text-slate-300">{isAr ? '(-) تكلفة المشروبات والكرك' : '(-) Direct Beverage Cost'}</td>
                     <td className="py-2 px-3 text-center text-slate-500">5120</td>
                     <td className="py-2 px-3 text-center text-slate-500">1.5% - 2.5%</td>
                     <td className="py-2 px-3 text-end text-amber-300">-{pnl.beverageCost.toFixed(3)}</td>
                     <td className="py-2 px-3 text-end text-amber-300">1.5%</td>
                   </tr>
                   <tr>
-                    <td className="py-2 px-3 ps-6 text-slate-300">{isAr ? '(-) تكلفة مواد التعبئة والتغليف (Packaging - مفصولة بدقة)' : '(-) Packaging Cost (Segregated)'}</td>
+                    <td className="py-2 px-3 ps-6 text-slate-300">{isAr ? '(-) تكلفة مواد التعبئة والتغليف (مفصولة بدقة)' : '(-) Packaging Cost (Segregated)'}</td>
                     <td className="py-2 px-3 text-center text-slate-500">5130</td>
                     <td className="py-2 px-3 text-center text-slate-500">3% - 5%</td>
                     <td className="py-2 px-3 text-end text-amber-300">-{pnl.packagingCost.toFixed(3)}</td>
                     <td className="py-2 px-3 text-end text-amber-300">3.5%</td>
                   </tr>
                   <tr className="bg-slate-900/60 font-bold text-white">
-                    <td className="py-2 px-3">{isAr ? '= إجمالي تكلفة المبيعات (Total COGS)' : '= Total COGS'}</td>
+                    <td className="py-2 px-3">{isAr ? '= إجمالي تكلفة المبيعات' : '= Total COGS'}</td>
                     <td className="py-2 px-3 text-center text-slate-400">5000</td>
                     <td className="py-2 px-3 text-center text-slate-400">27% - 35%</td>
                     <td className="py-2 px-3 text-end text-amber-400">-{pnl.totalCogs.toFixed(3)}</td>
                     <td className="py-2 px-3 text-end text-amber-400">28.0%</td>
                   </tr>
                   <tr className="bg-emerald-950/30 font-black text-emerald-300">
-                    <td className="py-2.5 px-3">{isAr ? '= مجمل الربح الأول (Gross Profit)' : '= Gross Profit'}</td>
+                    <td className="py-2.5 px-3">{isAr ? '= مجمل الربح التشغيلي الأول' : '= Gross Profit'}</td>
                     <td className="py-2.5 px-3 text-center">-</td>
                     <td className="py-2.5 px-3 text-center">65% - 73%</td>
                     <td className="py-2.5 px-3 text-end">{pnl.grossProfit.toFixed(3)}</td>
@@ -255,7 +255,7 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
 
                   {/* Labor Costs */}
                   <tr>
-                    <td className="py-2 px-3 ps-6 text-slate-300">{isAr ? '(-) الرواتب المباشرة والإضافي (WPS Wages)' : '(-) Direct Store Wages & OT'}</td>
+                    <td className="py-2 px-3 ps-6 text-slate-300">{isAr ? '(-) الرواتب المباشرة والإضافي (حماية الأجور)' : '(-) Direct Store Wages & OT'}</td>
                     <td className="py-2 px-3 text-center text-slate-500">6110</td>
                     <td className="py-2 px-3 text-center text-slate-500">11% - 15%</td>
                     <td className="py-2 px-3 text-end text-rose-300">-{pnl.laborDirectWages.toFixed(3)}</td>
@@ -283,7 +283,7 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
                     <td className="py-2 px-3 text-end text-rose-300">1.9%</td>
                   </tr>
                   <tr className="bg-slate-900/60 font-bold text-white">
-                    <td className="py-2 px-3">{isAr ? '= إجمالي تكلفة العمالة والمخصصات (Labor)' : '= Total Direct Labor'}</td>
+                    <td className="py-2 px-3">{isAr ? '= إجمالي تكلفة العمالة والمخصصات' : '= Total Direct Labor'}</td>
                     <td className="py-2 px-3 text-center text-slate-400">6000</td>
                     <td className="py-2 px-3 text-center text-slate-400">15% - 22%</td>
                     <td className="py-2 px-3 text-end text-rose-400">-{pnl.totalLabor.toFixed(3)}</td>
@@ -294,7 +294,7 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
                   <tr className="bg-amber-950/40 border-y-2 border-amber-500/50 font-black text-amber-300">
                     <td className="py-3 px-3 flex items-center gap-2">
                       <Sparkles size={16} className="text-amber-400" />
-                      <span>{isAr ? '⭐ التكلفة الأولية (PRIME COST = COGS + LABOR)' : '⭐ PRIME COST (COGS + LABOR)'}</span>
+                      <span>{isAr ? '⭐ التكلفة الأولية المعيارية (الأغذية + العمالة المباشرة)' : '⭐ PRIME COST (COGS + LABOR)'}</span>
                     </td>
                     <td className="py-3 px-3 text-center text-amber-400">5000+6000</td>
                     <td className="py-3 px-3 text-center text-amber-400">45% - 55%</td>
