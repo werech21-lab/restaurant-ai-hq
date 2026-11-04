@@ -12,7 +12,7 @@ const ATTR_ORIGINAL_PREFIX = 'data-original-ar-'
 const VALUE_ORIGINAL = 'data-original-ar-value'
 
 /** Pages that already localize via React locale state — never mutate their DOM. */
-const REACT_I18N_PATHS = ['/dashboard', '/reports', '/erp/aggregator-radar', '/erp/food-safety']
+const REACT_I18N_PATHS = ['/dashboard', '/reports', '/erp/aggregator-radar', '/erp/food-safety', '/erp/sales-scorecard']
 
 function isReactI18nPath(pathname: string | null): boolean {
   if (!pathname) return false

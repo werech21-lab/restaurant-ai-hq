@@ -968,3 +968,9 @@ span.tabular-nums {
 /* solid buttons keep white text */
 .radar-light button.bg-blue-600,
 .radar-light button.bg-blue-600 * { color: #FFFFFF !important; }
+
+/* Numeric table cells: keep digits, signs and % in reading order inside RTL pages */
+td.tabular-nums,
+th.tabular-nums {
+  unicode-bidi: plaintext;
+}

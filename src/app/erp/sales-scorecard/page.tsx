@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
+import { useI18n } from "@/lib/i18n";
+import { makeTr } from "@/lib/i18n/analytics-ar";
 
 // ==========================================
 // 1. ODOO ERP MASTER DATASET (VENTURE FOODS)
@@ -540,6 +542,9 @@ const CHANNEL_BRAND_MATRIX = [
 // ==========================================
 
 export default function BrandSalesOdooReportPage() {
+  const { locale } = useI18n();
+  const isAr = locale === "ar";
+  const tr = useMemo(() => makeTr(locale), [locale]);
   const [selectedBrand, setSelectedBrand] = useState<string>("All brands");
   const [selectedChannel, setSelectedChannel] = useState<string>("All channels");
 
@@ -597,9 +602,10 @@ export default function BrandSalesOdooReportPage() {
 
   return (
     <div
-      dir="ltr"
+      dir={isAr ? "rtl" : "ltr"}
+      lang={locale}
       className="min-h-screen bg-[#F8F9FA] text-[#111827] font-sans antialiased selection:bg-blue-100 selection:text-blue-900"
-      style={{ fontFamily: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}
+      style={{ fontFamily: isAr ? "Cairo, Inter, system-ui, sans-serif" : "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}
     >
       <div className="max-w-[1600px] mx-auto px-5 py-5 space-y-6">
         {/* ==========================================
@@ -607,12 +613,10 @@ export default function BrandSalesOdooReportPage() {
            ========================================== */}
         <header className="space-y-3 border-b border-gray-200 pb-4">
           <div className="flex items-center justify-between text-[11px] text-gray-500">
-            <span>Updated Live · Odoo ERP Verified (2,213 Journal Entries · Venture Foods Co. W.L.L.)</span>
+            <span>{tr("Updated Live · Odoo ERP Verified (2,213 Journal Entries · Venture Foods Co. W.L.L.)")}</span>
             <div className="flex items-center gap-3">
               <span className="inline-flex items-center gap-1.5 text-emerald-700 font-medium">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-600"></span>
-                Odoo P&L Reconciled: KWD 42,441.480 Net Profit (25.4%)
-              </span>
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-600"></span> {tr("Odoo P&L Reconciled: KWD 42,441.480 Net Profit (25.4%)")} </span>
               {(selectedBrand !== "All brands" || selectedChannel !== "All channels") && (
                 <button
                   onClick={() => {
@@ -620,28 +624,41 @@ export default function BrandSalesOdooReportPage() {
                     setSelectedChannel("All channels");
                   }}
                   className="text-blue-600 hover:underline font-medium"
-                >
-                  Reset filters
-                </button>
+                > {tr("Reset filters")} </button>
               )}
             </div>
           </div>
 
           <div>
-            <h1 className="text-[22px] font-bold tracking-tight text-gray-900">
-              Brand sales · October 2026
-            </h1>
+            <h1 className="text-[22px] font-bold tracking-tight text-gray-900"> {tr("Brand sales · October 2026")} </h1>
             <p className="text-[12px] text-gray-600 mt-0.5 max-w-3xl leading-relaxed">
-              {selectedBrand} in {selectedChannel.toLowerCase()} made{" "}
-              <strong className="font-semibold text-gray-900">
-                KWD {Math.round(kpis.netSales).toLocaleString()}
-              </strong>{" "}
-              net in October from{" "}
-              <strong className="font-semibold text-gray-900">
-                {kpis.orders.toLocaleString()}
-              </strong>{" "}
-              orders. The best seller was{" "}
-              <strong className="font-semibold text-gray-900">Chicken Noodles</strong>.
+              {isAr ? (
+                <>
+                  {tr(selectedBrand)} في {tr(selectedChannel)} حققت صافي{" "}
+                  <strong className="font-semibold text-gray-900">
+                    <span dir="ltr" className="inline-block tabular-nums">KWD {Math.round(kpis.netSales).toLocaleString()}</span>
+                  </strong>{" "}
+                  في أكتوبر من{" "}
+                  <strong className="font-semibold text-gray-900">
+                    <span dir="ltr" className="inline-block tabular-nums">{kpis.orders.toLocaleString()}</span>
+                  </strong>{" "}
+                  طلب. الصنف الأعلى مبيعاً هو{" "}
+                  <strong className="font-semibold text-gray-900">Chicken Noodles</strong>.
+                </>
+              ) : (
+                <>
+                  {selectedBrand} in {selectedChannel.toLowerCase()} made{" "}
+                  <strong className="font-semibold text-gray-900">
+                    KWD {Math.round(kpis.netSales).toLocaleString()}
+                  </strong>{" "}
+                  net in October from{" "}
+                  <strong className="font-semibold text-gray-900">
+                    {kpis.orders.toLocaleString()}
+                  </strong>{" "}
+                  orders. The best seller was{" "}
+                  <strong className="font-semibold text-gray-900">Chicken Noodles</strong>.
+                </>
+              )}
             </p>
           </div>
 
@@ -649,40 +666,38 @@ export default function BrandSalesOdooReportPage() {
           <div className="pt-1 space-y-1.5">
             <div className="flex flex-wrap items-center gap-4 text-[12px]">
               <label className="flex items-center gap-2 text-gray-600">
-                <span>Brand</span>
+                <span>{tr("Brand")}</span>
                 <select
                   value={selectedBrand}
                   onChange={(e) => setSelectedBrand(e.target.value)}
                   className="bg-white border border-gray-300 rounded px-2.5 py-1 text-[12px] text-gray-900 font-medium focus:outline-none focus:border-blue-600"
                 >
-                  <option value="All brands">All brands</option>
+                  <option value="All brands">{tr("All brands")}</option>
                   {BRANDS_DATA.map((b) => (
-                    <option key={b.brand} value={b.brand}>
-                      {b.brand}
+                    <option key={tr(b.brand)} value={tr(b.brand)}>
+                      {tr(b.brand)}
                     </option>
                   ))}
                 </select>
               </label>
 
               <label className="flex items-center gap-2 text-gray-600">
-                <span>Channel</span>
+                <span>{tr("Channel")}</span>
                 <select
                   value={selectedChannel}
                   onChange={(e) => setSelectedChannel(e.target.value)}
                   className="bg-white border border-gray-300 rounded px-2.5 py-1 text-[12px] text-gray-900 font-medium focus:outline-none focus:border-blue-600"
                 >
-                  <option value="All channels">All channels</option>
+                  <option value="All channels">{tr("All channels")}</option>
                   {CHANNELS_DATA.map((c) => (
-                    <option key={c.channel} value={c.channel}>
-                      {c.channel}
+                    <option key={tr(c.channel)} value={tr(c.channel)}>
+                      {tr(c.channel)}
                     </option>
                   ))}
                 </select>
               </label>
             </div>
-            <p className="text-[11px] text-gray-400">
-              Both filters apply to every section. You can also click a bar in the brand or channel charts.
-            </p>
+            <p className="text-[11px] text-gray-400"> {tr("Both filters apply to every section. You can also click a bar in the brand or channel charts.")} </p>
           </div>
         </header>
 
@@ -691,31 +706,31 @@ export default function BrandSalesOdooReportPage() {
            ========================================== */}
         <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           <div className="bg-white border border-gray-200 rounded-md p-3">
-            <div className="text-[11px] text-gray-500">Net sales · Oct 2026</div>
+            <div className="text-[11px] text-gray-500">{tr("Net sales · Oct 2026")}</div>
             <div className="text-[18px] font-bold text-gray-900 mt-0.5 tabular-nums">
               KWD {Math.round(kpis.netSales).toLocaleString()}
             </div>
-            <div className="text-[10px] text-gray-400 mt-0.5">After discounts, KWD</div>
+            <div className="text-[10px] text-gray-400 mt-0.5">{tr("After discounts, KWD")}</div>
           </div>
 
           <div className="bg-white border border-gray-200 rounded-md p-3">
-            <div className="text-[11px] text-gray-500">Orders</div>
+            <div className="text-[11px] text-gray-500">{tr("Orders")}</div>
             <div className="text-[18px] font-bold text-gray-900 mt-0.5 tabular-nums">
               {kpis.orders.toLocaleString()}
             </div>
-            <div className="text-[10px] text-gray-400 mt-0.5">Distinct orders</div>
+            <div className="text-[10px] text-gray-400 mt-0.5">{tr("Distinct orders")}</div>
           </div>
 
           <div className="bg-white border border-gray-200 rounded-md p-3">
-            <div className="text-[11px] text-gray-500">Average order value</div>
+            <div className="text-[11px] text-gray-500">{tr("Average order value")}</div>
             <div className="text-[18px] font-bold text-gray-900 mt-0.5 tabular-nums">
               KWD {kpis.avgOrder.toFixed(3)}
             </div>
-            <div className="text-[10px] text-gray-400 mt-0.5">Net sales ÷ orders</div>
+            <div className="text-[10px] text-gray-400 mt-0.5">{tr("Net sales ÷ orders")}</div>
           </div>
 
           <div className="bg-white border border-gray-200 rounded-md p-3">
-            <div className="text-[11px] text-gray-500">Items sold</div>
+            <div className="text-[11px] text-gray-500">{tr("Items sold")}</div>
             <div className="text-[18px] font-bold text-gray-900 mt-0.5 tabular-nums">
               {kpis.itemsSold.toLocaleString()}
             </div>
@@ -725,21 +740,19 @@ export default function BrandSalesOdooReportPage() {
           </div>
 
           <div className="bg-white border border-gray-200 rounded-md p-3">
-            <div className="text-[11px] text-gray-500">Discounts given</div>
+            <div className="text-[11px] text-gray-500">{tr("Discounts given")}</div>
             <div className="text-[18px] font-bold text-gray-900 mt-0.5 tabular-nums">
               KWD {Math.round(kpis.discounts).toLocaleString()}
             </div>
-            <div className="text-[10px] text-gray-400 mt-0.5">2.4% of gross sales</div>
+            <div className="text-[10px] text-gray-400 mt-0.5">{tr("2.4% of gross sales")}</div>
           </div>
 
           <div className="bg-white border border-gray-200 rounded-md p-3">
-            <div className="text-[11px] text-gray-500">Share of group sales</div>
+            <div className="text-[11px] text-gray-500">{tr("Share of group sales")}</div>
             <div className="text-[18px] font-bold text-gray-900 mt-0.5 tabular-nums">
               {kpis.sharePct.toFixed(1)}%
             </div>
-            <div className="text-[10px] text-gray-400 mt-0.5">
-              Net profit KWD 42,441 (25.4%)
-            </div>
+            <div className="text-[10px] text-gray-400 mt-0.5"> {tr("Net profit KWD 42,441 (25.4%)")} </div>
           </div>
         </section>
 
@@ -748,70 +761,57 @@ export default function BrandSalesOdooReportPage() {
            ========================================== */}
         <section className="space-y-2">
           <div className="text-[12px] font-semibold text-gray-800">
-            Highlights <span className="font-normal text-gray-400">· All brands, all channels</span>
+            {tr("Highlights")} <span className="font-normal text-gray-400">· {tr("All brands, all channels")}</span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="bg-white border border-gray-200 border-l-[3px] border-l-gray-700 rounded-md p-3">
-              <div className="text-[10px] text-gray-500">Biggest channel</div>
+            <div className="bg-white border border-gray-200 border-s-[3px] border-s-gray-700 rounded-md p-3">
+              <div className="text-[10px] text-gray-500">{tr("Biggest channel")}</div>
               <div className="text-[12px] text-gray-800 mt-0.5">
-                <strong className="font-semibold">Shop Sales</strong> is the largest channel, with{" "}
-                <strong className="font-semibold">35.3%</strong> of sales.
+                {isAr ? (<><strong className="font-semibold">مبيعات المحل</strong> هي أكبر قناة بيع بنسبة <strong className="font-semibold"><span dir="ltr" className="inline-block tabular-nums">35.3%</span></strong> من المبيعات.</>) : (<><strong className="font-semibold">Shop Sales</strong> is the largest channel, with <strong className="font-semibold">35.3%</strong> of sales.</>)}
               </div>
             </div>
-
-            <div className="bg-white border border-gray-200 border-l-[3px] border-l-gray-700 rounded-md p-3">
-              <div className="text-[10px] text-gray-500">Best seller</div>
+            <div className="bg-white border border-gray-200 border-s-[3px] border-s-gray-700 rounded-md p-3">
+              <div className="text-[10px] text-gray-500">{tr("Best seller")}</div>
               <div className="text-[12px] text-gray-800 mt-0.5">
-                <strong className="font-semibold">Chicken Noodles</strong> from{" "}
-                <strong className="font-semibold">China Garden</strong> sold{" "}
-                <strong className="font-semibold">KWD 12,043</strong>, which is{" "}
-                <strong className="font-semibold">7.2%</strong> of menu sales.
+                {isAr ? (<><strong className="font-semibold">Chicken Noodles</strong> من <strong className="font-semibold">تشاينا جاردن</strong> باع <strong className="font-semibold"><span dir="ltr" className="inline-block tabular-nums">KWD 12,043</span></strong> وتمثل <strong className="font-semibold"><span dir="ltr" className="inline-block tabular-nums">7.2%</span></strong> من مبيعات المنيو.</>) : (<><strong className="font-semibold">Chicken Noodles</strong> from <strong className="font-semibold">China Garden</strong> sold <strong className="font-semibold">KWD 12,043</strong>, which is <strong className="font-semibold">7.2%</strong> of menu sales.</>)}
               </div>
             </div>
-
-            <div className="bg-white border border-gray-200 border-l-[3px] border-l-gray-700 rounded-md p-3">
-              <div className="text-[10px] text-gray-500">Menu concentration</div>
+            <div className="bg-white border border-gray-200 border-s-[3px] border-s-gray-700 rounded-md p-3">
+              <div className="text-[10px] text-gray-500">{tr("Menu concentration")}</div>
               <div className="text-[12px] text-gray-800 mt-0.5">
-                The top <strong className="font-semibold">32</strong> of{" "}
-                <strong className="font-semibold">364</strong> items sold make{" "}
-                <strong className="font-semibold">80%</strong> of menu sales.
+                {isAr ? (<>أعلى <strong className="font-semibold"><span dir="ltr" className="inline-block tabular-nums">32</span></strong> صنفاً من أصل <strong className="font-semibold"><span dir="ltr" className="inline-block tabular-nums">364</span></strong> صنفاً مباعاً تحقق <strong className="font-semibold"><span dir="ltr" className="inline-block tabular-nums">80%</span></strong> من مبيعات المنيو.</>) : (<>The top <strong className="font-semibold">32</strong> of <strong className="font-semibold">364</strong> items sold make <strong className="font-semibold">80%</strong> of menu sales.</>)}
               </div>
             </div>
-
-            <div className="bg-white border border-gray-200 border-l-[3px] border-l-gray-700 rounded-md p-3">
-              <div className="text-[10px] text-gray-500">Add-ons per order</div>
+            <div className="bg-white border border-gray-200 border-s-[3px] border-s-gray-700 rounded-md p-3">
+              <div className="text-[10px] text-gray-500">{tr("Add-ons per order")}</div>
               <div className="text-[12px] text-gray-800 mt-0.5">
-                Drinks <strong className="font-semibold">25.3%</strong>, starters and sides{" "}
-                <strong className="font-semibold">32.7%</strong>, desserts{" "}
-                <strong className="font-semibold">3.2%</strong>. Each is item lines of that kind per 100 orders.
+                {isAr ? (<>المشروبات <strong className="font-semibold"><span dir="ltr" className="inline-block tabular-nums">25.3%</span></strong>، المقبلات والجوانب <strong className="font-semibold"><span dir="ltr" className="inline-block tabular-nums">32.7%</span></strong>، الحلويات <strong className="font-semibold"><span dir="ltr" className="inline-block tabular-nums">3.2%</span></strong>. كل نسبة هي عدد سطور الأصناف من هذا النوع لكل 100 طلب.</>) : (<>Drinks <strong className="font-semibold">25.3%</strong>, starters and sides <strong className="font-semibold">32.7%</strong>, desserts <strong className="font-semibold">3.2%</strong>. Each is item lines of that kind per 100 orders.</>)}
               </div>
             </div>
           </div>
         </section>
 
+
         {/* ==========================================
             SECTION 1: BRANDS (CHARTS + SCORECARD)
            ========================================== */}
         <section className="space-y-3">
-          <div className="text-[12px] font-semibold text-gray-800">
-            Brands <span className="font-normal text-gray-400">· {selectedChannel}</span>
+          <div className="text-[12px] font-semibold text-gray-800"> {tr("Brands")} <span className="font-normal text-gray-400">· {tr(selectedChannel)}</span>
           </div>
 
           {/* 2 Horizontal Bar Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {/* Net sales by brand */}
             <div className="bg-white border border-gray-200 rounded-md p-4">
-              <div className="text-[12px] font-semibold text-gray-900">Net sales by brand</div>
-              <div className="text-[10px] text-gray-400 mb-3">
-                KWD after discounts on the chosen channel. Click a bar to filter to that brand.
-              </div>
+              <div className="text-[12px] font-semibold text-gray-900">{tr("Net sales by brand")}</div>
+              <div className="text-[10px] text-gray-400 mb-3"> {tr("KWD after discounts on the chosen channel. Click a bar to filter to that brand.")} </div>
               <div className="space-y-2">
                 {BRANDS_DATA.map((b) => {
                   const widthPct = Math.max(1.5, (b.netSales / maxBrandSales) * 100);
                   const isSelected = selectedBrand === "All brands" || selectedBrand === b.brand;
                   return (
                     <div
-                      key={b.brand}
+                      key={tr(b.brand)}
                       onClick={() =>
                         setSelectedBrand(selectedBrand === b.brand ? "All brands" : b.brand)
                       }
@@ -819,7 +819,7 @@ export default function BrandSalesOdooReportPage() {
                         isSelected ? "opacity-100" : "opacity-40"
                       }`}
                     >
-                      <span className="text-right text-gray-600 truncate">{b.brand}</span>
+                      <span className="text-end text-gray-600 truncate">{tr(b.brand)}</span>
                       <div className="w-full bg-gray-50 h-4 flex items-center">
                         <div
                           className="h-4 bg-[#2563EB] transition-all"
@@ -837,12 +837,8 @@ export default function BrandSalesOdooReportPage() {
 
             {/* Average order value by brand */}
             <div className="bg-white border border-gray-200 rounded-md p-4">
-              <div className="text-[12px] font-semibold text-gray-900">
-                Average order value by brand
-              </div>
-              <div className="text-[10px] text-gray-400 mb-3">
-                KWD per order. Brands with fewer than 200 orders on this channel are greyed out.
-              </div>
+              <div className="text-[12px] font-semibold text-gray-900"> {tr("Average order value by brand")} </div>
+              <div className="text-[10px] text-gray-400 mb-3"> {tr("KWD per order. Brands with fewer than 200 orders on this channel are greyed out.")} </div>
               <div className="space-y-2">
                 {[...BRANDS_DATA]
                   .sort((a, b) => b.avgOrder - a.avgOrder)
@@ -851,13 +847,13 @@ export default function BrandSalesOdooReportPage() {
                     const isLowSample = b.orders < 200;
                     return (
                       <div
-                        key={b.brand}
+                        key={tr(b.brand)}
                         onClick={() =>
                           setSelectedBrand(selectedBrand === b.brand ? "All brands" : b.brand)
                         }
                         className="grid grid-cols-[110px_1fr_45px] items-center gap-2 text-[11px] cursor-pointer"
                       >
-                        <span className="text-right text-gray-600 truncate">{b.brand}</span>
+                        <span className="text-end text-gray-600 truncate">{tr(b.brand)}</span>
                         <div className="w-full bg-gray-50 h-4 flex items-center">
                           <div
                             className={`h-4 transition-all ${
@@ -878,23 +874,21 @@ export default function BrandSalesOdooReportPage() {
 
           {/* Brand scorecard table */}
           <div className="bg-white border border-gray-200 rounded-md p-4 overflow-x-auto">
-            <div className="text-[12px] font-semibold text-gray-900">Brand scorecard</div>
-            <div className="text-[10px] text-gray-400 mb-3">
-              Drinks and starters are item lines of that kind per order. Discount rate is discounts ÷ gross sales.
-            </div>
+            <div className="text-[12px] font-semibold text-gray-900">{tr("Brand scorecard")}</div>
+            <div className="text-[10px] text-gray-400 mb-3"> {tr("Drinks and starters are item lines of that kind per order. Discount rate is discounts ÷ gross sales.")} </div>
             <table className="w-full text-[11px] border-collapse">
               <thead>
                 <tr className="border-b border-gray-200 text-gray-400 font-normal">
-                  <th className="text-left py-1.5 font-normal">Brand</th>
-                  <th className="text-right py-1.5 font-normal">Orders</th>
-                  <th className="text-right py-1.5 font-normal w-44">Net sales</th>
-                  <th className="text-right py-1.5 font-normal">Share of group</th>
-                  <th className="text-right py-1.5 font-normal">Avg order</th>
-                  <th className="text-right py-1.5 font-normal">Items / order</th>
-                  <th className="text-right py-1.5 font-normal">Discount rate</th>
-                  <th className="text-right py-1.5 font-normal">Drinks</th>
-                  <th className="text-right py-1.5 font-normal">Starters</th>
-                  <th className="text-left py-1.5 pl-4 font-normal">Best seller</th>
+                  <th className="text-start py-1.5 font-normal">{tr("Brand")}</th>
+                  <th className="text-end py-1.5 font-normal">{tr("Orders")}</th>
+                  <th className="text-end py-1.5 font-normal w-44">{tr("Net sales")}</th>
+                  <th className="text-end py-1.5 font-normal">{tr("Share of group")}</th>
+                  <th className="text-end py-1.5 font-normal">{tr("Avg order")}</th>
+                  <th className="text-end py-1.5 font-normal">{tr("Items / order")}</th>
+                  <th className="text-end py-1.5 font-normal">{tr("Discount rate")}</th>
+                  <th className="text-end py-1.5 font-normal">{tr("Drinks")}</th>
+                  <th className="text-end py-1.5 font-normal">{tr("Starters")}</th>
+                  <th className="text-start py-1.5 ps-4 font-normal">{tr("Best seller")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -902,17 +896,17 @@ export default function BrandSalesOdooReportPage() {
                   const barW = Math.max(2, (b.netSales / maxBrandSales) * 80);
                   return (
                     <tr
-                      key={b.brand}
+                      key={tr(b.brand)}
                       onClick={() =>
                         setSelectedBrand(selectedBrand === b.brand ? "All brands" : b.brand)
                       }
                       className="hover:bg-gray-50 cursor-pointer"
                     >
-                      <td className="py-1.5 font-medium text-gray-900">{b.brand}</td>
-                      <td className="py-1.5 text-right tabular-nums text-gray-700">
+                      <td className="py-1.5 font-medium text-gray-900">{tr(b.brand)}</td>
+                      <td className="py-1.5 text-end tabular-nums text-gray-700">
                         {b.orders.toLocaleString()}
                       </td>
-                      <td className="py-1.5 text-right tabular-nums text-gray-900">
+                      <td className="py-1.5 text-end tabular-nums text-gray-900">
                         <div className="flex items-center justify-end gap-2">
                           <div
                             className="h-2.5 bg-[#9CA3AF]"
@@ -926,26 +920,26 @@ export default function BrandSalesOdooReportPage() {
                           </span>
                         </div>
                       </td>
-                      <td className="py-1.5 text-right tabular-nums text-gray-700">
+                      <td className="py-1.5 text-end tabular-nums text-gray-700">
                         {b.share.toFixed(1)}%
                       </td>
-                      <td className="py-1.5 text-right tabular-nums text-gray-700">
+                      <td className="py-1.5 text-end tabular-nums text-gray-700">
                         {b.avgOrder.toFixed(2)}
                       </td>
-                      <td className="py-1.5 text-right tabular-nums text-gray-700">
+                      <td className="py-1.5 text-end tabular-nums text-gray-700">
                         {b.itemsPerOrder.toFixed(2)}
                       </td>
-                      <td className="py-1.5 text-right tabular-nums text-gray-700">
+                      <td className="py-1.5 text-end tabular-nums text-gray-700">
                         {b.discountRate.toFixed(1)}%
                       </td>
-                      <td className="py-1.5 text-right tabular-nums text-gray-700">
+                      <td className="py-1.5 text-end tabular-nums text-gray-700">
                         {b.drinksPct.toFixed(1)}%
                       </td>
-                      <td className="py-1.5 text-right tabular-nums text-gray-700">
+                      <td className="py-1.5 text-end tabular-nums text-gray-700">
                         {b.startersPct.toFixed(1)}%
                       </td>
-                      <td className="py-1.5 pl-4 text-left text-gray-700 truncate max-w-[220px]">
-                        {b.bestSeller}
+                      <td className="py-1.5 ps-4 text-start text-gray-700 truncate max-w-[220px]">
+                        {tr(b.bestSeller)}
                       </td>
                     </tr>
                   );
@@ -959,23 +953,20 @@ export default function BrandSalesOdooReportPage() {
             SECTION 2: CHANNELS (CHARTS + SCORECARD)
            ========================================== */}
         <section className="space-y-3">
-          <div className="text-[12px] font-semibold text-gray-800">
-            Channels <span className="font-normal text-gray-400">· {selectedBrand}</span>
+          <div className="text-[12px] font-semibold text-gray-800"> {tr("Channels")} <span className="font-normal text-gray-400">· {tr(selectedBrand)}</span>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {/* Net sales by channel */}
             <div className="bg-white border border-gray-200 rounded-md p-4">
-              <div className="text-[12px] font-semibold text-gray-900">Net sales by channel</div>
-              <div className="text-[10px] text-gray-400 mb-3">
-                KWD after discounts for the chosen brand. Click a bar to filter to that channel.
-              </div>
+              <div className="text-[12px] font-semibold text-gray-900">{tr("Net sales by channel")}</div>
+              <div className="text-[10px] text-gray-400 mb-3"> {tr("KWD after discounts for the chosen brand. Click a bar to filter to that channel.")} </div>
               <div className="space-y-1.5">
                 {CHANNELS_DATA.map((c) => {
                   const widthPct = Math.max(1, (c.netSales / maxChannelSales) * 100);
                   return (
                     <div
-                      key={c.channel}
+                      key={tr(c.channel)}
                       onClick={() =>
                         setSelectedChannel(
                           selectedChannel === c.channel ? "All channels" : c.channel
@@ -983,7 +974,7 @@ export default function BrandSalesOdooReportPage() {
                       }
                       className="grid grid-cols-[110px_1fr_55px] items-center gap-2 text-[11px] cursor-pointer hover:opacity-90"
                     >
-                      <span className="text-right text-gray-600 truncate">{c.channel}</span>
+                      <span className="text-end text-gray-600 truncate">{tr(c.channel)}</span>
                       <div className="w-full bg-gray-50 h-3.5 flex items-center">
                         <div
                           className="h-3.5 bg-[#2563EB]"
@@ -1001,12 +992,8 @@ export default function BrandSalesOdooReportPage() {
 
             {/* Average order value by channel */}
             <div className="bg-white border border-gray-200 rounded-md p-4">
-              <div className="text-[12px] font-semibold text-gray-900">
-                Average order value by channel
-              </div>
-              <div className="text-[10px] text-gray-400 mb-3">
-                KWD per order. Channels with fewer than 200 orders are greyed out because their averages swing easily.
-              </div>
+              <div className="text-[12px] font-semibold text-gray-900"> {tr("Average order value by channel")} </div>
+              <div className="text-[10px] text-gray-400 mb-3"> {tr("KWD per order. Channels with fewer than 200 orders are greyed out because their averages swing easily.")} </div>
               <div className="space-y-1.5">
                 {[...CHANNELS_DATA]
                   .sort((a, b) => b.avgOrder - a.avgOrder)
@@ -1015,7 +1002,7 @@ export default function BrandSalesOdooReportPage() {
                     const isLowSample = c.orders < 200;
                     return (
                       <div
-                        key={c.channel}
+                        key={tr(c.channel)}
                         onClick={() =>
                           setSelectedChannel(
                             selectedChannel === c.channel ? "All channels" : c.channel
@@ -1023,7 +1010,7 @@ export default function BrandSalesOdooReportPage() {
                         }
                         className="grid grid-cols-[110px_1fr_45px] items-center gap-2 text-[11px] cursor-pointer"
                       >
-                        <span className="text-right text-gray-600 truncate">{c.channel}</span>
+                        <span className="text-end text-gray-600 truncate">{tr(c.channel)}</span>
                         <div className="w-full bg-gray-50 h-3.5 flex items-center">
                           <div
                             className={`h-3.5 ${
@@ -1044,23 +1031,21 @@ export default function BrandSalesOdooReportPage() {
 
           {/* Channel scorecard table */}
           <div className="bg-white border border-gray-200 rounded-md p-4 overflow-x-auto">
-            <div className="text-[12px] font-semibold text-gray-900">Channel scorecard</div>
-            <div className="text-[10px] text-gray-400 mb-3">
-              For the chosen brand. Add-on rates are item lines of that kind per order.
-            </div>
+            <div className="text-[12px] font-semibold text-gray-900">{tr("Channel scorecard")}</div>
+            <div className="text-[10px] text-gray-400 mb-3"> {tr("For the chosen brand. Add-on rates are item lines of that kind per order.")} </div>
             <table className="w-full text-[11px] border-collapse">
               <thead>
                 <tr className="border-b border-gray-200 text-gray-400 font-normal">
-                  <th className="text-left py-1.5 font-normal">Channel</th>
-                  <th className="text-right py-1.5 font-normal">Orders</th>
-                  <th className="text-right py-1.5 font-normal w-44">Net sales</th>
-                  <th className="text-right py-1.5 font-normal">Share</th>
-                  <th className="text-right py-1.5 font-normal">Avg order</th>
-                  <th className="text-right py-1.5 font-normal">Items / order</th>
-                  <th className="text-right py-1.5 font-normal">Discount rate</th>
-                  <th className="text-right py-1.5 font-normal">Drinks</th>
-                  <th className="text-right py-1.5 font-normal">Starters</th>
-                  <th className="text-right py-1.5 font-normal">Desserts</th>
+                  <th className="text-start py-1.5 font-normal">{tr("Channel")}</th>
+                  <th className="text-end py-1.5 font-normal">{tr("Orders")}</th>
+                  <th className="text-end py-1.5 font-normal w-44">{tr("Net sales")}</th>
+                  <th className="text-end py-1.5 font-normal">{tr("Share")}</th>
+                  <th className="text-end py-1.5 font-normal">{tr("Avg order")}</th>
+                  <th className="text-end py-1.5 font-normal">{tr("Items / order")}</th>
+                  <th className="text-end py-1.5 font-normal">{tr("Discount rate")}</th>
+                  <th className="text-end py-1.5 font-normal">{tr("Drinks")}</th>
+                  <th className="text-end py-1.5 font-normal">{tr("Starters")}</th>
+                  <th className="text-end py-1.5 font-normal">{tr("Desserts")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -1068,7 +1053,7 @@ export default function BrandSalesOdooReportPage() {
                   const barW = Math.max(2, (c.netSales / maxChannelSales) * 80);
                   return (
                     <tr
-                      key={c.channel}
+                      key={tr(c.channel)}
                       onClick={() =>
                         setSelectedChannel(
                           selectedChannel === c.channel ? "All channels" : c.channel
@@ -1076,11 +1061,11 @@ export default function BrandSalesOdooReportPage() {
                       }
                       className="hover:bg-gray-50 cursor-pointer"
                     >
-                      <td className="py-1.5 font-medium text-gray-900">{c.channel}</td>
-                      <td className="py-1.5 text-right tabular-nums text-gray-700">
+                      <td className="py-1.5 font-medium text-gray-900">{tr(c.channel)}</td>
+                      <td className="py-1.5 text-end tabular-nums text-gray-700">
                         {c.orders.toLocaleString()}
                       </td>
-                      <td className="py-1.5 text-right tabular-nums text-gray-900">
+                      <td className="py-1.5 text-end tabular-nums text-gray-900">
                         <div className="flex items-center justify-end gap-2">
                           <div
                             className="h-2.5 bg-[#9CA3AF]"
@@ -1094,25 +1079,25 @@ export default function BrandSalesOdooReportPage() {
                           </span>
                         </div>
                       </td>
-                      <td className="py-1.5 text-right tabular-nums text-gray-700">
+                      <td className="py-1.5 text-end tabular-nums text-gray-700">
                         {c.share.toFixed(1)}%
                       </td>
-                      <td className="py-1.5 text-right tabular-nums text-gray-700">
+                      <td className="py-1.5 text-end tabular-nums text-gray-700">
                         {c.avgOrder.toFixed(2)}
                       </td>
-                      <td className="py-1.5 text-right tabular-nums text-gray-700">
+                      <td className="py-1.5 text-end tabular-nums text-gray-700">
                         {c.itemsPerOrder.toFixed(2)}
                       </td>
-                      <td className="py-1.5 text-right tabular-nums text-gray-700">
+                      <td className="py-1.5 text-end tabular-nums text-gray-700">
                         {c.discountRate.toFixed(1)}%
                       </td>
-                      <td className="py-1.5 text-right tabular-nums text-gray-700">
+                      <td className="py-1.5 text-end tabular-nums text-gray-700">
                         {c.drinksPct.toFixed(1)}%
                       </td>
-                      <td className="py-1.5 text-right tabular-nums text-gray-700">
+                      <td className="py-1.5 text-end tabular-nums text-gray-700">
                         {c.startersPct.toFixed(1)}%
                       </td>
-                      <td className="py-1.5 text-right tabular-nums text-gray-700">
+                      <td className="py-1.5 text-end tabular-nums text-gray-700">
                         {c.dessertsPct.toFixed(1)}%
                       </td>
                     </tr>
@@ -1127,17 +1112,14 @@ export default function BrandSalesOdooReportPage() {
             SECTION 3: MENU CATEGORIES & TOP 15 ITEMS
            ========================================== */}
         <section className="space-y-3">
-          <div className="text-[12px] font-semibold text-gray-800">
-            Menu <span className="font-normal text-gray-400">· All brands, all channels</span>
+          <div className="text-[12px] font-semibold text-gray-800"> {tr("Menu")} <span className="font-normal text-gray-400">{tr("· All brands, all channels")}</span>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {/* Sales by category (Grey Bars) */}
             <div className="bg-white border border-gray-200 rounded-md p-4">
-              <div className="text-[12px] font-semibold text-gray-900">Sales by category</div>
-              <div className="text-[10px] text-gray-400 mb-3">
-                Gross item sales before order-level discounts, grouped by item category.
-              </div>
+              <div className="text-[12px] font-semibold text-gray-900">{tr("Sales by category")}</div>
+              <div className="text-[10px] text-gray-400 mb-3"> {tr("Gross item sales before order-level discounts, grouped by item category.")} </div>
               <div className="space-y-1.5">
                 {CATEGORIES_DATA.map((cat) => {
                   const widthPct = Math.max(1, (cat.sales / maxCatSales) * 100);
@@ -1146,7 +1128,7 @@ export default function BrandSalesOdooReportPage() {
                       key={cat.name}
                       className="grid grid-cols-[120px_1fr_50px] items-center gap-2 text-[11px]"
                     >
-                      <span className="text-right text-gray-600 truncate">{cat.name}</span>
+                      <span className="text-end text-gray-600 truncate">{cat.name}</span>
                       <div className="w-full bg-gray-50 h-3.5 flex items-center">
                         <div
                           className="h-3.5 bg-[#9CA3AF]"
@@ -1164,20 +1146,18 @@ export default function BrandSalesOdooReportPage() {
 
             {/* Top 15 items (Blue Bars) */}
             <div className="bg-white border border-gray-200 rounded-md p-4">
-              <div className="text-[12px] font-semibold text-gray-900">Top 15 items</div>
-              <div className="text-[10px] text-gray-400 mb-3">
-                Gross KWD. Hover a bar to see the brand and unit price.
-              </div>
+              <div className="text-[12px] font-semibold text-gray-900">{tr("Top 15 items")}</div>
+              <div className="text-[10px] text-gray-400 mb-3"> {tr("Gross KWD. Hover a bar to see the brand and unit price.")} </div>
               <div className="space-y-1.5">
                 {TOP_15_ITEMS.map((item) => {
                   const widthPct = Math.max(2, (item.sales / maxItemSales) * 100);
                   return (
                     <div
                       key={item.name}
-                      title={`${item.brand} · KWD ${item.price.toFixed(2)}`}
+                      title={`${tr(item.brand)} · KWD ${item.price.toFixed(2)}`}
                       className="grid grid-cols-[155px_1fr_50px] items-center gap-2 text-[11px]"
                     >
-                      <span className="text-right text-gray-600 truncate">{item.name}</span>
+                      <span className="text-end text-gray-600 truncate">{item.name}</span>
                       <div className="w-full bg-gray-50 h-3.5 flex items-center">
                         <div
                           className="h-3.5 bg-[#2563EB]"
@@ -1202,29 +1182,23 @@ export default function BrandSalesOdooReportPage() {
         <section className="space-y-3">
           <div className="text-[12px] font-semibold text-gray-800">
             Menu & Odoo Diagnostic Action Matrix{" "}
-            <span className="font-normal text-gray-400">
-              · Automated classification of revenue, add-ons, COGS & maintenance
-            </span>
+            <span className="font-normal text-gray-400"> {tr("· Automated classification of revenue, add-ons, COGS & maintenance")} </span>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {/* Multi-Colored Horizontal Bar Breakdown */}
             <div className="bg-white border border-gray-200 rounded-md p-4">
-              <div className="text-[12px] font-semibold text-gray-900">
-                Revenue & Cost Pool by Diagnostic Action Bucket
-              </div>
-              <div className="text-[10px] text-gray-400 mb-3">
-                KWD pool impacted per diagnostic rule across Odoo POS, Aggregators & Central Kitchen.
-              </div>
+              <div className="text-[12px] font-semibold text-gray-900"> {tr("Revenue & Cost Pool by Diagnostic Action Bucket")} </div>
+              <div className="text-[10px] text-gray-400 mb-3"> {tr("KWD pool impacted per diagnostic rule across Odoo POS, Aggregators & Central Kitchen.")} </div>
               <div className="space-y-2.5 pt-1">
                 {DIAGNOSTIC_BUCKETS.map((b) => {
                   const widthPct = Math.max(4, (b.value / maxDiagValue) * 100);
                   return (
                     <div
-                      key={b.label}
+                      key={tr(b.label)}
                       className="grid grid-cols-[195px_1fr_60px] items-center gap-2 text-[11px]"
                     >
-                      <span className="text-right text-gray-600 truncate">{b.label}</span>
+                      <span className="text-end text-gray-600 truncate">{tr(b.label)}</span>
                       <div className="w-full bg-gray-50 h-4 flex items-center">
                         <div
                           className="h-4 rounded-r-sm"
@@ -1242,24 +1216,20 @@ export default function BrandSalesOdooReportPage() {
 
             {/* Right Legend with Outlined Badges */}
             <div className="bg-white border border-gray-200 rounded-md p-4">
-              <div className="text-[12px] font-semibold text-gray-900">
-                How items & Odoo cost centers are classified
-              </div>
-              <div className="text-[10px] text-gray-400 mb-3">
-                Each row in the action tables below receives a diagnostic badge and concrete recommendation.
-              </div>
+              <div className="text-[12px] font-semibold text-gray-900"> {tr("How items & Odoo cost centers are classified")} </div>
+              <div className="text-[10px] text-gray-400 mb-3"> {tr("Each row in the action tables below receives a diagnostic badge and concrete recommendation.")} </div>
               <div className="space-y-2">
                 {DIAGNOSTIC_BUCKETS.map((b) => (
                   <div
-                    key={b.badge}
+                    key={tr(b.badge)}
                     className="grid grid-cols-[110px_1fr] items-start gap-3 text-[11px]"
                   >
                     <span
                       className={`inline-block text-center px-2 py-0.5 rounded-full border text-[10px] font-medium ${b.badgeColor}`}
                     >
-                      {b.badge}
+                      {tr(b.badge)}
                     </span>
-                    <span className="text-gray-600 leading-snug">{b.rule}</span>
+                    <span className="text-gray-600 leading-snug">{tr(b.rule)}</span>
                   </div>
                 ))}
               </div>
@@ -1270,53 +1240,49 @@ export default function BrandSalesOdooReportPage() {
               SCROLLABLE ACTION TABLE 1: ITEM DIAGNOSTICS
              ========================================== */}
           <div className="bg-white border border-gray-200 rounded-md p-4">
-            <div className="text-[12px] font-semibold text-gray-900">
-              Item-level commercial diagnostics & pricing actions
-            </div>
-            <div className="text-[10px] text-gray-400 mb-3">
-              High-impact menu items evaluated by order volume, basket attachment, discount bleed, and kitchen prep.
-            </div>
+            <div className="text-[12px] font-semibold text-gray-900"> {tr("Item-level commercial diagnostics & pricing actions")} </div>
+            <div className="text-[10px] text-gray-400 mb-3"> {tr("High-impact menu items evaluated by order volume, basket attachment, discount bleed, and kitchen prep.")} </div>
             <div className="max-h-[280px] overflow-y-auto border-t border-gray-100">
               <table className="w-full text-[11px] border-collapse">
                 <thead className="sticky top-0 bg-white border-b border-gray-200 text-gray-400">
                   <tr>
-                    <th className="text-left py-1.5 font-normal">Brand</th>
-                    <th className="text-left py-1.5 font-normal">Item</th>
-                    <th className="text-left py-1.5 font-normal">Category</th>
-                    <th className="text-right py-1.5 font-normal">Orders</th>
-                    <th className="text-right py-1.5 font-normal">Net sales</th>
-                    <th className="text-right py-1.5 font-normal">Avg price</th>
-                    <th className="text-right py-1.5 font-normal">Share</th>
-                    <th className="text-center py-1.5 font-normal w-32">Action tag</th>
-                    <th className="text-left py-1.5 pl-3 font-normal">Recommended executive action</th>
+                    <th className="text-start py-1.5 font-normal">{tr("Brand")}</th>
+                    <th className="text-start py-1.5 font-normal">{tr("Item")}</th>
+                    <th className="text-start py-1.5 font-normal">{tr("Category")}</th>
+                    <th className="text-end py-1.5 font-normal">{tr("Orders")}</th>
+                    <th className="text-end py-1.5 font-normal">{tr("Net sales")}</th>
+                    <th className="text-end py-1.5 font-normal">{tr("Avg price")}</th>
+                    <th className="text-end py-1.5 font-normal">{tr("Share")}</th>
+                    <th className="text-center py-1.5 font-normal w-32">{tr("Action tag")}</th>
+                    <th className="text-start py-1.5 ps-3 font-normal">{tr("Recommended executive action")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {ITEM_DIAGNOSTICS_TABLE_1.map((row, idx) => (
                     <tr key={idx} className="hover:bg-gray-50">
-                      <td className="py-2 text-gray-700">{row.brand}</td>
-                      <td className="py-2 font-medium text-gray-900">{row.item}</td>
-                      <td className="py-2 text-gray-500">{row.category}</td>
-                      <td className="py-2 text-right tabular-nums text-gray-700">
+                      <td className="py-2 text-gray-700">{tr(row.brand)}</td>
+                      <td className="py-2 font-medium text-gray-900">{tr(row.item)}</td>
+                      <td className="py-2 text-gray-500">{tr(row.category)}</td>
+                      <td className="py-2 text-end tabular-nums text-gray-700">
                         {row.orders.toLocaleString()}
                       </td>
-                      <td className="py-2 text-right tabular-nums text-gray-900">
+                      <td className="py-2 text-end tabular-nums text-gray-900">
                         {row.sales.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                       </td>
-                      <td className="py-2 text-right tabular-nums text-gray-700">
+                      <td className="py-2 text-end tabular-nums text-gray-700">
                         {row.avgPrice.toFixed(2)}
                       </td>
-                      <td className="py-2 text-right tabular-nums text-gray-700">
+                      <td className="py-2 text-end tabular-nums text-gray-700">
                         {row.sharePct.toFixed(1)}%
                       </td>
                       <td className="py-2 text-center">
                         <span
                           className={`inline-block px-2.5 py-0.5 rounded-full border text-[10px] font-medium ${row.badgeStyle}`}
                         >
-                          {row.badge}
+                          {tr(row.badge)}
                         </span>
                       </td>
-                      <td className="py-2 pl-3 text-gray-600">{row.note}</td>
+                      <td className="py-2 ps-3 text-gray-600">{tr(row.note)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1328,52 +1294,48 @@ export default function BrandSalesOdooReportPage() {
               SCROLLABLE ACTION TABLE 2: ODOO P&L, COGS & PETTY CASH
              ========================================== */}
           <div className="bg-white border border-gray-200 rounded-md p-4">
-            <div className="text-[12px] font-semibold text-gray-900">
-              Odoo ERP financial, central kitchen & maintenance audit scorecard
-            </div>
-            <div className="text-[10px] text-gray-400 mb-3">
-              Direct reconciliation with Odoo general ledger (2,213 entries), Qurain Central Kitchen COGS, and Rabih maintenance custody.
-            </div>
+            <div className="text-[12px] font-semibold text-gray-900"> {tr("Odoo ERP financial, central kitchen & maintenance audit scorecard")} </div>
+            <div className="text-[10px] text-gray-400 mb-3"> {tr("Direct reconciliation with Odoo general ledger (2,213 entries), Qurain Central Kitchen COGS, and Rabih maintenance custody.")} </div>
             <div className="max-h-[260px] overflow-y-auto border-t border-gray-100">
               <table className="w-full text-[11px] border-collapse">
                 <thead className="sticky top-0 bg-white border-b border-gray-200 text-gray-400">
                   <tr>
-                    <th className="text-left py-1.5 font-normal">Operational sector</th>
-                    <th className="text-left py-1.5 font-normal">Odoo account / custody</th>
-                    <th className="text-left py-1.5 font-normal">Source module</th>
-                    <th className="text-right py-1.5 font-normal">Entries</th>
-                    <th className="text-right py-1.5 font-normal">Amount (KWD)</th>
-                    <th className="text-right py-1.5 font-normal">Variance</th>
-                    <th className="text-center py-1.5 font-normal w-32">Audit status</th>
-                    <th className="text-left py-1.5 pl-3 font-normal">Required Odoo & operational action</th>
+                    <th className="text-start py-1.5 font-normal">{tr("Operational sector")}</th>
+                    <th className="text-start py-1.5 font-normal">{tr("Odoo account / custody")}</th>
+                    <th className="text-start py-1.5 font-normal">{tr("Source module")}</th>
+                    <th className="text-end py-1.5 font-normal">{tr("Entries")}</th>
+                    <th className="text-end py-1.5 font-normal">{tr("Amount (KWD)")}</th>
+                    <th className="text-end py-1.5 font-normal">{tr("Variance")}</th>
+                    <th className="text-center py-1.5 font-normal w-32">{tr("Audit status")}</th>
+                    <th className="text-start py-1.5 ps-3 font-normal">{tr("Required Odoo & operational action")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {ODOO_OPERATIONAL_TABLE_2.map((row, idx) => (
                     <tr key={idx} className="hover:bg-gray-50">
-                      <td className="py-2 font-medium text-gray-900">{row.sector}</td>
-                      <td className="py-2 text-gray-700">{row.account}</td>
-                      <td className="py-2 text-gray-500">{row.module}</td>
-                      <td className="py-2 text-right tabular-nums text-gray-700">
+                      <td className="py-2 font-medium text-gray-900">{tr(row.sector)}</td>
+                      <td className="py-2 text-gray-700">{tr(row.account)}</td>
+                      <td className="py-2 text-gray-500">{tr(row.module)}</td>
+                      <td className="py-2 text-end tabular-nums text-gray-700">
                         {row.entries.toLocaleString()}
                       </td>
-                      <td className="py-2 text-right tabular-nums font-medium text-gray-900">
+                      <td className="py-2 text-end tabular-nums font-medium text-gray-900">
                         {row.amountKwd.toLocaleString(undefined, {
                           minimumFractionDigits: 3,
                           maximumFractionDigits: 3,
                         })}
                       </td>
-                      <td className="py-2 text-right tabular-nums text-gray-700">
-                        {row.variancePct}
+                      <td className="py-2 text-end tabular-nums text-gray-700">
+                        {tr(row.variancePct)}
                       </td>
                       <td className="py-2 text-center">
                         <span
                           className={`inline-block px-2.5 py-0.5 rounded-full border text-[10px] font-medium ${row.badgeStyle}`}
                         >
-                          {row.badge}
+                          {tr(row.badge)}
                         </span>
                       </td>
-                      <td className="py-2 pl-3 text-gray-600">{row.action}</td>
+                      <td className="py-2 ps-3 text-gray-600">{tr(row.action)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1387,35 +1349,31 @@ export default function BrandSalesOdooReportPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {/* Left: Low-volume tail items & kitchen waste */}
             <div className="bg-white border border-gray-200 rounded-md p-4">
-              <div className="text-[12px] font-semibold text-gray-900">
-                Long-tail menu candidates for pruning (Prep & waste reduction)
-              </div>
-              <div className="text-[10px] text-gray-400 mb-3">
-                332 of 364 items generate only 20% of sales. Removing low-rotation SKUs reduces Qurain Central Kitchen waste.
-              </div>
+              <div className="text-[12px] font-semibold text-gray-900"> {tr("Long-tail menu candidates for pruning (Prep & waste reduction)")} </div>
+              <div className="text-[10px] text-gray-400 mb-3"> {tr("332 of 364 items generate only 20% of sales. Removing low-rotation SKUs reduces Qurain Central Kitchen waste.")} </div>
               <div className="max-h-[220px] overflow-y-auto border-t border-gray-100">
                 <table className="w-full text-[11px] border-collapse">
                   <thead className="sticky top-0 bg-white border-b border-gray-200 text-gray-400">
                     <tr>
-                      <th className="text-left py-1.5 font-normal">Brand</th>
-                      <th className="text-left py-1.5 font-normal">Category</th>
-                      <th className="text-left py-1.5 font-normal">Item</th>
-                      <th className="text-right py-1.5 font-normal">Orders</th>
-                      <th className="text-right py-1.5 font-normal">Net KWD</th>
-                      <th className="text-right py-1.5 font-normal">Est. COGS</th>
+                      <th className="text-start py-1.5 font-normal">{tr("Brand")}</th>
+                      <th className="text-start py-1.5 font-normal">{tr("Category")}</th>
+                      <th className="text-start py-1.5 font-normal">{tr("Item")}</th>
+                      <th className="text-end py-1.5 font-normal">{tr("Orders")}</th>
+                      <th className="text-end py-1.5 font-normal">{tr("Net KWD")}</th>
+                      <th className="text-end py-1.5 font-normal">{tr("Est. COGS")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {LOW_VOLUME_TAIL_ITEMS.map((item, i) => (
                       <tr key={i} className="hover:bg-gray-50">
-                        <td className="py-1.5 text-gray-600">{item.brand}</td>
-                        <td className="py-1.5 text-gray-500">{item.category}</td>
-                        <td className="py-1.5 font-medium text-gray-900">{item.item}</td>
-                        <td className="py-1.5 text-right tabular-nums text-gray-700">{item.orders}</td>
-                        <td className="py-1.5 text-right tabular-nums text-gray-900">
+                        <td className="py-1.5 text-gray-600">{tr(item.brand)}</td>
+                        <td className="py-1.5 text-gray-500">{tr(item.category)}</td>
+                        <td className="py-1.5 font-medium text-gray-900">{tr(item.item)}</td>
+                        <td className="py-1.5 text-end tabular-nums text-gray-700">{item.orders}</td>
+                        <td className="py-1.5 text-end tabular-nums text-gray-900">
                           {item.sales.toFixed(2)}
                         </td>
-                        <td className="py-1.5 text-right tabular-nums text-rose-600">{item.cogs}</td>
+                        <td className="py-1.5 text-end tabular-nums text-rose-600">{item.cogs}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1425,41 +1383,37 @@ export default function BrandSalesOdooReportPage() {
 
             {/* Right: Brand x Channel performance matrix */}
             <div className="bg-white border border-gray-200 rounded-md p-4">
-              <div className="text-[12px] font-semibold text-gray-900">
-                Brand × Channel combination scorecard
-              </div>
-              <div className="text-[10px] text-gray-400 mb-3">
-                Top brand-channel pairs showing lead item, average basket size, and drink attachment rate.
-              </div>
+              <div className="text-[12px] font-semibold text-gray-900"> {tr("Brand × Channel combination scorecard")} </div>
+              <div className="text-[10px] text-gray-400 mb-3"> {tr("Top brand-channel pairs showing lead item, average basket size, and drink attachment rate.")} </div>
               <div className="max-h-[220px] overflow-y-auto border-t border-gray-100">
                 <table className="w-full text-[11px] border-collapse">
                   <thead className="sticky top-0 bg-white border-b border-gray-200 text-gray-400">
                     <tr>
-                      <th className="text-left py-1.5 font-normal">Brand</th>
-                      <th className="text-left py-1.5 font-normal">Channel</th>
-                      <th className="text-left py-1.5 font-normal">Lead item</th>
-                      <th className="text-right py-1.5 font-normal">Orders</th>
-                      <th className="text-right py-1.5 font-normal">Net KWD</th>
-                      <th className="text-right py-1.5 font-normal">Avg order</th>
-                      <th className="text-right py-1.5 font-normal">Drinks %</th>
+                      <th className="text-start py-1.5 font-normal">{tr("Brand")}</th>
+                      <th className="text-start py-1.5 font-normal">{tr("Channel")}</th>
+                      <th className="text-start py-1.5 font-normal">{tr("Lead item")}</th>
+                      <th className="text-end py-1.5 font-normal">{tr("Orders")}</th>
+                      <th className="text-end py-1.5 font-normal">{tr("Net KWD")}</th>
+                      <th className="text-end py-1.5 font-normal">{tr("Avg order")}</th>
+                      <th className="text-end py-1.5 font-normal">{tr("Drinks %")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {CHANNEL_BRAND_MATRIX.map((row, i) => (
                       <tr key={i} className="hover:bg-gray-50">
-                        <td className="py-1.5 font-medium text-gray-900">{row.brand}</td>
-                        <td className="py-1.5 text-gray-600">{row.channel}</td>
-                        <td className="py-1.5 text-gray-600 truncate max-w-[140px]">{row.topItem}</td>
-                        <td className="py-1.5 text-right tabular-nums text-gray-700">
+                        <td className="py-1.5 font-medium text-gray-900">{tr(row.brand)}</td>
+                        <td className="py-1.5 text-gray-600">{tr(row.channel)}</td>
+                        <td className="py-1.5 text-gray-600 truncate max-w-[140px]">{tr(row.topItem)}</td>
+                        <td className="py-1.5 text-end tabular-nums text-gray-700">
                           {row.orders.toLocaleString()}
                         </td>
-                        <td className="py-1.5 text-right tabular-nums text-gray-900">
+                        <td className="py-1.5 text-end tabular-nums text-gray-900">
                           {row.sales.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </td>
-                        <td className="py-1.5 text-right tabular-nums text-gray-700">
+                        <td className="py-1.5 text-end tabular-nums text-gray-700">
                           {row.aov.toFixed(2)}
                         </td>
-                        <td className="py-1.5 text-right tabular-nums text-gray-700">
+                        <td className="py-1.5 text-end tabular-nums text-gray-700">
                           {row.drinkPct}
                         </td>
                       </tr>
