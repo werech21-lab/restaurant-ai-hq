@@ -68,8 +68,8 @@ const SIDEBAR_SECTIONS: NavSection[] = [
     titleAr: 'عمليات المطاعم والتشغيل',
     titleEn: 'Restaurant Operations',
     items: [
-      { key: 'pos', href: '/pos', labelAr: 'نقطة البيع POS', labelEn: 'POS Terminal', icon: Monitor },
-      { key: 'kds', href: '/kds', labelAr: 'شاشة المطبخ KDS', labelEn: 'Kitchen Display (KDS)', icon: ChefHat },
+      { key: 'pos', href: '/pos', labelAr: 'نقطة البيع والكاشير', labelEn: 'POS Terminal', icon: Monitor },
+      { key: 'kds', href: '/kds', labelAr: 'شاشة تحضير المطبخ', labelEn: 'Kitchen Display (KDS)', icon: ChefHat },
       { key: 'recipes', href: '/recipes', labelAr: 'الوصفات وتكاليف الطعام', labelEn: 'Recipes & Food Cost', icon: UtensilsCrossed },
       { key: 'food-safety', href: '/erp/food-safety', labelAr: 'سلامة الغذاء والهاسب', labelEn: 'Food Safety & HACCP', icon: ThermometerSnowflake, live: true },
     ],
@@ -103,7 +103,7 @@ const SIDEBAR_SECTIONS: NavSection[] = [
       { key: 'smart-dropzone', href: '/erp/smart-dropzone', labelAr: 'السحب الذكي للمستندات', labelEn: 'AI Smart Dropzone', icon: Sparkles, live: true },
       { key: 'erp-intelligence', href: '/erp/intelligence', labelAr: 'ذكاء القرارات التشغيلية', labelEn: 'Decision Intelligence', icon: Brain },
       { key: 'erp-governance', href: '/erp/governance', labelAr: 'الحوكمة والامتثال', labelEn: 'Governance & Compliance', icon: Scale },
-      { key: 'erp-archive', href: '/erp/archive', labelAr: 'أرشيف المستندات OCR', labelEn: 'OCR Smart Archive', icon: Archive },
+      { key: 'erp-archive', href: '/erp/archive', labelAr: 'الأرشفة الضوئية للمستندات', labelEn: 'OCR Smart Archive', icon: Archive },
     ],
   },
   {
@@ -129,9 +129,9 @@ export function Sidebar({ user }: { user: AccessUser; enabledKeys?: string[] | n
       {/* Brand Header */}
       <div className="border-b border-slate-800/80 px-4 py-4 bg-[#07090e]">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/venture-foods-logo-dark.svg" alt="Venture Foods" className="h-10 w-auto object-contain" />
-        <p className="mt-2.5 text-[11px] font-bold leading-4 text-slate-300 truncate">{companyName}</p>
-        <p className="mt-0.5 text-[10px] font-semibold text-[#8cc63f]">{t('panel.tagline')}</p>
+        <img src="/venture-foods-logo-dark.svg" alt={isAr ? 'فنتشر فودز' : 'Venture Foods'} className="h-10 w-auto object-contain" />
+        <p className="mt-2.5 text-[11px] font-bold leading-4 text-slate-300 truncate">{isAr ? 'فنتشر فودز' : companyName}</p>
+        <p className="mt-0.5 text-[10px] font-semibold text-[#8cc63f]">{isAr ? '6 علامات تجارية · 9 فروع نشطة' : t('panel.tagline')}</p>
       </div>
 
       {/* Navigation Sections */}
@@ -187,7 +187,7 @@ export function Sidebar({ user }: { user: AccessUser; enabledKeys?: string[] | n
                               : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                           }`}
                         >
-                          LIVE
+                          {isAr ? 'مباشر' : 'LIVE'}
                         </span>
                       ) : null}
                     </Link>

@@ -105,12 +105,12 @@ export function InstallAppBanner() {
         tip: 'Use the install icon in the Chrome address bar (monitor icon next to the star), then this banner will hide.',
       }
     : {
-        text: '📲 ثبّت تطبيق AetherBI ERP مباشرة على جهازك للوصول السريع بدون متجر.',
+        text: '📲 ثبّت تطبيق النظام مباشرة على جهازك للوصول السريع.',
         iosText:
-          '📲 على آيفون: اضغط مشاركة ثم «إضافة إلى الشاشة الرئيسية» لتثبيت AetherBI ERP بدون متجر.',
+          '📲 على آيفون: اضغط مشاركة ثم «إضافة إلى الشاشة الرئيسية» لتثبيت تطبيق النظام للوصول السريع.',
         install: 'تثبيت التطبيق الآن',
         dismiss: 'إغلاق ✕',
-        tip: 'استخدم أيقونة التثبيت في شريط عنوان Chrome (أيقونة الجهاز بجانب النجمة)، ثم سيُخفى هذا الشريط.',
+        tip: 'استخدم أيقونة التثبيت في شريط العنوان (أيقونة الجهاز بجانب النجمة)، ثم سيُخفى هذا الشريط.',
       }
 
   async function onInstall() {

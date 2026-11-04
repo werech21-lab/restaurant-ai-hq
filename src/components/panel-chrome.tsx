@@ -12,7 +12,7 @@ export function PanelHeaderBar({
   notifications: React.ReactNode
 }) {
   const { locale, companyName } = useI18n()
-  const title = locale === 'en' ? companyName : companyNameAr || companyName
+  const title = locale === 'en' ? companyName : 'شركة فنتشر فودز لإدارة المطاعم ذ.م.م.'
   return (
     <div className="relative z-40 mx-auto flex w-full max-w-7xl flex-col gap-2 overflow-visible px-6 py-3 md:px-8">
       {/*

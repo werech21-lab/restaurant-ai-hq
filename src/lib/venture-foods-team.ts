@@ -172,7 +172,12 @@ export function displayRoleName(roleName: string, locale: 'ar' | 'en') {
   if (hit) return locale === 'en' ? hit.roleEn : hit.roleAr
   const legacy: Record<string, { ar: string; en: string }> = {
     'مدير النظام': { ar: 'مدير النظام', en: 'System Administrator' },
-    SUPER_ADMIN: { ar: 'مدير النظام', en: 'System Administrator' },
+    'المدير التنفيذي للنظام': { ar: 'المدير التنفيذي للنظام', en: 'Executive Administrator' },
+    'Executive Admin': { ar: 'المدير التنفيذي للنظام', en: 'Executive Administrator' },
+    'Executive Administrator': { ar: 'المدير التنفيذي للنظام', en: 'Executive Administrator' },
+    SUPER_ADMIN: { ar: 'المدير التنفيذي للنظام', en: 'Executive Administrator' },
+    Admin: { ar: 'مدير النظام', en: 'System Administrator' },
+    ADMIN: { ar: 'مدير النظام', en: 'System Administrator' },
     محاسب: { ar: 'محاسب', en: 'Accountant' },
     'أمين مخزن': { ar: 'أمين مخزن', en: 'Storekeeper' },
     'مندوب مبيعات': { ar: 'مندوب مبيعات', en: 'Sales Representative' },

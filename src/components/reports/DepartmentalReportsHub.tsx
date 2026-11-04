@@ -278,13 +278,6 @@ export function DepartmentalReportsHub({ initialReportId, locale = 'ar', liveDbC
           )}
 
           <button
-            onClick={() => setCurrentLocale(isAr ? 'en' : 'ar')}
-            className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-200 hover:bg-slate-700"
-          >
-            {isAr ? 'English (LTR)' : 'عربي (RTL)'}
-          </button>
-
-          <button
             onClick={() => setIsPrintMode(!isPrintMode)}
             className="flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-200 hover:bg-slate-700"
           >
@@ -311,7 +304,7 @@ export function DepartmentalReportsHub({ initialReportId, locale = 'ar', liveDbC
           <div className="mb-4 flex items-center justify-between border-b border-slate-800 pb-3">
             <div className="flex items-center gap-2 text-amber-400 text-sm font-bold">
               <Layers size={16} />
-              <span>{isAr ? 'استعلامات قاعدة البيانات الحية (Prisma Live DB)' : 'Prisma Live Database Raw Queries'}</span>
+              <span>{isAr ? 'استعلامات قاعدة البيانات الحية' : 'Prisma Live Database Raw Queries'}</span>
             </div>
             <button
               onClick={() => setShowLiveDb(false)}
@@ -510,14 +503,14 @@ export function DepartmentalReportsHub({ initialReportId, locale = 'ar', liveDbC
                   className="flex items-center gap-1.5 rounded-xl border border-indigo-500/40 bg-indigo-600/20 px-3.5 py-2 text-xs font-bold text-indigo-300 hover:bg-indigo-600/40 transition-all shadow-md"
                 >
                   <Mail size={15} />
-                  {isAr ? 'إرسال للمعتمدين (Email)' : 'Email Report'}
+                  {isAr ? 'إرسال للمعتمدين بالبريد' : 'Email Report'}
                 </button>
                 <button
                   onClick={handleExportCsv}
                   className="flex items-center gap-1.5 rounded-xl bg-emerald-500 px-3.5 py-2 text-xs font-bold text-black transition-all hover:bg-emerald-400 shadow-md"
                 >
                   <Download size={15} />
-                  {isAr ? 'تصدير كملف CSV' : 'Export CSV'}
+                  {isAr ? 'تصدير ملف إكسل' : 'Export CSV'}
                 </button>
                 <button
                   onClick={handlePrint}
@@ -535,19 +528,19 @@ export function DepartmentalReportsHub({ initialReportId, locale = 'ar', liveDbC
             <div className="flex flex-wrap items-center gap-3">
               {/* Brand Filter */}
               <div className="flex items-center gap-2 text-xs">
-                <span className="text-slate-400 font-bold">{isAr ? 'البراند:' : 'Brand:'}</span>
+                <span className="text-slate-400 font-bold">{isAr ? 'العلامة التجارية:' : 'Brand:'}</span>
                 <select
                   value={brandFilter}
                   onChange={(e) => setBrandFilter(e.target.value)}
                   className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-white focus:outline-none"
                 >
-                  <option value="ALL">{isAr ? 'جميع البراندات الـ 6 (All 6 Brands)' : 'All 6 Brands'}</option>
-                  <option value="China">{isAr ? 'تشاينا جاردن (China Garden - 84.8%)' : 'China Garden (84.8%)'}</option>
-                  <option value="Frank">{isAr ? "فرانكس (Frank's - 9.7%)" : "Frank's (9.7%)"}</option>
-                  <option value="Tahina">{isAr ? 'شاورما طحينة (Tahina - 2.6%)' : 'Tahina (2.6%)'}</option>
-                  <option value="Farm">{isAr ? 'فارم براون (Farm Brown - 1.6%)' : 'Farm Brown (1.6%)'}</option>
-                  <option value="Noodle">{isAr ? 'ذا نودل بار (The Noodle Bar - 1.0%)' : 'The Noodle Bar (1.0%)'}</option>
-                  <option value="Karak">{isAr ? 'كرك كافتيريا (Karak Cafeteria - 0.3%)' : 'Karak Cafeteria (0.3%)'}</option>
+                  <option value="ALL">{isAr ? 'جميع العلامات التجارية (6)' : 'All 6 Brands'}</option>
+                  <option value="China">{isAr ? 'تشاينا جاردن (84.8%)' : 'China Garden (84.8%)'}</option>
+                  <option value="Frank">{isAr ? "فرانكس (9.7%)" : "Frank's (9.7%)"}</option>
+                  <option value="Tahina">{isAr ? 'شاورما طحينة (2.6%)' : 'Tahina (2.6%)'}</option>
+                  <option value="Farm">{isAr ? 'فارم براون (1.6%)' : 'Farm Brown (1.6%)'}</option>
+                  <option value="Noodle">{isAr ? 'ذا نودل بار (1.0%)' : 'The Noodle Bar (1.0%)'}</option>
+                  <option value="Karak">{isAr ? 'كرك كافتيريا (0.3%)' : 'Karak Cafeteria (0.3%)'}</option>
                 </select>
               </div>
 
@@ -560,7 +553,7 @@ export function DepartmentalReportsHub({ initialReportId, locale = 'ar', liveDbC
                   className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-white focus:outline-none"
                 >
                   <option value="OCT_2026">{isAr ? 'أكتوبر 2026 (الأساس المعتمد)' : 'Oct 2026 (Audited Base)'}</option>
-                  <option value="Q4_2026">{isAr ? 'الربع الرابع 2026 (Q4)' : 'Q4 2026'}</option>
+                  <option value="Q4_2026">{isAr ? 'الربع الرابع 2026' : 'Q4 2026'}</option>
                   <option value="FY_2026">{isAr ? 'السنة المالية 2026 كاملة' : 'Full FY 2026'}</option>
                 </select>
               </div>

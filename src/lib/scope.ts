@@ -93,8 +93,8 @@ function scopeLabels(brandId: VentureBrandId | null, branchId: VentureBranchId |
     }
   }
   return {
-    labelAr: 'النطاق الحالي: كل البراندات — كل الفروع (10)',
-    labelEn: 'Active scope: All 6 brands — All 10 branches',
+    labelAr: 'النطاق الحالي: كل العلامات التجارية — كل الفروع النشطة (9)',
+    labelEn: 'Active scope: All 6 brands — All 9 active branches',
   }
 }
 

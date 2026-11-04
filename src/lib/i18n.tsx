@@ -63,9 +63,9 @@ const ar = {
   'spec.kitchen': 'المطبخ المركزي والوصفات والهدر',
   'spec.delivery': 'التوصيل وتسويات التطبيقات',
   'spec.quality': 'الجودة والصيانة',
-  'spec.crm': 'إدارة علاقات العملاء (CRM)',
+  'spec.crm': 'إدارة علاقات العملاء والتموين',
   'spec.sales': 'المبيعات',
-  'spec.pos': 'نظام نقاط البيع (POS)',
+  'spec.pos': 'نظام نقاط البيع والكاشير',
   'spec.subscriptions': 'الاشتراكات',
   'spec.org': 'الفروع والبراندات الستة',
   'spec.tradeContracts': 'العقود التجارية والالتزامات',
@@ -91,7 +91,7 @@ const ar = {
   'spec.violations': 'المخالفات الحكومية وإثبات الإنهاء',
   'spec.inquiry': 'لجنة التحقيق وتقصي الحقائق',
   'spec.monitor': 'الرصد الذكي (البصمة والكاميرات والزي)',
-  'spec.archive': 'الأرشفة الذكية OCR',
+  'spec.archive': 'الأرشفة الضوئية للمستندات',
   'spec.documents': 'مستندات التشغيل',
   'spec.admin': 'إدارة الحسابات والصلاحيات وتقارير التحركات',
   'spec.iam': 'الأعضاء والدعوات',
@@ -207,12 +207,12 @@ const ar = {
   'agg.branch': 'الفرع',
   'agg.brand': 'البراند',
   'agg.brands.all': 'الكل',
-  'agg.brand.farm': 'فارم براون (Farm Brown)',
-  'agg.brand.karak': 'كرك كافتيريا (Karak Cafeteria)',
-  'agg.brand.china': 'تشاينا جاردن (China Garden)',
-  'agg.brand.noodle': 'ذا نودل بار (The Noodle Bar)',
-  'agg.brand.franks': 'فرانكس ستيك (Franks Steak)',
-  'agg.brand.shawarma': 'شاورما طحينة (Shawarma Tahina)',
+  'agg.brand.farm': 'فارم براون',
+  'agg.brand.karak': 'كرك كافتيريا',
+  'agg.brand.china': 'تشاينا جاردن',
+  'agg.brand.noodle': 'ذا نودل بار',
+  'agg.brand.franks': 'فرانكس ستيك',
+  'agg.brand.shawarma': 'شاورما طحينة',
   'agg.cuisine': 'فئة البراند',
   'agg.branches': 'فروع عاملة',
   'agg.all': 'الكل',
@@ -589,7 +589,7 @@ const ar = {
   'land.footer': 'AetherBI · aetherbi.com · شركة فنتشر فودز لإدارة المطاعم ذ.م.م.',
   'land.trial.leadTitle': 'طلب تجريبي',
   'land.trial.leadTitleNamed': 'طلب تجريبي —',
-  'search.open': 'بحث ⌘K',
+  'search.open': 'بحث سريع',
   'search.title': 'بحث سريع في المنصة',
   'search.placeholder': 'موظف، شارة 2090، براند، فرع، صنف، فاتورة، قسم…',
   'search.empty': 'لا نتائج مطابقة',
@@ -4848,6 +4848,7 @@ export function LanguageProvider({ initialLocale, children }: { initialLocale: L
     writeLocaleCookies(next)
     window.localStorage.setItem(storageKey, next)
     window.localStorage.setItem('NEXT_LOCALE', next)
+    window.localStorage.setItem('aetherbi_locale', next)
     router.refresh()
   }
 
