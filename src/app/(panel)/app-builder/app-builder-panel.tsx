@@ -9,10 +9,17 @@ type ModuleCard = { key: string; name: string; description: string; isEnabled: b
 type FieldRow = { id: string; entityType: string; fieldName: string; fieldType: string; options: string };
 
 const ENTITY_LABEL: Record<string, string> = {
-  PRODUCT: "منتج",
-  CUSTOMER: "عميل",
-  SUPPLIER: "مورد",
-  INVOICE: "فاتورة",
+  PRODUCT: "المنتجات والأصناف",
+  CUSTOMER: "العملاء والشركات",
+  SUPPLIER: "الموردون والشركاء",
+  INVOICE: "الفواتير وسندات الصرف",
+};
+
+const FIELD_TYPE_LABEL: Record<string, string> = {
+  TEXT: "نص عادي",
+  NUMBER: "رقم عددي",
+  DATE: "تاريخ معتمد",
+  SELECT: "قائمة اختيارات",
 };
 
 export function AppBuilderPanel({ modules, fields, canEdit }: { modules: ModuleCard[]; fields: FieldRow[]; canEdit: boolean }) {
@@ -28,7 +35,7 @@ export function AppBuilderPanel({ modules, fields, canEdit }: { modules: ModuleC
     setPending(false);
     if (!result.ok) setError(result.message);
     else {
-      setMessage(result.message || "تم التحديث");
+      setMessage(result.message || "تم تحديث حالة الوحدة بنجاح");
       router.refresh();
     }
   }
@@ -47,111 +54,152 @@ export function AppBuilderPanel({ modules, fields, canEdit }: { modules: ModuleC
     setPending(false);
     if (!result.ok) setError(result.message);
     else {
-      setMessage(result.message || "تمت الإضافة");
+      setMessage(result.message || "تمت إضافة الحقل المخصص بنجاح");
       event.currentTarget.reset();
       router.refresh();
     }
   }
 
   return (
-    <div className="space-y-6">
+    <div className="w-full max-w-none space-y-6">
       {error ? <Alert kind="error">{error}</Alert> : null}
       {message ? <Alert kind="ok">{message}</Alert> : null}
-      <section>
-        <h2 className="mb-3 text-lg font-bold">وحدات النظام</h2>
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+      
+      {/* 1. Modules Section */}
+      <section className="space-y-3">
+        <h2 className="text-lg font-bold text-mist-100">وحدات وتطبيقات النظام التشغيلية</h2>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {modules.map((module) => (
-            <article key={module.key} className="rounded-2xl border border-slate-200 bg-white p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="font-bold">{module.name}</p>
-                  <p className="mt-1 text-sm text-slate-600">{module.description}</p>
+            <article
+              key={module.key}
+              className="flex flex-col justify-between rounded-2xl border border-gold-300/15 bg-ink-900/80 p-5 shadow-[var(--shadow-card)]"
+            >
+              <div>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-base font-bold text-mist-100">{module.name}</p>
+                    <p className="mt-1.5 text-xs leading-relaxed text-mist-400">{module.description}</p>
+                  </div>
+                  <span
+                    className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold text-white ${
+                      module.isEnabled ? "bg-emerald-600" : "bg-slate-700"
+                    }`}
+                  >
+                    {module.isEnabled ? "مفعّلة" : "معطلة"}
+                  </span>
                 </div>
-                <span className={`rounded-full px-2 py-1 text-xs font-bold text-white ${module.isEnabled ? "bg-emerald-600" : "bg-slate-900"}`}>
-                  {module.isEnabled ? "مفعّلة" : "معطلة"}
-                </span>
               </div>
               {canEdit ? (
-                <button
-                  type="button"
-                  className="mt-4 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
-                  disabled={pending || (module.locked && module.isEnabled)}
-                  onClick={() => toggle(module.key, !module.isEnabled)}
-                >
-                  {module.locked && module.isEnabled ? "وحدة أساسية" : module.isEnabled ? "تعطيل" : "تفعيل"}
-                </button>
+                <div className="mt-4 pt-3 border-t border-white/10">
+                  <button
+                    type="button"
+                    className="rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white hover:bg-emerald-500 transition-colors disabled:opacity-50"
+                    disabled={pending || (module.locked && module.isEnabled)}
+                    onClick={() => toggle(module.key, !module.isEnabled)}
+                  >
+                    {module.locked && module.isEnabled
+                      ? "وحدة أساسية معتمدة"
+                      : module.isEnabled
+                      ? "تعطيل الوحدة"
+                      : "تفعيل الوحدة"}
+                  </button>
+                </div>
               ) : null}
             </article>
           ))}
         </div>
       </section>
-      <section className="rounded-2xl border border-slate-200 bg-white p-4">
-        <h2 className="mb-3 text-lg font-bold">حقل مخصص جديد</h2>
+
+      {/* 2. Custom Fields Builder Section */}
+      <section className="w-full max-w-none rounded-2xl border border-gold-300/15 bg-ink-900/80 p-5 shadow-[var(--shadow-card)] space-y-4">
+        <h2 className="text-lg font-bold text-mist-100">إضافة حقل مخصص جديد للنظام</h2>
         {canEdit ? (
-          <form onSubmit={addField} className="grid gap-3 md:grid-cols-2">
+          <form onSubmit={addField} className="grid gap-4 md:grid-cols-2">
             <div>
-              <label className={labelClass}>الكيان</label>
+              <label className={labelClass}>الكيان المستهدف</label>
               <select name="entityType" className={fieldClass} defaultValue="PRODUCT">
-                <option value="PRODUCT">منتج</option>
-                <option value="CUSTOMER">عميل</option>
-                <option value="SUPPLIER">مورد</option>
-                <option value="INVOICE">فاتورة</option>
+                <option value="PRODUCT">المنتجات والأصناف</option>
+                <option value="CUSTOMER">العملاء والشركات</option>
+                <option value="SUPPLIER">الموردون والشركاء</option>
+                <option value="INVOICE">الفواتير وسندات الصرف</option>
               </select>
             </div>
             <div>
-              <label className={labelClass}>اسم الحقل</label>
-              <input name="fieldName" className={fieldClass} placeholder="مثال: الرقم الضريبي" required />
+              <label className={labelClass}>اسم الحقل المخصص</label>
+              <input
+                name="fieldName"
+                className={fieldClass}
+                placeholder="مثال: الرقم الضريبي / الرمز الجمركي"
+                required
+              />
             </div>
             <div>
-              <label className={labelClass}>النوع</label>
+              <label className={labelClass}>نوع البيانات</label>
               <select name="fieldType" className={fieldClass} defaultValue="TEXT">
-                <option value="TEXT">نص</option>
-                <option value="NUMBER">رقم</option>
-                <option value="DATE">تاريخ</option>
-                <option value="SELECT">قائمة</option>
+                <option value="TEXT">نص عادي</option>
+                <option value="NUMBER">رقم عددي</option>
+                <option value="DATE">تاريخ معتمد</option>
+                <option value="SELECT">قائمة اختيارات متعددة</option>
               </select>
             </div>
             <div>
-              <label className={labelClass}>خيارات القائمة</label>
-              <input name="options" className={fieldClass} placeholder="خيار 1, خيار 2" />
+              <label className={labelClass}>خيارات القائمة (مفصولة بفواصل في حال اختيار قائمة)</label>
+              <input name="options" className={fieldClass} placeholder="خيار 1، خيار 2، خيار 3" />
             </div>
-            <button className={btnPrimary} disabled={pending}>إضافة الحقل</button>
+            <div className="md:col-span-2">
+              <button className={btnPrimary} disabled={pending}>
+                {pending ? "جارٍ حفظ الحقل..." : "إضافة الحقل المخصص"}
+              </button>
+            </div>
           </form>
         ) : null}
-        <table className="mt-4 w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-200 text-slate-500">
-              <th className="px-2 py-2 text-right">الكيان</th>
-              <th className="px-2 py-2 text-right">الحقل</th>
-              <th className="px-2 py-2 text-right">النوع</th>
-              <th className="px-2 py-2 text-right" />
-            </tr>
-          </thead>
-          <tbody>
-            {fields.map((field) => (
-              <tr key={field.id} className="border-b border-slate-200">
-                <td className="px-2 py-2">{ENTITY_LABEL[field.entityType] ?? field.entityType}</td>
-                <td className="px-2 py-2 font-semibold">{field.fieldName}</td>
-                <td className="px-2 py-2">{field.fieldType}</td>
-                <td className="px-2 py-2">
-                  {canEdit ? (
-                    <button
-                      type="button"
-                      className={btnDanger}
-                      onClick={async () => {
-                        const result = await removeCustomField(field.id);
-                        if (!result.ok) setError(result.message);
-                        else router.refresh();
-                      }}
-                    >
-                      حذف
-                    </button>
-                  ) : null}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+
+        <div className="pt-2">
+          <h3 className="text-base font-bold text-mist-100 mb-3">الحقول المخصصة الحالية</h3>
+          {fields.length === 0 ? (
+            <p className="py-6 text-center text-sm text-mist-400">
+              لا توجد حقول مخصصة مضافة حالياً.
+            </p>
+          ) : (
+            <div className="overflow-x-auto rounded-xl border border-white/10">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-white/10 bg-white/5 text-mist-400">
+                    <th className="px-4 py-3 text-right font-semibold">الكيان المستهدف</th>
+                    <th className="px-4 py-3 text-right font-semibold">اسم الحقل المخصص</th>
+                    <th className="px-4 py-3 text-right font-semibold">نوع البيانات</th>
+                    <th className="px-4 py-3 text-right font-semibold">الإجراءات</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/10 text-mist-200">
+                  {fields.map((field) => (
+                    <tr key={field.id} className="hover:bg-white/5 transition-colors">
+                      <td className="px-4 py-3 font-semibold">{ENTITY_LABEL[field.entityType] ?? field.entityType}</td>
+                      <td className="px-4 py-3 font-semibold text-gold-300">{field.fieldName}</td>
+                      <td className="px-4 py-3">{FIELD_TYPE_LABEL[field.fieldType] ?? field.fieldType}</td>
+                      <td className="px-4 py-3">
+                        {canEdit ? (
+                          <button
+                            type="button"
+                            className={btnDanger}
+                            onClick={async () => {
+                              if (!confirm(`هل أنت متأكد من حذف الحقل "${field.fieldName}"؟`)) return;
+                              const result = await removeCustomField(field.id);
+                              if (!result.ok) setError(result.message);
+                              else router.refresh();
+                            }}
+                          >
+                            حذف الحقل
+                          </button>
+                        ) : null}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </section>
     </div>
   );

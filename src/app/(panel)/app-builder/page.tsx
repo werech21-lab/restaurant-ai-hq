@@ -8,20 +8,25 @@ import { isModuleEnabled } from "@/lib/modules-db";
 import { can, firstAllowedHref } from "@/lib/permissions";
 import { listAppModules, listCustomFields } from "@/services/apps.service";
 
-export const metadata = { title: "مدير التطبيقات | نظام ERP" };
+export const dynamic = "force-dynamic";
+
+export const metadata = {
+  title: "مدير التطبيقات والحقول المخصصة | شركة فنتشر فودز ذ.م.م.",
+  description: "تفعيل وحدات النظام وإدارة الحقول المخصصة لشركة فنتشر فودز لإدارة المطاعم ذ.م.م.",
+};
 
 async function BuilderContent() {
   await connection();
   const user = await requireUser();
   if (!can(user, "app-builder", "view")) return <Forbidden href={firstAllowedHref(user)} />;
-  if (!(await isModuleEnabled("app-builder"))) return <DisabledModule title="مدير التطبيقات" />;
+  if (!(await isModuleEnabled("app-builder"))) return <DisabledModule title="مدير التطبيقات والحقول المخصصة" />;
   const [modules, fields] = await Promise.all([listAppModules(), listCustomFields()]);
   const locked = new Set<string>(LOCKED_MODULES);
   return (
-    <div>
+    <div className="w-full max-w-none space-y-5">
       <PageHeader
         title="مدير التطبيقات والحقول المخصصة"
-        description="تفعيل الوحدات وإضافة حقول تظهر فوراً في النماذج والجداول دون كتابة كود."
+        description="تفعيل وحدات النظام وإضافة الحقول المخصصة التي تظهر فوراً في النماذج والجداول دون كتابة كود برمجي لشركة فنتشر فودز لإدارة المطاعم ذ.م.م."
       />
       <AppBuilderPanel
         canEdit={can(user, "app-builder", "edit") || can(user, "app-builder", "create")}
@@ -46,8 +51,10 @@ async function BuilderContent() {
 
 export default function AppBuilderPage() {
   return (
-    <Suspense fallback={<PageSkeleton title="مدير التطبيقات" />}>
-      <BuilderContent />
-    </Suspense>
+    <div className="w-full max-w-none">
+      <Suspense fallback={<PageSkeleton title="مدير التطبيقات والحقول المخصصة" />}>
+        <BuilderContent />
+      </Suspense>
+    </div>
   );
 }
