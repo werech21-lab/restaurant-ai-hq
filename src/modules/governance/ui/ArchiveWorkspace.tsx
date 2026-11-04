@@ -26,6 +26,31 @@ type LocalSmartDropRow = {
   href: string
 }
 
+function statusLabelAr(status: string) {
+  if (!status) return '—'
+  switch (status.toLowerCase()) {
+    case 'processed': return 'تمت المعالجة بنجاح'
+    case 'pending': return 'قيد التدقيق والانتظار'
+    case 'ready': return 'جاهز للاعتماد'
+    case 'routed': return 'تم التوجيه بنجاح'
+    case 'archived': return 'مؤرشف معتمد'
+    case 'ingested': return 'تم الإدراج'
+    default: return status
+  }
+}
+
+function moduleLabelAr(mod: string) {
+  if (!mod) return '—'
+  switch (mod.toLowerCase()) {
+    case 'procurement': return 'المشتريات والمخازن'
+    case 'accounting': return 'الإدارة المالية والمحاسبة'
+    case 'hr': return 'الموارد البشرية'
+    case 'governance': return 'الحوكمة والامتثال'
+    case 'operations': return 'العمليات والتشغيل'
+    default: return mod
+  }
+}
+
 function Workspace() {
   const { t, locale } = useI18n()
   const en = locale === 'en'
@@ -93,7 +118,7 @@ function Workspace() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="w-full max-w-none space-y-4">
       <header>
         <h1 className="text-2xl font-semibold text-gray-50">{t('hub.archive')}</h1>
       </header>
@@ -116,7 +141,7 @@ function Workspace() {
           ) : null}
           {rows.length === 0 ? <p className="text-sm text-gray-400">{t('gov.empty')}</p> : rows.map((row) => (
             <p key={row.id} className="border-t border-[#30363d] py-2 text-sm text-gray-100">
-              {row.fileName} — {t(`gov.cat.${row.documentCategory}` as MessageKey)} — {formatMinor(row.amountMinor)} {t('currency')} — {row.routedToModule} — {row.status}
+              {row.fileName} — {t(`gov.cat.${row.documentCategory}` as MessageKey)} — {formatMinor(row.amountMinor)} {t('currency')} — {en ? row.routedToModule : moduleLabelAr(row.routedToModule)} — {en ? row.status : statusLabelAr(row.status)}
             </p>
           ))}
         </section>
@@ -132,13 +157,13 @@ function Workspace() {
               <p>
                 {row.fileName} — {en ? row.departmentLabelEn : row.departmentLabelAr} —{' '}
                 {row.entityLabel || '—'} —{' '}
-                {row.amountKwd != null ? `${row.amountKwd.toFixed(3)} KWD` : '—'} — {row.status}
+                {row.amountKwd != null ? `${row.amountKwd.toFixed(3)} ${en ? 'KWD' : 'د.ك'}` : '—'} — {en ? row.status : statusLabelAr(row.status)}
               </p>
               {row.source === 'local_direct_db' ? (
                 <span className="mt-1 inline-flex rounded-md border border-emerald-400/40 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-200">
                   {en
                     ? '⚡ Direct DB inject (Zero-Bandwidth Local Ingest)'
-                    : '⚡ محقون مباشرة عبر قاعدة البيانات (Zero-Bandwidth Local Ingest)'}
+                    : '⚡ معالجة وحقن محلي مباشر وفوري'}
                 </span>
               ) : null}
               <p className="text-xs text-gray-400" dir="ltr">
