@@ -422,17 +422,17 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
           </div>
 
           <div className="flex flex-col items-start lg:items-end">
-            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
               {isAr ? 'المستلمون المعتمدون:' : 'Verified Recipients:'}
             </span>
             <div className="mt-1 flex flex-wrap gap-1.5">
-              <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 px-2 py-0.5 text-[11px] text-slate-800 dark:text-slate-200" dir="ltr">
+              <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 px-2 py-0.5 text-xs text-slate-800 dark:text-slate-200" dir="ltr">
                 <span className="font-bold text-emerald-600 dark:text-emerald-400">{isAr ? 'عبدالله:' : 'Abdullah:'}</span> Sec@venturefoodskw.com
               </span>
-              <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 px-2 py-0.5 text-[11px] text-slate-800 dark:text-slate-200" dir="ltr">
+              <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 px-2 py-0.5 text-xs text-slate-800 dark:text-slate-200" dir="ltr">
                 <span className="font-bold text-blue-600 dark:text-blue-400">{isAr ? 'شكرالله:' : 'Choukrallah:'}</span> operations@venturefoodskw.com
               </span>
-              <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 px-2 py-0.5 text-[11px] text-slate-800 dark:text-slate-200" dir="ltr">
+              <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 px-2 py-0.5 text-xs text-slate-800 dark:text-slate-200" dir="ltr">
                 <span className="font-bold text-amber-600 dark:text-amber-400">{isAr ? 'عبدالرحمن:' : 'Abdulrahman:'}</span> abdelrahmanm@venturefoodskw.com
               </span>
             </div>
@@ -467,10 +467,10 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
                   <div className="flex items-center gap-2">
                     <span className="text-xl">{wf.icon}</span>
                     <div>
-                      <span className="font-mono text-[10px] font-bold text-slate-400" dir="ltr">
+                      <span className="font-mono text-xs font-bold text-slate-400" dir="ltr">
                         {wf.code}
                       </span>
-                      <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                      <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                         {isAr ? wf.departmentAr : wf.departmentEn}
                       </p>
                     </div>
@@ -479,7 +479,7 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
                   {/* Toggle Button */}
                   <button
                     onClick={() => handleToggleWorkflow(wf.id)}
-                    className={`rounded-md px-2 py-0.5 text-[11px] font-bold transition-all ${
+                    className={`rounded-md px-2 py-0.5 text-xs font-bold transition-all ${
                       wf.isActive
                         ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
                         : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700'
@@ -515,7 +515,7 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
                 </div>
 
                 {/* Timing */}
-                <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                <div className="mt-3 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
                   <span className="flex items-center gap-1">
                     <Clock size={12} />
                     {isAr ? wf.scheduleAr : wf.scheduleEn}
@@ -597,7 +597,7 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
                     {log.durationMs} {isAr ? 'مللي ثانية' : 'ms'}
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                    <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
                       <CheckCircle2 size={11} />
                       {isAr ? 'ناجح' : 'SUCCESS'}
                     </span>

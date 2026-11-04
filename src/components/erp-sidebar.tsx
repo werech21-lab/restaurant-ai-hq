@@ -4,23 +4,10 @@ import React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  BarChart3,
-  Building2,
-  CheckSquare,
   FileText,
-  IdCard,
-  Landmark,
   LayoutDashboard,
   LogOut,
-  Package,
-  Receipt,
-  Shield,
-  ShoppingCart,
   Store,
-  ThermometerSnowflake,
-  Users,
-  UtensilsCrossed,
-  Warehouse,
   Zap,
 } from 'lucide-react'
 import { logout } from '@/app/actions/auth'
@@ -46,53 +33,15 @@ interface NavSection {
 
 const SIDEBAR_SECTIONS: NavSection[] = [
   {
-    id: 'management-finance',
-    titleAr: 'الإدارة والمالية',
-    titleEn: 'Management & Finance',
+    id: 'main',
+    titleAr: 'القوائم الرئيسية',
+    titleEn: 'Main menu',
     items: [
-      { key: 'dashboard', href: '/dashboard', labelAr: 'الملخص العام', labelEn: 'Overview Summary', icon: LayoutDashboard },
-      { key: 'sales', href: '/sales', labelAr: 'المبيعات وتطبيقات التوصيل', labelEn: 'Sales & Delivery Channels', icon: Receipt },
-      { key: 'accounting', href: '/accounting', labelAr: 'المصاريف والعهد والحسابات', labelEn: 'Expenses, Custody & Accounts', icon: Landmark },
-      { key: 'reports', href: '/reports', labelAr: 'التقارير المالية', labelEn: 'Financial Reports', icon: BarChart3 },
-      { key: 'sales-scorecard', href: '/erp/sales-scorecard', labelAr: 'التحليل التفصيلي للمبيعات والأصناف', labelEn: 'Sales & Items Scorecard', icon: FileText },
-    ],
-  },
-  {
-    id: 'inventory-operations',
-    titleAr: 'المخزون والتشغيل',
-    titleEn: 'Inventory & Operations',
-    items: [
-      { key: 'inventory', href: '/inventory', labelAr: 'مخزون الفروع ومطبخ القرين', labelEn: 'Branch & Central Kitchen Stock', icon: Package },
-      { key: 'recipes', href: '/recipes', labelAr: 'تكلفة الأغذية والهدر', labelEn: 'Food Cost & Waste', icon: UtensilsCrossed },
-      { key: 'purchases', href: '/purchases', labelAr: 'المشتريات والموردين', labelEn: 'Purchases & Vendors', icon: ShoppingCart },
-      { key: 'warehouses', href: '/warehouses', labelAr: 'الفروع والمستودعات', labelEn: 'Branches & Warehouses', icon: Warehouse },
-    ],
-  },
-  {
-    id: 'monitoring-audit',
-    titleAr: 'الرقابة والمتابعة',
-    titleEn: 'Monitoring & Control',
-    items: [
-      { key: 'food-safety', href: '/erp/food-safety', labelAr: 'الثلاجات وتواريخ الصلاحية', labelEn: 'Chillers & Expiry Dates', icon: ThermometerSnowflake },
-      { key: 'automations', href: '/automations', labelAr: 'التنبيهات التلقائية', labelEn: 'Automated Notifications', icon: Zap },
+      { key: 'dashboard', href: '/dashboard', labelAr: 'الملخص المالي والتوصيات', labelEn: 'Financial Summary & Recommendations', icon: LayoutDashboard },
+      // permission follows the existing "reports" module so non-admin roles that can see reports can open it
+      { key: 'reports', href: '/erp/sales-scorecard', labelAr: 'التحليل التفصيلي للمبيعات والأصناف', labelEn: 'Sales & Items Detailed Analysis', icon: FileText },
       { key: 'erp-radar', href: '/erp/aggregator-radar', labelAr: 'متابعة تطبيقات التوصيل', labelEn: 'Delivery Aggregator Control', icon: Store },
-    ],
-  },
-  {
-    id: 'people',
-    titleAr: 'شؤون الموظفين',
-    titleEn: 'Human Resources',
-    items: [
-      { key: 'hr', href: '/hr', labelAr: 'الإقامات وكروت البلدية', labelEn: 'Residencies & Health Cards', icon: IdCard },
-    ],
-  },
-  {
-    id: 'administration',
-    titleAr: 'إدارة النظام',
-    titleEn: 'System Administration',
-    items: [
-      { key: 'users', href: '/users', labelAr: 'المستخدمون والصلاحيات', labelEn: 'Users & Permissions', icon: Users },
-      { key: 'roles', href: '/roles', labelAr: 'الأدوار والمصفوفة الرقابية', labelEn: 'Roles & Audit Matrix', icon: Shield },
+      { key: 'automations', href: '/automations', labelAr: 'التنبيهات التلقائية', labelEn: 'Automated Notifications', icon: Zap },
     ],
   },
 ]
@@ -142,7 +91,7 @@ export function Sidebar({ user }: { user: AccessUser; enabledKeys?: string[] | n
             </span>
           </p>
           <p className="text-xs font-bold text-[#1E3A8A] dark:text-sky-400" style={{ color: '#1E3A8A' }}>
-            {isAr ? '6 علامات تجارية · 9 فروع · مطبخ القرين' : '6 Brands · 9 Branches · Central Kitchen'}
+            {isAr ? '6 علامات تجارية · 9 فروع نشطة · مطبخ القرين' : '6 Brands · 9 Active Branches · Central Kitchen'}
           </p>
         </div>
       </div>
