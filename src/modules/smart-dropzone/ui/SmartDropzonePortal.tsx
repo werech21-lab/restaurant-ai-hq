@@ -575,7 +575,7 @@ export default function SmartDropzonePortal() {
             className="w-full sm:w-auto rounded-2xl bg-gradient-to-l from-[#8cc63f] via-[#38b261] to-[#10b981] px-6 py-4 text-base font-black text-ink-950 shadow-lg shadow-emerald-950/50 transition hover:brightness-110 disabled:opacity-50 cursor-pointer"
             onClick={triggerFilesUpload}
           >
-            💻 فتح الكمبيوتر لاختيار الملفات (Browse PC Files - PDF, Excel, Word, Images)
+            {en ? '📄 Select Multiple Files' : '📄 اختيار ملفات متعددة'}
           </button>
 
           <button
@@ -584,7 +584,7 @@ export default function SmartDropzonePortal() {
             className="w-full sm:w-auto rounded-2xl border border-teal-400/50 bg-gradient-to-l from-[#00a99d] to-[#0284c7] px-6 py-4 text-base font-black text-white shadow-lg shadow-cyan-950/50 transition hover:brightness-110 disabled:opacity-50 cursor-pointer"
             onClick={triggerFolderUpload}
           >
-            📁 فتح الكمبيوتر لاختيار مجلد كامل (Select Full Folder from PC)
+            {en ? '📁 Upload Entire Folder' : '📁 رفع مجلد كامل'}
           </button>
         </div>
 
