@@ -351,7 +351,7 @@ export const OCTOBER_CHANNEL_SCORECARDS: ChannelScorecardRow[] = [
   },
   {
     channel: 'Direct',
-    channelAr: 'أورردابل (الطلب المباشر أونلاين)',
+    channelAr: 'الموقع والتطبيق المباشر (Direct Web / Online)',
     orders: 420,
     netSalesKwd: 5392.8,
     sharePercent: 3.2,
@@ -964,7 +964,7 @@ export const OCTOBER_AGGREGATOR_AUDIT: AggregatorAuditRow[] = [
   },
   {
     channel: 'Direct',
-    channelAr: 'أوردابل (الطلب الرقمي المباشر 3%)',
+    channelAr: 'الموقع والتطبيق المباشر (Direct Web / Online)',
     grossSalesKwd: 5392.8,
     commissionRatePercent: 3.0,
     commissionAmountKwd: 161.78,

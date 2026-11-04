@@ -233,7 +233,7 @@ export function AetherBiExecutiveDashboard({
     { nameAr: 'كيتا (Keeta)', nameEn: 'Keeta Platform', pct: 21.3, kwd: 35607.550, color: '#eab308' },
     { nameAr: 'طلبات ماركت بليس (Talabat TMP 10%)', nameEn: 'Talabat Marketplace (TMP 10%)', pct: 3.9, kwd: 6557.250, color: '#f97316' },
     { nameAr: 'ديليفرو (Deliveroo)', nameEn: 'Deliveroo', pct: 3.6, kwd: 5996.740, color: '#06b6d4' },
-    { nameAr: 'الموقع المباشر وجاهز والقنوات الأخرى (Direct Web & Others)', nameEn: 'Direct Web & Others', pct: 2.6, kwd: 4243.160, color: '#8b5cf6' },
+    { nameAr: 'الموقع والتطبيق المباشر (Direct Web / Online)', nameEn: 'Direct Web & Online App', pct: 2.6, kwd: 4243.160, color: '#8b5cf6' },
   ]
 
   // The 6 Official Venture Foods Brands (100% real audited totals)

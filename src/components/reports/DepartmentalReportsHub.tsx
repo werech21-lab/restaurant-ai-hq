@@ -241,19 +241,19 @@ export function DepartmentalReportsHub({ initialReportId, locale = 'ar', liveDbC
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-bold text-emerald-400">
               <CheckCircle2 size={12} />
-              {isAr ? 'مركز التقارير المؤسسية الشامل (AetherBI Executive Suite)' : 'Enterprise AetherBI-Style Reports Suite'}
+              {isAr ? 'مركز التقارير المؤسسية الشامل — فنتشر فودز' : 'Venture Foods Enterprise Reports Hub'}
             </span>
             <span className="rounded-full bg-slate-800 px-2.5 py-0.5 text-xs text-slate-400 font-mono">
               Venture Foods W.L.L. · Lic. 2021/22838
             </span>
           </div>
           <h1 className="mt-1 text-2xl font-black text-white sm:text-3xl tracking-tight">
-            {isAr ? 'دليل التقارير التنفيذية ومحرك التحليل التفصيلي' : 'Executive Reports Directory & AetherBI Drill-Down'}
+            {isAr ? 'دليل التقارير التنفيذية ومحرك التحليل التفصيلي' : 'Executive Reports Directory & Financial Drill-Down'}
           </h1>
           <p className="text-xs text-slate-400 mt-0.5">
             {isAr
-              ? 'مكتبة التقارير الرسمية المصنفة عبر 7 قطاعات بأسلوب AetherBI، مزودة بأشرطة التقدم المرئية وإمكانية الفرز والتصدير'
-              : 'Official company report repository classified across 7 operating departments with inline visual bars'}
+              ? 'مكتبة التقارير الرسمية المصنفة عبر 7 قطاعات تشغيلية ومالية لشركة فنتشر فودز لإدارة المطاعم ذ.م.م. مزودة بأشرطة التقدم المرئية وإمكانية الفرز والتصدير'
+              : 'Official company report repository classified across 7 operating and financial departments with inline visual bars'}
           </p>
         </div>
 

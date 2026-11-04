@@ -612,7 +612,7 @@ export function BrandSalesAnalyticsDashboard({ locale = 'ar' }: Props) {
             <p className="text-xs text-mist-400">
               {en
                 ? 'Shop Sales, Talabat Go/MP, Keeta, Deliveroo, Direct Web, Snoonu, Jahez, Phone, and Whatsapp.'
-                : 'مبيعات الصالة، طلبات جو وماركتبليس، كيتا، ديليفرو، أورردابل، سنونو، جاهز، الهاتف، والواتساب.'}
+                : 'مبيعات الصالة، طلبات جو وماركتبليس، كيتا، ديليفرو، الموقع والتطبيق المباشر، سنونو، جاهز، الهاتف، والواتساب.'}
             </p>
           </div>
           {selectedChannel !== 'ALL' && (
