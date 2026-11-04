@@ -48,13 +48,13 @@ const INITIAL_WORKFLOWS: AutomationWorkflow[] = [
   {
     id: 'wf-radar',
     code: 'VF-AUTO-RADAR-01',
-    titleAr: 'رادار منصات التوصيل والرقابة الجنائية',
+    titleAr: 'متابعة تطبيقات التوصيل والعمولات',
     titleEn: 'Aggregator Offline & Forced TGO 17% Watchdog',
     departmentAr: 'التشغيل والتوصيل',
     departmentEn: 'Aggregator Operations',
-    triggerAr: 'فحص كل 5 دقائق: إغلاق فرع أكثر من 30 دقيقة أو تحويل قسري من توصيل المطعم 10% إلى أسطول المنصة 17%',
+    triggerAr: 'فحص كل 5 دقائق: إغلاق فرع أكثر من 30 دقيقة أو تحويل طلبات التوصيل من 10% إلى أسطول المنصة 17%',
     triggerEn: 'Every 5m: branch offline > 30m or forced switch from TMP 10% to TGO 17%',
-    actionAr: 'إرسال التقرير التشغيلي والجنائي فوراً عبر البريد الإلكتروني للمستلمين الثلاثة المعتمدين',
+    actionAr: 'إرسال تنبيه فوري عبر الإيميل للأشخاص المعتمدين لفتح الفرع أو معالجة النسبة',
     actionEn: 'Dispatch forensic email alert via SMTP to 3 verified stakeholders',
     scheduleAr: 'مستمر · كل 5 دقائق',
     scheduleEn: 'Continuous · Every 5 mins',
@@ -68,13 +68,13 @@ const INITIAL_WORKFLOWS: AutomationWorkflow[] = [
   {
     id: 'wf-stock',
     code: 'VF-AUTO-STOCK-02',
-    titleAr: 'الإنذار المبكر للمخزون وطلبات المطبخ المركزي بالقرين',
+    titleAr: 'تنبيه نقص المخزون وطلبات مطبخ القرين',
     titleEn: 'Low-Stock & Al-Qurain Central Kitchen Auto-Order',
     departmentAr: 'المخزون والتوريد',
     departmentEn: 'Inventory & Kitchen Supply',
-    triggerAr: 'نزول رصيد أي مادة خام أو مواد تغليف أو تحضير مركزي تحت حد الطلب المعياري',
+    triggerAr: 'نزول رصيد أي مادة خام أو مواد تغليف أو تحضير مركزي تحت الحد الأدنى',
     triggerEn: 'SKU drops below Reorder Point across raw (RW01), pack (PI02) or prep (PP03)',
-    actionAr: 'توليد مسودة طلب شراء وتنبيه مسؤولي العمليات ومستودع المطبخ المركزي بالقرين',
+    actionAr: 'تجهيز مسودة طلب الشراء تلقائياً وتنبيه مسؤولي العمليات ومستودع القرين',
     actionEn: 'Auto-generate PO draft & alert Operations & Al-Qurain Commissary',
     scheduleAr: 'عند تغير الرصيد',
     scheduleEn: 'On stock movement',
@@ -87,13 +87,13 @@ const INITIAL_WORKFLOWS: AutomationWorkflow[] = [
   {
     id: 'wf-fefo',
     code: 'VF-AUTO-FEFO-03',
-    titleAr: 'حارس سلامة الغذاء وسلسلة التبريد وصلاحيات الدفعات',
+    titleAr: 'مراقبة الثلاجات وتواريخ الصلاحية',
     titleEn: 'FEFO Shelf-Life & Cold-Chain Breach Guard',
     departmentAr: 'سلامة الغذاء والهاسب',
     departmentEn: 'Food Safety & HACCP',
-    triggerAr: 'اقتراب انتهاء دفعة تحضير < 4 ساعات أو تجاوز حرارة البراد 4°C / الفريزر -18°C',
+    triggerAr: 'اقتراب انتهاء دفعة تحضير (أقل من 4 ساعات) أو ارتفاع حرارة الثلاجة عن 4°C أو الفريزر عن -18°C',
     triggerEn: 'Prep batch expiry < 4h or chiller temp > 4°C / freezer > -18°C',
-    actionAr: 'إصدار تنبيه سحب فوري للدفعة وإشعار مدير الفرع وقسم الجودة',
+    actionAr: 'إرسال تنبيه فوري بسحب الدفعة وإشعار مدير الفرع ومسؤول الجودة',
     actionEn: 'Issue instant batch recall alert & notify Branch Manager & QA lead',
     scheduleAr: 'فوري · رصد مستمر',
     scheduleEn: 'Real-time telemetry',
@@ -106,13 +106,13 @@ const INITIAL_WORKFLOWS: AutomationWorkflow[] = [
   {
     id: 'wf-residency',
     code: 'VF-AUTO-HR-04',
-    titleAr: 'رادار الإقامات، البطاقات المدنية، وكروت صحة البلدية',
+    titleAr: 'متابعة الإقامات والبطاقات المدنية وكروت الصحة',
     titleEn: 'Kuwait Visa 18, Civil ID & Municipality Health Card Radar',
     departmentAr: 'الموارد البشرية والمندوب',
     departmentEn: 'HR & Labor Compliance',
-    triggerAr: 'فحص يومي الساعة 8:00 صباحاً لوثائق الـ 166 موظفاً التي تنتهي خلال 60 / 30 / 7 أيام',
+    triggerAr: 'فحص يومي الساعة 8:00 صباحاً لأي وثيقة تنتهي خلال 60 أو 30 أو 7 أيام للموظفين (166 موظفاً)',
     triggerEn: 'Daily 8:00 AM check for 166 staff docs expiring in 60 / 30 / 7 days',
-    actionAr: 'إدراج المعاملة في طابور مهام المندوب وتصدير كشف التجديد لمنصة أسهل للهيئة العامة للقوى العاملة',
+    actionAr: 'إضافة المعاملة في قائمة مهام المندوب وتجهيز أوراق التجديد في منصة أسهل',
     actionEn: 'Insert into PRO action queue & export PAM renewal batch',
     scheduleAr: 'يومياً · 8:00 صباحاً',
     scheduleEn: 'Daily at 8:00 AM',
@@ -125,13 +125,13 @@ const INITIAL_WORKFLOWS: AutomationWorkflow[] = [
   {
     id: 'wf-sales-digest',
     code: 'VF-AUTO-SALES-05',
-    titleAr: 'الإيجاز التنفيذي اليومي للمبيعات وإغلاق الصناديق وتقرير نهاية اليوم',
+    titleAr: 'تقرير المبيعات اليومي وإغلاق الصناديق',
     titleEn: 'Daily 6-Brand Sales & Z-Report Morning Digest',
     departmentAr: 'المبيعات والإدارة',
     departmentEn: 'Sales BI & Executive Office',
-    triggerAr: 'يومياً الساعة 9:00 صباحاً بتوقيت الكويت بعد اكتمال إغلاق صناديق الفروع',
+    triggerAr: 'يومياً الساعة 9:00 صباحاً بتوقيت الكويت بعد إغلاق صناديق الكاشير بالفروع',
     triggerEn: 'Daily 9:00 AM Kuwait time after in-store register close-outs',
-    actionAr: 'تجميع مبيعات البراندات الـ 6 والقنوات الـ 11 وإرسال الملخص التنفيذي لبريد الإدارة',
+    actionAr: 'تجميع مبيعات الـ 6 براندات وإرسال ملخص المبيعات للإيميل الرسمي',
     actionEn: 'Compile 6-brand, 11-channel metrics & dispatch executive email digest',
     scheduleAr: 'يومياً · 9:00 صباحاً',
     scheduleEn: 'Daily at 9:00 AM',
@@ -144,13 +144,13 @@ const INITIAL_WORKFLOWS: AutomationWorkflow[] = [
   {
     id: 'wf-dropzone',
     code: 'VF-AUTO-DROPZONE-06',
-    titleAr: 'الموزع الذكي للوثائق والمستندات والفواتير',
+    titleAr: 'فرز الفواتير والمستندات تلقائياً',
     titleEn: 'Universal AI Smart Dropzone Auto-Classifier',
     departmentAr: 'الأرشفة والذكاء الاصطناعي',
     departmentEn: 'Data Ingestion & AI',
-    triggerAr: 'عند اختيار أي ملفات أو مجلدات من الحاسوب في نافذة الفرز',
+    triggerAr: 'عند اختيار أو سحب أي فواتير أو مستندات من الحاسوب',
     triggerEn: 'When files or folders are picked locally via Windows File Picker',
-    actionAr: 'استخراج البيانات محلياً وتصنيف السجلات وربطها بالأقسام الـ 7 آلياً',
+    actionAr: 'قراءة البيانات تلقائياً وتصنيف الفواتير وإرسالها للقسم المختص',
     actionEn: 'Extract locally, classify & route transactions to 7 departments automatically',
     scheduleAr: 'تفاعلي فوري',
     scheduleEn: 'On file select',
@@ -178,7 +178,7 @@ const INITIAL_LOGS: ExecutionLogItem[] = [
   {
     id: 'log-1',
     workflowCode: 'VF-AUTO-RADAR-01',
-    workflowTitleAr: 'رادار منصات التوصيل الجنائي',
+    workflowTitleAr: 'متابعة تطبيقات التوصيل والعمولات',
     workflowTitleEn: 'Aggregator Offline Watchdog',
     timestamp: '03 نوفمبر 2026 - 12:25:10',
     status: 'SUCCESS',
@@ -189,44 +189,44 @@ const INITIAL_LOGS: ExecutionLogItem[] = [
   {
     id: 'log-2',
     workflowCode: 'VF-AUTO-SALES-05',
-    workflowTitleAr: 'الإيجاز التنفيذي اليومي للمبيعات',
+    workflowTitleAr: 'تقرير المبيعات اليومي وإغلاق الصناديق',
     workflowTitleEn: 'Daily Sales & Z-Report Digest',
     timestamp: '03 نوفمبر 2026 - 09:00:02',
     status: 'SUCCESS',
-    detailsAr: 'إرسال إيميل الإيجاز لـ 3 مستلمين معتمدين في الإدارة التنفيذية والعمليات',
+    detailsAr: 'إرسال ملخص المبيعات اليومي لـ 3 أشخاص معتمدين في الإدارة والعمليات',
     detailsEn: 'Dispatched digest to 3 verified recipients via sec@venturefoodskw.com',
     durationMs: 1250,
   },
   {
     id: 'log-3',
     workflowCode: 'VF-AUTO-HR-04',
-    workflowTitleAr: 'رادار الإقامات وبطاقات البلدية',
+    workflowTitleAr: 'متابعة الإقامات والبطاقات المدنية وكروت الصحة',
     workflowTitleEn: 'Kuwait Visa 18 & Health Card Radar',
     timestamp: '03 نوفمبر 2026 - 08:00:15',
     status: 'SUCCESS',
-    detailsAr: 'فحص 166 موظفاً: رصد 6 معاملات تتطلب تجديداً وإدراجها في قائمة مهام المندوب',
+    detailsAr: 'فحص 166 موظفاً: رصد 6 معاملات تتطلب تجديداً وإدراجها في مهام المندوب',
     detailsEn: 'Audited 166 employees: flagged 6 renewals into PRO action queue',
     durationMs: 680,
   },
   {
     id: 'log-4',
     workflowCode: 'VF-AUTO-STOCK-02',
-    workflowTitleAr: 'الإنذار المبكر للمخزون المركزي',
+    workflowTitleAr: 'تنبيه نقص المخزون وطلبات مطبخ القرين',
     workflowTitleEn: 'Low-Stock & Kitchen Auto-Order',
     timestamp: '03 نوفمبر 2026 - 07:14:30',
     status: 'SUCCESS',
-    detailsAr: 'توليد مسودة أمر تزويد رقم 002-202611 لمستودع المطبخ المركزي بالقرين',
+    detailsAr: 'تجهيز مسودة أمر تزويد رقم 002-202611 لمستودع المطبخ المركزي بالقرين',
     detailsEn: 'Generated PO draft PO-202611-002 for Al-Qurain central kitchen warehouse',
     durationMs: 310,
   },
   {
     id: 'log-5',
     workflowCode: 'VF-AUTO-FEFO-03',
-    workflowTitleAr: 'حارس سلامة الغذاء والهاسب',
+    workflowTitleAr: 'مراقبة الثلاجات وتواريخ الصلاحية',
     workflowTitleEn: 'FEFO Cold-Chain Breach Guard',
     timestamp: '03 نوفمبر 2026 - 04:30:00',
     status: 'SUCCESS',
-    detailsAr: 'فحص 384 دفعة طعام: درجات الحرارة مطابقة للمواصفات ضمن سلسلة التبريد وصلاحيات آمنة',
+    detailsAr: 'فحص 384 دفعة طعام: درجات الحرارة مطابقة للمواصفات وصلاحيات الأطعمة آمنة',
     detailsEn: 'Audited 384 batches: temperatures within cold chain limits',
     durationMs: 290,
   },
@@ -257,8 +257,8 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
       const nextState = !target.isActive
       showNotice(
         isAr
-          ? `تم ${nextState ? 'تفعيل' : 'إيقاف'} مسار "${target.titleAr}" بنجاح`
-          : `Workflow "${target.titleEn}" is now ${nextState ? 'Active' : 'Paused'}`
+          ? `تم ${nextState ? 'تفعيل' : 'إيقاف'} تنبيه "${target.titleAr}" بنجاح`
+          : `Alert "${target.titleEn}" is now ${nextState ? 'Active' : 'Paused'}`
       )
     }
   }
@@ -290,16 +290,16 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
         workflowTitleEn: workflow.titleEn,
         timestamp: `${now.toLocaleDateString(isAr ? 'ar-KW' : 'en-US')} - ${timeStr}`,
         status: 'SUCCESS',
-        detailsAr: `تشغيل يدوي فوري ناجح: تم إرسال الإشعار والتحقق من الشروط وإرسال التقرير`,
-        detailsEn: `Manual trigger executed: verified condition & dispatched alert`,
+        detailsAr: `تجربة إرسال ناجحة: تم فحص الشروط وإرسال التنبيه التجريبي للإيميل الرسمي`,
+        detailsEn: `Manual test executed: verified condition & dispatched alert`,
         durationMs: Math.floor(Math.random() * 400) + 250,
       }
 
       setLogs((prev) => [newLog, ...prev.slice(0, 19)])
       showNotice(
         isAr
-          ? `⚡ تم تشغيل واختبار "${workflow.titleAr}" بنجاح وتوثيقه في السجل الحي!`
-          : `⚡ "${workflow.titleEn}" executed successfully & logged!`
+          ? `⚡ تم تجربة إرسال تنبيه "${workflow.titleAr}" بنجاح وتسجيله في السجل!`
+          : `⚡ "${workflow.titleEn}" test alert sent successfully & logged!`
       )
     } finally {
       setRunningId(null)
@@ -335,8 +335,8 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
     setNewRuleName('')
     showNotice(
       isAr
-        ? `✅ تم حفظ قاعدة الأتمتة المخصصة "${newWf.titleAr}" وتفعيلها فوراً`
-        : `✅ Custom rule "${newWf.titleEn}" created & activated`
+        ? `✅ تم إضافة التنبيه الجديد "${newWf.titleAr}" وتفعيله فوراً`
+        : `✅ Custom alert "${newWf.titleEn}" created & activated`
     )
   }
 
@@ -358,18 +358,18 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-400">
               <Zap size={14} className="animate-pulse" />
-              {isAr ? 'محرك الأتمتة والعمليات الذكية' : 'Enterprise Automation Engine'}
+              {isAr ? 'المتابعة الآلية للعمل' : 'Enterprise Automation Engine'}
             </span>
             <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 text-xs text-slate-700 dark:text-slate-400">
               {isAr ? 'شركة فنتشر فودز لإدارة المطاعم ذ.م.م.' : 'Venture Foods Restaurant Management Co. W.L.L.'}
             </span>
           </div>
           <h1 className="mt-1 text-2xl font-black text-slate-900 dark:text-white sm:text-3xl">
-            {isAr ? 'مركز قيادة مسارات الأتمتة والرادارات الحية' : 'Operational Workflows & Real-Time System Monitors'}
+            {isAr ? 'نظام التنبيهات والمتابعة التلقائية' : 'Operational Workflows & Real-Time System Monitors'}
           </h1>
           <p className="text-xs text-slate-600 dark:text-slate-400">
             {isAr
-              ? '6 مسارات أتمتة تشغيلية ورادارات رقابية متصلة مباشرة بسيرفرات الشركة والبريد المؤسسي'
+              ? '6 تنبيهات ذكية متصلة مباشرة بنظام الشركة والإيميل الرسمي'
               : '6 live operational workflows & monitors connected directly to Venture Foods systems & SMTP'}
           </p>
         </div>
@@ -386,7 +386,7 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
             className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2 text-xs font-bold text-black hover:opacity-90 transition-all shadow-lg shadow-emerald-500/10"
           >
             <Plus size={15} />
-            {isAr ? 'إضافة قاعدة أتمتة مخصصة' : 'Add Custom Automation'}
+            {isAr ? '+ إضافة تنبيه جديد' : 'Add Custom Alert'}
           </button>
         </div>
       </div>
@@ -421,7 +421,7 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
               <div className="flex items-center gap-2">
                 <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
                 <span className="text-sm font-bold text-slate-900 dark:text-white">
-                  {isAr ? 'خادم البريد المؤسسي موثق ونشط' : 'Google Workspace SMTP Active'}
+                  {isAr ? 'الإيميل الرسمي متصل وجاهز للإرسال' : 'Google Workspace SMTP Active'}
                 </span>
                 <span className="font-mono text-xs text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20" dir="ltr">
                   sec@venturefoodskw.com
@@ -429,7 +429,7 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
               </div>
               <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">
                 {isAr
-                  ? 'خادم البريد المؤسسي موثق ويعمل على منفذ SSL 465 لإرسال التنبيهات الفورية المشفرة'
+                  ? 'خادم البريد الرسمي معتمد لإرسال التنبيهات الفورية المشفرة لمسؤولي الشركة'
                   : 'Enterprise SMTP authenticated on SSL port 465 delivering encrypted instant dispatches'}
               </p>
             </div>
@@ -438,7 +438,7 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
           {/* 3 Dedicated Stakeholders */}
           <div className="flex flex-col items-start lg:items-end">
             <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-              {isAr ? 'المستلمون الثلاثة المعتمدون حصرياً:' : 'Exclusively Verified Recipients:'}
+              {isAr ? 'الأشخاص الذين تصلهم التنبيهات:' : 'Exclusively Verified Recipients:'}
             </span>
             <div className="mt-1.5 flex flex-wrap gap-1.5">
               <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 px-2 py-1 text-[11px] text-slate-800 dark:text-slate-200" dir="ltr">
@@ -462,10 +462,10 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
         <div className="flex items-center justify-between">
           <h2 className="flex items-center gap-2 text-base font-bold text-slate-900 dark:text-white sm:text-lg">
             <Sliders size={18} className="text-emerald-400" />
-            {isAr ? 'محركات الأتمتة الـ 6 الخاصة بشركة فنتشر فودز' : '6 Venture Foods Operational Workflows'}
+            {isAr ? 'التنبيهات التلقائية المفعّلة (6 تنبيهات)' : '6 Venture Foods Operational Workflows'}
           </h2>
           <span className="text-xs text-slate-600 dark:text-slate-400">
-            {workflows.filter((w) => w.isActive).length} / {workflows.length} {isAr ? 'مسارات نشطة' : 'Active'}
+            {workflows.filter((w) => w.isActive).length} / {workflows.length} {isAr ? 'تنبيهات مفعّلة' : 'Active'}
           </span>
         </div>
 
@@ -503,7 +503,7 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
                         : 'bg-slate-800 text-slate-400 border border-slate-700'
                     }`}
                   >
-                    {wf.isActive ? (isAr ? 'نشط ●' : 'Active ●') : isAr ? 'متوقف ○' : 'Paused ○'}
+                    {wf.isActive ? (isAr ? 'مفعّل ●' : 'Active ●') : isAr ? 'متوقف ○' : 'Paused ○'}
                   </button>
                 </div>
 
@@ -516,7 +516,7 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
                 <div className="mt-3 space-y-2 rounded-xl bg-slate-50 dark:bg-slate-900/60 p-3 text-xs border border-slate-100 dark:border-transparent">
                   <div>
                     <span className="font-bold text-amber-400">
-                      {isAr ? '⚡ شرط التحفيز والتفعيل:' : '⚡ Trigger:'}
+                      {isAr ? 'متى يرسل النظام تنبيهاً؟' : '⚡ Trigger:'}
                     </span>
                     <p className="mt-0.5 text-slate-700 dark:text-slate-300">
                       {isAr ? wf.triggerAr : wf.triggerEn}
@@ -524,7 +524,7 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
                   </div>
                   <div className="border-t border-slate-800/70 pt-2">
                     <span className="font-bold text-emerald-400">
-                      {isAr ? '🎯 الإجراء التلقائي المعتمد:' : '🎯 Action:'}
+                      {isAr ? 'ماذا يفعل النظام تلقائياً؟' : '🎯 Action:'}
                     </span>
                     <p className="mt-0.5 text-slate-700 dark:text-slate-300">
                       {isAr ? wf.actionAr : wf.actionEn}
@@ -555,12 +555,12 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
                   {runningId === wf.id ? (
                     <>
                       <RotateCw size={14} className="animate-spin" />
-                      {isAr ? 'جارٍ الفحص والتنفيذ...' : 'Executing...'}
+                      {isAr ? 'جارٍ التجربة والإرسال...' : 'Executing...'}
                     </>
                   ) : (
                     <>
                       <Play size={13} className="fill-current" />
-                      {isAr ? 'تشغيل واختبار فوري الآن' : 'Run & Test Now'}
+                      {isAr ? 'تجربة الإرسال الآن' : 'Run & Test Now'}
                     </>
                   )}
                 </button>
@@ -578,11 +578,11 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
           <div className="flex items-center gap-2">
             <Server size={18} className="text-emerald-400" />
             <h2 className="text-sm font-bold text-slate-900 dark:text-white sm:text-base">
-              {isAr ? 'سجل التنفيذ والتشغيل الحي للعمليات' : 'Live Automation Execution Log'}
+              {isAr ? 'سجل التنبيهات والعمليات الأخيرة' : 'Live Automation Execution Log'}
             </h2>
           </div>
           <span className="text-xs text-slate-400">
-            {logs.length} {isAr ? 'عملية مسجلة' : 'Recorded Executions'}
+            {logs.length} {isAr ? 'تنبيه مسجل' : 'Recorded Executions'}
           </span>
         </div>
 
@@ -591,10 +591,10 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 text-xs font-semibold uppercase text-slate-700 dark:text-slate-400">
                 <th className="px-4 py-3 text-right">{isAr ? 'الوقت والتاريخ' : 'Timestamp'}</th>
-                <th className="px-4 py-3 text-right">{isAr ? 'كود المسار' : 'Workflow Code'}</th>
-                <th className="px-4 py-3 text-right">{isAr ? 'اسم المسار' : 'Workflow Name'}</th>
-                <th className="px-4 py-3 text-right">{isAr ? 'تفاصيل الإجراء المنفذ' : 'Execution Details'}</th>
-                <th className="px-4 py-3 text-center">{isAr ? 'زمن الاستجابة' : 'Latency'}</th>
+                <th className="px-4 py-3 text-right">{isAr ? 'كود التنبيه' : 'Workflow Code'}</th>
+                <th className="px-4 py-3 text-right">{isAr ? 'اسم التنبيه' : 'Workflow Name'}</th>
+                <th className="px-4 py-3 text-right">{isAr ? 'تفاصيل التنبيه' : 'Execution Details'}</th>
+                <th className="px-4 py-3 text-center">{isAr ? 'سرعة المعالجة' : 'Latency'}</th>
                 <th className="px-4 py-3 text-center">{isAr ? 'الحالة' : 'Status'}</th>
               </tr>
             </thead>
@@ -637,7 +637,7 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
           <div className="w-full max-w-lg rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <h3 className="text-base font-bold text-white">
-                {isAr ? 'إضافة قاعدة أتمتة مخصصة لشركة فنتشر فودز' : 'Add Custom Venture Foods Automation Rule'}
+                {isAr ? 'إضافة تنبيه تلقائي جديد' : 'Add Custom Venture Foods Automation Alert'}
               </h3>
               <button
                 onClick={() => setShowNewRuleModal(false)}
@@ -650,7 +650,7 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
             <form onSubmit={handleCreateCustomRule} className="mt-4 space-y-4 text-xs">
               <div>
                 <label className="block font-semibold text-slate-300 mb-1">
-                  {isAr ? 'اسم القاعدة أو المسار:' : 'Rule Name:'}
+                  {isAr ? 'اسم التنبيه:' : 'Alert Name:'}
                 </label>
                 <input
                   type="text"
@@ -666,44 +666,44 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
 
               <div>
                 <label className="block font-semibold text-slate-300 mb-1">
-                  {isAr ? 'القسم التشغيلي المرتبط:' : 'Operating Department:'}
+                  {isAr ? 'القسم المسؤول:' : 'Operating Department:'}
                 </label>
                 <select
                   value={newRuleDepartment}
                   onChange={(e) => setNewRuleDepartment(e.target.value)}
                   className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-white focus:outline-none"
                 >
-                  <option value="المبيعات والقنوات">{isAr ? 'المبيعات والقنوات' : 'Sales & Channels'}</option>
-                  <option value="المخزون والتوريد">{isAr ? 'المخزون والتوريد' : 'Inventory & Supply'}</option>
-                  <option value="سلامة الغذاء والهاسب">{isAr ? 'سلامة الغذاء والهاسب' : 'Food Safety & HACCP'}</option>
-                  <option value="الموارد البشرية والرواتب">{isAr ? 'الموارد البشرية والرواتب' : 'HR & Payroll'}</option>
-                  <option value="المطبخ المركزي صبحان">{isAr ? 'المطبخ المركزي صبحان' : 'Sabhan Commissary'}</option>
+                  <option value="المبيعات والقنوات">{isAr ? 'المبيعات وتطبيقات التوصيل' : 'Sales & Channels'}</option>
+                  <option value="المخزون والتوريد">{isAr ? 'المخزون ومطبخ القرين' : 'Inventory & Supply'}</option>
+                  <option value="سلامة الغذاء والهاسب">{isAr ? 'الثلاجات وسلامة الغذاء' : 'Food Safety & HACCP'}</option>
+                  <option value="الموارد البشرية والرواتب">{isAr ? 'الإقامات والموظفون' : 'HR & Payroll'}</option>
+                  <option value="المطبخ المركزي صبحان">{isAr ? 'المطبخ المركزي' : 'Sabhan Commissary'}</option>
                 </select>
               </div>
 
               <div>
                 <label className="block font-semibold text-slate-300 mb-1">
-                  {isAr ? 'شرط المحفز والتفعيل:' : 'Trigger Condition:'}
+                  {isAr ? 'متى يرسل النظام تنبيهاً؟' : 'Trigger Condition:'}
                 </label>
                 <select
                   value={newRuleTrigger}
                   onChange={(e) => setNewRuleTrigger(e.target.value)}
                   className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-white focus:outline-none"
                 >
-                  <option value="STOCK_ALERT">{isAr ? 'نزول المخزون عن حد إعادة الطلب' : 'Stock Alert'}</option>
+                  <option value="STOCK_ALERT">{isAr ? 'نزول المخزون عن الحد الأدنى' : 'Stock Alert'}</option>
                   <option value="SALES_SPIKE">{isAr ? 'تسجيل مبيعات استثنائية أو إغلاق وردية' : 'Sales Close'}</option>
-                  <option value="FEFO_CRITICAL">{isAr ? 'اقتراب انتهاء دفعة تحضير أقل من 6 ساعات' : 'FEFO Near Expiry'}</option>
-                  <option value="RESIDENCY_SOON">{isAr ? 'انتهاء وثيقة موظف خلال 30 يوماً' : 'Labor Doc Expiry'}</option>
+                  <option value="FEFO_CRITICAL">{isAr ? 'اقتراب انتهاء صلاحية دفعة طعام مجهز' : 'FEFO Near Expiry'}</option>
+                  <option value="RESIDENCY_SOON">{isAr ? 'انتهاء إقامة أو بطاقة موظف خلال 30 يوماً' : 'Labor Doc Expiry'}</option>
                 </select>
               </div>
 
               <div className="rounded-xl border border-slate-800 bg-slate-950 p-3 text-slate-400">
                 <span className="font-semibold text-slate-300">
-                  {isAr ? 'الإجراء التلقائي المعتمد:' : 'Default Approved Action:'}
+                  {isAr ? 'ماذا يفعل النظام تلقائياً؟' : 'Default Approved Action:'}
                 </span>
                 <p className="mt-1">
                   {isAr
-                    ? 'سيتم إرسال بريد إلكتروني فوري عبر خادم sec@venturefoodskw.com إلى المستلمين الـ 3 المعتمدين وتدوين الحدث في السجل.'
+                    ? 'سيتم إرسال إيميل فوري عبر الإيميل الرسمي للأشخاص المعتمدين وتسجيل الحدث في السجل.'
                     : 'Dispatches instant email via sec@venturefoodskw.com to the 3 verified recipients.'}
                 </p>
               </div>
@@ -720,7 +720,7 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
                   type="submit"
                   className="rounded-lg bg-emerald-500 px-4 py-2 font-bold text-black hover:bg-emerald-400"
                 >
-                  {isAr ? 'حفظ وتفعيل القاعدة' : 'Save & Activate'}
+                  {isAr ? 'حفظ وتفعيل التنبيه' : 'Save & Activate'}
                 </button>
               </div>
             </form>
