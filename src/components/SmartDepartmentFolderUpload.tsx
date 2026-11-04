@@ -390,7 +390,7 @@ export function SmartDepartmentFolderUpload({ module, locale }: Props) {
               input.click()
             }}
           >
-            {label('اختيار مجلد كامل', 'Choose full folder')}
+            {label('📁 رفع مجلد كامل', '📁 Upload Entire Folder')}
           </button>
           <button
             type="button"
@@ -402,7 +402,7 @@ export function SmartDepartmentFolderUpload({ module, locale }: Props) {
               fileInputRef.current.click()
             }}
           >
-            {label('اختيار ملفات / ZIP', 'Choose files / ZIP')}
+            {label('📄 اختيار ملفات متعددة', '📄 Select Multiple Files')}
           </button>
         </div>
         <input
