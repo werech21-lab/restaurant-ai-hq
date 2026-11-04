@@ -9,8 +9,8 @@ export const metadata = {
 
 export default function FoodSafetyPage() {
   return (
-    <div className="w-full">
+    <main className="w-full max-w-none px-4 py-6 sm:px-6" suppressHydrationWarning>
       <FoodSafetyHub />
-    </div>
+    </main>
   )
 }

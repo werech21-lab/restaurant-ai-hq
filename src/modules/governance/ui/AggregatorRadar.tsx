@@ -858,12 +858,12 @@ function Workspace() {
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold whitespace-nowrap ${status.className}`}>{status.label}</span>
                       </td>
                       <td className="whitespace-nowrap py-3 px-4 align-middle">
-                        <div className="flex flex-col items-start gap-1 whitespace-nowrap">
+                        <div className="whitespace-nowrap inline-flex items-center gap-2">
                           <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap ${mode.badgeClass}`}>
                             {mode.badgeLabel}
                           </span>
-                          <span className={`text-[11px] font-medium pr-1 ${mode.subClass}`}>
-                            {mode.subLabel}
+                          <span className={`text-[11px] font-medium whitespace-nowrap ${mode.subClass}`}>
+                            ({mode.subLabel})
                           </span>
                         </div>
                       </td>

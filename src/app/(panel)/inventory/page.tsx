@@ -160,8 +160,10 @@ async function InventoryContent({ searchParams }: { searchParams: Promise<RawQue
 
 export default function InventoryPage({ searchParams }: { searchParams: Promise<RawQuery> }) {
   return (
-    <Suspense fallback={<PageSkeleton title="Inventory" />}>
-      <InventoryContent searchParams={searchParams} />
-    </Suspense>
+    <main className="w-full max-w-none px-4 py-6 sm:px-6" suppressHydrationWarning>
+      <Suspense fallback={<PageSkeleton title="Inventory" />}>
+        <InventoryContent searchParams={searchParams} />
+      </Suspense>
+    </main>
   );
 }

@@ -567,17 +567,17 @@ export function AetherBiExecutiveDashboard({
               {isAr ? 'مؤشر صحة العمليات الشامل لأودو' : 'Odoo Operational Health Score'}
             </span>
             <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
-              {isAr ? 'حالة جيدة' : 'Good'}
+              {isAr ? '84% — جيد مع وجود 7 تنبيهات' : '84% — Good with 7 Alerts'}
             </span>
           </div>
           <div className="mt-3 flex items-baseline gap-3">
             <span className="text-4xl font-black text-slate-900 dark:text-white font-mono tracking-tight">84</span>
             <span className="text-lg font-bold text-slate-400">/ 100</span>
           </div>
-          <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
+          <p className="mt-2 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
             {isAr
-              ? 'جيد مع وجود 7 تنبيهات حرجة في العهد والصيانة والعمولات تحتاج تدخلاً تنفيذياً.'
-              : 'Good operational health with 7 high-priority alerts in custody, maintenance & commissions.'}
+              ? '84/100 — جيد مع وجود 7 تنبيهات حرجة تحتاج تدخلاً، مبني على تحليل 2,213 قيد مصروفات وعهد (51,154.950 د.ك)، 166 ملف موظف، 364 وصفة معيارية، ومبيعات الـ 6 علامات تجارية والـ 9 فروع النشطة والمطبخ المركزي بالقرين.'
+              : '84/100 — Good operational health with 7 high-priority alerts, computed across 2,213 Odoo expense & custody entries (51,154.950 KWD), 166 staff records, 364 standard BOMs, across 6 brands, 9 active branches & Central Kitchen.'}
           </p>
           <div className="mt-3 h-2 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
             <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full" style={{ width: '84%' }} />
@@ -588,7 +588,7 @@ export function AetherBiExecutiveDashboard({
         <div className="lg:col-span-2 relative overflow-hidden rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-50 via-white to-teal-50 dark:from-emerald-950/30 dark:via-[#111827] dark:to-[#0b1329] p-5 shadow-xl">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="text-xs font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
-              {isAr ? '💡 إجمالي التوفير المالي الممكن تحقيقه هذا الشهر من التوصيات الذكية' : '💡 Actionable AI Monthly Cost-Reduction Opportunities'}
+              {isAr ? '💡 عداد فرص التوفير المالي المكتشفة من توصيات أودو الذكية' : '💡 Identified Odoo Cost-Reduction Opportunities'}
             </span>
             <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
               ⚡ {isAr ? 'جاهزة للتنفيذ الفوري' : 'Actionable Now'}
@@ -596,23 +596,23 @@ export function AetherBiExecutiveDashboard({
           </div>
           <div className="mt-3 flex flex-wrap items-baseline gap-6">
             <div>
-              <div className="text-xs text-slate-600 dark:text-slate-400">{isAr ? 'التوفير المالي الممكن هذا الشهر:' : 'Potential Savings This Month:'}</div>
+              <div className="text-xs text-slate-600 dark:text-slate-400">{isAr ? 'إجمالي التوفير المالي الممكن شهرياً:' : 'Monthly Identified Savings:'}</div>
               <div className="text-3xl font-black text-emerald-700 dark:text-emerald-400 font-mono tracking-tight mt-1">
                 8,420.500 <span className="text-sm font-bold">{isAr ? 'د.ك' : 'KWD'}</span>
               </div>
             </div>
             <div className="border-s border-slate-300 dark:border-slate-700 ps-4">
-              <div className="text-xs text-slate-600 dark:text-slate-400">{isAr ? 'الأثر المالي السنوي المقدر:' : 'Projected Annual Run-Rate Impact:'}</div>
+              <div className="text-xs text-slate-600 dark:text-slate-400">{isAr ? 'الأثر المالي السنوي المقدر (Run-Rate):' : 'Projected Annual Run-Rate Impact:'}</div>
               <div className="text-2xl font-black text-slate-900 dark:text-white font-mono tracking-tight mt-1">
                 101,046.000 <span className="text-sm font-bold text-slate-400">{isAr ? 'د.ك' : 'KWD'}</span>
               </div>
             </div>
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-600 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-2.5">
-            <span>• {isAr ? 'توفير أتعاب التعقيب: 1,850 د.ك' : 'Sanad fees: 1,850 KWD'}</span>
-            <span>• {isAr ? 'استبدال ثلاجات الكوت والسالمية: 890 د.ك' : 'Fridges replacement: 890 KWD'}</span>
-            <span>• {isAr ? 'تقليص عمولات المنصات 17% إلى 10%: 3,420 د.ك' : 'Platform 17% to 10%: 3,420 KWD'}</span>
-            <span>• {isAr ? 'ضبط هدر اللحوم والزيوت: 2,260.500 د.ك' : 'BOM yield control: 2,260.500 KWD'}</span>
+            <span>• {isAr ? 'توفير أتعاب التعقيب لسند: 1,850.000 د.ك' : 'Sanad fees: 1,850 KWD'}</span>
+            <span>• {isAr ? 'استبدال ثلاجات الكوت والسالمية: 890.000 د.ك' : 'Fridges replacement: 890 KWD'}</span>
+            <span>• {isAr ? 'تقليص عمولات المنصات 17% إلى 10%: 3,420.000 د.ك' : 'Platform 17% to 10%: 3,420 KWD'}</span>
+            <span>• {isAr ? 'ضبط هدر اللحوم والزيوت بالـ BOM: 2,260.500 د.ك' : 'BOM yield control: 2,260.500 KWD'}</span>
           </div>
         </div>
       </div>
@@ -640,16 +640,17 @@ export function AetherBiExecutiveDashboard({
         <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
           {/* Anomaly 1 */}
           <div className="rounded-xl border border-rose-500/30 bg-rose-50/40 dark:bg-rose-950/20 p-3.5 space-y-2 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="font-bold text-rose-700 dark:text-rose-400">🔴 {isAr ? 'تركز عهدة سند (61.8%)' : 'Sanad Custody 61.8%'}</span>
-                <span className="font-mono text-slate-500">31,646 د.ك</span>
+            <div className="space-y-1.5 text-xs">
+              <div className="flex items-center justify-between text-[11px] font-bold text-rose-700 dark:text-rose-400">
+                <span>🔴 {isAr ? 'تركز عهدة سند (61.86%)' : 'Sanad Custody 61.86%'}</span>
+                <span className="font-mono">31,646.750 د.ك</span>
               </div>
-              <p className="mt-1 text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
-                {isAr
-                  ? 'تركز 1,412 حركة بمكتب تعقيب واحد مع تجديد إقامات وكروت بلدية متكررة.'
-                  : '1,412 transactions concentrated in single PRO broker with repetitive health card markups.'}
-              </p>
+              <div className="rounded-lg bg-white/70 dark:bg-slate-900/60 p-2 space-y-1 text-[11px] border border-rose-200/50 dark:border-rose-900/30">
+                <p><strong className="text-slate-800 dark:text-slate-200">📊 {isAr ? 'البيان الإحصائي:' : 'Odoo Stat:'}</strong> {isAr ? '1,412 حركة شراء نقدي وتعقيب' : '1,412 cash purchase/clearance txns'}</p>
+                <p><strong className="text-slate-800 dark:text-slate-200">🔍 {isAr ? 'السبب الجذري:' : 'Root Cause:'}</strong> {isAr ? 'غياب التعاقد المركزي والفوترة المباشرة' : 'No centralized master vendor contracts'}</p>
+                <p><strong className="text-slate-800 dark:text-slate-200">🎯 {isAr ? 'التوصية:' : 'Action:'}</strong> {isAr ? 'إسناد المعاملات داخلياً عبر بوابة أسهل' : 'Migrate to in-house PRO via digital portal'}</p>
+                <p className="text-emerald-700 dark:text-emerald-400 font-bold">💰 {isAr ? 'التوفير المتوقع: +1,850 د.ك شهرياً' : 'Expected Savings: +1,850 KWD/mo'}</p>
+              </div>
             </div>
             <Link
               href="/erp/intelligence?tab=alerts"
@@ -662,16 +663,17 @@ export function AetherBiExecutiveDashboard({
 
           {/* Anomaly 2 */}
           <div className="rounded-xl border border-rose-500/30 bg-rose-50/40 dark:bg-rose-950/20 p-3.5 space-y-2 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="font-bold text-rose-700 dark:text-rose-400">🔴 {isAr ? 'صيانة ثلاجات الكوت والسالمية' : 'Al Kout & Salmiya Chillers'}</span>
-                <span className="font-mono text-slate-500">10,707 د.ك</span>
+            <div className="space-y-1.5 text-xs">
+              <div className="flex items-center justify-between text-[11px] font-bold text-rose-700 dark:text-rose-400">
+                <span>🔴 {isAr ? 'صيانة ثلاجات الكوت والسالمية' : 'Al Kout & Salmiya Chillers'}</span>
+                <span className="font-mono">10,707.930 د.ك</span>
               </div>
-              <p className="mt-1 text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
-                {isAr
-                  ? 'تكرار أعطال كمبريسورات التبريد 9 مرات يستدعي استبدالاً جذرياً بدلاً من الترقيع.'
-                  : '9 compressor breakdowns in 75 days requiring replacement over patchwork repairs.'}
-              </p>
+              <div className="rounded-lg bg-white/70 dark:bg-slate-900/60 p-2 space-y-1 text-[11px] border border-rose-200/50 dark:border-rose-900/30">
+                <p><strong className="text-slate-800 dark:text-slate-200">📊 {isAr ? 'البيان الإحصائي:' : 'Odoo Stat:'}</strong> {isAr ? '418 قيد صيانة عهدة ربيع أنيس' : '418 maintenance entries by Rabie Anis'}</p>
+                <p><strong className="text-slate-800 dark:text-slate-200">🔍 {isAr ? 'السبب الجذري:' : 'Root Cause:'}</strong> {isAr ? '9 أعطال كمبريسور مكررة لوحدات مستهلكة' : '9 recurring compressor failures on old units'}</p>
+                <p><strong className="text-slate-800 dark:text-slate-200">🎯 {isAr ? 'التوصية:' : 'Action:'}</strong> {isAr ? 'شراء وحدات إنفرتر جديدة بكفالة 3 سنوات' : 'Procure inverter chillers with 3-year warranty'}</p>
+                <p className="text-emerald-700 dark:text-emerald-400 font-bold">💰 {isAr ? 'التوفير المتوقع: +890 د.ك شهرياً' : 'Expected Savings: +890 KWD/mo'}</p>
+              </div>
             </div>
             <Link
               href="/erp/intelligence?tab=alerts"
@@ -684,16 +686,17 @@ export function AetherBiExecutiveDashboard({
 
           {/* Anomaly 3 */}
           <div className="rounded-xl border border-amber-500/30 bg-amber-50/40 dark:bg-amber-950/20 p-3.5 space-y-2 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="font-bold text-amber-700 dark:text-amber-400">🟠 {isAr ? 'عمولات المنصات 17% مقابل 10%' : '17% vs 10% Delivery'}</span>
-                <span className="font-mono text-slate-500">3,420 د.ك/شهر</span>
+            <div className="space-y-1.5 text-xs">
+              <div className="flex items-center justify-between text-[11px] font-bold text-amber-700 dark:text-amber-400">
+                <span>🟠 {isAr ? 'عمولات المنصات 17% مقابل 10%' : '17% vs 10% Delivery'}</span>
+                <span className="font-mono">3,420.000 د.ك/ش</span>
               </div>
-              <p className="mt-1 text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
-                {isAr
-                  ? 'تحويل 6,554 طلباً لسائقي المنصات بعمولة 17% في أوقات وفرة سائقي أسطول فنتشر فودز (10%).'
-                  : '6,554 orders routed to 17% aggregator drivers while 10% company fleet sat idle.'}
-              </p>
+              <div className="rounded-lg bg-white/70 dark:bg-slate-900/60 p-2 space-y-1 text-[11px] border border-amber-200/50 dark:border-amber-900/30">
+                <p><strong className="text-slate-800 dark:text-slate-200">📊 {isAr ? 'البيان الإحصائي:' : 'Odoo Stat:'}</strong> {isAr ? '6,554 طلباً بسائقي المنصة (17%)' : '6,554 orders on aggregator fleet (17%)'}</p>
+                <p><strong className="text-slate-800 dark:text-slate-200">🔍 {isAr ? 'السبب الجذري:' : 'Root Cause:'}</strong> {isAr ? 'إغلاق نافذة التوصيل الخاص بأوقات الذروة' : 'Throttling own fleet during peak hours'}</p>
+                <p><strong className="text-slate-800 dark:text-slate-200">🎯 {isAr ? 'التوصية:' : 'Action:'}</strong> {isAr ? 'إعادة توزيع الدراجات للقرين والسالمية' : 'Rebalance fleet to Qurain & Salmiya'}</p>
+                <p className="text-emerald-700 dark:text-emerald-400 font-bold">💰 {isAr ? 'التوفير المتوقع: +3,420 د.ك شهرياً' : 'Expected Savings: +3,420 KWD/mo'}</p>
+              </div>
             </div>
             <Link
               href="/erp/intelligence?tab=alerts"
@@ -706,16 +709,17 @@ export function AetherBiExecutiveDashboard({
 
           {/* Anomaly 4 */}
           <div className="rounded-xl border border-amber-500/30 bg-amber-50/40 dark:bg-amber-950/20 p-3.5 space-y-2 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="font-bold text-amber-700 dark:text-amber-400">🟠 {isAr ? 'انحراف الوصفات (+4.5%)' : 'BOM Variance (+4.5%)'}</span>
-                <span className="font-mono text-slate-500">2,260 د.ك/شهر</span>
+            <div className="space-y-1.5 text-xs">
+              <div className="flex items-center justify-between text-[11px] font-bold text-amber-700 dark:text-amber-400">
+                <span>🟠 {isAr ? 'انحراف الوصفات (+4.5%)' : 'BOM Variance (+4.5%)'}</span>
+                <span className="font-mono">2,260.500 د.ك/ش</span>
               </div>
-              <p className="mt-1 text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
-                {isAr
-                  ? 'تجاوز استهلاك اللحوم والزيوت والصوصات معايير أودو في القرين والسالمية.'
-                  : 'Beef, cooking oil and specialty sauces consumption exceeded theoretical BOM.'}
-              </p>
+              <div className="rounded-lg bg-white/70 dark:bg-slate-900/60 p-2 space-y-1 text-[11px] border border-amber-200/50 dark:border-amber-900/30">
+                <p><strong className="text-slate-800 dark:text-slate-200">📊 {isAr ? 'البيان الإحصائي:' : 'Odoo Stat:'}</strong> {isAr ? '+4.5% هدر بلحوم الشاورما والزيوت' : '+4.5% variance on meats & oils'}</p>
+                <p><strong className="text-slate-800 dark:text-slate-200">🔍 {isAr ? 'السبب الجذري:' : 'Root Cause:'}</strong> {isAr ? 'عدم التزام الشيف بالمكاييل المعيارية' : 'Kitchen non-compliance with portion scoops'}</p>
+                <p><strong className="text-slate-800 dark:text-slate-200">🎯 {isAr ? 'التوصية:' : 'Action:'}</strong> {isAr ? 'تجهيز أوزان مسبقة التعبئة بمطبخ القرين' : 'Pre-portioned packaging at Central Kitchen'}</p>
+                <p className="text-emerald-700 dark:text-emerald-400 font-bold">💰 {isAr ? 'التوفير المتوقع: +2,260.500 د.ك شهرياً' : 'Expected Savings: +2,260.500 KWD/mo'}</p>
+              </div>
             </div>
             <Link
               href="/erp/intelligence?tab=alerts"
@@ -858,25 +862,28 @@ export function AetherBiExecutiveDashboard({
 
         <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
           {/* Recommendation 1: Sanad */}
-          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-4 flex flex-col justify-between">
-            <div>
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 p-4 flex flex-col justify-between shadow-sm">
+            <div className="space-y-3">
               <div className="flex items-start justify-between gap-2">
                 <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
                   {isAr ? '💼 خفض التكاليف الحكومية والإدارية' : 'Corporate & Legal Clearance'}
                 </span>
                 <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
-                  {isAr ? '+1,850 د.ك شهرياً' : '+1,850 KWD/mo'}
+                  {isAr ? '+1,850.000 د.ك شهرياً' : '+1,850 KWD/mo'}
                 </span>
               </div>
-              <h3 className="mt-1 text-sm font-black text-slate-900 dark:text-white">
-                {isAr ? 'التحول التدريجي من مكتب "سند" للإدارة الذاتية للمعاملات' : 'Phased Migration from "Sanad" Agency to Internal Clearances'}
+              <h3 className="text-sm font-black text-slate-900 dark:text-white">
+                {isAr ? 'التحول التدريجي من مكتب "سند" للإدارة الذاتية للمعاملات الحكومية' : 'Phased Migration from "Sanad" Agency to Internal Clearances'}
               </h3>
-              <p className="mt-1.5 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                {isAr
-                  ? 'رصد 1,412 قيداً بمبلغ 31,646.750 د.ك. التوصية: تعيين موظف شؤون داخلي ينجز المعاملات إلكترونياً عبر بوابات "أسهل" وبلدية الكويت وتوفير أتعاب التعقيب.'
-                  : 'Audited 1,412 entries at 31,646.750 KWD. Shift repetitive renewals to in-house HR clerk using Kuwait digital portals.'}
-              </p>
+              
+              <div className="space-y-1.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-3 border border-slate-200/70 dark:border-slate-700/60 text-xs">
+                <p><strong className="text-slate-900 dark:text-slate-100">📊 {isAr ? 'البيان الإحصائي بأودو:' : 'Odoo Stat:'}</strong> {isAr ? '1,412 قيداً عهدة سند بقيمة 31,646.750 د.ك (61.86% من إجمالي العهد).' : '1,412 entries on Sanad custody valued at 31,646.750 KWD (61.86% of total).'}</p>
+                <p><strong className="text-slate-900 dark:text-slate-100">🔍 {isAr ? 'السبب الجذري والانحراف:' : 'Root Cause & Variance:'}</strong> {isAr ? 'هامش عمولات مرتفع للتعقيب الفردي وتكرار استخراج كروت الصحة بدون عقود جماعية.' : 'High broker markup per transaction and repetitive health card processing without volume contract.'}</p>
+                <p><strong className="text-slate-900 dark:text-slate-100">🎯 {isAr ? 'التوصية العملية الدقيقة:' : 'Actionable Recommendation:'}</strong> {isAr ? 'توظيف مندوب شؤون داخلي ينجز المعاملات عبر بوابة "أسهل" والربط الرقمي مع بلدية الكويت.' : 'Employ an internal PRO to process work permits via Sahel business portal directly.'}</p>
+                <p className="font-bold text-emerald-700 dark:text-emerald-400">💰 {isAr ? 'العائد المالي المتوقع:' : 'Financial Return:'} +1,850.000 {isAr ? 'د.ك شهرياً (22,200 د.ك سنوياً)' : 'KWD/mo (22,200 KWD/yr)'}</p>
+              </div>
             </div>
+
             <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
               <span className="text-[11px] text-slate-500 font-mono">
                 {isAr ? 'توفير سنوي: 22,200 د.ك' : 'Annual: 22,200 KWD'}
@@ -898,25 +905,28 @@ export function AetherBiExecutiveDashboard({
           </div>
 
           {/* Recommendation 2: Fleet 17% to 10% */}
-          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-4 flex flex-col justify-between">
-            <div>
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 p-4 flex flex-col justify-between shadow-sm">
+            <div className="space-y-3">
               <div className="flex items-start justify-between gap-2">
                 <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
                   {isAr ? '🚚 تعظيم أرباح التوصيل والمنصات' : 'Delivery & Fleet Margin'}
                 </span>
                 <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
-                  {isAr ? '+3,420 د.ك شهرياً' : '+3,420 KWD/mo'}
+                  {isAr ? '+3,420.000 د.ك شهرياً' : '+3,420 KWD/mo'}
                 </span>
               </div>
-              <h3 className="mt-1 text-sm font-black text-slate-900 dark:text-white">
+              <h3 className="text-sm font-black text-slate-900 dark:text-white">
                 {isAr ? 'إعادة توزيع أسطول الشركة وخفض عمولة المنصات من 17% إلى 10%' : 'Rebalance Fleet to Shift 17% Orders to 10% Company Fleet'}
               </h3>
-              <p className="mt-1.5 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                {isAr
-                  ? 'رصد 6,554 طلباً خرجت بسائق المنصة (17%). التوصية: نقل دراجات التوصيل للقرين والسالمية في أوقات الذروة المسائية والمطالبة بالتعويض.'
-                  : '6,554 orders dispatched at 17%. Shift riders to Qurain & Salmiya peak evening windows and file SLA refund claims.'}
-              </p>
+
+              <div className="space-y-1.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-3 border border-slate-200/70 dark:border-slate-700/60 text-xs">
+                <p><strong className="text-slate-900 dark:text-slate-100">📊 {isAr ? 'البيان الإحصائي بأودو:' : 'Odoo Stat:'}</strong> {isAr ? 'تحويل 6,554 طلباً لسائقي المنصات (17%) بمبيعات 48,850 د.ك شهرياً.' : '6,554 orders dispatched via aggregator fleet (17%) generating 48,850 KWD GMV.'}</p>
+                <p><strong className="text-slate-900 dark:text-slate-100">🔍 {isAr ? 'السبب الجذري والانحراف:' : 'Root Cause & Variance:'}</strong> {isAr ? 'تسجيل إغلاق أسطول الشركة تلقائياً بسبب بطء الاستلام في فرعي السالمية والقرين.' : 'Auto-closing own fleet dispatch window due to dispatch latency at Salmiya & Qurain.'}</p>
+                <p><strong className="text-slate-900 dark:text-slate-100">🎯 {isAr ? 'التوصية العملية الدقيقة:' : 'Actionable Recommendation:'}</strong> {isAr ? 'إعادة تخصيص 5 سائقين لساعات الذروة وتفعيل تنبيه فوري قبل تحويل أي طلب للمنصة بـ 17%.' : 'Deploy 5 dedicated company riders for peak slots and restrict 17% auto-fallback.'}</p>
+                <p className="font-bold text-emerald-700 dark:text-emerald-400">💰 {isAr ? 'العائد المالي المتوقع:' : 'Financial Return:'} +3,420.000 {isAr ? 'د.ك شهرياً (41,040 د.ك سنوياً)' : 'KWD/mo (41,040 KWD/yr)'}</p>
+              </div>
             </div>
+
             <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
               <span className="text-[11px] text-slate-500 font-mono">
                 {isAr ? 'توفير سنوي: 41,040 د.ك' : 'Annual: 41,040 KWD'}
@@ -938,8 +948,8 @@ export function AetherBiExecutiveDashboard({
           </div>
 
           {/* Recommendation 3: BOM Yield */}
-          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-4 flex flex-col justify-between">
-            <div>
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 p-4 flex flex-col justify-between shadow-sm">
+            <div className="space-y-3">
               <div className="flex items-start justify-between gap-2">
                 <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
                   {isAr ? '🥩 ضبط تكلفة الأغذية والهدر' : 'Food Cost & BOM Yield Control'}
@@ -948,15 +958,18 @@ export function AetherBiExecutiveDashboard({
                   {isAr ? '+2,260.500 د.ك شهرياً' : '+2,260 KWD/mo'}
                 </span>
               </div>
-              <h3 className="mt-1 text-sm font-black text-slate-900 dark:text-white">
+              <h3 className="text-sm font-black text-slate-900 dark:text-white">
                 {isAr ? 'معايرة الوصفات المعيارية وإعادة التفاوض مع موردي اللحوم والزيوت' : 'BOM Yield Calibration & Meat/Oil Bulk Supplier Rebate'}
               </h3>
-              <p className="mt-1.5 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                {isAr
-                  ? 'رصد تجاوز استهلاك اللحوم والزيوت بنسبة +4.5%. التوصية: وزن الحصص مسبقاً بمطبخ القرين وتوحيد طلبات تشاينا جاردن ونودل بار.'
-                  : 'Meat & oil consumption exceeded standard BOM by +4.5%. Enforce portion control at Qurain and consolidate supplier orders.'}
-              </p>
+
+              <div className="space-y-1.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-3 border border-slate-200/70 dark:border-slate-700/60 text-xs">
+                <p><strong className="text-slate-900 dark:text-slate-100">📊 {isAr ? 'البيان الإحصائي بأودو:' : 'Odoo Stat:'}</strong> {isAr ? 'تجاوز استهلاك اللحوم والزيوت نسبة +4.5% عن الوصفة المعيارية بـ 364 صنفاً.' : 'Meat and oil consumption exceeded standard BOM by +4.5% across 364 recipes.'}</p>
+                <p><strong className="text-slate-900 dark:text-slate-100">🔍 {isAr ? 'السبب الجذري والانحراف:' : 'Root Cause & Variance:'}</strong> {isAr ? 'عدم استخدام ملاعق قياس معيارية عند التحضير وهدر زيت القلي دون فحص دوري للحموضة.' : 'Inconsistent manual portion scoops and premature cooking oil disposal without titration tests.'}</p>
+                <p><strong className="text-slate-900 dark:text-slate-100">🎯 {isAr ? 'التوصية العملية الدقيقة:' : 'Actionable Recommendation:'}</strong> {isAr ? 'إلزام المطبخ المركزي بالقرين بالتعبئة الموزونة مسبقاً وتوفير أجهزة فحص جودة الزيوت.' : 'Centralize portion weighing at Qurain and institute oil filtration quality protocols.'}</p>
+                <p className="font-bold text-emerald-700 dark:text-emerald-400">💰 {isAr ? 'العائد المالي المتوقع:' : 'Financial Return:'} +2,260.500 {isAr ? 'د.ك شهرياً (27,126 د.ك سنوياً)' : 'KWD/mo (27,126 KWD/yr)'}</p>
+              </div>
             </div>
+
             <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
               <span className="text-[11px] text-slate-500 font-mono">
                 {isAr ? 'توفير سنوي: 27,126 د.ك' : 'Annual: 27,126 KWD'}
@@ -978,25 +991,28 @@ export function AetherBiExecutiveDashboard({
           </div>
 
           {/* Recommendation 4: Maintenance */}
-          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-4 flex flex-col justify-between">
-            <div>
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 p-4 flex flex-col justify-between shadow-sm">
+            <div className="space-y-3">
               <div className="flex items-start justify-between gap-2">
                 <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
                   {isAr ? '❄️ الصيانة الوقائية وغرف التبريد' : 'Preventive Maintenance & Cold Chain'}
                 </span>
                 <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
-                  {isAr ? '+890 د.ك شهرياً' : '+890 KWD/mo'}
+                  {isAr ? '+890.000 د.ك شهرياً' : '+890 KWD/mo'}
                 </span>
               </div>
-              <h3 className="mt-1 text-sm font-black text-slate-900 dark:text-white">
+              <h3 className="text-sm font-black text-slate-900 dark:text-white">
                 {isAr ? 'استبدال ثلاجات الكوت والسالمية وإبرام عقد صيانة وقائية شامل' : 'Replace Faulty Chillers & Establish Unified Maintenance SLA'}
               </h3>
-              <p className="mt-1.5 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                {isAr
-                  ? 'رصد 10,707.930 د.ك عهدة ربيع لصيانة متكررة لنفس الوحدات. التوصية: استبدال فوري لوحدات الكوت والسالمية بضمان 3 سنوات.'
-                  : '10,707.930 KWD spent on repetitive repairs. Procure new inverter chillers with 3-year warranty for Al Kout & Salmiya.'}
-              </p>
+
+              <div className="space-y-1.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-3 border border-slate-200/70 dark:border-slate-700/60 text-xs">
+                <p><strong className="text-slate-900 dark:text-slate-100">📊 {isAr ? 'البيان الإحصائي بأودو:' : 'Odoo Stat:'}</strong> {isAr ? '10,707.930 د.ك عهدة ربيع لصيانة 9 كمبريسورات متكررة بفروع الكوت والسالمية.' : '10,707.930 KWD spent via Rabie custody on 9 repetitive chiller repairs.'}</p>
+                <p><strong className="text-slate-900 dark:text-slate-100">🔍 {isAr ? 'السبب الجذري والانحراف:' : 'Root Cause & Variance:'}</strong> {isAr ? 'تقادم وحدات التبريد وتكرار شحن الغاز دون معالجة التسريب الجذري للمواسير.' : 'Aged refrigeration coils with recurrent gas leaks repaired on ad-hoc basis.'}</p>
+                <p><strong className="text-slate-900 dark:text-slate-100">🎯 {isAr ? 'التوصية العملية الدقيقة:' : 'Actionable Recommendation:'}</strong> {isAr ? 'شراء وحدتين جديدتين إنفرتر موفرة للطاقة مع كفالة شاملة 3 سنوات وإبرام عقد صيانة موحد.' : 'Procure modern inverter units with 3-year warranty and replace ad-hoc technicians.'}</p>
+                <p className="font-bold text-emerald-700 dark:text-emerald-400">💰 {isAr ? 'العائد المالي المتوقع:' : 'Financial Return:'} +890.000 {isAr ? 'د.ك شهرياً (10,680 د.ك سنوياً)' : 'KWD/mo (10,680 KWD/yr)'}</p>
+              </div>
             </div>
+
             <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
               <span className="text-[11px] text-slate-500 font-mono">
                 {isAr ? 'توفير سنوي: 10,680 د.ك' : 'Annual: 10,680 KWD'}

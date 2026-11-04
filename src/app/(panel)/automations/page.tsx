@@ -24,10 +24,10 @@ async function AutomationsContent() {
 
 export default function AutomationsPage() {
   return (
-    <div className="w-full max-w-none">
+    <main className="w-full max-w-none px-4 py-6 sm:px-6" suppressHydrationWarning>
       <Suspense fallback={<PageSkeleton title="مركز قيادة مسارات الأتمتة والرادارات الحية" />}>
         <AutomationsContent />
       </Suspense>
-    </div>
+    </main>
   );
 }

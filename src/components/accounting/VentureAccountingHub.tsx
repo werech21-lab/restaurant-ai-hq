@@ -25,10 +25,12 @@ import {
   Store,
   ArrowUpRight,
   Truck,
+  TrendingUp,
 } from 'lucide-react'
 import { AutomatedGlBridge } from '@/components/finance/AutomatedGlBridge'
 import { VENTURE_FOODS_EVENTS } from '@/lib/events/venture-events-engine'
 import { KuwaitCoaBridgeView } from './KuwaitCoaBridgeView'
+import { OdooAccountingAnalyticsHub } from './OdooAccountingAnalyticsHub'
 import { OdooExpenseSingleModal, type NewExpensePayload } from './OdooExpenseSingleModal'
 import { OdooExpenseSheetModal, type NewExpenseSheetPayload } from './OdooExpenseSheetModal'
 
@@ -61,6 +63,7 @@ export function VentureAccountingHub({
   } catch {}
 
   const [activeTab, setActiveTab] = useState<
+    | 'odooAnalytics'
     | 'pnl'
     | 'fourWall'
     | 'coa4d'
@@ -78,7 +81,7 @@ export function VentureAccountingHub({
     | 'leases'
     | 'fleet'
     | 'legacy'
-  >('pnl')
+  >('odooAnalytics')
   const [currentLocale, setCurrentLocale] = useState<'ar' | 'en'>(locale)
 
   useEffect(() => {
@@ -325,6 +328,7 @@ export function VentureAccountingHub({
       {/* Specialized Tabs Navigation */}
       <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-800 pb-3">
         {[
+          { key: 'odooAnalytics', labelAr: '🧠 المحلل الإحصائي ورادار انحرافات العهد ومصروفات أودو (باريتو 80/20)', labelEn: 'Odoo Statistical Analyzer & Custody Radar', icon: TrendingUp },
           { key: 'pnl', labelAr: '📊 قائمة الدخل ومراكز تكلفة البراندات الـ 6 المعتمدة', labelEn: 'Brand P&L Cost Centers', icon: FileSpreadsheet },
           { key: 'fourWall', labelAr: '📋 قائمة الدخل المعيارية للفرع والبراند (تحليل الربحية الأربعة)', labelEn: 'Four-Wall Store P&L Benchmark', icon: Store },
           { key: 'coa4d', labelAr: '🗂️ شجرة الحسابات القياسية المعتمدة (1000–8300 بدقة الفلس الكويتي)', labelEn: 'Kuwait 4D COA (1000–8300)', icon: Scale },
@@ -361,6 +365,13 @@ export function VentureAccountingHub({
           )
         })}
       </div>
+
+      {/* ========================================================================= */}
+      {/* TAB 0: ODOO STATISTICAL ANALYZER & CUSTODY RADAR (PARETO 80/20)           */}
+      {/* ========================================================================= */}
+      {activeTab === 'odooAnalytics' && (
+        <OdooAccountingAnalyticsHub isAr={isAr} locale={currentLocale} />
+      )}
 
       {/* ========================================================================= */}
       {/* TAB 1: BRAND & BRANCH P&L COST CENTERS                                    */}

@@ -157,8 +157,10 @@ async function WarehousesContent({ searchParams }: { searchParams: Promise<RawQu
 
 export default function WarehousesPage({ searchParams }: { searchParams: Promise<RawQuery> }) {
   return (
-    <Suspense fallback={<PageSkeleton title="Warehouses" />}>
-      <WarehousesContent searchParams={searchParams} />
-    </Suspense>
+    <main className="w-full max-w-none px-4 py-6 sm:px-6" suppressHydrationWarning>
+      <Suspense fallback={<PageSkeleton title="Warehouses" />}>
+        <WarehousesContent searchParams={searchParams} />
+      </Suspense>
+    </main>
   );
 }

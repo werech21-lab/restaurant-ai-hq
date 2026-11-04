@@ -64,8 +64,10 @@ async function RecipesContent() {
 
 export default function RecipesPage() {
   return (
-    <Suspense fallback={<PageSkeleton title="Recipes" />}>
-      <RecipesContent />
-    </Suspense>
+    <main className="w-full max-w-none px-4 py-6 sm:px-6" suppressHydrationWarning>
+      <Suspense fallback={<PageSkeleton title="Recipes" />}>
+        <RecipesContent />
+      </Suspense>
+    </main>
   )
 }

@@ -725,7 +725,7 @@ export default function FoodSafetyHub() {
   }
 
   return (
-    <div className="w-full space-y-6 text-slate-100 font-sans" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="w-full max-w-none space-y-6 text-slate-900 dark:text-slate-100 font-sans" dir={isAr ? 'rtl' : 'ltr'}>
       {/* Top Header Card */}
       <div className="relative overflow-hidden rounded-3xl border border-slate-800 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 p-6 sm:p-8 shadow-2xl">
         <div className="absolute -top-24 -left-24 h-72 w-72 rounded-full bg-cyan-500/10 blur-3xl pointer-events-none" />
@@ -856,7 +856,7 @@ export default function FoodSafetyHub() {
       )}
 
       {/* Navigation Tabs (5 Tabs with Pure Arabic Labels) */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-slate-800 pb-3">
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
         {[
           {
             id: 'cold' as SafetyTab,
@@ -903,14 +903,14 @@ export default function FoodSafetyHub() {
               className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all cursor-pointer ${
                 isActive
                   ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-lg shadow-cyan-900/30'
-                  : 'bg-slate-900/80 text-slate-300 hover:bg-slate-800 hover:text-white border border-slate-800'
+                  : 'bg-white dark:bg-slate-900/80 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-800'
               }`}
             >
               <Icon size={16} />
               <span>{isAr ? t.labelAr : t.labelEn}</span>
               <span
                 className={`rounded-full px-2 py-0.5 text-[10px] font-mono font-bold ${
-                  isActive ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-400'
+                  isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
                 }`}
               >
                 {t.count}
@@ -926,10 +926,10 @@ export default function FoodSafetyHub() {
       {activeTab === 'cold' && (
         <div className="space-y-6">
           {/* Quick Branch Filter Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 p-4 shadow-sm">
             <div className="flex items-center gap-2">
-              <Filter size={16} className="text-cyan-400" />
-              <span className="text-xs font-bold text-slate-300">
+              <Filter size={16} className="text-cyan-600 dark:text-cyan-400" />
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
                 {isAr ? 'تصفية الفروع النشطة:' : 'Filter Active Branches:'}
               </span>
             </div>
@@ -953,7 +953,7 @@ export default function FoodSafetyHub() {
                   className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-all cursor-pointer ${
                     selectedBranchFilter === b.id
                       ? 'bg-cyan-500 text-black shadow-md'
-                      : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700 hover:text-white'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800/80 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white'
                   }`}
                 >
                   {isAr ? b.labelAr : b.labelEn}
