@@ -53,68 +53,53 @@ interface NavSection {
 
 const SIDEBAR_SECTIONS: NavSection[] = [
   {
-    id: 'executive-bi',
-    titleAr: 'القيادة والذكاء التنفيذي',
-    titleEn: 'Executive & BI',
+    id: 'odoo-executive',
+    titleAr: 'مرصد ومحلل أودو التنفيذي',
+    titleEn: 'Odoo Executive Sentinel & BI',
     items: [
-      { key: 'dashboard', href: '/dashboard', labelAr: 'لوحة القيادة التنفيذية', labelEn: 'Executive Dashboard', icon: LayoutDashboard },
-      { key: 'reports', href: '/reports', labelAr: 'التقارير المؤسسية', labelEn: 'Executive Reports', icon: BarChart3 },
-      { key: 'sales', href: '/sales', labelAr: 'المبيعات والقنوات', labelEn: 'Sales & Channels', icon: Receipt },
-      { key: 'erp-radar', href: '/erp/aggregator-radar', labelAr: 'رادار منصات التوصيل', labelEn: 'Aggregator Radar', icon: Radar, live: true },
+      { key: 'dashboard', href: '/dashboard', labelAr: 'المرصد التنفيذي الشامل لأودو', labelEn: 'Executive Odoo Sentinel', icon: LayoutDashboard },
+      { key: 'erp-intelligence', href: '/erp/intelligence', labelAr: 'مركز التنبيهات والانحرافات بأودو', labelEn: 'Odoo Anomaly Radar', icon: Brain, live: true },
+      { key: 'reports', href: '/reports', labelAr: 'المحلل الإحصائي وتقارير أودو', labelEn: 'Statistical Analysis & Pareto', icon: BarChart3 },
+      { key: 'accounting', href: '/accounting', labelAr: 'محلل قيود ومصروفات أودو', labelEn: 'Odoo Custody & GL Analyzer', icon: Landmark },
+      { key: 'erp-radar', href: '/erp/aggregator-radar', labelAr: 'رادار منصات التوصيل والعمولات', labelEn: 'Delivery Radar & Commission SLA', icon: Radar, live: true },
     ],
   },
   {
-    id: 'restaurant-ops',
-    titleAr: 'عمليات المطاعم والتشغيل',
-    titleEn: 'Restaurant Operations',
+    id: 'odoo-operations',
+    titleAr: 'تحليل عمليات ومخزون أودو',
+    titleEn: 'Odoo Operations & Supply Chain',
     items: [
-      { key: 'pos', href: '/pos', labelAr: 'نقطة البيع والكاشير', labelEn: 'POS Terminal', icon: Monitor },
-      { key: 'kds', href: '/kds', labelAr: 'شاشة تحضير المطبخ', labelEn: 'Kitchen Display (KDS)', icon: ChefHat },
-      { key: 'recipes', href: '/recipes', labelAr: 'الوصفات وتكاليف الطعام', labelEn: 'Recipes & Food Cost', icon: UtensilsCrossed },
-      { key: 'food-safety', href: '/erp/food-safety', labelAr: 'سلامة الغذاء والهاسب', labelEn: 'Food Safety & HACCP', icon: ThermometerSnowflake, live: true },
+      { key: 'recipes', href: '/recipes', labelAr: 'انحرافات الوصفات وتكلفة الطعام', labelEn: 'BOM Variance & Food Cost', icon: UtensilsCrossed },
+      { key: 'inventory', href: '/inventory', labelAr: 'حركات مخزون أودو ومطبخ القرين', labelEn: 'Odoo Inventory & Central Kitchen', icon: Package },
+      { key: 'sales', href: '/sales', labelAr: 'محلل المبيعات والقنوات بأودو', labelEn: 'Odoo Sales & Channels', icon: Receipt },
+      { key: 'food-safety', href: '/erp/food-safety', labelAr: 'سلامة الغذاء والتبريد (القرين والفروع)', labelEn: 'Cold-Chain & HACCP', icon: ThermometerSnowflake, live: true },
+      { key: 'purchases', href: '/purchases', labelAr: 'مشتريات وموردي أودو', labelEn: 'Purchases & Vendors', icon: ShoppingCart },
+      { key: 'warehouses', href: '/warehouses', labelAr: 'الفروع الـ 9 والمستودعات', labelEn: '9 Active Branches & Warehouses', icon: Warehouse },
     ],
   },
   {
-    id: 'supply-chain',
-    titleAr: 'سلاسل الإمداد والمخزون',
-    titleEn: 'Supply Chain & Inventory',
+    id: 'odoo-governance',
+    titleAr: 'حوكمة العهد والموارد البشرية بأودو',
+    titleEn: 'Odoo Governance, Custody & HR',
     items: [
-      { key: 'inventory', href: '/inventory', labelAr: 'المخزون وحركات المواد', labelEn: 'Inventory', icon: Package },
-      { key: 'warehouses', href: '/warehouses', labelAr: 'الفروع والمستودعات', labelEn: 'Warehouses & Branches', icon: Warehouse },
-      { key: 'purchases', href: '/purchases', labelAr: 'المشتريات والموردين', labelEn: 'Purchases & Vendors', icon: ShoppingCart },
-    ],
-  },
-  {
-    id: 'finance-hr-events',
-    titleAr: 'المالية والموارد والفعاليات',
-    titleEn: 'Finance, HR & Events',
-    items: [
-      { key: 'accounting', href: '/accounting', labelAr: 'المحاسبة والشجرة المالية', labelEn: 'Finance & Accounting', icon: Landmark },
-      { key: 'hr', href: '/hr', labelAr: 'الموارد البشرية وقانون العمل', labelEn: 'HR & Kuwait Labor 6/2010', icon: IdCard },
-      { key: 'events-projects', href: '/erp/events-projects', labelAr: 'المشاريع والفعاليات والمخيمات', labelEn: 'Events, Camps & Projects', icon: Store },
+      { key: 'hr', href: '/hr', labelAr: 'كروت البلدية وإقامات موظفي أودو (166)', labelEn: 'Odoo HR, PAM & Residency', icon: IdCard },
+      { key: 'erp-governance', href: '/erp/governance', labelAr: 'حوكمة العهد ومكتب سند والرقابة', labelEn: 'Odoo Custody Governance', icon: Scale },
+      { key: 'smart-dropzone', href: '/erp/smart-dropzone', labelAr: 'السحب والتحليل الذكي لقيود أودو', labelEn: 'Odoo AI Smart Dropzone', icon: Sparkles, live: true },
+      { key: 'erp-archive', href: '/erp/archive', labelAr: 'الأرشيف الرقمي والتعرف الضوئي', labelEn: 'OCR Smart Archive', icon: Archive },
       { key: 'crm', href: '/crm', labelAr: 'علاقات العملاء والتموين', labelEn: 'CRM & Catering', icon: Contact },
     ],
   },
   {
-    id: 'ai-governance',
-    titleAr: 'الذكاء الاصطناعي والحوكمة',
-    titleEn: 'AI & Governance',
+    id: 'odoo-automation-system',
+    titleAr: 'محرك القرارات والمنظومة',
+    titleEn: 'AI Decision Studio & System',
     items: [
-      { key: 'smart-dropzone', href: '/erp/smart-dropzone', labelAr: 'السحب الذكي للمستندات', labelEn: 'AI Smart Dropzone', icon: Sparkles, live: true },
-      { key: 'erp-intelligence', href: '/erp/intelligence', labelAr: 'ذكاء القرارات التشغيلية', labelEn: 'Decision Intelligence', icon: Brain },
-      { key: 'erp-governance', href: '/erp/governance', labelAr: 'الحوكمة والامتثال', labelEn: 'Governance & Compliance', icon: Scale },
-      { key: 'erp-archive', href: '/erp/archive', labelAr: 'الأرشفة الضوئية للمستندات', labelEn: 'OCR Smart Archive', icon: Archive },
-    ],
-  },
-  {
-    id: 'system-access',
-    titleAr: 'المنظومة وإدارة الوصول',
-    titleEn: 'System & Access Control',
-    items: [
-      { key: 'automations', href: '/automations', labelAr: 'الأتمتة والتنبيهات', labelEn: 'Automations & Alerts', icon: Zap },
-      { key: 'users', href: '/users', labelAr: 'المستخدمون وفريق العمل', labelEn: 'Users & Staff', icon: Users },
-      { key: 'roles', href: '/roles', labelAr: 'الأدوار والصلاحيات', labelEn: 'Roles & Permissions', icon: Shield },
-      { key: 'app-builder', href: '/app-builder', labelAr: 'مدير التطبيقات', labelEn: 'App Manager', icon: Blocks },
+      { key: 'automations', href: '/automations', labelAr: 'رادارات ومسارات الأتمتة الحية', labelEn: 'Live Automated Radars', icon: Zap },
+      { key: 'users', href: '/users', labelAr: 'المستخدمون وصلاحيات أودو', labelEn: 'Users & Odoo Access', icon: Users },
+      { key: 'roles', href: '/roles', labelAr: 'الأدوار والمصفوفة الرقابية', labelEn: 'Roles & Security Matrix', icon: Shield },
+      { key: 'app-builder', href: '/app-builder', labelAr: 'مدير تطبيقات ونماذج أودو', labelEn: 'App & Model Studio', icon: Blocks },
+      { key: 'pos', href: '/pos', labelAr: 'نقطة البيع والكاشير', labelEn: 'POS Terminal', icon: Monitor },
+      { key: 'kds', href: '/kds', labelAr: 'شاشة تحضير المطبخ', labelEn: 'Kitchen Display (KDS)', icon: ChefHat },
     ],
   },
 ]
@@ -130,8 +115,18 @@ export function Sidebar({ user }: { user: AccessUser; enabledKeys?: string[] | n
       <div className="border-b border-slate-800/80 px-4 py-4 bg-[#07090e]">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/venture-foods-logo-dark.svg" alt={isAr ? 'فنتشر فودز' : 'Venture Foods'} className="h-10 w-auto object-contain" />
-        <p className="mt-2.5 text-[11px] font-bold leading-4 text-slate-300 truncate">{isAr ? 'فنتشر فودز' : companyName}</p>
-        <p className="mt-1 text-[11px] font-bold text-[#8cc63f] whitespace-nowrap overflow-visible leading-tight tracking-tight">{isAr ? '6 علامات تجارية · 9 فروع نشطة' : t('panel.tagline')}</p>
+        <div className="mt-2.5 flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <p className="text-[12px] font-black text-white truncate">
+            {isAr ? 'مرصد ومحلل أودو الذكي' : 'Odoo AI Sentinel & Analytics'}
+          </p>
+        </div>
+        <p className="mt-0.5 text-[11px] font-bold text-slate-300 truncate">
+          {isAr ? 'شركة فنتشر فودز ذ.م.م. (ترخيص 2021/22838)' : 'Venture Foods W.L.L. (Lic. 2021/22838)'}
+        </p>
+        <p className="mt-1 text-[10px] font-bold text-[#8cc63f] whitespace-nowrap overflow-visible leading-tight tracking-tight">
+          {isAr ? '6 علامات تجارية · 9 فروع · مطبخ القرين' : '6 Brands · 9 Active Branches · Central Kitchen'}
+        </p>
       </div>
 
       {/* Navigation Sections */}

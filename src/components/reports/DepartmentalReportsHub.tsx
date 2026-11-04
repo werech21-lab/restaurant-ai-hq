@@ -371,6 +371,7 @@ export function DepartmentalReportsHub({ initialReportId, locale = 'ar', liveDbC
             <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto pb-1">
               {[
                 { id: 'all', labelAr: 'جميع القطاعات', labelEn: 'All Divisions', icon: Sparkles },
+                { id: 'odoo-deep', labelAr: '📊 محلل أودو الإحصائي (4D & باريتو)', labelEn: 'Odoo Deep Stats (4D & Pareto)', icon: BarChart3 },
                 { id: 'sales', labelAr: '📊 المبيعات والطلبات', labelEn: 'Sales & Orders', icon: ShoppingBag },
                 { id: 'finance', labelAr: '💰 الإدارة المالية وP&L', labelEn: 'Finance & P&L', icon: Landmark },
                 { id: 'inventory', labelAr: '📦 المخزون والوصفات', labelEn: 'Inventory & BOM', icon: Package },
@@ -402,6 +403,176 @@ export function DepartmentalReportsHub({ initialReportId, locale = 'ar', liveDbC
 
           {/* Department Sections & Report Cards Grid */}
           <div className="space-y-10">
+
+            {/* ODOO DEEP STATISTICAL ANALYTICS & 4D PARETO VIEW */}
+            {activeDeptFilter === 'odoo-deep' && (
+              <div className="space-y-6">
+                {/* 1. Custodians 8-Way Matrix */}
+                <div className="rounded-3xl border border-slate-800 bg-[#0d131f] p-6 shadow-xl">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4">
+                    <div>
+                      <h3 className="text-base font-black text-white sm:text-lg">
+                        {isAr ? '⚖️ إحصائيات العهد الـ 8 وتوزيع الـ 51,154.950 د.ك في أودو' : '⚖️ 8 Custodians Ledger & Odoo Petty Cash Matrix (51,154.950 KWD)'}
+                      </h3>
+                      <p className="mt-0.5 text-xs text-slate-400">
+                        {isAr
+                          ? 'تحليل إحصائي معمق يوضح الحصة النسبية، عدد المعاملات، المتوسط الحسابي، والانحراف المعياري لكل عهدة.'
+                          : 'Statistical breakdown displaying relative share, txn volume, mean ticket size, and standard deviation per custodian.'}
+                      </p>
+                    </div>
+                    <span className="rounded-xl border border-slate-800 bg-slate-900 px-3 py-1.5 text-xs font-mono font-bold text-slate-300">
+                      {isAr ? 'إجمالي العهد: 51,154.950 د.ك' : 'Total Custody: 51,154.950 KWD'}
+                    </span>
+                  </div>
+
+                  <div className="mt-4 overflow-x-auto">
+                    <table className="w-full text-xs text-start">
+                      <thead className="border-b border-slate-800 text-slate-400">
+                        <tr>
+                          <th className="py-2.5 px-3 text-start">{isAr ? 'العهدة / الشخص المسؤول' : 'Custodian'}</th>
+                          <th className="py-2.5 px-3 text-start">{isAr ? 'طبيعة المصروفات' : 'Role / Scope'}</th>
+                          <th className="py-2.5 px-3 text-end">{isAr ? 'عدد الحركات' : 'Txns'}</th>
+                          <th className="py-2.5 px-3 text-end">{isAr ? 'المتوسط (د.ك)' : 'Mean (KWD)'}</th>
+                          <th className="py-2.5 px-3 text-end">{isAr ? 'الانحراف' : 'Std Dev'}</th>
+                          <th className="py-2.5 px-3 text-end">{isAr ? 'الإجمالي (د.ك)' : 'Total (KWD)'}</th>
+                          <th className="py-2.5 px-3 text-end">{isAr ? 'النسبة %' : 'Share %'}</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5">
+                        {[
+                          { nameAr: 'سند للتعقيب والخدمات الحكومية', nameEn: 'Sanad PRO & Govt Services', amountKwd: 31646.750, pct: 61.86, txCount: 1412, roleAr: 'إقامات، كروت بلدية، ضمان صحي، رخص تجارية', roleEn: 'Residencies, Baladiya, MOH, Licenses', avgTxKwd: 22.41, stdDev: '± 8.4%' },
+                          { nameAr: 'ربيع عطا طه (صيانة المطابخ والفروع)', nameEn: 'Rabih Atta Taha (Maintenance)', amountKwd: 10707.930, pct: 20.93, txCount: 538, roleAr: 'صيانة غرف تبريد، كمبريسورات، كهرباء، إطفاء', roleEn: 'Cold rooms, compressors, HVAC, fire safety', avgTxKwd: 19.90, stdDev: '± 12.1%' },
+                          { nameAr: 'شيلا أمبوس بولبولي (إسناد وتشغيل)', nameEn: 'Sheila Ambos Bulboli (Operations)', amountKwd: 2840.400, pct: 5.55, txCount: 114, roleAr: 'مشتريات تشغيل طارئة، إسناد لوجستي للفروع', roleEn: 'Emergency ops, branch consumables', avgTxKwd: 24.91, stdDev: '± 5.2%' },
+                          { nameAr: 'أمجد سمير (المشتريات السريعة)', nameEn: 'Amjad Samir (Fast Procurement)', amountKwd: 2115.650, pct: 4.14, txCount: 86, roleAr: 'شراء خضار ومواد طازجة عاجلة للفروع', roleEn: 'Fresh produce, dairy branch supplements', avgTxKwd: 24.60, stdDev: '± 6.8%' },
+                          { nameAr: 'شيام (الموارد البشرية والشؤون)', nameEn: 'Shyam (HR & Welfare)', amountKwd: 1420.250, pct: 2.78, txCount: 42, roleAr: 'تنقلات العمال، رعاية وسكن الموظفين', roleEn: 'Worker transit, staff welfare & housing', avgTxKwd: 33.81, stdDev: '± 4.9%' },
+                          { nameAr: 'نادر نزهي (الخدمات العامة)', nameEn: 'Nader Nezhy (General Services)', amountKwd: 1180.500, pct: 2.31, txCount: 38, roleAr: 'نثريات إدارية، رسوم اتصالات وبريد', roleEn: 'Corporate admin, courier & communications', avgTxKwd: 31.06, stdDev: '± 3.8%' },
+                          { nameAr: 'شكر الله ناصيف (المستودع والإسناد)', nameEn: 'Shokrallah Nassif (Warehouse Support)', amountKwd: 850.320, pct: 1.66, txCount: 22, roleAr: 'أدوات تغليف وطوارئ شحن القرين', roleEn: 'Packaging tools & Qurain warehouse support', avgTxKwd: 38.65, stdDev: '± 5.1%' },
+                          { nameAr: 'نوشا شريف (نثريات الضيافة والإدارة)', nameEn: 'Nousha Sharif (Office Hospitality)', amountKwd: 393.150, pct: 0.77, txCount: 16, roleAr: 'ضيافة مكتب الإدارة العامة والاجتماعات', roleEn: 'HQ office pantry, executive hospitality', avgTxKwd: 24.57, stdDev: '± 2.4%' },
+                        ].map((c) => (
+                          <tr key={c.nameEn} className="hover:bg-white/[0.02]">
+                            <td className="py-3 px-3 font-bold text-white">
+                              {isAr ? c.nameAr : c.nameEn}
+                            </td>
+                            <td className="py-3 px-3 text-slate-400">
+                              {isAr ? c.roleAr : c.roleEn}
+                            </td>
+                            <td className="py-3 px-3 text-end font-mono text-slate-500">{c.txCount}</td>
+                            <td className="py-3 px-3 text-end font-mono text-slate-300 font-semibold">{c.avgTxKwd.toFixed(2)}</td>
+                            <td className="py-3 px-3 text-end font-mono text-amber-400">{c.stdDev}</td>
+                            <td className="py-3 px-3 text-end font-mono font-bold text-white">
+                              {c.amountKwd.toLocaleString(undefined, { minimumFractionDigits: 3 })}
+                            </td>
+                            <td className="py-3 px-3 text-end font-mono font-bold text-emerald-400">
+                              {c.pct}%
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* 2. Pareto 80/20 Card */}
+                <div className="rounded-3xl border border-slate-800 bg-[#0d131f] p-6 shadow-xl">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4">
+                    <div>
+                      <h3 className="text-base font-black text-white sm:text-lg">
+                        {isAr ? '📈 تحليل باريتو الإحصائي (قاعدة 80/20) لمصروفات أودو' : '📈 Pareto 80/20 Statistical Analysis of Odoo Expenses'}
+                      </h3>
+                      <p className="mt-0.5 text-xs text-slate-400">
+                        {isAr
+                          ? 'تحديد الـ 20% من بنود المصروفات التي تستحوذ على 80% من التكاليف في أودو (أعلى 5 بنود = 75.38%).'
+                          : 'Identified top 20% of cost centers driving 80% of aggregate Odoo spend (top 5 lines = 75.38%).'}
+                      </p>
+                    </div>
+                    <span className="rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20 px-3 py-1 text-xs font-bold">
+                      {isAr ? 'قاعدة باريتو 80/20' : 'Pareto 80/20'}
+                    </span>
+                  </div>
+
+                  <div className="mt-4 overflow-x-auto">
+                    <table className="w-full text-xs text-start">
+                      <thead className="border-b border-slate-800 text-slate-400">
+                        <tr>
+                          <th className="py-2.5 px-3 text-start">#</th>
+                          <th className="py-2.5 px-3 text-start">{isAr ? 'بند المصروف بأودو' : 'Expense Category'}</th>
+                          <th className="py-2.5 px-3 text-start">{isAr ? 'القطاع' : 'Division'}</th>
+                          <th className="py-2.5 px-3 text-end">{isAr ? 'المبلغ (د.ك)' : 'Amount (KWD)'}</th>
+                          <th className="py-2.5 px-3 text-end">{isAr ? 'النسبة من الإجمالي' : 'Share %'}</th>
+                          <th className="py-2.5 px-3 text-end">{isAr ? 'التراكمي (Pareto %)' : 'Cumulative %'}</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5">
+                        {[
+                          { rank: 1, nameAr: 'مصاريف تجديد الإقامات وأذونات العمل', nameEn: 'Residency Renewals & PAM Permits', amountKwd: 14912.800, pct: 29.15, cumPct: 29.15, categoryAr: 'شؤون وقوى عاملة' },
+                          { rank: 2, nameAr: 'الصيانة العامة للمطابخ والفروع', nameEn: 'Kitchen & Branch Maintenance', amountKwd: 10707.930, pct: 20.93, cumPct: 50.08, categoryAr: 'صيانة وتبريد' },
+                          { rank: 3, nameAr: 'رسوم الضمان الصحي وبطاقات وزارة الصحة', nameEn: 'Health Insurance & MOH Fees', amountKwd: 6945.000, pct: 13.58, cumPct: 63.66, categoryAr: 'صحة وضمان' },
+                          { rank: 4, nameAr: 'الإعلانات والتراخيص التجارية والبلدية', nameEn: 'Baladiya Licenses & Ads Approvals', amountKwd: 4216.500, pct: 8.24, cumPct: 71.90, categoryAr: 'بلدية وتراخيص' },
+                          { rank: 5, nameAr: 'فحص العمالة وكروت الصحة للبلدية', nameEn: 'Staff Medical Exams & Health Cards', amountKwd: 1778.000, pct: 3.48, cumPct: 75.38, categoryAr: 'كروت صحة' },
+                          { rank: 6, nameAr: 'باقي بنود المصروفات الـ 20 مجتمعة', nameEn: 'Remaining 20 Expense Items Combined', amountKwd: 12594.720, pct: 24.62, cumPct: 100.00, categoryAr: 'نثريات وتشغيل' },
+                        ].map((row) => (
+                          <tr key={row.rank} className="hover:bg-white/[0.02]">
+                            <td className="py-3 px-3 font-mono font-bold text-slate-500">{row.rank}</td>
+                            <td className="py-3 px-3 font-bold text-white">
+                              {isAr ? row.nameAr : row.nameEn}
+                            </td>
+                            <td className="py-3 px-3 text-slate-400">{row.categoryAr}</td>
+                            <td className="py-3 px-3 text-end font-mono font-bold text-white">
+                              {row.amountKwd.toLocaleString(undefined, { minimumFractionDigits: 3 })}
+                            </td>
+                            <td className="py-3 px-3 text-end font-mono text-emerald-400 font-bold">
+                              {row.pct}%
+                            </td>
+                            <td className="py-3 px-3 text-end font-mono font-bold text-purple-400">
+                              {row.cumPct}%
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* 3. 4D Profitability Dimensions */}
+                <div className="rounded-3xl border border-slate-800 bg-[#0d131f] p-6 shadow-xl">
+                  <h3 className="text-base font-black text-white sm:text-lg">
+                    {isAr ? '🌐 إحصائيات الربحية الرباعية بأودو (4D Profitability Analysis)' : '🌐 Odoo 4D Profitability Analysis'}
+                  </h3>
+                  <p className="mt-0.5 text-xs text-slate-400">
+                    {isAr
+                      ? 'تحليل الأبعاد الأربعة في أودو: (العلامة التجارية × الفرع × القسم التشغيلي × قناة البيع والتوصيل).'
+                      : 'Evaluating 4 primary Odoo dimensions: (Brand × Branch × Division × Channel).'}
+                  </p>
+
+                  <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
+                      <div className="text-xs font-bold text-slate-400">{isAr ? 'البُعد 1: العلامة التجارية' : 'Dimension 1: Brand'}</div>
+                      <div className="mt-2 text-sm font-black text-white">{isAr ? 'تشاينا جاردن (84.8%)' : 'China Garden (84.8%)'}</div>
+                      <div className="text-xs text-slate-400 mt-1">141,662.650 د.ك · هامش 28.4%</div>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
+                      <div className="text-xs font-bold text-slate-400">{isAr ? 'البُعد 2: الفرع الأعلى كفاءة' : 'Dimension 2: Top Branch'}</div>
+                      <div className="mt-2 text-sm font-black text-white">{isAr ? 'مطبخ القرين المركزي' : 'Qurain Central Kitchen'}</div>
+                      <div className="text-xs text-slate-400 mt-1">36,400.000 د.ك · هامش 32.1%</div>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
+                      <div className="text-xs font-bold text-slate-400">{isAr ? 'البُعد 3: القسم التشغيلي' : 'Dimension 3: Division'}</div>
+                      <div className="mt-2 text-sm font-black text-white">{isAr ? 'التوصيل والمنصات (60%)' : 'Delivery Aggregators (60%)'}</div>
+                      <div className="text-xs text-slate-400 mt-1">103,876.750 د.ك مبيعات مجمعة</div>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
+                      <div className="text-xs font-bold text-slate-400">{isAr ? 'البُعد 4: قناة البيع الأكثر ربحية' : 'Dimension 4: Top Channel'}</div>
+                      <div className="mt-2 text-sm font-black text-white">{isAr ? 'الصالات والسفري المباشر' : 'Dine-In & Direct Takeaway'}</div>
+                      <div className="text-xs text-slate-400 mt-1">58,972.250 د.ك · عمولة 0%</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {filteredDepartments.map((dept) => (
               <div key={dept.id} className="space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-800 pb-2">

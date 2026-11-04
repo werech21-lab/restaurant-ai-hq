@@ -4,8 +4,8 @@ import IntelligenceWorkspace from '@/modules/governance/ui/IntelligenceWorkspace
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: 'غرفة القرار الذكي والتحليلات التنبؤية | شركة فنتشر فودز ذ.م.م.',
-  description: 'تحليل الأداء التشغيلي والمالي التنبؤي لشركة فنتشر فودز لإدارة المطاعم ذ.م.م.',
+  title: 'مركز التنبيهات والانحرافات الجنائية ومحرك التوصيات في أودو | فنتشر فودز · AetherBI',
+  description: 'مرصد وبنك قرارات أودو الجنائي الذكي لشركة فنتشر فودز لإدارة المطاعم ذ.م.م.',
 }
 
 export default async function IntelligencePage({ searchParams }: { searchParams: Promise<{ tab?: string | string[] }> }) {
