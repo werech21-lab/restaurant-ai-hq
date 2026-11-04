@@ -54,7 +54,7 @@ export function PageHeader({
 }
 
 export function DataCard({ children }: { children: React.ReactNode }) {
-  return <div className={cx(cardClass, "overflow-hidden")}>{children}</div>;
+  return <div className={cx(cardClass, "w-full max-w-none overflow-hidden")}>{children}</div>;
 }
 
 export function StatusBadge({ status }: { status: string }) {
