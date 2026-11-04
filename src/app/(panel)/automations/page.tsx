@@ -9,8 +9,8 @@ import { VentureAutomationHub } from "@/components/automation/VentureAutomationH
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "نظام التنبيهات والمتابعة التلقائية | شركة فنتشر فودز ذ.م.م.",
-  description: "6 تنبيهات ذكية متصلة مباشرة بنظام الشركة والإيميل الرسمي لشركة فنتشر فودز لإدارة المطاعم ذ.م.م.",
+  title: "إدارة التنبيهات والمتابعة التلقائية | شركة فنتشر فودز ذ.م.م.",
+  description: "نظام التنبيهات والمتابعة التلقائية لشركة فنتشر فودز لإدارة المطاعم ذ.م.م.",
 };
 
 async function AutomationsContent() {
@@ -25,7 +25,7 @@ async function AutomationsContent() {
 export default function AutomationsPage() {
   return (
     <main className="w-full max-w-none px-4 py-6 sm:px-6" suppressHydrationWarning>
-      <Suspense fallback={<PageSkeleton title="نظام التنبيهات والمتابعة التلقائية" />}>
+      <Suspense fallback={<PageSkeleton title="إدارة التنبيهات والمتابعة التلقائية" />}>
         <AutomationsContent />
       </Suspense>
     </main>

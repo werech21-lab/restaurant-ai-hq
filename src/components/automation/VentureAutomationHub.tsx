@@ -2,25 +2,22 @@
 
 import React, { useState } from 'react'
 import {
-  Zap,
+  Bell,
   Mail,
   CheckCircle2,
-  AlertTriangle,
-  Play,
-  RotateCw,
   Clock,
-  ShieldCheck,
   Server,
-  Layers,
   ThermometerSnowflake,
   Users,
   ShoppingCart,
   Receipt,
-  Sparkles,
   Plus,
-  Send,
-  Eye,
+  RotateCw,
+  Play,
   Sliders,
+  Store,
+  Package,
+  Landmark,
 } from 'lucide-react'
 
 export interface AutomationWorkflow {
@@ -47,117 +44,117 @@ export interface AutomationWorkflow {
 const INITIAL_WORKFLOWS: AutomationWorkflow[] = [
   {
     id: 'wf-radar',
-    code: 'VF-AUTO-RADAR-01',
-    titleAr: 'متابعة تطبيقات التوصيل والعمولات',
-    titleEn: 'Aggregator Offline & Forced TGO 17% Watchdog',
+    code: 'VF-NOTIF-01',
+    titleAr: 'متابعة تطبيقات التوصيل',
+    titleEn: 'Delivery Aggregator Monitoring',
     departmentAr: 'التشغيل والتوصيل',
-    departmentEn: 'Aggregator Operations',
-    triggerAr: 'فحص كل 5 دقائق: إغلاق فرع أكثر من 30 دقيقة أو تحويل طلبات التوصيل من 10% إلى أسطول المنصة 17%',
-    triggerEn: 'Every 5m: branch offline > 30m or forced switch from TMP 10% to TGO 17%',
-    actionAr: 'إرسال تنبيه فوري عبر الإيميل للأشخاص المعتمدين لفتح الفرع أو معالجة النسبة',
-    actionEn: 'Dispatch forensic email alert via SMTP to 3 verified stakeholders',
+    departmentEn: 'Operations & Delivery',
+    triggerAr: 'فحص كل 5 دقائق: إغلاق أحد الفروع في التطبيق أكثر من 30 دقيقة أو تحويل طلبات التوصيل من 10% إلى أسطول المنصة 17%',
+    triggerEn: 'Every 5m: branch offline > 30m or switch from restaurant delivery 10% to aggregator fleet 17%',
+    actionAr: 'إرسال تنبيه فوري عبر البريد الإلكتروني لمسؤولي التشغيل للتواصل مع المنصة وإلزام الفرع بالتشغيل',
+    actionEn: 'Dispatch immediate email alert to operations team to resolve branch status or commission rate',
     scheduleAr: 'مستمر · كل 5 دقائق',
     scheduleEn: 'Continuous · Every 5 mins',
-    icon: '🚨',
-    color: '#ef4444',
+    icon: '🛵',
+    color: '#0284c7',
     isActive: true,
-    lastRun: 'منذ 3 دقائق',
+    lastRun: 'منذ دقيقتين',
     successRate: '99.8%',
     runEndpoint: '/api/aggregator-radar/alert',
   },
   {
     id: 'wf-stock',
-    code: 'VF-AUTO-STOCK-02',
-    titleAr: 'تنبيه نقص المخزون وطلبات مطبخ القرين',
-    titleEn: 'Low-Stock & Al-Qurain Central Kitchen Auto-Order',
+    code: 'VF-NOTIF-02',
+    titleAr: 'تنبيه نقص مخزون مطبخ القرين',
+    titleEn: 'Al-Qurain Central Kitchen Stock Alert',
     departmentAr: 'المخزون والتوريد',
-    departmentEn: 'Inventory & Kitchen Supply',
-    triggerAr: 'نزول رصيد أي مادة خام أو مواد تغليف أو تحضير مركزي تحت الحد الأدنى',
-    triggerEn: 'SKU drops below Reorder Point across raw (RW01), pack (PI02) or prep (PP03)',
-    actionAr: 'تجهيز مسودة طلب الشراء تلقائياً وتنبيه مسؤولي العمليات ومستودع القرين',
-    actionEn: 'Auto-generate PO draft & alert Operations & Al-Qurain Commissary',
-    scheduleAr: 'عند تغير الرصيد',
+    departmentEn: 'Inventory & Supply',
+    triggerAr: 'نزول رصيد أي مادة خام أو مواد تغليف أو أصناف تحضير مركزي في مطبخ القرين عن الحد الأدنى المحدد',
+    triggerEn: 'Item stock level in Al-Qurain drops below standard reorder threshold',
+    actionAr: 'إنشاء مسودة طلب شراء آلياً وتنبيه مسؤولي العمليات ومستودع المطبخ المركزي بالقرين',
+    actionEn: 'Generate draft purchase order and alert Operations and Central Kitchen Commissary',
+    scheduleAr: 'عند حركة المخزون',
     scheduleEn: 'On stock movement',
     icon: '📦',
-    color: '#f59e0b',
+    color: '#d97706',
     isActive: true,
-    lastRun: 'منذ 14 دقيقة',
+    lastRun: 'منذ 10 دقائق',
     successRate: '100%',
   },
   {
     id: 'wf-fefo',
-    code: 'VF-AUTO-FEFO-03',
+    code: 'VF-NOTIF-03',
     titleAr: 'مراقبة الثلاجات وتواريخ الصلاحية',
-    titleEn: 'FEFO Shelf-Life & Cold-Chain Breach Guard',
-    departmentAr: 'سلامة الغذاء والهاسب',
-    departmentEn: 'Food Safety & HACCP',
-    triggerAr: 'اقتراب انتهاء دفعة تحضير (أقل من 4 ساعات) أو ارتفاع حرارة الثلاجة عن 4°C أو الفريزر عن -18°C',
-    triggerEn: 'Prep batch expiry < 4h or chiller temp > 4°C / freezer > -18°C',
-    actionAr: 'إرسال تنبيه فوري بسحب الدفعة وإشعار مدير الفرع ومسؤول الجودة',
-    actionEn: 'Issue instant batch recall alert & notify Branch Manager & QA lead',
-    scheduleAr: 'فوري · رصد مستمر',
-    scheduleEn: 'Real-time telemetry',
+    titleEn: 'Chiller Temperatures & Expiry Monitoring',
+    departmentAr: 'الجودة وسلامة الغذاء',
+    departmentEn: 'Food Safety & QA',
+    triggerAr: 'ارتفاع حرارة مبردات الحفظ عن 4°C أو الفريزر عن -18°C أو اقتراب انتهاء دفعة طعام جاهز (أقل من 4 ساعات)',
+    triggerEn: 'Chiller temp > 4°C, freezer > -18°C, or prep batch shelf-life < 4 hours',
+    actionAr: 'إرسال إشعار فوري لمدير الفرع وفني الصيانة وقسم الجودة لمعاينة الثلاجة وسحب الدفعة إن لزم',
+    actionEn: 'Dispatch instant notice to branch manager, technician, and QA supervisor',
+    scheduleAr: 'رصد مستمر',
+    scheduleEn: 'Continuous monitoring',
     icon: '❄️',
-    color: '#06b6d4',
+    color: '#0891b2',
     isActive: true,
-    lastRun: 'منذ 28 دقيقة',
+    lastRun: 'منذ 25 دقيقة',
+    successRate: '100%',
+  },
+  {
+    id: 'wf-custody',
+    code: 'VF-NOTIF-04',
+    titleAr: 'متابعة العهد والمصاريف',
+    titleEn: 'Branch Petty Cash & Expenses Control',
+    departmentAr: 'المالية والمحاسبة',
+    departmentEn: 'Finance & Accounting',
+    triggerAr: 'تسجيل قيود عهدة تشغيلية أو مصروف نثري في أي فرع يتجاوز السقف اليومي المعتمد في الميزانية',
+    triggerEn: 'Branch petty cash or daily operational expense entry exceeds approved threshold',
+    actionAr: 'إرسال إشعار للإدارة المالية للمراجعة والتدقيق المحاسبي وقفل صرف العهدة لحين اعتمادها',
+    actionEn: 'Notify Finance for audit review and require executive clearance before replenishment',
+    scheduleAr: 'عند تسجيل القيد',
+    scheduleEn: 'Upon ledger entry',
+    icon: '💼',
+    color: '#059669',
+    isActive: true,
+    lastRun: 'اليوم 11:30 ص',
     successRate: '100%',
   },
   {
     id: 'wf-residency',
-    code: 'VF-AUTO-HR-04',
-    titleAr: 'متابعة الإقامات والبطاقات المدنية وكروت الصحة',
-    titleEn: 'Kuwait Visa 18, Civil ID & Municipality Health Card Radar',
-    departmentAr: 'الموارد البشرية والمندوب',
-    departmentEn: 'HR & Labor Compliance',
-    triggerAr: 'فحص يومي الساعة 8:00 صباحاً لأي وثيقة تنتهي خلال 60 أو 30 أو 7 أيام للموظفين (166 موظفاً)',
-    triggerEn: 'Daily 8:00 AM check for 166 staff docs expiring in 60 / 30 / 7 days',
-    actionAr: 'إضافة المعاملة في قائمة مهام المندوب وتجهيز أوراق التجديد في منصة أسهل',
-    actionEn: 'Insert into PRO action queue & export PAM renewal batch',
+    code: 'VF-NOTIF-05',
+    titleAr: 'تنبيهات الإقامات وكروت البلدية',
+    titleEn: 'Labor Residency & Health Card Alerts',
+    departmentAr: 'شؤون الموظفين',
+    departmentEn: 'Human Resources',
+    triggerAr: 'فحص يومي الساعة 8:00 صباحاً لأي إقامة مادة 18 أو بطاقة مدنية أو كرت صحة ينتهي خلال 60 أو 30 أو 7 أيام (166 موظفاً)',
+    triggerEn: 'Daily 8:00 AM audit for 166 employee residency, civil ID, or municipality cards expiring within 60/30/7 days',
+    actionAr: 'إدراج المعاملة في جدول أعمال المندوب وتجهيز متطلبات التجديد عبر منصة أسهل لتفادي الغرامات',
+    actionEn: 'Add to PRO task queue and prepare PAM platform renewal submission',
     scheduleAr: 'يومياً · 8:00 صباحاً',
     scheduleEn: 'Daily at 8:00 AM',
-    icon: '👥',
-    color: '#8b5cf6',
+    icon: '📋',
+    color: '#7c3aed',
     isActive: true,
     lastRun: 'اليوم 08:00 ص',
     successRate: '100%',
   },
   {
     id: 'wf-sales-digest',
-    code: 'VF-AUTO-SALES-05',
-    titleAr: 'تقرير المبيعات اليومي وإغلاق الصناديق',
-    titleEn: 'Daily 6-Brand Sales & Z-Report Morning Digest',
-    departmentAr: 'المبيعات والإدارة',
-    departmentEn: 'Sales BI & Executive Office',
-    triggerAr: 'يومياً الساعة 9:00 صباحاً بتوقيت الكويت بعد إغلاق صناديق الكاشير بالفروع',
-    triggerEn: 'Daily 9:00 AM Kuwait time after in-store register close-outs',
-    actionAr: 'تجميع مبيعات الـ 6 براندات وإرسال ملخص المبيعات للإيميل الرسمي',
-    actionEn: 'Compile 6-brand, 11-channel metrics & dispatch executive email digest',
+    code: 'VF-NOTIF-06',
+    titleAr: 'مطابقة المبيعات اليومية',
+    titleEn: 'Daily Store Sales & Register Reconciliation',
+    departmentAr: 'الإدارة والمالية',
+    departmentEn: 'Management & Finance',
+    triggerAr: 'اكتمال إغلاق صناديق الكاشير (Z-Report) وتدقيق مبيعات الفروع الـ 9 والعلامات الـ 6 ومطابقة KNET',
+    triggerEn: 'Daily closing of in-store POS registers across 9 branches, 6 brands and KNET settlements',
+    actionAr: 'تجميع الإيرادات والمصروفات وإرسال التقرير المالي والتشغيلي الموحد إلى البريد الرسمي للإدارة',
+    actionEn: 'Compile unified revenue figures and deliver daily executive reconciliation report',
     scheduleAr: 'يومياً · 9:00 صباحاً',
     scheduleEn: 'Daily at 9:00 AM',
-    icon: '📈',
-    color: '#10b981',
+    icon: '📊',
+    color: '#16a34a',
     isActive: true,
     lastRun: 'اليوم 09:00 ص',
-    successRate: '100%',
-  },
-  {
-    id: 'wf-dropzone',
-    code: 'VF-AUTO-DROPZONE-06',
-    titleAr: 'فرز الفواتير والمستندات تلقائياً',
-    titleEn: 'Universal AI Smart Dropzone Auto-Classifier',
-    departmentAr: 'الأرشفة والذكاء الاصطناعي',
-    departmentEn: 'Data Ingestion & AI',
-    triggerAr: 'عند اختيار أو سحب أي فواتير أو مستندات من الحاسوب',
-    triggerEn: 'When files or folders are picked locally via Windows File Picker',
-    actionAr: 'قراءة البيانات تلقائياً وتصنيف الفواتير وإرسالها للقسم المختص',
-    actionEn: 'Extract locally, classify & route transactions to 7 departments automatically',
-    scheduleAr: 'تفاعلي فوري',
-    scheduleEn: 'On file select',
-    icon: '⚡',
-    color: '#ec4899',
-    isActive: true,
-    lastRun: 'منذ ساعة',
     successRate: '100%',
   },
 ]
@@ -177,58 +174,58 @@ export interface ExecutionLogItem {
 const INITIAL_LOGS: ExecutionLogItem[] = [
   {
     id: 'log-1',
-    workflowCode: 'VF-AUTO-RADAR-01',
-    workflowTitleAr: 'متابعة تطبيقات التوصيل والعمولات',
-    workflowTitleEn: 'Aggregator Offline Watchdog',
-    timestamp: '03 نوفمبر 2026 - 12:25:10',
+    workflowCode: 'VF-NOTIF-01',
+    workflowTitleAr: 'متابعة تطبيقات التوصيل',
+    workflowTitleEn: 'Delivery Aggregator Monitoring',
+    timestamp: '04 نوفمبر 2026 - 12:25:10',
     status: 'SUCCESS',
-    detailsAr: 'فحص الفروع الـ 10: جميع الفروع متصلة على توصيل المطعم 10% ولا يوجد إغلاق غير مصرح',
-    detailsEn: 'Scanned 10 branches: all online on TMP 10%, 0 unauthorized switches',
-    durationMs: 420,
+    detailsAr: 'فحص الفروع: جميع الفروع متصلة على توصيل المطعم 10% ولا توجد إغلاقات غير معتمدة',
+    detailsEn: 'Audit check: all branches online on 10% delivery, 0 unauthorized closures',
+    durationMs: 380,
   },
   {
     id: 'log-2',
-    workflowCode: 'VF-AUTO-SALES-05',
-    workflowTitleAr: 'تقرير المبيعات اليومي وإغلاق الصناديق',
-    workflowTitleEn: 'Daily Sales & Z-Report Digest',
-    timestamp: '03 نوفمبر 2026 - 09:00:02',
+    workflowCode: 'VF-NOTIF-06',
+    workflowTitleAr: 'مطابقة المبيعات اليومية',
+    workflowTitleEn: 'Daily Store Sales Reconciliation',
+    timestamp: '04 نوفمبر 2026 - 09:00:02',
     status: 'SUCCESS',
-    detailsAr: 'إرسال ملخص المبيعات اليومي لـ 3 أشخاص معتمدين في الإدارة والعمليات',
-    detailsEn: 'Dispatched digest to 3 verified recipients via sec@venturefoodskw.com',
-    durationMs: 1250,
+    detailsAr: 'إرسال تقرير المبيعات المعتمد للإدارة المالية والتشغيلية بنجاح',
+    detailsEn: 'Dispatched daily sales reconciliation report to management',
+    durationMs: 1100,
   },
   {
     id: 'log-3',
-    workflowCode: 'VF-AUTO-HR-04',
-    workflowTitleAr: 'متابعة الإقامات والبطاقات المدنية وكروت الصحة',
-    workflowTitleEn: 'Kuwait Visa 18 & Health Card Radar',
-    timestamp: '03 نوفمبر 2026 - 08:00:15',
+    workflowCode: 'VF-NOTIF-05',
+    workflowTitleAr: 'تنبيهات الإقامات وكروت البلدية',
+    workflowTitleEn: 'Residency & Health Card Alerts',
+    timestamp: '04 نوفمبر 2026 - 08:00:15',
     status: 'SUCCESS',
-    detailsAr: 'فحص 166 موظفاً: رصد 6 معاملات تتطلب تجديداً وإدراجها في مهام المندوب',
-    detailsEn: 'Audited 166 employees: flagged 6 renewals into PRO action queue',
-    durationMs: 680,
+    detailsAr: 'فحص ملفات الـ 166 موظفاً: رصد 6 معاملات تتطلب التجديد وإحالتها للمندوب',
+    detailsEn: 'Audited 166 employee records: flagged 6 renewals into PRO schedule',
+    durationMs: 620,
   },
   {
     id: 'log-4',
-    workflowCode: 'VF-AUTO-STOCK-02',
-    workflowTitleAr: 'تنبيه نقص المخزون وطلبات مطبخ القرين',
-    workflowTitleEn: 'Low-Stock & Kitchen Auto-Order',
-    timestamp: '03 نوفمبر 2026 - 07:14:30',
+    workflowCode: 'VF-NOTIF-02',
+    workflowTitleAr: 'تنبيه نقص مخزون مطبخ القرين',
+    workflowTitleEn: 'Central Kitchen Stock Alert',
+    timestamp: '04 نوفمبر 2026 - 07:14:30',
     status: 'SUCCESS',
-    detailsAr: 'تجهيز مسودة أمر تزويد رقم 002-202611 لمستودع المطبخ المركزي بالقرين',
-    detailsEn: 'Generated PO draft PO-202611-002 for Al-Qurain central kitchen warehouse',
-    durationMs: 310,
+    detailsAr: 'إصدار مسودة أمر تزويد مستودع المطبخ المركزي بالقرين رقم 002-202611',
+    detailsEn: 'Generated stock replenishment draft PO-202611-002 for Al-Qurain Kitchen',
+    durationMs: 290,
   },
   {
     id: 'log-5',
-    workflowCode: 'VF-AUTO-FEFO-03',
+    workflowCode: 'VF-NOTIF-03',
     workflowTitleAr: 'مراقبة الثلاجات وتواريخ الصلاحية',
-    workflowTitleEn: 'FEFO Cold-Chain Breach Guard',
-    timestamp: '03 نوفمبر 2026 - 04:30:00',
+    workflowTitleEn: 'Chiller Temperatures & Expiry Monitoring',
+    timestamp: '04 نوفمبر 2026 - 04:30:00',
     status: 'SUCCESS',
-    detailsAr: 'فحص 384 دفعة طعام: درجات الحرارة مطابقة للمواصفات وصلاحيات الأطعمة آمنة',
-    detailsEn: 'Audited 384 batches: temperatures within cold chain limits',
-    durationMs: 290,
+    detailsAr: 'فحص 384 دفعة طعام ووحدات التبريد: درجات الحرارة والتواريخ مطابقة للمعايير',
+    detailsEn: 'Inspected 384 food batches: temperatures and shelf-lives within standard limits',
+    durationMs: 250,
   },
 ]
 
@@ -240,7 +237,6 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
   const [notification, setNotification] = useState<{ msg: string; type: 'success' | 'info' } | null>(null)
   const [showNewRuleModal, setShowNewRuleModal] = useState(false)
 
-  // New Rule Form State
   const [newRuleName, setNewRuleName] = useState('')
   const [newRuleTrigger, setNewRuleTrigger] = useState('STOCK_ALERT')
   const [newRuleDepartment, setNewRuleDepartment] = useState('المخزون والتوريد')
@@ -270,11 +266,11 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
         try {
           await fetch(workflow.runEndpoint, { method: 'POST' }).catch(() => {})
         } catch {
-          // Ignore network errors in local dev
+          // ignore in local dev
         }
       }
 
-      await new Promise((r) => setTimeout(r, 800))
+      await new Promise((r) => setTimeout(r, 700))
 
       const now = new Date()
       const timeStr = now.toLocaleTimeString(isAr ? 'ar-KW' : 'en-US', {
@@ -290,16 +286,16 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
         workflowTitleEn: workflow.titleEn,
         timestamp: `${now.toLocaleDateString(isAr ? 'ar-KW' : 'en-US')} - ${timeStr}`,
         status: 'SUCCESS',
-        detailsAr: `تجربة إرسال ناجحة: تم فحص الشروط وإرسال التنبيه التجريبي للإيميل الرسمي`,
-        detailsEn: `Manual test executed: verified condition & dispatched alert`,
-        durationMs: Math.floor(Math.random() * 400) + 250,
+        detailsAr: `تم إرسال إشعار تجريبي عبر البريد الإلكتروني الرسمي وتسجيل الحالة في السجل`,
+        detailsEn: `Dispatched test email notification via official SMTP and logged event`,
+        durationMs: Math.floor(Math.random() * 300) + 200,
       }
 
       setLogs((prev) => [newLog, ...prev.slice(0, 19)])
       showNotice(
         isAr
-          ? `⚡ تم تجربة إرسال تنبيه "${workflow.titleAr}" بنجاح وتسجيله في السجل!`
-          : `⚡ "${workflow.titleEn}" test alert sent successfully & logged!`
+          ? `تم إرسال إشعار تجريبي لتنبيه "${workflow.titleAr}" بنجاح`
+          : `Test notification for "${workflow.titleEn}" dispatched successfully`
       )
     } finally {
       setRunningId(null)
@@ -312,21 +308,21 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
 
     const newWf: AutomationWorkflow = {
       id: 'wf-' + Date.now(),
-      code: `VF-CUSTOM-${workflows.length + 1}`,
+      code: `VF-NOTIF-0${workflows.length + 1}`,
       titleAr: newRuleName,
       titleEn: newRuleName,
       departmentAr: newRuleDepartment,
-      departmentEn: 'Custom Operational Unit',
-      triggerAr: newRuleTrigger === 'STOCK_ALERT' ? 'تغير في المخزون أو الأصناف' : 'حركة مبيعات أو إغلاق وردية',
-      triggerEn: 'Custom trigger event defined for Venture Foods',
-      actionAr: 'إرسال إشعار فوري لبريد الإدارة وتوليد قيد في النظام',
-      actionEn: 'Dispatch instant email notification to management',
+      departmentEn: 'Operations Department',
+      triggerAr: newRuleTrigger === 'STOCK_ALERT' ? 'نزول المخزون عن الحد الأدنى المحدد' : 'حركة مبيعات أو إغلاق وردية كاشير',
+      triggerEn: 'Standard threshold reached in company database',
+      actionAr: 'إرسال بريد إلكتروني فوري لمسؤولي الشركة المعتمدين وتسجيل القيد',
+      actionEn: 'Dispatch instant email notification to verified recipients and log event',
       scheduleAr: 'فوري عند الحدث',
       scheduleEn: 'Immediate upon event',
-      icon: '⚙️',
-      color: '#3b82f6',
+      icon: '📌',
+      color: '#0284c7',
       isActive: true,
-      lastRun: 'الآن (جديدة)',
+      lastRun: 'الآن (جديد)',
       successRate: '100%',
     }
 
@@ -335,137 +331,123 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
     setNewRuleName('')
     showNotice(
       isAr
-        ? `✅ تم إضافة التنبيه الجديد "${newWf.titleAr}" وتفعيله فوراً`
-        : `✅ Custom alert "${newWf.titleEn}" created & activated`
+        ? `تم إضافة التنبيه الجديد "${newWf.titleAr}" وتفعيله`
+        : `Custom alert "${newWf.titleEn}" created and activated`
     )
   }
 
   const showNotice = (msg: string) => {
     setNotification({ msg, type: 'success' })
-    setTimeout(() => setNotification(null), 4500)
+    setTimeout(() => setNotification(null), 4000)
   }
 
   return (
     <div
       dir={isRtl ? 'rtl' : 'ltr'}
-      className="w-full max-w-none min-h-screen bg-slate-50 dark:bg-[#0a0d12] text-slate-900 dark:text-slate-100 p-3 sm:p-6 space-y-6"
+      className="w-full max-w-none min-h-screen bg-slate-50 dark:bg-[#090d16] text-slate-900 dark:text-slate-100 p-4 sm:p-7 space-y-6"
     >
-      {/* ========================================================================= */}
-      {/* 1. TOP HEADER                                                             */}
-      {/* ========================================================================= */}
+      {/* 1. TOP HEADER */}
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
         <div>
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-400">
-              <Zap size={14} className="animate-pulse" />
-              {isAr ? 'المتابعة الآلية للعمل' : 'Enterprise Automation Engine'}
+            <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-xs font-bold text-slate-800 dark:text-slate-200">
+              <Bell size={13} className="text-emerald-600 dark:text-emerald-400" />
+              {isAr ? 'المتابعة الإدارية المباشرة' : 'Operational Monitoring'}
             </span>
-            <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 text-xs text-slate-700 dark:text-slate-400">
+            <span className="rounded-md bg-slate-200/70 dark:bg-slate-800/80 px-2.5 py-0.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
               {isAr ? 'شركة فنتشر فودز لإدارة المطاعم ذ.م.م.' : 'Venture Foods Restaurant Management Co. W.L.L.'}
             </span>
           </div>
-          <h1 className="mt-1 text-2xl font-black text-slate-900 dark:text-white sm:text-3xl">
-            {isAr ? 'نظام التنبيهات والمتابعة التلقائية' : 'Operational Workflows & Real-Time System Monitors'}
+          <h1 className="mt-2 text-2xl font-black text-slate-900 dark:text-white sm:text-3xl">
+            {isAr ? 'إدارة التنبيهات والمتابعة التلقائية' : 'Alerts & Automated Monitoring System'}
           </h1>
-          <p className="text-xs text-slate-600 dark:text-slate-400">
+          <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">
             {isAr
-              ? '6 تنبيهات ذكية متصلة مباشرة بنظام الشركة والإيميل الرسمي'
-              : '6 live operational workflows & monitors connected directly to Venture Foods systems & SMTP'}
+              ? '6 تنبيهات إدارية دورية متصلة بالبريد الإلكتروني الرسمي لمسؤولي الشركة'
+              : '6 operational alerts configured with verified company management email dispatches'}
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           <button
             onClick={() => setCurrentLocale(isAr ? 'en' : 'ar')}
-            className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-700 transition-colors"
+            className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
           >
-            {isAr ? 'الانتقال للإنجليزية' : 'الانتقال للعربية'}
+            {isAr ? 'English' : 'العربية'}
           </button>
           <button
             onClick={() => setShowNewRuleModal(true)}
-            className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2 text-xs font-bold text-black hover:opacity-90 transition-all shadow-lg shadow-emerald-500/10"
+            className="flex items-center gap-1.5 rounded-lg bg-slate-900 dark:bg-emerald-500 px-4 py-2 text-xs font-bold text-white dark:text-black hover:opacity-90 transition-all shadow-sm"
           >
-            <Plus size={15} />
-            {isAr ? '+ إضافة تنبيه جديد' : 'Add Custom Alert'}
+            <Plus size={14} />
+            {isAr ? 'إضافة تنبيه جديد' : 'Add New Alert'}
           </button>
         </div>
       </div>
 
       {/* Pop-up Notification */}
       {notification && (
-        <div className="rounded-xl border border-emerald-500/40 bg-emerald-950/60 p-3 text-xs font-semibold text-emerald-300 shadow-xl flex items-center justify-between">
+        <div className="rounded-xl border border-emerald-500/40 bg-emerald-50 dark:bg-emerald-950/70 p-3 text-xs font-semibold text-emerald-900 dark:text-emerald-200 shadow-lg flex items-center justify-between">
           <span className="flex items-center gap-2">
-            <CheckCircle2 size={16} />
+            <CheckCircle2 size={15} className="text-emerald-600 dark:text-emerald-400" />
             {notification.msg}
           </span>
-          <button
-            onClick={() => setNotification(null)}
-            className="text-slate-400 hover:text-white"
-          >
-            ✕
-          </button>
+          <button onClick={() => setNotification(null)} className="text-slate-400 hover:text-slate-800 dark:hover:text-white">✕</button>
         </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* 2. SMTP & WEBHOOK LIVE STATUS BAR                                         */}
-      {/* ========================================================================= */}
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0d131f] p-5 shadow-sm">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          {/* Engine Status */}
-          <div className="flex items-start sm:items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-400">
-              <Mail size={22} />
+      {/* 2. OFFICIAL EMAIL STATUS BAR */}
+      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#101522] p-4 shadow-sm">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+              <Mail size={18} />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
                 <span className="text-sm font-bold text-slate-900 dark:text-white">
-                  {isAr ? 'الإيميل الرسمي متصل وجاهز للإرسال' : 'Google Workspace SMTP Active'}
+                  {isAr ? 'البريد الإلكتروني الرسمي متصل' : 'Official Management Mailbox Connected'}
                 </span>
-                <span className="font-mono text-xs text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20" dir="ltr">
+                <span className="font-mono text-xs text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700" dir="ltr">
                   sec@venturefoodskw.com
                 </span>
               </div>
               <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">
                 {isAr
-                  ? 'خادم البريد الرسمي معتمد لإرسال التنبيهات الفورية المشفرة لمسؤولي الشركة'
-                  : 'Enterprise SMTP authenticated on SSL port 465 delivering encrypted instant dispatches'}
+                  ? 'يتم إرسال الإشعارات والتنبيهات المعتمدة عبر خادم الشركة مباشرة إلى مسؤولي الإدارة'
+                  : 'Official enterprise notifications dispatched to verified management recipients'}
               </p>
             </div>
           </div>
 
-          {/* 3 Dedicated Stakeholders */}
           <div className="flex flex-col items-start lg:items-end">
-            <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-              {isAr ? 'الأشخاص الذين تصلهم التنبيهات:' : 'Exclusively Verified Recipients:'}
+            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              {isAr ? 'المستلمون المعتمدون:' : 'Verified Recipients:'}
             </span>
-            <div className="mt-1.5 flex flex-wrap gap-1.5">
-              <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 px-2 py-1 text-[11px] text-slate-800 dark:text-slate-200" dir="ltr">
-                <span className="font-semibold text-emerald-400">{isAr ? 'عبدالله:' : 'Abdullah:'}</span> Sec@venturefoodskw.com
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 px-2 py-0.5 text-[11px] text-slate-800 dark:text-slate-200" dir="ltr">
+                <span className="font-bold text-emerald-600 dark:text-emerald-400">{isAr ? 'عبدالله:' : 'Abdullah:'}</span> Sec@venturefoodskw.com
               </span>
-              <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 px-2 py-1 text-[11px] text-slate-800 dark:text-slate-200" dir="ltr">
-                <span className="font-semibold text-blue-400">{isAr ? 'شكرالله:' : 'Choukrallah:'}</span> operations@venturefoodskw.com
+              <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 px-2 py-0.5 text-[11px] text-slate-800 dark:text-slate-200" dir="ltr">
+                <span className="font-bold text-blue-600 dark:text-blue-400">{isAr ? 'شكرالله:' : 'Choukrallah:'}</span> operations@venturefoodskw.com
               </span>
-              <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 px-2 py-1 text-[11px] text-slate-800 dark:text-slate-200" dir="ltr">
-                <span className="font-semibold text-amber-400">{isAr ? 'عبدالرحمن:' : 'Abdulrahman:'}</span> abdelrahmanm@venturefoodskw.com
+              <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 px-2 py-0.5 text-[11px] text-slate-800 dark:text-slate-200" dir="ltr">
+                <span className="font-bold text-amber-600 dark:text-amber-400">{isAr ? 'عبدالرحمن:' : 'Abdulrahman:'}</span> abdelrahmanm@venturefoodskw.com
               </span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* ========================================================================= */}
-      {/* 3. THE 6 VENTURE FOODS OPERATIONAL WORKFLOW CARDS                         */}
-      {/* ========================================================================= */}
+      {/* 3. THE 6 OPERATIONAL ALERT CARDS */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-base font-bold text-slate-900 dark:text-white sm:text-lg">
-            <Sliders size={18} className="text-emerald-400" />
-            {isAr ? 'التنبيهات التلقائية المفعّلة (6 تنبيهات)' : '6 Venture Foods Operational Workflows'}
+          <h2 className="text-base font-bold text-slate-900 dark:text-white sm:text-lg">
+            {isAr ? 'التنبيهات المفعّلة (6 تنبيهات)' : 'Active System Alerts (6 Alerts)'}
           </h2>
-          <span className="text-xs text-slate-600 dark:text-slate-400">
-            {workflows.filter((w) => w.isActive).length} / {workflows.length} {isAr ? 'تنبيهات مفعّلة' : 'Active'}
+          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+            {workflows.filter((w) => w.isActive).length} / {workflows.length} {isAr ? 'تنبيه مفعّل' : 'Active'}
           </span>
         </div>
 
@@ -473,22 +455,22 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
           {workflows.map((wf) => (
             <div
               key={wf.id}
-              className={`flex flex-col justify-between rounded-2xl border p-5 transition-all duration-200 shadow-sm ${
+              className={`flex flex-col justify-between rounded-xl border p-4 transition-all ${
                 wf.isActive
-                  ? 'border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0d131f] hover:border-slate-300 dark:hover:border-slate-700'
-                  : 'border-slate-200/50 dark:border-slate-800/50 bg-slate-50/60 dark:bg-[#0a0d12]/60 opacity-60'
+                  ? 'border-slate-200 dark:border-slate-800 bg-white dark:bg-[#101522] shadow-sm'
+                  : 'border-slate-200/60 dark:border-slate-800/60 bg-slate-100/50 dark:bg-slate-900/40 opacity-70'
               }`}
             >
               <div>
                 {/* Header */}
-                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-3">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-2.5">
                   <div className="flex items-center gap-2">
                     <span className="text-xl">{wf.icon}</span>
                     <div>
                       <span className="font-mono text-[10px] font-bold text-slate-400" dir="ltr">
                         {wf.code}
                       </span>
-                      <p className="text-[11px] font-semibold text-slate-400">
+                      <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
                         {isAr ? wf.departmentAr : wf.departmentEn}
                       </p>
                     </div>
@@ -497,13 +479,13 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
                   {/* Toggle Button */}
                   <button
                     onClick={() => handleToggleWorkflow(wf.id)}
-                    className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold transition-all ${
+                    className={`rounded-md px-2 py-0.5 text-[11px] font-bold transition-all ${
                       wf.isActive
-                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                        : 'bg-slate-800 text-slate-400 border border-slate-700'
+                        ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700'
                     }`}
                   >
-                    {wf.isActive ? (isAr ? 'مفعّل ●' : 'Active ●') : isAr ? 'متوقف ○' : 'Paused ○'}
+                    {wf.isActive ? (isAr ? 'مفعّل' : 'Active') : isAr ? 'متوقف' : 'Paused'}
                   </button>
                 </div>
 
@@ -512,55 +494,55 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
                   {isAr ? wf.titleAr : wf.titleEn}
                 </h3>
 
-                {/* Trigger & Action Box */}
-                <div className="mt-3 space-y-2 rounded-xl bg-slate-50 dark:bg-slate-900/60 p-3 text-xs border border-slate-100 dark:border-transparent">
+                {/* Condition & Action Box */}
+                <div className="mt-3 space-y-2 rounded-lg bg-slate-50 dark:bg-slate-900/60 p-3 text-xs border border-slate-100 dark:border-slate-800/60">
                   <div>
-                    <span className="font-bold text-amber-400">
-                      {isAr ? 'متى يرسل النظام تنبيهاً؟' : '⚡ Trigger:'}
+                    <span className="font-bold text-slate-900 dark:text-slate-200">
+                      {isAr ? 'حالة التنبيه:' : 'Alert Condition:'}
                     </span>
-                    <p className="mt-0.5 text-slate-700 dark:text-slate-300">
+                    <p className="mt-0.5 text-slate-700 dark:text-slate-300 leading-relaxed">
                       {isAr ? wf.triggerAr : wf.triggerEn}
                     </p>
                   </div>
-                  <div className="border-t border-slate-800/70 pt-2">
-                    <span className="font-bold text-emerald-400">
-                      {isAr ? 'ماذا يفعل النظام تلقائياً؟' : '🎯 Action:'}
+                  <div className="border-t border-slate-200 dark:border-slate-800 pt-2">
+                    <span className="font-bold text-emerald-800 dark:text-emerald-400">
+                      {isAr ? 'الإجراء المتبع:' : 'Follow-up Action:'}
                     </span>
-                    <p className="mt-0.5 text-slate-700 dark:text-slate-300">
+                    <p className="mt-0.5 text-slate-700 dark:text-slate-300 leading-relaxed">
                       {isAr ? wf.actionAr : wf.actionEn}
                     </p>
                   </div>
                 </div>
 
-                {/* Timing & Stats */}
-                <div className="mt-3 flex items-center justify-between text-[11px] text-slate-400">
+                {/* Timing */}
+                <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
                   <span className="flex items-center gap-1">
-                    <Clock size={12} className="text-slate-500" />
+                    <Clock size={12} />
                     {isAr ? wf.scheduleAr : wf.scheduleEn}
                   </span>
                   <span>
-                    {isAr ? 'آخر تشغيل:' : 'Last run:'}{' '}
-                    <strong className="text-slate-300">{wf.lastRun}</strong>
+                    {isAr ? 'آخر فحص:' : 'Last run:'}{' '}
+                    <strong className="text-slate-700 dark:text-slate-300">{wf.lastRun}</strong>
                   </span>
                 </div>
               </div>
 
-              {/* Action Button: Run Now */}
-              <div className="mt-4 border-t border-slate-800/80 pt-3">
+              {/* Action Button: Send Test Now */}
+              <div className="mt-4 border-t border-slate-100 dark:border-slate-800 pt-3">
                 <button
                   onClick={() => handleRunWorkflow(wf)}
                   disabled={runningId === wf.id}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-800/90 py-2 text-xs font-bold text-white hover:bg-emerald-500 hover:text-black hover:border-emerald-500 transition-all duration-200 disabled:opacity-50"
+                  className="w-full flex items-center justify-center gap-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 py-2 text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
                 >
                   {runningId === wf.id ? (
                     <>
-                      <RotateCw size={14} className="animate-spin" />
-                      {isAr ? 'جارٍ التجربة والإرسال...' : 'Executing...'}
+                      <RotateCw size={13} className="animate-spin text-slate-500" />
+                      {isAr ? 'جارٍ الإرسال والتجربة...' : 'Sending Test...'}
                     </>
                   ) : (
                     <>
-                      <Play size={13} className="fill-current" />
-                      {isAr ? 'تجربة الإرسال الآن' : 'Run & Test Now'}
+                      <Play size={12} className="fill-current" />
+                      {isAr ? 'إرسال تجريبي الآن' : 'Send Test Now'}
                     </>
                   )}
                 </button>
@@ -570,56 +552,54 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
         </div>
       </div>
 
-      {/* ========================================================================= */}
-      {/* 4. LIVE EXECUTION LOG                                                     */}
-      {/* ========================================================================= */}
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0d131f] shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-5 py-4">
+      {/* 4. EXECUTION LOG TABLE */}
+      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#101522] shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-5 py-3.5 bg-slate-50/50 dark:bg-slate-900/40">
           <div className="flex items-center gap-2">
-            <Server size={18} className="text-emerald-400" />
-            <h2 className="text-sm font-bold text-slate-900 dark:text-white sm:text-base">
-              {isAr ? 'سجل التنبيهات والعمليات الأخيرة' : 'Live Automation Execution Log'}
+            <Server size={16} className="text-slate-600 dark:text-slate-400" />
+            <h2 className="text-sm font-bold text-slate-900 dark:text-white">
+              {isAr ? 'سجل التنبيهات والإشعارات الأخيرة' : 'Recent Alerts & Notifications Log'}
             </h2>
           </div>
-          <span className="text-xs text-slate-400">
-            {logs.length} {isAr ? 'تنبيه مسجل' : 'Recorded Executions'}
+          <span className="text-xs text-slate-500 dark:text-slate-400">
+            {logs.length} {isAr ? 'قيد مسجل' : 'Records'}
           </span>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-xs">
             <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 text-xs font-semibold uppercase text-slate-700 dark:text-slate-400">
-                <th className="px-4 py-3 text-right">{isAr ? 'الوقت والتاريخ' : 'Timestamp'}</th>
-                <th className="px-4 py-3 text-right">{isAr ? 'كود التنبيه' : 'Workflow Code'}</th>
-                <th className="px-4 py-3 text-right">{isAr ? 'اسم التنبيه' : 'Workflow Name'}</th>
-                <th className="px-4 py-3 text-right">{isAr ? 'تفاصيل التنبيه' : 'Execution Details'}</th>
-                <th className="px-4 py-3 text-center">{isAr ? 'سرعة المعالجة' : 'Latency'}</th>
+              <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-100/60 dark:bg-slate-900/60 font-semibold text-slate-600 dark:text-slate-400">
+                <th className="px-4 py-3 text-right">{isAr ? 'التاريخ والوقت' : 'Timestamp'}</th>
+                <th className="px-4 py-3 text-right">{isAr ? 'رمز التنبيه' : 'Alert Code'}</th>
+                <th className="px-4 py-3 text-right">{isAr ? 'اسم التنبيه' : 'Alert Name'}</th>
+                <th className="px-4 py-3 text-right">{isAr ? 'تفاصيل الإشعار' : 'Details'}</th>
+                <th className="px-4 py-3 text-center">{isAr ? 'المدة' : 'Latency'}</th>
                 <th className="px-4 py-3 text-center">{isAr ? 'الحالة' : 'Status'}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-slate-800 dark:text-slate-200">
               {logs.map((log) => (
-                <tr key={log.id} className="hover:bg-slate-900/40 transition-colors">
-                  <td className="px-4 py-3 font-mono text-xs text-slate-400 whitespace-nowrap">
+                <tr key={log.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/30 transition-colors">
+                  <td className="px-4 py-3 font-mono text-slate-500 whitespace-nowrap">
                     {log.timestamp}
                   </td>
-                  <td className="px-4 py-3 font-mono text-xs font-bold text-emerald-400 whitespace-nowrap">
+                  <td className="px-4 py-3 font-mono font-bold text-slate-900 dark:text-slate-200 whitespace-nowrap">
                     {log.workflowCode}
                   </td>
-                  <td className="px-4 py-3 font-semibold text-slate-900 dark:text-white whitespace-nowrap">
+                  <td className="px-4 py-3 font-bold text-slate-900 dark:text-white whitespace-nowrap">
                     {isAr ? log.workflowTitleAr : log.workflowTitleEn}
                   </td>
-                  <td className="px-4 py-3 text-xs text-slate-700 dark:text-slate-300">
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                     {isAr ? log.detailsAr : log.detailsEn}
                   </td>
-                  <td className="px-4 py-3 text-center font-mono text-xs text-slate-400">
+                  <td className="px-4 py-3 text-center font-mono text-slate-500">
                     {log.durationMs} {isAr ? 'مللي ثانية' : 'ms'}
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-400 border border-emerald-500/20">
-                      <CheckCircle2 size={12} />
-                      {isAr ? (log.status === 'SUCCESS' ? 'ناجح وموثق' : log.status === 'WARNING' ? 'تحذير' : 'فشل') : log.status}
+                    <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                      <CheckCircle2 size={11} />
+                      {isAr ? 'ناجح' : 'SUCCESS'}
                     </span>
                   </td>
                 </tr>
@@ -629,27 +609,25 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
         </div>
       </div>
 
-      {/* ========================================================================= */}
-      {/* 5. MODAL: ADD CUSTOM AUTOMATION RULE                                     */}
-      {/* ========================================================================= */}
+      {/* 5. MODAL: ADD NEW ALERT */}
       {showNewRuleModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
-          <div className="w-full max-w-lg rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-base font-bold text-white">
-                {isAr ? 'إضافة تنبيه تلقائي جديد' : 'Add Custom Venture Foods Automation Alert'}
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                {isAr ? 'إضافة تنبيه إداري جديد' : 'Add New Operational Alert'}
               </h3>
               <button
                 onClick={() => setShowNewRuleModal(false)}
-                className="text-slate-400 hover:text-white"
+                className="text-slate-400 hover:text-slate-700 dark:hover:text-white"
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleCreateCustomRule} className="mt-4 space-y-4 text-xs">
+            <form onSubmit={handleCreateCustomRule} className="mt-4 space-y-3.5 text-xs">
               <div>
-                <label className="block font-semibold text-slate-300 mb-1">
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
                   {isAr ? 'اسم التنبيه:' : 'Alert Name:'}
                 </label>
                 <input
@@ -658,53 +636,53 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
                   value={newRuleName}
                   onChange={(e) => setNewRuleName(e.target.value)}
                   placeholder={
-                    isAr ? 'مثال: تنبيه عند تجاوز مبيعات البرجر 500 طلب' : 'e.g. Alert when burger sales exceed 500 orders'
+                    isAr ? 'مثال: تنبيه عند تجاوز مبيعات صنف معين 300 طلب' : 'e.g. Alert when item sales exceed 300 orders'
                   }
-                  className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-white focus:border-slate-600 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-300 mb-1">
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
                   {isAr ? 'القسم المسؤول:' : 'Operating Department:'}
                 </label>
                 <select
                   value={newRuleDepartment}
                   onChange={(e) => setNewRuleDepartment(e.target.value)}
-                  className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-white focus:outline-none"
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-white focus:outline-none"
                 >
-                  <option value="المبيعات والقنوات">{isAr ? 'المبيعات وتطبيقات التوصيل' : 'Sales & Channels'}</option>
-                  <option value="المخزون والتوريد">{isAr ? 'المخزون ومطبخ القرين' : 'Inventory & Supply'}</option>
-                  <option value="سلامة الغذاء والهاسب">{isAr ? 'الثلاجات وسلامة الغذاء' : 'Food Safety & HACCP'}</option>
-                  <option value="الموارد البشرية والرواتب">{isAr ? 'الإقامات والموظفون' : 'HR & Payroll'}</option>
-                  <option value="المطبخ المركزي صبحان">{isAr ? 'المطبخ المركزي' : 'Sabhan Commissary'}</option>
+                  <option value="المبيعات وتطبيقات التوصيل">{isAr ? 'المبيعات وتطبيقات التوصيل' : 'Sales & Channels'}</option>
+                  <option value="المخزون ومطبخ القرين">{isAr ? 'المخزون ومطبخ القرين' : 'Inventory & Commissary'}</option>
+                  <option value="الجودة وسلامة الغذاء">{isAr ? 'الجودة وسلامة الغذاء' : 'QA & Food Safety'}</option>
+                  <option value="المالية والمحاسبة">{isAr ? 'المالية والمحاسبة' : 'Finance & Accounting'}</option>
+                  <option value="شؤون الموظفين">{isAr ? 'شؤون الموظفين' : 'HR & Personnel'}</option>
                 </select>
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-300 mb-1">
-                  {isAr ? 'متى يرسل النظام تنبيهاً؟' : 'Trigger Condition:'}
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  {isAr ? 'حالة التنبيه:' : 'Alert Trigger Condition:'}
                 </label>
                 <select
                   value={newRuleTrigger}
                   onChange={(e) => setNewRuleTrigger(e.target.value)}
-                  className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-white focus:outline-none"
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-white focus:outline-none"
                 >
-                  <option value="STOCK_ALERT">{isAr ? 'نزول المخزون عن الحد الأدنى' : 'Stock Alert'}</option>
-                  <option value="SALES_SPIKE">{isAr ? 'تسجيل مبيعات استثنائية أو إغلاق وردية' : 'Sales Close'}</option>
-                  <option value="FEFO_CRITICAL">{isAr ? 'اقتراب انتهاء صلاحية دفعة طعام مجهز' : 'FEFO Near Expiry'}</option>
-                  <option value="RESIDENCY_SOON">{isAr ? 'انتهاء إقامة أو بطاقة موظف خلال 30 يوماً' : 'Labor Doc Expiry'}</option>
+                  <option value="STOCK_ALERT">{isAr ? 'نزول المخزون عن الحد الأدنى المحدد' : 'Stock Drops Below Threshold'}</option>
+                  <option value="SALES_SPIKE">{isAr ? 'تسجيل إغلاق وردية كاشير أو فرق صندوق' : 'Cash Register Variance'}</option>
+                  <option value="FEFO_CRITICAL">{isAr ? 'اقتراب انتهاء صلاحية مادة غذائية أو حرارة ثلاجة' : 'Temperature or Expiry Deviation'}</option>
+                  <option value="RESIDENCY_SOON">{isAr ? 'اقتراب موعد انتهاء إقامة أو كرت صحة موظف' : 'Staff Document Expiration'}</option>
                 </select>
               </div>
 
-              <div className="rounded-xl border border-slate-800 bg-slate-950 p-3 text-slate-400">
-                <span className="font-semibold text-slate-300">
-                  {isAr ? 'ماذا يفعل النظام تلقائياً؟' : 'Default Approved Action:'}
+              <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-3 text-slate-600 dark:text-slate-400">
+                <span className="font-bold text-slate-800 dark:text-slate-200">
+                  {isAr ? 'الإجراء المتبع:' : 'Follow-up Action:'}
                 </span>
                 <p className="mt-1">
                   {isAr
-                    ? 'سيتم إرسال إيميل فوري عبر الإيميل الرسمي للأشخاص المعتمدين وتسجيل الحدث في السجل.'
-                    : 'Dispatches instant email via sec@venturefoodskw.com to the 3 verified recipients.'}
+                    ? 'سيتم إرسال بريد إلكتروني فوري عبر خادم الشركة الرسمي إلى المستلمين المعتمدين وتدوين الحالة في السجل.'
+                    : 'Instant email alert dispatched via official company SMTP to verified recipients.'}
                 </p>
               </div>
 
@@ -712,13 +690,13 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
                 <button
                   type="button"
                   onClick={() => setShowNewRuleModal(false)}
-                  className="rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 font-semibold text-slate-300 hover:bg-slate-700"
+                  className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100"
                 >
                   {isAr ? 'إلغاء' : 'Cancel'}
                 </button>
                 <button
                   type="submit"
-                  className="rounded-lg bg-emerald-500 px-4 py-2 font-bold text-black hover:bg-emerald-400"
+                  className="rounded-lg bg-slate-900 dark:bg-emerald-500 px-4 py-2 font-bold text-white dark:text-black hover:opacity-90"
                 >
                   {isAr ? 'حفظ وتفعيل التنبيه' : 'Save & Activate'}
                 </button>
