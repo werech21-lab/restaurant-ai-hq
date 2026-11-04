@@ -4,7 +4,7 @@ import { getLocale } from '@/lib/i18n/server'
 import { VentureKdsHub } from '@/components/kds/VentureKdsHub'
 
 export const metadata = {
-  title: 'شاشة تحضير المطبخ الذكية ومراقبة زمن التجهيز | Venture Foods W.L.L. · AetherBI',
+  title: 'شاشة تحضير المطبخ الذكية ومراقبة زمن التجهيز | شركة فنتشر فودز ذ.م.م.',
   description: 'شاشة تشغيل محطات المطبخ الذكية، تفادي تأخير الطلبات، والخصم اللحظي للمخزون لشركة فنتشر فودز لإدارة المطاعم ذ.م.م.',
 }
 

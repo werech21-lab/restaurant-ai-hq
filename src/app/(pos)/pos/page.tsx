@@ -71,10 +71,10 @@ async function PosContent() {
       orderBy: { name: 'asc' },
       include: { category: { select: { name: true } } },
     }),
-    prisma.customer.findMany({ orderBy: { name: 'asc' }, take: 200, select: { id: true, name: true } }),
+    prisma.customer.findMany({ where: { NOT: [{ name: { contains: 'محمد العتيبي' } }] }, orderBy: { name: 'asc' }, take: 200, select: { id: true, name: true } }),
     prisma.customer.findFirst({ where: { name: 'عميل نقدي - الصندوق' }, select: { id: true } }),
     prisma.employee.findMany({
-      where: { status: 'ACTIVE' },
+      where: { status: 'ACTIVE', NOT: [{ name: { contains: 'محمد العتيبي' } }] },
       select: { id: true, code: true, name: true, jobTitle: true, department: true },
       take: 120,
       orderBy: { name: 'asc' },

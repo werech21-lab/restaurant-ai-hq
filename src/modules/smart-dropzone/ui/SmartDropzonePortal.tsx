@@ -533,25 +533,14 @@ export default function SmartDropzonePortal() {
       </div>
 
       <section
-        role="button"
-        tabIndex={0}
-        onClick={(e) => {
-          if ((e.target as HTMLElement).closest('button') !== null) return
-          triggerFilesUpload(e)
-        }}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault()
-            fileInputRef.current?.click()
-          }
-        }}
+        tabIndex={-1}
         onDragOver={(e) => {
           e.preventDefault()
           setDragOver(true)
         }}
         onDragLeave={() => setDragOver(false)}
         onDrop={(e) => void onDrop(e)}
-        className={`cursor-pointer rounded-3xl border-2 border-dashed p-8 text-center transition select-none ${
+        className={`rounded-3xl border-2 border-dashed p-8 text-center transition select-none ${
           dragOver
             ? 'border-emerald-400 bg-emerald-500/10 shadow-[0_0_40px_rgba(16,185,129,0.2)]'
             : 'border-emerald-400/35 bg-gradient-to-b from-[#111924] to-[#0f141c] hover:border-emerald-400/70'

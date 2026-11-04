@@ -52,13 +52,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       lang={locale}
       dir={locale === 'en' ? 'ltr' : 'rtl'}
       data-theme={theme}
-      className={`${cairo.variable} ${theme === 'light' ? 'light-mode' : 'dark'}`}
+      className={`${cairo.variable} ${theme === 'light' ? 'light light-mode' : 'dark'}`}
       suppressHydrationWarning
     >
       <head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('aetherbi_theme_mode')||localStorage.getItem('ai-hq-theme')||(document.cookie.match(/(?:^|;\\s*)(?:aetherbi_theme_mode|ai-hq-theme)=([^;]+)/)||[])[1]||'dark';document.documentElement.dataset.theme=t;if(t==='light'){document.documentElement.classList.add('light-mode');document.documentElement.classList.remove('dark');}else{document.documentElement.classList.add('dark');document.documentElement.classList.remove('light-mode');}}catch(e){}})();`,
+            __html: `(function(){try{localStorage.removeItem('aetherbi_scope_brand');localStorage.removeItem('aetherbi_scope_branch');localStorage.removeItem('aetherbi_scope_brand_id');localStorage.removeItem('aetherbi_scope_branch_id');localStorage.removeItem('vf_brand_id');localStorage.removeItem('vf_branch_id');if(document.cookie.indexOf('vf_brand_id')!==-1){document.cookie='vf_brand_id=;path=/;max-age=0;expires=Thu, 01 Jan 1970 00:00:00 GMT';document.cookie='vf_branch_id=;path=/;max-age=0;expires=Thu, 01 Jan 1970 00:00:00 GMT';}var t=localStorage.getItem('aetherbi_theme_mode')||localStorage.getItem('ai-hq-theme')||(document.cookie.match(/(?:^|;\\s*)(?:aetherbi_theme_mode|ai-hq-theme)=([^;]+)/)||[])[1]||'dark';document.documentElement.dataset.theme=t;if(t==='light'){document.documentElement.classList.add('light','light-mode');document.documentElement.classList.remove('dark');}else{document.documentElement.classList.add('dark');document.documentElement.classList.remove('light','light-mode');}}catch(e){}})();`,
           }}
         />
       </head>

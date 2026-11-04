@@ -103,15 +103,14 @@ export async function getActiveScope(
   searchParams?: Record<string, string | string[] | number | undefined | null> | null,
 ): Promise<ActiveScope> {
   const cookieStore = await cookies()
-  const fromCookieBrand = cookieStore.get(SCOPE_COOKIE_BRAND)?.value ?? null
-  const fromCookieBranch = cookieStore.get(SCOPE_COOKIE_BRANCH)?.value ?? null
   const rawBrand = searchParams?.brandId
   const rawBranch = searchParams?.branchId
   const paramBrand = Array.isArray(rawBrand) ? rawBrand[0] : rawBrand != null ? String(rawBrand) : undefined
   const paramBranch = Array.isArray(rawBranch) ? rawBranch[0] : rawBranch != null ? String(rawBranch) : undefined
+  // Default always ALL to prevent stuck scope cookies from hiding data
   const { brandId, branchId } = parseScopeIds({
-    brandId: paramBrand || fromCookieBrand,
-    branchId: paramBranch || fromCookieBranch,
+    brandId: paramBrand || null,
+    branchId: paramBranch || null,
   })
   const warehouseIds = await resolveWarehouseIds(brandId, branchId)
   const labels = scopeLabels(brandId, branchId)

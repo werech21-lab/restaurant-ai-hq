@@ -16,10 +16,14 @@ const ENTITY_LABEL: Record<string, string> = {
 };
 
 const FIELD_TYPE_LABEL: Record<string, string> = {
-  TEXT: "نص عادي",
+  TEXT: "نص",
   NUMBER: "رقم عددي",
-  DATE: "تاريخ معتمد",
+  DATE: "تاريخ",
   SELECT: "قائمة اختيارات",
+  text: "نص",
+  date: "تاريخ",
+  number: "رقم عددي",
+  select: "قائمة اختيارات",
 };
 
 export function AppBuilderPanel({ modules, fields, canEdit }: { modules: ModuleCard[]; fields: FieldRow[]; canEdit: boolean }) {
@@ -93,7 +97,13 @@ export function AppBuilderPanel({ modules, fields, canEdit }: { modules: ModuleC
                 <div className="mt-4 pt-3 border-t border-slate-100 dark:border-white/10">
                   <button
                     type="button"
-                    className="rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white hover:bg-emerald-500 transition-colors disabled:opacity-50"
+                    className={`rounded-lg px-3.5 py-2 text-xs font-bold transition-all ${
+    module.locked && module.isEnabled
+      ? "bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 cursor-not-allowed opacity-100"
+      : module.isEnabled
+      ? "bg-red-600 text-white hover:bg-red-500"
+      : "bg-emerald-600 text-white hover:bg-emerald-500"
+  }`}
                     disabled={pending || (module.locked && module.isEnabled)}
                     onClick={() => toggle(module.key, !module.isEnabled)}
                   >

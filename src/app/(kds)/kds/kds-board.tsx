@@ -82,7 +82,7 @@ export function KdsBoard() {
           </a>
           <h1 className="text-lg font-black text-gold-300">{locale === 'en' ? 'Kitchen Display' : 'شاشة المطبخ'}</h1>
           <LanguageSwitch />
-          <GlobalScopeFilter compact />
+          {/* Scope bar purged */}
           <span className="rounded-full border border-[#8cc63f]/30 bg-[#8cc63f]/10 px-3 py-1 text-xs font-bold text-[#8cc63f]">
             {scopeLabel}
           </span>

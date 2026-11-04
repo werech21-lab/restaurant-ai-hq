@@ -29,7 +29,11 @@ async function UsersContent({ searchParams }: { searchParams: Promise<RawQuery> 
   if (!can(user, "users", "view")) return <Forbidden href={firstAllowedHref(user)} />;
 
   const where = {
-    NOT: { name: { startsWith: "[retired]" } },
+    isActive: true,
+    NOT: [
+      { name: { startsWith: "[retired]" } },
+      { email: "admin@erp.com" },
+    ],
     ...(query.q
       ? { OR: [{ name: { contains: query.q } }, { email: { contains: query.q } }] }
       : {}),

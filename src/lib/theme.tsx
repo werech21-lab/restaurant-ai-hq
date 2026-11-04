@@ -20,11 +20,11 @@ export function applyThemeToDOM(theme: Theme) {
   document.documentElement.dataset.theme = theme
   document.documentElement.style.colorScheme = theme
   if (theme === 'light') {
-    document.documentElement.classList.add('light-mode')
+    document.documentElement.classList.add('light', 'light-mode')
     document.documentElement.classList.remove('dark')
   } else {
     document.documentElement.classList.add('dark')
-    document.documentElement.classList.remove('light-mode')
+    document.documentElement.classList.remove('light', 'light-mode')
   }
 }
 

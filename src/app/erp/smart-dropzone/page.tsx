@@ -9,7 +9,7 @@ export const metadata = {
 
 export default function SmartDropzonePage() {
   return (
-    <main className="w-full max-w-none px-4 py-8 sm:px-6" style={{ background: '#0a0d12' }} suppressHydrationWarning>
+    <main className="w-full max-w-none px-4 py-6 md:px-6 bg-slate-50 dark:bg-[#0a0d12] text-slate-900 dark:text-slate-100 min-h-screen" suppressHydrationWarning>
       <SmartDropzonePortal />
     </main>
   )

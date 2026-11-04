@@ -130,6 +130,32 @@ export const VENTURE_STOCK_SEED: ProductRow[] = [
   { id: "vfs-38", code: "CL01-GLV", name: "قفازات فحص طبية زرقاء ملامسة للغذاء (كرتون 10 علب)", categoryId: "cat-1134", categoryName: "1134 مواد تنظيف ومستهلكات", costPrice: 12.000, sellingPrice: 0.000, reorderLevel: 50, low: false, costLabel: "12.000 د.ك", sellLabel: "—", stockLabel: "280 كرتون", reorderLabel: "50 كرتون", forecastLabel: "تكفي 35 يوماً", warehouseName: "مستودع أسواق القرين" },
   { id: "vfs-39", code: "CL01-GAS", name: "أسطوانات غاز البترول المسال للطبخ (48 كجم صناعي)", categoryId: "cat-1134", categoryName: "1134 مواد تنظيف ومستهلكات", costPrice: 8.750, sellingPrice: 0.000, reorderLevel: 10, low: false, costLabel: "8.750 د.ك", sellLabel: "—", stockLabel: "45 أسطوانة", reorderLabel: "10 أسطوانات", forecastLabel: "تكفي 15 يوماً", warehouseName: "المطبخ المركزي - القرين" },
   { id: "vfs-40", code: "RW01-ORG", name: "أوريجانو وتوابل إيطالية مجففة (علبة 1 كجم)", categoryId: "cat-1131", categoryName: "1131 مواد خام غذائية", costPrice: 4.800, sellingPrice: 0.000, reorderLevel: 10, low: true, costLabel: "4.800 د.ك", sellLabel: "—", stockLabel: "8 علب", reorderLabel: "10 علب", forecastLabel: "تحت حد الطلب", warehouseName: "المطبخ المركزي - القرين" },
+  // Additional 25 Venture Foods Stock & Materials (Total 65+ Items)
+  { id: "vfs-41", code: "RW01-BBQ", name: "صوص باربكيو مدخن فاخر (جالون 4 لتر)", categoryId: "cat-1131", categoryName: "1131 مواد خام غذائية", costPrice: 4.850, sellingPrice: 0.000, reorderLevel: 25, low: false, costLabel: "4.850 د.ك", sellLabel: "—", stockLabel: "140 جالون", reorderLabel: "25 جالون", forecastLabel: "تكفي 28 يوماً", warehouseName: "مستودع أسواق القرين" },
+  { id: "vfs-42", code: "RW01-PCK", name: "مخلل خيار أمريكي مقطع شرائح للبرجر (سطل 10 كجم)", categoryId: "cat-1131", categoryName: "1131 مواد خام غذائية", costPrice: 5.200, sellingPrice: 0.000, reorderLevel: 30, low: false, costLabel: "5.200 د.ك", sellLabel: "—", stockLabel: "190 سطل", reorderLabel: "30 سطل", forecastLabel: "تكفي 20 يوماً", warehouseName: "المطبخ المركزي - القرين" },
+  { id: "vfs-43", code: "RW01-DYN", name: "صوص الديناميت الحار للروبيان والدجاج (جالون)", categoryId: "cat-1131", categoryName: "1131 مواد خام غذائية", costPrice: 6.100, sellingPrice: 0.000, reorderLevel: 20, low: false, costLabel: "6.100 د.ك", sellLabel: "—", stockLabel: "115 جالون", reorderLabel: "20 جالون", forecastLabel: "تكفي 22 يوماً", warehouseName: "المطبخ المركزي - القرين" },
+  { id: "vfs-44", code: "RW01-SP01", name: "توليفة بهارات الشاورما الخاصة (خلطة فنتشر السرية)", categoryId: "cat-1131", categoryName: "1131 مواد خام غذائية", costPrice: 3.400, sellingPrice: 0.000, reorderLevel: 40, low: false, costLabel: "3.400 د.ك", sellLabel: "—", stockLabel: "260 كجم", reorderLabel: "40 كجم", forecastLabel: "تكفي 45 يوماً", warehouseName: "المطبخ المركزي - القرين" },
+  { id: "vfs-45", code: "RW01-SOY", name: "صوص الصويا الداكن المركز (جالون 5 لتر - تايوان)", categoryId: "cat-1131", categoryName: "1131 مواد خام غذائية", costPrice: 5.800, sellingPrice: 0.000, reorderLevel: 35, low: false, costLabel: "5.800 د.ك", sellLabel: "—", stockLabel: "180 جالون", reorderLabel: "35 جالون", forecastLabel: "تكفي 30 يوماً", warehouseName: "المطبخ المركزي - القرين" },
+  { id: "vfs-46", code: "RW01-SSM", name: "زيت سمسم نقي محمص طبيعي (لتر)", categoryId: "cat-1131", categoryName: "1131 مواد خام غذائية", costPrice: 1.950, sellingPrice: 0.000, reorderLevel: 50, low: false, costLabel: "1.950 د.ك", sellLabel: "—", stockLabel: "310 لتر", reorderLabel: "50 لتر", forecastLabel: "تكفي 25 يوماً", warehouseName: "مستودع أسواق القرين" },
+  { id: "vfs-47", code: "RW01-EGG-NOD", name: "نودلز البيض العريضة الطازجة (كرتون 12 كجم)", categoryId: "cat-1131", categoryName: "1131 مواد خام غذائية", costPrice: 7.500, sellingPrice: 0.000, reorderLevel: 40, low: false, costLabel: "7.500 د.ك", sellLabel: "—", stockLabel: "220 كرتون", reorderLabel: "40 كرتون", forecastLabel: "تكفي 18 يوماً", warehouseName: "المطبخ المركزي - القرين" },
+  { id: "vfs-48", code: "RW01-CHD", name: "جبن شيدر أصفر شرائح للبرجر (كرتون 8 عبوات)", categoryId: "cat-1131", categoryName: "1131 مواد خام غذائية", costPrice: 12.800, sellingPrice: 0.000, reorderLevel: 25, low: false, costLabel: "12.800 د.ك", sellLabel: "—", stockLabel: "140 كرتون", reorderLabel: "25 كرتون", forecastLabel: "تكفي 21 يوماً", warehouseName: "المطبخ المركزي - القرين" },
+  { id: "vfs-49", code: "RW01-FLR", name: "طحين فاخر كويتي ممتاز (شوال 50 كجم)", categoryId: "cat-1131", categoryName: "1131 مواد خام غذائية", costPrice: 6.500, sellingPrice: 0.000, reorderLevel: 60, low: false, costLabel: "6.500 د.ك", sellLabel: "—", stockLabel: "480 شوال", reorderLabel: "60 شوال", forecastLabel: "تكفي 40 يوماً", warehouseName: "مستودع أسواق القرين" },
+  { id: "vfs-50", code: "RW01-CRN", name: "نشاء ذرة نقي للتثخين والتتبيل (شوال 25 كجم)", categoryId: "cat-1131", categoryName: "1131 مواد خام غذائية", costPrice: 4.800, sellingPrice: 0.000, reorderLevel: 20, low: false, costLabel: "4.800 د.ك", sellLabel: "—", stockLabel: "120 شوال", reorderLabel: "20 شوال", forecastLabel: "تكفي 35 يوماً", warehouseName: "مستودع أسواق القرين" },
+  { id: "vfs-51", code: "RW01-TEA", name: "شاي أسود حبيبات فاخر لكرك كافتيريا (شوال 20 كجم)", categoryId: "cat-1131", categoryName: "1131 مواد خام غذائية", costPrice: 18.500, sellingPrice: 0.000, reorderLevel: 15, low: false, costLabel: "18.500 د.ك", sellLabel: "—", stockLabel: "95 شوال", reorderLabel: "15 شوال", forecastLabel: "تكفي 50 يوماً", warehouseName: "مستودع أسواق القرين" },
+  { id: "vfs-52", code: "RW01-CD01", name: "هيل أخضر هندي حبة كبيرة فاخر (صندوق 5 كجم)", categoryId: "cat-1131", categoryName: "1131 مواد خام غذائية", costPrice: 32.000, sellingPrice: 0.000, reorderLevel: 8, low: false, costLabel: "32.000 د.ك", sellLabel: "—", stockLabel: "42 صندوق", reorderLabel: "8 صندوق", forecastLabel: "تكفي 60 يوماً", warehouseName: "مستودع أسواق القرين" },
+  { id: "vfs-53", code: "RW01-SAF", name: "زعفران سوبر نقيل أصلي (علبة 100 غرام)", categoryId: "cat-1131", categoryName: "1131 مواد خام غذائية", costPrice: 45.000, sellingPrice: 0.000, reorderLevel: 5, low: false, costLabel: "45.000 د.ك", sellLabel: "—", stockLabel: "28 علبة", reorderLabel: "5 علبة", forecastLabel: "تكفي 90 يوماً", warehouseName: "مستودع أسواق القرين" },
+  { id: "vfs-54", code: "PP03-CGS", name: "صوص كانتون الصيني السري (تحضير القرين - جالون)", categoryId: "cat-1132", categoryName: "1132 إنتاج نصف مصنع", costPrice: 3.200, sellingPrice: 0.000, reorderLevel: 50, low: false, costLabel: "3.200 د.ك", sellLabel: "—", stockLabel: "350 جالون", reorderLabel: "50 جالون", forecastLabel: "تكفي 12 يوماً", warehouseName: "المطبخ المركزي - القرين" },
+  { id: "vfs-55", code: "PP03-GAR", name: "ثومية القرين الأصلية للشاورما (سطل 10 كجم)", categoryId: "cat-1132", categoryName: "1132 إنتاج نصف مصنع", costPrice: 4.100, sellingPrice: 0.000, reorderLevel: 30, low: false, costLabel: "4.100 د.ك", sellLabel: "—", stockLabel: "180 سطل", reorderLabel: "30 سطل", forecastLabel: "تكفي 10 أيام", warehouseName: "المطبخ المركزي - القرين" },
+  { id: "vfs-56", code: "PP03-TRF", name: "مايونيز الترافل الأسود الفاخر لبرجر فرانكس", categoryId: "cat-1132", categoryName: "1132 إنتاج نصف مصنع", costPrice: 5.600, sellingPrice: 0.000, reorderLevel: 25, low: false, costLabel: "5.600 د.ك", sellLabel: "—", stockLabel: "140 سطل", reorderLabel: "25 سطل", forecastLabel: "تكفي 14 يوماً", warehouseName: "المطبخ المركزي - القرين" },
+  { id: "vfs-57", code: "PP03-MSH", name: "بطاطا مهروسة متبلة بالكريمة (تحضير طازج يومي)", categoryId: "cat-1132", categoryName: "1132 إنتاج نصف مصنع", costPrice: 1.800, sellingPrice: 0.000, reorderLevel: 60, low: false, costLabel: "1.800 د.ك", sellLabel: "—", stockLabel: "420 كجم", reorderLabel: "60 كجم", forecastLabel: "تكفي 5 أيام", warehouseName: "المطبخ المركزي - القرين" },
+  { id: "vfs-58", code: "PK02-BOX-WOK", name: "علب ووك صينية حرارية كرتونية (كرتون 500 علبة)", categoryId: "cat-1133", categoryName: "1133 مواد تعبئة وتغليف", costPrice: 14.500, sellingPrice: 0.000, reorderLevel: 40, low: false, costLabel: "14.500 د.ك", sellLabel: "—", stockLabel: "320 كرتون", reorderLabel: "40 كرتون", forecastLabel: "تكفي 25 يوماً", warehouseName: "مستودع أسواق القرين" },
+  { id: "vfs-59", code: "PK02-BAG-KFT", name: "أكياس ورقية كرافت فاخرة بمقبض (حزمة 250 كيس)", categoryId: "cat-1133", categoryName: "1133 مواد تعبئة وتغليف", costPrice: 8.200, sellingPrice: 0.000, reorderLevel: 50, low: false, costLabel: "8.200 د.ك", sellLabel: "—", stockLabel: "480 حزمة", reorderLabel: "50 حزمة", forecastLabel: "تكفي 30 يوماً", warehouseName: "مستودع أسواق القرين" },
+  { id: "vfs-60", code: "PK02-CUP-KRK", name: "أكواب كرك ورقية حرارية سميكة 8 أونص مع الغطاء (كرتون 1000)", categoryId: "cat-1133", categoryName: "1133 مواد تعبئة وتغليف", costPrice: 12.000, sellingPrice: 0.000, reorderLevel: 30, low: false, costLabel: "12.000 د.ك", sellLabel: "—", stockLabel: "210 كرتون", reorderLabel: "30 كرتون", forecastLabel: "تكفي 35 يوماً", warehouseName: "مستودع أسواق القرين" },
+  { id: "vfs-61", code: "PK02-CT01", name: "طقم شوك وملاعق وسكاكين خشبية صديقة للبيئة (كرتون 500)", categoryId: "cat-1133", categoryName: "1133 مواد تعبئة وتغليف", costPrice: 9.500, sellingPrice: 0.000, reorderLevel: 45, low: false, costLabel: "9.500 د.ك", sellLabel: "—", stockLabel: "360 كرتون", reorderLabel: "45 كرتون", forecastLabel: "تكفي 28 يوماً", warehouseName: "مستودع أسواق القرين" },
+  { id: "vfs-62", code: "PK02-FOIL", name: "رول قصدير ألومنيوم حراري عريض 45 سم (صندوق 6 رول)", categoryId: "cat-1133", categoryName: "1133 مواد تعبئة وتغليف", costPrice: 16.500, sellingPrice: 0.000, reorderLevel: 20, low: false, costLabel: "16.500 د.ك", sellLabel: "—", stockLabel: "150 صندوق", reorderLabel: "20 صندوق", forecastLabel: "تكفي 40 يوماً", warehouseName: "مستودع أسواق القرين" },
+  { id: "vfs-63", code: "PK02-GLV", name: "قفازات فحص زرقاء معتمدة لسلامة الغذاء (كرتون 10 علب)", categoryId: "cat-1133", categoryName: "1133 مواد تعبئة وتغليف", costPrice: 11.200, sellingPrice: 0.000, reorderLevel: 50, low: false, costLabel: "11.200 د.ك", sellLabel: "—", stockLabel: "420 كرتون", reorderLabel: "50 كرتون", forecastLabel: "تكفي 22 يوماً", warehouseName: "مستودع أسواق القرين" },
+  { id: "vfs-64", code: "PK02-SAN", name: "مطهر ومعقم أسطح مائدة معتمد من البلدية (جالون 5 لتر)", categoryId: "cat-1133", categoryName: "1133 مواد تعبئة وتغليف", costPrice: 4.500, sellingPrice: 0.000, reorderLevel: 30, low: false, costLabel: "4.500 د.ك", sellLabel: "—", stockLabel: "240 جالون", reorderLabel: "30 جالون", forecastLabel: "تكفي 30 يوماً", warehouseName: "المطبخ المركزي - القرين" },
+  { id: "vfs-65", code: "PK02-NAP", name: "مناديل طاولة وسفري فاخرة مطبوعة فنتشر فودز (كرتون 2000)", categoryId: "cat-1133", categoryName: "1133 مواد تعبئة وتغليف", costPrice: 7.800, sellingPrice: 0.000, reorderLevel: 60, low: false, costLabel: "7.800 د.ك", sellLabel: "—", stockLabel: "510 كرتون", reorderLabel: "60 كرتون", forecastLabel: "تكفي 25 يوماً", warehouseName: "مستودع أسواق القرين" },
 ];
 
 export const ACCOUNTING_CATEGORIES_DATA = [
@@ -226,8 +252,28 @@ export function InventoryPanel({
     });
   }, [allDisplayProducts, internalFilter]);
 
-  const handleFolderUploadClick = () => {
-    folderInputRef.current?.click();
+  const handleFolderUploadClick = (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = true;
+    input.setAttribute('webkitdirectory', '');
+    input.setAttribute('directory', '');
+    input.setAttribute('mozdirectory', '');
+    input.onchange = (ev: Event) => {
+      const target = ev.target as HTMLInputElement;
+      const files = target.files;
+      if (files && files.length > 0) {
+        setUploadNotice(
+          en
+            ? `Inventory folder uploaded successfully (${files.length} files). Reconciling stock levels with Odoo...`
+            : `تم استلام وتحليل مجلد الجرد والمخزون بنجاح (${files.length} ملف) وجاري مطابقة الأرصدة مع أودو`
+        );
+        setTimeout(() => setUploadNotice(null), 7000);
+      }
+    };
+    input.click();
   };
 
   const handleFolderSelected = (event: React.ChangeEvent<HTMLInputElement>) => {

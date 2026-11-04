@@ -11,7 +11,7 @@ import { SmartIngestLaunchButton } from '@/components/SmartIngestLaunchButton'
 import { VentureRecipesHub } from '@/components/recipes/VentureRecipesHub'
 
 export const metadata = {
-  title: 'الوصفات وهندسة تكلفة الغذاء المعيارية | Venture Foods W.L.L. · AetherBI',
+  title: 'الوصفات وهندسة تكلفة الغذاء المعيارية | شركة فنتشر فودز ذ.م.م.',
   description: 'محاسبة تكاليف الوصفات وهندسة المنيو لشركة فنتشر فودز لإدارة المطاعم ذ.م.م.',
 }
 

@@ -15,7 +15,7 @@ import { SmartIngestLaunchButton } from "@/components/SmartIngestLaunchButton";
 import { VentureWarehousesHub } from "@/components/warehouses/VentureWarehousesHub";
 
 export const metadata = {
-  title: "المستودعات ومخازن الفروع | شركة فنتشر فودز · AetherBI",
+  title: "المستودعات ومخازن الفروع | شركة فنتشر فودز ذ.م.م.",
   description: "المطبخ المركزي والمستودع الرئيسي بالقرين ومخازن الفروع الـ 9 النشطة لشركة فنتشر فودز لإدارة المطاعم ذ.م.م.",
 };
 
@@ -29,7 +29,10 @@ async function WarehousesContent({ searchParams }: { searchParams: Promise<RawQu
   }
   const query = await readQuery(searchParams);
   const scope = await getActiveScope(query);
-  const allWarehouses = await listWarehouses();
+  const allRawWarehouses = await listWarehouses();
+  const allWarehouses = allRawWarehouses.filter(
+    (w) => !w.name.includes("الجهراء") && !w.name.toLowerCase().includes("jahra")
+  );
   const scopeFilter = warehouseWhereForScope(scope);
   const warehouses = Object.keys(scopeFilter).length
     ? allWarehouses.filter((warehouse) => {

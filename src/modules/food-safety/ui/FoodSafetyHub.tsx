@@ -732,7 +732,7 @@ export default function FoodSafetyHub() {
         <div className="absolute -bottom-24 -right-24 h-72 w-72 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-wrap items-start justify-between gap-4">
-          <div className="space-y-2 max-w-4xl">
+          <div className="space-y-2 w-full max-w-none">
             <div className="inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 text-xs font-bold text-cyan-300">
               <ShieldCheck size={14} className="text-cyan-400" />
               <span>

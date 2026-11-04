@@ -131,7 +131,7 @@ export function Sidebar({ user }: { user: AccessUser; enabledKeys?: string[] | n
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/venture-foods-logo-dark.svg" alt={isAr ? 'فنتشر فودز' : 'Venture Foods'} className="h-10 w-auto object-contain" />
         <p className="mt-2.5 text-[11px] font-bold leading-4 text-slate-300 truncate">{isAr ? 'فنتشر فودز' : companyName}</p>
-        <p className="mt-0.5 text-[10px] font-semibold text-[#8cc63f]">{isAr ? '6 علامات تجارية · 9 فروع نشطة' : t('panel.tagline')}</p>
+        <p className="mt-1 text-[11px] font-bold text-[#8cc63f] whitespace-nowrap overflow-visible leading-tight tracking-tight">{isAr ? '6 علامات تجارية · 9 فروع نشطة' : t('panel.tagline')}</p>
       </div>
 
       {/* Navigation Sections */}

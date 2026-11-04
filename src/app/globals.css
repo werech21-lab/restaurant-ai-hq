@@ -96,221 +96,199 @@ html[data-theme='dark'] .app-content .border-slate-200 {
 
 /* ==========================================================================
    ENTERPRISE CRISP LIGHT MODE CSS ENGINE (HOTEL LUXURY GRADE)
+   Guarantees 100% text contrast and turns all dark containers into crisp white cards
    ========================================================================== */
 
 /* 1. Page Background & Layout Shell */
 html[data-theme='light'] body,
 html.light-mode body,
+html.light body,
+html:not(.dark) body,
 html[data-theme='light'] .app-shell,
 html.light-mode .app-shell,
-html[data-theme='light'] div.min-h-screen.bg-ink-950,
-html.light-mode div.min-h-screen.bg-ink-950,
+html.light .app-shell,
+html:not(.dark) .app-shell,
+html[data-theme='light'] div.min-h-screen,
+html.light-mode div.min-h-screen,
+html.light div.min-h-screen,
+html:not(.dark) div.min-h-screen,
 html[data-theme='light'] .app-content,
-html.light-mode .app-content {
+html.light-mode .app-content,
+html.light .app-content,
+html:not(.dark) .app-content {
   background-color: #F8FAFC !important;
   color: #0F172A !important;
 }
 
 html[data-theme='light'] main,
-html.light-mode main {
+html.light-mode main,
+html.light main,
+html:not(.dark) main {
   color: #0F172A !important;
 }
 
 /* 2. Top Header Bar */
 html[data-theme='light'] header,
-html.light-mode header {
-  background-color: rgba(255, 255, 255, 0.94) !important;
+html.light-mode header,
+html.light header,
+html:not(.dark) header {
+  background-color: rgba(255, 255, 255, 0.96) !important;
   border-color: #E2E8F0 !important;
   box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.05) !important;
 }
 html[data-theme='light'] header p.text-gold-300,
-html.light-mode header p.text-gold-300 {
+html.light-mode header p.text-gold-300,
+html.light header p.text-gold-300,
+html:not(.dark) header p.text-gold-300 {
   color: #0F172A !important;
   font-weight: 800 !important;
 }
 
 /* 3. Sidebar (app-sidebar) */
 html[data-theme='light'] .app-sidebar,
-html.light-mode .app-sidebar {
+html.light-mode .app-sidebar,
+html.light .app-sidebar,
+html:not(.dark) .app-sidebar {
   background-color: #FFFFFF !important;
   border-color: #E2E8F0 !important;
   box-shadow: 2px 0 12px 0 rgba(15, 23, 42, 0.04) !important;
   color: #1E293B !important;
 }
-html[data-theme='light'] .app-sidebar .bg-\[\#07090e\],
-html.light-mode .app-sidebar .bg-\[\#07090e\] {
+html[data-theme='light'] .app-sidebar [class*="bg-[#0"],
+html.light-mode .app-sidebar [class*="bg-[#0"],
+html.light .app-sidebar [class*="bg-[#0"],
+html:not(.dark) .app-sidebar [class*="bg-[#0"] {
   background-color: #F8FAFC !important;
   border-color: #E2E8F0 !important;
 }
 html[data-theme='light'] .app-sidebar p.text-slate-300,
-html.light-mode .app-sidebar p.text-slate-300 {
+html.light-mode .app-sidebar p.text-slate-300,
+html.light .app-sidebar p.text-slate-300,
+html:not(.dark) .app-sidebar p.text-slate-300 {
   color: #0F172A !important;
 }
 html[data-theme='light'] .app-sidebar span.text-slate-400,
-html.light-mode .app-sidebar span.text-slate-400 {
+html.light-mode .app-sidebar span.text-slate-400,
+html.light .app-sidebar span.text-slate-400,
+html:not(.dark) .app-sidebar span.text-slate-400 {
   color: #64748B !important;
   font-weight: 700 !important;
 }
 html[data-theme='light'] .app-sidebar a.text-slate-300,
-html.light-mode .app-sidebar a.text-slate-300 {
+html.light-mode .app-sidebar a.text-slate-300,
+html.light .app-sidebar a.text-slate-300,
+html:not(.dark) .app-sidebar a.text-slate-300 {
   color: #334155 !important;
 }
 html[data-theme='light'] .app-sidebar a.text-slate-300:hover,
-html.light-mode .app-sidebar a.text-slate-300:hover {
+html.light-mode .app-sidebar a.text-slate-300:hover,
+html.light .app-sidebar a.text-slate-300:hover,
+html:not(.dark) .app-sidebar a.text-slate-300:hover {
   background-color: #F1F5F9 !important;
   color: #0F172A !important;
 }
-html[data-theme='light'] .app-sidebar .border-slate-800\/80,
-html[data-theme='light'] .app-sidebar .border-slate-800\/60,
-html[data-theme='light'] .app-sidebar .border-slate-800,
-html.light-mode .app-sidebar .border-slate-800\/80,
-html.light-mode .app-sidebar .border-slate-800\/60,
-html.light-mode .app-sidebar .border-slate-800 {
-  border-color: #E2E8F0 !important;
-}
 html[data-theme='light'] .app-sidebar button,
-html.light-mode .app-sidebar button {
+html.light-mode .app-sidebar button,
+html.light .app-sidebar button,
+html:not(.dark) .app-sidebar button {
   background-color: #F1F5F9 !important;
   border-color: #E2E8F0 !important;
   color: #334155 !important;
 }
-html[data-theme='light'] .app-sidebar button:hover,
-html.light-mode .app-sidebar button:hover {
-  background-color: #E2E8F0 !important;
-  color: #0F172A !important;
-}
 
-/* 4. Cards, Panels, Modals, and Main Containers */
-html[data-theme='light'] .bg-\[\#0a0d12\],
-html[data-theme='light'] .bg-\[\#0a0d14\],
-html[data-theme='light'] .bg-\[\#07090e\],
-html[data-theme='light'] .bg-\[\#07090f\],
-html[data-theme='light'] .bg-\[\#090d14\],
-html[data-theme='light'] .bg-\[\#090d16\],
-html[data-theme='light'] .bg-\[\#0b0e14\],
-html[data-theme='light'] .bg-\[\#0b0e15\],
-html[data-theme='light'] .bg-\[\#0b0f17\],
-html[data-theme='light'] .bg-\[\#0c1017\],
-html[data-theme='light'] .bg-\[\#0d0f12\],
-html[data-theme='light'] .bg-\[\#0d1017\],
-html[data-theme='light'] .bg-\[\#0d1117\],
-html[data-theme='light'] .bg-\[\#0d1118\],
-html[data-theme='light'] .bg-\[\#0d1219\],
-html[data-theme='light'] .bg-\[\#0d121c\],
-html[data-theme='light'] .bg-\[\#0d121d\],
-html[data-theme='light'] .bg-\[\#0d131f\],
-html[data-theme='light'] .bg-\[\#0f141c\],
-html[data-theme='light'] .bg-\[\#0f141d\],
-html[data-theme='light'] .bg-\[\#0f1420\],
-html[data-theme='light'] .bg-\[\#0f1422\],
-html[data-theme='light'] .bg-\[\#101622\],
-html[data-theme='light'] .bg-\[\#11161f\],
-html[data-theme='light'] .bg-\[\#111722\],
-html[data-theme='light'] .bg-\[\#111827\],
-html[data-theme='light'] .bg-\[\#111927\],
-html[data-theme='light'] .bg-\[\#121316\],
-html[data-theme='light'] .bg-\[\#121824\],
-html[data-theme='light'] .bg-\[\#121926\],
-html[data-theme='light'] .bg-\[\#131924\],
-html[data-theme='light'] .bg-\[\#131a26\],
-html[data-theme='light'] .bg-\[\#141b26\],
-html[data-theme='light'] .bg-\[\#161b22\],
-html[data-theme='light'] .bg-\[\#161f2e\],
-html[data-theme='light'] .bg-\[\#162030\],
-html[data-theme='light'] .bg-\[\#17191f\],
-html[data-theme='light'] .bg-\[\#1a1c22\],
-html[data-theme='light'] .bg-\[\#1c2128\],
-html[data-theme='light'] .bg-slate-950,
-html[data-theme='light'] .bg-slate-900,
-html[data-theme='light'] .bg-slate-900\/90,
-html[data-theme='light'] .bg-slate-900\/80,
-html[data-theme='light'] .bg-slate-900\/50,
-html[data-theme='light'] .bg-ink-950,
-html[data-theme='light'] .bg-ink-900,
-html[data-theme='light'] .bg-ink-800,
-html.light-mode .bg-\[\#0a0d12\],
-html.light-mode .bg-\[\#0a0d14\],
-html.light-mode .bg-\[\#07090e\],
-html.light-mode .bg-\[\#07090f\],
-html.light-mode .bg-\[\#090d14\],
-html.light-mode .bg-\[\#090d16\],
-html.light-mode .bg-\[\#0b0e14\],
-html.light-mode .bg-\[\#0b0e15\],
-html.light-mode .bg-\[\#0b0f17\],
-html.light-mode .bg-\[\#0c1017\],
-html.light-mode .bg-\[\#0d0f12\],
-html.light-mode .bg-\[\#0d1017\],
-html.light-mode .bg-\[\#0d1117\],
-html.light-mode .bg-\[\#0d1118\],
-html.light-mode .bg-\[\#0d1219\],
-html.light-mode .bg-\[\#0d121c\],
-html.light-mode .bg-\[\#0d121d\],
-html.light-mode .bg-\[\#0d131f\],
-html.light-mode .bg-\[\#0f141c\],
-html.light-mode .bg-\[\#0f141d\],
-html.light-mode .bg-\[\#0f1420\],
-html.light-mode .bg-\[\#0f1422\],
-html.light-mode .bg-\[\#101622\],
-html.light-mode .bg-\[\#11161f\],
-html.light-mode .bg-\[\#111722\],
-html.light-mode .bg-\[\#111827\],
-html.light-mode .bg-\[\#111927\],
-html.light-mode .bg-\[\#121316\],
-html.light-mode .bg-\[\#121824\],
-html.light-mode .bg-\[\#121926\],
-html.light-mode .bg-\[\#131924\],
-html.light-mode .bg-\[\#131a26\],
-html.light-mode .bg-\[\#141b26\],
-html.light-mode .bg-\[\#161b22\],
-html.light-mode .bg-\[\#161f2e\],
-html.light-mode .bg-\[\#162030\],
-html.light-mode .bg-\[\#17191f\],
-html.light-mode .bg-\[\#1a1c22\],
-html.light-mode .bg-\[\#1c2128\],
-html.light-mode .bg-slate-950,
-html.light-mode .bg-slate-900,
-html.light-mode .bg-slate-900\/90,
-html.light-mode .bg-slate-900\/80,
-html.light-mode .bg-slate-900\/50,
-html.light-mode .bg-ink-950,
-html.light-mode .bg-ink-900,
-html.light-mode .bg-ink-800 {
-  background-color: #FFFFFF !important;
-  border-color: #E2E8F0 !important;
-  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06), 0 1px 3px 0 rgba(15, 23, 42, 0.04) !important;
-}
-
-/* Secondary nested surfaces and subtle panel fills */
-html[data-theme='light'] .bg-slate-800,
-html[data-theme='light'] .bg-slate-800\/90,
-html[data-theme='light'] .bg-slate-800\/80,
-html[data-theme='light'] .bg-slate-800\/60,
-html[data-theme='light'] .bg-slate-800\/50,
-html[data-theme='light'] .bg-slate-800\/40,
-html[data-theme='light'] .bg-slate-800\/30,
-html[data-theme='light'] .bg-slate-800\/20,
+/* 4. Universal Card & Container Transformation for Light Mode */
+/* Turns all dark slate and dark hex containers into clean white cards */
+html[data-theme='light'] [class*="bg-slate-9"],
+html.light-mode [class*="bg-slate-9"],
+html.light [class*="bg-slate-9"],
+html:not(.dark) [class*="bg-slate-9"],
+html[data-theme='light'] [class*="bg-slate-8"],
+html.light-mode [class*="bg-slate-8"],
+html.light [class*="bg-slate-8"],
+html:not(.dark) [class*="bg-slate-8"],
+html[data-theme='light'] [class*="bg-ink-"],
+html.light-mode [class*="bg-ink-"],
+html.light [class*="bg-ink-"],
+html:not(.dark) [class*="bg-ink-"],
+html[data-theme='light'] [class*="bg-[#0"],
+html.light-mode [class*="bg-[#0"],
+html.light [class*="bg-[#0"],
+html:not(.dark) [class*="bg-[#0"],
+html[data-theme='light'] [class*="bg-[#10"],
+html.light-mode [class*="bg-[#10"],
+html.light [class*="bg-[#10"],
+html:not(.dark) [class*="bg-[#10"],
+html[data-theme='light'] [class*="bg-[#11"],
+html.light-mode [class*="bg-[#11"],
+html.light [class*="bg-[#11"],
+html:not(.dark) [class*="bg-[#11"],
+html[data-theme='light'] [class*="bg-[#12"],
+html.light-mode [class*="bg-[#12"],
+html.light [class*="bg-[#12"],
+html:not(.dark) [class*="bg-[#12"],
+html[data-theme='light'] [class*="bg-[#13"],
+html.light-mode [class*="bg-[#13"],
+html.light [class*="bg-[#13"],
+html:not(.dark) [class*="bg-[#13"],
+html[data-theme='light'] [class*="bg-[#14"],
+html.light-mode [class*="bg-[#14"],
+html.light [class*="bg-[#14"],
+html:not(.dark) [class*="bg-[#14"],
+html[data-theme='light'] [class*="bg-[#16"],
+html.light-mode [class*="bg-[#16"],
+html.light [class*="bg-[#16"],
+html:not(.dark) [class*="bg-[#16"],
+html[data-theme='light'] [class*="bg-[#17"],
+html.light-mode [class*="bg-[#17"],
+html.light [class*="bg-[#17"],
+html:not(.dark) [class*="bg-[#17"],
+html[data-theme='light'] [class*="bg-[#1a"],
+html.light-mode [class*="bg-[#1a"],
+html.light [class*="bg-[#1a"],
+html:not(.dark) [class*="bg-[#1a"],
+html[data-theme='light'] [class*="bg-[#1c"],
+html.light-mode [class*="bg-[#1c"],
+html.light [class*="bg-[#1c"],
+html:not(.dark) [class*="bg-[#1c"],
 html[data-theme='light'] .bg-black\/20,
 html[data-theme='light'] .bg-black\/30,
 html[data-theme='light'] .bg-black\/40,
-html[data-theme='light'] .bg-white\/\[0\.02\],
-html[data-theme='light'] .bg-white\/\[0\.04\],
-html[data-theme='light'] .bg-white\/5,
-html.light-mode .bg-slate-800,
-html.light-mode .bg-slate-800\/90,
-html.light-mode .bg-slate-800\/80,
-html.light-mode .bg-slate-800\/60,
-html.light-mode .bg-slate-800\/50,
-html.light-mode .bg-slate-800\/40,
-html.light-mode .bg-slate-800\/30,
-html.light-mode .bg-slate-800\/20,
+html[data-theme='light'] .bg-black\/50,
 html.light-mode .bg-black\/20,
 html.light-mode .bg-black\/30,
 html.light-mode .bg-black\/40,
+html.light-mode .bg-black\/50,
+html.light .bg-black\/20,
+html.light .bg-black\/30,
+html.light .bg-black\/40,
+html.light .bg-black\/50,
+html:not(.dark) .bg-black\/20,
+html:not(.dark) .bg-black\/30,
+html:not(.dark) .bg-black\/40,
+html:not(.dark) .bg-black\/50 {
+  background-color: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
+  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.06), 0 1px 2px -1px rgba(15, 23, 42, 0.04) !important;
+}
+
+/* Secondary nested surfaces and subtle panel fills */
+html[data-theme='light'] tr:hover,
+html.light-mode tr:hover,
+html.light tr:hover,
+html:not(.dark) tr:hover,
+html[data-theme='light'] .bg-white\/\[0\.02\],
+html[data-theme='light'] .bg-white\/\[0\.04\],
+html[data-theme='light'] .bg-white\/5,
 html.light-mode .bg-white\/\[0\.02\],
 html.light-mode .bg-white\/\[0\.04\],
-html.light-mode .bg-white\/5 {
+html.light-mode .bg-white\/5,
+html.light .bg-white\/\[0\.02\],
+html.light .bg-white\/\[0\.04\],
+html.light .bg-white\/5,
+html:not(.dark) .bg-white\/\[0\.02\],
+html:not(.dark) .bg-white\/\[0\.04\],
+html:not(.dark) .bg-white\/5 {
   background-color: #F8FAFC !important;
-  border-color: #E2E8F0 !important;
 }
 
 /* 5. Typography & Contrast Assurance (100% Crisp Contrast in Light Mode) */
@@ -326,37 +304,63 @@ html.light-mode h2,
 html.light-mode h3,
 html.light-mode h4,
 html.light-mode h5,
-html.light-mode h6 {
+html.light-mode h6,
+html.light h1,
+html.light h2,
+html.light h3,
+html.light h4,
+html.light h5,
+html.light h6,
+html:not(.dark) h1,
+html:not(.dark) h2,
+html:not(.dark) h3,
+html:not(.dark) h4,
+html:not(.dark) h5,
+html:not(.dark) h6 {
   color: #0F172A !important;
 }
 
 /* Primary Titles, Headings, and Figures */
-html[data-theme='light'] .text-white:not(button):not([role='alert']):not(.badge):not(.bg-blue-600 *):not(.bg-emerald-600 *):not(.bg-red-600 *):not(.bg-slate-900 *),
+html[data-theme='light'] .text-white:not(.btn-colored):not([class*="bg-blue-6"]):not([class*="bg-emerald-6"]):not([class*="bg-red-6"]):not([class*="bg-purple-6"]):not([class*="bg-indigo-6"]):not([class*="bg-amber-5"] *),
 html[data-theme='light'] .text-slate-100,
 html[data-theme='light'] .text-slate-200,
 html[data-theme='light'] .text-gray-50,
 html[data-theme='light'] .text-gray-100,
-html[data-theme='light'] .text-gray-200,
 html[data-theme='light'] .text-zinc-50,
 html[data-theme='light'] .text-zinc-100,
-html[data-theme='light'] .text-zinc-200,
 html[data-theme='light'] .text-mist-100,
-html.light-mode .text-white:not(button):not([role='alert']):not(.badge):not(.bg-blue-600 *):not(.bg-emerald-600 *):not(.bg-red-600 *):not(.bg-slate-900 *),
+html.light-mode .text-white:not(.btn-colored):not([class*="bg-blue-6"]):not([class*="bg-emerald-6"]):not([class*="bg-red-6"]):not([class*="bg-purple-6"]):not([class*="bg-indigo-6"]):not([class*="bg-amber-5"] *),
 html.light-mode .text-slate-100,
 html.light-mode .text-slate-200,
 html.light-mode .text-gray-50,
 html.light-mode .text-gray-100,
-html.light-mode .text-gray-200,
 html.light-mode .text-zinc-50,
 html.light-mode .text-zinc-100,
-html.light-mode .text-zinc-200,
-html.light-mode .text-mist-100 {
+html.light-mode .text-mist-100,
+html.light .text-white:not(.btn-colored):not([class*="bg-blue-6"]):not([class*="bg-emerald-6"]):not([class*="bg-red-6"]):not([class*="bg-purple-6"]):not([class*="bg-indigo-6"]):not([class*="bg-amber-5"] *),
+html.light .text-slate-100,
+html.light .text-slate-200,
+html.light .text-gray-50,
+html.light .text-gray-100,
+html.light .text-zinc-50,
+html.light .text-zinc-100,
+html.light .text-mist-100,
+html:not(.dark) .text-white:not(.btn-colored):not([class*="bg-blue-6"]):not([class*="bg-emerald-6"]):not([class*="bg-red-6"]):not([class*="bg-purple-6"]):not([class*="bg-indigo-6"]):not([class*="bg-amber-5"] *),
+html:not(.dark) .text-slate-100,
+html:not(.dark) .text-slate-200,
+html:not(.dark) .text-gray-50,
+html:not(.dark) .text-gray-100,
+html:not(.dark) .text-zinc-50,
+html:not(.dark) .text-zinc-100,
+html:not(.dark) .text-mist-100 {
   color: #0F172A !important;
 }
 
 /* Secondary Subtitles, Meta, Descriptions & Form Labels */
 html[data-theme='light'] label,
 html.light-mode label,
+html.light label,
+html:not(.dark) label,
 html[data-theme='light'] .text-slate-300,
 html[data-theme='light'] .text-slate-400,
 html[data-theme='light'] .text-gray-300,
@@ -372,136 +376,174 @@ html.light-mode .text-gray-400,
 html.light-mode .text-zinc-300,
 html.light-mode .text-zinc-400,
 html.light-mode .text-mist-300,
-html.light-mode .text-mist-400 {
+html.light-mode .text-mist-400,
+html.light .text-slate-300,
+html.light .text-slate-400,
+html.light .text-gray-300,
+html.light .text-gray-400,
+html.light .text-zinc-300,
+html.light .text-zinc-400,
+html.light .text-mist-300,
+html.light .text-mist-400,
+html:not(.dark) .text-slate-300,
+html:not(.dark) .text-slate-400,
+html:not(.dark) .text-gray-300,
+html:not(.dark) .text-gray-400,
+html:not(.dark) .text-zinc-300,
+html:not(.dark) .text-zinc-400,
+html:not(.dark) .text-mist-300,
+html:not(.dark) .text-mist-400 {
   color: #334155 !important;
 }
 
 /* Muted Captions and Micro Labels */
 html[data-theme='light'] .text-slate-500,
 html[data-theme='light'] .text-slate-600,
-html[data-theme='light'] .text-gray-500,
-html[data-theme='light'] .text-gray-600,
-html[data-theme='light'] .text-zinc-500,
-html[data-theme='light'] .text-zinc-600,
 html[data-theme='light'] .text-mist-500,
 html.light-mode .text-slate-500,
 html.light-mode .text-slate-600,
-html.light-mode .text-gray-500,
-html.light-mode .text-gray-600,
-html.light-mode .text-zinc-500,
-html.light-mode .text-zinc-600,
-html.light-mode .text-mist-500 {
+html.light-mode .text-mist-500,
+html.light .text-slate-500,
+html.light .text-slate-600,
+html.light .text-mist-500,
+html:not(.dark) .text-slate-500,
+html:not(.dark) .text-slate-600,
+html:not(.dark) .text-mist-500 {
   color: #64748B !important;
 }
 
-/* Ensure vibrant colored buttons maintain crisp white text in Light Mode */
-html[data-theme='light'] button.bg-blue-600,
-html[data-theme='light'] button.bg-emerald-600,
-html[data-theme='light'] button.bg-red-600,
-html[data-theme='light'] .bg-blue-600,
-html[data-theme='light'] .bg-emerald-600,
-html[data-theme='light'] .bg-red-600,
-html[data-theme='light'] .bg-slate-900,
-html.light-mode button.bg-blue-600,
-html.light-mode button.bg-emerald-600,
-html.light-mode button.bg-red-600,
-html.light-mode .bg-blue-600,
-html.light-mode .bg-emerald-600,
-html.light-mode .bg-red-600,
-html.light-mode .bg-slate-900 {
+/* 6. Action Buttons Color Fidelity (Ensure colored buttons keep 100% white text) */
+html[data-theme='light'] [class*="bg-blue-6"],
+html[data-theme='light'] [class*="bg-emerald-6"],
+html[data-theme='light'] [class*="bg-red-6"],
+html[data-theme='light'] [class*="bg-purple-6"],
+html[data-theme='light'] [class*="bg-indigo-6"],
+html[data-theme='light'] [class*="bg-teal-6"],
+html.light-mode [class*="bg-blue-6"],
+html.light-mode [class*="bg-emerald-6"],
+html.light-mode [class*="bg-red-6"],
+html.light-mode [class*="bg-purple-6"],
+html.light-mode [class*="bg-indigo-6"],
+html.light-mode [class*="bg-teal-6"],
+html.light [class*="bg-blue-6"],
+html.light [class*="bg-emerald-6"],
+html.light [class*="bg-red-6"],
+html.light [class*="bg-purple-6"],
+html.light [class*="bg-indigo-6"],
+html.light [class*="bg-teal-6"],
+html:not(.dark) [class*="bg-blue-6"],
+html:not(.dark) [class*="bg-emerald-6"],
+html:not(.dark) [class*="bg-red-6"],
+html:not(.dark) [class*="bg-purple-6"],
+html:not(.dark) [class*="bg-indigo-6"],
+html:not(.dark) [class*="bg-teal-6"] {
   color: #FFFFFF !important;
 }
-html[data-theme='light'] .bg-blue-600 *,
-html[data-theme='light'] .bg-emerald-600 *,
-html[data-theme='light'] .bg-red-600 *,
-html.light-mode .bg-blue-600 *,
-html.light-mode .bg-emerald-600 *,
-html.light-mode .bg-red-600 * {
+html[data-theme='light'] [class*="bg-blue-6"] *,
+html[data-theme='light'] [class*="bg-emerald-6"] *,
+html[data-theme='light'] [class*="bg-red-6"] *,
+html[data-theme='light'] [class*="bg-purple-6"] *,
+html[data-theme='light'] [class*="bg-indigo-6"] *,
+html[data-theme='light'] [class*="bg-teal-6"] *,
+html.light-mode [class*="bg-blue-6"] *,
+html.light-mode [class*="bg-emerald-6"] *,
+html.light-mode [class*="bg-red-6"] *,
+html.light-mode [class*="bg-purple-6"] *,
+html.light-mode [class*="bg-indigo-6"] *,
+html.light-mode [class*="bg-teal-6"] *,
+html.light [class*="bg-blue-6"] *,
+html.light [class*="bg-emerald-6"] *,
+html.light [class*="bg-red-6"] *,
+html.light [class*="bg-purple-6"] *,
+html.light [class*="bg-indigo-6"] *,
+html.light [class*="bg-teal-6"] *,
+html:not(.dark) [class*="bg-blue-6"] *,
+html:not(.dark) [class*="bg-emerald-6"] *,
+html:not(.dark) [class*="bg-red-6"] *,
+html:not(.dark) [class*="bg-purple-6"] *,
+html:not(.dark) [class*="bg-indigo-6"] *,
+html:not(.dark) [class*="bg-teal-6"] * {
   color: #FFFFFF !important;
 }
 
-/* Accent Gold Labels */
-html[data-theme='light'] .text-gold-300,
-html[data-theme='light'] .text-gold-400,
-html.light-mode .text-gold-300,
-html.light-mode .text-gold-400 {
-  color: #B45309 !important;
-  font-weight: 700 !important;
+/* 7. Disabled Buttons (e.g. وحدة أساسية معتمدة in /app-builder) */
+html[data-theme='light'] button:disabled,
+html[data-theme='light'] [disabled],
+html.light-mode button:disabled,
+html.light-mode [disabled],
+html.light button:disabled,
+html.light [disabled],
+html:not(.dark) button:disabled,
+html:not(.dark) [disabled] {
+  background-color: #E2E8F0 !important;
+  color: #1E293B !important;
+  border-color: #CBD5E1 !important;
+  opacity: 1 !important;
 }
 
-/* 6. Soft Luxury Borders */
-html[data-theme='light'] .border-slate-800,
-html[data-theme='light'] .border-slate-800\/80,
-html[data-theme='light'] .border-slate-800\/60,
-html[data-theme='light'] .border-slate-800\/50,
-html[data-theme='light'] .border-slate-800\/40,
-html[data-theme='light'] .border-slate-700,
-html[data-theme='light'] .border-slate-700\/50,
-html[data-theme='light'] .border-slate-700\/40,
-html[data-theme='light'] .border-white\/5,
-html[data-theme='light'] .border-white\/10,
-html[data-theme='light'] .border-white\/15,
-html[data-theme='light'] .border-white\/20,
-html[data-theme='light'] .border-gold-300\/10,
-html[data-theme='light'] .border-gold-300\/15,
-html[data-theme='light'] .border-gold-300\/20,
-html[data-theme='light'] .border-gold-300\/25,
-html[data-theme='light'] .border-\[\#30363d\],
-html[data-theme='light'] .border-\[\#121824\],
-html.light-mode .border-slate-800,
-html.light-mode .border-slate-800\/80,
-html.light-mode .border-slate-800\/60,
-html.light-mode .border-slate-800\/50,
-html.light-mode .border-slate-800\/40,
-html.light-mode .border-slate-700,
-html.light-mode .border-slate-700\/50,
-html.light-mode .border-slate-700\/40,
-html.light-mode .border-white\/5,
-html.light-mode .border-white\/10,
-html.light-mode .border-white\/15,
-html.light-mode .border-white\/20,
-html.light-mode .border-gold-300\/10,
-html.light-mode .border-gold-300\/15,
-html.light-mode .border-gold-300\/20,
-html.light-mode .border-gold-300\/25,
-html.light-mode .border-\[\#30363d\],
-html.light-mode .border-\[\#121824\] {
+/* 8. Soft Luxury Borders in Light Mode */
+html[data-theme='light'] [class*="border-slate-8"],
+html[data-theme='light'] [class*="border-slate-7"],
+html[data-theme='light'] [class*="border-white/"],
+html[data-theme='light'] [class*="border-[#"],
+html.light-mode [class*="border-slate-8"],
+html.light-mode [class*="border-slate-7"],
+html.light-mode [class*="border-white/"],
+html.light-mode [class*="border-[#"],
+html.light [class*="border-slate-8"],
+html.light [class*="border-slate-7"],
+html.light [class*="border-white/"],
+html.light [class*="border-[#"],
+html:not(.dark) [class*="border-slate-8"],
+html:not(.dark) [class*="border-slate-7"],
+html:not(.dark) [class*="border-white/"],
+html:not(.dark) [class*="border-[#"] {
   border-color: #E2E8F0 !important;
 }
 
-/* 7. Tables & Data Grids */
+/* 9. Tables & Data Grids */
 html[data-theme='light'] table,
-html.light-mode table {
+html.light-mode table,
+html.light table,
+html:not(.dark) table {
   color: #0F172A !important;
 }
 html[data-theme='light'] thead th,
-html.light-mode thead th {
+html.light-mode thead th,
+html.light thead th,
+html:not(.dark) thead th {
   background-color: #F8FAFC !important;
-  color: #475569 !important;
+  color: #334155 !important;
   border-color: #E2E8F0 !important;
   font-weight: 800 !important;
 }
 html[data-theme='light'] tbody tr,
-html.light-mode tbody tr {
+html.light-mode tbody tr,
+html.light tbody tr,
+html:not(.dark) tbody tr {
   border-color: #F1F5F9 !important;
 }
-html[data-theme='light'] tbody tr:hover,
-html.light-mode tbody tr:hover {
-  background-color: #F8FAFC !important;
-}
 html[data-theme='light'] tbody td,
-html.light-mode tbody td {
+html.light-mode tbody td,
+html.light tbody td,
+html:not(.dark) tbody td {
   color: #1E293B !important;
   border-color: #F1F5F9 !important;
 }
 
-/* 8. Form Inputs, Selects, and Textareas */
+/* 10. Form Inputs, Selects, and Textareas */
 html[data-theme='light'] input:not([type='checkbox']):not([type='radio']),
 html[data-theme='light'] select,
 html[data-theme='light'] textarea,
 html.light-mode input:not([type='checkbox']):not([type='radio']),
 html.light-mode select,
-html.light-mode textarea {
+html.light-mode textarea,
+html.light input:not([type='checkbox']):not([type='radio']),
+html.light select,
+html.light textarea,
+html:not(.dark) input:not([type='checkbox']):not([type='radio']),
+html:not(.dark) select,
+html:not(.dark) textarea {
   background-color: #FFFFFF !important;
   color: #0F172A !important;
   border-color: #CBD5E1 !important;
@@ -509,18 +551,12 @@ html.light-mode textarea {
 html[data-theme='light'] input::placeholder,
 html[data-theme='light'] textarea::placeholder,
 html.light-mode input::placeholder,
-html.light-mode textarea::placeholder {
+html.light-mode textarea::placeholder,
+html.light input::placeholder,
+html.light textarea::placeholder,
+html:not(.dark) input::placeholder,
+html:not(.dark) textarea::placeholder {
   color: #94A3B8 !important;
-}
-html[data-theme='light'] input:focus,
-html[data-theme='light'] select:focus,
-html[data-theme='light'] textarea:focus,
-html.light-mode input:focus,
-html.light-mode select:focus,
-html.light-mode textarea:focus {
-  border-color: #3B82F6 !important;
-  outline: none !important;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
 }
 
 /* 9. Badges, Indicators, and Status Pills */
