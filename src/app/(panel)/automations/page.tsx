@@ -6,8 +6,10 @@ import { can, firstAllowedHref } from "@/lib/permissions";
 import { getLocale } from "@/lib/i18n/server";
 import { VentureAutomationHub } from "@/components/automation/VentureAutomationHub";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
-  title: "محرك الأتمتة والرادارات | Venture Foods W.L.L.",
+  title: "مركز قيادة مسارات الأتمتة والرادارات الحية | شركة فنتشر فودز ذ.م.م.",
   description: "محركات الأتمتة الـ 6 الحية لشركة فنتشر فودز لإدارة المطاعم ذ.م.م.",
 };
 
@@ -22,8 +24,10 @@ async function AutomationsContent() {
 
 export default function AutomationsPage() {
   return (
-    <Suspense fallback={<PageSkeleton title="Automations" />}>
-      <AutomationsContent />
-    </Suspense>
+    <div className="w-full max-w-none">
+      <Suspense fallback={<PageSkeleton title="مركز قيادة مسارات الأتمتة والرادارات الحية" />}>
+        <AutomationsContent />
+      </Suspense>
+    </div>
   );
 }

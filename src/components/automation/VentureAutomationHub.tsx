@@ -48,13 +48,13 @@ const INITIAL_WORKFLOWS: AutomationWorkflow[] = [
   {
     id: 'wf-radar',
     code: 'VF-AUTO-RADAR-01',
-    titleAr: 'رادار منصات التوصيل الجنائي (Aggregator Watchdog)',
+    titleAr: 'رادار منصات التوصيل والرقابة الجنائية',
     titleEn: 'Aggregator Offline & Forced TGO 17% Watchdog',
     departmentAr: 'التشغيل والتوصيل',
     departmentEn: 'Aggregator Operations',
-    triggerAr: 'فحص كل 5 دقائق: إغلاق فرع > 30 دقيقة أو تحويل قسري من TMP 10% إلى TGO 17%',
+    triggerAr: 'فحص كل 5 دقائق: إغلاق فرع أكثر من 30 دقيقة أو تحويل قسري من توصيل المطعم 10% إلى أسطول المنصة 17%',
     triggerEn: 'Every 5m: branch offline > 30m or forced switch from TMP 10% to TGO 17%',
-    actionAr: 'إرسال التقرير التشغيلي والجنائي فوراً عبر SMTP للمستلمين الثلاثة المعتمدين',
+    actionAr: 'إرسال التقرير التشغيلي والجنائي فوراً عبر البريد الإلكتروني للمستلمين الثلاثة المعتمدين',
     actionEn: 'Dispatch forensic email alert via SMTP to 3 verified stakeholders',
     scheduleAr: 'مستمر · كل 5 دقائق',
     scheduleEn: 'Continuous · Every 5 mins',
@@ -72,7 +72,7 @@ const INITIAL_WORKFLOWS: AutomationWorkflow[] = [
     titleEn: 'Low-Stock & Al-Qurain Central Kitchen Auto-Order',
     departmentAr: 'المخزون والتوريد',
     departmentEn: 'Inventory & Kitchen Supply',
-    triggerAr: 'نزول رصيد أي مادة خام (RW01*) أو تغليف (PI02*) أو تحضير (PP03*) تحت حد الطلب',
+    triggerAr: 'نزول رصيد أي مادة خام أو مواد تغليف أو تحضير مركزي تحت حد الطلب المعياري',
     triggerEn: 'SKU drops below Reorder Point across raw (RW01), pack (PI02) or prep (PP03)',
     actionAr: 'توليد مسودة طلب شراء وتنبيه مسؤولي العمليات ومستودع المطبخ المركزي بالقرين',
     actionEn: 'Auto-generate PO draft & alert Operations & Al-Qurain Commissary',
@@ -87,13 +87,13 @@ const INITIAL_WORKFLOWS: AutomationWorkflow[] = [
   {
     id: 'wf-fefo',
     code: 'VF-AUTO-FEFO-03',
-    titleAr: 'حارس سلامة الغذاء وصلاحيات الدفعات والبرادات (FEFO Guard)',
+    titleAr: 'حارس سلامة الغذاء وسلسلة التبريد وصلاحيات الدفعات',
     titleEn: 'FEFO Shelf-Life & Cold-Chain Breach Guard',
     departmentAr: 'سلامة الغذاء والهاسب',
     departmentEn: 'Food Safety & HACCP',
     triggerAr: 'اقتراب انتهاء دفعة تحضير < 4 ساعات أو تجاوز حرارة البراد 4°C / الفريزر -18°C',
     triggerEn: 'Prep batch expiry < 4h or chiller temp > 4°C / freezer > -18°C',
-    actionAr: 'إصدار تنبيه سحب فوري للدفعة (FEFO Pull Alert) وإشعار مدير الفرع وقسم الجودة',
+    actionAr: 'إصدار تنبيه سحب فوري للدفعة وإشعار مدير الفرع وقسم الجودة',
     actionEn: 'Issue instant batch recall alert & notify Branch Manager & QA lead',
     scheduleAr: 'فوري · رصد مستمر',
     scheduleEn: 'Real-time telemetry',
@@ -112,7 +112,7 @@ const INITIAL_WORKFLOWS: AutomationWorkflow[] = [
     departmentEn: 'HR & Labor Compliance',
     triggerAr: 'فحص يومي الساعة 8:00 صباحاً لوثائق الـ 166 موظفاً التي تنتهي خلال 60 / 30 / 7 أيام',
     triggerEn: 'Daily 8:00 AM check for 166 staff docs expiring in 60 / 30 / 7 days',
-    actionAr: 'إدراج المعاملة في طابور مهام المندوب (PRO Queue) وتصدير كشف التجديد لـ PAM (أسهل)',
+    actionAr: 'إدراج المعاملة في طابور مهام المندوب وتصدير كشف التجديد لمنصة أسهل للهيئة العامة للقوى العاملة',
     actionEn: 'Insert into PRO action queue & export PAM renewal batch',
     scheduleAr: 'يومياً · 8:00 صباحاً',
     scheduleEn: 'Daily at 8:00 AM',
@@ -125,7 +125,7 @@ const INITIAL_WORKFLOWS: AutomationWorkflow[] = [
   {
     id: 'wf-sales-digest',
     code: 'VF-AUTO-SALES-05',
-    titleAr: 'الإيجاز التنفيذي اليومي للمبيعات وإغلاق الصناديق (Z-Report)',
+    titleAr: 'الإيجاز التنفيذي اليومي للمبيعات وإغلاق الصناديق وتقرير نهاية اليوم',
     titleEn: 'Daily 6-Brand Sales & Z-Report Morning Digest',
     departmentAr: 'المبيعات والإدارة',
     departmentEn: 'Sales BI & Executive Office',
@@ -144,11 +144,11 @@ const INITIAL_WORKFLOWS: AutomationWorkflow[] = [
   {
     id: 'wf-dropzone',
     code: 'VF-AUTO-DROPZONE-06',
-    titleAr: 'الموزع الذكي للوثائق والفواتير (Dropzone Classifier)',
+    titleAr: 'الموزع الذكي للوثائق والمستندات والفواتير',
     titleEn: 'Universal AI Smart Dropzone Auto-Classifier',
     departmentAr: 'الأرشفة والذكاء الاصطناعي',
     departmentEn: 'Data Ingestion & AI',
-    triggerAr: 'عند اختيار أي ملفات أو مجلدات من الكمبيوتر في نافذة Dropzone',
+    triggerAr: 'عند اختيار أي ملفات أو مجلدات من الحاسوب في نافذة الفرز',
     triggerEn: 'When files or folders are picked locally via Windows File Picker',
     actionAr: 'استخراج البيانات محلياً وتصنيف السجلات وربطها بالأقسام الـ 7 آلياً',
     actionEn: 'Extract locally, classify & route transactions to 7 departments automatically',
@@ -182,7 +182,7 @@ const INITIAL_LOGS: ExecutionLogItem[] = [
     workflowTitleEn: 'Aggregator Offline Watchdog',
     timestamp: '03 نوفمبر 2026 - 12:25:10',
     status: 'SUCCESS',
-    detailsAr: 'فحص الفروع الـ 10: جميع الفروع متصلة على TMP 10% ولا يوجد إغلاق غير مصرح',
+    detailsAr: 'فحص الفروع الـ 10: جميع الفروع متصلة على توصيل المطعم 10% ولا يوجد إغلاق غير مصرح',
     detailsEn: 'Scanned 10 branches: all online on TMP 10%, 0 unauthorized switches',
     durationMs: 420,
   },
@@ -193,7 +193,7 @@ const INITIAL_LOGS: ExecutionLogItem[] = [
     workflowTitleEn: 'Daily Sales & Z-Report Digest',
     timestamp: '03 نوفمبر 2026 - 09:00:02',
     status: 'SUCCESS',
-    detailsAr: 'إرسال إيميل الإيجاز لـ 3 مستلمين معتمدين (Sec, operations, abdelrahmanm)',
+    detailsAr: 'إرسال إيميل الإيجاز لـ 3 مستلمين معتمدين في الإدارة التنفيذية والعمليات',
     detailsEn: 'Dispatched digest to 3 verified recipients via sec@venturefoodskw.com',
     durationMs: 1250,
   },
@@ -204,7 +204,7 @@ const INITIAL_LOGS: ExecutionLogItem[] = [
     workflowTitleEn: 'Kuwait Visa 18 & Health Card Radar',
     timestamp: '03 نوفمبر 2026 - 08:00:15',
     status: 'SUCCESS',
-    detailsAr: 'فحص 166 موظفاً: رصد 6 معاملات تتطلب تجديداً وإدراجها في قائمة المندوب',
+    detailsAr: 'فحص 166 موظفاً: رصد 6 معاملات تتطلب تجديداً وإدراجها في قائمة مهام المندوب',
     detailsEn: 'Audited 166 employees: flagged 6 renewals into PRO action queue',
     durationMs: 680,
   },
@@ -215,7 +215,7 @@ const INITIAL_LOGS: ExecutionLogItem[] = [
     workflowTitleEn: 'Low-Stock & Kitchen Auto-Order',
     timestamp: '03 نوفمبر 2026 - 07:14:30',
     status: 'SUCCESS',
-    detailsAr: 'توليد مسودة أمر تزويد رقم PO-202611-002 لمستودع المطبخ المركزي بالقرين',
+    detailsAr: 'توليد مسودة أمر تزويد رقم 002-202611 لمستودع المطبخ المركزي بالقرين',
     detailsEn: 'Generated PO draft PO-202611-002 for Al-Qurain central kitchen warehouse',
     durationMs: 310,
   },
@@ -226,7 +226,7 @@ const INITIAL_LOGS: ExecutionLogItem[] = [
     workflowTitleEn: 'FEFO Cold-Chain Breach Guard',
     timestamp: '03 نوفمبر 2026 - 04:30:00',
     status: 'SUCCESS',
-    detailsAr: 'فحص 384 دفعة طعام: درجات الحرارة مطابقة للمواصفات وصلاحيات آمنة',
+    detailsAr: 'فحص 384 دفعة طعام: درجات الحرارة مطابقة للمواصفات ضمن سلسلة التبريد وصلاحيات آمنة',
     detailsEn: 'Audited 384 batches: temperatures within cold chain limits',
     durationMs: 290,
   },
@@ -348,7 +348,7 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
   return (
     <div
       dir={isRtl ? 'rtl' : 'ltr'}
-      className="min-h-screen bg-[#0a0d12] text-slate-100 p-3 sm:p-6 space-y-6"
+      className="w-full max-w-none min-h-screen bg-[#0a0d12] text-slate-100 p-3 sm:p-6 space-y-6"
     >
       {/* ========================================================================= */}
       {/* 1. TOP HEADER                                                             */}
@@ -379,7 +379,7 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
             onClick={() => setCurrentLocale(isAr ? 'en' : 'ar')}
             className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-700 transition-colors"
           >
-            {isAr ? 'English (LTR)' : 'عربي (RTL)'}
+            {isAr ? 'الانتقال للإنجليزية' : 'الانتقال للعربية'}
           </button>
           <button
             onClick={() => setShowNewRuleModal(true)}
@@ -421,7 +421,7 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
               <div className="flex items-center gap-2">
                 <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
                 <span className="text-sm font-bold text-white">
-                  Google Workspace SMTP Active
+                  {isAr ? 'خادم البريد المؤسسي موثق ونشط' : 'Google Workspace SMTP Active'}
                 </span>
                 <span className="font-mono text-xs text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20" dir="ltr">
                   sec@venturefoodskw.com
@@ -442,13 +442,13 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
             </span>
             <div className="mt-1.5 flex flex-wrap gap-1.5">
               <span className="inline-flex items-center gap-1 rounded-md border border-slate-700 bg-slate-800 px-2 py-1 text-[11px] text-slate-200" dir="ltr">
-                <span className="font-semibold text-emerald-400">Abdullah:</span> Sec@venturefoodskw.com
+                <span className="font-semibold text-emerald-400">{isAr ? 'عبدالله:' : 'Abdullah:'}</span> Sec@venturefoodskw.com
               </span>
               <span className="inline-flex items-center gap-1 rounded-md border border-slate-700 bg-slate-800 px-2 py-1 text-[11px] text-slate-200" dir="ltr">
-                <span className="font-semibold text-blue-400">Choukrallah:</span> operations@venturefoodskw.com
+                <span className="font-semibold text-blue-400">{isAr ? 'شكرالله:' : 'Choukrallah:'}</span> operations@venturefoodskw.com
               </span>
               <span className="inline-flex items-center gap-1 rounded-md border border-slate-700 bg-slate-800 px-2 py-1 text-[11px] text-slate-200" dir="ltr">
-                <span className="font-semibold text-amber-400">Abdulrahman:</span> abdelrahmanm@venturefoodskw.com
+                <span className="font-semibold text-amber-400">{isAr ? 'عبدالرحمن:' : 'Abdulrahman:'}</span> abdelrahmanm@venturefoodskw.com
               </span>
             </div>
           </div>
@@ -516,7 +516,7 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
                 <div className="mt-3 space-y-2 rounded-xl bg-slate-900/60 p-3 text-xs">
                   <div>
                     <span className="font-bold text-amber-400">
-                      {isAr ? '⚡ الشرط (Trigger):' : '⚡ Trigger:'}
+                      {isAr ? '⚡ شرط التحفيز والتفعيل:' : '⚡ Trigger:'}
                     </span>
                     <p className="mt-0.5 text-slate-300">
                       {isAr ? wf.triggerAr : wf.triggerEn}
@@ -524,7 +524,7 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
                   </div>
                   <div className="border-t border-slate-800/70 pt-2">
                     <span className="font-bold text-emerald-400">
-                      {isAr ? '🎯 الإجراء (Action):' : '🎯 Action:'}
+                      {isAr ? '🎯 الإجراء التلقائي المعتمد:' : '🎯 Action:'}
                     </span>
                     <p className="mt-0.5 text-slate-300">
                       {isAr ? wf.actionAr : wf.actionEn}
@@ -560,7 +560,7 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
                   ) : (
                     <>
                       <Play size={13} className="fill-current" />
-                      {isAr ? 'تشغيل واختبار الآن (Run Now)' : 'Run & Test Now'}
+                      {isAr ? 'تشغيل واختبار فوري الآن' : 'Run & Test Now'}
                     </>
                   )}
                 </button>
@@ -578,7 +578,7 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
           <div className="flex items-center gap-2">
             <Server size={18} className="text-emerald-400" />
             <h2 className="text-sm font-bold text-white sm:text-base">
-              {isAr ? 'سجل التنفيذ الحي للعمليات (Live Automation Execution Log)' : 'Live Automation Execution Log'}
+              {isAr ? 'سجل التنفيذ والتشغيل الحي للعمليات' : 'Live Automation Execution Log'}
             </h2>
           </div>
           <span className="text-xs text-slate-400">
@@ -614,12 +614,12 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
                     {isAr ? log.detailsAr : log.detailsEn}
                   </td>
                   <td className="px-4 py-3 text-center font-mono text-xs text-slate-400">
-                    {log.durationMs}ms
+                    {log.durationMs} {isAr ? 'مللي ثانية' : 'ms'}
                   </td>
                   <td className="px-4 py-3 text-center">
                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-400 border border-emerald-500/20">
                       <CheckCircle2 size={12} />
-                      {log.status}
+                      {isAr ? (log.status === 'SUCCESS' ? 'ناجح وموثق' : log.status === 'WARNING' ? 'تحذير' : 'فشل') : log.status}
                     </span>
                   </td>
                 </tr>
@@ -673,27 +673,27 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
                   onChange={(e) => setNewRuleDepartment(e.target.value)}
                   className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-white focus:outline-none"
                 >
-                  <option value="المبيعات والقنوات">المبيعات والقنوات (Sales & Channels)</option>
-                  <option value="المخزون والتوريد">المخزون والتوريد (Inventory & Supply)</option>
-                  <option value="سلامة الغذاء والهاسب">سلامة الغذاء والهاسب (Food Safety & HACCP)</option>
-                  <option value="الموارد البشرية والرواتب">الموارد البشرية والرواتب (HR & Payroll)</option>
-                  <option value="المطبخ المركزي صبحان">المطبخ المركزي صبحان (Sabhan Commissary)</option>
+                  <option value="المبيعات والقنوات">{isAr ? 'المبيعات والقنوات' : 'Sales & Channels'}</option>
+                  <option value="المخزون والتوريد">{isAr ? 'المخزون والتوريد' : 'Inventory & Supply'}</option>
+                  <option value="سلامة الغذاء والهاسب">{isAr ? 'سلامة الغذاء والهاسب' : 'Food Safety & HACCP'}</option>
+                  <option value="الموارد البشرية والرواتب">{isAr ? 'الموارد البشرية والرواتب' : 'HR & Payroll'}</option>
+                  <option value="المطبخ المركزي صبحان">{isAr ? 'المطبخ المركزي صبحان' : 'Sabhan Commissary'}</option>
                 </select>
               </div>
 
               <div>
                 <label className="block font-semibold text-slate-300 mb-1">
-                  {isAr ? 'شرط المحفز (Trigger Event):' : 'Trigger Condition:'}
+                  {isAr ? 'شرط المحفز والتفعيل:' : 'Trigger Condition:'}
                 </label>
                 <select
                   value={newRuleTrigger}
                   onChange={(e) => setNewRuleTrigger(e.target.value)}
                   className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-white focus:outline-none"
                 >
-                  <option value="STOCK_ALERT">نزول المخزون عن حد إعادة الطلب (Stock Alert)</option>
-                  <option value="SALES_SPIKE">تسجيل مبيعات استثنائية أو إغلاق وردية (Sales Close)</option>
-                  <option value="FEFO_CRITICAL">اقتراب انتهاء دفعة تحضير أقل من 6 ساعات (FEFO Near Expiry)</option>
-                  <option value="RESIDENCY_SOON">انتهاء وثيقة موظف خلال 30 يوماً (Labor Doc Expiry)</option>
+                  <option value="STOCK_ALERT">{isAr ? 'نزول المخزون عن حد إعادة الطلب' : 'Stock Alert'}</option>
+                  <option value="SALES_SPIKE">{isAr ? 'تسجيل مبيعات استثنائية أو إغلاق وردية' : 'Sales Close'}</option>
+                  <option value="FEFO_CRITICAL">{isAr ? 'اقتراب انتهاء دفعة تحضير أقل من 6 ساعات' : 'FEFO Near Expiry'}</option>
+                  <option value="RESIDENCY_SOON">{isAr ? 'انتهاء وثيقة موظف خلال 30 يوماً' : 'Labor Doc Expiry'}</option>
                 </select>
               </div>
 
