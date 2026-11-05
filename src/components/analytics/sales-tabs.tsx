@@ -67,7 +67,7 @@ function Bars({ rows, labelW = 130 }: { rows: Row[]; labelW?: number }) {
   return (
     <div className="space-y-1.5">
       {rows.map((r) => (
-        <div key={r.key} tabIndex={r.tip ? 0 : undefined} className="group relative grid items-center gap-2 text-[11px] outline-none" style={{ gridTemplateColumns: `${labelW}px 1fr` }}>
+        <div key={r.key} tabIndex={r.tip ? 0 : undefined} className="group relative grid items-center gap-2 text-[11px] outline-none hover:z-50 focus:z-50" style={{ gridTemplateColumns: `${labelW}px 1fr` }}>
           {r.tip && <HoverTip title={r.tip.title} lines={r.tip.lines} />}
           <span className="truncate text-gray-600">{r.label}</span>
           <div className="flex items-center gap-1.5">
@@ -109,13 +109,25 @@ function smooth(pts: { x: number; y: number }[]) {
 
 /* ------------------------------------------------------------------ core */
 export function HoverTip({ title, lines }: Tip) {
+  // "Label: value" lines are split so the label is muted and the number is bold and dark
   return (
     <div
       role="tooltip"
-      className="pointer-events-none absolute start-28 top-full z-30 mt-1 hidden min-w-[190px] rounded-lg bg-white p-3 text-[11px] shadow-lg ring-1 ring-gray-200 group-hover:block group-focus:block"
+      className="pointer-events-none absolute start-28 top-full z-[9999] mt-1 hidden min-w-[210px] rounded-xl bg-white p-3.5 text-xs opacity-100 shadow-xl ring-1 ring-neutral-900/10 group-hover:block group-focus:block"
+      style={{ backgroundColor: '#FFFFFF', opacity: 1, zIndex: 9999 }}
     >
-      <div className="font-semibold text-gray-900">{title}</div>
-      {lines.map((l) => <div key={l} className="mt-0.5 text-gray-600">{l}</div>)}
+      <div className="mb-1.5 border-b border-neutral-100 pb-1.5 text-xs font-bold text-neutral-950">{title}</div>
+      {lines.map((l) => {
+        const i = l.indexOf(': ')
+        const label = i > 0 ? l.slice(0, i) : l
+        const value = i > 0 ? l.slice(i + 2) : ''
+        return (
+          <div key={l} className="mt-1 flex items-baseline justify-between gap-4">
+            <span className="text-xs font-medium text-neutral-600">{label}</span>
+            {value && <span dir="ltr" className="font-bold tabular-nums text-neutral-950">{value}</span>}
+          </div>
+        )
+      })}
     </div>
   )
 }

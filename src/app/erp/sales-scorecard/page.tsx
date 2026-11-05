@@ -895,7 +895,7 @@ function ScorecardInner() {
                         setSelectedBrand(selectedBrand === b.brand ? "All brands" : b.brand)
                       }
                       tabIndex={0}
-                      className={`group relative outline-none grid grid-cols-[110px_1fr_55px] items-center gap-2 text-[11px] cursor-pointer hover:opacity-90 ${
+                      className={`group relative hover:z-50 focus:z-50 outline-none grid grid-cols-[110px_1fr_55px] items-center gap-2 text-[11px] cursor-pointer hover:opacity-100 focus:opacity-100 ${
                         isSelected ? "opacity-100" : "opacity-40"
                       }`}
                     >
@@ -933,7 +933,7 @@ function ScorecardInner() {
                           setSelectedBrand(selectedBrand === b.brand ? "All brands" : b.brand)
                         }
                         tabIndex={0}
-                      className="group relative outline-none grid grid-cols-[110px_1fr_45px] items-center gap-2 text-[11px] cursor-pointer"
+                      className="group relative hover:z-50 focus:z-50 outline-none grid grid-cols-[110px_1fr_45px] items-center gap-2 text-[11px] cursor-pointer"
                       >
                         <HoverTip title={tr(b.brand)} lines={brandTip(b)} />
                       <span className="text-end text-gray-600 truncate">{tr(b.brand)}</span>
@@ -1061,7 +1061,7 @@ function ScorecardInner() {
                         )
                       }
                       tabIndex={0}
-                      className="group relative outline-none grid grid-cols-[110px_1fr_55px] items-center gap-2 text-[11px] cursor-pointer hover:opacity-90"
+                      className="group relative hover:z-50 focus:z-50 outline-none grid grid-cols-[110px_1fr_55px] items-center gap-2 text-[11px] cursor-pointer hover:opacity-100 focus:opacity-100"
                     >
                       <HoverTip title={tr(c.channel)} lines={channelTip(c)} />
                       <span className="text-end text-gray-600 truncate">{tr(c.channel)}</span>
@@ -1099,7 +1099,7 @@ function ScorecardInner() {
                           )
                         }
                         tabIndex={0}
-                      className="group relative outline-none grid grid-cols-[110px_1fr_45px] items-center gap-2 text-[11px] cursor-pointer"
+                      className="group relative hover:z-50 focus:z-50 outline-none grid grid-cols-[110px_1fr_45px] items-center gap-2 text-[11px] cursor-pointer"
                       >
                         <HoverTip title={tr(c.channel)} lines={channelTip(c)} />
                       <span className="text-end text-gray-600 truncate">{tr(c.channel)}</span>
