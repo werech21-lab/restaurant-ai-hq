@@ -114,18 +114,18 @@ export function HoverTip({ title, lines }: Tip) {
   return (
     <div
       role="tooltip"
-      className="pointer-events-none absolute start-28 top-full z-[9999] mt-1 hidden min-w-[210px] rounded-xl bg-white p-3.5 text-xs opacity-100 shadow-xl ring-1 ring-neutral-900/10 group-hover:block group-focus:block"
-      style={{ backgroundColor: '#FFFFFF', opacity: 1, zIndex: 9999 }}
+      className="pointer-events-none absolute start-28 top-full z-[9999] mt-1 hidden min-w-[215px] rounded-xl bg-white px-3.5 py-2.5 text-xs opacity-100 shadow-xl ring-1 ring-slate-200 group-hover:block group-focus:block"
+      style={{ backgroundColor: '#FFFFFF', color: '#0F172A', opacity: 1, zIndex: 9999 }}
     >
-      <div className="mb-1.5 border-b border-neutral-100 pb-1.5 text-xs font-bold text-neutral-950">{title}</div>
+      <div className="mb-1.5 border-b border-slate-100 pb-1.5 text-xs font-bold text-slate-950" style={{ color: '#0F172A', borderColor: '#F1F5F9' }}>{title}</div>
       {lines.map((l) => {
         const i = l.indexOf(': ')
         const label = i > 0 ? l.slice(0, i) : l
         const value = i > 0 ? l.slice(i + 2) : ''
         return (
           <div key={l} className="mt-1 flex items-baseline justify-between gap-4">
-            <span className="text-xs font-medium text-neutral-600">{label}</span>
-            {value && <span dir="ltr" className="font-bold tabular-nums text-neutral-950">{value}</span>}
+            <span className="text-xs font-medium text-slate-600" style={{ color: '#475569' }}>{label}</span>
+            {value && <span dir="ltr" className="font-bold tabular-nums text-slate-950" style={{ color: '#0F172A' }}>{value}</span>}
           </div>
         )
       })}
@@ -435,11 +435,11 @@ export function PromotionsTab({ channels, brands, totalDiscounts, totalNet, sele
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <div className={card}>
           <Title title={T('Discount rate by channel (%)', 'نسبة الخصم حسب القناة (%)')} sub={T('Red above 5%', 'الأحمر فوق 5%')} />
-          <Bars rows={sortedPct.map((c) => ({ key: c.key, label: c.label, value: c.discPct, text: `${c.discPct.toFixed(1)}%`, color: selectedChannel !== ALL_CHANNELS ? (c.key === selectedChannel ? '#1D4ED8' : '#BFDBFE') : c.discPct > 5 ? '#DC2626' : BLUE }))} />
+          <Bars rows={sortedPct.map((c) => ({ key: c.key, label: c.label, value: c.discPct, text: `${c.discPct.toFixed(1)}%`, color: selectedChannel !== ALL_CHANNELS ? (c.key === selectedChannel ? '#1D4ED8' : '#BFDBFE') : c.discPct > 5 ? '#DC2626' : BLUE, tip: { title: c.label, lines: [`${T('Discount rate', 'نسبة الخصم')}: ${c.discPct.toFixed(1)}%`, `${T('Discount value', 'قيمة الخصم')}: ${ar ? `${fmt2(c.kwd)} د.ك` : `KWD ${fmt2(c.kwd)}`}`, `${T('Net sales', 'صافي المبيعات')}: ${ar ? `${fmt2(c.sales)} د.ك` : `KWD ${fmt2(c.sales)}`}`] } }))} />
         </div>
         <div className={card}>
           <Title title={T('Discount value by channel (KWD)', 'قيمة الخصم حسب القناة (د.ك)')} sub={T('Pro-rata to the official total', 'موزعة تناسبياً على الإجمالي الرسمي')} />
-          <Bars rows={[...withKwd].sort((a, b) => b.kwd - a.kwd).map((c) => ({ key: c.key, label: c.label, value: c.kwd, text: fmt0(c.kwd), color: selectedChannel !== ALL_CHANNELS ? (c.key === selectedChannel ? '#1D4ED8' : '#BFDBFE') : c.discPct > 5 ? '#DC2626' : BLUE }))} />
+          <Bars rows={[...withKwd].sort((a, b) => b.kwd - a.kwd).map((c) => ({ key: c.key, label: c.label, value: c.kwd, text: fmt0(c.kwd), color: selectedChannel !== ALL_CHANNELS ? (c.key === selectedChannel ? '#1D4ED8' : '#BFDBFE') : c.discPct > 5 ? '#DC2626' : BLUE, tip: { title: c.label, lines: [`${T('Discount value', 'قيمة الخصم')}: ${ar ? `${fmt2(c.kwd)} د.ك` : `KWD ${fmt2(c.kwd)}`}`, `${T('Discount rate', 'نسبة الخصم')}: ${c.discPct.toFixed(1)}%`, `${T('Net sales', 'صافي المبيعات')}: ${ar ? `${fmt2(c.sales)} د.ك` : `KWD ${fmt2(c.sales)}`}`] } }))} />
           <p className="mt-2 text-[10px] text-gray-400">
             {selectedChannel !== ALL_CHANNELS || selectedBrand !== ALL_BRANDS
               ? T('Filtered view: channel discounts are re-scaled to the selected brand (rate scaled by the brand against the group rate); the selected channel is highlighted.', 'عرض مفلتر: خصومات القنوات معاد تناسبها مع العلامة المختارة (النسبة مضروبة في نسبة العلامة إلى متوسط المجموعة)، والقناة المختارة مظللة.')
@@ -451,7 +451,7 @@ export function PromotionsTab({ channels, brands, totalDiscounts, totalNet, sele
       </div>
       <div className={card}>
         <Title title={T('Discount rate by brand (%)', 'نسبة الخصم حسب العلامة التجارية (%)')} sub={T('Red above 3%', 'الأحمر فوق 3%')} />
-        <Bars rows={[...brands].sort((a, b) => b.discPct - a.discPct).map((b) => ({ key: b.key, label: b.label, value: b.discPct, text: `${b.discPct.toFixed(1)}%`, color: selectedBrand !== ALL_BRANDS ? (b.key === selectedBrand ? '#1D4ED8' : '#BFDBFE') : b.discPct > 3 ? '#DC2626' : BLUE }))} />
+        <Bars rows={[...brands].sort((a, b) => b.discPct - a.discPct).map((b) => ({ key: b.key, label: b.label, value: b.discPct, text: `${b.discPct.toFixed(1)}%`, color: selectedBrand !== ALL_BRANDS ? (b.key === selectedBrand ? '#1D4ED8' : '#BFDBFE') : b.discPct > 3 ? '#DC2626' : BLUE, tip: { title: b.label, lines: [`${T('Discount rate', 'نسبة الخصم')}: ${b.discPct.toFixed(1)}%`] } }))} />
       </div>
       <Pending
         title={T('Combo offers vs direct percentage discount', 'العائد من عروض الكومبو مقابل الخصم المئوي المباشر')}
@@ -477,6 +477,15 @@ export function PromotionsTab({ channels, brands, totalDiscounts, totalNet, sele
 }
 
 /* ---------------------------------------------------------------- branches */
+const BRAND_NAME_AR: Record<string, string> = {
+  'China Garden': 'تشاينا جاردن',
+  "Frank's": 'فرانكس',
+  Tahina: 'شاورما طحينة',
+  'Farm Brown': 'فارم براون',
+  'The Noodle Bar': 'ذا نودل بار',
+  'Karak Cafeteria': 'كرك كافتيريا',
+}
+
 export function BranchesTab({ filter }: { filter: SalesFilter }) {
   const { T, ar } = useT()
   const rows = useMemo(() => computeBranches(filter), [filter])
@@ -484,9 +493,10 @@ export function BranchesTab({ filter }: { filter: SalesFilter }) {
   const sumNet = rows.reduce((a, r) => a + r.net, 0)
   const sumOrders = rows.reduce((a, r) => a + r.orders, 0)
   const unit = ar ? 'د.ك' : 'KWD'
+  const bLabel = (bn: string) => (ar ? BRAND_NAME_AR[bn] ?? bn : bn)
   const fleet = (f: string) => (f === 'TALABAT_GO_17' ? T('Talabat Go fleet (17%)', 'أسطول طلبات جو (17%)') : T('Hybrid: own fleet + Talabat Go', 'هجين: أسطول الشركة + طلبات جو'))
   const name = (r: { nameAr: string; nameEn: string }) => (ar ? r.nameAr : r.nameEn)
-  const scope = filter.brand === ALL_BRANDS && filter.channel === ALL_CHANNELS ? T('All brands, all channels', 'كل العلامات وكل القنوات') : `${filter.brand === ALL_BRANDS ? T('All brands', 'كل العلامات') : filter.brand} · ${filter.channel === ALL_CHANNELS ? T('All channels', 'كل القنوات') : filter.channel}`
+  const scope = filter.brand === ALL_BRANDS && filter.channel === ALL_CHANNELS ? T('All brands, all channels', 'كل العلامات وكل القنوات') : `${filter.brand === ALL_BRANDS ? T('All brands', 'كل العلامات') : bLabel(filter.brand)} · ${filter.channel === ALL_CHANNELS ? T('All channels', 'كل القنوات') : filter.channel}`
   return (
     <div className="space-y-3">
       <div className={card}>
@@ -506,9 +516,9 @@ export function BranchesTab({ filter }: { filter: SalesFilter }) {
             tip: {
               title: name(r),
               lines: [
-                `${T('Net sales', 'صافي المبيعات')}: ${unit} ${fmt2(r.net)}`,
+                `${T('Net sales', 'صافي المبيعات')}: ${ar ? `${fmt3(r.net)} د.ك` : `KWD ${fmt3(r.net)}`}`,
                 `${T('Orders', 'الطلبات')}: ${fmt0(r.orders)}`,
-                `${T('Avg order', 'متوسط الفاتورة')}: ${unit} ${fmt2(r.avgOrder)}`,
+                `${T('Avg order', 'متوسط الفاتورة')}: ${ar ? `${fmt3(r.avgOrder)} د.ك` : `KWD ${fmt3(r.avgOrder)}`}`,
                 `${T('Share', 'الحصة')}: ${fmt1(r.share)}%`,
               ],
             },
@@ -530,24 +540,24 @@ export function BranchesTab({ filter }: { filter: SalesFilter }) {
                   <td className={tdn}>{r.zonesOnline}/{r.zonesTotal}</td>
                   <td className={tdn}>
                     <div className="flex items-center gap-2 justify-end">
-                      <span dir="ltr">{r.net > 0 ? fmt2(r.net) : '—'}</span>
+                      <span dir="ltr">{r.net > 0 ? fmt3(r.net) : '—'}</span>
                       <div className="h-2.5 w-20 bg-gray-100"><div style={{ width: `${(r.net / maxNet) * 100}%`, height: '100%', background: BLUE }} /></div>
                     </div>
                   </td>
                   <td className={tdn}>{r.net > 0 ? fmt0(r.orders) : '—'}</td>
-                  <td className={tdn}>{r.net > 0 ? fmt2(r.avgOrder) : '—'}</td>
+                  <td className={tdn}>{r.net > 0 ? fmt3(r.avgOrder) : '—'}</td>
                   <td className={tdn}>{r.net > 0 ? fmt1(r.share) + '%' : '—'}</td>
-                  <td className={tdc + ' whitespace-nowrap'}>{r.topBrand || '—'}</td>
-                  <td className={tdc}>{r.brands.join(' · ')}</td>
+                  <td className={tdc + ' whitespace-nowrap'}>{r.topBrand ? bLabel(r.topBrand) : '—'}</td>
+                  <td className={tdc}>{r.brands.map(bLabel).join(' · ')}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr className="border-t border-gray-200 font-semibold text-gray-900">
                 <td className={tdc} colSpan={3}>{T('Total', 'الإجمالي')}</td>
-                <td className={tdn}>{fmt2(sumNet)}</td>
+                <td className={tdn}>{fmt3(sumNet)}</td>
                 <td className={tdn}>{fmt0(sumOrders)}</td>
-                <td className={tdn}>{sumOrders > 0 ? fmt2(sumNet / sumOrders) : '—'}</td>
+                <td className={tdn}>{sumOrders > 0 ? fmt3(sumNet / sumOrders) : '—'}</td>
                 <td className={tdn}>{sumNet > 0 ? '100.0%' : '—'}</td>
                 <td className={tdc} colSpan={2} />
               </tr>
@@ -556,8 +566,8 @@ export function BranchesTab({ filter }: { filter: SalesFilter }) {
         </div>
         <p className="mt-1 text-[10px] leading-relaxed text-gray-400">
           {T(
-            'Branch net sales are the Odoo branch figures (they add up to KWD 167,092.16). Within a branch the brand split is allocated across the brands that branch runs in the radar, so each brand adds up to its approved total. Orders follow each brand\'s average order. With a filter on, these are allocations, not Odoo cells.',
-            'مبيعات الفروع هي أرقام أودو للفروع (مجموعها 167,092.16 د.ك). داخل الفرع تُوزَّع المبيعات على العلامات التي يشغّلها الفرع في الرادار بحيث تطابق كل علامة إجماليها المعتمد، وتتبع الطلبات متوسط فاتورة كل علامة. عند تفعيل الفلتر تكون الأرقام توزيعاً وليست خلايا من أودو.',
+            'Branch net sales are the Odoo branch figures (they add up to KWD 167,092.160 and 30,540 orders). Within a branch the brand split is allocated across the brands that branch runs in the radar, so each brand adds up to its approved total. Orders follow each brand\'s average order. With a filter on, these are allocations, not Odoo cells.',
+            'مبيعات الفروع هي أرقام أودو للفروع (مجموعها 167,092.160 د.ك و30,540 طلباً). داخل الفرع تُوزَّع المبيعات على العلامات التي يشغّلها الفرع في الرادار بحيث تطابق كل علامة إجماليها المعتمد، وتتبع الطلبات متوسط فاتورة كل علامة. عند تفعيل الفلتر تكون الأرقام توزيعاً وليست خلايا من أودو.',
           )}
         </p>
       </div>
@@ -691,12 +701,17 @@ export function PeakHoursTab({ view }: { view: SalesView }) {
                     <div className="h-7 rounded-sm" style={{ backgroundColor: heatShade(c.orders, maxOrders) }} />
                     <div
                       role="tooltip"
-                      className={`pointer-events-none absolute bottom-full z-[9999] mb-2 hidden w-max rounded-lg px-3 py-2 text-xs text-white shadow-xl group-hover:block ${pos}`}
-                      style={{ backgroundColor: '#1E293B' }}
+                      className={`pointer-events-none absolute bottom-full z-[9999] mb-2 hidden w-max rounded-xl bg-white px-3.5 py-2.5 text-xs shadow-xl ring-1 ring-slate-200 group-hover:block ${pos}`}
+                      style={{ backgroundColor: '#FFFFFF', color: '#0F172A', opacity: 1, zIndex: 9999 }}
                     >
-                      <div className="font-bold">{dayName(di)} - {hh(c.hour)}</div>
-                      <div className="mt-0.5 whitespace-nowrap">{fmt0(c.orders)} {T('orders', 'طلب')} · {ar ? `${fmt0(c.sales)} د.ك` : `KWD ${fmt0(c.sales)}`}</div>
-                      <span className="absolute top-full h-0 w-0" style={{ ...arrow, borderLeft: '6px solid transparent', borderRight: '6px solid transparent', borderTop: '6px solid #1E293B' }} />
+                      <div className="font-bold text-slate-950 text-xs" style={{ color: '#0F172A' }}>{dayName(di)} · {hh(c.hour)}</div>
+                      <div className="mt-0.5 whitespace-nowrap font-semibold text-blue-700 text-xs tabular-nums" style={{ color: '#1D4ED8' }}>
+                        {fmt0(c.orders)} {T('orders', 'طلب')} · {ar ? `${fmt0(c.sales)} د.ك` : `KWD ${fmt0(c.sales)}`}
+                      </div>
+                      <span
+                        className="absolute -bottom-1.5 h-3 w-3 rotate-45 border-b border-r border-slate-200 bg-white"
+                        style={{ ...arrow, backgroundColor: '#FFFFFF', borderColor: '#E2E8F0' }}
+                      />
                     </div>
                   </div>
                 )

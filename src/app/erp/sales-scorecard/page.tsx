@@ -1049,8 +1049,13 @@ function ScorecardInner() {
                   return (
                     <div
                       key={cat.name}
-                      className="grid grid-cols-[120px_1fr_50px] items-center gap-2 text-[11px]"
+                      tabIndex={0}
+                      className="group relative hover:z-50 focus:z-50 outline-none grid grid-cols-[120px_1fr_50px] items-center gap-2 text-[11px]"
                     >
+                      <HoverTip
+                        title={cat.name}
+                        lines={[`${tr("Gross sales")}: ${money(cat.sales)}`]}
+                      />
                       <span className="text-end text-gray-600 truncate">{cat.name}</span>
                       <div className="w-full bg-gray-50 h-3.5 flex items-center">
                         <div
@@ -1078,9 +1083,17 @@ function ScorecardInner() {
                   return (
                     <div
                       key={item.name}
-                      title={`${tr(item.brand)} · KWD ${item.price.toFixed(2)}`}
-                      className="grid grid-cols-[155px_1fr_50px] items-center gap-2 text-[11px]"
+                      tabIndex={0}
+                      className="group relative hover:z-50 focus:z-50 outline-none grid grid-cols-[155px_1fr_50px] items-center gap-2 text-[11px]"
                     >
+                      <HoverTip
+                        title={item.name}
+                        lines={[
+                          `${tr("Brand")}: ${tr(item.brand)}`,
+                          `${tr("Gross sales")}: ${money(item.sales)}`,
+                          `${tr("Unit price")}: ${money(item.price, 2)}`,
+                        ]}
+                      />
                       <span className="text-end text-gray-600 truncate">{item.name}</span>
                       <div className="w-full bg-gray-50 h-3.5 flex items-center">
                         <div
@@ -1116,8 +1129,13 @@ function ScorecardInner() {
                   return (
                     <div
                       key={tr(b.label)}
-                      className="grid grid-cols-[195px_1fr_60px] items-center gap-2 text-[11px]"
+                      tabIndex={0}
+                      className="group relative hover:z-50 focus:z-50 outline-none grid grid-cols-[195px_1fr_60px] items-center gap-2 text-[11px]"
                     >
+                      <HoverTip
+                        title={tr(b.label)}
+                        lines={[`${tr("Amount (KWD)")}: ${money(b.value)}`]}
+                      />
                       <span className="text-end text-gray-600 truncate">{tr(b.label)}</span>
                       <div className="w-full bg-gray-50 h-4 flex items-center">
                         <div

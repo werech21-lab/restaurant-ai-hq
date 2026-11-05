@@ -161,41 +161,121 @@ html[data-theme='dark'] .diyar-glow-container {
   min-width: 0;
 }
 
-/* Dark Mode Table & Text Fallbacks */
+/* Dark Mode Table, Surface & Text Engine */
+html.dark body,
+html[data-theme='dark'] body,
+html.dark .app-shell,
+html[data-theme='dark'] .app-shell,
+html.dark .app-content,
+html[data-theme='dark'] .app-content,
+html.dark main,
+html[data-theme='dark'] main,
+html.dark .bg-\[\#F8F9FA\],
+html[data-theme='dark'] .bg-\[\#F8F9FA\],
+html.dark .bg-\[\#F7F7F8\],
+html[data-theme='dark'] .bg-\[\#F7F7F8\],
+html.dark .bg-\[\#F4F6F9\],
+html[data-theme='dark'] .bg-\[\#F4F6F9\] {
+  background-color: #0F172A !important;
+  color: #F8FAFC !important;
+}
+
 html.dark .app-content table,
 html[data-theme='dark'] .app-content table {
-  color: rgb(var(--mist-100));
+  color: #F8FAFC;
 }
 html.dark .app-content thead th,
 html[data-theme='dark'] .app-content thead th {
-  color: rgb(var(--mist-300));
+  background-color: #1E293B !important;
+  color: #CBD5E1 !important;
+  border-color: #334155 !important;
 }
 html.dark .app-content tbody td,
-html[data-theme='dark'] .app-content tbody td {
-  color: rgb(var(--mist-100));
+html[data-theme='dark'] .app-content tbody td,
+html.dark .app-content tfoot td,
+html[data-theme='dark'] .app-content tfoot td {
+  color: #F8FAFC;
+  border-color: #334155 !important;
 }
-html.dark .app-content .text-slate-900,
-html.dark .app-content .text-slate-800,
-html[data-theme='dark'] .app-content .text-slate-900,
-html[data-theme='dark'] .app-content .text-slate-800 {
-  color: rgb(var(--mist-100)) !important;
+html.dark .app-content .text-slate-900:not([role="tooltip"] *),
+html.dark .app-content .text-slate-800:not([role="tooltip"] *),
+html.dark .app-content .text-gray-900:not([role="tooltip"] *),
+html.dark .app-content .text-gray-800:not([role="tooltip"] *),
+html.dark .app-content .text-\[\#111827\]:not([role="tooltip"] *),
+html[data-theme='dark'] .app-content .text-slate-900:not([role="tooltip"] *),
+html[data-theme='dark'] .app-content .text-slate-800:not([role="tooltip"] *),
+html[data-theme='dark'] .app-content .text-gray-900:not([role="tooltip"] *),
+html[data-theme='dark'] .app-content .text-gray-800:not([role="tooltip"] *),
+html[data-theme='dark'] .app-content .text-\[\#111827\]:not([role="tooltip"] *) {
+  color: #F8FAFC !important;
 }
-html.dark .app-content .text-slate-700,
-html.dark .app-content .text-slate-600,
-html.dark .app-content .text-slate-500,
-html[data-theme='dark'] .app-content .text-slate-700,
-html[data-theme='dark'] .app-content .text-slate-600,
-html[data-theme='dark'] .app-content .text-slate-500 {
-  color: rgb(var(--mist-400)) !important;
+html.dark .app-content .text-slate-700:not([role="tooltip"] *),
+html.dark .app-content .text-slate-600:not([role="tooltip"] *),
+html.dark .app-content .text-slate-500:not([role="tooltip"] *),
+html.dark .app-content .text-slate-400:not([role="tooltip"] *),
+html.dark .app-content .text-gray-700:not([role="tooltip"] *),
+html.dark .app-content .text-gray-600:not([role="tooltip"] *),
+html.dark .app-content .text-gray-500:not([role="tooltip"] *),
+html.dark .app-content .text-gray-400:not([role="tooltip"] *),
+html[data-theme='dark'] .app-content .text-slate-700:not([role="tooltip"] *),
+html[data-theme='dark'] .app-content .text-slate-600:not([role="tooltip"] *),
+html[data-theme='dark'] .app-content .text-slate-500:not([role="tooltip"] *),
+html[data-theme='dark'] .app-content .text-slate-400:not([role="tooltip"] *),
+html[data-theme='dark'] .app-content .text-gray-700:not([role="tooltip"] *),
+html[data-theme='dark'] .app-content .text-gray-600:not([role="tooltip"] *),
+html[data-theme='dark'] .app-content .text-gray-500:not([role="tooltip"] *),
+html[data-theme='dark'] .app-content .text-gray-400:not([role="tooltip"] *) {
+  color: #94A3B8 !important;
 }
-html.dark .app-content .bg-white,
-html[data-theme='dark'] .app-content .bg-white {
-  background-color: rgb(var(--ink-900) / 0.88) !important;
-  color: rgb(var(--mist-100));
+html.dark .app-content .bg-white:not([role="tooltip"]),
+html[data-theme='dark'] .app-content .bg-white:not([role="tooltip"]) {
+  background-color: #1E293B !important;
+  color: #F8FAFC;
+  border-color: #334155 !important;
+}
+html.dark .app-content .bg-gray-50:not([role="tooltip"] *),
+html.dark .app-content .bg-gray-100:not([role="tooltip"] *),
+html.dark .app-content .bg-slate-50:not([role="tooltip"] *),
+html.dark .app-content .bg-slate-50\/70:not([role="tooltip"] *),
+html.dark .app-content .bg-slate-100:not([role="tooltip"] *),
+html.dark .app-content tr:hover,
+html[data-theme='dark'] .app-content .bg-gray-50:not([role="tooltip"] *),
+html[data-theme='dark'] .app-content .bg-gray-100:not([role="tooltip"] *),
+html[data-theme='dark'] .app-content .bg-slate-50:not([role="tooltip"] *),
+html[data-theme='dark'] .app-content .bg-slate-50\/70:not([role="tooltip"] *),
+html[data-theme='dark'] .app-content .bg-slate-100:not([role="tooltip"] *),
+html[data-theme='dark'] .app-content tr:hover {
+  background-color: #0F172A !important;
 }
 html.dark .app-content .border-slate-200,
-html[data-theme='dark'] .app-content .border-slate-200 {
-  border-color: rgba(244, 224, 184, 0.12) !important;
+html.dark .app-content .border-slate-200\/80,
+html.dark .app-content .border-slate-100,
+html.dark .app-content .border-gray-200,
+html.dark .app-content .border-gray-100,
+html.dark .app-content .border-gray-300,
+html.dark .app-content .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+html.dark .app-content .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+html[data-theme='dark'] .app-content .border-slate-200,
+html[data-theme='dark'] .app-content .border-slate-200\/80,
+html[data-theme='dark'] .app-content .border-slate-100,
+html[data-theme='dark'] .app-content .border-gray-200,
+html[data-theme='dark'] .app-content .border-gray-100,
+html[data-theme='dark'] .app-content .border-gray-300,
+html[data-theme='dark'] .app-content .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+html[data-theme='dark'] .app-content .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #334155 !important;
+}
+html.dark .app-content select,
+html.dark .app-content input:not([type='checkbox']):not([type='radio']),
+html[data-theme='dark'] .app-content select,
+html[data-theme='dark'] .app-content input:not([type='checkbox']):not([type='radio']) {
+  background-color: #1E293B !important;
+  color: #F8FAFC !important;
+  border-color: #475569 !important;
+}
+html.dark .app-content svg text.fill-slate-700,
+html[data-theme='dark'] .app-content svg text.fill-slate-700 {
+  fill: #E2E8F0 !important;
 }
 
 /* ==========================================================================
@@ -220,7 +300,7 @@ html[data-theme='light'] .app-content,
 html.light-mode .app-content,
 html.light .app-content,
 html:not(.dark) .app-content {
-  background-color: #F8FAFC !important;
+  background-color: #F7F7F8 !important;
   color: #0F172A !important;
 }
 
@@ -881,85 +961,85 @@ span.tabular-nums {
 /* ==========================================================================
    Aggregator radar: light theme scope (data and logic untouched).
    The radar was written for a dark shell; on the white shell its light-grey
-   and gold text disappeared. These rules apply only inside .radar-light.
+   and gold text disappeared. These rules apply only inside html:not(.dark) .radar-light.
    ========================================================================== */
-.radar-light { color: #0F172A; }
+html:not(.dark) .radar-light { color: #0F172A; }
 
 /* surfaces */
-.radar-light [class~="bg-[#1c2128]"],
-.radar-light [class~="bg-[#17191f]"],
-.radar-light [class~="bg-[#121316]"],
-.radar-light [class~="bg-[#1a1c22]"],
-.radar-light [class~="bg-ink-900"],
-.radar-light [class~="bg-black/25"] {
+html:not(.dark) .radar-light [class~="bg-[#1c2128]"],
+html:not(.dark) .radar-light [class~="bg-[#17191f]"],
+html:not(.dark) .radar-light [class~="bg-[#121316]"],
+html:not(.dark) .radar-light [class~="bg-[#1a1c22]"],
+html:not(.dark) .radar-light [class~="bg-ink-900"],
+html:not(.dark) .radar-light [class~="bg-black/25"] {
   background-color: #FFFFFF !important;
 }
-.radar-light [class~="border-[#30363d]"],
-.radar-light [class~="border-white/5"],
-.radar-light [class~="border-white/10"],
-.radar-light [class~="border-white/15"],
-.radar-light [class~="border-white/20"] {
+html:not(.dark) .radar-light [class~="border-[#30363d]"],
+html:not(.dark) .radar-light [class~="border-white/5"],
+html:not(.dark) .radar-light [class~="border-white/10"],
+html:not(.dark) .radar-light [class~="border-white/15"],
+html:not(.dark) .radar-light [class~="border-white/20"] {
   border-color: #E2E8F0 !important;
 }
-.radar-light [class~="bg-white/5"],
-.radar-light [class~="bg-white/10"],
-.radar-light [class~="bg-white/20"] {
+html:not(.dark) .radar-light [class~="bg-white/5"],
+html:not(.dark) .radar-light [class~="bg-white/10"],
+html:not(.dark) .radar-light [class~="bg-white/20"] {
   background-color: #E2E8F0 !important;
 }
-.radar-light [class~="bg-red-950/30"],
-.radar-light [class~="bg-red-950/50"],
-.radar-light [class~="bg-red-950/20"],
-.radar-light [class~="bg-red-950/10"],
-.radar-light [class~="bg-red-950/40"],
-.radar-light [class~="bg-red-500/20"] {
+html:not(.dark) .radar-light [class~="bg-red-950/30"],
+html:not(.dark) .radar-light [class~="bg-red-950/50"],
+html:not(.dark) .radar-light [class~="bg-red-950/20"],
+html:not(.dark) .radar-light [class~="bg-red-950/10"],
+html:not(.dark) .radar-light [class~="bg-red-950/40"],
+html:not(.dark) .radar-light [class~="bg-red-500/20"] {
   background-color: #FEF2F2 !important;
   border-color: #FECACA !important;
 }
-.radar-light [class~="bg-emerald-950/40"],
-.radar-light [class~="bg-emerald-950/50"],
-.radar-light [class~="bg-emerald-950/20"],
-.radar-light [class~="bg-emerald-500/10"],
-.radar-light [class~="bg-emerald-500/20"] {
+html:not(.dark) .radar-light [class~="bg-emerald-950/40"],
+html:not(.dark) .radar-light [class~="bg-emerald-950/50"],
+html:not(.dark) .radar-light [class~="bg-emerald-950/20"],
+html:not(.dark) .radar-light [class~="bg-emerald-500/10"],
+html:not(.dark) .radar-light [class~="bg-emerald-500/20"] {
   background-color: #ECFDF5 !important;
   border-color: #A7F3D0 !important;
 }
-.radar-light [class~="bg-amber-950/20"],
-.radar-light [class~="bg-amber-950/30"],
-.radar-light [class~="bg-amber-500/10"],
-.radar-light [class~="bg-amber-500/20"],
-.radar-light [class~="bg-amber-400/10"] {
+html:not(.dark) .radar-light [class~="bg-amber-950/20"],
+html:not(.dark) .radar-light [class~="bg-amber-950/30"],
+html:not(.dark) .radar-light [class~="bg-amber-500/10"],
+html:not(.dark) .radar-light [class~="bg-amber-500/20"],
+html:not(.dark) .radar-light [class~="bg-amber-400/10"] {
   background-color: #FFFBEB !important;
   border-color: #FDE68A !important;
 }
-.radar-light [class~="bg-gold-400/10"],
-.radar-light [class~="bg-gold-400/15"] {
+html:not(.dark) .radar-light [class~="bg-gold-400/10"],
+html:not(.dark) .radar-light [class~="bg-gold-400/15"] {
   background-color: #EFF6FF !important;
   border-color: #BFDBFE !important;
 }
 
 /* text */
-.radar-light .text-white,
-.radar-light .text-gray-100,
-.radar-light .text-gray-200 { color: #0F172A !important; }
-.radar-light .text-gray-300 { color: #1E293B !important; }
-.radar-light .text-gray-400,
-.radar-light .text-gray-500 { color: #475569 !important; }
-.radar-light .text-gold-200,
-.radar-light .text-gold-300 { color: #1E3A8A !important; }
-.radar-light .text-emerald-50,
-.radar-light .text-emerald-100,
-.radar-light .text-emerald-200,
-.radar-light .text-emerald-300,
-.radar-light .text-emerald-400 { color: #047857 !important; }
-.radar-light .text-red-100,
-.radar-light .text-red-200,
-.radar-light .text-red-300,
-.radar-light .text-red-400,
-.radar-light .text-rose-300,
-.radar-light .text-rose-400\/80 { color: #B91C1C !important; }
-.radar-light .text-amber-200,
-.radar-light .text-amber-300,
-.radar-light .text-amber-400 { color: #B45309 !important; }
+html:not(.dark) .radar-light .text-white,
+html:not(.dark) .radar-light .text-gray-100,
+html:not(.dark) .radar-light .text-gray-200 { color: #0F172A !important; }
+html:not(.dark) .radar-light .text-gray-300 { color: #1E293B !important; }
+html:not(.dark) .radar-light .text-gray-400,
+html:not(.dark) .radar-light .text-gray-500 { color: #475569 !important; }
+html:not(.dark) .radar-light .text-gold-200,
+html:not(.dark) .radar-light .text-gold-300 { color: #1E3A8A !important; }
+html:not(.dark) .radar-light .text-emerald-50,
+html:not(.dark) .radar-light .text-emerald-100,
+html:not(.dark) .radar-light .text-emerald-200,
+html:not(.dark) .radar-light .text-emerald-300,
+html:not(.dark) .radar-light .text-emerald-400 { color: #047857 !important; }
+html:not(.dark) .radar-light .text-red-100,
+html:not(.dark) .radar-light .text-red-200,
+html:not(.dark) .radar-light .text-red-300,
+html:not(.dark) .radar-light .text-red-400,
+html:not(.dark) .radar-light .text-rose-300,
+html:not(.dark) .radar-light .text-rose-400\/80 { color: #B91C1C !important; }
+html:not(.dark) .radar-light .text-amber-200,
+html:not(.dark) .radar-light .text-amber-300,
+html:not(.dark) .radar-light .text-amber-400 { color: #B45309 !important; }
 
 /* legible sizes inside cards and tables */
 .radar-light .text-xs { font-size: 0.8125rem; font-weight: 600; }
@@ -973,4 +1053,14 @@ span.tabular-nums {
 td.tabular-nums,
 th.tabular-nums {
   unicode-bidi: plaintext;
+}
+
+/* ==========================================================================
+   Floating chart & heatmap tooltips: always solid pure white with high-contrast text
+   ========================================================================== */
+[role="tooltip"] {
+  background-color: #FFFFFF !important;
+  color: #0F172A !important;
+  opacity: 1 !important;
+  z-index: 9999 !important;
 }

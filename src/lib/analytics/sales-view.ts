@@ -194,7 +194,7 @@ export interface BranchViewRow {
 
 export function computeBranches(f: SalesFilter): BranchViewRow[] {
   const s = shares(f)
-  const rows = INITIAL_BRANCH_PROFILES.map((p) => {
+  const raw = INITIAL_BRANCH_PROFILES.map((p) => {
     let net = 0
     let orders = 0
     let top = ''
@@ -204,7 +204,7 @@ export function computeBranches(f: SalesFilter): BranchViewRow[] {
       const bnNet = (BRANCH_BRAND_NET[p.branchCode]?.[bn] ?? 0) * s.cN
       const b = brandByName(bn)!
       // brand orders follow the brand's own average order, so branch averages differ with their brand mix
-      const bnOrders = (BRANCH_BRAND_NET[p.branchCode]?.[bn] ?? 0) / (b.netSales / b.orders) * s.cO
+      const bnOrders = ((BRANCH_BRAND_NET[p.branchCode]?.[bn] ?? 0) / (b.netSales / b.orders)) * s.cO
       net += bnNet
       orders += bnOrders
       if (bnNet > topNet) {
@@ -222,14 +222,43 @@ export function computeBranches(f: SalesFilter): BranchViewRow[] {
       lostToday: p.totalLostKwdToday,
       brands: p.supportedBrandIds.map((id) => BRAND_ID_TO_NAME[id]),
       net,
-      orders: Math.round(orders),
-      avgOrder: orders > 0 ? net / orders : 0,
-      share: 0,
+      rawOrders: orders,
+      flooredOrders: Math.floor(orders),
+      fracOrders: orders - Math.floor(orders),
       topBrand: net > 0 ? top : '',
     }
   })
-  const total = rows.reduce((a, r) => a + r.net, 0)
-  return rows.map((r) => ({ ...r, share: total > 0 ? (r.net / total) * 100 : 0 })).sort((a, b) => b.net - a.net)
+
+  // Largest-remainder rounding so the integer branch orders sum exactly to the total orders (30,540 unfiltered)
+  const targetOrders = Math.round(raw.reduce((a, r) => a + r.rawOrders, 0))
+  const flooredSum = raw.reduce((a, r) => a + r.flooredOrders, 0)
+  const remainder = Math.max(0, targetOrders - flooredSum)
+  const byFrac = raw
+    .map((r, idx) => ({ idx, frac: r.fracOrders }))
+    .sort((a, b) => b.frac - a.frac)
+  const addOne = new Set(byFrac.slice(0, remainder).map((x) => x.idx))
+
+  const total = raw.reduce((a, r) => a + r.net, 0)
+  return raw
+    .map((r, idx) => {
+      const orders = r.flooredOrders + (addOne.has(idx) ? 1 : 0)
+      return {
+        code: r.code,
+        nameAr: r.nameAr,
+        nameEn: r.nameEn,
+        fleet: r.fleet,
+        zonesOnline: r.zonesOnline,
+        zonesTotal: r.zonesTotal,
+        lostToday: r.lostToday,
+        brands: r.brands,
+        net: r.net,
+        orders,
+        avgOrder: orders > 0 ? r.net / orders : 0,
+        share: total > 0 ? (r.net / total) * 100 : 0,
+        topBrand: r.topBrand,
+      }
+    })
+    .sort((a, b) => b.net - a.net)
 }
 
 /* ------------------------------------------------------------- weekday x hour */

@@ -527,8 +527,8 @@ export const INITIAL_BRANCH_PROFILES: BranchRadarProfile[] = [
   {
     branchId: 'BR-PRM',
     branchCode: 'PRM',
-    branchNameAr: 'فرع بروميناد حولي',
-    branchNameEn: 'Promenade Mall - Hawally Branch',
+    branchNameAr: 'فرع حولي',
+    branchNameEn: 'Hawally Branch',
     primaryBrandId: 'china-garden',
     primaryBrandNameAr: 'تشاينا جاردن',
     primaryBrandNameEn: 'China Garden',
@@ -555,8 +555,8 @@ export const INITIAL_BRANCH_PROFILES: BranchRadarProfile[] = [
   {
     branchId: 'BR-QRN',
     branchCode: 'QRN',
-    branchNameAr: 'فرع مبارك الكبير + المطبخ المركزي',
-    branchNameEn: 'Mubarak Al-Kabeer Branch & Central Kitchen',
+    branchNameAr: 'فرع مبارك الكبير',
+    branchNameEn: 'Mubarak Al-Kabeer Branch',
     primaryBrandId: 'china-garden',
     primaryBrandNameAr: 'تشاينا جاردن',
     primaryBrandNameEn: 'China Garden',

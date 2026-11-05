@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
+import { useI18n } from '@/lib/i18n'
 import {
   Bell,
   Mail,
@@ -230,9 +231,13 @@ const INITIAL_LOGS: ExecutionLogItem[] = [
 ]
 
 export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }) {
+  const { locale: ctxLocale, setLocale } = useI18n()
   const [workflows, setWorkflows] = useState<AutomationWorkflow[]>(INITIAL_WORKFLOWS)
   const [logs, setLogs] = useState<ExecutionLogItem[]>(INITIAL_LOGS)
-  const [currentLocale, setCurrentLocale] = useState<'ar' | 'en'>(locale)
+  const [currentLocale, setCurrentLocale] = useState<'ar' | 'en'>(ctxLocale ?? locale)
+  useEffect(() => {
+    if (ctxLocale === 'ar' || ctxLocale === 'en') setCurrentLocale(ctxLocale)
+  }, [ctxLocale])
   const [runningId, setRunningId] = useState<string | null>(null)
   const [notification, setNotification] = useState<{ msg: string; type: 'success' | 'info' } | null>(null)
   const [showNewRuleModal, setShowNewRuleModal] = useState(false)
@@ -370,7 +375,11 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
 
         <div className="flex items-center gap-2.5">
           <button
-            onClick={() => setCurrentLocale(isAr ? 'en' : 'ar')}
+            onClick={() => {
+              const next = isAr ? 'en' : 'ar'
+              setCurrentLocale(next)
+              setLocale(next)
+            }}
             className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
           >
             {isAr ? 'English' : 'العربية'}
