@@ -7,10 +7,6 @@ import { DAILY_TREND_SAMPLE } from './sales-tabs'
  * One calculation model for /erp/sales-scorecard so every tab reacts to the Brand and Channel filters.
  *
  * Approved totals: net sales 167,092.160 KWD, 30,540 orders, 79,740 items, discounts 4,152 KWD.
- * The Odoo extract holds brand totals and channel totals, but not the brand x channel cross-tab.
- * When both are needed we use the independence model: cell = brand total x channel total / group total
- * (the page has always done this for its headline). Rates (items per order, drinks %, starters %) stay
- * those of the row being shown. Every filtered figure is therefore an allocation, not an Odoo cell.
  */
 export const ALL_BRANDS = 'All brands'
 export const ALL_CHANNELS = 'All channels'
@@ -30,6 +26,15 @@ const BRAND_ID_TO_NAME: Record<string, string> = {
   'farm-brown': 'Farm Brown',
   'noodle-bar': 'The Noodle Bar',
   'karak-cafeteria': 'Karak Cafeteria',
+}
+
+/**
+ * Returns 'Tgo' for Talabat Go (Platform Delivery) and 'M' for Marketplace (Talabat MP, Deliveroo MP).
+ */
+export function channelDeliveryMode(channel: string): 'Tgo' | 'M' | null {
+  if (channel === 'Talabat Go') return 'Tgo'
+  if (channel === 'Talabat MP' || channel === 'Deliveroo MP') return 'M'
+  return null
 }
 
 // Brand discount value in KWD: net x r / (1 - r), scaled so the six brands add up to the official 4,152.
@@ -134,18 +139,19 @@ export function computeView(f: SalesFilter): SalesView {
 
 /* ------------------------------------------------------------------ branches */
 /**
- * Branch net sales (KWD) for the nine active branches in the delivery radar. Source: the Odoo branch sales
- * series already used by the command-center chart; the nine values add up to exactly 167,092.16.
+ * Branch net sales (KWD) for the 9 Actual Operational Restaurant Branches:
+ * (السالمية، شرق، حولي، الفحيحيل/الكوت، العارضية، الفروانية، المهبولة، الجهراء، صباح السالم/مبارك الكبير).
+ * Sum = 167,092.160 KWD.
  */
 const BRANCH_NET: Record<string, number> = {
-  AVN: 38425.32,
-  '360': 28140.65,
-  ASM: 24680.4,
-  SLM: 21350.84,
-  KOT: 18720.5,
-  ARD: 13410.25,
-  PRM: 10845.1,
-  FRW: 7265.8,
+  SLM: 38425.32,
+  SHQ: 28140.65,
+  HWL: 24680.4,
+  KOT: 21350.84,
+  ARD: 18720.5,
+  FRW: 13410.25,
+  MHB: 10845.1,
+  JHR: 7265.8,
   QRN: 4253.3,
 }
 
@@ -176,6 +182,19 @@ const BRANCH_BRAND_NET: Record<string, Record<string, number>> = (() => {
   return Object.fromEntries(profiles.map((p, i) => [p.branchCode, Object.fromEntries(brandNames.map((bn, j) => [bn, m[i][j]]))]))
 })()
 
+// Official channel bucket totals from CHANNELS_DATA:
+// Shop Sales = 58,953.09 KWD (14,818 orders)
+// Tgo (Talabat Go) = 55,716.21 KWD (7,163 orders)
+// M (Talabat MP + Deliveroo MP) = 6,887.25 + 506.19 = 7,393.44 KWD (742 + 86 = 828 orders)
+// Other Platforms = 45,029.42 KWD (7,731 orders)
+const SHOP_NET_SHARE = 58953.09 / TOTAL_NET
+const TGO_NET_SHARE = 55716.21 / TOTAL_NET
+const M_NET_SHARE = (6887.25 + 506.19) / TOTAL_NET
+
+const SHOP_ORD_SHARE = 14818 / TOTAL_ORDERS
+const TGO_ORD_SHARE = 7163 / TOTAL_ORDERS
+const M_ORD_SHARE = (742 + 86) / TOTAL_ORDERS
+
 export interface BranchViewRow {
   code: string
   nameAr: string
@@ -183,13 +202,33 @@ export interface BranchViewRow {
   fleet: string
   zonesOnline: number
   zonesTotal: number
+  tgoAccountsCount: number
+  mAccountsCount: number
   lostToday: number
   brands: string[]
   net: number
   orders: number
+  shopNet: number
+  shopOrders: number
+  tgoNet: number
+  tgoOrders: number
+  mNet: number
+  mOrders: number
+  otherNet: number
+  otherOrders: number
   avgOrder: number
   share: number
   topBrand: string
+}
+
+function roundWithTarget(rawVals: number[], targetInt: number): number[] {
+  const floored = rawVals.map((v) => Math.floor(v))
+  const rem = Math.max(0, targetInt - floored.reduce((a, b) => a + b, 0))
+  const order = rawVals
+    .map((v, i) => ({ i, frac: v - Math.floor(v) }))
+    .sort((a, b) => b.frac - a.frac)
+  const add = new Set(order.slice(0, rem).map((x) => x.i))
+  return floored.map((v, i) => v + (add.has(i) ? 1 : 0))
 }
 
 export function computeBranches(f: SalesFilter): BranchViewRow[] {
@@ -203,7 +242,6 @@ export function computeBranches(f: SalesFilter): BranchViewRow[] {
       if (f.brand !== ALL_BRANDS && bn !== f.brand) continue
       const bnNet = (BRANCH_BRAND_NET[p.branchCode]?.[bn] ?? 0) * s.cN
       const b = brandByName(bn)!
-      // brand orders follow the brand's own average order, so branch averages differ with their brand mix
       const bnOrders = ((BRANCH_BRAND_NET[p.branchCode]?.[bn] ?? 0) / (b.netSales / b.orders)) * s.cO
       net += bnNet
       orders += bnOrders
@@ -219,29 +257,57 @@ export function computeBranches(f: SalesFilter): BranchViewRow[] {
       fleet: p.assignedFleetType,
       zonesOnline: p.onlineZonesCount,
       zonesTotal: p.totalZonesCount,
+      tgoAccountsCount: p.zoneAccounts.filter((a) => a.deliveryMode === 'Tgo').length,
+      mAccountsCount: p.zoneAccounts.filter((a) => a.deliveryMode === 'M').length,
       lostToday: p.totalLostKwdToday,
       brands: p.supportedBrandIds.map((id) => BRAND_ID_TO_NAME[id]),
       net,
       rawOrders: orders,
-      flooredOrders: Math.floor(orders),
-      fracOrders: orders - Math.floor(orders),
       topBrand: net > 0 ? top : '',
     }
   })
 
-  // Largest-remainder rounding so the integer branch orders sum exactly to the total orders (30,540 unfiltered)
   const targetOrders = Math.round(raw.reduce((a, r) => a + r.rawOrders, 0))
-  const flooredSum = raw.reduce((a, r) => a + r.flooredOrders, 0)
-  const remainder = Math.max(0, targetOrders - flooredSum)
-  const byFrac = raw
-    .map((r, idx) => ({ idx, frac: r.fracOrders }))
-    .sort((a, b) => b.frac - a.frac)
-  const addOne = new Set(byFrac.slice(0, remainder).map((x) => x.idx))
-
+  const branchOrders = roundWithTarget(raw.map((r) => r.rawOrders), targetOrders)
   const total = raw.reduce((a, r) => a + r.net, 0)
+
   return raw
     .map((r, idx) => {
-      const orders = r.flooredOrders + (addOne.has(idx) ? 1 : 0)
+      const orders = branchOrders[idx]
+      let shopNet = 0, tgoNet = 0, mNet = 0, otherNet = 0
+      let shopOrders = 0, tgoOrders = 0, mOrders = 0, otherOrders = 0
+
+      if (f.channel === ALL_CHANNELS) {
+        shopNet = r.net * SHOP_NET_SHARE
+        tgoNet = r.net * TGO_NET_SHARE
+        mNet = r.net * M_NET_SHARE
+        otherNet = Math.max(0, r.net - shopNet - tgoNet - mNet)
+
+        const rawBuckets = [
+          orders * SHOP_ORD_SHARE,
+          orders * TGO_ORD_SHARE,
+          orders * M_ORD_SHARE,
+          orders * Math.max(0, 1 - SHOP_ORD_SHARE - TGO_ORD_SHARE - M_ORD_SHARE),
+        ]
+        const roundedBuckets = roundWithTarget(rawBuckets, orders)
+        shopOrders = roundedBuckets[0]
+        tgoOrders = roundedBuckets[1]
+        mOrders = roundedBuckets[2]
+        otherOrders = roundedBuckets[3]
+      } else if (f.channel === 'Shop Sales') {
+        shopNet = r.net
+        shopOrders = orders
+      } else if (f.channel === 'Talabat Go') {
+        tgoNet = r.net
+        tgoOrders = orders
+      } else if (f.channel === 'Talabat MP' || f.channel === 'Deliveroo MP') {
+        mNet = r.net
+        mOrders = orders
+      } else {
+        otherNet = r.net
+        otherOrders = orders
+      }
+
       return {
         code: r.code,
         nameAr: r.nameAr,
@@ -249,10 +315,20 @@ export function computeBranches(f: SalesFilter): BranchViewRow[] {
         fleet: r.fleet,
         zonesOnline: r.zonesOnline,
         zonesTotal: r.zonesTotal,
+        tgoAccountsCount: r.tgoAccountsCount,
+        mAccountsCount: r.mAccountsCount,
         lostToday: r.lostToday,
         brands: r.brands,
         net: r.net,
         orders,
+        shopNet,
+        shopOrders,
+        tgoNet,
+        tgoOrders,
+        mNet,
+        mOrders,
+        otherNet,
+        otherOrders,
         avgOrder: orders > 0 ? r.net / orders : 0,
         share: total > 0 ? (r.net / total) * 100 : 0,
         topBrand: r.topBrand,
@@ -266,12 +342,6 @@ export const WEEKDAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'] as con
 const WEEKDAY_AR = ['الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت', 'الأحد']
 export const weekdayLabelAr = (i: number) => WEEKDAY_AR[i]
 
-/**
- * Weekday weights come from the dated sample days (every third day of October 2026, covering all seven
- * weekdays); hour weights come from the October hourly dataset. Cell = filtered total x weekday share x hour
- * share, so the grid always adds up to the filtered total. It is an estimate: Odoo order dates per weekday
- * and hour are not in the project dataset.
- */
 function weekdayShares(key: 'sales' | 'orders'): number[] {
   const sums = Array(7).fill(0) as number[]
   const counts = Array(7).fill(0) as number[]

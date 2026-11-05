@@ -5,7 +5,7 @@ import { useI18n } from '@/lib/i18n'
 import { DAILY_TREND_SAMPLE } from '@/lib/analytics/sales-tabs'
 import { RECS, RECS_TOTAL_KWD } from '@/lib/analytics/recommendations'
 import { BRANDS_DATA } from '@/lib/analytics/sales-core-data'
-import { ALL_BRANDS, ALL_CHANNELS, PAYMENT_SPLIT, TOTAL_NET, TOTAL_ORDERS, WEEKDAYS, computeBranches, computeHeat, hourShare, weekdayLabelAr, type SalesFilter, type SalesView } from '@/lib/analytics/sales-view'
+import { ALL_BRANDS, ALL_CHANNELS, PAYMENT_SPLIT, TOTAL_NET, TOTAL_ORDERS, WEEKDAYS, channelDeliveryMode, computeBranches, computeHeat, hourShare, weekdayLabelAr, type SalesFilter, type SalesView } from '@/lib/analytics/sales-view'
 
 /* Tab bodies for /erp/sales-scorecard. Pure CSS/SVG, no chart library, no AI calls.
    Where the project has no data for something the request asked for, the panel
@@ -13,15 +13,42 @@ import { ALL_BRANDS, ALL_CHANNELS, PAYMENT_SPLIT, TOTAL_NET, TOTAL_ORDERS, WEEKD
 
 const BLUE = '#2563EB'
 const GREY = '#9CA3AF'
-const card = 'bg-white border border-gray-200 rounded-md p-4'
-const thc = 'py-1.5 px-2 text-start font-normal text-gray-500 bg-white whitespace-nowrap'
-const tdc = 'py-1.5 px-2 text-start text-gray-700'
-const tdn = 'py-1.5 px-2 text-end tabular-nums text-gray-800 whitespace-nowrap'
+const card = 'bg-white border border-slate-200 rounded-lg p-4 shadow-xs'
+const thc = 'py-2.5 px-3 text-start text-xs font-semibold text-slate-600 bg-slate-50/80 whitespace-nowrap'
+const tdc = 'py-2.5 px-3 text-start text-[13px] md:text-sm font-medium text-slate-800'
+const tdn = 'py-2.5 px-3 text-end text-[13px] md:text-sm font-semibold tabular-nums text-slate-900 whitespace-nowrap'
 
 const fmt0 = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 0 })
 const fmt1 = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
 const fmt2 = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const fmt3 = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
+
+export function ChannelModeBadge({ channel }: { channel: string }) {
+  const mode = channelDeliveryMode(channel)
+  if (mode === 'Tgo') {
+    return (
+      <span
+        dir="ltr"
+        title="Talabat Go (Platform Delivery / توصيل المنصة)"
+        className="inline-flex items-center rounded border border-orange-300 bg-orange-100 px-1.5 py-0.5 text-[11px] font-bold leading-none text-orange-800"
+      >
+        Tgo
+      </span>
+    )
+  }
+  if (mode === 'M') {
+    return (
+      <span
+        dir="ltr"
+        title="Marketplace (Restaurant Delivery / توصيل المطعم)"
+        className="inline-flex items-center rounded border border-blue-300 bg-blue-100 px-1.5 py-0.5 text-[11px] font-bold leading-none text-blue-900"
+      >
+        M
+      </span>
+    )
+  }
+  return null
+}
 
 function Num({ children }: { children: React.ReactNode }) {
   return <span dir="ltr" className="inline-block tabular-nums">{children}</span>
@@ -36,45 +63,48 @@ function useT() {
 function Title({ title, sub }: { title: string; sub?: string }) {
   return (
     <div className="mb-3">
-      <div className="text-[12px] font-semibold text-gray-900">{title}</div>
-      {sub && <div className="text-[10px] text-gray-400">{sub}</div>}
+      <div className="text-[15px] md:text-base font-bold text-slate-900">{title}</div>
+      {sub && <div className="text-xs font-semibold text-slate-600 mt-0.5">{sub}</div>}
     </div>
   )
 }
 
-function Kpi({ label, value, note, tone = 'text-gray-900' }: { label: string; value: React.ReactNode; note?: string; tone?: string }) {
+function Kpi({ label, value, note, tone = 'text-slate-900' }: { label: string; value: React.ReactNode; note?: string; tone?: string }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-md p-3">
-      <div className="text-[11px] text-gray-500">{label}</div>
-      <div className={`text-[18px] font-bold mt-0.5 ${tone}`}>{value}</div>
-      {note && <div className="text-[10px] text-gray-400 mt-0.5">{note}</div>}
+    <div className="bg-white border border-slate-200 rounded-lg p-3.5 shadow-xs">
+      <div className="text-xs font-semibold text-slate-600">{label}</div>
+      <div className={`text-xl md:text-2xl font-extrabold mt-1 tabular-nums ${tone}`}>{value}</div>
+      {note && <div className="text-xs font-semibold text-slate-500 mt-1">{note}</div>}
     </div>
   )
 }
 
 function Pending({ title, body }: { title: string; body: string }) {
   return (
-    <div className="rounded-md border border-dashed border-gray-300 bg-gray-50 p-4">
-      <div className="text-[12px] font-semibold text-gray-700">{title}</div>
-      <p className="mt-1 text-[11px] leading-relaxed text-gray-500">{body}</p>
+    <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4">
+      <div className="text-sm font-bold text-slate-800">{title}</div>
+      <p className="mt-1 text-xs font-medium leading-relaxed text-slate-600">{body}</p>
     </div>
   )
 }
 
 interface Tip { title: string; lines: string[] }
-interface Row { key: string; label: string; value: number; text: string; color: string; sub?: string; tip?: Tip }
-function Bars({ rows, labelW = 130 }: { rows: Row[]; labelW?: number }) {
+interface Row { key: string; label: string; badge?: React.ReactNode; value: number; text: string; color: string; sub?: string; tip?: Tip }
+function Bars({ rows, labelW = 155 }: { rows: Row[]; labelW?: number }) {
   const max = Math.max(...rows.map((r) => r.value), 1)
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       {rows.map((r) => (
-        <div key={r.key} tabIndex={r.tip ? 0 : undefined} className="group relative grid items-center gap-2 text-[11px] outline-none hover:z-50 focus:z-50" style={{ gridTemplateColumns: `${labelW}px 1fr` }}>
+        <div key={r.key} tabIndex={r.tip ? 0 : undefined} className="group relative grid items-center gap-2.5 text-[13px] font-medium outline-none hover:z-50 focus:z-50" style={{ gridTemplateColumns: `${labelW}px 1fr` }}>
           {r.tip && <HoverTip title={r.tip.title} lines={r.tip.lines} />}
-          <span className="truncate text-gray-600">{r.label}</span>
-          <div className="flex items-center gap-1.5">
-            <div style={{ height: 16, width: `${(r.value / max) * 78}%`, minWidth: 2, background: r.color }} />
-            <Num>{r.text}</Num>
-            {r.sub && <span className="text-gray-400 text-[10px]"><Num>{r.sub}</Num></span>}
+          <span className="flex items-center justify-between gap-1.5 truncate text-slate-800 font-semibold">
+            <span className="truncate">{r.label}</span>
+            {r.badge}
+          </span>
+          <div className="flex items-center gap-2">
+            <div style={{ height: 18, width: `${(r.value / max) * 78}%`, minWidth: 2, background: r.color }} className="rounded-xs" />
+            <span className="font-bold text-slate-900 text-[13px]"><Num>{r.text}</Num></span>
+            {r.sub && <span className="text-slate-600 font-semibold text-xs"><Num>{r.sub}</Num></span>}
           </div>
         </div>
       ))}
@@ -85,12 +115,12 @@ function Bars({ rows, labelW = 130 }: { rows: Row[]; labelW?: number }) {
 function RecTable({ head, rows }: { head: string[]; rows: React.ReactNode[][] }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-[11px] border-collapse">
-        <thead className="border-b border-gray-200"><tr>{head.map((h) => <th key={h} className={thc}>{h}</th>)}</tr></thead>
-        <tbody className="divide-y divide-gray-100">
+      <table className="w-full text-[13px] md:text-sm border-collapse">
+        <thead className="border-b border-slate-200"><tr>{head.map((h) => <th key={h} className={thc}>{h}</th>)}</tr></thead>
+        <tbody className="divide-y divide-slate-100">
           {rows.map((r, i) => (
-            <tr key={i} className="hover:bg-gray-50">
-              {r.map((c, j) => <td key={j} className={j === 0 ? tdc + ' font-semibold text-gray-900 whitespace-nowrap' : tdc}>{c}</td>)}
+            <tr key={i} className="hover:bg-slate-50/80">
+              {r.map((c, j) => <td key={j} className={j === 0 ? tdc + ' font-bold text-slate-900 whitespace-nowrap' : tdc}>{c}</td>)}
             </tr>
           ))}
         </tbody>
@@ -284,19 +314,42 @@ export function ChannelMix({ channels, selectedChannel = ALL_CHANNELS }: { chann
           title={T('Orders by channel', 'عدد الطلبات حسب القناة')}
           sub={T('Customer counts per channel are not in the dataset, so orders are shown. Grey = fewer than 200 orders.', 'أعداد العملاء لكل قناة غير متوفرة في البيانات، لذلك تُعرض الطلبات. الرمادي = أقل من 200 طلب.')}
         />
-        <Bars rows={channels.map((c) => ({ key: c.key, label: c.label, value: c.orders, text: fmt0(c.orders), color: selectedChannel !== ALL_CHANNELS ? (c.key === selectedChannel ? '#1D4ED8' : '#BFDBFE') : c.orders < 200 ? GREY : BLUE, tip: { title: c.label, lines: [`${T('Orders', 'الطلبات')}: ${fmt0(c.orders)}`, `${T('Net sales', 'صافي المبيعات')}: ${fmt0(c.sales)} ${T('KWD', 'د.ك')}`, `${T('Discount rate', 'نسبة الخصم')}: ${c.discPct.toFixed(1)}%`, `${T('Drinks %', 'المشروبات %')}: ${c.drinksPct.toFixed(1)}%`] } }))} />
+        <Bars
+          labelW={170}
+          rows={channels.map((c) => ({
+            key: c.key,
+            label: c.label,
+            badge: <ChannelModeBadge channel={c.key} />,
+            value: c.orders,
+            text: fmt0(c.orders),
+            color: selectedChannel !== ALL_CHANNELS ? (c.key === selectedChannel ? '#1D4ED8' : '#BFDBFE') : c.orders < 200 ? GREY : BLUE,
+            tip: {
+              title: c.label,
+              lines: [
+                `${T('Orders', 'الطلبات')}: ${fmt0(c.orders)}`,
+                `${T('Net sales', 'صافي المبيعات')}: ${fmt0(c.sales)} ${T('KWD', 'د.ك')}`,
+                `${T('Discount rate', 'نسبة الخصم')}: ${c.discPct.toFixed(1)}%`,
+                `${T('Drinks %', 'المشروبات %')}: ${c.drinksPct.toFixed(1)}%`,
+              ],
+            },
+          }))}
+        />
       </div>
       <div className={card}>
-        <Title title={T('Share of net sales by channel', 'حصة كل قناة من صافي المبيعات')} sub={T('Share of the channel rows shown', 'من مجموع صفوف القنوات المعروضة')} />
+        <Title title={T('Share of net sales by channel', 'حصة كل قناة من صافي المبيعات')} sub={T('Share of the channel rows shown (Tgo & M separated)', 'من مجموع صفوف القنوات المعروضة (مع فصل Tgo و M)')} />
         <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
           <svg width="150" height="150" viewBox="0 0 150 150" className="-rotate-90 shrink-0">
             {segs.map((s) => <circle key={s.ch.key} cx="75" cy="75" r={s.r} fill="none" stroke={s.color} strokeWidth="22" strokeDasharray={s.dash} strokeDashoffset={s.off} />)}
           </svg>
-          <ul className="w-full space-y-1 text-[11px]">
+          <ul className="w-full space-y-1.5 text-[13px]">
             {segs.map((s) => (
-              <li key={s.ch.key} className={`flex items-center justify-between gap-2 ${selectedChannel !== ALL_CHANNELS ? (s.ch.key === selectedChannel ? 'font-bold text-gray-900' : 'opacity-50') : ''}`}>
-                <span className="flex items-center gap-1.5 text-gray-600"><span className="h-2.5 w-2.5 rounded-full" style={{ background: s.color }} />{s.ch.label}</span>
-                <Num>{s.pct.toFixed(1)}%</Num>
+              <li key={s.ch.key} className={`flex items-center justify-between gap-2 ${selectedChannel !== ALL_CHANNELS ? (s.ch.key === selectedChannel ? 'font-bold text-slate-900' : 'opacity-50') : ''}`}>
+                <span className="flex items-center gap-1.5 text-slate-800 font-semibold">
+                  <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: s.color }} />
+                  <span>{s.ch.label}</span>
+                  <ChannelModeBadge channel={s.ch.key} />
+                </span>
+                <span className="font-bold text-slate-900"><Num>{s.pct.toFixed(1)}%</Num></span>
               </li>
             ))}
           </ul>
@@ -311,7 +364,7 @@ export function ChannelRecs({ channels }: { channels: ChannelView[] }) {
   const shop = channels.find((c) => c.key === 'Shop Sales')
   const target = ['Keeta', 'Talabat Go']
   const rows = channels.filter((c) => target.includes(c.key)).map((c) => [
-    c.label,
+    <span key="lbl" className="inline-flex items-center gap-1.5">{c.label} <ChannelModeBadge channel={c.key} /></span>,
     <Num key="a">{c.drinksPct.toFixed(1)}%</Num>,
     <Num key="b">{shop ? shop.drinksPct.toFixed(1) : '—'}%</Num>,
     <Num key="c">{shop ? fmt1(shop.drinksPct - c.drinksPct) : '—'}</Num>,
@@ -323,7 +376,7 @@ export function ChannelRecs({ channels }: { channels: ChannelView[] }) {
     <div className={card}>
       <Title title={T('Drinks attach-rate recommendation', 'توصية رفع المشروبات')} sub={T('Gap against the shop baseline, in percentage points. The target of 25% is a management assumption.', 'الفجوة مقابل المحل بالنقاط المئوية. الهدف 25% افتراض إداري.')} />
       <RecTable head={[T('Channel', 'القناة'), T('Drinks %', 'المشروبات %'), T('Shop baseline %', 'مرجع المحل %'), T('Gap (pts)', 'الفجوة (نقطة)'), T('Action', 'الإجراء')]} rows={rows} />
-      <p className="mt-2 text-[10px] text-gray-400">{ar ? 'الأثر المالي المقدّر لهذه التوصية موجود في الملخص المالي (تقدير إداري).' : 'The estimated financial impact of this action is on the financial summary (management estimate).'}</p>
+      <p className="mt-2 text-xs font-medium text-slate-600">{ar ? 'الأثر المالي المقدّر لهذه التوصية موجود في الملخص المالي (تقدير إداري).' : 'The estimated financial impact of this action is on the financial summary (management estimate).'}</p>
     </div>
   )
 }
@@ -352,7 +405,7 @@ export function NewCustomerTab({ view }: { view: SalesView }) {
         <Kpi label={T('Repeat customer avg order', 'متوسط طلب العميل المتكرر')} value={<Num>{money(aovRep)}</Num>} />
         <Kpi label={T('Second-purchase rate', 'معدل العودة للشراء الثاني')} value={<Num>41.5%</Num>} tone="text-emerald-700" />
       </div>
-      <p className="text-[10px] text-gray-400">
+      <p className="text-xs font-medium text-slate-600">
         {view.isFiltered
           ? T('Customer figures were supplied for the whole group; for this selection they are scaled pro rata to its orders and its average order, so they are estimates.', 'أرقام العملاء مقدّمة للمجموعة كاملة؛ وفي هذا التحديد تُحسب بالتناسب مع طلباته ومتوسط فاتورته، لذلك هي تقديرات.')
           : T('Customer figures were supplied with the request; the project dataset has no customer-level records yet.', 'أرقام العملاء مقدّمة مع الطلب؛ ولا توجد في بيانات المشروع بعد سجلات على مستوى العميل.')}
@@ -364,18 +417,18 @@ export function NewCustomerTab({ view }: { view: SalesView }) {
             <div style={{ width: `${newPct}%`, background: BLUE }} title={fmt0(fresh)} />
             <div style={{ width: `${100 - newPct}%`, background: '#0D9488' }} title={fmt0(repeat)} />
           </div>
-          <div className="mt-2 flex flex-wrap gap-4 text-[11px] text-gray-600">
+          <div className="mt-2.5 flex flex-wrap gap-4 text-[13px] font-semibold text-slate-800">
             <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full" style={{ background: BLUE }} />{T('New', 'جدد')} · <Num>{fmt0(fresh)}</Num> (<Num>{fmt1(newPct)}%</Num>)</span>
             <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full" style={{ background: '#0D9488' }} />{T('Repeat', 'متكررون')} · <Num>{fmt0(repeat)}</Num> (<Num>{fmt1(100 - newPct)}%</Num>)</span>
           </div>
         </div>
         <div className={card}>
           <Title title={T('Average order: new vs repeat', 'متوسط الطلب: الجديد مقابل المتكرر')} />
-          <Bars labelW={110} rows={[
+          <Bars labelW={130} rows={[
             { key: 'n', label: T('New customer', 'عميل جديد'), value: aovNew, text: fmt3(aovNew), color: BLUE },
             { key: 'r', label: T('Repeat customer', 'عميل متكرر'), value: aovRep, text: fmt3(aovRep), color: '#0D9488' },
           ]} />
-          <p className="mt-2 text-[10px] text-gray-400">{T(`A repeat customer spends KWD ${fmt3(aovRep - aovNew)} more per order (about 10.9%).`, `العميل المتكرر ينفق ${fmt3(aovRep - aovNew)} د.ك أكثر في الطلب (حوالي 10.9%).`)}</p>
+          <p className="mt-2 text-xs font-medium text-slate-600">{T(`A repeat customer spends KWD ${fmt3(aovRep - aovNew)} more per order (about 10.9%).`, `العميل المتكرر ينفق ${fmt3(aovRep - aovNew)} د.ك أكثر في الطلب (حوالي 10.9%).`)}</p>
         </div>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
@@ -435,12 +488,12 @@ export function PromotionsTab({ channels, brands, totalDiscounts, totalNet, sele
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <div className={card}>
           <Title title={T('Discount rate by channel (%)', 'نسبة الخصم حسب القناة (%)')} sub={T('Red above 5%', 'الأحمر فوق 5%')} />
-          <Bars rows={sortedPct.map((c) => ({ key: c.key, label: c.label, value: c.discPct, text: `${c.discPct.toFixed(1)}%`, color: selectedChannel !== ALL_CHANNELS ? (c.key === selectedChannel ? '#1D4ED8' : '#BFDBFE') : c.discPct > 5 ? '#DC2626' : BLUE, tip: { title: c.label, lines: [`${T('Discount rate', 'نسبة الخصم')}: ${c.discPct.toFixed(1)}%`, `${T('Discount value', 'قيمة الخصم')}: ${ar ? `${fmt2(c.kwd)} د.ك` : `KWD ${fmt2(c.kwd)}`}`, `${T('Net sales', 'صافي المبيعات')}: ${ar ? `${fmt2(c.sales)} د.ك` : `KWD ${fmt2(c.sales)}`}`] } }))} />
+          <Bars labelW={170} rows={sortedPct.map((c) => ({ key: c.key, label: c.label, badge: <ChannelModeBadge channel={c.key} />, value: c.discPct, text: `${c.discPct.toFixed(1)}%`, color: selectedChannel !== ALL_CHANNELS ? (c.key === selectedChannel ? '#1D4ED8' : '#BFDBFE') : c.discPct > 5 ? '#DC2626' : BLUE, tip: { title: c.label, lines: [`${T('Discount rate', 'نسبة الخصم')}: ${c.discPct.toFixed(1)}%`, `${T('Discount value', 'قيمة الخصم')}: ${ar ? `${fmt2(c.kwd)} د.ك` : `KWD ${fmt2(c.kwd)}`}`, `${T('Net sales', 'صافي المبيعات')}: ${ar ? `${fmt2(c.sales)} د.ك` : `KWD ${fmt2(c.sales)}`}`] } }))} />
         </div>
         <div className={card}>
           <Title title={T('Discount value by channel (KWD)', 'قيمة الخصم حسب القناة (د.ك)')} sub={T('Pro-rata to the official total', 'موزعة تناسبياً على الإجمالي الرسمي')} />
-          <Bars rows={[...withKwd].sort((a, b) => b.kwd - a.kwd).map((c) => ({ key: c.key, label: c.label, value: c.kwd, text: fmt0(c.kwd), color: selectedChannel !== ALL_CHANNELS ? (c.key === selectedChannel ? '#1D4ED8' : '#BFDBFE') : c.discPct > 5 ? '#DC2626' : BLUE, tip: { title: c.label, lines: [`${T('Discount value', 'قيمة الخصم')}: ${ar ? `${fmt2(c.kwd)} د.ك` : `KWD ${fmt2(c.kwd)}`}`, `${T('Discount rate', 'نسبة الخصم')}: ${c.discPct.toFixed(1)}%`, `${T('Net sales', 'صافي المبيعات')}: ${ar ? `${fmt2(c.sales)} د.ك` : `KWD ${fmt2(c.sales)}`}`] } }))} />
-          <p className="mt-2 text-[10px] text-gray-400">
+          <Bars labelW={170} rows={[...withKwd].sort((a, b) => b.kwd - a.kwd).map((c) => ({ key: c.key, label: c.label, badge: <ChannelModeBadge channel={c.key} />, value: c.kwd, text: fmt0(c.kwd), color: selectedChannel !== ALL_CHANNELS ? (c.key === selectedChannel ? '#1D4ED8' : '#BFDBFE') : c.discPct > 5 ? '#DC2626' : BLUE, tip: { title: c.label, lines: [`${T('Discount value', 'قيمة الخصم')}: ${ar ? `${fmt2(c.kwd)} د.ك` : `KWD ${fmt2(c.kwd)}`}`, `${T('Discount rate', 'نسبة الخصم')}: ${c.discPct.toFixed(1)}%`, `${T('Net sales', 'صافي المبيعات')}: ${ar ? `${fmt2(c.sales)} د.ك` : `KWD ${fmt2(c.sales)}`}`] } }))} />
+          <p className="mt-2 text-xs font-medium text-slate-600">
             {selectedChannel !== ALL_CHANNELS || selectedBrand !== ALL_BRANDS
               ? T('Filtered view: channel discounts are re-scaled to the selected brand (rate scaled by the brand against the group rate); the selected channel is highlighted.', 'عرض مفلتر: خصومات القنوات معاد تناسبها مع العلامة المختارة (النسبة مضروبة في نسبة العلامة إلى متوسط المجموعة)، والقناة المختارة مظللة.')
               : Math.abs(sumKwd - 4152) < 0.01
@@ -451,7 +504,7 @@ export function PromotionsTab({ channels, brands, totalDiscounts, totalNet, sele
       </div>
       <div className={card}>
         <Title title={T('Discount rate by brand (%)', 'نسبة الخصم حسب العلامة التجارية (%)')} sub={T('Red above 3%', 'الأحمر فوق 3%')} />
-        <Bars rows={[...brands].sort((a, b) => b.discPct - a.discPct).map((b) => ({ key: b.key, label: b.label, value: b.discPct, text: `${b.discPct.toFixed(1)}%`, color: selectedBrand !== ALL_BRANDS ? (b.key === selectedBrand ? '#1D4ED8' : '#BFDBFE') : b.discPct > 3 ? '#DC2626' : BLUE, tip: { title: b.label, lines: [`${T('Discount rate', 'نسبة الخصم')}: ${b.discPct.toFixed(1)}%`] } }))} />
+        <Bars labelW={150} rows={[...brands].sort((a, b) => b.discPct - a.discPct).map((b) => ({ key: b.key, label: b.label, value: b.discPct, text: `${b.discPct.toFixed(1)}%`, color: selectedBrand !== ALL_BRANDS ? (b.key === selectedBrand ? '#1D4ED8' : '#BFDBFE') : b.discPct > 3 ? '#DC2626' : BLUE, tip: { title: b.label, lines: [`${T('Discount rate', 'نسبة الخصم')}: ${b.discPct.toFixed(1)}%`] } }))} />
       </div>
       <Pending
         title={T('Combo offers vs direct percentage discount', 'العائد من عروض الكومبو مقابل الخصم المئوي المباشر')}
@@ -470,7 +523,7 @@ export function PromotionsTab({ channels, brands, totalDiscounts, totalNet, sele
             [topBrand?.label ?? '—', T('Highest brand discount rate.', 'أعلى نسبة خصم بين العلامات.'), T('Replace flat percentage discounts with a free drink above a basket threshold.', 'استبدل الخصم النسبي بمشروب مجاني فوق حد معيّن للسلة.'), '—'],
           ]}
         />
-        <p className="mt-2 text-[10px] text-gray-400">{T('KWD 1,620 is a management estimate that assumes the action is fully achieved.', '1,620 د.ك تقدير إداري يفترض تحقق الإجراء بالكامل.')}</p>
+        <p className="mt-2 text-xs font-medium text-slate-600">{T('KWD 1,620 is a management estimate that assumes the action is fully achieved.', '1,620 د.ك تقدير إداري يفترض تحقق الإجراء بالكامل.')}</p>
       </div>
     </div>
   )
@@ -492,20 +545,78 @@ export function BranchesTab({ filter }: { filter: SalesFilter }) {
   const maxNet = Math.max(...rows.map((r) => r.net), 1)
   const sumNet = rows.reduce((a, r) => a + r.net, 0)
   const sumOrders = rows.reduce((a, r) => a + r.orders, 0)
+  const sumShopNet = rows.reduce((a, r) => a + r.shopNet, 0)
+  const sumShopOrders = rows.reduce((a, r) => a + r.shopOrders, 0)
+  const sumTgoNet = rows.reduce((a, r) => a + r.tgoNet, 0)
+  const sumTgoOrders = rows.reduce((a, r) => a + r.tgoOrders, 0)
+  const sumMNet = rows.reduce((a, r) => a + r.mNet, 0)
+  const sumMOrders = rows.reduce((a, r) => a + r.mOrders, 0)
+  const sumOtherNet = rows.reduce((a, r) => a + r.otherNet, 0)
+  const sumOtherOrders = rows.reduce((a, r) => a + r.otherOrders, 0)
+  const sumTgoAcc = rows.reduce((a, r) => a + r.tgoAccountsCount, 0)
+  const sumMAcc = rows.reduce((a, r) => a + r.mAccountsCount, 0)
   const unit = ar ? 'د.ك' : 'KWD'
   const bLabel = (bn: string) => (ar ? BRAND_NAME_AR[bn] ?? bn : bn)
-  const fleet = (f: string) => (f === 'TALABAT_GO_17' ? T('Talabat Go fleet (17%)', 'أسطول طلبات جو (17%)') : T('Hybrid: own fleet + Talabat Go', 'هجين: أسطول الشركة + طلبات جو'))
   const name = (r: { nameAr: string; nameEn: string }) => (ar ? r.nameAr : r.nameEn)
   const scope = filter.brand === ALL_BRANDS && filter.channel === ALL_CHANNELS ? T('All brands, all channels', 'كل العلامات وكل القنوات') : `${filter.brand === ALL_BRANDS ? T('All brands', 'كل العلامات') : bLabel(filter.brand)} · ${filter.channel === ALL_CHANNELS ? T('All channels', 'كل القنوات') : filter.channel}`
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
+      {/* 4 Channel Bucket Summary Cards across the 9 Actual Operational Branches */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="bg-white border border-slate-200 rounded-lg p-3.5 shadow-xs">
+          <div className="text-xs font-semibold text-slate-600">{T('Shop Sales across 9 branches', 'مبيعات المحل (Shop Sales) في الفروع الـ 9')}</div>
+          <div className="text-xl md:text-2xl font-extrabold text-slate-900 mt-1 tabular-nums">
+            <Num>{ar ? `${fmt2(sumShopNet)} د.ك` : `KWD ${fmt2(sumShopNet)}`}</Num>
+          </div>
+          <div className="text-xs font-semibold text-slate-500 mt-1">
+            <Num>{fmt0(sumShopOrders)}</Num> {T('storefront orders', 'طلب محل مباشر')}
+          </div>
+        </div>
+
+        <div className="bg-white border border-orange-200 rounded-lg p-3.5 shadow-xs">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold text-slate-700">{T('Tgo Sales (Platform Delivery)', 'مبيعات Tgo (توصيل المنصة)')}</span>
+            <ChannelModeBadge channel="Talabat Go" />
+          </div>
+          <div className="text-xl md:text-2xl font-extrabold text-orange-800 mt-1 tabular-nums">
+            <Num>{ar ? `${fmt2(sumTgoNet)} د.ك` : `KWD ${fmt2(sumTgoNet)}`}</Num>
+          </div>
+          <div className="text-xs font-semibold text-slate-600 mt-1">
+            <Num>{fmt0(sumTgoOrders)}</Num> {T('Talabat Go orders', 'طلب عبر حسابات Tgo')} · <Num>{sumTgoAcc}</Num> {T('Tgo accounts', 'حساب Tgo')}
+          </div>
+        </div>
+
+        <div className="bg-white border border-blue-200 rounded-lg p-3.5 shadow-xs">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold text-slate-700">{T('M Sales (Restaurant Delivery)', 'مبيعات M (توصيل المطعم - Marketplace)')}</span>
+            <ChannelModeBadge channel="Talabat MP" />
+          </div>
+          <div className="text-xl md:text-2xl font-extrabold text-blue-900 mt-1 tabular-nums">
+            <Num>{ar ? `${fmt2(sumMNet)} د.ك` : `KWD ${fmt2(sumMNet)}`}</Num>
+          </div>
+          <div className="text-xs font-semibold text-slate-600 mt-1">
+            <Num>{fmt0(sumMOrders)}</Num> {T('Talabat MP + Deliveroo MP orders', 'طلب عبر حسابات M')} · <Num>{sumMAcc}</Num> {T('M accounts', 'حساب M')}
+          </div>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-lg p-3.5 shadow-xs">
+          <div className="text-xs font-semibold text-slate-600">{T('Other Platforms (Keeta, Deliveroo Core, etc.)', 'باقي المنصات (كيتا، ديليفرو كور، أوردابل...)')}</div>
+          <div className="text-xl md:text-2xl font-extrabold text-slate-900 mt-1 tabular-nums">
+            <Num>{ar ? `${fmt2(sumOtherNet)} د.ك` : `KWD ${fmt2(sumOtherNet)}`}</Num>
+          </div>
+          <div className="text-xs font-semibold text-slate-500 mt-1">
+            <Num>{fmt0(sumOtherOrders)}</Num> {T('orders on other channels', 'طلب على باقي القنوات')}
+          </div>
+        </div>
+      </div>
+
       <div className={card}>
         <Title
-          title={T('Net sales by branch', 'صافي المبيعات حسب الفرع')}
-          sub={`${T('The nine active branches of the delivery radar', 'الفروع التسعة النشطة في رادار التوصيل')} · ${scope}`}
+          title={T('Net sales by actual restaurant branch (9 operational branches)', 'صافي المبيعات حسب الفرع الفعلي للمطعم (9 فروع تشغيلية)')}
+          sub={`${T('Only the 9 actual operational branches of Venture Foods (excluding residential customer areas)', 'فقط الفروع الـ 9 الفعلية لشركة فنتشر فودز (دون خلطها بمناطق سكن الزبائن)')} · ${scope}`}
         />
         <Bars
-          labelW={190}
+          labelW={235}
           rows={rows.map((r) => ({
             key: r.code,
             label: name(r),
@@ -516,71 +627,152 @@ export function BranchesTab({ filter }: { filter: SalesFilter }) {
             tip: {
               title: name(r),
               lines: [
-                `${T('Net sales', 'صافي المبيعات')}: ${ar ? `${fmt3(r.net)} د.ك` : `KWD ${fmt3(r.net)}`}`,
-                `${T('Orders', 'الطلبات')}: ${fmt0(r.orders)}`,
-                `${T('Avg order', 'متوسط الفاتورة')}: ${ar ? `${fmt3(r.avgOrder)} د.ك` : `KWD ${fmt3(r.avgOrder)}`}`,
+                `${T('Shop Sales', 'مبيعات المحل')}: ${ar ? `${fmt2(r.shopNet)} د.ك` : `KWD ${fmt2(r.shopNet)}`} (${fmt0(r.shopOrders)})`,
+                `${T('Tgo Sales', 'مبيعات Tgo')}: ${ar ? `${fmt2(r.tgoNet)} د.ك` : `KWD ${fmt2(r.tgoNet)}`} (${fmt0(r.tgoOrders)})`,
+                `${T('M Sales (MP)', 'مبيعات M')}: ${ar ? `${fmt2(r.mNet)} د.ك` : `KWD ${fmt2(r.mNet)}`} (${fmt0(r.mOrders)})`,
+                `${T('Other Platforms', 'باقي المنصات')}: ${ar ? `${fmt2(r.otherNet)} د.ك` : `KWD ${fmt2(r.otherNet)}`} (${fmt0(r.otherOrders)})`,
+                `${T('Total net sales', 'إجمالي صافي المبيعات')}: ${ar ? `${fmt3(r.net)} د.ك` : `KWD ${fmt3(r.net)}`}`,
+                `${T('Total orders', 'إجمالي الطلبات')}: ${fmt0(r.orders)}`,
                 `${T('Share', 'الحصة')}: ${fmt1(r.share)}%`,
               ],
             },
           }))}
         />
       </div>
+
       <div className={card}>
-        <Title title={T('Branch comparison', 'مقارنة الفروع')} sub={T('Branch list and brand coverage come from the delivery radar; the table follows the Brand and Channel filters.', 'قائمة الفروع وتغطية العلامات من رادار التوصيل؛ والجدول يتبع فلتري العلامة والقناة.')} />
-        <div className="max-h-[26rem] overflow-auto">
-          <table className="w-full text-[11px] border-collapse">
-            <thead className="sticky top-0 border-b border-gray-200 bg-white"><tr>
-              {[['Branch', 'الفرع'], ['Delivery fleet', 'أسطول التوصيل'], ['Zones online', 'المناطق المتصلة'], ['Net sales (KWD)', 'صافي المبيعات (د.ك)'], ['Orders', 'الطلبات'], ['Avg order', 'متوسط الفاتورة'], ['Share', 'الحصة'], ['Top brand', 'العلامة الأعلى'], ['Brands run', 'العلامات المشغّلة']].map(([en, arT]) => <th key={en} className={thc}>{T(en, arT)}</th>)}
-            </tr></thead>
-            <tbody className="divide-y divide-gray-100">
+        <Title
+          title={T('Actual Restaurant Branches — Detailed Breakdown (Shop Sales | Tgo | M | Other Platforms)', 'تفصيل الفروع الفعلية للمطعم — مقسّمة حسب (مبيعات المحل | Tgo | M | باقي المنصات)')}
+          sub={T('The 9 actual operational restaurant branches of Venture Foods with sales & orders split across Shop Sales, Tgo (Talabat Go), M (Marketplace), and Other Platforms.', 'الفروع التشغيلية الـ 9 المعتمدة للمطعم مع تقسيم واضح لمبيعات وطلبات كل فرع إلى: مبيعات المحل، ومبيعات Tgo، ومبيعات M، وباقي المنصات.')}
+        />
+        <div className="overflow-x-auto">
+          <table className="w-full text-[13px] md:text-sm border-collapse">
+            <thead className="sticky top-0 border-b border-slate-200 bg-slate-50">
+              <tr>
+                <th className={thc}>{T('Actual Restaurant Branch', 'الفرع الفعلي للمطعم')}</th>
+                <th className={thc}>{T('Zone Accounts (Tgo / M)', 'حسابات التغطية (Tgo / M)')}</th>
+                <th className={thc + ' text-end'}>{T('Shop Sales (Orders)', 'مبيعات المحل (الطلبات)')}</th>
+                <th className={thc + ' text-end'}>
+                  <span className="inline-flex items-center gap-1">{T('Tgo Sales (Orders)', 'مبيعات Tgo (الطلبات)')} <ChannelModeBadge channel="Talabat Go" /></span>
+                </th>
+                <th className={thc + ' text-end'}>
+                  <span className="inline-flex items-center gap-1">{T('M Sales (Orders)', 'مبيعات M (الطلبات)')} <ChannelModeBadge channel="Talabat MP" /></span>
+                </th>
+                <th className={thc + ' text-end'}>{T('Other Platforms (Orders)', 'باقي المنصات (الطلبات)')}</th>
+                <th className={thc + ' text-end'}>{T('Total Net (KWD)', 'إجمالي المبيعات (د.ك)')}</th>
+                <th className={thc + ' text-end'}>{T('Total Orders', 'إجمالي الطلبات')}</th>
+                <th className={thc + ' text-end'}>{T('Avg Order', 'متوسط الفاتورة')}</th>
+                <th className={thc + ' text-end'}>{T('Share', 'الحصة')}</th>
+                <th className={thc}>{T('Brands Run', 'العلامات المشغّلة')}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
               {rows.map((r) => (
-                <tr key={r.code} className={`hover:bg-gray-50 ${r.net > 0 ? '' : 'opacity-50'}`}>
-                  <td className={tdc + ' font-semibold text-gray-900 whitespace-nowrap'}>{name(r)}</td>
-                  <td className={tdc + ' whitespace-nowrap'}>{fleet(r.fleet)}</td>
-                  <td className={tdn}>{r.zonesOnline}/{r.zonesTotal}</td>
-                  <td className={tdn}>
-                    <div className="flex items-center gap-2 justify-end">
-                      <span dir="ltr">{r.net > 0 ? fmt3(r.net) : '—'}</span>
-                      <div className="h-2.5 w-20 bg-gray-100"><div style={{ width: `${(r.net / maxNet) * 100}%`, height: '100%', background: BLUE }} /></div>
+                <tr key={r.code} className={`hover:bg-slate-50/80 ${r.net > 0 ? '' : 'opacity-50'}`}>
+                  <td className={tdc + ' font-bold text-slate-900 whitespace-nowrap'}>{name(r)}</td>
+                  <td className={tdc + ' whitespace-nowrap'}>
+                    <div className="inline-flex items-center gap-1.5">
+                      <span dir="ltr" className="inline-flex items-center rounded border border-orange-300 bg-orange-50 px-1.5 py-0.5 text-xs font-bold text-orange-800">
+                        {r.tgoAccountsCount} Tgo
+                      </span>
+                      <span dir="ltr" className="inline-flex items-center rounded border border-blue-300 bg-blue-50 px-1.5 py-0.5 text-xs font-bold text-blue-900">
+                        {r.mAccountsCount} M
+                      </span>
                     </div>
                   </td>
-                  <td className={tdn}>{r.net > 0 ? fmt0(r.orders) : '—'}</td>
+                  <td className={tdn}>
+                    {r.shopNet > 0 ? (
+                      <div>
+                        <div className="font-bold text-slate-900"><Num>{fmt2(r.shopNet)}</Num></div>
+                        <div className="text-xs font-medium text-slate-500"><Num>({fmt0(r.shopOrders)})</Num></div>
+                      </div>
+                    ) : '—'}
+                  </td>
+                  <td className={tdn + ' bg-orange-50/30'}>
+                    {r.tgoNet > 0 ? (
+                      <div>
+                        <div className="font-bold text-orange-900"><Num>{fmt2(r.tgoNet)}</Num></div>
+                        <div className="text-xs font-medium text-orange-700"><Num>({fmt0(r.tgoOrders)})</Num></div>
+                      </div>
+                    ) : '—'}
+                  </td>
+                  <td className={tdn + ' bg-blue-50/30'}>
+                    {r.mNet > 0 ? (
+                      <div>
+                        <div className="font-bold text-blue-900"><Num>{fmt2(r.mNet)}</Num></div>
+                        <div className="text-xs font-medium text-blue-700"><Num>({fmt0(r.mOrders)})</Num></div>
+                      </div>
+                    ) : '—'}
+                  </td>
+                  <td className={tdn}>
+                    {r.otherNet > 0 ? (
+                      <div>
+                        <div className="font-bold text-slate-900"><Num>{fmt2(r.otherNet)}</Num></div>
+                        <div className="text-xs font-medium text-slate-500"><Num>({fmt0(r.otherOrders)})</Num></div>
+                      </div>
+                    ) : '—'}
+                  </td>
+                  <td className={tdn}>
+                    <div className="flex items-center gap-2 justify-end">
+                      <span dir="ltr" className="font-extrabold text-slate-900">{r.net > 0 ? fmt3(r.net) : '—'}</span>
+                      <div className="h-2.5 w-16 bg-slate-100 rounded-xs overflow-hidden"><div style={{ width: `${(r.net / maxNet) * 100}%`, height: '100%', background: BLUE }} /></div>
+                    </div>
+                  </td>
+                  <td className={tdn + ' font-bold'}>{r.net > 0 ? fmt0(r.orders) : '—'}</td>
                   <td className={tdn}>{r.net > 0 ? fmt3(r.avgOrder) : '—'}</td>
                   <td className={tdn}>{r.net > 0 ? fmt1(r.share) + '%' : '—'}</td>
-                  <td className={tdc + ' whitespace-nowrap'}>{r.topBrand ? bLabel(r.topBrand) : '—'}</td>
-                  <td className={tdc}>{r.brands.map(bLabel).join(' · ')}</td>
+                  <td className={tdc + ' text-xs font-medium text-slate-700'}>{r.brands.map(bLabel).join(' · ')}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
-              <tr className="border-t border-gray-200 font-semibold text-gray-900">
-                <td className={tdc} colSpan={3}>{T('Total', 'الإجمالي')}</td>
-                <td className={tdn}>{fmt3(sumNet)}</td>
-                <td className={tdn}>{fmt0(sumOrders)}</td>
+              <tr className="border-t-2 border-slate-300 bg-slate-50 font-bold text-slate-900">
+                <td className={tdc + ' font-extrabold'}>{T('Total (9 Actual Branches)', 'الإجمالي (9 فروع فعلية)')}</td>
+                <td className={tdc}>
+                  <span dir="ltr" className="text-xs font-bold text-slate-700">{sumTgoAcc} Tgo + {sumMAcc} M</span>
+                </td>
+                <td className={tdn}>
+                  <div><Num>{fmt2(sumShopNet)}</Num></div>
+                  <div className="text-xs font-semibold text-slate-600"><Num>({fmt0(sumShopOrders)})</Num></div>
+                </td>
+                <td className={tdn + ' text-orange-900 bg-orange-50/50'}>
+                  <div><Num>{fmt2(sumTgoNet)}</Num></div>
+                  <div className="text-xs font-semibold text-orange-800"><Num>({fmt0(sumTgoOrders)})</Num></div>
+                </td>
+                <td className={tdn + ' text-blue-900 bg-blue-50/50'}>
+                  <div><Num>{fmt2(sumMNet)}</Num></div>
+                  <div className="text-xs font-semibold text-blue-800"><Num>({fmt0(sumMOrders)})</Num></div>
+                </td>
+                <td className={tdn}>
+                  <div><Num>{fmt2(sumOtherNet)}</Num></div>
+                  <div className="text-xs font-semibold text-slate-600"><Num>({fmt0(sumOtherOrders)})</Num></div>
+                </td>
+                <td className={tdn + ' font-extrabold text-blue-900'}><Num>{fmt3(sumNet)}</Num></td>
+                <td className={tdn + ' font-extrabold'}><Num>{fmt0(sumOrders)}</Num></td>
                 <td className={tdn}>{sumOrders > 0 ? fmt3(sumNet / sumOrders) : '—'}</td>
                 <td className={tdn}>{sumNet > 0 ? '100.0%' : '—'}</td>
-                <td className={tdc} colSpan={2} />
+                <td className={tdc} />
               </tr>
             </tfoot>
           </table>
         </div>
-        <p className="mt-1 text-[10px] leading-relaxed text-gray-400">
+        <p className="mt-2 text-xs font-medium leading-relaxed text-slate-600">
           {T(
-            'Branch net sales are the Odoo branch figures (they add up to KWD 167,092.160 and 30,540 orders). Within a branch the brand split is allocated across the brands that branch runs in the radar, so each brand adds up to its approved total. Orders follow each brand\'s average order. With a filter on, these are allocations, not Odoo cells.',
-            'مبيعات الفروع هي أرقام أودو للفروع (مجموعها 167,092.160 د.ك و30,540 طلباً). داخل الفرع تُوزَّع المبيعات على العلامات التي يشغّلها الفرع في الرادار بحيث تطابق كل علامة إجماليها المعتمد، وتتبع الطلبات متوسط فاتورة كل علامة. عند تفعيل الفلتر تكون الأرقام توزيعاً وليست خلايا من أودو.',
+            'Branch net sales are the official Odoo branch figures for the 9 actual operational branches (adding up to KWD 167,092.160 and 30,540 orders). Sales and orders are broken down into Shop Sales (KWD 58,953.09 / 14,818 orders), Tgo — Talabat Go platform delivery (KWD 55,716.21 / 7,163 orders), M — Talabat MP & Deliveroo MP restaurant delivery (KWD 7,393.44 / 828 orders), and Other Platforms (KWD 45,029.42 / 7,731 orders).',
+            'صافي مبيعات الفروع هو الرقم الرسمي المعتمد للفروع التشغيلية الـ 9 في أودو (بإجمالي 167,092.160 د.ك و30,540 طلباً)، مقسّماً بدقة إلى: مبيعات المحل (58,953.09 د.ك / 14,818 طلباً)، ومبيعات Tgo توصيل طلبات (55,716.21 د.ك / 7,163 طلباً)، ومبيعات M توصيل المطعم عبر طلبات وديليفرو ماركت بليس (7,393.44 د.ك / 828 طلباً)، وباقي المنصات (45,029.42 د.ك / 7,731 طلباً).',
           )}
         </p>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <div className={card}>
           <Title title={T('Food cost', 'تكلفة الأغذية')} />
-          <p className="text-[11px] text-gray-600 leading-relaxed">
+          <p className="text-[13px] font-medium text-slate-700 leading-relaxed">
             {T('Food cost is tracked at group level: 24.8% (KWD 41,438.856). Per-branch food cost is not in the dataset, so none is shown.', 'تكلفة الأغذية تُتابع على مستوى المجموعة: 24.8% (41,438.856 د.ك). تكلفة الأغذية لكل فرع غير متوفرة في البيانات، لذلك لا تُعرض.')}
           </p>
         </div>
-        <div className="rounded-md border border-rose-200 bg-rose-50 p-4">
-          <div className="text-[12px] font-semibold text-rose-900">{T('Maintenance and custody: KWD 10,707.930', 'الصيانة والعهد: 10,707.930 د.ك')}</div>
-          <p className="mt-1 text-[11px] leading-relaxed text-rose-800">
+        <div className="rounded-lg border border-rose-200 bg-rose-50 p-4">
+          <div className="text-[15px] font-bold text-rose-900">{T('Maintenance and custody: KWD 10,707.930', 'الصيانة والعهد: 10,707.930 د.ك')}</div>
+          <p className="mt-1 text-[13px] font-medium leading-relaxed text-rose-800">
             {T('Repeated fridge failures at Al-Kout and Salmiya drove the spend. Stop repeated cash repairs and approve replacing the fridges as a capital item.', 'تكرار أعطال ثلاجات الكوت والسالمية رفع المصروف. أوقف الإصلاحات النقدية المتكررة واعتمد استبدال الثلاجات كبند رأسمالي.')}
           </p>
         </div>

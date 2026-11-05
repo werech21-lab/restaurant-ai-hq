@@ -76,7 +76,7 @@ function NavAccordion({ item, isAr }: { item: NavItem; isAr: boolean }) {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className={`group flex w-full items-center justify-between gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all ${
+        className={`group flex w-full items-center justify-between gap-2.5 rounded-xl px-3 py-2 text-[13px] font-semibold transition-all ${
           onBase
             ? 'bg-slate-100 dark:bg-slate-800 font-bold text-slate-900 dark:text-white'
             : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-900/80 hover:text-slate-900 dark:hover:text-white'
@@ -84,12 +84,12 @@ function NavAccordion({ item, isAr }: { item: NavItem; isAr: boolean }) {
       >
         <span className="inline-flex min-w-0 items-center gap-2.5">
           <Icon size={16} className="shrink-0 text-slate-500 dark:text-slate-400" />
-          <span className="text-start">{isAr ? item.labelAr : item.labelEn}</span>
+          <span className="text-start leading-snug">{isAr ? item.labelAr : item.labelEn}</span>
         </span>
         <ChevronDown size={14} className={`shrink-0 text-slate-500 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && item.children && (
-        <ul className="ms-4 mt-0.5 space-y-0.5 border-s border-slate-200 dark:border-slate-700 ps-2">
+        <ul className="ms-4 mt-1 space-y-0.5 border-s border-slate-200 dark:border-slate-700 ps-2">
           {item.children.map((c) => {
             const active = onBase && currentTab === c.id
             return (
@@ -98,8 +98,8 @@ function NavAccordion({ item, isAr }: { item: NavItem; isAr: boolean }) {
                   href={c.href}
                   scroll={false}
                   aria-current={active ? 'page' : undefined}
-                  className={`block rounded-lg px-3 py-1.5 text-xs transition-colors ${
-                    active ? 'font-bold' : 'font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
+                  className={`block rounded-lg px-3 py-2 text-[13px] font-semibold leading-snug transition-colors ${
+                    active ? 'bg-[#2563EB] font-bold text-white shadow-xs' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
                   }`}
                   style={active ? { backgroundColor: '#2563EB', color: '#FFFFFF' } : undefined}
                 >
@@ -201,22 +201,23 @@ export function Sidebar({ user }: { user: AccessUser; enabledKeys?: string[] | n
                     <Link
                       key={item.key}
                       href={item.href}
-                      className={`group flex shrink-0 items-center justify-between gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all ${
+                      className={`group flex shrink-0 items-center justify-between gap-2.5 rounded-xl px-3 py-2 text-[13px] font-semibold transition-all ${
                         active
-                          ? 'bg-slate-900 text-white dark:bg-emerald-500 dark:text-black shadow-sm font-bold'
+                          ? 'bg-[#2563EB] text-white shadow-sm font-bold'
                           : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-900/80 hover:text-slate-900 dark:hover:text-white'
                       }`}
+                      style={active ? { backgroundColor: '#2563EB', color: '#FFFFFF' } : undefined}
                     >
                       <span className="inline-flex min-w-0 items-center gap-2.5">
                         <Icon
                           size={16}
                           className={`shrink-0 transition-colors ${
                             active
-                              ? 'text-white dark:text-black'
+                              ? 'text-white'
                               : 'text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white'
                           }`}
                         />
-                        <span className="truncate">{isAr ? item.labelAr : item.labelEn}</span>
+                        <span className="leading-snug">{isAr ? item.labelAr : item.labelEn}</span>
                       </span>
                     </Link>
                   )

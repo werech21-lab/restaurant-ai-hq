@@ -12,6 +12,7 @@ import { TOP_BEST_SELLERS } from "@/lib/analytics/brand-sales-october-data";
 import {
   BranchesTab,
   ChannelMix,
+  ChannelModeBadge,
   ChannelRecs,
   DailyCurve,
   HoverTip,
@@ -418,74 +419,81 @@ function ScorecardInner() {
   const maxDiagValue = Math.max(1, ...diagBuckets.map((d) => d.value));
 
   const isFiltered = selectedBrand !== "All brands" || selectedChannel !== "All channels";
+  const chLabel = (ch: string) => {
+    if (isAr) return tr(ch);
+    if (ch === "Talabat Go") return "Talabat Go (Tgo)";
+    if (ch === "Talabat MP") return "Talabat MP (M)";
+    if (ch === "Deliveroo MP") return "Deliveroo MP (M)";
+    return tr(ch);
+  };
   const channelViews = vChannels.map((c) => ({
     key: c.channel,
-    label: tr(c.channel),
+    label: chLabel(c.channel),
     orders: c.orders,
     sales: c.netSales,
     discPct: c.discountRate,
     drinksPct: c.drinksPct,
   }));
-  const promoChannels = vChannels.map((c) => ({ key: c.channel, label: tr(c.channel), sales: c.netSales, discPct: c.discountRate, kwd: c.discountKwd }));
+  const promoChannels = vChannels.map((c) => ({ key: c.channel, label: chLabel(c.channel), sales: c.netSales, discPct: c.discountRate, kwd: c.discountKwd }));
   const promoBrands = vBrands.map((b) => ({ key: b.brand, label: tr(b.brand), discPct: b.discountRate }));
 
   return (
     <div
       dir={isAr ? "rtl" : "ltr"}
       lang={locale}
-      className="min-h-screen bg-[#F8F9FA] text-[#111827] font-sans antialiased selection:bg-blue-100 selection:text-blue-900"
-      style={{ fontFamily: isAr ? "Cairo, Inter, system-ui, sans-serif" : "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}
+      className="min-h-screen bg-[#F8F9FA] text-[#0F172A] font-sans antialiased selection:bg-blue-100 selection:text-blue-900"
+      style={{ fontFamily: isAr ? "'IBM Plex Sans Arabic', Cairo, Inter, system-ui, sans-serif" : "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}
     >
       <div className="max-w-[1600px] mx-auto px-5 py-5 space-y-6">
         {/* ==========================================
             HEADER & GLOBAL CROSS-FILTERS
            ========================================== */}
-        <header className="space-y-3 border-b border-gray-200 pb-4">
-          <div className="flex items-center justify-between text-[11px] text-gray-500">
+        <header className="space-y-3 border-b border-slate-200 pb-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-semibold text-slate-600">
             <span>{tr("Updated Live · Odoo ERP Verified (2,213 Journal Entries · Venture Foods Co. W.L.L.)")}</span>
             <div className="flex items-center gap-3">
-              <span className="inline-flex items-center gap-1.5 text-emerald-700 font-medium">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-600"></span> {tr("Odoo P&L Reconciled: KWD 42,441.480 Net Profit (25.4%)")} </span>
+              <span className="inline-flex items-center gap-1.5 text-emerald-700 font-bold">
+                <span className="h-2 w-2 rounded-full bg-emerald-600"></span> {tr("Odoo P&L Reconciled: KWD 42,441.480 Net Profit (25.4%)")} </span>
               {(selectedBrand !== "All brands" || selectedChannel !== "All channels") && (
                 <button
                   onClick={() => {
                     setSelectedBrand("All brands");
                     setSelectedChannel("All channels");
                   }}
-                  className="text-blue-600 hover:underline font-medium"
+                  className="text-blue-700 hover:underline font-bold"
                 > {tr("Reset filters")} </button>
               )}
             </div>
           </div>
 
           <div>
-            <h1 className="text-[22px] font-bold tracking-tight text-gray-900"> {tr("Brand sales · October 2026")} </h1>
-            <p className="text-[12px] text-gray-600 mt-0.5 max-w-3xl leading-relaxed">
+            <h1 className="text-xl md:text-2xl font-bold tracking-tight text-slate-900"> {tr("Brand sales · October 2026")} </h1>
+            <p className="text-[13px] md:text-sm font-medium text-slate-700 mt-1 max-w-3xl leading-relaxed">
               {isAr ? (
                 <>
-                  {tr(selectedBrand)} في {tr(selectedChannel)} حققت صافي{" "}
-                  <strong className="font-semibold text-gray-900">
+                  {tr(selectedBrand)} في {chLabel(selectedChannel)} حققت صافي{" "}
+                  <strong className="font-bold text-slate-900">
                     <span dir="ltr" className="inline-block tabular-nums">{money(kpis.netSales)}</span>
                   </strong>{" "}
                   في أكتوبر من{" "}
-                  <strong className="font-semibold text-gray-900">
+                  <strong className="font-bold text-slate-900">
                     <span dir="ltr" className="inline-block tabular-nums">{kpis.orders.toLocaleString()}</span>
                   </strong>{" "}
                   طلب. الصنف الأعلى مبيعاً هو{" "}
-                  <strong className="font-semibold text-gray-900">{bestName}</strong>.
+                  <strong className="font-bold text-slate-900">{bestName}</strong>.
                 </>
               ) : (
                 <>
-                  {selectedBrand} in {selectedChannel.toLowerCase()} made{" "}
-                  <strong className="font-semibold text-gray-900">
+                  {selectedBrand} in {chLabel(selectedChannel)} made{" "}
+                  <strong className="font-bold text-slate-900">
                     {money(kpis.netSales)}
                   </strong>{" "}
                   net in October from{" "}
-                  <strong className="font-semibold text-gray-900">
+                  <strong className="font-bold text-slate-900">
                     {kpis.orders.toLocaleString()}
                   </strong>{" "}
                   orders. The best seller was{" "}
-                  <strong className="font-semibold text-gray-900">{bestName}</strong>.
+                  <strong className="font-bold text-slate-900">{bestName}</strong>.
                 </>
               )}
             </p>
@@ -493,13 +501,13 @@ function ScorecardInner() {
 
           {/* Filter Dropdowns */}
           <div className="pt-1 space-y-1.5">
-            <div className="flex flex-wrap items-center gap-4 text-[12px]">
-              <label className="flex items-center gap-2 text-gray-600">
+            <div className="flex flex-wrap items-center gap-4 text-[13px]">
+              <label className="flex items-center gap-2 font-semibold text-slate-700">
                 <span>{tr("Brand")}</span>
                 <select
                   value={selectedBrand}
                   onChange={(e) => setSelectedBrand(e.target.value)}
-                  className="bg-white border border-gray-300 rounded px-2.5 py-1 text-[12px] text-gray-900 font-medium focus:outline-none focus:border-blue-600"
+                  className="bg-white border border-slate-300 rounded-md px-3 py-1.5 text-[13px] text-slate-900 font-semibold focus:outline-none focus:border-blue-600"
                 >
                   <option value="All brands">{tr("All brands")}</option>
                   {vBrands.map((b) => (
@@ -510,27 +518,27 @@ function ScorecardInner() {
                 </select>
               </label>
 
-              <label className="flex items-center gap-2 text-gray-600">
+              <label className="flex items-center gap-2 font-semibold text-slate-700">
                 <span>{tr("Channel")}</span>
                 <select
                   value={selectedChannel}
                   onChange={(e) => setSelectedChannel(e.target.value)}
-                  className="bg-white border border-gray-300 rounded px-2.5 py-1 text-[12px] text-gray-900 font-medium focus:outline-none focus:border-blue-600"
+                  className="bg-white border border-slate-300 rounded-md px-3 py-1.5 text-[13px] text-slate-900 font-semibold focus:outline-none focus:border-blue-600"
                 >
                   <option value="All channels">{tr("All channels")}</option>
                   {vChannels.map((c) => (
                     <option key={c.channel} value={c.channel}>
-                      {tr(c.channel)}
+                      {chLabel(c.channel)}
                     </option>
                   ))}
                 </select>
               </label>
             </div>
-            <p className="text-[11px] text-gray-400"> {tr("Both filters apply to every section. You can also click a bar in the brand or channel charts.")} </p>
+            <p className="text-xs font-medium text-slate-500"> {tr("Both filters apply to every section. You can also click a bar in the brand or channel charts.")} </p>
           </div>
         </header>
 
-        <nav aria-label="Sales analysis sections" className="flex overflow-x-auto rounded-md border border-gray-200 bg-white text-[12px]">
+        <nav aria-label="Sales analysis sections" className="flex overflow-x-auto rounded-lg border border-slate-200 bg-white text-[13px] font-semibold shadow-2xs">
           {SALES_TABS.map((t) => {
             const active = t.id === tab;
             return (
@@ -539,8 +547,8 @@ function ScorecardInner() {
                 href={salesTabHref(t.id)}
                 scroll={false}
                 aria-current={active ? "page" : undefined}
-                className={`whitespace-nowrap px-4 py-2.5 transition ${active ? "font-bold" : "text-gray-600 hover:bg-gray-50"}`}
-                style={active ? { color: "#2563EB", borderBottom: "2px solid #2563EB", backgroundColor: "#EFF6FF" } : { borderBottom: "2px solid transparent" }}
+                className={`whitespace-nowrap px-4 py-2.5 transition ${active ? "font-bold" : "text-slate-700 hover:bg-slate-50"}`}
+                style={active ? { color: "#1D4ED8", borderBottom: "2px solid #2563EB", backgroundColor: "#EFF6FF" } : { borderBottom: "2px solid transparent" }}
               >
                 {isAr ? t.ar : t.en}
               </Link>
@@ -554,57 +562,57 @@ function ScorecardInner() {
             ROW 1: 6 KPI CARDS
            ========================================== */}
         <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          <div className="bg-white border border-gray-200 rounded-md p-3">
-            <div className="text-[11px] text-gray-500">{tr("Net sales · Oct 2026")}</div>
-            <div className="text-[18px] font-bold text-gray-900 mt-0.5 tabular-nums">
+          <div className="bg-white border border-slate-200 rounded-lg p-3.5 shadow-xs">
+            <div className="text-xs font-semibold text-slate-600">{tr("Net sales · Oct 2026")}</div>
+            <div className="text-xl md:text-2xl font-extrabold text-slate-900 mt-1 tabular-nums">
               {money(kpis.netSales)}
             </div>
-            <div className="text-[10px] text-gray-400 mt-0.5">{tr("After discounts, KWD")}</div>
+            <div className="text-xs font-medium text-slate-500 mt-0.5">{tr("After discounts, KWD")}</div>
             <Spark series="sales" />
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-md p-3">
-            <div className="text-[11px] text-gray-500">{tr("Orders")}</div>
-            <div className="text-[18px] font-bold text-gray-900 mt-0.5 tabular-nums">
+          <div className="bg-white border border-slate-200 rounded-lg p-3.5 shadow-xs">
+            <div className="text-xs font-semibold text-slate-600">{tr("Orders")}</div>
+            <div className="text-xl md:text-2xl font-extrabold text-slate-900 mt-1 tabular-nums">
               {kpis.orders.toLocaleString()}
             </div>
-            <div className="text-[10px] text-gray-400 mt-0.5">{tr("Distinct orders")}</div>
+            <div className="text-xs font-medium text-slate-500 mt-0.5">{tr("Distinct orders")}</div>
             <Spark series="orders" />
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-md p-3">
-            <div className="text-[11px] text-gray-500">{tr("Average order value")}</div>
-            <div className="text-[18px] font-bold text-gray-900 mt-0.5 tabular-nums">
+          <div className="bg-white border border-slate-200 rounded-lg p-3.5 shadow-xs">
+            <div className="text-xs font-semibold text-slate-600">{tr("Average order value")}</div>
+            <div className="text-xl md:text-2xl font-extrabold text-slate-900 mt-1 tabular-nums">
               {money(kpis.avgOrder, 3)}
             </div>
-            <div className="text-[10px] text-gray-400 mt-0.5">{tr("Net sales ÷ orders")}</div>
+            <div className="text-xs font-medium text-slate-500 mt-0.5">{tr("Net sales ÷ orders")}</div>
             <Spark series="aov" />
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-md p-3">
-            <div className="text-[11px] text-gray-500">{tr("Items sold")}</div>
-            <div className="text-[18px] font-bold text-gray-900 mt-0.5 tabular-nums">
+          <div className="bg-white border border-slate-200 rounded-lg p-3.5 shadow-xs">
+            <div className="text-xs font-semibold text-slate-600">{tr("Items sold")}</div>
+            <div className="text-xl md:text-2xl font-extrabold text-slate-900 mt-1 tabular-nums">
               {kpis.itemsSold.toLocaleString()}
             </div>
-            <div className="text-[10px] text-gray-400 mt-0.5">
+            <div className="text-xs font-medium text-slate-500 mt-0.5">
               {kpis.itemsPerOrder.toFixed(2)} {tr("items per order")}
             </div>
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-md p-3">
-            <div className="text-[11px] text-gray-500">{tr("Discounts given")}</div>
-            <div className="text-[18px] font-bold text-gray-900 mt-0.5 tabular-nums">
+          <div className="bg-white border border-slate-200 rounded-lg p-3.5 shadow-xs">
+            <div className="text-xs font-semibold text-slate-600">{tr("Discounts given")}</div>
+            <div className="text-xl md:text-2xl font-extrabold text-slate-900 mt-1 tabular-nums">
               {money(kpis.discounts)}
             </div>
-            <div className="text-[10px] text-gray-400 mt-0.5">{tr("2.4% of gross sales")}</div>
+            <div className="text-xs font-medium text-slate-500 mt-0.5">{tr("2.4% of gross sales")}</div>
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-md p-3">
-            <div className="text-[11px] text-gray-500">{tr("Net operating profit")}</div>
-            <div className="text-[18px] font-bold text-emerald-700 mt-0.5">
+          <div className="bg-white border border-slate-200 rounded-lg p-3.5 shadow-xs">
+            <div className="text-xs font-semibold text-slate-600">{tr("Net operating profit")}</div>
+            <div className="text-xl md:text-2xl font-extrabold text-emerald-700 mt-1">
               <span dir="ltr" className="inline-block tabular-nums">{isFiltered ? "—" : money(42441.48, 3)}</span>
             </div>
-            <div className="text-[10px] text-gray-400 mt-0.5">{isFiltered ? tr("Available for the whole group only") : tr("25.4% net margin")}</div>
+            <div className="text-xs font-medium text-slate-500 mt-0.5">{isFiltered ? tr("Available for the whole group only") : tr("25.4% net margin")}</div>
           </div>
         </section>
 
@@ -612,32 +620,32 @@ function ScorecardInner() {
             ROW 2: HIGHLIGHTS (4 EDITORIAL CARDS)
            ========================================== */}
         <section className="space-y-2">
-          <div className="text-[12px] font-semibold text-gray-800">
-            {tr("Highlights")} <span className="font-normal text-gray-400">· {scopeLabel}</span>
+          <div className="text-[15px] font-bold text-slate-900">
+            {tr("Highlights")} <span className="font-semibold text-slate-500 text-xs">· {scopeLabel}</span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="bg-white border border-gray-200 border-s-[3px] border-s-gray-700 rounded-md p-3">
-              <div className="text-[10px] text-gray-500">{tr("Biggest channel")}</div>
-              <div className="text-[12px] text-gray-800 mt-0.5">
-                {isAr ? (<><strong className="font-semibold">{tr(biggestChannel.channel)}</strong> هي أكبر قناة بيع بنسبة <strong className="font-semibold"><span dir="ltr" className="inline-block tabular-nums">{biggestChannel.share.toFixed(1)}%</span></strong> من المبيعات المحددة.</>) : (<><strong className="font-semibold">{biggestChannel.channel}</strong> is the largest channel, with <strong className="font-semibold">{biggestChannel.share.toFixed(1)}%</strong> of the selected sales.</>)}
+            <div className="bg-white border border-slate-200 border-s-[3px] border-s-slate-800 rounded-lg p-3.5 shadow-2xs">
+              <div className="text-xs font-semibold text-slate-500">{tr("Biggest channel")}</div>
+              <div className="text-[13px] font-medium text-slate-800 mt-1">
+                {isAr ? (<><strong className="font-bold text-slate-900">{chLabel(biggestChannel.channel)}</strong> هي أكبر قناة بيع بنسبة <strong className="font-bold text-slate-900"><span dir="ltr" className="inline-block tabular-nums">{biggestChannel.share.toFixed(1)}%</span></strong> من المبيعات المحددة.</>) : (<><strong className="font-bold text-slate-900">{chLabel(biggestChannel.channel)}</strong> is the largest channel, with <strong className="font-bold text-slate-900">{biggestChannel.share.toFixed(1)}%</strong> of the selected sales.</>)}
               </div>
             </div>
-            <div className="bg-white border border-gray-200 border-s-[3px] border-s-gray-700 rounded-md p-3">
-              <div className="text-[10px] text-gray-500">{tr("Best seller")}</div>
-              <div className="text-[12px] text-gray-800 mt-0.5">
-                {bestItem ? (isAr ? (<><strong className="font-semibold">{bestItem.name}</strong> هو أعلى أصناف <strong className="font-semibold">{tr(bestItem.brand)}</strong> مبيعاً بقيمة <strong className="font-semibold"><span dir="ltr" className="inline-block tabular-nums">{money(bestItem.sales * chRatio)}</span></strong>.</>) : (<><strong className="font-semibold">{bestItem.name}</strong> is the top item of <strong className="font-semibold">{bestItem.brand}</strong>, with <strong className="font-semibold">{money(bestItem.sales * chRatio)}</strong> in sales.</>)) : isAr ? (<><strong className="font-semibold">Chicken Noodles</strong> من <strong className="font-semibold">تشاينا جاردن</strong> باع <strong className="font-semibold"><span dir="ltr" className="inline-block tabular-nums">12,043 د.ك</span></strong> وتمثل <strong className="font-semibold"><span dir="ltr" className="inline-block tabular-nums">7.2%</span></strong> من مبيعات المنيو.</>) : (<><strong className="font-semibold">Chicken Noodles</strong> from <strong className="font-semibold">China Garden</strong> sold <strong className="font-semibold">KWD 12,043</strong>, which is <strong className="font-semibold">7.2%</strong> of menu sales.</>)}
+            <div className="bg-white border border-slate-200 border-s-[3px] border-s-slate-800 rounded-lg p-3.5 shadow-2xs">
+              <div className="text-xs font-semibold text-slate-500">{tr("Best seller")}</div>
+              <div className="text-[13px] font-medium text-slate-800 mt-1">
+                {bestItem ? (isAr ? (<><strong className="font-bold text-slate-900">{bestItem.name}</strong> هو أعلى أصناف <strong className="font-bold text-slate-900">{tr(bestItem.brand)}</strong> مبيعاً بقيمة <strong className="font-bold text-slate-900"><span dir="ltr" className="inline-block tabular-nums">{money(bestItem.sales * chRatio)}</span></strong>.</>) : (<><strong className="font-bold text-slate-900">{bestItem.name}</strong> is the top item of <strong className="font-bold text-slate-900">{bestItem.brand}</strong>, with <strong className="font-bold text-slate-900">{money(bestItem.sales * chRatio)}</strong> in sales.</>)) : isAr ? (<><strong className="font-bold text-slate-900">Chicken Noodles</strong> من <strong className="font-bold text-slate-900">تشاينا جاردن</strong> باع <strong className="font-bold text-slate-900"><span dir="ltr" className="inline-block tabular-nums">12,043 د.ك</span></strong> وتمثل <strong className="font-bold text-slate-900"><span dir="ltr" className="inline-block tabular-nums">7.2%</span></strong> من مبيعات المنيو.</>) : (<><strong className="font-bold text-slate-900">Chicken Noodles</strong> from <strong className="font-bold text-slate-900">China Garden</strong> sold <strong className="font-bold text-slate-900">KWD 12,043</strong>, which is <strong className="font-bold text-slate-900">7.2%</strong> of menu sales.</>)}
               </div>
             </div>
-            <div className="bg-white border border-gray-200 border-s-[3px] border-s-gray-700 rounded-md p-3">
-              <div className="text-[10px] text-gray-500">{tr("Menu concentration")}</div>
-              <div className="text-[12px] text-gray-800 mt-0.5">
-                {isAr ? (<>أعلى <strong className="font-semibold"><span dir="ltr" className="inline-block tabular-nums">32</span></strong> صنفاً من أصل <strong className="font-semibold"><span dir="ltr" className="inline-block tabular-nums">364</span></strong> صنفاً مباعاً تحقق <strong className="font-semibold"><span dir="ltr" className="inline-block tabular-nums">80%</span></strong> من مبيعات المنيو.</>) : (<>The top <strong className="font-semibold">32</strong> of <strong className="font-semibold">364</strong> items sold make <strong className="font-semibold">80%</strong> of menu sales.</>)}
+            <div className="bg-white border border-slate-200 border-s-[3px] border-s-slate-800 rounded-lg p-3.5 shadow-2xs">
+              <div className="text-xs font-semibold text-slate-500">{tr("Menu concentration")}</div>
+              <div className="text-[13px] font-medium text-slate-800 mt-1">
+                {isAr ? (<>أعلى <strong className="font-bold text-slate-900"><span dir="ltr" className="inline-block tabular-nums">32</span></strong> صنفاً من أصل <strong className="font-bold text-slate-900"><span dir="ltr" className="inline-block tabular-nums">364</span></strong> صنفاً مباعاً تحقق <strong className="font-bold text-slate-900"><span dir="ltr" className="inline-block tabular-nums">80%</span></strong> من مبيعات المنيو.</>) : (<>The top <strong className="font-bold text-slate-900">32</strong> of <strong className="font-bold text-slate-900">364</strong> items sold make <strong className="font-bold text-slate-900">80%</strong> of menu sales.</>)}
               </div>
             </div>
-            <div className="bg-white border border-gray-200 border-s-[3px] border-s-gray-700 rounded-md p-3">
-              <div className="text-[10px] text-gray-500">{tr("Add-ons per order")}</div>
-              <div className="text-[12px] text-gray-800 mt-0.5">
-                {isAr ? (<>المشروبات <strong className="font-semibold"><span dir="ltr" className="inline-block tabular-nums">25.3%</span></strong>، المقبلات والجوانب <strong className="font-semibold"><span dir="ltr" className="inline-block tabular-nums">32.7%</span></strong>، الحلويات <strong className="font-semibold"><span dir="ltr" className="inline-block tabular-nums">3.2%</span></strong>. كل نسبة هي عدد سطور الأصناف من هذا النوع لكل 100 طلب.</>) : (<>Drinks <strong className="font-semibold">25.3%</strong>, starters and sides <strong className="font-semibold">32.7%</strong>, desserts <strong className="font-semibold">3.2%</strong>. Each is item lines of that kind per 100 orders.</>)}
+            <div className="bg-white border border-slate-200 border-s-[3px] border-s-slate-800 rounded-lg p-3.5 shadow-2xs">
+              <div className="text-xs font-semibold text-slate-500">{tr("Add-ons per order")}</div>
+              <div className="text-[13px] font-medium text-slate-800 mt-1">
+                {isAr ? (<>المشروبات <strong className="font-bold text-slate-900"><span dir="ltr" className="inline-block tabular-nums">25.3%</span></strong>، المقبلات والجوانب <strong className="font-bold text-slate-900"><span dir="ltr" className="inline-block tabular-nums">32.7%</span></strong>، الحلويات <strong className="font-bold text-slate-900"><span dir="ltr" className="inline-block tabular-nums">3.2%</span></strong>. كل نسبة هي عدد سطور الأصناف من هذا النوع لكل 100 طلب.</>) : (<>Drinks <strong className="font-bold text-slate-900">25.3%</strong>, starters and sides <strong className="font-bold text-slate-900">32.7%</strong>, desserts <strong className="font-bold text-slate-900">3.2%</strong>. Each is item lines of that kind per 100 orders.</>)}
               </div>
             </div>
           </div>
@@ -652,15 +660,15 @@ function ScorecardInner() {
             SECTION 1: BRANDS (CHARTS + SCORECARD)
            ========================================== */}
         <section className="space-y-3">
-          <div className="text-[12px] font-semibold text-gray-800"> {tr("Brands")} <span className="font-normal text-gray-400">· {tr(selectedChannel)}</span>
+          <div className="text-[15px] font-bold text-slate-900"> {tr("Brands")} <span className="font-semibold text-slate-500 text-xs">· {chLabel(selectedChannel)}</span>
           </div>
 
           {/* 2 Horizontal Bar Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {/* Net sales by brand */}
-            <div className="bg-white border border-gray-200 rounded-md p-4">
-              <div className="text-[12px] font-semibold text-gray-900">{tr("Net sales by brand")}</div>
-              <div className="text-[10px] text-gray-400 mb-3"> {tr("KWD after discounts on the chosen channel. Click a bar to filter to that brand.")} </div>
+            <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-xs">
+              <div className="text-[15px] font-bold text-slate-900">{tr("Net sales by brand")}</div>
+              <div className="text-xs font-semibold text-slate-600 mb-3"> {tr("KWD after discounts on the chosen channel. Click a bar to filter to that brand.")} </div>
               <div className="space-y-2">
                 {vBrands.map((b) => {
                   const widthPct = Math.max(1.5, (b.netSales / maxBrandSales) * 100);
@@ -672,19 +680,19 @@ function ScorecardInner() {
                         setSelectedBrand(selectedBrand === b.brand ? "All brands" : b.brand)
                       }
                       tabIndex={0}
-                      className={`group relative hover:z-50 focus:z-50 outline-none grid grid-cols-[110px_1fr_55px] items-center gap-2 text-[11px] cursor-pointer hover:opacity-100 focus:opacity-100 ${
+                      className={`group relative hover:z-50 focus:z-50 outline-none grid grid-cols-[125px_1fr_65px] items-center gap-2.5 text-[13px] cursor-pointer hover:opacity-100 focus:opacity-100 ${
                         isSelected ? "opacity-100" : "opacity-40"
                       }`}
                     >
                       <HoverTip title={tr(b.brand)} lines={brandTip(b)} />
-                      <span className="text-end text-gray-600 truncate">{tr(b.brand)}</span>
-                      <div className="w-full bg-gray-50 h-4 flex items-center">
+                      <span className="text-end font-semibold text-slate-800 truncate">{tr(b.brand)}</span>
+                      <div className="w-full bg-slate-100 h-4 flex items-center rounded-xs">
                         <div
-                          className="h-4 bg-[#2563EB] transition-all"
+                          className="h-4 bg-[#2563EB] transition-all rounded-xs"
                           style={{ width: `${widthPct}%` }}
                         />
                       </div>
-                      <span className="text-gray-600 tabular-nums text-[10px]">
+                      <span className="text-slate-900 font-bold tabular-nums text-xs">
                         {Math.round(b.netSales).toLocaleString()}
                       </span>
                     </div>
@@ -694,9 +702,9 @@ function ScorecardInner() {
             </div>
 
             {/* Average order value by brand */}
-            <div className="bg-white border border-gray-200 rounded-md p-4">
-              <div className="text-[12px] font-semibold text-gray-900"> {tr("Average order value by brand")} </div>
-              <div className="text-[10px] text-gray-400 mb-3"> {tr("KWD per order. Brands with fewer than 200 orders on this channel are greyed out.")} </div>
+            <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-xs">
+              <div className="text-[15px] font-bold text-slate-900"> {tr("Average order value by brand")} </div>
+              <div className="text-xs font-semibold text-slate-600 mb-3"> {tr("KWD per order. Brands with fewer than 200 orders on this channel are greyed out.")} </div>
               <div className="space-y-2">
                 {[...vBrands]
                   .sort((a, b) => b.avgOrder - a.avgOrder)
@@ -710,19 +718,19 @@ function ScorecardInner() {
                           setSelectedBrand(selectedBrand === b.brand ? "All brands" : b.brand)
                         }
                         tabIndex={0}
-                      className={`group relative hover:z-50 focus:z-50 outline-none grid grid-cols-[110px_1fr_45px] items-center gap-2 text-[11px] cursor-pointer hover:opacity-100 focus:opacity-100 ${dimBrand(b.brand)}`}
+                      className={`group relative hover:z-50 focus:z-50 outline-none grid grid-cols-[125px_1fr_55px] items-center gap-2.5 text-[13px] cursor-pointer hover:opacity-100 focus:opacity-100 ${dimBrand(b.brand)}`}
                       >
                         <HoverTip title={tr(b.brand)} lines={brandTip(b)} />
-                      <span className="text-end text-gray-600 truncate">{tr(b.brand)}</span>
-                        <div className="w-full bg-gray-50 h-4 flex items-center">
+                      <span className="text-end font-semibold text-slate-800 truncate">{tr(b.brand)}</span>
+                        <div className="w-full bg-slate-100 h-4 flex items-center rounded-xs">
                           <div
-                            className={`h-4 transition-all ${
+                            className={`h-4 transition-all rounded-xs ${
                               isLowSample ? "bg-[#9CA3AF]" : "bg-[#2563EB]"
                             }`}
                             style={{ width: `${widthPct}%` }}
                           />
                         </div>
-                        <span className="text-gray-600 tabular-nums text-[10px]">
+                        <span className="text-slate-900 font-bold tabular-nums text-xs">
                           {b.avgOrder.toFixed(2)}
                         </span>
                       </div>
@@ -733,25 +741,25 @@ function ScorecardInner() {
           </div>
 
           {/* Brand scorecard table */}
-          <div className="bg-white border border-gray-200 rounded-md p-4 overflow-x-auto">
-            <div className="text-[12px] font-semibold text-gray-900">{tr("Brand scorecard")}</div>
-            <div className="text-[10px] text-gray-400 mb-3"> {tr("Drinks and starters are item lines of that kind per order. Discount rate is discounts ÷ gross sales.")} </div>
-            <table className="w-full text-[11px] border-collapse">
+          <div className="bg-white border border-slate-200 rounded-lg p-4 overflow-x-auto shadow-xs">
+            <div className="text-[15px] font-bold text-slate-900">{tr("Brand scorecard")}</div>
+            <div className="text-xs font-semibold text-slate-600 mb-3"> {tr("Drinks and starters are item lines of that kind per order. Discount rate is discounts ÷ gross sales.")} </div>
+            <table className="w-full text-[13px] md:text-sm border-collapse">
               <thead>
-                <tr className="border-b border-gray-200 text-gray-400 font-normal">
-                  <th className="text-start py-1.5 font-normal">{tr("Brand")}</th>
-                  <th className="text-end py-1.5 font-normal">{tr("Orders")}</th>
-                  <th className="text-end py-1.5 font-normal w-44">{tr("Net sales")}</th>
-                  <th className="text-end py-1.5 font-normal">{tr("Share of group")}</th>
-                  <th className="text-end py-1.5 font-normal">{tr("Avg order")}</th>
-                  <th className="text-end py-1.5 font-normal">{tr("Items / order")}</th>
-                  <th className="text-end py-1.5 font-normal">{tr("Discount rate")}</th>
-                  <th className="text-end py-1.5 font-normal">{tr("Drinks")}</th>
-                  <th className="text-end py-1.5 font-normal">{tr("Starters")}</th>
-                  <th className="text-start py-1.5 ps-4 font-normal">{tr("Best seller")}</th>
+                <tr className="border-b border-slate-200 bg-slate-50/80 text-xs font-semibold text-slate-600">
+                  <th className="text-start py-2.5 px-2 font-semibold">{tr("Brand")}</th>
+                  <th className="text-end py-2.5 px-2 font-semibold">{tr("Orders")}</th>
+                  <th className="text-end py-2.5 px-2 font-semibold w-48">{tr("Net sales")}</th>
+                  <th className="text-end py-2.5 px-2 font-semibold">{tr("Share of group")}</th>
+                  <th className="text-end py-2.5 px-2 font-semibold">{tr("Avg order")}</th>
+                  <th className="text-end py-2.5 px-2 font-semibold">{tr("Items / order")}</th>
+                  <th className="text-end py-2.5 px-2 font-semibold">{tr("Discount rate")}</th>
+                  <th className="text-end py-2.5 px-2 font-semibold">{tr("Drinks")}</th>
+                  <th className="text-end py-2.5 px-2 font-semibold">{tr("Starters")}</th>
+                  <th className="text-start py-2.5 ps-4 font-semibold">{tr("Best seller")}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-slate-100">
                 {vBrands.map((b) => {
                   const barW = Math.max(2, (b.netSales / maxBrandSales) * 80);
                   return (
@@ -760,16 +768,16 @@ function ScorecardInner() {
                       onClick={() =>
                         setSelectedBrand(selectedBrand === b.brand ? "All brands" : b.brand)
                       }
-                      className={`hover:bg-gray-50 cursor-pointer ${hiRow(selectedBrand === b.brand, selectedBrand !== ALL_BRANDS)}`}
+                      className={`hover:bg-slate-50/80 cursor-pointer ${hiRow(selectedBrand === b.brand, selectedBrand !== ALL_BRANDS)}`}
                      >
-                       <td className="py-1.5 font-medium text-gray-900">{tr(b.brand)}</td>
-                      <td className="py-1.5 text-end tabular-nums text-gray-700">
+                       <td className="py-2.5 px-2 font-bold text-slate-900">{tr(b.brand)}</td>
+                      <td className="py-2.5 px-2 text-end tabular-nums font-semibold text-slate-800">
                         {b.orders.toLocaleString()}
                       </td>
-                      <td className="py-1.5 text-end tabular-nums text-gray-900">
+                      <td className="py-2.5 px-2 text-end tabular-nums font-bold text-slate-900">
                         <div className="flex items-center justify-end gap-2">
                           <div
-                            className="h-2.5 bg-[#9CA3AF]"
+                            className="h-2.5 bg-[#2563EB] rounded-xs"
                             style={{ width: `${barW}px` }}
                           />
                           <span>
@@ -780,25 +788,25 @@ function ScorecardInner() {
                           </span>
                         </div>
                       </td>
-                      <td className="py-1.5 text-end tabular-nums text-gray-700">
+                      <td className="py-2.5 px-2 text-end tabular-nums font-medium text-slate-700">
                         {b.share.toFixed(1)}%
                       </td>
-                      <td className="py-1.5 text-end tabular-nums text-gray-700">
+                      <td className="py-2.5 px-2 text-end tabular-nums font-medium text-slate-700">
                         {b.avgOrder.toFixed(2)}
                       </td>
-                      <td className="py-1.5 text-end tabular-nums text-gray-700">
+                      <td className="py-2.5 px-2 text-end tabular-nums font-medium text-slate-700">
                         {b.itemsPerOrder.toFixed(2)}
                       </td>
-                      <td className="py-1.5 text-end tabular-nums text-gray-700">
+                      <td className="py-2.5 px-2 text-end tabular-nums font-medium text-slate-700">
                         {b.discountRate.toFixed(1)}%
                       </td>
-                      <td className="py-1.5 text-end tabular-nums text-gray-700">
+                      <td className="py-2.5 px-2 text-end tabular-nums font-medium text-slate-700">
                         {b.drinksPct.toFixed(1)}%
                       </td>
-                      <td className="py-1.5 text-end tabular-nums text-gray-700">
+                      <td className="py-2.5 px-2 text-end tabular-nums font-medium text-slate-700">
                         {b.startersPct.toFixed(1)}%
                       </td>
-                      <td className="py-1.5 ps-4 text-start text-gray-700 truncate max-w-[220px]">
+                      <td className="py-2.5 ps-4 text-start font-medium text-slate-800 truncate max-w-[220px]">
                         {tr(b.bestSeller)}
                       </td>
                     </tr>
@@ -817,38 +825,54 @@ function ScorecardInner() {
         {/* ==========================================
             SECTION 2: CHANNELS (CHARTS + SCORECARD)
            ========================================== */}
-        <section className="space-y-3">
-          <div className="text-[12px] font-semibold text-gray-800"> {tr("Channels")} <span className="font-normal text-gray-400">· {tr(selectedBrand)}</span>
+        <section className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="text-[15px] font-bold text-slate-900">
+              {tr("Channels")} <span className="font-semibold text-slate-500 text-xs">· {tr(selectedBrand)}</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-700">
+              <span className="inline-flex items-center gap-1.5 rounded-md border border-orange-300 bg-orange-50 px-2.5 py-1 text-orange-900">
+                <ChannelModeBadge channel="Talabat Go" />
+                <span>{isAr ? "توصيل المنصة (Talabat Go)" : "Platform Delivery (Talabat Go)"}</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-md border border-blue-300 bg-blue-50 px-2.5 py-1 text-blue-900">
+                <ChannelModeBadge channel="Talabat MP" />
+                <span>{isAr ? "توصيل المطعم (Talabat MP & Deliveroo MP)" : "Restaurant Delivery (Talabat MP & Deliveroo MP)"}</span>
+              </span>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {/* Net sales by channel */}
-            <div className="bg-white border border-gray-200 rounded-md p-4">
-              <div className="text-[12px] font-semibold text-gray-900">{tr("Net sales by channel")}</div>
-              <div className="text-[10px] text-gray-400 mb-3"> {tr("KWD after discounts for the chosen brand. Click a bar to filter to that channel.")} </div>
-              <div className="space-y-1.5">
+            <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-xs">
+              <div className="text-[15px] font-bold text-slate-900">{tr("Net sales by channel")}</div>
+              <div className="text-xs font-semibold text-slate-600 mb-3"> {tr("KWD after discounts for the chosen brand. Click a bar to filter to that channel.")} </div>
+              <div className="space-y-2">
                 {vChannels.map((c) => {
                   const widthPct = Math.max(1, (c.netSales / maxChannelSales) * 100);
                   return (
                     <div
-                      key={tr(c.channel)}
+                      key={c.channel}
                       onClick={() =>
                         setSelectedChannel(
                           selectedChannel === c.channel ? "All channels" : c.channel
                         )
                       }
                       tabIndex={0}
-                      className={`group relative hover:z-50 focus:z-50 outline-none grid grid-cols-[110px_1fr_55px] items-center gap-2 text-[11px] cursor-pointer hover:opacity-100 focus:opacity-100 ${dimChannel(c.channel)}`}
+                      className={`group relative hover:z-50 focus:z-50 outline-none grid grid-cols-[175px_1fr_65px] items-center gap-2.5 text-[13px] cursor-pointer hover:opacity-100 focus:opacity-100 ${dimChannel(c.channel)}`}
                     >
-                      <HoverTip title={tr(c.channel)} lines={channelTip(c)} />
-                      <span className="text-end text-gray-600 truncate">{tr(c.channel)}</span>
-                      <div className="w-full bg-gray-50 h-3.5 flex items-center">
+                      <HoverTip title={chLabel(c.channel)} lines={channelTip(c)} />
+                      <span className="flex items-center justify-end gap-1.5 font-semibold text-slate-800 truncate">
+                        <span className="truncate">{chLabel(c.channel)}</span>
+                        <ChannelModeBadge channel={c.channel} />
+                      </span>
+                      <div className="w-full bg-slate-100 h-4 flex items-center rounded-xs">
                         <div
-                          className="h-3.5 bg-[#2563EB]"
+                          className="h-4 bg-[#2563EB] rounded-xs"
                           style={{ width: `${widthPct}%` }}
                         />
                       </div>
-                      <span className="text-gray-600 tabular-nums text-[10px]">
+                      <span className="text-slate-900 font-bold tabular-nums text-xs">
                         {Math.round(c.netSales).toLocaleString()}
                       </span>
                     </div>
@@ -858,10 +882,10 @@ function ScorecardInner() {
             </div>
 
             {/* Average order value by channel */}
-            <div className="bg-white border border-gray-200 rounded-md p-4">
-              <div className="text-[12px] font-semibold text-gray-900"> {tr("Average order value by channel")} </div>
-              <div className="text-[10px] text-gray-400 mb-3"> {tr("KWD per order. Channels with fewer than 200 orders are greyed out because their averages swing easily.")} </div>
-              <div className="space-y-1.5">
+            <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-xs">
+              <div className="text-[15px] font-bold text-slate-900"> {tr("Average order value by channel")} </div>
+              <div className="text-xs font-semibold text-slate-600 mb-3"> {tr("KWD per order. Channels with fewer than 200 orders are greyed out because their averages swing easily.")} </div>
+              <div className="space-y-2">
                 {[...vChannels]
                   .sort((a, b) => b.avgOrder - a.avgOrder)
                   .map((c) => {
@@ -869,26 +893,29 @@ function ScorecardInner() {
                     const isLowSample = c.orders < 200;
                     return (
                       <div
-                        key={tr(c.channel)}
+                        key={c.channel}
                         onClick={() =>
                           setSelectedChannel(
                             selectedChannel === c.channel ? "All channels" : c.channel
                           )
                         }
                         tabIndex={0}
-                      className={`group relative hover:z-50 focus:z-50 outline-none grid grid-cols-[110px_1fr_45px] items-center gap-2 text-[11px] cursor-pointer hover:opacity-100 focus:opacity-100 ${dimChannel(c.channel)}`}
+                      className={`group relative hover:z-50 focus:z-50 outline-none grid grid-cols-[175px_1fr_55px] items-center gap-2.5 text-[13px] cursor-pointer hover:opacity-100 focus:opacity-100 ${dimChannel(c.channel)}`}
                       >
-                        <HoverTip title={tr(c.channel)} lines={channelTip(c)} />
-                      <span className="text-end text-gray-600 truncate">{tr(c.channel)}</span>
-                        <div className="w-full bg-gray-50 h-3.5 flex items-center">
+                        <HoverTip title={chLabel(c.channel)} lines={channelTip(c)} />
+                      <span className="flex items-center justify-end gap-1.5 font-semibold text-slate-800 truncate">
+                        <span className="truncate">{chLabel(c.channel)}</span>
+                        <ChannelModeBadge channel={c.channel} />
+                      </span>
+                        <div className="w-full bg-slate-100 h-4 flex items-center rounded-xs">
                           <div
-                            className={`h-3.5 ${
+                            className={`h-4 rounded-xs ${
                               isLowSample ? "bg-[#9CA3AF]" : "bg-[#2563EB]"
                             }`}
                             style={{ width: `${widthPct}%` }}
                           />
                         </div>
-                        <span className="text-gray-600 tabular-nums text-[10px]">
+                        <span className="text-slate-900 font-bold tabular-nums text-xs">
                           {c.avgOrder.toFixed(2)}
                         </span>
                       </div>
@@ -899,45 +926,50 @@ function ScorecardInner() {
           </div>
 
           {/* Channel scorecard table */}
-          <div className="bg-white border border-gray-200 rounded-md p-4 overflow-x-auto">
-            <div className="text-[12px] font-semibold text-gray-900">{tr("Channel scorecard")}</div>
-            <div className="text-[10px] text-gray-400 mb-3"> {tr("For the chosen brand. Add-on rates are item lines of that kind per order.")} </div>
-            <table className="w-full text-[11px] border-collapse">
+          <div className="bg-white border border-slate-200 rounded-lg p-4 overflow-x-auto shadow-xs">
+            <div className="text-[15px] font-bold text-slate-900">{tr("Channel scorecard")}</div>
+            <div className="text-xs font-semibold text-slate-600 mb-3"> {tr("For the chosen brand. Add-on rates are item lines of that kind per order.")} </div>
+            <table className="w-full text-[13px] md:text-sm border-collapse">
               <thead>
-                <tr className="border-b border-gray-200 text-gray-400 font-normal">
-                  <th className="text-start py-1.5 font-normal">{tr("Channel")}</th>
-                  <th className="text-end py-1.5 font-normal">{tr("Orders")}</th>
-                  <th className="text-end py-1.5 font-normal w-44">{tr("Net sales")}</th>
-                  <th className="text-end py-1.5 font-normal">{tr("Share")}</th>
-                  <th className="text-end py-1.5 font-normal">{tr("Avg order")}</th>
-                  <th className="text-end py-1.5 font-normal">{tr("Items / order")}</th>
-                  <th className="text-end py-1.5 font-normal">{tr("Discount rate")}</th>
-                  <th className="text-end py-1.5 font-normal">{tr("Drinks")}</th>
-                  <th className="text-end py-1.5 font-normal">{tr("Starters")}</th>
-                  <th className="text-end py-1.5 font-normal">{tr("Desserts")}</th>
+                <tr className="border-b border-slate-200 bg-slate-50/80 text-xs font-semibold text-slate-600">
+                  <th className="text-start py-2.5 px-2 font-semibold">{tr("Channel")}</th>
+                  <th className="text-end py-2.5 px-2 font-semibold">{tr("Orders")}</th>
+                  <th className="text-end py-2.5 px-2 font-semibold w-48">{tr("Net sales")}</th>
+                  <th className="text-end py-2.5 px-2 font-semibold">{tr("Share")}</th>
+                  <th className="text-end py-2.5 px-2 font-semibold">{tr("Avg order")}</th>
+                  <th className="text-end py-2.5 px-2 font-semibold">{tr("Items / order")}</th>
+                  <th className="text-end py-2.5 px-2 font-semibold">{tr("Discount rate")}</th>
+                  <th className="text-end py-2.5 px-2 font-semibold">{tr("Drinks")}</th>
+                  <th className="text-end py-2.5 px-2 font-semibold">{tr("Starters")}</th>
+                  <th className="text-end py-2.5 px-2 font-semibold">{tr("Desserts")}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-slate-100">
                 {vChannels.map((c) => {
                   const barW = Math.max(2, (c.netSales / maxChannelSales) * 80);
                   return (
                     <tr
-                      key={tr(c.channel)}
+                      key={c.channel}
                       onClick={() =>
                         setSelectedChannel(
                           selectedChannel === c.channel ? "All channels" : c.channel
                         )
                       }
-                      className={`hover:bg-gray-50 cursor-pointer ${hiRow(selectedChannel === c.channel, selectedChannel !== ALL_CHANNELS)}`}
+                      className={`hover:bg-slate-50/80 cursor-pointer ${hiRow(selectedChannel === c.channel, selectedChannel !== ALL_CHANNELS)}`}
                      >
-                       <td className="py-1.5 font-medium text-gray-900">{tr(c.channel)}</td>
-                      <td className="py-1.5 text-end tabular-nums text-gray-700">
+                       <td className="py-2.5 px-2 font-bold text-slate-900">
+                         <span className="inline-flex items-center gap-2">
+                           <span>{chLabel(c.channel)}</span>
+                           <ChannelModeBadge channel={c.channel} />
+                         </span>
+                       </td>
+                      <td className="py-2.5 px-2 text-end tabular-nums font-semibold text-slate-800">
                         {c.orders.toLocaleString()}
                       </td>
-                      <td className="py-1.5 text-end tabular-nums text-gray-900">
+                      <td className="py-2.5 px-2 text-end tabular-nums font-bold text-slate-900">
                         <div className="flex items-center justify-end gap-2">
                           <div
-                            className="h-2.5 bg-[#9CA3AF]"
+                            className="h-2.5 bg-[#2563EB] rounded-xs"
                             style={{ width: `${barW}px` }}
                           />
                           <span>
@@ -948,25 +980,25 @@ function ScorecardInner() {
                           </span>
                         </div>
                       </td>
-                      <td className="py-1.5 text-end tabular-nums text-gray-700">
+                      <td className="py-2.5 px-2 text-end tabular-nums font-medium text-slate-700">
                         {c.share.toFixed(1)}%
                       </td>
-                      <td className="py-1.5 text-end tabular-nums text-gray-700">
+                      <td className="py-2.5 px-2 text-end tabular-nums font-medium text-slate-700">
                         {c.avgOrder.toFixed(2)}
                       </td>
-                      <td className="py-1.5 text-end tabular-nums text-gray-700">
+                      <td className="py-2.5 px-2 text-end tabular-nums font-medium text-slate-700">
                         {c.itemsPerOrder.toFixed(2)}
                       </td>
-                      <td className="py-1.5 text-end tabular-nums text-gray-700">
+                      <td className="py-2.5 px-2 text-end tabular-nums font-medium text-slate-700">
                         {c.discountRate.toFixed(1)}%
                       </td>
-                      <td className="py-1.5 text-end tabular-nums text-gray-700">
+                      <td className="py-2.5 px-2 text-end tabular-nums font-medium text-slate-700">
                         {c.drinksPct.toFixed(1)}%
                       </td>
-                      <td className="py-1.5 text-end tabular-nums text-gray-700">
+                      <td className="py-2.5 px-2 text-end tabular-nums font-medium text-slate-700">
                         {c.startersPct.toFixed(1)}%
                       </td>
-                      <td className="py-1.5 text-end tabular-nums text-gray-700">
+                      <td className="py-2.5 px-2 text-end tabular-nums font-medium text-slate-700">
                         {c.dessertsPct.toFixed(1)}%
                       </td>
                     </tr>
@@ -980,39 +1012,44 @@ function ScorecardInner() {
             <ChannelMix channels={channelViews} selectedChannel={selectedChannel} />
             <ChannelRecs channels={channelViews} />
             <div className="grid grid-cols-1 gap-3">
-            <div className="bg-white border border-gray-200 rounded-md p-4">
-              <div className="text-[12px] font-semibold text-gray-900"> {tr("Brand × Channel combination scorecard")} </div>
-              <div className="text-[10px] text-gray-400 mb-3"> {tr("Top brand-channel pairs showing lead item, average basket size, and drink attachment rate.")} </div>
-              <div className="max-h-[220px] overflow-y-auto border-t border-gray-100">
-                <table className="w-full text-[11px] border-collapse">
-                  <thead className="sticky top-0 bg-white border-b border-gray-200 text-gray-400">
+            <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-xs">
+              <div className="text-[15px] font-bold text-slate-900"> {tr("Brand × Channel combination scorecard")} </div>
+              <div className="text-xs font-semibold text-slate-600 mb-3"> {tr("Top brand-channel pairs showing lead item, average basket size, and drink attachment rate.")} </div>
+              <div className="max-h-[260px] overflow-y-auto border-t border-slate-100">
+                <table className="w-full text-[13px] md:text-sm border-collapse">
+                  <thead className="sticky top-0 bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600">
                     <tr>
-                      <th className="text-start py-1.5 font-normal">{tr("Brand")}</th>
-                      <th className="text-start py-1.5 font-normal">{tr("Channel")}</th>
-                      <th className="text-start py-1.5 font-normal">{tr("Lead item")}</th>
-                      <th className="text-end py-1.5 font-normal">{tr("Orders")}</th>
-                      <th className="text-end py-1.5 font-normal">{tr("Net KWD")}</th>
-                      <th className="text-end py-1.5 font-normal">{tr("Avg order")}</th>
-                      <th className="text-end py-1.5 font-normal">{tr("Drinks %")}</th>
+                      <th className="text-start py-2.5 px-2 font-semibold">{tr("Brand")}</th>
+                      <th className="text-start py-2.5 px-2 font-semibold">{tr("Channel")}</th>
+                      <th className="text-start py-2.5 px-2 font-semibold">{tr("Lead item")}</th>
+                      <th className="text-end py-2.5 px-2 font-semibold">{tr("Orders")}</th>
+                      <th className="text-end py-2.5 px-2 font-semibold">{tr("Net KWD")}</th>
+                      <th className="text-end py-2.5 px-2 font-semibold">{tr("Avg order")}</th>
+                      <th className="text-end py-2.5 px-2 font-semibold">{tr("Drinks %")}</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {matrixRows.length === 0 ? (<tr><td colSpan={7} className="py-3 text-center text-gray-400">{tr("No brand-channel pair in the dataset matches this selection.")}</td></tr>) : null}
+                  <tbody className="divide-y divide-slate-100">
+                    {matrixRows.length === 0 ? (<tr><td colSpan={7} className="py-3 text-center text-slate-500">{tr("No brand-channel pair in the dataset matches this selection.")}</td></tr>) : null}
                     {matrixRows.map((row, i) => (
-                      <tr key={i} className="hover:bg-gray-50">
-                        <td className="py-1.5 font-medium text-gray-900">{tr(row.brand)}</td>
-                        <td className="py-1.5 text-gray-600">{tr(row.channel)}</td>
-                        <td className="py-1.5 text-gray-600 truncate max-w-[140px]">{tr(row.topItem)}</td>
-                        <td className="py-1.5 text-end tabular-nums text-gray-700">
+                      <tr key={i} className="hover:bg-slate-50/80">
+                        <td className="py-2.5 px-2 font-bold text-slate-900">{tr(row.brand)}</td>
+                        <td className="py-2.5 px-2 font-semibold text-slate-800">
+                          <span className="inline-flex items-center gap-1.5">
+                            <span>{chLabel(row.channel)}</span>
+                            <ChannelModeBadge channel={row.channel} />
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-2 font-medium text-slate-700 truncate max-w-[180px]">{tr(row.topItem)}</td>
+                        <td className="py-2.5 px-2 text-end tabular-nums font-semibold text-slate-800">
                           {row.orders.toLocaleString()}
                         </td>
-                        <td className="py-1.5 text-end tabular-nums text-gray-900">
+                        <td className="py-2.5 px-2 text-end tabular-nums font-bold text-slate-900">
                           {row.sales.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </td>
-                        <td className="py-1.5 text-end tabular-nums text-gray-700">
+                        <td className="py-2.5 px-2 text-end tabular-nums font-medium text-slate-700">
                           {row.aov.toFixed(2)}
                         </td>
-                        <td className="py-1.5 text-end tabular-nums text-gray-700">
+                        <td className="py-2.5 px-2 text-end tabular-nums font-medium text-slate-700">
                           {row.drinkPct}
                         </td>
                       </tr>
@@ -1034,36 +1071,36 @@ function ScorecardInner() {
             SECTION 3: MENU CATEGORIES & TOP 15 ITEMS
            ========================================== */}
         <section className="space-y-3">
-          <div className="text-[12px] font-semibold text-gray-800"> {tr("Menu")} <span className="font-normal text-gray-400">· {scopeLabel}</span>
+          <div className="text-[15px] font-bold text-slate-900"> {tr("Menu")} <span className="font-semibold text-slate-500 text-xs">· {scopeLabel}</span>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {/* Sales by category (Grey Bars) */}
-            <div className="bg-white border border-gray-200 rounded-md p-4">
-              <div className="text-[12px] font-semibold text-gray-900">{tr("Sales by category")}</div>
-              <div className="text-[10px] text-gray-400 mb-3"> {tr("Gross item sales before order-level discounts, grouped by item category.")} </div>
-              <div className="space-y-1.5">
-                {categoryRows.length === 0 ? (<div className="text-[11px] text-gray-400">{tr("No item rows for this brand in the project dataset.")}</div>) : null}
+            <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-xs">
+              <div className="text-[15px] font-bold text-slate-900">{tr("Sales by category")}</div>
+              <div className="text-xs font-semibold text-slate-600 mb-3"> {tr("Gross item sales before order-level discounts, grouped by item category.")} </div>
+              <div className="space-y-2">
+                {categoryRows.length === 0 ? (<div className="text-[13px] text-slate-500">{tr("No item rows for this brand in the project dataset.")}</div>) : null}
                 {categoryRows.map((cat) => {
                   const widthPct = Math.max(1, (cat.sales / maxCatSales) * 100);
                   return (
                     <div
                       key={cat.name}
                       tabIndex={0}
-                      className="group relative hover:z-50 focus:z-50 outline-none grid grid-cols-[120px_1fr_50px] items-center gap-2 text-[11px]"
+                      className="group relative hover:z-50 focus:z-50 outline-none grid grid-cols-[135px_1fr_60px] items-center gap-2.5 text-[13px]"
                     >
                       <HoverTip
                         title={cat.name}
                         lines={[`${tr("Gross sales")}: ${money(cat.sales)}`]}
                       />
-                      <span className="text-end text-gray-600 truncate">{cat.name}</span>
-                      <div className="w-full bg-gray-50 h-3.5 flex items-center">
+                      <span className="text-end font-semibold text-slate-800 truncate">{cat.name}</span>
+                      <div className="w-full bg-slate-100 h-4 flex items-center rounded-xs">
                         <div
-                          className="h-3.5 bg-[#9CA3AF]"
+                          className="h-4 bg-[#9CA3AF] rounded-xs"
                           style={{ width: `${widthPct}%` }}
                         />
                       </div>
-                      <span className="text-gray-600 tabular-nums text-[10px]">
+                      <span className="text-slate-900 font-bold tabular-nums text-xs">
                         {cat.sales.toLocaleString()}
                       </span>
                     </div>
@@ -1073,18 +1110,18 @@ function ScorecardInner() {
             </div>
 
             {/* Top 15 items (Blue Bars) */}
-            <div className="bg-white border border-gray-200 rounded-md p-4">
-              <div className="text-[12px] font-semibold text-gray-900">{tr("Top 15 items")}</div>
-              <div className="text-[10px] text-gray-400 mb-3"> {tr("Gross KWD. Hover a bar to see the brand and unit price.")} </div>
-              <div className="space-y-1.5">
-                {topItems.length === 0 ? (<div className="text-[11px] text-gray-400">{tr("No item rows for this brand in the project dataset.")}</div>) : null}
+            <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-xs">
+              <div className="text-[15px] font-bold text-slate-900">{tr("Top 15 items")}</div>
+              <div className="text-xs font-semibold text-slate-600 mb-3"> {tr("Gross KWD. Hover a bar to see the brand and unit price.")} </div>
+              <div className="space-y-2">
+                {topItems.length === 0 ? (<div className="text-[13px] text-slate-500">{tr("No item rows for this brand in the project dataset.")}</div>) : null}
                 {topItems.map((item) => {
                   const widthPct = Math.max(2, (item.sales / maxItemSales) * 100);
                   return (
                     <div
                       key={item.name}
                       tabIndex={0}
-                      className="group relative hover:z-50 focus:z-50 outline-none grid grid-cols-[155px_1fr_50px] items-center gap-2 text-[11px]"
+                      className="group relative hover:z-50 focus:z-50 outline-none grid grid-cols-[175px_1fr_60px] items-center gap-2.5 text-[13px]"
                     >
                       <HoverTip
                         title={item.name}
@@ -1094,14 +1131,14 @@ function ScorecardInner() {
                           `${tr("Unit price")}: ${money(item.price, 2)}`,
                         ]}
                       />
-                      <span className="text-end text-gray-600 truncate">{item.name}</span>
-                      <div className="w-full bg-gray-50 h-3.5 flex items-center">
+                      <span className="text-end font-semibold text-slate-800 truncate">{item.name}</span>
+                      <div className="w-full bg-slate-100 h-4 flex items-center rounded-xs">
                         <div
-                          className="h-3.5 bg-[#2563EB]"
+                          className="h-4 bg-[#2563EB] rounded-xs"
                           style={{ width: `${widthPct}%` }}
                         />
                       </div>
-                      <span className="text-gray-600 tabular-nums text-[10px]">
+                      <span className="text-slate-900 font-bold tabular-nums text-xs">
                         {item.sales.toLocaleString()}
                       </span>
                     </div>
@@ -1113,16 +1150,16 @@ function ScorecardInner() {
         </section>
 
             <section className="space-y-3">
-          <div className="text-[12px] font-semibold text-gray-800">
+          <div className="text-[15px] font-bold text-slate-900">
             {tr("Menu & Odoo Diagnostic Action Matrix")}{" "}
-            <span className="font-normal text-gray-400"> {tr("· Automated classification of revenue, add-ons, COGS & maintenance")} </span>
+            <span className="font-semibold text-slate-500 text-xs"> {tr("· Automated classification of revenue, add-ons, COGS & maintenance")} </span>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {/* Multi-Colored Horizontal Bar Breakdown */}
-            <div className="bg-white border border-gray-200 rounded-md p-4">
-              <div className="text-[12px] font-semibold text-gray-900"> {tr("Revenue & Cost Pool by Diagnostic Action Bucket")} </div>
-              <div className="text-[10px] text-gray-400 mb-3"> {tr("KWD pool impacted per diagnostic rule across Odoo POS, Aggregators & Central Kitchen.")} </div>
+            <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-xs">
+              <div className="text-[15px] font-bold text-slate-900"> {tr("Revenue & Cost Pool by Diagnostic Action Bucket")} </div>
+              <div className="text-xs font-semibold text-slate-600 mb-3"> {tr("KWD pool impacted per diagnostic rule across Odoo POS, Aggregators & Central Kitchen.")} </div>
               <div className="space-y-2.5 pt-1">
                 {diagBuckets.map((b) => {
                   const widthPct = Math.max(4, (b.value / maxDiagValue) * 100);
@@ -1130,20 +1167,20 @@ function ScorecardInner() {
                     <div
                       key={tr(b.label)}
                       tabIndex={0}
-                      className="group relative hover:z-50 focus:z-50 outline-none grid grid-cols-[195px_1fr_60px] items-center gap-2 text-[11px]"
+                      className="group relative hover:z-50 focus:z-50 outline-none grid grid-cols-[215px_1fr_65px] items-center gap-2.5 text-[13px]"
                     >
                       <HoverTip
                         title={tr(b.label)}
                         lines={[`${tr("Amount (KWD)")}: ${money(b.value)}`]}
                       />
-                      <span className="text-end text-gray-600 truncate">{tr(b.label)}</span>
-                      <div className="w-full bg-gray-50 h-4 flex items-center">
+                      <span className="text-end font-semibold text-slate-800 truncate">{tr(b.label)}</span>
+                      <div className="w-full bg-slate-100 h-4 flex items-center rounded-xs">
                         <div
                           className="h-4 rounded-r-sm"
                           style={{ width: `${widthPct}%`, backgroundColor: b.color }}
                         />
                       </div>
-                      <span className="text-gray-700 font-medium tabular-nums text-[10px]">
+                      <span className="text-slate-900 font-bold tabular-nums text-xs">
                         {b.value.toLocaleString()}
                       </span>
                     </div>
@@ -1153,21 +1190,21 @@ function ScorecardInner() {
             </div>
 
             {/* Right Legend with Outlined Badges */}
-            <div className="bg-white border border-gray-200 rounded-md p-4">
-              <div className="text-[12px] font-semibold text-gray-900"> {tr("How items & Odoo cost centers are classified")} </div>
-              <div className="text-[10px] text-gray-400 mb-3"> {tr("Each row in the action tables below receives a diagnostic badge and concrete recommendation.")} </div>
-              <div className="space-y-2">
+            <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-xs">
+              <div className="text-[15px] font-bold text-slate-900"> {tr("How items & Odoo cost centers are classified")} </div>
+              <div className="text-xs font-semibold text-slate-600 mb-3"> {tr("Each row in the action tables below receives a diagnostic badge and concrete recommendation.")} </div>
+              <div className="space-y-2.5">
                 {DIAGNOSTIC_BUCKETS.map((b) => (
                   <div
                     key={tr(b.badge)}
-                    className="grid grid-cols-[110px_1fr] items-start gap-3 text-[11px]"
+                    className="grid grid-cols-[120px_1fr] items-start gap-3 text-[13px]"
                   >
                     <span
-                      className={`inline-block text-center px-2 py-0.5 rounded-full border text-[10px] font-medium ${b.badgeColor}`}
+                      className={`inline-block text-center px-2.5 py-0.5 rounded-full border text-xs font-bold ${b.badgeColor}`}
                     >
                       {tr(b.badge)}
                     </span>
-                    <span className="text-gray-600 leading-snug">{tr(b.rule)}</span>
+                    <span className="text-slate-700 font-medium leading-snug">{tr(b.rule)}</span>
                   </div>
                 ))}
               </div>
@@ -1177,50 +1214,50 @@ function ScorecardInner() {
           {/* ==========================================
               SCROLLABLE ACTION TABLE 1: ITEM DIAGNOSTICS
              ========================================== */}
-          <div className="bg-white border border-gray-200 rounded-md p-4">
-            <div className="text-[12px] font-semibold text-gray-900"> {tr("Item-level commercial diagnostics & pricing actions")} </div>
-            <div className="text-[10px] text-gray-400 mb-3"> {tr("High-impact menu items evaluated by order volume, basket attachment, discount bleed, and kitchen prep.")} </div>
-            <div className="max-h-[280px] overflow-y-auto border-t border-gray-100">
-              <table className="w-full text-[11px] border-collapse">
-                <thead className="sticky top-0 bg-white border-b border-gray-200 text-gray-400">
+          <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-xs">
+            <div className="text-[15px] font-bold text-slate-900"> {tr("Item-level commercial diagnostics & pricing actions")} </div>
+            <div className="text-xs font-semibold text-slate-600 mb-3"> {tr("High-impact menu items evaluated by order volume, basket attachment, discount bleed, and kitchen prep.")} </div>
+            <div className="max-h-[320px] overflow-y-auto border-t border-slate-100">
+              <table className="w-full text-[13px] md:text-sm border-collapse">
+                <thead className="sticky top-0 bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600">
                   <tr>
-                    <th className="text-start py-1.5 font-normal">{tr("Brand")}</th>
-                    <th className="text-start py-1.5 font-normal">{tr("Item")}</th>
-                    <th className="text-start py-1.5 font-normal">{tr("Category")}</th>
-                    <th className="text-end py-1.5 font-normal">{tr("Orders")}</th>
-                    <th className="text-end py-1.5 font-normal">{tr("Net sales")}</th>
-                    <th className="text-end py-1.5 font-normal">{tr("Avg price")}</th>
-                    <th className="text-end py-1.5 font-normal">{tr("Share")}</th>
-                    <th className="text-center py-1.5 font-normal w-32">{tr("Action tag")}</th>
-                    <th className="text-start py-1.5 ps-3 font-normal">{tr("Recommended executive action")}</th>
+                    <th className="text-start py-2.5 px-2 font-semibold">{tr("Brand")}</th>
+                    <th className="text-start py-2.5 px-2 font-semibold">{tr("Item")}</th>
+                    <th className="text-start py-2.5 px-2 font-semibold">{tr("Category")}</th>
+                    <th className="text-end py-2.5 px-2 font-semibold">{tr("Orders")}</th>
+                    <th className="text-end py-2.5 px-2 font-semibold">{tr("Net sales")}</th>
+                    <th className="text-end py-2.5 px-2 font-semibold">{tr("Avg price")}</th>
+                    <th className="text-end py-2.5 px-2 font-semibold">{tr("Share")}</th>
+                    <th className="text-center py-2.5 px-2 font-semibold w-36">{tr("Action tag")}</th>
+                    <th className="text-start py-2.5 ps-3 font-semibold">{tr("Recommended executive action")}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-slate-100">
                   {diagRows.map((row, idx) => (
-                    <tr key={idx} className="hover:bg-gray-50">
-                      <td className="py-2 text-gray-700">{tr(row.brand)}</td>
-                      <td className="py-2 font-medium text-gray-900">{tr(row.item)}</td>
-                      <td className="py-2 text-gray-500">{tr(row.category)}</td>
-                      <td className="py-2 text-end tabular-nums text-gray-700">
+                    <tr key={idx} className="hover:bg-slate-50/80">
+                      <td className="py-2.5 px-2 font-medium text-slate-700">{tr(row.brand)}</td>
+                      <td className="py-2.5 px-2 font-bold text-slate-900">{tr(row.item)}</td>
+                      <td className="py-2.5 px-2 font-medium text-slate-600">{tr(row.category)}</td>
+                      <td className="py-2.5 px-2 text-end tabular-nums font-semibold text-slate-800">
                         {row.orders.toLocaleString()}
                       </td>
-                      <td className="py-2 text-end tabular-nums text-gray-900">
+                      <td className="py-2.5 px-2 text-end tabular-nums font-bold text-slate-900">
                         {row.sales.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                       </td>
-                      <td className="py-2 text-end tabular-nums text-gray-700">
+                      <td className="py-2.5 px-2 text-end tabular-nums font-medium text-slate-700">
                         {row.avgPrice.toFixed(2)}
                       </td>
-                      <td className="py-2 text-end tabular-nums text-gray-700">
+                      <td className="py-2.5 px-2 text-end tabular-nums font-medium text-slate-700">
                         {row.sharePct.toFixed(1)}%
                       </td>
-                      <td className="py-2 text-center">
+                      <td className="py-2.5 px-2 text-center">
                         <span
-                          className={`inline-block px-2.5 py-0.5 rounded-full border text-[10px] font-medium ${row.badgeStyle}`}
+                          className={`inline-block px-2.5 py-0.5 rounded-full border text-xs font-bold ${row.badgeStyle}`}
                         >
                           {tr(row.badge)}
                         </span>
                       </td>
-                      <td className="py-2 ps-3 text-gray-600">{tr(row.note)}</td>
+                      <td className="py-2.5 ps-3 font-medium text-slate-700">{tr(row.note)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1229,32 +1266,32 @@ function ScorecardInner() {
           </div>
 
               <div className="grid grid-cols-1 gap-3">
-            <div className="bg-white border border-gray-200 rounded-md p-4">
-              <div className="text-[12px] font-semibold text-gray-900"> {tr("Long-tail menu candidates for pruning (Prep & waste reduction)")} </div>
-              <div className="text-[10px] text-gray-400 mb-3"> {tr("332 of 364 items generate only 20% of sales. Removing low-rotation SKUs reduces Central Kitchen waste.")} </div>
-              <div className="max-h-[220px] overflow-y-auto border-t border-gray-100">
-                <table className="w-full text-[11px] border-collapse">
-                  <thead className="sticky top-0 bg-white border-b border-gray-200 text-gray-400">
+            <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-xs">
+              <div className="text-[15px] font-bold text-slate-900"> {tr("Long-tail menu candidates for pruning (Prep & waste reduction)")} </div>
+              <div className="text-xs font-semibold text-slate-600 mb-3"> {tr("332 of 364 items generate only 20% of sales. Removing low-rotation SKUs reduces Central Kitchen waste.")} </div>
+              <div className="max-h-[260px] overflow-y-auto border-t border-slate-100">
+                <table className="w-full text-[13px] md:text-sm border-collapse">
+                  <thead className="sticky top-0 bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600">
                     <tr>
-                      <th className="text-start py-1.5 font-normal">{tr("Brand")}</th>
-                      <th className="text-start py-1.5 font-normal">{tr("Category")}</th>
-                      <th className="text-start py-1.5 font-normal">{tr("Item")}</th>
-                      <th className="text-end py-1.5 font-normal">{tr("Orders")}</th>
-                      <th className="text-end py-1.5 font-normal">{tr("Net KWD")}</th>
-                      <th className="text-end py-1.5 font-normal">{tr("Est. COGS")}</th>
+                      <th className="text-start py-2.5 px-2 font-semibold">{tr("Brand")}</th>
+                      <th className="text-start py-2.5 px-2 font-semibold">{tr("Category")}</th>
+                      <th className="text-start py-2.5 px-2 font-semibold">{tr("Item")}</th>
+                      <th className="text-end py-2.5 px-2 font-semibold">{tr("Orders")}</th>
+                      <th className="text-end py-2.5 px-2 font-semibold">{tr("Net KWD")}</th>
+                      <th className="text-end py-2.5 px-2 font-semibold">{tr("Est. COGS")}</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-slate-100">
                     {tailRows.map((item, i) => (
-                      <tr key={i} className="hover:bg-gray-50">
-                        <td className="py-1.5 text-gray-600">{tr(item.brand)}</td>
-                        <td className="py-1.5 text-gray-500">{tr(item.category)}</td>
-                        <td className="py-1.5 font-medium text-gray-900">{tr(item.item)}</td>
-                        <td className="py-1.5 text-end tabular-nums text-gray-700">{item.orders}</td>
-                        <td className="py-1.5 text-end tabular-nums text-gray-900">
+                      <tr key={i} className="hover:bg-slate-50/80">
+                        <td className="py-2.5 px-2 font-medium text-slate-700">{tr(item.brand)}</td>
+                        <td className="py-2.5 px-2 font-medium text-slate-600">{tr(item.category)}</td>
+                        <td className="py-2.5 px-2 font-bold text-slate-900">{tr(item.item)}</td>
+                        <td className="py-2.5 px-2 text-end tabular-nums font-semibold text-slate-800">{item.orders}</td>
+                        <td className="py-2.5 px-2 text-end tabular-nums font-bold text-slate-900">
                           {item.sales.toFixed(2)}
                         </td>
-                        <td className="py-1.5 text-end tabular-nums text-rose-600">{item.cogs}</td>
+                        <td className="py-2.5 px-2 text-end tabular-nums font-bold text-rose-700">{item.cogs}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1279,49 +1316,49 @@ function ScorecardInner() {
           {/* ==========================================
               SCROLLABLE ACTION TABLE 2: ODOO P&L, COGS & PETTY CASH
              ========================================== */}
-          <div className="bg-white border border-gray-200 rounded-md p-4">
-            <div className="text-[12px] font-semibold text-gray-900"> {tr("Odoo ERP financial, central kitchen & maintenance audit scorecard")} </div>
-            <div className="text-[10px] text-gray-400 mb-3"> {tr("Direct reconciliation with Odoo general ledger (2,213 entries), Central Kitchen COGS, and Rabih maintenance custody.")} </div>
-            <div className="max-h-[260px] overflow-y-auto border-t border-gray-100">
-              <table className="w-full text-[11px] border-collapse">
-                <thead className="sticky top-0 bg-white border-b border-gray-200 text-gray-400">
+          <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-xs">
+            <div className="text-[15px] font-bold text-slate-900"> {tr("Odoo ERP financial, central kitchen & maintenance audit scorecard")} </div>
+            <div className="text-xs font-semibold text-slate-600 mb-3"> {tr("Direct reconciliation with Odoo general ledger (2,213 entries), Central Kitchen COGS, and Rabih maintenance custody.")} </div>
+            <div className="max-h-[300px] overflow-y-auto border-t border-slate-100">
+              <table className="w-full text-[13px] md:text-sm border-collapse">
+                <thead className="sticky top-0 bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600">
                   <tr>
-                    <th className="text-start py-1.5 font-normal">{tr("Operational sector")}</th>
-                    <th className="text-start py-1.5 font-normal">{tr("Odoo account / custody")}</th>
-                    <th className="text-start py-1.5 font-normal">{tr("Source module")}</th>
-                    <th className="text-end py-1.5 font-normal">{tr("Entries")}</th>
-                    <th className="text-end py-1.5 font-normal">{tr("Amount (KWD)")}</th>
-                    <th className="text-end py-1.5 font-normal">{tr("Variance")}</th>
-                    <th className="text-center py-1.5 font-normal w-32">{tr("Audit status")}</th>
-                    <th className="text-start py-1.5 ps-3 font-normal">{tr("Required Odoo & operational action")}</th>
+                    <th className="text-start py-2.5 px-2 font-semibold">{tr("Operational sector")}</th>
+                    <th className="text-start py-2.5 px-2 font-semibold">{tr("Odoo account / custody")}</th>
+                    <th className="text-start py-2.5 px-2 font-semibold">{tr("Source module")}</th>
+                    <th className="text-end py-2.5 px-2 font-semibold">{tr("Entries")}</th>
+                    <th className="text-end py-2.5 px-2 font-semibold">{tr("Amount (KWD)")}</th>
+                    <th className="text-end py-2.5 px-2 font-semibold">{tr("Variance")}</th>
+                    <th className="text-center py-2.5 px-2 font-semibold w-36">{tr("Audit status")}</th>
+                    <th className="text-start py-2.5 ps-3 font-semibold">{tr("Required Odoo & operational action")}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-slate-100">
                   {opRows.map((row, idx) => (
-                    <tr key={idx} className="hover:bg-gray-50">
-                      <td className="py-2 font-medium text-gray-900">{tr(row.sector)}</td>
-                      <td className="py-2 text-gray-700">{tr(row.account)}</td>
-                      <td className="py-2 text-gray-500">{tr(row.module)}</td>
-                      <td className="py-2 text-end tabular-nums text-gray-700">
+                    <tr key={idx} className="hover:bg-slate-50/80">
+                      <td className="py-2.5 px-2 font-bold text-slate-900">{tr(row.sector)}</td>
+                      <td className="py-2.5 px-2 font-medium text-slate-700">{tr(row.account)}</td>
+                      <td className="py-2.5 px-2 font-medium text-slate-600">{tr(row.module)}</td>
+                      <td className="py-2.5 px-2 text-end tabular-nums font-semibold text-slate-800">
                         {row.entries.toLocaleString()}
                       </td>
-                      <td className="py-2 text-end tabular-nums font-medium text-gray-900">
+                      <td className="py-2.5 px-2 text-end tabular-nums font-bold text-slate-900">
                         {row.amountKwd.toLocaleString(undefined, {
                           minimumFractionDigits: 3,
                           maximumFractionDigits: 3,
                         })}
                       </td>
-                      <td className="py-2 text-end tabular-nums text-gray-700">
+                      <td className="py-2.5 px-2 text-end tabular-nums font-semibold text-slate-700">
                         {tr(row.variancePct)}
                       </td>
-                      <td className="py-2 text-center">
+                      <td className="py-2.5 px-2 text-center">
                         <span
-                          className={`inline-block px-2.5 py-0.5 rounded-full border text-[10px] font-medium ${row.badgeStyle}`}
+                          className={`inline-block px-2.5 py-0.5 rounded-full border text-xs font-bold ${row.badgeStyle}`}
                         >
                           {tr(row.badge)}
                         </span>
                       </td>
-                      <td className="py-2 ps-3 text-gray-600">{tr(row.action)}</td>
+                      <td className="py-2.5 ps-3 font-medium text-slate-700">{tr(row.action)}</td>
                     </tr>
                   ))}
                 </tbody>

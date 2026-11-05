@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { cookies } from 'next/headers'
-import { Cairo, Poppins } from 'next/font/google'
+import { IBM_Plex_Sans_Arabic, Inter, Cairo } from 'next/font/google'
 import { GlobalAutoTranslator } from '@/components/GlobalAutoTranslator'
 import { MobileBottomNav } from '@/components/mobile-bottom-nav'
 import { PwaRegister } from '@/components/pwa-register'
@@ -8,17 +8,24 @@ import { LanguageProvider, type Locale } from '@/lib/i18n'
 import { ThemeProvider, type Theme } from '@/lib/theme'
 import './globals.css'
 
+const ibmPlexArabic = IBM_Plex_Sans_Arabic({
+  subsets: ['arabic', 'latin'],
+  display: 'swap',
+  variable: '--font-ibm-plex-arabic',
+  weight: ['400', '500', '600', '700'],
+})
+
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-inter',
+  weight: ['500', '600', '700', '800'],
+})
+
 const cairo = Cairo({
   subsets: ['arabic', 'latin'],
   display: 'swap',
   variable: '--font-cairo',
-  weight: ['400', '500', '600', '700', '800', '900'],
-})
-
-const poppins = Poppins({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-poppins',
   weight: ['400', '500', '600', '700', '800', '900'],
 })
 
@@ -60,7 +67,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       lang={locale}
       dir={locale === 'en' ? 'ltr' : 'rtl'}
       data-theme={theme}
-      className={`${cairo.variable} ${poppins.variable} font-sans ${theme === 'light' ? 'light light-mode' : 'dark'}`}
+      className={`${ibmPlexArabic.variable} ${inter.variable} ${cairo.variable} font-sans ${theme === 'light' ? 'light light-mode' : 'dark'}`}
       suppressHydrationWarning
     >
       <head>
@@ -70,7 +77,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           }}
         />
       </head>
-      <body className={`${cairo.className} min-h-full font-cairo antialiased md:pb-0`} suppressHydrationWarning>
+      <body className={`${ibmPlexArabic.className} min-h-full antialiased md:pb-0`} suppressHydrationWarning>
         <ThemeProvider initialTheme={theme}>
           <LanguageProvider initialLocale={locale}>
             <GlobalAutoTranslator />

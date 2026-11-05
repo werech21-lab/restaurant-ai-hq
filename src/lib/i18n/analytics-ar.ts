@@ -236,15 +236,15 @@ export const ANALYTICS_AR: Record<string, string> = {
   'The Noodle Bar': 'ذا نودل بار',
   'Karak Cafeteria': 'كرك كافتيريا',
   'Shop Sales': 'مبيعات المحل',
-  'Talabat Go': 'طلبات جو',
+  'Talabat Go': 'طلبات جو (Tgo)',
   Keeta: 'كيتا',
-  'Talabat MP': 'طلبات ماركت',
+  'Talabat MP': 'طلبات ماركت بليس (M)',
   'Deliveroo Core': 'ديليفرو كور',
   Ordable: 'أوردابل',
   Snoonu: 'سنونو',
   Jahez: 'جاهز',
   Phone: 'الطلب الهاتفي',
-  'Deliveroo MP': 'ديليفرو ماركت',
+  'Deliveroo MP': 'ديليفرو ماركت بليس (M)',
   Whatsapp: 'واتساب',
 }
 

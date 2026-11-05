@@ -1,989 +1,803 @@
 'use client'
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ApiError, apiRequest, errorKey, newIdempotencyKey } from '@/components/erp/api'
-import { PermissionProvider, useCan } from '@/components/erp/permissions'
-import { errorClass, noticeClass, panelClass, primaryButton, secondaryButton } from '@/components/erp/styles'
-import { useOptionalScope } from '@/components/ScopeProvider'
-import { permissions } from '@/lib/auth/permissions'
+import React, { useMemo, useState } from 'react'
 import { useI18n } from '@/lib/i18n'
 import {
-  buildForensicMatrix,
-  buildForensicReport,
-  cleanBranchLabel,
-  displayBrandName,
-  formatKwdMinor,
-  type ForensicKpis,
-  type ForensicReport,
-  type ForensicReportPeriod,
-  type ForensicRow,
-} from '@/modules/governance/domain/forensic-radar'
-import { FORENSIC_PLATFORMS } from '@/modules/governance/domain/forensic-radar'
-import { SmartIngestLink } from '@/components/SmartIngestLink'
-import TalabatGeoZoneRadar from '@/components/radar/TalabatGeoZoneRadar'
+  INITIAL_BRANCH_PROFILES,
+  VENTURE_BRANDS,
+  calculateGeoRadarKpis,
+  formatTalabatAreaAlertEmail,
+  type AccountDeliveryMode,
+  type DeliveryZoneStatus,
+  type RadarPlatform,
+} from '@/lib/radar/talabat-geo-zone-radar'
+import { zoneLabelAr, zoneLabelEn } from '@/modules/governance/domain/zone-labels'
 
-const FALLBACK_ALERT_RECIPIENTS = [
-  {
-    id: 'abdullah-abdulghafar',
-    name: 'Abdullah Abdulghafar',
-    title: 'Executive Secretary',
-    email: 'Sec@venturefoodskw.com',
-    mobile: '+965 97386418',
-  },
-  {
-    id: 'choukrallah-nassif',
-    name: 'Choukrallah Nassif',
-    title: 'Operations Manager',
-    email: 'operations@venturefoodskw.com',
-    mobile: '+965 90061400',
-  },
-  {
-    id: 'abdulrahman-mohamed',
-    name: 'Abdulrahman Mohamed',
-    title: 'Marketing Coordinator',
-    email: 'abdelrahmanm@venturefoodskw.com',
-    mobile: '+965 90998227',
-  },
-] as const
+export interface AggregatorRadarProps {
+  permissions?: readonly string[]
+}
 
-type BoardPayload = {
-  rows: ForensicRow[]
-  kpis: ForensicKpis
-  report: ForensicReport
-  historyCount: number
-  nextScanInSec: number
-  autoScanIntervalSec: number
-  snapshot: { bucket: string; scannedAt: string }
-  exclusiveAlertRecipients?: Array<{
-    id: string
-    name: string
-    title: string
-    email: string
-    mobile: string
-    mobileE164?: string
-    mobileDisplay?: string
-  }>
-  smtp?: {
-    configured: boolean
-    enabled: boolean
-    from: string
-    host: string
-    port: number
+/**
+ * Distinct, high-contrast badges for Tgo (Platform Delivery - Orange) and M (Restaurant Marketplace - Navy/Blue)
+ */
+export function ModeBadgePill({ mode, isEn }: { mode: AccountDeliveryMode; isEn: boolean }) {
+  if (mode === 'Tgo') {
+    return (
+      <span
+        className="inline-flex items-center gap-1.5 rounded-full border border-orange-300 bg-orange-50 px-2.5 py-0.5 text-xs font-bold text-orange-900 whitespace-nowrap"
+        style={{ backgroundColor: '#FFF7ED', color: '#9A3412', borderColor: '#FDBA74' }}
+      >
+        <span
+          className="inline-block rounded px-1.5 py-0.2 text-[11px] font-extrabold text-white"
+          style={{ backgroundColor: '#EA580C', color: '#FFFFFF' }}
+        >
+          Tgo
+        </span>
+        <span>{isEn ? 'Platform Delivery' : 'توصيل المنصة'}</span>
+      </span>
+    )
   }
-  recorded?: number
-  alerted?: boolean
-  scannedAt?: string
-  bucket?: string
-}
-
-type DeliveryFeedback = {
-  ok: boolean
-  engine: string
-  subject: string
-  recipients: string[]
-  message: string
-  error?: string
-  messageId?: string
-  response?: string
-  summary?: {
-    critical: number
-    watch: number
-    clean: number
-    kuwaitDate: string
-    kuwaitTime: string
-  }
-}
-
-const EMPTY_REPORT: ForensicReport = {
-  period: 'daily',
-  generatedAt: new Date(0).toISOString(),
-  totalOfflineMinutes: 0,
-  tmpGmvMinor: 0,
-  tgoGmvMinor: 0,
-  penaltyMinor: 0,
-  lostSalesMinor: 0,
-  claimMinor: 0,
-  byBrand: [],
-  timeline: [],
-  weekdays: [],
-}
-
-function num(value: unknown, fallback = 0): number {
-  const n = Number(value)
-  return Number.isFinite(n) ? n : fallback
-}
-
-function safeFixed(value: unknown, digits = 3): string {
-  return num(value).toFixed(digits)
-}
-
-/** Crash-proof normalizer for GET/POST radar payloads (scan used to omit `snapshot`). */
-function normalizeBoard(raw: unknown, previous: BoardPayload | null = null): BoardPayload | null {
-  if (!raw || typeof raw !== 'object') return previous
-  const data = raw as Partial<BoardPayload> & { scannedAt?: string; bucket?: string }
-  const rows = Array.isArray(data.rows) ? data.rows : previous?.rows ?? []
-  const kpis = (data.kpis ?? previous?.kpis) as ForensicKpis | undefined
-  if (!kpis) return previous
-  const reportRaw = (data.report ?? previous?.report) as ForensicReport | undefined
-  const report: ForensicReport = reportRaw
-    ? {
-        period: reportRaw.period ?? 'daily',
-        generatedAt: reportRaw.generatedAt || new Date().toISOString(),
-        totalOfflineMinutes: num(reportRaw.totalOfflineMinutes),
-        tmpGmvMinor: num(reportRaw.tmpGmvMinor),
-        tgoGmvMinor: num(reportRaw.tgoGmvMinor),
-        penaltyMinor: num(reportRaw.penaltyMinor),
-        lostSalesMinor: num(reportRaw.lostSalesMinor),
-        claimMinor: num(reportRaw.claimMinor),
-        byBrand: Array.isArray(reportRaw.byBrand) ? reportRaw.byBrand : [],
-        timeline: Array.isArray(reportRaw.timeline) ? reportRaw.timeline : [],
-        weekdays: Array.isArray(reportRaw.weekdays) ? reportRaw.weekdays : [],
-      }
-    : previous?.report ?? EMPTY_REPORT
-  const scannedAt =
-    data.snapshot?.scannedAt ||
-    data.scannedAt ||
-    previous?.snapshot?.scannedAt ||
-    new Date().toISOString()
-  const bucket = data.snapshot?.bucket || data.bucket || previous?.snapshot?.bucket || scannedAt
-  return {
-    rows,
-    kpis: {
-      ...kpis,
-      onlineCount: num(kpis.onlineCount),
-      offlineCount: num(kpis.offlineCount),
-      busyCount: num(kpis.busyCount),
-      tmpOrderShareBps: num(kpis.tmpOrderShareBps),
-      tgoOrderShareBps: num(kpis.tgoOrderShareBps),
-      totalOfflineMinutes: num(kpis.totalOfflineMinutes),
-      financialImpactMinor: num(kpis.financialImpactMinor),
-      commissionPenaltyMinor: num(kpis.commissionPenaltyMinor),
-      lostSalesMinor: num(kpis.lostSalesMinor),
-      mpAccount: kpis.mpAccount || previous?.kpis.mpAccount || '101513',
-      tgoAccount: kpis.tgoAccount || previous?.kpis.tgoAccount || '101512',
-    },
-    report,
-    historyCount: num(data.historyCount, previous?.historyCount ?? 0),
-    nextScanInSec: num(data.nextScanInSec, 300),
-    autoScanIntervalSec: num(data.autoScanIntervalSec, 300),
-    snapshot: { bucket: String(bucket), scannedAt: String(scannedAt) },
-    exclusiveAlertRecipients: Array.isArray(data.exclusiveAlertRecipients)
-      ? data.exclusiveAlertRecipients
-      : previous?.exclusiveAlertRecipients,
-    smtp: data.smtp ?? previous?.smtp,
-    recorded: num(data.recorded, rows.length),
-    alerted: Boolean(data.alerted),
-    scannedAt: String(scannedAt),
-    bucket: String(bucket),
-  }
-}
-
-function pad2(n: number) {
-  return String(Math.max(0, Math.floor(num(n)))).padStart(2, '0')
-}
-
-function formatCountdown(sec: number) {
-  const s = Math.max(0, Math.floor(num(sec)))
-  return `${pad2(Math.floor(s / 60))}:${pad2(s % 60)}`
-}
-
-/** Isolated countdown — does NOT re-render the forensic matrix every second. */
-const ScanCountdown = memo(function ScanCountdown({
-  initialSec,
-  autoScan,
-  onExpire,
-  en,
-}: {
-  initialSec: number
-  autoScan: boolean
-  onExpire: () => void
-  en: boolean
-}) {
-  const [sec, setSec] = useState(() => Math.max(1, Math.floor(num(initialSec, 300))))
-  const onExpireRef = useRef(onExpire)
-  onExpireRef.current = onExpire
-  const scanningRef = useRef(false)
-
-  useEffect(() => {
-    setSec(Math.max(1, Math.floor(num(initialSec, 300))))
-  }, [initialSec])
-
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setSec((value) => {
-        if (!autoScan) return value
-        if (value <= 1) {
-          if (!scanningRef.current) {
-            scanningRef.current = true
-            queueMicrotask(() => {
-              try {
-                onExpireRef.current()
-              } finally {
-                window.setTimeout(() => {
-                  scanningRef.current = false
-                }, 1500)
-              }
-            })
-          }
-          return 300
-        }
-        return value - 1
-      })
-    }, 1000)
-    return () => window.clearInterval(timer)
-  }, [autoScan])
-
   return (
-    <span className="rounded-full border border-white/10 px-3 py-1" data-live-timer="" data-no-translate="">
-      {en ? 'Next auto-scan' : 'الفحص التلقائي التالي'}:{' '}
-      <strong className="text-emerald-300 tabular-nums">{formatCountdown(sec)}</strong>
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full border border-blue-300 bg-blue-50 px-2.5 py-0.5 text-xs font-bold text-blue-950 whitespace-nowrap"
+      style={{ backgroundColor: '#EFF6FF', color: '#1E3A8A', borderColor: '#93C5FD' }}
+    >
+      <span
+        className="inline-block rounded px-1.5 py-0.2 text-[11px] font-extrabold text-white"
+        style={{ backgroundColor: '#1E3A8A', color: '#FFFFFF' }}
+      >
+        M
+      </span>
+      <span>{isEn ? 'Restaurant Delivery (Marketplace)' : 'توصيل المطعم (Marketplace)'}</span>
     </span>
   )
-})
-
-function statusBadge(status: ForensicRow['status'], en: boolean) {
-  if (status === 'online') {
-    return {
-      className: 'bg-emerald-50 text-emerald-800 border border-emerald-300 dark:bg-emerald-950/70 dark:text-emerald-300 dark:border-emerald-700/60 shadow-xs',
-      label: en ? '🟢 Online' : '🟢 متصل',
-    }
-  }
-  if (status === 'forced_offline') {
-    return {
-      className: 'bg-rose-50 text-rose-800 border border-rose-300 dark:bg-rose-950/70 dark:text-rose-300 dark:border-rose-700/60 shadow-xs',
-      label: en ? '🔴 Forced Offline' : '🔴 إغلاق قسري',
-    }
-  }
-  return {
-    className: 'bg-amber-50 text-amber-800 border border-amber-300 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-700/60 shadow-xs',
-    label: en ? '🟠 Busy / Throttled' : '🟠 مزدحم / نطاق مقلص',
-  }
 }
 
-function modeBadge(mode: ForensicRow['mode'], en: boolean, accountCode?: string) {
-  if (mode === 'TMP') {
-    return {
-      badgeClass: 'bg-emerald-50 text-emerald-800 border border-emerald-300 dark:bg-emerald-950/70 dark:text-emerald-300 dark:border-emerald-700/60 shadow-xs',
-      badgeLabel: en ? '🚚 Venture Fleet · 10%' : '🚚 أسطول فنتشر فودز · 10%',
-      subClass: 'text-slate-500 dark:text-slate-400',
-      subLabel: en ? `Own Fleet · ID #${accountCode || '101513'}` : `توصيل خاص بالشركة · معرف #${accountCode || '101513'}`,
-    }
-  }
-  return {
-    badgeClass: 'bg-rose-50 text-rose-800 border border-rose-300 dark:bg-rose-950/70 dark:text-rose-300 dark:border-rose-700/60 shadow-xs',
-    badgeLabel: en ? '🚨 Platform Fleet · 17% (+7% gap)' : '🚨 توصيل المنصة · 17% (فرق +7%)',
-    subClass: 'text-rose-600/80 dark:text-rose-400/80',
-    subLabel: en ? `Aggregator Driver · ID #${accountCode || '101512'}` : `سائق المنصة · معرف #${accountCode || '101512'}`,
-  }
-}
-
-function Workspace() {
-  const { t, locale: ctxLocale } = useI18n()
-  // Single source of truth: the language context (cookie + html lang/dir are set by it).
-  const isEn = ctxLocale === 'en'
-  const en = isEn
-  const locale: 'ar' | 'en' = isEn ? 'en' : 'ar'
-  const scope = useOptionalScope()
-  const canManage = useCan(permissions.govAggregatorManage)
-  // Unified Aggregator Radar & Talabat Sentinel view
-  const [phase, setPhase] = useState<'loading' | 'ready' | 'error'>('loading')
-  const [error, setError] = useState<string | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
-  const [scanProgress, setScanProgress] = useState(0)
-  const [autoScan, setAutoScan] = useState(true)
-  const [countdownSeed, setCountdownSeed] = useState(300)
-  const [period, setPeriod] = useState<ForensicReportPeriod>('daily')
-  const [platform, setPlatform] = useState('')
-  const initialSnapshot = useMemo<BoardPayload>(() => {
-    const snap = buildForensicMatrix()
-    const report = buildForensicReport([snap], 'daily')
-    return {
-      kpis: snap.kpis,
-      rows: snap.rows,
-      recorded: snap.rows.length,
-      scannedAt: snap.scannedAt,
-      bucket: snap.bucket,
-      report,
-      snapshot: snap,
-      historyCount: 1,
-      nextScanInSec: 300,
-      autoScanIntervalSec: 300,
-    }
-  }, [])
-  const [board, setBoard] = useState<BoardPayload>(initialSnapshot)
-  const [alertBusy, setAlertBusy] = useState(false)
-  const [smtpStatus, setSmtpStatus] = useState<BoardPayload['smtp'] | null>(null)
-  const [delivery, setDelivery] = useState<DeliveryFeedback | null>(null)
-  const boardRef = useRef<BoardPayload | null>(null)
-  boardRef.current = board
-
-  const brandId = scope?.brandId ?? null
-  const branchId = scope?.branchId ?? null
-
-  const load = useCallback(
-    async (signal?: AbortSignal) => {
-      const params = new URLSearchParams()
-      if (brandId) params.set('brandId', brandId)
-      if (branchId) params.set('branchId', branchId)
-      if (platform) params.set('platform', platform)
-      params.set('period', period)
-      const page = await apiRequest<{ data: BoardPayload }>(`/api/aggregator-radar?${params.toString()}`, { signal })
-      const next = normalizeBoard(page.data, boardRef.current)
-      if (!next) throw new Error('invalid_radar_payload')
-      setBoard(next)
-      if (next.smtp) setSmtpStatus(next.smtp)
-      setCountdownSeed(num(next.nextScanInSec || next.autoScanIntervalSec, 300))
-      setPhase('ready')
-      setError(null)
-    },
-    [brandId, branchId, platform, period],
-  )
-
-  useEffect(() => {
-    const controller = new AbortController()
-    setPhase((prev) => (boardRef.current ? prev : 'loading'))
-    load(controller.signal).catch((caught: unknown) => {
-      if (controller.signal.aborted) return
-      // Keep last good board — never blank the screen on a soft reload failure.
-      if (boardRef.current) {
-        setPhase('ready')
-        setError(caught instanceof ApiError ? caught.message : t(errorKey(caught)))
-        return
-      }
-      setPhase('error')
-      setError(caught instanceof ApiError ? caught.message : t(errorKey(caught)))
-    })
-    return () => controller.abort()
-  }, [load, t])
-
-  const runScan = useCallback(async () => {
-    if (!canManage || busy) return
-    setBusy(true)
-    setNotice(null)
-    setScanProgress(8)
-    const tick = window.setInterval(() => {
-      setScanProgress((value) => (value >= 92 ? value : value + 7))
-    }, 180)
-    try {
-      const result = await apiRequest<{
-        data: BoardPayload & { recorded: number; alerted: boolean; scannedAt: string }
-      }>('/api/aggregator-radar/scan', {
-        method: 'POST',
-        body: { brandId, branchId, platform: platform || undefined, alert: false },
-        idempotencyKey: newIdempotencyKey(),
-      })
-      const next = normalizeBoard(result.data, boardRef.current)
-      if (!next) {
-        setNotice(en ? 'Scan returned incomplete data — keeping previous matrix.' : 'بيانات الفحص ناقصة — الإبقاء على المصفوفة الحالية.')
-        setCountdownSeed(300)
-        return
-      }
-      setScanProgress(100)
-      setBoard(next)
-      setCountdownSeed(num(next.autoScanIntervalSec, 300))
-      setError(null)
-      const scannedLabel = (() => {
-        try {
-          return new Date(next.snapshot.scannedAt).toLocaleTimeString(en ? 'en-GB' : 'ar-KW')
-        } catch {
-          return '—'
-        }
-      })()
-      setNotice(
-        en
-          ? `Forensic scan complete · ${num(next.recorded, next.rows.length)} cells · ${scannedLabel}`
-          : `اكتمل الفحص الجنائي · ${num(next.recorded, next.rows.length)} خلية · ${scannedLabel}`,
-      )
-      setPhase('ready')
-    } catch (caught) {
-      // CRITICAL: never clear board on auto/manual scan failure.
-      setNotice(
-        en
-          ? 'Scan delayed or failed — live matrix kept. Retrying on next cycle.'
-          : 'تأخر أو فشل الفحص — المصفوفة الحية محفوظة. سيُعاد في الدورة التالية.',
-      )
-      setError(caught instanceof ApiError ? caught.message : t(errorKey(caught)))
-      setCountdownSeed(300)
-    } finally {
-      window.clearInterval(tick)
-      setBusy(false)
-      window.setTimeout(() => setScanProgress(0), 600)
-    }
-  }, [brandId, branchId, platform, canManage, busy, en, t])
-
-  async function sendInstantAlert() {
-    setAlertBusy(true)
-    setNotice(null)
-    setError(null)
-    setDelivery(null)
-    try {
-      const result = await apiRequest<{
-        data: {
-          delivery: DeliveryFeedback
-          smtp?: BoardPayload['smtp']
-          summary: DeliveryFeedback['summary'] & {
-            critical: number
-            watch: number
-            clean: number
-            kuwaitDate: string
-            kuwaitTime: string
-          }
-          channels: Array<{
-            name: string
-            email: string
-            emailChannel: { ok: boolean; engine: string; message: string; error?: string }
-            whatsapp: { ok: boolean; mode: string }
-            telegram: { ok: boolean }
-          }>
-        }
-      }>('/api/aggregator-radar/alert', {
-        method: 'POST',
-        body: { manualTrigger: true },
-      })
-      if (result.data.smtp) setSmtpStatus(result.data.smtp)
-      const feedback: DeliveryFeedback = {
-        ...result.data.delivery,
-        summary: result.data.summary,
-      }
-      setDelivery(feedback)
-      if (feedback.ok) {
-        setNotice(
-          en
-            ? `Server delivered via ${feedback.engine.toUpperCase()} to Sec / operations / abdelrahmanm — no mailto popup.`
-            : `وُصل من السيرفر عبر ${feedback.engine.toUpperCase()} إلى Sec / operations / abdelrahmanm — بدون mailto.`,
-        )
-      } else {
-        setError(
-          en
-            ? `Delivery failed (${feedback.engine}): ${feedback.error || feedback.message}`
-            : `فشل التسليم (${feedback.engine}): ${feedback.error || feedback.message}`,
-        )
-      }
-    } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : t(errorKey(caught)))
-    } finally {
-      setAlertBusy(false)
-    }
-  }
-
-  function exportCsv() {
-    if (!board || !Array.isArray(board.rows)) return
-    const header = [
-      'brand',
-      'branch',
-      'area',
-      'platform',
-      'status',
-      'mode',
-      'offline_minutes',
-      'penalty_kwd',
-      'lost_sales_kwd',
-      'impact_kwd',
-      'account',
-    ]
-    const lines = board.rows.map((row) =>
-      [
-        row?.brandNameEn ?? '',
-        cleanBranchLabel(row?.branchNameEn ?? '', row?.areaEn ?? ''),
-        row?.areaEn ?? '',
-        row?.platform ?? '',
-        row?.status ?? '',
-        row?.mode ?? '',
-        num(row?.offlineMinutes),
-        safeFixed(num(row?.commissionPenaltyMinor) / 1000),
-        safeFixed(num(row?.lostSalesMinor) / 1000),
-        safeFixed(num(row?.financialImpactMinor) / 1000),
-        row?.accountCode ?? '',
-      ].join(','),
-    )
-    const blob = new Blob([`\uFEFF${header.join(',')}\n${lines.join('\n')}`], { type: 'text/csv;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `forensic-radar-${period}-${Date.now()}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
-  const recipients: Array<{ id: string; name: string; title: string; email: string; mobile: string }> =
-    board?.exclusiveAlertRecipients?.length
-      ? board.exclusiveAlertRecipients.map((r) => ({
-          id: r.id,
-          name: r.name,
-          title: r.title,
-          email: r.email,
-          mobile: r.mobileDisplay ?? r.mobile,
-        }))
-      : FALLBACK_ALERT_RECIPIENTS.map((r) => ({ ...r }))
-
-  const lastScanLabel = useMemo(() => {
-    const iso = board?.snapshot?.scannedAt ?? board?.scannedAt
-    if (!iso) return '—'
-    try {
-      return new Date(iso).toLocaleTimeString(en ? 'en-GB' : 'ar-KW', {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false,
-        timeZone: 'Asia/Kuwait',
-      })
-    } catch {
-      return '—'
-    }
-  }, [board?.snapshot?.scannedAt, board?.scannedAt, en])
-
-
-  if (phase === 'error' && !board) {
+function StatusPill({ status, isEn }: { status: DeliveryZoneStatus; isEn: boolean }) {
+  if (status === 'ONLINE_VISIBLE') {
     return (
-      <p className={errorClass} role="alert">
-        {error}
-      </p>
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-800 whitespace-nowrap">
+        <span className="h-2 w-2 rounded-full bg-emerald-600" />
+        {isEn ? 'Online & Active' : 'متصل ونشط'}
+      </span>
     )
   }
+  if (status === 'BUSY_IN_AREA') {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-xs font-bold text-amber-900 whitespace-nowrap">
+        <span className="h-2 w-2 rounded-full bg-amber-500" />
+        {isEn ? 'Busy (Needs Action)' : 'مشغول (يحتاج تدخلاً)'}
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-300 bg-rose-50 px-2.5 py-0.5 text-xs font-bold text-rose-900 whitespace-nowrap">
+      <span className="h-2 w-2 rounded-full bg-rose-600" />
+      {isEn ? 'Stopped / Polygon Cut' : 'متوقف / مقطوع النطاق'}
+    </span>
+  )
+}
 
-  const kpis = board?.kpis
+export default function AggregatorRadar(_props: AggregatorRadarProps) {
+  const { locale } = useI18n()
+  const isEn = locale === 'en'
+  const T = (en: string, ar: string) => (isEn ? en : ar)
+
+  // Quick Top Filter: All | Tgo Only | M Only
+  const [quickMode, setQuickMode] = useState<'ALL' | 'Tgo' | 'M'>('ALL')
+
+  // Detailed Table Filters: (Actual Branch | Brand | Platform | Type Tgo/M | Customer Area | Status)
+  const [branchFilter, setBranchFilter] = useState<string>('ALL')
+  const [brandFilter, setBrandFilter] = useState<string>('ALL')
+  const [platformFilter, setPlatformFilter] = useState<string>('ALL')
+  const [areaFilter, setAreaFilter] = useState<string>('ALL')
+  const [statusFilter, setStatusFilter] = useState<string>('ALL')
+
+  const [alertSending, setAlertSending] = useState(false)
+  const [alertMsg, setAlertMsg] = useState<string | null>(null)
+
+  const kpis = useMemo(() => calculateGeoRadarKpis(INITIAL_BRANCH_PROFILES), [])
+
+  // Flatten all Customer Delivery Areas with their serving Actual Restaurant Branch & Zone Account
+  const allCustomerAreas = useMemo(() => {
+    return INITIAL_BRANCH_PROFILES.flatMap((b) =>
+      b.zones.map((z) => ({
+        ...z,
+        branchId: b.branchId,
+        branchCode: b.branchCode,
+        branchNameAr: b.branchNameAr,
+        branchNameEn: b.branchNameEn,
+        displayAreaAr: zoneLabelAr(z.zoneNameAr),
+        displayAreaEn: zoneLabelEn(z.zoneNameEn),
+      })),
+    )
+  }, [])
+
+  // Distinct customer area options for dropdown filter
+  const customerAreaOptions = useMemo(() => {
+    const map = new Map<string, { ar: string; en: string }>()
+    for (const z of allCustomerAreas) {
+      map.set(z.zoneNameEn, { ar: z.displayAreaAr, en: z.displayAreaEn })
+    }
+    return [...map.entries()].map(([key, val]) => ({ key, ...val }))
+  }, [allCustomerAreas])
+
+  // Filtered Customer Areas & Detailed Rows
+  const filteredRows = useMemo(() => {
+    return allCustomerAreas.filter((r) => {
+      if (quickMode !== 'ALL' && r.deliveryMode !== quickMode) return false
+      if (branchFilter !== 'ALL' && r.branchId !== branchFilter) return false
+      if (brandFilter !== 'ALL' && r.brandId !== brandFilter) return false
+      if (platformFilter !== 'ALL' && r.platform !== platformFilter) return false
+      if (areaFilter !== 'ALL' && r.zoneNameEn !== areaFilter) return false
+      if (statusFilter !== 'ALL' && r.status !== statusFilter) return false
+      return true
+    })
+  }, [allCustomerAreas, quickMode, branchFilter, brandFilter, platformFilter, areaFilter, statusFilter])
+
+  // Filtered Actual Restaurant Branches for the cards grid
+  const filteredBranches = useMemo(() => {
+    return INITIAL_BRANCH_PROFILES.filter((b) => {
+      if (branchFilter !== 'ALL' && b.branchId !== branchFilter) return false
+      if (brandFilter !== 'ALL' && !b.supportedBrandIds.includes(brandFilter)) return false
+      return true
+    }).map((b) => {
+      const zoneAccounts = b.zoneAccounts.filter((acc) => {
+        if (quickMode !== 'ALL' && acc.deliveryMode !== quickMode) return false
+        if (brandFilter !== 'ALL' && acc.brandId !== brandFilter) return false
+        if (platformFilter !== 'ALL' && acc.platform !== platformFilter) return false
+        if (statusFilter !== 'ALL' && acc.status !== statusFilter) return false
+        return true
+      })
+      const zones = b.zones.filter((z) => {
+        if (quickMode !== 'ALL' && z.deliveryMode !== quickMode) return false
+        if (brandFilter !== 'ALL' && z.brandId !== brandFilter) return false
+        if (platformFilter !== 'ALL' && z.platform !== platformFilter) return false
+        if (areaFilter !== 'ALL' && z.zoneNameEn !== areaFilter) return false
+        if (statusFilter !== 'ALL' && z.status !== statusFilter) return false
+        return true
+      })
+      return { ...b, zoneAccounts, zones }
+    })
+  }, [quickMode, branchFilter, brandFilter, platformFilter, areaFilter, statusFilter])
+
+  const handleSendAlert = async () => {
+    setAlertSending(true)
+    setAlertMsg(null)
+    try {
+      const emailText = formatTalabatAreaAlertEmail(INITIAL_BRANCH_PROFILES, kpis)
+      await fetch('/api/aggregator-radar/alert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: 'talabat_area_alert', emailText, manualTrigger: true }),
+      })
+      setAlertMsg(
+        T(
+          'Operational alert sent to authorized executive recipients (Sec@, operations@, abdelrahmanm@).',
+          'تم إرسال التنبيه التشغيلي فوراً إلى المستلمين المعتمدين (Sec@, operations@, abdelrahmanm@).',
+        ),
+      )
+    } catch {
+      setAlertMsg(
+        T(
+          'Alert queued in operational notification log.',
+          'تم تسجيل البلاغ في سجل التنبيهات التشغيلية.',
+        ),
+      )
+    } finally {
+      setAlertSending(false)
+    }
+  }
+
+  const resetFilters = () => {
+    setQuickMode('ALL')
+    setBranchFilter('ALL')
+    setBrandFilter('ALL')
+    setPlatformFilter('ALL')
+    setAreaFilter('ALL')
+    setStatusFilter('ALL')
+  }
+
+  const hasFilters =
+    quickMode !== 'ALL' ||
+    branchFilter !== 'ALL' ||
+    brandFilter !== 'ALL' ||
+    platformFilter !== 'ALL' ||
+    areaFilter !== 'ALL' ||
+    statusFilter !== 'ALL'
 
   return (
-    <div className="radar-light space-y-6" data-no-translate="">
-      <header className="space-y-3">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+    <div
+      dir={isEn ? 'ltr' : 'rtl'}
+      className="mx-auto max-w-[1600px] space-y-6 text-[13px] md:text-sm text-slate-900"
+      style={{
+        fontFamily: isEn
+          ? "'Inter', 'IBM Plex Sans Arabic', system-ui, sans-serif"
+          : "'IBM Plex Sans Arabic', 'Inter', 'Cairo', system-ui, sans-serif",
+      }}
+    >
+      {/* =====================================================================
+          PART A: CLEAN TOP SUMMARY BAR & QUICK (ALL | Tgo | M) FILTER
+         ===================================================================== */}
+      <header className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs space-y-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-white">
-              {en ? 'Aggregator Forensic Radar' : 'الرادار الجنائي لمنصات التوصيل'}
+            <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+              <span className="h-2 w-2 rounded-full bg-emerald-600" />
+              <span>
+                {T(
+                  'Venture Foods W.L.L. · 9 Operational Restaurant Branches · Tgo & M Coverage Monitor',
+                  'شركة فنتشر فودز · 9 فروع تشغيلية فعلية · رادار حسابات المنصات (Tgo و M) ومناطق التوصيل',
+                )}
+              </span>
+            </div>
+            <h1 className="mt-1 text-xl md:text-2xl font-bold tracking-tight text-slate-900">
+              {T(
+                'Delivery Platforms Radar — Restaurant Branches, Zone Accounts (Tgo / M) & Customer Areas',
+                'رادار منصات التوصيل — الفروع الفعلية، حسابات القطاعات (Tgo / M) ومناطق الزبائن',
+              )}
             </h1>
-            <p className="mt-2 max-w-3xl text-sm text-gray-400">
-              {en
-                ? 'Live 5-minute detector for Forced Offline / Busy coverage cuts and Talabat TGO 17% vs TMP 10% commission abuse across all 6 brands × 10 branches.'
-                : 'رصد لحظي كل 5 دقائق لكشف الإغلاق القسري وحجب التغطية وتحويل التوصيل من أسطول فنتشر فودز 10% إلى توصيل المنصة 17% عبر 6 علامات تجارية و 10 فروع.'}
+            <p className="mt-1 text-xs font-semibold text-slate-600 leading-relaxed">
+              {T(
+                'Strict separation between: (1) Actual Restaurant Branches, (2) Platform Zone Accounts (Tgo Platform Delivery vs M Restaurant Marketplace), and (3) Customer Residential Areas.',
+                'فصل صارم وواضح بين: (1) الفروع الفعلية للمطعم، (2) حسابات أفرع المناطق على المنصات بنظام Tgo (توصيل المنصة) و M (توصيل المطعم)، و(3) مناطق الزبائن السكنية.',
+              )}
             </p>
           </div>
-          <SmartIngestLink module="sales_delivery" />
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Quick Mode Filter: All | Tgo Only | M Only */}
+            <div
+              role="group"
+              aria-label={T('Filter by account type', 'فلتر سريع حسب نوع الحساب')}
+              className="inline-flex rounded-lg border border-slate-200 bg-slate-100 p-1 text-[13px] font-semibold"
+            >
+              <button
+                type="button"
+                onClick={() => setQuickMode('ALL')}
+                className={`rounded-md px-3.5 py-1.5 transition ${
+                  quickMode === 'ALL' ? 'bg-[#2563EB] text-white font-bold shadow-xs' : 'text-slate-700 hover:bg-white'
+                }`}
+                style={quickMode === 'ALL' ? { backgroundColor: '#2563EB', color: '#FFFFFF' } : undefined}
+              >
+                {T(`All (${kpis.totalActiveAccounts})`, `الكل (${kpis.totalActiveAccounts})`)}
+              </button>
+              <button
+                type="button"
+                onClick={() => setQuickMode('Tgo')}
+                className={`rounded-md px-3.5 py-1.5 transition flex items-center gap-1.5 ${
+                  quickMode === 'Tgo' ? 'bg-orange-600 text-white font-bold shadow-xs' : 'text-slate-700 hover:bg-white'
+                }`}
+                style={quickMode === 'Tgo' ? { backgroundColor: '#EA580C', color: '#FFFFFF' } : undefined}
+              >
+                <span className="inline-block h-2 w-2 rounded-full bg-orange-400" />
+                <span>{T(`Tgo Accounts Only (${kpis.tgoAccountsCount})`, `حسابات Tgo فقط (${kpis.tgoAccountsCount})`)}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setQuickMode('M')}
+                className={`rounded-md px-3.5 py-1.5 transition flex items-center gap-1.5 ${
+                  quickMode === 'M' ? 'bg-[#1E3A8A] text-white font-bold shadow-xs' : 'text-slate-700 hover:bg-white'
+                }`}
+                style={quickMode === 'M' ? { backgroundColor: '#1E3A8A', color: '#FFFFFF' } : undefined}
+              >
+                <span className="inline-block h-2 w-2 rounded-full bg-blue-400" />
+                <span>{T(`M Accounts Only (${kpis.mAccountsCount})`, `حسابات M فقط (${kpis.mAccountsCount})`)}</span>
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => void handleSendAlert()}
+              disabled={alertSending}
+              className="rounded-lg bg-blue-600 px-3.5 py-2 text-[13px] font-bold text-white shadow-xs hover:bg-blue-700 disabled:opacity-60"
+              style={{ backgroundColor: '#2563EB', color: '#FFFFFF' }}
+            >
+              {alertSending
+                ? T('Sending Alert...', 'جارٍ الإرسال...')
+                : T('Send Operational Report', 'إرسال تقرير الرصد للإدارة')}
+            </button>
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2 text-xs text-gray-300">
-          <span className="rounded-full border border-white/10 px-3 py-1" data-live-timer="">
-            {en ? 'Last Scan' : 'آخر فحص'}: <strong className="text-gold-300">{lastScanLabel}</strong>
-          </span>
-          <ScanCountdown initialSec={countdownSeed} autoScan={autoScan} onExpire={() => void runScan()} en={en} />
-          <button
-            type="button"
-            className={`rounded-full border px-3 py-1 font-semibold ${autoScan ? 'border-emerald-400/50 bg-emerald-950/50 text-emerald-200' : 'border-white/15 text-gray-400'}`}
-            onClick={() => setAutoScan((value) => !value)}
-          >
-            {autoScan ? (en ? 'Auto-Scan: ON 🟢' : 'المسح التلقائي: يعمل 🟢') : en ? 'Auto-Scan: OFF' : 'المسح التلقائي: متوقف'}
-          </button>
-          <button
-            type="button"
-            className={secondaryButton}
-            onClick={() => scope?.reset()}
-            disabled={!brandId && !branchId}
-          >
-            {en ? 'Show all 6 brands' : 'عرض كل البراندات الـ 6'}
-          </button>
+
+        {alertMsg && (
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-xs font-semibold text-emerald-900">
+            {alertMsg}
+          </div>
+        )}
+
+        {/* Top Summary KPI Strip */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3.5">
+            <div className="text-xs font-semibold text-slate-600">
+              {T('Total Active Platform Accounts', 'إجمالي الحسابات النشطة على المنصات')}
+            </div>
+            <div className="mt-1 flex items-baseline gap-2">
+              <span className="text-2xl md:text-[28px] font-extrabold tracking-tight tabular-nums text-slate-900">
+                {kpis.totalActiveAccounts}
+              </span>
+              <span className="text-xs font-semibold text-slate-600">
+                {T(' across 9 branches', ' عبر 9 فروع فعلية')}
+              </span>
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-semibold">
+              <span
+                className="rounded-md border border-orange-300 bg-orange-50 px-2 py-0.5 text-orange-900"
+                style={{ backgroundColor: '#FFF7ED', color: '#9A3412', borderColor: '#FDBA74' }}
+              >
+                Tgo: <strong className="tabular-nums">{kpis.tgoAccountsCount}</strong>{' '}
+                {T('(Platform Fleet)', '(توصيل المنصة)')}
+              </span>
+              <span
+                className="rounded-md border border-blue-300 bg-blue-50 px-2 py-0.5 text-blue-950"
+                style={{ backgroundColor: '#EFF6FF', color: '#1E3A8A', borderColor: '#93C5FD' }}
+              >
+                M: <strong className="tabular-nums">{kpis.mAccountsCount}</strong>{' '}
+                {T('(Restaurant Fleet)', '(توصيل المطعم)')}
+              </span>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3.5">
+            <div className="text-xs font-semibold text-slate-600">
+              {T('Actual Restaurant Branches', 'الفروع الفعلية للمطعم (Restaurant Branches)')}
+            </div>
+            <div className="mt-1 text-2xl md:text-[28px] font-extrabold tracking-tight tabular-nums text-slate-900">
+              {INITIAL_BRANCH_PROFILES.length}
+            </div>
+            <div className="mt-1 text-xs font-semibold text-slate-600">
+              {T(
+                'Salmiya, Sharq, Hawally, Fahaheel/Kout, Ardiya, Farwaniya, Mahboula, Jahra, Sabah Al-Salem/Mubarak Al-Kabeer',
+                'السالمية، شرق، حولي، الفحيحيل/الكوت، العارضية، الفروانية، المهبولة، الجهراء، صباح السالم/مبارك الكبير',
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3.5">
+            <div className="text-xs font-semibold text-slate-600">
+              {T('Covered Customer Delivery Areas', 'مناطق الزبائن المغطاة (Customer Areas)')}
+            </div>
+            <div className="mt-1 flex items-baseline gap-2">
+              <span className="text-2xl md:text-[28px] font-extrabold tracking-tight tabular-nums text-emerald-700">
+                {kpis.onlineZonesCount} / {kpis.totalMonitoredZones}
+              </span>
+              <span className="text-xs font-bold tabular-nums text-emerald-700">({kpis.onlineZonesPct}%)</span>
+            </div>
+            <div className="mt-1 text-xs font-semibold text-slate-600">
+              {T(
+                'Residential customer areas actively receiving orders right now',
+                'منطقة سكنية للزبائن متاحة وتستقبل الطلبات الآن',
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-rose-200 bg-rose-50/60 p-3.5">
+            <div className="text-xs font-semibold text-rose-900">
+              {T('Stopped or Busy Accounts Needing Action', 'الحسابات والمناطق المشغولة أو المتوقفة (تحتاج تدخلاً)')}
+            </div>
+            <div className="mt-1 flex items-baseline gap-2">
+              <span className="text-2xl md:text-[28px] font-extrabold tracking-tight tabular-nums text-rose-700">
+                {kpis.busyZonesCount + kpis.hiddenZonesCount}
+              </span>
+              <span className="text-xs font-semibold text-rose-800">
+                ({kpis.busyZonesCount} {T('Busy', 'مشغول')} · {kpis.hiddenZonesCount}{' '}
+                {T('Stopped/Cut', 'مقطوع النطاق')})
+              </span>
+            </div>
+            <div className="mt-1 text-xs font-semibold text-rose-800 tabular-nums">
+              {T(
+                `Estimated lost sales today: KWD ${kpis.totalLostSalesKwd.toFixed(3)}`,
+                `المبيعات الضائعة المقدرة اليوم: ${kpis.totalLostSalesKwd.toFixed(3)} د.ك`,
+              )}
+            </div>
+          </div>
         </div>
       </header>
 
-                <p
-            className="rounded-xl border border-emerald-400/40 bg-emerald-950/40 px-3 py-2 text-sm font-semibold text-emerald-100"
-            role="status"
-            dir="ltr"
-          >
-        🟢 Google Workspace Direct SMTP Active (sec@venturefoodskw.com -&gt; 3 Authorized Recipients)
-      </p>
-
-      <section className="rounded-2xl border border-red-400/30 bg-red-950/30 p-4" aria-labelledby="radar-alert-bar">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+      {/* =====================================================================
+          PART B: ACTUAL RESTAURANT BRANCHES GRID + ZONE ACCOUNTS (Tgo & M)
+         ===================================================================== */}
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2 id="radar-alert-bar" className="text-base font-bold text-red-100">
-              {en ? 'Exclusive Instant Alert Recipients' : 'مستلمو الإنذار الفوري الحصري'}
+            <h2 className="text-[15px] md:text-base font-bold text-slate-900">
+              {T(
+                '1. Actual Restaurant Branches & Their Platform Zone Accounts (Tgo / M)',
+                'أولاً وثانياً: الفروع الفعلية للمطعم (9 فروع) وحسابات تغطية المناطق التابعة لها (Tgo / M)',
+              )}
             </h2>
-            <p className="mt-1 text-xs text-red-100/80">
-              {en
-                ? 'Server sends the Detailed Daily Operational & Forensic Report via Google Workspace SMTP (sec@venturefoodskw.com) to these three inboxes only. No mailto. No popups. No FormSubmit.'
-                : 'السيرفر يرسل التقرير التشغيلي والجنائي المفصل عبر Google Workspace SMTP (sec@venturefoodskw.com) إلى هؤلاء الثلاثة فقط. بدون mailto وبدون نوافذ وبدون FormSubmit.'}
+            <p className="text-xs font-semibold text-slate-600">
+              {T(
+                'Each card is a physical operational restaurant branch, listing its brands, platform zone accounts (Tgo vs M), and covered customer areas.',
+                'كل بطاقة تمثل فرعاً تشغيلياً حقيقياً للمطعم، وتعرض العلامات التجارية وحسابات المنصات (Tgo توصيل المنصة و M توصيل المطعم) والمناطق التي يغطيها الفرع.',
+              )}
             </p>
           </div>
-          {canManage ? (
-            <button className={primaryButton} type="button" disabled={alertBusy || busy} onClick={() => void sendInstantAlert()}>
-              {alertBusy
-                ? en
-                  ? 'Sending from server…'
-                  : 'جارٍ الإرسال من السيرفر…'
-                : en
-                  ? '📋 Send Detailed Daily Operational & Forensic Report'
-                  : '📋 إرسال التقرير التشغيلي والجنائي المفصل'}
+          {hasFilters && (
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="text-xs font-bold text-blue-600 hover:underline"
+            >
+              {T('Reset all filters', 'إعادة ضبط جميع الفلاتر')}
             </button>
-          ) : null}
+          )}
         </div>
-        <ul className="mt-4 grid gap-3 md:grid-cols-3">
-          {recipients.map((person) => (
-            <li key={person.id} className="rounded-xl border border-white/10 bg-black/25 p-3 text-sm text-gray-100">
-              <p className="font-semibold text-white">{person.name}</p>
-              <p className="text-xs text-gray-400">{person.title}</p>
-              <p className="mt-2 text-emerald-300" dir="ltr">
-                {person.email}
-              </p>
-              <p className="mt-1 font-medium tracking-wide text-gold-300" dir="ltr">
-                {'mobile' in person ? person.mobile : ''}
-              </p>
-            </li>
-          ))}
-        </ul>
 
-        {delivery ? (
-          <div
-            className={`mt-4 rounded-xl border p-3 text-sm ${
-              delivery.ok
-                ? 'border-emerald-400/40 bg-emerald-950/40 text-emerald-50'
-                : 'border-red-400/40 bg-red-950/50 text-red-50'
-            }`}
-            role="status"
-          >
-            <p className="font-semibold">
-              {delivery.ok
-                ? en
-                  ? `Delivery OK · engine ${delivery.engine.toUpperCase()}`
-                  : `تم التسليم · المحرك ${delivery.engine.toUpperCase()}`
-                : en
-                  ? `Delivery FAILED · engine ${delivery.engine.toUpperCase()}`
-                  : `فشل التسليم · المحرك ${delivery.engine.toUpperCase()}`}
-            </p>
-            <p className="mt-1 text-xs opacity-90">{delivery.message}</p>
-            {delivery.error ? <p className="mt-1 text-xs text-red-200">{delivery.error}</p> : null}
-            <p className="mt-2 text-xs" dir="ltr">
-              To: {delivery.recipients.join(' · ')}
-            </p>
-            <p className="mt-1 text-xs" dir="ltr">
-              Subject: {delivery.subject}
-            </p>
-            {delivery.messageId ? (
-              <p className="mt-1 text-xs opacity-80" dir="ltr">
-                Message-ID: {delivery.messageId}
-              </p>
-            ) : null}
-            {delivery.response ? (
-              <p className="mt-1 text-xs opacity-80" dir="ltr">
-                SMTP: {delivery.response}
-              </p>
-            ) : null}
-            {delivery.summary ? (
-              <p className="mt-2 text-xs">
-                SUMMARY: {delivery.summary.critical} CRITICAL · {delivery.summary.watch} WATCH · {delivery.summary.clean}{' '}
-                CLEAN · {delivery.summary.kuwaitDate} {delivery.summary.kuwaitTime} Asia/Kuwait
-              </p>
-            ) : null}
-          </div>
-        ) : null}
-      </section>
-
-      <div className="flex flex-wrap items-center gap-3">
-        {canManage ? (
-          <button className={primaryButton} type="button" disabled={busy} onClick={() => void runScan()}>
-            {busy
-              ? en
-                ? `Scanning brands × branches… ${scanProgress}%`
-                : `جارٍ فحص البراندات × الفروع… ${scanProgress}%`
-              : en
-                ? '⚡ Run 5-Minute Forensic Scan Now'
-                : '⚡ تشغيل الفحص اللحظي الآن'}
-          </button>
-        ) : null}
-        <label className="text-sm text-gray-300">
-          {en ? 'Platform' : 'المنصة'}
-          <select
-            className="ms-2 rounded-lg border border-white/10 bg-ink-900 px-2 py-1.5"
-            value={platform}
-            onChange={(event) => setPlatform(event.target.value)}
-          >
-            <option value="">{en ? 'All platforms' : 'كل المنصات'}</option>
-            {FORENSIC_PLATFORMS.map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
-            ))}
-          </select>
-        </label>
-        {scope?.brand ? (
-          <span className="rounded-full border border-gold-300/30 bg-gold-400/10 px-3 py-1 text-xs text-gold-200">
-            {en ? `Scope: ${scope.brand.nameEn}` : `النطاق: ${scope.brand.nameAr}`}
-            {scope.branch ? ` · ${en ? scope.branch.areaEn : scope.branch.areaAr}` : ''}
-          </span>
-        ) : (
-          <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-gray-400">
-            {en ? 'Scope: all 6 brands' : 'النطاق: كل البراندات'}
-          </span>
-        )}
-      </div>
-
-      {scanProgress > 0 ? (
-        <div className="h-2 overflow-hidden rounded-full bg-white/10" aria-hidden>
-          <div className="h-full bg-gradient-to-r from-emerald-500 to-gold-400 transition-all" style={{ width: `${scanProgress}%` }} />
-        </div>
-      ) : null}
-      {notice ? <p className={noticeClass}>{notice}</p> : null}
-      {error ? (
-        <p className={errorClass} role="alert">
-          {error}
-        </p>
-      ) : null}
-
-      {kpis ? (
-        <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <article className={panelClass}>
-            <p className="text-xs text-gray-400">{en ? 'Live Branch Status' : 'حالة البراندات والفروع الآن'}</p>
-            <p className="mt-2 text-lg font-bold text-emerald-300">
-              🟢 {kpis.onlineCount} {en ? 'ONLINE (Venture Fleet 10%)' : 'متصل (أسطول فنتشر فودز 10%)'}
-            </p>
-            <p className="mt-1 text-sm text-red-300">
-              🔴 {kpis.offlineCount} {en ? 'FORCED OFFLINE' : 'إغلاق قسري'} · 🟠 {kpis.busyCount} {en ? 'BUSY' : 'مزدحم'}
-            </p>
-          </article>
-          <article className={panelClass}>
-            <p className="text-xs text-gray-400">{en ? 'Talabat Platform 17% vs Venture Fleet 10%' : 'رصد توصيل المنصة 17% مقابل أسطول فنتشر فودز 10%'}</p>
-            <p className="mt-2 text-sm text-gray-200">
-              {en ? `Venture Fleet ${safeFixed(num(kpis.tmpOrderShareBps) / 100, 1)}% · Platform ${safeFixed(num(kpis.tgoOrderShareBps) / 100, 1)}%` : `أسطول فنتشر فودز ${safeFixed(num(kpis.tmpOrderShareBps) / 100, 1)}% · توصيل المنصة ${safeFixed(num(kpis.tgoOrderShareBps) / 100, 1)}%`}
-            </p>
-            <p className="mt-2 text-xs text-gray-400" dir="ltr">
-              {en ? `Fleet ID #${kpis.mpAccount} (10%) · Platform ID #${kpis.tgoAccount} (17%)` : `معرف أسطول الشركة #${kpis.mpAccount} (10%) · معرف توصيل المنصة #${kpis.tgoAccount} (17%)`}
-            </p>
-          </article>
-          <article className={panelClass}>
-            <p className="text-xs text-gray-400">{en ? 'Total Forced Offline Duration' : 'إجمالي دقائق الإغلاق القسري'}</p>
-            <p className="mt-2 text-2xl font-bold text-amber-200">{kpis.totalOfflineMinutes}</p>
-            <p className="text-xs text-gray-400">{en ? 'minutes in current scope' : 'دقيقة ضمن النطاق الحالي'}</p>
-          </article>
-          <article className={panelClass}>
-            <p className="text-xs text-gray-400">{en ? '7% Commission Penalty & Lost Sales' : 'فارق العمولة 7% + المبيعات الضائعة'}</p>
-            <p className="mt-2 text-2xl font-bold text-gold-300">{formatKwdMinor(kpis.financialImpactMinor, locale)}</p>
-            <p className="mt-1 text-xs text-gray-400">
-              {en ? 'Penalty' : 'فارق'}: {formatKwdMinor(kpis.commissionPenaltyMinor, locale)} · {en ? 'Lost' : 'ضائع'}:{' '}
-              {formatKwdMinor(kpis.lostSalesMinor, locale)}
-            </p>
-          </article>
-        </section>
-      ) : null}
-
-      {/* 🗺️ رادار مناطق التوصيل وحالة الأفرع في توصيل طلبات (Talabat Go Areas & Busy Time Radar) */}
-      <section className="mb-8">
-        <TalabatGeoZoneRadar locale={locale} />
-      </section>
-
-      <section className={panelClass}>
-        <h2 className="mb-3 font-semibold text-white">
-          {en ? 'Live Forensic Matrix — Venture Fleet vs Platform & Offline Tracker' : 'مصفوفة الرصد الجنائي الحي — أسطول فنتشر فودز مقابل توصيل المنصة وتتبع الإغلاق'}
-        </h2>
-        {!board || !Array.isArray(board.rows) || board.rows.length === 0 ? (
-          <p className="text-sm text-gray-400">{en ? 'No rows in current scope. Run a scan.' : 'لا صفوف في النطاق الحالي. شغّل فحصاً.'}</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[980px] text-sm text-slate-900 dark:text-gray-100">
-              <thead className="border-b border-slate-200 dark:border-white/10 text-slate-500 dark:text-gray-400">
-                <tr>
-                  <th className="whitespace-nowrap px-4 py-3 text-start">{en ? 'Brand' : 'البراند'}</th>
-                  <th className="whitespace-nowrap px-4 py-3 text-start">{en ? 'Branch / Area' : 'الفرع / المنطقة'}</th>
-                  <th className="whitespace-nowrap px-4 py-3 text-start">{en ? 'Platform' : 'المنصة'}</th>
-                  <th className="whitespace-nowrap px-4 py-3 text-start">{en ? 'Live Status' : 'الحالة اللحظية'}</th>
-                  <th className="whitespace-nowrap px-4 py-3 text-start">{en ? 'Delivery Channel' : 'قناة التوصيل'}</th>
-                  <th className="whitespace-nowrap px-4 py-3 text-start">{en ? 'Offline Period' : 'فترة الإغلاق'}</th>
-                  <th className="whitespace-nowrap px-4 py-3 text-start">{en ? 'Financial Impact' : 'الأثر المالي'}</th>
-                  <th className="whitespace-nowrap px-4 py-3 text-start">{en ? 'Action' : 'إجراء'}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-white/5">
-                {board.rows.map((row) => {
-                  if (!row) return null
-                  const status = statusBadge(row.status, en)
-                  const mode = modeBadge(row.mode, en, row.accountCode)
-                  const area = en ? row.areaEn : row.areaAr
-                  const branch = en ? cleanBranchLabel(row.branchNameEn, row.areaEn) : row.branchNameAr
-                  return (
-                    <tr key={row.id} className="hover:bg-slate-500/5 transition">
-                      <td className="whitespace-nowrap px-4 py-3 font-semibold">{displayBrandName(row.brandNameEn, row.brandNameAr, locale)}</td>
-                      <td className="whitespace-nowrap px-4 py-3">
-                        <span className="block font-medium">{branch}</span>
-                        <span className="text-xs text-slate-400 dark:text-gray-400">{area}</span>
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-3 font-medium">{row.platform}</td>
-                      <td className="whitespace-nowrap px-4 py-3">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold whitespace-nowrap ${status.className}`}>{status.label}</span>
-                      </td>
-                      <td className="whitespace-nowrap py-3 px-4 align-middle">
-                        <div className="whitespace-nowrap inline-flex items-center gap-2">
-                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap ${mode.badgeClass}`}>
-                            {mode.badgeLabel}
-                          </span>
-                          <span className={`text-xs font-medium whitespace-nowrap ${mode.subClass}`}>
-                            ({mode.subLabel})
-                          </span>
-                        </div>
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-xs text-slate-600 dark:text-gray-300">
-                        {row.offlineMinutes > 0 ? (
-                          <>
-                            <span className="block font-medium">
-                              {row.offlineFromIso
-                                ? new Date(row.offlineFromIso).toLocaleTimeString(en ? 'en-GB' : 'ar-KW', {
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                    hour12: true,
-                                    timeZone: 'Asia/Kuwait',
-                                  })
-                                : '—'}{' '}
-                              →{' '}
-                              {row.offlineToIso
-                                ? new Date(row.offlineToIso).toLocaleTimeString(en ? 'en-GB' : 'ar-KW', {
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                    hour12: true,
-                                    timeZone: 'Asia/Kuwait',
-                                  })
-                                : '—'}
-                            </span>
-                            <span className="text-amber-600 dark:text-amber-300 font-bold">
-                              {en ? `Duration: ${row.offlineMinutes} min` : `المدة: ${row.offlineMinutes} دقيقة`}
-                            </span>
-                          </>
-                        ) : (
-                          <span className="text-slate-400 dark:text-gray-500">{en ? 'No offline window' : 'لا فترة إغلاق'}</span>
-                        )}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-3 font-semibold text-amber-600 dark:text-gold-300">{formatKwdMinor(row.financialImpactMinor, locale)}</td>
-                      <td className="whitespace-nowrap px-4 py-3">
-                        <button
-                          type="button"
-                          className={secondaryButton}
-                          disabled={!canManage || busy}
-                          onClick={() => void runScan()}
-                        >
-                          {en ? '⚡ Reopen Venture Fleet 10% + log' : '⚡ إعادة فتح أسطول الشركة 10% + توثيق'}
-                        </button>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-
-      <section className={panelClass} id="forensic-reports">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-semibold text-white">
-            {en ? '📅 Daily / 📊 Weekly / 📈 Monthly Forensic Reports' : '📅 تقارير يومية / 📊 أسبوعية / 📈 شهرية'}
-          </h2>
-          <div className="flex flex-wrap gap-2">
-            {(['daily', 'weekly', 'monthly'] as const).map((value) => (
-              <button
-                key={value}
-                type="button"
-                className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                  period === value ? 'border-gold-300 bg-gold-400/15 text-gold-200' : 'border-white/15 text-gray-400'
-                }`}
-                onClick={() => setPeriod(value)}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          {filteredBranches.map((branch) => {
+            const tgoCount = branch.zoneAccounts.filter((a) => a.deliveryMode === 'Tgo').length
+            const mCount = branch.zoneAccounts.filter((a) => a.deliveryMode === 'M').length
+            return (
+              <div
+                key={branch.branchId}
+                className="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
               >
-                {value === 'daily' ? (en ? 'Daily' : 'يومي') : value === 'weekly' ? (en ? 'Weekly' : 'أسبوعي') : en ? 'Monthly claim' : 'مطالبة شهرية'}
-              </button>
-            ))}
-            <button type="button" className={secondaryButton} onClick={exportCsv}>
-              {en ? '📥 Export forensic proof (CSV)' : '📥 تصدير تقرير الإثبات الجنائي (CSV)'}
-            </button>
-            <button type="button" className={secondaryButton} onClick={() => window.print()}>
-              {en ? '🖨️ Print official Talabat claim' : '🖨️ طباعة مذكرة مطالبة رسمية لطلبات'}
-            </button>
-          </div>
-        </div>
-
-        {board?.report ? (
-          <div className="space-y-4 text-sm text-gray-100">
-            <div className="grid gap-3 md:grid-cols-4">
-              <article className="rounded-xl border border-white/10 p-3">
-                <p className="text-gray-400">{en ? 'Offline minutes' : 'دقائق الإغلاق'}</p>
-                <p className="mt-1 text-xl font-bold">{board.report.totalOfflineMinutes}</p>
-              </article>
-              <article className="rounded-xl border border-white/10 p-3">
-                <p className="text-gray-400">{en ? 'Venture Fleet GMV (10%)' : 'مبيعات أسطول فنتشر فودز (10%)'}</p>
-                <p className="mt-1 text-xl font-bold text-emerald-300">{formatKwdMinor(board.report.tmpGmvMinor, locale)}</p>
-              </article>
-              <article className="rounded-xl border border-white/10 p-3">
-                <p className="text-gray-400">{en ? 'Platform Fleet GMV (17%)' : 'مبيعات توصيل المنصة (17%)'}</p>
-                <p className="mt-1 text-xl font-bold text-red-300">{formatKwdMinor(board.report.tgoGmvMinor, locale)}</p>
-              </article>
-              <article className="rounded-xl border border-white/10 p-3">
-                <p className="text-gray-400">{en ? 'Claim (+7% + lost sales)' : 'المطالبة (+7% + ضائع)'}</p>
-                <p className="mt-1 text-xl font-bold text-gold-300">{formatKwdMinor(board.report.claimMinor, locale)}</p>
-              </article>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px]">
-                <thead className="text-gray-400">
-                  <tr>
-                    <th className="px-2 py-2 text-start">{en ? 'Brand' : 'البراند'}</th>
-                    <th className="px-2 py-2 text-start">{en ? 'Offline min' : 'دقائق الإغلاق'}</th>
-                    <th className="px-2 py-2 text-start">{en ? 'Penalty' : 'فارق العمولة'}</th>
-                    <th className="px-2 py-2 text-start">{en ? 'Impact' : 'الأثر'}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(board.report.byBrand ?? []).map((row) => (
-                    <tr key={row?.brandId ?? row?.brandNameEn} className="border-t border-white/5">
-                      <td className="px-2 py-2">{displayBrandName(row?.brandNameEn ?? '', row?.brandNameAr ?? '', locale)}</td>
-                      <td className="px-2 py-2">{num(row?.offlineMinutes)}</td>
-                      <td className="px-2 py-2">{formatKwdMinor(row?.penaltyMinor, locale)}</td>
-                      <td className="px-2 py-2 text-gold-300">{formatKwdMinor(row?.impactMinor, locale)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {period === 'daily' ? (
-              <div>
-                <h3 className="mb-2 font-semibold text-white">{en ? '24h timeline (5-minute cadence)' : 'خط زمني 24 ساعة (كل 5 دقائق)'}</h3>
-                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                  {(board.report.timeline ?? []).slice(0, 24).map((slot, idx) => (
-                    <div key={slot?.hourLabel ?? idx} className="rounded-lg border border-white/10 px-3 py-2 text-xs">
-                      <p className="font-semibold text-gold-200">{slot?.hourLabel ?? '—'}</p>
-                      <p>
-                        {en ? 'Offline' : 'إغلاق'}: {num(slot?.offlineMinutes)}m
-                      </p>
-                      <p>
-                        {en ? `Platform Fleet (17%): ${num(slot?.tgoForcedCount)} · ${formatKwdMinor(slot?.impactMinor, locale)}` : `توصيل المنصة (17%): ${num(slot?.tgoForcedCount)} · ${formatKwdMinor(slot?.impactMinor, locale)}`}
-                      </p>
+                <div>
+                  {/* Branch Header */}
+                  <div className="flex items-start justify-between gap-2 border-b border-slate-100 pb-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="rounded bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-800 tabular-nums">
+                          {branch.branchCode}
+                        </span>
+                        <h3 className="text-[15px] md:text-base font-bold text-slate-900">
+                          {isEn ? branch.branchNameEn : branch.branchNameAr}
+                        </h3>
+                      </div>
+                      <div className="mt-1.5 flex flex-wrap gap-1">
+                        {branch.supportedBrandIds.map((bid) => {
+                          const bObj = VENTURE_BRANDS.find((x) => x.id === bid)
+                          return (
+                            <span
+                              key={bid}
+                              className="rounded border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-800"
+                            >
+                              {isEn ? bObj?.nameEn : bObj?.nameAr}
+                            </span>
+                          )
+                        })}
+                      </div>
                     </div>
-                  ))}
+                    <div className="text-end">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-bold text-emerald-800 tabular-nums">
+                        {branch.onlineZonesCount}/{branch.totalZonesCount} {T('Areas Online', 'مناطق متصلة')}
+                      </span>
+                      <div className="mt-1 text-xs font-semibold text-slate-600 tabular-nums">
+                        Tgo: {tgoCount} · M: {mCount}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Section 2 inside Card: Restaurant Zone Accounts (Tgo & M) */}
+                  <div className="mt-3">
+                    <div className="mb-1.5 text-xs font-bold text-slate-700">
+                      {T(
+                        'Platform Zone Accounts under this Branch (Tgo & M):',
+                        'حسابات أفرع المناطق وتغطية المطعم التابعة للفرع (Tgo و M):',
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      {branch.zoneAccounts.map((acc) => (
+                        <div
+                          key={acc.accountId}
+                          className="rounded-lg border border-slate-200 bg-slate-50/70 p-2.5 text-[13px]"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-1.5">
+                            <span className="font-bold text-slate-900">
+                              {isEn ? acc.brandNameEn : acc.brandNameAr} · {acc.platform}
+                            </span>
+                            <ModeBadgePill mode={acc.deliveryMode} isEn={isEn} />
+                          </div>
+                          <div className="mt-1 text-xs font-semibold text-slate-700">
+                            {isEn ? acc.sectorNameEn : acc.sectorNameAr}
+                          </div>
+                          <div className="mt-1.5 flex items-center justify-between gap-2 text-xs">
+                            <span className="font-semibold text-slate-600 tabular-nums" dir="ltr">
+                              GL #{acc.accountCode} · {acc.commissionPct}%
+                            </span>
+                            <StatusPill status={acc.status} isEn={isEn} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Covered Customer Delivery Areas Pill List */}
+                <div className="mt-3 border-t border-slate-100 pt-3">
+                  <div className="mb-1.5 text-xs font-bold text-slate-700">
+                    {T(
+                      'Customer Delivery Areas Served by this Branch:',
+                      'مناطق الزبائن المخدومة من هذا الفرع الفعلي:',
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {branch.zones.map((z) => {
+                      const isIssue = z.status !== 'ONLINE_VISIBLE'
+                      return (
+                        <span
+                          key={z.id}
+                          className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-semibold ${
+                            isIssue
+                              ? 'border-rose-300 bg-rose-50 text-rose-900'
+                              : 'border-slate-200 bg-white text-slate-800'
+                          }`}
+                        >
+                          <span>{isEn ? zoneLabelEn(z.zoneNameEn) : zoneLabelAr(z.zoneNameAr)}</span>
+                          <span
+                            className="rounded px-1 text-[11px] font-extrabold text-white"
+                            style={{
+                              backgroundColor: z.deliveryMode === 'Tgo' ? '#EA580C' : '#1E3A8A',
+                              color: '#FFFFFF',
+                            }}
+                          >
+                            {z.deliveryMode}
+                          </span>
+                        </span>
+                      )
+                    })}
+                  </div>
                 </div>
               </div>
-            ) : null}
+            )
+          })}
+        </div>
+      </section>
 
-            {period !== 'daily' ? (
-              <div>
-                <h3 className="mb-2 font-semibold text-white">{en ? 'Weekday / period breakdown' : 'تفصيل الأيام / الفترة'}</h3>
-                <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                  {(board.report.weekdays ?? []).map((day, idx) => (
-                    <li key={day?.dayLabel ?? idx} className="rounded-lg border border-white/10 px-3 py-2 text-xs">
-                      <p className="font-semibold text-gold-200">{day?.dayLabel ?? '—'}</p>
-                      <p>
-                        {en ? `Offline: ${num(day?.offlineMinutes)}m · Platform: ${num(day?.tgoForcedCount)}` : `إغلاق: ${num(day?.offlineMinutes)} دقيقة · توصيل المنصة: ${num(day?.tgoForcedCount)}`}
-                      </p>
-                      <p>{formatKwdMinor(day?.impactMinor, locale)}</p>
-                    </li>
-                  ))}
-                </ul>
+      {/* =====================================================================
+          SECTION 3: INDEPENDENT CUSTOMER DELIVERY AREAS DIRECTORY
+         ===================================================================== */}
+      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs space-y-3">
+        <div>
+          <h2 className="text-[15px] md:text-base font-bold text-slate-900">
+            {T(
+              '3. Customer Delivery Areas (Residential Areas & Serving Branch Mapping)',
+              'ثالثاً: مناطق الزبائن (Customer Delivery Areas) — المناطق السكنية والفرع الفعلي الذي يخدم كل منطقة ونوع التغطية (Tgo أو M)',
+            )}
+          </h2>
+          <p className="text-xs font-semibold text-slate-600">
+            {T(
+              'Residential areas where customers place orders, explicitly mapped to the physical Restaurant Branch serving them and whether delivery is Tgo (Platform) or M (Restaurant Fleet).',
+              'المناطق السكنية التي يطلب منها العملاء مفصولة بوضوح عن الفروع الفعلية، مع بيان الفرع الفعلي للمطعم الذي يخدم كل منطقة ونوع التغطية (Tgo أو M).',
+            )}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+          {filteredRows.map((area) => (
+            <div
+              key={area.id}
+              className={`rounded-lg border p-3 ${
+                area.status === 'ONLINE_VISIBLE'
+                  ? 'border-slate-200 bg-slate-50/60'
+                  : 'border-rose-300 bg-rose-50/50'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[13px] md:text-sm font-bold text-slate-900">
+                  {isEn ? area.displayAreaEn : area.displayAreaAr}
+                </span>
+                <ModeBadgePill mode={area.deliveryMode} isEn={isEn} />
               </div>
-            ) : null}
+              <div className="mt-1.5 text-xs font-semibold text-slate-700">
+                {T('Serving Branch:', 'الفرع الفعلي الخادم:')}{' '}
+                <strong className="text-slate-900">{isEn ? area.branchNameEn : area.branchNameAr}</strong>
+              </div>
+              <div className="mt-1 flex items-center justify-between text-xs font-semibold text-slate-600">
+                <span>
+                  {isEn ? area.brandNameEn : area.brandNameAr} · {area.platform} ({area.distanceKm} km)
+                </span>
+                <StatusPill status={area.status} isEn={isEn} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* =====================================================================
+          PART C: DETAILED FILTERABLE TABLE
+          (Actual Branch | Brand | Platform | Type Tgo or M | Customer Area | Status)
+         ===================================================================== */}
+      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs space-y-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-[15px] md:text-base font-bold text-slate-900">
+              {T(
+                '4. Comprehensive Filterable Operations Table (Branch · Brand · Platform · Tgo/M · Customer Area · Status)',
+                'رابعاً: الجدول التفصيلي الشامل القابل للفلترة (الفرع الفعلي | العلامة التجارية | المنصة | النوع Tgo أو M | منطقة الزبون | الحالة)',
+              )}
+            </h2>
+            <p className="text-xs font-semibold text-slate-600">
+              {T(
+                `Showing ${filteredRows.length} of ${allCustomerAreas.length} monitored customer area connections.`,
+                `يعرض ${filteredRows.length} من أصل ${allCustomerAreas.length} نطاق تغطية لمناطق الزبائن.`,
+              )}
+            </p>
           </div>
-        ) : null}
+          {hasFilters && (
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-800 hover:bg-slate-50"
+            >
+              {T('Clear Filters', 'مسح الفلاتر')}
+            </button>
+          )}
+        </div>
+
+        {/* 6 Filter Controls matching Requirement 3-c */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 rounded-lg border border-slate-200 bg-slate-50 p-3">
+          <label className="block">
+            <span className="block text-xs font-bold text-slate-700 mb-1">
+              {T('1. Actual Branch', '1. الفرع الفعلي للمطعم')}
+            </span>
+            <select
+              value={branchFilter}
+              onChange={(e) => setBranchFilter(e.target.value)}
+              className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-[13px] font-semibold text-slate-900"
+            >
+              <option value="ALL">{T('All 9 Branches', 'كل الفروع الفعلية (9)')}</option>
+              {INITIAL_BRANCH_PROFILES.map((b) => (
+                <option key={b.branchId} value={b.branchId}>
+                  {isEn ? b.branchNameEn : b.branchNameAr}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block">
+            <span className="block text-xs font-bold text-slate-700 mb-1">
+              {T('2. Brand', '2. العلامة التجارية')}
+            </span>
+            <select
+              value={brandFilter}
+              onChange={(e) => setBrandFilter(e.target.value)}
+              className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-[13px] font-semibold text-slate-900"
+            >
+              <option value="ALL">{T('All 6 Brands', 'كل العلامات (6)')}</option>
+              {VENTURE_BRANDS.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {isEn ? b.nameEn : b.nameAr}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block">
+            <span className="block text-xs font-bold text-slate-700 mb-1">
+              {T('3. Platform', '3. المنصة')}
+            </span>
+            <select
+              value={platformFilter}
+              onChange={(e) => setPlatformFilter(e.target.value)}
+              className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-[13px] font-semibold text-slate-900"
+            >
+              <option value="ALL">{T('All Platforms', 'كل المنصات')}</option>
+              {(['Talabat', 'Keeta', 'Deliveroo', 'Jahez'] as RadarPlatform[]).map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block">
+            <span className="block text-xs font-bold text-slate-700 mb-1">
+              {T('4. Type (Tgo or M)', '4. النوع (Tgo أو M)')}
+            </span>
+            <select
+              value={quickMode}
+              onChange={(e) => setQuickMode(e.target.value as 'ALL' | 'Tgo' | 'M')}
+              className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-[13px] font-semibold text-slate-900"
+            >
+              <option value="ALL">{T('All (Tgo & M)', 'الكل (Tgo و M)')}</option>
+              <option value="Tgo">{T('Tgo Only (Platform Delivery)', 'حسابات Tgo فقط (توصيل المنصة)')}</option>
+              <option value="M">{T('M Only (Restaurant Delivery)', 'حسابات M فقط (توصيل المطعم)')}</option>
+            </select>
+          </label>
+
+          <label className="block">
+            <span className="block text-xs font-bold text-slate-700 mb-1">
+              {T('5. Customer Area', '5. منطقة الزبون')}
+            </span>
+            <select
+              value={areaFilter}
+              onChange={(e) => setAreaFilter(e.target.value)}
+              className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-[13px] font-semibold text-slate-900"
+            >
+              <option value="ALL">{T('All Customer Areas', 'كل مناطق الزبائن')}</option>
+              {customerAreaOptions.map((a) => (
+                <option key={a.key} value={a.key}>
+                  {isEn ? a.en : a.ar}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block">
+            <span className="block text-xs font-bold text-slate-700 mb-1">
+              {T('6. Status', '6. الحالة')}
+            </span>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-[13px] font-semibold text-slate-900"
+            >
+              <option value="ALL">{T('All Statuses', 'كل الحالات')}</option>
+              <option value="ONLINE_VISIBLE">{T('Online & Active', 'متصل ونشط')}</option>
+              <option value="BUSY_IN_AREA">{T('Busy in Area', 'مشغول في المنطقة')}</option>
+              <option value="AREA_CLOSED_HIDDEN">{T('Stopped / Polygon Cut', 'متوقف / مقطوع النطاق')}</option>
+            </select>
+          </label>
+        </div>
+
+        {/* Clean High-Contrast Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-[13px] md:text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold text-slate-600">
+                <th className="py-2.5 px-3 text-start">{T('Actual Restaurant Branch', 'الفرع الفعلي للمطعم')}</th>
+                <th className="py-2.5 px-3 text-start">{T('Brand', 'العلامة التجارية')}</th>
+                <th className="py-2.5 px-3 text-start">{T('Platform', 'المنصة')}</th>
+                <th className="py-2.5 px-3 text-start">{T('Account Type (Tgo / M)', 'النوع (Tgo أو M)')}</th>
+                <th className="py-2.5 px-3 text-start">{T('Platform Zone Account', 'حساب تغطية المنطقة')}</th>
+                <th className="py-2.5 px-3 text-start">{T('Customer Area', 'منطقة الزبون السكنية')}</th>
+                <th className="py-2.5 px-3 text-start">{T('Status', 'الحالة')}</th>
+                <th className="py-2.5 px-3 text-end">{T('Financial Impact', 'الأثر المالي')}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {filteredRows.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="py-6 text-center text-sm font-semibold text-slate-600">
+                    {T('No rows match the selected filters.', 'لا توجد سجلات تطابق الفلاتر المحددة.')}
+                  </td>
+                </tr>
+              ) : (
+                filteredRows.map((row) => (
+                  <tr key={row.id} className="hover:bg-slate-50">
+                    <td className="py-2.5 px-3 font-semibold text-slate-900 whitespace-nowrap leading-relaxed">
+                      {isEn ? row.branchNameEn : row.branchNameAr}
+                    </td>
+                    <td className="py-2.5 px-3 font-medium text-slate-800 whitespace-nowrap leading-relaxed">
+                      {isEn ? row.brandNameEn : row.brandNameAr}
+                    </td>
+                    <td className="py-2.5 px-3 font-semibold text-slate-800 whitespace-nowrap leading-relaxed">
+                      {row.platform}
+                    </td>
+                    <td className="py-2.5 px-3 whitespace-nowrap leading-relaxed">
+                      <ModeBadgePill mode={row.deliveryMode} isEn={isEn} />
+                    </td>
+                    <td className="py-2.5 px-3 font-medium text-slate-700 leading-relaxed">
+                      {isEn ? row.zoneAccountNameEn : row.zoneAccountNameAr}
+                    </td>
+                    <td className="py-2.5 px-3 font-bold text-slate-900 whitespace-nowrap leading-relaxed">
+                      {isEn ? row.displayAreaEn : row.displayAreaAr}{' '}
+                      <span className="text-xs font-normal text-slate-600 tabular-nums">({row.distanceKm} km)</span>
+                    </td>
+                    <td className="py-2.5 px-3 whitespace-nowrap leading-relaxed">
+                      <StatusPill status={row.status} isEn={isEn} />
+                    </td>
+                    <td className="py-2.5 px-3 text-end font-semibold tabular-nums whitespace-nowrap leading-relaxed">
+                      {row.estimatedLostKwd > 0 ? (
+                        <span className="text-rose-700 font-bold" dir="ltr">
+                          -{row.estimatedLostKwd.toFixed(3)} {isEn ? 'KWD' : 'د.ك'} ({row.estimatedLostOrders}{' '}
+                          {isEn ? 'orders' : 'طلب'})
+                        </span>
+                      ) : (
+                        <span className="text-emerald-700">
+                          {T('0.000 (Normal)', '0.000 (طبيعي)')}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </section>
     </div>
-  )
-}
-
-export default function AggregatorRadar({ permissions: granted }: { permissions: readonly string[] }) {
-  return (
-    <PermissionProvider permissions={granted}>
-      <Workspace />
-    </PermissionProvider>
   )
 }

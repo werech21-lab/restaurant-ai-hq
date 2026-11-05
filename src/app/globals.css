@@ -43,13 +43,32 @@ html.light-mode {
   --shadow-lift: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
 }
 
+html,
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
 body {
   min-height: 100vh;
-  text-rendering: optimizeLegibility;
-  font-family: var(--font-cairo), var(--font-poppins), 'Cairo', 'Poppins', sans-serif;
+  font-family: var(--font-ibm-plex-arabic), var(--font-inter), var(--font-cairo), 'IBM Plex Sans Arabic', 'Inter', 'Cairo', system-ui, sans-serif;
   background: rgb(var(--ink-950));
   color: rgb(var(--mist-100));
   overflow-x: clip;
+}
+
+html[lang='en'] body {
+  font-family: var(--font-inter), var(--font-ibm-plex-arabic), var(--font-cairo), 'Inter', 'IBM Plex Sans Arabic', 'Cairo', system-ui, sans-serif;
+}
+
+.tabular-nums,
+.num,
+table,
+td,
+th,
+[data-kpi-val] {
+  font-variant-numeric: tabular-nums;
 }
 
 /* ==========================================================================
@@ -213,19 +232,23 @@ html.dark .app-content .text-slate-700:not([role="tooltip"] *),
 html.dark .app-content .text-slate-600:not([role="tooltip"] *),
 html.dark .app-content .text-slate-500:not([role="tooltip"] *),
 html.dark .app-content .text-slate-400:not([role="tooltip"] *),
+html.dark .app-content .text-slate-300:not([role="tooltip"] *),
 html.dark .app-content .text-gray-700:not([role="tooltip"] *),
 html.dark .app-content .text-gray-600:not([role="tooltip"] *),
 html.dark .app-content .text-gray-500:not([role="tooltip"] *),
 html.dark .app-content .text-gray-400:not([role="tooltip"] *),
+html.dark .app-content .text-neutral-400:not([role="tooltip"] *),
 html[data-theme='dark'] .app-content .text-slate-700:not([role="tooltip"] *),
 html[data-theme='dark'] .app-content .text-slate-600:not([role="tooltip"] *),
 html[data-theme='dark'] .app-content .text-slate-500:not([role="tooltip"] *),
 html[data-theme='dark'] .app-content .text-slate-400:not([role="tooltip"] *),
+html[data-theme='dark'] .app-content .text-slate-300:not([role="tooltip"] *),
 html[data-theme='dark'] .app-content .text-gray-700:not([role="tooltip"] *),
 html[data-theme='dark'] .app-content .text-gray-600:not([role="tooltip"] *),
 html[data-theme='dark'] .app-content .text-gray-500:not([role="tooltip"] *),
-html[data-theme='dark'] .app-content .text-gray-400:not([role="tooltip"] *) {
-  color: #94A3B8 !important;
+html[data-theme='dark'] .app-content .text-gray-400:not([role="tooltip"] *),
+html[data-theme='dark'] .app-content .text-neutral-400:not([role="tooltip"] *) {
+  color: #CBD5E1 !important;
 }
 html.dark .app-content .bg-white:not([role="tooltip"]),
 html[data-theme='dark'] .app-content .bg-white:not([role="tooltip"]) {
@@ -566,6 +589,7 @@ html[data-theme='light'] .text-slate-300,
 html[data-theme='light'] .text-slate-400,
 html[data-theme='light'] .text-gray-300,
 html[data-theme='light'] .text-gray-400,
+html[data-theme='light'] .text-neutral-400,
 html[data-theme='light'] .text-zinc-300,
 html[data-theme='light'] .text-zinc-400,
 html[data-theme='light'] .text-mist-300,
@@ -574,6 +598,7 @@ html.light-mode .text-slate-300,
 html.light-mode .text-slate-400,
 html.light-mode .text-gray-300,
 html.light-mode .text-gray-400,
+html.light-mode .text-neutral-400,
 html.light-mode .text-zinc-300,
 html.light-mode .text-zinc-400,
 html.light-mode .text-mist-300,
@@ -582,6 +607,7 @@ html.light .text-slate-300,
 html.light .text-slate-400,
 html.light .text-gray-300,
 html.light .text-gray-400,
+html.light .text-neutral-400,
 html.light .text-zinc-300,
 html.light .text-zinc-400,
 html.light .text-mist-300,
@@ -590,27 +616,66 @@ html:not(.dark) .text-slate-300,
 html:not(.dark) .text-slate-400,
 html:not(.dark) .text-gray-300,
 html:not(.dark) .text-gray-400,
+html:not(.dark) .text-neutral-400,
 html:not(.dark) .text-zinc-300,
 html:not(.dark) .text-zinc-400,
 html:not(.dark) .text-mist-300,
 html:not(.dark) .text-mist-400 {
-  color: #334155 !important;
+  color: #475569 !important;
 }
 
 /* Muted Captions and Micro Labels */
 html[data-theme='light'] .text-slate-500,
 html[data-theme='light'] .text-slate-600,
+html[data-theme='light'] .text-gray-500,
+html[data-theme='light'] .text-gray-600,
 html[data-theme='light'] .text-mist-500,
 html.light-mode .text-slate-500,
 html.light-mode .text-slate-600,
+html.light-mode .text-gray-500,
+html.light-mode .text-gray-600,
 html.light-mode .text-mist-500,
 html.light .text-slate-500,
 html.light .text-slate-600,
+html.light .text-gray-500,
+html.light .text-gray-600,
 html.light .text-mist-500,
 html:not(.dark) .text-slate-500,
 html:not(.dark) .text-slate-600,
+html:not(.dark) .text-gray-500,
+html:not(.dark) .text-gray-600,
 html:not(.dark) .text-mist-500 {
-  color: #64748B !important;
+  color: #475569 !important;
+}
+
+html[data-theme='light'] .text-slate-700,
+html[data-theme='light'] .text-slate-800,
+html[data-theme='light'] .text-gray-700,
+html[data-theme='light'] .text-gray-800,
+html.light-mode .text-slate-700,
+html.light-mode .text-slate-800,
+html.light-mode .text-gray-700,
+html.light-mode .text-gray-800,
+html.light .text-slate-700,
+html.light .text-slate-800,
+html.light .text-gray-700,
+html.light .text-gray-800,
+html:not(.dark) .text-slate-700,
+html:not(.dark) .text-slate-800,
+html:not(.dark) .text-gray-700,
+html:not(.dark) .text-gray-800 {
+  color: #1E293B !important;
+}
+
+html[data-theme='light'] .text-slate-900,
+html[data-theme='light'] .text-gray-900,
+html.light-mode .text-slate-900,
+html.light-mode .text-gray-900,
+html.light .text-slate-900,
+html.light .text-gray-900,
+html:not(.dark) .text-slate-900,
+html:not(.dark) .text-gray-900 {
+  color: #0F172A !important;
 }
 
 /* 6. Action Buttons Color Fidelity (Ensure colored buttons keep 100% white text) */
@@ -714,9 +779,9 @@ html.light-mode thead th,
 html.light thead th,
 html:not(.dark) thead th {
   background-color: #F8FAFC !important;
-  color: #334155 !important;
+  color: #475569 !important;
   border-color: #E2E8F0 !important;
-  font-weight: 800 !important;
+  font-weight: 600 !important;
 }
 html[data-theme='light'] tbody tr,
 html.light-mode tbody tr,
