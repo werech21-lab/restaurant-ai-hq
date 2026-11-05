@@ -846,7 +846,7 @@ function ScorecardInner() {
             <div className="bg-white border border-gray-200 border-s-[3px] border-s-gray-700 rounded-md p-3">
               <div className="text-[10px] text-gray-500">{tr("Best seller")}</div>
               <div className="text-[12px] text-gray-800 mt-0.5">
-                {isAr ? (<><strong className="font-semibold">Chicken Noodles</strong> من <strong className="font-semibold">تشاينا جاردن</strong> باع <strong className="font-semibold"><span dir="ltr" className="inline-block tabular-nums">KWD 12,043</span></strong> وتمثل <strong className="font-semibold"><span dir="ltr" className="inline-block tabular-nums">7.2%</span></strong> من مبيعات المنيو.</>) : (<><strong className="font-semibold">Chicken Noodles</strong> from <strong className="font-semibold">China Garden</strong> sold <strong className="font-semibold">KWD 12,043</strong>, which is <strong className="font-semibold">7.2%</strong> of menu sales.</>)}
+                {isAr ? (<><strong className="font-semibold">Chicken Noodles</strong> من <strong className="font-semibold">تشاينا جاردن</strong> باع <strong className="font-semibold"><span dir="ltr" className="inline-block tabular-nums">12,043 د.ك</span></strong> وتمثل <strong className="font-semibold"><span dir="ltr" className="inline-block tabular-nums">7.2%</span></strong> من مبيعات المنيو.</>) : (<><strong className="font-semibold">Chicken Noodles</strong> from <strong className="font-semibold">China Garden</strong> sold <strong className="font-semibold">KWD 12,043</strong>, which is <strong className="font-semibold">7.2%</strong> of menu sales.</>)}
               </div>
             </div>
             <div className="bg-white border border-gray-200 border-s-[3px] border-s-gray-700 rounded-md p-3">
