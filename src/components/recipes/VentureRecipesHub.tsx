@@ -78,7 +78,7 @@ export const DETAILED_RECIPES: MultiLevelBomRecipe[] = [
       { code: 'RW01-BT01', nameAr: 'زبدة وأعشاب إكليل الجبل', nameEn: 'Herb Butter', qty: '25g', unitCost: 3.200, yieldPercent: 100, costKwd: 0.080 },
     ],
     prepLevel2: [
-      { code: 'PP03-PPR', nameAr: 'صوص الفلفل الأسود (المطبخ المركزي بالقرين)', nameEn: 'Black Pepper Demi Prep', qty: '80ml', unitCost: 2.800, costKwd: 0.224 },
+      { code: 'PP03-PPR', nameAr: 'صوص الفلفل الأسود (المطبخ المركزي)', nameEn: 'Black Pepper Demi Prep', qty: '80ml', unitCost: 2.800, costKwd: 0.224 },
       { code: 'PP03-MSH', nameAr: 'بطاطا مهروسة متبلة (القرين)', nameEn: 'Mashed Potato CK Prep', qty: '150g', unitCost: 1.100, costKwd: 0.165 },
     ],
     packagingLevel3: [
@@ -154,7 +154,7 @@ export const DETAILED_RECIPES: MultiLevelBomRecipe[] = [
       { code: 'RW01-SS01', nameAr: 'زيت سمسم وصلصة صويا فاخرة', nameEn: 'Sesame Oil & Premium Soy Sauce', qty: '25ml', unitCost: 1.800, yieldPercent: 100, costKwd: 0.045 },
     ],
     prepLevel2: [
-      { code: 'PP03-CGS', nameAr: 'خلطة صوص كانتون السرية (المطبخ المركزي بالقرين)', nameEn: 'China Garden Canton Secret Sauce', qty: '60ml', unitCost: 2.400, costKwd: 0.144 },
+      { code: 'PP03-CGS', nameAr: 'خلطة صوص كانتون السرية (المطبخ المركزي)', nameEn: 'China Garden Canton Secret Sauce', qty: '60ml', unitCost: 2.400, costKwd: 0.144 },
     ],
     packagingLevel3: [
       { code: 'PI02-BOX', nameAr: 'علبة وجبات صينية حرارية محكمة الإغلاق', nameEn: 'Thermal Asian Meal Container', qty: '1 unit', unitCost: 0.120, costKwd: 0.120 },
@@ -597,7 +597,7 @@ export function VentureRecipesHub({
           { key: 'variance', labelAr: '⚖️ تحليل الانحراف المالي: النظري مقابل الفعلي', labelEn: 'Theoretical vs Actual Variance', icon: Scale },
           { key: 'channelSim', labelAr: '🛵 محاكي ربحية الطبق عبر قنوات البيع', labelEn: 'Channel Net Margin Simulator', icon: Bike },
           { key: 'priceCreep', labelAr: '📈 أثر تضخم أسعار المشتريات على الوصفات', labelEn: 'Price Creep & Margin Alert', icon: TrendingUp },
-          { key: 'batchPrep', labelAr: '🏭 حاسبة تشغيلات المطبخ المركزي بالقرين', labelEn: 'Central Kitchen Batch Scaling', icon: Factory },
+          { key: 'batchPrep', labelAr: '🏭 حاسبة تشغيلات المطبخ المركزي', labelEn: 'Central Kitchen Batch Scaling', icon: Factory },
           { key: 'glBridge', labelAr: '🔗 الربط المالي والقيود التلقائية الرباعية', labelEn: 'Automated 4D Financial Bridge', icon: ArrowRightLeft },
           ...(liveChildren ? [{ key: 'legacy', labelAr: '⚙️ سجل الوصفات في قاعدة البيانات المركزية', labelEn: 'Central Database Recipes Registry', icon: Building2 }] : []),
         ].map((tab) => {
@@ -752,7 +752,7 @@ export function VentureRecipesHub({
                   <div className="text-sm font-black text-blue-400 font-mono mt-0.5">{rawSum.toFixed(3)} {isAr ? 'د.ك' : 'KWD'}</div>
                 </div>
                 <div className="rounded-xl border border-slate-800 bg-slate-950 p-3">
-                  <div className="text-[10px] text-slate-400">{isAr ? 'تحضيرات المطبخ المركزي بالقرين' : 'Central Kitchen Preps'}</div>
+                  <div className="text-[10px] text-slate-400">{isAr ? 'تحضيرات المطبخ المركزي' : 'Central Kitchen Preps'}</div>
                   <div className="text-sm font-black text-amber-400 font-mono mt-0.5">{prepSum.toFixed(3)} {isAr ? 'د.ك' : 'KWD'}</div>
                 </div>
                 <div className="rounded-xl border border-slate-800 bg-slate-950 p-3">
@@ -801,7 +801,7 @@ export function VentureRecipesHub({
               <div className="space-y-2">
                 <div className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
                   <Factory size={14} />
-                  {isAr ? 'المستوى الثاني: تحضيرات وصوصات المطبخ المركزي بالقرين' : 'Level 2: Central Kitchen Preps & Sauces'}
+                  {isAr ? 'المستوى الثاني: تحضيرات وصوصات المطبخ المركزي' : 'Level 2: Central Kitchen Preps & Sauces'}
                 </div>
                 <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/60">
                   <table className="w-full text-right text-xs">
@@ -1093,7 +1093,7 @@ export function VentureRecipesHub({
             <div>
               <h3 className="text-base font-black text-white sm:text-lg flex items-center gap-2">
                 <Factory size={18} className="text-amber-400" />
-                {isAr ? 'حاسبة تشغيلات المطبخ المركزي بالقرين وسعر التحويل الداخلي' : 'Al-Qurain Central Kitchen Batch Scaling & Yield Calculator'}
+                {isAr ? 'حاسبة تشغيلات المطبخ المركزي وسعر التحويل الداخلي' : 'Central Kitchen Batch Scaling & Yield Calculator'}
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
                 {isAr

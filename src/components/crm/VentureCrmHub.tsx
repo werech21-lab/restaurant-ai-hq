@@ -137,7 +137,7 @@ export function VentureCrmHub({
             <div className="rounded-xl border border-slate-800 bg-[#0f172a]/60 p-4">
               <span className="text-xs text-slate-400">{isAr ? 'الوجبات الموردة شهرياً' : 'Monthly Meals Supplied'}</span>
               <p className="mt-1 text-2xl font-black text-emerald-400">12,400 {isAr ? 'وجبة' : 'Meals'}</p>
-              <span className="text-[11px] text-slate-500">{isAr ? 'من المطبخ المركزي بالقرين' : 'Prepared at Al-Qurain'}</span>
+              <span className="text-[11px] text-slate-500">{isAr ? 'من المطبخ المركزي' : 'Prepared at Al-Qurain'}</span>
             </div>
             <div className="rounded-xl border border-slate-800 bg-[#0f172a]/60 p-4">
               <span className="text-xs text-slate-400">{isAr ? 'متوسط قيمة العقد' : 'Avg Deal Size'}</span>

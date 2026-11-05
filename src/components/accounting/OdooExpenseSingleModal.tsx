@@ -119,7 +119,7 @@ const BRANDS_6 = [
 const VEHICLES_LIST = [
   { id: 'none', nameAr: 'بدون ربط سيارة (مصروف غير مروري)', nameEn: 'None — Non-Vehicle Expense' },
   { id: 'car_14_8891', nameAr: 'تويوتا يارس 14-8891 (توصيل الفروانية)', nameEn: 'Toyota Yaris 14-8891 (Farwaniya Delivery)' },
-  { id: 'car_22_1043', nameAr: 'وانيت إيسوزو ديماكس 22-1043 (المطبخ المركزي بالقرين)', nameEn: 'Isuzu D-Max 22-1043 (Central Kitchen)' },
+  { id: 'car_22_1043', nameAr: 'وانيت إيسوزو ديماكس 22-1043 (المطبخ المركزي)', nameEn: 'Isuzu D-Max 22-1043 (Central Kitchen)' },
   { id: 'car_65_2241', nameAr: 'نيسان صني 65-2241 (توصيل السالمية)', nameEn: 'Nissan Sunny 65-2241 (Salmiya Delivery)' },
   { id: 'car_18_9902', nameAr: 'باص ميتسوبيشي روزا 18-9902 (نقل عمال المطابخ)', nameEn: 'Mitsubishi Rosa 18-9902 (Staff Shuttle)' },
   { id: 'car_31_4401', nameAr: 'تويوتا هايس 31-4401 (صيانة ربيع طه)', nameEn: 'Toyota Hiace 31-4401 (Maintenance Rabih)' },

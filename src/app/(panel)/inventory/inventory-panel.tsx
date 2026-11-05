@@ -166,10 +166,10 @@ export const ACCOUNTING_CATEGORIES_DATA = [
 ];
 
 export const INTERNAL_TRANSFERS_DATA: MovementRow[] = [
-  { id: "mv-01", dateLabel: "04/11/2026 10:30", productName: "لحم أنجوس مفروم 80/20 + صوص كانتون", code: "RW01-BF03 / PP03-CGS", type: "OUT", typeLabel: "تحويل داخلي صادر", quantityLabel: "150 كجم / 20 جالون", balanceLabel: "2,000 كجم", note: "شحنة تبريد من المطبخ المركزي بالقرين إلى فرع الأفنيوز", userName: "سليم مياه خان (مسؤول التحضير)", fromLocation: "المطبخ المركزي بالقرين", toLocation: "فرع مجمع الأفنيوز", statusLabel: "🚚 بالطريق (بانتظار الوزن وتأكيد مدير الفرع)" },
-  { id: "mv-02", dateLabel: "04/11/2026 09:15", productName: "صدور دجاج متبلة + خبز بريوش طازج", code: "RW01-CK01 / RW01-BN01", type: "OUT", typeLabel: "تحويل داخلي صادر", quantityLabel: "200 كجم / 400 حبة", balanceLabel: "3,250 كجم", note: "شحنة تبريد صباحية يومية لفرع السالمية", userName: "سليم مياه خان (القرين)", fromLocation: "المطبخ المركزي بالقرين", toLocation: "فرع السالمية", statusLabel: "✅ تم استلام ووزن الشحنة ومطابقتها" },
-  { id: "mv-03", dateLabel: "03/11/2026 16:45", productName: "طحينة سمسم سائلة + ثومية القرين", code: "RW01-TAH / PP03-GAR", type: "OUT", typeLabel: "تحويل داخلي صادر", quantityLabel: "15 سطل / 20 سطل", balanceLabel: "105 سطل", note: "توريد تحضيرات الشاورما لفرع الفروانية", userName: "سليم مياه خان (القرين)", fromLocation: "المطبخ المركزي بالقرين", toLocation: "فرع الفروانية", statusLabel: "✅ تم الاستلام والتخزين المبرد" },
-  { id: "mv-04", dateLabel: "03/11/2026 11:20", productName: "لحم بلاك أنجوس ريب آي أسترالي مبرد", code: "RW01-BF01", type: "IN", typeLabel: "توريد موردين (سند استلام مخزني)", quantityLabel: "1,500 كجم", balanceLabel: "1,420 كجم", note: "استلام شحنة لحوم مبردة من شركة المواشي الكويتية (سند شراء رقم 119)", userName: "ربيع أنيس يحيى (فني الجودة)", fromLocation: "المورد: شركة المواشي", toLocation: "المطبخ المركزي بالقرين", statusLabel: "✅ فحص معتمد وحرارة +1.2 مئوية" },
+  { id: "mv-01", dateLabel: "04/11/2026 10:30", productName: "لحم أنجوس مفروم 80/20 + صوص كانتون", code: "RW01-BF03 / PP03-CGS", type: "OUT", typeLabel: "تحويل داخلي صادر", quantityLabel: "150 كجم / 20 جالون", balanceLabel: "2,000 كجم", note: "شحنة تبريد من المطبخ المركزي إلى فرع الأفنيوز", userName: "سليم مياه خان (مسؤول التحضير)", fromLocation: "المطبخ المركزي", toLocation: "فرع مجمع الأفنيوز", statusLabel: "🚚 بالطريق (بانتظار الوزن وتأكيد مدير الفرع)" },
+  { id: "mv-02", dateLabel: "04/11/2026 09:15", productName: "صدور دجاج متبلة + خبز بريوش طازج", code: "RW01-CK01 / RW01-BN01", type: "OUT", typeLabel: "تحويل داخلي صادر", quantityLabel: "200 كجم / 400 حبة", balanceLabel: "3,250 كجم", note: "شحنة تبريد صباحية يومية لفرع السالمية", userName: "سليم مياه خان (القرين)", fromLocation: "المطبخ المركزي", toLocation: "فرع السالمية", statusLabel: "✅ تم استلام ووزن الشحنة ومطابقتها" },
+  { id: "mv-03", dateLabel: "03/11/2026 16:45", productName: "طحينة سمسم سائلة + ثومية القرين", code: "RW01-TAH / PP03-GAR", type: "OUT", typeLabel: "تحويل داخلي صادر", quantityLabel: "15 سطل / 20 سطل", balanceLabel: "105 سطل", note: "توريد تحضيرات الشاورما لفرع الفروانية", userName: "سليم مياه خان (القرين)", fromLocation: "المطبخ المركزي", toLocation: "فرع الفروانية", statusLabel: "✅ تم الاستلام والتخزين المبرد" },
+  { id: "mv-04", dateLabel: "03/11/2026 11:20", productName: "لحم بلاك أنجوس ريب آي أسترالي مبرد", code: "RW01-BF01", type: "IN", typeLabel: "توريد موردين (سند استلام مخزني)", quantityLabel: "1,500 كجم", balanceLabel: "1,420 كجم", note: "استلام شحنة لحوم مبردة من شركة المواشي الكويتية (سند شراء رقم 119)", userName: "ربيع أنيس يحيى (فني الجودة)", fromLocation: "المورد: شركة المواشي", toLocation: "المطبخ المركزي", statusLabel: "✅ فحص معتمد وحرارة +1.2 مئوية" },
   { id: "mv-05", dateLabel: "02/11/2026 14:10", productName: "علب ستيك حرارية فرانكس + أكياس كرافت", code: "PK02-STK / PK02-BAG", type: "OUT", typeLabel: "تحويل داخلي صادر", quantityLabel: "40 كرتون / 50 كرتون", balanceLabel: "140 كرتون", note: "تحويل مواد تغليف لمخزن فرع الكوت مول", userName: "مستودع أسواق القرين", fromLocation: "مستودع أسواق القرين", toLocation: "فرع الكوت مول", statusLabel: "✅ تم الاستلام المطابق" },
 ];
 
@@ -234,7 +234,7 @@ export function InventoryPanel({
   const filteredProducts = useMemo(() => {
     return allDisplayProducts.filter((p) => {
       if (internalFilter === "CK") {
-        return (p.warehouseName && p.warehouseName.includes("القرين")) || p.code.startsWith("PP");
+        return (p.warehouseName && (p.warehouseName.includes("القرين") || p.warehouseName.includes("المطبخ المركزي"))) || p.code.startsWith("PP");
       }
       if (internalFilter === "BRANCHES") {
         return p.warehouseName && !p.warehouseName.includes("المطبخ المركزي");
@@ -482,7 +482,7 @@ export function InventoryPanel({
               <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
                 {en
                   ? "8 slow-moving SKUs in Ardiya & Promenade exceeding 45 days. Re-dispatch to Central Kitchen."
-                  : "8 أصناف بطيئة الدوران بالعارضية وبروميناد تجاوزت 45 يوماً دون سحب. يوصى بإعادتها لمطبخ القرين."}
+                  : "8 أصناف بطيئة الدوران بالعارضية وبروميناد تجاوزت 45 يوماً دون سحب. يوصى بإعادتها لالمطبخ المركزي."}
               </p>
             </div>
 
@@ -495,7 +495,7 @@ export function InventoryPanel({
               <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
                 {en
                   ? "Shawarma meats and cooking oils exceeded theoretical Odoo recipe consumption."
-                  : "تجاوز استهلاك لحوم الشاورما وزيوت القلي الوصفة المعيارية بأودو (+4.5%) بمطبخ القرين والسالمية."}
+                  : "تجاوز استهلاك لحوم الشاورما وزيوت القلي الوصفة المعيارية بأودو (+4.5%) بالمطبخ المركزي والسالمية."}
               </p>
             </div>
 

@@ -2087,8 +2087,8 @@ export function VentureAccountingHub({
               </div>
               <p className="mt-1 text-xs text-slate-400">
                 {isAr
-                  ? 'عقود إيجار الفروع الـ 10، سكنات العمال (4 مباني)، المطبخ المركزي بالقرين ومخازن الشويخ، وتأمينات المعارض'
-                  : 'Auditing 10 branch leases, 4 staff housing buildings, Al-Qurain central kitchen & warehouses, and event booth deposits'}
+                  ? 'عقود إيجار الفروع الـ 10، سكنات العمال (4 مباني)، المطبخ المركزي ومخازن الشويخ، وتأمينات المعارض'
+                  : 'Auditing 10 branch leases, 4 staff housing buildings, Central Kitchen & warehouses, and event booth deposits'}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -2228,12 +2228,12 @@ export function VentureAccountingHub({
             <div className="overflow-hidden rounded-2xl border border-slate-800 bg-[#0d131f]">
               <div className="border-b border-slate-800 px-5 py-3.5 bg-slate-900/40">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">
-                  {isAr ? '3. المطبخ المركزي بالقرين ومخازن التوزيع' : '3. Commissary & Logistics Warehouses'}
+                  {isAr ? '3. المطبخ المركزي ومخازن التوزيع' : '3. Commissary & Logistics Warehouses'}
                 </h4>
               </div>
               <div className="p-4 space-y-3">
                 {[
-                  { name: 'المطبخ المركزي والمقر الإنتاجي (أسواق القرين)', en: 'Al-Qurain Central Kitchen Commissary', area: '600 m²', rent: 3200, gl: 'GL 501000', landlord: 'إدارة أسواق القرين' },
+                  { name: 'المطبخ المركزي والمقر الإنتاجي (أسواق القرين)', en: 'Central Kitchen Commissary', area: '600 m²', rent: 3200, gl: 'GL 501000', landlord: 'إدارة أسواق القرين' },
                   { name: 'مستودع الشويخ الجاف والتغليف (الشويخ الصناعية)', en: 'Shuwaikh Dry & Packaging Warehouse', area: '450 m²', rent: 1850, gl: 'GL 501005', landlord: 'عقارات الشويخ الصناعية' },
                   { name: 'وحدة التبريد والتجميد المركزي (الري)', en: 'Al-Rai Cold Storage Unit', area: '200 m²', rent: 1200, gl: 'GL 501006', landlord: 'أجيليتي للمجمعات اللوجستية' },
                 ].map((wh, i) => (

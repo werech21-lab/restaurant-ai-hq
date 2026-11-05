@@ -126,7 +126,7 @@ export function OdooExpenseSheetModal({
       category: isAr ? 'الضمان الصحي للإقامات' : 'MOH Health Insurance',
       descriptionAr: 'ضمان صحي عدد 3 عمال مطابخ — مركز الصباح الصحي',
       descriptionEn: 'Health insurance for 3 kitchen staff — Al-Sabah',
-      branchAr: 'المطبخ المركزي بالقرين',
+      branchAr: 'المطبخ المركزي',
       branchEn: 'Central Kitchen Qurain',
       amountKwd: 15.000,
     },

@@ -127,7 +127,7 @@ export default function IntelligenceWorkspace({
       categoryEn: 'Recipes & Food Cost',
       costCenter: 'CC-QRN-KITCHEN',
       observationAr: 'رصد تجاوز الاستهلاك الفعلي في أودو لبراندي تشاينا جاردن وفرانكس للوصفة المعيارية (BOM) بأكثر من +4.5% في بنود (اللحم البقري، الزيوت، صوص التيرياكي، صوص الشاورما) بالمطبخ المركزي وفروع القرين والسالمية.',
-      observationEn: 'Actual Odoo recipe consumption for China Garden and Franks exceeded standard BOM by +4.5% on beef, frying oil, and specialty sauces at Qurain Central Kitchen and Salmiya.',
+      observationEn: 'Actual Odoo recipe consumption for China Garden and Franks exceeded standard BOM by +4.5% on beef, frying oil, and specialty sauces at Central Kitchen and Salmiya.',
       impactAr: 'توفير فوري قدره 2,260.500 د.ك شهرياً (27,126.000 د.ك سنوياً) وتخفيض Food Cost من 24.8% إلى 22.9%.',
       impactEn: 'Immediate monthly savings of 2,260.500 KWD (27,126 KWD/yr) lowering Food Cost from 24.8% to 22.9%.',
       actionStepAr: 'معايرة موازين الحصص في محطات التجهيز وربط الصرف بأودو مع كميات الوجبات المباعة فعلياً.',
@@ -207,7 +207,7 @@ export default function IntelligenceWorkspace({
       odooDataProofAr: 'تحليل أودو: استهلاك اللحم البقري وزيوت القلي يتجاوز معايير الوصفات بنسبة +4.5%، بقيمة هدر 2,260 د.ك شهرياً.',
       odooDataProofEn: 'Odoo Analysis: Beef & oil consumption exceeds theoretical BOM by +4.5%, representing 2,260 KWD/mo variance.',
       steps: [
-        { num: '1', textAr: 'تطبيق التقطيع والتتبيل الموزون آلياً بالمطبخ المركزي بالقرين وتوريد حصص مفرغة الهواء للفروع.', textEn: 'Enforce automated portioning & vacuum-packing at Qurain Central Kitchen before branch dispatch.' },
+        { num: '1', textAr: 'تطبيق التقطيع والتتبيل الموزون آلياً بالمطبخ المركزي وتوريد حصص مفرغة الهواء للفروع.', textEn: 'Enforce automated portioning & vacuum-packing at Central Kitchen before branch dispatch.' },
         { num: '2', textAr: 'إلزام الطهاة بإدخال أوزان الهدر التالف في أودو يومياً بدلاً من التسوية الإجمالية في نهاية الشهر.', textEn: 'Mandate daily kitchen waste logging in Odoo instead of arbitrary end-of-month write-offs.' },
         { num: '3', textAr: 'توحيد حجم المشتريات بين تشاينا جاردن ونودل بار والتفاوض مع الموردين للحصول على خصم 6.5%.', textEn: 'Consolidate meat & oil purchasing volumes across brands to secure 6.5% tiered supplier rebate.' },
       ],
@@ -307,8 +307,8 @@ export default function IntelligenceWorkspace({
             </h1>
             <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
               {isAr
-                ? 'تم تحليل 2,213 قيد مصروفات وعهد، 166 ملف موظف، 364 وصفة معيارية، ومبيعات الـ 6 علامات تجارية والـ 9 فروع النشطة والمطبخ المركزي بالقرين.'
-                : 'Audited 2,213 Odoo expense & custody entries, 166 employee files, 364 standard recipes across 6 brands, 9 active branches & Qurain Central Kitchen.'}
+                ? 'تم تحليل 2,213 قيد مصروفات وعهد، 166 ملف موظف، 364 وصفة معيارية، ومبيعات الـ 6 علامات تجارية والـ 9 فروع النشطة والمطبخ المركزي.'
+                : 'Audited 2,213 Odoo expense & custody entries, 166 employee files, 364 standard recipes across 6 brands, 9 active branches & Central Kitchen.'}
             </p>
           </div>
 
@@ -706,7 +706,7 @@ export default function IntelligenceWorkspace({
 
               <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-4">
                 <div className="text-xs font-bold text-slate-500">{isAr ? 'البُعد 2: الفرع الأعلى كفاءة' : 'Dimension 2: Top Branch'}</div>
-                <div className="mt-2 text-sm font-black text-slate-900 dark:text-white">{isAr ? 'مطبخ القرين المركزي' : 'Qurain Central Kitchen'}</div>
+                <div className="mt-2 text-sm font-black text-slate-900 dark:text-white">{isAr ? 'المطبخ المركزي' : 'Central Kitchen'}</div>
                 <div className="text-xs text-slate-500 mt-1">36,400.000 د.ك · هامش 32.1%</div>
               </div>
 

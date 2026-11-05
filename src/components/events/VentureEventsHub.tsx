@@ -1572,7 +1572,7 @@ export default function VentureEventsHub() {
 
                     {/* Bottom Logistics Bay */}
                     <div className="col-span-12 rounded-xl border border-dashed border-emerald-400/40 bg-emerald-500/10 p-2 font-bold text-emerald-300">
-                      🚛 {isAr ? 'بوابة النقل اللوجستي والمطبخ المركزي بالقرين (Central Kitchen Loading Bay)' : 'Loading Bay Access'}
+                      🚛 {isAr ? 'بوابة النقل اللوجستي والمطبخ المركزي (Central Kitchen Loading Bay)' : 'Loading Bay Access'}
                     </div>
                   </div>
                 </div>
@@ -1624,7 +1624,7 @@ export default function VentureEventsHub() {
                   <div>
                     <h2 className="text-xl font-black tracking-tight">شركة فنتشر فودز لإدارة المطاعم ذ.م.م.</h2>
                     <p className="text-xs font-bold text-slate-700">VENTURE FOODS RESTAURANT MANAGEMENT CO. W.L.L. (CR 412891)</p>
-                    <p className="text-[11px] text-slate-600">Al-Qurain Central Kitchen & HQ · State of Kuwait</p>
+                    <p className="text-[11px] text-slate-600">Central Kitchen & HQ · State of Kuwait</p>
                   </div>
                   <div className="text-end">
                     <span className="rounded bg-slate-900 px-3 py-1 text-xs font-black text-white">

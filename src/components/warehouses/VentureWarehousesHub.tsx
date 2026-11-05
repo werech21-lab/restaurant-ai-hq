@@ -46,7 +46,7 @@ export const OFFICIAL_10_LOCATIONS: BranchWarehouseCard[] = [
     id: "wh-commissary",
     code: "CK-QURAIN",
     nameAr: "المطبخ المركزي والمستودع الرئيسي — أسواق القرين",
-    nameEn: "Al-Qurain Central Kitchen & Master Commissary",
+    nameEn: "Central Kitchen & Master Commissary",
     areaAr: "أسواق القرين · محافظة مبارك الكبير",
     areaEn: "Aswaq Al-Qurain · Mubarak Al-Kabeer",
     brandRolesAr: "المركز اللوجستي والإنتاجي الرئيسي لجميع العلامات التجارية الـ 6",
@@ -239,7 +239,7 @@ export interface TransferRecord {
 export const TRANSFERS_1139_DATA: TransferRecord[] = [
   {
     id: "TR-202611-091",
-    fromNameAr: "المطبخ المركزي بالقرين (حساب 1132)",
+    fromNameAr: "المطبخ المركزي (حساب 1132)",
     fromNameEn: "Central Kitchen Qurain (GL 1132)",
     toNameAr: "فرع مجمع الأفنيوز — الري",
     toNameEn: "The Avenues Mall Branch",
@@ -258,7 +258,7 @@ export const TRANSFERS_1139_DATA: TransferRecord[] = [
   },
   {
     id: "TR-202611-090",
-    fromNameAr: "المطبخ المركزي بالقرين (حساب 1132)",
+    fromNameAr: "المطبخ المركزي (حساب 1132)",
     fromNameEn: "Central Kitchen Qurain (GL 1132)",
     toNameAr: "فرع السالمية المركزي",
     toNameEn: "Salmiya Central Branch",
@@ -277,7 +277,7 @@ export const TRANSFERS_1139_DATA: TransferRecord[] = [
   },
   {
     id: "TR-202611-089",
-    fromNameAr: "المطبخ المركزي بالقرين (حساب 1132)",
+    fromNameAr: "المطبخ المركزي (حساب 1132)",
     fromNameEn: "Central Kitchen Qurain (GL 1132)",
     toNameAr: "فرع 360 مول — الزهراء",
     toNameEn: "360 Mall Branch",
@@ -296,7 +296,7 @@ export const TRANSFERS_1139_DATA: TransferRecord[] = [
   },
   {
     id: "TR-202611-088",
-    fromNameAr: "المطبخ المركزي بالقرين (حساب 1132)",
+    fromNameAr: "المطبخ المركزي (حساب 1132)",
     fromNameEn: "Central Kitchen Qurain (GL 1132)",
     toNameAr: "فرع العارضية اللوجستي",
     toNameEn: "Ardiya Logistics Branch",
@@ -315,7 +315,7 @@ export const TRANSFERS_1139_DATA: TransferRecord[] = [
   },
   {
     id: "TR-202611-087",
-    fromNameAr: "المطبخ المركزي بالقرين (حساب 1132)",
+    fromNameAr: "المطبخ المركزي (حساب 1132)",
     fromNameEn: "Central Kitchen Qurain (GL 1132)",
     toNameAr: "فرع الكوت مول — الفحيحيل",
     toNameEn: "Al-Kout Mall Branch",
@@ -334,7 +334,7 @@ export const TRANSFERS_1139_DATA: TransferRecord[] = [
   },
   {
     id: "TR-202611-086",
-    fromNameAr: "المطبخ المركزي بالقرين (حساب 1132)",
+    fromNameAr: "المطبخ المركزي (حساب 1132)",
     fromNameEn: "Central Kitchen Qurain (GL 1132)",
     toNameAr: "فرع العاصمة مول — شرق",
     toNameEn: "Al-Assima Mall Branch",
@@ -614,7 +614,7 @@ export function VentureWarehousesHub({
               {isAr ? "إدارة المستودعات وشبكة الإمداد الداخلي" : "Internal Warehouses & Supply Network"}
             </span>
             <span className="rounded-full bg-slate-100 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700/80 px-2.5 py-0.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
-              {isAr ? "المطبخ المركزي بالقرين + 9 فروع نشطة" : "Central Kitchen Qurain + 9 Active Branches"}
+              {isAr ? "المطبخ المركزي + 9 فروع نشطة" : "Central Kitchen Qurain + 9 Active Branches"}
             </span>
           </div>
           <h1 className="mt-2 text-2xl font-black text-slate-900 dark:text-white sm:text-3xl tracking-tight">
@@ -796,7 +796,7 @@ export function VentureWarehousesHub({
             <div className="flex flex-wrap items-center gap-1.5">
               {[
                 { key: "ALL", labelAr: "الكل (10 مواقع)", labelEn: "All (10)" },
-                { key: "COMMISSARY", labelAr: "المطبخ المركزي بالقرين (1)", labelEn: "Central Kitchen (1)" },
+                { key: "COMMISSARY", labelAr: "المطبخ المركزي (1)", labelEn: "Central Kitchen (1)" },
                 { key: "CAPITAL_HAWALLY", labelAr: "العاصمة وحولي (4)", labelEn: "Capital & Hawally (4)" },
                 { key: "FARWANIYA_MUBARAK", labelAr: "الفروانية ومبارك الكبير (3)", labelEn: "Farwaniya & Mubarak (3)" },
                 { key: "AHMADI", labelAr: "محافظة الأحمدي (2)", labelEn: "Ahmadi (2)" },
@@ -937,7 +937,7 @@ export function VentureWarehousesHub({
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
                 {isAr
-                  ? "حصر الشحنات الخارجة من المطبخ المركزي بالقرين إلى الفروع الـ 9 مع مطابقة الوزن المحول والمستلم وقيد الترحيل المحاسبي."
+                  ? "حصر الشحنات الخارجة من المطبخ المركزي إلى الفروع الـ 9 مع مطابقة الوزن المحول والمستلم وقيد الترحيل المحاسبي."
                   : "Tracking dispatches from Central Kitchen Qurain to all 9 branches with weight verification and GL posting."}
               </p>
             </div>
@@ -1044,7 +1044,7 @@ export function VentureWarehousesHub({
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
                 {isAr
-                  ? "مراقبة درجات الحرارة اللحظية على مدار الساعة لغرف تبريد المطبخ المركزي بالقرين ومخازن الفروع الـ 9 وشاحنات التوزيع."
+                  ? "مراقبة درجات الحرارة اللحظية على مدار الساعة لغرف تبريد المطبخ المركزي ومخازن الفروع الـ 9 وشاحنات التوزيع."
                   : "24/7 Real-time IoT temperature monitoring for central kitchen rooms, branch storerooms, and delivery fleet."}
               </p>
             </div>
@@ -1212,7 +1212,7 @@ export function VentureWarehousesHub({
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <h3 className="text-base font-black text-white">
                 {isAr
-                  ? "إنشاء أمر تحويل مخزني داخلي (المطبخ المركزي بالقرين ← الفروع)"
+                  ? "إنشاء أمر تحويل مخزني داخلي (المطبخ المركزي ← الفروع)"
                   : "Create Internal Transfer Requisition"}
               </h3>
               <button
@@ -1243,7 +1243,7 @@ export function VentureWarehousesHub({
                   <option value="CK-QURAIN">
                     {isAr
                       ? "المطبخ المركزي والمستودع الرئيسي — أسواق القرين (حساب 1132)"
-                      : "Al-Qurain Central Kitchen & Master Commissary"}
+                      : "Central Kitchen & Master Commissary"}
                   </option>
                   <option value="WH-SALMIYA">
                     {isAr ? "مخزن ومطبخ فرع السالمية المركزي" : "Salmiya Central Branch Store"}

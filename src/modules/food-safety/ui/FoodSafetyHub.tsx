@@ -95,9 +95,9 @@ export const COLD_UNITS_DATA: ColdUnit[] = [
   {
     id: 'CU-CK-01',
     branchId: 'CK-QURAIN',
-    branchNameAr: 'المطبخ المركزي بالقرين',
+    branchNameAr: 'المطبخ المركزي',
     branchNameEn: 'Central Kitchen - Qurain',
-    unitNameAr: 'غرفة تجميد اللحوم المركزية - المطبخ المركزي بالقرين',
+    unitNameAr: 'غرفة تجميد اللحوم المركزية - المطبخ المركزي',
     unitNameEn: 'Central Meat Walk-in Freezer',
     typeAr: 'فريزر تجميد عميق',
     typeEn: 'Walk-in Freezer',
@@ -114,7 +114,7 @@ export const COLD_UNITS_DATA: ColdUnit[] = [
   {
     id: 'CU-CK-02',
     branchId: 'CK-QURAIN',
-    branchNameAr: 'المطبخ المركزي بالقرين',
+    branchNameAr: 'المطبخ المركزي',
     branchNameEn: 'Central Kitchen - Qurain',
     unitNameAr: 'غرفة تبريد الخضار والصوصات المركزية - القرين',
     unitNameEn: 'Central Veg & Sauce Chiller',
@@ -547,7 +547,7 @@ export const HEALTH_CARDS_SAMPLE: HealthCardRecord[] = [
     nameEn: 'Rabie Anis Yehia',
     jobTitleAr: 'فني صيانة وتبريد وتكييف',
     jobTitleEn: 'Refrigeration Maintenance Tech',
-    branchNameAr: 'المطبخ المركزي بالقرين',
+    branchNameAr: 'المطبخ المركزي',
     branchNameEn: 'Central Kitchen - Qurain',
     civilId: '284032109845',
     cardNo: 'HC-KW-2025-07412',
@@ -581,7 +581,7 @@ export const HEALTH_CARDS_SAMPLE: HealthCardRecord[] = [
     nameEn: 'Salim Miah Khan',
     jobTitleAr: 'مسؤول خلطات وتتبيل المطبخ المركزي',
     jobTitleEn: 'Central Prep Lead',
-    branchNameAr: 'المطبخ المركزي بالقرين',
+    branchNameAr: 'المطبخ المركزي',
     branchNameEn: 'Central Kitchen - Qurain',
     civilId: '287110405128',
     cardNo: 'HC-KW-2025-08144',
@@ -748,7 +748,7 @@ export default function FoodSafetyHub() {
             </h1>
             <p className="text-sm text-slate-300 leading-relaxed">
               {isAr
-                ? 'الرصد اللحظي لثلاجات وغرف تبريد الفروع الـ 9 والمطبخ المركزي بالقرين، سجلات الفحص اليومي لبلدية الكويت والهيئة العامة للغذاء، وصيانة معدات التبريد'
+                ? 'الرصد اللحظي لثلاجات وغرف تبريد الفروع الـ 9 والمطبخ المركزي، سجلات الفحص اليومي لبلدية الكويت والهيئة العامة للغذاء، وصيانة معدات التبريد'
                 : 'Real-time telemetry for 9 operating branches + Central Kitchen, municipal hygiene compliance, and refrigeration engineering maintenance.'}
             </p>
           </div>

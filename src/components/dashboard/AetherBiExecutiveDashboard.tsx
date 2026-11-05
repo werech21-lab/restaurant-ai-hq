@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useMemo, useState } from 'react'
+import Link from 'next/link'
 import { useI18n } from '@/lib/i18n'
 
 /* =========================================================================
@@ -196,7 +197,12 @@ export function AetherBiExecutiveDashboard({ locale: _unused }: { locale?: strin
           <h1 className="mt-1 text-xl font-extrabold !text-slate-900 md:text-2xl">{T('Financial & Analytical Report and Recommendations', 'التقرير المالي والتحليلي ومحرك التوصيات')}</h1>
           <p className="mt-0.5 text-xs text-slate-500">{T('6 brands, 11 sales channels and the central kitchen. Static data: browsing uses no AI tokens.', '6 علامات تجارية و11 قناة بيع والمطبخ المركزي. بيانات ثابتة: التصفح لا يستهلك أي توكنات.')}</p>
         </div>
-        <span className="self-start rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-sm lg:self-auto" style={{ color: '#FFFFFF' }}>{T('October 2026', 'أكتوبر 2026')}</span>
+        <div className="flex flex-wrap items-center gap-2 self-start lg:self-auto">
+          <Link href="/erp/menu-engineering" className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-800 shadow-sm hover:bg-slate-50">
+            {T('Menu engineering', 'هندسة المنيو')}
+          </Link>
+          <span className="rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-sm" style={{ color: '#FFFFFF' }}>{T('October 2026', 'أكتوبر 2026')}</span>
+        </div>
       </div>
 
       {/* 4 KPI cards */}

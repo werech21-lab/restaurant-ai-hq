@@ -377,7 +377,7 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
                 </h2>
                 <p className="text-xs text-slate-400 mt-0.5">
                   {isAr
-                    ? 'عقود الفروع الـ 9 والمطبخ المركزي بالقرين (7111–7123 و 1146): لا يصرف أي شيك لمقاول إلا بعد تأكيد زيارة العمليات وشهادات البلدية والإطفاء'
+                    ? 'عقود الفروع الـ 9 والمطبخ المركزي (7111–7123 و 1146): لا يصرف أي شيك لمقاول إلا بعد تأكيد زيارة العمليات وشهادات البلدية والإطفاء'
                     : 'Preventative contracts for 9 active stores + Qurain CK: payments automatically held on SLA breach or missing MOH/KFSD certs'}
                 </p>
               </div>
@@ -412,7 +412,7 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
                             GL: {amc.glAccount} (إطفاء شهري من {amc.prepaidAccount})
                           </span>
                           <span className="rounded-md bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
-                            {isAr ? `${amc.coveredLocationsCount} مواقع مغطاة (9 فروع + مطبخ القرين)` : `${amc.coveredLocationsCount} Monitored Units (9 Stores + CK)`}
+                            {isAr ? `${amc.coveredLocationsCount} مواقع مغطاة (9 فروع + المطبخ المركزي)` : `${amc.coveredLocationsCount} Monitored Units (9 Stores + CK)`}
                           </span>
                         </div>
                         <h3 className="text-base font-black text-white">{isAr ? amc.nameAr : amc.nameEn}</h3>
@@ -826,7 +826,7 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
                 </h2>
                 <p className="text-xs text-slate-400 mt-0.5">
                   {isAr
-                    ? 'مطابقة مبيعات الـ POS مع إيداعات البنك بعد حسم العمولات 5310 والإعلانات 7150، وتتبع تحويلات مطبخ القرين للفروع عبر 1139'
+                    ? 'مطابقة مبيعات الـ POS مع إيداعات البنك بعد حسم العمولات 5310 والإعلانات 7150، وتتبع تحويلات المطبخ المركزي للفروع عبر 1139'
                     : 'Reconciling daily POS batches with NBK net deposits and tracking CK transfers via 1139 transit ledger'}
                 </p>
               </div>
@@ -860,7 +860,7 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
                     <tr>
                       <td className="py-2.5 px-3 font-bold text-cyan-300">TR-QRN-SLM-084</td>
                       <td className="py-2.5 px-3 font-sans font-semibold text-white">
-                        {isAr ? 'مطبخ القرين المركزي ➔ فرع السالمية' : 'Qurain CK ➔ Salmiya Branch'}
+                        {isAr ? 'المطبخ المركزي ➔ فرع السالمية' : 'Qurain CK ➔ Salmiya Branch'}
                       </td>
                       <td className="py-2.5 px-3 font-sans text-slate-300">
                         {isAr ? 'لحم تندرلوين متبل صيني (35 كجم) + صوص منجوليان (15 كجم)' : 'Marinated Tenderloin (35kg) + Mongolian Sauce (15kg)'}
@@ -876,7 +876,7 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
                     <tr>
                       <td className="py-2.5 px-3 font-bold text-cyan-300">TR-QRN-360-085</td>
                       <td className="py-2.5 px-3 font-sans font-semibold text-white">
-                        {isAr ? 'مطبخ القرين المركزي ➔ فرع 360 مول' : 'Qurain CK ➔ 360 Mall Branch'}
+                        {isAr ? 'المطبخ المركزي ➔ فرع 360 مول' : 'Qurain CK ➔ 360 Mall Branch'}
                       </td>
                       <td className="py-2.5 px-3 font-sans text-slate-300">
                         {isAr ? 'دجاج تيكا شاورما طحينة (40 كجم) + خبز صاج خاص' : 'Tahina Marinated Chicken (40kg) + Fresh Saj Bread'}

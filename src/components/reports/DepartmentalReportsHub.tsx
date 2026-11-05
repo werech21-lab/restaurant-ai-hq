@@ -553,7 +553,7 @@ export function DepartmentalReportsHub({ initialReportId, locale = 'ar', liveDbC
 
                     <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
                       <div className="text-xs font-bold text-slate-400">{isAr ? 'البُعد 2: الفرع الأعلى كفاءة' : 'Dimension 2: Top Branch'}</div>
-                      <div className="mt-2 text-sm font-black text-white">{isAr ? 'مطبخ القرين المركزي' : 'Qurain Central Kitchen'}</div>
+                      <div className="mt-2 text-sm font-black text-white">{isAr ? 'المطبخ المركزي' : 'Central Kitchen'}</div>
                       <div className="text-xs text-slate-400 mt-1">36,400.000 د.ك · هامش 32.1%</div>
                     </div>
 

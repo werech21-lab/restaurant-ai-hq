@@ -125,7 +125,7 @@ export function OdooAiCommandCenter() {
       id: 'ALT-QURAIN-03',
       titleAr: 'انخفاض نسبة التصافي لوصفة الدجاج المتبل (PP03)',
       titleEn: 'Yield Anomaly in Seasoned Chicken Batch (PP03)',
-      branchAr: 'المطبخ المركزي بالقرين',
+      branchAr: 'المطبخ المركزي',
       branchEn: 'Central Kitchen Qurain',
       severity: 'WARNING',
       categoryAr: 'إنتاج وتصنيع المطبخ المركزي',
@@ -162,7 +162,7 @@ export function OdooAiCommandCenter() {
     { name: isAr ? 'بروميناد' : 'Promenade', sales: 10845.100, maint: 240.300, margin: 24.5 },
     { name: isAr ? 'الفروانية' : 'Farwaniya', sales: 7265.800, maint: 190.150, margin: 25.9 },
     { name: isAr ? 'القرين' : 'Qurain Store', sales: 4253.300, maint: 100.150, margin: 26.2 },
-    { name: isAr ? 'مطبخ القرين' : 'Central Kitchen', sales: 0.000, maint: 3420.500, margin: 0.0 },
+    { name: isAr ? 'المطبخ المركزي' : 'Central Kitchen', sales: 0.000, maint: 3420.500, margin: 0.0 },
   ]
 
   // 4. CLAUDE 5.5 AI RECOMMENDATIONS
@@ -201,7 +201,7 @@ export function OdooAiCommandCenter() {
       id: 'REC-RECIPE-03',
       titleAr: 'معايرة موازين التتبيل بالقرين واستبدال أكياس التغليف (PI02)',
       titleEn: 'Calibrate Central Kitchen Seasoning Scales & Optimize Bulk Packaging',
-      brandAr: 'المطبخ المركزي بالقرين',
+      brandAr: 'المطبخ المركزي',
       brandEn: 'Central Kitchen Qurain',
       rootCauseAr: 'انحراف نسبة الفاقد في تتبيل الدجاج واللحوم (+5.3%) مع شراء مواد تغليف غير مجمعة.',
       rootCauseEn: 'Seasoning marinade loss variance (+5.3%) coupled with decentralized packaging procurement.',
@@ -563,7 +563,7 @@ export function OdooAiCommandCenter() {
                 {isAr ? 'المقارنة الإحصائية للمبيعات وتكاليف الصيانة للفروع (د.ك)' : 'Branch Sales vs Maintenance Ledger (KWD)'}
               </h3>
               <p className="text-xs text-slate-400">
-                {isAr ? 'مبيعات الـ 9 فروع مع إبراز عهد صيانة المطبخ المركزي بالقرين' : 'Active 9 branches sales alongside Qurain CK maintenance'}
+                {isAr ? 'مبيعات الـ 9 فروع مع إبراز عهد صيانة المطبخ المركزي' : 'Active 9 branches sales alongside Qurain CK maintenance'}
               </p>
             </div>
             <span className="rounded-lg bg-blue-500/10 px-2 py-0.5 text-xs font-bold text-blue-600 dark:text-blue-400">
