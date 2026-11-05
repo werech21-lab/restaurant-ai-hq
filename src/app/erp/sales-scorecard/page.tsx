@@ -6,6 +6,9 @@ import { useSearchParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { makeTr } from "@/lib/i18n/analytics-ar";
 import { SALES_TABS, parseSalesTab, salesTabHref } from "@/lib/analytics/sales-tabs";
+import { BRANDS_DATA, CHANNELS_DATA, type BrandRow, type ChannelRow } from "@/lib/analytics/sales-core-data";
+import { ALL_BRANDS, ALL_CHANNELS, TOTAL_NET, computeView } from "@/lib/analytics/sales-view";
+import { TOP_BEST_SELLERS } from "@/lib/analytics/brand-sales-october-data";
 import {
   BranchesTab,
   ChannelMix,
@@ -24,251 +27,6 @@ import {
 // ==========================================
 // 1. ODOO ERP MASTER DATASET (VENTURE FOODS)
 // ==========================================
-
-interface BrandRow {
-  brand: string;
-  orders: number;
-  netSales: number;
-  share: number;
-  avgOrder: number;
-  itemsPerOrder: number;
-  discountRate: number;
-  drinksPct: number;
-  startersPct: number;
-  cogsPct: number;
-  bestSeller: string;
-}
-
-interface ChannelRow {
-  channel: string;
-  orders: number;
-  netSales: number;
-  share: number;
-  avgOrder: number;
-  itemsPerOrder: number;
-  discountRate: number;
-  /** Discount value in KWD; the 11 rows add up exactly to the official 4,152 */
-  discountKwd: number;
-  drinksPct: number;
-  startersPct: number;
-  dessertsPct: number;
-}
-
-const BRANDS_DATA: BrandRow[] = [
-  {
-    brand: "China Garden",
-    orders: 25205,
-    netSales: 141662.65,
-    share: 84.8,
-    avgOrder: 5.62,
-    itemsPerOrder: 2.57,
-    discountRate: 2.7,
-    drinksPct: 24.1,
-    startersPct: 35.9,
-    cogsPct: 24.4,
-    bestSeller: "Chicken Noodles",
-  },
-  {
-    brand: "Frank's",
-    orders: 2147,
-    netSales: 16033.97,
-    share: 9.6,
-    avgOrder: 7.47,
-    itemsPerOrder: 3.01,
-    discountRate: 1.4,
-    drinksPct: 11.0,
-    startersPct: 69.8,
-    cogsPct: 26.2,
-    bestSeller: "Orig. Philly CheeseSteak",
-  },
-  {
-    brand: "Tahina",
-    orders: 1944,
-    netSales: 4428.64,
-    share: 2.7,
-    avgOrder: 2.28,
-    itemsPerOrder: 2.75,
-    discountRate: 1.0,
-    drinksPct: 81.2,
-    startersPct: 14.2,
-    cogsPct: 23.5,
-    bestSeller: "KWD 1 Chicken Shawarma - Lebanese Bread",
-  },
-  {
-    brand: "Farm Brown",
-    orders: 847,
-    netSales: 2664.18,
-    share: 1.6,
-    avgOrder: 3.15,
-    itemsPerOrder: 2.13,
-    discountRate: 1.2,
-    drinksPct: 23.1,
-    startersPct: 16.2,
-    cogsPct: 25.1,
-    bestSeller: "Chicken Fillet Meal",
-  },
-  {
-    brand: "The Noodle Bar",
-    orders: 269,
-    netSales: 1678.22,
-    share: 1,
-    avgOrder: 6.24,
-    itemsPerOrder: 2.75,
-    discountRate: 4.9,
-    drinksPct: 17.8,
-    startersPct: 25.3,
-    cogsPct: 24.9,
-    bestSeller: "Sriracha Chicken Noodles",
-  },
-  {
-    brand: "Karak Cafeteria",
-    orders: 128,
-    netSales: 624.5,
-    share: 0.4,
-    avgOrder: 4.88,
-    itemsPerOrder: 4.83,
-    discountRate: 0.0,
-    drinksPct: 72.7,
-    startersPct: 37.5,
-    cogsPct: 21.8,
-    bestSeller: "Chapati Box (4 pcs)",
-  },
-];
-
-const CHANNELS_DATA: ChannelRow[] = [
-  {
-    channel: "Shop Sales",
-    orders: 14818,
-    netSales: 58953.09,
-    share: 35.3,
-    avgOrder: 3.98,
-    itemsPerOrder: 2.34,
-    discountRate: 0.8, discountKwd: 475.51,
-    drinksPct: 41.2,
-    startersPct: 14.4,
-    dessertsPct: 1.5,
-  },
-  {
-    channel: "Talabat Go",
-    orders: 7163,
-    netSales: 55716.21,
-    share: 33.4,
-    avgOrder: 7.78,
-    itemsPerOrder: 2.91,
-    discountRate: 1.6, discountKwd: 907.67,
-    drinksPct: 12.7,
-    startersPct: 51.9,
-    dessertsPct: 2.8,
-  },
-  {
-    channel: "Keeta",
-    orders: 6267,
-    netSales: 35607.98,
-    share: 21.3,
-    avgOrder: 5.68,
-    itemsPerOrder: 2.70,
-    discountRate: 6.7, discountKwd: 2538.99,
-    drinksPct: 4.8,
-    startersPct: 39.4,
-    dessertsPct: 3.9,
-  },
-  {
-    channel: "Talabat MP",
-    orders: 742,
-    netSales: 6887.25,
-    share: 4.1,
-    avgOrder: 9.28,
-    itemsPerOrder: 4.05,
-    discountRate: 1.6, discountKwd: 112.20,
-    drinksPct: 19.8,
-    startersPct: 76.8,
-    dessertsPct: 6.2,
-  },
-  {
-    channel: "Deliveroo Core",
-    orders: 967,
-    netSales: 5490.68,
-    share: 3.3,
-    avgOrder: 5.68,
-    itemsPerOrder: 2.90,
-    discountRate: 0.9, discountKwd: 48.75,
-    drinksPct: 13.0,
-    startersPct: 64.1,
-    dessertsPct: 6.4,
-  },
-  {
-    channel: "Ordable",
-    orders: 81,
-    netSales: 1045.21,
-    share: 0.6,
-    avgOrder: 12.84,
-    itemsPerOrder: 5.11,
-    discountRate: 0.1, discountKwd: 0.84,
-    drinksPct: 17.3,
-    startersPct: 109.9,
-    dessertsPct: 7.4,
-  },
-  {
-    channel: "Snoonu",
-    orders: 163,
-    netSales: 1029.26,
-    share: 0.6,
-    avgOrder: 6.30,
-    itemsPerOrder: 2.85,
-    discountRate: 5.0, discountKwd: 54.31,
-    drinksPct: 13.5,
-    startersPct: 65.6,
-    dessertsPct: 15.3,
-  },
-  {
-    channel: "Jahez",
-    orders: 129,
-    netSales: 1021.05,
-    share: 0.6,
-    avgOrder: 7.92,
-    itemsPerOrder: 3.03,
-    discountRate: 0.0, discountKwd: 0.00,
-    drinksPct: 17.8,
-    startersPct: 67.4,
-    dessertsPct: 0.0,
-  },
-  {
-    channel: "Phone",
-    orders: 121,
-    netSales: 801.94,
-    share: 0.5,
-    avgOrder: 6.64,
-    itemsPerOrder: 4.55,
-    discountRate: 1.3, discountKwd: 10.41,
-    drinksPct: 9.9,
-    startersPct: 29.8,
-    dessertsPct: 4.1,
-  },
-  {
-    channel: "Deliveroo MP",
-    orders: 86,
-    netSales: 506.19,
-    share: 0.3,
-    avgOrder: 5.88,
-    itemsPerOrder: 4.01,
-    discountRate: 0.0, discountKwd: 0.00,
-    drinksPct: 20.9,
-    startersPct: 55.8,
-    dessertsPct: 0.0,
-  },
-  {
-    channel: "Whatsapp",
-    orders: 3,
-    netSales: 33.30,
-    share: 0.0,
-    avgOrder: 11.10,
-    itemsPerOrder: 7.00,
-    discountRate: 9.1, discountKwd: 3.32,
-    drinksPct: 66.7,
-    startersPct: 133.3,
-    dessertsPct: 0.0,
-  },
-];
 
 const CATEGORIES_DATA = [
   { name: "Noodles", sales: 47201, orders: 14210, items: 18420, share: 28.2 },
@@ -545,6 +303,22 @@ const LOW_VOLUME_TAIL_ITEMS = [
   { brand: "China Garden", category: "Appetizers", item: "Prawn Toast Sesame (4pcs)", orders: 24, sales: 60.00, avgPrice: 2.50, cogs: "28.0%" },
 ];
 
+interface PoolItem { name: string; brand: string; category: string; sales: number; orders: number; price: number }
+// Every item row in the project that carries a brand, de-duplicated by brand + name (largest sales kept).
+const ITEM_POOL: PoolItem[] = (() => {
+  const m = new Map<string, PoolItem>();
+  const add = (it: PoolItem) => {
+    const k = it.brand + "|" + it.name.toLowerCase();
+    const old = m.get(k);
+    if (!old || it.sales > old.sales) m.set(k, it);
+  };
+  TOP_15_ITEMS.forEach((i) => add({ ...i }));
+  ITEM_DIAGNOSTICS_TABLE_1.forEach((i) => add({ name: i.item, brand: i.brand, category: i.category, sales: i.sales, orders: i.orders, price: i.avgPrice }));
+  LOW_VOLUME_TAIL_ITEMS.forEach((i) => add({ name: i.item, brand: i.brand, category: i.category, sales: i.sales, orders: i.orders, price: i.avgPrice }));
+  TOP_BEST_SELLERS.forEach((i) => add({ name: i.nameEn, brand: String(i.brand), category: i.categoryEn, sales: i.salesKwd, orders: i.unitsSold, price: i.priceKwd }));
+  return [...m.values()];
+})();
+
 const CHANNEL_BRAND_MATRIX = [
   { brand: "China Garden", channel: "Shop Sales", topItem: "Chicken Noodles", orders: 11420, sales: 48120.40, aov: 4.21, drinkPct: "38.4%" },
   { brand: "China Garden", channel: "Talabat Go", topItem: "Veg Or Chicken Noodles Combo", orders: 6120, sales: 47890.10, aov: 7.83, drinkPct: "13.2%" },
@@ -585,63 +359,66 @@ function ScorecardInner() {
     `${tr("Discount rate")}: ${c.discountRate.toFixed(1)}%`,
     `${tr("Drinks %")}: ${c.drinksPct.toFixed(1)}%`,
   ];
-  const [selectedBrand, setSelectedBrand] = useState<string>("All brands");
-  const [selectedChannel, setSelectedChannel] = useState<string>("All channels");
+  const [selectedBrand, setSelectedBrand] = useState<string>(ALL_BRANDS);
+  const [selectedChannel, setSelectedChannel] = useState<string>(ALL_CHANNELS);
 
-  // Filtered Brand Rows
-  const activeBrands = useMemo(() => {
-    if (selectedBrand === "All brands") return BRANDS_DATA;
-    return BRANDS_DATA.filter((b) => b.brand === selectedBrand);
-  }, [selectedBrand]);
+  // One model for every tab: brand rows (scaled by the channel filter), channel rows (scaled by the brand filter) and totals.
+  const filter = useMemo(() => ({ brand: selectedBrand, channel: selectedChannel }), [selectedBrand, selectedChannel]);
+  const view = useMemo(() => computeView(filter), [filter]);
+  const vBrands = view.brands;
+  const vChannels = view.channels;
+  const kpis = {
+    netSales: view.net,
+    orders: view.orders,
+    avgOrder: view.avgOrder,
+    itemsSold: view.items,
+    itemsPerOrder: view.itemsPerOrder,
+    discounts: view.discounts,
+    sharePct: view.ratioNet * 100,
+  };
+  const dimBrand = (name: string) => (selectedBrand !== ALL_BRANDS && selectedBrand !== name ? "opacity-40" : "");
+  const dimChannel = (name: string) => (selectedChannel !== ALL_CHANNELS && selectedChannel !== name ? "opacity-40" : "");
+  const hiRow = (on: boolean, dim: boolean) => (on ? "bg-blue-50 font-semibold" : dim ? "opacity-50" : "");
 
-  // Filtered Channel Rows
-  const activeChannels = useMemo(() => {
-    if (selectedChannel === "All channels") return CHANNELS_DATA;
-    return CHANNELS_DATA.filter((c) => c.channel === selectedChannel);
-  }, [selectedChannel]);
-
-  // Dynamic KPI Calculations
-  const kpis = useMemo(() => {
-    const brandRatio =
-      selectedBrand === "All brands"
-        ? 1
-        : (BRANDS_DATA.find((b) => b.brand === selectedBrand)?.netSales || 167092.16) / 167092.16;
-    const channelRatio =
-      selectedChannel === "All channels"
-        ? 1
-        : (CHANNELS_DATA.find((c) => c.channel === selectedChannel)?.netSales || 167092.16) / 167092.16;
-
-    const combinedRatio = brandRatio * channelRatio;
-    const netSales = 167092.16 * combinedRatio;
-    const orders = Math.max(1, Math.round(30540 * combinedRatio));
-    const avgOrder = netSales / orders;
-    const itemsSold = Math.round(79740 * combinedRatio);
-    const itemsPerOrder = itemsSold / orders;
-    const discounts = 4152 * combinedRatio;
-    const sharePct = combinedRatio * 100;
-
-    return {
-      netSales,
-      orders,
-      avgOrder,
-      itemsSold,
-      itemsPerOrder,
-      discounts,
-      sharePct,
-    };
-  }, [selectedBrand, selectedChannel]);
+  // Products tab: item rows that carry a brand are filtered by the brand; the channel filter scales them by the channel's share of sales.
+  const chRatio = selectedChannel === ALL_CHANNELS ? 1 : (CHANNELS_DATA.find((c) => c.channel === selectedChannel)?.netSales ?? TOTAL_NET) / TOTAL_NET;
+  const brandSel = selectedBrand !== ALL_BRANDS;
+  const scaleItem = <T extends { sales: number; orders: number }>(i: T): T => ({ ...i, sales: i.sales * chRatio, orders: Math.round(i.orders * chRatio) });
+  const poolBrandItems = brandSel ? ITEM_POOL.filter((i) => i.brand === selectedBrand).sort((x, y) => y.sales - x.sales) : [];
+  const topItems = (brandSel ? poolBrandItems.slice(0, 15) : TOP_15_ITEMS).map(scaleItem);
+  const categoryRows = (() => {
+    if (!brandSel) return CATEGORIES_DATA.map((c) => ({ name: c.name, sales: c.sales * chRatio }));
+    const m = new Map<string, number>();
+    poolBrandItems.forEach((i) => m.set(i.category, (m.get(i.category) ?? 0) + i.sales));
+    return [...m.entries()].map(([name, sales]) => ({ name, sales: sales * chRatio })).sort((x, y) => y.sales - x.sales);
+  })();
+  const diagBuckets = DIAGNOSTIC_BUCKETS.map((d) => ({ ...d, value: d.value * view.ratioNet }));
+  const diagRows = ITEM_DIAGNOSTICS_TABLE_1.filter((r) => !brandSel || r.brand === selectedBrand).map((r) => ({ ...r, orders: Math.round(r.orders * chRatio), sales: r.sales * chRatio }));
+  const tailRows = LOW_VOLUME_TAIL_ITEMS.filter((r) => !brandSel || r.brand === selectedBrand).map((r) => ({ ...r, orders: Math.round(r.orders * chRatio), sales: r.sales * chRatio }));
+  const matrixRows = CHANNEL_BRAND_MATRIX.filter((r) => (!brandSel || r.brand === selectedBrand) && (selectedChannel === ALL_CHANNELS || r.channel === selectedChannel));
+  const bestItem = brandSel ? poolBrandItems[0] : undefined;
+  const bestName = bestItem ? bestItem.name : "Chicken Noodles";
+  const scopeLabel = view.isFiltered ? tr(selectedBrand) + " · " + tr(selectedChannel) : tr("All brands, all channels");
+  const biggestChannel = [...vChannels].sort((x, y) => y.netSales - x.netSales)[0];
+  const opRows = ODOO_OPERATIONAL_TABLE_2
+    .filter((r) => !r.sector.startsWith("Aggregator Clearing") || selectedChannel === ALL_CHANNELS || r.sector.endsWith(selectedChannel))
+    .map((r) => {
+      const ch = r.sector.startsWith("Aggregator Clearing") ? vChannels.find((c) => r.sector.endsWith(c.channel)) : undefined;
+      if (ch) return { ...r, entries: ch.orders, amountKwd: ch.netSales };
+      return { ...r, entries: Math.round(r.entries * view.ratioOrders), amountKwd: r.amountKwd * view.ratioNet };
+    });
 
   // Max values for proportional bar widths
-  const maxBrandSales = Math.max(...BRANDS_DATA.map((b) => b.netSales));
-  const maxBrandAov = Math.max(...BRANDS_DATA.map((b) => b.avgOrder));
-  const maxChannelSales = Math.max(...CHANNELS_DATA.map((c) => c.netSales));
-  const maxChannelAov = Math.max(...CHANNELS_DATA.map((c) => c.avgOrder));
-  const maxCatSales = Math.max(...CATEGORIES_DATA.map((c) => c.sales));
-  const maxItemSales = Math.max(...TOP_15_ITEMS.map((i) => i.sales));
-  const maxDiagValue = Math.max(...DIAGNOSTIC_BUCKETS.map((d) => d.value));
+  const maxBrandSales = Math.max(...vBrands.map((b) => b.netSales));
+  const maxBrandAov = Math.max(...vBrands.map((b) => b.avgOrder));
+  const maxChannelSales = Math.max(...vChannels.map((c) => c.netSales));
+  const maxChannelAov = Math.max(...vChannels.map((c) => c.avgOrder));
+  const maxCatSales = Math.max(1, ...categoryRows.map((c) => c.sales));
+  const maxItemSales = Math.max(1, ...topItems.map((i) => i.sales));
+  const maxDiagValue = Math.max(1, ...diagBuckets.map((d) => d.value));
 
   const isFiltered = selectedBrand !== "All brands" || selectedChannel !== "All channels";
-  const channelViews = CHANNELS_DATA.map((c) => ({
+  const channelViews = vChannels.map((c) => ({
     key: c.channel,
     label: tr(c.channel),
     orders: c.orders,
@@ -649,8 +426,8 @@ function ScorecardInner() {
     discPct: c.discountRate,
     drinksPct: c.drinksPct,
   }));
-  const promoChannels = CHANNELS_DATA.map((c) => ({ key: c.channel, label: tr(c.channel), sales: c.netSales, discPct: c.discountRate, kwd: c.discountKwd }));
-  const promoBrands = BRANDS_DATA.map((b) => ({ key: b.brand, label: tr(b.brand), discPct: b.discountRate }));
+  const promoChannels = vChannels.map((c) => ({ key: c.channel, label: tr(c.channel), sales: c.netSales, discPct: c.discountRate, kwd: c.discountKwd }));
+  const promoBrands = vBrands.map((b) => ({ key: b.brand, label: tr(b.brand), discPct: b.discountRate }));
 
   return (
     <div
@@ -695,7 +472,7 @@ function ScorecardInner() {
                     <span dir="ltr" className="inline-block tabular-nums">{kpis.orders.toLocaleString()}</span>
                   </strong>{" "}
                   طلب. الصنف الأعلى مبيعاً هو{" "}
-                  <strong className="font-semibold text-gray-900">Chicken Noodles</strong>.
+                  <strong className="font-semibold text-gray-900">{bestName}</strong>.
                 </>
               ) : (
                 <>
@@ -708,7 +485,7 @@ function ScorecardInner() {
                     {kpis.orders.toLocaleString()}
                   </strong>{" "}
                   orders. The best seller was{" "}
-                  <strong className="font-semibold text-gray-900">Chicken Noodles</strong>.
+                  <strong className="font-semibold text-gray-900">{bestName}</strong>.
                 </>
               )}
             </p>
@@ -725,8 +502,8 @@ function ScorecardInner() {
                   className="bg-white border border-gray-300 rounded px-2.5 py-1 text-[12px] text-gray-900 font-medium focus:outline-none focus:border-blue-600"
                 >
                   <option value="All brands">{tr("All brands")}</option>
-                  {BRANDS_DATA.map((b) => (
-                    <option key={tr(b.brand)} value={tr(b.brand)}>
+                  {vBrands.map((b) => (
+                    <option key={b.brand} value={b.brand}>
                       {tr(b.brand)}
                     </option>
                   ))}
@@ -741,8 +518,8 @@ function ScorecardInner() {
                   className="bg-white border border-gray-300 rounded px-2.5 py-1 text-[12px] text-gray-900 font-medium focus:outline-none focus:border-blue-600"
                 >
                   <option value="All channels">{tr("All channels")}</option>
-                  {CHANNELS_DATA.map((c) => (
-                    <option key={tr(c.channel)} value={tr(c.channel)}>
+                  {vChannels.map((c) => (
+                    <option key={c.channel} value={c.channel}>
                       {tr(c.channel)}
                     </option>
                   ))}
@@ -836,19 +613,19 @@ function ScorecardInner() {
            ========================================== */}
         <section className="space-y-2">
           <div className="text-[12px] font-semibold text-gray-800">
-            {tr("Highlights")} <span className="font-normal text-gray-400">· {tr("All brands, all channels")}</span>
+            {tr("Highlights")} <span className="font-normal text-gray-400">· {scopeLabel}</span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="bg-white border border-gray-200 border-s-[3px] border-s-gray-700 rounded-md p-3">
               <div className="text-[10px] text-gray-500">{tr("Biggest channel")}</div>
               <div className="text-[12px] text-gray-800 mt-0.5">
-                {isAr ? (<><strong className="font-semibold">مبيعات المحل</strong> هي أكبر قناة بيع بنسبة <strong className="font-semibold"><span dir="ltr" className="inline-block tabular-nums">35.3%</span></strong> من المبيعات.</>) : (<><strong className="font-semibold">Shop Sales</strong> is the largest channel, with <strong className="font-semibold">35.3%</strong> of sales.</>)}
+                {isAr ? (<><strong className="font-semibold">{tr(biggestChannel.channel)}</strong> هي أكبر قناة بيع بنسبة <strong className="font-semibold"><span dir="ltr" className="inline-block tabular-nums">{biggestChannel.share.toFixed(1)}%</span></strong> من المبيعات المحددة.</>) : (<><strong className="font-semibold">{biggestChannel.channel}</strong> is the largest channel, with <strong className="font-semibold">{biggestChannel.share.toFixed(1)}%</strong> of the selected sales.</>)}
               </div>
             </div>
             <div className="bg-white border border-gray-200 border-s-[3px] border-s-gray-700 rounded-md p-3">
               <div className="text-[10px] text-gray-500">{tr("Best seller")}</div>
               <div className="text-[12px] text-gray-800 mt-0.5">
-                {isAr ? (<><strong className="font-semibold">Chicken Noodles</strong> من <strong className="font-semibold">تشاينا جاردن</strong> باع <strong className="font-semibold"><span dir="ltr" className="inline-block tabular-nums">12,043 د.ك</span></strong> وتمثل <strong className="font-semibold"><span dir="ltr" className="inline-block tabular-nums">7.2%</span></strong> من مبيعات المنيو.</>) : (<><strong className="font-semibold">Chicken Noodles</strong> from <strong className="font-semibold">China Garden</strong> sold <strong className="font-semibold">KWD 12,043</strong>, which is <strong className="font-semibold">7.2%</strong> of menu sales.</>)}
+                {bestItem ? (isAr ? (<><strong className="font-semibold">{bestItem.name}</strong> هو أعلى أصناف <strong className="font-semibold">{tr(bestItem.brand)}</strong> مبيعاً بقيمة <strong className="font-semibold"><span dir="ltr" className="inline-block tabular-nums">{money(bestItem.sales * chRatio)}</span></strong>.</>) : (<><strong className="font-semibold">{bestItem.name}</strong> is the top item of <strong className="font-semibold">{bestItem.brand}</strong>, with <strong className="font-semibold">{money(bestItem.sales * chRatio)}</strong> in sales.</>)) : isAr ? (<><strong className="font-semibold">Chicken Noodles</strong> من <strong className="font-semibold">تشاينا جاردن</strong> باع <strong className="font-semibold"><span dir="ltr" className="inline-block tabular-nums">12,043 د.ك</span></strong> وتمثل <strong className="font-semibold"><span dir="ltr" className="inline-block tabular-nums">7.2%</span></strong> من مبيعات المنيو.</>) : (<><strong className="font-semibold">Chicken Noodles</strong> from <strong className="font-semibold">China Garden</strong> sold <strong className="font-semibold">KWD 12,043</strong>, which is <strong className="font-semibold">7.2%</strong> of menu sales.</>)}
               </div>
             </div>
             <div className="bg-white border border-gray-200 border-s-[3px] border-s-gray-700 rounded-md p-3">
@@ -868,7 +645,7 @@ function ScorecardInner() {
 
 
             <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-              <div className="lg:col-span-2"><DailyCurve /></div>
+              <div className="lg:col-span-2"><DailyCurve ratio={view.ratioNet} /></div>
               <NeedsAttention />
             </div>
         {/* ==========================================
@@ -885,7 +662,7 @@ function ScorecardInner() {
               <div className="text-[12px] font-semibold text-gray-900">{tr("Net sales by brand")}</div>
               <div className="text-[10px] text-gray-400 mb-3"> {tr("KWD after discounts on the chosen channel. Click a bar to filter to that brand.")} </div>
               <div className="space-y-2">
-                {BRANDS_DATA.map((b) => {
+                {vBrands.map((b) => {
                   const widthPct = Math.max(1.5, (b.netSales / maxBrandSales) * 100);
                   const isSelected = selectedBrand === "All brands" || selectedBrand === b.brand;
                   return (
@@ -921,7 +698,7 @@ function ScorecardInner() {
               <div className="text-[12px] font-semibold text-gray-900"> {tr("Average order value by brand")} </div>
               <div className="text-[10px] text-gray-400 mb-3"> {tr("KWD per order. Brands with fewer than 200 orders on this channel are greyed out.")} </div>
               <div className="space-y-2">
-                {[...BRANDS_DATA]
+                {[...vBrands]
                   .sort((a, b) => b.avgOrder - a.avgOrder)
                   .map((b) => {
                     const widthPct = Math.max(2, (b.avgOrder / maxBrandAov) * 100);
@@ -933,7 +710,7 @@ function ScorecardInner() {
                           setSelectedBrand(selectedBrand === b.brand ? "All brands" : b.brand)
                         }
                         tabIndex={0}
-                      className="group relative hover:z-50 focus:z-50 outline-none grid grid-cols-[110px_1fr_45px] items-center gap-2 text-[11px] cursor-pointer"
+                      className={`group relative hover:z-50 focus:z-50 outline-none grid grid-cols-[110px_1fr_45px] items-center gap-2 text-[11px] cursor-pointer hover:opacity-100 focus:opacity-100 ${dimBrand(b.brand)}`}
                       >
                         <HoverTip title={tr(b.brand)} lines={brandTip(b)} />
                       <span className="text-end text-gray-600 truncate">{tr(b.brand)}</span>
@@ -975,7 +752,7 @@ function ScorecardInner() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {activeBrands.map((b) => {
+                {vBrands.map((b) => {
                   const barW = Math.max(2, (b.netSales / maxBrandSales) * 80);
                   return (
                     <tr
@@ -983,9 +760,9 @@ function ScorecardInner() {
                       onClick={() =>
                         setSelectedBrand(selectedBrand === b.brand ? "All brands" : b.brand)
                       }
-                      className="hover:bg-gray-50 cursor-pointer"
-                    >
-                      <td className="py-1.5 font-medium text-gray-900">{tr(b.brand)}</td>
+                      className={`hover:bg-gray-50 cursor-pointer ${hiRow(selectedBrand === b.brand, selectedBrand !== ALL_BRANDS)}`}
+                     >
+                       <td className="py-1.5 font-medium text-gray-900">{tr(b.brand)}</td>
                       <td className="py-1.5 text-end tabular-nums text-gray-700">
                         {b.orders.toLocaleString()}
                       </td>
@@ -1050,7 +827,7 @@ function ScorecardInner() {
               <div className="text-[12px] font-semibold text-gray-900">{tr("Net sales by channel")}</div>
               <div className="text-[10px] text-gray-400 mb-3"> {tr("KWD after discounts for the chosen brand. Click a bar to filter to that channel.")} </div>
               <div className="space-y-1.5">
-                {CHANNELS_DATA.map((c) => {
+                {vChannels.map((c) => {
                   const widthPct = Math.max(1, (c.netSales / maxChannelSales) * 100);
                   return (
                     <div
@@ -1061,7 +838,7 @@ function ScorecardInner() {
                         )
                       }
                       tabIndex={0}
-                      className="group relative hover:z-50 focus:z-50 outline-none grid grid-cols-[110px_1fr_55px] items-center gap-2 text-[11px] cursor-pointer hover:opacity-100 focus:opacity-100"
+                      className={`group relative hover:z-50 focus:z-50 outline-none grid grid-cols-[110px_1fr_55px] items-center gap-2 text-[11px] cursor-pointer hover:opacity-100 focus:opacity-100 ${dimChannel(c.channel)}`}
                     >
                       <HoverTip title={tr(c.channel)} lines={channelTip(c)} />
                       <span className="text-end text-gray-600 truncate">{tr(c.channel)}</span>
@@ -1085,7 +862,7 @@ function ScorecardInner() {
               <div className="text-[12px] font-semibold text-gray-900"> {tr("Average order value by channel")} </div>
               <div className="text-[10px] text-gray-400 mb-3"> {tr("KWD per order. Channels with fewer than 200 orders are greyed out because their averages swing easily.")} </div>
               <div className="space-y-1.5">
-                {[...CHANNELS_DATA]
+                {[...vChannels]
                   .sort((a, b) => b.avgOrder - a.avgOrder)
                   .map((c) => {
                     const widthPct = Math.max(2, (c.avgOrder / maxChannelAov) * 100);
@@ -1099,7 +876,7 @@ function ScorecardInner() {
                           )
                         }
                         tabIndex={0}
-                      className="group relative hover:z-50 focus:z-50 outline-none grid grid-cols-[110px_1fr_45px] items-center gap-2 text-[11px] cursor-pointer"
+                      className={`group relative hover:z-50 focus:z-50 outline-none grid grid-cols-[110px_1fr_45px] items-center gap-2 text-[11px] cursor-pointer hover:opacity-100 focus:opacity-100 ${dimChannel(c.channel)}`}
                       >
                         <HoverTip title={tr(c.channel)} lines={channelTip(c)} />
                       <span className="text-end text-gray-600 truncate">{tr(c.channel)}</span>
@@ -1141,7 +918,7 @@ function ScorecardInner() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {activeChannels.map((c) => {
+                {vChannels.map((c) => {
                   const barW = Math.max(2, (c.netSales / maxChannelSales) * 80);
                   return (
                     <tr
@@ -1151,9 +928,9 @@ function ScorecardInner() {
                           selectedChannel === c.channel ? "All channels" : c.channel
                         )
                       }
-                      className="hover:bg-gray-50 cursor-pointer"
-                    >
-                      <td className="py-1.5 font-medium text-gray-900">{tr(c.channel)}</td>
+                      className={`hover:bg-gray-50 cursor-pointer ${hiRow(selectedChannel === c.channel, selectedChannel !== ALL_CHANNELS)}`}
+                     >
+                       <td className="py-1.5 font-medium text-gray-900">{tr(c.channel)}</td>
                       <td className="py-1.5 text-end tabular-nums text-gray-700">
                         {c.orders.toLocaleString()}
                       </td>
@@ -1200,7 +977,7 @@ function ScorecardInner() {
           </div>
         </section>
 
-            <ChannelMix channels={channelViews} />
+            <ChannelMix channels={channelViews} selectedChannel={selectedChannel} />
             <ChannelRecs channels={channelViews} />
             <div className="grid grid-cols-1 gap-3">
             <div className="bg-white border border-gray-200 rounded-md p-4">
@@ -1220,7 +997,8 @@ function ScorecardInner() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {CHANNEL_BRAND_MATRIX.map((row, i) => (
+                    {matrixRows.length === 0 ? (<tr><td colSpan={7} className="py-3 text-center text-gray-400">{tr("No brand-channel pair in the dataset matches this selection.")}</td></tr>) : null}
+                    {matrixRows.map((row, i) => (
                       <tr key={i} className="hover:bg-gray-50">
                         <td className="py-1.5 font-medium text-gray-900">{tr(row.brand)}</td>
                         <td className="py-1.5 text-gray-600">{tr(row.channel)}</td>
@@ -1247,7 +1025,7 @@ function ScorecardInner() {
           </div>
         )}
 
-        {tab === "new-customer" && <NewCustomerTab />}
+        {tab === "new-customer" && <NewCustomerTab view={view} />}
 
         {tab === "products" && (
           <div className="space-y-6">
@@ -1256,7 +1034,7 @@ function ScorecardInner() {
             SECTION 3: MENU CATEGORIES & TOP 15 ITEMS
            ========================================== */}
         <section className="space-y-3">
-          <div className="text-[12px] font-semibold text-gray-800"> {tr("Menu")} <span className="font-normal text-gray-400">{tr("· All brands, all channels")}</span>
+          <div className="text-[12px] font-semibold text-gray-800"> {tr("Menu")} <span className="font-normal text-gray-400">· {scopeLabel}</span>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
@@ -1265,7 +1043,8 @@ function ScorecardInner() {
               <div className="text-[12px] font-semibold text-gray-900">{tr("Sales by category")}</div>
               <div className="text-[10px] text-gray-400 mb-3"> {tr("Gross item sales before order-level discounts, grouped by item category.")} </div>
               <div className="space-y-1.5">
-                {CATEGORIES_DATA.map((cat) => {
+                {categoryRows.length === 0 ? (<div className="text-[11px] text-gray-400">{tr("No item rows for this brand in the project dataset.")}</div>) : null}
+                {categoryRows.map((cat) => {
                   const widthPct = Math.max(1, (cat.sales / maxCatSales) * 100);
                   return (
                     <div
@@ -1293,7 +1072,8 @@ function ScorecardInner() {
               <div className="text-[12px] font-semibold text-gray-900">{tr("Top 15 items")}</div>
               <div className="text-[10px] text-gray-400 mb-3"> {tr("Gross KWD. Hover a bar to see the brand and unit price.")} </div>
               <div className="space-y-1.5">
-                {TOP_15_ITEMS.map((item) => {
+                {topItems.length === 0 ? (<div className="text-[11px] text-gray-400">{tr("No item rows for this brand in the project dataset.")}</div>) : null}
+                {topItems.map((item) => {
                   const widthPct = Math.max(2, (item.sales / maxItemSales) * 100);
                   return (
                     <div
@@ -1331,7 +1111,7 @@ function ScorecardInner() {
               <div className="text-[12px] font-semibold text-gray-900"> {tr("Revenue & Cost Pool by Diagnostic Action Bucket")} </div>
               <div className="text-[10px] text-gray-400 mb-3"> {tr("KWD pool impacted per diagnostic rule across Odoo POS, Aggregators & Central Kitchen.")} </div>
               <div className="space-y-2.5 pt-1">
-                {DIAGNOSTIC_BUCKETS.map((b) => {
+                {diagBuckets.map((b) => {
                   const widthPct = Math.max(4, (b.value / maxDiagValue) * 100);
                   return (
                     <div
@@ -1398,7 +1178,7 @@ function ScorecardInner() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {ITEM_DIAGNOSTICS_TABLE_1.map((row, idx) => (
+                  {diagRows.map((row, idx) => (
                     <tr key={idx} className="hover:bg-gray-50">
                       <td className="py-2 text-gray-700">{tr(row.brand)}</td>
                       <td className="py-2 font-medium text-gray-900">{tr(row.item)}</td>
@@ -1447,7 +1227,7 @@ function ScorecardInner() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {LOW_VOLUME_TAIL_ITEMS.map((item, i) => (
+                    {tailRows.map((item, i) => (
                       <tr key={i} className="hover:bg-gray-50">
                         <td className="py-1.5 text-gray-600">{tr(item.brand)}</td>
                         <td className="py-1.5 text-gray-500">{tr(item.category)}</td>
@@ -1468,15 +1248,15 @@ function ScorecardInner() {
           </div>
         )}
 
-        {tab === "promotions" && <PromotionsTab channels={promoChannels} brands={promoBrands} />}
+        {tab === "promotions" && <PromotionsTab channels={promoChannels} brands={promoBrands} totalDiscounts={view.discounts} totalNet={view.net} selectedChannel={selectedChannel} selectedBrand={selectedBrand} />}
 
-        {tab === "branches" && <BranchesTab />}
+        {tab === "branches" && <BranchesTab filter={filter} />}
 
-        {tab === "peak-hours" && <PeakHoursTab />}
+        {tab === "peak-hours" && <PeakHoursTab view={view} />}
 
         {tab === "operation-performance" && (
           <div className="space-y-6">
-            <OperationsTab />
+            <OperationsTab view={view} />
             <section className="space-y-3">
           {/* ==========================================
               SCROLLABLE ACTION TABLE 2: ODOO P&L, COGS & PETTY CASH
@@ -1499,7 +1279,7 @@ function ScorecardInner() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {ODOO_OPERATIONAL_TABLE_2.map((row, idx) => (
+                  {opRows.map((row, idx) => (
                     <tr key={idx} className="hover:bg-gray-50">
                       <td className="py-2 font-medium text-gray-900">{tr(row.sector)}</td>
                       <td className="py-2 text-gray-700">{tr(row.account)}</td>

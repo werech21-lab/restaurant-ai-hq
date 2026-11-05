@@ -78,6 +78,8 @@ export const ANALYTICS_AR: Record<string, string> = {
   'Avg order': 'متوسط الطلب',
   'Items / order': 'الأصناف / الطلب',
   'Discount rate': 'نسبة الخصم',
+  'No brand-channel pair in the dataset matches this selection.': 'لا يوجد زوج علامة وقناة في البيانات يطابق هذا التحديد.',
+  'No item rows for this brand in the project dataset.': 'لا توجد أصناف لهذه العلامة في بيانات المشروع.',
   Drinks: 'المشروبات',
   Starters: 'المقبلات',
   Desserts: 'الحلويات',
