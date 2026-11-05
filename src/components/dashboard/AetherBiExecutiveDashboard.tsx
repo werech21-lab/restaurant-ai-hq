@@ -46,10 +46,10 @@ const PNL = [
   { en: 'Salaries, rent & commissions', ar: 'الرواتب والإيجارات والعمولات', value: 32056.87, pct: 19.2, color: '#6366F1' },
 ]
 const CHANNEL_MIX = [
-  { en: 'Shop Sales', ar: 'مبيعات المحل', value: 58972.29, pct: 35.3, color: '#2563EB' },
+  { en: 'Shop Sales', ar: 'مبيعات المحل', value: 58953.09, pct: 35.3, color: '#2563EB' },
   { en: 'Talabat (Go + MP)', ar: 'طلبات (جو + ماركت)', value: 62603.46, pct: 37.5, color: '#F97316' },
   { en: 'Keeta', ar: 'كيتا', value: 35607.98, pct: 21.3, color: '#10B981' },
-  { en: 'Deliveroo, Ordable & others', ar: 'ديليفرو وأوردابل وباقي القنوات', value: 9908.43, pct: 5.9, color: '#8B5CF6' },
+  { en: 'Deliveroo, Ordable & others', ar: 'ديليفرو وأوردابل وباقي القنوات', value: 9927.63, pct: 5.9, color: '#8B5CF6' },
 ]
 
 const PRIORITY_STYLE: Record<Priority, { cls: string; en: string; ar: string }> = {

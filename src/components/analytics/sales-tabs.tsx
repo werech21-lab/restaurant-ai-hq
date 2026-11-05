@@ -385,13 +385,13 @@ export function NewCustomerTab() {
 }
 
 /* -------------------------------------------------------------- promotions */
-export interface PromoChannel { key: string; label: string; sales: number; discPct: number }
+export interface PromoChannel { key: string; label: string; sales: number; discPct: number; kwd?: number }
 export interface PromoBrand { key: string; label: string; discPct: number }
 
 export function PromotionsTab({ channels, brands }: { channels: PromoChannel[]; brands: PromoBrand[] }) {
   const { T, ar } = useT()
-  // discount KWD from the discount rate of gross: net * r / (1 - r)
-  const withKwd = channels.map((c) => ({ ...c, kwd: (c.sales * (c.discPct / 100)) / (1 - c.discPct / 100) }))
+  // discount KWD: explicit allocation when provided, otherwise net * r / (1 - r)
+  const withKwd = channels.map((c) => ({ ...c, kwd: c.kwd ?? (c.sales * (c.discPct / 100)) / (1 - c.discPct / 100) }))
   const sortedPct = [...withKwd].sort((a, b) => b.discPct - a.discPct)
   const sumKwd = withKwd.reduce((a, c) => a + c.kwd, 0)
   const topBrand = [...brands].sort((a, b) => b.discPct - a.discPct)[0]
@@ -402,8 +402,8 @@ export function PromotionsTab({ channels, brands }: { channels: PromoChannel[]; 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
         <Kpi label={T('Total discounts', 'إجمالي الخصومات')} value={<Num>{ar ? '4,152 د.ك' : 'KWD 4,152'}</Num>} />
         <Kpi label={T('Share of sales', 'نسبتها من المبيعات')} value={<Num>2.4%</Num>} />
-        <Kpi label={T('Highest channel: Keeta', 'أعلى قناة خصماً: كيتا')} value={<Num>8.2%</Num>} note={keeta ? `${fmt0(keeta.kwd)} ${ar ? 'د.ك' : 'KWD'}` : undefined} tone="text-rose-700" />
-        <Kpi label={T('Next: Snoonu', 'تليها: سنونو')} value={<Num>6.2%</Num>} note={snoonu ? `${fmt0(snoonu.kwd)} ${ar ? 'د.ك' : 'KWD'}` : undefined} tone="text-amber-700" />
+        <Kpi label={T('Highest by value: Keeta', 'الأعلى قيمة خصم: كيتا')} value={<Num>{keeta ? `${keeta.discPct.toFixed(1)}%` : '—'}</Num>} note={keeta ? `${fmt0(keeta.kwd)} ${ar ? 'د.ك' : 'KWD'}` : undefined} tone="text-rose-700" />
+        <Kpi label={T('Snoonu rate', 'نسبة سنونو')} value={<Num>{snoonu ? `${snoonu.discPct.toFixed(1)}%` : '—'}</Num>} note={snoonu ? `${fmt0(snoonu.kwd)} ${ar ? 'د.ك' : 'KWD'}` : undefined} tone="text-amber-700" />
         <Kpi label={T('Highest brand', 'أعلى علامة خصماً')} value={<Num>{topBrand ? `${topBrand.discPct.toFixed(1)}%` : '—'}</Num>} note={topBrand?.label} />
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
@@ -412,11 +412,13 @@ export function PromotionsTab({ channels, brands }: { channels: PromoChannel[]; 
           <Bars rows={sortedPct.map((c) => ({ key: c.key, label: c.label, value: c.discPct, text: `${c.discPct.toFixed(1)}%`, color: c.discPct > 5 ? '#DC2626' : BLUE }))} />
         </div>
         <div className={card}>
-          <Title title={T('Discount value by channel (KWD)', 'قيمة الخصم حسب القناة (د.ك)')} sub={T('Net sales × rate ÷ (1 − rate)', 'صافي المبيعات × النسبة ÷ (1 − النسبة)')} />
+          <Title title={T('Discount value by channel (KWD)', 'قيمة الخصم حسب القناة (د.ك)')} sub={T('Pro-rata to the official total', 'موزعة تناسبياً على الإجمالي الرسمي')} />
           <Bars rows={[...withKwd].sort((a, b) => b.kwd - a.kwd).map((c) => ({ key: c.key, label: c.label, value: c.kwd, text: fmt0(c.kwd), color: c.discPct > 5 ? '#DC2626' : BLUE }))} />
           <p className="mt-2 text-[10px] text-gray-400">
-            {T(`The channel rows add up to KWD ${fmt0(sumKwd)}, which does not match the reported total of KWD 4,152. The channel rates need reconciling.`, `مجموع صفوف القنوات ${fmt0(sumKwd)} د.ك وهو لا يطابق الإجمالي المعتمد 4,152 د.ك. نسب القنوات تحتاج إلى مطابقة.`)}
-          </p>
+            {Math.abs(sumKwd - 4152) < 0.01
+              ? T('Channel discounts are allocated pro-rata from the channel rates so they add up exactly to the official KWD 4,152 (2.4%). Whatsapp shows a high rate on only 3 orders.', 'خصومات القنوات موزعة تناسبياً من نسب القنوات بحيث يطابق مجموعها الإجمالي الرسمي 4,152 د.ك (2.4%). واتساب يظهر نسبة مرتفعة على 3 طلبات فقط.')
+              : T(`The channel rows add up to KWD ${fmt0(sumKwd)}, which does not match the reported total of KWD 4,152.`, `مجموع صفوف القنوات ${fmt0(sumKwd)} د.ك وهو لا يطابق الإجمالي المعتمد 4,152 د.ك.`)}
+            </p>
         </div>
       </div>
       <div className={card}>
@@ -435,8 +437,8 @@ export function PromotionsTab({ channels, brands }: { channels: PromoChannel[]; 
         <RecTable
           head={[T('Target', 'الهدف'), T('Finding', 'الملاحظة'), T('Action', 'الإجراء'), T('Estimated monthly effect', 'الأثر الشهري التقديري')]}
           rows={[
-            ['Keeta', T('8.2% discount rate, about KWD 3,180 of the total.', 'نسبة خصم 8.2% وحوالي 3,180 د.ك من الإجمالي.'), T('Stop the open menu-wide discount; use bundle offers capped at 3.5%.', 'أوقف الخصم المفتوح على المنيو واستعمل عروض حزم بسقف 3.5%.'), <Num key="k">+1,620 {ar ? 'د.ك' : 'KWD'}</Num>],
-            ['Snoonu', T('6.2% discount rate on a small channel.', 'نسبة خصم 6.2% على قناة صغيرة.'), T('Cap at 3.5% and review the active promotions.', 'ضع سقفاً 3.5% وراجع العروض الفعالة.'), '—'],
+            ['Keeta', T(`${keeta ? keeta.discPct.toFixed(1) : '—'}% discount rate, about KWD ${keeta ? fmt0(keeta.kwd) : '—'} of the total.`, `نسبة خصم ${keeta ? keeta.discPct.toFixed(1) : '—'}% وحوالي ${keeta ? fmt0(keeta.kwd) : '—'} د.ك من الإجمالي.`), T('Stop the open menu-wide discount; use bundle offers capped at 3.5%.', 'أوقف الخصم المفتوح على المنيو واستعمل عروض حزم بسقف 3.5%.'), <Num key="k">+1,620 {ar ? 'د.ك' : 'KWD'}</Num>],
+            ['Snoonu', T(`${snoonu ? snoonu.discPct.toFixed(1) : '—'}% discount rate on a small channel.`, `نسبة خصم ${snoonu ? snoonu.discPct.toFixed(1) : '—'}% على قناة صغيرة.`), T('Cap at 3.5% and review the active promotions.', 'ضع سقفاً 3.5% وراجع العروض الفعالة.'), '—'],
             [topBrand?.label ?? '—', T('Highest brand discount rate.', 'أعلى نسبة خصم بين العلامات.'), T('Replace flat percentage discounts with a free drink above a basket threshold.', 'استبدل الخصم النسبي بمشروب مجاني فوق حد معيّن للسلة.'), '—'],
           ]}
         />

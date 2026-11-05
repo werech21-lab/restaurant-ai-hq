@@ -140,8 +140,8 @@ export const ANALYTICS_AR: Record<string, string> = {
     'فرانكس (69.8% مقبلات) وطلبات ماركت (متوسط الطلب KWD 9.28) يثبتان مرونة عالية للحزم. كرّر النموذج في بقية العلامات.',
   'Discount & promo bleed on Keeta/Snoonu': 'تسرّب الخصومات والعروض في كيتا وسنونو',
   'Cap promo': 'ضع سقفاً للعروض',
-  'Keeta discount rate hits 8.2% and Snoonu 6.2% vs 2.4% group average (KWD 4,152 total discounts). Shift to meal bundles.':
-    'نسبة الخصم في كيتا 8.2% وفي سنونو 6.2% مقابل متوسط المجموعة 2.4% (إجمالي الخصومات KWD 4,152). انتقل إلى حزم الوجبات.',
+  'Keeta discount rate hits 6.7% and Snoonu 5.0% vs 2.4% group average (KWD 4,152 total discounts). Shift to meal bundles.':
+    'نسبة الخصم في كيتا 6.7% وفي سنونو 5.0% مقابل متوسط المجموعة 2.4% (إجمالي الخصومات KWD 4,152). انتقل إلى حزم الوجبات.',
   'Maintenance & Petty Cash (Rabih Custody)': 'الصيانة والنثرية (عهدة ربيع)',
   'CapEx replace': 'استبدال رأسمالي',
   'KWD 10,707.930 in maintenance & petty cash driven by repeated Al-Kout & Salmiya chiller repairs. Approve unit replacement.':
@@ -194,10 +194,10 @@ export const ANALYTICS_AR: Record<string, string> = {
   'Aggregator Clearing · Keeta': 'تسوية المنصة · كيتا',
   'Keeta Settlement & Discounts': 'تسوية كيتا والخصومات',
   'Odoo Accounting': 'المحاسبة في أودو',
-  '8.2% disc': 'خصم 8.2%',
+  '6.7% disc': 'خصم 6.7%',
   'Rebalance promo': 'أعد توازن العروض',
-  'Keeta accounts for KWD 3,180 of the KWD 4,152 total discounts AND only 4.8% drink attachment. Switch promo to Combo + Drink.':
-    'كيتا تستحوذ على KWD 3,180 من إجمالي الخصومات البالغ KWD 4,152 مع نسبة مشروبات 4.8% فقط. حوّل العرض إلى كومبو مع مشروب.',
+  'Keeta accounts for KWD 2,539 of the KWD 4,152 total discounts AND only 4.8% drink attachment. Switch promo to Combo + Drink.':
+    'كيتا تستحوذ على KWD 2,539 من إجمالي الخصومات البالغ KWD 4,152 مع نسبة مشروبات 4.8% فقط. حوّل العرض إلى كومبو مع مشروب.',
   'Aggregator Clearing · Talabat Go': 'تسوية المنصة · طلبات جو',
   'Talabat Go Receivables': 'مستحقات طلبات جو',
   '33.4% share': 'حصة 33.4%',

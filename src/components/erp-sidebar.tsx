@@ -24,6 +24,8 @@ interface NavItem {
   labelAr: string
   labelEn: string
   icon: React.ComponentType<{ size?: number; className?: string }>
+  /** Shown to every signed-in user, regardless of module permissions */
+  alwaysVisible?: boolean
   /** Collapsible sub-menu entries (accordion) */
   children?: { id: SalesTabId; href: string; labelAr: string; labelEn: string }[]
 }
@@ -42,9 +44,10 @@ const SIDEBAR_SECTIONS: NavSection[] = [
     titleEn: 'Main menu',
     items: [
       { key: 'dashboard', href: '/dashboard', labelAr: 'الملخص المالي والتوصيات', labelEn: 'Financial Summary & Recommendations', icon: LayoutDashboard },
-      // permission follows the existing "reports" module so non-admin roles that can see reports can open it
+      // visible to every signed-in user who can open the control panel (no per-module permission needed)
       {
         key: 'reports',
+        alwaysVisible: true,
         href: '/erp/sales-scorecard',
         labelAr: 'تحليل المبيعات والأصناف',
         labelEn: 'Sales & items analyses',
@@ -166,6 +169,7 @@ export function Sidebar({ user }: { user: AccessUser; enabledKeys?: string[] | n
         {SIDEBAR_SECTIONS.map((section, idx) => {
           const visibleItems = section.items.filter((item) => {
             if (user.role.isAdmin) return true
+            if (item.alwaysVisible) return true
             return can(user, item.key, 'view')
           })
 

@@ -47,6 +47,8 @@ interface ChannelRow {
   avgOrder: number;
   itemsPerOrder: number;
   discountRate: number;
+  /** Discount value in KWD; the 11 rows add up exactly to the official 4,152 */
+  discountKwd: number;
   drinksPct: number;
   startersPct: number;
   dessertsPct: number;
@@ -136,12 +138,12 @@ const BRANDS_DATA: BrandRow[] = [
 const CHANNELS_DATA: ChannelRow[] = [
   {
     channel: "Shop Sales",
-    orders: 14819,
-    netSales: 58972.29,
+    orders: 14818,
+    netSales: 58953.09,
     share: 35.3,
     avgOrder: 3.98,
     itemsPerOrder: 2.34,
-    discountRate: 1.0,
+    discountRate: 0.8, discountKwd: 475.51,
     drinksPct: 41.2,
     startersPct: 14.4,
     dessertsPct: 1.5,
@@ -153,7 +155,7 @@ const CHANNELS_DATA: ChannelRow[] = [
     share: 33.4,
     avgOrder: 7.78,
     itemsPerOrder: 2.91,
-    discountRate: 2.0,
+    discountRate: 1.6, discountKwd: 907.67,
     drinksPct: 12.7,
     startersPct: 51.9,
     dessertsPct: 2.8,
@@ -165,7 +167,7 @@ const CHANNELS_DATA: ChannelRow[] = [
     share: 21.3,
     avgOrder: 5.68,
     itemsPerOrder: 2.70,
-    discountRate: 8.2,
+    discountRate: 6.7, discountKwd: 2538.99,
     drinksPct: 4.8,
     startersPct: 39.4,
     dessertsPct: 3.9,
@@ -177,7 +179,7 @@ const CHANNELS_DATA: ChannelRow[] = [
     share: 4.1,
     avgOrder: 9.28,
     itemsPerOrder: 4.05,
-    discountRate: 2.0,
+    discountRate: 1.6, discountKwd: 112.20,
     drinksPct: 19.8,
     startersPct: 76.8,
     dessertsPct: 6.2,
@@ -189,7 +191,7 @@ const CHANNELS_DATA: ChannelRow[] = [
     share: 3.3,
     avgOrder: 5.68,
     itemsPerOrder: 2.90,
-    discountRate: 1.1,
+    discountRate: 0.9, discountKwd: 48.75,
     drinksPct: 13.0,
     startersPct: 64.1,
     dessertsPct: 6.4,
@@ -201,7 +203,7 @@ const CHANNELS_DATA: ChannelRow[] = [
     share: 0.6,
     avgOrder: 12.84,
     itemsPerOrder: 5.11,
-    discountRate: 0.1,
+    discountRate: 0.1, discountKwd: 0.84,
     drinksPct: 17.3,
     startersPct: 109.9,
     dessertsPct: 7.4,
@@ -213,7 +215,7 @@ const CHANNELS_DATA: ChannelRow[] = [
     share: 0.6,
     avgOrder: 6.30,
     itemsPerOrder: 2.85,
-    discountRate: 6.2,
+    discountRate: 5.0, discountKwd: 54.31,
     drinksPct: 13.5,
     startersPct: 65.6,
     dessertsPct: 15.3,
@@ -225,7 +227,7 @@ const CHANNELS_DATA: ChannelRow[] = [
     share: 0.6,
     avgOrder: 7.92,
     itemsPerOrder: 3.03,
-    discountRate: 0.0,
+    discountRate: 0.0, discountKwd: 0.00,
     drinksPct: 17.8,
     startersPct: 67.4,
     dessertsPct: 0.0,
@@ -237,7 +239,7 @@ const CHANNELS_DATA: ChannelRow[] = [
     share: 0.5,
     avgOrder: 6.64,
     itemsPerOrder: 4.55,
-    discountRate: 1.6,
+    discountRate: 1.3, discountKwd: 10.41,
     drinksPct: 9.9,
     startersPct: 29.8,
     dessertsPct: 4.1,
@@ -249,7 +251,7 @@ const CHANNELS_DATA: ChannelRow[] = [
     share: 0.3,
     avgOrder: 5.88,
     itemsPerOrder: 4.01,
-    discountRate: 0.0,
+    discountRate: 0.0, discountKwd: 0.00,
     drinksPct: 20.9,
     startersPct: 55.8,
     dessertsPct: 0.0,
@@ -261,7 +263,7 @@ const CHANNELS_DATA: ChannelRow[] = [
     share: 0.0,
     avgOrder: 11.10,
     itemsPerOrder: 7.00,
-    discountRate: 11.1,
+    discountRate: 9.1, discountKwd: 3.32,
     drinksPct: 66.7,
     startersPct: 133.3,
     dessertsPct: 0.0,
@@ -348,7 +350,7 @@ const DIAGNOSTIC_BUCKETS = [
     color: "#EC4899",
     badge: "Cap promo",
     badgeColor: "border-pink-500 text-pink-700 bg-pink-50",
-    rule: "Keeta discount rate hits 8.2% and Snoonu 6.2% vs 2.4% group average (KWD 4,152 total discounts). Shift to meal bundles.",
+    rule: "Keeta discount rate hits 6.7% and Snoonu 5.0% vs 2.4% group average (KWD 4,152 total discounts). Shift to meal bundles.",
   },
   {
     label: "Maintenance & Petty Cash (Rabih Custody)",
@@ -491,10 +493,10 @@ const ODOO_OPERATIONAL_TABLE_2 = [
     module: "Odoo Accounting",
     entries: 6267,
     amountKwd: 35607.980,
-    variancePct: "8.2% disc",
+    variancePct: "6.7% disc",
     badge: "Rebalance promo",
     badgeStyle: "border-pink-600 text-pink-800 bg-pink-50",
-    action: "Keeta accounts for KWD 3,180 of the KWD 4,152 total discounts AND only 4.8% drink attachment. Switch promo to Combo + Drink.",
+    action: "Keeta accounts for KWD 2,539 of the KWD 4,152 total discounts AND only 4.8% drink attachment. Switch promo to Combo + Drink.",
   },
   {
     sector: "Aggregator Clearing · Talabat Go",
@@ -647,7 +649,7 @@ function ScorecardInner() {
     discPct: c.discountRate,
     drinksPct: c.drinksPct,
   }));
-  const promoChannels = CHANNELS_DATA.map((c) => ({ key: c.channel, label: tr(c.channel), sales: c.netSales, discPct: c.discountRate }));
+  const promoChannels = CHANNELS_DATA.map((c) => ({ key: c.channel, label: tr(c.channel), sales: c.netSales, discPct: c.discountRate, kwd: c.discountKwd }));
   const promoBrands = BRANDS_DATA.map((b) => ({ key: b.brand, label: tr(b.brand), discPct: b.discountRate }));
 
   return (

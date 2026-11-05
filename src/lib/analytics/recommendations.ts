@@ -20,8 +20,8 @@ export const RECS: {
   {
     id: 'REC-02', priority: 'top',
     deptEn: 'Promotional discount control', deptAr: 'ضبط الخصومات التسويقية',
-    issueEn: 'Keeta runs an 8.2% discount rate: KWD 3,180 of the KWD 4,152 total company discounts.',
-    issueAr: 'كيتا تستهلك خصومات بنسبة 8.2% (3,180 د.ك من أصل 4,152 د.ك إجمالي خصومات الشركة).',
+    issueEn: 'Keeta runs a 6.7% discount rate: KWD 2,539 of the KWD 4,152 total company discounts.',
+    issueAr: 'كيتا تستهلك خصومات بنسبة 6.7% (2,539 د.ك من أصل 4,152 د.ك إجمالي خصومات الشركة).',
     fixEn: 'Stop the open menu-wide discount on Keeta and replace it with bundle offers capped at 3.5%.',
     fixAr: 'إيقاف الخصم المفتوح على المنيو في كيتا واستبداله بعروض وجبات مجمّعة بسقف خصم 3.5%.',
     impact: 1620,
