@@ -16,7 +16,7 @@ import { VentureWarehousesHub } from "@/components/warehouses/VentureWarehousesH
 
 export const metadata = {
   title: "المستودعات ومخازن الفروع | شركة فنتشر فودز ذ.م.م.",
-  description: "المطبخ المركزي والمستودع الرئيسي بالقرين ومخازن الفروع الـ 9 النشطة لشركة فنتشر فودز لإدارة المطاعم ذ.م.م.",
+  description: "المطبخ المركزي والمستودع الرئيسي بالمطبخ المركزي ومخازن الفروع الـ 9 النشطة لشركة فنتشر فودز لإدارة المطاعم ذ.م.م.",
 };
 
 async function WarehousesContent({ searchParams }: { searchParams: Promise<RawQuery> }) {

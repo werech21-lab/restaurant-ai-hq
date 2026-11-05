@@ -40,15 +40,15 @@ export interface BranchWarehouseCard {
   readinessScore: number;
 }
 
-// 10 Official Locations: 1 Central Kitchen Qurain + 9 Active Branches (No Jahra)
+// 10 Official Locations: 1 Central Kitchen + 9 Active Branches (No Jahra)
 export const OFFICIAL_10_LOCATIONS: BranchWarehouseCard[] = [
   {
     id: "wh-commissary",
     code: "CK-QURAIN",
-    nameAr: "المطبخ المركزي والمستودع الرئيسي — أسواق القرين",
+    nameAr: "المطبخ المركزي والمستودع الرئيسي",
     nameEn: "Central Kitchen & Master Commissary",
-    areaAr: "أسواق القرين · محافظة مبارك الكبير",
-    areaEn: "Aswaq Al-Qurain · Mubarak Al-Kabeer",
+    areaAr: "مبارك الكبير · محافظة مبارك الكبير",
+    areaEn: "Mubarak Al-Kabeer",
     brandRolesAr: "المركز اللوجستي والإنتاجي الرئيسي لجميع العلامات التجارية الـ 6",
     brandRolesEn: "Central Production & Logistics Hub for all 6 Brands",
     isCommissary: true,
@@ -97,10 +97,10 @@ export const OFFICIAL_10_LOCATIONS: BranchWarehouseCard[] = [
   {
     id: "wh-qurain-br",
     code: "WH-QURAIN-BR",
-    nameAr: "مخزن فرع أسواق القرين",
-    nameEn: "Aswaq Al-Qurain Branch Store",
-    areaAr: "أسواق القرين · شارع المطاعم",
-    areaEn: "Aswaq Al-Qurain · Restaurant Strip",
+    nameAr: "مخزن فرع مبارك الكبير",
+    nameEn: "Mubarak Al-Kabeer Branch Store",
+    areaAr: "مبارك الكبير · شارع المطاعم",
+    areaEn: "Mubarak Al-Kabeer · Restaurant Strip",
     brandRolesAr: "تشاينا جاردن وفارم براون",
     brandRolesEn: "China Garden & Farm Brown",
     stockValueKwd: 3450.25,
@@ -240,7 +240,7 @@ export const TRANSFERS_1139_DATA: TransferRecord[] = [
   {
     id: "TR-202611-091",
     fromNameAr: "المطبخ المركزي (حساب 1132)",
-    fromNameEn: "Central Kitchen Qurain (GL 1132)",
+    fromNameEn: "Central Kitchen (GL 1132)",
     toNameAr: "فرع مجمع الأفنيوز — الري",
     toNameEn: "The Avenues Mall Branch",
     itemsAr: "150 كجم أنجوس مفروم + 40 لتر ترافل صوص + 800 خبز بريوش",
@@ -259,10 +259,10 @@ export const TRANSFERS_1139_DATA: TransferRecord[] = [
   {
     id: "TR-202611-090",
     fromNameAr: "المطبخ المركزي (حساب 1132)",
-    fromNameEn: "Central Kitchen Qurain (GL 1132)",
+    fromNameEn: "Central Kitchen (GL 1132)",
     toNameAr: "فرع السالمية المركزي",
     toNameEn: "Salmiya Central Branch",
-    itemsAr: "120 كجم صدور دجاج متبلة + 25 سطل ثومية القرين",
+    itemsAr: "120 كجم صدور دجاج متبلة + 25 سطل ثومية المطبخ المركزي",
     itemsEn: "120 KG Marinated Chicken + 25 Tubs Garlic Sauce",
     dispatchedWeight: "145.00 كجم",
     receivedWeight: "144.80 كجم",
@@ -278,7 +278,7 @@ export const TRANSFERS_1139_DATA: TransferRecord[] = [
   {
     id: "TR-202611-089",
     fromNameAr: "المطبخ المركزي (حساب 1132)",
-    fromNameEn: "Central Kitchen Qurain (GL 1132)",
+    fromNameEn: "Central Kitchen (GL 1132)",
     toNameAr: "فرع 360 مول — الزهراء",
     toNameEn: "360 Mall Branch",
     itemsAr: "90 كجم نودلز قمح طازجة + 30 جالون صوص كانتون",
@@ -297,7 +297,7 @@ export const TRANSFERS_1139_DATA: TransferRecord[] = [
   {
     id: "TR-202611-088",
     fromNameAr: "المطبخ المركزي (حساب 1132)",
-    fromNameEn: "Central Kitchen Qurain (GL 1132)",
+    fromNameEn: "Central Kitchen (GL 1132)",
     toNameAr: "فرع العارضية اللوجستي",
     toNameEn: "Ardiya Logistics Branch",
     itemsAr: "80 كجم ستريبلوين أنجوس مبرد + 50 كرتون علب فرانكس",
@@ -316,7 +316,7 @@ export const TRANSFERS_1139_DATA: TransferRecord[] = [
   {
     id: "TR-202611-087",
     fromNameAr: "المطبخ المركزي (حساب 1132)",
-    fromNameEn: "Central Kitchen Qurain (GL 1132)",
+    fromNameEn: "Central Kitchen (GL 1132)",
     toNameAr: "فرع الكوت مول — الفحيحيل",
     toNameEn: "Al-Kout Mall Branch",
     itemsAr: "70 كجم سيخ شاورما دجاج متبل + 18 سطل طحينة صافية",
@@ -335,7 +335,7 @@ export const TRANSFERS_1139_DATA: TransferRecord[] = [
   {
     id: "TR-202611-086",
     fromNameAr: "المطبخ المركزي (حساب 1132)",
-    fromNameEn: "Central Kitchen Qurain (GL 1132)",
+    fromNameEn: "Central Kitchen (GL 1132)",
     toNameAr: "فرع العاصمة مول — شرق",
     toNameEn: "Al-Assima Mall Branch",
     itemsAr: "60 كجم لحم مفروم + 400 عجينة شباتي كرك + 10 كجم شاي سيلاني",
@@ -357,8 +357,8 @@ export const TRANSFERS_1139_DATA: TransferRecord[] = [
 export const COLD_CHAIN_UNITS = [
   {
     id: "cc-01",
-    locationAr: "المطبخ المركزي — أسواق القرين",
-    locationEn: "Central Kitchen — Qurain",
+    locationAr: "المطبخ المركزي",
+    locationEn: "Central Kitchen",
     unitAr: "غرفة التبريد الرئيسية للحوم المبردة #01",
     unitEn: "Main Meat Chiller Room #01",
     typeAr: "غرفة تبريد مركزية",
@@ -372,8 +372,8 @@ export const COLD_CHAIN_UNITS = [
   },
   {
     id: "cc-02",
-    locationAr: "المطبخ المركزي — أسواق القرين",
-    locationEn: "Central Kitchen — Qurain",
+    locationAr: "المطبخ المركزي",
+    locationEn: "Central Kitchen",
     unitAr: "غرفة التجميد العميق للأغذية #02",
     unitEn: "Deep Freezer Room #02",
     typeAr: "غرفة تجميد عميق",
@@ -454,8 +454,8 @@ export const PHYSICAL_COUNT_VARIANCE_DATA = [
     code: "RW01-BF03",
     nameAr: "لحم أنجوس مفروم 80/20 للبرجر",
     nameEn: "Angus Minced Beef 80/20",
-    locationAr: "المطبخ المركزي — أسواق القرين",
-    locationEn: "Central Kitchen — Qurain",
+    locationAr: "المطبخ المركزي",
+    locationEn: "Central Kitchen",
     bookQty: "2,150.00 كجم",
     physicalQty: "2,148.50 كجم",
     varianceQty: "-1.50 كجم",
@@ -614,7 +614,7 @@ export function VentureWarehousesHub({
               {isAr ? "إدارة المستودعات وشبكة الإمداد الداخلي" : "Internal Warehouses & Supply Network"}
             </span>
             <span className="rounded-full bg-slate-100 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700/80 px-2.5 py-0.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
-              {isAr ? "المطبخ المركزي + 9 فروع نشطة" : "Central Kitchen Qurain + 9 Active Branches"}
+              {isAr ? "المطبخ المركزي + 9 فروع نشطة" : "Central Kitchen + 9 Active Branches"}
             </span>
           </div>
           <h1 className="mt-2 text-2xl font-black text-slate-900 dark:text-white sm:text-3xl tracking-tight">
@@ -624,8 +624,8 @@ export function VentureWarehousesHub({
           </h1>
           <p className="text-xs text-slate-400 mt-1 max-w-3xl leading-relaxed">
             {isAr
-              ? "المستودع الرئيسي والمطبخ المركزي بأسواق القرين ومخازن الفروع الـ 9 الرسمية لشركة فنتشر فودز لإدارة المطاعم ذ.م.م. (ترخيص 2021/22838) مع تتبع كامل لحساب البضاعة بالطريق (حساب وسيط 1139)."
-              : "Venture Foods Restaurants Management Co. W.L.L. (Lic. 2021/22838) Central Kitchen Qurain and 9 Active Branch Stores with In-Transit GL 1139 Reconciliation."}
+              ? "المستودع الرئيسي والمطبخ المركزي ومخازن الفروع الـ 9 الرسمية لشركة فنتشر فودز لإدارة المطاعم ذ.م.م. (ترخيص 2021/22838) مع تتبع كامل لحساب البضاعة بالطريق (حساب وسيط 1139)."
+              : "Venture Foods Restaurants Management Co. W.L.L. (Lic. 2021/22838) Central Kitchen and 9 Active Branch Stores with In-Transit GL 1139 Reconciliation."}
           </p>
         </div>
 
@@ -677,7 +677,7 @@ export function VentureWarehousesHub({
         <div className="rounded-2xl border border-cyan-500/20 bg-cyan-950/20 p-5 backdrop-blur-sm shadow-xl">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-cyan-300">
-              {isAr ? "المطبخ المركزي والمستودع الرئيسي (القرين)" : "Central Kitchen & Commissary (Qurain)"}
+              {isAr ? "المطبخ المركزي والمستودع الرئيسي" : "Central Kitchen & Commissary (Central Kitchen)"}
             </span>
             <Building2 size={18} className="text-cyan-400" />
           </div>
@@ -690,7 +690,7 @@ export function VentureWarehousesHub({
         <div className="rounded-2xl border border-blue-500/20 bg-blue-950/20 p-5 backdrop-blur-sm shadow-xl">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-blue-300">
-              {isAr ? "بضاعة بالطريق بين القرين والفروع (1139)" : "Goods In-Transit to Branches (GL 1139)"}
+              {isAr ? "بضاعة بالطريق بين المطبخ المركزي والفروع (1139)" : "Goods In-Transit to Branches (GL 1139)"}
             </span>
             <Truck size={18} className="text-blue-400" />
           </div>
@@ -938,7 +938,7 @@ export function VentureWarehousesHub({
               <p className="text-xs text-slate-400 mt-0.5">
                 {isAr
                   ? "حصر الشحنات الخارجة من المطبخ المركزي إلى الفروع الـ 9 مع مطابقة الوزن المحول والمستلم وقيد الترحيل المحاسبي."
-                  : "Tracking dispatches from Central Kitchen Qurain to all 9 branches with weight verification and GL posting."}
+                  : "Tracking dispatches from Central Kitchen to all 9 branches with weight verification and GL posting."}
               </p>
             </div>
             <span className="text-xs font-bold text-amber-400 bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/30">
@@ -1242,7 +1242,7 @@ export function VentureWarehousesHub({
                 <select className="w-full rounded-xl border border-slate-700 bg-slate-800 px-3 py-2.5 text-white focus:outline-none">
                   <option value="CK-QURAIN">
                     {isAr
-                      ? "المطبخ المركزي والمستودع الرئيسي — أسواق القرين (حساب 1132)"
+                      ? "المطبخ المركزي والمستودع الرئيسي (حساب 1132)"
                       : "Central Kitchen & Master Commissary"}
                   </option>
                   <option value="WH-SALMIYA">
@@ -1267,7 +1267,7 @@ export function VentureWarehousesHub({
                   <option value="WH-KOUT">{isAr ? "فرع الكوت مول — الفحيحيل" : "Al-Kout Mall Branch"}</option>
                   <option value="WH-FARWANIYA">{isAr ? "فرع الفروانية" : "Farwaniya Branch"}</option>
                   <option value="WH-ARDIYA">{isAr ? "فرع العارضية اللوجستي" : "Ardiya Logistics Branch"}</option>
-                  <option value="WH-QURAIN-BR">{isAr ? "فرع أسواق القرين" : "Aswaq Al-Qurain Branch"}</option>
+                  <option value="WH-QURAIN-BR">{isAr ? "فرع مبارك الكبير" : "Mubarak Al-Kabeer Branch"}</option>
                 </select>
               </div>
 

@@ -74,8 +74,8 @@ export const KITCHEN_LOCATIONS: KitchenLocation[] = [
   },
   {
     id: 'QURAIN_CK',
-    nameAr: 'المطبخ المركزي والإنتاج — أسواق القرين (الشيف المسؤول: بابو تشاند رانا #1279)',
-    nameEn: 'Central Production Kitchen — Aswaq Al-Qurain (Chef in Charge: Babu Chand Rana #1279)',
+    nameAr: 'المطبخ المركزي والإنتاج — مبارك الكبير (الشيف المسؤول: بابو تشاند رانا #1279)',
+    nameEn: 'Central Production Kitchen (Chef in Charge: Babu Chand Rana #1279)',
     chefAr: 'الشيف المسؤول: بابو تشاند رانا (#1279)',
     chefEn: 'Head Chef: Babu Chand Rana (#1279)',
     brands: ['chinagarden', 'franks', 'shawarma', 'noodle', 'farmbrown', 'karak'],
@@ -98,8 +98,8 @@ export const KITCHEN_LOCATIONS: KitchenLocation[] = [
   },
   {
     id: 'QURAIN',
-    nameAr: 'مطبخ فرع أسواق القرين (الشيف: شيترا بهادر #1968)',
-    nameEn: 'Aswaq Al-Qurain Branch Kitchen (Chef: Chitra Bahadur #1968)',
+    nameAr: 'مطبخ فرع مبارك الكبير (الشيف: شيترا بهادر #1968)',
+    nameEn: 'Mubarak Al-Kabeer Branch Kitchen (Chef: Chitra Bahadur #1968)',
     chefAr: 'الشيف: شيترا بهادر (#1968)',
     chefEn: 'Chef: Chitra Bahadur (#1968)',
     brands: ['karak', 'chinagarden', 'shawarma'],
@@ -229,7 +229,7 @@ export const INITIAL_KDS_TICKETS: KdsTicket[] = [
           { code: 'RW01-CH01', nameAr: 'جبن شيدر أمريكي', nameEn: 'Cheddar Cheese', qty: '4 slices', costKwd: 0.280 },
         ],
         prepIngredients: [
-          { code: 'PP03-CGS', nameAr: 'صوص كانتون الخاص (القرين)', nameEn: 'Canton Secret Sauce', qty: '60ml', costKwd: 0.144 },
+          { code: 'PP03-CGS', nameAr: 'صوص كانتون الخاص', nameEn: 'Canton Secret Sauce', qty: '60ml', costKwd: 0.144 },
         ],
         packagingItems: [
           { code: 'PI02-WRP', nameAr: 'ورق تغليف برجر مشمع', nameEn: 'Waxed Burger Wrap', qty: '2 pcs', costKwd: 0.060 },
@@ -319,7 +319,7 @@ export const INITIAL_KDS_TICKETS: KdsTicket[] = [
           { code: 'RW01-NOD', nameAr: 'نودلز قمح طازجة مسلوقة', nameEn: 'Fresh Wheat Noodles', qty: '180g', costKwd: 0.220 },
         ],
         prepIngredients: [
-          { code: 'PP03-WOK', nameAr: 'صوص الووك والسيشوان (القرين)', nameEn: 'Wok Szechuan Sauce', qty: '50ml', costKwd: 0.150 },
+          { code: 'PP03-WOK', nameAr: 'صوص الووك والسيشوان', nameEn: 'Wok Szechuan Sauce', qty: '50ml', costKwd: 0.150 },
         ],
         packagingItems: [
           { code: 'PI02-NWK', nameAr: 'وعاء نودلز كرتوني دائري مقاوم للتسريب', nameEn: 'Leakproof Noodle Pail', qty: '1 unit', costKwd: 0.220 },
@@ -472,7 +472,7 @@ export const INITIAL_KDS_TICKETS: KdsTicket[] = [
           { code: 'RW01-WRP', nameAr: 'عجينة سبرينغ رول مقرمشة', nameEn: 'Spring Roll Wrappers', qty: '8 pcs', costKwd: 0.200 },
         ],
         prepIngredients: [
-          { code: 'PP03-SNS', nameAr: 'صوص سويت آند سور (القرين)', nameEn: 'Sweet & Sour Dip', qty: '40ml', costKwd: 0.100 },
+          { code: 'PP03-SNS', nameAr: 'صوص سويت آند سور', nameEn: 'Sweet & Sour Dip', qty: '40ml', costKwd: 0.100 },
         ],
         packagingItems: [
           { code: 'PI02-BOX', nameAr: 'علبة مقبلات كرتونية فاخرة', nameEn: 'Appetizer Box', qty: '2 units', costKwd: 0.120 },

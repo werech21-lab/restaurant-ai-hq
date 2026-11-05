@@ -335,7 +335,7 @@ export function VentureAccountingHub({
           { key: 'amcHub', labelAr: '🛠️ بوابة رقابة عقود الصيانة الدورية ومكافحة الحشرات ومداخن المطابخ', labelEn: 'AMC Contracts Hub & SLA Gate', icon: ShieldCheck },
           { key: 'expiryRadar', labelAr: '⏳ مخصص المصروفات المدفوعة مقدماً وإطفاؤها الشهري (1146)', labelEn: 'Prepaid Expenses & Expiry Radar', icon: Calendar },
           { key: 'hrBridge', labelAr: '👥 جسر الربط المالي وإقفال الرواتب ومخصص نهاية الخدمة', labelEn: '7-Way HR ↔ Finance ↔ Ops Bridge', icon: ArrowRightLeft },
-          { key: 'transitRecon', labelAr: '🚚 حساب البضاعة بالطريق بين القرين والفروع وتحويلات المطبخ المركزي (1139)', labelEn: 'Transit & Platform Settlement (1139)', icon: Truck },
+          { key: 'transitRecon', labelAr: '🚚 حساب البضاعة بالطريق بين المطبخ المركزي والفروع وتحويلات المطبخ المركزي (1139)', labelEn: 'Transit & Platform Settlement (1139)', icon: Truck },
           { key: 'banking', labelAr: '🏦 حسابات التسوية الوسيطة (كي نت 1121 ومنصات التوصيل 1123–1125)', labelEn: 'NBK Accounts & K-Net Recon', icon: Landmark },
           { key: 'pettyCash', labelAr: '🏛️ مركز تدقيق كشوف وإصدار شيكات مكتب التعقيب الحكومي (سند)', labelEn: 'PRO Government Clearance & Sanad Hub', icon: Wallet },
           { key: 'journals', labelAr: '📒 دفتر اليومية وقيد السندات البنكية وإصدار الشيكات', labelEn: 'Journal Entries & Bank Vouchers', icon: BookOpen },
@@ -2233,7 +2233,7 @@ export function VentureAccountingHub({
               </div>
               <div className="p-4 space-y-3">
                 {[
-                  { name: 'المطبخ المركزي والمقر الإنتاجي (أسواق القرين)', en: 'Central Kitchen Commissary', area: '600 m²', rent: 3200, gl: 'GL 501000', landlord: 'إدارة أسواق القرين' },
+                  { name: 'المطبخ المركزي والمقر الإنتاجي', en: 'Central Kitchen Commissary', area: '600 m²', rent: 3200, gl: 'GL 501000', landlord: 'إدارة مبارك الكبير' },
                   { name: 'مستودع الشويخ الجاف والتغليف (الشويخ الصناعية)', en: 'Shuwaikh Dry & Packaging Warehouse', area: '450 m²', rent: 1850, gl: 'GL 501005', landlord: 'عقارات الشويخ الصناعية' },
                   { name: 'وحدة التبريد والتجميد المركزي (الري)', en: 'Al-Rai Cold Storage Unit', area: '200 m²', rent: 1200, gl: 'GL 501006', landlord: 'أجيليتي للمجمعات اللوجستية' },
                 ].map((wh, i) => (

@@ -1560,7 +1560,7 @@ export default function VentureEventsHub() {
                       <div className="mt-2 flex flex-wrap justify-center gap-2 text-[10px]">
                         <span className="rounded bg-black/60 px-2 py-1 text-cyan-300">⚡ 3-Phase 32A Power</span>
                         <span className="rounded bg-black/60 px-2 py-1 text-emerald-300">📶 POS 5G Router</span>
-                        <span className="rounded bg-black/60 px-2 py-1 text-amber-300">🚚 Al-Qurain Van Gate</span>
+                        <span className="rounded bg-black/60 px-2 py-1 text-amber-300">🚚 Central Kitchen Van Gate</span>
                       </div>
                     </div>
 

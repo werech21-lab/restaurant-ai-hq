@@ -159,8 +159,8 @@ export const ANALYTICS_AR: Record<string, string> = {
   "Drives beverage & starter attachment on Talabat Go. Feature at top of Keeta menu to lift Keeta's 4.8% drink rate.":
     'يدفع إضافة المشروبات والمقبلات في طلبات جو. اعرضه في أعلى قائمة كيتا لرفع نسبة المشروبات فيها (4.8%).',
   'High AOV driver': 'يرفع متوسط الطلب',
-  "69.8% starter attachment in Frank's pushes brand AOV to KWD 7.45. Keep fries + drink combo default on aggregators.":
-    'نسبة المقبلات 69.8% في فرانكس ترفع متوسط الطلب إلى KWD 7.45. أبقِ كومبو البطاطس والمشروب افتراضياً في منصات التوصيل.',
+  "69.8% starter attachment in Frank's pushes brand AOV to KWD 7.46. Keep fries + drink combo default on aggregators.":
+    'نسبة المقبلات 69.8% في فرانكس ترفع متوسط الطلب إلى KWD 7.46. أبقِ كومبو البطاطس والمشروب افتراضياً في منصات التوصيل.',
   'Upsell target': 'هدف للبيع الإضافي',
   'High order count (2,146) at low ticket (KWD 1.80). Add 1-click KWD 0.950 spring roll or soup pairing prompt.':
     'عدد طلبات مرتفع (2,146) بقيمة منخفضة (KWD 1.80). أضف اقتراحاً بنقرة واحدة لسبرينغ رول أو شوربة بسعر KWD 0.950.',

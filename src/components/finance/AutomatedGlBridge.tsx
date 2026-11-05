@@ -115,7 +115,7 @@ export const SAMPLE_GL_BRIDGE_ENTRIES: GlBridgeEntry[] = [
     voucherNo: 'JV-REC-OCT-0520',
     source: 'RECIPES',
     sourceLabelAr: 'الوصفات والإنتاج - تشغيلات المطبخ المركزي',
-    sourceLabelEn: 'Recipes & Prep - Al-Qurain Batch Scaling',
+    sourceLabelEn: 'Recipes & Prep - Central Kitchen Batch Scaling',
     date: '30 أكتوبر 2026',
     descriptionAr: 'قيد تحويل دفعة 100 لتر صوص ترافل خاص (PP03-TRF) من خامات إلى منتج وسيط جاهز للتوزيع',
     descriptionEn: 'Batch production 100L Truffle Sauce (PP03-TRF) from raw materials to prep inventory',

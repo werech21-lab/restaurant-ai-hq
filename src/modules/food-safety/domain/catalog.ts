@@ -43,18 +43,18 @@ export const EXTRA_SITES = [
   {
     id: 'CK-QURAIN',
     brandId: null as string | null,
-    areaEn: 'Al-Qurain',
-    areaAr: 'القرين',
-    nameEn: 'Central Kitchen · Al-Qurain',
-    nameAr: 'المطبخ المركزي · القرين',
+    areaEn: 'Central Kitchen',
+    areaAr: 'مبارك الكبير',
+    nameEn: 'Central Kitchen',
+    nameAr: 'المطبخ المركزي',
   },
   {
     id: 'WH-QURAIN',
     brandId: null as string | null,
-    areaEn: 'Al-Qurain Warehouse',
-    areaAr: 'مستودع أسواق القرين',
-    nameEn: 'Main Warehouse · Aswaq Al-Qurain',
-    nameAr: 'المستودع الرئيسي · أسواق القرين',
+    areaEn: 'Central Kitchen Warehouse',
+    areaAr: 'مستودع المطبخ المركزي',
+    nameEn: 'Main Warehouse',
+    nameAr: 'المستودع الرئيسي',
   },
   // Farm Brown
   {
@@ -134,10 +134,10 @@ export const EXTRA_SITES = [
   {
     id: 'FS-QURAIN',
     brandId: 'FRANKS-STEAK',
-    areaEn: 'Aswaq Al-Qurain',
-    areaAr: 'أسواق القرين',
-    nameEn: "Frank's · Aswaq Al-Qurain",
-    nameAr: 'فرانكس · أسواق القرين',
+    areaEn: 'Mubarak Al-Kabeer',
+    areaAr: 'مبارك الكبير',
+    nameEn: "Frank's · Mubarak Al-Kabeer",
+    nameAr: 'فرانكس · مبارك الكبير',
   },
   // The Noodle Bar
   {
@@ -185,10 +185,10 @@ export const EXTRA_SITES = [
   {
     id: 'ST-QURAIN',
     brandId: 'SHAWARMA-TAHINA',
-    areaEn: 'Aswaq Al-Qurain',
-    areaAr: 'أسواق القرين',
-    nameEn: 'Shawarma Tahina · Aswaq Al-Qurain',
-    nameAr: 'شاورما طحينة · أسواق القرين',
+    areaEn: 'Mubarak Al-Kabeer',
+    areaAr: 'مبارك الكبير',
+    nameEn: 'Shawarma Tahina · Mubarak Al-Kabeer',
+    nameAr: 'شاورما طحينة · مبارك الكبير',
   },
 ] as const
 

@@ -126,7 +126,7 @@ export default function IntelligenceWorkspace({
       categoryAr: 'الوصفات وتكلفة الغذاء',
       categoryEn: 'Recipes & Food Cost',
       costCenter: 'CC-QRN-KITCHEN',
-      observationAr: 'رصد تجاوز الاستهلاك الفعلي في أودو لبراندي تشاينا جاردن وفرانكس للوصفة المعيارية (BOM) بأكثر من +4.5% في بنود (اللحم البقري، الزيوت، صوص التيرياكي، صوص الشاورما) بالمطبخ المركزي وفروع القرين والسالمية.',
+      observationAr: 'رصد تجاوز الاستهلاك الفعلي في أودو لبراندي تشاينا جاردن وفرانكس للوصفة المعيارية (BOM) بأكثر من +4.5% في بنود (اللحم البقري، الزيوت، صوص التيرياكي، صوص الشاورما) بالمطبخ المركزي وفروع مبارك الكبير والسالمية.',
       observationEn: 'Actual Odoo recipe consumption for China Garden and Franks exceeded standard BOM by +4.5% on beef, frying oil, and specialty sauces at Central Kitchen and Salmiya.',
       impactAr: 'توفير فوري قدره 2,260.500 د.ك شهرياً (27,126.000 د.ك سنوياً) وتخفيض Food Cost من 24.8% إلى 22.9%.',
       impactEn: 'Immediate monthly savings of 2,260.500 KWD (27,126 KWD/yr) lowering Food Cost from 24.8% to 22.9%.',
@@ -189,7 +189,7 @@ export default function IntelligenceWorkspace({
       odooDataProofAr: 'تحليل أودو: 33.3% من المبيعات تمر عبر توصيل المنصة 17% مقابل 3.9% فقط لأسطول الشركة 10%.',
       odooDataProofEn: 'Odoo Analytics: 33.3% of sales channeled via 17% platform fleet vs only 3.9% on 10% company fleet.',
       steps: [
-        { num: '1', textAr: 'نقل 6 دراجات نارية من الفروع ذات الطلب المنخفض إلى فرعي القرين والسالمية في ساعات الذروة (7-11 م).', textEn: 'Relocate 6 company delivery bikes to Qurain & Salmiya during evening peak rush (7-11 PM).' },
+        { num: '1', textAr: 'نقل 6 دراجات نارية من الفروع ذات الطلب المنخفض إلى فرعي مبارك الكبير والسالمية في ساعات الذروة (7-11 م).', textEn: 'Relocate 6 company delivery bikes to Mubarak Al-Kabeer & Salmiya during evening peak rush (7-11 PM).' },
         { num: '2', textAr: 'تفعيل خوارزمية الأولوية في نقاط البيع لأودو لتعيين أسطول الشركة أولاً قبل فتح طلبات المنصة.', textEn: 'Enable POS dispatch logic in Odoo prioritizing internal riders before releasing orders to platform.' },
         { num: '3', textAr: 'تقديم مطالبة مالية رسمية لشركة طلبات عن فرق العمولة الناتج عن إغلاقات Busy غير المبررة (SLA Claim).', textEn: 'File official SLA penalty reimbursement claim with Talabat KAM for unnotified Busy blackouts.' },
       ],
@@ -226,7 +226,7 @@ export default function IntelligenceWorkspace({
       odooDataProofEn: 'Odoo Audit: 10,707.930 KWD spent via Rabih custody; 62% were repetitive repairs on identical units.',
       steps: [
         { num: '1', textAr: 'استبدال الثلاجات التالفة في الكوت مول والسالمية فوراً لتفادي تكرار فواتير الإصلاح وقطع الغيار.', textEn: 'Procure new high-efficiency prep chillers for Al Kout and Salmiya to halt emergency repair leaks.' },
-        { num: '2', textAr: 'توقيع عقد صيانة سنوي موحد بزيارات دورية شهرية لكافة الفروع الـ 9 وغرف تبريد القرين.', textEn: 'Sign unified preventive maintenance SLA with monthly scheduled audits across all 9 branches.' },
+        { num: '2', textAr: 'توقيع عقد صيانة سنوي موحد بزيارات دورية شهرية لكافة الفروع الـ 9 وغرف تبريد المطبخ المركزي.', textEn: 'Sign unified preventive maintenance SLA with monthly scheduled audits across all 9 branches.' },
         { num: '3', textAr: 'ربط حساسات إنترنت الأشياء (IoT) للحرارة بمنظومة الرادار للتنبيه قبل وصول الحرارة لدرجة الخطر.', textEn: 'Connect digital temperature IoT sensors to AetherBI radar for proactive 24/7 cold-chain telemetry.' },
       ],
     },
@@ -240,7 +240,7 @@ export default function IntelligenceWorkspace({
     { nameAr: 'أمجد سمير (المشتريات السريعة)', nameEn: 'Amjad Samir (Fast Procurement)', amountKwd: 2115.650, pct: 4.14, txCount: 86, roleAr: 'شراء خضار ومواد طازجة عاجلة للفروع', roleEn: 'Fresh produce, dairy branch supplements', avgTxKwd: 24.60, stdDev: '± 6.8%' },
     { nameAr: 'شيام (الموارد البشرية والشؤون)', nameEn: 'Shyam (HR & Welfare)', amountKwd: 1420.250, pct: 2.78, txCount: 42, roleAr: 'تنقلات العمال، رعاية وسكن الموظفين', roleEn: 'Worker transit, staff welfare & housing', avgTxKwd: 33.81, stdDev: '± 4.9%' },
     { nameAr: 'نادر نزهي (الخدمات العامة)', nameEn: 'Nader Nezhy (General Services)', amountKwd: 1180.500, pct: 2.31, txCount: 38, roleAr: 'نثريات إدارية، رسوم اتصالات وبريد', roleEn: 'Corporate admin, courier & communications', avgTxKwd: 31.06, stdDev: '± 3.8%' },
-    { nameAr: 'شكر الله ناصيف (المستودع والإسناد)', nameEn: 'Shokrallah Nassif (Warehouse Support)', amountKwd: 850.320, pct: 1.66, txCount: 22, roleAr: 'أدوات تغليف وطوارئ شحن القرين', roleEn: 'Packaging tools & Qurain warehouse support', avgTxKwd: 38.65, stdDev: '± 5.1%' },
+    { nameAr: 'شكر الله ناصيف (المستودع والإسناد)', nameEn: 'Shokrallah Nassif (Warehouse Support)', amountKwd: 850.320, pct: 1.66, txCount: 22, roleAr: 'أدوات تغليف وطوارئ شحن المطبخ المركزي', roleEn: 'Packaging tools & Central Kitchen warehouse support', avgTxKwd: 38.65, stdDev: '± 5.1%' },
     { nameAr: 'نوشا شريف (نثريات الضيافة والإدارة)', nameEn: 'Nousha Sharif (Office Hospitality)', amountKwd: 393.150, pct: 0.77, txCount: 16, roleAr: 'ضيافة مكتب الإدارة العامة والاجتماعات', roleEn: 'HQ office pantry, executive hospitality', avgTxKwd: 24.57, stdDev: '± 2.4%' },
   ], [])
 

@@ -126,7 +126,7 @@ export function OdooAiCommandCenter() {
       titleAr: 'انخفاض نسبة التصافي لوصفة الدجاج المتبل (PP03)',
       titleEn: 'Yield Anomaly in Seasoned Chicken Batch (PP03)',
       branchAr: 'المطبخ المركزي',
-      branchEn: 'Central Kitchen Qurain',
+      branchEn: 'Central Kitchen',
       severity: 'WARNING',
       categoryAr: 'إنتاج وتصنيع المطبخ المركزي',
       categoryEn: 'Commissary Batch Yield',
@@ -161,7 +161,7 @@ export function OdooAiCommandCenter() {
     { name: isAr ? 'العارضية' : 'Ardiya', sales: 13410.250, maint: 350.500, margin: 28.6 },
     { name: isAr ? 'بروميناد' : 'Promenade', sales: 10845.100, maint: 240.300, margin: 24.5 },
     { name: isAr ? 'الفروانية' : 'Farwaniya', sales: 7265.800, maint: 190.150, margin: 25.9 },
-    { name: isAr ? 'القرين' : 'Qurain Store', sales: 4253.300, maint: 100.150, margin: 26.2 },
+    { name: isAr ? 'المطبخ المركزي' : 'Mubarak Al-Kabeer Store', sales: 4253.300, maint: 100.150, margin: 26.2 },
     { name: isAr ? 'المطبخ المركزي' : 'Central Kitchen', sales: 0.000, maint: 3420.500, margin: 0.0 },
   ]
 
@@ -199,10 +199,10 @@ export function OdooAiCommandCenter() {
     },
     {
       id: 'REC-RECIPE-03',
-      titleAr: 'معايرة موازين التتبيل بالقرين واستبدال أكياس التغليف (PI02)',
+      titleAr: 'معايرة موازين التتبيل بالمطبخ المركزي واستبدال أكياس التغليف (PI02)',
       titleEn: 'Calibrate Central Kitchen Seasoning Scales & Optimize Bulk Packaging',
       brandAr: 'المطبخ المركزي',
-      brandEn: 'Central Kitchen Qurain',
+      brandEn: 'Central Kitchen',
       rootCauseAr: 'انحراف نسبة الفاقد في تتبيل الدجاج واللحوم (+5.3%) مع شراء مواد تغليف غير مجمعة.',
       rootCauseEn: 'Seasoning marinade loss variance (+5.3%) coupled with decentralized packaging procurement.',
       actionAr: 'تركيب موازين رقمية مرتبطة بنقاط التحضير والتعاقد السنوي الموحد لعلب الوجبات والتغليف الحراري.',
@@ -563,7 +563,7 @@ export function OdooAiCommandCenter() {
                 {isAr ? 'المقارنة الإحصائية للمبيعات وتكاليف الصيانة للفروع (د.ك)' : 'Branch Sales vs Maintenance Ledger (KWD)'}
               </h3>
               <p className="text-xs text-slate-400">
-                {isAr ? 'مبيعات الـ 9 فروع مع إبراز عهد صيانة المطبخ المركزي' : 'Active 9 branches sales alongside Qurain CK maintenance'}
+                {isAr ? 'مبيعات الـ 9 فروع مع إبراز عهد صيانة المطبخ المركزي' : 'Active 9 branches sales alongside Central Kitchen maintenance'}
               </p>
             </div>
             <span className="rounded-lg bg-blue-500/10 px-2 py-0.5 text-xs font-bold text-blue-600 dark:text-blue-400">

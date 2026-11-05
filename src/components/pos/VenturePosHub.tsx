@@ -252,7 +252,7 @@ export const BRANCH_OPTIONS = [
   { id: 'KHIRAN', nameAr: 'فرع الكوت مول والخيران أوتلت', nameEn: 'Al Kout Mall & Khiran', code: 'BR-KH' },
   { id: 'JABRIYA', nameAr: 'فرع العاصمة مول والجابرية', nameEn: 'Al Asimah Mall & Jabriya', code: 'BR-JB' },
   { id: 'ARDHIYA', nameAr: 'فرع العارضية الحرفية', nameEn: 'Ardhiya Craft Area', code: 'BR-AR' },
-  { id: 'QURAIN_CK', nameAr: 'فرع أسواق القرين / المطبخ المركزي', nameEn: 'Aswaq Al-Qurain / Central Kitchen', code: 'BR-CK' },
+  { id: 'QURAIN_CK', nameAr: 'فرع مبارك الكبير / المطبخ المركزي', nameEn: 'Central Kitchen', code: 'BR-CK' },
   { id: 'MAHBOULA', nameAr: 'فرع المهبولة الساحلي', nameEn: 'Mahboula Coastal', code: 'BR-MH' },
   { id: 'SABAH_SALEM', nameAr: 'فرع صباح السالم', nameEn: 'Sabah Al-Salem Branch', code: 'BR-SS' },
 ]

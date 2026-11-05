@@ -378,7 +378,7 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
                 <p className="text-xs text-slate-400 mt-0.5">
                   {isAr
                     ? 'عقود الفروع الـ 9 والمطبخ المركزي (7111–7123 و 1146): لا يصرف أي شيك لمقاول إلا بعد تأكيد زيارة العمليات وشهادات البلدية والإطفاء'
-                    : 'Preventative contracts for 9 active stores + Qurain CK: payments automatically held on SLA breach or missing MOH/KFSD certs'}
+                    : 'Preventative contracts for 9 active stores + Central Kitchen: payments automatically held on SLA breach or missing MOH/KFSD certs'}
                 </p>
               </div>
               <div className="flex gap-2">
@@ -822,7 +822,7 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
                   {isAr ? 'دورة التسويات والتحويلات المركزية' : 'Platform Clearing & Central Kitchen Transit'}
                 </span>
                 <h2 className="text-xl font-black text-white mt-1">
-                  {isAr ? 'مطابقة ذمم المنصات (1121–1125) ومخزون التحويلات (1139 بضاعة بالطريق بين القرين والفروع)' : 'Platform Clearing & In-Transit Depletion Control'}
+                  {isAr ? 'مطابقة ذمم المنصات (1121–1125) ومخزون التحويلات (1139 بضاعة بالطريق بين المطبخ المركزي والفروع)' : 'Platform Clearing & In-Transit Depletion Control'}
                 </h2>
                 <p className="text-xs text-slate-400 mt-0.5">
                   {isAr
@@ -841,7 +841,7 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
             <div className="mt-5 space-y-3">
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
                 <Truck size={16} className="text-emerald-400" />
-                <span>{isAr ? 'الإرساليات الحالية بطريق التحويل من المطبخ المركزي (حساب 1139):' : 'Current Active Transfers in Transit from Qurain CK (1139):'}</span>
+                <span>{isAr ? 'الإرساليات الحالية بطريق التحويل من المطبخ المركزي (حساب 1139):' : 'Current Active Transfers in Transit from Central Kitchen (1139):'}</span>
               </h3>
 
               <div className="overflow-x-auto rounded-xl border border-slate-800">
@@ -860,7 +860,7 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
                     <tr>
                       <td className="py-2.5 px-3 font-bold text-cyan-300">TR-QRN-SLM-084</td>
                       <td className="py-2.5 px-3 font-sans font-semibold text-white">
-                        {isAr ? 'المطبخ المركزي ➔ فرع السالمية' : 'Qurain CK ➔ Salmiya Branch'}
+                        {isAr ? 'المطبخ المركزي ➔ فرع السالمية' : 'Central Kitchen ➔ Salmiya Branch'}
                       </td>
                       <td className="py-2.5 px-3 font-sans text-slate-300">
                         {isAr ? 'لحم تندرلوين متبل صيني (35 كجم) + صوص منجوليان (15 كجم)' : 'Marinated Tenderloin (35kg) + Mongolian Sauce (15kg)'}
@@ -876,7 +876,7 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
                     <tr>
                       <td className="py-2.5 px-3 font-bold text-cyan-300">TR-QRN-360-085</td>
                       <td className="py-2.5 px-3 font-sans font-semibold text-white">
-                        {isAr ? 'المطبخ المركزي ➔ فرع 360 مول' : 'Qurain CK ➔ 360 Mall Branch'}
+                        {isAr ? 'المطبخ المركزي ➔ فرع 360 مول' : 'Central Kitchen ➔ 360 Mall Branch'}
                       </td>
                       <td className="py-2.5 px-3 font-sans text-slate-300">
                         {isAr ? 'دجاج تيكا شاورما طحينة (40 كجم) + خبز صاج خاص' : 'Tahina Marinated Chicken (40kg) + Fresh Saj Bread'}

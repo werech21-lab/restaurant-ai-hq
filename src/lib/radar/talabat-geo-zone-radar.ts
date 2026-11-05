@@ -553,8 +553,8 @@ export const INITIAL_BRANCH_PROFILES: BranchRadarProfile[] = [
   {
     branchId: 'BR-QRN',
     branchCode: 'QRN',
-    branchNameAr: 'فرع أسواق القرين + المطبخ المركزي',
-    branchNameEn: 'Aswaq Al-Qurain Branch & Central Kitchen',
+    branchNameAr: 'فرع مبارك الكبير + المطبخ المركزي',
+    branchNameEn: 'Mubarak Al-Kabeer Branch & Central Kitchen',
     primaryBrandId: 'china-garden',
     primaryBrandNameAr: 'تشاينا جاردن',
     primaryBrandNameEn: 'China Garden',
@@ -569,8 +569,8 @@ export const INITIAL_BRANCH_PROFILES: BranchRadarProfile[] = [
     openRatioPct: 75.0,
     totalLostKwdToday: 55.400,
     zones: [
-      { id: 'QRN-Z1', zoneNameAr: 'أسواق القرين', zoneNameEn: 'Aswaq Al-Qurain', distanceKm: 0.5, status: 'ONLINE_VISIBLE', startTime: '11:00 AM', endTime: null, isOngoing: false, durationMinutes: 0, rootCause: 'TALABAT_FLEET_SHORTAGE', rootCauseLabelAr: 'طبيعي', rootCauseLabelEn: 'Normal', estimatedLostOrders: 0, estimatedLostKwd: 0.000, forcedTgoPenaltyKwd: 0.000 },
-      { id: 'QRN-Z2', zoneNameAr: 'القرين', zoneNameEn: 'Al-Qurain', distanceKm: 1.8, status: 'ONLINE_VISIBLE', startTime: '11:00 AM', endTime: null, isOngoing: false, durationMinutes: 0, rootCause: 'TALABAT_FLEET_SHORTAGE', rootCauseLabelAr: 'طبيعي', rootCauseLabelEn: 'Normal', estimatedLostOrders: 0, estimatedLostKwd: 0.000, forcedTgoPenaltyKwd: 0.000 },
+      { id: 'QRN-Z1', zoneNameAr: 'مبارك الكبير', zoneNameEn: 'Mubarak Al-Kabeer', distanceKm: 0.5, status: 'ONLINE_VISIBLE', startTime: '11:00 AM', endTime: null, isOngoing: false, durationMinutes: 0, rootCause: 'TALABAT_FLEET_SHORTAGE', rootCauseLabelAr: 'طبيعي', rootCauseLabelEn: 'Normal', estimatedLostOrders: 0, estimatedLostKwd: 0.000, forcedTgoPenaltyKwd: 0.000 },
+      { id: 'QRN-Z2', zoneNameAr: 'مبارك الكبير', zoneNameEn: 'Central Kitchen', distanceKm: 1.8, status: 'ONLINE_VISIBLE', startTime: '11:00 AM', endTime: null, isOngoing: false, durationMinutes: 0, rootCause: 'TALABAT_FLEET_SHORTAGE', rootCauseLabelAr: 'طبيعي', rootCauseLabelEn: 'Normal', estimatedLostOrders: 0, estimatedLostKwd: 0.000, forcedTgoPenaltyKwd: 0.000 },
       { id: 'QRN-Z3', zoneNameAr: 'مبارك الكبير', zoneNameEn: 'Mubarak Al-Kabeer', distanceKm: 2.6, status: 'ONLINE_VISIBLE', startTime: '11:00 AM', endTime: null, isOngoing: false, durationMinutes: 0, rootCause: 'TALABAT_FLEET_SHORTAGE', rootCauseLabelAr: 'طبيعي', rootCauseLabelEn: 'Normal', estimatedLostOrders: 0, estimatedLostKwd: 0.000, forcedTgoPenaltyKwd: 0.000 },
       { id: 'QRN-Z4', zoneNameAr: 'القصور', zoneNameEn: 'Qusoor', distanceKm: 2.9, status: 'ONLINE_VISIBLE', startTime: '11:00 AM', endTime: null, isOngoing: false, durationMinutes: 0, rootCause: 'TALABAT_FLEET_SHORTAGE', rootCauseLabelAr: 'طبيعي', rootCauseLabelEn: 'Normal', estimatedLostOrders: 0, estimatedLostKwd: 0.000, forcedTgoPenaltyKwd: 0.000 },
       { id: 'QRN-Z5', zoneNameAr: 'العدان', zoneNameEn: 'Adan', distanceKm: 3.4, status: 'BUSY_IN_AREA', startTime: '01:20 PM', endTime: null, isOngoing: true, durationMinutes: 38, rootCause: 'TALABAT_FLEET_SHORTAGE', rootCauseLabelAr: 'نقص أسطول سائقي طلبات في المنطقة', rootCauseLabelEn: 'Talabat Fleet Shortage', estimatedLostOrders: 4, estimatedLostKwd: 22.400, forcedTgoPenaltyKwd: 3.808 },

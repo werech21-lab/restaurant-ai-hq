@@ -71,9 +71,9 @@ const BRANDS_DATA: BrandRow[] = [
   {
     brand: "Frank's",
     orders: 2150,
-    netSales: 16020.26,
+    netSales: 16033.97,
     share: 9.6,
-    avgOrder: 7.45,
+    avgOrder: 7.46,
     itemsPerOrder: 3.01,
     discountRate: 1.4,
     drinksPct: 11.0,
@@ -84,8 +84,8 @@ const BRANDS_DATA: BrandRow[] = [
   {
     brand: "Tahina",
     orders: 1947,
-    netSales: 4424.85,
-    share: 2.6,
+    netSales: 4428.64,
+    share: 2.7,
     avgOrder: 2.27,
     itemsPerOrder: 2.75,
     discountRate: 1.0,
@@ -97,7 +97,7 @@ const BRANDS_DATA: BrandRow[] = [
   {
     brand: "Farm Brown",
     orders: 848,
-    netSales: 2661.9,
+    netSales: 2664.18,
     share: 1.6,
     avgOrder: 3.14,
     itemsPerOrder: 2.13,
@@ -110,9 +110,9 @@ const BRANDS_DATA: BrandRow[] = [
   {
     brand: "The Noodle Bar",
     orders: 269,
-    netSales: 1676.78,
-    share: 1.0,
-    avgOrder: 6.23,
+    netSales: 1678.22,
+    share: 1,
+    avgOrder: 6.24,
     itemsPerOrder: 2.75,
     discountRate: 4.9,
     drinksPct: 17.8,
@@ -123,7 +123,7 @@ const BRANDS_DATA: BrandRow[] = [
   {
     brand: "Karak Cafeteria",
     orders: 128,
-    netSales: 623.97,
+    netSales: 624.5,
     share: 0.4,
     avgOrder: 4.88,
     itemsPerOrder: 4.83,
@@ -399,7 +399,7 @@ const ITEM_DIAGNOSTICS_TABLE_1 = [
     sharePct: 2.2,
     badge: "High AOV driver",
     badgeStyle: "border-blue-600 text-blue-800 bg-blue-50",
-    note: "69.8% starter attachment in Frank's pushes brand AOV to KWD 7.45. Keep fries + drink combo default on aggregators.",
+    note: "69.8% starter attachment in Frank's pushes brand AOV to KWD 7.46. Keep fries + drink combo default on aggregators.",
   },
   {
     brand: "China Garden",

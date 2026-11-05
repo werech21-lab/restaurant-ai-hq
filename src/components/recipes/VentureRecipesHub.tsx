@@ -79,7 +79,7 @@ export const DETAILED_RECIPES: MultiLevelBomRecipe[] = [
     ],
     prepLevel2: [
       { code: 'PP03-PPR', nameAr: 'صوص الفلفل الأسود (المطبخ المركزي)', nameEn: 'Black Pepper Demi Prep', qty: '80ml', unitCost: 2.800, costKwd: 0.224 },
-      { code: 'PP03-MSH', nameAr: 'بطاطا مهروسة متبلة (القرين)', nameEn: 'Mashed Potato CK Prep', qty: '150g', unitCost: 1.100, costKwd: 0.165 },
+      { code: 'PP03-MSH', nameAr: 'بطاطا مهروسة متبلة', nameEn: 'Mashed Potato CK Prep', qty: '150g', unitCost: 1.100, costKwd: 0.165 },
     ],
     packagingLevel3: [
       { code: 'PI02-STK', nameAr: 'علبة ستيك حرارية محكمة الإغلاق', nameEn: 'Thermal Steak Box', qty: '1 unit', unitCost: 0.220, costKwd: 0.220 },
@@ -103,7 +103,7 @@ export const DETAILED_RECIPES: MultiLevelBomRecipe[] = [
       { code: 'RW01-OIL', nameAr: 'زيت زيتون بكر وتوابل', nameEn: 'Olive Oil & Seasoning', qty: '15ml', unitCost: 2.100, yieldPercent: 100, costKwd: 0.032 },
     ],
     prepLevel2: [
-      { code: 'PP03-MSH', nameAr: 'صوص المشروم الطازج بالكريمة (القرين)', nameEn: 'Fresh Cream Mushroom Sauce', qty: '70ml', unitCost: 2.600, costKwd: 0.182 },
+      { code: 'PP03-MSH', nameAr: 'صوص المشروم الطازج بالكريمة', nameEn: 'Fresh Cream Mushroom Sauce', qty: '70ml', unitCost: 2.600, costKwd: 0.182 },
     ],
     packagingLevel3: [
       { code: 'PI02-STK', nameAr: 'علبة ستيك حرارية محكمة', nameEn: 'Thermal Steak Box', qty: '1 unit', unitCost: 0.220, costKwd: 0.220 },
@@ -178,7 +178,7 @@ export const DETAILED_RECIPES: MultiLevelBomRecipe[] = [
       { code: 'RW01-RIC', nameAr: 'أرز ياسمين مقلي بالبيض والخضار', nameEn: 'Egg Fried Rice', qty: '220g', unitCost: 0.750, yieldPercent: 100, costKwd: 0.165 },
     ],
     prepLevel2: [
-      { code: 'PP03-SNS', nameAr: 'صوص سويت آند سور الكلاسيكي (القرين)', nameEn: 'Classic Sweet & Sour Sauce', qty: '70ml', unitCost: 2.200, costKwd: 0.154 },
+      { code: 'PP03-SNS', nameAr: 'صوص سويت آند سور الكلاسيكي', nameEn: 'Classic Sweet & Sour Sauce', qty: '70ml', unitCost: 2.200, costKwd: 0.154 },
     ],
     packagingLevel3: [
       { code: 'PI02-BWL', nameAr: 'وعاء وجبات صينية حراري', nameEn: 'Thermal Asian Bowl', qty: '1 unit', unitCost: 0.140, costKwd: 0.140 },
@@ -274,7 +274,7 @@ export const DETAILED_RECIPES: MultiLevelBomRecipe[] = [
       { code: 'RW01-BKH', nameAr: 'خبز صاج عربي طازج', nameEn: 'Arabic Saj Bread', qty: '2 pcs', unitCost: 0.050, yieldPercent: 100, costKwd: 0.100 },
     ],
     prepLevel2: [
-      { code: 'PP03-THN', nameAr: 'طحينة خاصة بالليمون والكمون (القرين)', nameEn: 'Tahina Sauce CK Prep', qty: '60g', unitCost: 1.800, costKwd: 0.108 },
+      { code: 'PP03-THN', nameAr: 'طحينة خاصة بالليمون والكمون', nameEn: 'Tahina Sauce CK Prep', qty: '60g', unitCost: 1.800, costKwd: 0.108 },
       { code: 'PP03-GAR', nameAr: 'مخللات مشكلة متبلة', nameEn: 'Mixed Pickles Prep', qty: '50g', unitCost: 0.900, costKwd: 0.045 },
     ],
     packagingLevel3: [
@@ -324,7 +324,7 @@ export const DETAILED_RECIPES: MultiLevelBomRecipe[] = [
       { code: 'RW01-BRD', nameAr: 'خبز ساوردو محمص بالزبدة', nameEn: 'Toasted Sourdough Bread', qty: '2 slices', unitCost: 0.060, yieldPercent: 100, costKwd: 0.120 },
     ],
     prepLevel2: [
-      { code: 'PP03-DRS', nameAr: 'صلصة الخردل والعسل الخاصة (القرين)', nameEn: 'Honey Mustard Dressing Prep', qty: '25ml', unitCost: 1.800, costKwd: 0.045 },
+      { code: 'PP03-DRS', nameAr: 'صلصة الخردل والعسل الخاصة', nameEn: 'Honey Mustard Dressing Prep', qty: '25ml', unitCost: 1.800, costKwd: 0.045 },
     ],
     packagingLevel3: [
       { code: 'PI02-BRN', nameAr: 'صندوق برانش كرافت أنيق مع أدوات خشبية', nameEn: 'Eco Brunch Box & Cutlery', qty: '1 unit', unitCost: 0.130, costKwd: 0.130 },
@@ -348,7 +348,7 @@ export const DETAILED_RECIPES: MultiLevelBomRecipe[] = [
       { code: 'RW01-BN01', nameAr: 'خبز بريوش دائري محمص', nameEn: 'Brioche Bun', qty: '1 pc', unitCost: 0.120, yieldPercent: 100, costKwd: 0.120 },
     ],
     prepLevel2: [
-      { code: 'PP03-PST', nameAr: 'بيستو الطماطم المجففة (القرين)', nameEn: 'Sun-dried Tomato Pesto Prep', qty: '20g', unitCost: 2.500, costKwd: 0.050 },
+      { code: 'PP03-PST', nameAr: 'بيستو الطماطم المجففة', nameEn: 'Sun-dried Tomato Pesto Prep', qty: '20g', unitCost: 2.500, costKwd: 0.050 },
     ],
     packagingLevel3: [
       { code: 'PI02-WRP', nameAr: 'غلاف ساندوتش حراري برانش', nameEn: 'Thermal Sandwich Wrap', qty: '1 pc', unitCost: 0.040, costKwd: 0.040 },
@@ -374,7 +374,7 @@ export const DETAILED_RECIPES: MultiLevelBomRecipe[] = [
       { code: 'RW01-VEG', nameAr: 'براعم فاصوليا وملفوف وجزر', nameEn: 'Bean Sprouts & Cabbage', qty: '70g', unitCost: 0.600, yieldPercent: 95.0, costKwd: 0.042 },
     ],
     prepLevel2: [
-      { code: 'PP03-WOK', nameAr: 'خلطة صوص الووك والسيشوان (القرين)', nameEn: 'Szechuan Wok Sauce Prep', qty: '50ml', unitCost: 2.200, costKwd: 0.110 },
+      { code: 'PP03-WOK', nameAr: 'خلطة صوص الووك والسيشوان', nameEn: 'Szechuan Wok Sauce Prep', qty: '50ml', unitCost: 2.200, costKwd: 0.110 },
     ],
     packagingLevel3: [
       { code: 'PI02-NWK', nameAr: 'وعاء نودلز كرتوني دائري مقاوم للتسريب', nameEn: 'Leakproof Noodle Pail', qty: '1 unit', unitCost: 0.150, costKwd: 0.150 },
@@ -586,7 +586,7 @@ export function VentureRecipesHub({
         <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-3.5">
           <div className="text-[11px] font-medium text-slate-400">{isAr ? 'الوصفات المعتمدة النشطة' : 'Active Recipe SKUs'}</div>
           <div className="text-xl font-black text-white mt-1">364 <span className="text-xs text-slate-400">صنفاً</span></div>
-          <div className="text-[10px] text-slate-400 mt-0.5">{isAr ? 'عبر العلامات الست والقرين' : 'Across 6 brands + Central Kitchen'}</div>
+          <div className="text-[10px] text-slate-400 mt-0.5">{isAr ? 'عبر العلامات الست والمطبخ المركزي' : 'Across 6 brands + Central Kitchen'}</div>
         </div>
       </div>
 
@@ -1053,7 +1053,7 @@ export function VentureRecipesHub({
 
           <div className="space-y-3">
             {[
-              { itemAr: 'لحم أنجوس خام مبرد (أسترالي)', oldPrice: '6.200 د.ك/كجم', newPrice: '6.800 د.ك/كجم', change: '+9.7%', affectedRecipes: 'ستيك ريب آي، ستريبلوين، ترافل برجر', marginErosion: '-2.4% في هامش الربح', actionAr: 'تعديل سعر المنيو بالمنصات بمقدار +0.250 د.ك أو تحسين التقطيع بالقرين', badge: 'bg-rose-500/20 text-rose-400' },
+              { itemAr: 'لحم أنجوس خام مبرد (أسترالي)', oldPrice: '6.200 د.ك/كجم', newPrice: '6.800 د.ك/كجم', change: '+9.7%', affectedRecipes: 'ستيك ريب آي، ستريبلوين، ترافل برجر', marginErosion: '-2.4% في هامش الربح', actionAr: 'تعديل سعر المنيو بالمنصات بمقدار +0.250 د.ك أو تحسين التقطيع بالمطبخ المركزي', badge: 'bg-rose-500/20 text-rose-400' },
               { itemAr: 'زيت قلي نباتي نقي', oldPrice: '0.580 د.ك/لتر', newPrice: '0.650 د.ك/لتر', change: '+12.1%', affectedRecipes: 'جميع أصناف البطاطا والمقليات والزنجر', marginErosion: '-0.9% في هامش الربح', actionAr: 'التعاقد السنوي بالطن مع شركة مطاحن الدقيق والمخابز الكويتية', badge: 'bg-amber-500/20 text-amber-400' },
               { itemAr: 'علب ستيك حرارية فاخرة', oldPrice: '0.190 د.ك/حبة', newPrice: '0.220 د.ك/حبة', change: '+15.8%', affectedRecipes: 'طلبات التوصيل لبراند فرانكس', marginErosion: '-0.5% في هامش الربح', actionAr: 'طلب حاوية كاملة (40 قدم) مباشرة من المصنع لتخفيض السعر إلى 0.160 د.ك', badge: 'bg-amber-500/20 text-amber-400' },
             ].map((alert, idx) => (
@@ -1124,7 +1124,7 @@ export function VentureRecipesHub({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="rounded-xl border border-slate-800 bg-slate-950 p-4 space-y-2">
               <div className="text-[11px] text-slate-400">{isAr ? 'المنتج الوسيط التحضيري' : 'Target Sub-Recipe'}</div>
-              <div className="text-base font-black text-white">{isAr ? 'صوص الترافل المميز (تحضير القرين)' : 'Truffle Sauce (PP03-TRF)'}</div>
+              <div className="text-base font-black text-white">{isAr ? 'صوص الترافل المميز (تحضير المطبخ المركزي)' : 'Truffle Sauce (PP03-TRF)'}</div>
               <div className="text-xs text-amber-400">{isAr ? 'تحضير مسبق للستيك والدجاج الكانتون' : "Special Prep for Frank's & China Garden"}</div>
             </div>
 
@@ -1137,7 +1137,7 @@ export function VentureRecipesHub({
             <div className="rounded-xl border border-slate-800 bg-slate-950 p-4 space-y-2">
               <div className="text-[11px] text-slate-400">{isAr ? 'سعر التحويل الداخلي للفروع' : 'Internal Transfer Cost / Liter'}</div>
               <div className="text-lg font-black text-indigo-400 font-mono">2.850 {isAr ? 'د.ك / لتر' : 'KWD / Liter'}</div>
-              <div className="text-xs text-emerald-400">{isAr ? 'محمل بنصيب العمالة والتشغيل بالقرين' : 'Includes labor & overhead allocation'}</div>
+              <div className="text-xs text-emerald-400">{isAr ? 'محمل بنصيب العمالة والتشغيل بالمطبخ المركزي' : 'Includes labor & overhead allocation'}</div>
             </div>
           </div>
 

@@ -83,10 +83,10 @@ export const VENTURE_BRANCHES = [
   {
     id: 'KK-QURAIN',
     brandId: 'KARAK-CAFETERIA',
-    areaAr: 'أسواق القرين',
-    areaEn: 'Aswaq Al-Qurain',
-    nameAr: 'كرك كافتيريا · أسواق القرين (المطبخ المركزي)',
-    nameEn: 'Karak Cafeteria · Aswaq Al-Qurain',
+    areaAr: 'مبارك الكبير',
+    areaEn: 'Mubarak Al-Kabeer',
+    nameAr: 'كرك كافتيريا · المطبخ المركزي',
+    nameEn: 'Karak Cafeteria · Mubarak Al-Kabeer',
   },
   {
     id: 'CG-FARWANIYA',

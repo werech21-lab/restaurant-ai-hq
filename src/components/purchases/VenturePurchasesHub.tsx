@@ -55,7 +55,7 @@ export const PURCHASE_ORDERS_DATA: PurchaseOrderRecord[] = [
     itemsSummaryAr: "لحم أنجوس مفروم 80/20 وشيت ستيك فاخر (850 كجم)",
     itemsSummaryEn: "Angus Minced Beef 80/20 & Striploin (850 KG)",
     totalKwd: "4,850.000 د.ك",
-    deliveryHubAr: "المطبخ المركزي والمستودع الرئيسي — أسواق القرين",
+    deliveryHubAr: "المطبخ المركزي والمستودع الرئيسي",
     deliveryHubEn: "Central Kitchen & Master Commissary",
     receiverAr: "بابو تشاند رانا (#1279) · تارون كومار (#1994)",
     receiverEn: "Babu Chand Rana (#1279) · Tarun Kumar (#1994)",
@@ -73,7 +73,7 @@ export const PURCHASE_ORDERS_DATA: PurchaseOrderRecord[] = [
     itemsSummaryAr: "صدور وفيليه دجاج كويتي طازج 100% (600 كجم)",
     itemsSummaryEn: "Fresh Kuwaiti Chicken Breasts & Fillets (600 KG)",
     totalKwd: "3,240.000 د.ك",
-    deliveryHubAr: "المطبخ المركزي والمستودع الرئيسي — أسواق القرين",
+    deliveryHubAr: "المطبخ المركزي والمستودع الرئيسي",
     deliveryHubEn: "Central Kitchen & Master Commissary",
     receiverAr: "بابو تشاند رانا (#1279) · فحص حرارة +2.4°م",
     receiverEn: "Babu Chand Rana (#1279) · Temp Checked +2.4°C",
@@ -109,7 +109,7 @@ export const PURCHASE_ORDERS_DATA: PurchaseOrderRecord[] = [
     itemsSummaryAr: "طحين فاخر، خبز بريوش، وزيوت نباتية نقية (120 كرتون)",
     itemsSummaryEn: "Premium Flour, Brioche Buns & Pure Oil (120 Boxes)",
     totalKwd: "2,450.000 د.ك",
-    deliveryHubAr: "المطبخ المركزي والمستودع الرئيسي — أسواق القرين",
+    deliveryHubAr: "المطبخ المركزي والمستودع الرئيسي",
     deliveryHubEn: "Central Kitchen & Master Commissary",
     receiverAr: "تارون كومار (#1994)",
     receiverEn: "Tarun Kumar (#1994)",
@@ -164,7 +164,7 @@ export const PURCHASE_ORDERS_DATA: PurchaseOrderRecord[] = [
     itemsSummaryEn: "Preventive Chiller Maintenance & Pest Control Certificate",
     totalKwd: "650.000 د.ك",
     deliveryHubAr: "المطبخ المركزي ومطابخ الفروع النشطة",
-    deliveryHubEn: "Qurain Commissary & Branch Kitchens",
+    deliveryHubEn: "Central Kitchen Commissary & Branch Kitchens",
     receiverAr: "سراج الحق (#1844) · مشرف الصيانة العامة",
     receiverEn: "Siraj Ul-Haq (#1844) · Maintenance Supervisor",
     statusAr: "تم الإنجاز واعتماد تقرير الفحص الفني",
@@ -1067,7 +1067,7 @@ export function VenturePurchasesHub({
               <p className="text-xs text-slate-400 mt-0.5">
                 {isAr
                   ? "طلبات التوريد المرفوعة من مديري الفروع المعتمدين في أودو للمشتريات والمطبخ المركزي."
-                  : "Requisitions submitted by authorized Odoo branch managers to central procurement and Qurain commissary."}
+                  : "Requisitions submitted by authorized Odoo branch managers to central procurement and Central Kitchen commissary."}
               </p>
             </div>
           </div>
@@ -1167,7 +1167,7 @@ export function VenturePurchasesHub({
                 </label>
                 <select className="w-full rounded-xl border border-slate-700 bg-slate-800 px-3 py-2.5 text-white focus:outline-none">
                   <option value="CK-QURAIN">
-                    المطبخ المركزي والمستودع الرئيسي — أسواق القرين (المسؤول: بابو تشاند رانا #1279 / تارون كومار #1994)
+                    المطبخ المركزي والمستودع الرئيسي (المسؤول: بابو تشاند رانا #1279 / تارون كومار #1994)
                   </option>
                   <option value="WH-SALMIYA">
                     مخزن فرع السالمية المركزي (المسؤولة: أسماء أحمد #1508)

@@ -38,9 +38,9 @@ export interface DimensionLocation {
 
 export const KUWAIT_DIMENSION_LOCATIONS: DimensionLocation[] = [
   { code: 'LOC-HQ', nameAr: 'المقر الرئيسي - شرق (HQ)', nameEn: 'Corporate HQ - Sharq', type: 'HQ', active: true },
-  { code: 'LOC-CK', nameAr: 'المطبخ المركزي بالقرين والعارضية', nameEn: 'Central Production Kitchen (Qurain & Ardiya)', type: 'CENTRAL_KITCHEN', active: true },
+  { code: 'LOC-CK', nameAr: 'المطبخ المركزي والعارضية', nameEn: 'Central Production Kitchen (Central Kitchen & Ardiya)', type: 'CENTRAL_KITCHEN', active: true },
   { code: 'LOC-SLM', nameAr: 'فرع السالمية', nameEn: 'Salmiya Branch', type: 'STORE', active: true },
-  { code: 'LOC-QRN', nameAr: 'فرع أسواق القرين', nameEn: 'Aswaq Al-Qurain Branch', type: 'STORE', active: true },
+  { code: 'LOC-QRN', nameAr: 'فرع مبارك الكبير', nameEn: 'Mubarak Al-Kabeer Branch', type: 'STORE', active: true },
   { code: 'LOC-ARD', nameAr: 'فرع العارضية الحرفية', nameEn: 'Ardiya Craft Branch', type: 'STORE', active: true },
   { code: 'LOC-PRM', nameAr: 'فرع بروميناد حولي', nameEn: 'Promenade Mall - Hawally', type: 'STORE', active: true },
   { code: 'LOC-ASM', nameAr: 'فرع العاصمة مول - شرق', nameEn: 'Assima Mall - Sharq', type: 'STORE', active: true },
@@ -241,8 +241,8 @@ export const KUWAIT_FNB_COA: CoaAccount[] = [
     category: 'ASSET',
     normalBalance: 'DEBIT',
     balanceKwd: 4620.100,
-    descriptionAr: 'إرساليات خرجت من المطبخ المركزي بالقرين وبانتظار تأكيد استلام مدير الفرع بالوزن',
-    descriptionEn: 'Transfers dispatched from Qurain CK in transit pending branch manager receipt & weight sign-off',
+    descriptionAr: 'إرساليات خرجت من المطبخ المركزي وبانتظار تأكيد استلام مدير الفرع بالوزن',
+    descriptionEn: 'Transfers dispatched from Central Kitchen in transit pending branch manager receipt & weight sign-off',
   },
   {
     code: '1141',
@@ -659,7 +659,7 @@ export const KUWAIT_FNB_COA: CoaAccount[] = [
     normalBalance: 'DEBIT',
     balanceKwd: 650.000,
     descriptionAr: 'عقود الزيارات الدورية المعتمدة من وزارة الصحة للـ 9 فروع والمطبخ المركزي',
-    descriptionEn: 'MOH-certified pest prevention scheduled visits across 9 active stores and Qurain CK',
+    descriptionEn: 'MOH-certified pest prevention scheduled visits across 9 active stores and Central Kitchen',
   },
   {
     code: '7112',

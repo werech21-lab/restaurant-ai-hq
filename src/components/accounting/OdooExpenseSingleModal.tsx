@@ -97,12 +97,12 @@ const LOCATIONS_11 = [
   { id: 'salmiya', nameAr: 'فرع السالمية', nameEn: 'Salmiya Branch' },
   { id: 'hawally', nameAr: 'فرع حولي', nameEn: 'Hawally Branch' },
   { id: 'farwaniya', nameAr: 'فرع الفروانية', nameEn: 'Farwaniya Branch' },
-  { id: 'qurain', nameAr: 'فرع أسواق القرين', nameEn: 'Aswaq Al-Qurain Branch' },
+  { id: 'qurain', nameAr: 'فرع مبارك الكبير', nameEn: 'Mubarak Al-Kabeer Branch' },
   { id: 'khiran', nameAr: 'فرع خيران', nameEn: 'Khiran Branch' },
   { id: 'ardiya', nameAr: 'فرع العارضية الحرفية', nameEn: 'Ardiya Craft Branch' },
   { id: 'mahboula', nameAr: 'فرع المهبولة', nameEn: 'Mahboula Branch' },
   { id: 'fahaheel', nameAr: 'فرع الفحيحيل', nameEn: 'Fahaheel Branch' },
-  { id: 'central_kitchen', nameAr: 'المطبخ المركزي — أسواق القرين', nameEn: 'Central Kitchen — Qurain' },
+  { id: 'central_kitchen', nameAr: 'المطبخ المركزي', nameEn: 'Central Kitchen' },
   { id: 'hq_office', nameAr: 'المقر الرئيسي — شرق', nameEn: 'HQ Office — Sharq' },
 ]
 

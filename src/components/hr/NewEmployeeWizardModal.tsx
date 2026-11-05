@@ -29,10 +29,10 @@ const BRANCHES = [
   'Al-Kout Mall Branch',
   'Ardiya Branch',
   'Promenade Mall Branch',
-  'Aswaq Al-Qurain Branch',
+  'Mubarak Al-Kabeer Branch',
   'Farwaniya Branch',
   'Shuwaikh Branch',
-  'Central Kitchen — Qurain',
+  'Central Kitchen',
 ]
 
 const NATIONALITIES = [

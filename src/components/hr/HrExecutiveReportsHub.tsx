@@ -265,8 +265,8 @@ export function HrExecutiveReportsHub({ en, employees }: Props) {
           ['The Noodle Bar (Assima Mall)', 15, 3, 2, 1, '93.3%'],
           ['Karak Cafeteria (Promenade)', 12, 2, 1, 0, '100.0%'],
           ["Frank's Steak & Farm Brown", 29, 4, 2, 1, '96.5%'],
-          ['Tahina Shawarma (Qurain & Salmiya)', 25, 3, 2, 1, '96.0%'],
-          ['Central Kitchen & HQ (Qurain)', 27, 4, 3, 1, '96.3%'],
+          ['Tahina Shawarma (Mubarak Al-Kabeer & Salmiya)', 25, 3, 2, 1, '96.0%'],
+          ['Central Kitchen & HQ', 27, 4, 3, 1, '96.3%'],
         ]
         return { headers, rows }
       }
