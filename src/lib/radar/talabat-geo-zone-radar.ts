@@ -9,6 +9,8 @@
  * (Jahra permanently closed branch is strictly excluded).
  * ==============================================================================
  */
+import { zoneLabelAr } from '@/modules/governance/domain/zone-labels'
+
 
 export type DeliveryZoneStatus =
   | 'ONLINE_VISIBLE'     // 🟢 متاح وظاهر للعميل (Normal Talabat Go Delivery)
@@ -569,8 +571,8 @@ export const INITIAL_BRANCH_PROFILES: BranchRadarProfile[] = [
     openRatioPct: 75.0,
     totalLostKwdToday: 55.400,
     zones: [
-      { id: 'QRN-Z1', zoneNameAr: 'مبارك الكبير', zoneNameEn: 'Mubarak Al-Kabeer', distanceKm: 0.5, status: 'ONLINE_VISIBLE', startTime: '11:00 AM', endTime: null, isOngoing: false, durationMinutes: 0, rootCause: 'TALABAT_FLEET_SHORTAGE', rootCauseLabelAr: 'طبيعي', rootCauseLabelEn: 'Normal', estimatedLostOrders: 0, estimatedLostKwd: 0.000, forcedTgoPenaltyKwd: 0.000 },
-      { id: 'QRN-Z2', zoneNameAr: 'مبارك الكبير', zoneNameEn: 'Central Kitchen', distanceKm: 1.8, status: 'ONLINE_VISIBLE', startTime: '11:00 AM', endTime: null, isOngoing: false, durationMinutes: 0, rootCause: 'TALABAT_FLEET_SHORTAGE', rootCauseLabelAr: 'طبيعي', rootCauseLabelEn: 'Normal', estimatedLostOrders: 0, estimatedLostKwd: 0.000, forcedTgoPenaltyKwd: 0.000 },
+      { id: 'QRN-Z1', zoneNameAr: 'أسواق القرين', zoneNameEn: 'Aswaq Al-Qurain', distanceKm: 0.5, status: 'ONLINE_VISIBLE', startTime: '11:00 AM', endTime: null, isOngoing: false, durationMinutes: 0, rootCause: 'TALABAT_FLEET_SHORTAGE', rootCauseLabelAr: 'طبيعي', rootCauseLabelEn: 'Normal', estimatedLostOrders: 0, estimatedLostKwd: 0.000, forcedTgoPenaltyKwd: 0.000 },
+      { id: 'QRN-Z2', zoneNameAr: 'القرين', zoneNameEn: 'Al-Qurain', distanceKm: 1.8, status: 'ONLINE_VISIBLE', startTime: '11:00 AM', endTime: null, isOngoing: false, durationMinutes: 0, rootCause: 'TALABAT_FLEET_SHORTAGE', rootCauseLabelAr: 'طبيعي', rootCauseLabelEn: 'Normal', estimatedLostOrders: 0, estimatedLostKwd: 0.000, forcedTgoPenaltyKwd: 0.000 },
       { id: 'QRN-Z3', zoneNameAr: 'مبارك الكبير', zoneNameEn: 'Mubarak Al-Kabeer', distanceKm: 2.6, status: 'ONLINE_VISIBLE', startTime: '11:00 AM', endTime: null, isOngoing: false, durationMinutes: 0, rootCause: 'TALABAT_FLEET_SHORTAGE', rootCauseLabelAr: 'طبيعي', rootCauseLabelEn: 'Normal', estimatedLostOrders: 0, estimatedLostKwd: 0.000, forcedTgoPenaltyKwd: 0.000 },
       { id: 'QRN-Z4', zoneNameAr: 'القصور', zoneNameEn: 'Qusoor', distanceKm: 2.9, status: 'ONLINE_VISIBLE', startTime: '11:00 AM', endTime: null, isOngoing: false, durationMinutes: 0, rootCause: 'TALABAT_FLEET_SHORTAGE', rootCauseLabelAr: 'طبيعي', rootCauseLabelEn: 'Normal', estimatedLostOrders: 0, estimatedLostKwd: 0.000, forcedTgoPenaltyKwd: 0.000 },
       { id: 'QRN-Z5', zoneNameAr: 'العدان', zoneNameEn: 'Adan', distanceKm: 3.4, status: 'BUSY_IN_AREA', startTime: '01:20 PM', endTime: null, isOngoing: true, durationMinutes: 38, rootCause: 'TALABAT_FLEET_SHORTAGE', rootCauseLabelAr: 'نقص أسطول سائقي طلبات في المنطقة', rootCauseLabelEn: 'Talabat Fleet Shortage', estimatedLostOrders: 4, estimatedLostKwd: 22.400, forcedTgoPenaltyKwd: 3.808 },
@@ -818,7 +820,7 @@ export function formatTalabatAreaAlertEmail(branches: BranchRadarProfile[], kpis
     for (const z of affected) {
       const statusIcon = z.status === 'BUSY_IN_AREA' ? '🟡 BUSY' : '🔴 HIDDEN / POLYGON CUT'
       const timeStr = z.isOngoing ? `منذ ${z.startTime} (مستمر - ${z.durationMinutes} دقيقة)` : `من ${z.startTime} إلى ${z.endTime} (${z.durationMinutes} دقيقة)`
-      lines.push(`   - ${statusIcon} في منطقة [${z.zoneNameAr}]: ${timeStr}`)
+      lines.push(`   - ${statusIcon} في منطقة [${zoneLabelAr(z.zoneNameAr)}]: ${timeStr}`)
       lines.push(`     * السبب: ${z.rootCauseLabelAr}`)
       lines.push(`     * الخسارة التقديرية: -${z.estimatedLostKwd.toFixed(3)} د.ك | الطلبات الضائعة: ~${z.estimatedLostOrders} طلب`)
     }

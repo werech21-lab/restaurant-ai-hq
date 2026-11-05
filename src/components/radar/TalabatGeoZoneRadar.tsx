@@ -12,6 +12,7 @@ import {
   type DeliveryZoneStatus,
   type ChronologicalIncident,
 } from '@/lib/radar/talabat-geo-zone-radar'
+import { zoneLabelAr, zoneLabelEn } from '@/modules/governance/domain/zone-labels'
 import { useI18n } from '@/lib/i18n'
 
 interface TalabatGeoZoneRadarProps {
@@ -174,6 +175,8 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
             (z) =>
               z.zoneNameAr.toLowerCase().includes(q) ||
               z.zoneNameEn.toLowerCase().includes(q) ||
+              zoneLabelAr(z.zoneNameAr).toLowerCase().includes(q) ||
+              zoneLabelEn(z.zoneNameEn).toLowerCase().includes(q) ||
               b.branchNameAr.toLowerCase().includes(q) ||
               b.branchNameEn.toLowerCase().includes(q)
           )
@@ -284,7 +287,7 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
             b.branchId,
             `"${isEn ? b.branchNameEn : b.branchNameAr}"`,
             z.id,
-            `"${isEn ? z.zoneNameEn : z.zoneNameAr}"`,
+            `"${isEn ? zoneLabelEn(z.zoneNameEn) : zoneLabelAr(z.zoneNameAr)}"`,
             z.status,
             `"${z.startTime || '13:00'}"`,
             `"${z.endTime || 'Ongoing'}"`,
@@ -307,7 +310,7 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
         inc.branchNameEn.slice(0, 3).toUpperCase(),
         `"${isEn ? inc.branchNameEn : inc.branchNameAr}"`,
         inc.id,
-        `"${isEn ? inc.zoneNameEn : inc.zoneNameAr}"`,
+        `"${isEn ? zoneLabelEn(inc.zoneNameEn) : zoneLabelAr(inc.zoneNameAr)}"`,
         inc.status,
         `"${inc.startTime}"`,
         `"${inc.endTime}"`,
@@ -701,7 +704,7 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
                       >
                         <div className="flex items-center justify-between font-bold">
                           <div className="flex items-center gap-1.5">
-                            <span className="text-white">{isEn ? zone.zoneNameEn : zone.zoneNameAr}</span>
+                            <span className="text-white">{isEn ? zoneLabelEn(zone.zoneNameEn) : zoneLabelAr(zone.zoneNameAr)}</span>
                             <span className="text-xs text-gray-400">
                               ({zone.distanceKm} {isEn ? 'km' : 'كم'})
                             </span>
@@ -813,7 +816,7 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
                     <td className="p-3 font-bold text-white">{isEn ? inc.brandNameEn : inc.brandNameAr}</td>
                     <td className="p-3 text-gray-300">{isEn ? inc.branchNameEn : inc.branchNameAr}</td>
                     <td className="p-3 font-semibold text-amber-200">
-                      {isEn ? inc.zoneNameEn : inc.zoneNameAr}
+                      {isEn ? zoneLabelEn(inc.zoneNameEn) : zoneLabelAr(inc.zoneNameAr)}
                     </td>
                     <td className="p-3 font-black">
                       <span className={badgeClass}>{badgeText}</span>

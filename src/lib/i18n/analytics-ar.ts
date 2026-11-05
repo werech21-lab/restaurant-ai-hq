@@ -159,14 +159,14 @@ export const ANALYTICS_AR: Record<string, string> = {
   "Drives beverage & starter attachment on Talabat Go. Feature at top of Keeta menu to lift Keeta's 4.8% drink rate.":
     'يدفع إضافة المشروبات والمقبلات في طلبات جو. اعرضه في أعلى قائمة كيتا لرفع نسبة المشروبات فيها (4.8%).',
   'High AOV driver': 'يرفع متوسط الطلب',
-  "69.8% starter attachment in Frank's pushes brand AOV to KWD 7.46. Keep fries + drink combo default on aggregators.":
-    'نسبة المقبلات 69.8% في فرانكس ترفع متوسط الطلب إلى KWD 7.46. أبقِ كومبو البطاطس والمشروب افتراضياً في منصات التوصيل.',
+  "69.8% starter attachment in Frank's pushes brand AOV to KWD 7.47. Keep fries + drink combo default on aggregators.":
+    'نسبة المقبلات 69.8% في فرانكس ترفع متوسط الطلب إلى KWD 7.47. أبقِ كومبو البطاطس والمشروب افتراضياً في منصات التوصيل.',
   'Upsell target': 'هدف للبيع الإضافي',
   'High order count (2,146) at low ticket (KWD 1.80). Add 1-click KWD 0.950 spring roll or soup pairing prompt.':
     'عدد طلبات مرتفع (2,146) بقيمة منخفضة (KWD 1.80). أضف اقتراحاً بنقرة واحدة لسبرينغ رول أو شوربة بسعر KWD 0.950.',
   'Basket builder': 'يبني السلة',
-  'Tahina has 81.2% drink rate but lowest AOV (KWD 2.27). Introduce 3-shawarma + fries family box at KWD 3.450.':
-    'طحينة لديها نسبة مشروبات 81.2% لكن أقل متوسط طلب (KWD 2.27). قدّم علبة عائلية 3 شاورما مع بطاطس بسعر KWD 3.450.',
+  'Tahina has 81.2% drink rate but lowest AOV (KWD 2.28). Introduce 3-shawarma + fries family box at KWD 3.450.':
+    'طحينة لديها نسبة مشروبات 81.2% لكن أقل متوسط طلب (KWD 2.28). قدّم علبة عائلية 3 شاورما مع بطاطس بسعر KWD 3.450.',
   'High margin add-on': 'إضافة عالية الهامش',
   'Low food cost (16% COGS) and 2,481 orders. Bundle with Beef Mongolian & Chicken Fried Rice as a 2-person meal.':
     'تكلفة أغذية منخفضة (16%) و2,481 طلباً. اجمعها مع بيف منغوليان وأرز مقلي بالدجاج في وجبة لشخصين.',

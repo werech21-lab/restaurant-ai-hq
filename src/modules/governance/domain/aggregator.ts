@@ -1,3 +1,4 @@
+import { zoneLabelAr } from '@/modules/governance/domain/zone-labels'
 import { DomainError } from '@/lib/domain-error'
 import { minorToInput } from '@/lib/money'
 
@@ -6,7 +7,7 @@ import { minorToInput } from '@/lib/money'
 export const aggregatorPlatforms = ['Talabat', 'Keeta', 'Jahez', 'Snoonu', 'Deliveroo'] as const
 export type AggregatorPlatform = (typeof aggregatorPlatforms)[number]
 
-export const aggregatorZones = ['السالمية', 'شرق/مدينة الكويت', 'حولي', 'الفروانية', 'المهبولة', 'مبارك الكبير', 'العارضية'] as const
+export const aggregatorZones = ['السالمية', 'شرق/مدينة الكويت', 'حولي', 'الفروانية', 'المهبولة', 'أسواق القرين', 'العارضية'] as const
 export type AggregatorZone = (typeof aggregatorZones)[number]
 
 export const logisticsModes = ['platform_fleet', 'vendor_own_fleet'] as const
@@ -106,7 +107,7 @@ export function recommendEscalation(ours: RankObservation, leader: RankLeader): 
   const feeGap = ours.deliveryFeeMinor - leader.deliveryFeeMinor
   const ratingGap = leader.ratingBps - ours.ratingBps
   const platform = platformAr[ours.platformName]
-  const place = `${ours.geoZoneAr} على ${platform}`
+  const place = `${zoneLabelAr(ours.geoZoneAr)} على ${platform}`
 
   if (ours.logisticsMode === 'vendor_own_fleet' && leader.logisticsMode === 'platform_fleet' && etaGap >= 6) {
     const moved = climb(ours.currentRank, etaGap)
@@ -217,8 +218,8 @@ export function buriedRankRescue(input: BuriedObservation): BuriedRescue | null 
   const monthly = daily * TICKET_MINOR * 30
   const platform = platformAr[input.platformName]
   const logisticsSwitchAr = input.logisticsMode === 'vendor_own_fleet'
-    ? `حوّل ${input.geoZoneAr} على ${platform} من توصيل شركتنا إلى توصيل التطبيق، وثبّت مدة التوصيل عند 28 دقيقة ورسوم 0.500 د.ك.`
-    : `أبقِ توصيل التطبيق في ${input.geoZoneAr} على ${platform}، واخفض مدة التوصيل إلى 28 دقيقة ورسوم 0.500 د.ك.`
+    ? `حوّل ${zoneLabelAr(input.geoZoneAr)} على ${platform} من توصيل شركتنا إلى توصيل التطبيق، وثبّت مدة التوصيل عند 28 دقيقة ورسوم 0.500 د.ك.`
+    : `أبقِ توصيل التطبيق في ${zoneLabelAr(input.geoZoneAr)} على ${platform}، واخفض مدة التوصيل إلى 28 دقيقة ورسوم 0.500 د.ك.`
   const stepByStepPlanAr = [
     `1. اخفض قبول الطلب من ${input.acceptanceSeconds} ثانية إلى 25 ثانية.`,
     `2. اخفض التحضير من ${input.prepMinutes} دقيقة إلى 12 دقيقة.`,
@@ -226,8 +227,8 @@ export function buriedRankRescue(input: BuriedObservation): BuriedRescue | null 
     `4. اخفض الإلغاء من ${percentText(input.cancellationBps)} بالمئة إلى أقل من 2.00 بالمئة.`,
     '5. فعّل بطاقة تقييم داخل الطلب حتى يرتفع التقييم وتزداد الزيارات.',
   ].join(' ')
-  const ratingBoostTacticAr = `اطلب تقييماً بعد كل تسليم مكتمل في ${input.geoZoneAr}، وردّ على التقييمات المنخفضة خلال ساعة، حتى تقترب من سياسة المتصدرين.`
-  const recommendationAr = `خطة التصعيد تنقل ${input.geoZoneAr} على ${platform} من المركز ${input.currentRank} إلى المركز ${targetRank}، بزيادة تقديرية ${daily} طلباً يومياً و${minorToInput(monthly)} د.ك شهرياً.`
+  const ratingBoostTacticAr = `اطلب تقييماً بعد كل تسليم مكتمل في ${zoneLabelAr(input.geoZoneAr)}، وردّ على التقييمات المنخفضة خلال ساعة، حتى تقترب من سياسة المتصدرين.`
+  const recommendationAr = `خطة التصعيد تنقل ${zoneLabelAr(input.geoZoneAr)} على ${platform} من المركز ${input.currentRank} إلى المركز ${targetRank}، بزيادة تقديرية ${daily} طلباً يومياً و${minorToInput(monthly)} د.ك شهرياً.`
   return {
     penaltyAr,
     targetRank,
