@@ -247,5 +247,9 @@ export const ANALYTICS_AR: Record<string, string> = {
 }
 
 export function makeTr(locale: AnalyticsLocale) {
-  return (text: string): string => (locale === 'ar' ? ANALYTICS_AR[text] ?? text : text)
+  // In Arabic, currency amounts written as "KWD 1,234" become "1,234 د.ك".
+  // "KWD 1 Chicken Shawarma" is a product name and is left untouched.
+  const fixCurrency = (s: string) =>
+    s.replace(/KWD\s?(\d[\d.,]*\d|\d)(?!\s*Chicken)/g, '$1 د.ك')
+  return (text: string): string => (locale === 'ar' ? fixCurrency(ANALYTICS_AR[text] ?? text) : text)
 }
