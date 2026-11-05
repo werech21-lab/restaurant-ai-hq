@@ -1,8 +1,21 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { Suspense, useState, useMemo } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { makeTr } from "@/lib/i18n/analytics-ar";
+import { SALES_TABS, parseSalesTab, salesTabHref } from "@/lib/analytics/sales-tabs";
+import {
+  BranchesTab,
+  ChannelMix,
+  ChannelRecs,
+  DailyCurve,
+  NewCustomerTab,
+  OperationsTab,
+  PeakHoursTab,
+  PromotionsTab,
+} from "@/components/analytics/sales-tabs";
 
 // ==========================================
 // 1. ODOO ERP MASTER DATASET (VENTURE FOODS)
@@ -541,8 +554,10 @@ const CHANNEL_BRAND_MATRIX = [
 // 2. MAIN COMPONENT (HIGH-DENSITY TUFTE BI)
 // ==========================================
 
-export default function BrandSalesOdooReportPage() {
+function ScorecardInner() {
   const { locale } = useI18n();
+  const searchParams = useSearchParams();
+  const tab = parseSalesTab(searchParams.get("tab"));
   const isAr = locale === "ar";
   const tr = useMemo(() => makeTr(locale), [locale]);
   const [selectedBrand, setSelectedBrand] = useState<string>("All brands");
@@ -599,6 +614,18 @@ export default function BrandSalesOdooReportPage() {
   const maxCatSales = Math.max(...CATEGORIES_DATA.map((c) => c.sales));
   const maxItemSales = Math.max(...TOP_15_ITEMS.map((i) => i.sales));
   const maxDiagValue = Math.max(...DIAGNOSTIC_BUCKETS.map((d) => d.value));
+
+  const isFiltered = selectedBrand !== "All brands" || selectedChannel !== "All channels";
+  const channelViews = CHANNELS_DATA.map((c) => ({
+    key: c.channel,
+    label: tr(c.channel),
+    orders: c.orders,
+    sales: c.netSales,
+    discPct: c.discountRate,
+    drinksPct: c.drinksPct,
+  }));
+  const promoChannels = CHANNELS_DATA.map((c) => ({ key: c.channel, label: tr(c.channel), sales: c.netSales, discPct: c.discountRate }));
+  const promoBrands = BRANDS_DATA.map((b) => ({ key: b.brand, label: tr(b.brand), discPct: b.discountRate }));
 
   return (
     <div
@@ -701,6 +728,26 @@ export default function BrandSalesOdooReportPage() {
           </div>
         </header>
 
+        <nav aria-label="Sales analysis sections" className="flex overflow-x-auto rounded-md border border-gray-200 bg-white text-[12px]">
+          {SALES_TABS.map((t) => {
+            const active = t.id === tab;
+            return (
+              <Link
+                key={t.id}
+                href={salesTabHref(t.id)}
+                scroll={false}
+                aria-current={active ? "page" : undefined}
+                className={`whitespace-nowrap px-4 py-2.5 transition ${active ? "font-bold" : "text-gray-600 hover:bg-gray-50"}`}
+                style={active ? { color: "#2563EB", borderBottom: "2px solid #2563EB", backgroundColor: "#EFF6FF" } : { borderBottom: "2px solid transparent" }}
+              >
+                {isAr ? t.ar : t.en}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {tab === "core-sales" && (
+          <div className="space-y-6">
         {/* ==========================================
             ROW 1: 6 KPI CARDS
            ========================================== */}
@@ -735,7 +782,7 @@ export default function BrandSalesOdooReportPage() {
               {kpis.itemsSold.toLocaleString()}
             </div>
             <div className="text-[10px] text-gray-400 mt-0.5">
-              {kpis.itemsPerOrder.toFixed(2)} items per order
+              {kpis.itemsPerOrder.toFixed(2)} {tr("items per order")}
             </div>
           </div>
 
@@ -748,11 +795,11 @@ export default function BrandSalesOdooReportPage() {
           </div>
 
           <div className="bg-white border border-gray-200 rounded-md p-3">
-            <div className="text-[11px] text-gray-500">{tr("Share of group sales")}</div>
-            <div className="text-[18px] font-bold text-gray-900 mt-0.5 tabular-nums">
-              {kpis.sharePct.toFixed(1)}%
+            <div className="text-[11px] text-gray-500">{tr("Net operating profit")}</div>
+            <div className="text-[18px] font-bold text-emerald-700 mt-0.5">
+              <span dir="ltr" className="inline-block tabular-nums">{isFiltered ? "—" : "KWD 42,441.480"}</span>
             </div>
-            <div className="text-[10px] text-gray-400 mt-0.5"> {tr("Net profit KWD 42,441 (25.4%)")} </div>
+            <div className="text-[10px] text-gray-400 mt-0.5">{isFiltered ? tr("Available for the whole group only") : tr("25.4% net margin")}</div>
           </div>
         </section>
 
@@ -792,6 +839,7 @@ export default function BrandSalesOdooReportPage() {
         </section>
 
 
+            <DailyCurve />
         {/* ==========================================
             SECTION 1: BRANDS (CHARTS + SCORECARD)
            ========================================== */}
@@ -949,6 +997,11 @@ export default function BrandSalesOdooReportPage() {
           </div>
         </section>
 
+          </div>
+        )}
+
+        {tab === "customer-channel" && (
+          <div className="space-y-6">
         {/* ==========================================
             SECTION 2: CHANNELS (CHARTS + SCORECARD)
            ========================================== */}
@@ -1108,6 +1161,57 @@ export default function BrandSalesOdooReportPage() {
           </div>
         </section>
 
+            <ChannelMix channels={channelViews} />
+            <ChannelRecs channels={channelViews} />
+            <div className="grid grid-cols-1 gap-3">
+            <div className="bg-white border border-gray-200 rounded-md p-4">
+              <div className="text-[12px] font-semibold text-gray-900"> {tr("Brand × Channel combination scorecard")} </div>
+              <div className="text-[10px] text-gray-400 mb-3"> {tr("Top brand-channel pairs showing lead item, average basket size, and drink attachment rate.")} </div>
+              <div className="max-h-[220px] overflow-y-auto border-t border-gray-100">
+                <table className="w-full text-[11px] border-collapse">
+                  <thead className="sticky top-0 bg-white border-b border-gray-200 text-gray-400">
+                    <tr>
+                      <th className="text-start py-1.5 font-normal">{tr("Brand")}</th>
+                      <th className="text-start py-1.5 font-normal">{tr("Channel")}</th>
+                      <th className="text-start py-1.5 font-normal">{tr("Lead item")}</th>
+                      <th className="text-end py-1.5 font-normal">{tr("Orders")}</th>
+                      <th className="text-end py-1.5 font-normal">{tr("Net KWD")}</th>
+                      <th className="text-end py-1.5 font-normal">{tr("Avg order")}</th>
+                      <th className="text-end py-1.5 font-normal">{tr("Drinks %")}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {CHANNEL_BRAND_MATRIX.map((row, i) => (
+                      <tr key={i} className="hover:bg-gray-50">
+                        <td className="py-1.5 font-medium text-gray-900">{tr(row.brand)}</td>
+                        <td className="py-1.5 text-gray-600">{tr(row.channel)}</td>
+                        <td className="py-1.5 text-gray-600 truncate max-w-[140px]">{tr(row.topItem)}</td>
+                        <td className="py-1.5 text-end tabular-nums text-gray-700">
+                          {row.orders.toLocaleString()}
+                        </td>
+                        <td className="py-1.5 text-end tabular-nums text-gray-900">
+                          {row.sales.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="py-1.5 text-end tabular-nums text-gray-700">
+                          {row.aov.toFixed(2)}
+                        </td>
+                        <td className="py-1.5 text-end tabular-nums text-gray-700">
+                          {row.drinkPct}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            </div>
+          </div>
+        )}
+
+        {tab === "new-customer" && <NewCustomerTab />}
+
+        {tab === "products" && (
+          <div className="space-y-6">
         {/* ==========================================
             SECTION 3: MENU CATEGORIES & TOP 15 ITEMS
            ========================================== */}
@@ -1175,13 +1279,9 @@ export default function BrandSalesOdooReportPage() {
           </div>
         </section>
 
-        {/* ==========================================
-            SECTION 4: MULTI-COLOR DIAGNOSTIC MATRIX
-            (EXACT MATCH TO 2ND SCREENSHOT)
-           ========================================== */}
-        <section className="space-y-3">
+            <section className="space-y-3">
           <div className="text-[12px] font-semibold text-gray-800">
-            Menu & Odoo Diagnostic Action Matrix{" "}
+            {tr("Menu & Odoo Diagnostic Action Matrix")}{" "}
             <span className="font-normal text-gray-400"> {tr("· Automated classification of revenue, add-ons, COGS & maintenance")} </span>
           </div>
 
@@ -1290,6 +1390,54 @@ export default function BrandSalesOdooReportPage() {
             </div>
           </div>
 
+              <div className="grid grid-cols-1 gap-3">
+            <div className="bg-white border border-gray-200 rounded-md p-4">
+              <div className="text-[12px] font-semibold text-gray-900"> {tr("Long-tail menu candidates for pruning (Prep & waste reduction)")} </div>
+              <div className="text-[10px] text-gray-400 mb-3"> {tr("332 of 364 items generate only 20% of sales. Removing low-rotation SKUs reduces Central Kitchen waste.")} </div>
+              <div className="max-h-[220px] overflow-y-auto border-t border-gray-100">
+                <table className="w-full text-[11px] border-collapse">
+                  <thead className="sticky top-0 bg-white border-b border-gray-200 text-gray-400">
+                    <tr>
+                      <th className="text-start py-1.5 font-normal">{tr("Brand")}</th>
+                      <th className="text-start py-1.5 font-normal">{tr("Category")}</th>
+                      <th className="text-start py-1.5 font-normal">{tr("Item")}</th>
+                      <th className="text-end py-1.5 font-normal">{tr("Orders")}</th>
+                      <th className="text-end py-1.5 font-normal">{tr("Net KWD")}</th>
+                      <th className="text-end py-1.5 font-normal">{tr("Est. COGS")}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {LOW_VOLUME_TAIL_ITEMS.map((item, i) => (
+                      <tr key={i} className="hover:bg-gray-50">
+                        <td className="py-1.5 text-gray-600">{tr(item.brand)}</td>
+                        <td className="py-1.5 text-gray-500">{tr(item.category)}</td>
+                        <td className="py-1.5 font-medium text-gray-900">{tr(item.item)}</td>
+                        <td className="py-1.5 text-end tabular-nums text-gray-700">{item.orders}</td>
+                        <td className="py-1.5 text-end tabular-nums text-gray-900">
+                          {item.sales.toFixed(2)}
+                        </td>
+                        <td className="py-1.5 text-end tabular-nums text-rose-600">{item.cogs}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+              </div>
+            </section>
+          </div>
+        )}
+
+        {tab === "promotions" && <PromotionsTab channels={promoChannels} brands={promoBrands} />}
+
+        {tab === "branches" && <BranchesTab />}
+
+        {tab === "peak-hours" && <PeakHoursTab />}
+
+        {tab === "operation-performance" && (
+          <div className="space-y-6">
+            <OperationsTab />
+            <section className="space-y-3">
           {/* ==========================================
               SCROLLABLE ACTION TABLE 2: ODOO P&L, COGS & PETTY CASH
              ========================================== */}
@@ -1343,88 +1491,18 @@ export default function BrandSalesOdooReportPage() {
             </div>
           </div>
 
-          {/* ==========================================
-              BOTTOM SPLIT TABLES (2 SIDE-BY-SIDE SCROLLABLE TABLES)
-             ========================================== */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-            {/* Left: Low-volume tail items & kitchen waste */}
-            <div className="bg-white border border-gray-200 rounded-md p-4">
-              <div className="text-[12px] font-semibold text-gray-900"> {tr("Long-tail menu candidates for pruning (Prep & waste reduction)")} </div>
-              <div className="text-[10px] text-gray-400 mb-3"> {tr("332 of 364 items generate only 20% of sales. Removing low-rotation SKUs reduces Central Kitchen waste.")} </div>
-              <div className="max-h-[220px] overflow-y-auto border-t border-gray-100">
-                <table className="w-full text-[11px] border-collapse">
-                  <thead className="sticky top-0 bg-white border-b border-gray-200 text-gray-400">
-                    <tr>
-                      <th className="text-start py-1.5 font-normal">{tr("Brand")}</th>
-                      <th className="text-start py-1.5 font-normal">{tr("Category")}</th>
-                      <th className="text-start py-1.5 font-normal">{tr("Item")}</th>
-                      <th className="text-end py-1.5 font-normal">{tr("Orders")}</th>
-                      <th className="text-end py-1.5 font-normal">{tr("Net KWD")}</th>
-                      <th className="text-end py-1.5 font-normal">{tr("Est. COGS")}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {LOW_VOLUME_TAIL_ITEMS.map((item, i) => (
-                      <tr key={i} className="hover:bg-gray-50">
-                        <td className="py-1.5 text-gray-600">{tr(item.brand)}</td>
-                        <td className="py-1.5 text-gray-500">{tr(item.category)}</td>
-                        <td className="py-1.5 font-medium text-gray-900">{tr(item.item)}</td>
-                        <td className="py-1.5 text-end tabular-nums text-gray-700">{item.orders}</td>
-                        <td className="py-1.5 text-end tabular-nums text-gray-900">
-                          {item.sales.toFixed(2)}
-                        </td>
-                        <td className="py-1.5 text-end tabular-nums text-rose-600">{item.cogs}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Right: Brand x Channel performance matrix */}
-            <div className="bg-white border border-gray-200 rounded-md p-4">
-              <div className="text-[12px] font-semibold text-gray-900"> {tr("Brand × Channel combination scorecard")} </div>
-              <div className="text-[10px] text-gray-400 mb-3"> {tr("Top brand-channel pairs showing lead item, average basket size, and drink attachment rate.")} </div>
-              <div className="max-h-[220px] overflow-y-auto border-t border-gray-100">
-                <table className="w-full text-[11px] border-collapse">
-                  <thead className="sticky top-0 bg-white border-b border-gray-200 text-gray-400">
-                    <tr>
-                      <th className="text-start py-1.5 font-normal">{tr("Brand")}</th>
-                      <th className="text-start py-1.5 font-normal">{tr("Channel")}</th>
-                      <th className="text-start py-1.5 font-normal">{tr("Lead item")}</th>
-                      <th className="text-end py-1.5 font-normal">{tr("Orders")}</th>
-                      <th className="text-end py-1.5 font-normal">{tr("Net KWD")}</th>
-                      <th className="text-end py-1.5 font-normal">{tr("Avg order")}</th>
-                      <th className="text-end py-1.5 font-normal">{tr("Drinks %")}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {CHANNEL_BRAND_MATRIX.map((row, i) => (
-                      <tr key={i} className="hover:bg-gray-50">
-                        <td className="py-1.5 font-medium text-gray-900">{tr(row.brand)}</td>
-                        <td className="py-1.5 text-gray-600">{tr(row.channel)}</td>
-                        <td className="py-1.5 text-gray-600 truncate max-w-[140px]">{tr(row.topItem)}</td>
-                        <td className="py-1.5 text-end tabular-nums text-gray-700">
-                          {row.orders.toLocaleString()}
-                        </td>
-                        <td className="py-1.5 text-end tabular-nums text-gray-900">
-                          {row.sales.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                        </td>
-                        <td className="py-1.5 text-end tabular-nums text-gray-700">
-                          {row.aov.toFixed(2)}
-                        </td>
-                        <td className="py-1.5 text-end tabular-nums text-gray-700">
-                          {row.drinkPct}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            </section>
           </div>
-        </section>
+        )}
       </div>
     </div>
+  );
+}
+
+export default function BrandSalesOdooReportPage() {
+  return (
+    <Suspense fallback={null}>
+      <ScorecardInner />
+    </Suspense>
   );
 }

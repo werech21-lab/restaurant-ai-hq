@@ -220,6 +220,12 @@ export const ANALYTICS_AR: Record<string, string> = {
     '332 صنفاً تحقق 20% فقط من الإيراد وتزيد تعقيد التحضير في المطبخ ومخاطر انتهاء الصلاحية. احذف أبطأ 45 صنفاً.',
   '+0.8%': '+0.8%',
 
+  // ---- tabs
+  'Net operating profit': 'صافي الربح التشغيلي',
+  'Available for the whole group only': 'متاح على مستوى المجموعة فقط',
+  '25.4% net margin': 'هامش صافٍ 25.4%',
+  'Menu & Odoo Diagnostic Action Matrix': 'مصفوفة تشخيص المنيو وإجراءات أودو',
+
   // ---- brands / channels
   'China Garden': 'تشاينا جاردن',
   "Frank's": 'فرانكس',

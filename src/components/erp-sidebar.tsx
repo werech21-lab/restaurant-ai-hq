@@ -1,9 +1,10 @@
 'use client'
 
-import React from 'react'
+import React, { Suspense, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import {
+  ChevronDown,
   FileText,
   LayoutDashboard,
   LogOut,
@@ -15,6 +16,7 @@ import { useI18n } from '@/lib/i18n'
 import type { AccessUser } from '@/lib/permissions'
 import { can } from '@/lib/permissions'
 import { displayRoleName, displayTeamName } from '@/lib/venture-foods-team'
+import { SALES_TABS, parseSalesTab, salesTabHref, type SalesTabId } from '@/lib/analytics/sales-tabs'
 
 interface NavItem {
   key: string
@@ -22,6 +24,8 @@ interface NavItem {
   labelAr: string
   labelEn: string
   icon: React.ComponentType<{ size?: number; className?: string }>
+  /** Collapsible sub-menu entries (accordion) */
+  children?: { id: SalesTabId; href: string; labelAr: string; labelEn: string }[]
 }
 
 interface NavSection {
@@ -39,12 +43,73 @@ const SIDEBAR_SECTIONS: NavSection[] = [
     items: [
       { key: 'dashboard', href: '/dashboard', labelAr: 'الملخص المالي والتوصيات', labelEn: 'Financial Summary & Recommendations', icon: LayoutDashboard },
       // permission follows the existing "reports" module so non-admin roles that can see reports can open it
-      { key: 'reports', href: '/erp/sales-scorecard', labelAr: 'تحليل المبيعات والأصناف', labelEn: 'Sales & Items Analysis', icon: FileText },
+      {
+        key: 'reports',
+        href: '/erp/sales-scorecard',
+        labelAr: 'تحليل المبيعات والأصناف',
+        labelEn: 'Sales & items analyses',
+        icon: FileText,
+        children: SALES_TABS.map((t) => ({ id: t.id, href: salesTabHref(t.id), labelAr: t.ar, labelEn: t.en })),
+      },
       { key: 'erp-radar', href: '/erp/aggregator-radar', labelAr: 'متابعة تطبيقات التوصيل', labelEn: 'Delivery Aggregator Control', icon: Store },
       { key: 'automations', href: '/automations', labelAr: 'التنبيهات التلقائية', labelEn: 'Automated Notifications', icon: Zap },
     ],
   },
 ]
+
+function NavAccordion({ item, isAr }: { item: NavItem; isAr: boolean }) {
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const onBase = pathname === item.href || pathname.startsWith(`${item.href}/`)
+  const currentTab = parseSalesTab(searchParams.get('tab'))
+  const [open, setOpen] = useState(onBase)
+  useEffect(() => {
+    if (onBase) setOpen(true)
+  }, [onBase])
+  const Icon = item.icon
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className={`group flex w-full items-center justify-between gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all ${
+          onBase
+            ? 'bg-slate-100 dark:bg-slate-800 font-bold text-slate-900 dark:text-white'
+            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-900/80 hover:text-slate-900 dark:hover:text-white'
+        }`}
+      >
+        <span className="inline-flex min-w-0 items-center gap-2.5">
+          <Icon size={16} className="shrink-0 text-slate-500 dark:text-slate-400" />
+          <span className="text-start">{isAr ? item.labelAr : item.labelEn}</span>
+        </span>
+        <ChevronDown size={14} className={`shrink-0 text-slate-500 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && item.children && (
+        <ul className="ms-4 mt-0.5 space-y-0.5 border-s border-slate-200 dark:border-slate-700 ps-2">
+          {item.children.map((c) => {
+            const active = onBase && currentTab === c.id
+            return (
+              <li key={c.id}>
+                <Link
+                  href={c.href}
+                  scroll={false}
+                  aria-current={active ? 'page' : undefined}
+                  className={`block rounded-lg px-3 py-1.5 text-xs transition-colors ${
+                    active ? 'font-bold' : 'font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                  style={active ? { backgroundColor: '#2563EB', color: '#FFFFFF' } : undefined}
+                >
+                  {isAr ? c.labelAr : c.labelEn}
+                </Link>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </div>
+  )
+}
 
 export function Sidebar({ user }: { user: AccessUser; enabledKeys?: string[] | null }) {
   const pathname = usePathname()
@@ -116,6 +181,13 @@ export function Sidebar({ user }: { user: AccessUser; enabledKeys?: string[] | n
 
               <div className="space-y-0.5">
                 {visibleItems.map((item) => {
+                  if (item.children) {
+                    return (
+                      <Suspense key={item.key} fallback={null}>
+                        <NavAccordion item={item} isAr={isAr} />
+                      </Suspense>
+                    )
+                  }
                   const Icon = item.icon
                   const active =
                     pathname === item.href ||
