@@ -3,6 +3,7 @@
 import React, { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useI18n } from '@/lib/i18n'
+import { RECS, type Priority } from '@/lib/analytics/recommendations'
 
 /* =========================================================================
    Ordable-style executive summary + recommendations engine.
@@ -51,61 +52,6 @@ const CHANNEL_MIX = [
   { en: 'Deliveroo, Ordable & others', ar: 'ديليفرو وأوردابل وباقي القنوات', value: 9908.43, pct: 5.9, color: '#8B5CF6' },
 ]
 
-type Priority = 'top' | 'high' | 'medium'
-const RECS: {
-  id: string
-  priority: Priority
-  deptEn: string; deptAr: string
-  issueEn: string; issueAr: string
-  fixEn: string; fixAr: string
-  impact: number
-}[] = [
-  {
-    id: 'REC-01', priority: 'top',
-    deptEn: 'Delivery apps (Keeta & Talabat)', deptAr: 'تطبيقات التوصيل (كيتا وطلبات)',
-    issueEn: 'Drink attach rate on Keeta (6,267 orders) is only 4.8% and on Talabat Go 12.7%, against 41.2% in the shop.',
-    issueAr: 'نسبة طلب المشروبات في كيتا (6,267 طلباً) 4.8% فقط وفي طلبات جو 12.7% مقابل 41.2% في المحل.',
-    fixEn: 'Add a mandatory drink choice to combo meals on both platforms to lift the rate to 25%.',
-    fixAr: 'إضافة خطوة اختيار مشروب إجبارية ضمن وجبات الكومبو في المنصتين لرفع النسبة إلى 25%.',
-    impact: 2450,
-  },
-  {
-    id: 'REC-02', priority: 'top',
-    deptEn: 'Promotional discount control', deptAr: 'ضبط الخصومات التسويقية',
-    issueEn: 'Keeta runs an 8.2% discount rate: KWD 3,180 of the KWD 4,152 total company discounts.',
-    issueAr: 'كيتا تستهلك خصومات بنسبة 8.2% (3,180 د.ك من أصل 4,152 د.ك إجمالي خصومات الشركة).',
-    fixEn: 'Stop the open menu-wide discount on Keeta and replace it with bundle offers capped at 3.5%.',
-    fixAr: 'إيقاف الخصم المفتوح على المنيو في كيتا واستبداله بعروض وجبات مجمّعة بسقف خصم 3.5%.',
-    impact: 1620,
-  },
-  {
-    id: 'REC-03', priority: 'high',
-    deptEn: 'Central kitchen (food cost)', deptAr: 'المطبخ المركزي (تكلفة الأغذية)',
-    issueEn: 'Food cost drifted to 24.8% (KWD 41,438.856) from 24.0% because of chicken marinade waste.',
-    issueAr: 'انحراف تكلفة الأغذية إلى 24.8% (41,438.856 د.ك) بدلاً من 24.0% نتيجة هدر تتبيل الدجاج.',
-    fixEn: 'Pre-weigh marinade portions (140 g) and tie central-kitchen issues to daily POS sales.',
-    fixAr: 'تطبيق وزن معياري مسبق لحصص التتبيل (140 جم) وربط صرف المطبخ المركزي بمبيعات نقاط البيع يومياً.',
-    impact: 1336,
-  },
-  {
-    id: 'REC-04', priority: 'high',
-    deptEn: 'Maintenance & custody (Rabih)', deptAr: 'الصيانة والعهد (عهدة ربيع)',
-    issueEn: 'Maintenance and custody spend reached KWD 10,707.930 from repeated fridge failures at Al-Kout and Salmiya.',
-    issueAr: 'وصول مصاريف الصيانة والعهد إلى 10,707.930 د.ك بسبب تكرار أعطال ثلاجات فرعي الكوت والسالمية.',
-    fixEn: 'Stop repeated cash repairs and approve a capital replacement (CapEx) of both fridges.',
-    fixAr: 'إيقاف الصرف النقدي المتكرر على التصليح واعتماد استبدال رأسمالي (CapEx) للثلاجتين.',
-    impact: 850,
-  },
-  {
-    id: 'REC-05', priority: 'medium',
-    deptEn: 'Menu engineering (364 items)', deptAr: 'هندسة المنيو (364 صنفاً)',
-    issueEn: 'Only 32 items make 80% of sales while 332 items make 20% and add prep and storage waste.',
-    issueAr: '32 صنفاً فقط تحقق 80% من المبيعات بينما 332 صنفاً تحقق 20% وترفع هدر التحضير والتخزين.',
-    fixEn: 'Delist the weakest 45 items (under 20 orders a month) to ease prep pressure in the central kitchen and the branches.',
-    fixAr: 'إلغاء أضعف 45 صنفاً (أقل من 20 طلباً بالشهر) لتخفيف ضغط التحضير في المطبخ المركزي والفروع.',
-    impact: 584,
-  },
-]
 const PRIORITY_STYLE: Record<Priority, { cls: string; en: string; ar: string }> = {
   top: { cls: 'bg-rose-50 text-rose-700 border-rose-200', en: 'Top priority', ar: 'أولوية قصوى' },
   high: { cls: 'bg-amber-50 text-amber-800 border-amber-200', en: 'High', ar: 'عالية' },

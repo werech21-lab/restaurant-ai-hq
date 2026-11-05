@@ -11,10 +11,14 @@ import {
   ChannelMix,
   ChannelRecs,
   DailyCurve,
+  HoverTip,
+  NeedsAttention,
   NewCustomerTab,
   OperationsTab,
   PeakHoursTab,
   PromotionsTab,
+  RevenueConcentration,
+  Spark,
 } from "@/components/analytics/sales-tabs";
 
 // ==========================================
@@ -560,6 +564,25 @@ function ScorecardInner() {
   const tab = parseSalesTab(searchParams.get("tab"));
   const isAr = locale === "ar";
   const tr = useMemo(() => makeTr(locale), [locale]);
+  const money = (n: number, d = 0) => {
+    const v = n.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+    return isAr ? `${v} د.ك` : `KWD ${v}`;
+  };
+  const brandTip = (b: BrandRow) => [
+    `${tr("Net sales")}: ${money(b.netSales, 2)}`,
+    `${tr("Orders")}: ${b.orders.toLocaleString("en-US")}`,
+    `${tr("Avg order")}: ${money(b.avgOrder, 2)}`,
+    `${tr("Items / order")}: ${b.itemsPerOrder.toFixed(2)}`,
+    `${tr("Share of group")}: ${b.share.toFixed(1)}%`,
+  ];
+  const channelTip = (c: ChannelRow) => [
+    `${tr("Net sales")}: ${money(c.netSales, 2)}`,
+    `${tr("Orders")}: ${c.orders.toLocaleString("en-US")}`,
+    `${tr("Avg order")}: ${money(c.avgOrder, 2)}`,
+    `${tr("Share of group")}: ${c.share.toFixed(1)}%`,
+    `${tr("Discount rate")}: ${c.discountRate.toFixed(1)}%`,
+    `${tr("Drinks %")}: ${c.drinksPct.toFixed(1)}%`,
+  ];
   const [selectedBrand, setSelectedBrand] = useState<string>("All brands");
   const [selectedChannel, setSelectedChannel] = useState<string>("All channels");
 
@@ -663,7 +686,7 @@ function ScorecardInner() {
                 <>
                   {tr(selectedBrand)} في {tr(selectedChannel)} حققت صافي{" "}
                   <strong className="font-semibold text-gray-900">
-                    <span dir="ltr" className="inline-block tabular-nums">KWD {Math.round(kpis.netSales).toLocaleString()}</span>
+                    <span dir="ltr" className="inline-block tabular-nums">{money(kpis.netSales)}</span>
                   </strong>{" "}
                   في أكتوبر من{" "}
                   <strong className="font-semibold text-gray-900">
@@ -676,7 +699,7 @@ function ScorecardInner() {
                 <>
                   {selectedBrand} in {selectedChannel.toLowerCase()} made{" "}
                   <strong className="font-semibold text-gray-900">
-                    KWD {Math.round(kpis.netSales).toLocaleString()}
+                    {money(kpis.netSales)}
                   </strong>{" "}
                   net in October from{" "}
                   <strong className="font-semibold text-gray-900">
@@ -755,9 +778,10 @@ function ScorecardInner() {
           <div className="bg-white border border-gray-200 rounded-md p-3">
             <div className="text-[11px] text-gray-500">{tr("Net sales · Oct 2026")}</div>
             <div className="text-[18px] font-bold text-gray-900 mt-0.5 tabular-nums">
-              KWD {Math.round(kpis.netSales).toLocaleString()}
+              {money(kpis.netSales)}
             </div>
             <div className="text-[10px] text-gray-400 mt-0.5">{tr("After discounts, KWD")}</div>
+            <Spark series="sales" />
           </div>
 
           <div className="bg-white border border-gray-200 rounded-md p-3">
@@ -766,14 +790,16 @@ function ScorecardInner() {
               {kpis.orders.toLocaleString()}
             </div>
             <div className="text-[10px] text-gray-400 mt-0.5">{tr("Distinct orders")}</div>
+            <Spark series="orders" />
           </div>
 
           <div className="bg-white border border-gray-200 rounded-md p-3">
             <div className="text-[11px] text-gray-500">{tr("Average order value")}</div>
             <div className="text-[18px] font-bold text-gray-900 mt-0.5 tabular-nums">
-              KWD {kpis.avgOrder.toFixed(3)}
+              {money(kpis.avgOrder, 3)}
             </div>
             <div className="text-[10px] text-gray-400 mt-0.5">{tr("Net sales ÷ orders")}</div>
+            <Spark series="aov" />
           </div>
 
           <div className="bg-white border border-gray-200 rounded-md p-3">
@@ -789,7 +815,7 @@ function ScorecardInner() {
           <div className="bg-white border border-gray-200 rounded-md p-3">
             <div className="text-[11px] text-gray-500">{tr("Discounts given")}</div>
             <div className="text-[18px] font-bold text-gray-900 mt-0.5 tabular-nums">
-              KWD {Math.round(kpis.discounts).toLocaleString()}
+              {money(kpis.discounts)}
             </div>
             <div className="text-[10px] text-gray-400 mt-0.5">{tr("2.4% of gross sales")}</div>
           </div>
@@ -797,7 +823,7 @@ function ScorecardInner() {
           <div className="bg-white border border-gray-200 rounded-md p-3">
             <div className="text-[11px] text-gray-500">{tr("Net operating profit")}</div>
             <div className="text-[18px] font-bold text-emerald-700 mt-0.5">
-              <span dir="ltr" className="inline-block tabular-nums">{isFiltered ? "—" : "KWD 42,441.480"}</span>
+              <span dir="ltr" className="inline-block tabular-nums">{isFiltered ? "—" : money(42441.48, 3)}</span>
             </div>
             <div className="text-[10px] text-gray-400 mt-0.5">{isFiltered ? tr("Available for the whole group only") : tr("25.4% net margin")}</div>
           </div>
@@ -839,7 +865,10 @@ function ScorecardInner() {
         </section>
 
 
-            <DailyCurve />
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+              <div className="lg:col-span-2"><DailyCurve /></div>
+              <NeedsAttention />
+            </div>
         {/* ==========================================
             SECTION 1: BRANDS (CHARTS + SCORECARD)
            ========================================== */}
@@ -863,10 +892,12 @@ function ScorecardInner() {
                       onClick={() =>
                         setSelectedBrand(selectedBrand === b.brand ? "All brands" : b.brand)
                       }
-                      className={`grid grid-cols-[110px_1fr_55px] items-center gap-2 text-[11px] cursor-pointer hover:opacity-90 ${
+                      tabIndex={0}
+                      className={`group relative outline-none grid grid-cols-[110px_1fr_55px] items-center gap-2 text-[11px] cursor-pointer hover:opacity-90 ${
                         isSelected ? "opacity-100" : "opacity-40"
                       }`}
                     >
+                      <HoverTip title={tr(b.brand)} lines={brandTip(b)} />
                       <span className="text-end text-gray-600 truncate">{tr(b.brand)}</span>
                       <div className="w-full bg-gray-50 h-4 flex items-center">
                         <div
@@ -899,9 +930,11 @@ function ScorecardInner() {
                         onClick={() =>
                           setSelectedBrand(selectedBrand === b.brand ? "All brands" : b.brand)
                         }
-                        className="grid grid-cols-[110px_1fr_45px] items-center gap-2 text-[11px] cursor-pointer"
+                        tabIndex={0}
+                      className="group relative outline-none grid grid-cols-[110px_1fr_45px] items-center gap-2 text-[11px] cursor-pointer"
                       >
-                        <span className="text-end text-gray-600 truncate">{tr(b.brand)}</span>
+                        <HoverTip title={tr(b.brand)} lines={brandTip(b)} />
+                      <span className="text-end text-gray-600 truncate">{tr(b.brand)}</span>
                         <div className="w-full bg-gray-50 h-4 flex items-center">
                           <div
                             className={`h-4 transition-all ${
@@ -1025,8 +1058,10 @@ function ScorecardInner() {
                           selectedChannel === c.channel ? "All channels" : c.channel
                         )
                       }
-                      className="grid grid-cols-[110px_1fr_55px] items-center gap-2 text-[11px] cursor-pointer hover:opacity-90"
+                      tabIndex={0}
+                      className="group relative outline-none grid grid-cols-[110px_1fr_55px] items-center gap-2 text-[11px] cursor-pointer hover:opacity-90"
                     >
+                      <HoverTip title={tr(c.channel)} lines={channelTip(c)} />
                       <span className="text-end text-gray-600 truncate">{tr(c.channel)}</span>
                       <div className="w-full bg-gray-50 h-3.5 flex items-center">
                         <div
@@ -1061,9 +1096,11 @@ function ScorecardInner() {
                             selectedChannel === c.channel ? "All channels" : c.channel
                           )
                         }
-                        className="grid grid-cols-[110px_1fr_45px] items-center gap-2 text-[11px] cursor-pointer"
+                        tabIndex={0}
+                      className="group relative outline-none grid grid-cols-[110px_1fr_45px] items-center gap-2 text-[11px] cursor-pointer"
                       >
-                        <span className="text-end text-gray-600 truncate">{tr(c.channel)}</span>
+                        <HoverTip title={tr(c.channel)} lines={channelTip(c)} />
+                      <span className="text-end text-gray-600 truncate">{tr(c.channel)}</span>
                         <div className="w-full bg-gray-50 h-3.5 flex items-center">
                           <div
                             className={`h-3.5 ${
@@ -1212,6 +1249,7 @@ function ScorecardInner() {
 
         {tab === "products" && (
           <div className="space-y-6">
+            <RevenueConcentration />
         {/* ==========================================
             SECTION 3: MENU CATEGORIES & TOP 15 ITEMS
            ========================================== */}

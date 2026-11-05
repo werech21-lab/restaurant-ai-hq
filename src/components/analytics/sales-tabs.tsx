@@ -3,6 +3,7 @@
 import React, { useMemo } from 'react'
 import { useI18n } from '@/lib/i18n'
 import { DAILY_TREND_SAMPLE } from '@/lib/analytics/sales-tabs'
+import { RECS, RECS_TOTAL_KWD } from '@/lib/analytics/recommendations'
 import { OCTOBER_BRANCH_PERFORMANCE, OCTOBER_HOURLY_HEATMAP } from '@/lib/analytics/brand-sales-october-data'
 
 /* Tab bodies for /erp/sales-scorecard. Pure CSS/SVG, no chart library, no AI calls.
@@ -59,14 +60,16 @@ function Pending({ title, body }: { title: string; body: string }) {
   )
 }
 
-interface Row { key: string; label: string; value: number; text: string; color: string; sub?: string }
+interface Tip { title: string; lines: string[] }
+interface Row { key: string; label: string; value: number; text: string; color: string; sub?: string; tip?: Tip }
 function Bars({ rows, labelW = 130 }: { rows: Row[]; labelW?: number }) {
   const max = Math.max(...rows.map((r) => r.value), 1)
   return (
     <div className="space-y-1.5">
       {rows.map((r) => (
-        <div key={r.key} className="grid items-center gap-2 text-[11px]" style={{ gridTemplateColumns: `${labelW}px 1fr` }}>
-          <span className="truncate text-gray-600" title={r.label}>{r.label}</span>
+        <div key={r.key} tabIndex={r.tip ? 0 : undefined} className="group relative grid items-center gap-2 text-[11px] outline-none" style={{ gridTemplateColumns: `${labelW}px 1fr` }}>
+          {r.tip && <HoverTip title={r.tip.title} lines={r.tip.lines} />}
+          <span className="truncate text-gray-600">{r.label}</span>
           <div className="flex items-center gap-1.5">
             <div style={{ height: 16, width: `${(r.value / max) * 78}%`, minWidth: 2, background: r.color }} />
             <Num>{r.text}</Num>
@@ -105,41 +108,141 @@ function smooth(pts: { x: number; y: number }[]) {
 }
 
 /* ------------------------------------------------------------------ core */
+export function HoverTip({ title, lines }: Tip) {
+  return (
+    <div
+      role="tooltip"
+      className="pointer-events-none absolute start-28 top-full z-30 mt-1 hidden min-w-[190px] rounded-lg bg-white p-3 text-[11px] shadow-lg ring-1 ring-gray-200 group-hover:block group-focus:block"
+    >
+      <div className="font-semibold text-gray-900">{title}</div>
+      {lines.map((l) => <div key={l} className="mt-0.5 text-gray-600">{l}</div>)}
+    </div>
+  )
+}
+
+const seriesOf = (k: 'sales' | 'orders' | 'aov') => DAILY_TREND_SAMPLE.map((d) => (k === 'sales' ? d.sales : k === 'orders' ? d.orders : d.sales / d.orders))
+
+export function Spark({ series, color = BLUE }: { series: 'sales' | 'orders' | 'aov'; color?: string }) {
+  const pts = seriesOf(series)
+  const W = 260, H = 36
+  const max = Math.max(...pts), min = Math.min(...pts), range = Math.max(1e-9, max - min)
+  const coords = pts.map((v, i) => `${((i / (pts.length - 1)) * W).toFixed(1)},${(H - ((v - min) / range) * (H - 10) - 5).toFixed(1)}`).join(' ')
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="mt-2 h-9 w-full overflow-visible" aria-hidden style={{ direction: "ltr" }}>
+      <polyline fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" points={coords} />
+    </svg>
+  )
+}
+
+type Gran = 'day' | 'week' | 'month'
 export function DailyCurve() {
-  const { T } = useT()
+  const { T, ar } = useT()
+  const [gran, setGran] = React.useState<Gran>('day')
+  const series = useMemo(() => {
+    if (gran === 'day') return DAILY_TREND_SAMPLE.map((d) => ({ l: d.day, v: d.sales }))
+    const buckets = new Map<number, number[]>()
+    DAILY_TREND_SAMPLE.forEach((d) => {
+      const w = Math.floor((parseInt(d.day, 10) - 1) / 7)
+      buckets.set(w, [...(buckets.get(w) ?? []), d.sales])
+    })
+    return [...buckets.entries()].map(([w, vs]) => ({
+      l: `${w * 7 + 1}–${Math.min(w * 7 + 7, 31)} Oct`,
+      v: Math.round(vs.reduce((a, b) => a + b, 0) / vs.length),
+    }))
+  }, [gran])
   const g = useMemo(() => {
-    const vals = DAILY_TREND_SAMPLE.map((d) => d.sales)
+    const vals = series.map((p) => p.v)
     const max = Math.max(...vals) * 1.1, min = Math.min(...vals) * 0.85
     const W = 760, H = 190
-    const pts = DAILY_TREND_SAMPLE.map((d, i) => ({ x: (i / (DAILY_TREND_SAMPLE.length - 1)) * W, y: H - ((d.sales - min) / (max - min)) * (H - 34) - 16, v: d.sales, l: d.day }))
-    const line = smooth(pts)
-    return { pts, line, area: `${line} L ${W},${H} L 0,${H} Z`, W, H }
-  }, [])
+    const pts = series.map((p, i) => ({ x: series.length === 1 ? W / 2 : (i / (series.length - 1)) * W, y: H - ((p.v - min) / (max - min)) * (H - 34) - 16, v: p.v, l: p.l }))
+    const line = pts.length > 1 ? smooth(pts) : ''
+    return { pts, line, area: line ? `${line} L ${W},${H} L 0,${H} Z` : '', W, H }
+  }, [series])
+  const all = DAILY_TREND_SAMPLE.map((d) => d.sales)
+  const avg = all.reduce((a, b) => a + b, 0) / all.length
+  const tabs: [Gran, string, string][] = [['day', 'Day', 'يوم'], ['week', 'Week', 'أسبوع'], ['month', 'Month', 'شهر']]
+  return (
+    <div className={card}>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <Title
+          title={T('Sales trend', 'منحنى المبيعات')}
+          sub={T('Sampled every 3 days (11 points), KWD. Week and month views average the sampled days; they are not totals.', 'عينة كل 3 أيام (11 نقطة) بالدينار. عرض الأسبوع والشهر متوسط للأيام المعروضة وليس إجمالياً.')}
+        />
+        <div className="inline-flex rounded-lg bg-gray-100 p-0.5 text-[11px] font-semibold">
+          {tabs.map(([k, en, arT]) => (
+            <button key={k} type="button" onClick={() => setGran(k)} className={`rounded-md px-3 py-1 ${gran === k ? 'bg-white shadow-sm' : 'text-gray-500'}`} style={gran === k ? { color: BLUE } : undefined}>
+              {T(en, arT)}
+            </button>
+          ))}
+        </div>
+      </div>
+      {gran === 'month' ? (
+        <div className="grid grid-cols-3 gap-3 py-6 text-center">
+          <div><div className="text-[11px] text-gray-500">{T('Average per sampled day', 'متوسط اليوم المعروض')}</div><div className="mt-1 text-xl font-bold text-gray-900"><Num>{fmt0(avg)} {ar ? 'د.ك' : 'KWD'}</Num></div></div>
+          <div><div className="text-[11px] text-gray-500">{T('Lowest sampled day', 'أدنى يوم معروض')}</div><div className="mt-1 text-xl font-bold text-gray-900"><Num>{fmt0(Math.min(...all))} {ar ? 'د.ك' : 'KWD'}</Num></div></div>
+          <div><div className="text-[11px] text-gray-500">{T('Highest sampled day', 'أعلى يوم معروض')}</div><div className="mt-1 text-xl font-bold text-gray-900"><Num>{fmt0(Math.max(...all))} {ar ? 'د.ك' : 'KWD'}</Num></div></div>
+        </div>
+      ) : (
+        <div dir="ltr">
+          <svg viewBox={`0 0 ${g.W} ${g.H + 26}`} className="h-52 w-full overflow-visible">
+            <defs>
+              <linearGradient id="dcFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={BLUE} stopOpacity="0.25" /><stop offset="100%" stopColor={BLUE} stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            {[0.25, 0.5, 0.75].map((r) => <line key={r} x1="0" x2={g.W} y1={g.H * r} y2={g.H * r} stroke="#F1F5F9" />)}
+            {g.area && <path d={g.area} fill="url(#dcFill)" />}
+            {g.line && <path d={g.line} fill="none" stroke={BLUE} strokeWidth="3" strokeLinecap="round" />}
+            {g.pts.map((p, i) => (
+              <g key={i}>
+                <circle cx={p.x} cy={p.y} r="4" fill="#fff" stroke={BLUE} strokeWidth="2.5" />
+                <text x={p.x} y={p.y - 9} textAnchor="middle" className="fill-slate-700 text-[10px] font-bold">{p.v.toLocaleString('en-US')}</text>
+                <text x={p.x} y={g.H + 17} textAnchor="middle" className="fill-slate-400 text-[10px]">{p.l}</text>
+              </g>
+            ))}
+          </svg>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export function RevenueConcentration() {
+  const { T } = useT()
+  return (
+    <div className={card}>
+      <div className="mb-1.5 flex items-center justify-between text-[11px]">
+        <span className="font-medium text-gray-500">{T('Revenue concentration', 'تركّز الإيرادات')}</span>
+        <span className="font-bold text-gray-900">{T('Top 32 of 364 items = 80% of sales', 'أعلى 32 صنفاً من أصل 364 = 80% من المبيعات')}</span>
+      </div>
+      <div className="h-2.5 w-full overflow-hidden rounded-full bg-gray-100" dir="ltr">
+        <div className="h-full rounded-full" style={{ width: '80%', background: BLUE }} />
+      </div>
+      <div className="mt-1 text-[10px] text-gray-400">{T('332 items generate only the remaining 20% of sales.', '332 صنفاً فقط تحقق الـ 20% المتبقية من المبيعات.')}</div>
+    </div>
+  )
+}
+
+export function NeedsAttention() {
+  const { T, ar } = useT()
+  const sorted = [...RECS].sort((a, b) => b.impact - a.impact)
   return (
     <div className={card}>
       <Title
-        title={T('Daily sales curve', 'منحنى المبيعات اليومي')}
-        sub={T('Sampled every 3 days (11 points), KWD. Not the full month.', 'عينة كل 3 أيام (11 نقطة) بالدينار. وليست الشهر كاملاً.')}
+        title={T('Needs attention', 'توصيات تتطلب الانتباه')}
+        sub={T(`Ranked by monthly impact, total +KWD ${fmt0(RECS_TOTAL_KWD)} (management estimates)`, `مرتبة حسب الأثر الشهري، الإجمالي +${fmt0(RECS_TOTAL_KWD)} د.ك (تقديرات إدارية)`)}
       />
-      <div dir="ltr">
-        <svg viewBox={`0 0 ${g.W} ${g.H + 26}`} className="h-52 w-full overflow-visible">
-          <defs>
-            <linearGradient id="dcFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={BLUE} stopOpacity="0.25" /><stop offset="100%" stopColor={BLUE} stopOpacity="0" />
-            </linearGradient>
-          </defs>
-          {[0.25, 0.5, 0.75].map((r) => <line key={r} x1="0" x2={g.W} y1={g.H * r} y2={g.H * r} stroke="#F1F5F9" />)}
-          <path d={g.area} fill="url(#dcFill)" />
-          <path d={g.line} fill="none" stroke={BLUE} strokeWidth="3" strokeLinecap="round" />
-          {g.pts.map((p, i) => (
-            <g key={i}>
-              <circle cx={p.x} cy={p.y} r="4" fill="#fff" stroke={BLUE} strokeWidth="2.5" />
-              <text x={p.x} y={p.y - 9} textAnchor="middle" className="fill-slate-700 text-[10px] font-bold">{p.v.toLocaleString('en-US')}</text>
-              <text x={p.x} y={g.H + 17} textAnchor="middle" className="fill-slate-400 text-[10px]">{p.l}</text>
-            </g>
-          ))}
-        </svg>
-      </div>
+      <ul className="space-y-2">
+        {sorted.map((r) => (
+          <li key={r.id} className="rounded-md border border-gray-100 border-s-[3px] border-s-rose-600 bg-rose-50/40 p-2.5">
+            <div className="flex items-start justify-between gap-2">
+              <span className="text-[11px] font-bold text-gray-900">{ar ? r.deptAr : r.deptEn}</span>
+              <span className="whitespace-nowrap text-[11px] font-bold text-emerald-700"><Num>+{fmt0(r.impact)} {ar ? 'د.ك' : 'KWD'}</Num></span>
+            </div>
+            <p className="mt-0.5 text-[10.5px] leading-relaxed text-gray-600">{ar ? r.issueAr : r.issueEn}</p>
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }
@@ -168,7 +271,7 @@ export function ChannelMix({ channels }: { channels: ChannelView[] }) {
           title={T('Orders by channel', 'عدد الطلبات حسب القناة')}
           sub={T('Customer counts per channel are not in the dataset, so orders are shown. Grey = fewer than 200 orders.', 'أعداد العملاء لكل قناة غير متوفرة في البيانات، لذلك تُعرض الطلبات. الرمادي = أقل من 200 طلب.')}
         />
-        <Bars rows={channels.map((c) => ({ key: c.key, label: c.label, value: c.orders, text: fmt0(c.orders), color: c.orders < 200 ? GREY : BLUE }))} />
+        <Bars rows={channels.map((c) => ({ key: c.key, label: c.label, value: c.orders, text: fmt0(c.orders), color: c.orders < 200 ? GREY : BLUE, tip: { title: c.label, lines: [`${T('Orders', 'الطلبات')}: ${fmt0(c.orders)}`, `${T('Net sales', 'صافي المبيعات')}: ${fmt0(c.sales)} ${T('KWD', 'د.ك')}`, `${T('Discount rate', 'نسبة الخصم')}: ${c.discPct.toFixed(1)}%`, `${T('Drinks %', 'المشروبات %')}: ${c.drinksPct.toFixed(1)}%`] } }))} />
       </div>
       <div className={card}>
         <Title title={T('Share of net sales by channel', 'حصة كل قناة من صافي المبيعات')} sub={T('Share of the channel rows shown', 'من مجموع صفوف القنوات المعروضة')} />
@@ -228,6 +331,27 @@ export function NewCustomerTab() {
       <p className="text-[10px] text-gray-400">
         {T('Customer figures were supplied with the request; the project dataset has no customer-level records yet.', 'أرقام العملاء مقدّمة مع الطلب؛ ولا توجد في بيانات المشروع بعد سجلات على مستوى العميل.')}
       </p>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <div className={card}>
+          <Title title={T('New vs repeat customers', 'العملاء الجدد مقابل المتكررين')} sub={T('Of 21,480 active customers', 'من أصل 21,480 عميلاً نشطاً')} />
+          <div className="flex h-5 w-full overflow-hidden rounded" dir="ltr">
+            <div style={{ width: '32%', background: BLUE }} title="6,874" />
+            <div style={{ width: '68%', background: '#0D9488' }} title="14,606" />
+          </div>
+          <div className="mt-2 flex flex-wrap gap-4 text-[11px] text-gray-600">
+            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full" style={{ background: BLUE }} />{T('New', 'جدد')} · <Num>6,874</Num> (<Num>32.0%</Num>)</span>
+            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full" style={{ background: '#0D9488' }} />{T('Repeat', 'متكررون')} · <Num>14,606</Num> (<Num>68.0%</Num>)</span>
+          </div>
+        </div>
+        <div className={card}>
+          <Title title={T('Average order: new vs repeat', 'متوسط الطلب: الجديد مقابل المتكرر')} />
+          <Bars labelW={110} rows={[
+            { key: 'n', label: T('New customer', 'عميل جديد'), value: 5.12, text: fmt3(5.12), color: BLUE },
+            { key: 'r', label: T('Repeat customer', 'عميل متكرر'), value: 5.68, text: fmt3(5.68), color: '#0D9488' },
+          ]} />
+          <p className="mt-2 text-[10px] text-gray-400">{T('A repeat customer spends KWD 0.560 more per order (about 10.9%).', 'العميل المتكرر ينفق 0.560 د.ك أكثر في الطلب (حوالي 10.9%).')}</p>
+        </div>
+      </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <Pending
           title={T('New vs repeat customers by channel', 'توزيع العملاء الجدد مقابل المتكررين حسب القناة')}
@@ -294,6 +418,10 @@ export function PromotionsTab({ channels, brands }: { channels: PromoChannel[]; 
             {T(`The channel rows add up to KWD ${fmt0(sumKwd)}, which does not match the reported total of KWD 4,152. The channel rates need reconciling.`, `مجموع صفوف القنوات ${fmt0(sumKwd)} د.ك وهو لا يطابق الإجمالي المعتمد 4,152 د.ك. نسب القنوات تحتاج إلى مطابقة.`)}
           </p>
         </div>
+      </div>
+      <div className={card}>
+        <Title title={T('Discount rate by brand (%)', 'نسبة الخصم حسب العلامة التجارية (%)')} sub={T('Red above 3%', 'الأحمر فوق 3%')} />
+        <Bars rows={[...brands].sort((a, b) => b.discPct - a.discPct).map((b) => ({ key: b.key, label: b.label, value: b.discPct, text: `${b.discPct.toFixed(1)}%`, color: b.discPct > 3 ? '#DC2626' : BLUE }))} />
       </div>
       <Pending
         title={T('Combo offers vs direct percentage discount', 'العائد من عروض الكومبو مقابل الخصم المئوي المباشر')}
