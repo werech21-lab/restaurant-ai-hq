@@ -13,10 +13,10 @@ import { ALL_BRANDS, ALL_CHANNELS, PAYMENT_SPLIT, TOTAL_NET, TOTAL_ORDERS, WEEKD
 
 const BLUE = '#2563EB'
 const GREY = '#9CA3AF'
-const card = 'bg-white border border-slate-200 rounded-lg p-4 shadow-xs'
-const thc = 'py-2.5 px-3 text-start text-xs font-semibold text-slate-600 bg-slate-50/80 whitespace-nowrap'
-const tdc = 'py-2.5 px-3 text-start text-[13px] md:text-sm font-medium text-slate-800'
-const tdn = 'py-2.5 px-3 text-end text-[13px] md:text-sm font-semibold tabular-nums text-slate-900 whitespace-nowrap'
+const card = 'bg-white dark:bg-[#111827] rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-none ring-1 ring-slate-200/70 dark:ring-slate-800 p-5 overflow-hidden transition-all'
+const thc = 'py-3.5 px-4 text-start text-xs md:text-[13px] font-bold text-slate-700 dark:text-slate-200 tracking-tight bg-[#F8FAFC] dark:bg-[#1E293B]/90 border-b border-slate-200/80 dark:border-slate-800 whitespace-nowrap'
+const tdc = 'py-3.5 px-4 text-start text-[13.5px] md:text-sm font-semibold text-slate-800 dark:text-slate-100 leading-relaxed'
+const tdn = 'py-3.5 px-4 text-end text-[13.5px] md:text-sm font-semibold tabular-nums text-slate-800 dark:text-slate-100 leading-relaxed whitespace-nowrap'
 
 const fmt0 = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 0 })
 const fmt1 = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
@@ -30,20 +30,20 @@ export function ChannelModeBadge({ channel }: { channel: string }) {
       <span
         dir="ltr"
         title="Talabat Go (Platform Delivery / توصيل المنصة)"
-        className="inline-flex items-center rounded border border-orange-300 bg-orange-100 px-1.5 py-0.5 text-[11px] font-bold leading-none text-orange-800"
+        className="inline-flex items-center bg-amber-50 text-amber-700 dark:bg-amber-950/70 dark:text-amber-300 ring-1 ring-amber-500/20 px-2.5 py-0.5 rounded-md font-bold text-xs"
       >
         Tgo
       </span>
     )
   }
-  if (mode === 'M') {
+  if (mode === 'TMP' || mode === 'M') {
     return (
       <span
         dir="ltr"
         title="Marketplace (Restaurant Delivery / توصيل المطعم)"
-        className="inline-flex items-center rounded border border-blue-300 bg-blue-100 px-1.5 py-0.5 text-[11px] font-bold leading-none text-blue-900"
+        className="inline-flex items-center bg-indigo-50 text-indigo-700 dark:bg-indigo-950/70 dark:text-indigo-300 ring-1 ring-indigo-500/20 px-2.5 py-0.5 rounded-md font-bold text-xs"
       >
-        M
+        TMP
       </span>
     )
   }
@@ -114,13 +114,15 @@ function Bars({ rows, labelW = 155 }: { rows: Row[]; labelW?: number }) {
 
 function RecTable({ head, rows }: { head: string[]; rows: React.ReactNode[][] }) {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-[13px] md:text-sm border-collapse">
-        <thead className="border-b border-slate-200"><tr>{head.map((h) => <th key={h} className={thc}>{h}</th>)}</tr></thead>
-        <tbody className="divide-y divide-slate-100">
+    <div className="overflow-x-auto rounded-xl ring-1 ring-slate-200/70 dark:ring-slate-800">
+      <table className="w-full text-[13.5px] md:text-sm border-collapse bg-white dark:bg-[#111827]">
+        <thead className="bg-[#F8FAFC] dark:bg-[#1E293B]/90 border-b border-slate-200/80 dark:border-slate-800">
+          <tr>{head.map((h) => <th key={h} className={thc}>{h}</th>)}</tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70">
           {rows.map((r, i) => (
-            <tr key={i} className="hover:bg-slate-50/80">
-              {r.map((c, j) => <td key={j} className={j === 0 ? tdc + ' font-bold text-slate-900 whitespace-nowrap' : tdc}>{c}</td>)}
+            <tr key={i} className="hover:bg-blue-50/40 dark:hover:bg-slate-800/50 transition-colors duration-150">
+              {r.map((c, j) => <td key={j} className={j === 0 ? tdc + ' font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap' : tdc}>{c}</td>)}
             </tr>
           ))}
         </tbody>
@@ -336,7 +338,7 @@ export function ChannelMix({ channels, selectedChannel = ALL_CHANNELS }: { chann
         />
       </div>
       <div className={card}>
-        <Title title={T('Share of net sales by channel', 'حصة كل قناة من صافي المبيعات')} sub={T('Share of the channel rows shown (Tgo & M separated)', 'من مجموع صفوف القنوات المعروضة (مع فصل Tgo و M)')} />
+        <Title title={T('Share of net sales by channel', 'حصة كل قناة من صافي المبيعات')} sub={T('Share of the channel rows shown (Tgo & TMP separated)', 'من مجموع صفوف القنوات المعروضة (مع فصل Tgo و TMP)')} />
         <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
           <svg width="150" height="150" viewBox="0 0 150 150" className="-rotate-90 shrink-0">
             {segs.map((s) => <circle key={s.ch.key} cx="75" cy="75" r={s.r} fill="none" stroke={s.color} strokeWidth="22" strokeDasharray={s.dash} strokeDashoffset={s.off} />)}
@@ -586,25 +588,25 @@ export function BranchesTab({ filter }: { filter: SalesFilter }) {
           </div>
         </div>
 
-        <div className="bg-white border border-blue-200 rounded-lg p-3.5 shadow-xs">
+        <div className="bg-white dark:bg-[#111827] rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] ring-1 ring-indigo-200 dark:ring-indigo-900/50 p-4 transition-all">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-semibold text-slate-700">{T('M Sales (Restaurant Delivery)', 'مبيعات M (توصيل المطعم - Marketplace)')}</span>
+            <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">{T('TMP Sales (Restaurant Delivery)', 'مبيعات TMP (توصيل المطعم - Marketplace)')}</span>
             <ChannelModeBadge channel="Talabat MP" />
           </div>
-          <div className="text-xl md:text-2xl font-extrabold text-blue-900 mt-1 tabular-nums">
+          <div className="text-xl md:text-2xl font-extrabold text-indigo-700 dark:text-indigo-400 mt-1 tabular-nums">
             <Num>{ar ? `${fmt2(sumMNet)} د.ك` : `KWD ${fmt2(sumMNet)}`}</Num>
           </div>
-          <div className="text-xs font-semibold text-slate-600 mt-1">
-            <Num>{fmt0(sumMOrders)}</Num> {T('Talabat MP + Deliveroo MP orders', 'طلب عبر حسابات M')} · <Num>{sumMAcc}</Num> {T('M accounts', 'حساب M')}
+          <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mt-1">
+            <Num>{fmt0(sumMOrders)}</Num> {T('Talabat TMP + Deliveroo TMP orders', 'طلب عبر حسابات TMP')} · <Num>{sumMAcc}</Num> {T('TMP accounts', 'حساب TMP')}
           </div>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-lg p-3.5 shadow-xs">
-          <div className="text-xs font-semibold text-slate-600">{T('Other Platforms (Keeta, Deliveroo Core, etc.)', 'باقي المنصات (كيتا، ديليفرو كور، أوردابل...)')}</div>
-          <div className="text-xl md:text-2xl font-extrabold text-slate-900 mt-1 tabular-nums">
+        <div className="bg-white dark:bg-[#111827] rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] ring-1 ring-slate-200/70 dark:ring-slate-800 p-4 transition-all">
+          <div className="text-xs font-semibold text-slate-600 dark:text-slate-400">{T('Other Platforms (Keeta, Deliveroo Core, etc.)', 'باقي المنصات (كيتا، ديليفرو كور، أوردابل...)')}</div>
+          <div className="text-xl md:text-2xl font-extrabold text-slate-900 dark:text-slate-100 mt-1 tabular-nums">
             <Num>{ar ? `${fmt2(sumOtherNet)} د.ك` : `KWD ${fmt2(sumOtherNet)}`}</Num>
           </div>
-          <div className="text-xs font-semibold text-slate-500 mt-1">
+          <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">
             <Num>{fmt0(sumOtherOrders)}</Num> {T('orders on other channels', 'طلب على باقي القنوات')}
           </div>
         </div>
@@ -629,7 +631,7 @@ export function BranchesTab({ filter }: { filter: SalesFilter }) {
               lines: [
                 `${T('Shop Sales', 'مبيعات المحل')}: ${ar ? `${fmt2(r.shopNet)} د.ك` : `KWD ${fmt2(r.shopNet)}`} (${fmt0(r.shopOrders)})`,
                 `${T('Tgo Sales', 'مبيعات Tgo')}: ${ar ? `${fmt2(r.tgoNet)} د.ك` : `KWD ${fmt2(r.tgoNet)}`} (${fmt0(r.tgoOrders)})`,
-                `${T('M Sales (MP)', 'مبيعات M')}: ${ar ? `${fmt2(r.mNet)} د.ك` : `KWD ${fmt2(r.mNet)}`} (${fmt0(r.mOrders)})`,
+                `${T('TMP Sales', 'مبيعات TMP')}: ${ar ? `${fmt2(r.mNet)} د.ك` : `KWD ${fmt2(r.mNet)}`} (${fmt0(r.mOrders)})`,
                 `${T('Other Platforms', 'باقي المنصات')}: ${ar ? `${fmt2(r.otherNet)} د.ك` : `KWD ${fmt2(r.otherNet)}`} (${fmt0(r.otherOrders)})`,
                 `${T('Total net sales', 'إجمالي صافي المبيعات')}: ${ar ? `${fmt3(r.net)} د.ك` : `KWD ${fmt3(r.net)}`}`,
                 `${T('Total orders', 'إجمالي الطلبات')}: ${fmt0(r.orders)}`,
@@ -642,21 +644,21 @@ export function BranchesTab({ filter }: { filter: SalesFilter }) {
 
       <div className={card}>
         <Title
-          title={T('Actual Restaurant Branches — Detailed Breakdown (Shop Sales | Tgo | M | Other Platforms)', 'تفصيل الفروع الفعلية للمطعم — مقسّمة حسب (مبيعات المحل | Tgo | M | باقي المنصات)')}
-          sub={T('The 9 actual operational restaurant branches of Venture Foods with sales & orders split across Shop Sales, Tgo (Talabat Go), M (Marketplace), and Other Platforms.', 'الفروع التشغيلية الـ 9 المعتمدة للمطعم مع تقسيم واضح لمبيعات وطلبات كل فرع إلى: مبيعات المحل، ومبيعات Tgo، ومبيعات M، وباقي المنصات.')}
+          title={T('Actual Restaurant Branches — Detailed Breakdown (Shop Sales | Tgo | TMP | Other Platforms)', 'تفصيل الفروع الفعلية للمطعم — مقسّمة حسب (مبيعات المحل | Tgo | TMP | باقي المنصات)')}
+          sub={T('The 9 actual operational restaurant branches of Venture Foods with sales & orders split across Shop Sales, Tgo (Talabat Go), TMP (Talabat Marketplace), and Other Platforms.', 'الفروع التشغيلية الـ 9 المعتمدة للمطعم مع تقسيم واضح لمبيعات وطلبات كل فرع إلى: مبيعات المحل، ومبيعات Tgo، ومبيعات TMP، وباقي المنصات.')}
         />
-        <div className="overflow-x-auto">
-          <table className="w-full text-[13px] md:text-sm border-collapse">
-            <thead className="sticky top-0 border-b border-slate-200 bg-slate-50">
+        <div className="overflow-x-auto rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] ring-1 ring-slate-200/70 dark:ring-slate-800">
+          <table className="w-full text-[13.5px] md:text-sm border-collapse bg-white dark:bg-[#111827]">
+            <thead className="sticky top-0 bg-[#F8FAFC] dark:bg-[#1E293B]/90 border-b border-slate-200/80 dark:border-slate-800">
               <tr>
                 <th className={thc}>{T('Actual Restaurant Branch', 'الفرع الفعلي للمطعم')}</th>
-                <th className={thc}>{T('Zone Accounts (Tgo / M)', 'حسابات التغطية (Tgo / M)')}</th>
+                <th className={thc}>{T('Zone Accounts (Tgo / TMP)', 'حسابات التغطية (Tgo / TMP)')}</th>
                 <th className={thc + ' text-end'}>{T('Shop Sales (Orders)', 'مبيعات المحل (الطلبات)')}</th>
                 <th className={thc + ' text-end'}>
                   <span className="inline-flex items-center gap-1">{T('Tgo Sales (Orders)', 'مبيعات Tgo (الطلبات)')} <ChannelModeBadge channel="Talabat Go" /></span>
                 </th>
                 <th className={thc + ' text-end'}>
-                  <span className="inline-flex items-center gap-1">{T('M Sales (Orders)', 'مبيعات M (الطلبات)')} <ChannelModeBadge channel="Talabat MP" /></span>
+                  <span className="inline-flex items-center gap-1">{T('TMP Sales (Orders)', 'مبيعات TMP (الطلبات)')} <ChannelModeBadge channel="Talabat MP" /></span>
                 </th>
                 <th className={thc + ' text-end'}>{T('Other Platforms (Orders)', 'باقي المنصات (الطلبات)')}</th>
                 <th className={thc + ' text-end'}>{T('Total Net (KWD)', 'إجمالي المبيعات (د.ك)')}</th>
@@ -666,41 +668,41 @@ export function BranchesTab({ filter }: { filter: SalesFilter }) {
                 <th className={thc}>{T('Brands Run', 'العلامات المشغّلة')}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70">
               {rows.map((r) => (
-                <tr key={r.code} className={`hover:bg-slate-50/80 ${r.net > 0 ? '' : 'opacity-50'}`}>
-                  <td className={tdc + ' font-bold text-slate-900 whitespace-nowrap'}>{name(r)}</td>
+                <tr key={r.code} className={`hover:bg-blue-50/40 dark:hover:bg-slate-800/50 transition-colors duration-150 ${r.net > 0 ? '' : 'opacity-50'}`}>
+                  <td className={tdc + ' font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap'}>{name(r)}</td>
                   <td className={tdc + ' whitespace-nowrap'}>
                     <div className="inline-flex items-center gap-1.5">
-                      <span dir="ltr" className="inline-flex items-center rounded border border-orange-300 bg-orange-50 px-1.5 py-0.5 text-xs font-bold text-orange-800">
+                      <span dir="ltr" className="inline-flex items-center bg-amber-50 text-amber-700 dark:bg-amber-950/70 dark:text-amber-300 ring-1 ring-amber-500/20 px-2.5 py-0.5 rounded-md font-bold text-xs">
                         {r.tgoAccountsCount} Tgo
                       </span>
-                      <span dir="ltr" className="inline-flex items-center rounded border border-blue-300 bg-blue-50 px-1.5 py-0.5 text-xs font-bold text-blue-900">
-                        {r.mAccountsCount} M
+                      <span dir="ltr" className="inline-flex items-center bg-indigo-50 text-indigo-700 dark:bg-indigo-950/70 dark:text-indigo-300 ring-1 ring-indigo-500/20 px-2.5 py-0.5 rounded-md font-bold text-xs">
+                        {r.mAccountsCount} TMP
                       </span>
                     </div>
                   </td>
                   <td className={tdn}>
                     {r.shopNet > 0 ? (
                       <div>
-                        <div className="font-bold text-slate-900"><Num>{fmt2(r.shopNet)}</Num></div>
-                        <div className="text-xs font-medium text-slate-500"><Num>({fmt0(r.shopOrders)})</Num></div>
+                        <div className="font-bold text-slate-900 dark:text-slate-100"><Num>{fmt2(r.shopNet)}</Num></div>
+                        <div className="text-xs font-medium text-slate-500 dark:text-slate-400"><Num>({fmt0(r.shopOrders)})</Num></div>
                       </div>
                     ) : '—'}
                   </td>
-                  <td className={tdn + ' bg-orange-50/30'}>
+                  <td className={tdn + ' bg-amber-50/30 dark:bg-amber-950/20'}>
                     {r.tgoNet > 0 ? (
                       <div>
-                        <div className="font-bold text-orange-900"><Num>{fmt2(r.tgoNet)}</Num></div>
-                        <div className="text-xs font-medium text-orange-700"><Num>({fmt0(r.tgoOrders)})</Num></div>
+                        <div className="font-bold text-amber-900 dark:text-amber-200"><Num>{fmt2(r.tgoNet)}</Num></div>
+                        <div className="text-xs font-medium text-amber-700 dark:text-amber-400"><Num>({fmt0(r.tgoOrders)})</Num></div>
                       </div>
                     ) : '—'}
                   </td>
-                  <td className={tdn + ' bg-blue-50/30'}>
+                  <td className={tdn + ' bg-indigo-50/30 dark:bg-indigo-950/20'}>
                     {r.mNet > 0 ? (
                       <div>
-                        <div className="font-bold text-blue-900"><Num>{fmt2(r.mNet)}</Num></div>
-                        <div className="text-xs font-medium text-blue-700"><Num>({fmt0(r.mOrders)})</Num></div>
+                        <div className="font-bold text-indigo-900 dark:text-indigo-200"><Num>{fmt2(r.mNet)}</Num></div>
+                        <div className="text-xs font-medium text-indigo-700 dark:text-indigo-400"><Num>({fmt0(r.mOrders)})</Num></div>
                       </div>
                     ) : '—'}
                   </td>
@@ -729,19 +731,19 @@ export function BranchesTab({ filter }: { filter: SalesFilter }) {
               <tr className="border-t-2 border-slate-300 bg-slate-50 font-bold text-slate-900">
                 <td className={tdc + ' font-extrabold'}>{T('Total (9 Actual Branches)', 'الإجمالي (9 فروع فعلية)')}</td>
                 <td className={tdc}>
-                  <span dir="ltr" className="text-xs font-bold text-slate-700">{sumTgoAcc} Tgo + {sumMAcc} M</span>
+                  <span dir="ltr" className="text-xs font-bold text-slate-700">{sumTgoAcc} Tgo + {sumMAcc} TMP</span>
                 </td>
                 <td className={tdn}>
                   <div><Num>{fmt2(sumShopNet)}</Num></div>
                   <div className="text-xs font-semibold text-slate-600"><Num>({fmt0(sumShopOrders)})</Num></div>
                 </td>
-                <td className={tdn + ' text-orange-900 bg-orange-50/50'}>
+                <td className={tdn + ' text-amber-900 bg-amber-50/50'}>
                   <div><Num>{fmt2(sumTgoNet)}</Num></div>
-                  <div className="text-xs font-semibold text-orange-800"><Num>({fmt0(sumTgoOrders)})</Num></div>
+                  <div className="text-xs font-semibold text-amber-800"><Num>({fmt0(sumTgoOrders)})</Num></div>
                 </td>
-                <td className={tdn + ' text-blue-900 bg-blue-50/50'}>
+                <td className={tdn + ' text-indigo-900 bg-indigo-50/50'}>
                   <div><Num>{fmt2(sumMNet)}</Num></div>
-                  <div className="text-xs font-semibold text-blue-800"><Num>({fmt0(sumMOrders)})</Num></div>
+                  <div className="text-xs font-semibold text-indigo-800"><Num>({fmt0(sumMOrders)})</Num></div>
                 </td>
                 <td className={tdn}>
                   <div><Num>{fmt2(sumOtherNet)}</Num></div>

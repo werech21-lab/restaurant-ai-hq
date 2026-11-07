@@ -17,7 +17,31 @@ export const TOTAL_DISCOUNTS = 4152
 /** Group discount rate (discounts ÷ gross sales) in %, used to scale one row's rate by another's. */
 const GROUP_DISC_RATE = (TOTAL_DISCOUNTS / (TOTAL_NET + TOTAL_DISCOUNTS)) * 100
 
-export interface SalesFilter { brand: string; channel: string }
+export type PeriodType = 'Day' | 'Month' | 'Year'
+
+export interface SalesFilter {
+  brand: string
+  channel: string
+  branch?: string
+  period?: PeriodType
+}
+
+/**
+ * Branch net sales (KWD) for the 9 Actual Operational Restaurant Branches:
+ * (السالمية، شرق، حولي، الفحيحيل/الكوت، العارضية، الفروانية، المهبولة، الجهراء، صباح السالم/مبارك الكبير).
+ * Sum = 167,092.160 KWD.
+ */
+export const BRANCH_NET: Record<string, number> = {
+  SLM: 38425.32,
+  SHQ: 28140.65,
+  HWL: 24680.4,
+  KOT: 21350.84,
+  ARD: 18720.5,
+  FRW: 13410.25,
+  MHB: 10845.1,
+  JHR: 7265.8,
+  QRN: 4253.3,
+}
 
 const BRAND_ID_TO_NAME: Record<string, string> = {
   'china-garden': 'China Garden',
@@ -29,11 +53,22 @@ const BRAND_ID_TO_NAME: Record<string, string> = {
 }
 
 /**
- * Returns 'Tgo' for Talabat Go (Platform Delivery) and 'M' for Marketplace (Talabat MP, Deliveroo MP).
+ * Returns 'Tgo' for Talabat Go (Platform Delivery) and 'TMP' for Marketplace (Talabat MP/TMP, Deliveroo MP/TMP).
  */
-export function channelDeliveryMode(channel: string): 'Tgo' | 'M' | null {
-  if (channel === 'Talabat Go') return 'Tgo'
-  if (channel === 'Talabat MP' || channel === 'Deliveroo MP') return 'M'
+export function channelDeliveryMode(channel: string): 'Tgo' | 'TMP' | 'M' | null {
+  if (channel === 'Talabat Go' || channel === 'Talabat Go (Tgo)' || channel === 'Tgo') return 'Tgo'
+  if (
+    channel === 'Talabat MP' ||
+    channel === 'Talabat TMP' ||
+    channel === 'Talabat TMP (TMP)' ||
+    channel === 'Deliveroo MP' ||
+    channel === 'Deliveroo TMP' ||
+    channel === 'Deliveroo TMP (TMP)' ||
+    channel === 'TMP' ||
+    channel === 'M'
+  ) {
+    return 'TMP'
+  }
   return null
 }
 
@@ -67,9 +102,17 @@ const channelByName = (n: string) => CHANNELS_DATA.find((c) => c.channel === n)
 export function shares(f: SalesFilter) {
   const b = f.brand !== ALL_BRANDS ? brandByName(f.brand) : undefined
   const c = f.channel !== ALL_CHANNELS ? channelByName(f.channel) : undefined
+  const branchNet = f.branch && f.branch !== 'ALL' && BRANCH_NET[f.branch] ? BRANCH_NET[f.branch] : undefined
+  const brN = branchNet ? branchNet / TOTAL_NET : 1
+  const brO = brN
+  const pM = f.period === 'Day' ? (1 / 31) : f.period === 'Year' ? 12 : 1
   return {
     b,
     c,
+    branchNet,
+    brN,
+    brO,
+    pM,
     bN: b ? b.netSales / TOTAL_NET : 1,
     bO: b ? b.orders / TOTAL_ORDERS : 1,
     bD: b ? BRAND_DISCOUNT_KWD[b.brand] / TOTAL_DISCOUNTS : 1,
@@ -81,17 +124,20 @@ export function shares(f: SalesFilter) {
 
 export function computeView(f: SalesFilter): SalesView {
   const s = shares(f)
-  const net = TOTAL_NET * s.bN * s.cN
-  const orders = Math.max(0, Math.round(TOTAL_ORDERS * s.bO * s.cO))
-  const items = Math.round(TOTAL_ITEMS * s.bO * s.cO)
-  const discounts = TOTAL_DISCOUNTS * s.bD * s.cD
+  const combinedNetMult = s.bN * s.cN * s.brN * s.pM
+  const combinedOrdMult = s.bO * s.cO * s.brO * s.pM
 
-  // Brand rows: scaled by the channel filter only.
-  const brandNets = BRANDS_DATA.map((b) => b.netSales * s.cN)
+  const net = TOTAL_NET * combinedNetMult
+  const orders = Math.max(0, Math.round(TOTAL_ORDERS * combinedOrdMult))
+  const items = Math.round(TOTAL_ITEMS * combinedOrdMult)
+  const discounts = TOTAL_DISCOUNTS * s.bD * s.cD * s.brN * s.pM
+
+  // Brand rows: scaled by channel, branch, and period.
+  const brandNets = BRANDS_DATA.map((b) => b.netSales * s.cN * s.brN * s.pM)
   const brandNetSum = brandNets.reduce((a, v) => a + v, 0)
   const brands: BrandRow[] = BRANDS_DATA.map((b, i) => {
     const n = brandNets[i]
-    const o = Math.round(b.orders * s.cO)
+    const o = Math.round(b.orders * s.cO * s.brO * s.pM)
     const rate = s.c ? Math.min(60, b.discountRate * (s.c.discountRate / GROUP_DISC_RATE)) : b.discountRate
     return {
       ...b,
@@ -103,12 +149,12 @@ export function computeView(f: SalesFilter): SalesView {
     }
   })
 
-  // Channel rows: scaled by the brand filter only.
-  const channelNets = CHANNELS_DATA.map((c) => c.netSales * s.bN)
+  // Channel rows: scaled by brand, branch, and period.
+  const channelNets = CHANNELS_DATA.map((c) => c.netSales * s.bN * s.brN * s.pM)
   const channelNetSum = channelNets.reduce((a, v) => a + v, 0)
   const channels: ChannelRow[] = CHANNELS_DATA.map((c, i) => {
     const n = channelNets[i]
-    const o = Math.round(c.orders * s.bO)
+    const o = Math.round(c.orders * s.bO * s.brO * s.pM)
     const rate = s.b ? Math.min(60, c.discountRate * (s.b.discountRate / GROUP_DISC_RATE)) : c.discountRate
     return {
       ...c,
@@ -117,44 +163,27 @@ export function computeView(f: SalesFilter): SalesView {
       share: channelNetSum > 0 ? (n / channelNetSum) * 100 : 0,
       avgOrder: o > 0 ? n / o : 0,
       discountRate: rate,
-      discountKwd: c.discountKwd * s.bD,
+      discountKwd: c.discountKwd * s.bD * s.brN * s.pM,
     }
   })
 
   return {
     filter: f,
-    isFiltered: !!(s.b || s.c),
+    isFiltered: !!(s.b || s.c || (f.branch && f.branch !== 'ALL') || (f.period && f.period !== 'Month')),
     net,
     orders,
     items,
     discounts,
     avgOrder: orders > 0 ? net / orders : 0,
     itemsPerOrder: orders > 0 ? items / orders : 0,
-    ratioNet: s.bN * s.cN,
-    ratioOrders: s.bO * s.cO,
+    ratioNet: combinedNetMult,
+    ratioOrders: combinedOrdMult,
     brands,
     channels,
   }
 }
 
 /* ------------------------------------------------------------------ branches */
-/**
- * Branch net sales (KWD) for the 9 Actual Operational Restaurant Branches:
- * (السالمية، شرق، حولي، الفحيحيل/الكوت، العارضية، الفروانية، المهبولة، الجهراء، صباح السالم/مبارك الكبير).
- * Sum = 167,092.160 KWD.
- */
-const BRANCH_NET: Record<string, number> = {
-  SLM: 38425.32,
-  SHQ: 28140.65,
-  HWL: 24680.4,
-  KOT: 21350.84,
-  ARD: 18720.5,
-  FRW: 13410.25,
-  MHB: 10845.1,
-  JHR: 7265.8,
-  QRN: 4253.3,
-}
-
 const brandNames = BRANDS_DATA.map((b) => b.brand)
 
 /**
@@ -233,6 +262,7 @@ function roundWithTarget(rawVals: number[], targetInt: number): number[] {
 
 export function computeBranches(f: SalesFilter): BranchViewRow[] {
   const s = shares(f)
+  const pM = s.pM
   const raw = INITIAL_BRANCH_PROFILES.map((p) => {
     let net = 0
     let orders = 0
@@ -300,13 +330,24 @@ export function computeBranches(f: SalesFilter): BranchViewRow[] {
       } else if (f.channel === 'Talabat Go') {
         tgoNet = r.net
         tgoOrders = orders
-      } else if (f.channel === 'Talabat MP' || f.channel === 'Deliveroo MP') {
+      } else if (f.channel === 'Talabat MP' || f.channel === 'Deliveroo MP' || f.channel === 'Talabat TMP' || f.channel === 'Deliveroo TMP') {
         mNet = r.net
         mOrders = orders
       } else {
         otherNet = r.net
         otherOrders = orders
       }
+
+      const netScaled = r.net * pM
+      const ordsScaled = Math.max(0, Math.round(orders * pM))
+      const sNet = shopNet * pM
+      const sOrd = Math.max(0, Math.round(shopOrders * pM))
+      const tgNet = tgoNet * pM
+      const tgOrd = Math.max(0, Math.round(tgoOrders * pM))
+      const mnNet = mNet * pM
+      const mnOrd = Math.max(0, Math.round(mOrders * pM))
+      const othNet = otherNet * pM
+      const othOrd = Math.max(0, Math.round(otherOrders * pM))
 
       return {
         code: r.code,
@@ -319,21 +360,22 @@ export function computeBranches(f: SalesFilter): BranchViewRow[] {
         mAccountsCount: r.mAccountsCount,
         lostToday: r.lostToday,
         brands: r.brands,
-        net: r.net,
-        orders,
-        shopNet,
-        shopOrders,
-        tgoNet,
-        tgoOrders,
-        mNet,
-        mOrders,
-        otherNet,
-        otherOrders,
-        avgOrder: orders > 0 ? r.net / orders : 0,
+        net: netScaled,
+        orders: ordsScaled,
+        shopNet: sNet,
+        shopOrders: sOrd,
+        tgoNet: tgNet,
+        tgoOrders: tgOrd,
+        mNet: mnNet,
+        mOrders: mnOrd,
+        otherNet: othNet,
+        otherOrders: othOrd,
+        avgOrder: ordsScaled > 0 ? netScaled / ordsScaled : 0,
         share: total > 0 ? (r.net / total) * 100 : 0,
         topBrand: r.topBrand,
       }
     })
+    .filter((r) => !f.branch || f.branch === 'ALL' || r.code === f.branch)
     .sort((a, b) => b.net - a.net)
 }
 

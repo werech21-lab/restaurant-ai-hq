@@ -7,7 +7,7 @@ import { useI18n } from "@/lib/i18n";
 import { makeTr } from "@/lib/i18n/analytics-ar";
 import { SALES_TABS, parseSalesTab, salesTabHref } from "@/lib/analytics/sales-tabs";
 import { BRANDS_DATA, CHANNELS_DATA, type BrandRow, type ChannelRow } from "@/lib/analytics/sales-core-data";
-import { ALL_BRANDS, ALL_CHANNELS, TOTAL_NET, computeView } from "@/lib/analytics/sales-view";
+import { ALL_BRANDS, ALL_CHANNELS, TOTAL_NET, BRANCH_NET, computeView, type PeriodType, type SalesFilter } from "@/lib/analytics/sales-view";
 import { TOP_BEST_SELLERS } from "@/lib/analytics/brand-sales-october-data";
 import {
   BranchesTab,
@@ -335,6 +335,18 @@ const CHANNEL_BRAND_MATRIX = [
 // 2. MAIN COMPONENT (HIGH-DENSITY TUFTE BI)
 // ==========================================
 
+const VENTURE_BRANCHES_9 = [
+  { code: "SLM", nameEn: "Salmiya", nameAr: "السالمية" },
+  { code: "KOT", nameEn: "Al Kout / Fahaheel", nameAr: "الكوت/الفحيحيل" },
+  { code: "SHQ", nameEn: "Sharq", nameAr: "شرق" },
+  { code: "HWL", nameEn: "Hawally", nameAr: "حولي" },
+  { code: "FRW", nameEn: "Farwaniya", nameAr: "الفروانية" },
+  { code: "ARD", nameEn: "Ardiya", nameAr: "العارضية" },
+  { code: "MHB", nameEn: "Mahboula", nameAr: "المهبولة" },
+  { code: "JHR", nameEn: "Jahra", nameAr: "الجهراء" },
+  { code: "QRN", nameEn: "Mubarak Al-Kabeer / Sabah Al-Salem", nameAr: "مبارك الكبير/صباح السالم" },
+];
+
 function ScorecardInner() {
   const { locale } = useI18n();
   const searchParams = useSearchParams();
@@ -361,10 +373,20 @@ function ScorecardInner() {
     `${tr("Drinks %")}: ${c.drinksPct.toFixed(1)}%`,
   ];
   const [selectedBrand, setSelectedBrand] = useState<string>(ALL_BRANDS);
+  const [selectedBranch, setSelectedBranch] = useState<string>("ALL");
   const [selectedChannel, setSelectedChannel] = useState<string>(ALL_CHANNELS);
+  const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>("Month");
 
-  // One model for every tab: brand rows (scaled by the channel filter), channel rows (scaled by the brand filter) and totals.
-  const filter = useMemo(() => ({ brand: selectedBrand, channel: selectedChannel }), [selectedBrand, selectedChannel]);
+  // One model for every tab: brand rows, channel rows, branch scaling, and period multiplier
+  const filter: SalesFilter = useMemo(
+    () => ({
+      brand: selectedBrand,
+      channel: selectedChannel,
+      branch: selectedBranch,
+      period: selectedPeriod,
+    }),
+    [selectedBrand, selectedChannel, selectedBranch, selectedPeriod]
+  );
   const view = useMemo(() => computeView(filter), [filter]);
   const vBrands = view.brands;
   const vChannels = view.channels;
@@ -379,27 +401,49 @@ function ScorecardInner() {
   };
   const dimBrand = (name: string) => (selectedBrand !== ALL_BRANDS && selectedBrand !== name ? "opacity-40" : "");
   const dimChannel = (name: string) => (selectedChannel !== ALL_CHANNELS && selectedChannel !== name ? "opacity-40" : "");
-  const hiRow = (on: boolean, dim: boolean) => (on ? "bg-blue-50 font-semibold" : dim ? "opacity-50" : "");
+  const hiRow = (on: boolean, dim: boolean) => (on ? "bg-blue-50/60 dark:bg-blue-950/40 font-semibold" : dim ? "opacity-50" : "");
 
-  // Products tab: item rows that carry a brand are filtered by the brand; the channel filter scales them by the channel's share of sales.
-  const chRatio = selectedChannel === ALL_CHANNELS ? 1 : (CHANNELS_DATA.find((c) => c.channel === selectedChannel)?.netSales ?? TOTAL_NET) / TOTAL_NET;
+  // Products tab scaling
   const brandSel = selectedBrand !== ALL_BRANDS;
-  const scaleItem = <T extends { sales: number; orders: number }>(i: T): T => ({ ...i, sales: i.sales * chRatio, orders: Math.round(i.orders * chRatio) });
+  const scaleItem = <T extends { sales: number; orders: number }>(i: T): T => ({
+    ...i,
+    sales: i.sales * view.ratioNet,
+    orders: Math.round(i.orders * view.ratioOrders),
+  });
   const poolBrandItems = brandSel ? ITEM_POOL.filter((i) => i.brand === selectedBrand).sort((x, y) => y.sales - x.sales) : [];
   const topItems = (brandSel ? poolBrandItems.slice(0, 15) : TOP_15_ITEMS).map(scaleItem);
   const categoryRows = (() => {
-    if (!brandSel) return CATEGORIES_DATA.map((c) => ({ name: c.name, sales: c.sales * chRatio }));
+    if (!brandSel) return CATEGORIES_DATA.map((c) => ({ name: c.name, sales: c.sales * view.ratioNet }));
     const m = new Map<string, number>();
     poolBrandItems.forEach((i) => m.set(i.category, (m.get(i.category) ?? 0) + i.sales));
-    return [...m.entries()].map(([name, sales]) => ({ name, sales: sales * chRatio })).sort((x, y) => y.sales - x.sales);
+    return [...m.entries()].map(([name, sales]) => ({ name, sales: sales * view.ratioNet })).sort((x, y) => y.sales - x.sales);
   })();
   const diagBuckets = DIAGNOSTIC_BUCKETS.map((d) => ({ ...d, value: d.value * view.ratioNet }));
-  const diagRows = ITEM_DIAGNOSTICS_TABLE_1.filter((r) => !brandSel || r.brand === selectedBrand).map((r) => ({ ...r, orders: Math.round(r.orders * chRatio), sales: r.sales * chRatio }));
-  const tailRows = LOW_VOLUME_TAIL_ITEMS.filter((r) => !brandSel || r.brand === selectedBrand).map((r) => ({ ...r, orders: Math.round(r.orders * chRatio), sales: r.sales * chRatio }));
-  const matrixRows = CHANNEL_BRAND_MATRIX.filter((r) => (!brandSel || r.brand === selectedBrand) && (selectedChannel === ALL_CHANNELS || r.channel === selectedChannel));
+  const diagRows = ITEM_DIAGNOSTICS_TABLE_1.filter((r) => !brandSel || r.brand === selectedBrand).map((r) => ({
+    ...r,
+    orders: Math.round(r.orders * view.ratioOrders),
+    sales: r.sales * view.ratioNet,
+  }));
+  const tailRows = LOW_VOLUME_TAIL_ITEMS.filter((r) => !brandSel || r.brand === selectedBrand).map((r) => ({
+    ...r,
+    orders: Math.round(r.orders * view.ratioOrders),
+    sales: r.sales * view.ratioNet,
+  }));
+  const matrixRows = CHANNEL_BRAND_MATRIX.filter((r) => (!brandSel || r.brand === selectedBrand) && (selectedChannel === ALL_CHANNELS || r.channel === selectedChannel)).map((r) => ({
+    ...r,
+    orders: Math.round(r.orders * view.ratioOrders),
+    sales: r.sales * view.ratioNet,
+  }));
   const bestItem = brandSel ? poolBrandItems[0] : undefined;
   const bestName = bestItem ? bestItem.name : "Chicken Noodles";
-  const scopeLabel = view.isFiltered ? tr(selectedBrand) + " · " + tr(selectedChannel) : tr("All brands, all channels");
+  const branchObj = VENTURE_BRANCHES_9.find((b) => b.code === selectedBranch);
+  const scopeLabel = [
+    selectedBrand !== ALL_BRANDS ? tr(selectedBrand) : isAr ? "كل العلامات" : "All brands",
+    selectedBranch !== "ALL" ? (isAr ? branchObj?.nameAr : branchObj?.nameEn) : null,
+    selectedChannel !== ALL_CHANNELS ? tr(selectedChannel) : isAr ? "كل القنوات" : "All channels",
+    selectedPeriod === "Day" ? (isAr ? "اليومي" : "Daily") : selectedPeriod === "Year" ? (isAr ? "السنة" : "Yearly") : null,
+  ].filter(Boolean).join(" · ");
+
   const biggestChannel = [...vChannels].sort((x, y) => y.netSales - x.netSales)[0];
   const opRows = ODOO_OPERATIONAL_TABLE_2
     .filter((r) => !r.sector.startsWith("Aggregator Clearing") || selectedChannel === ALL_CHANNELS || r.sector.endsWith(selectedChannel))
@@ -410,20 +454,19 @@ function ScorecardInner() {
     });
 
   // Max values for proportional bar widths
-  const maxBrandSales = Math.max(...vBrands.map((b) => b.netSales));
-  const maxBrandAov = Math.max(...vBrands.map((b) => b.avgOrder));
-  const maxChannelSales = Math.max(...vChannels.map((c) => c.netSales));
-  const maxChannelAov = Math.max(...vChannels.map((c) => c.avgOrder));
+  const maxBrandSales = Math.max(1, ...vBrands.map((b) => b.netSales));
+  const maxBrandAov = Math.max(1, ...vBrands.map((b) => b.avgOrder));
+  const maxChannelSales = Math.max(1, ...vChannels.map((c) => c.netSales));
+  const maxChannelAov = Math.max(1, ...vChannels.map((c) => c.avgOrder));
   const maxCatSales = Math.max(1, ...categoryRows.map((c) => c.sales));
   const maxItemSales = Math.max(1, ...topItems.map((i) => i.sales));
   const maxDiagValue = Math.max(1, ...diagBuckets.map((d) => d.value));
 
-  const isFiltered = selectedBrand !== "All brands" || selectedChannel !== "All channels";
+  const isFiltered = view.isFiltered;
   const chLabel = (ch: string) => {
-    if (isAr) return tr(ch);
-    if (ch === "Talabat Go") return "Talabat Go (Tgo)";
-    if (ch === "Talabat MP") return "Talabat MP (M)";
-    if (ch === "Deliveroo MP") return "Deliveroo MP (M)";
+    if (ch === "Talabat Go") return isAr ? tr("Talabat Go") : "Talabat Go (Tgo)";
+    if (ch === "Talabat MP" || ch === "Talabat TMP") return isAr ? tr("Talabat TMP") : "Talabat TMP (TMP)";
+    if (ch === "Deliveroo MP" || ch === "Deliveroo TMP") return isAr ? tr("Deliveroo TMP") : "Deliveroo TMP (TMP)";
     return tr(ch);
   };
   const channelViews = vChannels.map((c) => ({
@@ -454,28 +497,39 @@ function ScorecardInner() {
             <div className="flex items-center gap-3">
               <span className="inline-flex items-center gap-1.5 text-emerald-700 font-bold">
                 <span className="h-2 w-2 rounded-full bg-emerald-600"></span> {tr("Odoo P&L Reconciled: KWD 42,441.480 Net Profit (25.4%)")} </span>
-              {(selectedBrand !== "All brands" || selectedChannel !== "All channels") && (
+              {(selectedBrand !== "All brands" || selectedChannel !== "All channels" || selectedBranch !== "ALL" || selectedPeriod !== "Month") && (
                 <button
                   onClick={() => {
                     setSelectedBrand("All brands");
+                    setSelectedBranch("ALL");
                     setSelectedChannel("All channels");
+                    setSelectedPeriod("Month");
                   }}
                   className="text-blue-700 hover:underline font-bold"
-                > {tr("Reset filters")} </button>
+                >
+                  {tr("Reset filters")}
+                </button>
               )}
             </div>
           </div>
 
           <div>
-            <h1 className="text-xl md:text-2xl font-bold tracking-tight text-slate-900"> {tr("Brand sales · October 2026")} </h1>
+            <h1 className="text-xl md:text-2xl font-bold tracking-tight text-slate-900">
+              {selectedPeriod === "Day"
+                ? isAr ? "المعدل اليومي لمبيعات العلامات التجارية · أكتوبر 2026" : "Daily Average Brand Sales · October 2026"
+                : selectedPeriod === "Year"
+                ? isAr ? "التقدير السنوي التراكمي لمبيعات العلامات التجارية · 2026" : "Annual Projected Brand Sales · 2026"
+                : tr("Brand sales · October 2026")}
+            </h1>
             <p className="text-[13px] md:text-sm font-medium text-slate-700 mt-1 max-w-3xl leading-relaxed">
               {isAr ? (
                 <>
-                  {tr(selectedBrand)} في {chLabel(selectedChannel)} حققت صافي{" "}
+                  {tr(selectedBrand)}
+                  {selectedBranch !== "ALL" ? ` في فرع ${branchObj?.nameAr}` : ""} في {chLabel(selectedChannel)} حققت صافي{" "}
                   <strong className="font-bold text-slate-900">
                     <span dir="ltr" className="inline-block tabular-nums">{money(kpis.netSales)}</span>
                   </strong>{" "}
-                  في أكتوبر من{" "}
+                  {selectedPeriod === "Day" ? "كمعدل يومي" : selectedPeriod === "Year" ? "كتوقع سنوي" : "في أكتوبر"} من{" "}
                   <strong className="font-bold text-slate-900">
                     <span dir="ltr" className="inline-block tabular-nums">{kpis.orders.toLocaleString()}</span>
                   </strong>{" "}
@@ -484,11 +538,12 @@ function ScorecardInner() {
                 </>
               ) : (
                 <>
-                  {selectedBrand} in {chLabel(selectedChannel)} made{" "}
+                  {selectedBrand}
+                  {selectedBranch !== "ALL" ? ` in ${branchObj?.nameEn} branch` : ""} in {chLabel(selectedChannel)} made{" "}
                   <strong className="font-bold text-slate-900">
                     {money(kpis.netSales)}
                   </strong>{" "}
-                  net in October from{" "}
+                  net {selectedPeriod === "Day" ? "per day (daily average)" : selectedPeriod === "Year" ? "annual projection" : "in October"} from{" "}
                   <strong className="font-bold text-slate-900">
                     {kpis.orders.toLocaleString()}
                   </strong>{" "}
@@ -499,15 +554,16 @@ function ScorecardInner() {
             </p>
           </div>
 
-          {/* Filter Dropdowns */}
-          <div className="pt-1 space-y-1.5">
-            <div className="flex flex-wrap items-center gap-4 text-[13px]">
+          {/* Filter Dropdowns & Date Period Selector */}
+          <div className="pt-1 space-y-2">
+            <div className="flex flex-wrap items-center gap-3.5 text-[13px]">
+              {/* 1. Brand Dropdown */}
               <label className="flex items-center gap-2 font-semibold text-slate-700">
                 <span>{tr("Brand")}</span>
                 <select
                   value={selectedBrand}
                   onChange={(e) => setSelectedBrand(e.target.value)}
-                  className="bg-white border border-slate-300 rounded-md px-3 py-1.5 text-[13px] text-slate-900 font-semibold focus:outline-none focus:border-blue-600"
+                  className="bg-white border border-slate-300 rounded-md px-3 py-1.5 text-[13px] text-slate-900 font-semibold focus:outline-none focus:border-blue-600 shadow-2xs"
                 >
                   <option value="All brands">{tr("All brands")}</option>
                   {vBrands.map((b) => (
@@ -518,12 +574,32 @@ function ScorecardInner() {
                 </select>
               </label>
 
+              {/* 2. Branches Dropdown (Next to Brand) */}
+              <label className="flex items-center gap-2 font-semibold text-slate-700">
+                <span>{tr("Branch")}</span>
+                <select
+                  value={selectedBranch}
+                  onChange={(e) => setSelectedBranch(e.target.value)}
+                  className="bg-white border border-slate-300 rounded-md px-3 py-1.5 text-[13px] text-slate-900 font-semibold focus:outline-none focus:border-blue-600 shadow-2xs"
+                >
+                  <option value="ALL">
+                    {isAr ? "جميع الفروع (9)" : "All branches (9)"}
+                  </option>
+                  {VENTURE_BRANCHES_9.map((b) => (
+                    <option key={b.code} value={b.code}>
+                      {isAr ? b.nameAr : b.nameEn}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {/* 3. Channel Dropdown */}
               <label className="flex items-center gap-2 font-semibold text-slate-700">
                 <span>{tr("Channel")}</span>
                 <select
                   value={selectedChannel}
                   onChange={(e) => setSelectedChannel(e.target.value)}
-                  className="bg-white border border-slate-300 rounded-md px-3 py-1.5 text-[13px] text-slate-900 font-semibold focus:outline-none focus:border-blue-600"
+                  className="bg-white border border-slate-300 rounded-md px-3 py-1.5 text-[13px] text-slate-900 font-semibold focus:outline-none focus:border-blue-600 shadow-2xs"
                 >
                   <option value="All channels">{tr("All channels")}</option>
                   {vChannels.map((c) => (
@@ -533,8 +609,57 @@ function ScorecardInner() {
                   ))}
                 </select>
               </label>
+
+              {/* 4. Date Period Selector (Day - Month - Year) Next to Channel */}
+              <div className="flex items-center gap-1.5 font-semibold text-slate-700">
+                <span className="text-xs text-slate-600 font-bold">{isAr ? "الفترة:" : "Period:"}</span>
+                <div
+                  role="group"
+                  aria-label="Date Period Selector"
+                  className="inline-flex rounded-lg border border-slate-300 bg-slate-100 p-0.5 text-xs font-bold"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPeriod("Day")}
+                    title={isAr ? "المعدل اليومي (صافي 5,390.070 د.ك / 985 طلب)" : "Daily Average (5,390.070 KWD / 985 orders)"}
+                    className={`rounded-md px-3 py-1 transition-all ${
+                      selectedPeriod === "Day"
+                        ? "bg-white text-blue-700 font-extrabold shadow-xs"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    {isAr ? "اليومي" : "Day"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPeriod("Month")}
+                    title={isAr ? "إجمالي أكتوبر (167,092.160 د.ك / 30,540 طلب)" : "Monthly Total (167,092.160 KWD / 30,540 orders)"}
+                    className={`rounded-md px-3 py-1 transition-all ${
+                      selectedPeriod === "Month"
+                        ? "bg-white text-blue-700 font-extrabold shadow-xs"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    {isAr ? "الشهر" : "Month"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPeriod("Year")}
+                    title={isAr ? "التقدير السنوي (2,005,105.920 د.ك / 366,480 طلب)" : "Annual Projection (2,005,105.920 KWD / 366,480 orders)"}
+                    className={`rounded-md px-3 py-1 transition-all ${
+                      selectedPeriod === "Year"
+                        ? "bg-white text-blue-700 font-extrabold shadow-xs"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    {isAr ? "السنة" : "Year"}
+                  </button>
+                </div>
+              </div>
             </div>
-            <p className="text-xs font-medium text-slate-500"> {tr("Both filters apply to every section. You can also click a bar in the brand or channel charts.")} </p>
+            <p className="text-xs font-medium text-slate-500">
+              {tr("Both filters apply to every section. You can also click a bar in the brand or channel charts.")}
+            </p>
           </div>
         </header>
 
@@ -633,7 +758,7 @@ function ScorecardInner() {
             <div className="bg-white border border-slate-200 border-s-[3px] border-s-slate-800 rounded-lg p-3.5 shadow-2xs">
               <div className="text-xs font-semibold text-slate-500">{tr("Best seller")}</div>
               <div className="text-[13px] font-medium text-slate-800 mt-1">
-                {bestItem ? (isAr ? (<><strong className="font-bold text-slate-900">{bestItem.name}</strong> هو أعلى أصناف <strong className="font-bold text-slate-900">{tr(bestItem.brand)}</strong> مبيعاً بقيمة <strong className="font-bold text-slate-900"><span dir="ltr" className="inline-block tabular-nums">{money(bestItem.sales * chRatio)}</span></strong>.</>) : (<><strong className="font-bold text-slate-900">{bestItem.name}</strong> is the top item of <strong className="font-bold text-slate-900">{bestItem.brand}</strong>, with <strong className="font-bold text-slate-900">{money(bestItem.sales * chRatio)}</strong> in sales.</>)) : isAr ? (<><strong className="font-bold text-slate-900">Chicken Noodles</strong> من <strong className="font-bold text-slate-900">تشاينا جاردن</strong> باع <strong className="font-bold text-slate-900"><span dir="ltr" className="inline-block tabular-nums">12,043 د.ك</span></strong> وتمثل <strong className="font-bold text-slate-900"><span dir="ltr" className="inline-block tabular-nums">7.2%</span></strong> من مبيعات المنيو.</>) : (<><strong className="font-bold text-slate-900">Chicken Noodles</strong> from <strong className="font-bold text-slate-900">China Garden</strong> sold <strong className="font-bold text-slate-900">KWD 12,043</strong>, which is <strong className="font-bold text-slate-900">7.2%</strong> of menu sales.</>)}
+                {bestItem ? (isAr ? (<><strong className="font-bold text-slate-900">{bestItem.name}</strong> هو أعلى أصناف <strong className="font-bold text-slate-900">{tr(bestItem.brand)}</strong> مبيعاً بقيمة <strong className="font-bold text-slate-900"><span dir="ltr" className="inline-block tabular-nums">{money(bestItem.sales * view.ratioNet)}</span></strong>.</>) : (<><strong className="font-bold text-slate-900">{bestItem.name}</strong> is the top item of <strong className="font-bold text-slate-900">{bestItem.brand}</strong>, with <strong className="font-bold text-slate-900">{money(bestItem.sales * view.ratioNet)}</strong> in sales.</>)) : isAr ? (<><strong className="font-bold text-slate-900">Chicken Noodles</strong> من <strong className="font-bold text-slate-900">تشاينا جاردن</strong> باع <strong className="font-bold text-slate-900"><span dir="ltr" className="inline-block tabular-nums">{money(12043 * view.ratioNet)}</span></strong> وتمثل <strong className="font-bold text-slate-900"><span dir="ltr" className="inline-block tabular-nums">7.2%</span></strong> من مبيعات المنيو.</>) : (<><strong className="font-bold text-slate-900">Chicken Noodles</strong> from <strong className="font-bold text-slate-900">China Garden</strong> sold <strong className="font-bold text-slate-900">{money(12043 * view.ratioNet)}</strong>, which is <strong className="font-bold text-slate-900">7.2%</strong> of menu sales.</>)}
               </div>
             </div>
             <div className="bg-white border border-slate-200 border-s-[3px] border-s-slate-800 rounded-lg p-3.5 shadow-2xs">
@@ -741,25 +866,25 @@ function ScorecardInner() {
           </div>
 
           {/* Brand scorecard table */}
-          <div className="bg-white border border-slate-200 rounded-lg p-4 overflow-x-auto shadow-xs">
-            <div className="text-[15px] font-bold text-slate-900">{tr("Brand scorecard")}</div>
-            <div className="text-xs font-semibold text-slate-600 mb-3"> {tr("Drinks and starters are item lines of that kind per order. Discount rate is discounts ÷ gross sales.")} </div>
-            <table className="w-full text-[13px] md:text-sm border-collapse">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/80 text-xs font-semibold text-slate-600">
-                  <th className="text-start py-2.5 px-2 font-semibold">{tr("Brand")}</th>
-                  <th className="text-end py-2.5 px-2 font-semibold">{tr("Orders")}</th>
-                  <th className="text-end py-2.5 px-2 font-semibold w-48">{tr("Net sales")}</th>
-                  <th className="text-end py-2.5 px-2 font-semibold">{tr("Share of group")}</th>
-                  <th className="text-end py-2.5 px-2 font-semibold">{tr("Avg order")}</th>
-                  <th className="text-end py-2.5 px-2 font-semibold">{tr("Items / order")}</th>
-                  <th className="text-end py-2.5 px-2 font-semibold">{tr("Discount rate")}</th>
-                  <th className="text-end py-2.5 px-2 font-semibold">{tr("Drinks")}</th>
-                  <th className="text-end py-2.5 px-2 font-semibold">{tr("Starters")}</th>
-                  <th className="text-start py-2.5 ps-4 font-semibold">{tr("Best seller")}</th>
+          <div className="bg-white dark:bg-[#111827] rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-none ring-1 ring-slate-200/70 dark:ring-slate-800 p-4 md:p-5 overflow-x-auto">
+            <div className="text-[15px] font-bold text-slate-900 dark:text-slate-100">{tr("Brand scorecard")}</div>
+            <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-3"> {tr("Drinks and starters are item lines of that kind per order. Discount rate is discounts ÷ gross sales.")} </div>
+            <table className="w-full text-[13.5px] md:text-sm border-collapse bg-white dark:bg-[#111827]">
+              <thead className="bg-[#F8FAFC] dark:bg-[#1E293B]/90 border-b border-slate-200/80 dark:border-slate-800">
+                <tr>
+                  <th className="text-start py-3.5 px-4 text-xs md:text-[13px] font-bold text-slate-700 dark:text-slate-200 tracking-tight whitespace-nowrap">{tr("Brand")}</th>
+                  <th className="text-end py-3.5 px-4 text-xs md:text-[13px] font-bold text-slate-700 dark:text-slate-200 tracking-tight whitespace-nowrap">{tr("Orders")}</th>
+                  <th className="text-end py-3.5 px-4 text-xs md:text-[13px] font-bold text-slate-700 dark:text-slate-200 tracking-tight whitespace-nowrap w-48">{tr("Net sales")}</th>
+                  <th className="text-end py-3.5 px-4 text-xs md:text-[13px] font-bold text-slate-700 dark:text-slate-200 tracking-tight whitespace-nowrap">{tr("Share of group")}</th>
+                  <th className="text-end py-3.5 px-4 text-xs md:text-[13px] font-bold text-slate-700 dark:text-slate-200 tracking-tight whitespace-nowrap">{tr("Avg order")}</th>
+                  <th className="text-end py-3.5 px-4 text-xs md:text-[13px] font-bold text-slate-700 dark:text-slate-200 tracking-tight whitespace-nowrap">{tr("Items / order")}</th>
+                  <th className="text-end py-3.5 px-4 text-xs md:text-[13px] font-bold text-slate-700 dark:text-slate-200 tracking-tight whitespace-nowrap">{tr("Discount rate")}</th>
+                  <th className="text-end py-3.5 px-4 text-xs md:text-[13px] font-bold text-slate-700 dark:text-slate-200 tracking-tight whitespace-nowrap">{tr("Drinks")}</th>
+                  <th className="text-end py-3.5 px-4 text-xs md:text-[13px] font-bold text-slate-700 dark:text-slate-200 tracking-tight whitespace-nowrap">{tr("Starters")}</th>
+                  <th className="text-start py-3.5 ps-4 text-xs md:text-[13px] font-bold text-slate-700 dark:text-slate-200 tracking-tight whitespace-nowrap">{tr("Best seller")}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70">
                 {vBrands.map((b) => {
                   const barW = Math.max(2, (b.netSales / maxBrandSales) * 80);
                   return (
@@ -768,13 +893,13 @@ function ScorecardInner() {
                       onClick={() =>
                         setSelectedBrand(selectedBrand === b.brand ? "All brands" : b.brand)
                       }
-                      className={`hover:bg-slate-50/80 cursor-pointer ${hiRow(selectedBrand === b.brand, selectedBrand !== ALL_BRANDS)}`}
+                      className={`hover:bg-blue-50/40 dark:hover:bg-slate-800/50 transition-colors duration-150 cursor-pointer ${hiRow(selectedBrand === b.brand, selectedBrand !== ALL_BRANDS)}`}
                      >
-                       <td className="py-2.5 px-2 font-bold text-slate-900">{tr(b.brand)}</td>
-                      <td className="py-2.5 px-2 text-end tabular-nums font-semibold text-slate-800">
+                       <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap">{tr(b.brand)}</td>
+                      <td className="py-3.5 px-4 text-end tabular-nums font-semibold text-slate-800 dark:text-slate-200">
                         {b.orders.toLocaleString()}
                       </td>
-                      <td className="py-2.5 px-2 text-end tabular-nums font-bold text-slate-900">
+                      <td className="py-3.5 px-4 text-end tabular-nums font-bold text-slate-900 dark:text-slate-100">
                         <div className="flex items-center justify-end gap-2">
                           <div
                             className="h-2.5 bg-[#2563EB] rounded-xs"
@@ -788,25 +913,25 @@ function ScorecardInner() {
                           </span>
                         </div>
                       </td>
-                      <td className="py-2.5 px-2 text-end tabular-nums font-medium text-slate-700">
+                      <td className="py-3.5 px-4 text-end tabular-nums font-medium text-slate-700 dark:text-slate-300">
                         {b.share.toFixed(1)}%
                       </td>
-                      <td className="py-2.5 px-2 text-end tabular-nums font-medium text-slate-700">
+                      <td className="py-3.5 px-4 text-end tabular-nums font-medium text-slate-700 dark:text-slate-300">
                         {b.avgOrder.toFixed(2)}
                       </td>
-                      <td className="py-2.5 px-2 text-end tabular-nums font-medium text-slate-700">
+                      <td className="py-3.5 px-4 text-end tabular-nums font-medium text-slate-700 dark:text-slate-300">
                         {b.itemsPerOrder.toFixed(2)}
                       </td>
-                      <td className="py-2.5 px-2 text-end tabular-nums font-medium text-slate-700">
+                      <td className="py-3.5 px-4 text-end tabular-nums font-medium text-slate-700 dark:text-slate-300">
                         {b.discountRate.toFixed(1)}%
                       </td>
-                      <td className="py-2.5 px-2 text-end tabular-nums font-medium text-slate-700">
+                      <td className="py-3.5 px-4 text-end tabular-nums font-medium text-slate-700 dark:text-slate-300">
                         {b.drinksPct.toFixed(1)}%
                       </td>
-                      <td className="py-2.5 px-2 text-end tabular-nums font-medium text-slate-700">
+                      <td className="py-3.5 px-4 text-end tabular-nums font-medium text-slate-700 dark:text-slate-300">
                         {b.startersPct.toFixed(1)}%
                       </td>
-                      <td className="py-2.5 ps-4 text-start font-medium text-slate-800 truncate max-w-[220px]">
+                      <td className="py-3.5 ps-4 text-start font-medium text-slate-800 dark:text-slate-200 truncate max-w-[220px]">
                         {tr(b.bestSeller)}
                       </td>
                     </tr>
@@ -926,25 +1051,25 @@ function ScorecardInner() {
           </div>
 
           {/* Channel scorecard table */}
-          <div className="bg-white border border-slate-200 rounded-lg p-4 overflow-x-auto shadow-xs">
-            <div className="text-[15px] font-bold text-slate-900">{tr("Channel scorecard")}</div>
-            <div className="text-xs font-semibold text-slate-600 mb-3"> {tr("For the chosen brand. Add-on rates are item lines of that kind per order.")} </div>
-            <table className="w-full text-[13px] md:text-sm border-collapse">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/80 text-xs font-semibold text-slate-600">
-                  <th className="text-start py-2.5 px-2 font-semibold">{tr("Channel")}</th>
-                  <th className="text-end py-2.5 px-2 font-semibold">{tr("Orders")}</th>
-                  <th className="text-end py-2.5 px-2 font-semibold w-48">{tr("Net sales")}</th>
-                  <th className="text-end py-2.5 px-2 font-semibold">{tr("Share")}</th>
-                  <th className="text-end py-2.5 px-2 font-semibold">{tr("Avg order")}</th>
-                  <th className="text-end py-2.5 px-2 font-semibold">{tr("Items / order")}</th>
-                  <th className="text-end py-2.5 px-2 font-semibold">{tr("Discount rate")}</th>
-                  <th className="text-end py-2.5 px-2 font-semibold">{tr("Drinks")}</th>
-                  <th className="text-end py-2.5 px-2 font-semibold">{tr("Starters")}</th>
-                  <th className="text-end py-2.5 px-2 font-semibold">{tr("Desserts")}</th>
+          <div className="bg-white dark:bg-[#111827] rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-none ring-1 ring-slate-200/70 dark:ring-slate-800 p-4 md:p-5 overflow-x-auto">
+            <div className="text-[15px] font-bold text-slate-900 dark:text-slate-100">{tr("Channel scorecard")}</div>
+            <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-3"> {tr("For the chosen brand. Add-on rates are item lines of that kind per order.")} </div>
+            <table className="w-full text-[13.5px] md:text-sm border-collapse bg-white dark:bg-[#111827]">
+              <thead className="bg-[#F8FAFC] dark:bg-[#1E293B]/90 border-b border-slate-200/80 dark:border-slate-800">
+                <tr>
+                  <th className="text-start py-3.5 px-4 text-xs md:text-[13px] font-bold text-slate-700 dark:text-slate-200 tracking-tight whitespace-nowrap">{tr("Channel")}</th>
+                  <th className="text-end py-3.5 px-4 text-xs md:text-[13px] font-bold text-slate-700 dark:text-slate-200 tracking-tight whitespace-nowrap">{tr("Orders")}</th>
+                  <th className="text-end py-3.5 px-4 text-xs md:text-[13px] font-bold text-slate-700 dark:text-slate-200 tracking-tight whitespace-nowrap w-48">{tr("Net sales")}</th>
+                  <th className="text-end py-3.5 px-4 text-xs md:text-[13px] font-bold text-slate-700 dark:text-slate-200 tracking-tight whitespace-nowrap">{tr("Share")}</th>
+                  <th className="text-end py-3.5 px-4 text-xs md:text-[13px] font-bold text-slate-700 dark:text-slate-200 tracking-tight whitespace-nowrap">{tr("Avg order")}</th>
+                  <th className="text-end py-3.5 px-4 text-xs md:text-[13px] font-bold text-slate-700 dark:text-slate-200 tracking-tight whitespace-nowrap">{tr("Items / order")}</th>
+                  <th className="text-end py-3.5 px-4 text-xs md:text-[13px] font-bold text-slate-700 dark:text-slate-200 tracking-tight whitespace-nowrap">{tr("Discount rate")}</th>
+                  <th className="text-end py-3.5 px-4 text-xs md:text-[13px] font-bold text-slate-700 dark:text-slate-200 tracking-tight whitespace-nowrap">{tr("Drinks")}</th>
+                  <th className="text-end py-3.5 px-4 text-xs md:text-[13px] font-bold text-slate-700 dark:text-slate-200 tracking-tight whitespace-nowrap">{tr("Starters")}</th>
+                  <th className="text-end py-3.5 px-4 text-xs md:text-[13px] font-bold text-slate-700 dark:text-slate-200 tracking-tight whitespace-nowrap">{tr("Desserts")}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70">
                 {vChannels.map((c) => {
                   const barW = Math.max(2, (c.netSales / maxChannelSales) * 80);
                   return (
@@ -955,18 +1080,18 @@ function ScorecardInner() {
                           selectedChannel === c.channel ? "All channels" : c.channel
                         )
                       }
-                      className={`hover:bg-slate-50/80 cursor-pointer ${hiRow(selectedChannel === c.channel, selectedChannel !== ALL_CHANNELS)}`}
+                      className={`hover:bg-blue-50/40 dark:hover:bg-slate-800/50 transition-colors duration-150 cursor-pointer ${hiRow(selectedChannel === c.channel, selectedChannel !== ALL_CHANNELS)}`}
                      >
-                       <td className="py-2.5 px-2 font-bold text-slate-900">
+                       <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap">
                          <span className="inline-flex items-center gap-2">
                            <span>{chLabel(c.channel)}</span>
                            <ChannelModeBadge channel={c.channel} />
                          </span>
                        </td>
-                      <td className="py-2.5 px-2 text-end tabular-nums font-semibold text-slate-800">
+                      <td className="py-3.5 px-4 text-end tabular-nums font-semibold text-slate-800 dark:text-slate-200">
                         {c.orders.toLocaleString()}
                       </td>
-                      <td className="py-2.5 px-2 text-end tabular-nums font-bold text-slate-900">
+                      <td className="py-3.5 px-4 text-end tabular-nums font-bold text-slate-900 dark:text-slate-100">
                         <div className="flex items-center justify-end gap-2">
                           <div
                             className="h-2.5 bg-[#2563EB] rounded-xs"
@@ -980,25 +1105,25 @@ function ScorecardInner() {
                           </span>
                         </div>
                       </td>
-                      <td className="py-2.5 px-2 text-end tabular-nums font-medium text-slate-700">
+                      <td className="py-3.5 px-4 text-end tabular-nums font-medium text-slate-700 dark:text-slate-300">
                         {c.share.toFixed(1)}%
                       </td>
-                      <td className="py-2.5 px-2 text-end tabular-nums font-medium text-slate-700">
+                      <td className="py-3.5 px-4 text-end tabular-nums font-medium text-slate-700 dark:text-slate-300">
                         {c.avgOrder.toFixed(2)}
                       </td>
-                      <td className="py-2.5 px-2 text-end tabular-nums font-medium text-slate-700">
+                      <td className="py-3.5 px-4 text-end tabular-nums font-medium text-slate-700 dark:text-slate-300">
                         {c.itemsPerOrder.toFixed(2)}
                       </td>
-                      <td className="py-2.5 px-2 text-end tabular-nums font-medium text-slate-700">
+                      <td className="py-3.5 px-4 text-end tabular-nums font-medium text-slate-700 dark:text-slate-300">
                         {c.discountRate.toFixed(1)}%
                       </td>
-                      <td className="py-2.5 px-2 text-end tabular-nums font-medium text-slate-700">
+                      <td className="py-3.5 px-4 text-end tabular-nums font-medium text-slate-700 dark:text-slate-300">
                         {c.drinksPct.toFixed(1)}%
                       </td>
-                      <td className="py-2.5 px-2 text-end tabular-nums font-medium text-slate-700">
+                      <td className="py-3.5 px-4 text-end tabular-nums font-medium text-slate-700 dark:text-slate-300">
                         {c.startersPct.toFixed(1)}%
                       </td>
-                      <td className="py-2.5 px-2 text-end tabular-nums font-medium text-slate-700">
+                      <td className="py-3.5 px-4 text-end tabular-nums font-medium text-slate-700 dark:text-slate-300">
                         {c.dessertsPct.toFixed(1)}%
                       </td>
                     </tr>
@@ -1012,44 +1137,44 @@ function ScorecardInner() {
             <ChannelMix channels={channelViews} selectedChannel={selectedChannel} />
             <ChannelRecs channels={channelViews} />
             <div className="grid grid-cols-1 gap-3">
-            <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-xs">
-              <div className="text-[15px] font-bold text-slate-900"> {tr("Brand × Channel combination scorecard")} </div>
-              <div className="text-xs font-semibold text-slate-600 mb-3"> {tr("Top brand-channel pairs showing lead item, average basket size, and drink attachment rate.")} </div>
-              <div className="max-h-[260px] overflow-y-auto border-t border-slate-100">
-                <table className="w-full text-[13px] md:text-sm border-collapse">
-                  <thead className="sticky top-0 bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600">
+            <div className="bg-white dark:bg-[#111827] rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-none ring-1 ring-slate-200/70 dark:ring-slate-800 p-4 md:p-5 overflow-x-auto">
+              <div className="text-[15px] font-bold text-slate-900 dark:text-slate-100"> {tr("Brand × Channel combination scorecard")} </div>
+              <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-3"> {tr("Top brand-channel pairs showing lead item, average basket size, and drink attachment rate.")} </div>
+              <div className="max-h-[300px] overflow-y-auto border-t border-slate-100 dark:border-slate-800">
+                <table className="w-full text-[13.5px] md:text-sm border-collapse bg-white dark:bg-[#111827]">
+                  <thead className="sticky top-0 bg-[#F8FAFC] dark:bg-[#1E293B]/90 border-b border-slate-200/80 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200">
                     <tr>
-                      <th className="text-start py-2.5 px-2 font-semibold">{tr("Brand")}</th>
-                      <th className="text-start py-2.5 px-2 font-semibold">{tr("Channel")}</th>
-                      <th className="text-start py-2.5 px-2 font-semibold">{tr("Lead item")}</th>
-                      <th className="text-end py-2.5 px-2 font-semibold">{tr("Orders")}</th>
-                      <th className="text-end py-2.5 px-2 font-semibold">{tr("Net KWD")}</th>
-                      <th className="text-end py-2.5 px-2 font-semibold">{tr("Avg order")}</th>
-                      <th className="text-end py-2.5 px-2 font-semibold">{tr("Drinks %")}</th>
+                      <th className="text-start py-3.5 px-4 font-bold whitespace-nowrap">{tr("Brand")}</th>
+                      <th className="text-start py-3.5 px-4 font-bold whitespace-nowrap">{tr("Channel")}</th>
+                      <th className="text-start py-3.5 px-4 font-bold whitespace-nowrap">{tr("Lead item")}</th>
+                      <th className="text-end py-3.5 px-4 font-bold whitespace-nowrap">{tr("Orders")}</th>
+                      <th className="text-end py-3.5 px-4 font-bold whitespace-nowrap">{tr("Net KWD")}</th>
+                      <th className="text-end py-3.5 px-4 font-bold whitespace-nowrap">{tr("Avg order")}</th>
+                      <th className="text-end py-3.5 px-4 font-bold whitespace-nowrap">{tr("Drinks %")}</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {matrixRows.length === 0 ? (<tr><td colSpan={7} className="py-3 text-center text-slate-500">{tr("No brand-channel pair in the dataset matches this selection.")}</td></tr>) : null}
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70">
+                    {matrixRows.length === 0 ? (<tr><td colSpan={7} className="py-6 text-center text-slate-500 dark:text-slate-400">{tr("No brand-channel pair in the dataset matches this selection.")}</td></tr>) : null}
                     {matrixRows.map((row, i) => (
-                      <tr key={i} className="hover:bg-slate-50/80">
-                        <td className="py-2.5 px-2 font-bold text-slate-900">{tr(row.brand)}</td>
-                        <td className="py-2.5 px-2 font-semibold text-slate-800">
+                      <tr key={i} className="hover:bg-blue-50/40 dark:hover:bg-slate-800/50 transition-colors duration-150">
+                        <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap">{tr(row.brand)}</td>
+                        <td className="py-3.5 px-4 font-semibold text-slate-800 dark:text-slate-200 whitespace-nowrap">
                           <span className="inline-flex items-center gap-1.5">
                             <span>{chLabel(row.channel)}</span>
                             <ChannelModeBadge channel={row.channel} />
                           </span>
                         </td>
-                        <td className="py-2.5 px-2 font-medium text-slate-700 truncate max-w-[180px]">{tr(row.topItem)}</td>
-                        <td className="py-2.5 px-2 text-end tabular-nums font-semibold text-slate-800">
+                        <td className="py-3.5 px-4 font-medium text-slate-700 dark:text-slate-300 truncate max-w-[180px]">{tr(row.topItem)}</td>
+                        <td className="py-3.5 px-4 text-end tabular-nums font-semibold text-slate-800 dark:text-slate-200">
                           {row.orders.toLocaleString()}
                         </td>
-                        <td className="py-2.5 px-2 text-end tabular-nums font-bold text-slate-900">
+                        <td className="py-3.5 px-4 text-end tabular-nums font-bold text-slate-900 dark:text-slate-100">
                           {row.sales.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </td>
-                        <td className="py-2.5 px-2 text-end tabular-nums font-medium text-slate-700">
+                        <td className="py-3.5 px-4 text-end tabular-nums font-medium text-slate-700 dark:text-slate-300">
                           {row.aov.toFixed(2)}
                         </td>
-                        <td className="py-2.5 px-2 text-end tabular-nums font-medium text-slate-700">
+                        <td className="py-3.5 px-4 text-end tabular-nums font-medium text-slate-700 dark:text-slate-300">
                           {row.drinkPct}
                         </td>
                       </tr>
@@ -1214,50 +1339,50 @@ function ScorecardInner() {
           {/* ==========================================
               SCROLLABLE ACTION TABLE 1: ITEM DIAGNOSTICS
              ========================================== */}
-          <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-xs">
-            <div className="text-[15px] font-bold text-slate-900"> {tr("Item-level commercial diagnostics & pricing actions")} </div>
-            <div className="text-xs font-semibold text-slate-600 mb-3"> {tr("High-impact menu items evaluated by order volume, basket attachment, discount bleed, and kitchen prep.")} </div>
-            <div className="max-h-[320px] overflow-y-auto border-t border-slate-100">
-              <table className="w-full text-[13px] md:text-sm border-collapse">
-                <thead className="sticky top-0 bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600">
+          <div className="bg-white dark:bg-[#111827] rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-none ring-1 ring-slate-200/70 dark:ring-slate-800 p-4 md:p-5 overflow-x-auto">
+            <div className="text-[15px] font-bold text-slate-900 dark:text-slate-100"> {tr("Item-level commercial diagnostics & pricing actions")} </div>
+            <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-3"> {tr("High-impact menu items evaluated by order volume, basket attachment, discount bleed, and kitchen prep.")} </div>
+            <div className="max-h-[340px] overflow-y-auto border-t border-slate-100 dark:border-slate-800">
+              <table className="w-full text-[13.5px] md:text-sm border-collapse bg-white dark:bg-[#111827]">
+                <thead className="sticky top-0 bg-[#F8FAFC] dark:bg-[#1E293B]/90 border-b border-slate-200/80 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200">
                   <tr>
-                    <th className="text-start py-2.5 px-2 font-semibold">{tr("Brand")}</th>
-                    <th className="text-start py-2.5 px-2 font-semibold">{tr("Item")}</th>
-                    <th className="text-start py-2.5 px-2 font-semibold">{tr("Category")}</th>
-                    <th className="text-end py-2.5 px-2 font-semibold">{tr("Orders")}</th>
-                    <th className="text-end py-2.5 px-2 font-semibold">{tr("Net sales")}</th>
-                    <th className="text-end py-2.5 px-2 font-semibold">{tr("Avg price")}</th>
-                    <th className="text-end py-2.5 px-2 font-semibold">{tr("Share")}</th>
-                    <th className="text-center py-2.5 px-2 font-semibold w-36">{tr("Action tag")}</th>
-                    <th className="text-start py-2.5 ps-3 font-semibold">{tr("Recommended executive action")}</th>
+                    <th className="text-start py-3.5 px-4 font-bold whitespace-nowrap">{tr("Brand")}</th>
+                    <th className="text-start py-3.5 px-4 font-bold whitespace-nowrap">{tr("Item")}</th>
+                    <th className="text-start py-3.5 px-4 font-bold whitespace-nowrap">{tr("Category")}</th>
+                    <th className="text-end py-3.5 px-4 font-bold whitespace-nowrap">{tr("Orders")}</th>
+                    <th className="text-end py-3.5 px-4 font-bold whitespace-nowrap">{tr("Net sales")}</th>
+                    <th className="text-end py-3.5 px-4 font-bold whitespace-nowrap">{tr("Avg price")}</th>
+                    <th className="text-end py-3.5 px-4 font-bold whitespace-nowrap">{tr("Share")}</th>
+                    <th className="text-center py-3.5 px-4 font-bold whitespace-nowrap w-36">{tr("Action tag")}</th>
+                    <th className="text-start py-3.5 ps-4 font-bold whitespace-nowrap">{tr("Recommended executive action")}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70">
                   {diagRows.map((row, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50/80">
-                      <td className="py-2.5 px-2 font-medium text-slate-700">{tr(row.brand)}</td>
-                      <td className="py-2.5 px-2 font-bold text-slate-900">{tr(row.item)}</td>
-                      <td className="py-2.5 px-2 font-medium text-slate-600">{tr(row.category)}</td>
-                      <td className="py-2.5 px-2 text-end tabular-nums font-semibold text-slate-800">
+                    <tr key={idx} className="hover:bg-blue-50/40 dark:hover:bg-slate-800/50 transition-colors duration-150">
+                      <td className="py-3.5 px-4 font-medium text-slate-700 dark:text-slate-300 whitespace-nowrap">{tr(row.brand)}</td>
+                      <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap">{tr(row.item)}</td>
+                      <td className="py-3.5 px-4 font-medium text-slate-600 dark:text-slate-400 whitespace-nowrap">{tr(row.category)}</td>
+                      <td className="py-3.5 px-4 text-end tabular-nums font-semibold text-slate-800 dark:text-slate-200">
                         {row.orders.toLocaleString()}
                       </td>
-                      <td className="py-2.5 px-2 text-end tabular-nums font-bold text-slate-900">
+                      <td className="py-3.5 px-4 text-end tabular-nums font-bold text-slate-900 dark:text-slate-100">
                         {row.sales.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                       </td>
-                      <td className="py-2.5 px-2 text-end tabular-nums font-medium text-slate-700">
+                      <td className="py-3.5 px-4 text-end tabular-nums font-medium text-slate-700 dark:text-slate-300">
                         {row.avgPrice.toFixed(2)}
                       </td>
-                      <td className="py-2.5 px-2 text-end tabular-nums font-medium text-slate-700">
+                      <td className="py-3.5 px-4 text-end tabular-nums font-medium text-slate-700 dark:text-slate-300">
                         {row.sharePct.toFixed(1)}%
                       </td>
-                      <td className="py-2.5 px-2 text-center">
+                      <td className="py-3.5 px-4 text-center">
                         <span
                           className={`inline-block px-2.5 py-0.5 rounded-full border text-xs font-bold ${row.badgeStyle}`}
                         >
                           {tr(row.badge)}
                         </span>
                       </td>
-                      <td className="py-2.5 ps-3 font-medium text-slate-700">{tr(row.note)}</td>
+                      <td className="py-3.5 ps-4 font-medium text-slate-700 dark:text-slate-300 leading-relaxed">{tr(row.note)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1265,40 +1390,40 @@ function ScorecardInner() {
             </div>
           </div>
 
-              <div className="grid grid-cols-1 gap-3">
-            <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-xs">
-              <div className="text-[15px] font-bold text-slate-900"> {tr("Long-tail menu candidates for pruning (Prep & waste reduction)")} </div>
-              <div className="text-xs font-semibold text-slate-600 mb-3"> {tr("332 of 364 items generate only 20% of sales. Removing low-rotation SKUs reduces Central Kitchen waste.")} </div>
-              <div className="max-h-[260px] overflow-y-auto border-t border-slate-100">
-                <table className="w-full text-[13px] md:text-sm border-collapse">
-                  <thead className="sticky top-0 bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600">
+          <div className="grid grid-cols-1 gap-3">
+            <div className="bg-white dark:bg-[#111827] rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-none ring-1 ring-slate-200/70 dark:ring-slate-800 p-4 md:p-5 overflow-x-auto">
+              <div className="text-[15px] font-bold text-slate-900 dark:text-slate-100"> {tr("Long-tail menu candidates for pruning (Prep & waste reduction)")} </div>
+              <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-3"> {tr("332 of 364 items generate only 20% of sales. Removing low-rotation SKUs reduces Central Kitchen waste.")} </div>
+              <div className="max-h-[300px] overflow-y-auto border-t border-slate-100 dark:border-slate-800">
+                <table className="w-full text-[13.5px] md:text-sm border-collapse bg-white dark:bg-[#111827]">
+                  <thead className="sticky top-0 bg-[#F8FAFC] dark:bg-[#1E293B]/90 border-b border-slate-200/80 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200">
                     <tr>
-                      <th className="text-start py-2.5 px-2 font-semibold">{tr("Brand")}</th>
-                      <th className="text-start py-2.5 px-2 font-semibold">{tr("Category")}</th>
-                      <th className="text-start py-2.5 px-2 font-semibold">{tr("Item")}</th>
-                      <th className="text-end py-2.5 px-2 font-semibold">{tr("Orders")}</th>
-                      <th className="text-end py-2.5 px-2 font-semibold">{tr("Net KWD")}</th>
-                      <th className="text-end py-2.5 px-2 font-semibold">{tr("Est. COGS")}</th>
+                      <th className="text-start py-3.5 px-4 font-bold whitespace-nowrap">{tr("Brand")}</th>
+                      <th className="text-start py-3.5 px-4 font-bold whitespace-nowrap">{tr("Category")}</th>
+                      <th className="text-start py-3.5 px-4 font-bold whitespace-nowrap">{tr("Item")}</th>
+                      <th className="text-end py-3.5 px-4 font-bold whitespace-nowrap">{tr("Orders")}</th>
+                      <th className="text-end py-3.5 px-4 font-bold whitespace-nowrap">{tr("Net KWD")}</th>
+                      <th className="text-end py-3.5 px-4 font-bold whitespace-nowrap">{tr("Est. COGS")}</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70">
                     {tailRows.map((item, i) => (
-                      <tr key={i} className="hover:bg-slate-50/80">
-                        <td className="py-2.5 px-2 font-medium text-slate-700">{tr(item.brand)}</td>
-                        <td className="py-2.5 px-2 font-medium text-slate-600">{tr(item.category)}</td>
-                        <td className="py-2.5 px-2 font-bold text-slate-900">{tr(item.item)}</td>
-                        <td className="py-2.5 px-2 text-end tabular-nums font-semibold text-slate-800">{item.orders}</td>
-                        <td className="py-2.5 px-2 text-end tabular-nums font-bold text-slate-900">
+                      <tr key={i} className="hover:bg-blue-50/40 dark:hover:bg-slate-800/50 transition-colors duration-150">
+                        <td className="py-3.5 px-4 font-medium text-slate-700 dark:text-slate-300 whitespace-nowrap">{tr(item.brand)}</td>
+                        <td className="py-3.5 px-4 font-medium text-slate-600 dark:text-slate-400 whitespace-nowrap">{tr(item.category)}</td>
+                        <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap">{tr(item.item)}</td>
+                        <td className="py-3.5 px-4 text-end tabular-nums font-semibold text-slate-800 dark:text-slate-200">{item.orders}</td>
+                        <td className="py-3.5 px-4 text-end tabular-nums font-bold text-slate-900 dark:text-slate-100">
                           {item.sales.toFixed(2)}
                         </td>
-                        <td className="py-2.5 px-2 text-end tabular-nums font-bold text-rose-700">{item.cogs}</td>
+                        <td className="py-3.5 px-4 text-end tabular-nums font-bold text-rose-700 dark:text-rose-400">{item.cogs}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             </div>
-              </div>
+          </div>
             </section>
           </div>
         )}
@@ -1316,49 +1441,49 @@ function ScorecardInner() {
           {/* ==========================================
               SCROLLABLE ACTION TABLE 2: ODOO P&L, COGS & PETTY CASH
              ========================================== */}
-          <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-xs">
-            <div className="text-[15px] font-bold text-slate-900"> {tr("Odoo ERP financial, central kitchen & maintenance audit scorecard")} </div>
-            <div className="text-xs font-semibold text-slate-600 mb-3"> {tr("Direct reconciliation with Odoo general ledger (2,213 entries), Central Kitchen COGS, and Rabih maintenance custody.")} </div>
-            <div className="max-h-[300px] overflow-y-auto border-t border-slate-100">
-              <table className="w-full text-[13px] md:text-sm border-collapse">
-                <thead className="sticky top-0 bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600">
+          <div className="bg-white dark:bg-[#111827] rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-none ring-1 ring-slate-200/70 dark:ring-slate-800 p-4 md:p-5 overflow-x-auto">
+            <div className="text-[15px] font-bold text-slate-900 dark:text-slate-100"> {tr("Odoo ERP financial, central kitchen & maintenance audit scorecard")} </div>
+            <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-3"> {tr("Direct reconciliation with Odoo general ledger (2,213 entries), Central Kitchen COGS, and Rabih maintenance custody.")} </div>
+            <div className="max-h-[340px] overflow-y-auto border-t border-slate-100 dark:border-slate-800">
+              <table className="w-full text-[13.5px] md:text-sm border-collapse bg-white dark:bg-[#111827]">
+                <thead className="sticky top-0 bg-[#F8FAFC] dark:bg-[#1E293B]/90 border-b border-slate-200/80 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200">
                   <tr>
-                    <th className="text-start py-2.5 px-2 font-semibold">{tr("Operational sector")}</th>
-                    <th className="text-start py-2.5 px-2 font-semibold">{tr("Odoo account / custody")}</th>
-                    <th className="text-start py-2.5 px-2 font-semibold">{tr("Source module")}</th>
-                    <th className="text-end py-2.5 px-2 font-semibold">{tr("Entries")}</th>
-                    <th className="text-end py-2.5 px-2 font-semibold">{tr("Amount (KWD)")}</th>
-                    <th className="text-end py-2.5 px-2 font-semibold">{tr("Variance")}</th>
-                    <th className="text-center py-2.5 px-2 font-semibold w-36">{tr("Audit status")}</th>
-                    <th className="text-start py-2.5 ps-3 font-semibold">{tr("Required Odoo & operational action")}</th>
+                    <th className="text-start py-3.5 px-4 font-bold whitespace-nowrap">{tr("Operational sector")}</th>
+                    <th className="text-start py-3.5 px-4 font-bold whitespace-nowrap">{tr("Odoo account / custody")}</th>
+                    <th className="text-start py-3.5 px-4 font-bold whitespace-nowrap">{tr("Source module")}</th>
+                    <th className="text-end py-3.5 px-4 font-bold whitespace-nowrap">{tr("Entries")}</th>
+                    <th className="text-end py-3.5 px-4 font-bold whitespace-nowrap">{tr("Amount (KWD)")}</th>
+                    <th className="text-end py-3.5 px-4 font-bold whitespace-nowrap">{tr("Variance")}</th>
+                    <th className="text-center py-3.5 px-4 font-bold whitespace-nowrap w-36">{tr("Audit status")}</th>
+                    <th className="text-start py-3.5 ps-4 font-bold whitespace-nowrap">{tr("Required Odoo & operational action")}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70">
                   {opRows.map((row, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50/80">
-                      <td className="py-2.5 px-2 font-bold text-slate-900">{tr(row.sector)}</td>
-                      <td className="py-2.5 px-2 font-medium text-slate-700">{tr(row.account)}</td>
-                      <td className="py-2.5 px-2 font-medium text-slate-600">{tr(row.module)}</td>
-                      <td className="py-2.5 px-2 text-end tabular-nums font-semibold text-slate-800">
+                    <tr key={idx} className="hover:bg-blue-50/40 dark:hover:bg-slate-800/50 transition-colors duration-150">
+                      <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap">{tr(row.sector)}</td>
+                      <td className="py-3.5 px-4 font-medium text-slate-700 dark:text-slate-300 whitespace-nowrap">{tr(row.account)}</td>
+                      <td className="py-3.5 px-4 font-medium text-slate-600 dark:text-slate-400 whitespace-nowrap">{tr(row.module)}</td>
+                      <td className="py-3.5 px-4 text-end tabular-nums font-semibold text-slate-800 dark:text-slate-200">
                         {row.entries.toLocaleString()}
                       </td>
-                      <td className="py-2.5 px-2 text-end tabular-nums font-bold text-slate-900">
+                      <td className="py-3.5 px-4 text-end tabular-nums font-bold text-slate-900 dark:text-slate-100">
                         {row.amountKwd.toLocaleString(undefined, {
                           minimumFractionDigits: 3,
                           maximumFractionDigits: 3,
                         })}
                       </td>
-                      <td className="py-2.5 px-2 text-end tabular-nums font-semibold text-slate-700">
+                      <td className="py-3.5 px-4 text-end tabular-nums font-semibold text-slate-700 dark:text-slate-300">
                         {tr(row.variancePct)}
                       </td>
-                      <td className="py-2.5 px-2 text-center">
+                      <td className="py-3.5 px-4 text-center">
                         <span
                           className={`inline-block px-2.5 py-0.5 rounded-full border text-xs font-bold ${row.badgeStyle}`}
                         >
                           {tr(row.badge)}
                         </span>
                       </td>
-                      <td className="py-2.5 ps-3 font-medium text-slate-700">{tr(row.action)}</td>
+                      <td className="py-3.5 ps-4 font-medium text-slate-700 dark:text-slate-300 leading-relaxed">{tr(row.action)}</td>
                     </tr>
                   ))}
                 </tbody>

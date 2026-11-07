@@ -606,7 +606,7 @@ export function OdooAiCommandCenter() {
               { labelAr: 'مبيعات الصالات والسفري (0% عمولة)', labelEn: 'Dine-In & Takeaway (0% Fee)', pct: 35.3, kwd: 58972.250, color: '#10b981' },
               { labelAr: 'طلبات جو (توصيل المنصة 17%)', labelEn: 'Talabat Go (Platform Fleet 17%)', pct: 33.3, kwd: 55715.210, color: '#ea580c' },
               { labelAr: 'منصة كيتا (Keeta)', labelEn: 'Keeta Platform', pct: 21.3, kwd: 35607.550, color: '#eab308' },
-              { labelAr: 'طلبات ماركت بليس (أسطولنا 10%)', labelEn: 'Talabat MP (Venture Fleet 10%)', pct: 3.9, kwd: 6557.250, color: '#f97316' },
+              { labelAr: 'طلبات ماركت بليس (TMP)', labelEn: 'Talabat TMP (Restaurant Fleet 10%)', pct: 3.9, kwd: 6557.250, color: '#6366f1' },
               { labelAr: 'منصة ديليفرو (Deliveroo)', labelEn: 'Deliveroo', pct: 3.6, kwd: 5996.740, color: '#06b6d4' },
               { labelAr: 'الموقع والتطبيق المباشر', labelEn: 'Direct Web & App', pct: 2.6, kwd: 4243.160, color: '#8b5cf6' },
             ].map((ch, i) => (

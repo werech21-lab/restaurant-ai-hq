@@ -62,7 +62,7 @@ const PNL = [
 ]
 const CHANNEL_MIX = [
   { en: 'Shop Sales', ar: 'مبيعات المحل', value: 58953.09, pct: 35.3, color: '#2563EB' },
-  { en: 'Talabat (Go + MP)', ar: 'طلبات (جو + ماركت)', value: 62603.46, pct: 37.5, color: '#F97316' },
+  { en: 'Talabat (Tgo + TMP)', ar: 'طلبات (Tgo + TMP)', value: 62603.46, pct: 37.5, color: '#F97316' },
   { en: 'Keeta', ar: 'كيتا', value: 35607.98, pct: 21.3, color: '#10B981' },
   { en: 'Deliveroo, Ordable & others', ar: 'ديليفرو وأوردابل وباقي القنوات', value: 9927.63, pct: 5.9, color: '#8B5CF6' },
 ]
