@@ -187,7 +187,6 @@ function detectBranch(hay: string): string | null {
     [/kout|كوت/i, 'KOUT'],
     [/qurain|قرين|\bqrn\b/i, 'QRN'],
     [/promenade|بروميناد|\bprm\b/i, 'PRM'],
-    [/jahra|الجهراء/i, 'JAHRA'],
     [/central.?kitchen|مطبخ|\bck\b/i, 'CK'],
   ]
   for (const [re, code] of map) if (re.test(hay)) return code

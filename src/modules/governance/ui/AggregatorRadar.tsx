@@ -335,8 +335,8 @@ export default function AggregatorRadar(_props: AggregatorRadarProps) {
             </div>
             <div className="mt-1 text-xs font-semibold text-slate-600">
               {T(
-                'Salmiya, Sharq, Hawally, Fahaheel/Kout, Ardiya, Farwaniya, Mahboula, Jahra, Sabah Al-Salem/Mubarak Al-Kabeer',
-                'السالمية، شرق، حولي، الفحيحيل/الكوت، العارضية، الفروانية، المهبولة، الجهراء، صباح السالم/مبارك الكبير',
+                'Salmiya, Sharq, Hawally, Fahaheel/Kout, Ardiya, Farwaniya, Mahboula, Sabah Al-Salem/Mubarak Al-Kabeer',
+                'السالمية، شرق، حولي، الفحيحيل/الكوت، العارضية، الفروانية، المهبولة، صباح السالم/مبارك الكبير',
               )}
             </div>
           </div>

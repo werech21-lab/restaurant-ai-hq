@@ -123,10 +123,10 @@ export const VENTURE_BRANCHES = [
   {
     id: 'ST-BAYAN',
     brandId: 'SHAWARMA-TAHINA',
-    areaAr: 'الجهراء',
-    areaEn: 'Jahra',
-    nameAr: 'فرع الجهراء',
-    nameEn: 'Jahra Branch',
+    areaAr: 'بيان',
+    areaEn: 'Bayan',
+    nameAr: 'فرع بيان',
+    nameEn: 'Bayan Branch',
   },
   {
     id: 'ST-KEIFAN',

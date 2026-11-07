@@ -563,10 +563,10 @@ export function BranchesTab({ filter }: { filter: SalesFilter }) {
   const scope = filter.brand === ALL_BRANDS && filter.channel === ALL_CHANNELS ? T('All brands, all channels', 'كل العلامات وكل القنوات') : `${filter.brand === ALL_BRANDS ? T('All brands', 'كل العلامات') : bLabel(filter.brand)} · ${filter.channel === ALL_CHANNELS ? T('All channels', 'كل القنوات') : filter.channel}`
   return (
     <div className="space-y-4">
-      {/* 4 Channel Bucket Summary Cards across the 9 Actual Operational Branches */}
+      {/* 4 Channel Bucket Summary Cards across the 8 Actual Operational Branches */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="bg-white border border-slate-200 rounded-lg p-3.5 shadow-xs">
-          <div className="text-xs font-semibold text-slate-600">{T('Shop Sales across 9 branches', 'مبيعات المحل (Shop Sales) في الفروع الـ 9')}</div>
+          <div className="text-xs font-semibold text-slate-600">{T('Shop Sales across 8 branches', 'مبيعات المحل (Shop Sales) في الفروع الـ 8')}</div>
           <div className="text-xl md:text-2xl font-extrabold text-slate-900 mt-1 tabular-nums">
             <Num>{ar ? `${fmt2(sumShopNet)} د.ك` : `KWD ${fmt2(sumShopNet)}`}</Num>
           </div>
@@ -614,8 +614,8 @@ export function BranchesTab({ filter }: { filter: SalesFilter }) {
 
       <div className={card}>
         <Title
-          title={T('Net sales by actual restaurant branch (9 operational branches)', 'صافي المبيعات حسب الفرع الفعلي للمطعم (9 فروع تشغيلية)')}
-          sub={`${T('Only the 9 actual operational branches of Venture Foods (excluding residential customer areas)', 'فقط الفروع الـ 9 الفعلية لشركة فنتشر فودز (دون خلطها بمناطق سكن الزبائن)')} · ${scope}`}
+          title={T('Net sales by actual restaurant branch (8 operational branches)', 'صافي المبيعات حسب الفرع الفعلي للمطعم (8 فروع تشغيلية)')}
+          sub={`${T('Only the 8 actual operational branches of Venture Foods (excluding residential customer areas)', 'فقط الفروع الـ 8 الفعلية لشركة فنتشر فودز (دون خلطها بمناطق سكن الزبائن)')} · ${scope}`}
         />
         <Bars
           labelW={235}
@@ -645,7 +645,7 @@ export function BranchesTab({ filter }: { filter: SalesFilter }) {
       <div className={card}>
         <Title
           title={T('Actual Restaurant Branches — Detailed Breakdown (Shop Sales | Tgo | TMP | Other Platforms)', 'تفصيل الفروع الفعلية للمطعم — مقسّمة حسب (مبيعات المحل | Tgo | TMP | باقي المنصات)')}
-          sub={T('The 9 actual operational restaurant branches of Venture Foods with sales & orders split across Shop Sales, Tgo (Talabat Go), TMP (Talabat Marketplace), and Other Platforms.', 'الفروع التشغيلية الـ 9 المعتمدة للمطعم مع تقسيم واضح لمبيعات وطلبات كل فرع إلى: مبيعات المحل، ومبيعات Tgo، ومبيعات TMP، وباقي المنصات.')}
+          sub={T('The 8 actual operational restaurant branches of Venture Foods with sales & orders split across Shop Sales, Tgo (Talabat Go), TMP (Talabat Marketplace), and Other Platforms.', 'الفروع التشغيلية الـ 8 المعتمدة للمطعم مع تقسيم واضح لمبيعات وطلبات كل فرع إلى: مبيعات المحل، ومبيعات Tgo، ومبيعات TMP، وباقي المنصات.')}
         />
         <div className="overflow-x-auto rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] ring-1 ring-slate-200/70 dark:ring-slate-800">
           <table className="w-full text-[13.5px] md:text-sm border-collapse bg-white dark:bg-[#111827]">
@@ -729,7 +729,7 @@ export function BranchesTab({ filter }: { filter: SalesFilter }) {
             </tbody>
             <tfoot>
               <tr className="border-t-2 border-slate-300 bg-slate-50 font-bold text-slate-900">
-                <td className={tdc + ' font-extrabold'}>{T('Total (9 Actual Branches)', 'الإجمالي (9 فروع فعلية)')}</td>
+                <td className={tdc + ' font-extrabold'}>{T('Total (8 Actual Branches)', 'الإجمالي (8 فروع فعلية)')}</td>
                 <td className={tdc}>
                   <span dir="ltr" className="text-xs font-bold text-slate-700">{sumTgoAcc} Tgo + {sumMAcc} TMP</span>
                 </td>
@@ -760,8 +760,8 @@ export function BranchesTab({ filter }: { filter: SalesFilter }) {
         </div>
         <p className="mt-2 text-xs font-medium leading-relaxed text-slate-600">
           {T(
-            'Branch net sales are the official Odoo branch figures for the 9 actual operational branches (adding up to KWD 167,092.160 and 30,540 orders). Sales and orders are broken down into Shop Sales (KWD 58,953.09 / 14,818 orders), Tgo — Talabat Go platform delivery (KWD 55,716.21 / 7,163 orders), M — Talabat MP & Deliveroo MP restaurant delivery (KWD 7,393.44 / 828 orders), and Other Platforms (KWD 45,029.42 / 7,731 orders).',
-            'صافي مبيعات الفروع هو الرقم الرسمي المعتمد للفروع التشغيلية الـ 9 في أودو (بإجمالي 167,092.160 د.ك و30,540 طلباً)، مقسّماً بدقة إلى: مبيعات المحل (58,953.09 د.ك / 14,818 طلباً)، ومبيعات Tgo توصيل طلبات (55,716.21 د.ك / 7,163 طلباً)، ومبيعات M توصيل المطعم عبر طلبات وديليفرو ماركت بليس (7,393.44 د.ك / 828 طلباً)، وباقي المنصات (45,029.42 د.ك / 7,731 طلباً).',
+            'Branch net sales are the official Odoo branch figures for the 8 actual operational branches (adding up to KWD 167,092.160 and 30,540 orders). Sales and orders are broken down into Shop Sales (KWD 58,953.09 / 14,818 orders), Tgo — Talabat Go platform delivery (KWD 55,716.21 / 7,163 orders), TMP — Talabat TMP & Deliveroo TMP restaurant delivery (KWD 7,393.44 / 828 orders), and Other Platforms (KWD 45,029.42 / 7,731 orders).',
+            'صافي مبيعات الفروع هو الرقم الرسمي المعتمد للفروع التشغيلية الـ 8 في أودو (بإجمالي 167,092.160 د.ك و30,540 طلباً)، مقسّماً بدقة إلى: مبيعات المحل (58,953.09 د.ك / 14,818 طلباً)، ومبيعات Tgo توصيل طلبات (55,716.21 د.ك / 7,163 طلباً)، ومبيعات TMP توصيل المطعم عبر طلبات وديليفرو ماركت بليس (7,393.44 د.ك / 828 طلباً)، وباقي المنصات (45,029.42 د.ك / 7,731 طلباً).',
           )}
         </p>
       </div>

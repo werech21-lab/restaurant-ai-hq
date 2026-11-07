@@ -4,8 +4,8 @@
  * Venture Foods W.L.L. - Kuwait Geo-Spatial & Aggregator Radar Engine
  * ------------------------------------------------------------------------------
  * Strictly separates 4 operational concepts:
- * 1. الفروع الفعلية للمطعم (Restaurant Branches): 9 real operational branches
- *    (السالمية، شرق، حولي، الفحيحيل/الكوت، العارضية، الفروانية، المهبولة، الجهراء، صباح السالم/مبارك الكبير)
+ * 1. الفروع الفعلية للمطعم (Restaurant Branches): 8 real operational branches
+ *    (السالمية، شرق، حولي، الفحيحيل/الكوت، العارضية، الفروانية، المهبولة، صباح السالم/مبارك الكبير)
  * 2. أفرع المناطق وتغطية المطعم (Restaurant Zone Accounts): Platform accounts covering
  *    sectors under each branch via Tgo (Talabat Go - توصيل المنصة) or M (Marketplace - توصيل المطعم)
  * 3. مناطق الزبائن (Customer Delivery Areas): Residential areas where customers order from,
@@ -161,7 +161,7 @@ export const VENTURE_BRANDS = [
 export const PERMANENTLY_CLOSED_BRANCHES: any[] = []
 
 // ------------------------------------------------------------------------------
-// 9 ACTUAL OPERATIONAL RESTAURANT BRANCHES (الفروع الفعلية للمطعم)
+// 8 ACTUAL OPERATIONAL RESTAURANT BRANCHES (الفروع الفعلية للمطعم)
 // 1. السالمية (Salmiya)
 // 2. شرق (Sharq)
 // 3. حولي (Hawally)
@@ -169,8 +169,7 @@ export const PERMANENTLY_CLOSED_BRANCHES: any[] = []
 // 5. العارضية (Ardiya)
 // 6. الفروانية (Farwaniya)
 // 7. المهبولة (Mahboula)
-// 8. الجهراء (Jahra)
-// 9. صباح السالم / مبارك الكبير (Sabah Al-Salem / Mubarak Al-Kabeer)
+// 8. صباح السالم / مبارك الكبير (Sabah Al-Salem / Mubarak Al-Kabeer)
 // ------------------------------------------------------------------------------
 export const INITIAL_BRANCH_PROFILES: BranchRadarProfile[] = [
   // 1. فرع السالمية
@@ -908,78 +907,7 @@ export const INITIAL_BRANCH_PROFILES: BranchRadarProfile[] = [
     ],
   },
 
-  // 8. فرع الجهراء
-  {
-    branchId: 'BR-JHR',
-    branchCode: 'JHR',
-    branchNameAr: 'فرع الجهراء',
-    branchNameEn: 'Jahra Branch',
-    primaryBrandId: 'china-garden',
-    primaryBrandNameAr: 'تشاينا جاردن',
-    primaryBrandNameEn: 'China Garden',
-    supportedBrandIds: ['china-garden', 'franks', 'tahina'],
-    tabletOnline: true,
-    batteryPct: 89,
-    assignedFleetType: 'HYBRID_TMP_TGO',
-    totalZonesCount: 4,
-    onlineZonesCount: 4,
-    busyZonesCount: 0,
-    hiddenZonesCount: 0,
-    openRatioPct: 100.0,
-    totalLostKwdToday: 0.000,
-    zoneAccounts: [
-      {
-        accountId: 'ACC-JHR-CG-TGO',
-        accountCode: '101512',
-        accountNameAr: 'تشاينا جاردن - حساب قطاع الجهراء وسعد العبدالله (Tgo)',
-        accountNameEn: 'China Garden - Jahra & Saad Al-Abdullah Sector (Tgo)',
-        branchId: 'BR-JHR',
-        branchCode: 'JHR',
-        branchNameAr: 'فرع الجهراء',
-        branchNameEn: 'Jahra Branch',
-        brandId: 'china-garden',
-        brandNameAr: 'تشاينا جاردن',
-        brandNameEn: 'China Garden',
-        platform: 'Talabat',
-        deliveryMode: 'Tgo',
-        commissionPct: 17,
-        sectorNameAr: 'قطاع القصر والنعيم وسعد العبدالله والواحة',
-        sectorNameEn: 'Qasr, Naeem, Saad Al-Abdullah & Waha Sector',
-        coveredAreasAr: ['القصر', 'النعيم', 'سعد العبدالله', 'الواحة'],
-        coveredAreasEn: ['Qasr', 'Naeem', 'Saad Al-Abdullah', 'Waha'],
-        status: 'ONLINE_VISIBLE',
-      },
-      {
-        accountId: 'ACC-JHR-FR-M',
-        accountCode: '101513',
-        accountNameAr: 'فرانكس - حساب توصيل المطعم الجهراء (TMP)',
-        accountNameEn: "Frank's - Jahra Marketplace Account (TMP)",
-        branchId: 'BR-JHR',
-        branchCode: 'JHR',
-        branchNameAr: 'فرع الجهراء',
-        branchNameEn: 'Jahra Branch',
-        brandId: 'franks',
-        brandNameAr: 'فرانكس',
-        brandNameEn: "Frank's",
-        platform: 'Talabat',
-        deliveryMode: 'M',
-        commissionPct: 10,
-        sectorNameAr: 'تغطية أسطول المطعم - القصر والنعيم والجهراء',
-        sectorNameEn: 'Restaurant Fleet - Qasr, Naeem & Jahra',
-        coveredAreasAr: ['القصر', 'النعيم'],
-        coveredAreasEn: ['Qasr', 'Naeem'],
-        status: 'ONLINE_VISIBLE',
-      },
-    ],
-    zones: [
-      { id: 'JHR-Z1', zoneNameAr: 'القصر', zoneNameEn: 'Qasr', distanceKm: 1.2, deliveryMode: 'M', platform: 'Talabat', brandId: 'franks', brandNameAr: 'فرانكس', brandNameEn: "Frank's", zoneAccountId: 'ACC-JHR-FR-M', zoneAccountNameAr: 'فرانكس - حساب توصيل المطعم الجهراء (TMP)', zoneAccountNameEn: "Frank's - Jahra Marketplace Account (TMP)", status: 'ONLINE_VISIBLE', startTime: '11:00 AM', endTime: null, isOngoing: false, durationMinutes: 0, rootCause: 'TALABAT_FLEET_SHORTAGE', rootCauseLabelAr: 'طبيعي - تغطية المطعم (TMP)', rootCauseLabelEn: 'Normal - Restaurant Fleet (TMP)', estimatedLostOrders: 0, estimatedLostKwd: 0.000, forcedTgoPenaltyKwd: 0.000 },
-      { id: 'JHR-Z2', zoneNameAr: 'النعيم', zoneNameEn: 'Naeem', distanceKm: 2.0, deliveryMode: 'M', platform: 'Talabat', brandId: 'franks', brandNameAr: 'فرانكس', brandNameEn: "Frank's", zoneAccountId: 'ACC-JHR-FR-M', zoneAccountNameAr: 'فرانكس - حساب توصيل المطعم الجهراء (TMP)', zoneAccountNameEn: "Frank's - Jahra Marketplace Account (TMP)", status: 'ONLINE_VISIBLE', startTime: '11:00 AM', endTime: null, isOngoing: false, durationMinutes: 0, rootCause: 'TALABAT_FLEET_SHORTAGE', rootCauseLabelAr: 'طبيعي - تغطية المطعم (TMP)', rootCauseLabelEn: 'Normal - Restaurant Fleet (TMP)', estimatedLostOrders: 0, estimatedLostKwd: 0.000, forcedTgoPenaltyKwd: 0.000 },
-      { id: 'JHR-Z3', zoneNameAr: 'سعد العبدالله', zoneNameEn: 'Saad Al-Abdullah', distanceKm: 3.4, deliveryMode: 'Tgo', platform: 'Talabat', brandId: 'china-garden', brandNameAr: 'تشاينا جاردن', brandNameEn: 'China Garden', zoneAccountId: 'ACC-JHR-CG-TGO', zoneAccountNameAr: 'تشاينا جاردن - حساب قطاع الجهراء وسعد العبدالله (Tgo)', zoneAccountNameEn: 'China Garden - Jahra & Saad Al-Abdullah Sector (Tgo)', status: 'ONLINE_VISIBLE', startTime: '11:00 AM', endTime: null, isOngoing: false, durationMinutes: 0, rootCause: 'TALABAT_FLEET_SHORTAGE', rootCauseLabelAr: 'طبيعي - تغطية المنصة (Tgo)', rootCauseLabelEn: 'Normal - Platform Fleet (Tgo)', estimatedLostOrders: 0, estimatedLostKwd: 0.000, forcedTgoPenaltyKwd: 0.000 },
-      { id: 'JHR-Z4', zoneNameAr: 'الواحة', zoneNameEn: 'Waha', distanceKm: 3.9, deliveryMode: 'Tgo', platform: 'Talabat', brandId: 'china-garden', brandNameAr: 'تشاينا جاردن', brandNameEn: 'China Garden', zoneAccountId: 'ACC-JHR-CG-TGO', zoneAccountNameAr: 'تشاينا جاردن - حساب قطاع الجهراء وسعد العبدالله (Tgo)', zoneAccountNameEn: 'China Garden - Jahra & Saad Al-Abdullah Sector (Tgo)', status: 'ONLINE_VISIBLE', startTime: '11:00 AM', endTime: null, isOngoing: false, durationMinutes: 0, rootCause: 'TALABAT_FLEET_SHORTAGE', rootCauseLabelAr: 'طبيعي - تغطية المنصة (Tgo)', rootCauseLabelEn: 'Normal - Platform Fleet (Tgo)', estimatedLostOrders: 0, estimatedLostKwd: 0.000, forcedTgoPenaltyKwd: 0.000 },
-    ],
-  },
-
-  // 9. فرع صباح السالم / مبارك الكبير
+  // 8. فرع صباح السالم / مبارك الكبير
   {
     branchId: 'BR-QRN',
     branchCode: 'QRN',

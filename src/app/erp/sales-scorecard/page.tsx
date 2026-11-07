@@ -8,6 +8,13 @@ import { makeTr } from "@/lib/i18n/analytics-ar";
 import { SALES_TABS, parseSalesTab, salesTabHref } from "@/lib/analytics/sales-tabs";
 import { BRANDS_DATA, CHANNELS_DATA, type BrandRow, type ChannelRow } from "@/lib/analytics/sales-core-data";
 import { ALL_BRANDS, ALL_CHANNELS, TOTAL_NET, BRANCH_NET, computeView, type PeriodType, type SalesFilter } from "@/lib/analytics/sales-view";
+import {
+  TopAnalyticsFilterBar,
+  VENTURE_BRANCHES,
+  PERIOD_MULTIPLIERS,
+  type PeriodOption,
+  DeliveryModeBadge,
+} from "@/components/analytics/top-analytics-filter-bar";
 import { TOP_BEST_SELLERS } from "@/lib/analytics/brand-sales-october-data";
 import {
   BranchesTab,
@@ -321,31 +328,33 @@ const ITEM_POOL: PoolItem[] = (() => {
 })();
 
 const CHANNEL_BRAND_MATRIX = [
-  { brand: "China Garden", channel: "Shop Sales", topItem: "Chicken Noodles", orders: 11420, sales: 48120.40, aov: 4.21, drinkPct: "38.4%" },
+  { brand: "China Garden", channel: "Shop Sales", topItem: "Chicken Noodles", orders: 12173, sales: 49261.30, aov: 4.05, drinkPct: "38.4%" },
   { brand: "China Garden", channel: "Talabat Go", topItem: "Veg Or Chicken Noodles Combo", orders: 6120, sales: 47890.10, aov: 7.83, drinkPct: "13.2%" },
-  { brand: "China Garden", channel: "Keeta", topItem: "Chicken Noodles", orders: 5490, sales: 31420.80, aov: 5.72, drinkPct: "4.6%" },
+  { brand: "China Garden", channel: "Keeta", topItem: "Chicken Noodles", orders: 5704, sales: 32555.28, aov: 5.71, drinkPct: "4.6%" },
+  { brand: "China Garden", channel: "Talabat TMP", topItem: "Chicken Noodles", orders: 608, sales: 5951.84, aov: 9.79, drinkPct: "19.8%" },
+  { brand: "China Garden", channel: "Deliveroo Core", topItem: "Beef Mongolian", orders: 457, sales: 1600.48, aov: 3.50, drinkPct: "13.0%" },
   { brand: "Frank's", channel: "Talabat Go", topItem: "Orig. Philly CheeseSteak", orders: 840, sales: 6420.50, aov: 7.64, drinkPct: "11.8%" },
   { brand: "Frank's", channel: "Deliveroo Core", topItem: "Philly Meal For 1", orders: 510, sales: 3890.20, aov: 7.63, drinkPct: "14.1%" },
+  { brand: "Frank's", channel: "Shop Sales", topItem: "Orig. Philly CheeseSteak", orders: 450, sales: 3420.12, aov: 7.60, drinkPct: "18.2%" },
+  { brand: "Frank's", channel: "Keeta", topItem: "Philly Meal For 1", orders: 280, sales: 1840.15, aov: 6.57, drinkPct: "8.5%" },
+  { brand: "Frank's", channel: "Talabat TMP", topItem: "Orig. Philly CheeseSteak", orders: 67, sales: 463.00, aov: 6.91, drinkPct: "12.0%" },
   { brand: "Tahina", channel: "Shop Sales", topItem: "KWD 1 Chicken Shawarma", orders: 1490, sales: 3210.40, aov: 2.15, drinkPct: "84.5%" },
+  { brand: "Tahina", channel: "Talabat Go", topItem: "Tahina Shawarma Platter", orders: 310, sales: 820.24, aov: 2.65, drinkPct: "72.0%" },
+  { brand: "Tahina", channel: "Keeta", topItem: "Chicken Shawarma - Lebanese Bread", orders: 144, sales: 398.00, aov: 2.76, drinkPct: "65.0%" },
   { brand: "Farm Brown", channel: "Shop Sales", topItem: "Chicken Fillet Meal", orders: 610, sales: 1890.00, aov: 3.10, drinkPct: "24.0%" },
-  { brand: "The Noodle Bar", channel: "Talabat MP", topItem: "Sriracha Chicken Noodles", orders: 180, sales: 1140.60, aov: 6.34, drinkPct: "18.5%" },
+  { brand: "Farm Brown", channel: "Talabat Go", topItem: "Crispy Strips Box", orders: 140, sales: 450.18, aov: 3.22, drinkPct: "21.5%" },
+  { brand: "Farm Brown", channel: "Keeta", topItem: "Chicken Fillet Meal", orders: 97, sales: 324.00, aov: 3.34, drinkPct: "19.0%" },
+  { brand: "The Noodle Bar", channel: "Talabat TMP", topItem: "Sriracha Chicken Noodles", orders: 67, sales: 472.41, aov: 7.05, drinkPct: "18.5%" },
+  { brand: "The Noodle Bar", channel: "Keeta", topItem: "Pad Thai Noodles", orders: 42, sales: 490.55, aov: 11.68, drinkPct: "22.0%" },
+  { brand: "The Noodle Bar", channel: "Shop Sales", topItem: "Wok Egg Noodles", orders: 135, sales: 580.07, aov: 4.30, drinkPct: "15.0%" },
+  { brand: "The Noodle Bar", channel: "Talabat Go", topItem: "Sriracha Chicken Noodles", orders: 25, sales: 135.19, aov: 5.41, drinkPct: "16.0%" },
+  { brand: "Karak Cafeteria", channel: "Shop Sales", topItem: "Chapati Box (4 pcs)", orders: 125, sales: 591.20, aov: 4.73, drinkPct: "72.7%" },
+  { brand: "Karak Cafeteria", channel: "Whatsapp", topItem: "Karak Chai Flask (1L)", orders: 3, sales: 33.30, aov: 11.10, drinkPct: "100.0%" },
 ];
 
 // ==========================================
 // 2. MAIN COMPONENT (HIGH-DENSITY TUFTE BI)
 // ==========================================
-
-const VENTURE_BRANCHES_9 = [
-  { code: "SLM", nameEn: "Salmiya", nameAr: "السالمية" },
-  { code: "KOT", nameEn: "Al Kout / Fahaheel", nameAr: "الكوت/الفحيحيل" },
-  { code: "SHQ", nameEn: "Sharq", nameAr: "شرق" },
-  { code: "HWL", nameEn: "Hawally", nameAr: "حولي" },
-  { code: "FRW", nameEn: "Farwaniya", nameAr: "الفروانية" },
-  { code: "ARD", nameEn: "Ardiya", nameAr: "العارضية" },
-  { code: "MHB", nameEn: "Mahboula", nameAr: "المهبولة" },
-  { code: "JHR", nameEn: "Jahra", nameAr: "الجهراء" },
-  { code: "QRN", nameEn: "Mubarak Al-Kabeer / Sabah Al-Salem", nameAr: "مبارك الكبير/صباح السالم" },
-];
 
 function ScorecardInner() {
   const { locale } = useI18n();
@@ -372,10 +381,13 @@ function ScorecardInner() {
     `${tr("Discount rate")}: ${c.discountRate.toFixed(1)}%`,
     `${tr("Drinks %")}: ${c.drinksPct.toFixed(1)}%`,
   ];
-  const [selectedBrand, setSelectedBrand] = useState<string>(ALL_BRANDS);
-  const [selectedBranch, setSelectedBranch] = useState<string>("ALL");
-  const [selectedChannel, setSelectedChannel] = useState<string>(ALL_CHANNELS);
-  const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>("Month");
+  const [selectedBrand, setSelectedBrand] = useState<string>("All brands");
+  const [selectedBranch, setSelectedBranch] = useState<string>("All branches");
+  const [selectedChannel, setSelectedChannel] = useState<string>("All channels");
+  const [selectedPeriod, setSelectedPeriod] = useState<PeriodOption>("month");
+
+  const brandsList = useMemo(() => BRANDS_DATA.map((b) => b.brand), []);
+  const channelsList = useMemo(() => CHANNELS_DATA.map((c) => c.channel), []);
 
   // One model for every tab: brand rows, channel rows, branch scaling, and period multiplier
   const filter: SalesFilter = useMemo(
@@ -404,44 +416,69 @@ function ScorecardInner() {
   const hiRow = (on: boolean, dim: boolean) => (on ? "bg-blue-50/60 dark:bg-blue-950/40 font-semibold" : dim ? "opacity-50" : "");
 
   // Products tab scaling
-  const brandSel = selectedBrand !== ALL_BRANDS;
-  const scaleItem = <T extends { sales: number; orders: number }>(i: T): T => ({
-    ...i,
-    sales: i.sales * view.ratioNet,
-    orders: Math.round(i.orders * view.ratioOrders),
-  });
+  const brandSel = selectedBrand !== ALL_BRANDS && selectedBrand !== "All brands";
+  const pFactor = selectedPeriod === "day" ? 1 / 31 : selectedPeriod === "year" ? 12 : 1;
+  const scaleItem = <T extends { sales: number; orders: number }>(i: T): T => {
+    if (view.orders === 0 || view.net === 0) {
+      return { ...i, sales: 0, orders: 0 };
+    }
+    const scaledNet = i.sales * (view.net / (brandSel ? (BRANDS_DATA.find((b) => b.brand === selectedBrand)?.netSales ?? TOTAL_NET) : TOTAL_NET));
+    const scaledOrd = Math.max(1, Math.round(i.orders * pFactor));
+    return {
+      ...i,
+      sales: scaledNet,
+      orders: scaledOrd,
+    };
+  };
   const poolBrandItems = brandSel ? ITEM_POOL.filter((i) => i.brand === selectedBrand).sort((x, y) => y.sales - x.sales) : [];
   const topItems = (brandSel ? poolBrandItems.slice(0, 15) : TOP_15_ITEMS).map(scaleItem);
   const categoryRows = (() => {
-    if (!brandSel) return CATEGORIES_DATA.map((c) => ({ name: c.name, sales: c.sales * view.ratioNet }));
+    if (!brandSel) return CATEGORIES_DATA.map((c) => ({ name: c.name, sales: c.sales * pFactor }));
     const m = new Map<string, number>();
     poolBrandItems.forEach((i) => m.set(i.category, (m.get(i.category) ?? 0) + i.sales));
-    return [...m.entries()].map(([name, sales]) => ({ name, sales: sales * view.ratioNet })).sort((x, y) => y.sales - x.sales);
+    return [...m.entries()].map(([name, sales]) => ({ name, sales: sales * pFactor })).sort((x, y) => y.sales - x.sales);
   })();
-  const diagBuckets = DIAGNOSTIC_BUCKETS.map((d) => ({ ...d, value: d.value * view.ratioNet }));
-  const diagRows = ITEM_DIAGNOSTICS_TABLE_1.filter((r) => !brandSel || r.brand === selectedBrand).map((r) => ({
-    ...r,
-    orders: Math.round(r.orders * view.ratioOrders),
-    sales: r.sales * view.ratioNet,
-  }));
-  const tailRows = LOW_VOLUME_TAIL_ITEMS.filter((r) => !brandSel || r.brand === selectedBrand).map((r) => ({
-    ...r,
-    orders: Math.round(r.orders * view.ratioOrders),
-    sales: r.sales * view.ratioNet,
-  }));
-  const matrixRows = CHANNEL_BRAND_MATRIX.filter((r) => (!brandSel || r.brand === selectedBrand) && (selectedChannel === ALL_CHANNELS || r.channel === selectedChannel)).map((r) => ({
-    ...r,
-    orders: Math.round(r.orders * view.ratioOrders),
-    sales: r.sales * view.ratioNet,
-  }));
+  const diagBuckets = DIAGNOSTIC_BUCKETS.map((d) => ({ ...d, value: d.value * pFactor }));
+  const diagRows = ITEM_DIAGNOSTICS_TABLE_1.filter((r) => !brandSel || r.brand === selectedBrand).map((r) => {
+    const orders = r.orders === 0 ? 0 : selectedPeriod === "day" ? Math.max(1, Math.round(r.orders / 31)) : Math.round(r.orders * pFactor);
+    const sales = r.sales * pFactor;
+    return {
+      ...r,
+      orders,
+      sales,
+    };
+  });
+  const tailRows = LOW_VOLUME_TAIL_ITEMS.filter((r) => !brandSel || r.brand === selectedBrand).map((r) => {
+    const orders = r.orders === 0 ? 0 : selectedPeriod === "day" ? Math.max(1, Math.round(r.orders / 31)) : Math.round(r.orders * pFactor);
+    const sales = r.sales * pFactor;
+    return {
+      ...r,
+      orders,
+      sales,
+    };
+  });
+  const matrixRows = CHANNEL_BRAND_MATRIX.filter(
+    (r) =>
+      (!brandSel || r.brand === selectedBrand) &&
+      (selectedChannel === ALL_CHANNELS || selectedChannel === "All channels" || r.channel === selectedChannel)
+  ).map((r) => {
+    const orders = r.orders === 0 ? 0 : selectedPeriod === "day" ? Math.max(1, Math.round(r.orders / 31)) : Math.round(r.orders * pFactor);
+    const sales = r.sales * pFactor;
+    return {
+      ...r,
+      orders,
+      sales,
+      aov: orders > 0 ? sales / orders : r.aov,
+    };
+  });
   const bestItem = brandSel ? poolBrandItems[0] : undefined;
   const bestName = bestItem ? bestItem.name : "Chicken Noodles";
-  const branchObj = VENTURE_BRANCHES_9.find((b) => b.code === selectedBranch);
+  const branchObj = VENTURE_BRANCHES.find((b) => b.id === selectedBranch);
   const scopeLabel = [
-    selectedBrand !== ALL_BRANDS ? tr(selectedBrand) : isAr ? "كل العلامات" : "All brands",
-    selectedBranch !== "ALL" ? (isAr ? branchObj?.nameAr : branchObj?.nameEn) : null,
-    selectedChannel !== ALL_CHANNELS ? tr(selectedChannel) : isAr ? "كل القنوات" : "All channels",
-    selectedPeriod === "Day" ? (isAr ? "اليومي" : "Daily") : selectedPeriod === "Year" ? (isAr ? "السنة" : "Yearly") : null,
+    selectedBrand !== "All brands" && selectedBrand !== ALL_BRANDS ? tr(selectedBrand) : isAr ? "كل العلامات" : "All brands",
+    selectedBranch !== "All branches" && selectedBranch !== "ALL" ? (isAr ? branchObj?.nameAr : branchObj?.nameEn) : null,
+    selectedChannel !== "All channels" && selectedChannel !== ALL_CHANNELS ? tr(selectedChannel) : isAr ? "كل القنوات" : "All channels",
+    selectedPeriod === "day" ? (isAr ? "اليومي" : "Daily") : selectedPeriod === "year" ? (isAr ? "السنة" : "Yearly") : null,
   ].filter(Boolean).join(" · ");
 
   const biggestChannel = [...vChannels].sort((x, y) => y.netSales - x.netSales)[0];
@@ -497,13 +534,13 @@ function ScorecardInner() {
             <div className="flex items-center gap-3">
               <span className="inline-flex items-center gap-1.5 text-emerald-700 font-bold">
                 <span className="h-2 w-2 rounded-full bg-emerald-600"></span> {tr("Odoo P&L Reconciled: KWD 42,441.480 Net Profit (25.4%)")} </span>
-              {(selectedBrand !== "All brands" || selectedChannel !== "All channels" || selectedBranch !== "ALL" || selectedPeriod !== "Month") && (
+              {(selectedBrand !== "All brands" || selectedChannel !== "All channels" || selectedBranch !== "All branches" || selectedPeriod !== "month") && (
                 <button
                   onClick={() => {
                     setSelectedBrand("All brands");
-                    setSelectedBranch("ALL");
+                    setSelectedBranch("All branches");
                     setSelectedChannel("All channels");
-                    setSelectedPeriod("Month");
+                    setSelectedPeriod("month");
                   }}
                   className="text-blue-700 hover:underline font-bold"
                 >
@@ -515,9 +552,9 @@ function ScorecardInner() {
 
           <div>
             <h1 className="text-xl md:text-2xl font-bold tracking-tight text-slate-900">
-              {selectedPeriod === "Day"
+              {selectedPeriod === "day"
                 ? isAr ? "المعدل اليومي لمبيعات العلامات التجارية · أكتوبر 2026" : "Daily Average Brand Sales · October 2026"
-                : selectedPeriod === "Year"
+                : selectedPeriod === "year"
                 ? isAr ? "التقدير السنوي التراكمي لمبيعات العلامات التجارية · 2026" : "Annual Projected Brand Sales · 2026"
                 : tr("Brand sales · October 2026")}
             </h1>
@@ -525,11 +562,11 @@ function ScorecardInner() {
               {isAr ? (
                 <>
                   {tr(selectedBrand)}
-                  {selectedBranch !== "ALL" ? ` في فرع ${branchObj?.nameAr}` : ""} في {chLabel(selectedChannel)} حققت صافي{" "}
+                  {selectedBranch !== "All branches" && selectedBranch !== "ALL" ? ` في ${branchObj?.nameAr}` : ""} في {chLabel(selectedChannel)} حققت صافي{" "}
                   <strong className="font-bold text-slate-900">
                     <span dir="ltr" className="inline-block tabular-nums">{money(kpis.netSales)}</span>
                   </strong>{" "}
-                  {selectedPeriod === "Day" ? "كمعدل يومي" : selectedPeriod === "Year" ? "كتوقع سنوي" : "في أكتوبر"} من{" "}
+                  {selectedPeriod === "day" ? "كمعدل يومي" : selectedPeriod === "year" ? "كتوقع سنوي" : "في أكتوبر"} من{" "}
                   <strong className="font-bold text-slate-900">
                     <span dir="ltr" className="inline-block tabular-nums">{kpis.orders.toLocaleString()}</span>
                   </strong>{" "}
@@ -539,11 +576,11 @@ function ScorecardInner() {
               ) : (
                 <>
                   {selectedBrand}
-                  {selectedBranch !== "ALL" ? ` in ${branchObj?.nameEn} branch` : ""} in {chLabel(selectedChannel)} made{" "}
+                  {selectedBranch !== "All branches" && selectedBranch !== "ALL" ? ` in ${branchObj?.nameEn}` : ""} in {chLabel(selectedChannel)} made{" "}
                   <strong className="font-bold text-slate-900">
                     {money(kpis.netSales)}
                   </strong>{" "}
-                  net {selectedPeriod === "Day" ? "per day (daily average)" : selectedPeriod === "Year" ? "annual projection" : "in October"} from{" "}
+                  net {selectedPeriod === "day" ? "per day (daily average)" : selectedPeriod === "year" ? "annual projection" : "in October"} from{" "}
                   <strong className="font-bold text-slate-900">
                     {kpis.orders.toLocaleString()}
                   </strong>{" "}
@@ -554,112 +591,21 @@ function ScorecardInner() {
             </p>
           </div>
 
-          {/* Filter Dropdowns & Date Period Selector */}
-          <div className="pt-1 space-y-2">
-            <div className="flex flex-wrap items-center gap-3.5 text-[13px]">
-              {/* 1. Brand Dropdown */}
-              <label className="flex items-center gap-2 font-semibold text-slate-700">
-                <span>{tr("Brand")}</span>
-                <select
-                  value={selectedBrand}
-                  onChange={(e) => setSelectedBrand(e.target.value)}
-                  className="bg-white border border-slate-300 rounded-md px-3 py-1.5 text-[13px] text-slate-900 font-semibold focus:outline-none focus:border-blue-600 shadow-2xs"
-                >
-                  <option value="All brands">{tr("All brands")}</option>
-                  {vBrands.map((b) => (
-                    <option key={b.brand} value={b.brand}>
-                      {tr(b.brand)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              {/* 2. Branches Dropdown (Next to Brand) */}
-              <label className="flex items-center gap-2 font-semibold text-slate-700">
-                <span>{tr("Branch")}</span>
-                <select
-                  value={selectedBranch}
-                  onChange={(e) => setSelectedBranch(e.target.value)}
-                  className="bg-white border border-slate-300 rounded-md px-3 py-1.5 text-[13px] text-slate-900 font-semibold focus:outline-none focus:border-blue-600 shadow-2xs"
-                >
-                  <option value="ALL">
-                    {isAr ? "جميع الفروع (9)" : "All branches (9)"}
-                  </option>
-                  {VENTURE_BRANCHES_9.map((b) => (
-                    <option key={b.code} value={b.code}>
-                      {isAr ? b.nameAr : b.nameEn}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              {/* 3. Channel Dropdown */}
-              <label className="flex items-center gap-2 font-semibold text-slate-700">
-                <span>{tr("Channel")}</span>
-                <select
-                  value={selectedChannel}
-                  onChange={(e) => setSelectedChannel(e.target.value)}
-                  className="bg-white border border-slate-300 rounded-md px-3 py-1.5 text-[13px] text-slate-900 font-semibold focus:outline-none focus:border-blue-600 shadow-2xs"
-                >
-                  <option value="All channels">{tr("All channels")}</option>
-                  {vChannels.map((c) => (
-                    <option key={c.channel} value={c.channel}>
-                      {chLabel(c.channel)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              {/* 4. Date Period Selector (Day - Month - Year) Next to Channel */}
-              <div className="flex items-center gap-1.5 font-semibold text-slate-700">
-                <span className="text-xs text-slate-600 font-bold">{isAr ? "الفترة:" : "Period:"}</span>
-                <div
-                  role="group"
-                  aria-label="Date Period Selector"
-                  className="inline-flex rounded-lg border border-slate-300 bg-slate-100 p-0.5 text-xs font-bold"
-                >
-                  <button
-                    type="button"
-                    onClick={() => setSelectedPeriod("Day")}
-                    title={isAr ? "المعدل اليومي (صافي 5,390.070 د.ك / 985 طلب)" : "Daily Average (5,390.070 KWD / 985 orders)"}
-                    className={`rounded-md px-3 py-1 transition-all ${
-                      selectedPeriod === "Day"
-                        ? "bg-white text-blue-700 font-extrabold shadow-xs"
-                        : "text-slate-600 hover:text-slate-900"
-                    }`}
-                  >
-                    {isAr ? "اليومي" : "Day"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedPeriod("Month")}
-                    title={isAr ? "إجمالي أكتوبر (167,092.160 د.ك / 30,540 طلب)" : "Monthly Total (167,092.160 KWD / 30,540 orders)"}
-                    className={`rounded-md px-3 py-1 transition-all ${
-                      selectedPeriod === "Month"
-                        ? "bg-white text-blue-700 font-extrabold shadow-xs"
-                        : "text-slate-600 hover:text-slate-900"
-                    }`}
-                  >
-                    {isAr ? "الشهر" : "Month"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedPeriod("Year")}
-                    title={isAr ? "التقدير السنوي (2,005,105.920 د.ك / 366,480 طلب)" : "Annual Projection (2,005,105.920 KWD / 366,480 orders)"}
-                    className={`rounded-md px-3 py-1 transition-all ${
-                      selectedPeriod === "Year"
-                        ? "bg-white text-blue-700 font-extrabold shadow-xs"
-                        : "text-slate-600 hover:text-slate-900"
-                    }`}
-                  >
-                    {isAr ? "السنة" : "Year"}
-                  </button>
-                </div>
-              </div>
-            </div>
-            <p className="text-xs font-medium text-slate-500">
-              {tr("Both filters apply to every section. You can also click a bar in the brand or channel charts.")}
-            </p>
+          {/* Top Analytics Filter Bar */}
+          <div className="pt-2">
+            <TopAnalyticsFilterBar
+              lang={isAr ? "ar" : "en"}
+              selectedBrand={selectedBrand}
+              setSelectedBrand={setSelectedBrand}
+              selectedBranch={selectedBranch}
+              setSelectedBranch={setSelectedBranch}
+              selectedChannel={selectedChannel}
+              setSelectedChannel={setSelectedChannel}
+              selectedPeriod={selectedPeriod}
+              setSelectedPeriod={setSelectedPeriod}
+              brandsList={brandsList}
+              channelsList={channelsList}
+            />
           </div>
         </header>
 
