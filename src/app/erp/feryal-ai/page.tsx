@@ -7,6 +7,7 @@ import {
   Bot,
   Mic,
   MicOff,
+  Headphones,
   Volume2,
   VolumeX,
   Send,
@@ -32,6 +33,7 @@ import {
   MessageSquare,
 } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
+import { getOpenAIApiKey } from '@/lib/openai-key'
 
 // ==============================================================================
 // 1. MASTER ODOO DATASET (OFFICIAL OCTOBER BENCHMARK)
@@ -377,8 +379,90 @@ export default function FeryalAiCommandPage() {
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null)
   const recognitionRef = useRef<any>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const mediaStreamRef = useRef<MediaStream | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
   const chatScrollRef = useRef<HTMLDivElement>(null)
+
+  // Bluetooth Headset & Audio Device Selection States
+  const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([])
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('aetherbi_mic_device_id') || ''
+    }
+    return ''
+  })
+  const [showDevicePicker, setShowDevicePicker] = useState(false)
+  const [permissionPromptNeeded, setPermissionPromptNeeded] = useState(false)
+
+  // Save selected device to local storage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (selectedDeviceId) {
+        localStorage.setItem('aetherbi_mic_device_id', selectedDeviceId)
+      } else {
+        localStorage.removeItem('aetherbi_mic_device_id')
+      }
+    }
+  }, [selectedDeviceId])
+
+  // Stop and release all microphone tracks immediately (Returns Bluetooth headset to Stereo mode)
+  const stopAllMicTracks = useCallback(() => {
+    if (mediaStreamRef.current) {
+      try {
+        mediaStreamRef.current.getTracks().forEach((track) => {
+          track.stop()
+          track.enabled = false
+        })
+      } catch {}
+      mediaStreamRef.current = null
+    }
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort()
+      } catch {}
+    }
+    setIsListening(false)
+    isListeningRef.current = false
+  }, [])
+
+  // Enumerate Audio Devices safely (Without opening mic unless requestPermission is true)
+  const fetchAudioDevices = useCallback(async (requestPermission = false) => {
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices) return
+    try {
+      if (requestPermission) {
+        // Temporary permission grant, immediately released to preserve Bluetooth stereo sink
+        const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        tempStream.getTracks().forEach((t) => {
+          t.stop()
+          t.enabled = false
+        })
+        setPermissionPromptNeeded(false)
+      }
+      const devices = await navigator.mediaDevices.enumerateDevices()
+      const audioInputs = devices.filter((d) => d.kind === 'audioinput')
+      setAudioDevices(audioInputs)
+      const hasLabels = audioInputs.some((d) => Boolean(d.label))
+      if (hasLabels) {
+        setPermissionPromptNeeded(false)
+      } else if (requestPermission) {
+        setPermissionPromptNeeded(true)
+      }
+    } catch (err: any) {
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        setPermissionPromptNeeded(true)
+      }
+    }
+  }, [])
+
+  // Passive initial device scan (Zero getUserMedia on mount - Bluetooth stays in High-Quality Stereo)
+  useEffect(() => {
+    if (typeof navigator !== 'undefined' && navigator.mediaDevices) {
+      navigator.mediaDevices.enumerateDevices().then((devices) => {
+        const audioInputs = devices.filter((d) => d.kind === 'audioinput')
+        setAudioDevices(audioInputs)
+      }).catch(() => {})
+    }
+  }, [])
 
   const isHandsFreeRef = useRef(false)
   const isVoiceMutedRef = useRef(false)
@@ -498,19 +582,14 @@ export default function FeryalAiCommandPage() {
     }
   }, [])
 
-  // Natural Cloud Audio Player via Google Translate TTS Stream API
+  // Natural Cloud Audio Player via Google Translate TTS Stream API / OpenAI Nova
   const playFeryalSpeech = useCallback(
     async (text: string, msgId?: string) => {
       if (isVoiceMuted) return
 
-      // Stop any existing mic listening to prevent acoustic echo feedback
-      if (recognitionRef.current && isListeningRef.current) {
-        try {
-          recognitionRef.current.abort()
-        } catch {}
-        setIsListening(false)
-        isListeningRef.current = false
-      }
+      // Stop any existing mic listening and release all tracks so Bluetooth headset returns to Stereo
+      stopAllMicTracks()
+
       if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
         try {
           mediaRecorderRef.current.stop()
@@ -530,14 +609,56 @@ export default function FeryalAiCommandPage() {
       setPlayingMsgId(activeId)
 
       try {
+        // Bluetooth Headset Half-Duplex Delay:
+        // Wait 350ms after stopping mic so Windows Bluetooth driver switches from HFP back to A2DP Stereo!
+        await new Promise((resolve) => setTimeout(resolve, 350))
+
         const cleanText = sanitizeTextForSpeechClient(text, activeLang) || text
-        const streamUrl = `/api/feryal/tts?lang=${activeLang}&text=${encodeURIComponent(cleanText)}&t=${Date.now()}`
+        const apiKey = getOpenAIApiKey()
+
+        let audioUrl = ''
+
+        // 1. Direct Browser Fetch to OpenAI Audio Speech API (Zero Cloudflare Node / Buffer dependency)
+        if (apiKey) {
+          try {
+            const openAiRes = await fetch('https://api.openai.com/v1/audio/speech', {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                model: 'tts-1',
+                voice: 'nova',
+                input: cleanText.slice(0, 4000),
+                response_format: 'mp3',
+              }),
+            })
+
+            if (openAiRes.ok) {
+              const blob = await openAiRes.blob()
+              audioUrl = URL.createObjectURL(blob)
+            } else {
+              console.warn('Direct OpenAI TTS returned status:', openAiRes.status)
+            }
+          } catch (directErr) {
+            console.warn('Direct browser fetch to OpenAI TTS failed, falling back:', directErr)
+          }
+        }
+
+        // 2. Direct Google TTS fallback if OpenAI was unreachable
+        if (!audioUrl) {
+          const shortText = cleanText.slice(0, 200)
+          audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${
+            activeLang === 'en' ? 'en' : 'ar'
+          }&q=${encodeURIComponent(shortText)}`
+        }
 
         // 1. Play directly via visible DOM audio element (Bypasses Chrome restrictions & guarantees sound)
         const player = audioPlayerRef.current
         if (player) {
           player.pause()
-          player.src = streamUrl
+          player.src = audioUrl
           player.load()
 
           player.onplay = () => {
@@ -575,7 +696,7 @@ export default function FeryalAiCommandPage() {
         }
 
         // 2. Fallback to programmatic Audio object if ref not mounted
-        const audio = new Audio(streamUrl)
+        const audio = new Audio(audioUrl)
         audio.onplay = () => {
           setPlayingMsgId(activeId)
         }
@@ -599,7 +720,7 @@ export default function FeryalAiCommandPage() {
         fallbackSpeechSynthesis(text, activeLang)
       }
     },
-    [isVoiceMuted, isAr, fallbackSpeechSynthesis]
+    [isVoiceMuted, isAr, fallbackSpeechSynthesis, stopAllMicTracks]
   )
 
   // Handler functions with memoization to satisfy hooks dependency rules
@@ -749,42 +870,108 @@ export default function FeryalAiCommandPage() {
       setIsCopilotThinking(true)
 
       try {
-        const res = await fetch('/api/feryal', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'chat', query: textToSend, lang: isAr ? 'ar' : 'en' }),
-        })
+        let replyAr = ''
+        let replyEn = ''
+        let keyMetrics: any = null
 
-        const data = await res.json()
-        if (data.success) {
-          const feryalMsgId = `feryal-${Date.now()}`
-          const feryalMsg = {
-            id: feryalMsgId,
-            sender: 'feryal' as const,
-            textAr: data.replyAr,
-            textEn: data.replyEn,
-            time: new Date().toLocaleTimeString(isAr ? 'ar-KW' : 'en-US', { hour: '2-digit', minute: '2-digit' }),
-            metrics: data.keyMetrics,
+      // 1. Direct Browser Call to OpenAI Chat Completion (gpt-4o-mini)
+      const apiKey = getOpenAIApiKey()
+      if (apiKey) {
+        try {
+          const systemPrompt = isAr
+            ? `أنت المستشارة التنفيذية الذكية "فريال" لمجموعة فنتشر فودز (AetherBI).
+بيانات أودو الرسمية لشهر أكتوبر 2026:
+- صافي المبيعات المعتمدة: 167,092.160 د.ك (30,540 طلباً | متوسط الطلب 5.471 د.ك).
+- صافي الربح التشغيلي: 42,441.480 د.ك (هامش 25.4%).
+- تكلفة الأغذية والمواد: 41,438.856 د.ك (24.8% والمستهدف 24.0%، وفر هدر العارضية 1,336 د.ك).
+- المصروفات التشغيلية: 51,154.950 د.ك (خفض صيانة حولي 850 د.ك).
+- الخصومات: 4,152.000 د.ك (سقف خصومات كيتا يوفر 1,620 د.ك).
+- الفروع الـ 8 المعتمدة فقط: السالمية (31,246 د.ك)، الكوت (27,904 د.ك)، شرق (24,896 د.ك)، حولي (21,387 د.ك)، الفروانية (18,045 د.ك)، العارضية (15,372 د.ك)، المهبولة (15,038 د.ك)، مبارك الكبير (13,200 د.ك). لا يوجد فرع للجهراء.
+أجيبي بأسلوب استراتيجي قيادي واضح وموجز مستخدمة الأرقام الصحيحة فقط وبدون أي رموز غير ناطقة.`
+            : `You are Executive AI Copilot "Feryal" for Venture Foods Kuwait (AetherBI).
+Verified October Odoo Master Metrics:
+- Net Sales: 167,092.160 KWD (30,540 orders | AOV 5.471 KWD).
+- Operating Profit: 42,441.480 KWD (25.4% margin).
+- Food Cost: 41,438.856 KWD (24.8% vs 24.0% target, Ardiya prep waste 1,336 KWD).
+- Opex: 51,154.950 KWD (Hawally chiller overhaul saves 850 KWD/mo).
+- Discounts: 4,152.000 KWD (Keeta cap saves 1,620 KWD/mo).
+- 8 Verified Branches: Salmiya, Al-Kout, Sharq, Hawally, Farwaniya, Ardiya, Mahboula, Mubarak Al-Kabeer. Zero Jahra branch.
+Provide crisp, executive-grade advisory.`
+
+          const chatRes = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'gpt-4o-mini',
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: textToSend },
+              ],
+              temperature: 0.3,
+              max_tokens: 380,
+            }),
+          })
+
+          if (chatRes.ok) {
+            const chatData = await chatRes.json()
+            const rawContent = chatData.choices?.[0]?.message?.content || ''
+            if (rawContent.trim()) {
+              if (isAr) replyAr = rawContent.trim()
+              else replyEn = rawContent.trim()
+            }
           }
-          setMessages((prev) => [...prev, feryalMsg])
-          playFeryalSpeech(isAr ? data.replyAr : data.replyEn, feryalMsgId)
+        } catch (chatErr) {
+          console.warn('Direct browser chat completion error:', chatErr)
         }
-      } catch (e) {
-        const fallbackMsgId = `feryal-${Date.now()}`
-        const fallbackMsg = {
-          id: fallbackMsgId,
-          sender: 'feryal' as const,
-          textAr:
-            'وفقاً لبيانات أودو لشهر أكتوبر، صافي المبيعات هو مائة وسبعة وستون ألفاً واثنان وتسعون ديناراً كويتياً، والأرباح التشغيلية اثنان وأربعون ألفاً وأربعمائة وواحد وأربعون ديناراً كويتياً بهامش خمسة وعشرين بالمئة. خطة خفض الهدر وسقف الخصومات جاهزة للتنفيذ.',
-          textEn:
-            'According to October Odoo figures, Net Sales stand at 167,092.160 KWD and Operating Profit at 42,441.480 KWD (25.4% margin). Waste elimination and discount capping plans are ready to deploy.',
-          time: isAr ? 'الآن' : 'Just now',
-        }
-        setMessages((prev) => [...prev, fallbackMsg])
-        playFeryalSpeech(isAr ? fallbackMsg.textAr : fallbackMsg.textEn, fallbackMsgId)
-      } finally {
-        setIsCopilotThinking(false)
       }
+
+      // 2. Fallback to local /api/feryal route
+      if (!replyAr && !replyEn) {
+        try {
+          const res = await fetch('/api/feryal', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'chat', query: textToSend, lang: isAr ? 'ar' : 'en' }),
+          })
+
+          const data = await res.json()
+          if (data.success) {
+            replyAr = data.replyAr
+            replyEn = data.replyEn
+            keyMetrics = data.keyMetrics
+          }
+        } catch (e) {
+          // Continue to verified benchmark fallback
+        }
+      }
+
+      // 3. Final verified benchmark fallback
+      if (!replyAr && !replyEn) {
+        replyAr =
+          'وفقاً لبيانات أودو لشهر أكتوبر، صافي المبيعات هو مائة وسبعة وستون ألفاً واثنان وتسعون ديناراً كويتياً، والأرباح التشغيلية اثنان وأربعون ألفاً وأربعمائة وواحد وأربعون ديناراً كويتياً بهامش خمسة وعشرين بالمئة. خطة خفض الهدر وسقف الخصومات جاهزة للتنفيذ.'
+        replyEn =
+          'According to October Odoo figures, Net Sales stand at 167,092.160 KWD and Operating Profit at 42,441.480 KWD (25.4% margin). Waste elimination and discount capping plans are ready to deploy.'
+      }
+
+      const feryalMsgId = `feryal-${Date.now()}`
+      const feryalMsg = {
+        id: feryalMsgId,
+        sender: 'feryal' as const,
+        textAr: replyAr || replyEn,
+        textEn: replyEn || replyAr,
+        time: new Date().toLocaleTimeString(isAr ? 'ar-KW' : 'en-US', { hour: '2-digit', minute: '2-digit' }),
+        metrics: keyMetrics,
+      }
+      setMessages((prev) => [...prev, feryalMsg])
+      playFeryalSpeech(isAr ? feryalMsg.textAr : feryalMsg.textEn, feryalMsgId)
+    } catch (e) {
+      console.error('handleSendQuery error:', e)
+    } finally {
+      setIsCopilotThinking(false)
+    }
     },
     [inputText, isAr, playFeryalSpeech]
   )
@@ -798,6 +985,14 @@ export default function FeryalAiCommandPage() {
     if (typeof window === 'undefined') return
     setMicError(null)
 
+    // Ensure all audio output is paused before opening microphone (Prevents Windows Bluetooth channel conflict)
+    if (audioPlayerRef.current) {
+      audioPlayerRef.current.pause()
+    }
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel()
+    }
+
     // 1. Diagnostic Pre-check: Verify audio input device existence
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       setMicError(
@@ -808,40 +1003,21 @@ export default function FeryalAiCommandPage() {
       return
     }
 
-    try {
-      const devices = await navigator.mediaDevices.enumerateDevices().catch(() => [])
-      const hasAudioInput = devices.some((d) => d.kind === 'audioinput')
-      if (devices.length > 0 && !hasAudioInput) {
-        setMicError(
-          isAr
-            ? 'لا يوجد جهاز مايكروفون موصول بالكمبيوتر حالياً. يمكنك وصل سماعة/مايكروفون أو محاورة فريال كتابياً والاستماع لردها الصوتي.'
-            : 'No microphone is currently connected to your computer. Please connect a headset/microphone or chat with Feryal via text and listen to her voice.'
-        )
-        return
-      }
-    } catch {
-      // Continue to getUserMedia
-    }
-
     // Stop any existing recorder or recognizer
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.abort()
-      } catch {}
-    }
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-      try {
-        mediaRecorderRef.current.stop()
-      } catch {}
-    }
+    stopAllMicTracks()
 
-    // 2. Request microphone stream via getUserMedia with accurate error categorization
+    // 2. Request microphone stream via getUserMedia with selected device constraint
     let mediaStream: MediaStream | null = null
     try {
-      mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const audioConstraints: boolean | MediaTrackConstraints = selectedDeviceId
+        ? { deviceId: { exact: selectedDeviceId } }
+        : true
+      mediaStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints })
+      mediaStreamRef.current = mediaStream
     } catch (err: any) {
       setIsListening(false)
       isListeningRef.current = false
+      mediaStreamRef.current = null
 
       if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
         setMicError(
@@ -850,10 +1026,11 @@ export default function FeryalAiCommandPage() {
             : 'No microphone is currently connected to your computer. Please connect a headset/microphone or chat with Feryal via text and listen to her voice.'
         )
       } else if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        setPermissionPromptNeeded(true)
         setMicError(
           isAr
-            ? '⚠️ تم رفض إذن المايكروفون. يرجى السماح بالوصول للمايكروفون من إعدادات المتصفح لإجراء المحادثة الصوتية.'
-            : '⚠️ Microphone permission was denied. Please allow microphone access in your browser settings to use voice input.'
+            ? '⚠️ تم رفض إذن المايكروفون. انقر على أيقونة القفل أو المايك 🔒 في شريط عنوان المتصفح واختر "سماح" (Allow).'
+            : '⚠️ Microphone permission denied. Click the lock or mic icon 🔒 in the address bar and select "Allow".'
         )
       } else {
         setMicError(
@@ -877,9 +1054,8 @@ export default function FeryalAiCommandPage() {
       }
 
       mr.onstop = async () => {
-        if (mediaStream) {
-          mediaStream.getTracks().forEach((track) => track.stop())
-        }
+        // Immediately release all mic tracks so Bluetooth headset returns to Stereo sink!
+        stopAllMicTracks()
 
         if (audioChunksRef.current.length > 0) {
           const recordedBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
@@ -887,24 +1063,70 @@ export default function FeryalAiCommandPage() {
 
           setIsTranscribing(true)
           try {
+            const apiKey = getOpenAIApiKey()
             const fd = new FormData()
             fd.append('file', recordedBlob, 'audio.webm')
-            fd.append('lang', micLangRef.current)
+            fd.append('model', 'whisper-1')
+            fd.append('language', micLangRef.current === 'en' ? 'en' : 'ar')
+            fd.append(
+              'prompt',
+              micLangRef.current === 'en'
+                ? "Feryal, Venture Foods, Odoo ERP, Keeta, Talabat, Tgo, TMP, China Garden, Frank's, Tahina, KWD"
+                : 'فريال، فنتشر فودز، أودو، كيتا، طلبات، شاينا جاردن، فرانكس، طحينة، دينار كويتي، السالمية، الكوت'
+            )
 
-            const sttRes = await fetch('/api/feryal/stt', {
-              method: 'POST',
-              body: fd,
-            })
+            let finalQuery = ''
 
-            if (sttRes.ok) {
-              const sttData = await sttRes.json()
-              if (sttData.ok && sttData.transcript && sttData.transcript.trim()) {
-                const finalQuery = sttData.transcript.trim()
-                setInputText(finalQuery)
-                interimTranscriptRef.current = ''
-                handleSendQueryRef.current?.(finalQuery)
-                return
+            // 1. Direct Browser Request to OpenAI Whisper API (Zero Cloudflare Node / Buffer dependency)
+            if (apiKey) {
+              try {
+                const whisperRes = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+                  method: 'POST',
+                  headers: {
+                    Authorization: `Bearer ${apiKey}`,
+                  },
+                  body: fd,
+                })
+
+                if (whisperRes.ok) {
+                  const whisperData = await whisperRes.json()
+                  if (whisperData.text && whisperData.text.trim()) {
+                    finalQuery = whisperData.text.trim()
+                  }
+                } else {
+                  console.warn('Direct Whisper API returned status:', whisperRes.status)
+                }
+              } catch (directWhisperErr) {
+                console.warn('Direct Whisper API request failed:', directWhisperErr)
               }
+            }
+
+            // 2. Fallback to /api/feryal/stt
+            if (!finalQuery) {
+              try {
+                const sttRes = await fetch('/api/feryal/stt', {
+                  method: 'POST',
+                  body: fd,
+                })
+                if (sttRes.ok) {
+                  const sttData = await sttRes.json()
+                  if (sttData.ok && sttData.transcript && sttData.transcript.trim()) {
+                    finalQuery = sttData.transcript.trim()
+                  }
+                }
+              } catch {}
+            }
+
+            // 3. Fallback to Live Interim Transcript if available
+            if (!finalQuery && interimTranscriptRef.current.trim()) {
+              finalQuery = interimTranscriptRef.current.trim()
+            }
+
+            if (finalQuery) {
+              setInputText(finalQuery)
+              interimTranscriptRef.current = ''
+              handleSendQueryRef.current?.(finalQuery)
+              return
             }
           } catch (sttErr) {
             console.warn('Whisper STT request error, using fallback transcript:', sttErr)
@@ -1041,7 +1263,7 @@ export default function FeryalAiCommandPage() {
         // SpeechRecognition failed to start, MediaRecorder is still active
       }
     }
-  }, [isAr])
+  }, [isAr, selectedDeviceId, stopAllMicTracks])
 
   useEffect(() => {
     startListeningRef.current = startListening
@@ -1051,33 +1273,23 @@ export default function FeryalAiCommandPage() {
   const toggleListening = useCallback(() => {
     if (isListening) {
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop()
-        } catch {}
-      }
       if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
         try {
           mediaRecorderRef.current.stop()
         } catch {}
       }
-      setIsListening(false)
-      isListeningRef.current = false
+      stopAllMicTracks()
     } else {
       startListening()
     }
-  }, [isListening, startListening])
+  }, [isListening, startListening, stopAllMicTracks])
 
   // Component unmount cleanup
   useEffect(() => {
     const player = audioPlayerRef.current
     return () => {
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.abort()
-        } catch {}
-      }
+      stopAllMicTracks()
       if (player) {
         player.pause()
       }
@@ -1085,7 +1297,7 @@ export default function FeryalAiCommandPage() {
         window.speechSynthesis.cancel()
       }
     }
-  }, [])
+  }, [stopAllMicTracks])
 
   // Set initial welcome audio stream so the player is ready immediately
   useEffect(() => {
@@ -1094,7 +1306,9 @@ export default function FeryalAiCommandPage() {
         ? 'مرحباً بك يا سعادة المدير. أنا المستشارة فريال، جاهزة لخدمتك.'
         : 'Welcome, Executive Leader. I am Feryal, your AI Executive Copilot.'
       const clean = sanitizeTextForSpeechClient(defaultText, isAr ? 'ar' : 'en')
-      audioPlayerRef.current.src = `/api/feryal/tts?lang=${isAr ? 'ar' : 'en'}&text=${encodeURIComponent(clean)}`
+      audioPlayerRef.current.src = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${
+        isAr ? 'ar' : 'en'
+      }&q=${encodeURIComponent(clean)}`
     }
   }, [isAr])
 
@@ -1377,22 +1591,22 @@ export default function FeryalAiCommandPage() {
             {/* ROW 2: Control Action Buttons in horizontal row */}
             <div className="flex flex-wrap items-center justify-between gap-2 pt-1.5 border-t border-slate-800">
               <div className="flex flex-wrap items-center gap-2">
-                {/* Test Voice Button */}
+                {/* Test Voice in Bluetooth Headset Button */}
                 <button
                   type="button"
                   onClick={() => {
                     playFeryalSpeech(
                       isAr
-                        ? 'مرحباً بك يا سعادة المدير. المحرك الصوتي الذكي متصل بنجاح وجاهز للاستشارة الفورية.'
-                        : 'Welcome, Executive Leader. High-fidelity voice engine is fully active and ready for advisory.',
+                        ? 'مرحباً بك يا سعادة المدير. المحرك الصوتي الذكي متصل بنجاح ويعمل بنقاء تام في سماعة البلوتوث.'
+                        : 'Welcome, Executive Leader. AI voice engine is active with crystal clear audio in your Bluetooth headset.',
                       'test-voice'
                     )
                   }}
                   className="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 transition-all flex items-center gap-1.5 shadow-2xs"
-                  title={isAr ? 'اختبار خروج الصوت' : 'Test Audio Playback'}
+                  title={isAr ? 'اختبار خروج الصوت في سماعة البلوتوث' : 'Test Bluetooth Headset Audio Playback'}
                 >
                   <Volume2 className="h-3.5 w-3.5 text-blue-400 shrink-0" />
-                  <span>{isAr ? '🔊 اختبار الصوت الآن' : '🔊 Test Voice'}</span>
+                  <span>{isAr ? '🔊 اختبار الصوت في سماعة البلوتوث الآن' : '🔊 Test Bluetooth Audio Now'}</span>
                 </button>
 
                 {/* TTS Voice Mute Toggle */}
@@ -1476,7 +1690,7 @@ export default function FeryalAiCommandPage() {
                 ref={audioPlayerRef}
                 controls
                 preload="auto"
-                className="w-full h-10 rounded-xl mt-2 bg-slate-900 border border-slate-700/80 shadow-inner"
+                className="w-full h-11 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 shadow-sm mt-2"
               />
             </div>
           </div>
@@ -1608,6 +1822,87 @@ export default function FeryalAiCommandPage() {
             </div>
           )}
 
+          {/* Bluetooth & Mic Device Modal / Popover */}
+          {showDevicePicker && (
+            <div className="border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-3.5 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Headphones className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-xs font-bold text-slate-900 dark:text-white">
+                    {isAr ? 'إعدادات سماعة البلوتوث وقناة المايكروفون' : 'Bluetooth Headset & Microphone Settings'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowDevicePicker(false)}
+                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs px-2 py-0.5 rounded font-bold"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Half-Duplex Auto Mode Notice */}
+              <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 p-2.5 text-[11px] text-emerald-800 dark:text-emerald-300 leading-relaxed font-medium">
+                {isAr
+                  ? '⚡ وضع التوافق الذكي (Half-Duplex) مفعّل تلقائياً: يتم تحرير قناة المايكروفون وإغلاقها فور انتهاء الكلام لتنتقل سماعة البلوتوث تلقائياً إلى وضع الستيريو (Stereo) لسماع رد فريال بأعلى نقاء وبدون أي كتم.'
+                  : '⚡ Smart Half-Duplex Mode Active: Microphone channels are automatically released when speech finishes, allowing Bluetooth headsets to return to Stereo sink for crisp playback.'}
+              </div>
+
+              {/* Device Selector */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300 block">
+                  {isAr ? 'اختر جهاز المايكروفون / سماعة البلوتوث:' : 'Select Audio Input / Bluetooth Headset:'}
+                </label>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={selectedDeviceId}
+                    onChange={(e) => setSelectedDeviceId(e.target.value)}
+                    className="flex-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  >
+                    <option value="">
+                      {isAr ? '🎙️ المايكروفون الافتراضي / سماعة البلوتوث المتصلة' : '🎙️ Default / Connected Bluetooth Headset'}
+                    </option>
+                    {audioDevices.map((device, idx) => (
+                      <option key={device.deviceId || idx} value={device.deviceId}>
+                        {device.label || (isAr ? `جهاز مايكروفون ${idx + 1}` : `Audio Device ${idx + 1}`)}
+                      </option>
+                    ))}
+                  </select>
+
+                  <button
+                    type="button"
+                    onClick={() => fetchAudioDevices(true)}
+                    className="px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 text-xs font-bold text-slate-700 dark:text-slate-200 transition-all shrink-0"
+                    title={isAr ? 'تحديث قائمة الأجهزة' : 'Refresh Devices'}
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Permission Helper if no device labels or error */}
+              {(permissionPromptNeeded || audioDevices.length === 0 || !audioDevices.some((d) => Boolean(d.label))) && (
+                <div className="rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 p-2.5 text-[11px] text-amber-800 dark:text-amber-300 space-y-1.5 font-medium">
+                  <div className="font-bold flex items-center gap-1.5">
+                    <span>🔒 {isAr ? 'خطوة سريعة لفك حظر المايكروفون:' : 'Quick Step to Unblock Microphone:'}</span>
+                  </div>
+                  <p className="leading-relaxed">
+                    {isAr
+                      ? 'انقر على أيقونة القفل أو المايكروفون في شريط عنوان المتصفح بجانب الرابط (URL) 🔒 واختر "السماح" (Allow) للمايكروفون، ثم اضغط زر "طلب الإذن والتحديث" أدناه.'
+                      : 'Click the Lock or Microphone icon in your browser address bar (URL) 🔒 and choose "Allow", then click "Grant Permission & Refresh" below.'}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => fetchAudioDevices(true)}
+                    className="mt-1 px-3 py-1.5 rounded-md bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs transition-all shadow-xs"
+                  >
+                    {isAr ? 'طلب الإذن وتحديث القائمة الآن' : 'Grant Permission & Refresh'}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Bottom Prominent Input Bar */}
           <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-3.5 sm:p-4">
             <form
@@ -1637,6 +1932,25 @@ export default function FeryalAiCommandPage() {
                     ? 'تحدث'
                     : 'Speak'}
                 </span>
+              </button>
+
+              {/* Bluetooth Headset Quick Device Picker Toggle */}
+              <button
+                type="button"
+                onClick={() => {
+                  const next = !showDevicePicker
+                  setShowDevicePicker(next)
+                  if (next) fetchAudioDevices(false)
+                }}
+                className={`p-3 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
+                  showDevicePicker
+                    ? 'bg-emerald-600 border-emerald-500 text-white'
+                    : 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:bg-slate-200'
+                }`}
+                title={isAr ? 'إعداد سماعة البلوتوث والمايكروفون' : 'Bluetooth Headset & Mic Settings'}
+              >
+                <Headphones className={`h-4 w-4 ${showDevicePicker ? 'text-white' : 'text-emerald-600 dark:text-emerald-400'}`} />
+                <span className="hidden md:inline">{isAr ? '🎧 إعداد البلوتوث / المايك' : '🎧 Bluetooth / Mic'}</span>
               </button>
 
               <input
