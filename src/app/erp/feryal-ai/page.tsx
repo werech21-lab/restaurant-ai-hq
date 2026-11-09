@@ -302,9 +302,42 @@ export default function FeryalAiCommandPage() {
   const [micLang, setMicLang] = useState<'ar' | 'en'>(isAr ? 'ar' : 'en')
   const [isVoiceMuted, setIsVoiceMuted] = useState(false)
   const [playingMsgId, setPlayingMsgId] = useState<string | null>(null)
+  const [isHandsFree, setIsHandsFree] = useState(false)
+  const [micError, setMicError] = useState<string | null>(null)
+
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null)
   const recognitionRef = useRef<any>(null)
   const chatScrollRef = useRef<HTMLDivElement>(null)
+
+  const isHandsFreeRef = useRef(false)
+  const isVoiceMutedRef = useRef(false)
+  const isListeningRef = useRef(false)
+  const micLangRef = useRef<'ar' | 'en'>(isAr ? 'ar' : 'en')
+  const handleSendQueryRef = useRef<((text?: string) => Promise<void>) | null>(null)
+  const startListeningRef = useRef<(() => void) | null>(null)
+  const silenceTimerRef = useRef<any>(null)
+  const interimTranscriptRef = useRef<string>('')
+
+  // Sync refs with states to prevent stale closures in async callbacks
+  useEffect(() => {
+    isHandsFreeRef.current = isHandsFree
+  }, [isHandsFree])
+
+  useEffect(() => {
+    isVoiceMutedRef.current = isVoiceMuted
+  }, [isVoiceMuted])
+
+  useEffect(() => {
+    micLangRef.current = micLang
+  }, [micLang])
+
+  useEffect(() => {
+    isListeningRef.current = isListening
+  }, [isListening])
+
+  useEffect(() => {
+    setMicLang(isAr ? 'ar' : 'en')
+  }, [isAr])
 
   // Four Smart Services Hub States
   const [hubLoading, setHubLoading] = useState(false)
@@ -378,7 +411,15 @@ export default function FeryalAiCommandPage() {
         utterance.voice = femaleVoice
       }
 
-      utterance.onend = () => setPlayingMsgId(null)
+      utterance.onend = () => {
+        setPlayingMsgId(null)
+        // Hands-Free conversation loop: automatically open microphone after speech finishes
+        if (isHandsFreeRef.current && !isVoiceMutedRef.current) {
+          setTimeout(() => {
+            startListeningRef.current?.()
+          }, 600)
+        }
+      }
       utterance.onerror = () => setPlayingMsgId(null)
       window.speechSynthesis.speak(utterance)
     } catch (e) {
@@ -390,6 +431,15 @@ export default function FeryalAiCommandPage() {
   const playFeryalSpeech = useCallback(
     async (text: string, msgId?: string) => {
       if (isVoiceMuted) return
+
+      // Stop any existing mic listening to prevent acoustic echo feedback
+      if (recognitionRef.current && isListeningRef.current) {
+        try {
+          recognitionRef.current.abort()
+        } catch {}
+        setIsListening(false)
+        isListeningRef.current = false
+      }
 
       // Stop any existing playback
       if (audioPlayerRef.current) {
@@ -420,6 +470,12 @@ export default function FeryalAiCommandPage() {
           audio.onended = () => {
             setPlayingMsgId(null)
             URL.revokeObjectURL(audioUrl)
+            // Hands-Free conversation loop: automatically open microphone after speech finishes
+            if (isHandsFreeRef.current && !isVoiceMutedRef.current) {
+              setTimeout(() => {
+                startListeningRef.current?.()
+              }, 600)
+            }
           }
 
           audio.onerror = () => {
@@ -566,102 +622,248 @@ export default function FeryalAiCommandPage() {
     handleRunPlaywright(portalSelect, isAr ? 'ar' : 'en')
   }, [isAr, handleRunPerplexity, handleRunFirecrawl, handleRunPlaywright, portalSelect])
 
-  // Initialize Web Speech API for voice recognition
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-      if (SpeechRecognition) {
-        const recognizer = new SpeechRecognition()
-        recognizer.continuous = false
-        recognizer.interimResults = false
-        recognizer.lang = micLang === 'ar' ? 'ar-KW' : 'en-US'
+  // Handle Send Query to Feryal (Memoized)
+  const handleSendQuery = useCallback(
+    async (queryText?: string) => {
+      const textToSend = queryText || inputText
+      if (!textToSend.trim()) return
 
-        recognizer.onresult = (event: any) => {
-          const transcript = event.results[0][0].transcript
-          setInputText(transcript)
-          setIsListening(false)
-          handleSendQuery(transcript)
-        }
-
-        recognizer.onerror = () => setIsListening(false)
-        recognizer.onend = () => setIsListening(false)
-
-        recognitionRef.current = recognizer
+      const userMsgId = `user-${Date.now()}`
+      const newMsg = {
+        id: userMsgId,
+        sender: 'user' as const,
+        textAr: textToSend,
+        textEn: textToSend,
+        time: new Date().toLocaleTimeString(isAr ? 'ar-KW' : 'en-US', { hour: '2-digit', minute: '2-digit' }),
       }
-    }
-  }, [micLang])
 
-  // Toggle Voice Input
-  const toggleListening = () => {
-    if (!recognitionRef.current) return
-    if (isListening) {
-      recognitionRef.current.stop()
-      setIsListening(false)
-    } else {
+      setMessages((prev) => [...prev, newMsg])
+      setInputText('')
+      setIsCopilotThinking(true)
+
       try {
-        recognitionRef.current.lang = micLang === 'ar' ? 'ar-KW' : 'en-US'
-        recognitionRef.current.start()
-        setIsListening(true)
-      } catch (err) {
+        const res = await fetch('/api/feryal', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'chat', query: textToSend, lang: isAr ? 'ar' : 'en' }),
+        })
+
+        const data = await res.json()
+        if (data.success) {
+          const feryalMsgId = `feryal-${Date.now()}`
+          const feryalMsg = {
+            id: feryalMsgId,
+            sender: 'feryal' as const,
+            textAr: data.replyAr,
+            textEn: data.replyEn,
+            time: new Date().toLocaleTimeString(isAr ? 'ar-KW' : 'en-US', { hour: '2-digit', minute: '2-digit' }),
+            metrics: data.keyMetrics,
+          }
+          setMessages((prev) => [...prev, feryalMsg])
+          playFeryalSpeech(isAr ? data.replyAr : data.replyEn, feryalMsgId)
+        }
+      } catch (e) {
+        const fallbackMsgId = `feryal-${Date.now()}`
+        const fallbackMsg = {
+          id: fallbackMsgId,
+          sender: 'feryal' as const,
+          textAr:
+            'وفقاً لبيانات أودو لشهر أكتوبر، صافي المبيعات هو مائة وسبعة وستون ألفاً واثنان وتسعون ديناراً كويتياً، والأرباح التشغيلية اثنان وأربعون ألفاً وأربعمائة وواحد وأربعون ديناراً كويتياً بهامش خمسة وعشرين بالمئة. خطة خفض الهدر وسقف الخصومات جاهزة للتنفيذ.',
+          textEn:
+            'According to October Odoo figures, Net Sales stand at 167,092.160 KWD and Operating Profit at 42,441.480 KWD (25.4% margin). Waste elimination and discount capping plans are ready to deploy.',
+          time: isAr ? 'الآن' : 'Just now',
+        }
+        setMessages((prev) => [...prev, fallbackMsg])
+        playFeryalSpeech(isAr ? fallbackMsg.textAr : fallbackMsg.textEn, fallbackMsgId)
+      } finally {
+        setIsCopilotThinking(false)
+      }
+    },
+    [inputText, isAr, playFeryalSpeech]
+  )
+
+  useEffect(() => {
+    handleSendQueryRef.current = handleSendQuery
+  }, [handleSendQuery])
+
+  // Start Speech Recognition with Live Interim Transcript and Smart Pause Tolerance
+  const startListening = useCallback(() => {
+    if (typeof window === 'undefined') return
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    if (!SpeechRecognition) {
+      setMicError(
+        isAr
+          ? 'المتصفح الحالي لا يدعم التعرف الصوتي المباشر.'
+          : 'Speech Recognition is not supported by your browser.'
+      )
+      return
+    }
+
+    setMicError(null)
+
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort()
+      } catch {}
+    }
+
+    const recognizer = new SpeechRecognition()
+    recognizer.continuous = false
+    recognizer.interimResults = true
+    recognizer.lang = micLangRef.current === 'ar' ? 'ar-KW' : 'en-US'
+    recognizer.maxAlternatives = 1
+
+    interimTranscriptRef.current = ''
+
+    recognizer.onstart = () => {
+      setIsListening(true)
+      isListeningRef.current = true
+      setMicError(null)
+    }
+
+    recognizer.onresult = (event: any) => {
+      let interimText = ''
+      let finalText = ''
+
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        const item = event.results[i]
+        const transcript = item[0]?.transcript || ''
+        if (item.isFinal) {
+          finalText += transcript
+        } else {
+          interimText += transcript
+        }
+      }
+
+      const liveText = (finalText || interimText).trim()
+      if (liveText) {
+        setInputText(liveText)
+        interimTranscriptRef.current = liveText
+      }
+
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current)
+        silenceTimerRef.current = null
+      }
+
+      if (finalText.trim()) {
+        const queryToSend = finalText.trim()
+        interimTranscriptRef.current = ''
         setIsListening(false)
+        isListeningRef.current = false
+        try {
+          recognizer.stop()
+        } catch {}
+        handleSendQueryRef.current?.(queryToSend)
+      } else if (interimText.trim()) {
+        // Smart pause tolerance: if user stops speaking for 1.8s, submit automatically
+        silenceTimerRef.current = setTimeout(() => {
+          if (interimTranscriptRef.current.trim() && isListeningRef.current) {
+            const queryToSend = interimTranscriptRef.current.trim()
+            interimTranscriptRef.current = ''
+            setIsListening(false)
+            isListeningRef.current = false
+            try {
+              recognizer.stop()
+            } catch {}
+            handleSendQueryRef.current?.(queryToSend)
+          }
+        }, 1800)
       }
     }
-  }
 
-  // Handle Send Query to Feryal
-  const handleSendQuery = async (queryText?: string) => {
-    const textToSend = queryText || inputText
-    if (!textToSend.trim()) return
+    recognizer.onerror = (event: any) => {
+      setIsListening(false)
+      isListeningRef.current = false
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
 
-    const userMsgId = `user-${Date.now()}`
-    const newMsg = {
-      id: userMsgId,
-      sender: 'user' as const,
-      textAr: textToSend,
-      textEn: textToSend,
-      time: new Date().toLocaleTimeString(isAr ? 'ar-KW' : 'en-US', { hour: '2-digit', minute: '2-digit' }),
+      const err = event.error
+      if (err === 'not-allowed' || err === 'service-not-allowed') {
+        setMicError(
+          isAr
+            ? '⚠️ تم حظر إذن المايكروفون. يرجى تفعيل إذن المايك في إعدادات المتصفح لإجراء المحادثة الصوتية.'
+            : '⚠️ Microphone permission denied. Please allow microphone access in your browser settings.'
+        )
+      } else if (err === 'no-speech') {
+        setMicError(
+          isAr
+            ? '🎙️ لم يتم رصد أي صوت. يمكنك إعادة الضغط على المايك والتحدث مجدداً.'
+            : '🎙️ No speech detected. Please click the mic and try again.'
+        )
+      } else if (err === 'audio-capture') {
+        setMicError(
+          isAr
+            ? '⚠️ تعذر العثور على مايكروفون متصل. يرجى التحقق من أجهزة الصوت.'
+            : '⚠️ No microphone input detected. Please check your audio device.'
+        )
+      } else if (err !== 'aborted') {
+        setMicError(
+          isAr
+            ? '⚠️ حدث انقطاع في الاتصال الصوتي. يرجى إعادة المحاولة.'
+            : '⚠️ Speech recognition interrupted. Please try again.'
+        )
+      }
     }
 
-    setMessages((prev) => [...prev, newMsg])
-    setInputText('')
-    setIsCopilotThinking(true)
+    recognizer.onend = () => {
+      setIsListening(false)
+      isListeningRef.current = false
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
+
+      if (interimTranscriptRef.current.trim()) {
+        const queryToSend = interimTranscriptRef.current.trim()
+        interimTranscriptRef.current = ''
+        handleSendQueryRef.current?.(queryToSend)
+      }
+    }
+
+    recognitionRef.current = recognizer
 
     try {
-      const res = await fetch('/api/feryal', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'chat', query: textToSend, lang: isAr ? 'ar' : 'en' }),
-      })
-
-      const data = await res.json()
-      if (data.success) {
-        const feryalMsgId = `feryal-${Date.now()}`
-        const feryalMsg = {
-          id: feryalMsgId,
-          sender: 'feryal' as const,
-          textAr: data.replyAr,
-          textEn: data.replyEn,
-          time: new Date().toLocaleTimeString(isAr ? 'ar-KW' : 'en-US', { hour: '2-digit', minute: '2-digit' }),
-          metrics: data.keyMetrics,
-        }
-        setMessages((prev) => [...prev, feryalMsg])
-        playFeryalSpeech(isAr ? data.replyAr : data.replyEn, feryalMsgId)
-      }
+      recognizer.start()
     } catch (e) {
-      const fallbackMsgId = `feryal-${Date.now()}`
-      const fallbackMsg = {
-        id: fallbackMsgId,
-        sender: 'feryal' as const,
-        textAr: 'وفقاً لبيانات أودو لشهر أكتوبر، صافي المبيعات هو مائة وسبعة وستون ألفاً واثنان وتسعون ديناراً كويتياً، والأرباح التشغيلية اثنان وأربعون ألفاً وأربعمائة وواحد وأربعون ديناراً كويتياً بهامش خمسة وعشرين بالمئة. خطة خفض الهدر وسقف الخصومات جاهزة للتنفيذ.',
-        textEn: 'According to October Odoo figures, Net Sales stand at 167,092.160 KWD and Operating Profit at 42,441.480 KWD (25.4% margin). Waste elimination and discount capping plans are ready to deploy.',
-        time: isAr ? 'الآن' : 'Just now',
-      }
-      setMessages((prev) => [...prev, fallbackMsg])
-      playFeryalSpeech(isAr ? fallbackMsg.textAr : fallbackMsg.textEn, fallbackMsgId)
-    } finally {
-      setIsCopilotThinking(false)
+      setIsListening(false)
+      isListeningRef.current = false
     }
-  }
+  }, [isAr])
+
+  useEffect(() => {
+    startListeningRef.current = startListening
+  }, [startListening])
+
+  // Toggle Voice Input
+  const toggleListening = useCallback(() => {
+    if (isListening) {
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop()
+        } catch {}
+      }
+      setIsListening(false)
+      isListeningRef.current = false
+    } else {
+      startListening()
+    }
+  }, [isListening, startListening])
+
+  // Component unmount cleanup
+  useEffect(() => {
+    return () => {
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort()
+        } catch {}
+      }
+      if (audioPlayerRef.current) {
+        audioPlayerRef.current.pause()
+      }
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel()
+      }
+    }
+  }, [])
 
   // Dispatch Composio Action
   const handleDispatchComposio = async (planId: string, actionType: string) => {
@@ -928,14 +1130,54 @@ export default function FeryalAiCommandPage() {
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
+              {/* Hands-Free Conversation Mode Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  const nextState = !isHandsFree
+                  setIsHandsFree(nextState)
+                  isHandsFreeRef.current = nextState
+                  if (nextState) {
+                    if (!playingMsgId && !isListening) {
+                      startListening()
+                    }
+                  } else {
+                    if (isListening) {
+                      toggleListening()
+                    }
+                  }
+                }}
+                className={`px-3 py-1.5 rounded-lg border text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  isHandsFree
+                    ? 'border-emerald-500 bg-emerald-600 text-white shadow-xs ring-2 ring-emerald-400/50'
+                    : 'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white'
+                }`}
+                title={
+                  isHandsFree
+                    ? isAr
+                      ? 'إيقاف وضع الحوار الصوتي المستمر'
+                      : 'Disable Hands-Free Conversation Mode'
+                    : isAr
+                    ? 'تفعيل وضع الحوار الصوتي المستمر بعد كل إجابة'
+                    : 'Enable Hands-Free Conversation Mode'
+                }
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${isHandsFree ? 'animate-spin text-white' : 'text-slate-400'}`} />
+                <span>{isAr ? '🔄 حوار صوتي مستمر' : '🔄 Hands-Free Mode'}</span>
+              </button>
+
               {/* Mic language toggle */}
               <button
                 type="button"
-                onClick={() => setMicLang(micLang === 'ar' ? 'en' : 'ar')}
+                onClick={() => {
+                  const nextLang = micLang === 'ar' ? 'en' : 'ar'
+                  setMicLang(nextLang)
+                  micLangRef.current = nextLang
+                }}
                 className="px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-800 text-xs font-bold text-slate-200 hover:bg-slate-700 transition-all"
                 title={isAr ? 'تبديل لغة الاستماع' : 'Switch Voice Language'}
               >
-                🎙️ {isAr ? (micLang === 'ar' ? 'عربي' : 'إنجليزي') : (micLang === 'ar' ? 'AR' : 'EN')}
+                🎙️ {micLang === 'ar' ? (isAr ? 'عربي' : 'AR') : (isAr ? 'إنجليزي' : 'EN')}
               </button>
 
               {/* TTS Voice Mute Toggle */}
@@ -1035,18 +1277,43 @@ export default function FeryalAiCommandPage() {
             )}
           </div>
 
-          {/* Voice Waveform Alert (when mic is actively listening) */}
-          {isListening && (
-            <div className="px-4 py-2.5 bg-rose-50 dark:bg-rose-950/30 border-t border-rose-200 dark:border-rose-900 flex items-center justify-between text-xs font-bold text-rose-800 dark:text-rose-300">
+          {/* Microphone Error Alert (Auto-dismissable & Non-blocking) */}
+          {micError && (
+            <div className="px-4 py-2.5 bg-amber-50 dark:bg-amber-950/40 border-t border-amber-200 dark:border-amber-800 flex items-center justify-between text-xs font-semibold text-amber-800 dark:text-amber-300">
               <div className="flex items-center gap-2">
-                <span className="relative flex h-2.5 w-2.5">
+                <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                <span>{micError}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMicError(null)}
+                className="text-amber-700 hover:text-amber-950 dark:hover:text-amber-100 text-xs font-bold px-2 py-0.5 rounded"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          {/* Voice Waveform Alert & Live Status Indicator (when mic is actively listening) */}
+          {isListening && (
+            <div className="px-4 py-2.5 bg-rose-50 dark:bg-rose-950/40 border-t border-rose-200 dark:border-rose-900 flex items-center justify-between text-xs font-bold text-rose-800 dark:text-rose-300">
+              <div className="flex items-center gap-2.5">
+                <span className="relative flex h-3 w-3">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-600" />
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-600" />
                 </span>
-                <span>{isAr ? 'جاري الاستماع لصوتك (تحدث الآن)...' : 'Listening to voice stream (Speak now)...'}</span>
+                <span className="animate-pulse">
+                  {micLang === 'ar' ? '🎙️ تحدث الآن بالعربية...' : '🎙️ Speak now in English...'}
+                </span>
+                {isHandsFree && (
+                  <span className="bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold flex items-center gap-1">
+                    <RefreshCw className="h-3 w-3 animate-spin text-emerald-600 dark:text-emerald-400" />
+                    <span>{isAr ? 'وضع الاجتماع الحر نشط' : 'Hands-Free Loop Active'}</span>
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-1 h-4">
-                {[0.4, 0.8, 1.2, 0.6, 1.0, 0.5, 0.9].map((scale, i) => (
+                {[0.4, 0.9, 1.4, 0.7, 1.2, 0.5, 1.0].map((scale, i) => (
                   <div
                     key={i}
                     className="w-1 bg-rose-600 rounded-full animate-pulse"
@@ -1069,22 +1336,38 @@ export default function FeryalAiCommandPage() {
               <button
                 type="button"
                 onClick={toggleListening}
-                className={`p-3 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
+                className={`p-3 rounded-xl border text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${
                   isListening
-                    ? 'bg-rose-600 border-rose-500 text-white animate-pulse'
+                    ? 'bg-rose-600 border-rose-500 text-white animate-pulse shadow-md ring-2 ring-rose-400'
                     : 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:bg-slate-200'
                 }`}
-                title={isListening ? (isAr ? 'إيقاف الميكروفون' : 'Stop Microphone') : isAr ? 'تحدث مع فريال' : 'Speak to Feryal'}
+                title={isListening ? (isAr ? 'إيقاف المايكروفون' : 'Stop Microphone') : isAr ? 'تحدث مع فريال' : 'Speak to Feryal'}
               >
                 {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4 text-blue-600" />}
-                <span className="hidden sm:inline">{isListening ? (isAr ? 'استماع...' : 'Listening...') : isAr ? 'تحدث' : 'Speak'}</span>
+                <span className="hidden sm:inline">
+                  {isListening
+                    ? micLang === 'ar'
+                      ? '🎙️ تحدث الآن بالعربية...'
+                      : '🎙️ Speak now in English...'
+                    : isAr
+                    ? 'تحدث'
+                    : 'Speak'}
+                </span>
               </button>
 
               <input
                 type="text"
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
-                placeholder={isAr ? 'اسأل فريال عن أرقام المبيعات، الهدر، أو الفروع...' : 'Ask Feryal about sales, waste, or branches...'}
+                placeholder={
+                  isListening
+                    ? micLang === 'ar'
+                      ? '🎙️ جاري الاستماع لصوتك... تفضل بالتحدث'
+                      : '🎙️ Listening to your voice... Speak now'
+                    : isAr
+                    ? 'اسأل فريال عن أرقام المبيعات، الهدر، أو الفروع...'
+                    : 'Ask Feryal about sales, waste, or branches...'
+                }
                 className="flex-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-4 py-3 text-sm font-medium text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
               />
 
