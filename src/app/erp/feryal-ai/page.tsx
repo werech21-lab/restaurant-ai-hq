@@ -1501,84 +1501,86 @@ Provide crisp, executive-grade advisory.`
       {/* ==================================================================== */}
       {/* 3. TWO-COLUMN SPLIT: BILINGUAL COPILOT & STRATEGIC 4-STAGE ENGINE */}
       {/* ==================================================================== */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
         {/* ================================================================ */}
-        {/* LEFT COLUMN: THE COPILOT "FERYAL" (Natural Voice & Text Engine) */}
+        {/* LEFT COLUMN: THE COPILOT "FERYAL" & EXECUTIVE PULSE UNITS */}
         {/* ================================================================ */}
-        <section className="lg:col-span-5 bg-white dark:bg-[#111827] rounded-2xl shadow-xs ring-1 ring-slate-200/90 dark:ring-slate-800 flex flex-col min-h-[780px] lg:h-[840px] overflow-hidden">
-          {/* Elegant Dark Navy Header with Two Clear Unsquished Rows */}
-          <div className="bg-[#0F172A] text-white p-4 sm:p-5 flex flex-col gap-3.5">
-            {/* ROW 1: Bot Avatar + Full Unsquished Title + Status Pill */}
-            <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="lg:col-span-5 flex flex-col justify-between gap-5">
+          {/* 1. THE COPILOT "FERYAL" (Natural Voice & Text Engine) */}
+          <div className="bg-white dark:bg-[#111827] rounded-2xl shadow-xs ring-1 ring-slate-200/90 dark:ring-slate-800 flex flex-col overflow-hidden">
+            {/* Unified Compact Header Toolbar */}
+            <div className="bg-[#F7F7F8] dark:bg-slate-900/90 border-b border-slate-200/80 dark:border-slate-800 p-3.5 sm:p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+              {/* Left: Avatar + Title */}
               <div className="flex items-center gap-3">
                 <div className="relative shrink-0">
-                  <div className="h-11 w-11 rounded-full bg-blue-600 flex items-center justify-center text-white shadow-sm">
-                    <Bot className="h-6 w-6" />
+                  <div className="h-10 w-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-xs">
+                    <Bot className="h-5 w-5" />
                   </div>
-                  <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 border-2 border-[#0F172A]" />
+                  <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900" />
                 </div>
                 <div>
-                  <h3 className="text-base sm:text-lg font-extrabold text-white whitespace-nowrap tracking-tight">
-                    {isAr ? 'فريال — المستشارة التنفيذية الذكية' : 'Feryal — Executive AI Copilot'}
-                  </h3>
-                  <p className="text-xs text-slate-300 font-medium">
-                    {isAr ? 'المحرك الصوتي والاستراتيجي المعتمد لمجموعة فنتشر فودز' : 'Executive Voice & Strategy Engine for Venture Foods'}
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-semibold tracking-tight text-slate-900 dark:text-white whitespace-nowrap">
+                      {isAr ? 'المستشارة الذكية فريال' : 'Advisor Feryal Copilot'}
+                    </h3>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <span>{isAr ? 'متصلة بأودو' : 'Odoo Synced'}</span>
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                    {isAr ? 'استشارات تنفيذية فورية · فنتشر فودز' : 'Executive Copilot · Venture Foods'}
                   </p>
                 </div>
               </div>
 
-              {/* Status Badge in clean horizontal pill */}
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 whitespace-nowrap">
-                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-                <span>{isAr ? 'المحرك الصوتي الذكي متصل ونشط تلقائياً' : 'AI Voice Engine Active & Connected'}</span>
-              </span>
-            </div>
-
-            {/* ROW 2: Control Action Buttons in horizontal row */}
-            <div className="flex flex-wrap items-center justify-between gap-2 pt-1.5 border-t border-slate-800">
-              <div className="flex flex-wrap items-center gap-2">
-                {/* Test Voice in Bluetooth Headset Button */}
+              {/* Right: Compact Audio Toolbar */}
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
                 <button
                   type="button"
                   onClick={() => {
-                    playFeryalSpeech(
-                      isAr
-                        ? 'مرحباً بك يا سعادة المدير. المحرك الصوتي الذكي متصل بنجاح ويعمل بنقاء تام في سماعة البلوتوث.'
-                        : 'Welcome, Executive Leader. AI voice engine is active with crystal clear audio in your Bluetooth headset.',
-                      'test-voice'
-                    )
+                    const lastMsg = messages[messages.length - 1]
+                    const textToSpeak = lastMsg
+                      ? isAr
+                        ? lastMsg.textAr
+                        : lastMsg.textEn
+                      : isAr
+                      ? 'مرحباً بك يا سعادة المدير. أنا المستشارة فريال، جاهزة لخدمتك.'
+                      : 'Welcome, Executive Leader. I am Feryal, your AI Executive Copilot.'
+                    playFeryalSpeech(textToSpeak, 'manual-header-play')
                   }}
-                  className="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 transition-all flex items-center gap-1.5 shadow-2xs"
-                  title={isAr ? 'اختبار خروج الصوت في سماعة البلوتوث' : 'Test Bluetooth Headset Audio Playback'}
+                  className="px-3 py-1.5 rounded-xl bg-[#2563EB] hover:bg-blue-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-2xs transition-all shrink-0 cursor-pointer"
+                  title={isAr ? 'الاستماع لصوت فريال' : 'Listen to Feryal Voice'}
                 >
-                  <Volume2 className="h-3.5 w-3.5 text-blue-400 shrink-0" />
-                  <span>{isAr ? '🔊 اختبار الصوت في سماعة البلوتوث الآن' : '🔊 Test Bluetooth Audio Now'}</span>
+                  <Volume2 className="h-3.5 w-3.5 shrink-0" />
+                  <span>{isAr ? '🔊 استمع لصوت فريال' : '🔊 Listen to Feryal (Nova)'}</span>
                 </button>
 
-                {/* TTS Voice Mute Toggle */}
+                {/* Compact Audio Player */}
+                <audio ref={audioPlayerRef} controls preload="auto" className="h-8 w-40 sm:w-48 rounded-lg shadow-2xs" />
+
+                {/* Voice Status Toggle Pill */}
                 <button
                   type="button"
                   onClick={() => {
-                    if (audioPlayerRef.current) {
-                      audioPlayerRef.current.pause()
-                    }
-                    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-                      window.speechSynthesis.cancel()
-                    }
+                    if (audioPlayerRef.current) audioPlayerRef.current.pause()
+                    if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel()
                     setIsVoiceMuted(!isVoiceMuted)
                   }}
-                  className={`px-3 py-1.5 rounded-lg border text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs ${
+                  className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-bold transition-all flex items-center gap-1 ${
                     isVoiceMuted
-                      ? 'border-slate-700 bg-slate-800 text-slate-400 hover:bg-slate-750'
-                      : 'border-blue-500 bg-blue-600 text-white'
+                      ? 'border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500'
+                      : 'border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300'
                   }`}
-                  title={isVoiceMuted ? (isAr ? 'تفعيل الرد الصوتي' : 'Enable Voice Response') : (isAr ? 'كتم الرد الصوتي' : 'Mute Voice Response')}
+                  title={isVoiceMuted ? (isAr ? 'تفعيل الصوت التلقائي' : 'Enable Voice') : (isAr ? 'كتم الصوت' : 'Mute Voice')}
                 >
-                  {isVoiceMuted ? <VolumeX className="h-3.5 w-3.5 shrink-0" /> : <Volume2 className="h-3.5 w-3.5 shrink-0" />}
-                  <span>{isVoiceMuted ? (isAr ? 'الرد الصوتي: معطّل' : 'Voice: Muted') : (isAr ? 'الرد الصوتي: مفعّل' : 'Voice: Enabled')}</span>
+                  {isVoiceMuted ? <VolumeX className="h-3 w-3 shrink-0" /> : <Volume2 className="h-3 w-3 shrink-0" />}
+                  <span className="hidden sm:inline">
+                    {isVoiceMuted ? (isAr ? 'الصوت: معطّل' : 'Voice: OFF') : (isAr ? 'النطق التلقائي: مفعّل' : 'Auto-Voice: ON')}
+                  </span>
                 </button>
 
-                {/* Hands-Free Conversation Mode Button */}
+                {/* Hands-Free Button */}
                 <button
                   type="button"
                   onClick={() => {
@@ -1586,285 +1588,526 @@ Provide crisp, executive-grade advisory.`
                     setIsHandsFree(nextState)
                     isHandsFreeRef.current = nextState
                     if (nextState) {
-                      if (!playingMsgId && !isListening) {
-                        startListening()
-                      }
+                      if (!playingMsgId && !isListening) startListening()
                     } else {
-                      if (isListening) {
-                        toggleListening()
-                      }
+                      if (isListening) toggleListening()
                     }
                   }}
-                  className={`px-3 py-1.5 rounded-lg border text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs ${
+                  className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-bold transition-all flex items-center gap-1 ${
                     isHandsFree
-                      ? 'border-emerald-500 bg-emerald-600 text-white shadow-xs ring-2 ring-emerald-400/50'
-                      : 'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white'
+                      ? 'border-emerald-500 bg-emerald-600 text-white shadow-2xs'
+                      : 'border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100'
                   }`}
-                  title={
-                    isHandsFree
-                      ? isAr
-                        ? 'إيقاف وضع الحوار الصوتي المستمر'
-                        : 'Disable Hands-Free Mode'
-                      : isAr
-                      ? 'تفعيل وضع الحوار الصوتي المستمر بعد كل إجابة'
-                      : 'Enable Hands-Free Mode'
-                  }
+                  title={isHandsFree ? (isAr ? 'إيقاف الحوار المستمر' : 'Disable Hands-Free') : (isAr ? 'تفعيل الحوار المستمر' : 'Enable Hands-Free')}
                 >
-                  <RefreshCw className={`h-3.5 w-3.5 shrink-0 ${isHandsFree ? 'animate-spin text-white' : 'text-slate-400'}`} />
-                  <span>{isAr ? '🔄 حوار صوتي مستمر' : '🔄 Hands-Free Mode'}</span>
+                  <RefreshCw className={`h-3 w-3 shrink-0 ${isHandsFree ? 'animate-spin' : ''}`} />
+                  <span className="hidden sm:inline">{isHandsFree ? (isAr ? 'حوار مستمر' : 'Hands-Free') : (isAr ? 'حوار مستمر' : 'Hands-Free')}</span>
                 </button>
-              </div>
 
-              {/* Mic language toggle */}
-              <button
-                type="button"
-                onClick={() => {
-                  const nextLang = micLang === 'ar' ? 'en' : 'ar'
-                  setMicLang(nextLang)
-                  micLangRef.current = nextLang
-                }}
-                className="px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-800 text-xs font-bold text-slate-200 hover:bg-slate-700 transition-all shrink-0"
-                title={isAr ? 'تبديل لغة المايكروفون' : 'Switch Microphone Language'}
-              >
-                🎙️ {micLang === 'ar' ? (isAr ? 'عربي' : 'AR') : (isAr ? 'إنجليزي' : 'EN')}
-              </button>
-            </div>
-          </div>
-
-          {/* Permanent Decoupled Voice Player Bar */}
-          <div className="bg-slate-100 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 p-3 sm:p-3.5 flex flex-col gap-2">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  const lastMsg = messages[messages.length - 1]
-                  const textToSpeak = lastMsg
-                    ? isAr
-                      ? lastMsg.textAr
-                      : lastMsg.textEn
-                    : isAr
-                    ? 'مرحباً بك يا سعادة المدير. أنا المستشارة فريال، جاهزة لخدمتك.'
-                    : 'Welcome, Executive Leader. I am Feryal, your AI Executive Copilot.'
-                  playFeryalSpeech(textToSpeak, 'manual-header-play')
-                }}
-                className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-[#2563EB] hover:bg-blue-600 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs transition-all shrink-0 cursor-pointer"
-              >
-                <Volume2 className="h-4 w-4" />
-                <span>{isAr ? '🔊 استمع لصوت فريال (Nova)' : '🔊 Listen to Feryal (Nova)'}</span>
-              </button>
-              {lastVoiceError && (
-                <span className="text-[11px] font-semibold text-rose-600 dark:text-rose-400">
-                  {lastVoiceError}
-                </span>
-              )}
-            </div>
-            <audio ref={audioPlayerRef} controls preload="auto" className="w-full h-10 mt-2 rounded-lg shadow-2xs" />
-          </div>
-
-          {/* Quick Action Pills Under Header */}
-          <div className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 p-3 flex items-center gap-2 overflow-x-auto no-scrollbar">
-            {[
-              { ar: 'ما هو الفرع الأعلى ربحية ولماذا؟', en: 'Top profitable branch and why?' },
-              { ar: 'كيف نوفر 3,800 د.ك هذا الشهر؟', en: 'How to save 3,800 KWD this month?' },
-              { ar: 'مقارنة طلبات جو مقابل سوق طلبات', en: 'Compare Talabat Tgo vs TMP' },
-              { ar: 'أثر رفع أسعار تشاينا جاردن 5%', en: '5% China Garden price hike impact' },
-            ].map((p, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => handleSendQuery(isAr ? p.ar : p.en)}
-                className="shrink-0 rounded-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-100 hover:text-slate-950 transition-all shadow-2xs"
-              >
-                {isAr ? p.ar : p.en}
-              </button>
-            ))}
-          </div>
-
-          {/* Messages Log (Clear High Contrast Chat Bubbles) */}
-          <div ref={chatScrollRef} className="flex-1 min-h-[460px] max-h-[520px] overflow-y-auto p-5 space-y-4 bg-slate-50/50 dark:bg-slate-950/30">
-            {messages.map((m) => (
-              <div key={m.id} className={`flex flex-col ${m.sender === 'user' ? 'items-end' : 'items-start'}`}>
-                <div
-                  className={`max-w-[88%] rounded-2xl p-4 shadow-2xs leading-relaxed text-sm ${
-                    m.sender === 'user'
-                      ? 'bg-[#2563EB] text-white rounded-br-none font-medium'
-                      : 'bg-white dark:bg-[#1A2234] text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 rounded-bl-none font-medium'
-                  }`}
-                >
-                  <p className="whitespace-pre-line leading-relaxed">{isAr ? m.textAr : m.textEn}</p>
-
-                  {/* Render Key Metrics Badges */}
-                  {m.metrics && Object.keys(m.metrics).length > 0 && (
-                    <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 grid grid-cols-2 gap-2 text-xs">
-                      {Object.entries(m.metrics).map(([k, v]) => (
-                        <div key={k} className="bg-slate-50 dark:bg-slate-900 rounded-xl p-2.5 border border-slate-200 dark:border-slate-800">
-                          <span className="text-slate-500 block text-[11px] font-bold">{k}</span>
-                          <span className="font-extrabold text-emerald-700 dark:text-emerald-400 font-mono text-sm">{String(v)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Audio Listen Button under Feryal messages */}
-                  {m.sender === 'feryal' && (
-                    <button
-                      type="button"
-                      onClick={() => playFeryalSpeech(isAr ? m.textAr : m.textEn, m.id)}
-                      className={`mt-3 inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border transition-all ${
-                        playingMsgId === m.id
-                          ? 'bg-blue-600 text-white border-blue-600 animate-pulse'
-                          : 'text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 border-blue-200 dark:border-blue-900'
-                      }`}
-                    >
-                      <Volume2 className="h-3.5 w-3.5" />
-                      <span>{isAr ? (playingMsgId === m.id ? '🔊 فريال تتحدث الآن...' : '🔊 استمع الآن لصوت فريال') : (playingMsgId === m.id ? '🔊 Feryal is speaking...' : '🔊 Listen to Feryal')}</span>
-                    </button>
-                  )}
-                </div>
-                <span className="text-[11px] text-slate-500 font-semibold mt-1 px-1">{m.time}</span>
-              </div>
-            ))}
-
-            {isCopilotThinking && (
-              <div className="flex items-center gap-2 text-blue-700 dark:text-blue-400 text-xs font-bold py-2.5 px-4 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 w-fit">
-                <Sparkles className="h-4 w-4 animate-spin text-blue-600" />
-                <span>{isAr ? 'فريال تحلل أرقام أودو المعتمدة...' : 'Feryal is computing verified Odoo figures...'}</span>
-              </div>
-            )}
-          </div>
-
-          {/* Whisper STT Processing Status */}
-          {isTranscribing && (
-            <div className="px-4 py-2 bg-blue-50 dark:bg-blue-950/40 border-t border-blue-200 dark:border-blue-900 flex items-center gap-2 text-xs font-bold text-blue-700 dark:text-blue-300">
-              <Sparkles className="h-3.5 w-3.5 animate-spin text-blue-600" />
-              <span>{isAr ? '🎙️ جاري تفريغ الصوت وتحليله بدقة...' : '🎙️ Transcribing and analyzing speech...'}</span>
-            </div>
-          )}
-
-          {/* Microphone Error Alert (Auto-dismissable & Non-blocking) */}
-          {micError && (
-            <div className="px-4 py-2.5 bg-amber-50 dark:bg-amber-950/40 border-t border-amber-200 dark:border-amber-800 flex items-center justify-between text-xs font-semibold text-amber-800 dark:text-amber-300">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-                <span>{micError}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setMicError(null)}
-                className="text-amber-700 hover:text-amber-950 dark:hover:text-amber-100 text-xs font-bold px-2 py-0.5 rounded"
-              >
-                ✕
-              </button>
-            </div>
-          )}
-
-          {/* Voice Waveform Alert & Live Status Indicator (when mic is actively listening) */}
-          {isListening && (
-            <div className="px-4 py-2.5 bg-rose-50 dark:bg-rose-950/40 border-t border-rose-200 dark:border-rose-900 flex items-center justify-between text-xs font-bold text-rose-800 dark:text-rose-300">
-              <div className="flex items-center gap-2.5">
-                <span className="relative flex h-3 w-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-600" />
-                </span>
-                <span className="animate-pulse">
-                  {micLang === 'ar' ? '🎙️ تحدث الآن بالعربية...' : '🎙️ Speak now in English...'}
-                </span>
-                {isHandsFree && (
-                  <span className="bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold flex items-center gap-1">
-                    <RefreshCw className="h-3 w-3 animate-spin text-emerald-600 dark:text-emerald-400" />
-                    <span>{isAr ? 'وضع الاجتماع الحر نشط' : 'Hands-Free Loop Active'}</span>
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-1 h-4">
-                {[0.4, 0.9, 1.4, 0.7, 1.2, 0.5, 1.0].map((scale, i) => (
-                  <div
-                    key={i}
-                    className="w-1 bg-rose-600 rounded-full animate-pulse"
-                    style={{ height: `${Math.round(scale * 16)}px`, animationDelay: `${i * 120}ms` }}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Bottom Prominent Input Bar */}
-          <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-3.5 sm:p-4">
-            {micToast && (
-              <div className="mb-2 px-3 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 text-xs font-semibold text-amber-800 dark:text-amber-300 flex items-center justify-between">
-                <span>{micToast}</span>
+                {/* Mic Language toggle */}
                 <button
                   type="button"
-                  onClick={() => setMicToast(null)}
-                  className="text-amber-600 hover:text-amber-900 dark:hover:text-amber-100 font-bold px-1"
+                  onClick={() => {
+                    const nextLang = micLang === 'ar' ? 'en' : 'ar'
+                    setMicLang(nextLang)
+                    micLangRef.current = nextLang
+                  }}
+                  className="px-2 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-[11px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100"
+                >
+                  🎙️ {micLang === 'ar' ? 'عربي' : 'EN'}
+                </button>
+              </div>
+            </div>
+
+            {/* Quick Action Pills Under Header */}
+            <div className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 p-2.5 flex items-center gap-2 overflow-x-auto no-scrollbar">
+              {[
+                { ar: 'ما هو الفرع الأعلى ربحية ولماذا؟', en: 'Top profitable branch and why?' },
+                { ar: 'كيف نوفر 3,800 د.ك هذا الشهر؟', en: 'How to save 3,800 KWD this month?' },
+                { ar: 'مقارنة طلبات جو مقابل سوق طلبات', en: 'Compare Talabat Tgo vs TMP' },
+                { ar: 'أثر رفع أسعار تشاينا جاردن 5%', en: '5% China Garden price hike impact' },
+              ].map((p, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => handleSendQuery(isAr ? p.ar : p.en)}
+                  className="shrink-0 rounded-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1 text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-100 hover:text-slate-950 transition-all shadow-2xs cursor-pointer"
+                >
+                  {isAr ? p.ar : p.en}
+                </button>
+              ))}
+            </div>
+
+            {/* Messages Log (Adaptive Height & Zero Empty White Space) */}
+            <div ref={chatScrollRef} className="flex-1 min-h-[320px] max-h-[440px] overflow-y-auto p-4 space-y-4 bg-slate-50/40 dark:bg-slate-950/20">
+              {messages.map((m) => (
+                <div key={m.id} className={`flex flex-col ${m.sender === 'user' ? 'items-end' : 'items-start'}`}>
+                  <div
+                    className={`max-w-[95%] sm:max-w-[92%] rounded-2xl p-4 shadow-2xs leading-relaxed ${
+                      m.sender === 'user'
+                        ? 'bg-[#2563EB] text-white rounded-br-none font-medium text-sm'
+                        : 'bg-[#F7F7F8] dark:bg-[#1A2234] text-slate-800 dark:text-slate-100 border border-slate-200/70 dark:border-slate-800 rounded-bl-none font-medium text-[14px]'
+                    }`}
+                  >
+                    <p className="whitespace-pre-line leading-relaxed">{isAr ? m.textAr : m.textEn}</p>
+
+                    {/* Rich Executive Briefing inside welcome message */}
+                    {m.id === 'welcome' && (
+                      <>
+                        {/* 4 Mini KPI Tiles */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                          <div className="bg-white dark:bg-slate-900 rounded-xl p-2.5 border border-slate-200 dark:border-slate-800 shadow-2xs">
+                            <span className="text-[11px] font-bold text-slate-500 block">{isAr ? 'صافي المبيعات' : 'Net Sales'}</span>
+                            <span className="font-extrabold text-slate-950 dark:text-white font-mono text-xs sm:text-sm">167,092 {isAr ? 'د.ك' : 'KWD'}</span>
+                          </div>
+                          <div className="bg-white dark:bg-slate-900 rounded-xl p-2.5 border border-slate-200 dark:border-slate-800 shadow-2xs">
+                            <span className="text-[11px] font-bold text-emerald-600 block">{isAr ? 'صافي الأرباح' : 'Net Profit'}</span>
+                            <span className="font-extrabold text-emerald-700 dark:text-emerald-400 font-mono text-xs sm:text-sm">42,441 {isAr ? 'د.ك' : 'KWD'} (25.4%)</span>
+                          </div>
+                          <div className="bg-white dark:bg-slate-900 rounded-xl p-2.5 border border-slate-200 dark:border-slate-800 shadow-2xs">
+                            <span className="text-[11px] font-bold text-amber-600 block">{isAr ? 'تكلفة الأغذية' : 'Food Cost'}</span>
+                            <span className="font-extrabold text-amber-700 dark:text-amber-400 font-mono text-xs sm:text-sm">24.8% {isAr ? 'مقابل 24%' : 'vs 24%'}</span>
+                          </div>
+                          <div className="bg-white dark:bg-slate-900 rounded-xl p-2.5 border border-slate-200 dark:border-slate-800 shadow-2xs">
+                            <span className="text-[11px] font-bold text-blue-600 block">{isAr ? 'العائد السنوي' : 'Annual Gain'}</span>
+                            <span className="font-extrabold text-blue-700 dark:text-blue-400 font-mono text-xs sm:text-sm">+91,680 {isAr ? 'د.ك' : 'KWD'}</span>
+                          </div>
+                        </div>
+
+                        {/* 4 Interactive Command Cards */}
+                        <div className="mt-3.5 pt-3 border-t border-slate-200 dark:border-slate-800">
+                          <div className="text-[12px] font-bold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-1.5">
+                            <Sparkles className="h-3.5 w-3.5 text-blue-600" />
+                            <span>{isAr ? 'أوامر استراتيجية فورية موصى بها من فريال:' : 'Feryal Strategic Action Recommendations:'}</span>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleSendQuery(isAr ? 'ما هو تقييم أداء الفرع الأعلى ربحية ولماذا يتفوق السالمية؟' : 'What is the top profitable branch performance analysis and reasons for success?')}
+                              className="text-start bg-white dark:bg-slate-900/90 hover:bg-blue-50/60 dark:hover:bg-blue-950/30 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-blue-400 transition-all shadow-2xs group cursor-pointer"
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="font-bold text-xs text-slate-900 dark:text-white flex items-center gap-1.5">
+                                  <span>🏆</span>
+                                  <span>{isAr ? 'تحليل الفرع الأعلى ربحية' : 'Top Profitable Branch Analysis'}</span>
+                                </span>
+                                <span className="text-[11px] font-extrabold font-mono text-emerald-600 dark:text-emerald-400">+18.7%</span>
+                              </div>
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-snug">
+                                {isAr ? 'السالمية 31,246 د.ك مقابل الكوت' : 'Salmiya 31,246 KWD vs Al-Kout (+18.7% Share)'}
+                              </p>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleSendQuery(isAr ? 'كيف نعالج هدر المطبخ المركزي ونسترد 1,336 د.ك شهرياً؟' : 'How do we recover 1,336 KWD/month waste from Central Kitchen poultry?')}
+                              className="text-start bg-white dark:bg-slate-900/90 hover:bg-emerald-50/60 dark:hover:bg-emerald-950/30 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-400 transition-all shadow-2xs group cursor-pointer"
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="font-bold text-xs text-slate-900 dark:text-white flex items-center gap-1.5">
+                                  <span>🍗</span>
+                                  <span>{isAr ? 'معالجة هدر المطبخ المركزي' : 'Central Kitchen Recovery'}</span>
+                                </span>
+                                <span className="text-[11px] font-extrabold font-mono text-emerald-600 dark:text-emerald-400">+1,336 د.ك</span>
+                              </div>
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-snug">
+                                {isAr ? 'معايرة وزن التتبيل 140جم وضبط الهدر' : '140g Poultry Marination & Yield Calibration'}
+                              </p>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleSendQuery(isAr ? 'كيف نضبط خصومات منصة كيتا البالغة 2,544 د.ك ونزيد الربح؟' : 'How do we cap Keeta 2,544 KWD discounts and optimize Tgo/TMP?')}
+                              className="text-start bg-white dark:bg-slate-900/90 hover:bg-indigo-50/60 dark:hover:bg-indigo-950/30 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-indigo-400 transition-all shadow-2xs group cursor-pointer"
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="font-bold text-xs text-slate-900 dark:text-white flex items-center gap-1.5">
+                                  <span>🛵</span>
+                                  <span>{isAr ? 'ضبط خصومات منصة كيتا' : 'Keeta Promo Cap & Tgo/TMP'}</span>
+                                </span>
+                                <span className="text-[11px] font-extrabold font-mono text-emerald-600 dark:text-emerald-400">+4,070 د.ك</span>
+                              </div>
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-snug">
+                                {isAr ? 'سقف 3.5% للخصم + كومبو مشروبات إلزامي' : '3.5% Promo Cap + Mandatory Drink Combo'}
+                              </p>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleSendQuery(isAr ? 'اعرض خطة تعظيم الأرباح للربع الأول والسنوية' : 'Show the Q1 (+20,520 KWD) and full year profit optimization plan')}
+                              className="text-start bg-white dark:bg-slate-900/90 hover:bg-purple-50/60 dark:hover:bg-purple-950/30 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-purple-400 transition-all shadow-2xs group cursor-pointer"
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="font-bold text-xs text-slate-900 dark:text-white flex items-center gap-1.5">
+                                  <span>📈</span>
+                                  <span>{isAr ? 'خطة الربع الأول والسنوية' : 'Q1 & Annual Profit Roadmap'}</span>
+                                </span>
+                                <span className="text-[11px] font-extrabold font-mono text-emerald-600 dark:text-emerald-400">600,978 د.ك</span>
+                              </div>
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-snug">
+                                {isAr ? 'خريطة طريق 12 شهراً لتعظيم التدفقات النقدية' : 'Full 12-Month Profit & Cashflow Roadmap'}
+                              </p>
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    {/* Render Key Metrics Badges */}
+                    {m.metrics && Object.keys(m.metrics).length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 grid grid-cols-2 gap-2 text-xs">
+                        {Object.entries(m.metrics).map(([k, v]) => (
+                          <div key={k} className="bg-slate-50 dark:bg-slate-900 rounded-xl p-2.5 border border-slate-200 dark:border-slate-800">
+                            <span className="text-slate-500 block text-[11px] font-bold">{k}</span>
+                            <span className="font-extrabold text-emerald-700 dark:text-emerald-400 font-mono text-sm">{String(v)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Audio Listen Button under Feryal messages */}
+                    {m.sender === 'feryal' && (
+                      <button
+                        type="button"
+                        onClick={() => playFeryalSpeech(isAr ? m.textAr : m.textEn, m.id)}
+                        className={`mt-3 inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border transition-all ${
+                          playingMsgId === m.id
+                            ? 'bg-blue-600 text-white border-blue-600 animate-pulse'
+                            : 'text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 border-blue-200 dark:border-blue-900'
+                        }`}
+                      >
+                        <Volume2 className="h-3.5 w-3.5" />
+                        <span>{isAr ? (playingMsgId === m.id ? '🔊 فريال تتحدث الآن...' : '🔊 استمع الآن لصوت فريال') : (playingMsgId === m.id ? '🔊 Feryal is speaking...' : '🔊 Listen to Feryal')}</span>
+                      </button>
+                    )}
+                  </div>
+                  <span className="text-[11px] text-slate-500 font-semibold mt-1 px-1">{m.time}</span>
+                </div>
+              ))}
+
+              {isCopilotThinking && (
+                <div className="flex items-center gap-2 text-blue-700 dark:text-blue-400 text-xs font-bold py-2.5 px-4 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 w-fit">
+                  <Sparkles className="h-4 w-4 animate-spin text-blue-600" />
+                  <span>{isAr ? 'فريال تحلل أرقام أودو المعتمدة...' : 'Feryal is computing verified Odoo figures...'}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Whisper STT Processing Status */}
+            {isTranscribing && (
+              <div className="px-4 py-2 bg-blue-50 dark:bg-blue-950/40 border-t border-blue-200 dark:border-blue-900 flex items-center gap-2 text-xs font-bold text-blue-700 dark:text-blue-300">
+                <Sparkles className="h-3.5 w-3.5 animate-spin text-blue-600" />
+                <span>{isAr ? '🎙️ جاري تفريغ الصوت وتحليله بدقة...' : '🎙️ Transcribing and analyzing speech...'}</span>
+              </div>
+            )}
+
+            {/* Microphone Error Alert (Auto-dismissable & Non-blocking) */}
+            {micError && (
+              <div className="px-4 py-2.5 bg-amber-50 dark:bg-amber-950/40 border-t border-amber-200 dark:border-amber-800 flex items-center justify-between text-xs font-semibold text-amber-800 dark:text-amber-300">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                  <span>{micError}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMicError(null)}
+                  className="text-amber-700 hover:text-amber-950 dark:hover:text-amber-100 text-xs font-bold px-2 py-0.5 rounded"
                 >
                   ✕
                 </button>
               </div>
             )}
-            <form
-              onSubmit={(e) => {
-                e.preventDefault()
-                handleSendQuery()
-              }}
-              className="flex items-center gap-2.5"
-            >
-              <button
-                type="button"
-                onClick={toggleListening}
-                className={`p-3 rounded-xl border text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${
-                  isListening
-                    ? 'bg-rose-600 border-rose-500 text-white animate-pulse shadow-md ring-2 ring-rose-400'
-                    : 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:bg-slate-200'
-                }`}
-                title={isListening ? (isAr ? 'إيقاف المايكروفون' : 'Stop Microphone') : isAr ? 'تحدث مع فريال' : 'Speak to Feryal'}
-              >
-                {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4 text-blue-600" />}
-                <span className="hidden sm:inline">
-                  {isListening
-                    ? micLang === 'ar'
-                      ? '🎙️ تحدث الآن بالعربية...'
-                      : '🎙️ Speak now in English...'
-                    : isAr
-                    ? 'تحدث'
-                    : 'Speak'}
-                </span>
-              </button>
 
-              <input
-                ref={inputFieldRef}
-                type="text"
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                placeholder={
-                  isListening
-                    ? micLang === 'ar'
-                      ? '🎙️ جاري الاستماع لصوتك... تفضل بالتحدث'
-                      : '🎙️ Listening to your voice... Speak now'
-                    : isAr
-                    ? 'اسأل فريال عن أرقام المبيعات، الهدر، أو الفروع...'
-                    : 'Ask Feryal about sales, waste, or branches...'
-                }
-                className="flex-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-4 py-3 text-sm font-medium text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
-              />
+            {/* Voice Waveform Alert & Live Status Indicator */}
+            {isListening && (
+              <div className="px-4 py-2.5 bg-rose-50 dark:bg-rose-950/40 border-t border-rose-200 dark:border-rose-900 flex items-center justify-between text-xs font-bold text-rose-800 dark:text-rose-300">
+                <div className="flex items-center gap-2.5">
+                  <span className="relative flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-600" />
+                  </span>
+                  <span className="animate-pulse">
+                    {micLang === 'ar' ? '🎙️ تحدث الآن بالعربية...' : '🎙️ Speak now in English...'}
+                  </span>
+                  {isHandsFree && (
+                    <span className="bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold flex items-center gap-1">
+                      <RefreshCw className="h-3 w-3 animate-spin text-emerald-600 dark:text-emerald-400" />
+                      <span>{isAr ? 'وضع الاجتماع الحر نشط' : 'Hands-Free Loop Active'}</span>
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-1 h-4">
+                  {[0.4, 0.9, 1.4, 0.7, 1.2, 0.5, 1.0].map((scale, i) => (
+                    <div
+                      key={i}
+                      className="w-1 bg-rose-600 rounded-full animate-pulse"
+                      style={{ height: `${Math.round(scale * 16)}px`, animationDelay: `${i * 120}ms` }}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
 
-              <button
-                type="submit"
-                disabled={!inputText.trim()}
-                className="rounded-xl bg-[#2563EB] hover:bg-blue-600 px-5 py-3 text-white font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-xs flex items-center gap-1.5 shrink-0"
+            {/* Bottom Prominent Input Bar */}
+            <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-3.5 sm:p-4">
+              {micToast && (
+                <div className="mb-2 px-3 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 text-xs font-semibold text-amber-800 dark:text-amber-300 flex items-center justify-between">
+                  <span>{micToast}</span>
+                  <button
+                    type="button"
+                    onClick={() => setMicToast(null)}
+                    className="text-amber-600 hover:text-amber-900 dark:hover:text-amber-100 font-bold px-1"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  handleSendQuery()
+                }}
+                className="flex items-center gap-2.5"
               >
-                <span>{isAr ? 'إرسال' : 'Send'}</span>
-                <Send className={`h-4 w-4 ${isAr ? 'rotate-180' : ''}`} />
-              </button>
-            </form>
+                <button
+                  type="button"
+                  onClick={toggleListening}
+                  className={`p-3 rounded-xl border text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${
+                    isListening
+                      ? 'bg-rose-600 border-rose-500 text-white animate-pulse shadow-md ring-2 ring-rose-400'
+                      : 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:bg-slate-200'
+                  }`}
+                  title={isListening ? (isAr ? 'إيقاف المايكروفون' : 'Stop Microphone') : isAr ? 'تحدث مع فريال' : 'Speak to Feryal'}
+                >
+                  {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4 text-blue-600" />}
+                  <span className="hidden sm:inline">
+                    {isListening
+                      ? micLang === 'ar'
+                        ? '🎙️ تحدث الآن بالعربية...'
+                        : '🎙️ Speak now in English...'
+                      : isAr
+                      ? 'تحدث'
+                      : 'Speak'}
+                  </span>
+                </button>
+
+                <input
+                  ref={inputFieldRef}
+                  type="text"
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                  placeholder={
+                    isListening
+                      ? micLang === 'ar'
+                        ? '🎙️ جاري الاستماع لصوتك... تفضل بالتحدث'
+                        : '🎙️ Listening to your voice... Speak now'
+                      : isAr
+                      ? 'اسأل فريال عن أرقام المبيعات، الهدر، أو الفروع...'
+                      : 'Ask Feryal about sales, waste, or branches...'
+                  }
+                  className="flex-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-4 py-3 text-sm font-medium text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+                />
+
+                <button
+                  type="submit"
+                  disabled={!inputText.trim()}
+                  className="rounded-xl bg-[#2563EB] hover:bg-blue-600 px-5 py-3 text-white font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-xs flex items-center gap-1.5 shrink-0"
+                >
+                  <span>{isAr ? 'إرسال' : 'Send'}</span>
+                  <Send className={`h-4 w-4 ${isAr ? 'rotate-180' : ''}`} />
+                </button>
+              </form>
+            </div>
           </div>
-        </section>
+
+          {/* 2. CARD A: FERYAL REAL-TIME ODOO ANOMALY RADAR */}
+          <div className="bg-white dark:bg-[#111827] rounded-2xl p-5 shadow-xs ring-1 ring-slate-200/90 dark:ring-slate-800 space-y-3.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="h-8 w-8 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
+                  <Zap className="h-4 w-4" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                    {isAr ? 'رادار فريال الفوري لانحرافات أودو' : 'Feryal Real-Time Odoo Anomaly Radar'}
+                  </h4>
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    {isAr ? '3 انحرافات محاسبية مرصودة تتطلب تدخلاً فورياً' : '3 active ledger variances identified'}
+                  </p>
+                </div>
+              </div>
+              <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900">
+                {isAr ? '3 تنبيهات حية' : '3 Live Alerts'}
+              </span>
+            </div>
+
+            <div className="space-y-2.5">
+              {/* Alert 1 */}
+              <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/60 flex items-center justify-between gap-3">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-900 dark:text-white">
+                      {isAr ? 'دواجن المطبخ المركزي (418 قيداً)' : 'Central Kitchen Raw Poultry (418 Entries)'}
+                    </span>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300">
+                      24.8% COGS
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                    {isAr
+                      ? '41,438.856 د.ك (المستهدف 24.0%) — وفر مسترد: +1,336 د.ك/شهرياً'
+                      : '41,438.856 KWD (Target 24.0%) — Recoverable: +1,336 KWD/mo'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleSendQuery(isAr ? 'كيف نسترد 1,336 د.ك من هدر دواجن المطبخ المركزي؟' : 'How do we recover 1,336 KWD from central kitchen poultry waste?')}
+                  className="shrink-0 text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/40"
+                >
+                  {isAr ? 'اسأل فريال' : 'Ask'}
+                </button>
+              </div>
+
+              {/* Alert 2 */}
+              <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/60 flex items-center justify-between gap-3">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-900 dark:text-white">
+                      {isAr ? 'عهدة صيانة السالمية والكوت (312 قيداً)' : 'Salmiya & Al-Kout Maintenance Custody (312 Entries)'}
+                    </span>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-300">
+                      {isAr ? 'عهدة متكررة' : 'High Opex'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                    {isAr
+                      ? '10,707.930 د.ك — استبدال 3 مبردات متهالكة يوفر +850 د.ك/شهرياً'
+                      : '10,707.930 KWD — Replace 3 aging chillers (+850 KWD/mo)'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleSendQuery(isAr ? 'ما هي تفاصيل عهدة صيانة السالمية والكوت وكيف نخفضها؟' : 'What are the details of Salmiya & Al-Kout maintenance custody?')}
+                  className="shrink-0 text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/40"
+                >
+                  {isAr ? 'اسأل فريال' : 'Ask'}
+                </button>
+              </div>
+
+              {/* Alert 3 */}
+              <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/60 flex items-center justify-between gap-3">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-900 dark:text-white">
+                      {isAr ? 'خصومات منصة كيتا (6,267 طلباً)' : 'Keeta Aggregator Discounts (6,267 Orders)'}
+                    </span>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300">
+                      6.7% Promo
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                    {isAr
+                      ? '2,544 د.ك من أصل 4,152 د.ك — وضع سقف 3.5% يوفر +1,620 د.ك/شهرياً'
+                      : '2,544 KWD out of 4,152 KWD total — 3.5% cap saves +1,620 KWD/mo'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleSendQuery(isAr ? 'كيف نضع سقفاً لخصومات كيتا ونوفر 1,620 د.ك شهرياً؟' : 'How do we cap Keeta discounts to save 1,620 KWD/mo?')}
+                  className="shrink-0 text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/40"
+                >
+                  {isAr ? 'اسأل فريال' : 'Ask'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* 3. CARD B: VENTURE FOODS 6-BRAND & CHANNEL PROFIT PULSE */}
+          <div className="bg-white dark:bg-[#111827] rounded-2xl p-5 shadow-xs ring-1 ring-slate-200/90 dark:ring-slate-800 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="h-8 w-8 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center">
+                  <Building2 className="h-4 w-4" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                    {isAr ? 'نبض ربحية العلامات الـ 6 وقنوات التوصيل' : 'Venture Foods 6-Brand & Channel Profit Pulse'}
+                  </h4>
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    {isAr ? 'أداء المبيعات وحصة الفروع وقنوات الطلب أونلاين' : 'Online & in-store revenue distribution'}
+                  </p>
+                </div>
+              </div>
+              <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900 font-mono">
+                {isAr ? '167,092 د.ك' : '167,092 KWD'}
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {/* Brand 1: China Garden */}
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-xs font-bold">
+                  <span className="text-slate-900 dark:text-white">{isAr ? 'تشاينا جاردن (العمود الفقري)' : 'China Garden (Core Driver)'}</span>
+                  <span className="text-slate-900 dark:text-white font-mono">141,662.400 {isAr ? 'د.ك' : 'KWD'} (84.8%)</span>
+                </div>
+                <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
+                  <div className="bg-blue-600 h-2 rounded-full" style={{ width: '84.8%' }} />
+                </div>
+                <div className="flex justify-between text-[11px] text-slate-500 font-medium">
+                  <span>{isAr ? '25,890 طلباً معتمداً' : '25,890 orders'}</span>
+                  <span>{isAr ? 'متوسط السلة: 5.472 د.ك' : 'AOV: 5.472 KWD'}</span>
+                </div>
+              </div>
+
+              {/* Brand 2: Frank's Philly CheeseSteak */}
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-xs font-bold">
+                  <span className="text-slate-900 dark:text-white">{isAr ? "فرانكس فيلي تشيز ستيك" : "Frank's Philly CheeseSteak"}</span>
+                  <span className="text-slate-900 dark:text-white font-mono">11,840.200 {isAr ? 'د.ك' : 'KWD'} (7.1%)</span>
+                </div>
+                <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
+                  <div className="bg-emerald-600 h-2 rounded-full" style={{ width: '22%' }} />
+                </div>
+                <div className="flex justify-between text-[11px] text-slate-500 font-medium">
+                  <span className="text-emerald-600 dark:text-emerald-400 font-bold">{isAr ? 'أعلى متوسط سلة: 7.490 د.ك' : 'Highest AOV: 7.490 KWD'}</span>
+                  <span>{isAr ? '1,580 طلباً' : '1,580 orders'}</span>
+                </div>
+              </div>
+
+              {/* Brands: Other 4 Brands Combined */}
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-xs font-bold">
+                  <span className="text-slate-900 dark:text-white">{isAr ? 'طحينة · برغريتو · تشيك آند ديب · كريف' : 'Tahina · Burgerito · Chick & Dip · Crave'}</span>
+                  <span className="text-slate-900 dark:text-white font-mono">13,589.560 {isAr ? 'د.ك' : 'KWD'} (8.1%)</span>
+                </div>
+                <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
+                  <div className="bg-indigo-600 h-2 rounded-full" style={{ width: '25%' }} />
+                </div>
+                <div className="flex justify-between text-[11px] text-slate-500 font-medium">
+                  <span>{isAr ? '3,070 طلباً مجمعاً' : '3,070 combined orders'}</span>
+                  <span>{isAr ? 'إمكانات نمو واعدة' : 'Growth Brands'}</span>
+                </div>
+              </div>
+
+              {/* Platform Health */}
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs font-bold">
+                <span className="text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
+                  <span>{isAr ? 'طلبات (جو وسوق) + كيتا + ديلفرو' : 'Talabat (Tgo/TMP) + Keeta + Deliveroo'}</span>
+                </span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-mono">
+                  {isAr ? '99.1% جاهزية (9 فروع)' : '99.1% (9 Branches)'}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* ================================================================ */}
         {/* RIGHT COLUMN: THE FOUR-STAGE STRATEGIC ANALYSIS ENGINE */}
         {/* ================================================================ */}
-        <section className="lg:col-span-7 space-y-6">
-          <div className="bg-white dark:bg-[#111827] rounded-2xl p-6 sm:p-7 shadow-xs ring-1 ring-slate-200/90 dark:ring-slate-800 space-y-6">
+        <div className="lg:col-span-7 flex flex-col justify-between gap-5">
+          <div className="bg-white dark:bg-[#111827] rounded-2xl p-6 sm:p-7 shadow-xs ring-1 ring-slate-200/90 dark:ring-slate-800 space-y-6 flex-1">
             {/* Header with 4-stage Breadcrumbs */}
             <div>
               <div className="flex items-center gap-2 mb-2">
@@ -2167,7 +2410,7 @@ Provide crisp, executive-grade advisory.`
               </div>
             </div>
           </div>
-        </section>
+        </div>
       </div>
 
       {/* ==================================================================== */}
