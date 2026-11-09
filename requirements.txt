@@ -1,0 +1,12 @@
+# ==============================================================================
+# Venture Foods Restaurant AI HQ - Python Dependencies
+# Perplexity + Firecrawl + Playwright + Composio Smart Hub
+# ==============================================================================
+
+openai>=1.20.0
+firecrawl-py>=0.0.16
+playwright>=1.42.0
+composio-anthropic>=0.3.0
+python-dotenv>=1.0.0
+pydantic>=2.6.0
+requests>=2.31.0

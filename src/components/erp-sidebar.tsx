@@ -8,6 +8,7 @@ import {
   FileText,
   LayoutDashboard,
   LogOut,
+  Sparkles,
   Store,
   Zap,
 } from 'lucide-react'
@@ -44,6 +45,14 @@ const SIDEBAR_SECTIONS: NavSection[] = [
     titleEn: 'Main menu',
     items: [
       { key: 'dashboard', href: '/dashboard', labelAr: 'الملخص المالي والتوصيات', labelEn: 'Financial Summary & Recommendations', icon: LayoutDashboard },
+      {
+        key: 'feryal-ai',
+        href: '/erp/feryal-ai',
+        labelAr: 'المستشارة الذكية فريال',
+        labelEn: 'Feryal AI Executive Copilot',
+        icon: Sparkles,
+        alwaysVisible: true,
+      },
       // visible to every signed-in user who can open the control panel (no per-module permission needed)
       {
         key: 'reports',

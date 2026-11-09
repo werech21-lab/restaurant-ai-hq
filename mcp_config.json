@@ -1,0 +1,54 @@
+{
+  "mcpServers": {
+    "perplexity": {
+      "command": "python",
+      "args": ["-m", "services.external_ai_tools"],
+      "env": {
+        "PERPLEXITY_API_KEY": "${PERPLEXITY_API_KEY}"
+      },
+      "description": "Perplexity Sonar-Pro live Kuwait market & restaurant intelligence feed"
+    },
+    "firecrawl": {
+      "command": "python",
+      "args": ["-m", "services.external_ai_tools"],
+      "env": {
+        "FIRECRAWL_API_KEY": "${FIRECRAWL_API_KEY}"
+      },
+      "description": "Firecrawl competitor restaurant menu & pricing extraction engine"
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["playwright"],
+      "env": {},
+      "description": "Playwright headless browser for delivery portal health & screenshot verification"
+    },
+    "composio": {
+      "command": "python",
+      "args": ["-m", "services.external_ai_tools"],
+      "env": {
+        "COMPOSIO_API_KEY": "${COMPOSIO_API_KEY}"
+      },
+      "description": "Composio workflow dispatch (WhatsApp, Gmail, Google Sheets)"
+    },
+    "postgres": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres"],
+      "env": {
+        "DATABASE_URL": "${DATABASE_URL}"
+      },
+      "description": "Direct PostgreSQL connection for Odoo ledger & sales analytics"
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@context7/mcp-server"],
+      "env": {},
+      "description": "Context7 knowledge indexing and documentation retrieval"
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"],
+      "env": {},
+      "description": "Sequential deep strategic chain-of-thought analysis"
+    }
+  }
+}
