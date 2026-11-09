@@ -60,66 +60,17 @@ function sanitizeTextForSpeech(rawText: string, lang: 'ar' | 'en'): string {
   return text
 }
 
-export async function POST(req: NextRequest) {
+/**
+ * Fallback to Google Translate TTS audio buffer
+ */
+async function fetchGoogleTTSAudio(text: string, lang: 'ar' | 'en'): Promise<Buffer | null> {
   try {
-    const body = await req.json()
-    const { text, lang = 'ar' } = body
+    const shortText = text.slice(0, 200)
+    const url = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${
+      lang === 'en' ? 'en' : 'ar'
+    }&q=${encodeURIComponent(shortText)}`
 
-    if (!text || typeof text !== 'string') {
-      return NextResponse.json({ ok: false, error: 'Text is required' }, { status: 400 })
-    }
-
-    const ttsLang = lang === 'en' ? 'en' : 'ar'
-    const cleanText = sanitizeTextForSpeech(text, ttsLang)
-
-    if (!cleanText) {
-      return NextResponse.json({ ok: false, error: 'Text is empty after sanitization' }, { status: 400 })
-    }
-
-    const apiKey = getOpenAIApiKey()
-
-    // 1. Try OpenAI Nova TTS (Primary High-Fidelity Engine)
-    if (apiKey) {
-      try {
-        const openAiRes = await fetch('https://api.openai.com/v1/audio/speech', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'tts-1',
-            voice: 'nova',
-            input: cleanText.slice(0, 4000),
-            response_format: 'mp3',
-          }),
-        })
-
-        if (openAiRes.ok) {
-          const arrayBuf = await openAiRes.arrayBuffer()
-          const b64 = Buffer.from(arrayBuf).toString('base64')
-          const audioDataUrl = `data:audio/mpeg;base64,${b64}`
-
-          return NextResponse.json({
-            ok: true,
-            engine: 'openai-nova',
-            audioDataUrl,
-            contentType: 'audio/mpeg',
-          })
-        } else {
-          console.warn('OpenAI Nova TTS returned status:', openAiRes.status)
-        }
-      } catch (openAiErr) {
-        console.error('OpenAI Nova TTS error, falling back:', openAiErr)
-      }
-    }
-
-    // 2. Graceful Fallback: Google Translate TTS Stream
-    const url = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${ttsLang}&q=${encodeURIComponent(
-      cleanText.slice(0, 200)
-    )}`
-
-    const fallbackRes = await fetch(url, {
+    const res = await fetch(url, {
       headers: {
         'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -127,18 +78,157 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    if (fallbackRes.ok) {
-      const fallbackBuf = await fallbackRes.arrayBuffer()
-      const b64 = Buffer.from(fallbackBuf).toString('base64')
+    if (res.ok) {
+      const arr = await res.arrayBuffer()
+      return Buffer.from(arr)
+    }
+  } catch (err) {
+    console.error('Google TTS fallback error:', err)
+  }
+  return null
+}
+
+/**
+ * Handle audio synthesis using OpenAI Nova with Google TTS fallback
+ */
+async function generateSpeechAudio(
+  text: string,
+  lang: 'ar' | 'en'
+): Promise<{ buffer: Buffer; engine: string } | null> {
+  const cleanText = sanitizeTextForSpeech(text, lang)
+  if (!cleanText) return null
+
+  const apiKey = getOpenAIApiKey()
+
+  // 1. Try OpenAI Nova TTS
+  if (apiKey) {
+    try {
+      const openAiRes = await fetch('https://api.openai.com/v1/audio/speech', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'tts-1',
+          voice: 'nova',
+          input: cleanText.slice(0, 4000),
+          response_format: 'mp3',
+        }),
+      })
+
+      if (openAiRes.ok) {
+        const arr = await openAiRes.arrayBuffer()
+        return { buffer: Buffer.from(arr), engine: 'openai-nova' }
+      } else {
+        console.warn('OpenAI Nova TTS returned non-200:', openAiRes.status)
+      }
+    } catch (err) {
+      console.error('OpenAI Nova TTS exception, trying fallback:', err)
+    }
+  }
+
+  // 2. Fallback to Google TTS
+  const fallbackBuf = await fetchGoogleTTSAudio(cleanText, lang)
+  if (fallbackBuf) {
+    return { buffer: fallbackBuf, engine: 'google-tts-fallback' }
+  }
+
+  return null
+}
+
+/**
+ * GET Handler - Supports native streaming <audio src="/api/feryal/tts?lang=ar&text=...">
+ */
+export async function GET(req: NextRequest) {
+  try {
+    const text = req.nextUrl.searchParams.get('text') || ''
+    const lang = (req.nextUrl.searchParams.get('lang') === 'en' ? 'en' : 'ar') as 'ar' | 'en'
+    const format = req.nextUrl.searchParams.get('format') || ''
+
+    if (!text.trim()) {
+      return new Response('Text parameter is required', { status: 400 })
+    }
+
+    const speech = await generateSpeechAudio(text, lang)
+    if (!speech) {
+      return new Response('Failed to generate audio', { status: 502 })
+    }
+
+    if (format === 'json') {
+      const b64 = speech.buffer.toString('base64')
       return NextResponse.json({
         ok: true,
-        engine: 'google-tts-fallback',
+        engine: speech.engine,
         audioDataUrl: `data:audio/mpeg;base64,${b64}`,
       })
     }
 
-    return NextResponse.json({ ok: false, error: 'TTS generation failed' }, { status: 502 })
+    return new Response(new Uint8Array(speech.buffer), {
+      status: 200,
+      headers: {
+        'Content-Type': 'audio/mpeg',
+        'Content-Length': speech.buffer.length.toString(),
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        'Accept-Ranges': 'bytes',
+        'X-TTS-Engine': speech.engine,
+      },
+    })
   } catch (error: any) {
+    console.error('TTS GET error:', error)
+    return new Response(error?.message || 'Server error', { status: 500 })
+  }
+}
+
+/**
+ * POST Handler - Supports JSON and raw streaming calls
+ */
+export async function POST(req: NextRequest) {
+  try {
+    let text = ''
+    let lang: 'ar' | 'en' = 'ar'
+    let returnJson = true
+
+    try {
+      const body = await req.json()
+      text = body.text || ''
+      lang = body.lang === 'en' ? 'en' : 'ar'
+      if (body.format === 'binary') returnJson = false
+    } catch {
+      text = req.nextUrl.searchParams.get('text') || ''
+      lang = req.nextUrl.searchParams.get('lang') === 'en' ? 'en' : 'ar'
+    }
+
+    if (!text || typeof text !== 'string' || !text.trim()) {
+      return NextResponse.json({ ok: false, error: 'Text is required' }, { status: 400 })
+    }
+
+    const speech = await generateSpeechAudio(text, lang)
+    if (!speech) {
+      return NextResponse.json({ ok: false, error: 'TTS generation failed' }, { status: 502 })
+    }
+
+    if (!returnJson) {
+      return new Response(new Uint8Array(speech.buffer), {
+        status: 200,
+        headers: {
+          'Content-Type': 'audio/mpeg',
+          'Content-Length': speech.buffer.length.toString(),
+          'Cache-Control': 'no-store, no-cache, must-revalidate',
+          'X-TTS-Engine': speech.engine,
+        },
+      })
+    }
+
+    const b64 = speech.buffer.toString('base64')
+    return NextResponse.json({
+      ok: true,
+      engine: speech.engine,
+      audioDataUrl: `data:audio/mpeg;base64,${b64}`,
+      contentType: 'audio/mpeg',
+    })
+  } catch (error: any) {
+    console.error('TTS POST error:', error)
     return NextResponse.json({ ok: false, error: error?.message || 'Server error' }, { status: 500 })
   }
 }
