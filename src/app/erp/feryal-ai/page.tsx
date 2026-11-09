@@ -304,9 +304,12 @@ export default function FeryalAiCommandPage() {
   const [playingMsgId, setPlayingMsgId] = useState<string | null>(null)
   const [isHandsFree, setIsHandsFree] = useState(false)
   const [micError, setMicError] = useState<string | null>(null)
+  const [isTranscribing, setIsTranscribing] = useState(false)
 
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null)
   const recognitionRef = useRef<any>(null)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioChunksRef = useRef<Blob[]>([])
   const chatScrollRef = useRef<HTMLDivElement>(null)
 
   const isHandsFreeRef = useRef(false)
@@ -462,29 +465,42 @@ export default function FeryalAiCommandPage() {
         })
 
         if (res.ok) {
-          const blob = await res.blob()
-          const audioUrl = URL.createObjectURL(blob)
-          const audio = new Audio(audioUrl)
-          audioPlayerRef.current = audio
+          const contentType = res.headers.get('content-type') || ''
+          let audioUrl = ''
 
-          audio.onended = () => {
-            setPlayingMsgId(null)
-            URL.revokeObjectURL(audioUrl)
-            // Hands-Free conversation loop: automatically open microphone after speech finishes
-            if (isHandsFreeRef.current && !isVoiceMutedRef.current) {
-              setTimeout(() => {
-                startListeningRef.current?.()
-              }, 600)
+          if (contentType.includes('application/json')) {
+            const data = await res.json()
+            if (data.ok && data.audioDataUrl) {
+              audioUrl = data.audioDataUrl
             }
+          } else {
+            const blob = await res.blob()
+            audioUrl = URL.createObjectURL(blob)
           }
 
-          audio.onerror = () => {
-            URL.revokeObjectURL(audioUrl)
-            fallbackSpeechSynthesis(text, activeLang)
-          }
+          if (audioUrl) {
+            const audio = new Audio(audioUrl)
+            audioPlayerRef.current = audio
 
-          await audio.play()
-          return
+            audio.onended = () => {
+              setPlayingMsgId(null)
+              if (audioUrl.startsWith('blob:')) URL.revokeObjectURL(audioUrl)
+              // Hands-Free conversation loop: automatically open microphone after speech finishes
+              if (isHandsFreeRef.current && !isVoiceMutedRef.current) {
+                setTimeout(() => {
+                  startListeningRef.current?.()
+                }, 600)
+              }
+            }
+
+            audio.onerror = () => {
+              if (audioUrl.startsWith('blob:')) URL.revokeObjectURL(audioUrl)
+              fallbackSpeechSynthesis(text, activeLang)
+            }
+
+            await audio.play()
+            return
+          }
         }
         // If server TTS returned non-200, use fallback
         fallbackSpeechSynthesis(text, activeLang)
@@ -686,144 +702,229 @@ export default function FeryalAiCommandPage() {
     handleSendQueryRef.current = handleSendQuery
   }, [handleSendQuery])
 
-  // Start Speech Recognition with Live Interim Transcript and Smart Pause Tolerance
-  const startListening = useCallback(() => {
+  // Start Speech Recognition with OpenAI Whisper STT + Live Interim Transcript & Smart Pause Tolerance
+  const startListening = useCallback(async () => {
     if (typeof window === 'undefined') return
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-    if (!SpeechRecognition) {
-      setMicError(
-        isAr
-          ? 'المتصفح الحالي لا يدعم التعرف الصوتي المباشر.'
-          : 'Speech Recognition is not supported by your browser.'
-      )
-      return
-    }
-
     setMicError(null)
 
+    // Stop any existing recorder or recognizer
     if (recognitionRef.current) {
       try {
         recognitionRef.current.abort()
       } catch {}
     }
-
-    const recognizer = new SpeechRecognition()
-    recognizer.continuous = false
-    recognizer.interimResults = true
-    recognizer.lang = micLangRef.current === 'ar' ? 'ar-KW' : 'en-US'
-    recognizer.maxAlternatives = 1
-
-    interimTranscriptRef.current = ''
-
-    recognizer.onstart = () => {
-      setIsListening(true)
-      isListeningRef.current = true
-      setMicError(null)
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      try {
+        mediaRecorderRef.current.stop()
+      } catch {}
     }
 
-    recognizer.onresult = (event: any) => {
-      let interimText = ''
-      let finalText = ''
+    // 1. Initialize MediaRecorder for high-accuracy OpenAI Whisper STT
+    let mediaStream: MediaStream | null = null
+    try {
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        const mr = new MediaRecorder(mediaStream)
+        audioChunksRef.current = []
 
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        const item = event.results[i]
-        const transcript = item[0]?.transcript || ''
-        if (item.isFinal) {
-          finalText += transcript
-        } else {
-          interimText += transcript
+        mr.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) {
+            audioChunksRef.current.push(e.data)
+          }
+        }
+
+        mr.onstop = async () => {
+          if (mediaStream) {
+            mediaStream.getTracks().forEach((track) => track.stop())
+          }
+
+          if (audioChunksRef.current.length > 0) {
+            const recordedBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
+            audioChunksRef.current = []
+
+            setIsTranscribing(true)
+            try {
+              const fd = new FormData()
+              fd.append('file', recordedBlob, 'audio.webm')
+              fd.append('lang', micLangRef.current)
+
+              const sttRes = await fetch('/api/feryal/stt', {
+                method: 'POST',
+                body: fd,
+              })
+
+              if (sttRes.ok) {
+                const sttData = await sttRes.json()
+                if (sttData.ok && sttData.transcript && sttData.transcript.trim()) {
+                  const finalQuery = sttData.transcript.trim()
+                  setInputText(finalQuery)
+                  interimTranscriptRef.current = ''
+                  handleSendQueryRef.current?.(finalQuery)
+                  return
+                }
+              }
+            } catch (err) {
+              console.warn('Whisper STT request error, using fallback transcript:', err)
+            } finally {
+              setIsTranscribing(false)
+            }
+          }
+
+          // Fallback if Whisper did not return
+          if (interimTranscriptRef.current.trim()) {
+            const fallbackQuery = interimTranscriptRef.current.trim()
+            interimTranscriptRef.current = ''
+            handleSendQueryRef.current?.(fallbackQuery)
+          }
+        }
+
+        mediaRecorderRef.current = mr
+        mr.start(250)
+      }
+    } catch (micErr: any) {
+      console.warn('Microphone access for MediaRecorder:', micErr)
+    }
+
+    // 2. Start Web Speech API in parallel for Live Interim Transcript display
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    if (SpeechRecognition) {
+      const recognizer = new SpeechRecognition()
+      recognizer.continuous = false
+      recognizer.interimResults = true
+      recognizer.lang = micLangRef.current === 'ar' ? 'ar-KW' : 'en-US'
+      recognizer.maxAlternatives = 1
+
+      interimTranscriptRef.current = ''
+
+      recognizer.onstart = () => {
+        setIsListening(true)
+        isListeningRef.current = true
+        setMicError(null)
+      }
+
+      recognizer.onresult = (event: any) => {
+        let interimText = ''
+        let finalText = ''
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          const item = event.results[i]
+          const transcript = item[0]?.transcript || ''
+          if (item.isFinal) {
+            finalText += transcript
+          } else {
+            interimText += transcript
+          }
+        }
+
+        const liveText = (finalText || interimText).trim()
+        if (liveText) {
+          setInputText(liveText)
+          interimTranscriptRef.current = liveText
+        }
+
+        if (silenceTimerRef.current) {
+          clearTimeout(silenceTimerRef.current)
+          silenceTimerRef.current = null
+        }
+
+        if (finalText.trim()) {
+          setIsListening(false)
+          isListeningRef.current = false
+          if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+            try {
+              mediaRecorderRef.current.stop()
+            } catch {}
+          } else {
+            const queryToSend = finalText.trim()
+            interimTranscriptRef.current = ''
+            handleSendQueryRef.current?.(queryToSend)
+          }
+          try {
+            recognizer.stop()
+          } catch {}
+        } else if (interimText.trim()) {
+          // Smart pause tolerance: if user stops speaking for 1.8s, submit automatically
+          silenceTimerRef.current = setTimeout(() => {
+            if (isListeningRef.current) {
+              setIsListening(false)
+              isListeningRef.current = false
+              if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+                try {
+                  mediaRecorderRef.current.stop()
+                } catch {}
+              } else if (interimTranscriptRef.current.trim()) {
+                const queryToSend = interimTranscriptRef.current.trim()
+                interimTranscriptRef.current = ''
+                handleSendQueryRef.current?.(queryToSend)
+              }
+              try {
+                recognizer.stop()
+              } catch {}
+            }
+          }, 1800)
         }
       }
 
-      const liveText = (finalText || interimText).trim()
-      if (liveText) {
-        setInputText(liveText)
-        interimTranscriptRef.current = liveText
-      }
-
-      if (silenceTimerRef.current) {
-        clearTimeout(silenceTimerRef.current)
-        silenceTimerRef.current = null
-      }
-
-      if (finalText.trim()) {
-        const queryToSend = finalText.trim()
-        interimTranscriptRef.current = ''
+      recognizer.onerror = (event: any) => {
         setIsListening(false)
         isListeningRef.current = false
-        try {
-          recognizer.stop()
-        } catch {}
-        handleSendQueryRef.current?.(queryToSend)
-      } else if (interimText.trim()) {
-        // Smart pause tolerance: if user stops speaking for 1.8s, submit automatically
-        silenceTimerRef.current = setTimeout(() => {
-          if (interimTranscriptRef.current.trim() && isListeningRef.current) {
-            const queryToSend = interimTranscriptRef.current.trim()
-            interimTranscriptRef.current = ''
-            setIsListening(false)
-            isListeningRef.current = false
-            try {
-              recognizer.stop()
-            } catch {}
-            handleSendQueryRef.current?.(queryToSend)
-          }
-        }, 1800)
+        if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+          try {
+            mediaRecorderRef.current.stop()
+          } catch {}
+        }
+
+        const err = event.error
+        if (err === 'not-allowed' || err === 'service-not-allowed') {
+          setMicError(
+            isAr
+              ? '⚠️ تم حظر إذن المايكروفون. يرجى تفعيل إذن المايك في إعدادات المتصفح لإجراء المحادثة الصوتية.'
+              : '⚠️ Microphone permission denied. Please allow microphone access in your browser settings.'
+          )
+        } else if (err === 'no-speech') {
+          setMicError(
+            isAr
+              ? '🎙️ لم يتم رصد أي صوت. يمكنك إعادة الضغط على المايك والتحدث مجدداً.'
+              : '🎙️ No speech detected. Please click the mic and try again.'
+          )
+        } else if (err === 'audio-capture') {
+          setMicError(
+            isAr
+              ? '⚠️ تعذر العثور على مايكروفون متصل. يرجى التحقق من أجهزة الصوت.'
+              : '⚠️ No microphone input detected. Please check your audio device.'
+          )
+        } else if (err !== 'aborted') {
+          setMicError(
+            isAr
+              ? '⚠️ حدث انقطاع في الاتصال الصوتي. يرجى إعادة المحاولة.'
+              : '⚠️ Speech recognition interrupted. Please try again.'
+          )
+        }
       }
-    }
 
-    recognizer.onerror = (event: any) => {
-      setIsListening(false)
-      isListeningRef.current = false
-      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
-
-      const err = event.error
-      if (err === 'not-allowed' || err === 'service-not-allowed') {
-        setMicError(
-          isAr
-            ? '⚠️ تم حظر إذن المايكروفون. يرجى تفعيل إذن المايك في إعدادات المتصفح لإجراء المحادثة الصوتية.'
-            : '⚠️ Microphone permission denied. Please allow microphone access in your browser settings.'
-        )
-      } else if (err === 'no-speech') {
-        setMicError(
-          isAr
-            ? '🎙️ لم يتم رصد أي صوت. يمكنك إعادة الضغط على المايك والتحدث مجدداً.'
-            : '🎙️ No speech detected. Please click the mic and try again.'
-        )
-      } else if (err === 'audio-capture') {
-        setMicError(
-          isAr
-            ? '⚠️ تعذر العثور على مايكروفون متصل. يرجى التحقق من أجهزة الصوت.'
-            : '⚠️ No microphone input detected. Please check your audio device.'
-        )
-      } else if (err !== 'aborted') {
-        setMicError(
-          isAr
-            ? '⚠️ حدث انقطاع في الاتصال الصوتي. يرجى إعادة المحاولة.'
-            : '⚠️ Speech recognition interrupted. Please try again.'
-        )
+      recognizer.onend = () => {
+        setIsListening(false)
+        isListeningRef.current = false
+        if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+          try {
+            mediaRecorderRef.current.stop()
+          } catch {}
+        }
       }
-    }
 
-    recognizer.onend = () => {
-      setIsListening(false)
-      isListeningRef.current = false
-      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
+      recognitionRef.current = recognizer
 
-      if (interimTranscriptRef.current.trim()) {
-        const queryToSend = interimTranscriptRef.current.trim()
-        interimTranscriptRef.current = ''
-        handleSendQueryRef.current?.(queryToSend)
+      try {
+        recognizer.start()
+      } catch (e) {
+        setIsListening(false)
+        isListeningRef.current = false
       }
-    }
-
-    recognitionRef.current = recognizer
-
-    try {
-      recognizer.start()
-    } catch (e) {
-      setIsListening(false)
-      isListeningRef.current = false
+    } else {
+      setIsListening(true)
+      isListeningRef.current = true
     }
   }, [isAr])
 
@@ -838,6 +939,11 @@ export default function FeryalAiCommandPage() {
       if (recognitionRef.current) {
         try {
           recognitionRef.current.stop()
+        } catch {}
+      }
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+        try {
+          mediaRecorderRef.current.stop()
         } catch {}
       }
       setIsListening(false)
@@ -1123,13 +1229,34 @@ export default function FeryalAiCommandPage() {
                 <h3 className="text-[15px] font-extrabold text-white flex items-center gap-2">
                   <span>{isAr ? 'فريال — المستشارة التنفيذية الذكية' : 'Feryal — Executive AI Copilot'}</span>
                 </h3>
-                <p className="text-xs text-slate-300 font-medium">
-                  {isAr ? 'استشارات تنفيذية صوتية ونصية باللغتين' : 'Voice & Text Executive Advisory'}
-                </p>
+                <div className="flex flex-wrap items-center gap-2 mt-1">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>{isAr ? '🔊 صوت OpenAI Nova + Whisper متصل تلقائياً' : '🔊 OpenAI Nova + Whisper Connected'}</span>
+                  </span>
+                </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2 shrink-0 flex-wrap">
+              {/* Test Voice Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  playFeryalSpeech(
+                    isAr
+                      ? 'مرحباً بك يا سعادة المدير. محرك الصوت فائق النقاء أوبن إيه آي نوفا متصل وجاهز للاستشارة الفورية.'
+                      : 'Welcome, Executive Leader. High-fidelity OpenAI Nova voice is fully connected and ready for advisory.',
+                    'test-voice'
+                  )
+                }}
+                className="px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-800 text-xs font-bold text-slate-200 hover:bg-slate-700 transition-all flex items-center gap-1.5"
+                title={isAr ? 'اختبار صوت فريال (OpenAI Nova)' : 'Test Feryal Voice (OpenAI Nova)'}
+              >
+                <Volume2 className="h-3.5 w-3.5 text-blue-400" />
+                <span className="hidden sm:inline">{isAr ? '🔊 اختبار صوت فريال' : '🔊 Test Voice'}</span>
+              </button>
+
               {/* Hands-Free Conversation Mode Button */}
               <button
                 type="button"
@@ -1261,7 +1388,7 @@ export default function FeryalAiCommandPage() {
                       }`}
                     >
                       <Volume2 className="h-3.5 w-3.5" />
-                      <span>{isAr ? (playingMsgId === m.id ? '🔊 جاري النطق بصوت فريال...' : '🔊 استمع لصوت فريال') : (playingMsgId === m.id ? '🔊 Speaking...' : '🔊 Listen to Feryal')}</span>
+                      <span>{isAr ? (playingMsgId === m.id ? '🔊 جاري النطق بصوت فريال (Nova)...' : '🔊 استمع لصوت فريال (OpenAI Nova)') : (playingMsgId === m.id ? '🔊 Speaking (Nova)...' : '🔊 Listen (OpenAI Nova)')}</span>
                     </button>
                   )}
                 </div>
@@ -1272,10 +1399,18 @@ export default function FeryalAiCommandPage() {
             {isCopilotThinking && (
               <div className="flex items-center gap-2 text-blue-700 dark:text-blue-400 text-xs font-bold py-2.5 px-4 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 w-fit">
                 <Sparkles className="h-4 w-4 animate-spin text-blue-600" />
-                <span>{isAr ? 'فريال تحلل بيانات أودو والقنوات...' : 'Feryal is computing ledger figures...'}</span>
+                <span>{isAr ? 'فريال (GPT-4o-mini) تحلل أرقام أودو المعتمدة...' : 'Feryal (GPT-4o-mini) is computing verified Odoo figures...'}</span>
               </div>
             )}
           </div>
+
+          {/* Whisper STT Processing Status */}
+          {isTranscribing && (
+            <div className="px-4 py-2 bg-blue-50 dark:bg-blue-950/40 border-t border-blue-200 dark:border-blue-900 flex items-center gap-2 text-xs font-bold text-blue-700 dark:text-blue-300">
+              <Sparkles className="h-3.5 w-3.5 animate-spin text-blue-600" />
+              <span>{isAr ? '🎙️ جاري تفريغ الصوت بدقة عبر OpenAI Whisper...' : '🎙️ Transcribing voice with OpenAI Whisper...'}</span>
+            </div>
+          )}
 
           {/* Microphone Error Alert (Auto-dismissable & Non-blocking) */}
           {micError && (

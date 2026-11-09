@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getOpenAIApiKey } from '@/lib/openai-key'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -45,15 +46,100 @@ export async function POST(req: NextRequest) {
     const { action, query, url, actionType, payload, lang } = body
     const isEn = lang === 'en'
 
-    // 1. CHAT ACTION (Feryal AI Copilot)
+    // 1. CHAT ACTION (Feryal AI Copilot with GPT-4o-mini & Verified Odoo Master Data)
     if (action === 'chat') {
-      const q = (query || '').toLowerCase()
+      const q = (query || '').trim()
 
+      const apiKey = getOpenAIApiKey()
+      if (apiKey && q) {
+        try {
+          const systemPrompt = isEn
+            ? `You are Advisor Feryal, Chief Executive AI Copilot for Venture Foods Kuwait (operating China Garden, Frank's, Tahina, and other verified brands).
+You are a senior restaurant financial and operational strategist analyzing verified October 2026 Odoo ERP figures:
+- Approved Net Sales: 167,092.160 KWD across 30,540 orders (AOV 5.471 KWD).
+- Operating Net Profit: 42,441.480 KWD (25.4% margin).
+- Food Cost (COGS): 41,438.856 KWD (24.8% actual vs 24.0% target).
+- Operating Expenses & Custodies: 51,154.950 KWD (2,213 entries; Rabih custody & chiller maintenance for Al-Kout & Salmiya 10,707.930 KWD).
+- Promo Discounts: 4,152.000 KWD (2.4% of sales; Keeta alone burns 2,544.000 KWD).
+- 8 Verified Real Branches: Salmiya (31,246.230 KWD | 18.7%), Al-Kout (27,904.390 KWD | 16.7%), Sharq (24,896.730 KWD | 14.9%), Hawally (21,387.790 KWD | 12.8%), Farwaniya (18,045.950 KWD | 10.8%), Ardiya (15,372.480 KWD | 9.2%), Mahboula (15,038.290 KWD | 9.0%), Mubarak Al-Kabeer (13,200.300 KWD | 7.9%).
+- Aggregator Channels: Talabat Tgo (22.5% comm | 58,816.440 KWD), Talabat TMP (12.0% comm | 27,236.020 KWD), Keeta (25,732.190 KWD), Deliveroo (23,560.000 KWD).
+- Strategic What-If Projections:
+  * Q1: +20,520 KWD added gain, 147,844 KWD total profit.
+  * H1: +43,800 KWD added gain, 298,449 KWD total profit.
+  * Full Year: +91,680 KWD added gain, 600,978 KWD total profit.
+
+CRITICAL RULES:
+- Respond 100% strictly in polished, professional executive English with ZERO Arabic words.
+- Provide crisp, direct, highly professional advice with exact numbers and clear action steps.
+- Keep responses concise (under 120 words) so they sound natural and direct when read aloud.`
+            : `أنت المستشارة التنفيذية الذكية "فريال" لمجموعة فنتشر فودز للمطاعم في الكويت (Venture Foods) التي تضم تشاينا جاردن، فرانكس، طحينة، وعلاماتنا المعتمدة.
+أنتِ خبيرة استراتيجية مالية وتشغيلية رفيعة المستوى تجيبين الإدارة التنفيذية استناداً إلى بيانات أودو (Odoo ERP) الحقيقية المعتمدة لشهر أكتوبر 2026:
+- صافي المبيعات المعتمدة: 167,092.160 دينار كويتي عبر 30,540 طلباً (متوسط الطلب 5.471 دينار كويتي).
+- صافي الربح التشغيلي: 42,441.480 دينار كويتي بهامش 25.4%.
+- تكلفة الأغذية والمواد: 41,438.856 دينار كويتي بنسبة 24.8% (المستهدف 24.0%).
+- المصروفات التشغيلية والعهد: 51,154.950 دينار كويتي (2,213 قيداً؛ تشمل عهدة رابح وصيانة مبردات وتكييف الكوت والسالمية 10,707.930 دينار كويتي).
+- الخصومات والعروض: 4,152.000 دينار كويتي (2.4% من المبيعات؛ منصة كيتا تبتلع 2,544.000 دينار كويتي).
+- الفروع التشغيلية الحقيقية (8 فروع فقط): السالمية (31,246.230 د.ك | 18.7%)، الكوت/الفحيحيل (27,904.390 د.ك | 16.7%)، شرق (24,896.730 د.ك | 14.9%)، حولي (21,387.790 د.ك | 12.8%)، الفروانية (18,045.950 د.ك | 10.8%)، العارضية (15,372.480 د.ك | 9.2%)، المهبولة (15,038.290 د.ك | 9.0%)، مبارك الكبير (13,200.300 د.ك | 7.9%).
+- قنوات التوصيل: طلبات جو (عمولة 22.5% | 58,816.440 د.ك)، سوق طلبات TMP (عمولة 12.0% | 27,236.020 د.ك)، كيتا (25,732.190 د.ك)، دليفرو (23,560.000 د.ك).
+- التوقعات والخطط الاستراتيجية (ماذا لو):
+  * الربع الأول: وفر إضافي +20,520 د.ك بإجمالي ربح 147,844 د.ك.
+  * النصف سنوي: وفر إضافي +43,800 د.ك بإجمالي ربح 298,449 د.ك.
+  * السنة الكاملة: وفر إضافي +91,680 د.ك بإجمالي ربح 600,978 د.ك.
+
+قواعد صارمة جداً:
+- أجيبي بلغة عربية فصحى راقية ومهنية 100% دون أي كلمة أو حرف إنجليزي مطلقاً. استخدمي "دينار كويتي" بدلاً من KWD.
+- كوني مباشرة ومحددة بالأرقام والحلول الدقيقة، ولا تتجاوزي 120 كلمة لتكون مريحة وسلسة في النطق الصوتي.`
+
+          const openAiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'gpt-4o-mini',
+              temperature: 0.4,
+              max_tokens: 350,
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: q },
+              ],
+            }),
+          })
+
+          if (openAiRes.ok) {
+            const data = await openAiRes.json()
+            const generatedAnswer = data.choices?.[0]?.message?.content?.trim()
+            if (generatedAnswer) {
+              const replyAr = isEn ? '' : generatedAnswer
+              const replyEn = isEn ? generatedAnswer : ''
+
+              const keyMetrics = isEn
+                ? { 'Verified Sales': '167,092.160 KWD', 'Net Profit': '42,441.480 KWD', 'Orders': '30,540' }
+                : { 'المبيعات المعتمدة': '167,092.160 د.ك', 'صافي الربح': '42,441.480 د.ك', 'الطلبات': '30,540' }
+
+              return NextResponse.json({
+                success: true,
+                replyAr: replyAr || generatedAnswer,
+                replyEn: replyEn || generatedAnswer,
+                keyMetrics,
+                timestamp: new Date().toISOString(),
+                model: 'gpt-4o-mini',
+              })
+            }
+          }
+        } catch (gptErr) {
+          console.error('GPT-4o-mini execution error, falling back to local dataset:', gptErr)
+        }
+      }
+
+      // Fallback deterministic responses if OpenAI is offline
+      const qLower = q.toLowerCase()
       let replyAr = ''
       let replyEn = ''
       let keyMetrics: Record<string, any> = {}
 
-      if (q.includes('ربح') || q.includes('فرع') || q.includes('أعلى') || q.includes('profit') || q.includes('branch')) {
+      if (qLower.includes('ربح') || qLower.includes('فرع') || qLower.includes('أعلى') || qLower.includes('profit') || qLower.includes('branch')) {
         replyAr =
           'أهلاً بك. وفقاً لسجلات أودو المعتمدة لشهر أكتوبر، يتصدر فرع "السالمية" المبيعات والأرباح بإجمالي مبيعات 31,246.230 د.ك (18.7% من إجمالي المجموعة) و5,710 طلبات، يليه مباشرة فرع "الكوت/الفحيحيل" بمبيعات 27,904.390 د.ك. يعود تميز السالمية إلى الكثافة السكانية ومزيج طلبات Talabat Tgo والزبائن المباشرين.'
         replyEn =
@@ -61,7 +147,7 @@ export async function POST(req: NextRequest) {
         keyMetrics = isEn
           ? { 'Top Branch': 'Salmiya', 'Sales': '31,246.230 KWD', 'Orders': '5,710' }
           : { 'الفرع الأفضل': 'السالمية', 'المبيعات': '31,246.230 د.ك', 'الطلبات': '5,710' }
-      } else if (q.includes('وفر') || q.includes('3,800') || q.includes('مواد') || q.includes('هدر') || q.includes('save') || q.includes('waste')) {
+      } else if (qLower.includes('وفر') || qLower.includes('3,800') || qLower.includes('مواد') || qLower.includes('هدر') || qLower.includes('save') || qLower.includes('waste')) {
         replyAr =
           'لتحقيق وفر فوري قدره 3,806 د.ك شهرياً في تكاليف التشغيل:\n1. ضبط هدر التتبيل في مطبخ العارضية المركزي (+1,336 د.ك/شهر).\n2. وضع سقف لخصومات منصة Keeta وخفضها من 2,544 د.ك إلى 924 د.ك (+1,620 د.ك/شهر).\n3. استبدال مبردات فرع حولي المتهالكة لخفض استهلاك الكهرباء والتلف (+850 د.ك/شهر).'
         replyEn =
@@ -69,7 +155,7 @@ export async function POST(req: NextRequest) {
         keyMetrics = isEn
           ? { 'Potential Monthly Savings': '3,806 KWD', 'Target Food Cost': '24.0%' }
           : { 'الوفر الشهري المتوقع': '3,806 د.ك', 'المستهدف لتكلفة المواد': '24.0%' }
-      } else if (q.includes('tgo') || q.includes('tmp') || q.includes('طلبات') || q.includes('توصيل') || q.includes('delivery')) {
+      } else if (qLower.includes('tgo') || qLower.includes('tmp') || qLower.includes('طلبات') || qLower.includes('توصيل') || qLower.includes('delivery')) {
         replyAr =
           'في السالمية ومجمل الفروع، نعتمد قناتين لطلبات: قناة Talabat Tgo (توصيل دراجات طلبات بعمولة 22.5%) حققت 58,816.440 د.ك، بينما قناة Talabat TMP (Marketplace - توصيل أسطولنا بعمولة 12.0%) حققت 27,236.020 د.ك. الفارق في العمولة (10.5%) يمنحنا ربحاً إضافياً كبيراً عند توجيه زبائن المناطق القريبة لـ TMP.'
         replyEn =
@@ -77,7 +163,7 @@ export async function POST(req: NextRequest) {
         keyMetrics = isEn
           ? { 'Talabat Tgo': '58,816.440 KWD', 'Talabat TMP': '27,236.020 KWD', 'Delta Commission': '10.5%' }
           : { 'طلبات Tgo': '58,816.440 د.ك', 'طلبات TMP': '27,236.020 د.ك', 'فارق العمولة': '10.5%' }
-      } else if (q.includes('سعر') || q.includes('تشاينا') || q.includes('china') || q.includes('5%') || q.includes('price')) {
+      } else if (qLower.includes('سعر') || qLower.includes('تشاينا') || qLower.includes('china') || qLower.includes('5%') || qLower.includes('price')) {
         replyAr =
           'دراسة الأثر المالي لرفع أسعار 4 أصناف من فئة الحصان الرابح (Plowhorses) في تشاينا جاردن بنسبة 5%:\n• يزيد الإيراد الشهري المباشر بمقدار +584 د.ك دون التأثير الملحوظ على حجم الطلب نظراً لمرونة الطلب المنخفضة.\n• يرفع متوسط سلة الشراء (AOV) بنحو 0.080 د.ك، ما ينعكس مباشرة كأرباح صافية بنسبة 100%.'
         replyEn =

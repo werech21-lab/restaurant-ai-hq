@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getOpenAIApiKey } from '@/lib/openai-key'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -18,7 +19,7 @@ function sanitizeTextForSpeech(rawText: string, lang: 'ar' | 'en'): string {
   text = text.replace(/[*#`_~]/g, ' ')
 
   // Remove bullets, dashes, bars, brackets, special math symbols
-  text = text.replace(/[•–—+\/\\|<>\[\]{}()=^]/g, ' ')
+  text = text.replace(/[•–—+\/\\|<>\[\]{}()=^:]/g, ' ')
 
   // Remove all emoji characters
   text = text.replace(
@@ -27,20 +28,20 @@ function sanitizeTextForSpeech(rawText: string, lang: 'ar' | 'en'): string {
   )
 
   if (lang === 'ar') {
-    // Replace abbreviations with natural Arabic words
+    // Replace abbreviations with natural spoken Arabic
     text = text.replace(/\bKWD\b/gi, ' دينار كويتي ')
     text = text.replace(/د\.ك/g, ' دينار كويتي ')
     text = text.replace(/%/g, ' بالمئة ')
     text = text.replace(/\bCOGS\b/gi, ' تكلفة الأغذية والمواد ')
     text = text.replace(/\bAOV\b/gi, ' متوسط قيمة السلة ')
     text = text.replace(/\bTgo\b/gi, ' طلبات جو ')
-    text = text.replace(/\bTMP\b/gi, ' طلبات ماركتبليس ')
+    text = text.replace(/\bTMP\b/gi, ' سوق طلبات ')
     text = text.replace(/\bTalabat\b/gi, ' طلبات ')
     text = text.replace(/\bKeeta\b/gi, ' كيتا ')
     text = text.replace(/\bDeliveroo\b/gi, ' دليفرو ')
     text = text.replace(/\bOdoo\b/gi, ' أودو ')
 
-    // Replace decimal commas/dots in numbers for natural reading
+    // Natural decimal numbers
     text = text.replace(/(\d+)[,.](\d{3})\s*دينار كويتي/g, '$1 دينار و $2 فلس')
     text = text.replace(/(\d+)[,.](\d+)/g, '$1 فاصلة $2')
   } else {
@@ -59,113 +60,85 @@ function sanitizeTextForSpeech(rawText: string, lang: 'ar' | 'en'): string {
   return text
 }
 
-/**
- * Split text into small chunks suitable for Google TTS API (max 180 chars per chunk)
- */
-function chunkText(text: string, maxLen = 170): string[] {
-  const sentences = text.split(/(?<=[.?!،؛\n])\s+/)
-  const chunks: string[] = []
-  let current = ''
-
-  for (const sentence of sentences) {
-    if ((current + ' ' + sentence).trim().length <= maxLen) {
-      current = (current + ' ' + sentence).trim()
-    } else {
-      if (current) chunks.push(current)
-      if (sentence.length > maxLen) {
-        // Break long sentence by words
-        const words = sentence.split(/\s+/)
-        let wordChunk = ''
-        for (const w of words) {
-          if ((wordChunk + ' ' + w).trim().length <= maxLen) {
-            wordChunk = (wordChunk + ' ' + w).trim()
-          } else {
-            if (wordChunk) chunks.push(wordChunk)
-            wordChunk = w
-          }
-        }
-        current = wordChunk
-      } else {
-        current = sentence
-      }
-    }
-  }
-  if (current) chunks.push(current)
-  return chunks.filter((c) => c.trim().length > 0)
-}
-
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     const { text, lang = 'ar' } = body
 
     if (!text || typeof text !== 'string') {
-      return NextResponse.json({ error: 'Text is required' }, { status: 400 })
+      return NextResponse.json({ ok: false, error: 'Text is required' }, { status: 400 })
     }
 
     const ttsLang = lang === 'en' ? 'en' : 'ar'
     const cleanText = sanitizeTextForSpeech(text, ttsLang)
 
     if (!cleanText) {
-      return NextResponse.json({ error: 'Text became empty after sanitization' }, { status: 400 })
+      return NextResponse.json({ ok: false, error: 'Text is empty after sanitization' }, { status: 400 })
     }
 
-    const chunks = chunkText(cleanText)
-    const audioBuffers: Buffer[] = []
+    const apiKey = getOpenAIApiKey()
 
-    for (const chunk of chunks) {
-      const url = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${ttsLang}&q=${encodeURIComponent(
-        chunk
-      )}`
+    // 1. Try OpenAI Nova TTS (Primary High-Fidelity Engine)
+    if (apiKey) {
+      try {
+        const openAiRes = await fetch('https://api.openai.com/v1/audio/speech', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'tts-1',
+            voice: 'nova',
+            input: cleanText.slice(0, 4000),
+            response_format: 'mp3',
+          }),
+        })
 
-      const res = await fetch(url, {
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          Referer: 'https://translate.google.com/',
-        },
-      })
+        if (openAiRes.ok) {
+          const arrayBuf = await openAiRes.arrayBuffer()
+          const b64 = Buffer.from(arrayBuf).toString('base64')
+          const audioDataUrl = `data:audio/mpeg;base64,${b64}`
 
-      if (res.ok) {
-        const arrayBuf = await res.arrayBuffer()
-        audioBuffers.push(Buffer.from(arrayBuf))
+          return NextResponse.json({
+            ok: true,
+            engine: 'openai-nova',
+            audioDataUrl,
+            contentType: 'audio/mpeg',
+          })
+        } else {
+          console.warn('OpenAI Nova TTS returned status:', openAiRes.status)
+        }
+      } catch (openAiErr) {
+        console.error('OpenAI Nova TTS error, falling back:', openAiErr)
       }
     }
 
-    if (audioBuffers.length === 0) {
-      return NextResponse.json({ error: 'Failed to generate audio stream' }, { status: 502 })
-    }
+    // 2. Graceful Fallback: Google Translate TTS Stream
+    const url = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${ttsLang}&q=${encodeURIComponent(
+      cleanText.slice(0, 200)
+    )}`
 
-    const finalBuffer = Buffer.concat(audioBuffers)
-
-    return new NextResponse(finalBuffer, {
-      status: 200,
+    const fallbackRes = await fetch(url, {
       headers: {
-        'Content-Type': 'audio/mpeg',
-        'Content-Length': finalBuffer.length.toString(),
-        'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        Referer: 'https://translate.google.com/',
       },
     })
+
+    if (fallbackRes.ok) {
+      const fallbackBuf = await fallbackRes.arrayBuffer()
+      const b64 = Buffer.from(fallbackBuf).toString('base64')
+      return NextResponse.json({
+        ok: true,
+        engine: 'google-tts-fallback',
+        audioDataUrl: `data:audio/mpeg;base64,${b64}`,
+      })
+    }
+
+    return NextResponse.json({ ok: false, error: 'TTS generation failed' }, { status: 502 })
   } catch (error: any) {
-    return NextResponse.json({ error: error?.message || 'Server error' }, { status: 500 })
+    return NextResponse.json({ ok: false, error: error?.message || 'Server error' }, { status: 500 })
   }
-}
-
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url)
-  const text = searchParams.get('text')
-  const lang = (searchParams.get('lang') || 'ar') as 'ar' | 'en'
-
-  if (!text) {
-    return NextResponse.json({ error: 'Text query param is required' }, { status: 400 })
-  }
-
-  // Reuse POST logic
-  return POST(
-    new NextRequest(req.url, {
-      method: 'POST',
-      body: JSON.stringify({ text, lang }),
-      headers: { 'Content-Type': 'application/json' },
-    })
-  )
 }
