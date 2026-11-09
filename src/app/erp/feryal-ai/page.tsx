@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useRef, useMemo } from 'react'
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import Link from 'next/link'
 import {
   Sparkles,
@@ -22,7 +22,6 @@ import {
   RefreshCw,
   Activity,
   Zap,
-  Globe,
   Store,
   ChevronRight,
   Clock,
@@ -62,14 +61,14 @@ const MASTER_ODOO_METRICS = {
 
 // Strictly the 8 Verified Operational Branches (Zero Jahra / Zero Qurain)
 const VERIFIED_BRANCHES = [
-  { id: 'Salmiya', nameAr: 'السالمية', nameEn: 'Salmiya', salesKwd: 31246.23, orders: 5710, share: 18.7, rank: 1, bestChannel: 'Talabat Tgo', status: 'مثالي' },
-  { id: 'Al-Kout', nameAr: 'الكوت / الفحيحيل', nameEn: 'Al-Kout / Fahaheel', salesKwd: 27904.39, orders: 5100, share: 16.7, rank: 2, bestChannel: 'Talabat TMP', status: 'مثالي' },
-  { id: 'Sharq', nameAr: 'شرق', nameEn: 'Sharq', salesKwd: 24896.73, orders: 4550, share: 14.9, rank: 3, bestChannel: 'Deliveroo', status: 'مثالي' },
-  { id: 'Hawally', nameAr: 'حولي', nameEn: 'Hawally', salesKwd: 21387.79, orders: 3910, share: 12.8, rank: 4, bestChannel: 'Keeta', status: 'يحتاج صيانة مبردات' },
-  { id: 'Farwaniya', nameAr: 'الفروانية', nameEn: 'Farwaniya', salesKwd: 18045.95, orders: 3300, share: 10.8, rank: 5, bestChannel: 'Talabat Tgo', status: 'مثالي' },
-  { id: 'Ardiya', nameAr: 'العارضية الحرفية', nameEn: 'Ardiya Central', salesKwd: 15372.48, orders: 2810, share: 9.2, rank: 6, bestChannel: 'Central Hub', status: 'معايرة هدر التتبيل' },
-  { id: 'Mahboula', nameAr: 'المهبولة', nameEn: 'Mahboula', salesKwd: 15038.29, orders: 2750, share: 9.0, rank: 7, bestChannel: 'Talabat TMP', status: 'مثالي' },
-  { id: 'Mubarak-Al-Kabeer', nameAr: 'مبارك الكبير / صباح السالم', nameEn: 'Mubarak Al-Kabeer', salesKwd: 13200.3, orders: 2410, share: 7.9, rank: 8, bestChannel: 'Talabat Tgo', status: 'نمو متصاعد' },
+  { id: 'Salmiya', nameAr: 'السالمية', nameEn: 'Salmiya', salesKwd: 31246.23, orders: 5710, share: 18.7, rank: 1, bestChannel: 'Talabat Tgo', statusAr: 'مثالي', statusEn: 'Optimal' },
+  { id: 'Al-Kout', nameAr: 'الكوت / الفحيحيل', nameEn: 'Al-Kout / Fahaheel', salesKwd: 27904.39, orders: 5100, share: 16.7, rank: 2, bestChannel: 'Talabat TMP', statusAr: 'مثالي', statusEn: 'Optimal' },
+  { id: 'Sharq', nameAr: 'شرق', nameEn: 'Sharq', salesKwd: 24896.73, orders: 4550, share: 14.9, rank: 3, bestChannel: 'Deliveroo', statusAr: 'مثالي', statusEn: 'Optimal' },
+  { id: 'Hawally', nameAr: 'حولي', nameEn: 'Hawally', salesKwd: 21387.79, orders: 3910, share: 12.8, rank: 4, bestChannel: 'Keeta', statusAr: 'يحتاج صيانة مبردات', statusEn: 'Chiller Repairs Required' },
+  { id: 'Farwaniya', nameAr: 'الفروانية', nameEn: 'Farwaniya', salesKwd: 18045.95, orders: 3300, share: 10.8, rank: 5, bestChannel: 'Talabat Tgo', statusAr: 'مثالي', statusEn: 'Optimal' },
+  { id: 'Ardiya', nameAr: 'العارضية الحرفية', nameEn: 'Ardiya Central', salesKwd: 15372.48, orders: 2810, share: 9.2, rank: 6, bestChannel: 'Central Hub', statusAr: 'معايرة هدر التتبيل', statusEn: 'Prep Waste Calibration' },
+  { id: 'Mahboula', nameAr: 'المهبولة', nameEn: 'Mahboula', salesKwd: 15038.29, orders: 2750, share: 9.0, rank: 7, bestChannel: 'Talabat TMP', statusAr: 'مثالي', statusEn: 'Optimal' },
+  { id: 'Mubarak-Al-Kabeer', nameAr: 'مبارك الكبير / صباح السالم', nameEn: 'Mubarak Al-Kabeer', salesKwd: 13200.3, orders: 2410, share: 7.9, rank: 8, bestChannel: 'Talabat Tgo', statusAr: 'نمو متصاعد', statusEn: 'Rapid Growth' },
 ]
 
 // ==============================================================================
@@ -82,7 +81,8 @@ interface SolutionItem {
   locationAr: string
   locationEn: string
   monthlySavingsKwd: number
-  badge: string
+  badgeAr: string
+  badgeEn: string
   detailsAr: string
   detailsEn: string
 }
@@ -95,7 +95,8 @@ const STRATEGIC_SOLUTIONS: SolutionItem[] = [
     locationAr: 'مطبخ العارضية المركزي',
     locationEn: 'Ardiya Central Prep Facility',
     monthlySavingsKwd: 1336,
-    badge: 'تكلفة المواد (COGS)',
+    badgeAr: 'تكلفة المواد (COGS)',
+    badgeEn: 'Food Cost (COGS)',
     detailsAr: 'إعادة ضبط أوزان خلطات التتبيل وتوحيد تقطيع الدجاج يقلص الفاقد بنسبة 1.6% ويعيد تكلفة المواد للمستهدف 24.0%.',
     detailsEn: 'Standardizing marinade batch weights and raw poultry prep cuts recovers 1.6% yield, aligning food cost to target 24.0%.',
   },
@@ -106,7 +107,8 @@ const STRATEGIC_SOLUTIONS: SolutionItem[] = [
     locationAr: 'فرع حولي',
     locationEn: 'Hawally Branch',
     monthlySavingsKwd: 850,
-    badge: 'المصروفات والصيانة',
+    badgeAr: 'المصروفات والصيانة',
+    badgeEn: 'Opex & Maintenance',
     detailsAr: 'استبدال 3 مبردات قديمة متهالكة يخفض استهلاك الكهرباء والصيانة الدورية ويمنع تلف الخضار واللحوم.',
     detailsEn: 'Upgrading 3 degraded commercial chillers reduces electric tariff loads and prevents raw perishables spoilage.',
   },
@@ -117,7 +119,8 @@ const STRATEGIC_SOLUTIONS: SolutionItem[] = [
     locationAr: 'منصة Keeta (كافة الفروع)',
     locationEn: 'Keeta Aggregator (All Branches)',
     monthlySavingsKwd: 1620,
-    badge: 'كفاءة التسويق',
+    badgeAr: 'كفاءة التسويق',
+    badgeEn: 'Marketing Yield',
     detailsAr: 'وضع سقف للخصومات الترويجية وخفض الحرق من 2,544 د.ك إلى 924 د.ك شهرياً مع الحفاظ على معدل تحويل الطلبات.',
     detailsEn: 'Capping aggressive promo burn from 2,544 KWD to 924 KWD monthly while preserving customer order conversion.',
   },
@@ -128,7 +131,8 @@ interface ProposalItem {
   titleAr: string
   titleEn: string
   expectedMonthlyGainKwd: number
-  badge: string
+  badgeAr: string
+  badgeEn: string
   mechanismAr: string
   mechanismEn: string
 }
@@ -139,7 +143,8 @@ const STRATEGIC_PROPOSALS: ProposalItem[] = [
     titleAr: 'إلزام إضافة المشروبات للوجبات ومجموعات الكومبو',
     titleEn: 'Mandatory Beverage Attachment in Combo Meals',
     expectedMonthlyGainKwd: 2450,
-    badge: 'رفع متوسط السلة (AOV)',
+    badgeAr: 'رفع متوسط السلة (AOV)',
+    badgeEn: 'AOV Expansion',
     mechanismAr: 'رفع متوسط سلة الشراء من 5.471 د.ك إلى 5.750 د.ك بإدراج المشروب الإلزامي لكافة وجبات الكومبو بتطبيقات التوصيل.',
     mechanismEn: 'Elevating Group AOV from 5.471 to 5.750 KWD by bundling high-margin soft beverages in all delivery combo items.',
   },
@@ -148,7 +153,8 @@ const STRATEGIC_PROPOSALS: ProposalItem[] = [
     titleAr: 'إعادة هندسة قائمة الطعام (Menu Engineering Matrix)',
     titleEn: 'Menu Matrix Rationalization (Dogs & Plowhorses)',
     expectedMonthlyGainKwd: 584,
-    badge: 'تعظيم الهامش الربحي',
+    badgeAr: 'تعظيم الهامش الربحي',
+    badgeEn: 'Margin Optimization',
     mechanismAr: 'استبعاد 18 صنفاً بطيئ الحركة (Dogs) وتعديل أسعار 4 أصناف شعبية (Plowhorses) بنسبة +5% لتوليد ربح صافي مباشر.',
     mechanismEn: 'Purging 18 sluggish Dog items and adjusting prices of 4 popular Plowhorses by +5% to generate pure margin.',
   },
@@ -156,7 +162,8 @@ const STRATEGIC_PROPOSALS: ProposalItem[] = [
 
 interface ExecutionPlanItem {
   id: string
-  week: string
+  weekAr: string
+  weekEn: string
   departmentAr: string
   departmentEn: string
   titleAr: string
@@ -170,7 +177,8 @@ interface ExecutionPlanItem {
 const STRATEGIC_EXECUTION_PLANS: ExecutionPlanItem[] = [
   {
     id: 'plan-w1',
-    week: 'الأسبوع 1',
+    weekAr: 'الأسبوع 1',
+    weekEn: 'Week 1',
     departmentAr: 'المطبخ المركزي والجودة',
     departmentEn: 'Central Kitchen & QC',
     titleAr: 'معايرة مقادير التتبيل وموازين مطبخ العارضية',
@@ -182,7 +190,8 @@ const STRATEGIC_EXECUTION_PLANS: ExecutionPlanItem[] = [
   },
   {
     id: 'plan-w2',
-    week: 'الأسبوع 2',
+    weekAr: 'الأسبوع 2',
+    weekEn: 'Week 2',
     departmentAr: 'الصيانة والمشتريات',
     departmentEn: 'Maintenance & Procurement',
     titleAr: 'شراء وتوريد المبردات الحديثة لفرع حولي',
@@ -194,7 +203,8 @@ const STRATEGIC_EXECUTION_PLANS: ExecutionPlanItem[] = [
   },
   {
     id: 'plan-w3',
-    week: 'الأسبوع 3',
+    weekAr: 'الأسبوع 3',
+    weekEn: 'Week 3',
     departmentAr: 'التسويق وإدارة القنوات',
     departmentEn: 'Marketing & Channels',
     titleAr: 'تطبيق سقف خصومات كيتا وتعديل مصفوفة العروض',
@@ -206,7 +216,8 @@ const STRATEGIC_EXECUTION_PLANS: ExecutionPlanItem[] = [
   },
   {
     id: 'plan-w4',
-    week: 'الأسبوع 4',
+    weekAr: 'الأسبوع 4',
+    weekEn: 'Week 4',
     departmentAr: 'العمليات والتدريب وتقنية المعلومات',
     departmentEn: 'Operations & POS Tech',
     titleAr: 'تفعيل المشروب الإلزامي وتحديث أسعار المنيو 5%',
@@ -217,6 +228,21 @@ const STRATEGIC_EXECUTION_PLANS: ExecutionPlanItem[] = [
     status: 'pending',
   },
 ]
+
+// Default Fallback Texts
+const DEFAULT_PERPLEXITY_AR = `📊 **تقرير استخبارات السوق الكويتي اللحظي (سوق الشويخ للجملة - 2026):**
+• **الدواجن الطازجة والمجمدة:** أسعار كرتون الدجاج البرازيلي (10×1000جم) مستقرة عند 11.400 د.ك مع وفرة في الاستيراد.
+• **زيوت القلي النقية:** برميل زيت الذرة والشورتنينغ سعة 20 لتر يتداول عند 8.750 د.ك، مع توصية بالشراء الآجل قبل زيادة متوقعة بنسبة 4%.
+• **الخضار والورقيات (سوق الفرضة بالصليبية):** انخفاض 6% في أسعار البصل والبطاطس، وارتفاع طفيف في أسعار الطماطم المحمية.
+• **منصات التوصيل:** اشتداد حدة المنافسة بين Talabat و Keeta، حيث تقدم كيتا عروض توصيل مجاني تجذب شرائح جديدة في حولي والسالمية.
+💡 **توصية فريال:** تثبيت عقود توريد الزيوت لشهر نوفمبر في مطبخ العارضية المركزي لتحقيق وفر مباشر قدره 450 د.ك.`
+
+const DEFAULT_PERPLEXITY_EN = `📊 **Kuwait Restaurant Market Intelligence (Shuwaikh Wholesale - 2026):**
+• **Poultry (Fresh & Frozen):** Brazilian frozen chicken carton (10x1000g) stabilized at 11.400 KWD with steady supply chains.
+• **Pure Cooking Oil & Shortening:** 20L corn oil drum trading at 8.750 KWD, with a recommended forward contract before an expected 4% price increase.
+• **Vegetables & Greens (Al-Fardha - Sulaibiya):** 6% price drop in bulk onions and potatoes; minor increase in greenhouse tomatoes.
+• **Aggregator Dynamics:** Fierce market competition between Talabat and Keeta; Keeta's aggressive subsidies drive user adoption in Hawally & Salmiya.
+💡 **Feryal Recommendation:** Lock in November oil and poultry supply contracts for Ardiya Central Kitchen to capture 450 KWD in direct margin savings.`
 
 // ==============================================================================
 // 3. MAIN COMPONENT (Unslop UI - High Contrast & Large Typography)
@@ -236,7 +262,7 @@ export default function FeryalAiCommandPage() {
         'مرحباً بك يا سعادة المدير. أنا المستشارة فريال، محرك الذكاء الاصطناعي التنفيذي لمجموعة فنتشر فودز. أراقب لحظياً 167,092.160 د.ك مبيعات معتمدة و30,540 طلباً عبر أودو ورادارات التوصيل بدقة 100%. كيف ترغب أن نبدأ خطة تعظيم الأرباح وخفض التكاليف اليوم؟',
       textEn:
         'Greetings, Executive Leader. I am Feryal, your AI Executive Copilot for Venture Foods. I actively monitor 167,092.160 KWD in approved sales and 30,540 orders across Odoo and delivery aggregators. How would you like to accelerate profit margins and eliminate operational waste today?',
-      time: 'الآن',
+      time: isAr ? 'الآن' : 'Just now',
     },
   ])
   const [inputText, setInputText] = useState('')
@@ -244,7 +270,7 @@ export default function FeryalAiCommandPage() {
 
   // Voice Interaction States (Web Speech API)
   const [isListening, setIsListening] = useState(false)
-  const [micLang, setMicLang] = useState<'ar' | 'en'>('ar')
+  const [micLang, setMicLang] = useState<'ar' | 'en'>(isAr ? 'ar' : 'en')
   const [isVoiceMuted, setIsVoiceMuted] = useState(false)
   const recognitionRef = useRef<any>(null)
   const chatScrollRef = useRef<HTMLDivElement>(null)
@@ -253,8 +279,14 @@ export default function FeryalAiCommandPage() {
   const [hubLoading, setHubLoading] = useState(false)
 
   // Perplexity States
-  const [perplexityQuery, setPerplexityQuery] = useState('أسعار الدجاج المجمد وزيوت القلي وسوق المطاعم في الكويت وتأثير الطقس')
-  const [perplexityResponse, setPerplexityResponse] = useState<string | null>(null)
+  const [perplexityQuery, setPerplexityQuery] = useState(
+    isAr
+      ? 'أسعار الدجاج المجمد وزيوت القلي وسوق المطاعم في الكويت وتأثير الطقس'
+      : 'Wholesale chicken & cooking oil prices, Kuwait restaurant inflation, and weather impact'
+  )
+  const [perplexityResponse, setPerplexityResponse] = useState<string | null>(
+    isAr ? DEFAULT_PERPLEXITY_AR : DEFAULT_PERPLEXITY_EN
+  )
 
   // Firecrawl States
   const [firecrawlUrl, setFirecrawlUrl] = useState('https://www.talabat.com/kuwait/restaurant/china-garden')
@@ -267,8 +299,20 @@ export default function FeryalAiCommandPage() {
   // Composio States
   const [executionPlans, setExecutionPlans] = useState<ExecutionPlanItem[]>(STRATEGIC_EXECUTION_PLANS)
   const [dispatchedLogs, setDispatchedLogs] = useState<Array<{ time: string; msg: string; channel: string }>>([
-    { time: '08:00', msg: 'تم تسليم تقرير مطابقة أودو التلقائي للإدارة العليا عبر Gmail.', channel: 'Gmail Exec' },
-    { time: '08:15', msg: 'مزامنة مبيعات Talabat Tgo و TMP مع دفتر أستاذ أودو بنجاح.', channel: 'Google Sheets' },
+    {
+      time: '08:00',
+      msg: isAr
+        ? 'تم تسليم تقرير مطابقة أودو التلقائي للإدارة العليا عبر Gmail.'
+        : 'Automated Odoo ledger reconciliation report dispatched to executives via Gmail.',
+      channel: 'Gmail Exec',
+    },
+    {
+      time: '08:15',
+      msg: isAr
+        ? 'مزامنة مبيعات Talabat Tgo و TMP مع دفتر أستاذ أودو بنجاح.'
+        : 'Talabat Tgo and TMP sales synchronized with Odoo master ledger.',
+      channel: 'Google Sheets',
+    },
   ])
 
   // What-If Dynamic Slider States
@@ -281,6 +325,113 @@ export default function FeryalAiCommandPage() {
       chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight
     }
   }, [messages, isCopilotThinking])
+
+  // Handler functions with memoization to satisfy hooks dependency rules
+  const handleRunPerplexity = useCallback(async (customQuery?: string, langOverride?: 'ar' | 'en') => {
+    setHubLoading(true)
+    const currentLang = langOverride || (isAr ? 'ar' : 'en')
+    const q = customQuery || perplexityQuery
+    try {
+      const res = await fetch('/api/feryal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'perplexity', query: q, lang: currentLang }),
+      })
+      const data = await res.json()
+      if (data.success && data.content) {
+        setPerplexityResponse(data.content)
+      } else {
+        setPerplexityResponse(currentLang === 'en' ? DEFAULT_PERPLEXITY_EN : DEFAULT_PERPLEXITY_AR)
+      }
+    } catch (e) {
+      setPerplexityResponse(currentLang === 'en' ? DEFAULT_PERPLEXITY_EN : DEFAULT_PERPLEXITY_AR)
+    } finally {
+      setHubLoading(false)
+    }
+  }, [isAr, perplexityQuery])
+
+  const handleRunFirecrawl = useCallback(async (langOverride?: 'ar' | 'en') => {
+    setHubLoading(true)
+    const currentLang = langOverride || (isAr ? 'ar' : 'en')
+    try {
+      const res = await fetch('/api/feryal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'firecrawl', url: firecrawlUrl, lang: currentLang }),
+      })
+      const data = await res.json()
+      if (data.success && data.items) {
+        setCompetitorItems(data.items)
+      }
+    } catch (e) {
+      // fallback
+    } finally {
+      setHubLoading(false)
+    }
+  }, [firecrawlUrl, isAr])
+
+  const handleRunPlaywright = useCallback(async (p = portalSelect, langOverride?: 'ar' | 'en') => {
+    setHubLoading(true)
+    const currentLang = langOverride || (isAr ? 'ar' : 'en')
+    try {
+      const res = await fetch('/api/feryal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'playwright', url: p, lang: currentLang }),
+      })
+      const data = await res.json()
+      if (data.success && data.portal) {
+        setPortalHealthData(data.portal)
+      }
+    } catch (e) {
+      // fallback
+    } finally {
+      setHubLoading(false)
+    }
+  }, [isAr, portalSelect])
+
+  // Sync state whenever locale changes (Zero Language Mixing Guarantee)
+  useEffect(() => {
+    setMicLang(isAr ? 'ar' : 'en')
+    setPerplexityQuery(
+      isAr
+        ? 'أسعار الدجاج المجمد وزيوت القلي وسوق المطاعم في الكويت وتأثير الطقس'
+        : 'Wholesale chicken & cooking oil prices, Kuwait restaurant inflation, and weather impact'
+    )
+    setPerplexityResponse(isAr ? DEFAULT_PERPLEXITY_AR : DEFAULT_PERPLEXITY_EN)
+
+    // Update welcome message time and logs
+    setMessages((prev) =>
+      prev.map((m, idx) => (idx === 0 ? { ...m, time: isAr ? 'الآن' : 'Just now' } : m))
+    )
+
+    setDispatchedLogs([
+      {
+        time: '08:00',
+        msg: isAr
+          ? 'تم تسليم تقرير مطابقة أودو التلقائي للإدارة العليا عبر Gmail.'
+          : 'Automated Odoo ledger reconciliation report dispatched to executives via Gmail.',
+        channel: 'Gmail Exec',
+      },
+      {
+        time: '08:15',
+        msg: isAr
+          ? 'مزامنة مبيعات Talabat Tgo و TMP مع دفتر أستاذ أودو بنجاح.'
+          : 'Talabat Tgo and TMP sales synchronized with Odoo master ledger.',
+        channel: 'Google Sheets',
+      },
+    ])
+
+    // Re-fetch localized data
+    handleRunPerplexity(
+      isAr
+        ? 'أسعار الدجاج المجمد وزيوت القلي وسوق المطاعم في الكويت وتأثير الطقس'
+        : 'Wholesale chicken & cooking oil prices, Kuwait restaurant inflation, and weather impact',
+      isAr ? 'ar' : 'en'
+    )
+    handleRunFirecrawl(isAr ? 'ar' : 'en')
+    handleRunPlaywright(portalSelect, isAr ? 'ar' : 'en')
+  }, [isAr, handleRunPerplexity, handleRunFirecrawl, handleRunPlaywright, portalSelect])
 
   // Initialize Web Speech API
   useEffect(() => {
@@ -372,7 +523,7 @@ export default function FeryalAiCommandPage() {
       const res = await fetch('/api/feryal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'chat', query: textToSend }),
+        body: JSON.stringify({ action: 'chat', query: textToSend, lang: isAr ? 'ar' : 'en' }),
       })
 
       const data = await res.json()
@@ -394,72 +545,12 @@ export default function FeryalAiCommandPage() {
         sender: 'feryal' as const,
         textAr: 'وفقاً لبيانات أودو لشهر أكتوبر، صافي المبيعات هو 167,092.160 د.ك والأرباح التشغيلية 42,441.480 د.ك (هامش 25.4%). خطة خفض الهدر وسقف الخصومات جاهزة للتنفيذ.',
         textEn: 'According to October Odoo figures, Net Sales stand at 167,092.160 KWD and Operating Profit at 42,441.480 KWD (25.4% margin). Waste elimination and discount capping plans are ready to deploy.',
-        time: 'الآن',
+        time: isAr ? 'الآن' : 'Just now',
       }
       setMessages((prev) => [...prev, fallbackMsg])
       speakText(isAr ? fallbackMsg.textAr : fallbackMsg.textEn)
     } finally {
       setIsCopilotThinking(false)
-    }
-  }
-
-  // Load Perplexity Research
-  const handleRunPerplexity = async () => {
-    setHubLoading(true)
-    try {
-      const res = await fetch('/api/feryal', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'perplexity', query: perplexityQuery }),
-      })
-      const data = await res.json()
-      if (data.success) {
-        setPerplexityResponse(data.content)
-      }
-    } catch (e) {
-      // fallback
-    } finally {
-      setHubLoading(false)
-    }
-  }
-
-  // Load Firecrawl Competitor Scrape
-  const handleRunFirecrawl = async () => {
-    setHubLoading(true)
-    try {
-      const res = await fetch('/api/feryal', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'firecrawl', url: firecrawlUrl }),
-      })
-      const data = await res.json()
-      if (data.success && data.items) {
-        setCompetitorItems(data.items)
-      }
-    } catch (e) {
-      // fallback
-    } finally {
-      setHubLoading(false)
-    }
-  }
-
-  // Load Playwright Portal Check
-  const handleRunPlaywright = async (p = portalSelect) => {
-    setHubLoading(true)
-    try {
-      const res = await fetch('/api/feryal', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'playwright', url: p }),
-      })
-      const data = await res.json()
-      if (data.success && data.portal) {
-        setPortalHealthData(data.portal)
-      }
-    } catch (e) {
-      // fallback
-    } finally {
-      setHubLoading(false)
     }
   }
 
@@ -473,7 +564,7 @@ export default function FeryalAiCommandPage() {
       const res = await fetch('/api/feryal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'composio', actionType }),
+        body: JSON.stringify({ action: 'composio', actionType, lang: isAr ? 'ar' : 'en' }),
       })
       const data = await res.json()
       if (data.success) {
@@ -492,13 +583,6 @@ export default function FeryalAiCommandPage() {
       )
     }
   }
-
-  // Trigger initial service data once on load
-  useEffect(() => {
-    handleRunPerplexity()
-    handleRunFirecrawl()
-    handleRunPlaywright('talabat')
-  }, [])
 
   // Projections calculation based on What-If Sliders
   const calculatedProjections = useMemo(() => {
@@ -560,9 +644,9 @@ export default function FeryalAiCommandPage() {
         <div className="flex flex-wrap items-center gap-3 shrink-0">
           <button
             onClick={() => {
-              handleRunPerplexity()
-              handleRunFirecrawl()
-              handleRunPlaywright()
+              handleRunPerplexity(undefined, isAr ? 'ar' : 'en')
+              handleRunFirecrawl(isAr ? 'ar' : 'en')
+              handleRunPlaywright(portalSelect, isAr ? 'ar' : 'en')
             }}
             className="inline-flex items-center gap-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2.5 text-[13px] font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-xs"
           >
@@ -765,10 +849,10 @@ export default function FeryalAiCommandPage() {
           {/* Quick Action Pills Under Header */}
           <div className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 p-3 flex items-center gap-2 overflow-x-auto no-scrollbar">
             {[
-              { ar: 'ما هو الفرع الأعلى ربحية ولماذا؟', en: 'Top profitable branch?' },
-              { ar: 'كيف نوفر 3,800 د.ك هذا الشهر؟', en: 'How to save 3,800 KWD?' },
-              { ar: 'مقارنة أداء Talabat Tgo مقابل TMP', en: 'Compare Tgo vs TMP' },
-              { ar: 'أثر رفع أسعار تشاينا جاردن 5%', en: '5% price hike impact' },
+              { ar: 'ما هو الفرع الأعلى ربحية ولماذا؟', en: 'Top profitable branch and why?' },
+              { ar: 'كيف نوفر 3,800 د.ك هذا الشهر؟', en: 'How to save 3,800 KWD this month?' },
+              { ar: 'مقارنة أداء Talabat Tgo مقابل TMP', en: 'Compare Talabat Tgo vs TMP' },
+              { ar: 'أثر رفع أسعار تشاينا جاردن 5%', en: '5% China Garden price hike impact' },
             ].map((p, idx) => (
               <button
                 key={idx}
@@ -838,7 +922,7 @@ export default function FeryalAiCommandPage() {
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
                   <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-600" />
                 </span>
-                <span>{isAr ? 'جاري الاستماع لصوتك (تحدث الآن)...' : 'Listening to voice stream...'}</span>
+                <span>{isAr ? 'جاري الاستماع لصوتك (تحدث الآن)...' : 'Listening to voice stream (Speak now)...'}</span>
               </div>
               <div className="flex items-center gap-1 h-4">
                 {[0.4, 0.8, 1.2, 0.6, 1.0, 0.5, 0.9].map((scale, i) => (
@@ -945,7 +1029,7 @@ export default function FeryalAiCommandPage() {
                       <div className="flex items-center gap-2">
                         <span className="text-[15px] font-bold text-slate-900 dark:text-white">{isAr ? sol.titleAr : sol.titleEn}</span>
                         <span className="rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs px-2.5 py-0.5 font-bold">
-                          {sol.badge}
+                          {isAr ? sol.badgeAr : sol.badgeEn}
                         </span>
                       </div>
                       <p className="text-sm font-medium text-slate-700 dark:text-slate-300 leading-relaxed">{isAr ? sol.detailsAr : sol.detailsEn}</p>
@@ -982,7 +1066,7 @@ export default function FeryalAiCommandPage() {
                       <div className="flex items-center gap-2">
                         <span className="text-[15px] font-bold text-slate-900 dark:text-white">{isAr ? prop.titleAr : prop.titleEn}</span>
                         <span className="rounded-md bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 text-xs px-2.5 py-0.5 font-bold">
-                          {prop.badge}
+                          {isAr ? prop.badgeAr : prop.badgeEn}
                         </span>
                       </div>
                       <p className="text-sm font-medium text-slate-700 dark:text-slate-300 leading-relaxed">{isAr ? prop.mechanismAr : prop.mechanismEn}</p>
@@ -1007,7 +1091,7 @@ export default function FeryalAiCommandPage() {
                   <Clock className="h-4 w-4" />
                   <span>{isAr ? 'المرحلة 3: الخطط التنفيذية والأتمتة عبر Composio' : 'Stage 3: Weekly Execution Plans & Composio'}</span>
                 </h4>
-                <span className="text-xs text-slate-600 dark:text-slate-400 font-bold">4 {isAr ? 'أسابيع مجدولة' : 'Weeks Roadmapped'}</span>
+                <span className="text-xs text-slate-600 dark:text-slate-400 font-bold">{isAr ? '4 أسابيع مجدولة' : '4 Weeks Roadmapped'}</span>
               </div>
 
               <div className="space-y-3">
@@ -1019,7 +1103,7 @@ export default function FeryalAiCommandPage() {
                     <div className="space-y-1.5">
                       <div className="flex items-center gap-2">
                         <span className="rounded-md bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-white font-mono font-bold text-xs px-2.5 py-0.5">
-                          {plan.week}
+                          {isAr ? plan.weekAr : plan.weekEn}
                         </span>
                         <span className="text-xs text-slate-600 dark:text-slate-400 font-bold">
                           [{isAr ? plan.departmentAr : plan.departmentEn}]
@@ -1247,7 +1331,7 @@ export default function FeryalAiCommandPage() {
                   className="flex-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-3.5 py-2.5 text-xs sm:text-[13px] font-medium text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
                 />
                 <button
-                  onClick={handleRunPerplexity}
+                  onClick={() => handleRunPerplexity(perplexityQuery, isAr ? 'ar' : 'en')}
                   disabled={hubLoading}
                   className="rounded-xl bg-[#2563EB] hover:bg-blue-600 px-4 py-2.5 text-xs font-bold text-white transition-all shrink-0 shadow-xs"
                 >
@@ -1288,7 +1372,7 @@ export default function FeryalAiCommandPage() {
                   className="flex-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-3.5 py-2.5 text-xs font-mono text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
                 />
                 <button
-                  onClick={handleRunFirecrawl}
+                  onClick={() => handleRunFirecrawl(isAr ? 'ar' : 'en')}
                   disabled={hubLoading}
                   className="rounded-xl bg-[#2563EB] hover:bg-blue-600 px-4 py-2.5 text-xs font-bold text-white transition-all shrink-0 shadow-xs"
                 >
@@ -1311,7 +1395,7 @@ export default function FeryalAiCommandPage() {
                   {competitorItems.slice(0, 3).map((item, i) => (
                     <tr key={i}>
                       <td className="py-2 px-3 font-bold text-slate-900 dark:text-white">
-                        {isAr ? item.competitorItemAr || item.competitorItem : item.competitorItem}
+                        {isAr ? (item.competitorItemAr || item.name) : (item.competitorItem || item.name)}
                       </td>
                       <td className="py-2 px-3 font-mono">{item.competitorPriceKwd?.toFixed(3)}</td>
                       <td className="py-2 px-3 font-mono font-bold text-emerald-700 dark:text-emerald-400">{item.ourPriceKwd?.toFixed(3)}</td>
@@ -1347,7 +1431,7 @@ export default function FeryalAiCommandPage() {
                     key={p}
                     onClick={() => {
                       setPortalSelect(p)
-                      handleRunPlaywright(p)
+                      handleRunPlaywright(p, isAr ? 'ar' : 'en')
                     }}
                     className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all uppercase ${
                       portalSelect === p
@@ -1475,12 +1559,15 @@ export default function FeryalAiCommandPage() {
                   <td className="py-3 px-4">
                     <span
                       className={`rounded-md px-2.5 py-1 text-xs font-extrabold ${
-                        b.status.includes('هدر') || b.status.includes('صيانة')
+                        (isAr ? b.statusAr : b.statusEn).includes('هدر') ||
+                        (isAr ? b.statusAr : b.statusEn).includes('صيانة') ||
+                        (isAr ? b.statusAr : b.statusEn).includes('Calibration') ||
+                        (isAr ? b.statusAr : b.statusEn).includes('Repairs')
                           ? 'bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
                           : 'bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
                       }`}
                     >
-                      {b.status}
+                      {isAr ? b.statusAr : b.statusEn}
                     </span>
                   </td>
                 </tr>

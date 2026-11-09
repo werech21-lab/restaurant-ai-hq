@@ -244,7 +244,11 @@ export function Sidebar({ user }: { user: AccessUser; enabledKeys?: string[] | n
             {user.name.slice(0, 1)}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="font-bold text-xs leading-snug text-slate-900 dark:text-white break-words">{displayTeamName(user.name, locale)}</p>
+            <p className="font-bold text-xs leading-snug text-slate-900 dark:text-white break-words">
+              {user.name.includes('الإدارة التنفيذية') || user.name.includes('Executive')
+                ? (isAr ? 'الإدارة التنفيذية · فنتشر فودز' : 'Executive Management - Venture Foods')
+                : displayTeamName(user.name, locale)}
+            </p>
             <p className="text-[11px] leading-snug text-slate-500 dark:text-slate-400 break-words">{displayRoleName(user.role.name, locale)}</p>
           </div>
         </div>

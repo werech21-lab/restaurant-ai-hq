@@ -153,6 +153,9 @@ export function findTeamMemberByEmail(email: string): VfTeamMember | undefined {
 }
 
 export function displayTeamName(nameOrEmail: string, locale: 'ar' | 'en') {
+  if (nameOrEmail.includes('الإدارة التنفيذية') || nameOrEmail.includes('Executive Management')) {
+    return locale === 'en' ? 'Executive Management - Venture Foods' : 'الإدارة التنفيذية · فنتشر فودز'
+  }
   const byEmail = findTeamMemberByEmail(nameOrEmail)
   if (byEmail) return locale === 'en' ? byEmail.nameEn : byEmail.nameAr
   const byName = VF_TEAM.find(
