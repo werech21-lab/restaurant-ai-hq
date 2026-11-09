@@ -25,11 +25,12 @@ export function PanelHeaderBar({
           {title}
         </p>
 
-        {/* Five stations including Feryal AI */}
+        {/* Six stations including Feryal AI & Events EXB */}
         <nav className="hidden lg:flex items-center gap-5 text-xs font-semibold !text-slate-200">
           {[
             { href: '/dashboard', ar: 'الملخص والتوصيات', en: 'Summary' },
             { href: '/erp/feryal-ai', ar: 'المستشارة فريال ✨', en: 'Feryal AI ✨' },
+            { href: '/erp/events-intelligence', ar: 'تحليل الفعاليات والعقود (EXB)', en: 'Events, Contracts & EXB Hub' },
             { href: '/erp/sales-scorecard', ar: 'تحليل المبيعات', en: 'Sales analysis' },
             { href: '/erp/aggregator-radar', ar: 'تطبيقات التوصيل', en: 'Delivery apps' },
             { href: '/automations', ar: 'التنبيهات', en: 'Alerts' },

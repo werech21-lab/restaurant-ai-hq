@@ -7,6 +7,7 @@ import { useI18n } from "@/lib/i18n";
 const links = [
   { href: "/dashboard", ar: "الملخص", en: "Summary" },
   { href: "/erp/feryal-ai", ar: "فريال AI", en: "Feryal AI" },
+  { href: "/erp/events-intelligence", ar: "تحليل الفعاليات والعقود (EXB)", en: "Events, Contracts & EXB Hub" },
   { href: "/erp/sales-scorecard", ar: "المبيعات", en: "Sales" },
   { href: "/erp/aggregator-radar", ar: "التوصيل", en: "Delivery" },
   { href: "/automations", ar: "التنبيهات", en: "Alerts" },
@@ -18,7 +19,7 @@ export function MobileBottomNav() {
   if (pathname === "/login" || pathname === "/" || pathname === "/download" || pathname === "/home") return null;
   return (
     <nav className="no-print fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur md:hidden">
-      <div className="grid grid-cols-5">
+      <div className="grid grid-cols-6">
         {links.map((item) => {
           const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
           return (

@@ -4,6 +4,7 @@ import React, { Suspense, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import {
+  Calendar,
   ChevronDown,
   FileText,
   LayoutDashboard,
@@ -51,6 +52,14 @@ const SIDEBAR_SECTIONS: NavSection[] = [
         labelAr: 'المستشارة الذكية فريال',
         labelEn: 'Feryal AI Executive Copilot',
         icon: Sparkles,
+        alwaysVisible: true,
+      },
+      {
+        key: 'events-intelligence',
+        href: '/erp/events-intelligence',
+        labelAr: 'تحليل الفعاليات والعقود (EXB)',
+        labelEn: 'Events, Contracts & EXB Hub',
+        icon: Calendar,
         alwaysVisible: true,
       },
       // visible to every signed-in user who can open the control panel (no per-module permission needed)

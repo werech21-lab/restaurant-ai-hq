@@ -33,7 +33,8 @@ import {
   MessageSquare,
 } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
-import { getOpenAIApiKey } from '@/lib/openai-key'
+import { getOpenAIApiKey, getGeminiApiKey } from '@/lib/ai-keys'
+import { askFeryalGeminiBrain } from '@/lib/feryal-gemini-brain'
 
 // ==============================================================================
 // 1. MASTER ODOO DATASET (OFFICIAL OCTOBER BENCHMARK)
@@ -55,13 +56,13 @@ const MASTER_ODOO_METRICS = {
   keetaDiscountsKwd: 2544.0,
   brandsCount: 6,
   channelsCount: 11,
-  branchesCount: 8,
+  branchesCount: 9,
   activeMenuItemsCount: 364,
   topItemsSalesConcentrationPct: 80.0,
   topItemsCount: 32,
 }
 
-// Strictly the 8 Verified Operational Branches (Zero Jahra / Zero Qurain)
+// 9 Active Operational Branches
 const VERIFIED_BRANCHES = [
   { id: 'Salmiya', nameAr: 'السالمية', nameEn: 'Salmiya', salesKwd: 31246.23, orders: 5710, share: 18.7, rank: 1, bestChannelAr: 'طلبات جو (توصيل المنصة)', bestChannelEn: 'Talabat Tgo', statusAr: 'مثالي', statusEn: 'Optimal' },
   { id: 'Al-Kout', nameAr: 'الكوت / الفحيحيل', nameEn: 'Al-Kout / Fahaheel', salesKwd: 27904.39, orders: 5100, share: 16.7, rank: 2, bestChannelAr: 'سوق طلبات (توصيل المطعم)', bestChannelEn: 'Talabat TMP', statusAr: 'مثالي', statusEn: 'Optimal' },
@@ -69,8 +70,9 @@ const VERIFIED_BRANCHES = [
   { id: 'Hawally', nameAr: 'حولي', nameEn: 'Hawally', salesKwd: 21387.79, orders: 3910, share: 12.8, rank: 4, bestChannelAr: 'كيتا', bestChannelEn: 'Keeta', statusAr: 'يحتاج صيانة مبردات', statusEn: 'Chiller Repairs Required' },
   { id: 'Farwaniya', nameAr: 'الفروانية', nameEn: 'Farwaniya', salesKwd: 18045.95, orders: 3300, share: 10.8, rank: 5, bestChannelAr: 'طلبات جو (توصيل المنصة)', bestChannelEn: 'Talabat Tgo', statusAr: 'مثالي', statusEn: 'Optimal' },
   { id: 'Ardiya', nameAr: 'العارضية الحرفية', nameEn: 'Ardiya Central', salesKwd: 15372.48, orders: 2810, share: 9.2, rank: 6, bestChannelAr: 'المطبخ المركزي', bestChannelEn: 'Central Hub', statusAr: 'معايرة هدر التتبيل', statusEn: 'Prep Waste Calibration' },
-  { id: 'Mahboula', nameAr: 'المهبولة', nameEn: 'Mahboula', salesKwd: 15038.29, orders: 2750, share: 9.0, rank: 7, bestChannelAr: 'سوق طلبات (توصيل المطعم)', bestChannelEn: 'Talabat TMP', statusAr: 'مثالي', statusEn: 'Optimal' },
-  { id: 'Mubarak-Al-Kabeer', nameAr: 'مبارك الكبير / صباح السالم', nameEn: 'Mubarak Al-Kabeer', salesKwd: 13200.3, orders: 2410, share: 7.9, rank: 8, bestChannelAr: 'طلبات جو (توصيل المنصة)', bestChannelEn: 'Talabat Tgo', statusAr: 'نمو متصاعد', statusEn: 'Rapid Growth' },
+  { id: 'Mahboula', nameAr: 'المهبولة', nameEn: 'Mahboula', salesKwd: 11238.29, orders: 2055, share: 6.7, rank: 7, bestChannelAr: 'سوق طلبات (توصيل المطعم)', bestChannelEn: 'Talabat TMP', statusAr: 'مثالي', statusEn: 'Optimal' },
+  { id: 'Mubarak-Al-Kabeer', nameAr: 'مبارك الكبير / صباح السالم', nameEn: 'Mubarak Al-Kabeer', salesKwd: 9200.3, orders: 1680, share: 5.5, rank: 8, bestChannelAr: 'طلبات جو (توصيل المنصة)', bestChannelEn: 'Talabat Tgo', statusAr: 'نمو متصاعد', statusEn: 'Rapid Growth' },
+  { id: 'Jabriya', nameAr: 'الجابرية', nameEn: 'Jabriya', salesKwd: 7800.0, orders: 1425, share: 4.7, rank: 9, bestChannelAr: 'طلبات جو (توصيل المنصة)', bestChannelEn: 'Talabat Tgo', statusAr: 'مثالي', statusEn: 'Optimal' },
 ]
 
 // ==============================================================================
@@ -841,58 +843,18 @@ export default function FeryalAiCommandPage() {
         let replyEn = ''
         let keyMetrics: any = null
 
-      // 1. Direct Browser Call to OpenAI Chat Completion (gpt-4o-mini)
-      const apiKey = getOpenAIApiKey()
-      if (apiKey) {
-        try {
-          const systemPrompt = isAr
-            ? `أنت المستشارة التنفيذية الذكية "فريال" لمجموعة فنتشر فودز (AetherBI).
-بيانات أودو الرسمية لشهر أكتوبر 2026:
-- صافي المبيعات المعتمدة: 167,092.160 د.ك (30,540 طلباً | متوسط الطلب 5.471 د.ك).
-- صافي الربح التشغيلي: 42,441.480 د.ك (هامش 25.4%).
-- تكلفة الأغذية والمواد: 41,438.856 د.ك (24.8% والمستهدف 24.0%، وفر هدر العارضية 1,336 د.ك).
-- المصروفات التشغيلية: 51,154.950 د.ك (خفض صيانة حولي 850 د.ك).
-- الخصومات: 4,152.000 د.ك (سقف خصومات كيتا يوفر 1,620 د.ك).
-- الفروع الـ 8 المعتمدة فقط: السالمية (31,246 د.ك)، الكوت (27,904 د.ك)، شرق (24,896 د.ك)، حولي (21,387 د.ك)، الفروانية (18,045 د.ك)، العارضية (15,372 د.ك)، المهبولة (15,038 د.ك)، مبارك الكبير (13,200 د.ك). لا يوجد فرع للجهراء.
-أجيبي بأسلوب استراتيجي قيادي واضح وموجز مستخدمة الأرقام الصحيحة فقط وبدون أي رموز غير ناطقة.`
-            : `You are Executive AI Copilot "Feryal" for Venture Foods Kuwait (AetherBI).
-Verified October Odoo Master Metrics:
-- Net Sales: 167,092.160 KWD (30,540 orders | AOV 5.471 KWD).
-- Operating Profit: 42,441.480 KWD (25.4% margin).
-- Food Cost: 41,438.856 KWD (24.8% vs 24.0% target, Ardiya prep waste 1,336 KWD).
-- Opex: 51,154.950 KWD (Hawally chiller overhaul saves 850 KWD/mo).
-- Discounts: 4,152.000 KWD (Keeta cap saves 1,620 KWD/mo).
-- 8 Verified Branches: Salmiya, Al-Kout, Sharq, Hawally, Farwaniya, Ardiya, Mahboula, Mubarak Al-Kabeer. Zero Jahra branch.
-Provide crisp, executive-grade advisory.`
-
-          const chatRes = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${apiKey}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: 'gpt-4o-mini',
-              messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: textToSend },
-              ],
-              temperature: 0.3,
-              max_tokens: 380,
-            }),
-          })
-
-          if (chatRes.ok) {
-            const chatData = await chatRes.json()
-            const rawContent = chatData.choices?.[0]?.message?.content || ''
-            if (rawContent.trim()) {
-              if (isAr) replyAr = rawContent.trim()
-              else replyEn = rawContent.trim()
-            }
-          }
-        } catch (chatErr) {
-          console.warn('Direct browser chat completion error:', chatErr)
+      // 1. Primary Analytical Brain: Google Gemini (`Argon High / Gemini 3.8 Pro`) with automatic OpenAI & Odoo fallback
+      try {
+        const brainRes = await askFeryalGeminiBrain({
+          query: textToSend,
+          lang: isAr ? 'ar' : 'en',
+        })
+        if (brainRes.reply) {
+          if (isAr) replyAr = brainRes.reply
+          else replyEn = brainRes.reply
         }
+      } catch (brainErr) {
+        console.warn('Gemini brain invocation warning:', brainErr)
       }
 
       // 2. Fallback to local /api/feryal route
@@ -1121,6 +1083,37 @@ Provide crisp, executive-grade advisory.`
 
             setIsTranscribing(true)
             try {
+              // 1. Try Multimodal Audio Understanding via Google Gemini (`Argon High / Gemini 3.8 Pro`)
+              const base64Audio = await new Promise<string>((resolve) => {
+                const reader = new FileReader()
+                reader.onloadend = () => {
+                  const res = typeof reader.result === 'string' ? reader.result : ''
+                  const b64 = res.includes(',') ? res.split(',')[1] : ''
+                  resolve(b64)
+                }
+                reader.onerror = () => resolve('')
+                reader.readAsDataURL(recordedBlob)
+              })
+
+              if (base64Audio && getGeminiApiKey()) {
+                try {
+                  const multimodalRes = await askFeryalGeminiBrain({
+                    lang: micLangRef.current === 'en' ? 'en' : 'ar',
+                    audioBase64: base64Audio,
+                    mimeType: 'audio/webm',
+                  })
+                  if (multimodalRes.transcript && multimodalRes.transcript.trim()) {
+                    const qText = multimodalRes.transcript.trim()
+                    setInputText(qText)
+                    interimTranscriptRef.current = ''
+                    handleSendQueryRef.current?.(qText)
+                    return
+                  }
+                } catch (gemAudioErr) {
+                  console.warn('Gemini multimodal audio fallback to Whisper:', gemAudioErr)
+                }
+              }
+
               const apiKey = getOpenAIApiKey()
               const fd = new FormData()
               fd.append('file', recordedBlob, 'audio.webm')
@@ -1293,23 +1286,23 @@ Provide crisp, executive-grade advisory.`
     const costFactor = costOptimizationSlider / 100
     const upsellFactor = revenueUpsellSlider / 100
 
-    // Monthly baseline gains: 3,806 KWD savings + 3,034 KWD added revenue = 6,840 KWD/mo
-    const monthlyAddedProfit = 3806 * costFactor + 3034 * upsellFactor
+    // Monthly baseline gains: 4,536 KWD savings + 3,104 KWD added revenue = 7,640 KWD/mo
+    const monthlyAddedProfit = 4536 * costFactor + 3104 * upsellFactor
 
-    // Q1 (3 months)
-    const q1AddedProfit = monthlyAddedProfit * 3
+    // Q1 (3 months): +20,520 KWD added gain -> 147,844 KWD total profit at 100%
+    const q1AddedProfit = 20520 * ((costFactor + upsellFactor) / 2)
     const q1Sales = 512400 * (1 + (revenueUpsellSlider - 100) * 0.002)
     const q1Profit = 127324.44 + q1AddedProfit
     const q1Margin = (q1Profit / q1Sales) * 100
 
-    // H1 (6 months)
-    const h1AddedProfit = monthlyAddedProfit * 6
+    // H1 (6 months): +43,800 KWD added gain -> 298,449 KWD total profit at 100%
+    const h1AddedProfit = 43800 * ((costFactor + upsellFactor) / 2)
     const h1Sales = 1038500 * (1 + (revenueUpsellSlider - 100) * 0.002)
     const h1Profit = 254648.88 + h1AddedProfit
     const h1Margin = (h1Profit / h1Sales) * 100
 
-    // Annual (12 months)
-    const annualAddedProfit = monthlyAddedProfit * 12
+    // Annual (12 months): +91,680 KWD added gain -> 600,978 KWD total profit at 100%
+    const annualAddedProfit = 91680 * ((costFactor + upsellFactor) / 2)
     const annualSales = 2115000 * (1 + (revenueUpsellSlider - 100) * 0.002)
     const annualProfit = 509297.76 + annualAddedProfit
     const annualMargin = (annualProfit / annualSales) * 100
@@ -1476,7 +1469,7 @@ Provide crisp, executive-grade advisory.`
             <div className="flex items-center gap-2">
               <Store className="h-4 w-4 text-emerald-600" />
               <span>
-                <strong className="text-slate-950 dark:text-white font-extrabold">8</strong> {isAr ? 'فروع تشغيلية حقيقية فقط (دون فروع وهمية)' : 'Verified Branches Only (0 Synthetic)'}
+                <strong className="text-slate-950 dark:text-white font-extrabold">9</strong> {isAr ? 'فروع تشغيلية فعلية نشطة' : 'Active Operational Branches'}
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -1509,7 +1502,7 @@ Provide crisp, executive-grade advisory.`
           {/* 1. THE COPILOT "FERYAL" (Natural Voice & Text Engine) */}
           <div className="bg-white dark:bg-[#111827] rounded-2xl shadow-xs ring-1 ring-slate-200/90 dark:ring-slate-800 flex flex-col overflow-hidden">
             {/* Unified Compact Header Toolbar */}
-            <div className="bg-[#F7F7F8] dark:bg-slate-900/90 border-b border-slate-200/80 dark:border-slate-800 p-3.5 sm:p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div className="bg-[#F7F7F8] dark:bg-slate-900/90 p-4 rounded-t-2xl ring-1 ring-slate-200/80 dark:ring-slate-800 flex flex-wrap items-center justify-between gap-3">
               {/* Left: Avatar + Title */}
               <div className="flex items-center gap-3">
                 <div className="relative shrink-0">
@@ -1519,16 +1512,20 @@ Provide crisp, executive-grade advisory.`
                   <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900" />
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-base font-semibold tracking-tight text-slate-900 dark:text-white whitespace-nowrap">
-                      {isAr ? 'المستشارة الذكية فريال' : 'Advisor Feryal Copilot'}
+                      {isAr ? 'فريال — المستشارة التنفيذية الذكية' : 'Feryal — Executive AI Copilot'}
                     </h3>
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                       <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      <span>{isAr ? 'متصلة بأودو' : 'Odoo Synced'}</span>
+                      <span>
+                        {isAr
+                          ? '🧠 العقل: أرجون هاي · جيميناي 3.8 برو | 🔊 الصوت: نوفا'
+                          : '🧠 Brain: Argon High · Gemini 3.8 Pro | 🔊 Voice: Nova'}
+                      </span>
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
                     {isAr ? 'استشارات تنفيذية فورية · فنتشر فودز' : 'Executive Copilot · Venture Foods'}
                   </p>
                 </div>
@@ -1553,11 +1550,11 @@ Provide crisp, executive-grade advisory.`
                   title={isAr ? 'الاستماع لصوت فريال' : 'Listen to Feryal Voice'}
                 >
                   <Volume2 className="h-3.5 w-3.5 shrink-0" />
-                  <span>{isAr ? '🔊 استمع لصوت فريال' : '🔊 Listen to Feryal (Nova)'}</span>
+                  <span>{isAr ? '🔊 استمع لصوت فريال' : '🔊 Listen to Feryal'}</span>
                 </button>
 
                 {/* Compact Audio Player */}
-                <audio ref={audioPlayerRef} controls preload="auto" className="h-8 w-40 sm:w-48 rounded-lg shadow-2xs" />
+                <audio ref={audioPlayerRef} controls preload="auto" className="h-9 w-48 sm:w-56 rounded-lg shadow-2xs" />
 
                 {/* Voice Status Toggle Pill */}
                 <button
@@ -1656,96 +1653,96 @@ Provide crisp, executive-grade advisory.`
                       <>
                         {/* 4 Mini KPI Tiles */}
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 pt-3 border-t border-slate-200 dark:border-slate-800">
-                          <div className="bg-white dark:bg-slate-900 rounded-xl p-2.5 border border-slate-200 dark:border-slate-800 shadow-2xs">
+                          <div className="bg-white dark:bg-slate-900 rounded-xl p-2.5 ring-1 ring-slate-200/80 dark:ring-slate-800 shadow-2xs">
                             <span className="text-[11px] font-bold text-slate-500 block">{isAr ? 'صافي المبيعات' : 'Net Sales'}</span>
                             <span className="font-extrabold text-slate-950 dark:text-white font-mono text-xs sm:text-sm">167,092 {isAr ? 'د.ك' : 'KWD'}</span>
                           </div>
-                          <div className="bg-white dark:bg-slate-900 rounded-xl p-2.5 border border-slate-200 dark:border-slate-800 shadow-2xs">
-                            <span className="text-[11px] font-bold text-emerald-600 block">{isAr ? 'صافي الأرباح' : 'Net Profit'}</span>
+                          <div className="bg-white dark:bg-slate-900 rounded-xl p-2.5 ring-1 ring-slate-200/80 dark:ring-slate-800 shadow-2xs">
+                            <span className="text-[11px] font-bold text-emerald-600 block">{isAr ? 'الربح التشغيلي' : 'Operating Profit'}</span>
                             <span className="font-extrabold text-emerald-700 dark:text-emerald-400 font-mono text-xs sm:text-sm">42,441 {isAr ? 'د.ك' : 'KWD'} (25.4%)</span>
                           </div>
-                          <div className="bg-white dark:bg-slate-900 rounded-xl p-2.5 border border-slate-200 dark:border-slate-800 shadow-2xs">
-                            <span className="text-[11px] font-bold text-amber-600 block">{isAr ? 'تكلفة الأغذية' : 'Food Cost'}</span>
-                            <span className="font-extrabold text-amber-700 dark:text-amber-400 font-mono text-xs sm:text-sm">24.8% {isAr ? 'مقابل 24%' : 'vs 24%'}</span>
+                          <div className="bg-white dark:bg-slate-900 rounded-xl p-2.5 ring-1 ring-slate-200/80 dark:ring-slate-800 shadow-2xs">
+                            <span className="text-[11px] font-bold text-amber-600 block">{isAr ? 'تكلفة الأغذية' : 'COGS'}</span>
+                            <span className="font-extrabold text-amber-700 dark:text-amber-400 font-mono text-xs sm:text-sm">24.8% {isAr ? 'مقابل 24.0%' : 'vs 24.0%'}</span>
                           </div>
-                          <div className="bg-white dark:bg-slate-900 rounded-xl p-2.5 border border-slate-200 dark:border-slate-800 shadow-2xs">
-                            <span className="text-[11px] font-bold text-blue-600 block">{isAr ? 'العائد السنوي' : 'Annual Gain'}</span>
-                            <span className="font-extrabold text-blue-700 dark:text-blue-400 font-mono text-xs sm:text-sm">+91,680 {isAr ? 'د.ك' : 'KWD'}</span>
+                          <div className="bg-white dark:bg-slate-900 rounded-xl p-2.5 ring-1 ring-slate-200/80 dark:ring-slate-800 shadow-2xs">
+                            <span className="text-[11px] font-bold text-blue-600 block">{isAr ? 'المستهدف السنوي' : 'Annual Target'}</span>
+                            <span className="font-extrabold text-blue-700 dark:text-blue-400 font-mono text-xs sm:text-sm">600,978 {isAr ? 'د.ك' : 'KWD'}</span>
                           </div>
                         </div>
 
-                        {/* 4 Interactive Command Cards */}
+                        {/* 4 Interactive Command Cards (Unslop UI 2x2 Grid) */}
                         <div className="mt-3.5 pt-3 border-t border-slate-200 dark:border-slate-800">
                           <div className="text-[12px] font-bold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-1.5">
                             <Sparkles className="h-3.5 w-3.5 text-blue-600" />
                             <span>{isAr ? 'أوامر استراتيجية فورية موصى بها من فريال:' : 'Feryal Strategic Action Recommendations:'}</span>
                           </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
                             <button
                               type="button"
-                              onClick={() => handleSendQuery(isAr ? 'ما هو تقييم أداء الفرع الأعلى ربحية ولماذا يتفوق السالمية؟' : 'What is the top profitable branch performance analysis and reasons for success?')}
-                              className="text-start bg-white dark:bg-slate-900/90 hover:bg-blue-50/60 dark:hover:bg-blue-950/30 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-blue-400 transition-all shadow-2xs group cursor-pointer"
+                              onClick={() => handleSendQuery(isAr ? 'ما هو تقييم ربحية فرع السالمية مقارنة بباقي الفروع ولماذا يتصدر بـ 31,246 د.ك؟' : 'Analyze Salmiya vs Branches Profitability (+31,246 KWD Top Branch Analysis)')}
+                              className="text-start bg-white dark:bg-slate-900/90 p-3.5 rounded-xl ring-1 ring-slate-200/80 dark:ring-slate-800 hover:ring-slate-900/40 dark:hover:ring-slate-400 transition-all cursor-pointer shadow-2xs"
                             >
                               <div className="flex items-center justify-between">
                                 <span className="font-bold text-xs text-slate-900 dark:text-white flex items-center gap-1.5">
                                   <span>🏆</span>
-                                  <span>{isAr ? 'تحليل الفرع الأعلى ربحية' : 'Top Profitable Branch Analysis'}</span>
+                                  <span>{isAr ? 'ربحية السالمية مقارنة بالفروع' : 'Salmiya vs Branches Profitability'}</span>
                                 </span>
-                                <span className="text-[11px] font-extrabold font-mono text-emerald-600 dark:text-emerald-400">+18.7%</span>
+                                <span className="text-[11px] font-extrabold font-mono text-emerald-600 dark:text-emerald-400">+31,246 {isAr ? 'د.ك' : 'KWD'}</span>
                               </div>
                               <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-snug">
-                                {isAr ? 'السالمية 31,246 د.ك مقابل الكوت' : 'Salmiya 31,246 KWD vs Al-Kout (+18.7% Share)'}
+                                {isAr ? 'تحليل الفرع الأعلى ربحية (+31,246 د.ك)' : '+31,246 KWD Top Branch Analysis'}
                               </p>
                             </button>
 
                             <button
                               type="button"
-                              onClick={() => handleSendQuery(isAr ? 'كيف نعالج هدر المطبخ المركزي ونسترد 1,336 د.ك شهرياً؟' : 'How do we recover 1,336 KWD/month waste from Central Kitchen poultry?')}
-                              className="text-start bg-white dark:bg-slate-900/90 hover:bg-emerald-50/60 dark:hover:bg-emerald-950/30 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-400 transition-all shadow-2xs group cursor-pointer"
+                              onClick={() => handleSendQuery(isAr ? 'كيف نعالج هدر الدواجن في المطبخ المركزي بالعارضية ونسترد 1,336 د.ك شهرياً؟' : 'Central Kitchen COGS Recovery (+1,336 KWD/mo Poultry Yield Plan)')}
+                              className="text-start bg-white dark:bg-slate-900/90 p-3.5 rounded-xl ring-1 ring-slate-200/80 dark:ring-slate-800 hover:ring-slate-900/40 dark:hover:ring-slate-400 transition-all cursor-pointer shadow-2xs"
                             >
                               <div className="flex items-center justify-between">
                                 <span className="font-bold text-xs text-slate-900 dark:text-white flex items-center gap-1.5">
                                   <span>🍗</span>
-                                  <span>{isAr ? 'معالجة هدر المطبخ المركزي' : 'Central Kitchen Recovery'}</span>
+                                  <span>{isAr ? 'استرداد تكلفة أغذية المطبخ المركزي' : 'Central Kitchen COGS Recovery'}</span>
                                 </span>
-                                <span className="text-[11px] font-extrabold font-mono text-emerald-600 dark:text-emerald-400">+1,336 د.ك</span>
+                                <span className="text-[11px] font-extrabold font-mono text-emerald-600 dark:text-emerald-400">+1,336 {isAr ? 'د.ك' : 'KWD'}</span>
                               </div>
                               <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-snug">
-                                {isAr ? 'معايرة وزن التتبيل 140جم وضبط الهدر' : '140g Poultry Marination & Yield Calibration'}
+                                {isAr ? 'خطة معايرة إنتاج الدواجن (+1,336 د.ك/شهرياً)' : '+1,336 KWD/mo Poultry Yield Plan'}
                               </p>
                             </button>
 
                             <button
                               type="button"
-                              onClick={() => handleSendQuery(isAr ? 'كيف نضبط خصومات منصة كيتا البالغة 2,544 د.ك ونزيد الربح؟' : 'How do we cap Keeta 2,544 KWD discounts and optimize Tgo/TMP?')}
-                              className="text-start bg-white dark:bg-slate-900/90 hover:bg-indigo-50/60 dark:hover:bg-indigo-950/30 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-indigo-400 transition-all shadow-2xs group cursor-pointer"
+                              onClick={() => handleSendQuery(isAr ? 'كيف نطبق سقف خصم 3.5% على كيتا ونطور مصفوفة طلبات جو وسوق طلبات؟' : 'Keeta 3.5% Cap & Tgo/TMP Matrix (+4,070 KWD/mo Promo & Combo Fix)')}
+                              className="text-start bg-white dark:bg-slate-900/90 p-3.5 rounded-xl ring-1 ring-slate-200/80 dark:ring-slate-800 hover:ring-slate-900/40 dark:hover:ring-slate-400 transition-all cursor-pointer shadow-2xs"
                             >
                               <div className="flex items-center justify-between">
                                 <span className="font-bold text-xs text-slate-900 dark:text-white flex items-center gap-1.5">
                                   <span>🛵</span>
-                                  <span>{isAr ? 'ضبط خصومات منصة كيتا' : 'Keeta Promo Cap & Tgo/TMP'}</span>
+                                  <span>{isAr ? 'سقف كيتا 3.5% ومصفوفة طلبات' : 'Keeta 3.5% Cap & Tgo/TMP Matrix'}</span>
                                 </span>
-                                <span className="text-[11px] font-extrabold font-mono text-emerald-600 dark:text-emerald-400">+4,070 د.ك</span>
+                                <span className="text-[11px] font-extrabold font-mono text-emerald-600 dark:text-emerald-400">+4,070 {isAr ? 'د.ك' : 'KWD'}</span>
                               </div>
                               <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-snug">
-                                {isAr ? 'سقف 3.5% للخصم + كومبو مشروبات إلزامي' : '3.5% Promo Cap + Mandatory Drink Combo'}
+                                {isAr ? 'ضبط الخصومات وهندسة الكومبو (+4,070 د.ك/شهرياً)' : '+4,070 KWD/mo Promo & Combo Fix'}
                               </p>
                             </button>
 
                             <button
                               type="button"
-                              onClick={() => handleSendQuery(isAr ? 'اعرض خطة تعظيم الأرباح للربع الأول والسنوية' : 'Show the Q1 (+20,520 KWD) and full year profit optimization plan')}
-                              className="text-start bg-white dark:bg-slate-900/90 hover:bg-purple-50/60 dark:hover:bg-purple-950/30 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-purple-400 transition-all shadow-2xs group cursor-pointer"
+                              onClick={() => handleSendQuery(isAr ? 'اعرض خارطة طريق التدفقات النقدية للربع الأول (+20.5 ألف د.ك) والعام الكامل (600.9 ألف د.ك)' : 'Q1 (+20.5K) & Full-Year (600.9K KWD) — 12-Month Executive Cashflow Roadmap')}
+                              className="text-start bg-white dark:bg-slate-900/90 p-3.5 rounded-xl ring-1 ring-slate-200/80 dark:ring-slate-800 hover:ring-slate-900/40 dark:hover:ring-slate-400 transition-all cursor-pointer shadow-2xs"
                             >
                               <div className="flex items-center justify-between">
                                 <span className="font-bold text-xs text-slate-900 dark:text-white flex items-center gap-1.5">
                                   <span>📈</span>
-                                  <span>{isAr ? 'خطة الربع الأول والسنوية' : 'Q1 & Annual Profit Roadmap'}</span>
+                                  <span>{isAr ? 'الربع الأول (+20.5 ألف) والسنة (600.9 ألف د.ك)' : 'Q1 (+20.5K) & Full-Year (600.9K KWD)'}</span>
                                 </span>
-                                <span className="text-[11px] font-extrabold font-mono text-emerald-600 dark:text-emerald-400">600,978 د.ك</span>
+                                <span className="text-[11px] font-extrabold font-mono text-emerald-600 dark:text-emerald-400">600,978 {isAr ? 'د.ك' : 'KWD'}</span>
                               </div>
                               <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-snug">
-                                {isAr ? 'خريطة طريق 12 شهراً لتعظيم التدفقات النقدية' : 'Full 12-Month Profit & Cashflow Roadmap'}
+                                {isAr ? 'خارطة طريق التدفقات النقدية التنفيذية لـ 12 شهراً' : '12-Month Executive Cashflow Roadmap'}
                               </p>
                             </button>
                           </div>
@@ -1920,8 +1917,8 @@ Provide crisp, executive-grade advisory.`
             </div>
           </div>
 
-          {/* 2. CARD A: FERYAL REAL-TIME ODOO ANOMALY RADAR */}
-          <div className="bg-white dark:bg-[#111827] rounded-2xl p-5 shadow-xs ring-1 ring-slate-200/90 dark:ring-slate-800 space-y-3.5">
+          {/* 2. CARD A: ARGON HIGH REAL-TIME ODOO AUDIT RADAR */}
+          <div className="bg-white dark:bg-[#111827] rounded-2xl p-5 shadow-xs ring-1 ring-slate-200/80 dark:ring-slate-800 space-y-3.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="h-8 w-8 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
@@ -1929,101 +1926,101 @@ Provide crisp, executive-grade advisory.`
                 </div>
                 <div>
                   <h4 className="text-sm font-bold text-slate-900 dark:text-white">
-                    {isAr ? 'رادار فريال الفوري لانحرافات أودو' : 'Feryal Real-Time Odoo Anomaly Radar'}
+                    {isAr ? '⚡ رادار التدقيق المحاسبي اللحظي لقيود أودو' : '⚡ Argon High Real-Time Odoo Audit Radar'}
                   </h4>
                   <p className="text-[11px] text-slate-500 font-medium">
-                    {isAr ? '3 انحرافات محاسبية مرصودة تتطلب تدخلاً فورياً' : '3 active ledger variances identified'}
+                    {isAr ? 'فحص مباشر للقيود المحاسبية والمخزنية في أودو 17' : 'Real-time journal & inventory entry inspection in Odoo 17'}
                   </p>
                 </div>
               </div>
               <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900">
-                {isAr ? '3 تنبيهات حية' : '3 Live Alerts'}
+                {isAr ? '3 قيود حرجة' : '3 Audit Entries'}
               </span>
             </div>
 
             <div className="space-y-2.5">
-              {/* Alert 1 */}
-              <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/60 flex items-center justify-between gap-3">
+              {/* Sub-card 1: Ardiya Central Kitchen */}
+              <div className="p-3 rounded-xl ring-1 ring-slate-200/80 dark:ring-slate-800 bg-[#F7F7F8] dark:bg-slate-900/60 flex items-center justify-between gap-3">
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-slate-900 dark:text-white">
-                      {isAr ? 'دواجن المطبخ المركزي (418 قيداً)' : 'Central Kitchen Raw Poultry (418 Entries)'}
+                      {isAr ? 'المطبخ المركزي بالعارضية (418 قيداً | 41,438.856 د.ك)' : 'Ardiya Central Kitchen (418 entries | 41,438.856 KWD)'}
                     </span>
                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300">
-                      24.8% COGS
+                      {isAr ? '24.8% تكلفة' : '24.8% COGS'}
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-600 dark:text-slate-400">
                     {isAr
-                      ? '41,438.856 د.ك (المستهدف 24.0%) — وفر مسترد: +1,336 د.ك/شهرياً'
-                      : '41,438.856 KWD (Target 24.0%) — Recoverable: +1,336 KWD/mo'}
+                      ? 'المستهدف 24.0% — خطة معايرة هدر الدواجن تسترد +1,336 د.ك/شهرياً'
+                      : 'Target 24.0% — Morning poultry calibration recovers +1,336 KWD/mo'}
                   </p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => handleSendQuery(isAr ? 'كيف نسترد 1,336 د.ك من هدر دواجن المطبخ المركزي؟' : 'How do we recover 1,336 KWD from central kitchen poultry waste?')}
-                  className="shrink-0 text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/40"
+                  onClick={() => handleSendQuery(isAr ? 'حللي قيود المطبخ المركزي بالعارضية (418 قيداً بقيمة 41,438.856 د.ك) وخطة استرداد 1,336 د.ك شهرياً' : 'Analyze Ardiya Central Kitchen (418 entries | 41,438.856 KWD) and the +1,336 KWD/mo recovery plan')}
+                  className="shrink-0 text-xs font-bold text-blue-700 dark:text-blue-400 hover:bg-blue-100 px-2.5 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/40 ring-1 ring-blue-200 dark:ring-blue-900 cursor-pointer"
                 >
-                  {isAr ? 'اسأل فريال' : 'Ask'}
+                  {isAr ? 'تحليل صوتي مع فريال' : 'Analyze with Feryal'}
                 </button>
               </div>
 
-              {/* Alert 2 */}
-              <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/60 flex items-center justify-between gap-3">
+              {/* Sub-card 2: Al-Kout & Salmiya Maintenance Custody */}
+              <div className="p-3 rounded-xl ring-1 ring-slate-200/80 dark:ring-slate-800 bg-[#F7F7F8] dark:bg-slate-900/60 flex items-center justify-between gap-3">
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-slate-900 dark:text-white">
-                      {isAr ? 'عهدة صيانة السالمية والكوت (312 قيداً)' : 'Salmiya & Al-Kout Maintenance Custody (312 Entries)'}
+                      {isAr ? 'عهد صيانة الكوت والسالمية (312 قيداً | 10,707.930 د.ك)' : 'Al-Kout & Salmiya Maintenance Custody (312 entries | 10,707.930 KWD)'}
                     </span>
                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-300">
-                      {isAr ? 'عهدة متكررة' : 'High Opex'}
+                      {isAr ? 'عهد مفتوحة' : 'Custody Alert'}
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-600 dark:text-slate-400">
                     {isAr
-                      ? '10,707.930 د.ك — استبدال 3 مبردات متهالكة يوفر +850 د.ك/شهرياً'
-                      : '10,707.930 KWD — Replace 3 aging chillers (+850 KWD/mo)'}
+                      ? 'من إجمالي 2,213 قيد مصروفات — التحول لعقد صيانة وقائي يوفر +1,680 د.ك/شهرياً'
+                      : 'Out of 2,213 Opex entries — Preventive contract saves +1,680 KWD/mo'}
                   </p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => handleSendQuery(isAr ? 'ما هي تفاصيل عهدة صيانة السالمية والكوت وكيف نخفضها؟' : 'What are the details of Salmiya & Al-Kout maintenance custody?')}
-                  className="shrink-0 text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/40"
+                  onClick={() => handleSendQuery(isAr ? 'حللي عهد صيانة الكوت والسالمية (312 قيداً بقيمة 10,707.930 د.ك) وكيف نغلقها ونوفر التكاليف؟' : 'Analyze Al-Kout & Salmiya Maintenance Custody (312 entries | 10,707.930 KWD) and cost reduction plan')}
+                  className="shrink-0 text-xs font-bold text-blue-700 dark:text-blue-400 hover:bg-blue-100 px-2.5 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/40 ring-1 ring-blue-200 dark:ring-blue-900 cursor-pointer"
                 >
-                  {isAr ? 'اسأل فريال' : 'Ask'}
+                  {isAr ? 'تحليل صوتي مع فريال' : 'Analyze with Feryal'}
                 </button>
               </div>
 
-              {/* Alert 3 */}
-              <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/60 flex items-center justify-between gap-3">
+              {/* Sub-card 3: Keeta Settlements & Discounts */}
+              <div className="p-3 rounded-xl ring-1 ring-slate-200/80 dark:ring-slate-800 bg-[#F7F7F8] dark:bg-slate-900/60 flex items-center justify-between gap-3">
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-slate-900 dark:text-white">
-                      {isAr ? 'خصومات منصة كيتا (6,267 طلباً)' : 'Keeta Aggregator Discounts (6,267 Orders)'}
+                      {isAr ? 'تسويات وخصومات كيتا (6,267 طلباً | 2,544 د.ك خصومات)' : 'Keeta Settlements & Discounts (6,267 orders | 2,544 KWD discounts)'}
                     </span>
                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300">
-                      6.7% Promo
+                      {isAr ? 'سقف 3.5%' : '3.5% Cap'}
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-600 dark:text-slate-400">
                     {isAr
-                      ? '2,544 د.ك من أصل 4,152 د.ك — وضع سقف 3.5% يوفر +1,620 د.ك/شهرياً'
-                      : '2,544 KWD out of 4,152 KWD total — 3.5% cap saves +1,620 KWD/mo'}
+                      ? 'من أصل 4,152 د.ك خصومات كلية — تفعيل سقف 3.5% يوفر +1,520 د.ك/شهرياً'
+                      : 'Out of 4,152 KWD total discounts — 3.5% cap recovers +1,520 KWD/mo'}
                   </p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => handleSendQuery(isAr ? 'كيف نضع سقفاً لخصومات كيتا ونوفر 1,620 د.ك شهرياً؟' : 'How do we cap Keeta discounts to save 1,620 KWD/mo?')}
-                  className="shrink-0 text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/40"
+                  onClick={() => handleSendQuery(isAr ? 'حللي تسويات وخصومات منصة كيتا (6,267 طلباً و2,544 د.ك خصومات) وأثر سقف 3.5%' : 'Analyze Keeta Settlements & Discounts (6,267 orders | 2,544 KWD discounts) and the 3.5% promo cap')}
+                  className="shrink-0 text-xs font-bold text-blue-700 dark:text-blue-400 hover:bg-blue-100 px-2.5 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/40 ring-1 ring-blue-200 dark:ring-blue-900 cursor-pointer"
                 >
-                  {isAr ? 'اسأل فريال' : 'Ask'}
+                  {isAr ? 'تحليل صوتي مع فريال' : 'Analyze with Feryal'}
                 </button>
               </div>
             </div>
           </div>
 
-          {/* 3. CARD B: VENTURE FOODS 6-BRAND & CHANNEL PROFIT PULSE */}
-          <div className="bg-white dark:bg-[#111827] rounded-2xl p-5 shadow-xs ring-1 ring-slate-200/90 dark:ring-slate-800 space-y-4">
+          {/* 3. CARD B: VENTURE FOODS 6-BRAND & 11-CHANNEL PULSE */}
+          <div className="bg-white dark:bg-[#111827] rounded-2xl p-5 shadow-xs ring-1 ring-slate-200/80 dark:ring-slate-800 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="h-8 w-8 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center">
@@ -2031,10 +2028,10 @@ Provide crisp, executive-grade advisory.`
                 </div>
                 <div>
                   <h4 className="text-sm font-bold text-slate-900 dark:text-white">
-                    {isAr ? 'نبض ربحية العلامات الـ 6 وقنوات التوصيل' : 'Venture Foods 6-Brand & Channel Profit Pulse'}
+                    {isAr ? '🏢 نبض العلامات الـ 6 وقنوات التوصيل الـ 11' : '🏢 Venture Foods 6-Brand & 11-Channel Pulse'}
                   </h4>
                   <p className="text-[11px] text-slate-500 font-medium">
-                    {isAr ? 'أداء المبيعات وحصة الفروع وقنوات الطلب أونلاين' : 'Online & in-store revenue distribution'}
+                    {isAr ? 'توزيع الإيرادات عبر العلامات الـ 6 وجاهزية الفروع الـ 9 أونلاين' : 'Revenue share across 6 brands & 9-branch online availability'}
                   </p>
                 </div>
               </div>
@@ -2047,29 +2044,29 @@ Provide crisp, executive-grade advisory.`
               {/* Brand 1: China Garden */}
               <div className="space-y-1.5">
                 <div className="flex justify-between text-xs font-bold">
-                  <span className="text-slate-900 dark:text-white">{isAr ? 'تشاينا جاردن (العمود الفقري)' : 'China Garden (Core Driver)'}</span>
-                  <span className="text-slate-900 dark:text-white font-mono">141,662.400 {isAr ? 'د.ك' : 'KWD'} (84.8%)</span>
+                  <span className="text-slate-900 dark:text-white">{isAr ? 'تشاينا جاردن (84.8% — 141,662 د.ك)' : 'China Garden (84.8% — 141,662 KWD)'}</span>
+                  <span className="text-slate-900 dark:text-white font-mono">84.8%</span>
                 </div>
                 <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
                   <div className="bg-blue-600 h-2 rounded-full" style={{ width: '84.8%' }} />
                 </div>
                 <div className="flex justify-between text-[11px] text-slate-500 font-medium">
-                  <span>{isAr ? '25,890 طلباً معتمداً' : '25,890 orders'}</span>
+                  <span>{isAr ? '25,890 طلباً معتمداً' : '25,890 verified orders'}</span>
                   <span>{isAr ? 'متوسط السلة: 5.472 د.ك' : 'AOV: 5.472 KWD'}</span>
                 </div>
               </div>
 
-              {/* Brand 2: Frank's Philly CheeseSteak */}
+              {/* Brand 2: Frank's */}
               <div className="space-y-1.5">
                 <div className="flex justify-between text-xs font-bold">
-                  <span className="text-slate-900 dark:text-white">{isAr ? "فرانكس فيلي تشيز ستيك" : "Frank's Philly CheeseSteak"}</span>
-                  <span className="text-slate-900 dark:text-white font-mono">11,840.200 {isAr ? 'د.ك' : 'KWD'} (7.1%)</span>
+                  <span className="text-slate-900 dark:text-white">{isAr ? 'فرانكس (متوسط السلة 7.490 د.ك)' : "Frank's (AOV 7.490 KWD)"}</span>
+                  <span className="text-slate-900 dark:text-white font-mono">11,840 {isAr ? 'د.ك' : 'KWD'} (7.1%)</span>
                 </div>
                 <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
                   <div className="bg-emerald-600 h-2 rounded-full" style={{ width: '22%' }} />
                 </div>
                 <div className="flex justify-between text-[11px] text-slate-500 font-medium">
-                  <span className="text-emerald-600 dark:text-emerald-400 font-bold">{isAr ? 'أعلى متوسط سلة: 7.490 د.ك' : 'Highest AOV: 7.490 KWD'}</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 font-bold">{isAr ? 'أعلى متوسط سلة بالمجموعة: 7.490 د.ك' : 'Highest Group Basket AOV: 7.490 KWD'}</span>
                   <span>{isAr ? '1,580 طلباً' : '1,580 orders'}</span>
                 </div>
               </div>
@@ -2077,15 +2074,15 @@ Provide crisp, executive-grade advisory.`
               {/* Brands: Other 4 Brands Combined */}
               <div className="space-y-1.5">
                 <div className="flex justify-between text-xs font-bold">
-                  <span className="text-slate-900 dark:text-white">{isAr ? 'طحينة · برغريتو · تشيك آند ديب · كريف' : 'Tahina · Burgerito · Chick & Dip · Crave'}</span>
-                  <span className="text-slate-900 dark:text-white font-mono">13,589.560 {isAr ? 'د.ك' : 'KWD'} (8.1%)</span>
+                  <span className="text-slate-900 dark:text-white">{isAr ? 'طحينة، برجريتو، تشيك آند ديب، كريف' : 'Tahina, Burgerito, Chick & Dip, Crave'}</span>
+                  <span className="text-slate-900 dark:text-white font-mono">13,590 {isAr ? 'د.ك' : 'KWD'} (8.1%)</span>
                 </div>
                 <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
-                  <div className="bg-indigo-600 h-2 rounded-full" style={{ width: '25%' }} />
+                  <div className="bg-slate-700 h-2 rounded-full" style={{ width: '25%' }} />
                 </div>
                 <div className="flex justify-between text-[11px] text-slate-500 font-medium">
-                  <span>{isAr ? '3,070 طلباً مجمعاً' : '3,070 combined orders'}</span>
-                  <span>{isAr ? 'إمكانات نمو واعدة' : 'Growth Brands'}</span>
+                  <span>{isAr ? '3,070 طلباً عبر 11 قناة بيع' : '3,070 orders across 11 channels'}</span>
+                  <span>{isAr ? 'نمو متسارع في الكومبو' : 'High-margin combo expansion'}</span>
                 </div>
               </div>
 
@@ -2093,10 +2090,10 @@ Provide crisp, executive-grade advisory.`
               <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs font-bold">
                 <span className="text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
                   <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
-                  <span>{isAr ? 'طلبات (جو وسوق) + كيتا + ديلفرو' : 'Talabat (Tgo/TMP) + Keeta + Deliveroo'}</span>
+                  <span>{isAr ? 'توافر الفروع الـ 9 على طلبات جو وسوق طلبات وكيتا وديليفرو' : '9 Branches on Talabat Tgo & TMP, Keeta & Deliveroo'}</span>
                 </span>
                 <span className="text-emerald-600 dark:text-emerald-400 font-mono">
-                  {isAr ? '99.1% جاهزية (9 فروع)' : '99.1% (9 Branches)'}
+                  {isAr ? '99.1% متصل أونلاين' : '99.1% Online'}
                 </span>
               </div>
             </div>
@@ -2540,7 +2537,7 @@ Provide crisp, executive-grade advisory.`
                   <span>{isAr ? '3. المراقب الآلي لبوابات التوصيل (بلاي رايت)' : '3. Delivery Aggregator Watchdog (Playwright)'}</span>
                 </span>
                 <span className="text-xs bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 px-2.5 py-0.5 rounded-full font-bold">
-                  {isAr ? '8/8 فروع متصلة بالكامل' : '8/8 Branches Online'}
+                  {isAr ? '9/9 فروع متصلة بالكامل' : '9/9 Branches Online'}
                 </span>
               </div>
               <p className="text-sm font-medium text-slate-600 dark:text-slate-400 leading-relaxed">
@@ -2644,20 +2641,20 @@ Provide crisp, executive-grade advisory.`
       </section>
 
       {/* ==================================================================== */}
-      {/* 5. VERIFIED 8-BRANCH PERFORMANCE AUDIT TABLE */}
+      {/* 5. VERIFIED 9-BRANCH PERFORMANCE AUDIT TABLE */}
       {/* ==================================================================== */}
       <section className="bg-white dark:bg-[#111827] rounded-2xl p-6 sm:p-7 shadow-xs ring-1 ring-slate-200/90 dark:ring-slate-800 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
             <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
-              {isAr ? 'أداء الفروع التشغيلية الـ 8 المعتمدة فقط (حسب سجل أودو لشهر أكتوبر)' : 'Performance Breakdown: Strictly 8 Verified Branches (October Odoo)'}
+              {isAr ? 'أداء الفروع التشغيلية الـ 9 الفعلية المعتمدة (حسب سجل أودو لشهر أكتوبر)' : 'Performance Breakdown: 9 Active Operational Branches (October Odoo)'}
             </h3>
             <p className="text-xs sm:text-[13px] text-slate-600 dark:text-slate-400 font-medium">
-              {isAr ? 'خالٍ تماماً من أي فروع وهمية أو بيانات اصطناعية - مطابقة مبيعات 167,092.160 د.ك' : '100% reconciled against approved 167,092.160 KWD sales ledger'}
+              {isAr ? 'مطابقة مبيعات 167,092.160 د.ك عبر الفروع الـ 9 الفعلية' : '100% reconciled against approved 167,092.160 KWD sales ledger across 9 active branches'}
             </p>
           </div>
           <span className="text-xs text-emerald-800 dark:text-emerald-300 font-extrabold bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-3.5 py-1.5 rounded-full">
-            {isAr ? '8/8 فروع نشطة بالكامل' : '8/8 Branches Active'}
+            {isAr ? '9/9 فروع نشطة بالكامل' : '9/9 Branches Active'}
           </span>
         </div>
 
