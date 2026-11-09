@@ -383,27 +383,8 @@ export default function FeryalAiCommandPage() {
   const audioChunksRef = useRef<Blob[]>([])
   const chatScrollRef = useRef<HTMLDivElement>(null)
 
-  // Bluetooth Headset & Audio Device Selection States
-  const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([])
-  const [selectedDeviceId, setSelectedDeviceId] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('aetherbi_mic_device_id') || ''
-    }
-    return ''
-  })
-  const [showDevicePicker, setShowDevicePicker] = useState(false)
-  const [permissionPromptNeeded, setPermissionPromptNeeded] = useState(false)
-
-  // Save selected device to local storage
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      if (selectedDeviceId) {
-        localStorage.setItem('aetherbi_mic_device_id', selectedDeviceId)
-      } else {
-        localStorage.removeItem('aetherbi_mic_device_id')
-      }
-    }
-  }, [selectedDeviceId])
+  const [micToast, setMicToast] = useState<string | null>(null)
+  const inputFieldRef = useRef<HTMLInputElement | null>(null)
 
   // Stop and release all microphone tracks immediately (Returns Bluetooth headset to Stereo mode)
   const stopAllMicTracks = useCallback(() => {
@@ -423,45 +404,6 @@ export default function FeryalAiCommandPage() {
     }
     setIsListening(false)
     isListeningRef.current = false
-  }, [])
-
-  // Enumerate Audio Devices safely (Without opening mic unless requestPermission is true)
-  const fetchAudioDevices = useCallback(async (requestPermission = false) => {
-    if (typeof navigator === 'undefined' || !navigator.mediaDevices) return
-    try {
-      if (requestPermission) {
-        // Temporary permission grant, immediately released to preserve Bluetooth stereo sink
-        const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true })
-        tempStream.getTracks().forEach((t) => {
-          t.stop()
-          t.enabled = false
-        })
-        setPermissionPromptNeeded(false)
-      }
-      const devices = await navigator.mediaDevices.enumerateDevices()
-      const audioInputs = devices.filter((d) => d.kind === 'audioinput')
-      setAudioDevices(audioInputs)
-      const hasLabels = audioInputs.some((d) => Boolean(d.label))
-      if (hasLabels) {
-        setPermissionPromptNeeded(false)
-      } else if (requestPermission) {
-        setPermissionPromptNeeded(true)
-      }
-    } catch (err: any) {
-      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        setPermissionPromptNeeded(true)
-      }
-    }
-  }, [])
-
-  // Passive initial device scan (Zero getUserMedia on mount - Bluetooth stays in High-Quality Stereo)
-  useEffect(() => {
-    if (typeof navigator !== 'undefined' && navigator.mediaDevices) {
-      navigator.mediaDevices.enumerateDevices().then((devices) => {
-        const audioInputs = devices.filter((d) => d.kind === 'audioinput')
-        setAudioDevices(audioInputs)
-      }).catch(() => {})
-    }
   }, [])
 
   const isHandsFreeRef = useRef(false)
@@ -1006,39 +948,20 @@ Provide crisp, executive-grade advisory.`
     // Stop any existing recorder or recognizer
     stopAllMicTracks()
 
-    // 2. Request microphone stream via getUserMedia with selected device constraint
+    // 2. Request microphone stream via getUserMedia
     let mediaStream: MediaStream | null = null
     try {
-      const audioConstraints: boolean | MediaTrackConstraints = selectedDeviceId
-        ? { deviceId: { exact: selectedDeviceId } }
-        : true
-      mediaStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints })
+      mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true })
       mediaStreamRef.current = mediaStream
     } catch (err: any) {
       setIsListening(false)
       isListeningRef.current = false
       mediaStreamRef.current = null
 
-      if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-        setMicError(
-          isAr
-            ? 'لا يوجد جهاز مايكروفون موصول بالكمبيوتر حالياً. يمكنك وصل سماعة/مايكروفون أو محاورة فريال كتابياً والاستماع لردها الصوتي.'
-            : 'No microphone is currently connected to your computer. Please connect a headset/microphone or chat with Feryal via text and listen to her voice.'
-        )
-      } else if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        setPermissionPromptNeeded(true)
-        setMicError(
-          isAr
-            ? '⚠️ تم رفض إذن المايكروفون. انقر على أيقونة القفل أو المايك 🔒 في شريط عنوان المتصفح واختر "سماح" (Allow).'
-            : '⚠️ Microphone permission denied. Click the lock or mic icon 🔒 in the address bar and select "Allow".'
-        )
-      } else {
-        setMicError(
-          isAr
-            ? '⚠️ تعذر تفعيل المايكروفون. يرجى التحقق من أجهزة الصوت أو محاورة فريال كتابياً.'
-            : '⚠️ Unable to access microphone. Please check your audio input device or chat via text.'
-        )
-      }
+      const msg = isAr ? '🎙️ تعذر تشغيل المايكروفون. يمكنك المحادثة كتابياً' : '🎙️ Mic unavailable. Please type your message.'
+      setMicToast(msg)
+      setTimeout(() => setMicToast(null), 3500)
+      inputFieldRef.current?.focus()
       return
     }
 
@@ -1263,7 +1186,7 @@ Provide crisp, executive-grade advisory.`
         // SpeechRecognition failed to start, MediaRecorder is still active
       }
     }
-  }, [isAr, selectedDeviceId, stopAllMicTracks])
+  }, [isAr, stopAllMicTracks])
 
   useEffect(() => {
     startListeningRef.current = startListening
@@ -1559,7 +1482,7 @@ Provide crisp, executive-grade advisory.`
         {/* ================================================================ */}
         {/* LEFT COLUMN: THE COPILOT "FERYAL" (Natural Voice & Text Engine) */}
         {/* ================================================================ */}
-        <section className="lg:col-span-5 bg-white dark:bg-[#111827] rounded-2xl shadow-xs ring-1 ring-slate-200/90 dark:ring-slate-800 flex flex-col h-[760px] overflow-hidden">
+        <section className="lg:col-span-5 bg-white dark:bg-[#111827] rounded-2xl shadow-xs ring-1 ring-slate-200/90 dark:ring-slate-800 flex flex-col min-h-[780px] lg:h-[840px] overflow-hidden">
           {/* Elegant Dark Navy Header with Two Clear Unsquished Rows */}
           <div className="bg-[#0F172A] text-white p-4 sm:p-5 flex flex-col gap-3.5">
             {/* ROW 1: Bot Avatar + Full Unsquished Title + Status Pill */}
@@ -1683,15 +1606,30 @@ Provide crisp, executive-grade advisory.`
                 🎙️ {micLang === 'ar' ? (isAr ? 'عربي' : 'AR') : (isAr ? 'إنجليزي' : 'EN')}
               </button>
             </div>
+          </div>
 
-            {/* Native HTML5 Audio Player Element (Guaranteed sound + Chrome autoplay bypass) */}
-            <div className="pt-1">
-              <audio
-                ref={audioPlayerRef}
-                controls
-                preload="auto"
-                className="w-full h-11 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 shadow-sm mt-2"
-              />
+          {/* Permanent Decoupled Voice Player Bar */}
+          <div className="bg-slate-100 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 p-3 sm:p-3.5 flex flex-col sm:flex-row items-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                const lastMsg = messages[messages.length - 1]
+                const textToSpeak = lastMsg
+                  ? isAr
+                    ? lastMsg.textAr
+                    : lastMsg.textEn
+                  : isAr
+                  ? 'مرحباً بك يا سعادة المدير. أنا المستشارة فريال، جاهزة لخدمتك.'
+                  : 'Welcome, Executive Leader. I am Feryal, your AI Executive Copilot.'
+                playFeryalSpeech(textToSpeak, 'manual-header-play')
+              }}
+              className="w-full sm:w-auto px-4 py-2 rounded-xl bg-[#2563EB] hover:bg-blue-600 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs transition-all shrink-0 cursor-pointer"
+            >
+              <Volume2 className="h-4 w-4" />
+              <span>{isAr ? '🔊 تشغيل صوت فريال الآن (Nova)' : '🔊 Play Feryal Voice (OpenAI Nova)'}</span>
+            </button>
+            <div className="w-full sm:flex-1">
+              <audio ref={audioPlayerRef} controls preload="auto" className="w-full h-10 rounded-lg shadow-2xs" />
             </div>
           </div>
 
@@ -1715,7 +1653,7 @@ Provide crisp, executive-grade advisory.`
           </div>
 
           {/* Messages Log (Clear High Contrast Chat Bubbles) */}
-          <div ref={chatScrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50 dark:bg-slate-950/30">
+          <div ref={chatScrollRef} className="flex-1 min-h-[460px] max-h-[520px] overflow-y-auto p-5 space-y-4 bg-slate-50/50 dark:bg-slate-950/30">
             {messages.map((m) => (
               <div key={m.id} className={`flex flex-col ${m.sender === 'user' ? 'items-end' : 'items-start'}`}>
                 <div
@@ -1822,89 +1760,20 @@ Provide crisp, executive-grade advisory.`
             </div>
           )}
 
-          {/* Bluetooth & Mic Device Modal / Popover */}
-          {showDevicePicker && (
-            <div className="border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-3.5 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Headphones className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                  <span className="text-xs font-bold text-slate-900 dark:text-white">
-                    {isAr ? 'إعدادات سماعة البلوتوث وقناة المايكروفون' : 'Bluetooth Headset & Microphone Settings'}
-                  </span>
-                </div>
+          {/* Bottom Prominent Input Bar */}
+          <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-3.5 sm:p-4">
+            {micToast && (
+              <div className="mb-2 px-3 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 text-xs font-semibold text-amber-800 dark:text-amber-300 flex items-center justify-between">
+                <span>{micToast}</span>
                 <button
                   type="button"
-                  onClick={() => setShowDevicePicker(false)}
-                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs px-2 py-0.5 rounded font-bold"
+                  onClick={() => setMicToast(null)}
+                  className="text-amber-600 hover:text-amber-900 dark:hover:text-amber-100 font-bold px-1"
                 >
                   ✕
                 </button>
               </div>
-
-              {/* Half-Duplex Auto Mode Notice */}
-              <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 p-2.5 text-[11px] text-emerald-800 dark:text-emerald-300 leading-relaxed font-medium">
-                {isAr
-                  ? '⚡ وضع التوافق الذكي (Half-Duplex) مفعّل تلقائياً: يتم تحرير قناة المايكروفون وإغلاقها فور انتهاء الكلام لتنتقل سماعة البلوتوث تلقائياً إلى وضع الستيريو (Stereo) لسماع رد فريال بأعلى نقاء وبدون أي كتم.'
-                  : '⚡ Smart Half-Duplex Mode Active: Microphone channels are automatically released when speech finishes, allowing Bluetooth headsets to return to Stereo sink for crisp playback.'}
-              </div>
-
-              {/* Device Selector */}
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300 block">
-                  {isAr ? 'اختر جهاز المايكروفون / سماعة البلوتوث:' : 'Select Audio Input / Bluetooth Headset:'}
-                </label>
-                <div className="flex items-center gap-2">
-                  <select
-                    value={selectedDeviceId}
-                    onChange={(e) => setSelectedDeviceId(e.target.value)}
-                    className="flex-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  >
-                    <option value="">
-                      {isAr ? '🎙️ المايكروفون الافتراضي / سماعة البلوتوث المتصلة' : '🎙️ Default / Connected Bluetooth Headset'}
-                    </option>
-                    {audioDevices.map((device, idx) => (
-                      <option key={device.deviceId || idx} value={device.deviceId}>
-                        {device.label || (isAr ? `جهاز مايكروفون ${idx + 1}` : `Audio Device ${idx + 1}`)}
-                      </option>
-                    ))}
-                  </select>
-
-                  <button
-                    type="button"
-                    onClick={() => fetchAudioDevices(true)}
-                    className="px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 text-xs font-bold text-slate-700 dark:text-slate-200 transition-all shrink-0"
-                    title={isAr ? 'تحديث قائمة الأجهزة' : 'Refresh Devices'}
-                  >
-                    <RefreshCw className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Permission Helper if no device labels or error */}
-              {(permissionPromptNeeded || audioDevices.length === 0 || !audioDevices.some((d) => Boolean(d.label))) && (
-                <div className="rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 p-2.5 text-[11px] text-amber-800 dark:text-amber-300 space-y-1.5 font-medium">
-                  <div className="font-bold flex items-center gap-1.5">
-                    <span>🔒 {isAr ? 'خطوة سريعة لفك حظر المايكروفون:' : 'Quick Step to Unblock Microphone:'}</span>
-                  </div>
-                  <p className="leading-relaxed">
-                    {isAr
-                      ? 'انقر على أيقونة القفل أو المايكروفون في شريط عنوان المتصفح بجانب الرابط (URL) 🔒 واختر "السماح" (Allow) للمايكروفون، ثم اضغط زر "طلب الإذن والتحديث" أدناه.'
-                      : 'Click the Lock or Microphone icon in your browser address bar (URL) 🔒 and choose "Allow", then click "Grant Permission & Refresh" below.'}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => fetchAudioDevices(true)}
-                    className="mt-1 px-3 py-1.5 rounded-md bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs transition-all shadow-xs"
-                  >
-                    {isAr ? 'طلب الإذن وتحديث القائمة الآن' : 'Grant Permission & Refresh'}
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Bottom Prominent Input Bar */}
-          <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-3.5 sm:p-4">
+            )}
             <form
               onSubmit={(e) => {
                 e.preventDefault()
@@ -1934,26 +1803,8 @@ Provide crisp, executive-grade advisory.`
                 </span>
               </button>
 
-              {/* Bluetooth Headset Quick Device Picker Toggle */}
-              <button
-                type="button"
-                onClick={() => {
-                  const next = !showDevicePicker
-                  setShowDevicePicker(next)
-                  if (next) fetchAudioDevices(false)
-                }}
-                className={`p-3 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
-                  showDevicePicker
-                    ? 'bg-emerald-600 border-emerald-500 text-white'
-                    : 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:bg-slate-200'
-                }`}
-                title={isAr ? 'إعداد سماعة البلوتوث والمايكروفون' : 'Bluetooth Headset & Mic Settings'}
-              >
-                <Headphones className={`h-4 w-4 ${showDevicePicker ? 'text-white' : 'text-emerald-600 dark:text-emerald-400'}`} />
-                <span className="hidden md:inline">{isAr ? '🎧 إعداد البلوتوث / المايك' : '🎧 Bluetooth / Mic'}</span>
-              </button>
-
               <input
+                ref={inputFieldRef}
                 type="text"
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
