@@ -281,58 +281,72 @@ export default function FeryalAiCommandPage() {
 
   // Dynamic reactive locale synced with site navbar, localStorage, and document lang/dir
   const [activeLocale, setActiveLocale] = useState<'ar' | 'en'>(() => {
+    if (ctxLocale === 'en' || ctxLocale === 'ar') return ctxLocale
     if (typeof window !== 'undefined') {
+      const stored =
+        localStorage.getItem('aetherbi_locale') ||
+        localStorage.getItem('NEXT_LOCALE') ||
+        localStorage.getItem('ai-hq-locale')
+      if (stored === 'en' || stored === 'ar') return stored as 'ar' | 'en'
       const docLang = document.documentElement.lang
       if (docLang === 'en' || docLang === 'ar') return docLang as 'ar' | 'en'
-      const docDir = document.documentElement.dir
-      if (docDir === 'ltr') return 'en'
-      const saved = localStorage.getItem('aetherbi_locale') || localStorage.getItem('NEXT_LOCALE')
-      if (saved === 'en' || saved === 'ar') return saved as 'ar' | 'en'
+      if (document.documentElement.dir === 'rtl') return 'ar'
+      if (document.documentElement.dir === 'ltr') return 'en'
     }
-    return ctxLocale === 'en' ? 'en' : 'ar'
+    return 'ar'
   })
 
-  // Keep synced with i18n context
+  // Synchronize immediately if context locale changes
   useEffect(() => {
-    if (ctxLocale) setActiveLocale(ctxLocale === 'en' ? 'en' : 'ar')
+    if (ctxLocale === 'en' || ctxLocale === 'ar') {
+      setActiveLocale(ctxLocale)
+    }
   }, [ctxLocale])
 
-  // MutationObserver to catch top navbar language switch in real time
+  // MutationObserver & storage listener to catch top navbar language switch in real time
   useEffect(() => {
     if (typeof window === 'undefined') return
-    const syncFromDoc = () => {
-      const lang = document.documentElement.lang
-      const dir = document.documentElement.dir
-      const stored = localStorage.getItem('aetherbi_locale') || localStorage.getItem('NEXT_LOCALE')
-      if (lang === 'en' || dir === 'ltr' || stored === 'en') {
-        setActiveLocale('en')
-      } else if (lang === 'ar' || dir === 'rtl' || stored === 'ar') {
-        setActiveLocale('ar')
+    const syncLocale = () => {
+      const stored =
+        localStorage.getItem('aetherbi_locale') ||
+        localStorage.getItem('NEXT_LOCALE') ||
+        localStorage.getItem('ai-hq-locale')
+      if (stored === 'en' || stored === 'ar') {
+        setActiveLocale(stored)
+        return
       }
+      const lang = document.documentElement.lang
+      if (lang === 'en' || lang === 'ar') {
+        setActiveLocale(lang)
+        return
+      }
+      const dir = document.documentElement.dir
+      if (dir === 'rtl') setActiveLocale('ar')
+      else if (dir === 'ltr') setActiveLocale('en')
     }
 
-    syncFromDoc()
+    syncLocale()
 
     const observer = new MutationObserver((mutations) => {
       for (const m of mutations) {
         if (m.type === 'attributes' && (m.attributeName === 'lang' || m.attributeName === 'dir')) {
-          syncFromDoc()
+          syncLocale()
         }
       }
     })
 
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['lang', 'dir'] })
 
-    const handleStorage = () => syncFromDoc()
-    window.addEventListener('storage', handleStorage)
-
+    window.addEventListener('storage', syncLocale)
     return () => {
       observer.disconnect()
-      window.removeEventListener('storage', handleStorage)
+      window.removeEventListener('storage', syncLocale)
     }
   }, [])
 
-  const isAr = activeLocale === 'ar'
+  // Primary reactive locale (Context locale is immediate; activeLocale is reliable fallback)
+  const currentLang = (ctxLocale === 'en' || ctxLocale === 'ar') ? ctxLocale : activeLocale
+  const isAr = currentLang === 'ar'
 
   // Copilot Chat States
   const [messages, setMessages] = useState<
@@ -516,7 +530,8 @@ export default function FeryalAiCommandPage() {
       setPlayingMsgId(activeId)
 
       try {
-        const streamUrl = `/api/feryal/tts?lang=${activeLang}&text=${encodeURIComponent(text)}&t=${Date.now()}`
+        const cleanText = sanitizeTextForSpeechClient(text, activeLang) || text
+        const streamUrl = `/api/feryal/tts?lang=${activeLang}&text=${encodeURIComponent(cleanText)}&t=${Date.now()}`
 
         // 1. Play directly via visible DOM audio element (Bypasses Chrome restrictions & guarantees sound)
         const player = audioPlayerRef.current
@@ -524,6 +539,14 @@ export default function FeryalAiCommandPage() {
           player.pause()
           player.src = streamUrl
           player.load()
+
+          player.onplay = () => {
+            setPlayingMsgId(activeId)
+          }
+
+          player.onpause = () => {
+            setPlayingMsgId(null)
+          }
 
           player.onended = () => {
             setPlayingMsgId(null)
@@ -553,6 +576,12 @@ export default function FeryalAiCommandPage() {
 
         // 2. Fallback to programmatic Audio object if ref not mounted
         const audio = new Audio(streamUrl)
+        audio.onplay = () => {
+          setPlayingMsgId(activeId)
+        }
+        audio.onpause = () => {
+          setPlayingMsgId(null)
+        }
         audio.onended = () => {
           setPlayingMsgId(null)
           if (isHandsFreeRef.current && !isVoiceMutedRef.current) {
@@ -1058,6 +1087,17 @@ export default function FeryalAiCommandPage() {
     }
   }, [])
 
+  // Set initial welcome audio stream so the player is ready immediately
+  useEffect(() => {
+    if (audioPlayerRef.current && !audioPlayerRef.current.src) {
+      const defaultText = isAr
+        ? 'مرحباً بك يا سعادة المدير. أنا المستشارة فريال، جاهزة لخدمتك.'
+        : 'Welcome, Executive Leader. I am Feryal, your AI Executive Copilot.'
+      const clean = sanitizeTextForSpeechClient(defaultText, isAr ? 'ar' : 'en')
+      audioPlayerRef.current.src = `/api/feryal/tts?lang=${isAr ? 'ar' : 'en'}&text=${encodeURIComponent(clean)}`
+    }
+  }, [isAr])
+
   // Dispatch Composio Action
   const handleDispatchComposio = async (planId: string, actionType: string) => {
     setExecutionPlans((prev) =>
@@ -1123,7 +1163,10 @@ export default function FeryalAiCommandPage() {
   }, [costOptimizationSlider, revenueUpsellSlider])
 
   return (
-    <div className="min-h-screen bg-[#F7F7F8] dark:bg-[#0A0A0A] text-slate-900 dark:text-slate-100 p-4 sm:p-6 md:p-8 space-y-8 font-sans antialiased">
+    <div
+      dir={isAr ? 'rtl' : 'ltr'}
+      className="min-h-screen bg-[#F7F7F8] dark:bg-[#0A0A0A] text-slate-900 dark:text-slate-100 p-4 sm:p-6 md:p-8 space-y-8 font-sans antialiased"
+    >
       {/* ==================================================================== */}
       {/* 1. TOP EXECUTIVE HEADER (Clean, Solid, Zero Slop Gradients) */}
       {/* ==================================================================== */}
@@ -1433,7 +1476,7 @@ export default function FeryalAiCommandPage() {
                 ref={audioPlayerRef}
                 controls
                 preload="auto"
-                className="w-full h-9 rounded-xl bg-slate-900 border border-slate-700/80 shadow-inner"
+                className="w-full h-10 rounded-xl mt-2 bg-slate-900 border border-slate-700/80 shadow-inner"
               />
             </div>
           </div>
