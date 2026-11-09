@@ -1,0 +1,3 @@
+/*
+  Permissions-Policy: microphone=*, autoplay=*, camera=(), geolocation=(self)
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; media-src 'self' blob: data: https://api.openai.com https://translate.google.com *; connect-src 'self' https://api.openai.com https://translate.google.com https://*.openai.com https://pikqnlzkoaxoxpahztvc.supabase.co wss://pikqnlzkoaxoxpahztvc.supabase.co *; object-src 'none'; base-uri 'self'; form-action 'self';

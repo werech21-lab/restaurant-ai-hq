@@ -15,7 +15,7 @@ function originOf(value) {
 
 function buildContentSecurityPolicy({ supabaseUrl, isProduction }) {
   const supabase = originOf(supabaseUrl)
-  const connect = ["'self'", 'https://api.openai.com']
+  const connect = ["'self'", 'https://api.openai.com', 'https://translate.google.com', 'https://*.openai.com']
   if (supabase) {
     connect.push(supabase)
     connect.push(supabase.replace(/^http/, 'ws'))
@@ -26,7 +26,7 @@ function buildContentSecurityPolicy({ supabaseUrl, isProduction }) {
     'style-src': ["'self'", "'unsafe-inline'"],
     'img-src': ["'self'", 'data:', 'blob:'],
     'font-src': ["'self'", 'data:'],
-    'media-src': ["'self'", 'blob:', 'data:', 'https://translate.google.com'],
+    'media-src': ["'self'", 'blob:', 'data:', 'https://api.openai.com', 'https://translate.google.com', '*'],
     'connect-src': connect,
     'object-src': ["'none'"],
     'base-uri': ["'self'"],
@@ -44,7 +44,7 @@ function buildSecurityHeaders({ supabaseUrl, isProduction }) {
     { key: 'X-Frame-Options', value: 'DENY' },
     { key: 'X-Content-Type-Options', value: 'nosniff' },
     { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-    { key: 'Permissions-Policy', value: 'camera=(), microphone=(self), geolocation=(), payment=(), usb=()' },
+    { key: 'Permissions-Policy', value: 'microphone=*, autoplay=*, camera=(), geolocation=(self)' },
     { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
   ]
   // HSTS only where the site is served over HTTPS. No includeSubDomains or preload: those cannot be undone quickly.

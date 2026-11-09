@@ -384,6 +384,7 @@ export default function FeryalAiCommandPage() {
   const chatScrollRef = useRef<HTMLDivElement>(null)
 
   const [micToast, setMicToast] = useState<string | null>(null)
+  const [lastVoiceError, setLastVoiceError] = useState<string | null>(null)
   const inputFieldRef = useRef<HTMLInputElement | null>(null)
 
   // Stop and release all microphone tracks immediately (Returns Bluetooth headset to Stereo mode)
@@ -529,6 +530,19 @@ export default function FeryalAiCommandPage() {
     async (text: string, msgId?: string) => {
       if (isVoiceMuted) return
 
+      // 1. Instantly unlock browser AudioContext on user gesture (bypasses Windows Bluetooth mute & Chrome autoplay)
+      try {
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext
+        if (AudioContextClass) {
+          const ctx = new AudioContextClass()
+          if (ctx.state === 'suspended') {
+            await ctx.resume()
+          }
+        }
+      } catch (unlockErr) {
+        console.warn('AudioContext unlock skipped:', unlockErr)
+      }
+
       // Stop any existing mic listening and release all tracks so Bluetooth headset returns to Stereo
       stopAllMicTracks()
 
@@ -549,15 +563,16 @@ export default function FeryalAiCommandPage() {
       const activeLang = isAr ? 'ar' : 'en'
       const activeId = msgId || 'live-speech'
       setPlayingMsgId(activeId)
+      setLastVoiceError(null)
+
+      const cleanText = sanitizeTextForSpeechClient(text, activeLang) || text
 
       try {
         // Bluetooth Headset Half-Duplex Delay:
-        // Wait 350ms after stopping mic so Windows Bluetooth driver switches from HFP back to A2DP Stereo!
-        await new Promise((resolve) => setTimeout(resolve, 350))
+        // Wait 150ms after stopping mic so Windows Bluetooth driver switches from HFP back to A2DP Stereo!
+        await new Promise((resolve) => setTimeout(resolve, 150))
 
-        const cleanText = sanitizeTextForSpeechClient(text, activeLang) || text
         const apiKey = getOpenAIApiKey()
-
         let audioUrl = ''
 
         // 1. Direct Browser Fetch to OpenAI Audio Speech API (Zero Cloudflare Node / Buffer dependency)
@@ -580,11 +595,14 @@ export default function FeryalAiCommandPage() {
             if (openAiRes.ok) {
               const blob = await openAiRes.blob()
               audioUrl = URL.createObjectURL(blob)
+              setLastVoiceError(null)
             } else {
-              console.warn('Direct OpenAI TTS returned status:', openAiRes.status)
+              const errBody = await openAiRes.text().catch(() => '')
+              throw new Error(`OpenAI HTTP ${openAiRes.status}: ${errBody || openAiRes.statusText}`)
             }
-          } catch (directErr) {
+          } catch (directErr: any) {
             console.warn('Direct browser fetch to OpenAI TTS failed, falling back:', directErr)
+            setLastVoiceError(directErr?.message || 'OpenAI TTS fetch failed')
           }
         }
 
@@ -624,14 +642,16 @@ export default function FeryalAiCommandPage() {
           player.onerror = () => {
             console.warn('DOM audio element error, falling back to speech synthesis')
             setPlayingMsgId(null)
-            fallbackSpeechSynthesis(text, activeLang)
+            setLastVoiceError('Audio player error; spoke via browser voice')
+            fallbackSpeechSynthesis(cleanText, activeLang)
           }
 
           const playPromise = player.play()
           if (playPromise !== undefined) {
-            playPromise.catch((err) => {
+            playPromise.catch((err: any) => {
               console.warn('Autoplay prevented on audio player:', err)
-              fallbackSpeechSynthesis(text, activeLang)
+              setLastVoiceError(err?.message || 'Autoplay prevented; spoke via browser voice')
+              fallbackSpeechSynthesis(cleanText, activeLang)
             })
           }
           return
@@ -654,15 +674,20 @@ export default function FeryalAiCommandPage() {
           }
         }
         audio.onerror = () => {
-          fallbackSpeechSynthesis(text, activeLang)
+          setLastVoiceError('Audio error; spoke via browser voice')
+          fallbackSpeechSynthesis(cleanText, activeLang)
         }
-        await audio.play()
-      } catch (err) {
-        console.error('playFeryalSpeech error:', err)
-        fallbackSpeechSynthesis(text, activeLang)
+        audio.play().catch((err: any) => {
+          setLastVoiceError(err?.message || 'Audio error; spoke via browser voice')
+          fallbackSpeechSynthesis(cleanText, activeLang)
+        })
+      } catch (err: any) {
+        console.error('Audio playback pipeline error, guaranteed speech fallback:', err)
+        setLastVoiceError(err?.message || 'Playback error; spoke via browser voice')
+        fallbackSpeechSynthesis(cleanText, activeLang)
       }
     },
-    [isVoiceMuted, isAr, fallbackSpeechSynthesis, stopAllMicTracks]
+    [fallbackSpeechSynthesis, isAr, isVoiceMuted, stopAllMicTracks]
   )
 
   // Handler functions with memoization to satisfy hooks dependency rules
@@ -922,7 +947,7 @@ Provide crisp, executive-grade advisory.`
     handleSendQueryRef.current = handleSendQuery
   }, [handleSendQuery])
 
-  // Start Speech Recognition with OpenAI Whisper STT + Live Interim Transcript & Smart Pause Tolerance
+  // Start Speech Recognition with Dual Engine: Web Speech API + MediaRecorder Whisper STT
   const startListening = useCallback(async () => {
     if (typeof window === 'undefined') return
     setMicError(null)
@@ -935,255 +960,253 @@ Provide crisp, executive-grade advisory.`
       window.speechSynthesis.cancel()
     }
 
-    // 1. Diagnostic Pre-check: Verify audio input device existence
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setMicError(
-        isAr
-          ? 'المتصفح الحالي لا يدعم تسجيل الصوت. يمكنك محاورة فريال كتابياً والاستماع لردها الصوتي.'
-          : 'Your browser does not support audio recording. You can chat with Feryal via text and listen to her voice.'
-      )
-      return
-    }
-
     // Stop any existing recorder or recognizer
     stopAllMicTracks()
 
-    // 2. Request microphone stream via getUserMedia
-    let mediaStream: MediaStream | null = null
-    try {
-      mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      mediaStreamRef.current = mediaStream
-    } catch (err: any) {
-      setIsListening(false)
-      isListeningRef.current = false
-      mediaStreamRef.current = null
-
-      const msg = isAr ? '🎙️ تعذر تشغيل المايكروفون. يمكنك المحادثة كتابياً' : '🎙️ Mic unavailable. Please type your message.'
-      setMicToast(msg)
-      setTimeout(() => setMicToast(null), 3500)
-      inputFieldRef.current?.focus()
-      return
-    }
-
-    // 3. Initialize MediaRecorder for high-accuracy OpenAI Whisper STT
-    try {
-      const mr = new MediaRecorder(mediaStream)
-      audioChunksRef.current = []
-
-      mr.ondataavailable = (e) => {
-        if (e.data && e.data.size > 0) {
-          audioChunksRef.current.push(e.data)
-        }
-      }
-
-      mr.onstop = async () => {
-        // Immediately release all mic tracks so Bluetooth headset returns to Stereo sink!
-        stopAllMicTracks()
-
-        if (audioChunksRef.current.length > 0) {
-          const recordedBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
-          audioChunksRef.current = []
-
-          setIsTranscribing(true)
-          try {
-            const apiKey = getOpenAIApiKey()
-            const fd = new FormData()
-            fd.append('file', recordedBlob, 'audio.webm')
-            fd.append('model', 'whisper-1')
-            fd.append('language', micLangRef.current === 'en' ? 'en' : 'ar')
-            fd.append(
-              'prompt',
-              micLangRef.current === 'en'
-                ? "Feryal, Venture Foods, Odoo ERP, Keeta, Talabat, Tgo, TMP, China Garden, Frank's, Tahina, KWD"
-                : 'فريال، فنتشر فودز، أودو، كيتا، طلبات، شاينا جاردن، فرانكس، طحينة، دينار كويتي، السالمية، الكوت'
-            )
-
-            let finalQuery = ''
-
-            // 1. Direct Browser Request to OpenAI Whisper API (Zero Cloudflare Node / Buffer dependency)
-            if (apiKey) {
-              try {
-                const whisperRes = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-                  method: 'POST',
-                  headers: {
-                    Authorization: `Bearer ${apiKey}`,
-                  },
-                  body: fd,
-                })
-
-                if (whisperRes.ok) {
-                  const whisperData = await whisperRes.json()
-                  if (whisperData.text && whisperData.text.trim()) {
-                    finalQuery = whisperData.text.trim()
-                  }
-                } else {
-                  console.warn('Direct Whisper API returned status:', whisperRes.status)
-                }
-              } catch (directWhisperErr) {
-                console.warn('Direct Whisper API request failed:', directWhisperErr)
-              }
-            }
-
-            // 2. Fallback to /api/feryal/stt
-            if (!finalQuery) {
-              try {
-                const sttRes = await fetch('/api/feryal/stt', {
-                  method: 'POST',
-                  body: fd,
-                })
-                if (sttRes.ok) {
-                  const sttData = await sttRes.json()
-                  if (sttData.ok && sttData.transcript && sttData.transcript.trim()) {
-                    finalQuery = sttData.transcript.trim()
-                  }
-                }
-              } catch {}
-            }
-
-            // 3. Fallback to Live Interim Transcript if available
-            if (!finalQuery && interimTranscriptRef.current.trim()) {
-              finalQuery = interimTranscriptRef.current.trim()
-            }
-
-            if (finalQuery) {
-              setInputText(finalQuery)
-              interimTranscriptRef.current = ''
-              handleSendQueryRef.current?.(finalQuery)
-              return
-            }
-          } catch (sttErr) {
-            console.warn('Whisper STT request error, using fallback transcript:', sttErr)
-          } finally {
-            setIsTranscribing(false)
-          }
-        }
-
-        // Fallback if Whisper did not return
-        if (interimTranscriptRef.current.trim()) {
-          const fallbackQuery = interimTranscriptRef.current.trim()
-          interimTranscriptRef.current = ''
-          handleSendQueryRef.current?.(fallbackQuery)
-        }
-      }
-
-      mediaRecorderRef.current = mr
-      mr.start(250)
-      setIsListening(true)
-      isListeningRef.current = true
-    } catch (mrErr: any) {
-      console.warn('MediaRecorder init error:', mrErr)
-    }
-
-    // 4. Start Web Speech API in parallel for Live Interim Transcript display
+    // 1. Try starting Web Speech API (webkitSpeechRecognition) directly
+    let speechRecognitionActive = false
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
     if (SpeechRecognition) {
-      const recognizer = new SpeechRecognition()
-      recognizer.continuous = false
-      recognizer.interimResults = true
-      recognizer.lang = micLangRef.current === 'ar' ? 'ar-KW' : 'en-US'
-      recognizer.maxAlternatives = 1
+      try {
+        const recognizer = new SpeechRecognition()
+        recognizer.continuous = false
+        recognizer.interimResults = true
+        recognizer.lang = micLangRef.current === 'ar' ? 'ar-KW' : 'en-US'
+        recognizer.maxAlternatives = 1
 
-      interimTranscriptRef.current = ''
+        interimTranscriptRef.current = ''
 
-      recognizer.onstart = () => {
+        recognizer.onstart = () => {
+          setIsListening(true)
+          isListeningRef.current = true
+          setMicError(null)
+          setMicToast(null)
+        }
+
+        recognizer.onresult = (event: any) => {
+          let interimText = ''
+          let finalText = ''
+
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            const item = event.results[i]
+            const transcript = item[0]?.transcript || ''
+            if (item.isFinal) {
+              finalText += transcript
+            } else {
+              interimText += transcript
+            }
+          }
+
+          const liveText = (finalText || interimText).trim()
+          if (liveText) {
+            setInputText(liveText)
+            interimTranscriptRef.current = liveText
+          }
+
+          if (silenceTimerRef.current) {
+            clearTimeout(silenceTimerRef.current)
+            silenceTimerRef.current = null
+          }
+
+          if (finalText.trim()) {
+            setIsListening(false)
+            isListeningRef.current = false
+            if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+              try {
+                mediaRecorderRef.current.stop()
+              } catch {}
+            } else {
+              const queryToSend = finalText.trim()
+              interimTranscriptRef.current = ''
+              handleSendQueryRef.current?.(queryToSend)
+            }
+            try {
+              recognizer.stop()
+            } catch {}
+          } else if (interimText.trim()) {
+            silenceTimerRef.current = setTimeout(() => {
+              if (isListeningRef.current) {
+                setIsListening(false)
+                isListeningRef.current = false
+                if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+                  try {
+                    mediaRecorderRef.current.stop()
+                  } catch {}
+                } else if (interimTranscriptRef.current.trim()) {
+                  const queryToSend = interimTranscriptRef.current.trim()
+                  interimTranscriptRef.current = ''
+                  handleSendQueryRef.current?.(queryToSend)
+                }
+                try {
+                  recognizer.stop()
+                } catch {}
+              }
+            }, 1800)
+          }
+        }
+
+        recognizer.onerror = (event: any) => {
+          if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
+          const errCode = event.error || 'speech-recognition-error'
+          if (errCode === 'no-speech') {
+            // harmless timeout when user doesn't speak
+          } else {
+            const errStr = `SpeechRecognition: ${errCode}`
+            setMicToast(errStr)
+            setMicError(errStr)
+          }
+        }
+
+        recognizer.onend = () => {
+          if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
+        }
+
+        recognitionRef.current = recognizer
+        recognizer.start()
+        speechRecognitionActive = true
+      } catch (recErr: any) {
+        console.warn('SpeechRecognition direct start error:', recErr)
+      }
+    }
+
+    // 2. Request microphone stream via getUserMedia for MediaRecorder / Whisper
+    let mediaStream: MediaStream | null = null
+    try {
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        mediaStreamRef.current = mediaStream
         setIsListening(true)
         isListeningRef.current = true
-        setMicError(null)
       }
+    } catch (err: any) {
+      const errName = err?.name || 'Error'
+      const errMsg = err?.message || ''
+      const detailedErr = `${errName}${errMsg ? `: ${errMsg}` : ''}`
+      console.error('getUserMedia failure:', detailedErr)
 
-      recognizer.onresult = (event: any) => {
-        let interimText = ''
-        let finalText = ''
+      if (!speechRecognitionActive) {
+        setIsListening(false)
+        isListeningRef.current = false
+        mediaStreamRef.current = null
 
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          const item = event.results[i]
-          const transcript = item[0]?.transcript || ''
-          if (item.isFinal) {
-            finalText += transcript
-          } else {
-            interimText += transcript
-          }
-        }
-
-        const liveText = (finalText || interimText).trim()
-        if (liveText) {
-          setInputText(liveText)
-          interimTranscriptRef.current = liveText
-        }
-
-        if (silenceTimerRef.current) {
-          clearTimeout(silenceTimerRef.current)
-          silenceTimerRef.current = null
-        }
-
-        if (finalText.trim()) {
-          setIsListening(false)
-          isListeningRef.current = false
-          if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-            try {
-              mediaRecorderRef.current.stop()
-            } catch {}
-          } else {
-            const queryToSend = finalText.trim()
-            interimTranscriptRef.current = ''
-            handleSendQueryRef.current?.(queryToSend)
-          }
-          try {
-            recognizer.stop()
-          } catch {}
-        } else if (interimText.trim()) {
-          // Smart pause tolerance: if user stops speaking for 1.8s, submit automatically
-          silenceTimerRef.current = setTimeout(() => {
-            if (isListeningRef.current) {
-              setIsListening(false)
-              isListeningRef.current = false
-              if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-                try {
-                  mediaRecorderRef.current.stop()
-                } catch {}
-              } else if (interimTranscriptRef.current.trim()) {
-                const queryToSend = interimTranscriptRef.current.trim()
-                interimTranscriptRef.current = ''
-                handleSendQueryRef.current?.(queryToSend)
-              }
-              try {
-                recognizer.stop()
-              } catch {}
-            }
-          }, 1800)
-        }
+        const displayMsg = isAr
+          ? `🎙️ تعذر تشغيل المايكروفون (${detailedErr}). يمكنك المحادثة كتابياً.`
+          : `🎙️ Microphone error (${detailedErr}). Please type your message.`
+        setMicToast(displayMsg)
+        setMicError(displayMsg)
+        setTimeout(() => setMicToast(null), 6000)
+        inputFieldRef.current?.focus()
+        return
       }
+    }
 
-      recognizer.onerror = (event: any) => {
-        if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
-        const err = event.error
-        if (err === 'audio-capture') {
-          setMicError(
-            isAr
-              ? 'لا يوجد جهاز مايكروفون موصول بالكمبيوتر حالياً. يمكنك وصل سماعة/مايكروفون أو محاورة فريال كتابياً والاستماع لردها الصوتي.'
-              : 'No microphone is currently connected to your computer. Please connect a headset/microphone or chat with Feryal via text and listen to her voice.'
-          )
-        } else if (err === 'not-allowed' || err === 'service-not-allowed') {
-          // Handled above in getUserMedia
-        } else if (err === 'no-speech') {
-          setMicError(
-            isAr
-              ? '🎙️ لم يتم رصد أي صوت. يمكنك إعادة الضغط على المايك والتحدث مجدداً.'
-              : '🎙️ No speech detected. Please click the mic and try again.'
-          )
-        }
-      }
-
-      recognizer.onend = () => {
-        if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
-      }
-
-      recognitionRef.current = recognizer
-
+    // 3. Initialize MediaRecorder for high-accuracy OpenAI Whisper STT if mediaStream active
+    if (mediaStream) {
       try {
-        recognizer.start()
-      } catch (e) {
-        // SpeechRecognition failed to start, MediaRecorder is still active
+        const mr = new MediaRecorder(mediaStream)
+        audioChunksRef.current = []
+
+        mr.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) {
+            audioChunksRef.current.push(e.data)
+          }
+        }
+
+        mr.onstop = async () => {
+          stopAllMicTracks()
+
+          if (audioChunksRef.current.length > 0) {
+            const recordedBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
+            audioChunksRef.current = []
+
+            setIsTranscribing(true)
+            try {
+              const apiKey = getOpenAIApiKey()
+              const fd = new FormData()
+              fd.append('file', recordedBlob, 'audio.webm')
+              fd.append('model', 'whisper-1')
+              fd.append('language', micLangRef.current === 'en' ? 'en' : 'ar')
+              fd.append(
+                'prompt',
+                micLangRef.current === 'en'
+                  ? "Feryal, Venture Foods, Odoo ERP, Keeta, Talabat, Tgo, TMP, China Garden, Frank's, Tahina, KWD"
+                  : 'فريال، فنتشر فودز، أودو، كيتا، طلبات، شاينا جاردن، فرانكس، طحينة، دينار كويتي، السالمية، الكوت'
+              )
+
+              let finalQuery = ''
+
+              // Direct Browser Request to OpenAI Whisper API
+              if (apiKey) {
+                try {
+                  const whisperRes = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+                    method: 'POST',
+                    headers: {
+                      Authorization: `Bearer ${apiKey}`,
+                    },
+                    body: fd,
+                  })
+
+                  if (whisperRes.ok) {
+                    const whisperData = await whisperRes.json()
+                    if (whisperData.text && whisperData.text.trim()) {
+                      finalQuery = whisperData.text.trim()
+                    }
+                  } else {
+                    console.warn('Direct Whisper API returned status:', whisperRes.status)
+                  }
+                } catch (directWhisperErr) {
+                  console.warn('Direct Whisper API request failed:', directWhisperErr)
+                }
+              }
+
+              // Fallback to /api/feryal/stt
+              if (!finalQuery) {
+                try {
+                  const sttRes = await fetch('/api/feryal/stt', {
+                    method: 'POST',
+                    body: fd,
+                  })
+                  if (sttRes.ok) {
+                    const sttData = await sttRes.json()
+                    if (sttData.ok && sttData.transcript && sttData.transcript.trim()) {
+                      finalQuery = sttData.transcript.trim()
+                    }
+                  }
+                } catch {}
+              }
+
+              // Fallback to Live Interim Transcript if available
+              if (!finalQuery && interimTranscriptRef.current.trim()) {
+                finalQuery = interimTranscriptRef.current.trim()
+              }
+
+              if (finalQuery) {
+                setInputText(finalQuery)
+                interimTranscriptRef.current = ''
+                handleSendQueryRef.current?.(finalQuery)
+                return
+              }
+            } catch (sttErr) {
+              console.warn('Whisper STT request error, using fallback transcript:', sttErr)
+            } finally {
+              setIsTranscribing(false)
+            }
+          }
+
+          // Fallback if Whisper did not return
+          if (interimTranscriptRef.current.trim()) {
+            const fallbackQuery = interimTranscriptRef.current.trim()
+            interimTranscriptRef.current = ''
+            handleSendQueryRef.current?.(fallbackQuery)
+          }
+        }
+
+        mediaRecorderRef.current = mr
+        mr.start(250)
+        setIsListening(true)
+        isListeningRef.current = true
+      } catch (mrErr: any) {
+        console.warn('MediaRecorder init error:', mrErr)
       }
     }
   }, [isAr, stopAllMicTracks])
@@ -1609,28 +1632,33 @@ Provide crisp, executive-grade advisory.`
           </div>
 
           {/* Permanent Decoupled Voice Player Bar */}
-          <div className="bg-slate-100 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 p-3 sm:p-3.5 flex flex-col sm:flex-row items-center gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                const lastMsg = messages[messages.length - 1]
-                const textToSpeak = lastMsg
-                  ? isAr
-                    ? lastMsg.textAr
-                    : lastMsg.textEn
-                  : isAr
-                  ? 'مرحباً بك يا سعادة المدير. أنا المستشارة فريال، جاهزة لخدمتك.'
-                  : 'Welcome, Executive Leader. I am Feryal, your AI Executive Copilot.'
-                playFeryalSpeech(textToSpeak, 'manual-header-play')
-              }}
-              className="w-full sm:w-auto px-4 py-2 rounded-xl bg-[#2563EB] hover:bg-blue-600 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs transition-all shrink-0 cursor-pointer"
-            >
-              <Volume2 className="h-4 w-4" />
-              <span>{isAr ? '🔊 تشغيل صوت فريال الآن (Nova)' : '🔊 Play Feryal Voice (OpenAI Nova)'}</span>
-            </button>
-            <div className="w-full sm:flex-1">
-              <audio ref={audioPlayerRef} controls preload="auto" className="w-full h-10 rounded-lg shadow-2xs" />
+          <div className="bg-slate-100 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 p-3 sm:p-3.5 flex flex-col gap-2">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  const lastMsg = messages[messages.length - 1]
+                  const textToSpeak = lastMsg
+                    ? isAr
+                      ? lastMsg.textAr
+                      : lastMsg.textEn
+                    : isAr
+                    ? 'مرحباً بك يا سعادة المدير. أنا المستشارة فريال، جاهزة لخدمتك.'
+                    : 'Welcome, Executive Leader. I am Feryal, your AI Executive Copilot.'
+                  playFeryalSpeech(textToSpeak, 'manual-header-play')
+                }}
+                className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-[#2563EB] hover:bg-blue-600 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs transition-all shrink-0 cursor-pointer"
+              >
+                <Volume2 className="h-4 w-4" />
+                <span>{isAr ? '🔊 استمع لصوت فريال (Nova)' : '🔊 Listen to Feryal (Nova)'}</span>
+              </button>
+              {lastVoiceError && (
+                <span className="text-[11px] font-semibold text-rose-600 dark:text-rose-400">
+                  {lastVoiceError}
+                </span>
+              )}
             </div>
+            <audio ref={audioPlayerRef} controls preload="auto" className="w-full h-10 mt-2 rounded-lg shadow-2xs" />
           </div>
 
           {/* Quick Action Pills Under Header */}
