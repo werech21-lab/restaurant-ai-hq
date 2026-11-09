@@ -15,11 +15,9 @@ import {
   AlertTriangle,
   CheckCircle2,
   Layers,
-  ArrowUpRight,
   ArrowDownRight,
   Sliders,
   Search,
-  ExternalLink,
   ShieldCheck,
   RefreshCw,
   Activity,
@@ -33,7 +31,6 @@ import {
   FileSpreadsheet,
   Mail,
   MessageSquare,
-  HelpCircle,
 } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
 
@@ -63,16 +60,16 @@ const MASTER_ODOO_METRICS = {
   topItemsCount: 32,
 }
 
-// 8 Verified Operational Branches (Strictly No Jahra / No Qurain)
+// Strictly the 8 Verified Operational Branches (Zero Jahra / Zero Qurain)
 const VERIFIED_BRANCHES = [
-  { id: 'Salmiya', nameAr: 'السالمية', nameEn: 'Salmiya', salesKwd: 31246.23, orders: 5710, share: 18.7, rank: 1, bestChannel: 'Talabat Tgo', status: 'Optimal' },
-  { id: 'Al-Kout', nameAr: 'الكوت / الفحيحيل', nameEn: 'Al-Kout / Fahaheel', salesKwd: 27904.39, orders: 5100, share: 16.7, rank: 2, bestChannel: 'Talabat TMP', status: 'Optimal' },
-  { id: 'Sharq', nameAr: 'شرق', nameEn: 'Sharq', salesKwd: 24896.73, orders: 4550, share: 14.9, rank: 3, bestChannel: 'Deliveroo', status: 'Optimal' },
-  { id: 'Hawally', nameAr: 'حولي', nameEn: 'Hawally', salesKwd: 21387.79, orders: 3910, share: 12.8, rank: 4, bestChannel: 'Keeta', status: 'Attention (Chiller)' },
-  { id: 'Farwaniya', nameAr: 'الفروانية', nameEn: 'Farwaniya', salesKwd: 18045.95, orders: 3300, share: 10.8, rank: 5, bestChannel: 'Talabat Tgo', status: 'Optimal' },
-  { id: 'Ardiya', nameAr: 'العارضية الحرفية', nameEn: 'Ardiya Central', salesKwd: 15372.48, orders: 2810, share: 9.2, rank: 6, bestChannel: 'Central Hub', status: 'Attention (Prep Waste)' },
-  { id: 'Mahboula', nameAr: 'المهبولة', nameEn: 'Mahboula', salesKwd: 15038.29, orders: 2750, share: 9.0, rank: 7, bestChannel: 'Talabat TMP', status: 'Optimal' },
-  { id: 'Mubarak-Al-Kabeer', nameAr: 'مبارك الكبير / صباح السالم', nameEn: 'Mubarak Al-Kabeer', salesKwd: 13200.3, orders: 2410, share: 7.9, rank: 8, bestChannel: 'Talabat Tgo', status: 'Growing' },
+  { id: 'Salmiya', nameAr: 'السالمية', nameEn: 'Salmiya', salesKwd: 31246.23, orders: 5710, share: 18.7, rank: 1, bestChannel: 'Talabat Tgo', status: 'مثالي' },
+  { id: 'Al-Kout', nameAr: 'الكوت / الفحيحيل', nameEn: 'Al-Kout / Fahaheel', salesKwd: 27904.39, orders: 5100, share: 16.7, rank: 2, bestChannel: 'Talabat TMP', status: 'مثالي' },
+  { id: 'Sharq', nameAr: 'شرق', nameEn: 'Sharq', salesKwd: 24896.73, orders: 4550, share: 14.9, rank: 3, bestChannel: 'Deliveroo', status: 'مثالي' },
+  { id: 'Hawally', nameAr: 'حولي', nameEn: 'Hawally', salesKwd: 21387.79, orders: 3910, share: 12.8, rank: 4, bestChannel: 'Keeta', status: 'يحتاج صيانة مبردات' },
+  { id: 'Farwaniya', nameAr: 'الفروانية', nameEn: 'Farwaniya', salesKwd: 18045.95, orders: 3300, share: 10.8, rank: 5, bestChannel: 'Talabat Tgo', status: 'مثالي' },
+  { id: 'Ardiya', nameAr: 'العارضية الحرفية', nameEn: 'Ardiya Central', salesKwd: 15372.48, orders: 2810, share: 9.2, rank: 6, bestChannel: 'Central Hub', status: 'معايرة هدر التتبيل' },
+  { id: 'Mahboula', nameAr: 'المهبولة', nameEn: 'Mahboula', salesKwd: 15038.29, orders: 2750, share: 9.0, rank: 7, bestChannel: 'Talabat TMP', status: 'مثالي' },
+  { id: 'Mubarak-Al-Kabeer', nameAr: 'مبارك الكبير / صباح السالم', nameEn: 'Mubarak Al-Kabeer', salesKwd: 13200.3, orders: 2410, share: 7.9, rank: 8, bestChannel: 'Talabat Tgo', status: 'نمو متصاعد' },
 ]
 
 // ==============================================================================
@@ -85,7 +82,6 @@ interface SolutionItem {
   locationAr: string
   locationEn: string
   monthlySavingsKwd: number
-  annualSavingsKwd: number
   badge: string
   detailsAr: string
   detailsEn: string
@@ -94,14 +90,13 @@ interface SolutionItem {
 const STRATEGIC_SOLUTIONS: SolutionItem[] = [
   {
     id: 'sol-ardiya',
-    titleAr: 'ضبط هدر التتبيل والتحضير المركزي',
+    titleAr: 'ضبط هدر التتبيل في مطبخ العارضية المركزي',
     titleEn: 'Central Prep & Marination Yield Calibration',
     locationAr: 'مطبخ العارضية المركزي',
     locationEn: 'Ardiya Central Prep Facility',
     monthlySavingsKwd: 1336,
-    annualSavingsKwd: 16032,
-    badge: 'Food Cost (COGS)',
-    detailsAr: 'إعادة ضبط أوزان صوصات التتبيل وتوحيد خلطات الدجاج يقلص الفاقد بنسبة 1.6% ويعيد تكلفة المواد للمستهدف 24.0%.',
+    badge: 'تكلفة المواد (COGS)',
+    detailsAr: 'إعادة ضبط أوزان خلطات التتبيل وتوحيد تقطيع الدجاج يقلص الفاقد بنسبة 1.6% ويعيد تكلفة المواد للمستهدف 24.0%.',
     detailsEn: 'Standardizing marinade batch weights and raw poultry prep cuts recovers 1.6% yield, aligning food cost to target 24.0%.',
   },
   {
@@ -111,21 +106,19 @@ const STRATEGIC_SOLUTIONS: SolutionItem[] = [
     locationAr: 'فرع حولي',
     locationEn: 'Hawally Branch',
     monthlySavingsKwd: 850,
-    annualSavingsKwd: 10200,
-    badge: 'Utility & Maintenance',
-    detailsAr: 'استبدال 3 مبردات قديمة تجاوزت عمرها الافتراضي يخفض فواتير الكهرباء ويمنع تلف الخضار واللحوم.',
+    badge: 'المصروفات والصيانة',
+    detailsAr: 'استبدال 3 مبردات قديمة متهالكة يخفض استهلاك الكهرباء والصيانة الدورية ويمنع تلف الخضار واللحوم.',
     detailsEn: 'Upgrading 3 degraded commercial chillers reduces electric tariff loads and prevents raw perishables spoilage.',
   },
   {
     id: 'sol-keeta',
-    titleAr: 'سقف ترشيد الخصومات لحملات كيتا',
+    titleAr: 'ضبط وترشيد خصومات حملات كيتا (Keeta Cap)',
     titleEn: 'Cap Keeta Platform Marketing Subsidies',
     locationAr: 'منصة Keeta (كافة الفروع)',
     locationEn: 'Keeta Aggregator (All Branches)',
     monthlySavingsKwd: 1620,
-    annualSavingsKwd: 19440,
-    badge: 'Marketing Yield',
-    detailsAr: 'وضع حد أقصى للخصومات الترويجية وخفض الحرق من 2,544 د.ك إلى 924 د.ك شهرياً مع الحفاظ على معدل التحويل.',
+    badge: 'كفاءة التسويق',
+    detailsAr: 'وضع سقف للخصومات الترويجية وخفض الحرق من 2,544 د.ك إلى 924 د.ك شهرياً مع الحفاظ على معدل تحويل الطلبات.',
     detailsEn: 'Capping aggressive promo burn from 2,544 KWD to 924 KWD monthly while preserving customer order conversion.',
   },
 ]
@@ -135,7 +128,6 @@ interface ProposalItem {
   titleAr: string
   titleEn: string
   expectedMonthlyGainKwd: number
-  expectedAnnualGainKwd: number
   badge: string
   mechanismAr: string
   mechanismEn: string
@@ -147,9 +139,8 @@ const STRATEGIC_PROPOSALS: ProposalItem[] = [
     titleAr: 'إلزام إضافة المشروبات للوجبات ومجموعات الكومبو',
     titleEn: 'Mandatory Beverage Attachment in Combo Meals',
     expectedMonthlyGainKwd: 2450,
-    expectedAnnualGainKwd: 29400,
-    badge: 'AOV Expansion',
-    mechanismAr: 'رفع متوسط سلة الشراء (AOV) من 5.471 إلى 5.750 د.ك بإضافة المشروب الإلزامي لكافة طلبات الكومبو على تطبيقات التوصيل.',
+    badge: 'رفع متوسط السلة (AOV)',
+    mechanismAr: 'رفع متوسط سلة الشراء من 5.471 د.ك إلى 5.750 د.ك بإدراج المشروب الإلزامي لكافة وجبات الكومبو بتطبيقات التوصيل.',
     mechanismEn: 'Elevating Group AOV from 5.471 to 5.750 KWD by bundling high-margin soft beverages in all delivery combo items.',
   },
   {
@@ -157,9 +148,8 @@ const STRATEGIC_PROPOSALS: ProposalItem[] = [
     titleAr: 'إعادة هندسة قائمة الطعام (Menu Engineering Matrix)',
     titleEn: 'Menu Matrix Rationalization (Dogs & Plowhorses)',
     expectedMonthlyGainKwd: 584,
-    expectedAnnualGainKwd: 7008,
-    badge: 'Margin Optimization',
-    mechanismAr: 'حذف 18 صنفاً بطيئ الحركة (Dogs) وتعديل أسعار 4 أصناف شعبية (Plowhorses) بنسبة +5% لتوليد ربح إضافي مباشر.',
+    badge: 'تعظيم الهامش الربحي',
+    mechanismAr: 'استبعاد 18 صنفاً بطيئ الحركة (Dogs) وتعديل أسعار 4 أصناف شعبية (Plowhorses) بنسبة +5% لتوليد ربح صافي مباشر.',
     mechanismEn: 'Purging 18 sluggish Dog items and adjusting prices of 4 popular Plowhorses by +5% to generate pure margin.',
   },
 ]
@@ -183,10 +173,10 @@ const STRATEGIC_EXECUTION_PLANS: ExecutionPlanItem[] = [
     week: 'الأسبوع 1',
     departmentAr: 'المطبخ المركزي والجودة',
     departmentEn: 'Central Kitchen & QC',
-    titleAr: 'معايرة مقادير التتبيل وموازين العارضية',
+    titleAr: 'معايرة مقادير التتبيل وموازين مطبخ العارضية',
     titleEn: 'Calibrate Marinades & Portion Scales at Ardiya',
-    targetKpiAr: 'خفض الهدر بنسبة 1.6% (وفر 1,336 د.ك)',
-    targetKpiEn: 'Cut waste by 1.6% (Save 1,336 KWD)',
+    targetKpiAr: 'خفض الهدر وتوفير 1,336 د.ك شهرياً',
+    targetKpiEn: 'Cut waste & save 1,336 KWD/month',
     actionType: 'dispatch_operations_plan',
     status: 'pending',
   },
@@ -197,8 +187,8 @@ const STRATEGIC_EXECUTION_PLANS: ExecutionPlanItem[] = [
     departmentEn: 'Maintenance & Procurement',
     titleAr: 'شراء وتوريد المبردات الحديثة لفرع حولي',
     titleEn: 'Procure & Install Inverter Chillers for Hawally',
-    targetKpiAr: 'خفض فاتورة الكهرباء والصيانة بـ 850 د.ك',
-    targetKpiEn: 'Cut utility & repairs by 850 KWD',
+    targetKpiAr: 'خفض استهلاك الكهرباء والصيانة بـ 850 د.ك',
+    targetKpiEn: 'Cut utility & repairs by 850 KWD/month',
     actionType: 'dispatch_chiller_plan',
     status: 'pending',
   },
@@ -209,8 +199,8 @@ const STRATEGIC_EXECUTION_PLANS: ExecutionPlanItem[] = [
     departmentEn: 'Marketing & Channels',
     titleAr: 'تطبيق سقف خصومات كيتا وتعديل مصفوفة العروض',
     titleEn: 'Apply Keeta Promo Cap & Revamp Delivery Tiers',
-    targetKpiAr: 'وفر تسويقي فوري قدره 1,620 د.ك',
-    targetKpiEn: 'Direct promo savings of 1,620 KWD',
+    targetKpiAr: 'وفر تسويقي فوري قدره 1,620 د.ك شهرياً',
+    targetKpiEn: 'Direct promo savings of 1,620 KWD/month',
     actionType: 'dispatch_keeta_cap',
     status: 'pending',
   },
@@ -229,7 +219,7 @@ const STRATEGIC_EXECUTION_PLANS: ExecutionPlanItem[] = [
 ]
 
 // ==============================================================================
-// 3. MAIN COMPONENT
+// 3. MAIN COMPONENT (Unslop UI - High Contrast & Large Typography)
 // ==============================================================================
 export default function FeryalAiCommandPage() {
   const { locale } = useI18n()
@@ -243,7 +233,7 @@ export default function FeryalAiCommandPage() {
       id: 'welcome',
       sender: 'feryal',
       textAr:
-        'أهلاً بك يا سعادة المدير. أنا المستشارة فريال، محرك الذكاء الاصطناعي التنفيذي لمجموعة فنتشر فودز. أراقب لحظياً 167,092.160 د.ك مبيعات معتمدة و30,540 طلباً عبر أودو ورادارات التوصيل. كيف ترغب أن نبدأ خطة تعظيم الأرباح وخفض التكاليف اليوم؟',
+        'مرحباً بك يا سعادة المدير. أنا المستشارة فريال، محرك الذكاء الاصطناعي التنفيذي لمجموعة فنتشر فودز. أراقب لحظياً 167,092.160 د.ك مبيعات معتمدة و30,540 طلباً عبر أودو ورادارات التوصيل بدقة 100%. كيف ترغب أن نبدأ خطة تعظيم الأرباح وخفض التكاليف اليوم؟',
       textEn:
         'Greetings, Executive Leader. I am Feryal, your AI Executive Copilot for Venture Foods. I actively monitor 167,092.160 KWD in approved sales and 30,540 orders across Odoo and delivery aggregators. How would you like to accelerate profit margins and eliminate operational waste today?',
       time: 'الآن',
@@ -254,24 +244,21 @@ export default function FeryalAiCommandPage() {
 
   // Voice Interaction States (Web Speech API)
   const [isListening, setIsListening] = useState(false)
-  const [isSpeechSupported, setIsSpeechSupported] = useState(false)
+  const [micLang, setMicLang] = useState<'ar' | 'en'>('ar')
   const [isVoiceMuted, setIsVoiceMuted] = useState(false)
   const recognitionRef = useRef<any>(null)
   const chatScrollRef = useRef<HTMLDivElement>(null)
 
-  // Four Smart Services Hub States (Perplexity, Firecrawl, Playwright, Composio)
-  const [activeHubTab, setActiveHubTab] = useState<'perplexity' | 'firecrawl' | 'playwright' | 'composio'>('perplexity')
+  // Four Smart Services Hub States
   const [hubLoading, setHubLoading] = useState(false)
 
   // Perplexity States
-  const [perplexityQuery, setPerplexityQuery] = useState('أسعار الدجاج والزيوت وسوق المطاعم في الكويت وتأثير الطقس')
+  const [perplexityQuery, setPerplexityQuery] = useState('أسعار الدجاج المجمد وزيوت القلي وسوق المطاعم في الكويت وتأثير الطقس')
   const [perplexityResponse, setPerplexityResponse] = useState<string | null>(null)
-  const [perplexityMode, setPerplexityMode] = useState<string>('demo_simulation')
 
   // Firecrawl States
   const [firecrawlUrl, setFirecrawlUrl] = useState('https://www.talabat.com/kuwait/restaurant/china-garden')
   const [competitorItems, setCompetitorItems] = useState<any[]>([])
-  const [firecrawlMode, setFirecrawlMode] = useState<string>('demo_simulation')
 
   // Playwright States
   const [portalSelect, setPortalSelect] = useState<'talabat' | 'keeta' | 'deliveroo'>('talabat')
@@ -284,9 +271,9 @@ export default function FeryalAiCommandPage() {
     { time: '08:15', msg: 'مزامنة مبيعات Talabat Tgo و TMP مع دفتر أستاذ أودو بنجاح.', channel: 'Google Sheets' },
   ])
 
-  // What-If Dynamic Slider States (Financial Projections)
-  const [costOptimizationSlider, setCostOptimizationSlider] = useState<number>(100) // 50% to 150%
-  const [revenueUpsellSlider, setRevenueUpsellSlider] = useState<number>(100) // 50% to 150%
+  // What-If Dynamic Slider States
+  const [costOptimizationSlider, setCostOptimizationSlider] = useState<number>(100)
+  const [revenueUpsellSlider, setRevenueUpsellSlider] = useState<number>(100)
 
   // Auto-scroll chat to bottom
   useEffect(() => {
@@ -295,16 +282,15 @@ export default function FeryalAiCommandPage() {
     }
   }, [messages, isCopilotThinking])
 
-  // Initialize Web Speech API for voice recognition
+  // Initialize Web Speech API
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
       if (SpeechRecognition) {
-        setIsSpeechSupported(true)
         const recognizer = new SpeechRecognition()
         recognizer.continuous = false
         recognizer.interimResults = false
-        recognizer.lang = isAr ? 'ar-KW' : 'en-US'
+        recognizer.lang = micLang === 'ar' ? 'ar-KW' : 'en-US'
 
         recognizer.onresult = (event: any) => {
           const transcript = event.results[0][0].transcript
@@ -313,18 +299,13 @@ export default function FeryalAiCommandPage() {
           handleSendQuery(transcript)
         }
 
-        recognizer.onerror = () => {
-          setIsListening(false)
-        }
-
-        recognizer.onend = () => {
-          setIsListening(false)
-        }
+        recognizer.onerror = () => setIsListening(false)
+        recognizer.onend = () => setIsListening(false)
 
         recognitionRef.current = recognizer
       }
     }
-  }, [isAr])
+  }, [micLang])
 
   // Voice output (TTS)
   const speakText = (text: string) => {
@@ -334,14 +315,13 @@ export default function FeryalAiCommandPage() {
       window.speechSynthesis.cancel()
       const cleanText = text.replace(/[*#•`_]/g, '')
       const utterance = new SpeechSynthesisUtterance(cleanText)
-      utterance.lang = isAr ? 'ar-XA' : 'en-US'
+      utterance.lang = micLang === 'ar' ? 'ar-XA' : 'en-US'
       utterance.rate = 1.05
       utterance.pitch = 1.0
 
-      // Try selecting female voice
       const voices = window.speechSynthesis.getVoices()
       const femaleVoice = voices.find(
-        (v) => (v.name.includes('Female') || v.name.includes('Zira') || v.name.includes('Laila') || v.name.includes('Hoda') || v.name.includes('Salma')) && (isAr ? v.lang.startsWith('ar') : v.lang.startsWith('en'))
+        (v) => (v.name.includes('Female') || v.name.includes('Zira') || v.name.includes('Laila') || v.name.includes('Hoda') || v.name.includes('Salma')) && (micLang === 'ar' ? v.lang.startsWith('ar') : v.lang.startsWith('en'))
       )
       if (femaleVoice) {
         utterance.voice = femaleVoice
@@ -361,7 +341,7 @@ export default function FeryalAiCommandPage() {
       setIsListening(false)
     } else {
       try {
-        recognitionRef.current.lang = isAr ? 'ar-KW' : 'en-US'
+        recognitionRef.current.lang = micLang === 'ar' ? 'ar-KW' : 'en-US'
         recognitionRef.current.start()
         setIsListening(true)
       } catch (err) {
@@ -435,7 +415,6 @@ export default function FeryalAiCommandPage() {
       const data = await res.json()
       if (data.success) {
         setPerplexityResponse(data.content)
-        setPerplexityMode(data.mode)
       }
     } catch (e) {
       // fallback
@@ -456,7 +435,6 @@ export default function FeryalAiCommandPage() {
       const data = await res.json()
       if (data.success && data.items) {
         setCompetitorItems(data.items)
-        setFirecrawlMode(data.mode)
       }
     } catch (e) {
       // fallback
@@ -487,7 +465,6 @@ export default function FeryalAiCommandPage() {
 
   // Dispatch Composio Action
   const handleDispatchComposio = async (planId: string, actionType: string) => {
-    // Update local plan status to running
     setExecutionPlans((prev) =>
       prev.map((p) => (p.id === planId ? { ...p, status: 'running' as const } : p))
     )
@@ -558,180 +535,173 @@ export default function FeryalAiCommandPage() {
   }, [costOptimizationSlider, revenueUpsellSlider])
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-3 sm:p-5 md:p-8 space-y-8 font-sans antialiased selection:bg-indigo-600 selection:text-white">
+    <div className="min-h-screen bg-[#F7F7F8] dark:bg-[#0A0A0A] text-slate-900 dark:text-slate-100 p-4 sm:p-6 md:p-8 space-y-8 font-sans antialiased">
       {/* ==================================================================== */}
-      {/* 1. TOP HEADER & BRANDING */}
+      {/* 1. TOP EXECUTIVE HEADER (Clean, Solid, Zero Slop Gradients) */}
       {/* ==================================================================== */}
-      <div className="relative overflow-hidden rounded-2xl border border-indigo-500/20 bg-gradient-to-r from-slate-900 via-indigo-950/40 to-slate-900 p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
-        <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-indigo-500/10 blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
-
-        <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 rounded-full border border-indigo-400/30 bg-indigo-500/10 px-3.5 py-1 text-xs font-semibold text-indigo-300">
-              <Sparkles className="h-3.5 w-3.5 animate-pulse text-indigo-400" />
-              <span>{isAr ? 'النسخة الموحدة القيادية 2026' : 'Executive Master Command 2026'}</span>
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-              <span className="text-emerald-300">{isAr ? 'بيانات أودو معتمدة' : 'Verified Odoo Ledger'}</span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-white flex items-center gap-3">
-              <span>{isAr ? 'مركز القيادة الذكي والمستشارة فريال' : 'Executive AI Command & Advisor Feryal'}</span>
-            </h1>
-            <p className="text-sm sm:text-base text-slate-400 max-w-3xl leading-relaxed">
-              {isAr
-                ? 'المنظومة التنفيذية الموحدة لتحليل بيانات أودو المعتمدة، هندسة الربحية، محاكاة السيناريوهات، ودمج الاستخبارات السوقية اللحظية عبر Perplexity و Firecrawl و Playwright و Composio.'
-                : 'Unified executive ecosystem synthesizing verified Odoo ledgers, margin engineering, scenario simulation, and real-time market intelligence via Perplexity, Firecrawl, Playwright, and Composio.'}
-            </p>
+      <div className="bg-white dark:bg-[#111827] rounded-2xl p-6 sm:p-7 shadow-xs ring-1 ring-slate-200/90 dark:ring-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="space-y-2">
+          <div className="inline-flex items-center gap-2 rounded-full border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 px-3.5 py-1 text-xs font-bold text-slate-800 dark:text-slate-200">
+            <Sparkles className="h-4 w-4 text-[#2563EB]" />
+            <span>{isAr ? 'النسخة الموحدة القيادية 2026' : 'Executive Master Command 2026'}</span>
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
+            <span className="text-emerald-700 dark:text-emerald-400 font-bold">{isAr ? 'بيانات أودو المعتمدة' : 'Verified Odoo Ledger'}</span>
           </div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-950 dark:text-white tracking-tight flex items-center gap-3">
+            <span>{isAr ? 'مركز القيادة الذكي والمستشارة فريال' : 'Executive AI Command & Advisor Feryal'}</span>
+          </h1>
+          <p className="text-sm sm:text-[15px] font-medium text-slate-600 dark:text-slate-400 max-w-3xl leading-relaxed">
+            {isAr
+              ? 'المنظومة التنفيذية الموحدة لتحليل بيانات أودو المعتمدة، هندسة الربحية، محاكاة السيناريوهات، ودمج الاستخبارات السوقية اللحظية عبر Perplexity و Firecrawl و Playwright و Composio.'
+              : 'Unified executive ecosystem synthesizing verified Odoo ledgers, margin engineering, scenario simulation, and real-time market intelligence via Perplexity, Firecrawl, Playwright, and Composio.'}
+          </p>
+        </div>
 
-          <div className="flex flex-wrap items-center gap-3 shrink-0">
-            <button
-              onClick={() => {
-                handleRunPerplexity()
-                handleRunFirecrawl()
-                handleRunPlaywright()
-              }}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-800/90 px-4 py-2.5 text-xs font-semibold text-slate-200 hover:bg-slate-700 hover:border-slate-600 transition-all shadow-sm"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${hubLoading ? 'animate-spin text-indigo-400' : 'text-slate-400'}`} />
-              <span>{isAr ? 'تحديث الاستخبارات المباشرة' : 'Refresh Market Intel'}</span>
-            </button>
-            <Link
-              href="/erp/sales-scorecard"
-              className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-semibold text-white hover:bg-indigo-500 transition-all shadow-md shadow-indigo-600/20"
-            >
-              <FileSpreadsheet className="h-3.5 w-3.5" />
-              <span>{isAr ? 'سجل المبيعات والأصناف' : 'Sales Scorecard'}</span>
-              <ChevronRight className={`h-3.5 w-3.5 ${isAr ? 'rotate-180' : ''}`} />
-            </Link>
-          </div>
+        <div className="flex flex-wrap items-center gap-3 shrink-0">
+          <button
+            onClick={() => {
+              handleRunPerplexity()
+              handleRunFirecrawl()
+              handleRunPlaywright()
+            }}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2.5 text-[13px] font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-xs"
+          >
+            <RefreshCw className={`h-4 w-4 ${hubLoading ? 'animate-spin text-blue-600' : 'text-slate-500'}`} />
+            <span>{isAr ? 'تحديث الاستخبارات المباشرة' : 'Refresh Market Intel'}</span>
+          </button>
+          <Link
+            href="/erp/sales-scorecard"
+            className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] hover:bg-blue-600 px-4 py-2.5 text-[13px] font-bold text-white transition-all shadow-xs"
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+            <span>{isAr ? 'سجل المبيعات والأصناف' : 'Sales Scorecard'}</span>
+            <ChevronRight className={`h-4 w-4 ${isAr ? 'rotate-180' : ''}`} />
+          </Link>
         </div>
       </div>
 
       {/* ==================================================================== */}
-      {/* 2. UNIFIED ODOO MASTER AGGREGATOR (Top KPI Matrix) */}
+      {/* 2. UNIFIED ODOO MASTER AGGREGATOR (Solid White High-Contrast Cards) */}
       {/* ==================================================================== */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="h-2 w-2 rounded-full bg-indigo-400" />
-            <h2 className="text-lg font-bold text-white tracking-wide">
+            <div className="h-2.5 w-2.5 rounded-full bg-[#2563EB]" />
+            <h2 className="text-lg md:text-xl font-bold text-slate-900 dark:text-white">
               {isAr ? 'أولاً: المجمّع الشامل لبيانات أودو المعتمدة (Venture Foods Master)' : '1. Unified Odoo Master Ledger (Venture Foods)'}
             </h2>
           </div>
-          <span className="text-xs text-slate-400 font-mono">
+          <span className="text-xs sm:text-[13px] text-slate-600 dark:text-slate-400 font-bold font-mono">
             {isAr ? 'شهر أكتوبر 2026 | مطابقة محاسبية 100%' : 'October 2026 | 100% Ledger Reconciled'}
           </span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {/* Card 1: Net Sales */}
-          <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-4 sm:p-5 hover:border-slate-700 transition-all">
-            <div className="flex items-center justify-between text-xs text-slate-400 font-medium">
+          <div className="bg-white dark:bg-[#111827] rounded-2xl p-5 sm:p-6 shadow-xs ring-1 ring-slate-200/90 dark:ring-slate-800">
+            <div className="flex items-center justify-between text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
               <span>{isAr ? 'صافي المبيعات المعتمدة' : 'Approved Net Sales'}</span>
-              <DollarSign className="h-4 w-4 text-emerald-400" />
+              <DollarSign className="h-4 w-4 text-slate-500" />
             </div>
-            <div className="mt-2 text-xl sm:text-2xl font-black text-white font-mono tracking-tight">
-              167,092.160 <span className="text-xs font-normal text-slate-400 font-sans">{isAr ? 'د.ك' : 'KWD'}</span>
+            <div className="mt-2.5 text-2xl sm:text-3xl font-extrabold text-slate-950 dark:text-white font-mono tabular-nums tracking-tight">
+              167,092.160 <span className="text-xs font-bold text-slate-500 font-sans">{isAr ? 'د.ك' : 'KWD'}</span>
             </div>
-            <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400 border-t border-slate-800/80 pt-2">
-              <span>{isAr ? '30,540 طلباً معتمداً' : '30,540 Total Orders'}</span>
-              <span className="text-emerald-400 font-semibold">{isAr ? 'م.السلة 5.471 د.ك' : 'AOV 5.471'}</span>
+            <div className="mt-3 flex items-center justify-between text-[13px] text-slate-600 dark:text-slate-400 font-medium border-t border-slate-100 dark:border-slate-800/80 pt-2.5">
+              <span>{isAr ? '30,540 طلباً' : '30,540 Orders'}</span>
+              <span className="text-slate-900 dark:text-white font-bold">{isAr ? 'م.السلة 5.471 د.ك' : 'AOV 5.471'}</span>
             </div>
           </div>
 
           {/* Card 2: Operating Profit */}
-          <div className="rounded-xl border border-indigo-900/40 bg-indigo-950/20 p-4 sm:p-5 hover:border-indigo-700/60 transition-all">
-            <div className="flex items-center justify-between text-xs text-indigo-300 font-medium">
+          <div className="bg-white dark:bg-[#111827] rounded-2xl p-5 sm:p-6 shadow-xs ring-1 ring-slate-200/90 dark:ring-slate-800">
+            <div className="flex items-center justify-between text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
               <span>{isAr ? 'صافي الربح التشغيلي' : 'Net Operating Profit'}</span>
-              <TrendingUp className="h-4 w-4 text-indigo-400" />
+              <TrendingUp className="h-4 w-4 text-emerald-600" />
             </div>
-            <div className="mt-2 text-xl sm:text-2xl font-black text-indigo-200 font-mono tracking-tight">
-              42,441.480 <span className="text-xs font-normal text-indigo-300 font-sans">{isAr ? 'د.ك' : 'KWD'}</span>
+            <div className="mt-2.5 text-2xl sm:text-3xl font-extrabold text-emerald-700 dark:text-emerald-400 font-mono tabular-nums tracking-tight">
+              42,441.480 <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300 font-sans">{isAr ? 'د.ك' : 'KWD'}</span>
             </div>
-            <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400 border-t border-indigo-900/30 pt-2">
-              <span>{isAr ? 'هامش الربح التشغيلي' : 'Operating Margin'}</span>
-              <span className="text-emerald-400 font-bold">25.4%</span>
+            <div className="mt-3 flex items-center justify-between text-[13px] text-slate-600 dark:text-slate-400 font-medium border-t border-slate-100 dark:border-slate-800/80 pt-2.5">
+              <span>{isAr ? 'هامش الربح' : 'Profit Margin'}</span>
+              <span className="text-emerald-700 dark:text-emerald-400 font-extrabold">25.4%</span>
             </div>
           </div>
 
           {/* Card 3: Food Cost */}
-          <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-4 sm:p-5 hover:border-slate-700 transition-all">
-            <div className="flex items-center justify-between text-xs text-slate-400 font-medium">
+          <div className="bg-white dark:bg-[#111827] rounded-2xl p-5 sm:p-6 shadow-xs ring-1 ring-slate-200/90 dark:ring-slate-800">
+            <div className="flex items-center justify-between text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
               <span>{isAr ? 'تكلفة المواد (COGS)' : 'Food Cost (COGS)'}</span>
-              <AlertTriangle className="h-4 w-4 text-amber-400" />
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
             </div>
-            <div className="mt-2 text-xl sm:text-2xl font-black text-white font-mono tracking-tight">
-              41,438.856 <span className="text-xs font-normal text-slate-400 font-sans">{isAr ? 'د.ك' : 'KWD'}</span>
+            <div className="mt-2.5 text-2xl sm:text-3xl font-extrabold text-slate-950 dark:text-white font-mono tabular-nums tracking-tight">
+              41,438.856 <span className="text-xs font-bold text-slate-500 font-sans">{isAr ? 'د.ك' : 'KWD'}</span>
             </div>
-            <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400 border-t border-slate-800/80 pt-2">
-              <span>{isAr ? 'الحالي: 24.8%' : 'Actual: 24.8%'}</span>
-              <span className="text-amber-400 font-semibold">{isAr ? 'المستهدف: 24.0%' : 'Target: 24.0%'}</span>
+            <div className="mt-3 flex items-center justify-between text-[13px] text-slate-600 dark:text-slate-400 font-medium border-t border-slate-100 dark:border-slate-800/80 pt-2.5">
+              <span>{isAr ? 'الفعلي: 24.8%' : 'Actual: 24.8%'}</span>
+              <span className="text-amber-700 dark:text-amber-400 font-bold">{isAr ? 'المستهدف: 24.0%' : 'Target: 24.0%'}</span>
             </div>
           </div>
 
           {/* Card 4: Operating Expenses & Custody */}
-          <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-4 sm:p-5 hover:border-slate-700 transition-all">
-            <div className="flex items-center justify-between text-xs text-slate-400 font-medium">
+          <div className="bg-white dark:bg-[#111827] rounded-2xl p-5 sm:p-6 shadow-xs ring-1 ring-slate-200/90 dark:ring-slate-800">
+            <div className="flex items-center justify-between text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
               <span>{isAr ? 'المصروفات والعهد' : 'Opex & Custodies'}</span>
-              <Layers className="h-4 w-4 text-sky-400" />
+              <Layers className="h-4 w-4 text-slate-500" />
             </div>
-            <div className="mt-2 text-xl sm:text-2xl font-black text-white font-mono tracking-tight">
-              51,154.950 <span className="text-xs font-normal text-slate-400 font-sans">{isAr ? 'د.ك' : 'KWD'}</span>
+            <div className="mt-2.5 text-2xl sm:text-3xl font-extrabold text-slate-950 dark:text-white font-mono tabular-nums tracking-tight">
+              51,154.950 <span className="text-xs font-bold text-slate-500 font-sans">{isAr ? 'د.ك' : 'KWD'}</span>
             </div>
-            <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400 border-t border-slate-800/80 pt-2">
-              <span>{isAr ? '2,213 قيد محاسبي' : '2,213 Journal Entries'}</span>
-              <span className="text-sky-300 font-semibold" title={isAr ? 'عهدة صيانة رابح' : 'Rabih custody'}>
-                {isAr ? 'رابح: 10.7k د.ك' : 'Rabih: 10.7k'}
-              </span>
+            <div className="mt-3 flex items-center justify-between text-[13px] text-slate-600 dark:text-slate-400 font-medium border-t border-slate-100 dark:border-slate-800/80 pt-2.5">
+              <span>{isAr ? '2,213 قيد' : '2,213 Entries'}</span>
+              <span className="text-slate-900 dark:text-white font-bold">{isAr ? 'عهدة رابح: 10.7k د.ك' : 'Rabih: 10.7k'}</span>
             </div>
           </div>
 
           {/* Card 5: Discounts (Keeta Alert) */}
-          <div className="col-span-2 sm:col-span-2 lg:col-span-1 rounded-xl border border-rose-900/30 bg-rose-950/10 p-4 sm:p-5 hover:border-rose-700/50 transition-all">
-            <div className="flex items-center justify-between text-xs text-rose-300 font-medium">
+          <div className="col-span-2 sm:col-span-2 lg:col-span-1 bg-white dark:bg-[#111827] rounded-2xl p-5 sm:p-6 shadow-xs ring-1 ring-slate-200/90 dark:ring-slate-800">
+            <div className="flex items-center justify-between text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
               <span>{isAr ? 'الخصومات والعروض' : 'Promo Discounts'}</span>
-              <ArrowDownRight className="h-4 w-4 text-rose-400" />
+              <ArrowDownRight className="h-4 w-4 text-rose-600" />
             </div>
-            <div className="mt-2 text-xl sm:text-2xl font-black text-rose-200 font-mono tracking-tight">
-              4,152.000 <span className="text-xs font-normal text-rose-300 font-sans">{isAr ? 'د.ك' : 'KWD'}</span>
+            <div className="mt-2.5 text-2xl sm:text-3xl font-extrabold text-rose-700 dark:text-rose-400 font-mono tabular-nums tracking-tight">
+              4,152.000 <span className="text-xs font-bold text-rose-800 dark:text-rose-300 font-sans">{isAr ? 'د.ك' : 'KWD'}</span>
             </div>
-            <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400 border-t border-rose-900/30 pt-2">
+            <div className="mt-3 flex items-center justify-between text-[13px] text-slate-600 dark:text-slate-400 font-medium border-t border-slate-100 dark:border-slate-800/80 pt-2.5">
               <span>2.4% {isAr ? 'من المبيعات' : 'of Sales'}</span>
-              <span className="text-rose-400 font-bold">{isAr ? 'كيتا: 2,544 د.ك' : 'Keeta: 2,544'}</span>
+              <span className="text-rose-700 dark:text-rose-400 font-extrabold">{isAr ? 'كيتا: 2,544 د.ك' : 'Keeta: 2,544'}</span>
             </div>
           </div>
         </div>
 
         {/* Operational Foundation Bar */}
-        <div className="rounded-xl border border-slate-800/80 bg-slate-900/60 p-4 text-xs text-slate-300 flex flex-wrap items-center justify-between gap-4">
+        <div className="bg-white dark:bg-[#111827] rounded-2xl p-4 sm:p-5 shadow-xs ring-1 ring-slate-200/90 dark:ring-slate-800 text-[13px] text-slate-700 dark:text-slate-300 flex flex-wrap items-center justify-between gap-4 font-semibold">
           <div className="flex flex-wrap items-center gap-6">
             <div className="flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-indigo-400" />
+              <Building2 className="h-4 w-4 text-blue-600" />
               <span>
-                <strong>6</strong> {isAr ? 'علامات تجارية نشطة' : 'Active Brands'}
+                <strong className="text-slate-950 dark:text-white font-extrabold">6</strong> {isAr ? 'علامات تجارية نشطة' : 'Active Brands'}
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <Store className="h-4 w-4 text-emerald-400" />
+              <Store className="h-4 w-4 text-emerald-600" />
               <span>
-                <strong>8</strong> {isAr ? 'فروع تشغيلية حقيقية (0 فروع وهمية)' : 'Verified Branches (0 Synthetic)'}
+                <strong className="text-slate-950 dark:text-white font-extrabold">8</strong> {isAr ? 'فروع تشغيلية حقيقية فقط (0 فروع وهمية)' : 'Verified Branches Only (0 Synthetic)'}
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <Activity className="h-4 w-4 text-sky-400" />
+              <Activity className="h-4 w-4 text-blue-600" />
               <span>
-                <strong>11</strong> {isAr ? 'قناة بيع وتوصيل (بما فيها Tgo و TMP)' : 'Sales Channels (Incl. Tgo & TMP)'}
+                <strong className="text-slate-950 dark:text-white font-extrabold">11</strong> {isAr ? 'قناة بيع (بما فيها Tgo و TMP)' : 'Sales Channels (Incl. Tgo & TMP)'}
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <Zap className="h-4 w-4 text-amber-400" />
+              <Zap className="h-4 w-4 text-amber-500" />
               <span>
-                <strong>364</strong> {isAr ? 'صنفاً نشطاً (أعلى 32 صنفاً تشكل 80% من المبيعات)' : 'Menu Items (Top 32 = 80% Rev)'}
+                <strong className="text-slate-950 dark:text-white font-extrabold">364</strong> {isAr ? 'صنفاً نشطاً (أعلى 32 صنفاً = 80% من الإيرادات)' : 'Menu Items (Top 32 = 80% Rev)'}
               </span>
             </div>
           </div>
-          <div className="text-slate-400">
+          <div className="text-slate-600 dark:text-slate-400 font-bold">
             {isAr ? 'السالمية تتصدر بـ 31,246 د.ك (18.7%) | الكوت بـ 27,904 د.ك (16.7%)' : 'Salmiya Leads: 31,246 KWD (18.7%) | Al-Kout: 27,904 KWD (16.7%)'}
           </div>
         </div>
@@ -744,112 +714,137 @@ export default function FeryalAiCommandPage() {
         {/* ================================================================ */}
         {/* LEFT COLUMN: THE COPILOT "FERYAL" (Text & Voice Interface) */}
         {/* ================================================================ */}
-        <section className="lg:col-span-5 rounded-2xl border border-indigo-500/20 bg-slate-900/90 shadow-xl overflow-hidden flex flex-col h-[740px]">
-          {/* Copilot Header */}
-          <div className="border-b border-slate-800 bg-slate-900 px-5 py-4 flex items-center justify-between">
+        <section className="lg:col-span-5 bg-white dark:bg-[#111827] rounded-2xl shadow-xs ring-1 ring-slate-200/90 dark:ring-slate-800 flex flex-col h-[760px] overflow-hidden">
+          {/* Elegant Dark Navy Header */}
+          <div className="bg-[#0F172A] text-white p-4 sm:p-5 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="relative">
-                <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-indigo-600 to-fuchsia-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
-                  <Bot className="h-5 w-5" />
+                <div className="h-11 w-11 rounded-full bg-blue-600 flex items-center justify-center text-white shadow-sm">
+                  <Bot className="h-6 w-6" />
                 </div>
-                <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 border-2 border-slate-900" />
+                <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 border-2 border-[#0F172A]" />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
-                  <span>{isAr ? 'المستشارة الذكية فريال' : 'Advisor Feryal Copilot'}</span>
-                  <span className="rounded bg-indigo-500/20 text-indigo-300 text-[10px] px-1.5 py-0.5 font-mono">AI Pro</span>
+                <h3 className="text-[15px] font-extrabold text-white flex items-center gap-2">
+                  <span>{isAr ? 'فريال — المستشارة التنفيذية الذكية' : 'Feryal — Executive AI Copilot'}</span>
                 </h3>
-                <p className="text-xs text-slate-400">{isAr ? 'استشارات تنفيذية فورية بالصوت والنص' : 'Voice & Text Executive Advisory'}</p>
+                <p className="text-xs text-slate-300 font-medium">
+                  {isAr ? 'استشارات تنفيذية صوتية ونصية باللغتين' : 'Voice & Text Executive Advisory'}
+                </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
+              {/* Mic language toggle */}
+              <button
+                type="button"
+                onClick={() => setMicLang(micLang === 'ar' ? 'en' : 'ar')}
+                className="px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-800 text-xs font-bold text-slate-200 hover:bg-slate-700 transition-all"
+                title={isAr ? 'تبديل لغة الصوت' : 'Switch Voice Language'}
+              >
+                🎙️ {micLang === 'ar' ? 'عربي' : 'EN'}
+              </button>
+
+              {/* TTS Voice Mute Toggle */}
               <button
                 type="button"
                 onClick={() => setIsVoiceMuted(!isVoiceMuted)}
-                title={isVoiceMuted ? (isAr ? 'إلغاء كتم الصوت' : 'Unmute Voice') : isAr ? 'كتم صوت الردود' : 'Mute Voice'}
-                className={`p-2 rounded-lg border text-xs transition-all ${
+                className={`px-2.5 py-1.5 rounded-lg border text-xs font-bold transition-all flex items-center gap-1.5 ${
                   isVoiceMuted
-                    ? 'border-slate-800 bg-slate-800/50 text-slate-500'
-                    : 'border-indigo-500/30 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20'
+                    ? 'border-slate-700 bg-slate-800 text-slate-400'
+                    : 'border-blue-500 bg-blue-600 text-white'
                 }`}
+                title={isVoiceMuted ? (isAr ? 'تشغيل الرد الصوتي' : 'Unmute Voice') : isAr ? 'كتم الرد الصوتي' : 'Mute Voice'}
               >
                 {isVoiceMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                <span className="hidden sm:inline">{isVoiceMuted ? (isAr ? 'مكتوم' : 'Muted') : isAr ? 'الرد الصوتي' : 'Voice'}</span>
               </button>
             </div>
           </div>
 
-          {/* Quick Prompts Pills */}
-          <div className="border-b border-slate-800/80 bg-slate-950/40 p-2.5 flex items-center gap-2 overflow-x-auto no-scrollbar">
+          {/* Quick Action Pills Under Header */}
+          <div className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 p-3 flex items-center gap-2 overflow-x-auto no-scrollbar">
             {[
-              { ar: 'ما هو الفرع الأعلى ربحية؟', en: 'Top profitable branch?' },
-              { ar: 'كيف نوفر 3,800 د.ك شهرياً؟', en: 'How to save 3,800 KWD?' },
-              { ar: 'مقارنة Talabat Tgo مقابل TMP', en: 'Compare Tgo vs TMP' },
+              { ar: 'ما هو الفرع الأعلى ربحية ولماذا؟', en: 'Top profitable branch?' },
+              { ar: 'كيف نوفر 3,800 د.ك هذا الشهر؟', en: 'How to save 3,800 KWD?' },
+              { ar: 'مقارنة أداء Talabat Tgo مقابل TMP', en: 'Compare Tgo vs TMP' },
               { ar: 'أثر رفع أسعار تشاينا جاردن 5%', en: '5% price hike impact' },
             ].map((p, idx) => (
               <button
                 key={idx}
                 type="button"
                 onClick={() => handleSendQuery(isAr ? p.ar : p.en)}
-                className="shrink-0 rounded-full border border-slate-800 bg-slate-800/60 px-3 py-1 text-[11px] font-medium text-slate-300 hover:border-indigo-500/50 hover:bg-indigo-950/30 hover:text-white transition-all"
+                className="shrink-0 rounded-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-100 hover:text-slate-950 transition-all shadow-2xs"
               >
                 {isAr ? p.ar : p.en}
               </button>
             ))}
           </div>
 
-          {/* Messages Log */}
-          <div ref={chatScrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 text-xs sm:text-sm">
+          {/* Messages Log (Clear High Contrast Chat Bubbles) */}
+          <div ref={chatScrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50 dark:bg-slate-950/30">
             {messages.map((m) => (
               <div key={m.id} className={`flex flex-col ${m.sender === 'user' ? 'items-end' : 'items-start'}`}>
                 <div
-                  className={`max-w-[88%] rounded-2xl p-4 shadow-sm leading-relaxed ${
+                  className={`max-w-[88%] rounded-2xl p-4 shadow-2xs leading-relaxed text-sm ${
                     m.sender === 'user'
-                      ? 'bg-indigo-600 text-white rounded-br-none'
-                      : 'bg-slate-800/90 text-slate-100 border border-slate-700/60 rounded-bl-none'
+                      ? 'bg-[#2563EB] text-white rounded-br-none font-medium'
+                      : 'bg-white dark:bg-[#1A2234] text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 rounded-bl-none font-medium'
                   }`}
                 >
-                  <p className="whitespace-pre-line">{isAr ? m.textAr : m.textEn}</p>
+                  <p className="whitespace-pre-line leading-relaxed">{isAr ? m.textAr : m.textEn}</p>
 
-                  {/* Render Key Metrics Badges if attached to response */}
+                  {/* Render Key Metrics Badges */}
                   {m.metrics && Object.keys(m.metrics).length > 0 && (
-                    <div className="mt-3 pt-2.5 border-t border-slate-700/50 grid grid-cols-2 gap-2 text-[11px]">
+                    <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 grid grid-cols-2 gap-2 text-xs">
                       {Object.entries(m.metrics).map(([k, v]) => (
-                        <div key={k} className="bg-slate-900/60 rounded-lg p-2 border border-slate-800">
-                          <span className="text-slate-400 block text-[10px]">{k}</span>
-                          <span className="font-bold text-emerald-400 font-mono">{String(v)}</span>
+                        <div key={k} className="bg-slate-50 dark:bg-slate-900 rounded-xl p-2.5 border border-slate-200 dark:border-slate-800">
+                          <span className="text-slate-500 block text-[11px] font-bold">{k}</span>
+                          <span className="font-extrabold text-emerald-700 dark:text-emerald-400 font-mono text-sm">{String(v)}</span>
                         </div>
                       ))}
                     </div>
                   )}
+
+                  {/* Audio Listen Button under Feryal messages */}
+                  {m.sender === 'feryal' && (
+                    <button
+                      type="button"
+                      onClick={() => speakText(isAr ? m.textAr : m.textEn)}
+                      className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 dark:border-blue-900 transition-all"
+                    >
+                      <Volume2 className="h-3.5 w-3.5" />
+                      <span>{isAr ? '🔊 استمع لصوت فريال' : '🔊 Listen to Feryal'}</span>
+                    </button>
+                  )}
                 </div>
-                <span className="text-[10px] text-slate-500 mt-1 px-1">{m.time}</span>
+                <span className="text-[11px] text-slate-500 font-semibold mt-1 px-1">{m.time}</span>
               </div>
             ))}
 
             {isCopilotThinking && (
-              <div className="flex items-center gap-2 text-indigo-400 text-xs py-2 px-3 rounded-lg bg-indigo-950/20 border border-indigo-900/30 w-fit">
-                <Sparkles className="h-3.5 w-3.5 animate-spin" />
+              <div className="flex items-center gap-2 text-blue-700 dark:text-blue-400 text-xs font-bold py-2.5 px-4 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 w-fit">
+                <Sparkles className="h-4 w-4 animate-spin text-blue-600" />
                 <span>{isAr ? 'فريال تحلل بيانات أودو والقنوات...' : 'Feryal is computing ledger figures...'}</span>
               </div>
             )}
           </div>
 
-          {/* Voice Waveform Animation (Active during listening) */}
+          {/* Voice Waveform Alert (when mic is actively listening) */}
           {isListening && (
-            <div className="px-4 py-2 bg-indigo-950/40 border-t border-indigo-500/30 flex items-center justify-between text-xs text-indigo-300">
+            <div className="px-4 py-2.5 bg-rose-50 dark:bg-rose-950/30 border-t border-rose-200 dark:border-rose-900 flex items-center justify-between text-xs font-bold text-rose-800 dark:text-rose-300">
               <div className="flex items-center gap-2">
                 <span className="relative flex h-2.5 w-2.5">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500" />
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-600" />
                 </span>
-                <span>{isAr ? 'جاري الاستماع لصوتك (عربي / إنجليزي)...' : 'Listening to voice stream (Ar / En)...'}</span>
+                <span>{isAr ? 'جاري الاستماع لصوتك (تحدث الآن)...' : 'Listening to voice stream...'}</span>
               </div>
               <div className="flex items-center gap-1 h-4">
                 {[0.4, 0.8, 1.2, 0.6, 1.0, 0.5, 0.9].map((scale, i) => (
                   <div
                     key={i}
-                    className="w-1 bg-indigo-400 rounded-full animate-pulse"
+                    className="w-1 bg-rose-600 rounded-full animate-pulse"
                     style={{ height: `${Math.round(scale * 16)}px`, animationDelay: `${i * 120}ms` }}
                   />
                 ))}
@@ -857,26 +852,27 @@ export default function FeryalAiCommandPage() {
             </div>
           )}
 
-          {/* Input Box with Voice & Send buttons */}
-          <div className="border-t border-slate-800 bg-slate-900/90 p-3 sm:p-4">
+          {/* Bottom Prominent Input Bar */}
+          <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-3.5 sm:p-4">
             <form
               onSubmit={(e) => {
                 e.preventDefault()
                 handleSendQuery()
               }}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2.5"
             >
               <button
                 type="button"
                 onClick={toggleListening}
-                className={`p-2.5 rounded-xl border transition-all ${
+                className={`p-3 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
                   isListening
                     ? 'bg-rose-600 border-rose-500 text-white animate-pulse'
-                    : 'bg-slate-800 border-slate-700 text-slate-300 hover:text-white hover:bg-slate-700'
+                    : 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:bg-slate-200'
                 }`}
                 title={isListening ? (isAr ? 'إيقاف الميكروفون' : 'Stop Microphone') : isAr ? 'تحدث مع فريال' : 'Speak to Feryal'}
               >
-                {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4 text-blue-600" />}
+                <span className="hidden sm:inline">{isListening ? (isAr ? 'استماع...' : 'Listening...') : isAr ? 'تحدث' : 'Speak'}</span>
               </button>
 
               <input
@@ -884,14 +880,15 @@ export default function FeryalAiCommandPage() {
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 placeholder={isAr ? 'اسأل فريال عن أرقام المبيعات، الهدر، أو الفروع...' : 'Ask Feryal about sales, waste, or branches...'}
-                className="flex-1 rounded-xl border border-slate-700 bg-slate-950 px-3.5 py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                className="flex-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-4 py-3 text-sm font-medium text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
               />
 
               <button
                 type="submit"
                 disabled={!inputText.trim()}
-                className="rounded-xl bg-indigo-600 px-4 py-2.5 text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-indigo-500 transition-all shadow-md shadow-indigo-600/20"
+                className="rounded-xl bg-[#2563EB] hover:bg-blue-600 px-5 py-3 text-white font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-xs flex items-center gap-1.5 shrink-0"
               >
+                <span>{isAr ? 'إرسال' : 'Send'}</span>
                 <Send className={`h-4 w-4 ${isAr ? 'rotate-180' : ''}`} />
               </button>
             </form>
@@ -902,65 +899,67 @@ export default function FeryalAiCommandPage() {
         {/* RIGHT COLUMN: THE FOUR-STAGE STRATEGIC ANALYSIS ENGINE */}
         {/* ================================================================ */}
         <section className="lg:col-span-7 space-y-6">
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/90 p-5 sm:p-6 shadow-xl space-y-6">
+          <div className="bg-white dark:bg-[#111827] rounded-2xl p-6 sm:p-7 shadow-xs ring-1 ring-slate-200/90 dark:ring-slate-800 space-y-6">
             {/* Header with 4-stage Breadcrumbs */}
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <span className="rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold px-2 py-0.5">
+                <span className="rounded-md bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-900 text-xs font-bold px-2.5 py-0.5">
                   Strategic Matrix
                 </span>
-                <span className="text-xs text-slate-400">
+                <span className="text-[13px] text-slate-600 dark:text-slate-400 font-bold">
                   {isAr ? 'محرك القرارات والتعظيم الربحي' : 'Executive Profit & Growth Engine'}
                 </span>
               </div>
-              <h3 className="text-lg sm:text-xl font-bold text-white">
+              <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">
                 {isAr ? 'ثانياً: محرك التحليل الاستراتيجي الرباعي' : '2. Four-Stage Strategic Analysis Engine'}
               </h3>
-              <div className="mt-3 grid grid-cols-4 gap-2 text-center text-xs font-semibold">
-                <div className="rounded-lg bg-emerald-950/40 border border-emerald-500/30 p-2 text-emerald-300">
+              <div className="mt-3.5 grid grid-cols-4 gap-2 text-center text-xs font-bold">
+                <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 p-2.5 text-emerald-800 dark:text-emerald-300">
                   1. {isAr ? 'الحلول' : 'Solutions'}
                 </div>
-                <div className="rounded-lg bg-sky-950/40 border border-sky-500/30 p-2 text-sky-300">
+                <div className="rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-2.5 text-blue-800 dark:text-blue-300">
                   2. {isAr ? 'الاقتراحات' : 'Proposals'}
                 </div>
-                <div className="rounded-lg bg-indigo-950/40 border border-indigo-500/30 p-2 text-indigo-300">
+                <div className="rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 p-2.5 text-slate-900 dark:text-white">
                   3. {isAr ? 'الخطط' : 'Execution'}
                 </div>
-                <div className="rounded-lg bg-purple-950/40 border border-purple-500/30 p-2 text-purple-300">
+                <div className="rounded-xl bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800 p-2.5 text-indigo-800 dark:text-indigo-300">
                   4. {isAr ? 'النتائج' : 'Projections'}
                 </div>
               </div>
             </div>
 
             {/* STAGE 1: SOLUTIONS (الحلول) */}
-            <div className="space-y-3 pt-2">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-                <CheckCircle2 className="h-3.5 w-3.5" />
+            <div className="space-y-3.5 pt-2">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+                <CheckCircle2 className="h-4 w-4" />
                 <span>{isAr ? 'المرحلة 1: الحلول التشغيلية لخفض الهدر' : 'Stage 1: Waste Reduction Solutions'}</span>
               </h4>
-              <div className="space-y-2.5">
+              <div className="space-y-3">
                 {STRATEGIC_SOLUTIONS.map((sol) => (
                   <div
                     key={sol.id}
-                    className="rounded-xl border border-slate-800 bg-slate-950/60 p-3.5 hover:border-slate-700 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                    className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/60 p-4 hover:border-slate-300 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3.5"
                   >
-                    <div className="space-y-1">
+                    <div className="space-y-1.5">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-white">{isAr ? sol.titleAr : sol.titleEn}</span>
-                        <span className="rounded bg-slate-800 text-slate-300 text-[10px] px-2 py-0.5">{sol.badge}</span>
+                        <span className="text-[15px] font-bold text-slate-900 dark:text-white">{isAr ? sol.titleAr : sol.titleEn}</span>
+                        <span className="rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs px-2.5 py-0.5 font-bold">
+                          {sol.badge}
+                        </span>
                       </div>
-                      <p className="text-xs text-slate-400">{isAr ? sol.detailsAr : sol.detailsEn}</p>
-                      <span className="text-[11px] text-indigo-300 font-medium block">
+                      <p className="text-sm font-medium text-slate-700 dark:text-slate-300 leading-relaxed">{isAr ? sol.detailsAr : sol.detailsEn}</p>
+                      <span className="text-xs text-blue-700 dark:text-blue-400 font-bold block">
                         📍 {isAr ? sol.locationAr : sol.locationEn}
                       </span>
                     </div>
 
-                    <div className="text-end shrink-0 bg-emerald-950/30 border border-emerald-900/40 rounded-xl px-3 py-2">
-                      <span className="text-[10px] text-emerald-400 block font-medium">{isAr ? 'الوفر المتوقع' : 'Savings'}</span>
-                      <span className="text-base font-black text-emerald-300 font-mono">
+                    <div className="text-end shrink-0 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-xl px-4 py-2.5">
+                      <span className="text-xs text-emerald-800 dark:text-emerald-300 block font-bold">{isAr ? 'الوفر المتوقع' : 'Savings'}</span>
+                      <span className="text-lg font-black text-emerald-700 dark:text-emerald-400 font-mono">
                         +{sol.monthlySavingsKwd.toLocaleString()} {isAr ? 'د.ك' : 'KWD'}
                       </span>
-                      <span className="text-[10px] text-slate-400 block">{isAr ? 'شهرياً' : '/month'}</span>
+                      <span className="text-[11px] text-slate-500 block font-medium">{isAr ? 'شهرياً' : '/month'}</span>
                     </div>
                   </div>
                 ))}
@@ -968,33 +967,33 @@ export default function FeryalAiCommandPage() {
             </div>
 
             {/* STAGE 2: PROPOSALS (الاقتراحات) */}
-            <div className="space-y-3 pt-2 border-t border-slate-800">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-sky-400 flex items-center gap-1.5">
-                <Sparkles className="h-3.5 w-3.5" />
+            <div className="space-y-3.5 pt-3 border-t border-slate-200 dark:border-slate-800">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400 flex items-center gap-1.5">
+                <Sparkles className="h-4 w-4" />
                 <span>{isAr ? 'المرحلة 2: الاقتراحات الاستراتيجية لرفع سلة الشراء (AOV)' : 'Stage 2: Upselling & Margin Proposals'}</span>
               </h4>
-              <div className="space-y-2.5">
+              <div className="space-y-3">
                 {STRATEGIC_PROPOSALS.map((prop) => (
                   <div
                     key={prop.id}
-                    className="rounded-xl border border-slate-800 bg-slate-950/60 p-3.5 hover:border-slate-700 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                    className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/60 p-4 hover:border-slate-300 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3.5"
                   >
-                    <div className="space-y-1">
+                    <div className="space-y-1.5">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-white">{isAr ? prop.titleAr : prop.titleEn}</span>
-                        <span className="rounded bg-sky-950 text-sky-300 border border-sky-800 text-[10px] px-2 py-0.5 font-semibold">
+                        <span className="text-[15px] font-bold text-slate-900 dark:text-white">{isAr ? prop.titleAr : prop.titleEn}</span>
+                        <span className="rounded-md bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 text-xs px-2.5 py-0.5 font-bold">
                           {prop.badge}
                         </span>
                       </div>
-                      <p className="text-xs text-slate-400">{isAr ? prop.mechanismAr : prop.mechanismEn}</p>
+                      <p className="text-sm font-medium text-slate-700 dark:text-slate-300 leading-relaxed">{isAr ? prop.mechanismAr : prop.mechanismEn}</p>
                     </div>
 
-                    <div className="text-end shrink-0 bg-sky-950/30 border border-sky-900/40 rounded-xl px-3 py-2">
-                      <span className="text-[10px] text-sky-400 block font-medium">{isAr ? 'الربح الإضافي' : 'Added Profit'}</span>
-                      <span className="text-base font-black text-sky-300 font-mono">
+                    <div className="text-end shrink-0 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl px-4 py-2.5">
+                      <span className="text-xs text-blue-800 dark:text-blue-300 block font-bold">{isAr ? 'الربح الإضافي' : 'Added Profit'}</span>
+                      <span className="text-lg font-black text-blue-700 dark:text-blue-400 font-mono">
                         +{prop.expectedMonthlyGainKwd.toLocaleString()} {isAr ? 'د.ك' : 'KWD'}
                       </span>
-                      <span className="text-[10px] text-slate-400 block">{isAr ? 'شهرياً' : '/month'}</span>
+                      <span className="text-[11px] text-slate-500 block font-medium">{isAr ? 'شهرياً' : '/month'}</span>
                     </div>
                   </div>
                 ))}
@@ -1002,32 +1001,32 @@ export default function FeryalAiCommandPage() {
             </div>
 
             {/* STAGE 3: EXECUTION PLANS & COMPOSIO ACTIONS (الخطط التنفيذية) */}
-            <div className="space-y-3 pt-2 border-t border-slate-800">
+            <div className="space-y-3.5 pt-3 border-t border-slate-200 dark:border-slate-800">
               <div className="flex items-center justify-between">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
-                  <Clock className="h-3.5 w-3.5" />
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <Clock className="h-4 w-4" />
                   <span>{isAr ? 'المرحلة 3: الخطط التنفيذية والأتمتة عبر Composio' : 'Stage 3: Weekly Execution Plans & Composio'}</span>
                 </h4>
-                <span className="text-[11px] text-slate-400 font-medium">4 {isAr ? 'أسابيع مجدولة' : 'Weeks Roadmapped'}</span>
+                <span className="text-xs text-slate-600 dark:text-slate-400 font-bold">4 {isAr ? 'أسابيع مجدولة' : 'Weeks Roadmapped'}</span>
               </div>
 
-              <div className="space-y-2.5">
+              <div className="space-y-3">
                 {executionPlans.map((plan) => (
                   <div
                     key={plan.id}
-                    className="rounded-xl border border-slate-800/90 bg-slate-950/70 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                    className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/60 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5"
                   >
-                    <div className="space-y-1">
+                    <div className="space-y-1.5">
                       <div className="flex items-center gap-2">
-                        <span className="rounded bg-indigo-900/40 text-indigo-300 font-mono font-bold text-xs px-2 py-0.5">
+                        <span className="rounded-md bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-white font-mono font-bold text-xs px-2.5 py-0.5">
                           {plan.week}
                         </span>
-                        <span className="text-xs text-slate-400 font-semibold">
+                        <span className="text-xs text-slate-600 dark:text-slate-400 font-bold">
                           [{isAr ? plan.departmentAr : plan.departmentEn}]
                         </span>
                       </div>
-                      <p className="text-sm font-bold text-white">{isAr ? plan.titleAr : plan.titleEn}</p>
-                      <div className="text-[11px] text-emerald-400 font-medium">
+                      <p className="text-[15px] font-bold text-slate-900 dark:text-white">{isAr ? plan.titleAr : plan.titleEn}</p>
+                      <div className="text-xs text-emerald-700 dark:text-emerald-400 font-bold">
                         🎯 {isAr ? plan.targetKpiAr : plan.targetKpiEn}
                       </div>
                     </div>
@@ -1036,27 +1035,27 @@ export default function FeryalAiCommandPage() {
                       type="button"
                       disabled={plan.status === 'completed' || plan.status === 'running'}
                       onClick={() => handleDispatchComposio(plan.id, plan.actionType)}
-                      className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
+                      className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
                         plan.status === 'completed'
-                          ? 'bg-emerald-950/60 border border-emerald-500/50 text-emerald-300'
+                          ? 'bg-emerald-100 dark:bg-emerald-950 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
                           : plan.status === 'running'
-                          ? 'bg-indigo-950 border border-indigo-500 text-indigo-300 animate-pulse'
-                          : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/20'
+                          ? 'bg-blue-100 dark:bg-blue-950 border border-blue-400 text-blue-800 dark:text-blue-300 animate-pulse'
+                          : 'bg-[#0F172A] hover:bg-slate-800 dark:bg-blue-600 dark:hover:bg-blue-500 text-white shadow-xs'
                       }`}
                     >
                       {plan.status === 'completed' ? (
                         <>
-                          <Check className="h-3.5 w-3.5" />
+                          <Check className="h-4 w-4" />
                           <span>{isAr ? 'تم الإرسال عبر Composio' : 'Dispatched via Composio'}</span>
                         </>
                       ) : plan.status === 'running' ? (
                         <>
-                          <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                          <RefreshCw className="h-4 w-4 animate-spin" />
                           <span>{isAr ? 'جاري الإرسال...' : 'Dispatching...'}</span>
                         </>
                       ) : (
                         <>
-                          <Zap className="h-3.5 w-3.5" />
+                          <Zap className="h-4 w-4" />
                           <span>{isAr ? 'تنفيذ وإرسال التكليف' : 'Execute & Dispatch'}</span>
                         </>
                       )}
@@ -1066,30 +1065,30 @@ export default function FeryalAiCommandPage() {
               </div>
             </div>
 
-            {/* STAGE 4: FINANCIAL PROJECTIONS & WHAT-IF SLIDER (النتائج والسيناريوهات) */}
-            <div className="space-y-4 pt-4 border-t border-slate-800">
+            {/* STAGE 4: FINANCIAL PROJECTIONS & WHAT-IF SLIDER (High Contrast Projections) */}
+            <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-800">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-purple-400 flex items-center gap-1.5">
-                    <Sliders className="h-3.5 w-3.5" />
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                    <Sliders className="h-4 w-4 text-blue-600" />
                     <span>{isAr ? 'المرحلة 4: النتائج المالية المتوقعة ومحاكي السيناريوهات' : 'Stage 4: Financial Projections & What-If Slider'}</span>
                   </h4>
-                  <p className="text-xs text-slate-400 mt-1">
-                    {isAr ? 'حرّك السلايدر لتجربة نسب كفاءة الهدر والنمو وانعكاسها المالي الفوري' : 'Adjust sliders to simulate cost-saving & growth sensitivities'}
+                  <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 font-medium">
+                    {isAr ? 'حرّك السلايدر لتجربة كفاءة التكاليف ونمو المبيعات وانعكاسها المالي الفوري' : 'Adjust sliders to simulate cost-saving & growth sensitivities'}
                   </p>
                 </div>
-                <div className="bg-purple-950/40 border border-purple-800/40 rounded-lg px-3 py-1.5 text-xs text-purple-200">
+                <div className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-800 dark:text-slate-200 font-bold">
                   {isAr ? 'الأثر الشهري المتوقع:' : 'Expected Monthly Added:'}{' '}
-                  <strong className="text-emerald-400 font-mono">+{calculatedProjections.monthlyAddedProfit.toFixed(0)} {isAr ? 'د.ك' : 'KWD'}</strong>
+                  <strong className="text-emerald-700 dark:text-emerald-400 font-mono text-sm">+{calculatedProjections.monthlyAddedProfit.toFixed(0)} {isAr ? 'د.ك' : 'KWD'}</strong>
                 </div>
               </div>
 
               {/* What-If Sliders */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-950/70 p-4 rounded-xl border border-slate-800">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
                 <div className="space-y-1.5">
-                  <div className="flex justify-between text-xs font-semibold text-slate-300">
+                  <div className="flex justify-between text-xs font-bold text-slate-800 dark:text-slate-200">
                     <span>{isAr ? 'كفاءة ضبط الهدر والتكاليف' : 'Cost & Waste Efficiency'}</span>
-                    <span className="text-emerald-400 font-mono">{costOptimizationSlider}%</span>
+                    <span className="text-emerald-700 dark:text-emerald-400 font-mono">{costOptimizationSlider}%</span>
                   </div>
                   <input
                     type="range"
@@ -1097,9 +1096,9 @@ export default function FeryalAiCommandPage() {
                     max="150"
                     value={costOptimizationSlider}
                     onChange={(e) => setCostOptimizationSlider(Number(e.target.value))}
-                    className="w-full accent-emerald-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer"
+                    className="w-full accent-emerald-600 h-2 bg-slate-200 dark:bg-slate-800 rounded-lg cursor-pointer"
                   />
-                  <div className="flex justify-between text-[10px] text-slate-500">
+                  <div className="flex justify-between text-[11px] text-slate-500 font-medium">
                     <span>50% ({isAr ? 'متحفظ' : 'Conservative'})</span>
                     <span>100% ({isAr ? 'المستهدف' : 'Target'})</span>
                     <span>150% ({isAr ? 'فائق' : 'Aggressive'})</span>
@@ -1107,9 +1106,9 @@ export default function FeryalAiCommandPage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <div className="flex justify-between text-xs font-semibold text-slate-300">
+                  <div className="flex justify-between text-xs font-bold text-slate-800 dark:text-slate-200">
                     <span>{isAr ? 'نمو سلة الشراء وترقية الوجبات' : 'AOV & Upselling Lift'}</span>
-                    <span className="text-sky-400 font-mono">{revenueUpsellSlider}%</span>
+                    <span className="text-blue-700 dark:text-blue-400 font-mono">{revenueUpsellSlider}%</span>
                   </div>
                   <input
                     type="range"
@@ -1117,9 +1116,9 @@ export default function FeryalAiCommandPage() {
                     max="150"
                     value={revenueUpsellSlider}
                     onChange={(e) => setRevenueUpsellSlider(Number(e.target.value))}
-                    className="w-full accent-sky-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer"
+                    className="w-full accent-blue-600 h-2 bg-slate-200 dark:bg-slate-800 rounded-lg cursor-pointer"
                   />
-                  <div className="flex justify-between text-[10px] text-slate-500">
+                  <div className="flex justify-between text-[11px] text-slate-500 font-medium">
                     <span>50%</span>
                     <span>100%</span>
                     <span>150%</span>
@@ -1127,76 +1126,76 @@ export default function FeryalAiCommandPage() {
                 </div>
               </div>
 
-              {/* The Three Timeframes (Q1, H1, Annual) */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* The Three Timeframes (Q1, H1, Annual - High Contrast & Solid Cards) */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                 {/* Q1 Card */}
-                <div className="rounded-xl border border-purple-900/30 bg-purple-950/20 p-4 space-y-2">
-                  <div className="flex items-center justify-between text-xs font-bold text-purple-300">
+                <div className="bg-blue-50/70 dark:bg-[#151E2E] border border-blue-200/90 dark:border-slate-800 rounded-2xl p-5 space-y-2.5 shadow-2xs">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-900 dark:text-white">
                     <span>{isAr ? 'الربع الأول (3 أشهر)' : 'Q1 (3 Months)'}</span>
-                    <span className="text-[10px] bg-purple-900/40 px-2 py-0.5 rounded text-purple-200">
+                    <span className="text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2.5 py-0.5 rounded-full text-slate-800 dark:text-slate-200 font-extrabold">
                       {calculatedProjections.q1.margin.toFixed(1)}% {isAr ? 'هامش' : 'margin'}
                     </span>
                   </div>
-                  <div className="text-xs text-slate-400 space-y-1">
+                  <div className="text-[13px] text-slate-700 dark:text-slate-300 space-y-1.5 font-medium">
                     <div className="flex justify-between">
                       <span>{isAr ? 'المبيعات:' : 'Sales:'}</span>
-                      <span className="font-mono text-white font-bold">{calculatedProjections.q1.sales.toFixed(0)} {isAr ? 'د.ك' : 'KWD'}</span>
+                      <span className="font-mono text-slate-950 dark:text-white font-bold">{calculatedProjections.q1.sales.toFixed(0)} {isAr ? 'د.ك' : 'KWD'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>{isAr ? 'الوفر الإضافي:' : 'Added Gain:'}</span>
-                      <span className="font-mono text-emerald-400 font-bold">+{calculatedProjections.q1.addedProfit.toFixed(0)}</span>
+                      <span className="font-mono text-emerald-700 dark:text-emerald-400 font-extrabold">+{calculatedProjections.q1.addedProfit.toFixed(0)}</span>
                     </div>
-                    <div className="flex justify-between border-t border-purple-900/40 pt-1 text-slate-200 font-bold">
+                    <div className="flex justify-between border-t border-blue-200 dark:border-slate-700 pt-2 text-slate-950 dark:text-white font-extrabold text-sm">
                       <span>{isAr ? 'الربح المتوقع:' : 'Net Profit:'}</span>
-                      <span className="font-mono text-purple-200">{calculatedProjections.q1.totalProfit.toFixed(0)}</span>
+                      <span className="font-mono text-slate-950 dark:text-white text-base font-black">{calculatedProjections.q1.totalProfit.toFixed(0)} {isAr ? 'د.ك' : 'KWD'}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* H1 Card */}
-                <div className="rounded-xl border border-indigo-900/30 bg-indigo-950/20 p-4 space-y-2">
-                  <div className="flex items-center justify-between text-xs font-bold text-indigo-300">
+                <div className="bg-blue-50/70 dark:bg-[#151E2E] border border-blue-200/90 dark:border-slate-800 rounded-2xl p-5 space-y-2.5 shadow-2xs">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-900 dark:text-white">
                     <span>{isAr ? 'النصف سنوي (6 أشهر)' : 'H1 (6 Months)'}</span>
-                    <span className="text-[10px] bg-indigo-900/40 px-2 py-0.5 rounded text-indigo-200">
+                    <span className="text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2.5 py-0.5 rounded-full text-slate-800 dark:text-slate-200 font-extrabold">
                       {calculatedProjections.h1.margin.toFixed(1)}% {isAr ? 'هامش' : 'margin'}
                     </span>
                   </div>
-                  <div className="text-xs text-slate-400 space-y-1">
+                  <div className="text-[13px] text-slate-700 dark:text-slate-300 space-y-1.5 font-medium">
                     <div className="flex justify-between">
                       <span>{isAr ? 'المبيعات:' : 'Sales:'}</span>
-                      <span className="font-mono text-white font-bold">{calculatedProjections.h1.sales.toFixed(0)} {isAr ? 'د.ك' : 'KWD'}</span>
+                      <span className="font-mono text-slate-950 dark:text-white font-bold">{calculatedProjections.h1.sales.toFixed(0)} {isAr ? 'د.ك' : 'KWD'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>{isAr ? 'الوفر الإضافي:' : 'Added Gain:'}</span>
-                      <span className="font-mono text-emerald-400 font-bold">+{calculatedProjections.h1.addedProfit.toFixed(0)}</span>
+                      <span className="font-mono text-emerald-700 dark:text-emerald-400 font-extrabold">+{calculatedProjections.h1.addedProfit.toFixed(0)}</span>
                     </div>
-                    <div className="flex justify-between border-t border-indigo-900/40 pt-1 text-slate-200 font-bold">
+                    <div className="flex justify-between border-t border-blue-200 dark:border-slate-700 pt-2 text-slate-950 dark:text-white font-extrabold text-sm">
                       <span>{isAr ? 'الربح المتوقع:' : 'Net Profit:'}</span>
-                      <span className="font-mono text-indigo-200">{calculatedProjections.h1.totalProfit.toFixed(0)}</span>
+                      <span className="font-mono text-slate-950 dark:text-white text-base font-black">{calculatedProjections.h1.totalProfit.toFixed(0)} {isAr ? 'د.ك' : 'KWD'}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Annual Card */}
-                <div className="rounded-xl border border-emerald-900/30 bg-emerald-950/20 p-4 space-y-2">
-                  <div className="flex items-center justify-between text-xs font-bold text-emerald-300">
+                <div className="bg-emerald-50/60 dark:bg-[#10221A] border border-emerald-200 dark:border-slate-800 rounded-2xl p-5 space-y-2.5 shadow-2xs">
+                  <div className="flex items-center justify-between text-xs font-bold text-emerald-950 dark:text-white">
                     <span>{isAr ? 'السنوي (12 شهراً)' : 'Annual (12 Months)'}</span>
-                    <span className="text-[10px] bg-emerald-900/40 px-2 py-0.5 rounded text-emerald-200">
+                    <span className="text-xs bg-white dark:bg-slate-800 border border-emerald-200 dark:border-slate-700 px-2.5 py-0.5 rounded-full text-emerald-800 dark:text-emerald-300 font-extrabold">
                       {calculatedProjections.annual.margin.toFixed(1)}% {isAr ? 'هامش' : 'margin'}
                     </span>
                   </div>
-                  <div className="text-xs text-slate-400 space-y-1">
+                  <div className="text-[13px] text-slate-700 dark:text-slate-300 space-y-1.5 font-medium">
                     <div className="flex justify-between">
                       <span>{isAr ? 'المبيعات:' : 'Sales:'}</span>
-                      <span className="font-mono text-white font-bold">{calculatedProjections.annual.sales.toFixed(0)} {isAr ? 'د.ك' : 'KWD'}</span>
+                      <span className="font-mono text-slate-950 dark:text-white font-bold">{calculatedProjections.annual.sales.toFixed(0)} {isAr ? 'د.ك' : 'KWD'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>{isAr ? 'الوفر الإضافي:' : 'Added Gain:'}</span>
-                      <span className="font-mono text-emerald-400 font-bold">+{calculatedProjections.annual.addedProfit.toFixed(0)}</span>
+                      <span className="font-mono text-emerald-700 dark:text-emerald-400 font-extrabold">+{calculatedProjections.annual.addedProfit.toFixed(0)}</span>
                     </div>
-                    <div className="flex justify-between border-t border-emerald-900/40 pt-1 text-slate-200 font-bold">
+                    <div className="flex justify-between border-t border-emerald-200 dark:border-slate-700 pt-2 text-emerald-950 dark:text-emerald-300 font-extrabold text-sm">
                       <span>{isAr ? 'الربح المتوقع:' : 'Net Profit:'}</span>
-                      <span className="font-mono text-emerald-200">{calculatedProjections.annual.totalProfit.toFixed(0)}</span>
+                      <span className="font-mono text-emerald-800 dark:text-emerald-400 text-base font-black">{calculatedProjections.annual.totalProfit.toFixed(0)} {isAr ? 'د.ك' : 'KWD'}</span>
                     </div>
                   </div>
                 </div>
@@ -1207,313 +1206,248 @@ export default function FeryalAiCommandPage() {
       </div>
 
       {/* ==================================================================== */}
-      {/* 4. THE FOUR SMART SERVICES GATEWAY (Market & Competitor AI Hub) */}
+      {/* 4. THE FOUR SMART SERVICES GATEWAY (Clean 2x2 Grid of 4 Cards) */}
       {/* ==================================================================== */}
-      <section className="rounded-2xl border border-slate-800 bg-slate-900/90 p-6 shadow-xl space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-md bg-sky-500/10 text-sky-400 border border-sky-500/20 text-[10px] font-bold px-2.5 py-0.5 mb-1.5">
-              <Globe className="h-3.5 w-3.5" />
-              <span>Multi-Agent External AI Hub</span>
-            </div>
-            <h3 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
-              <span>{isAr ? 'رابعاً: بوابة الخدمات الذكية الأربع' : '4. Four Smart Services Gateway'}</span>
-              <span className="text-xs text-slate-400 font-normal">
-                (Perplexity + Firecrawl + Playwright + Composio)
-              </span>
-            </h3>
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="h-2.5 w-2.5 rounded-full bg-emerald-600" />
+            <h2 className="text-lg md:text-xl font-bold text-slate-900 dark:text-white">
+              {isAr ? 'رابعاً: بوابة الخدمات الذكية الأربع (Market & Competitor AI Hub)' : '4. The Four Smart Services Gateway'}
+            </h2>
           </div>
-
-          {/* Service Tabs */}
-          <div className="flex items-center gap-1.5 bg-slate-950 p-1.5 rounded-xl border border-slate-800 text-xs font-semibold">
-            <button
-              onClick={() => setActiveHubTab('perplexity')}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
-                activeHubTab === 'perplexity' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              1. Perplexity
-            </button>
-            <button
-              onClick={() => setActiveHubTab('firecrawl')}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
-                activeHubTab === 'firecrawl' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              2. Firecrawl
-            </button>
-            <button
-              onClick={() => setActiveHubTab('playwright')}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
-                activeHubTab === 'playwright' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              3. Playwright
-            </button>
-            <button
-              onClick={() => setActiveHubTab('composio')}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
-                activeHubTab === 'composio' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              4. Composio
-            </button>
-          </div>
+          <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Multi-Agent Gateway</span>
         </div>
 
-        {/* TAB 1: PERPLEXITY (Live Market Research) */}
-        {activeHubTab === 'perplexity' && (
-          <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-              <div className="relative flex-1">
-                <Search className="h-4 w-4 absolute top-3.5 right-3.5 text-slate-400" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {/* CARD 1: PERPLEXITY SONAR-PRO */}
+          <div className="bg-white dark:bg-[#111827] rounded-2xl p-6 shadow-xs ring-1 ring-slate-200/90 dark:ring-slate-800 space-y-4 flex flex-col justify-between">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[15px] font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Search className="h-4 w-4 text-blue-600" />
+                  <span>1. Perplexity Sonar-Pro</span>
+                </span>
+                <span className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2.5 py-0.5 rounded-full font-bold">
+                  {isAr ? 'استخبارات السوق الكويتي' : 'Kuwait Market Feed'}
+                </span>
+              </div>
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-400 leading-relaxed">
+                {isAr
+                  ? 'رصد أسعار الجملة بسوق الشويخ (الدجاج، الزيوت)، التضخم، ومؤشر تأثير الطقس والمناسبات على الطلبات.'
+                  : 'Track wholesale commodity inflation in Shuwaikh wholesale markets and weather delivery elasticity.'}
+              </p>
+
+              <div className="flex items-center gap-2 pt-1">
                 <input
                   type="text"
                   value={perplexityQuery}
                   onChange={(e) => setPerplexityQuery(e.target.value)}
-                  placeholder={isAr ? 'ابحث في سوق المطاعم الكويتي، أسعار التوريد، التضخم...' : 'Search Kuwait restaurant market, supply inflation...'}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-xs sm:text-sm text-white pr-10 focus:outline-none focus:border-indigo-500"
+                  placeholder={isAr ? 'ابحث في سوق المطاعم الكويتي...' : 'Search Kuwait restaurant market...'}
+                  className="flex-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-3.5 py-2.5 text-xs sm:text-[13px] font-medium text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
                 />
+                <button
+                  onClick={handleRunPerplexity}
+                  disabled={hubLoading}
+                  className="rounded-xl bg-[#2563EB] hover:bg-blue-600 px-4 py-2.5 text-xs font-bold text-white transition-all shrink-0 shadow-xs"
+                >
+                  {isAr ? 'بحث لحظي' : 'Query'}
+                </button>
               </div>
-              <button
-                onClick={handleRunPerplexity}
-                disabled={hubLoading}
-                className="rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-indigo-500 transition-all flex items-center justify-center gap-2 shrink-0 shadow-md shadow-indigo-600/20"
-              >
-                {hubLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                <span>{isAr ? 'بحث لحظي بـ Sonar-Pro' : 'Run Sonar-Pro Query'}</span>
-              </button>
             </div>
 
-            <div className="rounded-xl border border-slate-800 bg-slate-950/80 p-5 space-y-3">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-400 font-semibold flex items-center gap-2">
-                  <ShieldCheck className="h-4 w-4 text-indigo-400" />
-                  {isAr ? 'موجز استخبارات السوق الكويتي عبر Perplexity AI' : 'Kuwait Market Intelligence Summary'}
-                </span>
-                <span className="rounded bg-indigo-950 text-indigo-300 border border-indigo-800 px-2 py-0.5 text-[10px]">
-                  Mode: {perplexityMode}
-                </span>
-              </div>
-              <div className="text-xs sm:text-sm text-slate-200 whitespace-pre-line leading-relaxed font-sans">
-                {perplexityResponse || (isAr ? 'جاري تحليل السوق...' : 'Analyzing live market...')}
-              </div>
+            <div className="bg-slate-50 dark:bg-slate-900/70 rounded-xl p-4 border border-slate-200 dark:border-slate-800 text-xs sm:text-[13px] text-slate-800 dark:text-slate-200 font-medium whitespace-pre-line leading-relaxed max-h-48 overflow-y-auto">
+              {perplexityResponse || (isAr ? 'جاري تحليل السوق الكويتي...' : 'Fetching market report...')}
             </div>
           </div>
-        )}
 
-        {/* TAB 2: FIRECRAWL (Competitor Menu Scraper) */}
-        {activeHubTab === 'firecrawl' && (
-          <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-              <input
-                type="text"
-                value={firecrawlUrl}
-                onChange={(e) => setFirecrawlUrl(e.target.value)}
-                placeholder="https://www.talabat.com/kuwait/restaurant/..."
-                className="flex-1 rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-xs sm:text-sm text-white font-mono focus:outline-none focus:border-indigo-500"
-              />
-              <button
-                onClick={handleRunFirecrawl}
-                disabled={hubLoading}
-                className="rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-indigo-500 transition-all flex items-center justify-center gap-2 shrink-0 shadow-md shadow-indigo-600/20"
-              >
-                {hubLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Layers className="h-4 w-4" />}
-                <span>{isAr ? 'استخراج ومقارنة الأسعار' : 'Scrape & Compare'}</span>
-              </button>
+          {/* CARD 2: FIRECRAWL COMPETITOR SCRAPER */}
+          <div className="bg-white dark:bg-[#111827] rounded-2xl p-6 shadow-xs ring-1 ring-slate-200/90 dark:ring-slate-800 space-y-4 flex flex-col justify-between">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[15px] font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Layers className="h-4 w-4 text-emerald-600" />
+                  <span>2. Firecrawl Scraper</span>
+                </span>
+                <span className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2.5 py-0.5 rounded-full font-bold">
+                  {isAr ? 'مقارنة أسعار المنافسين' : 'Competitor Pricing'}
+                </span>
+              </div>
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-400 leading-relaxed">
+                {isAr
+                  ? 'استخراج منيو وأسعار المنافسين ومقارنتها مباشرة مع أصنافنا بالدينار الكويتي لإصدار توصيات التسعير.'
+                  : 'Scrape competitor items and benchmark pricing in KWD against China Garden & Frank’s.'}
+              </p>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="text"
+                  value={firecrawlUrl}
+                  onChange={(e) => setFirecrawlUrl(e.target.value)}
+                  placeholder="https://www.talabat.com/kuwait/restaurant/..."
+                  className="flex-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-3.5 py-2.5 text-xs font-mono text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+                />
+                <button
+                  onClick={handleRunFirecrawl}
+                  disabled={hubLoading}
+                  className="rounded-xl bg-[#2563EB] hover:bg-blue-600 px-4 py-2.5 text-xs font-bold text-white transition-all shrink-0 shadow-xs"
+                >
+                  {isAr ? 'مقارنة' : 'Compare'}
+                </button>
+              </div>
             </div>
 
-            <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/80">
+            <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/70 max-h-48">
               <table className="w-full text-start text-xs">
                 <thead>
-                  <tr className="border-b border-slate-800 bg-slate-900/80 text-slate-400 font-semibold">
-                    <th className="py-3 px-4 text-start">{isAr ? 'صنف المنافس' : 'Competitor Item'}</th>
-                    <th className="py-3 px-4 text-start">{isAr ? 'سعر المنافس' : 'Comp. Price'}</th>
-                    <th className="py-3 px-4 text-start">{isAr ? 'صنفنا المقابل' : 'Our Equivalent Item'}</th>
-                    <th className="py-3 px-4 text-start">{isAr ? 'سعرنا' : 'Our Price'}</th>
-                    <th className="py-3 px-4 text-start">{isAr ? 'الفارق' : 'Delta'}</th>
-                    <th className="py-3 px-4 text-start">{isAr ? 'توصية التسعير الفورية' : 'Pricing Action'}</th>
+                  <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-bold">
+                    <th className="py-2.5 px-3 text-start">{isAr ? 'صنف المنافس' : 'Item'}</th>
+                    <th className="py-2.5 px-3 text-start">{isAr ? 'سعره' : 'Comp'}</th>
+                    <th className="py-2.5 px-3 text-start">{isAr ? 'سعرنا' : 'Our'}</th>
+                    <th className="py-2.5 px-3 text-start">{isAr ? 'الفارق' : 'Diff'}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/80 text-slate-300">
-                  {competitorItems.map((item, i) => (
-                    <tr key={i} className="hover:bg-slate-900/40 transition-colors">
-                      <td className="py-3 px-4 font-semibold text-white">
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-slate-800 dark:text-slate-200 font-medium">
+                  {competitorItems.slice(0, 3).map((item, i) => (
+                    <tr key={i}>
+                      <td className="py-2 px-3 font-bold text-slate-900 dark:text-white">
                         {isAr ? item.competitorItemAr || item.competitorItem : item.competitorItem}
                       </td>
-                      <td className="py-3 px-4 font-mono text-slate-300">
-                        {item.competitorPriceKwd?.toFixed(3)} {isAr ? 'د.ك' : 'KWD'}
-                      </td>
-                      <td className="py-3 px-4 text-indigo-300 font-medium">{item.ourItem}</td>
-                      <td className="py-3 px-4 font-mono text-emerald-400 font-bold">
-                        {item.ourPriceKwd?.toFixed(3)} {isAr ? 'د.ك' : 'KWD'}
-                      </td>
-                      <td className="py-3 px-4 font-mono font-bold text-sky-400">{item.diffPct}</td>
-                      <td className="py-3 px-4 text-slate-200">
-                        <span className="rounded bg-slate-800 px-2 py-1 text-[11px] font-medium border border-slate-700">
-                          {item.action}
-                        </span>
-                      </td>
+                      <td className="py-2 px-3 font-mono">{item.competitorPriceKwd?.toFixed(3)}</td>
+                      <td className="py-2 px-3 font-mono font-bold text-emerald-700 dark:text-emerald-400">{item.ourPriceKwd?.toFixed(3)}</td>
+                      <td className="py-2 px-3 font-mono font-bold text-blue-700 dark:text-blue-400">{item.diffPct}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           </div>
-        )}
 
-        {/* TAB 3: PLAYWRIGHT (Aggregator Health Watchdog) */}
-        {activeHubTab === 'playwright' && (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              {(['talabat', 'keeta', 'deliveroo'] as const).map((p) => (
-                <button
-                  key={p}
-                  onClick={() => {
-                    setPortalSelect(p)
-                    handleRunPlaywright(p)
-                  }}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all uppercase ${
-                    portalSelect === p
-                      ? 'bg-slate-800 text-white border border-indigo-500/50 shadow'
-                      : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
-                  }`}
-                >
-                  {p} Portal
-                </button>
-              ))}
+          {/* CARD 3: PLAYWRIGHT PORTAL WATCHDOG */}
+          <div className="bg-white dark:bg-[#111827] rounded-2xl p-6 shadow-xs ring-1 ring-slate-200/90 dark:ring-slate-800 space-y-4 flex flex-col justify-between">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[15px] font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-blue-600" />
+                  <span>3. Playwright Portal Watchdog</span>
+                </span>
+                <span className="text-xs bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 px-2.5 py-0.5 rounded-full font-bold">
+                  8/8 {isAr ? 'فروع متصلة' : 'Online'}
+                </span>
+              </div>
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-400 leading-relaxed">
+                {isAr
+                  ? 'مراقبة اتصال بوابات التوصيل (Talabat Partner, Keeta, Deliveroo) ونسب العمولة وتجنب الإيقاف المؤقت.'
+                  : 'Headless watchdog verifying Talabat Tgo/TMP, Keeta, and Deliveroo merchant hub status.'}
+              </p>
+
+              <div className="flex items-center gap-2 pt-1">
+                {(['talabat', 'keeta', 'deliveroo'] as const).map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => {
+                      setPortalSelect(p)
+                      handleRunPlaywright(p)
+                    }}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all uppercase ${
+                      portalSelect === p
+                        ? 'bg-[#0F172A] text-white shadow-2xs'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {portalHealthData && (
-              <div className="rounded-xl border border-slate-800 bg-slate-950/80 p-5 space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
-                  <div>
-                    <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                      <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                      <span>{portalHealthData.name}</span>
-                    </h4>
-                    <p className="text-xs text-slate-400 font-mono mt-0.5">{portalHealthData.url}</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="rounded-full bg-emerald-950 border border-emerald-800 px-3 py-1 text-xs text-emerald-300 font-semibold">
-                      {portalHealthData.status}
-                    </span>
-                    <span className="text-xs text-slate-400 font-mono">
-                      8/8 {isAr ? 'فروع متصلة' : 'Branches Online'}
-                    </span>
-                  </div>
+              <div className="bg-slate-50 dark:bg-slate-900/70 rounded-xl p-4 border border-slate-200 dark:border-slate-800 space-y-2 text-xs font-semibold text-slate-800 dark:text-slate-200">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-900 dark:text-white font-extrabold">{portalHealthData.name}</span>
+                  <span className="text-emerald-700 dark:text-emerald-400 font-extrabold">{portalHealthData.status}</span>
                 </div>
-
-                {portalHealthData.branchesList && (
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                    {portalHealthData.branchesList.map((b: any, idx: number) => (
-                      <div key={idx} className="rounded-lg bg-slate-900 p-2.5 border border-slate-800 text-xs">
-                        <div className="font-bold text-white">{b.branch}</div>
-                        <div className="flex items-center justify-between text-[11px] text-slate-400 mt-1">
-                          <span className="text-emerald-400">Tgo: {b.tgoStatus}</span>
-                          <span className="text-sky-400">TMP: {b.tmpStatus}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
+                <div className="text-slate-600 dark:text-slate-400 text-[11px] font-medium font-mono">{portalHealthData.url}</div>
                 {portalHealthData.burnRateMonthly && (
-                  <div className="rounded-lg bg-rose-950/30 border border-rose-800/40 p-3 text-xs text-rose-300 flex items-center justify-between">
-                    <div>
-                      <span className="font-bold block">{isAr ? 'تنبيه استنزاف التسويق:' : 'Marketing Burn Alert:'}</span>
-                      <span>{portalHealthData.burnRateMonthly}</span>
-                    </div>
-                    <button
-                      onClick={() => handleDispatchComposio('plan-w3', 'dispatch_keeta_cap')}
-                      className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold"
-                    >
-                      {isAr ? 'تطبيق السقف فورياً' : 'Enforce Cap'}
-                    </button>
+                  <div className="bg-rose-50 dark:bg-rose-950/40 p-2 rounded-lg border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-300 text-xs">
+                    {portalHealthData.burnRateMonthly}
                   </div>
                 )}
               </div>
             )}
           </div>
-        )}
 
-        {/* TAB 4: COMPOSIO (Action Log & Multi-Channel Dispatch) */}
-        {activeHubTab === 'composio' && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="rounded-xl border border-slate-800 bg-slate-950 p-3.5 flex items-center gap-3">
-                <div className="p-2.5 rounded-lg bg-emerald-950/60 text-emerald-400 border border-emerald-800/40">
-                  <MessageSquare className="h-5 w-5" />
-                </div>
-                <div>
-                  <span className="text-xs text-slate-400 block">WhatsApp Gateway</span>
-                  <span className="text-sm font-bold text-white">{isAr ? 'جاهز للتكليفات' : 'Ready (Active)'}</span>
-                </div>
+          {/* CARD 4: COMPOSIO AUTOMATED DISPATCH */}
+          <div className="bg-white dark:bg-[#111827] rounded-2xl p-6 shadow-xs ring-1 ring-slate-200/90 dark:ring-slate-800 space-y-4 flex flex-col justify-between">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[15px] font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Zap className="h-4 w-4 text-amber-500" />
+                  <span>4. Composio Orchestrator</span>
+                </span>
+                <span className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2.5 py-0.5 rounded-full font-bold">
+                  {isAr ? 'أتمتة المهام التنفيذية' : 'Workflow Automation'}
+                </span>
               </div>
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-400 leading-relaxed">
+                {isAr
+                  ? 'بث التكليفات لمدراء الفروع عبر WhatsApp، وتحديث تقارير أودو في Google Sheets، وإرسال تنبيهات الإدارة عبر Gmail.'
+                  : 'Automated executive dispatch across WhatsApp, Google Sheets, and executive Gmail.'}
+              </p>
 
-              <div className="rounded-xl border border-slate-800 bg-slate-950 p-3.5 flex items-center gap-3">
-                <div className="p-2.5 rounded-lg bg-indigo-950/60 text-indigo-400 border border-indigo-800/40">
-                  <Mail className="h-5 w-5" />
+              <div className="grid grid-cols-3 gap-2 text-center text-xs font-bold pt-1">
+                <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-slate-800 dark:text-slate-200 flex items-center justify-center gap-1">
+                  <MessageSquare className="h-3.5 w-3.5 text-emerald-600" />
+                  <span>WhatsApp</span>
                 </div>
-                <div>
-                  <span className="text-xs text-slate-400 block">Executive Gmail</span>
-                  <span className="text-sm font-bold text-white">{isAr ? 'مرتبط بأودو' : 'Linked to Odoo'}</span>
+                <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-slate-800 dark:text-slate-200 flex items-center justify-center gap-1">
+                  <Mail className="h-3.5 w-3.5 text-blue-600" />
+                  <span>Gmail</span>
                 </div>
-              </div>
-
-              <div className="rounded-xl border border-slate-800 bg-slate-950 p-3.5 flex items-center gap-3">
-                <div className="p-2.5 rounded-lg bg-sky-950/60 text-sky-400 border border-sky-800/40">
-                  <FileSpreadsheet className="h-5 w-5" />
-                </div>
-                <div>
-                  <span className="text-xs text-slate-400 block">Google Sheets Sync</span>
-                  <span className="text-sm font-bold text-white">{isAr ? 'مزامنة لحظية' : 'Live Synced'}</span>
+                <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-slate-800 dark:text-slate-200 flex items-center justify-center gap-1">
+                  <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
+                  <span>Sheets</span>
                 </div>
               </div>
             </div>
 
-            <div className="rounded-xl border border-slate-800 bg-slate-950/80 p-4 space-y-3">
-              <h5 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                {isAr ? 'سجل العمليات المنفذة مؤخراً عبر بروتوكول Composio' : 'Recent Composio Automated Execution Log'}
-              </h5>
-              <div className="space-y-2">
-                {dispatchedLogs.map((log, i) => (
-                  <div key={i} className="flex items-center justify-between text-xs p-2.5 rounded-lg bg-slate-900 border border-slate-800">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-indigo-400 font-bold">[{log.time}]</span>
-                      <span className="text-slate-200">{log.msg}</span>
-                    </div>
-                    <span className="rounded bg-slate-800 text-slate-400 text-[10px] px-2 py-0.5">{log.channel}</span>
-                  </div>
-                ))}
-              </div>
+            <div className="bg-slate-50 dark:bg-slate-900/70 rounded-xl p-3 border border-slate-200 dark:border-slate-800 space-y-1.5 max-h-48 overflow-y-auto">
+              {dispatchedLogs.map((log, i) => (
+                <div key={i} className="flex items-center justify-between text-xs font-medium text-slate-700 dark:text-slate-300">
+                  <span className="font-mono text-slate-500 font-bold">[{log.time}]</span>
+                  <span className="truncate max-w-[200px]">{log.msg}</span>
+                  <span className="text-[10px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded font-bold">
+                    {log.channel}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
-        )}
+        </div>
       </section>
 
       {/* ==================================================================== */}
       {/* 5. VERIFIED 8-BRANCH PERFORMANCE AUDIT TABLE */}
       {/* ==================================================================== */}
-      <section className="rounded-2xl border border-slate-800 bg-slate-900/90 p-6 shadow-xl space-y-4">
+      <section className="bg-white dark:bg-[#111827] rounded-2xl p-6 sm:p-7 shadow-xs ring-1 ring-slate-200/90 dark:ring-slate-800 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
-            <h3 className="text-base sm:text-lg font-bold text-white">
+            <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
               {isAr ? 'أداء الفروع التشغيلية الـ 8 المعتمدة فقط (حسب سجل أودو لشهر أكتوبر)' : 'Performance Breakdown: Strictly 8 Verified Branches (October Odoo)'}
             </h3>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs sm:text-[13px] text-slate-600 dark:text-slate-400 font-medium">
               {isAr ? 'خالٍ تماماً من أي فروع وهمية أو بيانات اصطناعية - مطابقة مبيعات 167,092.160 د.ك' : '100% reconciled against approved 167,092.160 KWD sales ledger'}
             </p>
           </div>
-          <span className="text-xs text-emerald-400 font-bold bg-emerald-950/40 border border-emerald-800/40 px-3 py-1 rounded-full">
+          <span className="text-xs text-emerald-800 dark:text-emerald-300 font-extrabold bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-3.5 py-1.5 rounded-full">
             8/8 {isAr ? 'فروع نشطة' : 'Active Branches'}
           </span>
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/70">
-          <table className="w-full text-start text-xs">
+        <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+          <table className="w-full text-start text-[13px]">
             <thead>
-              <tr className="border-b border-slate-800 bg-slate-900/80 text-slate-400 font-semibold">
+              <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 text-slate-600 dark:text-slate-400 font-bold">
                 <th className="py-3 px-4 text-start">#</th>
                 <th className="py-3 px-4 text-start">{isAr ? 'الفرع' : 'Branch'}</th>
                 <th className="py-3 px-4 text-start">{isAr ? 'المبيعات المعتمدة' : 'Net Sales'}</th>
@@ -1523,27 +1457,27 @@ export default function FeryalAiCommandPage() {
                 <th className="py-3 px-4 text-start">{isAr ? 'الحالة التشغيلية' : 'Status'}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/80 text-slate-300">
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-slate-800 dark:text-slate-200 font-medium">
               {VERIFIED_BRANCHES.map((b) => (
-                <tr key={b.id} className="hover:bg-slate-900/40 transition-colors">
-                  <td className="py-3 px-4 font-mono text-slate-500 font-bold">{b.rank}</td>
-                  <td className="py-3 px-4 font-bold text-white">{isAr ? b.nameAr : b.nameEn}</td>
-                  <td className="py-3 px-4 font-mono font-bold text-emerald-400">
+                <tr key={b.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/40 transition-colors">
+                  <td className="py-3 px-4 font-mono text-slate-400 font-bold">{b.rank}</td>
+                  <td className="py-3 px-4 font-bold text-slate-950 dark:text-white">{isAr ? b.nameAr : b.nameEn}</td>
+                  <td className="py-3 px-4 font-mono font-extrabold text-slate-950 dark:text-white">
                     {b.salesKwd.toLocaleString(undefined, { minimumFractionDigits: 3 })} {isAr ? 'د.ك' : 'KWD'}
                   </td>
-                  <td className="py-3 px-4 font-mono text-slate-300">{b.orders.toLocaleString()}</td>
-                  <td className="py-3 px-4 font-mono text-sky-400 font-semibold">{b.share}%</td>
+                  <td className="py-3 px-4 font-mono text-slate-700 dark:text-slate-300">{b.orders.toLocaleString()}</td>
+                  <td className="py-3 px-4 font-mono text-blue-700 dark:text-blue-400 font-bold">{b.share}%</td>
                   <td className="py-3 px-4">
-                    <span className="rounded bg-indigo-950/50 text-indigo-300 border border-indigo-900/50 px-2 py-0.5 font-medium">
+                    <span className="rounded-md bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 px-2.5 py-1 text-xs font-bold">
                       {b.bestChannel}
                     </span>
                   </td>
                   <td className="py-3 px-4">
                     <span
-                      className={`rounded px-2 py-0.5 font-semibold text-[11px] ${
-                        b.status.includes('Attention')
-                          ? 'bg-amber-950 text-amber-300 border border-amber-800'
-                          : 'bg-emerald-950 text-emerald-300 border border-emerald-800'
+                      className={`rounded-md px-2.5 py-1 text-xs font-extrabold ${
+                        b.status.includes('هدر') || b.status.includes('صيانة')
+                          ? 'bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
+                          : 'bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
                       }`}
                     >
                       {b.status}
