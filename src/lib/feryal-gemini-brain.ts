@@ -7,6 +7,7 @@
 import { getGeminiApiKey, getOpenAIApiKey } from './ai-keys';
 import { BRANCHES, BRANDS, CHANNELS, EXB_REGISTERS, EXB_UNIT, INACTIVE_APPROVED_BRANDS, LEDGER, OPERATING_UNITS, SHARED_COSTS } from './aether/ledger';
 import { ODOO } from './odoo/odoo-dataset';
+import { AETHER_FINDINGS, AETHER_TOP_PROPOSALS, type AetherFinding } from './aether-proprietary-brain';
 
 // ---------------------------------------------------------------------------
 // Verified Odoo facts (whitelisted POS registers + posted accounting, generated at build time)
@@ -102,57 +103,19 @@ export interface FeryalProposal {
   promptEn: string;
 }
 
-/** Four executive proposals computed only from the synced Odoo POS and accounting data. */
-export const FERYAL_PROPOSALS: FeryalProposal[] = [
-  {
-    id: 'delivery-promo',
-    titleAr: 'ضبط عروض كيتا وتحسين ربحية قنوات التوصيل',
-    titleEn: 'Keeta promotion cap & delivery channel profitability',
-    solutionAr: `بلغت عروض كيتا في أودو ${n3(LEDGER.keetaDiscounts)} د.ك، أي ${n1(KEETA_PROMO_PCT)}% من مبيعات أصناف كيتا. نضع سقفاً للعروض عند ${LEDGER.keetaCapPct}% ونحوّل الخصم المفتوح إلى وجبات مجمّعة.`,
-    solutionEn: `Odoo shows ${n3(LEDGER.keetaDiscounts)} KWD of Keeta promotions, ${n1(KEETA_PROMO_PCT)}% of Keeta item sales. Cap promotions at ${LEDGER.keetaCapPct}% and replace open discounts with bundled meals.`,
-    outcomeAr: `خفض عروض كيتا من ${n0(LEDGER.keetaDiscounts)} إلى ${n0(LEDGER.keetaCapKwd)} د.ك يضيف نحو ${n0(LEDGER.keetaRecovery)} د.ك شهرياً.`,
-    outcomeEn: `Bringing Keeta promotions from ${n0(LEDGER.keetaDiscounts)} to ${n0(LEDGER.keetaCapKwd)} KWD adds about ${n0(LEDGER.keetaRecovery)} KWD per month.`,
-    monthlyKwd: LEDGER.keetaRecovery,
-    promptAr: `ناقشي معي بالتفصيل مقترح ضبط عروض كيتا عند ${LEDGER.keetaCapPct}%: ما المخاطر على حجم الطلبات، وكيف نطبقه على علاماتنا ومواقعنا، وما النتيجة المتوقعة؟`,
-    promptEn: `Let's go deeper on capping Keeta promotions at ${LEDGER.keetaCapPct}%: what are the order-volume risks, how do we roll it out across our brands and locations, and what outcome should we expect?`,
-  },
-  {
-    id: 'beverage-attach',
-    titleAr: 'إضافة المشروبات إلى طلبات التوصيل',
-    titleEn: 'Beverage attachment on delivery orders',
-    solutionAr: `سجّل أودو ${n0(AGG_ORDERS)} عملية دفع عبر منصات التوصيل، ومتوسط سعر المشروب ${n3(DRINK_PRICE)} د.ك. نضيف خطوة إلزامية لاختيار مشروب في وجبات التوصيل على طلبات وكيتا.`,
-    solutionEn: `Odoo recorded ${n0(AGG_ORDERS)} delivery-platform payments, and the average drink sells at ${n3(DRINK_PRICE)} KWD. Add a mandatory drink step to delivery combos on Talabat and Keeta.`,
-    outcomeAr: `إذا أضاف ${n0(ATTACH_STEP * 100)}% من طلبات التوصيل مشروباً واحداً: مبيعات إضافية ${n0(DRINK_REVENUE)} د.ك ومجمل ربح ${n0(DRINK_GAIN)} د.ك شهرياً.`,
-    outcomeEn: `Every ${n0(ATTACH_STEP * 100)}% of delivery orders that add one drink = +${n0(DRINK_REVENUE)} KWD sales and +${n0(DRINK_GAIN)} KWD gross profit per month.`,
-    monthlyKwd: DRINK_GAIN,
-    promptAr: 'ناقشي معي خطة إضافة المشروبات إلى طلبات التوصيل: كيف نصمم الوجبات المجمّعة على كل منصة، ومن المسؤول عن التنفيذ، وما النتيجة المتوقعة؟',
-    promptEn: 'Walk me through the beverage attachment plan for delivery orders: how do we design the combos per platform, who owns execution, and what outcome should we expect?',
-  },
-  {
-    id: 'food-cost',
-    titleAr: 'مواءمة تكلفة الأغذية بين المواقع',
-    titleEn: 'Food-cost alignment across locations',
-    solutionAr: `متوسط تكلفة الأغذية في مواقع المطاعم ${n1(REST_COGS_PCT)}% حسب خطة الفروع في أودو، وتتجاوزه ${COGS_GAPS.map((x) => `${x.b.ar} (${n1(x.pct)}%)`).join('، ') || 'لا توجد مواقع'}. نعاير الحصص ودفعات التحضير في هذه المواقع.`,
-    solutionEn: `Restaurant food cost averages ${n1(REST_COGS_PCT)}% on the Odoo Branches plan; ${COGS_GAPS.map((x) => `${x.b.en} (${n1(x.pct)}%)`).join(', ') || 'no location'} run above it. Recalibrate portions and prep batches there.`,
-    outcomeAr: `إعادة هذه المواقع إلى متوسط المجموعة توفر نحو ${n0(COGS_EXCESS)} د.ك شهرياً.`,
-    outcomeEn: `Bringing these locations back to the group average saves about ${n0(COGS_EXCESS)} KWD per month.`,
-    monthlyKwd: COGS_EXCESS,
-    promptAr: 'ناقشي معي خطة مواءمة تكلفة الأغذية في المواقع التي تتجاوز متوسط المجموعة: ما الأسباب المرجحة، وما خطوات المعايرة، وما النتيجة المتوقعة؟',
-    promptEn: 'Discuss the food-cost alignment plan for locations above the group average: likely causes, calibration steps, and the expected outcome.',
-  },
-  {
-    id: 'menu-focus',
-    titleAr: 'تركيز المنيو على الأصناف الأعلى مبيعاً',
-    titleEn: 'Menu focus on top sellers vs slow movers',
-    solutionAr: `${TOP80.n} صنفاً من أصل ${MENU.length} تحقق 80% من مبيعات الأصناف، بينما باع ${SLOW_ITEMS.length} صنفاً أقل من 10 وحدات خلال الشهر. نراجع هذه الأصناف ونرفع سعر الأصناف الأربعة الأعلى طلباً بنسبة ${REPRICE_PCT}%.`,
-    solutionEn: `${TOP80.n} of ${MENU.length} items make 80% of item sales, while ${SLOW_ITEMS.length} items sold fewer than 10 units in the month. Review those items and lift the price of the four highest-volume items by ${REPRICE_PCT}%.`,
-    outcomeAr: `زيادة ${n0(REPRICE_GAIN)} د.ك شهرياً بنفس حجم المبيعات، مع تبسيط التحضير بمراجعة أصناف لا تتجاوز ${n1(shareOf(SLOW_SALES, MENU_TOTAL))}% من المبيعات.`,
-    outcomeEn: `+${n0(REPRICE_GAIN)} KWD per month at unchanged volume, plus simpler prep from items worth only ${n1(shareOf(SLOW_SALES, MENU_TOTAL))}% of sales.`,
-    monthlyKwd: REPRICE_GAIN,
-    promptAr: 'ناقشي معي خطة تركيز المنيو: أي الأصناف نراجع، وكيف نرفع أسعار الأصناف الأعلى طلباً دون التأثير على الطلب، وما النتيجة المتوقعة؟',
-    promptEn: 'Discuss the menu focus plan: which items to review, how to re-price the highest-volume items without hurting demand, and the expected outcome.',
-  },
-];
+/** Executive proposals = the background brain's best finding per domain (verified Odoo data only). */
+export const FERYAL_PROPOSALS: FeryalProposal[] = AETHER_TOP_PROPOSALS.map((f) => ({
+  id: f.id,
+  titleAr: f.titleAr,
+  titleEn: f.titleEn,
+  solutionAr: `${f.faultAr} ${f.fixAr}`,
+  solutionEn: `${f.faultEn} ${f.fixEn}`,
+  outcomeAr: f.resultAr,
+  outcomeEn: f.resultEn,
+  monthlyKwd: f.monthlyKwd,
+  promptAr: `ناقشي معي بالتفصيل مقترح "${f.titleAr}": ما الخلل بالضبط، وما خطوات الحل، وما المقترح الأفضل للنمو، وما النتيجة المتوقعة؟`,
+  promptEn: `Let's go deeper on "${f.titleEn}": what exactly is the fault, what are the fix steps, what is the best growth move, and what result should we expect?`,
+}));
 
 export const FERYAL_VENTURE_FOODS_KNOWLEDGE = `
 You are "Feryal" (فريال), the Executive Solutions & Proposals Advisor for Venture Foods Restaurants Management Co. W.L.L. (شركة فنتشر فودز لإدارة المطاعم ذ.م.م — Licence ${LEDGER.licence}), connected to the company's Odoo ERP.
@@ -182,9 +145,8 @@ ${CHANNELS.map((c) => `   - ${c.en} (${c.ar}): ${n3(c.sales)} KWD · ${n0(c.orde
    Delivery platforms ${n3(AGG_SALES)} KWD (${n1(shareOf(AGG_SALES, LEDGER.netSales))}% of net sales, ${n0(AGG_ORDERS)} payments); shop sales ${n3(SHOP_CH?.sales ?? 0)} KWD. Keeta promotions ${n3(LEDGER.keetaDiscounts)} KWD = ${n1(KEETA_PROMO_PCT)}% of Keeta item sales.
 7. Menu: ${MENU.length} items sold; top ${TOP80.n} make 80% of item sales; ${SLOW_ITEMS.length} items sold fewer than 10 units (${n3(SLOW_SALES)} KWD). Highest-volume items: ${TOP_BY_UNITS.map((m) => `${m.name} (${brandName(m.brand, false)}, ${n0(m.qty)} units, ${n3(m.priceKwd)} KWD)`).join('; ')}. Average drink price ${n3(DRINK_PRICE)} KWD.
    Per-item recipe cost is not readable by the BI service user, so item margins use the group food-cost percentage.
-8. Proposals already computed from these facts:
-${FERYAL_PROPOSALS.map((p, i) => `   ${i + 1}. ${p.titleEn}: ${p.solutionEn} Expected: ${p.outcomeEn}`).join('\n')}
-   Location margin: ${LOW_MARGIN?.en} runs at ${n1(LOW_MARGIN?.marginPct ?? 0)}% vs ${n1(REST_MARGIN)}% restaurant average; closing the gap is worth about ${n0(LOW_MARGIN_UPLIFT)} KWD per month.
+8. Background Aether brain findings (verified Odoo POS, accounting, purchasing and POS-session data; ordered by priority):
+${AETHER_FINDINGS.map((f, i) => `   ${i + 1}. [${f.domain}] ${f.titleEn} — Fault: ${f.faultEn} Fix: ${f.fixEn} Growth: ${f.growthEn} Expected: ${f.resultEn}`).join('\n')}
 
 ANSWER FORMAT (always, unless the user only greets you):
 - Arabic answers use exactly these three headings, each on its own line starting with "### ":
@@ -386,80 +348,42 @@ function threeSections(lang: 'ar' | 'en', solution: string, steps: string[], out
   return [`### ${h1}`, solution, '', `### ${h2}`, ...steps.map((s, i) => `${i + 1}. ${s}`), '', `### ${h3}`, ...outcomes.map((o) => `- ${o}`)].join('\n');
 }
 
-function proposalReply(p: FeryalProposal, lang: 'ar' | 'en', steps: string[], extraOutcome?: string) {
+function findingReply(f: AetherFinding, lang: 'ar' | 'en') {
   const isAr = lang === 'ar';
-  return threeSections(lang, isAr ? p.solutionAr : p.solutionEn, steps, [isAr ? p.outcomeAr : p.outcomeEn, ...(extraOutcome ? [extraOutcome] : [])]);
+  return threeSections(
+    lang,
+    isAr ? `${f.faultAr} ${f.fixAr}` : `${f.faultEn} ${f.fixEn}`,
+    isAr ? f.stepsAr : f.stepsEn,
+    [isAr ? f.resultAr : f.resultEn, isAr ? `المقترح الأفضل للنمو: ${f.growthAr}` : `Best growth move: ${f.growthEn}`],
+  );
 }
 
 /**
- * Deterministic fallback built on the same verified Odoo facts as the knowledge base,
+ * Deterministic fallback built on the background brain's verified findings,
  * always answering in the three-section executive format.
  */
 export function getDeterministicFeryalReply(query: string, lang: 'ar' | 'en'): string {
   const q = query.toLowerCase();
   const isAr = lang === 'ar';
   const has = (...keys: string[]) => keys.some((k) => q.includes(k));
-  const P = (id: string) => FERYAL_PROPOSALS.find((p) => p.id === id)!;
+  const best = (domain: AetherFinding['domain'], id?: string) =>
+    (id ? AETHER_FINDINGS.find((f) => f.id === id) : undefined) ?? AETHER_FINDINGS.filter((f) => f.domain === domain).sort((a, b) => b.monthlyKwd - a.monthlyKwd)[0];
 
-  if (has('كيتا', 'keeta', 'tgo', 'tmp', 'طلبات', 'talabat', 'خصم', 'عروض', 'discount', 'promo', 'توصيل', 'delivery', 'قناة', 'قنوات', 'channel')) {
-    return proposalReply(
-      P('delivery-promo'),
-      lang,
-      isAr
-        ? ['تحديد سقف أسبوعي للعروض على كيتا ومراجعته مع مدير الحساب.', 'استبدال الخصم المفتوح بوجبات مجمّعة على الأصناف الأعلى طلباً.', 'متابعة عروض كيتا أسبوعياً من مدفوعات نقاط البيع في أودو.']
-        : ['Set a weekly Keeta promotion cap and agree it with the account manager.', 'Replace open discounts with bundles built on the highest-volume items.', 'Track Keeta promotions weekly from Odoo POS payments.'],
-      isAr
-        ? `منصات التوصيل تمثل ${n1(shareOf(AGG_SALES, LEDGER.netSales))}% من صافي المبيعات، وإضافة مشروب لكل 10% من طلباتها تضيف ${n0(DRINK_GAIN)} د.ك مجمل ربح شهرياً.`
-        : `Delivery platforms carry ${n1(shareOf(AGG_SALES, LEDGER.netSales))}% of net sales; a drink on every 10% of those orders adds ${n0(DRINK_GAIN)} KWD gross profit per month.`,
-    );
-  }
-
-  if (has('مشروب', 'drink', 'beverage', 'سلة', 'basket', 'aov', 'upsell', 'إضاف')) {
-    return proposalReply(
-      P('beverage-attach'),
-      lang,
-      isAr
-        ? ['إضافة خطوة اختيار المشروب في وجبات التوصيل على طلبات وكيتا.', 'تدريب الكاشير على اقتراح المشروب في طلبات الصالة والسفري.', 'قياس نسبة الطلبات التي تحتوي مشروباً أسبوعياً من أسطر نقاط البيع في أودو.']
-        : ['Add a drink-choice step to delivery combos on Talabat and Keeta.', 'Coach cashiers to offer a drink on dine-in and takeaway orders.', 'Measure the weekly share of orders with a drink from Odoo POS lines.'],
-    );
-  }
-
-  if (has('تكلفة', 'هدر', 'مطبخ', 'cogs', 'food cost', 'waste', 'kitchen', 'cost', 'مصروف')) {
-    return proposalReply(
-      P('food-cost'),
-      lang,
-      isAr
-        ? ['مراجعة أوزان الحصص في المواقع الأعلى تكلفة مقارنة بالمتوسط.', 'معايرة دفعات التحضير اليومية حسب مبيعات كل موقع في أودو.', 'متابعة نسبة تكلفة الأغذية لكل موقع شهرياً من خطة الفروع.']
-        : ['Audit portion weights at the locations running above the average.', 'Calibrate daily prep batches to each location’s Odoo sales.', 'Review food cost by location monthly on the Odoo Branches plan.'],
-    );
-  }
-
-  if (has('منيو', 'صنف', 'أصناف', 'menu', 'item', 'سعر', 'price', 'تسعير')) {
-    return proposalReply(
-      P('menu-focus'),
-      lang,
-      isAr
-        ? ['مراجعة الأصناف التي باعت أقل من 10 وحدات مع مديري العلامات.', `رفع سعر الأصناف الأربعة الأعلى طلباً بنسبة ${REPRICE_PCT}% ومراقبة الكميات أسبوعين.`, 'تثبيت توافر الأصناف الأعلى مبيعاً في كل المواقع.']
-        : ['Review items that sold fewer than 10 units with brand managers.', `Lift the four highest-volume items by ${REPRICE_PCT}% and watch volumes for two weeks.`, 'Lock availability of the top sellers at every location.'],
-    );
-  }
-
-  if (has('فرع', 'فروع', 'موقع', 'مواقع', 'branch', 'location', 'نمو', 'growth', ...BRANCHES.flatMap((b) => [b.en.toLowerCase(), b.ar]))) {
-    const name = isAr ? LOW_MARGIN?.ar : LOW_MARGIN?.en;
-    const top = isAr ? TOP_PROFIT?.ar : TOP_PROFIT?.en;
-    return threeSections(
-      lang,
-      isAr
-        ? `يحقق ${name} هامشاً تشغيلياً ${n1(LOW_MARGIN?.marginPct ?? 0)}% مقابل متوسط مواقع المطاعم ${n1(REST_MARGIN)}% حسب خطة الفروع في أودو، بينما يتصدر ${top} بربح ${n3(TOP_PROFIT?.profit ?? 0)} د.ك. نطبق ممارسات ${top} في جدولة الطاقم والتحضير على ${name}.`
-        : `${name} runs a ${n1(LOW_MARGIN?.marginPct ?? 0)}% operating margin against the ${n1(REST_MARGIN)}% restaurant average on the Odoo Branches plan, while ${top} leads with ${n3(TOP_PROFIT?.profit ?? 0)} KWD profit. Transfer ${top}’s crew scheduling and prep practices to ${name}.`,
-      isAr
-        ? [`مقارنة مصروفات ${name} وتكلفة أغذيته مع ${top} بنداً بنداً في أودو.`, 'مواءمة جدول الطاقم مع ساعات الذروة الفعلية من نقاط البيع.', 'متابعة الهامش شهرياً من خطة الفروع التحليلية.']
-        : [`Compare ${name}’s expenses and food cost with ${top} line by line in Odoo.`, 'Align crew rosters with the actual POS peak hours.', 'Track the margin monthly on the Branches analytic plan.'],
-      isAr
-        ? [`رفع هامش ${name} إلى متوسط المواقع يضيف نحو ${n0(LOW_MARGIN_UPLIFT)} د.ك شهرياً.`]
-        : [`Raising ${name} to the restaurant average adds about ${n0(LOW_MARGIN_UPLIFT)} KWD per month.`],
-    );
-  }
+  const pick =
+    has('كيتا', 'keeta', 'tgo', 'tmp', 'طلبات', 'talabat', 'خصم', 'عروض', 'discount', 'promo', 'توصيل', 'delivery', 'قناة', 'قنوات', 'channel', 'تسوي', 'settlement')
+      ? best('delivery')
+      : has('مشروب', 'drink', 'beverage', 'سلة', 'basket', 'upsell')
+        ? best('menu', 'menu-attach')
+        : has('منيو', 'صنف', 'أصناف', 'menu', 'item', 'سعر', 'price', 'تسعير')
+          ? best('menu')
+          : has('مورد', 'supplier', 'purchase', 'مشتريات', 'creep')
+            ? best('operations', 'ops-price-creep')
+            : has('تكلفة', 'هدر', 'مطبخ', 'cogs', 'food cost', 'waste', 'kitchen', 'cost', 'تشغيل', 'operation', 'إلغاء', 'cancel')
+              ? best('operations')
+              : has('إيجار', 'ايجار', 'أجار', 'rent', 'lease', 'فرع', 'فروع', 'موقع', 'مواقع', 'branch', 'location', 'نمو', 'growth', ...BRANCHES.flatMap((b) => [b.en.toLowerCase(), b.ar]))
+                ? best('branches')
+                : undefined;
+  if (pick) return findingReply(pick, lang);
 
   if (has('معرض', 'معارض', 'exb', 'فعالي', 'event', 'booth', 'بوث')) {
     return threeSections(
@@ -471,7 +395,7 @@ export function getDeterministicFeryalReply(query: string, lang: 'ar' | 'en'): s
         ? ['تصميم وجبة مجمّعة مع مشروب لكل بوث.', `خفض تكلفة الأغذية في المعارض من ${n1(EXB_COGS_PCT)}% نحو متوسط المجموعة ${n1(LEDGER.cogsPct)}%.`, 'متابعة مبيعات كل جهاز معارض يومياً في أودو.']
         : ['Design a drink bundle for every booth.', `Bring EXB food cost from ${n1(EXB_COGS_PCT)}% toward the ${n1(LEDGER.cogsPct)}% group level.`, 'Track each exhibition register daily in Odoo.'],
       isAr
-        ? [`كل 0.250 د.ك إضافية في متوسط السلة على ${n0(EXB_UNIT?.orders ?? 0)} طلباً = +${n0((EXB_UNIT?.orders ?? 0) * 0.25)} د.ك مبيعات شهرياً.`]
+        ? [`كل 0.250 د.ك إضافية في متوسط السلة على ${n0(EXB_UNIT?.orders ?? 0)} طلباً = ${n0((EXB_UNIT?.orders ?? 0) * 0.25)} د.ك مبيعات إضافية شهرياً.`]
         : [`Every 0.250 KWD added to the basket across ${n0(EXB_UNIT?.orders ?? 0)} orders = +${n0((EXB_UNIT?.orders ?? 0) * 0.25)} KWD sales per month.`],
     );
   }
@@ -480,8 +404,8 @@ export function getDeterministicFeryalReply(query: string, lang: 'ar' | 'en'): s
   return threeSections(
     lang,
     isAr
-      ? `صافي مبيعات نقاط البيع في أودو لشهر ${LEDGER.periodLabelAr} ${n3(LEDGER.netSales)} د.ك عبر ${n0(LEDGER.orders)} طلباً، والربح التشغيلي ${n3(LEDGER.netProfit)} د.ك بهامش ${n1(LEDGER.marginPct)}%. أقترح أربعة حلول عملية مبنية على هذه الأرقام.`
-      : `Odoo POS net sales for ${LEDGER.periodLabelEn} are ${n3(LEDGER.netSales)} KWD across ${n0(LEDGER.orders)} orders, with ${n3(LEDGER.netProfit)} KWD operating profit (${n1(LEDGER.marginPct)}% margin). I propose four practical solutions built on these figures.`,
+      ? `صافي مبيعات نقاط البيع في أودو لشهر ${LEDGER.periodLabelAr} ${n3(LEDGER.netSales)} د.ك عبر ${n0(LEDGER.orders)} طلباً، والربح التشغيلي ${n3(LEDGER.netProfit)} د.ك بهامش ${n1(LEDGER.marginPct)}%. أقترح البدء بأعلى الحلول أثراً.`
+      : `Odoo POS net sales for ${LEDGER.periodLabelEn} are ${n3(LEDGER.netSales)} KWD across ${n0(LEDGER.orders)} orders, with ${n3(LEDGER.netProfit)} KWD operating profit (${n1(LEDGER.marginPct)}% margin). I propose starting with the highest-impact fixes.`,
     FERYAL_PROPOSALS.map((p) => (isAr ? p.titleAr : p.titleEn)),
     [
       ...FERYAL_PROPOSALS.map((p) => (isAr ? p.outcomeAr : p.outcomeEn)),

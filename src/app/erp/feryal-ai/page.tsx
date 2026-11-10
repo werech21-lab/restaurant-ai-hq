@@ -719,7 +719,7 @@ export default function FeryalAiCommandPage() {
           </div>
           <div className="min-w-0">
             <h1 className="truncate text-lg font-extrabold tracking-tight text-slate-950 sm:text-xl dark:text-white">
-              {T('Feryal — Executive Solutions & Proposals Advisor', 'فريال — مستشارة الحلول والمقترحات التنفيذية')}
+              {T('Feryal — Executive Growth Advisor', 'محادثة المستشارة فريال')}
             </h1>
             <p className="truncate text-[13px] font-medium text-slate-500 sm:text-sm dark:text-slate-400">
               {T('Dedicated executive dialogue for real operational solutions and projected outcomes', 'مساحة حوار مخصصة لمناقشة المقترحات العملية والحلول الواقعية لتطوير الأداء')}
@@ -747,7 +747,7 @@ export default function FeryalAiCommandPage() {
           </button>
           <button type="button" aria-pressed={isExpanded} onClick={() => setIsExpanded((v) => !v)} className={`${pill} ${isExpanded ? pillOn : pillIdle} hidden lg:inline-flex`}>
             {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-            {isExpanded ? T('Show Proposals', 'إظهار المقترحات') : T('Expand Full Width', 'تكبير مساحة المحادثة')}
+            {isExpanded ? T('Show Proposals', 'إظهار المقترحات') : T('Full-Screen Chat', 'تكبير مساحة المحادثة')}
           </button>
           <button type="button" onClick={newDiscussion} className={`${pill} ${pillIdle}`}>
             <RotateCcw className="h-4 w-4" />
@@ -883,7 +883,7 @@ export default function FeryalAiCommandPage() {
             <div>
               <h2 className="text-[15px] font-bold text-slate-900 dark:text-white">{T('Verified Proposals & Expected Outcomes', 'المقترحات الحقيقية والنتائج المتوقعة')}</h2>
               <p className="mt-1 text-[13px] text-slate-500 dark:text-slate-400">
-                {T(`Computed from Odoo POS and accounting · ${LEDGER.periodLabelEn}`, `محسوبة من نقاط البيع والمحاسبة في أودو · ${LEDGER.periodLabelAr}`)}
+                {T(`Best finding per domain from Odoo sales, accounting, purchasing and POS sessions · ${LEDGER.periodLabelEn}`, `أفضل نتيجة لكل محور من مبيعات أودو ومحاسبته ومشترياته وجلسات نقاط البيع · ${LEDGER.periodLabelAr}`)}
               </p>
             </div>
             {FERYAL_PROPOSALS.map((p) => (
@@ -897,7 +897,7 @@ export default function FeryalAiCommandPage() {
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300">{T('Expected Result If Successful', 'النتيجة المتوقعة عند النجاح')}</span>
                     <span className="whitespace-nowrap text-[12px] font-extrabold text-emerald-700 dark:text-emerald-300">
-                      +{fmtKwd(p.monthlyKwd, isAr)} {T('/ month', '/ شهرياً')}
+                      {p.monthlyKwd > 0 ? (isAr ? `${fmtKwd(p.monthlyKwd, true)} شهرياً` : `+${fmtKwd(p.monthlyKwd, false)} / month`) : T('Control', 'ضبط ورقابة')}
                     </span>
                   </div>
                   <p className="mt-1 text-[13px] leading-relaxed text-emerald-950 dark:text-emerald-50">{isAr ? p.outcomeAr : p.outcomeEn}</p>

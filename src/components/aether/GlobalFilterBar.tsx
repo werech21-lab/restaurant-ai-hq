@@ -7,7 +7,7 @@ import { useBiFilters } from '@/components/aether/BiFilterContext'
 import { Num, useLang } from '@/components/aether/ui'
 
 /** Routes that consume the live BI context. */
-export const BI_ROUTES = ['/erp', '/erp/sales-analysis', '/erp/delivery-control', '/erp/alerts', '/erp/demand-forecast', '/erp/cost-intelligence', '/erp/executive-pnl']
+export const BI_ROUTES = ['/erp/delivery-control']
 
 export function isBiRoute(pathname: string | null) {
   if (!pathname) return false

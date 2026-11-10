@@ -11,7 +11,24 @@ const nextConfig = {
   },
   async redirects() {
     // No public marketing landing page: aetherbi.com opens the Aether BI workspace directly.
-    return [{ source: '/', destination: '/erp', permanent: false }]
+    // Four executive pillars: /erp, /erp/feryal-ai, /erp/aggregator-radar (permanent), /erp/events-intelligence.
+    // Report screens that duplicate Odoo redirect to the playbook. /erp/aggregator-radar is never redirected.
+    const consolidated = [
+      '/erp/sales-scorecard',
+      '/dashboard',
+      '/erp/sales-analysis',
+      '/erp/menu-engineering',
+      '/erp/cost-intelligence',
+      '/erp/executive-pnl',
+      '/erp/execution-hub',
+      '/erp/alerts',
+      '/automations',
+      '/erp/demand-forecast',
+    ]
+    return [
+      { source: '/', destination: '/erp', permanent: false },
+      ...consolidated.map((source) => ({ source, destination: '/erp', permanent: false })),
+    ]
   },
   async rewrites() {
     // Canonical P&L lives at /reports?tab=pnl; keep /reports/pnl as a stable alias (200).

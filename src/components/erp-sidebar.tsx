@@ -5,22 +5,12 @@ import Link from 'next/link'
 import { LEDGER } from '@/lib/aether/ledger'
 import { usePathname, useSearchParams } from 'next/navigation'
 import {
-  AlertTriangle,
-  BarChart3,
   Calendar,
-  ChefHat,
   ChevronDown,
-  ClipboardCheck,
-  CloudSun,
-  Landmark,
-  FileText,
   LayoutDashboard,
   LogOut,
   Radar,
   Sparkles,
-  Truck,
-  UtensilsCrossed,
-  Zap,
 } from 'lucide-react'
 import { logout } from '@/app/actions/auth'
 import { useI18n } from '@/lib/i18n'
@@ -55,66 +45,17 @@ interface NavSection {
   items: NavItem[]
 }
 
+/** The four executive pillars of Aether BI. The Delivery & Aggregator Radar is a permanent pillar. */
 const SIDEBAR_SECTIONS: NavSection[] = [
   {
     id: 'main',
-    titleAr: 'القوائم الرئيسية',
-    titleEn: 'Main menu',
+    titleAr: 'المحاور التنفيذية',
+    titleEn: 'Executive pillars',
     items: [
-      { key: 'executive', href: '/erp', labelAr: 'الملخص المالي والتوصيات', labelEn: 'Financial Summary & Recommendations', icon: LayoutDashboard, alwaysVisible: true },
-      {
-        key: 'feryal-ai',
-        href: '/erp/feryal-ai',
-        labelAr: 'المستشارة الذكية فريال',
-        labelEn: 'Feryal AI Executive Copilot',
-        icon: Sparkles,
-        alwaysVisible: true,
-      },
-      {
-        key: 'events-intelligence',
-        href: '/erp/events-intelligence',
-        labelAr: 'تحليل الفعاليات والعقود ومنيو المعارض',
-        labelEn: 'Events, Contracts & EXB Hub',
-        icon: Calendar,
-        alwaysVisible: true,
-      },
-      // visible to every signed-in user who can open the control panel (no per-module permission needed)
-      {
-        key: 'reports',
-        alwaysVisible: true,
-        href: '/erp/sales-analysis',
-        labelAr: 'تحليل المبيعات والأصناف',
-        labelEn: 'Sales & items analysis',
-        icon: BarChart3,
-        children: [
-          { id: 'matrix-v2', href: '/erp/sales-analysis', labelAr: 'مصفوفة هندسة المنيو (364 صنفاً)', labelEn: 'Menu engineering matrix (364 items)' },
-          ...SALES_TABS.map((t) => ({ id: t.id, href: salesTabHref(t.id), labelAr: t.ar, labelEn: t.en })),
-        ],
-      },
-      { key: 'delivery-control', href: '/erp/delivery-control', labelAr: 'رقابة منصات التوصيل', labelEn: 'Delivery Aggregators Control', icon: Truck, alwaysVisible: true },
-      { key: 'alerts', href: '/erp/alerts', labelAr: 'التنبيهات المالية الآلية', labelEn: 'Automated Financial Alerts', icon: AlertTriangle, alwaysVisible: true },
-      { key: 'execution-hub', href: '/erp/execution-hub', labelAr: 'مركز التنفيذ', labelEn: 'Execution Hub', icon: ClipboardCheck, alwaysVisible: true },
-    ],
-  },
-  {
-    id: 'enterprise-os',
-    titleAr: 'نظام المؤسسة الذكي',
-    titleEn: 'Enterprise OS',
-    items: [
-      { key: 'demand-forecast', href: '/erp/demand-forecast', labelAr: 'توقع الطلب وتحضير المطبخ', labelEn: 'Demand & Prep Forecaster', icon: CloudSun, alwaysVisible: true },
-      { key: 'cost-intelligence', href: '/erp/cost-intelligence', labelAr: 'ذكاء التكلفة وأسعار الموردين', labelEn: 'Cost & Supplier Intelligence', icon: ChefHat, alwaysVisible: true },
-      { key: 'executive-pnl', href: '/erp/executive-pnl', labelAr: 'قائمة الدخل وانحراف الموازنة', labelEn: 'Executive P&L & Budget', icon: Landmark, alwaysVisible: true },
-    ],
-  },
-  {
-    id: 'workspaces',
-    titleAr: 'مساحات العمل التفصيلية',
-    titleEn: 'Detailed workspaces',
-    items: [
-      { key: 'dashboard', href: '/dashboard', labelAr: 'التقرير المالي التفصيلي', labelEn: 'Detailed financial report', icon: FileText },
-      { key: 'erp-radar', href: '/erp/aggregator-radar', labelAr: 'رادار عمولات التوصيل', labelEn: 'Aggregator commission radar', icon: Radar },
-      { key: 'menu-engineering', href: '/erp/menu-engineering', labelAr: 'منصة هندسة المنيو', labelEn: 'Menu engineering workbench', icon: UtensilsCrossed, alwaysVisible: true },
-      { key: 'automations', href: '/automations', labelAr: 'قواعد التنبيهات التلقائية', labelEn: 'Automated notification rules', icon: Zap },
+      { key: 'playbook', href: '/erp', labelAr: 'الحلول ومقترحات التطوير والنمو', labelEn: 'Faults, Solutions & Growth Playbook', icon: LayoutDashboard, alwaysVisible: true },
+      { key: 'feryal-ai', href: '/erp/feryal-ai', labelAr: 'محادثة المستشارة فريال', labelEn: 'Feryal — Executive Growth Advisor', icon: Sparkles, alwaysVisible: true },
+      { key: 'aggregator-radar', href: '/erp/aggregator-radar', labelAr: 'رادار منصات التوصيل', labelEn: 'Delivery & Aggregator Radar', icon: Radar, alwaysVisible: true },
+      { key: 'events-intelligence', href: '/erp/events-intelligence', labelAr: 'جدوى المعارض والبوثات الموسمية', labelEn: 'Seasonal Booths & Exhibitions Study', icon: Calendar, alwaysVisible: true },
     ],
   },
 ]
