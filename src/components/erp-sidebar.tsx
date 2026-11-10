@@ -52,10 +52,10 @@ const SIDEBAR_SECTIONS: NavSection[] = [
     titleAr: 'المحاور التنفيذية',
     titleEn: 'Executive pillars',
     items: [
-      { key: 'playbook', href: '/erp', labelAr: 'الحلول ومقترحات التطوير والنمو', labelEn: 'Faults, Solutions & Growth Playbook', icon: LayoutDashboard, alwaysVisible: true },
-      { key: 'feryal-ai', href: '/erp/feryal-ai', labelAr: 'محادثة المستشارة فريال', labelEn: 'Feryal — Executive Growth Advisor', icon: Sparkles, alwaysVisible: true },
-      { key: 'aggregator-radar', href: '/erp/aggregator-radar', labelAr: 'رادار منصات التوصيل', labelEn: 'Delivery & Aggregator Radar', icon: Radar, alwaysVisible: true },
-      { key: 'events-intelligence', href: '/erp/events-intelligence', labelAr: 'جدوى المعارض والبوثات الموسمية', labelEn: 'Seasonal Booths & Exhibitions Study', icon: Calendar, alwaysVisible: true },
+      { key: 'playbook', href: '/erp', labelAr: 'المختصرات والحلول الذكية', labelEn: 'Smart Shortcuts & Solutions', icon: LayoutDashboard, alwaysVisible: true },
+      { key: 'feryal-ai', href: '/erp/feryal-ai', labelAr: 'محادثة المستشارة فريال', labelEn: 'Feryal — Solutions Advisor', icon: Sparkles, alwaysVisible: true },
+      { key: 'aggregator-radar', href: '/erp/aggregator-radar', labelAr: 'رادار منصات التوصيل', labelEn: 'Delivery Radar', icon: Radar, alwaysVisible: true },
+      { key: 'events-intelligence', href: '/erp/events-intelligence', labelAr: 'جدوى المعارض والبوثات الموسمية', labelEn: 'Seasonal Booths Study', icon: Calendar, alwaysVisible: true },
     ],
   },
 ]

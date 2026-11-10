@@ -19,9 +19,21 @@ const SEVERITY: Record<AetherFinding['severity'], { en: string; ar: string; cls:
 }
 
 /** Faults, Solutions & Growth Playbook — distilled outcomes of the background Aether brain. */
-export function GrowthPlaybookV5() {
+export function GrowthPlaybookV5({
+  embedded = false,
+  initialDomain = 'all',
+  onlyIds = null,
+  onClearOnly,
+}: {
+  /** Rendered inside the Smart Shortcuts dashboard (no outer page container). */
+  embedded?: boolean
+  initialDomain?: FindingDomain | 'all'
+  /** Restrict the list to these finding ids (e.g. the recoverable-profit set). */
+  onlyIds?: string[] | null
+  onClearOnly?: () => void
+} = {}) {
   const { isAr, T } = useLang()
-  const [domain, setDomain] = useState<FindingDomain | 'all'>('all')
+  const [domain, setDomain] = useState<FindingDomain | 'all'>(initialDomain)
   const [approved, setApproved] = useState<Record<string, boolean>>({})
   const [scan, setScan] = useState<ScanState>({ status: 'idle' })
 
@@ -55,12 +67,13 @@ export function GrowthPlaybookV5() {
     }
   }, [])
 
+  const scoped = useMemo(() => (onlyIds ? AETHER_FINDINGS.filter((f) => onlyIds.includes(f.id)) : AETHER_FINDINGS), [onlyIds])
   const counts = useMemo(() => {
-    const c: Record<string, number> = { all: AETHER_FINDINGS.length }
-    for (const f of AETHER_FINDINGS) c[f.domain] = (c[f.domain] ?? 0) + 1
+    const c: Record<string, number> = { all: scoped.length }
+    for (const f of scoped) c[f.domain] = (c[f.domain] ?? 0) + 1
     return c
-  }, [])
-  const visible = domain === 'all' ? AETHER_FINDINGS : AETHER_FINDINGS.filter((f) => f.domain === domain)
+  }, [scoped])
+  const visible = domain === 'all' ? scoped : scoped.filter((f) => f.domain === domain)
   const totalVisible = visible.reduce((s, f) => s + f.monthlyKwd, 0)
   const domainLabel = (d: FindingDomain) => {
     const x = FINDING_DOMAINS.find((y) => y.id === d)
@@ -84,10 +97,10 @@ export function GrowthPlaybookV5() {
   ]
 
   return (
-    <div dir={isAr ? 'rtl' : 'ltr'} className="mx-auto w-full max-w-[1400px] space-y-6 px-5 py-6 sm:px-8">
-      <section className="flex flex-col gap-5 rounded-[24px] bg-white p-6 shadow-[0_8px_32px_rgba(10,30,50,0.05)] ring-1 ring-slate-200/80 lg:flex-row lg:items-center lg:justify-between dark:bg-slate-900 dark:ring-slate-800">
+    <div dir={isAr ? 'rtl' : 'ltr'} className={embedded ? 'w-full space-y-6' : 'mx-auto w-full max-w-[1400px] space-y-6 px-5 py-6 sm:px-8'}>
+      <section className="flex flex-col gap-5 rounded-[24px] bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_rgba(15,23,42,0.03)] lg:flex-row lg:items-center lg:justify-between dark:bg-neutral-900">
         <div className="min-w-0 space-y-1.5">
-          <h1 className="text-xl font-extrabold tracking-tight text-slate-950 sm:text-2xl dark:text-white">{T('Faults, Solutions & Growth Playbook', 'الحلول ومقترحات التطوير والنمو')}</h1>
+          {!embedded && <h1 className="text-xl font-extrabold tracking-tight text-slate-950 sm:text-2xl dark:text-white">{T('Faults, Solutions & Growth Playbook', 'الحلول ومقترحات التطوير والنمو')}</h1>}
           <p className="max-w-3xl text-sm leading-relaxed text-slate-600 dark:text-slate-300">
             {T(
               `${AETHER_FINDINGS.length} findings from Odoo sales, accounting, purchasing and POS sessions · ${AETHER_BRAIN_META.periodEn} · combined potential about ${fmt0(AETHER_BRAIN_META.totalMonthlyKwd)} KWD per month.`,
@@ -114,6 +127,17 @@ export function GrowthPlaybookV5() {
         </button>
       </section>
 
+      {onlyIds && (
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-emerald-50/80 px-4 py-2.5 text-[13px] font-medium text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-100">
+          <span>{T(`Showing the ${scoped.length} recoverable-profit fixes`, `عرض ${scoped.length} حلول للأرباح القابلة للاسترداد`)}</span>
+          {onClearOnly && (
+            <button type="button" onClick={onClearOnly} className="rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-emerald-800 transition-colors hover:bg-emerald-100 dark:bg-neutral-900 dark:text-emerald-200">
+              {T('Show all solutions', 'عرض كل الحلول')}
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center gap-2">
         {FINDING_DOMAINS.map((d) => (
           <button
@@ -122,7 +146,7 @@ export function GrowthPlaybookV5() {
             aria-pressed={domain === d.id}
             onClick={() => setDomain(d.id)}
             className={`inline-flex items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-[13px] font-semibold ring-1 transition-colors ${
-              domain === d.id ? 'bg-[#0F172A] text-white ring-[#0F172A]' : 'bg-white text-slate-700 ring-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-700'
+              domain === d.id ? 'bg-neutral-900 text-white ring-neutral-900/80 dark:bg-white dark:text-neutral-950' : 'bg-white text-neutral-700 ring-transparent shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:bg-neutral-50 dark:bg-neutral-900 dark:text-neutral-200'
             }`}
           >
             {isAr ? d.ar : d.en}
@@ -144,7 +168,7 @@ export function GrowthPlaybookV5() {
             ? `ناقشي معي خطة "${f.titleAr}": الخلل المكتشف، والحلول الفورية، والمقترح الأفضل للنمو، والنتيجة المتوقعة عند التنفيذ.`
             : `Let's discuss the "${f.titleEn}" plan: the fault, the immediate fix, the best growth proposal and the expected result.`
           return (
-            <article key={f.id} className={`flex flex-col gap-4 rounded-[24px] bg-white p-6 shadow-[0_8px_32px_rgba(10,30,50,0.05)] ring-1 dark:bg-slate-900 ${isApproved ? 'ring-emerald-400/70' : 'ring-slate-200/80 dark:ring-slate-800'}`}>
+            <article key={f.id} className={`flex flex-col gap-4 rounded-[24px] bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_rgba(15,23,42,0.03)] transition-shadow duration-200 dark:bg-neutral-900 ${isApproved ? 'ring-2 ring-emerald-400/60' : ''}`}>
               <header className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0 space-y-1.5">
                   <div className="flex flex-wrap items-center gap-2">

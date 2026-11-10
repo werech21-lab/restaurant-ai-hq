@@ -593,3 +593,87 @@ export const AETHER_BRAIN_META = {
   recipesCosted: RECIPES.size,
   recipeCalibration: RECIPE_CALIBRATION,
 }
+
+// ---------------------------------------------------------------------------
+// Smart shortcuts — distilled numbers Odoo does not compute
+// ---------------------------------------------------------------------------
+/** Findings that represent profit leaking today and recoverable without new sales. */
+export const RECOVERABLE_FINDING_IDS = ['delivery-promo-burn', 'menu-attach', 'menu-underpriced', 'ops-food-cost', 'ops-price-creep', 'delivery-tgo-tmp']
+
+/**
+ * True net pocket per 10 KWD sold: gross sales before discounts, minus promotions and discounts,
+ * platform commissions, and food cost (posted Odoo COGS %), split between shop and delivery.
+ */
+export const NET_POCKET = (() => {
+  const commissions = sum(CHANNELS, (c) => c.sales * (c.commissionPct / 100))
+  const gross = LEDGER.netSales + LEDGER.discounts
+  const food = LEDGER.netSales * COGS
+  const pocket = gross - LEDGER.discounts - commissions - food
+  const per10 = (p: number, g: number) => (g > 0 ? (p / g) * 10 : 0)
+  const shop = CHANNELS.find((c) => c.id === 'shop')
+  const shopGross = shop?.itemSales ?? 0
+  const shopPocket = shopGross - (shop?.promo ?? 0) - (shop?.sales ?? 0) * COGS
+  const apps = CHANNELS.filter((c) => c.group === 'aggregator')
+  const appGross = sum(apps, (c) => c.itemSales)
+  const appPocket = sum(apps, (c) => c.itemSales - c.promo - c.sales * (c.commissionPct / 100) - c.sales * COGS - c.orders * DELIVERY_PACKAGING_KWD)
+  return {
+    per10: per10(pocket, gross),
+    pct: pctOf(pocket, gross),
+    shopPer10: per10(shopPocket, shopGross),
+    appsPer10: per10(appPocket, appGross),
+    commissions,
+    discounts: LEDGER.discounts,
+    food,
+  }
+})()
+
+export const RECOVERABLE = (() => {
+  const items = AETHER_FINDINGS.filter((f) => RECOVERABLE_FINDING_IDS.includes(f.id) && f.monthlyKwd > 0)
+  return { items, monthlyKwd: sum(items, (f) => f.monthlyKwd) }
+})()
+
+export type ComfortLevel = 'comfortable' | 'watch' | 'priority'
+
+/** Fixed-cost cover per location: gross profit (revenue − food cost) ÷ (opex incl. rent + depreciation). */
+export const BRANCH_COMFORT = (() => {
+  const rows = BRANCHES.map((b) => {
+    const fixed = b.opex + b.depreciation
+    const gross = b.revenue - b.cogs
+    const cover = fixed > 0 ? gross / fixed : 0
+    const level: ComfortLevel = cover >= 1.6 ? 'comfortable' : cover >= 1.25 ? 'watch' : 'priority'
+    const rent = intel.locationCosts.find((x) => x.location === b.id)?.rentKwd ?? 0
+    return { id: b.id, en: b.en, ar: b.ar, cover, level, rent, rentPct: pctOf(rent, b.revenue) }
+  }).sort((a, b) => b.cover - a.cover)
+  return {
+    rows,
+    comfortable: rows.filter((r) => r.level === 'comfortable').length,
+    watch: rows.filter((r) => r.level === 'watch').length,
+    priority: rows.filter((r) => r.level === 'priority').length,
+    top: rows[0],
+    weakest: rows[rows.length - 1],
+  }
+})()
+
+/** Star items earning the most contribution vs. complex low-margin items slowing the kitchen. */
+export const MENU_POWER = (() => {
+  const lines = new Map(intel.recipes.map((r) => [codeOf(r.name) ?? '', r.lines]))
+  const stars = byQuadrant('star').sort((a, b) => b.cm2 * b.qty - a.cm2 * a.qty).slice(0, 2)
+  const drag = MENU_MATRIX.filter((m) => m.quadrant === 'dog' && (lines.get(m.code) ?? 0) >= 5)
+    .sort((a, b) => (lines.get(b.code) ?? 0) - (lines.get(a.code) ?? 0) || a.qty - b.qty)
+    .slice(0, 2)
+    .map((m) => ({ ...m, ingredients: lines.get(m.code) ?? 0 }))
+  return { stars, drag, starContribution: sum(stars, (s) => s.cm2 * s.qty), dogs: byQuadrant('dog').length }
+})()
+
+/** Delivery payout efficiency: what reaches us after commission and promotions per 10 KWD sold on apps. */
+export const DELIVERY_HEALTH = (() => {
+  const apps = CHANNEL_ECONOMICS
+  const itemSales = sum(apps, (c) => c.itemSales)
+  const payout = sum(apps, (c) => c.expectedPayout)
+  const best = [...apps].filter((c) => c.orders > 50).sort((a, b) => b.pocketPerOrder - a.pocketPerOrder)[0]
+  const burning = apps.filter((c) => c.promoPct > PROMO_CAP_PCT)
+  return { per10: itemSales ? (payout / itemSales) * 10 : 0, payout, best, burning }
+})()
+
+/** The single clearest revenue booster available now. */
+export const QUICK_WIN = AETHER_FINDINGS.filter((f) => ['menu-attach', 'menu-underpriced', 'delivery-tgo-tmp'].includes(f.id)).sort((a, b) => b.monthlyKwd - a.monthlyKwd)[0] ?? null

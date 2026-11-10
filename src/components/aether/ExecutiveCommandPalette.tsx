@@ -139,7 +139,7 @@ export function ExecutiveCommandPalette() {
 
   const commands = useMemo<Command[]>(() => {
     const pages: Command[] = [
-      { id: 'p-erp', group: 'pages', en: 'Executive Financial Summary', ar: 'الملخص المالي التنفيذي', keywords: 'dashboard board kpi profit ملخص لوحة', icon: <LayoutDashboard className="h-4 w-4" />, run: () => go('/erp') },
+      { id: 'p-erp', group: 'pages', en: 'Smart Shortcuts & Solutions', ar: 'المختصرات والحلول الذكية', keywords: 'dashboard board kpi profit ملخص لوحة', icon: <LayoutDashboard className="h-4 w-4" />, run: () => go('/erp') },
       { id: 'p-feryal', group: 'pages', en: 'Feryal Executive AI Copilot', ar: 'المستشارة التنفيذية فريال', keywords: 'ai copilot voice gemini nova ذكاء صوت', icon: <Sparkles className="h-4 w-4" />, run: () => go('/erp/feryal-ai') },
       { id: 'p-events', group: 'pages', en: 'Events, Contracts & EXB Menu Hub', ar: 'مركز الفعاليات والعقود ومنيو المعارض', keywords: 'events contract booth kashta winterland فعاليات عقد كشتة', icon: <CalendarRange className="h-4 w-4" />, run: () => go('/erp/events-intelligence') },
       { id: 'p-sales', group: 'pages', en: 'Sales & Items Analysis', ar: 'تحليل المبيعات والأصناف', keywords: 'menu engineering stars dogs items منيو أصناف', icon: <BarChart3 className="h-4 w-4" />, run: () => go('/erp/sales-analysis') },
@@ -149,7 +149,7 @@ export function ExecutiveCommandPalette() {
       { id: 'p-cost', group: 'pages', en: 'Cost & Supplier Price Intelligence', ar: 'ذكاء التكلفة وأسعار الموردين', keywords: 'supplier price creep cogs recipe margin مورد أسعار تكلفة وصفة', icon: <UtensilsCrossed className="h-4 w-4" />, run: () => go('/erp/cost-intelligence') },
       { id: 'p-pnl', group: 'pages', en: 'Executive P&L & Budget Variance', ar: 'قائمة الدخل التنفيذية وانحراف الموازنة', keywords: 'pnl budget variance board pack قائمة دخل موازنة انحراف', icon: <FileText className="h-4 w-4" />, run: () => go('/erp/executive-pnl') },
       { id: 'p-scorecard', group: 'pages', en: 'Sales scorecard (8 sections)', ar: 'سجل المبيعات (8 أقسام)', keywords: 'scorecard سجل', icon: <FileText className="h-4 w-4" />, run: () => go('/erp/sales-scorecard') },
-      { id: 'p-radar', group: 'pages', en: 'Aggregator commission radar', ar: 'رادار عمولات منصات التوصيل', keywords: 'radar رادار', icon: <Radar className="h-4 w-4" />, run: () => go('/erp/aggregator-radar') },
+      { id: 'p-radar', group: 'pages', en: 'Delivery Radar', ar: 'رادار منصات التوصيل', keywords: 'radar رادار', icon: <Radar className="h-4 w-4" />, run: () => go('/erp/aggregator-radar') },
       { id: 'p-menu', group: 'pages', en: 'Menu engineering workbench', ar: 'منصة هندسة المنيو', keywords: 'menu منيو', icon: <UtensilsCrossed className="h-4 w-4" />, run: () => go('/erp/menu-engineering') },
       { id: 'p-dashboard', group: 'pages', en: 'Detailed financial report & recommendations', ar: 'التقرير المالي التفصيلي والتوصيات', keywords: 'report تقرير', icon: <FileText className="h-4 w-4" />, run: () => go('/dashboard') },
       { id: 'p-automations', group: 'pages', en: 'Notification rules', ar: 'قواعد التنبيهات', keywords: 'automation rules أتمتة', icon: <AlertTriangle className="h-4 w-4" />, run: () => go('/automations') },

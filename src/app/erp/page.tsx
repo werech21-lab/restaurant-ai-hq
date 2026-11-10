@@ -1,11 +1,11 @@
 import { requirePageUser } from '@/lib/auth/context'
-import { GrowthPlaybookV5 } from '@/components/aether/GrowthPlaybookV5'
+import { ExecutiveShortcutsV6 } from '@/components/aether/ExecutiveShortcutsV6'
 
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: 'الحلول ومقترحات التطوير والنمو | فنتشر فودز',
-  description: 'الخلل المكتشف والحلول الفورية ومقترحات النمو والنتيجة المتوقعة لشركة فنتشر فودز لإدارة المطاعم ذ.م.م — ترخيص رقم 2021/22838.',
+  title: 'لوحة المختصرات الذكية | فنتشر فودز',
+  description: 'المختصرات التي لا يحسبها أودو، والحلول ومقترحات التطوير لشركة فنتشر فودز لإدارة المطاعم ذ.م.م — ترخيص رقم 2021/22838.',
 }
 
 export default async function ExecutiveCenterPage() {
@@ -13,7 +13,7 @@ export default async function ExecutiveCenterPage() {
 
   return (
     <div className="w-full">
-      <GrowthPlaybookV5 />
+      <ExecutiveShortcutsV6 />
     </div>
   )
 }
