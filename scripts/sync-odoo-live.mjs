@@ -14,15 +14,28 @@
  *
  * Every Odoo query runs in its own try/catch; a missing read permission is logged and reported.
  *
+ * Windows (Kuwait calendar days, end exclusive):
+ *   - Rolling 30 days   : the 30 complete days before today (primary analysis period)
+ *   - Prior 30 days     : the 30 days before the rolling window (trend baseline)
+ *   - Month-to-date     : the 1st of the current month up to and including today
+ *
+ * The 7-stage full-journey extraction (procurement → kitchen yield → menu → operations → hidden opex →
+ * delivery economics → quality) lives in scripts/odoo-journey-extract.mjs. Its aggregates are stored in the
+ * snapshot (`journey`) and in the compact, client-safe src/lib/odoo/odoo-journey.json read by
+ * src/lib/full-journey-enterprise-brain.ts.
+ *
  * Usage:
- *   node scripts/sync-odoo-live.mjs                          # previous full month
+ *   node scripts/sync-odoo-live.mjs                          # rolling 30 days + prior 30 + month-to-date
  *   node scripts/sync-odoo-live.mjs --from 2026-10-01 --to 2026-11-01
+ *   node scripts/sync-odoo-live.mjs --skip-journey           # sales snapshot only
  */
 import fs from 'node:fs'
 import path from 'node:path'
+import { extractJourney } from './odoo-journey-extract.mjs'
 
 const ROOT = process.cwd()
 const SNAPSHOT = path.join(ROOT, 'src', 'lib', 'odoo-live-snapshot.json')
+const JOURNEY_OUT = path.join(ROOT, 'src', 'lib', 'odoo', 'odoo-journey.json')
 const REGISTRY = JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'lib', 'odoo', 'pos-registry.json'), 'utf8'))
 const ALLOWED = REGISTRY.allowedPosConfigIds
 const ALLOWED_SET = new Set(ALLOWED)
@@ -46,14 +59,21 @@ const ODOO_API_KEY = env('ODOO_API_KEY')
 
 const argv = process.argv.slice(2)
 const arg = (name) => { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : undefined }
+const isoDay = (d) => d.toISOString().slice(0, 10)
+const addDays = (s, n) => { const d = new Date(`${s}T00:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return isoDay(d) }
+const dayDiff = (a, b) => Math.round((new Date(`${b}T00:00:00Z`) - new Date(`${a}T00:00:00Z`)) / 86400000)
+/** Today in Kuwait (UTC+3). */
+const TODAY = isoDay(new Date(Date.now() + 3 * 3600 * 1000))
 function defaultPeriod() {
-  const now = new Date()
-  const to = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
-  const from = new Date(Date.UTC(to.getUTCFullYear(), to.getUTCMonth() - 1, 1))
-  const iso = (d) => d.toISOString().slice(0, 10)
-  return { from: iso(from), to: iso(to) }
+  return { from: addDays(TODAY, -30), to: TODAY }
 }
 const PERIOD = { ...defaultPeriod(), ...(arg('--from') ? { from: arg('--from') } : {}), ...(arg('--to') ? { to: arg('--to') } : {}) }
+const WINDOWS = {
+  rolling30: { from: PERIOD.from, to: PERIOD.to, days: dayDiff(PERIOD.from, PERIOD.to) },
+  prior30: { from: addDays(PERIOD.from, -dayDiff(PERIOD.from, PERIOD.to)), to: PERIOD.from, days: dayDiff(PERIOD.from, PERIOD.to) },
+  mtd: { from: `${TODAY.slice(0, 8)}01`, to: addDays(TODAY, 1), days: Number(TODAY.slice(8, 10)) },
+}
+const SKIP_JOURNEY = argv.includes('--skip-journey')
 
 function fail(msg) { console.error(`\n✖ ${msg}`); process.exit(1) }
 for (const [k, v] of Object.entries({ ODOO_URL, ODOO_DB, ODOO_LOGIN, ODOO_API_KEY })) if (!v) fail(`${k} is missing in .env.local`)
@@ -161,6 +181,21 @@ async function main() {
   const catOfProduct = new Map(productInfo.map((p) => [p.id, m2oId(p.pos_categ_id)]))
   const priceOfProduct = new Map(productInfo.map((p) => [p.id, { list: Number(p.lst_price) || 0, cost: costOfProduct.get(p.id) ?? 0 }]))
   const brandOfProduct = (pid) => { const root = rootOf(catOfProduct.get(pid)); return root ? brandByRoot.get(root.name)?.id ?? (root.name === 'Admin' ? null : 'uncategorised') : 'uncategorised' }
+  const nameOfProductId = new Map()
+  for (const rows of linesByCfg.values()) for (const g of rows) { const pid = m2oId(g.product_id); if (pid) nameOfProductId.set(pid, m2oName(g.product_id)) }
+  /** Lazily loads category / list price / name for products first seen outside the main window. */
+  const ensureProducts = async (ids) => {
+    const need = [...new Set(ids)].filter((id) => id && !catOfProduct.has(id))
+    for (let i = 0; i < need.length; i += 400) {
+      const part = need.slice(i, i + 400)
+      for (const p of await safe('product.product read (lazy)', () => ek('product.product', 'read', [part, ['id', 'pos_categ_id', 'lst_price', 'display_name']]), [])) {
+        catOfProduct.set(p.id, m2oId(p.pos_categ_id))
+        priceOfProduct.set(p.id, { list: Number(p.lst_price) || 0, cost: 0 })
+        if (!nameOfProductId.has(p.id)) nameOfProductId.set(p.id, p.display_name)
+      }
+      for (const id of part) if (!catOfProduct.has(id)) catOfProduct.set(id, null)
+    }
+  }
 
   const brandNet = new Map(); const brandQty = new Map(); const locBrandNet = new Map(); const productAgg = new Map(); const catAgg = new Map()
   let promoAdjustments = 0
@@ -360,6 +395,31 @@ async function main() {
       saleOrders: { count: saleOrders[0]?.__count ?? 0, untaxedKwd: r3(saleOrders[0]?.amount_untaxed ?? 0) },
     },
     permissions: { missingRead: [...MISSING_READ.keys()] },
+  }
+
+  /* 7-stage full-journey extraction (aggregates only; no vendor, employee or customer names) */
+  if (!SKIP_JOURNEY) {
+    console.log(`\n▶ Full-journey extraction · rolling ${WINDOWS.rolling30.from} → ${WINDOWS.rolling30.to} · prior ${WINDOWS.prior30.from} → ${WINDOWS.prior30.to} · MTD ${WINDOWS.mtd.from} → ${WINDOWS.mtd.to}`)
+    const catName = (pid) => catById.get(catOfProduct.get(pid))?.name ?? null
+    const { journey, locDishQty } = await extractJourney({
+      ek, safe, REGISTRY, WINDOWS, ALLOWED, registers, locBrandNet, locChannel,
+      brandOfProduct, catNameOfProduct: catName, priceOfProduct: (pid) => priceOfProduct.get(pid), channelOf,
+      nameOfProduct: (pid) => nameOfProductId.get(pid) ?? null, ensureProducts, missingRead: [...MISSING_READ.keys()],
+    })
+    snapshot.windows = WINDOWS
+    snapshot.journey = { ...journey, locDishQty }
+    snapshot.permissions.audit = journey.access
+    const compact = { source: ODOO_URL, syncedAt: snapshot.syncedAt, ...journey }
+    fs.writeFileSync(JOURNEY_OUT, JSON.stringify(compact) + '\n')
+    console.log(`✔ Journey intelligence written → ${path.relative(ROOT, JOURNEY_OUT)} (${Math.round(fs.statSync(JOURNEY_OUT).size / 1024)} KB, aggregates only)`)
+
+    const aa = journey.opex?.analyticArchitecture
+    const un = journey.opex?.unallocated?.rolling30
+    console.log('\n■ Odoo Analytic Cost-Center Access Summary (service user: ' + ODOO_LOGIN + '):')
+    console.log(`   - account.analytic.plan    : ${aa?.plansReadable ? `✅ READ OK (${aa.plans.map((p) => p.name).join(', ')})` : '⛔ RESTRICTED — enable Odoo group "Analytic Accounting" / "Billing Read-Only"'}`)
+    console.log(`   - account.analytic.account : ${aa?.accountsReadable ? `✅ READ OK (${aa.whitelistedCenters.length} whitelisted Venture Foods cost centers mapped)` : '⛔ RESTRICTED — enable Odoo group "Analytic Accounting" / "Billing Read-Only"'}`)
+    console.log(`   - account.analytic.line    : ${aa?.linesReadable ? `✅ READ OK (${aa.rolling30Lines.toLocaleString('en-US')} rolling-30d ledger postings across Branches, Brands & EXB)` : '⛔ RESTRICTED — enable Odoo group "Analytic Accounting" / "Billing Read-Only"'}`)
+    if (un) console.log(`   - Unallocated Expense Scan : ✅ READ OK (${un.grossDebitKwd} KWD gross debit · ${un.directOpexKwd} KWD direct unallocated OpEx across ${un.lines} lines with empty analytic_distribution)`)
   }
 
   console.log(`\n■ Whitelisted POS: ${snapshot.totals.netSalesKwd} KWD · ${totalOrders} orders · AOV ${snapshot.totals.aovKwd} · promo/discount lines ${snapshot.totals.promoAdjustmentsKwd} · line discounts ${snapshot.totals.discountKwd}`)

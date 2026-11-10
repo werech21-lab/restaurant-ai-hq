@@ -5,8 +5,8 @@ export interface RouteTitle {
 }
 
 const ROUTE_TITLES: { match: string; exact?: boolean; title: RouteTitle }[] = [
-  { match: '/erp', exact: true, title: { en: 'Smart Shortcuts & Solutions', ar: 'المختصرات والحلول الذكية' } },
-  { match: '/erp/feryal-ai', title: { en: 'Feryal — Solutions Advisor', ar: 'محادثة المستشارة فريال' } },
+  { match: '/erp', exact: true, title: { en: '360° Executive Shortcuts & Full-Journey Playbook', ar: 'المركز الشامل للمختصرات وقرارات الرحلة الكاملة' } },
+  { match: '/erp/feryal-ai', title: { en: 'Feryal — 360° COO, CFO & Growth Strategist', ar: 'المستشارة التنفيذية الشاملة فريال' } },
   { match: '/erp/events-intelligence', title: { en: 'Seasonal Booths Study', ar: 'جدوى المعارض والبوثات الموسمية' } },
   { match: '/erp/sales-scorecard', title: { en: 'Sales & Items Scorecard', ar: 'سجل المبيعات والأصناف' } },
   { match: '/erp/sales-analysis', title: { en: 'Sales & Items Analysis', ar: 'تحليل المبيعات والأصناف' } },

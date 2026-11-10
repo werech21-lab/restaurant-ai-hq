@@ -112,7 +112,7 @@ try {
   const tenant = await client.query('select id from tenants where slug = $1', [slug])
   let tenantId = tenant.rows[0]?.id
   if (!tenantId) {
-    const created = await client.query('select erp_bootstrap_tenant($1, $2, $3) as id', ['Aether Demo', slug, ownerId])
+    const created = await client.query('select erp_bootstrap_tenant($1, $2, $3) as id', ['Aether Staging', slug, ownerId])
     tenantId = created.rows[0].id
   }
 

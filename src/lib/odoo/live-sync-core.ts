@@ -26,14 +26,60 @@ export interface OdooLiveSummary {
   brands: { id: string; brand: string; netKwd: number; sharePct: number }[]
   branches: { id: string; name: string; unit: string; netSalesKwd: number; orders: number; sharePct: number }[]
   channels: { name: string; amountKwd: number }[]
+  /** Rolling 30-day vs prior 30-day vs month-to-date totals (whitelisted registers, Kuwait calendar days). */
+  journeyPulse?: Record<'rolling30' | 'prior30' | 'mtd', { from: string; to: string; days: number; netKwd: number; orders: number; perDayKwd: number }>
+  /** Read-permission audit of the 7 journey stages for the BI service user. */
+  access?: { readable: string[]; restricted: string[] }
+  /** Odoo 17 Analytic Cost-Center access & unallocated expense pulse. */
+  analyticCostCenters?: {
+    plansReadable: boolean
+    accountsReadable: boolean
+    linesReadable: boolean
+    whitelistedCenters: number
+    unallocatedExpenseDebit30Kwd?: number
+    unallocatedLines30?: number
+  }
   note?: string
+}
+
+/** Models probed by the live access audit (one per journey stage concern + Odoo 17 Analytic Cost Centers). */
+export const JOURNEY_AUDIT_MODELS = [
+  'pos.order',
+  'pos.order.line',
+  'pos.payment',
+  'pos.session',
+  'purchase.order.line',
+  'account.move',
+  'account.move.line',
+  'account.analytic.plan',
+  'account.analytic.account',
+  'account.analytic.line',
+  'stock.move',
+  'stock.scrap',
+  'mrp.bom',
+  'hr.attendance',
+] as const
+
+/** Rolling 30 complete days, the 30 before them, and month-to-date (Kuwait time, `to` exclusive). */
+export function journeyWindows(now = new Date()) {
+  const iso = (d: Date) => d.toISOString().slice(0, 10)
+  const today = new Date(now.getTime() + 3 * 3600 * 1000)
+  const t = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()))
+  const shift = (d: Date, days: number) => new Date(d.getTime() + days * 86400000)
+  return {
+    rolling30: { from: iso(shift(t, -30)), to: iso(t), days: 30 },
+    prior30: { from: iso(shift(t, -60)), to: iso(shift(t, -30)), days: 30 },
+    mtd: { from: iso(new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth(), 1))), to: iso(shift(t, 1)), days: t.getUTCDate() },
+  }
 }
 
 type Registry = {
   allowedPosConfigIds: number[]
   registers: Record<string, { location: string }>
-  locations: Record<string, { en: string; ar: string; code: string; unit: string }>
-  brands: { id: string; en: string; ar: string; posRoot: string | null }[]
+  locations: Record<string, { en: string; ar: string; code: string; unit: string; analyticId?: number; analyticIds?: number[] }>
+  sharedCostAnalyticIds?: Record<string, number>
+  brands: { id: string; en: string; ar: string; posRoot: string | null; analyticId?: number }[]
+  excludedBranchAnalyticIds?: number[]
 }
 const REG = registry as unknown as Registry
 export const ALLOWED_POS_CONFIG_IDS: readonly number[] = REG.allowedPosConfigIds
@@ -75,10 +121,21 @@ interface SnapshotShape {
   brands?: { id: string; en: string; netKwd: number; sharePct: number }[]
   locations?: { id: string; en: string; unit: string; netKwd: number; orders: number; sharePct: number }[]
   channels?: { name: string; amountKwd: number }[]
+  journey?: {
+    pulse?: Record<'rolling30' | 'prior30' | 'mtd', { from: string; to: string; days: number; netKwd: number; orders: number; perDayKwd: number }>
+    access?: { readable: { model: string }[]; restricted: { model: string }[] }
+    opex?: {
+      analyticArchitecture?: { plansReadable?: boolean; accountsReadable?: boolean; linesReadable?: boolean; whitelistedCenters?: unknown[] }
+      unallocated?: { rolling30?: { grossDebitKwd?: number; lines?: number } }
+    }
+  }
 }
 
 export function summaryFromSnapshot(raw: unknown, note?: string): OdooLiveSummary {
   const s = (raw ?? {}) as SnapshotShape
+  const jp = s.journey?.pulse
+  const aa = s.journey?.opex?.analyticArchitecture
+  const un = s.journey?.opex?.unallocated?.rolling30
   return {
     source: 'snapshot',
     syncedAt: s.syncedAt ?? new Date(0).toISOString(),
@@ -88,6 +145,22 @@ export function summaryFromSnapshot(raw: unknown, note?: string): OdooLiveSummar
     brands: (s.brands ?? []).filter((b) => b.netKwd > 0).map((b) => ({ id: b.id, brand: b.en, netKwd: b.netKwd, sharePct: b.sharePct })),
     branches: (s.locations ?? []).map((l) => ({ id: l.id, name: l.en, unit: l.unit, netSalesKwd: l.netKwd, orders: l.orders, sharePct: l.sharePct })),
     channels: (s.channels ?? []).map((c) => ({ name: c.name, amountKwd: c.amountKwd })),
+    ...(jp
+      ? { journeyPulse: Object.fromEntries((['rolling30', 'prior30', 'mtd'] as const).map((k) => [k, { from: jp[k].from, to: jp[k].to, days: jp[k].days, netKwd: jp[k].netKwd, orders: jp[k].orders, perDayKwd: jp[k].perDayKwd }])) as OdooLiveSummary['journeyPulse'] }
+      : {}),
+    ...(s.journey?.access ? { access: { readable: s.journey.access.readable.map((a) => a.model), restricted: s.journey.access.restricted.map((a) => a.model) } } : {}),
+    ...(aa
+      ? {
+          analyticCostCenters: {
+            plansReadable: Boolean(aa.plansReadable),
+            accountsReadable: Boolean(aa.accountsReadable),
+            linesReadable: Boolean(aa.linesReadable),
+            whitelistedCenters: aa.whitelistedCenters?.length ?? 0,
+            unallocatedExpenseDebit30Kwd: un?.grossDebitKwd,
+            unallocatedLines30: un?.lines,
+          },
+        }
+      : {}),
     ...(note ? { note } : {}),
   }
 }
@@ -184,6 +257,51 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
   }
   const brandTotal = [...brandAgg.values()].reduce((s, v) => s + v, 0)
 
+  // Journey pulse (3 grouped totals) and the access audit run in parallel; neither may fail the summary.
+  const windows = journeyWindows()
+  const pulseOf = async (w: { from: string; to: string; days: number }) => {
+    const rows = (await ek('pos.order', 'read_group', [[['date_order', '>=', `${w.from} 00:00:00`], ['date_order', '<', `${w.to} 00:00:00`], ['state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', allowed]], ['amount_total:sum', 'amount_tax:sum'], []], { lazy: false })) as { amount_total: number; amount_tax: number; __count: number }[]
+    const net = (rows[0]?.amount_total || 0) - (rows[0]?.amount_tax || 0)
+    return { ...w, netKwd: r3(net), orders: rows[0]?.__count ?? 0, perDayKwd: r3(net / Math.max(1, w.days)) }
+  }
+  const [pulse, audit, unalloc] = await Promise.all([
+    Promise.all([pulseOf(windows.rolling30), pulseOf(windows.prior30), pulseOf(windows.mtd)]).then(([rolling30, prior30, mtd]) => ({ rolling30, prior30, mtd })).catch(() => undefined),
+    Promise.all(
+      JOURNEY_AUDIT_MODELS.map((m) =>
+        ek(m, 'check_access_rights', ['read', false])
+          .then((ok) => [m, ok === true] as const)
+          .catch(() => [m, false] as const),
+      ),
+    ).catch(() => [] as (readonly [string, boolean])[]),
+    (
+      ek(
+        'account.move.line',
+        'read_group',
+        [[['date', '>=', windows.rolling30.from], ['date', '<', windows.rolling30.to], ['parent_state', '=', 'posted'], ['account_id.account_type', 'in', ['expense', 'expense_direct_cost', 'expense_depreciation']], ['analytic_distribution', '=', false]], ['debit:sum'], []],
+        { lazy: false },
+      ) as Promise<{ debit?: number; __count?: number }[]>
+    )
+      .then((rows) => ({ debitKwd: r3(rows[0]?.debit ?? 0), lines: rows[0]?.__count ?? 0 }))
+      .catch(() => undefined),
+  ])
+  const access = audit.length ? { readable: audit.filter(([, ok]) => ok).map(([m]) => m), restricted: audit.filter(([, ok]) => !ok).map(([m]) => m) } : undefined
+  const readableSet = new Set(access?.readable ?? [])
+  const exclSet = new Set(REG.excludedBranchAnalyticIds ?? [])
+  const wlCount = new Set([
+    ...Object.values(REG.locations).flatMap((l) => l.analyticIds ?? (l.analyticId ? [l.analyticId] : [])),
+    ...Object.values(REG.sharedCostAnalyticIds ?? {}),
+    ...REG.brands.map((b) => b.analyticId).filter((x): x is number => typeof x === 'number'),
+  ].filter((id) => !exclSet.has(id))).size
+  const analyticCostCenters = access
+    ? {
+        plansReadable: readableSet.has('account.analytic.plan'),
+        accountsReadable: readableSet.has('account.analytic.account'),
+        linesReadable: readableSet.has('account.analytic.line'),
+        whitelistedCenters: wlCount,
+        ...(unalloc ? { unallocatedExpenseDebit30Kwd: unalloc.debitKwd, unallocatedLines30: unalloc.lines } : {}),
+      }
+    : undefined
+
   return {
     source: 'live',
     syncedAt: new Date().toISOString(),
@@ -193,6 +311,9 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
     brands: [...brandAgg.entries()].filter(([, v]) => v > 0).map(([bid, v]) => ({ id: bid, brand: REG.brands.find((b) => b.id === bid)?.en ?? bid, netKwd: r3(v), sharePct: pct(v, brandTotal) })).sort((a, b) => b.netKwd - a.netKwd),
     branches: [...locAgg.entries()].map(([lid, b]) => ({ id: lid, name: REG.locations[lid]?.en ?? lid, unit: REG.locations[lid]?.unit ?? 'restaurant', netSalesKwd: r3(b.net), orders: b.orders, sharePct: pct(b.net, totalNet) })).sort((a, b) => b.netSalesKwd - a.netSalesKwd),
     channels: [...channelAgg.entries()].map(([name, v]) => ({ name, amountKwd: r3(v) })).sort((a, b) => b.amountKwd - a.amountKwd),
+    ...(pulse ? { journeyPulse: pulse } : {}),
+    ...(access ? { access } : {}),
+    ...(analyticCostCenters ? { analyticCostCenters } : {}),
   }
 }
 

@@ -52,8 +52,8 @@ const SIDEBAR_SECTIONS: NavSection[] = [
     titleAr: 'المحاور التنفيذية',
     titleEn: 'Executive pillars',
     items: [
-      { key: 'playbook', href: '/erp', labelAr: 'المختصرات والحلول الذكية', labelEn: 'Smart Shortcuts & Solutions', icon: LayoutDashboard, alwaysVisible: true },
-      { key: 'feryal-ai', href: '/erp/feryal-ai', labelAr: 'محادثة المستشارة فريال', labelEn: 'Feryal — Solutions Advisor', icon: Sparkles, alwaysVisible: true },
+      { key: 'playbook', href: '/erp', labelAr: 'المختصرات وقرارات الرحلة الكاملة', labelEn: '360° Shortcuts & Journey Playbook', icon: LayoutDashboard, alwaysVisible: true },
+      { key: 'feryal-ai', href: '/erp/feryal-ai', labelAr: 'المستشارة التنفيذية الشاملة فريال', labelEn: 'Feryal — 360° COO, CFO & Growth', icon: Sparkles, alwaysVisible: true },
       { key: 'aggregator-radar', href: '/erp/aggregator-radar', labelAr: 'رادار منصات التوصيل', labelEn: 'Delivery Radar', icon: Radar, alwaysVisible: true },
       { key: 'events-intelligence', href: '/erp/events-intelligence', labelAr: 'جدوى المعارض والبوثات الموسمية', labelEn: 'Seasonal Booths Study', icon: Calendar, alwaysVisible: true },
     ],

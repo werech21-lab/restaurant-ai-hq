@@ -7,7 +7,8 @@
 import { getGeminiApiKey, getOpenAIApiKey } from './ai-keys';
 import { BRANCHES, BRANDS, CHANNELS, EXB_REGISTERS, EXB_UNIT, INACTIVE_APPROVED_BRANDS, LEDGER, OPERATING_UNITS, SHARED_COSTS } from './aether/ledger';
 import { ODOO } from './odoo/odoo-dataset';
-import { AETHER_FINDINGS, AETHER_TOP_PROPOSALS, type AetherFinding } from './aether-proprietary-brain';
+import { AETHER_FINDINGS, type AetherFinding } from './aether-proprietary-brain';
+import { JOURNEY_FERYAL_CONTEXT, JOURNEY_PLAYS, JOURNEY_STAGES, JOURNEY_TOP_BY_STAGE, JOURNEY_TOTAL_MONTHLY, type JourneyPlay, type JourneyStage } from './full-journey-enterprise-brain';
 
 // ---------------------------------------------------------------------------
 // Verified Odoo facts (whitelisted POS registers + posted accounting, generated at build time)
@@ -103,22 +104,22 @@ export interface FeryalProposal {
   promptEn: string;
 }
 
-/** Executive proposals = the background brain's best finding per domain (verified Odoo data only). */
-export const FERYAL_PROPOSALS: FeryalProposal[] = AETHER_TOP_PROPOSALS.map((f) => ({
-  id: f.id,
-  titleAr: f.titleAr,
-  titleEn: f.titleEn,
-  solutionAr: `${f.faultAr} ${f.fixAr}`,
-  solutionEn: `${f.faultEn} ${f.fixEn}`,
-  outcomeAr: f.resultAr,
-  outcomeEn: f.resultEn,
-  monthlyKwd: f.monthlyKwd,
-  promptAr: `ناقشي معي بالتفصيل مقترح "${f.titleAr}": ما الخلل بالضبط، وما خطوات الحل، وما المقترح الأفضل للنمو، وما النتيجة المتوقعة؟`,
-  promptEn: `Let's go deeper on "${f.titleEn}": what exactly is the fault, what are the fix steps, what is the best growth move, and what result should we expect?`,
+/** Executive proposals = the full-journey brain's best decision per stage (verified Odoo data only). */
+export const FERYAL_PROPOSALS: FeryalProposal[] = JOURNEY_TOP_BY_STAGE.map((p) => ({
+  id: p.id,
+  titleAr: p.titleAr,
+  titleEn: p.titleEn,
+  solutionAr: `${p.subjectAr} — ${p.actionAr}`,
+  solutionEn: `${p.subjectEn} — ${p.actionEn}`,
+  outcomeAr: p.impactAr,
+  outcomeEn: p.impactEn,
+  monthlyKwd: p.monthlyKwd,
+  promptAr: `ناقشي معي بالتفصيل قرار "${p.titleAr}" (${p.subjectAr}): ما الخلل الخفي بالضبط، وما القرار التنفيذي خطوة بخطوة، وأثره على الجودة، والعائد المتوقع؟`,
+  promptEn: `Let's go deeper on "${p.titleEn}" (${p.subjectEn}): what exactly is the hidden leak, what is the executive action step by step, how does it lift quality, and what return should we expect?`,
 }));
 
 export const FERYAL_VENTURE_FOODS_KNOWLEDGE = `
-You are "Feryal" (فريال), the Executive Solutions & Proposals Advisor for Venture Foods Restaurants Management Co. W.L.L. (شركة فنتشر فودز لإدارة المطاعم ذ.م.م — Licence ${LEDGER.licence}), connected to the company's Odoo ERP.
+You are "Feryal" (فريال), the 360° Executive COO, CFO & Growth Strategist for Venture Foods Restaurants Management Co. W.L.L. (شركة فنتشر فودز لإدارة المطاعم ذ.م.م — Licence ${LEDGER.licence}), connected to the company's Odoo ERP across the full restaurant journey: procurement & vendors, Ardiya central kitchen & yield, menu & pricing, branch operations, hidden expenses & rents, delivery-platform economics, and food quality & customer retention.
 Speak with a warm, authoritative Gulf executive tone in Arabic, or a sharp C-level tone in English.
 
 ANTI-HALLUCINATION LOCK (mandatory):
@@ -137,9 +138,9 @@ ${RANKED_BY_PROFIT.map((b, i) => `   ${i + 1}. ${b.en} (${b.ar}): POS net ${n3(b
 4. Other Odoo units (not branches): Exhibitions & Booths (EXB, registers ${EXB_REGISTERS.map((r) => r.posConfigId).join(', ')}) ${n3(EXB_UNIT?.sales ?? 0)} KWD · ${n0(EXB_UNIT?.orders ?? 0)} orders · basket ${n3(EXB_AOV)} KWD · food cost ${n1(EXB_COGS_PCT)}% · operating profit ${n3(EXB_PNL?.operatingProfit ?? 0)} KWD (${n1(EXB_MARGIN_PCT)}%).
    School canteens (Fresh Daily Canteen): ${CANTEENS.map((u) => `${u.en} ${n3(u.sales)} KWD`).join('; ')} — ${n3(CANTEEN_SALES)} KWD across ${n0(CANTEEN_ORDERS)} orders.
    Shared cost centres: head office ${n3(SHARED_COSTS.headOffice.operatingProfit)} KWD, central kitchen ${n3(SHARED_COSTS.centralKitchen.operatingProfit)} KWD.
-5. Brands with October sales (item basis):
+5. Brands with sales in the synced period (item basis):
 ${BRANDS.map((b) => `   - ${b.en} (${b.ar}): ${n3(b.sales)} KWD · ${n0(b.orders)} orders · basket ${n3(b.aov)} KWD · ${n1(shareOf(b.sales, BRAND_ITEM_SUM))}% of item sales.`).join('\n')}
-   Approved brands without October sales: ${INACTIVE_APPROVED_BRANDS.map((b) => `${b.en} (${b.ar})`).join(', ') || 'none'}. ${LEAD_BRAND?.en} leads the mix; ${TOP_AOV_BRAND?.en} has the highest basket.
+   Approved brands without sales in the period: ${INACTIVE_APPROVED_BRANDS.map((b) => `${b.en} (${b.ar})`).join(', ') || 'none'}. ${LEAD_BRAND?.en} leads the mix; ${TOP_AOV_BRAND?.en} has the highest basket.
 6. Sales channels (${CHANNELS.length} Odoo payment channels):
 ${CHANNELS.map((c) => `   - ${c.en} (${c.ar}): ${n3(c.sales)} KWD · ${n0(c.orders)} payments${c.promo > 0 ? ` · promotions ${n3(c.promo)} KWD` : ''}.`).join('\n')}
    Delivery platforms ${n3(AGG_SALES)} KWD (${n1(shareOf(AGG_SALES, LEDGER.netSales))}% of net sales, ${n0(AGG_ORDERS)} payments); shop sales ${n3(SHOP_CH?.sales ?? 0)} KWD. Keeta promotions ${n3(LEDGER.keetaDiscounts)} KWD = ${n1(KEETA_PROMO_PCT)}% of Keeta item sales.
@@ -147,6 +148,8 @@ ${CHANNELS.map((c) => `   - ${c.en} (${c.ar}): ${n3(c.sales)} KWD · ${n0(c.orde
    Per-item recipe cost is not readable by the BI service user, so item margins use the group food-cost percentage.
 8. Background Aether brain findings (verified Odoo POS, accounting, purchasing and POS-session data; ordered by priority):
 ${AETHER_FINDINGS.map((f, i) => `   ${i + 1}. [${f.domain}] ${f.titleEn} — Fault: ${f.faultEn} Fix: ${f.fixEn} Growth: ${f.growthEn} Expected: ${f.resultEn}`).join('\n')}
+9. ${JOURNEY_FERYAL_CONTEXT}
+   Always name the exact brand, restaurant location, Odoo dish, expense category or POS register; never refer to a branch generically.
 
 ANSWER FORMAT (always, unless the user only greets you):
 - Arabic answers use exactly these three headings, each on its own line starting with "### ":
@@ -358,6 +361,19 @@ function findingReply(f: AetherFinding, lang: 'ar' | 'en') {
   );
 }
 
+function journeyReply(p: JourneyPlay, lang: 'ar' | 'en') {
+  const isAr = lang === 'ar';
+  const stage = JOURNEY_STAGES.find((s) => s.id === p.stage);
+  return threeSections(
+    lang,
+    isAr ? `${stage?.ar ?? ''} — ${p.subjectAr}: ${p.leakAr}` : `${stage?.en ?? ''} — ${p.subjectEn}: ${p.leakEn}`,
+    isAr
+      ? [p.actionAr, p.qualityAr, 'اعتماد القرار في المركز الشامل وقياس الأثر قبل وبعد عبر دورات 14 يوماً من بيانات أودو.']
+      : [p.actionEn, p.qualityEn, 'Approve the decision in the 360° center and measure before vs after over 14-day Odoo cycles.'],
+    [isAr ? p.impactAr : p.impactEn, isAr ? `إجمالي القفزة المتاحة عبر الرحلة الكاملة نحو ${n0(JOURNEY_TOTAL_MONTHLY)} د.ك شهرياً.` : `Total unlockable across the full journey: about ${n0(JOURNEY_TOTAL_MONTHLY)} KWD per month.`],
+  );
+}
+
 /**
  * Deterministic fallback built on the background brain's verified findings,
  * always answering in the three-section executive format.
@@ -368,6 +384,20 @@ export function getDeterministicFeryalReply(query: string, lang: 'ar' | 'en'): s
   const has = (...keys: string[]) => keys.some((k) => q.includes(k));
   const best = (domain: AetherFinding['domain'], id?: string) =>
     (id ? AETHER_FINDINGS.find((f) => f.id === id) : undefined) ?? AETHER_FINDINGS.filter((f) => f.domain === domain).sort((a, b) => b.monthlyKwd - a.monthlyKwd)[0];
+
+  // Full-journey routing first: procurement, central kitchen, hidden opex, quality and shift questions.
+  const STAGE_KEYS: [JourneyStage, string[]][] = [
+    ['procurement', ['مورد', 'مشتريات', 'تغليف', 'supplier', 'vendor', 'purchas', 'procure', 'packaging']],
+    ['kitchen', ['مطبخ مركزي', 'المطبخ المركزي', 'هدر', 'جرد', 'هالك', 'حصص', 'yield', 'waste', 'shrink', 'variance', 'scrap', 'central kitchen', 'portion']],
+    ['opex', ['عهد', 'صيانة', 'إيجار', 'ايجار', 'مصاريف', 'مضيف', 'رديف', 'custody', 'petty', 'maintenance', 'rent', 'host', 'overhead']],
+    ['quality', ['جودة', 'إلغاء', 'الغاء', 'ولاء', 'ضيافة', 'quality', 'cancel', 'retention', 'loyalty', 'complimentary']],
+    ['operations', ['شفت', 'كاشير', 'جلسات', 'انضباط', 'shift', 'cashier', 'session', 'discipline', 'roster']],
+  ];
+  for (const [stage, keys] of STAGE_KEYS) {
+    if (!has(...keys)) continue;
+    const p = JOURNEY_PLAYS.filter((x) => x.stage === stage).sort((a, b) => b.monthlyKwd - a.monthlyKwd)[0];
+    if (p) return journeyReply(p, lang);
+  }
 
   const pick =
     has('كيتا', 'keeta', 'tgo', 'tmp', 'طلبات', 'talabat', 'خصم', 'عروض', 'discount', 'promo', 'توصيل', 'delivery', 'قناة', 'قنوات', 'channel', 'تسوي', 'settlement')

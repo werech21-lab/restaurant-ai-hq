@@ -28,37 +28,37 @@ import { FeryalStudioMessage, feryalPlainText } from '@/components/aether/Feryal
 // ==============================================================================
 const welcomeText = (lang: 'ar' | 'en') =>
   lang === 'ar'
-    ? `أهلاً بك، أنا فريال مستشارتك للحلول والمقترحات التنفيذية في فنتشر فودز. لنناقش معاً حلولاً عملية لنمو المبيعات وتحسين ربحية قنوات التوصيل وخفض التكاليف عبر مواقعنا الـ ${LEDGER.branches} وعلاماتنا المسجلة في أودو.`
-    : `Welcome, I'm Feryal, your executive solutions and proposals advisor at Venture Foods. Let's discuss practical ways to grow sales, improve delivery channel profitability and reduce costs across our ${LEDGER.branches} restaurant locations and brands registered in Odoo.`
+    ? `أهلاً بك، أنا فريال، مستشارتك التنفيذية الشاملة للعمليات والمالية والنمو في فنتشر فودز. أراجع الرحلة الكاملة في أودو — من موردي المطبخ المركزي بالعارضية إلى مطابخ فروعنا الـ ${LEDGER.branches} ومنصات التوصيل وحتى التسويات البنكية وولاء العملاء — لنتخذ معاً قرارات جراحية ترفع الجودة وصافي الربح.`
+    : `Welcome, I'm Feryal, your 360° COO, CFO and growth strategist at Venture Foods. I review the full journey in Odoo — from Ardiya Central Kitchen suppliers to our ${LEDGER.branches} restaurant kitchens, delivery platforms, bank settlements and customer loyalty — so we can take surgical decisions that lift quality and net profit.`
 
 const TOPICS: { id: string; labelAr: string; labelEn: string; promptAr: string; promptEn: string }[] = [
   {
-    id: 'channels',
-    labelAr: 'ربحية قنوات التوصيل',
-    labelEn: 'Channel profitability',
-    promptAr: 'كيف نحسن ربحية قنوات التوصيل لدينا بناءً على بيانات أودو الفعلية؟',
-    promptEn: 'How do we improve the profitability of our delivery channels based on actual Odoo data?',
+    id: 'yield',
+    labelAr: 'الهدر الخفي والمطبخ المركزي',
+    labelEn: 'Hidden waste & central kitchen',
+    promptAr: 'أين يتسرب الربح بين المطبخ المركزي بالعارضية وفروعنا؟ حللي فروقات الجرد والهالك وانحراف الحصص وأعطني القرار الجراحي والعائد المتوقع.',
+    promptEn: 'Where is profit leaking between Ardiya Central Kitchen and our branches? Analyse count variance, scrap and portion drift and give me the surgical decision and expected return.',
   },
   {
-    id: 'menu',
-    labelAr: 'تحسين المنيو',
-    labelEn: 'Menu optimization',
-    promptAr: 'ما أفضل خطة لتركيز المنيو على الأصناف الأعلى مبيعاً ومراجعة الأصناف بطيئة الحركة؟',
-    promptEn: 'What is the best plan to focus the menu on top sellers and review slow-moving items?',
+    id: 'procurement',
+    labelAr: 'الموردون وأسعار الشراء',
+    labelEn: 'Suppliers & purchase prices',
+    promptAr: 'ما المكونات التي ارتفعت أسعارها من الموردين، وأين ندفع أسعاراً مختلفة لنفس الصنف؟ وما خطة التفاوض والتوحيد والعائد الشهري؟',
+    promptEn: 'Which ingredients rose in supplier price, and where do we pay different prices for the same item? What is the negotiation and consolidation plan and the monthly return?',
   },
   {
-    id: 'growth',
-    labelAr: 'نمو المواقع',
-    labelEn: 'Location growth',
-    promptAr: 'أي موقع من مواقعنا يحتاج خطة نمو أولاً، وكيف نرفع هامشه التشغيلي؟',
-    promptEn: 'Which of our locations needs a growth plan first, and how do we lift its operating margin?',
+    id: 'opex',
+    labelAr: 'المصاريف الخفية والإيجارات',
+    labelEn: 'Hidden expenses & rents',
+    promptAr: 'أي فرع يعاني من ضغط الإيجار أو حلقات الصيانة المتكررة أو العُهد المفتوحة؟ وهل نزرع علامة رديفة داخل مطبخه؟',
+    promptEn: 'Which branch suffers from rent stress, repeated maintenance loops or open custodies — and should we plant a sister brand inside its kitchen?',
   },
   {
-    id: 'cost',
-    labelAr: 'ضبط التكاليف',
-    labelEn: 'Cost control',
-    promptAr: 'كيف نخفض تكلفة الأغذية في المواقع التي تتجاوز متوسط المجموعة؟',
-    promptEn: 'How do we reduce food cost at the locations running above the group average?',
+    id: 'delivery',
+    labelAr: 'صافي التوصيل والتسويات',
+    labelEn: 'Delivery net & settlements',
+    promptAr: 'كم يصلنا فعلياً من منصات التوصيل بعد العمولات والعروض، وما الأرصدة غير المسوّاة؟ أعطني خطة الاسترداد.',
+    promptEn: 'How much really reaches us from delivery platforms after commissions and promotions, and what balances are unsettled? Give me the recovery plan.',
   },
 ]
 
@@ -707,10 +707,11 @@ export default function FeryalAiCommandPage() {
     'inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-2 text-[13px] font-semibold ring-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500'
   const pillIdle = 'bg-white text-slate-700 ring-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-slate-800'
   const pillOn = 'bg-emerald-50 text-emerald-800 ring-emerald-500/30 dark:bg-emerald-950/40 dark:text-emerald-200'
-  const panelShell = 'h-[calc(100vh-165px)] min-h-[660px] rounded-[26px] bg-white shadow-[0_8px_32px_rgba(10,30,50,0.05)] ring-1 ring-slate-200/80 dark:bg-slate-900 dark:ring-slate-800'
+  const panelShell = 'h-[75vh] min-h-[580px] max-h-[800px] rounded-[24px] bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_rgba(15,23,42,0.04)] dark:bg-neutral-900'
 
   return (
-    <div dir={isAr ? 'rtl' : 'ltr'} className="mx-auto w-full max-w-[1440px] space-y-5 px-5 py-5 font-sans text-slate-900 antialiased sm:px-8 dark:text-slate-100">
+    <div dir={isAr ? 'rtl' : 'ltr'} className="rounded-[28px] bg-[#F7F7F8] dark:bg-[#0A0A0A]">
+    <div className="mx-auto w-full max-w-[1520px] space-y-5 px-6 py-6 font-sans text-slate-900 antialiased lg:px-10 dark:text-slate-100">
       {/* ───────────── Studio bar ───────────── */}
       <header className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex min-w-0 items-center gap-3.5">
@@ -719,10 +720,10 @@ export default function FeryalAiCommandPage() {
           </div>
           <div className="min-w-0">
             <h1 className="truncate text-lg font-extrabold tracking-tight text-slate-950 sm:text-xl dark:text-white">
-              {T('Feryal — Executive Growth Advisor', 'محادثة المستشارة فريال')}
+              {T('Feryal — 360° COO, CFO & Growth Strategist', 'المستشارة التنفيذية الشاملة فريال')}
             </h1>
             <p className="truncate text-[13px] font-medium text-slate-500 sm:text-sm dark:text-slate-400">
-              {T('Dedicated executive dialogue for real operational solutions and projected outcomes', 'مساحة حوار مخصصة لمناقشة المقترحات العملية والحلول الواقعية لتطوير الأداء')}
+              {T('Full-journey decisions from procurement to customer loyalty, grounded in live Odoo data', 'قرارات الرحلة الكاملة من المشتريات حتى ولاء العملاء، مبنية على بيانات أودو الحية')}
             </p>
           </div>
         </div>
@@ -806,6 +807,21 @@ export default function FeryalAiCommandPage() {
                 </div>
               )
             })}
+            {messages.length <= 1 && !isCopilotThinking && (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {TOPICS.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => handleSendQuery(isAr ? t.promptAr : t.promptEn)}
+                    className="group rounded-2xl bg-neutral-50 p-4 text-start transition-all hover:-translate-y-0.5 hover:bg-neutral-100 active:scale-[0.99] dark:bg-neutral-800/60 dark:hover:bg-neutral-800"
+                  >
+                    <div className="text-[14px] font-semibold text-neutral-900 dark:text-white">{isAr ? t.labelAr : t.labelEn}</div>
+                    <p className="mt-1 text-[13px] leading-relaxed text-neutral-500 dark:text-neutral-400">{isAr ? t.promptAr : t.promptEn}</p>
+                  </button>
+                ))}
+              </div>
+            )}
             {isCopilotThinking && (
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#0F172A] text-white">
@@ -820,7 +836,7 @@ export default function FeryalAiCommandPage() {
 
           {/* Input dock */}
           <div className="border-t border-slate-100 bg-white/90 px-4 pb-4 pt-3 sm:px-6 dark:border-slate-800 dark:bg-slate-900/90">
-            <div className="mb-3 flex flex-wrap gap-2">
+            <div className={`mb-3 flex-wrap gap-2 ${messages.length <= 1 ? 'hidden' : 'flex'}`}>
               {TOPICS.map((t) => (
                 <button
                   key={t.id}
@@ -881,9 +897,9 @@ export default function FeryalAiCommandPage() {
         {!isExpanded && (
           <aside className={`lg:col-span-4 ${panelShell} space-y-4 overflow-y-auto p-6`}>
             <div>
-              <h2 className="text-[15px] font-bold text-slate-900 dark:text-white">{T('Verified Proposals & Expected Outcomes', 'المقترحات الحقيقية والنتائج المتوقعة')}</h2>
+              <h2 className="text-[15px] font-bold text-slate-900 dark:text-white">{T('Best Decision per Journey Stage', 'أفضل قرار في كل مرحلة من الرحلة')}</h2>
               <p className="mt-1 text-[13px] text-slate-500 dark:text-slate-400">
-                {T(`Best finding per domain from Odoo sales, accounting, purchasing and POS sessions · ${LEDGER.periodLabelEn}`, `أفضل نتيجة لكل محور من مبيعات أودو ومحاسبته ومشترياته وجلسات نقاط البيع · ${LEDGER.periodLabelAr}`)}
+                {T(`From procurement and central kitchen to delivery settlements and customer retention · ${LEDGER.periodLabelEn}`, `من المشتريات والمطبخ المركزي حتى تسويات التوصيل وولاء العملاء · ${LEDGER.periodLabelAr}`)}
               </p>
             </div>
             {FERYAL_PROPOSALS.map((p) => (
@@ -915,6 +931,7 @@ export default function FeryalAiCommandPage() {
           </aside>
         )}
       </div>
+    </div>
     </div>
   )
 }

@@ -1085,7 +1085,7 @@ export const COMPREHENSIVE_AR_EN: Record<string, string> = {
   'تم اعتماد القرار وتنفيذه.': 'The decision was approved and carried out.',
   'تم تأكيد هذا الدفع سابقاً': 'Confirm',
   'تم تحويل هذا العرض مسبقاً': 'Transfer',
-  'تم مسح السجلات التجريبية.': 'Demo rows were cleared.',
+  'تم مسح السجلات التجريبية.': 'Sample rows were cleared.',
   'تنبيه: هامش الشويخ نزل من': ': Shuwaikh From',
   'تنبيه: هدر المطبخ المركزي': ': Central Kitchen (CK)',
   'توقيع الويب هوك غير مطابق': 'Matched',

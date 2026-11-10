@@ -1,9 +1,9 @@
 {
   "source": "https://venturefoods.walnutss.com",
-  "syncedAt": "2026-11-10T12:41:19.864Z",
+  "syncedAt": "2026-11-10T15:27:28.700Z",
   "period": {
-    "from": "2026-10-01",
-    "to": "2026-11-01"
+    "from": "2026-10-11",
+    "to": "2026-11-10"
   },
   "recipes": [
     {
@@ -47,20 +47,20 @@
       "lines": 10
     },
     {
-      "productId": 16485,
-      "name": "[RICG0044] Chicken Fried Rice",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.26,
-      "coverage": 84.6,
-      "lines": 13
-    },
-    {
       "productId": 16442,
       "name": "[RICG0001] Sweet Corn Chicken Soup",
       "brand": "china-garden",
       "recipeCostKwd": 0.165,
       "coverage": 72.7,
       "lines": 11
+    },
+    {
+      "productId": 16485,
+      "name": "[RICG0044] Chicken Fried Rice",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.262,
+      "coverage": 84.6,
+      "lines": 13
     },
     {
       "productId": 16489,
@@ -71,28 +71,12 @@
       "lines": 7
     },
     {
-      "productId": 16497,
-      "name": "[RICG0056] Chicken Pansit Noodles",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.269,
-      "coverage": 80,
-      "lines": 15
-    },
-    {
       "productId": 16493,
       "name": "[RICG0052] Beef Noodles",
       "brand": "china-garden",
       "recipeCostKwd": 0.41,
       "coverage": 83.3,
       "lines": 12
-    },
-    {
-      "productId": 16457,
-      "name": "[RICG0016] Dynamite Shrimp",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.474,
-      "coverage": 83.3,
-      "lines": 6
     },
     {
       "productId": 16863,
@@ -103,12 +87,28 @@
       "lines": 15
     },
     {
+      "productId": 16457,
+      "name": "[RICG0016] Dynamite Shrimp",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.476,
+      "coverage": 83.3,
+      "lines": 6
+    },
+    {
       "productId": 17136,
       "name": "[RICG0124] Spicy Chicken Noodles",
       "brand": "china-garden",
       "recipeCostKwd": 0.324,
       "coverage": 84.6,
       "lines": 13
+    },
+    {
+      "productId": 16497,
+      "name": "[RICG0056] Chicken Pansit Noodles",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.269,
+      "coverage": 80,
+      "lines": 15
     },
     {
       "productId": 16495,
@@ -127,14 +127,6 @@
       "lines": 5
     },
     {
-      "productId": 16475,
-      "name": "[RICG0034] Chicken Kindo",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.242,
-      "coverage": 80,
-      "lines": 5
-    },
-    {
       "productId": 16450,
       "name": "[RICG0009] Chicken Dumplings Steamed",
       "brand": "china-garden",
@@ -143,10 +135,18 @@
       "lines": 3
     },
     {
+      "productId": 16475,
+      "name": "[RICG0034] Chicken Kindo",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.242,
+      "coverage": 80,
+      "lines": 5
+    },
+    {
       "productId": 16483,
       "name": "[RICG0042] Vegetable Fried Rice",
       "brand": "china-garden",
-      "recipeCostKwd": 0.127,
+      "recipeCostKwd": 0.128,
       "coverage": 81.8,
       "lines": 11
     },
@@ -157,6 +157,14 @@
       "recipeCostKwd": 0.339,
       "coverage": 84.6,
       "lines": 13
+    },
+    {
+      "productId": 16449,
+      "name": "[RICG0008] Chicken Dumplings Pan Fried",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.014,
+      "coverage": 42.9,
+      "lines": 7
     },
     {
       "productId": 16480,
@@ -175,28 +183,12 @@
       "lines": 17
     },
     {
-      "productId": 16449,
-      "name": "[RICG0008] Chicken Dumplings Pan Fried",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.014,
-      "coverage": 42.9,
-      "lines": 7
-    },
-    {
       "productId": 16487,
       "name": "[RICG0046] Mixed Fried Rice",
       "brand": "china-garden",
-      "recipeCostKwd": 0.355,
+      "recipeCostKwd": 0.357,
       "coverage": 85.7,
       "lines": 14
-    },
-    {
-      "productId": 16478,
-      "name": "[RICG0037] Beef Broccoli",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.517,
-      "coverage": 80,
-      "lines": 10
     },
     {
       "productId": 18366,
@@ -207,12 +199,12 @@
       "lines": 6
     },
     {
-      "productId": 17404,
-      "name": "[RICG0146] Staff Meal Deal",
+      "productId": 16478,
+      "name": "[RICG0037] Beef Broccoli",
       "brand": "china-garden",
-      "recipeCostKwd": 0.057,
-      "coverage": 85.7,
-      "lines": 7
+      "recipeCostKwd": 0.517,
+      "coverage": 80,
+      "lines": 10
     },
     {
       "productId": 16864,
@@ -223,12 +215,12 @@
       "lines": 17
     },
     {
-      "productId": 16482,
-      "name": "[RICG0041] Garlic Fried Rice",
+      "productId": 17404,
+      "name": "[RICG0146] Staff Meal Deal",
       "brand": "china-garden",
-      "recipeCostKwd": 0.114,
-      "coverage": 87.5,
-      "lines": 8
+      "recipeCostKwd": 0.054,
+      "coverage": 85.7,
+      "lines": 7
     },
     {
       "productId": 16465,
@@ -242,7 +234,23 @@
       "productId": 16463,
       "name": "[RICG0022] General Tso Chicken",
       "brand": "china-garden",
-      "recipeCostKwd": 0.301,
+      "recipeCostKwd": 0.302,
+      "coverage": 81.8,
+      "lines": 11
+    },
+    {
+      "productId": 16482,
+      "name": "[RICG0041] Garlic Fried Rice",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.114,
+      "coverage": 87.5,
+      "lines": 8
+    },
+    {
+      "productId": 16473,
+      "name": "[RICG0032] Chicken Mongolian",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.262,
       "coverage": 81.8,
       "lines": 11
     },
@@ -255,38 +263,6 @@
       "lines": 16
     },
     {
-      "productId": 16488,
-      "name": "[RICG0047] Shrimp Fried Rice",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.174,
-      "coverage": 76.9,
-      "lines": 13
-    },
-    {
-      "productId": 16473,
-      "name": "[RICG0032] Chicken Mongolian",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.262,
-      "coverage": 81.8,
-      "lines": 11
-    },
-    {
-      "productId": 16486,
-      "name": "[RICG0045] Beef Fried Rice",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.403,
-      "coverage": 84.6,
-      "lines": 13
-    },
-    {
-      "productId": 16471,
-      "name": "[RICG0030] Shrimp Sweet 'n' Sour",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.329,
-      "coverage": 83.3,
-      "lines": 12
-    },
-    {
       "productId": 16472,
       "name": "[RICG0031] Chicken Sichuan",
       "brand": "china-garden",
@@ -295,28 +271,28 @@
       "lines": 18
     },
     {
-      "productId": 16461,
-      "name": "[RICG0020] Korean Potatoes",
+      "productId": 16486,
+      "name": "[RICG0045] Beef Fried Rice",
       "brand": "china-garden",
-      "recipeCostKwd": 0.258,
-      "coverage": 91.7,
+      "recipeCostKwd": 0.405,
+      "coverage": 84.6,
+      "lines": 13
+    },
+    {
+      "productId": 16488,
+      "name": "[RICG0047] Shrimp Fried Rice",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.175,
+      "coverage": 76.9,
+      "lines": 13
+    },
+    {
+      "productId": 16471,
+      "name": "[RICG0030] Shrimp Sweet 'n' Sour",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.33,
+      "coverage": 83.3,
       "lines": 12
-    },
-    {
-      "productId": 16462,
-      "name": "[RICG0021] Orange Chicken",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.421,
-      "coverage": 81.8,
-      "lines": 11
-    },
-    {
-      "productId": 16452,
-      "name": "[RICG0011] Shrimp Dumplings Steamed",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.151,
-      "coverage": 33.3,
-      "lines": 3
     },
     {
       "productId": 18367,
@@ -327,10 +303,34 @@
       "lines": 6
     },
     {
+      "productId": 16461,
+      "name": "[RICG0020] Korean Potatoes",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.258,
+      "coverage": 91.7,
+      "lines": 12
+    },
+    {
+      "productId": 16452,
+      "name": "[RICG0011] Shrimp Dumplings Steamed",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.151,
+      "coverage": 33.3,
+      "lines": 3
+    },
+    {
+      "productId": 16462,
+      "name": "[RICG0021] Orange Chicken",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.421,
+      "coverage": 81.8,
+      "lines": 11
+    },
+    {
       "productId": 16459,
       "name": "[RICG0018] Spicy Edamame",
       "brand": "china-garden",
-      "recipeCostKwd": 0.563,
+      "recipeCostKwd": 0.565,
       "coverage": 60,
       "lines": 5
     },
@@ -343,19 +343,19 @@
       "lines": 16
     },
     {
+      "productId": 16451,
+      "name": "[RICG0010] Shrimp Dumplings Pan Fried",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.165,
+      "coverage": 57.1,
+      "lines": 7
+    },
+    {
       "productId": 16479,
       "name": "[RICG0038] Chicken Kindo II",
       "brand": "china-garden",
       "recipeCostKwd": 0.245,
       "coverage": 85.7,
-      "lines": 7
-    },
-    {
-      "productId": 16451,
-      "name": "[RICG0010] Shrimp Dumplings Pan Fried",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.164,
-      "coverage": 57.1,
       "lines": 7
     },
     {
@@ -367,6 +367,14 @@
       "lines": 15
     },
     {
+      "productId": 16866,
+      "name": "[RIFR0004] Truffle Steak ",
+      "brand": "franks",
+      "recipeCostKwd": 0.563,
+      "coverage": 81.3,
+      "lines": 16
+    },
+    {
       "productId": 16453,
       "name": "[RICG0012] Chicken Lollipop",
       "brand": "china-garden",
@@ -375,12 +383,12 @@
       "lines": 5
     },
     {
-      "productId": 16866,
-      "name": "[RIFR0004] Truffle Steak ",
-      "brand": "franks",
-      "recipeCostKwd": 0.562,
-      "coverage": 81.3,
-      "lines": 16
+      "productId": 16447,
+      "name": "[RICG0006] Crab Rangoon",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.454,
+      "coverage": 60,
+      "lines": 5
     },
     {
       "productId": 16498,
@@ -391,28 +399,12 @@
       "lines": 12
     },
     {
-      "productId": 16477,
-      "name": "[RICG0036] Beef Black Pepper",
+      "productId": 16496,
+      "name": "[RICG0055] Singapore Noodles",
       "brand": "china-garden",
-      "recipeCostKwd": 0.442,
-      "coverage": 75,
-      "lines": 8
-    },
-    {
-      "productId": 16447,
-      "name": "[RICG0006] Crab Rangoon",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.456,
-      "coverage": 60,
-      "lines": 5
-    },
-    {
-      "productId": 16903,
-      "name": "[RICG0112] Shrimp Sichuan ",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.349,
-      "coverage": 88.9,
-      "lines": 18
+      "recipeCostKwd": 0.294,
+      "coverage": 82.4,
+      "lines": 17
     },
     {
       "productId": 17135,
@@ -423,20 +415,20 @@
       "lines": 12
     },
     {
-      "productId": 16510,
-      "name": "[RICG0069] Pepsi",
+      "productId": 16456,
+      "name": "[RICG0015] Sesame Shrimp on Toast",
       "brand": "china-garden",
-      "recipeCostKwd": 0.08,
-      "coverage": 100,
-      "lines": 1
+      "recipeCostKwd": 0.23,
+      "coverage": 60,
+      "lines": 5
     },
     {
-      "productId": 16476,
-      "name": "[RICG0035] Shrimp Kindo",
+      "productId": 16477,
+      "name": "[RICG0036] Beef Black Pepper",
       "brand": "china-garden",
-      "recipeCostKwd": 0.329,
-      "coverage": 80,
-      "lines": 5
+      "recipeCostKwd": 0.442,
+      "coverage": 75,
+      "lines": 8
     },
     {
       "productId": 16508,
@@ -447,20 +439,20 @@
       "lines": 1
     },
     {
-      "productId": 16456,
-      "name": "[RICG0015] Sesame Shrimp on Toast",
+      "productId": 16903,
+      "name": "[RICG0112] Shrimp Sichuan ",
       "brand": "china-garden",
-      "recipeCostKwd": 0.23,
-      "coverage": 60,
-      "lines": 5
+      "recipeCostKwd": 0.349,
+      "coverage": 88.9,
+      "lines": 18
     },
     {
-      "productId": 16496,
-      "name": "[RICG0055] Singapore Noodles",
+      "productId": 16510,
+      "name": "[RICG0069] Pepsi",
       "brand": "china-garden",
-      "recipeCostKwd": 0.292,
-      "coverage": 76.5,
-      "lines": 17
+      "recipeCostKwd": 0.08,
+      "coverage": 100,
+      "lines": 1
     },
     {
       "productId": 16527,
@@ -479,6 +471,22 @@
       "lines": 1
     },
     {
+      "productId": 16476,
+      "name": "[RICG0035] Shrimp Kindo",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.33,
+      "coverage": 80,
+      "lines": 5
+    },
+    {
+      "productId": 18283,
+      "name": "[RIFDC032] Chocolate Milk",
+      "brand": "fresh-daily-canteen",
+      "recipeCostKwd": 0.165,
+      "coverage": 100,
+      "lines": 1
+    },
+    {
       "productId": 16455,
       "name": "[RICG0014] Chicken Spring Rolls",
       "brand": "china-garden",
@@ -487,10 +495,18 @@
       "lines": 5
     },
     {
+      "productId": 16464,
+      "name": "[RICG0023] Crispy Shredded Sichuan Beef",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.422,
+      "coverage": 94.1,
+      "lines": 17
+    },
+    {
       "productId": 16484,
       "name": "[RICG0043] Egg Fried Rice",
       "brand": "china-garden",
-      "recipeCostKwd": 0.174,
+      "recipeCostKwd": 0.175,
       "coverage": 83.3,
       "lines": 12
     },
@@ -503,26 +519,10 @@
       "lines": 4
     },
     {
-      "productId": 16464,
-      "name": "[RICG0023] Crispy Shredded Sichuan Beef",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.422,
-      "coverage": 94.1,
-      "lines": 17
-    },
-    {
-      "productId": 18283,
-      "name": "[RIFDC032] Chocolate Milk",
-      "brand": "fresh-daily-canteen",
-      "recipeCostKwd": 0.165,
-      "coverage": 100,
-      "lines": 1
-    },
-    {
       "productId": 16867,
       "name": "[RIFR0005] Philly Fries ",
       "brand": "franks",
-      "recipeCostKwd": 0.416,
+      "recipeCostKwd": 0.417,
       "coverage": 76.5,
       "lines": 17
     },
@@ -535,10 +535,18 @@
       "lines": 15
     },
     {
+      "productId": 16869,
+      "name": "[RIFR0007] Boneless Buffalo Bites",
+      "brand": "franks",
+      "recipeCostKwd": 0.243,
+      "coverage": 63.6,
+      "lines": 11
+    },
+    {
       "productId": 16467,
       "name": "[RICG0026] Nimm's Chicken",
       "brand": "china-garden",
-      "recipeCostKwd": 0.318,
+      "recipeCostKwd": 0.325,
       "coverage": 91.7,
       "lines": 12
     },
@@ -559,14 +567,6 @@
       "lines": 2
     },
     {
-      "productId": 16869,
-      "name": "[RIFR0007] Boneless Buffalo Bites",
-      "brand": "franks",
-      "recipeCostKwd": 0.237,
-      "coverage": 63.6,
-      "lines": 11
-    },
-    {
       "productId": 17431,
       "name": "[RIFR0041] Philly Burger",
       "brand": "franks",
@@ -581,6 +581,14 @@
       "recipeCostKwd": 0.066,
       "coverage": 83.3,
       "lines": 6
+    },
+    {
+      "productId": 17257,
+      "name": "[EXCG0029] EXB Chicken Noodles",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.267,
+      "coverage": 83.3,
+      "lines": 12
     },
     {
       "productId": 16469,
@@ -599,20 +607,28 @@
       "lines": 7
     },
     {
-      "productId": 16458,
-      "name": "[RICG0017] Buffalo Chicken Wontons",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.524,
-      "coverage": 100,
-      "lines": 4
-    },
-    {
       "productId": 16468,
       "name": "[RICG0027] Manchurian Veg-Balls",
       "brand": "china-garden",
       "recipeCostKwd": 0.2,
       "coverage": 81.8,
       "lines": 11
+    },
+    {
+      "productId": 16458,
+      "name": "[RICG0017] Buffalo Chicken Wontons",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.522,
+      "coverage": 100,
+      "lines": 4
+    },
+    {
+      "productId": 17300,
+      "name": "[EXCG0043] EXB Vegetable Noodles",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.134,
+      "coverage": 80,
+      "lines": 10
     },
     {
       "productId": 16814,
@@ -623,20 +639,20 @@
       "lines": 13
     },
     {
+      "productId": 16871,
+      "name": "[RIFR0009] Mozzarella Sticks ",
+      "brand": "franks",
+      "recipeCostKwd": 0.483,
+      "coverage": 57.1,
+      "lines": 7
+    },
+    {
       "productId": 16446,
       "name": "[RICG0005] Spiced Caesar Salad",
       "brand": "china-garden",
       "recipeCostKwd": 0.227,
       "coverage": 83.3,
       "lines": 6
-    },
-    {
-      "productId": 18316,
-      "name": "[RIFDC034] Pizza slice",
-      "brand": "fresh-daily-canteen",
-      "recipeCostKwd": 0.188,
-      "coverage": 100,
-      "lines": 1
     },
     {
       "productId": 16501,
@@ -647,60 +663,12 @@
       "lines": 2
     },
     {
-      "productId": 16871,
-      "name": "[RIFR0009] Mozzarella Sticks ",
-      "brand": "franks",
-      "recipeCostKwd": 0.483,
-      "coverage": 57.1,
-      "lines": 7
-    },
-    {
-      "productId": 17178,
-      "name": "[RICG0126] Kinza Lemon",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.066,
+      "productId": 18269,
+      "name": "[RIFDC018] Cupcake Chocolate",
+      "brand": "fresh-daily-canteen",
+      "recipeCostKwd": 0.093,
       "coverage": 100,
       "lines": 1
-    },
-    {
-      "productId": 16445,
-      "name": "[RICG0004] Garden Salad",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.141,
-      "coverage": 100,
-      "lines": 6
-    },
-    {
-      "productId": 16812,
-      "name": "[RITNB022] Fresh Noodles - Chicken",
-      "brand": "noodle-bar",
-      "recipeCostKwd": 0.238,
-      "coverage": 75,
-      "lines": 12
-    },
-    {
-      "productId": 17607,
-      "name": "[RICG0151] Honey Walnut Shrimp",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.725,
-      "coverage": 80,
-      "lines": 5
-    },
-    {
-      "productId": 17130,
-      "name": "[RICG0118] Creamy Mushroom Noodles - Veg",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.572,
-      "coverage": 85.7,
-      "lines": 14
-    },
-    {
-      "productId": 17132,
-      "name": "[RICG0120] Creamy Mushroom Noodles - Beef",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.825,
-      "coverage": 86.7,
-      "lines": 15
     },
     {
       "productId": 15834,
@@ -711,66 +679,50 @@
       "lines": 4
     },
     {
-      "productId": 16499,
-      "name": "[RICG0058] Nutella Wontons",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.055,
-      "coverage": 50,
-      "lines": 4
-    },
-    {
-      "productId": 17173,
-      "name": "[RICG0125] Kinza Cola",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.066,
-      "coverage": 100,
-      "lines": 1
-    },
-    {
-      "productId": 16868,
-      "name": "[RIFR0006] Chicken Strips",
-      "brand": "franks",
-      "recipeCostKwd": 0.16,
-      "coverage": 60,
-      "lines": 10
-    },
-    {
       "productId": 17131,
       "name": "[RICG0119] Creamy Mushroom Noodles - Chicken",
       "brand": "china-garden",
-      "recipeCostKwd": 0.682,
+      "recipeCostKwd": 0.787,
       "coverage": 86.7,
       "lines": 15
     },
     {
-      "productId": 16811,
-      "name": "[RITNB021] Fresh Noodles - Vegetarian ",
-      "brand": "noodle-bar",
-      "recipeCostKwd": 0.109,
-      "coverage": 70,
-      "lines": 10
-    },
-    {
-      "productId": 16466,
-      "name": "[RICG0025] Pecking Duck",
-      "brand": "china-garden",
-      "recipeCostKwd": 1.098,
-      "coverage": 80,
-      "lines": 10
-    },
-    {
-      "productId": 18372,
-      "name": "[EXTAH042] EXB Fries ",
-      "brand": "tahina",
-      "recipeCostKwd": 0.145,
-      "coverage": 100,
-      "lines": 4
-    },
-    {
-      "productId": 18269,
-      "name": "[RIFDC018] Cupcake Chocolate",
+      "productId": 18316,
+      "name": "[RIFDC034] Pizza slice",
       "brand": "fresh-daily-canteen",
-      "recipeCostKwd": 0.093,
+      "recipeCostKwd": 0.188,
+      "coverage": 100,
+      "lines": 1
+    },
+    {
+      "productId": 17607,
+      "name": "[RICG0151] Honey Walnut Shrimp",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.745,
+      "coverage": 80,
+      "lines": 5
+    },
+    {
+      "productId": 16812,
+      "name": "[RITNB022] Fresh Noodles - Chicken",
+      "brand": "noodle-bar",
+      "recipeCostKwd": 0.238,
+      "coverage": 75,
+      "lines": 12
+    },
+    {
+      "productId": 17130,
+      "name": "[RICG0118] Creamy Mushroom Noodles - Veg",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.677,
+      "coverage": 85.7,
+      "lines": 14
+    },
+    {
+      "productId": 17178,
+      "name": "[RICG0126] Kinza Lemon",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.066,
       "coverage": 100,
       "lines": 1
     },
@@ -783,6 +735,62 @@
       "lines": 1
     },
     {
+      "productId": 16445,
+      "name": "[RICG0004] Garden Salad",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.141,
+      "coverage": 100,
+      "lines": 6
+    },
+    {
+      "productId": 18351,
+      "name": "[RIFDC035] Chicken Fillet Sandwich",
+      "brand": "fresh-daily-canteen",
+      "recipeCostKwd": 0.177,
+      "coverage": 100,
+      "lines": 1
+    },
+    {
+      "productId": 17132,
+      "name": "[RICG0120] Creamy Mushroom Noodles - Beef",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.93,
+      "coverage": 86.7,
+      "lines": 15
+    },
+    {
+      "productId": 16811,
+      "name": "[RITNB021] Fresh Noodles - Vegetarian ",
+      "brand": "noodle-bar",
+      "recipeCostKwd": 0.109,
+      "coverage": 70,
+      "lines": 10
+    },
+    {
+      "productId": 16868,
+      "name": "[RIFR0006] Chicken Strips",
+      "brand": "franks",
+      "recipeCostKwd": 0.161,
+      "coverage": 60,
+      "lines": 10
+    },
+    {
+      "productId": 18372,
+      "name": "[EXTAH042] EXB Fries ",
+      "brand": "tahina",
+      "recipeCostKwd": 0.145,
+      "coverage": 100,
+      "lines": 4
+    },
+    {
+      "productId": 17173,
+      "name": "[RICG0125] Kinza Cola",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.066,
+      "coverage": 100,
+      "lines": 1
+    },
+    {
       "productId": 16872,
       "name": "[RIFR0010] Jalapeño Bites",
       "brand": "franks",
@@ -791,10 +799,18 @@
       "lines": 8
     },
     {
-      "productId": 18351,
-      "name": "[RIFDC035] Chicken Fillet Sandwich",
-      "brand": "fresh-daily-canteen",
-      "recipeCostKwd": 0.177,
+      "productId": 16499,
+      "name": "[RICG0058] Nutella Wontons",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.055,
+      "coverage": 50,
+      "lines": 4
+    },
+    {
+      "productId": 18379,
+      "name": "[EXTAH049] EXB Pepsi ",
+      "brand": "tahina",
+      "recipeCostKwd": 0.08,
       "coverage": 100,
       "lines": 1
     },
@@ -807,14 +823,6 @@
       "lines": 4
     },
     {
-      "productId": 17115,
-      "name": "[RIFB0051] Mixed Ice Cream ",
-      "brand": "farm-brown",
-      "recipeCostKwd": 0.169,
-      "coverage": 100,
-      "lines": 3
-    },
-    {
       "productId": 16874,
       "name": "[RIFR0012] Curly Fries ",
       "brand": "franks",
@@ -823,42 +831,42 @@
       "lines": 4
     },
     {
-      "productId": 17257,
-      "name": "[EXCG0029] EXB Chicken Noodles",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.267,
-      "coverage": 83.3,
-      "lines": 12
-    },
-    {
-      "productId": 18379,
-      "name": "[EXTAH049] EXB Pepsi ",
-      "brand": "tahina",
-      "recipeCostKwd": 0.08,
+      "productId": 18278,
+      "name": "[RIFDC027] Water",
+      "brand": "fresh-daily-canteen",
+      "recipeCostKwd": 0.044,
       "coverage": 100,
       "lines": 1
+    },
+    {
+      "productId": 17115,
+      "name": "[RIFB0051] Mixed Ice Cream ",
+      "brand": "farm-brown",
+      "recipeCostKwd": 0.173,
+      "coverage": 100,
+      "lines": 3
     },
     {
       "productId": 16500,
       "name": "[RICG0059] Cheesecake Spring Rolls",
       "brand": "china-garden",
-      "recipeCostKwd": 0.334,
+      "recipeCostKwd": 0.332,
       "coverage": 75,
       "lines": 4
     },
     {
-      "productId": 17300,
-      "name": "[EXCG0043] EXB Vegetable Noodles",
+      "productId": 16466,
+      "name": "[RICG0025] Pecking Duck",
       "brand": "china-garden",
-      "recipeCostKwd": 0.138,
+      "recipeCostKwd": 1.098,
       "coverage": 80,
       "lines": 10
     },
     {
-      "productId": 18278,
-      "name": "[RIFDC027] Water",
+      "productId": 18256,
+      "name": "[RIFDC005] Falafel sandwich",
       "brand": "fresh-daily-canteen",
-      "recipeCostKwd": 0.044,
+      "recipeCostKwd": 0.093,
       "coverage": 100,
       "lines": 1
     },
@@ -879,11 +887,43 @@
       "lines": 2
     },
     {
+      "productId": 16528,
+      "name": "[RICG0087] Vegetable Spring Rolls - Platter for 6 ",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.567,
+      "coverage": 50,
+      "lines": 4
+    },
+    {
+      "productId": 18255,
+      "name": "[RIFDC004] Turkey sandwich",
+      "brand": "fresh-daily-canteen",
+      "recipeCostKwd": 0.223,
+      "coverage": 100,
+      "lines": 1
+    },
+    {
       "productId": 16515,
       "name": "[RICG0074] Chili Paste",
       "brand": "china-garden",
       "recipeCostKwd": 0.012,
       "coverage": 50,
+      "lines": 2
+    },
+    {
+      "productId": 17263,
+      "name": "[EXCG0030] EXB Beef Mongolian",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.611,
+      "coverage": 81.8,
+      "lines": 11
+    },
+    {
+      "productId": 16517,
+      "name": "[RICG0076] Soya Sauce",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.058,
+      "coverage": 100,
       "lines": 2
     },
     {
@@ -895,46 +935,6 @@
       "lines": 6
     },
     {
-      "productId": 18352,
-      "name": "[RIFDC036] Cheese Burger Sandwich",
-      "brand": "fresh-daily-canteen",
-      "recipeCostKwd": 0.167,
-      "coverage": 100,
-      "lines": 1
-    },
-    {
-      "productId": 16517,
-      "name": "[RICG0076] Soya Sauce",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.058,
-      "coverage": 100,
-      "lines": 2
-    },
-    {
-      "productId": 17133,
-      "name": "[RICG0121] Creamy Mushroom Noodles - Mixed ",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.753,
-      "coverage": 87.5,
-      "lines": 16
-    },
-    {
-      "productId": 15825,
-      "name": "[RIFB0011] Boneless Buffalo Wings ",
-      "brand": "farm-brown",
-      "recipeCostKwd": 0.291,
-      "coverage": 60,
-      "lines": 10
-    },
-    {
-      "productId": 16875,
-      "name": "[RIFR0013] Cheese Whiz Cup",
-      "brand": "franks",
-      "recipeCostKwd": 0.164,
-      "coverage": 66.7,
-      "lines": 3
-    },
-    {
       "productId": 16813,
       "name": "[RITNB023] Fresh Noodles - Beef",
       "brand": "noodle-bar",
@@ -943,36 +943,28 @@
       "lines": 12
     },
     {
-      "productId": 17134,
-      "name": "[RICG0122] Creamy Mushroom Noodles- Shrimp ",
+      "productId": 17260,
+      "name": "[EXCG0033] EXB Chicken Sweet n Sour",
       "brand": "china-garden",
-      "recipeCostKwd": 0.572,
-      "coverage": 80,
-      "lines": 15
+      "recipeCostKwd": 0.323,
+      "coverage": 83.3,
+      "lines": 12
     },
     {
-      "productId": 18256,
-      "name": "[RIFDC005] Falafel sandwich",
+      "productId": 18352,
+      "name": "[RIFDC036] Cheese Burger Sandwich",
       "brand": "fresh-daily-canteen",
-      "recipeCostKwd": 0.093,
+      "recipeCostKwd": 0.167,
       "coverage": 100,
       "lines": 1
     },
     {
-      "productId": 16647,
-      "name": "[RIKC0005] Matara Original Karak",
-      "brand": "karak-cafeteria",
-      "recipeCostKwd": 1.337,
-      "coverage": 37.5,
-      "lines": 8
-    },
-    {
-      "productId": 18381,
-      "name": "[EXTAH051] EXB 7up ",
-      "brand": "tahina",
-      "recipeCostKwd": 0.08,
-      "coverage": 100,
-      "lines": 1
+      "productId": 16875,
+      "name": "[RIFR0013] Cheese Whiz Cup",
+      "brand": "franks",
+      "recipeCostKwd": 0.17,
+      "coverage": 66.7,
+      "lines": 3
     },
     {
       "productId": 17110,
@@ -983,12 +975,36 @@
       "lines": 12
     },
     {
-      "productId": 16528,
-      "name": "[RICG0087] Vegetable Spring Rolls - Platter for 6 ",
+      "productId": 15825,
+      "name": "[RIFB0011] Boneless Buffalo Wings ",
+      "brand": "farm-brown",
+      "recipeCostKwd": 0.302,
+      "coverage": 60,
+      "lines": 10
+    },
+    {
+      "productId": 17133,
+      "name": "[RICG0121] Creamy Mushroom Noodles - Mixed ",
       "brand": "china-garden",
-      "recipeCostKwd": 0.567,
-      "coverage": 50,
-      "lines": 4
+      "recipeCostKwd": 0.858,
+      "coverage": 87.5,
+      "lines": 16
+    },
+    {
+      "productId": 18381,
+      "name": "[EXTAH051] EXB 7up ",
+      "brand": "tahina",
+      "recipeCostKwd": 0.08,
+      "coverage": 100,
+      "lines": 1
+    },
+    {
+      "productId": 17134,
+      "name": "[RICG0122] Creamy Mushroom Noodles- Shrimp ",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.677,
+      "coverage": 80,
+      "lines": 15
     },
     {
       "productId": 18238,
@@ -999,34 +1015,18 @@
       "lines": 4
     },
     {
-      "productId": 16803,
-      "name": "[RITNB013] Mongolian Beef ",
+      "productId": 16801,
+      "name": "[RITNB011] Kendo Chicken",
       "brand": "noodle-bar",
-      "recipeCostKwd": 0.546,
-      "coverage": 62.5,
-      "lines": 8
+      "recipeCostKwd": 0.362,
+      "coverage": 84.6,
+      "lines": 13
     },
     {
       "productId": 18380,
       "name": "[EXTAH050] EXB Pepsi Zero ",
       "brand": "tahina",
       "recipeCostKwd": 0.08,
-      "coverage": 100,
-      "lines": 1
-    },
-    {
-      "productId": 18239,
-      "name": "[RIFB0068] Slush Mix",
-      "brand": "farm-brown",
-      "recipeCostKwd": 0.523,
-      "coverage": 80,
-      "lines": 5
-    },
-    {
-      "productId": 18280,
-      "name": "[RIFDC029] Pineapple Juice",
-      "brand": "fresh-daily-canteen",
-      "recipeCostKwd": 0.093,
       "coverage": 100,
       "lines": 1
     },
@@ -1039,68 +1039,52 @@
       "lines": 1
     },
     {
-      "productId": 16791,
-      "name": "[RITNB001] Sweet Corn Chicken Soup",
-      "brand": "noodle-bar",
-      "recipeCostKwd": 0.165,
-      "coverage": 66.7,
+      "productId": 17258,
+      "name": "[EXCG0031] EXB Beef Noodles",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.41,
+      "coverage": 83.3,
       "lines": 12
     },
     {
-      "productId": 15826,
-      "name": "[RIFB0012] Brown Strips",
-      "brand": "farm-brown",
-      "recipeCostKwd": 0.11,
-      "coverage": 55.6,
-      "lines": 9
-    },
-    {
-      "productId": 18255,
-      "name": "[RIFDC004] Turkey sandwich",
-      "brand": "fresh-daily-canteen",
-      "recipeCostKwd": 0.223,
-      "coverage": 100,
-      "lines": 1
-    },
-    {
-      "productId": 16883,
-      "name": "[RIFR0021] Coca-Cola zero",
-      "brand": "franks",
-      "recipeCostKwd": 0.103,
-      "coverage": 100,
-      "lines": 1
-    },
-    {
-      "productId": 18264,
-      "name": "[RIFDC013] Croissant Cheese",
-      "brand": "fresh-daily-canteen",
-      "recipeCostKwd": 0.11,
-      "coverage": 100,
-      "lines": 1
-    },
-    {
-      "productId": 16797,
-      "name": "[RITNB007] Spicy Edamame ",
+      "productId": 16803,
+      "name": "[RITNB013] Mongolian Beef ",
       "brand": "noodle-bar",
-      "recipeCostKwd": 0.563,
-      "coverage": 75,
-      "lines": 4
+      "recipeCostKwd": 0.546,
+      "coverage": 62.5,
+      "lines": 8
     },
     {
-      "productId": 18268,
-      "name": "[RIFDC017] Cupcakes Plain",
+      "productId": 18280,
+      "name": "[RIFDC029] Pineapple Juice",
       "brand": "fresh-daily-canteen",
-      "recipeCostKwd": 0.066,
+      "recipeCostKwd": 0.093,
       "coverage": 100,
       "lines": 1
     },
     {
-      "productId": 18281,
-      "name": "[RIFDC030] Cocktail Juice",
-      "brand": "fresh-daily-canteen",
-      "recipeCostKwd": 0.038,
-      "coverage": 100,
-      "lines": 1
+      "productId": 16647,
+      "name": "[RIKC0005] Matara Original Karak",
+      "brand": "karak-cafeteria",
+      "recipeCostKwd": 1.359,
+      "coverage": 37.5,
+      "lines": 8
+    },
+    {
+      "productId": 16815,
+      "name": "[RITNB025] Vegetable Fried Rice",
+      "brand": "noodle-bar",
+      "recipeCostKwd": 0.099,
+      "coverage": 72.7,
+      "lines": 11
+    },
+    {
+      "productId": 17297,
+      "name": "[EXCG0039] EXB Vegetable Fried Rice",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.128,
+      "coverage": 81.8,
+      "lines": 11
     },
     {
       "productId": 16509,
@@ -1111,68 +1095,68 @@
       "lines": 1
     },
     {
-      "productId": 17114,
-      "name": "[RIFB0050] Vanilla Ice Cream ",
-      "brand": "farm-brown",
-      "recipeCostKwd": 0.169,
-      "coverage": 100,
-      "lines": 2
-    },
-    {
-      "productId": 16815,
-      "name": "[RITNB025] Vegetable Fried Rice",
+      "productId": 16791,
+      "name": "[RITNB001] Sweet Corn Chicken Soup",
       "brand": "noodle-bar",
-      "recipeCostKwd": 0.098,
-      "coverage": 72.7,
-      "lines": 11
+      "recipeCostKwd": 0.165,
+      "coverage": 66.7,
+      "lines": 12
     },
     {
-      "productId": 18265,
-      "name": "[RIFDC014] Croissant Strawberry Jam",
+      "productId": 18271,
+      "name": "[RIFDC020] Biscuit Choco",
       "brand": "fresh-daily-canteen",
-      "recipeCostKwd": 0.11,
+      "recipeCostKwd": 0.02,
       "coverage": 100,
       "lines": 1
     },
     {
-      "productId": 16514,
-      "name": "[RICG0073] Sweet Chili Paste",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.012,
-      "coverage": 50,
-      "lines": 2
+      "productId": 18239,
+      "name": "[RIFB0068] Slush Mix",
+      "brand": "farm-brown",
+      "recipeCostKwd": 0.523,
+      "coverage": 80,
+      "lines": 5
     },
     {
-      "productId": 17125,
-      "name": "[RICG0113] Mushroom Fried Rice - Veg ",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.611,
-      "coverage": 86.7,
-      "lines": 15
+      "productId": 18281,
+      "name": "[RIFDC030] Cocktail Juice",
+      "brand": "fresh-daily-canteen",
+      "recipeCostKwd": 0.038,
+      "coverage": 100,
+      "lines": 1
     },
     {
-      "productId": 16801,
-      "name": "[RITNB011] Kendo Chicken",
+      "productId": 17261,
+      "name": "[EXCG0021] EXB Chicken Kindo",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.292,
+      "coverage": 80,
+      "lines": 5
+    },
+    {
+      "productId": 16883,
+      "name": "[RIFR0021] Coca-Cola zero",
+      "brand": "franks",
+      "recipeCostKwd": 0.103,
+      "coverage": 100,
+      "lines": 1
+    },
+    {
+      "productId": 15826,
+      "name": "[RIFB0012] Brown Strips",
+      "brand": "farm-brown",
+      "recipeCostKwd": 0.11,
+      "coverage": 55.6,
+      "lines": 9
+    },
+    {
+      "productId": 16797,
+      "name": "[RITNB007] Spicy Edamame ",
       "brand": "noodle-bar",
-      "recipeCostKwd": 0.361,
-      "coverage": 84.6,
-      "lines": 13
-    },
-    {
-      "productId": 15815,
-      "name": "[RIFB0001] Classic Chicken Sandwich",
-      "brand": "farm-brown",
-      "recipeCostKwd": 0.287,
-      "coverage": 70,
-      "lines": 10
-    },
-    {
-      "productId": 15819,
-      "name": "[RIFB0005] Classic Wrap",
-      "brand": "farm-brown",
-      "recipeCostKwd": 0.262,
-      "coverage": 70,
-      "lines": 10
+      "recipeCostKwd": 0.565,
+      "coverage": 75,
+      "lines": 4
     },
     {
       "productId": 16795,
@@ -1183,20 +1167,12 @@
       "lines": 5
     },
     {
-      "productId": 15833,
-      "name": "[RIFB0019] Curly Fries ",
-      "brand": "farm-brown",
-      "recipeCostKwd": 0.194,
+      "productId": 18264,
+      "name": "[RIFDC013] Croissant Cheese",
+      "brand": "fresh-daily-canteen",
+      "recipeCostKwd": 0.11,
       "coverage": 100,
-      "lines": 3
-    },
-    {
-      "productId": 17260,
-      "name": "[EXCG0033] EXB Chicken Sweet n Sour",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.323,
-      "coverage": 83.3,
-      "lines": 12
+      "lines": 1
     },
     {
       "productId": 16804,
@@ -1207,20 +1183,44 @@
       "lines": 15
     },
     {
-      "productId": 17084,
-      "name": "[RITAH024] Orange Juice",
+      "productId": 17298,
+      "name": "[EXCG0040] EXB Chicken Fried Rice",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.262,
+      "coverage": 84.6,
+      "lines": 13
+    },
+    {
+      "productId": 18382,
+      "name": "[EXTAH052] EXB Original Karak Cup ",
       "brand": "tahina",
-      "recipeCostKwd": 0.597,
+      "recipeCostKwd": 0.336,
+      "coverage": 50,
+      "lines": 4
+    },
+    {
+      "productId": 15833,
+      "name": "[RIFB0019] Curly Fries ",
+      "brand": "farm-brown",
+      "recipeCostKwd": 0.194,
       "coverage": 100,
+      "lines": 3
+    },
+    {
+      "productId": 16514,
+      "name": "[RICG0073] Sweet Chili Paste",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.012,
+      "coverage": 50,
       "lines": 2
     },
     {
-      "productId": 16799,
-      "name": "[RITNB009] Shrimp on Toast ",
-      "brand": "noodle-bar",
-      "recipeCostKwd": 0.23,
-      "coverage": 60,
-      "lines": 5
+      "productId": 18268,
+      "name": "[RIFDC017] Cupcakes Plain",
+      "brand": "fresh-daily-canteen",
+      "recipeCostKwd": 0.066,
+      "coverage": 100,
+      "lines": 1
     },
     {
       "productId": 18263,
@@ -1231,12 +1231,52 @@
       "lines": 1
     },
     {
-      "productId": 18252,
-      "name": "[RIFDC001] Halloumi sandwich",
-      "brand": "fresh-daily-canteen",
-      "recipeCostKwd": 0.096,
+      "productId": 17264,
+      "name": "[EXCG0027] EXB Beef Broccoli",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.662,
+      "coverage": 80,
+      "lines": 10
+    },
+    {
+      "productId": 16530,
+      "name": "[RICG0089] Spicy Edamame - Platter for 6 ",
+      "brand": "china-garden",
+      "recipeCostKwd": 1.395,
+      "coverage": 75,
+      "lines": 4
+    },
+    {
+      "productId": 17114,
+      "name": "[RIFB0050] Vanilla Ice Cream ",
+      "brand": "farm-brown",
+      "recipeCostKwd": 0.173,
       "coverage": 100,
-      "lines": 1
+      "lines": 2
+    },
+    {
+      "productId": 16529,
+      "name": "[RICG0088] Sesame Shrimp on Toast - Platter for 6 ",
+      "brand": "china-garden",
+      "recipeCostKwd": 1.094,
+      "coverage": 60,
+      "lines": 5
+    },
+    {
+      "productId": 16531,
+      "name": "[RICG0090] Dynamite Shrimp - Platter for 6 ",
+      "brand": "china-garden",
+      "recipeCostKwd": 1.465,
+      "coverage": 83.3,
+      "lines": 6
+    },
+    {
+      "productId": 16800,
+      "name": "[RITNB010] Sweet & Sour Chicken",
+      "brand": "noodle-bar",
+      "recipeCostKwd": 0.256,
+      "coverage": 76.9,
+      "lines": 13
     },
     {
       "productId": 18279,
@@ -1247,16 +1287,56 @@
       "lines": 1
     },
     {
-      "productId": 16529,
-      "name": "[RICG0088] Sesame Shrimp on Toast - Platter for 6 ",
+      "productId": 17259,
+      "name": "[EXCG0032] EXB Mixed Noodles",
       "brand": "china-garden",
-      "recipeCostKwd": 1.093,
+      "recipeCostKwd": 0.339,
+      "coverage": 84.6,
+      "lines": 13
+    },
+    {
+      "productId": 15815,
+      "name": "[RIFB0001] Classic Chicken Sandwich",
+      "brand": "farm-brown",
+      "recipeCostKwd": 0.288,
+      "coverage": 70,
+      "lines": 10
+    },
+    {
+      "productId": 18252,
+      "name": "[RIFDC001] Halloumi sandwich",
+      "brand": "fresh-daily-canteen",
+      "recipeCostKwd": 0.093,
+      "coverage": 100,
+      "lines": 1
+    },
+    {
+      "productId": 16799,
+      "name": "[RITNB009] Shrimp on Toast ",
+      "brand": "noodle-bar",
+      "recipeCostKwd": 0.23,
       "coverage": 60,
       "lines": 5
     },
     {
-      "productId": 18267,
-      "name": "[RIFDC016] Croissant Zaatar",
+      "productId": 16876,
+      "name": "[RIFR0014] Frank's Sauce",
+      "brand": "franks",
+      "recipeCostKwd": 0.044,
+      "coverage": 100,
+      "lines": 2
+    },
+    {
+      "productId": 17299,
+      "name": "[EXCG0042] EXB Beef Fried Rice",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.405,
+      "coverage": 84.6,
+      "lines": 13
+    },
+    {
+      "productId": 18265,
+      "name": "[RIFDC014] Croissant Strawberry Jam",
       "brand": "fresh-daily-canteen",
       "recipeCostKwd": 0.11,
       "coverage": 100,
@@ -1271,12 +1351,60 @@
       "lines": 1
     },
     {
-      "productId": 17073,
-      "name": "[RITAH013] Super Falafel Sandwich",
-      "brand": "tahina",
-      "recipeCostKwd": 0.144,
-      "coverage": 75,
+      "productId": 15819,
+      "name": "[RIFB0005] Classic Wrap",
+      "brand": "farm-brown",
+      "recipeCostKwd": 0.262,
+      "coverage": 70,
+      "lines": 10
+    },
+    {
+      "productId": 15816,
+      "name": "[RIFB0002] Just HOT! Chicken Sandwich",
+      "brand": "farm-brown",
+      "recipeCostKwd": 0.3,
+      "coverage": 63.6,
+      "lines": 11
+    },
+    {
+      "productId": 16798,
+      "name": "[RITNB008] Tabasco Shrimp ",
+      "brand": "noodle-bar",
+      "recipeCostKwd": 0.476,
+      "coverage": 71.4,
+      "lines": 7
+    },
+    {
+      "productId": 15832,
+      "name": "[RIFB0018] Cheese Fries",
+      "brand": "farm-brown",
+      "recipeCostKwd": 0.469,
+      "coverage": 62.5,
       "lines": 8
+    },
+    {
+      "productId": 15818,
+      "name": "[RIFB0004] Black Chicken Sandwich ",
+      "brand": "farm-brown",
+      "recipeCostKwd": 0.286,
+      "coverage": 58.3,
+      "lines": 12
+    },
+    {
+      "productId": 18267,
+      "name": "[RIFDC016] Croissant Zaatar",
+      "brand": "fresh-daily-canteen",
+      "recipeCostKwd": 0.11,
+      "coverage": 100,
+      "lines": 1
+    },
+    {
+      "productId": 15822,
+      "name": "[RIFB0008] Chapati Chicken - Original ",
+      "brand": "farm-brown",
+      "recipeCostKwd": 0.187,
+      "coverage": 70,
+      "lines": 10
     },
     {
       "productId": 16545,
@@ -1287,124 +1415,116 @@
       "lines": 3
     },
     {
-      "productId": 18282,
-      "name": "[RIFDC031] Sunkist",
-      "brand": "fresh-daily-canteen",
-      "recipeCostKwd": 0.042,
-      "coverage": 100,
-      "lines": 1
-    },
-    {
-      "productId": 17258,
-      "name": "[EXCG0031] EXB Beef Noodles",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.41,
-      "coverage": 83.3,
-      "lines": 12
-    },
-    {
-      "productId": 16805,
-      "name": "[RITNB015] XO Beef ",
-      "brand": "noodle-bar",
-      "recipeCostKwd": 0.466,
-      "coverage": 75,
-      "lines": 12
-    },
-    {
-      "productId": 16876,
-      "name": "[RIFR0014] Frank's Sauce",
-      "brand": "franks",
-      "recipeCostKwd": 0.043,
+      "productId": 17084,
+      "name": "[RITAH024] Orange Juice",
+      "brand": "tahina",
+      "recipeCostKwd": 0.597,
       "coverage": 100,
       "lines": 2
     },
     {
-      "productId": 18270,
-      "name": "[RIFDC019] Cupcake Ogaily",
-      "brand": "fresh-daily-canteen",
-      "recipeCostKwd": 0.093,
+      "productId": 17268,
+      "name": "[EXCG0028] EXB Water",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.044,
       "coverage": 100,
       "lines": 1
     },
     {
-      "productId": 17086,
-      "name": "[RITAH026] Lemon w-mint Juice",
-      "brand": "tahina",
-      "recipeCostKwd": 0.259,
-      "coverage": 66.7,
-      "lines": 6
-    },
-    {
-      "productId": 16792,
-      "name": "[RITNB002] Hot 'n' Sour Soup",
-      "brand": "noodle-bar",
-      "recipeCostKwd": 0.2,
-      "coverage": 72.2,
-      "lines": 18
-    },
-    {
-      "productId": 18271,
-      "name": "[RIFDC020] Biscuit Choco",
+      "productId": 18274,
+      "name": "[RIFDC023] Biscuit Lemon",
       "brand": "fresh-daily-canteen",
       "recipeCostKwd": 0.02,
       "coverage": 100,
       "lines": 1
     },
     {
-      "productId": 18258,
-      "name": "[RIFDC007] Labneh sandwich",
-      "brand": "fresh-daily-canteen",
-      "recipeCostKwd": 0.071,
+      "productId": 17073,
+      "name": "[RITAH013] Super Falafel Sandwich",
+      "brand": "tahina",
+      "recipeCostKwd": 0.144,
+      "coverage": 75,
+      "lines": 8
+    },
+    {
+      "productId": 17267,
+      "name": "[EXCG0025] EXB 7UP",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.08,
       "coverage": 100,
       "lines": 1
     },
     {
-      "productId": 16800,
-      "name": "[RITNB010] Sweet & Sour Chicken",
-      "brand": "noodle-bar",
-      "recipeCostKwd": 0.256,
+      "productId": 17306,
+      "name": "[EXFR0003] EXB Little Mushroom",
+      "brand": "franks",
+      "recipeCostKwd": 0.365,
       "coverage": 76.9,
       "lines": 13
+    },
+    {
+      "productId": 18258,
+      "name": "[RIFDC007] Labneh sandwich",
+      "brand": "fresh-daily-canteen",
+      "recipeCostKwd": 0.072,
+      "coverage": 100,
+      "lines": 1
+    },
+    {
+      "productId": 16882,
+      "name": "[RIFR0020] Coca  Cola",
+      "brand": "franks",
+      "recipeCostKwd": 0.103,
+      "coverage": 100,
+      "lines": 1
+    },
+    {
+      "productId": 16802,
+      "name": "[RITNB012] Sweet & Sour Shrimp ",
+      "brand": "noodle-bar",
+      "recipeCostKwd": 0.33,
+      "coverage": 76.9,
+      "lines": 13
+    },
+    {
+      "productId": 17125,
+      "name": "[RICG0113] Mushroom Fried Rice - Veg ",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.639,
+      "coverage": 86.7,
+      "lines": 15
+    },
+    {
+      "productId": 17252,
+      "name": "[EXCG0020] EXB Korean Potatoes",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.205,
+      "coverage": 100,
+      "lines": 12
+    },
+    {
+      "productId": 17265,
+      "name": "[EXCG0035] EXB Pepsi",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.08,
+      "coverage": 100,
+      "lines": 1
+    },
+    {
+      "productId": 18272,
+      "name": "[RIFDC021] Biscuit Nice Coconut",
+      "brand": "fresh-daily-canteen",
+      "recipeCostKwd": 0.033,
+      "coverage": 100,
+      "lines": 1
     },
     {
       "productId": 17200,
       "name": "[RIKC0031] Original Karak Cup",
       "brand": "karak-cafeteria",
-      "recipeCostKwd": 0.331,
+      "recipeCostKwd": 0.336,
       "coverage": 50,
       "lines": 4
-    },
-    {
-      "productId": 17263,
-      "name": "[EXCG0030] EXB Beef Mongolian",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.611,
-      "coverage": 81.8,
-      "lines": 11
-    },
-    {
-      "productId": 15832,
-      "name": "[RIFB0018] Cheese Fries",
-      "brand": "farm-brown",
-      "recipeCostKwd": 0.462,
-      "coverage": 62.5,
-      "lines": 8
-    },
-    {
-      "productId": 16530,
-      "name": "[RICG0089] Spicy Edamame - Platter for 6 ",
-      "brand": "china-garden",
-      "recipeCostKwd": 1.393,
-      "coverage": 75,
-      "lines": 4
-    },
-    {
-      "productId": 15818,
-      "name": "[RIFB0004] Black Chicken Sandwich ",
-      "brand": "farm-brown",
-      "recipeCostKwd": 0.266,
-      "coverage": 58.3,
-      "lines": 12
     },
     {
       "productId": 18273,
@@ -1423,50 +1543,178 @@
       "lines": 2
     },
     {
-      "productId": 18274,
-      "name": "[RIFDC023] Biscuit Lemon",
+      "productId": 18270,
+      "name": "[RIFDC019] Cupcake Ogaily",
       "brand": "fresh-daily-canteen",
-      "recipeCostKwd": 0.02,
+      "recipeCostKwd": 0.093,
       "coverage": 100,
       "lines": 1
     },
     {
-      "productId": 17297,
-      "name": "[EXCG0039] EXB Vegetable Fried Rice",
+      "productId": 16513,
+      "name": "[RICG0072] Dynamite Sauce",
       "brand": "china-garden",
-      "recipeCostKwd": 0.127,
-      "coverage": 81.8,
+      "recipeCostKwd": 0.117,
+      "coverage": 100,
+      "lines": 2
+    },
+    {
+      "productId": 16805,
+      "name": "[RITNB015] XO Beef ",
+      "brand": "noodle-bar",
+      "recipeCostKwd": 0.466,
+      "coverage": 75,
+      "lines": 12
+    },
+    {
+      "productId": 16881,
+      "name": "[RIFR0019] Big Cookie ",
+      "brand": "franks",
+      "recipeCostKwd": 0.267,
+      "coverage": 100,
+      "lines": 2
+    },
+    {
+      "productId": 15824,
+      "name": "[RIFB0010] Sticky Candied Bites",
+      "brand": "farm-brown",
+      "recipeCostKwd": 0.307,
+      "coverage": 54.5,
       "lines": 11
     },
     {
-      "productId": 16798,
-      "name": "[RITNB008] Tabasco Shrimp ",
+      "productId": 16792,
+      "name": "[RITNB002] Hot 'n' Sour Soup",
       "brand": "noodle-bar",
-      "recipeCostKwd": 0.474,
-      "coverage": 71.4,
-      "lines": 7
+      "recipeCostKwd": 0.2,
+      "coverage": 72.2,
+      "lines": 18
     },
     {
-      "productId": 17299,
-      "name": "[EXCG0042] EXB Beef Fried Rice",
+      "productId": 17113,
+      "name": "[RIFB0049] Chocolate Ice Cream ",
+      "brand": "farm-brown",
+      "recipeCostKwd": 0.173,
+      "coverage": 100,
+      "lines": 2
+    },
+    {
+      "productId": 17251,
+      "name": "[EXCG0019] EXB Veg Spring Rolls",
       "brand": "china-garden",
-      "recipeCostKwd": 0.403,
-      "coverage": 84.6,
+      "recipeCostKwd": 0.114,
+      "coverage": 60,
+      "lines": 5
+    },
+    {
+      "productId": 17062,
+      "name": "[RITAH002] Hummos bil lahm",
+      "brand": "tahina",
+      "recipeCostKwd": 0.442,
+      "coverage": 100,
+      "lines": 5
+    },
+    {
+      "productId": 17250,
+      "name": "[EXCG0018] EXB Sweet Corn Chicken Soup",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.165,
+      "coverage": 72.7,
+      "lines": 11
+    },
+    {
+      "productId": 17308,
+      "name": "[EXFR0001] EXB Little Original",
+      "brand": "franks",
+      "recipeCostKwd": 0.213,
+      "coverage": 76.9,
       "lines": 13
     },
     {
-      "productId": 18272,
-      "name": "[RIFDC021] Biscuit Nice Coconut",
+      "productId": 18282,
+      "name": "[RIFDC031] Sunkist",
       "brand": "fresh-daily-canteen",
-      "recipeCostKwd": 0.034,
+      "recipeCostKwd": 0.042,
       "coverage": 100,
       "lines": 1
     },
     {
-      "productId": 16882,
-      "name": "[RIFR0020] Coca  Cola",
-      "brand": "franks",
-      "recipeCostKwd": 0.103,
+      "productId": 17086,
+      "name": "[RITAH026] Lemon w-mint Juice",
+      "brand": "tahina",
+      "recipeCostKwd": 0.26,
+      "coverage": 66.7,
+      "lines": 6
+    },
+    {
+      "productId": 18368,
+      "name": "[EXTAH038] EXB Halloumi sandwich",
+      "brand": "tahina",
+      "recipeCostKwd": 0.093,
+      "coverage": 100,
+      "lines": 1
+    },
+    {
+      "productId": 15817,
+      "name": "[RIFB0003] Creamy Slaw Chicken Sandwich ",
+      "brand": "farm-brown",
+      "recipeCostKwd": 0.305,
+      "coverage": 70,
+      "lines": 10
+    },
+    {
+      "productId": 18371,
+      "name": "[EXTAH041] EXB Falafel sandwich",
+      "brand": "tahina",
+      "recipeCostKwd": 0.093,
+      "coverage": 100,
+      "lines": 1
+    },
+    {
+      "productId": 15831,
+      "name": "[RIFB0017] Onion Rings ",
+      "brand": "farm-brown",
+      "recipeCostKwd": 0.302,
+      "coverage": 50,
+      "lines": 6
+    },
+    {
+      "productId": 16660,
+      "name": "[RIKC0018] Dry Cake (Lsan Althoor) Box",
+      "brand": "karak-cafeteria",
+      "recipeCostKwd": 0.45,
+      "coverage": 25,
+      "lines": 4
+    },
+    {
+      "productId": 16548,
+      "name": "[RICG0107] Vegetable Spring Rolls - Single",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.082,
+      "coverage": 50,
+      "lines": 4
+    },
+    {
+      "productId": 18237,
+      "name": "[RIFB0066] Slush Strawberry",
+      "brand": "farm-brown",
+      "recipeCostKwd": 0.523,
+      "coverage": 75,
+      "lines": 4
+    },
+    {
+      "productId": 17256,
+      "name": "[EXCG0023] EXB Mixed Fried Rice",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.357,
+      "coverage": 85.7,
+      "lines": 14
+    },
+    {
+      "productId": 17089,
+      "name": "[RITAH029] 7up",
+      "brand": "tahina",
+      "recipeCostKwd": 0.08,
       "coverage": 100,
       "lines": 1
     },
@@ -1479,226 +1727,82 @@
       "lines": 7
     },
     {
-      "productId": 16802,
-      "name": "[RITNB012] Sweet & Sour Shrimp ",
-      "brand": "noodle-bar",
-      "recipeCostKwd": 0.329,
-      "coverage": 76.9,
-      "lines": 13
-    },
-    {
-      "productId": 15816,
-      "name": "[RIFB0002] Just HOT! Chicken Sandwich",
-      "brand": "farm-brown",
-      "recipeCostKwd": 0.3,
-      "coverage": 63.6,
-      "lines": 11
-    },
-    {
-      "productId": 17113,
-      "name": "[RIFB0049] Chocolate Ice Cream ",
-      "brand": "farm-brown",
-      "recipeCostKwd": 0.169,
-      "coverage": 100,
-      "lines": 2
-    },
-    {
-      "productId": 16513,
-      "name": "[RICG0072] Dynamite Sauce",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.114,
-      "coverage": 100,
-      "lines": 2
-    },
-    {
-      "productId": 16881,
-      "name": "[RIFR0019] Big Cookie ",
-      "brand": "franks",
-      "recipeCostKwd": 0.267,
-      "coverage": 100,
-      "lines": 2
-    },
-    {
-      "productId": 17062,
-      "name": "[RITAH002] Hummos bil lahm",
+      "productId": 18370,
+      "name": "[EXTAH040] EXB Labneh & Zaatar Sandwich",
       "brand": "tahina",
-      "recipeCostKwd": 0.442,
+      "recipeCostKwd": 0.072,
       "coverage": 100,
-      "lines": 5
+      "lines": 1
     },
     {
-      "productId": 16796,
-      "name": "[RITNB006] Crack Fries ",
-      "brand": "noodle-bar",
-      "recipeCostKwd": 0.258,
-      "coverage": 91.7,
-      "lines": 12
-    },
-    {
-      "productId": 17264,
-      "name": "[EXCG0027] EXB Beef Broccoli",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.662,
-      "coverage": 80,
-      "lines": 10
-    },
-    {
-      "productId": 15831,
-      "name": "[RIFB0017] Onion Rings ",
-      "brand": "farm-brown",
-      "recipeCostKwd": 0.302,
-      "coverage": 50,
-      "lines": 6
-    },
-    {
-      "productId": 18382,
-      "name": "[EXTAH052] EXB Original Karak Cup ",
+      "productId": 18369,
+      "name": "[EXTAH039] EXB Turkey sandwich",
       "brand": "tahina",
-      "recipeCostKwd": 0.331,
-      "coverage": 50,
-      "lines": 4
+      "recipeCostKwd": 0.223,
+      "coverage": 100,
+      "lines": 1
     },
     {
-      "productId": 16547,
-      "name": "[RICG0106] Shrimp Dumplings Steamed - Single",
+      "productId": 17266,
+      "name": "[EXCG0036] EXB Pepsi Zero",
       "brand": "china-garden",
-      "recipeCostKwd": 0.06,
-      "coverage": 33.3,
-      "lines": 3
-    },
-    {
-      "productId": 16531,
-      "name": "[RICG0090] Dynamite Shrimp - Platter for 6 ",
-      "brand": "china-garden",
-      "recipeCostKwd": 1.457,
-      "coverage": 83.3,
-      "lines": 6
-    },
-    {
-      "productId": 16654,
-      "name": "[RIKC0012] Mushroom & Swiss Omlette Chapati",
-      "brand": "karak-cafeteria",
-      "recipeCostKwd": 0.265,
-      "coverage": 77.8,
-      "lines": 9
-    },
-    {
-      "productId": 17259,
-      "name": "[EXCG0032] EXB Mixed Noodles",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.339,
-      "coverage": 84.6,
-      "lines": 13
-    },
-    {
-      "productId": 17298,
-      "name": "[EXCG0040] EXB Chicken Fried Rice",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.26,
-      "coverage": 84.6,
-      "lines": 13
-    },
-    {
-      "productId": 15822,
-      "name": "[RIFB0008] Chapati Chicken - Original ",
-      "brand": "farm-brown",
-      "recipeCostKwd": 0.187,
-      "coverage": 70,
-      "lines": 10
-    },
-    {
-      "productId": 17261,
-      "name": "[EXCG0021] EXB Chicken Kindo",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.291,
-      "coverage": 80,
-      "lines": 5
-    },
-    {
-      "productId": 17089,
-      "name": "[RITAH029] 7up",
-      "brand": "tahina",
       "recipeCostKwd": 0.08,
       "coverage": 100,
       "lines": 1
     },
     {
-      "productId": 15824,
-      "name": "[RIFB0010] Sticky Candied Bites",
+      "productId": 17296,
+      "name": "[EXCG0041] EXB French Fries",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.145,
+      "coverage": 100,
+      "lines": 4
+    },
+    {
+      "productId": 18385,
+      "name": "[EXTAH055] EXB Black Tea Cup ",
+      "brand": "tahina",
+      "recipeCostKwd": 0.002,
+      "coverage": 25,
+      "lines": 4
+    },
+    {
+      "productId": 16654,
+      "name": "[RIKC0012] Mushroom & Swiss Omlette Chapati",
+      "brand": "karak-cafeteria",
+      "recipeCostKwd": 0.268,
+      "coverage": 77.8,
+      "lines": 9
+    },
+    {
+      "productId": 15845,
+      "name": "[RIFB0031] Coca-Cola",
       "brand": "farm-brown",
-      "recipeCostKwd": 0.295,
-      "coverage": 54.5,
+      "recipeCostKwd": 0.103,
+      "coverage": 100,
+      "lines": 1
+    },
+    {
+      "productId": 17262,
+      "name": "[EXCG0034] EXB General Tso Chicken",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.369,
+      "coverage": 81.8,
       "lines": 11
     },
     {
-      "productId": 17452,
-      "name": "[RIKC0046] Sambosa Cheese 5 pcs",
-      "brand": "karak-cafeteria",
-      "recipeCostKwd": 0.007,
-      "coverage": 50,
-      "lines": 2
-    },
-    {
-      "productId": 17256,
-      "name": "[EXCG0023] EXB Mixed Fried Rice",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.355,
-      "coverage": 85.7,
-      "lines": 14
-    },
-    {
-      "productId": 16806,
-      "name": "[RITNB016] Bang Bang Shrimp",
+      "productId": 16818,
+      "name": "[RITNB028] Fresh Orange Juice ",
       "brand": "noodle-bar",
-      "recipeCostKwd": 0.545,
-      "coverage": 80,
-      "lines": 20
+      "recipeCostKwd": 0.597,
+      "coverage": 100,
+      "lines": 2
     },
     {
       "productId": 15848,
       "name": "[RIFB0034] Water",
       "brand": "farm-brown",
       "recipeCostKwd": 0.044,
-      "coverage": 100,
-      "lines": 1
-    },
-    {
-      "productId": 17308,
-      "name": "[EXFR0001] EXB Little Original",
-      "brand": "franks",
-      "recipeCostKwd": 0.213,
-      "coverage": 76.9,
-      "lines": 13
-    },
-    {
-      "productId": 18237,
-      "name": "[RIFB0066] Slush Strawberry",
-      "brand": "farm-brown",
-      "recipeCostKwd": 0.523,
-      "coverage": 75,
-      "lines": 4
-    },
-    {
-      "productId": 17265,
-      "name": "[EXCG0035] EXB Pepsi",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.08,
-      "coverage": 100,
-      "lines": 1
-    },
-    {
-      "productId": 16884,
-      "name": "[RIFR0022] Sprite",
-      "brand": "franks",
-      "recipeCostKwd": 0.103,
-      "coverage": 100,
-      "lines": 1
-    },
-    {
-      "productId": 16824,
-      "name": "[RITNB034] Pepsi Zero",
-      "brand": "noodle-bar",
-      "recipeCostKwd": 0.08,
       "coverage": 100,
       "lines": 1
     },
@@ -1711,42 +1815,114 @@
       "lines": 1
     },
     {
-      "productId": 18385,
-      "name": "[EXTAH055] EXB Black Tea Cup ",
-      "brand": "tahina",
-      "recipeCostKwd": 0.002,
-      "coverage": 25,
-      "lines": 4
-    },
-    {
-      "productId": 15845,
-      "name": "[RIFB0031] Coca-Cola",
-      "brand": "farm-brown",
+      "productId": 16884,
+      "name": "[RIFR0022] Sprite",
+      "brand": "franks",
       "recipeCostKwd": 0.103,
       "coverage": 100,
       "lines": 1
     },
     {
-      "productId": 17087,
-      "name": "[RITAH027] Pepsi",
-      "brand": "tahina",
+      "productId": 15844,
+      "name": "[RIFB0030] Big Cookie",
+      "brand": "farm-brown",
+      "recipeCostKwd": 0.267,
+      "coverage": 100,
+      "lines": 2
+    },
+    {
+      "productId": 16824,
+      "name": "[RITNB034] Pepsi Zero",
+      "brand": "noodle-bar",
       "recipeCostKwd": 0.08,
       "coverage": 100,
       "lines": 1
     },
     {
-      "productId": 16548,
-      "name": "[RICG0107] Vegetable Spring Rolls - Single",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.082,
+      "productId": 17321,
+      "name": "[EXFR0013] EXB Water",
+      "brand": "franks",
+      "recipeCostKwd": 0.044,
+      "coverage": 100,
+      "lines": 1
+    },
+    {
+      "productId": 15830,
+      "name": "[RIFB0016] Jalapeno Bites ",
+      "brand": "farm-brown",
+      "recipeCostKwd": 0.532,
       "coverage": 50,
-      "lines": 4
+      "lines": 6
+    },
+    {
+      "productId": 17255,
+      "name": "[EXCG0026] EXB Steamed Rice",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.029,
+      "coverage": 50,
+      "lines": 2
+    },
+    {
+      "productId": 16796,
+      "name": "[RITNB006] Crack Fries ",
+      "brand": "noodle-bar",
+      "recipeCostKwd": 0.258,
+      "coverage": 91.7,
+      "lines": 12
     },
     {
       "productId": 16878,
       "name": "[RIFR0016] Sweet Chili Sauce ",
       "brand": "franks",
       "recipeCostKwd": 0.059,
+      "coverage": 100,
+      "lines": 1
+    },
+    {
+      "productId": 16547,
+      "name": "[RICG0106] Shrimp Dumplings Steamed - Single",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.06,
+      "coverage": 33.3,
+      "lines": 3
+    },
+    {
+      "productId": 15847,
+      "name": "[RIFB0033] Sprite ",
+      "brand": "farm-brown",
+      "recipeCostKwd": 0.103,
+      "coverage": 100,
+      "lines": 1
+    },
+    {
+      "productId": 18386,
+      "name": "[EXTAH056] EXB Orange Juice",
+      "brand": "tahina",
+      "recipeCostKwd": 0.456,
+      "coverage": 100,
+      "lines": 2
+    },
+    {
+      "productId": 17452,
+      "name": "[RIKC0046] Sambosa Cheese 5 pcs",
+      "brand": "karak-cafeteria",
+      "recipeCostKwd": 0.007,
+      "coverage": 50,
+      "lines": 2
+    },
+    {
+      "productId": 16879,
+      "name": "[RIFR0017] Creamy Mayo Sauce",
+      "brand": "franks",
+      "recipeCostKwd": 0.053,
+      "coverage": 100,
+      "lines": 2
+    },
+    {
+      "productId": 18276,
+      "name": "[RIFDC025] Banana (1 pc)",
+      "brand": "fresh-daily-canteen",
+      "recipeCostKwd": 0.15,
       "coverage": 100,
       "lines": 1
     },
@@ -1759,116 +1935,28 @@
       "lines": 1
     },
     {
-      "productId": 15847,
-      "name": "[RIFB0033] Sprite ",
-      "brand": "farm-brown",
-      "recipeCostKwd": 0.103,
-      "coverage": 100,
-      "lines": 1
-    },
-    {
-      "productId": 17061,
-      "name": "[RITAH001] Hummos",
-      "brand": "tahina",
-      "recipeCostKwd": 0.238,
-      "coverage": 100,
-      "lines": 6
-    },
-    {
-      "productId": 15830,
-      "name": "[RIFB0016] Jalapeno Bites ",
-      "brand": "farm-brown",
-      "recipeCostKwd": 0.532,
-      "coverage": 50,
-      "lines": 6
-    },
-    {
-      "productId": 17088,
-      "name": "[RITAH028] Pepsi Zero",
-      "brand": "tahina",
-      "recipeCostKwd": 0.08,
-      "coverage": 100,
-      "lines": 1
-    },
-    {
-      "productId": 16794,
-      "name": "[RITNB004] Asian Caesar Salad",
+      "productId": 16823,
+      "name": "[RITNB033] Pepsi",
       "brand": "noodle-bar",
-      "recipeCostKwd": 0.227,
-      "coverage": 71.4,
-      "lines": 7
-    },
-    {
-      "productId": 16520,
-      "name": "[RICG0079] Hoisin Sauce",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.093,
-      "coverage": 100,
-      "lines": 2
-    },
-    {
-      "productId": 17267,
-      "name": "[EXCG0025] EXB 7UP",
-      "brand": "china-garden",
       "recipeCostKwd": 0.08,
       "coverage": 100,
       "lines": 1
     },
     {
-      "productId": 16879,
-      "name": "[RIFR0017] Creamy Mayo Sauce",
+      "productId": 17087,
+      "name": "[RITAH027] Pepsi",
+      "brand": "tahina",
+      "recipeCostKwd": 0.08,
+      "coverage": 100,
+      "lines": 1
+    },
+    {
+      "productId": 17313,
+      "name": "[EXFR0008] EXB Philly Fries",
       "brand": "franks",
-      "recipeCostKwd": 0.053,
-      "coverage": 100,
-      "lines": 2
-    },
-    {
-      "productId": 18386,
-      "name": "[EXTAH056] EXB Orange Juice",
-      "brand": "tahina",
-      "recipeCostKwd": 0.456,
-      "coverage": 100,
-      "lines": 2
-    },
-    {
-      "productId": 17107,
-      "name": "[RIKC0029] Plain Chapati (2pcs) (V)",
-      "brand": "karak-cafeteria",
-      "recipeCostKwd": 0.039,
-      "coverage": 50,
-      "lines": 2
-    },
-    {
-      "productId": 16818,
-      "name": "[RITNB028] Fresh Orange Juice ",
-      "brand": "noodle-bar",
-      "recipeCostKwd": 0.597,
-      "coverage": 100,
-      "lines": 2
-    },
-    {
-      "productId": 17454,
-      "name": "[RIKC0048] Sambosa Pizza 5 pcs",
-      "brand": "karak-cafeteria",
-      "recipeCostKwd": 0.007,
-      "coverage": 50,
-      "lines": 2
-    },
-    {
-      "productId": 16817,
-      "name": "[RITNB027] Big Cookie ",
-      "brand": "noodle-bar",
-      "recipeCostKwd": 0.267,
-      "coverage": 100,
-      "lines": 2
-    },
-    {
-      "productId": 16660,
-      "name": "[RIKC0018] Dry Cake (Lsan Althoor) Box",
-      "brand": "karak-cafeteria",
-      "recipeCostKwd": 0.45,
-      "coverage": 25,
-      "lines": 4
+      "recipeCostKwd": 0.246,
+      "coverage": 76.5,
+      "lines": 17
     },
     {
       "productId": 15820,
@@ -1879,100 +1967,44 @@
       "lines": 11
     },
     {
-      "productId": 16823,
-      "name": "[RITNB033] Pepsi",
-      "brand": "noodle-bar",
-      "recipeCostKwd": 0.08,
-      "coverage": 100,
-      "lines": 1
+      "productId": 17454,
+      "name": "[RIKC0048] Sambosa Pizza 5 pcs",
+      "brand": "karak-cafeteria",
+      "recipeCostKwd": 0.007,
+      "coverage": 50,
+      "lines": 2
     },
     {
-      "productId": 17268,
-      "name": "[EXCG0028] EXB Water",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.044,
-      "coverage": 100,
-      "lines": 1
-    },
-    {
-      "productId": 16546,
-      "name": "[RICG0105] Shrimp Dumplings Pan Fried - Single",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.069,
-      "coverage": 57.1,
-      "lines": 7
-    },
-    {
-      "productId": 17296,
-      "name": "[EXCG0041] EXB French Fries",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.145,
-      "coverage": 100,
+      "productId": 16659,
+      "name": "[RIKC0017] Darabeel Box (V)",
+      "brand": "karak-cafeteria",
+      "recipeCostKwd": 0.913,
+      "coverage": 25,
       "lines": 4
     },
     {
-      "productId": 16552,
-      "name": "[RICG0111] Coca-Cola Chicken Wings - Single",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.169,
-      "coverage": 86.7,
-      "lines": 15
-    },
-    {
-      "productId": 15844,
-      "name": "[RIFB0030] Big Cookie",
-      "brand": "farm-brown",
-      "recipeCostKwd": 0.267,
-      "coverage": 100,
-      "lines": 2
-    },
-    {
-      "productId": 15817,
-      "name": "[RIFB0003] Creamy Slaw Chicken Sandwich ",
-      "brand": "farm-brown",
-      "recipeCostKwd": 0.304,
-      "coverage": 70,
-      "lines": 10
-    },
-    {
-      "productId": 16646,
-      "name": "[RIKC0004] Fresh Orange Juice",
-      "brand": "karak-cafeteria",
-      "recipeCostKwd": 0.456,
-      "coverage": 100,
-      "lines": 2
-    },
-    {
-      "productId": 17180,
-      "name": "[RIFR0039] Kinza Lemon",
+      "productId": 17317,
+      "name": "[EXFR0010] EXB Buffalo Bites",
       "brand": "franks",
-      "recipeCostKwd": 0.066,
+      "recipeCostKwd": 0.393,
+      "coverage": 63.6,
+      "lines": 11
+    },
+    {
+      "productId": 16520,
+      "name": "[RICG0079] Hoisin Sauce",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.093,
       "coverage": 100,
-      "lines": 1
-    },
-    {
-      "productId": 18276,
-      "name": "[RIFDC025] Banana (1 pc)",
-      "brand": "fresh-daily-canteen",
-      "recipeCostKwd": 0.15,
-      "coverage": 100,
-      "lines": 1
-    },
-    {
-      "productId": 17453,
-      "name": "[RIKC0047] Sambosa Cheese 20 pcs",
-      "brand": "karak-cafeteria",
-      "recipeCostKwd": 0,
-      "coverage": 0,
-      "lines": 3
-    },
-    {
-      "productId": 16830,
-      "name": "[RITNB040] Soya Sauce ",
-      "brand": "noodle-bar",
-      "recipeCostKwd": 0.046,
-      "coverage": 50,
       "lines": 2
+    },
+    {
+      "productId": 17061,
+      "name": "[RITAH001] Hummos",
+      "brand": "tahina",
+      "recipeCostKwd": 0.238,
+      "coverage": 100,
+      "lines": 6
     },
     {
       "productId": 16661,
@@ -1981,6 +2013,14 @@
       "recipeCostKwd": 0.402,
       "coverage": 25,
       "lines": 4
+    },
+    {
+      "productId": 17253,
+      "name": "[EXCG0022] EXB Dynamite Shrimp",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.298,
+      "coverage": 83.3,
+      "lines": 6
     },
     {
       "productId": 16518,
@@ -1999,12 +2039,28 @@
       "lines": 1
     },
     {
-      "productId": 16550,
-      "name": "[RICG0109] Sesame Shrimp on Toast - Single",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.13,
-      "coverage": 60,
-      "lines": 5
+      "productId": 17088,
+      "name": "[RITAH028] Pepsi Zero",
+      "brand": "tahina",
+      "recipeCostKwd": 0.08,
+      "coverage": 100,
+      "lines": 1
+    },
+    {
+      "productId": 16880,
+      "name": "[RIFR0018] Honey Mustard Sauce",
+      "brand": "franks",
+      "recipeCostKwd": 0.056,
+      "coverage": 100,
+      "lines": 2
+    },
+    {
+      "productId": 16651,
+      "name": "[RIKC0009] Halloumi Chapati",
+      "brand": "karak-cafeteria",
+      "recipeCostKwd": 0.131,
+      "coverage": 77.8,
+      "lines": 9
     },
     {
       "productId": 16655,
@@ -2015,44 +2071,20 @@
       "lines": 8
     },
     {
-      "productId": 17321,
-      "name": "[EXFR0013] EXB Water",
+      "productId": 17180,
+      "name": "[RIFR0039] Kinza Lemon",
       "brand": "franks",
-      "recipeCostKwd": 0.044,
+      "recipeCostKwd": 0.066,
       "coverage": 100,
       "lines": 1
     },
     {
-      "productId": 18277,
-      "name": "[RIFDC026] Apple (1 pc)",
-      "brand": "fresh-daily-canteen",
-      "recipeCostKwd": 0.1,
-      "coverage": 100,
-      "lines": 1
-    },
-    {
-      "productId": 17083,
-      "name": "[RITAH023] Chocolate Chip Cookie",
-      "brand": "tahina",
-      "recipeCostKwd": 0.25,
-      "coverage": 100,
-      "lines": 1
-    },
-    {
-      "productId": 17266,
-      "name": "[EXCG0036] EXB Pepsi Zero",
+      "productId": 16552,
+      "name": "[RICG0111] Coca-Cola Chicken Wings - Single",
       "brand": "china-garden",
-      "recipeCostKwd": 0.08,
-      "coverage": 100,
-      "lines": 1
-    },
-    {
-      "productId": 15821,
-      "name": "[RIFB0007] Korean Wrap",
-      "brand": "farm-brown",
-      "recipeCostKwd": 0.273,
-      "coverage": 58.3,
-      "lines": 12
+      "recipeCostKwd": 0.169,
+      "coverage": 86.7,
+      "lines": 15
     },
     {
       "productId": 17174,
@@ -2063,12 +2095,76 @@
       "lines": 1
     },
     {
+      "productId": 18277,
+      "name": "[RIFDC026] Apple (1 pc)",
+      "brand": "fresh-daily-canteen",
+      "recipeCostKwd": 0.15,
+      "coverage": 100,
+      "lines": 1
+    },
+    {
+      "productId": 17309,
+      "name": "[EXFR0002] EXB Little Phill Phill",
+      "brand": "franks",
+      "recipeCostKwd": 0.348,
+      "coverage": 73.3,
+      "lines": 15
+    },
+    {
+      "productId": 17448,
+      "name": "[RIKC0042] Egg Cheese Chapati",
+      "brand": "karak-cafeteria",
+      "recipeCostKwd": 0.133,
+      "coverage": 85.7,
+      "lines": 7
+    },
+    {
+      "productId": 17107,
+      "name": "[RIKC0029] Plain Chapati (2pcs) (V)",
+      "brand": "karak-cafeteria",
+      "recipeCostKwd": 0.039,
+      "coverage": 50,
+      "lines": 2
+    },
+    {
+      "productId": 16830,
+      "name": "[RITNB040] Soya Sauce ",
+      "brand": "noodle-bar",
+      "recipeCostKwd": 0.046,
+      "coverage": 50,
+      "lines": 2
+    },
+    {
+      "productId": 15828,
+      "name": "[RIFB0014] San Francisco Fries",
+      "brand": "farm-brown",
+      "recipeCostKwd": 0.301,
+      "coverage": 66.7,
+      "lines": 9
+    },
+    {
       "productId": 16828,
       "name": "[RITNB038] Chili Paste",
       "brand": "noodle-bar",
       "recipeCostKwd": 0,
       "coverage": 0,
       "lines": 2
+    },
+    {
+      "productId": 16817,
+      "name": "[RITNB027] Big Cookie ",
+      "brand": "noodle-bar",
+      "recipeCostKwd": 0.267,
+      "coverage": 100,
+      "lines": 2
+    },
+    {
+      "productId": 16650,
+      "name": "[RIKC0008] Matara Arabic Coffee",
+      "brand": "karak-cafeteria",
+      "recipeCostKwd": 0.02,
+      "coverage": 22.2,
+      "lines": 9
     },
     {
       "productId": 16829,
@@ -2079,20 +2175,60 @@
       "lines": 2
     },
     {
-      "productId": 16880,
-      "name": "[RIFR0018] Honey Mustard Sauce",
-      "brand": "franks",
-      "recipeCostKwd": 0.055,
-      "coverage": 100,
-      "lines": 2
+      "productId": 17085,
+      "name": "[RITAH025] Lemon Juice",
+      "brand": "tahina",
+      "recipeCostKwd": 0.26,
+      "coverage": 60,
+      "lines": 5
     },
     {
-      "productId": 16651,
-      "name": "[RIKC0009] Halloumi Chapati",
+      "productId": 17456,
+      "name": "[RIKC0050] Sambosa Mix 20 pcs (Cheese  & Pizza)",
       "brand": "karak-cafeteria",
-      "recipeCostKwd": 0.136,
-      "coverage": 77.8,
-      "lines": 9
+      "recipeCostKwd": 0.105,
+      "coverage": 33.3,
+      "lines": 6
+    },
+    {
+      "productId": 17177,
+      "name": "[RITAH040] Kinza Cola",
+      "brand": "tahina",
+      "recipeCostKwd": 0.066,
+      "coverage": 100,
+      "lines": 1
+    },
+    {
+      "productId": 16549,
+      "name": "[RICG0108] Chicken Spring Rolls - Single",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.1,
+      "coverage": 50,
+      "lines": 4
+    },
+    {
+      "productId": 16550,
+      "name": "[RICG0109] Sesame Shrimp on Toast - Single",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.13,
+      "coverage": 60,
+      "lines": 5
+    },
+    {
+      "productId": 16648,
+      "name": "[RIKC0006] Matara Rich Black Tea",
+      "brand": "karak-cafeteria",
+      "recipeCostKwd": 0.02,
+      "coverage": 25,
+      "lines": 8
+    },
+    {
+      "productId": 17083,
+      "name": "[RITAH023] Chocolate Chip Cookie",
+      "brand": "tahina",
+      "recipeCostKwd": 0.25,
+      "coverage": 100,
+      "lines": 1
     },
     {
       "productId": 17484,
@@ -2103,18 +2239,10 @@
       "lines": 9
     },
     {
-      "productId": 16659,
-      "name": "[RIKC0017] Darabeel Box (V)",
-      "brand": "karak-cafeteria",
-      "recipeCostKwd": 0.913,
-      "coverage": 25,
-      "lines": 4
-    },
-    {
-      "productId": 17182,
-      "name": "[RITAH041] Kinza Lemon",
-      "brand": "tahina",
-      "recipeCostKwd": 0.066,
+      "productId": 17318,
+      "name": "[EXFR0014] EXB Coca Cola",
+      "brand": "franks",
+      "recipeCostKwd": 0.103,
       "coverage": 100,
       "lines": 1
     },
@@ -2127,129 +2255,17 @@
       "lines": 4
     },
     {
-      "productId": 16650,
-      "name": "[RIKC0008] Matara Arabic Coffee",
-      "brand": "karak-cafeteria",
-      "recipeCostKwd": 0.02,
-      "coverage": 22.2,
-      "lines": 9
-    },
-    {
-      "productId": 17253,
-      "name": "[EXCG0022] EXB Dynamite Shrimp",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.296,
-      "coverage": 83.3,
-      "lines": 6
-    },
-    {
-      "productId": 17456,
-      "name": "[RIKC0050] Sambosa Mix 20 pcs (Cheese  & Pizza)",
-      "brand": "karak-cafeteria",
-      "recipeCostKwd": 0.105,
-      "coverage": 33.3,
-      "lines": 6
-    },
-    {
-      "productId": 16549,
-      "name": "[RICG0108] Chicken Spring Rolls - Single",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.1,
+      "productId": 15843,
+      "name": "[RIFB0029] Cheese Dip ",
+      "brand": "farm-brown",
+      "recipeCostKwd": 0.157,
       "coverage": 50,
-      "lines": 4
-    },
-    {
-      "productId": 16793,
-      "name": "[RITNB003] Crispy Duck Salad ",
-      "brand": "noodle-bar",
-      "recipeCostKwd": 1.338,
-      "coverage": 80,
-      "lines": 10
-    },
-    {
-      "productId": 16648,
-      "name": "[RIKC0006] Matara Rich Black Tea",
-      "brand": "karak-cafeteria",
-      "recipeCostKwd": 0.02,
-      "coverage": 25,
-      "lines": 8
-    },
-    {
-      "productId": 17177,
-      "name": "[RITAH040] Kinza Cola",
-      "brand": "tahina",
-      "recipeCostKwd": 0.066,
-      "coverage": 100,
-      "lines": 1
-    },
-    {
-      "productId": 18370,
-      "name": "[EXTAH040] EXB Labneh & Zaatar Sandwich",
-      "brand": "tahina",
-      "recipeCostKwd": 0.071,
-      "coverage": 100,
-      "lines": 1
-    },
-    {
-      "productId": 17252,
-      "name": "[EXCG0020] EXB Korean Potatoes",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.205,
-      "coverage": 100,
-      "lines": 12
-    },
-    {
-      "productId": 17262,
-      "name": "[EXCG0034] EXB General Tso Chicken",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.368,
-      "coverage": 81.8,
-      "lines": 11
-    },
-    {
-      "productId": 17309,
-      "name": "[EXFR0002] EXB Little Phill Phill",
-      "brand": "franks",
-      "recipeCostKwd": 0.348,
-      "coverage": 73.3,
-      "lines": 15
-    },
-    {
-      "productId": 16645,
-      "name": "[RIKC0003] Mix Tiqimis Box",
-      "brand": "karak-cafeteria",
-      "recipeCostKwd": 1.78,
-      "coverage": 50,
-      "lines": 8
-    },
-    {
-      "productId": 16653,
-      "name": "[RIKC0011] Qaimar & Honey Chapati",
-      "brand": "karak-cafeteria",
-      "recipeCostKwd": 0.126,
-      "coverage": 60,
-      "lines": 5
-    },
-    {
-      "productId": 17448,
-      "name": "[RIKC0042] Egg Cheese Chapati",
-      "brand": "karak-cafeteria",
-      "recipeCostKwd": 0.13,
-      "coverage": 85.7,
-      "lines": 7
-    },
-    {
-      "productId": 16519,
-      "name": "[RICG0078] Caesar Dressing",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.098,
-      "coverage": 100,
       "lines": 2
     },
     {
-      "productId": 17175,
-      "name": "[RIFR0038] Kinza Cola",
-      "brand": "franks",
+      "productId": 17182,
+      "name": "[RITAH041] Kinza Lemon",
+      "brand": "tahina",
       "recipeCostKwd": 0.066,
       "coverage": 100,
       "lines": 1
@@ -2258,23 +2274,23 @@
       "productId": 17254,
       "name": "[EXCG0024] EXB Spicy Edamame",
       "brand": "china-garden",
-      "recipeCostKwd": 0.307,
+      "recipeCostKwd": 0.309,
       "coverage": 75,
       "lines": 4
     },
     {
-      "productId": 17318,
-      "name": "[EXFR0014] EXB Coca Cola",
+      "productId": 17319,
+      "name": "[EXFR0015] EXB Cola Zero",
       "brand": "franks",
       "recipeCostKwd": 0.103,
       "coverage": 100,
       "lines": 1
     },
     {
-      "productId": 16885,
-      "name": "[RIFR0023] Water ",
+      "productId": 17175,
+      "name": "[RIFR0038] Kinza Cola",
       "brand": "franks",
-      "recipeCostKwd": 0.044,
+      "recipeCostKwd": 0.066,
       "coverage": 100,
       "lines": 1
     },
@@ -2287,42 +2303,50 @@
       "lines": 8
     },
     {
-      "productId": 17085,
-      "name": "[RITAH025] Lemon Juice",
-      "brand": "tahina",
-      "recipeCostKwd": 0.259,
-      "coverage": 60,
-      "lines": 5
-    },
-    {
-      "productId": 16551,
-      "name": "[RICG0110] Buffalo Chicken Wontons - Single",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.396,
-      "coverage": 80,
-      "lines": 5
-    },
-    {
-      "productId": 16658,
-      "name": "[RIKC0016] Turkey & Cheese Chapati",
-      "brand": "karak-cafeteria",
-      "recipeCostKwd": 0.294,
-      "coverage": 77.8,
-      "lines": 9
-    },
-    {
-      "productId": 16825,
-      "name": "[RITNB035] 7up ",
-      "brand": "noodle-bar",
-      "recipeCostKwd": 0.08,
+      "productId": 16885,
+      "name": "[RIFR0023] Water ",
+      "brand": "franks",
+      "recipeCostKwd": 0.044,
       "coverage": 100,
       "lines": 1
+    },
+    {
+      "productId": 17453,
+      "name": "[RIKC0047] Sambosa Cheese 20 pcs",
+      "brand": "karak-cafeteria",
+      "recipeCostKwd": 0,
+      "coverage": 0,
+      "lines": 3
+    },
+    {
+      "productId": 17315,
+      "name": "[EXFR0007] EXB Ziggy Fries",
+      "brand": "franks",
+      "recipeCostKwd": 0.145,
+      "coverage": 100,
+      "lines": 4
+    },
+    {
+      "productId": 16519,
+      "name": "[RICG0078] Caesar Dressing",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.098,
+      "coverage": 100,
+      "lines": 2
+    },
+    {
+      "productId": 16653,
+      "name": "[RIKC0011] Qaimar & Honey Chapati",
+      "brand": "karak-cafeteria",
+      "recipeCostKwd": 0.126,
+      "coverage": 60,
+      "lines": 5
     },
     {
       "productId": 16819,
       "name": "[RITNB029] Fresh Lemon Juice",
       "brand": "noodle-bar",
-      "recipeCostKwd": 0.259,
+      "recipeCostKwd": 0.26,
       "coverage": 60,
       "lines": 5
     },
@@ -2343,6 +2367,30 @@
       "lines": 1
     },
     {
+      "productId": 16646,
+      "name": "[RIKC0004] Fresh Orange Juice",
+      "brand": "karak-cafeteria",
+      "recipeCostKwd": 0.456,
+      "coverage": 100,
+      "lines": 2
+    },
+    {
+      "productId": 16825,
+      "name": "[RITNB035] 7up ",
+      "brand": "noodle-bar",
+      "recipeCostKwd": 0.08,
+      "coverage": 100,
+      "lines": 1
+    },
+    {
+      "productId": 15821,
+      "name": "[RIFB0007] Korean Wrap",
+      "brand": "farm-brown",
+      "recipeCostKwd": 0.279,
+      "coverage": 58.3,
+      "lines": 12
+    },
+    {
       "productId": 15823,
       "name": "[RIFB0009] Chapati Chicken - Spicy ",
       "brand": "farm-brown",
@@ -2351,68 +2399,12 @@
       "lines": 11
     },
     {
-      "productId": 17074,
-      "name": "[RITAH014] Halloum Sandwich",
-      "brand": "tahina",
-      "recipeCostKwd": 0.142,
-      "coverage": 87.5,
-      "lines": 8
-    },
-    {
-      "productId": 16656,
-      "name": "[RIKC0014] Nutella Chapati",
+      "productId": 16658,
+      "name": "[RIKC0016] Turkey & Cheese Chapati",
       "brand": "karak-cafeteria",
-      "recipeCostKwd": 0.133,
-      "coverage": 50,
-      "lines": 4
-    },
-    {
-      "productId": 18368,
-      "name": "[EXTAH038] EXB Halloumi sandwich",
-      "brand": "tahina",
-      "recipeCostKwd": 0.096,
-      "coverage": 100,
-      "lines": 1
-    },
-    {
-      "productId": 17251,
-      "name": "[EXCG0019] EXB Veg Spring Rolls",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.114,
-      "coverage": 60,
-      "lines": 5
-    },
-    {
-      "productId": 17306,
-      "name": "[EXFR0003] EXB Little Mushroom",
-      "brand": "franks",
-      "recipeCostKwd": 0.365,
-      "coverage": 76.9,
-      "lines": 13
-    },
-    {
-      "productId": 15828,
-      "name": "[RIFB0014] San Francisco Fries",
-      "brand": "farm-brown",
-      "recipeCostKwd": 0.301,
-      "coverage": 66.7,
+      "recipeCostKwd": 0.294,
+      "coverage": 77.8,
       "lines": 9
-    },
-    {
-      "productId": 17317,
-      "name": "[EXFR0010] EXB Buffalo Bites",
-      "brand": "franks",
-      "recipeCostKwd": 0.39,
-      "coverage": 63.6,
-      "lines": 11
-    },
-    {
-      "productId": 17449,
-      "name": "[RIKC0043] Feta Chapati",
-      "brand": "karak-cafeteria",
-      "recipeCostKwd": 0.033,
-      "coverage": 71.4,
-      "lines": 7
     },
     {
       "productId": 15835,
@@ -2423,38 +2415,6 @@
       "lines": 3
     },
     {
-      "productId": 16521,
-      "name": "[RICG0080] Green Salad Dressing",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.053,
-      "coverage": 100,
-      "lines": 2
-    },
-    {
-      "productId": 18371,
-      "name": "[EXTAH041] EXB Falafel sandwich",
-      "brand": "tahina",
-      "recipeCostKwd": 0.093,
-      "coverage": 100,
-      "lines": 1
-    },
-    {
-      "productId": 17451,
-      "name": "[RIKC0045] Zaatar Chapati",
-      "brand": "karak-cafeteria",
-      "recipeCostKwd": 0.036,
-      "coverage": 75,
-      "lines": 4
-    },
-    {
-      "productId": 15843,
-      "name": "[RIFB0029] Cheese Dip ",
-      "brand": "farm-brown",
-      "recipeCostKwd": 0.157,
-      "coverage": 50,
-      "lines": 2
-    },
-    {
       "productId": 15837,
       "name": "[RIFB0023] Kimchi Spicy Sauce",
       "brand": "farm-brown",
@@ -2463,20 +2423,28 @@
       "lines": 2
     },
     {
-      "productId": 15839,
-      "name": "[RIFB0025] No.7 Sauce ",
-      "brand": "farm-brown",
-      "recipeCostKwd": 0.046,
+      "productId": 17269,
+      "name": "[EXCG0037] EXB Big Cookie",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.267,
       "coverage": 100,
       "lines": 2
     },
     {
-      "productId": 17092,
-      "name": "[RITAH032] Garlic Sauce Extra",
-      "brand": "tahina",
-      "recipeCostKwd": 0.05,
-      "coverage": 100,
-      "lines": 1
+      "productId": 17311,
+      "name": "[EXFR0004] EXB Little Truffle",
+      "brand": "franks",
+      "recipeCostKwd": 0.323,
+      "coverage": 78.6,
+      "lines": 14
+    },
+    {
+      "productId": 16546,
+      "name": "[RICG0105] Shrimp Dumplings Pan Fried - Single",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.069,
+      "coverage": 57.1,
+      "lines": 7
     },
     {
       "productId": 16827,
@@ -2487,12 +2455,68 @@
       "lines": 2
     },
     {
+      "productId": 16551,
+      "name": "[RICG0110] Buffalo Chicken Wontons - Single",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.396,
+      "coverage": 80,
+      "lines": 5
+    },
+    {
+      "productId": 17092,
+      "name": "[RITAH032] Garlic Sauce Extra",
+      "brand": "tahina",
+      "recipeCostKwd": 0.05,
+      "coverage": 100,
+      "lines": 1
+    },
+    {
+      "productId": 15839,
+      "name": "[RIFB0025] No.7 Sauce ",
+      "brand": "farm-brown",
+      "recipeCostKwd": 0.046,
+      "coverage": 100,
+      "lines": 2
+    },
+    {
+      "productId": 15840,
+      "name": "[RIFB0026] Homemade Ranch Sauce ",
+      "brand": "farm-brown",
+      "recipeCostKwd": 0.046,
+      "coverage": 100,
+      "lines": 1
+    },
+    {
+      "productId": 17096,
+      "name": "[RITAH036] Extra Pickles",
+      "brand": "tahina",
+      "recipeCostKwd": 0.029,
+      "coverage": 100,
+      "lines": 1
+    },
+    {
+      "productId": 17201,
+      "name": "[RIKC0032] Black Tea Cup",
+      "brand": "karak-cafeteria",
+      "recipeCostKwd": 0.002,
+      "coverage": 25,
+      "lines": 4
+    },
+    {
       "productId": 17093,
       "name": "[RITAH033] Tahina Sauce Extra",
       "brand": "tahina",
       "recipeCostKwd": 0.038,
       "coverage": 100,
       "lines": 1
+    },
+    {
+      "productId": 17451,
+      "name": "[RIKC0045] Zaatar Chapati",
+      "brand": "karak-cafeteria",
+      "recipeCostKwd": 0.036,
+      "coverage": 75,
+      "lines": 4
     },
     {
       "productId": 16822,
@@ -2511,50 +2535,50 @@
       "lines": 1
     },
     {
-      "productId": 17315,
-      "name": "[EXFR0007] EXB Ziggy Fries",
-      "brand": "franks",
-      "recipeCostKwd": 0.145,
-      "coverage": 100,
+      "productId": 17449,
+      "name": "[RIKC0043] Feta Chapati",
+      "brand": "karak-cafeteria",
+      "recipeCostKwd": 0.033,
+      "coverage": 71.4,
+      "lines": 7
+    },
+    {
+      "productId": 16656,
+      "name": "[RIKC0014] Nutella Chapati",
+      "brand": "karak-cafeteria",
+      "recipeCostKwd": 0.133,
+      "coverage": 50,
       "lines": 4
     },
     {
-      "productId": 15836,
-      "name": "[RIFB0022] Creamy Mustard Sauce",
-      "brand": "farm-brown",
-      "recipeCostKwd": 0.064,
+      "productId": 16521,
+      "name": "[RICG0080] Green Salad Dressing",
+      "brand": "china-garden",
+      "recipeCostKwd": 0.053,
       "coverage": 100,
       "lines": 2
     },
     {
-      "productId": 15838,
-      "name": "[RIFB0024] Honey Mustard Sauce",
-      "brand": "farm-brown",
-      "recipeCostKwd": 0.055,
-      "coverage": 100,
-      "lines": 2
+      "productId": 17450,
+      "name": "[RIKC0044] Kiri Chapati",
+      "brand": "karak-cafeteria",
+      "recipeCostKwd": 0.15,
+      "coverage": 75,
+      "lines": 4
     },
     {
-      "productId": 15840,
-      "name": "[RIFB0026] Homemade Ranch Sauce ",
-      "brand": "farm-brown",
-      "recipeCostKwd": 0.046,
+      "productId": 17322,
+      "name": "[EXFR0011] EXB Big Cookie",
+      "brand": "franks",
+      "recipeCostKwd": 0.267,
       "coverage": 100,
-      "lines": 1
+      "lines": 2
     },
     {
       "productId": 17179,
       "name": "[RITNB044] Kinza Lemon",
       "brand": "noodle-bar",
       "recipeCostKwd": 0.066,
-      "coverage": 100,
-      "lines": 1
-    },
-    {
-      "productId": 17094,
-      "name": "[RITAH034] Extra Bread",
-      "brand": "tahina",
-      "recipeCostKwd": 0.067,
       "coverage": 100,
       "lines": 1
     },
@@ -2567,74 +2591,26 @@
       "lines": 4
     },
     {
-      "productId": 17269,
-      "name": "[EXCG0037] EXB Big Cookie",
-      "brand": "china-garden",
-      "recipeCostKwd": 0.267,
+      "productId": 15836,
+      "name": "[RIFB0022] Creamy Mustard Sauce",
+      "brand": "farm-brown",
+      "recipeCostKwd": 0.064,
       "coverage": 100,
       "lines": 2
-    },
-    {
-      "productId": 17096,
-      "name": "[RITAH036] Extra Pickles",
-      "brand": "tahina",
-      "recipeCostKwd": 0.029,
-      "coverage": 100,
-      "lines": 1
     },
     {
       "productId": 16826,
       "name": "[RITNB036] Dynamite Sauce ",
       "brand": "noodle-bar",
-      "recipeCostKwd": 0.102,
+      "recipeCostKwd": 0.105,
       "coverage": 50,
       "lines": 2
     },
     {
-      "productId": 17322,
-      "name": "[EXFR0011] EXB Big Cookie",
-      "brand": "franks",
-      "recipeCostKwd": 0.267,
-      "coverage": 100,
-      "lines": 2
-    },
-    {
-      "productId": 17319,
-      "name": "[EXFR0015] EXB Cola Zero",
-      "brand": "franks",
-      "recipeCostKwd": 0.103,
-      "coverage": 100,
-      "lines": 1
-    },
-    {
-      "productId": 17181,
-      "name": "[RIFB0053] Kinza Lemon",
-      "brand": "farm-brown",
-      "recipeCostKwd": 0.066,
-      "coverage": 100,
-      "lines": 1
-    },
-    {
-      "productId": 17201,
-      "name": "[RIKC0032] Black Tea Cup",
-      "brand": "karak-cafeteria",
-      "recipeCostKwd": 0.002,
-      "coverage": 25,
-      "lines": 4
-    },
-    {
-      "productId": 16662,
-      "name": "[RIKC0020] Pepsi",
-      "brand": "karak-cafeteria",
-      "recipeCostKwd": 0.08,
-      "coverage": 100,
-      "lines": 1
-    },
-    {
-      "productId": 16664,
-      "name": "[RIKC0022] 7up",
-      "brand": "karak-cafeteria",
-      "recipeCostKwd": 0.08,
+      "productId": 17094,
+      "name": "[RITAH034] Extra Bread",
+      "brand": "tahina",
+      "recipeCostKwd": 0.067,
       "coverage": 100,
       "lines": 1
     },
@@ -2655,186 +2631,267 @@
       "lines": 1
     }
   ],
+  "theoretical": {
+    "method": "BOM recipe cost (≥80% priced, grossed up) × POS qty sold, rolling window",
+    "byLocation": [
+      {
+        "location": "360-mall",
+        "theoreticalPct": 11.2,
+        "coveredSalesPct": 62.6,
+        "coveredSalesKwd": 15812.769,
+        "theoreticalCostKwd": 1773.504
+      },
+      {
+        "location": "al-kout",
+        "theoreticalPct": 11.6,
+        "coveredSalesPct": 63.2,
+        "coveredSalesKwd": 9063.042,
+        "theoreticalCostKwd": 1048.203
+      },
+      {
+        "location": "ardiya",
+        "theoreticalPct": 11.7,
+        "coveredSalesPct": 51.1,
+        "coveredSalesKwd": 10994.708,
+        "theoreticalCostKwd": 1287.958
+      },
+      {
+        "location": "assima",
+        "theoreticalPct": 11.4,
+        "coveredSalesPct": 65,
+        "coveredSalesKwd": 11812.4,
+        "theoreticalCostKwd": 1347.858
+      },
+      {
+        "location": "avenues",
+        "theoreticalPct": 11.5,
+        "coveredSalesPct": 61.7,
+        "coveredSalesKwd": 6512.794,
+        "theoreticalCostKwd": 749.449
+      },
+      {
+        "location": "promenade",
+        "theoreticalPct": 13.1,
+        "coveredSalesPct": 48.4,
+        "coveredSalesKwd": 12369.752,
+        "theoreticalCostKwd": 1623.204
+      },
+      {
+        "location": "salmiya",
+        "theoreticalPct": 11.5,
+        "coveredSalesPct": 55.6,
+        "coveredSalesKwd": 9206.941,
+        "theoreticalCostKwd": 1058.732
+      }
+    ],
+    "byBrand": [
+      {
+        "brand": "china-garden",
+        "theoreticalPct": 11.3,
+        "coveredSalesKwd": 70166.829,
+        "theoreticalCostKwd": 7920.828
+      },
+      {
+        "brand": "noodle-bar",
+        "theoreticalPct": 13.9,
+        "coveredSalesKwd": 155.121,
+        "theoreticalCostKwd": 21.636
+      },
+      {
+        "brand": "farm-brown",
+        "theoreticalPct": 30.6,
+        "coveredSalesKwd": 392.31,
+        "theoreticalCostKwd": 120.215
+      },
+      {
+        "brand": "karak-cafeteria",
+        "theoreticalPct": 28.2,
+        "coveredSalesKwd": 8.188,
+        "theoreticalCostKwd": 2.309
+      },
+      {
+        "brand": "franks",
+        "theoreticalPct": 16.1,
+        "coveredSalesKwd": 4803.107,
+        "theoreticalCostKwd": 771.045
+      },
+      {
+        "brand": "tahina",
+        "theoreticalPct": 21.4,
+        "coveredSalesKwd": 246.85,
+        "theoreticalCostKwd": 52.876
+      }
+    ]
+  },
   "purchase": {
     "windowDays": 120,
-    "linesRead": 4603,
-    "spendLast30Kwd": 39269.394,
+    "linesRead": 4669,
+    "spendLast30Kwd": 41058.071,
     "priceCreep": [
-      {
-        "productId": 14879,
-        "name": "[RW01193] Basmati Rice CG TNB TAH",
-        "uom": "KG",
-        "firstPrice": 0.466,
-        "lastPrice": 0.55,
-        "creepPct": 17.9,
-        "last30Qty": 1600,
-        "last30SpendKwd": 880,
-        "monthlyImpactKwd": 133.647
-      },
-      {
-        "productId": 14863,
-        "name": "[RW01177] Pastry Wrapper Frozen medium 190*190mm",
-        "uom": "PC",
-        "firstPrice": 0.009,
-        "lastPrice": 0.015,
-        "creepPct": 61.1,
-        "last30Qty": 20000,
-        "last30SpendKwd": 290,
-        "monthlyImpactKwd": 110
-      },
       {
         "productId": 14851,
         "name": "[RW01165] Orange Whole",
         "uom": "KG",
         "firstPrice": 0.32,
-        "lastPrice": 0.387,
-        "creepPct": 20.8,
-        "last30Qty": 1259,
-        "last30SpendKwd": 486.73,
-        "monthlyImpactKwd": 83.85
+        "lastPrice": 0.423,
+        "creepPct": 32.1,
+        "last30Qty": 1148,
+        "last30SpendKwd": 485.27,
+        "monthlyImpactKwd": 117.91
       },
       {
-        "productId": 14883,
-        "name": "[RW01197] Shrimp Frozen 31/40",
-        "uom": "PC",
-        "firstPrice": 0.024,
-        "lastPrice": 0.026,
-        "creepPct": 9.5,
-        "last30Qty": 26640,
-        "last30SpendKwd": 702,
-        "monthlyImpactKwd": 60.667
-      },
-      {
-        "productId": 14799,
-        "name": "[RW01113] Beef Top Inside Round",
+        "productId": 14879,
+        "name": "[RW01193] Basmati Rice CG TNB TAH",
         "uom": "KG",
-        "firstPrice": 4.629,
-        "lastPrice": 4.75,
-        "creepPct": 2.6,
-        "last30Qty": 355.49,
-        "last30SpendKwd": 1688.578,
-        "monthlyImpactKwd": 42.955
+        "firstPrice": 0.48,
+        "lastPrice": 0.55,
+        "creepPct": 14.7,
+        "last30Qty": 1600,
+        "last30SpendKwd": 880,
+        "monthlyImpactKwd": 112.5
+      },
+      {
+        "productId": 14822,
+        "name": "[RW01136] Soy Sauce Silver",
+        "uom": "LTR",
+        "firstPrice": 0.728,
+        "lastPrice": 0.844,
+        "creepPct": 16,
+        "last30Qty": 879,
+        "last30SpendKwd": 742.25,
+        "monthlyImpactKwd": 102.186
       },
       {
         "productId": 14894,
         "name": "[RW01208] Rice Stick Noodles",
         "uom": "KG",
         "firstPrice": 0.78,
-        "lastPrice": 0.976,
-        "creepPct": 25.2,
-        "last30Qty": 202.03,
-        "last30SpendKwd": 197.25,
-        "monthlyImpactKwd": 39.646
+        "lastPrice": 1.082,
+        "creepPct": 38.8,
+        "last30Qty": 331.874,
+        "last30SpendKwd": 359.25,
+        "monthlyImpactKwd": 100.354
       },
       {
-        "productId": 14816,
-        "name": "[RW01130] Thai Umbrella Jasmin Rice",
-        "uom": "KG",
-        "firstPrice": 0.525,
-        "lastPrice": 0.613,
-        "creepPct": 16.7,
-        "last30Qty": 360,
-        "last30SpendKwd": 220.5,
-        "monthlyImpactKwd": 31.5
-      },
-      {
-        "productId": 15644,
-        "name": "[HO-ST] HO Stationery",
-        "uom": "PCS",
-        "firstPrice": 66.55,
-        "lastPrice": 76.1,
-        "creepPct": 14.4,
-        "last30Qty": 2,
-        "last30SpendKwd": 152.2,
-        "monthlyImpactKwd": 19.1
-      },
-      {
-        "productId": 14896,
-        "name": "[RW01210] Duck Whole Frozen",
+        "productId": 14883,
+        "name": "[RW01197] Shrimp Frozen 31/40",
         "uom": "PC",
-        "firstPrice": 3.63,
-        "lastPrice": 4.367,
-        "creepPct": 20.3,
-        "last30Qty": 24,
-        "last30SpendKwd": 104.8,
-        "monthlyImpactKwd": 17.68
+        "firstPrice": 0.024,
+        "lastPrice": 0.028,
+        "creepPct": 17.4,
+        "last30Qty": 22770,
+        "last30SpendKwd": 643.5,
+        "monthlyImpactKwd": 95.333
       },
       {
-        "productId": 15009,
-        "name": "[RW01323] Vegetable Oil (HAYAT, Sabrina, Var)",
-        "uom": "LTR",
-        "firstPrice": 0.523,
-        "lastPrice": 0.528,
-        "creepPct": 0.9,
-        "last30Qty": 3600,
-        "last30SpendKwd": 1900,
-        "monthlyImpactKwd": 17.273
-      },
-      {
-        "productId": 18230,
-        "name": "[RW01472] Chicken Shawarma Spices Powder abido",
+        "productId": 14973,
+        "name": "[RW01287] Red Chili Whole Dry",
         "uom": "KG",
-        "firstPrice": 10.5,
-        "lastPrice": 13.2,
-        "creepPct": 25.7,
-        "last30Qty": 5,
-        "last30SpendKwd": 66,
-        "monthlyImpactKwd": 13.5
-      },
-      {
-        "productId": 14833,
-        "name": "[RW01147] Cabbage White",
-        "uom": "KG",
-        "firstPrice": 0.436,
-        "lastPrice": 0.442,
-        "creepPct": 1.5,
-        "last30Qty": 2044,
-        "last30SpendKwd": 904.05,
-        "monthlyImpactKwd": 12.994
+        "firstPrice": 2.002,
+        "lastPrice": 2.208,
+        "creepPct": 10.3,
+        "last30Qty": 240,
+        "last30SpendKwd": 530,
+        "monthlyImpactKwd": 49.589
       },
       {
         "productId": 15015,
         "name": "[RW01329] Sugar",
         "uom": "KG",
         "firstPrice": 0.19,
-        "lastPrice": 0.215,
-        "creepPct": 13.2,
-        "last30Qty": 500,
-        "last30SpendKwd": 107.5,
-        "monthlyImpactKwd": 12.5
+        "lastPrice": 0.218,
+        "creepPct": 14.9,
+        "last30Qty": 1500,
+        "last30SpendKwd": 327.5,
+        "monthlyImpactKwd": 42.5
       },
       {
-        "productId": 14973,
-        "name": "[RW01287] Red Chili Whole Dry",
+        "productId": 14816,
+        "name": "[RW01130] Thai Umbrella Jasmin Rice",
         "uom": "KG",
-        "firstPrice": 2.179,
-        "lastPrice": 2.216,
-        "creepPct": 1.7,
-        "last30Qty": 290,
-        "last30SpendKwd": 642.5,
-        "monthlyImpactKwd": 10.714
+        "firstPrice": 0.513,
+        "lastPrice": 0.613,
+        "creepPct": 19.5,
+        "last30Qty": 400,
+        "last30SpendKwd": 245,
+        "monthlyImpactKwd": 40
+      },
+      {
+        "productId": 14789,
+        "name": "[RW01103] Butter Unsalted Frozen",
+        "uom": "KG",
+        "firstPrice": 3.499,
+        "lastPrice": 3.881,
+        "creepPct": 10.9,
+        "last30Qty": 100,
+        "last30SpendKwd": 388.1,
+        "monthlyImpactKwd": 38.168
+      },
+      {
+        "productId": 14863,
+        "name": "[RW01177] Pastry Wrapper Frozen medium 190*190mm",
+        "uom": "PC",
+        "firstPrice": 0.014,
+        "lastPrice": 0.015,
+        "creepPct": 7.4,
+        "last30Qty": 25000,
+        "last30SpendKwd": 362.5,
+        "monthlyImpactKwd": 25
       },
       {
         "productId": 14663,
         "name": "[PI02111] Chopsticks Wooden (Bamboo) Wrapped 210mm",
         "uom": "PC",
-        "firstPrice": 0.009,
+        "firstPrice": 0.01,
         "lastPrice": 0.012,
-        "creepPct": 26.8,
+        "creepPct": 26.3,
         "last30Qty": 4000,
         "last30SpendKwd": 48,
-        "monthlyImpactKwd": 10.133
+        "monthlyImpactKwd": 10
       },
       {
-        "productId": 14822,
-        "name": "[RW01136] Soy Sauce Silver",
+        "productId": 15000,
+        "name": "[RW01314] Hot Sauce (Red rooster)",
         "uom": "LTR",
-        "firstPrice": 0.729,
-        "lastPrice": 0.786,
-        "creepPct": 7.8,
-        "last30Qty": 152,
-        "last30SpendKwd": 119.45,
-        "monthlyImpactKwd": 8.617
+        "firstPrice": 1.767,
+        "lastPrice": 2.347,
+        "creepPct": 32.8,
+        "last30Qty": 17.04,
+        "last30SpendKwd": 40,
+        "monthlyImpactKwd": 9.886
+      },
+      {
+        "productId": 15009,
+        "name": "[RW01323] Vegetable Oil (HAYAT, Sabrina, Var)",
+        "uom": "LTR",
+        "firstPrice": 0.525,
+        "lastPrice": 0.528,
+        "creepPct": 0.5,
+        "last30Qty": 4140,
+        "last30SpendKwd": 2185,
+        "monthlyImpactKwd": 9.857
+      },
+      {
+        "productId": 15018,
+        "name": "[RW01332] Fries 9x9 Stealth (S04)",
+        "uom": "KG",
+        "firstPrice": 0.78,
+        "lastPrice": 0.814,
+        "creepPct": 4.4,
+        "last30Qty": 262.5,
+        "last30SpendKwd": 213.75,
+        "monthlyImpactKwd": 9
+      },
+      {
+        "productId": 15052,
+        "name": "[RW01366] VANILLA SOFT ICE-KDD",
+        "uom": "LTR",
+        "firstPrice": 0.688,
+        "lastPrice": 0.78,
+        "creepPct": 13.3,
+        "last30Qty": 96,
+        "last30SpendKwd": 74.85,
+        "monthlyImpactKwd": 8.77
       },
       {
         "productId": 15011,
@@ -2848,47 +2905,124 @@
         "monthlyImpactKwd": 7.5
       },
       {
-        "productId": 15018,
-        "name": "[RW01332] Fries 9x9 Stealth (S04)",
+        "productId": 15051,
+        "name": "[RW01365] CHOCOLATE SOFT ICE-KDD",
+        "uom": "LTR",
+        "firstPrice": 0.688,
+        "lastPrice": 0.713,
+        "creepPct": 3.6,
+        "last30Qty": 300,
+        "last30SpendKwd": 213.95,
+        "monthlyImpactKwd": 7.45
+      },
+      {
+        "productId": 14864,
+        "name": "[RW01178] Sweet Corn Cream 425Gm",
         "uom": "KG",
-        "firstPrice": 0.78,
-        "lastPrice": 0.804,
-        "creepPct": 3,
-        "last30Qty": 275,
-        "last30SpendKwd": 221,
-        "monthlyImpactKwd": 6.5
+        "firstPrice": 0.662,
+        "lastPrice": 0.711,
+        "creepPct": 7.5,
+        "last30Qty": 127.92,
+        "last30SpendKwd": 91,
+        "monthlyImpactKwd": 6.347
       },
       {
         "productId": 14826,
         "name": "[RW01140] Mushroom Canned Slice",
         "uom": "KG",
-        "firstPrice": 0.354,
+        "firstPrice": 0.352,
         "lastPrice": 0.411,
-        "creepPct": 16.1,
+        "creepPct": 16.7,
         "last30Qty": 85.2,
         "last30SpendKwd": 35,
-        "monthlyImpactKwd": 4.845
+        "monthlyImpactKwd": 5
       },
       {
-        "productId": 14809,
-        "name": "[RW01123] Sweet Chilli Sauce",
+        "productId": 15075,
+        "name": "[ST06120] A4 Paper",
+        "uom": "PC",
+        "firstPrice": 1.06,
+        "lastPrice": 1.2,
+        "creepPct": 13.2,
+        "last30Qty": 25,
+        "last30SpendKwd": 30,
+        "monthlyImpactKwd": 3.5
+      },
+      {
+        "productId": 14918,
+        "name": "[RW01232] Laban Full Fat",
         "uom": "LTR",
-        "firstPrice": 1.185,
-        "lastPrice": 1.357,
-        "creepPct": 14.5,
-        "last30Qty": 16.8,
-        "last30SpendKwd": 22.8,
-        "monthlyImpactKwd": 2.887
+        "firstPrice": 0.35,
+        "lastPrice": 0.423,
+        "creepPct": 20.9,
+        "last30Qty": 45.6,
+        "last30SpendKwd": 19.305,
+        "monthlyImpactKwd": 3.332
       },
       {
-        "productId": 14873,
-        "name": "[RW01187] Pineapple Canned Slice",
+        "productId": 14804,
+        "name": "[RW01118] Mustard Yellow Paste",
         "uom": "KG",
-        "firstPrice": 0.71,
-        "lastPrice": 0.724,
-        "creepPct": 1.9,
-        "last30Qty": 183,
-        "last30SpendKwd": 132.5,
+        "firstPrice": 0.722,
+        "lastPrice": 0.814,
+        "creepPct": 12.7,
+        "last30Qty": 35.64,
+        "last30SpendKwd": 29,
+        "monthlyImpactKwd": 3.26
+      },
+      {
+        "productId": 15642,
+        "name": "[CarFIX] Car Maintenance",
+        "uom": "PCS",
+        "firstPrice": 29,
+        "lastPrice": 32,
+        "creepPct": 10.3,
+        "last30Qty": 1,
+        "last30SpendKwd": 32,
+        "monthlyImpactKwd": 3
+      },
+      {
+        "productId": 14792,
+        "name": "[RW01106] Coconut Milk",
+        "uom": "LTR",
+        "firstPrice": 1.563,
+        "lastPrice": 1.875,
+        "creepPct": 20,
+        "last30Qty": 9.6,
+        "last30SpendKwd": 18,
+        "monthlyImpactKwd": 3
+      },
+      {
+        "productId": 14797,
+        "name": "[RW01111] Sweetened Condensed Milk",
+        "uom": "KG",
+        "firstPrice": 1.824,
+        "lastPrice": 1.907,
+        "creepPct": 4.6,
+        "last30Qty": 35.52,
+        "last30SpendKwd": 67.75,
+        "monthlyImpactKwd": 2.95
+      },
+      {
+        "productId": 18311,
+        "name": "[RW01501] Pineapple Juice (Juice Box)",
+        "uom": "PCS",
+        "firstPrice": 0.069,
+        "lastPrice": 0.071,
+        "creepPct": 3.9,
+        "last30Qty": 1056,
+        "last30SpendKwd": 75.43,
+        "monthlyImpactKwd": 2.83
+      },
+      {
+        "productId": 14750,
+        "name": "[PI02200] Plastic Spoon white LQ (Mall meal)",
+        "uom": "PC",
+        "firstPrice": 0.002,
+        "lastPrice": 0.002,
+        "creepPct": 12.5,
+        "last30Qty": 10000,
+        "last30SpendKwd": 22.5,
         "monthlyImpactKwd": 2.5
       },
       {
@@ -2903,37 +3037,48 @@
         "monthlyImpactKwd": 2.302
       },
       {
-        "productId": 17150,
-        "name": "[RW01395] Kinza Lemon 250ml",
-        "uom": "PCS",
-        "firstPrice": 0.065,
-        "lastPrice": 0.066,
-        "creepPct": 0.9,
-        "last30Qty": 3210,
-        "last30SpendKwd": 211.184,
-        "monthlyImpactKwd": 1.836
+        "productId": 14809,
+        "name": "[RW01123] Sweet Chilli Sauce",
+        "uom": "LTR",
+        "firstPrice": 1.254,
+        "lastPrice": 1.357,
+        "creepPct": 8.2,
+        "last30Qty": 16.8,
+        "last30SpendKwd": 22.8,
+        "monthlyImpactKwd": 1.732
       },
       {
         "productId": 14830,
         "name": "[RW01144] Parsley",
         "uom": "PC",
         "firstPrice": 0.02,
-        "lastPrice": 0.023,
-        "creepPct": 14.9,
-        "last30Qty": 496,
-        "last30SpendKwd": 11.575,
+        "lastPrice": 0.024,
+        "creepPct": 15.9,
+        "last30Qty": 464,
+        "last30SpendKwd": 10.925,
         "monthlyImpactKwd": 1.5
       },
       {
-        "productId": 14750,
-        "name": "[PI02200] Plastic Spoon white LQ (Mall meal)",
+        "productId": 17150,
+        "name": "[RW01395] Kinza Lemon 250ml",
+        "uom": "PCS",
+        "firstPrice": 0.065,
+        "lastPrice": 0.066,
+        "creepPct": 0.9,
+        "last30Qty": 2310,
+        "last30SpendKwd": 151.974,
+        "monthlyImpactKwd": 1.322
+      },
+      {
+        "productId": 14770,
+        "name": "[PI02220] Plastic Fork Black",
         "uom": "PC",
-        "firstPrice": 0.002,
-        "lastPrice": 0.002,
-        "creepPct": 12.5,
-        "last30Qty": 6000,
-        "last30SpendKwd": 13.5,
-        "monthlyImpactKwd": 1.5
+        "firstPrice": 0.005,
+        "lastPrice": 0.006,
+        "creepPct": 1.5,
+        "last30Qty": 15000,
+        "last30SpendKwd": 82.5,
+        "monthlyImpactKwd": 1.25
       },
       {
         "productId": 17148,
@@ -2942,42 +3087,20 @@
         "firstPrice": 0.065,
         "lastPrice": 0.066,
         "creepPct": 0.9,
-        "last30Qty": 2250,
-        "last30SpendKwd": 148.026,
-        "monthlyImpactKwd": 1.287
+        "last30Qty": 1440,
+        "last30SpendKwd": 94.737,
+        "monthlyImpactKwd": 0.824
       },
       {
-        "productId": 14860,
-        "name": "[RW01174] Yoghurt full fat fresh Almarai",
+        "productId": 14919,
+        "name": "[RW01233] Sour Cream Awal",
         "uom": "KG",
-        "firstPrice": 0.461,
-        "lastPrice": 0.48,
-        "creepPct": 4,
-        "last30Qty": 46,
-        "last30SpendKwd": 22.07,
-        "monthlyImpactKwd": 0.842
-      },
-      {
-        "productId": 14788,
-        "name": "[RW01102] Salt",
-        "uom": "KG",
-        "firstPrice": 0.138,
-        "lastPrice": 0.14,
-        "creepPct": 1.4,
-        "last30Qty": 336,
-        "last30SpendKwd": 47.04,
-        "monthlyImpactKwd": 0.63
-      },
-      {
-        "productId": 14918,
-        "name": "[RW01232] Laban Full Fat",
-        "uom": "LTR",
-        "firstPrice": 0.332,
-        "lastPrice": 0.346,
-        "creepPct": 4.2,
-        "last30Qty": 45.6,
-        "last30SpendKwd": 15.761,
-        "monthlyImpactKwd": 0.629
+        "firstPrice": 2.213,
+        "lastPrice": 2.25,
+        "creepPct": 1.7,
+        "last30Qty": 5.28,
+        "last30SpendKwd": 11.88,
+        "monthlyImpactKwd": 0.196
       },
       {
         "productId": 14990,
@@ -2986,119 +3109,64 @@
         "firstPrice": 0.135,
         "lastPrice": 0.134,
         "creepPct": -0.7,
-        "last30Qty": 96,
-        "last30SpendKwd": 12.87,
+        "last30Qty": 90,
+        "last30SpendKwd": 12.06,
         "monthlyImpactKwd": -0.09
       },
       {
-        "productId": 14817,
-        "name": "[RW01131] Corn Starch",
-        "uom": "KG",
-        "firstPrice": 0.212,
-        "lastPrice": 0.21,
-        "creepPct": -0.9,
-        "last30Qty": 500,
-        "last30SpendKwd": 105,
-        "monthlyImpactKwd": -1
+        "productId": 18310,
+        "name": "[RW01500] Orange Juice (Juice Box)",
+        "uom": "PCS",
+        "firstPrice": 0.069,
+        "lastPrice": 0.062,
+        "creepPct": -9.3,
+        "last30Qty": 120,
+        "last30SpendKwd": 7.48,
+        "monthlyImpactKwd": -0.77
       },
       {
         "productId": 14957,
         "name": "[RW01271] Bun Burger FB",
         "uom": "PC",
         "firstPrice": 0.12,
-        "lastPrice": 0.115,
-        "creepPct": -4.3,
-        "last30Qty": 228,
-        "last30SpendKwd": 26.19,
-        "monthlyImpactKwd": -1.17
+        "lastPrice": 0.116,
+        "creepPct": -3.1,
+        "last30Qty": 210,
+        "last30SpendKwd": 24.42,
+        "monthlyImpactKwd": -0.78
       },
       {
-        "productId": 15012,
-        "name": "[RW01326] Chicken Wings Frozen CHK Wings",
-        "uom": "KG",
-        "firstPrice": 0.972,
-        "lastPrice": 0.903,
-        "creepPct": -7.1,
-        "last30Qty": 21.6,
-        "last30SpendKwd": 19.5,
-        "monthlyImpactKwd": -1.5
-      },
-      {
-        "productId": 15019,
-        "name": "[RW01333] Red Split Lentil",
-        "uom": "KG",
+        "productId": 14917,
+        "name": "[RW01231] Milk fresh Full Fat Long Life",
+        "uom": "LTR",
         "firstPrice": 0.4,
         "lastPrice": 0.367,
         "creepPct": -8.3,
-        "last30Qty": 45,
-        "last30SpendKwd": 16.5,
-        "monthlyImpactKwd": -1.5
-      },
-      {
-        "productId": 15054,
-        "name": "[RW01368] Cumin Whole",
-        "uom": "KG",
-        "firstPrice": 1.9,
-        "lastPrice": 1.5,
-        "creepPct": -21.1,
-        "last30Qty": 5,
-        "last30SpendKwd": 7.5,
-        "monthlyImpactKwd": -2
+        "last30Qty": 24,
+        "last30SpendKwd": 8.808,
+        "monthlyImpactKwd": -0.796
       },
       {
         "productId": 14818,
         "name": "[RW01132] Basmati Rice STAFF",
         "uom": "KG",
-        "firstPrice": 0.369,
+        "firstPrice": 0.365,
         "lastPrice": 0.362,
-        "creepPct": -1.9,
-        "last30Qty": 380,
-        "last30SpendKwd": 137.5,
-        "monthlyImpactKwd": -2.625
-      },
-      {
-        "productId": 15000,
-        "name": "[RW01314] Hot Sauce (Red rooster)",
-        "uom": "LTR",
-        "firstPrice": 2.113,
-        "lastPrice": 2.003,
-        "creepPct": -5.2,
-        "last30Qty": 40.68,
-        "last30SpendKwd": 81.5,
-        "monthlyImpactKwd": -4.441
-      },
-      {
-        "productId": 14806,
-        "name": "[RW01120] Truffle Oil Black 250 ML (CG-FB)",
-        "uom": "LTR",
-        "firstPrice": 29.6,
-        "lastPrice": 28,
-        "creepPct": -5.4,
-        "last30Qty": 3,
-        "last30SpendKwd": 84,
-        "monthlyImpactKwd": -4.8
-      },
-      {
-        "productId": 14874,
-        "name": "[RW01188] Egg 60/70",
-        "uom": "PC",
-        "firstPrice": 0.047,
-        "lastPrice": 0.047,
         "creepPct": -0.8,
-        "last30Qty": 13680,
-        "last30SpendKwd": 641,
-        "monthlyImpactKwd": -5
+        "last30Qty": 342,
+        "last30SpendKwd": 123.75,
+        "monthlyImpactKwd": -0.962
       },
       {
-        "productId": 14629,
-        "name": "[KS05102] Cling Film 45MM x 100M",
-        "uom": "PC",
-        "firstPrice": 1.042,
-        "lastPrice": 0.986,
-        "creepPct": -5.3,
-        "last30Qty": 90,
-        "last30SpendKwd": 88.75,
-        "monthlyImpactKwd": -5
+        "productId": 15496,
+        "name": "[RW01377] Chicken stock powder -Knorr",
+        "uom": "KG",
+        "firstPrice": 3.167,
+        "lastPrice": 3.083,
+        "creepPct": -2.6,
+        "last30Qty": 12,
+        "last30SpendKwd": 37,
+        "monthlyImpactKwd": -1
       }
     ]
   },
@@ -3112,142 +3180,144 @@
   "sessions": [
     {
       "location": "ardiya",
-      "sessions": 32,
+      "sessions": 31,
       "lateOpenings": 1,
       "cashDifferenceKwd": 0,
       "registers": 1
     },
     {
-      "location": "360-mall",
-      "sessions": 62,
-      "lateOpenings": 1,
+      "location": "promenade",
+      "sessions": 121,
+      "lateOpenings": 4,
       "cashDifferenceKwd": 0,
-      "registers": 2
+      "registers": 4
     },
     {
-      "location": "salmiya",
-      "sessions": 58,
-      "lateOpenings": 5,
+      "location": "360-mall",
+      "sessions": 60,
+      "lateOpenings": 0,
       "cashDifferenceKwd": 0,
       "registers": 2
     },
     {
       "location": "al-kout",
-      "sessions": 63,
-      "lateOpenings": 2,
-      "cashDifferenceKwd": 0,
-      "registers": 2
-    },
-    {
-      "location": "promenade",
-      "sessions": 124,
-      "lateOpenings": 5,
-      "cashDifferenceKwd": 0,
-      "registers": 4
-    },
-    {
-      "location": "assima",
-      "sessions": 62,
+      "sessions": 60,
       "lateOpenings": 0,
       "cashDifferenceKwd": 0,
       "registers": 2
     },
     {
       "location": "avenues",
-      "sessions": 31,
+      "sessions": 30,
       "lateOpenings": 0,
       "cashDifferenceKwd": 0,
       "registers": 1
+    },
+    {
+      "location": "assima",
+      "sessions": 60,
+      "lateOpenings": 0,
+      "cashDifferenceKwd": 0,
+      "registers": 2
+    },
+    {
+      "location": "salmiya",
+      "sessions": 56,
+      "lateOpenings": 4,
+      "cashDifferenceKwd": 0,
+      "registers": 2
     }
   ],
   "refunds": [
     {
-      "location": "salmiya",
+      "location": "assima",
       "refundOrders": 0,
       "refundKwd": 0,
-      "cancelledOrders": 24
-    },
-    {
-      "location": "ardiya",
-      "refundOrders": 0,
-      "refundKwd": 0,
-      "cancelledOrders": 30
-    },
-    {
-      "location": "promenade",
-      "refundOrders": 0,
-      "refundKwd": 0,
-      "cancelledOrders": 17
+      "cancelledOrders": 6
     },
     {
       "location": "360-mall",
       "refundOrders": 0,
       "refundKwd": 0,
-      "cancelledOrders": 12
+      "cancelledOrders": 15
     },
     {
-      "location": "assima",
+      "location": "promenade",
       "refundOrders": 0,
       "refundKwd": 0,
-      "cancelledOrders": 5
+      "cancelledOrders": 16
+    },
+    {
+      "location": "ardiya",
+      "refundOrders": 0,
+      "refundKwd": 0,
+      "cancelledOrders": 32
+    },
+    {
+      "location": "salmiya",
+      "refundOrders": 0,
+      "refundKwd": 0,
+      "cancelledOrders": 28
     },
     {
       "location": "al-kout",
       "refundOrders": 0,
       "refundKwd": 0,
-      "cancelledOrders": 7
+      "cancelledOrders": 6
     }
   ],
   "locationCosts": [
     {
       "location": "360-mall",
       "rentKwd": 4028.78,
-      "maintenanceKwd": 108.833,
-      "otherOpexKwd": 2729.009,
+      "maintenanceKwd": 20,
+      "otherOpexKwd": 2142.559,
       "depreciationKwd": 876.727
     },
     {
       "location": "al-kout",
       "rentKwd": 3211.08,
-      "maintenanceKwd": 242.067,
-      "otherOpexKwd": 2069.704,
+      "maintenanceKwd": 258.733,
+      "otherOpexKwd": 1822.072,
       "depreciationKwd": 1242.186
     },
     {
       "location": "ardiya",
-      "rentKwd": 2094,
-      "maintenanceKwd": 150.106,
-      "otherOpexKwd": 3325.792,
+      "rentKwd": 1730,
+      "maintenanceKwd": 40.106,
+      "otherOpexKwd": 3247.231,
       "depreciationKwd": 2859.739
     },
     {
       "location": "assima",
       "rentKwd": 3726,
-      "maintenanceKwd": 191.25,
-      "otherOpexKwd": 1671.29,
+      "maintenanceKwd": 166.15,
+      "otherOpexKwd": 1488.307,
       "depreciationKwd": 1207.726
     },
     {
       "location": "avenues",
       "rentKwd": 2900,
-      "maintenanceKwd": 66.883,
-      "otherOpexKwd": 955.429,
+      "maintenanceKwd": 56.883,
+      "otherOpexKwd": 678.939,
       "depreciationKwd": 1156.767
     },
     {
       "location": "promenade",
       "rentKwd": 2770,
-      "maintenanceKwd": 35.545,
-      "otherOpexKwd": 3476.434,
+      "maintenanceKwd": 42.045,
+      "otherOpexKwd": 3203.241,
       "depreciationKwd": 1690.283
     },
     {
       "location": "salmiya",
-      "rentKwd": 1300,
-      "maintenanceKwd": 143.883,
-      "otherOpexKwd": 2412.871,
+      "rentKwd": 300,
+      "maintenanceKwd": 150.383,
+      "otherOpexKwd": 2294.922,
       "depreciationKwd": 1378.739
     }
   ],
-  "issues": []
+  "issues": [
+    "pos.session search_read: You are not allowed to access 'Bank Statement Line' (account.bank.statement.line) records."
+  ]
 }

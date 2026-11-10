@@ -19,8 +19,25 @@ const r3 = (n: number) => Math.round(n * 1000) / 1000
 const r1 = (n: number) => Math.round(n * 10) / 10
 
 // ---------------------------------------------------------------------------
-// 1. Headline constants (Odoo, October 2026)
+// 1. Headline constants (Odoo sync window — rolling 30 days by default)
 // ---------------------------------------------------------------------------
+const MONTHS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const MONTHS_EN_FULL = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+const MONTHS_AR = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر']
+/** Human label for the synced Odoo window (`to` is exclusive). */
+const PERIOD_LABEL = (() => {
+  const from = new Date(`${ODOO.meta.period.from}T00:00:00Z`)
+  const to = new Date(`${ODOO.meta.period.to}T00:00:00Z`)
+  const days = Math.max(1, Math.round((to.getTime() - from.getTime()) / 86400000))
+  const last = new Date(to.getTime() - 86400000)
+  const fullMonth = from.getUTCDate() === 1 && to.getUTCDate() === 1 && (to.getUTCMonth() + 12 - from.getUTCMonth()) % 12 === 1
+  if (fullMonth) return { en: `${MONTHS_EN_FULL[from.getUTCMonth()]} ${from.getUTCFullYear()}`, ar: `${MONTHS_AR[from.getUTCMonth()]} ${from.getUTCFullYear()}`, days }
+  return {
+    en: `Rolling ${days} days · ${from.getUTCDate()} ${MONTHS_EN[from.getUTCMonth()]} – ${last.getUTCDate()} ${MONTHS_EN[last.getUTCMonth()]} ${last.getUTCFullYear()}`,
+    ar: `آخر ${days} يوماً · ${from.getUTCDate()} ${MONTHS_AR[from.getUTCMonth()]} – ${last.getUTCDate()} ${MONTHS_AR[last.getUTCMonth()]} ${last.getUTCFullYear()}`,
+    days,
+  }
+})()
 const KEETA = ODOO.channels.find((c) => c.id === 'keeta')
 const MENU_SORTED = [...ODOO.menu].sort((a, b) => b.netKwd - a.netKwd)
 const MENU_TOTAL = MENU_SORTED.reduce((s, m) => s + m.netKwd, 0)
@@ -87,9 +104,9 @@ export const LEDGER = {
   branches: ODOO.restaurants.length,
   channels: ODOO.channels.length,
   licence: '2021/22838',
-  periodLabelEn: 'October 2026',
-  periodLabelAr: 'أكتوبر 2026',
-  daysInPeriod: 31,
+  periodLabelEn: PERIOD_LABEL.en,
+  periodLabelAr: PERIOD_LABEL.ar,
+  daysInPeriod: PERIOD_LABEL.days,
   syncedAt: ODOO.meta.syncedAt,
 } as const
 

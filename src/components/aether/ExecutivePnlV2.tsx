@@ -217,7 +217,7 @@ export function ExecutivePnlV2() {
           icon={<Building2 className="h-4 w-4" />}
           title={T('Group P&L reconciliation by Odoo operating unit · month', 'مطابقة قائمة دخل المجموعة حسب وحدات التشغيل في أودو · الشهر')}
           subtitle={T(
-            'Restaurant locations, Exhibitions & Booths (EXB, registers 26–29) and school canteens from the Branches analytic plan, shared cost centres, and the remainder posted without a location cost centre. Totals tie to the whitelisted Odoo ledger.',
+            'Restaurant locations, Exhibitions & Booths (EXB, registers 26–29) and school canteens from the Branches analytic plan, shared cost centres, and the remainder posted without a branch cost centre. Totals tie to the whitelisted Odoo ledger.',
             'مواقع المطاعم والمعارض والأجنحة (EXB، الأجهزة 26–29) ومقاصف المدارس من خطة الفروع التحليلية، ومراكز التكلفة المشتركة، والمتبقي المرحّل دون مركز تكلفة موقع. الإجماليات تطابق دفتر أودو للمواقع المعتمدة.',
           )}
         />

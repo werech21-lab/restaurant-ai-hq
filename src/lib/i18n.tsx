@@ -4572,7 +4572,7 @@ const en: { [K in keyof typeof ar]: string } = {
   'admin.lead': 'Manage accounts, grant permissions, and review every movement on the books. Suspension blocks access immediately.',
   'admin.purge': 'Purge demo data',
   'admin.purgeConfirm': 'Clear seeded employees and deactivate demo items? Posted journals stay.',
-  'admin.purgeDone': 'Demo rows were cleared.',
+  'admin.purgeDone': 'Sample rows were cleared.',
   'adm.loading': 'Loading administration…',
   'adm.saved': 'Saved.',
   'admin.kwd': 'KWD',

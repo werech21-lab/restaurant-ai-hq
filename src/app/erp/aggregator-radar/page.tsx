@@ -1,5 +1,4 @@
-import { panelBridgePermissionSet } from '@/lib/auth/panel-bridge'
-import AggregatorRadar from '@/modules/governance/ui/AggregatorRadar'
+import { requirePageUser } from '@/lib/auth/context'
 import { DeliveryRadarV5 } from '@/components/aether/DeliveryRadarV5'
 
 export const dynamic = 'force-dynamic'
@@ -9,15 +8,12 @@ export const metadata = {
   description: 'مراقبة عمولات منصات التوصيل واستنزاف العروض وحسابات المناطق ومطالبات التسوية لشركة فنتشر فودز.',
 }
 
-/** Permanent pillar: Delivery & Aggregator Radar. Never redirected. */
-export default function AggregatorRadarPage() {
-  const permissions = [...panelBridgePermissionSet()].sort()
+/** Permanent pillar: Delivery & Aggregator Radar (single 3-tab workspace). Never redirected or removed. */
+export default async function AggregatorRadarPage() {
+  await requirePageUser('/erp/aggregator-radar')
   return (
-    <main className="mx-auto w-full min-w-0 max-w-[1400px] space-y-6 px-5 py-6 sm:px-8" suppressHydrationWarning>
+    <div className="w-full min-w-0" suppressHydrationWarning>
       <DeliveryRadarV5 />
-      <div className="w-full min-w-0 overflow-x-auto">
-        <AggregatorRadar permissions={permissions} />
-      </div>
-    </main>
+    </div>
   )
 }

@@ -200,6 +200,34 @@ async function main() {
   }
   console.log(`■ Recipes: ${recipes.length} menu items with a BOM · ${recipes.filter((r) => r.coverage >= 80).length} costed ≥80%`)
 
+  /* ───────────── 1b. Theoretical food cost of what was actually sold (stage 2 yield gap) ─────────────
+   * Recipe cost ≥80% priced, grossed up for the unpriced share of BOM lines, × qty sold per location
+   * (snapshot.journey.locDishQty from sync-odoo-live). Compared in the brain against posted food cost,
+   * inventory count variance and scrap per location (analytic plan). */
+  const costed = new Map(recipes.filter((r) => r.coverage >= 80).map((r) => [r.productId, r.recipeCostKwd / (r.coverage / 100)]))
+  const avgPrice = new Map(menuProducts.map((p) => [p.productId, p.qty ? p.netKwd / p.qty : 0]))
+  const brandOfPid = new Map(menuProducts.map((p) => [p.productId, p.brand]))
+  const theoLoc = []; const theoBrand = new Map()
+  for (const [location, dishes] of Object.entries(snapshot.journey?.locDishQty ?? {})) {
+    let cost = 0; let coveredSales = 0; let sales = 0
+    for (const [pidRaw, qty] of Object.entries(dishes)) {
+      const pid = Number(pidRaw); const price = avgPrice.get(pid) ?? 0; const s = price * qty
+      sales += s
+      const unit = costed.get(pid)
+      if (unit == null) continue
+      cost += unit * qty; coveredSales += s
+      const b = brandOfPid.get(pid)
+      if (b) { const t = theoBrand.get(b) || { cost: 0, coveredSales: 0 }; t.cost += unit * qty; t.coveredSales += s; theoBrand.set(b, t) }
+    }
+    theoLoc.push({ location, theoreticalPct: coveredSales ? r1((cost / coveredSales) * 100) : null, coveredSalesPct: sales ? r1((coveredSales / sales) * 100) : 0, coveredSalesKwd: r3(coveredSales), theoreticalCostKwd: r3(cost) })
+  }
+  const theoretical = {
+    method: 'BOM recipe cost (≥80% priced, grossed up) × POS qty sold, rolling window',
+    byLocation: theoLoc.sort((a, b) => a.location.localeCompare(b.location)),
+    byBrand: [...theoBrand.entries()].map(([brand, t]) => ({ brand, theoreticalPct: t.coveredSales ? r1((t.cost / t.coveredSales) * 100) : null, coveredSalesKwd: r3(t.coveredSales), theoreticalCostKwd: r3(t.cost) })),
+  }
+  console.log(`■ Theoretical food cost: ${theoLoc.map((t) => `${t.location} ${t.theoreticalPct}% (${t.coveredSalesPct}% covered)`).join(' | ')}`)
+
   /* ───────────── 2. Supplier unit-price creep ───────────── */
   const creepFrom = isoDaysBefore(PERIOD.to, 120)
   const lastFrom = isoDaysBefore(PERIOD.to, 30)
@@ -258,7 +286,10 @@ async function main() {
   console.log(`■ Scrap: ${matched.length} records at whitelisted locations · ${scrap.totalValueKwd} KWD`)
 
   /* ───────────── 4. POS session discipline, refunds & cancellations ───────────── */
-  const sessions = await safe('pos.session search_read', () => searchReadAll('pos.session', [['config_id', 'in', ALLOWED], ['start_at', '>=', `${PERIOD.from} 00:00:00`], ['start_at', '<', `${PERIOD.to} 00:00:00`]], ['id', 'config_id', 'start_at', 'stop_at', 'cash_register_difference']), [])
+  const sessDomain = [['config_id', 'in', ALLOWED], ['start_at', '>=', `${PERIOD.from} 00:00:00`], ['start_at', '<', `${PERIOD.to} 00:00:00`]]
+  // cash_register_difference is computed from bank-statement lines; fall back to session times when that is restricted.
+  let sessions = await safe('pos.session search_read', () => searchReadAll('pos.session', sessDomain, ['id', 'config_id', 'start_at', 'stop_at', 'cash_register_difference']), [])
+  if (!sessions.length) sessions = await safe('pos.session search_read (session times)', () => searchReadAll('pos.session', sessDomain, ['id', 'config_id', 'start_at', 'stop_at']), [])
   const sessionsByCfg = new Map()
   for (const s of sessions) { const c = m2oId(s.config_id); if (!ALLOWED_SET.has(c)) continue; sessionsByCfg.set(c, [...(sessionsByCfg.get(c) || []), s]) }
   const discipline = new Map()
@@ -316,6 +347,7 @@ async function main() {
     syncedAt: new Date().toISOString(),
     period: PERIOD,
     recipes,
+    theoretical,
     purchase: { windowDays: 120, linesRead: poLines.length, spendLast30Kwd: purchaseSpendLast30, priceCreep: priceCreep.slice(0, 40) },
     scrap,
     sessions: sessionsOut,

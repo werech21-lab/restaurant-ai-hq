@@ -857,7 +857,7 @@ export function executivePnl(f: BiFilters, horizon: Horizon) {
 /**
  * Whitelisted group operating profit itemised by Odoo operating unit (Branches analytic plan):
  * restaurant locations, Exhibitions & Booths (EXB), school canteens, shared cost centres and the
- * remainder posted without a location cost centre (call centre and unallocated entries).
+ * remainder posted without a branch cost centre (call centre and unallocated entries).
  */
 export function pnlUnitReconciliation() {
   const unit = (pnl: { income: number; otherIncome: number; cogs: number; expense: number; depreciation: number; operatingProfit: number } | null | undefined) =>
@@ -875,7 +875,7 @@ export function pnlUnitReconciliation() {
   const group = { revenue: LEDGER.revenue, cogs: LEDGER.cogs, opex: LEDGER.opex, depreciation: LEDGER.depreciation, profit: LEDGER.netProfit }
   const remainder = {
     id: 'unallocated',
-    en: 'Call centre & entries without a location cost centre',
+    en: 'Call centre & entries without a branch cost centre',
     ar: 'مركز الاتصال والقيود دون مركز تكلفة موقع',
     kind: 'unallocated' as const,
     posNet: LEDGER.netSales - [...restaurants, ...exhibitions, ...canteens].reduce((a, r) => a + r.posNet, 0),

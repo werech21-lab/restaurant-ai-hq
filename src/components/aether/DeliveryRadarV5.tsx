@@ -3,23 +3,49 @@
 import { useMemo, useState } from 'react'
 import { Check, Copy, Radar, Truck } from 'lucide-react'
 import { CHANNEL_ECONOMICS } from '@/lib/aether-proprietary-brain'
-import { BRANDS, LEDGER } from '@/lib/aether/ledger'
+import { BRANDS, CHANNELS, LEDGER } from '@/lib/aether/ledger'
 import { ODOO } from '@/lib/odoo/odoo-dataset'
+import JOURNEY from '@/lib/odoo/odoo-journey.json'
 import { INITIAL_BRANCH_PROFILES } from '@/lib/radar/talabat-geo-zone-radar'
 import { useLang } from '@/components/aether/ui'
 
 const f0 = (n: number) => Math.round(n).toLocaleString('en-US')
 const f1 = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
 const f3 = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
-const card = 'min-w-0 rounded-[22px] bg-white p-5 shadow-[0_8px_32px_rgba(10,30,50,0.05)] ring-1 ring-slate-200/80 dark:bg-slate-900 dark:ring-slate-800'
+const card = 'relative min-w-0 overflow-hidden rounded-[24px] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_rgba(15,23,42,0.04)] dark:bg-neutral-900'
 const PROMO_CAP = LEDGER.keetaCapPct
+type RadarTab = 'commissions' | 'zones' | 'matrix'
+type PlatformRow = { platform: string; openBalanceKwd: number; clearingKwd: number; receivableKwd: number; booked30Kwd: number; settled30Kwd: number }
+const J = JOURNEY as unknown as { delivery: { platforms: PlatformRow[]; postedCommissions30: Record<string, number>; postedCommissionsPrior30: Record<string, number> } }
+const PLATFORM_AR: Record<string, string> = { Talabat: 'طلبات', Keeta: 'كيتا', Deliveroo: 'ديليفرو', Jahez: 'جاهز', Snoonu: 'سنونو', Cari: 'كاري', Bilbayt: 'بالبيت' }
+const PLATFORM_CHANNELS: Record<string, string[]> = { Talabat: ['talabat-tgo', 'talabat-tmp'], Keeta: ['keeta'], Deliveroo: ['deliveroo-go', 'deliveroo-mp'], Jahez: ['jahez'], Snoonu: ['snoonu'] }
 
 /** Delivery & Aggregator Radar — channel economics, zone accounts and settlement claims on Odoo data. */
 export function DeliveryRadarV5() {
   const { isAr, T } = useLang()
+  const [tab, setTab] = useState<RadarTab>('commissions')
   const [statement, setStatement] = useState<Record<string, string>>({})
   const [copied, setCopied] = useState<string | null>(null)
   const kwd = (n: number, d = 0) => (isAr ? `${d ? f3(n) : f0(n)} د.ك` : `${d ? f3(n) : f0(n)} KWD`)
+  const commissionAudit = useMemo(
+    () =>
+      Object.entries(PLATFORM_CHANNELS)
+        .map(([platform, ids]) => {
+          const chans = ids.map((id) => CHANNELS.find((c) => c.id === id)).filter((c): c is (typeof CHANNELS)[number] => !!c)
+          const sales = chans.reduce((s, c) => s + c.sales, 0)
+          const contract = sales ? chans.reduce((s, c) => s + c.sales * (c.commissionPct / 100), 0) : 0
+          const posted = J.delivery.postedCommissions30[platform] ?? 0
+          const prior = J.delivery.postedCommissionsPrior30[platform] ?? 0
+          return { platform, sales, contract, posted, prior, effectivePct: sales ? (posted / sales) * 100 : 0, contractPct: sales ? (contract / sales) * 100 : 0 }
+        })
+        .filter((r) => r.sales > 0),
+    [],
+  )
+  const tabs: { id: RadarTab; en: string; ar: string }[] = [
+    { id: 'commissions', en: 'Commissions & gaps summary', ar: 'ملخص العمولات والفروقات' },
+    { id: 'zones', en: 'Zone accounts · Tgo & TMP', ar: 'تغطية حسابات المناطق Tgo & TMP' },
+    { id: 'matrix', en: 'Reconciliation & settlement matrix', ar: 'مصفوفة المطابقة والتسويات' },
+  ]
 
   const aggIds = useMemo(() => new Set(CHANNEL_ECONOMICS.map((c) => c.id)), [])
   const locations = useMemo(
@@ -85,15 +111,16 @@ export function DeliveryRadarV5() {
   }
 
   return (
-    <div dir={isAr ? 'rtl' : 'ltr'} className="space-y-6">
-      <section className={`${card} flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between`}>
+    <div dir={isAr ? 'rtl' : 'ltr'} className="rounded-[28px] bg-[#F7F7F8] dark:bg-[#0A0A0A]">
+     <div className="mx-auto w-full max-w-[1520px] space-y-6 px-6 py-6 lg:px-10">
+      <header className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div className="flex min-w-0 items-center gap-3">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#0F172A] text-white">
             <Radar className="h-5 w-5" />
           </div>
           <div className="min-w-0">
-            <h1 className="text-xl font-extrabold tracking-tight text-slate-950 dark:text-white">{T('Delivery & Aggregator Radar', 'رادار منصات التوصيل')}</h1>
-            <p className="text-[13px] text-slate-500 dark:text-slate-400">
+            <h1 className="text-[22px] font-semibold tracking-tight text-neutral-950 dark:text-white">{T('Delivery & Aggregator Radar', 'رادار منصات التوصيل')}</h1>
+            <p className="text-[13px] text-neutral-500 dark:text-neutral-400">
               {T(
                 `Odoo payments, contract commissions, promotion burn and settlement claims · ${LEDGER.periodLabelEn}`,
                 `مدفوعات أودو والعمولات التعاقدية واستنزاف العروض ومطالبات التسوية · ${LEDGER.periodLabelAr}`,
@@ -101,11 +128,48 @@ export function DeliveryRadarV5() {
             </p>
           </div>
         </div>
+        <div role="tablist" aria-label={T('Radar view', 'عرض الرادار')} className="grid w-full grid-cols-3 gap-1 rounded-full bg-neutral-200/70 p-1 xl:w-auto dark:bg-neutral-800">
+          {tabs.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              aria-selected={tab === t.id}
+              onClick={() => setTab(t.id)}
+              className={`truncate rounded-full px-3 py-2 text-[12.5px] font-semibold transition-colors sm:px-5 sm:text-[13px] ${tab === t.id ? 'bg-white text-neutral-950 shadow-[0_1px_2px_rgba(0,0,0,0.06),0_4px_12px_rgba(15,23,42,0.06)] dark:bg-neutral-950 dark:text-white' : 'text-neutral-500 hover:text-neutral-800 dark:text-neutral-400'}`}
+            >
+              {isAr ? t.ar : t.en}
+            </button>
+          ))}
+        </div>
+      </header>
+
+      {tab === 'commissions' && (
+      <>
+      {/* Posted commission vs contract */}
+      <section className="space-y-3">
+        <h2 className="text-[15px] font-semibold text-neutral-900 dark:text-white">{T('Posted commission vs contract rate (last 30 days)', 'العمولة المرحّلة مقابل النسبة التعاقدية (آخر 30 يوماً)')}</h2>
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-5">
+          {commissionAudit.map((r) => {
+            const over = r.posted > 0 && r.effectivePct > r.contractPct + 3
+            return (
+              <article key={r.platform} className={card}>
+                <h3 className="text-[15px] font-semibold text-neutral-900 dark:text-white">{isAr ? PLATFORM_AR[r.platform] ?? r.platform : r.platform}</h3>
+                <div className={`mt-3 text-[24px] font-semibold tabular-nums ${over ? 'text-rose-600' : 'text-neutral-950 dark:text-white'}`}>{r.posted > 0 ? `${f1(r.effectivePct)}%` : '—'}</div>
+                <p className="mt-1 text-[12.5px] text-neutral-500">
+                  {r.posted > 0
+                    ? T(`${kwd(r.posted)} posted on ${kwd(r.sales)} POS takings · contract ${f1(r.contractPct)}%`, `${kwd(r.posted)} مرحّلة على ${kwd(r.sales)} متحصلات · التعاقدي ${f1(r.contractPct)}%`)
+                    : T(`No commission invoice posted yet in this window (prior 30 days: ${kwd(r.prior)})`, `لم تُرحّل فاتورة عمولة بعد في هذه الفترة (الثلاثون يوماً السابقة: ${kwd(r.prior)})`)}
+                </p>
+              </article>
+            )
+          })}
+        </div>
       </section>
 
       {/* Channel economics */}
       <section className="space-y-3">
-        <h2 className="text-[15px] font-bold text-slate-900 dark:text-white">{T('Channel economics', 'اقتصاديات القنوات')}</h2>
+        <h2 className="text-[15px] font-semibold text-neutral-900 dark:text-white">{T('Channel economics', 'اقتصاديات القنوات')}</h2>
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
           {CHANNEL_ECONOMICS.map((c) => {
             const over = c.promoPct > PROMO_CAP
@@ -137,8 +201,11 @@ export function DeliveryRadarV5() {
           })}
         </div>
       </section>
+      </>
+      )}
 
       {/* Zone accounts per location */}
+      {tab === 'zones' && (
       <section className="space-y-3">
         <h2 className="text-[15px] font-bold text-slate-900 dark:text-white">{T('Zone accounts by location (Talabat Go vs Marketplace)', 'حسابات المناطق حسب الموقع (طلبات جو مقابل سوق طلبات)')}</h2>
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
@@ -160,6 +227,28 @@ export function DeliveryRadarV5() {
               </div>
             </article>
           ))}
+        </div>
+      </section>
+      )}
+
+      {tab === 'matrix' && (
+      <>
+      {/* Platform clearing balances in Odoo */}
+      <section className="space-y-3">
+        <h2 className="text-[15px] font-semibold text-neutral-900 dark:text-white">{T('Platform takings awaiting settlement in Odoo', 'متحصلات المنصات بانتظار التسوية في أودو')}</h2>
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-5">
+          {J.delivery.platforms.filter((p) => p.booked30Kwd > 0 || p.clearingKwd > 0).map((p) => {
+            const stuck = p.clearingKwd > 1000 && p.settled30Kwd < p.booked30Kwd * 0.2
+            return (
+              <article key={p.platform} className={card}>
+                <h3 className="text-[15px] font-semibold text-neutral-900 dark:text-white">{isAr ? PLATFORM_AR[p.platform] ?? p.platform : p.platform}</h3>
+                <div className={`mt-3 text-[22px] font-semibold tabular-nums ${stuck ? 'text-rose-600' : 'text-neutral-950 dark:text-white'}`}>{kwd(p.clearingKwd)}</div>
+                <p className="mt-1 text-[12.5px] text-neutral-500">
+                  {T(`Open in the clearing account · ${kwd(p.booked30Kwd)} booked and ${kwd(p.settled30Kwd)} settled in 30 days`, `مفتوح في حساب التسوية · ${kwd(p.booked30Kwd)} مسجلة و${kwd(p.settled30Kwd)} مسوّاة خلال 30 يوماً`)}
+                </p>
+              </article>
+            )
+          })}
         </div>
       </section>
 
@@ -221,6 +310,9 @@ export function DeliveryRadarV5() {
           </table>
         </div>
       </section>
+      </>
+      )}
+     </div>
     </div>
   )
 }

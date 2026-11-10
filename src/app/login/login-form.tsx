@@ -52,7 +52,7 @@ export function LoginForm() {
         <p className="text-sm font-bold text-mist-100">{t('login.demo')}</p>
         <p className="mt-1 text-xs text-mist-400" dir="ltr">
           {locale === 'en'
-            ? 'Official: admin@aetherbi.com · Demo users: password 123456'
+            ? 'Official: admin@aetherbi.com · Team accounts: password 123456'
             : 'الرسمي: admin@aetherbi.com · التجريبي: كلمة المرور 123456'}
         </p>
         <div className="mt-3 grid gap-2">

@@ -10,7 +10,7 @@ import { useLang } from '@/components/aether/ui'
 const f0 = (n: number) => Math.round(n).toLocaleString('en-US')
 const f1 = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
 const f3 = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
-const card = 'min-w-0 rounded-[22px] bg-white p-6 shadow-[0_8px_32px_rgba(10,30,50,0.05)] ring-1 ring-slate-200/80 dark:bg-slate-900 dark:ring-slate-800'
+const card = 'relative min-w-0 overflow-hidden rounded-[24px] bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_rgba(15,23,42,0.04)] dark:bg-neutral-900'
 const input = 'w-full rounded-xl bg-slate-50 px-3.5 py-2.5 text-[14px] text-slate-900 ring-1 ring-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-400 dark:bg-slate-800 dark:text-white dark:ring-slate-700'
 
 // Odoo calibration: exhibitions unit (registers 26–29) and brand baskets
@@ -136,7 +136,8 @@ export function BoothStudyV5() {
   ].filter(Boolean) as string[]
 
   return (
-    <div dir={isAr ? 'rtl' : 'ltr'} className="mx-auto w-full max-w-[1400px] space-y-6 px-5 py-6 sm:px-8">
+    <div dir={isAr ? 'rtl' : 'ltr'} className="rounded-[28px] bg-[#F7F7F8] dark:bg-[#0A0A0A]">
+     <div className="mx-auto w-full max-w-[1520px] space-y-6 px-6 py-6 lg:px-10">
       <section className={card}>
         <h1 className="text-xl font-extrabold tracking-tight text-slate-950 sm:text-2xl dark:text-white">{T('Seasonal Booths & Exhibitions Study', 'جدوى المعارض والبوثات الموسمية')}</h1>
         <p className="mt-1.5 max-w-3xl text-sm leading-relaxed text-slate-600 dark:text-slate-300">
@@ -147,7 +148,8 @@ export function BoothStudyV5() {
         </p>
       </section>
 
-      <section className={`${card} grid grid-cols-1 gap-4 lg:grid-cols-2`}>
+      <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-12">
+      <section className={`${card} grid grid-cols-1 gap-4 sm:grid-cols-2 xl:sticky xl:top-24 xl:col-span-5`}>
         <label className="space-y-1.5"><span className="text-[13px] font-semibold text-slate-600 dark:text-slate-300">{T('Event or exhibition name', 'اسم الفعالية أو المعرض')}</span><input className={input} value={eventName} onChange={(e) => setEventName(e.target.value)} /></label>
         <label className="space-y-1.5"><span className="text-[13px] font-semibold text-slate-600 dark:text-slate-300">{T('Brand at the booth', 'العلامة في البوث')}</span>
           <select className={input} value={brandId} onChange={(e) => setBrandId(e.target.value)}>
@@ -156,7 +158,7 @@ export function BoothStudyV5() {
             ))}
           </select>
         </label>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:col-span-2 xl:grid-cols-5">
+        <div className="grid grid-cols-2 gap-4 sm:col-span-2">
           {[
             { v: days, set: setDays, en: 'Duration (days)', ar: 'المدة (أيام)' },
             { v: rent, set: setRent, en: 'Rent & organizer fees (KWD)', ar: 'الإيجار ورسوم المنظم (د.ك)' },
@@ -170,7 +172,7 @@ export function BoothStudyV5() {
             </label>
           ))}
         </div>
-        <label className="space-y-1.5 lg:col-span-2"><span className="text-[13px] font-semibold text-slate-600 dark:text-slate-300">{T('Contract clauses (paste text)', 'بنود العقد (الصق النص)')}</span><textarea className={`${input} min-h-[110px]`} value={contract} onChange={(e) => setContract(e.target.value)} /></label>
+        <label className="space-y-1.5 sm:col-span-2"><span className="text-[13px] font-semibold text-slate-600 dark:text-slate-300">{T('Contract clauses (paste text)', 'بنود العقد (الصق النص)')}</span><textarea className={`${input} min-h-[110px]`} value={contract} onChange={(e) => setContract(e.target.value)} /></label>
         <label className="space-y-1.5"><span className="text-[13px] font-semibold text-slate-600 dark:text-slate-300">{T('Event description', 'وصف الفعالية')}</span><textarea className={`${input} min-h-[80px]`} value={description} onChange={(e) => setDescription(e.target.value)} /></label>
         <div className="flex flex-col justify-end gap-3">
           <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-slate-50 px-3.5 py-2.5 text-[13px] font-semibold text-slate-700 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700">
@@ -185,6 +187,7 @@ export function BoothStudyV5() {
         </div>
       </section>
 
+      <div className="min-w-0 space-y-6 xl:col-span-7">
       {/* 1. Verdict */}
       <section className={`rounded-[22px] p-6 ring-1 ${verdictUi.cls}`}>
         <div className="text-[12px] font-bold opacity-80">{T('1. Go / Conditional / Walk-Away verdict', '١. الحكم الاستثماري الحاسم')}</div>
@@ -201,7 +204,7 @@ export function BoothStudyV5() {
         {audit && <p className="mt-2 text-[14px] font-semibold">{isAr ? audit.verdictBadgeAr : audit.verdictBadgeEn}</p>}
       </section>
 
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 2xl:grid-cols-2">
         {/* 2. Strengths, weaknesses & traps */}
         <section className={`${card} space-y-4`}>
           <h2 className="text-[15px] font-bold text-slate-900 dark:text-white">{T('2. Strengths vs. weaknesses & booth contract traps', '٢. نقاط القوة والضعف وأفخاخ عقد المعرض الموسمي')}</h2>
@@ -265,8 +268,8 @@ export function BoothStudyV5() {
       </div>
 
       {/* 4. Negotiation, quick menu & prep */}
-      <section className={`${card} grid grid-cols-1 gap-6 xl:grid-cols-3`}>
-        <div className="space-y-2 xl:col-span-3">
+      <section className={`${card} grid grid-cols-1 gap-6 lg:grid-cols-3`}>
+        <div className="space-y-2 lg:col-span-3">
           <h2 className="text-[15px] font-bold text-slate-900 dark:text-white">{T('4. Negotiation strategy, quick booth menu & advance prep', '٤. أفضل استراتيجية للتفاوض ومنيو البوث السريع والتحضير المسبق')}</h2>
         </div>
         <div className="space-y-2">
@@ -302,6 +305,9 @@ export function BoothStudyV5() {
           ))}
         </div>
       </section>
+      </div>
+      </div>
+     </div>
     </div>
   )
 }
