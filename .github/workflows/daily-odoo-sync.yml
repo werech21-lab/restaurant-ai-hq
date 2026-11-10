@@ -1,0 +1,63 @@
+name: Daily Odoo 17 Full-Journey & Analytic Cost-Center Sync
+
+on:
+  schedule:
+    # Runs daily at 01:00 UTC (04:00 Kuwait Time, after all late-night POS sessions close)
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync-odoo-snapshots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit
+
+      - name: Sync live 7-stage Odoo journey & Analytic Cost Centers
+        env:
+          ODOO_URL: ${{ secrets.ODOO_URL }}
+          ODOO_DB: ${{ secrets.ODOO_DB }}
+          ODOO_LOGIN: ${{ secrets.ODOO_LOGIN || secrets.ODOO_USERNAME }}
+          ODOO_API_KEY: ${{ secrets.ODOO_API_KEY || secrets.ODOO_PASSWORD }}
+        run: |
+          if [ -z "$ODOO_URL" ] || [ -z "$ODOO_DB" ] || [ -z "$ODOO_LOGIN" ] || [ -z "$ODOO_API_KEY" ]; then
+            echo "Odoo GitHub Secrets are not configured yet; skipping live extraction."
+            exit 0
+          fi
+          node scripts/sync-odoo-live.mjs
+          node scripts/sync-odoo-intel.mjs
+          node scripts/build-odoo-dataset.mjs
+
+      - name: Verify zero credential leakage before commit
+        run: |
+          if git status --porcelain | grep -E '\.env'; then
+            echo "ERROR: .env file detected in working tree!"
+            exit 1
+          fi
+
+      - name: Commit and push updated Odoo aggregate snapshots
+        run: |
+          git config user.name "aetherbi-sync-bot"
+          git config user.email "sync-bot@aetherbi.com"
+          git add src/lib/odoo-live-snapshot.json src/lib/odoo/odoo-journey.json src/lib/odoo/odoo-intel.json src/lib/odoo/odoo-dataset.ts
+          if git diff --cached --quiet; then
+            echo "No snapshot changes to commit."
+          else
+            git commit -m "chore(odoo-sync): automated daily 01:00 UTC full-journey & analytic cost-center refresh [skip ci]"
+            git push origin HEAD:main
+          fi

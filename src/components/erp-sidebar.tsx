@@ -210,7 +210,7 @@ export function Sidebar({ user }: { user: AccessUser; enabledKeys?: string[] | n
       </nav>
 
       {/* User Footer */}
-      <div className="shrink-0 px-4 py-3" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+      <div className="ae-side-divider shrink-0 px-4 py-3">
         <div className="flex items-center gap-2.5 py-1">
           <div className="ae-side-chip flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold">{user.name.slice(0, 1)}</div>
           <div className="min-w-0 flex-1">

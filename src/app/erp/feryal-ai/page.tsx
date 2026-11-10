@@ -4,9 +4,11 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Check,
   Copy,
+  FileText,
   Headphones,
   Loader2,
   Maximize2,
+  MessageCircle,
   Mic,
   MicOff,
   Minimize2,
@@ -31,34 +33,42 @@ const welcomeText = (lang: 'ar' | 'en') =>
     ? `أهلاً بك، أنا فريال، مستشارتك التنفيذية الشاملة للعمليات والمالية والنمو في فنتشر فودز. أراجع الرحلة الكاملة في أودو — من موردي المطبخ المركزي بالعارضية إلى مطابخ فروعنا الـ ${LEDGER.branches} ومنصات التوصيل وحتى التسويات البنكية وولاء العملاء — لنتخذ معاً قرارات جراحية ترفع الجودة وصافي الربح.`
     : `Welcome, I'm Feryal, your 360° COO, CFO and growth strategist at Venture Foods. I review the full journey in Odoo — from Ardiya Central Kitchen suppliers to our ${LEDGER.branches} restaurant kitchens, delivery platforms, bank settlements and customer loyalty — so we can take surgical decisions that lift quality and net profit.`
 
-const TOPICS: { id: string; labelAr: string; labelEn: string; promptAr: string; promptEn: string }[] = [
+const TOPICS: { id: string; tagAr: string; tagEn: string; labelAr: string; labelEn: string; promptAr: string; promptEn: string }[] = [
   {
     id: 'yield',
-    labelAr: 'الهدر الخفي والمطبخ المركزي',
-    labelEn: 'Hidden waste & central kitchen',
-    promptAr: 'أين يتسرب الربح بين المطبخ المركزي بالعارضية وفروعنا؟ حللي فروقات الجرد والهالك وانحراف الحصص وأعطني القرار الجراحي والعائد المتوقع.',
-    promptEn: 'Where is profit leaking between Ardiya Central Kitchen and our branches? Analyse count variance, scrap and portion drift and give me the surgical decision and expected return.',
+    tagAr: 'المطبخ المركزي بالعارضية (#17)',
+    tagEn: 'Ardiya Central Kitchen (#17)',
+    labelAr: 'فجوة الهدر الخفي وفروقات الجرد بالمطبخ المركزي',
+    labelEn: 'Central Kitchen Yield & Stock Variance Shield',
+    promptAr: 'أين يتسرب الربح بين المطبخ المركزي بالعارضية (مركز تكلفة #17) وفروعنا السبعة؟ حللي فروقات الجرد والهالك وانحراف حصص Chicken Noodles وأعطني مذكرة تكليف جاهزة والعائد الشهري.',
+    promptEn: 'Where is profit leaking between Ardiya Central Kitchen (Analytic #17) and our 7 branches? Analyse stock count variance, scrap and Chicken Noodles portion drift, with a dispatch brief and monthly KWD gain.',
   },
   {
-    id: 'procurement',
-    labelAr: 'الموردون وأسعار الشراء',
-    labelEn: 'Suppliers & purchase prices',
-    promptAr: 'ما المكونات التي ارتفعت أسعارها من الموردين، وأين ندفع أسعاراً مختلفة لنفس الصنف؟ وما خطة التفاوض والتوحيد والعائد الشهري؟',
-    promptEn: 'Which ingredients rose in supplier price, and where do we pay different prices for the same item? What is the negotiation and consolidation plan and the monthly return?',
+    id: 'menu-elasticity',
+    tagAr: 'تشاينا جاردن (#86) · التسعير الجراحي',
+    tagEn: 'China Garden (#86) · Elasticity Guardrail',
+    labelAr: 'تسعير الأطباق القائدة وحماية الأصناف الجاذبة',
+    labelEn: 'Hero Dish Repricing & Traffic-Driver Guardrail',
+    promptAr: 'في تشاينا جاردن (مركز #86)، ما الأطباق القائدة غير الحساسة للسعر التي تتحمل +150 فلس بأمان (مثل Chicken Noodles وSweet & Sour Chicken) وما الأصناف الجاذبة التي يجب تجميد سعرها المنفرد؟',
+    promptEn: 'In China Garden (Analytic #86), which inelastic hero dishes safely take +150 fils (e.g. Chicken Noodles, Sweet & Sour Chicken) vs. traffic drivers whose standalone price must stay frozen?',
   },
   {
     id: 'opex',
-    labelAr: 'المصاريف الخفية والإيجارات',
-    labelEn: 'Hidden expenses & rents',
-    promptAr: 'أي فرع يعاني من ضغط الإيجار أو حلقات الصيانة المتكررة أو العُهد المفتوحة؟ وهل نزرع علامة رديفة داخل مطبخه؟',
-    promptEn: 'Which branch suffers from rent stress, repeated maintenance loops or open custodies — and should we plant a sister brand inside its kitchen?',
+    tagAr: 'مراكز التكلفة · المطبخ المضيف',
+    tagEn: 'Analytic Cost Centers · Host Kitchen',
+    labelAr: 'تحويل عبء الإيجار عبر المطابخ المضيفة بدون إيجار جديد',
+    labelEn: 'Zero-Rent Virtual Host-Kitchen Turnaround',
+    promptAr: 'أي فرع من فروعنا السبعة يعاني من ضغط الإيجار التحليلي أو الصيانة الطارئة المتكررة، وأي علامة من علامات فنتشر فودز نزرعها داخل مطبخه القائم لرفع صافي النقد الفعلي؟',
+    promptEn: 'Which of our 7 restaurant branches faces Analytic Rent pressure or chronic repair loops, and which Venture Foods sister brand should we plant inside its existing kitchen for immediate net cash?',
   },
   {
     id: 'delivery',
-    labelAr: 'صافي التوصيل والتسويات',
-    labelEn: 'Delivery net & settlements',
-    promptAr: 'كم يصلنا فعلياً من منصات التوصيل بعد العمولات والعروض، وما الأرصدة غير المسوّاة؟ أعطني خطة الاسترداد.',
-    promptEn: 'How much really reaches us from delivery platforms after commissions and promotions, and what balances are unsettled? Give me the recovery plan.',
+    tagAr: 'طلبات Tgo/TMP · كيتا · التسويات',
+    tagEn: 'Talabat Tgo/TMP · Keeta · Claims',
+    labelAr: 'تشريح ربحية عروض كيتا ومطالبات فروقات طلبات',
+    labelEn: 'Keeta Promo Cap & Talabat Settlement Recovery',
+    promptAr: 'كم يصلنا صافياً في البنك من كيتا وطلبات (Tgo 17% مقابل TMP 10%) بعد العمولات والعروض المشتركة؟ ضعي خطة استرداد الفروقات وسقف العروض عند 3.5%.',
+    promptEn: 'How much true net cash hits our bank from Keeta and Talabat (Tgo 17% vs TMP 10%) after commissions and co-funded promos? Give me the 3.5% promo cap & claim recovery plan.',
   },
 ]
 
@@ -703,27 +713,41 @@ export default function FeryalAiCommandPage() {
     setMessages([welcomeMessage(isAr ? 'ar' : 'en')])
   }, [isAr, stopAllMicTracks, stopPlayback])
 
+  const formatAsDispatchBrief = useCallback(
+    (rawText: string) => {
+      const reviewDate = new Date(Date.now() + 14 * 86_400_000).toISOString().slice(0, 10)
+      const body = feryalPlainText(rawText)
+      return isAr
+        ? `📌 مذكرة تكليف تنفيذي صادرة عن المستشارة فريال — شركة فنتشر فودز لإدارة المطاعم ذ.م.م\n• المكلّف بالتنفيذ: مدير الفرع / شيف المطبخ المركزي بالعارضية (#17) / مسؤول المشتريات والمحاسبة\n• موعد مراجعة الأثر الفعلي (بعد 14 يوماً): ${reviewDate}\n\n${body}`
+        : `📌 FERYAL EXECUTIVE DISPATCH BRIEF — Venture Foods Restaurants Management Co. W.L.L.\n• Accountable Owner: Branch Manager / Ardiya Central Kitchen Chef (#17) / Procurement & Finance Desk\n• 14-Day Impact Review Date: ${reviewDate}\n\n${body}`
+    },
+    [isAr],
+  )
+
   const pill =
-    'inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-2 text-[13px] font-semibold ring-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500'
-  const pillIdle = 'bg-white text-slate-700 ring-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-slate-800'
-  const pillOn = 'bg-emerald-50 text-emerald-800 ring-emerald-500/30 dark:bg-emerald-950/40 dark:text-emerald-200'
-  const panelShell = 'h-[75vh] min-h-[580px] max-h-[800px] rounded-[24px] bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_rgba(15,23,42,0.04)] dark:bg-neutral-900'
+    'inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-2 text-[12.5px] font-semibold transition-all focus:outline-none'
+  const pillIdle =
+    'bg-white text-slate-700 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_0_0_1px_rgba(15,23,42,0.05)] hover:bg-slate-50 dark:bg-[#0F1626] dark:text-slate-200 dark:shadow-[0_0_0_1px_rgba(255,255,255,0.07)]'
+  const pillOn = 'bg-emerald-50 text-emerald-800 shadow-[0_0_0_1px_rgba(16,185,129,0.28)] dark:bg-emerald-950/40 dark:text-emerald-200'
+  const panelShell = 'ae-studio-card h-[75vh] min-h-[580px] max-h-[800px]'
 
   return (
-    <div dir={isAr ? 'rtl' : 'ltr'} className="rounded-[28px] bg-[#F7F7F8] dark:bg-[#0A0A0A]">
-    <div className="mx-auto w-full max-w-[1520px] space-y-5 px-6 py-6 font-sans text-slate-900 antialiased lg:px-10 dark:text-slate-100">
+    <div dir={isAr ? 'rtl' : 'ltr'} className="w-full space-y-5 font-sans text-slate-900 antialiased dark:text-slate-100">
       {/* ───────────── Studio bar ───────────── */}
       <header className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex min-w-0 items-center gap-3.5">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#0F172A] text-white shadow-sm ring-4 ring-emerald-500/15">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#0F172A] text-white shadow-sm dark:bg-white dark:text-slate-950">
             <Sparkles className="h-5 w-5" />
           </div>
           <div className="min-w-0">
-            <h1 className="truncate text-lg font-extrabold tracking-tight text-slate-950 sm:text-xl dark:text-white">
+            <h1 className="truncate text-[22px] font-bold tracking-tight text-slate-950 sm:text-[24px] dark:text-white">
               {T('Feryal — 360° COO, CFO & Growth Strategist', 'المستشارة التنفيذية الشاملة فريال')}
             </h1>
-            <p className="truncate text-[13px] font-medium text-slate-500 sm:text-sm dark:text-slate-400">
-              {T('Full-journey decisions from procurement to customer loyalty, grounded in live Odoo data', 'قرارات الرحلة الكاملة من المشتريات حتى ولاء العملاء، مبنية على بيانات أودو الحية')}
+            <p className="truncate text-[13px] font-medium text-slate-500 dark:text-slate-400">
+              {T(
+                'Full-journey surgical decisions & 1-click dispatch briefs grounded in Odoo 17 Analytic Cost Centers',
+                'قرارات جراحية ومذكرات تكليف جاهزة مبنية على مراكز التكلفة التحليلية الحية في أودو 17',
+              )}
             </p>
           </div>
         </div>
@@ -760,22 +784,23 @@ export default function FeryalAiCommandPage() {
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
         {/* ───────────── Conversation studio ───────────── */}
         <section className={`${isExpanded ? 'lg:col-span-12' : 'lg:col-span-8'} flex ${panelShell} flex-col overflow-hidden`}>
-          <div ref={chatScrollRef} className="flex-1 space-y-6 overflow-y-auto px-4 py-6 sm:px-8" aria-live="polite">
+          <div ref={chatScrollRef} className="flex-1 space-y-6 overflow-y-auto px-4 py-6 sm:px-7" aria-live="polite">
             {messages.map((m) => {
               const mine = m.sender === 'user'
+              const briefText = !mine && m.id !== 'welcome' ? formatAsDispatchBrief(m.text) : ''
               return (
                 <div key={m.id} className={`flex gap-3 ${mine ? 'justify-end' : 'justify-start'}`}>
                   {!mine && (
-                    <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#0F172A] text-white">
+                    <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#0F172A] text-white dark:bg-white dark:text-slate-950">
                       <Sparkles className="h-4 w-4" />
                     </div>
                   )}
-                  <div className={`min-w-0 ${mine ? 'max-w-[78%]' : 'max-w-[88%] flex-1'}`}>
+                  <div className={`min-w-0 ${mine ? 'max-w-[78%]' : 'max-w-[90%] flex-1'}`}>
                     <div
                       className={
                         mine
-                          ? 'whitespace-pre-wrap rounded-2xl bg-[#0F172A] px-6 py-4 text-[15px] leading-[1.85] text-white sm:text-[16px]'
-                          : 'rounded-2xl bg-slate-50 px-6 py-5 text-[15px] leading-[1.85] text-slate-800 ring-1 ring-slate-200/70 sm:text-[16px] dark:bg-slate-800/60 dark:text-slate-100 dark:ring-slate-700/60'
+                          ? 'whitespace-pre-wrap rounded-2xl bg-[#0F172A] px-5 py-4 text-[15px] leading-[1.85] text-white'
+                          : 'ae-studio-subcard px-6 py-5 text-[15px] leading-[1.85] text-slate-800 dark:text-slate-100'
                       }
                     >
                       {mine ? m.text : <FeryalStudioMessage text={m.text} />}
@@ -787,7 +812,7 @@ export default function FeryalAiCommandPage() {
                           <button
                             type="button"
                             onClick={() => (playingMsgId === m.id ? stopPlayback() : playFeryalSpeech(m.text, m.id, true))}
-                            className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-semibold text-slate-500 ring-1 ring-slate-200 hover:bg-slate-50 dark:ring-slate-700 dark:hover:bg-slate-800"
+                            className="inline-flex items-center gap-1 rounded-full bg-[#F6F7F9] px-2.5 py-1 font-semibold text-slate-600 hover:bg-slate-200/70 dark:bg-white/[0.06] dark:text-slate-300"
                           >
                             {playingMsgId === m.id ? <Square className="h-3 w-3" /> : <Volume2 className="h-3.5 w-3.5" />}
                             {playingMsgId === m.id ? T('Stop', 'إيقاف') : T('Listen', 'استماع للرد')}
@@ -795,11 +820,32 @@ export default function FeryalAiCommandPage() {
                           <button
                             type="button"
                             onClick={() => copyMessage(m.id, m.text)}
-                            className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-semibold text-slate-500 ring-1 ring-slate-200 hover:bg-slate-50 dark:ring-slate-700 dark:hover:bg-slate-800"
+                            className="inline-flex items-center gap-1 rounded-full bg-[#F6F7F9] px-2.5 py-1 font-semibold text-slate-600 hover:bg-slate-200/70 dark:bg-white/[0.06] dark:text-slate-300"
                           >
                             {copiedMsgId === m.id ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
-                            {copiedMsgId === m.id ? T('Copied', 'تم النسخ') : T('Copy Proposal', 'نسخ المقترح')}
+                            {copiedMsgId === m.id ? T('Copied', 'تم النسخ') : T('Copy Reply', 'نسخ الرد')}
                           </button>
+                          {m.id !== 'welcome' && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => copyMessage(`${m.id}-brief`, briefText)}
+                                className="inline-flex items-center gap-1 rounded-full bg-slate-900 px-3 py-1 font-semibold text-white hover:bg-slate-800 dark:bg-white dark:text-slate-950"
+                              >
+                                {copiedMsgId === `${m.id}-brief` ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <FileText className="h-3.5 w-3.5" />}
+                                {copiedMsgId === `${m.id}-brief` ? T('Brief Copied', 'تم نسخ المذكرة') : T('Dispatch Brief', 'توليد مذكرة تنفيذ')}
+                              </button>
+                              <a
+                                href={`https://wa.me/?text=${encodeURIComponent(briefText)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-3 py-1 font-semibold text-white hover:bg-emerald-500"
+                              >
+                                <MessageCircle className="h-3.5 w-3.5" />
+                                {T('WhatsApp Owner', 'إرسال عبر واتساب')}
+                              </a>
+                            </>
+                          )}
                         </>
                       )}
                     </div>
@@ -808,16 +854,19 @@ export default function FeryalAiCommandPage() {
               )
             })}
             {messages.length <= 1 && !isCopilotThinking && (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
                 {TOPICS.map((t) => (
                   <button
                     key={t.id}
                     type="button"
                     onClick={() => handleSendQuery(isAr ? t.promptAr : t.promptEn)}
-                    className="group rounded-2xl bg-neutral-50 p-4 text-start transition-all hover:-translate-y-0.5 hover:bg-neutral-100 active:scale-[0.99] dark:bg-neutral-800/60 dark:hover:bg-neutral-800"
+                    className="ae-studio-subcard group p-4 text-start transition-all hover:-translate-y-0.5 hover:ring-1 hover:ring-slate-900/15 active:scale-[0.99] dark:hover:ring-white/20"
                   >
-                    <div className="text-[14px] font-semibold text-neutral-900 dark:text-white">{isAr ? t.labelAr : t.labelEn}</div>
-                    <p className="mt-1 text-[13px] leading-relaxed text-neutral-500 dark:text-neutral-400">{isAr ? t.promptAr : t.promptEn}</p>
+                    <span className="inline-block rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10.5px] font-bold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                      {isAr ? t.tagAr : t.tagEn}
+                    </span>
+                    <div className="mt-2 text-[14px] font-bold text-slate-950 dark:text-white">{isAr ? t.labelAr : t.labelEn}</div>
+                    <p className="mt-1 line-clamp-3 text-[12.5px] leading-relaxed text-slate-500 dark:text-slate-400">{isAr ? t.promptAr : t.promptEn}</p>
                   </button>
                 ))}
               </div>
@@ -827,15 +876,15 @@ export default function FeryalAiCommandPage() {
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#0F172A] text-white">
                   <Loader2 className="h-4 w-4 animate-spin" />
                 </div>
-                <div className="rounded-2xl bg-slate-50 px-5 py-3.5 text-[15px] text-slate-500 ring-1 ring-slate-200/70 dark:bg-slate-800/60 dark:ring-slate-700/60">
-                  {T('Feryal is preparing the proposal…', 'فريال تُعدّ المقترح…')}
+                <div className="ae-studio-subcard px-5 py-3.5 text-[14.5px] font-medium text-slate-500">
+                  {T('Feryal is cross-checking Odoo 17 cost centers…', 'فريال تفحص مراكز تكلفة أودو 17 وتُعدّ القرار…')}
                 </div>
               </div>
             )}
           </div>
 
           {/* Input dock */}
-          <div className="border-t border-slate-100 bg-white/90 px-4 pb-4 pt-3 sm:px-6 dark:border-slate-800 dark:bg-slate-900/90">
+          <div className="border-t border-slate-100 bg-white/95 px-4 pb-4 pt-3 sm:px-6 dark:border-white/[0.06] dark:bg-[#0F1626]/95">
             <div className={`mb-3 flex-wrap gap-2 ${messages.length <= 1 ? 'hidden' : 'flex'}`}>
               {TOPICS.map((t) => (
                 <button
@@ -843,7 +892,7 @@ export default function FeryalAiCommandPage() {
                   type="button"
                   disabled={isCopilotThinking}
                   onClick={() => handleSendQuery(isAr ? t.promptAr : t.promptEn)}
-                  className="rounded-full bg-slate-100 px-3.5 py-1.5 text-[13px] font-semibold text-slate-700 transition-colors hover:bg-slate-200 disabled:opacity-50 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                  className="rounded-full bg-[#F6F7F9] px-3.5 py-1.5 text-[12px] font-semibold text-slate-700 transition-colors hover:bg-slate-200/70 disabled:opacity-50 dark:bg-white/[0.06] dark:text-slate-200"
                 >
                   {isAr ? t.labelAr : t.labelEn}
                 </button>
@@ -866,16 +915,18 @@ export default function FeryalAiCommandPage() {
                     if (!isCopilotThinking) handleSendQuery()
                   }
                 }}
-                placeholder={T('Ask Feryal about a practical solution…', 'اسأل فريال عن حل عملي أو مقترح…')}
-                className="min-h-[52px] flex-1 resize-none rounded-2xl bg-slate-50 px-4 py-3.5 text-[15px] leading-relaxed text-slate-900 ring-1 ring-slate-200 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-400 dark:bg-slate-800 dark:text-white dark:ring-slate-700"
+                placeholder={T('Ask Feryal about any branch, brand, dish, cost center or claim…', 'اسأل فريال عن أي فرع أو علامة أو طبق أو مركز تكلفة أو تسوية…')}
+                className="min-h-[52px] flex-1 resize-none rounded-2xl bg-[#F6F7F9] px-4 py-3.5 text-[15px] leading-relaxed text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/15 dark:bg-white/[0.06] dark:text-white"
               />
               <button
                 type="button"
                 onClick={toggleListening}
                 aria-pressed={isListening}
                 aria-label={isListening ? T('Stop microphone', 'إيقاف المايكروفون') : T('Speak to Feryal', 'التحدث إلى فريال')}
-                className={`flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-2xl ring-1 transition-all active:scale-95 ${
-                  isListening ? 'animate-pulse bg-rose-600 text-white ring-rose-600' : 'bg-white text-slate-700 ring-slate-200 hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-100 dark:ring-slate-700'
+                className={`flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-2xl transition-all active:scale-95 ${
+                  isListening
+                    ? 'animate-pulse bg-rose-600 text-white'
+                    : 'bg-[#F6F7F9] text-slate-700 hover:bg-slate-200/70 dark:bg-white/[0.06] dark:text-slate-100'
                 }`}
               >
                 {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
@@ -884,7 +935,7 @@ export default function FeryalAiCommandPage() {
                 type="button"
                 onClick={() => handleSendQuery()}
                 disabled={isCopilotThinking || !inputText.trim()}
-                className="inline-flex h-[52px] shrink-0 items-center gap-2 rounded-2xl bg-[#0F172A] px-5 text-[15px] font-bold text-white shadow-sm transition-all hover:bg-slate-800 active:scale-95 disabled:opacity-40"
+                className="inline-flex h-[52px] shrink-0 items-center gap-2 rounded-2xl bg-[#0F172A] px-5 text-[14.5px] font-bold text-white shadow-sm transition-all hover:bg-slate-800 active:scale-95 disabled:opacity-40 dark:bg-white dark:text-slate-950"
               >
                 <Send className={`h-4 w-4 ${isAr ? 'rotate-180' : ''}`} />
                 {T('Send', 'إرسال')}
@@ -897,41 +948,40 @@ export default function FeryalAiCommandPage() {
         {!isExpanded && (
           <aside className={`lg:col-span-4 ${panelShell} space-y-4 overflow-y-auto p-6`}>
             <div>
-              <h2 className="text-[15px] font-bold text-slate-900 dark:text-white">{T('Best Decision per Journey Stage', 'أفضل قرار في كل مرحلة من الرحلة')}</h2>
-              <p className="mt-1 text-[13px] text-slate-500 dark:text-slate-400">
-                {T(`From procurement and central kitchen to delivery settlements and customer retention · ${LEDGER.periodLabelEn}`, `من المشتريات والمطبخ المركزي حتى تسويات التوصيل وولاء العملاء · ${LEDGER.periodLabelAr}`)}
+              <h2 className="text-[15px] font-bold text-slate-950 dark:text-white">{T('Best Surgical Play per Journey Stage', 'أفضل قرار جراحي في كل مرحلة من الرحلة')}</h2>
+              <p className="mt-1 text-[12.5px] text-slate-500 dark:text-slate-400">
+                {T(`Grounded in Odoo 17 Analytic Cost Centers · ${LEDGER.periodLabelEn}`, `مبني على مراكز التكلفة التحليلية في أودو 17 · ${LEDGER.periodLabelAr}`)}
               </p>
             </div>
             {FERYAL_PROPOSALS.map((p) => (
-              <article key={p.id} className="space-y-3 rounded-2xl p-4 ring-1 ring-slate-200/80 dark:ring-slate-700/70">
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white">{isAr ? p.titleAr : p.titleEn}</h3>
+              <article key={p.id} className="ae-studio-subcard space-y-3 p-4">
+                <h3 className="text-[14px] font-bold text-slate-950 dark:text-white">{isAr ? p.titleAr : p.titleEn}</h3>
                 <div>
                   <div className="text-[11px] font-bold uppercase tracking-wide text-slate-400">{T('Practical Solution', 'المقترح العملي')}</div>
-                  <p className="mt-1 text-[13.5px] leading-relaxed text-slate-700 dark:text-slate-300">{isAr ? p.solutionAr : p.solutionEn}</p>
+                  <p className="mt-1 text-[13px] leading-relaxed text-slate-700 dark:text-slate-300">{isAr ? p.solutionAr : p.solutionEn}</p>
                 </div>
-                <div className="rounded-xl bg-emerald-50/70 p-3 ring-1 ring-emerald-500/20 dark:bg-emerald-950/30">
+                <div className="rounded-xl bg-emerald-50/75 p-3 dark:bg-emerald-950/30">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300">{T('Expected Result If Successful', 'النتيجة المتوقعة عند النجاح')}</span>
-                    <span className="whitespace-nowrap text-[12px] font-extrabold text-emerald-700 dark:text-emerald-300">
-                      {p.monthlyKwd > 0 ? (isAr ? `${fmtKwd(p.monthlyKwd, true)} شهرياً` : `+${fmtKwd(p.monthlyKwd, false)} / month`) : T('Control', 'ضبط ورقابة')}
+                    <span className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300">{T('Expected Monthly Gain', 'العائد الشهري المتوقع')}</span>
+                    <span dir="ltr" className="whitespace-nowrap text-[12px] font-extrabold tabular-nums text-emerald-700 dark:text-emerald-300">
+                      {p.monthlyKwd > 0 ? (isAr ? `+${fmtKwd(p.monthlyKwd, true)}/شهر` : `+${fmtKwd(p.monthlyKwd, false)}/mo`) : T('Control', 'ضبط ورقابة')}
                     </span>
                   </div>
-                  <p className="mt-1 text-[13px] leading-relaxed text-emerald-950 dark:text-emerald-50">{isAr ? p.outcomeAr : p.outcomeEn}</p>
+                  <p className="mt-1 text-[12.5px] leading-relaxed text-emerald-950 dark:text-emerald-50">{isAr ? p.outcomeAr : p.outcomeEn}</p>
                 </div>
                 <button
                   type="button"
                   disabled={isCopilotThinking}
                   onClick={() => handleSendQuery(isAr ? p.promptAr : p.promptEn)}
-                  className="w-full rounded-full bg-slate-100 px-4 py-2.5 text-[13px] font-bold text-slate-800 transition-all hover:bg-slate-200 active:scale-[0.98] disabled:opacity-50 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
+                  className="w-full rounded-full bg-[#0F172A] px-4 py-2 text-[12.5px] font-bold text-white transition-all hover:bg-slate-800 active:scale-[0.98] disabled:opacity-50 dark:bg-white dark:text-slate-950"
                 >
-                  {T('Discuss Solution with Feryal', 'مناقشة تفاصيل الحل مع فريال')}
+                  {T('Discuss & Generate Brief', 'مناقشة وتوليد مذكرة تنفيذ')}
                 </button>
               </article>
             ))}
           </aside>
         )}
       </div>
-    </div>
     </div>
   )
 }

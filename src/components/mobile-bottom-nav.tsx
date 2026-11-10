@@ -1,38 +1,38 @@
-"use client";
+'use client'
 
-import { usePathname } from "next/navigation";
-import { useI18n } from "@/lib/i18n";
+import { usePathname } from 'next/navigation'
+import { useI18n } from '@/lib/i18n'
 
-// Main navigation stations for mobile
+// Strictly locked to the 4 Executive Pillars on mobile
 const links = [
-  { href: "/dashboard", ar: "الملخص", en: "Summary" },
-  { href: "/erp/feryal-ai", ar: "فريال AI", en: "Feryal AI" },
-  { href: "/erp/events-intelligence", ar: "تحليل الفعاليات والعقود (EXB)", en: "Events, Contracts & EXB Hub" },
-  { href: "/erp/sales-scorecard", ar: "المبيعات", en: "Sales" },
-  { href: "/erp/aggregator-radar", ar: "التوصيل", en: "Delivery" },
-  { href: "/automations", ar: "التنبيهات", en: "Alerts" },
-];
+  { href: '/erp', exact: true, ar: 'المختصرات', en: 'Playbook' },
+  { href: '/erp/feryal-ai', ar: 'فريال AI', en: 'Feryal AI' },
+  { href: '/erp/aggregator-radar', ar: 'رادار التوصيل', en: 'Delivery Radar' },
+  { href: '/erp/events-intelligence', ar: 'جدوى البوثات', en: 'Booths Study' },
+]
 
 export function MobileBottomNav() {
-  const pathname = usePathname();
-  const { locale } = useI18n();
-  if (pathname === "/login" || pathname === "/" || pathname === "/download" || pathname === "/home") return null;
+  const pathname = usePathname()
+  const { locale } = useI18n()
+  if (!pathname || pathname === '/login' || pathname === '/' || pathname === '/download' || pathname === '/home') return null
   return (
-    <nav className="no-print fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur md:hidden">
-      <div className="grid grid-cols-6">
+    <nav className="no-print fixed inset-x-0 bottom-0 z-40 bg-white/95 shadow-[0_-1px_12px_rgba(15,23,42,0.06)] ring-1 ring-slate-900/[0.05] backdrop-blur dark:bg-[#0D1321]/95 dark:ring-white/[0.06] md:hidden">
+      <div className="grid grid-cols-4">
         {links.map((item) => {
-          const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const active = item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(`${item.href}/`)
           return (
             <a
               key={item.href}
               href={item.href}
-              className={`px-1 py-3 text-center text-xs font-bold ${active ? "text-[#1E3A8A]" : "text-slate-500"}`}
+              className={`px-1 py-3 text-center text-[11px] font-bold transition-colors ${
+                active ? 'text-slate-950 dark:text-white' : 'text-slate-500 dark:text-slate-400'
+              }`}
             >
-              {locale === "ar" ? item.ar : item.en}
+              {locale === 'ar' ? item.ar : item.en}
             </a>
-          );
+          )
         })}
       </div>
     </nav>
-  );
+  )
 }

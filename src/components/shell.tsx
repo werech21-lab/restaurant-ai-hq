@@ -53,8 +53,8 @@ export async function Shell({ children }: { children: React.ReactNode }) {
             plus explicit LTR/RTL physical fallbacks so content never slides under the rail.
           */}
           <div className="ae-content-col w-full min-w-0 md:ps-64 ltr:md:pl-64 rtl:md:pl-0 rtl:md:pr-64">
-            <div className="px-3 pt-3 sm:px-4 md:px-5">
-              <header id="ae-topbar" className="no-print sticky top-3 z-40 overflow-visible">
+            <div className="px-4 pt-3 sm:px-6 lg:px-10">
+              <header id="ae-topbar" className="no-print sticky top-3 z-40 mx-auto w-full max-w-[1540px] overflow-visible">
                 <PanelHeaderBar
                   companyNameAr={company.name}
                   notifications={
@@ -71,17 +71,17 @@ export async function Shell({ children }: { children: React.ReactNode }) {
                         id: notice.id,
                         title: notice.title,
                         body: notice.body,
-                        href: notice.href ?? '/automations',
+                        href: notice.href ?? '/erp',
                       }))}
                     />
                   }
                 />
               </header>
             </div>
-            <main className="w-full max-w-none px-3 pb-24 pt-4 sm:px-4 md:px-5 md:pb-6">
-              <div id="ae-canvas" className="app-content w-full p-4 sm:p-6 lg:p-8">
-                {/* One unified workspace geometry on every route: 1520px max, centred */}
-                <div className="ae-page mx-auto w-full min-w-0 max-w-[1520px] space-y-6">
+            <main className="w-full max-w-none pb-24 md:pb-8">
+              <div id="ae-canvas" className="app-content w-full">
+                {/* Generous Fluid Studio Width: 1540px max, centred across all 4 executive pillars */}
+                <div className="ae-page mx-auto w-full min-w-0 max-w-[1540px] space-y-6 px-6 py-6 lg:px-10">
                   <GlobalFilterBar />
                   {children}
                 </div>

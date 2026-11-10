@@ -41,7 +41,7 @@ export function persistTheme(theme: Theme) {
   }
 }
 
-export function ThemeProvider({ initialTheme = 'dark', children }: { initialTheme?: Theme; children: ReactNode }) {
+export function ThemeProvider({ initialTheme = 'light', children }: { initialTheme?: Theme; children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(initialTheme)
 
   useEffect(() => {

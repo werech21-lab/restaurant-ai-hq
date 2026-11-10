@@ -10,17 +10,22 @@ import { OdooSyncPill } from '@/components/aether/OdooSyncPill'
 import { ROOT_TITLE, routeTitle } from '@/lib/aether/route-titles'
 import { LanguageSwitch, useI18n } from '@/lib/i18n'
 
-/** Keeps the browser tab title in the active language (EN → English, عربي → Arabic). */
+/** Keeps the browser tab <title> strictly in the active language and never allows legacy fallback titles. */
 function useDocumentTitle(pathname: string, isAr: boolean) {
   useEffect(() => {
     const t = routeTitle(pathname)
-    const label = t ? `${isAr ? t.ar : t.en} | Aether BI` : 'Aether BI'
+    const label = t
+      ? isAr
+        ? `${t.ar} | فنتشر فودز · إيثر`
+        : `${t.en} | Venture Foods · Aether BI`
+      : isAr
+        ? 'المركز الشامل للمختصرات وقرارات الرحلة الكاملة | فنتشر فودز'
+        : '360° Shortcuts & Journey Playbook | Venture Foods'
     const apply = () => {
       if (document.title !== label) document.title = label
     }
     apply()
-    // Next.js metadata and the legacy DOM translator may write the title after navigation; re-assert.
-    const timers = [60, 300, 900].map((ms) => window.setTimeout(apply, ms))
+    const timers = [60, 280, 850].map((ms) => window.setTimeout(apply, ms))
     const head = document.querySelector('head')
     const observer = new MutationObserver(() => apply())
     if (head) observer.observe(head, { subtree: true, childList: true, characterData: true })
@@ -46,16 +51,19 @@ export function PanelHeaderBar({
   const Sep = isAr ? ChevronLeft : ChevronRight
 
   return (
-    <div className="relative z-40 flex w-full max-w-none items-center justify-between gap-3 overflow-visible px-3 py-2.5 sm:px-4" dir={isAr ? 'rtl' : 'ltr'}>
-      {/* Breadcrumb + live sync status */}
+    <div
+      className="relative z-40 flex w-full max-w-none items-center justify-between gap-3 overflow-visible px-4 py-2.5 sm:px-5"
+      dir={isAr ? 'rtl' : 'ltr'}
+    >
+      {/* Single-row Executive Breadcrumb + Live Odoo 17 Heartbeat */}
       <nav className="flex min-w-0 items-center gap-2" aria-label={isAr ? 'مسار الصفحة' : 'Breadcrumb'}>
-        <Link href="/erp" className="ae-top-link shrink-0 px-2 py-1 text-[13px] font-semibold">
+        <Link href="/erp" className="ae-top-link shrink-0 px-2.5 py-1 text-[13px] font-semibold">
           {isAr ? ROOT_TITLE.ar : ROOT_TITLE.en}
         </Link>
         {page ? (
           <>
             <Sep className="ae-top-sep h-3.5 w-3.5 shrink-0" aria-hidden />
-            <span className="ae-top-title truncate text-[13px] font-semibold tracking-tight" aria-current="page">
+            <span className="ae-top-title truncate text-[13px] font-bold tracking-tight" aria-current="page">
               {isAr ? page.ar : page.en}
             </span>
           </>
@@ -63,17 +71,21 @@ export function PanelHeaderBar({
         <OdooSyncPill isAr={isAr} />
       </nav>
 
-      {/* Search, notifications, theme, language */}
-      <div className="relative z-[60] flex shrink-0 items-center gap-2.5 overflow-visible">
+      {/* Fast ⌘K Quick Palette, Notifications, Theme & Pure RTL/LTR Language Switch */}
+      <div className="relative z-[60] flex shrink-0 items-center gap-2 overflow-visible">
         <button
           type="button"
           onClick={openCommandPalette}
-          className="ae-capsule hidden items-center gap-2 px-3.5 py-1.5 text-xs sm:inline-flex"
-          title={isAr ? 'لوحة الأوامر التنفيذية' : 'Executive command palette (Ctrl+K)'}
+          className="ae-capsule hidden items-center gap-2 px-3.5 py-1.5 text-xs font-semibold sm:inline-flex"
+          title={isAr ? 'بحث سريع في القرارات والفروع (⌘K)' : 'Quick jump to decisions & branches (⌘K)'}
         >
-          <Search className="h-3.5 w-3.5" />
-          <span className="hidden md:inline">{isAr ? 'ابحث أو اسأل فريال…' : 'Search or ask Feryal…'}</span>
-          {isAr ? null : <kbd className="rounded-md px-1.5 py-0.5 font-mono text-[10px]">Ctrl K</kbd>}
+          <Search className="h-3.5 w-3.5 opacity-70" />
+          <span className="hidden md:inline">
+            {isAr ? 'بحث سريع في القرارات والفروع' : 'Quick search decisions & branches'}
+          </span>
+          <kbd dir="ltr" className="rounded-md px-1.5 py-0.5 font-mono text-[10px] font-bold">
+            ⌘K
+          </kbd>
         </button>
         {notifications}
         <ThemeToggle />

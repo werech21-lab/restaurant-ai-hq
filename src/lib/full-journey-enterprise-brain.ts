@@ -117,6 +117,47 @@ export interface PlayKpi {
   better: 'down' | 'up'
 }
 
+export interface SimulatorSlider {
+  id: string
+  labelEn: string
+  labelAr: string
+  unit: 'fils' | 'pct'
+  min: number
+  max: number
+  step: number
+  defaultValue: number
+}
+
+export interface PlaySimulator {
+  kind: 'reprice' | 'bundle' | 'host-kitchen' | 'capture'
+  sliders: [SimulatorSlider, SimulatorSlider]
+  meta?: {
+    totalQty?: number
+    avgPriceKwd?: number
+    foodCostPct?: number
+    baseStepFils?: number
+    orders?: number
+    drinkPriceKwd?: number
+    medianSalesKwd?: number
+  }
+}
+
+export interface ElasticityGuardrail {
+  inelastic: { name: string; priceKwd: number; suggestedFils: number }[]
+  trafficDrivers: { name: string; priceKwd: number; ruleEn: string; ruleAr: string }[]
+}
+
+export interface VendorShield {
+  items: {
+    name: string
+    uom: string
+    oldPriceKwd: number
+    newPriceKwd: number
+    monthlyGapKwd: number
+    affectedDishes: string[]
+  }[]
+}
+
 export interface JourneyPlay {
   id: string
   stage: JourneyStage
@@ -126,6 +167,8 @@ export interface JourneyPlay {
   /** Exact entity: brand, restaurant location, Analytic Cost Center, Odoo dish, expense category or POS register. */
   subjectEn: string
   subjectAr: string
+  ownerRoleEn: string
+  ownerRoleAr: string
   leakEn: string
   leakAr: string
   actionEn: string
@@ -139,6 +182,9 @@ export interface JourneyPlay {
   basis: 'posted' | 'estimated'
   evidence: { en: string; ar: string }[]
   kpi: PlayKpi
+  simulator: PlaySimulator
+  elasticityGuardrail?: ElasticityGuardrail
+  vendorShield?: VendorShield
 }
 
 // ---------------------------------------------------------------------------
@@ -245,9 +291,103 @@ const AVG_AGG_COMMISSION = (() => {
   return s ? sum(agg, (c) => c.sales * (c.commissionPct / 100)) / s : 0.15
 })()
 
-function play(p: Omit<JourneyPlay, 'annualKwd' | 'severity'> & { severity?: PlaySeverity }): JourneyPlay {
+function defaultOwnerForStage(stage: JourneyStage, subjectEn: string, subjectAr: string): { ownerRoleEn: string; ownerRoleAr: string } {
+  switch (stage) {
+    case 'procurement':
+      return {
+        ownerRoleEn: 'Head of Procurement & CFO Purchasing Desk',
+        ownerRoleAr: 'مسؤول المشتريات ومكتب الاعتماد المالي',
+      }
+    case 'kitchen':
+      return {
+        ownerRoleEn: 'Executive Chef — Ardiya Central Kitchen (Analytic #17)',
+        ownerRoleAr: 'الشيف التنفيذي — المطبخ المركزي بالعارضية (مركز تكلفة #17)',
+      }
+    case 'menu':
+      return {
+        ownerRoleEn: 'COO & Menu Engineering Lead (Odoo POS + Aggregators)',
+        ownerRoleAr: 'مدير العمليات ومسؤول هندسة المنيو والتسعير',
+      }
+    case 'operations':
+      return {
+        ownerRoleEn: `Branch Manager & Area Operations (${subjectEn.split('·')[0].trim()})`,
+        ownerRoleAr: `مدير الفرع ومدير منطقة التشغيل (${subjectAr.split('·')[0].trim()})`,
+      }
+    case 'opex':
+      return {
+        ownerRoleEn: 'CFO & Analytic Cost-Center Accounting Desk',
+        ownerRoleAr: 'المدير المالي وفريق محاسبة مراكز التكلفة',
+      }
+    case 'delivery':
+      return {
+        ownerRoleEn: 'Aggregator Growth & Finance Settlement Lead',
+        ownerRoleAr: 'مسؤول منصات التوصيل ومطابقة التسويات البنكية',
+      }
+    case 'quality':
+      return {
+        ownerRoleEn: 'Quality Assurance & Guest Retention Lead',
+        ownerRoleAr: 'مسؤول ضبط الجودة وتجربة وولاء العملاء',
+      }
+  }
+}
+
+function defaultSimulatorForPlay(stage: JourneyStage, id: string): PlaySimulator {
+  if (id.startsWith('menu-reprice-')) {
+    return {
+      kind: 'reprice',
+      sliders: [
+        { id: 'priceFils', labelEn: 'Hero dish price tweak (fils)', labelAr: 'تعديل سعر الطبق القائد (فلس)', unit: 'fils', min: 100, max: 350, step: 25, defaultValue: 150 },
+        { id: 'retentionPct', labelEn: 'Expected volume retention', labelAr: 'نسبة الاحتفاظ بحجم الطلبات', unit: 'pct', min: 95, max: 100, step: 0.5, defaultValue: 98 },
+      ],
+    }
+  }
+  if (id.startsWith('menu-basket-') || id.startsWith('menu-shop-basket-')) {
+    return {
+      kind: 'bundle',
+      sliders: [
+        { id: 'attachPct', labelEn: 'Combo / drink attachment rate', labelAr: 'نسبة إرفاق الوجبة أو المشروب', unit: 'pct', min: 10, max: 35, step: 1, defaultValue: 15 },
+        { id: 'marginPct', labelEn: 'Bundle net margin capture', labelAr: 'صافي هامش ربح الإضافة', unit: 'pct', min: 55, max: 80, step: 1, defaultValue: 70 },
+      ],
+    }
+  }
+  if (id.startsWith('opex-host-kitchen-')) {
+    return {
+      kind: 'host-kitchen',
+      sliders: [
+        { id: 'peerCapturePct', labelEn: 'Peer branch median volume capture', labelAr: 'نسبة تحقيق وسيط مبيعات الفروع النظيرة', unit: 'pct', min: 50, max: 100, step: 5, defaultValue: 75 },
+        { id: 'netMarginPct', labelEn: 'Post-commission net cash margin', labelAr: 'صافي الهامش النقدي بعد العمولة والمواد', unit: 'pct', min: 22, max: 38, step: 1, defaultValue: 30 },
+      ],
+    }
+  }
+  const defaultCapture = stage === 'procurement' ? 70 : stage === 'kitchen' ? 50 : stage === 'delivery' ? 35 : 60
+  return {
+    kind: 'capture',
+    sliders: [
+      { id: 'capturePct', labelEn: 'Target leakage recovery %', labelAr: 'نسبة استرداد الهدر أو الفجوة المستهدفة', unit: 'pct', min: 25, max: 90, step: 5, defaultValue: defaultCapture },
+      { id: 'compliancePct', labelEn: 'Branch execution compliance', labelAr: 'نسبة التزام الفروع بالتنفيذ', unit: 'pct', min: 75, max: 100, step: 5, defaultValue: 95 },
+    ],
+  }
+}
+
+type PlayInput = Omit<JourneyPlay, 'annualKwd' | 'severity' | 'ownerRoleEn' | 'ownerRoleAr' | 'simulator'> & {
+  severity?: PlaySeverity
+  ownerRoleEn?: string
+  ownerRoleAr?: string
+  simulator?: PlaySimulator
+}
+
+function play(p: PlayInput): JourneyPlay {
   const monthly = Math.max(0, Math.round(p.monthlyKwd))
-  return { ...p, monthlyKwd: monthly, annualKwd: monthly * 12, severity: p.severity ?? severityOf(monthly) }
+  const owner = defaultOwnerForStage(p.stage, p.subjectEn, p.subjectAr)
+  return {
+    ...p,
+    ownerRoleEn: p.ownerRoleEn ?? owner.ownerRoleEn,
+    ownerRoleAr: p.ownerRoleAr ?? owner.ownerRoleAr,
+    simulator: p.simulator ?? defaultSimulatorForPlay(p.stage, p.id),
+    monthlyKwd: monthly,
+    annualKwd: monthly * 12,
+    severity: p.severity ?? severityOf(monthly),
+  }
 }
 const impactText = (monthly: number, basisEn: string, basisAr: string) => ({
   impactEn: `+${KWD(monthly)} net per month · +${KWD(monthly * 12)} per year. ${basisEn}`,
@@ -268,6 +408,14 @@ function procurementPlays(): JourneyPlay[] {
     const monthly = impact * 0.7
     const list = creep.slice(0, 3).map((c) => `${c.name} +${f1(c.creepPct)}% (${f3(c.firstPrice)} → ${f3(c.lastPrice)} KWD/${c.uom})`)
     const listAr = creep.slice(0, 3).map((c) => `${c.name} ‏+${f1(c.creepPct)}% (${f3(c.firstPrice)} ← ${f3(c.lastPrice)} د.ك/${c.uom})`)
+    const affectedMap = (skuName: string): string[] => {
+      const s = skuName.toLowerCase()
+      if (s.includes('rice') || s.includes('basmati') || s.includes('calrose')) return ['Shrimp Fried Rice', 'Veg Or Chicken Noodles Combo', 'Chicken Fried Rice']
+      if (s.includes('shrimp') || s.includes('prawn')) return ['Dynamite Shrimp', 'Shrimp Fried Rice', 'Shrimp Noodles']
+      if (s.includes('chicken') || s.includes('breast')) return ['Chicken Noodles', 'Sweet & Sour Chicken', 'Veg Or Chicken Noodles Combo']
+      if (s.includes('oil') || s.includes('sauce') || s.includes('soy')) return ['Chicken Noodles', 'Sweet & Sour Chicken', 'Spring Roll']
+      return ['Chicken Noodles', 'Veg Or Chicken Noodles Combo']
+    }
     out.push(play({
       id: 'proc-price-creep', stage: 'procurement', basis: 'posted', monthlyKwd: monthly,
       titleEn: 'Supplier unit-price creep on core ingredients', titleAr: 'زحف أسعار الموردين على المكونات الأساسية',
@@ -281,6 +429,16 @@ function procurementPlays(): JourneyPlay[] {
       ...impactText(monthly, 'Assumes 70% of the creep is rolled back or tendered away.', 'بافتراض استرداد 70% من الارتفاع عبر التفاوض أو المناقصة.'),
       evidence: [{ en: `${creep.length} SKUs · ${KWD(impact)}/month creep`, ar: `${creep.length} أصناف · ارتفاع ${DK(impact)} شهرياً` }],
       kpi: { id: 'proc-creep-kwd', en: 'Monthly creep on tracked SKUs', ar: 'الارتفاع الشهري على الأصناف المتابعة', value: Math.round(impact), unit: 'kwd', better: 'down' },
+      vendorShield: {
+        items: creep.map((c) => ({
+          name: c.name,
+          uom: c.uom,
+          oldPriceKwd: c.firstPrice,
+          newPriceKwd: c.lastPrice,
+          monthlyGapKwd: c.monthlyImpactKwd,
+          affectedDishes: affectedMap(c.name),
+        })),
+      },
     }))
   }
 
@@ -300,6 +458,16 @@ function procurementPlays(): JourneyPlay[] {
       ...impactText(monthly, 'Price gap × last 30 days purchased quantity.', 'فرق السعر × الكمية المشتراة في آخر 30 يوماً.'),
       evidence: [{ en: `${P.concentration.skus80} SKUs make 80% of spend; ${P.concentration.vendors80} of ${P.concentration.vendors} vendors carry 80%`, ar: `${P.concentration.skus80} صنفاً تمثل 80% من الإنفاق؛ و${P.concentration.vendors80} من ${P.concentration.vendors} مورداً تحمل 80%` }],
       kpi: { id: 'proc-vendor-gap', en: 'Monthly multi-vendor price gap', ar: 'فرق الأسعار الشهري بين الموردين', value: Math.round(monthly), unit: 'kwd', better: 'down' },
+      vendorShield: {
+        items: variance.map((v) => ({
+          name: v.name,
+          uom: v.uom,
+          oldPriceKwd: v.bestPrice,
+          newPriceKwd: v.paidPrice,
+          monthlyGapKwd: v.monthlySavingKwd,
+          affectedDishes: ['Chicken Noodles', 'Sweet & Sour Chicken', 'Shrimp Fried Rice'],
+        })),
+      },
     }))
   }
 
@@ -439,19 +607,91 @@ function menuPlays(): JourneyPlay[] {
   for (const r of repricing.slice(0, 2)) {
     const list = r.heroes.map((d) => `${d.name} (${f0(d.qty)} sold at ${f3(d.avgPriceKwd)} → ${f3(d.avgPriceKwd + (d.avgPriceKwd >= 3 ? 0.15 : 0.1))} KWD)`)
     const listAr = r.heroes.map((d) => `${d.name} (${f0(d.qty)} مبيعاً بسعر ${f3(d.avgPriceKwd)} ← ${f3(d.avgPriceKwd + (d.avgPriceKwd >= 3 ? 0.15 : 0.1))} د.ك)`)
+    const heroIds = new Set(r.heroes.map((h) => h.productId))
+    const trafficPool = r.b.top
+      .filter((d) => !heroIds.has(d.productId) && (d.avgPriceKwd < 2.75 || /combo|meal|box|roll|fries|soup/i.test(d.name)))
+      .slice(0, 2)
+    const fallbackDrivers = trafficPool.length
+      ? trafficPool
+      : r.b.top.filter((d) => !heroIds.has(d.productId)).slice(0, 2)
+    const totalHeroQty = sum(r.heroes, (d) => d.qty)
+    const weightedPrice = totalHeroQty ? sum(r.heroes, (d) => d.qty * d.avgPriceKwd) / totalHeroQty : 2.85
+    const weightedStepFils = Math.round(
+      totalHeroQty ? sum(r.heroes, (d) => d.qty * (d.avgPriceKwd >= 3 ? 150 : 100)) / totalHeroQty : 150,
+    )
     out.push(play({
       id: `menu-reprice-${r.b.brand}`, stage: 'menu', basis: 'estimated', monthlyKwd: r.gain,
-      titleEn: `${brandEn(r.b.brand)}: surgical repricing of hero dishes`, titleAr: `${brandAr(r.b.brand)}: تسعير جراحي لأطباق البطل`,
+      titleEn: `${brandEn(r.b.brand)}: surgical repricing of inelastic hero dishes`, titleAr: `${brandAr(r.b.brand)}: تسعير جراحي للأطباق القائدة مع حماية الأصناف الجاذبة`,
       subjectEn: `${brandWithAnalytic(r.b.brand)} · ${r.heroes.map((d) => d.name).join(' · ')}`, subjectAr: `${brandWithAnalytic(r.b.brand, true)} · ${r.heroes.map((d) => d.name).join(' · ')}`,
-      leakEn: `${r.heroes.map((d) => d.name).join(', ')} carry ${f1(sum(r.heroes, (d) => d.sharePct))}% of ${brandEn(r.b.brand)} item sales and are bought on habit, yet they are priced like entry items. At ${brandWithAnalytic(r.b.brand)}'s own ${f1(r.food * 100)}% food cost, every fils added drops straight to profit.`,
-      leakAr: `تحمل ${r.heroes.map((d) => d.name).join('، ')} ${f1(sum(r.heroes, (d) => d.sharePct))}% من مبيعات أصناف ${brandAr(r.b.brand)} ويطلبها العملاء بحكم العادة، ومع ذلك تُسعّر كأصناف دخول. وبتكلفة أغذية ${brandWithAnalytic(r.b.brand, true)} الخاصة ${f1(r.food * 100)}% يذهب كل فلس إضافي مباشرة إلى الربح.`,
-      actionEn: `Move ${list.join('; ')} on Odoo POS and every delivery menu on the same day; leave combo anchors unchanged so the bundles look like better value.`,
-      actionAr: `تعديل ${listAr.join('؛ ')} في نقاط بيع أودو وكل قوائم التوصيل في اليوم نفسه، مع إبقاء أسعار الوجبات المجمّعة كما هي لتبدو أفضل قيمة.`,
+      leakEn: `${r.heroes.map((d) => d.name).join(', ')} carry ${f1(sum(r.heroes, (d) => d.sharePct))}% of ${brandEn(r.b.brand)} item sales and are bought on habit (inelastic margin builders), yet they are priced like entry items. At ${brandWithAnalytic(r.b.brand)}'s own ${f1(r.food * 100)}% food cost, every fils added drops straight to profit.`,
+      leakAr: `تحمل ${r.heroes.map((d) => d.name).join('، ')} ${f1(sum(r.heroes, (d) => d.sharePct))}% من مبيعات أصناف ${brandAr(r.b.brand)} ويطلبها العملاء بحكم العادة (أصناف قائدة غير حساسة للسعر)، ومع ذلك تُسعّر كأصناف دخول. وبتكلفة أغذية ${brandWithAnalytic(r.b.brand, true)} الخاصة ${f1(r.food * 100)}% يذهب كل فلس إضافي مباشرة إلى الربح.`,
+      actionEn: `Move ${list.join('; ')} on Odoo POS and delivery menus on the same day, while freezing standalone prices on traffic drivers (${fallbackDrivers.map((d) => d.name).join(', ') || 'Combo Anchors'}) and folding them into high-margin meal bundles.`,
+      actionAr: `تعديل ${listAr.join('؛ ')} في نقاط بيع أودو وقوائم التوصيل، مع تجميد السعر المنفرد للأصناف الجاذبة الحساسة للسعر (${fallbackDrivers.map((d) => d.name).join('، ') || 'وجبات الكومبو الأساسية'}) ودمجها حصراً داخل باقات وجبات متكاملة.`,
       qualityEn: 'Reinvest part of the uplift in a visible quality upgrade on the same dishes (fresh garnish, better packaging) so the price reads as premium, not as inflation.',
       qualityAr: 'إعادة استثمار جزء من الزيادة في تحسين ظاهر على الأطباق نفسها (تزيين طازج وتغليف أفضل) ليُقرأ السعر كفخامة لا كتضخم.',
       ...impactText(r.gain, 'Assumes a 2% volume loss on these habitual dishes (Kuwait 0.100/0.150 KWD price steps).', 'بافتراض فقدان 2% من الكمية على هذه الأطباق المعتادة (خطوات سعر 0.100/0.150 د.ك).'),
       evidence: r.heroes.map((d) => ({ en: `${d.name}: ${f0(d.qty)} units · ${f1(d.sharePct)}% of brand`, ar: `${d.name}: ${f0(d.qty)} وحدة · ${f1(d.sharePct)}% من العلامة` })),
       kpi: { id: `menu-aov-${r.b.brand}`, en: `${brandEn(r.b.brand)} average basket`, ar: `متوسط سلة ${brandAr(r.b.brand)}`, value: Math.round(((r.b.aovShopKwd * r.b.shopOrders + r.b.aovDeliveryKwd * r.b.deliveryOrders) / Math.max(1, r.b.shopOrders + r.b.deliveryOrders)) * 1000) / 1000, unit: 'kwd', better: 'up' },
+      simulator: {
+        kind: 'reprice',
+        sliders: [
+          { id: 'priceFils', labelEn: 'Price step on inelastic heroes (fils)', labelAr: 'تعديل سعر الأطباق غير الحساسة (فلس)', unit: 'fils', min: 100, max: 350, step: 25, defaultValue: weightedStepFils >= 125 ? 150 : 100 },
+          { id: 'retentionPct', labelEn: 'Volume retention %', labelAr: 'نسبة الاحتفاظ بالكمية المباعة %', unit: 'pct', min: 95, max: 100, step: 0.5, defaultValue: 98 },
+        ],
+        meta: { totalQty: totalHeroQty, avgPriceKwd: weightedPrice, foodCostPct: r.food, baseStepFils: weightedStepFils },
+      },
+      elasticityGuardrail: {
+        inelastic: r.heroes.map((d) => ({
+          name: d.name,
+          priceKwd: d.avgPriceKwd,
+          suggestedFils: d.avgPriceKwd >= 3 ? 200 : 150,
+        })),
+        trafficDrivers: fallbackDrivers.map((d) => ({
+          name: d.name,
+          priceKwd: d.avgPriceKwd,
+          ruleEn: 'Traffic Driver — freeze standalone price; bundle with drink & starter',
+          ruleAr: 'صنف جاذب حساس للسعر — يُمنع رفع سعره المنفرد ويُدمج في باقة وجبة',
+        })),
+      },
+    }))
+  }
+
+  // Dine-In vs. Aggregator Channel Price Shielding (RMS / Juicer Superpower #3)
+  const cgMenu = brands.find((b) => b.brand === 'china-garden')
+  if (cgMenu && cgMenu.deliveryOrders >= 1000) {
+    const tgoSales = CHANNELS.find((c) => c.id === 'talabat-tgo')?.sales ?? 0
+    const delGoSales = CHANNELS.find((c) => c.id === 'deliveroo-go')?.sales ?? 0
+    const highCommSales = (tgoSales + delGoSales) * ((J.windows.rolling30.days || 30) / LEDGER.daysInPeriod)
+    const shieldMonthly = Math.max(480, highCommSales * 0.035)
+    out.push(play({
+      id: 'menu-channel-price-shield',
+      stage: 'menu',
+      basis: 'estimated',
+      monthlyKwd: shieldMonthly,
+      titleEn: 'Dine-In vs. Aggregator Channel Price Shielding',
+      titleAr: 'درع تسعير الصالة والكاونتر مقابل منصات التوصيل عالية العمولة',
+      subjectEn: `360 Mall (#40) · The Avenues (#38) · Assima Mall (#43) vs Talabat TGO (17%) & Deliveroo Go (18%)`,
+      subjectAr: `مول 360 (#40) · الأفنيوز (#38) · العاصمة مول (#43) مقابل طلبات TGO (17%) وديليفرو (18%)`,
+      leakEn: `Identical menu pricing across mall counters (0% commission) and full-logistics apps (17%–18% commission) silently penalizes mall walk-in value perception while leaving high-commission delivery baskets under-buffered on packaging and rider cut.`,
+      leakAr: `توحيد سعر الصنف حرفياً بين كاونترات المجمعات (0% عمولة) ومنصات التوصيل كاملة اللوجستيات (17%–18% عمولة) يحمّل زوار المجمع عبئاً غير مبرر أو يترك طلبات التوصيل مكشوفة أمام العمولة وتكلفة التغليف.`,
+      actionEn: `Keep dine-in and mall counter prices frozen at 360 Mall, The Avenues, Assima Mall, Promenade Mall and Al-Kout Mall while applying an Odoo POS pricelist channel buffer (+150 to +250 fils on inelastic hero mains & delivery family boxes) exclusively on 17%–18% aggregator menus.`,
+      actionAr: `تثبيت أسعار الصالة والكاونتر دون أي زيادة في مول 360 والأفنيوز والعاصمة مول وبروميناد والكوت مول، وتفعيل قائمة أسعار مستقلة في أودو (+150 إلى +250 فلس على الأطباق القائدة وعلب المشاركة التوصيلية) حصراً على قوائم المنصات ذات عمولة 17%–18%.`,
+      qualityEn: 'Mall guests feel clear dine-in price advantage, while delivery packaging upgrades are self-funded.',
+      qualityAr: 'يشعر ضيف الصالة بميزة سعرية واضحة في المجمع، بينما تموّل علب التوصيل المحكمة نفسها ذاتياً.',
+      ...impactText(shieldMonthly, '3.5% net channel-pricelist buffer across TGO & Deliveroo Go inelastic items with 98.5% retention.', 'هامش درع سعري صافٍ 3.5% على الأصناف غير الحساسة في منصات العمولة العالية مع احتفاظ 98.5% بالكمية.'),
+      evidence: [
+        { en: `${f0(cgMenu.shopOrders)} counter orders at 0% commission vs ${f0(cgMenu.deliveryOrders)} app orders`, ar: `${f0(cgMenu.shopOrders)} طلب كاونتر بصفر عمولة مقابل ${f0(cgMenu.deliveryOrders)} طلب تطبيقات` },
+      ],
+      kpi: { id: 'menu-channel-shield-gap', en: 'Aggregator net margin recovery buffer', ar: 'هامش درع تسعير قنوات التوصيل', value: 3.5, unit: 'pct', better: 'up' },
+      elasticityGuardrail: {
+        inelastic: cgMenu.top.slice(0, 2).map((d) => ({ name: d.name, priceKwd: d.avgPriceKwd, suggestedFils: 200 })),
+        trafficDrivers: cgMenu.top.slice(2, 4).map((d) => ({
+          name: d.name,
+          priceKwd: d.avgPriceKwd,
+          ruleEn: 'Keep parity on entry combos; apply buffer only on standalone hero mains',
+          ruleAr: 'إبقاء سعر الكومبو الجاذب متطابقاً وتطبيق الدرع على الأطباق القائدة فقط',
+        })),
+      },
     }))
   }
 
@@ -638,7 +878,7 @@ const SHARED_CK_HO_CASH = (() => {
   return { ckCash, hoCash, total: ckCash + hoCash }
 })()
 
-const BRANCH_TRUE_CASH = (() => {
+export const BRANCH_TRUE_CASH = (() => {
   const days = J.windows.rolling30.days || 30
   return LOC_COSTS.map((l) => {
     const ops = J.operations.locations.find((o) => o.location === l.location)
@@ -683,6 +923,8 @@ const BRANCH_TRUE_CASH = (() => {
     const dailyGapOrders = aov > 0 ? Math.ceil(dailyGapKwd / aov) : 0
     return {
       id: l.location,
+      en: locEn(l.location),
+      ar: locAr(l.location),
       analyticId: l.analyticId ?? null,
       inc,
       posNet,
@@ -707,6 +949,19 @@ const BRANCH_TRUE_CASH = (() => {
     }
   }).filter((x) => x.posNet > 0)
 })()
+
+export const BRAND_TRUE_CASH = BRANDS.map((b) => {
+  const analytic = J.opex.brands.find((x) => x.brand === b.id)
+  const menu = J.menu.brands.find((x) => x.brand === b.id)
+  return {
+    id: b.id,
+    en: b.en,
+    ar: b.ar,
+    analyticId: analytic?.analyticId ?? null,
+    netSales: n(analytic?.rolling30.income) || b.sales,
+    orders: menu?.orders ?? b.orders,
+  }
+})
 
 const HOST_KITCHEN = (() => {
   const stressed = [...BRANCH_TRUE_CASH].filter((r) => r.rentPct > 18 || r.trueMarginPct < 10).sort((a, b) => a.trueNetCash - b.trueNetCash)[0]
@@ -1148,11 +1403,21 @@ export const JOURNEY_SHORTCUTS = (() => {
   const commissions = sum(Object.values(J.delivery.postedCommissions30), (v) => v)
   const pocket = customerSpend - actualFood - packaging - commissions - posDisc - keetaPromo
   const per10 = customerSpend ? (pocket / customerSpend) * 10 : 0
+  const totalBranchFixedAndOpex = sum(BRANCH_TRUE_CASH, (b) => b.rent + b.effectiveLabor + b.branchOpex + b.sharedAlloc)
+  const foodAndPack10 = customerSpend ? ((actualFood + packaging) / customerSpend) * 10 : 3.2
+  const platformCut10 = customerSpend ? ((commissions + posDisc + keetaPromo) / customerSpend) * 10 : 1.7
+  const rawBranchOpexRent10 = customerSpend ? (totalBranchFixedAndOpex / customerSpend) * 10 : 3.4
+  const branchOpexRent10 = Math.min(10 - foodAndPack10 - platformCut10 - 0.85, rawBranchOpexRent10)
+  const trueNetCash10 = Math.max(0.85, 10 - foodAndPack10 - platformCut10 - branchOpexRent10)
   const per10Break = {
     food: customerSpend ? (actualFood / customerSpend) * 10 : 0,
     fees: customerSpend ? (commissions / customerSpend) * 10 : 0,
     promos: customerSpend ? ((posDisc + keetaPromo) / customerSpend) * 10 : 0,
     packaging: customerSpend ? (packaging / customerSpend) * 10 : 0,
+    foodAndPack10,
+    platformCut10,
+    branchOpexRent10,
+    trueNetCash10,
   }
 
   // 3. Procurement & Kitchen Yield Shield
@@ -1225,6 +1490,118 @@ export function journeyKpiFormat(k: PlayKpi, ar: boolean): string {
   if (k.unit === 'pct') return `${f1(k.value)}%`
   if (k.unit === 'count') return f0(k.value)
   return k.value < 10 ? `${f3(k.value)} ${ar ? 'د.ك' : 'KWD'}` : ar ? DK(k.value) : KWD(k.value)
+}
+
+/**
+ * Palantir AIP Superpower #1: Live interactive "What-If" simulator for any strategic play.
+ * Recalculates Expected Monthly & Annual Net Cash KWD instantaneously from the two tactile sliders.
+ */
+export function simulatePlay(
+  p: JourneyPlay,
+  v1: number,
+  v2: number,
+): { monthlyKwd: number; annualKwd: number; deltaVsDefaultKwd: number; formulaEn: string; formulaAr: string } {
+  const [s1, s2] = p.simulator.sliders
+  let simMonthly = p.monthlyKwd
+  if (p.simulator.kind === 'reprice' && p.simulator.meta?.totalQty && p.simulator.meta?.avgPriceKwd) {
+    const qty = p.simulator.meta.totalQty
+    const price = p.simulator.meta.avgPriceKwd
+    const foodCost = price * (p.simulator.meta.foodCostPct ?? COGS)
+    const addKwd = v1 / 1000
+    const ret = v2 / 100
+    const raw = qty * (ret * (price + addKwd - foodCost) - (price - foodCost))
+    simMonthly = Math.max(0, Math.round(raw))
+    return {
+      monthlyKwd: simMonthly,
+      annualKwd: simMonthly * 12,
+      deltaVsDefaultKwd: simMonthly - p.monthlyKwd,
+      formulaEn: `+${v1} fils across ${f0(qty)} monthly units at ${f1(v2)}% volume retention`,
+      formulaAr: `+${v1} فلس عبر ${f0(qty)} وحدة شهرياً مع احتفاظ ${f1(v2)}% بالكمية`,
+    }
+  }
+  const ratio1 = s1.defaultValue > 0 ? v1 / s1.defaultValue : 1
+  const ratio2 = s2.defaultValue > 0 ? v2 / s2.defaultValue : 1
+  simMonthly = Math.max(0, Math.round(p.monthlyKwd * ratio1 * ratio2))
+  return {
+    monthlyKwd: simMonthly,
+    annualKwd: simMonthly * 12,
+    deltaVsDefaultKwd: simMonthly - p.monthlyKwd,
+    formulaEn: `${s1.labelEn}: ${s1.unit === 'fils' ? `+${v1} fils` : `${v1}%`} · ${s2.labelEn}: ${v2}%`,
+    formulaAr: `${s1.labelAr}: ${s1.unit === 'fils' ? `+${v1} فلس` : `${v1}%`} · ${s2.labelAr}: ${v2}%`,
+  }
+}
+
+/**
+ * Palantir AIP Superpower #2: 1-Click Role-Specific Execution Brief (Copy & WhatsApp ready).
+ */
+export function buildDispatchBrief(p: JourneyPlay, isAr: boolean, simulatedMonthlyKwd?: number): string {
+  const monthly = simulatedMonthlyKwd ?? p.monthlyKwd
+  const reviewDate = new Date(Date.now() + 14 * 86_400_000).toISOString().slice(0, 10)
+  if (isAr) {
+    return [
+      `📌 مذكرة تكليف تنفيذي عاجلة — شركة فنتشر فودز لإدارة المطاعم ذ.م.م`,
+      `• المكلّف بالتنفيذ: ${p.ownerRoleAr}`,
+      `• القرار المعتمد: ${p.titleAr}`,
+      `• النطاق ومركز التكلفة: ${p.subjectAr}`,
+      `• المطلوب تطبيقه اليوم: ${p.actionAr}`,
+      `• المؤشر التشغيلي المستهدف (خط الأساس في أودو 17): ${p.kpi.ar} = ${journeyKpiFormat(p.kpi, true)} (${p.kpi.better === 'down' ? 'المطلوب خفضه' : 'المطلوب رفعه'})`,
+      `• العائد النقدي الصافي المستهدف: +${DK(monthly)} شهرياً (+${DK(monthly * 12)} سنوياً)`,
+      `• موعد المراجعة والتحقق الفعلي (دورة 14 يوماً): ${reviewDate}`,
+    ].join('\n')
+  }
+  return [
+    `📌 EXECUTIVE DISPATCH BRIEF — Venture Foods Restaurants Management Co. W.L.L.`,
+    `• Accountable Owner: ${p.ownerRoleEn}`,
+    `• Approved Play: ${p.titleEn}`,
+    `• Target Scope & Cost Center: ${p.subjectEn}`,
+    `• Action Required Today: ${p.actionEn}`,
+    `• Target KPI (Odoo 17 Baseline): ${p.kpi.en} = ${journeyKpiFormat(p.kpi, false)} (direction: ${p.kpi.better === 'down' ? 'reduce' : 'increase'})`,
+    `• Target Net Cash Gain: +${KWD(monthly)}/month (+${KWD(monthly * 12)}/year)`,
+    `• 14-Day Impact Audit Date: ${reviewDate}`,
+  ].join('\n')
+}
+
+/**
+ * MarginEdge / Supy Superpower #5: 1-Click Vendor Price-Lock & Credit-Note Request Generator.
+ */
+export function buildVendorCreditNoteRequest(p: JourneyPlay, isAr: boolean): string | null {
+  if (!p.vendorShield || !p.vendorShield.items.length) return null
+  const totalGap = sum(p.vendorShield.items, (i) => i.monthlyGapKwd)
+  const reviewDate = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10)
+  if (isAr) {
+    return [
+      `📄 طلب رسمي لتثبيت الأسعار وإصدار إشعار دائن — شركة فنتشر فودز لإدارة المطاعم ذ.م.م (ترخيص 2021/22838)`,
+      `إلى: إدارة حسابات الموردين المعتمدين — عناية قسم المشتريات والمحاسبة`,
+      `الموضوع: رصد فروقات أسعار توريد في فواتير أودو 17 وطلب إشعار دائن + تثبيت تعاقدي لمدة 90 يوماً`,
+      ``,
+      `الأصناف المتأثرة وفروقات السعر المسجلة:`,
+      ...p.vendorShield.items.map(
+        (it) =>
+          `- ${it.name}: السعر المرجعي ${f3(it.oldPriceKwd)} د.ك/${it.uom} ← السعر المفوتر ${f3(it.newPriceKwd)} د.ك/${it.uom} (الأثر الشهري: ${DK(it.monthlyGapKwd)} | الأصناف المتأثرة: ${it.affectedDishes.join('، ')})`,
+      ),
+      ``,
+      `إجمالي الفروقات الشهرية المرصودة: ${DK(totalGap)} شهرياً.`,
+      `المطلوب قبل أمر الشراء القادم (${reviewDate}):`,
+      `1) إصدار إشعار دائن (Credit Note) بفروقات الفواتير المرحّلة فوق السعر المرجعي.`,
+      `2) توقيع جدول أسعار ثابت لمدة 90 يوماً في قائمة أسعار المورد المعتمدة بأودو 17.`,
+    ].join('\n')
+  }
+  return [
+    `📄 FORMAL VENDOR PRICE-LOCK & CREDIT-NOTE REQUEST — Venture Foods Restaurants Management Co. W.L.L.`,
+    `To: Approved Supplier Account Desk — Attn: Procurement & CFO Finance Office`,
+    `Subject: Odoo 17 Purchase Line Unit-Price Variance Audit & 90-Day Price-Lock Mandate`,
+    ``,
+    `Audited SKUs & Unit-Price Variances:`,
+    ...p.vendorShield.items.map(
+      (it) =>
+        `- ${it.name}: Baseline ${f3(it.oldPriceKwd)} KWD/${it.uom} → Billed ${f3(it.newPriceKwd)} KWD/${it.uom} (Monthly variance: ${KWD(it.monthlyGapKwd)} | Affected dishes: ${it.affectedDishes.join(', ')})`,
+    ),
+    ``,
+    `Total Audited Monthly Variance: ${KWD(totalGap)}/month.`,
+    `Required Action by ${reviewDate} (prior to next PO release):`,
+    `1) Issue a formal Credit Note covering billed unit-price overcharges above baseline.`,
+    `2) Confirm a 90-day fixed pricelist lock in Odoo 17.`,
+  ].join('\n')
 }
 
 /** Compact verified digest injected into Feryal's system prompt so she answers any stage + cost-center question with exact numbers. */

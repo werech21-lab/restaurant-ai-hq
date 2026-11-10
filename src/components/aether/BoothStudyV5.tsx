@@ -10,8 +10,9 @@ import { useLang } from '@/components/aether/ui'
 const f0 = (n: number) => Math.round(n).toLocaleString('en-US')
 const f1 = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
 const f3 = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
-const card = 'relative min-w-0 overflow-hidden rounded-[24px] bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_rgba(15,23,42,0.04)] dark:bg-neutral-900'
-const input = 'w-full rounded-xl bg-slate-50 px-3.5 py-2.5 text-[14px] text-slate-900 ring-1 ring-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-400 dark:bg-slate-800 dark:text-white dark:ring-slate-700'
+const card = 'ae-studio-card relative min-w-0 overflow-hidden p-6'
+const input =
+  'w-full rounded-xl bg-[#F6F7F9] px-3.5 py-2.5 text-[14px] font-medium text-slate-900 ring-1 ring-slate-900/[0.05] focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/15 dark:bg-white/[0.06] dark:text-white dark:ring-white/[0.08]'
 
 // Odoo calibration: exhibitions unit (registers 26–29) and brand baskets
 const EXB = ODOO.exhibitions[0]
@@ -136,14 +137,13 @@ export function BoothStudyV5() {
   ].filter(Boolean) as string[]
 
   return (
-    <div dir={isAr ? 'rtl' : 'ltr'} className="rounded-[28px] bg-[#F7F7F8] dark:bg-[#0A0A0A]">
-     <div className="mx-auto w-full max-w-[1520px] space-y-6 px-6 py-6 lg:px-10">
-      <section className={card}>
-        <h1 className="text-xl font-extrabold tracking-tight text-slate-950 sm:text-2xl dark:text-white">{T('Seasonal Booths & Exhibitions Study', 'جدوى المعارض والبوثات الموسمية')}</h1>
+    <div dir={isAr ? 'rtl' : 'ltr'} className="w-full space-y-6">
+      <section className={`${card} ae-glow-sky`}>
+        <h1 className="text-[22px] font-bold tracking-tight text-slate-950 sm:text-[25px] dark:text-white">{T('Seasonal Booths & Exhibitions Study', 'جدوى المعارض والبوثات الموسمية')}</h1>
         <p className="mt-1.5 max-w-3xl text-sm leading-relaxed text-slate-600 dark:text-slate-300">
           {T(
-            `Decide before signing: verdict, contract traps, daily break-even and three profit scenarios, calibrated to Odoo exhibition results (food cost ${f1(EXB_COGS_PCT)}%, running costs ${f1(EXB_OPEX_PCT)}%, ${f0(EXB_DAILY_ORDERS)} orders a day).`,
-            `القرار قبل التوقيع: الحكم الاستثماري وأفخاخ العقد ونقطة التعادل اليومية وثلاثة سيناريوهات للربح، معايرة على نتائج المعارض في أودو (تكلفة أغذية ${f1(EXB_COGS_PCT)}%، مصروفات تشغيل ${f1(EXB_OPEX_PCT)}%، ${f0(EXB_DAILY_ORDERS)} طلباً يومياً).`,
+            `Decide before signing: Go/Conditional/Walk-Away verdict, contract traps, daily break-even and three profit scenarios calibrated silently to live Odoo EXB results (food cost ${f1(EXB_COGS_PCT)}%, running costs ${f1(EXB_OPEX_PCT)}%, ${f0(EXB_DAILY_ORDERS)} orders/day).`,
+            `القرار قبل التوقيع: الحكم الاستثماري الحاسم وأفخاخ العقد ونقطة التعادل اليومية وثلاثة سيناريوهات للربح، معايرة تلقائياً على نتائج معارض أودو EXB الحية (تكلفة أغذية ${f1(EXB_COGS_PCT)}%، مصروفات تشغيل ${f1(EXB_OPEX_PCT)}%، ${f0(EXB_DAILY_ORDERS)} طلباً يومياً).`,
           )}
         </p>
       </section>
@@ -307,7 +307,6 @@ export function BoothStudyV5() {
       </section>
       </div>
       </div>
-     </div>
     </div>
   )
 }
