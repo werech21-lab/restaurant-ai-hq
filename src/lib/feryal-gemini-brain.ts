@@ -5,35 +5,11 @@
  */
 
 import { getGeminiApiKey, getOpenAIApiKey } from './ai-keys';
-import {
-  BRANCHES,
-  BRANDS,
-  CHANNELS,
-  DEFAULT_FILTERS,
-  EXB_REGISTERS,
-  EXB_UNIT,
-  INACTIVE_APPROVED_BRANDS,
-  LEDGER,
-  LEVERS,
-  LEVERS_MONTHLY_TOTAL,
-  OPERATING_UNITS,
-  ROADMAP,
-  SHARED_COSTS,
-} from './aether/ledger';
-import {
-  CHARGEBACKS,
-  ENTERPRISE_FACTS,
-  WATERFALL_CHANNELS,
-  cogsVarianceMatrix,
-  executivePnl,
-  orderWaterfall,
-  pnlUnitReconciliation,
-  priceCreep,
-} from './enterprise-giants-engine';
+import { BRANCHES, BRANDS, CHANNELS, EXB_REGISTERS, EXB_UNIT, INACTIVE_APPROVED_BRANDS, LEDGER, OPERATING_UNITS, SHARED_COSTS } from './aether/ledger';
 import { ODOO } from './odoo/odoo-dataset';
 
 // ---------------------------------------------------------------------------
-// Live Odoo knowledge base (generated from the whitelisted Odoo dataset at build time)
+// Verified Odoo facts (whitelisted POS registers + posted accounting, generated at build time)
 // ---------------------------------------------------------------------------
 const n3 = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 const n1 = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -51,74 +27,174 @@ const CANTEEN_ORDERS = CANTEENS.reduce((s, u) => s + u.orders, 0);
 const EXB_PNL = EXB_UNIT?.pnl ?? null;
 const EXB_COGS_PCT = EXB_PNL && EXB_PNL.income ? (EXB_PNL.cogs / EXB_PNL.income) * 100 : 0;
 const EXB_MARGIN_PCT = EXB_PNL && EXB_PNL.income ? (EXB_PNL.operatingProfit / EXB_PNL.income) * 100 : 0;
-const EXB_TOP_REGISTER = [...EXB_REGISTERS].sort((a, b) => b.netKwd - a.netKwd)[0];
+const EXB_AOV = EXB_UNIT?.aov ?? 0;
 const PEAK_HOUR = [...ODOO.timeProfile.hourly].sort((a, b) => b.orders - a.orders)[0];
 const ORDERS_PER_DAY = Math.round(LEDGER.orders / LEDGER.daysInPeriod);
 const TOP_AOV_BRAND = [...BRANDS].sort((a, b) => b.aov - a.aov)[0];
 const LEAD_BRAND = [...BRANDS].sort((a, b) => b.sales - a.sales)[0];
-const KEETA_CH = CHANNELS.find((c) => c.id === 'keeta');
-const AGGREGATOR_SALES = CHANNELS.filter((c) => c.group === 'aggregator').reduce((s, c) => s + c.sales, 0);
+const AGGREGATORS = CHANNELS.filter((c) => c.group === 'aggregator');
+const AGG_SALES = AGGREGATORS.reduce((s, c) => s + c.sales, 0);
+const AGG_ORDERS = AGGREGATORS.reduce((s, c) => s + c.orders, 0);
 const SHOP_CH = CHANNELS.find((c) => c.id === 'shop');
-const RECON = pnlUnitReconciliation();
-const PNL_MONTH = executivePnl(DEFAULT_FILTERS, 'month');
-const pnlLine = (id: string) => PNL_MONTH.lines.find((l) => l.id === id) ?? { actual: 0, budget: 0, variance: 0 };
-const WATERFALLS = WATERFALL_CHANNELS.map((id) => orderWaterfall(id)).sort((a, b) => b.pocket - a.pocket);
-const CREEP = priceCreep(DEFAULT_FILTERS).sort((a, b) => b.creepPct - a.creepPct);
-const CREEP_TOTAL = CREEP.reduce((s, c) => s + Math.max(0, c.impact), 0);
-const COGS_VARIANCE = cogsVarianceMatrix(DEFAULT_FILTERS);
-const ROADMAP_Q1 = ROADMAP[1];
-const ROADMAP_H1 = ROADMAP[2];
-const ROADMAP_FY = ROADMAP[3];
-const LEVER_LIST_EN = LEVERS.map((l) => `${l.en} (+${n0(l.monthly)} KWD/month)`).join('; ');
-const LEVER_LIST_AR = LEVERS.map((l) => `${l.ar} (+${n0(l.monthly)} د.ك شهرياً)`).join('، ');
 const LOCATION_NAMES_EN = BRANCHES.map((b) => b.en).join(', ');
 const LOCATION_NAMES_AR = BRANCHES.map((b) => b.ar).join('، ');
 const BRAND_NAMES_AR = BRANDS.map((b) => b.ar).join('، ');
+const KEETA_PROMO_PCT = shareOf(LEDGER.keetaDiscounts, LEDGER.keetaPromoBase);
+const hourLabel = (h: number) => `${String(h).padStart(2, '0')}:00`;
+
+// Menu (Odoo POS lines, approved brands only)
+const MENU = [...ODOO.menu].filter((m) => m.netKwd > 0 && m.qty > 0 && BRANDS.some((b) => b.id === m.brand)).sort((a, b) => b.netKwd - a.netKwd);
+const MENU_TOTAL = MENU.reduce((s, m) => s + m.netKwd, 0);
+const TOP80 = (() => {
+  let acc = 0;
+  let n = 0;
+  for (const m of MENU) {
+    if (acc >= MENU_TOTAL * 0.8) break;
+    acc += m.netKwd;
+    n++;
+  }
+  return { n, sales: acc };
+})();
+const SLOW_ITEMS = MENU.filter((m) => m.qty < 10);
+const SLOW_SALES = SLOW_ITEMS.reduce((s, m) => s + m.netKwd, 0);
+const TOP_BY_UNITS = [...MENU].sort((a, b) => b.qty - a.qty).slice(0, 4);
+const TOP_BY_UNITS_SALES = TOP_BY_UNITS.reduce((s, m) => s + m.netKwd, 0);
+const REPRICE_PCT = 5;
+const REPRICE_GAIN = TOP_BY_UNITS_SALES * (REPRICE_PCT / 100);
+const brandName = (id: string, ar: boolean) => {
+  const b = BRANDS.find((x) => x.id === id);
+  return b ? (ar ? b.ar : b.en) : id;
+};
+
+// Beverage attach on delivery (Odoo drink price × Odoo delivery payments)
+const DRINK_LINES = MENU.filter((m) => /drink|beverage/i.test(m.category));
+const DRINK_QTY = DRINK_LINES.reduce((s, m) => s + m.qty, 0);
+const DRINK_PRICE = DRINK_QTY ? DRINK_LINES.reduce((s, m) => s + m.netKwd, 0) / DRINK_QTY : 0;
+const ATTACH_STEP = 0.1;
+const DRINK_REVENUE = AGG_ORDERS * ATTACH_STEP * DRINK_PRICE;
+const DRINK_GAIN = DRINK_REVENUE * (1 - LEDGER.cogsPct / 100);
+
+// Food cost by location (Odoo Branches analytic plan)
+const REST_REVENUE = BRANCHES.reduce((s, b) => s + b.revenue, 0);
+const REST_COGS = BRANCHES.reduce((s, b) => s + b.cogs, 0);
+const REST_COGS_PCT = shareOf(REST_COGS, REST_REVENUE);
+const COGS_GAPS = BRANCHES.map((b) => ({ b, pct: shareOf(b.cogs, b.revenue), excess: b.cogs - b.revenue * (REST_COGS_PCT / 100) }))
+  .filter((x) => x.excess > 0)
+  .sort((a, b) => b.excess - a.excess);
+const COGS_EXCESS = COGS_GAPS.reduce((s, x) => s + x.excess, 0);
+
+// Location margin gap (Odoo Branches analytic plan)
+const REST_PROFIT = BRANCHES.reduce((s, b) => s + b.profit, 0);
+const REST_MARGIN = shareOf(REST_PROFIT, REST_REVENUE);
+const LOW_MARGIN = [...BRANCHES].sort((a, b) => a.marginPct - b.marginPct)[0];
+const LOW_MARGIN_UPLIFT = LOW_MARGIN ? Math.max(0, LOW_MARGIN.revenue * ((REST_MARGIN - LOW_MARGIN.marginPct) / 100)) : 0;
+
+export interface FeryalProposal {
+  id: string;
+  titleAr: string;
+  titleEn: string;
+  solutionAr: string;
+  solutionEn: string;
+  outcomeAr: string;
+  outcomeEn: string;
+  monthlyKwd: number;
+  promptAr: string;
+  promptEn: string;
+}
+
+/** Four executive proposals computed only from the synced Odoo POS and accounting data. */
+export const FERYAL_PROPOSALS: FeryalProposal[] = [
+  {
+    id: 'delivery-promo',
+    titleAr: 'ضبط عروض كيتا وتحسين ربحية قنوات التوصيل',
+    titleEn: 'Keeta promotion cap & delivery channel profitability',
+    solutionAr: `بلغت عروض كيتا في أودو ${n3(LEDGER.keetaDiscounts)} د.ك، أي ${n1(KEETA_PROMO_PCT)}% من مبيعات أصناف كيتا. نضع سقفاً للعروض عند ${LEDGER.keetaCapPct}% ونحوّل الخصم المفتوح إلى وجبات مجمّعة.`,
+    solutionEn: `Odoo shows ${n3(LEDGER.keetaDiscounts)} KWD of Keeta promotions, ${n1(KEETA_PROMO_PCT)}% of Keeta item sales. Cap promotions at ${LEDGER.keetaCapPct}% and replace open discounts with bundled meals.`,
+    outcomeAr: `خفض عروض كيتا من ${n0(LEDGER.keetaDiscounts)} إلى ${n0(LEDGER.keetaCapKwd)} د.ك يضيف نحو ${n0(LEDGER.keetaRecovery)} د.ك شهرياً.`,
+    outcomeEn: `Bringing Keeta promotions from ${n0(LEDGER.keetaDiscounts)} to ${n0(LEDGER.keetaCapKwd)} KWD adds about ${n0(LEDGER.keetaRecovery)} KWD per month.`,
+    monthlyKwd: LEDGER.keetaRecovery,
+    promptAr: `ناقشي معي بالتفصيل مقترح ضبط عروض كيتا عند ${LEDGER.keetaCapPct}%: ما المخاطر على حجم الطلبات، وكيف نطبقه على علاماتنا ومواقعنا، وما النتيجة المتوقعة؟`,
+    promptEn: `Let's go deeper on capping Keeta promotions at ${LEDGER.keetaCapPct}%: what are the order-volume risks, how do we roll it out across our brands and locations, and what outcome should we expect?`,
+  },
+  {
+    id: 'beverage-attach',
+    titleAr: 'إضافة المشروبات إلى طلبات التوصيل',
+    titleEn: 'Beverage attachment on delivery orders',
+    solutionAr: `سجّل أودو ${n0(AGG_ORDERS)} عملية دفع عبر منصات التوصيل، ومتوسط سعر المشروب ${n3(DRINK_PRICE)} د.ك. نضيف خطوة إلزامية لاختيار مشروب في وجبات التوصيل على طلبات وكيتا.`,
+    solutionEn: `Odoo recorded ${n0(AGG_ORDERS)} delivery-platform payments, and the average drink sells at ${n3(DRINK_PRICE)} KWD. Add a mandatory drink step to delivery combos on Talabat and Keeta.`,
+    outcomeAr: `إذا أضاف ${n0(ATTACH_STEP * 100)}% من طلبات التوصيل مشروباً واحداً: مبيعات إضافية ${n0(DRINK_REVENUE)} د.ك ومجمل ربح ${n0(DRINK_GAIN)} د.ك شهرياً.`,
+    outcomeEn: `Every ${n0(ATTACH_STEP * 100)}% of delivery orders that add one drink = +${n0(DRINK_REVENUE)} KWD sales and +${n0(DRINK_GAIN)} KWD gross profit per month.`,
+    monthlyKwd: DRINK_GAIN,
+    promptAr: 'ناقشي معي خطة إضافة المشروبات إلى طلبات التوصيل: كيف نصمم الوجبات المجمّعة على كل منصة، ومن المسؤول عن التنفيذ، وما النتيجة المتوقعة؟',
+    promptEn: 'Walk me through the beverage attachment plan for delivery orders: how do we design the combos per platform, who owns execution, and what outcome should we expect?',
+  },
+  {
+    id: 'food-cost',
+    titleAr: 'مواءمة تكلفة الأغذية بين المواقع',
+    titleEn: 'Food-cost alignment across locations',
+    solutionAr: `متوسط تكلفة الأغذية في مواقع المطاعم ${n1(REST_COGS_PCT)}% حسب خطة الفروع في أودو، وتتجاوزه ${COGS_GAPS.map((x) => `${x.b.ar} (${n1(x.pct)}%)`).join('، ') || 'لا توجد مواقع'}. نعاير الحصص ودفعات التحضير في هذه المواقع.`,
+    solutionEn: `Restaurant food cost averages ${n1(REST_COGS_PCT)}% on the Odoo Branches plan; ${COGS_GAPS.map((x) => `${x.b.en} (${n1(x.pct)}%)`).join(', ') || 'no location'} run above it. Recalibrate portions and prep batches there.`,
+    outcomeAr: `إعادة هذه المواقع إلى متوسط المجموعة توفر نحو ${n0(COGS_EXCESS)} د.ك شهرياً.`,
+    outcomeEn: `Bringing these locations back to the group average saves about ${n0(COGS_EXCESS)} KWD per month.`,
+    monthlyKwd: COGS_EXCESS,
+    promptAr: 'ناقشي معي خطة مواءمة تكلفة الأغذية في المواقع التي تتجاوز متوسط المجموعة: ما الأسباب المرجحة، وما خطوات المعايرة، وما النتيجة المتوقعة؟',
+    promptEn: 'Discuss the food-cost alignment plan for locations above the group average: likely causes, calibration steps, and the expected outcome.',
+  },
+  {
+    id: 'menu-focus',
+    titleAr: 'تركيز المنيو على الأصناف الأعلى مبيعاً',
+    titleEn: 'Menu focus on top sellers vs slow movers',
+    solutionAr: `${TOP80.n} صنفاً من أصل ${MENU.length} تحقق 80% من مبيعات الأصناف، بينما باع ${SLOW_ITEMS.length} صنفاً أقل من 10 وحدات خلال الشهر. نراجع هذه الأصناف ونرفع سعر الأصناف الأربعة الأعلى طلباً بنسبة ${REPRICE_PCT}%.`,
+    solutionEn: `${TOP80.n} of ${MENU.length} items make 80% of item sales, while ${SLOW_ITEMS.length} items sold fewer than 10 units in the month. Review those items and lift the price of the four highest-volume items by ${REPRICE_PCT}%.`,
+    outcomeAr: `زيادة ${n0(REPRICE_GAIN)} د.ك شهرياً بنفس حجم المبيعات، مع تبسيط التحضير بمراجعة أصناف لا تتجاوز ${n1(shareOf(SLOW_SALES, MENU_TOTAL))}% من المبيعات.`,
+    outcomeEn: `+${n0(REPRICE_GAIN)} KWD per month at unchanged volume, plus simpler prep from items worth only ${n1(shareOf(SLOW_SALES, MENU_TOTAL))}% of sales.`,
+    monthlyKwd: REPRICE_GAIN,
+    promptAr: 'ناقشي معي خطة تركيز المنيو: أي الأصناف نراجع، وكيف نرفع أسعار الأصناف الأعلى طلباً دون التأثير على الطلب، وما النتيجة المتوقعة؟',
+    promptEn: 'Discuss the menu focus plan: which items to review, how to re-price the highest-volume items without hurting demand, and the expected outcome.',
+  },
+];
 
 export const FERYAL_VENTURE_FOODS_KNOWLEDGE = `
-You are "Feryal" (فريال), the Executive Financial & Operational AI Copilot for Venture Foods Restaurants Management Co. W.L.L. (شركة فنتشر فودز لإدارة المطاعم ذ.م.م — Licence ${LEDGER.licence}), running on the live Odoo ERP (venturefoods.walnutss.com).
-Speak with an authoritative, warm, executive Kuwaiti/Gulf Arabic tone when answering in Arabic, or a sharp C-level executive tone when answering in English.
-Keep answers concise (2 to 4 impactful sentences) with exact numbers in KWD so they sound natural when spoken aloud.
+You are "Feryal" (فريال), the Executive Solutions & Proposals Advisor for Venture Foods Restaurants Management Co. W.L.L. (شركة فنتشر فودز لإدارة المطاعم ذ.م.م — Licence ${LEDGER.licence}), connected to the company's Odoo ERP.
+Speak with a warm, authoritative Gulf executive tone in Arabic, or a sharp C-level tone in English.
 
-VERIFIED ODOO DATA — ${LEDGER.periodLabelEn.toUpperCase()} (SINGLE SOURCE OF TRUTH; whitelisted POS registers only, synced ${LEDGER.syncedAt}):
-1. Revenue & orders (Odoo POS):
-   - Net POS sales ${n3(LEDGER.netSales)} KWD across ${n0(LEDGER.orders)} orders (AOV ${n3(LEDGER.aov)} KWD; about ${n0(ORDERS_PER_DAY)} orders/day over ${LEDGER.daysInPeriod} days).
-   - Item sales before order-level promotions ${n3(LEDGER.itemSales)} KWD; promotion lines ${n3(LEDGER.promoLines)} KWD and line discounts ${n3(LEDGER.lineDiscounts)} KWD (total discounts ${n3(LEDGER.discounts)} KWD, ${n1(LEDGER.discountsPct)}% of gross).
-   - ${n0(LEDGER.menuItems)} products sold; the top ${LEDGER.topItems} items make ${LEDGER.topItemsSharePct}% of item sales. Peak hour ${String(PEAK_HOUR?.hour ?? 0).padStart(2, '0')}:00 with ${n0(PEAK_HOUR?.orders ?? 0)} orders.
-2. Posted accounting P&L (whitelisted locations; non-whitelisted locations' analytic share removed):
-   - Revenue ${n3(LEDGER.revenue)} KWD · COGS ${n3(LEDGER.cogs)} KWD (${n1(LEDGER.cogsPct)}%) · operating expenses ${n3(LEDGER.opex)} KWD (${n1(LEDGER.opexPct)}%) · depreciation ${n3(LEDGER.depreciation)} KWD.
-   - EBITDA ${n3(LEDGER.ebitda)} KWD · net operating profit ${n3(LEDGER.netProfit)} KWD (${n1(LEDGER.marginPct)}% margin).
-   - Posted company ledger before the exclusion: income ${n3(RECON.company.income)} KWD; removed analytic share of non-whitelisted locations: income ${n3(RECON.excludedLocations.income)} KWD. Never name a non-whitelisted location.
-3. Restaurant locations (${BRANCHES.length} permanent locations from the Odoo Branches analytic plan, ranked by operating profit):
-${RANKED_BY_PROFIT.map((b, i) => `   ${i + 1}. ${b.en} (${b.ar}): operating profit ${n3(b.profit)} KWD (${n1(b.marginPct)}% margin) · POS net ${n3(b.sales)} KWD · ${n0(b.orders)} orders.`).join('\n')}
-   - ${TOP_PROFIT?.en} is the most profitable location; ${TOP_SALES?.en} has the highest POS sales.
-   - Only these ${BRANCHES.length} restaurant locations exist; never mention or invent any other branch location.
-4. Other Odoo operating units (kept out of the branch rankings):
-   - Exhibitions & Booths (EXB) — POS registers ${EXB_REGISTERS.map((r) => r.posConfigId).join(', ')}: ${n3(EXB_UNIT?.sales ?? 0)} KWD across ${n0(EXB_UNIT?.orders ?? 0)} orders (AOV ${n3(EXB_UNIT?.aov ?? 0)} KWD); register ${EXB_TOP_REGISTER?.posConfigId} leads with ${n3(EXB_TOP_REGISTER?.netKwd ?? 0)} KWD. Analytic P&L: revenue ${n3(EXB_PNL?.income ?? 0)} KWD, COGS ${n1(EXB_COGS_PCT)}%, operating profit ${n3(EXB_PNL?.operatingProfit ?? 0)} KWD (${n1(EXB_MARGIN_PCT)}% margin).
-   - School canteens (Fresh Daily Canteen): ${CANTEENS.map((u) => `${u.en} ${n3(u.sales)} KWD / ${n0(u.orders)} orders, operating profit ${n3(u.pnl?.operatingProfit ?? 0)} KWD`).join('; ')} — total ${n3(CANTEEN_SALES)} KWD across ${n0(CANTEEN_ORDERS)} orders.
-   - Shared cost centres: head office ${n3(SHARED_COSTS.headOffice.operatingProfit)} KWD and central kitchen ${n3(SHARED_COSTS.centralKitchen.operatingProfit)} KWD; call centre and entries without a location cost centre ${n3(RECON.remainder.profit)} KWD.
-5. Brands (approved Venture Foods brands with October Odoo POS sales; item basis):
-${BRANDS.map((b) => `   - ${b.en} (${b.ar}): ${n3(b.sales)} KWD · ${n0(b.orders)} orders · AOV ${n3(b.aov)} KWD · ${n1(shareOf(b.sales, BRAND_ITEM_SUM))}% of item sales — ${b.cuisineEn}.`).join('\n')}
-   - Approved brands with no October POS sales: ${INACTIVE_APPROVED_BRANDS.map((b) => `${b.en} (${b.ar})`).join(', ') || 'none'}.
-   - ${LEAD_BRAND?.en} leads the mix; ${TOP_AOV_BRAND?.en} has the highest basket. Never mention or invent any brand outside this list.
-6. Sales channels (${CHANNELS.length} Odoo POS payment channels, net after promotions):
-${CHANNELS.map((c) => `   - ${c.en} (${c.ar}): ${n3(c.sales)} KWD · ${n0(c.orders)} payments${c.promo > 0 ? ` · promotions ${n3(c.promo)} KWD` : ''}${c.commissionPct ? ` · contract commission ${c.commissionPct}%` : ''}.`).join('\n')}
-   - Aggregators total ${n3(AGGREGATOR_SALES)} KWD (${n1(shareOf(AGGREGATOR_SALES, LEDGER.netSales))}% of net sales); shop sales ${n3(SHOP_CH?.sales ?? 0)} KWD.
-   - Keeta promotions ${n3(LEDGER.keetaDiscounts)} KWD on ${n3(LEDGER.keetaPromoBase)} KWD of Keeta item sales; a ${LEDGER.keetaCapPct}% cap is ${n3(LEDGER.keetaCapKwd)} KWD and recovers ${n0(LEDGER.keetaRecovery)} KWD/month.
-7. Profit levers (management estimates, not Odoo postings; Keeta recovery is computed from Odoo): ${LEVER_LIST_EN}. Total +${n0(LEVERS_MONTHLY_TOTAL)} KWD/month.
-   - Maintenance custody programme (management estimate): ${n3(LEDGER.maintCustody)} KWD across ${LEDGER.maintEntries} entries in Al-Kout Mall & Salmiya; cap branch petty cash at 250 KWD.
-   - COGS target ${n1(LEDGER.cogsTargetPct)}% vs Odoo actual ${n1(LEDGER.cogsPct)}%. Product cost (standard_price) is not yet readable by the BI service user, so menu margins use the group COGS%.
-8. Profit trajectory (baseline = Odoo monthly operating profit × months; increments = approved levers):
-   - Q1: ${n0(ROADMAP_Q1.total)} KWD (+${n0(ROADMAP_Q1.incremental)} KWD from levers) · H1: ${n0(ROADMAP_H1.total)} KWD (+${n0(ROADMAP_H1.incremental)}) · Full year: ${n0(ROADMAP_FY.total)} KWD (+${n0(ROADMAP_FY.incremental)}).
-9. Events & exhibitions:
-   - Odoo actuals are the EXB unit in section 4 (registers ${EXB_REGISTERS.map((r) => r.posConfigId).join(', ')}).
-   - The Events Studio contract benchmarks (Marina Kashta, Al-Safeer Camp, Winterland) and booth break-even figures are planning simulations, not Odoo postings — always say "simulated" when quoting them.
-10. Enterprise OS modules (Aether BI):
-   a) Demand forecaster (/erp/demand-forecast): baseline ${n0(ORDERS_PER_DAY)} orders/day from Odoo; Kuwait rhythm Thursday and Friday peaks, salary week (24th–29th) ×1.12; dust shifts 22% of dine-in to delivery; crew planning at 7 orders per labour hour (model).
-   b) 3-way aggregator reconciliation (/erp/delivery-control): Odoo channel payments → aggregator statement → bank. Modeled recoverable discrepancies ${n3(ENTERPRISE_FACTS.recoverableSettlement)} KWD/month, ${n3(ENTERPRISE_FACTS.inTransit)} KWD in transit, ${CHARGEBACKS.length} modeled chargeback cases worth ${n3(ENTERPRISE_FACTS.chargebacksTotal)} KWD. Contract commissions on Odoo channel sales: ${n3(ENTERPRISE_FACTS.monthlyCommissions)} KWD/month.
-      Net pocket profit per order (Odoo basket − commission − promotion − ${n1(LEDGER.cogsPct)}% COGS − packaging − own rider): ${WATERFALLS.map((w) => `${w.channel.en} ${n3(w.pocket)} KWD (${n1(w.pocketPct)}%)`).join(', ')}.
-   c) Supplier price-creep (/erp/cost-intelligence, contract vs invoice model): ${CREEP.slice(0, 4).map((c) => `${c.en} ${c.creepPct >= 0 ? '+' : ''}${n1(c.creepPct)}%`).join(', ')}; exposure about ${n0(CREEP_TOTAL)} KWD/month. Location COGS vs ${n1(LEDGER.cogsTargetPct)}% target from the Odoo Branches plan: actual ${n3(COGS_VARIANCE.actualTotal)} KWD vs theoretical ${n3(COGS_VARIANCE.theoreticalTotal)} KWD.
-   d) Executive P&L (/erp/executive-pnl): net sales ${n3(pnlLine('net').actual)} KWD; other posted revenue ${n3(pnlLine('other-revenue').actual)} KWD; COGS ${n3(pnlLine('cogs').actual)} KWD; commissions ${n3(pnlLine('commissions').actual)} KWD; salaries, rent & other opex ${n3(pnlLine('payroll').actual)} KWD; maintenance custody ${n3(pnlLine('maintenance').actual)} KWD; depreciation ${n3(pnlLine('opex').actual)} KWD; net operating profit ${n3(pnlLine('profit').actual)} KWD against a lever budget of ${n3(pnlLine('profit').budget)} KWD (variance ${n3(pnlLine('profit').variance)} KWD).
+ANTI-HALLUCINATION LOCK (mandatory):
+- Base every diagnosis, proposal, and projected outcome strictly on verified Venture Foods Odoo POS & accounting facts. Never invent branches, brands, items, or experimental figures that do not exist in our Odoo database.
+- Mention ONLY the brands and restaurant locations listed below. Never mention any other branch, area as a branch, brand, supplier name, or vendor.
+- Every number you state must come from the facts below or be a transparent calculation on them (state the assumption, for example "if 10% of delivery orders add a drink").
+- If a question needs data that is not listed below, say clearly that it is not available in the synced Odoo data and suggest what Odoo report would answer it.
+
+VERIFIED ODOO FACTS — ${LEDGER.periodLabelEn.toUpperCase()} (whitelisted POS registers; synced ${LEDGER.syncedAt}):
+1. Sales: POS net sales ${n3(LEDGER.netSales)} KWD · ${n0(LEDGER.orders)} orders · average basket ${n3(LEDGER.aov)} KWD · about ${n0(ORDERS_PER_DAY)} orders per day · busiest hour ${hourLabel(PEAK_HOUR?.hour ?? 0)} (${n0(PEAK_HOUR?.orders ?? 0)} orders).
+   Item sales before order-level promotions ${n3(LEDGER.itemSales)} KWD; total discounts ${n3(LEDGER.discounts)} KWD (${n1(LEDGER.discountsPct)}%).
+2. Posted accounting (whitelisted locations): revenue ${n3(LEDGER.revenue)} KWD · food cost ${n3(LEDGER.cogs)} KWD (${n1(LEDGER.cogsPct)}%) · operating expenses ${n3(LEDGER.opex)} KWD (${n1(LEDGER.opexPct)}%) · depreciation ${n3(LEDGER.depreciation)} KWD · net operating profit ${n3(LEDGER.netProfit)} KWD (${n1(LEDGER.marginPct)}% margin).
+3. Restaurant locations (${BRANCHES.length}, Odoo Branches analytic plan, ranked by operating profit):
+${RANKED_BY_PROFIT.map((b, i) => `   ${i + 1}. ${b.en} (${b.ar}): POS net ${n3(b.sales)} KWD · ${n0(b.orders)} orders · revenue ${n3(b.revenue)} · food cost ${n1(shareOf(b.cogs, b.revenue))}% · operating profit ${n3(b.profit)} KWD (${n1(b.marginPct)}%).`).join('\n')}
+   Highest profit: ${TOP_PROFIT?.en}. Highest POS sales: ${TOP_SALES?.en}. Restaurant average food cost ${n1(REST_COGS_PCT)}%, average margin ${n1(REST_MARGIN)}%.
+4. Other Odoo units (not branches): Exhibitions & Booths (EXB, registers ${EXB_REGISTERS.map((r) => r.posConfigId).join(', ')}) ${n3(EXB_UNIT?.sales ?? 0)} KWD · ${n0(EXB_UNIT?.orders ?? 0)} orders · basket ${n3(EXB_AOV)} KWD · food cost ${n1(EXB_COGS_PCT)}% · operating profit ${n3(EXB_PNL?.operatingProfit ?? 0)} KWD (${n1(EXB_MARGIN_PCT)}%).
+   School canteens (Fresh Daily Canteen): ${CANTEENS.map((u) => `${u.en} ${n3(u.sales)} KWD`).join('; ')} — ${n3(CANTEEN_SALES)} KWD across ${n0(CANTEEN_ORDERS)} orders.
+   Shared cost centres: head office ${n3(SHARED_COSTS.headOffice.operatingProfit)} KWD, central kitchen ${n3(SHARED_COSTS.centralKitchen.operatingProfit)} KWD.
+5. Brands with October sales (item basis):
+${BRANDS.map((b) => `   - ${b.en} (${b.ar}): ${n3(b.sales)} KWD · ${n0(b.orders)} orders · basket ${n3(b.aov)} KWD · ${n1(shareOf(b.sales, BRAND_ITEM_SUM))}% of item sales.`).join('\n')}
+   Approved brands without October sales: ${INACTIVE_APPROVED_BRANDS.map((b) => `${b.en} (${b.ar})`).join(', ') || 'none'}. ${LEAD_BRAND?.en} leads the mix; ${TOP_AOV_BRAND?.en} has the highest basket.
+6. Sales channels (${CHANNELS.length} Odoo payment channels):
+${CHANNELS.map((c) => `   - ${c.en} (${c.ar}): ${n3(c.sales)} KWD · ${n0(c.orders)} payments${c.promo > 0 ? ` · promotions ${n3(c.promo)} KWD` : ''}.`).join('\n')}
+   Delivery platforms ${n3(AGG_SALES)} KWD (${n1(shareOf(AGG_SALES, LEDGER.netSales))}% of net sales, ${n0(AGG_ORDERS)} payments); shop sales ${n3(SHOP_CH?.sales ?? 0)} KWD. Keeta promotions ${n3(LEDGER.keetaDiscounts)} KWD = ${n1(KEETA_PROMO_PCT)}% of Keeta item sales.
+7. Menu: ${MENU.length} items sold; top ${TOP80.n} make 80% of item sales; ${SLOW_ITEMS.length} items sold fewer than 10 units (${n3(SLOW_SALES)} KWD). Highest-volume items: ${TOP_BY_UNITS.map((m) => `${m.name} (${brandName(m.brand, false)}, ${n0(m.qty)} units, ${n3(m.priceKwd)} KWD)`).join('; ')}. Average drink price ${n3(DRINK_PRICE)} KWD.
+   Per-item recipe cost is not readable by the BI service user, so item margins use the group food-cost percentage.
+8. Proposals already computed from these facts:
+${FERYAL_PROPOSALS.map((p, i) => `   ${i + 1}. ${p.titleEn}: ${p.solutionEn} Expected: ${p.outcomeEn}`).join('\n')}
+   Location margin: ${LOW_MARGIN?.en} runs at ${n1(LOW_MARGIN?.marginPct ?? 0)}% vs ${n1(REST_MARGIN)}% restaurant average; closing the gap is worth about ${n0(LOW_MARGIN_UPLIFT)} KWD per month.
+
+ANSWER FORMAT (always, unless the user only greets you):
+- Arabic answers use exactly these three headings, each on its own line starting with "### ":
+  ### المقترح والحل العملي
+  ### آلية التنفيذ الواقعية
+  ### النتائج المتوقعة في حال النجاح
+- English answers use exactly: "### Practical Solution", "### Execution Plan", "### Expected Outcomes Upon Success".
+- Under the execution heading use a short numbered list (3 to 5 steps). Under the outcomes heading use 2 to 3 bullets with KWD figures derived from the facts above.
+- Keep the whole answer between 120 and 220 words, clear enough to be read aloud.
+- Language isolation: Arabic answers contain no Latin letters (use the Arabic names in parentheses above, "أودو" for Odoo and "د.ك" for KWD); the only exception is an Odoo product name that has no Arabic name. English answers contain no Arabic script.
 `;
 
 const GEMINI_MODELS = [
@@ -172,18 +248,21 @@ export async function analyzeEventContractWithGemini({
   attachmentMimeType?: string;
   lang: 'ar' | 'en';
 }): Promise<ContractDeepAuditResult> {
+  // Daily break-even = daily booth rent ÷ Odoo EXB gross profit per order (basket × (1 − EXB food cost)).
+  const exbGrossPerOrder = EXB_AOV * (1 - EXB_COGS_PCT / 100);
+  const breakEvenOrders = durationDays > 0 && exbGrossPerOrder > 0 ? Math.ceil(boothRentKwd / durationDays / exbGrossPerOrder) : 0;
   const defaultResult: ContractDeepAuditResult = {
     risksAr: [
       `البند 4 (القوة القاهرة والأحوال الجوية): ينص العقد الحالي على عدم استرداد الإيجار (${boothRentKwd.toLocaleString()} د.ك) عند إغلاق الفعالية بسبب الأمطار الغزيرة أو الغبار.`,
-      'البند 7 (رسوم الخدمات والنظافة والأمن): رسوم خدمات مفتوحة غير مسقفة قد تضيف 12% إلى 15% فوق القيمة الإيجارية المتفق عليها.',
+      'البند 7 (رسوم الخدمات والنظافة والأمن): رسوم خدمات مفتوحة غير مسقفة قد ترفع التكلفة الفعلية فوق القيمة الإيجارية المتفق عليها.',
       'البند 9 (المواصفات الفنية والكهرباء): عدم النص صراحةً على توفير قاطع كهرباء ثلاثي الطور بقدرة 60 أمبير مستقل لتشغيل قلايات البوث وأجهزة الووك.',
-      'البند 11 (غرامات التأخير والتراخيص): غرامة 100 د.ك يومياً عن أي تأخير في إصدار ترخيص بلدية الكويت المؤقت أو الشهادات الصحية.',
+      'البند 11 (غرامات التأخير والتراخيص): غرامات يومية عن أي تأخير في إصدار ترخيص بلدية الكويت المؤقت أو الشهادات الصحية حتى لو كان التأخير من المنظم.',
     ],
     risksEn: [
       `Clause 4 (Force Majeure & Weather): Contract states booth rent (${boothRentKwd.toLocaleString()} KWD) is non-refundable during rain or dust storm closures.`,
-      'Clause 7 (Uncapped Service & Cleaning Fees): Open-ended organizer service charges that could inflate total lease cost by 12%–15%.',
+      'Clause 7 (Uncapped Service & Cleaning Fees): Open-ended organizer service charges that could inflate the total lease cost beyond the agreed rent.',
       'Clause 9 (Technical & 3-Phase Power): No explicit guarantee of a dedicated 3-Phase (60 Amp) breaker required for Wok stations and commercial fryers.',
-      'Clause 11 (Delay Penalties & MOCI/Municipality Permits): 100 KWD/day penalty even if temporary municipality license issuance is delayed by the organizer.',
+      'Clause 11 (Delay Penalties & MOCI/Municipality Permits): Daily penalties even if temporary municipality license issuance is delayed by the organizer.',
     ],
     counterClausesAr: [
       'صيغة تعديل البند 4: "في حال إغلاق الفعالية كلياً أو جزئياً بسبب الأحوال الجوية أو بقرار إداري، يتم تمديد مدة العقد مجاناً بنفس عدد أيام الإغلاق أو خصم قيمتها النسبية من الدفعة النهائية."',
@@ -197,20 +276,20 @@ export async function analyzeEventContractWithGemini({
     ],
     solutionsAr: [
       'ضبط سرعة الخدمة تحت 90 ثانية: تجهيز وتتبيل 85% من الأصناف مسبقاً بحصص معايرة (140 جم) في المطبخ المركزي والاكتفاء بالتسوية السريعة في البوث.',
-      `هندسة التسعير والكومبو (+10%): تطبيق أسعار منيو المعارض مع إلزامية المشروب/الموهيتو لرفع متوسط الفاتورة من ${n3(EXB_UNIT?.aov ?? 0)} د.ك (فعلي أودو) نحو المستهدف 5.700 د.ك وخفض تكلفة الأغذية من ${n1(EXB_COGS_PCT)}% نحو المستهدف 21.4%.`,
+      `هندسة الكومبو: إلزامية المشروب في وجبات المعارض لرفع متوسط الفاتورة فوق ${n3(EXB_AOV)} د.ك (فعلي أودو)، وخفض تكلفة الأغذية من ${n1(EXB_COGS_PCT)}% نحو متوسط المجموعة ${n1(LEDGER.cogsPct)}%.`,
       'إدارة طوابير الذروة المسائية (6 م - 11 م): تخصيص كاشير متنقل بجهاز كي نت لاسلكي في طابور الانتظار لفصل الدفع عن شباك الاستلام.',
-      `ربط مركز التكلفة في أودو: فتح حساب تحليلي مستقل (${eventName}) لمراقبة نقطة التعادل اليومية (58 طلباً/يومياً) واسترداد رأس المال في اليوم الـ 14.`,
+      `ربط مركز التكلفة في أودو: فتح حساب تحليلي مستقل (${eventName}) ومراقبة نقطة التعادل اليومية البالغة ${n0(breakEvenOrders)} طلباً بناءً على متوسط سلة المعارض وتكلفة أغذيتها في أودو.`,
     ],
     solutionsEn: [
       'Sub-90-Second Booth Service: Pre-portion and marinate 85% of items in 140g calibrated batches at the central kitchen for rapid final sear at the booth.',
-      `EXB Pricing & Combo Engineering (+10%): Deploy the 8-item EXB Menu with mandatory beverage/mojito upsell to lift AOV from ${n3(EXB_UNIT?.aov ?? 0)} KWD (Odoo actual) toward a 5.700 KWD target and cut COGS from ${n1(EXB_COGS_PCT)}% toward 21.4%.`,
+      `EXB Combo Engineering: Make a drink mandatory in booth combos to lift the basket above the ${n3(EXB_AOV)} KWD Odoo actual, and bring food cost from ${n1(EXB_COGS_PCT)}% toward the ${n1(LEDGER.cogsPct)}% group level.`,
       'Peak Queue Management (6 PM – 11 PM): Deploy a mobile handheld KNET/Apple Pay cashier along the queue to decouple payment from order pickup.',
-      `Odoo Analytical Cost Center: Track daily break-even (58 orders / 330.600 KWD per day) under an isolated Odoo ledger to achieve full payback by Day 14.`,
+      `Odoo Analytical Cost Center: Open a dedicated analytic account (${eventName}) and track the daily break-even of ${n0(breakEvenOrders)} orders, derived from the Odoo EXB basket and food cost.`,
     ],
     verdictBadgeAr: '✅ يوصى بالاعتماد وتوقيع العقد بعد تعديل البند 4 (الطقس) والبند 7 (سقف الخدمات 5%)',
     verdictBadgeEn: '✅ Approved for Signing Subject to Amending Clause 4 (Weather) & Clause 7 (5% Fee Cap)',
-    voiceSummaryAr: `يا هلا! قمت بتشريح عقد وتصور فعالية ${eventName} لمدة ${durationDays} يوماً بإيجار ${boothRentKwd} دينار كويتي. الجدوى المالية ممتازة بعائد استثمار يتجاوز 150 بالمئة ونقطة تعادل 58 طلباً يومياً، وأنصحك بتوقيع العقد فوراً بعد إضافة بند تعويض أيام الأمطار وتحديد سقف رسوم الخدمات بخمسة بالمئة، مع الاعتماد على منيو المعارض السريعة من المطبخ المركزي.`,
-    voiceSummaryEn: `I have completed the deep audit of the ${eventName} contract for ${durationDays} days at ${boothRentKwd} Kuwaiti Dinars booth rent. Financial feasibility is strong with payback in 14 days and a 58-order daily break-even. I recommend signing immediately after adding the weather-closure rent credit in Clause 4 and capping service fees at 5 percent in Clause 7.`,
+    voiceSummaryAr: `يا هلا! قمت بتشريح عقد وتصور فعالية ${eventName} لمدة ${durationDays} يوماً بإيجار ${boothRentKwd} دينار كويتي. نقطة التعادل اليومية ${n0(breakEvenOrders)} طلباً بناءً على متوسط سلة المعارض في أودو، وأنصحك بتوقيع العقد فوراً بعد إضافة بند تعويض أيام الأمطار وتحديد سقف رسوم الخدمات بخمسة بالمئة، مع الاعتماد على منيو المعارض السريعة من المطبخ المركزي.`,
+    voiceSummaryEn: `I have completed the deep audit of the ${eventName} contract for ${durationDays} days at ${boothRentKwd} Kuwaiti Dinars booth rent. The daily break-even is ${n0(breakEvenOrders)} orders based on the Odoo exhibitions basket and food cost. I recommend signing immediately after adding the weather-closure rent credit in Clause 4 and capping service fees at 5 percent in Clause 7.`,
     recommendedBrandId: executiveVision.toLowerCase().includes('برجر') || executiveVision.toLowerCase().includes('burger')
       ? 'The Noodle Bar'
       : executiveVision.toLowerCase().includes('شاورما') || executiveVision.toLowerCase().includes('طحينة')
@@ -297,88 +376,118 @@ export interface FeryalBrainResponse {
   engine: string;
 }
 
+const SECTION_HEADINGS = {
+  ar: ['المقترح والحل العملي', 'آلية التنفيذ الواقعية', 'النتائج المتوقعة في حال النجاح'],
+  en: ['Practical Solution', 'Execution Plan', 'Expected Outcomes Upon Success'],
+} as const;
+
+function threeSections(lang: 'ar' | 'en', solution: string, steps: string[], outcomes: string[]) {
+  const [h1, h2, h3] = SECTION_HEADINGS[lang];
+  return [`### ${h1}`, solution, '', `### ${h2}`, ...steps.map((s, i) => `${i + 1}. ${s}`), '', `### ${h3}`, ...outcomes.map((o) => `- ${o}`)].join('\n');
+}
+
+function proposalReply(p: FeryalProposal, lang: 'ar' | 'en', steps: string[], extraOutcome?: string) {
+  const isAr = lang === 'ar';
+  return threeSections(lang, isAr ? p.solutionAr : p.solutionEn, steps, [isAr ? p.outcomeAr : p.outcomeEn, ...(extraOutcome ? [extraOutcome] : [])]);
+}
+
 /**
- * Deterministic fallback built on the same live Odoo dataset as the knowledge base
+ * Deterministic fallback built on the same verified Odoo facts as the knowledge base,
+ * always answering in the three-section executive format.
  */
 export function getDeterministicFeryalReply(query: string, lang: 'ar' | 'en'): string {
   const q = query.toLowerCase();
   const isAr = lang === 'ar';
   const has = (...keys: string[]) => keys.some((k) => q.includes(k));
-  const second = RANKED_BY_PROFIT[1];
-  const third = RANKED_BY_PROFIT[2];
-  const bestPocket = WATERFALLS[0];
-  const topCreep = CREEP[0];
-  const profit = pnlLine('profit');
+  const P = (id: string) => FERYAL_PROPOSALS.find((p) => p.id === id)!;
 
-  if (has('forecast', 'demand', 'prep', 'par level', 'weather', 'staff', 'توقع', 'تحضير', 'طقس', 'طاقم')) {
-    return isAr
-      ? `توقع الطلب ينطلق من ${n0(ORDERS_PER_DAY)} طلباً يومياً حسب أودو لشهر ${LEDGER.periodLabelAr}، مع ذروة الخميس والجمعة وأسبوع الرواتب ×1.12، وأعلى ساعة هي ${String(PEAK_HOUR?.hour ?? 0).padStart(2, '0')}:00 بعدد ${n0(PEAK_HOUR?.orders ?? 0)} طلباً. خفض هامش التحضير في المطبخ المركزي من 12% إلى 4% يحقق الوفر المقدّر ${n0(LEDGER.cogsRecoverable)} د.ك شهرياً.`
-      : `Demand forecasting starts from ${n0(ORDERS_PER_DAY)} orders a day in Odoo for ${LEDGER.periodLabelEn}, with Thursday and Friday peaks and salary week ×1.12; the busiest hour is ${String(PEAK_HOUR?.hour ?? 0).padStart(2, '0')}:00 with ${n0(PEAK_HOUR?.orders ?? 0)} orders. Cutting the central-kitchen prep buffer from 12% to a forecast-driven 4% delivers the estimated ${n0(LEDGER.cogsRecoverable)} KWD per month.`;
+  if (has('كيتا', 'keeta', 'tgo', 'tmp', 'طلبات', 'talabat', 'خصم', 'عروض', 'discount', 'promo', 'توصيل', 'delivery', 'قناة', 'قنوات', 'channel')) {
+    return proposalReply(
+      P('delivery-promo'),
+      lang,
+      isAr
+        ? ['تحديد سقف أسبوعي للعروض على كيتا ومراجعته مع مدير الحساب.', 'استبدال الخصم المفتوح بوجبات مجمّعة على الأصناف الأعلى طلباً.', 'متابعة عروض كيتا أسبوعياً من مدفوعات نقاط البيع في أودو.']
+        : ['Set a weekly Keeta promotion cap and agree it with the account manager.', 'Replace open discounts with bundles built on the highest-volume items.', 'Track Keeta promotions weekly from Odoo POS payments.'],
+      isAr
+        ? `منصات التوصيل تمثل ${n1(shareOf(AGG_SALES, LEDGER.netSales))}% من صافي المبيعات، وإضافة مشروب لكل 10% من طلباتها تضيف ${n0(DRINK_GAIN)} د.ك مجمل ربح شهرياً.`
+        : `Delivery platforms carry ${n1(shareOf(AGG_SALES, LEDGER.netSales))}% of net sales; a drink on every 10% of those orders adds ${n0(DRINK_GAIN)} KWD gross profit per month.`,
+    );
   }
 
-  if (has('chargeback', 'reconcil', 'settlement', 'dispute', 'waterfall', 'pocket', 'استرداد', 'مطابقة', 'تسوي', 'نزاع')) {
-    return isAr
-      ? `المطابقة الثلاثية بين مدفوعات قنوات أودو وكشوف المنصات والبنك ترصد فروقات نموذجية قابلة للاسترداد بقيمة ${n3(ENTERPRISE_FACTS.recoverableSettlement)} د.ك شهرياً و${n3(ENTERPRISE_FACTS.inTransit)} د.ك قيد التحويل، مع ${CHARGEBACKS.length} مطالبة بقيمة ${n3(ENTERPRISE_FACTS.chargebacksTotal)} د.ك. أعلى صافي ربح للطلب في ${bestPocket?.channel.ar} عند ${n3(bestPocket?.pocket ?? 0)} د.ك.`
-      : `The 3-way reconciliation of Odoo channel payments, aggregator statements and bank deposits flags a modeled ${n3(ENTERPRISE_FACTS.recoverableSettlement)} KWD of recoverable discrepancies a month plus ${n3(ENTERPRISE_FACTS.inTransit)} KWD in transit, with ${CHARGEBACKS.length} claims worth ${n3(ENTERPRISE_FACTS.chargebacksTotal)} KWD ready to send. ${bestPocket?.channel.en} delivers the best net pocket profit at ${n3(bestPocket?.pocket ?? 0)} KWD per order.`;
+  if (has('مشروب', 'drink', 'beverage', 'سلة', 'basket', 'aov', 'upsell', 'إضاف')) {
+    return proposalReply(
+      P('beverage-attach'),
+      lang,
+      isAr
+        ? ['إضافة خطوة اختيار المشروب في وجبات التوصيل على طلبات وكيتا.', 'تدريب الكاشير على اقتراح المشروب في طلبات الصالة والسفري.', 'قياس نسبة الطلبات التي تحتوي مشروباً أسبوعياً من أسطر نقاط البيع في أودو.']
+        : ['Add a drink-choice step to delivery combos on Talabat and Keeta.', 'Coach cashiers to offer a drink on dine-in and takeaway orders.', 'Measure the weekly share of orders with a drink from Odoo POS lines.'],
+    );
   }
 
-  if (has('supplier', 'price creep', 'vendor', 'invoice', 'erosion', 'مورد', 'الموردين', 'فواتير', 'تآكل')) {
-    return isAr
-      ? `رادار الموردين (نموذج العقد مقابل الفاتورة) يرصد أعلى ارتفاع في ${topCreep?.ar} بنسبة ${n1(topCreep?.creepPct ?? 0)}%، بإجمالي أثر يقارب ${n0(CREEP_TOTAL)} د.ك شهرياً. أوصي بإعادة التفاوض أو مورد بديل للأصناف النجوم ورفع أسعار الأصناف الشعبية منخفضة الهامش.`
-      : `The supplier radar (contract vs invoice model) shows the steepest creep on ${topCreep?.en} at ${n1(topCreep?.creepPct ?? 0)}%, about ${n0(CREEP_TOTAL)} KWD a month of exposure. I recommend renegotiating or dual-sourcing for Stars and re-pricing the low-margin Plowhorses.`;
+  if (has('تكلفة', 'هدر', 'مطبخ', 'cogs', 'food cost', 'waste', 'kitchen', 'cost', 'مصروف')) {
+    return proposalReply(
+      P('food-cost'),
+      lang,
+      isAr
+        ? ['مراجعة أوزان الحصص في المواقع الأعلى تكلفة مقارنة بالمتوسط.', 'معايرة دفعات التحضير اليومية حسب مبيعات كل موقع في أودو.', 'متابعة نسبة تكلفة الأغذية لكل موقع شهرياً من خطة الفروع.']
+        : ['Audit portion weights at the locations running above the average.', 'Calibrate daily prep batches to each location’s Odoo sales.', 'Review food cost by location monthly on the Odoo Branches plan.'],
+    );
   }
 
-  if (has('budget', 'variance', 'p&l', 'pnl', 'board pack', 'موازنة', 'انحراف', 'قائمة الدخل')) {
-    return isAr
-      ? `صافي الربح التشغيلي الفعلي في أودو ${n3(profit.actual)} د.ك مقابل موازنة شهرية ${n3(profit.budget)} د.ك تتضمن روافع الربح، أي انحراف ${n3(profit.variance)} د.ك يغلق بتطبيق الروافع، وصولاً إلى ${n0(ROADMAP_FY.total)} د.ك للسنة الكاملة.`
-      : `Odoo net operating profit is ${n3(profit.actual)} KWD against a ${n3(profit.budget)} KWD monthly budget that embeds the profit levers — a ${n3(profit.variance)} KWD variance that closes as the levers land, on the path to ${n0(ROADMAP_FY.total)} KWD for the full year.`;
+  if (has('منيو', 'صنف', 'أصناف', 'menu', 'item', 'سعر', 'price', 'تسعير')) {
+    return proposalReply(
+      P('menu-focus'),
+      lang,
+      isAr
+        ? ['مراجعة الأصناف التي باعت أقل من 10 وحدات مع مديري العلامات.', `رفع سعر الأصناف الأربعة الأعلى طلباً بنسبة ${REPRICE_PCT}% ومراقبة الكميات أسبوعين.`, 'تثبيت توافر الأصناف الأعلى مبيعاً في كل المواقع.']
+        : ['Review items that sold fewer than 10 units with brand managers.', `Lift the four highest-volume items by ${REPRICE_PCT}% and watch volumes for two weeks.`, 'Lock availability of the top sellers at every location.'],
+    );
   }
 
-  if (has('مارينا', 'كشتة', 'سفير', 'ونترلاند', 'فعالي', 'معرض', 'معارض', 'exb', 'kashta', 'safeer', 'winterland', 'booth', 'event', 'تعادل', 'break-even')) {
-    return isAr
-      ? `حسب أودو لشهر ${LEDGER.periodLabelAr}، حققت وحدة المعارض والأجنحة (EXB، الأجهزة ${EXB_REGISTERS.map((r) => r.posConfigId).join('، ')}) مبيعات ${n3(EXB_UNIT?.sales ?? 0)} د.ك عبر ${n0(EXB_UNIT?.orders ?? 0)} طلباً، وربحاً تشغيلياً ${n3(EXB_PNL?.operatingProfit ?? 0)} د.ك بهامش ${n1(EXB_MARGIN_PCT)}% وتكلفة أغذية ${n1(EXB_COGS_PCT)}%. أما مقارنات كشتة المارينا ومخيم السفير في استوديو الفعاليات فهي محاكاة تخطيطية وليست قيوداً في أودو.`
-      : `In Odoo for ${LEDGER.periodLabelEn}, the Exhibitions & Booths unit (EXB, registers ${EXB_REGISTERS.map((r) => r.posConfigId).join(', ')}) sold ${n3(EXB_UNIT?.sales ?? 0)} KWD across ${n0(EXB_UNIT?.orders ?? 0)} orders with ${n3(EXB_PNL?.operatingProfit ?? 0)} KWD operating profit (${n1(EXB_MARGIN_PCT)}% margin, ${n1(EXB_COGS_PCT)}% COGS). The Marina Kashta and Al-Safeer benchmarks in the Events Studio are planning simulations, not Odoo postings.`;
+  if (has('فرع', 'فروع', 'موقع', 'مواقع', 'branch', 'location', 'نمو', 'growth', ...BRANCHES.flatMap((b) => [b.en.toLowerCase(), b.ar]))) {
+    const name = isAr ? LOW_MARGIN?.ar : LOW_MARGIN?.en;
+    const top = isAr ? TOP_PROFIT?.ar : TOP_PROFIT?.en;
+    return threeSections(
+      lang,
+      isAr
+        ? `يحقق ${name} هامشاً تشغيلياً ${n1(LOW_MARGIN?.marginPct ?? 0)}% مقابل متوسط مواقع المطاعم ${n1(REST_MARGIN)}% حسب خطة الفروع في أودو، بينما يتصدر ${top} بربح ${n3(TOP_PROFIT?.profit ?? 0)} د.ك. نطبق ممارسات ${top} في جدولة الطاقم والتحضير على ${name}.`
+        : `${name} runs a ${n1(LOW_MARGIN?.marginPct ?? 0)}% operating margin against the ${n1(REST_MARGIN)}% restaurant average on the Odoo Branches plan, while ${top} leads with ${n3(TOP_PROFIT?.profit ?? 0)} KWD profit. Transfer ${top}’s crew scheduling and prep practices to ${name}.`,
+      isAr
+        ? [`مقارنة مصروفات ${name} وتكلفة أغذيته مع ${top} بنداً بنداً في أودو.`, 'مواءمة جدول الطاقم مع ساعات الذروة الفعلية من نقاط البيع.', 'متابعة الهامش شهرياً من خطة الفروع التحليلية.']
+        : [`Compare ${name}’s expenses and food cost with ${top} line by line in Odoo.`, 'Align crew rosters with the actual POS peak hours.', 'Track the margin monthly on the Branches analytic plan.'],
+      isAr
+        ? [`رفع هامش ${name} إلى متوسط المواقع يضيف نحو ${n0(LOW_MARGIN_UPLIFT)} د.ك شهرياً.`]
+        : [`Raising ${name} to the restaurant average adds about ${n0(LOW_MARGIN_UPLIFT)} KWD per month.`],
+    );
   }
 
-  if (has('فرع', 'فروع', 'branch', 'location', 'موقع', 'أفضل', 'top', ...BRANCHES.flatMap((b) => [b.en.toLowerCase(), b.ar]))) {
-    return isAr
-      ? `حسب خطة الفروع التحليلية في أودو، يتصدر ${TOP_PROFIT?.ar} ربحية مواقع المطاعم الـ ${BRANCHES.length} بربح تشغيلي ${n3(TOP_PROFIT?.profit ?? 0)} د.ك (هامش ${n1(TOP_PROFIT?.marginPct ?? 0)}%)، يليه ${second?.ar} ثم ${third?.ar}، بينما يحقق ${TOP_SALES?.ar} أعلى مبيعات بقيمة ${n3(TOP_SALES?.sales ?? 0)} د.ك. المواقع المعتمدة: ${LOCATION_NAMES_AR}.`
-      : `On the Odoo Branches analytic plan, ${TOP_PROFIT?.en} leads all ${BRANCHES.length} restaurant locations with ${n3(TOP_PROFIT?.profit ?? 0)} KWD operating profit (${n1(TOP_PROFIT?.marginPct ?? 0)}% margin), followed by ${second?.en} and ${third?.en}, while ${TOP_SALES?.en} has the highest POS sales at ${n3(TOP_SALES?.sales ?? 0)} KWD. Locations: ${LOCATION_NAMES_EN}.`;
+  if (has('معرض', 'معارض', 'exb', 'فعالي', 'event', 'booth', 'بوث')) {
+    return threeSections(
+      lang,
+      isAr
+        ? `حققت وحدة المعارض والأجنحة في أودو ${n3(EXB_UNIT?.sales ?? 0)} د.ك عبر ${n0(EXB_UNIT?.orders ?? 0)} طلباً بمتوسط سلة ${n3(EXB_AOV)} د.ك، وربحاً تشغيلياً ${n3(EXB_PNL?.operatingProfit ?? 0)} د.ك بهامش ${n1(EXB_MARGIN_PCT)}%. نرفع متوسط السلة بوجبات مجمّعة مع مشروب في كل بوث.`
+        : `The Exhibitions & Booths unit sold ${n3(EXB_UNIT?.sales ?? 0)} KWD across ${n0(EXB_UNIT?.orders ?? 0)} orders in Odoo at a ${n3(EXB_AOV)} KWD basket, with ${n3(EXB_PNL?.operatingProfit ?? 0)} KWD operating profit (${n1(EXB_MARGIN_PCT)}% margin). Lift the basket with drink bundles at every booth.`,
+      isAr
+        ? ['تصميم وجبة مجمّعة مع مشروب لكل بوث.', `خفض تكلفة الأغذية في المعارض من ${n1(EXB_COGS_PCT)}% نحو متوسط المجموعة ${n1(LEDGER.cogsPct)}%.`, 'متابعة مبيعات كل جهاز معارض يومياً في أودو.']
+        : ['Design a drink bundle for every booth.', `Bring EXB food cost from ${n1(EXB_COGS_PCT)}% toward the ${n1(LEDGER.cogsPct)}% group level.`, 'Track each exhibition register daily in Odoo.'],
+      isAr
+        ? [`كل 0.250 د.ك إضافية في متوسط السلة على ${n0(EXB_UNIT?.orders ?? 0)} طلباً = +${n0((EXB_UNIT?.orders ?? 0) * 0.25)} د.ك مبيعات شهرياً.`]
+        : [`Every 0.250 KWD added to the basket across ${n0(EXB_UNIT?.orders ?? 0)} orders = +${n0((EXB_UNIT?.orders ?? 0) * 0.25)} KWD sales per month.`],
+    );
   }
 
-  if (has('هدر', 'مطبخ', 'cogs', 'food cost', 'poultry', 'دواجن', 'تكلفة')) {
-    return isAr
-      ? `تكلفة الأغذية المرحّلة في أودو ${n3(LEDGER.cogs)} د.ك بنسبة ${n1(LEDGER.cogsPct)}% من الإيراد مقابل المستهدف ${n1(LEDGER.cogsTargetPct)}%. برنامج إنتاجية الدواجن والتتبيل في المطبخ المركزي يستهدف وفراً مقدّراً ${n0(LEDGER.cogsRecoverable)} د.ك شهرياً، ونحتاج صلاحية قراءة تكلفة المنتجات في أودو لحساب هامش كل صنف بدقة.`
-      : `Odoo posted COGS is ${n3(LEDGER.cogs)} KWD, ${n1(LEDGER.cogsPct)}% of revenue against the ${n1(LEDGER.cogsTargetPct)}% target. The central-kitchen poultry and marination yield programme targets an estimated ${n0(LEDGER.cogsRecoverable)} KWD per month, and read access to product cost in Odoo is needed for exact per-item margins.`;
-  }
-
-  if (has('كيتا', 'keeta', 'tgo', 'tmp', 'طلبات', 'talabat', 'خصم', 'discount', 'توصيل', 'delivery')) {
-    return isAr
-      ? `إجمالي الخصومات في أودو ${n3(LEDGER.discounts)} د.ك، منها عروض كيتا ${n3(LEDGER.keetaDiscounts)} د.ك عبر ${n0(KEETA_CH?.orders ?? 0)} عملية دفع. سقف ${LEDGER.keetaCapPct}% على كيتا يساوي ${n3(LEDGER.keetaCapKwd)} د.ك ويوفر ${n0(LEDGER.keetaRecovery)} د.ك شهرياً، ومبيعات المنصات تمثل ${n1(shareOf(AGGREGATOR_SALES, LEDGER.netSales))}% من صافي المبيعات.`
-      : `Odoo discounts total ${n3(LEDGER.discounts)} KWD, including ${n3(LEDGER.keetaDiscounts)} KWD of Keeta promotions across ${n0(KEETA_CH?.orders ?? 0)} payments. A ${LEDGER.keetaCapPct}% Keeta cap is ${n3(LEDGER.keetaCapKwd)} KWD and saves ${n0(LEDGER.keetaRecovery)} KWD a month; aggregators make ${n1(shareOf(AGGREGATOR_SALES, LEDGER.netSales))}% of net sales.`;
-  }
-
-  if (has('عهد', 'صيانة', 'مصروفات', 'opex', 'custod', 'maintenance')) {
-    return isAr
-      ? `المصروفات التشغيلية المرحّلة في أودو ${n3(LEDGER.opex)} د.ك (${n1(LEDGER.opexPct)}% من الإيراد) والإهلاك ${n3(LEDGER.depreciation)} د.ك. برنامج عهد الصيانة (تقدير إداري) يغطي ${n3(LEDGER.maintCustody)} د.ك عبر ${LEDGER.maintEntries} قيداً في مجمع الكوت والسالمية، وتجديد المبردات يوفر ${n0(LEDGER.chillerRecovery)} د.ك شهرياً مع سقف عهدة 250 د.ك لكل فرع.`
-      : `Odoo posted operating expenses are ${n3(LEDGER.opex)} KWD (${n1(LEDGER.opexPct)}% of revenue) plus ${n3(LEDGER.depreciation)} KWD depreciation. The maintenance custody programme (management estimate) covers ${n3(LEDGER.maintCustody)} KWD across ${LEDGER.maintEntries} entries in Al-Kout Mall and Salmiya; a chiller overhaul saves ${n0(LEDGER.chillerRecovery)} KWD a month with a 250 KWD petty-cash cap per branch.`;
-  }
-
-  if (has('ربع', 'سنو', 'q1', 'roadmap', 'target', 'خطة', 'projection')) {
-    return isAr
-      ? `بتطبيق روافع الربح يرتفع صافي الربح بمقدار ${n0(LEVERS_MONTHLY_TOTAL)} د.ك شهرياً (تقدير إداري) فوق ربح أودو الشهري ${n3(LEDGER.netProfit)} د.ك: الربع الأول ${n0(ROADMAP_Q1.total)} د.ك، والنصف الأول ${n0(ROADMAP_H1.total)} د.ك، والسنة الكاملة ${n0(ROADMAP_FY.total)} د.ك.`
-      : `The profit levers add an estimated ${n0(LEVERS_MONTHLY_TOTAL)} KWD a month on top of the ${n3(LEDGER.netProfit)} KWD Odoo monthly operating profit: Q1 ${n0(ROADMAP_Q1.total)} KWD, H1 ${n0(ROADMAP_H1.total)} KWD and ${n0(ROADMAP_FY.total)} KWD for the full year.`;
-  }
-
-  if (has('علام', 'براند', 'brand', ...BRANDS.flatMap((b) => [b.en.toLowerCase(), b.ar]))) {
-    return isAr
-      ? `تبيع فنتشر فودز عبر ${BRANDS.length} علامات نشطة في أودو: تتصدرها ${LEAD_BRAND?.ar} بنسبة ${n1(shareOf(LEAD_BRAND?.sales ?? 0, BRAND_ITEM_SUM))}% من مبيعات الأصناف (${n3(LEAD_BRAND?.sales ?? 0)} د.ك)، وأعلى متوسط سلة لدى ${TOP_AOV_BRAND?.ar} (${n3(TOP_AOV_BRAND?.aov ?? 0)} د.ك). العلامات: ${BRAND_NAMES_AR}، عبر ${CHANNELS.length} قنوات بيع.`
-      : `Venture Foods sells through ${BRANDS.length} active Odoo brands, led by ${LEAD_BRAND?.en} at ${n1(shareOf(LEAD_BRAND?.sales ?? 0, BRAND_ITEM_SUM))}% of item sales (${n3(LEAD_BRAND?.sales ?? 0)} KWD), with ${TOP_AOV_BRAND?.en} holding the highest basket at ${n3(TOP_AOV_BRAND?.aov ?? 0)} KWD — ${BRANDS.map((b) => b.en).join(', ')} across ${CHANNELS.length} sales channels.`;
-  }
-
-  return isAr
-    ? `أهلاً بك في مركز القيادة التنفيذي لفنتشر فودز! صافي مبيعات نقاط البيع في أودو لشهر ${LEDGER.periodLabelAr} ${n3(LEDGER.netSales)} د.ك عبر ${n0(LEDGER.orders)} طلباً، وصافي الربح التشغيلي ${n3(LEDGER.netProfit)} د.ك بهامش ${n1(LEDGER.marginPct)}%. الروافع المقترحة: ${LEVER_LIST_AR}.`
-    : `Welcome to the Venture Foods Executive Command Center! Odoo POS net sales for ${LEDGER.periodLabelEn} are ${n3(LEDGER.netSales)} KWD across ${n0(LEDGER.orders)} orders, with ${n3(LEDGER.netProfit)} KWD net operating profit (${n1(LEDGER.marginPct)}% margin). Proposed levers: ${LEVER_LIST_EN}.`;
+  const total = FERYAL_PROPOSALS.reduce((s, p) => s + p.monthlyKwd, 0);
+  return threeSections(
+    lang,
+    isAr
+      ? `صافي مبيعات نقاط البيع في أودو لشهر ${LEDGER.periodLabelAr} ${n3(LEDGER.netSales)} د.ك عبر ${n0(LEDGER.orders)} طلباً، والربح التشغيلي ${n3(LEDGER.netProfit)} د.ك بهامش ${n1(LEDGER.marginPct)}%. أقترح أربعة حلول عملية مبنية على هذه الأرقام.`
+      : `Odoo POS net sales for ${LEDGER.periodLabelEn} are ${n3(LEDGER.netSales)} KWD across ${n0(LEDGER.orders)} orders, with ${n3(LEDGER.netProfit)} KWD operating profit (${n1(LEDGER.marginPct)}% margin). I propose four practical solutions built on these figures.`,
+    FERYAL_PROPOSALS.map((p) => (isAr ? p.titleAr : p.titleEn)),
+    [
+      ...FERYAL_PROPOSALS.map((p) => (isAr ? p.outcomeAr : p.outcomeEn)),
+      isAr ? `الأثر المجمّع المتوقع نحو ${n0(total)} د.ك شهرياً.` : `Combined expected impact of about ${n0(total)} KWD per month.`,
+    ],
+  );
 }
 
 /**
@@ -394,8 +503,8 @@ export async function askFeryalGeminiBrain({
   const isAr = lang === 'ar';
 
   const langDirective = isAr
-    ? 'أجب باللغة العربية (بلهجة كويتية/خليجية تنفيذية راقية وواضحة جداً) في فقرة موجزة من جملتين إلى 4 جمل مدعمة بالأرقام الدقيقة بالدينار الكويتي.'
-    : 'Answer strictly in clear, executive C-level English in 2 to 4 concise sentences backed by exact KWD figures.';
+    ? 'أجيبي باللغة العربية فقط بلهجة خليجية تنفيذية راقية، وبالأقسام الثلاثة: المقترح والحل العملي، آلية التنفيذ الواقعية، النتائج المتوقعة في حال النجاح، مع أرقام أودو الموثقة بالدينار الكويتي فقط.'
+    : 'Answer strictly in clear executive English using the three sections Practical Solution, Execution Plan and Expected Outcomes Upon Success, citing only verified Odoo figures in KWD.';
 
   const userParts: Array<Record<string, unknown>> = [];
   if (audioBase64) {
@@ -428,7 +537,7 @@ export async function askFeryalGeminiBrain({
     ],
     generationConfig: {
       temperature: 0.35,
-      maxOutputTokens: 450,
+      maxOutputTokens: 900,
     },
   };
 
@@ -537,7 +646,7 @@ export async function askFeryalGeminiBrain({
         body: JSON.stringify({
           model: 'gpt-4o-mini',
           temperature: 0.35,
-          max_tokens: 380,
+          max_tokens: 800,
           messages: [
             {
               role: 'system',

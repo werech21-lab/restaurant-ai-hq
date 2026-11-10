@@ -10,6 +10,7 @@ import {
   Calendar,
   ChefHat,
   ChevronDown,
+  ClipboardCheck,
   CloudSun,
   Landmark,
   FileText,
@@ -92,6 +93,7 @@ const SIDEBAR_SECTIONS: NavSection[] = [
       },
       { key: 'delivery-control', href: '/erp/delivery-control', labelAr: 'رقابة منصات التوصيل', labelEn: 'Delivery Aggregators Control', icon: Truck, alwaysVisible: true },
       { key: 'alerts', href: '/erp/alerts', labelAr: 'التنبيهات المالية الآلية', labelEn: 'Automated Financial Alerts', icon: AlertTriangle, alwaysVisible: true },
+      { key: 'execution-hub', href: '/erp/execution-hub', labelAr: 'مركز التنفيذ', labelEn: 'Execution Hub', icon: ClipboardCheck, alwaysVisible: true },
     ],
   },
   {
