@@ -907,7 +907,7 @@ html.light-mode .text-sky-400,
 html.light-mode .text-blue-400,
 html.light-mode .text-sky-300,
 html.light-mode .text-blue-300 {
-  color: #2563EB !important;
+  color: #0284C7 !important;
 }
 html[data-theme='light'] .bg-sky-500\/10,
 html[data-theme='light'] .bg-blue-500\/10,

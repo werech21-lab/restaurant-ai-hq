@@ -2,6 +2,7 @@
 
 import React, { useMemo } from 'react'
 import { useI18n } from '@/lib/i18n'
+import { LineChartV2 } from '@/components/aether/ui'
 import { DAILY_TREND_SAMPLE } from '@/lib/analytics/sales-tabs'
 import { RECS, RECS_TOTAL_KWD } from '@/lib/analytics/recommendations'
 import { BRANDS_DATA } from '@/lib/analytics/sales-core-data'
@@ -11,9 +12,9 @@ import { ALL_BRANDS, ALL_CHANNELS, PAYMENT_SPLIT, TOTAL_NET, TOTAL_ORDERS, WEEKD
    Where the project has no data for something the request asked for, the panel
    says so instead of showing an invented chart. */
 
-const BLUE = '#2563EB'
+const BLUE = '#0284C7'
 const GREY = '#9CA3AF'
-const card = 'bg-white dark:bg-[#111827] rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-none ring-1 ring-slate-200/70 dark:ring-slate-800 p-5 overflow-hidden transition-all'
+const card = 'bg-white dark:bg-[#111827] rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-none ring-1 ring-slate-200/70 dark:ring-slate-800 p-5 min-w-0 overflow-x-auto transition-all'
 const thc = 'py-3.5 px-4 text-start text-xs md:text-[13px] font-bold text-slate-700 dark:text-slate-200 tracking-tight bg-[#F8FAFC] dark:bg-[#1E293B]/90 border-b border-slate-200/80 dark:border-slate-800 whitespace-nowrap'
 const tdc = 'py-3.5 px-4 text-start text-[13.5px] md:text-sm font-semibold text-slate-800 dark:text-slate-100 leading-relaxed'
 const tdn = 'py-3.5 px-4 text-end text-[13.5px] md:text-sm font-semibold tabular-nums text-slate-800 dark:text-slate-100 leading-relaxed whitespace-nowrap'
@@ -41,7 +42,7 @@ export function ChannelModeBadge({ channel }: { channel: string }) {
       <span
         dir="ltr"
         title="Marketplace (Restaurant Delivery / توصيل المطعم)"
-        className="inline-flex items-center bg-indigo-50 text-indigo-700 dark:bg-indigo-950/70 dark:text-indigo-300 ring-1 ring-indigo-500/20 px-2.5 py-0.5 rounded-md font-bold text-xs"
+        className="inline-flex items-center bg-sky-50 text-sky-700 dark:bg-sky-950/70 dark:text-sky-300 ring-1 ring-sky-500/20 px-2.5 py-0.5 rounded-md font-bold text-xs"
       >
         TMP
       </span>
@@ -71,9 +72,9 @@ function Title({ title, sub }: { title: string; sub?: string }) {
 
 function Kpi({ label, value, note, tone = 'text-slate-900' }: { label: string; value: React.ReactNode; note?: string; tone?: string }) {
   return (
-    <div className="bg-white border border-slate-200 rounded-lg p-3.5 shadow-xs">
+    <div className="ae-tile ae-lift rounded-2xl p-4 min-w-0">
       <div className="text-xs font-semibold text-slate-600">{label}</div>
-      <div className={`text-xl md:text-2xl font-extrabold mt-1 tabular-nums ${tone}`}>{value}</div>
+      <div className={`text-lg sm:text-xl xl:text-[22px] font-extrabold mt-1 tabular-nums break-words leading-tight ${tone}`}>{value}</div>
       {note && <div className="text-xs font-semibold text-slate-500 mt-1">{note}</div>}
     </div>
   )
@@ -81,7 +82,7 @@ function Kpi({ label, value, note, tone = 'text-slate-900' }: { label: string; v
 
 function Pending({ title, body }: { title: string; body: string }) {
   return (
-    <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4">
+    <div className="ae-tile-soft rounded-2xl p-4">
       <div className="text-sm font-bold text-slate-800">{title}</div>
       <p className="mt-1 text-xs font-medium leading-relaxed text-slate-600">{body}</p>
     </div>
@@ -114,14 +115,14 @@ function Bars({ rows, labelW = 155 }: { rows: Row[]; labelW?: number }) {
 
 function RecTable({ head, rows }: { head: string[]; rows: React.ReactNode[][] }) {
   return (
-    <div className="overflow-x-auto rounded-xl ring-1 ring-slate-200/70 dark:ring-slate-800">
+    <div className="ae-table-wrap w-full overflow-x-auto rounded-xl ring-1 ring-slate-200/70 dark:ring-slate-800">
       <table className="w-full text-[13.5px] md:text-sm border-collapse bg-white dark:bg-[#111827]">
         <thead className="bg-[#F8FAFC] dark:bg-[#1E293B]/90 border-b border-slate-200/80 dark:border-slate-800">
           <tr>{head.map((h) => <th key={h} className={thc}>{h}</th>)}</tr>
         </thead>
         <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70">
           {rows.map((r, i) => (
-            <tr key={i} className="hover:bg-blue-50/40 dark:hover:bg-slate-800/50 transition-colors duration-150">
+            <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors duration-150">
               {r.map((c, j) => <td key={j} className={j === 0 ? tdc + ' font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap' : tdc}>{c}</td>)}
             </tr>
           ))}
@@ -131,14 +132,6 @@ function RecTable({ head, rows }: { head: string[]; rows: React.ReactNode[][] })
   )
 }
 
-function smooth(pts: { x: number; y: number }[]) {
-  let d = `M ${pts[0].x},${pts[0].y}`
-  for (let i = 0; i < pts.length - 1; i++) {
-    const p0 = pts[i - 1] ?? pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] ?? p2
-    d += ` C ${p1.x + (p2.x - p0.x) / 6},${p1.y + (p2.y - p0.y) / 6} ${p2.x - (p3.x - p1.x) / 6},${p2.y - (p3.y - p1.y) / 6} ${p2.x},${p2.y}`
-  }
-  return d
-}
 
 /* ------------------------------------------------------------------ core */
 export function HoverTip({ title, lines }: Tip) {
@@ -173,8 +166,8 @@ export function Spark({ series, color = BLUE }: { series: 'sales' | 'orders' | '
   const max = Math.max(...pts), min = Math.min(...pts), range = Math.max(1e-9, max - min)
   const coords = pts.map((v, i) => `${((i / (pts.length - 1)) * W).toFixed(1)},${(H - ((v - min) / range) * (H - 10) - 5).toFixed(1)}`).join(' ')
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="mt-2 h-9 w-full overflow-visible" aria-hidden style={{ direction: "ltr" }}>
-      <polyline fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" points={coords} />
+    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="mt-2 h-9 w-full overflow-visible" aria-hidden style={{ direction: "ltr" }}>
+      <polyline fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" points={coords} />
     </svg>
   )
 }
@@ -195,14 +188,6 @@ export function DailyCurve({ ratio = 1 }: { ratio?: number }) {
       v: Math.round(vs.reduce((a, b) => a + b, 0) / vs.length),
     }))
   }, [gran, ratio])
-  const g = useMemo(() => {
-    const vals = series.map((p) => p.v)
-    const max = Math.max(...vals) * 1.1, min = Math.min(...vals) * 0.85
-    const W = 760, H = 190
-    const pts = series.map((p, i) => ({ x: series.length === 1 ? W / 2 : (i / (series.length - 1)) * W, y: H - ((p.v - min) / (max - min)) * (H - 34) - 16, v: p.v, l: p.l }))
-    const line = pts.length > 1 ? smooth(pts) : ''
-    return { pts, line, area: line ? `${line} L ${W},${H} L 0,${H} Z` : '', W, H }
-  }, [series])
   const all = DAILY_TREND_SAMPLE.map((d) => d.sales * ratio)
   const avg = all.reduce((a, b) => a + b, 0) / all.length
   const tabs: [Gran, string, string][] = [['day', 'Day', 'يوم'], ['week', 'Week', 'أسبوع'], ['month', 'Month', 'شهر']]
@@ -228,25 +213,14 @@ export function DailyCurve({ ratio = 1 }: { ratio?: number }) {
           <div><div className="text-[11px] text-gray-500">{T('Highest sampled day', 'أعلى يوم معروض')}</div><div className="mt-1 text-xl font-bold text-gray-900"><Num>{fmt0(Math.max(...all))} {ar ? 'د.ك' : 'KWD'}</Num></div></div>
         </div>
       ) : (
-        <div dir="ltr">
-          <svg viewBox={`0 0 ${g.W} ${g.H + 26}`} className="h-52 w-full overflow-visible">
-            <defs>
-              <linearGradient id="dcFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={BLUE} stopOpacity="0.25" /><stop offset="100%" stopColor={BLUE} stopOpacity="0" />
-              </linearGradient>
-            </defs>
-            {[0.25, 0.5, 0.75].map((r) => <line key={r} x1="0" x2={g.W} y1={g.H * r} y2={g.H * r} stroke="#F1F5F9" />)}
-            {g.area && <path d={g.area} fill="url(#dcFill)" />}
-            {g.line && <path d={g.line} fill="none" stroke={BLUE} strokeWidth="3" strokeLinecap="round" />}
-            {g.pts.map((p, i) => (
-              <g key={i}>
-                <circle cx={p.x} cy={p.y} r="4" fill="#fff" stroke={BLUE} strokeWidth="2.5" />
-                <text x={p.x} y={p.y - 9} textAnchor="middle" className="fill-slate-700 text-[10px] font-bold">{p.v.toLocaleString('en-US')}</text>
-                <text x={p.x} y={g.H + 17} textAnchor="middle" className="fill-slate-400 text-[10px]">{p.l}</text>
-              </g>
-            ))}
-          </svg>
-        </div>
+        <LineChartV2
+          series={[{ key: 'sales', color: BLUE, values: series.map((p) => p.v), area: true }]}
+          xLabels={series.map((p) => p.l)}
+          heightClass="h-[220px] lg:h-[250px]"
+          pointLabels
+          formatValue={(n) => fmt0(n)}
+          maxTicks={11}
+        />
       )}
     </div>
   )
@@ -294,7 +268,7 @@ export function NeedsAttention() {
 
 /* ------------------------------------------------------ customer by channel */
 export interface ChannelView { key: string; label: string; orders: number; sales: number; discPct: number; drinksPct: number }
-const DONUT = ['#2563EB', '#F97316', '#10B981', '#8B5CF6', '#EC4899', '#EAB308', '#0EA5E9', '#14B8A6', '#6366F1', '#94A3B8', '#CBD5E1']
+const DONUT = ['#0F172A', '#0284C7', '#059669', '#D97706', '#E11D48', '#0891B2', '#0F766E', '#64748B', '#38BDF8', '#94A3B8', '#CBD5E1']
 
 export function ChannelMix({ channels, selectedChannel = ALL_CHANNELS }: { channels: ChannelView[]; selectedChannel?: string }) {
   const { T } = useT()
@@ -399,7 +373,7 @@ export function NewCustomerTab({ view }: { view: SalesView }) {
   const money = (n: number) => (ar ? `${fmt3(n)} د.ك` : `KWD ${fmt3(n)}`)
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 2xl:grid-cols-6 gap-4 items-stretch">
         <Kpi label={T('Active customers', 'إجمالي العملاء النشطين')} value={<Num>{fmt0(active)}</Num>} note={T('Customers', 'عميل')} />
         <Kpi label={T('First-time customers', 'العملاء الجدد لأول مرة')} value={<Num>{fmt0(fresh)}</Num>} note={T(`${fmt1(newPct)}% of active`, `${fmt1(newPct)}% من النشطين`)} />
         <Kpi label={T('Repeat customers', 'العملاء المتكررون')} value={<Num>{fmt0(repeat)}</Num>} note={T(`${fmt1(100 - newPct)}% of active`, `${fmt1(100 - newPct)}% من النشطين`)} />
@@ -438,7 +412,7 @@ export function NewCustomerTab({ view }: { view: SalesView }) {
           title={T('New vs repeat customers by channel', 'توزيع العملاء الجدد مقابل المتكررين حسب القناة')}
           body={T(
             'Needs the customer on each order (partner id on pos.order) and the date of the first order. It cannot be derived from channel totals, so no chart is drawn until that feed is connected.',
-            'يحتاج إلى العميل في كل طلب (partner_id في pos.order) وتاريخ أول طلب له. لا يمكن اشتقاقه من إجماليات القنوات، لذلك لا يُرسم شارت قبل ربط هذه التغذية.',
+            'يحتاج إلى ربط العميل بكل طلب في نقاط البيع وتاريخ أول طلب له. لا يمكن اشتقاقه من إجماليات القنوات، لذلك لا يُرسم شارت قبل ربط هذه التغذية.',
           )}
         />
         <Pending
@@ -480,7 +454,7 @@ export function PromotionsTab({ channels, brands, totalDiscounts, totalNet, sele
   const snoonu = withKwd.find((c) => c.key === 'Snoonu')
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 2xl:grid-cols-5 gap-4 items-stretch">
         <Kpi label={T('Total discounts', 'إجمالي الخصومات')} value={<Num>{ar ? `${fmt0(totalDiscounts)} د.ك` : `KWD ${fmt0(totalDiscounts)}`}</Num>} />
         <Kpi label={T('Share of sales', 'نسبتها من المبيعات')} value={<Num>{totalNet + totalDiscounts > 0 ? ((totalDiscounts / (totalNet + totalDiscounts)) * 100).toFixed(1) : '0.0'}%</Num>} />
         <Kpi label={T('Highest by value: Keeta', 'الأعلى قيمة خصم: كيتا')} value={<Num>{keeta ? `${keeta.discPct.toFixed(1)}%` : '—'}</Num>} note={keeta ? `${fmt0(keeta.kwd)} ${ar ? 'د.ك' : 'KWD'}` : undefined} tone="text-rose-700" />
@@ -536,9 +510,9 @@ const BRAND_NAME_AR: Record<string, string> = {
   'China Garden': 'تشاينا جاردن',
   "Frank's": 'فرانكس',
   Tahina: 'شاورما طحينة',
-  'Farm Brown': 'فارم براون',
-  'The Noodle Bar': 'ذا نودل بار',
-  'Karak Cafeteria': 'كرك كافتيريا',
+  'Chick & Dip': 'تشيك آند ديب',
+  'Burgerito': 'برجريتو',
+  'Crave': 'كريف',
 }
 
 export function BranchesTab({ filter }: { filter: SalesFilter }) {
@@ -563,11 +537,11 @@ export function BranchesTab({ filter }: { filter: SalesFilter }) {
   const scope = filter.brand === ALL_BRANDS && filter.channel === ALL_CHANNELS ? T('All brands, all channels', 'كل العلامات وكل القنوات') : `${filter.brand === ALL_BRANDS ? T('All brands', 'كل العلامات') : bLabel(filter.brand)} · ${filter.channel === ALL_CHANNELS ? T('All channels', 'كل القنوات') : filter.channel}`
   return (
     <div className="space-y-4">
-      {/* 4 Channel Bucket Summary Cards across the 8 Actual Operational Branches */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="bg-white border border-slate-200 rounded-lg p-3.5 shadow-xs">
-          <div className="text-xs font-semibold text-slate-600">{T('Shop Sales across 8 branches', 'مبيعات المحل (Shop Sales) في الفروع الـ 8')}</div>
-          <div className="text-xl md:text-2xl font-extrabold text-slate-900 mt-1 tabular-nums">
+      {/* 4 Channel Bucket Summary Cards across the 9 Actual Operational Branches */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 items-stretch">
+        <div className="ae-tile ae-lift rounded-2xl p-4 min-w-0">
+          <div className="text-xs font-semibold text-slate-600">{T('Shop Sales across 9 branches', 'مبيعات المحل في الفروع التسعة')}</div>
+          <div className="text-lg sm:text-xl xl:text-[22px] font-extrabold text-slate-900 mt-1 tabular-nums break-words leading-tight">
             <Num>{ar ? `${fmt2(sumShopNet)} د.ك` : `KWD ${fmt2(sumShopNet)}`}</Num>
           </div>
           <div className="text-xs font-semibold text-slate-500 mt-1">
@@ -575,12 +549,12 @@ export function BranchesTab({ filter }: { filter: SalesFilter }) {
           </div>
         </div>
 
-        <div className="bg-white border border-orange-200 rounded-lg p-3.5 shadow-xs">
+        <div className="ae-tile ae-lift rounded-2xl p-4 min-w-0">
           <div className="flex items-center justify-between gap-2">
             <span className="text-xs font-semibold text-slate-700">{T('Tgo Sales (Platform Delivery)', 'مبيعات Tgo (توصيل المنصة)')}</span>
             <ChannelModeBadge channel="Talabat Go" />
           </div>
-          <div className="text-xl md:text-2xl font-extrabold text-orange-800 mt-1 tabular-nums">
+          <div className="text-lg sm:text-xl xl:text-[22px] font-extrabold text-amber-700 mt-1 tabular-nums break-words leading-tight">
             <Num>{ar ? `${fmt2(sumTgoNet)} د.ك` : `KWD ${fmt2(sumTgoNet)}`}</Num>
           </div>
           <div className="text-xs font-semibold text-slate-600 mt-1">
@@ -588,12 +562,12 @@ export function BranchesTab({ filter }: { filter: SalesFilter }) {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-[#111827] rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] ring-1 ring-indigo-200 dark:ring-indigo-900/50 p-4 transition-all">
+        <div className="ae-tile ae-lift rounded-2xl p-4 min-w-0">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">{T('TMP Sales (Restaurant Delivery)', 'مبيعات TMP (توصيل المطعم - Marketplace)')}</span>
+            <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">{T('TMP Sales (Restaurant Delivery)', 'مبيعات TMP (توصيل المطعم)')}</span>
             <ChannelModeBadge channel="Talabat MP" />
           </div>
-          <div className="text-xl md:text-2xl font-extrabold text-indigo-700 dark:text-indigo-400 mt-1 tabular-nums">
+          <div className="text-lg sm:text-xl xl:text-[22px] font-extrabold text-sky-700 dark:text-sky-400 mt-1 tabular-nums break-words leading-tight">
             <Num>{ar ? `${fmt2(sumMNet)} د.ك` : `KWD ${fmt2(sumMNet)}`}</Num>
           </div>
           <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mt-1">
@@ -601,9 +575,9 @@ export function BranchesTab({ filter }: { filter: SalesFilter }) {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-[#111827] rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] ring-1 ring-slate-200/70 dark:ring-slate-800 p-4 transition-all">
+        <div className="ae-tile ae-lift rounded-2xl p-4 min-w-0">
           <div className="text-xs font-semibold text-slate-600 dark:text-slate-400">{T('Other Platforms (Keeta, Deliveroo Core, etc.)', 'باقي المنصات (كيتا، ديليفرو كور، أوردابل...)')}</div>
-          <div className="text-xl md:text-2xl font-extrabold text-slate-900 dark:text-slate-100 mt-1 tabular-nums">
+          <div className="text-lg sm:text-xl xl:text-[22px] font-extrabold text-slate-900 dark:text-slate-100 mt-1 tabular-nums break-words leading-tight">
             <Num>{ar ? `${fmt2(sumOtherNet)} د.ك` : `KWD ${fmt2(sumOtherNet)}`}</Num>
           </div>
           <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">
@@ -614,8 +588,8 @@ export function BranchesTab({ filter }: { filter: SalesFilter }) {
 
       <div className={card}>
         <Title
-          title={T('Net sales by actual restaurant branch (8 operational branches)', 'صافي المبيعات حسب الفرع الفعلي للمطعم (8 فروع تشغيلية)')}
-          sub={`${T('Only the 8 actual operational branches of Venture Foods (excluding residential customer areas)', 'فقط الفروع الـ 8 الفعلية لشركة فنتشر فودز (دون خلطها بمناطق سكن الزبائن)')} · ${scope}`}
+          title={T('Net sales by actual restaurant branch (9 operational branches)', 'صافي المبيعات حسب الفرع الفعلي للمطعم (9 فروع تشغيلية)')}
+          sub={`${T('Only the 9 actual operational branches of Venture Foods (excluding residential customer areas)', 'فقط الفروع التسعة الفعلية لشركة فنتشر فودز (دون خلطها بمناطق سكن الزبائن)')} · ${scope}`}
         />
         <Bars
           labelW={235}
@@ -645,9 +619,9 @@ export function BranchesTab({ filter }: { filter: SalesFilter }) {
       <div className={card}>
         <Title
           title={T('Actual Restaurant Branches — Detailed Breakdown (Shop Sales | Tgo | TMP | Other Platforms)', 'تفصيل الفروع الفعلية للمطعم — مقسّمة حسب (مبيعات المحل | Tgo | TMP | باقي المنصات)')}
-          sub={T('The 8 actual operational restaurant branches of Venture Foods with sales & orders split across Shop Sales, Tgo (Talabat Go), TMP (Talabat Marketplace), and Other Platforms.', 'الفروع التشغيلية الـ 8 المعتمدة للمطعم مع تقسيم واضح لمبيعات وطلبات كل فرع إلى: مبيعات المحل، ومبيعات Tgo، ومبيعات TMP، وباقي المنصات.')}
+          sub={T('The 9 actual operational restaurant branches of Venture Foods with sales & orders split across Shop Sales, Tgo (Talabat Go), TMP (Talabat Marketplace), and Other Platforms.', 'الفروع التشغيلية التسعة المعتمدة للمطعم مع تقسيم واضح لمبيعات وطلبات كل فرع إلى: مبيعات المحل، ومبيعات Tgo، ومبيعات TMP، وباقي المنصات.')}
         />
-        <div className="overflow-x-auto rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] ring-1 ring-slate-200/70 dark:ring-slate-800">
+        <div className="ae-table-wrap w-full overflow-x-auto rounded-xl ring-1 ring-slate-200/70 dark:ring-slate-800">
           <table className="w-full text-[13.5px] md:text-sm border-collapse bg-white dark:bg-[#111827]">
             <thead className="sticky top-0 bg-[#F8FAFC] dark:bg-[#1E293B]/90 border-b border-slate-200/80 dark:border-slate-800">
               <tr>
@@ -670,14 +644,14 @@ export function BranchesTab({ filter }: { filter: SalesFilter }) {
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70">
               {rows.map((r) => (
-                <tr key={r.code} className={`hover:bg-blue-50/40 dark:hover:bg-slate-800/50 transition-colors duration-150 ${r.net > 0 ? '' : 'opacity-50'}`}>
+                <tr key={r.code} className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors duration-150 ${r.net > 0 ? '' : 'opacity-50'}`}>
                   <td className={tdc + ' font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap'}>{name(r)}</td>
                   <td className={tdc + ' whitespace-nowrap'}>
                     <div className="inline-flex items-center gap-1.5">
                       <span dir="ltr" className="inline-flex items-center bg-amber-50 text-amber-700 dark:bg-amber-950/70 dark:text-amber-300 ring-1 ring-amber-500/20 px-2.5 py-0.5 rounded-md font-bold text-xs">
                         {r.tgoAccountsCount} Tgo
                       </span>
-                      <span dir="ltr" className="inline-flex items-center bg-indigo-50 text-indigo-700 dark:bg-indigo-950/70 dark:text-indigo-300 ring-1 ring-indigo-500/20 px-2.5 py-0.5 rounded-md font-bold text-xs">
+                      <span dir="ltr" className="inline-flex items-center bg-sky-50 text-sky-700 dark:bg-sky-950/70 dark:text-sky-300 ring-1 ring-sky-500/20 px-2.5 py-0.5 rounded-md font-bold text-xs">
                         {r.mAccountsCount} TMP
                       </span>
                     </div>
@@ -698,11 +672,11 @@ export function BranchesTab({ filter }: { filter: SalesFilter }) {
                       </div>
                     ) : '—'}
                   </td>
-                  <td className={tdn + ' bg-indigo-50/30 dark:bg-indigo-950/20'}>
+                  <td className={tdn + ' bg-sky-50/40 dark:bg-sky-950/20'}>
                     {r.mNet > 0 ? (
                       <div>
-                        <div className="font-bold text-indigo-900 dark:text-indigo-200"><Num>{fmt2(r.mNet)}</Num></div>
-                        <div className="text-xs font-medium text-indigo-700 dark:text-indigo-400"><Num>({fmt0(r.mOrders)})</Num></div>
+                        <div className="font-bold text-sky-900 dark:text-sky-200"><Num>{fmt2(r.mNet)}</Num></div>
+                        <div className="text-xs font-medium text-sky-700 dark:text-sky-400"><Num>({fmt0(r.mOrders)})</Num></div>
                       </div>
                     ) : '—'}
                   </td>
@@ -729,7 +703,7 @@ export function BranchesTab({ filter }: { filter: SalesFilter }) {
             </tbody>
             <tfoot>
               <tr className="border-t-2 border-slate-300 bg-slate-50 font-bold text-slate-900">
-                <td className={tdc + ' font-extrabold'}>{T('Total (8 Actual Branches)', 'الإجمالي (8 فروع فعلية)')}</td>
+                <td className={tdc + ' font-extrabold'}>{T('Total (9 Actual Branches)', 'الإجمالي (9 فروع فعلية)')}</td>
                 <td className={tdc}>
                   <span dir="ltr" className="text-xs font-bold text-slate-700">{sumTgoAcc} Tgo + {sumMAcc} TMP</span>
                 </td>
@@ -741,15 +715,15 @@ export function BranchesTab({ filter }: { filter: SalesFilter }) {
                   <div><Num>{fmt2(sumTgoNet)}</Num></div>
                   <div className="text-xs font-semibold text-amber-800"><Num>({fmt0(sumTgoOrders)})</Num></div>
                 </td>
-                <td className={tdn + ' text-indigo-900 bg-indigo-50/50'}>
+                <td className={tdn + ' text-sky-900 bg-sky-50/50'}>
                   <div><Num>{fmt2(sumMNet)}</Num></div>
-                  <div className="text-xs font-semibold text-indigo-800"><Num>({fmt0(sumMOrders)})</Num></div>
+                  <div className="text-xs font-semibold text-sky-800"><Num>({fmt0(sumMOrders)})</Num></div>
                 </td>
                 <td className={tdn}>
                   <div><Num>{fmt2(sumOtherNet)}</Num></div>
                   <div className="text-xs font-semibold text-slate-600"><Num>({fmt0(sumOtherOrders)})</Num></div>
                 </td>
-                <td className={tdn + ' font-extrabold text-blue-900'}><Num>{fmt3(sumNet)}</Num></td>
+                <td className={tdn + ' font-extrabold text-slate-900'}><Num>{fmt3(sumNet)}</Num></td>
                 <td className={tdn + ' font-extrabold'}><Num>{fmt0(sumOrders)}</Num></td>
                 <td className={tdn}>{sumOrders > 0 ? fmt3(sumNet / sumOrders) : '—'}</td>
                 <td className={tdn}>{sumNet > 0 ? '100.0%' : '—'}</td>
@@ -760,19 +734,19 @@ export function BranchesTab({ filter }: { filter: SalesFilter }) {
         </div>
         <p className="mt-2 text-xs font-medium leading-relaxed text-slate-600">
           {T(
-            'Branch net sales are the official Odoo branch figures for the 8 actual operational branches (adding up to KWD 167,092.160 and 30,540 orders). Sales and orders are broken down into Shop Sales (KWD 58,953.09 / 14,818 orders), Tgo — Talabat Go platform delivery (KWD 55,716.21 / 7,163 orders), TMP — Talabat TMP & Deliveroo TMP restaurant delivery (KWD 7,393.44 / 828 orders), and Other Platforms (KWD 45,029.42 / 7,731 orders).',
-            'صافي مبيعات الفروع هو الرقم الرسمي المعتمد للفروع التشغيلية الـ 8 في أودو (بإجمالي 167,092.160 د.ك و30,540 طلباً)، مقسّماً بدقة إلى: مبيعات المحل (58,953.09 د.ك / 14,818 طلباً)، ومبيعات Tgo توصيل طلبات (55,716.21 د.ك / 7,163 طلباً)، ومبيعات TMP توصيل المطعم عبر طلبات وديليفرو ماركت بليس (7,393.44 د.ك / 828 طلباً)، وباقي المنصات (45,029.42 د.ك / 7,731 طلباً).',
+            `Branch net sales are the official Odoo branch figures for the 9 actual operational branches (adding up to KWD 167,092.160 and 30,540 orders). Sales and orders are broken down into Shop Sales (KWD ${fmt2(sumShopNet)} / ${fmt0(sumShopOrders)} orders), Tgo — Talabat Go platform delivery (KWD ${fmt2(sumTgoNet)} / ${fmt0(sumTgoOrders)} orders), TMP — Talabat TMP & Deliveroo TMP restaurant delivery (KWD ${fmt2(sumMNet)} / ${fmt0(sumMOrders)} orders), and Other Platforms (KWD ${fmt2(sumOtherNet)} / ${fmt0(sumOtherOrders)} orders).`,
+            `صافي مبيعات الفروع هو الرقم الرسمي المعتمد للفروع التشغيلية التسعة في أودو (بإجمالي 167,092.160 د.ك و30,540 طلباً)، مقسّماً بدقة إلى: مبيعات المحل (${fmt2(sumShopNet)} د.ك / ${fmt0(sumShopOrders)} طلباً)، ومبيعات Tgo توصيل طلبات (${fmt2(sumTgoNet)} د.ك / ${fmt0(sumTgoOrders)} طلباً)، ومبيعات TMP توصيل المطعم عبر طلبات وديليفرو ماركت بليس (${fmt2(sumMNet)} د.ك / ${fmt0(sumMOrders)} طلباً)، وباقي المنصات (${fmt2(sumOtherNet)} د.ك / ${fmt0(sumOtherOrders)} طلباً).`,
           )}
         </p>
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className={card}>
           <Title title={T('Food cost', 'تكلفة الأغذية')} />
           <p className="text-[13px] font-medium text-slate-700 leading-relaxed">
             {T('Food cost is tracked at group level: 24.8% (KWD 41,438.856). Per-branch food cost is not in the dataset, so none is shown.', 'تكلفة الأغذية تُتابع على مستوى المجموعة: 24.8% (41,438.856 د.ك). تكلفة الأغذية لكل فرع غير متوفرة في البيانات، لذلك لا تُعرض.')}
           </p>
         </div>
-        <div className="rounded-lg border border-rose-200 bg-rose-50 p-4">
+        <div className="rounded-2xl bg-rose-50/70 dark:bg-rose-950/30 p-5">
           <div className="text-[15px] font-bold text-rose-900">{T('Maintenance and custody: KWD 10,707.930', 'الصيانة والعهد: 10,707.930 د.ك')}</div>
           <p className="mt-1 text-[13px] font-medium leading-relaxed text-rose-800">
             {T('Repeated fridge failures at Al-Kout and Salmiya drove the spend. Stop repeated cash repairs and approve replacing the fridges as a capital item.', 'تكرار أعطال ثلاجات الكوت والسالمية رفع المصروف. أوقف الإصلاحات النقدية المتكررة واعتمد استبدال الثلاجات كبند رأسمالي.')}
@@ -863,10 +837,10 @@ export function PeakHoursTab({ view }: { view: SalesView }) {
           sub={T('Storefront = Shop Sales; delivery = delivery apps and direct channels', 'المحل = مبيعات المحل؛ التوصيل = تطبيقات التوصيل والقنوات المباشرة')}
           total={chTotal}
           unit={unit}
-          segs={[{ key: 'sf', value: storefront, color: '#0891B2' }, { key: 'dv', value: delivery, color: '#EC4899' }]}
+          segs={[{ key: 'sf', value: storefront, color: '#0891B2' }, { key: 'dv', value: delivery, color: '#D97706' }]}
           rows={[
             { key: 'sf', label: T('Storefront', 'المحل'), pct: pct(storefront, chTotal), color: '#0891B2', note: `${unit} ${fmt0(storefront)} · ${fmt0(sfOrders)} ${T('orders', 'طلب')}` },
-            { key: 'dv', label: T('Delivery & online', 'التوصيل والطلب المباشر'), pct: pct(delivery, chTotal), color: '#EC4899', note: `${unit} ${fmt0(delivery)} · ${fmt0(dvOrders)} ${T('orders', 'طلب')}` },
+            { key: 'dv', label: T('Delivery & online', 'التوصيل والطلب المباشر'), pct: pct(delivery, chTotal), color: '#D97706', note: `${unit} ${fmt0(delivery)} · ${fmt0(dvOrders)} ${T('orders', 'طلب')}` },
           ]}
         />
         <DonutCard
@@ -874,8 +848,8 @@ export function PeakHoursTab({ view }: { view: SalesView }) {
           sub={T('Split from the project payment report (KNET, credit card, cash)', 'التوزيع من تقرير طرق الدفع في المشروع (كي نت، بطاقة، نقداً)')}
           total={view.net}
           unit={unit}
-          segs={PAYMENT_SPLIT.map((p, i) => ({ key: p.key, value: view.net * (p.pct / 100), color: ['#0891B2', '#EC4899', '#94A3B8'][i] }))}
-          rows={PAYMENT_SPLIT.map((p, i) => ({ key: p.key, label: ar ? p.ar : p.key, pct: p.pct, color: ['#0891B2', '#EC4899', '#94A3B8'][i], note: `${unit} ${fmt0(view.net * (p.pct / 100))} · ${fmt0(view.orders * (p.pct / 100))} ${T('orders', 'طلب')}` }))}
+          segs={PAYMENT_SPLIT.map((p, i) => ({ key: p.key, value: view.net * (p.pct / 100), color: ['#0891B2', '#D97706', '#94A3B8'][i] }))}
+          rows={PAYMENT_SPLIT.map((p, i) => ({ key: p.key, label: ar ? p.ar : p.key, pct: p.pct, color: ['#0891B2', '#D97706', '#94A3B8'][i], note: `${unit} ${fmt0(view.net * (p.pct / 100))} · ${fmt0(view.orders * (p.pct / 100))} ${T('orders', 'طلب')}` }))}
         />
       </div>
       <p className="text-[10px] text-gray-400">
@@ -956,7 +930,7 @@ export function OperationsTab({ view }: { view: SalesView }) {
   const unit = ar ? 'د.ك' : 'KWD'
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-4 items-stretch">
         <Kpi label={T('Average preparation time', 'متوسط زمن تحضير الطلب')} value={<Num>{T('14.2 min', '14.2 دقيقة')}</Num>} />
         <Kpi label={T('Orders completed without errors', 'الطلبات المكتملة بدون أخطاء')} value={<Num>98.4%</Num>} tone="text-emerald-700" />
         <Kpi label={T('Food cost vs standard', 'تكلفة الأغذية الفعلية مقابل المعيارية')} value={<Num>{cogsPct.toFixed(1)}% / 24.0%</Num>} note={T(`Actual / standard, a gap of ${(cogsPct - 24).toFixed(1)} pts`, `الفعلي / المعياري، بفارق ${(cogsPct - 24).toFixed(1)} نقطة`)} tone="text-amber-700" />

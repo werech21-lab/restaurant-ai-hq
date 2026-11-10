@@ -34,7 +34,7 @@ export function GlobalFilterBar() {
   ].filter(Boolean) as { key: string; label: string; clear: () => void }[]
 
   return (
-    <div className="ae-filterbar no-print mb-6 space-y-3" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="ae-filterbar no-print space-y-3" dir={isAr ? 'rtl' : 'ltr'}>
       <div className="ae-tile flex flex-wrap items-center gap-2.5 px-4 py-3">
         <span className="ae-icon-badge h-8 w-8">
           <Filter className="h-3.5 w-3.5" />

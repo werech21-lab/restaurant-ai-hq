@@ -152,7 +152,7 @@ export function StatsCardV2({
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2.5">
           <span className="ae-icon-badge">{icon}</span>
-          <span className="truncate text-xs font-semibold text-slate-500 dark:text-slate-400">{label}</span>
+          <span className="min-w-0 text-xs font-semibold leading-snug text-slate-500 dark:text-slate-400">{label}</span>
         </div>
         {delta ? (
           <Badge tone={deltaTone}>
@@ -162,8 +162,8 @@ export function StatsCardV2({
         ) : null}
       </div>
       <div className="flex items-end justify-between gap-2">
-        <div className="min-w-0">
-          <div className={`ae-num text-[1.45rem] leading-tight ${valueTone ? TONE_TEXT[valueTone] : 'text-slate-900 dark:text-slate-50'}`}>{value}</div>
+        <div className="min-w-0 flex-1">
+          <div className={`ae-num max-w-full break-words text-lg leading-tight sm:text-xl xl:text-[22px] ${valueTone ? TONE_TEXT[valueTone] : 'text-slate-900 dark:text-slate-50'}`}>{value}</div>
           {sub ? <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{sub}</div> : null}
         </div>
         {spark ? <Sparkline data={spark} color={sparkColor ?? TONE_HEX[valueTone ?? 'sky']} /> : null}
@@ -290,6 +290,170 @@ export function CircularGauge({
 }
 
 // ---------------------------------------------------------------------------
+// Responsive line / area chart — shapes stretch inside a height-bounded frame,
+// every label is HTML (11px), so nothing ever scales with container width.
+// ---------------------------------------------------------------------------
+export interface LineSeries {
+  key: string
+  color: string
+  values: number[]
+  width?: number
+  dashed?: boolean
+  area?: boolean
+}
+
+const VB_W = 1000
+const VB_H = 280
+const PX0 = 24
+const PX1 = 976
+const PY0 = 24
+const PY1 = 256
+
+function smooth(pts: [number, number][]) {
+  if (pts.length < 2) return ''
+  let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] ?? pts[i]
+    const p1 = pts[i]
+    const p2 = pts[i + 1]
+    const p3 = pts[i + 2] ?? p2
+    d += ` C${(p1[0] + (p2[0] - p0[0]) / 6).toFixed(1)},${(p1[1] + (p2[1] - p0[1]) / 6).toFixed(1)} ${(p2[0] - (p3[0] - p1[0]) / 6).toFixed(1)},${(p2[1] - (p3[1] - p1[1]) / 6).toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`
+  }
+  return d
+}
+
+export function LineChartV2({
+  series,
+  xLabels,
+  heightClass = 'h-[240px] lg:h-[280px]',
+  includeZero = false,
+  zeroLabel,
+  pointLabels = false,
+  formatValue = (n: number) => fmt(n),
+  markers = [],
+  callout,
+  activeIndex,
+  onHoverIndex,
+  maxTicks = 8,
+  smoothCurve = true,
+  showPoints = true,
+}: {
+  series: LineSeries[]
+  xLabels: string[]
+  heightClass?: string
+  includeZero?: boolean
+  zeroLabel?: string
+  pointLabels?: boolean
+  formatValue?: (n: number) => string
+  markers?: { index: number; seriesKey: string; color?: string }[]
+  callout?: { index: number; text: string } | null
+  activeIndex?: number | null
+  onHoverIndex?: (i: number | null) => void
+  maxTicks?: number
+  smoothCurve?: boolean
+  showPoints?: boolean
+}) {
+  const n = Math.max(...series.map((s) => s.values.length))
+  const all = series.flatMap((s) => s.values)
+  let min = Math.min(...all)
+  let max = Math.max(...all)
+  if (includeZero) {
+    min = Math.min(0, min)
+    max = Math.max(0, max)
+  }
+  const pad = (max - min) * 0.08 || 1
+  min = includeZero && min === 0 ? 0 : min - pad
+  max = max + pad
+  const x = (i: number) => PX0 + (n <= 1 ? 0.5 : i / (n - 1)) * (PX1 - PX0)
+  const y = (v: number) => PY0 + (1 - (v - min) / (max - min || 1)) * (PY1 - PY0)
+  const pctX = (i: number) => `${(x(i) / VB_W) * 100}%`
+  const pctY = (v: number) => `${(y(v) / VB_H) * 100}%`
+  const step = Math.max(1, Math.ceil(n / maxTicks))
+  const ticks = Array.from({ length: n }, (_, i) => i).filter((i) => i % step === 0 || i === n - 1)
+  const first = series[0]
+
+  return (
+    <div dir="ltr" className="w-full">
+      <div
+        className={`ae-chart ${heightClass}`}
+        onMouseLeave={() => onHoverIndex?.(null)}
+        onMouseMove={(e) => {
+          if (!onHoverIndex) return
+          const rect = e.currentTarget.getBoundingClientRect()
+          const vx = ((e.clientX - rect.left) / rect.width) * VB_W
+          onHoverIndex(Math.max(0, Math.min(n - 1, Math.round(((vx - PX0) / (PX1 - PX0)) * (n - 1)))))
+        }}
+      >
+        <svg viewBox={`0 0 ${VB_W} ${VB_H}`} preserveAspectRatio="none" aria-hidden>
+          {[0.25, 0.5, 0.75].map((r) => (
+            <line key={r} x1={PX0} x2={PX1} y1={PY0 + r * (PY1 - PY0)} y2={PY0 + r * (PY1 - PY0)} stroke="#94A3B8" strokeOpacity="0.18" vectorEffect="non-scaling-stroke" />
+          ))}
+          {includeZero ? <line x1={PX0} x2={PX1} y1={y(0)} y2={y(0)} stroke="#64748B" strokeDasharray="5 4" vectorEffect="non-scaling-stroke" /> : null}
+          {series.map((s) => {
+            const pts = s.values.map((v, i) => [x(i), y(v)] as [number, number])
+            const line = smoothCurve ? smooth(pts) : pts.map((p, i) => `${i ? 'L' : 'M'}${p[0]},${p[1]}`).join(' ')
+            return (
+              <g key={s.key}>
+                {s.area ? <path d={`${line} L${x(s.values.length - 1)},${PY1} L${x(0)},${PY1} Z`} fill={s.color} fillOpacity="0.12" /> : null}
+                <path d={line} fill="none" stroke={s.color} strokeWidth={s.width ?? 2.5} strokeDasharray={s.dashed ? '6 5' : undefined} strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+              </g>
+            )
+          })}
+          {activeIndex != null ? <line x1={x(activeIndex)} x2={x(activeIndex)} y1={PY0} y2={PY1} stroke="#94A3B8" strokeOpacity="0.5" vectorEffect="non-scaling-stroke" /> : null}
+        </svg>
+        {/* HTML overlays: points, markers, value labels, callouts */}
+        {first && pointLabels
+          ? first.values.map((v, i) => (
+              <span key={`pl-${i}`} className="ae-chart-label font-semibold text-slate-600" style={{ left: pctX(i), top: `calc(${pctY(v)} - 18px)`, transform: 'translateX(-50%)' }}>
+                {formatValue(v)}
+              </span>
+            ))
+          : null}
+        {first && showPoints
+          ? first.values.map((v, i) => (
+              <span
+                key={`pt-${i}`}
+                className="absolute rounded-full border-2 border-white shadow-sm"
+                style={{ left: pctX(i), top: pctY(v), width: activeIndex === i ? 12 : 8, height: activeIndex === i ? 12 : 8, transform: 'translate(-50%, -50%)', backgroundColor: first.color }}
+              />
+            ))
+          : null}
+        {markers.map((m) => {
+          const s = series.find((x2) => x2.key === m.seriesKey)
+          if (!s || s.values[m.index] == null) return null
+          return (
+            <span
+              key={`mk-${m.seriesKey}-${m.index}`}
+              className="absolute rounded-full border-[3px] bg-white shadow"
+              style={{ left: pctX(m.index), top: pctY(s.values[m.index]), width: 14, height: 14, transform: 'translate(-50%, -50%)', borderColor: m.color ?? s.color }}
+            />
+          )
+        })}
+        {includeZero && zeroLabel ? (
+          <span className="ae-chart-label font-semibold" style={{ right: '2.6%', top: `calc(${pctY(0)} - 16px)` }}>
+            {zeroLabel}
+          </span>
+        ) : null}
+        {callout ? (
+          <span className="ae-chart-callout" style={{ left: pctX(callout.index), top: 4 }}>
+            {callout.text}
+          </span>
+        ) : null}
+        <span className="ae-chart-label" style={{ left: 4, top: 4 }}>{formatValue(max - pad)}</span>
+        <span className="ae-chart-label" style={{ left: 4, bottom: 4 }}>{formatValue(includeZero && min === 0 ? 0 : min + pad)}</span>
+      </div>
+      <div className="relative mt-1.5 h-4">
+        {ticks.map((i) => (
+          <span key={`xl-${i}`} className="ae-chart-label" style={{ left: pctX(i), top: 0, transform: 'translateX(-50%)' }}>
+            {xLabels[i]}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Rounded grouped bar chart (pure CSS, RTL-safe)
 // ---------------------------------------------------------------------------
 export function RoundedBars({
@@ -324,15 +488,16 @@ export function RoundedBars({
               style={{ opacity: dim ? 0.4 : 1, transition: 'opacity 160ms ease' }}
               title={r.label}
             >
-              <span className="ae-num text-[10px] font-bold text-slate-500 dark:text-slate-400">{r.top ?? formatTop?.(r) ?? ''}</span>
-              <div className="flex h-full w-full items-end justify-center gap-1">
+              <span className="ae-num whitespace-nowrap text-[10px] font-bold text-slate-500 dark:text-slate-400">{r.top ?? formatTop?.(r) ?? ''}</span>
+              {/* Background track column keeps the chart dense; bars get executive thickness */}
+              <div className="flex h-full w-full max-w-[104px] items-end justify-center gap-1.5 rounded-xl bg-slate-100/80 px-1.5 pt-1.5 transition-colors group-hover:bg-slate-200/70 dark:bg-white/5 dark:group-hover:bg-white/10">
                 <div
-                  className="ae-bar-grow w-full max-w-[22px] rounded-t-full rounded-b-md transition-[height] duration-500 ease-out group-hover:brightness-110"
+                  className="ae-bar-grow min-w-[10px] max-w-[44px] flex-1 rounded-t-lg rounded-b-sm transition-[height] duration-500 ease-out group-hover:brightness-110"
                   style={{ height: `${Math.max(3, (r.a / max) * 100)}%`, backgroundColor: seriesA.color }}
                 />
                 {r.b != null && seriesB ? (
                   <div
-                    className="ae-bar-grow w-full max-w-[22px] rounded-t-full rounded-b-md transition-[height] duration-500 ease-out group-hover:brightness-110"
+                    className="ae-bar-grow min-w-[10px] max-w-[44px] flex-1 rounded-t-lg rounded-b-sm transition-[height] duration-500 ease-out group-hover:brightness-110"
                     style={{ height: `${Math.max(3, (r.b / max) * 100)}%`, backgroundColor: seriesB.color }}
                   />
                 ) : null}

@@ -80,8 +80,11 @@ export async function Shell({ children }: { children: React.ReactNode }) {
             </div>
             <main className="w-full max-w-none px-3 pb-24 pt-4 sm:px-4 md:px-5 md:pb-6">
               <div id="ae-canvas" className="app-content w-full p-4 sm:p-6 lg:p-8">
-                <GlobalFilterBar />
-                {children}
+                {/* One unified workspace geometry on every route: 1440px max, centred */}
+                <div className="ae-page mx-auto w-full min-w-0 max-w-[1440px] space-y-6">
+                  <GlobalFilterBar />
+                  {children}
+                </div>
               </div>
             </main>
           </div>

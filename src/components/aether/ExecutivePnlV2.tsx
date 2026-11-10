@@ -137,7 +137,7 @@ export function ExecutivePnlV2() {
           title={T(`Controllable P&L statement · ${h.en}`, `قائمة الدخل القابلة للتحكم · ${h.ar}`)}
           subtitle={T('Click an unfavourable line to ask Feryal for the variance explanation', 'اضغط على أي بند سلبي لتطلب من فريال تفسير الانحراف')}
         />
-        <div className="overflow-x-auto">
+        <div className="w-full overflow-x-auto rounded-xl">
           <table className="w-full min-w-[860px] text-xs">
             <thead>
               <tr className="text-slate-500">

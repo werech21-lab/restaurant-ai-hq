@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import { Check, ClipboardCopy, Gauge, ShieldCheck, Timer, TrendingUp } from 'lucide-react'
 import { fmt } from '@/lib/aether/ledger'
-import { Badge, CircularGauge, Num, useCopy } from '@/components/aether/ui'
+import { Badge, CircularGauge, LineChartV2, Num, useCopy } from '@/components/aether/ui'
 
 type Lang = 'ar' | 'en'
 type RiskSeverity = 'critical' | 'high' | 'medium'
@@ -209,17 +209,6 @@ export function EventCashflowCurve({
     return { ...s, ordersPerDay, dailyNet, series, payback: payback && payback <= days ? payback : null, final: series[days] }
   })
 
-  const W = 760
-  const H = 260
-  const padX = 44
-  const padY = 22
-  const all = scenarios.flatMap((s) => s.series)
-  const minV = Math.min(0, ...all)
-  const maxV = Math.max(0, ...all)
-  const span = maxV - minV || 1
-  const x = (d: number) => padX + (d / days) * (W - padX * 2)
-  const y = (v: number) => padY + (1 - (v - minV) / span) * (H - padY * 2)
-  const path = (series: number[]) => series.map((v, d) => `${d === 0 ? 'M' : 'L'}${x(d).toFixed(1)},${y(v).toFixed(1)}`).join(' ')
   const base = scenarios[1]
   const hd = hoverDay ?? base.payback ?? Math.round(days / 2)
 
@@ -247,53 +236,19 @@ export function EventCashflowCurve({
           ))}
         </div>
       </div>
-      <div dir="ltr" className="relative">
-        <svg
-          viewBox={`0 0 ${W} ${H}`}
-          className="h-auto w-full"
-          onMouseLeave={() => setHoverDay(null)}
-          onMouseMove={(e) => {
-            const rect = (e.currentTarget as SVGSVGElement).getBoundingClientRect()
-            const px = ((e.clientX - rect.left) / rect.width) * W
-            const d = Math.round(((px - padX) / (W - padX * 2)) * days)
-            setHoverDay(Math.max(0, Math.min(days, d)))
-          }}
-        >
-          <rect x={padX} y={y(0)} width={W - padX * 2} height={Math.max(0, H - padY - y(0))} fill="#E11D48" fillOpacity="0.04" />
-          <rect x={padX} y={padY} width={W - padX * 2} height={Math.max(0, y(0) - padY)} fill="#059669" fillOpacity="0.04" />
-          <line x1={padX} x2={W - padX} y1={y(0)} y2={y(0)} stroke="#64748B" strokeDasharray="5 4" />
-          <text x={W - padX} y={y(0) - 6} textAnchor="end" className="fill-slate-500 text-[11px] font-semibold">
-            {T('Break-even', 'نقطة التعادل')}
-          </text>
-          {scenarios.map((s) => (
-            <path key={s.key} d={path(s.series)} fill="none" stroke={s.color} strokeWidth={s.key === 'base' ? 3 : 2} strokeLinecap="round" strokeDasharray={s.key === 'conservative' ? '6 4' : undefined} />
-          ))}
-          {scenarios.map((s) =>
-            s.payback ? (
-              <g key={`${s.key}-pb`}>
-                <circle cx={x(s.payback)} cy={y(s.series[s.payback])} r={5} fill="#FFFFFF" stroke={s.color} strokeWidth={2.5} />
-              </g>
-            ) : null,
-          )}
-          {base.payback ? (
-            <g>
-              <line x1={x(base.payback)} x2={x(base.payback)} y1={padY} y2={H - padY} stroke="#0284C7" strokeOpacity="0.35" />
-              <rect x={x(base.payback) - 46} y={padY - 4} width={92} height={20} rx={10} fill="#0F172A" />
-              <text x={x(base.payback)} y={padY + 10} textAnchor="middle" fill="#FFFFFF" className="text-[11px] font-bold">
-                {T(`Payback day ${base.payback}`, `الاسترداد يوم ${base.payback}`)}
-              </text>
-            </g>
-          ) : null}
-          <line x1={x(hd)} x2={x(hd)} y1={padY} y2={H - padY} stroke="#94A3B8" strokeOpacity="0.5" />
-          {[0, Math.round(days / 4), Math.round(days / 2), Math.round((3 * days) / 4), days].map((d) => (
-            <text key={d} x={x(d)} y={H - 4} textAnchor="middle" className="fill-slate-400 text-[10px]">
-              {T(`D${d}`, `ي${d}`)}
-            </text>
-          ))}
-          <text x={4} y={y(maxV) + 4} className="fill-slate-400 text-[10px]">{fmt(maxV)}</text>
-          <text x={4} y={y(minV)} className="fill-slate-400 text-[10px]">{fmt(minV)}</text>
-        </svg>
-      </div>
+      <LineChartV2
+        series={scenarios.map((s) => ({ key: s.key, color: s.color, values: s.series, width: s.key === 'base' ? 3 : 2, dashed: s.key === 'conservative' }))}
+        xLabels={Array.from({ length: days + 1 }, (_, d) => (isAr ? `يوم ${d}` : `Day ${d}`))}
+        heightClass="h-[260px] lg:h-[300px]"
+        includeZero
+        zeroLabel={T('Break-even', 'نقطة التعادل')}
+        showPoints={false}
+        markers={scenarios.filter((s) => s.payback).map((s) => ({ index: s.payback as number, seriesKey: s.key, color: s.color }))}
+        callout={base.payback ? { index: base.payback, text: T(`Payback day ${base.payback}`, `الاسترداد يوم ${base.payback}`) } : null}
+        activeIndex={hd}
+        onHoverIndex={setHoverDay}
+        maxTicks={7}
+      />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
         <div className="ae-tile-soft p-3">
           <div className="text-[11px] text-slate-500">{T('Inspecting day', 'اليوم المحدد')}</div>

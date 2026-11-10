@@ -3,6 +3,7 @@
 import React, { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useI18n } from '@/lib/i18n'
+import { LineChartV2 } from '@/components/aether/ui'
 import { RECS, type Priority } from '@/lib/analytics/recommendations'
 import { SALES_TABS, salesTabHref, type SalesTabId } from '@/lib/analytics/sales-tabs'
 
@@ -52,25 +53,25 @@ const DAILY_TREND = [
   { day: '31 Oct', sales: 6490, profit: 1675, orders: 1190, cogs: 1609 },
 ]
 type Metric = 'sales' | 'profit' | 'orders' | 'cogs'
-const METRIC_COLOR: Record<Metric, string> = { sales: '#2563EB', profit: '#10B981', orders: '#6366F1', cogs: '#F59E0B' }
+const METRIC_COLOR: Record<Metric, string> = { sales: '#0284C7', profit: '#059669', orders: '#0F172A', cogs: '#D97706' }
 
 const PNL = [
-  { en: 'Net operating profit', ar: 'صافي الربح التشغيلي', value: 42441.48, pct: 25.4, color: '#10B981' },
-  { en: 'Custody & operating expenses', ar: 'العهد والمصروفات التشغيلية', value: 51154.95, pct: 30.6, color: '#3B82F6' },
-  { en: 'Food cost (COGS)', ar: 'تكلفة الأغذية (COGS)', value: 41438.856, pct: 24.8, color: '#F59E0B' },
-  { en: 'Salaries, rent & commissions', ar: 'الرواتب والإيجارات والعمولات', value: 32056.874, pct: 19.2, color: '#6366F1' },
+  { en: 'Net operating profit', ar: 'صافي الربح التشغيلي', value: 42441.48, pct: 25.4, color: '#059669' },
+  { en: 'Custody & operating expenses', ar: 'العهد والمصروفات التشغيلية', value: 51154.95, pct: 30.6, color: '#0284C7' },
+  { en: 'Food cost (COGS)', ar: 'تكلفة الأغذية (COGS)', value: 41438.856, pct: 24.8, color: '#D97706' },
+  { en: 'Salaries, rent & commissions', ar: 'الرواتب والإيجارات والعمولات', value: 32056.874, pct: 19.2, color: '#0F172A' },
 ]
 const CHANNEL_MIX = [
-  { en: 'Shop Sales', ar: 'مبيعات المحل', value: 58953.09, pct: 35.3, color: '#2563EB' },
-  { en: 'Talabat (Tgo + TMP)', ar: 'طلبات (Tgo + TMP)', value: 62603.46, pct: 37.5, color: '#F97316' },
-  { en: 'Keeta', ar: 'كيتا', value: 35607.98, pct: 21.3, color: '#10B981' },
-  { en: 'Deliveroo, Ordable & others', ar: 'ديليفرو وأوردابل وباقي القنوات', value: 9927.63, pct: 5.9, color: '#8B5CF6' },
+  { en: 'Shop Sales', ar: 'مبيعات المحل', value: 58953.09, pct: 35.3, color: '#0F172A' },
+  { en: 'Talabat (Tgo + TMP)', ar: 'طلبات (Tgo + TMP)', value: 62603.46, pct: 37.5, color: '#D97706' },
+  { en: 'Keeta', ar: 'كيتا', value: 35607.98, pct: 21.3, color: '#059669' },
+  { en: 'Deliveroo, Ordable & others', ar: 'ديليفرو وأوردابل وباقي القنوات', value: 9927.63, pct: 5.9, color: '#0284C7' },
 ]
 
 const PRIORITY_STYLE: Record<Priority, { cls: string; en: string; ar: string }> = {
-  top: { cls: 'bg-rose-50 text-rose-700 border-rose-200', en: 'Top priority', ar: 'أولوية قصوى' },
-  high: { cls: 'bg-amber-50 text-amber-800 border-amber-200', en: 'High', ar: 'عالية' },
-  medium: { cls: 'bg-indigo-50 text-indigo-700 border-indigo-200', en: 'Medium', ar: 'متوسطة' },
+  top: { cls: 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300', en: 'Top priority', ar: 'أولوية قصوى' },
+  high: { cls: 'bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300', en: 'High', ar: 'عالية' },
+  medium: { cls: 'bg-sky-50 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300', en: 'Medium', ar: 'متوسطة' },
 }
 
 const fmt0 = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 0 })
@@ -80,23 +81,6 @@ function Num({ children, className = '' }: { children: React.ReactNode; classNam
   return <span dir="ltr" className={`inline-block tabular-nums ${className}`}>{children}</span>
 }
 
-// Smooth path through points (Catmull-Rom converted to cubic Béziers)
-function smoothPath(pts: { x: number; y: number }[]) {
-  if (pts.length < 2) return ''
-  let d = `M ${pts[0].x},${pts[0].y}`
-  for (let i = 0; i < pts.length - 1; i++) {
-    const p0 = pts[i - 1] ?? pts[i]
-    const p1 = pts[i]
-    const p2 = pts[i + 1]
-    const p3 = pts[i + 2] ?? p2
-    const c1x = p1.x + (p2.x - p0.x) / 6
-    const c1y = p1.y + (p2.y - p0.y) / 6
-    const c2x = p2.x - (p3.x - p1.x) / 6
-    const c2y = p2.y - (p3.y - p1.y) / 6
-    d += ` C ${c1x},${c1y} ${c2x},${c2y} ${p2.x},${p2.y}`
-  }
-  return d
-}
 
 export function AetherBiExecutiveDashboard({ locale: _unused }: { locale?: string }) {
   const { locale } = useI18n()
@@ -108,21 +92,6 @@ export function AetherBiExecutiveDashboard({ locale: _unused }: { locale?: strin
   const [donut, setDonut] = useState<'pnl' | 'channels'>('pnl')
 
   const color = METRIC_COLOR[metric]
-  const geo = useMemo(() => {
-    const vals = DAILY_TREND.map((d) => d[metric])
-    const maxV = Math.max(...vals) * 1.1
-    const minV = Math.min(...vals) * 0.85
-    const W = 760
-    const H = 210
-    const pts = DAILY_TREND.map((d, i) => ({
-      x: (i / (DAILY_TREND.length - 1)) * W,
-      y: H - ((d[metric] - minV) / (maxV - minV)) * (H - 34) - 16,
-      label: d.day,
-      value: d[metric],
-    }))
-    const line = smoothPath(pts)
-    return { pts, line, area: `${line} L ${W},${H} L 0,${H} Z`, W, H }
-  }, [metric])
 
   const donutData = donut === 'pnl' ? PNL : CHANNEL_MIX
   const segments = useMemo(() => {
@@ -143,14 +112,14 @@ export function AetherBiExecutiveDashboard({ locale: _unused }: { locale?: strin
     { id: 'cogs', en: 'Food cost', ar: 'تكلفة الأغذية' },
   ]
   const maxImpact = Math.max(...RECS.map((r) => r.impact))
-  const boxed = 'rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm'
-  const badge = 'rounded-full border px-2.5 py-0.5 text-xs font-bold'
+  const boxed = 'ae-tile min-w-0 rounded-2xl p-5'
+  const badge = 'whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-bold'
 
   return (
-    <div dir={ar ? 'rtl' : 'ltr'} lang={locale} className="mx-auto w-full max-w-[1550px] space-y-6 text-slate-900 dark:text-slate-100" style={ar ? { fontFamily: 'Cairo, Inter, system-ui, sans-serif' } : undefined}>
+    <div dir={ar ? 'rtl' : 'ltr'} lang={locale} className="ae-stagger w-full min-w-0 space-y-6 text-slate-900 dark:text-slate-100" style={ar ? { fontFamily: 'Cairo, Inter, system-ui, sans-serif' } : undefined}>
       {/* Header */}
-      <div className={`${boxed} flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between`}>
-        <div>
+      <div className="ae-masthead flex flex-col gap-4 p-6 lg:flex-row lg:items-center lg:justify-between lg:p-7">
+        <div className="min-w-0">
           <div className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400">
             <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
             <span>{T('Venture Foods Restaurant Management W.L.L. · Odoo data (2,213 journal entries)', 'شركة فنتشر فودز لإدارة المطاعم ذ.م.م. · بيانات أودو (2,213 قيد يومي)')}</span>
@@ -159,38 +128,36 @@ export function AetherBiExecutiveDashboard({ locale: _unused }: { locale?: strin
           <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{T('6 brands, 11 sales channels, 9 active branches and the central kitchen. Static data: browsing uses no AI tokens.', '6 علامات تجارية و11 قناة بيع و9 فروع نشطة والمطبخ المركزي. بيانات ثابتة: التصفح لا يستهلك أي توكنات.')}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2 self-start lg:self-auto">
-          <Link href="/erp/sales-scorecard" className="rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 text-xs font-bold text-slate-800 dark:text-slate-100 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700">
+          <Link href="/erp/sales-scorecard" className="ae-pill-light ae-pill-sm">
             {T('Sales & items analyses (8 sections)', 'تحليل المبيعات والأصناف (8 أقسام)')}
           </Link>
-          <Link href="/erp/menu-engineering" className="rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 text-xs font-bold text-slate-800 dark:text-slate-100 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700">
+          <Link href="/erp/menu-engineering" className="ae-pill-light ae-pill-sm">
             {T('Menu engineering', 'هندسة المنيو')}
           </Link>
-          <span className="rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-sm" style={{ color: '#FFFFFF' }}>{T('October 2026', 'أكتوبر 2026')}</span>
+          <span className="ae-pill-dark ae-pill-sm">{T('October 2026', 'أكتوبر 2026')}</span>
         </div>
       </div>
 
-      {/* Quick navigation links to the 8 tabs of /erp/sales-scorecard */}
-      <nav aria-label={T('Sales analysis sections', 'أقسام تحليل المبيعات')} className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2.5 text-xs shadow-sm">
-        <span className="font-bold text-slate-500 dark:text-slate-400 me-1">{T('Quick access:', 'انتقال سريع:')}</span>
-        {SALES_TABS.map((t) => (
-          <Link
-            key={t.id}
-            href={salesTabHref(t.id)}
-            className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 px-3 py-1 font-semibold text-slate-700 dark:text-slate-200 transition hover:border-blue-500 hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-slate-700"
-          >
-            {ar ? t.ar : t.en}
-          </Link>
-        ))}
-      </nav>
+      {/* Quick navigation: segmented pills to the 8 tabs of /erp/sales-scorecard */}
+      <div className="flex min-w-0 flex-wrap items-center gap-3">
+        <span className="text-xs font-bold text-slate-500 dark:text-slate-400">{T('Quick access', 'انتقال سريع')}</span>
+        <nav aria-label={T('Sales analysis sections', 'أقسام تحليل المبيعات')} className="ae-tabs">
+          {SALES_TABS.map((t) => (
+            <Link key={t.id} href={salesTabHref(t.id)}>
+              {ar ? t.ar : t.en}
+            </Link>
+          ))}
+        </nav>
+      </div>
 
       {/* 4 KPI cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 items-stretch">
         <div className={boxed}>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{T('Net sales', 'صافي المبيعات المعتمدة')}</span>
-            <span className={`${badge} border-emerald-200 bg-emerald-50 text-emerald-700`}><Num>▲ +14.8%</Num></span>
+            <span className={`${badge} bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300`}><Num>▲ +14.8%</Num></span>
           </div>
-          <div className="mt-2 text-2xl font-extrabold"><Num>{kwd(fmt3(NET_SALES))}</Num></div>
+          <div className="mt-2 break-words text-lg font-extrabold leading-tight sm:text-xl xl:text-[22px]"><Num>{kwd(fmt3(NET_SALES))}</Num></div>
           <div className="mt-1 space-y-0.5 text-[12px] text-slate-500 dark:text-slate-400">
             <div><Num>{fmt0(ORDERS)}</Num> {T('orders', 'طلباً')} · {T('average', 'متوسط الطلب')} <Num>{kwd(fmt3(AOV))}</Num></div>
             <div>{T('Discounts', 'الخصومات')}: <Num>{kwd(fmt0(DISCOUNTS))}</Num> (<Num>{DISCOUNTS_PCT}%</Num>)</div>
@@ -198,11 +165,11 @@ export function AetherBiExecutiveDashboard({ locale: _unused }: { locale?: strin
         </div>
 
         <div className={boxed}>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{T('Net operating profit', 'صافي الربح التشغيلي')}</span>
-            <span className={`${badge} border-emerald-200 bg-emerald-50 text-emerald-700`}>{T('Margin', 'هامش')} <Num>{MARGIN}%</Num></span>
+            <span className={`${badge} bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300`}>{T('Margin', 'هامش')} <Num>{MARGIN}%</Num></span>
           </div>
-          <div className="mt-2 text-2xl font-extrabold text-emerald-600"><Num>{kwd(fmt3(NET_PROFIT))}</Num></div>
+          <div className="mt-2 break-words text-lg font-extrabold leading-tight text-emerald-600 sm:text-xl xl:text-[22px]"><Num>{kwd(fmt3(NET_PROFIT))}</Num></div>
           <div className="mt-1 space-y-0.5 text-[12px] text-slate-500 dark:text-slate-400">
             <div>{T('After food cost, custody and overheads', 'بعد خصم الأغذية والعهد والمصروفات')}</div>
             <div>{T('Salaries, rent & commissions', 'الرواتب والإيجارات والعمولات')}: <Num>{kwd(fmt3(SALARIES_RENT_COMMISSION))}</Num> (<Num>{SALARIES_PCT}%</Num>)</div>
@@ -210,11 +177,11 @@ export function AetherBiExecutiveDashboard({ locale: _unused }: { locale?: strin
         </div>
 
         <div className={boxed}>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{T('Food cost & custody', 'تكلفة الأغذية والعهد')}</span>
-            <span className={`${badge} border-amber-200 bg-amber-50 text-amber-700`}>COGS <Num>{COGS_PCT}%</Num></span>
+            <span className={`${badge} bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300`}>COGS <Num>{COGS_PCT}%</Num></span>
           </div>
-          <div className="mt-2 text-2xl font-extrabold"><Num>{kwd(fmt3(COGS + CUSTODY))}</Num></div>
+          <div className="mt-2 break-words text-lg font-extrabold leading-tight sm:text-xl xl:text-[22px]"><Num>{kwd(fmt3(COGS + CUSTODY))}</Num></div>
           <div className="mt-1 space-y-0.5 text-[12px] text-slate-500 dark:text-slate-400">
             <div>{T('Food cost (COGS)', 'تكلفة الأغذية (COGS)')}: <Num>{kwd(fmt3(COGS))}</Num> (<Num>{COGS_PCT}%</Num>)</div>
             <div>{T('Custody & operating expenses', 'العهد والمصروفات التشغيلية')}: <Num>{kwd(fmt3(CUSTODY))}</Num></div>
@@ -222,13 +189,13 @@ export function AetherBiExecutiveDashboard({ locale: _unused }: { locale?: strin
           </div>
         </div>
 
-        <div className="rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 p-5 shadow-sm" style={{ color: '#FFFFFF' }}>
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold" style={{ color: '#DBEAFE' }}>{T('Extra profit and savings from recommendations', 'إجمالي الربح والوفر المتاح من التوصيات')}</span>
-            <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-bold" style={{ color: '#FFFFFF' }}>{T('5 ready', '5 توصيات')}</span>
+        <div className="ae-hero-ocean ae-lift min-w-0 rounded-2xl p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="ae-hero-muted text-xs font-semibold">{T('Extra profit and savings from recommendations', 'إجمالي الربح والوفر المتاح من التوصيات')}</span>
+            <span className="ae-hero-chip whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-bold">{T('5 ready', '5 توصيات')}</span>
           </div>
-          <div className="mt-2 text-2xl font-extrabold" style={{ color: '#FFFFFF' }}><Num>+{kwd(fmt3(RECS_TOTAL))}</Num></div>
-          <div className="mt-1 text-[12px]" style={{ color: '#DBEAFE' }}>{T('per month', 'شهرياً')} · {T('profit would reach', 'يرفع الربح إلى')} <Num>{kwd(fmt3(NET_PROFIT + RECS_TOTAL))}</Num></div>
+          <div className="mt-2 break-words text-lg font-extrabold leading-tight sm:text-xl xl:text-[22px]"><Num>+{kwd(fmt3(RECS_TOTAL))}</Num></div>
+          <div className="ae-hero-muted mt-1 text-[12px]">{T('per month', 'شهرياً')} · {T('profit would reach', 'يرفع الربح إلى')} <Num>{kwd(fmt3(NET_PROFIT + RECS_TOTAL))}</Num></div>
         </div>
       </div>
 
@@ -240,52 +207,41 @@ export function AetherBiExecutiveDashboard({ locale: _unused }: { locale?: strin
               <h2 className="text-sm font-extrabold text-slate-900 dark:text-slate-50">{T('Performance trend', 'منحنى الأداء المالي والطلبات')}</h2>
               <p className="mt-0.5 text-[11px] text-slate-400">{T('Sampled every 3 days (11 points), KWD', 'عينة كل 3 أيام (11 نقطة) بالدينار الكويتي')}</p>
             </div>
-            <div className="inline-flex rounded-xl bg-slate-100 dark:bg-slate-900 p-1 text-xs font-bold">
+            <div className="ae-seg flex-wrap" role="group">
               {metricTabs.map((m) => (
                 <button
                   key={m.id}
+                  type="button"
                   onClick={() => setMetric(m.id)}
-                  className={`rounded-lg px-3 py-1.5 transition ${metric === m.id ? 'bg-white dark:bg-slate-800 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
-                  style={metric === m.id ? { color: METRIC_COLOR[m.id] } : undefined}
+                  data-active={metric === m.id ? 'true' : 'false'}
+                  aria-pressed={metric === m.id}
                 >
                   {T(m.en, m.ar)}
                 </button>
               ))}
             </div>
           </div>
-          <div className="pt-4" dir="ltr">
-            <svg viewBox={`0 0 ${geo.W} ${geo.H + 28}`} className="h-56 w-full overflow-visible">
-              <defs>
-                <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={color} stopOpacity="0.28" />
-                  <stop offset="100%" stopColor={color} stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              {[0.2, 0.5, 0.8].map((r) => (
-                <line key={r} x1={0} y1={geo.H * r} x2={geo.W} y2={geo.H * r} stroke="#CBD5E1" strokeOpacity="0.35" strokeWidth="1" />
-              ))}
-              <path d={geo.area} fill="url(#trendFill)" />
-              <path d={geo.line} fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-              {geo.pts.map((p, i) => (
-                <g key={i}>
-                  <circle cx={p.x} cy={p.y} r="4.5" fill="#FFFFFF" stroke={color} strokeWidth="2.5" />
-                  <text x={p.x} y={p.y - 10} textAnchor="middle" className="fill-slate-700 dark:fill-slate-200 text-[10px] font-bold">{p.value.toLocaleString('en-US')}</text>
-                  <text x={p.x} y={geo.H + 18} textAnchor="middle" className="fill-slate-400 text-[10px]">{p.label}</text>
-                </g>
-              ))}
-            </svg>
+          <div className="pt-4">
+            <LineChartV2
+              series={[{ key: metric, color, values: DAILY_TREND.map((d) => d[metric]), area: true }]}
+              xLabels={DAILY_TREND.map((d) => d.day)}
+              heightClass="h-[230px] lg:h-[260px]"
+              pointLabels
+              formatValue={(n) => fmt0(n)}
+              maxTicks={11}
+            />
           </div>
         </div>
 
         <div className={`${boxed} flex flex-col justify-between`}>
-          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-700 pb-3">
             <div>
               <h2 className="text-sm font-extrabold text-slate-900 dark:text-slate-50">{T('Distribution', 'التوزيع النسبي')}</h2>
               <p className="text-[11px] text-slate-400">{T('Income statement or channels', 'حسب قائمة الدخل أو القنوات')}</p>
             </div>
-            <div className="inline-flex rounded-xl bg-slate-100 dark:bg-slate-900 p-1 text-xs font-bold">
-              <button onClick={() => setDonut('pnl')} className={`rounded-lg px-2.5 py-1 ${donut === 'pnl' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}>{T('P&L', 'قائمة الدخل')}</button>
-              <button onClick={() => setDonut('channels')} className={`rounded-lg px-2.5 py-1 ${donut === 'channels' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}>{T('Channels', 'القنوات')}</button>
+            <div className="ae-seg" role="group">
+              <button type="button" onClick={() => setDonut('pnl')} data-active={donut === 'pnl' ? 'true' : 'false'} aria-pressed={donut === 'pnl'}>{T('P&L', 'قائمة الدخل')}</button>
+              <button type="button" onClick={() => setDonut('channels')} data-active={donut === 'channels' ? 'true' : 'false'} aria-pressed={donut === 'channels'}>{T('Channels', 'القنوات')}</button>
             </div>
           </div>
           <div className="relative my-2 flex items-center justify-center">
@@ -302,8 +258,8 @@ export function AetherBiExecutiveDashboard({ locale: _unused }: { locale?: strin
           </div>
           <div className="space-y-2">
             {donutData.map((s) => (
-              <div key={s.en} className="flex items-center justify-between rounded-xl bg-slate-50/70 dark:bg-slate-900/60 px-3 py-1.5 text-xs">
-                <div className="flex items-center gap-2">
+              <div key={s.en} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-xl bg-slate-50/70 dark:bg-slate-900/60 px-3 py-1.5 text-xs">
+                <div className="flex min-w-0 items-center gap-2">
                   <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: s.color }} />
                   <span className="font-semibold text-slate-700 dark:text-slate-200">{T(s.en, s.ar)}</span>
                 </div>
@@ -326,27 +282,27 @@ export function AetherBiExecutiveDashboard({ locale: _unused }: { locale?: strin
               {T('Ranked by monthly financial impact: profit from', 'مرتبة حسب الأثر المالي الشهري: رفع صافي الربح من')} <Num>{kwd(fmt3(NET_PROFIT))}</Num> {T('to', 'إلى')} <Num>{kwd(fmt3(NET_PROFIT + RECS_TOTAL))}</Num>
             </p>
           </div>
-          <span className="rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-1.5 text-xs font-extrabold text-emerald-700">
+          <span className="rounded-full bg-emerald-50 dark:bg-emerald-950/50 px-3.5 py-1.5 text-xs font-extrabold text-emerald-700 dark:text-emerald-300">
             {T('Total extra profit and savings', 'إجمالي الوفر والربح الإضافي')}: <Num>+{fmt0(RECS_TOTAL)} {ar ? 'د.ك' : 'KWD'}</Num> {T('/ month', '/ شهرياً')}
           </span>
         </div>
-        <div className="overflow-x-auto">
+        <div className="w-full overflow-x-auto rounded-xl ring-1 ring-slate-200/70 dark:ring-slate-800">
           <table className="w-full border-collapse text-xs">
             <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-700 font-bold text-slate-400">
+              <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 font-bold text-slate-500 dark:text-slate-300">
                 {[['Priority', 'الأولوية'], ['Area', 'القطاع / القسم'], ['Problem (with numbers)', 'المشكلة المرصودة بالأرقام'], ['Recommended action', 'الحل والتوصية التنفيذية'], ['Monthly impact', 'الأثر المالي الشهري'], ['Analysis', 'التحليل']].map(([en, arT]) => (
-                  <th key={en} className="px-2 py-2.5 text-start">{T(en, arT)}</th>
+                  <th key={en} className="whitespace-nowrap px-3.5 py-3 text-start">{T(en, arT)}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {RECS.map((r) => (
                 <tr key={r.id} className="transition hover:bg-slate-50/80 dark:hover:bg-slate-800/60">
-                  <td className="whitespace-nowrap px-2 py-3"><span className={`${badge} ${PRIORITY_STYLE[r.priority].cls}`}>{T(PRIORITY_STYLE[r.priority].en, PRIORITY_STYLE[r.priority].ar)}</span></td>
-                  <td className="whitespace-nowrap px-2 py-3 font-bold">{T(r.deptEn, r.deptAr)}</td>
-                  <td className="max-w-md px-2 py-3 leading-relaxed text-slate-600 dark:text-slate-300">{T(r.issueEn, r.issueAr)}</td>
-                  <td className="max-w-md px-2 py-3 font-semibold leading-relaxed text-slate-800 dark:text-slate-100">{T(r.fixEn, r.fixAr)}</td>
-                  <td className="px-2 py-3">
+                  <td className="whitespace-nowrap px-3.5 py-3"><span className={`${badge} ${PRIORITY_STYLE[r.priority].cls}`}>{T(PRIORITY_STYLE[r.priority].en, PRIORITY_STYLE[r.priority].ar)}</span></td>
+                  <td className="whitespace-nowrap px-3.5 py-3 font-bold">{T(r.deptEn, r.deptAr)}</td>
+                  <td className="min-w-[260px] max-w-md px-3.5 py-3 leading-relaxed text-slate-600 dark:text-slate-300">{T(r.issueEn, r.issueAr)}</td>
+                  <td className="min-w-[260px] max-w-md px-3.5 py-3 font-semibold leading-relaxed text-slate-800 dark:text-slate-100">{T(r.fixEn, r.fixAr)}</td>
+                  <td className="whitespace-nowrap px-3.5 py-3">
                     <div className="flex flex-col items-start gap-1">
                       <span className="text-sm font-extrabold text-emerald-600"><Num>+{kwd(fmt0(r.impact))}</Num></span>
                       <div className="h-2 w-28 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
@@ -354,10 +310,10 @@ export function AetherBiExecutiveDashboard({ locale: _unused }: { locale?: strin
                       </div>
                     </div>
                   </td>
-                  <td className="whitespace-nowrap px-2 py-3">
+                  <td className="whitespace-nowrap px-3.5 py-3">
                     <Link
                       href={salesTabHref(REC_TAB_MAP[r.id] ?? 'core-sales')}
-                      className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-blue-700 hover:bg-blue-100"
+                      className="ae-pill-light ae-pill-sm"
                     >
                       {T('Open tab', 'عرض القسم')}
                     </Link>

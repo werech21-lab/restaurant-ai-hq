@@ -18,7 +18,7 @@ import {
   type WeatherKind,
 } from '@/lib/enterprise-giants-engine'
 import { useBiFilters } from '@/components/aether/BiFilterContext'
-import { Badge, Num, ReorderableTable, RoundedBars, SectionHeader, StatsCardV2, downloadCsv, useLang, type ReorderColumn } from '@/components/aether/ui'
+import { Badge, LineChartV2, Num, ReorderableTable, RoundedBars, SectionHeader, StatsCardV2, downloadCsv, useLang, type ReorderColumn } from '@/components/aether/ui'
 
 const WEATHER_LABEL: Record<WeatherKind, { en: string; ar: string; tone: 'sky' | 'amber' | 'rose' | 'emerald' }> = {
   mild: { en: 'Mild', ar: 'معتدل', tone: 'emerald' },
@@ -28,39 +28,17 @@ const WEATHER_LABEL: Record<WeatherKind, { en: string; ar: string; tone: 'sky' |
 }
 
 function DaypartCurve({ day, lang }: { day: ForecastDay; lang: 'ar' | 'en' }) {
-  const W = 640
-  const H = 180
-  const pad = 24
-  const max = Math.max(...day.hourly) * 1.12
-  const x = (i: number) => pad + (i / (day.hourly.length - 1)) * (W - pad * 2)
-  const y = (v: number) => H - pad - (v / max) * (H - pad * 2)
-  const line = day.hourly.map((v, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ')
-  const area = `${line} L${x(day.hourly.length - 1)},${H - pad} L${x(0)},${H - pad} Z`
   const peakIdx = day.hourly.indexOf(Math.max(...day.hourly))
   return (
-    <div dir="ltr">
-      <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label={lang === 'ar' ? 'منحنى الطلب بالساعة' : 'Hourly demand curve'}>
-        <defs>
-          <linearGradient id="dp-fill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#0284C7" stopOpacity="0.28" />
-            <stop offset="100%" stopColor="#0284C7" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        <path d={area} fill="url(#dp-fill)" />
-        <path d={line} fill="none" stroke="#0284C7" strokeWidth="2.5" strokeLinecap="round" />
-        {day.hourly.map((v, i) => (
-          <g key={i}>
-            <circle cx={x(i)} cy={y(v)} r={i === peakIdx ? 5 : 2.8} fill={i === peakIdx ? '#0F172A' : '#0284C7'} />
-            <text x={x(i)} y={H - 6} textAnchor="middle" className="fill-slate-400 text-[10px]">
-              {String(DAYPART_HOURS[i]).padStart(2, '0')}
-            </text>
-          </g>
-        ))}
-        <text x={x(peakIdx)} y={y(day.hourly[peakIdx]) - 10} textAnchor="middle" className="fill-slate-700 text-[11px] font-bold">
-          {fmt(day.hourly[peakIdx])}
-        </text>
-      </svg>
-    </div>
+    <LineChartV2
+      series={[{ key: 'orders', color: '#0284C7', values: day.hourly, area: true }]}
+      xLabels={DAYPART_HOURS.map((h) => `${String(h).padStart(2, '0')}:00`)}
+      heightClass="h-[220px] lg:h-[250px]"
+      pointLabels
+      formatValue={(n) => fmt(n)}
+      callout={{ index: peakIdx, text: lang === 'ar' ? `الذروة ${String(DAYPART_HOURS[peakIdx]).padStart(2, '0')}:00` : `Peak ${String(DAYPART_HOURS[peakIdx]).padStart(2, '0')}:00` }}
+      maxTicks={14}
+    />
   )
 }
 
@@ -337,7 +315,7 @@ export function DemandForecastV2({ anchor }: { anchor: string }) {
               </p>
             ) : null}
           </div>
-          <div className="overflow-x-auto lg:col-span-8">
+          <div className="w-full min-w-0 overflow-x-auto rounded-xl lg:col-span-8">
             <table className="w-full min-w-[560px] text-xs">
               <thead>
                 <tr className="text-slate-500">

@@ -214,7 +214,7 @@ export function DeliveryControlV2() {
             title={T('Talabat Tgo vs TMP unit economics', 'اقتصاديات طلبات جو مقابل سوق طلبات')}
             subtitle={T('Tgo: Talabat riders, 17% commission · TMP: own riders, 10% commission', 'طلبات جو: سائقو طلبات بعمولة 17% · سوق طلبات: سائقونا بعمولة 10%')}
           />
-          <div className="overflow-hidden rounded-xl ring-1 ring-slate-200/70 dark:ring-slate-700/60">
+          <div className="ae-table-wrap w-full overflow-x-auto rounded-xl ring-1 ring-slate-200/70 dark:ring-slate-700/60">
             <table className="w-full text-xs">
               <thead>
                 <tr className="bg-slate-50 text-slate-500 dark:bg-white/5 dark:text-slate-400">

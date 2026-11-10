@@ -18,7 +18,7 @@ export interface AggregatorRadarProps {
 }
 
 /**
- * Distinct, high-contrast badges for Tgo (Platform Delivery - Amber/Orange) and TMP (Restaurant Marketplace - Indigo)
+ * Distinct, high-contrast badges for Tgo (Platform Delivery - Amber) and TMP (Restaurant Marketplace - Sky)
  */
 export function ModeBadgePill({ mode, isEn }: { mode: AccountDeliveryMode | 'TMP'; isEn: boolean }) {
   if (mode === 'Tgo') {
@@ -33,7 +33,7 @@ export function ModeBadgePill({ mode, isEn }: { mode: AccountDeliveryMode | 'TMP
   }
   return (
     <span
-      className="inline-flex items-center gap-1.5 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/70 dark:text-indigo-300 ring-1 ring-indigo-500/20 px-2.5 py-0.5 rounded-md font-bold text-xs whitespace-nowrap"
+      className="inline-flex items-center gap-1.5 bg-sky-50 text-sky-700 dark:bg-sky-950/70 dark:text-sky-300 ring-1 ring-sky-500/20 px-2.5 py-0.5 rounded-md font-bold text-xs whitespace-nowrap"
     >
       <span className="font-extrabold">TMP</span>
       <span>{isEn ? 'Restaurant Delivery (TMP)' : 'توصيل المطعم (TMP)'}</span>
@@ -44,7 +44,7 @@ export function ModeBadgePill({ mode, isEn }: { mode: AccountDeliveryMode | 'TMP
 function StatusPill({ status, isEn }: { status: DeliveryZoneStatus; isEn: boolean }) {
   if (status === 'ONLINE_VISIBLE') {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-800 whitespace-nowrap">
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-0.5 text-xs font-bold text-emerald-800 whitespace-nowrap">
         <span className="h-2 w-2 rounded-full bg-emerald-600" />
         {isEn ? 'Online & Active' : 'متصل ونشط'}
       </span>
@@ -52,14 +52,14 @@ function StatusPill({ status, isEn }: { status: DeliveryZoneStatus; isEn: boolea
   }
   if (status === 'BUSY_IN_AREA') {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-xs font-bold text-amber-900 whitespace-nowrap">
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 dark:bg-amber-950/50 px-2.5 py-0.5 text-xs font-bold text-amber-900 whitespace-nowrap">
         <span className="h-2 w-2 rounded-full bg-amber-500" />
         {isEn ? 'Busy (Needs Action)' : 'مشغول (يحتاج تدخلاً)'}
       </span>
     )
   }
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-300 bg-rose-50 px-2.5 py-0.5 text-xs font-bold text-rose-900 whitespace-nowrap">
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 dark:bg-rose-950/50 px-2.5 py-0.5 text-xs font-bold text-rose-900 whitespace-nowrap">
       <span className="h-2 w-2 rounded-full bg-rose-600" />
       {isEn ? 'Stopped / Polygon Cut' : 'متوقف / مقطوع النطاق'}
     </span>
@@ -197,7 +197,7 @@ export default function AggregatorRadar(_props: AggregatorRadarProps) {
   return (
     <div
       dir={isEn ? 'ltr' : 'rtl'}
-      className="mx-auto max-w-[1600px] space-y-6 text-[13px] md:text-sm text-slate-900"
+      className="ae-stagger w-full min-w-0 space-y-6 text-[13px] md:text-sm text-slate-900 dark:text-slate-100"
       style={{
         fontFamily: isEn
           ? "'Inter', 'IBM Plex Sans Arabic', system-ui, sans-serif"
@@ -207,9 +207,9 @@ export default function AggregatorRadar(_props: AggregatorRadarProps) {
       {/* =====================================================================
           PART A: CLEAN TOP SUMMARY BAR & QUICK (ALL | Tgo | M) FILTER
          ===================================================================== */}
-      <header className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs space-y-4">
+      <header className="ae-masthead space-y-5 p-6 lg:p-7">
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
               <span className="h-2 w-2 rounded-full bg-emerald-600" />
               <span>
@@ -238,25 +238,22 @@ export default function AggregatorRadar(_props: AggregatorRadarProps) {
             <div
               role="group"
               aria-label={T('Filter by account type', 'فلتر سريع حسب نوع الحساب')}
-              className="inline-flex rounded-lg border border-slate-200 bg-slate-100 p-1 text-[13px] font-semibold"
+              className="ae-seg flex-wrap"
             >
               <button
                 type="button"
                 onClick={() => setQuickMode('ALL')}
-                className={`rounded-md px-3.5 py-1.5 transition ${
-                  quickMode === 'ALL' ? 'bg-[#2563EB] text-white font-bold shadow-xs' : 'text-slate-700 hover:bg-white'
-                }`}
-                style={quickMode === 'ALL' ? { backgroundColor: '#2563EB', color: '#FFFFFF' } : undefined}
+                data-active={quickMode === 'ALL' ? 'true' : 'false'}
+                aria-pressed={quickMode === 'ALL'}
               >
                 {T(`All (${kpis.totalActiveAccounts})`, `الكل (${kpis.totalActiveAccounts})`)}
               </button>
               <button
                 type="button"
                 onClick={() => setQuickMode('Tgo')}
-                className={`rounded-md px-3.5 py-1.5 transition flex items-center gap-1.5 ${
-                  quickMode === 'Tgo' ? 'bg-amber-600 text-white font-bold shadow-xs' : 'text-slate-700 hover:bg-white'
-                }`}
-                style={quickMode === 'Tgo' ? { backgroundColor: '#D97706', color: '#FFFFFF' } : undefined}
+                data-active={quickMode === 'Tgo' ? 'true' : 'false'}
+                aria-pressed={quickMode === 'Tgo'}
+                className="inline-flex items-center gap-1.5"
               >
                 <span className="inline-block h-2 w-2 rounded-full bg-amber-400" />
                 <span>{T(`Tgo Accounts Only (${kpis.tgoAccountsCount})`, `حسابات Tgo فقط (${kpis.tgoAccountsCount})`)}</span>
@@ -264,12 +261,11 @@ export default function AggregatorRadar(_props: AggregatorRadarProps) {
               <button
                 type="button"
                 onClick={() => setQuickMode('M')}
-                className={`rounded-md px-3.5 py-1.5 transition flex items-center gap-1.5 ${
-                  quickMode === 'M' ? 'bg-indigo-600 text-white font-bold shadow-xs' : 'text-slate-700 hover:bg-white'
-                }`}
-                style={quickMode === 'M' ? { backgroundColor: '#4F46E5', color: '#FFFFFF' } : undefined}
+                data-active={quickMode === 'M' ? 'true' : 'false'}
+                aria-pressed={quickMode === 'M'}
+                className="inline-flex items-center gap-1.5"
               >
-                <span className="inline-block h-2 w-2 rounded-full bg-indigo-400" />
+                <span className="inline-block h-2 w-2 rounded-full bg-sky-400" />
                 <span>{T(`TMP Accounts Only (${kpis.mAccountsCount})`, `حسابات TMP فقط (${kpis.mAccountsCount})`)}</span>
               </button>
             </div>
@@ -278,8 +274,7 @@ export default function AggregatorRadar(_props: AggregatorRadarProps) {
               type="button"
               onClick={() => void handleSendAlert()}
               disabled={alertSending}
-              className="rounded-lg bg-blue-600 px-3.5 py-2 text-[13px] font-bold text-white shadow-xs hover:bg-blue-700 disabled:opacity-60"
-              style={{ backgroundColor: '#2563EB', color: '#FFFFFF' }}
+              className="ae-pill-dark"
             >
               {alertSending
                 ? T('Sending Alert...', 'جارٍ الإرسال...')
@@ -289,64 +284,61 @@ export default function AggregatorRadar(_props: AggregatorRadarProps) {
         </div>
 
         {alertMsg && (
-          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-xs font-semibold text-emerald-900">
+          <div className="rounded-xl bg-emerald-50/80 dark:bg-emerald-950/40 px-4 py-2.5 text-xs font-semibold text-emerald-900 dark:text-emerald-200">
             {alertMsg}
           </div>
         )}
 
         {/* Top Summary KPI Strip */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3.5">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 items-stretch">
+          <div className="ae-tile-soft min-w-0 rounded-2xl p-4">
             <div className="text-xs font-semibold text-slate-600">
               {T('Total Active Platform Accounts', 'إجمالي الحسابات النشطة على المنصات')}
             </div>
-            <div className="mt-1 flex items-baseline gap-2">
-              <span className="text-2xl md:text-[28px] font-extrabold tracking-tight tabular-nums text-slate-900">
+            <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+              <span className="text-lg sm:text-xl xl:text-[22px] font-extrabold tracking-tight tabular-nums break-words leading-tight text-slate-900">
                 {kpis.totalActiveAccounts}
               </span>
               <span className="text-xs font-semibold text-slate-600">
-                {T(' across 9 branches', ' عبر 9 فروع فعلية')}
+                {T(` across ${INITIAL_BRANCH_PROFILES.length} branches`, ` عبر ${INITIAL_BRANCH_PROFILES.length} فروع فعلية`)}
               </span>
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-semibold">
               <span
-                className="rounded-md border border-orange-300 bg-orange-50 px-2 py-0.5 text-orange-900"
-                style={{ backgroundColor: '#FFF7ED', color: '#9A3412', borderColor: '#FDBA74' }}
+                className="rounded-md bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 text-amber-900 dark:text-amber-200"
               >
                 Tgo: <strong className="tabular-nums">{kpis.tgoAccountsCount}</strong>{' '}
                 {T('(Platform Fleet)', '(توصيل المنصة)')}
               </span>
               <span
-                className="rounded-md border border-blue-300 bg-blue-50 px-2 py-0.5 text-blue-950"
-                style={{ backgroundColor: '#EFF6FF', color: '#1E3A8A', borderColor: '#93C5FD' }}
+                className="rounded-md bg-sky-50 dark:bg-sky-950/50 px-2 py-0.5 text-sky-900 dark:text-sky-200"
               >
-                M: <strong className="tabular-nums">{kpis.mAccountsCount}</strong>{' '}
+                TMP: <strong className="tabular-nums">{kpis.mAccountsCount}</strong>{' '}
                 {T('(Restaurant Fleet)', '(توصيل المطعم)')}
               </span>
             </div>
           </div>
 
-          <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3.5">
+          <div className="ae-tile-soft min-w-0 rounded-2xl p-4">
             <div className="text-xs font-semibold text-slate-600">
-              {T('Actual Restaurant Branches', 'الفروع الفعلية للمطعم (Restaurant Branches)')}
+              {T('Actual Restaurant Branches', 'الفروع الفعلية للمطعم')}
             </div>
-            <div className="mt-1 text-2xl md:text-[28px] font-extrabold tracking-tight tabular-nums text-slate-900">
+            <div className="mt-1 text-lg sm:text-xl xl:text-[22px] font-extrabold tracking-tight tabular-nums break-words leading-tight text-slate-900">
               {INITIAL_BRANCH_PROFILES.length}
             </div>
             <div className="mt-1 text-xs font-semibold text-slate-600">
-              {T(
-                'Salmiya, Sharq, Hawally, Fahaheel/Kout, Ardiya, Farwaniya, Mahboula, Sabah Al-Salem/Mubarak Al-Kabeer',
-                'السالمية، شرق، حولي، الفحيحيل/الكوت، العارضية، الفروانية، المهبولة، صباح السالم/مبارك الكبير',
-              )}
+              {isEn
+                ? INITIAL_BRANCH_PROFILES.map((b) => b.branchNameEn).join(', ')
+                : INITIAL_BRANCH_PROFILES.map((b) => b.branchNameAr).join('، ')}
             </div>
           </div>
 
-          <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3.5">
+          <div className="ae-tile-soft min-w-0 rounded-2xl p-4">
             <div className="text-xs font-semibold text-slate-600">
-              {T('Covered Customer Delivery Areas', 'مناطق الزبائن المغطاة (Customer Areas)')}
+              {T('Covered Customer Delivery Areas', 'مناطق الزبائن المغطاة')}
             </div>
-            <div className="mt-1 flex items-baseline gap-2">
-              <span className="text-2xl md:text-[28px] font-extrabold tracking-tight tabular-nums text-emerald-700">
+            <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+              <span className="text-lg sm:text-xl xl:text-[22px] font-extrabold tracking-tight tabular-nums break-words leading-tight text-emerald-700">
                 {kpis.onlineZonesCount} / {kpis.totalMonitoredZones}
               </span>
               <span className="text-xs font-bold tabular-nums text-emerald-700">({kpis.onlineZonesPct}%)</span>
@@ -359,12 +351,12 @@ export default function AggregatorRadar(_props: AggregatorRadarProps) {
             </div>
           </div>
 
-          <div className="rounded-lg border border-rose-200 bg-rose-50/60 p-3.5">
+          <div className="min-w-0 rounded-2xl bg-rose-50/70 dark:bg-rose-950/30 p-4">
             <div className="text-xs font-semibold text-rose-900">
               {T('Stopped or Busy Accounts Needing Action', 'الحسابات والمناطق المشغولة أو المتوقفة (تحتاج تدخلاً)')}
             </div>
-            <div className="mt-1 flex items-baseline gap-2">
-              <span className="text-2xl md:text-[28px] font-extrabold tracking-tight tabular-nums text-rose-700">
+            <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+              <span className="text-lg sm:text-xl xl:text-[22px] font-extrabold tracking-tight tabular-nums break-words leading-tight text-rose-700">
                 {kpis.busyZonesCount + kpis.hiddenZonesCount}
               </span>
               <span className="text-xs font-semibold text-rose-800">
@@ -383,15 +375,15 @@ export default function AggregatorRadar(_props: AggregatorRadarProps) {
       </header>
 
       {/* =====================================================================
-          PART B: ACTUAL RESTAURANT BRANCHES GRID + ZONE ACCOUNTS (Tgo & M)
+          PART B: ACTUAL RESTAURANT BRANCHES GRID + ZONE ACCOUNTS (Tgo & TMP)
          ===================================================================== */}
       <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="text-[15px] md:text-base font-bold text-slate-900">
               {T(
-                '1. Actual Restaurant Branches & Their Platform Zone Accounts (Tgo / M)',
-                'أولاً وثانياً: الفروع الفعلية للمطعم (9 فروع) وحسابات تغطية المناطق التابعة لها (Tgo / M)',
+                '1. Actual Restaurant Branches & Their Platform Zone Accounts (Tgo / TMP)',
+                'أولاً وثانياً: الفروع الفعلية للمطعم (9 فروع) وحسابات تغطية المناطق التابعة لها (Tgo / TMP)',
               )}
             </h2>
             <p className="text-xs font-semibold text-slate-600">
@@ -405,27 +397,27 @@ export default function AggregatorRadar(_props: AggregatorRadarProps) {
             <button
               type="button"
               onClick={resetFilters}
-              className="text-xs font-bold text-blue-600 hover:underline"
+              className="ae-pill-light ae-pill-sm"
             >
               {T('Reset all filters', 'إعادة ضبط جميع الفلاتر')}
             </button>
           )}
         </div>
 
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3 items-stretch">
           {filteredBranches.map((branch) => {
             const tgoCount = branch.zoneAccounts.filter((a) => a.deliveryMode === 'Tgo').length
             const mCount = branch.zoneAccounts.filter((a) => a.deliveryMode === 'M').length
             return (
               <div
                 key={branch.branchId}
-                className="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
+                className="ae-tile ae-lift flex min-w-0 flex-col justify-between rounded-2xl p-5"
               >
                 <div>
                   {/* Branch Header */}
-                  <div className="flex items-start justify-between gap-2 border-b border-slate-100 pb-3">
-                    <div>
-                      <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-start justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="rounded bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-800 tabular-nums">
                           {branch.branchCode}
                         </span>
@@ -439,7 +431,7 @@ export default function AggregatorRadar(_props: AggregatorRadarProps) {
                           return (
                             <span
                               key={bid}
-                              className="rounded border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-800"
+                              className="rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs font-semibold text-slate-800 dark:text-slate-200"
                             >
                               {isEn ? bObj?.nameEn : bObj?.nameAr}
                             </span>
@@ -447,8 +439,8 @@ export default function AggregatorRadar(_props: AggregatorRadarProps) {
                         })}
                       </div>
                     </div>
-                    <div className="text-end">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-bold text-emerald-800 tabular-nums">
+                    <div className="shrink-0 text-end">
+                      <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-0.5 text-xs font-bold text-emerald-800 dark:text-emerald-300 tabular-nums">
                         {branch.onlineZonesCount}/{branch.totalZonesCount} {T('Areas Online', 'مناطق متصلة')}
                       </span>
                       <div className="mt-1 text-xs font-semibold text-slate-600 tabular-nums">
@@ -469,7 +461,7 @@ export default function AggregatorRadar(_props: AggregatorRadarProps) {
                       {branch.zoneAccounts.map((acc) => (
                         <div
                           key={acc.accountId}
-                          className="rounded-lg border border-slate-200 bg-slate-50/70 p-2.5 text-[13px]"
+                          className="rounded-xl bg-slate-50 dark:bg-slate-800/60 p-3 text-[13px]"
                         >
                           <div className="flex flex-wrap items-center justify-between gap-1.5">
                             <span className="font-bold text-slate-900">
@@ -480,7 +472,7 @@ export default function AggregatorRadar(_props: AggregatorRadarProps) {
                           <div className="mt-1 text-xs font-semibold text-slate-700">
                             {isEn ? acc.sectorNameEn : acc.sectorNameAr}
                           </div>
-                          <div className="mt-1.5 flex items-center justify-between gap-2 text-xs">
+                          <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 text-xs">
                             <span className="font-semibold text-slate-600 tabular-nums" dir="ltr">
                               GL #{acc.accountCode} · {acc.commissionPct}%
                             </span>
@@ -493,7 +485,7 @@ export default function AggregatorRadar(_props: AggregatorRadarProps) {
                 </div>
 
                 {/* Covered Customer Delivery Areas Pill List */}
-                <div className="mt-3 border-t border-slate-100 pt-3">
+                <div className="mt-3 border-t border-slate-100 dark:border-slate-800 pt-3">
                   <div className="mb-1.5 text-xs font-bold text-slate-700">
                     {T(
                       'Customer Delivery Areas Served by this Branch:',
@@ -506,17 +498,17 @@ export default function AggregatorRadar(_props: AggregatorRadarProps) {
                       return (
                         <span
                           key={z.id}
-                          className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-semibold ${
+                          className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold ${
                             isIssue
-                              ? 'border-rose-300 bg-rose-50 text-rose-900'
-                              : 'border-slate-200 bg-white text-slate-800'
+                              ? 'bg-rose-50 text-rose-900 dark:bg-rose-950/50 dark:text-rose-200'
+                              : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200'
                           }`}
                         >
                           <span>{isEn ? zoneLabelEn(z.zoneNameEn) : zoneLabelAr(z.zoneNameAr)}</span>
                           <span
                             className="rounded px-1.5 py-0.5 text-[11px] font-extrabold"
                             style={{
-                              backgroundColor: z.deliveryMode === 'Tgo' ? '#F59E0B' : '#4F46E5',
+                              backgroundColor: z.deliveryMode === 'Tgo' ? '#D97706' : '#0284C7',
                               color: '#FFFFFF',
                             }}
                           >
@@ -536,12 +528,12 @@ export default function AggregatorRadar(_props: AggregatorRadarProps) {
       {/* =====================================================================
           SECTION 3: INDEPENDENT CUSTOMER DELIVERY AREAS DIRECTORY
          ===================================================================== */}
-      <section className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-[#111827] p-5 shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-none space-y-3">
+      <section className="ae-tile min-w-0 rounded-2xl p-5 lg:p-6 space-y-4">
         <div>
           <h2 className="text-[15px] md:text-base font-bold text-slate-900 dark:text-slate-100">
             {T(
               '3. Customer Delivery Areas (Residential Areas & Serving Branch Mapping)',
-              'ثالثاً: مناطق الزبائن (Customer Delivery Areas) — المناطق السكنية والفرع الفعلي الذي يخدم كل منطقة ونوع التغطية (Tgo أو TMP)',
+              'ثالثاً: مناطق الزبائن — المناطق السكنية والفرع الفعلي الذي يخدم كل منطقة ونوع التغطية (Tgo أو TMP)',
             )}
           </h2>
           <p className="text-xs font-semibold text-slate-600 dark:text-slate-400">
@@ -552,18 +544,18 @@ export default function AggregatorRadar(_props: AggregatorRadarProps) {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {filteredRows.map((area) => (
             <div
               key={area.id}
-              className={`rounded-xl border p-3 transition-colors ${
+              className={`min-w-0 rounded-xl p-3.5 transition-colors ${
                 area.status === 'ONLINE_VISIBLE'
-                  ? 'border-slate-200/80 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/60'
-                  : 'border-rose-300 dark:border-rose-800 bg-rose-50/50 dark:bg-rose-950/40'
+                  ? 'bg-slate-50 dark:bg-slate-900/60'
+                  : 'bg-rose-50/70 dark:bg-rose-950/40'
               }`}
             >
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[13px] md:text-sm font-bold text-slate-900 dark:text-slate-100">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="min-w-0 text-[13px] md:text-sm font-bold text-slate-900 dark:text-slate-100">
                   {isEn ? area.displayAreaEn : area.displayAreaAr}
                 </span>
                 <ModeBadgePill mode={area.deliveryMode} isEn={isEn} />
@@ -572,9 +564,9 @@ export default function AggregatorRadar(_props: AggregatorRadarProps) {
                 {T('Serving Branch:', 'الفرع الفعلي الخادم:')}{' '}
                 <strong className="text-slate-900 dark:text-slate-100">{isEn ? area.branchNameEn : area.branchNameAr}</strong>
               </div>
-              <div className="mt-1 flex items-center justify-between text-xs font-semibold text-slate-600 dark:text-slate-400">
+              <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-xs font-semibold text-slate-600 dark:text-slate-400">
                 <span>
-                  {isEn ? area.brandNameEn : area.brandNameAr} · {area.platform} ({area.distanceKm} km)
+                  {isEn ? area.brandNameEn : area.brandNameAr} · {area.platform} ({area.distanceKm} {isEn ? 'km' : 'كم'})
                 </span>
                 <StatusPill status={area.status} isEn={isEn} />
               </div>
@@ -587,7 +579,7 @@ export default function AggregatorRadar(_props: AggregatorRadarProps) {
           PART C: DETAILED FILTERABLE TABLE
           (Actual Branch | Brand | Platform | Type Tgo or TMP | Customer Area | Status)
          ===================================================================== */}
-      <section className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-[#111827] p-5 shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-none space-y-4">
+      <section className="ae-tile min-w-0 rounded-2xl p-5 lg:p-6 space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-[15px] md:text-base font-bold text-slate-900 dark:text-slate-100">
@@ -607,7 +599,7 @@ export default function AggregatorRadar(_props: AggregatorRadarProps) {
             <button
               type="button"
               onClick={resetFilters}
-              className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-800 hover:bg-slate-50"
+              className="ae-pill-light ae-pill-sm"
             >
               {T('Clear Filters', 'مسح الفلاتر')}
             </button>
@@ -615,7 +607,7 @@ export default function AggregatorRadar(_props: AggregatorRadarProps) {
         </div>
 
         {/* 6 Filter Controls matching Requirement 3-c */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 rounded-lg border border-slate-200 bg-slate-50 p-3">
+        <div className="ae-tile-soft grid grid-cols-1 gap-3 rounded-2xl p-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
           <label className="block">
             <span className="block text-xs font-bold text-slate-700 mb-1">
               {T('1. Actual Branch', '1. الفرع الفعلي للمطعم')}
@@ -623,7 +615,7 @@ export default function AggregatorRadar(_props: AggregatorRadarProps) {
             <select
               value={branchFilter}
               onChange={(e) => setBranchFilter(e.target.value)}
-              className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-[13px] font-semibold text-slate-900"
+              className="ae-select w-full min-w-0"
             >
               <option value="ALL">{T('All 9 Branches', 'كل الفروع الفعلية (9)')}</option>
               {INITIAL_BRANCH_PROFILES.map((b) => (
@@ -641,7 +633,7 @@ export default function AggregatorRadar(_props: AggregatorRadarProps) {
             <select
               value={brandFilter}
               onChange={(e) => setBrandFilter(e.target.value)}
-              className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-[13px] font-semibold text-slate-900"
+              className="ae-select w-full min-w-0"
             >
               <option value="ALL">{T('All 6 Brands', 'كل العلامات (6)')}</option>
               {VENTURE_BRANDS.map((b) => (
@@ -659,7 +651,7 @@ export default function AggregatorRadar(_props: AggregatorRadarProps) {
             <select
               value={platformFilter}
               onChange={(e) => setPlatformFilter(e.target.value)}
-              className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-[13px] font-semibold text-slate-900"
+              className="ae-select w-full min-w-0"
             >
               <option value="ALL">{T('All Platforms', 'كل المنصات')}</option>
               {(['Talabat', 'Keeta', 'Deliveroo', 'Jahez'] as RadarPlatform[]).map((p) => (
@@ -677,7 +669,7 @@ export default function AggregatorRadar(_props: AggregatorRadarProps) {
             <select
               value={quickMode}
               onChange={(e) => setQuickMode(e.target.value as 'ALL' | 'Tgo' | 'M')}
-              className="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-[13px] font-semibold text-slate-900 dark:text-slate-100"
+              className="ae-select w-full min-w-0"
             >
               <option value="ALL">{T('All (Tgo & TMP)', 'الكل (Tgo و TMP)')}</option>
               <option value="Tgo">{T('Tgo Only (Platform Delivery)', 'حسابات Tgo فقط (توصيل المنصة)')}</option>
@@ -692,7 +684,7 @@ export default function AggregatorRadar(_props: AggregatorRadarProps) {
             <select
               value={areaFilter}
               onChange={(e) => setAreaFilter(e.target.value)}
-              className="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-[13px] font-semibold text-slate-900 dark:text-slate-100"
+              className="ae-select w-full min-w-0"
             >
               <option value="ALL">{T('All Customer Areas', 'كل مناطق الزبائن')}</option>
               {customerAreaOptions.map((a) => (
@@ -710,7 +702,7 @@ export default function AggregatorRadar(_props: AggregatorRadarProps) {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-[13px] font-semibold text-slate-900 dark:text-slate-100"
+              className="ae-select w-full min-w-0"
             >
               <option value="ALL">{T('All Statuses', 'كل الحالات')}</option>
               <option value="ONLINE_VISIBLE">{T('Online & Active', 'متصل ونشط')}</option>
@@ -721,18 +713,18 @@ export default function AggregatorRadar(_props: AggregatorRadarProps) {
         </div>
 
         {/* Clean Modern Dark/Light Table */}
-        <div className="overflow-x-auto rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] ring-1 ring-slate-200/70 dark:ring-slate-800">
+        <div className="ae-table-wrap w-full overflow-x-auto rounded-xl ring-1 ring-slate-200/70 dark:ring-slate-800">
           <table className="w-full border-collapse text-[13.5px] md:text-sm bg-white dark:bg-[#111827]">
             <thead className="bg-[#F8FAFC] dark:bg-[#1E293B]/90 border-b border-slate-200/80 dark:border-slate-800">
               <tr>
-                <th className="py-3.5 px-4 text-start text-xs md:text-[13px] font-bold text-slate-700 dark:text-slate-200 tracking-tight whitespace-nowrap">{T('Actual Restaurant Branch', 'الفرع الفعلي للمطعم')}</th>
-                <th className="py-3.5 px-4 text-start text-xs md:text-[13px] font-bold text-slate-700 dark:text-slate-200 tracking-tight whitespace-nowrap">{T('Brand', 'العلامة التجارية')}</th>
-                <th className="py-3.5 px-4 text-start text-xs md:text-[13px] font-bold text-slate-700 dark:text-slate-200 tracking-tight whitespace-nowrap">{T('Platform', 'المنصة')}</th>
-                <th className="py-3.5 px-4 text-start text-xs md:text-[13px] font-bold text-slate-700 dark:text-slate-200 tracking-tight whitespace-nowrap">{T('Account Type (Tgo / TMP)', 'النوع (Tgo أو TMP)')}</th>
-                <th className="py-3.5 px-4 text-start text-xs md:text-[13px] font-bold text-slate-700 dark:text-slate-200 tracking-tight whitespace-nowrap">{T('Platform Zone Account', 'حساب تغطية المنطقة')}</th>
-                <th className="py-3.5 px-4 text-start text-xs md:text-[13px] font-bold text-slate-700 dark:text-slate-200 tracking-tight whitespace-nowrap">{T('Customer Area', 'منطقة الزبون السكنية')}</th>
-                <th className="py-3.5 px-4 text-start text-xs md:text-[13px] font-bold text-slate-700 dark:text-slate-200 tracking-tight whitespace-nowrap">{T('Status', 'الحالة')}</th>
-                <th className="py-3.5 px-4 text-end text-xs md:text-[13px] font-bold text-slate-700 dark:text-slate-200 tracking-tight whitespace-nowrap">{T('Financial Impact', 'الأثر المالي')}</th>
+                <th className="px-3.5 py-3 text-start text-xs font-bold text-slate-700 dark:text-slate-200 tracking-tight whitespace-nowrap">{T('Actual Restaurant Branch', 'الفرع الفعلي للمطعم')}</th>
+                <th className="px-3.5 py-3 text-start text-xs font-bold text-slate-700 dark:text-slate-200 tracking-tight whitespace-nowrap">{T('Brand', 'العلامة التجارية')}</th>
+                <th className="px-3.5 py-3 text-start text-xs font-bold text-slate-700 dark:text-slate-200 tracking-tight whitespace-nowrap">{T('Platform', 'المنصة')}</th>
+                <th className="px-3.5 py-3 text-start text-xs font-bold text-slate-700 dark:text-slate-200 tracking-tight whitespace-nowrap">{T('Account Type (Tgo / TMP)', 'النوع (Tgo أو TMP)')}</th>
+                <th className="px-3.5 py-3 text-start text-xs font-bold text-slate-700 dark:text-slate-200 tracking-tight whitespace-nowrap">{T('Platform Zone Account', 'حساب تغطية المنطقة')}</th>
+                <th className="px-3.5 py-3 text-start text-xs font-bold text-slate-700 dark:text-slate-200 tracking-tight whitespace-nowrap">{T('Customer Area', 'منطقة الزبون السكنية')}</th>
+                <th className="px-3.5 py-3 text-start text-xs font-bold text-slate-700 dark:text-slate-200 tracking-tight whitespace-nowrap">{T('Status', 'الحالة')}</th>
+                <th className="px-3.5 py-3 text-end text-xs font-bold text-slate-700 dark:text-slate-200 tracking-tight whitespace-nowrap">{T('Financial Impact', 'الأثر المالي')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70">
@@ -744,30 +736,30 @@ export default function AggregatorRadar(_props: AggregatorRadarProps) {
                 </tr>
               ) : (
                 filteredRows.map((row) => (
-                  <tr key={row.id} className="hover:bg-blue-50/40 dark:hover:bg-slate-800/50 transition-colors duration-150">
-                    <td className="py-3.5 px-4 font-semibold text-slate-900 dark:text-slate-100 whitespace-nowrap leading-relaxed">
+                  <tr key={row.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors duration-150">
+                    <td className="px-3.5 py-3 text-xs font-semibold text-slate-900 dark:text-slate-100 whitespace-nowrap leading-relaxed">
                       {isEn ? row.branchNameEn : row.branchNameAr}
                     </td>
-                    <td className="py-3.5 px-4 font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap leading-relaxed">
+                    <td className="px-3.5 py-3 text-xs font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap leading-relaxed">
                       {isEn ? row.brandNameEn : row.brandNameAr}
                     </td>
-                    <td className="py-3.5 px-4 font-semibold text-slate-800 dark:text-slate-200 whitespace-nowrap leading-relaxed">
+                    <td className="px-3.5 py-3 text-xs font-semibold text-slate-800 dark:text-slate-200 whitespace-nowrap leading-relaxed">
                       {row.platform}
                     </td>
-                    <td className="py-3.5 px-4 whitespace-nowrap leading-relaxed">
+                    <td className="px-3.5 py-3 text-xs whitespace-nowrap leading-relaxed">
                       <ModeBadgePill mode={row.deliveryMode} isEn={isEn} />
                     </td>
-                    <td className="py-3.5 px-4 font-medium text-slate-700 dark:text-slate-300 leading-relaxed">
+                    <td className="px-3.5 py-3 text-xs font-medium text-slate-700 dark:text-slate-300 leading-relaxed min-w-[220px]">
                       {isEn ? row.zoneAccountNameEn : row.zoneAccountNameAr}
                     </td>
-                    <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap leading-relaxed">
+                    <td className="px-3.5 py-3 text-xs font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap leading-relaxed">
                       {isEn ? row.displayAreaEn : row.displayAreaAr}{' '}
-                      <span className="text-xs font-normal text-slate-500 dark:text-slate-400 tabular-nums">({row.distanceKm} km)</span>
+                      <span className="text-xs font-normal text-slate-500 dark:text-slate-400 tabular-nums">({row.distanceKm} {isEn ? 'km' : 'كم'})</span>
                     </td>
-                    <td className="py-3.5 px-4 whitespace-nowrap leading-relaxed">
+                    <td className="px-3.5 py-3 text-xs whitespace-nowrap leading-relaxed">
                       <StatusPill status={row.status} isEn={isEn} />
                     </td>
-                    <td className="py-3.5 px-4 text-end font-semibold tabular-nums whitespace-nowrap leading-relaxed">
+                    <td className="px-3.5 py-3 text-xs text-end font-semibold tabular-nums whitespace-nowrap leading-relaxed">
                       {row.estimatedLostKwd > 0 ? (
                         <span className="text-rose-700 dark:text-rose-400 font-bold" dir="ltr">
                           -{row.estimatedLostKwd.toFixed(3)} {isEn ? 'KWD' : 'د.ك'} ({row.estimatedLostOrders}{' '}

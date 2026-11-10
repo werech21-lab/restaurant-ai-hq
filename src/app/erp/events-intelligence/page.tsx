@@ -1105,7 +1105,7 @@ export default function EventsContractsExbIntelligenceHub() {
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="space-y-1.5">
             <div className="inline-flex items-center gap-2 rounded-full border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 px-3.5 py-1 text-xs font-bold text-slate-800 dark:text-slate-200">
-              <Calendar className="h-3.5 w-3.5 text-[#2563EB]" />
+              <Calendar className="h-3.5 w-3.5 text-sky-600" />
               <span>
                 {isAr
                   ? 'مركز استخبارات الفعاليات وتحليل العقود · حسابات أودو التحليلية'

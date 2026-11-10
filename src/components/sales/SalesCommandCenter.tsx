@@ -230,9 +230,9 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
               <option value="China Garden">China Garden (تشاينا جاردن)</option>
               <option value="Frank's">{"Frank's (فرانكس ستيك)"}</option>
               <option value="Tahina">Tahina (شاورما طحينة)</option>
-              <option value="Farm Brown">Farm Brown (فارم براون)</option>
-              <option value="The Noodle Bar">The Noodle Bar (ذا نودل بار)</option>
-              <option value="Karak Cafeteria">Karak Cafeteria (كرك كافيتريا)</option>
+              <option value="Chick & Dip">Chick & Dip (تشيك آند ديب)</option>
+              <option value="Burgerito">Burgerito (برجريتو)</option>
+              <option value="Crave">Crave (كريف)</option>
             </select>
           </div>
 

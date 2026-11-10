@@ -7,7 +7,7 @@ import { useI18n } from "@/lib/i18n";
 import { makeTr } from "@/lib/i18n/analytics-ar";
 import { SALES_TABS, parseSalesTab, salesTabHref } from "@/lib/analytics/sales-tabs";
 import { BRANDS_DATA, CHANNELS_DATA, type BrandRow, type ChannelRow } from "@/lib/analytics/sales-core-data";
-import { ALL_BRANDS, ALL_CHANNELS, TOTAL_NET, BRANCH_NET, computeView, type PeriodType, type SalesFilter } from "@/lib/analytics/sales-view";
+import { ALL_BRANDS, ALL_CHANNELS, TOTAL_NET, BRANCH_NET, REAL_BRAND_CHANNEL_DATA, computeView, type PeriodType, type SalesFilter } from "@/lib/analytics/sales-view";
 import {
   TopAnalyticsFilterBar,
   VENTURE_BRANCHES,
@@ -79,7 +79,7 @@ const DIAGNOSTIC_BUCKETS = [
     pct: 80.0,
     color: "#6366F1",
     badge: "Hero core",
-    badgeColor: "border-indigo-500 text-indigo-700 bg-indigo-50",
+    badgeColor: "border-sky-200 text-sky-800 bg-sky-50",
     rule: "32 items generating 80% of menu revenue across Odoo POS & Aggregators. Protect recipe spec & prep availability.",
   },
   {
@@ -152,7 +152,7 @@ const ITEM_DIAGNOSTICS_TABLE_1 = [
     avgPrice: 3.40,
     sharePct: 5.9,
     badge: "Combo star",
-    badgeStyle: "border-indigo-600 text-indigo-800 bg-indigo-50",
+    badgeStyle: "border-slate-200 text-slate-800 bg-slate-100",
     note: "Drives beverage & starter attachment on Talabat Go. Feature at top of Keeta menu to lift Keeta's 4.8% drink rate.",
   },
   {
@@ -164,7 +164,7 @@ const ITEM_DIAGNOSTICS_TABLE_1 = [
     avgPrice: 3.75,
     sharePct: 2.2,
     badge: "High AOV driver",
-    badgeStyle: "border-blue-600 text-blue-800 bg-blue-50",
+    badgeStyle: "border-sky-200 text-sky-800 bg-sky-50",
     note: "69.8% starter attachment in Frank's pushes brand AOV to KWD 7.47. Keep fries + drink combo default on aggregators.",
   },
   {
@@ -204,9 +204,9 @@ const ITEM_DIAGNOSTICS_TABLE_1 = [
     note: "Low food cost (16% COGS) and 2,481 orders. Bundle with Beef Mongolian & Chicken Fried Rice as a 2-person meal.",
   },
   {
-    brand: "The Noodle Bar",
-    item: "Sriracha Chicken Noodles",
-    category: "Noodles",
+    brand: "Burgerito",
+    item: "Smash Burgerito Combo",
+    category: "Burgers & combos",
     orders: 195,
     sales: 1214.8,
     avgPrice: 6.23,
@@ -216,8 +216,8 @@ const ITEM_DIAGNOSTICS_TABLE_1 = [
     note: "Brand discount rate is 4.9% (double group average). Replace flat percentage discounts with free drink above KWD 6.000.",
   },
   {
-    brand: "Farm Brown",
-    item: "Chicken Fillet Meal",
+    brand: "Chick & Dip",
+    item: "Crispy Strips Meal",
     category: "Meals & combos",
     orders: 512,
     sales: 1607.6,
@@ -262,7 +262,7 @@ const ODOO_OPERATIONAL_TABLE_2 = [
     variancePct: "6.7% disc",
     badge: "Rebalance promo",
     badgeStyle: "border-pink-600 text-pink-800 bg-pink-50",
-    action: "Keeta accounts for KWD 2,539 of the KWD 4,152 total discounts AND only 4.8% drink attachment. Switch promo to Combo + Drink.",
+    action: "Keeta accounts for KWD 2,544 of the KWD 4,152 total discounts AND only 4.8% drink attachment. Switch promo to Combo + Drink.",
   },
   {
     sector: "Aggregator Clearing · Talabat Go",
@@ -293,9 +293,9 @@ const ODOO_OPERATIONAL_TABLE_2 = [
     entries: 332,
     amountKwd: 33418.430,
     variancePct: "20.0% sales",
-    badge: "Prune 45 SKUs",
+    badge: "Purge 18 · re-price 4",
     badgeStyle: "border-purple-600 text-purple-800 bg-purple-50",
-    action: "332 items generate only 20% of revenue while increasing kitchen prep complexity and expiry risk. Delist bottom 45 slow movers.",
+    action: "332 items generate only 20% of revenue while increasing kitchen prep complexity and expiry risk. Purge the 18 weakest Dog items and re-price 4 popular Plowhorses by +5% (+584 KWD/month).",
   },
 ];
 
@@ -304,10 +304,10 @@ const LOW_VOLUME_TAIL_ITEMS = [
   { brand: "China Garden", category: "Salads", item: "Crispy Duck Salad", orders: 14, sales: 49.0, avgPrice: 3.50, cogs: "31.2%" },
   { brand: "China Garden", category: "Soups", item: "Seafood Tom Yum Clear", orders: 19, sales: 61.75, avgPrice: 3.25, cogs: "29.8%" },
   { brand: "Frank's", category: "Sides", item: "Truffle Parmesan Wedges", orders: 22, sales: 48.40, avgPrice: 2.20, cogs: "28.5%" },
-  { brand: "The Noodle Bar", category: "Noodles", item: "Pad Kee Mao Prawns", orders: 18, sales: 68.40, avgPrice: 3.80, cogs: "30.4%" },
-  { brand: "Farm Brown", category: "Sandwiches", item: "Smoky Turkey Club", orders: 27, sales: 74.25, avgPrice: 2.75, cogs: "27.9%" },
+  { brand: "Burgerito", category: "Burgers", item: "Truffle Burger", orders: 18, sales: 68.40, avgPrice: 3.80, cogs: "30.4%" },
+  { brand: "Chick & Dip", category: "Meals & combos", item: "Popcorn Chicken Box", orders: 27, sales: 74.25, avgPrice: 2.75, cogs: "27.9%" },
   { brand: "Tahina", category: "Platters", item: "Mixed Grill Family Tray", orders: 11, sales: 71.50, avgPrice: 6.50, cogs: "29.1%" },
-  { brand: "Karak Cafeteria", category: "Desserts", item: "Saffron Milk Cake", orders: 16, sales: 32.00, avgPrice: 2.00, cogs: "26.0%" },
+  { brand: "Crave", category: "Desserts", item: "Saffron Milk Cake", orders: 16, sales: 32.00, avgPrice: 2.00, cogs: "26.0%" },
   { brand: "China Garden", category: "Appetizers", item: "Prawn Toast Sesame (4pcs)", orders: 24, sales: 60.00, avgPrice: 2.50, cogs: "28.0%" },
 ];
 
@@ -327,7 +327,7 @@ const ITEM_POOL: PoolItem[] = (() => {
   return [...m.values()];
 })();
 
-const CHANNEL_BRAND_MATRIX = [
+const SEED_CHANNEL_BRAND_MATRIX = [
   { brand: "China Garden", channel: "Shop Sales", topItem: "Chicken Noodles", orders: 12173, sales: 49261.30, aov: 4.05, drinkPct: "38.4%" },
   { brand: "China Garden", channel: "Talabat Go", topItem: "Veg Or Chicken Noodles Combo", orders: 6120, sales: 47890.10, aov: 7.83, drinkPct: "13.2%" },
   { brand: "China Garden", channel: "Keeta", topItem: "Chicken Noodles", orders: 5704, sales: 32555.28, aov: 5.71, drinkPct: "4.6%" },
@@ -341,16 +341,22 @@ const CHANNEL_BRAND_MATRIX = [
   { brand: "Tahina", channel: "Shop Sales", topItem: "KWD 1 Chicken Shawarma", orders: 1490, sales: 3210.40, aov: 2.15, drinkPct: "84.5%" },
   { brand: "Tahina", channel: "Talabat Go", topItem: "Tahina Shawarma Platter", orders: 310, sales: 820.24, aov: 2.65, drinkPct: "72.0%" },
   { brand: "Tahina", channel: "Keeta", topItem: "Chicken Shawarma - Lebanese Bread", orders: 144, sales: 398.00, aov: 2.76, drinkPct: "65.0%" },
-  { brand: "Farm Brown", channel: "Shop Sales", topItem: "Chicken Fillet Meal", orders: 610, sales: 1890.00, aov: 3.10, drinkPct: "24.0%" },
-  { brand: "Farm Brown", channel: "Talabat Go", topItem: "Crispy Strips Box", orders: 140, sales: 450.18, aov: 3.22, drinkPct: "21.5%" },
-  { brand: "Farm Brown", channel: "Keeta", topItem: "Chicken Fillet Meal", orders: 97, sales: 324.00, aov: 3.34, drinkPct: "19.0%" },
-  { brand: "The Noodle Bar", channel: "Talabat TMP", topItem: "Sriracha Chicken Noodles", orders: 67, sales: 472.41, aov: 7.05, drinkPct: "18.5%" },
-  { brand: "The Noodle Bar", channel: "Keeta", topItem: "Pad Thai Noodles", orders: 42, sales: 490.55, aov: 11.68, drinkPct: "22.0%" },
-  { brand: "The Noodle Bar", channel: "Shop Sales", topItem: "Wok Egg Noodles", orders: 135, sales: 580.07, aov: 4.30, drinkPct: "15.0%" },
-  { brand: "The Noodle Bar", channel: "Talabat Go", topItem: "Sriracha Chicken Noodles", orders: 25, sales: 135.19, aov: 5.41, drinkPct: "16.0%" },
-  { brand: "Karak Cafeteria", channel: "Shop Sales", topItem: "Chapati Box (4 pcs)", orders: 125, sales: 591.20, aov: 4.73, drinkPct: "72.7%" },
-  { brand: "Karak Cafeteria", channel: "Whatsapp", topItem: "Karak Chai Flask (1L)", orders: 3, sales: 33.30, aov: 11.10, drinkPct: "100.0%" },
+  { brand: "Chick & Dip", channel: "Shop Sales", topItem: "Crispy Strips Meal", orders: 610, sales: 1890.00, aov: 3.10, drinkPct: "24.0%" },
+  { brand: "Chick & Dip", channel: "Talabat Go", topItem: "Crispy Strips Box", orders: 140, sales: 450.18, aov: 3.22, drinkPct: "21.5%" },
+  { brand: "Chick & Dip", channel: "Keeta", topItem: "Crispy Strips Meal", orders: 97, sales: 324.00, aov: 3.34, drinkPct: "19.0%" },
+  { brand: "Burgerito", channel: "Talabat TMP", topItem: "Smash Burgerito Combo", orders: 67, sales: 472.41, aov: 7.05, drinkPct: "18.5%" },
+  { brand: "Burgerito", channel: "Keeta", topItem: "Double Smash Burger", orders: 42, sales: 490.55, aov: 11.68, drinkPct: "22.0%" },
+  { brand: "Burgerito", channel: "Shop Sales", topItem: "Chicken Crispy Burger", orders: 135, sales: 580.07, aov: 4.30, drinkPct: "15.0%" },
+  { brand: "Burgerito", channel: "Talabat Go", topItem: "Smash Burgerito Combo", orders: 25, sales: 135.19, aov: 5.41, drinkPct: "16.0%" },
+  { brand: "Crave", channel: "Shop Sales", topItem: "Artisan Melt Box (4 pcs)", orders: 125, sales: 591.20, aov: 4.73, drinkPct: "72.7%" },
+  { brand: "Crave", channel: "Whatsapp", topItem: "Mojito Pitcher (1L)", orders: 3, sales: 33.30, aov: 11.10, drinkPct: "100.0%" },
 ];
+
+// Orders, sales and AOV come from the balanced brand × channel matrix (verified brand and channel totals).
+const CHANNEL_BRAND_MATRIX = SEED_CHANNEL_BRAND_MATRIX.map((r) => {
+  const cell = REAL_BRAND_CHANNEL_DATA[r.brand]?.[r.channel === "Talabat TMP" ? "Talabat MP" : r.channel];
+  return cell ? { ...r, orders: Math.round(cell.orders), sales: cell.netSales, aov: cell.orders > 0 ? cell.netSales / cell.orders : 0 } : r;
+});
 
 // ==========================================
 // 2. MAIN COMPONENT (HIGH-DENSITY TUFTE BI)
@@ -413,7 +419,7 @@ function ScorecardInner() {
   };
   const dimBrand = (name: string) => (selectedBrand !== ALL_BRANDS && selectedBrand !== name ? "opacity-40" : "");
   const dimChannel = (name: string) => (selectedChannel !== ALL_CHANNELS && selectedChannel !== name ? "opacity-40" : "");
-  const hiRow = (on: boolean, dim: boolean) => (on ? "bg-blue-50/60 dark:bg-blue-950/40 font-semibold" : dim ? "opacity-50" : "");
+  const hiRow = (on: boolean, dim: boolean) => (on ? "bg-sky-50/70 dark:bg-sky-950/40 font-semibold" : dim ? "opacity-50" : "");
 
   // Products tab scaling
   const brandSel = selectedBrand !== ALL_BRANDS && selectedBrand !== "All brands";
@@ -521,14 +527,14 @@ function ScorecardInner() {
     <div
       dir={isAr ? "rtl" : "ltr"}
       lang={locale}
-      className="min-h-screen bg-[#F8F9FA] text-[#0F172A] font-sans antialiased selection:bg-blue-100 selection:text-blue-900"
+      className="w-full font-sans antialiased text-slate-900 dark:text-slate-100"
       style={{ fontFamily: isAr ? "'IBM Plex Sans Arabic', Cairo, Inter, system-ui, sans-serif" : "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}
     >
-      <div className="max-w-[1600px] mx-auto px-5 py-5 space-y-6">
+      <div className="ae-stagger w-full min-w-0 space-y-6">
         {/* ==========================================
             HEADER & GLOBAL CROSS-FILTERS
            ========================================== */}
-        <header className="space-y-3 border-b border-slate-200 pb-4">
+        <header className="ae-masthead space-y-4 p-6 lg:p-7">
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-semibold text-slate-600">
             <span>{tr("Updated Live · Odoo ERP Verified (2,213 Journal Entries · Venture Foods Co. W.L.L.)")}</span>
             <div className="flex items-center gap-3">
@@ -542,7 +548,7 @@ function ScorecardInner() {
                     setSelectedChannel("All channels");
                     setSelectedPeriod("month");
                   }}
-                  className="text-blue-700 hover:underline font-bold"
+                  className="ae-pill-light ae-pill-sm"
                 >
                   {tr("Reset filters")}
                 </button>
@@ -609,7 +615,7 @@ function ScorecardInner() {
           </div>
         </header>
 
-        <nav aria-label="Sales analysis sections" className="flex overflow-x-auto rounded-lg border border-slate-200 bg-white text-[13px] font-semibold shadow-2xs">
+        <nav aria-label={isAr ? "أقسام تحليل المبيعات" : "Sales analysis sections"} className="ae-tabs">
           {SALES_TABS.map((t) => {
             const active = t.id === tab;
             return (
@@ -618,8 +624,7 @@ function ScorecardInner() {
                 href={salesTabHref(t.id)}
                 scroll={false}
                 aria-current={active ? "page" : undefined}
-                className={`whitespace-nowrap px-4 py-2.5 transition ${active ? "font-bold" : "text-slate-700 hover:bg-slate-50"}`}
-                style={active ? { color: "#1D4ED8", borderBottom: "2px solid #2563EB", backgroundColor: "#EFF6FF" } : { borderBottom: "2px solid transparent" }}
+                data-active={active ? "true" : "false"}
               >
                 {isAr ? t.ar : t.en}
               </Link>
@@ -632,37 +637,37 @@ function ScorecardInner() {
         {/* ==========================================
             ROW 1: 6 KPI CARDS
            ========================================== */}
-        <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          <div className="bg-white border border-slate-200 rounded-lg p-3.5 shadow-xs">
+        <section className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-4 items-stretch">
+          <div className="ae-tile ae-lift rounded-2xl p-4 min-w-0">
             <div className="text-xs font-semibold text-slate-600">{tr("Net sales · Oct 2026")}</div>
-            <div className="text-xl md:text-2xl font-extrabold text-slate-900 mt-1 tabular-nums">
+            <div className="text-lg sm:text-xl xl:text-[22px] font-extrabold text-slate-900 dark:text-slate-100 mt-1 tabular-nums break-words leading-tight">
               {money(kpis.netSales)}
             </div>
             <div className="text-xs font-medium text-slate-500 mt-0.5">{tr("After discounts, KWD")}</div>
             <Spark series="sales" />
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-lg p-3.5 shadow-xs">
+          <div className="ae-tile ae-lift rounded-2xl p-4 min-w-0">
             <div className="text-xs font-semibold text-slate-600">{tr("Orders")}</div>
-            <div className="text-xl md:text-2xl font-extrabold text-slate-900 mt-1 tabular-nums">
+            <div className="text-lg sm:text-xl xl:text-[22px] font-extrabold text-slate-900 dark:text-slate-100 mt-1 tabular-nums break-words leading-tight">
               {kpis.orders.toLocaleString()}
             </div>
             <div className="text-xs font-medium text-slate-500 mt-0.5">{tr("Distinct orders")}</div>
             <Spark series="orders" />
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-lg p-3.5 shadow-xs">
+          <div className="ae-tile ae-lift rounded-2xl p-4 min-w-0">
             <div className="text-xs font-semibold text-slate-600">{tr("Average order value")}</div>
-            <div className="text-xl md:text-2xl font-extrabold text-slate-900 mt-1 tabular-nums">
+            <div className="text-lg sm:text-xl xl:text-[22px] font-extrabold text-slate-900 dark:text-slate-100 mt-1 tabular-nums break-words leading-tight">
               {money(kpis.avgOrder, 3)}
             </div>
             <div className="text-xs font-medium text-slate-500 mt-0.5">{tr("Net sales ÷ orders")}</div>
             <Spark series="aov" />
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-lg p-3.5 shadow-xs">
+          <div className="ae-tile ae-lift rounded-2xl p-4 min-w-0">
             <div className="text-xs font-semibold text-slate-600">{tr("Items sold")}</div>
-            <div className="text-xl md:text-2xl font-extrabold text-slate-900 mt-1 tabular-nums">
+            <div className="text-lg sm:text-xl xl:text-[22px] font-extrabold text-slate-900 dark:text-slate-100 mt-1 tabular-nums break-words leading-tight">
               {kpis.itemsSold.toLocaleString()}
             </div>
             <div className="text-xs font-medium text-slate-500 mt-0.5">
@@ -670,17 +675,17 @@ function ScorecardInner() {
             </div>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-lg p-3.5 shadow-xs">
+          <div className="ae-tile ae-lift rounded-2xl p-4 min-w-0">
             <div className="text-xs font-semibold text-slate-600">{tr("Discounts given")}</div>
-            <div className="text-xl md:text-2xl font-extrabold text-slate-900 mt-1 tabular-nums">
+            <div className="text-lg sm:text-xl xl:text-[22px] font-extrabold text-slate-900 dark:text-slate-100 mt-1 tabular-nums break-words leading-tight">
               {money(kpis.discounts)}
             </div>
             <div className="text-xs font-medium text-slate-500 mt-0.5">{tr("2.4% of gross sales")}</div>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-lg p-3.5 shadow-xs">
+          <div className="ae-tile ae-lift rounded-2xl p-4 min-w-0">
             <div className="text-xs font-semibold text-slate-600">{tr("Net operating profit")}</div>
-            <div className="text-xl md:text-2xl font-extrabold text-emerald-700 mt-1">
+            <div className="text-lg sm:text-xl xl:text-[22px] font-extrabold text-emerald-700 mt-1 break-words leading-tight">
               <span dir="ltr" className="inline-block tabular-nums">{isFiltered ? "—" : money(42441.48, 3)}</span>
             </div>
             <div className="text-xs font-medium text-slate-500 mt-0.5">{isFiltered ? tr("Available for the whole group only") : tr("25.4% net margin")}</div>
@@ -695,25 +700,25 @@ function ScorecardInner() {
             {tr("Highlights")} <span className="font-semibold text-slate-500 text-xs">· {scopeLabel}</span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="bg-white border border-slate-200 border-s-[3px] border-s-slate-800 rounded-lg p-3.5 shadow-2xs">
+            <div className="ae-tile-soft rounded-2xl p-4 min-w-0">
               <div className="text-xs font-semibold text-slate-500">{tr("Biggest channel")}</div>
               <div className="text-[13px] font-medium text-slate-800 mt-1">
                 {isAr ? (<><strong className="font-bold text-slate-900">{chLabel(biggestChannel.channel)}</strong> هي أكبر قناة بيع بنسبة <strong className="font-bold text-slate-900"><span dir="ltr" className="inline-block tabular-nums">{biggestChannel.share.toFixed(1)}%</span></strong> من المبيعات المحددة.</>) : (<><strong className="font-bold text-slate-900">{chLabel(biggestChannel.channel)}</strong> is the largest channel, with <strong className="font-bold text-slate-900">{biggestChannel.share.toFixed(1)}%</strong> of the selected sales.</>)}
               </div>
             </div>
-            <div className="bg-white border border-slate-200 border-s-[3px] border-s-slate-800 rounded-lg p-3.5 shadow-2xs">
+            <div className="ae-tile-soft rounded-2xl p-4 min-w-0">
               <div className="text-xs font-semibold text-slate-500">{tr("Best seller")}</div>
               <div className="text-[13px] font-medium text-slate-800 mt-1">
                 {bestItem ? (isAr ? (<><strong className="font-bold text-slate-900">{bestItem.name}</strong> هو أعلى أصناف <strong className="font-bold text-slate-900">{tr(bestItem.brand)}</strong> مبيعاً بقيمة <strong className="font-bold text-slate-900"><span dir="ltr" className="inline-block tabular-nums">{money(bestItem.sales * view.ratioNet)}</span></strong>.</>) : (<><strong className="font-bold text-slate-900">{bestItem.name}</strong> is the top item of <strong className="font-bold text-slate-900">{bestItem.brand}</strong>, with <strong className="font-bold text-slate-900">{money(bestItem.sales * view.ratioNet)}</strong> in sales.</>)) : isAr ? (<><strong className="font-bold text-slate-900">Chicken Noodles</strong> من <strong className="font-bold text-slate-900">تشاينا جاردن</strong> باع <strong className="font-bold text-slate-900"><span dir="ltr" className="inline-block tabular-nums">{money(12043 * view.ratioNet)}</span></strong> وتمثل <strong className="font-bold text-slate-900"><span dir="ltr" className="inline-block tabular-nums">7.2%</span></strong> من مبيعات المنيو.</>) : (<><strong className="font-bold text-slate-900">Chicken Noodles</strong> from <strong className="font-bold text-slate-900">China Garden</strong> sold <strong className="font-bold text-slate-900">{money(12043 * view.ratioNet)}</strong>, which is <strong className="font-bold text-slate-900">7.2%</strong> of menu sales.</>)}
               </div>
             </div>
-            <div className="bg-white border border-slate-200 border-s-[3px] border-s-slate-800 rounded-lg p-3.5 shadow-2xs">
+            <div className="ae-tile-soft rounded-2xl p-4 min-w-0">
               <div className="text-xs font-semibold text-slate-500">{tr("Menu concentration")}</div>
               <div className="text-[13px] font-medium text-slate-800 mt-1">
                 {isAr ? (<>أعلى <strong className="font-bold text-slate-900"><span dir="ltr" className="inline-block tabular-nums">32</span></strong> صنفاً من أصل <strong className="font-bold text-slate-900"><span dir="ltr" className="inline-block tabular-nums">364</span></strong> صنفاً مباعاً تحقق <strong className="font-bold text-slate-900"><span dir="ltr" className="inline-block tabular-nums">80%</span></strong> من مبيعات المنيو.</>) : (<>The top <strong className="font-bold text-slate-900">32</strong> of <strong className="font-bold text-slate-900">364</strong> items sold make <strong className="font-bold text-slate-900">80%</strong> of menu sales.</>)}
               </div>
             </div>
-            <div className="bg-white border border-slate-200 border-s-[3px] border-s-slate-800 rounded-lg p-3.5 shadow-2xs">
+            <div className="ae-tile-soft rounded-2xl p-4 min-w-0">
               <div className="text-xs font-semibold text-slate-500">{tr("Add-ons per order")}</div>
               <div className="text-[13px] font-medium text-slate-800 mt-1">
                 {isAr ? (<>المشروبات <strong className="font-bold text-slate-900"><span dir="ltr" className="inline-block tabular-nums">25.3%</span></strong>، المقبلات والجوانب <strong className="font-bold text-slate-900"><span dir="ltr" className="inline-block tabular-nums">32.7%</span></strong>، الحلويات <strong className="font-bold text-slate-900"><span dir="ltr" className="inline-block tabular-nums">3.2%</span></strong>. كل نسبة هي عدد سطور الأصناف من هذا النوع لكل 100 طلب.</>) : (<>Drinks <strong className="font-bold text-slate-900">25.3%</strong>, starters and sides <strong className="font-bold text-slate-900">32.7%</strong>, desserts <strong className="font-bold text-slate-900">3.2%</strong>. Each is item lines of that kind per 100 orders.</>)}
@@ -737,7 +742,7 @@ function ScorecardInner() {
           {/* 2 Horizontal Bar Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {/* Net sales by brand */}
-            <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-xs">
+            <div className="ae-tile rounded-2xl p-4 md:p-5 min-w-0 overflow-x-auto">
               <div className="text-[15px] font-bold text-slate-900">{tr("Net sales by brand")}</div>
               <div className="text-xs font-semibold text-slate-600 mb-3"> {tr("KWD after discounts on the chosen channel. Click a bar to filter to that brand.")} </div>
               <div className="space-y-2">
@@ -759,7 +764,7 @@ function ScorecardInner() {
                       <span className="text-end font-semibold text-slate-800 truncate">{tr(b.brand)}</span>
                       <div className="w-full bg-slate-100 h-4 flex items-center rounded-xs">
                         <div
-                          className="h-4 bg-[#2563EB] transition-all rounded-xs"
+                          className="h-4 bg-[#0284C7] transition-all rounded-xs"
                           style={{ width: `${widthPct}%` }}
                         />
                       </div>
@@ -773,7 +778,7 @@ function ScorecardInner() {
             </div>
 
             {/* Average order value by brand */}
-            <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-xs">
+            <div className="ae-tile rounded-2xl p-4 md:p-5 min-w-0 overflow-x-auto">
               <div className="text-[15px] font-bold text-slate-900"> {tr("Average order value by brand")} </div>
               <div className="text-xs font-semibold text-slate-600 mb-3"> {tr("KWD per order. Brands with fewer than 200 orders on this channel are greyed out.")} </div>
               <div className="space-y-2">
@@ -796,7 +801,7 @@ function ScorecardInner() {
                         <div className="w-full bg-slate-100 h-4 flex items-center rounded-xs">
                           <div
                             className={`h-4 transition-all rounded-xs ${
-                              isLowSample ? "bg-[#9CA3AF]" : "bg-[#2563EB]"
+                              isLowSample ? "bg-[#9CA3AF]" : "bg-[#0284C7]"
                             }`}
                             style={{ width: `${widthPct}%` }}
                           />
@@ -812,7 +817,7 @@ function ScorecardInner() {
           </div>
 
           {/* Brand scorecard table */}
-          <div className="bg-white dark:bg-[#111827] rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-none ring-1 ring-slate-200/70 dark:ring-slate-800 p-4 md:p-5 overflow-x-auto">
+          <div className="bg-white dark:bg-[#111827] rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-none ring-1 ring-slate-200/70 dark:ring-slate-800 p-4 md:p-5 overflow-x-auto ae-table-wrap min-w-0">
             <div className="text-[15px] font-bold text-slate-900 dark:text-slate-100">{tr("Brand scorecard")}</div>
             <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-3"> {tr("Drinks and starters are item lines of that kind per order. Discount rate is discounts ÷ gross sales.")} </div>
             <table className="w-full text-[13.5px] md:text-sm border-collapse bg-white dark:bg-[#111827]">
@@ -839,7 +844,7 @@ function ScorecardInner() {
                       onClick={() =>
                         setSelectedBrand(selectedBrand === b.brand ? "All brands" : b.brand)
                       }
-                      className={`hover:bg-blue-50/40 dark:hover:bg-slate-800/50 transition-colors duration-150 cursor-pointer ${hiRow(selectedBrand === b.brand, selectedBrand !== ALL_BRANDS)}`}
+                      className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors duration-150 cursor-pointer ${hiRow(selectedBrand === b.brand, selectedBrand !== ALL_BRANDS)}`}
                      >
                        <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap">{tr(b.brand)}</td>
                       <td className="py-3.5 px-4 text-end tabular-nums font-semibold text-slate-800 dark:text-slate-200">
@@ -848,7 +853,7 @@ function ScorecardInner() {
                       <td className="py-3.5 px-4 text-end tabular-nums font-bold text-slate-900 dark:text-slate-100">
                         <div className="flex items-center justify-end gap-2">
                           <div
-                            className="h-2.5 bg-[#2563EB] rounded-xs"
+                            className="h-2.5 bg-[#0284C7] rounded-xs"
                             style={{ width: `${barW}px` }}
                           />
                           <span>
@@ -902,20 +907,20 @@ function ScorecardInner() {
               {tr("Channels")} <span className="font-semibold text-slate-500 text-xs">· {tr(selectedBrand)}</span>
             </div>
             <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-700">
-              <span className="inline-flex items-center gap-1.5 rounded-md border border-orange-300 bg-orange-50 px-2.5 py-1 text-orange-900">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-amber-900">
                 <ChannelModeBadge channel="Talabat Go" />
-                <span>{isAr ? "توصيل المنصة (Talabat Go)" : "Platform Delivery (Talabat Go)"}</span>
+                <span>{isAr ? "توصيل المنصة (طلبات Tgo)" : "Platform Delivery (Talabat Go)"}</span>
               </span>
-              <span className="inline-flex items-center gap-1.5 rounded-md border border-blue-300 bg-blue-50 px-2.5 py-1 text-blue-900">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-2.5 py-1 text-sky-900">
                 <ChannelModeBadge channel="Talabat MP" />
-                <span>{isAr ? "توصيل المطعم (Talabat MP & Deliveroo MP)" : "Restaurant Delivery (Talabat MP & Deliveroo MP)"}</span>
+                <span>{isAr ? "توصيل المطعم (طلبات وديليفرو TMP)" : "Restaurant Delivery (Talabat TMP & Deliveroo TMP)"}</span>
               </span>
             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {/* Net sales by channel */}
-            <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-xs">
+            <div className="ae-tile rounded-2xl p-4 md:p-5 min-w-0 overflow-x-auto">
               <div className="text-[15px] font-bold text-slate-900">{tr("Net sales by channel")}</div>
               <div className="text-xs font-semibold text-slate-600 mb-3"> {tr("KWD after discounts for the chosen brand. Click a bar to filter to that channel.")} </div>
               <div className="space-y-2">
@@ -939,7 +944,7 @@ function ScorecardInner() {
                       </span>
                       <div className="w-full bg-slate-100 h-4 flex items-center rounded-xs">
                         <div
-                          className="h-4 bg-[#2563EB] rounded-xs"
+                          className="h-4 bg-[#0284C7] rounded-xs"
                           style={{ width: `${widthPct}%` }}
                         />
                       </div>
@@ -953,7 +958,7 @@ function ScorecardInner() {
             </div>
 
             {/* Average order value by channel */}
-            <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-xs">
+            <div className="ae-tile rounded-2xl p-4 md:p-5 min-w-0 overflow-x-auto">
               <div className="text-[15px] font-bold text-slate-900"> {tr("Average order value by channel")} </div>
               <div className="text-xs font-semibold text-slate-600 mb-3"> {tr("KWD per order. Channels with fewer than 200 orders are greyed out because their averages swing easily.")} </div>
               <div className="space-y-2">
@@ -981,7 +986,7 @@ function ScorecardInner() {
                         <div className="w-full bg-slate-100 h-4 flex items-center rounded-xs">
                           <div
                             className={`h-4 rounded-xs ${
-                              isLowSample ? "bg-[#9CA3AF]" : "bg-[#2563EB]"
+                              isLowSample ? "bg-[#9CA3AF]" : "bg-[#0284C7]"
                             }`}
                             style={{ width: `${widthPct}%` }}
                           />
@@ -997,7 +1002,7 @@ function ScorecardInner() {
           </div>
 
           {/* Channel scorecard table */}
-          <div className="bg-white dark:bg-[#111827] rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-none ring-1 ring-slate-200/70 dark:ring-slate-800 p-4 md:p-5 overflow-x-auto">
+          <div className="bg-white dark:bg-[#111827] rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-none ring-1 ring-slate-200/70 dark:ring-slate-800 p-4 md:p-5 overflow-x-auto ae-table-wrap min-w-0">
             <div className="text-[15px] font-bold text-slate-900 dark:text-slate-100">{tr("Channel scorecard")}</div>
             <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-3"> {tr("For the chosen brand. Add-on rates are item lines of that kind per order.")} </div>
             <table className="w-full text-[13.5px] md:text-sm border-collapse bg-white dark:bg-[#111827]">
@@ -1026,7 +1031,7 @@ function ScorecardInner() {
                           selectedChannel === c.channel ? "All channels" : c.channel
                         )
                       }
-                      className={`hover:bg-blue-50/40 dark:hover:bg-slate-800/50 transition-colors duration-150 cursor-pointer ${hiRow(selectedChannel === c.channel, selectedChannel !== ALL_CHANNELS)}`}
+                      className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors duration-150 cursor-pointer ${hiRow(selectedChannel === c.channel, selectedChannel !== ALL_CHANNELS)}`}
                      >
                        <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap">
                          <span className="inline-flex items-center gap-2">
@@ -1040,7 +1045,7 @@ function ScorecardInner() {
                       <td className="py-3.5 px-4 text-end tabular-nums font-bold text-slate-900 dark:text-slate-100">
                         <div className="flex items-center justify-end gap-2">
                           <div
-                            className="h-2.5 bg-[#2563EB] rounded-xs"
+                            className="h-2.5 bg-[#0284C7] rounded-xs"
                             style={{ width: `${barW}px` }}
                           />
                           <span>
@@ -1083,7 +1088,7 @@ function ScorecardInner() {
             <ChannelMix channels={channelViews} selectedChannel={selectedChannel} />
             <ChannelRecs channels={channelViews} />
             <div className="grid grid-cols-1 gap-3">
-            <div className="bg-white dark:bg-[#111827] rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-none ring-1 ring-slate-200/70 dark:ring-slate-800 p-4 md:p-5 overflow-x-auto">
+            <div className="bg-white dark:bg-[#111827] rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-none ring-1 ring-slate-200/70 dark:ring-slate-800 p-4 md:p-5 overflow-x-auto ae-table-wrap min-w-0">
               <div className="text-[15px] font-bold text-slate-900 dark:text-slate-100"> {tr("Brand × Channel combination scorecard")} </div>
               <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-3"> {tr("Top brand-channel pairs showing lead item, average basket size, and drink attachment rate.")} </div>
               <div className="max-h-[300px] overflow-y-auto border-t border-slate-100 dark:border-slate-800">
@@ -1102,7 +1107,7 @@ function ScorecardInner() {
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70">
                     {matrixRows.length === 0 ? (<tr><td colSpan={7} className="py-6 text-center text-slate-500 dark:text-slate-400">{tr("No brand-channel pair in the dataset matches this selection.")}</td></tr>) : null}
                     {matrixRows.map((row, i) => (
-                      <tr key={i} className="hover:bg-blue-50/40 dark:hover:bg-slate-800/50 transition-colors duration-150">
+                      <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors duration-150">
                         <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap">{tr(row.brand)}</td>
                         <td className="py-3.5 px-4 font-semibold text-slate-800 dark:text-slate-200 whitespace-nowrap">
                           <span className="inline-flex items-center gap-1.5">
@@ -1147,7 +1152,7 @@ function ScorecardInner() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {/* Sales by category (Grey Bars) */}
-            <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-xs">
+            <div className="ae-tile rounded-2xl p-4 md:p-5 min-w-0 overflow-x-auto">
               <div className="text-[15px] font-bold text-slate-900">{tr("Sales by category")}</div>
               <div className="text-xs font-semibold text-slate-600 mb-3"> {tr("Gross item sales before order-level discounts, grouped by item category.")} </div>
               <div className="space-y-2">
@@ -1181,7 +1186,7 @@ function ScorecardInner() {
             </div>
 
             {/* Top 15 items (Blue Bars) */}
-            <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-xs">
+            <div className="ae-tile rounded-2xl p-4 md:p-5 min-w-0 overflow-x-auto">
               <div className="text-[15px] font-bold text-slate-900">{tr("Top 15 items")}</div>
               <div className="text-xs font-semibold text-slate-600 mb-3"> {tr("Gross KWD. Hover a bar to see the brand and unit price.")} </div>
               <div className="space-y-2">
@@ -1205,7 +1210,7 @@ function ScorecardInner() {
                       <span className="text-end font-semibold text-slate-800 truncate">{item.name}</span>
                       <div className="w-full bg-slate-100 h-4 flex items-center rounded-xs">
                         <div
-                          className="h-4 bg-[#2563EB] rounded-xs"
+                          className="h-4 bg-[#0284C7] rounded-xs"
                           style={{ width: `${widthPct}%` }}
                         />
                       </div>
@@ -1228,7 +1233,7 @@ function ScorecardInner() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {/* Multi-Colored Horizontal Bar Breakdown */}
-            <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-xs">
+            <div className="ae-tile rounded-2xl p-4 md:p-5 min-w-0 overflow-x-auto">
               <div className="text-[15px] font-bold text-slate-900"> {tr("Revenue & Cost Pool by Diagnostic Action Bucket")} </div>
               <div className="text-xs font-semibold text-slate-600 mb-3"> {tr("KWD pool impacted per diagnostic rule across Odoo POS, Aggregators & Central Kitchen.")} </div>
               <div className="space-y-2.5 pt-1">
@@ -1261,7 +1266,7 @@ function ScorecardInner() {
             </div>
 
             {/* Right Legend with Outlined Badges */}
-            <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-xs">
+            <div className="ae-tile rounded-2xl p-4 md:p-5 min-w-0 overflow-x-auto">
               <div className="text-[15px] font-bold text-slate-900"> {tr("How items & Odoo cost centers are classified")} </div>
               <div className="text-xs font-semibold text-slate-600 mb-3"> {tr("Each row in the action tables below receives a diagnostic badge and concrete recommendation.")} </div>
               <div className="space-y-2.5">
@@ -1285,7 +1290,7 @@ function ScorecardInner() {
           {/* ==========================================
               SCROLLABLE ACTION TABLE 1: ITEM DIAGNOSTICS
              ========================================== */}
-          <div className="bg-white dark:bg-[#111827] rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-none ring-1 ring-slate-200/70 dark:ring-slate-800 p-4 md:p-5 overflow-x-auto">
+          <div className="bg-white dark:bg-[#111827] rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-none ring-1 ring-slate-200/70 dark:ring-slate-800 p-4 md:p-5 overflow-x-auto ae-table-wrap min-w-0">
             <div className="text-[15px] font-bold text-slate-900 dark:text-slate-100"> {tr("Item-level commercial diagnostics & pricing actions")} </div>
             <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-3"> {tr("High-impact menu items evaluated by order volume, basket attachment, discount bleed, and kitchen prep.")} </div>
             <div className="max-h-[340px] overflow-y-auto border-t border-slate-100 dark:border-slate-800">
@@ -1305,7 +1310,7 @@ function ScorecardInner() {
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70">
                   {diagRows.map((row, idx) => (
-                    <tr key={idx} className="hover:bg-blue-50/40 dark:hover:bg-slate-800/50 transition-colors duration-150">
+                    <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors duration-150">
                       <td className="py-3.5 px-4 font-medium text-slate-700 dark:text-slate-300 whitespace-nowrap">{tr(row.brand)}</td>
                       <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap">{tr(row.item)}</td>
                       <td className="py-3.5 px-4 font-medium text-slate-600 dark:text-slate-400 whitespace-nowrap">{tr(row.category)}</td>
@@ -1337,7 +1342,7 @@ function ScorecardInner() {
           </div>
 
           <div className="grid grid-cols-1 gap-3">
-            <div className="bg-white dark:bg-[#111827] rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-none ring-1 ring-slate-200/70 dark:ring-slate-800 p-4 md:p-5 overflow-x-auto">
+            <div className="bg-white dark:bg-[#111827] rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-none ring-1 ring-slate-200/70 dark:ring-slate-800 p-4 md:p-5 overflow-x-auto ae-table-wrap min-w-0">
               <div className="text-[15px] font-bold text-slate-900 dark:text-slate-100"> {tr("Long-tail menu candidates for pruning (Prep & waste reduction)")} </div>
               <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-3"> {tr("332 of 364 items generate only 20% of sales. Removing low-rotation SKUs reduces Central Kitchen waste.")} </div>
               <div className="max-h-[300px] overflow-y-auto border-t border-slate-100 dark:border-slate-800">
@@ -1354,7 +1359,7 @@ function ScorecardInner() {
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70">
                     {tailRows.map((item, i) => (
-                      <tr key={i} className="hover:bg-blue-50/40 dark:hover:bg-slate-800/50 transition-colors duration-150">
+                      <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors duration-150">
                         <td className="py-3.5 px-4 font-medium text-slate-700 dark:text-slate-300 whitespace-nowrap">{tr(item.brand)}</td>
                         <td className="py-3.5 px-4 font-medium text-slate-600 dark:text-slate-400 whitespace-nowrap">{tr(item.category)}</td>
                         <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap">{tr(item.item)}</td>
@@ -1387,7 +1392,7 @@ function ScorecardInner() {
           {/* ==========================================
               SCROLLABLE ACTION TABLE 2: ODOO P&L, COGS & PETTY CASH
              ========================================== */}
-          <div className="bg-white dark:bg-[#111827] rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-none ring-1 ring-slate-200/70 dark:ring-slate-800 p-4 md:p-5 overflow-x-auto">
+          <div className="bg-white dark:bg-[#111827] rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-none ring-1 ring-slate-200/70 dark:ring-slate-800 p-4 md:p-5 overflow-x-auto ae-table-wrap min-w-0">
             <div className="text-[15px] font-bold text-slate-900 dark:text-slate-100"> {tr("Odoo ERP financial, central kitchen & maintenance audit scorecard")} </div>
             <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-3"> {tr("Direct reconciliation with Odoo general ledger (2,213 entries), Central Kitchen COGS, and Rabih maintenance custody.")} </div>
             <div className="max-h-[340px] overflow-y-auto border-t border-slate-100 dark:border-slate-800">
@@ -1406,7 +1411,7 @@ function ScorecardInner() {
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70">
                   {opRows.map((row, idx) => (
-                    <tr key={idx} className="hover:bg-blue-50/40 dark:hover:bg-slate-800/50 transition-colors duration-150">
+                    <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors duration-150">
                       <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap">{tr(row.sector)}</td>
                       <td className="py-3.5 px-4 font-medium text-slate-700 dark:text-slate-300 whitespace-nowrap">{tr(row.account)}</td>
                       <td className="py-3.5 px-4 font-medium text-slate-600 dark:text-slate-400 whitespace-nowrap">{tr(row.module)}</td>

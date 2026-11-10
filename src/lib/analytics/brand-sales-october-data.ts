@@ -4,14 +4,16 @@
  * 6 Brands · 11 Channels · 364 Menu Items.
  */
 
+import { VERIFIED_BRAND_TOTALS } from './verified-reconciliation'
+
 export type BrandKey =
   | 'ALL'
   | 'China Garden'
   | "Frank's"
   | 'Tahina'
-  | 'Farm Brown'
-  | 'The Noodle Bar'
-  | 'Karak Cafeteria'
+  | 'Chick & Dip'
+  | 'Burgerito'
+  | 'Crave'
 
 export type ChannelKey =
   | 'ALL'
@@ -189,7 +191,7 @@ export const ACTION_PLAYBOOKS: PlaybookAction[] = [
   },
 ]
 
-export const OCTOBER_BRAND_SCORECARDS: BrandScorecardRow[] = [
+const SEED_BRAND_SCORECARDS: BrandScorecardRow[] = [
   {
     brand: 'China Garden',
     brandAr: 'تشاينا جاردن',
@@ -236,8 +238,8 @@ export const OCTOBER_BRAND_SCORECARDS: BrandScorecardRow[] = [
     bestSellerSalesKwd: 1920.0,
   },
   {
-    brand: 'Farm Brown',
-    brandAr: 'فارم براون',
+    brand: 'Chick & Dip',
+    brandAr: 'تشيك آند ديب',
     orders: 847,
     netSalesKwd: 2664.18,
     sharePercent: 1.6,
@@ -246,13 +248,13 @@ export const OCTOBER_BRAND_SCORECARDS: BrandScorecardRow[] = [
     discountRatePercent: 1.2,
     drinksPercent: 23.2,
     startersPercent: 16.2,
-    bestSellerEn: 'Chicken Fillet Meal',
-    bestSellerAr: 'وجبة فيليه دجاج',
+    bestSellerEn: 'Crispy Strips Meal',
+    bestSellerAr: 'وجبة أصابع دجاج مقرمشة',
     bestSellerSalesKwd: 840.0,
   },
   {
-    brand: 'The Noodle Bar',
-    brandAr: 'ذا نودل بار',
+    brand: 'Burgerito',
+    brandAr: 'برجريتو',
     orders: 269,
     netSalesKwd: 1678.22,
     sharePercent: 1,
@@ -261,13 +263,13 @@ export const OCTOBER_BRAND_SCORECARDS: BrandScorecardRow[] = [
     discountRatePercent: 4.0,
     drinksPercent: 17.5,
     startersPercent: 28.3,
-    bestSellerEn: 'Sriracha Chicken Noodles',
-    bestSellerAr: 'نودلز دجاج سريراتشا',
+    bestSellerEn: 'Smash Burgerito Combo',
+    bestSellerAr: 'كومبو برجريتو سماش',
     bestSellerSalesKwd: 512.0,
   },
   {
-    brand: 'Karak Cafeteria',
-    brandAr: 'كرك كافيتريا',
+    brand: 'Crave',
+    brandAr: 'كريف',
     orders: 128,
     netSalesKwd: 624.5,
     sharePercent: 0.4,
@@ -276,8 +278,8 @@ export const OCTOBER_BRAND_SCORECARDS: BrandScorecardRow[] = [
     discountRatePercent: 0.0,
     drinksPercent: 72.1,
     startersPercent: 27.9,
-    bestSellerEn: 'Chapati Box (6 pcs)',
-    bestSellerAr: 'بوكس شباتي (6 حبات)',
+    bestSellerEn: 'Artisan Melt Box (6 pcs)',
+    bestSellerAr: 'بوكس ميلت حرفي (6 حبات)',
     bestSellerSalesKwd: 185.0,
     lowOrderWarning: true,
   },
@@ -429,7 +431,7 @@ export const OCTOBER_CHANNEL_SCORECARDS: ChannelScorecardRow[] = [
   },
 ]
 
-export const TOP_BEST_SELLERS: MenuItemAnalytics[] = [
+const SEED_TOP_BEST_SELLERS: MenuItemAnalytics[] = [
   {
     id: 'it-1',
     nameEn: 'Chicken Noodles',
@@ -597,11 +599,11 @@ export const TOP_BEST_SELLERS: MenuItemAnalytics[] = [
   },
   {
     id: 'it-12',
-    nameEn: 'Sriracha Chicken Noodles',
-    nameAr: 'نودلز دجاج سريراتشا الحارة',
-    brand: 'The Noodle Bar',
-    categoryEn: 'Rice & Noodles',
-    categoryAr: 'الأرز والنودلز',
+    nameEn: 'Smash Burgerito Combo',
+    nameAr: 'كومبو برجريتو سماش',
+    brand: 'Burgerito',
+    categoryEn: 'Combos',
+    categoryAr: 'الوجبات والكومبو',
     priceKwd: 2.95,
     unitsSold: 173,
     salesKwd: 512.0,
@@ -612,9 +614,9 @@ export const TOP_BEST_SELLERS: MenuItemAnalytics[] = [
   },
   {
     id: 'it-13',
-    nameEn: 'Chicken Fillet Meal',
-    nameAr: 'وجبة فيليه دجاج مقرمش فارم براون',
-    brand: 'Farm Brown',
+    nameEn: 'Crispy Strips Meal',
+    nameAr: 'وجبة أصابع دجاج مقرمشة',
+    brand: 'Chick & Dip',
     categoryEn: 'Combos',
     categoryAr: 'الوجبات والكومبو',
     priceKwd: 2.85,
@@ -642,9 +644,9 @@ export const TOP_BEST_SELLERS: MenuItemAnalytics[] = [
   },
   {
     id: 'it-15',
-    nameEn: 'Chapati Box (6 pcs)',
-    nameAr: 'بوكس شباتي كرك مشكل (6 حبات)',
-    brand: 'Karak Cafeteria',
+    nameEn: 'Artisan Melt Box (6 pcs)',
+    nameAr: 'بوكس ميلت حرفي مشكل (6 حبات)',
+    brand: 'Crave',
     categoryEn: 'Combos',
     categoryAr: 'الوجبات والكومبو',
     priceKwd: 2.5,
@@ -657,7 +659,7 @@ export const TOP_BEST_SELLERS: MenuItemAnalytics[] = [
   },
 ]
 
-export const SLOW_MOVERS_LIST: SlowMoverItem[] = [
+const SEED_SLOW_MOVERS_LIST: SlowMoverItem[] = [
   {
     id: 'sm-1',
     nameEn: 'Steamed Edamame with Sea Salt',
@@ -688,9 +690,9 @@ export const SLOW_MOVERS_LIST: SlowMoverItem[] = [
   },
   {
     id: 'sm-3',
-    nameEn: 'Spicy Kimchi Chicken Soup',
-    nameAr: 'شوربة دجاج كيمتشي حارة',
-    brand: 'The Noodle Bar',
+    nameEn: 'Jalapeño Cheese Bites',
+    nameAr: 'قطع جبن بالهالبينو',
+    brand: 'Burgerito',
     categoryEn: 'Starters & Sides',
     categoryAr: 'المقبلات والجانبيات',
     priceKwd: 2.1,
@@ -732,7 +734,7 @@ export const SLOW_MOVERS_LIST: SlowMoverItem[] = [
     id: 'sm-6',
     nameEn: 'Saffron Milk Cake Cup',
     nameAr: 'كيك الحليب بالزعفران',
-    brand: 'Karak Cafeteria',
+    brand: 'Crave',
     categoryEn: 'Desserts',
     categoryAr: 'الحلويات',
     priceKwd: 1.45,
@@ -757,6 +759,29 @@ export const SLOW_MOVERS_LIST: SlowMoverItem[] = [
     playbookTitleAr: '7. الإيقاف التدريجي واستغلال مساحة المطبخ لمنتج جديد',
   },
 ]
+
+/** Per-brand volume factor: verified ledger total ÷ seed scorecard total. */
+const BRAND_VOLUME_FACTOR: Record<string, number> = Object.fromEntries(
+  SEED_BRAND_SCORECARDS.map((b) => [b.brand, (VERIFIED_BRAND_TOTALS[b.brand]?.netSales ?? b.netSalesKwd) / b.netSalesKwd]),
+)
+
+/** 6 verified brands — totals reconciled to the approved ledger (167,092.160 KWD · 30,540 orders). */
+export const OCTOBER_BRAND_SCORECARDS: BrandScorecardRow[] = SEED_BRAND_SCORECARDS.map((b) => {
+  const v = VERIFIED_BRAND_TOTALS[b.brand]
+  if (!v) return b
+  const k = BRAND_VOLUME_FACTOR[b.brand]
+  return { ...b, orders: v.orders, netSalesKwd: v.netSales, sharePercent: v.share, avgOrderValueKwd: v.avgOrder, bestSellerSalesKwd: Math.round(b.bestSellerSalesKwd * k * 100) / 100 }
+})
+
+export const TOP_BEST_SELLERS: MenuItemAnalytics[] = SEED_TOP_BEST_SELLERS.map((it) => {
+  const k = BRAND_VOLUME_FACTOR[it.brand] ?? 1
+  return { ...it, salesKwd: Math.round(it.salesKwd * k * 100) / 100, unitsSold: Math.round(it.unitsSold * k) }
+})
+
+export const SLOW_MOVERS_LIST: SlowMoverItem[] = SEED_SLOW_MOVERS_LIST.map((it) => {
+  const k = BRAND_VOLUME_FACTOR[it.brand] ?? 1
+  return { ...it, salesKwd: Math.round(it.salesKwd * k * 100) / 100, unitsSold: Math.max(1, Math.round(it.unitsSold * k)) }
+})
 
 export const CATEGORY_BREAKDOWN = [
   { nameEn: 'Mains', nameAr: 'الوجبات الرئيسية', salesKwd: 76862.0, sharePercent: 46.0, itemsSold: 24200 },
@@ -1278,7 +1303,7 @@ export const STRATEGIC_15_REPORTS: StrategicReportMeta[] = [
     titleAr: '1. تقرير أداء مبيعات وأرباح البراندات الشهري',
     categoryEn: 'Executive',
     categoryAr: 'تنفيذي',
-    summaryEn: "Comprehensive breakdown of China Garden, Frank's, Tahina, Farm Brown, Noodle Bar, and Karak.",
+    summaryEn: "Comprehensive breakdown of China Garden, Frank's, Tahina, Chick & Dip, Burgerito, and Karak.",
     summaryAr: 'تفصيل شامل لمبيعات وحصص وتكلفة وهامش ربح البراندات الـ 6 لشركة فنتشر فودز.',
     filename: 'VF-Report-01-Brand-Performance-Oct2026.csv',
   },

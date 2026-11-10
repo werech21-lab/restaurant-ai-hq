@@ -632,3 +632,326 @@ html[data-theme='dark'] #ae-root .ae-palette-item[data-active='true'] {
     animation: none !important;
   }
 }
+
+/* ==========================================================================
+   11. TOPBAR BREADCRUMB
+   ========================================================================== */
+#ae-topbar .ae-top-sep {
+  color: rgba(190, 216, 233, 0.6) !important;
+}
+
+#ae-topbar .ae-top-live {
+  background: rgba(16, 185, 129, 0.14) !important;
+  border: 1px solid rgba(52, 211, 153, 0.3) !important;
+  color: #a7f3d0 !important;
+}
+
+/* ==========================================================================
+   12. SITE-WIDE NORMALISATION LAYER FOR LEGACY WORKSPACES
+   Legacy pages were written against a royal-blue / indigo palette with harsh
+   1px borders. These token overrides re-skin them to the oceanic system
+   (obsidian primaries, sky-teal links, soft surface-contrast tiles).
+   ========================================================================== */
+#ae-canvas .ae-page,
+#ae-canvas .ae-page > * {
+  min-width: 0;
+}
+
+/* Royal-blue / indigo solid fills → obsidian pills */
+#ae-canvas .bg-\[\#2563EB\],
+#ae-canvas .bg-\[\#2563eb\],
+#ae-canvas .bg-blue-600,
+#ae-canvas .bg-blue-700,
+#ae-canvas .bg-indigo-600,
+#ae-canvas .bg-violet-600,
+#ae-canvas .bg-purple-600 {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+  border-color: #0f172a !important;
+}
+
+#ae-canvas .bg-\[\#2563EB\] .text-white,
+#ae-canvas .bg-blue-600 .text-white,
+#ae-canvas .bg-\[\#2563EB\] svg,
+#ae-canvas .bg-blue-600 svg {
+  color: #ffffff !important;
+}
+
+#ae-canvas .hover\:bg-blue-600:hover,
+#ae-canvas .hover\:bg-blue-700:hover,
+#ae-canvas .hover\:bg-blue-500:hover {
+  background-color: #1e293b !important;
+}
+
+html.dark #ae-canvas .bg-\[\#2563EB\],
+html.dark #ae-canvas .bg-blue-600,
+html.dark #ae-canvas .bg-blue-700,
+html.dark #ae-canvas .bg-indigo-600,
+html[data-theme='dark'] #ae-canvas .bg-\[\#2563EB\],
+html[data-theme='dark'] #ae-canvas .bg-blue-600 {
+  background-color: #334155 !important;
+  border-color: #334155 !important;
+}
+
+/* Blue / indigo / purple gradients → oceanic obsidian gradient (zero purple) */
+#ae-canvas .bg-gradient-to-br.from-blue-600,
+#ae-canvas .bg-gradient-to-r.from-blue-600,
+#ae-canvas .bg-gradient-to-br.from-indigo-600,
+#ae-canvas .bg-gradient-to-r.from-indigo-600,
+#ae-canvas .bg-gradient-to-br.from-purple-600,
+#ae-canvas .bg-gradient-to-r.from-purple-600,
+#ae-canvas .bg-gradient-to-br.from-violet-600 {
+  background-image: linear-gradient(135deg, #0f172a 0%, #133b5c 100%) !important;
+}
+
+/* Royal-blue text & accents → sky-teal */
+#ae-canvas .text-\[\#2563EB\],
+#ae-canvas .text-blue-600,
+#ae-canvas .text-blue-700 {
+  color: #0284c7 !important;
+}
+
+#ae-canvas .ring-blue-600,
+#ae-canvas .ring-blue-500,
+#ae-canvas .focus\:ring-blue-600:focus {
+  --tw-ring-color: rgba(2, 132, 199, 0.55) !important;
+}
+
+#ae-canvas .border-blue-600,
+#ae-canvas .border-\[\#2563EB\],
+#ae-canvas .border-b-blue-600 {
+  border-color: #0f172a !important;
+}
+
+/* Indigo / purple / violet / pink tinted badges → oceanic ice chips */
+#ae-canvas .bg-indigo-50,
+#ae-canvas .bg-purple-50,
+#ae-canvas .bg-violet-50,
+#ae-canvas .bg-pink-50 {
+  background-color: #ebf3f9 !important;
+}
+
+#ae-canvas .text-indigo-600,
+#ae-canvas .text-indigo-700,
+#ae-canvas .text-indigo-800,
+#ae-canvas .text-purple-600,
+#ae-canvas .text-purple-700,
+#ae-canvas .text-purple-800,
+#ae-canvas .text-violet-700,
+#ae-canvas .text-pink-700,
+#ae-canvas .text-pink-800 {
+  color: #133b5c !important;
+}
+
+html.dark #ae-canvas .text-indigo-300,
+html.dark #ae-canvas .text-indigo-400,
+html.dark #ae-canvas .text-purple-300,
+html.dark #ae-canvas .text-purple-400 {
+  color: #7dd3fc !important;
+}
+
+/* Harsh 1px bordered alert boxes & badges → soft surface-contrast rings */
+#ae-canvas .border-rose-200,
+#ae-canvas .border-red-200,
+#ae-canvas .border-rose-300,
+#ae-canvas .border-red-300 {
+  border-color: rgba(254, 205, 211, 0.6) !important;
+}
+
+#ae-canvas .border-amber-200,
+#ae-canvas .border-orange-200,
+#ae-canvas .border-amber-300,
+#ae-canvas .border-orange-300 {
+  border-color: rgba(253, 230, 138, 0.6) !important;
+}
+
+#ae-canvas .border-emerald-200,
+#ae-canvas .border-emerald-300,
+#ae-canvas .border-green-200 {
+  border-color: rgba(167, 243, 208, 0.6) !important;
+}
+
+#ae-canvas .border-blue-200,
+#ae-canvas .border-blue-300,
+#ae-canvas .border-sky-200,
+#ae-canvas .border-indigo-200,
+#ae-canvas .border-purple-200,
+#ae-canvas .border-pink-200 {
+  border-color: rgba(186, 230, 253, 0.6) !important;
+}
+
+#ae-canvas .border-rose-600,
+#ae-canvas .border-red-600 {
+  border-color: rgba(225, 29, 72, 0.28) !important;
+}
+
+#ae-canvas .border-amber-600,
+#ae-canvas .border-orange-600 {
+  border-color: rgba(217, 119, 6, 0.28) !important;
+}
+
+#ae-canvas .border-emerald-600 {
+  border-color: rgba(5, 150, 105, 0.28) !important;
+}
+
+#ae-canvas .border-indigo-600,
+#ae-canvas .border-purple-600,
+#ae-canvas .border-pink-600 {
+  border-color: rgba(19, 59, 92, 0.22) !important;
+}
+
+#ae-canvas .bg-rose-50,
+#ae-canvas .bg-red-50 {
+  background-color: rgba(255, 241, 242, 0.7) !important;
+}
+
+#ae-canvas .bg-amber-50,
+#ae-canvas .bg-orange-50 {
+  background-color: rgba(255, 251, 235, 0.7) !important;
+}
+
+#ae-canvas .bg-emerald-50,
+#ae-canvas .bg-green-50 {
+  background-color: rgba(236, 253, 245, 0.7) !important;
+}
+
+/* Every chart surface: SVG text never scales beyond 12px; shapes stay bounded */
+#ae-canvas .ae-chart {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+
+#ae-canvas .ae-chart > svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+#ae-canvas .ae-chart-label {
+  position: absolute;
+  font-size: 11px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: #64748b;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+html.dark #ae-canvas .ae-chart-label {
+  color: #94a3b8;
+}
+
+#ae-canvas .ae-chart-callout {
+  position: absolute;
+  transform: translate(-50%, 0);
+  border-radius: 9999px;
+  background: #0f172a !important;
+  color: #ffffff !important;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 0.2rem 0.6rem;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.18);
+  pointer-events: none;
+}
+
+/* Unified masthead */
+#ae-root .ae-masthead {
+  border-radius: 24px;
+  background-color: #ffffff !important;
+  box-shadow: 0 2px 16px rgba(10, 30, 50, 0.04), 0 0 0 1px rgba(226, 232, 240, 0.7) !important;
+}
+
+html.dark #ae-root .ae-masthead,
+html[data-theme='dark'] #ae-root .ae-masthead {
+  background-color: rgba(15, 23, 42, 0.92) !important;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(51, 65, 85, 0.6) !important;
+}
+
+/* Segmented sub-tabs (replaces underline tab strips) */
+#ae-root .ae-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  border-radius: 1rem;
+  padding: 0.375rem;
+  background-color: rgba(226, 232, 240, 0.7) !important;
+}
+
+html.dark #ae-root .ae-tabs,
+html[data-theme='dark'] #ae-root .ae-tabs {
+  background-color: rgba(51, 65, 85, 0.45) !important;
+}
+
+#ae-root .ae-tabs > a,
+#ae-root .ae-tabs > button {
+  border-radius: 0.75rem;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #475569 !important;
+  background: transparent !important;
+  border: none !important;
+  white-space: nowrap;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+#ae-root .ae-tabs > a:hover,
+#ae-root .ae-tabs > button:hover {
+  color: #0f172a !important;
+  background: rgba(255, 255, 255, 0.6) !important;
+}
+
+#ae-root .ae-tabs > [data-active='true'],
+#ae-root .ae-tabs > [aria-current='page'] {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.16);
+}
+
+html.dark #ae-root .ae-tabs > a,
+html.dark #ae-root .ae-tabs > button {
+  color: #cbd5e1 !important;
+}
+
+html.dark #ae-root .ae-tabs > [data-active='true'],
+html.dark #ae-root .ae-tabs > [aria-current='page'] {
+  background-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+/* Shared table geometry for normalised workspaces */
+#ae-root .ae-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: 0.75rem;
+}
+#ae-root .ae-table-wrap table th,
+#ae-root .ae-table-wrap table td {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+#ae-root .ae-table-wrap table td.leading-relaxed {
+  white-space: normal;
+  min-width: 280px;
+}
+
+/* Oceanic hero tile — obsidian → deep-ocean gradient with guaranteed light text */
+#ae-root .ae-hero-ocean {
+  background-image: linear-gradient(135deg, #0f172a 0%, #133b5c 100%) !important;
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+  box-shadow: 0 10px 30px -12px rgba(15, 23, 42, 0.45);
+}
+#ae-root .ae-hero-ocean,
+#ae-root .ae-hero-ocean * {
+  color: #ffffff !important;
+}
+#ae-root .ae-hero-ocean .ae-hero-muted {
+  color: #bae6fd !important;
+}
+#ae-root .ae-hero-ocean .ae-hero-chip {
+  background-color: rgba(255, 255, 255, 0.14) !important;
+}

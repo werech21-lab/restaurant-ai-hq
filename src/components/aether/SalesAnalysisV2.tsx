@@ -88,14 +88,12 @@ export function SalesAnalysisV2() {
   const qMeta = (id: Quadrant) => QUADRANTS.find((q) => q.id === id)!
 
   // Scatter geometry (log popularity × unit margin)
-  const W = 760
-  const H = 360
-  const pad = 36
   const maxUnits = Math.max(...MENU_ITEMS.map((m) => m.units))
   const minUnits = Math.max(1, Math.min(...MENU_ITEMS.map((m) => m.units)))
   const maxMargin = Math.max(...MENU_ITEMS.map((m) => m.unitMargin))
-  const xOf = (u: number) => pad + ((Math.log(Math.max(u, minUnits)) - Math.log(minUnits)) / (Math.log(maxUnits) - Math.log(minUnits))) * (W - pad * 2)
-  const yOf = (mg: number) => H - pad - (mg / (maxMargin * 1.05)) * (H - pad * 2)
+  /** Percent positions inside the scatter frame (4–96% horizontally, 6–92% vertically). */
+  const xPct = (u: number) => 4 + ((Math.log(Math.max(u, minUnits)) - Math.log(minUnits)) / (Math.log(maxUnits) - Math.log(minUnits))) * 92
+  const yPct = (mg: number) => 92 - (mg / (maxMargin * 1.05)) * 86
 
   const columns: ReorderColumn<MenuItem>[] = [
     { key: 'rank', en: 'Rank', ar: 'الترتيب', render: (r) => <Num className="text-slate-400">#{r.rank}</Num>, csv: (r) => r.rank },
@@ -206,40 +204,43 @@ export function SalesAnalysisV2() {
               title={T('4-quadrant menu engineering matrix', 'مصفوفة هندسة المنيو الرباعية')}
               subtitle={T(`${fmt(items.length)} items · popularity (log units) × unit contribution margin`, `${fmt(items.length)} صنفاً · الشعبية (لوغاريتمي) × هامش مساهمة الوحدة`)}
             />
-            <div className="relative" dir="ltr">
-              <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label={T('Menu engineering scatter', 'مخطط هندسة المنيو')}>
-                <rect x={xOf(MENU_THRESHOLDS.popularity)} y={pad} width={W - pad - xOf(MENU_THRESHOLDS.popularity)} height={yOf(MENU_THRESHOLDS.unitMargin) - pad} fill="#059669" fillOpacity="0.05" />
-                <rect x={xOf(MENU_THRESHOLDS.popularity)} y={yOf(MENU_THRESHOLDS.unitMargin)} width={W - pad - xOf(MENU_THRESHOLDS.popularity)} height={H - pad - yOf(MENU_THRESHOLDS.unitMargin)} fill="#0284C7" fillOpacity="0.05" />
-                <rect x={pad} y={pad} width={xOf(MENU_THRESHOLDS.popularity) - pad} height={yOf(MENU_THRESHOLDS.unitMargin) - pad} fill="#D97706" fillOpacity="0.05" />
-                <rect x={pad} y={yOf(MENU_THRESHOLDS.unitMargin)} width={xOf(MENU_THRESHOLDS.popularity) - pad} height={H - pad - yOf(MENU_THRESHOLDS.unitMargin)} fill="#E11D48" fillOpacity="0.05" />
-                <line x1={xOf(MENU_THRESHOLDS.popularity)} x2={xOf(MENU_THRESHOLDS.popularity)} y1={pad} y2={H - pad} stroke="#94A3B8" strokeDasharray="4 4" />
-                <line x1={pad} x2={W - pad} y1={yOf(MENU_THRESHOLDS.unitMargin)} y2={yOf(MENU_THRESHOLDS.unitMargin)} stroke="#94A3B8" strokeDasharray="4 4" />
-                <text x={W - pad - 6} y={pad + 14} textAnchor="end" className="fill-emerald-600 text-[12px] font-semibold">{T('Stars', 'النجوم')}</text>
-                <text x={W - pad - 6} y={H - pad - 8} textAnchor="end" className="fill-sky-600 text-[12px] font-semibold">{T('Plowhorses', 'الأحصنة العاملة')}</text>
-                <text x={pad + 6} y={pad + 14} className="fill-amber-600 text-[12px] font-semibold">{T('Puzzles', 'الألغاز')}</text>
-                <text x={pad + 6} y={H - pad - 8} className="fill-rose-600 text-[12px] font-semibold">{T('Dogs', 'الأصناف الضعيفة')}</text>
-                {items.map((m) => {
-                  const isSel = selected === m.id
-                  return (
-                    <circle
-                      key={m.id}
-                      cx={xOf(m.units)}
-                      cy={yOf(m.unitMargin)}
-                      r={isSel ? 7 : m.top32 ? 5 : 3.2}
-                      fill={TONE_HEX[qMeta(m.quadrant).tone]}
-                      fillOpacity={isSel ? 1 : m.top32 ? 0.85 : 0.5}
-                      stroke={isSel ? '#0F172A' : m.purgeCandidate ? '#E11D48' : 'none'}
-                      strokeWidth={isSel ? 2 : 1.2}
-                      className="cursor-pointer transition-all"
-                      onClick={() => setSelected(m.id)}
-                    >
-                      <title>{`${isAr ? m.ar : m.en} · ${fmt(m.units)} · ${fmt(m.unitMargin, 3)}`}</title>
-                    </circle>
-                  )
-                })}
-                <text x={W / 2} y={H - 8} textAnchor="middle" className="fill-slate-400 text-[11px]">{T('Popularity (units sold, log scale) →', 'الشعبية (الوحدات المباعة) ←')}</text>
-                <text x={12} y={H / 2} textAnchor="middle" transform={`rotate(-90 12 ${H / 2})`} className="fill-slate-400 text-[11px]">{T('Unit margin (KWD)', 'هامش الوحدة (د.ك)')}</text>
-              </svg>
+            {/* Height-bounded HTML scatter: dots and labels never scale with container width */}
+            <div className="relative h-[340px] w-full overflow-hidden rounded-xl lg:h-[380px]" dir="ltr" role="img" aria-label={T('Menu engineering scatter', 'مخطط هندسة المنيو')}>
+              <div className="absolute rounded-tr-xl" style={{ left: `${xPct(MENU_THRESHOLDS.popularity)}%`, right: '4%', top: '6%', height: `${yPct(MENU_THRESHOLDS.unitMargin) - 6}%`, backgroundColor: 'rgba(5,150,105,0.06)' }} />
+              <div className="absolute" style={{ left: `${xPct(MENU_THRESHOLDS.popularity)}%`, right: '4%', top: `${yPct(MENU_THRESHOLDS.unitMargin)}%`, bottom: '8%', backgroundColor: 'rgba(2,132,199,0.06)' }} />
+              <div className="absolute" style={{ left: '4%', width: `${xPct(MENU_THRESHOLDS.popularity) - 4}%`, top: '6%', height: `${yPct(MENU_THRESHOLDS.unitMargin) - 6}%`, backgroundColor: 'rgba(217,119,6,0.06)' }} />
+              <div className="absolute" style={{ left: '4%', width: `${xPct(MENU_THRESHOLDS.popularity) - 4}%`, top: `${yPct(MENU_THRESHOLDS.unitMargin)}%`, bottom: '8%', backgroundColor: 'rgba(225,29,72,0.06)' }} />
+              <div className="absolute border-l border-dashed border-slate-400/70" style={{ left: `${xPct(MENU_THRESHOLDS.popularity)}%`, top: '6%', bottom: '8%' }} />
+              <div className="absolute border-t border-dashed border-slate-400/70" style={{ top: `${yPct(MENU_THRESHOLDS.unitMargin)}%`, left: '4%', right: '4%' }} />
+              <span className="absolute text-[11px] font-semibold text-emerald-600" style={{ right: '5%', top: '8%' }}>{T('Stars', 'النجوم')}</span>
+              <span className="absolute text-[11px] font-semibold text-sky-600" style={{ right: '5%', bottom: '10%' }}>{T('Plowhorses', 'الأحصنة العاملة')}</span>
+              <span className="absolute text-[11px] font-semibold text-amber-600" style={{ left: '5%', top: '8%' }}>{T('Puzzles', 'الألغاز')}</span>
+              <span className="absolute text-[11px] font-semibold text-rose-600" style={{ left: '5%', bottom: '10%' }}>{T('Dogs', 'الأصناف الضعيفة')}</span>
+              {items.map((m) => {
+                const isSel = selected === m.id
+                const size = isSel ? 14 : m.top32 ? 10 : 7
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => setSelected(m.id)}
+                    title={`${isAr ? m.ar : m.en} · ${fmt(m.units)} · ${fmt(m.unitMargin, 3)}`}
+                    className="absolute rounded-full transition-transform hover:scale-150"
+                    style={{
+                      left: `${xPct(m.units)}%`,
+                      top: `${yPct(m.unitMargin)}%`,
+                      width: size,
+                      height: size,
+                      transform: 'translate(-50%, -50%)',
+                      backgroundColor: TONE_HEX[qMeta(m.quadrant).tone],
+                      opacity: isSel ? 1 : m.top32 ? 0.9 : 0.5,
+                      boxShadow: isSel ? '0 0 0 2px #0F172A' : m.purgeCandidate ? '0 0 0 1.5px #E11D48' : 'none',
+                    }}
+                  />
+                )
+              })}
+              <span className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[11px] text-slate-400">{T('Popularity (units sold, log scale) →', 'الشعبية (الوحدات المباعة) ←')}</span>
+              <span className="absolute left-1 top-1/2 -translate-y-1/2 -rotate-90 whitespace-nowrap text-[11px] text-slate-400" style={{ transformOrigin: 'left center' }}>{T('Unit margin (KWD)', 'هامش الوحدة (د.ك)')}</span>
             </div>
           </div>
           <div className="flex flex-col gap-4 lg:col-span-4">

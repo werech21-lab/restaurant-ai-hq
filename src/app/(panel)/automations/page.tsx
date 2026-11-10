@@ -24,7 +24,7 @@ async function AutomationsContent() {
 
 export default function AutomationsPage() {
   return (
-    <main className="w-full max-w-none px-4 py-6 sm:px-6" suppressHydrationWarning>
+    <main className="w-full min-w-0" suppressHydrationWarning>
       <Suspense fallback={<PageSkeleton title="إدارة التنبيهات والمتابعة التلقائية" />}>
         <AutomationsContent />
       </Suspense>

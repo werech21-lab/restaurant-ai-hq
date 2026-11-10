@@ -215,9 +215,9 @@ export function BrandSalesAnalyticsDashboard({ locale = 'ar' }: Props) {
                 <option value="China Garden">China Garden (تشاينا جاردن)</option>
                 <option value="Frank's">Frank&apos;s (فرانكس ستيك)</option>
                 <option value="Tahina">Tahina (شاورما طحينة)</option>
-                <option value="Farm Brown">Farm Brown (فارم براون)</option>
-                <option value="The Noodle Bar">The Noodle Bar (ذا نودل بار)</option>
-                <option value="Karak Cafeteria">Karak Cafeteria (كرك كافيتريا)</option>
+                <option value="Chick & Dip">Chick & Dip (تشيك آند ديب)</option>
+                <option value="Burgerito">Burgerito (برجريتو)</option>
+                <option value="Crave">Crave (كريف)</option>
               </select>
             </label>
 
@@ -851,8 +851,8 @@ export function BrandSalesAnalyticsDashboard({ locale = 'ar' }: Props) {
             </p>
             <p className="text-xs text-mist-300">
               {en
-                ? 'Egg Fried Rice, Szechuan Beef, Chicken Fillet Meal.'
-                : 'أرز مقلي بالبيض، لحم سيشوان، وجبة فيليه دجاج.'}
+                ? 'Egg Fried Rice, Szechuan Beef, Crispy Strips Meal.'
+                : 'أرز مقلي بالبيض، لحم سيشوان، وجبة أصابع دجاج مقرمشة.'}
             </p>
             <p className="text-[11px] font-semibold text-sky-300">
               {en ? 'Action: Micro-price tweak / combo pairing.' : 'الإجراء: تعديل طفيف في السعر أو ربط بمشروب.'}
@@ -871,8 +871,8 @@ export function BrandSalesAnalyticsDashboard({ locale = 'ar' }: Props) {
             </p>
             <p className="text-xs text-mist-300">
               {en
-                ? 'Sriracha Chicken Noodles, Chapati Box (6 pcs).'
-                : 'نودلز دجاج سريراتشا، بوكس شباتي كرك (6 حبات).'}
+                ? 'Smash Burgerito Combo, Artisan Melt Box (6 pcs).'
+                : 'كومبو برجريتو سماش، بوكس شباتي كرك (6 حبات).'}
             </p>
             <p className="text-[11px] font-semibold text-gold-300">
               {en ? 'Action: Upsell & hero banner promotion.' : 'الإجراء: اقتراح الكاشير وترويج المنصات.'}

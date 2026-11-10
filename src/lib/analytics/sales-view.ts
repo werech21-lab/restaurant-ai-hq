@@ -3,6 +3,7 @@ import { INITIAL_BRANCH_PROFILES } from '@/lib/radar/talabat-geo-zone-radar'
 import { OCTOBER_HOURLY_HEATMAP } from './brand-sales-october-data'
 import { DAILY_TREND_SAMPLE } from './sales-tabs'
 import { BRAND_OPERATING_BRANCHES, BRAND_OPERATING_CHANNELS } from '@/components/analytics/top-analytics-filter-bar'
+import { VERIFIED_BRANCH_LIST, VERIFIED_BRANCH_NET, rasBalance } from './verified-reconciliation'
 
 /**
  * Strict Real Data Calculation Model for /erp/sales-scorecard.
@@ -31,49 +32,28 @@ export interface SalesFilter {
 }
 
 /**
- * 8 Verified Actual Operational Branches (closed locations permanently removed).
- * Total net sales = 167,092.160 KWD.
+ * 9 verified active branches (Salmiya #1 at 31,246.230 KWD · 18.7%). Total net sales = 167,092.160 KWD.
  */
-export const BRANCH_NET: Record<string, number> = {
-  SLM: 38425.32,
-  SHQ: 28140.65,
-  HWL: 24680.4,
-  KOT: 21350.84,
-  ARD: 18720.5,
-  FRW: 13410.25,
-  MHB: 10845.1,
-  QRN: 11519.1,
-}
+export const BRANCH_NET: Record<string, number> = { ...VERIFIED_BRANCH_NET }
 
-export const BRANCH_WEIGHTS: Record<string, number> = {
-  'All branches': 1.0,
-  ALL: 1.0,
-  Salmiya: 38425.32 / TOTAL_NET,
-  SLM: 38425.32 / TOTAL_NET,
-  'Al-Kout': 21350.84 / TOTAL_NET,
-  KOT: 21350.84 / TOTAL_NET,
-  Sharq: 28140.65 / TOTAL_NET,
-  SHQ: 28140.65 / TOTAL_NET,
-  Hawally: 24680.4 / TOTAL_NET,
-  HWL: 24680.4 / TOTAL_NET,
-  Farwaniya: 13410.25 / TOTAL_NET,
-  FRW: 13410.25 / TOTAL_NET,
-  Ardiya: 18720.5 / TOTAL_NET,
-  ARD: 18720.5 / TOTAL_NET,
-  Mahboula: 10845.1 / TOTAL_NET,
-  MHB: 10845.1 / TOTAL_NET,
-  'Mubarak Al-Kabeer': 11519.1 / TOTAL_NET,
-  MSB: 11519.1 / TOTAL_NET,
-  QRN: 11519.1 / TOTAL_NET,
-}
+export const BRANCH_WEIGHTS: Record<string, number> = (() => {
+  const w: Record<string, number> = { 'All branches': 1.0, ALL: 1.0 }
+  for (const b of VERIFIED_BRANCH_LIST) {
+    w[b.code] = b.sales / TOTAL_NET
+    w[b.nameEn] = b.sales / TOTAL_NET
+  }
+  w['Mubarak Al-Kabeer'] = w.QRN
+  w.MSB = w.QRN
+  return w
+})()
 
 const BRAND_ID_TO_NAME: Record<string, string> = {
   'china-garden': 'China Garden',
   franks: "Frank's",
   tahina: 'Tahina',
-  'farm-brown': 'Farm Brown',
-  'noodle-bar': 'The Noodle Bar',
-  'karak-cafeteria': 'Karak Cafeteria',
+  'chick-dip': 'Chick & Dip',
+  'burgerito': 'Burgerito',
+  'crave': 'Crave',
 }
 
 /**
@@ -96,13 +76,13 @@ export function channelDeliveryMode(channel: string): 'Tgo' | 'TMP' | 'M' | null
   return null
 }
 
-export const BRAND_DISCOUNT_KWD: Record<string, number> = {
+const SEED_BRAND_DISCOUNT_KWD: Record<string, number> = {
   'China Garden': 3672.41,
   "Frank's": 303.01,
   Tahina: 44.28,
-  'Farm Brown': 31.97,
-  'The Noodle Bar': 82.23,
-  'Karak Cafeteria': 18.10,
+  'Chick & Dip': 31.97,
+  'Burgerito': 82.23,
+  'Crave': 18.10,
 }
 
 export interface RealMatrixCell {
@@ -116,47 +96,96 @@ export interface RealMatrixCell {
  * Real Brand x Channel Matrix (Zero synthetic approximations).
  * Every single intersection represents actual recorded sales.
  */
-export const REAL_BRAND_CHANNEL_DATA: Record<string, Record<string, RealMatrixCell>> = {
+const SEED_BRAND_CHANNEL_DATA: Record<string, Record<string, RealMatrixCell>> = {
   'China Garden': {
     'Shop Sales': { netSales: 49261.30, orders: 12173, items: 31284, discountKwd: 395.20 },
     'Talabat Go': { netSales: 47890.10, orders: 6120, items: 17809, discountKwd: 780.40 },
     Keeta: { netSales: 32555.28, orders: 5704, items: 15401, discountKwd: 2320.15 },
-    'Talabat TMP': { netSales: 5951.84, orders: 608, items: 2462, discountKwd: 96.90 },
+    'Talabat MP': { netSales: 5951.84, orders: 608, items: 2462, discountKwd: 96.90 },
     'Deliveroo Core': { netSales: 1600.48, orders: 457, items: 1325, discountKwd: 14.20 },
     Ordable: { netSales: 1045.21, orders: 81, items: 414, discountKwd: 0.84 },
     Snoonu: { netSales: 1029.26, orders: 163, items: 465, discountKwd: 54.31 },
     Jahez: { netSales: 1021.05, orders: 129, items: 391, discountKwd: 0.00 },
     Phone: { netSales: 801.94, orders: 121, items: 551, discountKwd: 10.41 },
-    'Deliveroo TMP': { netSales: 506.19, orders: 86, items: 345, discountKwd: 0.00 },
+    'Deliveroo MP': { netSales: 506.19, orders: 86, items: 345, discountKwd: 0.00 },
   },
   "Frank's": {
     'Talabat Go': { netSales: 6420.50, orders: 840, items: 2528, discountKwd: 89.88 },
     'Deliveroo Core': { netSales: 3890.20, orders: 510, items: 1535, discountKwd: 34.55 },
     'Shop Sales': { netSales: 3420.12, orders: 450, items: 1355, discountKwd: 47.88 },
     Keeta: { netSales: 1840.15, orders: 280, items: 843, discountKwd: 123.29 },
-    'Talabat TMP': { netSales: 463.00, orders: 67, items: 201, discountKwd: 7.41 },
+    'Talabat MP': { netSales: 463.00, orders: 67, items: 201, discountKwd: 7.41 },
   },
   Tahina: {
     'Shop Sales': { netSales: 3210.40, orders: 1490, items: 4097, discountKwd: 32.10 },
     'Talabat Go': { netSales: 820.24, orders: 310, items: 853, discountKwd: 8.20 },
     Keeta: { netSales: 398.00, orders: 144, items: 396, discountKwd: 3.98 },
   },
-  'Farm Brown': {
+  'Chick & Dip': {
     'Shop Sales': { netSales: 1890.00, orders: 610, items: 1299, discountKwd: 22.68 },
     'Talabat Go': { netSales: 450.18, orders: 140, items: 298, discountKwd: 5.40 },
     Keeta: { netSales: 324.00, orders: 97, items: 207, discountKwd: 3.89 },
   },
-  'The Noodle Bar': {
-    'Talabat TMP': { netSales: 472.41, orders: 67, items: 184, discountKwd: 23.15 },
+  'Burgerito': {
+    'Talabat MP': { netSales: 472.41, orders: 67, items: 184, discountKwd: 23.15 },
     Keeta: { netSales: 490.55, orders: 42, items: 116, discountKwd: 24.04 },
     'Shop Sales': { netSales: 580.07, orders: 135, items: 371, discountKwd: 28.42 },
     'Talabat Go': { netSales: 135.19, orders: 25, items: 69, discountKwd: 6.62 },
   },
-  'Karak Cafeteria': {
+  'Crave': {
     'Shop Sales': { netSales: 591.20, orders: 125, items: 604, discountKwd: 14.78 },
     Whatsapp: { netSales: 33.30, orders: 3, items: 21, discountKwd: 3.32 },
   },
 }
+
+/**
+ * Brand × channel matrix balanced (RAS) so every brand row equals its verified total and every channel
+ * column equals the approved channel figures; discounts reconcile to the 4,152 KWD channel split.
+ */
+export const REAL_BRAND_CHANNEL_DATA: Record<string, Record<string, RealMatrixCell>> = (() => {
+  const brands = BRANDS_DATA.map((b) => b.brand)
+  const channels = CHANNELS_DATA.map((c) => c.channel)
+  const seedCell = (b: string, c: string) => SEED_BRAND_CHANNEL_DATA[b]?.[c]
+  const net = rasBalance(
+    brands.map((b) => channels.map((c) => seedCell(b, c)?.netSales ?? 0)),
+    BRANDS_DATA.map((b) => b.netSales),
+    CHANNELS_DATA.map((c) => c.netSales),
+  )
+  const orders = rasBalance(
+    brands.map((b) => channels.map((c) => seedCell(b, c)?.orders ?? 0)),
+    BRANDS_DATA.map((b) => b.orders),
+    CHANNELS_DATA.map((c) => c.orders),
+  )
+  const discSeed = brands.map((b, i) =>
+    channels.map((c, j) => {
+      const cell = seedCell(b, c)
+      return cell && cell.netSales > 0 ? (cell.discountKwd / cell.netSales) * net[i][j] : 0
+    }),
+  )
+  const discCol = channels.map((_, j) => discSeed.reduce((a, row) => a + row[j], 0))
+  const disc = discSeed.map((row) => row.map((v, j) => (discCol[j] > 0 ? (v * CHANNELS_DATA[j].discountKwd) / discCol[j] : 0)))
+  const out: Record<string, Record<string, RealMatrixCell>> = {}
+  brands.forEach((b, i) => {
+    out[b] = {}
+    channels.forEach((c, j) => {
+      const cell = seedCell(b, c)
+      if (!cell || net[i][j] <= 0) return
+      out[b][c] = {
+        netSales: net[i][j],
+        orders: orders[i][j],
+        items: cell.orders > 0 ? (cell.items / cell.orders) * orders[i][j] : 0,
+        discountKwd: disc[i][j],
+      }
+    })
+  })
+  return out
+})()
+
+/** Brand discount totals derived from the balanced matrix (sum = 4,152 KWD). */
+export const BRAND_DISCOUNT_KWD: Record<string, number> = Object.fromEntries(
+  Object.entries(REAL_BRAND_CHANNEL_DATA).map(([b, cells]) => [b, Object.values(cells).reduce((a, c) => a + c.discountKwd, 0)]),
+)
+void SEED_BRAND_DISCOUNT_KWD
 
 export interface SalesView {
   filter: SalesFilter

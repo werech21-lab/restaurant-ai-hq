@@ -44,25 +44,25 @@ const QUAD_STYLE: Record<Quad, { en: string; ar: string; descEn: string; descAr:
     en: 'Stars', ar: 'النجوم',
     descEn: 'High popularity and high margin. Keep at the top of the menu and protect quality.',
     descAr: 'شعبية عالية وهامش مرتفع. ثبّتها في أعلى القائمة واحمِ جودتها.',
-    box: 'border-emerald-200 bg-emerald-50 text-emerald-900', pill: 'bg-emerald-100 text-emerald-800',
+    box: 'bg-emerald-50/80 text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200', pill: 'bg-emerald-100 text-emerald-800',
   },
   plowhorse: {
     en: 'Plowhorses', ar: 'خيول العمل',
     descEn: 'High popularity, lower margin. Pair with cheap add-ons in a combo to lift the margin.',
     descAr: 'شعبية عالية وهامش أقل. اجمعها مع إضافات رخيصة التكلفة في كومبو لرفع الهامش.',
-    box: 'border-sky-200 bg-sky-50 text-sky-900', pill: 'bg-sky-100 text-sky-800',
+    box: 'bg-sky-50/80 text-sky-900 dark:bg-sky-950/30 dark:text-sky-200', pill: 'bg-sky-100 text-sky-800',
   },
   puzzle: {
     en: 'Puzzles', ar: 'الألغاز',
     descEn: 'High margin, low demand. Promote them and suggest them at checkout.',
     descAr: 'هامش مرتفع وطلب منخفض. روّج لها واقترحها عند الدفع.',
-    box: 'border-amber-200 bg-amber-50 text-amber-900', pill: 'bg-amber-100 text-amber-800',
+    box: 'bg-amber-50/80 text-amber-900 dark:bg-amber-950/30 dark:text-amber-200', pill: 'bg-amber-100 text-amber-800',
   },
   dog: {
     en: 'Dogs', ar: 'الأصناف الراكدة',
     descEn: 'Weak sales and added kitchen complexity. Bundle, refresh or remove.',
     descAr: 'مبيعات ضعيفة وتعقيد إضافي في المطبخ. اجمعها أو جدّد عرضها أو احذفها.',
-    box: 'border-rose-200 bg-rose-50 text-rose-900', pill: 'bg-rose-100 text-rose-800',
+    box: 'bg-rose-50/80 text-rose-900 dark:bg-rose-950/30 dark:text-rose-200', pill: 'bg-rose-100 text-rose-800',
   },
 }
 
@@ -75,9 +75,9 @@ function Num({ children }: { children: React.ReactNode }) {
   return <span dir="ltr" className="inline-block tabular-nums">{children}</span>
 }
 
-const card = 'rounded-md border border-[#E5E7EB] bg-white p-4'
-const th = 'px-2 py-1.5 text-start text-[11px] font-semibold text-slate-600 bg-slate-50 border-b border-[#E5E7EB] whitespace-nowrap'
-const td = 'px-2 py-1.5 border-b border-[#F1F5F9] whitespace-nowrap'
+const card = 'ae-tile rounded-2xl p-5 min-w-0'
+const th = 'px-3.5 py-3 text-start text-[11px] font-semibold text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200/70 dark:border-slate-700 whitespace-nowrap'
+const td = 'px-3.5 py-3 text-xs border-b border-slate-100 dark:border-slate-800 whitespace-nowrap'
 const tdn = td + ' tabular-nums'
 
 export default function MenuEngineeringPage() {
@@ -127,11 +127,11 @@ export default function MenuEngineeringPage() {
   const maxCat = Math.max(...CATEGORY_BREAKDOWN.map((c) => c.salesKwd))
 
   return (
-    <div dir={ar ? 'rtl' : 'ltr'} lang={locale} className="mx-auto w-full max-w-[1550px] space-y-4 text-xs text-slate-800" style={ar ? { fontFamily: 'Cairo, Inter, system-ui, sans-serif' } : undefined}>
+    <div dir={ar ? 'rtl' : 'ltr'} lang={locale} className="ae-stagger w-full min-w-0 space-y-6 text-xs text-slate-800 dark:text-slate-200" style={ar ? { fontFamily: 'Cairo, Inter, system-ui, sans-serif' } : undefined}>
       {/* Header */}
-      <div className={`${card} flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between`}>
+      <div className="ae-masthead flex flex-col gap-4 p-6 lg:flex-row lg:items-center lg:justify-between lg:p-7">
         <div>
-          <h1 className="text-xl font-extrabold tracking-tight !text-slate-900">{T('Menu engineering · October 2026', 'هندسة المنيو · أكتوبر 2026')}</h1>
+          <h1 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100 lg:text-2xl">{T('Menu engineering · October 2026', 'هندسة المنيو · أكتوبر 2026')}</h1>
           <p className="mt-0.5 text-sm text-slate-600">
             {T(
               'Kasavana & Smith matrix built from the October item data: popularity, recipe cost and margin per item.',
@@ -139,13 +139,13 @@ export default function MenuEngineeringPage() {
             )}
           </p>
         </div>
-        <Link href="/dashboard" className="self-start rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 lg:self-auto">
+        <Link href="/dashboard" className="ae-pill-light ae-pill-sm self-start lg:self-auto">
           {ar ? '→ العودة إلى الملخص المالي' : '← Back to financial summary'}
         </Link>
       </div>
 
       {/* Confirmed October figures */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
         {[
           [T('Net sales', 'صافي المبيعات'), <Num key="a">{ar ? `${fmt3(NET_SALES)} د.ك` : `KWD ${fmt3(NET_SALES)}`}</Num>],
           [T('Orders', 'عدد الطلبات'), <Num key="b">{fmt0(ORDERS)}</Num>],
@@ -153,18 +153,18 @@ export default function MenuEngineeringPage() {
           [T('Items sold', 'الأصناف المباعة'), <Num key="d">{fmt0(ITEMS_SOLD)}</Num>],
           [T('Discounts given', 'الخصومات الممنوحة'), <Num key="e">{ar ? `${fmt0(DISCOUNTS)} د.ك` : `KWD ${fmt0(DISCOUNTS)}`}</Num>],
         ].map(([label, value], i) => (
-          <div key={i} className={card + ' !p-3'}>
-            <div className="text-[11px] text-slate-500">{label}</div>
-            <div className="mt-0.5 text-lg font-semibold text-slate-900">{value}</div>
+          <div key={i} className="ae-tile ae-lift min-w-0 rounded-2xl p-4">
+            <div className="text-[11px] font-semibold text-slate-500">{label}</div>
+            <div className="mt-1 break-words text-lg font-extrabold leading-tight text-slate-900 tabular-nums dark:text-slate-100 sm:text-xl xl:text-[22px]">{value}</div>
           </div>
         ))}
       </div>
 
       {/* Terminology: contribution margin vs net operating profit */}
       <section className={card}>
-        <h2 className="text-sm font-semibold !text-slate-900">{T('Two different margins on the dashboard', 'هامشان مختلفان في لوحة التحكم')}</h2>
+        <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{T('Two different margins on the dashboard', 'هامشان مختلفان في لوحة التحكم')}</h2>
         <div className="mt-2 grid grid-cols-1 gap-3 md:grid-cols-2">
-          <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+          <div className="ae-tile-soft rounded-2xl p-4">
             <div className="font-semibold">{T('Contribution margin after food and commission', 'هامش المساهمة بعد الطعام والعمولة')}</div>
             <p className="mt-1 text-slate-600">
               {T(
@@ -173,7 +173,7 @@ export default function MenuEngineeringPage() {
               )}
             </p>
           </div>
-          <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3">
+          <div className="rounded-2xl bg-emerald-50/80 p-4 dark:bg-emerald-950/30">
             <div className="font-semibold">{T('Net operating profit (official)', 'صافي الربح التشغيلي (المعتمد)')}</div>
             <p className="mt-1 text-slate-700">
               {T(
@@ -192,18 +192,18 @@ export default function MenuEngineeringPage() {
       </section>
 
       {/* Quadrant cards */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {(Object.keys(QUAD_STYLE) as Quad[]).map((k) => (
           <button
             key={k}
             onClick={() => setQuad((cur) => (cur === k ? 'ALL' : k))}
-            className={`rounded-md border p-3 text-start ${QUAD_STYLE[k].box} ${quad === k ? 'ring-2 ring-slate-900' : ''}`}
+            className={`ae-lift min-w-0 rounded-2xl p-4 text-start transition ${QUAD_STYLE[k].box} ${quad === k ? 'ring-2 ring-slate-900 dark:ring-slate-200' : ''}`}
           >
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-sm font-bold">{T(QUAD_STYLE[k].en, QUAD_STYLE[k].ar)}</span>
               <span className="rounded-full bg-white/80 px-2 py-0.5 text-[11px] font-bold"><Num>{counts[k]}</Num></span>
             </div>
-            <p className="mt-1">{T(QUAD_STYLE[k].descEn, QUAD_STYLE[k].descAr)}</p>
+            <p className="mt-1.5 leading-relaxed">{T(QUAD_STYLE[k].descEn, QUAD_STYLE[k].descAr)}</p>
           </button>
         ))}
       </div>
@@ -211,13 +211,13 @@ export default function MenuEngineeringPage() {
       {/* Category bars + item table */}
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         <section className={card}>
-          <h2 className="text-sm font-semibold !text-slate-900">{T('Sales by category', 'المبيعات حسب الفئة')}</h2>
+          <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{T('Sales by category', 'المبيعات حسب الفئة')}</h2>
           <div className="mt-3 space-y-1.5">
             {CATEGORY_BREAKDOWN.map((c) => (
-              <div key={c.nameEn} className="grid grid-cols-[8.5rem_1fr] items-center gap-2">
-                <span className="truncate text-slate-700">{ar ? c.nameAr : c.nameEn}</span>
+              <div key={c.nameEn} className="grid grid-cols-[minmax(7rem,9rem)_1fr] items-center gap-2">
+                <span className="break-words leading-snug text-slate-700 dark:text-slate-300">{ar ? c.nameAr : c.nameEn}</span>
                 <div className="flex items-center gap-1.5">
-                  <div style={{ height: 16, width: `${(c.salesKwd / maxCat) * 75}%`, minWidth: 2, background: '#9CA3AF' }} />
+                  <div className="rounded-md" style={{ height: 16, width: `${(c.salesKwd / maxCat) * 70}%`, minWidth: 2, background: '#0284C7' }} />
                   <Num>{fmt0(c.salesKwd)} <span className="text-slate-400">({c.sharePercent}%)</span></Num>
                 </div>
               </div>
@@ -230,26 +230,26 @@ export default function MenuEngineeringPage() {
 
         <section className={`${card} xl:col-span-2`}>
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-sm font-semibold !text-slate-900">{T('Item matrix', 'مصفوفة الأصناف')}</h2>
+            <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{T('Item matrix', 'مصفوفة الأصناف')}</h2>
             <div className="flex flex-wrap items-center gap-2">
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={T('Search item or category', 'ابحث عن صنف أو فئة')}
-                className="rounded border border-[#E5E7EB] px-2 py-1 text-xs"
+                className="ae-input w-full min-w-0 rounded-full px-4 py-2 text-xs sm:w-56"
               />
-              <select value={brand} onChange={(e) => setBrand(e.target.value)} className="rounded border border-[#E5E7EB] bg-white px-2 py-1 text-xs">
+              <select value={brand} onChange={(e) => setBrand(e.target.value)} className="ae-select min-w-0">
                 <option value="ALL">{T('All brands', 'كل العلامات التجارية')}</option>
                 {OCTOBER_BRAND_SCORECARDS.map((b) => <option key={b.brand} value={b.brand}>{ar ? b.brandAr : b.brand}</option>)}
               </select>
               {(brand !== 'ALL' || quad !== 'ALL' || query) && (
-                <button onClick={() => { setBrand('ALL'); setQuad('ALL'); setQuery('') }} className="rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold hover:bg-slate-100">
+                <button onClick={() => { setBrand('ALL'); setQuad('ALL'); setQuery('') }} className="ae-pill-light ae-pill-sm">
                   {T('Clear filters', 'إلغاء التصفية')}
                 </button>
               )}
             </div>
           </div>
-          <div className="max-h-[28rem] overflow-auto">
+          <div className="ae-table-wrap max-h-[28rem] w-full overflow-auto rounded-xl ring-1 ring-slate-200/70 dark:ring-slate-800">
             <table className="w-full border-collapse">
               <thead className="sticky top-0 z-10"><tr>
                 {[
@@ -277,8 +277,8 @@ export default function MenuEngineeringPage() {
           </div>
           <p className="mt-1 text-[11px] text-slate-500">
             {T(
-              'The dataset lists the 15 best sellers and 7 slow movers; recipe cost is available for the best sellers only.',
-              'تضم البيانات أعلى 15 صنفاً مبيعاً و7 أصناف بطيئة؛ وتكلفة الوصفة متاحة للأصناف الأكثر مبيعاً فقط.',
+              `The dataset lists the ${TOP_BEST_SELLERS.length} best sellers and ${SLOW_MOVERS_LIST.length} slow movers; recipe cost is available for the best sellers only.`,
+              `تضم البيانات أعلى ${TOP_BEST_SELLERS.length} صنفاً مبيعاً و${SLOW_MOVERS_LIST.length} أصناف بطيئة؛ وتكلفة الوصفة متاحة للأصناف الأكثر مبيعاً فقط.`,
             )}
           </p>
         </section>
@@ -286,8 +286,8 @@ export default function MenuEngineeringPage() {
 
       {/* Slow movers with playbook */}
       <section className={card}>
-        <h2 className="text-sm font-semibold !text-slate-900">{T('Slow movers and the recommended action', 'الأصناف البطيئة والإجراء الموصى به')}</h2>
-        <div className="mt-3 max-h-96 overflow-auto">
+        <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{T('Slow movers and the recommended action', 'الأصناف البطيئة والإجراء الموصى به')}</h2>
+        <div className="ae-table-wrap mt-3 max-h-96 w-full overflow-auto rounded-xl ring-1 ring-slate-200/70 dark:ring-slate-800">
           <table className="w-full border-collapse">
             <thead className="sticky top-0"><tr>
               {[['Item', 'الصنف'], ['Brand', 'العلامة'], ['Category', 'الفئة'], ['Price', 'السعر'], ['Units', 'الكمية'], ['Sales (KWD)', 'المبيعات (د.ك)'], ['Recommended playbook', 'الإجراء الموصى به']].map(([en, arT]) => <th key={en} className={th}>{T(en, arT)}</th>)}
@@ -311,11 +311,11 @@ export default function MenuEngineeringPage() {
 
       {/* Playbooks */}
       <section className={card}>
-        <h2 className="text-sm font-semibold !text-slate-900">{T('Action playbooks', 'أدلة الإجراءات')}</h2>
+        <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{T('Action playbooks', 'أدلة الإجراءات')}</h2>
         <p className="text-[11px] text-slate-500">{T('Expected effects are planning estimates from the dataset, not measured results.', 'الأثر المتوقع تقديرات تخطيطية من البيانات وليست نتائج مقاسة.')}</p>
         <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
           {ACTION_PLAYBOOKS.map((p) => (
-            <div key={p.id} className="rounded-md border border-[#E5E7EB] border-s-[3px] border-s-gray-900 p-3">
+            <div key={p.id} className="ae-tile-soft ae-lift min-w-0 rounded-2xl p-4">
               <div className="font-semibold text-slate-900">{ar ? p.titleAr : p.titleEn}</div>
               <div className="mt-0.5 text-slate-500">{ar ? p.taglineAr : p.taglineEn}</div>
               <p className="mt-1.5 text-slate-700">{ar ? p.descriptionAr : p.descriptionEn}</p>

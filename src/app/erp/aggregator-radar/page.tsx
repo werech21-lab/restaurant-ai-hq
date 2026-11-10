@@ -11,7 +11,7 @@ export const metadata = {
 export default function AggregatorRadarPage() {
   const permissions = [...panelBridgePermissionSet()].sort()
   return (
-    <main className="w-full px-4 py-8 sm:px-6" suppressHydrationWarning>
+    <main className="w-full min-w-0" suppressHydrationWarning>
       <AggregatorRadar permissions={permissions} />
     </main>
   )

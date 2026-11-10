@@ -202,7 +202,7 @@ export function CostIntelligenceV2() {
               </div>
             </div>
           </div>
-          <div className="overflow-x-auto lg:col-span-8">
+          <div className="w-full min-w-0 overflow-x-auto rounded-xl lg:col-span-8">
             <table className="w-full min-w-[640px] text-xs">
               <thead>
                 <tr className="text-slate-500">

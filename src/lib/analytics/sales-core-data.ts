@@ -1,4 +1,5 @@
 /** Approved October 2026 brand and channel figures (Odoo), shared by the scorecard page, its tabs and the filter model. */
+import { VERIFIED_BRAND_TOTALS } from './verified-reconciliation'
 
 export interface BrandRow {
   brand: string;
@@ -29,7 +30,8 @@ export interface ChannelRow {
   dessertsPct: number;
 }
 
-export const BRANDS_DATA: BrandRow[] = [
+/** Seed brand profile (mix ratios, attach rates, best sellers); totals are reconciled below. */
+const SEED_BRANDS_DATA: BrandRow[] = [
   {
     brand: "China Garden",
     orders: 25205,
@@ -70,7 +72,7 @@ export const BRANDS_DATA: BrandRow[] = [
     bestSeller: "KWD 1 Chicken Shawarma - Lebanese Bread",
   },
   {
-    brand: "Farm Brown",
+    brand: "Chick & Dip",
     orders: 847,
     netSales: 2664.18,
     share: 1.6,
@@ -80,10 +82,10 @@ export const BRANDS_DATA: BrandRow[] = [
     drinksPct: 23.1,
     startersPct: 16.2,
     cogsPct: 25.1,
-    bestSeller: "Chicken Fillet Meal",
+    bestSeller: "Crispy Strips Meal",
   },
   {
-    brand: "The Noodle Bar",
+    brand: "Burgerito",
     orders: 269,
     netSales: 1678.22,
     share: 1,
@@ -93,10 +95,10 @@ export const BRANDS_DATA: BrandRow[] = [
     drinksPct: 17.8,
     startersPct: 25.3,
     cogsPct: 24.9,
-    bestSeller: "Sriracha Chicken Noodles",
+    bestSeller: "Smash Burgerito Combo",
   },
   {
-    brand: "Karak Cafeteria",
+    brand: "Crave",
     orders: 128,
     netSales: 624.5,
     share: 0.4,
@@ -106,9 +108,15 @@ export const BRANDS_DATA: BrandRow[] = [
     drinksPct: 72.7,
     startersPct: 37.5,
     cogsPct: 21.8,
-    bestSeller: "Chapati Box (4 pcs)",
+    bestSeller: "Artisan Melt Box (4 pcs)",
   },
 ];
+
+/** 6 verified brands — net sales, orders, share and AOV reconciled to the approved ledger (167,092.160 KWD · 30,540 orders). */
+export const BRANDS_DATA: BrandRow[] = SEED_BRANDS_DATA.map((b) => {
+  const v = VERIFIED_BRAND_TOTALS[b.brand]
+  return v ? { ...b, netSales: v.netSales, orders: v.orders, share: v.share, avgOrder: v.avgOrder } : b
+})
 
 export const CHANNELS_DATA: ChannelRow[] = [
   {
@@ -130,7 +138,7 @@ export const CHANNELS_DATA: ChannelRow[] = [
     share: 33.4,
     avgOrder: 7.78,
     itemsPerOrder: 2.91,
-    discountRate: 1.6, discountKwd: 907.67,
+    discountRate: 1.6, discountKwd: 902.66,
     drinksPct: 12.7,
     startersPct: 51.9,
     dessertsPct: 2.8,
@@ -142,7 +150,7 @@ export const CHANNELS_DATA: ChannelRow[] = [
     share: 21.3,
     avgOrder: 5.68,
     itemsPerOrder: 2.70,
-    discountRate: 6.7, discountKwd: 2538.99,
+    discountRate: 6.7, discountKwd: 2544.0,
     drinksPct: 4.8,
     startersPct: 39.4,
     dessertsPct: 3.9,

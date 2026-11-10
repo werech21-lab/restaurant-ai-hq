@@ -403,7 +403,7 @@ export function ExecutiveSummaryV2({ anchor }: { anchor: string }) {
             </Link>
           }
         />
-        <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-2 xl:grid-cols-5">
+        <div className="grid grid-cols-1 items-stretch gap-4 md:grid-cols-2 xl:grid-cols-3">
           {LEVERS.map((l, i) => (
             <div key={l.id} className="ae-tile-soft ae-lift flex flex-col justify-between gap-3 p-4">
               <div className="space-y-1.5">

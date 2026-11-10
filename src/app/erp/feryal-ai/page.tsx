@@ -1384,15 +1384,15 @@ export default function FeryalAiCommandPage() {
       {/* ==================================================================== */}
       {/* 1. TOP EXECUTIVE HEADER (Clean, Solid, Zero Slop Gradients) */}
       {/* ==================================================================== */}
-      <div className="ae-tile rounded-2xl p-6 sm:p-7 flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 rounded-full border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 px-3.5 py-1 text-xs font-bold text-slate-800 dark:text-slate-200">
-            <Sparkles className="h-4 w-4 text-[#2563EB]" />
+      <div className="ae-masthead p-6 lg:p-7 flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="min-w-0 space-y-2">
+          <div className="inline-flex flex-wrap items-center gap-2 rounded-full bg-slate-100 dark:bg-slate-800 px-3.5 py-1 text-xs font-bold text-slate-800 dark:text-slate-200">
+            <Sparkles className="h-4 w-4 text-sky-600" />
             <span>{isAr ? 'النسخة الموحدة القيادية 2026' : 'Executive Master Command 2026'}</span>
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
             <span className="text-emerald-700 dark:text-emerald-400 font-bold">{isAr ? 'بيانات أودو المعتمدة' : 'Verified Odoo Ledger'}</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-950 dark:text-white tracking-tight flex items-center gap-3">
+          <h1 className="text-xl lg:text-2xl font-extrabold text-slate-950 dark:text-white tracking-tight flex items-center gap-3">
             <span>{isAr ? 'مركز القيادة الذكي والمستشارة فريال' : 'Executive AI Command & Advisor Feryal'}</span>
           </h1>
           <p className="text-sm sm:text-[15px] font-medium text-slate-600 dark:text-slate-400 max-w-3xl leading-relaxed">
@@ -1411,7 +1411,7 @@ export default function FeryalAiCommandPage() {
             }}
             className="ae-pill-light"
           >
-            <RefreshCw className={`h-4 w-4 ${hubLoading ? 'animate-spin text-blue-600' : 'text-slate-500'}`} />
+            <RefreshCw className={`h-4 w-4 ${hubLoading ? 'animate-spin text-sky-600' : 'text-slate-500'}`} />
             <span>{isAr ? 'تحديث الاستخبارات المباشرة' : 'Refresh Market Intel'}</span>
           </button>
           <Link
@@ -1429,9 +1429,9 @@ export default function FeryalAiCommandPage() {
       {/* 2. UNIFIED ODOO MASTER AGGREGATOR (Solid White High-Contrast Cards) */}
       {/* ==================================================================== */}
       <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="h-2.5 w-2.5 rounded-full bg-[#2563EB]" />
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <div className="h-2.5 w-2.5 shrink-0 rounded-full bg-sky-600" />
             <h2 className="text-lg md:text-xl font-bold text-slate-900 dark:text-white">
               {isAr ? 'أولاً: المجمّع الشامل لبيانات أودو المعتمدة (مجموعة فنتشر فودز)' : '1. Unified Odoo Master Ledger (Venture Foods)'}
             </h2>
@@ -1441,77 +1441,77 @@ export default function FeryalAiCommandPage() {
           </span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 items-stretch">
           {/* Card 1: Net Sales */}
-          <div className="ae-tile ae-lift rounded-2xl p-5 sm:p-6">
-            <div className="flex items-center justify-between text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+          <div className="ae-tile ae-lift min-w-0 rounded-2xl p-5">
+            <div className="flex items-start justify-between gap-2 text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
               <span>{isAr ? 'صافي المبيعات المعتمدة' : 'Approved Net Sales'}</span>
               <DollarSign className="h-4 w-4 text-slate-500" />
             </div>
-            <div className="mt-2.5 text-2xl sm:text-3xl font-extrabold text-slate-950 dark:text-white font-mono tabular-nums tracking-tight">
-              167,092.160 <span className="text-xs font-bold text-slate-500 font-sans">{isAr ? 'د.ك' : 'KWD'}</span>
+            <div className="mt-2.5 text-lg sm:text-xl xl:text-[22px] leading-tight break-words font-extrabold text-slate-950 dark:text-white font-mono tabular-nums tracking-tight">
+              167,092.160 <span className="ms-0.5 text-[11px] font-bold text-slate-500 font-sans">{isAr ? 'د.ك' : 'KWD'}</span>
             </div>
-            <div className="mt-3 flex items-center justify-between text-[13px] text-slate-600 dark:text-slate-400 font-medium border-t border-slate-100 dark:border-slate-800/80 pt-2.5">
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-xs text-slate-600 dark:text-slate-400 font-medium border-t border-slate-100 dark:border-slate-800/80 pt-2.5">
               <span>{isAr ? '30,540 طلباً' : '30,540 Orders'}</span>
               <span className="text-slate-900 dark:text-white font-bold">{isAr ? 'متوسط السلة 5.471 د.ك' : 'AOV 5.471 KWD'}</span>
             </div>
           </div>
 
           {/* Card 2: Operating Profit */}
-          <div className="ae-tile ae-lift rounded-2xl p-5 sm:p-6">
-            <div className="flex items-center justify-between text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+          <div className="ae-tile ae-lift min-w-0 rounded-2xl p-5">
+            <div className="flex items-start justify-between gap-2 text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
               <span>{isAr ? 'صافي الربح التشغيلي' : 'Net Operating Profit'}</span>
               <TrendingUp className="h-4 w-4 text-emerald-600" />
             </div>
-            <div className="mt-2.5 text-2xl sm:text-3xl font-extrabold text-emerald-700 dark:text-emerald-400 font-mono tabular-nums tracking-tight">
+            <div className="mt-2.5 text-lg sm:text-xl xl:text-[22px] leading-tight break-words font-extrabold text-emerald-700 dark:text-emerald-400 font-mono tabular-nums tracking-tight">
               42,441.480 <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300 font-sans">{isAr ? 'د.ك' : 'KWD'}</span>
             </div>
-            <div className="mt-3 flex items-center justify-between text-[13px] text-slate-600 dark:text-slate-400 font-medium border-t border-slate-100 dark:border-slate-800/80 pt-2.5">
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-xs text-slate-600 dark:text-slate-400 font-medium border-t border-slate-100 dark:border-slate-800/80 pt-2.5">
               <span>{isAr ? 'هامش الربح' : 'Profit Margin'}</span>
               <span className="text-emerald-700 dark:text-emerald-400 font-extrabold">25.4%</span>
             </div>
           </div>
 
           {/* Card 3: Food Cost */}
-          <div className="ae-tile ae-lift rounded-2xl p-5 sm:p-6">
-            <div className="flex items-center justify-between text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+          <div className="ae-tile ae-lift min-w-0 rounded-2xl p-5">
+            <div className="flex items-start justify-between gap-2 text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
               <span>{isAr ? 'تكلفة الأغذية والمواد' : 'Food Cost (COGS)'}</span>
               <AlertTriangle className="h-4 w-4 text-amber-500" />
             </div>
-            <div className="mt-2.5 text-2xl sm:text-3xl font-extrabold text-slate-950 dark:text-white font-mono tabular-nums tracking-tight">
-              41,438.856 <span className="text-xs font-bold text-slate-500 font-sans">{isAr ? 'د.ك' : 'KWD'}</span>
+            <div className="mt-2.5 text-lg sm:text-xl xl:text-[22px] leading-tight break-words font-extrabold text-slate-950 dark:text-white font-mono tabular-nums tracking-tight">
+              41,438.856 <span className="ms-0.5 text-[11px] font-bold text-slate-500 font-sans">{isAr ? 'د.ك' : 'KWD'}</span>
             </div>
-            <div className="mt-3 flex items-center justify-between text-[13px] text-slate-600 dark:text-slate-400 font-medium border-t border-slate-100 dark:border-slate-800/80 pt-2.5">
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-xs text-slate-600 dark:text-slate-400 font-medium border-t border-slate-100 dark:border-slate-800/80 pt-2.5">
               <span>{isAr ? 'الفعلي: 24.8%' : 'Actual: 24.8%'}</span>
               <span className="text-amber-700 dark:text-amber-400 font-bold">{isAr ? 'المستهدف: 24.0%' : 'Target: 24.0%'}</span>
             </div>
           </div>
 
           {/* Card 4: Operating Expenses & Custody */}
-          <div className="ae-tile ae-lift rounded-2xl p-5 sm:p-6">
-            <div className="flex items-center justify-between text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+          <div className="ae-tile ae-lift min-w-0 rounded-2xl p-5">
+            <div className="flex items-start justify-between gap-2 text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
               <span>{isAr ? 'المصروفات والعهد' : 'Opex & Custodies'}</span>
               <Layers className="h-4 w-4 text-slate-500" />
             </div>
-            <div className="mt-2.5 text-2xl sm:text-3xl font-extrabold text-slate-950 dark:text-white font-mono tabular-nums tracking-tight">
-              51,154.950 <span className="text-xs font-bold text-slate-500 font-sans">{isAr ? 'د.ك' : 'KWD'}</span>
+            <div className="mt-2.5 text-lg sm:text-xl xl:text-[22px] leading-tight break-words font-extrabold text-slate-950 dark:text-white font-mono tabular-nums tracking-tight">
+              51,154.950 <span className="ms-0.5 text-[11px] font-bold text-slate-500 font-sans">{isAr ? 'د.ك' : 'KWD'}</span>
             </div>
-            <div className="mt-3 flex items-center justify-between text-[13px] text-slate-600 dark:text-slate-400 font-medium border-t border-slate-100 dark:border-slate-800/80 pt-2.5">
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-xs text-slate-600 dark:text-slate-400 font-medium border-t border-slate-100 dark:border-slate-800/80 pt-2.5">
               <span>{isAr ? '2,213 قيداً' : '2,213 Entries'}</span>
               <span className="text-slate-900 dark:text-white font-bold">{isAr ? 'عهدة رابح: 10.7 ألف د.ك' : 'Rabih: 10.7k KWD'}</span>
             </div>
           </div>
 
           {/* Card 5: Discounts (Keeta Alert) */}
-          <div className="col-span-2 sm:col-span-2 lg:col-span-1 ae-tile ae-lift rounded-2xl p-5 sm:p-6">
-            <div className="flex items-center justify-between text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+          <div className="sm:col-span-2 xl:col-span-1 ae-tile ae-lift min-w-0 rounded-2xl p-5">
+            <div className="flex items-start justify-between gap-2 text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
               <span>{isAr ? 'الخصومات والعروض' : 'Promo Discounts'}</span>
               <ArrowDownRight className="h-4 w-4 text-rose-600" />
             </div>
-            <div className="mt-2.5 text-2xl sm:text-3xl font-extrabold text-rose-700 dark:text-rose-400 font-mono tabular-nums tracking-tight">
+            <div className="mt-2.5 text-lg sm:text-xl xl:text-[22px] leading-tight break-words font-extrabold text-rose-700 dark:text-rose-400 font-mono tabular-nums tracking-tight">
               4,152.000 <span className="text-xs font-bold text-rose-800 dark:text-rose-300 font-sans">{isAr ? 'د.ك' : 'KWD'}</span>
             </div>
-            <div className="mt-3 flex items-center justify-between text-[13px] text-slate-600 dark:text-slate-400 font-medium border-t border-slate-100 dark:border-slate-800/80 pt-2.5">
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-xs text-slate-600 dark:text-slate-400 font-medium border-t border-slate-100 dark:border-slate-800/80 pt-2.5">
               <span>2.4% {isAr ? 'من المبيعات' : 'of Sales'}</span>
               <span className="text-rose-700 dark:text-rose-400 font-extrabold">{isAr ? 'كيتا: 2,544 د.ك' : 'Keeta: 2,544 KWD'}</span>
             </div>
@@ -1522,7 +1522,7 @@ export default function FeryalAiCommandPage() {
         <div className="ae-tile rounded-2xl p-4 sm:p-5 text-[13px] text-slate-700 dark:text-slate-300 flex flex-wrap items-center justify-between gap-4 font-semibold">
           <div className="flex flex-wrap items-center gap-6">
             <div className="flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-blue-600" />
+              <Building2 className="h-4 w-4 text-sky-600" />
               <span>
                 <strong className="text-slate-950 dark:text-white font-extrabold">6</strong> {isAr ? 'علامات تجارية نشطة' : 'Active Brands'}
               </span>
@@ -2395,10 +2395,10 @@ export default function FeryalAiCommandPage() {
 
             <div className="bg-slate-50 dark:bg-slate-900/70 rounded-xl p-3 border border-slate-200 dark:border-slate-800 space-y-1.5 max-h-48 overflow-y-auto">
               {dispatchedLogs.map((log, i) => (
-                <div key={i} className="flex items-center justify-between text-xs font-medium text-slate-700 dark:text-slate-300">
-                  <span className="font-mono text-slate-500 font-bold">[{log.time}]</span>
-                  <span className="truncate max-w-[200px]">{log.msg}</span>
-                  <span className="text-[10px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded font-bold">
+                <div key={i} className="flex items-start justify-between gap-2 text-xs font-medium text-slate-700 dark:text-slate-300">
+                  <span className="shrink-0 font-mono text-slate-500 font-bold">[{log.time}]</span>
+                  <span className="min-w-0 flex-1 break-words leading-relaxed">{log.msg}</span>
+                  <span className="shrink-0 text-[10px] bg-white dark:bg-slate-800 px-2 py-0.5 rounded-full font-bold">
                     {log.channel}
                   </span>
                 </div>
@@ -2415,8 +2415,8 @@ export default function FeryalAiCommandPage() {
           <div className="ae-tile rounded-2xl p-6 sm:p-7 space-y-6">
             {/* Header with 4-stage Breadcrumbs */}
             <div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="rounded-md bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-900 text-xs font-bold px-2.5 py-0.5">
+              <div className="flex flex-wrap items-center gap-2 mb-2">
+                <span className="ae-chip">
                   {isAr ? 'مصفوفة القرارات الاستراتيجية' : 'Strategic Decision Matrix'}
                 </span>
                 <span className="text-[13px] text-slate-600 dark:text-slate-400 font-bold">
@@ -2426,24 +2426,25 @@ export default function FeryalAiCommandPage() {
               <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">
                 {isAr ? 'خامساً: محرك التحليل الاستراتيجي الرباعي' : '5. Four-Stage Strategic Analysis Engine'}
               </h3>
-              <div className="mt-3.5 grid grid-cols-4 gap-2 text-center text-xs font-bold">
-                <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 p-2.5 text-emerald-800 dark:text-emerald-300">
+              <div className="mt-3.5 grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs font-bold">
+                <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/30 p-2.5 text-emerald-800 dark:text-emerald-300">
                   1. {isAr ? 'الحلول' : 'Solutions'}
                 </div>
-                <div className="rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-2.5 text-blue-800 dark:text-blue-300">
+                <div className="rounded-xl bg-sky-50 dark:bg-sky-950/30 p-2.5 text-sky-800 dark:text-sky-300">
                   2. {isAr ? 'الاقتراحات' : 'Proposals'}
                 </div>
-                <div className="rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 p-2.5 text-slate-900 dark:text-white">
+                <div className="rounded-xl bg-slate-100 dark:bg-slate-800 p-2.5 text-slate-900 dark:text-white">
                   3. {isAr ? 'الخطط التنفيذية' : 'Execution Plans'}
                 </div>
-                <div className="rounded-xl bg-sky-50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-800 p-2.5 text-sky-800 dark:text-sky-300">
+                <div className="rounded-xl bg-amber-50 dark:bg-amber-950/30 p-2.5 text-amber-800 dark:text-amber-300">
                   4. {isAr ? 'النتائج المالية' : 'Projections'}
                 </div>
               </div>
             </div>
 
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-2 items-start">
             {/* STAGE 1: SOLUTIONS (الحلول) */}
-            <div className="space-y-3.5 pt-2">
+            <div className="min-w-0 space-y-3.5 pt-2">
               <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
                 <CheckCircle2 className="h-4 w-4" />
                 <span>{isAr ? 'المرحلة 1: الحلول التشغيلية لخفض الهدر' : 'Stage 1: Waste Reduction Solutions'}</span>
@@ -2452,22 +2453,22 @@ export default function FeryalAiCommandPage() {
                 {STRATEGIC_SOLUTIONS.map((sol) => (
                   <div
                     key={sol.id}
-                    className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/60 p-4 hover:border-slate-300 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3.5"
+                    className="ae-lift rounded-2xl bg-slate-50 dark:bg-slate-900/60 p-4 transition-all flex flex-wrap items-start justify-between gap-3.5"
                   >
-                    <div className="space-y-1.5">
-                      <div className="flex items-center gap-2">
+                    <div className="min-w-0 flex-1 basis-[240px] space-y-1.5">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="text-[15px] font-bold text-slate-900 dark:text-white">{isAr ? sol.titleAr : sol.titleEn}</span>
-                        <span className="rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs px-2.5 py-0.5 font-bold">
+                        <span className="rounded-full bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs px-2.5 py-0.5 font-bold">
                           {isAr ? sol.badgeAr : sol.badgeEn}
                         </span>
                       </div>
                       <p className="text-sm font-medium text-slate-700 dark:text-slate-300 leading-relaxed">{isAr ? sol.detailsAr : sol.detailsEn}</p>
-                      <span className="text-xs text-blue-700 dark:text-blue-400 font-bold block">
+                      <span className="text-xs text-sky-700 dark:text-sky-400 font-bold block">
                         📍 {isAr ? sol.locationAr : sol.locationEn}
                       </span>
                     </div>
 
-                    <div className="text-end shrink-0 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-xl px-4 py-2.5">
+                    <div className="text-end shrink-0 bg-emerald-50 dark:bg-emerald-950/30 rounded-xl px-4 py-2.5">
                       <span className="text-xs text-emerald-800 dark:text-emerald-300 block font-bold">{isAr ? 'الوفر المتوقع' : 'Savings'}</span>
                       <span className="text-lg font-black text-emerald-700 dark:text-emerald-400 font-mono">
                         +{sol.monthlySavingsKwd.toLocaleString()} {isAr ? 'د.ك' : 'KWD'}
@@ -2480,8 +2481,8 @@ export default function FeryalAiCommandPage() {
             </div>
 
             {/* STAGE 2: PROPOSALS (الاقتراحات) */}
-            <div className="space-y-3.5 pt-3 border-t border-slate-200 dark:border-slate-800">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400 flex items-center gap-1.5">
+            <div className="min-w-0 space-y-3.5 pt-2">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-sky-700 dark:text-sky-400 flex items-center gap-1.5">
                 <Sparkles className="h-4 w-4" />
                 <span>{isAr ? 'المرحلة 2: الاقتراحات الاستراتيجية لرفع متوسط السلة' : 'Stage 2: Upselling & Margin Proposals'}</span>
               </h4>
@@ -2489,21 +2490,21 @@ export default function FeryalAiCommandPage() {
                 {STRATEGIC_PROPOSALS.map((prop) => (
                   <div
                     key={prop.id}
-                    className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/60 p-4 hover:border-slate-300 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3.5"
+                    className="ae-lift rounded-2xl bg-slate-50 dark:bg-slate-900/60 p-4 transition-all flex flex-wrap items-start justify-between gap-3.5"
                   >
-                    <div className="space-y-1.5">
-                      <div className="flex items-center gap-2">
+                    <div className="min-w-0 flex-1 basis-[240px] space-y-1.5">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="text-[15px] font-bold text-slate-900 dark:text-white">{isAr ? prop.titleAr : prop.titleEn}</span>
-                        <span className="rounded-md bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 text-xs px-2.5 py-0.5 font-bold">
+                        <span className="rounded-full bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300 text-xs px-2.5 py-0.5 font-bold">
                           {isAr ? prop.badgeAr : prop.badgeEn}
                         </span>
                       </div>
                       <p className="text-sm font-medium text-slate-700 dark:text-slate-300 leading-relaxed">{isAr ? prop.mechanismAr : prop.mechanismEn}</p>
                     </div>
 
-                    <div className="text-end shrink-0 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl px-4 py-2.5">
-                      <span className="text-xs text-blue-800 dark:text-blue-300 block font-bold">{isAr ? 'الربح الإضافي' : 'Added Profit'}</span>
-                      <span className="text-lg font-black text-blue-700 dark:text-blue-400 font-mono">
+                    <div className="text-end shrink-0 bg-sky-50 dark:bg-sky-950/30 rounded-xl px-4 py-2.5">
+                      <span className="text-xs text-sky-800 dark:text-sky-300 block font-bold">{isAr ? 'الربح الإضافي' : 'Added Profit'}</span>
+                      <span className="text-lg font-black text-sky-700 dark:text-sky-400 font-mono">
                         +{prop.expectedMonthlyGainKwd.toLocaleString()} {isAr ? 'د.ك' : 'KWD'}
                       </span>
                       <span className="text-[11px] text-slate-500 block font-medium">{isAr ? 'شهرياً' : '/month'}</span>
@@ -2513,9 +2514,11 @@ export default function FeryalAiCommandPage() {
               </div>
             </div>
 
+            </div>
+
             {/* STAGE 3: EXECUTION PLANS & COMPOSIO ACTIONS (الخطط التنفيذية) */}
             <div className="space-y-3.5 pt-3 border-t border-slate-200 dark:border-slate-800">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                   <Clock className="h-4 w-4" />
                   <span>{isAr ? 'المرحلة 3: الخطط التنفيذية والأتمتة' : 'Stage 3: Weekly Execution Plans & Automation'}</span>
@@ -2525,14 +2528,14 @@ export default function FeryalAiCommandPage() {
                     : `${Object.values(planApproval).filter((s) => s === 'approved').length} of 4 approved`}</span>
               </div>
 
-              <div className="space-y-3">
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 items-stretch">
                 {executionPlans.map((plan) => (
                   <div
                     key={plan.id}
-                    className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/60 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5"
+                    className="min-w-0 rounded-2xl bg-slate-50 dark:bg-slate-900/60 p-4 flex flex-col justify-between gap-3.5"
                   >
-                    <div className="space-y-1.5">
-                      <div className="flex items-center gap-2">
+                    <div className="min-w-0 space-y-1.5">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="rounded-md bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-white font-mono font-bold text-xs px-2.5 py-0.5">
                           {isAr ? plan.weekAr : plan.weekEn}
                         </span>
@@ -2562,11 +2565,11 @@ export default function FeryalAiCommandPage() {
                       type="button"
                       disabled={plan.status === 'completed' || plan.status === 'running'}
                       onClick={() => handleDispatchComposio(plan.id, plan.actionType)}
-                      className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
+                      className={`inline-flex items-center justify-center gap-2 self-start px-4 py-2.5 rounded-full text-xs font-bold transition-all shrink-0 ${
                         plan.status === 'completed'
-                          ? 'bg-emerald-100 dark:bg-emerald-950 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
+                          ? 'bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300'
                           : plan.status === 'running'
-                          ? 'bg-blue-100 dark:bg-blue-950 border border-blue-400 text-blue-800 dark:text-blue-300 animate-pulse'
+                          ? 'bg-sky-50 dark:bg-sky-950 text-sky-800 dark:text-sky-300 animate-pulse'
                           : 'ae-pill-dark'
                       }`}
                     >
@@ -2597,21 +2600,21 @@ export default function FeryalAiCommandPage() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
                   <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                    <Sliders className="h-4 w-4 text-blue-600" />
+                    <Sliders className="h-4 w-4 text-sky-600" />
                     <span>{isAr ? 'المرحلة 4: النتائج المالية المتوقعة ومحاكي السيناريوهات' : 'Stage 4: Financial Projections & What-If Slider'}</span>
                   </h4>
                   <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 font-medium">
                     {isAr ? 'حرّك المؤشرات لتجربة كفاءة التكاليف ونمو المبيعات وانعكاسها المالي الفوري' : 'Adjust sliders to simulate cost-saving & growth sensitivities'}
                   </p>
                 </div>
-                <div className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-800 dark:text-slate-200 font-bold">
+                <div className="bg-slate-100 dark:bg-slate-800 rounded-full px-4 py-2 text-xs text-slate-800 dark:text-slate-200 font-bold">
                   {isAr ? 'الأثر الشهري المتوقع:' : 'Expected Monthly Added:'}{' '}
                   <strong className="text-emerald-700 dark:text-emerald-400 font-mono text-sm">+{calculatedProjections.monthlyAddedProfit.toFixed(0)} {isAr ? 'د.ك' : 'KWD'}</strong>
                 </div>
               </div>
 
               {/* What-If Sliders */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl">
                 <div className="space-y-1.5">
                   <div className="flex justify-between text-xs font-bold text-slate-800 dark:text-slate-200">
                     <span>{isAr ? 'كفاءة ضبط الهدر والتكاليف' : 'Cost & Waste Efficiency'}</span>
