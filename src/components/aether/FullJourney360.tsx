@@ -5,11 +5,13 @@ import Link from 'next/link'
 import {
   AlertTriangle,
   ArrowUpRight,
+  CalendarClock,
   Check,
   CheckCircle2,
+  ClipboardCheck,
   Copy,
   FileSpreadsheet,
-  FileText,
+  Landmark,
   MessageCircle,
   Radar,
   RefreshCw,
@@ -26,10 +28,12 @@ import {
   JOURNEY_STAGES,
   buildDispatchBrief,
   buildVendorCreditNoteRequest,
+  evaluateKuwaitCashCycle,
   journeyKpiFormat,
   simulatePlay,
   type JourneyPlay,
   type JourneyStage,
+  type KuwaitCalendarPulse,
   type PlayKpi,
 } from '@/lib/full-journey-enterprise-brain'
 import { BRANCHES, BRANDS, feryalHref } from '@/lib/aether/ledger'
@@ -147,6 +151,18 @@ export function FullJourney360() {
 
   // Tracker filter
   const [trackerFilter, setTrackerFilter] = useState<'all' | TrackerStatus>('all')
+
+  // Live Kuwait Cash-Cycle Calendar Pulse (refreshed to exact client time on mount)
+  const [calPulse, setCalPulse] = useState<KuwaitCalendarPulse>(() => JOURNEY_SHORTCUTS.kuwaitCalendar)
+  const [calTab, setCalTab] = useState<'paydayZwarah' | 'midMonthShield'>(() =>
+    JOURNEY_SHORTCUTS.kuwaitCalendar.activeMode === 'payday-zwarah' ? 'paydayZwarah' : 'midMonthShield',
+  )
+
+  useEffect(() => {
+    const fresh = evaluateKuwaitCashCycle(new Date())
+    setCalPulse(fresh)
+    setCalTab(fresh.activeMode === 'payday-zwarah' ? 'paydayZwarah' : 'midMonthShield')
+  }, [])
 
   useEffect(() => {
     try {
@@ -280,10 +296,19 @@ export function FullJourney360() {
     return b ? (isAr ? b.ar : b.en) : id ?? ''
   }
 
-  const openStage = (s: JourneyStage | 'all') => {
+  const openStage = (s: JourneyStage | 'all', targetPlayId?: string) => {
     setStage(s)
     setTab('decisions')
-    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' })
+    if (targetPlayId) {
+      setHighlightedPlayId(targetPlayId)
+      if (typeof window !== 'undefined') {
+        window.setTimeout(() => {
+          document.getElementById(`play-card-${targetPlayId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        }, 140)
+      }
+    } else if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
   }
 
   const goTo = (s: JourneyStage | 'all', label: string) => (
@@ -495,6 +520,186 @@ export function FullJourney360() {
             </div>
           </section>
 
+          {/* Real-World Field-Execution Row: Kuwait Calendar Tactical Mode + End-of-Month Cash Runway Pulse */}
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+            {/* Card A: Kuwait Payday, Zwarah & Mid-Month Tactical Engine */}
+            <section className={`${card} ${calPulse.activeMode === 'payday-zwarah' ? 'ae-glow-emerald' : 'ae-glow-amber'} flex flex-col gap-4 p-6`}>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-0.5 text-[11.5px] font-bold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+                      <CalendarClock className="h-3.5 w-3.5" />
+                      {isAr ? calPulse.badgeAr : calPulse.badgeEn}
+                    </span>
+                    <span dir="ltr" className="rounded-full bg-[#F6F7F9] px-2.5 py-0.5 text-[11px] font-semibold tabular-nums text-slate-600 dark:bg-white/[0.06] dark:text-slate-300">
+                      {(isAr ? calPulse.weekdayAr : calPulse.weekdayEn)} · {calPulse.kuwaitDateIso}
+                    </span>
+                  </div>
+                  <h2 className="text-[16.5px] font-bold leading-snug text-slate-950 dark:text-white">
+                    {isAr ? calPulse.headlineAr : calPulse.headlineEn}
+                  </h2>
+                </div>
+
+                {/* 2-Mode Tactical Switcher */}
+                <div className="inline-flex shrink-0 rounded-full bg-[#F6F7F9] p-1 dark:bg-white/[0.06]">
+                  <button
+                    type="button"
+                    onClick={() => setCalTab('paydayZwarah')}
+                    className={`rounded-full px-3 py-1 text-[11.5px] font-bold transition ${
+                      calTab === 'paydayZwarah'
+                        ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-900 dark:text-white'
+                        : 'text-slate-500 hover:text-slate-800 dark:text-slate-400'
+                    }`}
+                  >
+                    {T('Payday & Zwarah (20–29)', 'الرواتب والزوارة (٢٠–٢٩)')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCalTab('midMonthShield')}
+                    className={`rounded-full px-3 py-1 text-[11.5px] font-bold transition ${
+                      calTab === 'midMonthShield'
+                        ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-900 dark:text-white'
+                        : 'text-slate-500 hover:text-slate-800 dark:text-slate-400'
+                    }`}
+                  >
+                    {T('Mid-Month Shield (10–19)', 'درع منتصف الشهر (١٠–١٩)')}
+                  </button>
+                </div>
+              </div>
+
+              <p className="text-[13px] leading-relaxed text-slate-600 dark:text-slate-300">
+                {isAr ? calPulse.directiveAr : calPulse.directiveEn}
+              </p>
+
+              {(() => {
+                const activePack = calPulse.modes[calTab]
+                const bundles = isAr ? activePack.bundlesAr : activePack.bundlesEn
+                return (
+                  <div className="ae-studio-subcard space-y-2 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-[12px] font-bold text-slate-900 dark:text-white">
+                        {isAr ? activePack.titleAr : activePack.titleEn}
+                      </span>
+                      <span className="rounded-full bg-white px-2.5 py-0.5 text-[11px] font-semibold text-slate-600 shadow-sm dark:bg-white/[0.08] dark:text-slate-300">
+                        {isAr ? activePack.windowAr : activePack.windowEn}
+                      </span>
+                    </div>
+                    <ul className="space-y-1 text-[12.5px] font-medium text-slate-700 dark:text-slate-200">
+                      {bundles.map((b) => (
+                        <li key={b} className="leading-relaxed">• {b}</li>
+                      ))}
+                    </ul>
+                    <p className="pt-1 text-[11.5px] font-semibold text-emerald-700 dark:text-emerald-400">
+                      {isAr ? activePack.opsRuleAr : activePack.opsRuleEn}
+                    </p>
+                  </div>
+                )
+              })()}
+
+              <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-1">
+                <span className="text-[11px] font-medium text-slate-400">
+                  {T(
+                    `Payday/Zwarah avg ${kwd(calPulse.paydayAvgKwd)}/day vs Mid-Month ${kwd(calPulse.midAvgKwd)}/day (+${f0(calPulse.surgeKwdPct)}%)`,
+                    `متوسط الرواتب والزوارة ${kwd(calPulse.paydayAvgKwd)}/يوم مقابل منتصف الشهر ${kwd(calPulse.midAvgKwd)}/يوم (+${f0(calPulse.surgeKwdPct)}٪)`,
+                  )}
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" onClick={() => openStage('kitchen', 'kitchen-ardiya-prep-par-shield')} className={pill}>
+                    {T('Ardiya Prep Shield', 'درع تحضير العارضية')}
+                    <ArrowUpRight className="h-3.5 w-3.5 rtl:-scale-x-100" />
+                  </button>
+                  <button type="button" onClick={() => openStage('menu', 'menu-kuwait-calendar-tactical')} className={pill}>
+                    {T('Tactical Bundles', 'باقات التوقيت')}
+                    <ArrowUpRight className="h-3.5 w-3.5 rtl:-scale-x-100" />
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            {/* Card B: End-of-Month Cash Runway & 15-Day Payout Timing Shield */}
+            <section className={`${card} ae-glow-sky flex flex-col gap-4 p-6`}>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-3 py-0.5 text-[11.5px] font-bold text-sky-800 dark:bg-sky-950/40 dark:text-sky-300">
+                      <Landmark className="h-3.5 w-3.5" />
+                      {T('End-of-Month Cash Commitments Pulse', 'نبض التزامات نهاية الشهر وتوقيت السيولة')}
+                    </span>
+                    <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                      {T(
+                        `${f1(S.cashRunway.coverageRatio)}x covered · +${kwd(S.cashRunway.netCashBufferKwd)} buffer`,
+                        `تغطية ${f1(S.cashRunway.coverageRatio)} مرة · فائض +${kwd(S.cashRunway.netCashBufferKwd)}`,
+                      )}
+                    </span>
+                  </div>
+                  <h2 className="text-[16.5px] font-bold leading-snug text-slate-950 dark:text-white">
+                    {T(
+                      `${kwd(S.cashRunway.totalCommitmentsKwd)} Monthly Obligations vs ${kwd(S.cashRunway.rollingPosInflowKwd)} 30d POS Inflow`,
+                      `${kwd(S.cashRunway.totalCommitmentsKwd)} التزامات شهرية مقابل ${kwd(S.cashRunway.rollingPosInflowKwd)} مبيعات ٣٠ يوماً`,
+                    )}
+                  </h2>
+                </div>
+                <span className="rounded-full bg-[#F6F7F9] px-3 py-1 text-[11.5px] font-bold text-slate-700 dark:bg-white/[0.06] dark:text-slate-200">
+                  {T(`${S.cashRunway.daysToMonthEnd}d to month-end`, `باقي ${S.cashRunway.daysToMonthEnd} يوماً لنهاية الشهر`)}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+                <div className="ae-studio-subcard p-3">
+                  <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{T('Mall & Branch Rents', 'إيجارات الفروع')}</div>
+                  <div dir="ltr" className="mt-1 text-[15px] font-extrabold tabular-nums text-slate-950 dark:text-white">
+                    {kwd(S.cashRunway.rentKwd)}
+                  </div>
+                </div>
+                <div className="ae-studio-subcard p-3">
+                  <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{T('Full Payroll & Housing', 'الرواتب والسكن')}</div>
+                  <div dir="ltr" className="mt-1 text-[15px] font-extrabold tabular-nums text-slate-950 dark:text-white">
+                    {kwd(S.cashRunway.payrollKwd)}
+                  </div>
+                </div>
+                <div className="ae-studio-subcard p-3">
+                  <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{T('30d Supplier Payables', 'مستحقات الموردين')}</div>
+                  <div dir="ltr" className="mt-1 text-[15px] font-extrabold tabular-nums text-slate-950 dark:text-white">
+                    {kwd(S.cashRunway.vendorKwd)}
+                  </div>
+                </div>
+                <div className="rounded-2xl bg-amber-50/75 p-3 ring-1 ring-amber-500/20 dark:bg-amber-950/25">
+                  <div className="text-[11px] font-bold text-amber-900 dark:text-amber-300">{T('Open Platform Clearing', 'تسويات منصات معلقة')}</div>
+                  <div dir="ltr" className="mt-1 text-[15px] font-extrabold tabular-nums text-amber-950 dark:text-amber-100">
+                    {kwd(S.cashRunway.openClearingKwd)}
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-[13px] leading-relaxed text-slate-600 dark:text-slate-300">
+                {isAr ? S.cashRunway.verdictAr : S.cashRunway.verdictEn}
+              </p>
+
+              <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-1">
+                <span className="text-[11px] font-medium text-slate-400">
+                  {T('15-day pre-month-end CFO liquidity lookahead', 'رصد استباقي للسيولة قبل ١٥ يوماً من استحقاق الرواتب والإيجارات')}
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" onClick={() => openStage('delivery', 'delivery-unsettled-clearing')} className={pill}>
+                    {T('Sweep Clearing', 'تسريع تحصيل المنصات')}
+                    <ArrowUpRight className="h-3.5 w-3.5 rtl:-scale-x-100" />
+                  </button>
+                  <Link
+                    href={feryalHref(
+                      isAr
+                        ? 'راجعي معي نبض التزامات نهاية الشهر (الإيجارات والرواتب ومستحقات الموردين) وخطة تحصيل تسويات طلبات وكيتا قبل ١٥ يوماً من نهاية الشهر.'
+                        : 'Walk me through our End-of-Month Cash Commitments (Rent, Payroll & Vendor bills) and the 15-day pre-month-end Talabat & Keeta settlement sweep plan.',
+                    )}
+                    className={pill}
+                  >
+                    <Sparkles className="h-3.5 w-3.5" />
+                    {T('CFO Cash Brief', 'مراجعة السيولة مع فريال')}
+                  </Link>
+                </div>
+              </div>
+            </section>
+          </div>
+
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
             <Shortcut
               glow="sky"
@@ -619,7 +824,7 @@ export function FullJourney360() {
               sub={T('per month back from platforms', 'شهرياً تعود من المنصات')}
               takeaway={T(
                 `Campaign ROI autopsy, commission overcharge claims and TGO→TMP shift — plus ${kwd(S.delivery.openClearingKwd)} open clearing in Odoo.`,
-                `فحص ربحية العروض، ومطالبات فروقات العمولات وتحويل TGO إلى TMP — مع ${kwd(S.delivery.openClearingKwd)} تسويات مفتوحة في أودو.`,
+                `فحص ربحية العروض، ومطالبات فروقات العمولات وتحويل طلبات جو إلى سوق طلبات — مع ${kwd(S.delivery.openClearingKwd)} تسويات مفتوحة في أودو.`,
               )}
               meta={T('Loop AI dispute dossiers ready', 'مطالبات رسمية جاهزة للإرسال')}
               action={
@@ -832,6 +1037,105 @@ export function FullJourney360() {
                       </div>
                     )}
 
+                    {/* Field-Execution #2: Ardiya Central Kitchen Dynamic Prep-Par & Zero-Stockout Strip */}
+                    {p.prepParSpec && (
+                      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+                        <div className="rounded-2xl bg-sky-50/75 p-3 dark:bg-sky-950/25">
+                          <div className="text-[11px] font-bold text-sky-900 dark:text-sky-300">
+                            {T('Sun–Tue Spoilage Cap', 'سقف تحضير الأحد–الثلاثاء')}
+                          </div>
+                          <div dir="ltr" className="mt-1 text-[16px] font-extrabold tabular-nums text-sky-950 dark:text-sky-100">
+                            {p.prepParSpec.weekdayMultiplier}x
+                          </div>
+                        </div>
+                        <div className="rounded-2xl bg-emerald-50/75 p-3 dark:bg-emerald-950/25">
+                          <div className="text-[11px] font-bold text-emerald-900 dark:text-emerald-300">
+                            {isAr ? p.prepParSpec.dispatchCutoffAr : p.prepParSpec.dispatchCutoffEn}
+                          </div>
+                          <div dir="ltr" className="mt-1 text-[16px] font-extrabold tabular-nums text-emerald-950 dark:text-emerald-100">
+                            {p.prepParSpec.weekendMultiplier}x (+{p.prepParSpec.surgePct}%)
+                          </div>
+                        </div>
+                        <div className="rounded-2xl bg-amber-50/75 p-3 dark:bg-amber-950/25">
+                          <div className="text-[11px] font-bold text-amber-900 dark:text-amber-300">
+                            {T('Zero-Stockout Guard Window', 'نافذة منع نفاد الأصناف')}
+                          </div>
+                          <div className="mt-1 text-[12px] font-bold text-amber-950 dark:text-amber-100">
+                            {isAr ? p.prepParSpec.peakWindowAr : p.prepParSpec.peakWindowEn}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Field-Execution #4: Self-Funded Cashier Upsell Scripts & Micro-Incentive Rule */}
+                    {p.cashierUpsell && (
+                      <div className="rounded-2xl bg-emerald-50/65 p-3.5 dark:bg-emerald-950/25">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="text-[11.5px] font-bold text-emerald-900 dark:text-emerald-300">
+                            {T('1-Line Counter Upsell Scripts · Self-Funded Bonus Gate:', 'جمل البيع الإضافي للكاشير · قاعدة الحافز المموّل ذاتياً:')}
+                          </span>
+                          <span dir="ltr" className="rounded-full bg-emerald-700 px-2.5 py-0.5 text-[11px] font-bold text-white">
+                            {isAr
+                              ? `${p.cashierUpsell.weeklyBonusKwd} د.ك/أسبوع بعد +${p.cashierUpsell.unlockThresholdNetKwd} د.ك هامش صافي`
+                              : `${p.cashierUpsell.weeklyBonusKwd} KWD/wk after +${p.cashierUpsell.unlockThresholdNetKwd} KWD net`}
+                          </span>
+                        </div>
+                        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          {p.cashierUpsell.scripts.map((sc) => (
+                            <div key={sc.brandId} className="rounded-xl bg-white/85 px-3 py-2 text-[12px] shadow-sm dark:bg-white/[0.07]">
+                              <div className="flex items-center justify-between gap-2 font-bold text-slate-900 dark:text-white">
+                                <span>{isAr ? sc.brandAr : sc.brandEn}</span>
+                                <span dir="ltr" className="text-[11px] text-emerald-700 dark:text-emerald-300">
+                                  +{f3(sc.addonPriceKwd)} {isAr ? 'د.ك' : 'KWD'}
+                                </span>
+                              </div>
+                              <p className="mt-0.5 text-[11.5px] leading-snug text-slate-600 dark:text-slate-300">
+                                {isAr ? sc.scriptAr : sc.scriptEn}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                        <p className="mt-2 text-[11.5px] font-semibold text-emerald-800 dark:text-emerald-300">
+                          {isAr ? p.cashierUpsell.ruleAr : p.cashierUpsell.ruleEn}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Field-Execution #5: Zero-Commission Corporate Towers & Kuwaiti Diwaniya Direct Boxes */}
+                    {p.directBoxPlaybook && (
+                      <div className="rounded-2xl bg-sky-50/70 p-3.5 dark:bg-sky-950/25">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="text-[11.5px] font-bold text-sky-900 dark:text-sky-300">
+                            {T('0%-Commission Corporate & Diwaniya Direct Boxes:', 'بوكسات الأبراج والديوانيات المباشرة (عمولة ٠٪):')}
+                          </span>
+                          <span className="rounded-full bg-sky-800 px-2.5 py-0.5 text-[11px] font-bold text-white">
+                            {T('0% Platform Commission', 'صفر عمولة منصات')}
+                          </span>
+                        </div>
+                        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                          {p.directBoxPlaybook.boxes.map((bx) => (
+                            <div key={bx.id} className="rounded-xl bg-white/90 p-2.5 text-[11.5px] shadow-sm dark:bg-white/[0.07]">
+                              <div className="flex items-center justify-between gap-1 font-bold text-slate-900 dark:text-white">
+                                <span className="truncate">{isAr ? bx.boxNameAr : bx.boxNameEn}</span>
+                                <span dir="ltr" className="shrink-0 text-emerald-700 dark:text-emerald-300">
+                                  {f3(bx.priceKwd)} {isAr ? 'د.ك' : 'KWD'}
+                                </span>
+                              </div>
+                              <div className="mt-0.5 text-[11px] font-semibold text-sky-700 dark:text-sky-300">
+                                {isAr ? `${bx.segmentAr} · ${bx.hubBranchAr}` : `${bx.segmentEn} · ${bx.hubBranchEn}`}
+                              </div>
+                              <p className="mt-1 leading-snug text-slate-600 dark:text-slate-300">
+                                {isAr ? bx.contentsAr : bx.contentsEn}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                        <p className="mt-2 text-[11.5px] font-semibold text-sky-900 dark:text-sky-300">
+                          {isAr ? p.directBoxPlaybook.qrRetentionRuleAr : p.directBoxPlaybook.qrRetentionRuleEn}
+                        </p>
+                      </div>
+                    )}
+
                     <div className="space-y-2.5">
                       {blocks.map((b) => (
                         <div
@@ -911,10 +1215,11 @@ export function FullJourney360() {
                     {activeBriefMode && (
                       <div className="ae-pop rounded-2xl bg-slate-950 p-4 text-slate-100 shadow-lg">
                         <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5">
-                          <span className="text-[12px] font-bold text-emerald-400">
+                          <span className="inline-flex items-center gap-1.5 text-[12px] font-bold text-emerald-400">
+                            <ClipboardCheck className="h-3.5 w-3.5" />
                             {activeBriefMode === 'vendor'
                               ? T('Formal Vendor Price-Lock & Credit-Note Request', 'طلب تثبيت سعر وإشعار دائن رسمي للمورد')
-                              : T('Role-Specific Execution Dispatch Brief', 'مذكرة تكليف تنفيذي جاهزة للإرسال')}
+                              : T('Dispatch Brief + 5-Min Spot-Audit (3 Points)', 'مذكرة تكليف ميدانية + فحص ٣ نقاط في ٥ دقائق')}
                           </span>
                           <div className="flex items-center gap-2">
                             <button
@@ -960,8 +1265,8 @@ export function FullJourney360() {
                           onClick={() => setOpenBrief((prev) => ({ ...prev, [p.id]: prev[p.id] === 'dispatch' ? null : 'dispatch' }))}
                           className={pill}
                         >
-                          <FileText className="h-3.5 w-3.5" />
-                          {T('Dispatch Brief', 'توليد مذكرة تنفيذ')}
+                          <ClipboardCheck className="h-3.5 w-3.5" />
+                          {T('Dispatch Brief · 5-Min Audit', 'مذكرة تنفيذ + فحص ٥ دقائق')}
                         </button>
                         <Link href={feryalHref(prompt)} className={pill}>
                           <Sparkles className="h-3.5 w-3.5" />
@@ -1172,8 +1477,8 @@ export function FullJourney360() {
           {JOURNEY_META.restricted.length > 0 && (
             <p className="text-[12px] text-slate-400">
               {T(
-                `Odoo 17 ACL audit: ${JOURNEY_META.readable.length} models readable (${JOURNEY_META.analyticCenters} Analytic Cost Centers active); restricted for BI user: ${JOURNEY_META.restricted.map((r) => r.model).join(', ')}.`,
-                `تدقيق صلاحيات أودو 17: ${JOURNEY_META.readable.length} نموذجاً مقروءاً (${JOURNEY_META.analyticCenters} مركز تكلفة تحليلي نشط)؛ والمقيّد لمستخدم التحليلات: ${JOURNEY_META.restricted.map((r) => r.model).join('، ')}.`,
+                `Odoo 17 ACL audit: ${JOURNEY_META.readable.length} models readable (${JOURNEY_META.analyticCenters} Analytic Cost Centers active); ${JOURNEY_META.restricted.length} restricted for BI user (${JOURNEY_META.restricted.map((r) => r.model).join(', ')}).`,
+                `تدقيق صلاحيات أودو 17: ${JOURNEY_META.readable.length} نموذجاً مقروءاً (${JOURNEY_META.analyticCenters} مركز تكلفة تحليلي نشط)؛ و${JOURNEY_META.restricted.length} نماذج مقيّدة القراءة لمستخدم التحليلات.`,
               )}
             </p>
           )}

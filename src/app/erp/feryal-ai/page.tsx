@@ -2,10 +2,12 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  CalendarClock,
   Check,
   Copy,
   FileText,
   Headphones,
+  Landmark,
   Loader2,
   Maximize2,
   MessageCircle,
@@ -22,6 +24,7 @@ import {
 import { useI18n } from '@/lib/i18n'
 import { getOpenAIApiKey, getGeminiApiKey } from '@/lib/ai-keys'
 import { askFeryalGeminiBrain, FERYAL_PROPOSALS, getDeterministicFeryalReply } from '@/lib/feryal-gemini-brain'
+import { CASH_RUNWAY_PULSE, evaluateKuwaitCashCycle, KUWAIT_CALENDAR_PULSE, type KuwaitCalendarPulse } from '@/lib/full-journey-enterprise-brain'
 import { LEDGER } from '@/lib/aether/ledger'
 import { FeryalStudioMessage, feryalPlainText } from '@/components/aether/FeryalStudioMessage'
 
@@ -35,13 +38,40 @@ const welcomeText = (lang: 'ar' | 'en') =>
 
 const TOPICS: { id: string; tagAr: string; tagEn: string; labelAr: string; labelEn: string; promptAr: string; promptEn: string }[] = [
   {
+    id: 'zwarah-prep',
+    tagAr: 'توقيت الرواتب والزوارة · تحضير العارضية',
+    tagEn: 'Kuwait Payday & Zwarah · Ardiya Prep',
+    labelAr: 'تبديل باقات الرواتب والزوارة ومنع نفاد الخميس والجمعة',
+    labelEn: 'Kuwait Payday/Zwarah Bundles & Zero-Stockout Par Shield',
+    promptAr: 'ما خطة التوقيت الميداني في الكويت بين ذروة الرواتب والزوارة (٢٠–٢٩ والخميس والجمعة) ودرع سيولة منتصف الشهر (١٠–١٩)، وكيف نضبط تحضير المطبخ المركزي بالعارضية لمنع هدر أول الأسبوع ومنع نفاد الأصناف مساء الخميس؟',
+    promptEn: 'What is our Kuwait field-execution plan across Payday & Thu/Fri Zwarah surges (20th–29th) vs Mid-Month Liquidity Shield (10th–19th), and how do we set Ardiya Central Kitchen (#17) par levels to stop weekday spoilage and Thu/Fri stockouts?',
+  },
+  {
+    id: 'field-upsell-b2b',
+    tagAr: 'البيع الإضافي · الأبراج والديوانيات',
+    tagEn: 'Cashier Upsell · Corporate & Diwaniya',
+    labelAr: 'حافز الكاشير المموّل ذاتياً وبوكسات الأبراج والديوانيات بعمولة ٠٪',
+    labelEn: 'Self-Funded Cashier Upsells & 0%-Commission B2B/Diwaniya Boxes',
+    promptAr: 'أعطني جمل البيع الإضافي للكاشير لكل علامة مع قاعدة المكافأة الأسبوعية المموّلة ذاتياً بعد تحقيق 500 د.ك هامش صافي، وخطة بوكسات غداء الأبراج والوزارات حول العاصمة مول وبوكسات الديوانيات بعمولة صفر بالمئة.',
+    promptEn: 'Give me the 1-line cashier upsell scripts per brand with the self-funded 25 KWD micro-bonus rule (unlocked after +500 KWD verified net margin), plus our 0%-commission Assima Tower Office Lunch & Kuwaiti Diwaniya box playbook.',
+  },
+  {
+    id: 'cash-runway',
+    tagAr: 'السيولة · التزامات نهاية الشهر',
+    tagEn: 'CFO Cash Runway · 15-Day Shield',
+    labelAr: 'نبض التزامات الإيجارات والرواتب وتوقيت تحصيل المنصات',
+    labelEn: 'Month-End Rent, Payroll & Vendor Runway vs Platform Payouts',
+    promptAr: 'راجعي نبض التزامات نهاية الشهر من الإيجارات والرواتب ومستحقات الموردين مقابل تدفقات نقاط البيع وخطة تحصيل تسويات طلبات وكيتا قبل 15 يوماً من نهاية الشهر.',
+    promptEn: 'Review our End-of-Month Cash Commitments (Rent, Payroll & Vendor payables) against 30-day POS cash inflow and our 15-day pre-month-end Talabat & Keeta clearing sweep plan.',
+  },
+  {
     id: 'yield',
     tagAr: 'المطبخ المركزي بالعارضية (#17)',
     tagEn: 'Ardiya Central Kitchen (#17)',
     labelAr: 'فجوة الهدر الخفي وفروقات الجرد بالمطبخ المركزي',
     labelEn: 'Central Kitchen Yield & Stock Variance Shield',
-    promptAr: 'أين يتسرب الربح بين المطبخ المركزي بالعارضية (مركز تكلفة #17) وفروعنا السبعة؟ حللي فروقات الجرد والهالك وانحراف حصص Chicken Noodles وأعطني مذكرة تكليف جاهزة والعائد الشهري.',
-    promptEn: 'Where is profit leaking between Ardiya Central Kitchen (Analytic #17) and our 7 branches? Analyse stock count variance, scrap and Chicken Noodles portion drift, with a dispatch brief and monthly KWD gain.',
+    promptAr: 'أين يتسرب الربح بين المطبخ المركزي بالعارضية (مركز تكلفة #17) وفروعنا السبعة؟ حللي فروقات الجرد والهالك وانحراف حصص نودلز الدجاج وأعطني مذكرة تكليف مع فحص ميداني في 5 دقائق.',
+    promptEn: 'Where is profit leaking between Ardiya Central Kitchen (Analytic #17) and our 7 branches? Analyse stock count variance, scrap and Chicken Noodles portion drift, with a 5-minute spot-audit dispatch brief.',
   },
   {
     id: 'menu-elasticity',
@@ -49,25 +79,16 @@ const TOPICS: { id: string; tagAr: string; tagEn: string; labelAr: string; label
     tagEn: 'China Garden (#86) · Elasticity Guardrail',
     labelAr: 'تسعير الأطباق القائدة وحماية الأصناف الجاذبة',
     labelEn: 'Hero Dish Repricing & Traffic-Driver Guardrail',
-    promptAr: 'في تشاينا جاردن (مركز #86)، ما الأطباق القائدة غير الحساسة للسعر التي تتحمل +150 فلس بأمان (مثل Chicken Noodles وSweet & Sour Chicken) وما الأصناف الجاذبة التي يجب تجميد سعرها المنفرد؟',
+    promptAr: 'في تشاينا جاردن (مركز #86)، ما الأطباق القائدة غير الحساسة للسعر التي تتحمل +150 فلس بأمان (مثل نودلز الدجاج ودجاج سويت آند ساور) وما الأصناف الجاذبة التي يجب تجميد سعرها المنفرد؟',
     promptEn: 'In China Garden (Analytic #86), which inelastic hero dishes safely take +150 fils (e.g. Chicken Noodles, Sweet & Sour Chicken) vs. traffic drivers whose standalone price must stay frozen?',
   },
   {
-    id: 'opex',
-    tagAr: 'مراكز التكلفة · المطبخ المضيف',
-    tagEn: 'Analytic Cost Centers · Host Kitchen',
-    labelAr: 'تحويل عبء الإيجار عبر المطابخ المضيفة بدون إيجار جديد',
-    labelEn: 'Zero-Rent Virtual Host-Kitchen Turnaround',
-    promptAr: 'أي فرع من فروعنا السبعة يعاني من ضغط الإيجار التحليلي أو الصيانة الطارئة المتكررة، وأي علامة من علامات فنتشر فودز نزرعها داخل مطبخه القائم لرفع صافي النقد الفعلي؟',
-    promptEn: 'Which of our 7 restaurant branches faces Analytic Rent pressure or chronic repair loops, and which Venture Foods sister brand should we plant inside its existing kitchen for immediate net cash?',
-  },
-  {
     id: 'delivery',
-    tagAr: 'طلبات Tgo/TMP · كيتا · التسويات',
+    tagAr: 'طلبات جو وسوق طلبات · كيتا · التسويات',
     tagEn: 'Talabat Tgo/TMP · Keeta · Claims',
     labelAr: 'تشريح ربحية عروض كيتا ومطالبات فروقات طلبات',
     labelEn: 'Keeta Promo Cap & Talabat Settlement Recovery',
-    promptAr: 'كم يصلنا صافياً في البنك من كيتا وطلبات (Tgo 17% مقابل TMP 10%) بعد العمولات والعروض المشتركة؟ ضعي خطة استرداد الفروقات وسقف العروض عند 3.5%.',
+    promptAr: 'كم يصلنا صافياً في البنك من كيتا وطلبات (طلبات جو 17% مقابل سوق طلبات 10%) بعد العمولات والعروض المشتركة؟ ضعي خطة استرداد الفروقات وسقف العروض عند 3.5%.',
     promptEn: 'How much true net cash hits our bank from Keeta and Talabat (Tgo 17% vs TMP 10%) after commissions and co-funded promos? Give me the 3.5% promo cap & claim recovery plan.',
   },
 ]
@@ -170,6 +191,11 @@ export default function FeryalAiCommandPage() {
   const [isCopilotThinking, setIsCopilotThinking] = useState(false)
   const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null)
   const [isExpanded, setIsExpanded] = useState(false)
+  const [calPulse, setCalPulse] = useState<KuwaitCalendarPulse>(() => KUWAIT_CALENDAR_PULSE)
+
+  useEffect(() => {
+    setCalPulse(evaluateKuwaitCashCycle(new Date()))
+  }, [])
 
   // A conversation lives in one language: switching the interface language opens a fresh discussion.
   useEffect(() => {
@@ -718,8 +744,30 @@ export default function FeryalAiCommandPage() {
       const reviewDate = new Date(Date.now() + 14 * 86_400_000).toISOString().slice(0, 10)
       const body = feryalPlainText(rawText)
       return isAr
-        ? `📌 مذكرة تكليف تنفيذي صادرة عن المستشارة فريال — شركة فنتشر فودز لإدارة المطاعم ذ.م.م\n• المكلّف بالتنفيذ: مدير الفرع / شيف المطبخ المركزي بالعارضية (#17) / مسؤول المشتريات والمحاسبة\n• موعد مراجعة الأثر الفعلي (بعد 14 يوماً): ${reviewDate}\n\n${body}`
-        : `📌 FERYAL EXECUTIVE DISPATCH BRIEF — Venture Foods Restaurants Management Co. W.L.L.\n• Accountable Owner: Branch Manager / Ardiya Central Kitchen Chef (#17) / Procurement & Finance Desk\n• 14-Day Impact Review Date: ${reviewDate}\n\n${body}`
+        ? [
+            `📌 مذكرة تكليف ميدانية صادرة عن المستشارة فريال — شركة فنتشر فودز لإدارة المطاعم ذ.م.م`,
+            `• المكلّف بالتنفيذ: مدير المنطقة / مدير الفرع / شيف المطبخ المركزي بالعارضية (#17)`,
+            `• موعد مراجعة الأثر الفعلي (بعد 14 يوماً): ${reviewDate}`,
+            ``,
+            body,
+            ``,
+            `⏱️ قائمة التفتيش الميداني السريع لمدير المنطقة (٣ نقاط في ٥ دقائق):`,
+            `  ١) مطابقة تطبيق القرار فعلياً على شاشة نقاط البيع وخط الإنتاج بالفرع.`,
+            `  ٢) وزن ٣ حصص عشوائية على الميزان الرقمي وجرد علب التغليف مقابل فواتير أودو 17.`,
+            `  ٣) مراجعة سجل الخصومات والإلغاءات وجمل البيع الإضافي للشفت المسائي.`,
+          ].join('\n')
+        : [
+            `📌 FERYAL FIELD EXECUTION DISPATCH BRIEF — Venture Foods Restaurants Management Co. W.L.L.`,
+            `• Accountable Owner: Area Manager / Branch Manager / Ardiya Central Kitchen Chef (#17)`,
+            `• 14-Day Impact Review Date: ${reviewDate}`,
+            ``,
+            body,
+            ``,
+            `⏱️ 5-Minute Surgical Physical Spot-Audit Checklist (Area Manager):`,
+            `  1) Verify live compliance on the branch Odoo POS terminal and hot-line station.`,
+            `  2) Weigh 3 random portions on the digital scale and reconcile physical packaging vs Odoo 17.`,
+            `  3) Audit evening-shift discount/void slips and 1-line cashier upsell execution.`,
+          ].join('\n')
     },
     [isAr],
   )
@@ -780,6 +828,36 @@ export default function FeryalAiCommandPage() {
           </button>
         </div>
       </header>
+
+      {/* Live Field-Execution & Month-End Cash Runway Pulse Pills (1-Click Briefing) */}
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          disabled={isCopilotThinking}
+          onClick={() => handleSendQuery(isAr ? TOPICS[0].promptAr : TOPICS[0].promptEn)}
+          className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3.5 py-1.5 text-[12px] font-bold text-emerald-800 transition hover:bg-emerald-100 disabled:opacity-50 dark:bg-emerald-950/40 dark:text-emerald-300"
+        >
+          <CalendarClock className="h-3.5 w-3.5 shrink-0" />
+          <span>
+            {isAr
+              ? `${calPulse.badgeAr} · ${calPulse.weekdayAr} (${calPulse.kuwaitDateIso})`
+              : `${calPulse.badgeEn} · ${calPulse.weekdayEn} (${calPulse.kuwaitDateIso})`}
+          </span>
+        </button>
+        <button
+          type="button"
+          disabled={isCopilotThinking}
+          onClick={() => handleSendQuery(isAr ? TOPICS[2].promptAr : TOPICS[2].promptEn)}
+          className="inline-flex items-center gap-2 rounded-full bg-sky-50 px-3.5 py-1.5 text-[12px] font-bold text-sky-800 transition hover:bg-sky-100 disabled:opacity-50 dark:bg-sky-950/40 dark:text-sky-300"
+        >
+          <Landmark className="h-3.5 w-3.5 shrink-0" />
+          <span>
+            {isAr
+              ? `التزامات نهاية الشهر: ${fmtKwd(CASH_RUNWAY_PULSE.totalCommitmentsKwd, true)} · تغطية ${CASH_RUNWAY_PULSE.coverageRatio} مرة · تسويات معلقة ${fmtKwd(CASH_RUNWAY_PULSE.openClearingKwd, true)}`
+              : `Month-End Obligations: ${fmtKwd(CASH_RUNWAY_PULSE.totalCommitmentsKwd, false)} · ${CASH_RUNWAY_PULSE.coverageRatio}x covered · ${fmtKwd(CASH_RUNWAY_PULSE.openClearingKwd, false)} open clearing`}
+          </span>
+        </button>
+      </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
         {/* ───────────── Conversation studio ───────────── */}

@@ -8,7 +8,17 @@ import { getGeminiApiKey, getOpenAIApiKey } from './ai-keys';
 import { BRANCHES, BRANDS, CHANNELS, EXB_REGISTERS, EXB_UNIT, INACTIVE_APPROVED_BRANDS, LEDGER, OPERATING_UNITS, SHARED_COSTS } from './aether/ledger';
 import { ODOO } from './odoo/odoo-dataset';
 import { AETHER_FINDINGS, type AetherFinding } from './aether-proprietary-brain';
-import { JOURNEY_FERYAL_CONTEXT, JOURNEY_PLAYS, JOURNEY_STAGES, JOURNEY_TOP_BY_STAGE, JOURNEY_TOTAL_MONTHLY, type JourneyPlay, type JourneyStage } from './full-journey-enterprise-brain';
+import {
+  CASH_RUNWAY_PULSE,
+  JOURNEY_FERYAL_CONTEXT,
+  JOURNEY_PLAYS,
+  JOURNEY_STAGES,
+  JOURNEY_TOP_BY_STAGE,
+  JOURNEY_TOTAL_MONTHLY,
+  KUWAIT_CALENDAR_PULSE,
+  type JourneyPlay,
+  type JourneyStage,
+} from './full-journey-enterprise-brain';
 
 // ---------------------------------------------------------------------------
 // Verified Odoo facts (whitelisted POS registers + posted accounting, generated at build time)
@@ -364,12 +374,15 @@ function findingReply(f: AetherFinding, lang: 'ar' | 'en') {
 function journeyReply(p: JourneyPlay, lang: 'ar' | 'en') {
   const isAr = lang === 'ar';
   const stage = JOURNEY_STAGES.find((s) => s.id === p.stage);
+  const auditStep = isAr
+    ? `تفتيش ميداني في 5 دقائق لمدير المنطقة: ${p.spotAudit.ar[0]}؛ ثم ${p.spotAudit.ar[1]}`
+    : `5-Minute Area Manager Spot-Audit: ${p.spotAudit.en[0]}; then ${p.spotAudit.en[1]}`;
   return threeSections(
     lang,
     isAr ? `${stage?.ar ?? ''} — ${p.subjectAr}: ${p.leakAr}` : `${stage?.en ?? ''} — ${p.subjectEn}: ${p.leakEn}`,
     isAr
-      ? [p.actionAr, p.qualityAr, 'اعتماد القرار في المركز الشامل وقياس الأثر قبل وبعد عبر دورات 14 يوماً من بيانات أودو.']
-      : [p.actionEn, p.qualityEn, 'Approve the decision in the 360° center and measure before vs after over 14-day Odoo cycles.'],
+      ? [p.actionAr, auditStep, p.qualityAr, 'اعتماد القرار في المركز الشامل وقياس الأثر قبل وبعد عبر دورات 14 يوماً من بيانات أودو.']
+      : [p.actionEn, auditStep, p.qualityEn, 'Approve the decision in the 360° center and measure before vs after over 14-day Odoo cycles.'],
     [isAr ? p.impactAr : p.impactEn, isAr ? `إجمالي القفزة المتاحة عبر الرحلة الكاملة نحو ${n0(JOURNEY_TOTAL_MONTHLY)} د.ك شهرياً.` : `Total unlockable across the full journey: about ${n0(JOURNEY_TOTAL_MONTHLY)} KWD per month.`],
   );
 }
@@ -384,6 +397,54 @@ export function getDeterministicFeryalReply(query: string, lang: 'ar' | 'en'): s
   const has = (...keys: string[]) => keys.some((k) => q.includes(k));
   const best = (domain: AetherFinding['domain'], id?: string) =>
     (id ? AETHER_FINDINGS.find((f) => f.id === id) : undefined) ?? AETHER_FINDINGS.filter((f) => f.domain === domain).sort((a, b) => b.monthlyKwd - a.monthlyKwd)[0];
+  const playById = (id: string) => JOURNEY_PLAYS.find((x) => x.id === id);
+
+  // Field-Execution #6: End-of-Month Cash Runway & 15-Day Payout Timing Shield
+  if (has('التزامات نهاية الشهر', 'نبض التزامات', 'توقيت التحصيل', 'سيولة نهاية الشهر', 'الرواتب والإيجارات', 'cash commitment', 'cash runway', 'month-end', 'payout timing')) {
+    const cr = CASH_RUNWAY_PULSE;
+    return threeSections(
+      lang,
+      isAr ? cr.verdictAr : cr.verdictEn,
+      isAr
+        ? [
+            `تثبيت جدول تسويات أسبوعي إلزامي قبل 15 يوماً من نهاية الشهر لتحصيل ${n0(cr.talabatClearingKwd)} د.ك من طلبات و${n0(cr.keetaClearingKwd)} د.ك من كيتا من الحسابات الوسيطة إلى البنك.`,
+            `تخصيص وعاء الرواتب والسكن (${n0(cr.payrollKwd)} د.ك مستحقة بين 25 و28 الشهر) وإيجارات المجمعات (${n0(cr.rentKwd)} د.ك مستحقة مطلع الشهر) من تدفقات الكاونتر والمنصات المحصلة.`,
+            `جدولة دفعات الموردين (${n0(cr.vendorKwd)} د.ك) على دفعتين متوازنتين بعد ذروة نهاية الأسبوع لضمان بقاء الفائض النقدي التشغيلي (+${n0(cr.netCashBufferKwd)} د.ك) آمناً بالكامل.`,
+          ]
+        : [
+            `Enforce a mandatory 15-day pre-month-end reconciliation sweep to pull ${n0(cr.talabatClearingKwd)} KWD from Talabat and ${n0(cr.keetaClearingKwd)} KWD from Keeta clearing into the main bank account.`,
+            `Ring-fence full-cycle Payroll & Housing (${n0(cr.payrollKwd)} KWD due 25th–28th) and Mall Rents (${n0(cr.rentKwd)} KWD due 1st) ahead of discretionary spend.`,
+            `Stagger Supplier payables (${n0(cr.vendorKwd)} KWD) across two post-weekend runs to preserve our +${n0(cr.netCashBufferKwd)} KWD operational cash buffer (${n1(cr.coverageRatio)}x coverage).`,
+          ],
+      isAr
+        ? [
+            `تغطية 100% من التزامات نهاية الشهر البالغة ${n0(cr.totalCommitmentsKwd)} د.ك بمعدل أمان ${n1(cr.coverageRatio)} مرة دون أي ضغط سيولة.`,
+            `تحرير ${n0(cr.openClearingKwd)} د.ك من أرصدة التسويات الوسيطة المفتوحة في أودو 17 قبل إقفال الشهر.`,
+          ]
+        : [
+            `100% on-time coverage of ${n0(cr.totalCommitmentsKwd)} KWD monthly obligations at ${n1(cr.coverageRatio)}x POS inflow coverage with zero bridging.`,
+            `Accelerates ${n0(cr.openClearingKwd)} KWD in open Odoo 17 platform clearing balances into settled bank cash.`,
+          ],
+    );
+  }
+
+  // Field-Execution #1–#5 direct play routing
+  if (has('رواتب', 'زوارة', 'منتصف الشهر', 'توقيت الرواتب', 'payday', 'zwarah', 'mid-month', 'calendar')) {
+    const p = playById('menu-kuwait-calendar-tactical');
+    if (p) return journeyReply(p, lang);
+  }
+  if (has('تحضير', 'مستويات الأمان', 'نفاد', 'درع تحضير', 'prep-par', 'prep shield', 'par-level', 'stockout', 'spoilage')) {
+    const p = playById('kitchen-ardiya-prep-par-shield');
+    if (p) return journeyReply(p, lang);
+  }
+  if (has('بيع إضافي', 'مكافأة الكاشير', 'حافز الكاشير', 'جمل البيع', 'cashier upsell', 'micro-bonus', 'self-funded')) {
+    const p = playById('ops-cashier-upsell-incentive');
+    if (p) return journeyReply(p, lang);
+  }
+  if (has('ديوانية', 'ديوانيات', 'أبراج', 'وزارات', 'شركات', 'مكاتب', 'corporate', 'diwaniya', 'office lunch', 'towers')) {
+    const p = playById('delivery-corporate-diwaniya-direct');
+    if (p) return journeyReply(p, lang);
+  }
 
   // Full-journey routing first: procurement, central kitchen, hidden opex, quality and shift questions.
   const STAGE_KEYS: [JourneyStage, string[]][] = [
@@ -434,8 +495,8 @@ export function getDeterministicFeryalReply(query: string, lang: 'ar' | 'en'): s
   return threeSections(
     lang,
     isAr
-      ? `صافي مبيعات نقاط البيع في أودو لشهر ${LEDGER.periodLabelAr} ${n3(LEDGER.netSales)} د.ك عبر ${n0(LEDGER.orders)} طلباً، والربح التشغيلي ${n3(LEDGER.netProfit)} د.ك بهامش ${n1(LEDGER.marginPct)}%. أقترح البدء بأعلى الحلول أثراً.`
-      : `Odoo POS net sales for ${LEDGER.periodLabelEn} are ${n3(LEDGER.netSales)} KWD across ${n0(LEDGER.orders)} orders, with ${n3(LEDGER.netProfit)} KWD operating profit (${n1(LEDGER.marginPct)}% margin). I propose starting with the highest-impact fixes.`,
+      ? `صافي مبيعات نقاط البيع في أودو لشهر ${LEDGER.periodLabelAr} ${n3(LEDGER.netSales)} د.ك عبر ${n0(LEDGER.orders)} طلباً، والربح التشغيلي ${n3(LEDGER.netProfit)} د.ك بهامش ${n1(LEDGER.marginPct)}%، والوضع التكتيكي الحالي في الكويت: ${KUWAIT_CALENDAR_PULSE.badgeAr}. أقترح البدء بأعلى الحلول أثراً.`
+      : `Odoo POS net sales for ${LEDGER.periodLabelEn} are ${n3(LEDGER.netSales)} KWD across ${n0(LEDGER.orders)} orders, with ${n3(LEDGER.netProfit)} KWD operating profit (${n1(LEDGER.marginPct)}% margin) and active Kuwait mode: ${KUWAIT_CALENDAR_PULSE.badgeEn}. I propose starting with the highest-impact fixes.`,
     FERYAL_PROPOSALS.map((p) => (isAr ? p.titleAr : p.titleEn)),
     [
       ...FERYAL_PROPOSALS.map((p) => (isAr ? p.outcomeAr : p.outcomeEn)),

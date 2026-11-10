@@ -23,6 +23,7 @@
  */
 import JOURNEY_RAW from '@/lib/odoo/odoo-journey.json'
 import INTEL_RAW from '@/lib/odoo/odoo-intel.json'
+import { ODOO } from '@/lib/odoo/odoo-dataset'
 import { BRANCHES, BRANDS, CHANNELS, LEDGER } from '@/lib/aether/ledger'
 import { CHANNEL_ECONOMICS } from '@/lib/aether-proprietary-brain'
 
@@ -129,7 +130,7 @@ export interface SimulatorSlider {
 }
 
 export interface PlaySimulator {
-  kind: 'reprice' | 'bundle' | 'host-kitchen' | 'capture'
+  kind: 'reprice' | 'bundle' | 'host-kitchen' | 'capture' | 'upsell'
   sliders: [SimulatorSlider, SimulatorSlider]
   meta?: {
     totalQty?: number
@@ -139,7 +140,62 @@ export interface PlaySimulator {
     orders?: number
     drinkPriceKwd?: number
     medianSalesKwd?: number
+    addonNetMarginKwd?: number
   }
+}
+
+export interface SpotAuditChecklist {
+  en: [string, string, string]
+  ar: [string, string, string]
+}
+
+export interface CashierUpsellScriptItem {
+  brandId: string
+  brandEn: string
+  brandAr: string
+  scriptEn: string
+  scriptAr: string
+  addonPriceKwd: number
+}
+
+export interface CashierUpsellSpec {
+  weeklyBonusKwd: number
+  unlockThresholdNetKwd: number
+  bonusSharePct: number
+  targetCounterOrders: number
+  scripts: CashierUpsellScriptItem[]
+  ruleEn: string
+  ruleAr: string
+}
+
+export interface DirectBoxSpec {
+  id: string
+  segmentEn: string
+  segmentAr: string
+  hubBranchEn: string
+  hubBranchAr: string
+  boxNameEn: string
+  boxNameAr: string
+  priceKwd: number
+  contentsEn: string
+  contentsAr: string
+}
+
+export interface DirectBoxPlaybook {
+  commissionPct: number
+  boxes: DirectBoxSpec[]
+  qrRetentionRuleEn: string
+  qrRetentionRuleAr: string
+}
+
+export interface PrepParSpec {
+  weekdayMultiplier: number
+  weekendMultiplier: number
+  dispatchCutoffEn: string
+  dispatchCutoffAr: string
+  surgePct: number
+  peakWindowEn: string
+  peakWindowAr: string
 }
 
 export interface ElasticityGuardrail {
@@ -183,8 +239,12 @@ export interface JourneyPlay {
   evidence: { en: string; ar: string }[]
   kpi: PlayKpi
   simulator: PlaySimulator
+  spotAudit: SpotAuditChecklist
   elasticityGuardrail?: ElasticityGuardrail
   vendorShield?: VendorShield
+  cashierUpsell?: CashierUpsellSpec
+  directBoxPlaybook?: DirectBoxPlaybook
+  prepParSpec?: PrepParSpec
 }
 
 // ---------------------------------------------------------------------------
@@ -369,11 +429,433 @@ function defaultSimulatorForPlay(stage: JourneyStage, id: string): PlaySimulator
   }
 }
 
-type PlayInput = Omit<JourneyPlay, 'annualKwd' | 'severity' | 'ownerRoleEn' | 'ownerRoleAr' | 'simulator'> & {
+// ---------------------------------------------------------------------------
+// Real-World Kuwait Calendar & Time-Profile Engine (Payday, Zwarah & Mid-Month)
+// ---------------------------------------------------------------------------
+export type KuwaitTacticalMode = 'payday-zwarah' | 'mid-month-shield' | 'early-month-momentum'
+
+const KUWAIT_TIME_CURVE = (() => {
+  const fullDays = (ODOO.timeProfile?.daily ?? []).filter((d) => d.orders >= 250)
+  const paydayOrZwarah = fullDays.filter((d) => {
+    const dt = new Date(`${d.day}T12:00:00Z`)
+    const dom = dt.getUTCDate()
+    const dow = dt.getUTCDay() // 4 = Thu, 5 = Fri
+    return (dom >= 20 && dom <= 29) || dow === 4 || dow === 5
+  })
+  const midMonthWeekdays = fullDays.filter((d) => {
+    const dt = new Date(`${d.day}T12:00:00Z`)
+    const dom = dt.getUTCDate()
+    const dow = dt.getUTCDay()
+    return dom >= 10 && dom <= 19 && dow !== 4 && dow !== 5
+  })
+  const thuFriDays = fullDays.filter((d) => {
+    const dow = new Date(`${d.day}T12:00:00Z`).getUTCDay()
+    return dow === 4 || dow === 5
+  })
+  const sunWedDays = fullDays.filter((d) => {
+    const dow = new Date(`${d.day}T12:00:00Z`).getUTCDay()
+    return dow >= 0 && dow <= 3
+  })
+
+  const paydayAvgKwd = paydayOrZwarah.length ? sum(paydayOrZwarah, (d) => d.netKwd) / paydayOrZwarah.length : 5690
+  const paydayAvgOrders = paydayOrZwarah.length ? sum(paydayOrZwarah, (d) => d.orders) / paydayOrZwarah.length : 1290
+  const midAvgKwd = midMonthWeekdays.length ? sum(midMonthWeekdays, (d) => d.netKwd) / midMonthWeekdays.length : 3250
+  const midAvgOrders = midMonthWeekdays.length ? sum(midMonthWeekdays, (d) => d.orders) / midMonthWeekdays.length : 895
+  const thuFriAvgOrders = thuFriDays.length ? sum(thuFriDays, (d) => d.orders) / thuFriDays.length : 1358
+  const thuFriAvgKwd = thuFriDays.length ? sum(thuFriDays, (d) => d.netKwd) / thuFriDays.length : 6338
+  const sunWedAvgOrders = sunWedDays.length ? sum(sunWedDays, (d) => d.orders) / sunWedDays.length : 1002
+  const sunWedAvgKwd = sunWedDays.length ? sum(sunWedDays, (d) => d.netKwd) / sunWedDays.length : 3622
+  const peakSingleDay = [...fullDays].sort((a, b) => b.netKwd - a.netKwd)[0]
+
+  return {
+    paydayAvgKwd,
+    paydayAvgOrders: Math.round(paydayAvgOrders),
+    midAvgKwd,
+    midAvgOrders: Math.round(midAvgOrders),
+    surgeKwdPct: pct(paydayAvgKwd - midAvgKwd, midAvgKwd),
+    thuFriAvgOrders: Math.round(thuFriAvgOrders),
+    thuFriAvgKwd,
+    sunWedAvgOrders: Math.round(sunWedAvgOrders),
+    sunWedAvgKwd,
+    weekendOrderMultiplier: sunWedAvgOrders > 0 ? Math.round((thuFriAvgOrders / sunWedAvgOrders) * 100) / 100 : 1.36,
+    weekendKwdMultiplier: sunWedAvgKwd > 0 ? Math.round((thuFriAvgKwd / sunWedAvgKwd) * 100) / 100 : 1.75,
+    peakDayStr: peakSingleDay?.day ?? '2026-10-30',
+    peakDayKwd: peakSingleDay?.netKwd ?? 7491,
+    peakDayOrders: peakSingleDay?.orders ?? 1389,
+  }
+})()
+
+export interface KuwaitCalendarPulse {
+  kuwaitDateIso: string
+  dayOfMonth: number
+  weekdayEn: string
+  weekdayAr: string
+  daysInMonth: number
+  daysToMonthEnd: number
+  daysTo15thWindow: number
+  isZwarahDay: boolean
+  isPaydayWindow: boolean
+  isMidMonthWindow: boolean
+  activeMode: KuwaitTacticalMode
+  badgeEn: string
+  badgeAr: string
+  headlineEn: string
+  headlineAr: string
+  directiveEn: string
+  directiveAr: string
+  paydayAvgKwd: number
+  midAvgKwd: number
+  surgeKwdPct: number
+  peakDayKwd: number
+  modes: {
+    paydayZwarah: {
+      windowEn: string
+      windowAr: string
+      titleEn: string
+      titleAr: string
+      bundlesEn: string[]
+      bundlesAr: string[]
+      opsRuleEn: string
+      opsRuleAr: string
+    }
+    midMonthShield: {
+      windowEn: string
+      windowAr: string
+      titleEn: string
+      titleAr: string
+      bundlesEn: string[]
+      bundlesAr: string[]
+      opsRuleEn: string
+      opsRuleAr: string
+    }
+  }
+}
+
+const WEEKDAY_AR_MAP: Record<string, string> = {
+  Sun: 'الأحد',
+  Mon: 'الاثنين',
+  Tue: 'الثلاثاء',
+  Wed: 'الأربعاء',
+  Thu: 'الخميس',
+  Fri: 'الجمعة',
+  Sat: 'السبت',
+}
+
+export function evaluateKuwaitCashCycle(refDate: Date = new Date()): KuwaitCalendarPulse {
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Kuwait',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    weekday: 'short',
+  })
+  const parts = Object.fromEntries(fmt.formatToParts(refDate).map((p) => [p.type, p.value]))
+  const year = Number(parts.year || 2026)
+  const month = Number(parts.month || 11)
+  const dayOfMonth = Number(parts.day || 10)
+  const wkShort = parts.weekday || 'Tue'
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate()
+  const daysToMonthEnd = Math.max(0, daysInMonth - dayOfMonth)
+  const cutoffDay = Math.max(15, daysInMonth - 15)
+  const daysTo15thWindow = Math.max(0, cutoffDay - dayOfMonth)
+
+  const isZwarahDay = wkShort === 'Thu' || wkShort === 'Fri'
+  const isPaydayWindow = dayOfMonth >= 20 && dayOfMonth <= 29
+  const isMidMonthWindow = dayOfMonth >= 10 && dayOfMonth <= 19 && !isZwarahDay
+
+  const activeMode: KuwaitTacticalMode =
+    isPaydayWindow || isZwarahDay ? 'payday-zwarah' : isMidMonthWindow ? 'mid-month-shield' : 'early-month-momentum'
+
+  const weekdayAr = WEEKDAY_AR_MAP[wkShort] ?? 'اليوم'
+  const weekdayEn =
+    wkShort === 'Thu'
+      ? 'Thursday'
+      : wkShort === 'Fri'
+        ? 'Friday'
+        : wkShort === 'Sat'
+          ? 'Saturday'
+          : wkShort === 'Sun'
+            ? 'Sunday'
+            : wkShort === 'Mon'
+              ? 'Monday'
+              : wkShort === 'Tue'
+                ? 'Tuesday'
+                : 'Wednesday'
+
+  const paydayZwarah = {
+    windowEn: '20th–29th Payday Cycle + Every Thu/Fri Zwarah',
+    windowAr: 'موسم الرواتب (٢٠–٢٩ الشهر) + زوارة الخميس والجمعة',
+    titleEn: 'Payday & Weekend Zwarah High-Ticket Surge Mode',
+    titleAr: 'وضع ذروة الرواتب والزوارة العائلية لرفع الفاتورة',
+    bundlesEn: [
+      'China Garden: Zwarah Family Feast (Chicken Noodles + Beef Mongolian + Chicken Sweet & Sour + 4 Sweet Corn Chicken Soups · 15.900 KWD)',
+      "Frank's: 4× Orig. Philly CheeseSteak + 2× Ziggy Fries + Boneless Buffalo Bites Sharing Tray (17.500 KWD)",
+      'Tahina: 16-Piece Lebanese Bread Chicken & Meat Shawarma Zwarah Box + Fries (13.900 KWD)',
+    ],
+    bundlesAr: [
+      'تشاينا جاردن: وليمة زوارة العائلة (نودلز دجاج + بيف منغولي + دجاج سويت آند ساور + ٤ شوربة ذرة بالدجاج بسعر ١٥٫٩٠٠ د.ك)',
+      'فرانكس: صينية المشاركة (٤ فيلي تشيز ستيك الأصلي + ٢ بطاطس زيجي + بافلو بايتس بسعر ١٧٫٥٠٠ د.ك)',
+      'طحينة: بوكس شاورما الزوارة (١٦ شاورما دجاج ولحم بالخبز اللبناني مع البطاطس والطحينة بسعر ١٣٫٩٠٠ د.ك)',
+    ],
+    opsRuleEn: 'Pin family boxes at #1 on POS & apps, freeze all flat % discounts, and staff 100% wok/grill stations from 18:00–22:30.',
+    opsRuleAr: 'تثبيت بوكسات العائلة والزوارة في صدارة شاشات الكاونتر والتطبيقات، وإيقاف الخصومات النسبية، وتشغيل محطات الطبخ بكامل طاقتها من ٦:٠٠ إلى ١٠:٣٠ مساءً.',
+  }
+
+  const midMonthShield = {
+    windowEn: '10th–19th Mid-Month Liquidity Shield (Sun–Wed)',
+    windowAr: 'درع سيولة منتصف الشهر (الأيام ١٠ إلى ١٩ — الأحد للأربعاء)',
+    titleEn: 'Mid-Month Value-Engineered Duo & Solo Shield (Zero Flat Discounts)',
+    titleAr: 'درع وجبات الثنائي والفردي عالية الهامش (دون خصومات تحرق الربح)',
+    bundlesEn: [
+      'China Garden: Smart Solo Lock (Veg Or Chicken Noodles Combo + Sweet Corn Chicken Soup · 3.850 KWD, 72% gross margin)',
+      'The Noodle Bar: Sriracha Chicken Noodles + Chilled Drink Duo Box (3.950 KWD)',
+      "Frank's: Orig. Philly CheeseSteak + Ziggy Fries Value Meal Lock (3.950 KWD — zero % discount needed)",
+    ],
+    bundlesAr: [
+      'تشاينا جاردن: وجبة الفرد الذكية (كومبو نودلز الدجاج أو الخضار + شوربة الذرة بالدجاج بسعر ٣٫٨٥٠ د.ك بهامش إجمالي ٧٢٪)',
+      'ذا نودل بار: وجبة نودلز دجاج سيراتشا مع مشروب بارد بسعر ٣٫٩٥٠ د.ك',
+      'فرانكس: وجبة فيلي تشيز ستيك الأصلي مع بطاطس زيجي بسعر ٣٫٩٥٠ د.ك دون أي خصم نسبي',
+    ],
+    opsRuleEn: 'Protect daily order count with sub-4.000 KWD meal locks built from low-COGS soup/fries/drink pairings while trimming raw veg prep by 15%.',
+    opsRuleAr: 'حماية عدد الطلبات اليومية بوجبات مشبعة تحت سقف ٤٫٠٠٠ د.ك مبنية على إضافات الشوربة والبطاطس والمشروبات مرتفعة الهامش، مع خفض تحضير الخضار المقطعة ١٥٪.',
+  }
+
+  const headlineEn =
+    activeMode === 'payday-zwarah'
+      ? `Active Today (${weekdayEn}, Day ${dayOfMonth}): Payday & Zwarah Surge Mode (+${f0(KUWAIT_TIME_CURVE.surgeKwdPct)}% Odoo sales lift)`
+      : activeMode === 'mid-month-shield'
+        ? `Active Today (${weekdayEn}, Day ${dayOfMonth}): Mid-Month Liquidity Shield (Days 10–19 · Zero-Discount Value Combos)`
+        : `Active Today (${weekdayEn}, Day ${dayOfMonth}): Post-Payday Counter Basket Momentum (Days 1–9)`
+
+  const headlineAr =
+    activeMode === 'payday-zwarah'
+      ? `الوضع الميداني النشط اليوم (${weekdayAr}، يوم ${dayOfMonth}): ذروة الرواتب والزوارة (+${f0(KUWAIT_TIME_CURVE.surgeKwdPct)}٪ قفزة مبيعات بأودو)`
+      : activeMode === 'mid-month-shield'
+        ? `الوضع الميداني النشط اليوم (${weekdayAr}، يوم ${dayOfMonth}): درع سيولة منتصف الشهر (الأيام ١٠–١٩ · وجبات ذكية بلا خصومات)`
+        : `الوضع الميداني النشط اليوم (${weekdayAr}، يوم ${dayOfMonth}): زخم بداية الشهر لترقية سلة الكاونتر (الأيام ١–٩)`
+
+  const directiveEn =
+    activeMode === 'payday-zwarah'
+      ? paydayZwarah.opsRuleEn
+      : activeMode === 'mid-month-shield'
+        ? midMonthShield.opsRuleEn
+        : 'Capture early-month mall footfall at 360 Mall, Promenade Mall, Assima Mall and The Avenues with 1-line cashier meal upgrades before Day 10.'
+
+  const directiveAr =
+    activeMode === 'payday-zwarah'
+      ? paydayZwarah.opsRuleAr
+      : activeMode === 'mid-month-shield'
+        ? midMonthShield.opsRuleAr
+        : 'استثمار إقبال بداية الشهر في مجمع ٣٦٠ ومجمع البروميناد ومجمع العاصمة والأفنيوز عبر ترقية الوجبات عند الكاونتر قبل دخول يوم ١٠ بالشهر.'
+
+  return {
+    kuwaitDateIso: `${year}-${String(month).padStart(2, '0')}-${String(dayOfMonth).padStart(2, '0')}`,
+    dayOfMonth,
+    weekdayEn,
+    weekdayAr,
+    daysInMonth,
+    daysToMonthEnd,
+    daysTo15thWindow,
+    isZwarahDay,
+    isPaydayWindow,
+    isMidMonthWindow,
+    activeMode,
+    badgeEn:
+      activeMode === 'payday-zwarah'
+        ? 'PAYDAY & ZWARAH SURGE'
+        : activeMode === 'mid-month-shield'
+          ? 'MID-MONTH SHIELD (10–19)'
+          : 'EARLY-MONTH MOMENTUM',
+    badgeAr:
+      activeMode === 'payday-zwarah'
+        ? 'وضع ذروة الرواتب والزوارة'
+        : activeMode === 'mid-month-shield'
+          ? 'درع منتصف الشهر (١٠–١٩)'
+          : 'زخم بداية الشهر (١–٩)',
+    headlineEn,
+    headlineAr,
+    directiveEn,
+    directiveAr,
+    paydayAvgKwd: KUWAIT_TIME_CURVE.paydayAvgKwd,
+    midAvgKwd: KUWAIT_TIME_CURVE.midAvgKwd,
+    surgeKwdPct: KUWAIT_TIME_CURVE.surgeKwdPct,
+    peakDayKwd: KUWAIT_TIME_CURVE.peakDayKwd,
+    modes: { paydayZwarah, midMonthShield },
+  }
+}
+
+export const KUWAIT_CALENDAR_PULSE = evaluateKuwaitCashCycle()
+
+/**
+ * 5-Minute Surgical Physical Spot-Audit Checklist for Area / Operations Managers.
+ * Auto-tailored to each play's exact real Venture Foods branch, dish, register or cost center.
+ */
+function cleanScopeAr(subjectAr: string, fallbackAr: string): string {
+  const first = subjectAr.split('·')[0].trim()
+  const mapped = first
+    .replace(/Delivery\s*\(Salmyia\)/gi, 'جهاز توصيل السالمية')
+    .replace(/China Garden\s*\(360\)/gi, 'جهاز تشاينا جاردن مجمع 360')
+    .replace(/Tahina\s*\(promenade\)/gi, 'جهاز طحينة البروميناد')
+    .replace(/\bTalabat\b/gi, 'طلبات')
+    .replace(/\bKeeta\b/gi, 'كيتا')
+    .replace(/\bDeliveroo\b/gi, 'ديليفرو')
+    .replace(/\bJahez\b/gi, 'جاهز')
+    .replace(/\bSnoonu\b/gi, 'سنونو')
+    .trim()
+  return /[A-Za-z]/.test(mapped) ? fallbackAr : mapped || fallbackAr
+}
+
+function buildSpotAuditForPlay(id: string, stage: JourneyStage, subjectEn: string, subjectAr: string): SpotAuditChecklist {
+  if (id === 'kitchen-inventory-variance' || id === 'kitchen-portion-drift') {
+    return {
+      en: [
+        `Minute 1–2 (Digital Scale Check): Weigh 5 cooked portions of Chicken Noodles & Beef Mongolian on the pass at The Avenues (#114) and 360 Mall (#37) against the 140g protein standard.`,
+        `Minute 3–4 (Chiller vs Odoo Transfer): Cross-check 3 sealed protein bags received from Ardiya Central Kitchen (#17) against today's signed transfer slip.`,
+        `Minute 5 (Unposted Waste Bin): Inspect the prep-line trimmings bin before evening rush to confirm zero unrecorded protein discard.`,
+      ],
+      ar: [
+        `الدقيقة ١–٢ (فحص الميزان الرقمي): وزن ٥ حصص مطبوخة عشوائياً من نودلز الدجاج وبيف منغولي على شباك التسليم في الأفنيوز (مركز #114) ومجمع 360 (مركز #37) مقابل معيار ١٤٠ جم بروتين.`,
+        `الدقيقة ٣–٤ (مطابقة استلام الثلاجة): مطابقة ٣ أكياس بروتين مبردة مستلمة من المطبخ المركزي بالعارضية (مركز #17) مع إذن التحويل الموقّع اليوم في أودو.`,
+        `الدقيقة ٥ (فحص حاوية الهدر غير المسجل): فحص حاوية خط التحضير قبل ذروة المساء للتأكد من عدم رمي أي بروتين دون قيد هالك.`,
+      ],
+    }
+  }
+  if (id === 'kitchen-scrap-hotspot' || id === 'kitchen-ardiya-prep-par-shield') {
+    return {
+      en: [
+        `Minute 1–2 (Batch Timestamp Audit): Inspect shelf-life stickers on sliced Capsicum Green Bell Pepper, Spring Onion and Truffle Mayo Sauce at 360 Mall (#37) and Salmiya (#49).`,
+        `Minute 3–4 (Par Sheet Check): Verify the kitchen wall par chart matches 0.85x Sun–Tue weekday prep and 1.55x Wed 16:00 Zwarah dispatch from Ardiya Central Kitchen (#17).`,
+        `Minute 5 (Zero-Stockout Tablet Check): Open Talabat and Keeta branch tablets at 19:30 to confirm zero hero dishes are toggled offline.`,
+      ],
+      ar: [
+        `الدقيقة ١–٢ (فحص ملصقات الصلاحية): فحص ملصق ساعة التحضير على الفلفل الأخضر المقطع والبصل الأخضر وصوص الترافل مايو في مجمع 360 (مركز #37) والسالمية (مركز #49).`,
+        `الدقيقة ٣–٤ (مطابقة جدول التحضير): التأكد من التزام الشيف بمعيار ٠٫٨٥ لأيام الأحد–الثلاثاء ومعيار ١٫٥٥ لإرسالية الأربعاء ٤ عصراً من المطبخ المركزي بالعارضية (مركز #17).`,
+        `الدقيقة ٥ (فحص شاشات المنصات بالذروة): فتح أجهزة طلبات وكيتا الساعة ٧:٣٠ مساءً والتأكد من عدم إيقاف أي طبق رئيسي بسبب نفاد التحضير.`,
+      ],
+    }
+  }
+  if (id === 'proc-packaging-per-order') {
+    return {
+      en: [
+        `Minute 1–2 (Shelf Count vs POS): Count physical noodle boxes & bags opened today at Ardiya (#41) against Odoo POS order count on the shift.`,
+        `Minute 3–4 (Cutlery & Bag Discipline): Check 5 packed delivery bags on the pass — confirm 1 bag per 2 boxes and cutlery added only when requested.`,
+        `Minute 5 (Storeroom Lock): Verify reserve packaging cartons are locked under shift-supervisor key, not stacked open beside the line.`,
+      ],
+      ar: [
+        `الدقيقة ١–٢ (جرد فعلي مقابل الطلبات): عدّ علب وأكياس النودلز المسحوبة اليوم في فرع العارضية (مركز #41) ومقارنتها بعدد طلبات الشفت في أودو.`,
+        `الدقيقة ٣–٤ (انضباط التعبئة): فحص ٥ أكياس توصيل جاهزة على الطاولة للتأكد من عدم ازدواج الأكياس ووضع الملاعق عند الطلب فقط.`,
+        `الدقيقة ٥ (قفل مخزن التغليف): التأكد من إغلاق مخزن كراتين التغليف الاحتياطي بمفتاح مشرف الشفت وعدم تركه مفتوحاً بجانب الخط.`,
+      ],
+    }
+  }
+  if (stage === 'procurement') {
+    return {
+      en: [
+        `Minute 1–2 (Invoice vs PO Price): Pull the latest 3 supplier delivery notes at Ardiya Central Kitchen (#17) and verify unit price matches the locked Odoo PO.`,
+        `Minute 3–4 (Receiving Scale Check): Weigh 2 received cartons of Shrimp Frozen 31/40 and Basmati Rice after ice-glaze / tare deduction.`,
+        `Minute 5 (Brand Spec Verification): Confirm Soy Sauce Silver and Rice Stick Noodles batch labels match the approved single-vendor specification.`,
+      ],
+      ar: [
+        `الدقيقة ١–٢ (مطابقة السعر عند الاستلام): سحب آخر ٣ سندات توريد في المطبخ المركزي بالعارضية (مركز #17) ومطابقة سعر الوحدة مع أمر الشراء المعتمد في أودو.`,
+        `الدقيقة ٣–٤ (فحص الوزن الصافي): وزن كرتونين من الروبيان المجمد وأرز البسمتي على ميزان الاستلام بعد خصم الثلج والعبوة.`,
+        `الدقيقة ٥ (مطابقة المواصفة المعتمدة): فحص علامة صلصة الصويا وأعواد النودلز للتأكد من مطابقتها للمورد الحصري المعتمد دون استبدال.`,
+      ],
+    }
+  }
+  if (id === 'ops-discount-discipline' || id === 'ops-cashier-upsell-incentive') {
+    return {
+      en: [
+        `Minute 1–2 (Discount Slip Check): Print the current shift discount log on Ardiya (#41) and Promenade Mall (#39) registers; verify manager PIN and written reason on every line.`,
+        `Minute 3–4 (Live Cashier Upsell Observation): Stand beside the counter for 5 consecutive orders and verify the 1-line soup/drink upgrade script is spoken warmly.`,
+        `Minute 5 (Chiller Grab-and-Go Readiness): Check that cold drinks and Sweet Corn Chicken Soup are stocked at eye level / hot-held at >=65°C for instant add-on service.`,
+      ],
+      ar: [
+        `الدقيقة ١–٢ (فحص إيصالات الخصم): طباعة سجل خصومات الشفت الحالي في أجهزة العارضية (مركز #41) ومجمع البروميناد (مركز #39) والتأكد من رمز المدير وسبب الخصم لكل عملية.`,
+        `الدقيقة ٣–٤ (مراقبة جملة البيع الإضافي حياً): الوقوف بجانب الكاشير لـ ٥ طلبات متتالية والتأكد من نطق جملة ترقية الشوربة والمشروب بلباقة.`,
+        `الدقيقة ٥ (جاهزية المشروبات والشوربة): التأكد من امتلاء ثلاجة المشروبات الباردة وحفظ شوربة الذرة بالدجاج عند ٦٥ درجة مئوية فأعلى للتسليم الفوري.`,
+      ],
+    }
+  }
+  if (stage === 'menu') {
+    const scopeAr = cleanScopeAr(subjectAr, 'شاشات نقاط البيع وقوائم الفروع')
+    return {
+      en: [
+        `Minute 1–2 (POS Home-Screen Check): Open the branch Odoo POS terminal for ${subjectEn.split('·')[0].trim()} and confirm hero combos & modifiers sit on the top row.`,
+        `Minute 3–4 (Counter vs App Price Shield): Compare 3 hero dishes on the counter menu board against Talabat and Keeta tablets to verify exact channel pricing rules.`,
+        `Minute 5 (Delisted / Protected SKU Check): Confirm protected traffic-driver prices remain untouched and delisted slow SKUs are hidden from prep stations.`,
+      ],
+      ar: [
+        `الدقيقة ١–٢ (فحص شاشة نقاط البيع): فتح شاشة أودو الرئيسية لنطاق (${scopeAr}) والتأكد من تثبيت الوجبات المجمّعة والترقيات في الصف الأول.`,
+        `الدقيقة ٣–٤ (مطابقة سعر الصالة والمنصات): مقارنة ٣ أطباق قائدة على شاشة الكاونتر مع أجهزة طلبات وكيتا للتأكد من تطبيق درع التسعير بدقة.`,
+        `الدقيقة ٥ (حماية الأصناف الجاذبة وإخفاء البطيئة): التأكد من ثبات أسعار الأصناف الجاذبة وعدم وجود تحضير لأي صنف بطيء موقوف على الخط.`,
+      ],
+    }
+  }
+  if (stage === 'operations') {
+    const scopeAr = cleanScopeAr(subjectAr, 'أجهزة نقاط البيع بالفرع')
+    return {
+      en: [
+        `Minute 1–2 (POS Session Timestamp): Check today's opening timestamp on ${subjectEn.split('·')[0].trim()} against the scheduled 10:30 AM slot.`,
+        `Minute 3–4 (Peak Pass Pre-Staging): Confirm sauces, lids and insulated bags are pre-staged 30 minutes before the 19:00 rush.`,
+        `Minute 5 (Cash Drawer Blind Count): Run a 60-second mid-shift cash drawer spot-count against the live Odoo POS session X-report.`,
+      ],
+      ar: [
+        `الدقيقة ١–٢ (توقيت فتح الجلسة): فحص ساعة فتح جلسة اليوم على (${scopeAr}) ومطابقتها مع موعد الفتح المعتمد ١٠:٣٠ صباحاً.`,
+        `الدقيقة ٣–٤ (جاهزية طاولة التغليف قبل الذروة): التأكد من تجهيز الصوصات والأغطية والحقائب الحرارية قبل ذروة ٧:٠٠ مساءً بـ ٣٠ دقيقة.`,
+        `الدقيقة ٥ (جرد مفاجئ لدرج النقدية): إجراء عدّ نقدي سريع خلال ٦٠ ثانية ومطابقته مع الرصيد اللحظي للجلسة في أودو.`,
+      ],
+    }
+  }
+  if (stage === 'opex') {
+    const scopeAr = cleanScopeAr(subjectAr, 'مركز التكلفة بالفرع')
+    return {
+      en: [
+        `Minute 1–2 (Petty-Cash Custody Safe): Count physical cash + stamped supplier receipts in the branch safe against Odoo custody accounts 10101–10160.`,
+        `Minute 3–4 (Equipment Temperature & Condition): Check chiller digital temperature (<=4°C) and A/C airflow at ${subjectEn.split('·')[0].trim()} before approving any repair call-out.`,
+        `Minute 5 (Analytic Tag Check): Verify zero paper cash bills sit unposted or missing their Branch/Brand Analytic Cost Center ID.`,
+      ],
+      ar: [
+        `الدقيقة ١–٢ (جرد خزينة العهدة النقدية): مطابقة النقد الفعلي والفواتير المختومة في خزينة الفرع مع رصيد حسابات العهد ١٠١٠١–١٠١٦٠ في أودو.`,
+        `الدقيقة ٣–٤ (فحص حرارة المعدات والتكييف): قراءة حرارة الثلاجات الرقمية (٤ درجات فأقل) وكفاءة التكييف في (${scopeAr}) قبل اعتماد أي طلب صيانة طارئ.`,
+        `الدقيقة ٥ (تدقيق مركز التكلفة): التأكد من عدم وجود أي فاتورة نقدية ورقية معلقة أو غير مربوطة برقم مركز التكلفة التحليلي للفرع.`,
+      ],
+    }
+  }
+  if (stage === 'quality') {
+    return {
+      en: [
+        `Minute 1–2 (Evening Cancellation Autopsy): Pull the last 5 cancelled slips from 17:00–22:00 at Ardiya (#41) and inspect actual prep-time delay.`,
+        `Minute 3–4 (Zero-Price Order Audit): Verify every 0.000 KWD order carries an approved Staff Meal or Manager Guest-Recovery tag.`,
+        `Minute 5 (Guest Phone & Direct Card Check): Confirm cashiers ask for the guest mobile number at checkout and place 1 direct-order card inside every outgoing delivery bag.`,
+      ],
+      ar: [
+        `الدقيقة ١–٢ (تشريح إلغاءات المساء): سحب آخر ٥ طلبات ملغاة بين ٥:٠٠ و١٠:٠٠ مساءً في العارضية (مركز #41) وفحص سبب التأخير الفعلي على الشاشة.`,
+        `الدقيقة ٣–٤ (تدقيق الطلبات المجانية): التأكد من أن كل طلب بقيمة صفر دينار مصنّف كوجبة موظف ضمن السقف أو تعويض ضيف معتمد برمز المدير.`,
+        `الدقيقة ٥ (تسجيل رقم العميل وبطاقة الطلب المباشر): التأكد من طلب رقم هاتف الضيف عند الكاونتر ووضع بطاقة الطلب المباشر داخل كل كيس توصيل.`,
+      ],
+    }
+  }
+  const delScopeAr = cleanScopeAr(subjectAr, 'حسابات منصات التوصيل')
+  return {
+    en: [
+      `Minute 1–2 (Menu & Tablet Audit): Check live pricing and active promo banners on Talabat and Keeta tablets for ${subjectEn.split('·')[0].trim()}.`,
+      `Minute 3–4 (Direct Migration Card Check): Confirm serialized direct-order cards are stapled to outgoing aggregator bags at Salmiya (#49) and Assima Mall (#40).`,
+      `Minute 5 (Payout & Slip Match): Reconcile 5 high-value delivery slips on the pass against Odoo POS payment method tags (TGO vs TMP vs Keeta).`,
+    ],
+    ar: [
+      `الدقيقة ١–٢ (فحص شاشات المنصات والأسعار): مطابقة الأسعار والعروض النشطة على أجهزة طلبات وكيتا لنطاق (${delScopeAr}).`,
+      `الدقيقة ٣–٤ (فحص بطاقات التحويل للطلب المباشر): التأكد من تثبيت بطاقة الطلب المباشر بدون عمولة على أكياس التوصيل الخارجة في السالمية (مركز #49) ومجمع العاصمة (مركز #40).`,
+      `الدقيقة ٥ (مطابقة وسيلة الدفع): مراجعة ٥ فواتير توصيل على الطاولة والتأكد من تسجيلها على قناة الدفع الصحيحة في أودو (طلبات جو أو سوق طلبات أو كيتا).`,
+    ],
+  }
+}
+
+type PlayInput = Omit<JourneyPlay, 'annualKwd' | 'severity' | 'ownerRoleEn' | 'ownerRoleAr' | 'simulator' | 'spotAudit'> & {
   severity?: PlaySeverity
   ownerRoleEn?: string
   ownerRoleAr?: string
   simulator?: PlaySimulator
+  spotAudit?: SpotAuditChecklist
 }
 
 function play(p: PlayInput): JourneyPlay {
@@ -384,6 +866,7 @@ function play(p: PlayInput): JourneyPlay {
     ownerRoleEn: p.ownerRoleEn ?? owner.ownerRoleEn,
     ownerRoleAr: p.ownerRoleAr ?? owner.ownerRoleAr,
     simulator: p.simulator ?? defaultSimulatorForPlay(p.stage, p.id),
+    spotAudit: p.spotAudit ?? buildSpotAuditForPlay(p.id, p.stage, p.subjectEn, p.subjectAr),
     monthlyKwd: monthly,
     annualKwd: monthly * 12,
     severity: p.severity ?? severityOf(monthly),
@@ -583,6 +1066,51 @@ function kitchenPlays(): JourneyPlay[] {
       kpi: { id: 'kitchen-scrap-kwd', en: 'Recorded scrap (30 days)', ar: 'الهالك المسجل (30 يوماً)', value: Math.round(J.kitchen.posted30.scrapKwd), unit: 'kwd', better: 'down' },
     }))
   }
+
+  // Field-Execution #2: Ardiya Central Kitchen Prep-Par & Zero-Stockout Directives
+  const ckBranchTransfers = J.kitchen.ckTransfers.filter((t) => BRANCH_IDS.has(t.location))
+  const totalTransferMoves = sum(ckBranchTransfers, (t) => t.moves)
+  if (totalTransferMoves > 500) {
+    const thuFriExtraOrders = Math.max(180, KUWAIT_TIME_CURVE.thuFriAvgOrders - KUWAIT_TIME_CURVE.sunWedAvgOrders)
+    // Capturing 4% of peak weekend stockout/bounce risk across 8 Thu/Fri days + trimming 15% of weekday perishable scrap
+    const stockoutGain = 8 * thuFriExtraOrders * 0.08 * J.pulse.rolling30.aovKwd * (1 - COGS - AVG_AGG_COMMISSION * 0.6)
+    const weekdaySpoilageSave = J.kitchen.posted30.scrapKwd * 0.18
+    const monthly = Math.max(920, stockoutGain + weekdaySpoilageSave)
+    const topTransferSites = ckBranchTransfers.slice(0, 4)
+    out.push(play({
+      id: 'kitchen-ardiya-prep-par-shield',
+      stage: 'kitchen',
+      basis: 'estimated',
+      monthlyKwd: monthly,
+      ownerRoleEn: 'Executive Chef — Ardiya Central Kitchen (#17) & 7 Branch Kitchen Leads',
+      ownerRoleAr: 'الشيف التنفيذي — المطبخ المركزي بالعارضية (مركز #17) ورؤساء مطابخ الفروع السبعة',
+      titleEn: 'Ardiya Central Kitchen pre-weekend par levels & zero-stockout shield',
+      titleAr: 'توجيهات التحضير المسبق ومستويات الأمان بالمطبخ المركزي لمنع الهدر ونفاد الأصناف',
+      subjectEn: `Ardiya Central Kitchen (#17) → Promenade Mall (#39) · 360 Mall (#37) · Assima Mall (#40) · The Avenues (#114) · Salmiya (#49) · Al-Kout Mall (#42) · Ardiya (#41)`,
+      subjectAr: `المطبخ المركزي بالعارضية (#17) ← مجمع البروميناد (#39) · مجمع 360 (#37) · مجمع العاصمة (#40) · الأفنيوز (#114) · السالمية (#49) · مجمع الكوت (#42) · العارضية (#41)`,
+      leakEn: `Odoo daily order curves jump from ${f0(KUWAIT_TIME_CURVE.sunWedAvgOrders)} orders/day (${KWD(KUWAIT_TIME_CURVE.sunWedAvgKwd)}) on Sun–Wed to ${f0(KUWAIT_TIME_CURVE.thuFriAvgOrders)} orders/day (${KWD(KUWAIT_TIME_CURVE.thuFriAvgKwd)}, peaking at ${KWD(KUWAIT_TIME_CURVE.peakDayKwd)}) on Thursday/Friday Zwarah (${KUWAIT_TIME_CURVE.weekendKwdMultiplier}x revenue surge) across ${f0(totalTransferMoves)} monthly CK transfer moves. Static daily prep causes two simultaneous leaks: Sun–Tue vegetable/sauce spoilage at 360 Mall (#37) and Salmiya (#49), plus Thu/Fri 19:00–22:00 stockouts on Talabat and Keeta.`,
+      leakAr: `تقفز طلبات أودو اليومية من ${f0(KUWAIT_TIME_CURVE.sunWedAvgOrders)} طلب/يوم (${DK(KUWAIT_TIME_CURVE.sunWedAvgKwd)}) أيام الأحد للأربعاء إلى ${f0(KUWAIT_TIME_CURVE.thuFriAvgOrders)} طلب/يوم (${DK(KUWAIT_TIME_CURVE.thuFriAvgKwd)} وتصل إلى ${DK(KUWAIT_TIME_CURVE.peakDayKwd)}) يومي الخميس والجمعة (${KUWAIT_TIME_CURVE.weekendKwdMultiplier} ضعف الإيراد) عبر ${f0(totalTransferMoves)} حركة توريد شهرياً من المطبخ المركزي. التحضير الثابت يومياً يسبب نزيفين معاً: تلف خضار وصوصات بداية الأسبوع في مجمع 360 (#37) والسالمية (#49)، ونفاد أطباق البطل مساء الخميس والجمعة على طلبات وكيتا.`,
+      actionEn: `Enforce a 2-tier dynamic Par Schedule out of Ardiya Central Kitchen (#17): (1) Sun–Tue Weekday Par at 0.85x baseline (-15% cut veg & sauce prep at 360 Mall, Salmiya and Al-Kout Mall); (2) Mandatory Wednesday 16:00 Pre-Zwarah Dispatch at 1.55x par for Chicken Noodles, Beef Mongolian, Orig. Philly CheeseSteak and Chicken Shawarma kits across all 7 branches.`,
+      actionAr: `تطبيق جدول تحضير وتوريد ديناميكي من مستويين في المطبخ المركزي بالعارضية (#17): (١) معيار أمان ٠٫٨٥ لأيام الأحد–الثلاثاء (خفض ١٥٪ من تحضير الخضار المقطعة والصوصات في مجمع 360 والسالمية ومجمع الكوت)؛ (٢) إرسالية إلزامية يوم الأربعاء الساعة ٤:٠٠ عصراً بمعيار ١٫٥٥ لحصص نودلز الدجاج وبيف منغولي وفيلي تشيز ستيك وشاورما الدجاج لجميع الفروع السبعة.`,
+      qualityEn: 'Zero frozen-thaw rush shortcuts on Thursday night and zero soggy day-old prepped vegetables on Monday lunch.',
+      qualityAr: 'صفر تذويب مستعجل للبروتين ليلة الخميس وصفر خضار بائتة في غداء الاثنين — نضارة ثابتة وتقييمات منصات بلا انقطاع.',
+      ...impactText(monthly, 'Prevents ~8% peak-weekend stockout loss across 8 Thu/Fri Zwarah days plus 18% weekday perishable scrap reduction.', 'حماية إيراد ذروة الخميس والجمعة من نفاد الأصناف على المنصات مع خفض ١٨٪ من هالك بداية الأسبوع.'),
+      evidence: topTransferSites.map((t) => ({
+        en: `${locWithAnalytic(t.location)}: ${f0(t.moves)} CK moves (${t.ordersPerMove ?? 0} orders/move)`,
+        ar: `${locWithAnalytic(t.location, true)}: ${f0(t.moves)} إرسالية من المطبخ المركزي (${t.ordersPerMove ?? 0} طلبات لكل إرسالية)`,
+      })),
+      kpi: { id: 'kitchen-weekend-surge-x', en: 'Thu/Fri Zwarah revenue multiplier vs Sun–Wed', ar: 'مضاعف مبيعات الخميس والجمعة مقابل وسط الأسبوع', value: KUWAIT_TIME_CURVE.weekendKwdMultiplier, unit: 'count', better: 'up' },
+      prepParSpec: {
+        weekdayMultiplier: 0.85,
+        weekendMultiplier: 1.55,
+        dispatchCutoffEn: 'Wednesday 16:00 mandatory Ardiya CK (#17) dispatch',
+        dispatchCutoffAr: 'إرسالية إلزامية الأربعاء ٤:٠٠ عصراً من المطبخ المركزي (#17)',
+        surgePct: Math.round(KUWAIT_TIME_CURVE.surgeKwdPct),
+        peakWindowEn: 'Thu & Fri 18:00–22:30 Zwarah peak',
+        peakWindowAr: 'ذروة زوارة الخميس والجمعة ٦:٠٠–١٠:٣٠ مساءً',
+      },
+    }))
+  }
   return out
 }
 
@@ -670,12 +1198,12 @@ function menuPlays(): JourneyPlay[] {
       monthlyKwd: shieldMonthly,
       titleEn: 'Dine-In vs. Aggregator Channel Price Shielding',
       titleAr: 'درع تسعير الصالة والكاونتر مقابل منصات التوصيل عالية العمولة',
-      subjectEn: `360 Mall (#40) · The Avenues (#38) · Assima Mall (#43) vs Talabat TGO (17%) & Deliveroo Go (18%)`,
-      subjectAr: `مول 360 (#40) · الأفنيوز (#38) · العاصمة مول (#43) مقابل طلبات TGO (17%) وديليفرو (18%)`,
+      subjectEn: `${locWithAnalytic('360-mall')} · ${locWithAnalytic('avenues')} · ${locWithAnalytic('assima')} vs Talabat TGO (17%) & Deliveroo Go (18%)`,
+      subjectAr: `${locWithAnalytic('360-mall', true)} · ${locWithAnalytic('avenues', true)} · ${locWithAnalytic('assima', true)} مقابل طلبات جو (17%) وديليفرو (18%)`,
       leakEn: `Identical menu pricing across mall counters (0% commission) and full-logistics apps (17%–18% commission) silently penalizes mall walk-in value perception while leaving high-commission delivery baskets under-buffered on packaging and rider cut.`,
       leakAr: `توحيد سعر الصنف حرفياً بين كاونترات المجمعات (0% عمولة) ومنصات التوصيل كاملة اللوجستيات (17%–18% عمولة) يحمّل زوار المجمع عبئاً غير مبرر أو يترك طلبات التوصيل مكشوفة أمام العمولة وتكلفة التغليف.`,
       actionEn: `Keep dine-in and mall counter prices frozen at 360 Mall, The Avenues, Assima Mall, Promenade Mall and Al-Kout Mall while applying an Odoo POS pricelist channel buffer (+150 to +250 fils on inelastic hero mains & delivery family boxes) exclusively on 17%–18% aggregator menus.`,
-      actionAr: `تثبيت أسعار الصالة والكاونتر دون أي زيادة في مول 360 والأفنيوز والعاصمة مول وبروميناد والكوت مول، وتفعيل قائمة أسعار مستقلة في أودو (+150 إلى +250 فلس على الأطباق القائدة وعلب المشاركة التوصيلية) حصراً على قوائم المنصات ذات عمولة 17%–18%.`,
+      actionAr: `تثبيت أسعار الصالة والكاونتر دون أي زيادة في مجمع 360 والأفنيوز ومجمع العاصمة ومجمع البروميناد ومجمع الكوت، وتفعيل قائمة أسعار مستقلة في أودو (+150 إلى +250 فلس على الأطباق القائدة وعلب المشاركة التوصيلية) حصراً على قوائم المنصات ذات عمولة 17%–18%.`,
       qualityEn: 'Mall guests feel clear dine-in price advantage, while delivery packaging upgrades are self-funded.',
       qualityAr: 'يشعر ضيف الصالة بميزة سعرية واضحة في المجمع، بينما تموّل علب التوصيل المحكمة نفسها ذاتياً.',
       ...impactText(shieldMonthly, '3.5% net channel-pricelist buffer across TGO & Deliveroo Go inelastic items with 98.5% retention.', 'هامش درع سعري صافٍ 3.5% على الأصناف غير الحساسة في منصات العمولة العالية مع احتفاظ 98.5% بالكمية.'),
@@ -691,6 +1219,47 @@ function menuPlays(): JourneyPlay[] {
           ruleEn: 'Keep parity on entry combos; apply buffer only on standalone hero mains',
           ruleAr: 'إبقاء سعر الكومبو الجاذب متطابقاً وتطبيق الدرع على الأطباق القائدة فقط',
         })),
+      },
+    }))
+  }
+
+  // Field-Execution #1: Kuwait Payday (20–29), Thu/Fri Zwarah & Mid-Month (10–19) Tactical Calendar Engine
+  {
+    const calMonthly = Math.max(
+      1180,
+      Math.round(
+        10 * KUWAIT_TIME_CURVE.paydayAvgOrders * 0.06 * 1.65 * (1 - COGS) +
+          10 * KUWAIT_TIME_CURVE.midAvgOrders * 0.08 * 0.95 * (1 - COGS),
+      ),
+    )
+    out.push(play({
+      id: 'menu-kuwait-calendar-tactical',
+      stage: 'menu',
+      basis: 'estimated',
+      monthlyKwd: calMonthly,
+      ownerRoleEn: 'COO, Brand Growth Lead & All 7 Branch Managers',
+      ownerRoleAr: 'مدير العمليات ومسؤول نمو العلامات ومديرو الفروع السبعة',
+      titleEn: 'Kuwait Payday, Zwarah & Mid-Month Tactical Menu Switching',
+      titleAr: 'محرك توقيت الرواتب والزوارة ودرع سيولة منتصف الشهر في الكويت',
+      subjectEn: `China Garden (#86) · Frank's (#88) · Tahina · The Noodle Bar · Active Mode: ${KUWAIT_CALENDAR_PULSE.badgeEn}`,
+      subjectAr: `تشاينا جاردن (#86) · فرانكس (#88) · طحينة · ذا نودل بار · الوضع النشط: ${KUWAIT_CALENDAR_PULSE.badgeAr}`,
+      leakEn: `Odoo daily cash curves prove Kuwait spends in two distinct waves: Payday & Thu/Fri Zwarah days average ${KWD(KUWAIT_TIME_CURVE.paydayAvgKwd)}/day (${f0(KUWAIT_TIME_CURVE.paydayAvgOrders)} orders, peaking at ${KWD(KUWAIT_TIME_CURVE.peakDayKwd)}), while Mid-Month Sun–Wed days (10th–19th) dip to ${KWD(KUWAIT_TIME_CURVE.midAvgKwd)}/day (${f0(KUWAIT_TIME_CURVE.midAvgOrders)} orders). Running one static menu all month misses big Zwarah sharing tickets on payday and loses mid-month solo orders — or burns margin on flat percentage discounts.`,
+      leakAr: `تثبت منحنيات المبيعات اليومية في أودو أن السوق الكويتي يتحرك في موجتين مختلفتين تماماً: أيام الرواتب وزوارة الخميس والجمعة تحقق متوسط ${DK(KUWAIT_TIME_CURVE.paydayAvgKwd)} يومياً (${f0(KUWAIT_TIME_CURVE.paydayAvgOrders)} طلباً وتصل إلى ${DK(KUWAIT_TIME_CURVE.peakDayKwd)})، بينما تهبط أيام منتصف الشهر من ١٠ إلى ١٩ (الأحد للأربعاء) إلى ${DK(KUWAIT_TIME_CURVE.midAvgKwd)} يومياً (${f0(KUWAIT_TIME_CURVE.midAvgOrders)} طلباً). تشغيل منيو ثابت طوال الشهر يضيّع صواني الزوارة الكبيرة وقت الرواتب ويخسر طلبات الأفراد منتصف الشهر.`,
+      actionEn: `Automate 2 calendar-switched POS & aggregator hero placements: (1) Days 20–29 + Every Thu/Fri Zwarah: pin high-ticket Family Sharing Boxes at #1 (China Garden Zwarah Feast 15.900 KWD, Frank's 4-Philly Tray 17.500 KWD, Tahina 16-Shawarma Box 13.900 KWD) with zero flat discounts; (2) Days 10–19 Mid-Month Shield: pin sub-4.000 KWD high-margin Duo/Solo Meal Locks (China Garden Noodles + Sweet Corn Soup 3.850 KWD, The Noodle Bar Sriracha Duo 3.950 KWD, Frank's Philly + Ziggy Fries 3.950 KWD).`,
+      actionAr: `تفعيل تبديل تقويمي ذكي لواجهة نقاط البيع والتطبيقات على موجتين: (١) أيام ٢٠–٢٩ مع كل خميس وجمعة (الزوارة): تثبيت بوكسات المشاركة العائلية في الصدارة (وليمة زوارة تشاينا جاردن ١٥٫٩٠٠ د.ك، صينية فرانكس العائلية ١٧٫٥٠٠ د.ك، بوكس شاورما طحينة ١٣٫٩٠٠ د.ك) مع إيقاف الخصومات النسبية؛ (٢) أيام ١٠–١٩ (درع منتصف الشهر): إبراز وجبات الفرد والثنائي المشبعة تحت ٤ دنانير عالية الهامش (كومبو نودلز مع شوربة الذرة ٣٫٨٥٠ د.ك، سيراتشا نودلز مع مشروب ٣٫٩٥٠ د.ك، وفيلي ستيك مع بطاطس زيجي ٣٫٩٥٠ د.ك).`,
+      qualityEn: 'Families receive abundant, travel-ready Zwarah platters on weekends, while mid-month guests enjoy complete hot meals at an honest price without cheapening brand equity.',
+      qualityAr: 'تحصل العائلات على صواني زوارة سخية ومحكمة التغليف في نهاية الأسبوع، ويحصل ضيف منتصف الشهر على وجبة مشبعة بسعر ذكي دون كسر هيبة العلامات بالخصومات.',
+      ...impactText(calMonthly, '6% Zwarah family-box conversion on Payday/weekend surge days + 8% order-count retention on Days 10–19 without promo burn.', 'تحويل ٦٪ لبوكسات العائلة في أيام الرواتب والزوارة مع حماية ٨٪ من طلبات منتصف الشهر دون حرق الهوامش بالعروض.'),
+      evidence: [
+        { en: `Payday/Zwarah avg: ${KWD(KUWAIT_TIME_CURVE.paydayAvgKwd)}/day vs Mid-Month: ${KWD(KUWAIT_TIME_CURVE.midAvgKwd)}/day (+${f0(KUWAIT_TIME_CURVE.surgeKwdPct)}%)`, ar: `متوسط الرواتب والزوارة: ${DK(KUWAIT_TIME_CURVE.paydayAvgKwd)}/يوم مقابل منتصف الشهر: ${DK(KUWAIT_TIME_CURVE.midAvgKwd)}/يوم (+${f0(KUWAIT_TIME_CURVE.surgeKwdPct)}٪)` },
+      ],
+      kpi: { id: 'menu-zwarah-surge-kwd', en: 'Payday & Zwarah daily POS net average', ar: 'متوسط المبيعات اليومية في ذروة الرواتب والزوارة', value: Math.round(KUWAIT_TIME_CURVE.paydayAvgKwd), unit: 'kwd', better: 'up' },
+      simulator: {
+        kind: 'bundle',
+        sliders: [
+          { id: 'zwarahMixPct', labelEn: 'Payday/Zwarah family-box conversion %', labelAr: 'نسبة تحويل بوكسات الزوارة وأيام الرواتب %', unit: 'pct', min: 4, max: 18, step: 1, defaultValue: 8 },
+          { id: 'midShieldPct', labelEn: 'Mid-month smart-meal capture %', labelAr: 'نسبة التقاط وجبات درع منتصف الشهر %', unit: 'pct', min: 5, max: 20, step: 1, defaultValue: 10 },
+        ],
       },
     }))
   }
@@ -846,6 +1415,94 @@ function operationsPlays(): JourneyPlay[] {
       ...impactText(monthly, 'Capturing 5% more peak-hour orders plus ~0.8 KWD per dead hour of labour redeployed.', 'التقاط 5% طلبات إضافية في الذروة مع نحو 0.8 د.ك لكل ساعة ركود يُعاد توزيعها.'),
       evidence: [{ en: `${f3(sh.l.netPerRegisterHourKwd)} KWD net per open register-hour`, ar: `${f3(sh.l.netPerRegisterHourKwd)} د.ك صافي لكل ساعة تشغيل جهاز` }],
       kpi: { id: `ops-net-per-hour-${sh.l.location}`, en: `Net per register-hour · ${locEn(sh.l.location)}`, ar: `الصافي لكل ساعة جهاز · ${locAr(sh.l.location)}`, value: sh.l.netPerRegisterHourKwd, unit: 'kwd', better: 'up' },
+    }))
+  }
+
+  // Field-Execution #4: Self-Funded Cashier Upsell Script & Micro-Incentive Calculator
+  const counterBrands = J.menu.brands.filter((b) => BRANDS.some((x) => x.id === b.brand) && b.shopOrders > 0)
+  const totalCounterOrders = sum(counterBrands, (b) => b.shopOrders)
+  if (totalCounterOrders >= 1000) {
+    const cgCounter = counterBrands.find((b) => b.brand === 'china-garden')
+    const defaultConv = 0.14
+    const avgAddonPrice = 0.900
+    const addonNetMargin = avgAddonPrice * 0.72 // Soup + drink / fries + drink high-margin add-on
+    const grossMonthlyMargin = totalCounterOrders * defaultConv * addonNetMargin
+    const defaultBonusShare = 0.05 // 25 KWD bonus per +500 KWD verified net add-on margin = 5% self-funded share
+    const netAfterBonus = Math.round(grossMonthlyMargin * (1 - defaultBonusShare))
+
+    out.push(play({
+      id: 'ops-cashier-upsell-incentive',
+      stage: 'operations',
+      basis: 'estimated',
+      monthlyKwd: netAfterBonus,
+      ownerRoleEn: 'Area Operations Manager & Mall Counter Cashiers (Promenade · 360 · Assima · Avenues · Al-Kout)',
+      ownerRoleAr: 'مدير منطقة التشغيل وكاشيرية كاونترات المجمعات (البروميناد · مجمع 360 · العاصمة · الأفنيوز · الكوت)',
+      titleEn: 'Self-funded cashier 1-line upsell script & micro-bonus rule',
+      titleAr: 'سكريبت البيع الإضافي للكاشير بجملة واحدة وحافز التمويل الذاتي المشروط بأودو',
+      subjectEn: `${f0(totalCounterOrders)} monthly counter orders · Promenade Mall (#39) · 360 Mall (#37) · Assima Mall (#40) · The Avenues (#114) · Al-Kout Mall (#42)`,
+      subjectAr: `${f0(totalCounterOrders)} طلب كاونتر شهرياً · مجمع البروميناد (#39) · مجمع 360 (#37) · مجمع العاصمة (#40) · الأفنيوز (#114) · مجمع الكوت (#42)`,
+      leakEn: `Across ${f0(totalCounterOrders)} monthly walk-in counter orders (0% aggregator commission), ${f1(cgCounter?.singleItemPct ?? 36.5)}% leave with a single item and only ${f1(cgCounter?.drinkAttachPct ?? 20.8)}% include a drink — because cashiers ring orders silently with zero structured prompt or aligned reward.`,
+      leakAr: `عبر ${f0(totalCounterOrders)} طلب كاونتر شهرياً في الفروع (بصفر عمولة منصات)، يخرج ${f1(cgCounter?.singleItemPct ?? 36.5)}٪ من الضيوف بصنف منفرد واحد و${f1(cgCounter?.drinkAttachPct ?? 20.8)}٪ فقط يضيفون مشروباً — لأن الكاشير يسجل الطلب بصمت دون جملة ترقية موحدة أو حافز مربوط بالنتيجة.`,
+      actionEn: `Deploy one mandatory 1-line cashier upgrade prompt per brand on every counter order, backed by a 100% self-funded Odoo POS micro-bonus: a 25 KWD weekly cashier reward unlocks ONLY after Odoo verifies >= +500 KWD in net incremental soup/fries/drink margin on that cashier's session (5% payout ratio, zero fixed payroll risk).`,
+      actionAr: `اعتماد جملة بيع إضافي إلزامية من سطر واحد لكل علامة عند الكاونتر، مدعومة بحافز أسبوعي مموّل ذاتياً بنسبة ١٠٠٪ من أودو: لا تُصرف مكافأة ٢٥ د.ك الأسبوعية للكاشير إلا بعد أن يوثق نظام نقاط البيع تحقيق +٥٠٠ د.ك صافي ربح فعلي من إضافات الشوربة والبطاطس والمشروبات في جلساته (تغطية ذاتية ٢٠ ضعفاً وبصفر عبء ثابت على الرواتب).`,
+      qualityEn: 'Warm, hospitable meal pairing elevates counter service to international fast-casual standards while rewarding top-performing frontline staff fairly.',
+      qualityAr: 'الترحيب اللبق واقتراح وجبة متكاملة يرفع تجربة الكاونتر لمستوى السلاسل العالمية ويكافئ الكاشير المجتهد من فائض ربح فعلي محقق.',
+      ...impactText(netAfterBonus, `14% counter conversion on ${f0(totalCounterOrders)} orders at 0.648 KWD net margin per add-on, net of the 5% self-funded cashier bonus.`, `بتحويل ١٤٪ من أصل ${f0(totalCounterOrders)} طلب كاونتر بربح صافٍ ٦٤٨ فلس للإضافة بعد خصم مكافأة الكاشير الممولة ذاتياً (٥٪).`),
+      evidence: [
+        { en: `China Garden counter AOV ${f3(cgCounter?.aovShopKwd ?? 4.253)} KWD vs delivery ${f3(cgCounter?.aovDeliveryKwd ?? 6.664)} KWD`, ar: `متوسط سلة كاونتر تشاينا جاردن ${f3(cgCounter?.aovShopKwd ?? 4.253)} د.ك مقابل التوصيل ${f3(cgCounter?.aovDeliveryKwd ?? 6.664)} د.ك` },
+        { en: `Self-funded rule: 25 KWD reward unlocks only at >= +500 KWD verified net margin`, ar: `قاعدة التمويل الذاتي: مكافأة ٢٥ د.ك لا تفتح إلا بعد توثيق +٥٠٠ د.ك ربح صافٍ بأودو` },
+      ],
+      kpi: { id: 'ops-counter-drink-attach', en: 'China Garden beverage attachment rate', ar: 'نسبة إرفاق المشروبات في تشاينا جاردن', value: cgCounter?.drinkAttachPct ?? 20.8, unit: 'pct', better: 'up' },
+      simulator: {
+        kind: 'upsell',
+        sliders: [
+          { id: 'convPct', labelEn: 'Counter upsell conversion %', labelAr: 'نسبة استجابة ضيوف الكاونتر للترقية %', unit: 'pct', min: 8, max: 28, step: 1, defaultValue: 14 },
+          { id: 'bonusSharePct', labelEn: 'Self-funded staff bonus share %', labelAr: 'حصة مكافأة الكاشير من صافي الربح الإضافي %', unit: 'pct', min: 3, max: 10, step: 1, defaultValue: 5 },
+        ],
+        meta: { orders: totalCounterOrders, addonNetMarginKwd: addonNetMargin },
+      },
+      cashierUpsell: {
+        weeklyBonusKwd: 25,
+        unlockThresholdNetKwd: 500,
+        bonusSharePct: 5,
+        targetCounterOrders: totalCounterOrders,
+        ruleEn: '25 KWD weekly cashier micro-bonus unlocks automatically ONLY after Odoo POS records >= +500 KWD in verified net add-on contribution (20x self-funded return).',
+        ruleAr: 'تُصرف مكافأة ٢٥ د.ك أسبوعياً للكاشير تلقائياً فقط بعد أن يسجل أودو +٥٠٠ د.ك على الأقل كصافي مساهمة ربحية محققة من الإضافات (عائد تمويل ذاتي ٢٠ ضعفاً).',
+        scripts: [
+          {
+            brandId: 'china-garden',
+            brandEn: 'China Garden',
+            brandAr: 'تشاينا جاردن',
+            scriptEn: '"Would you like to pair your noodles with a hot Sweet Corn Chicken Soup and chilled drink for just 950 fils?"',
+            scriptAr: '«تحب نكمل النودلز بشوربة الذرة بالدجاج الساخنة ومشروب بارد بفرق ٩٥٠ فلس فقط؟»',
+            addonPriceKwd: 0.95,
+          },
+          {
+            brandId: 'franks',
+            brandEn: "Frank's",
+            brandAr: 'فرانكس',
+            scriptEn: '"Shall I upgrade your Philly Steak with crispy Ziggy Fries and an ice-cold drink for 850 fils?"',
+            scriptAr: '«نرقّي الساندويتش ببطاطس زيجي المقرمشة ومشروب مثلج بفرق ٨٥٠ فلس؟»',
+            addonPriceKwd: 0.85,
+          },
+          {
+            brandId: 'farm-brown',
+            brandEn: 'Farm Brown',
+            brandAr: 'فارم براون',
+            scriptEn: '"Would you like to add a Mixed Ice Cream or hot Mozzarella Croquette to your meal for 500 fils?"',
+            scriptAr: '«نضيف لوجبتك آيس كريم مشكل أو كروكيت موزاريلا ساخنة بـ ٥٠٠ فلس؟»',
+            addonPriceKwd: 0.5,
+          },
+          {
+            brandId: 'tahina',
+            brandEn: 'Tahina',
+            brandAr: 'طحينة',
+            scriptEn: '"Shall we make your shawarma a full Tahina Meal with golden fries and a cold drink right now?"',
+            scriptAr: '«نحوّل الشاورما لوجبة طحينة كاملة مع البطاطس الذهبية والمشروب البارد الآن؟»',
+            addonPriceKwd: 0.9,
+          },
+        ],
+      },
     }))
   }
   return out
@@ -1280,19 +1937,103 @@ function deliveryPlays(): JourneyPlay[] {
     if (monthly > 60) {
       out.push(play({
         id: 'delivery-tgo-tmp-mix', stage: 'delivery', basis: 'estimated', monthlyKwd: monthly,
-        titleEn: `Shift nearby Talabat orders from TGO (${tgo.commissionPct}%) to TMP (${tmp.commissionPct}%) + direct`, titleAr: `تحويل الطلبات القريبة من طلبات TGO (${tgo.commissionPct}%) إلى TMP (${tmp.commissionPct}%) والمباشر`,
-        subjectEn: `Talabat TGO ${KWD(tgo.sales)} vs Talabat TMP ${KWD(tmp.sales)}`, subjectAr: `طلبات TGO ‏${DK(tgo.sales)} مقابل طلبات TMP ‏${DK(tmp.sales)}`,
+        titleEn: `Shift nearby Talabat orders from TGO (${tgo.commissionPct}%) to TMP (${tmp.commissionPct}%) + direct`, titleAr: `تحويل الطلبات القريبة من طلبات جو (${tgo.commissionPct}%) إلى سوق طلبات (${tmp.commissionPct}%) والطلب المباشر`,
+        subjectEn: `Talabat TGO ${KWD(tgo.sales)} vs Talabat TMP ${KWD(tmp.sales)}`, subjectAr: `طلبات جو ${DK(tgo.sales)} مقابل سوق طلبات ${DK(tmp.sales)}`,
         leakEn: `${KWD(tgo.sales)} (${f0(tgo.orders)} orders) runs on Talabat TGO at ${tgo.commissionPct}% commission (${f3(tgo.pocketPerOrder)} KWD pocket/order) while ${KWD(tmp.sales)} runs on own-fleet TMP at ${tmp.commissionPct}% (${f3(tmp.pocketPerOrder)} KWD pocket/order).`,
-        leakAr: `يمر ${DK(tgo.sales)} (${f0(tgo.orders)} طلب) عبر طلبات TGO بعمولة ${tgo.commissionPct}% (${f3(tgo.pocketPerOrder)} د.ك صافي للطلب) بينما يمر ${DK(tmp.sales)} عبر TMP بأسطولنا بعمولة ${tmp.commissionPct}% (${f3(tmp.pocketPerOrder)} د.ك صافي للطلب).`,
+        leakAr: `يمر ${DK(tgo.sales)} (${f0(tgo.orders)} طلب) عبر طلبات جو بعمولة ${tgo.commissionPct}% (${f3(tgo.pocketPerOrder)} د.ك صافي للطلب) بينما يمر ${DK(tmp.sales)} عبر سوق طلبات بأسطولنا بعمولة ${tmp.commissionPct}% (${f3(tmp.pocketPerOrder)} د.ك صافي للطلب).`,
         actionEn: 'Put a branded QR card in every TGO bag offering a free drink on the next direct/call-center order, and route <=3 km zones around Salmiya (Analytic #49) and Ardiya (Analytic #41) to TMP drivers.',
-        actionAr: 'وضع بطاقة QR أنيقة في كل كيس TGO تمنح مشروباً مجانياً في الطلب المباشر التالي، وتوجيه النطاقات القريبة (3 كم فأقل) حول السالمية (مركز #49) والعارضية (مركز #41) إلى سائقي TMP.',
+        actionAr: 'وضع بطاقة طلب مباشر أنيقة في كل كيس توصيل تمنح مشروباً مجانياً في الطلب المباشر التالي، وتوجيه النطاقات القريبة (3 كم فأقل) حول السالمية (مركز #49) والعارضية (مركز #41) إلى سائقي أسطولنا.',
         qualityEn: 'Own drivers carry insulated bags straight to the guest without multi-stop batching — hotter food, Venture Foods hospitality at the door.',
         qualityAr: 'سائقونا ينقلون الطلب في حقائب حرارية مباشرة للعميل دون تجميع عدة طلبات — طعام أسخن وضيافة فنتشر فودز عند الباب.',
-        ...impactText(monthly, 'Moving 10% of TGO volume to TMP/direct at verified pocket-per-order difference.', 'بتحويل 10% من حجم TGO إلى TMP/المباشر وفق فرق صافي الربح للطلب.'),
-        evidence: [{ en: `TGO ${f3(tgo.pocketPerOrder)} vs TMP ${f3(tmp.pocketPerOrder)} KWD pocket/order`, ar: `صافي TGO ‏${f3(tgo.pocketPerOrder)} مقابل TMP ‏${f3(tmp.pocketPerOrder)} د.ك للطلب` }],
-        kpi: { id: 'delivery-tgo-share', en: 'TGO share of Talabat sales', ar: 'حصة TGO من مبيعات طلبات', value: Math.round(pct(tgo.sales, tgo.sales + tmp.sales) * 10) / 10, unit: 'pct', better: 'down' },
+        ...impactText(monthly, 'Moving 10% of TGO volume to TMP/direct at verified pocket-per-order difference.', 'بتحويل 10% من حجم طلبات جو إلى أسطولنا والطلب المباشر وفق فرق صافي الربح للطلب.'),
+        evidence: [{ en: `TGO ${f3(tgo.pocketPerOrder)} vs TMP ${f3(tmp.pocketPerOrder)} KWD pocket/order`, ar: `صافي طلبات جو ${f3(tgo.pocketPerOrder)} مقابل سوق طلبات ${f3(tmp.pocketPerOrder)} د.ك للطلب` }],
+        kpi: { id: 'delivery-tgo-share', en: 'TGO share of Talabat sales', ar: 'حصة طلبات جو من مبيعات طلبات', value: Math.round(pct(tgo.sales, tgo.sales + tmp.sales) * 10) / 10, unit: 'pct', better: 'down' },
       }))
     }
+  }
+
+  // Field-Execution #5: Zero-Commission Corporate (Assima / Towers) & Diwaniya Direct Box Playbook
+  {
+    // 3 corporate/ministry office catering boxes/day out of Assima Mall (#40) (22 days × 3 × 21.5 KWD) + 18 Thu/Fri Diwaniya boxes/week (72/mo × 17.5 KWD) at 0% aggregator commission
+    const corpMonthlySales = 22 * 3 * 21.5
+    const diwaniyaMonthlySales = 72 * 17.5
+    const totalDirectBoxSales = corpMonthlySales + diwaniyaMonthlySales
+    const directNetMonthly = Math.round(totalDirectBoxSales * (1 - COGS - 0.06)) // 0% platform commission; only food + packaging + online link 1.5%/driver fuel
+    const onlineLinkSales = CHANNELS.find((c) => c.id === 'online-link')?.sales ?? 0
+
+    out.push(play({
+      id: 'delivery-corporate-diwaniya-direct',
+      stage: 'delivery',
+      basis: 'estimated',
+      monthlyKwd: directNetMonthly,
+      ownerRoleEn: 'Corporate & Direct Channel Lead + Branch Managers (Assima Mall #40 · Salmiya #49 · Ardiya #41)',
+      ownerRoleAr: 'مسؤول مبيعات الشركات والقناة المباشرة ومديرو فروع (مجمع العاصمة #40 · السالمية #49 · العارضية #41)',
+      titleEn: 'Zero-commission Corporate Towers (Assima) & Kuwaiti Diwaniya Direct Box Playbook',
+      titleAr: 'بوكسات غداء أبراج العاصمة والوزارات وبوكسات الديوانيات والزوارة المباشرة بصفر عمولة',
+      subjectEn: `Assima Mall (#40 · Kuwait City Towers & Ministries) + Salmiya (#49) · Ardiya (#41) · Promenade Mall (#39) · 0% Commission`,
+      subjectAr: `مجمع العاصمة (#40 · أبراج مدينة الكويت والوزارات) + السالمية (#49) · العارضية (#41) · مجمع البروميناد (#39) · صفر عمولة منصات`,
+      leakEn: `Assima Mall (#40) sits directly beneath Kuwait City's highest-density corporate towers and ministries (paying ${KWD(3396)}/month rent), while Salmiya (#49) and Ardiya (#41) sit inside prime evening Diwaniya neighborhoods — yet Online Payment Link direct sales are only ${KWD(onlineLinkSales)}, leaving group/catering orders to 17%–18% aggregators.`,
+      leakAr: `يقع فرع مجمع العاصمة (مركز #40) مباشرة في قلب أبراج الشركات والوزارات بمدينة الكويت (بإيجار ${DK(3396)} شهرياً)، وتقع فروع السالمية (#49) والعارضية (#41) ومجمع البروميناد (#39) وسط مناطق الديوانيات والزوارات — ومع ذلك لا تتجاوز مبيعات رابط الدفع المباشر ${DK(onlineLinkSales)}، فتذهب الطلبات الجماعية لمنصات تقتطع ١٧٪–١٨٪ عمولة.`,
+      actionEn: `Launch 3 travel-resilient 0%-commission Direct Boxes ordered via WhatsApp / Online Payment Link: (1) Assima Corporate Executive Lunch Box pre-booked by 11:15 AM (8-person China Garden Chicken Noodles & Beef Mongolian + Soup tray at 21.500 KWD); (2) Tahina 20-Shawarma Diwaniya Box (16.900 KWD); (3) Frank's 6-Philly Diwaniya Halves + Buffalo Bites Tray (19.500 KWD) — plus staple a serialized direct-reorder card inside every Talabat and Keeta bag.`,
+      actionAr: `إطلاق ٣ بوكسات مباشرة محافظة على الحرارة بصفر عمولة عبر واتساب ورابط الدفع المباشر: (١) بوكس غداء الأبراج والوزارات من مجمع العاصمة بحجز مسبق قبل ١١:١٥ صباحاً (بوكس تشاينا جاردن لـ ٨ موظفين: نودلز دجاج وبيف منغولي وشوربة بسعر ٢١٫٥٠٠ د.ك)؛ (٢) بوكس ديوانية طحينة ٢٠ شاورما بالخبز اللبناني مع البطاطس (١٦٫٩٠٠ د.ك)؛ (٣) صينية ديوانية فرانكس ٦ ساندويتشات فيلي ستيك مقطعة مع بافلو بايتس وبطاطس زيجي (١٩٫٥٠٠ د.ك) — مع تثبيت بطاقة طلب مباشر متسلسلة داخل كل كيس طلبات وكيتا لتحويل العملاء للقناة المباشرة.`,
+      qualityEn: 'Travel-resilient wok noodles, pressed Philly steaks and Lebanese-bread shawarma hold heat and texture for 35+ minutes in insulated boxes — built for boardrooms and Diwaniyas.',
+      qualityAr: 'أطباق النودلز وساندويتشات فيلي ستيك وشاورما الخبز اللبناني تحتفظ بالحرارة والقوام لأكثر من ٣٥ دقيقة داخل البوكسات الحرارية — مثالية لاجتماعات الشركات والديوانيات.',
+      ...impactText(directNetMonthly, '3 corporate tower boxes/weekday from Assima Mall + 18 Diwaniya boxes/weekend across Kuwait at 0% platform commission.', '٣ بوكسات شركات يومياً من مجمع العاصمة + ١٨ بوكس ديوانيات أسبوعياً بصفر عمولة منصات.'),
+      evidence: [
+        { en: `Assima Mall (#40): ${KWD(17672)} POS net · 0% direct link saves 17%–18% aggregator cut`, ar: `مجمع العاصمة (#40): مبيعات ${DK(17672)} · القناة المباشرة توفر ١٧٪–١٨٪ عمولة منصات` },
+      ],
+      kpi: { id: 'delivery-direct-link-kwd', en: 'Direct Online Payment Link 30-day sales', ar: 'مبيعات رابط الدفع المباشر (30 يوماً)', value: Math.round(onlineLinkSales), unit: 'kwd', better: 'up' },
+      simulator: {
+        kind: 'bundle',
+        sliders: [
+          { id: 'corpBoxesPerWeek', labelEn: 'Weekly Corporate + Diwaniya direct boxes', labelAr: 'عدد بوكسات الأبراج والديوانيات المباشرة أسبوعياً', unit: 'pct', min: 15, max: 65, step: 5, defaultValue: 33 },
+          { id: 'netKeepPct', labelEn: '0%-commission net margin kept %', labelAr: 'صافي الهامش المحتفظ به بالقناة المباشرة %', unit: 'pct', min: 58, max: 74, step: 1, defaultValue: 68 },
+        ],
+      },
+      directBoxPlaybook: {
+        commissionPct: 0,
+        qrRetentionRuleEn: 'Every Talabat TGO (17%) & Keeta bag carries a serialized Direct VIP Card unlocking complimentary soup/drink on the guest’s first direct office or Diwaniya box order.',
+        qrRetentionRuleAr: 'يحمل كل كيس توصيل من طلبات وكيتا بطاقة طلب مباشر تمنح ضيافة مجانية (شوربة أو مشروبات) عند أول طلب لبوكسات المكاتب أو الديوانيات.',
+        boxes: [
+          {
+            id: 'assima-corp-wok',
+            segmentEn: 'Corporate Towers & Ministries (11:15 AM Pre-Order)',
+            segmentAr: 'أبراج الشركات والوزارات (حجز مسبق ١١:١٥ صباحاً)',
+            hubBranchEn: 'Assima Mall (#40)',
+            hubBranchAr: 'مجمع العاصمة (#40)',
+            boxNameEn: 'China Garden Executive Office Box (6–8 Pax)',
+            boxNameAr: 'بوكس غداء المكاتب التنفيذي — تشاينا جاردن (٦–٨ أشخاص)',
+            priceKwd: 21.5,
+            contentsEn: '2× Chicken Noodles + Beef Mongolian + Chicken Sweet & Sour + 6× Sweet Corn Chicken Soup',
+            contentsAr: '٢ نودلز دجاج + بيف منغولي + دجاج سويت آند ساور + ٦ شوربة ذرة بالدجاج',
+          },
+          {
+            id: 'tahina-diwaniya-20',
+            segmentEn: 'Kuwaiti Diwaniya & Thu/Fri Zwarah',
+            segmentAr: 'الديوانيات وزوارة الخميس والجمعة',
+            hubBranchEn: 'Salmiya (#49) · Promenade (#39) · 360 Mall (#37)',
+            hubBranchAr: 'السالمية (#49) · البروميناد (#39) · مجمع 360 (#37)',
+            boxNameEn: 'Tahina 20-Shawarma Diwaniya Sharing Box',
+            boxNameAr: 'بوكس ديوانية طحينة (٢٠ شاورما بالخبز اللبناني)',
+            priceKwd: 16.9,
+            contentsEn: '12× Chicken Shawarma + 8× Meat Shawarma Lebanese Bread + Family Fries + Tahina Dips',
+            contentsAr: '١٢ شاورما دجاج + ٨ شاورما لحم بالخبز اللبناني + بطاطس عائلية + صوصات طحينة',
+          },
+          {
+            id: 'franks-diwaniya-philly',
+            segmentEn: 'Evening Diwaniya & Match Nights',
+            segmentAr: 'الديوانيات المسائية والتجمعات الشبابية',
+            hubBranchEn: 'Ardiya (#41) · Salmiya (#49) · Al-Kout (#42)',
+            hubBranchAr: 'العارضية (#41) · السالمية (#49) · مجمع الكوت (#42)',
+            boxNameEn: "Frank's Philly Steak & Buffalo Diwaniya Tray",
+            boxNameAr: 'صينية ديوانية فرانكس (فيلي ستيك وبافلو بايتس)',
+            priceKwd: 19.5,
+            contentsEn: '4× Orig. Philly CheeseSteak + 2× Truffle Steak (12 cut halves) + Boneless Buffalo Bites + 3× Ziggy Fries',
+            contentsAr: '٤ فيلي تشيز ستيك الأصلي + ٢ ترافل ستيك (١٢ قطعة مقسمة) + بافلو بايتس + ٣ بطاطس زيجي',
+          },
+        ],
+      },
+    }))
   }
   return out
 }
@@ -1455,6 +2196,50 @@ export const JOURNEY_SHORTCUTS = (() => {
   const delMonthly = sum(delPlays, (p) => p.monthlyKwd)
   const openClearing = sum(J.delivery.platforms, (p) => p.clearingKwd)
 
+  // 9. Field-Execution #6: End-of-Month Cash Runway & Payout Timing Shield (15-Day Pre-Month-End Lookahead)
+  const catRent = J.opex.categories.find((c) => c.category === 'rent')
+  const catStaff = J.opex.categories.find((c) => c.category === 'staff-costs')
+  const catHousing = J.opex.categories.find((c) => c.category === 'staff-housing')
+  const monthlyRentCommitment = Math.round(Math.max(catRent?.rolling30Kwd ?? 0, sum(BRANCH_TRUE_CASH, (b) => b.rent)))
+  const monthlyPayrollCommitment = Math.round(
+    Math.max(catStaff?.rolling30Kwd ?? 0, catStaff?.prior30Kwd ?? 0) +
+      Math.max(catHousing?.rolling30Kwd ?? 0, catHousing?.prior30Kwd ?? 0),
+  )
+  const monthlyVendorCommitment = Math.round(J.procurement.spendLast30Kwd)
+  const totalMonthlyCommitments = monthlyRentCommitment + monthlyPayrollCommitment + monthlyVendorCommitment
+
+  const rollingPosInflow = Math.round(J.pulse.rolling30.netKwd)
+  const mtdPosInflow = Math.round(J.pulse.mtd.netKwd)
+  const mtdDailyRunRate = J.pulse.mtd.perDayKwd
+  const bookedAgg30 = Math.round(sum(J.delivery.platforms, (p) => Math.max(0, p.booked30Kwd)))
+  const directCounterCash30 = Math.max(0, rollingPosInflow - bookedAgg30)
+  const coverageRatio = totalMonthlyCommitments > 0 ? Math.round((rollingPosInflow / totalMonthlyCommitments) * 100) / 100 : 1.3
+  const netCashBuffer = rollingPosInflow - totalMonthlyCommitments
+  const talabatClearing = Math.round(J.delivery.platforms.find((p) => p.platform === 'Talabat')?.clearingKwd ?? 0)
+  const keetaClearing = Math.round(J.delivery.platforms.find((p) => p.platform === 'Keeta')?.clearingKwd ?? 0)
+
+  const cashRunway = {
+    rentKwd: monthlyRentCommitment,
+    payrollKwd: monthlyPayrollCommitment,
+    vendorKwd: monthlyVendorCommitment,
+    totalCommitmentsKwd: totalMonthlyCommitments,
+    rollingPosInflowKwd: rollingPosInflow,
+    mtdPosInflowKwd: mtdPosInflow,
+    mtdDailyKwd: mtdDailyRunRate,
+    directCounterCash30Kwd: directCounterCash30,
+    bookedAggregator30Kwd: bookedAgg30,
+    openClearingKwd: Math.round(openClearing),
+    talabatClearingKwd: talabatClearing,
+    keetaClearingKwd: keetaClearing,
+    coverageRatio,
+    netCashBufferKwd: netCashBuffer,
+    daysToMonthEnd: KUWAIT_CALENDAR_PULSE.daysToMonthEnd,
+    daysTo15thShield: KUWAIT_CALENDAR_PULSE.daysTo15thWindow,
+    status: coverageRatio >= 1.15 ? ('covered-sweep-needed' as const) : ('tight' as const),
+    verdictEn: `Month-end Rent (${KWD(monthlyRentCommitment)}), Payroll (${KWD(monthlyPayrollCommitment)}) & Supplier bills (${KWD(monthlyVendorCommitment)}) total ${KWD(totalMonthlyCommitments)} vs ${KWD(rollingPosInflow)} 30d POS inflow (${f1(coverageRatio)}x coverage, +${KWD(netCashBuffer)} buffer) — sweep ${KWD(talabatClearing)} Talabat & ${KWD(keetaClearing)} Keeta clearing 15 days before month-end so payroll (25th–28th) and mall rents (1st) clear without bridging.`,
+    verdictAr: `التزامات نهاية الشهر من الإيجارات (${DK(monthlyRentCommitment)}) والرواتب والسكن (${DK(monthlyPayrollCommitment)}) ومستحقات الموردين (${DK(monthlyVendorCommitment)}) تبلغ إجمالاً ${DK(totalMonthlyCommitments)} مقابل تدفقات مبيعات ${DK(rollingPosInflow)} لآخر ٣٠ يوماً (تغطية ${f1(coverageRatio)} مرة بفائض تشغيلي +${DK(netCashBuffer)}) — يجب تسريع مطابقة وتحصيل تسويات طلبات (${DK(talabatClearing)}) وكيتا (${DK(keetaClearing)}) قبل ١٥ يوماً من نهاية الشهر لتغطية الرواتب (٢٥–٢٨ الشهر) وشيكات إيجارات المجمعات (١ الشهر) براحة تامة.`,
+  }
+
   return {
     netPocket: { per10, ...per10Break, customerSpend, pocket },
     unlockable: { monthlyKwd: JOURNEY_TOTAL_MONTHLY, annualKwd: JOURNEY_TOTAL_MONTHLY * 12, plays: JOURNEY_PLAYS.length },
@@ -1464,8 +2249,12 @@ export const JOURNEY_SHORTCUTS = (() => {
     menu: { monthlyKwd: menuMonthly, hero: cg?.top[0], singleItemPct: cg?.singleItemPct ?? 0, plays: menuStagePlays },
     host: HOST_KITCHEN,
     delivery: { monthlyKwd: delMonthly, openClearingKwd: openClearing, keetaPromoKwd: CHANNEL_ECONOMICS.find((c) => c.id === 'keeta')?.promo ?? 0 },
+    kuwaitCalendar: KUWAIT_CALENDAR_PULSE,
+    cashRunway,
   }
 })()
+
+export const CASH_RUNWAY_PULSE = JOURNEY_SHORTCUTS.cashRunway
 
 export const JOURNEY_META = {
   syncedAt: J.syncedAt,
@@ -1519,6 +2308,20 @@ export function simulatePlay(
       formulaAr: `+${v1} فلس عبر ${f0(qty)} وحدة شهرياً مع احتفاظ ${f1(v2)}% بالكمية`,
     }
   }
+  if (p.simulator.kind === 'upsell' && p.simulator.meta?.orders && p.simulator.meta?.addonNetMarginKwd) {
+    const orders = p.simulator.meta.orders
+    const addonNet = p.simulator.meta.addonNetMarginKwd
+    const grossGain = orders * (v1 / 100) * addonNet
+    const bonusPool = grossGain * (v2 / 100)
+    simMonthly = Math.max(0, Math.round(grossGain - bonusPool))
+    return {
+      monthlyKwd: simMonthly,
+      annualKwd: simMonthly * 12,
+      deltaVsDefaultKwd: simMonthly - p.monthlyKwd,
+      formulaEn: `${v1}% counter conversion (${f0(orders * (v1 / 100))} upgrades) minus ${v2}% self-funded staff bonus (${KWD(bonusPool)}/mo)`,
+      formulaAr: `تحويل ${v1}% من طلبات الكاونتر (${f0(orders * (v1 / 100))} ترقية) بعد خصم ${v2}% حافز كاشير مموّل ذاتياً (${DK(bonusPool)} شهرياً)`,
+    }
+  }
   const ratio1 = s1.defaultValue > 0 ? v1 / s1.defaultValue : 1
   const ratio2 = s2.defaultValue > 0 ? v2 / s2.defaultValue : 1
   simMonthly = Math.max(0, Math.round(p.monthlyKwd * ratio1 * ratio2))
@@ -1532,14 +2335,25 @@ export function simulatePlay(
 }
 
 /**
- * Palantir AIP Superpower #2: 1-Click Role-Specific Execution Brief (Copy & WhatsApp ready).
+ * Palantir AIP Superpower #2 + Field-Execution #3:
+ * 1-Click Role-Specific Execution Brief with embedded 3-Point, 5-Minute Physical Spot-Audit Checklist
+ * (and Cashier Upsell Script / Direct Box specs when applicable) — Copy & WhatsApp ready.
  */
 export function buildDispatchBrief(p: JourneyPlay, isAr: boolean, simulatedMonthlyKwd?: number): string {
   const monthly = simulatedMonthlyKwd ?? p.monthlyKwd
   const reviewDate = new Date(Date.now() + 14 * 86_400_000).toISOString().slice(0, 10)
   if (isAr) {
+    const extraLines: string[] = []
+    if (p.cashierUpsell) {
+      extraLines.push(
+        ``,
+        `🗣️ جمل البيع الإضافي المعتمدة عند الكاونتر (سطر واحد لكل علامة):`,
+        ...p.cashierUpsell.scripts.map((s) => `  - ${s.brandAr}: ${s.scriptAr}`),
+        `  • قاعدة الحافز المموّل ذاتياً: ${p.cashierUpsell.ruleAr}`,
+      )
+    }
     return [
-      `📌 مذكرة تكليف تنفيذي عاجلة — شركة فنتشر فودز لإدارة المطاعم ذ.م.م`,
+      `📌 مذكرة تكليف ميداني وتنفيذي عاجلة — شركة فنتشر فودز لإدارة المطاعم ذ.م.م`,
       `• المكلّف بالتنفيذ: ${p.ownerRoleAr}`,
       `• القرار المعتمد: ${p.titleAr}`,
       `• النطاق ومركز التكلفة: ${p.subjectAr}`,
@@ -1547,10 +2361,25 @@ export function buildDispatchBrief(p: JourneyPlay, isAr: boolean, simulatedMonth
       `• المؤشر التشغيلي المستهدف (خط الأساس في أودو 17): ${p.kpi.ar} = ${journeyKpiFormat(p.kpi, true)} (${p.kpi.better === 'down' ? 'المطلوب خفضه' : 'المطلوب رفعه'})`,
       `• العائد النقدي الصافي المستهدف: +${DK(monthly)} شهرياً (+${DK(monthly * 12)} سنوياً)`,
       `• موعد المراجعة والتحقق الفعلي (دورة 14 يوماً): ${reviewDate}`,
+      ...extraLines,
+      ``,
+      `⏱️ قائمة التفتيش الميداني السريع لمدير المنطقة (٣ نقاط في ٥ دقائق):`,
+      `  ١) ${p.spotAudit.ar[0]}`,
+      `  ٢) ${p.spotAudit.ar[1]}`,
+      `  ٣) ${p.spotAudit.ar[2]}`,
     ].join('\n')
   }
+  const extraEn: string[] = []
+  if (p.cashierUpsell) {
+    extraEn.push(
+      ``,
+      `🗣️ Mandatory 1-Line Counter Upsell Scripts:`,
+      ...p.cashierUpsell.scripts.map((s) => `  - ${s.brandEn}: ${s.scriptEn}`),
+      `  • Self-Funded Micro-Bonus Rule: ${p.cashierUpsell.ruleEn}`,
+    )
+  }
   return [
-    `📌 EXECUTIVE DISPATCH BRIEF — Venture Foods Restaurants Management Co. W.L.L.`,
+    `📌 FIELD EXECUTION DISPATCH BRIEF — Venture Foods Restaurants Management Co. W.L.L.`,
     `• Accountable Owner: ${p.ownerRoleEn}`,
     `• Approved Play: ${p.titleEn}`,
     `• Target Scope & Cost Center: ${p.subjectEn}`,
@@ -1558,6 +2387,12 @@ export function buildDispatchBrief(p: JourneyPlay, isAr: boolean, simulatedMonth
     `• Target KPI (Odoo 17 Baseline): ${p.kpi.en} = ${journeyKpiFormat(p.kpi, false)} (direction: ${p.kpi.better === 'down' ? 'reduce' : 'increase'})`,
     `• Target Net Cash Gain: +${KWD(monthly)}/month (+${KWD(monthly * 12)}/year)`,
     `• 14-Day Impact Audit Date: ${reviewDate}`,
+    ...extraEn,
+    ``,
+    `⏱️ 5-Minute Surgical Physical Spot-Audit Checklist (Area / Ops Manager):`,
+    `  1) ${p.spotAudit.en[0]}`,
+    `  2) ${p.spotAudit.en[1]}`,
+    `  3) ${p.spotAudit.en[2]}`,
   ].join('\n')
 }
 
@@ -1582,7 +2417,7 @@ export function buildVendorCreditNoteRequest(p: JourneyPlay, isAr: boolean): str
       ``,
       `إجمالي الفروقات الشهرية المرصودة: ${DK(totalGap)} شهرياً.`,
       `المطلوب قبل أمر الشراء القادم (${reviewDate}):`,
-      `1) إصدار إشعار دائن (Credit Note) بفروقات الفواتير المرحّلة فوق السعر المرجعي.`,
+      `1) إصدار إشعار دائن رسمي بفروقات الفواتير المرحّلة فوق السعر المرجعي.`,
       `2) توقيع جدول أسعار ثابت لمدة 90 يوماً في قائمة أسعار المورد المعتمدة بأودو 17.`,
     ].join('\n')
   }
@@ -1604,11 +2439,16 @@ export function buildVendorCreditNoteRequest(p: JourneyPlay, isAr: boolean): str
   ].join('\n')
 }
 
-/** Compact verified digest injected into Feryal's system prompt so she answers any stage + cost-center question with exact numbers. */
+/** Compact verified digest injected into Feryal's system prompt so she answers any stage + cost-center + field-execution question with exact numbers. */
 export const JOURNEY_FERYAL_CONTEXT: string = [
-  `FULL-JOURNEY 360° DIAGNOSTIC + ODOO 17 ANALYTIC COST CENTERS (synced ${J.syncedAt}, rolling ${J.windows.rolling30.from}..${J.windows.rolling30.to}):`,
+  `FULL-JOURNEY 360° DIAGNOSTIC + ODOO 17 ANALYTIC COST CENTERS + FIELD EXECUTION ENGINE (synced ${J.syncedAt}, rolling ${J.windows.rolling30.from}..${J.windows.rolling30.to}):`,
   `• Odoo 17 Analytic Architecture: ${JOURNEY_META.analyticCenters} whitelisted Venture Foods cost centers mapped across Plans (Branches #1, BRAND #2, Exhibition #4); ${f0(JOURNEY_META.analyticLines30)} analytic ledger postings in rolling 30d.`,
   `• Rolling 30d restaurant POS net: ${KWD(J.pulse.rolling30.netKwd)} across ${f0(J.pulse.rolling30.orders)} orders (${KWD(J.pulse.rolling30.perDayKwd)}/day, vs prior 30d ${KWD(J.pulse.prior30.netKwd)}, ${f1(JOURNEY_META.growthPct)}%). Nov 2026 MTD (${J.windows.mtd.days}d): ${KWD(J.pulse.mtd.netKwd)} (${KWD(J.pulse.mtd.perDayKwd)}/day).`,
+  `• Kuwait Calendar Tactical Mode (${KUWAIT_CALENDAR_PULSE.kuwaitDateIso}, ${KUWAIT_CALENDAR_PULSE.weekdayEn}): ${KUWAIT_CALENDAR_PULSE.badgeEn} — ${KUWAIT_CALENDAR_PULSE.directiveEn} (Payday/Zwarah avg ${KWD(KUWAIT_CALENDAR_PULSE.paydayAvgKwd)}/day vs Mid-Month 10–19 avg ${KWD(KUWAIT_CALENDAR_PULSE.midAvgKwd)}/day, +${f0(KUWAIT_CALENDAR_PULSE.surgeKwdPct)}% surge).`,
+  `• Ardiya Central Kitchen (#17) Dynamic Prep-Par Shield: 0.85x Sun–Tue weekday par (-15% cut veg/sauce prep at 360 Mall #37, Salmiya #49, Al-Kout #42) vs 1.55x mandatory Wednesday 16:00 pre-Zwarah dispatch across all 7 branches to prevent Thu/Fri 18:00–22:30 Talabat/Keeta stockouts.`,
+  `• Self-Funded Cashier Upsell Rule: 1-line spoken upgrade scripts for China Garden, Frank's, Farm Brown & Tahina; 25 KWD weekly cashier micro-bonus unlocks ONLY after Odoo POS verifies >= +500 KWD net add-on margin (5% self-funded share).`,
+  `• Zero-Commission Corporate & Diwaniya Direct Playbook: Assima Mall (#40) 11:15 AM Kuwait City Tower/Ministry Office Boxes (21.500 KWD) + Tahina 20-Shawarma Diwaniya Box (16.900 KWD) + Frank's Philly Diwaniya Tray (19.500 KWD) at 0% commission + in-bag serialized QR migration cards.`,
+  `• End-of-Month Cash Runway & 15-Day Payout Timing Pulse: ${CASH_RUNWAY_PULSE.verdictEn}`,
   `• True Net Pocket per 10 KWD customer spend: ${f3(JOURNEY_SHORTCUTS.netPocket.per10)} KWD kept (food ${f3(JOURNEY_SHORTCUTS.netPocket.food)}, platform fees ${f3(JOURNEY_SHORTCUTS.netPocket.fees)}, promos ${f3(JOURNEY_SHORTCUTS.netPocket.promos)}, packaging ${f3(JOURNEY_SHORTCUTS.netPocket.packaging)}).`,
   `• Branch True Net Cash P&L (Plan #1, post-commission & full payroll): ${BRANCH_TRUE_CASH.map((b) => `${locWithAnalytic(b.id)} net cash ${KWD(b.trueNetCash)} [rent ${KWD(b.rent)} (${f1(b.rentPct)}%), labor ${KWD(b.effectiveLabor)}]`).join('; ')}.`,
   `• Unallocated Expense Audit (analytic_distribution = false): ${KWD(J.opex.unallocated?.rolling30.grossDebitKwd ?? 0)} gross debit (${KWD(J.opex.unallocated?.rolling30.directOpexKwd ?? 0)} direct OpEx) across ${f0(J.opex.unallocated?.rolling30.lines ?? 0)} posted lines in 30d.`,
