@@ -7,7 +7,10 @@ import {
   AlertTriangle,
   BarChart3,
   Calendar,
+  ChefHat,
   ChevronDown,
+  CloudSun,
+  Landmark,
   FileText,
   LayoutDashboard,
   LogOut,
@@ -88,6 +91,16 @@ const SIDEBAR_SECTIONS: NavSection[] = [
       },
       { key: 'delivery-control', href: '/erp/delivery-control', labelAr: 'رقابة منصات التوصيل', labelEn: 'Delivery Aggregators Control', icon: Truck, alwaysVisible: true },
       { key: 'alerts', href: '/erp/alerts', labelAr: 'التنبيهات المالية الآلية', labelEn: 'Automated Financial Alerts', icon: AlertTriangle, alwaysVisible: true },
+    ],
+  },
+  {
+    id: 'enterprise-os',
+    titleAr: 'نظام المؤسسة الذكي',
+    titleEn: 'Enterprise OS',
+    items: [
+      { key: 'demand-forecast', href: '/erp/demand-forecast', labelAr: 'توقع الطلب وتحضير المطبخ', labelEn: 'Demand & Prep Forecaster', icon: CloudSun, alwaysVisible: true },
+      { key: 'cost-intelligence', href: '/erp/cost-intelligence', labelAr: 'ذكاء التكلفة وأسعار الموردين', labelEn: 'Cost & Supplier Intelligence', icon: ChefHat, alwaysVisible: true },
+      { key: 'executive-pnl', href: '/erp/executive-pnl', labelAr: 'قائمة الدخل وانحراف الموازنة', labelEn: 'Executive P&L & Budget', icon: Landmark, alwaysVisible: true },
     ],
   },
   {

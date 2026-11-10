@@ -54,6 +54,23 @@ VERIFIED VENTURE FOODS KUWAIT ODOO 17 DATA (SINGLE SOURCE OF TRUTH):
      * Al-Safeer Camp (مخيم السفير): 45 days | Rent & Setup 4,900 KWD | Sales 26,850 KWD | Net Profit 7,840 KWD | ROI 160% (Strong beverage margin).
      * Winterland Seasonal Booth (ونترلاند الكويت): 90 days | Rent & Setup 9,500 KWD | Projected Sales 54,200 KWD | Net Profit 15,600 KWD | ROI 164%.
    - EXB Menu 8 Star Items (+10% booth price uplift, <90 sec assembly): Chicken Noodles Box (China Garden), Dynamite Shrimp Cup, Philly CheeseSteak Sliders (Frank's), Loaded Shawarma Fries (Tahina), Smash Burgerito Combo, Crispy Strips Cone (Chick & Dip), Sweet Corn Warm Cup, Mandatory Event Soft Drink / Mojito.
+10. Enterprise OS Modules (Aether BI):
+   a) Demand, Weather & Central Kitchen Prep Forecaster (/erp/demand-forecast):
+     * Baseline 985 orders/day (30,540 orders over 31 days). Kuwait rhythm: Thursday ×1.15 and Friday ×1.21 versus the weekly mean; salary week (24th–29th) ×1.12.
+     * Weather: dust events shift 22% of dine-in demand to delivery (total demand ×0.95); high heat (≥42°C) shifts 16%; mild weather lifts dine-in slightly.
+     * Ardiya prep par levels convert forecast brand orders into batches (140 g marinated poultry portions, Philly steak kg, rice batches, sauces). Cutting the over-production buffer from 12% to a forecast-driven 4% on ~16,700 KWD monthly raw prep spend delivers the approved +1,336 KWD/month.
+     * Crew planning uses 7 orders per labour hour with a 2-person minimum to raise sales per labour hour.
+   b) 3-Way Aggregator Reconciliation & Chargebacks (/erp/delivery-control):
+     * Odoo POS sales → aggregator statement → bank deposit across all 11 channels. Recoverable settlement discrepancies total 954.120 KWD/month (unpaid cancellations, unapproved promo deductions, commission over-billing; Keeta 416.240 and Talabat Tgo 342.030 are the largest). Settlements in transit total 4,337.000 KWD.
+     * Dispute queue: 12 chargeback cases worth 310.330 KWD (wrongful refunds, driver-delay penalties charged to branches, over-billed commissions, missing-item claims, unpaid cancellations), each with a bilingual claim ready to send.
+     * True per-order net pocket profit (gross basket − commission − discount − 24.8% food cost − 0.180 KWD packaging − 0.350 KWD own rider on TMP): Keeta 3.411 KWD (56.0%), Deliveroo 3.245 KWD (51.9%), Jahez 3.072 KWD (53.5%), Talabat TMP 3.038 KWD (54.6%), Talabat Tgo 2.934 KWD (53.7%). Monthly aggregator & gateway commissions: 14,736.810 KWD.
+   c) Supplier Price-Creep & COGS Intelligence (/erp/cost-intelligence):
+     * Invoice vs contract: fresh poultry breast 1.950 → 2.145 KWD/kg (+10.0%), tahina paste +8.0%, thermal delivery boxes +6.0%, frozen poultry carton 10.800 → 11.400 KWD (+5.6%), Philly beef 6.800 → 7.140 KWD/kg (+5.0%), corn oil drum 8.750 → 9.100 KWD (+4.0%), basmati rice +2.0%, soy sauce flat. Total price-creep exposure ≈ 823 KWD/month (poultry breast alone 516.750 KWD).
+     * Theoretical COGS 24.0% (40,102.118 KWD) vs actual 24.8% (41,438.856 KWD) = 1,336.738 KWD gap: Ardiya central-kitchen prep shrinkage 695.10 KWD (52%), branch over-portioning 414.39 KWD (31%), unrecorded wastage 227.25 KWD (17%).
+     * Counter-moves: renegotiate or dual-source for Stars, re-price Plowhorses, trim portions 5% on Puzzles.
+   d) Executive P&L & Rolling Budget Variance (/erp/executive-pnl):
+     * Monthly P&L: gross sales 171,244.160; discounts 4,152.000; net sales 167,092.160; food & packaging COGS 41,438.856; aggregator & gateway commissions 14,736.810; salaries & rent 17,320.064; maintenance custody 10,707.930; other opex & custodies 40,447.020; net operating profit 42,441.480 KWD (25.4%).
+     * Approved monthly budget embeds the five levers: net operating profit budget 49,281.480 KWD, so the month runs 6,840 KWD unfavourable until the remedies land (discounts budget 2,532.000 with the Keeta cap; maintenance budget 9,857.930 after the chiller overhaul; COGS at the 24.0% target). Budgets ramp to Q1 147,844 / H1 298,449 / full year 600,978 KWD.
 `;
 
 const GEMINI_MODELS = [
@@ -238,6 +255,30 @@ export interface FeryalBrainResponse {
 export function getDeterministicFeryalReply(query: string, lang: 'ar' | 'en'): string {
   const q = query.toLowerCase();
   const isAr = lang === 'ar';
+
+  if (q.includes('forecast') || q.includes('demand') || q.includes('prep') || q.includes('par level') || q.includes('weather') || q.includes('staff') || q.includes('توقع') || q.includes('تحضير') || q.includes('طقس') || q.includes('طاقم')) {
+    return isAr
+      ? 'توقع الطلب ينطلق من 985 طلباً يومياً، مع ذروة الخميس ×1.15 والجمعة ×1.21 وأسبوع الرواتب ×1.12، والغبار يحول 22% من طلب الصالة إلى التوصيل. خفض هامش التحضير في مطبخ العارضية من 12% إلى 4% بناءً على التوقع يحقق الوفر المعتمد 1,336 دينار كويتي شهرياً.'
+      : 'Demand forecasting starts from 985 orders a day, with Thursday ×1.15, Friday ×1.21 and salary week ×1.12, while dust shifts 22% of dine-in demand to delivery. Cutting the Ardiya prep buffer from 12% to a forecast-driven 4% delivers the approved 1,336 KWD per month.';
+  }
+
+  if (q.includes('chargeback') || q.includes('reconcil') || q.includes('settlement') || q.includes('dispute') || q.includes('waterfall') || q.includes('pocket') || q.includes('استرداد') || q.includes('مطابقة') || q.includes('تسوي') || q.includes('نزاع')) {
+    return isAr
+      ? 'المطابقة الثلاثية بين نقاط البيع وكشوف المنصات والبنك ترصد 954.120 د.ك فروقات قابلة للاسترداد شهرياً، أكبرها في كيتا وطلبات جو، و4,337 د.ك تسويات قيد التحويل. لدينا 12 مطالبة استرداد بقيمة 310.330 د.ك جاهزة للإرسال، وصافي ربح الطلب الأعلى في كيتا عند 3.411 د.ك.'
+      : 'The 3-way reconciliation of POS, aggregator statements and bank deposits flags 954.120 KWD of recoverable discrepancies a month, led by Keeta and Talabat Tgo, plus 4,337 KWD in transit. Twelve chargeback claims worth 310.330 KWD are ready to send, and Keeta delivers the best net pocket profit at 3.411 KWD per order.';
+  }
+
+  if (q.includes('supplier') || q.includes('price creep') || q.includes('vendor') || q.includes('invoice') || q.includes('erosion') || q.includes('مورد') || q.includes('الموردين') || q.includes('فواتير') || q.includes('تآكل')) {
+    return isAr
+      ? 'رادار الموردين يرصد ارتفاع صدور الدجاج من 1.950 إلى 2.145 د.ك للكيلو بنسبة 10%، والطحينة 8% وعلب التوصيل 6%، بإجمالي أثر يقارب 823 د.ك شهرياً. أوصي بإعادة التفاوض أو مورد بديل للأصناف النجوم ورفع أسعار الأصناف الشعبية منخفضة الهامش.'
+      : 'The supplier radar shows poultry breast up from 1.950 to 2.145 KWD per kg (+10%), tahina paste +8% and delivery boxes +6%, about 823 KWD a month of exposure. I recommend renegotiating or dual-sourcing for Stars and re-pricing the low-margin Plowhorses.';
+  }
+
+  if (q.includes('budget') || q.includes('variance') || q.includes('p&l') || q.includes('pnl') || q.includes('board pack') || q.includes('موازنة') || q.includes('انحراف') || q.includes('قائمة الدخل')) {
+    return isAr
+      ? 'صافي الربح التشغيلي الفعلي 42,441.480 د.ك مقابل موازنة شهرية 49,281.480 د.ك تتضمن الروافع الخمس، أي انحراف سلبي 6,840 د.ك يغلق بتطبيق سقف كيتا وإنتاجية العارضية وتجديد المبردات والمشروب الإلزامي ومصفوفة المنيو، وصولاً إلى 600,978 د.ك للسنة الكاملة.'
+      : 'Net operating profit is 42,441.480 KWD against a 49,281.480 KWD monthly budget that embeds the five levers — a 6,840 KWD unfavourable variance that closes with the Keeta cap, Ardiya yield, chiller overhaul, beverage attach and menu matrix, on the path to 600,978 KWD for the full year.';
+  }
 
   if (q.includes('مارينا') || q.includes('كشتة') || q.includes('سفير') || q.includes('ونترلاند') || q.includes('فعالي') || q.includes('معرض') || q.includes('معارض') || q.includes('exb') || q.includes('kashta') || q.includes('safeer') || q.includes('winterland') || q.includes('booth') || q.includes('event') || q.includes('تعادل') || q.includes('break-even')) {
     return isAr

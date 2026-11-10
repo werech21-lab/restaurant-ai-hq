@@ -122,7 +122,7 @@ export function OdooAiCommandCenter() {
       timestamp: 'منذ 32 دقيقة',
     },
     {
-      id: 'ALT-QURAIN-03',
+      id: 'ALT-MAK-03',
       titleAr: 'انخفاض نسبة التصافي لوصفة الدجاج المتبل (PP03)',
       titleEn: 'Yield Anomaly in Seasoned Chicken Batch (PP03)',
       branchAr: 'المطبخ المركزي',

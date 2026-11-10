@@ -1,5 +1,6 @@
 import { requirePageUser } from '@/lib/auth/context'
 import { ExecutiveHome } from '@/components/aether/ExecutiveHome'
+import { kuwaitTodayISO } from '@/lib/enterprise-giants-engine'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,7 +14,7 @@ export default async function ExecutiveCenterPage() {
 
   return (
     <div className="w-full">
-      <ExecutiveHome />
+      <ExecutiveHome anchor={kuwaitTodayISO()} />
     </div>
   )
 }

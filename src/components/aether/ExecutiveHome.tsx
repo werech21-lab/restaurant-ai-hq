@@ -7,7 +7,7 @@ import { ExecutiveSummaryV2 } from '@/components/aether/ExecutiveSummaryV2'
 import { useLang } from '@/components/aether/ui'
 
 /** /erp home: Board summary (V2 analytics) + the preserved live Executive Center (KPIs, Copilot bar, decisions). */
-export function ExecutiveHome() {
+export function ExecutiveHome({ anchor }: { anchor: string }) {
   const { isAr, T } = useLang()
   const [tab, setTab] = useState<'board' | 'live'>('board')
   return (
@@ -25,7 +25,7 @@ export function ExecutiveHome() {
         </div>
       </div>
       {tab === 'board' ? (
-        <ExecutiveSummaryV2 />
+        <ExecutiveSummaryV2 anchor={anchor} />
       ) : (
         <div className="ae-tile p-5 sm:p-6">
           <ExecutiveCenter />

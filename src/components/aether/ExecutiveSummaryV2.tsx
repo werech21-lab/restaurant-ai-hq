@@ -33,6 +33,7 @@ import {
   sliceShares,
 } from '@/lib/aether/ledger'
 import { useBiFilters } from '@/components/aether/BiFilterContext'
+import { DecisionBriefStrip } from '@/components/aether/DecisionBriefStrip'
 import { Badge, DonutGauge, Num, RoundedBars, SectionHeader, StatsCardV2, TONE_HEX, useLang } from '@/components/aether/ui'
 
 // Sampled every 3 days across October (11 points) from the Odoo daily journal.
@@ -50,7 +51,7 @@ const PNL = [
   { key: 'payroll', en: 'Salaries, rent & commissions', ar: 'الرواتب والإيجارات والعمولات', value: LEDGER.salariesRentCommission, color: '#0284C7' },
 ]
 
-export function ExecutiveSummaryV2() {
+export function ExecutiveSummaryV2({ anchor }: { anchor: string }) {
   const { lang, isAr, T } = useLang()
   const { filters, view, setBranch, setBrand, setChannel } = useBiFilters()
   const [chartMode, setChartMode] = useState<'branches' | 'channels'>('branches')
@@ -138,12 +139,19 @@ export function ExecutiveSummaryV2() {
             <Sparkles className="h-3.5 w-3.5" />
             {T('Brief with Feryal', 'موجز مع فريال')}
           </Link>
+          <Link href="/erp/executive-pnl" className="ae-pill-light">
+            <Receipt className="h-3.5 w-3.5" />
+            {T('Executive P&L board pack', 'حقيبة قائمة الدخل للمجلس')}
+          </Link>
           <button type="button" onClick={() => window.print()} className="ae-pill-dark">
             <Printer className="h-3.5 w-3.5" />
             {T('Print / Export Board Executive Brief', 'طباعة وتصدير الموجز التنفيذي للمجلس')}
           </button>
         </div>
       </section>
+
+      {/* Top-3 daily executive decision brief */}
+      <DecisionBriefStrip anchor={anchor} />
 
       {/* 8-card executive KPI grid */}
       <section className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 xl:grid-cols-4">

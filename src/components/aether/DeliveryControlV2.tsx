@@ -17,6 +17,9 @@ import {
 } from '@/lib/aether/ledger'
 import { useBiFilters } from '@/components/aether/BiFilterContext'
 import { Badge, CircularGauge, Num, ReorderableTable, RoundedBars, SectionHeader, StatsCardV2, useLang, type ReorderColumn } from '@/components/aether/ui'
+import { ChargebacksTab, OrderWaterfallTab, ThreeWayReconciliationTab } from '@/components/aether/DeliveryEnterpriseTabs'
+
+type DeliveryTab = 'overview' | 'reconciliation' | 'chargebacks' | 'waterfall'
 
 type ReconRow = {
   id: string
@@ -46,6 +49,7 @@ export function DeliveryControlV2() {
   const [reconMode, setReconMode] = useState<'aggregator' | 'branch'>('aggregator')
   const [dispatch, setDispatch] = useState<'idle' | 'sending' | 'done'>('idle')
   const [dispatchMsg, setDispatchMsg] = useState('')
+  const [tab, setTab] = useState<DeliveryTab>('overview')
 
   const digits = filters.period === 'daily' ? 3 : 0
   const s = sliceShares({ brand: filters.brand, branch: filters.branch, channel: 'all' })
@@ -163,6 +167,23 @@ export function DeliveryControlV2() {
         </div>
       </section>
 
+      <div className="no-print flex flex-wrap items-center gap-2">
+        <div className="ae-seg flex-wrap" role="tablist" aria-label={T('Delivery control views', 'عروض رقابة التوصيل')}>
+          {([
+            { id: 'overview', en: 'Finance overview', ar: 'النظرة المالية' },
+            { id: 'reconciliation', en: '3-way reconciliation', ar: 'المطابقة الثلاثية' },
+            { id: 'chargebacks', en: 'Disputes & chargebacks', ar: 'النزاعات والاستردادات' },
+            { id: 'waterfall', en: 'Per-order profit waterfall', ar: 'شلال ربح الطلب' },
+          ] as { id: DeliveryTab; en: string; ar: string }[]).map((t) => (
+            <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} data-active={tab === t.id} onClick={() => setTab(t.id)}>
+              {isAr ? t.ar : t.en}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {tab === 'overview' ? (
+      <>
       <section className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatsCardV2 icon={<Truck className="h-4 w-4" />} label={T('Aggregator gross sales', 'إجمالي مبيعات المنصات')} value={kwd(totals.gross, lang, digits)} sub={T(`${fmt(totals.orders)} orders`, `${fmt(totals.orders)} طلباً`)} valueTone="sky" />
         <StatsCardV2 icon={<Percent className="h-4 w-4" />} label={T('Commission paid', 'العمولات المدفوعة')} value={kwd(totals.commission, lang, digits)} valueTone="rose" sub={T(`${pct(totals.gross ? (totals.commission / totals.gross) * 100 : 0)} blended rate`, `${pct(totals.gross ? (totals.commission / totals.gross) * 100 : 0)} متوسط النسبة`)} />
@@ -318,6 +339,14 @@ export function DeliveryControlV2() {
           }
         />
       </section>
+      </>
+      ) : tab === 'reconciliation' ? (
+        <ThreeWayReconciliationTab />
+      ) : tab === 'chargebacks' ? (
+        <ChargebacksTab />
+      ) : (
+        <OrderWaterfallTab />
+      )}
     </div>
   )
 }

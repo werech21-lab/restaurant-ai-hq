@@ -143,6 +143,9 @@ export function ExecutiveCommandPalette() {
       { id: 'p-sales', group: 'pages', en: 'Sales & Items Analysis', ar: 'تحليل المبيعات والأصناف', keywords: 'menu engineering stars dogs items منيو أصناف', icon: <BarChart3 className="h-4 w-4" />, run: () => go('/erp/sales-analysis') },
       { id: 'p-delivery', group: 'pages', en: 'Delivery Aggregators Control', ar: 'رقابة منصات التوصيل', keywords: 'talabat keeta deliveroo payout commission طلبات كيتا عمولة', icon: <Truck className="h-4 w-4" />, run: () => go('/erp/delivery-control') },
       { id: 'p-alerts', group: 'pages', en: 'Automated Financial Alerts', ar: 'التنبيهات المالية الآلية', keywords: 'alerts anomalies تنبيهات انحرافات', icon: <AlertTriangle className="h-4 w-4" />, run: () => go('/erp/alerts') },
+      { id: 'p-forecast', group: 'pages', en: 'Demand & Central Kitchen Prep Forecaster', ar: 'متنبئ الطلب وتحضير المطبخ المركزي', keywords: 'forecast demand weather prep par staffing توقع طلب طقس تحضير طاقم', icon: <CalendarRange className="h-4 w-4" />, run: () => go('/erp/demand-forecast') },
+      { id: 'p-cost', group: 'pages', en: 'Cost & Supplier Price Intelligence', ar: 'ذكاء التكلفة وأسعار الموردين', keywords: 'supplier price creep cogs recipe margin مورد أسعار تكلفة وصفة', icon: <UtensilsCrossed className="h-4 w-4" />, run: () => go('/erp/cost-intelligence') },
+      { id: 'p-pnl', group: 'pages', en: 'Executive P&L & Budget Variance', ar: 'قائمة الدخل التنفيذية وانحراف الموازنة', keywords: 'pnl budget variance board pack قائمة دخل موازنة انحراف', icon: <FileText className="h-4 w-4" />, run: () => go('/erp/executive-pnl') },
       { id: 'p-scorecard', group: 'pages', en: 'Sales scorecard (8 sections)', ar: 'سجل المبيعات (8 أقسام)', keywords: 'scorecard سجل', icon: <FileText className="h-4 w-4" />, run: () => go('/erp/sales-scorecard') },
       { id: 'p-radar', group: 'pages', en: 'Aggregator commission radar', ar: 'رادار عمولات منصات التوصيل', keywords: 'radar رادار', icon: <Radar className="h-4 w-4" />, run: () => go('/erp/aggregator-radar') },
       { id: 'p-menu', group: 'pages', en: 'Menu engineering workbench', ar: 'منصة هندسة المنيو', keywords: 'menu منيو', icon: <UtensilsCrossed className="h-4 w-4" />, run: () => go('/erp/menu-engineering') },
@@ -157,6 +160,10 @@ export function ExecutiveCommandPalette() {
       { en: 'Compare Talabat Tgo versus TMP unit economics per order.', ar: 'قارني اقتصاديات الطلب الواحد بين طلبات جو وسوق طلبات.' },
       { en: 'Walk me through the Q1, H1 and full-year profit roadmap to 600,978 KWD.', ar: 'اشرحي خارطة الربح للربع الأول والنصف الأول والسنة الكاملة حتى 600,978 د.ك.' },
       { en: 'How does a mandatory beverage in delivery combos lift AOV from 5.471 to 5.750 KWD?', ar: 'كيف يرفع المشروب الإلزامي في وجبات التوصيل متوسط السلة من 5.471 إلى 5.750 د.ك؟' },
+      { en: 'Brief me on this week’s demand forecast and the Ardiya prep par levels.', ar: 'أعطيني موجزاً عن توقع الطلب هذا الأسبوع ومستويات تحضير مطبخ العارضية.' },
+      { en: 'Which aggregator chargebacks and settlement discrepancies should we recover first?', ar: 'ما استردادات المنصات وفروقات التسويات التي يجب استردادها أولاً؟' },
+      { en: 'Which supplier price increases are eroding our menu margins?', ar: 'أي ارتفاعات أسعار الموردين تتآكل بها هوامش المنيو؟' },
+      { en: 'Explain our P&L variance against the approved budget.', ar: 'اشرحي انحراف قائمة الدخل عن الموازنة المعتمدة.' },
     ]
     const feryal: Command[] = feryalQueries.map((q, i) => ({
       id: `f-${i}`,
@@ -243,7 +250,7 @@ export function ExecutiveCommandPalette() {
       items: scored
         .filter((x) => x.c.group === g)
         .sort((a, b) => b.score - a.score)
-        .slice(0, q ? 6 : g === 'pages' ? 11 : 4)
+        .slice(0, q ? 6 : g === 'pages' ? 14 : 4)
         .map((x) => x.c),
     }))
     const recordCommands: Command[] = records.map((r) => ({
