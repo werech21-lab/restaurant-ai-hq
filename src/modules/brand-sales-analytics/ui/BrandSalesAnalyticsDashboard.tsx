@@ -129,8 +129,8 @@ export function BrandSalesAnalyticsDashboard({ locale = 'ar' }: Props) {
             </h1>
             <p className="max-w-3xl text-xs sm:text-sm text-mist-400">
               {en
-                ? 'Multi-brand consolidated analytics: 6 Brands · 11 Channels · 364 Menu Items · Interactive click-to-filter cross-filtering with slow-movers playbook automation.'
-                : 'التحليل التفاعلي الشامل لمبيعات المجموعة: 6 براندات · 11 قناة بيع · 364 صنف منيو · فلاتر النقر المباشر اللحظية مع محرك تحريك الأصناف الراكدة.'}
+                ? 'Multi-brand consolidated analytics: 7 Brands · 11 Channels · 364 Menu Items · Interactive click-to-filter cross-filtering with slow-movers playbook automation.'
+                : 'التحليل التفاعلي الشامل لمبيعات المجموعة: 7 براندات · 11 قناة بيع · 364 صنف منيو · فلاتر النقر المباشر اللحظية مع محرك تحريك الأصناف الراكدة.'}
             </p>
           </div>
 
@@ -211,13 +211,13 @@ export function BrandSalesAnalyticsDashboard({ locale = 'ar' }: Props) {
                 onChange={(e) => setSelectedBrand(e.target.value as BrandKey)}
                 className="rounded-lg border border-white/15 bg-black/50 px-2.5 py-1 text-xs text-white"
               >
-                <option value="ALL">{en ? 'All Brands (6)' : 'كل البراندات (6)'}</option>
+                <option value="ALL">{en ? 'All Brands (7)' : 'كل البراندات (7)'}</option>
                 <option value="China Garden">China Garden (تشاينا جاردن)</option>
                 <option value="Frank's">Frank&apos;s (فرانكس ستيك)</option>
                 <option value="Tahina">Tahina (شاورما طحينة)</option>
-                <option value="Chick & Dip">Chick & Dip (تشيك آند ديب)</option>
-                <option value="Burgerito">Burgerito (برجريتو)</option>
-                <option value="Crave">Crave (كريف)</option>
+                <option value="Farm Brown">Farm Brown (فارم براون)</option>
+                <option value="The Noodle Bar">The Noodle Bar (ذا نودل بار)</option>
+                <option value="Karak Cafeteria">Karak Cafeteria (كرك كافتيريا)</option>
               </select>
             </label>
 
@@ -851,8 +851,8 @@ export function BrandSalesAnalyticsDashboard({ locale = 'ar' }: Props) {
             </p>
             <p className="text-xs text-mist-300">
               {en
-                ? 'Egg Fried Rice, Szechuan Beef, Crispy Strips Meal.'
-                : 'أرز مقلي بالبيض، لحم سيشوان، وجبة أصابع دجاج مقرمشة.'}
+                ? 'Egg Fried Rice, Szechuan Beef, Chicken Fillet Meal.'
+                : 'أرز مقلي بالبيض، لحم سيشوان، وجبة فيليه دجاج.'}
             </p>
             <p className="text-[11px] font-semibold text-sky-300">
               {en ? 'Action: Micro-price tweak / combo pairing.' : 'الإجراء: تعديل طفيف في السعر أو ربط بمشروب.'}
@@ -871,8 +871,8 @@ export function BrandSalesAnalyticsDashboard({ locale = 'ar' }: Props) {
             </p>
             <p className="text-xs text-mist-300">
               {en
-                ? 'Smash Burgerito Combo, Artisan Melt Box (6 pcs).'
-                : 'كومبو برجريتو سماش، بوكس شباتي كرك (6 حبات).'}
+                ? 'Sriracha Chicken Noodles, Chapati Box (6 pcs).'
+                : 'نودلز دجاج سريراتشا، بوكس شباتي كرك (6 حبات).'}
             </p>
             <p className="text-[11px] font-semibold text-gold-300">
               {en ? 'Action: Upsell & hero banner promotion.' : 'الإجراء: اقتراح الكاشير وترويج المنصات.'}

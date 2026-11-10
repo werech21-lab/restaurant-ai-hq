@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import { ChevronLeft, ChevronRight, Search } from 'lucide-react'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { openCommandPalette } from '@/components/aether/BiFilterContext'
+import { OdooSyncPill } from '@/components/aether/OdooSyncPill'
 import { ROOT_TITLE, routeTitle } from '@/lib/aether/route-titles'
 import { LanguageSwitch, useI18n } from '@/lib/i18n'
 
@@ -59,13 +60,7 @@ export function PanelHeaderBar({
             </span>
           </>
         ) : null}
-        <span className="ae-top-live ms-1 hidden shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold md:inline-flex">
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60" style={{ backgroundColor: '#34D399' }} />
-            <span className="relative inline-flex h-2 w-2 rounded-full" style={{ backgroundColor: '#10B981' }} />
-          </span>
-          {isAr ? 'مزامنة أودو مباشرة' : 'Live Odoo Sync'}
-        </span>
+        <OdooSyncPill isAr={isAr} />
       </nav>
 
       {/* Search, notifications, theme, language */}

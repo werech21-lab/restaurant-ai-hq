@@ -72,7 +72,7 @@ const SEED_BRANDS_DATA: BrandRow[] = [
     bestSeller: "KWD 1 Chicken Shawarma - Lebanese Bread",
   },
   {
-    brand: "Chick & Dip",
+    brand: "Farm Brown",
     orders: 847,
     netSales: 2664.18,
     share: 1.6,
@@ -82,10 +82,10 @@ const SEED_BRANDS_DATA: BrandRow[] = [
     drinksPct: 23.1,
     startersPct: 16.2,
     cogsPct: 25.1,
-    bestSeller: "Crispy Strips Meal",
+    bestSeller: "Chicken Fillet Meal",
   },
   {
-    brand: "Burgerito",
+    brand: "The Noodle Bar",
     orders: 269,
     netSales: 1678.22,
     share: 1,
@@ -95,10 +95,10 @@ const SEED_BRANDS_DATA: BrandRow[] = [
     drinksPct: 17.8,
     startersPct: 25.3,
     cogsPct: 24.9,
-    bestSeller: "Smash Burgerito Combo",
+    bestSeller: "Sriracha Chicken Noodles",
   },
   {
-    brand: "Crave",
+    brand: "Karak Cafeteria",
     orders: 128,
     netSales: 624.5,
     share: 0.4,
@@ -108,11 +108,25 @@ const SEED_BRANDS_DATA: BrandRow[] = [
     drinksPct: 72.7,
     startersPct: 37.5,
     cogsPct: 21.8,
-    bestSeller: "Artisan Melt Box (4 pcs)",
+    bestSeller: "Chapati Box (4 pcs)",
+  },
+  {
+    // Odoo POS root category "SC" (RIFDC*): school canteens · COGS uses the group average until recipe costs are in Odoo
+    brand: "Fresh Daily Canteen",
+    orders: 6510,
+    netSales: 2022.15,
+    share: 1.2,
+    avgOrder: 0.31,
+    itemsPerOrder: 1.8,
+    discountRate: 0.0,
+    drinksPct: 36.7,
+    startersPct: 0,
+    cogsPct: 24.8,
+    bestSeller: "Chocolate Milk",
   },
 ];
 
-/** 6 verified brands — net sales, orders, share and AOV reconciled to the approved ledger (167,092.160 KWD · 30,540 orders). */
+/** 7 Odoo brands — net sales, orders, share and AOV reconciled to the approved ledger (167,092.160 KWD · 30,540 orders). */
 export const BRANDS_DATA: BrandRow[] = SEED_BRANDS_DATA.map((b) => {
   const v = VERIFIED_BRAND_TOTALS[b.brand]
   return v ? { ...b, netSales: v.netSales, orders: v.orders, share: v.share, avgOrder: v.avgOrder } : b

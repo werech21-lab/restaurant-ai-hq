@@ -63,7 +63,7 @@ function labelsFor(brandId: VentureBrandId | null, branchId: VentureBranchId | n
   }
   return {
     labelAr: 'كل العلامات التجارية — كل الفروع النشطة (9)',
-    labelEn: 'All 6 brands — All 9 active branches',
+    labelEn: 'All 7 brands — All 9 active branches',
   }
 }
 

@@ -33,7 +33,7 @@ export function ExecutivePnlV2() {
     const br = BRANCHES.find((x) => x.id === filters.branch)
     if (b) parts.push(isAr ? b.ar : b.en)
     if (br) parts.push(isAr ? br.ar : br.en)
-    return parts.length ? parts.join(' · ') : T('Consolidated group · 6 brands · 9 branches', 'المجموعة الموحدة · 6 علامات · 9 فروع')
+    return parts.length ? parts.join(' · ') : T('Consolidated group · 7 brands · 9 branches', 'المجموعة الموحدة · 7 علامات · 9 فروع')
   }, [filters.brand, filters.branch, isAr, T])
 
   const askVariance = (l: PnlRow) =>

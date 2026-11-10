@@ -94,7 +94,7 @@ function scopeLabels(brandId: VentureBrandId | null, branchId: VentureBranchId |
   }
   return {
     labelAr: 'كل العلامات التجارية — كل الفروع النشطة (9)',
-    labelEn: 'All 6 brands — All 9 active branches',
+    labelEn: 'All 7 brands — All 9 active branches',
   }
 }
 

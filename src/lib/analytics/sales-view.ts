@@ -51,9 +51,10 @@ const BRAND_ID_TO_NAME: Record<string, string> = {
   'china-garden': 'China Garden',
   franks: "Frank's",
   tahina: 'Tahina',
-  'chick-dip': 'Chick & Dip',
-  'burgerito': 'Burgerito',
-  'crave': 'Crave',
+  'farm-brown': 'Farm Brown',
+  'fresh-daily-canteen': 'Fresh Daily Canteen',
+  'noodle-bar': 'The Noodle Bar',
+  'karak-cafeteria': 'Karak Cafeteria',
 }
 
 /**
@@ -80,9 +81,10 @@ const SEED_BRAND_DISCOUNT_KWD: Record<string, number> = {
   'China Garden': 3672.41,
   "Frank's": 303.01,
   Tahina: 44.28,
-  'Chick & Dip': 31.97,
-  'Burgerito': 82.23,
-  'Crave': 18.10,
+  'Farm Brown': 31.97,
+  'The Noodle Bar': 82.23,
+  'Karak Cafeteria': 18.10,
+  'Fresh Daily Canteen': 0,
 }
 
 export interface RealMatrixCell {
@@ -121,20 +123,24 @@ const SEED_BRAND_CHANNEL_DATA: Record<string, Record<string, RealMatrixCell>> = 
     'Talabat Go': { netSales: 820.24, orders: 310, items: 853, discountKwd: 8.20 },
     Keeta: { netSales: 398.00, orders: 144, items: 396, discountKwd: 3.98 },
   },
-  'Chick & Dip': {
+  'Farm Brown': {
     'Shop Sales': { netSales: 1890.00, orders: 610, items: 1299, discountKwd: 22.68 },
     'Talabat Go': { netSales: 450.18, orders: 140, items: 298, discountKwd: 5.40 },
     Keeta: { netSales: 324.00, orders: 97, items: 207, discountKwd: 3.89 },
   },
-  'Burgerito': {
+  'The Noodle Bar': {
     'Talabat MP': { netSales: 472.41, orders: 67, items: 184, discountKwd: 23.15 },
     Keeta: { netSales: 490.55, orders: 42, items: 116, discountKwd: 24.04 },
     'Shop Sales': { netSales: 580.07, orders: 135, items: 371, discountKwd: 28.42 },
     'Talabat Go': { netSales: 135.19, orders: 25, items: 69, discountKwd: 6.62 },
   },
-  'Crave': {
+  'Karak Cafeteria': {
     'Shop Sales': { netSales: 591.20, orders: 125, items: 604, discountKwd: 14.78 },
     Whatsapp: { netSales: 33.30, orders: 3, items: 21, discountKwd: 3.32 },
+  },
+  // Odoo October 2026: school canteen tills only (NPIS Hawally · FAIPS Ahmadi · FAS Fahaheel)
+  'Fresh Daily Canteen': {
+    'Shop Sales': { netSales: 2022.15, orders: 6510, items: 11695, discountKwd: 0 },
   },
 }
 

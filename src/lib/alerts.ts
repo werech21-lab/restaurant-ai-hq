@@ -256,7 +256,7 @@ export async function dispatchExclusiveOperationalReport(
   const report = buildOperationalForensicReport(snapshots, at)
   const subject = `${REPORT_SUBJECT} · ${report.sections.kuwaitDate}`
   const header = [
-    'AetherBI · Venture Foods — DETAILED DAILY OPERATIONAL & FORENSIC REPORT (ALL 6 BRANDS & 9 ACTIVE BRANCHES — END OF DAY SUMMARY 11:59 PM KW TIME)',
+    'AetherBI · Venture Foods — DETAILED DAILY OPERATIONAL & FORENSIC REPORT (ALL 7 BRANDS & 9 ACTIVE BRANCHES — END OF DAY SUMMARY 11:59 PM KW TIME)',
     `SUMMARY: ${report.sections.critical.length} CRITICAL | ${report.sections.watch.length} WATCH | ${report.sections.clean.length} CLEAN`,
     `Kuwait: ${report.sections.kuwaitDate} ${report.sections.kuwaitTime}`,
     '',

@@ -1592,7 +1592,7 @@ export default function FeryalAiCommandPage() {
               </div>
 
               {/* Right: Compact Audio Toolbar */}
-              <div className="flex flex-nowrap items-center gap-2 shrink-0 overflow-x-auto max-w-full">
+              <div className="flex min-w-0 max-w-full flex-wrap items-center justify-start gap-2 lg:justify-end">
                 <button
                   type="button"
                   onClick={() => {
@@ -1624,10 +1624,10 @@ export default function FeryalAiCommandPage() {
                     if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel()
                     setIsVoiceMuted(!isVoiceMuted)
                   }}
-                  className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-bold transition-all flex items-center gap-1 ${
+                  className={`shrink-0 whitespace-nowrap px-2.5 py-1.5 rounded-lg border text-[11px] font-bold transition-all flex items-center gap-1 ${
                     isVoiceMuted
                       ? 'border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500'
-                      : 'border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300'
+                      : 'border-sky-200 dark:border-sky-900 bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300'
                   }`}
                   title={isVoiceMuted ? (isAr ? 'تفعيل الصوت التلقائي' : 'Enable Voice') : (isAr ? 'كتم الصوت' : 'Mute Voice')}
                 >
@@ -1650,7 +1650,8 @@ export default function FeryalAiCommandPage() {
                       if (isListening) toggleListening()
                     }
                   }}
-                  className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-bold transition-all flex items-center gap-1 ${
+                  aria-pressed={isHandsFree}
+                  className={`shrink-0 whitespace-nowrap px-2.5 py-1.5 rounded-lg border text-[11px] font-bold transition-all flex items-center gap-1 ${
                     isHandsFree
                       ? 'border-emerald-500 bg-emerald-600 text-white shadow-2xs'
                       : 'border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100'
@@ -1658,7 +1659,7 @@ export default function FeryalAiCommandPage() {
                   title={isHandsFree ? (isAr ? 'إيقاف الحوار المستمر' : 'Disable Hands-Free') : (isAr ? 'تفعيل الحوار المستمر' : 'Enable Hands-Free')}
                 >
                   <RefreshCw className={`h-3 w-3 shrink-0 ${isHandsFree ? 'animate-spin' : ''}`} />
-                  <span className="hidden sm:inline">{isHandsFree ? (isAr ? 'حوار مستمر' : 'Hands-Free') : (isAr ? 'حوار مستمر' : 'Hands-Free')}</span>
+                  <span className="whitespace-nowrap">{isAr ? 'حوار مستمر' : 'Hands-Free'}</span>
                 </button>
 
                 {/* Mic Language toggle */}
@@ -1669,7 +1670,7 @@ export default function FeryalAiCommandPage() {
                     setMicLang(nextLang)
                     micLangRef.current = nextLang
                   }}
-                  className="px-2 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-[11px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100"
+                  className="shrink-0 whitespace-nowrap px-2 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-[11px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100"
                 >
                   🎙️ {micLang === 'ar' ? 'عربي' : 'EN'}
                 </button>
@@ -2109,10 +2110,10 @@ export default function FeryalAiCommandPage() {
                 </div>
                 <div>
                   <h4 className="text-sm font-bold text-slate-900 dark:text-white">
-                    {isAr ? '🏢 نبض العلامات الـ 6 وقنوات التوصيل الـ 11' : '🏢 Venture Foods 6-Brand & 11-Channel Pulse'}
+                    {isAr ? '🏢 نبض العلامات الـ 7 وقنوات التوصيل الـ 11' : '🏢 Venture Foods 6-Brand & 11-Channel Pulse'}
                   </h4>
                   <p className="text-[11px] text-slate-500 font-medium">
-                    {isAr ? 'توزيع الإيرادات عبر العلامات الـ 6 وجاهزية الفروع الـ 9 أونلاين' : 'Revenue share across 6 brands & 9-branch online availability'}
+                    {isAr ? 'توزيع الإيرادات عبر العلامات الـ 7 وجاهزية الفروع الـ 9 أونلاين' : 'Revenue share across 7 brands & 9-branch online availability'}
                   </p>
                 </div>
               </div>
@@ -2155,7 +2156,7 @@ export default function FeryalAiCommandPage() {
               {/* Brands: Other 4 Brands Combined */}
               <div className="space-y-1.5">
                 <div className="flex justify-between text-xs font-bold">
-                  <span className="text-slate-900 dark:text-white">{isAr ? 'طحينة، برجريتو، تشيك آند ديب، كريف' : 'Tahina, Burgerito, Chick & Dip, Crave'}</span>
+                  <span className="text-slate-900 dark:text-white">{isAr ? 'طحينة، فارم براون، فريش ديلي كانتين، ذا نودل بار، كرك كافتيريا' : 'Tahina, Farm Brown, Fresh Daily Canteen, The Noodle Bar, Karak Cafeteria'}</span>
                   <span className="text-slate-900 dark:text-white font-mono">13,590 {isAr ? 'د.ك' : 'KWD'} (8.1%)</span>
                 </div>
                 <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">

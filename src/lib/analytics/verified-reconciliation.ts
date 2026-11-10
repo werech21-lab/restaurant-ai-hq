@@ -3,7 +3,7 @@
  *
  * The scorecard keeps its October brand × channel seed matrices (they carry the real channel mix,
  * item counts and discount patterns). This module rebalances them onto the approved ledger:
- *   - 6 verified brands (China Garden, Frank's, Tahina, Burgerito, Chick & Dip, Crave)
+ *   - 7 Odoo brands (China Garden, Frank's, Tahina, Farm Brown, Fresh Daily Canteen, The Noodle Bar, Karak Cafeteria)
  *   - 9 verified active branches (Salmiya #1 at 31,246.230 KWD)
  *   - 167,092.160 KWD net sales · 30,540 orders · 4,152 KWD discounts
  * using RAS / iterative proportional fitting so every row AND column total reconciles exactly.
@@ -15,9 +15,10 @@ export const SCORECARD_BRAND_NAME: Record<BrandId, string> = {
   'china-garden': 'China Garden',
   franks: "Frank's",
   tahina: 'Tahina',
-  burgerito: 'Burgerito',
-  'chick-dip': 'Chick & Dip',
-  crave: 'Crave',
+  'noodle-bar': 'The Noodle Bar',
+  'farm-brown': 'Farm Brown',
+  'fresh-daily-canteen': 'Fresh Daily Canteen',
+  'karak-cafeteria': 'Karak Cafeteria',
 }
 
 export const VERIFIED_BRAND_TOTALS: Record<string, { netSales: number; orders: number; share: number; avgOrder: number }> = Object.fromEntries(

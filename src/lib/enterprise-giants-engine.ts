@@ -223,10 +223,10 @@ export const PREP_ITEMS: PrepItem[] = [
   { id: 'hoagie', brand: 'franks', en: 'Hoagie rolls', ar: 'خبز هوقي', unitEn: 'rolls', unitAr: 'رغيف', perOrder: 1.1, unitCost: 0.12, decimals: 0 },
   { id: 'shawarma', brand: 'tahina', en: 'Marinated chicken shawarma', ar: 'شاورما دجاج متبلة', unitEn: 'kg', unitAr: 'كيلو', perOrder: 0.12, unitCost: 2.2, decimals: 1 },
   { id: 'tahina-sauce', brand: 'tahina', en: 'Tahina sauce', ar: 'صوص الطحينة', unitEn: 'L', unitAr: 'لتر', perOrder: 0.035, unitCost: 1.6, decimals: 1 },
-  { id: 'patties', brand: 'burgerito', en: 'Smash patties (90 g)', ar: 'أقراص برجر سماش (90 غرام)', unitEn: 'patties', unitAr: 'قرص', perOrder: 1.8, unitCost: 0.31, decimals: 0 },
-  { id: 'strips', brand: 'chick-dip', en: 'Crispy chicken strips', ar: 'أصابع دجاج مقرمشة', unitEn: 'kg', unitAr: 'كيلو', perOrder: 0.17, unitCost: 2.3, decimals: 1 },
-  { id: 'dips', brand: 'chick-dip', en: 'Signature dips', ar: 'الصوصات المميزة', unitEn: 'L', unitAr: 'لتر', perOrder: 0.05, unitCost: 1.5, decimals: 1 },
-  { id: 'corn-cups', brand: 'crave', en: 'Sweet corn cups', ar: 'أكواب الذرة الحلوة', unitEn: 'cups', unitAr: 'كوب', perOrder: 0.6, unitCost: 0.18, decimals: 0 },
+  { id: 'patties', brand: 'noodle-bar', en: 'Fresh egg noodles (portion)', ar: 'نودلز البيض الطازجة (حصة)', unitEn: 'portions', unitAr: 'حصة', perOrder: 1.8, unitCost: 0.31, decimals: 0 },
+  { id: 'strips', brand: 'farm-brown', en: 'Fried chicken (raw)', ar: 'دجاج للقلي (خام)', unitEn: 'kg', unitAr: 'كيلو', perOrder: 0.17, unitCost: 2.3, decimals: 1 },
+  { id: 'dips', brand: 'farm-brown', en: 'Signature dips', ar: 'الصوصات المميزة', unitEn: 'L', unitAr: 'لتر', perOrder: 0.05, unitCost: 1.5, decimals: 1 },
+  { id: 'corn-cups', brand: 'karak-cafeteria', en: 'Karak tea servings', ar: 'حصص شاي الكرك', unitEn: 'cups', unitAr: 'كوب', perOrder: 0.6, unitCost: 0.18, decimals: 0 },
 ]
 
 /** Historical over-production buffer vs. forecast-driven par buffer that delivers the approved 1,336 KWD/month. */
@@ -476,9 +476,9 @@ export const CHARGEBACKS: Chargeback[] = [
   { id: 'CB-2610-07', channel: 'talabat-tgo', branch: 'sharq', brand: 'franks', type: 'commission-overbill', orderRef: 'TB-55261190', date: '2026-10-17', amount: 61.38, status: 'detected' },
   { id: 'CB-2610-08', channel: 'keeta', branch: 'salmiya', brand: 'tahina', type: 'wrongful-refund', orderRef: 'KT-88469012', date: '2026-10-19', amount: 22.4, status: 'detected' },
   { id: 'CB-2610-09', channel: 'jahez', branch: 'mubarak-al-kabeer', brand: 'china-garden', type: 'cancelled-unpaid', orderRef: 'JZ-77120584', date: '2026-10-22', amount: 9.8, status: 'recovered' },
-  { id: 'CB-2610-10', channel: 'talabat-tgo', branch: 'jabriya', brand: 'burgerito', type: 'driver-delay', orderRef: 'TB-55302276', date: '2026-10-25', amount: 19.25, status: 'claim-generated' },
-  { id: 'CB-2610-11', channel: 'keeta', branch: 'al-kout', brand: 'chick-dip', type: 'missing-item', orderRef: 'KT-88502318', date: '2026-10-27', amount: 15.9, status: 'detected' },
-  { id: 'CB-2610-12', channel: 'talabat-tmp', branch: 'ardiya', brand: 'crave', type: 'cancelled-unpaid', orderRef: 'TM-31144806', date: '2026-10-29', amount: 8.4, status: 'detected' },
+  { id: 'CB-2610-10', channel: 'talabat-tgo', branch: 'jabriya', brand: 'noodle-bar', type: 'driver-delay', orderRef: 'TB-55302276', date: '2026-10-25', amount: 19.25, status: 'claim-generated' },
+  { id: 'CB-2610-11', channel: 'keeta', branch: 'al-kout', brand: 'farm-brown', type: 'missing-item', orderRef: 'KT-88502318', date: '2026-10-27', amount: 15.9, status: 'detected' },
+  { id: 'CB-2610-12', channel: 'talabat-tmp', branch: 'ardiya', brand: 'karak-cafeteria', type: 'cancelled-unpaid', orderRef: 'TM-31144806', date: '2026-10-29', amount: 8.4, status: 'detected' },
 ]
 
 export function chargebacksFor(f: BiFilters) {
@@ -622,10 +622,10 @@ export function recipeFor(item: MenuItem): Partial<Record<IngredientId, number>>
     if (/shawarma/.test(n)) r['poultry-breast'] = 0.15
     r['tahina-paste'] = 0.03
     r['cooking-oil'] = 0.01
-  } else if (item.brand === 'burgerito') {
+  } else if (item.brand === 'noodle-bar') {
     r['philly-beef'] = 0.18
     r['cooking-oil'] = 0.015
-  } else if (item.brand === 'chick-dip') {
+  } else if (item.brand === 'farm-brown') {
     r['poultry-carton'] = 0.17
     r['cooking-oil'] = 0.03
   } else {

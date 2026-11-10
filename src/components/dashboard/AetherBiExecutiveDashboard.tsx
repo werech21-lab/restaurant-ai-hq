@@ -125,7 +125,7 @@ export function AetherBiExecutiveDashboard({ locale: _unused }: { locale?: strin
             <span>{T('Venture Foods Restaurant Management W.L.L. · Odoo data (2,213 journal entries)', 'شركة فنتشر فودز لإدارة المطاعم ذ.م.م. · بيانات أودو (2,213 قيد يومي)')}</span>
           </div>
           <h1 className="mt-1 text-xl font-extrabold text-slate-900 dark:text-slate-50 md:text-2xl">{T('Financial & Analytical Report and Recommendations', 'التقرير المالي والتحليلي ومحرك التوصيات')}</h1>
-          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{T('6 brands, 11 sales channels, 9 active branches and the central kitchen. Static data: browsing uses no AI tokens.', '6 علامات تجارية و11 قناة بيع و9 فروع نشطة والمطبخ المركزي. بيانات ثابتة: التصفح لا يستهلك أي توكنات.')}</p>
+          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{T('7 brands, 11 sales channels, 9 active branches and the central kitchen. Static data: browsing uses no AI tokens.', '7 علامات تجارية و11 قناة بيع و9 فروع نشطة والمطبخ المركزي. بيانات ثابتة: التصفح لا يستهلك أي توكنات.')}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2 self-start lg:self-auto">
           <Link href="/erp/sales-scorecard" className="ae-pill-light ae-pill-sm">

@@ -6,7 +6,7 @@
  * What-If calculator). All headline constants are the approved Odoo figures; the
  * per-dimension splits below reconcile exactly back to those totals.
  *
- * Scope rules enforced here: 6 active brands, 9 active branches, 11 sales channels.
+ * Scope rules enforced here: 7 active brands, 9 active branches, 11 sales channels.
  */
 
 export type Lang = 'ar' | 'en'
@@ -185,9 +185,10 @@ export function leverImpact(enabled: Record<LeverId, boolean>) {
 }
 
 // ---------------------------------------------------------------------------
-// 4. Brands (6) — reconciles to 167,092.160 KWD / 30,540 orders
+// 4. Brands (7, from live Odoo) — reconciles to 167,092.160 KWD / 30,540 orders
 // ---------------------------------------------------------------------------
-export type BrandId = 'china-garden' | 'franks' | 'tahina' | 'burgerito' | 'chick-dip' | 'crave'
+/** The 7 Venture Foods brands with POS sales in Odoo (October 2026 live sync, root POS categories). */
+export type BrandId = 'china-garden' | 'franks' | 'tahina' | 'farm-brown' | 'fresh-daily-canteen' | 'noodle-bar' | 'karak-cafeteria'
 
 export interface Brand {
   id: BrandId
@@ -204,10 +205,11 @@ export interface Brand {
 export const BRANDS: Brand[] = [
   { id: 'china-garden', en: 'China Garden', ar: 'تشاينا جاردن', sales: 141662.4, orders: 25890, aov: 5.472, color: '#0284C7', cuisineEn: 'Chinese & Asian', cuisineAr: 'صيني وآسيوي' },
   { id: 'franks', en: "Frank's Philly CheeseSteak", ar: 'فرانكس فيلي تشيز ستيك', sales: 11840.2, orders: 1580, aov: 7.49, color: '#059669', cuisineEn: 'Philly cheesesteaks', cuisineAr: 'ساندويتشات فيلي ستيك' },
-  { id: 'tahina', en: 'Tahina', ar: 'طحينة', sales: 5120.34, orders: 1180, aov: 4.339, color: '#D97706', cuisineEn: 'Shawarma & Levant street food', cuisineAr: 'شاورما وأكل شارع شامي' },
-  { id: 'burgerito', en: 'Burgerito', ar: 'برجريتو', sales: 3612.88, orders: 790, aov: 4.573, color: '#E11D48', cuisineEn: 'Smash burgers', cuisineAr: 'برجر سماش' },
-  { id: 'chick-dip', en: 'Chick & Dip', ar: 'تشيك آند ديب', sales: 2904.11, orders: 656, aov: 4.427, color: '#0F766E', cuisineEn: 'Crispy chicken strips', cuisineAr: 'أصابع دجاج مقرمشة' },
-  { id: 'crave', en: 'Crave', ar: 'كريف', sales: 1952.23, orders: 444, aov: 4.397, color: '#475569', cuisineEn: 'Melts, cups & mojitos', cuisineAr: 'ميلتس وأكواب وموهيتو' },
+  { id: 'tahina', en: "Tahina", ar: 'طحينة', sales: 5458.1, orders: 1233, aov: 4.427, color: '#D97706', cuisineEn: 'Shawarma & Levant street food', cuisineAr: 'شاورما وأكل شارع شامي' },
+  { id: 'farm-brown', en: "Farm Brown", ar: 'فارم براون', sales: 3263.17, orders: 737, aov: 4.428, color: '#0F766E', cuisineEn: 'Fried chicken, sandwiches & wraps', cuisineAr: 'دجاج مقلي وساندويتشات وراب' },
+  { id: 'fresh-daily-canteen', en: "Fresh Daily Canteen", ar: 'فريش ديلي كانتين', sales: 2493.67, orders: 563, aov: 4.429, color: '#0891B2', cuisineEn: 'School canteens: sandwiches, bakery & drinks', cuisineAr: 'مقاصف مدرسية: ساندويتشات ومخبوزات ومشروبات' },
+  { id: 'noodle-bar', en: "The Noodle Bar", ar: 'ذا نودل بار', sales: 1897.31, orders: 429, aov: 4.423, color: '#E11D48', cuisineEn: 'Asian noodles & wok', cuisineAr: 'نودلز ووك آسيوي' },
+  { id: 'karak-cafeteria', en: "Karak Cafeteria", ar: 'كرك كافتيريا', sales: 477.31, orders: 108, aov: 4.42, color: '#475569', cuisineEn: 'Karak tea, chapati & snacks', cuisineAr: 'كرك وشاباتي ووجبات خفيفة' },
 ]
 
 // ---------------------------------------------------------------------------
@@ -477,9 +479,10 @@ const HERO_ITEMS: Record<BrandId, Seed[]> = {
     { en: 'Chicken Shawarma Arabi', ar: 'شاورما دجاج عربي', cat: 'sandwiches', price: 2.25 },
     { en: 'Loaded Shawarma Fries', ar: 'بطاطس شاورما محملة', cat: 'sides', price: 1.95 },
   ],
-  burgerito: [{ en: 'Smash Burgerito Combo', ar: 'كومبو برجريتو سماش', cat: 'combos', price: 3.95 }],
-  'chick-dip': [],
-  crave: [],
+  'farm-brown': [],
+  'fresh-daily-canteen': [],
+  'noodle-bar': [{ en: 'Sriracha Chicken Noodles', ar: 'نودلز دجاج سريراتشا', cat: 'noodles-rice', price: 3.5 }],
+  'karak-cafeteria': [],
 }
 
 /** Top-tier revenue per brand (sums to exactly 80% of group net sales). */
@@ -487,18 +490,20 @@ const HERO_REVENUE: Record<BrandId, number> = {
   'china-garden': 133673.728 - 12700,
   franks: 7600,
   tahina: 3200,
-  burgerito: 1900,
-  'chick-dip': 0,
-  crave: 0,
+  'farm-brown': 0,
+  'fresh-daily-canteen': 0,
+  'noodle-bar': 1900,
+  'karak-cafeteria': 0,
 }
 
 const ITEM_COUNTS: Record<BrandId, number> = {
   'china-garden': 168,
   franks: 42,
   tahina: 48,
-  burgerito: 40,
-  'chick-dip': 36,
-  crave: 30,
+  'farm-brown': 30,
+  'fresh-daily-canteen': 24,
+  'noodle-bar': 34,
+  'karak-cafeteria': 18,
 }
 
 const TAIL_BASES: Record<BrandId, Seed[]> = {
@@ -546,29 +551,46 @@ const TAIL_BASES: Record<BrandId, Seed[]> = {
     { en: 'Laban Ayran', ar: 'لبن عيران', cat: 'beverages', price: 0.4 },
     { en: 'Knafeh Cup', ar: 'كوب كنافة', cat: 'desserts', price: 1.25 },
   ],
-  burgerito: [
-    { en: 'Double Smash Burger', ar: 'برجر سماش مزدوج', cat: 'sandwiches', price: 3.25 },
-    { en: 'Chicken Crispy Burger', ar: 'برجر دجاج مقرمش', cat: 'sandwiches', price: 2.75 },
-    { en: 'Truffle Burger', ar: 'برجر الترافل', cat: 'sandwiches', price: 3.75 },
-    { en: 'Seasoned Fries', ar: 'بطاطس متبلة', cat: 'sides', price: 0.95 },
-    { en: 'Cheese Bites', ar: 'قطع الجبن', cat: 'sides', price: 1.25 },
-    { en: 'Craft Soda', ar: 'صودا مميزة', cat: 'beverages', price: 0.75 },
-    { en: 'Cookie Sandwich', ar: 'ساندويتش الكوكيز', cat: 'desserts', price: 1.0 },
+  'farm-brown': [
+    { en: 'Chicken Fillet Meal', ar: 'وجبة فيليه دجاج', cat: 'combos', price: 3.75 },
+    { en: 'Kids Meal - Chicken Strip', ar: 'وجبة أطفال - أصابع دجاج', cat: 'combos', price: 1.9 },
+    { en: 'Kids Meal - Chicken Fillet', ar: 'وجبة أطفال - فيليه دجاج', cat: 'combos', price: 1.85 },
+    { en: 'Wrap Meal', ar: 'وجبة راب', cat: 'sandwiches', price: 3.5 },
+    { en: 'Popcorn Chicken', ar: 'دجاج بوب كورن', cat: 'starters', price: 1.25 },
+    { en: 'Mozzarella Croquette', ar: 'كروكيت موزاريلا', cat: 'sides', price: 1.75 },
+    { en: 'Boneless Buffalo Wings', ar: 'أجنحة بافلو بدون عظم', cat: 'starters', price: 2.5 },
+    { en: 'French Fries', ar: 'بطاطس مقلية', cat: 'sides', price: 0.95 },
+    { en: 'Mixed Ice Cream', ar: 'آيس كريم مشكل', cat: 'desserts', price: 0.5 },
   ],
-  'chick-dip': [
-    { en: 'Crispy Strips Cone', ar: 'كون أصابع الدجاج المقرمشة', cat: 'mains', price: 2.25 },
-    { en: 'Strips Box', ar: 'بوكس أصابع الدجاج', cat: 'combos', price: 3.25 },
-    { en: 'Popcorn Chicken', ar: 'دجاج بوب كورن', cat: 'starters', price: 1.75 },
-    { en: 'Signature Dip Trio', ar: 'ثلاثية الصوصات المميزة', cat: 'sides', price: 0.95 },
-    { en: 'Coleslaw', ar: 'سلطة كول سلو', cat: 'sides', price: 0.6 },
-    { en: 'Lemonade', ar: 'ليمونادة', cat: 'beverages', price: 0.85 },
+  'fresh-daily-canteen': [
+    { en: 'Chicken Fillet Sandwich', ar: 'ساندويتش فيليه دجاج', cat: 'sandwiches', price: 0.45 },
+    { en: 'Cheese Burger Sandwich', ar: 'ساندويتش تشيز برجر', cat: 'sandwiches', price: 0.45 },
+    { en: 'Pizza Slice', ar: 'شريحة بيتزا', cat: 'mains', price: 0.5 },
+    { en: 'Falafel Sandwich', ar: 'ساندويتش فلافل', cat: 'sandwiches', price: 0.25 },
+    { en: 'Croissant Chocolate', ar: 'كرواسون شوكولاتة', cat: 'desserts', price: 0.25 },
+    { en: 'Cupcake Chocolate', ar: 'كب كيك شوكولاتة', cat: 'desserts', price: 0.15 },
+    { en: 'Chocolate Milk', ar: 'حليب بالشوكولاتة', cat: 'beverages', price: 0.25 },
+    { en: 'Pineapple Juice', ar: 'عصير أناناس', cat: 'beverages', price: 0.15 },
+    { en: 'Water', ar: 'مياه', cat: 'beverages', price: 0.05 },
   ],
-  crave: [
-    { en: 'Artisan Melt', ar: 'ميلت حرفي', cat: 'sandwiches', price: 2.75 },
-    { en: 'Sweet Corn Warm Cup', ar: 'كوب الذرة الدافئ', cat: 'sides', price: 0.95 },
-    { en: 'Mojito', ar: 'موهيتو', cat: 'beverages', price: 1.25 },
-    { en: 'Nacho Cup', ar: 'كوب ناتشوز', cat: 'starters', price: 1.25 },
-    { en: 'Churros', ar: 'تشوروز', cat: 'desserts', price: 1.25 },
+  'noodle-bar': [
+    { en: 'Fresh Noodles - Chicken', ar: 'نودلز طازجة - دجاج', cat: 'noodles-rice', price: 3.25 },
+    { en: 'Fresh Noodles - Vegetarian', ar: 'نودلز طازجة - نباتي', cat: 'noodles-rice', price: 2.95 },
+    { en: 'Fresh Noodles - Beef', ar: 'نودلز طازجة - لحم', cat: 'noodles-rice', price: 3.0 },
+    { en: 'Fresh Noodles - Shrimp', ar: 'نودلز طازجة - روبيان', cat: 'noodles-rice', price: 3.5 },
+    { en: 'Fresh Noodles Combo', ar: 'كومبو نودلز طازجة', cat: 'combos', price: 3.65 },
+    { en: 'Mongolian Beef', ar: 'لحم منغولي', cat: 'mains', price: 4.65 },
+    { en: 'Sweet Corn Chicken Soup', ar: 'شوربة دجاج بالذرة الحلوة', cat: 'starters', price: 2.85 },
+    { en: 'Spicy Edamame', ar: 'إدامامي حار', cat: 'starters', price: 2.25 },
+  ],
+  'karak-cafeteria': [
+    { en: 'Matara Original Karak (1 L)', ar: 'مطارة كرك أصلي (1 لتر)', cat: 'beverages', price: 4.5 },
+    { en: 'Chapati Box (6 pcs)', ar: 'بوكس شباتي (6 حبات)', cat: 'combos', price: 3.25 },
+    { en: 'Original Karak Cup', ar: 'كوب كرك أصلي', cat: 'beverages', price: 0.5 },
+    { en: 'Karak & Chapati Meal (for 2)', ar: 'وجبة كرك وشباتي (لشخصين)', cat: 'combos', price: 3.85 },
+    { en: 'Mushroom & Swiss Omelette Chapati', ar: 'شباتي أومليت بالفطر والجبن السويسري', cat: 'sandwiches', price: 0.65 },
+    { en: 'Sambosa Cheese (5 pcs)', ar: 'سمبوسة جبن (5 حبات)', cat: 'starters', price: 0.9 },
+    { en: 'Plain Chapati Dozen', ar: 'دزينة شباتي سادة', cat: 'sides', price: 2.1 },
   ],
 }
 

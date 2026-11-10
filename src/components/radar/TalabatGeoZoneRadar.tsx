@@ -538,7 +538,7 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
               onChange={(e) => setSelectedBrand(e.target.value)}
               className="rounded-xl border border-white/10 bg-[#1a1c22] px-3 py-2 text-xs font-semibold text-white focus:border-amber-400 focus:outline-none"
             >
-              <option value="all">{isEn ? 'All 6 Brands' : 'كافة البراندات (6)'}</option>
+              <option value="all">{isEn ? 'All 7 Brands' : 'كافة البراندات (6)'}</option>
               {VENTURE_BRANDS.map((b) => (
                 <option key={b.id} value={b.id}>
                   {isEn ? b.nameEn : b.nameAr}

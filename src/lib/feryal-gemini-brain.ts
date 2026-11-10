@@ -29,10 +29,16 @@ VERIFIED VENTURE FOODS KUWAIT ODOO 17 DATA (SINGLE SOURCE OF TRUTH):
    - Total Promotional Discounts: 4,152.000 KWD (2,544.000 KWD on Keeta alone across 6,267 orders).
    - 11 Active Sales Channels: Talabat Tgo, Talabat TMP, Keeta, Deliveroo, Cari, Jahez, Call Center, Dine-in, Takeaway, Drive-Thru, Direct Web.
    - Action plan: Cap unapproved Keeta promotional discounts at 3.5% (from 2,544 KWD to 924 KWD, +1,620 KWD/month saved) and enforce a mandatory beverage in Talabat Tgo, TMP & Keeta delivery combos to lift group AOV from 5.471 KWD to 5.750 KWD (+2,450 KWD/month net gain).
-6. 6 Active Brands:
+6. 7 Active Brands (exact Odoo brands — root POS categories & the analytic BRAND plan on venturefoods.walnutss.com):
    - China Garden (تشاينا جاردن): Flagship brand driving 84.8% of revenue (141,662.400 KWD across 25,890 orders).
-   - Frank's (فرانكس): Highest basket average (AOV 7.490 KWD).
-   - Tahina (طحينة), Burgerito (برجريتو), Chick & Dip (تشيك آند ديب), Crave (كريف).
+   - Frank's Philly CheeseSteak (فرانكس): Highest basket average (AOV 7.490 KWD).
+   - Tahina (طحينة) — shawarma, strongest at Exhibitions/EXB events.
+   - Farm Brown (فارم براون) — fried chicken, sandwiches & wraps.
+   - Fresh Daily Canteen (فريش ديلي كانتين) — school canteen contracts (sandwiches, bakery, drinks).
+   - The Noodle Bar (ذا نودل بار) — Asian noodles & wok.
+   - Karak Cafeteria (كرك كافتيريا) — karak tea, chapati & snacks.
+   - Live Odoo POS mix for October 2026: China Garden 87.0% · Frank's 7.9% · Tahina 3.0% · Farm Brown 1.8% · Fresh Daily Canteen 1.4% · The Noodle Bar 1.1% · Karak Cafeteria 0.3%.
+   - Never mention or invent any brand outside this Odoo list.
 7. 9 Active Operational Branches:
    - Salmiya (السالمية): #1 Most Profitable Branch generating 31,246.230 KWD net operating contribution.
    - Al-Kout / Fahaheel (الكوت), Sharq (شرق), Hawally (حولي), Farwaniya (الفروانية), Ardiya Central Kitchen & Hub (العارضية), Mahboula (المهبولة), Mubarak Al-Kabeer (مبارك الكبير), Jabriya (الجابرية).
@@ -53,7 +59,7 @@ VERIFIED VENTURE FOODS KUWAIT ODOO 17 DATA (SINGLE SOURCE OF TRUTH):
      * Marina Kashta (كشتة المارينا): 60 days | Rent & Setup 6,800 KWD | Sales 38,400 KWD | Net Profit 11,920 KWD | ROI 175% (Recommended for renewal).
      * Al-Safeer Camp (مخيم السفير): 45 days | Rent & Setup 4,900 KWD | Sales 26,850 KWD | Net Profit 7,840 KWD | ROI 160% (Strong beverage margin).
      * Winterland Seasonal Booth (ونترلاند الكويت): 90 days | Rent & Setup 9,500 KWD | Projected Sales 54,200 KWD | Net Profit 15,600 KWD | ROI 164%.
-   - EXB Menu 8 Star Items (+10% booth price uplift, <90 sec assembly): Chicken Noodles Box (China Garden), Dynamite Shrimp Cup, Philly CheeseSteak Sliders (Frank's), Loaded Shawarma Fries (Tahina), Smash Burgerito Combo, Crispy Strips Cone (Chick & Dip), Sweet Corn Warm Cup, Mandatory Event Soft Drink / Mojito.
+   - EXB Menu 8 Star Items (+10% booth price uplift, <90 sec assembly): Chicken Noodles Box (China Garden), Dynamite Shrimp Cup, Philly CheeseSteak Sliders (Frank's), Loaded Shawarma Fries (Tahina), Sriracha Chicken Noodles, Crispy Strips Cone (Farm Brown), Sweet Corn Warm Cup, Mandatory Event Soft Drink / Mojito.
 10. Enterprise OS Modules (Aether BI):
    a) Demand, Weather & Central Kitchen Prep Forecaster (/erp/demand-forecast):
      * Baseline 985 orders/day (30,540 orders over 31 days). Kuwait rhythm: Thursday ×1.15 and Friday ×1.21 versus the weekly mean; salary week (24th–29th) ×1.12.
@@ -164,7 +170,7 @@ export async function analyzeEventContractWithGemini({
     voiceSummaryAr: `يا هلا! قمت بتشريح عقد وتصور فعالية ${eventName} لمدة ${durationDays} يوماً بإيجار ${boothRentKwd} دينار كويتي. الجدوى المالية ممتازة بعائد استثمار يتجاوز 150 بالمئة ونقطة تعادل 58 طلباً يومياً، وأنصحك بتوقيع العقد فوراً بعد إضافة بند تعويض أيام الأمطار وتحديد سقف رسوم الخدمات بخمسة بالمئة، مع الاعتماد على منيو المعارض السريعة من مطبخ العارضية المركزي.`,
     voiceSummaryEn: `I have completed the deep audit of the ${eventName} contract for ${durationDays} days at ${boothRentKwd} Kuwaiti Dinars booth rent. Financial feasibility is strong with payback in 14 days and a 58-order daily break-even. I recommend signing immediately after adding the weather-closure rent credit in Clause 4 and capping service fees at 5 percent in Clause 7.`,
     recommendedBrandId: executiveVision.toLowerCase().includes('برجر') || executiveVision.toLowerCase().includes('burger')
-      ? 'Burgerito'
+      ? 'The Noodle Bar'
       : executiveVision.toLowerCase().includes('شاورما') || executiveVision.toLowerCase().includes('طحينة')
       ? 'Tahina'
       : executiveVision.toLowerCase().includes('ستيك') || executiveVision.toLowerCase().includes('frank')
@@ -194,7 +200,7 @@ Return strictly valid JSON with these exact keys:
   "verdictBadgeEn": "English executive verdict badge starting with ✅ or ⚠️",
   "voiceSummaryAr": "2-3 sentence executive Kuwaiti/Arabic spoken verdict with KWD numbers",
   "voiceSummaryEn": "2-3 sentence executive English spoken verdict with KWD numbers",
-  "recommendedBrandId": "One of: China Garden, Frank's, Tahina, Burgerito, Chick & Dip, Crave"
+  "recommendedBrandId": "One of: China Garden, Frank's, Tahina, Farm Brown, Fresh Daily Canteen, The Noodle Bar, Karak Cafeteria"
 }`;
 
   const parts: Array<Record<string, unknown>> = [];
@@ -318,8 +324,8 @@ export function getDeterministicFeryalReply(query: string, lang: 'ar' | 'en'): s
 
   if (q.includes('علام') || q.includes('تشاينا') || q.includes('فرانكس') || q.includes('brand') || q.includes('china') || q.includes('frank')) {
     return isAr
-      ? 'تدير فينشر فودز 6 علامات نشطة: تتصدرها تشاينا جاردن بنسبة 84.8% من المبيعات (141,662 د.ك)، وتتميز فرانكس بأعلى متوسط سلة (7.490 د.ك)، إلى جانب طحينة وبرجريتو وتشيك آند ديب وكريف عبر 11 قناة بيع.'
-      : 'Venture Foods operates 6 active brands led by China Garden at 84.8% revenue share (141,662 KWD) and Frank\'s with the highest basket AOV at 7.490 KWD, alongside Tahina, Burgerito, Chick & Dip, and Crave across 11 sales channels.';
+      ? 'تدير فينشر فودز 7 علامات نشطة: تتصدرها تشاينا جاردن بنسبة 84.8% من المبيعات (141,662 د.ك)، وتتميز فرانكس بأعلى متوسط سلة (7.490 د.ك)، إلى جانب طحينة وفارم براون وفريش ديلي كانتين وذا نودل بار وكرك كافتيريا عبر 11 قناة بيع.'
+      : 'Venture Foods operates 7 active brands led by China Garden at 84.8% revenue share (141,662 KWD) and Frank\'s with the highest basket AOV at 7.490 KWD, alongside Tahina, Farm Brown, Fresh Daily Canteen, The Noodle Bar and Karak Cafeteria across 11 sales channels.';
   }
 
   return isAr
@@ -448,8 +454,8 @@ export async function askFeryalGeminiBrain({
       formData.append(
         'prompt',
         isAr
-          ? 'فريال، فينشر فودز، أودو، السالمية، العارضية، الكوت، تشاينا جاردن، فرانكس، طحينة، برجريتو، كيتا، طلبات، Tgo، TMP'
-          : 'Feryal, Venture Foods, Odoo, Salmiya, Ardiya, Al-Kout, China Garden, Franks, Tahina, Burgerito, Keeta, Talabat, Tgo, TMP'
+          ? 'فريال، فينشر فودز، أودو، السالمية، العارضية، الكوت، تشاينا جاردن، فرانكس، طحينة، ذا نودل بار، كيتا، طلبات، Tgo، TMP'
+          : 'Feryal, Venture Foods, Odoo, Salmiya, Ardiya, Al-Kout, China Garden, Franks, Tahina, The Noodle Bar, Keeta, Talabat, Tgo, TMP'
       );
 
       const sttRes = await fetch('https://api.openai.com/v1/audio/transcriptions', {

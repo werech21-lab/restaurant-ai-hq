@@ -125,8 +125,8 @@ export function SalesAnalysisV2() {
           <h1 className="ae-h text-2xl text-slate-900 dark:text-white">{T('Sales & Items Analysis', 'تحليل المبيعات والأصناف')}</h1>
           <p className="text-sm text-slate-600 dark:text-slate-300">
             {T(
-              `${fmt(LEDGER.menuItems)} active items across 6 brands. The top ${LEDGER.topItems} items generate ${pct(top32Share)} of revenue.`,
-              `${fmt(LEDGER.menuItems)} صنفاً نشطاً عبر 6 علامات. أعلى ${LEDGER.topItems} صنفاً تحقق ${pct(top32Share)} من الإيراد.`,
+              `${fmt(LEDGER.menuItems)} active items across 7 brands. The top ${LEDGER.topItems} items generate ${pct(top32Share)} of revenue.`,
+              `${fmt(LEDGER.menuItems)} صنفاً نشطاً عبر 7 علامات. أعلى ${LEDGER.topItems} صنفاً تحقق ${pct(top32Share)} من الإيراد.`,
             )}
           </p>
         </div>

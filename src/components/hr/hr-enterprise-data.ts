@@ -1,6 +1,6 @@
 /**
  * Venture Foods Restaurant Management W.L.L. — Enterprise HRMS & Kuwait Labor Law No. 6/2010 Data Models & Calculators.
- * Covers 6 Brands, 10 Branches + Central Kitchen, PAM (Asahal) Quotas, Overseas Visa 18 Pipeline,
+ * Covers 7 Brands, 10 Branches + Central Kitchen, PAM (Asahal) Quotas, Overseas Visa 18 Pipeline,
  * PRO / Mandoub Action Queue, Leaves & Air Tickets, Shifts & Overtime, Loans & Disciplinary,
  * Staff Accommodation & Transport, Kuwait EOSB Indemnity Calculator, Official Letters, and 12 Executive Reports.
  */
@@ -997,7 +997,7 @@ export const EXECUTIVE_12_HR_REPORTS: ExecutiveHrReportMeta[] = [
     titleAr: '1. كشف مسير الرواتب الشامل حسب الفرع والبراند',
     titleEn: '1. Master Payroll by Branch & Brand',
     subtitleAr: 'تفصيل الأساسي والبدلات والإضافي والاستقطاعات وصافي الراتب بـ 0.000 د.ك',
-    subtitleEn: 'Full breakdown of basic, allowances, overtime, deductions & net KWD across 6 brands & 10 branches',
+    subtitleEn: 'Full breakdown of basic, allowances, overtime, deductions & net KWD across 7 brands & 10 branches',
     badge: 'PAYROLL',
   },
   {

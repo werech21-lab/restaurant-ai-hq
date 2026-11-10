@@ -208,7 +208,7 @@ export function Sidebar({ user }: { user: AccessUser; enabledKeys?: string[] | n
           </p>
           <p className="ae-side-muted inline-flex items-center justify-center gap-1.5 text-[11px] font-semibold">
             <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#34D399' }} />
-            {isAr ? '6 علامات تجارية · 9 فروع نشطة · 11 قناة' : '6 Brands · 9 Active Branches · 11 Channels'}
+            {isAr ? '7 علامات تجارية · 9 فروع نشطة · 11 قناة' : '7 Brands · 9 Active Branches · 11 Channels'}
           </p>
         </div>
       </div>

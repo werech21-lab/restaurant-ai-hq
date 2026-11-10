@@ -99,7 +99,7 @@ export function ExecutiveSummaryV2({ anchor }: { anchor: string }) {
       })
   }, [chartMode, filters.brand, filters.branch, filters.channel, isAr, pf])
 
-  // (b) 6-brand revenue distribution for the current branch × channel × period slice.
+  // (b) 7-brand revenue distribution for the current branch × channel × period slice.
   const brandSlices = useMemo(() => {
     const s = sliceShares({ brand: 'all', branch: filters.branch, channel: filters.channel })
     return BRANDS.map((b) => ({ ...b, value: b.sales * s.branchShare * s.channelShare * pf }))
@@ -277,7 +277,7 @@ export function ExecutiveSummaryV2({ anchor }: { anchor: string }) {
         </div>
 
         <div className="ae-tile flex flex-col gap-4 p-5 lg:col-span-5">
-          <SectionHeader icon={<Flag className="h-4 w-4" />} title={T('6-brand revenue distribution', 'توزيع إيراد العلامات الست')} subtitle={T('Hover to inspect · click to filter', 'مرر للتفاصيل · اضغط للفلترة')} />
+          <SectionHeader icon={<Flag className="h-4 w-4" />} title={T('7-brand revenue distribution', 'توزيع إيراد العلامات السبع')} subtitle={T('Hover to inspect · click to filter', 'مرر للتفاصيل · اضغط للفلترة')} />
           <div className="flex flex-1 flex-col items-center gap-4 sm:flex-row lg:flex-col xl:flex-row">
             <DonutGauge
               segments={brandSlices.map((b) => ({ key: b.id, value: b.value, color: b.color }))}

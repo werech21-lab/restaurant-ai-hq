@@ -307,8 +307,8 @@ export default function IntelligenceWorkspace({
             </h1>
             <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
               {isAr
-                ? 'تم تحليل 2,213 قيد مصروفات وعهد، 166 ملف موظف، 364 وصفة معيارية، ومبيعات الـ 6 علامات تجارية والـ 9 فروع النشطة والمطبخ المركزي.'
-                : 'Audited 2,213 Odoo expense & custody entries, 166 employee files, 364 standard recipes across 6 brands, 9 active branches & Central Kitchen.'}
+                ? 'تم تحليل 2,213 قيد مصروفات وعهد، 166 ملف موظف، 364 وصفة معيارية، ومبيعات الـ 7 علامات تجارية والـ 9 فروع النشطة والمطبخ المركزي.'
+                : 'Audited 2,213 Odoo expense & custody entries, 166 employee files, 364 standard recipes across 7 brands, 9 active branches & Central Kitchen.'}
             </p>
           </div>
 

@@ -33,9 +33,10 @@ export const BRAND_OPERATING_BRANCHES: Record<string, string[]> = {
   "China Garden": ["Salmiya", "Sharq", "Hawally", "Al-Kout", "Ardiya", "Farwaniya", "Mahboula", "Mubarak Al-Kabeer", "Jabriya"],
   "Frank's": ["Salmiya", "Sharq", "Ardiya", "Mubarak Al-Kabeer"],
   "Tahina": ["Sharq", "Al-Kout", "Ardiya", "Farwaniya", "Mubarak Al-Kabeer"],
-  "Chick & Dip": ["Al-Kout", "Ardiya", "Mahboula", "Mubarak Al-Kabeer", "Jabriya"],
-  "Burgerito": ["Salmiya", "Hawally", "Mahboula", "Mubarak Al-Kabeer", "Jabriya"],
-  "Crave": ["Salmiya", "Hawally", "Farwaniya", "Mubarak Al-Kabeer"],
+  "Farm Brown": ["Al-Kout", "Ardiya", "Mahboula", "Mubarak Al-Kabeer", "Jabriya"],
+  "The Noodle Bar": ["Salmiya", "Hawally", "Mahboula", "Mubarak Al-Kabeer", "Jabriya"],
+  "Karak Cafeteria": ["Salmiya", "Hawally", "Farwaniya", "Mubarak Al-Kabeer"],
+  "Fresh Daily Canteen": ["Hawally", "Al-Kout"],
 };
 
 /** Canonical mapping of which sales channels each brand operates on */
@@ -43,19 +44,21 @@ export const BRAND_OPERATING_CHANNELS: Record<string, string[]> = {
   "China Garden": ["Shop Sales", "Talabat Go", "Keeta", "Talabat TMP", "Deliveroo Core", "Ordable", "Snoonu", "Jahez", "Phone", "Deliveroo TMP"],
   "Frank's": ["Talabat Go", "Deliveroo Core", "Shop Sales", "Keeta", "Talabat TMP"],
   "Tahina": ["Shop Sales", "Talabat Go", "Keeta"],
-  "Chick & Dip": ["Shop Sales", "Talabat Go", "Keeta"],
-  "Burgerito": ["Talabat TMP", "Shop Sales", "Keeta", "Talabat Go"],
-  "Crave": ["Shop Sales", "Whatsapp"],
+  "Farm Brown": ["Shop Sales", "Talabat Go", "Keeta"],
+  "The Noodle Bar": ["Talabat TMP", "Shop Sales", "Keeta", "Talabat Go"],
+  "Karak Cafeteria": ["Shop Sales", "Whatsapp"],
+  "Fresh Daily Canteen": ["Shop Sales"],
 };
 
-/** Arabic display names for the 6 active brands (filter values stay canonical). */
+/** Arabic display names for the 7 Odoo brands (filter values stay canonical). */
 export const BRAND_LABEL_AR: Record<string, string> = {
   "China Garden": "تشاينا جاردن",
   "Frank's": "فرانكس فيلي تشيز ستيك",
   Tahina: "طحينة",
-  Burgerito: "برجريتو",
-  "Chick & Dip": "تشيك آند ديب",
-  Crave: "كريف",
+  "Farm Brown": "فارم براون",
+  "Fresh Daily Canteen": "فريش ديلي كانتين",
+  "The Noodle Bar": "ذا نودل بار",
+  "Karak Cafeteria": "كرك كافتيريا",
 };
 
 /** Arabic display names for the 11 sales & delivery channels. */
@@ -193,7 +196,7 @@ export function TopAnalyticsFilterBar({
             onChange={(e) => handleBrandChange(e.target.value)}
             className={SELECT_CLS}
           >
-            <option value="All brands">{isAr ? "جميع العلامات (6)" : "All brands (6)"}</option>
+            <option value="All brands">{isAr ? "جميع العلامات (7)" : "All brands (7)"}</option>
             {brandsList.map((b) => (
               <option key={b} value={b}>
                 {isAr ? BRAND_LABEL_AR[b] ?? b : b}

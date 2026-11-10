@@ -510,9 +510,9 @@ const BRAND_NAME_AR: Record<string, string> = {
   'China Garden': 'تشاينا جاردن',
   "Frank's": 'فرانكس',
   Tahina: 'شاورما طحينة',
-  'Chick & Dip': 'تشيك آند ديب',
-  'Burgerito': 'برجريتو',
-  'Crave': 'كريف',
+  'Farm Brown': 'فارم براون',
+  'The Noodle Bar': 'ذا نودل بار',
+  'Karak Cafeteria': 'كرك كافتيريا',
 }
 
 export function BranchesTab({ filter }: { filter: SalesFilter }) {

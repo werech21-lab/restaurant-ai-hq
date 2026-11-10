@@ -42,12 +42,12 @@ export function GlobalFilterBar() {
         <div className="me-1 hidden min-w-0 flex-col leading-tight lg:flex">
           <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{T('Live BI context', 'سياق التحليل المباشر')}</span>
           <span className="text-xs font-semibold text-slate-900 dark:text-slate-100">
-            {T('6 brands · 9 branches · 11 channels', '6 علامات · 9 فروع · 11 قناة')}
+            {T('7 brands · 9 branches · 11 channels', '7 علامات · 9 فروع · 11 قناة')}
           </span>
         </div>
 
         <select aria-label={T('Brand', 'العلامة التجارية')} className="ae-select" value={filters.brand} onChange={(e) => setBrand(e.target.value as BrandId | 'all')}>
-          <option value="all">{T('All 6 brands', 'كل العلامات الـ 6')}</option>
+          <option value="all">{T('All 7 brands', 'كل العلامات الـ 7')}</option>
           {BRANDS.map((b) => (
             <option key={b.id} value={b.id}>
               {isAr ? b.ar : b.en}

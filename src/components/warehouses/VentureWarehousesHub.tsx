@@ -50,7 +50,7 @@ export const OFFICIAL_10_LOCATIONS: BranchWarehouseCard[] = [
     areaAr: "مبارك الكبير · محافظة مبارك الكبير",
     areaEn: "Mubarak Al-Kabeer",
     brandRolesAr: "المركز اللوجستي والإنتاجي الرئيسي لجميع العلامات التجارية الـ 6",
-    brandRolesEn: "Central Production & Logistics Hub for all 6 Brands",
+    brandRolesEn: "Central Production & Logistics Hub for all 7 Brands",
     isCommissary: true,
     stockValueKwd: 24150.0,
     skuCount: { raw: 142, prep: 68, pack: 85 },

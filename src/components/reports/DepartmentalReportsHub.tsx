@@ -705,7 +705,7 @@ export function DepartmentalReportsHub({ initialReportId, locale = 'ar', liveDbC
                   onChange={(e) => setBrandFilter(e.target.value)}
                   className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-white focus:outline-none"
                 >
-                  <option value="ALL">{isAr ? 'جميع العلامات التجارية (6)' : 'All 6 Brands'}</option>
+                  <option value="ALL">{isAr ? 'جميع العلامات التجارية (6)' : 'All 7 Brands'}</option>
                   <option value="China">{isAr ? 'تشاينا جاردن (84.8%)' : 'China Garden (84.8%)'}</option>
                   <option value="Frank">{isAr ? "فرانكس (9.7%)" : "Frank's (9.7%)"}</option>
                   <option value="Tahina">{isAr ? 'شاورما طحينة (2.6%)' : 'Tahina (2.6%)'}</option>

@@ -634,7 +634,7 @@ export function PosTerminal({
             />
           </div>
 
-          {/* Official 6 Brands Filter Buttons (Pure Arabic in AR mode) */}
+          {/* Official 7 Brands Filter Buttons (Pure Arabic in AR mode) */}
           <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
             {OFFICIAL_POS_BRANDS.map((item) => {
               const active = item.id === selectedBrandTab

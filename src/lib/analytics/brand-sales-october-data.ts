@@ -1,7 +1,7 @@
 /**
  * Venture Foods Restaurant Management W.L.L.
  * Official October 2026 Brand Sales, Channel Scorecard & Menu Engineering Intelligence Data.
- * 6 Brands · 11 Channels · 364 Menu Items.
+ * 7 Odoo Brands · 11 Channels · 364 Menu Items.
  */
 
 import { VERIFIED_BRAND_TOTALS } from './verified-reconciliation'
@@ -11,9 +11,10 @@ export type BrandKey =
   | 'China Garden'
   | "Frank's"
   | 'Tahina'
-  | 'Chick & Dip'
-  | 'Burgerito'
-  | 'Crave'
+  | 'Farm Brown'
+  | 'Fresh Daily Canteen'
+  | 'The Noodle Bar'
+  | 'Karak Cafeteria'
 
 export type ChannelKey =
   | 'ALL'
@@ -238,8 +239,8 @@ const SEED_BRAND_SCORECARDS: BrandScorecardRow[] = [
     bestSellerSalesKwd: 1920.0,
   },
   {
-    brand: 'Chick & Dip',
-    brandAr: 'تشيك آند ديب',
+    brand: 'Farm Brown',
+    brandAr: 'فارم براون',
     orders: 847,
     netSalesKwd: 2664.18,
     sharePercent: 1.6,
@@ -248,13 +249,29 @@ const SEED_BRAND_SCORECARDS: BrandScorecardRow[] = [
     discountRatePercent: 1.2,
     drinksPercent: 23.2,
     startersPercent: 16.2,
-    bestSellerEn: 'Crispy Strips Meal',
-    bestSellerAr: 'وجبة أصابع دجاج مقرمشة',
+    bestSellerEn: 'Chicken Fillet Meal',
+    bestSellerAr: 'وجبة فيليه دجاج',
     bestSellerSalesKwd: 840.0,
   },
   {
-    brand: 'Burgerito',
-    brandAr: 'برجريتو',
+    // Odoo POS root category "SC" (product codes RIFDC*) · school canteens NPIS Hawally, FAIPS Ahmadi, FAS Fahaheel
+    brand: 'Fresh Daily Canteen',
+    brandAr: 'فريش ديلي كانتين',
+    orders: 6510,
+    netSalesKwd: 2022.15,
+    sharePercent: 1.2,
+    avgOrderValueKwd: 0.31,
+    itemsPerOrder: 1.8,
+    discountRatePercent: 0.0,
+    drinksPercent: 36.7,
+    startersPercent: 0,
+    bestSellerEn: 'Chocolate Milk',
+    bestSellerAr: 'حليب بالشوكولاتة',
+    bestSellerSalesKwd: 472.75,
+  },
+  {
+    brand: 'The Noodle Bar',
+    brandAr: 'ذا نودل بار',
     orders: 269,
     netSalesKwd: 1678.22,
     sharePercent: 1,
@@ -263,13 +280,13 @@ const SEED_BRAND_SCORECARDS: BrandScorecardRow[] = [
     discountRatePercent: 4.0,
     drinksPercent: 17.5,
     startersPercent: 28.3,
-    bestSellerEn: 'Smash Burgerito Combo',
-    bestSellerAr: 'كومبو برجريتو سماش',
+    bestSellerEn: 'Sriracha Chicken Noodles',
+    bestSellerAr: 'نودلز دجاج سريراتشا',
     bestSellerSalesKwd: 512.0,
   },
   {
-    brand: 'Crave',
-    brandAr: 'كريف',
+    brand: 'Karak Cafeteria',
+    brandAr: 'كرك كافتيريا',
     orders: 128,
     netSalesKwd: 624.5,
     sharePercent: 0.4,
@@ -278,8 +295,8 @@ const SEED_BRAND_SCORECARDS: BrandScorecardRow[] = [
     discountRatePercent: 0.0,
     drinksPercent: 72.1,
     startersPercent: 27.9,
-    bestSellerEn: 'Artisan Melt Box (6 pcs)',
-    bestSellerAr: 'بوكس ميلت حرفي (6 حبات)',
+    bestSellerEn: 'Chapati Box (6 pcs)',
+    bestSellerAr: 'بوكس شباتي (6 حبات)',
     bestSellerSalesKwd: 185.0,
     lowOrderWarning: true,
   },
@@ -599,9 +616,9 @@ const SEED_TOP_BEST_SELLERS: MenuItemAnalytics[] = [
   },
   {
     id: 'it-12',
-    nameEn: 'Smash Burgerito Combo',
-    nameAr: 'كومبو برجريتو سماش',
-    brand: 'Burgerito',
+    nameEn: 'Sriracha Chicken Noodles',
+    nameAr: 'نودلز دجاج سريراتشا',
+    brand: 'The Noodle Bar',
     categoryEn: 'Combos',
     categoryAr: 'الوجبات والكومبو',
     priceKwd: 2.95,
@@ -614,9 +631,9 @@ const SEED_TOP_BEST_SELLERS: MenuItemAnalytics[] = [
   },
   {
     id: 'it-13',
-    nameEn: 'Crispy Strips Meal',
-    nameAr: 'وجبة أصابع دجاج مقرمشة',
-    brand: 'Chick & Dip',
+    nameEn: 'Chicken Fillet Meal',
+    nameAr: 'وجبة فيليه دجاج',
+    brand: 'Farm Brown',
     categoryEn: 'Combos',
     categoryAr: 'الوجبات والكومبو',
     priceKwd: 2.85,
@@ -644,9 +661,9 @@ const SEED_TOP_BEST_SELLERS: MenuItemAnalytics[] = [
   },
   {
     id: 'it-15',
-    nameEn: 'Artisan Melt Box (6 pcs)',
-    nameAr: 'بوكس ميلت حرفي مشكل (6 حبات)',
-    brand: 'Crave',
+    nameEn: 'Chapati Box (6 pcs)',
+    nameAr: 'بوكس شباتي كرك مشكل (6 حبات)',
+    brand: 'Karak Cafeteria',
     categoryEn: 'Combos',
     categoryAr: 'الوجبات والكومبو',
     priceKwd: 2.5,
@@ -690,9 +707,9 @@ const SEED_SLOW_MOVERS_LIST: SlowMoverItem[] = [
   },
   {
     id: 'sm-3',
-    nameEn: 'Jalapeño Cheese Bites',
-    nameAr: 'قطع جبن بالهالبينو',
-    brand: 'Burgerito',
+    nameEn: 'Spicy Kimchi Chicken Soup',
+    nameAr: 'شوربة دجاج كيمتشي حارة',
+    brand: 'The Noodle Bar',
     categoryEn: 'Starters & Sides',
     categoryAr: 'المقبلات والجانبيات',
     priceKwd: 2.1,
@@ -734,7 +751,7 @@ const SEED_SLOW_MOVERS_LIST: SlowMoverItem[] = [
     id: 'sm-6',
     nameEn: 'Saffron Milk Cake Cup',
     nameAr: 'كيك الحليب بالزعفران',
-    brand: 'Crave',
+    brand: 'Karak Cafeteria',
     categoryEn: 'Desserts',
     categoryAr: 'الحلويات',
     priceKwd: 1.45,
@@ -765,7 +782,7 @@ const BRAND_VOLUME_FACTOR: Record<string, number> = Object.fromEntries(
   SEED_BRAND_SCORECARDS.map((b) => [b.brand, (VERIFIED_BRAND_TOTALS[b.brand]?.netSales ?? b.netSalesKwd) / b.netSalesKwd]),
 )
 
-/** 6 verified brands — totals reconciled to the approved ledger (167,092.160 KWD · 30,540 orders). */
+/** 7 Odoo brands — totals reconciled to the approved ledger (167,092.160 KWD · 30,540 orders). */
 export const OCTOBER_BRAND_SCORECARDS: BrandScorecardRow[] = SEED_BRAND_SCORECARDS.map((b) => {
   const v = VERIFIED_BRAND_TOTALS[b.brand]
   if (!v) return b
@@ -1303,7 +1320,7 @@ export const STRATEGIC_15_REPORTS: StrategicReportMeta[] = [
     titleAr: '1. تقرير أداء مبيعات وأرباح البراندات الشهري',
     categoryEn: 'Executive',
     categoryAr: 'تنفيذي',
-    summaryEn: "Comprehensive breakdown of China Garden, Frank's, Tahina, Chick & Dip, Burgerito, and Karak.",
+    summaryEn: "Comprehensive breakdown of China Garden, Frank's, Tahina, Farm Brown, The Noodle Bar, and Karak.",
     summaryAr: 'تفصيل شامل لمبيعات وحصص وتكلفة وهامش ربح البراندات الـ 6 لشركة فنتشر فودز.',
     filename: 'VF-Report-01-Brand-Performance-Oct2026.csv',
   },

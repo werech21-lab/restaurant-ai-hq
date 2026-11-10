@@ -467,8 +467,8 @@ export function EnterpriseHrCommandHub({
             </h1>
             <p className="max-w-3xl text-xs sm:text-sm text-mist-300">
               {en
-                ? `6 Brands · 10 Branches & Central Kitchen · ${employees.length} Active Staff · 618 Contracts · 1,000 Odoo Payslips · PAM (Asahal) & Kuwait Municipality Linked`
-                : `6 براندات · 10 فروع والمطبخ المركزي · ${employees.length} موظفاً مسجلاً · 618 عقد عمل · 1,000 قسيمة راتب مستوردة · ربط كامل مع القوى العاملة (أسهل) وبلدية الكويت`}
+                ? `7 Brands · 10 Branches & Central Kitchen · ${employees.length} Active Staff · 618 Contracts · 1,000 Odoo Payslips · PAM (Asahal) & Kuwait Municipality Linked`
+                : `7 براندات · 10 فروع والمطبخ المركزي · ${employees.length} موظفاً مسجلاً · 618 عقد عمل · 1,000 قسيمة راتب مستوردة · ربط كامل مع القوى العاملة (أسهل) وبلدية الكويت`}
             </p>
           </div>
 
@@ -565,7 +565,7 @@ export function EnterpriseHrCommandHub({
               </p>
               <p className="mt-1 text-2xl font-black text-white">{VENTURE_EMPLOYEES.length}</p>
               <p className="mt-1 text-[11px] text-emerald-300">
-                {en ? 'Across 6 Brands, 9 Active Locations & Central Kitchen' : 'موزعين على 6 علامات تجارية و9 مواقع نشطة والمطبخ المركزي'}
+                {en ? 'Across 7 Brands, 9 Active Locations & Central Kitchen' : 'موزعين على 7 علامات تجارية و9 مواقع نشطة والمطبخ المركزي'}
               </p>
             </article>
             <article className="rounded-2xl border border-white/10 bg-[#0f141c] p-4">

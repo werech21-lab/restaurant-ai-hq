@@ -146,9 +146,9 @@ Clause 9: Tenant must comply with Kuwait Fire Force regulations and install auto
     descriptionEn:
       'Heavy weekend surge (Thu–Sat) with high demand for hot handheld meals, warm sweet corn cups, and specialty mojitos.',
     visionAr:
-      'التركيز على أصناف طحينة وتشيك آند ديب الساخنة مع بوكسات المشاركة العائلية ورفع هامش ربح المشروبات إلى 85% لتعظيم التدفق النقدي.',
+      'التركيز على أصناف طحينة وفارم براون الساخنة مع بوكسات المشاركة العائلية ورفع هامش ربح المشروبات إلى 85% لتعظيم التدفق النقدي.',
     visionEn:
-      'Focus on hot Tahina & Chick & Dip cones plus family sharing boxes, driving 85% beverage margin and rapid weekend turnover.',
+      'Focus on hot Tahina shawarma & Farm Brown chicken cones plus family sharing boxes, driving 85% beverage margin and rapid weekend turnover.',
   },
   {
     id: 'winterland-new',
@@ -183,7 +183,7 @@ Clause 9: All items must be served in approved eco-packaging with service speed 
     descriptionEn:
       '90-day mega entertainment festival requiring high peak-hour throughput and twice-daily chilled supply runs from Ardiya Central Kitchen.',
     visionAr:
-      'التفاوض لإلغاء نسبة الـ 8% من المبيعات والاكتفاء بالإيجار الثابت، وتشغيل خط مزدوج لنودلز تشاينا جاردن وسماش برجريتو لتحقيق مبيعات تتجاوز 54,000 د.ك.',
+      'التفاوض لإلغاء نسبة الـ 8% من المبيعات والاكتفاء بالإيجار الثابت، وتشغيل خط مزدوج لنودلز تشاينا جاردن ونودلز ذا نودل بار لتحقيق مبيعات تتجاوز 54,000 د.ك.',
     visionEn:
       'Negotiate removal of the 8% revenue share in favor of fixed rent, operating a dual wok & smash-grill line to exceed 54,000 KWD in sales.',
   },
@@ -232,19 +232,19 @@ const VENTURE_BRANDS: BrandMatrixItem[] = [
     specialtyEn: 'Loaded Shawarma Fries & Modern Grill Cups',
   },
   {
-    id: 'Burgerito',
-    nameAr: 'برجريتو',
-    nameEn: 'Burgerito',
+    id: 'The Noodle Bar',
+    nameAr: 'ذا نودل بار',
+    nameEn: 'The Noodle Bar',
     prepMinutes: 3.1,
     walkabilityScore: 94,
     grossMarginPct: 76.8,
-    specialtyAr: 'سماش برجريتو كومبو مع المشروب الإلزامي',
-    specialtyEn: 'Smash Burgerito Handheld Combos',
+    specialtyAr: 'بوكسات نودلز الووك مع المشروب الإلزامي',
+    specialtyEn: 'Wok Noodle Boxes',
   },
   {
-    id: 'Chick & Dip',
-    nameAr: 'تشيك آند ديب',
-    nameEn: 'Chick & Dip',
+    id: 'Farm Brown',
+    nameAr: 'فارم براون',
+    nameEn: 'Farm Brown',
     prepMinutes: 2.5,
     walkabilityScore: 97,
     grossMarginPct: 78.9,
@@ -252,9 +252,9 @@ const VENTURE_BRANDS: BrandMatrixItem[] = [
     specialtyEn: 'Crispy Chicken Strips Cones & Dipping Cups',
   },
   {
-    id: 'Crave',
-    nameAr: 'كريف',
-    nameEn: 'Crave',
+    id: 'Karak Cafeteria',
+    nameAr: 'كرك كافتيريا',
+    nameEn: 'Karak Cafeteria',
     prepMinutes: 2.9,
     walkabilityScore: 92,
     grossMarginPct: 77.5,
@@ -342,11 +342,11 @@ const EXB_MENU_ITEMS: ExbMenuItem[] = [
   },
   {
     id: 'exb-5',
-    itemAr: 'وجبة سماش برجريتو كومبو',
-    itemEn: 'Smash Burgerito Combo',
-    brandId: 'Burgerito',
-    brandAr: 'برجريتو',
-    brandEn: 'Burgerito',
+    itemAr: 'وجبة نودلز ذا نودل بار كومبو',
+    itemEn: 'Sriracha Chicken Noodles',
+    brandId: 'The Noodle Bar',
+    brandAr: 'ذا نودل بار',
+    brandEn: 'The Noodle Bar',
     branchPriceKwd: 3.1,
     exbPriceKwd: 3.4,
     cogsPct: 23.8,
@@ -358,10 +358,10 @@ const EXB_MENU_ITEMS: ExbMenuItem[] = [
   {
     id: 'exb-6',
     itemAr: 'قمع ستربس الدجاج المقرمش مع صوص',
-    itemEn: 'Crispy Strips Cone - Chick & Dip',
-    brandId: 'Chick & Dip',
-    brandAr: 'تشيك آند ديب',
-    brandEn: 'Chick & Dip',
+    itemEn: 'Crispy Strips Cone - Farm Brown',
+    brandId: 'Farm Brown',
+    brandAr: 'فارم براون',
+    brandEn: 'Farm Brown',
     branchPriceKwd: 2.1,
     exbPriceKwd: 2.35,
     cogsPct: 21.0,
@@ -374,9 +374,9 @@ const EXB_MENU_ITEMS: ExbMenuItem[] = [
     id: 'exb-7',
     itemAr: 'كوب الذرة الحلوة الساخنة بالزبدة',
     itemEn: 'Sweet Corn Warm Cup',
-    brandId: 'Crave',
-    brandAr: 'كريف',
-    brandEn: 'Crave',
+    brandId: 'Karak Cafeteria',
+    brandAr: 'كرك كافتيريا',
+    brandEn: 'Karak Cafeteria',
     branchPriceKwd: 1.0,
     exbPriceKwd: 1.25,
     cogsPct: 16.0,
@@ -389,9 +389,9 @@ const EXB_MENU_ITEMS: ExbMenuItem[] = [
     id: 'exb-8',
     itemAr: 'مشروب المعرض الإلزامي / موهيتو التوت',
     itemEn: 'Mandatory Event Soft Drink / Mojito',
-    brandId: 'Crave',
-    brandAr: 'كريف',
-    brandEn: 'Crave',
+    brandId: 'Karak Cafeteria',
+    brandAr: 'كرك كافتيريا',
+    brandEn: 'Karak Cafeteria',
     branchPriceKwd: 0.9,
     exbPriceKwd: 1.1,
     cogsPct: 14.5,
@@ -2065,7 +2065,7 @@ export default function EventsContractsExbIntelligenceHub() {
           </div>
         </div>
 
-        {/* 6 Brands Selector Cards */}
+        {/* 7 Brands Selector Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
           {VENTURE_BRANDS.map((brand) => {
             const isSelected = selectedBrandId === brand.id
