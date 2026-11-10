@@ -265,7 +265,6 @@ export const ANALYTICS_AR: Record<string, string> = {
   Farwaniya: 'الفروانية',
   Ardiya: 'العارضية',
   Mahboula: 'المهبولة',
-  Jahra: 'الجهراء',
   'Mubarak Al-Kabeer / Sabah Al-Salem': 'مبارك الكبير/صباح السالم',
 }
 

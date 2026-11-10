@@ -31,10 +31,15 @@ import {
   FileSpreadsheet,
   Mail,
   MessageSquare,
+  Copy,
 } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
 import { getOpenAIApiKey, getGeminiApiKey } from '@/lib/ai-keys'
 import { askFeryalGeminiBrain } from '@/lib/feryal-gemini-brain'
+import { useBiFilters } from '@/components/aether/BiFilterContext'
+import { FeryalRichText } from '@/components/aether/FeryalRichText'
+import { FeryalWhatIfCalculator } from '@/components/aether/FeryalWhatIfCalculator'
+import { BRANDS, BRANCHES, CHANNELS, PERIODS } from '@/lib/aether/ledger'
 
 // ==============================================================================
 // 1. MASTER ODOO DATASET (OFFICIAL OCTOBER BENCHMARK)
@@ -233,6 +238,13 @@ const STRATEGIC_EXECUTION_PLANS: ExecutionPlanItem[] = [
   },
 ]
 
+type PlanApproval = 'planned' | 'in-progress' | 'approved'
+const PLAN_STATUS_LABEL: Record<PlanApproval, { ar: string; en: string }> = {
+  planned: { ar: 'مخطط', en: 'Planned' },
+  'in-progress': { ar: 'قيد التنفيذ', en: 'In Progress' },
+  approved: { ar: 'معتمد', en: 'Approved' },
+}
+
 // Default Fallback Texts
 const DEFAULT_PERPLEXITY_AR = `تقرير استخبارات السوق الكويتي اللحظي لسوق الشويخ للجملة:
 • الدواجن الطازجة والمجمدة: أسعار كرتون الدجاج البرازيلي مستقرة عند أحد عشر ديناراً وأربعمائة فلس مع وفرة في المعروض.
@@ -368,6 +380,43 @@ export default function FeryalAiCommandPage() {
   ])
   const [inputText, setInputText] = useState('')
   const [isCopilotThinking, setIsCopilotThinking] = useState(false)
+  const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null)
+  const [planApproval, setPlanApproval] = useState<Record<string, PlanApproval>>({})
+
+  const copyMessage = useCallback(async (id: string, text: string) => {
+    try {
+      await navigator.clipboard?.writeText(text)
+    } catch {}
+    setCopiedMsgId(id)
+    window.setTimeout(() => setCopiedMsgId((c) => (c === id ? null : c)), 1800)
+  }, [])
+
+  // Live global BI context (brand × branch × channel × period) shared with every Aether V2 surface
+  const { filters: biFilters, view: biView } = useBiFilters()
+  const biScopeRef = useRef('')
+  const biScopeLabel = useMemo(() => {
+    const parts: string[] = []
+    const b = BRANDS.find((x) => x.id === biFilters.brand)
+    const br = BRANCHES.find((x) => x.id === biFilters.branch)
+    const ch = CHANNELS.find((x) => x.id === biFilters.channel)
+    const pr = PERIODS.find((x) => x.id === biFilters.period)
+    if (b) parts.push(isAr ? b.ar : b.en)
+    if (br) parts.push(isAr ? br.ar : br.en)
+    if (ch) parts.push(isAr ? ch.ar : ch.en)
+    if (pr && biFilters.period !== 'monthly') parts.push(isAr ? pr.ar : pr.en)
+    return parts.join(' · ')
+  }, [biFilters, isAr])
+  useEffect(() => {
+    if (!biScopeLabel) {
+      biScopeRef.current = ''
+      return
+    }
+    const b = BRANDS.find((x) => x.id === biFilters.brand)
+    const br = BRANCHES.find((x) => x.id === biFilters.branch)
+    const ch = CHANNELS.find((x) => x.id === biFilters.channel)
+    biScopeRef.current = `\n[Active BI scope: brand=${b ? b.en : 'all 6'}, branch=${br ? br.en : 'all 9'}, channel=${ch ? ch.en : 'all 11'}, period=${biFilters.period}; slice net sales ${biView.netSales.toFixed(3)} KWD, ${Math.round(biView.orders)} orders, ${biView.marginPct.toFixed(1)}% margin]`
+  }, [biFilters, biView, biScopeLabel])
+  const withScope = useCallback((q: string) => `${q}${biScopeRef.current}`, [])
 
   // Voice Interaction States (Audio Element + Web Speech API)
   const [isListening, setIsListening] = useState(false)
@@ -571,8 +620,9 @@ export default function FeryalAiCommandPage() {
 
       try {
         // Bluetooth Headset Half-Duplex Delay:
-        // Wait 150ms after stopping mic so Windows Bluetooth driver switches from HFP back to A2DP Stereo!
-        await new Promise((resolve) => setTimeout(resolve, 150))
+        // Wait 380ms after releasing every mic track so the Bluetooth driver switches from HFP back to A2DP Stereo
+        // before Nova playback starts (prevents the muted / mono headset state).
+        await new Promise((resolve) => setTimeout(resolve, 380))
 
         const apiKey = getOpenAIApiKey()
         let audioUrl = ''
@@ -846,7 +896,7 @@ export default function FeryalAiCommandPage() {
       // 1. Primary Analytical Brain: Google Gemini (`Argon High / Gemini 3.8 Pro`) with automatic OpenAI & Odoo fallback
       try {
         const brainRes = await askFeryalGeminiBrain({
-          query: textToSend,
+          query: withScope(textToSend),
           lang: isAr ? 'ar' : 'en',
         })
         if (brainRes.reply) {
@@ -863,7 +913,7 @@ export default function FeryalAiCommandPage() {
           const res = await fetch('/api/feryal', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'chat', query: textToSend, lang: isAr ? 'ar' : 'en' }),
+            body: JSON.stringify({ action: 'chat', query: withScope(textToSend), lang: isAr ? 'ar' : 'en' }),
           })
 
           const data = await res.json()
@@ -902,12 +952,23 @@ export default function FeryalAiCommandPage() {
       setIsCopilotThinking(false)
     }
     },
-    [inputText, isAr, playFeryalSpeech]
+    [inputText, isAr, playFeryalSpeech, withScope]
   )
 
   useEffect(() => {
     handleSendQueryRef.current = handleSendQuery
   }, [handleSendQuery])
+
+  // Pre-filled strategic query deep link — never opens the microphone, only sends text.
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get('q')
+    if (!q || !q.trim()) return
+    const timer = window.setTimeout(() => {
+      handleSendQueryRef.current?.(q.trim())
+      window.history.replaceState(null, '', window.location.pathname)
+    }, 450)
+    return () => window.clearTimeout(timer)
+  }, [])
 
   // Start Speech Recognition with Dual Engine: Web Speech API + MediaRecorder Whisper STT
   const startListening = useCallback(async () => {
@@ -1318,12 +1379,12 @@ export default function FeryalAiCommandPage() {
   return (
     <div
       dir={isAr ? 'rtl' : 'ltr'}
-      className="min-h-screen bg-[#F7F7F8] dark:bg-[#0A0A0A] text-slate-900 dark:text-slate-100 p-4 sm:p-6 md:p-8 space-y-8 font-sans antialiased"
+      className="ae-stagger text-slate-900 dark:text-slate-100 space-y-6 font-sans antialiased"
     >
       {/* ==================================================================== */}
       {/* 1. TOP EXECUTIVE HEADER (Clean, Solid, Zero Slop Gradients) */}
       {/* ==================================================================== */}
-      <div className="bg-white dark:bg-[#111827] rounded-2xl p-6 sm:p-7 shadow-xs ring-1 ring-slate-200/90 dark:ring-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="ae-tile rounded-2xl p-6 sm:p-7 flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-2">
           <div className="inline-flex items-center gap-2 rounded-full border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 px-3.5 py-1 text-xs font-bold text-slate-800 dark:text-slate-200">
             <Sparkles className="h-4 w-4 text-[#2563EB]" />
@@ -1348,17 +1409,17 @@ export default function FeryalAiCommandPage() {
               handleRunFirecrawl(isAr ? 'ar' : 'en')
               handleRunPlaywright(portalSelect, isAr ? 'ar' : 'en')
             }}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2.5 text-[13px] font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-xs"
+            className="ae-pill-light"
           >
             <RefreshCw className={`h-4 w-4 ${hubLoading ? 'animate-spin text-blue-600' : 'text-slate-500'}`} />
             <span>{isAr ? 'تحديث الاستخبارات المباشرة' : 'Refresh Market Intel'}</span>
           </button>
           <Link
-            href="/erp/sales-scorecard"
-            className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] hover:bg-blue-600 px-4 py-2.5 text-[13px] font-bold text-white transition-all shadow-xs"
+            href="/erp/sales-analysis"
+            className="ae-pill-dark"
           >
             <FileSpreadsheet className="h-4 w-4" />
-            <span>{isAr ? 'سجل المبيعات والأصناف' : 'Sales Scorecard'}</span>
+            <span>{isAr ? 'تحليل المبيعات والأصناف' : 'Sales & Items Analysis'}</span>
             <ChevronRight className={`h-4 w-4 ${isAr ? 'rotate-180' : ''}`} />
           </Link>
         </div>
@@ -1382,7 +1443,7 @@ export default function FeryalAiCommandPage() {
 
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {/* Card 1: Net Sales */}
-          <div className="bg-white dark:bg-[#111827] rounded-2xl p-5 sm:p-6 shadow-xs ring-1 ring-slate-200/90 dark:ring-slate-800">
+          <div className="ae-tile ae-lift rounded-2xl p-5 sm:p-6">
             <div className="flex items-center justify-between text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
               <span>{isAr ? 'صافي المبيعات المعتمدة' : 'Approved Net Sales'}</span>
               <DollarSign className="h-4 w-4 text-slate-500" />
@@ -1397,7 +1458,7 @@ export default function FeryalAiCommandPage() {
           </div>
 
           {/* Card 2: Operating Profit */}
-          <div className="bg-white dark:bg-[#111827] rounded-2xl p-5 sm:p-6 shadow-xs ring-1 ring-slate-200/90 dark:ring-slate-800">
+          <div className="ae-tile ae-lift rounded-2xl p-5 sm:p-6">
             <div className="flex items-center justify-between text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
               <span>{isAr ? 'صافي الربح التشغيلي' : 'Net Operating Profit'}</span>
               <TrendingUp className="h-4 w-4 text-emerald-600" />
@@ -1412,7 +1473,7 @@ export default function FeryalAiCommandPage() {
           </div>
 
           {/* Card 3: Food Cost */}
-          <div className="bg-white dark:bg-[#111827] rounded-2xl p-5 sm:p-6 shadow-xs ring-1 ring-slate-200/90 dark:ring-slate-800">
+          <div className="ae-tile ae-lift rounded-2xl p-5 sm:p-6">
             <div className="flex items-center justify-between text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
               <span>{isAr ? 'تكلفة الأغذية والمواد' : 'Food Cost (COGS)'}</span>
               <AlertTriangle className="h-4 w-4 text-amber-500" />
@@ -1427,7 +1488,7 @@ export default function FeryalAiCommandPage() {
           </div>
 
           {/* Card 4: Operating Expenses & Custody */}
-          <div className="bg-white dark:bg-[#111827] rounded-2xl p-5 sm:p-6 shadow-xs ring-1 ring-slate-200/90 dark:ring-slate-800">
+          <div className="ae-tile ae-lift rounded-2xl p-5 sm:p-6">
             <div className="flex items-center justify-between text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
               <span>{isAr ? 'المصروفات والعهد' : 'Opex & Custodies'}</span>
               <Layers className="h-4 w-4 text-slate-500" />
@@ -1442,7 +1503,7 @@ export default function FeryalAiCommandPage() {
           </div>
 
           {/* Card 5: Discounts (Keeta Alert) */}
-          <div className="col-span-2 sm:col-span-2 lg:col-span-1 bg-white dark:bg-[#111827] rounded-2xl p-5 sm:p-6 shadow-xs ring-1 ring-slate-200/90 dark:ring-slate-800">
+          <div className="col-span-2 sm:col-span-2 lg:col-span-1 ae-tile ae-lift rounded-2xl p-5 sm:p-6">
             <div className="flex items-center justify-between text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
               <span>{isAr ? 'الخصومات والعروض' : 'Promo Discounts'}</span>
               <ArrowDownRight className="h-4 w-4 text-rose-600" />
@@ -1458,7 +1519,7 @@ export default function FeryalAiCommandPage() {
         </div>
 
         {/* Operational Foundation Bar */}
-        <div className="bg-white dark:bg-[#111827] rounded-2xl p-4 sm:p-5 shadow-xs ring-1 ring-slate-200/90 dark:ring-slate-800 text-[13px] text-slate-700 dark:text-slate-300 flex flex-wrap items-center justify-between gap-4 font-semibold">
+        <div className="ae-tile rounded-2xl p-4 sm:p-5 text-[13px] text-slate-700 dark:text-slate-300 flex flex-wrap items-center justify-between gap-4 font-semibold">
           <div className="flex flex-wrap items-center gap-6">
             <div className="flex items-center gap-2">
               <Building2 className="h-4 w-4 text-blue-600" />
@@ -1496,13 +1557,12 @@ export default function FeryalAiCommandPage() {
       {/* ==================================================================== */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
         {/* ================================================================ */}
-        {/* LEFT COLUMN: THE COPILOT "FERYAL" & EXECUTIVE PULSE UNITS */}
+        {/* LEFT: FERYAL CHAT — 100% column-height parity with the right column */}
         {/* ================================================================ */}
-        <div className="lg:col-span-5 flex flex-col justify-between gap-5">
-          {/* 1. THE COPILOT "FERYAL" (Natural Voice & Text Engine) */}
-          <div className="bg-white dark:bg-[#111827] rounded-2xl shadow-xs ring-1 ring-slate-200/90 dark:ring-slate-800 flex flex-col overflow-hidden">
+        <div className="lg:col-span-7 flex flex-col">
+          <div className="ae-tile rounded-2xl flex flex-col overflow-hidden h-full">
             {/* Unified Compact Header Toolbar */}
-            <div className="bg-[#F7F7F8] dark:bg-slate-900/90 p-4 rounded-t-2xl ring-1 ring-slate-200/80 dark:ring-slate-800 flex flex-wrap items-center justify-between gap-3">
+            <div className="bg-slate-50/80 dark:bg-white/5 px-4 py-3 rounded-t-2xl border-b border-slate-200/70 dark:border-slate-700/60 flex flex-wrap 2xl:flex-nowrap items-center justify-between gap-3">
               {/* Left: Avatar + Title */}
               <div className="flex items-center gap-3">
                 <div className="relative shrink-0">
@@ -1520,8 +1580,8 @@ export default function FeryalAiCommandPage() {
                       <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                       <span>
                         {isAr
-                          ? '🧠 العقل: أرجون هاي · جيميناي 3.8 برو | 🔊 الصوت: نوفا'
-                          : '🧠 Brain: Argon High · Gemini 3.8 Pro | 🔊 Voice: Nova'}
+                          ? 'العقل: جيميناي أرجون هاي · الصوت: نوفا'
+                          : 'Brain: Gemini Argon High · Voice: Nova'}
                       </span>
                     </span>
                   </div>
@@ -1532,7 +1592,7 @@ export default function FeryalAiCommandPage() {
               </div>
 
               {/* Right: Compact Audio Toolbar */}
-              <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <div className="flex flex-nowrap items-center gap-2 shrink-0 overflow-x-auto max-w-full">
                 <button
                   type="button"
                   onClick={() => {
@@ -1546,7 +1606,7 @@ export default function FeryalAiCommandPage() {
                       : 'Welcome, Executive Leader. I am Feryal, your AI Executive Copilot.'
                     playFeryalSpeech(textToSpeak, 'manual-header-play')
                   }}
-                  className="px-3 py-1.5 rounded-xl bg-[#2563EB] hover:bg-blue-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-2xs transition-all shrink-0 cursor-pointer"
+                  className="ae-pill-dark ae-pill-sm shrink-0"
                   title={isAr ? 'الاستماع لصوت فريال' : 'Listen to Feryal Voice'}
                 >
                   <Volume2 className="h-3.5 w-3.5 shrink-0" />
@@ -1554,7 +1614,7 @@ export default function FeryalAiCommandPage() {
                 </button>
 
                 {/* Compact Audio Player */}
-                <audio ref={audioPlayerRef} controls preload="auto" className="h-9 w-48 sm:w-56 rounded-lg shadow-2xs" />
+                <audio ref={audioPlayerRef} controls preload="auto" className="h-8 w-40 sm:w-48 shrink-0 rounded-full" />
 
                 {/* Voice Status Toggle Pill */}
                 <button
@@ -1617,7 +1677,13 @@ export default function FeryalAiCommandPage() {
             </div>
 
             {/* Quick Action Pills Under Header */}
-            <div className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 p-2.5 flex items-center gap-2 overflow-x-auto no-scrollbar">
+            <div className="border-b border-slate-200/70 dark:border-slate-700/60 px-3 py-2.5 flex items-center gap-2 overflow-x-auto no-scrollbar">
+              {biScopeLabel ? (
+                <span className="ae-chip shrink-0" title={isAr ? 'نطاق التحليل النشط يُرسل مع كل سؤال' : 'Active BI scope is sent with every question'}>
+                  {isAr ? 'النطاق: ' : 'Scope: '}
+                  {biScopeLabel}
+                </span>
+              ) : null}
               {[
                 { ar: 'ما هو الفرع الأعلى ربحية ولماذا؟', en: 'Top profitable branch and why?' },
                 { ar: 'كيف نوفر 3,800 د.ك هذا الشهر؟', en: 'How to save 3,800 KWD this month?' },
@@ -1628,7 +1694,7 @@ export default function FeryalAiCommandPage() {
                   key={idx}
                   type="button"
                   onClick={() => handleSendQuery(isAr ? p.ar : p.en)}
-                  className="shrink-0 rounded-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1 text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-100 hover:text-slate-950 transition-all shadow-2xs cursor-pointer"
+                  className="ae-pill-light ae-pill-sm shrink-0"
                 >
                   {isAr ? p.ar : p.en}
                 </button>
@@ -1636,36 +1702,40 @@ export default function FeryalAiCommandPage() {
             </div>
 
             {/* Messages Log (Adaptive Height & Zero Empty White Space) */}
-            <div ref={chatScrollRef} className="flex-1 min-h-[320px] max-h-[440px] overflow-y-auto p-4 space-y-4 bg-slate-50/40 dark:bg-slate-950/20">
+            <div ref={chatScrollRef} className="flex-1 min-h-[340px] max-h-[460px] lg:max-h-[620px] overflow-y-auto p-4 space-y-4">
               {messages.map((m) => (
                 <div key={m.id} className={`flex flex-col ${m.sender === 'user' ? 'items-end' : 'items-start'}`}>
                   <div
                     className={`max-w-[95%] sm:max-w-[92%] rounded-2xl p-4 shadow-2xs leading-relaxed ${
                       m.sender === 'user'
-                        ? 'bg-[#2563EB] text-white rounded-br-none font-medium text-sm'
-                        : 'bg-[#F7F7F8] dark:bg-[#1A2234] text-slate-800 dark:text-slate-100 border border-slate-200/70 dark:border-slate-800 rounded-bl-none font-medium text-[14px]'
+                        ? 'ae-bubble-user rounded-br-none font-medium text-sm'
+                        : 'ae-tile-soft text-slate-800 dark:text-slate-100 rounded-bl-none font-medium text-[14px]'
                     }`}
                   >
-                    <p className="whitespace-pre-line leading-relaxed">{isAr ? m.textAr : m.textEn}</p>
+                    {m.sender === 'feryal' && m.id !== 'welcome' ? (
+                      <FeryalRichText text={isAr ? m.textAr : m.textEn} lang={isAr ? 'ar' : 'en'} />
+                    ) : (
+                      <p className="whitespace-pre-line leading-relaxed">{isAr ? m.textAr : m.textEn}</p>
+                    )}
 
                     {/* Rich Executive Briefing inside welcome message */}
                     {m.id === 'welcome' && (
                       <>
                         {/* 4 Mini KPI Tiles */}
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 pt-3 border-t border-slate-200 dark:border-slate-800">
-                          <div className="bg-white dark:bg-slate-900 rounded-xl p-2.5 ring-1 ring-slate-200/80 dark:ring-slate-800 shadow-2xs">
+                          <div className="ae-tile rounded-xl p-2.5">
                             <span className="text-[11px] font-bold text-slate-500 block">{isAr ? 'صافي المبيعات' : 'Net Sales'}</span>
                             <span className="font-extrabold text-slate-950 dark:text-white font-mono text-xs sm:text-sm">167,092 {isAr ? 'د.ك' : 'KWD'}</span>
                           </div>
-                          <div className="bg-white dark:bg-slate-900 rounded-xl p-2.5 ring-1 ring-slate-200/80 dark:ring-slate-800 shadow-2xs">
+                          <div className="ae-tile rounded-xl p-2.5">
                             <span className="text-[11px] font-bold text-emerald-600 block">{isAr ? 'الربح التشغيلي' : 'Operating Profit'}</span>
                             <span className="font-extrabold text-emerald-700 dark:text-emerald-400 font-mono text-xs sm:text-sm">42,441 {isAr ? 'د.ك' : 'KWD'} (25.4%)</span>
                           </div>
-                          <div className="bg-white dark:bg-slate-900 rounded-xl p-2.5 ring-1 ring-slate-200/80 dark:ring-slate-800 shadow-2xs">
+                          <div className="ae-tile rounded-xl p-2.5">
                             <span className="text-[11px] font-bold text-amber-600 block">{isAr ? 'تكلفة الأغذية' : 'COGS'}</span>
                             <span className="font-extrabold text-amber-700 dark:text-amber-400 font-mono text-xs sm:text-sm">24.8% {isAr ? 'مقابل 24.0%' : 'vs 24.0%'}</span>
                           </div>
-                          <div className="bg-white dark:bg-slate-900 rounded-xl p-2.5 ring-1 ring-slate-200/80 dark:ring-slate-800 shadow-2xs">
+                          <div className="ae-tile rounded-xl p-2.5">
                             <span className="text-[11px] font-bold text-blue-600 block">{isAr ? 'المستهدف السنوي' : 'Annual Target'}</span>
                             <span className="font-extrabold text-blue-700 dark:text-blue-400 font-mono text-xs sm:text-sm">600,978 {isAr ? 'د.ك' : 'KWD'}</span>
                           </div>
@@ -1681,7 +1751,7 @@ export default function FeryalAiCommandPage() {
                             <button
                               type="button"
                               onClick={() => handleSendQuery(isAr ? 'ما هو تقييم ربحية فرع السالمية مقارنة بباقي الفروع ولماذا يتصدر بـ 31,246 د.ك؟' : 'Analyze Salmiya vs Branches Profitability (+31,246 KWD Top Branch Analysis)')}
-                              className="text-start bg-white dark:bg-slate-900/90 p-3.5 rounded-xl ring-1 ring-slate-200/80 dark:ring-slate-800 hover:ring-slate-900/40 dark:hover:ring-slate-400 transition-all cursor-pointer shadow-2xs"
+                              className="ae-tile ae-lift text-start p-3.5 rounded-xl cursor-pointer"
                             >
                               <div className="flex items-center justify-between">
                                 <span className="font-bold text-xs text-slate-900 dark:text-white flex items-center gap-1.5">
@@ -1698,7 +1768,7 @@ export default function FeryalAiCommandPage() {
                             <button
                               type="button"
                               onClick={() => handleSendQuery(isAr ? 'كيف نعالج هدر الدواجن في المطبخ المركزي بالعارضية ونسترد 1,336 د.ك شهرياً؟' : 'Central Kitchen COGS Recovery (+1,336 KWD/mo Poultry Yield Plan)')}
-                              className="text-start bg-white dark:bg-slate-900/90 p-3.5 rounded-xl ring-1 ring-slate-200/80 dark:ring-slate-800 hover:ring-slate-900/40 dark:hover:ring-slate-400 transition-all cursor-pointer shadow-2xs"
+                              className="ae-tile ae-lift text-start p-3.5 rounded-xl cursor-pointer"
                             >
                               <div className="flex items-center justify-between">
                                 <span className="font-bold text-xs text-slate-900 dark:text-white flex items-center gap-1.5">
@@ -1715,7 +1785,7 @@ export default function FeryalAiCommandPage() {
                             <button
                               type="button"
                               onClick={() => handleSendQuery(isAr ? 'كيف نطبق سقف خصم 3.5% على كيتا ونطور مصفوفة طلبات جو وسوق طلبات؟' : 'Keeta 3.5% Cap & Tgo/TMP Matrix (+4,070 KWD/mo Promo & Combo Fix)')}
-                              className="text-start bg-white dark:bg-slate-900/90 p-3.5 rounded-xl ring-1 ring-slate-200/80 dark:ring-slate-800 hover:ring-slate-900/40 dark:hover:ring-slate-400 transition-all cursor-pointer shadow-2xs"
+                              className="ae-tile ae-lift text-start p-3.5 rounded-xl cursor-pointer"
                             >
                               <div className="flex items-center justify-between">
                                 <span className="font-bold text-xs text-slate-900 dark:text-white flex items-center gap-1.5">
@@ -1732,7 +1802,7 @@ export default function FeryalAiCommandPage() {
                             <button
                               type="button"
                               onClick={() => handleSendQuery(isAr ? 'اعرض خارطة طريق التدفقات النقدية للربع الأول (+20.5 ألف د.ك) والعام الكامل (600.9 ألف د.ك)' : 'Q1 (+20.5K) & Full-Year (600.9K KWD) — 12-Month Executive Cashflow Roadmap')}
-                              className="text-start bg-white dark:bg-slate-900/90 p-3.5 rounded-xl ring-1 ring-slate-200/80 dark:ring-slate-800 hover:ring-slate-900/40 dark:hover:ring-slate-400 transition-all cursor-pointer shadow-2xs"
+                              className="ae-tile ae-lift text-start p-3.5 rounded-xl cursor-pointer"
                             >
                               <div className="flex items-center justify-between">
                                 <span className="font-bold text-xs text-slate-900 dark:text-white flex items-center gap-1.5">
@@ -1762,21 +1832,27 @@ export default function FeryalAiCommandPage() {
                       </div>
                     )}
 
-                    {/* Audio Listen Button under Feryal messages */}
+                    {/* Per-message Copy & Listen pills */}
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => copyMessage(m.id, isAr ? m.textAr : m.textEn)}
+                      className="ae-pill-light ae-pill-sm"
+                    >
+                      {copiedMsgId === m.id ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                      <span>{copiedMsgId === m.id ? (isAr ? 'تم النسخ' : 'Copied') : isAr ? 'نسخ' : 'Copy'}</span>
+                    </button>
                     {m.sender === 'feryal' && (
                       <button
                         type="button"
                         onClick={() => playFeryalSpeech(isAr ? m.textAr : m.textEn, m.id)}
-                        className={`mt-3 inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border transition-all ${
-                          playingMsgId === m.id
-                            ? 'bg-blue-600 text-white border-blue-600 animate-pulse'
-                            : 'text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 border-blue-200 dark:border-blue-900'
-                        }`}
+                        className={playingMsgId === m.id ? 'ae-pill-dark ae-pill-sm animate-pulse' : 'ae-pill-light ae-pill-sm'}
                       >
                         <Volume2 className="h-3.5 w-3.5" />
-                        <span>{isAr ? (playingMsgId === m.id ? '🔊 فريال تتحدث الآن...' : '🔊 استمع الآن لصوت فريال') : (playingMsgId === m.id ? '🔊 Feryal is speaking...' : '🔊 Listen to Feryal')}</span>
+                        <span>{isAr ? (playingMsgId === m.id ? 'فريال تتحدث الآن…' : 'استماع') : (playingMsgId === m.id ? 'Feryal is speaking…' : 'Listen')}</span>
                       </button>
                     )}
+                    </div>
                   </div>
                   <span className="text-[11px] text-slate-500 font-semibold mt-1 px-1">{m.time}</span>
                 </div>
@@ -1846,7 +1922,7 @@ export default function FeryalAiCommandPage() {
             )}
 
             {/* Bottom Prominent Input Bar */}
-            <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-3.5 sm:p-4">
+            <div className="border-t border-slate-200/70 dark:border-slate-700/60 p-3.5 sm:p-4">
               {micToast && (
                 <div className="mb-2 px-3 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 text-xs font-semibold text-amber-800 dark:text-amber-300 flex items-center justify-between">
                   <span>{micToast}</span>
@@ -1908,7 +1984,7 @@ export default function FeryalAiCommandPage() {
                 <button
                   type="submit"
                   disabled={!inputText.trim()}
-                  className="rounded-xl bg-[#2563EB] hover:bg-blue-600 px-5 py-3 text-white font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-xs flex items-center gap-1.5 shrink-0"
+                  className="ae-pill-dark !px-5 !py-3 !text-sm shrink-0"
                 >
                   <span>{isAr ? 'إرسال' : 'Send'}</span>
                   <Send className={`h-4 w-4 ${isAr ? 'rotate-180' : ''}`} />
@@ -1916,9 +1992,14 @@ export default function FeryalAiCommandPage() {
               </form>
             </div>
           </div>
+        </div>
 
+        {/* ================================================================ */}
+        {/* RIGHT: ARGON ANOMALY RADAR + 6-BRAND & 11-CHANNEL PROFIT PULSE */}
+        {/* ================================================================ */}
+        <div className="lg:col-span-5 flex flex-col gap-5">
           {/* 2. CARD A: ARGON HIGH REAL-TIME ODOO AUDIT RADAR */}
-          <div className="bg-white dark:bg-[#111827] rounded-2xl p-5 shadow-xs ring-1 ring-slate-200/80 dark:ring-slate-800 space-y-3.5">
+          <div className="ae-tile rounded-2xl p-5 space-y-3.5 flex-1 flex flex-col justify-between">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="h-8 w-8 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
@@ -1940,7 +2021,7 @@ export default function FeryalAiCommandPage() {
 
             <div className="space-y-2.5">
               {/* Sub-card 1: Ardiya Central Kitchen */}
-              <div className="p-3 rounded-xl ring-1 ring-slate-200/80 dark:ring-slate-800 bg-[#F7F7F8] dark:bg-slate-900/60 flex items-center justify-between gap-3">
+              <div className="p-3 rounded-xl ae-tile-soft flex items-center justify-between gap-3">
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-slate-900 dark:text-white">
@@ -1959,14 +2040,14 @@ export default function FeryalAiCommandPage() {
                 <button
                   type="button"
                   onClick={() => handleSendQuery(isAr ? 'حللي قيود المطبخ المركزي بالعارضية (418 قيداً بقيمة 41,438.856 د.ك) وخطة استرداد 1,336 د.ك شهرياً' : 'Analyze Ardiya Central Kitchen (418 entries | 41,438.856 KWD) and the +1,336 KWD/mo recovery plan')}
-                  className="shrink-0 text-xs font-bold text-blue-700 dark:text-blue-400 hover:bg-blue-100 px-2.5 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/40 ring-1 ring-blue-200 dark:ring-blue-900 cursor-pointer"
+                  className="ae-pill-dark ae-pill-sm shrink-0"
                 >
                   {isAr ? 'تحليل صوتي مع فريال' : 'Analyze with Feryal'}
                 </button>
               </div>
 
               {/* Sub-card 2: Al-Kout & Salmiya Maintenance Custody */}
-              <div className="p-3 rounded-xl ring-1 ring-slate-200/80 dark:ring-slate-800 bg-[#F7F7F8] dark:bg-slate-900/60 flex items-center justify-between gap-3">
+              <div className="p-3 rounded-xl ae-tile-soft flex items-center justify-between gap-3">
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-slate-900 dark:text-white">
@@ -1978,21 +2059,21 @@ export default function FeryalAiCommandPage() {
                   </div>
                   <p className="text-[11px] text-slate-600 dark:text-slate-400">
                     {isAr
-                      ? 'من إجمالي 2,213 قيد مصروفات — التحول لعقد صيانة وقائي يوفر +1,680 د.ك/شهرياً'
-                      : 'Out of 2,213 Opex entries — Preventive contract saves +1,680 KWD/mo'}
+                      ? 'من إجمالي 2,213 قيد مصروفات — تجديد المبردات التجارية يسترد +850 د.ك/شهرياً'
+                      : 'Out of 2,213 Opex entries — Commercial chiller overhaul recovers +850 KWD/mo'}
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => handleSendQuery(isAr ? 'حللي عهد صيانة الكوت والسالمية (312 قيداً بقيمة 10,707.930 د.ك) وكيف نغلقها ونوفر التكاليف؟' : 'Analyze Al-Kout & Salmiya Maintenance Custody (312 entries | 10,707.930 KWD) and cost reduction plan')}
-                  className="shrink-0 text-xs font-bold text-blue-700 dark:text-blue-400 hover:bg-blue-100 px-2.5 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/40 ring-1 ring-blue-200 dark:ring-blue-900 cursor-pointer"
+                  className="ae-pill-dark ae-pill-sm shrink-0"
                 >
                   {isAr ? 'تحليل صوتي مع فريال' : 'Analyze with Feryal'}
                 </button>
               </div>
 
               {/* Sub-card 3: Keeta Settlements & Discounts */}
-              <div className="p-3 rounded-xl ring-1 ring-slate-200/80 dark:ring-slate-800 bg-[#F7F7F8] dark:bg-slate-900/60 flex items-center justify-between gap-3">
+              <div className="p-3 rounded-xl ae-tile-soft flex items-center justify-between gap-3">
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-slate-900 dark:text-white">
@@ -2004,14 +2085,14 @@ export default function FeryalAiCommandPage() {
                   </div>
                   <p className="text-[11px] text-slate-600 dark:text-slate-400">
                     {isAr
-                      ? 'من أصل 4,152 د.ك خصومات كلية — تفعيل سقف 3.5% يوفر +1,520 د.ك/شهرياً'
-                      : 'Out of 4,152 KWD total discounts — 3.5% cap recovers +1,520 KWD/mo'}
+                      ? 'من أصل 4,152 د.ك خصومات كلية — سقف 3.5% (924 د.ك) يسترد +1,620 د.ك/شهرياً'
+                      : 'Out of 4,152 KWD total discounts — 3.5% cap (924 KWD) recovers +1,620 KWD/mo'}
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => handleSendQuery(isAr ? 'حللي تسويات وخصومات منصة كيتا (6,267 طلباً و2,544 د.ك خصومات) وأثر سقف 3.5%' : 'Analyze Keeta Settlements & Discounts (6,267 orders | 2,544 KWD discounts) and the 3.5% promo cap')}
-                  className="shrink-0 text-xs font-bold text-blue-700 dark:text-blue-400 hover:bg-blue-100 px-2.5 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/40 ring-1 ring-blue-200 dark:ring-blue-900 cursor-pointer"
+                  className="ae-pill-dark ae-pill-sm shrink-0"
                 >
                   {isAr ? 'تحليل صوتي مع فريال' : 'Analyze with Feryal'}
                 </button>
@@ -2020,7 +2101,7 @@ export default function FeryalAiCommandPage() {
           </div>
 
           {/* 3. CARD B: VENTURE FOODS 6-BRAND & 11-CHANNEL PULSE */}
-          <div className="bg-white dark:bg-[#111827] rounded-2xl p-5 shadow-xs ring-1 ring-slate-200/80 dark:ring-slate-800 space-y-4">
+          <div className="ae-tile rounded-2xl p-5 space-y-4 flex-1 flex flex-col justify-between">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="h-8 w-8 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center">
@@ -2099,12 +2180,239 @@ export default function FeryalAiCommandPage() {
             </div>
           </div>
         </div>
+      </div>
 
-        {/* ================================================================ */}
-        {/* RIGHT COLUMN: THE FOUR-STAGE STRATEGIC ANALYSIS ENGINE */}
-        {/* ================================================================ */}
-        <div className="lg:col-span-7 flex flex-col justify-between gap-5">
-          <div className="bg-white dark:bg-[#111827] rounded-2xl p-6 sm:p-7 shadow-xs ring-1 ring-slate-200/90 dark:ring-slate-800 space-y-6 flex-1">
+      {/* ==================================================================== */}
+      {/* 4. THE FOUR SMART SERVICES GATEWAY (Clean 2x2 Grid of 4 Cards) */}
+      {/* ==================================================================== */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="h-2.5 w-2.5 rounded-full bg-emerald-600" />
+            <h2 className="text-lg md:text-xl font-bold text-slate-900 dark:text-white">
+              {isAr ? 'رابعاً: بوابة الخدمات الذكية الأربع (استخبارات السوق والمنافسين والأتمتة)' : '4. The Four Smart Services Gateways (Market, Competitors & Automation)'}
+            </h2>
+          </div>
+          <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{isAr ? 'بوابة الوكلاء الذكية' : 'Multi-Agent Gateway'}</span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {/* CARD 1: PERPLEXITY SONAR-PRO */}
+          <div className="ae-tile ae-lift rounded-2xl p-6 space-y-4 flex flex-col justify-between">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[15px] font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Search className="h-4 w-4 text-blue-600" />
+                  <span>{isAr ? '1. محرك استخبارات السوق اللحظي (بيربلكسيتي)' : '1. Real-Time Market Intelligence (Perplexity)'}</span>
+                </span>
+                <span className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2.5 py-0.5 rounded-full font-bold">
+                  {isAr ? 'سوق الشويخ للجملة' : 'Kuwait Wholesale Feed'}
+                </span>
+              </div>
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-400 leading-relaxed">
+                {isAr
+                  ? 'رصد أسعار الجملة بسوق الشويخ (الدجاج المجمد، زيوت القلي)، التضخم، ومؤشر تأثير الطقس والمناسبات على الطلبات.'
+                  : 'Track wholesale commodity inflation in Shuwaikh markets and weather delivery elasticity.'}
+              </p>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="text"
+                  value={perplexityQuery}
+                  onChange={(e) => setPerplexityQuery(e.target.value)}
+                  placeholder={isAr ? 'ابحث في سوق المطاعم الكويتي...' : 'Search Kuwait restaurant market...'}
+                  className="flex-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-3.5 py-2.5 text-xs sm:text-[13px] font-medium text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+                />
+                <button
+                  onClick={() => handleRunPerplexity(perplexityQuery, isAr ? 'ar' : 'en')}
+                  disabled={hubLoading}
+                  className="ae-pill-dark shrink-0"
+                >
+                  {isAr ? 'بحث لحظي' : 'Query'}
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 dark:bg-slate-900/70 rounded-xl p-4 border border-slate-200 dark:border-slate-800 text-xs sm:text-[13px] text-slate-800 dark:text-slate-200 font-medium whitespace-pre-line leading-relaxed max-h-48 overflow-y-auto">
+              {perplexityResponse || (isAr ? 'جاري تحليل السوق الكويتي...' : 'Fetching market report...')}
+            </div>
+          </div>
+
+          {/* CARD 2: FIRECRAWL COMPETITOR SCRAPER */}
+          <div className="ae-tile ae-lift rounded-2xl p-6 space-y-4 flex flex-col justify-between">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[15px] font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Layers className="h-4 w-4 text-emerald-600" />
+                  <span>{isAr ? '2. كاشف قوائم وأسعار المنافسين (فاير كرول)' : '2. Competitor Menu & Price Scraper (Firecrawl)'}</span>
+                </span>
+                <span className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2.5 py-0.5 rounded-full font-bold">
+                  {isAr ? 'مقارنة أسعار المنافسين' : 'Competitor Pricing'}
+                </span>
+              </div>
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-400 leading-relaxed">
+                {isAr
+                  ? 'استخراج منيو وأسعار المنافسين ومقارنتها مباشرة مع أصنافنا بالدينار الكويتي لإصدار توصيات التسعير.'
+                  : 'Scrape competitor items and benchmark pricing in KWD against China Garden & Frank’s.'}
+              </p>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="text"
+                  value={firecrawlUrl}
+                  onChange={(e) => setFirecrawlUrl(e.target.value)}
+                  placeholder="https://www.talabat.com/kuwait/restaurant/..."
+                  className="flex-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-3.5 py-2.5 text-xs font-mono text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+                />
+                <button
+                  onClick={() => handleRunFirecrawl(isAr ? 'ar' : 'en')}
+                  disabled={hubLoading}
+                  className="ae-pill-dark shrink-0"
+                >
+                  {isAr ? 'مقارنة' : 'Compare'}
+                </button>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/70 max-h-48">
+              <table className="w-full text-start text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-bold">
+                    <th className="py-2.5 px-3 text-start">{isAr ? 'صنف المنافس' : 'Item'}</th>
+                    <th className="py-2.5 px-3 text-start">{isAr ? 'سعره' : 'Comp'}</th>
+                    <th className="py-2.5 px-3 text-start">{isAr ? 'سعرنا' : 'Our'}</th>
+                    <th className="py-2.5 px-3 text-start">{isAr ? 'الفارق' : 'Diff'}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-slate-800 dark:text-slate-200 font-medium">
+                  {competitorItems.slice(0, 3).map((item, i) => (
+                    <tr key={i}>
+                      <td className="py-2 px-3 font-bold text-slate-900 dark:text-white">
+                        {isAr ? (item.competitorItemAr || item.name) : (item.competitorItem || item.name)}
+                      </td>
+                      <td className="py-2 px-3 font-mono">{item.competitorPriceKwd?.toFixed(3)}</td>
+                      <td className="py-2 px-3 font-mono font-bold text-emerald-700 dark:text-emerald-400">{item.ourPriceKwd?.toFixed(3)}</td>
+                      <td className="py-2 px-3 font-mono font-bold text-blue-700 dark:text-blue-400">{item.diffPct}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* CARD 3: PLAYWRIGHT PORTAL WATCHDOG */}
+          <div className="ae-tile ae-lift rounded-2xl p-6 space-y-4 flex flex-col justify-between">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[15px] font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-blue-600" />
+                  <span>{isAr ? '3. المراقب الآلي لبوابات التوصيل (بلاي رايت)' : '3. Delivery Aggregator Watchdog (Playwright)'}</span>
+                </span>
+                <span className="text-xs bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 px-2.5 py-0.5 rounded-full font-bold">
+                  {isAr ? '9/9 فروع متصلة بالكامل' : '9/9 Branches Online'}
+                </span>
+              </div>
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-400 leading-relaxed">
+                {isAr
+                  ? 'مراقبة اتصال بوابات التوصيل (طلبات، كيتا، دليفرو) ونسب العمولة وتجنب الإيقاف المؤقت للفروع.'
+                  : 'Headless watchdog verifying Talabat Tgo/TMP, Keeta, and Deliveroo merchant hub status.'}
+              </p>
+
+              <div className="flex items-center gap-2 pt-1">
+                {(['talabat', 'keeta', 'deliveroo'] as const).map((p) => {
+                  const label = isAr
+                    ? p === 'talabat'
+                      ? 'بوابة طلبات'
+                      : p === 'keeta'
+                      ? 'بوابة كيتا'
+                      : 'بوابة دليفرو'
+                    : `${p.toUpperCase()} Portal`
+                  return (
+                    <button
+                      key={p}
+                      onClick={() => {
+                        setPortalSelect(p)
+                        handleRunPlaywright(p, isAr ? 'ar' : 'en')
+                      }}
+                      className={portalSelect === p ? 'ae-pill-dark ae-pill-sm' : 'ae-pill-light ae-pill-sm'}
+                    >
+                      {label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {portalHealthData && (
+              <div className="bg-slate-50 dark:bg-slate-900/70 rounded-xl p-4 border border-slate-200 dark:border-slate-800 space-y-2 text-xs font-semibold text-slate-800 dark:text-slate-200">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-900 dark:text-white font-extrabold">{portalHealthData.name}</span>
+                  <span className="text-emerald-700 dark:text-emerald-400 font-extrabold">{portalHealthData.status}</span>
+                </div>
+                <div className="text-slate-600 dark:text-slate-400 text-[11px] font-medium font-mono">{portalHealthData.url}</div>
+                {portalHealthData.burnRateMonthly && (
+                  <div className="bg-rose-50 dark:bg-rose-950/40 p-2 rounded-lg border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-300 text-xs">
+                    {portalHealthData.burnRateMonthly}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* CARD 4: COMPOSIO AUTOMATED DISPATCH */}
+          <div className="ae-tile ae-lift rounded-2xl p-6 space-y-4 flex flex-col justify-between">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[15px] font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Zap className="h-4 w-4 text-amber-500" />
+                  <span>{isAr ? '4. منسق التنفيذ التلقائي للمهام (كومبوزيو)' : '4. Automated Workflow Orchestrator (Composio)'}</span>
+                </span>
+                <span className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2.5 py-0.5 rounded-full font-bold">
+                  {isAr ? 'أتمتة المهام التنفيذية' : 'Workflow Automation'}
+                </span>
+              </div>
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-400 leading-relaxed">
+                {isAr
+                  ? 'بث التكليفات لمدراء الفروع عبر واتساب، وتحديث تقارير أودو في جداول جوجل، وإرسال تنبيهات الإدارة عبر البريد.'
+                  : 'Automated executive dispatch across WhatsApp, Google Sheets, and executive Gmail.'}
+              </p>
+
+              <div className="grid grid-cols-3 gap-2 text-center text-xs font-bold pt-1">
+                <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-slate-800 dark:text-slate-200 flex items-center justify-center gap-1">
+                  <MessageSquare className="h-3.5 w-3.5 text-emerald-600" />
+                  <span>{isAr ? 'واتساب' : 'WhatsApp'}</span>
+                </div>
+                <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-slate-800 dark:text-slate-200 flex items-center justify-center gap-1">
+                  <Mail className="h-3.5 w-3.5 text-blue-600" />
+                  <span>{isAr ? 'البريد التنفيذي' : 'Gmail'}</span>
+                </div>
+                <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-slate-800 dark:text-slate-200 flex items-center justify-center gap-1">
+                  <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
+                  <span>{isAr ? 'جداول البيانات' : 'Sheets'}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 dark:bg-slate-900/70 rounded-xl p-3 border border-slate-200 dark:border-slate-800 space-y-1.5 max-h-48 overflow-y-auto">
+              {dispatchedLogs.map((log, i) => (
+                <div key={i} className="flex items-center justify-between text-xs font-medium text-slate-700 dark:text-slate-300">
+                  <span className="font-mono text-slate-500 font-bold">[{log.time}]</span>
+                  <span className="truncate max-w-[200px]">{log.msg}</span>
+                  <span className="text-[10px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded font-bold">
+                    {log.channel}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ==================================================================== */}
+      {/* 5. FOUR-STAGE STRATEGIC ENGINE + LIVE WHAT-IF PROFIT CALCULATOR */}
+      {/* ==================================================================== */}
+      <section>
+          <div className="ae-tile rounded-2xl p-6 sm:p-7 space-y-6">
             {/* Header with 4-stage Breadcrumbs */}
             <div>
               <div className="flex items-center gap-2 mb-2">
@@ -2116,7 +2424,7 @@ export default function FeryalAiCommandPage() {
                 </span>
               </div>
               <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">
-                {isAr ? 'ثانياً: محرك التحليل الاستراتيجي الرباعي' : '2. Four-Stage Strategic Analysis Engine'}
+                {isAr ? 'خامساً: محرك التحليل الاستراتيجي الرباعي' : '5. Four-Stage Strategic Analysis Engine'}
               </h3>
               <div className="mt-3.5 grid grid-cols-4 gap-2 text-center text-xs font-bold">
                 <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 p-2.5 text-emerald-800 dark:text-emerald-300">
@@ -2128,7 +2436,7 @@ export default function FeryalAiCommandPage() {
                 <div className="rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 p-2.5 text-slate-900 dark:text-white">
                   3. {isAr ? 'الخطط التنفيذية' : 'Execution Plans'}
                 </div>
-                <div className="rounded-xl bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800 p-2.5 text-indigo-800 dark:text-indigo-300">
+                <div className="rounded-xl bg-sky-50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-800 p-2.5 text-sky-800 dark:text-sky-300">
                   4. {isAr ? 'النتائج المالية' : 'Projections'}
                 </div>
               </div>
@@ -2212,7 +2520,9 @@ export default function FeryalAiCommandPage() {
                   <Clock className="h-4 w-4" />
                   <span>{isAr ? 'المرحلة 3: الخطط التنفيذية والأتمتة' : 'Stage 3: Weekly Execution Plans & Automation'}</span>
                 </h4>
-                <span className="text-xs text-slate-600 dark:text-slate-400 font-bold">{isAr ? '4 أسابيع مجدولة' : '4 Weeks Roadmapped'}</span>
+                <span className="text-xs text-slate-600 dark:text-slate-400 font-bold">{isAr
+                    ? `${Object.values(planApproval).filter((s) => s === 'approved').length} من 4 معتمدة`
+                    : `${Object.values(planApproval).filter((s) => s === 'approved').length} of 4 approved`}</span>
               </div>
 
               <div className="space-y-3">
@@ -2234,6 +2544,18 @@ export default function FeryalAiCommandPage() {
                       <div className="text-xs text-emerald-700 dark:text-emerald-400 font-bold">
                         {isAr ? `🎯 الهدف: ${plan.targetKpiAr}` : `🎯 Target: ${plan.targetKpiEn}`}
                       </div>
+                      <div className="ae-seg mt-1" role="group" aria-label={isAr ? 'حالة التنفيذ' : 'Execution status'}>
+                        {(['planned', 'in-progress', 'approved'] as const).map((st) => (
+                          <button
+                            key={st}
+                            type="button"
+                            data-active={(planApproval[plan.id] ?? (plan.status === 'completed' ? 'approved' : plan.status === 'running' ? 'in-progress' : 'planned')) === st}
+                            onClick={() => setPlanApproval((prev) => ({ ...prev, [plan.id]: st }))}
+                          >
+                            {isAr ? PLAN_STATUS_LABEL[st].ar : PLAN_STATUS_LABEL[st].en}
+                          </button>
+                        ))}
+                      </div>
                     </div>
 
                     <button
@@ -2245,7 +2567,7 @@ export default function FeryalAiCommandPage() {
                           ? 'bg-emerald-100 dark:bg-emerald-950 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
                           : plan.status === 'running'
                           ? 'bg-blue-100 dark:bg-blue-950 border border-blue-400 text-blue-800 dark:text-blue-300 animate-pulse'
-                          : 'bg-[#0F172A] hover:bg-slate-800 dark:bg-blue-600 dark:hover:bg-blue-500 text-white shadow-xs'
+                          : 'ae-pill-dark'
                       }`}
                     >
                       {plan.status === 'completed' ? (
@@ -2406,244 +2728,16 @@ export default function FeryalAiCommandPage() {
                 </div>
               </div>
             </div>
+
+            {/* LIVE WHAT-IF PROFIT IMPACT CALCULATOR (toggle levers & execution status) */}
+            <FeryalWhatIfCalculator lang={isAr ? 'ar' : 'en'} onAsk={(q) => handleSendQuery(q)} />
           </div>
-        </div>
-      </div>
-
-      {/* ==================================================================== */}
-      {/* 4. THE FOUR SMART SERVICES GATEWAY (Clean 2x2 Grid of 4 Cards) */}
-      {/* ==================================================================== */}
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="h-2.5 w-2.5 rounded-full bg-emerald-600" />
-            <h2 className="text-lg md:text-xl font-bold text-slate-900 dark:text-white">
-              {isAr ? 'رابعاً: بوابة الخدمات الذكية الأربع (استخبارات السوق والمنافسين والأتمتة)' : '4. The Four Smart Services Gateway (Market, Competitors & Automation)'}
-            </h2>
-          </div>
-          <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{isAr ? 'بوابة الوكلاء الذكية' : 'Multi-Agent Gateway'}</span>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {/* CARD 1: PERPLEXITY SONAR-PRO */}
-          <div className="bg-white dark:bg-[#111827] rounded-2xl p-6 shadow-xs ring-1 ring-slate-200/90 dark:ring-slate-800 space-y-4 flex flex-col justify-between">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[15px] font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Search className="h-4 w-4 text-blue-600" />
-                  <span>{isAr ? '1. محرك استخبارات السوق اللحظي (بيربلكسيتي)' : '1. Real-Time Market Intelligence (Perplexity)'}</span>
-                </span>
-                <span className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2.5 py-0.5 rounded-full font-bold">
-                  {isAr ? 'سوق الشويخ للجملة' : 'Kuwait Wholesale Feed'}
-                </span>
-              </div>
-              <p className="text-sm font-medium text-slate-600 dark:text-slate-400 leading-relaxed">
-                {isAr
-                  ? 'رصد أسعار الجملة بسوق الشويخ (الدجاج المجمد، زيوت القلي)، التضخم، ومؤشر تأثير الطقس والمناسبات على الطلبات.'
-                  : 'Track wholesale commodity inflation in Shuwaikh markets and weather delivery elasticity.'}
-              </p>
-
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="text"
-                  value={perplexityQuery}
-                  onChange={(e) => setPerplexityQuery(e.target.value)}
-                  placeholder={isAr ? 'ابحث في سوق المطاعم الكويتي...' : 'Search Kuwait restaurant market...'}
-                  className="flex-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-3.5 py-2.5 text-xs sm:text-[13px] font-medium text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
-                />
-                <button
-                  onClick={() => handleRunPerplexity(perplexityQuery, isAr ? 'ar' : 'en')}
-                  disabled={hubLoading}
-                  className="rounded-xl bg-[#2563EB] hover:bg-blue-600 px-4 py-2.5 text-xs font-bold text-white transition-all shrink-0 shadow-xs"
-                >
-                  {isAr ? 'بحث لحظي' : 'Query'}
-                </button>
-              </div>
-            </div>
-
-            <div className="bg-slate-50 dark:bg-slate-900/70 rounded-xl p-4 border border-slate-200 dark:border-slate-800 text-xs sm:text-[13px] text-slate-800 dark:text-slate-200 font-medium whitespace-pre-line leading-relaxed max-h-48 overflow-y-auto">
-              {perplexityResponse || (isAr ? 'جاري تحليل السوق الكويتي...' : 'Fetching market report...')}
-            </div>
-          </div>
-
-          {/* CARD 2: FIRECRAWL COMPETITOR SCRAPER */}
-          <div className="bg-white dark:bg-[#111827] rounded-2xl p-6 shadow-xs ring-1 ring-slate-200/90 dark:ring-slate-800 space-y-4 flex flex-col justify-between">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[15px] font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Layers className="h-4 w-4 text-emerald-600" />
-                  <span>{isAr ? '2. كاشف قوائم وأسعار المنافسين (فاير كرول)' : '2. Competitor Menu & Price Scraper (Firecrawl)'}</span>
-                </span>
-                <span className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2.5 py-0.5 rounded-full font-bold">
-                  {isAr ? 'مقارنة أسعار المنافسين' : 'Competitor Pricing'}
-                </span>
-              </div>
-              <p className="text-sm font-medium text-slate-600 dark:text-slate-400 leading-relaxed">
-                {isAr
-                  ? 'استخراج منيو وأسعار المنافسين ومقارنتها مباشرة مع أصنافنا بالدينار الكويتي لإصدار توصيات التسعير.'
-                  : 'Scrape competitor items and benchmark pricing in KWD against China Garden & Frank’s.'}
-              </p>
-
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="text"
-                  value={firecrawlUrl}
-                  onChange={(e) => setFirecrawlUrl(e.target.value)}
-                  placeholder="https://www.talabat.com/kuwait/restaurant/..."
-                  className="flex-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-3.5 py-2.5 text-xs font-mono text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
-                />
-                <button
-                  onClick={() => handleRunFirecrawl(isAr ? 'ar' : 'en')}
-                  disabled={hubLoading}
-                  className="rounded-xl bg-[#2563EB] hover:bg-blue-600 px-4 py-2.5 text-xs font-bold text-white transition-all shrink-0 shadow-xs"
-                >
-                  {isAr ? 'مقارنة' : 'Compare'}
-                </button>
-              </div>
-            </div>
-
-            <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/70 max-h-48">
-              <table className="w-full text-start text-xs">
-                <thead>
-                  <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-bold">
-                    <th className="py-2.5 px-3 text-start">{isAr ? 'صنف المنافس' : 'Item'}</th>
-                    <th className="py-2.5 px-3 text-start">{isAr ? 'سعره' : 'Comp'}</th>
-                    <th className="py-2.5 px-3 text-start">{isAr ? 'سعرنا' : 'Our'}</th>
-                    <th className="py-2.5 px-3 text-start">{isAr ? 'الفارق' : 'Diff'}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-slate-800 dark:text-slate-200 font-medium">
-                  {competitorItems.slice(0, 3).map((item, i) => (
-                    <tr key={i}>
-                      <td className="py-2 px-3 font-bold text-slate-900 dark:text-white">
-                        {isAr ? (item.competitorItemAr || item.name) : (item.competitorItem || item.name)}
-                      </td>
-                      <td className="py-2 px-3 font-mono">{item.competitorPriceKwd?.toFixed(3)}</td>
-                      <td className="py-2 px-3 font-mono font-bold text-emerald-700 dark:text-emerald-400">{item.ourPriceKwd?.toFixed(3)}</td>
-                      <td className="py-2 px-3 font-mono font-bold text-blue-700 dark:text-blue-400">{item.diffPct}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* CARD 3: PLAYWRIGHT PORTAL WATCHDOG */}
-          <div className="bg-white dark:bg-[#111827] rounded-2xl p-6 shadow-xs ring-1 ring-slate-200/90 dark:ring-slate-800 space-y-4 flex flex-col justify-between">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[15px] font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <ShieldCheck className="h-4 w-4 text-blue-600" />
-                  <span>{isAr ? '3. المراقب الآلي لبوابات التوصيل (بلاي رايت)' : '3. Delivery Aggregator Watchdog (Playwright)'}</span>
-                </span>
-                <span className="text-xs bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 px-2.5 py-0.5 rounded-full font-bold">
-                  {isAr ? '9/9 فروع متصلة بالكامل' : '9/9 Branches Online'}
-                </span>
-              </div>
-              <p className="text-sm font-medium text-slate-600 dark:text-slate-400 leading-relaxed">
-                {isAr
-                  ? 'مراقبة اتصال بوابات التوصيل (طلبات، كيتا، دليفرو) ونسب العمولة وتجنب الإيقاف المؤقت للفروع.'
-                  : 'Headless watchdog verifying Talabat Tgo/TMP, Keeta, and Deliveroo merchant hub status.'}
-              </p>
-
-              <div className="flex items-center gap-2 pt-1">
-                {(['talabat', 'keeta', 'deliveroo'] as const).map((p) => {
-                  const label = isAr
-                    ? p === 'talabat'
-                      ? 'بوابة طلبات'
-                      : p === 'keeta'
-                      ? 'بوابة كيتا'
-                      : 'بوابة دليفرو'
-                    : `${p.toUpperCase()} Portal`
-                  return (
-                    <button
-                      key={p}
-                      onClick={() => {
-                        setPortalSelect(p)
-                        handleRunPlaywright(p, isAr ? 'ar' : 'en')
-                      }}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                        portalSelect === p
-                          ? 'bg-[#0F172A] text-white shadow-2xs'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            {portalHealthData && (
-              <div className="bg-slate-50 dark:bg-slate-900/70 rounded-xl p-4 border border-slate-200 dark:border-slate-800 space-y-2 text-xs font-semibold text-slate-800 dark:text-slate-200">
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-900 dark:text-white font-extrabold">{portalHealthData.name}</span>
-                  <span className="text-emerald-700 dark:text-emerald-400 font-extrabold">{portalHealthData.status}</span>
-                </div>
-                <div className="text-slate-600 dark:text-slate-400 text-[11px] font-medium font-mono">{portalHealthData.url}</div>
-                {portalHealthData.burnRateMonthly && (
-                  <div className="bg-rose-50 dark:bg-rose-950/40 p-2 rounded-lg border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-300 text-xs">
-                    {portalHealthData.burnRateMonthly}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* CARD 4: COMPOSIO AUTOMATED DISPATCH */}
-          <div className="bg-white dark:bg-[#111827] rounded-2xl p-6 shadow-xs ring-1 ring-slate-200/90 dark:ring-slate-800 space-y-4 flex flex-col justify-between">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[15px] font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Zap className="h-4 w-4 text-amber-500" />
-                  <span>{isAr ? '4. منسق التنفيذ التلقائي للمهام (كومبوزيو)' : '4. Automated Workflow Orchestrator (Composio)'}</span>
-                </span>
-                <span className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2.5 py-0.5 rounded-full font-bold">
-                  {isAr ? 'أتمتة المهام التنفيذية' : 'Workflow Automation'}
-                </span>
-              </div>
-              <p className="text-sm font-medium text-slate-600 dark:text-slate-400 leading-relaxed">
-                {isAr
-                  ? 'بث التكليفات لمدراء الفروع عبر واتساب، وتحديث تقارير أودو في جداول جوجل، وإرسال تنبيهات الإدارة عبر البريد.'
-                  : 'Automated executive dispatch across WhatsApp, Google Sheets, and executive Gmail.'}
-              </p>
-
-              <div className="grid grid-cols-3 gap-2 text-center text-xs font-bold pt-1">
-                <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-slate-800 dark:text-slate-200 flex items-center justify-center gap-1">
-                  <MessageSquare className="h-3.5 w-3.5 text-emerald-600" />
-                  <span>{isAr ? 'واتساب' : 'WhatsApp'}</span>
-                </div>
-                <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-slate-800 dark:text-slate-200 flex items-center justify-center gap-1">
-                  <Mail className="h-3.5 w-3.5 text-blue-600" />
-                  <span>{isAr ? 'البريد التنفيذي' : 'Gmail'}</span>
-                </div>
-                <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-slate-800 dark:text-slate-200 flex items-center justify-center gap-1">
-                  <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
-                  <span>{isAr ? 'جداول البيانات' : 'Sheets'}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-slate-50 dark:bg-slate-900/70 rounded-xl p-3 border border-slate-200 dark:border-slate-800 space-y-1.5 max-h-48 overflow-y-auto">
-              {dispatchedLogs.map((log, i) => (
-                <div key={i} className="flex items-center justify-between text-xs font-medium text-slate-700 dark:text-slate-300">
-                  <span className="font-mono text-slate-500 font-bold">[{log.time}]</span>
-                  <span className="truncate max-w-[200px]">{log.msg}</span>
-                  <span className="text-[10px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded font-bold">
-                    {log.channel}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
       </section>
 
       {/* ==================================================================== */}
       {/* 5. VERIFIED 9-BRANCH PERFORMANCE AUDIT TABLE */}
       {/* ==================================================================== */}
-      <section className="bg-white dark:bg-[#111827] rounded-2xl p-6 sm:p-7 shadow-xs ring-1 ring-slate-200/90 dark:ring-slate-800 space-y-4">
+      <section className="ae-tile rounded-2xl p-6 sm:p-7 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
             <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">

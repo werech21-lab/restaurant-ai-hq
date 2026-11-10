@@ -24,18 +24,20 @@ VERIFIED VENTURE FOODS KUWAIT ODOO 17 DATA (SINGLE SOURCE OF TRUTH):
 4. General Expenses (Opex) & Petty Cash Custodies:
    - Total Opex & Custodies: 51,154.950 KWD across 2,213 journal entries.
    - Major custody item: 10,707.930 KWD across 312 entries in unclosed Al-Kout & Salmiya maintenance custodies.
-   - Action plan: Convert recurring emergency repairs into an annual preventive HVAC/kitchen maintenance contract and cap branch petty cash at 250 KWD to save +1,680 KWD/month (+20,160 KWD/year).
+   - Action plan: Convert recurring emergency repairs into an annual preventive HVAC/kitchen maintenance contract and cap branch petty cash at 250 KWD; the commercial chiller overhaul alone recovers +850 KWD/month (+10,200 KWD/year).
 5. Delivery Aggregators & Promotional Discounts:
    - Total Promotional Discounts: 4,152.000 KWD (2,544.000 KWD on Keeta alone across 6,267 orders).
    - 11 Active Sales Channels: Talabat Tgo, Talabat TMP, Keeta, Deliveroo, Cari, Jahez, Call Center, Dine-in, Takeaway, Drive-Thru, Direct Web.
-   - Action plan: Cap unapproved Keeta promotional discounts at 3.5% (+1,520 KWD/month saved) and engineer high-margin combo meals on Talabat Tgo & TMP to lift basket from 5.471 KWD to 6.150 KWD (+2,550 KWD/month net gain).
+   - Action plan: Cap unapproved Keeta promotional discounts at 3.5% (from 2,544 KWD to 924 KWD, +1,620 KWD/month saved) and enforce a mandatory beverage in Talabat Tgo, TMP & Keeta delivery combos to lift group AOV from 5.471 KWD to 5.750 KWD (+2,450 KWD/month net gain).
 6. 6 Active Brands:
-   - China Garden (تشاينا جاردن): Flagship brand driving 84.8% of revenue (141,662.038 KWD).
+   - China Garden (تشاينا جاردن): Flagship brand driving 84.8% of revenue (141,662.400 KWD across 25,890 orders).
    - Frank's (فرانكس): Highest basket average (AOV 7.490 KWD).
    - Tahina (طحينة), Burgerito (برجريتو), Chick & Dip (تشيك آند ديب), Crave (كريف).
 7. 9 Active Operational Branches:
    - Salmiya (السالمية): #1 Most Profitable Branch generating 31,246.230 KWD net operating contribution.
-   - Ardiya Central Kitchen & Hub (العارضية), Al-Kout (الكوت), Hawally (حولي), Jabriya (الجابرية), Farwaniya (الفروانية), Jahra (الجهراء), Mahboula (المهبولة), Qurain (القرين).
+   - Al-Kout / Fahaheel (الكوت), Sharq (شرق), Hawally (حولي), Farwaniya (الفروانية), Ardiya Central Kitchen & Hub (العارضية), Mahboula (المهبولة), Mubarak Al-Kabeer (مبارك الكبير), Jabriya (الجابرية).
+   - Only these 9 branches are active; never mention any other branch location.
+   - Menu Matrix: purge 18 sluggish Dog items and apply +5% pricing to 4 popular Plowhorses (+584 KWD/month).
    - Online Tablet Availability across Talabat Tgo/TMP, Keeta, and Deliveroo: 99.1% uptime.
 8. Forward Profit Projections (With Feryal's 4 Executive Remedies):
    - Monthly Net Profit Recovery: +7,640 KWD/month (+18.0% profit surge).
@@ -109,7 +111,7 @@ export async function analyzeEventContractWithGemini({
     risksAr: [
       `البند 4 (القوة القاهرة والأحوال الجوية): ينص العقد الحالي على عدم استرداد الإيجار (${boothRentKwd.toLocaleString()} د.ك) عند إغلاق الفعالية بسبب الأمطار الغزيرة أو الغبار.`,
       'البند 7 (رسوم الخدمات والنظافة والأمن): رسوم خدمات مفتوحة غير مسقفة قد تضيف 12% إلى 15% فوق القيمة الإيجارية المتفق عليها.',
-      'البند 9 (المواصفات الفنية والكهرباء): عدم النص صراحةً على توفير قاطع كهرباء ثلاثي الطور (3-Phase / 60 Amp) مستقل لتشغيل قلايات البوث وأجهزة الووك.',
+      'البند 9 (المواصفات الفنية والكهرباء): عدم النص صراحةً على توفير قاطع كهرباء ثلاثي الطور بقدرة 60 أمبير مستقل لتشغيل قلايات البوث وأجهزة الووك.',
       'البند 11 (غرامات التأخير والتراخيص): غرامة 100 د.ك يومياً عن أي تأخير في إصدار ترخيص بلدية الكويت المؤقت أو الشهادات الصحية.',
     ],
     risksEn: [
@@ -121,7 +123,7 @@ export async function analyzeEventContractWithGemini({
     counterClausesAr: [
       'صيغة تعديل البند 4: "في حال إغلاق الفعالية كلياً أو جزئياً بسبب الأحوال الجوية أو بقرار إداري، يتم تمديد مدة العقد مجاناً بنفس عدد أيام الإغلاق أو خصم قيمتها النسبية من الدفعة النهائية."',
       'صيغة تعديل البند 7: "تُحدد كافة رسوم الخدمات والحراسة والنظافة واستهلاك الكهرباء والمياه بسقف مقطوع لا يتجاوز 5% من إجمالي القيمة الإيجارية طوال مدة المعرض."',
-      'صيغة تعديل البند 9: "يلتزم المنظم بتوفير مصدر كهرباء 3-Phase بقدرة 60 أمبير مستقل للبوث قبل 72 ساعة من الافتتاح، ويُعفى المستأجر من الإيجار عن أي يوم ينقطع فيه التيار."',
+      'صيغة تعديل البند 9: "يلتزم المنظم بتوفير مصدر كهرباء ثلاثي الطور بقدرة 60 أمبير مستقل للبوث قبل 72 ساعة من الافتتاح، ويُعفى المستأجر من الإيجار عن أي يوم ينقطع فيه التيار."',
     ],
     counterClausesEn: [
       'Amended Clause 4: "In the event of full or partial closure due to adverse weather or regulatory order, the lease term shall be extended free of charge by the equivalent days or deducted pro-rata from the final installment."',
@@ -130,8 +132,8 @@ export async function analyzeEventContractWithGemini({
     ],
     solutionsAr: [
       'ضبط سرعة الخدمة تحت 90 ثانية: تجهيز وتتبيل 85% من الأصناف مسبقاً بحصص معايرة (140 جم) في مطبخ العارضية المركزي والاكتفاء بالتسوية السريعة في البوث.',
-      'هندسة التسعير والكومبو (+10%): تطبيق أسعار منيو المعارض (EXB Menu) مع إلزامية المشروب/الموهيتو لرفع متوسط الفاتورة إلى 5.700 د.ك وتخفيض تكلفة الأغذية إلى 21.4%.',
-      'إدارة طوابير الذروة المسائية (6 م - 11 م): تخصيص كاشير متنقل بجهاز KNET لاسلكي في طابور الانتظار لفصل الدفع عن شباك الاستلام.',
+      'هندسة التسعير والكومبو (+10%): تطبيق أسعار منيو المعارض مع إلزامية المشروب/الموهيتو لرفع متوسط الفاتورة إلى 5.700 د.ك وتخفيض تكلفة الأغذية إلى 21.4%.',
+      'إدارة طوابير الذروة المسائية (6 م - 11 م): تخصيص كاشير متنقل بجهاز كي نت لاسلكي في طابور الانتظار لفصل الدفع عن شباك الاستلام.',
       `ربط مركز التكلفة في أودو: فتح حساب تحليلي مستقل (${eventName}) لمراقبة نقطة التعادل اليومية (58 طلباً/يومياً) واسترداد رأس المال في اليوم الـ 14.`,
     ],
     solutionsEn: [
@@ -239,13 +241,13 @@ export function getDeterministicFeryalReply(query: string, lang: 'ar' | 'en'): s
 
   if (q.includes('مارينا') || q.includes('كشتة') || q.includes('سفير') || q.includes('ونترلاند') || q.includes('فعالي') || q.includes('معرض') || q.includes('معارض') || q.includes('exb') || q.includes('kashta') || q.includes('safeer') || q.includes('winterland') || q.includes('booth') || q.includes('event') || q.includes('تعادل') || q.includes('break-even')) {
     return isAr
-      ? 'يا هلا! حسب سجل مراكز تكلفة الفعاليات في أودو، حققت كشتة المارينا (60 يوماً) مبيعات 38,400 د.ك وصافي ربح 11,920 د.ك بعائد استثمار 175%، بينما حقق مخيم السفير (45 يوماً) مبيعات 26,850 د.ك وصافي ربح 7,840 د.ك بعائد 160%. نقطة التعادل اليومية للبوث هي 58 طلباً فقط (330.600 د.ك) مع استرداد رأس المال في اليوم الـ 14 بفضل منيو المعارض (EXB Menu) ذات تكلفة الأغذية المنخفضة 21.4%!'
+      ? 'يا هلا! حسب سجل مراكز تكلفة الفعاليات في أودو، حققت كشتة المارينا (60 يوماً) مبيعات 38,400 د.ك وصافي ربح 11,920 د.ك بعائد استثمار 175%، بينما حقق مخيم السفير (45 يوماً) مبيعات 26,850 د.ك وصافي ربح 7,840 د.ك بعائد 160%. نقطة التعادل اليومية للبوث هي 58 طلباً فقط (330.600 د.ك) مع استرداد رأس المال في اليوم الـ 14 بفضل منيو المعارض ذات تكلفة الأغذية المنخفضة 21.4%!'
       : 'Based on Odoo Analytical Accounts for seasonal events, Marina Kashta (60 days) achieved 38,400 KWD in sales and 11,920 KWD net profit (175% ROI), while Al-Safeer Camp (45 days) delivered 26,850 KWD in sales and 7,840 KWD net profit (160% ROI). Daily booth break-even is just 58 orders (330.600 KWD/day) with full capital payback on Day 14 thanks to our 21.4% COGS EXB Menu!';
   }
 
   if (q.includes('سالمية') || q.includes('salmiya') || q.includes('فرع') || q.includes('branch') || q.includes('أفضل') || q.includes('top')) {
     return isAr
-      ? 'يا هلا! حسب قيود أودو الموثقة، فرع السالمية يتصدر ربحية الفروع الـ 9 بصافي مساهمة تشغيلية 31,246.230 د.ك، يليه فرع العارضية وحولي، مع التزام بتوافر أونلاين 99.1% على منصات طلبات Tgo وTMP وكيتا وديليفرو.'
+      ? 'يا هلا! حسب قيود أودو الموثقة، فرع السالمية يتصدر ربحية الفروع الـ 9 بصافي مساهمة تشغيلية 31,246.230 د.ك، يليه فرع الكوت ثم شرق، مع التزام بتوافر أونلاين 99.1% على منصات طلبات جو وسوق طلبات وكيتا وديليفرو.'
       : 'Based on verified Odoo entries, Salmiya is our #1 most profitable branch across all 9 locations with 31,246.230 KWD in net operating contribution, supported by 99.1% online tablet availability across Talabat Tgo, TMP, Keeta, and Deliveroo.';
   }
 
@@ -257,14 +259,14 @@ export function getDeterministicFeryalReply(query: string, lang: 'ar' | 'en'): s
 
   if (q.includes('كيتا') || q.includes('keeta') || q.includes('tgo') || q.includes('tmp') || q.includes('طلبات') || q.includes('talabat') || q.includes('خصم') || q.includes('discount') || q.includes('توصيل')) {
     return isAr
-      ? 'إجمالي الخصومات الترويجية بلغ 4,152.000 د.ك منها 2,544 د.ك على منصة كيتا وحدها عبر 6,267 طلب. بتطبيق سقف خصم 3.5% على كيتا نوفر 1,520 د.ك شهرياً، ومع هندسة وجبات الكومبو في طلبات Tgo وTMP لرفع السلة من 5.471 إلى 6.150 د.ك نربح 2,550 د.ك إضافية شهرياً.'
-      : 'Total promotional discounts reached 4,152.000 KWD, with 2,544 KWD concentrated on Keeta across 6,267 orders. Capping Keeta promos at 3.5% saves 1,520 KWD/month, while combo engineering on Talabat Tgo & TMP lifts AOV from 5.471 to 6.150 KWD (+2,550 KWD/month).';
+      ? 'إجمالي الخصومات الترويجية بلغ 4,152.000 د.ك منها 2,544 د.ك على منصة كيتا وحدها عبر 6,267 طلب. بتطبيق سقف خصم 3.5% على كيتا (من 2,544 إلى 924 د.ك) نوفر 1,620 د.ك شهرياً، ومع المشروب الإلزامي في وجبات التوصيل على طلبات جو وسوق طلبات لرفع السلة من 5.471 إلى 5.750 د.ك نربح 2,450 د.ك إضافية شهرياً.'
+      : 'Total promotional discounts reached 4,152.000 KWD, with 2,544 KWD concentrated on Keeta across 6,267 orders. Capping Keeta promos at 3.5% (2,544 to 924 KWD) saves 1,620 KWD/month, while a mandatory beverage in Talabat Tgo & TMP delivery combos lifts AOV from 5.471 to 5.750 KWD (+2,450 KWD/month).';
   }
 
   if (q.includes('عهد') || q.includes('كوت') || q.includes('صيانة') || q.includes('مصروفات') || q.includes('opex') || q.includes('custod') || q.includes('kout') || q.includes('maintenance')) {
     return isAr
-      ? 'رصد رادار أودو 51,154.950 د.ك مصروفات وعهد عبر 2,213 قيد محاسبي، أبرزها 10,707.930 د.ك عهد صيانة غير مقفلة في الكوت والسالمية (312 قيد). تحويل الصيانة الطارئة لعقد وقائي سنوي وسقف عهدة 250 د.ك يوفر 1,680 د.ك شهرياً.'
-      : 'Odoo audit radar tracked 51,154.950 KWD in Opex & custodies across 2,213 entries, including 10,707.930 KWD in Al-Kout & Salmiya maintenance custodies (312 entries). Switching to preventive maintenance contracts and a 250 KWD petty cash cap saves 1,680 KWD/month.';
+      ? 'رصد رادار أودو 51,154.950 د.ك مصروفات وعهد عبر 2,213 قيد محاسبي، أبرزها 10,707.930 د.ك عهد صيانة غير مقفلة في الكوت والسالمية (312 قيد). تجديد المبردات التجارية يوقف الإصلاحات النقدية المتكررة ويوفر 850 د.ك شهرياً، مع سقف عهدة نثرية 250 د.ك لكل فرع.'
+      : 'Odoo audit radar tracked 51,154.950 KWD in Opex & custodies across 2,213 entries, including 10,707.930 KWD in Al-Kout & Salmiya maintenance custodies (312 entries). A commercial chiller overhaul ends the repeated cash repairs and recovers 850 KWD/month, backed by a 250 KWD petty-cash cap per branch.';
   }
 
   if (q.includes('توقع') || q.includes('ربع') || q.includes('سنو') || q.includes('600') || q.includes('q1') || q.includes('forecast') || q.includes('roadmap') || q.includes('target') || q.includes('خطة')) {

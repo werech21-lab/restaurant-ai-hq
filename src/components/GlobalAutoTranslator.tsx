@@ -12,10 +12,13 @@ const ATTR_ORIGINAL_PREFIX = 'data-original-ar-'
 const VALUE_ORIGINAL = 'data-original-ar-value'
 
 /** Pages that already localize via React locale state — never mutate their DOM. */
-const REACT_I18N_PATHS = ['/dashboard', '/reports', '/erp/aggregator-radar', '/erp/food-safety', '/erp/sales-scorecard', '/erp/menu-engineering', '/erp/feryal-ai']
+const REACT_I18N_PATHS = ['/dashboard', '/reports', '/erp/aggregator-radar', '/erp/food-safety', '/erp/sales-scorecard', '/erp/menu-engineering', '/erp/feryal-ai', '/erp/events-intelligence', '/erp/sales-analysis', '/erp/delivery-control', '/erp/alerts']
+/** Exact-match pages that localize via React (their sub-routes may still need the safety net). */
+const REACT_I18N_EXACT = ['/erp']
 
 function isReactI18nPath(pathname: string | null): boolean {
   if (!pathname) return false
+  if (REACT_I18N_EXACT.includes(pathname)) return true
   return REACT_I18N_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))
 }
 

@@ -3,6 +3,9 @@ import { requireUser } from '@/lib/erp-auth'
 import { NotificationBell } from '@/components/notification-bell'
 import { PanelHeaderBar } from '@/components/panel-chrome'
 import { ScopeProvider } from '@/components/ScopeProvider'
+import { BiFilterProvider } from '@/components/aether/BiFilterContext'
+import { ExecutiveCommandPalette } from '@/components/aether/ExecutiveCommandPalette'
+import { GlobalFilterBar } from '@/components/aether/GlobalFilterBar'
 import { Sidebar } from '@/components/erp-sidebar'
 import { prisma } from '@/lib/db'
 import { formatQty } from '@/lib/format'
@@ -36,39 +39,55 @@ export async function Shell({ children }: { children: React.ReactNode }) {
         labelEn: scope.labelEn,
       }}
     >
-      <div className="app-shell min-h-screen bg-[#F4F6F9] dark:bg-[#070D18] text-slate-900 dark:text-slate-100">
-        <Sidebar user={user} enabledKeys={visibleKeys} />
-        {/*
-          Fixed w-64 sidebar uses logical `start-0`. Clear it with padding-inline-start (ps-64)
-          plus explicit LTR/RTL physical fallbacks so content never slides under the rail.
-        */}
-        <div className="app-content min-h-screen w-full md:ps-64 ltr:md:pl-64 rtl:md:pl-0 rtl:md:pr-64">
-          <header className="no-print sticky top-0 z-40 overflow-visible border-b-2 border-[#00A8E8]/40 bg-gradient-to-r from-[#040B1C] to-[#0B1D42] text-white shadow-[0_4px_25px_rgba(0,168,232,0.18)] backdrop-blur">
-            <PanelHeaderBar
-              companyNameAr={company.name}
-              notifications={
-                <NotificationBell
-                  count={count + notices.length}
-                  items={lowItems.map((item) => ({
-                    id: item.id,
-                    name: item.name,
-                    code: item.code,
-                    stockLabel: formatQty(item.currentStock),
-                    reorderLabel: formatQty(item.reorderLevel),
-                  }))}
-                  notices={notices.map((notice) => ({
-                    id: notice.id,
-                    title: notice.title,
-                    body: notice.body,
-                    href: notice.href ?? '/automations',
-                  }))}
+      <BiFilterProvider>
+        {/* Aether BI V2 oceanic glass shell: ambient gradient → glass rail → floating topbar → frosted canvas */}
+        <div id="ae-root">
+          <div className="ae-ambient" aria-hidden>
+            <span />
+            <span />
+            <span />
+          </div>
+          <Sidebar user={user} enabledKeys={visibleKeys} />
+          {/*
+            Fixed w-64 sidebar uses logical `start-0`. Clear it with padding-inline-start (ps-64)
+            plus explicit LTR/RTL physical fallbacks so content never slides under the rail.
+          */}
+          <div className="ae-content-col w-full min-w-0 md:ps-64 ltr:md:pl-64 rtl:md:pl-0 rtl:md:pr-64">
+            <div className="px-3 pt-3 sm:px-4 md:px-5">
+              <header id="ae-topbar" className="no-print sticky top-3 z-40 overflow-visible">
+                <PanelHeaderBar
+                  companyNameAr={company.name}
+                  notifications={
+                    <NotificationBell
+                      count={count + notices.length}
+                      items={lowItems.map((item) => ({
+                        id: item.id,
+                        name: item.name,
+                        code: item.code,
+                        stockLabel: formatQty(item.currentStock),
+                        reorderLabel: formatQty(item.reorderLevel),
+                      }))}
+                      notices={notices.map((notice) => ({
+                        id: notice.id,
+                        title: notice.title,
+                        body: notice.body,
+                        href: notice.href ?? '/automations',
+                      }))}
+                    />
+                  }
                 />
-              }
-            />
-          </header>
-          <main className="w-full max-w-none min-h-screen px-4 py-6 sm:px-6 lg:px-8 bg-[#F4F6F9] dark:bg-[#070D18] text-slate-900 dark:text-slate-100">{children}</main>
+              </header>
+            </div>
+            <main className="w-full max-w-none px-3 pb-24 pt-4 sm:px-4 md:px-5 md:pb-6">
+              <div id="ae-canvas" className="app-content w-full p-4 sm:p-6 lg:p-8">
+                <GlobalFilterBar />
+                {children}
+              </div>
+            </main>
+          </div>
+          <ExecutiveCommandPalette />
         </div>
-      </div>
+      </BiFilterProvider>
     </ScopeProvider>
   )
 }

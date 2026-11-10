@@ -565,7 +565,7 @@ export function EnterpriseHrCommandHub({
               </p>
               <p className="mt-1 text-2xl font-black text-white">{VENTURE_EMPLOYEES.length}</p>
               <p className="mt-1 text-[11px] text-emerald-300">
-                {en ? 'Across 6 Brands, 9 Locations & CK (Jahra Closed)' : 'موزعين على 6 براندات و9 مواقع والمطبخ المركزي (الجهراء مغلق)'}
+                {en ? 'Across 6 Brands, 9 Active Locations & Central Kitchen' : 'موزعين على 6 علامات تجارية و9 مواقع نشطة والمطبخ المركزي'}
               </p>
             </article>
             <article className="rounded-2xl border border-white/10 bg-[#0f141c] p-4">
@@ -642,7 +642,7 @@ export function EnterpriseHrCommandHub({
                 </div>
               </div>
 
-              {/* Work Location Filter Section (NO JAHRA!) */}
+              {/* Work Location Filter Section (9 active locations only) */}
               <div className="rounded-3xl border border-white/10 bg-[#0f141c] p-4 space-y-2.5 shadow-sm">
                 <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
                   <h3 className="text-xs font-black uppercase tracking-wider text-gold-300 flex items-center gap-1.5">

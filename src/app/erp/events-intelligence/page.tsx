@@ -43,6 +43,8 @@ import {
   analyzeEventContractWithGemini,
   type ContractDeepAuditResult,
 } from '@/lib/feryal-gemini-brain'
+import { ContractSafetyScoreCard, EventCashflowCurve, ExbModerationCards, RiskTags } from '@/components/aether/EventsUpgrades'
+import { downloadCsv } from '@/components/aether/ui'
 
 // ==============================================================================
 // 1. MASTER EVENTS, CONTRACTS & EXB MENU DATASETS (ODOO ANALYTICAL ACCOUNTS)
@@ -84,7 +86,7 @@ const STUDIO_PRESETS: EventStudioPreset[] = [
     staffLogisticsKwd: 2400,
     dailyOrders: 112,
     aovKwd: 5.714,
-    spaceAndPowerAr: 'بوث 4×4م · كهرباء 3-Phase (60 Amp)',
+    spaceAndPowerAr: 'بوث 4×4م · كهرباء ثلاثية الطور (60 أمبير)',
     spaceAndPowerEn: '4x4m Booth · 3-Phase (60 Amp)',
     audienceAr: 'عائلات وشباب — 8,500 زائر يومياً',
     audienceEn: 'Families & Youth — 8,500 daily footfall',
@@ -123,7 +125,7 @@ Clause 11: A delay penalty of 100 KWD/day applies for late booth opening or miss
     staffLogisticsKwd: 1650,
     dailyOrders: 105,
     aovKwd: 5.68,
-    spaceAndPowerAr: 'كونتينر مجهز 6×3م · مولد 3-Phase',
+    spaceAndPowerAr: 'كونتينر مجهز 6×3م · مولد ثلاثي الطور',
     spaceAndPowerEn: '6x3m Container · 3-Phase Generator',
     audienceAr: 'رواد المخيمات والعائلات — 6,000 زائر يومياً',
     audienceEn: 'Campers & Families — 6,000 daily visitors',
@@ -160,7 +162,7 @@ Clause 9: Tenant must comply with Kuwait Fire Force regulations and install auto
     staffLogisticsKwd: 3600,
     dailyOrders: 120,
     aovKwd: 5.75,
-    spaceAndPowerAr: 'بوث مزدوج 6×4م · كهرباء 3-Phase (100 Amp)',
+    spaceAndPowerAr: 'بوث مزدوج 6×4م · كهرباء ثلاثية الطور (100 أمبير)',
     spaceAndPowerEn: '6x4m Double Booth · 3-Phase (100 Amp)',
     audienceAr: 'حشود ترفيهية ضخمة — 14,000 زائر يومياً',
     audienceEn: 'High-volume festival crowd — 14,000 daily visitors',
@@ -533,7 +535,7 @@ export default function EventsContractsExbIntelligenceHub() {
     risksAr: [
       'البند 4 (القوة القاهرة والأحوال الجوية): ينص العقد الحالي على عدم استرداد الإيجار (4,600 د.ك) عند إغلاق الفعالية بسبب الأمطار الغزيرة أو الأحوال الجوية.',
       'البند 7 (رسوم الخدمات والنظافة والأمن): رسوم خدمات شهرية مفتوحة غير مسقفة قد تضيف 12% إلى 15% فوق القيمة الإيجارية المتفق عليها.',
-      'البند 9 (المواصفات الفنية والكهرباء): عدم النص صراحةً على توفير قاطع كهرباء ثلاثي الطور (3-Phase / 60 Amp) مستقل لتشغيل قلايات البوث وأجهزة الووك.',
+      'البند 9 (المواصفات الفنية والكهرباء): عدم النص صراحةً على توفير قاطع كهرباء ثلاثي الطور بقدرة 60 أمبير مستقل لتشغيل قلايات البوث وأجهزة الووك.',
       'البند 11 (غرامات التأخير والتراخيص): غرامة 100 د.ك يومياً عن أي تأخير في إصدار ترخيص بلدية الكويت المؤقت أو الشهادات الصحية.',
     ],
     risksEn: [
@@ -545,7 +547,7 @@ export default function EventsContractsExbIntelligenceHub() {
     counterClausesAr: [
       'صيغة تعديل البند 4: "في حال إغلاق الفعالية كلياً أو جزئياً بسبب الأحوال الجوية أو بقرار إداري، يتم تمديد مدة العقد مجاناً بنفس عدد أيام الإغلاق أو خصم قيمتها النسبية من الدفعة النهائية."',
       'صيغة تعديل البند 7: "تُحدد كافة رسوم الخدمات والحراسة والنظافة واستهلاك الكهرباء والمياه بسقف مقطوع لا يتجاوز 5% من إجمالي القيمة الإيجارية طوال مدة المعرض."',
-      'صيغة تعديل البند 9: "يلتزم المنظم بتوفير مصدر كهرباء 3-Phase بقدرة 60 أمبير مستقل للبوث قبل 72 ساعة من الافتتاح، ويُعفى المستأجر من الإيجار عن أي يوم ينقطع فيه التيار."',
+      'صيغة تعديل البند 9: "يلتزم المنظم بتوفير مصدر كهرباء ثلاثي الطور بقدرة 60 أمبير مستقل للبوث قبل 72 ساعة من الافتتاح، ويُعفى المستأجر من الإيجار عن أي يوم ينقطع فيه التيار."',
     ],
     counterClausesEn: [
       'Amended Clause 4: "In the event of full or partial closure due to adverse weather or regulatory order, the lease term shall be extended free of charge by the equivalent days or deducted pro-rata from the final installment."',
@@ -554,9 +556,9 @@ export default function EventsContractsExbIntelligenceHub() {
     ],
     solutionsAr: [
       'ضبط سرعة الخدمة تحت 90 ثانية: تجهيز وتتبيل 85% من الأصناف مسبقاً بحصص معايرة (140 جم) في مطبخ العارضية المركزي والاكتفاء بالتسوية السريعة في البوث.',
-      'هندسة التسعير والكومبو (+10%): تطبيق أسعار منيو المعارض (EXB Menu) مع إلزامية المشروب/الموهيتو لرفع متوسط الفاتورة إلى 5.714 د.ك وتخفيض تكلفة الأغذية إلى 21.4%.',
+      'هندسة التسعير والكومبو (+10%): تطبيق أسعار منيو المعارض مع إلزامية المشروب/الموهيتو لرفع متوسط الفاتورة إلى 5.714 د.ك وتخفيض تكلفة الأغذية إلى 21.4%.',
       'إدارة طوابير الذروة المسائية (6 م - 11 م): تخصيص كاشير متنقل بجهاز KNET لاسلكي في طابور الانتظار لفصل الدفع عن شباك الاستلام.',
-      'ربط مركز التكلفة في أودو: فتح حساب تحليلي مستقل (ANL-EXB-2026) لمراقبة نقطة التعادل اليومية (58 طلباً/يومياً) واسترداد رأس المال في اليوم الـ 14.',
+      'ربط مركز التكلفة في أودو: فتح حساب تحليلي مستقل لمركز المعارض 2026 لمراقبة نقطة التعادل اليومية (58 طلباً/يومياً) واسترداد رأس المال في اليوم الـ 14.',
     ],
     solutionsEn: [
       'Sub-90-Second Booth Service: Pre-portion and marinate 85% of items in 140g calibrated batches at Ardiya Central Kitchen for rapid final sear at the booth.',
@@ -687,7 +689,7 @@ export default function EventsContractsExbIntelligenceHub() {
       const cleanText = sanitizeTextForSpeechClient(text, activeLang) || text
 
       try {
-        await new Promise((resolve) => setTimeout(resolve, 150))
+        await new Promise((resolve) => setTimeout(resolve, 380))
         const apiKey = getOpenAIApiKey()
         let audioUrl = ''
 
@@ -843,6 +845,7 @@ export default function EventsContractsExbIntelligenceHub() {
   // Table Filters & Movable Columns (`◀ ▶`)
   const [menuSearchQuery, setMenuSearchQuery] = useState<string>('')
   const [benchmarkSearchQuery, setBenchmarkSearchQuery] = useState<string>('')
+  const [exbView, setExbView] = useState<'cards' | 'table'>('cards')
   const [exbColumnsOrder, setExbColumnsOrder] = useState<string[]>([
     'item',
     'brand',
@@ -890,6 +893,31 @@ export default function EventsContractsExbIntelligenceHub() {
       return matchesBrand && matchesSearch
     })
   }, [selectedBrandId, menuSearchQuery])
+
+  const exportExbCsv = useCallback(() => {
+    const labels: Record<string, { ar: string; en: string }> = {
+      item: { ar: 'الصنف', en: 'EXB item' },
+      brand: { ar: 'العلامة التجارية', en: 'Brand' },
+      branchPrice: { ar: 'سعر الفرع', en: 'Branch price KWD' },
+      exbPrice: { ar: 'سعر المعرض', en: 'EXB booth price KWD' },
+      cogs: { ar: 'نسبة التكلفة', en: 'COGS %' },
+      prepTime: { ar: 'وقت التحضير (ثانية)', en: 'Prep time (sec)' },
+      unitMargin: { ar: 'هامش الوحدة', en: 'Unit margin KWD' },
+    }
+    const value = (row: ExbMenuItem, key: string): string | number => {
+      if (key === 'item') return isAr ? row.itemAr : row.itemEn
+      if (key === 'brand') return isAr ? row.brandAr : row.brandEn
+      if (key === 'branchPrice') return row.branchPriceKwd.toFixed(3)
+      if (key === 'exbPrice') return row.exbPriceKwd.toFixed(3)
+      if (key === 'cogs') return row.cogsPct.toFixed(1)
+      if (key === 'prepTime') return row.prepTimeSec
+      return row.unitMarginKwd.toFixed(3)
+    }
+    downloadCsv('aetherbi-exb-menu-matrix.csv', [
+      exbColumnsOrder.map((k) => (isAr ? labels[k].ar : labels[k].en)),
+      ...filteredExbItems.map((r) => exbColumnsOrder.map((k) => value(r, k))),
+    ])
+  }, [exbColumnsOrder, filteredExbItems, isAr])
 
   const comparisonRows = useMemo(() => {
     const rows = [
@@ -1068,12 +1096,12 @@ export default function EventsContractsExbIntelligenceHub() {
   return (
     <div
       dir={isAr ? 'rtl' : 'ltr'}
-      className="min-h-screen bg-[#F7F7F8] dark:bg-[#0A0A0A] text-slate-900 dark:text-slate-100 p-4 sm:p-6 md:p-8 space-y-7 font-sans antialiased"
+      className="ae-stagger text-slate-900 dark:text-slate-100 space-y-6 font-sans antialiased"
     >
       {/* ==================================================================== */}
       {/* TOP HEADER & 5 EXECUTIVE EVENT KPI CARDS (Unslop UI) */}
       {/* ==================================================================== */}
-      <div className="bg-white dark:bg-[#111827] rounded-2xl p-5 sm:p-6 shadow-xs ring-1 ring-slate-200/80 dark:ring-slate-800 space-y-5">
+      <div className="ae-tile rounded-2xl p-5 sm:p-6  space-y-5">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="space-y-1.5">
             <div className="inline-flex items-center gap-2 rounded-full border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 px-3.5 py-1 text-xs font-bold text-slate-800 dark:text-slate-200">
@@ -1086,13 +1114,13 @@ export default function EventsContractsExbIntelligenceHub() {
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
               <span className="text-emerald-700 dark:text-emerald-400 font-bold">
                 {isAr
-                  ? '🧠 العقل: أرجون هاي · جيميناي 3.8 برو | 🔊 الصوت: نوفا'
-                  : '🧠 Brain: Argon High · Gemini 3.8 Pro | 🔊 Voice: Nova'}
+                  ? 'العقل: جيميناي أرجون هاي · الصوت: نوفا'
+                  : 'Brain: Gemini Argon High · Voice: Nova'}
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-950 dark:text-white tracking-tight">
               {isAr
-                ? 'مركز استخبارات الفعاليات وتحليل العقود وهندسة منيو المعارض (EXB)'
+                ? 'مركز استخبارات الفعاليات وتحليل العقود وهندسة منيو المعارض'
                 : 'Events, Contracts & EXB Menu Deep Intelligence Hub'}
             </h1>
             <p className="text-sm font-medium text-slate-600 dark:text-slate-400 max-w-4xl">
@@ -1105,17 +1133,17 @@ export default function EventsContractsExbIntelligenceHub() {
           <div className="flex flex-wrap items-center gap-2.5 shrink-0">
             <Link
               href="/erp/feryal-ai"
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2.5 text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-50 transition-all shadow-2xs"
+              className="ae-pill-light"
             >
               <Sparkles className="h-4 w-4 text-blue-600" />
               <span>{isAr ? 'مركز القيادة والمستشارة فريال' : 'Feryal Executive Command'}</span>
             </Link>
             <Link
-              href="/erp/sales-scorecard"
-              className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] hover:bg-blue-600 px-4 py-2.5 text-xs font-bold text-white transition-all shadow-2xs"
+              href="/erp/sales-analysis"
+              className="ae-pill-dark"
             >
               <FileSpreadsheet className="h-4 w-4" />
-              <span>{isAr ? 'سجل المبيعات والأصناف' : 'Sales Scorecard'}</span>
+              <span>{isAr ? 'تحليل المبيعات والأصناف' : 'Sales & Items Analysis'}</span>
               <ChevronRight className={`h-4 w-4 ${isAr ? 'rotate-180' : ''}`} />
             </Link>
           </div>
@@ -1123,7 +1151,7 @@ export default function EventsContractsExbIntelligenceHub() {
 
         {/* 5 High-Contrast Executive KPI Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 pt-2">
-          <div className="bg-[#F7F7F8] dark:bg-slate-900/70 rounded-2xl p-4 ring-1 ring-slate-200/80 dark:ring-slate-800">
+          <div className="ae-tile-soft ae-lift rounded-2xl p-4">
             <div className="flex items-center justify-between text-xs font-bold text-slate-500">
               <span>{isAr ? 'إجمالي إيرادات الفعاليات' : 'Total Events Revenue'}</span>
               <DollarSign className="h-4 w-4 text-blue-600" />
@@ -1137,7 +1165,7 @@ export default function EventsContractsExbIntelligenceHub() {
             </div>
           </div>
 
-          <div className="bg-[#F7F7F8] dark:bg-slate-900/70 rounded-2xl p-4 ring-1 ring-slate-200/80 dark:ring-slate-800">
+          <div className="ae-tile-soft ae-lift rounded-2xl p-4">
             <div className="flex items-center justify-between text-xs font-bold text-slate-500">
               <span>{isAr ? 'صافي الربح التشغيلي للفعاليات' : 'Events Net Profit'}</span>
               <TrendingUp className="h-4 w-4 text-emerald-600" />
@@ -1151,7 +1179,7 @@ export default function EventsContractsExbIntelligenceHub() {
             </div>
           </div>
 
-          <div className="bg-[#F7F7F8] dark:bg-slate-900/70 rounded-2xl p-4 ring-1 ring-slate-200/80 dark:ring-slate-800">
+          <div className="ae-tile-soft ae-lift rounded-2xl p-4">
             <div className="flex items-center justify-between text-xs font-bold text-slate-500">
               <span>{isAr ? 'تكلفة أغذية منيو المعارض' : 'EXB Menu COGS'}</span>
               <Flame className="h-4 w-4 text-amber-500" />
@@ -1165,7 +1193,7 @@ export default function EventsContractsExbIntelligenceHub() {
             </div>
           </div>
 
-          <div className="bg-[#F7F7F8] dark:bg-slate-900/70 rounded-2xl p-4 ring-1 ring-slate-200/80 dark:ring-slate-800">
+          <div className="ae-tile-soft ae-lift rounded-2xl p-4">
             <div className="flex items-center justify-between text-xs font-bold text-slate-500">
               <span>{isAr ? 'نقطة التعادل اليومية للبوث' : 'Daily Break-Even'}</span>
               <Activity className="h-4 w-4 text-blue-600" />
@@ -1179,7 +1207,7 @@ export default function EventsContractsExbIntelligenceHub() {
             </div>
           </div>
 
-          <div className="bg-[#F7F7F8] dark:bg-slate-900/70 rounded-2xl p-4 ring-1 ring-slate-200/80 dark:ring-slate-800">
+          <div className="ae-tile-soft ae-lift rounded-2xl p-4">
             <div className="flex items-center justify-between text-xs font-bold text-slate-500">
               <span>{isAr ? 'العائد على الاستثمار الموسمي' : 'Seasonal Event ROI'}</span>
               <Award className="h-4 w-4 text-emerald-600" />
@@ -1189,7 +1217,7 @@ export default function EventsContractsExbIntelligenceHub() {
             </div>
             <div className="mt-2 pt-2 border-t border-slate-200/70 dark:border-slate-800 flex justify-between text-[11px] font-bold text-slate-600 dark:text-slate-400">
               <span>{isAr ? 'حساب أودو التحليلي' : 'Odoo Analytical'}</span>
-              <span className="text-slate-900 dark:text-white">ANL-EXB-2026</span>
+              <span className="text-slate-900 dark:text-white">{isAr ? 'مركز المعارض 2026' : 'ANL-EXB-2026'}</span>
             </div>
           </div>
         </div>
@@ -1198,20 +1226,20 @@ export default function EventsContractsExbIntelligenceHub() {
       {/* ==================================================================== */}
       {/* UNIT 1: CONTRACT, DESCRIPTION & VISION DEEP-ANALYSIS STUDIO */}
       {/* ==================================================================== */}
-      <section className="bg-white dark:bg-[#111827] rounded-2xl p-5 sm:p-6 shadow-xs ring-1 ring-slate-200/80 dark:ring-slate-800 space-y-5">
+      <section className="ae-tile rounded-2xl p-5 sm:p-6  space-y-5">
         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-slate-200/80 dark:border-slate-800 pb-4">
           <div>
             <div className="flex items-center gap-2">
               <Scale className="h-5 w-5 text-blue-600" />
               <h2 className="text-lg sm:text-xl font-extrabold text-slate-950 dark:text-white">
                 {isAr
-                  ? 'أولاً: استوديو إدراج العقد والوصف العام والتصور التنفيذي (Deep-Analysis Studio)'
+                  ? 'أولاً: استوديو إدراج العقد والوصف العام والتصور التنفيذي للتحليل العميق'
                   : '1. Contract, Description & Vision Deep-Analysis Studio'}
               </h2>
             </div>
             <p className="text-xs sm:text-sm font-medium text-slate-500 mt-1">
               {isAr
-                ? 'أرفق ملف عقد الفعالية (أو الصق بنوده)، وأدخل المعطيات الميدانية وتصورك الاستراتيجي ليقوم محرك Argon High بتشريح المخاطر واقتراح البدائل.'
+                ? 'أرفق ملف عقد الفعالية (أو الصق بنوده)، وأدخل المعطيات الميدانية وتصورك الاستراتيجي ليقوم محرك أرجون هاي بتشريح المخاطر واقتراح البدائل.'
                 : 'Upload or paste the booth contract, field parameters, and your executive vision for instant Argon High legal & financial dissection.'}
             </p>
           </div>
@@ -1261,7 +1289,7 @@ export default function EventsContractsExbIntelligenceHub() {
                   <FileText className="h-4 w-4 text-blue-600" />
                   <span>
                     {isAr
-                      ? '1. إرفاق أو لصق عقد الفعالية (Contract Upload & Text)'
+                      ? '1. إرفاق أو لصق عقد الفعالية'
                       : '1. Contract File Upload & Clauses Text'}
                   </span>
                 </span>
@@ -1284,7 +1312,7 @@ export default function EventsContractsExbIntelligenceHub() {
                 <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
                   {uploadedFileName
                     ? isAr
-                      ? `✅ تم إرفاق: ${uploadedFileName} (جاهز لتحليل Gemini Base64)`
+                      ? `✅ تم إرفاق: ${uploadedFileName} (جاهز للتحليل عبر جيميناي)`
                       : `✅ Attached: ${uploadedFileName} (Ready for Gemini inlineData)`
                     : isAr
                     ? 'اسحب وأفلت ملف العقد هنا أو اضغط للاختيار'
@@ -1292,7 +1320,7 @@ export default function EventsContractsExbIntelligenceHub() {
                 </span>
                 <span className="text-[10px] text-slate-500 mt-0.5">
                   {isAr
-                    ? 'يتم تحويل الملف في المتصفح إلى Base64 وإرساله مباشرة إلى Gemini 3.8 Pro'
+                    ? 'يتم تحويل الملف في المتصفح إلى صيغة مشفرة وإرساله مباشرة إلى عقل جيميناي'
                     : 'Converted in-browser to Base64 inlineData for Gemini 3.8 Pro'}
                 </span>
                 <input
@@ -1329,7 +1357,7 @@ export default function EventsContractsExbIntelligenceHub() {
                   <Store className="h-4 w-4 text-emerald-600" />
                   <span>
                     {isAr
-                      ? '2. الوصف العام والمعطيات الميدانية (Event Parameters)'
+                      ? '2. الوصف العام والمعطيات الميدانية'
                       : '2. General Description & Field Parameters'}
                   </span>
                 </span>
@@ -1423,7 +1451,7 @@ export default function EventsContractsExbIntelligenceHub() {
                   <Lightbulb className="h-4 w-4 text-amber-500" />
                   <span>
                     {isAr
-                      ? '3. التصور التنفيذي والهدف الاستراتيجي (Executive Vision)'
+                      ? '3. التصور التنفيذي والهدف الاستراتيجي'
                       : '3. Executive Vision & Strategic Concept'}
                   </span>
                 </span>
@@ -1466,14 +1494,14 @@ export default function EventsContractsExbIntelligenceHub() {
                 type="button"
                 onClick={handleRunDeepContractAnalysis}
                 disabled={isAnalyzingContract}
-                className="w-full py-3.5 px-4 rounded-xl bg-[#2563EB] hover:bg-blue-600 text-white font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer disabled:opacity-60"
+                className="ae-pill-dark !flex !w-full !justify-center !py-3.5 !text-sm disabled:opacity-60"
               >
                 {isAnalyzingContract ? (
                   <>
                     <RefreshCw className="h-4 w-4 animate-spin" />
                     <span>
                       {isAr
-                        ? 'جاري تشريح العقد والتصور عبر Argon High...'
+                        ? 'جاري تشريح العقد والتصور عبر عقل أرجون هاي...'
                         : 'Running Deep Contract Audit via Argon High...'}
                     </span>
                   </>
@@ -1482,8 +1510,8 @@ export default function EventsContractsExbIntelligenceHub() {
                     <Sparkles className="h-4 w-4" />
                     <span>
                       {isAr
-                        ? '🧠 شغّل التحليل العميق للعقد والتصور عبر Argon High + صوت فريال'
-                        : '🧠 Run Deep Contract & Feasibility Analysis (Argon High + Nova Voice)'}
+                        ? 'شغّل التحليل العميق للعقد والتصور عبر عقل أرجون هاي وصوت فريال'
+                        : 'Run Deep Contract & Feasibility Analysis (Gemini Argon High + Nova Voice)'}
                     </span>
                   </>
                 )}
@@ -1511,9 +1539,19 @@ export default function EventsContractsExbIntelligenceHub() {
           </span>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <ContractSafetyScoreCard
+          lang={isAr ? 'ar' : 'en'}
+          risks={isAr ? deepAuditResult.risksAr : deepAuditResult.risksEn}
+          counterClauses={isAr ? deepAuditResult.counterClausesAr : deepAuditResult.counterClausesEn}
+          baseRoiPct={simulationResults.base.roiPct}
+          paybackDay={simulationResults.base.paybackDay}
+          durationDays={durationDays}
+          safetyMarginPct={simulationResults.base.safetyMarginPct}
+        />
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-stretch">
           {/* CARD 1: Contract Clauses & Risk Audit */}
-          <div className="bg-white dark:bg-[#111827] rounded-2xl p-5 shadow-xs ring-1 ring-slate-200/80 dark:ring-slate-800 space-y-3.5">
+          <div className="ae-tile rounded-2xl p-5  space-y-3.5">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2">
                 <div className="h-8 w-8 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 flex items-center justify-center">
@@ -1533,7 +1571,7 @@ export default function EventsContractsExbIntelligenceHub() {
                 </div>
               </div>
               <span className="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 ring-1 ring-rose-200">
-                {isAr ? '4 مخاطر مرصودة' : '4 Risks Flagged'}
+                {isAr ? `${deepAuditResult.risksAr.length} مخاطر مرصودة` : `${deepAuditResult.risksEn.length} Risks Flagged`}
               </span>
             </div>
 
@@ -1546,14 +1584,17 @@ export default function EventsContractsExbIntelligenceHub() {
                   <span className="h-5 w-5 rounded-full bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 font-mono text-[11px] font-extrabold flex items-center justify-center shrink-0 mt-0.5">
                     !
                   </span>
-                  <span>{risk}</span>
+                  <span className="flex flex-col">
+                    <RiskTags text={risk} lang={isAr ? 'ar' : 'en'} />
+                    <span>{risk}</span>
+                  </span>
                 </div>
               ))}
             </div>
           </div>
 
           {/* CARD 2: Recommended Contract Counter-Clauses (Ready to Copy) */}
-          <div className="bg-white dark:bg-[#111827] rounded-2xl p-5 shadow-xs ring-1 ring-slate-200/80 dark:ring-slate-800 space-y-3.5">
+          <div className="ae-tile rounded-2xl p-5  space-y-3.5">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2">
                 <div className="h-8 w-8 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 flex items-center justify-center">
@@ -1611,7 +1652,7 @@ export default function EventsContractsExbIntelligenceHub() {
           </div>
 
           {/* CARD 3: Tailored Strategic Solutions Based on User Vision */}
-          <div className="bg-white dark:bg-[#111827] rounded-2xl p-5 shadow-xs ring-1 ring-slate-200/80 dark:ring-slate-800 space-y-3.5">
+          <div className="ae-tile rounded-2xl p-5  space-y-3.5">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2">
                 <div className="h-8 w-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 flex items-center justify-center">
@@ -1649,7 +1690,7 @@ export default function EventsContractsExbIntelligenceHub() {
           </div>
 
           {/* CARD 4: Feryal Executive Voice Verdict + Embedded Audio Player */}
-          <div className="bg-white dark:bg-[#111827] rounded-2xl p-5 shadow-xs ring-1 ring-slate-200/80 dark:ring-slate-800 flex flex-col justify-between space-y-4">
+          <div className="ae-tile rounded-2xl p-5  flex flex-col justify-between space-y-4">
             <div className="space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
                 <div className="flex items-center gap-2.5">
@@ -1664,8 +1705,8 @@ export default function EventsContractsExbIntelligenceHub() {
                     </h3>
                     <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
                       {isAr
-                        ? '🧠 العقل: أرجون هاي · جيميناي 3.8 برو | 🔊 الصوت: نوفا'
-                        : '🧠 Brain: Argon High · Gemini 3.8 Pro | 🔊 Voice: Nova'}
+                        ? 'العقل: جيميناي أرجون هاي · الصوت: نوفا'
+                        : 'Brain: Gemini Argon High · Voice: Nova'}
                     </span>
                   </div>
                 </div>
@@ -1680,7 +1721,7 @@ export default function EventsContractsExbIntelligenceHub() {
                         'verdict-card'
                       )
                     }
-                    className="px-3 py-1.5 rounded-xl bg-[#2563EB] hover:bg-blue-600 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                    className="ae-pill-dark ae-pill-sm"
                   >
                     <Volume2 className="h-3.5 w-3.5" />
                     <span>{isAr ? '🔊 استمع لحكم فريال' : '🔊 Listen to Verdict'}</span>
@@ -1721,7 +1762,7 @@ export default function EventsContractsExbIntelligenceHub() {
               />
               <button
                 type="submit"
-                className="px-3.5 py-2 rounded-xl bg-slate-900 dark:bg-blue-600 text-white text-xs font-bold flex items-center gap-1 cursor-pointer"
+                className="ae-pill-dark"
               >
                 <span>{isAr ? 'اسأل فريال' : 'Ask Feryal'}</span>
                 <Send className={`h-3 w-3 ${isAr ? 'rotate-180' : ''}`} />
@@ -1734,7 +1775,7 @@ export default function EventsContractsExbIntelligenceHub() {
       {/* ==================================================================== */}
       {/* UNIT 3: 3-SCENARIO FINANCIAL SIMULATOR & BREAK-EVEN ENGINE */}
       {/* ==================================================================== */}
-      <section className="bg-white dark:bg-[#111827] rounded-2xl p-5 sm:p-6 shadow-xs ring-1 ring-slate-200/80 dark:ring-slate-800 space-y-5">
+      <section className="ae-tile rounded-2xl p-5 sm:p-6  space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/80 dark:border-slate-800 pb-4">
           <div>
             <div className="flex items-center gap-2">
@@ -1977,26 +2018,43 @@ export default function EventsContractsExbIntelligenceHub() {
             </div>
           </div>
         </div>
+
+        <EventCashflowCurve
+          lang={isAr ? 'ar' : 'en'}
+          durationDays={durationDays}
+          upfrontKwd={boothRentKwd + setupCapexKwd}
+          staffLogisticsKwd={staffLogisticsKwd}
+          aovKwd={aovKwd}
+          dailyOrders={dailyOrders}
+        />
       </section>
 
       {/* ==================================================================== */}
       {/* UNIT 4: SMART 6-BRAND SELECTOR & EXB MENU ENGINEERING MATRIX */}
       {/* ==================================================================== */}
-      <section className="bg-white dark:bg-[#111827] rounded-2xl p-5 sm:p-6 shadow-xs ring-1 ring-slate-200/80 dark:ring-slate-800 space-y-5">
+      <section className="ae-tile rounded-2xl p-5 sm:p-6  space-y-5">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div>
             <h2 className="text-lg sm:text-xl font-extrabold text-slate-950 dark:text-white">
               {isAr
-                ? 'رابعاً: محرك اختيار البراند الذكي وهندسة قائمة طعام المعارض (EXB Menu Engineering Matrix)'
+                ? 'رابعاً: محرك اختيار البراند الذكي وهندسة قائمة طعام المعارض'
                 : '4. Smart 6-Brand Selector & Custom EXB Menu Engineering Matrix'}
             </h2>
             <p className="text-xs sm:text-sm font-medium text-slate-500">
               {isAr
-                ? `العلامة المرشحة لتصورك الحالي: (${deepAuditResult.recommendedBrandId}) — مع جدول أصناف EXB بتكلفة أغذية 21.4% وزمن تحضير أقل من 90 ثانية.`
+                ? `العلامة المرشحة لتصورك الحالي: (${VENTURE_BRANDS.find((b) => b.id === deepAuditResult.recommendedBrandId)?.nameAr ?? deepAuditResult.recommendedBrandId}) — مع جدول أصناف منيو المعارض بتكلفة أغذية 21.4% وزمن تحضير أقل من 90 ثانية.`
                 : `AI Recommended Brand for your vision: (${deepAuditResult.recommendedBrandId}) — featuring 21.4% COGS EXB Menu items under 90s prep time.`}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="ae-seg" role="tablist" aria-label={isAr ? 'طريقة العرض' : 'View mode'}>
+              <button type="button" data-active={exbView === 'cards'} onClick={() => setExbView('cards')}>
+                {isAr ? 'بطاقات المراجعة' : 'Moderation cards'}
+              </button>
+              <button type="button" data-active={exbView === 'table'} onClick={() => setExbView('table')}>
+                {isAr ? 'الجدول التحليلي' : 'Analytical table'}
+              </button>
+            </div>
             <input
               type="text"
               value={menuSearchQuery}
@@ -2044,6 +2102,16 @@ export default function EventsContractsExbIntelligenceHub() {
           })}
         </div>
 
+        {exbView === 'cards' ? (
+          <ExbModerationCards items={filteredExbItems} lang={isAr ? 'ar' : 'en'} />
+        ) : (
+        <div className="space-y-3">
+        <div className="flex justify-end">
+          <button type="button" onClick={exportExbCsv} className="ae-pill-dark">
+            <FileSpreadsheet className="h-3.5 w-3.5" />
+            {isAr ? 'تصدير الجدول' : 'Export CSV'}
+          </button>
+        </div>
         {/* Movable-Column EXB Menu Table */}
         <div className="overflow-x-auto rounded-2xl ring-1 ring-slate-200/80 dark:ring-slate-800">
           <table className="w-full text-start text-xs sm:text-[13px]">
@@ -2051,7 +2119,7 @@ export default function EventsContractsExbIntelligenceHub() {
               <tr className="bg-[#F7F7F8] dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-bold">
                 {exbColumnsOrder.map((colKey, idx) => {
                   const colLabels: Record<string, { ar: string; en: string }> = {
-                    item: { ar: 'الصنف في منيو المعارض (EXB Item)', en: 'EXB Menu Star Item' },
+                    item: { ar: 'الصنف في منيو المعارض', en: 'EXB Menu Star Item' },
                     brand: { ar: 'العلامة التجارية', en: 'Brand' },
                     branchPrice: { ar: 'سعر الفرع العادي', en: 'Branch Price KWD' },
                     exbPrice: { ar: 'سعر المعرض المقترح (+10%)', en: 'EXB Booth Price (+10%)' },
@@ -2147,17 +2215,19 @@ export default function EventsContractsExbIntelligenceHub() {
             </tbody>
           </table>
         </div>
+        </div>
+        )}
       </section>
 
       {/* ==================================================================== */}
       {/* UNIT 5: HISTORICAL & LIVE CONTRACT BENCHMARK COMPARISON TABLE */}
       {/* ==================================================================== */}
-      <section className="bg-white dark:bg-[#111827] rounded-2xl p-5 sm:p-6 shadow-xs ring-1 ring-slate-200/80 dark:ring-slate-800 space-y-4">
+      <section className="ae-tile rounded-2xl p-5 sm:p-6  space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h2 className="text-lg sm:text-xl font-extrabold text-slate-950 dark:text-white">
               {isAr
-                ? 'خامساً: جدول المقارنة المرجعية للفعاليات (كشتة المارينا vs مخيم السفير vs العقد الحالي)'
+                ? 'خامساً: جدول المقارنة المرجعية للفعاليات (كشتة المارينا مقابل مخيم السفير مقابل العقد الحالي)'
                 : '5. Historical & Live Contract Benchmark Matrix (Marina Kashta vs Al-Safeer Camp vs Current Contract)'}
             </h2>
             <p className="text-xs sm:text-sm font-medium text-slate-500">
@@ -2294,20 +2364,20 @@ export default function EventsContractsExbIntelligenceHub() {
       {/* ==================================================================== */}
       {/* UNIT 6: EXECUTIVE APPROVAL PACK GENERATOR & COMPOSIO DISPATCH */}
       {/* ==================================================================== */}
-      <section className="bg-white dark:bg-[#111827] rounded-2xl p-5 sm:p-6 shadow-xs ring-1 ring-slate-200/80 dark:ring-slate-800 space-y-4">
+      <section className="ae-tile rounded-2xl p-5 sm:p-6  space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1">
             <h2 className="text-lg sm:text-xl font-extrabold text-slate-950 dark:text-white flex items-center gap-2">
               <FileCheck className="h-5 w-5 text-emerald-600" />
               <span>
                 {isAr
-                  ? 'سادساً: إصدار حقيبة الاعتماد التنفيذية الكاملة (Executive Approval Pack Generator)'
+                  ? 'سادساً: إصدار حقيبة الاعتماد التنفيذية الكاملة'
                   : '6. Executive Approval Pack Generator & Composio Dispatch'}
               </span>
             </h2>
             <p className="text-xs sm:text-sm font-medium text-slate-500">
               {isAr
-                ? 'توليد وثيقة اعتماد رسمية شاملة (ملخص العقد، التعديلات القانونية، جدول الـ 3 سيناريوهات، ومنيو EXB المعتمد) للطباعة أو الإرسال عبر Composio.'
+                ? 'توليد وثيقة اعتماد رسمية شاملة (ملخص العقد، التعديلات القانونية، جدول الـ 3 سيناريوهات، ومنيو المعارض المعتمد) للطباعة أو الإرسال عبر كومبوزيو.'
                 : 'Generate a formal executive sign-off document (contract summary, legal counter-clauses, 3-scenario table, and approved EXB Menu) ready to print or dispatch.'}
             </p>
           </div>
@@ -2321,12 +2391,12 @@ export default function EventsContractsExbIntelligenceHub() {
                   new Date().toLocaleTimeString(isAr ? 'ar-KW' : 'en-US', { hour: '2-digit', minute: '2-digit' })
                 )
               }}
-              className="py-3 px-5 rounded-xl bg-[#0F172A] hover:bg-slate-800 dark:bg-[#2563EB] dark:hover:bg-blue-600 text-white font-extrabold text-xs sm:text-sm flex items-center gap-2 shadow-xs cursor-pointer"
+              className="ae-pill-dark !py-3 !px-5 !text-sm"
             >
               <FileCheck className="h-4 w-4 text-emerald-400" />
               <span>
                 {isAr
-                  ? '📄 إصدار حقيبة الاعتماد التنفيذية وإرسالها عبر Composio'
+                  ? '📄 إصدار حقيبة الاعتماد التنفيذية وإرسالها عبر كومبوزيو'
                   : '📄 Generate Executive Approval Pack & Dispatch via Composio'}
               </span>
             </button>
@@ -2339,12 +2409,12 @@ export default function EventsContractsExbIntelligenceHub() {
               <div>
                 <span className="text-xs font-extrabold text-emerald-700 dark:text-emerald-400 block">
                   {isAr
-                    ? `✅ تم إصدار حقيبة الاعتماد التنفيذية ومزامنتها عبر Composio (${approvalPackTime})`
+                    ? `✅ تم إصدار حقيبة الاعتماد التنفيذية ومزامنتها عبر كومبوزيو (${approvalPackTime})`
                     : `✅ Executive Approval Pack Generated & Dispatched via Composio (${approvalPackTime})`}
                 </span>
                 <h3 className="text-base font-black text-slate-950 dark:text-white mt-0.5">
                   {isAr
-                    ? `وثيقة اعتماد فعالية: ${eventNameAr} (${durationDays} يوماً — مركز تكلفة أودو ANL-EXB-2026)`
+                    ? `وثيقة اعتماد فعالية: ${eventNameAr} (${durationDays} يوماً — مركز تكلفة أودو للمعارض 2026)`
                     : `Executive Sign-Off Pack: ${eventNameEn} (${durationDays} Days — Odoo Cost Center ANL-EXB-2026)`}
                 </h3>
               </div>
@@ -2360,7 +2430,7 @@ export default function EventsContractsExbIntelligenceHub() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
               <div className="p-3.5 rounded-xl bg-white dark:bg-slate-800 ring-1 ring-slate-200/80 dark:ring-slate-700 space-y-1">
                 <span className="font-extrabold text-slate-900 dark:text-white block">
-                  {isAr ? '1. الملخص المالي المعتمد (Base Case)' : '1. Approved Financial Summary'}
+                  {isAr ? '1. الملخص المالي المعتمد (السيناريو الأساسي)' : '1. Approved Financial Summary'}
                 </span>
                 <p className="text-slate-600 dark:text-slate-300">
                   {isAr
@@ -2379,7 +2449,7 @@ export default function EventsContractsExbIntelligenceHub() {
                 </span>
                 <p className="text-slate-600 dark:text-slate-300">
                   {isAr
-                    ? 'تعديل البند 4 (إعفاء أيام الأمطار والطقس) + تعديل البند 7 (سقف رسوم الخدمات 5%) + توفير قاطع 3-Phase (60 Amp).'
+                    ? 'تعديل البند 4 (إعفاء أيام الأمطار والطقس) + تعديل البند 7 (سقف رسوم الخدمات 5%) + توفير قاطع كهرباء ثلاثي الطور بقدرة 60 أمبير.'
                     : 'Amend Clause 4 (Weather rent credit) + Clause 7 (5% service fee cap) + Dedicated 3-Phase 60A breaker.'}
                 </p>
               </div>

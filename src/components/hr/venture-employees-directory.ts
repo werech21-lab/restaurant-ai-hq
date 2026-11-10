@@ -1,7 +1,7 @@
 /**
  * Venture Foods Restaurant Management W.L.L. — Comprehensive Bilingual Employee Directory
  * Synchronized with Walnut SS / Odoo HRMS.
- * Total Active Employees: 166 (Excluding phantom driver/admin accounts and closed Jahra branch)
+ * Total Active Employees: 166 (Excluding phantom driver/admin accounts and closed locations)
  */
 
 export type VentureEmployee = {

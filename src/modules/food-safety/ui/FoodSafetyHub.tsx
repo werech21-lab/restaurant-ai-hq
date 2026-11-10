@@ -90,7 +90,7 @@ export interface HealthCardRecord {
   statusEn: string
 }
 
-// 1. Cold Units Database across the 9 Active Branches + Central Kitchen (NO Jahra)
+// 1. Cold Units Database across the 9 Active Branches + Central Kitchen (active locations only)
 export const COLD_UNITS_DATA: ColdUnit[] = [
   {
     id: 'CU-CK-01',

@@ -4,13 +4,17 @@ import React, { Suspense, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import {
+  AlertTriangle,
+  BarChart3,
   Calendar,
   ChevronDown,
   FileText,
   LayoutDashboard,
   LogOut,
+  Radar,
   Sparkles,
-  Store,
+  Truck,
+  UtensilsCrossed,
   Zap,
 } from 'lucide-react'
 import { logout } from '@/app/actions/auth'
@@ -18,7 +22,14 @@ import { useI18n } from '@/lib/i18n'
 import type { AccessUser } from '@/lib/permissions'
 import { can } from '@/lib/permissions'
 import { displayRoleName, displayTeamName } from '@/lib/venture-foods-team'
-import { SALES_TABS, parseSalesTab, salesTabHref, type SalesTabId } from '@/lib/analytics/sales-tabs'
+import { SALES_TABS, parseSalesTab, salesTabHref } from '@/lib/analytics/sales-tabs'
+
+interface NavChild {
+  id: string
+  href: string
+  labelAr: string
+  labelEn: string
+}
 
 interface NavItem {
   key: string
@@ -29,7 +40,7 @@ interface NavItem {
   /** Shown to every signed-in user, regardless of module permissions */
   alwaysVisible?: boolean
   /** Collapsible sub-menu entries (accordion) */
-  children?: { id: SalesTabId; href: string; labelAr: string; labelEn: string }[]
+  children?: NavChild[]
 }
 
 interface NavSection {
@@ -45,7 +56,7 @@ const SIDEBAR_SECTIONS: NavSection[] = [
     titleAr: 'القوائم الرئيسية',
     titleEn: 'Main menu',
     items: [
-      { key: 'dashboard', href: '/dashboard', labelAr: 'الملخص المالي والتوصيات', labelEn: 'Financial Summary & Recommendations', icon: LayoutDashboard },
+      { key: 'executive', href: '/erp', labelAr: 'الملخص المالي والتوصيات', labelEn: 'Financial Summary & Recommendations', icon: LayoutDashboard, alwaysVisible: true },
       {
         key: 'feryal-ai',
         href: '/erp/feryal-ai',
@@ -57,7 +68,7 @@ const SIDEBAR_SECTIONS: NavSection[] = [
       {
         key: 'events-intelligence',
         href: '/erp/events-intelligence',
-        labelAr: 'تحليل الفعاليات والعقود (EXB)',
+        labelAr: 'تحليل الفعاليات والعقود ومنيو المعارض',
         labelEn: 'Events, Contracts & EXB Hub',
         icon: Calendar,
         alwaysVisible: true,
@@ -66,23 +77,44 @@ const SIDEBAR_SECTIONS: NavSection[] = [
       {
         key: 'reports',
         alwaysVisible: true,
-        href: '/erp/sales-scorecard',
+        href: '/erp/sales-analysis',
         labelAr: 'تحليل المبيعات والأصناف',
-        labelEn: 'Sales & items analyses',
-        icon: FileText,
-        children: SALES_TABS.map((t) => ({ id: t.id, href: salesTabHref(t.id), labelAr: t.ar, labelEn: t.en })),
+        labelEn: 'Sales & items analysis',
+        icon: BarChart3,
+        children: [
+          { id: 'matrix-v2', href: '/erp/sales-analysis', labelAr: 'مصفوفة هندسة المنيو (364 صنفاً)', labelEn: 'Menu engineering matrix (364 items)' },
+          ...SALES_TABS.map((t) => ({ id: t.id, href: salesTabHref(t.id), labelAr: t.ar, labelEn: t.en })),
+        ],
       },
-      { key: 'erp-radar', href: '/erp/aggregator-radar', labelAr: 'متابعة تطبيقات التوصيل', labelEn: 'Delivery Aggregator Control', icon: Store },
-      { key: 'automations', href: '/automations', labelAr: 'التنبيهات التلقائية', labelEn: 'Automated Notifications', icon: Zap },
+      { key: 'delivery-control', href: '/erp/delivery-control', labelAr: 'رقابة منصات التوصيل', labelEn: 'Delivery Aggregators Control', icon: Truck, alwaysVisible: true },
+      { key: 'alerts', href: '/erp/alerts', labelAr: 'التنبيهات المالية الآلية', labelEn: 'Automated Financial Alerts', icon: AlertTriangle, alwaysVisible: true },
+    ],
+  },
+  {
+    id: 'workspaces',
+    titleAr: 'مساحات العمل التفصيلية',
+    titleEn: 'Detailed workspaces',
+    items: [
+      { key: 'dashboard', href: '/dashboard', labelAr: 'التقرير المالي التفصيلي', labelEn: 'Detailed financial report', icon: FileText },
+      { key: 'erp-radar', href: '/erp/aggregator-radar', labelAr: 'رادار عمولات التوصيل', labelEn: 'Aggregator commission radar', icon: Radar },
+      { key: 'menu-engineering', href: '/erp/menu-engineering', labelAr: 'منصة هندسة المنيو', labelEn: 'Menu engineering workbench', icon: UtensilsCrossed, alwaysVisible: true },
+      { key: 'automations', href: '/automations', labelAr: 'قواعد التنبيهات التلقائية', labelEn: 'Automated notification rules', icon: Zap },
     ],
   },
 ]
 
+function childActive(child: NavChild, pathname: string, currentTab: string) {
+  const [path, qs] = child.href.split('?')
+  if (!qs) return pathname === path
+  const tab = new URLSearchParams(qs).get('tab')
+  return pathname === path && tab === currentTab
+}
+
 function NavAccordion({ item, isAr }: { item: NavItem; isAr: boolean }) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const onBase = pathname === item.href || pathname.startsWith(`${item.href}/`)
   const currentTab = parseSalesTab(searchParams.get('tab'))
+  const onBase = (item.children ?? []).some((c) => pathname === c.href.split('?')[0])
   const [open, setOpen] = useState(onBase)
   useEffect(() => {
     if (onBase) setOpen(true)
@@ -94,32 +126,27 @@ function NavAccordion({ item, isAr }: { item: NavItem; isAr: boolean }) {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className={`group flex w-full items-center justify-between gap-2.5 rounded-xl px-3 py-2 text-[13px] font-semibold transition-all ${
-          onBase
-            ? 'bg-slate-100 dark:bg-slate-800 font-bold text-slate-900 dark:text-white'
-            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-900/80 hover:text-slate-900 dark:hover:text-white'
-        }`}
+        data-active={onBase}
+        className="ae-side-link group flex w-full items-center justify-between gap-2.5 rounded-xl px-3 py-2 text-[13px] font-medium"
       >
         <span className="inline-flex min-w-0 items-center gap-2.5">
-          <Icon size={16} className="shrink-0 text-slate-500 dark:text-slate-400" />
+          <Icon size={16} className="shrink-0" />
           <span className="text-start leading-snug">{isAr ? item.labelAr : item.labelEn}</span>
         </span>
-        <ChevronDown size={14} className={`shrink-0 text-slate-500 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown size={14} className={`shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && item.children && (
-        <ul className="ms-4 mt-1 space-y-0.5 border-s border-slate-200 dark:border-slate-700 ps-2">
+        <ul className="ae-pop ms-4 mt-1 space-y-0.5 ps-2" style={{ borderInlineStart: '1px solid rgba(255,255,255,0.12)' }}>
           {item.children.map((c) => {
-            const active = onBase && currentTab === c.id
+            const active = childActive(c, pathname, currentTab)
             return (
               <li key={c.id}>
                 <Link
                   href={c.href}
                   scroll={false}
                   aria-current={active ? 'page' : undefined}
-                  className={`block rounded-lg px-3 py-2 text-[13px] font-semibold leading-snug transition-colors ${
-                    active ? 'bg-[#2563EB] font-bold text-white shadow-xs' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                  style={active ? { backgroundColor: '#2563EB', color: '#FFFFFF' } : undefined}
+                  data-active={active}
+                  className="ae-side-link block rounded-lg px-3 py-1.5 text-[12.5px] font-medium leading-snug"
                 >
                   {isAr ? c.labelAr : c.labelEn}
                 </Link>
@@ -138,53 +165,44 @@ export function Sidebar({ user }: { user: AccessUser; enabledKeys?: string[] | n
   const isAr = locale === 'ar'
 
   return (
-    <aside className="app-sidebar fixed inset-y-0 start-0 z-30 hidden w-64 shrink-0 flex-col overflow-hidden border-e border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0c1017] text-slate-800 dark:text-slate-200 md:flex">
+    <aside
+      id="ae-sidebar"
+      className="no-print fixed inset-y-0 start-0 z-30 hidden w-64 shrink-0 flex-col overflow-hidden md:flex"
+      dir={isAr ? 'rtl' : 'ltr'}
+    >
       {/* Brand Header */}
-      <div className="shrink-0 border-b border-slate-200 dark:border-slate-800/80 px-4 pt-5 pb-4 bg-slate-50/50 dark:bg-[#080b10]">
+      <div className="shrink-0 px-4 pb-4 pt-5">
         <div className="flex items-center gap-3">
-          <div
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-base font-black tracking-wide"
-            style={{ backgroundColor: '#0F172A', color: '#FFFFFF' }}
-            aria-hidden
-          >
+          <div className="ae-side-logo flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-base font-black tracking-wide shadow-sm" aria-hidden>
             VF
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-black leading-tight text-slate-900 dark:text-white">{isAr ? 'فنتشر فودز' : 'Venture Foods'}</p>
-            <p className="text-[11px] font-semibold leading-tight text-slate-500 dark:text-slate-400" dir="ltr">
-              Venture Foods W.L.L.
-            </p>
+            <p className="ae-side-strong text-sm font-semibold leading-tight tracking-tight">{isAr ? 'فنتشر فودز' : 'Venture Foods'}</p>
+            <p className="ae-side-muted text-[11px] font-medium leading-tight">{isAr ? 'منصة إيثر للتحليلات' : 'Aether BI · aetherbi.com'}</p>
           </div>
         </div>
 
-        <p className="mt-3 flex items-center text-[13px] font-black leading-snug text-slate-900 dark:text-white">
-          <span className="mr-1 ml-2 inline-block h-2 w-2 shrink-0 rounded-full bg-emerald-500"></span>
-          <span>{isAr ? 'نظام الإدارة المالية والتشغيلية' : 'Financial & Operations Management System'}</span>
-        </p>
-
         {/* Company info: three independent centred lines, nothing truncated */}
-        <div
-          dir={isAr ? 'rtl' : 'ltr'}
-          className="mt-2.5 space-y-1.5 rounded-xl border border-slate-300/80 bg-[#F1F5F9] px-4 py-3 text-center leading-relaxed shadow-sm dark:border-slate-700/80 dark:bg-slate-800/80"
-        >
-          <p className="text-xs font-bold text-[#0F172A] dark:text-slate-100" style={{ color: '#0F172A' }}>
-            {isAr ? 'شركة فنتشر فودز لإدارة المطاعم ذ.م.م.' : 'Venture Foods Restaurant Management W.L.L.'}
+        <div className="ae-side-card mt-4 space-y-1.5 px-3 py-3 text-center leading-relaxed">
+          <p className="ae-side-strong text-xs font-semibold">
+            {isAr ? 'شركة فنتشر فودز لإدارة المطاعم ذ.م.م' : 'Venture Foods Restaurants Management Co. W.L.L.'}
           </p>
           <p>
-            <span className="inline-block whitespace-nowrap rounded-full border border-slate-300 bg-white px-2.5 py-0.5 text-xs font-bold text-[#0F172A]" style={{ color: '#0F172A' }}>
+            <span className="ae-side-chip inline-block whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11px] font-semibold">
               {isAr ? 'ترخيص رقم: ' : 'Licence No: '}
               <span dir="ltr" className="inline-block tabular-nums">2021/22838</span>
             </span>
           </p>
-          <p className="text-xs font-bold text-[#1E3A8A] dark:text-sky-400" style={{ color: '#1E3A8A' }}>
-            {isAr ? '6 علامات تجارية · 9 فروع نشطة' : '6 Brands · 9 Active Branches'}
+          <p className="ae-side-muted inline-flex items-center justify-center gap-1.5 text-[11px] font-semibold">
+            <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#34D399' }} />
+            {isAr ? '6 علامات تجارية · 9 فروع نشطة · 11 قناة' : '6 Brands · 9 Active Branches · 11 Channels'}
           </p>
         </div>
       </div>
 
       {/* Navigation Sections */}
-      <nav className="min-h-0 flex-1 space-y-4 overflow-y-auto px-2.5 py-3 pb-6">
-        {SIDEBAR_SECTIONS.map((section, idx) => {
+      <nav className="min-h-0 flex-1 space-y-5 overflow-y-auto px-3 pb-6 pt-1">
+        {SIDEBAR_SECTIONS.map((section) => {
           const visibleItems = section.items.filter((item) => {
             if (user.role.isAdmin) return true
             if (item.alwaysVisible) return true
@@ -194,11 +212,9 @@ export function Sidebar({ user }: { user: AccessUser; enabledKeys?: string[] | n
           if (visibleItems.length === 0) return null
 
           return (
-            <div key={section.id} className={idx > 0 ? 'border-t border-slate-200 dark:border-slate-800/60 pt-3' : ''}>
-              <div className="px-3 pb-1.5 flex items-center justify-between">
-                <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  {isAr ? section.titleAr : section.titleEn}
-                </span>
+            <div key={section.id}>
+              <div className="px-3 pb-1.5">
+                <span className="ae-side-muted text-[10.5px] font-semibold uppercase tracking-wider">{isAr ? section.titleAr : section.titleEn}</span>
               </div>
 
               <div className="space-y-0.5">
@@ -211,32 +227,18 @@ export function Sidebar({ user }: { user: AccessUser; enabledKeys?: string[] | n
                     )
                   }
                   const Icon = item.icon
-                  const active =
-                    pathname === item.href ||
-                    (item.href !== '/dashboard' && pathname.startsWith(`${item.href}/`))
+                  const active = pathname === item.href || (item.href !== '/erp' && item.href !== '/dashboard' && pathname.startsWith(`${item.href}/`))
 
                   return (
                     <Link
                       key={item.key}
                       href={item.href}
-                      className={`group flex shrink-0 items-center justify-between gap-2.5 rounded-xl px-3 py-2 text-[13px] font-semibold transition-all ${
-                        active
-                          ? 'bg-[#2563EB] text-white shadow-sm font-bold'
-                          : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-900/80 hover:text-slate-900 dark:hover:text-white'
-                      }`}
-                      style={active ? { backgroundColor: '#2563EB', color: '#FFFFFF' } : undefined}
+                      data-active={active}
+                      aria-current={active ? 'page' : undefined}
+                      className="ae-side-link group flex shrink-0 items-center gap-2.5 rounded-xl px-3 py-2 text-[13px] font-medium"
                     >
-                      <span className="inline-flex min-w-0 items-center gap-2.5">
-                        <Icon
-                          size={16}
-                          className={`shrink-0 transition-colors ${
-                            active
-                              ? 'text-white'
-                              : 'text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white'
-                          }`}
-                        />
-                        <span className="leading-snug">{isAr ? item.labelAr : item.labelEn}</span>
-                      </span>
+                      <Icon size={16} className="shrink-0" />
+                      <span className="leading-snug">{isAr ? item.labelAr : item.labelEn}</span>
                     </Link>
                   )
                 })}
@@ -247,25 +249,22 @@ export function Sidebar({ user }: { user: AccessUser; enabledKeys?: string[] | n
       </nav>
 
       {/* User Footer */}
-      <div className="shrink-0 border-t border-slate-200 dark:border-slate-800/80 bg-slate-50/50 dark:bg-[#080b10] px-4 py-3">
+      <div className="shrink-0 px-4 py-3" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
         <div className="flex items-center gap-2.5 py-1">
-          <div className="h-8 w-8 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-white flex items-center justify-center font-bold text-xs shrink-0 border border-slate-300 dark:border-slate-700">
-            {user.name.slice(0, 1)}
-          </div>
+          <div className="ae-side-chip flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold">{user.name.slice(0, 1)}</div>
           <div className="min-w-0 flex-1">
-            <p className="font-bold text-xs leading-snug text-slate-900 dark:text-white break-words">
+            <p className="ae-side-strong break-words text-xs font-semibold leading-snug">
               {user.name.includes('الإدارة التنفيذية') || user.name.includes('Executive')
-                ? (isAr ? 'الإدارة التنفيذية · فنتشر فودز' : 'Executive Management - Venture Foods')
+                ? isAr
+                  ? 'الإدارة التنفيذية · فنتشر فودز'
+                  : 'Executive Management - Venture Foods'
                 : displayTeamName(user.name, locale)}
             </p>
-            <p className="text-[11px] leading-snug text-slate-500 dark:text-slate-400 break-words">{displayRoleName(user.role.name, locale)}</p>
+            <p className="ae-side-muted break-words text-[11px] leading-snug">{displayRoleName(user.role.name, locale)}</p>
           </div>
         </div>
         <form action={logout} className="mt-2">
-          <button
-            type="submit"
-            className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all"
-          >
+          <button type="submit" className="ae-side-logout flex w-full items-center justify-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold transition-all">
             <LogOut size={13} />
             <span>{t('nav.logout')}</span>
           </button>

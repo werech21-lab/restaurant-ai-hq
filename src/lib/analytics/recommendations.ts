@@ -20,10 +20,10 @@ export const RECS: {
   {
     id: 'REC-02', priority: 'top',
     deptEn: 'Promotional discount control', deptAr: 'ضبط الخصومات التسويقية',
-    issueEn: 'Keeta runs a 6.7% discount rate: KWD 2,539 of the KWD 4,152 total company discounts.',
-    issueAr: 'كيتا تستهلك خصومات بنسبة 6.7% (2,539 د.ك من أصل 4,152 د.ك إجمالي خصومات الشركة).',
-    fixEn: 'Stop the open menu-wide discount on Keeta and replace it with bundle offers capped at 3.5%.',
-    fixAr: 'إيقاف الخصم المفتوح على المنيو في كيتا واستبداله بعروض وجبات مجمّعة بسقف خصم 3.5%.',
+    issueEn: 'Keeta runs a 6.7% discount rate: KWD 2,544 of the KWD 4,152 total company discounts across 6,267 orders.',
+    issueAr: 'كيتا تستهلك خصومات بنسبة 6.7% (2,544 د.ك من أصل 4,152 د.ك إجمالي خصومات الشركة عبر 6,267 طلباً).',
+    fixEn: 'Stop the open menu-wide discount on Keeta and replace it with bundle offers capped at 3.5% (924 KWD a month).',
+    fixAr: 'إيقاف الخصم المفتوح على المنيو في كيتا واستبداله بعروض وجبات مجمّعة بسقف خصم 3.5% (924 د.ك شهرياً).',
     impact: 1620,
   },
   {
@@ -49,8 +49,8 @@ export const RECS: {
     deptEn: 'Menu engineering (364 items)', deptAr: 'هندسة المنيو (364 صنفاً)',
     issueEn: 'Only 32 items make 80% of sales while 332 items make 20% and add prep and storage waste.',
     issueAr: '32 صنفاً فقط تحقق 80% من المبيعات بينما 332 صنفاً تحقق 20% وترفع هدر التحضير والتخزين.',
-    fixEn: 'Delist the weakest 45 items (under 20 orders a month) to ease prep pressure in the central kitchen and the branches.',
-    fixAr: 'إلغاء أضعف 45 صنفاً (أقل من 20 طلباً بالشهر) لتخفيف ضغط التحضير في المطبخ المركزي والفروع.',
+    fixEn: 'Purge the 18 most sluggish Dog items and apply a +5% price calibration to 4 popular Plowhorses to ease prep pressure and lift margin.',
+    fixAr: 'استبعاد أضعف 18 صنفاً ورفع أسعار 4 أصناف شعبية منخفضة الهامش بنسبة 5% لتخفيف ضغط التحضير ورفع الهامش.',
     impact: 584,
   },
 ]

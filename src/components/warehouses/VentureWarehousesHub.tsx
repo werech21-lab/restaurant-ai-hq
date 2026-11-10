@@ -40,7 +40,7 @@ export interface BranchWarehouseCard {
   readinessScore: number;
 }
 
-// 10 Official Locations: 1 Central Kitchen + 9 Active Branches (No Jahra)
+// 10 Official Locations: 1 Central Kitchen + 9 Active Branches (active locations only)
 export const OFFICIAL_10_LOCATIONS: BranchWarehouseCard[] = [
   {
     id: "wh-commissary",

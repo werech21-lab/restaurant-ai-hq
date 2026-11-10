@@ -1,14 +1,19 @@
 import { requirePageUser } from '@/lib/auth/context'
-import ExecutiveCenter from '@/modules/ai/ui/ExecutiveCenter'
+import { ExecutiveHome } from '@/components/aether/ExecutiveHome'
 
 export const dynamic = 'force-dynamic'
+
+export const metadata = {
+  title: 'الملخص المالي التنفيذي | فنتشر فودز',
+  description: 'الملخص المالي التنفيذي والتوصيات لشركة فنتشر فودز لإدارة المطاعم ذ.م.م — ترخيص رقم 2021/22838.',
+}
 
 export default async function ExecutiveCenterPage() {
   await requirePageUser('/erp')
 
   return (
-    <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6">
-      <ExecutiveCenter />
-    </main>
+    <div className="w-full">
+      <ExecutiveHome />
+    </div>
   )
 }

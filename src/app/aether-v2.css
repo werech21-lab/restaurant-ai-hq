@@ -1,0 +1,634 @@
+/* ==========================================================================
+   AETHER BI V2 — OCEANIC GLASS DESIGN SYSTEM (Admin Dashboard V2 × Unslop UI)
+   --------------------------------------------------------------------------
+   Every rule is anchored on an element id (#ae-root, #ae-sidebar, #ae-topbar,
+   #ae-canvas) so it deterministically outranks the legacy class-based
+   light/dark "contrast engine" in globals.css without editing it.
+   Palette: oceanic slate → teal. Zero purple gradients.
+   Semantic accents: emerald #059669 · sky-teal #0284C7 · amber #D97706 · rose #E11D48
+   ========================================================================== */
+
+/* ---------- 1. Outer ambient shell ---------- */
+#ae-root {
+  position: relative;
+  min-height: 100dvh;
+  isolation: isolate;
+  color: #ffffff;
+  background: linear-gradient(135deg, #0a1e32 0%, #113654 48%, #1b5b7a 100%) !important;
+  background-attachment: fixed !important;
+}
+
+#ae-root .ae-ambient {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+#ae-root .ae-ambient span {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(48px);
+  opacity: 0.55;
+}
+
+#ae-root .ae-ambient span:nth-child(1) {
+  width: 34rem;
+  height: 34rem;
+  inset-inline-start: -10rem;
+  top: -12rem;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.32), transparent 65%);
+}
+
+#ae-root .ae-ambient span:nth-child(2) {
+  width: 30rem;
+  height: 30rem;
+  inset-inline-end: -8rem;
+  top: 30%;
+  background: radial-gradient(circle, rgba(45, 212, 191, 0.22), transparent 65%);
+}
+
+#ae-root .ae-ambient span:nth-child(3) {
+  width: 26rem;
+  height: 26rem;
+  inset-inline-start: 35%;
+  bottom: -12rem;
+  background: radial-gradient(circle, rgba(14, 116, 144, 0.35), transparent 65%);
+}
+
+/* ---------- 2. Glass sidebar ---------- */
+#ae-sidebar {
+  background: rgba(6, 22, 38, 0.32) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(140%);
+  border-inline-end: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: #e6f1f8 !important;
+  box-shadow: none !important;
+}
+
+#ae-sidebar .ae-side-strong {
+  color: #ffffff !important;
+}
+
+#ae-sidebar .ae-side-muted {
+  color: rgba(190, 216, 233, 0.72) !important;
+}
+
+#ae-sidebar .ae-side-card {
+  background: rgba(255, 255, 255, 0.07) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 1rem;
+}
+
+#ae-sidebar .ae-side-chip {
+  background: rgba(255, 255, 255, 0.12) !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  color: #ffffff !important;
+}
+
+#ae-sidebar .ae-side-logo {
+  background: linear-gradient(140deg, #ffffff 0%, #d7ebf7 100%) !important;
+  color: #0a1e32 !important;
+}
+
+#ae-sidebar .ae-side-link {
+  color: rgba(220, 236, 247, 0.8) !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  transition: background-color 160ms ease, color 160ms ease, transform 160ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+#ae-sidebar .ae-side-link:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+}
+
+#ae-sidebar .ae-side-link[data-active='true'] {
+  background: rgba(255, 255, 255, 0.15) !important;
+  color: #ffffff !important;
+  font-weight: 600;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 1px 2px rgba(3, 12, 22, 0.18);
+}
+
+#ae-sidebar .ae-side-link:active {
+  transform: scale(0.98);
+}
+
+#ae-sidebar .ae-side-logout {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  color: #e6f1f8 !important;
+}
+
+#ae-sidebar .ae-side-logout:hover {
+  background: rgba(255, 255, 255, 0.16) !important;
+  color: #ffffff !important;
+}
+
+/* ---------- 3. Floating glass topbar ---------- */
+#ae-topbar {
+  background: rgba(8, 28, 46, 0.55) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  backdrop-filter: blur(20px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 1.25rem;
+  box-shadow: 0 12px 32px rgba(3, 14, 26, 0.28) !important;
+  color: #ffffff !important;
+}
+
+#ae-topbar .ae-top-title {
+  color: #ffffff !important;
+}
+
+#ae-topbar .ae-top-link {
+  color: rgba(214, 232, 244, 0.82) !important;
+  border-radius: 9999px;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+#ae-topbar .ae-top-link:hover {
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+#ae-topbar .ae-top-link[data-active='true'] {
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.15) !important;
+}
+
+#ae-topbar .ae-capsule {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: rgba(230, 242, 250, 0.88) !important;
+  border-radius: 9999px;
+  transition: background-color 150ms ease;
+}
+
+#ae-topbar .ae-capsule:hover {
+  background: rgba(255, 255, 255, 0.15) !important;
+}
+
+#ae-topbar .ae-capsule kbd {
+  background: rgba(255, 255, 255, 0.12) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  color: #ffffff !important;
+}
+
+/* ---------- 4. Floating frosted-ice workspace canvas ---------- */
+#ae-canvas {
+  position: relative;
+  border-radius: 28px;
+  background-color: rgba(238, 244, 249, 0.95) !important;
+  -webkit-backdrop-filter: blur(40px);
+  backdrop-filter: blur(40px);
+  box-shadow: 0 24px 64px rgba(7, 22, 38, 0.22) !important;
+  border: 1px solid rgba(255, 255, 255, 0.6) !important;
+  color: #0f172a !important;
+  min-height: calc(100dvh - 7.5rem);
+}
+
+html.dark #ae-canvas,
+html[data-theme='dark'] #ae-canvas {
+  background-color: rgba(11, 21, 34, 0.95) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  color: #e2e8f0 !important;
+}
+
+/* Legacy pages nested in the canvas: let the frosted stage show through. */
+#ae-root main,
+#ae-canvas div.min-h-screen {
+  background-color: transparent !important;
+}
+
+/* ---------- 5. StatsCard V2 tiles ---------- */
+#ae-root .ae-tile {
+  background-color: #ffffff !important;
+  border-radius: 1rem;
+  box-shadow: 0 2px 10px rgba(15, 41, 66, 0.04), 0 0 0 1px rgba(226, 232, 240, 0.6) !important;
+  border: none !important;
+}
+
+html.dark #ae-root .ae-tile,
+html[data-theme='dark'] #ae-root .ae-tile {
+  background-color: rgba(15, 23, 42, 0.9) !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(51, 65, 85, 0.6) !important;
+}
+
+#ae-root .ae-tile-soft {
+  background-color: #f5f9fc !important;
+  border-radius: 0.875rem;
+  box-shadow: 0 0 0 1px rgba(226, 232, 240, 0.7) !important;
+}
+
+html.dark #ae-root .ae-tile-soft,
+html[data-theme='dark'] #ae-root .ae-tile-soft {
+  background-color: rgba(30, 41, 59, 0.55) !important;
+  box-shadow: 0 0 0 1px rgba(51, 65, 85, 0.55) !important;
+}
+
+#ae-root .ae-lift {
+  transition: transform 180ms cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 180ms ease;
+  will-change: transform;
+}
+
+#ae-root .ae-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px rgba(15, 41, 66, 0.09), 0 0 0 1px rgba(226, 232, 240, 0.7) !important;
+}
+
+html.dark #ae-root .ae-lift:hover,
+html[data-theme='dark'] #ae-root .ae-lift:hover {
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(71, 85, 105, 0.7) !important;
+}
+
+#ae-root .ae-icon-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  background-color: #ebf3f9 !important;
+  color: #133b5c !important;
+}
+
+html.dark #ae-root .ae-icon-badge,
+html[data-theme='dark'] #ae-root .ae-icon-badge {
+  background-color: rgba(56, 189, 248, 0.12) !important;
+  color: #7dd3fc !important;
+}
+
+/* ---------- 6. Obsidian & crisp pills ---------- */
+#ae-root .ae-pill-dark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 9999px;
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+  padding: 0.5rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
+  border: none !important;
+  transition: background-color 150ms ease, transform 150ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+#ae-root .ae-pill-dark:hover {
+  background-color: #1e293b !important;
+}
+
+#ae-root .ae-pill-dark:active,
+#ae-root .ae-pill-light:active {
+  transform: scale(0.97);
+}
+
+html.dark #ae-root .ae-pill-dark,
+html[data-theme='dark'] #ae-root .ae-pill-dark {
+  background-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+html.dark #ae-root .ae-pill-dark:hover,
+html[data-theme='dark'] #ae-root .ae-pill-dark:hover {
+  background-color: #ffffff !important;
+}
+
+#ae-root .ae-pill-light {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 9999px;
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  color: #334155 !important;
+  padding: 0.5rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1rem;
+  box-shadow: 0 0 0 1px rgba(226, 232, 240, 0.7) !important;
+  border: none !important;
+  transition: background-color 150ms ease, transform 150ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+#ae-root .ae-pill-light:hover {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+html.dark #ae-root .ae-pill-light,
+html[data-theme='dark'] #ae-root .ae-pill-light {
+  background-color: rgba(30, 41, 59, 0.9) !important;
+  color: #e2e8f0 !important;
+  box-shadow: 0 0 0 1px rgba(71, 85, 105, 0.6) !important;
+}
+
+#ae-root .ae-pill-sm {
+  padding: 0.3rem 0.7rem;
+  font-size: 0.6875rem;
+}
+
+#ae-root .ae-pill-dark:disabled,
+#ae-root .ae-pill-light:disabled {
+  opacity: 0.45 !important;
+  cursor: not-allowed;
+}
+
+/* Segmented tabs */
+#ae-root .ae-seg {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+  border-radius: 9999px;
+  padding: 0.1875rem;
+  background-color: rgba(15, 23, 42, 0.06) !important;
+}
+
+html.dark #ae-root .ae-seg,
+html[data-theme='dark'] #ae-root .ae-seg {
+  background-color: rgba(148, 163, 184, 0.12) !important;
+}
+
+#ae-root .ae-seg > button {
+  border-radius: 9999px;
+  padding: 0.375rem 0.875rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #475569 !important;
+  background: transparent !important;
+  transition: background-color 150ms ease, color 150ms ease;
+  white-space: nowrap;
+}
+
+html.dark #ae-root .ae-seg > button,
+html[data-theme='dark'] #ae-root .ae-seg > button {
+  color: #cbd5e1 !important;
+}
+
+#ae-root .ae-seg > button[data-active='true'] {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.14);
+}
+
+html.dark #ae-root .ae-seg > button[data-active='true'],
+html[data-theme='dark'] #ae-root .ae-seg > button[data-active='true'] {
+  background-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+/* Chat bubble (user) — deep ocean with guaranteed white text in both themes */
+#ae-root .ae-bubble-user {
+  background-color: #133b5c !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(19, 59, 92, 0.18);
+}
+
+#ae-root .ae-bubble-user p {
+  color: #ffffff !important;
+}
+
+/* Chips */
+#ae-root .ae-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 9999px;
+  padding: 0.25rem 0.625rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  background-color: #ebf3f9 !important;
+  color: #133b5c !important;
+  box-shadow: 0 0 0 1px rgba(19, 59, 92, 0.12) !important;
+}
+
+html.dark #ae-root .ae-chip,
+html[data-theme='dark'] #ae-root .ae-chip {
+  background-color: rgba(56, 189, 248, 0.12) !important;
+  color: #bae6fd !important;
+}
+
+/* Native selects styled as crisp pills */
+#ae-root .ae-select {
+  appearance: none;
+  -webkit-appearance: none;
+  border-radius: 9999px !important;
+  padding: 0.45rem 2rem 0.45rem 0.9rem !important;
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border: none !important;
+  box-shadow: 0 0 0 1px rgba(203, 213, 225, 0.8) !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 0.75rem center !important;
+  cursor: pointer;
+  max-width: 15rem;
+}
+
+[dir='rtl'] #ae-root .ae-select,
+#ae-root [dir='rtl'] .ae-select {
+  padding: 0.45rem 0.9rem 0.45rem 2rem !important;
+  background-position: left 0.75rem center !important;
+}
+
+html.dark #ae-root .ae-select,
+html[data-theme='dark'] #ae-root .ae-select {
+  background-color: #1e293b !important;
+  color: #f1f5f9 !important;
+  box-shadow: 0 0 0 1px rgba(71, 85, 105, 0.8) !important;
+}
+
+#ae-root .ae-input {
+  border-radius: 9999px !important;
+  padding: 0.5rem 0.95rem;
+  font-size: 0.75rem !important;
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border: none !important;
+  box-shadow: 0 0 0 1px rgba(203, 213, 225, 0.8) !important;
+  outline: none;
+}
+
+#ae-root .ae-input.ae-input-icon {
+  padding-inline-start: 2rem;
+}
+
+html.dark #ae-root .ae-input,
+html[data-theme='dark'] #ae-root .ae-input {
+  background-color: #1e293b !important;
+  color: #f1f5f9 !important;
+  box-shadow: 0 0 0 1px rgba(71, 85, 105, 0.8) !important;
+}
+
+/* ---------- 7. Typography ---------- */
+#ae-root .ae-num {
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  direction: ltr;
+  unicode-bidi: isolate;
+  display: inline-block;
+}
+
+#ae-root .ae-h {
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+#ae-root .ae-meta {
+  font-size: 0.75rem;
+  color: #64748b !important;
+}
+
+html.dark #ae-root .ae-meta,
+html[data-theme='dark'] #ae-root .ae-meta {
+  color: #94a3b8 !important;
+}
+
+/* ---------- 8. Motion ---------- */
+@keyframes ae-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes ae-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+#ae-root .ae-stagger > * {
+  animation: ae-rise 420ms cubic-bezier(0.22, 1.2, 0.36, 1) both;
+}
+
+#ae-root .ae-stagger > *:nth-child(1) { animation-delay: 0ms; }
+#ae-root .ae-stagger > *:nth-child(2) { animation-delay: 45ms; }
+#ae-root .ae-stagger > *:nth-child(3) { animation-delay: 90ms; }
+#ae-root .ae-stagger > *:nth-child(4) { animation-delay: 135ms; }
+#ae-root .ae-stagger > *:nth-child(5) { animation-delay: 180ms; }
+#ae-root .ae-stagger > *:nth-child(6) { animation-delay: 225ms; }
+#ae-root .ae-stagger > *:nth-child(7) { animation-delay: 270ms; }
+#ae-root .ae-stagger > *:nth-child(8) { animation-delay: 315ms; }
+#ae-root .ae-stagger > *:nth-child(n + 9) { animation-delay: 350ms; }
+
+#ae-root .ae-pop {
+  animation: ae-pop 200ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+#ae-root .ae-bar-grow {
+  transform-origin: bottom;
+  animation: ae-grow 520ms cubic-bezier(0.22, 1.2, 0.36, 1) both;
+}
+
+@keyframes ae-grow {
+  from {
+    transform: scaleY(0.05);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #ae-root .ae-stagger > *,
+  #ae-root .ae-pop,
+  #ae-root .ae-bar-grow {
+    animation: none !important;
+  }
+  #ae-root .ae-lift:hover {
+    transform: none;
+  }
+}
+
+/* ---------- 9. Command palette (rendered inside #ae-root) ---------- */
+#ae-root .ae-palette-backdrop {
+  background: rgba(4, 14, 26, 0.55) !important;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+#ae-root .ae-palette {
+  background: rgba(255, 255, 255, 0.97) !important;
+  color: #0f172a !important;
+  border-radius: 1.5rem;
+  box-shadow: 0 32px 80px rgba(3, 14, 26, 0.45), 0 0 0 1px rgba(226, 232, 240, 0.8) !important;
+}
+
+html.dark #ae-root .ae-palette,
+html[data-theme='dark'] #ae-root .ae-palette {
+  background: rgba(11, 21, 34, 0.98) !important;
+  color: #e2e8f0 !important;
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(51, 65, 85, 0.8) !important;
+}
+
+#ae-root .ae-palette input {
+  background: transparent !important;
+  color: inherit !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+#ae-root .ae-palette-item[data-active='true'] {
+  background-color: #ebf3f9 !important;
+}
+
+html.dark #ae-root .ae-palette-item[data-active='true'],
+html[data-theme='dark'] #ae-root .ae-palette-item[data-active='true'] {
+  background-color: rgba(56, 189, 248, 0.12) !important;
+}
+
+/* ---------- 10. Print / board brief export ---------- */
+@media print {
+  #ae-root {
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+  #ae-sidebar,
+  #ae-topbar,
+  #ae-root .ae-ambient,
+  #ae-root .ae-filterbar,
+  #ae-root .no-print {
+    display: none !important;
+  }
+  #ae-root .ae-content-col {
+    padding: 0 !important;
+  }
+  #ae-canvas {
+    box-shadow: none !important;
+    border: none !important;
+    background: #ffffff !important;
+    padding: 0 !important;
+    min-height: auto !important;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  #ae-root .ae-tile {
+    box-shadow: 0 0 0 1px #e2e8f0 !important;
+    break-inside: avoid;
+  }
+  #ae-root .ae-stagger > * {
+    animation: none !important;
+  }
+}

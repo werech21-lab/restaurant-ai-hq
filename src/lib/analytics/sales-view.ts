@@ -31,7 +31,7 @@ export interface SalesFilter {
 }
 
 /**
- * 8 Verified Actual Operational Branches (Jahra permanently removed).
+ * 8 Verified Actual Operational Branches (closed locations permanently removed).
  * Total net sales = 167,092.160 KWD.
  */
 export const BRANCH_NET: Record<string, number> = {

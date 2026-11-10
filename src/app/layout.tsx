@@ -7,6 +7,7 @@ import { PwaRegister } from '@/components/pwa-register'
 import { LanguageProvider, type Locale } from '@/lib/i18n'
 import { ThemeProvider, type Theme } from '@/lib/theme'
 import './globals.css'
+import './aether-v2.css'
 
 const ibmPlexArabic = IBM_Plex_Sans_Arabic({
   subsets: ['arabic', 'latin'],

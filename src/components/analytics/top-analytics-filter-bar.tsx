@@ -3,7 +3,7 @@
 import React, { useMemo } from "react";
 
 // ============================================================================
-// 1. 8 VERIFIED ACTUAL OPERATIONAL BRANCHES (Jahra permanently removed)
+// 1. VERIFIED ACTUAL OPERATIONAL BRANCHES (closed locations permanently removed)
 // ============================================================================
 
 export type PeriodOption = "day" | "month" | "year";
