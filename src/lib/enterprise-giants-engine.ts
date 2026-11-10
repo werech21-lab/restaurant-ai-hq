@@ -24,6 +24,7 @@ import {
   LEVERS_MONTHLY_TOTAL,
   MENU_ITEMS,
   ROADMAP,
+  odooSlice,
   periodFactor,
   sliceShares,
   type BiFilters,
@@ -33,6 +34,7 @@ import {
   type MenuItem,
   type Period,
 } from '@/lib/aether/ledger'
+import { ODOO } from '@/lib/odoo/odoo-dataset'
 
 const DAYS_IN_PERIOD = LEDGER.daysInPeriod
 
@@ -122,9 +124,10 @@ function channelMix() {
   const by = (ids: ChannelId[]) => CHANNELS.filter((c) => ids.includes(c.id)).reduce((s, c) => s + c.orders, 0)
   const total = LEDGER.orders
   return {
-    dineIn: by(['dine-in']) / total,
-    takeaway: by(['takeaway', 'drive-thru']) / total,
-    delivery: by([...AGGREGATOR_IDS, 'call-center', 'direct-web']) / total,
+    // Odoo records dine-in and takeaway on the same shop tills ("Shop Sales"), so they are reported together.
+    dineIn: by(['shop', 'staff']) / total,
+    takeaway: 0,
+    delivery: by([...AGGREGATOR_IDS, 'online-link']) / total,
   }
 }
 export const BASE_CHANNEL_MIX = channelMix()
@@ -302,10 +305,10 @@ export function dailyDecisionBrief(f: BiFilters, anchorISO: string): DecisionCar
       ? {
           id: 'profit',
           tone: 'emerald',
-          titleEn: 'Protect profit: enforce the Keeta 3.5% promo cap',
-          titleAr: 'حماية الربح: تطبيق سقف خصومات كيتا 3.5%',
-          bodyEn: `Promotions are running at 2,544 KWD against an approved 924 KWD. Capping today protects ${fmtN(keetaSaving / DAYS_IN_PERIOD, 1)} KWD per day.`,
-          bodyAr: `الخصومات عند 2,544 د.ك مقابل سقف معتمد 924 د.ك. التطبيق اليوم يحمي ${fmtN(keetaSaving / DAYS_IN_PERIOD, 1)} د.ك يومياً.`,
+          titleEn: `Protect profit: enforce the Keeta ${LEDGER.keetaCapPct}% promo cap`,
+          titleAr: `حماية الربح: تطبيق سقف خصومات كيتا ${LEDGER.keetaCapPct}%`,
+          bodyEn: `Odoo shows Keeta promotions of ${fmtN(LEDGER.keetaDiscounts)} KWD against a ${fmtN(LEDGER.keetaCapKwd)} KWD cap. Capping today protects ${fmtN(keetaSaving / DAYS_IN_PERIOD, 1)} KWD per day.`,
+          bodyAr: `عروض كيتا في أودو ${fmtN(LEDGER.keetaDiscounts)} د.ك مقابل سقف ${fmtN(LEDGER.keetaCapKwd)} د.ك. التطبيق اليوم يحمي ${fmtN(keetaSaving / DAYS_IN_PERIOD, 1)} د.ك يومياً.`,
           metricEn: `+${fmtN(keetaSaving)} KWD / month`,
           metricAr: `+${fmtN(keetaSaving)} د.ك / شهرياً`,
           href: '/erp/delivery-control',
@@ -315,10 +318,10 @@ export function dailyDecisionBrief(f: BiFilters, anchorISO: string): DecisionCar
       : {
           id: 'profit',
           tone: 'emerald',
-          titleEn: 'Protect profit: close the 0.8 pp food-cost gap',
-          titleAr: 'حماية الربح: إغلاق فجوة تكلفة الأغذية 0.8 نقطة',
-          bodyEn: 'Actual COGS is 24.8% against a 24.0% theoretical target. Forecast-driven par levels recover the gap.',
-          bodyAr: 'تكلفة الأغذية الفعلية 24.8% مقابل مستهدف نظري 24.0%. مستويات التحضير المبنية على التوقع تسترد الفجوة.',
+          titleEn: 'Protect profit: hold food cost under target',
+          titleAr: 'حماية الربح: إبقاء تكلفة الأغذية دون المستهدف',
+          bodyEn: `Odoo COGS is ${LEDGER.cogsPct}% against a ${LEDGER.cogsTargetPct}% target. Forecast-driven par levels keep the high-COGS locations in line.`,
+          bodyAr: `تكلفة الأغذية في أودو ${LEDGER.cogsPct}% مقابل مستهدف ${LEDGER.cogsTargetPct}%. مستويات التحضير المبنية على التوقع تضبط المواقع مرتفعة التكلفة.`,
           metricEn: `+${fmtN(LEDGER.cogsRecoverable * s.salesShare)} KWD / month`,
           metricAr: `+${fmtN(LEDGER.cogsRecoverable * s.salesShare)} د.ك / شهرياً`,
           href: '/erp/cost-intelligence',
@@ -393,14 +396,13 @@ const EXCEPTIONS: Record<ChannelId, ChannelExceptions> = {
   'talabat-tgo': { cancelledUnpaid: 186.45, promoUnapproved: 94.2, commissionOverbill: 61.38, inTransit: 1240 },
   'talabat-tmp': { cancelledUnpaid: 72.9, promoUnapproved: 38.5, commissionOverbill: 0, inTransit: 610 },
   keeta: { cancelledUnpaid: 158.7, promoUnapproved: 212.64, commissionOverbill: 44.9, inTransit: 1480 },
-  deliveroo: { cancelledUnpaid: 21.3, promoUnapproved: 12, commissionOverbill: 18.25, inTransit: 0 },
+  'deliveroo-go': { cancelledUnpaid: 21.3, promoUnapproved: 12, commissionOverbill: 18.25, inTransit: 0 },
+  'deliveroo-mp': { cancelledUnpaid: 0, promoUnapproved: 0, commissionOverbill: 0, inTransit: 0 },
   jahez: { cancelledUnpaid: 9.8, promoUnapproved: 6.4, commissionOverbill: 0, inTransit: 210 },
-  cari: { cancelledUnpaid: 4.2, promoUnapproved: 0, commissionOverbill: 0, inTransit: 95 },
-  'direct-web': { cancelledUnpaid: 0, promoUnapproved: 0, commissionOverbill: 0, inTransit: 48 },
-  'dine-in': { cancelledUnpaid: 0, promoUnapproved: 0, commissionOverbill: 0, inTransit: 312 },
-  takeaway: { cancelledUnpaid: 0, promoUnapproved: 0, commissionOverbill: 0, inTransit: 268 },
-  'drive-thru': { cancelledUnpaid: 0, promoUnapproved: 0, commissionOverbill: 0, inTransit: 74 },
-  'call-center': { cancelledUnpaid: 12.5, promoUnapproved: 0, commissionOverbill: 0, inTransit: 0 },
+  snoonu: { cancelledUnpaid: 4.2, promoUnapproved: 0, commissionOverbill: 0, inTransit: 95 },
+  'online-link': { cancelledUnpaid: 0, promoUnapproved: 0, commissionOverbill: 0, inTransit: 48 },
+  shop: { cancelledUnpaid: 0, promoUnapproved: 0, commissionOverbill: 0, inTransit: 654 },
+  staff: { cancelledUnpaid: 0, promoUnapproved: 0, commissionOverbill: 0, inTransit: 0 },
 }
 
 export interface ReconRow {
@@ -467,16 +469,16 @@ export const CHARGEBACK_TYPES: Record<ChargebackType, { en: string; ar: string; 
 }
 
 export const CHARGEBACKS: Chargeback[] = [
-  { id: 'CB-2610-01', channel: 'keeta', branch: 'hawally', brand: 'china-garden', type: 'commission-overbill', orderRef: 'KT-88412306', date: '2026-10-04', amount: 44.9, status: 'detected' },
+  { id: 'CB-2610-01', channel: 'keeta', branch: '360-mall', brand: 'china-garden', type: 'commission-overbill', orderRef: 'KT-88412306', date: '2026-10-04', amount: 44.9, status: 'detected' },
   { id: 'CB-2610-02', channel: 'talabat-tgo', branch: 'salmiya', brand: 'china-garden', type: 'wrongful-refund', orderRef: 'TB-55190732', date: '2026-10-06', amount: 38.75, status: 'claim-generated' },
   { id: 'CB-2610-03', channel: 'talabat-tgo', branch: 'al-kout', brand: 'china-garden', type: 'driver-delay', orderRef: 'TB-55204417', date: '2026-10-08', amount: 27.5, status: 'detected' },
-  { id: 'CB-2610-04', channel: 'keeta', branch: 'farwaniya', brand: 'china-garden', type: 'cancelled-unpaid', orderRef: 'KT-88437751', date: '2026-10-11', amount: 31.2, status: 'recovered' },
-  { id: 'CB-2610-05', channel: 'deliveroo', branch: 'sharq', brand: 'franks', type: 'commission-overbill', orderRef: 'DR-40217733', date: '2026-10-12', amount: 18.25, status: 'detected' },
-  { id: 'CB-2610-06', channel: 'talabat-tmp', branch: 'mahboula', brand: 'china-garden', type: 'missing-item', orderRef: 'TM-31097245', date: '2026-10-15', amount: 12.6, status: 'claim-generated' },
-  { id: 'CB-2610-07', channel: 'talabat-tgo', branch: 'sharq', brand: 'franks', type: 'commission-overbill', orderRef: 'TB-55261190', date: '2026-10-17', amount: 61.38, status: 'detected' },
+  { id: 'CB-2610-04', channel: 'keeta', branch: 'assima', brand: 'china-garden', type: 'cancelled-unpaid', orderRef: 'KT-88437751', date: '2026-10-11', amount: 31.2, status: 'recovered' },
+  { id: 'CB-2610-05', channel: 'deliveroo-go', branch: 'promenade', brand: 'franks', type: 'commission-overbill', orderRef: 'DR-40217733', date: '2026-10-12', amount: 18.25, status: 'detected' },
+  { id: 'CB-2610-06', channel: 'talabat-tmp', branch: 'avenues', brand: 'china-garden', type: 'missing-item', orderRef: 'TM-31097245', date: '2026-10-15', amount: 12.6, status: 'claim-generated' },
+  { id: 'CB-2610-07', channel: 'talabat-tgo', branch: 'promenade', brand: 'franks', type: 'commission-overbill', orderRef: 'TB-55261190', date: '2026-10-17', amount: 61.38, status: 'detected' },
   { id: 'CB-2610-08', channel: 'keeta', branch: 'salmiya', brand: 'tahina', type: 'wrongful-refund', orderRef: 'KT-88469012', date: '2026-10-19', amount: 22.4, status: 'detected' },
-  { id: 'CB-2610-09', channel: 'jahez', branch: 'mubarak-al-kabeer', brand: 'china-garden', type: 'cancelled-unpaid', orderRef: 'JZ-77120584', date: '2026-10-22', amount: 9.8, status: 'recovered' },
-  { id: 'CB-2610-10', channel: 'talabat-tgo', branch: 'jabriya', brand: 'noodle-bar', type: 'driver-delay', orderRef: 'TB-55302276', date: '2026-10-25', amount: 19.25, status: 'claim-generated' },
+  { id: 'CB-2610-09', channel: 'jahez', branch: 'ardiya', brand: 'china-garden', type: 'cancelled-unpaid', orderRef: 'JZ-77120584', date: '2026-10-22', amount: 9.8, status: 'recovered' },
+  { id: 'CB-2610-10', channel: 'talabat-tgo', branch: 'salmiya', brand: 'noodle-bar', type: 'driver-delay', orderRef: 'TB-55302276', date: '2026-10-25', amount: 19.25, status: 'claim-generated' },
   { id: 'CB-2610-11', channel: 'keeta', branch: 'al-kout', brand: 'farm-brown', type: 'missing-item', orderRef: 'KT-88502318', date: '2026-10-27', amount: 15.9, status: 'detected' },
   { id: 'CB-2610-12', channel: 'talabat-tmp', branch: 'ardiya', brand: 'karak-cafeteria', type: 'cancelled-unpaid', orderRef: 'TM-31144806', date: '2026-10-29', amount: 8.4, status: 'detected' },
 ]
@@ -528,7 +530,7 @@ export interface WaterfallStep {
   value: number
 }
 
-export const WATERFALL_CHANNELS: ChannelId[] = ['talabat-tgo', 'talabat-tmp', 'keeta', 'deliveroo', 'jahez']
+export const WATERFALL_CHANNELS: ChannelId[] = ['talabat-tgo', 'talabat-tmp', 'keeta', 'deliveroo-go', 'jahez']
 
 export function orderWaterfall(channelId: ChannelId) {
   const c = CHANNELS.find((x) => x.id === channelId)!
@@ -544,7 +546,7 @@ export function orderWaterfall(channelId: ChannelId) {
     { key: 'gross', en: 'Gross basket', ar: 'السلة الإجمالية', value: gross },
     { key: 'commission', en: 'Aggregator commission', ar: 'عمولة المنصة', value: -commission },
     { key: 'discount', en: 'Marketing discount', ar: 'الخصم التسويقي', value: -discount },
-    { key: 'cogs', en: 'Food COGS (24.8%)', ar: 'تكلفة الأغذية (24.8%)', value: -cogs },
+    { key: 'cogs', en: `Food COGS (${LEDGER.cogsPct}%)`, ar: `تكلفة الأغذية (${LEDGER.cogsPct}%)`, value: -cogs },
     { key: 'packaging', en: 'Packaging', ar: 'التغليف', value: -packaging },
     ...(rider > 0 ? [{ key: 'rider' as const, en: 'Own rider', ar: 'سائق المطعم', value: -rider }] : []),
     { key: 'net', en: 'Net pocket profit', ar: 'صافي الربح للطلب', value: pocket },
@@ -664,35 +666,18 @@ export const COGS_GAP_CAUSES = [
   { id: 'unrecorded-waste', en: 'Unrecorded wastage', ar: 'هدر غير مسجل', share: 0.17, tone: 'sky' as const },
 ]
 
-/** Branch behavioural weights for over-portioning and unrecorded waste (normalised by sales). */
-const BRANCH_GAP_WEIGHT: Record<BranchId, { portion: number; waste: number }> = {
-  salmiya: { portion: 0.9, waste: 0.85 },
-  'al-kout': { portion: 1.1, waste: 1.0 },
-  sharq: { portion: 0.85, waste: 0.9 },
-  hawally: { portion: 1.15, waste: 1.35 },
-  farwaniya: { portion: 1.0, waste: 1.0 },
-  ardiya: { portion: 1.2, waste: 1.15 },
-  mahboula: { portion: 0.95, waste: 0.95 },
-  'mubarak-al-kabeer': { portion: 1.05, waste: 1.0 },
-  jabriya: { portion: 0.9, waste: 0.9 },
-}
 
 export function cogsVarianceMatrix(f: BiFilters) {
   const pf = periodFactor(f.period)
   const s = sliceShares({ brand: f.brand, branch: 'all', channel: f.channel })
   const scale = s.brandShare * s.channelShare * pf
-  const gap = LEDGER.cogs - LEDGER.netSales * (LEDGER.cogsTargetPct / 100)
-  const [ck, portion, waste] = COGS_GAP_CAUSES.map((c) => gap * c.share)
-  const pw = BRANCHES.reduce((sum, b) => sum + b.sales * BRANCH_GAP_WEIGHT[b.id].portion, 0)
-  const ww = BRANCHES.reduce((sum, b) => sum + b.sales * BRANCH_GAP_WEIGHT[b.id].waste, 0)
+  // Actual COGS per location = Odoo Branches analytic plan; theoretical = location revenue × target.
+  // The split of a positive gap into causes uses the management cause shares (not in Odoo).
   const rows = BRANCHES.map((b) => {
-    const salesShare = b.sales / LEDGER.netSales
-    const ckShrink = ck * salesShare
-    const overPortion = (portion * b.sales * BRANCH_GAP_WEIGHT[b.id].portion) / pw
-    const unrecorded = (waste * b.sales * BRANCH_GAP_WEIGHT[b.id].waste) / ww
-    const theo = b.sales * (LEDGER.cogsTargetPct / 100)
-    const total = ckShrink + overPortion + unrecorded
-    const actual = theo + total
+    const theo = b.revenue * (LEDGER.cogsTargetPct / 100)
+    const actual = b.cogs
+    const total = actual - theo
+    const [ckShrink, overPortion, unrecorded] = COGS_GAP_CAUSES.map((c) => Math.max(total, 0) * c.share)
     return {
       id: b.id,
       en: b.en,
@@ -704,7 +689,7 @@ export function cogsVarianceMatrix(f: BiFilters) {
       overPortion: overPortion * scale,
       unrecorded: unrecorded * scale,
       gap: total * scale,
-      actualPct: (actual / b.sales) * 100,
+      actualPct: b.revenue ? (actual / b.revenue) * 100 : 0,
     }
   }).filter((r) => f.branch === 'all' || r.id === f.branch)
   return {
@@ -732,10 +717,11 @@ export const HORIZONS: { id: Horizon; en: string; ar: string; months: number }[]
 
 export const horizonFromPeriod = (p: Period): Horizon => (p === 'daily' ? 'day' : p === 'annual' ? 'fy' : 'month')
 
-/** Monthly aggregator & gateway commissions derived from the 11-channel contract rates. */
+/** Monthly aggregator & gateway commissions derived from the contract rates on Odoo channel sales. */
 export const MONTHLY_COMMISSIONS = CHANNELS.reduce((s, c) => s + c.sales * (c.commissionPct / 100), 0)
-const PAYROLL_RENT = LEDGER.salariesRentCommission - MONTHLY_COMMISSIONS
-const OTHER_OPEX = LEDGER.opex - LEDGER.maintCustody
+// Odoo posts payroll, rent and commissions inside operating expenses; maintenance custody is shown separately.
+const PAYROLL_RENT = Math.max(0, LEDGER.opex - LEDGER.maintCustody - MONTHLY_COMMISSIONS)
+const OTHER_OPEX = LEDGER.depreciation
 const BLENDED_COMMISSION_RATE = MONTHLY_COMMISSIONS / LEDGER.netSales
 const UPLIFT_CONTRIBUTION = 1 - LEDGER.cogsTargetPct / 100 - BLENDED_COMMISSION_RATE
 /** Revenue uplift that delivers the beverage-attach (+2,450) and menu-matrix (+584) profit levers. */
@@ -753,27 +739,79 @@ export interface PnlLine {
   budget: number
 }
 
-/** Ramp factor so horizon budgets tie to the approved trajectory (Q1 147,844 · H1 298,449 · FY 600,978). */
+/** Ramp factor so horizon budgets tie to the approved trajectory in ROADMAP (Odoo baseline + lever increments). */
 function rampFactor(h: Horizon) {
   if (h === 'h1') return ROADMAP[2].incremental / (LEVERS_MONTHLY_TOTAL * 6)
   if (h === 'fy') return ROADMAP[3].incremental / (LEVERS_MONTHLY_TOTAL * 12)
   return ROADMAP[1].incremental / (LEVERS_MONTHLY_TOTAL * 3)
 }
 
+/**
+ * Monthly P&L base for the selected scope.
+ * - Group: whitelisted posted Odoo accounting.
+ * - Location selected: that location's real Odoo cost centre (Branches analytic plan); its commissions come from
+ *   the location's own Odoo channel payments × contract rates.
+ * - Brand / channel filters on top: allocated by the exact Odoo POS sales of the slice inside the base (labelled
+ *   in the UI) because Odoo does not post brand × location × channel P&L.
+ */
+function pnlBase(f: BiFilters) {
+  const branch = f.branch === 'all' ? null : BRANCHES.find((b) => b.id === f.branch) ?? null
+  if (!branch) {
+    const s = sliceShares(f)
+    return {
+      basis: (f.brand === 'all' && f.channel === 'all' ? 'odoo-group' : 'allocated-group') as PnlBasis,
+      share: s.salesShare,
+      salesShare: s.salesShare,
+      netSales: LEDGER.netSales,
+      otherRevenue: LEDGER.revenue - LEDGER.netSales,
+      discounts: LEDGER.discounts,
+      cogs: LEDGER.cogs,
+      commissions: MONTHLY_COMMISSIONS,
+      maintenance: LEDGER.maintCustody,
+      payroll: PAYROLL_RENT,
+      depreciation: OTHER_OPEX,
+    }
+  }
+  const loc = ODOO.restaurants.find((r) => r.id === branch.id)
+  const commissions = (loc?.channels ?? []).reduce((sum, c) => {
+    const ch = CHANNELS.find((x) => x.id === c.channel)
+    return sum + c.amountKwd * ((ch?.commissionPct ?? 0) / 100)
+  }, 0)
+  const maintenance = LEDGER.opex ? LEDGER.maintCustody * (branch.opex / LEDGER.opex) : 0
+  const slice = odooSlice({ brand: f.brand, branch: f.branch, channel: f.channel })
+  const share = branch.sales ? slice.net / branch.sales : 0
+  return {
+    basis: (f.brand === 'all' && f.channel === 'all' ? 'odoo-location' : 'allocated-location') as PnlBasis,
+    share,
+    salesShare: LEDGER.netSales ? slice.net / LEDGER.netSales : 0,
+    netSales: branch.sales,
+    otherRevenue: branch.revenue - branch.sales,
+    discounts: LEDGER.netSales ? LEDGER.discounts * (branch.sales / LEDGER.netSales) : 0,
+    cogs: branch.cogs,
+    commissions,
+    maintenance,
+    payroll: Math.max(0, branch.opex - maintenance - commissions),
+    depreciation: branch.depreciation,
+  }
+}
+
+export type PnlBasis = 'odoo-group' | 'odoo-location' | 'allocated-group' | 'allocated-location'
+
 export function executivePnl(f: BiFilters, horizon: Horizon) {
   const months = HORIZONS.find((h) => h.id === horizon)!.months
-  const s = sliceShares(f)
-  const k = s.salesShare * months
-  const lever = s.salesShare * months * rampFactor(horizon)
+  const base = pnlBase(f)
+  const k = base.share * months
+  const lever = base.salesShare * months * rampFactor(horizon)
 
-  const grossA = (LEDGER.netSales + LEDGER.discounts) * k
-  const discA = LEDGER.discounts * k
-  const netA = LEDGER.netSales * k
-  const cogsA = LEDGER.cogs * k
-  const commA = MONTHLY_COMMISSIONS * k
-  const payA = PAYROLL_RENT * k
-  const maintA = LEDGER.maintCustody * k
-  const opexA = OTHER_OPEX * k
+  const grossA = (base.netSales + base.discounts) * k
+  const discA = base.discounts * k
+  const netA = base.netSales * k
+  const otherA = base.otherRevenue * k
+  const cogsA = base.cogs * k
+  const commA = base.commissions * k
+  const payA = base.payroll * k
+  const maintA = base.maintenance * k
+  const opexA = base.depreciation * k
 
   const grossB = grossA + UPLIFT_REVENUE * lever
   const discB = discA - LEDGER.keetaRecovery * lever
@@ -787,20 +825,21 @@ export function executivePnl(f: BiFilters, horizon: Horizon) {
   const lines: PnlLine[] = [
     { id: 'gross', en: 'Gross sales', ar: 'إجمالي المبيعات', kind: 'revenue', actual: grossA, budget: grossB },
     { id: 'discounts', en: 'Marketing & aggregator discounts', ar: 'الخصومات التسويقية والمنصات', kind: 'contra', indent: true, actual: discA, budget: discB },
-    { id: 'net', en: 'Net sales', ar: 'صافي المبيعات', kind: 'subtotal', actual: netA, budget: netB },
+    { id: 'net', en: 'Net sales (Odoo POS)', ar: 'صافي المبيعات (نقاط بيع أودو)', kind: 'subtotal', actual: netA, budget: netB },
+    { id: 'other-revenue', en: 'Other posted revenue (invoices & journal adjustments)', ar: 'إيرادات مرحّلة أخرى (فواتير وقيود تسوية)', kind: 'revenue', indent: true, actual: otherA, budget: otherA },
     { id: 'cogs', en: 'Food & packaging COGS', ar: 'تكلفة الأغذية والتغليف', kind: 'cost', indent: true, actual: cogsA, budget: cogsB },
-    { id: 'gross-profit', en: 'Gross profit', ar: 'مجمل الربح', kind: 'subtotal', actual: netA - cogsA, budget: netB - cogsB },
+    { id: 'gross-profit', en: 'Gross profit', ar: 'مجمل الربح', kind: 'subtotal', actual: netA + otherA - cogsA, budget: netB + otherA - cogsB },
     { id: 'commissions', en: 'Aggregator & gateway commissions', ar: 'عمولات المنصات وبوابات الدفع', kind: 'cost', indent: true, actual: commA, budget: commB },
-    { id: 'payroll', en: 'Salaries & rent', ar: 'الرواتب والإيجارات', kind: 'cost', indent: true, actual: payA, budget: payB },
+    { id: 'payroll', en: 'Salaries, rent & other operating expenses', ar: 'الرواتب والإيجارات والمصروفات التشغيلية الأخرى', kind: 'cost', indent: true, actual: payA, budget: payB },
     { id: 'maintenance', en: 'Maintenance custody', ar: 'عهدة الصيانة', kind: 'cost', indent: true, actual: maintA, budget: maintB },
-    { id: 'opex', en: 'Other operating expenses & custodies', ar: 'المصروفات التشغيلية والعهد الأخرى', kind: 'cost', indent: true, actual: opexA, budget: opexB },
+    { id: 'opex', en: 'Depreciation', ar: 'الإهلاك', kind: 'cost', indent: true, actual: opexA, budget: opexB },
     {
       id: 'profit',
       en: 'Net operating profit',
       ar: 'صافي الربح التشغيلي',
       kind: 'profit',
-      actual: netA - cogsA - commA - payA - maintA - opexA,
-      budget: netB - cogsB - commB - payB - maintB - opexB,
+      actual: netA + otherA - cogsA - commA - payA - maintA - opexA,
+      budget: netB + otherA - cogsB - commB - payB - maintB - opexB,
     },
   ]
   return {
@@ -810,7 +849,53 @@ export function executivePnl(f: BiFilters, horizon: Horizon) {
       return { ...l, variance, variancePct: l.budget !== 0 ? (variance / Math.abs(l.budget)) * 100 : 0, favourable }
     }),
     months,
-    salesShare: s.salesShare,
+    salesShare: base.salesShare,
+    basis: base.basis,
+  }
+}
+
+/**
+ * Whitelisted group operating profit itemised by Odoo operating unit (Branches analytic plan):
+ * restaurant locations, Exhibitions & Booths (EXB), school canteens, shared cost centres and the
+ * remainder posted without a location cost centre (call centre and unallocated entries).
+ */
+export function pnlUnitReconciliation() {
+  const unit = (pnl: { income: number; otherIncome: number; cogs: number; expense: number; depreciation: number; operatingProfit: number } | null | undefined) =>
+    pnl ? { revenue: pnl.income + pnl.otherIncome, cogs: pnl.cogs, opex: pnl.expense, depreciation: pnl.depreciation, profit: pnl.operatingProfit } : { revenue: 0, cogs: 0, opex: 0, depreciation: 0, profit: 0 }
+  const sum = (rows: { revenue: number; cogs: number; opex: number; depreciation: number; profit: number }[]) =>
+    rows.reduce((a, r) => ({ revenue: a.revenue + r.revenue, cogs: a.cogs + r.cogs, opex: a.opex + r.opex, depreciation: a.depreciation + r.depreciation, profit: a.profit + r.profit }), { revenue: 0, cogs: 0, opex: 0, depreciation: 0, profit: 0 })
+  const restaurants = ODOO.restaurants.map((l) => ({ id: l.id, en: l.en, ar: l.ar, kind: 'restaurant' as const, posNet: l.netKwd, orders: l.orders, ...unit(l.pnl) }))
+  const exhibitions = ODOO.exhibitions.map((l) => ({ id: l.id, en: l.en, ar: l.ar, kind: 'exhibition' as const, posNet: l.netKwd, orders: l.orders, ...unit(l.pnl) }))
+  const canteens = ODOO.canteens.map((l) => ({ id: l.id, en: l.en, ar: l.ar, kind: 'canteen' as const, posNet: l.netKwd, orders: l.orders, ...unit(l.pnl) }))
+  const shared = [
+    { id: 'head-office', en: 'Head office (shared cost centre)', ar: 'المكتب الرئيسي (مركز تكلفة مشترك)', kind: 'shared' as const, posNet: 0, orders: 0, ...unit(ODOO.pnl.sharedCosts.headOffice) },
+    { id: 'central-kitchen', en: 'Central kitchen (shared cost centre)', ar: 'المطبخ المركزي (مركز تكلفة مشترك)', kind: 'shared' as const, posNet: 0, orders: 0, ...unit(ODOO.pnl.sharedCosts.centralKitchen) },
+  ]
+  const allocated = sum([...restaurants, ...exhibitions, ...canteens, ...shared])
+  const group = { revenue: LEDGER.revenue, cogs: LEDGER.cogs, opex: LEDGER.opex, depreciation: LEDGER.depreciation, profit: LEDGER.netProfit }
+  const remainder = {
+    id: 'unallocated',
+    en: 'Call centre & entries without a location cost centre',
+    ar: 'مركز الاتصال والقيود دون مركز تكلفة موقع',
+    kind: 'unallocated' as const,
+    posNet: LEDGER.netSales - [...restaurants, ...exhibitions, ...canteens].reduce((a, r) => a + r.posNet, 0),
+    orders: LEDGER.orders - [...restaurants, ...exhibitions, ...canteens].reduce((a, r) => a + r.orders, 0),
+    revenue: group.revenue - allocated.revenue,
+    cogs: group.cogs - allocated.cogs,
+    opex: group.opex - allocated.opex,
+    depreciation: group.depreciation - allocated.depreciation,
+    profit: group.profit - allocated.profit,
+  }
+  return {
+    restaurants,
+    exhibitions,
+    canteens,
+    shared,
+    remainder,
+    subtotals: { restaurants: sum(restaurants), exhibitions: sum(exhibitions), canteens: sum(canteens), shared: sum(shared) },
+    group,
+    company: ODOO.pnl.postedCompany,
+    excludedLocations: ODOO.pnl.excludedLocations,
   }
 }
 

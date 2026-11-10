@@ -4,7 +4,7 @@ import React, { useCallback, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
 import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
 
-type SyncState = { status: 'idle' | 'syncing' | 'done' | 'error'; summary?: OdooLiveSummary; message?: string }
+type SyncState = { status: 'idle' | 'syncing' | 'done' | 'error' | 'unauthorized'; summary?: OdooLiveSummary; message?: string }
 
 const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
 
@@ -19,7 +19,11 @@ export function OdooSyncPill({ isAr }: { isAr: boolean }) {
     if (state.status === 'syncing') return
     setState((s) => ({ ...s, status: 'syncing' }))
     try {
-      const res = await fetch('/api/odoo-sync', { cache: 'no-store', headers: { accept: 'application/json' } })
+      const res = await fetch('/api/odoo-sync', { cache: 'no-store', credentials: 'same-origin', headers: { accept: 'application/json' } })
+      if (res.status === 401) {
+        setState({ status: 'unauthorized' })
+        return
+      }
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const summary = (await res.json()) as OdooLiveSummary
       setState({ status: 'done', summary })
@@ -34,6 +38,8 @@ export function OdooSyncPill({ isAr }: { isAr: boolean }) {
   const label =
     state.status === 'syncing'
       ? isAr ? 'جارٍ المزامنة مع أودو…' : 'Syncing Odoo…'
+      : state.status === 'unauthorized'
+        ? isAr ? 'سجّل الدخول للمزامنة' : 'Sign in to sync'
       : state.status === 'error'
         ? isAr ? 'تعذّرت المزامنة' : 'Sync failed'
         : s
@@ -64,8 +70,8 @@ export function OdooSyncPill({ isAr }: { isAr: boolean }) {
         <RefreshCw className="h-3 w-3 animate-spin" aria-hidden />
       ) : (
         <span className="relative flex h-2 w-2">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60" style={{ backgroundColor: state.status === 'error' ? '#FB7185' : '#34D399' }} />
-          <span className="relative inline-flex h-2 w-2 rounded-full" style={{ backgroundColor: state.status === 'error' ? '#E11D48' : '#10B981' }} />
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60" style={{ backgroundColor: state.status === 'error' || state.status === 'unauthorized' ? '#FBBF24' : '#34D399' }} />
+          <span className="relative inline-flex h-2 w-2 rounded-full" style={{ backgroundColor: state.status === 'error' ? '#E11D48' : state.status === 'unauthorized' ? '#D97706' : '#10B981' }} />
         </span>
       )}
       {label}

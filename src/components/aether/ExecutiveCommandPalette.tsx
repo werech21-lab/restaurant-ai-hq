@@ -20,7 +20,9 @@ import {
   Truck,
   UtensilsCrossed,
 } from 'lucide-react'
-import { BRANDS, BRANCHES, CHANNELS, MENU_ITEMS, PERIODS, AGGREGATOR_IDS, feryalHref, kwd } from '@/lib/aether/ledger'
+import { BRANDS, BRANCHES, CHANNELS, LEDGER, MENU_ITEMS, PERIODS, ROADMAP, AGGREGATOR_IDS, feryalHref, fmt, kwd } from '@/lib/aether/ledger'
+
+const TOP_BRANCH = [...BRANCHES].sort((a, b) => b.profit - a.profit)[0]
 import { COMMAND_PALETTE_EVENT, useBiFilters } from '@/components/aether/BiFilterContext'
 import { isBiRoute } from '@/components/aether/GlobalFilterBar'
 import { useLang } from '@/components/aether/ui'
@@ -154,12 +156,12 @@ export function ExecutiveCommandPalette() {
     ]
 
     const feryalQueries: { en: string; ar: string }[] = [
-      { en: 'Which branch is the most profitable and why is Salmiya leading at 31,246.230 KWD?', ar: 'ما الفرع الأعلى ربحية ولماذا تتصدر السالمية بـ 31,246.230 د.ك؟' },
+      { en: `Which location is the most profitable and why is ${TOP_BRANCH.en} leading at ${fmt(TOP_BRANCH.profit, 3)} KWD operating profit?`, ar: `ما الموقع الأعلى ربحية ولماذا يتصدر ${TOP_BRANCH.ar} بـ ${fmt(TOP_BRANCH.profit, 3)} د.ك ربحاً تشغيلياً؟` },
       { en: 'Build the plan to cap Keeta promotions at 3.5% and recover 1,620 KWD per month.', ar: 'ضعي خطة سقف خصومات كيتا عند 3.5% لاسترداد 1,620 د.ك شهرياً.' },
       { en: 'How do we recover 1,336 KWD per month from the Ardiya Central Kitchen poultry variance?', ar: 'كيف نسترد 1,336 د.ك شهرياً من انحراف دواجن المطبخ المركزي بالعارضية؟' },
       { en: 'Compare Talabat Tgo versus TMP unit economics per order.', ar: 'قارني اقتصاديات الطلب الواحد بين طلبات جو وسوق طلبات.' },
-      { en: 'Walk me through the Q1, H1 and full-year profit roadmap to 600,978 KWD.', ar: 'اشرحي خارطة الربح للربع الأول والنصف الأول والسنة الكاملة حتى 600,978 د.ك.' },
-      { en: 'How does a mandatory beverage in delivery combos lift AOV from 5.471 to 5.750 KWD?', ar: 'كيف يرفع المشروب الإلزامي في وجبات التوصيل متوسط السلة من 5.471 إلى 5.750 د.ك؟' },
+      { en: `Walk me through the Q1, H1 and full-year profit roadmap to ${fmt(ROADMAP[3].total)} KWD.`, ar: `اشرحي خارطة الربح للربع الأول والنصف الأول والسنة الكاملة حتى ${fmt(ROADMAP[3].total)} د.ك.` },
+      { en: `How does a mandatory beverage in delivery combos lift AOV from ${fmt(LEDGER.aov, 3)} to ${fmt(LEDGER.aovTarget, 3)} KWD?`, ar: `كيف يرفع المشروب الإلزامي في وجبات التوصيل متوسط السلة من ${fmt(LEDGER.aov, 3)} إلى ${fmt(LEDGER.aovTarget, 3)} د.ك؟` },
       { en: 'Brief me on this week’s demand forecast and the Ardiya prep par levels.', ar: 'أعطيني موجزاً عن توقع الطلب هذا الأسبوع ومستويات تحضير مطبخ العارضية.' },
       { en: 'Which aggregator chargebacks and settlement discrepancies should we recover first?', ar: 'ما استردادات المنصات وفروقات التسويات التي يجب استردادها أولاً؟' },
       { en: 'Which supplier price increases are eroding our menu margins?', ar: 'أي ارتفاعات أسعار الموردين تتآكل بها هوامش المنيو؟' },

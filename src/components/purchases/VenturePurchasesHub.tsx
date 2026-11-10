@@ -1166,7 +1166,7 @@ export function VenturePurchasesHub({
                   {isAr ? "موقع ومستودع الاستلام والوزن:" : "Receiving Hub & Warehouse:"}
                 </label>
                 <select className="w-full rounded-xl border border-slate-700 bg-slate-800 px-3 py-2.5 text-white focus:outline-none">
-                  <option value="CK-QURAIN">
+                  <option value="CK-MAIN">
                     المطبخ المركزي والمستودع الرئيسي (المسؤول: بابو تشاند رانا #1279 / تارون كومار #1994)
                   </option>
                   <option value="WH-SALMIYA">

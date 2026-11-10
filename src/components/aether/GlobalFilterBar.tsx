@@ -2,7 +2,7 @@
 
 import { usePathname } from 'next/navigation'
 import { Filter, RotateCcw, X } from 'lucide-react'
-import { BRANDS, BRANCHES, CHANNELS, PERIODS, kwd, fmt, type BranchId, type BrandId, type ChannelId } from '@/lib/aether/ledger'
+import { BRANDS, BRANCHES, CHANNELS, LEDGER, PERIODS, kwd, fmt, type BranchId, type BrandId, type ChannelId } from '@/lib/aether/ledger'
 import { useBiFilters } from '@/components/aether/BiFilterContext'
 import { Num, useLang } from '@/components/aether/ui'
 
@@ -42,7 +42,7 @@ export function GlobalFilterBar() {
         <div className="me-1 hidden min-w-0 flex-col leading-tight lg:flex">
           <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{T('Live BI context', 'سياق التحليل المباشر')}</span>
           <span className="text-xs font-semibold text-slate-900 dark:text-slate-100">
-            {T('7 brands · 9 branches · 11 channels', '7 علامات · 9 فروع · 11 قناة')}
+            {T(`${LEDGER.brands} brands · ${LEDGER.branches} restaurant locations · ${LEDGER.channels} channels`, `${LEDGER.brands} علامات · ${LEDGER.branches} مواقع مطاعم · ${LEDGER.channels} قنوات`)}
           </span>
         </div>
 
@@ -56,7 +56,7 @@ export function GlobalFilterBar() {
         </select>
 
         <select aria-label={T('Branch', 'الفرع')} className="ae-select" value={filters.branch} onChange={(e) => setBranch(e.target.value as BranchId | 'all')}>
-          <option value="all">{T('All 9 active branches', 'كل الفروع النشطة الـ 9')}</option>
+          <option value="all">{T(`All ${LEDGER.branches} restaurant locations`, `كل مواقع المطاعم الـ ${LEDGER.branches}`)}</option>
           {BRANCHES.map((b) => (
             <option key={b.id} value={b.id}>
               {isAr ? b.ar : b.en}
@@ -65,7 +65,7 @@ export function GlobalFilterBar() {
         </select>
 
         <select aria-label={T('Sales channel', 'قناة البيع')} className="ae-select" value={filters.channel} onChange={(e) => setChannel(e.target.value as ChannelId | 'all')}>
-          <option value="all">{T('All 11 channels', 'كل القنوات الـ 11')}</option>
+          <option value="all">{T(`All ${LEDGER.channels} channels`, `كل القنوات الـ ${LEDGER.channels}`)}</option>
           {CHANNELS.map((c) => (
             <option key={c.id} value={c.id}>
               {isAr ? c.ar : c.en}

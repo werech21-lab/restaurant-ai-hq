@@ -41,7 +41,7 @@ export const COLD_UNIT_SPECS: readonly ColdUnitSpec[] = [
 /** Extra sites beyond the 10 operating branches (CK + brand locations for HACCP). */
 export const EXTRA_SITES = [
   {
-    id: 'CK-QURAIN',
+    id: 'CK-MAIN',
     brandId: null as string | null,
     areaEn: 'Central Kitchen',
     areaAr: 'مبارك الكبير',
@@ -49,7 +49,7 @@ export const EXTRA_SITES = [
     nameAr: 'المطبخ المركزي',
   },
   {
-    id: 'WH-QURAIN',
+    id: 'WH-MAK',
     brandId: null as string | null,
     areaEn: 'Central Kitchen Warehouse',
     areaAr: 'مستودع المطبخ المركزي',
@@ -132,7 +132,7 @@ export const EXTRA_SITES = [
     nameAr: 'فرانكس · العارضية',
   },
   {
-    id: 'FS-QURAIN',
+    id: 'FS-MAK',
     brandId: 'FRANKS-STEAK',
     areaEn: 'Mubarak Al-Kabeer',
     areaAr: 'مبارك الكبير',
@@ -183,7 +183,7 @@ export const EXTRA_SITES = [
     nameAr: 'شاورما طحينة · بروميناد مول',
   },
   {
-    id: 'ST-QURAIN',
+    id: 'ST-MAK',
     brandId: 'SHAWARMA-TAHINA',
     areaEn: 'Mubarak Al-Kabeer',
     areaAr: 'مبارك الكبير',

@@ -93,22 +93,25 @@ function mapAccountType(odooType: string): string {
   return 'ASSET'
 }
 
+/** Odoo warehouse codes outside the Aether BI whitelist (see src/lib/odoo/pos-registry.json). */
+const EXCLUDED_WAREHOUSE_CODES = new Set(['QRN', 'JAH', 'TSJ', 'QWH', 'QRTMP'])
+
 function warehouseMeta(locLabel: string): { code: string; name: string; location: string } | null {
   const label = locLabel.trim()
   if (!label.includes('/Stock') && !/^CK\b/i.test(label)) {
     if (/Virtual|Partners\//i.test(label)) return null
   }
   const code = label.split('/')[0].trim().toUpperCase()
+  // Positive scope: warehouses of non-whitelisted Odoo locations are never imported.
+  if (EXCLUDED_WAREHOUSE_CODES.has(code)) return null
   const map: Record<string, { name: string; location: string }> = {
     PRM: { name: 'Promenade Mall', location: 'الكويت — البروميناد' },
     '360': { name: '360 Mall', location: 'الكويت — مول 360' },
     ASM: { name: 'Assima Mall', location: 'الكويت — العاصمة مول' },
     KOUT: { name: 'Al Kout Mall', location: 'الكويت — الكوت مول' },
-    QRN: { name: 'Aswaq Al Qurain', location: 'الكويت — القرين' },
     SAL: { name: 'Salmiya', location: 'الكويت — السالمية' },
     ARD: { name: 'Ardiya / KWC', location: 'الكويت — العارضية' },
     AVE: { name: 'Avenues Mall', location: 'الكويت — الأفنيوز' },
-    JAH: { name: 'Jahra', location: 'الكويت — الجهراء' },
     CK: { name: 'Central Kitchen', location: 'الكويت — المطبخ المركزي' },
   }
   const meta = map[code] || { name: label, location: label }
@@ -209,7 +212,6 @@ async function main() {
     { code: 'SAL', name: 'Salmiya', location: 'الكويت — السالمية' },
     { code: 'ARD', name: 'Ardiya / KWC', location: 'الكويت — العارضية' },
     { code: 'AVE', name: 'Avenues Mall', location: 'الكويت — الأفنيوز' },
-    { code: 'JAH', name: 'Jahra', location: 'الكويت — الجهراء' },
     { code: 'CK', name: 'Central Kitchen', location: 'الكويت — المطبخ المركزي' },
   ]
 

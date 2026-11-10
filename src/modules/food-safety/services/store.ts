@@ -77,7 +77,7 @@ function seededTemp(unitId: string, targetC: number, criticalAboveC: number, day
   const h = hash(`${unitId}:${dayKey}`)
   const roll = h % 100
   // Known problem sites from maintenance data get hotter seed bias
-  const hotSites = ['FB-ALKOUT', 'FB-SALMIYA', 'CG-360', 'FB-ARDIYA', 'ST-KEIFAN', 'CG-ASSIMA', 'CK-QURAIN']
+  const hotSites = ['FB-ALKOUT', 'FB-SALMIYA', 'CG-360', 'FB-ARDIYA', 'ST-KEIFAN', 'CG-ASSIMA', 'CK-MAIN']
   const siteId = unitId.split('::')[0] ?? ''
   const isHot = hotSites.includes(siteId) && (unitId.includes('vegetables') || unitId.includes('salad') || unitId.includes('freezer'))
   if (isHot && roll < 18) return criticalAboveC + 1.5 + (h % 20) / 10
@@ -141,12 +141,12 @@ export function ensureSeeded(now = new Date()): void {
     const owner = primaryOwnerBrand(prep)
     const compatibleSites = sites.filter(
       (site) =>
-        site.id === 'CK-QURAIN' ||
+        site.id === 'CK-MAIN' ||
         (site.brandId != null && ruleAllowedAtSiteBrand(prep, site.brandId)),
     )
     // Prefer brand branches first, then CK — never a foreign brand site.
     const brandSites = compatibleSites.filter((site) => site.brandId === owner)
-    const ckSites = compatibleSites.filter((site) => site.id === 'CK-QURAIN')
+    const ckSites = compatibleSites.filter((site) => site.id === 'CK-MAIN')
     const pick = [...brandSites.slice(0, 2), ...ckSites.slice(0, 1)]
     for (const site of pick) {
       bi += 1

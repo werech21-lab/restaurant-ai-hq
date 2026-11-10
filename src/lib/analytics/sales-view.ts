@@ -1,26 +1,24 @@
-import { BRANDS_DATA, CHANNELS_DATA, type BrandRow, type ChannelRow } from './sales-core-data'
-import { INITIAL_BRANCH_PROFILES } from '@/lib/radar/talabat-geo-zone-radar'
+import { BRANDS_DATA, CHANNELS_DATA, GROUP_ITEMS_SOLD, type BrandRow, type ChannelRow } from './sales-core-data'
 import { OCTOBER_HOURLY_HEATMAP } from './brand-sales-october-data'
 import { DAILY_TREND_SAMPLE } from './sales-tabs'
-import { BRAND_OPERATING_BRANCHES, BRAND_OPERATING_CHANNELS } from '@/components/analytics/top-analytics-filter-bar'
-import { VERIFIED_BRANCH_LIST, VERIFIED_BRANCH_NET, rasBalance } from './verified-reconciliation'
+import { ALL_LOCATION_LIST, SCORECARD_BRAND_ID, SCORECARD_BRAND_NAME, VERIFIED_BRANCH_NET, type OdooLocationRow } from './verified-reconciliation'
+import { ODOO } from '@/lib/odoo/odoo-dataset'
 
 /**
- * Strict Real Data Calculation Model for /erp/sales-scorecard.
- * Zero synthetic ratios. Every cell is verified against actual recorded figures.
+ * Real-data view model for /erp/sales-scorecard, built only from live Odoo cross-tabulations
+ * (brand × location, brand × channel, location × channel and the brand × location × channel cube).
  *
- * Official Approved Totals (October 2026):
- * - Net Sales: 167,092.160 KWD
- * - Orders: 30,540 orders
- * - Items: 79,740 items
- * - Discounts: 4,152.000 KWD
+ * Group totals (October 2026, whitelisted registers):
+ * - POS net sales (after order-level promotions): ODOO.totals.netSalesKwd
+ * - Orders: ODOO.totals.orders
+ * - Brand rows are item sales before order-level promotion lines; channel rows are payments.
  */
 export const ALL_BRANDS = 'All brands'
 export const ALL_CHANNELS = 'All channels'
-export const TOTAL_NET = 167092.16
-export const TOTAL_ORDERS = 30540
-export const TOTAL_ITEMS = 79740
-export const TOTAL_DISCOUNTS = 4152
+export const TOTAL_NET = ODOO.totals.netSalesKwd
+export const TOTAL_ORDERS = ODOO.totals.orders
+export const TOTAL_ITEMS = GROUP_ITEMS_SOLD
+export const TOTAL_DISCOUNTS = ODOO.totals.discountsKwd
 
 export type PeriodType = 'Day' | 'Month' | 'Year' | 'day' | 'month' | 'year'
 
@@ -31,30 +29,18 @@ export interface SalesFilter {
   period?: PeriodType
 }
 
-/**
- * 9 verified active branches (Salmiya #1 at 31,246.230 KWD · 18.7%). Total net sales = 167,092.160 KWD.
- */
+/** Net sales per Odoo location (restaurants + EXB + school canteens). */
 export const BRANCH_NET: Record<string, number> = { ...VERIFIED_BRANCH_NET }
 
-export const BRANCH_WEIGHTS: Record<string, number> = (() => {
-  const w: Record<string, number> = { 'All branches': 1.0, ALL: 1.0 }
-  for (const b of VERIFIED_BRANCH_LIST) {
-    w[b.code] = b.sales / TOTAL_NET
-    w[b.nameEn] = b.sales / TOTAL_NET
-  }
-  w['Mubarak Al-Kabeer'] = w.QRN
-  w.MSB = w.QRN
-  return w
-})()
+const CHANNEL_ID_BY_NAME: Record<string, string> = Object.fromEntries(ODOO.channels.map((c) => [c.odooName, c.id]))
+const LOCATIONS = [...ODOO.restaurants, ...ODOO.exhibitions, ...ODOO.canteens]
 
-const BRAND_ID_TO_NAME: Record<string, string> = {
-  'china-garden': 'China Garden',
-  franks: "Frank's",
-  tahina: 'Tahina',
-  'farm-brown': 'Farm Brown',
-  'fresh-daily-canteen': 'Fresh Daily Canteen',
-  'noodle-bar': 'The Noodle Bar',
-  'karak-cafeteria': 'Karak Cafeteria',
+/** Resolves a filter value (location id, code or English name) to an Odoo location id. */
+export function resolveLocationId(value: string | undefined): string | null {
+  if (!value || value === 'ALL' || value === 'All branches') return null
+  const v = value.toLowerCase()
+  const hit = ALL_LOCATION_LIST.find((l) => l.id === v || l.code.toLowerCase() === v || l.nameEn.toLowerCase() === v || l.nameAr === value)
+  return hit?.id ?? null
 }
 
 /**
@@ -77,16 +63,6 @@ export function channelDeliveryMode(channel: string): 'Tgo' | 'TMP' | 'M' | null
   return null
 }
 
-const SEED_BRAND_DISCOUNT_KWD: Record<string, number> = {
-  'China Garden': 3672.41,
-  "Frank's": 303.01,
-  Tahina: 44.28,
-  'Farm Brown': 31.97,
-  'The Noodle Bar': 82.23,
-  'Karak Cafeteria': 18.10,
-  'Fresh Daily Canteen': 0,
-}
-
 export interface RealMatrixCell {
   netSales: number
   orders: number
@@ -94,104 +70,30 @@ export interface RealMatrixCell {
   discountKwd: number
 }
 
-/**
- * Real Brand x Channel Matrix (Zero synthetic approximations).
- * Every single intersection represents actual recorded sales.
- */
-const SEED_BRAND_CHANNEL_DATA: Record<string, Record<string, RealMatrixCell>> = {
-  'China Garden': {
-    'Shop Sales': { netSales: 49261.30, orders: 12173, items: 31284, discountKwd: 395.20 },
-    'Talabat Go': { netSales: 47890.10, orders: 6120, items: 17809, discountKwd: 780.40 },
-    Keeta: { netSales: 32555.28, orders: 5704, items: 15401, discountKwd: 2320.15 },
-    'Talabat MP': { netSales: 5951.84, orders: 608, items: 2462, discountKwd: 96.90 },
-    'Deliveroo Core': { netSales: 1600.48, orders: 457, items: 1325, discountKwd: 14.20 },
-    Ordable: { netSales: 1045.21, orders: 81, items: 414, discountKwd: 0.84 },
-    Snoonu: { netSales: 1029.26, orders: 163, items: 465, discountKwd: 54.31 },
-    Jahez: { netSales: 1021.05, orders: 129, items: 391, discountKwd: 0.00 },
-    Phone: { netSales: 801.94, orders: 121, items: 551, discountKwd: 10.41 },
-    'Deliveroo MP': { netSales: 506.19, orders: 86, items: 345, discountKwd: 0.00 },
-  },
-  "Frank's": {
-    'Talabat Go': { netSales: 6420.50, orders: 840, items: 2528, discountKwd: 89.88 },
-    'Deliveroo Core': { netSales: 3890.20, orders: 510, items: 1535, discountKwd: 34.55 },
-    'Shop Sales': { netSales: 3420.12, orders: 450, items: 1355, discountKwd: 47.88 },
-    Keeta: { netSales: 1840.15, orders: 280, items: 843, discountKwd: 123.29 },
-    'Talabat MP': { netSales: 463.00, orders: 67, items: 201, discountKwd: 7.41 },
-  },
-  Tahina: {
-    'Shop Sales': { netSales: 3210.40, orders: 1490, items: 4097, discountKwd: 32.10 },
-    'Talabat Go': { netSales: 820.24, orders: 310, items: 853, discountKwd: 8.20 },
-    Keeta: { netSales: 398.00, orders: 144, items: 396, discountKwd: 3.98 },
-  },
-  'Farm Brown': {
-    'Shop Sales': { netSales: 1890.00, orders: 610, items: 1299, discountKwd: 22.68 },
-    'Talabat Go': { netSales: 450.18, orders: 140, items: 298, discountKwd: 5.40 },
-    Keeta: { netSales: 324.00, orders: 97, items: 207, discountKwd: 3.89 },
-  },
-  'The Noodle Bar': {
-    'Talabat MP': { netSales: 472.41, orders: 67, items: 184, discountKwd: 23.15 },
-    Keeta: { netSales: 490.55, orders: 42, items: 116, discountKwd: 24.04 },
-    'Shop Sales': { netSales: 580.07, orders: 135, items: 371, discountKwd: 28.42 },
-    'Talabat Go': { netSales: 135.19, orders: 25, items: 69, discountKwd: 6.62 },
-  },
-  'Karak Cafeteria': {
-    'Shop Sales': { netSales: 591.20, orders: 125, items: 604, discountKwd: 14.78 },
-    Whatsapp: { netSales: 33.30, orders: 3, items: 21, discountKwd: 3.32 },
-  },
-  // Odoo October 2026: school canteen tills only (NPIS Hawally · FAIPS Ahmadi · FAS Fahaheel)
-  'Fresh Daily Canteen': {
-    'Shop Sales': { netSales: 2022.15, orders: 6510, items: 11695, discountKwd: 0 },
-  },
-}
+const ipoOf = (brandName: string) => BRANDS_DATA.find((b) => b.brand === brandName)?.itemsPerOrder ?? 0
 
-/**
- * Brand × channel matrix balanced (RAS) so every brand row equals its verified total and every channel
- * column equals the approved channel figures; discounts reconcile to the 4,152 KWD channel split.
- */
+/** Brand × channel matrix straight from Odoo (lines of orders paid through each channel). */
 export const REAL_BRAND_CHANNEL_DATA: Record<string, Record<string, RealMatrixCell>> = (() => {
-  const brands = BRANDS_DATA.map((b) => b.brand)
-  const channels = CHANNELS_DATA.map((c) => c.channel)
-  const seedCell = (b: string, c: string) => SEED_BRAND_CHANNEL_DATA[b]?.[c]
-  const net = rasBalance(
-    brands.map((b) => channels.map((c) => seedCell(b, c)?.netSales ?? 0)),
-    BRANDS_DATA.map((b) => b.netSales),
-    CHANNELS_DATA.map((c) => c.netSales),
-  )
-  const orders = rasBalance(
-    brands.map((b) => channels.map((c) => seedCell(b, c)?.orders ?? 0)),
-    BRANDS_DATA.map((b) => b.orders),
-    CHANNELS_DATA.map((c) => c.orders),
-  )
-  const discSeed = brands.map((b, i) =>
-    channels.map((c, j) => {
-      const cell = seedCell(b, c)
-      return cell && cell.netSales > 0 ? (cell.discountKwd / cell.netSales) * net[i][j] : 0
-    }),
-  )
-  const discCol = channels.map((_, j) => discSeed.reduce((a, row) => a + row[j], 0))
-  const disc = discSeed.map((row) => row.map((v, j) => (discCol[j] > 0 ? (v * CHANNELS_DATA[j].discountKwd) / discCol[j] : 0)))
   const out: Record<string, Record<string, RealMatrixCell>> = {}
-  brands.forEach((b, i) => {
-    out[b] = {}
-    channels.forEach((c, j) => {
-      const cell = seedCell(b, c)
-      if (!cell || net[i][j] <= 0) return
-      out[b][c] = {
-        netSales: net[i][j],
-        orders: orders[i][j],
-        items: cell.orders > 0 ? (cell.items / cell.orders) * orders[i][j] : 0,
-        discountKwd: disc[i][j],
-      }
-    })
-  })
+  for (const b of BRANDS_DATA) out[b.brand] = {}
+  for (const cell of ODOO.brandChannel) {
+    const brand = SCORECARD_BRAND_NAME[cell.brand]
+    const channel = ODOO.channels.find((c) => c.id === cell.channel)?.odooName
+    if (!brand || !channel || !out[brand]) continue
+    out[brand][channel] = { netSales: cell.netKwd, orders: cell.orders, items: Math.round(cell.orders * ipoOf(brand)), discountKwd: 0 }
+  }
   return out
 })()
 
-/** Brand discount totals derived from the balanced matrix (sum = 4,152 KWD). */
+/** Line discounts per brand recorded in the Odoo POS. */
 export const BRAND_DISCOUNT_KWD: Record<string, number> = Object.fromEntries(
-  Object.entries(REAL_BRAND_CHANNEL_DATA).map(([b, cells]) => [b, Object.values(cells).reduce((a, c) => a + c.discountKwd, 0)]),
+  ODOO.brands.filter((b) => b.active).map((b) => [b.en, b.discountKwd]),
 )
-void SEED_BRAND_DISCOUNT_KWD
+
+/** Order-level promotions per location = location item sales − location payments (Odoo). */
+const LOCATION_PROMO: Record<string, number> = Object.fromEntries(
+  LOCATIONS.map((l) => [l.id, Math.max(0, l.brands.reduce((s, b) => s + b.netKwd, 0) - l.netKwd)]),
+)
 
 export interface SalesView {
   filter: SalesFilter
@@ -209,193 +111,99 @@ export interface SalesView {
 }
 
 export function shares(f: SalesFilter) {
-  const brandSel = f.brand && f.brand !== ALL_BRANDS
-  const channelSel = f.channel && f.channel !== ALL_CHANNELS
-  const branchSel = f.branch && f.branch !== 'ALL' && f.branch !== 'All branches'
+  const brandSel = !!f.brand && f.brand !== ALL_BRANDS
+  const channelSel = !!f.channel && f.channel !== ALL_CHANNELS
+  const branchSel = !!resolveLocationId(f.branch)
   const period = (f.period ?? 'month').toLowerCase()
   const pM = period === 'day' ? 1 / 31 : period === 'year' ? 12 : 1
-
-  let brN = 1
-  if (branchSel) {
-    const branchKey = Object.keys(BRANCH_WEIGHTS).find((k) => k.toLowerCase() === f.branch!.toLowerCase()) ?? f.branch!
-    brN = BRANCH_WEIGHTS[branchKey] ?? 1.0
-  }
-
-  return {
-    brandSel,
-    channelSel,
-    branchSel,
-    brN,
-    pM,
-  }
+  return { brandSel, channelSel, branchSel, brN: 1, pM }
 }
 
+type Cell = { net: number; orders: number; items: number; discounts: number }
+
+/** Exact Odoo figures for a brand / channel / location slice (scorecard naming). */
+function slice(brand: string | null, channel: string | null, loc: string | null): Cell {
+  const bid = brand ? SCORECARD_BRAND_ID[brand] : null
+  const cid = channel ? CHANNEL_ID_BY_NAME[channel] : null
+  const location = loc ? LOCATIONS.find((l) => l.id === loc) : null
+  const brandRow = brand ? BRANDS_DATA.find((b) => b.brand === brand) : null
+  const ipo = brandRow?.itemsPerOrder ?? (TOTAL_ORDERS ? TOTAL_ITEMS / TOTAL_ORDERS : 0)
+  const mk = (net: number, orders: number, discounts: number): Cell => ({ net, orders, items: Math.round(orders * ipo), discounts })
+
+  if (!brand && !channel && !loc) return { net: TOTAL_NET, orders: TOTAL_ORDERS, items: TOTAL_ITEMS, discounts: TOTAL_DISCOUNTS }
+  if (brand && !channel && !loc) return mk(brandRow?.netSales ?? 0, brandRow?.orders ?? 0, BRAND_DISCOUNT_KWD[brand] ?? 0)
+  if (!brand && channel && !loc) {
+    const c = CHANNELS_DATA.find((x) => x.channel === channel)
+    return mk(c?.netSales ?? 0, c?.orders ?? 0, c?.discountKwd ?? 0)
+  }
+  if (!brand && !channel && loc) return mk(location?.netKwd ?? 0, location?.orders ?? 0, LOCATION_PROMO[loc] ?? 0)
+  if (brand && channel && !loc) {
+    const cell = REAL_BRAND_CHANNEL_DATA[brand]?.[channel]
+    return mk(cell?.netSales ?? 0, cell?.orders ?? 0, 0)
+  }
+  if (brand && !channel && loc) {
+    const bl = location?.brands.find((x) => x.brand === bid)
+    return mk(bl?.netKwd ?? 0, bl?.orders ?? 0, 0)
+  }
+  if (!brand && channel && loc) {
+    const lc = location?.channels.find((x) => x.channel === cid)
+    return mk(lc?.amountKwd ?? 0, lc?.payments ?? 0, 0)
+  }
+  // brand × channel × location: exact net from the Odoo cube; orders follow the brand-at-location basket.
+  const cube = ODOO.cube.find((x) => x.brand === bid && x.location === loc && x.channel === cid)
+  const bl = location?.brands.find((x) => x.brand === bid)
+  const orders = cube && bl && bl.netKwd > 0 ? Math.round((cube.netKwd / bl.netKwd) * bl.orders) : 0
+  return mk(cube?.netKwd ?? 0, orders, 0)
+}
+
+const scaleOrders = (orders: number, period: string, pM: number) => (orders === 0 ? 0 : period === 'day' ? Math.max(1, Math.round(orders / 31)) : Math.round(orders * pM))
+
 /**
- * Strict Real Data View Engine:
- * Reads directly from verified matrices. Eliminates all synthetic multiplication artifacts.
+ * Real Odoo view engine: every number is read from an Odoo cross-tabulation.
  */
 export function computeView(f: SalesFilter): SalesView {
   const brandSel = !!f.brand && f.brand !== ALL_BRANDS && f.brand !== 'ALL'
   const channelSel = !!f.channel && f.channel !== ALL_CHANNELS && f.channel !== 'ALL'
-  const branchSel = !!f.branch && f.branch !== 'ALL' && f.branch !== 'All branches'
+  const loc = resolveLocationId(f.branch)
   const period = (f.period ?? 'month').toLowerCase()
   const pM = period === 'day' ? 1 / 31 : period === 'year' ? 12 : 1
 
-  let rawNet = TOTAL_NET
-  let rawOrders = TOTAL_ORDERS
-  let rawItems = TOTAL_ITEMS
-  let rawDiscounts = TOTAL_DISCOUNTS
+  const main = slice(brandSel ? f.brand : null, channelSel ? f.channel : null, loc)
+  const net = main.net * pM
+  const orders = scaleOrders(main.orders, period, pM)
+  const items = scaleOrders(main.items, period, pM)
+  const discounts = main.discounts * pM
 
-  if (brandSel && channelSel) {
-    const cell = REAL_BRAND_CHANNEL_DATA[f.brand]?.[f.channel]
-    if (!cell) {
-      rawNet = 0
-      rawOrders = 0
-      rawItems = 0
-      rawDiscounts = 0
-    } else {
-      rawNet = cell.netSales
-      rawOrders = cell.orders
-      rawItems = cell.items
-      rawDiscounts = cell.discountKwd
-    }
-  } else if (brandSel) {
-    const b = BRANDS_DATA.find((x) => x.brand === f.brand)
-    if (b) {
-      rawNet = b.netSales
-      rawOrders = b.orders
-      rawItems = Math.round(b.orders * b.itemsPerOrder)
-      rawDiscounts = BRAND_DISCOUNT_KWD[b.brand] ?? 0
-    }
-  } else if (channelSel) {
-    const c = CHANNELS_DATA.find((x) => x.channel === f.channel)
-    if (c) {
-      rawNet = c.netSales
-      rawOrders = c.orders
-      rawItems = Math.round(c.orders * c.itemsPerOrder)
-      rawDiscounts = c.discountKwd
-    }
-  }
-
-  // Branch filter: enforce real operational presence
-  if (branchSel) {
-    const branchKey = Object.keys(BRANCH_WEIGHTS).find((k) => k.toLowerCase() === f.branch!.toLowerCase()) ?? f.branch!
-    const branchWeight = BRANCH_WEIGHTS[branchKey] ?? 1.0
-
-    if (brandSel) {
-      const allowed = BRAND_OPERATING_BRANCHES[f.brand]
-      const match = allowed?.some(
-        (ab) => ab.toLowerCase().includes(f.branch!.toLowerCase()) || f.branch!.toLowerCase().includes(ab.toLowerCase()),
-      )
-      if (allowed && !match) {
-        rawNet = 0
-        rawOrders = 0
-        rawItems = 0
-        rawDiscounts = 0
-      } else {
-        rawNet *= branchWeight
-        rawOrders = Math.round(rawOrders * branchWeight)
-        rawItems = Math.round(rawItems * branchWeight)
-        rawDiscounts *= branchWeight
-      }
-    } else {
-      rawNet = BRANCH_NET[f.branch!] ?? TOTAL_NET * branchWeight
-      rawOrders = Math.round(TOTAL_ORDERS * branchWeight)
-      rawItems = Math.round(TOTAL_ITEMS * branchWeight)
-      rawDiscounts = TOTAL_DISCOUNTS * branchWeight
-    }
-  }
-
-  // Period adjustment: strictly avoid 0 orders with positive revenue
-  let net = rawNet * pM
-  let orders = rawOrders === 0 ? 0 : period === 'day' ? Math.max(1, Math.round(rawOrders / 31)) : Math.round(rawOrders * pM)
-  let items = rawOrders === 0 ? 0 : period === 'day' ? Math.max(1, Math.round(rawItems / 31)) : Math.round(rawItems * pM)
-  let discounts = rawDiscounts * pM
-
-  if (rawOrders === 0 || rawNet === 0) {
-    net = 0
-    orders = 0
-    items = 0
-    discounts = 0
-  }
-
-  // Brand rows
   const brands: BrandRow[] = BRANDS_DATA.map((b) => {
-    let bNet = b.netSales
-    let bOrders = b.orders
-    let bDisc = BRAND_DISCOUNT_KWD[b.brand] ?? 0
-
-    if (channelSel) {
-      const cell = REAL_BRAND_CHANNEL_DATA[b.brand]?.[f.channel]
-      bNet = cell?.netSales ?? 0
-      bOrders = cell?.orders ?? 0
-      bDisc = cell?.discountKwd ?? 0
-    }
-    if (branchSel) {
-      const branchKey = Object.keys(BRANCH_WEIGHTS).find((k) => k.toLowerCase() === f.branch!.toLowerCase()) ?? f.branch!
-      const branchWeight = BRANCH_WEIGHTS[branchKey] ?? 1.0
-      const allowed = BRAND_OPERATING_BRANCHES[b.brand]
-      const match = allowed?.some(
-        (ab) => ab.toLowerCase().includes(f.branch!.toLowerCase()) || f.branch!.toLowerCase().includes(ab.toLowerCase()),
-      )
-      if (allowed && !match) {
-        bNet = 0
-        bOrders = 0
-        bDisc = 0
-      } else {
-        bNet *= branchWeight
-        bOrders = Math.round(bOrders * branchWeight)
-        bDisc *= branchWeight
-      }
-    }
-
-    const scaledNet = bNet * pM
-    const scaledOrders = bOrders === 0 ? 0 : period === 'day' ? Math.max(1, Math.round(bOrders / 31)) : Math.round(bOrders * pM)
+    const c = slice(b.brand, channelSel ? f.channel : null, loc)
+    const scaledOrders = scaleOrders(c.orders, period, pM)
+    const scaledNet = c.net * pM
     return {
       ...b,
       netSales: scaledNet,
       orders: scaledOrders,
-      share: rawNet > 0 ? (bNet / rawNet) * 100 : 0,
+      share: main.net > 0 ? (c.net / main.net) * 100 : 0,
       avgOrder: scaledOrders > 0 ? scaledNet / scaledOrders : 0,
-      discountRate: b.discountRate,
     }
   })
 
-  // Channel rows
-  const channels: ChannelRow[] = CHANNELS_DATA.map((c) => {
-    let cNet = c.netSales
-    let cOrders = c.orders
-    let cDisc = c.discountKwd
-
-    if (brandSel) {
-      const cell = REAL_BRAND_CHANNEL_DATA[f.brand]?.[c.channel]
-      cNet = cell?.netSales ?? 0
-      cOrders = cell?.orders ?? 0
-      cDisc = cell?.discountKwd ?? 0
-    }
-    if (branchSel) {
-      const branchKey = Object.keys(BRANCH_WEIGHTS).find((k) => k.toLowerCase() === f.branch!.toLowerCase()) ?? f.branch!
-      const branchWeight = BRANCH_WEIGHTS[branchKey] ?? 1.0
-      cNet *= branchWeight
-      cOrders = Math.round(cOrders * branchWeight)
-      cDisc *= branchWeight
-    }
-
-    const scaledNet = cNet * pM
-    const scaledOrders = cOrders === 0 ? 0 : period === 'day' ? Math.max(1, Math.round(cOrders / 31)) : Math.round(cOrders * pM)
+  const channels: ChannelRow[] = CHANNELS_DATA.map((ch) => {
+    const c = slice(brandSel ? f.brand : null, ch.channel, loc)
+    const scaledOrders = scaleOrders(c.orders, period, pM)
+    const scaledNet = c.net * pM
     return {
-      ...c,
+      ...ch,
       netSales: scaledNet,
       orders: scaledOrders,
-      share: rawNet > 0 ? (cNet / rawNet) * 100 : 0,
+      share: main.net > 0 ? (c.net / main.net) * 100 : 0,
       avgOrder: scaledOrders > 0 ? scaledNet / scaledOrders : 0,
-      discountKwd: cDisc * pM,
+      discountKwd: c.discounts * pM,
     }
   })
 
   return {
     filter: f,
-    isFiltered: !!(brandSel || channelSel || branchSel || period !== 'month'),
+    isFiltered: !!(brandSel || channelSel || loc || period !== 'month'),
     net,
     orders,
     items,
@@ -410,48 +218,12 @@ export function computeView(f: SalesFilter): SalesView {
 }
 
 /* ------------------------------------------------------------------ branches */
-const brandNames = BRANDS_DATA.map((b) => b.brand)
-
-const BRANCH_BRAND_NET: Record<string, Record<string, number>> = (() => {
-  const profiles = INITIAL_BRANCH_PROFILES
-  let m = profiles.map((p) =>
-    brandNames.map((bn) => {
-      const supported = p.supportedBrandIds.map((id) => BRAND_ID_TO_NAME[id]).includes(bn)
-      return supported ? (BRANCH_NET[p.branchCode] ?? 0) * (BRANDS_DATA.find((x) => x.brand === bn)?.netSales ?? 0) : 0
-    }),
-  )
-  for (let it = 0; it < 400; it++) {
-    m = m.map((row, i) => {
-      const t = row.reduce((a, v) => a + v, 0)
-      const target = BRANCH_NET[profiles[i].branchCode] ?? 0
-      return t > 0 ? row.map((v) => (v * target) / t) : row
-    })
-    const colSum = brandNames.map((_, j) => m.reduce((a, row) => a + row[j], 0))
-    m = m.map((row) =>
-      row.map((v, j) => (colSum[j] > 0 ? (v * (BRANDS_DATA.find((x) => x.brand === brandNames[j])?.netSales ?? 0)) / colSum[j] : v)),
-    )
-  }
-  return Object.fromEntries(profiles.map((p, i) => [p.branchCode, Object.fromEntries(brandNames.map((bn, j) => [bn, m[i][j]]))]))
-})()
-
-const SHOP_NET_SHARE = 58953.09 / TOTAL_NET
-const TGO_NET_SHARE = 55716.21 / TOTAL_NET
-const M_NET_SHARE = (6887.25 + 506.19) / TOTAL_NET
-
-const SHOP_ORD_SHARE = 14818 / TOTAL_ORDERS
-const TGO_ORD_SHARE = 7163 / TOTAL_ORDERS
-const M_ORD_SHARE = (742 + 86) / TOTAL_ORDERS
-
 export interface BranchViewRow {
   code: string
   nameAr: string
   nameEn: string
-  fleet: string
-  zonesOnline: number
-  zonesTotal: number
-  tgoAccountsCount: number
-  mAccountsCount: number
-  lostToday: number
+  unit: OdooLocationRow['unit']
+  registers: number
   brands: string[]
   net: number
   orders: number
@@ -468,134 +240,74 @@ export interface BranchViewRow {
   topBrand: string
 }
 
-function roundWithTarget(rawVals: number[], targetInt: number): number[] {
-  const floored = rawVals.map((v) => Math.floor(v))
-  const rem = Math.max(0, targetInt - floored.reduce((a, b) => a + b, 0))
-  const order = rawVals
-    .map((v, i) => ({ i, frac: v - Math.floor(v) }))
-    .sort((a, b) => b.frac - a.frac)
-  const add = new Set(order.slice(0, rem).map((x) => x.i))
-  return floored.map((v, i) => v + (add.has(i) ? 1 : 0))
-}
+const bucketOf = (channelId: string): 'shop' | 'tgo' | 'm' | 'other' =>
+  channelId === 'shop' ? 'shop' : channelId === 'talabat-tgo' ? 'tgo' : channelId === 'talabat-tmp' || channelId === 'deliveroo-mp' ? 'm' : 'other'
 
+/** One row per Odoo location (restaurants first, then EXB and school canteens), real channel split. */
 export function computeBranches(f: SalesFilter): BranchViewRow[] {
   const period = (f.period ?? 'month').toLowerCase()
   const pM = period === 'day' ? 1 / 31 : period === 'year' ? 12 : 1
+  const brandSel = !!f.brand && f.brand !== ALL_BRANDS && f.brand !== 'ALL'
+  const channelSel = !!f.channel && f.channel !== ALL_CHANNELS && f.channel !== 'ALL'
+  const bid = brandSel ? SCORECARD_BRAND_ID[f.brand] : null
+  const cid = channelSel ? CHANNEL_ID_BY_NAME[f.channel] : null
+  const only = resolveLocationId(f.branch)
 
-  const raw = INITIAL_BRANCH_PROFILES.map((p) => {
+  const rows = LOCATIONS.map((l) => {
+    const buckets = { shop: { net: 0, orders: 0 }, tgo: { net: 0, orders: 0 }, m: { net: 0, orders: 0 }, other: { net: 0, orders: 0 } }
     let net = 0
     let orders = 0
-    let top = ''
-    let topNet = -1
-    for (const bn of brandNames) {
-      if (f.brand !== ALL_BRANDS && f.brand !== 'ALL' && bn !== f.brand) continue
-      const bnNet = BRANCH_BRAND_NET[p.branchCode]?.[bn] ?? 0
-      const b = BRANDS_DATA.find((x) => x.brand === bn)!
-      const bnOrders = ((BRANCH_BRAND_NET[p.branchCode]?.[bn] ?? 0) / (b.netSales / b.orders))
-      net += bnNet
-      orders += bnOrders
-      if (bnNet > topNet) {
-        topNet = bnNet
-        top = bn
+    if (!bid) {
+      for (const c of l.channels) {
+        if (cid && c.channel !== cid) continue
+        const k = bucketOf(c.channel)
+        buckets[k].net += c.amountKwd
+        buckets[k].orders += c.payments
       }
+      net = cid ? buckets.shop.net + buckets.tgo.net + buckets.m.net + buckets.other.net : l.netKwd
+      orders = cid ? buckets.shop.orders + buckets.tgo.orders + buckets.m.orders + buckets.other.orders : l.orders
+    } else {
+      const bl = l.brands.find((x) => x.brand === bid)
+      for (const cell of ODOO.cube) {
+        if (cell.brand !== bid || cell.location !== l.id || (cid && cell.channel !== cid)) continue
+        const k = bucketOf(cell.channel)
+        buckets[k].net += cell.netKwd
+        buckets[k].orders += bl && bl.netKwd > 0 ? Math.round((cell.netKwd / bl.netKwd) * bl.orders) : 0
+      }
+      net = cid ? buckets.shop.net + buckets.tgo.net + buckets.m.net + buckets.other.net : bl?.netKwd ?? 0
+      orders = cid ? buckets.shop.orders + buckets.tgo.orders + buckets.m.orders + buckets.other.orders : bl?.orders ?? 0
     }
-    return {
-      code: p.branchCode,
-      nameAr: p.branchNameAr,
-      nameEn: p.branchNameEn,
-      fleet: p.assignedFleetType,
-      zonesOnline: p.onlineZonesCount,
-      zonesTotal: p.totalZonesCount,
-      tgoAccountsCount: p.zoneAccounts.filter((a) => a.deliveryMode === 'Tgo').length,
-      mAccountsCount: p.zoneAccounts.filter((a) => a.deliveryMode === 'M').length,
-      lostToday: p.totalLostKwdToday,
-      brands: p.supportedBrandIds.map((id) => BRAND_ID_TO_NAME[id]),
-      net,
-      rawOrders: orders,
-      topBrand: net > 0 ? top : '',
-    }
+    const top = [...l.brands].sort((a, b) => b.netKwd - a.netKwd)[0]
+    return { l, buckets, net, orders, top }
   })
-
-  const targetOrders = Math.round(raw.reduce((a, r) => a + r.rawOrders, 0))
-  const branchOrders = roundWithTarget(raw.map((r) => r.rawOrders), targetOrders)
-  const total = raw.reduce((a, r) => a + r.net, 0)
-
-  return raw
-    .map((r, idx) => {
-      const orders = branchOrders[idx]
-      let shopNet = 0, tgoNet = 0, mNet = 0, otherNet = 0
-      let shopOrders = 0, tgoOrders = 0, mOrders = 0, otherOrders = 0
-
-      if (!f.channel || f.channel === ALL_CHANNELS || f.channel === 'ALL') {
-        shopNet = r.net * SHOP_NET_SHARE
-        tgoNet = r.net * TGO_NET_SHARE
-        mNet = r.net * M_NET_SHARE
-        otherNet = Math.max(0, r.net - shopNet - tgoNet - mNet)
-
-        const rawBuckets = [
-          orders * SHOP_ORD_SHARE,
-          orders * TGO_ORD_SHARE,
-          orders * M_ORD_SHARE,
-          orders * Math.max(0, 1 - SHOP_ORD_SHARE - TGO_ORD_SHARE - M_ORD_SHARE),
-        ]
-        const roundedBuckets = roundWithTarget(rawBuckets, orders)
-        shopOrders = roundedBuckets[0]
-        tgoOrders = roundedBuckets[1]
-        mOrders = roundedBuckets[2]
-        otherOrders = roundedBuckets[3]
-      } else if (f.channel === 'Shop Sales') {
-        shopNet = r.net
-        shopOrders = orders
-      } else if (f.channel === 'Talabat Go') {
-        tgoNet = r.net
-        tgoOrders = orders
-      } else if (f.channel === 'Talabat MP' || f.channel === 'Deliveroo MP' || f.channel === 'Talabat TMP' || f.channel === 'Deliveroo TMP') {
-        mNet = r.net
-        mOrders = orders
-      } else {
-        otherNet = r.net
-        otherOrders = orders
-      }
-
-      const netScaled = r.net * pM
-      const ordsScaled = r.net === 0 ? 0 : Math.max(0, Math.round(orders * pM))
-      const sNet = shopNet * pM
-      const sOrd = Math.max(0, Math.round(shopOrders * pM))
-      const tgNet = tgoNet * pM
-      const tgOrd = Math.max(0, Math.round(tgoOrders * pM))
-      const mnNet = mNet * pM
-      const mnOrd = Math.max(0, Math.round(mOrders * pM))
-      const othNet = otherNet * pM
-      const othOrd = Math.max(0, Math.round(otherOrders * pM))
-
+  const total = rows.reduce((a, r) => a + r.net, 0)
+  return rows
+    .map(({ l, buckets, net, orders, top }) => {
+      const o = scaleOrders(orders, period, pM)
       return {
-        code: r.code,
-        nameAr: r.nameAr,
-        nameEn: r.nameEn,
-        fleet: r.fleet,
-        zonesOnline: r.zonesOnline,
-        zonesTotal: r.zonesTotal,
-        tgoAccountsCount: r.tgoAccountsCount,
-        mAccountsCount: r.mAccountsCount,
-        lostToday: r.lostToday,
-        brands: r.brands,
-        net: netScaled,
-        orders: ordsScaled,
-        shopNet: sNet,
-        shopOrders: sOrd,
-        tgoNet: tgNet,
-        tgoOrders: tgOrd,
-        mNet: mnNet,
-        mOrders: mnOrd,
-        otherNet: othNet,
-        otherOrders: othOrd,
-        avgOrder: ordsScaled > 0 ? netScaled / ordsScaled : 0,
-        share: total > 0 ? (r.net / total) * 100 : 0,
-        topBrand: r.topBrand,
+        code: l.id,
+        nameAr: l.ar,
+        nameEn: l.en,
+        unit: l.unit as OdooLocationRow['unit'],
+        registers: l.registers.length,
+        brands: l.brands.map((b) => SCORECARD_BRAND_NAME[b.brand] ?? b.brand),
+        net: net * pM,
+        orders: o,
+        shopNet: buckets.shop.net * pM,
+        shopOrders: scaleOrders(buckets.shop.orders, period, pM),
+        tgoNet: buckets.tgo.net * pM,
+        tgoOrders: scaleOrders(buckets.tgo.orders, period, pM),
+        mNet: buckets.m.net * pM,
+        mOrders: scaleOrders(buckets.m.orders, period, pM),
+        otherNet: buckets.other.net * pM,
+        otherOrders: scaleOrders(buckets.other.orders, period, pM),
+        avgOrder: o > 0 ? (net * pM) / o : 0,
+        share: total > 0 ? (net / total) * 100 : 0,
+        topBrand: net > 0 && top ? SCORECARD_BRAND_NAME[top.brand] ?? top.brand : '',
       }
     })
-    .filter((r) => !f.branch || f.branch === 'ALL' || f.branch === 'All branches' || r.code === f.branch || r.nameEn.toLowerCase().includes(f.branch.toLowerCase()) || r.nameAr.includes(f.branch))
-    .sort((a, b) => b.net - a.net)
+    .filter((r) => !only || r.code === only)
+    .sort((a, b) => (a.unit === b.unit ? b.net - a.net : a.unit === 'restaurant' ? -1 : b.unit === 'restaurant' ? 1 : a.unit.localeCompare(b.unit)))
 }
 
 /* ------------------------------------------------------------- weekday x hour */
@@ -649,8 +361,9 @@ export function computeHeat(view: SalesView): { cells: HeatCell[][]; maxOrders: 
 export const hourShare = (hours: number[]) => hours.reduce((a, h) => a + HOUR_ORDERS[h], 0) / hourOrdersTotal
 
 /* ------------------------------------------------------------------ payments */
+/** In-store tender mix from the Odoo Shop Sales payment methods. */
 export const PAYMENT_SPLIT = [
-  { key: 'KNET', ar: 'كي نت', pct: 71.4 },
-  { key: 'Credit Card', ar: 'بطاقة ائتمان', pct: 18.2 },
-  { key: 'Cash', ar: 'نقداً', pct: 10.4 },
+  { key: 'KNET', ar: 'كي نت', pct: ODOO.shopTender.knet.pct },
+  { key: 'Credit Card', ar: 'بطاقة ائتمان', pct: ODOO.shopTender.card.pct },
+  { key: 'Cash', ar: 'نقداً', pct: ODOO.shopTender.cash.pct },
 ]

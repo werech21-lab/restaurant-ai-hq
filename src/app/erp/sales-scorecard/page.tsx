@@ -4,7 +4,9 @@ import React, { Suspense, useState, useMemo } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
-import { makeTr } from "@/lib/i18n/analytics-ar";
+import { makeTr, registerAnalyticsAr } from "@/lib/i18n/analytics-ar";
+import { BRANDS, CHANNELS, LEDGER, MENU_ITEMS } from "@/lib/aether/ledger";
+import { ODOO } from "@/lib/odoo/odoo-dataset";
 import { SALES_TABS, parseSalesTab, salesTabHref } from "@/lib/analytics/sales-tabs";
 import { BRANDS_DATA, CHANNELS_DATA, type BrandRow, type ChannelRow } from "@/lib/analytics/sales-core-data";
 import { ALL_BRANDS, ALL_CHANNELS, TOTAL_NET, BRANCH_NET, REAL_BRAND_CHANNEL_DATA, computeView, type PeriodType, type SalesFilter } from "@/lib/analytics/sales-view";
@@ -36,283 +38,330 @@ import {
 // 1. ODOO ERP MASTER DATASET (VENTURE FOODS)
 // ==========================================
 
-const CATEGORIES_DATA = [
-  { name: "Noodles", sales: 47201, orders: 14210, items: 18420, share: 28.2 },
-  { name: "Mains", sales: 28683, orders: 8940, items: 10120, share: 17.2 },
-  { name: "Starters & sides", sales: 24581, orders: 9980, items: 14310, share: 14.7 },
-  { name: "Meals & combos", sales: 18348, orders: 4120, items: 4890, share: 11.0 },
-  { name: "Rice", sales: 17210, orders: 6450, items: 7820, share: 10.3 },
-  { name: "Sandwiches & steaks", sales: 11818, orders: 3120, items: 4210, share: 7.1 },
-  { name: "Soups", sales: 7487, orders: 3890, items: 4610, share: 4.5 },
-  { name: "Beverages", sales: 5446, orders: 7726, items: 10240, share: 3.3 },
-  { name: "Staff meal deals", sales: 1920, orders: 980, items: 1120, share: 1.1 },
-  { name: "Platters & sharing", sales: 1840, orders: 310, items: 340, share: 1.1 },
-  { name: "Desserts", sales: 1410, orders: 977, items: 1150, share: 0.8 },
-  { name: "Sauces & extras", sales: 980, orders: 1420, items: 1980, share: 0.6 },
-  { name: "Salads", sales: 620, orders: 310, items: 350, share: 0.4 },
-  { name: "Chapati", sales: 310, orders: 145, items: 180, share: 0.2 },
-];
+// All rows below are generated from the live Odoo dataset (whitelisted POS registers).
+const SC_BRAND_EN = (id: string) => BRANDS.find((b) => b.id === id)?.en ?? id;
+const SC_MENU = [...ODOO.menu].filter((m) => m.netKwd > 0 && m.qty > 0 && BRANDS.some((b) => b.id === m.brand));
+const SC_MENU_TOTAL = SC_MENU.reduce((s, m) => s + m.netKwd, 0);
+const SC_BY_SALES = [...SC_MENU].sort((a, b) => b.netKwd - a.netKwd);
+const scFmt = (n: number, d = 0) => n.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+const SC_CATEGORY_AR: Record<string, string> = {
+  Noodles: "النودلز",
+  "Main Course": "الأطباق الرئيسية",
+  Appetizers: "المقبلات",
+  Rice: "الأرز",
+  "2KD Keeta": "عروض 2 د.ك كيتا",
+  "New Products": "منتجات جديدة",
+  Sandwiches: "الساندويتشات",
+  "Soups And Salads": "الشوربات والسلطات",
+  Drinks: "المشروبات",
+  Meals: "الوجبات",
+  "Staff Meal Deal": "وجبات الموظفين",
+  "EXB Menu 8 TAH EXPO": "منيو معرض طحينة",
+  Sides: "الأطباق الجانبية",
+  "Platters/Gathering": "صواني التجمعات",
+  "Noodles & Rice": "النودلز والأرز",
+  Beverage: "المشروبات",
+  "Kids Meal": "وجبات الأطفال",
+  Desserts: "الحلويات",
+  "EXB Menu 2 CG - Camp": "منيو معرض تشاينا جاردن",
+  Shawarma: "الشاورما",
+  "Kids Menu": "قائمة الأطفال",
+  "Extra Sauces": "صوصات إضافية",
+  Croissant: "الكرواسون",
+  Chapati: "الجباتي",
+  Starters: "المقبلات",
+  Wraps: "اللفائف",
+};
 
-const TOP_15_ITEMS = [
-  { name: "Chicken Noodles", brand: "China Garden", category: "Noodles", sales: 12043, orders: 4820, price: 2.50 },
-  { name: "Veg Or Chicken Noodles Combo", brand: "China Garden", category: "Meals & combos", sales: 9827, orders: 2890, price: 3.40 },
-  { name: "Vegetable Noodles", brand: "China Garden", category: "Noodles", sales: 6852, orders: 3115, price: 2.20 },
-  { name: "Beef Mongolian", brand: "China Garden", category: "Mains", sales: 5730, orders: 1710, price: 3.35 },
-  { name: "Chicken Sweet 'n' Sour", brand: "China Garden", category: "Mains", sales: 4453, orders: 1460, price: 3.05 },
-  { name: "Prawn Garlic Noodles", brand: "China Garden", category: "Noodles", sales: 3962, orders: 1220, price: 3.25 },
-  { name: "Plain Noodles", brand: "China Garden", category: "Noodles", sales: 3864, orders: 2146, price: 1.80 },
-  { name: "Orig. Philly CheeseSteak", brand: "Frank's", category: "Sandwiches & steaks", sales: 3735, orders: 996, price: 3.75 },
-  { name: "Sweet Corn Chicken Soup", brand: "China Garden", category: "Soups", sales: 3722, orders: 2481, price: 1.50 },
-  { name: "Philly Meal For 1", brand: "Frank's", category: "Meals & combos", sales: 3718, orders: 751, price: 4.95 },
-  { name: "Chicken Fried Rice", brand: "China Garden", category: "Rice", sales: 3463, orders: 1443, price: 2.40 },
-  { name: "Dynamite Shrimp", brand: "China Garden", category: "Starters & sides", sales: 3220, orders: 1150, price: 2.80 },
-  { name: "Beef Noodles", brand: "China Garden", category: "Noodles", sales: 3146, orders: 1123, price: 2.80 },
-  { name: "Chicken Breast Noodles", brand: "China Garden", category: "Noodles", sales: 2980, orders: 1083, price: 2.75 },
-  { name: "Chicken Chowmein", brand: "China Garden", category: "Noodles", sales: 2740, orders: 1015, price: 2.70 },
-];
+const CATEGORIES_DATA = (() => {
+  const m = new Map<string, { name: string; sales: number; orders: number; items: number }>();
+  for (const it of SC_MENU) {
+    const row = m.get(it.category) ?? { name: it.category, sales: 0, orders: 0, items: 0 };
+    row.sales += it.netKwd;
+    row.orders += it.qty;
+    row.items += it.qty;
+    m.set(it.category, row);
+  }
+  return [...m.values()]
+    .sort((a, b) => b.sales - a.sales)
+    .slice(0, 14)
+    .map((c) => ({ ...c, sales: Math.round(c.sales), share: Math.round((c.sales / SC_MENU_TOTAL) * 1000) / 10 }));
+})();
 
-// Multi-color Diagnostic Matrix Buckets (Matches 2nd Screenshot)
+const TOP_15_ITEMS = SC_BY_SALES.slice(0, 15).map((m) => ({
+  name: m.name,
+  brand: SC_BRAND_EN(m.brand),
+  category: m.category,
+  sales: m.netKwd,
+  orders: m.qty,
+  price: m.priceKwd,
+}));
+
+const SC_TOP80 = (() => {
+  let acc = 0;
+  let n = 0;
+  for (const m of SC_BY_SALES) {
+    if (acc >= SC_MENU_TOTAL * 0.8) break;
+    acc += m.netKwd;
+    n++;
+  }
+  return { n, sales: acc };
+})();
+const SC_AGG = CHANNELS.filter((c) => c.group === "aggregator");
+const SC_AGG_SALES = SC_AGG.reduce((s, c) => s + c.sales, 0);
+const SC_COMBO_SALES = SC_MENU.filter((m) => /meal|combo|platter|gathering|box/i.test(`${m.category} ${m.name}`)).reduce((s, m) => s + m.netKwd, 0);
+const SC_KEETA = CHANNELS.find((c) => c.id === "keeta");
+const SC_SNOONU = CHANNELS.find((c) => c.id === "snoonu");
+const scPromoPct = (c?: { promo: number; itemSales: number }) => (c && c.itemSales ? (c.promo / c.itemSales) * 100 : 0);
+
 const DIAGNOSTIC_BUCKETS = [
   {
-    label: "Core revenue drivers (Top 32 items)",
-    value: 133674,
-    pct: 80.0,
-    color: "#6366F1",
+    label: `Core revenue drivers (Top ${SC_TOP80.n} items)`,
+    labelAr: `محركات الإيراد الأساسية (أعلى ${SC_TOP80.n} صنفاً)`,
+    value: Math.round(SC_TOP80.sales),
+    pct: Math.round((SC_TOP80.sales / SC_MENU_TOTAL) * 1000) / 10,
+    color: "#0EA5E9",
     badge: "Hero core",
-    badgeColor: "border-sky-200 text-sky-800 bg-sky-50",
-    rule: "32 items generating 80% of menu revenue across Odoo POS & Aggregators. Protect recipe spec & prep availability.",
+    rule: `${SC_TOP80.n} of ${SC_MENU.length} Odoo items generate 80% of item sales. Protect recipe spec & prep availability.`,
+    ruleAr: `${SC_TOP80.n} صنفاً من أصل ${SC_MENU.length} في أودو تحقق 80% من مبيعات الأصناف. احمِ مواصفات الوصفة وتوافر التحضير.`,
   },
   {
-    label: "Aggregator drink & starter upsell gap",
-    value: 91324,
-    pct: 54.7,
+    label: "Aggregator channel sales",
+    labelAr: "مبيعات قنوات التوصيل",
+    value: Math.round(SC_AGG_SALES),
+    pct: Math.round((SC_AGG_SALES / LEDGER.netSales) * 1000) / 10,
     color: "#14B8A6",
     badge: "Upsell gap",
-    badgeColor: "border-teal-600 text-teal-800 bg-teal-50",
-    rule: "Talabat Go & Keeta orders with <13% drink attachment vs 41.2% in Shop Sales. Add mandatory drink step in combos.",
+    rule: `${SC_AGG.length} aggregator channels carry ${scFmt((SC_AGG_SALES / LEDGER.netSales) * 100, 1)}% of Odoo net sales. Add a mandatory drink step in delivery combos.`,
+    ruleAr: `${SC_AGG.length} قنوات توصيل تحمل ${scFmt((SC_AGG_SALES / LEDGER.netSales) * 100, 1)}% من صافي مبيعات أودو. أضف خطوة المشروب الإلزامي في وجبات التوصيل.`,
   },
   {
-    label: "Odoo COGS & Central Kitchen variance",
-    value: 41439,
-    pct: 24.8,
+    label: "Odoo COGS (posted)",
+    labelAr: "تكلفة الأغذية في أودو (مرحّلة)",
+    value: Math.round(LEDGER.cogs),
+    pct: LEDGER.cogsPct,
     color: "#F97316",
-    badge: "COGS +0.8%",
-    badgeColor: "border-orange-500 text-orange-800 bg-orange-50",
-    rule: "Central Kitchen poultry marination waste pushed COGS to 24.8% (KWD 41,438.856). Enforce batch weight logs.",
+    badge: `COGS vs ${LEDGER.cogsTargetPct}%`,
+    rule: `Posted COGS is ${LEDGER.cogsPct}% of revenue (KWD ${scFmt(LEDGER.cogs, 3)}) against the ${LEDGER.cogsTargetPct}% target. Enforce batch weight logs.`,
+    ruleAr: `تكلفة الأغذية المرحّلة ${LEDGER.cogsPct}% من الإيراد (${scFmt(LEDGER.cogs, 3)} د.ك) مقابل المستهدف ${LEDGER.cogsTargetPct}%. فعّل سجلات أوزان الدفعات.`,
   },
   {
-    label: "High-margin signature & combo anchors",
-    value: 34210,
-    pct: 20.5,
+    label: "Meals, combos & platters",
+    labelAr: "الوجبات والكومبو والصواني",
+    value: Math.round(SC_COMBO_SALES),
+    pct: Math.round((SC_COMBO_SALES / SC_MENU_TOTAL) * 1000) / 10,
     color: "#16A34A",
     badge: "Expand combo",
-    badgeColor: "border-green-600 text-green-800 bg-green-50",
-    rule: "Frank's (69.8% starters) & Talabat MP (KWD 9.28 avg order) prove high bundle elasticity. Replicate across brands.",
+    rule: `Bundled items sell KWD ${scFmt(SC_COMBO_SALES)} in Odoo. Replicate the best-selling bundles across brands.`,
+    ruleAr: `الأصناف المجمّعة تبيع ${scFmt(SC_COMBO_SALES)} د.ك في أودو. كرر أفضل الوجبات المجمّعة عبر العلامات.`,
   },
   {
-    label: "Discount & promo bleed on Keeta/Snoonu",
-    value: 36637,
-    pct: 21.9,
+    label: "Discounts & promotions",
+    labelAr: "الخصومات والعروض",
+    value: Math.round(LEDGER.discounts),
+    pct: LEDGER.discountsPct,
     color: "#EC4899",
     badge: "Cap promo",
-    badgeColor: "border-pink-500 text-pink-700 bg-pink-50",
-    rule: "Keeta discount rate hits 6.7% and Snoonu 5.0% vs 2.4% group average (KWD 4,152 total discounts). Shift to meal bundles.",
+    rule: `Keeta promotions run at ${scFmt(scPromoPct(SC_KEETA), 1)}% and Snoonu at ${scFmt(scPromoPct(SC_SNOONU), 1)}% of item sales vs ${LEDGER.discountsPct}% group (KWD ${scFmt(LEDGER.discounts, 3)} total). Shift to meal bundles.`,
+    ruleAr: `عروض كيتا عند ${scFmt(scPromoPct(SC_KEETA), 1)}% وسنونو عند ${scFmt(scPromoPct(SC_SNOONU), 1)}% من مبيعات الأصناف مقابل ${LEDGER.discountsPct}% للمجموعة (${scFmt(LEDGER.discounts, 3)} د.ك إجمالاً). حوّلها إلى وجبات مجمّعة.`,
   },
   {
-    label: "Maintenance & Petty Cash (Rabih Custody)",
-    value: 10708,
-    pct: 6.4,
+    label: "Maintenance custody (management estimate)",
+    labelAr: "عهدة الصيانة (تقدير إداري)",
+    value: Math.round(LEDGER.maintCustody),
+    pct: Math.round((LEDGER.maintCustody / LEDGER.opex) * 1000) / 10,
     color: "#EAB308",
     badge: "CapEx replace",
-    badgeColor: "border-amber-600 text-amber-800 bg-amber-50",
-    rule: "KWD 10,707.930 in maintenance & petty cash driven by repeated Al-Kout & Salmiya chiller repairs. Approve unit replacement.",
+    rule: `KWD ${scFmt(LEDGER.maintCustody, 3)} across ${LEDGER.maintEntries} custody entries at Al-Kout Mall & Salmiya. A chiller overhaul saves KWD ${LEDGER.chillerRecovery}/month.`,
+    ruleAr: `${scFmt(LEDGER.maintCustody, 3)} د.ك عبر ${LEDGER.maintEntries} قيد عهدة في مجمع الكوت والسالمية. تجديد المبردات يوفر ${LEDGER.chillerRecovery} د.ك شهرياً.`,
   },
-];
+].map((b) => ({
+  ...b,
+  badgeColor:
+    b.color === "#F97316" ? "border-orange-500 text-orange-800 bg-orange-50"
+    : b.color === "#EC4899" ? "border-pink-500 text-pink-700 bg-pink-50"
+    : b.color === "#EAB308" ? "border-amber-600 text-amber-800 bg-amber-50"
+    : b.color === "#16A34A" ? "border-green-600 text-green-800 bg-green-50"
+    : b.color === "#14B8A6" ? "border-teal-600 text-teal-800 bg-teal-50"
+    : "border-sky-200 text-sky-800 bg-sky-50",
+}));
 
-// Item-level Diagnostic Table 1 (Matches 2nd Screenshot Middle Table)
-const ITEM_DIAGNOSTICS_TABLE_1 = [
-  {
-    brand: "China Garden",
-    item: "Chicken Noodles",
-    category: "Noodles",
-    orders: 4820,
-    sales: 12043.0,
-    avgPrice: 2.50,
-    sharePct: 7.2,
-    badge: "Hero anchor",
-    badgeStyle: "border-emerald-600 text-emerald-800 bg-emerald-50",
-    note: "Number 1 item company-wide (7.2% of all sales). Test +100 fils add-on upgrade (extra protein/mushroom) without touching base price.",
-  },
-  {
-    brand: "China Garden",
-    item: "Veg Or Chicken Noodles Combo",
-    category: "Meals & combos",
-    orders: 2890,
-    sales: 9827.0,
-    avgPrice: 3.40,
-    sharePct: 5.9,
-    badge: "Combo star",
-    badgeStyle: "border-slate-200 text-slate-800 bg-slate-100",
-    note: "Drives beverage & starter attachment on Talabat Go. Feature at top of Keeta menu to lift Keeta's 4.8% drink rate.",
-  },
-  {
-    brand: "Frank's",
-    item: "Orig. Philly CheeseSteak",
-    category: "Sandwiches & steaks",
-    orders: 996,
-    sales: 3735.0,
-    avgPrice: 3.75,
-    sharePct: 2.2,
-    badge: "High AOV driver",
-    badgeStyle: "border-sky-200 text-sky-800 bg-sky-50",
-    note: "69.8% starter attachment in Frank's pushes brand AOV to KWD 7.47. Keep fries + drink combo default on aggregators.",
-  },
-  {
-    brand: "China Garden",
-    item: "Plain Noodles",
-    category: "Noodles",
-    orders: 2146,
-    sales: 3864.0,
-    avgPrice: 1.80,
-    sharePct: 2.3,
-    badge: "Upsell target",
-    badgeStyle: "border-amber-600 text-amber-800 bg-amber-50",
-    note: "High order count (2,146) at low ticket (KWD 1.80). Add 1-click KWD 0.950 spring roll or soup pairing prompt.",
-  },
-  {
-    brand: "Tahina",
-    item: "KWD 1 Chicken Shawarma",
-    category: "Sandwiches & steaks",
-    orders: 1640,
-    sales: 2980.0,
-    avgPrice: 1.00,
-    sharePct: 1.8,
-    badge: "Basket builder",
-    badgeStyle: "border-amber-600 text-amber-800 bg-amber-50",
-    note: "Tahina has 81.2% drink rate but lowest AOV (KWD 2.28). Introduce 3-shawarma + fries family box at KWD 3.450.",
-  },
-  {
-    brand: "China Garden",
-    item: "Sweet Corn Chicken Soup",
-    category: "Soups",
-    orders: 2481,
-    sales: 3722.0,
-    avgPrice: 1.50,
-    sharePct: 2.2,
-    badge: "High margin add-on",
-    badgeStyle: "border-emerald-600 text-emerald-800 bg-emerald-50",
-    note: "Low food cost (16% COGS) and 2,481 orders. Bundle with Beef Mongolian & Chicken Fried Rice as a 2-person meal.",
-  },
-  {
-    brand: "The Noodle Bar",
-    item: "Sriracha Chicken Noodles",
-    category: "Burgers & combos",
-    orders: 195,
-    sales: 1214.8,
-    avgPrice: 6.23,
-    sharePct: 0.7,
-    badge: "Discount watch",
-    badgeStyle: "border-rose-600 text-rose-800 bg-rose-50",
-    note: "Brand discount rate is 4.9% (double group average). Replace flat percentage discounts with free drink above KWD 6.000.",
-  },
-  {
-    brand: "Farm Brown",
-    item: "Chicken Fillet Meal",
-    category: "Meals & combos",
-    orders: 512,
-    sales: 1607.6,
-    avgPrice: 3.14,
-    sharePct: 1.0,
-    badge: "Central kitchen prep watch",
-    badgeStyle: "border-orange-600 text-orange-800 bg-orange-50",
-    note: "Linked to Central Kitchen poultry batching (+0.8% COGS variance). Standardize 140g portioning weight.",
-  },
-];
+const SC_QUADRANT_BADGE = {
+  star: { en: "Protect star", ar: "حماية الصنف النجم", style: "border-emerald-600 text-emerald-800 bg-emerald-50" },
+  plowhorse: { en: "Re-price +5%", ar: "رفع السعر 5%", style: "border-amber-600 text-amber-800 bg-amber-50" },
+  puzzle: { en: "Promote", ar: "ترويج", style: "border-sky-600 text-sky-800 bg-sky-50" },
+  dog: { en: "Review / purge", ar: "مراجعة أو استبعاد", style: "border-rose-600 text-rose-800 bg-rose-50" },
+} as const;
 
-// Operational & Odoo Financial Action Table 2 (Matches 2nd Screenshot Lower Table)
-const ODOO_OPERATIONAL_TABLE_2 = [
+const ITEM_DIAGNOSTICS_TABLE_1 = (() => {
+  const rows: (typeof SC_MENU)[number][] = [];
+  for (const b of BRANDS) {
+    const items = SC_BY_SALES.filter((m) => m.brand === b.id);
+    rows.push(...items.slice(0, b.id === "china-garden" ? 3 : 1));
+  }
+  return rows.map((m) => {
+    const brand = BRANDS.find((b) => b.id === m.brand)!;
+    const mi = MENU_ITEMS.find((x) => x.brand === m.brand && x.en === m.name);
+    const quadrant = mi?.quadrant ?? "puzzle";
+    const qb = SC_QUADRANT_BADGE[quadrant];
+    const priceVsAov = brand.aov ? (m.priceKwd / brand.aov) * 100 : 0;
+    const note = `${scFmt(m.qty)} units at KWD ${scFmt(m.priceKwd, 3)} (${scFmt(priceVsAov, 0)}% of the ${brand.en} basket of KWD ${scFmt(brand.aov, 3)}); ${scFmt((m.netKwd / SC_MENU_TOTAL) * 100, 1)}% of group item sales.`;
+    const noteAr = `${scFmt(m.qty)} وحدة بسعر ${scFmt(m.priceKwd, 3)} د.ك (${scFmt(priceVsAov, 0)}% من متوسط سلة ${brand.ar} البالغ ${scFmt(brand.aov, 3)} د.ك)؛ ${scFmt((m.netKwd / SC_MENU_TOTAL) * 100, 1)}% من مبيعات أصناف المجموعة.`;
+    return {
+      brand: brand.en,
+      item: m.name,
+      category: m.category,
+      orders: m.qty as number,
+      sales: m.netKwd as number,
+      avgPrice: m.priceKwd as number,
+      sharePct: Math.round((m.netKwd / SC_MENU_TOTAL) * 1000) / 10,
+      badge: qb.en,
+      badgeAr: qb.ar,
+      badgeStyle: qb.style,
+      note,
+      noteAr,
+    };
+  });
+})();
+
+// Operational & Odoo financial action table
+const SC_TGO = ODOO.channels.find((c) => c.id === "talabat-tgo");
+const SC_KEETA_ODOO = ODOO.channels.find((c) => c.id === "keeta");
+const SC_CK = ODOO.pnl.sharedCosts.centralKitchen;
+const SC_TAIL_COUNT = Math.max(0, SC_MENU.length - SC_TOP80.n);
+const SC_TAIL_SALES = Math.max(0, SC_MENU_TOTAL - SC_TOP80.sales);
+const ODOO_OPERATIONAL_TABLE_2: {
+  sector: string; sectorAr: string; account: string; accountAr: string; module: string; moduleAr: string;
+  entries: number | null; amountKwd: number; variancePct: string; variancePctAr: string;
+  badge: string; badgeAr: string; badgeStyle: string; action: string; actionAr: string; channelKey?: string;
+}[] = [
   {
-    sector: "Central Kitchen",
-    account: "COGS / Raw Poultry & Sauces",
-    module: "Odoo MRP & Stock",
-    entries: 418,
-    amountKwd: 41438.856,
-    variancePct: "+0.8%",
+    sector: "Central Kitchen (shared cost centre)",
+    sectorAr: "المطبخ المركزي (مركز تكلفة مشترك)",
+    account: "COGS, kitchen expenses & depreciation",
+    accountAr: "تكلفة الأغذية ومصروفات المطبخ والإهلاك",
+    module: "Odoo Analytic (Branches plan)",
+    moduleAr: "أودو التحليلي (خطة الفروع)",
+    entries: null,
+    amountKwd: SC_CK.cogs + SC_CK.expense + SC_CK.depreciation,
+    variancePct: `${LEDGER.cogsPct}% group COGS`,
+    variancePctAr: `${LEDGER.cogsPct}% تكلفة المجموعة`,
     badge: "Tighten BOM",
+    badgeAr: "ضبط قوائم المواد",
     badgeStyle: "border-amber-600 text-amber-800 bg-amber-50",
-    action: "Actual Food Cost is 24.8% vs 24.0% standard (KWD 1,336 variance). Audit chicken marination yield in Central Kitchen.",
+    action: `Group COGS is ${LEDGER.cogsPct}% vs ${LEDGER.cogsTargetPct}% target. Audit poultry marination yield at the central kitchen (estimated recovery KWD ${scFmt(LEDGER.cogsRecoverable)}/month).`,
+    actionAr: `تكلفة المجموعة ${LEDGER.cogsPct}% مقابل المستهدف ${LEDGER.cogsTargetPct}%. راجع إنتاجية تتبيل الدواجن في المطبخ المركزي (وفر مقدّر ${scFmt(LEDGER.cogsRecoverable)} د.ك شهرياً).`,
   },
   {
-    sector: "Maintenance · Al-Kout & Salmiya",
-    account: "Custody & Maintenance (Rabih)",
+    sector: "Maintenance · Al-Kout Mall & Salmiya",
+    sectorAr: "الصيانة · مجمع الكوت والسالمية",
+    account: "Custody & maintenance (management estimate)",
+    accountAr: "العهد والصيانة (تقدير إداري)",
     module: "Odoo Petty Cash",
-    entries: 312,
-    amountKwd: 10707.930,
+    moduleAr: "العهد النثرية في أودو",
+    entries: LEDGER.maintEntries,
+    amountKwd: LEDGER.maintCustody,
     variancePct: "High freq",
+    variancePctAr: "تكرار مرتفع",
     badge: "Replace chillers",
+    badgeAr: "استبدال المبردات",
     badgeStyle: "border-rose-600 text-rose-800 bg-rose-50",
-    action: "Repeated compressor & thermostat calls in Al-Kout and Salmiya branches. Cap repair petty cash and execute CapEx unit swap.",
+    action: `Repeated compressor & thermostat calls at Al-Kout Mall and Salmiya. Cap repair petty cash and execute the chiller overhaul (+KWD ${LEDGER.chillerRecovery}/month).`,
+    actionAr: `بلاغات متكررة للضواغط والثرموستات في مجمع الكوت والسالمية. ضع سقفاً للعهدة ونفّذ تجديد المبردات (+${LEDGER.chillerRecovery} د.ك شهرياً).`,
   },
   {
-    sector: "Aggregator Clearing · Keeta",
-    account: "Keeta Settlement & Discounts",
-    module: "Odoo Accounting",
-    entries: 6267,
-    amountKwd: 35607.980,
-    variancePct: "6.7% disc",
+    sector: `Aggregator Clearing · ${SC_KEETA_ODOO?.odooName ?? "Keeta"}`,
+    sectorAr: "مقاصة المنصات · كيتا",
+    account: "Keeta settlement & promotions",
+    accountAr: "تسويات وعروض كيتا",
+    module: "Odoo POS payments",
+    moduleAr: "مدفوعات نقاط بيع أودو",
+    entries: SC_KEETA_ODOO?.orders ?? 0,
+    amountKwd: SC_KEETA_ODOO?.netKwd ?? 0,
+    variancePct: `${scFmt(scPromoPct(SC_KEETA), 1)}% promo`,
+    variancePctAr: `${scFmt(scPromoPct(SC_KEETA), 1)}% عروض`,
     badge: "Rebalance promo",
+    badgeAr: "إعادة موازنة العروض",
     badgeStyle: "border-pink-600 text-pink-800 bg-pink-50",
-    action: "Keeta accounts for KWD 2,544 of the KWD 4,152 total discounts AND only 4.8% drink attachment. Switch promo to Combo + Drink.",
+    action: `Keeta promotions are KWD ${scFmt(LEDGER.keetaDiscounts, 3)} of KWD ${scFmt(LEDGER.discounts, 3)} total discounts. A ${LEDGER.keetaCapPct}% cap recovers KWD ${scFmt(LEDGER.keetaRecovery)}/month.`,
+    actionAr: `عروض كيتا ${scFmt(LEDGER.keetaDiscounts, 3)} د.ك من أصل ${scFmt(LEDGER.discounts, 3)} د.ك إجمالي الخصومات. سقف ${LEDGER.keetaCapPct}% يسترد ${scFmt(LEDGER.keetaRecovery)} د.ك شهرياً.`,
+    channelKey: SC_KEETA_ODOO?.odooName,
   },
   {
-    sector: "Aggregator Clearing · Talabat Go",
-    account: "Talabat Go Receivables",
-    module: "Odoo Accounting",
-    entries: 7163,
-    amountKwd: 55716.210,
-    variancePct: "33.4% share",
-    badge: "Reconciled 100%",
+    sector: `Aggregator Clearing · ${SC_TGO?.odooName ?? "Talabat Go"}`,
+    sectorAr: "مقاصة المنصات · طلبات جو",
+    account: "Talabat Go receivables",
+    accountAr: "ذمم طلبات جو",
+    module: "Odoo POS payments",
+    moduleAr: "مدفوعات نقاط بيع أودو",
+    entries: SC_TGO?.orders ?? 0,
+    amountKwd: SC_TGO?.netKwd ?? 0,
+    variancePct: `${scFmt(SC_TGO?.sharePct ?? 0, 1)}% share`,
+    variancePctAr: `${scFmt(SC_TGO?.sharePct ?? 0, 1)}% حصة`,
+    badge: "Settlement check",
+    badgeAr: "مطابقة التسوية",
     badgeStyle: "border-emerald-600 text-emerald-800 bg-emerald-50",
-    action: "Matched across 7,163 orders with KWD 7.78 AOV and 51.9% starter rate. Push beverage add-on from 12.7% toward 25.0%.",
+    action: `${scFmt(SC_TGO?.orders ?? 0)} Talabat Go payments at KWD ${scFmt(SC_TGO && SC_TGO.orders ? SC_TGO.netKwd / SC_TGO.orders : 0, 3)} average. Match against the Talabat statement and push the beverage add-on.`,
+    actionAr: `${scFmt(SC_TGO?.orders ?? 0)} دفعة طلبات جو بمتوسط ${scFmt(SC_TGO && SC_TGO.orders ? SC_TGO.netKwd / SC_TGO.orders : 0, 3)} د.ك. طابقها مع كشف طلبات وادفع بإضافة المشروب.`,
+    channelKey: SC_TGO?.odooName,
   },
   {
-    sector: "Operating Expenses & Custody",
-    account: "General & Branch OpEx",
-    module: "Odoo Journal (2,213)",
-    entries: 2213,
-    amountKwd: 51154.950,
-    variancePct: "30.6% rev",
-    badge: "Fils verified",
+    sector: "Operating Expenses",
+    sectorAr: "المصروفات التشغيلية",
+    account: "General & location opex (posted)",
+    accountAr: "المصروفات العامة ومصروفات المواقع (مرحّلة)",
+    module: "Odoo General Ledger",
+    moduleAr: "دفتر الأستاذ العام في أودو",
+    entries: null,
+    amountKwd: LEDGER.opex,
+    variancePct: `${LEDGER.opexPct}% rev`,
+    variancePctAr: `${LEDGER.opexPct}% من الإيراد`,
+    badge: "Posted",
+    badgeAr: "مرحّل",
     badgeStyle: "border-emerald-600 text-emerald-800 bg-emerald-50",
-    action: "All 2,213 journal entries reconciled to the fils in Odoo General Ledger. Net Operating Profit locked at KWD 42,441.480 (25.4%).",
+    action: `Whitelisted net operating profit is KWD ${scFmt(LEDGER.netProfit, 3)} (${LEDGER.marginPct}% margin) after KWD ${scFmt(LEDGER.depreciation, 3)} depreciation.`,
+    actionAr: `صافي الربح التشغيلي للمواقع المعتمدة ${scFmt(LEDGER.netProfit, 3)} د.ك (هامش ${LEDGER.marginPct}%) بعد إهلاك ${scFmt(LEDGER.depreciation, 3)} د.ك.`,
   },
   {
-    sector: "Menu Tail · All 7 Brands",
-    account: "Bottom 332 Menu SKUs",
+    sector: `Menu Tail · All ${BRANDS.length} Brands`,
+    sectorAr: `ذيل المنيو · العلامات الـ ${BRANDS.length}`,
+    account: `Bottom ${SC_TAIL_COUNT} menu items`,
+    accountAr: `أدنى ${SC_TAIL_COUNT} صنفاً في المنيو`,
     module: "Odoo POS Items",
-    entries: 332,
-    amountKwd: 33418.430,
-    variancePct: "20.0% sales",
-    badge: "Purge 18 · re-price 4",
-    badgeStyle: "border-purple-600 text-purple-800 bg-purple-50",
-    action: "332 items generate only 20% of revenue while increasing kitchen prep complexity and expiry risk. Purge the 18 weakest Dog items and re-price 4 popular Plowhorses by +5% (+584 KWD/month).",
+    moduleAr: "أصناف نقاط بيع أودو",
+    entries: SC_TAIL_COUNT,
+    amountKwd: SC_TAIL_SALES,
+    variancePct: `${scFmt((SC_TAIL_SALES / SC_MENU_TOTAL) * 100, 1)}% sales`,
+    variancePctAr: `${scFmt((SC_TAIL_SALES / SC_MENU_TOTAL) * 100, 1)}% من المبيعات`,
+    badge: `Purge ${LEDGER.menuDogsPurge} · re-price ${LEDGER.menuPlowhorsesReprice}`,
+    badgeAr: `استبعاد ${LEDGER.menuDogsPurge} · تسعير ${LEDGER.menuPlowhorsesReprice}`,
+    badgeStyle: "border-slate-500 text-slate-800 bg-slate-50",
+    action: `${SC_TAIL_COUNT} items generate only ${scFmt((SC_TAIL_SALES / SC_MENU_TOTAL) * 100, 1)}% of item sales while adding prep complexity. Purge the ${LEDGER.menuDogsPurge} weakest Dogs and re-price ${LEDGER.menuPlowhorsesReprice} Plowhorses by +5% (+KWD ${LEDGER.menuMatrixGain}/month).`,
+    actionAr: `${SC_TAIL_COUNT} صنفاً تحقق ${scFmt((SC_TAIL_SALES / SC_MENU_TOTAL) * 100, 1)}% فقط من مبيعات الأصناف مع زيادة تعقيد التحضير. استبعد أضعف ${LEDGER.menuDogsPurge} صنفاً وارفع أسعار ${LEDGER.menuPlowhorsesReprice} أصناف بنسبة 5% (+${LEDGER.menuMatrixGain} د.ك شهرياً).`,
   },
 ];
 
-// Bottom Left & Right Tables (Matches 2nd Screenshot Bottom Split Tables)
-const LOW_VOLUME_TAIL_ITEMS = [
-  { brand: "China Garden", category: "Salads", item: "Crispy Duck Salad", orders: 14, sales: 49.0, avgPrice: 3.50, cogs: "31.2%" },
-  { brand: "China Garden", category: "Soups", item: "Seafood Tom Yum Clear", orders: 19, sales: 61.75, avgPrice: 3.25, cogs: "29.8%" },
-  { brand: "Frank's", category: "Sides", item: "Truffle Parmesan Wedges", orders: 22, sales: 48.40, avgPrice: 2.20, cogs: "28.5%" },
-  { brand: "The Noodle Bar", category: "Noodles", item: "Pad Kee Mao Prawns", orders: 18, sales: 68.40, avgPrice: 3.80, cogs: "30.4%" },
-  { brand: "Farm Brown", category: "Sandwiches", item: "Smoky Turkey Club", orders: 27, sales: 74.25, avgPrice: 2.75, cogs: "27.9%" },
-  { brand: "Tahina", category: "Platters", item: "Mixed Grill Family Tray", orders: 11, sales: 71.50, avgPrice: 6.50, cogs: "29.1%" },
-  { brand: "Karak Cafeteria", category: "Desserts", item: "Saffron Milk Cake", orders: 16, sales: 32.00, avgPrice: 2.00, cogs: "26.0%" },
-  { brand: "China Garden", category: "Appetizers", item: "Prawn Toast Sesame (4pcs)", orders: 24, sales: 60.00, avgPrice: 2.50, cogs: "28.0%" },
-];
+// Lowest-rotation Odoo items (pruning candidates); recipe cost is not readable, so the group COGS % is shown.
+const LOW_VOLUME_TAIL_ITEMS = [...SC_MENU]
+  .sort((a, b) => a.qty - b.qty || a.netKwd - b.netKwd)
+  .slice(0, 10)
+  .map((m) => ({ brand: SC_BRAND_EN(m.brand), category: m.category, item: m.name, orders: m.qty as number, sales: m.netKwd as number, avgPrice: m.priceKwd as number, cogs: `${LEDGER.cogsPct}%*` }));
+
+registerAnalyticsAr({
+  ...Object.fromEntries(Object.entries(SC_CATEGORY_AR)),
+  ...Object.fromEntries(DIAGNOSTIC_BUCKETS.flatMap((b) => [[b.label, b.labelAr], [b.rule, b.ruleAr]])),
+  ...Object.fromEntries(ITEM_DIAGNOSTICS_TABLE_1.flatMap((r) => [[r.badge, r.badgeAr], [r.note, r.noteAr]])),
+  ...Object.fromEntries(ODOO_OPERATIONAL_TABLE_2.flatMap((r) => [[r.sector, r.sectorAr], [r.account, r.accountAr], [r.module, r.moduleAr], [r.variancePct, r.variancePctAr], [r.badge, r.badgeAr], [r.action, r.actionAr]])),
+  "Hero core": "النواة الأساسية",
+  "Upsell gap": "فجوة البيع الإضافي",
+  "Expand combo": "توسيع الكومبو",
+  "Cap promo": "سقف العروض",
+  "CapEx replace": "استبدال رأسمالي",
+  [`COGS vs ${LEDGER.cogsTargetPct}%`]: `التكلفة مقابل ${LEDGER.cogsTargetPct}%`,
+});
 
 interface PoolItem { name: string; brand: string; category: string; sales: number; orders: number; price: number }
-// Every item row in the project that carries a brand, de-duplicated by brand + name (largest sales kept).
+// Every Odoo menu item with a brand, de-duplicated by brand + name.
 const ITEM_POOL: PoolItem[] = (() => {
   const m = new Map<string, PoolItem>();
   const add = (it: PoolItem) => {
@@ -320,43 +369,29 @@ const ITEM_POOL: PoolItem[] = (() => {
     const old = m.get(k);
     if (!old || it.sales > old.sales) m.set(k, it);
   };
-  TOP_15_ITEMS.forEach((i) => add({ ...i }));
-  ITEM_DIAGNOSTICS_TABLE_1.forEach((i) => add({ name: i.item, brand: i.brand, category: i.category, sales: i.sales, orders: i.orders, price: i.avgPrice }));
-  LOW_VOLUME_TAIL_ITEMS.forEach((i) => add({ name: i.item, brand: i.brand, category: i.category, sales: i.sales, orders: i.orders, price: i.avgPrice }));
+  SC_MENU.forEach((i) => add({ name: i.name, brand: SC_BRAND_EN(i.brand), category: i.category, sales: i.netKwd, orders: i.qty, price: i.priceKwd }));
   TOP_BEST_SELLERS.forEach((i) => add({ name: i.nameEn, brand: String(i.brand), category: i.categoryEn, sales: i.salesKwd, orders: i.unitsSold, price: i.priceKwd }));
   return [...m.values()];
 })();
 
-const SEED_CHANNEL_BRAND_MATRIX = [
-  { brand: "China Garden", channel: "Shop Sales", topItem: "Chicken Noodles", orders: 12173, sales: 49261.30, aov: 4.05, drinkPct: "38.4%" },
-  { brand: "China Garden", channel: "Talabat Go", topItem: "Veg Or Chicken Noodles Combo", orders: 6120, sales: 47890.10, aov: 7.83, drinkPct: "13.2%" },
-  { brand: "China Garden", channel: "Keeta", topItem: "Chicken Noodles", orders: 5704, sales: 32555.28, aov: 5.71, drinkPct: "4.6%" },
-  { brand: "China Garden", channel: "Talabat TMP", topItem: "Chicken Noodles", orders: 608, sales: 5951.84, aov: 9.79, drinkPct: "19.8%" },
-  { brand: "China Garden", channel: "Deliveroo Core", topItem: "Beef Mongolian", orders: 457, sales: 1600.48, aov: 3.50, drinkPct: "13.0%" },
-  { brand: "Frank's", channel: "Talabat Go", topItem: "Orig. Philly CheeseSteak", orders: 840, sales: 6420.50, aov: 7.64, drinkPct: "11.8%" },
-  { brand: "Frank's", channel: "Deliveroo Core", topItem: "Philly Meal For 1", orders: 510, sales: 3890.20, aov: 7.63, drinkPct: "14.1%" },
-  { brand: "Frank's", channel: "Shop Sales", topItem: "Orig. Philly CheeseSteak", orders: 450, sales: 3420.12, aov: 7.60, drinkPct: "18.2%" },
-  { brand: "Frank's", channel: "Keeta", topItem: "Philly Meal For 1", orders: 280, sales: 1840.15, aov: 6.57, drinkPct: "8.5%" },
-  { brand: "Frank's", channel: "Talabat TMP", topItem: "Orig. Philly CheeseSteak", orders: 67, sales: 463.00, aov: 6.91, drinkPct: "12.0%" },
-  { brand: "Tahina", channel: "Shop Sales", topItem: "KWD 1 Chicken Shawarma", orders: 1490, sales: 3210.40, aov: 2.15, drinkPct: "84.5%" },
-  { brand: "Tahina", channel: "Talabat Go", topItem: "Tahina Shawarma Platter", orders: 310, sales: 820.24, aov: 2.65, drinkPct: "72.0%" },
-  { brand: "Tahina", channel: "Keeta", topItem: "Chicken Shawarma - Lebanese Bread", orders: 144, sales: 398.00, aov: 2.76, drinkPct: "65.0%" },
-  { brand: "Farm Brown", channel: "Shop Sales", topItem: "Chicken Fillet Meal", orders: 610, sales: 1890.00, aov: 3.10, drinkPct: "24.0%" },
-  { brand: "Farm Brown", channel: "Talabat Go", topItem: "Crispy Strips Box", orders: 140, sales: 450.18, aov: 3.22, drinkPct: "21.5%" },
-  { brand: "Farm Brown", channel: "Keeta", topItem: "Chicken Fillet Meal", orders: 97, sales: 324.00, aov: 3.34, drinkPct: "19.0%" },
-  { brand: "The Noodle Bar", channel: "Talabat TMP", topItem: "Sriracha Chicken Noodles", orders: 67, sales: 472.41, aov: 7.05, drinkPct: "18.5%" },
-  { brand: "The Noodle Bar", channel: "Keeta", topItem: "Pad Thai Noodles", orders: 42, sales: 490.55, aov: 11.68, drinkPct: "22.0%" },
-  { brand: "The Noodle Bar", channel: "Shop Sales", topItem: "Wok Egg Noodles", orders: 135, sales: 580.07, aov: 4.30, drinkPct: "15.0%" },
-  { brand: "The Noodle Bar", channel: "Talabat Go", topItem: "Sriracha Chicken Noodles", orders: 25, sales: 135.19, aov: 5.41, drinkPct: "16.0%" },
-  { brand: "Karak Cafeteria", channel: "Shop Sales", topItem: "Chapati Box (4 pcs)", orders: 125, sales: 591.20, aov: 4.73, drinkPct: "72.7%" },
-  { brand: "Karak Cafeteria", channel: "Whatsapp", topItem: "Karak Chai Flask (1L)", orders: 3, sales: 33.30, aov: 11.10, drinkPct: "100.0%" },
-];
-
-// Orders, sales and AOV come from the balanced brand × channel matrix (verified brand and channel totals).
-const CHANNEL_BRAND_MATRIX = SEED_CHANNEL_BRAND_MATRIX.map((r) => {
-  const cell = REAL_BRAND_CHANNEL_DATA[r.brand]?.[r.channel === "Talabat TMP" ? "Talabat MP" : r.channel];
-  return cell ? { ...r, orders: Math.round(cell.orders), sales: cell.netSales, aov: cell.orders > 0 ? cell.netSales / cell.orders : 0 } : r;
-});
+// Brand × channel matrix: exact Odoo brand × channel sales and orders; top item and drink attach are brand-level Odoo figures.
+const CHANNEL_BRAND_MATRIX = ODOO.brandChannel
+  .filter((c) => c.netKwd > 0 && BRANDS.some((b) => b.id === c.brand))
+  .map((c) => {
+    const ch = ODOO.channels.find((x) => x.id === c.channel);
+    const ob = ODOO.brands.find((b) => b.id === c.brand);
+    const top = SC_BY_SALES.find((m) => m.brand === c.brand);
+    return {
+      brand: SC_BRAND_EN(c.brand),
+      channel: ch?.odooName ?? c.channel,
+      topItem: top?.name ?? "—",
+      orders: c.orders as number,
+      sales: c.netKwd as number,
+      aov: c.orders ? c.netKwd / c.orders : 0,
+      drinkPct: `${scFmt(ob?.drinksPct ?? 0, 1)}%`,
+    };
+  })
+  .sort((a, b) => b.sales - a.sales);
 
 // ==========================================
 // 2. MAIN COMPONENT (HIGH-DENSITY TUFTE BI)
@@ -489,11 +524,11 @@ function ScorecardInner() {
 
   const biggestChannel = [...vChannels].sort((x, y) => y.netSales - x.netSales)[0];
   const opRows = ODOO_OPERATIONAL_TABLE_2
-    .filter((r) => !r.sector.startsWith("Aggregator Clearing") || selectedChannel === ALL_CHANNELS || r.sector.endsWith(selectedChannel))
+    .filter((r) => !r.channelKey || selectedChannel === ALL_CHANNELS || selectedChannel === "All channels" || r.channelKey === selectedChannel)
     .map((r) => {
-      const ch = r.sector.startsWith("Aggregator Clearing") ? vChannels.find((c) => r.sector.endsWith(c.channel)) : undefined;
-      if (ch) return { ...r, entries: ch.orders, amountKwd: ch.netSales };
-      return { ...r, entries: Math.round(r.entries * view.ratioOrders), amountKwd: r.amountKwd * view.ratioNet };
+      const ch = r.channelKey ? vChannels.find((c) => c.channel === r.channelKey) : undefined;
+      if (ch) return { ...r, entries: ch.orders as number | null, amountKwd: ch.netSales };
+      return { ...r, entries: r.entries == null ? null : Math.round(r.entries * view.ratioOrders), amountKwd: r.amountKwd * view.ratioNet };
     });
 
   // Max values for proportional bar widths
@@ -536,10 +571,10 @@ function ScorecardInner() {
            ========================================== */}
         <header className="ae-masthead space-y-4 p-6 lg:p-7">
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-semibold text-slate-600">
-            <span>{tr("Updated Live · Odoo ERP Verified (2,213 Journal Entries · Venture Foods Co. W.L.L.)")}</span>
+            <span>{isAr ? `أودو مباشر · آخر مزامنة ${LEDGER.syncedAt.slice(0, 10)} · شركة فنتشر فودز ذ.م.م` : `Live Odoo · last sync ${LEDGER.syncedAt.slice(0, 10)} · Venture Foods Co. W.L.L.`}</span>
             <div className="flex items-center gap-3">
               <span className="inline-flex items-center gap-1.5 text-emerald-700 font-bold">
-                <span className="h-2 w-2 rounded-full bg-emerald-600"></span> {tr("Odoo P&L Reconciled: KWD 42,441.480 Net Profit (25.4%)")} </span>
+                <span className="h-2 w-2 rounded-full bg-emerald-600"></span> {isAr ? `قائمة الدخل في أودو: صافي الربح ${scFmt(LEDGER.netProfit, 3)} د.ك (${LEDGER.marginPct}%)` : `Odoo P&L: KWD ${scFmt(LEDGER.netProfit, 3)} Net Profit (${LEDGER.marginPct}%)`} </span>
               {(selectedBrand !== "All brands" || selectedChannel !== "All channels" || selectedBranch !== "All branches" || selectedPeriod !== "month") && (
                 <button
                   onClick={() => {
@@ -686,9 +721,9 @@ function ScorecardInner() {
           <div className="ae-tile ae-lift rounded-2xl p-4 min-w-0">
             <div className="text-xs font-semibold text-slate-600">{tr("Net operating profit")}</div>
             <div className="text-lg sm:text-xl xl:text-[22px] font-extrabold text-emerald-700 mt-1 break-words leading-tight">
-              <span dir="ltr" className="inline-block tabular-nums">{isFiltered ? "—" : money(42441.48, 3)}</span>
+              <span dir="ltr" className="inline-block tabular-nums">{isFiltered ? "—" : money(LEDGER.netProfit, 3)}</span>
             </div>
-            <div className="text-xs font-medium text-slate-500 mt-0.5">{isFiltered ? tr("Available for the whole group only") : tr("25.4% net margin")}</div>
+            <div className="text-xs font-medium text-slate-500 mt-0.5">{isFiltered ? tr("Available for the whole group only") : isAr ? `هامش صافي ${LEDGER.marginPct}%` : `${LEDGER.marginPct}% net margin`}</div>
           </div>
         </section>
 
@@ -1344,7 +1379,7 @@ function ScorecardInner() {
           <div className="grid grid-cols-1 gap-3">
             <div className="bg-white dark:bg-[#111827] rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-none ring-1 ring-slate-200/70 dark:ring-slate-800 p-4 md:p-5 overflow-x-auto ae-table-wrap min-w-0">
               <div className="text-[15px] font-bold text-slate-900 dark:text-slate-100"> {tr("Long-tail menu candidates for pruning (Prep & waste reduction)")} </div>
-              <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-3"> {tr("332 of 364 items generate only 20% of sales. Removing low-rotation SKUs reduces Central Kitchen waste.")} </div>
+              <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-3"> {isAr ? `${SC_TAIL_COUNT} من ${SC_MENU.length} صنفاً تحقق ${scFmt((SC_TAIL_SALES / SC_MENU_TOTAL) * 100, 1)}% فقط من المبيعات. إزالة الأصناف بطيئة الدوران تقلل هدر المطبخ المركزي. (* تكلفة المجموعة لعدم إتاحة تكلفة الوصفات)` : `${SC_TAIL_COUNT} of ${SC_MENU.length} items generate only ${scFmt((SC_TAIL_SALES / SC_MENU_TOTAL) * 100, 1)}% of sales. Removing low-rotation SKUs reduces central-kitchen waste. (* group COGS; recipe cost is not readable)`} </div>
               <div className="max-h-[300px] overflow-y-auto border-t border-slate-100 dark:border-slate-800">
                 <table className="w-full text-[13.5px] md:text-sm border-collapse bg-white dark:bg-[#111827]">
                   <thead className="sticky top-0 bg-[#F8FAFC] dark:bg-[#1E293B]/90 border-b border-slate-200/80 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200">
@@ -1394,7 +1429,7 @@ function ScorecardInner() {
              ========================================== */}
           <div className="bg-white dark:bg-[#111827] rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-none ring-1 ring-slate-200/70 dark:ring-slate-800 p-4 md:p-5 overflow-x-auto ae-table-wrap min-w-0">
             <div className="text-[15px] font-bold text-slate-900 dark:text-slate-100"> {tr("Odoo ERP financial, central kitchen & maintenance audit scorecard")} </div>
-            <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-3"> {tr("Direct reconciliation with Odoo general ledger (2,213 entries), Central Kitchen COGS, and Rabih maintenance custody.")} </div>
+            <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-3"> {isAr ? "مطابقة مباشرة مع دفتر الأستاذ العام في أودو (المواقع المعتمدة) ومركز تكلفة المطبخ المركزي وعهدة الصيانة (تقدير إداري)." : "Direct reconciliation with the Odoo general ledger (whitelisted locations), the central-kitchen cost centre and maintenance custody (management estimate)."} </div>
             <div className="max-h-[340px] overflow-y-auto border-t border-slate-100 dark:border-slate-800">
               <table className="w-full text-[13.5px] md:text-sm border-collapse bg-white dark:bg-[#111827]">
                 <thead className="sticky top-0 bg-[#F8FAFC] dark:bg-[#1E293B]/90 border-b border-slate-200/80 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200">
@@ -1416,7 +1451,7 @@ function ScorecardInner() {
                       <td className="py-3.5 px-4 font-medium text-slate-700 dark:text-slate-300 whitespace-nowrap">{tr(row.account)}</td>
                       <td className="py-3.5 px-4 font-medium text-slate-600 dark:text-slate-400 whitespace-nowrap">{tr(row.module)}</td>
                       <td className="py-3.5 px-4 text-end tabular-nums font-semibold text-slate-800 dark:text-slate-200">
-                        {row.entries.toLocaleString()}
+                        {row.entries == null ? "—" : row.entries.toLocaleString()}
                       </td>
                       <td className="py-3.5 px-4 text-end tabular-nums font-bold text-slate-900 dark:text-slate-100">
                         {row.amountKwd.toLocaleString(undefined, {

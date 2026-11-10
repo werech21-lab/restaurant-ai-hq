@@ -48,8 +48,11 @@ const PNL = [
   { key: 'profit', en: 'Net operating profit', ar: 'صافي الربح التشغيلي', value: LEDGER.netProfit, color: '#059669' },
   { key: 'opex', en: 'Opex & custodies', ar: 'المصروفات والعهد', value: LEDGER.opex, color: '#D97706' },
   { key: 'cogs', en: 'Food & material cost', ar: 'تكلفة الأغذية والمواد', value: LEDGER.cogs, color: '#E11D48' },
-  { key: 'payroll', en: 'Salaries, rent & commissions', ar: 'الرواتب والإيجارات والعمولات', value: LEDGER.salariesRentCommission, color: '#0284C7' },
+  { key: 'payroll', en: 'Depreciation', ar: 'الإهلاك', value: LEDGER.depreciation, color: '#0284C7' },
 ]
+
+const TOP_BRANCH = [...BRANCHES].sort((a, b) => b.profit - a.profit)[0]
+const AGGREGATOR_SHARE = (CHANNELS.filter((c) => c.group === 'aggregator').reduce((x, c) => x + c.sales, 0) / LEDGER.netSales) * 100
 
 export function ExecutiveSummaryV2({ anchor }: { anchor: string }) {
   const { lang, isAr, T } = useLang()
@@ -231,7 +234,7 @@ export function ExecutiveSummaryV2({ anchor }: { anchor: string }) {
         <div className="ae-tile flex flex-col gap-5 p-5 lg:col-span-7">
           <SectionHeader
             icon={<Receipt className="h-4 w-4" />}
-            title={chartMode === 'branches' ? T('Revenue & net profit · 9 active branches', 'الإيراد وصافي الربح · الفروع النشطة الـ 9') : T('Revenue & contribution · top channels', 'الإيراد والمساهمة · أهم القنوات')}
+            title={chartMode === 'branches' ? T(`Revenue & net profit · ${LEDGER.branches} restaurant locations`, `الإيراد وصافي الربح · مواقع المطاعم الـ ${LEDGER.branches}`) : T('Revenue & contribution · top channels', 'الإيراد والمساهمة · أهم القنوات')}
             subtitle={T('Click a bar to filter the whole workspace', 'اضغط على أي عمود لفلترة مساحة العمل بالكامل')}
             actions={
               <div className="ae-seg">
@@ -260,17 +263,17 @@ export function ExecutiveSummaryV2({ anchor }: { anchor: string }) {
           <div className="grid grid-cols-3 gap-3 border-t border-slate-100 pt-4 dark:border-slate-700/50">
             <div>
               <div className="ae-meta">{T('Top branch', 'الفرع الأعلى')}</div>
-              <div className="text-sm font-semibold text-slate-900 dark:text-white">{T('Salmiya', 'السالمية')}</div>
-              <Num className="text-xs text-emerald-600">{kwd(31246.23, lang, 3)} · 18.7%</Num>
+              <div className="text-sm font-semibold text-slate-900 dark:text-white">{T(TOP_BRANCH.en, TOP_BRANCH.ar)}</div>
+              <Num className="text-xs text-emerald-600">{kwd(TOP_BRANCH.profit, lang, 3)} · {pct(TOP_BRANCH.marginPct)}</Num>
             </div>
             <div>
-              <div className="ae-meta">{T('Online availability', 'الجاهزية أونلاين')}</div>
-              <Num className="text-sm text-slate-900 dark:text-white">{pct(LEDGER.uptimePct)}</Num>
-              <div className="text-xs text-slate-500">{T('Aggregator tablets', 'أجهزة المنصات')}</div>
+              <div className="ae-meta">{T('Aggregator share', 'حصة المنصات')}</div>
+              <Num className="text-sm text-slate-900 dark:text-white">{pct(AGGREGATOR_SHARE)}</Num>
+              <div className="text-xs text-slate-500">{T('of Odoo POS sales', 'من مبيعات نقاط البيع في أودو')}</div>
             </div>
             <div>
               <div className="ae-meta">{T('Channels live', 'القنوات النشطة')}</div>
-              <Num className="text-sm text-slate-900 dark:text-white">11</Num>
+              <Num className="text-sm text-slate-900 dark:text-white">{LEDGER.channels}</Num>
               <div className="text-xs text-slate-500">{T('Incl. Talabat Tgo & TMP', 'تشمل طلبات جو وسوق طلبات')}</div>
             </div>
           </div>

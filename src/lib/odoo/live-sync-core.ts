@@ -4,7 +4,11 @@
  *
  * Runtime-neutral: only `fetch`, no Node APIs and no path aliases, so both bundlers can import it.
  * Credentials are read from the server environment and never leave the server.
+ *
+ * Scope is a POSITIVE whitelist (./pos-registry.json): only the listed pos.config registers and
+ * the approved Venture Foods brands are ever queried or returned.
  */
+import registry from './pos-registry.json'
 
 export interface OdooEnv {
   ODOO_URL?: string
@@ -19,35 +23,27 @@ export interface OdooLiveSummary {
   period: { from: string; to: string }
   database: string | null
   totals: { netSalesKwd: number; orders: number; aovKwd: number }
-  brands: { brand: string; netKwd: number; sharePct: number }[]
-  branches: { name: string; netSalesKwd: number; orders: number; sharePct: number }[]
+  brands: { id: string; brand: string; netKwd: number; sharePct: number }[]
+  branches: { id: string; name: string; unit: string; netSalesKwd: number; orders: number; sharePct: number }[]
   channels: { name: string; amountKwd: number }[]
   note?: string
 }
 
-/** Hard exclusion: these locations never appear in Aether BI data. */
-const EXCLUDED_BRANCH = /jahra|الجهراء|qurain|القرين/i
+type Registry = {
+  allowedPosConfigIds: number[]
+  registers: Record<string, { location: string }>
+  locations: Record<string, { en: string; ar: string; code: string; unit: string }>
+  brands: { id: string; en: string; ar: string; posRoot: string | null }[]
+}
+const REG = registry as unknown as Registry
+export const ALLOWED_POS_CONFIG_IDS: readonly number[] = REG.allowedPosConfigIds
 const ALLOWED_HOST = 'venturefoods.walnutss.com'
-const BRAND_CODE: Record<string, string> = { CG: 'China Garden', FB: 'Farm Brown', TNB: 'The Noodle Bar', HB: 'Heisenberg', TS: 'Tasty Snacks', SC: 'Fresh Daily Canteen' }
-const LOCATION_ALIAS: Record<string, string> = { salmyia: 'Salmiya', salmiya: 'Salmiya', kout: 'Al-Kout Mall', promenade: 'Promenade Mall', '360': '360 Mall', 'assima mall': 'Assima Mall', avenues: 'The Avenues', ardiya: 'Ardiya', 'ardiya temp': 'Ardiya' }
 
 type M2O = [number, string] | false
 const m2oId = (v: unknown): number | null => (Array.isArray(v) ? (v[0] as number) : null)
 const m2oName = (v: unknown): string | null => (Array.isArray(v) ? (v[1] as string) : null)
 const r3 = (n: number) => Math.round(n * 1000) / 1000
 const pct = (part: number, whole: number) => (whole ? Math.round((part / whole) * 1000) / 10 : 0)
-
-export function branchOfPosConfig(name: string): string {
-  const n = (name || '').trim()
-  if (/exebition|exhibition/i.test(n)) return 'Exhibitions (EXB)'
-  if (/call center/i.test(n)) return 'Call Center'
-  const m = n.match(/\(([^)]+)\)/)
-  if (m) {
-    const key = m[1].trim().toLowerCase()
-    return LOCATION_ALIAS[key] ?? m[1].trim().replace(/\b\w/g, (c) => c.toUpperCase())
-  }
-  return n
-}
 
 export function channelOfPaymentMethod(pm: string): string {
   const n = (pm || '').toLowerCase()
@@ -76,8 +72,8 @@ interface SnapshotShape {
   database?: string
   period?: { from: string; to: string }
   totals?: { netSalesKwd: number; orders: number; aovKwd: number }
-  brands?: { brand: string; netKwd: number; sharePct: number }[]
-  branches?: { name: string; netSalesKwd: number; orders: number; sharePct: number }[]
+  brands?: { id: string; en: string; netKwd: number; sharePct: number }[]
+  locations?: { id: string; en: string; unit: string; netKwd: number; orders: number; sharePct: number }[]
   channels?: { name: string; amountKwd: number }[]
 }
 
@@ -89,8 +85,8 @@ export function summaryFromSnapshot(raw: unknown, note?: string): OdooLiveSummar
     period: s.period ?? { from: '', to: '' },
     database: s.database ?? null,
     totals: s.totals ? { netSalesKwd: s.totals.netSalesKwd, orders: s.totals.orders, aovKwd: s.totals.aovKwd } : { netSalesKwd: 0, orders: 0, aovKwd: 0 },
-    brands: (s.brands ?? []).filter((b) => b.netKwd > 0).map((b) => ({ brand: BRAND_CODE[b.brand] ?? b.brand, netKwd: b.netKwd, sharePct: b.sharePct })),
-    branches: (s.branches ?? []).filter((b) => !EXCLUDED_BRANCH.test(b.name)).map((b) => ({ name: b.name, netSalesKwd: b.netSalesKwd, orders: b.orders, sharePct: b.sharePct })),
+    brands: (s.brands ?? []).filter((b) => b.netKwd > 0).map((b) => ({ id: b.id, brand: b.en, netKwd: b.netKwd, sharePct: b.sharePct })),
+    branches: (s.locations ?? []).map((l) => ({ id: l.id, name: l.en, unit: l.unit, netSalesKwd: l.netKwd, orders: l.orders, sharePct: l.sharePct })),
     channels: (s.channels ?? []).map((c) => ({ name: c.name, amountKwd: c.amountKwd })),
     ...(note ? { note } : {}),
   }
@@ -133,9 +129,8 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
   const ek = (model: string, method: string, args: unknown[], kwargs: Record<string, unknown> = {}) =>
     call('object', 'execute_kw', [db, uid, env.ODOO_API_KEY, model, method, args, kwargs])
 
-  const configs = (await ek('pos.config', 'search_read', [[['active', 'in', [true, false]]]], { fields: ['id', 'name'], context: { active_test: false } })) as { id: number; name: string }[]
-  const configName = new Map(configs.map((c) => [c.id, c.name]))
-  const banned = configs.filter((c) => EXCLUDED_BRANCH.test(c.name)).map((c) => c.id)
+  const allowed = [...ALLOWED_POS_CONFIG_IDS]
+  const allowedSet = new Set(allowed)
   const categories = (await ek('pos.category', 'search_read', [[]], { fields: ['id', 'name', 'parent_id'] })) as { id: number; name: string; parent_id: M2O }[]
   const catById = new Map(categories.map((c) => [c.id, c]))
   const rootName = (catId: number | null) => {
@@ -144,37 +139,38 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
     while (c && c.parent_id && guard++ < 10) c = catById.get(m2oId(c.parent_id) ?? -1)
     return c?.name ?? null
   }
+  const brandOfRoot = new Map(REG.brands.filter((b) => b.posRoot).map((b) => [b.posRoot as string, b]))
 
-  const orderDomain = [['date_order', '>=', `${period.from} 00:00:00`], ['date_order', '<', `${period.to} 00:00:00`], ['state', 'in', ['paid', 'done', 'invoiced']]]
+  const orderDomain = [['date_order', '>=', `${period.from} 00:00:00`], ['date_order', '<', `${period.to} 00:00:00`], ['state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', allowed]]
   const bySession = (await ek('pos.order', 'read_group', [orderDomain, ['amount_total:sum', 'amount_tax:sum'], ['session_id']], { lazy: false })) as { session_id: M2O; amount_total: number; amount_tax: number; __count: number }[]
-  const byPayment = (await ek('pos.payment', 'read_group', [[['pos_order_id.date_order', '>=', `${period.from} 00:00:00`], ['pos_order_id.date_order', '<', `${period.to} 00:00:00`], ['pos_order_id.state', 'in', ['paid', 'done', 'invoiced']]], ['amount:sum'], ['session_id', 'payment_method_id']], { lazy: false })) as { session_id: M2O; payment_method_id: M2O; amount: number }[]
+  const byPayment = (await ek('pos.payment', 'read_group', [[['pos_order_id.date_order', '>=', `${period.from} 00:00:00`], ['pos_order_id.date_order', '<', `${period.to} 00:00:00`], ['pos_order_id.state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', allowed]], ['amount:sum'], ['session_id', 'payment_method_id']], { lazy: false })) as { session_id: M2O; payment_method_id: M2O; amount: number }[]
   const sessionIds = [...new Set([...bySession, ...byPayment].map((g) => m2oId(g.session_id)).filter((x): x is number => x !== null))]
   const sessions = sessionIds.length ? ((await ek('pos.session', 'read', [sessionIds, ['id', 'config_id']])) as { id: number; config_id: M2O }[]) : []
   const configOfSession = new Map(sessions.map((s) => [s.id, m2oId(s.config_id)]))
 
-  const branchAgg = new Map<string, { net: number; orders: number }>()
+  const locAgg = new Map<string, { net: number; orders: number }>()
   for (const g of bySession) {
     const cfg = configOfSession.get(m2oId(g.session_id) ?? -1)
-    if (cfg === undefined || cfg === null || banned.includes(cfg)) continue
-    const name = branchOfPosConfig(configName.get(cfg) ?? '')
-    if (EXCLUDED_BRANCH.test(name)) continue
-    const b = branchAgg.get(name) ?? { net: 0, orders: 0 }
+    if (cfg === undefined || cfg === null || !allowedSet.has(cfg)) continue
+    const loc = REG.registers[String(cfg)]?.location
+    if (!loc) continue
+    const b = locAgg.get(loc) ?? { net: 0, orders: 0 }
     b.net += (g.amount_total || 0) - (g.amount_tax || 0)
     b.orders += g.__count || 0
-    branchAgg.set(name, b)
+    locAgg.set(loc, b)
   }
-  const totalNet = [...branchAgg.values()].reduce((s, b) => s + b.net, 0)
-  const totalOrders = [...branchAgg.values()].reduce((s, b) => s + b.orders, 0)
+  const totalNet = [...locAgg.values()].reduce((s, b) => s + b.net, 0)
+  const totalOrders = [...locAgg.values()].reduce((s, b) => s + b.orders, 0)
 
   const channelAgg = new Map<string, number>()
   for (const g of byPayment) {
     const cfg = configOfSession.get(m2oId(g.session_id) ?? -1)
-    if (cfg !== undefined && cfg !== null && banned.includes(cfg)) continue
+    if (cfg === undefined || cfg === null || !allowedSet.has(cfg)) continue
     const ch = channelOfPaymentMethod(m2oName(g.payment_method_id) ?? '')
     channelAgg.set(ch, (channelAgg.get(ch) ?? 0) + (g.amount || 0))
   }
 
-  const lineDomain = [['order_id.date_order', '>=', `${period.from} 00:00:00`], ['order_id.date_order', '<', `${period.to} 00:00:00`], ['order_id.state', 'in', ['paid', 'done', 'invoiced']], ['order_id.session_id.config_id', 'not in', banned]]
+  const lineDomain = [['order_id.date_order', '>=', `${period.from} 00:00:00`], ['order_id.date_order', '<', `${period.to} 00:00:00`], ['order_id.state', 'in', ['paid', 'done', 'invoiced']], ['order_id.session_id.config_id', 'in', allowed]]
   const byProduct = (await ek('pos.order.line', 'read_group', [lineDomain, ['price_subtotal:sum'], ['product_id']], { lazy: false })) as { product_id: M2O; price_subtotal: number }[]
   const productIds = byProduct.map((g) => m2oId(g.product_id)).filter((x): x is number => x !== null)
   const products = productIds.length ? ((await ek('product.product', 'read', [productIds, ['id', 'pos_categ_id']])) as { id: number; pos_categ_id: M2O }[]) : []
@@ -182,9 +178,9 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
   const brandAgg = new Map<string, number>()
   for (const g of byProduct) {
     const root = rootName(categOf.get(m2oId(g.product_id) ?? -1) ?? null)
-    if (!root || root === 'Admin') continue
-    const brand = BRAND_CODE[root] ?? root
-    brandAgg.set(brand, (brandAgg.get(brand) ?? 0) + (g.price_subtotal || 0))
+    const brand = root ? brandOfRoot.get(root) : undefined
+    if (!brand) continue
+    brandAgg.set(brand.id, (brandAgg.get(brand.id) ?? 0) + (g.price_subtotal || 0))
   }
   const brandTotal = [...brandAgg.values()].reduce((s, v) => s + v, 0)
 
@@ -194,8 +190,8 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
     period,
     database: db,
     totals: { netSalesKwd: r3(totalNet), orders: totalOrders, aovKwd: totalOrders ? r3(totalNet / totalOrders) : 0 },
-    brands: [...brandAgg.entries()].filter(([, v]) => v > 0).map(([brand, v]) => ({ brand, netKwd: r3(v), sharePct: pct(v, brandTotal) })).sort((a, b) => b.netKwd - a.netKwd),
-    branches: [...branchAgg.entries()].map(([name, b]) => ({ name, netSalesKwd: r3(b.net), orders: b.orders, sharePct: pct(b.net, totalNet) })).sort((a, b) => b.netSalesKwd - a.netSalesKwd),
+    brands: [...brandAgg.entries()].filter(([, v]) => v > 0).map(([bid, v]) => ({ id: bid, brand: REG.brands.find((b) => b.id === bid)?.en ?? bid, netKwd: r3(v), sharePct: pct(v, brandTotal) })).sort((a, b) => b.netKwd - a.netKwd),
+    branches: [...locAgg.entries()].map(([lid, b]) => ({ id: lid, name: REG.locations[lid]?.en ?? lid, unit: REG.locations[lid]?.unit ?? 'restaurant', netSalesKwd: r3(b.net), orders: b.orders, sharePct: pct(b.net, totalNet) })).sort((a, b) => b.netSalesKwd - a.netSalesKwd),
     channels: [...channelAgg.entries()].map(([name, v]) => ({ name, amountKwd: r3(v) })).sort((a, b) => b.amountKwd - a.amountKwd),
   }
 }

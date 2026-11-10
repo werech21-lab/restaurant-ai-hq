@@ -911,7 +911,7 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
                 onClick={handleResetAllBranches}
                 className="rounded-xl border border-amber-400/30 bg-amber-500/20 px-3 py-1 font-bold text-amber-200 transition hover:bg-amber-500/40 hover:text-white"
               >
-                {isEn ? '↺ Reset All 9 Branches to Active' : '↺ تفعيل كافة الفروع الـ 9 المعتمدة'}
+                {isEn ? `↺ Reset All ${INITIAL_BRANCH_PROFILES.length} Locations to Active` : `↺ تفعيل كافة المواقع الـ ${INITIAL_BRANCH_PROFILES.length} المعتمدة`}
               </button>
             </div>
 

@@ -1,5 +1,15 @@
-/** Approved executive recommendations: monthly impact is a management estimate (total KWD 6,840), not computed from Odoo. */
+/**
+ * Executive recommendations. Monthly impact values are management estimates; every fact quoted in
+ * the issue text comes from the live Odoo sync (via the ledger).
+ */
+import { LEDGER, LEVERS } from '@/lib/aether/ledger'
+
 export type Priority = 'top' | 'high' | 'medium'
+
+const f3 = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
+const f0 = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 0 })
+const lever = (id: (typeof LEVERS)[number]['id']) => LEVERS.find((l) => l.id === id)?.monthly ?? 0
+
 export const RECS: {
   id: string
   priority: Priority
@@ -11,47 +21,47 @@ export const RECS: {
   {
     id: 'REC-01', priority: 'top',
     deptEn: 'Delivery apps (Keeta & Talabat)', deptAr: 'تطبيقات التوصيل (كيتا وطلبات)',
-    issueEn: 'Drink attach rate on Keeta (6,267 orders) is only 4.8% and on Talabat Go 12.7%, against 41.2% in the shop.',
-    issueAr: 'نسبة طلب المشروبات في كيتا (6,267 طلباً) 4.8% فقط وفي طلبات جو 12.7% مقابل 41.2% في المحل.',
-    fixEn: 'Add a mandatory drink choice to combo meals on both platforms to lift the rate to 25%.',
-    fixAr: 'إضافة خطوة اختيار مشروب إجبارية ضمن وجبات الكومبو في المنصتين لرفع النسبة إلى 25%.',
-    impact: 2450,
+    issueEn: `Odoo group AOV is ${f3(LEDGER.aov)} KWD across ${f0(LEDGER.orders)} orders; delivery combos are sold without a mandatory drink step.`,
+    issueAr: `متوسط السلة في أودو ${f3(LEDGER.aov)} د.ك عبر ${f0(LEDGER.orders)} طلباً؛ وجبات الكومبو للتوصيل تُباع دون خطوة مشروب إلزامية.`,
+    fixEn: `Add a mandatory drink choice to combo meals on Keeta and Talabat to lift AOV toward ${f3(LEDGER.aovTarget)} KWD.`,
+    fixAr: `إضافة خطوة اختيار مشروب إجبارية ضمن وجبات الكومبو في كيتا وطلبات لرفع متوسط السلة نحو ${f3(LEDGER.aovTarget)} د.ك.`,
+    impact: lever('beverage-attach'),
   },
   {
     id: 'REC-02', priority: 'top',
     deptEn: 'Promotional discount control', deptAr: 'ضبط الخصومات التسويقية',
-    issueEn: 'Keeta runs a 6.7% discount rate: KWD 2,544 of the KWD 4,152 total company discounts across 6,267 orders.',
-    issueAr: 'كيتا تستهلك خصومات بنسبة 6.7% (2,544 د.ك من أصل 4,152 د.ك إجمالي خصومات الشركة عبر 6,267 طلباً).',
-    fixEn: 'Stop the open menu-wide discount on Keeta and replace it with bundle offers capped at 3.5% (924 KWD a month).',
-    fixAr: 'إيقاف الخصم المفتوح على المنيو في كيتا واستبداله بعروض وجبات مجمّعة بسقف خصم 3.5% (924 د.ك شهرياً).',
-    impact: 1620,
+    issueEn: `Keeta promotions in Odoo total ${f3(LEDGER.keetaDiscounts)} KWD (item sales − payments) of ${f3(LEDGER.discounts)} KWD group promotions and line discounts.`,
+    issueAr: `خصومات كيتا في أودو ${f3(LEDGER.keetaDiscounts)} د.ك (المبيعات − المدفوعات) من أصل ${f3(LEDGER.discounts)} د.ك خصومات وعروض المجموعة.`,
+    fixEn: `Replace the open Keeta discount with bundle offers capped at ${LEDGER.keetaCapPct}% (${f3(LEDGER.keetaCapKwd)} KWD a month).`,
+    fixAr: `استبدال الخصم المفتوح في كيتا بعروض وجبات مجمّعة بسقف ${LEDGER.keetaCapPct}% (${f3(LEDGER.keetaCapKwd)} د.ك شهرياً).`,
+    impact: lever('keeta-cap'),
   },
   {
     id: 'REC-03', priority: 'high',
     deptEn: 'Central kitchen (food cost)', deptAr: 'المطبخ المركزي (تكلفة الأغذية)',
-    issueEn: 'Food cost drifted to 24.8% (KWD 41,438.856) from 24.0% because of chicken marinade waste.',
-    issueAr: 'انحراف تكلفة الأغذية إلى 24.8% (41,438.856 د.ك) بدلاً من 24.0% نتيجة هدر تتبيل الدجاج.',
-    fixEn: 'Pre-weigh marinade portions (140 g) and tie central-kitchen issues to daily POS sales.',
-    fixAr: 'تطبيق وزن معياري مسبق لحصص التتبيل (140 جم) وربط صرف المطبخ المركزي بمبيعات نقاط البيع يومياً.',
-    impact: 1336,
+    issueEn: `Odoo food cost is ${LEDGER.cogsPct}% (KWD ${f3(LEDGER.cogs)}) against the ${LEDGER.cogsTargetPct}% target; central-kitchen costs are not charged to locations.`,
+    issueAr: `تكلفة الأغذية في أودو ${LEDGER.cogsPct}% (${f3(LEDGER.cogs)} د.ك) مقابل المستهدف ${LEDGER.cogsTargetPct}%؛ تكاليف المطبخ المركزي غير محمّلة على المواقع.`,
+    fixEn: 'Pre-weigh marinade portions (140 g) and tie central-kitchen issues to daily POS sales per location.',
+    fixAr: 'تطبيق وزن معياري مسبق لحصص التتبيل (140 جم) وربط صرف المطبخ المركزي بمبيعات نقاط البيع اليومية لكل موقع.',
+    impact: lever('ardiya-yield'),
   },
   {
     id: 'REC-04', priority: 'high',
-    deptEn: 'Maintenance & custody (Rabih)', deptAr: 'الصيانة والعهد (عهدة ربيع)',
-    issueEn: 'Maintenance and custody spend reached KWD 10,707.930 from repeated fridge failures at Al-Kout and Salmiya.',
-    issueAr: 'وصول مصاريف الصيانة والعهد إلى 10,707.930 د.ك بسبب تكرار أعطال ثلاجات فرعي الكوت والسالمية.',
+    deptEn: 'Maintenance & custody', deptAr: 'الصيانة والعهد',
+    issueEn: `Maintenance custody reached KWD ${f3(LEDGER.maintCustody)} across ${LEDGER.maintEntries} expense records from repeated fridge failures at Al-Kout Mall and Salmiya.`,
+    issueAr: `بلغت عهدة الصيانة ${f3(LEDGER.maintCustody)} د.ك عبر ${LEDGER.maintEntries} سجل مصروفات بسبب تكرار أعطال الثلاجات في مجمع الكوت والسالمية.`,
     fixEn: 'Stop repeated cash repairs and approve a capital replacement (CapEx) of both fridges.',
-    fixAr: 'إيقاف الصرف النقدي المتكرر على التصليح واعتماد استبدال رأسمالي (CapEx) للثلاجتين.',
-    impact: 850,
+    fixAr: 'إيقاف الصرف النقدي المتكرر على التصليح واعتماد استبدال رأسمالي للثلاجتين.',
+    impact: lever('chiller-overhaul'),
   },
   {
     id: 'REC-05', priority: 'medium',
-    deptEn: 'Menu engineering (364 items)', deptAr: 'هندسة المنيو (364 صنفاً)',
-    issueEn: 'Only 32 items make 80% of sales while 332 items make 20% and add prep and storage waste.',
-    issueAr: '32 صنفاً فقط تحقق 80% من المبيعات بينما 332 صنفاً تحقق 20% وترفع هدر التحضير والتخزين.',
-    fixEn: 'Purge the 18 most sluggish Dog items and apply a +5% price calibration to 4 popular Plowhorses to ease prep pressure and lift margin.',
-    fixAr: 'استبعاد أضعف 18 صنفاً ورفع أسعار 4 أصناف شعبية منخفضة الهامش بنسبة 5% لتخفيف ضغط التحضير ورفع الهامش.',
-    impact: 584,
+    deptEn: `Menu engineering (${LEDGER.menuItems} items)`, deptAr: `هندسة المنيو (${LEDGER.menuItems} صنفاً)`,
+    issueEn: `Only ${LEDGER.topItems} of ${LEDGER.menuItems} items sold in Odoo make 80% of sales; the long tail adds prep and storage waste.`,
+    issueAr: `${LEDGER.topItems} صنفاً فقط من أصل ${LEDGER.menuItems} صنفاً مبيعاً في أودو تحقق 80% من المبيعات؛ والذيل الطويل يرفع هدر التحضير والتخزين.`,
+    fixEn: `Purge the ${LEDGER.menuDogsPurge} most sluggish Dog items and apply +5% to ${LEDGER.menuPlowhorsesReprice} popular Plowhorses.`,
+    fixAr: `استبعاد أضعف ${LEDGER.menuDogsPurge} صنفاً ورفع أسعار ${LEDGER.menuPlowhorsesReprice} أصناف شعبية منخفضة الهامش بنسبة 5%.`,
+    impact: lever('menu-matrix'),
   },
 ]
 

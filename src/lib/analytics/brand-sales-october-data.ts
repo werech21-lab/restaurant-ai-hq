@@ -1,10 +1,11 @@
 /**
  * Venture Foods Restaurant Management W.L.L.
  * Official October 2026 Brand Sales, Channel Scorecard & Menu Engineering Intelligence Data.
- * 7 Odoo Brands · 11 Channels · 364 Menu Items.
+ * Live Odoo data (positive pos.config whitelist): approved brands, Odoo channels and the items actually sold.
  */
 
-import { VERIFIED_BRAND_TOTALS } from './verified-reconciliation'
+import { ODOO } from '@/lib/odoo/odoo-dataset'
+import { MENU_ITEMS } from '@/lib/aether/ledger'
 
 export type BrandKey =
   | 'ALL'
@@ -21,14 +22,13 @@ export type ChannelKey =
   | 'Shop Sales'
   | 'Talabat Go'
   | 'Keeta'
+  | 'Deliveroo Go'
   | 'Talabat MP'
-  | 'Deliveroo Core'
-  | 'Direct'
+  | 'Online payment link'
   | 'Snoonu'
   | 'Jahez'
-  | 'Phone'
   | 'Deliveroo MP'
-  | 'Whatsapp'
+  | 'Staff & complimentary'
 
 export type BrandScorecardRow = {
   brand: string
@@ -192,622 +192,132 @@ export const ACTION_PLAYBOOKS: PlaybookAction[] = [
   },
 ]
 
-const SEED_BRAND_SCORECARDS: BrandScorecardRow[] = [
-  {
-    brand: 'China Garden',
-    brandAr: 'تشاينا جاردن',
-    orders: 25205,
-    netSalesKwd: 141662.65,
-    sharePercent: 84.8,
-    avgOrderValueKwd: 5.62,
-    itemsPerOrder: 2.57,
-    discountRatePercent: 2.7,
-    drinksPercent: 24.1,
-    startersPercent: 28.9,
-    bestSellerEn: 'Chicken Noodles',
-    bestSellerAr: 'نودلز دجاج',
-    bestSellerSalesKwd: 12043.2,
-  },
-  {
-    brand: "Frank's",
-    brandAr: 'فرانكس ستيك',
-    orders: 2147,
-    netSalesKwd: 16033.97,
-    sharePercent: 9.6,
-    avgOrderValueKwd: 7.47,
-    itemsPerOrder: 3.01,
-    discountRatePercent: 1.4,
-    drinksPercent: 18.3,
-    startersPercent: 65.9,
-    bestSellerEn: 'Orig. Philly CheeseSteak',
-    bestSellerAr: 'فيلي تشيز ستيك الأصلي',
-    bestSellerSalesKwd: 4890.5,
-  },
-  {
-    brand: 'Tahina',
-    brandAr: 'شاورما طحينة',
-    orders: 1944,
-    netSalesKwd: 4428.64,
-    sharePercent: 2.7,
-    avgOrderValueKwd: 2.28,
-    itemsPerOrder: 2.7,
-    discountRatePercent: 0.3,
-    drinksPercent: 51.2,
-    startersPercent: 14.2,
-    bestSellerEn: 'Chicken Shawarma - Lebanese Bread',
-    bestSellerAr: 'شاورما دجاج خبز لبناني',
-    bestSellerSalesKwd: 1920.0,
-  },
-  {
-    brand: 'Farm Brown',
-    brandAr: 'فارم براون',
-    orders: 847,
-    netSalesKwd: 2664.18,
-    sharePercent: 1.6,
-    avgOrderValueKwd: 3.15,
-    itemsPerOrder: 2.13,
-    discountRatePercent: 1.2,
-    drinksPercent: 23.2,
-    startersPercent: 16.2,
-    bestSellerEn: 'Chicken Fillet Meal',
-    bestSellerAr: 'وجبة فيليه دجاج',
-    bestSellerSalesKwd: 840.0,
-  },
-  {
-    // Odoo POS root category "SC" (product codes RIFDC*) · school canteens NPIS Hawally, FAIPS Ahmadi, FAS Fahaheel
-    brand: 'Fresh Daily Canteen',
-    brandAr: 'فريش ديلي كانتين',
-    orders: 6510,
-    netSalesKwd: 2022.15,
-    sharePercent: 1.2,
-    avgOrderValueKwd: 0.31,
-    itemsPerOrder: 1.8,
-    discountRatePercent: 0.0,
-    drinksPercent: 36.7,
-    startersPercent: 0,
-    bestSellerEn: 'Chocolate Milk',
-    bestSellerAr: 'حليب بالشوكولاتة',
-    bestSellerSalesKwd: 472.75,
-  },
-  {
-    brand: 'The Noodle Bar',
-    brandAr: 'ذا نودل بار',
-    orders: 269,
-    netSalesKwd: 1678.22,
-    sharePercent: 1,
-    avgOrderValueKwd: 6.24,
-    itemsPerOrder: 2.75,
-    discountRatePercent: 4.0,
-    drinksPercent: 17.5,
-    startersPercent: 28.3,
-    bestSellerEn: 'Sriracha Chicken Noodles',
-    bestSellerAr: 'نودلز دجاج سريراتشا',
-    bestSellerSalesKwd: 512.0,
-  },
-  {
-    brand: 'Karak Cafeteria',
-    brandAr: 'كرك كافتيريا',
-    orders: 128,
-    netSalesKwd: 624.5,
-    sharePercent: 0.4,
-    avgOrderValueKwd: 4.88,
-    itemsPerOrder: 4.42,
-    discountRatePercent: 0.0,
-    drinksPercent: 72.1,
-    startersPercent: 27.9,
-    bestSellerEn: 'Chapati Box (6 pcs)',
-    bestSellerAr: 'بوكس شباتي (6 حبات)',
-    bestSellerSalesKwd: 185.0,
-    lowOrderWarning: true,
-  },
-]
+const r2 = (n: number) => Math.round(n * 100) / 100
+const r3 = (n: number) => Math.round(n * 1000) / 1000
+const r1 = (n: number) => Math.round(n * 10) / 10
+type Cat = MenuItemAnalytics['categoryEn']
+const CAT_AR: Record<Cat, MenuItemAnalytics['categoryAr']> = {
+  Mains: 'الوجبات الرئيسية',
+  'Starters & Sides': 'المقبلات والجانبيات',
+  Drinks: 'المشروبات',
+  'Rice & Noodles': 'الأرز والنودلز',
+  Desserts: 'الحلويات',
+  Combos: 'الوجبات والكومبو',
+}
+const catOf = (category: string, name: string): Cat => {
+  const t = `${name} ${category}`
+  if (/drink|beverage|juice|water|milk|karak cup|tea|pepsi|soda|matara/i.test(t)) return 'Drinks'
+  if (/dessert|sweet|cake|cupcake|cookie|biscuit|ice cream|brownie/i.test(t)) return 'Desserts'
+  if (/noodle|rice|chow/i.test(t)) return 'Rice & Noodles'
+  if (/combo|meal|platter|box|gathering|for (two|four)|between two/i.test(t)) return 'Combos'
+  if (/appetizer|starter|soup|salad|side|fries|sauce|dip|edamame|sambosa|croquette|wings/i.test(t)) return 'Starters & Sides'
+  return 'Mains'
+}
+const brandNet = (brand: string) => ODOO.brands.find((x) => x.en === brand)?.netKwd ?? 0
+const QUAD_CLASS = { star: 'TopPerformer', plowhorse: 'HighDemand', puzzle: 'HighMargin', dog: 'SlowMover' } as const
+const quadOf = (brand: string, name: string) => MENU_ITEMS.find((m) => m.en === name && ODOO.brands.find((b) => b.id === m.brand)?.en === brand)?.quadrant ?? 'dog'
+const ACTIVE = ODOO.brands.filter((x) => x.active)
+const COGS_PCT = ODOO.pnl.cogsPct
 
-export const OCTOBER_CHANNEL_SCORECARDS: ChannelScorecardRow[] = [
-  {
-    channel: 'Shop Sales',
-    channelAr: 'مبيعات الصالة والفرع',
-    orders: 14818,
-    netSalesKwd: 58953.09,
-    sharePercent: 35.3,
-    avgOrderValueKwd: 3.98,
-    itemsPerOrder: 2.34,
-    discountRatePercent: 0.8,
-    drinksPercent: 41.2,
-    startersPercent: 14.4,
-    dessertsPercent: 1.5,
-  },
-  {
-    channel: 'Talabat Go',
-    channelAr: 'طلبات جو (توصيل المنصة 17%)',
-    orders: 7163,
-    netSalesKwd: 55716.21,
-    sharePercent: 33.4,
-    avgOrderValueKwd: 7.78,
-    itemsPerOrder: 2.91,
-    discountRatePercent: 1.6,
-    drinksPercent: 12.7,
-    startersPercent: 51.9,
-    dessertsPercent: 2.8,
-  },
-  {
-    channel: 'Keeta',
-    channelAr: 'كيتا (Keeta)',
-    orders: 6267,
-    netSalesKwd: 35607.98,
-    sharePercent: 21.3,
-    avgOrderValueKwd: 5.68,
-    itemsPerOrder: 2.7,
-    discountRatePercent: 6.7,
-    drinksPercent: 4.8,
-    startersPercent: 39.4,
-    dessertsPercent: 3.9,
-  },
-  {
-    channel: 'Talabat MP',
-    channelAr: 'طلبات ماركت بليس (أسطول فنتشر فودز 10%)',
-    orders: 742,
-    netSalesKwd: 6887.25,
-    sharePercent: 4.1,
-    avgOrderValueKwd: 9.28,
-    itemsPerOrder: 4.05,
-    discountRatePercent: 1.6,
-    drinksPercent: 19.8,
-    startersPercent: 76.8,
-    dessertsPercent: 6.2,
-  },
-  {
-    channel: 'Deliveroo Core',
-    channelAr: 'ديليفرو كور',
-    orders: 967,
-    netSalesKwd: 5490.68,
-    sharePercent: 3.3,
-    avgOrderValueKwd: 5.68,
-    itemsPerOrder: 2.9,
-    discountRatePercent: 0.9,
-    drinksPercent: 13,
-    startersPercent: 64.1,
-    dessertsPercent: 6.4,
-  },
-  {
-    channel: 'Ordable',
-    channelAr: 'أوردابل (Ordable)',
-    orders: 81,
-    netSalesKwd: 1045.21,
-    sharePercent: 0.6,
-    avgOrderValueKwd: 12.84,
-    itemsPerOrder: 5.11,
-    discountRatePercent: 0.1,
-    drinksPercent: 17.3,
-    startersPercent: 109.9,
-    dessertsPercent: 7.4,
-  },
-  {
-    channel: 'Snoonu',
-    channelAr: 'سنونو (Snoonu)',
-    orders: 163,
-    netSalesKwd: 1029.26,
-    sharePercent: 0.6,
-    avgOrderValueKwd: 6.3,
-    itemsPerOrder: 2.85,
-    discountRatePercent: 5,
-    drinksPercent: 13.5,
-    startersPercent: 65.6,
-    dessertsPercent: 15.3,
-  },
-  {
-    channel: 'Jahez',
-    channelAr: 'جاهز (Jahez)',
-    orders: 129,
-    netSalesKwd: 1021.05,
-    sharePercent: 0.6,
-    avgOrderValueKwd: 7.92,
-    itemsPerOrder: 3.03,
-    discountRatePercent: 0,
-    drinksPercent: 17.8,
-    startersPercent: 67.4,
-    dessertsPercent: 0,
-  },
-  {
-    channel: 'Phone',
-    channelAr: 'هاتف مركز الاتصال والبدالة',
-    orders: 121,
-    netSalesKwd: 801.94,
-    sharePercent: 0.5,
-    avgOrderValueKwd: 6.64,
-    itemsPerOrder: 4.55,
-    discountRatePercent: 1.3,
-    drinksPercent: 9.9,
-    startersPercent: 29.8,
-    dessertsPercent: 4.1,
-  },
-  {
-    channel: 'Deliveroo MP',
-    channelAr: 'ديليفرو ماركتبليس',
-    orders: 86,
-    netSalesKwd: 506.19,
-    sharePercent: 0.3,
-    avgOrderValueKwd: 5.88,
-    itemsPerOrder: 4.01,
-    discountRatePercent: 0,
-    drinksPercent: 20.9,
-    startersPercent: 55.8,
-    dessertsPercent: 0,
-  },
-  {
-    channel: 'Whatsapp',
-    channelAr: 'طلبات الواتساب المباشرة',
-    orders: 3,
-    netSalesKwd: 33.3,
-    sharePercent: 0,
-    avgOrderValueKwd: 11.1,
-    itemsPerOrder: 7,
-    discountRatePercent: 9.1,
-    drinksPercent: 66.7,
-    startersPercent: 133.3,
-    dessertsPercent: 0,
-  },
-]
-
-const SEED_TOP_BEST_SELLERS: MenuItemAnalytics[] = [
-  {
-    id: 'it-1',
-    nameEn: 'Chicken Noodles',
-    nameAr: 'نودلز دجاج تشاينا',
-    brand: 'China Garden',
-    categoryEn: 'Rice & Noodles',
-    categoryAr: 'الأرز والنودلز',
-    priceKwd: 2.75,
-    unitsSold: 4379,
-    salesKwd: 12043.2,
-    costPriceKwd: 0.72,
-    marginPercent: 73.8,
-    classification: 'TopPerformer',
-    shareOfBrandPercent: 7.2,
-  },
-  {
-    id: 'it-2',
-    nameEn: 'Beef Mongolian',
-    nameAr: 'لحم بقري منغولي مقرمش',
-    brand: 'China Garden',
-    categoryEn: 'Mains',
-    categoryAr: 'الوجبات الرئيسية',
-    priceKwd: 3.5,
-    unitsSold: 2840,
-    salesKwd: 9940.0,
-    costPriceKwd: 1.15,
-    marginPercent: 67.1,
-    classification: 'TopPerformer',
-    shareOfBrandPercent: 6.0,
-  },
-  {
-    id: 'it-3',
-    nameEn: 'Dynamite Shrimp (8 pcs)',
-    nameAr: 'ديناميت شرمب (8 حبات)',
-    brand: 'China Garden',
-    categoryEn: 'Starters & Sides',
-    categoryAr: 'المقبلات والجانبيات',
-    priceKwd: 3.25,
-    unitsSold: 2680,
-    salesKwd: 8710.0,
-    costPriceKwd: 1.05,
-    marginPercent: 67.7,
-    classification: 'TopPerformer',
-    shareOfBrandPercent: 5.2,
-  },
-  {
-    id: 'it-4',
-    nameEn: 'Sweet & Sour Chicken',
-    nameAr: 'دجاج حلو وحامض',
-    brand: 'China Garden',
-    categoryEn: 'Mains',
-    categoryAr: 'الوجبات الرئيسية',
-    priceKwd: 3.1,
-    unitsSold: 2450,
-    salesKwd: 7595.0,
-    costPriceKwd: 0.85,
-    marginPercent: 72.6,
-    classification: 'TopPerformer',
-    shareOfBrandPercent: 4.5,
-  },
-  {
-    id: 'it-5',
-    nameEn: 'Egg Fried Rice',
-    nameAr: 'أرز صيني بالبيض والخضار',
-    brand: 'China Garden',
-    categoryEn: 'Rice & Noodles',
-    categoryAr: 'الأرز والنودلز',
-    priceKwd: 2.1,
-    unitsSold: 3200,
-    salesKwd: 6720.0,
-    costPriceKwd: 0.42,
-    marginPercent: 80.0,
-    classification: 'TopPerformer',
-    shareOfBrandPercent: 4.0,
-  },
-  {
-    id: 'it-6',
-    nameEn: 'Orig. Philly CheeseSteak',
-    nameAr: 'فيلي تشيز ستيك الأصلي',
-    brand: "Frank's",
-    categoryEn: 'Mains',
-    categoryAr: 'الوجبات الرئيسية',
-    priceKwd: 3.65,
-    unitsSold: 1340,
-    salesKwd: 4890.5,
-    costPriceKwd: 1.38,
-    marginPercent: 62.2,
-    classification: 'TopPerformer',
-    shareOfBrandPercent: 30.1,
-  },
-  {
-    id: 'it-7',
-    nameEn: 'Spring Rolls (Vegetable 4 pcs)',
-    nameAr: 'سبرينج رولز خضار مقرمشة',
-    brand: 'China Garden',
-    categoryEn: 'Starters & Sides',
-    categoryAr: 'المقبلات والجانبيات',
-    priceKwd: 1.65,
-    unitsSold: 2890,
-    salesKwd: 4768.5,
-    costPriceKwd: 0.38,
-    marginPercent: 77.0,
-    classification: 'TopPerformer',
-    shareOfBrandPercent: 2.9,
-  },
-  {
-    id: 'it-8',
-    nameEn: 'Crispy Honey Chicken',
-    nameAr: 'دجاج مقرمش بالعسل والسمسم',
-    brand: 'China Garden',
-    categoryEn: 'Mains',
-    categoryAr: 'الوجبات الرئيسية',
-    priceKwd: 3.2,
-    unitsSold: 1420,
-    salesKwd: 4544.0,
-    costPriceKwd: 0.92,
-    marginPercent: 71.3,
-    classification: 'TopPerformer',
-    shareOfBrandPercent: 2.7,
-  },
-  {
-    id: 'it-9',
-    nameEn: 'Frank Loaded Truffle Fries',
-    nameAr: 'بطاطا محملة بصوص الترفل',
-    brand: "Frank's",
-    categoryEn: 'Starters & Sides',
-    categoryAr: 'المقبلات والجانبيات',
-    priceKwd: 2.1,
-    unitsSold: 1720,
-    salesKwd: 3612.0,
-    costPriceKwd: 0.55,
-    marginPercent: 73.8,
-    classification: 'TopPerformer',
-    shareOfBrandPercent: 22.3,
-  },
-  {
-    id: 'it-10',
-    nameEn: 'Chicken Shawarma - Lebanese Bread',
-    nameAr: 'شاورما دجاج خبز لبناني كلاسيك',
-    brand: 'Tahina',
-    categoryEn: 'Mains',
-    categoryAr: 'الوجبات الرئيسية',
-    priceKwd: 1.25,
-    unitsSold: 1536,
-    salesKwd: 1920.0,
-    costPriceKwd: 0.48,
-    marginPercent: 61.6,
-    classification: 'TopPerformer',
-    shareOfBrandPercent: 43.4,
-  },
-  {
-    id: 'it-11',
-    nameEn: 'Szechuan Spicy Beef',
-    nameAr: 'لحم سيشوان حار بالفلفل المجفف',
-    brand: 'China Garden',
-    categoryEn: 'Mains',
-    categoryAr: 'الوجبات الرئيسية',
-    priceKwd: 3.6,
-    unitsSold: 910,
-    salesKwd: 3276.0,
-    costPriceKwd: 1.25,
-    marginPercent: 65.3,
-    classification: 'HighDemand',
-    shareOfBrandPercent: 2.0,
-  },
-  {
-    id: 'it-12',
-    nameEn: 'Sriracha Chicken Noodles',
-    nameAr: 'نودلز دجاج سريراتشا',
-    brand: 'The Noodle Bar',
-    categoryEn: 'Combos',
-    categoryAr: 'الوجبات والكومبو',
-    priceKwd: 2.95,
-    unitsSold: 173,
-    salesKwd: 512.0,
-    costPriceKwd: 0.82,
-    marginPercent: 72.2,
-    classification: 'HighMargin',
-    shareOfBrandPercent: 30.5,
-  },
-  {
-    id: 'it-13',
-    nameEn: 'Chicken Fillet Meal',
-    nameAr: 'وجبة فيليه دجاج',
-    brand: 'Farm Brown',
-    categoryEn: 'Combos',
-    categoryAr: 'الوجبات والكومبو',
-    priceKwd: 2.85,
-    unitsSold: 295,
-    salesKwd: 840.0,
-    costPriceKwd: 1.1,
-    marginPercent: 61.4,
-    classification: 'HighDemand',
-    shareOfBrandPercent: 31.6,
-  },
-  {
-    id: 'it-14',
-    nameEn: 'Fresh Mint Lemonade',
-    nameAr: 'ليموناضة نعناع طازجة مثلجة',
-    brand: 'China Garden',
-    categoryEn: 'Drinks',
-    categoryAr: 'المشروبات',
-    priceKwd: 1.25,
-    unitsSold: 2410,
-    salesKwd: 3012.5,
-    costPriceKwd: 0.22,
-    marginPercent: 82.4,
-    classification: 'TopPerformer',
-    shareOfBrandPercent: 1.8,
-  },
-  {
-    id: 'it-15',
-    nameEn: 'Chapati Box (6 pcs)',
-    nameAr: 'بوكس شباتي كرك مشكل (6 حبات)',
-    brand: 'Karak Cafeteria',
-    categoryEn: 'Combos',
-    categoryAr: 'الوجبات والكومبو',
-    priceKwd: 2.5,
-    unitsSold: 74,
-    salesKwd: 185.0,
-    costPriceKwd: 0.65,
-    marginPercent: 74.0,
-    classification: 'HighMargin',
-    shareOfBrandPercent: 41.7,
-  },
-]
-
-const SEED_SLOW_MOVERS_LIST: SlowMoverItem[] = [
-  {
-    id: 'sm-1',
-    nameEn: 'Steamed Edamame with Sea Salt',
-    nameAr: 'إدامامي مسلوق بملح البحر',
-    brand: 'China Garden',
-    categoryEn: 'Starters & Sides',
-    categoryAr: 'المقبلات والجانبيات',
-    priceKwd: 1.75,
-    unitsSold: 19,
-    salesKwd: 33.25,
-    recommendedPlaybookId: 1,
-    playbookTitleEn: '1. Bundle & Combo Engineering',
-    playbookTitleAr: '1. هندسة الكومبو والوجبات المزدوجة',
-  },
-  {
-    id: 'sm-2',
-    nameEn: 'Fried Banana with Honey & Sesame',
-    nameAr: 'موز مقلي بالعسل وحبات السمسم',
-    brand: 'China Garden',
-    categoryEn: 'Desserts',
-    categoryAr: 'الحلويات',
-    priceKwd: 1.5,
-    unitsSold: 14,
-    salesKwd: 21.0,
-    recommendedPlaybookId: 2,
-    playbookTitleEn: '2. Digital Visual & Food Styling Refresh',
-    playbookTitleAr: '2. إعادة تصوير وتجميل العرض الرقمي',
-  },
-  {
-    id: 'sm-3',
-    nameEn: 'Spicy Kimchi Chicken Soup',
-    nameAr: 'شوربة دجاج كيمتشي حارة',
-    brand: 'The Noodle Bar',
-    categoryEn: 'Starters & Sides',
-    categoryAr: 'المقبلات والجانبيات',
-    priceKwd: 2.1,
-    unitsSold: 11,
-    salesKwd: 23.1,
-    recommendedPlaybookId: 3,
-    playbookTitleEn: '3. Aggregator Peak-Hour Placement (Top 3 Slots)',
-    playbookTitleAr: '3. رفع الترتيب في المنصات وقت الذروة',
-  },
-  {
-    id: 'sm-4',
-    nameEn: 'Tahina Signature Pomegranate Salad',
-    nameAr: 'سلطة طحينة بدبس الرمان والجرجير',
-    brand: 'Tahina',
-    categoryEn: 'Starters & Sides',
-    categoryAr: 'المقبلات والجانبيات',
-    priceKwd: 1.35,
-    unitsSold: 22,
-    salesKwd: 29.7,
-    recommendedPlaybookId: 4,
-    playbookTitleEn: '4. Staff Incentive & POS Upsell Script',
-    playbookTitleAr: '4. حافز الكاشير وسيناريو الاقتراح عند الطلب',
-  },
-  {
-    id: 'sm-5',
-    nameEn: 'Crispy Onion Ring Tower',
-    nameAr: 'برج حلقات بصل مقرمشة',
-    brand: "Frank's",
-    categoryEn: 'Starters & Sides',
-    categoryAr: 'المقبلات والجانبيات',
-    priceKwd: 1.6,
-    unitsSold: 18,
-    salesKwd: 28.8,
-    recommendedPlaybookId: 5,
-    playbookTitleEn: '5. Recipe & Portion Cost Re-engineering',
-    playbookTitleAr: '5. إعادة هندسة المكونات وحجم الحصة',
-  },
-  {
-    id: 'sm-6',
-    nameEn: 'Saffron Milk Cake Cup',
-    nameAr: 'كيك الحليب بالزعفران',
-    brand: 'Karak Cafeteria',
-    categoryEn: 'Desserts',
-    categoryAr: 'الحلويات',
-    priceKwd: 1.45,
-    unitsSold: 9,
-    salesKwd: 13.05,
-    recommendedPlaybookId: 6,
-    playbookTitleEn: '6. Flash Promotion & Off-Peak Happy Hour',
-    playbookTitleAr: '6. عروض الفلاش والتخفيض الترويجي وقت الركود',
-  },
-  {
-    id: 'sm-7',
-    nameEn: 'Herbal Ginseng Tea Pot',
-    nameAr: 'إبريق شاي الجينسنغ العشبي',
-    brand: 'China Garden',
-    categoryEn: 'Drinks',
-    categoryAr: 'المشروبات',
-    priceKwd: 1.85,
-    unitsSold: 6,
-    salesKwd: 11.1,
-    recommendedPlaybookId: 7,
-    playbookTitleEn: '7. Graceful Phase-out & Station Space Reclaim',
-    playbookTitleAr: '7. الإيقاف التدريجي واستغلال مساحة المطبخ لمنتج جديد',
-  },
-]
-
-/** Per-brand volume factor: verified ledger total ÷ seed scorecard total. */
-const BRAND_VOLUME_FACTOR: Record<string, number> = Object.fromEntries(
-  SEED_BRAND_SCORECARDS.map((b) => [b.brand, (VERIFIED_BRAND_TOTALS[b.brand]?.netSales ?? b.netSalesKwd) / b.netSalesKwd]),
-)
-
-/** 7 Odoo brands — totals reconciled to the approved ledger (167,092.160 KWD · 30,540 orders). */
-export const OCTOBER_BRAND_SCORECARDS: BrandScorecardRow[] = SEED_BRAND_SCORECARDS.map((b) => {
-  const v = VERIFIED_BRAND_TOTALS[b.brand]
-  if (!v) return b
-  const k = BRAND_VOLUME_FACTOR[b.brand]
-  return { ...b, orders: v.orders, netSalesKwd: v.netSales, sharePercent: v.share, avgOrderValueKwd: v.avgOrder, bestSellerSalesKwd: Math.round(b.bestSellerSalesKwd * k * 100) / 100 }
+/** Approved brands with Odoo POS sales — real item sales, real order counts and Odoo best sellers. */
+export const OCTOBER_BRAND_SCORECARDS: BrandScorecardRow[] = ACTIVE.map((x) => {
+  const cats = (ODOO.categories as Record<string, readonly { name: string; netKwd: number }[]>)[x.id] ?? []
+  const catTotal = cats.reduce((t, c) => t + c.netKwd, 0)
+  const starters = catTotal ? r1((cats.filter((c) => /appetizer|starter|soup|salad|side/i.test(c.name)).reduce((t, c) => t + c.netKwd, 0) / catTotal) * 100) : 0
+  return {
+    brand: x.en,
+    brandAr: x.ar,
+    orders: x.orders,
+    netSalesKwd: x.netKwd,
+    sharePercent: x.sharePct,
+    avgOrderValueKwd: x.aovKwd,
+    itemsPerOrder: x.itemsPerOrder,
+    discountRatePercent: x.netKwd ? r1((x.discountKwd / (x.netKwd + x.discountKwd)) * 100) : 0,
+    drinksPercent: x.drinksPct,
+    startersPercent: starters,
+    bestSellerEn: x.bestSeller?.name ?? '—',
+    bestSellerAr: x.bestSeller?.name ?? '—',
+    bestSellerSalesKwd: x.bestSeller?.netKwd ?? 0,
+    lowOrderWarning: x.orders < 100,
+  }
 })
 
-export const TOP_BEST_SELLERS: MenuItemAnalytics[] = SEED_TOP_BEST_SELLERS.map((it) => {
-  const k = BRAND_VOLUME_FACTOR[it.brand] ?? 1
-  return { ...it, salesKwd: Math.round(it.salesKwd * k * 100) / 100, unitsSold: Math.round(it.unitsSold * k) }
-})
+/** Odoo sales channels (POS payment methods grouped into channels). */
+export const OCTOBER_CHANNEL_SCORECARDS: ChannelScorecardRow[] = ODOO.channels.map((c) => ({
+  channel: c.odooName,
+  channelAr: c.ar,
+  orders: c.orders,
+  netSalesKwd: c.netKwd,
+  sharePercent: c.sharePct,
+  avgOrderValueKwd: c.orders ? r3(c.netKwd / c.orders) : 0,
+  itemsPerOrder: ODOO.totals.orders ? r2(ODOO.brands.reduce((t, x) => t + x.qty, 0) / ODOO.totals.orders) : 0,
+  discountRatePercent: c.itemSalesKwd ? r1((c.promoKwd / c.itemSalesKwd) * 100) : 0,
+  drinksPercent: 0,
+  startersPercent: 0,
+  dessertsPercent: 0,
+}))
 
-export const SLOW_MOVERS_LIST: SlowMoverItem[] = SEED_SLOW_MOVERS_LIST.map((it) => {
-  const k = BRAND_VOLUME_FACTOR[it.brand] ?? 1
-  return { ...it, salesKwd: Math.round(it.salesKwd * k * 100) / 100, unitsSold: Math.max(1, Math.round(it.unitsSold * k)) }
-})
+const toItem = (m: (typeof ODOO.menu)[number], i: number): MenuItemAnalytics => {
+  const brand = ODOO.brands.find((x) => x.id === m.brand)!
+  const cat = catOf(m.category, m.name)
+  return {
+    id: `it-${m.code ?? i}`,
+    nameEn: m.name,
+    nameAr: m.name,
+    brand: brand.en as BrandKey,
+    categoryEn: cat,
+    categoryAr: CAT_AR[cat],
+    priceKwd: m.priceKwd,
+    unitsSold: m.qty,
+    salesKwd: m.netKwd,
+    costPriceKwd: m.unitCostKwd > 0 ? m.unitCostKwd : r3(m.priceKwd * (COGS_PCT / 100)),
+    marginPercent: m.unitCostKwd > 0 && m.priceKwd > 0 ? r1((1 - m.unitCostKwd / m.priceKwd) * 100) : r1(100 - COGS_PCT),
+    classification: QUAD_CLASS[quadOf(brand.en, m.name)],
+    shareOfBrandPercent: brandNet(brand.en) ? r1((m.netKwd / brandNet(brand.en)) * 100) : 0,
+  }
+}
+const ACTIVE_IDS = new Set(ACTIVE.map((x) => x.id as string))
+const SOLD = ODOO.menu.filter((m) => ACTIVE_IDS.has(m.brand) && m.qty > 0)
 
-export const CATEGORY_BREAKDOWN = [
-  { nameEn: 'Mains', nameAr: 'الوجبات الرئيسية', salesKwd: 76862.0, sharePercent: 46.0, itemsSold: 24200 },
-  { nameEn: 'Rice & Noodles', nameAr: 'الأرز والنودلز', salesKwd: 43444.0, sharePercent: 26.0, itemsSold: 21100 },
-  { nameEn: 'Starters & Sides', nameAr: 'المقبلات والجانبيات', salesKwd: 25064.0, sharePercent: 15.0, itemsSold: 18450 },
-  { nameEn: 'Combos & Meals', nameAr: 'الوجبات والكومبو', salesKwd: 13367.0, sharePercent: 8.0, itemsSold: 3950 },
-  { nameEn: 'Drinks', nameAr: 'المشروبات', salesKwd: 6684.0, sharePercent: 4.0, itemsSold: 9940 },
-  { nameEn: 'Desserts', nameAr: 'الحلويات', salesKwd: 1671.0, sharePercent: 1.0, itemsSold: 2100 },
-]
+/** Top 15 items by Odoo net sales. */
+export const TOP_BEST_SELLERS: MenuItemAnalytics[] = [...SOLD].sort((x, y) => y.netKwd - x.netKwd).slice(0, 15).map(toItem)
+
+const playbookFor = (cat: Cat, units: number): number => (units <= 5 ? 7 : cat === 'Drinks' ? 4 : cat === 'Starters & Sides' ? 1 : cat === 'Desserts' ? 6 : cat === 'Combos' ? 3 : 2)
+
+/** Slowest movers: Odoo items with the lowest unit sales in the period. */
+export const SLOW_MOVERS_LIST: SlowMoverItem[] = [...SOLD]
+  .sort((x, y) => x.qty - y.qty || x.netKwd - y.netKwd)
+  .slice(0, 18)
+  .map((m, i) => {
+    const it = toItem(m, i)
+    const pb = ACTION_PLAYBOOKS.find((p) => p.id === playbookFor(it.categoryEn, it.unitsSold)) ?? ACTION_PLAYBOOKS[0]
+    return { id: `sm-${m.code ?? i}`, nameEn: it.nameEn, nameAr: it.nameAr, brand: it.brand, categoryEn: it.categoryEn, categoryAr: it.categoryAr, priceKwd: it.priceKwd, unitsSold: it.unitsSold, salesKwd: it.salesKwd, recommendedPlaybookId: pb.id, playbookTitleEn: pb.titleEn, playbookTitleAr: pb.titleAr }
+  })
+
+/** Odoo item sales grouped into the six menu-engineering categories. */
+export const CATEGORY_BREAKDOWN = (() => {
+  const agg = new Map<Cat, { salesKwd: number; itemsSold: number }>()
+  for (const m of SOLD) {
+    const c = catOf(m.category, m.name)
+    const v = agg.get(c) ?? { salesKwd: 0, itemsSold: 0 }
+    v.salesKwd += m.netKwd
+    v.itemsSold += m.qty
+    agg.set(c, v)
+  }
+  const total = [...agg.values()].reduce((t, v) => t + v.salesKwd, 0)
+  return [...agg.entries()]
+    .map(([c, v]) => ({ nameEn: c as string, nameAr: CAT_AR[c] as string, salesKwd: r2(v.salesKwd), sharePercent: total ? r1((v.salesKwd / total) * 100) : 0, itemsSold: Math.round(v.itemsSold) }))
+    .sort((x, y) => y.salesKwd - x.salesKwd)
+})()
+
+const TOP80 = (() => {
+  const sorted = [...SOLD].sort((x, y) => y.netKwd - x.netKwd)
+  const total = sorted.reduce((t, m) => t + m.netKwd, 0)
+  let acc = 0
+  let n = 0
+  for (const m of sorted) { if (acc >= total * 0.8) break; acc += m.netKwd; n++ }
+  return { n, of: sorted.length }
+})()
 
 export type FilteredDashboardState = {
   brand: BrandKey
@@ -859,11 +369,10 @@ export function computeFilteredDashboard(
     channels = channels.filter((c) => c.channel === selectedChannel)
   }
 
-  // Baseline totals for October 2026:
-  // Net sales = 167,092 KWD | Orders = 30,543 | Avg = 5.471 | Items = 79,740 | Discounts = 4,152 KWD
-  let netSales = 167092
-  let orders = 30543
-  let discounts = 4152
+  // Baseline totals: Odoo POS (whitelisted registers) for the period.
+  let netSales: number = ODOO.totals.netSalesKwd
+  let orders: number = ODOO.totals.orders
+  let discounts: number = ODOO.totals.discountsKwd
 
   if (selectedBrand !== 'ALL') {
     const bHit = OCTOBER_BRAND_SCORECARDS.find((b) => b.brand === selectedBrand)
@@ -875,18 +384,23 @@ export function computeFilteredDashboard(
   }
 
   if (selectedChannel !== 'ALL') {
-    const cHit = OCTOBER_CHANNEL_SCORECARDS.find((c) => c.channel === selectedChannel)
-    if (cHit) {
-      const channelRatio = cHit.sharePercent / 100
-      netSales = Math.round(netSales * channelRatio)
-      orders = Math.round(orders * channelRatio)
-      discounts = Math.round(discounts * channelRatio)
+    const brandId = ODOO.brands.find((x) => x.en === selectedBrand)?.id
+    const ch = ODOO.channels.find((c) => c.odooName === selectedChannel)
+    if (ch && selectedBrand !== 'ALL') {
+      const cell = ODOO.brandChannel.find((x) => x.brand === brandId && x.channel === ch.id)
+      netSales = cell?.netKwd ?? 0
+      orders = cell?.orders ?? 0
+      discounts = 0
+    } else if (ch) {
+      netSales = ch.netKwd
+      orders = ch.orders
+      discounts = ch.promoKwd
     }
   }
 
   const avgOrderValue = orders > 0 ? netSales / orders : 0
-  const itemsSold = Math.round(orders * 2.61)
-  const shareOfGroup = Math.min(100, Math.round((netSales / 167092) * 1000) / 10)
+  const itemsSold = Math.round(orders * (ODOO.brands.reduce((t, x) => t + x.qty, 0) / ODOO.totals.orders))
+  const shareOfGroup = Math.min(100, Math.round((netSales / ODOO.totals.netSalesKwd) * 1000) / 10)
 
   // Best seller identification
   const topItem = bestSellers[0] || TOP_BEST_SELLERS[0]
@@ -908,10 +422,10 @@ export function computeFilteredDashboard(
       biggestChannelTextAr: `${topChannel.channelAr} هي القناة الأكبر بنسبة ${topChannel.sharePercent}% من إجمالي المبيعات.`,
       bestSellerTextEn: `${topItem.nameEn} from ${topItem.brand} sold KWD ${topItem.salesKwd.toLocaleString()}, which is ${topItem.shareOfBrandPercent}% of menu sales.`,
       bestSellerTextAr: `${topItem.nameAr} من ${topItem.brand} حقق مبيعات ${topItem.salesKwd.toLocaleString()} د.ك، ما يعادل ${topItem.shareOfBrandPercent}% من مبيعات المنيو.`,
-      menuConcentrationTextEn: 'The top 52 of 364 items sold make 80% of menu sales.',
-      menuConcentrationTextAr: 'أعلى 52 صنفاً من أصل 364 صنفاً تشكل 80% من إجمالي مبيعات القائمة.',
-      addOnsTextEn: 'Drinks 25.5%, starters and sides 32.7%, desserts 2.2%. Each is item lines of that kind per 100 orders.',
-      addOnsTextAr: 'المشروبات 25.5%، المقبلات والجانبيات 32.7%، الحلويات 2.2% (لكل 100 طلب).',
+      menuConcentrationTextEn: `The top ${TOP80.n} of ${TOP80.of} items sold in Odoo make 80% of menu sales.`,
+      menuConcentrationTextAr: `أعلى ${TOP80.n} صنفاً من أصل ${TOP80.of} صنفاً مبيعاً في أودو تشكل 80% من مبيعات القائمة.`,
+      addOnsTextEn: `Drinks ${CATEGORY_BREAKDOWN.find((c) => c.nameEn === 'Drinks')?.sharePercent ?? 0}%, starters and sides ${CATEGORY_BREAKDOWN.find((c) => c.nameEn === 'Starters & Sides')?.sharePercent ?? 0}%, desserts ${CATEGORY_BREAKDOWN.find((c) => c.nameEn === 'Desserts')?.sharePercent ?? 0}% of Odoo item sales.`,
+      addOnsTextAr: `المشروبات ${CATEGORY_BREAKDOWN.find((c) => c.nameEn === 'Drinks')?.sharePercent ?? 0}%، المقبلات والجانبيات ${CATEGORY_BREAKDOWN.find((c) => c.nameEn === 'Starters & Sides')?.sharePercent ?? 0}%، الحلويات ${CATEGORY_BREAKDOWN.find((c) => c.nameEn === 'Desserts')?.sharePercent ?? 0}% من مبيعات الأصناف في أودو.`,
     },
     brands,
     channels,
@@ -1120,161 +634,41 @@ export type BranchPerformanceRow = {
   staffCount: number
 }
 
-export const OCTOBER_BRANCH_PERFORMANCE: BranchPerformanceRow[] = [
-  {
-    id: 'br-1',
-    nameEn: 'The Avenues Mall - Rai Branch',
-    nameAr: 'فرع الأفنيوز - الري',
-    areaEn: 'Farwaniya Governorate',
-    areaAr: 'محافظة الفروانية',
-    netSalesKwd: 38425.32,
-    orders: 6822,
-    avgOrderValueKwd: 5.63,
-    topBrandEn: 'China Garden',
-    topBrandAr: 'تشاينا جاردن',
-    deliveryPercent: 62.0,
-    dineInPercent: 38.0,
-    peakHourEn: '1:00 PM - 3:00 PM',
-    peakHourAr: '1:00 ظهراً - 3:00 عصراً',
-    staffCount: 24,
-  },
-  {
-    id: 'br-2',
-    nameEn: '360 Mall - Zahra Branch',
-    nameAr: 'فرع 360 مول - الزهراء',
-    areaEn: 'Hawally Governorate',
-    areaAr: 'محافظة حولي',
-    netSalesKwd: 28140.65,
-    orders: 4999,
-    avgOrderValueKwd: 5.63,
-    topBrandEn: 'China Garden',
-    topBrandAr: 'تشاينا جاردن',
-    deliveryPercent: 68.0,
-    dineInPercent: 32.0,
-    peakHourEn: '8:00 PM - 11:30 PM',
-    peakHourAr: '8:00 مساءً - 11:30 مساءً',
-    staffCount: 18,
-  },
-  {
-    id: 'br-3',
-    nameEn: 'Assima Mall - Sharq Branch',
-    nameAr: 'فرع العاصمة مول - شرق',
-    areaEn: 'Capital Governorate',
-    areaAr: 'محافظة العاصمة',
-    netSalesKwd: 24680.4,
-    orders: 4541,
-    avgOrderValueKwd: 5.43,
-    topBrandEn: 'China Garden',
-    topBrandAr: 'تشاينا جاردن',
-    deliveryPercent: 55.0,
-    dineInPercent: 45.0,
-    peakHourEn: '12:30 PM - 3:30 PM',
-    peakHourAr: '12:30 ظهراً - 3:30 عصراً',
-    staffCount: 16,
-  },
-  {
-    id: 'br-4',
-    nameEn: 'Salmiya Main Branch',
-    nameAr: 'فرع السالمية (شارع سالم المبارك)',
-    areaEn: 'Hawally Governorate',
-    areaAr: 'محافظة حولي',
-    netSalesKwd: 21350.84,
-    orders: 3802,
-    avgOrderValueKwd: 5.62,
-    topBrandEn: 'China Garden',
-    topBrandAr: 'تشاينا جاردن',
-    deliveryPercent: 74.0,
-    dineInPercent: 26.0,
-    peakHourEn: '7:30 PM - 11:00 PM',
-    peakHourAr: '7:30 مساءً - 11:00 مساءً',
-    staffCount: 18,
-  },
-  {
-    id: 'br-5',
-    nameEn: 'Al Kout Mall - Fahaheel Branch',
-    nameAr: 'فرع الكوت مول - الفحيحيل',
-    areaEn: 'Ahmadi Governorate',
-    areaAr: 'محافظة الأحمدي',
-    netSalesKwd: 18720.5,
-    orders: 3574,
-    avgOrderValueKwd: 5.24,
-    topBrandEn: 'China Garden',
-    topBrandAr: 'تشاينا جاردن',
-    deliveryPercent: 72.0,
-    dineInPercent: 28.0,
-    peakHourEn: '8:30 PM - 11:30 PM',
-    peakHourAr: '8:30 مساءً - 11:30 مساءً',
-    staffCount: 15,
-  },
-  {
-    id: 'br-6',
-    nameEn: 'Ardiya Craft Branch',
-    nameAr: 'فرع العارضية الحرفية',
-    areaEn: 'Farwaniya Governorate',
-    areaAr: 'محافظة الفروانية',
-    netSalesKwd: 13410.25,
-    orders: 2560,
-    avgOrderValueKwd: 5.24,
-    topBrandEn: 'China Garden',
-    topBrandAr: 'تشاينا جاردن',
-    deliveryPercent: 78.0,
-    dineInPercent: 22.0,
-    peakHourEn: '8:00 PM - 12:00 AM',
-    peakHourAr: '8:00 مساءً - 12:00 منتصف الليل',
-    staffCount: 15,
-  },
-  {
-    id: 'br-7',
-    nameEn: 'Hawally Branch',
-    nameAr: 'فرع حولي',
-    areaEn: 'Hawally Governorate',
-    areaAr: 'محافظة حولي',
-    netSalesKwd: 10845.1,
-    orders: 1927,
-    avgOrderValueKwd: 5.63,
-    topBrandEn: 'China Garden',
-    topBrandAr: 'تشاينا جاردن',
-    deliveryPercent: 83.0,
-    dineInPercent: 17.0,
-    peakHourEn: '8:00 PM - 11:30 PM',
-    peakHourAr: '8:00 مساءً - 11:30 مساءً',
-    staffCount: 12,
-  },
-  {
-    id: 'br-8',
-    nameEn: 'Farwaniya Branch',
-    nameAr: 'فرع الفروانية',
-    areaEn: 'Farwaniya Governorate',
-    areaAr: 'محافظة الفروانية',
-    netSalesKwd: 7265.8,
-    orders: 1389,
-    avgOrderValueKwd: 5.23,
-    topBrandEn: 'China Garden',
-    topBrandAr: 'تشاينا جاردن',
-    deliveryPercent: 81.0,
-    dineInPercent: 19.0,
-    peakHourEn: '9:00 PM - 1:00 AM',
-    peakHourAr: '9:00 مساءً - 1:00 فجراً',
-    staffCount: 11,
-  },
-  {
-    id: 'br-9',
-    nameEn: 'Mubarak Al-Kabeer Branch',
-    nameAr: 'فرع مبارك الكبير',
-    areaEn: 'Mubarak Al-Kabeer',
-    areaAr: 'محافظة مبارك الكبير',
-    netSalesKwd: 4253.3,
-    orders: 926,
-    avgOrderValueKwd: 4.59,
-    topBrandEn: 'China Garden',
-    topBrandAr: 'تشاينا جاردن',
-    deliveryPercent: 65.0,
-    dineInPercent: 35.0,
-    peakHourEn: '4:00 PM - 8:00 PM',
-    peakHourAr: '4:00 عصراً - 8:00 مساءً',
-    staffCount: 10,
-  },
-]
+const AREA: Record<string, [string, string]> = {
+  promenade: ['Hawalli Governorate', 'محافظة حولي'],
+  '360-mall': ['Hawalli Governorate', 'محافظة حولي'],
+  ardiya: ['Farwaniya Governorate', 'محافظة الفروانية'],
+  assima: ['Capital Governorate', 'محافظة العاصمة'],
+  salmiya: ['Hawalli Governorate', 'محافظة حولي'],
+  'al-kout': ['Ahmadi Governorate', 'محافظة الأحمدي'],
+  avenues: ['Farwaniya Governorate', 'محافظة الفروانية'],
+}
+const PEAK = [...ODOO.timeProfile.hourly].sort((x, y) => y.orders - x.orders)[0]
+const hourLabel = (h: number, ar: boolean) => { const hh = ((h + 11) % 12) + 1; return ar ? `${hh}:00 ${h < 12 ? 'ص' : 'م'}` : `${hh}:00 ${h < 12 ? 'AM' : 'PM'}` }
+
+/** Odoo permanent restaurant locations (whitelisted POS registers). */
+export const OCTOBER_BRANCH_PERFORMANCE: BranchPerformanceRow[] = ODOO.restaurants.map((l) => {
+  const shop = l.channels.find((c) => c.channel === 'shop')?.amountKwd ?? 0
+  const top = [...l.brands].sort((x, y) => y.netKwd - x.netKwd)[0]
+  const topBrand = ODOO.brands.find((x) => x.id === top?.brand)
+  return {
+    id: l.id,
+    nameEn: l.en,
+    nameAr: l.ar,
+    areaEn: AREA[l.id]?.[0] ?? 'Kuwait',
+    areaAr: AREA[l.id]?.[1] ?? 'الكويت',
+    netSalesKwd: l.netKwd,
+    orders: l.orders,
+    avgOrderValueKwd: l.aovKwd,
+    topBrandEn: topBrand?.en ?? '—',
+    topBrandAr: topBrand?.ar ?? '—',
+    deliveryPercent: l.netKwd ? r1(((l.netKwd - shop) / l.netKwd) * 100) : 0,
+    dineInPercent: l.netKwd ? r1((shop / l.netKwd) * 100) : 0,
+    peakHourEn: PEAK ? `${hourLabel(PEAK.hour, false)} - ${hourLabel((PEAK.hour + 1) % 24, false)}` : '—',
+    peakHourAr: PEAK ? `${hourLabel(PEAK.hour, true)} - ${hourLabel((PEAK.hour + 1) % 24, true)}` : '—',
+    staffCount: 0,
+  }
+})
 
 export type HourlyHeatmapSlot = {
   hour: number
@@ -1285,22 +679,20 @@ export type HourlyHeatmapSlot = {
   traffic: 'off-peak' | 'normal' | 'rush' | 'peak'
 }
 
-export const OCTOBER_HOURLY_HEATMAP: HourlyHeatmapSlot[] = [
-  { hour: 11, labelEn: '11:00 AM', labelAr: '11:00 ص', orders: 980, salesKwd: 4890, traffic: 'normal' },
-  { hour: 12, labelEn: '12:00 PM', labelAr: '12:00 م', orders: 2310, salesKwd: 13200, traffic: 'rush' },
-  { hour: 13, labelEn: '1:00 PM', labelAr: '1:00 م', orders: 3620, salesKwd: 20450, traffic: 'peak' },
-  { hour: 14, labelEn: '2:00 PM', labelAr: '2:00 م', orders: 3150, salesKwd: 17820, traffic: 'peak' },
-  { hour: 15, labelEn: '3:00 PM', labelAr: '3:00 م', orders: 1420, salesKwd: 7450, traffic: 'normal' },
-  { hour: 16, labelEn: '4:00 PM', labelAr: '4:00 م', orders: 940, salesKwd: 4620, traffic: 'off-peak' },
-  { hour: 17, labelEn: '5:00 PM', labelAr: '5:00 م', orders: 1180, salesKwd: 6120, traffic: 'normal' },
-  { hour: 18, labelEn: '6:00 PM', labelAr: '6:00 م', orders: 1750, salesKwd: 9850, traffic: 'normal' },
-  { hour: 19, labelEn: '7:00 PM', labelAr: '7:00 م', orders: 2890, salesKwd: 16420, traffic: 'rush' },
-  { hour: 20, labelEn: '8:00 PM', labelAr: '8:00 م', orders: 3980, salesKwd: 22800, traffic: 'peak' },
-  { hour: 21, labelEn: '9:00 PM', labelAr: '9:00 م', orders: 4210, salesKwd: 24150, traffic: 'peak' },
-  { hour: 22, labelEn: '10:00 PM', labelAr: '10:00 م', orders: 2540, salesKwd: 14200, traffic: 'rush' },
-  { hour: 23, labelEn: '11:00 PM', labelAr: '11:00 م', orders: 1120, salesKwd: 6112, traffic: 'normal' },
-  { hour: 0, labelEn: '12:00 AM', labelAr: '12:00 ص', orders: 443, salesKwd: 2810, traffic: 'off-peak' },
-]
+/** Orders and net sales by Kuwait hour, from every whitelisted Odoo order timestamp. */
+export const OCTOBER_HOURLY_HEATMAP: HourlyHeatmapSlot[] = (() => {
+  const rows = ODOO.timeProfile.hourly.filter((x) => x.orders > 0)
+  const sorted = [...rows].map((x) => x.orders).sort((x, y) => x - y)
+  const q = (p: number) => sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))] ?? 0
+  return rows.map((x) => ({
+    hour: x.hour,
+    labelEn: hourLabel(x.hour, false),
+    labelAr: hourLabel(x.hour, true),
+    orders: x.orders,
+    salesKwd: x.netKwd,
+    traffic: x.orders >= q(0.85) ? 'peak' : x.orders >= q(0.6) ? 'rush' : x.orders >= q(0.3) ? 'normal' : 'off-peak',
+  }))
+})()
 
 export type StrategicReportMeta = {
   id: number
@@ -1313,6 +705,27 @@ export type StrategicReportMeta = {
   filename: string
 }
 
+// Copy values computed from the live Odoo dataset
+const RPT_ACTIVE = ODOO.brands.filter((b) => b.active)
+const RPT_CH = (id: string) => ODOO.channels.find((c) => c.id === id)
+const RPT_ALL_CATS = Object.values(ODOO.categories as Record<string, readonly { name: string; netKwd: number }[]>).flat()
+const RPT_CAT_TOTAL = RPT_ALL_CATS.reduce((s, c) => s + c.netKwd, 0)
+const rptShare = (re: RegExp) => (RPT_CAT_TOTAL ? (RPT_ALL_CATS.filter((c) => re.test(c.name)).reduce((s, c) => s + c.netKwd, 0) / RPT_CAT_TOTAL) * 100 : 0)
+const RPT_MENU = [...ODOO.menu].filter((m) => m.netKwd > 0).sort((a, b) => b.netKwd - a.netKwd)
+const RPT_MENU_TOTAL = RPT_MENU.reduce((s, m) => s + m.netKwd, 0)
+const RPT_TOP80 = (() => {
+  let acc = 0
+  let n = 0
+  for (const m of RPT_MENU) {
+    if (acc >= RPT_MENU_TOTAL * 0.8) break
+    acc += m.netKwd
+    n++
+  }
+  return { n, sales: acc }
+})()
+const RPT_IPO = ODOO.totals.orders ? RPT_ACTIVE.reduce((s, b) => s + b.qty, 0) / ODOO.totals.orders : 0
+const rf = (n: number, d = 0) => n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d })
+
 export const STRATEGIC_15_REPORTS: StrategicReportMeta[] = [
   {
     id: 1,
@@ -1320,8 +733,8 @@ export const STRATEGIC_15_REPORTS: StrategicReportMeta[] = [
     titleAr: '1. تقرير أداء مبيعات وأرباح البراندات الشهري',
     categoryEn: 'Executive',
     categoryAr: 'تنفيذي',
-    summaryEn: "Comprehensive breakdown of China Garden, Frank's, Tahina, Farm Brown, The Noodle Bar, and Karak.",
-    summaryAr: 'تفصيل شامل لمبيعات وحصص وتكلفة وهامش ربح البراندات الـ 6 لشركة فنتشر فودز.',
+    summaryEn: `Comprehensive breakdown of ${RPT_ACTIVE.map((b) => b.en).join(', ')} from Odoo POS.`,
+    summaryAr: `تفصيل شامل لمبيعات وحصص البراندات الـ ${RPT_ACTIVE.length} النشطة في أودو لشركة فنتشر فودز.`,
     filename: 'VF-Report-01-Brand-Performance-Oct2026.csv',
   },
   {
@@ -1330,7 +743,7 @@ export const STRATEGIC_15_REPORTS: StrategicReportMeta[] = [
     titleAr: '2. تدقيق عمولات منصات التوصيل وصافي التسويات البنكية',
     categoryEn: 'Financial Audit',
     categoryAr: 'تدقيق مالي',
-    summaryEn: 'Detailed comparison of Talabat Go (17%), Keeta (18%), Deliveroo (15%) and bank variances.',
+    summaryEn: `Contract commissions on Odoo channel payments: Talabat Go (${RPT_CH('talabat-tgo')?.commissionPct ?? 0}%), Keeta (${RPT_CH('keeta')?.commissionPct ?? 0}%), Deliveroo Go (${RPT_CH('deliveroo-go')?.commissionPct ?? 0}%) and settlement variances.`,
     summaryAr: 'مقارنة دقيقة للعمولات التعاقدية وصافي الإيداعات البنكية المستحقة وفروقات التسوية.',
     filename: 'VF-Report-02-Aggregator-Commissions-Oct2026.csv',
   },
@@ -1340,8 +753,8 @@ export const STRATEGIC_15_REPORTS: StrategicReportMeta[] = [
     titleAr: '3. مصفوفة ربحية وهندسة أصناف المنيو (Top Performers, High-Demand, High-Margin, Slow-Moving)',
     categoryEn: 'Menu Intelligence',
     categoryAr: 'هندسة منيو',
-    summaryEn: 'Classification of all 364 items by gross margin contribution and order popularity.',
-    summaryAr: 'تصنيف أصناف المنيو الـ 364 حسب الشعبية ومعدل المساهمة في الهامش الربحي.',
+    summaryEn: `Classification of all ${ODOO.totals.productsSold} Odoo items sold by margin contribution and popularity.`,
+    summaryAr: `تصنيف الأصناف المباعة الـ ${ODOO.totals.productsSold} في أودو حسب الشعبية ومعدل المساهمة في الهامش.`,
     filename: 'VF-Report-03-Menu-Profitability-Matrix-Oct2026.csv',
   },
   {
@@ -1356,11 +769,11 @@ export const STRATEGIC_15_REPORTS: StrategicReportMeta[] = [
   },
   {
     id: 5,
-    titleEn: '5. 9 Branches Performance & Hourly Peak Analysis',
-    titleAr: '5. مقارنة أداء الفروع الـ 9 وساعات الذروة التشغيلية',
+    titleEn: `5. ${ODOO.restaurants.length} Restaurant Locations Performance & Hourly Peak Analysis`,
+    titleAr: `5. مقارنة أداء مواقع المطاعم الـ ${ODOO.restaurants.length} وساعات الذروة التشغيلية`,
     categoryEn: 'Branches',
     categoryAr: 'الفروع',
-    summaryEn: 'Avenues, 360 Mall, Assima Mall, Salmiya, Al-Kout, Ardiya, Hawally, Farwaniya, Mubarak Al-Kabeer.',
+    summaryEn: `${ODOO.restaurants.map((l) => l.en).join(', ')}.`,
     summaryAr: 'مقارنة مبيعات الفروع، نسب التوصيل والصالة، ومتوسط الفاتورة، وساعات الذروة.',
     filename: 'VF-Report-05-Branches-Performance-Oct2026.csv',
   },
@@ -1380,7 +793,7 @@ export const STRATEGIC_15_REPORTS: StrategicReportMeta[] = [
     titleAr: '7. مبيعات الإضافات ونسب ربط المشروبات والمقبلات والحلويات',
     categoryEn: 'Commercial',
     categoryAr: 'تجاري',
-    summaryEn: 'Analysis of Drinks (25.5%), Starters (32.7%), and Desserts (2.2%) per 100 orders.',
+    summaryEn: `Odoo item-sales share of Drinks (${rf(rptShare(/drink|beverage|matara|hot drinks|cold drinks/i), 1)}%), Starters (${rf(rptShare(/appetizer|starter|soup|salad|side|sambosa|tiqimis/i), 1)}%) and Desserts (${rf(rptShare(/dessert|desssert|cake|cookie|biscuit/i), 1)}%).`,
     summaryAr: 'تحليل معدل طلب المشروبات والمقبلات والحلويات لكل 100 فاتورة وفرص زيادة متوسط السلة.',
     filename: 'VF-Report-07-Addons-Attach-Rate-Oct2026.csv',
   },
@@ -1390,18 +803,18 @@ export const STRATEGIC_15_REPORTS: StrategicReportMeta[] = [
     titleAr: '8. أثر الخصومات والعروض الترويجية على هامش الربحية',
     categoryEn: 'Commercial',
     categoryAr: 'تجاري',
-    summaryEn: 'KWD 4,152 (2.4%) total discounts analyzed by aggregator promo vs in-store vouchers.',
-    summaryAr: 'تدقيق الخصومات البالغة 4,152 د.ك وتحليل جدوى الحملات الترويجية.',
+    summaryEn: `KWD ${rf(ODOO.totals.discountsKwd)} total Odoo discounts (promotion lines ${rf(ODOO.totals.promoAdjustmentsKwd)} + line discounts ${rf(ODOO.totals.lineDiscountKwd)}).`,
+    summaryAr: `تدقيق خصومات أودو البالغة ${rf(ODOO.totals.discountsKwd)} د.ك وتحليل جدوى الحملات الترويجية.`,
     filename: 'VF-Report-08-Discounts-Margin-Impact-Oct2026.csv',
   },
   {
     id: 9,
-    titleEn: '9. Pareto 80/20 Rule: Top 52 Revenue Drivers',
-    titleAr: '9. قاعدة باريتو 80/20: أعلى 52 صنفاً تولد 80% من الإيرادات',
+    titleEn: `9. Pareto 80/20 Rule: Top ${RPT_TOP80.n} Revenue Drivers`,
+    titleAr: `9. قاعدة باريتو 80/20: أعلى ${RPT_TOP80.n} صنفاً تولد 80% من الإيرادات`,
     categoryEn: 'Menu Intelligence',
     categoryAr: 'هندسة منيو',
-    summaryEn: 'Focus report on the 52 essential menu drivers generating KWD 133,673 of total revenue.',
-    summaryAr: 'قائمة الأصناف الـ 52 الأساسية التي تشكل عماد مبيعات شركة فنتشر فودز.',
+    summaryEn: `Focus report on the ${RPT_TOP80.n} essential menu drivers generating KWD ${rf(RPT_TOP80.sales)} of Odoo item sales.`,
+    summaryAr: `قائمة الأصناف الـ ${RPT_TOP80.n} الأساسية التي تحقق ${rf(RPT_TOP80.sales)} د.ك من مبيعات الأصناف في أودو.`,
     filename: 'VF-Report-09-Pareto-80-20-Items-Oct2026.csv',
   },
   {
@@ -1440,7 +853,7 @@ export const STRATEGIC_15_REPORTS: StrategicReportMeta[] = [
     titleAr: '13. تفكيك سلة الطلبات ومتوسط عدد الأصناف لكل فاتورة',
     categoryEn: 'Commercial',
     categoryAr: 'تجاري',
-    summaryEn: 'Analysis of 2.61 items per order baseline across channels and meal periods.',
+    summaryEn: `Analysis of the ${rf(RPT_IPO, 2)} items-per-order Odoo baseline across channels and meal periods.`,
     summaryAr: 'تحليل مكونات السلة عبر القنوات ومحركات الوصول إلى 3.5 صنف لكل طلب.',
     filename: 'VF-Report-13-Basket-Size-Decomposition-Oct2026.csv',
   },
@@ -1450,7 +863,7 @@ export const STRATEGIC_15_REPORTS: StrategicReportMeta[] = [
     titleAr: '14. توزيع طرق الدفع: كي نت، فيزا وماستركارد، والدفع النقدي',
     categoryEn: 'Financial Audit',
     categoryAr: 'تدقيق مالي',
-    summaryEn: 'KNET 71.4%, Credit Card 18.2%, Cash 10.4% with transaction fee audit.',
+    summaryEn: `Shop tender in Odoo: KNET ${ODOO.shopTender.knet.pct}%, card ${ODOO.shopTender.card.pct}%, cash ${ODOO.shopTender.cash.pct}% with transaction fee audit.`,
     summaryAr: 'مقارنة رسوم بوابات الدفع الإلكتروني وتوزيع الدفع الرقمي مقابل الكاش.',
     filename: 'VF-Report-14-Payment-Methods-Split-Oct2026.csv',
   },

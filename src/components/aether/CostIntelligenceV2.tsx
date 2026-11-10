@@ -247,7 +247,7 @@ export function CostIntelligenceV2() {
         <SectionHeader
           icon={<ChefHat className="h-4 w-4" />}
           title={T('Theoretical vs actual COGS variance matrix', 'مصفوفة انحراف التكلفة النظرية مقابل الفعلية')}
-          subtitle={T(`${pct(LEDGER.cogsTargetPct)} target vs ${pct(LEDGER.cogsPct)} actual · ${kwd(LEDGER.cogs, 'en', 3)} · 9 active branches`, `المستهدف ${pct(LEDGER.cogsTargetPct)} مقابل الفعلي ${pct(LEDGER.cogsPct)} · ${kwd(LEDGER.cogs, 'ar', 3)} · 9 فروع نشطة`)}
+          subtitle={T(`${pct(LEDGER.cogsTargetPct)} target vs ${pct(LEDGER.cogsPct)} actual · ${kwd(LEDGER.cogs, 'en', 3)} · ${LEDGER.branches} restaurant locations`, `المستهدف ${pct(LEDGER.cogsTargetPct)} مقابل الفعلي ${pct(LEDGER.cogsPct)} · ${kwd(LEDGER.cogs, 'ar', 3)} · ${LEDGER.branches} مواقع مطاعم`)}
         />
         <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-4">
           <div className="ae-tile-soft flex flex-col justify-between p-4">

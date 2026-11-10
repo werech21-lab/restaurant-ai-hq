@@ -19,7 +19,6 @@ const LOCATION_TARGETS = [
   ['Avenues Mall', 15],
   ['360 Mall', 13],
   ['Promenade Mall', 13],
-  ['Aswaq Al Qurain', 13],
   ['Al Rai', 9],
   ['Outside', 4],
 ]

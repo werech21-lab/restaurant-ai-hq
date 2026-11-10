@@ -1,82 +1,124 @@
 /**
  * Feryal Executive AI Brain — Powered by Google Gemini (Argon High / Gemini 3.8 Pro)
  * Multimodal Financial Analysis & Kuwaiti/Arabic/English Audio Understanding
- * Includes verified Venture Foods Kuwait Odoo 17 Executive Knowledge Base
+ * Knowledge base is generated from the whitelisted live Odoo dataset (src/lib/odoo/odoo-dataset.ts)
  */
 
 import { getGeminiApiKey, getOpenAIApiKey } from './ai-keys';
+import {
+  BRANCHES,
+  BRANDS,
+  CHANNELS,
+  DEFAULT_FILTERS,
+  EXB_REGISTERS,
+  EXB_UNIT,
+  INACTIVE_APPROVED_BRANDS,
+  LEDGER,
+  LEVERS,
+  LEVERS_MONTHLY_TOTAL,
+  OPERATING_UNITS,
+  ROADMAP,
+  SHARED_COSTS,
+} from './aether/ledger';
+import {
+  CHARGEBACKS,
+  ENTERPRISE_FACTS,
+  WATERFALL_CHANNELS,
+  cogsVarianceMatrix,
+  executivePnl,
+  orderWaterfall,
+  pnlUnitReconciliation,
+  priceCreep,
+} from './enterprise-giants-engine';
+import { ODOO } from './odoo/odoo-dataset';
+
+// ---------------------------------------------------------------------------
+// Live Odoo knowledge base (generated from the whitelisted Odoo dataset at build time)
+// ---------------------------------------------------------------------------
+const n3 = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+const n1 = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const n0 = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 0 });
+const shareOf = (v: number, total: number) => (total ? (v / total) * 100 : 0);
+
+const BRAND_ITEM_SUM = BRANDS.reduce((s, b) => s + b.sales, 0);
+const RANKED_BY_PROFIT = [...BRANCHES].sort((a, b) => b.profit - a.profit);
+const RANKED_BY_SALES = [...BRANCHES].sort((a, b) => b.sales - a.sales);
+const TOP_PROFIT = RANKED_BY_PROFIT[0];
+const TOP_SALES = RANKED_BY_SALES[0];
+const CANTEENS = OPERATING_UNITS.filter((u) => u.unit === 'canteen');
+const CANTEEN_SALES = CANTEENS.reduce((s, u) => s + u.sales, 0);
+const CANTEEN_ORDERS = CANTEENS.reduce((s, u) => s + u.orders, 0);
+const EXB_PNL = EXB_UNIT?.pnl ?? null;
+const EXB_COGS_PCT = EXB_PNL && EXB_PNL.income ? (EXB_PNL.cogs / EXB_PNL.income) * 100 : 0;
+const EXB_MARGIN_PCT = EXB_PNL && EXB_PNL.income ? (EXB_PNL.operatingProfit / EXB_PNL.income) * 100 : 0;
+const EXB_TOP_REGISTER = [...EXB_REGISTERS].sort((a, b) => b.netKwd - a.netKwd)[0];
+const PEAK_HOUR = [...ODOO.timeProfile.hourly].sort((a, b) => b.orders - a.orders)[0];
+const ORDERS_PER_DAY = Math.round(LEDGER.orders / LEDGER.daysInPeriod);
+const TOP_AOV_BRAND = [...BRANDS].sort((a, b) => b.aov - a.aov)[0];
+const LEAD_BRAND = [...BRANDS].sort((a, b) => b.sales - a.sales)[0];
+const KEETA_CH = CHANNELS.find((c) => c.id === 'keeta');
+const AGGREGATOR_SALES = CHANNELS.filter((c) => c.group === 'aggregator').reduce((s, c) => s + c.sales, 0);
+const SHOP_CH = CHANNELS.find((c) => c.id === 'shop');
+const RECON = pnlUnitReconciliation();
+const PNL_MONTH = executivePnl(DEFAULT_FILTERS, 'month');
+const pnlLine = (id: string) => PNL_MONTH.lines.find((l) => l.id === id) ?? { actual: 0, budget: 0, variance: 0 };
+const WATERFALLS = WATERFALL_CHANNELS.map((id) => orderWaterfall(id)).sort((a, b) => b.pocket - a.pocket);
+const CREEP = priceCreep(DEFAULT_FILTERS).sort((a, b) => b.creepPct - a.creepPct);
+const CREEP_TOTAL = CREEP.reduce((s, c) => s + Math.max(0, c.impact), 0);
+const COGS_VARIANCE = cogsVarianceMatrix(DEFAULT_FILTERS);
+const ROADMAP_Q1 = ROADMAP[1];
+const ROADMAP_H1 = ROADMAP[2];
+const ROADMAP_FY = ROADMAP[3];
+const LEVER_LIST_EN = LEVERS.map((l) => `${l.en} (+${n0(l.monthly)} KWD/month)`).join('; ');
+const LEVER_LIST_AR = LEVERS.map((l) => `${l.ar} (+${n0(l.monthly)} د.ك شهرياً)`).join('، ');
+const LOCATION_NAMES_EN = BRANCHES.map((b) => b.en).join(', ');
+const LOCATION_NAMES_AR = BRANCHES.map((b) => b.ar).join('، ');
+const BRAND_NAMES_AR = BRANDS.map((b) => b.ar).join('، ');
 
 export const FERYAL_VENTURE_FOODS_KNOWLEDGE = `
-You are "Feryal" (فريال), the Executive Financial & Operational AI Copilot for Venture Foods Kuwait (شركة فينشر فودز الكويت - Odoo 17 ERP).
+You are "Feryal" (فريال), the Executive Financial & Operational AI Copilot for Venture Foods Restaurants Management Co. W.L.L. (شركة فنتشر فودز لإدارة المطاعم ذ.م.م — Licence ${LEDGER.licence}), running on the live Odoo ERP (venturefoods.walnutss.com).
 Speak with an authoritative, warm, executive Kuwaiti/Gulf Arabic tone when answering in Arabic, or a sharp C-level executive tone when answering in English.
-Keep answers concise (2 to 4 impactful sentences) with exact numbers in KWD so they sound natural when spoken aloud via OpenAI Nova voice.
+Keep answers concise (2 to 4 impactful sentences) with exact numbers in KWD so they sound natural when spoken aloud.
 
-VERIFIED VENTURE FOODS KUWAIT ODOO 17 DATA (SINGLE SOURCE OF TRUTH):
-1. Revenue & Orders:
-   - Total Verified Net Sales: 167,092.160 KWD across 30,540 fulfilled orders (Average Basket AOV: 5.471 KWD).
-2. Operating Profit:
-   - Net Operating Profit: 42,441.480 KWD (25.4% Net Operating Margin).
-3. Food Cost (COGS) & Central Kitchen:
-   - Total COGS: 41,438.856 KWD (418 inventory & production entries).
-   - Actual COGS is 24.8% vs 24.0% Target (+0.8% variance).
-   - Root cause: Raw poultry & marinade waste at Ardiya Central Kitchen costing 1,336 KWD/month.
-   - Action plan: Enforce daily morning yield calibration at Ardiya Central Kitchen to recover +1,336 KWD/month (+16,032 KWD/year).
-4. General Expenses (Opex) & Petty Cash Custodies:
-   - Total Opex & Custodies: 51,154.950 KWD across 2,213 journal entries.
-   - Major custody item: 10,707.930 KWD across 312 entries in unclosed Al-Kout & Salmiya maintenance custodies.
-   - Action plan: Convert recurring emergency repairs into an annual preventive HVAC/kitchen maintenance contract and cap branch petty cash at 250 KWD; the commercial chiller overhaul alone recovers +850 KWD/month (+10,200 KWD/year).
-5. Delivery Aggregators & Promotional Discounts:
-   - Total Promotional Discounts: 4,152.000 KWD (2,544.000 KWD on Keeta alone across 6,267 orders).
-   - 11 Active Sales Channels: Talabat Tgo, Talabat TMP, Keeta, Deliveroo, Cari, Jahez, Call Center, Dine-in, Takeaway, Drive-Thru, Direct Web.
-   - Action plan: Cap unapproved Keeta promotional discounts at 3.5% (from 2,544 KWD to 924 KWD, +1,620 KWD/month saved) and enforce a mandatory beverage in Talabat Tgo, TMP & Keeta delivery combos to lift group AOV from 5.471 KWD to 5.750 KWD (+2,450 KWD/month net gain).
-6. 7 Active Brands (exact Odoo brands — root POS categories & the analytic BRAND plan on venturefoods.walnutss.com):
-   - China Garden (تشاينا جاردن): Flagship brand driving 84.8% of revenue (141,662.400 KWD across 25,890 orders).
-   - Frank's Philly CheeseSteak (فرانكس): Highest basket average (AOV 7.490 KWD).
-   - Tahina (طحينة) — shawarma, strongest at Exhibitions/EXB events.
-   - Farm Brown (فارم براون) — fried chicken, sandwiches & wraps.
-   - Fresh Daily Canteen (فريش ديلي كانتين) — school canteen contracts (sandwiches, bakery, drinks).
-   - The Noodle Bar (ذا نودل بار) — Asian noodles & wok.
-   - Karak Cafeteria (كرك كافتيريا) — karak tea, chapati & snacks.
-   - Live Odoo POS mix for October 2026: China Garden 87.0% · Frank's 7.9% · Tahina 3.0% · Farm Brown 1.8% · Fresh Daily Canteen 1.4% · The Noodle Bar 1.1% · Karak Cafeteria 0.3%.
-   - Never mention or invent any brand outside this Odoo list.
-7. 9 Active Operational Branches:
-   - Salmiya (السالمية): #1 Most Profitable Branch generating 31,246.230 KWD net operating contribution.
-   - Al-Kout / Fahaheel (الكوت), Sharq (شرق), Hawally (حولي), Farwaniya (الفروانية), Ardiya Central Kitchen & Hub (العارضية), Mahboula (المهبولة), Mubarak Al-Kabeer (مبارك الكبير), Jabriya (الجابرية).
-   - Only these 9 branches are active; never mention any other branch location.
-   - Menu Matrix: purge 18 sluggish Dog items and apply +5% pricing to 4 popular Plowhorses (+584 KWD/month).
-   - Online Tablet Availability across Talabat Tgo/TMP, Keeta, and Deliveroo: 99.1% uptime.
-8. Forward Profit Projections (With Feryal's 4 Executive Remedies):
-   - Monthly Net Profit Recovery: +7,640 KWD/month (+18.0% profit surge).
-   - Q1 (3 Months): +20,520 KWD added net gain -> 147,844 KWD cumulative net profit.
-   - H1 (6 Months): +43,800 KWD added net gain -> 298,449 KWD cumulative net profit.
-   - Full Year (12 Months): +91,680 KWD added net gain -> 600,978 KWD annual net profit.
-9. Events, Exhibitions & EXB Menu Intelligence (Seasonal Booths & Odoo Analytical Accounts):
-   - Total Verified & Simulated Events Revenue: 84,650.000 KWD across 14,850 orders (Event Basket AOV: 5.700 KWD).
-   - Events Net Operating Profit: 24,890.000 KWD (29.4% net margin after booth rent & staffing).
-   - EXB Menu COGS: 21.4% (3.4% better than fixed branches due to focused 8-item menu & pre-marinated 140g Ardiya batches).
-   - Average Booth Break-Even: 58 orders/day (330.600 KWD/day | Capital Payback on Day 14) with +168.5% Seasonal Event ROI.
-   - Key Benchmark Events:
-     * Marina Kashta (كشتة المارينا): 60 days | Rent & Setup 6,800 KWD | Sales 38,400 KWD | Net Profit 11,920 KWD | ROI 175% (Recommended for renewal).
-     * Al-Safeer Camp (مخيم السفير): 45 days | Rent & Setup 4,900 KWD | Sales 26,850 KWD | Net Profit 7,840 KWD | ROI 160% (Strong beverage margin).
-     * Winterland Seasonal Booth (ونترلاند الكويت): 90 days | Rent & Setup 9,500 KWD | Projected Sales 54,200 KWD | Net Profit 15,600 KWD | ROI 164%.
-   - EXB Menu 8 Star Items (+10% booth price uplift, <90 sec assembly): Chicken Noodles Box (China Garden), Dynamite Shrimp Cup, Philly CheeseSteak Sliders (Frank's), Loaded Shawarma Fries (Tahina), Sriracha Chicken Noodles, Crispy Strips Cone (Farm Brown), Sweet Corn Warm Cup, Mandatory Event Soft Drink / Mojito.
-10. Enterprise OS Modules (Aether BI):
-   a) Demand, Weather & Central Kitchen Prep Forecaster (/erp/demand-forecast):
-     * Baseline 985 orders/day (30,540 orders over 31 days). Kuwait rhythm: Thursday ×1.15 and Friday ×1.21 versus the weekly mean; salary week (24th–29th) ×1.12.
-     * Weather: dust events shift 22% of dine-in demand to delivery (total demand ×0.95); high heat (≥42°C) shifts 16%; mild weather lifts dine-in slightly.
-     * Ardiya prep par levels convert forecast brand orders into batches (140 g marinated poultry portions, Philly steak kg, rice batches, sauces). Cutting the over-production buffer from 12% to a forecast-driven 4% on ~16,700 KWD monthly raw prep spend delivers the approved +1,336 KWD/month.
-     * Crew planning uses 7 orders per labour hour with a 2-person minimum to raise sales per labour hour.
-   b) 3-Way Aggregator Reconciliation & Chargebacks (/erp/delivery-control):
-     * Odoo POS sales → aggregator statement → bank deposit across all 11 channels. Recoverable settlement discrepancies total 954.120 KWD/month (unpaid cancellations, unapproved promo deductions, commission over-billing; Keeta 416.240 and Talabat Tgo 342.030 are the largest). Settlements in transit total 4,337.000 KWD.
-     * Dispute queue: 12 chargeback cases worth 310.330 KWD (wrongful refunds, driver-delay penalties charged to branches, over-billed commissions, missing-item claims, unpaid cancellations), each with a bilingual claim ready to send.
-     * True per-order net pocket profit (gross basket − commission − discount − 24.8% food cost − 0.180 KWD packaging − 0.350 KWD own rider on TMP): Keeta 3.411 KWD (56.0%), Deliveroo 3.245 KWD (51.9%), Jahez 3.072 KWD (53.5%), Talabat TMP 3.038 KWD (54.6%), Talabat Tgo 2.934 KWD (53.7%). Monthly aggregator & gateway commissions: 14,736.810 KWD.
-   c) Supplier Price-Creep & COGS Intelligence (/erp/cost-intelligence):
-     * Invoice vs contract: fresh poultry breast 1.950 → 2.145 KWD/kg (+10.0%), tahina paste +8.0%, thermal delivery boxes +6.0%, frozen poultry carton 10.800 → 11.400 KWD (+5.6%), Philly beef 6.800 → 7.140 KWD/kg (+5.0%), corn oil drum 8.750 → 9.100 KWD (+4.0%), basmati rice +2.0%, soy sauce flat. Total price-creep exposure ≈ 823 KWD/month (poultry breast alone 516.750 KWD).
-     * Theoretical COGS 24.0% (40,102.118 KWD) vs actual 24.8% (41,438.856 KWD) = 1,336.738 KWD gap: Ardiya central-kitchen prep shrinkage 695.10 KWD (52%), branch over-portioning 414.39 KWD (31%), unrecorded wastage 227.25 KWD (17%).
-     * Counter-moves: renegotiate or dual-source for Stars, re-price Plowhorses, trim portions 5% on Puzzles.
-   d) Executive P&L & Rolling Budget Variance (/erp/executive-pnl):
-     * Monthly P&L: gross sales 171,244.160; discounts 4,152.000; net sales 167,092.160; food & packaging COGS 41,438.856; aggregator & gateway commissions 14,736.810; salaries & rent 17,320.064; maintenance custody 10,707.930; other opex & custodies 40,447.020; net operating profit 42,441.480 KWD (25.4%).
-     * Approved monthly budget embeds the five levers: net operating profit budget 49,281.480 KWD, so the month runs 6,840 KWD unfavourable until the remedies land (discounts budget 2,532.000 with the Keeta cap; maintenance budget 9,857.930 after the chiller overhaul; COGS at the 24.0% target). Budgets ramp to Q1 147,844 / H1 298,449 / full year 600,978 KWD.
+VERIFIED ODOO DATA — ${LEDGER.periodLabelEn.toUpperCase()} (SINGLE SOURCE OF TRUTH; whitelisted POS registers only, synced ${LEDGER.syncedAt}):
+1. Revenue & orders (Odoo POS):
+   - Net POS sales ${n3(LEDGER.netSales)} KWD across ${n0(LEDGER.orders)} orders (AOV ${n3(LEDGER.aov)} KWD; about ${n0(ORDERS_PER_DAY)} orders/day over ${LEDGER.daysInPeriod} days).
+   - Item sales before order-level promotions ${n3(LEDGER.itemSales)} KWD; promotion lines ${n3(LEDGER.promoLines)} KWD and line discounts ${n3(LEDGER.lineDiscounts)} KWD (total discounts ${n3(LEDGER.discounts)} KWD, ${n1(LEDGER.discountsPct)}% of gross).
+   - ${n0(LEDGER.menuItems)} products sold; the top ${LEDGER.topItems} items make ${LEDGER.topItemsSharePct}% of item sales. Peak hour ${String(PEAK_HOUR?.hour ?? 0).padStart(2, '0')}:00 with ${n0(PEAK_HOUR?.orders ?? 0)} orders.
+2. Posted accounting P&L (whitelisted locations; non-whitelisted locations' analytic share removed):
+   - Revenue ${n3(LEDGER.revenue)} KWD · COGS ${n3(LEDGER.cogs)} KWD (${n1(LEDGER.cogsPct)}%) · operating expenses ${n3(LEDGER.opex)} KWD (${n1(LEDGER.opexPct)}%) · depreciation ${n3(LEDGER.depreciation)} KWD.
+   - EBITDA ${n3(LEDGER.ebitda)} KWD · net operating profit ${n3(LEDGER.netProfit)} KWD (${n1(LEDGER.marginPct)}% margin).
+   - Posted company ledger before the exclusion: income ${n3(RECON.company.income)} KWD; removed analytic share of non-whitelisted locations: income ${n3(RECON.excludedLocations.income)} KWD. Never name a non-whitelisted location.
+3. Restaurant locations (${BRANCHES.length} permanent locations from the Odoo Branches analytic plan, ranked by operating profit):
+${RANKED_BY_PROFIT.map((b, i) => `   ${i + 1}. ${b.en} (${b.ar}): operating profit ${n3(b.profit)} KWD (${n1(b.marginPct)}% margin) · POS net ${n3(b.sales)} KWD · ${n0(b.orders)} orders.`).join('\n')}
+   - ${TOP_PROFIT?.en} is the most profitable location; ${TOP_SALES?.en} has the highest POS sales.
+   - Only these ${BRANCHES.length} restaurant locations exist; never mention or invent any other branch location.
+4. Other Odoo operating units (kept out of the branch rankings):
+   - Exhibitions & Booths (EXB) — POS registers ${EXB_REGISTERS.map((r) => r.posConfigId).join(', ')}: ${n3(EXB_UNIT?.sales ?? 0)} KWD across ${n0(EXB_UNIT?.orders ?? 0)} orders (AOV ${n3(EXB_UNIT?.aov ?? 0)} KWD); register ${EXB_TOP_REGISTER?.posConfigId} leads with ${n3(EXB_TOP_REGISTER?.netKwd ?? 0)} KWD. Analytic P&L: revenue ${n3(EXB_PNL?.income ?? 0)} KWD, COGS ${n1(EXB_COGS_PCT)}%, operating profit ${n3(EXB_PNL?.operatingProfit ?? 0)} KWD (${n1(EXB_MARGIN_PCT)}% margin).
+   - School canteens (Fresh Daily Canteen): ${CANTEENS.map((u) => `${u.en} ${n3(u.sales)} KWD / ${n0(u.orders)} orders, operating profit ${n3(u.pnl?.operatingProfit ?? 0)} KWD`).join('; ')} — total ${n3(CANTEEN_SALES)} KWD across ${n0(CANTEEN_ORDERS)} orders.
+   - Shared cost centres: head office ${n3(SHARED_COSTS.headOffice.operatingProfit)} KWD and central kitchen ${n3(SHARED_COSTS.centralKitchen.operatingProfit)} KWD; call centre and entries without a location cost centre ${n3(RECON.remainder.profit)} KWD.
+5. Brands (approved Venture Foods brands with October Odoo POS sales; item basis):
+${BRANDS.map((b) => `   - ${b.en} (${b.ar}): ${n3(b.sales)} KWD · ${n0(b.orders)} orders · AOV ${n3(b.aov)} KWD · ${n1(shareOf(b.sales, BRAND_ITEM_SUM))}% of item sales — ${b.cuisineEn}.`).join('\n')}
+   - Approved brands with no October POS sales: ${INACTIVE_APPROVED_BRANDS.map((b) => `${b.en} (${b.ar})`).join(', ') || 'none'}.
+   - ${LEAD_BRAND?.en} leads the mix; ${TOP_AOV_BRAND?.en} has the highest basket. Never mention or invent any brand outside this list.
+6. Sales channels (${CHANNELS.length} Odoo POS payment channels, net after promotions):
+${CHANNELS.map((c) => `   - ${c.en} (${c.ar}): ${n3(c.sales)} KWD · ${n0(c.orders)} payments${c.promo > 0 ? ` · promotions ${n3(c.promo)} KWD` : ''}${c.commissionPct ? ` · contract commission ${c.commissionPct}%` : ''}.`).join('\n')}
+   - Aggregators total ${n3(AGGREGATOR_SALES)} KWD (${n1(shareOf(AGGREGATOR_SALES, LEDGER.netSales))}% of net sales); shop sales ${n3(SHOP_CH?.sales ?? 0)} KWD.
+   - Keeta promotions ${n3(LEDGER.keetaDiscounts)} KWD on ${n3(LEDGER.keetaPromoBase)} KWD of Keeta item sales; a ${LEDGER.keetaCapPct}% cap is ${n3(LEDGER.keetaCapKwd)} KWD and recovers ${n0(LEDGER.keetaRecovery)} KWD/month.
+7. Profit levers (management estimates, not Odoo postings; Keeta recovery is computed from Odoo): ${LEVER_LIST_EN}. Total +${n0(LEVERS_MONTHLY_TOTAL)} KWD/month.
+   - Maintenance custody programme (management estimate): ${n3(LEDGER.maintCustody)} KWD across ${LEDGER.maintEntries} entries in Al-Kout Mall & Salmiya; cap branch petty cash at 250 KWD.
+   - COGS target ${n1(LEDGER.cogsTargetPct)}% vs Odoo actual ${n1(LEDGER.cogsPct)}%. Product cost (standard_price) is not yet readable by the BI service user, so menu margins use the group COGS%.
+8. Profit trajectory (baseline = Odoo monthly operating profit × months; increments = approved levers):
+   - Q1: ${n0(ROADMAP_Q1.total)} KWD (+${n0(ROADMAP_Q1.incremental)} KWD from levers) · H1: ${n0(ROADMAP_H1.total)} KWD (+${n0(ROADMAP_H1.incremental)}) · Full year: ${n0(ROADMAP_FY.total)} KWD (+${n0(ROADMAP_FY.incremental)}).
+9. Events & exhibitions:
+   - Odoo actuals are the EXB unit in section 4 (registers ${EXB_REGISTERS.map((r) => r.posConfigId).join(', ')}).
+   - The Events Studio contract benchmarks (Marina Kashta, Al-Safeer Camp, Winterland) and booth break-even figures are planning simulations, not Odoo postings — always say "simulated" when quoting them.
+10. Enterprise OS modules (Aether BI):
+   a) Demand forecaster (/erp/demand-forecast): baseline ${n0(ORDERS_PER_DAY)} orders/day from Odoo; Kuwait rhythm Thursday and Friday peaks, salary week (24th–29th) ×1.12; dust shifts 22% of dine-in to delivery; crew planning at 7 orders per labour hour (model).
+   b) 3-way aggregator reconciliation (/erp/delivery-control): Odoo channel payments → aggregator statement → bank. Modeled recoverable discrepancies ${n3(ENTERPRISE_FACTS.recoverableSettlement)} KWD/month, ${n3(ENTERPRISE_FACTS.inTransit)} KWD in transit, ${CHARGEBACKS.length} modeled chargeback cases worth ${n3(ENTERPRISE_FACTS.chargebacksTotal)} KWD. Contract commissions on Odoo channel sales: ${n3(ENTERPRISE_FACTS.monthlyCommissions)} KWD/month.
+      Net pocket profit per order (Odoo basket − commission − promotion − ${n1(LEDGER.cogsPct)}% COGS − packaging − own rider): ${WATERFALLS.map((w) => `${w.channel.en} ${n3(w.pocket)} KWD (${n1(w.pocketPct)}%)`).join(', ')}.
+   c) Supplier price-creep (/erp/cost-intelligence, contract vs invoice model): ${CREEP.slice(0, 4).map((c) => `${c.en} ${c.creepPct >= 0 ? '+' : ''}${n1(c.creepPct)}%`).join(', ')}; exposure about ${n0(CREEP_TOTAL)} KWD/month. Location COGS vs ${n1(LEDGER.cogsTargetPct)}% target from the Odoo Branches plan: actual ${n3(COGS_VARIANCE.actualTotal)} KWD vs theoretical ${n3(COGS_VARIANCE.theoreticalTotal)} KWD.
+   d) Executive P&L (/erp/executive-pnl): net sales ${n3(pnlLine('net').actual)} KWD; other posted revenue ${n3(pnlLine('other-revenue').actual)} KWD; COGS ${n3(pnlLine('cogs').actual)} KWD; commissions ${n3(pnlLine('commissions').actual)} KWD; salaries, rent & other opex ${n3(pnlLine('payroll').actual)} KWD; maintenance custody ${n3(pnlLine('maintenance').actual)} KWD; depreciation ${n3(pnlLine('opex').actual)} KWD; net operating profit ${n3(pnlLine('profit').actual)} KWD against a lever budget of ${n3(pnlLine('profit').budget)} KWD (variance ${n3(pnlLine('profit').variance)} KWD).
 `;
 
 const GEMINI_MODELS = [
@@ -154,20 +196,20 @@ export async function analyzeEventContractWithGemini({
       'Amended Clause 9: "The Organizer guarantees a dedicated 3-Phase (60 Amp) power feed 72 hours prior to opening; any power outage day shall be rent-exempt."',
     ],
     solutionsAr: [
-      'ضبط سرعة الخدمة تحت 90 ثانية: تجهيز وتتبيل 85% من الأصناف مسبقاً بحصص معايرة (140 جم) في مطبخ العارضية المركزي والاكتفاء بالتسوية السريعة في البوث.',
-      'هندسة التسعير والكومبو (+10%): تطبيق أسعار منيو المعارض مع إلزامية المشروب/الموهيتو لرفع متوسط الفاتورة إلى 5.700 د.ك وتخفيض تكلفة الأغذية إلى 21.4%.',
+      'ضبط سرعة الخدمة تحت 90 ثانية: تجهيز وتتبيل 85% من الأصناف مسبقاً بحصص معايرة (140 جم) في المطبخ المركزي والاكتفاء بالتسوية السريعة في البوث.',
+      `هندسة التسعير والكومبو (+10%): تطبيق أسعار منيو المعارض مع إلزامية المشروب/الموهيتو لرفع متوسط الفاتورة من ${n3(EXB_UNIT?.aov ?? 0)} د.ك (فعلي أودو) نحو المستهدف 5.700 د.ك وخفض تكلفة الأغذية من ${n1(EXB_COGS_PCT)}% نحو المستهدف 21.4%.`,
       'إدارة طوابير الذروة المسائية (6 م - 11 م): تخصيص كاشير متنقل بجهاز كي نت لاسلكي في طابور الانتظار لفصل الدفع عن شباك الاستلام.',
       `ربط مركز التكلفة في أودو: فتح حساب تحليلي مستقل (${eventName}) لمراقبة نقطة التعادل اليومية (58 طلباً/يومياً) واسترداد رأس المال في اليوم الـ 14.`,
     ],
     solutionsEn: [
-      'Sub-90-Second Booth Service: Pre-portion and marinate 85% of items in 140g calibrated batches at Ardiya Central Kitchen for rapid final sear at the booth.',
-      'EXB Pricing & Combo Engineering (+10%): Deploy the 8-item EXB Menu with mandatory beverage/mojito upsell to sustain a 5.700 KWD AOV and 21.4% COGS.',
+      'Sub-90-Second Booth Service: Pre-portion and marinate 85% of items in 140g calibrated batches at the central kitchen for rapid final sear at the booth.',
+      `EXB Pricing & Combo Engineering (+10%): Deploy the 8-item EXB Menu with mandatory beverage/mojito upsell to lift AOV from ${n3(EXB_UNIT?.aov ?? 0)} KWD (Odoo actual) toward a 5.700 KWD target and cut COGS from ${n1(EXB_COGS_PCT)}% toward 21.4%.`,
       'Peak Queue Management (6 PM – 11 PM): Deploy a mobile handheld KNET/Apple Pay cashier along the queue to decouple payment from order pickup.',
       `Odoo Analytical Cost Center: Track daily break-even (58 orders / 330.600 KWD per day) under an isolated Odoo ledger to achieve full payback by Day 14.`,
     ],
     verdictBadgeAr: '✅ يوصى بالاعتماد وتوقيع العقد بعد تعديل البند 4 (الطقس) والبند 7 (سقف الخدمات 5%)',
     verdictBadgeEn: '✅ Approved for Signing Subject to Amending Clause 4 (Weather) & Clause 7 (5% Fee Cap)',
-    voiceSummaryAr: `يا هلا! قمت بتشريح عقد وتصور فعالية ${eventName} لمدة ${durationDays} يوماً بإيجار ${boothRentKwd} دينار كويتي. الجدوى المالية ممتازة بعائد استثمار يتجاوز 150 بالمئة ونقطة تعادل 58 طلباً يومياً، وأنصحك بتوقيع العقد فوراً بعد إضافة بند تعويض أيام الأمطار وتحديد سقف رسوم الخدمات بخمسة بالمئة، مع الاعتماد على منيو المعارض السريعة من مطبخ العارضية المركزي.`,
+    voiceSummaryAr: `يا هلا! قمت بتشريح عقد وتصور فعالية ${eventName} لمدة ${durationDays} يوماً بإيجار ${boothRentKwd} دينار كويتي. الجدوى المالية ممتازة بعائد استثمار يتجاوز 150 بالمئة ونقطة تعادل 58 طلباً يومياً، وأنصحك بتوقيع العقد فوراً بعد إضافة بند تعويض أيام الأمطار وتحديد سقف رسوم الخدمات بخمسة بالمئة، مع الاعتماد على منيو المعارض السريعة من المطبخ المركزي.`,
     voiceSummaryEn: `I have completed the deep audit of the ${eventName} contract for ${durationDays} days at ${boothRentKwd} Kuwaiti Dinars booth rent. Financial feasibility is strong with payback in 14 days and a 58-order daily break-even. I recommend signing immediately after adding the weather-closure rent credit in Clause 4 and capping service fees at 5 percent in Clause 7.`,
     recommendedBrandId: executiveVision.toLowerCase().includes('برجر') || executiveVision.toLowerCase().includes('burger')
       ? 'The Noodle Bar'
@@ -256,81 +298,87 @@ export interface FeryalBrainResponse {
 }
 
 /**
- * Deterministic high-precision fallback using verified Venture Foods Odoo numbers
+ * Deterministic fallback built on the same live Odoo dataset as the knowledge base
  */
 export function getDeterministicFeryalReply(query: string, lang: 'ar' | 'en'): string {
   const q = query.toLowerCase();
   const isAr = lang === 'ar';
+  const has = (...keys: string[]) => keys.some((k) => q.includes(k));
+  const second = RANKED_BY_PROFIT[1];
+  const third = RANKED_BY_PROFIT[2];
+  const bestPocket = WATERFALLS[0];
+  const topCreep = CREEP[0];
+  const profit = pnlLine('profit');
 
-  if (q.includes('forecast') || q.includes('demand') || q.includes('prep') || q.includes('par level') || q.includes('weather') || q.includes('staff') || q.includes('توقع') || q.includes('تحضير') || q.includes('طقس') || q.includes('طاقم')) {
+  if (has('forecast', 'demand', 'prep', 'par level', 'weather', 'staff', 'توقع', 'تحضير', 'طقس', 'طاقم')) {
     return isAr
-      ? 'توقع الطلب ينطلق من 985 طلباً يومياً، مع ذروة الخميس ×1.15 والجمعة ×1.21 وأسبوع الرواتب ×1.12، والغبار يحول 22% من طلب الصالة إلى التوصيل. خفض هامش التحضير في مطبخ العارضية من 12% إلى 4% بناءً على التوقع يحقق الوفر المعتمد 1,336 دينار كويتي شهرياً.'
-      : 'Demand forecasting starts from 985 orders a day, with Thursday ×1.15, Friday ×1.21 and salary week ×1.12, while dust shifts 22% of dine-in demand to delivery. Cutting the Ardiya prep buffer from 12% to a forecast-driven 4% delivers the approved 1,336 KWD per month.';
+      ? `توقع الطلب ينطلق من ${n0(ORDERS_PER_DAY)} طلباً يومياً حسب أودو لشهر ${LEDGER.periodLabelAr}، مع ذروة الخميس والجمعة وأسبوع الرواتب ×1.12، وأعلى ساعة هي ${String(PEAK_HOUR?.hour ?? 0).padStart(2, '0')}:00 بعدد ${n0(PEAK_HOUR?.orders ?? 0)} طلباً. خفض هامش التحضير في المطبخ المركزي من 12% إلى 4% يحقق الوفر المقدّر ${n0(LEDGER.cogsRecoverable)} د.ك شهرياً.`
+      : `Demand forecasting starts from ${n0(ORDERS_PER_DAY)} orders a day in Odoo for ${LEDGER.periodLabelEn}, with Thursday and Friday peaks and salary week ×1.12; the busiest hour is ${String(PEAK_HOUR?.hour ?? 0).padStart(2, '0')}:00 with ${n0(PEAK_HOUR?.orders ?? 0)} orders. Cutting the central-kitchen prep buffer from 12% to a forecast-driven 4% delivers the estimated ${n0(LEDGER.cogsRecoverable)} KWD per month.`;
   }
 
-  if (q.includes('chargeback') || q.includes('reconcil') || q.includes('settlement') || q.includes('dispute') || q.includes('waterfall') || q.includes('pocket') || q.includes('استرداد') || q.includes('مطابقة') || q.includes('تسوي') || q.includes('نزاع')) {
+  if (has('chargeback', 'reconcil', 'settlement', 'dispute', 'waterfall', 'pocket', 'استرداد', 'مطابقة', 'تسوي', 'نزاع')) {
     return isAr
-      ? 'المطابقة الثلاثية بين نقاط البيع وكشوف المنصات والبنك ترصد 954.120 د.ك فروقات قابلة للاسترداد شهرياً، أكبرها في كيتا وطلبات جو، و4,337 د.ك تسويات قيد التحويل. لدينا 12 مطالبة استرداد بقيمة 310.330 د.ك جاهزة للإرسال، وصافي ربح الطلب الأعلى في كيتا عند 3.411 د.ك.'
-      : 'The 3-way reconciliation of POS, aggregator statements and bank deposits flags 954.120 KWD of recoverable discrepancies a month, led by Keeta and Talabat Tgo, plus 4,337 KWD in transit. Twelve chargeback claims worth 310.330 KWD are ready to send, and Keeta delivers the best net pocket profit at 3.411 KWD per order.';
+      ? `المطابقة الثلاثية بين مدفوعات قنوات أودو وكشوف المنصات والبنك ترصد فروقات نموذجية قابلة للاسترداد بقيمة ${n3(ENTERPRISE_FACTS.recoverableSettlement)} د.ك شهرياً و${n3(ENTERPRISE_FACTS.inTransit)} د.ك قيد التحويل، مع ${CHARGEBACKS.length} مطالبة بقيمة ${n3(ENTERPRISE_FACTS.chargebacksTotal)} د.ك. أعلى صافي ربح للطلب في ${bestPocket?.channel.ar} عند ${n3(bestPocket?.pocket ?? 0)} د.ك.`
+      : `The 3-way reconciliation of Odoo channel payments, aggregator statements and bank deposits flags a modeled ${n3(ENTERPRISE_FACTS.recoverableSettlement)} KWD of recoverable discrepancies a month plus ${n3(ENTERPRISE_FACTS.inTransit)} KWD in transit, with ${CHARGEBACKS.length} claims worth ${n3(ENTERPRISE_FACTS.chargebacksTotal)} KWD ready to send. ${bestPocket?.channel.en} delivers the best net pocket profit at ${n3(bestPocket?.pocket ?? 0)} KWD per order.`;
   }
 
-  if (q.includes('supplier') || q.includes('price creep') || q.includes('vendor') || q.includes('invoice') || q.includes('erosion') || q.includes('مورد') || q.includes('الموردين') || q.includes('فواتير') || q.includes('تآكل')) {
+  if (has('supplier', 'price creep', 'vendor', 'invoice', 'erosion', 'مورد', 'الموردين', 'فواتير', 'تآكل')) {
     return isAr
-      ? 'رادار الموردين يرصد ارتفاع صدور الدجاج من 1.950 إلى 2.145 د.ك للكيلو بنسبة 10%، والطحينة 8% وعلب التوصيل 6%، بإجمالي أثر يقارب 823 د.ك شهرياً. أوصي بإعادة التفاوض أو مورد بديل للأصناف النجوم ورفع أسعار الأصناف الشعبية منخفضة الهامش.'
-      : 'The supplier radar shows poultry breast up from 1.950 to 2.145 KWD per kg (+10%), tahina paste +8% and delivery boxes +6%, about 823 KWD a month of exposure. I recommend renegotiating or dual-sourcing for Stars and re-pricing the low-margin Plowhorses.';
+      ? `رادار الموردين (نموذج العقد مقابل الفاتورة) يرصد أعلى ارتفاع في ${topCreep?.ar} بنسبة ${n1(topCreep?.creepPct ?? 0)}%، بإجمالي أثر يقارب ${n0(CREEP_TOTAL)} د.ك شهرياً. أوصي بإعادة التفاوض أو مورد بديل للأصناف النجوم ورفع أسعار الأصناف الشعبية منخفضة الهامش.`
+      : `The supplier radar (contract vs invoice model) shows the steepest creep on ${topCreep?.en} at ${n1(topCreep?.creepPct ?? 0)}%, about ${n0(CREEP_TOTAL)} KWD a month of exposure. I recommend renegotiating or dual-sourcing for Stars and re-pricing the low-margin Plowhorses.`;
   }
 
-  if (q.includes('budget') || q.includes('variance') || q.includes('p&l') || q.includes('pnl') || q.includes('board pack') || q.includes('موازنة') || q.includes('انحراف') || q.includes('قائمة الدخل')) {
+  if (has('budget', 'variance', 'p&l', 'pnl', 'board pack', 'موازنة', 'انحراف', 'قائمة الدخل')) {
     return isAr
-      ? 'صافي الربح التشغيلي الفعلي 42,441.480 د.ك مقابل موازنة شهرية 49,281.480 د.ك تتضمن الروافع الخمس، أي انحراف سلبي 6,840 د.ك يغلق بتطبيق سقف كيتا وإنتاجية العارضية وتجديد المبردات والمشروب الإلزامي ومصفوفة المنيو، وصولاً إلى 600,978 د.ك للسنة الكاملة.'
-      : 'Net operating profit is 42,441.480 KWD against a 49,281.480 KWD monthly budget that embeds the five levers — a 6,840 KWD unfavourable variance that closes with the Keeta cap, Ardiya yield, chiller overhaul, beverage attach and menu matrix, on the path to 600,978 KWD for the full year.';
+      ? `صافي الربح التشغيلي الفعلي في أودو ${n3(profit.actual)} د.ك مقابل موازنة شهرية ${n3(profit.budget)} د.ك تتضمن روافع الربح، أي انحراف ${n3(profit.variance)} د.ك يغلق بتطبيق الروافع، وصولاً إلى ${n0(ROADMAP_FY.total)} د.ك للسنة الكاملة.`
+      : `Odoo net operating profit is ${n3(profit.actual)} KWD against a ${n3(profit.budget)} KWD monthly budget that embeds the profit levers — a ${n3(profit.variance)} KWD variance that closes as the levers land, on the path to ${n0(ROADMAP_FY.total)} KWD for the full year.`;
   }
 
-  if (q.includes('مارينا') || q.includes('كشتة') || q.includes('سفير') || q.includes('ونترلاند') || q.includes('فعالي') || q.includes('معرض') || q.includes('معارض') || q.includes('exb') || q.includes('kashta') || q.includes('safeer') || q.includes('winterland') || q.includes('booth') || q.includes('event') || q.includes('تعادل') || q.includes('break-even')) {
+  if (has('مارينا', 'كشتة', 'سفير', 'ونترلاند', 'فعالي', 'معرض', 'معارض', 'exb', 'kashta', 'safeer', 'winterland', 'booth', 'event', 'تعادل', 'break-even')) {
     return isAr
-      ? 'يا هلا! حسب سجل مراكز تكلفة الفعاليات في أودو، حققت كشتة المارينا (60 يوماً) مبيعات 38,400 د.ك وصافي ربح 11,920 د.ك بعائد استثمار 175%، بينما حقق مخيم السفير (45 يوماً) مبيعات 26,850 د.ك وصافي ربح 7,840 د.ك بعائد 160%. نقطة التعادل اليومية للبوث هي 58 طلباً فقط (330.600 د.ك) مع استرداد رأس المال في اليوم الـ 14 بفضل منيو المعارض ذات تكلفة الأغذية المنخفضة 21.4%!'
-      : 'Based on Odoo Analytical Accounts for seasonal events, Marina Kashta (60 days) achieved 38,400 KWD in sales and 11,920 KWD net profit (175% ROI), while Al-Safeer Camp (45 days) delivered 26,850 KWD in sales and 7,840 KWD net profit (160% ROI). Daily booth break-even is just 58 orders (330.600 KWD/day) with full capital payback on Day 14 thanks to our 21.4% COGS EXB Menu!';
+      ? `حسب أودو لشهر ${LEDGER.periodLabelAr}، حققت وحدة المعارض والأجنحة (EXB، الأجهزة ${EXB_REGISTERS.map((r) => r.posConfigId).join('، ')}) مبيعات ${n3(EXB_UNIT?.sales ?? 0)} د.ك عبر ${n0(EXB_UNIT?.orders ?? 0)} طلباً، وربحاً تشغيلياً ${n3(EXB_PNL?.operatingProfit ?? 0)} د.ك بهامش ${n1(EXB_MARGIN_PCT)}% وتكلفة أغذية ${n1(EXB_COGS_PCT)}%. أما مقارنات كشتة المارينا ومخيم السفير في استوديو الفعاليات فهي محاكاة تخطيطية وليست قيوداً في أودو.`
+      : `In Odoo for ${LEDGER.periodLabelEn}, the Exhibitions & Booths unit (EXB, registers ${EXB_REGISTERS.map((r) => r.posConfigId).join(', ')}) sold ${n3(EXB_UNIT?.sales ?? 0)} KWD across ${n0(EXB_UNIT?.orders ?? 0)} orders with ${n3(EXB_PNL?.operatingProfit ?? 0)} KWD operating profit (${n1(EXB_MARGIN_PCT)}% margin, ${n1(EXB_COGS_PCT)}% COGS). The Marina Kashta and Al-Safeer benchmarks in the Events Studio are planning simulations, not Odoo postings.`;
   }
 
-  if (q.includes('سالمية') || q.includes('salmiya') || q.includes('فرع') || q.includes('branch') || q.includes('أفضل') || q.includes('top')) {
+  if (has('فرع', 'فروع', 'branch', 'location', 'موقع', 'أفضل', 'top', ...BRANCHES.flatMap((b) => [b.en.toLowerCase(), b.ar]))) {
     return isAr
-      ? 'يا هلا! حسب قيود أودو الموثقة، فرع السالمية يتصدر ربحية الفروع الـ 9 بصافي مساهمة تشغيلية 31,246.230 د.ك، يليه فرع الكوت ثم شرق، مع التزام بتوافر أونلاين 99.1% على منصات طلبات جو وسوق طلبات وكيتا وديليفرو.'
-      : 'Based on verified Odoo entries, Salmiya is our #1 most profitable branch across all 9 locations with 31,246.230 KWD in net operating contribution, supported by 99.1% online tablet availability across Talabat Tgo, TMP, Keeta, and Deliveroo.';
+      ? `حسب خطة الفروع التحليلية في أودو، يتصدر ${TOP_PROFIT?.ar} ربحية مواقع المطاعم الـ ${BRANCHES.length} بربح تشغيلي ${n3(TOP_PROFIT?.profit ?? 0)} د.ك (هامش ${n1(TOP_PROFIT?.marginPct ?? 0)}%)، يليه ${second?.ar} ثم ${third?.ar}، بينما يحقق ${TOP_SALES?.ar} أعلى مبيعات بقيمة ${n3(TOP_SALES?.sales ?? 0)} د.ك. المواقع المعتمدة: ${LOCATION_NAMES_AR}.`
+      : `On the Odoo Branches analytic plan, ${TOP_PROFIT?.en} leads all ${BRANCHES.length} restaurant locations with ${n3(TOP_PROFIT?.profit ?? 0)} KWD operating profit (${n1(TOP_PROFIT?.marginPct ?? 0)}% margin), followed by ${second?.en} and ${third?.en}, while ${TOP_SALES?.en} has the highest POS sales at ${n3(TOP_SALES?.sales ?? 0)} KWD. Locations: ${LOCATION_NAMES_EN}.`;
   }
 
-  if (q.includes('هدر') || q.includes('عارضية') || q.includes('مطبخ') || q.includes('cogs') || q.includes('food cost') || q.includes('poultry') || q.includes('دواجن') || q.includes('تكلفة')) {
+  if (has('هدر', 'مطبخ', 'cogs', 'food cost', 'poultry', 'دواجن', 'تكلفة')) {
     return isAr
-      ? 'تكلفة الأغذية الفعلية حالياً 41,438.856 د.ك بنسبة 24.8% مقابل المستهدف 24.0% عبر 418 قيد مخزني. السبب الرئيسي هو هدر الدواجن والتتبيل في المطبخ المركزي بالعارضية بقيمة 1,336 د.ك شهرياً، وضبط معايرة الإنتاج الصباحية سيسترد هذا المبلغ بالكامل فوراً.'
-      : 'Actual Food Cost (COGS) is 41,438.856 KWD (24.8% vs 24.0% target across 418 entries). Enforcing daily morning poultry yield calibration at the Ardiya Central Kitchen will immediately recover 1,336 KWD per month (+16,032 KWD annually).';
+      ? `تكلفة الأغذية المرحّلة في أودو ${n3(LEDGER.cogs)} د.ك بنسبة ${n1(LEDGER.cogsPct)}% من الإيراد مقابل المستهدف ${n1(LEDGER.cogsTargetPct)}%. برنامج إنتاجية الدواجن والتتبيل في المطبخ المركزي يستهدف وفراً مقدّراً ${n0(LEDGER.cogsRecoverable)} د.ك شهرياً، ونحتاج صلاحية قراءة تكلفة المنتجات في أودو لحساب هامش كل صنف بدقة.`
+      : `Odoo posted COGS is ${n3(LEDGER.cogs)} KWD, ${n1(LEDGER.cogsPct)}% of revenue against the ${n1(LEDGER.cogsTargetPct)}% target. The central-kitchen poultry and marination yield programme targets an estimated ${n0(LEDGER.cogsRecoverable)} KWD per month, and read access to product cost in Odoo is needed for exact per-item margins.`;
   }
 
-  if (q.includes('كيتا') || q.includes('keeta') || q.includes('tgo') || q.includes('tmp') || q.includes('طلبات') || q.includes('talabat') || q.includes('خصم') || q.includes('discount') || q.includes('توصيل')) {
+  if (has('كيتا', 'keeta', 'tgo', 'tmp', 'طلبات', 'talabat', 'خصم', 'discount', 'توصيل', 'delivery')) {
     return isAr
-      ? 'إجمالي الخصومات الترويجية بلغ 4,152.000 د.ك منها 2,544 د.ك على منصة كيتا وحدها عبر 6,267 طلب. بتطبيق سقف خصم 3.5% على كيتا (من 2,544 إلى 924 د.ك) نوفر 1,620 د.ك شهرياً، ومع المشروب الإلزامي في وجبات التوصيل على طلبات جو وسوق طلبات لرفع السلة من 5.471 إلى 5.750 د.ك نربح 2,450 د.ك إضافية شهرياً.'
-      : 'Total promotional discounts reached 4,152.000 KWD, with 2,544 KWD concentrated on Keeta across 6,267 orders. Capping Keeta promos at 3.5% (2,544 to 924 KWD) saves 1,620 KWD/month, while a mandatory beverage in Talabat Tgo & TMP delivery combos lifts AOV from 5.471 to 5.750 KWD (+2,450 KWD/month).';
+      ? `إجمالي الخصومات في أودو ${n3(LEDGER.discounts)} د.ك، منها عروض كيتا ${n3(LEDGER.keetaDiscounts)} د.ك عبر ${n0(KEETA_CH?.orders ?? 0)} عملية دفع. سقف ${LEDGER.keetaCapPct}% على كيتا يساوي ${n3(LEDGER.keetaCapKwd)} د.ك ويوفر ${n0(LEDGER.keetaRecovery)} د.ك شهرياً، ومبيعات المنصات تمثل ${n1(shareOf(AGGREGATOR_SALES, LEDGER.netSales))}% من صافي المبيعات.`
+      : `Odoo discounts total ${n3(LEDGER.discounts)} KWD, including ${n3(LEDGER.keetaDiscounts)} KWD of Keeta promotions across ${n0(KEETA_CH?.orders ?? 0)} payments. A ${LEDGER.keetaCapPct}% Keeta cap is ${n3(LEDGER.keetaCapKwd)} KWD and saves ${n0(LEDGER.keetaRecovery)} KWD a month; aggregators make ${n1(shareOf(AGGREGATOR_SALES, LEDGER.netSales))}% of net sales.`;
   }
 
-  if (q.includes('عهد') || q.includes('كوت') || q.includes('صيانة') || q.includes('مصروفات') || q.includes('opex') || q.includes('custod') || q.includes('kout') || q.includes('maintenance')) {
+  if (has('عهد', 'صيانة', 'مصروفات', 'opex', 'custod', 'maintenance')) {
     return isAr
-      ? 'رصد رادار أودو 51,154.950 د.ك مصروفات وعهد عبر 2,213 قيد محاسبي، أبرزها 10,707.930 د.ك عهد صيانة غير مقفلة في الكوت والسالمية (312 قيد). تجديد المبردات التجارية يوقف الإصلاحات النقدية المتكررة ويوفر 850 د.ك شهرياً، مع سقف عهدة نثرية 250 د.ك لكل فرع.'
-      : 'Odoo audit radar tracked 51,154.950 KWD in Opex & custodies across 2,213 entries, including 10,707.930 KWD in Al-Kout & Salmiya maintenance custodies (312 entries). A commercial chiller overhaul ends the repeated cash repairs and recovers 850 KWD/month, backed by a 250 KWD petty-cash cap per branch.';
+      ? `المصروفات التشغيلية المرحّلة في أودو ${n3(LEDGER.opex)} د.ك (${n1(LEDGER.opexPct)}% من الإيراد) والإهلاك ${n3(LEDGER.depreciation)} د.ك. برنامج عهد الصيانة (تقدير إداري) يغطي ${n3(LEDGER.maintCustody)} د.ك عبر ${LEDGER.maintEntries} قيداً في مجمع الكوت والسالمية، وتجديد المبردات يوفر ${n0(LEDGER.chillerRecovery)} د.ك شهرياً مع سقف عهدة 250 د.ك لكل فرع.`
+      : `Odoo posted operating expenses are ${n3(LEDGER.opex)} KWD (${n1(LEDGER.opexPct)}% of revenue) plus ${n3(LEDGER.depreciation)} KWD depreciation. The maintenance custody programme (management estimate) covers ${n3(LEDGER.maintCustody)} KWD across ${LEDGER.maintEntries} entries in Al-Kout Mall and Salmiya; a chiller overhaul saves ${n0(LEDGER.chillerRecovery)} KWD a month with a 250 KWD petty-cash cap per branch.`;
   }
 
-  if (q.includes('توقع') || q.includes('ربع') || q.includes('سنو') || q.includes('600') || q.includes('q1') || q.includes('forecast') || q.includes('roadmap') || q.includes('target') || q.includes('خطة')) {
+  if (has('ربع', 'سنو', 'q1', 'roadmap', 'target', 'خطة', 'projection')) {
     return isAr
-      ? 'بتطبيق خطتي الرباعية، يرتفع صافي الربح الشهري بمقدار 7,640 د.ك (+18%). ستحقق فينشر فودز في الربع الأول مكاسب إضافية +20,520 د.ك (إجمالي ربح 147,844 د.ك)، وفي نصف السنة +43,800 د.ك (إجمالي 298,449 د.ك)، وصولاً إلى 600,978 د.ك صافي ربح سنوي!'
-      : 'Executing our 4-pillar recovery plan adds +7,640 KWD/month (+18% profit surge). Venture Foods will achieve +20,520 KWD added gain in Q1 (147,844 KWD total profit), +43,800 KWD in H1 (298,449 KWD total), and 600,978 KWD in full-year net operating profit.';
+      ? `بتطبيق روافع الربح يرتفع صافي الربح بمقدار ${n0(LEVERS_MONTHLY_TOTAL)} د.ك شهرياً (تقدير إداري) فوق ربح أودو الشهري ${n3(LEDGER.netProfit)} د.ك: الربع الأول ${n0(ROADMAP_Q1.total)} د.ك، والنصف الأول ${n0(ROADMAP_H1.total)} د.ك، والسنة الكاملة ${n0(ROADMAP_FY.total)} د.ك.`
+      : `The profit levers add an estimated ${n0(LEVERS_MONTHLY_TOTAL)} KWD a month on top of the ${n3(LEDGER.netProfit)} KWD Odoo monthly operating profit: Q1 ${n0(ROADMAP_Q1.total)} KWD, H1 ${n0(ROADMAP_H1.total)} KWD and ${n0(ROADMAP_FY.total)} KWD for the full year.`;
   }
 
-  if (q.includes('علام') || q.includes('تشاينا') || q.includes('فرانكس') || q.includes('brand') || q.includes('china') || q.includes('frank')) {
+  if (has('علام', 'براند', 'brand', ...BRANDS.flatMap((b) => [b.en.toLowerCase(), b.ar]))) {
     return isAr
-      ? 'تدير فينشر فودز 7 علامات نشطة: تتصدرها تشاينا جاردن بنسبة 84.8% من المبيعات (141,662 د.ك)، وتتميز فرانكس بأعلى متوسط سلة (7.490 د.ك)، إلى جانب طحينة وفارم براون وفريش ديلي كانتين وذا نودل بار وكرك كافتيريا عبر 11 قناة بيع.'
-      : 'Venture Foods operates 7 active brands led by China Garden at 84.8% revenue share (141,662 KWD) and Frank\'s with the highest basket AOV at 7.490 KWD, alongside Tahina, Farm Brown, Fresh Daily Canteen, The Noodle Bar and Karak Cafeteria across 11 sales channels.';
+      ? `تبيع فنتشر فودز عبر ${BRANDS.length} علامات نشطة في أودو: تتصدرها ${LEAD_BRAND?.ar} بنسبة ${n1(shareOf(LEAD_BRAND?.sales ?? 0, BRAND_ITEM_SUM))}% من مبيعات الأصناف (${n3(LEAD_BRAND?.sales ?? 0)} د.ك)، وأعلى متوسط سلة لدى ${TOP_AOV_BRAND?.ar} (${n3(TOP_AOV_BRAND?.aov ?? 0)} د.ك). العلامات: ${BRAND_NAMES_AR}، عبر ${CHANNELS.length} قنوات بيع.`
+      : `Venture Foods sells through ${BRANDS.length} active Odoo brands, led by ${LEAD_BRAND?.en} at ${n1(shareOf(LEAD_BRAND?.sales ?? 0, BRAND_ITEM_SUM))}% of item sales (${n3(LEAD_BRAND?.sales ?? 0)} KWD), with ${TOP_AOV_BRAND?.en} holding the highest basket at ${n3(TOP_AOV_BRAND?.aov ?? 0)} KWD — ${BRANDS.map((b) => b.en).join(', ')} across ${CHANNELS.length} sales channels.`;
   }
 
   return isAr
-    ? 'أهلاً بك في مركز القيادة التنفيذي لشركة فينشر فودز! صافي المبيعات الموثق 167,092.160 د.ك عبر 30,540 طلب، وصافي الربح التشغيلي 42,441.480 د.ك (بهامش 25.4%). بإمكاننا استرداد 7,640 د.ك إضافية شهرياً للوصول إلى 600,978 د.ك سنوياً عبر ضبط هدر العارضية وعهد الكوت وخصومات كيتا.'
-    : 'Welcome to the Venture Foods Executive Command Center! Verified Net Sales stand at 167,092.160 KWD across 30,540 orders with 42,441.480 KWD Net Operating Profit (25.4% margin). We can unlock +7,640 KWD/month (+600,978 KWD annual profit) by optimizing Ardiya COGS, Al-Kout custodies, and Keeta promos.';
+    ? `أهلاً بك في مركز القيادة التنفيذي لفنتشر فودز! صافي مبيعات نقاط البيع في أودو لشهر ${LEDGER.periodLabelAr} ${n3(LEDGER.netSales)} د.ك عبر ${n0(LEDGER.orders)} طلباً، وصافي الربح التشغيلي ${n3(LEDGER.netProfit)} د.ك بهامش ${n1(LEDGER.marginPct)}%. الروافع المقترحة: ${LEVER_LIST_AR}.`
+    : `Welcome to the Venture Foods Executive Command Center! Odoo POS net sales for ${LEDGER.periodLabelEn} are ${n3(LEDGER.netSales)} KWD across ${n0(LEDGER.orders)} orders, with ${n3(LEDGER.netProfit)} KWD net operating profit (${n1(LEDGER.marginPct)}% margin). Proposed levers: ${LEVER_LIST_EN}.`;
 }
 
 /**
@@ -454,8 +502,8 @@ export async function askFeryalGeminiBrain({
       formData.append(
         'prompt',
         isAr
-          ? 'فريال، فينشر فودز، أودو، السالمية، العارضية، الكوت، تشاينا جاردن، فرانكس، طحينة، ذا نودل بار، كيتا، طلبات، Tgo، TMP'
-          : 'Feryal, Venture Foods, Odoo, Salmiya, Ardiya, Al-Kout, China Garden, Franks, Tahina, The Noodle Bar, Keeta, Talabat, Tgo, TMP'
+          ? `فريال، فنتشر فودز، أودو، ${LOCATION_NAMES_AR}، ${BRAND_NAMES_AR}، كيتا، طلبات، Tgo، TMP`
+          : `Feryal, Venture Foods, Odoo, ${LOCATION_NAMES_EN}, ${BRANDS.map((b) => b.en).join(', ')}, Keeta, Talabat, Tgo, TMP`
       );
 
       const sttRes = await fetch('https://api.openai.com/v1/audio/transcriptions', {

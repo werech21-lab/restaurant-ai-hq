@@ -39,49 +39,54 @@ import { askFeryalGeminiBrain } from '@/lib/feryal-gemini-brain'
 import { useBiFilters } from '@/components/aether/BiFilterContext'
 import { FeryalRichText } from '@/components/aether/FeryalRichText'
 import { FeryalWhatIfCalculator } from '@/components/aether/FeryalWhatIfCalculator'
-import { BRANDS, BRANCHES, CHANNELS, PERIODS } from '@/lib/aether/ledger'
+import { BRANDS, BRANCHES, CHANNELS, LEDGER, LEVERS, PERIODS, ROADMAP, ROADMAP_BASELINE } from '@/lib/aether/ledger'
+import { ODOO } from '@/lib/odoo/odoo-dataset'
 
 // ==============================================================================
-// 1. MASTER ODOO DATASET (OFFICIAL OCTOBER BENCHMARK)
+// 1. LIVE ODOO DATASET (whitelisted POS registers · src/lib/odoo/odoo-dataset.ts)
 // ==============================================================================
-const MASTER_ODOO_METRICS = {
-  netSalesKwd: 167092.16,
-  ordersCount: 30540,
-  aovKwd: 5.471,
-  operatingProfitKwd: 42441.48,
-  profitMarginPct: 25.4,
-  foodCostKwd: 41438.856,
-  foodCostPct: 24.8,
-  foodCostTargetPct: 24.0,
-  operatingExpensesKwd: 51154.95,
-  custodyEntriesCount: 2213,
-  rabihMaintenanceCustodyKwd: 10707.93,
-  discountsKwd: 4152.0,
-  discountsPct: 2.4,
-  keetaDiscountsKwd: 2544.0,
-  brandsCount: 6,
-  channelsCount: 11,
-  branchesCount: 9,
-  activeMenuItemsCount: 364,
-  topItemsSalesConcentrationPct: 80.0,
-  topItemsCount: 32,
-}
+const fx3 = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
+const fx1 = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+const fx0 = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 0 })
 
-// 9 Active Operational Branches
-const VERIFIED_BRANCHES = [
-  { id: 'Salmiya', nameAr: 'السالمية', nameEn: 'Salmiya', salesKwd: 31246.23, orders: 5710, share: 18.7, rank: 1, bestChannelAr: 'طلبات جو (توصيل المنصة)', bestChannelEn: 'Talabat Tgo', statusAr: 'مثالي', statusEn: 'Optimal' },
-  { id: 'Al-Kout', nameAr: 'الكوت / الفحيحيل', nameEn: 'Al-Kout / Fahaheel', salesKwd: 27904.39, orders: 5100, share: 16.7, rank: 2, bestChannelAr: 'سوق طلبات (توصيل المطعم)', bestChannelEn: 'Talabat TMP', statusAr: 'مثالي', statusEn: 'Optimal' },
-  { id: 'Sharq', nameAr: 'شرق', nameEn: 'Sharq', salesKwd: 24896.73, orders: 4550, share: 14.9, rank: 3, bestChannelAr: 'دليفرو', bestChannelEn: 'Deliveroo', statusAr: 'مثالي', statusEn: 'Optimal' },
-  { id: 'Hawally', nameAr: 'حولي', nameEn: 'Hawally', salesKwd: 21387.79, orders: 3910, share: 12.8, rank: 4, bestChannelAr: 'كيتا', bestChannelEn: 'Keeta', statusAr: 'يحتاج صيانة مبردات', statusEn: 'Chiller Repairs Required' },
-  { id: 'Farwaniya', nameAr: 'الفروانية', nameEn: 'Farwaniya', salesKwd: 18045.95, orders: 3300, share: 10.8, rank: 5, bestChannelAr: 'طلبات جو (توصيل المنصة)', bestChannelEn: 'Talabat Tgo', statusAr: 'مثالي', statusEn: 'Optimal' },
-  { id: 'Ardiya', nameAr: 'العارضية الحرفية', nameEn: 'Ardiya Central', salesKwd: 15372.48, orders: 2810, share: 9.2, rank: 6, bestChannelAr: 'المطبخ المركزي', bestChannelEn: 'Central Hub', statusAr: 'معايرة هدر التتبيل', statusEn: 'Prep Waste Calibration' },
-  { id: 'Mahboula', nameAr: 'المهبولة', nameEn: 'Mahboula', salesKwd: 11238.29, orders: 2055, share: 6.7, rank: 7, bestChannelAr: 'سوق طلبات (توصيل المطعم)', bestChannelEn: 'Talabat TMP', statusAr: 'مثالي', statusEn: 'Optimal' },
-  { id: 'Mubarak-Al-Kabeer', nameAr: 'مبارك الكبير / صباح السالم', nameEn: 'Mubarak Al-Kabeer', salesKwd: 9200.3, orders: 1680, share: 5.5, rank: 8, bestChannelAr: 'طلبات جو (توصيل المنصة)', bestChannelEn: 'Talabat Tgo', statusAr: 'نمو متصاعد', statusEn: 'Rapid Growth' },
-  { id: 'Jabriya', nameAr: 'الجابرية', nameEn: 'Jabriya', salesKwd: 7800.0, orders: 1425, share: 4.7, rank: 9, bestChannelAr: 'طلبات جو (توصيل المنصة)', bestChannelEn: 'Talabat Tgo', statusAr: 'مثالي', statusEn: 'Optimal' },
-]
+const KEETA_CHANNEL = CHANNELS.find((c) => c.id === 'keeta')
+const BRAND_ITEM_TOTAL = BRANDS.reduce((s, b) => s + b.sales, 0)
+const BRANDS_BY_SALES = [...BRANDS].sort((a, b) => b.sales - a.sales)
+const LEAD_BRAND = BRANDS_BY_SALES[0]
+const SECOND_BRAND = BRANDS_BY_SALES[1]
+const OTHER_BRANDS = BRANDS_BY_SALES.slice(2)
+const OTHER_BRANDS_SALES = OTHER_BRANDS.reduce((s, b) => s + b.sales, 0)
+const OTHER_BRANDS_ORDERS = OTHER_BRANDS.reduce((s, b) => s + b.orders, 0)
+const TOP_AOV_BRAND = [...BRANDS].sort((a, b) => b.aov - a.aov)[0]
+const BRANCHES_BY_PROFIT = [...BRANCHES].sort((a, b) => b.profit - a.profit)
+const TOP_PROFIT_BRANCH = BRANCHES_BY_PROFIT[0]
+const BRANCHES_BY_SALES = [...BRANCHES].sort((a, b) => b.sales - a.sales)
+const DELIVERY_LISTED_BRANCHES = ODOO.restaurants.filter((l) => l.channels.some((c) => ['talabat-tgo', 'talabat-tmp', 'keeta', 'deliveroo-go'].includes(c.channel) && c.amountKwd > 0)).length
+const COST_LEVERS_MONTHLY = LEVERS.filter((l) => l.kind === 'cost').reduce((s, l) => s + l.monthly, 0)
+const GROWTH_LEVERS_MONTHLY = LEVERS.filter((l) => l.kind === 'growth').reduce((s, l) => s + l.monthly, 0)
+const LEVER_MONTHLY = (id: string) => LEVERS.find((l) => l.id === id)?.monthly ?? 0
+
+// Permanent restaurant locations ranked by Odoo POS sales (EXB and school canteens are separate units)
+const VERIFIED_BRANCHES = BRANCHES_BY_SALES.map((b, i) => {
+  const ch = CHANNELS.find((c) => c.id === b.topChannel)
+  return {
+    id: b.id,
+    nameAr: b.ar,
+    nameEn: b.en,
+    salesKwd: b.sales,
+    orders: b.orders,
+    share: Math.round((b.sales / LEDGER.netSales) * 1000) / 10,
+    rank: i + 1,
+    bestChannelAr: ch?.ar ?? '—',
+    bestChannelEn: ch?.en ?? '—',
+    statusAr: `${b.statusAr} · ربح ${fx3(b.profit)} د.ك (${fx1(b.marginPct)}%)`,
+    statusEn: `${b.statusEn} · profit ${fx3(b.profit)} KWD (${fx1(b.marginPct)}%)`,
+    tone: b.tone,
+  }
+})
 
 // ==============================================================================
-// 2. STRATEGIC ENGINE PRE-CONFIGURED DATA
+// 2. STRATEGIC ENGINE PRE-CONFIGURED DATA (levers are management estimates)
 // ==============================================================================
 interface SolutionItem {
   id: string
@@ -98,40 +103,40 @@ interface SolutionItem {
 
 const STRATEGIC_SOLUTIONS: SolutionItem[] = [
   {
-    id: 'sol-ardiya',
-    titleAr: 'ضبط هدر التتبيل في مطبخ العارضية المركزي',
+    id: 'sol-central-kitchen',
+    titleAr: 'ضبط هدر التتبيل في المطبخ المركزي',
     titleEn: 'Central Prep & Marination Yield Calibration',
-    locationAr: 'مطبخ العارضية المركزي',
-    locationEn: 'Ardiya Central Prep Facility',
-    monthlySavingsKwd: 1336,
+    locationAr: 'المطبخ المركزي',
+    locationEn: 'Central Kitchen',
+    monthlySavingsKwd: LEVER_MONTHLY('ardiya-yield'),
     badgeAr: 'تكلفة الأغذية والمواد',
     badgeEn: 'Food Cost (COGS)',
-    detailsAr: 'إعادة ضبط أوزان خلطات التتبيل وتوحيد تقطيع الدجاج يقلص الفاقد بنسبة 1.6% ويعيد تكلفة المواد للمستهدف 24.0%.',
-    detailsEn: 'Standardizing marinade batch weights and raw poultry prep cuts recovers 1.6% yield, aligning food cost to target 24.0%.',
+    detailsAr: `تكلفة الأغذية في أودو ${fx1(LEDGER.cogsPct)}% مقابل المستهدف ${fx1(LEDGER.cogsTargetPct)}%؛ إعادة ضبط أوزان خلطات التتبيل وتوحيد تقطيع الدجاج تقلص الفاقد (تقدير إداري).`,
+    detailsEn: `Odoo COGS is ${fx1(LEDGER.cogsPct)}% against the ${fx1(LEDGER.cogsTargetPct)}% target; standardizing marinade batch weights and poultry prep cuts reduces yield loss (management estimate).`,
   },
   {
-    id: 'sol-hawally',
-    titleAr: 'استبدال وحدات التبريد وخفض استهلاك الطاقة',
+    id: 'sol-chillers',
+    titleAr: 'تجديد وحدات التبريد وخفض استهلاك الطاقة',
     titleEn: 'Commercial Chiller Overhaul & Energy Efficiency',
-    locationAr: 'فرع حولي',
-    locationEn: 'Hawally Branch',
-    monthlySavingsKwd: 850,
+    locationAr: 'مجمع الكوت والسالمية',
+    locationEn: 'Al-Kout Mall & Salmiya',
+    monthlySavingsKwd: LEVER_MONTHLY('chiller-overhaul'),
     badgeAr: 'المصروفات والصيانة',
     badgeEn: 'Opex & Maintenance',
-    detailsAr: 'استبدال 3 مبردات قديمة متهالكة يخفض استهلاك الكهرباء والصيانة الدورية ويمنع تلف الخضار واللحوم.',
-    detailsEn: 'Upgrading 3 degraded commercial chillers reduces electric tariff loads and prevents raw perishables spoilage.',
+    detailsAr: `يوقف الإصلاحات النقدية المتكررة خلف عهدة صيانة ${fx3(LEDGER.maintCustody)} د.ك عبر ${LEDGER.maintEntries} قيداً (تقدير إداري).`,
+    detailsEn: `Ends the repeated cash repairs behind ${fx3(LEDGER.maintCustody)} KWD of maintenance custody across ${LEDGER.maintEntries} entries (management estimate).`,
   },
   {
     id: 'sol-keeta',
     titleAr: 'ضبط وترشيد خصومات حملات كيتا',
     titleEn: 'Cap Keeta Platform Marketing Subsidies',
-    locationAr: 'منصة كيتا (كافة الفروع)',
-    locationEn: 'Keeta Aggregator (All Branches)',
-    monthlySavingsKwd: 1620,
+    locationAr: 'منصة كيتا (كافة المواقع)',
+    locationEn: 'Keeta Aggregator (All Locations)',
+    monthlySavingsKwd: LEDGER.keetaRecovery,
     badgeAr: 'كفاءة التسويق',
     badgeEn: 'Marketing Yield',
-    detailsAr: 'وضع سقف للخصومات الترويجية وخفض الحرق من 2,544 د.ك إلى 924 د.ك شهرياً مع الحفاظ على معدل تحويل الطلبات.',
-    detailsEn: 'Capping aggressive promo burn from 2,544 KWD to 924 KWD monthly while preserving customer order conversion.',
+    detailsAr: `عروض كيتا في أودو ${fx3(LEDGER.keetaDiscounts)} د.ك؛ سقف ${LEDGER.keetaCapPct}% يخفضها إلى ${fx3(LEDGER.keetaCapKwd)} د.ك شهرياً مع الحفاظ على معدل تحويل الطلبات.`,
+    detailsEn: `Odoo shows ${fx3(LEDGER.keetaDiscounts)} KWD of Keeta promotions; a ${LEDGER.keetaCapPct}% cap brings them to ${fx3(LEDGER.keetaCapKwd)} KWD a month while preserving conversion.`,
   },
 ]
 
@@ -151,21 +156,21 @@ const STRATEGIC_PROPOSALS: ProposalItem[] = [
     id: 'prop-drinks',
     titleAr: 'إلزام إضافة المشروبات للوجبات ومجموعات الكومبو',
     titleEn: 'Mandatory Beverage Attachment in Combo Meals',
-    expectedMonthlyGainKwd: 2450,
+    expectedMonthlyGainKwd: LEDGER.beverageGain,
     badgeAr: 'رفع متوسط السلة',
     badgeEn: 'AOV Expansion',
-    mechanismAr: 'رفع متوسط سلة الشراء من 5.471 د.ك إلى 5.750 د.ك بإدراج المشروب الإلزامي لكافة وجبات الكومبو بتطبيقات التوصيل.',
-    mechanismEn: 'Elevating Group AOV from 5.471 to 5.750 KWD by bundling high-margin soft beverages in all delivery combo items.',
+    mechanismAr: `رفع متوسط سلة الشراء من ${fx3(LEDGER.aov)} د.ك إلى ${fx3(LEDGER.aovTarget)} د.ك بإدراج المشروب الإلزامي لكافة وجبات الكومبو بتطبيقات التوصيل.`,
+    mechanismEn: `Elevating group AOV from ${fx3(LEDGER.aov)} to ${fx3(LEDGER.aovTarget)} KWD by bundling high-margin soft beverages in all delivery combo items.`,
   },
   {
     id: 'prop-menu-eng',
     titleAr: 'إعادة هندسة قائمة الطعام وتعديل الأسعار',
     titleEn: 'Menu Matrix Rationalization (Dogs & Plowhorses)',
-    expectedMonthlyGainKwd: 584,
+    expectedMonthlyGainKwd: LEDGER.menuMatrixGain,
     badgeAr: 'تعظيم الهامش الربحي',
     badgeEn: 'Margin Optimization',
-    mechanismAr: 'استبعاد 18 صنفاً بطيئ الحركة وتعديل أسعار 4 أصناف شعبية بنسبة +5% لتوليد ربح صافي مباشر.',
-    mechanismEn: 'Purging 18 sluggish Dog items and adjusting prices of 4 popular Plowhorses by +5% to generate pure margin.',
+    mechanismAr: `استبعاد ${LEDGER.menuDogsPurge} صنفاً بطيء الحركة وتعديل أسعار ${LEDGER.menuPlowhorsesReprice} أصناف شعبية بنسبة +5% من أصل ${LEDGER.menuItems} صنفاً مبيعاً في أودو.`,
+    mechanismEn: `Purging ${LEDGER.menuDogsPurge} sluggish Dog items and re-pricing ${LEDGER.menuPlowhorsesReprice} popular Plowhorses by +5% across ${LEDGER.menuItems} Odoo items sold.`,
   },
 ]
 
@@ -190,10 +195,10 @@ const STRATEGIC_EXECUTION_PLANS: ExecutionPlanItem[] = [
     weekEn: 'Week 1',
     departmentAr: 'المطبخ المركزي والجودة',
     departmentEn: 'Central Kitchen & QC',
-    titleAr: 'معايرة مقادير التتبيل وموازين مطبخ العارضية',
-    titleEn: 'Calibrate Marinades & Portion Scales at Ardiya',
-    targetKpiAr: 'خفض الهدر وتوفير 1,336 د.ك شهرياً',
-    targetKpiEn: 'Cut waste & save 1,336 KWD/month',
+    titleAr: 'معايرة مقادير التتبيل وموازين المطبخ المركزي',
+    titleEn: 'Calibrate Marinades & Portion Scales at the Central Kitchen',
+    targetKpiAr: `خفض الهدر وتوفير ${fx0(LEVER_MONTHLY('ardiya-yield'))} د.ك شهرياً`,
+    targetKpiEn: `Cut waste & save ${fx0(LEVER_MONTHLY('ardiya-yield'))} KWD/month`,
     actionType: 'dispatch_operations_plan',
     status: 'pending',
   },
@@ -203,10 +208,10 @@ const STRATEGIC_EXECUTION_PLANS: ExecutionPlanItem[] = [
     weekEn: 'Week 2',
     departmentAr: 'الصيانة والمشتريات',
     departmentEn: 'Maintenance & Procurement',
-    titleAr: 'شراء وتوريد المبردات الحديثة لفرع حولي',
-    titleEn: 'Procure & Install Inverter Chillers for Hawally',
-    targetKpiAr: 'خفض استهلاك الكهرباء والصيانة بـ 850 د.ك',
-    targetKpiEn: 'Cut utility & repairs by 850 KWD/month',
+    titleAr: 'تجديد المبردات التجارية في مجمع الكوت والسالمية',
+    titleEn: 'Overhaul Commercial Chillers at Al-Kout Mall & Salmiya',
+    targetKpiAr: `خفض استهلاك الكهرباء والصيانة بـ ${fx0(LEVER_MONTHLY('chiller-overhaul'))} د.ك`,
+    targetKpiEn: `Cut utility & repairs by ${fx0(LEVER_MONTHLY('chiller-overhaul'))} KWD/month`,
     actionType: 'dispatch_chiller_plan',
     status: 'pending',
   },
@@ -218,8 +223,8 @@ const STRATEGIC_EXECUTION_PLANS: ExecutionPlanItem[] = [
     departmentEn: 'Marketing & Channels',
     titleAr: 'تطبيق سقف خصومات كيتا وتعديل مصفوفة العروض',
     titleEn: 'Apply Keeta Promo Cap & Revamp Delivery Tiers',
-    targetKpiAr: 'وفر تسويقي فوري قدره 1,620 د.ك شهرياً',
-    targetKpiEn: 'Direct promo savings of 1,620 KWD/month',
+    targetKpiAr: `وفر تسويقي فوري قدره ${fx0(LEDGER.keetaRecovery)} د.ك شهرياً`,
+    targetKpiEn: `Direct promo savings of ${fx0(LEDGER.keetaRecovery)} KWD/month`,
     actionType: 'dispatch_keeta_cap',
     status: 'pending',
   },
@@ -231,8 +236,8 @@ const STRATEGIC_EXECUTION_PLANS: ExecutionPlanItem[] = [
     departmentEn: 'Operations & POS Tech',
     titleAr: 'تفعيل المشروب الإلزامي وتحديث أسعار المنيو 5%',
     titleEn: 'Enforce Combo Drinks & Apply 5% Plowhorse Pricing',
-    targetKpiAr: 'نمو الإيراد الشهري بمقدار +3,034 د.ك',
-    targetKpiEn: 'Boost monthly gross revenue by +3,034 KWD',
+    targetKpiAr: `نمو الربح الشهري بمقدار +${fx0(LEDGER.beverageGain + LEDGER.menuMatrixGain)} د.ك`,
+    targetKpiEn: `Boost monthly profit by +${fx0(LEDGER.beverageGain + LEDGER.menuMatrixGain)} KWD`,
     actionType: 'dispatch_combo_drinks',
     status: 'pending',
   },
@@ -250,15 +255,18 @@ const DEFAULT_PERPLEXITY_AR = `تقرير استخبارات السوق الكو
 • الدواجن الطازجة والمجمدة: أسعار كرتون الدجاج البرازيلي مستقرة عند أحد عشر ديناراً وأربعمائة فلس مع وفرة في المعروض.
 • زيوت القلي النقية: برميل زيت الذرة سعة عشرين لتراً يتداول عند ثمانية دنانير وسبعمائة وخمسين فلساً، مع توصية بالشراء الآجل لتفادي زيادة متوقعة بنسبة أربعة بالمئة.
 • الخضار والورقيات بسوق الفرضة بالصليبية: انخفاض بنسبة ستة بالمئة في أسعار البصل والبطاطس، وارتفاع طفيف في الطماطم المحمية.
-• منصات التوصيل: اشتداد حدة المنافسة بين منصتي طلبات وكيتا، مع عروض توصيل مجاني تجذب شرائح جديدة في حولي والسالمية.
-توصية فريال: تثبيت عقود توريد الزيوت لشهر نوفمبر في مطبخ العارضية المركزي لتحقيق وفر مباشر قدره أربعمائة وخمسون ديناراً كويتياً.`
+• منصات التوصيل: اشتداد حدة المنافسة بين منصتي طلبات وكيتا، مع عروض توصيل مجاني تجذب شرائح جديدة في السالمية والفحيحيل.
+توصية فريال: تثبيت عقود توريد الزيوت لشهر نوفمبر للمطبخ المركزي لتحقيق وفر مباشر قدره أربعمائة وخمسون ديناراً كويتياً.`
 
 const DEFAULT_PERPLEXITY_EN = `Kuwait Restaurant Market Intelligence for Shuwaikh Wholesale Markets:
 • Poultry (Fresh & Frozen): Brazilian frozen chicken carton stabilized at 11.400 Kuwaiti Dinars with steady supply chains.
 • Pure Cooking Oil & Shortening: 20-liter corn oil drum trading at 8.750 Kuwaiti Dinars, with a recommended forward contract before an expected 4 percent price increase.
 • Vegetables & Greens (Al-Fardha - Sulaibiya): 6 percent price drop in bulk onions and potatoes; minor increase in greenhouse tomatoes.
-• Aggregator Dynamics: Fierce market competition between Talabat and Keeta; Keeta's aggressive subsidies drive user adoption in Hawally & Salmiya.
-Feryal Recommendation: Lock in November oil and poultry supply contracts for Ardiya Central Kitchen to capture 450 Kuwaiti Dinars in direct margin savings.`
+• Aggregator Dynamics: Fierce market competition between Talabat and Keeta; Keeta's aggressive subsidies drive user adoption in Salmiya & Fahaheel.
+Feryal Recommendation: Lock in November oil and poultry supply contracts for the central kitchen to capture 450 Kuwaiti Dinars in direct margin savings.`
+
+const WELCOME_AR = `مرحباً بك يا سعادة المدير. أنا المستشارة فريال، محرك الذكاء الاصطناعي التنفيذي لمجموعة فنتشر فودز. أراقب لحظياً ${fx3(LEDGER.netSales)} ديناراً كويتياً صافي مبيعات نقاط البيع و${fx0(LEDGER.orders)} طلباً في أودو لشهر ${LEDGER.periodLabelAr} عبر ${LEDGER.branches} مواقع مطاعم ووحدة المعارض ومقاصف المدارس. كيف ترغب أن نبدأ خطة تعظيم الأرباح وخفض التكاليف اليوم؟`
+const WELCOME_EN = `Greetings, Executive Leader. I am Feryal, your AI Executive Copilot for Venture Foods. I actively monitor ${fx3(LEDGER.netSales)} KWD of Odoo POS net sales and ${fx0(LEDGER.orders)} orders for ${LEDGER.periodLabelEn} across ${LEDGER.branches} restaurant locations, the exhibitions unit and school canteens. How would you like to accelerate profit margins and eliminate operational waste today?`
 
 /**
  * Client-side text sanitizer for speech fallback
@@ -372,9 +380,9 @@ export default function FeryalAiCommandPage() {
       id: 'welcome',
       sender: 'feryal',
       textAr:
-        'مرحباً بك يا سعادة المدير. أنا المستشارة فريال، محرك الذكاء الاصطناعي التنفيذي لمجموعة فنتشر فودز. أراقب لحظياً مائة وسبعة وستين ألفاً واثنين وتسعين ديناراً كويتياً مبيعات معتمدة وثلاثين ألفاً وخمسمائة وأربعين طلباً عبر أودو ورادارات التوصيل بدقة كاملة. كيف ترغب أن نبدأ خطة تعظيم الأرباح وخفض التكاليف اليوم؟',
+        WELCOME_AR,
       textEn:
-        'Greetings, Executive Leader. I am Feryal, your AI Executive Copilot for Venture Foods. I actively monitor 167,092.160 KWD in approved sales and 30,540 orders across Odoo and delivery aggregators with 100 percent ledger reconciliation. How would you like to accelerate profit margins and eliminate operational waste today?',
+        WELCOME_EN,
       time: isAr ? 'الآن' : 'Just now',
     },
   ])
@@ -833,9 +841,9 @@ export default function FeryalAiCommandPage() {
               ...m,
               time: isAr ? 'الآن' : 'Just now',
               textAr:
-                'مرحباً بك يا سعادة المدير. أنا المستشارة فريال، محرك الذكاء الاصطناعي التنفيذي لمجموعة فنتشر فودز. أراقب لحظياً مائة وسبعة وستين ألفاً واثنين وتسعين ديناراً كويتياً مبيعات معتمدة وثلاثين ألفاً وخمسمائة وأربعين طلباً عبر أودو ورادارات التوصيل بدقة كاملة. كيف ترغب أن نبدأ خطة تعظيم الأرباح وخفض التكاليف اليوم؟',
+                WELCOME_AR,
               textEn:
-                'Greetings, Executive Leader. I am Feryal, your AI Executive Copilot for Venture Foods. I actively monitor 167,092.160 KWD in approved sales and 30,540 orders across Odoo and delivery aggregators with 100 percent ledger reconciliation. How would you like to accelerate profit margins and eliminate operational waste today?',
+                WELCOME_EN,
             }
           : m
       )
@@ -930,9 +938,9 @@ export default function FeryalAiCommandPage() {
       // 3. Final verified benchmark fallback
       if (!replyAr && !replyEn) {
         replyAr =
-          'وفقاً لبيانات أودو لشهر أكتوبر، صافي المبيعات هو مائة وسبعة وستون ألفاً واثنان وتسعون ديناراً كويتياً، والأرباح التشغيلية اثنان وأربعون ألفاً وأربعمائة وواحد وأربعون ديناراً كويتياً بهامش خمسة وعشرين بالمئة. خطة خفض الهدر وسقف الخصومات جاهزة للتنفيذ.'
+          `وفقاً لبيانات أودو لشهر ${LEDGER.periodLabelAr}، صافي مبيعات نقاط البيع ${fx3(LEDGER.netSales)} ديناراً كويتياً، والربح التشغيلي ${fx3(LEDGER.netProfit)} ديناراً كويتياً بهامش ${fx1(LEDGER.marginPct)} بالمئة. خطة خفض الهدر وسقف الخصومات جاهزة للتنفيذ.`
         replyEn =
-          'According to October Odoo figures, Net Sales stand at 167,092.160 KWD and Operating Profit at 42,441.480 KWD (25.4% margin). Waste elimination and discount capping plans are ready to deploy.'
+          `According to ${LEDGER.periodLabelEn} Odoo figures, POS net sales stand at ${fx3(LEDGER.netSales)} KWD and operating profit at ${fx3(LEDGER.netProfit)} KWD (${fx1(LEDGER.marginPct)}% margin). Waste elimination and discount capping plans are ready to deploy.`
       }
 
       const feryalMsgId = `feryal-${Date.now()}`
@@ -1347,25 +1355,25 @@ export default function FeryalAiCommandPage() {
     const costFactor = costOptimizationSlider / 100
     const upsellFactor = revenueUpsellSlider / 100
 
-    // Monthly baseline gains: 4,536 KWD savings + 3,104 KWD added revenue = 7,640 KWD/mo
-    const monthlyAddedProfit = 4536 * costFactor + 3104 * upsellFactor
+    // Monthly lever gains (management estimates): cost levers + growth levers
+    const monthlyAddedProfit = COST_LEVERS_MONTHLY * costFactor + GROWTH_LEVERS_MONTHLY * upsellFactor
+    const leverMix = (costFactor + upsellFactor) / 2
+    const salesAt = (months: number) => LEDGER.revenue * months * (1 + (revenueUpsellSlider - 100) * 0.002)
 
-    // Q1 (3 months): +20,520 KWD added gain -> 147,844 KWD total profit at 100%
-    const q1AddedProfit = 20520 * ((costFactor + upsellFactor) / 2)
-    const q1Sales = 512400 * (1 + (revenueUpsellSlider - 100) * 0.002)
-    const q1Profit = 127324.44 + q1AddedProfit
+    // Baseline = Odoo monthly operating profit × months; increments = approved lever trajectory
+    const q1AddedProfit = ROADMAP[1].incremental * leverMix
+    const q1Sales = salesAt(3)
+    const q1Profit = ROADMAP_BASELINE.q1 + q1AddedProfit
     const q1Margin = (q1Profit / q1Sales) * 100
 
-    // H1 (6 months): +43,800 KWD added gain -> 298,449 KWD total profit at 100%
-    const h1AddedProfit = 43800 * ((costFactor + upsellFactor) / 2)
-    const h1Sales = 1038500 * (1 + (revenueUpsellSlider - 100) * 0.002)
-    const h1Profit = 254648.88 + h1AddedProfit
+    const h1AddedProfit = ROADMAP[2].incremental * leverMix
+    const h1Sales = salesAt(6)
+    const h1Profit = ROADMAP_BASELINE.h1 + h1AddedProfit
     const h1Margin = (h1Profit / h1Sales) * 100
 
-    // Annual (12 months): +91,680 KWD added gain -> 600,978 KWD total profit at 100%
-    const annualAddedProfit = 91680 * ((costFactor + upsellFactor) / 2)
-    const annualSales = 2115000 * (1 + (revenueUpsellSlider - 100) * 0.002)
-    const annualProfit = 509297.76 + annualAddedProfit
+    const annualAddedProfit = ROADMAP[3].incremental * leverMix
+    const annualSales = salesAt(12)
+    const annualProfit = ROADMAP_BASELINE.fy + annualAddedProfit
     const annualMargin = (annualProfit / annualSales) * 100
 
     return {
@@ -1437,7 +1445,7 @@ export default function FeryalAiCommandPage() {
             </h2>
           </div>
           <span className="text-xs sm:text-[13px] text-slate-600 dark:text-slate-400 font-bold font-mono">
-            {isAr ? 'شهر أكتوبر 2026 | مطابقة محاسبية 100%' : 'October 2026 | 100% Ledger Reconciled'}
+            {isAr ? `${LEDGER.periodLabelAr} | أودو مباشر` : `${LEDGER.periodLabelEn} | Live Odoo`}
           </span>
         </div>
 
@@ -1445,15 +1453,15 @@ export default function FeryalAiCommandPage() {
           {/* Card 1: Net Sales */}
           <div className="ae-tile ae-lift min-w-0 rounded-2xl p-5">
             <div className="flex items-start justify-between gap-2 text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-              <span>{isAr ? 'صافي المبيعات المعتمدة' : 'Approved Net Sales'}</span>
+              <span>{isAr ? 'صافي مبيعات نقاط البيع' : 'Odoo POS Net Sales'}</span>
               <DollarSign className="h-4 w-4 text-slate-500" />
             </div>
             <div className="mt-2.5 text-lg sm:text-xl xl:text-[22px] leading-tight break-words font-extrabold text-slate-950 dark:text-white font-mono tabular-nums tracking-tight">
-              167,092.160 <span className="ms-0.5 text-[11px] font-bold text-slate-500 font-sans">{isAr ? 'د.ك' : 'KWD'}</span>
+              {fx3(LEDGER.netSales)} <span className="ms-0.5 text-[11px] font-bold text-slate-500 font-sans">{isAr ? 'د.ك' : 'KWD'}</span>
             </div>
             <div className="mt-3 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-xs text-slate-600 dark:text-slate-400 font-medium border-t border-slate-100 dark:border-slate-800/80 pt-2.5">
-              <span>{isAr ? '30,540 طلباً' : '30,540 Orders'}</span>
-              <span className="text-slate-900 dark:text-white font-bold">{isAr ? 'متوسط السلة 5.471 د.ك' : 'AOV 5.471 KWD'}</span>
+              <span>{isAr ? `${fx0(LEDGER.orders)} طلباً` : `${fx0(LEDGER.orders)} Orders`}</span>
+              <span className="text-slate-900 dark:text-white font-bold">{isAr ? `متوسط السلة ${fx3(LEDGER.aov)} د.ك` : `AOV ${fx3(LEDGER.aov)} KWD`}</span>
             </div>
           </div>
 
@@ -1464,11 +1472,11 @@ export default function FeryalAiCommandPage() {
               <TrendingUp className="h-4 w-4 text-emerald-600" />
             </div>
             <div className="mt-2.5 text-lg sm:text-xl xl:text-[22px] leading-tight break-words font-extrabold text-emerald-700 dark:text-emerald-400 font-mono tabular-nums tracking-tight">
-              42,441.480 <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300 font-sans">{isAr ? 'د.ك' : 'KWD'}</span>
+              {fx3(LEDGER.netProfit)} <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300 font-sans">{isAr ? 'د.ك' : 'KWD'}</span>
             </div>
             <div className="mt-3 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-xs text-slate-600 dark:text-slate-400 font-medium border-t border-slate-100 dark:border-slate-800/80 pt-2.5">
               <span>{isAr ? 'هامش الربح' : 'Profit Margin'}</span>
-              <span className="text-emerald-700 dark:text-emerald-400 font-extrabold">25.4%</span>
+              <span className="text-emerald-700 dark:text-emerald-400 font-extrabold">{fx1(LEDGER.marginPct)}%</span>
             </div>
           </div>
 
@@ -1479,26 +1487,26 @@ export default function FeryalAiCommandPage() {
               <AlertTriangle className="h-4 w-4 text-amber-500" />
             </div>
             <div className="mt-2.5 text-lg sm:text-xl xl:text-[22px] leading-tight break-words font-extrabold text-slate-950 dark:text-white font-mono tabular-nums tracking-tight">
-              41,438.856 <span className="ms-0.5 text-[11px] font-bold text-slate-500 font-sans">{isAr ? 'د.ك' : 'KWD'}</span>
+              {fx3(LEDGER.cogs)} <span className="ms-0.5 text-[11px] font-bold text-slate-500 font-sans">{isAr ? 'د.ك' : 'KWD'}</span>
             </div>
             <div className="mt-3 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-xs text-slate-600 dark:text-slate-400 font-medium border-t border-slate-100 dark:border-slate-800/80 pt-2.5">
-              <span>{isAr ? 'الفعلي: 24.8%' : 'Actual: 24.8%'}</span>
-              <span className="text-amber-700 dark:text-amber-400 font-bold">{isAr ? 'المستهدف: 24.0%' : 'Target: 24.0%'}</span>
+              <span>{isAr ? `الفعلي: ${fx1(LEDGER.cogsPct)}%` : `Actual: ${fx1(LEDGER.cogsPct)}%`}</span>
+              <span className="text-amber-700 dark:text-amber-400 font-bold">{isAr ? `المستهدف: ${fx1(LEDGER.cogsTargetPct)}%` : `Target: ${fx1(LEDGER.cogsTargetPct)}%`}</span>
             </div>
           </div>
 
           {/* Card 4: Operating Expenses & Custody */}
           <div className="ae-tile ae-lift min-w-0 rounded-2xl p-5">
             <div className="flex items-start justify-between gap-2 text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-              <span>{isAr ? 'المصروفات والعهد' : 'Opex & Custodies'}</span>
+              <span>{isAr ? 'المصروفات التشغيلية' : 'Operating Expenses'}</span>
               <Layers className="h-4 w-4 text-slate-500" />
             </div>
             <div className="mt-2.5 text-lg sm:text-xl xl:text-[22px] leading-tight break-words font-extrabold text-slate-950 dark:text-white font-mono tabular-nums tracking-tight">
-              51,154.950 <span className="ms-0.5 text-[11px] font-bold text-slate-500 font-sans">{isAr ? 'د.ك' : 'KWD'}</span>
+              {fx3(LEDGER.opex)} <span className="ms-0.5 text-[11px] font-bold text-slate-500 font-sans">{isAr ? 'د.ك' : 'KWD'}</span>
             </div>
             <div className="mt-3 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-xs text-slate-600 dark:text-slate-400 font-medium border-t border-slate-100 dark:border-slate-800/80 pt-2.5">
-              <span>{isAr ? '2,213 قيداً' : '2,213 Entries'}</span>
-              <span className="text-slate-900 dark:text-white font-bold">{isAr ? 'عهدة رابح: 10.7 ألف د.ك' : 'Rabih: 10.7k KWD'}</span>
+              <span>{isAr ? `${fx1(LEDGER.opexPct)}% من الإيراد` : `${fx1(LEDGER.opexPct)}% of revenue`}</span>
+              <span className="text-slate-900 dark:text-white font-bold">{isAr ? `الإهلاك: ${fx0(LEDGER.depreciation)} د.ك` : `Depreciation: ${fx0(LEDGER.depreciation)} KWD`}</span>
             </div>
           </div>
 
@@ -1509,11 +1517,11 @@ export default function FeryalAiCommandPage() {
               <ArrowDownRight className="h-4 w-4 text-rose-600" />
             </div>
             <div className="mt-2.5 text-lg sm:text-xl xl:text-[22px] leading-tight break-words font-extrabold text-rose-700 dark:text-rose-400 font-mono tabular-nums tracking-tight">
-              4,152.000 <span className="text-xs font-bold text-rose-800 dark:text-rose-300 font-sans">{isAr ? 'د.ك' : 'KWD'}</span>
+              {fx3(LEDGER.discounts)} <span className="text-xs font-bold text-rose-800 dark:text-rose-300 font-sans">{isAr ? 'د.ك' : 'KWD'}</span>
             </div>
             <div className="mt-3 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-xs text-slate-600 dark:text-slate-400 font-medium border-t border-slate-100 dark:border-slate-800/80 pt-2.5">
-              <span>2.4% {isAr ? 'من المبيعات' : 'of Sales'}</span>
-              <span className="text-rose-700 dark:text-rose-400 font-extrabold">{isAr ? 'كيتا: 2,544 د.ك' : 'Keeta: 2,544 KWD'}</span>
+              <span>{fx1(LEDGER.discountsPct)}% {isAr ? 'من المبيعات' : 'of Sales'}</span>
+              <span className="text-rose-700 dark:text-rose-400 font-extrabold">{isAr ? `كيتا: ${fx0(LEDGER.keetaDiscounts)} د.ك` : `Keeta: ${fx0(LEDGER.keetaDiscounts)} KWD`}</span>
             </div>
           </div>
         </div>
@@ -1524,30 +1532,32 @@ export default function FeryalAiCommandPage() {
             <div className="flex items-center gap-2">
               <Building2 className="h-4 w-4 text-sky-600" />
               <span>
-                <strong className="text-slate-950 dark:text-white font-extrabold">6</strong> {isAr ? 'علامات تجارية نشطة' : 'Active Brands'}
+                <strong className="text-slate-950 dark:text-white font-extrabold">{LEDGER.brands}</strong> {isAr ? 'علامات تجارية نشطة' : 'Active Brands'}
               </span>
             </div>
             <div className="flex items-center gap-2">
               <Store className="h-4 w-4 text-emerald-600" />
               <span>
-                <strong className="text-slate-950 dark:text-white font-extrabold">9</strong> {isAr ? 'فروع تشغيلية فعلية نشطة' : 'Active Operational Branches'}
+                <strong className="text-slate-950 dark:text-white font-extrabold">{LEDGER.branches}</strong> {isAr ? 'مواقع مطاعم في أودو' : 'Odoo Restaurant Locations'}
               </span>
             </div>
             <div className="flex items-center gap-2">
               <Activity className="h-4 w-4 text-blue-600" />
               <span>
-                <strong className="text-slate-950 dark:text-white font-extrabold">11</strong> {isAr ? 'قناة بيع (تشمل طلبات جو وسوق طلبات)' : 'Sales Channels (Incl. Tgo & TMP)'}
+                <strong className="text-slate-950 dark:text-white font-extrabold">{LEDGER.channels}</strong> {isAr ? 'قنوات بيع (تشمل طلبات جو وسوق طلبات)' : 'Sales Channels (Incl. Tgo & TMP)'}
               </span>
             </div>
             <div className="flex items-center gap-2">
               <Zap className="h-4 w-4 text-amber-500" />
               <span>
-                <strong className="text-slate-950 dark:text-white font-extrabold">364</strong> {isAr ? 'صنفاً نشطاً (أعلى 32 صنفاً تشكل 80% من المبيعات)' : 'Menu Items (Top 32 = 80% Rev)'}
+                <strong className="text-slate-950 dark:text-white font-extrabold">{LEDGER.menuItems}</strong> {isAr ? `صنفاً مبيعاً (أعلى ${LEDGER.topItems} صنفاً تشكل ${LEDGER.topItemsSharePct}% من المبيعات)` : `Items Sold (Top ${LEDGER.topItems} = ${LEDGER.topItemsSharePct}% Rev)`}
               </span>
             </div>
           </div>
           <div className="text-slate-600 dark:text-slate-400 font-bold">
-            {isAr ? 'السالمية تتصدر بـ 31,246 د.ك (18.7%) | الكوت بـ 27,904 د.ك (16.7%)' : 'Salmiya Leads: 31,246 KWD (18.7%) | Al-Kout: 27,904 KWD (16.7%)'}
+            {isAr
+              ? `${VERIFIED_BRANCHES[0]?.nameAr} يتصدر المبيعات بـ ${fx0(VERIFIED_BRANCHES[0]?.salesKwd ?? 0)} د.ك (${VERIFIED_BRANCHES[0]?.share}%) | الأعلى ربحية: ${TOP_PROFIT_BRANCH?.ar} بـ ${fx0(TOP_PROFIT_BRANCH?.profit ?? 0)} د.ك`
+              : `${VERIFIED_BRANCHES[0]?.nameEn} leads sales: ${fx0(VERIFIED_BRANCHES[0]?.salesKwd ?? 0)} KWD (${VERIFIED_BRANCHES[0]?.share}%) | Top profit: ${TOP_PROFIT_BRANCH?.en} ${fx0(TOP_PROFIT_BRANCH?.profit ?? 0)} KWD`}
           </div>
         </div>
       </section>
@@ -1726,19 +1736,19 @@ export default function FeryalAiCommandPage() {
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 pt-3 border-t border-slate-200 dark:border-slate-800">
                           <div className="ae-tile rounded-xl p-2.5">
                             <span className="text-[11px] font-bold text-slate-500 block">{isAr ? 'صافي المبيعات' : 'Net Sales'}</span>
-                            <span className="font-extrabold text-slate-950 dark:text-white font-mono text-xs sm:text-sm">167,092 {isAr ? 'د.ك' : 'KWD'}</span>
+                            <span className="font-extrabold text-slate-950 dark:text-white font-mono text-xs sm:text-sm">{fx0(LEDGER.netSales)} {isAr ? 'د.ك' : 'KWD'}</span>
                           </div>
                           <div className="ae-tile rounded-xl p-2.5">
                             <span className="text-[11px] font-bold text-emerald-600 block">{isAr ? 'الربح التشغيلي' : 'Operating Profit'}</span>
-                            <span className="font-extrabold text-emerald-700 dark:text-emerald-400 font-mono text-xs sm:text-sm">42,441 {isAr ? 'د.ك' : 'KWD'} (25.4%)</span>
+                            <span className="font-extrabold text-emerald-700 dark:text-emerald-400 font-mono text-xs sm:text-sm">{fx0(LEDGER.netProfit)} {isAr ? 'د.ك' : 'KWD'} ({fx1(LEDGER.marginPct)}%)</span>
                           </div>
                           <div className="ae-tile rounded-xl p-2.5">
                             <span className="text-[11px] font-bold text-amber-600 block">{isAr ? 'تكلفة الأغذية' : 'COGS'}</span>
-                            <span className="font-extrabold text-amber-700 dark:text-amber-400 font-mono text-xs sm:text-sm">24.8% {isAr ? 'مقابل 24.0%' : 'vs 24.0%'}</span>
+                            <span className="font-extrabold text-amber-700 dark:text-amber-400 font-mono text-xs sm:text-sm">{fx1(LEDGER.cogsPct)}% {isAr ? `مقابل ${fx1(LEDGER.cogsTargetPct)}%` : `vs ${fx1(LEDGER.cogsTargetPct)}%`}</span>
                           </div>
                           <div className="ae-tile rounded-xl p-2.5">
                             <span className="text-[11px] font-bold text-blue-600 block">{isAr ? 'المستهدف السنوي' : 'Annual Target'}</span>
-                            <span className="font-extrabold text-blue-700 dark:text-blue-400 font-mono text-xs sm:text-sm">600,978 {isAr ? 'د.ك' : 'KWD'}</span>
+                            <span className="font-extrabold text-blue-700 dark:text-blue-400 font-mono text-xs sm:text-sm">{fx0(ROADMAP[3].total)} {isAr ? 'د.ك' : 'KWD'}</span>
                           </div>
                         </div>
 
@@ -1751,24 +1761,24 @@ export default function FeryalAiCommandPage() {
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
                             <button
                               type="button"
-                              onClick={() => handleSendQuery(isAr ? 'ما هو تقييم ربحية فرع السالمية مقارنة بباقي الفروع ولماذا يتصدر بـ 31,246 د.ك؟' : 'Analyze Salmiya vs Branches Profitability (+31,246 KWD Top Branch Analysis)')}
+                              onClick={() => handleSendQuery(isAr ? `ما هو تقييم ربحية ${TOP_PROFIT_BRANCH?.ar} مقارنة بباقي المواقع ولماذا يتصدر بربح ${fx0(TOP_PROFIT_BRANCH?.profit ?? 0)} د.ك؟` : `Analyze ${TOP_PROFIT_BRANCH?.en} vs other locations (${fx0(TOP_PROFIT_BRANCH?.profit ?? 0)} KWD top operating profit)`)}
                               className="ae-tile ae-lift text-start p-3.5 rounded-xl cursor-pointer"
                             >
                               <div className="flex items-center justify-between">
                                 <span className="font-bold text-xs text-slate-900 dark:text-white flex items-center gap-1.5">
                                   <span>🏆</span>
-                                  <span>{isAr ? 'ربحية السالمية مقارنة بالفروع' : 'Salmiya vs Branches Profitability'}</span>
+                                  <span>{isAr ? `ربحية ${TOP_PROFIT_BRANCH?.ar} مقارنة بالمواقع` : `${TOP_PROFIT_BRANCH?.en} vs Locations Profitability`}</span>
                                 </span>
-                                <span className="text-[11px] font-extrabold font-mono text-emerald-600 dark:text-emerald-400">+31,246 {isAr ? 'د.ك' : 'KWD'}</span>
+                                <span className="text-[11px] font-extrabold font-mono text-emerald-600 dark:text-emerald-400">{fx0(TOP_PROFIT_BRANCH?.profit ?? 0)} {isAr ? 'د.ك' : 'KWD'}</span>
                               </div>
                               <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-snug">
-                                {isAr ? 'تحليل الفرع الأعلى ربحية (+31,246 د.ك)' : '+31,246 KWD Top Branch Analysis'}
+                                {isAr ? `تحليل الموقع الأعلى ربحية (${fx0(TOP_PROFIT_BRANCH?.profit ?? 0)} د.ك)` : `${fx0(TOP_PROFIT_BRANCH?.profit ?? 0)} KWD Top Location Analysis`}
                               </p>
                             </button>
 
                             <button
                               type="button"
-                              onClick={() => handleSendQuery(isAr ? 'كيف نعالج هدر الدواجن في المطبخ المركزي بالعارضية ونسترد 1,336 د.ك شهرياً؟' : 'Central Kitchen COGS Recovery (+1,336 KWD/mo Poultry Yield Plan)')}
+                              onClick={() => handleSendQuery(isAr ? `كيف نعالج هدر الدواجن في المطبخ المركزي ونسترد ${fx0(LEDGER.cogsRecoverable)} د.ك شهرياً؟` : `Central Kitchen COGS Recovery (+${fx0(LEDGER.cogsRecoverable)} KWD/mo Poultry Yield Plan)`)}
                               className="ae-tile ae-lift text-start p-3.5 rounded-xl cursor-pointer"
                             >
                               <div className="flex items-center justify-between">
@@ -1776,16 +1786,16 @@ export default function FeryalAiCommandPage() {
                                   <span>🍗</span>
                                   <span>{isAr ? 'استرداد تكلفة أغذية المطبخ المركزي' : 'Central Kitchen COGS Recovery'}</span>
                                 </span>
-                                <span className="text-[11px] font-extrabold font-mono text-emerald-600 dark:text-emerald-400">+1,336 {isAr ? 'د.ك' : 'KWD'}</span>
+                                <span className="text-[11px] font-extrabold font-mono text-emerald-600 dark:text-emerald-400">+{fx0(LEDGER.cogsRecoverable)} {isAr ? 'د.ك' : 'KWD'}</span>
                               </div>
                               <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-snug">
-                                {isAr ? 'خطة معايرة إنتاج الدواجن (+1,336 د.ك/شهرياً)' : '+1,336 KWD/mo Poultry Yield Plan'}
+                                {isAr ? `خطة معايرة إنتاج الدواجن (+${fx0(LEDGER.cogsRecoverable)} د.ك/شهرياً)` : `+${fx0(LEDGER.cogsRecoverable)} KWD/mo Poultry Yield Plan`}
                               </p>
                             </button>
 
                             <button
                               type="button"
-                              onClick={() => handleSendQuery(isAr ? 'كيف نطبق سقف خصم 3.5% على كيتا ونطور مصفوفة طلبات جو وسوق طلبات؟' : 'Keeta 3.5% Cap & Tgo/TMP Matrix (+4,070 KWD/mo Promo & Combo Fix)')}
+                              onClick={() => handleSendQuery(isAr ? `كيف نطبق سقف خصم ${LEDGER.keetaCapPct}% على كيتا ونطور مصفوفة طلبات جو وسوق طلبات؟` : `Keeta ${LEDGER.keetaCapPct}% Cap & Tgo/TMP Matrix (+${fx0(LEDGER.keetaRecovery + LEDGER.beverageGain)} KWD/mo Promo & Combo Fix)`)}
                               className="ae-tile ae-lift text-start p-3.5 rounded-xl cursor-pointer"
                             >
                               <div className="flex items-center justify-between">
@@ -1793,24 +1803,24 @@ export default function FeryalAiCommandPage() {
                                   <span>🛵</span>
                                   <span>{isAr ? 'سقف كيتا 3.5% ومصفوفة طلبات' : 'Keeta 3.5% Cap & Tgo/TMP Matrix'}</span>
                                 </span>
-                                <span className="text-[11px] font-extrabold font-mono text-emerald-600 dark:text-emerald-400">+4,070 {isAr ? 'د.ك' : 'KWD'}</span>
+                                <span className="text-[11px] font-extrabold font-mono text-emerald-600 dark:text-emerald-400">+{fx0(LEDGER.keetaRecovery + LEDGER.beverageGain)} {isAr ? 'د.ك' : 'KWD'}</span>
                               </div>
                               <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-snug">
-                                {isAr ? 'ضبط الخصومات وهندسة الكومبو (+4,070 د.ك/شهرياً)' : '+4,070 KWD/mo Promo & Combo Fix'}
+                                {isAr ? `ضبط الخصومات وهندسة الكومبو (+${fx0(LEDGER.keetaRecovery + LEDGER.beverageGain)} د.ك/شهرياً)` : `+${fx0(LEDGER.keetaRecovery + LEDGER.beverageGain)} KWD/mo Promo & Combo Fix`}
                               </p>
                             </button>
 
                             <button
                               type="button"
-                              onClick={() => handleSendQuery(isAr ? 'اعرض خارطة طريق التدفقات النقدية للربع الأول (+20.5 ألف د.ك) والعام الكامل (600.9 ألف د.ك)' : 'Q1 (+20.5K) & Full-Year (600.9K KWD) — 12-Month Executive Cashflow Roadmap')}
+                              onClick={() => handleSendQuery(isAr ? `اعرض خارطة طريق الربح للربع الأول (+${fx0(ROADMAP[1].incremental)} د.ك) والعام الكامل (${fx0(ROADMAP[3].total)} د.ك)` : `Q1 (+${fx0(ROADMAP[1].incremental)} KWD) & Full-Year (${fx0(ROADMAP[3].total)} KWD) — 12-Month Executive Profit Roadmap`)}
                               className="ae-tile ae-lift text-start p-3.5 rounded-xl cursor-pointer"
                             >
                               <div className="flex items-center justify-between">
                                 <span className="font-bold text-xs text-slate-900 dark:text-white flex items-center gap-1.5">
                                   <span>📈</span>
-                                  <span>{isAr ? 'الربع الأول (+20.5 ألف) والسنة (600.9 ألف د.ك)' : 'Q1 (+20.5K) & Full-Year (600.9K KWD)'}</span>
+                                  <span>{isAr ? `الربع الأول (+${fx0(ROADMAP[1].incremental)}) والسنة (${fx0(ROADMAP[3].total)} د.ك)` : `Q1 (+${fx0(ROADMAP[1].incremental)}) & Full-Year (${fx0(ROADMAP[3].total)} KWD)`}</span>
                                 </span>
-                                <span className="text-[11px] font-extrabold font-mono text-emerald-600 dark:text-emerald-400">600,978 {isAr ? 'د.ك' : 'KWD'}</span>
+                                <span className="text-[11px] font-extrabold font-mono text-emerald-600 dark:text-emerald-400">{fx0(ROADMAP[3].total)} {isAr ? 'د.ك' : 'KWD'}</span>
                               </div>
                               <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-snug">
                                 {isAr ? 'خارطة طريق التدفقات النقدية التنفيذية لـ 12 شهراً' : '12-Month Executive Cashflow Roadmap'}
@@ -2021,26 +2031,26 @@ export default function FeryalAiCommandPage() {
             </div>
 
             <div className="space-y-2.5">
-              {/* Sub-card 1: Ardiya Central Kitchen */}
+              {/* Sub-card 1: Odoo COGS & central kitchen */}
               <div className="p-3 rounded-xl ae-tile-soft flex items-center justify-between gap-3">
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-slate-900 dark:text-white">
-                      {isAr ? 'المطبخ المركزي بالعارضية (418 قيداً | 41,438.856 د.ك)' : 'Ardiya Central Kitchen (418 entries | 41,438.856 KWD)'}
+                      {isAr ? `تكلفة الأغذية في أودو (${fx3(LEDGER.cogs)} د.ك)` : `Odoo COGS (${fx3(LEDGER.cogs)} KWD)`}
                     </span>
                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300">
-                      {isAr ? '24.8% تكلفة' : '24.8% COGS'}
+                      {isAr ? `${fx1(LEDGER.cogsPct)}% تكلفة` : `${fx1(LEDGER.cogsPct)}% COGS`}
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-600 dark:text-slate-400">
                     {isAr
-                      ? 'المستهدف 24.0% — خطة معايرة هدر الدواجن تسترد +1,336 د.ك/شهرياً'
-                      : 'Target 24.0% — Morning poultry calibration recovers +1,336 KWD/mo'}
+                      ? `المستهدف ${fx1(LEDGER.cogsTargetPct)}% — خطة معايرة هدر الدواجن في المطبخ المركزي تسترد +${fx0(LEDGER.cogsRecoverable)} د.ك/شهرياً (تقدير)`
+                      : `Target ${fx1(LEDGER.cogsTargetPct)}% — central-kitchen poultry calibration recovers +${fx0(LEDGER.cogsRecoverable)} KWD/mo (estimate)`}
                   </p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => handleSendQuery(isAr ? 'حللي قيود المطبخ المركزي بالعارضية (418 قيداً بقيمة 41,438.856 د.ك) وخطة استرداد 1,336 د.ك شهرياً' : 'Analyze Ardiya Central Kitchen (418 entries | 41,438.856 KWD) and the +1,336 KWD/mo recovery plan')}
+                  onClick={() => handleSendQuery(isAr ? `حللي تكلفة الأغذية في أودو (${fx3(LEDGER.cogs)} د.ك بنسبة ${fx1(LEDGER.cogsPct)}%) وخطة استرداد ${fx0(LEDGER.cogsRecoverable)} د.ك شهرياً` : `Analyze Odoo COGS (${fx3(LEDGER.cogs)} KWD, ${fx1(LEDGER.cogsPct)}%) and the +${fx0(LEDGER.cogsRecoverable)} KWD/mo recovery plan`)}
                   className="ae-pill-dark ae-pill-sm shrink-0"
                 >
                   {isAr ? 'تحليل صوتي مع فريال' : 'Analyze with Feryal'}
@@ -2052,7 +2062,7 @@ export default function FeryalAiCommandPage() {
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-slate-900 dark:text-white">
-                      {isAr ? 'عهد صيانة الكوت والسالمية (312 قيداً | 10,707.930 د.ك)' : 'Al-Kout & Salmiya Maintenance Custody (312 entries | 10,707.930 KWD)'}
+                      {isAr ? `عهد صيانة مجمع الكوت والسالمية (${LEDGER.maintEntries} قيداً | ${fx3(LEDGER.maintCustody)} د.ك)` : `Al-Kout Mall & Salmiya Maintenance Custody (${LEDGER.maintEntries} entries | ${fx3(LEDGER.maintCustody)} KWD)`}
                     </span>
                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-300">
                       {isAr ? 'عهد مفتوحة' : 'Custody Alert'}
@@ -2060,13 +2070,13 @@ export default function FeryalAiCommandPage() {
                   </div>
                   <p className="text-[11px] text-slate-600 dark:text-slate-400">
                     {isAr
-                      ? 'من إجمالي 2,213 قيد مصروفات — تجديد المبردات التجارية يسترد +850 د.ك/شهرياً'
-                      : 'Out of 2,213 Opex entries — Commercial chiller overhaul recovers +850 KWD/mo'}
+                      ? `تقدير إداري ضمن مصروفات أودو ${fx3(LEDGER.opex)} د.ك — تجديد المبردات التجارية يسترد +${fx0(LEDGER.chillerRecovery)} د.ك/شهرياً`
+                      : `Management estimate within ${fx3(LEDGER.opex)} KWD Odoo opex — chiller overhaul recovers +${fx0(LEDGER.chillerRecovery)} KWD/mo`}
                   </p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => handleSendQuery(isAr ? 'حللي عهد صيانة الكوت والسالمية (312 قيداً بقيمة 10,707.930 د.ك) وكيف نغلقها ونوفر التكاليف؟' : 'Analyze Al-Kout & Salmiya Maintenance Custody (312 entries | 10,707.930 KWD) and cost reduction plan')}
+                  onClick={() => handleSendQuery(isAr ? `حللي عهد صيانة مجمع الكوت والسالمية (${LEDGER.maintEntries} قيداً بقيمة ${fx3(LEDGER.maintCustody)} د.ك) وكيف نغلقها ونوفر التكاليف؟` : `Analyze Al-Kout Mall & Salmiya Maintenance Custody (${LEDGER.maintEntries} entries | ${fx3(LEDGER.maintCustody)} KWD) and cost reduction plan`)}
                   className="ae-pill-dark ae-pill-sm shrink-0"
                 >
                   {isAr ? 'تحليل صوتي مع فريال' : 'Analyze with Feryal'}
@@ -2078,21 +2088,21 @@ export default function FeryalAiCommandPage() {
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-slate-900 dark:text-white">
-                      {isAr ? 'تسويات وخصومات كيتا (6,267 طلباً | 2,544 د.ك خصومات)' : 'Keeta Settlements & Discounts (6,267 orders | 2,544 KWD discounts)'}
+                      {isAr ? `تسويات وعروض كيتا (${fx0(KEETA_CHANNEL?.orders ?? 0)} دفعة | ${fx3(LEDGER.keetaDiscounts)} د.ك عروض)` : `Keeta Settlements & Promotions (${fx0(KEETA_CHANNEL?.orders ?? 0)} payments | ${fx3(LEDGER.keetaDiscounts)} KWD promotions)`}
                     </span>
                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300">
-                      {isAr ? 'سقف 3.5%' : '3.5% Cap'}
+                      {isAr ? `سقف ${LEDGER.keetaCapPct}%` : `${LEDGER.keetaCapPct}% Cap`}
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-600 dark:text-slate-400">
                     {isAr
-                      ? 'من أصل 4,152 د.ك خصومات كلية — سقف 3.5% (924 د.ك) يسترد +1,620 د.ك/شهرياً'
-                      : 'Out of 4,152 KWD total discounts — 3.5% cap (924 KWD) recovers +1,620 KWD/mo'}
+                      ? `من أصل ${fx3(LEDGER.discounts)} د.ك خصومات كلية — سقف ${LEDGER.keetaCapPct}% (${fx3(LEDGER.keetaCapKwd)} د.ك) يسترد +${fx0(LEDGER.keetaRecovery)} د.ك/شهرياً`
+                      : `Out of ${fx3(LEDGER.discounts)} KWD total discounts — ${LEDGER.keetaCapPct}% cap (${fx3(LEDGER.keetaCapKwd)} KWD) recovers +${fx0(LEDGER.keetaRecovery)} KWD/mo`}
                   </p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => handleSendQuery(isAr ? 'حللي تسويات وخصومات منصة كيتا (6,267 طلباً و2,544 د.ك خصومات) وأثر سقف 3.5%' : 'Analyze Keeta Settlements & Discounts (6,267 orders | 2,544 KWD discounts) and the 3.5% promo cap')}
+                  onClick={() => handleSendQuery(isAr ? `حللي تسويات وعروض منصة كيتا (${fx0(KEETA_CHANNEL?.orders ?? 0)} دفعة و${fx3(LEDGER.keetaDiscounts)} د.ك عروض) وأثر سقف ${LEDGER.keetaCapPct}%` : `Analyze Keeta Settlements & Promotions (${fx0(KEETA_CHANNEL?.orders ?? 0)} payments | ${fx3(LEDGER.keetaDiscounts)} KWD promotions) and the ${LEDGER.keetaCapPct}% promo cap`)}
                   className="ae-pill-dark ae-pill-sm shrink-0"
                 >
                   {isAr ? 'تحليل صوتي مع فريال' : 'Analyze with Feryal'}
@@ -2101,7 +2111,7 @@ export default function FeryalAiCommandPage() {
             </div>
           </div>
 
-          {/* 3. CARD B: VENTURE FOODS 6-BRAND & 11-CHANNEL PULSE */}
+          {/* 3. CARD B: VENTURE FOODS BRAND & CHANNEL PULSE (Odoo) */}
           <div className="ae-tile rounded-2xl p-5 space-y-4 flex-1 flex flex-col justify-between">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
@@ -2110,60 +2120,60 @@ export default function FeryalAiCommandPage() {
                 </div>
                 <div>
                   <h4 className="text-sm font-bold text-slate-900 dark:text-white">
-                    {isAr ? '🏢 نبض العلامات الـ 7 وقنوات التوصيل الـ 11' : '🏢 Venture Foods 6-Brand & 11-Channel Pulse'}
+                    {isAr ? `🏢 نبض العلامات الـ ${LEDGER.brands} وقنوات البيع الـ ${LEDGER.channels}` : `🏢 Venture Foods ${LEDGER.brands}-Brand & ${LEDGER.channels}-Channel Pulse`}
                   </h4>
                   <p className="text-[11px] text-slate-500 font-medium">
-                    {isAr ? 'توزيع الإيرادات عبر العلامات الـ 7 وجاهزية الفروع الـ 9 أونلاين' : 'Revenue share across 7 brands & 9-branch online availability'}
+                    {isAr ? `توزيع مبيعات الأصناف عبر العلامات الـ ${LEDGER.brands} وحضور المواقع الـ ${LEDGER.branches} على المنصات` : `Item-sales share across ${LEDGER.brands} brands & delivery presence of ${LEDGER.branches} locations`}
                   </p>
                 </div>
               </div>
               <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900 font-mono">
-                {isAr ? '167,092 د.ك' : '167,092 KWD'}
+                {isAr ? `${fx0(BRAND_ITEM_TOTAL)} د.ك` : `${fx0(BRAND_ITEM_TOTAL)} KWD`}
               </span>
             </div>
 
             <div className="space-y-3">
-              {/* Brand 1: China Garden */}
+              {/* Brand 1: lead brand */}
               <div className="space-y-1.5">
                 <div className="flex justify-between text-xs font-bold">
-                  <span className="text-slate-900 dark:text-white">{isAr ? 'تشاينا جاردن (84.8% — 141,662 د.ك)' : 'China Garden (84.8% — 141,662 KWD)'}</span>
-                  <span className="text-slate-900 dark:text-white font-mono">84.8%</span>
+                  <span className="text-slate-900 dark:text-white">{isAr ? `${LEAD_BRAND?.ar} (${fx3(LEAD_BRAND?.sales ?? 0)} د.ك)` : `${LEAD_BRAND?.en} (${fx3(LEAD_BRAND?.sales ?? 0)} KWD)`}</span>
+                  <span className="text-slate-900 dark:text-white font-mono">{fx1(((LEAD_BRAND?.sales ?? 0) / BRAND_ITEM_TOTAL) * 100)}%</span>
                 </div>
                 <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
-                  <div className="bg-blue-600 h-2 rounded-full" style={{ width: '84.8%' }} />
+                  <div className="bg-blue-600 h-2 rounded-full" style={{ width: `${((LEAD_BRAND?.sales ?? 0) / BRAND_ITEM_TOTAL) * 100}%` }} />
                 </div>
                 <div className="flex justify-between text-[11px] text-slate-500 font-medium">
-                  <span>{isAr ? '25,890 طلباً معتمداً' : '25,890 verified orders'}</span>
-                  <span>{isAr ? 'متوسط السلة: 5.472 د.ك' : 'AOV: 5.472 KWD'}</span>
+                  <span>{isAr ? `${fx0(LEAD_BRAND?.orders ?? 0)} طلباً في أودو` : `${fx0(LEAD_BRAND?.orders ?? 0)} Odoo orders`}</span>
+                  <span>{isAr ? `متوسط السلة: ${fx3(LEAD_BRAND?.aov ?? 0)} د.ك` : `AOV: ${fx3(LEAD_BRAND?.aov ?? 0)} KWD`}</span>
                 </div>
               </div>
 
-              {/* Brand 2: Frank's */}
+              {/* Brand 2: second brand */}
               <div className="space-y-1.5">
                 <div className="flex justify-between text-xs font-bold">
-                  <span className="text-slate-900 dark:text-white">{isAr ? 'فرانكس (متوسط السلة 7.490 د.ك)' : "Frank's (AOV 7.490 KWD)"}</span>
-                  <span className="text-slate-900 dark:text-white font-mono">11,840 {isAr ? 'د.ك' : 'KWD'} (7.1%)</span>
+                  <span className="text-slate-900 dark:text-white">{isAr ? `${SECOND_BRAND?.ar} (متوسط السلة ${fx3(SECOND_BRAND?.aov ?? 0)} د.ك)` : `${SECOND_BRAND?.en} (AOV ${fx3(SECOND_BRAND?.aov ?? 0)} KWD)`}</span>
+                  <span className="text-slate-900 dark:text-white font-mono">{fx0(SECOND_BRAND?.sales ?? 0)} {isAr ? 'د.ك' : 'KWD'} ({fx1(((SECOND_BRAND?.sales ?? 0) / BRAND_ITEM_TOTAL) * 100)}%)</span>
                 </div>
                 <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
-                  <div className="bg-emerald-600 h-2 rounded-full" style={{ width: '22%' }} />
+                  <div className="bg-emerald-600 h-2 rounded-full" style={{ width: `${Math.max(2, ((SECOND_BRAND?.sales ?? 0) / BRAND_ITEM_TOTAL) * 100)}%` }} />
                 </div>
                 <div className="flex justify-between text-[11px] text-slate-500 font-medium">
-                  <span className="text-emerald-600 dark:text-emerald-400 font-bold">{isAr ? 'أعلى متوسط سلة بالمجموعة: 7.490 د.ك' : 'Highest Group Basket AOV: 7.490 KWD'}</span>
-                  <span>{isAr ? '1,580 طلباً' : '1,580 orders'}</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 font-bold">{isAr ? `أعلى متوسط سلة بالمجموعة: ${TOP_AOV_BRAND?.ar} ${fx3(TOP_AOV_BRAND?.aov ?? 0)} د.ك` : `Highest group basket: ${TOP_AOV_BRAND?.en} ${fx3(TOP_AOV_BRAND?.aov ?? 0)} KWD`}</span>
+                  <span>{isAr ? `${fx0(SECOND_BRAND?.orders ?? 0)} طلباً` : `${fx0(SECOND_BRAND?.orders ?? 0)} orders`}</span>
                 </div>
               </div>
 
-              {/* Brands: Other 4 Brands Combined */}
+              {/* Brands: remaining brands combined */}
               <div className="space-y-1.5">
                 <div className="flex justify-between text-xs font-bold">
-                  <span className="text-slate-900 dark:text-white">{isAr ? 'طحينة، فارم براون، فريش ديلي كانتين، ذا نودل بار، كرك كافتيريا' : 'Tahina, Farm Brown, Fresh Daily Canteen, The Noodle Bar, Karak Cafeteria'}</span>
-                  <span className="text-slate-900 dark:text-white font-mono">13,590 {isAr ? 'د.ك' : 'KWD'} (8.1%)</span>
+                  <span className="text-slate-900 dark:text-white">{isAr ? OTHER_BRANDS.map((b) => b.ar).join('، ') : OTHER_BRANDS.map((b) => b.en).join(', ')}</span>
+                  <span className="text-slate-900 dark:text-white font-mono">{fx0(OTHER_BRANDS_SALES)} {isAr ? 'د.ك' : 'KWD'} ({fx1((OTHER_BRANDS_SALES / BRAND_ITEM_TOTAL) * 100)}%)</span>
                 </div>
                 <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
-                  <div className="bg-slate-700 h-2 rounded-full" style={{ width: '25%' }} />
+                  <div className="bg-slate-700 h-2 rounded-full" style={{ width: `${Math.max(2, (OTHER_BRANDS_SALES / BRAND_ITEM_TOTAL) * 100)}%` }} />
                 </div>
                 <div className="flex justify-between text-[11px] text-slate-500 font-medium">
-                  <span>{isAr ? '3,070 طلباً عبر 11 قناة بيع' : '3,070 orders across 11 channels'}</span>
+                  <span>{isAr ? `${fx0(OTHER_BRANDS_ORDERS)} طلباً عبر ${LEDGER.channels} قنوات بيع` : `${fx0(OTHER_BRANDS_ORDERS)} orders across ${LEDGER.channels} channels`}</span>
                   <span>{isAr ? 'نمو متسارع في الكومبو' : 'High-margin combo expansion'}</span>
                 </div>
               </div>
@@ -2172,10 +2182,10 @@ export default function FeryalAiCommandPage() {
               <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs font-bold">
                 <span className="text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
                   <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
-                  <span>{isAr ? 'توافر الفروع الـ 9 على طلبات جو وسوق طلبات وكيتا وديليفرو' : '9 Branches on Talabat Tgo & TMP, Keeta & Deliveroo'}</span>
+                  <span>{isAr ? `${DELIVERY_LISTED_BRANCHES} من ${LEDGER.branches} مواقع تبيع عبر طلبات وكيتا وديليفرو (أودو)` : `${DELIVERY_LISTED_BRANCHES} of ${LEDGER.branches} locations sell on Talabat, Keeta & Deliveroo (Odoo)`}</span>
                 </span>
                 <span className="text-emerald-600 dark:text-emerald-400 font-mono">
-                  {isAr ? '99.1% متصل أونلاين' : '99.1% Online'}
+                  {isAr ? `${fx1((DELIVERY_LISTED_BRANCHES / LEDGER.branches) * 100)}% حضور` : `${fx1((DELIVERY_LISTED_BRANCHES / LEDGER.branches) * 100)}% presence`}
                 </span>
               </div>
             </div>
@@ -2310,7 +2320,7 @@ export default function FeryalAiCommandPage() {
                   <span>{isAr ? '3. المراقب الآلي لبوابات التوصيل (بلاي رايت)' : '3. Delivery Aggregator Watchdog (Playwright)'}</span>
                 </span>
                 <span className="text-xs bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 px-2.5 py-0.5 rounded-full font-bold">
-                  {isAr ? '9/9 فروع متصلة بالكامل' : '9/9 Branches Online'}
+                  {isAr ? `${DELIVERY_LISTED_BRANCHES}/${LEDGER.branches} مواقع على المنصات` : `${DELIVERY_LISTED_BRANCHES}/${LEDGER.branches} Locations Listed`}
                 </span>
               </div>
               <p className="text-sm font-medium text-slate-600 dark:text-slate-400 leading-relaxed">
@@ -2739,20 +2749,20 @@ export default function FeryalAiCommandPage() {
       </section>
 
       {/* ==================================================================== */}
-      {/* 5. VERIFIED 9-BRANCH PERFORMANCE AUDIT TABLE */}
+      {/* 5. ODOO RESTAURANT LOCATION PERFORMANCE TABLE */}
       {/* ==================================================================== */}
       <section className="ae-tile rounded-2xl p-6 sm:p-7 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
             <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
-              {isAr ? 'أداء الفروع التشغيلية الـ 9 الفعلية المعتمدة (حسب سجل أودو لشهر أكتوبر)' : 'Performance Breakdown: 9 Active Operational Branches (October Odoo)'}
+              {isAr ? `أداء مواقع المطاعم الـ ${LEDGER.branches} (أودو · ${LEDGER.periodLabelAr})` : `Performance Breakdown: ${LEDGER.branches} Restaurant Locations (Odoo · ${LEDGER.periodLabelEn})`}
             </h3>
             <p className="text-xs sm:text-[13px] text-slate-600 dark:text-slate-400 font-medium">
-              {isAr ? 'مطابقة مبيعات 167,092.160 د.ك عبر الفروع الـ 9 الفعلية' : '100% reconciled against approved 167,092.160 KWD sales ledger across 9 active branches'}
+              {isAr ? `${fx3(LEDGER.restaurantSales)} د.ك من أصل ${fx3(LEDGER.netSales)} د.ك صافي نقاط البيع؛ المعارض ومقاصف المدارس وحدات مستقلة` : `${fx3(LEDGER.restaurantSales)} KWD of ${fx3(LEDGER.netSales)} KWD POS net; exhibitions and school canteens are separate units`}
             </p>
           </div>
           <span className="text-xs text-emerald-800 dark:text-emerald-300 font-extrabold bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-3.5 py-1.5 rounded-full">
-            {isAr ? '9/9 فروع نشطة بالكامل' : '9/9 Branches Active'}
+            {isAr ? `${LEDGER.branches} مواقع نشطة` : `${LEDGER.branches} Active Locations`}
           </span>
         </div>
 
@@ -2761,8 +2771,8 @@ export default function FeryalAiCommandPage() {
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 text-slate-600 dark:text-slate-400 font-bold">
                 <th className="py-3 px-4 text-start">#</th>
-                <th className="py-3 px-4 text-start">{isAr ? 'الفرع' : 'Branch'}</th>
-                <th className="py-3 px-4 text-start">{isAr ? 'المبيعات المعتمدة' : 'Net Sales'}</th>
+                <th className="py-3 px-4 text-start">{isAr ? 'الموقع' : 'Location'}</th>
+                <th className="py-3 px-4 text-start">{isAr ? 'صافي نقاط البيع' : 'POS Net'}</th>
                 <th className="py-3 px-4 text-start">{isAr ? 'عدد الطلبات' : 'Orders'}</th>
                 <th className="py-3 px-4 text-start">{isAr ? 'الحصة' : 'Rev Share'}</th>
                 <th className="py-3 px-4 text-start">{isAr ? 'القناة الأبرز' : 'Top Channel'}</th>
@@ -2787,10 +2797,7 @@ export default function FeryalAiCommandPage() {
                   <td className="py-3 px-4">
                     <span
                       className={`rounded-md px-2.5 py-1 text-xs font-extrabold ${
-                        (isAr ? b.statusAr : b.statusEn).includes('هدر') ||
-                        (isAr ? b.statusAr : b.statusEn).includes('صيانة') ||
-                        (isAr ? b.statusAr : b.statusEn).includes('Calibration') ||
-                        (isAr ? b.statusAr : b.statusEn).includes('Repairs')
+                        b.tone === 'amber'
                           ? 'bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
                           : 'bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
                       }`}

@@ -2,6 +2,7 @@
 
 import React, { Suspense, useEffect, useState } from 'react'
 import Link from 'next/link'
+import { LEDGER } from '@/lib/aether/ledger'
 import { usePathname, useSearchParams } from 'next/navigation'
 import {
   AlertTriangle,
@@ -212,7 +213,7 @@ export function Sidebar({ user }: { user: AccessUser; enabledKeys?: string[] | n
           </p>
           <p className="ae-side-muted inline-flex items-center justify-center gap-1.5 text-[11px] font-semibold">
             <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#34D399' }} />
-            {isAr ? '7 علامات تجارية · 9 فروع نشطة · 11 قناة' : '7 Brands · 9 Active Branches · 11 Channels'}
+            {isAr ? `${LEDGER.brands} علامات تجارية · ${LEDGER.branches} مواقع مطاعم · ${LEDGER.channels} قنوات` : `${LEDGER.brands} Brands · ${LEDGER.branches} Restaurant Locations · ${LEDGER.channels} Channels`}
           </p>
         </div>
       </div>

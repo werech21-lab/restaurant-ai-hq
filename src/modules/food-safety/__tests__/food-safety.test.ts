@@ -90,7 +90,7 @@ describe('food-safety vision & board', () => {
     expect(board.matrixCount).toBe(SHELF_LIFE_MATRIX.length)
     expect(board.exclusiveRecipients).toHaveLength(3)
 
-    const site = board.sites.find((s) => s.id === 'CK-QURAIN') ?? board.sites[0]
+    const site = board.sites.find((s) => s.id === 'CK-MAIN') ?? board.sites[0]
     const created = createShelfLifeBatch({
       siteId: site.id,
       itemCode: 'PP03192',

@@ -221,7 +221,7 @@ export const BRANCH_STAFF_MAP: Record<string, BranchStaffInfo> = {
       { id: '1954', nameAr: 'المشرف المناوب: ديليرام أدهيكاري (#1954)', nameEn: 'Duty Supervisor: Diliram Adhikari (#1954)', roleAr: 'مشرف مناوب', roleEn: 'Duty Supervisor' },
     ],
   },
-  QURAIN_CK: {
+  CK_MAIN: {
     fullLabelAr: 'مسؤول الفرع: بابو تشاند رانا (#1279)',
     fullLabelEn: 'Branch In-Charge: Babu Chand Rana (#1279)',
     staffList: [
@@ -252,7 +252,7 @@ export const BRANCH_OPTIONS = [
   { id: 'KHIRAN', nameAr: 'فرع الكوت مول والخيران أوتلت', nameEn: 'Al Kout Mall & Khiran', code: 'BR-KH' },
   { id: 'JABRIYA', nameAr: 'فرع العاصمة مول والجابرية', nameEn: 'Al Asimah Mall & Jabriya', code: 'BR-JB' },
   { id: 'ARDHIYA', nameAr: 'فرع العارضية الحرفية', nameEn: 'Ardhiya Craft Area', code: 'BR-AR' },
-  { id: 'QURAIN_CK', nameAr: 'فرع مبارك الكبير / المطبخ المركزي', nameEn: 'Central Kitchen', code: 'BR-CK' },
+  { id: 'CK_MAIN', nameAr: 'فرع مبارك الكبير / المطبخ المركزي', nameEn: 'Central Kitchen', code: 'BR-CK' },
   { id: 'MAHBOULA', nameAr: 'فرع المهبولة الساحلي', nameEn: 'Mahboula Coastal', code: 'BR-MH' },
   { id: 'SABAH_SALEM', nameAr: 'فرع صباح السالم', nameEn: 'Sabah Al-Salem Branch', code: 'BR-SS' },
 ]

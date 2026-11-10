@@ -10,7 +10,6 @@ export const ANALYTICS_AR: Record<string, string> = {
   // ---- filters / header
   'Updated Live · Odoo ERP Verified (2,213 Journal Entries · Venture Foods Co. W.L.L.)':
     'محدّث لحظياً · بيانات أودو موثّقة (2,213 قيد يومية · شركة فنتشر فودز ذ.م.م.)',
-  'Odoo P&L Reconciled: KWD 42,441.480 Net Profit (25.4%)': 'مطابقة قائمة الدخل في أودو: صافي الربح KWD 42,441.480 (25.4%)',
   'Reset filters': 'إلغاء التصفية',
   'Brand sales · October 2026': 'مبيعات العلامات التجارية · أكتوبر 2026',
   Brand: 'العلامة التجارية',
@@ -134,8 +133,6 @@ export const ANALYTICS_AR: Record<string, string> = {
     'طلبات طلبات جو وكيتا بنسبة مشروبات أقل من 13% مقابل 41.2% في المحل. أضف خطوة اختيار مشروب إلزامية في الكومبو.',
   'Odoo COGS & Central Kitchen variance': 'انحراف تكلفة الأغذية والمطبخ المركزي في أودو',
   'COGS +0.8%': 'تكلفة الأغذية +0.8%',
-  'Central Kitchen poultry marination waste pushed COGS to 24.8% (KWD 41,438.856). Enforce batch weight logs.':
-    'هدر تتبيل الدجاج في المطبخ المركزي رفع تكلفة الأغذية إلى 24.8% (KWD 41,438.856). فعّل سجلات أوزان الدفعات.',
   'High-margin signature & combo anchors': 'أصناف مميزة وكومبو عالية الهامش',
   'Expand combo': 'وسّع الكومبو',
   "Frank's (69.8% starters) & Talabat MP (KWD 9.28 avg order) prove high bundle elasticity. Replicate across brands.":
@@ -211,8 +208,6 @@ export const ANALYTICS_AR: Record<string, string> = {
   'Odoo Journal (2,213)': 'قيود أودو (2,213)',
   '30.6% rev': '30.6% من الإيراد',
   'Fils verified': 'مدقّق حتى الفلس',
-  'All 2,213 journal entries reconciled to the fils in Odoo General Ledger. Net Operating Profit locked at KWD 42,441.480 (25.4%).':
-    'كل قيود اليومية الـ 2,213 مطابقة حتى الفلس في دفتر الأستاذ العام بأودو. صافي الربح التشغيلي مثبّت عند KWD 42,441.480 (25.4%).',
   'Menu Tail · All 7 Brands': 'ذيل المنيو · العلامات السبع',
   'Bottom 332 Menu SKUs': 'أدنى 332 صنفاً في المنيو',
   'Odoo POS Items': 'أصناف نقاط البيع في أودو',
@@ -251,7 +246,7 @@ export const ANALYTICS_AR: Record<string, string> = {
   Branch: 'الفرع',
   Branches: 'الفروع',
   'All branches': 'جميع الفروع',
-  'All branches (9)': 'جميع الفروع (9)',
+  'All branches (7)': 'جميع المواقع (7)',
   Day: 'اليومي',
   Month: 'الشهر',
   Year: 'السنة',
@@ -259,13 +254,17 @@ export const ANALYTICS_AR: Record<string, string> = {
   'Monthly total': 'المجموع الشهري',
   'Annual projection': 'التقدير السنوي',
   Salmiya: 'السالمية',
-  'Al Kout / Fahaheel': 'الكوت/الفحيحيل',
-  Sharq: 'شرق',
-  Hawally: 'حولي',
-  Farwaniya: 'الفروانية',
   Ardiya: 'العارضية',
-  Mahboula: 'المهبولة',
-  'Mubarak Al-Kabeer / Sabah Al-Salem': 'مبارك الكبير/صباح السالم',
+  'Promenade Mall': 'مجمع البروميناد',
+  '360 Mall': 'مجمع 360',
+  'Assima Mall': 'مجمع العاصمة',
+  'Al-Kout Mall': 'مجمع الكوت',
+  'The Avenues': 'الأفنيوز',
+}
+
+/** Registers runtime-built EN→AR pairs (copy generated from the live Odoo dataset) for makeTr. */
+export function registerAnalyticsAr(pairs: Record<string, string>) {
+  Object.assign(ANALYTICS_AR, pairs)
 }
 
 export function makeTr(locale: AnalyticsLocale) {

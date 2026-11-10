@@ -44,7 +44,7 @@ export interface BranchWarehouseCard {
 export const OFFICIAL_10_LOCATIONS: BranchWarehouseCard[] = [
   {
     id: "wh-commissary",
-    code: "CK-QURAIN",
+    code: "CK-MAIN",
     nameAr: "المطبخ المركزي والمستودع الرئيسي",
     nameEn: "Central Kitchen & Master Commissary",
     areaAr: "مبارك الكبير · محافظة مبارك الكبير",
@@ -95,8 +95,8 @@ export const OFFICIAL_10_LOCATIONS: BranchWarehouseCard[] = [
     readinessScore: 97,
   },
   {
-    id: "wh-qurain-br",
-    code: "WH-QURAIN-BR",
+    id: "wh-mak-br",
+    code: "WH-MAK-BR",
     nameAr: "مخزن فرع مبارك الكبير",
     nameEn: "Mubarak Al-Kabeer Branch Store",
     areaAr: "مبارك الكبير · شارع المطاعم",
@@ -1240,7 +1240,7 @@ export function VentureWarehousesHub({
                   {isAr ? "من المستودع المصدر:" : "Source Warehouse:"}
                 </label>
                 <select className="w-full rounded-xl border border-slate-700 bg-slate-800 px-3 py-2.5 text-white focus:outline-none">
-                  <option value="CK-QURAIN">
+                  <option value="CK-MAIN">
                     {isAr
                       ? "المطبخ المركزي والمستودع الرئيسي (حساب 1132)"
                       : "Central Kitchen & Master Commissary"}
@@ -1267,7 +1267,7 @@ export function VentureWarehousesHub({
                   <option value="WH-KOUT">{isAr ? "فرع الكوت مول — الفحيحيل" : "Al-Kout Mall Branch"}</option>
                   <option value="WH-FARWANIYA">{isAr ? "فرع الفروانية" : "Farwaniya Branch"}</option>
                   <option value="WH-ARDIYA">{isAr ? "فرع العارضية اللوجستي" : "Ardiya Logistics Branch"}</option>
-                  <option value="WH-QURAIN-BR">{isAr ? "فرع مبارك الكبير" : "Mubarak Al-Kabeer Branch"}</option>
+                  <option value="WH-MAK-BR">{isAr ? "فرع مبارك الكبير" : "Mubarak Al-Kabeer Branch"}</option>
                 </select>
               </div>
 

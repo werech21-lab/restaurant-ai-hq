@@ -118,8 +118,8 @@ export function DemandForecastV2({ anchor }: { anchor: string }) {
           <h1 className="ae-h text-2xl text-slate-900 dark:text-white">{T('AI Demand & Central Kitchen Prep Forecaster', 'متنبئ الطلب وتحضير المطبخ المركزي')}</h1>
           <p className="max-w-3xl text-sm text-slate-600 dark:text-slate-300">
             {T(
-              'Day-by-day orders and revenue across 9 branches and 7 brands, factoring Thursday–Friday surges, salary week (24th–29th) and heat or dust shifting dine-in to delivery — translated into Ardiya prep par levels and crew plans.',
-              'الطلبات والإيرادات يوماً بيوم عبر 9 فروع و7 علامات، مع ذروة الخميس والجمعة وأسبوع الرواتب (24–29) وتحول الصالة إلى التوصيل في الحر والغبار — وتحويلها إلى مستويات تحضير لمطبخ العارضية وخطط الطواقم.',
+              `Day-by-day orders and revenue across ${LEDGER.branches} restaurant locations and ${LEDGER.brands} brands, factoring Thursday–Friday surges, salary week (24th–29th) and heat or dust shifting dine-in to delivery — translated into Ardiya prep par levels and crew plans.`,
+              `الطلبات والإيرادات يوماً بيوم عبر ${LEDGER.branches} مواقع مطاعم و${LEDGER.brands} علامات، مع ذروة الخميس والجمعة وأسبوع الرواتب (24–29) وتحول الصالة إلى التوصيل في الحر والغبار — وتحويلها إلى مستويات تحضير لمطبخ العارضية وخطط الطواقم.`,
             )}
           </p>
         </div>

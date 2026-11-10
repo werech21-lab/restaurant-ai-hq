@@ -5,7 +5,8 @@ import Link from 'next/link'
 import { useI18n } from '@/lib/i18n'
 import { LineChartV2 } from '@/components/aether/ui'
 import { RECS, type Priority } from '@/lib/analytics/recommendations'
-import { SALES_TABS, salesTabHref, type SalesTabId } from '@/lib/analytics/sales-tabs'
+import { DAILY_TREND_SAMPLE, SALES_TABS, salesTabHref, type SalesTabId } from '@/lib/analytics/sales-tabs'
+import { CHANNELS, LEDGER, LEVERS_MONTHLY_TOTAL } from '@/lib/aether/ledger'
 
 /* =========================================================================
    Ordable-style executive summary + recommendations engine.
@@ -14,21 +15,21 @@ import { SALES_TABS, salesTabHref, type SalesTabId } from '@/lib/analytics/sales
    Bilingual (ar | en) with matching direction (rtl | ltr).
    ========================================================================= */
 
-// ---- Headline figures (as supplied) ---------------------------------------
-const NET_SALES = 167092.16
-const ORDERS = 30540
-const AOV = 5.471
-const NET_PROFIT = 42441.48
-const MARGIN = 25.4
-const COGS = 41438.856
-const COGS_PCT = 24.8
-const CUSTODY = 51154.95
-const MAINT_CUSTODY = 10707.93
-const SALARIES_RENT_COMMISSION = 32056.874
-const SALARIES_PCT = 19.2
-const DISCOUNTS = 4152
-const DISCOUNTS_PCT = 2.4
-const RECS_TOTAL = 6840
+// ---- Headline figures: live Odoo sync (whitelisted registers + posted accounting) ----
+const NET_SALES = LEDGER.netSales
+const ORDERS = LEDGER.orders
+const AOV = LEDGER.aov
+const NET_PROFIT = LEDGER.netProfit
+const MARGIN = LEDGER.marginPct
+const COGS = LEDGER.cogs
+const COGS_PCT = LEDGER.cogsPct
+const CUSTODY = LEDGER.opex
+const MAINT_CUSTODY = LEDGER.maintCustody
+const SALARIES_RENT_COMMISSION = LEDGER.depreciation
+const SALARIES_PCT = Math.round((LEDGER.depreciation / LEDGER.revenue) * 1000) / 10
+const DISCOUNTS = LEDGER.discounts
+const DISCOUNTS_PCT = LEDGER.discountsPct
+const RECS_TOTAL = LEVERS_MONTHLY_TOTAL
 
 const REC_TAB_MAP: Record<string, SalesTabId> = {
   'REC-01': 'customer-channel',
@@ -38,34 +39,35 @@ const REC_TAB_MAP: Record<string, SalesTabId> = {
   'REC-05': 'products',
 }
 
-// Sampled every 3 days (11 points), not the full month.
-const DAILY_TREND = [
-  { day: '01 Oct', sales: 4920, profit: 1240, orders: 895, cogs: 1220 },
-  { day: '04 Oct', sales: 5380, profit: 1370, orders: 980, cogs: 1334 },
-  { day: '07 Oct', sales: 5110, profit: 1295, orders: 930, cogs: 1267 },
-  { day: '10 Oct', sales: 5890, profit: 1510, orders: 1075, cogs: 1460 },
-  { day: '13 Oct', sales: 5240, profit: 1320, orders: 960, cogs: 1299 },
-  { day: '16 Oct', sales: 6120, profit: 1580, orders: 1120, cogs: 1517 },
-  { day: '19 Oct', sales: 5490, profit: 1390, orders: 1005, cogs: 1361 },
-  { day: '22 Oct', sales: 5760, profit: 1465, orders: 1050, cogs: 1428 },
-  { day: '25 Oct', sales: 6340, profit: 1640, orders: 1165, cogs: 1572 },
-  { day: '28 Oct', sales: 5680, profit: 1440, orders: 1040, cogs: 1408 },
-  { day: '31 Oct', sales: 6490, profit: 1675, orders: 1190, cogs: 1609 },
-]
+// Real Odoo daily sales and orders; profit and COGS apply the month's Odoo ratios to each day.
+const DAILY_TREND = DAILY_TREND_SAMPLE.map((d) => ({
+  day: d.day,
+  sales: d.sales,
+  orders: d.orders,
+  profit: Math.round(d.sales * (LEDGER.marginPct / 100)),
+  cogs: Math.round(d.sales * (LEDGER.cogsPct / 100)),
+}))
 type Metric = 'sales' | 'profit' | 'orders' | 'cogs'
 const METRIC_COLOR: Record<Metric, string> = { sales: '#0284C7', profit: '#059669', orders: '#0F172A', cogs: '#D97706' }
 
+const pctOfRev = (v: number) => Math.round((v / LEDGER.revenue) * 1000) / 10
 const PNL = [
-  { en: 'Net operating profit', ar: 'صافي الربح التشغيلي', value: 42441.48, pct: 25.4, color: '#059669' },
-  { en: 'Custody & operating expenses', ar: 'العهد والمصروفات التشغيلية', value: 51154.95, pct: 30.6, color: '#0284C7' },
-  { en: 'Food cost (COGS)', ar: 'تكلفة الأغذية (COGS)', value: 41438.856, pct: 24.8, color: '#D97706' },
-  { en: 'Salaries, rent & commissions', ar: 'الرواتب والإيجارات والعمولات', value: 32056.874, pct: 19.2, color: '#0F172A' },
+  { en: 'Net operating profit', ar: 'صافي الربح التشغيلي', value: LEDGER.netProfit, pct: pctOfRev(LEDGER.netProfit), color: '#059669' },
+  { en: 'Operating expenses', ar: 'المصروفات التشغيلية', value: LEDGER.opex, pct: pctOfRev(LEDGER.opex), color: '#0284C7' },
+  { en: 'Food cost (COGS)', ar: 'تكلفة الأغذية', value: LEDGER.cogs, pct: pctOfRev(LEDGER.cogs), color: '#D97706' },
+  { en: 'Depreciation', ar: 'الإهلاك', value: LEDGER.depreciation, pct: pctOfRev(LEDGER.depreciation), color: '#0F172A' },
 ]
+const chSum = (ids: string[]) => CHANNELS.filter((c) => ids.includes(c.id)).reduce((x, c) => x + c.sales, 0)
+const CH_SHOP = chSum(['shop', 'staff'])
+const CH_TALABAT = chSum(['talabat-tgo', 'talabat-tmp'])
+const CH_KEETA = chSum(['keeta'])
+const CH_OTHER = LEDGER.netSales - CH_SHOP - CH_TALABAT - CH_KEETA
+const pctOfNet = (v: number) => Math.round((v / LEDGER.netSales) * 1000) / 10
 const CHANNEL_MIX = [
-  { en: 'Shop Sales', ar: 'مبيعات المحل', value: 58953.09, pct: 35.3, color: '#0F172A' },
-  { en: 'Talabat (Tgo + TMP)', ar: 'طلبات (Tgo + TMP)', value: 62603.46, pct: 37.5, color: '#D97706' },
-  { en: 'Keeta', ar: 'كيتا', value: 35607.98, pct: 21.3, color: '#059669' },
-  { en: 'Deliveroo, Ordable & others', ar: 'ديليفرو وأوردابل وباقي القنوات', value: 9927.63, pct: 5.9, color: '#0284C7' },
+  { en: 'Shop Sales', ar: 'مبيعات المحل', value: CH_SHOP, pct: pctOfNet(CH_SHOP), color: '#0F172A' },
+  { en: 'Talabat (Tgo + TMP)', ar: 'طلبات (Tgo و TMP)', value: CH_TALABAT, pct: pctOfNet(CH_TALABAT), color: '#D97706' },
+  { en: 'Keeta', ar: 'كيتا', value: CH_KEETA, pct: pctOfNet(CH_KEETA), color: '#059669' },
+  { en: 'Deliveroo, Jahez, Snoonu & online links', ar: 'ديليفرو وجاهز وسنونو وروابط الدفع', value: CH_OTHER, pct: pctOfNet(CH_OTHER), color: '#0284C7' },
 ]
 
 const PRIORITY_STYLE: Record<Priority, { cls: string; en: string; ar: string }> = {
@@ -122,10 +124,10 @@ export function AetherBiExecutiveDashboard({ locale: _unused }: { locale?: strin
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400">
             <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
-            <span>{T('Venture Foods Restaurant Management W.L.L. · Odoo data (2,213 journal entries)', 'شركة فنتشر فودز لإدارة المطاعم ذ.م.م. · بيانات أودو (2,213 قيد يومي)')}</span>
+            <span>{T('Venture Foods Restaurant Management W.L.L. · live Odoo sync (whitelisted POS registers)', 'شركة فنتشر فودز لإدارة المطاعم ذ.م.م. · مزامنة أودو المباشرة (سجلات نقاط البيع المعتمدة)')}</span>
           </div>
           <h1 className="mt-1 text-xl font-extrabold text-slate-900 dark:text-slate-50 md:text-2xl">{T('Financial & Analytical Report and Recommendations', 'التقرير المالي والتحليلي ومحرك التوصيات')}</h1>
-          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{T('7 brands, 11 sales channels, 9 active branches and the central kitchen. Static data: browsing uses no AI tokens.', '7 علامات تجارية و11 قناة بيع و9 فروع نشطة والمطبخ المركزي. بيانات ثابتة: التصفح لا يستهلك أي توكنات.')}</p>
+          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{T(`${LEDGER.brands} brands, ${LEDGER.channels} sales channels, ${LEDGER.branches} restaurant locations plus exhibitions and school canteens. Browsing uses no AI tokens.`, `${LEDGER.brands} علامات و${LEDGER.channels} قنوات بيع و${LEDGER.branches} مواقع مطاعم إضافة إلى المعارض والمقاصف المدرسية. التصفح لا يستهلك أي توكنات.`)}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2 self-start lg:self-auto">
           <Link href="/erp/sales-scorecard" className="ae-pill-light ae-pill-sm">
@@ -155,7 +157,7 @@ export function AetherBiExecutiveDashboard({ locale: _unused }: { locale?: strin
         <div className={boxed}>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{T('Net sales', 'صافي المبيعات المعتمدة')}</span>
-            <span className={`${badge} bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300`}><Num>▲ +14.8%</Num></span>
+            <span className={`${badge} bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300`}><Num>Odoo POS</Num></span>
           </div>
           <div className="mt-2 break-words text-lg font-extrabold leading-tight sm:text-xl xl:text-[22px]"><Num>{kwd(fmt3(NET_SALES))}</Num></div>
           <div className="mt-1 space-y-0.5 text-[12px] text-slate-500 dark:text-slate-400">
@@ -171,28 +173,28 @@ export function AetherBiExecutiveDashboard({ locale: _unused }: { locale?: strin
           </div>
           <div className="mt-2 break-words text-lg font-extrabold leading-tight text-emerald-600 sm:text-xl xl:text-[22px]"><Num>{kwd(fmt3(NET_PROFIT))}</Num></div>
           <div className="mt-1 space-y-0.5 text-[12px] text-slate-500 dark:text-slate-400">
-            <div>{T('After food cost, custody and overheads', 'بعد خصم الأغذية والعهد والمصروفات')}</div>
-            <div>{T('Salaries, rent & commissions', 'الرواتب والإيجارات والعمولات')}: <Num>{kwd(fmt3(SALARIES_RENT_COMMISSION))}</Num> (<Num>{SALARIES_PCT}%</Num>)</div>
+            <div>{T('Posted Odoo revenue after food cost, operating expenses and depreciation', 'الإيراد المرحّل في أودو بعد تكلفة الأغذية والمصروفات والإهلاك')}</div>
+            <div>{T('Depreciation', 'الإهلاك')}: <Num>{kwd(fmt3(SALARIES_RENT_COMMISSION))}</Num> (<Num>{SALARIES_PCT}%</Num>)</div>
           </div>
         </div>
 
         <div className={boxed}>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{T('Food cost & custody', 'تكلفة الأغذية والعهد')}</span>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{T('Food cost & operating expenses', 'تكلفة الأغذية والمصروفات')}</span>
             <span className={`${badge} bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300`}>COGS <Num>{COGS_PCT}%</Num></span>
           </div>
           <div className="mt-2 break-words text-lg font-extrabold leading-tight sm:text-xl xl:text-[22px]"><Num>{kwd(fmt3(COGS + CUSTODY))}</Num></div>
           <div className="mt-1 space-y-0.5 text-[12px] text-slate-500 dark:text-slate-400">
             <div>{T('Food cost (COGS)', 'تكلفة الأغذية (COGS)')}: <Num>{kwd(fmt3(COGS))}</Num> (<Num>{COGS_PCT}%</Num>)</div>
-            <div>{T('Custody & operating expenses', 'العهد والمصروفات التشغيلية')}: <Num>{kwd(fmt3(CUSTODY))}</Num></div>
-            <div>{T('Incl. maintenance custody', 'شاملة عهدة الصيانة')}: <Num>{kwd(fmt3(MAINT_CUSTODY))}</Num></div>
+            <div>{T('Operating expenses', 'المصروفات التشغيلية')}: <Num>{kwd(fmt3(CUSTODY))}</Num></div>
+            <div>{T('Maintenance custody (expense records)', 'عهدة الصيانة (سجلات المصروفات)')}: <Num>{kwd(fmt3(MAINT_CUSTODY))}</Num></div>
           </div>
         </div>
 
         <div className="ae-hero-ocean ae-lift min-w-0 rounded-2xl p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="ae-hero-muted text-xs font-semibold">{T('Extra profit and savings from recommendations', 'إجمالي الربح والوفر المتاح من التوصيات')}</span>
-            <span className="ae-hero-chip whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-bold">{T('5 ready', '5 توصيات')}</span>
+            <span className="ae-hero-chip whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-bold">{T(`${RECS.length} ready`, `${RECS.length} توصيات`)}</span>
           </div>
           <div className="mt-2 break-words text-lg font-extrabold leading-tight sm:text-xl xl:text-[22px]"><Num>+{kwd(fmt3(RECS_TOTAL))}</Num></div>
           <div className="ae-hero-muted mt-1 text-[12px]">{T('per month', 'شهرياً')} · {T('profit would reach', 'يرفع الربح إلى')} <Num>{kwd(fmt3(NET_PROFIT + RECS_TOTAL))}</Num></div>
@@ -205,7 +207,7 @@ export function AetherBiExecutiveDashboard({ locale: _unused }: { locale?: strin
           <div className="flex flex-col gap-3 border-b border-slate-100 dark:border-slate-700 pb-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-sm font-extrabold text-slate-900 dark:text-slate-50">{T('Performance trend', 'منحنى الأداء المالي والطلبات')}</h2>
-              <p className="mt-0.5 text-[11px] text-slate-400">{T('Sampled every 3 days (11 points), KWD', 'عينة كل 3 أيام (11 نقطة) بالدينار الكويتي')}</p>
+              <p className="mt-0.5 text-[11px] text-slate-400">{T(`Odoo daily totals (${DAILY_TREND.length} days), KWD`, `إجماليات أودو اليومية (${DAILY_TREND.length} يوماً) بالدينار الكويتي`)}</p>
             </div>
             <div className="ae-seg flex-wrap" role="group">
               {metricTabs.map((m) => (

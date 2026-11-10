@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useMemo } from "react";
+import { ODOO } from "@/lib/odoo/odoo-dataset";
 
 // ============================================================================
-// 1. 9 VERIFIED ACTIVE OPERATIONAL BRANCHES (closed locations permanently removed)
+// 1. ODOO LOCATIONS (positive pos.config whitelist) — restaurants, then EXB and school canteens
 // ============================================================================
 
 export type PeriodOption = "day" | "month" | "year";
@@ -15,67 +16,38 @@ export interface BranchOption {
   code: string;
 }
 
+const LOCATIONS = [...ODOO.restaurants, ...ODOO.exhibitions, ...ODOO.canteens];
+
 export const VENTURE_BRANCHES: BranchOption[] = [
-  { id: "All branches", code: "ALL", nameEn: "All branches (9)", nameAr: "جميع الفروع (9)" },
-  { id: "Salmiya", code: "SLM", nameEn: "Salmiya Branch", nameAr: "فرع السالمية" },
-  { id: "Sharq", code: "SHQ", nameEn: "Sharq Branch", nameAr: "فرع شرق" },
-  { id: "Hawally", code: "HWL", nameEn: "Hawally Branch", nameAr: "فرع حولي" },
-  { id: "Al-Kout", code: "KOT", nameEn: "Al-Kout / Fahaheel", nameAr: "فرع الكوت / الفحيحيل" },
-  { id: "Ardiya", code: "ARD", nameEn: "Ardiya Branch", nameAr: "فرع العارضية" },
-  { id: "Farwaniya", code: "FRW", nameEn: "Farwaniya Branch", nameAr: "فرع الفروانية" },
-  { id: "Mahboula", code: "MHB", nameEn: "Mahboula Branch", nameAr: "فرع المهبولة" },
-  { id: "Mubarak Al-Kabeer", code: "QRN", nameEn: "Mubarak Al-Kabeer Branch", nameAr: "فرع مبارك الكبير" },
-  { id: "Jabriya", code: "JAB", nameEn: "Jabriya Branch", nameAr: "فرع الجابرية" },
+  { id: "All branches", code: "ALL", nameEn: `All locations (${LOCATIONS.length})`, nameAr: `جميع المواقع (${LOCATIONS.length})` },
+  ...LOCATIONS.map((l) => ({ id: l.id, code: l.code, nameEn: l.en, nameAr: l.ar })),
 ];
 
-/** Canonical mapping of which real branches each brand operates in */
-export const BRAND_OPERATING_BRANCHES: Record<string, string[]> = {
-  "China Garden": ["Salmiya", "Sharq", "Hawally", "Al-Kout", "Ardiya", "Farwaniya", "Mahboula", "Mubarak Al-Kabeer", "Jabriya"],
-  "Frank's": ["Salmiya", "Sharq", "Ardiya", "Mubarak Al-Kabeer"],
-  "Tahina": ["Sharq", "Al-Kout", "Ardiya", "Farwaniya", "Mubarak Al-Kabeer"],
-  "Farm Brown": ["Al-Kout", "Ardiya", "Mahboula", "Mubarak Al-Kabeer", "Jabriya"],
-  "The Noodle Bar": ["Salmiya", "Hawally", "Mahboula", "Mubarak Al-Kabeer", "Jabriya"],
-  "Karak Cafeteria": ["Salmiya", "Hawally", "Farwaniya", "Mubarak Al-Kabeer"],
-  "Fresh Daily Canteen": ["Hawally", "Al-Kout"],
-};
+const BRAND_NAME: Record<string, string> = Object.fromEntries(ODOO.brands.map((b) => [b.id, b.en]));
+const CHANNEL_NAME: Record<string, string> = Object.fromEntries(ODOO.channels.map((c) => [c.id, c.odooName]));
 
-/** Canonical mapping of which sales channels each brand operates on */
-export const BRAND_OPERATING_CHANNELS: Record<string, string[]> = {
-  "China Garden": ["Shop Sales", "Talabat Go", "Keeta", "Talabat TMP", "Deliveroo Core", "Ordable", "Snoonu", "Jahez", "Phone", "Deliveroo TMP"],
-  "Frank's": ["Talabat Go", "Deliveroo Core", "Shop Sales", "Keeta", "Talabat TMP"],
-  "Tahina": ["Shop Sales", "Talabat Go", "Keeta"],
-  "Farm Brown": ["Shop Sales", "Talabat Go", "Keeta"],
-  "The Noodle Bar": ["Talabat TMP", "Shop Sales", "Keeta", "Talabat Go"],
-  "Karak Cafeteria": ["Shop Sales", "Whatsapp"],
-  "Fresh Daily Canteen": ["Shop Sales"],
-};
+/** Odoo: locations where each brand recorded sales in the period. */
+export const BRAND_OPERATING_BRANCHES: Record<string, string[]> = (() => {
+  const out: Record<string, string[]> = {};
+  for (const r of ODOO.brandLocation) (out[BRAND_NAME[r.brand]] ||= []).push(r.location);
+  return out;
+})();
 
-/** Arabic display names for the 7 Odoo brands (filter values stay canonical). */
-export const BRAND_LABEL_AR: Record<string, string> = {
-  "China Garden": "تشاينا جاردن",
-  "Frank's": "فرانكس فيلي تشيز ستيك",
-  Tahina: "طحينة",
-  "Farm Brown": "فارم براون",
-  "Fresh Daily Canteen": "فريش ديلي كانتين",
-  "The Noodle Bar": "ذا نودل بار",
-  "Karak Cafeteria": "كرك كافتيريا",
-};
+/** Odoo: channels through which each brand recorded sales in the period. */
+export const BRAND_OPERATING_CHANNELS: Record<string, string[]> = (() => {
+  const out: Record<string, string[]> = {};
+  for (const r of ODOO.brandChannel) (out[BRAND_NAME[r.brand]] ||= []).push(CHANNEL_NAME[r.channel]);
+  return out;
+})();
 
-/** Arabic display names for the 11 sales & delivery channels. */
+/** Arabic display names for the approved Odoo brands (filter values stay canonical). */
+export const BRAND_LABEL_AR: Record<string, string> = Object.fromEntries(ODOO.brands.map((b) => [b.en, b.ar]));
+
+/** Arabic display names for the Odoo sales channels. */
 export const CHANNEL_LABEL_AR: Record<string, string> = {
-  "Shop Sales": "مبيعات المحل",
-  "Talabat Go": "طلبات Tgo",
-  "Talabat TMP": "طلبات TMP",
-  "Talabat MP": "طلبات TMP",
-  Keeta: "كيتا",
-  "Deliveroo Core": "ديليفرو",
-  "Deliveroo TMP": "ديليفرو TMP",
-  "Deliveroo MP": "ديليفرو TMP",
-  Ordable: "أوردابل",
-  Snoonu: "سنونو",
-  Jahez: "جاهز",
-  Phone: "الهاتف",
-  Whatsapp: "واتساب",
+  ...Object.fromEntries(ODOO.channels.map((c) => [c.odooName, c.ar])),
+  "Talabat TMP": "سوق طلبات (TMP)",
+  "Deliveroo TMP": "ديليفرو ماركت (TMP)",
 };
 
 export const PERIOD_MULTIPLIERS: Record<
@@ -196,7 +168,7 @@ export function TopAnalyticsFilterBar({
             onChange={(e) => handleBrandChange(e.target.value)}
             className={SELECT_CLS}
           >
-            <option value="All brands">{isAr ? "جميع العلامات (7)" : "All brands (7)"}</option>
+            <option value="All brands">{isAr ? `جميع العلامات (${brandsList.length})` : `All brands (${brandsList.length})`}</option>
             {brandsList.map((b) => (
               <option key={b} value={b}>
                 {isAr ? BRAND_LABEL_AR[b] ?? b : b}
@@ -233,7 +205,7 @@ export function TopAnalyticsFilterBar({
             onChange={(e) => setSelectedChannel(e.target.value)}
             className={SELECT_CLS}
           >
-            <option value="All channels">{isAr ? "جميع القنوات (11)" : "All channels (11)"}</option>
+            <option value="All channels">{isAr ? `جميع القنوات (${channelsList.length})` : `All channels (${channelsList.length})`}</option>
             {channelsList.map((c) => {
               const displayChannel = isAr ? CHANNEL_LABEL_AR[c] ?? c.replace(/\bMP\b|\bM\b/g, "TMP") : c.replace(/\bMP\b|\bM\b/g, "TMP");
               const isOperating =

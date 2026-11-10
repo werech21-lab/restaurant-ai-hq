@@ -1,82 +1,118 @@
 /**
- * Aether BI V2 — canonical Venture Foods group ledger (Odoo, October 2026).
+ * Aether BI V2 — canonical Venture Foods group ledger, re-based on live Odoo data.
  *
  * Single source of truth for every V2 analytics surface (/erp, /erp/sales-analysis,
- * /erp/delivery-control, /erp/alerts, the Executive Command Palette and the Feryal
- * What-If calculator). All headline constants are the approved Odoo figures; the
- * per-dimension splits below reconcile exactly back to those totals.
+ * /erp/delivery-control, /erp/alerts, /erp/executive-pnl, the Command Palette and Feryal).
+ * Every sales, order, brand, location and channel figure comes from the Odoo POS sync
+ * (src/lib/odoo/odoo-dataset.ts, generated from scripts/sync-odoo-live.mjs) restricted to the
+ * positive pos.config whitelist. P&L lines come from posted Odoo accounting with the
+ * non-whitelisted locations' analytic share removed.
  *
- * Scope rules enforced here: 7 active brands, 9 active branches, 11 sales channels.
+ * Values that are NOT in Odoo are kept as clearly named management estimates (profit levers,
+ * custody programme, contract commission terms).
  */
+import { ODOO } from '@/lib/odoo/odoo-dataset'
 
 export type Lang = 'ar' | 'en'
 
+const r3 = (n: number) => Math.round(n * 1000) / 1000
+const r1 = (n: number) => Math.round(n * 10) / 10
+
 // ---------------------------------------------------------------------------
-// 1. Approved headline constants
+// 1. Headline constants (Odoo, October 2026)
 // ---------------------------------------------------------------------------
+const KEETA = ODOO.channels.find((c) => c.id === 'keeta')
+const MENU_SORTED = [...ODOO.menu].sort((a, b) => b.netKwd - a.netKwd)
+const MENU_TOTAL = MENU_SORTED.reduce((s, m) => s + m.netKwd, 0)
+const TOP_80 = (() => {
+  let acc = 0
+  let n = 0
+  for (const m of MENU_SORTED) {
+    if (acc >= MENU_TOTAL * 0.8) break
+    acc += m.netKwd
+    n++
+  }
+  return n
+})()
+
 export const LEDGER = {
-  netSales: 167092.16,
-  orders: 30540,
-  aov: 5.471,
-  netProfit: 42441.48,
-  marginPct: 25.4,
-  cogs: 41438.856,
-  cogsPct: 24.8,
+  /** POS net sales after order-level promotions, whitelisted registers only. */
+  netSales: ODOO.totals.netSalesKwd,
+  orders: ODOO.totals.orders,
+  aov: ODOO.totals.aovKwd,
+  /** Item sales before order-level promotion lines (sum of the brand rows). */
+  itemSales: ODOO.totals.itemSalesKwd,
+  restaurantSales: ODOO.totals.restaurantNetKwd,
+  restaurantOrders: ODOO.totals.restaurantOrders,
+  /** Posted accounting revenue (income + other income), whitelisted locations. */
+  revenue: ODOO.pnl.revenueKwd,
+  netProfit: ODOO.pnl.operatingProfitKwd,
+  marginPct: ODOO.pnl.marginPct,
+  ebitda: ODOO.pnl.ebitdaKwd,
+  cogs: ODOO.pnl.cogsKwd,
+  cogsPct: ODOO.pnl.cogsPct,
   cogsTargetPct: 24.0,
   cogsEntries: 418,
   cogsRecoverable: 1336,
-  opex: 51154.95,
+  opex: ODOO.pnl.opexKwd,
+  opexPct: ODOO.pnl.opexPct,
+  depreciation: ODOO.pnl.depreciationKwd,
   opexEntries: 2213,
   maintCustody: 10707.93,
   maintEntries: 312,
   chillerRecovery: 850,
-  salariesRentCommission: 32056.874,
-  discounts: 4152,
-  discountsPct: 2.4,
-  keetaDiscounts: 2544,
-  keetaOrders: 6267,
+  /** Order-level promotion lines + line discounts recorded in the Odoo POS. */
+  discounts: ODOO.totals.discountsKwd,
+  promoLines: ODOO.totals.promoAdjustmentsKwd,
+  lineDiscounts: ODOO.totals.lineDiscountKwd,
+  discountsPct: r1((ODOO.totals.discountsKwd / (ODOO.totals.netSalesKwd + ODOO.totals.discountsKwd)) * 100),
+  keetaDiscounts: KEETA?.promoKwd ?? 0,
+  keetaOrders: KEETA?.orders ?? 0,
   keetaCapPct: 3.5,
-  keetaCapKwd: 924,
-  keetaRecovery: 1620,
-  /** Promo-eligible Keeta sales base implied by the approved cap (924 KWD ÷ 3.5%). */
-  keetaPromoBase: 26400,
+  /** Keeta promo cap at 3.5% of Keeta item sales. */
+  keetaCapKwd: r3((KEETA?.itemSalesKwd ?? 0) * 0.035),
+  keetaRecovery: Math.max(0, Math.round((KEETA?.promoKwd ?? 0) - (KEETA?.itemSalesKwd ?? 0) * 0.035)),
+  keetaPromoBase: KEETA?.itemSalesKwd ?? 0,
   beverageGain: 2450,
-  aovTarget: 5.75,
+  /** Management target: +5.1% basket uplift from the beverage attach programme. */
+  aovTarget: r3(ODOO.totals.aovKwd * 1.051),
   menuMatrixGain: 584,
   menuDogsPurge: 18,
   menuPlowhorsesReprice: 4,
-  menuItems: 364,
-  topItems: 32,
+  menuItems: ODOO.totals.productsSold,
+  topItems: TOP_80,
   topItemsSharePct: 80,
-  uptimePct: 99.1,
-  brands: 6,
-  branches: 9,
-  channels: 11,
+  brands: ODOO.brands.filter((b) => b.active).length,
+  approvedBrands: ODOO.brands.length,
+  branches: ODOO.restaurants.length,
+  channels: ODOO.channels.length,
   licence: '2021/22838',
   periodLabelEn: 'October 2026',
   periodLabelAr: 'أكتوبر 2026',
   daysInPeriod: 31,
+  syncedAt: ODOO.meta.syncedAt,
 } as const
 
 // ---------------------------------------------------------------------------
-// 2. Profit trajectory (approved)
+// 2. Profit trajectory (baseline = Odoo monthly operating profit; levers = management estimates)
 // ---------------------------------------------------------------------------
+const LEVER_INCREMENTAL = { q1: 20520, h1: 43800, fy: 91680 } as const
+
+export const ROADMAP_BASELINE = {
+  q1: r3(LEDGER.netProfit * 3),
+  h1: r3(LEDGER.netProfit * 6),
+  fy: r3(LEDGER.netProfit * 12),
+} as const
+
 export const ROADMAP = [
   { id: 'run', en: 'Current run-rate', ar: 'المعدل الحالي', months: 1, incremental: 0, total: LEDGER.netProfit },
-  { id: 'q1', en: 'Q1', ar: 'الربع الأول', months: 3, incremental: 20520, total: 147844 },
-  { id: 'h1', en: 'H1', ar: 'النصف الأول', months: 6, incremental: 43800, total: 298449 },
-  { id: 'fy', en: 'Full Year', ar: 'السنة الكاملة', months: 12, incremental: 91680, total: 600978 },
+  { id: 'q1', en: 'Q1', ar: 'الربع الأول', months: 3, incremental: LEVER_INCREMENTAL.q1, total: r3(ROADMAP_BASELINE.q1 + LEVER_INCREMENTAL.q1) },
+  { id: 'h1', en: 'H1', ar: 'النصف الأول', months: 6, incremental: LEVER_INCREMENTAL.h1, total: r3(ROADMAP_BASELINE.h1 + LEVER_INCREMENTAL.h1) },
+  { id: 'fy', en: 'Full Year', ar: 'السنة الكاملة', months: 12, incremental: LEVER_INCREMENTAL.fy, total: r3(ROADMAP_BASELINE.fy + LEVER_INCREMENTAL.fy) },
 ] as const
 
-/** Baseline (pre-remedy) profit per horizon = approved total − approved incremental. */
-export const ROADMAP_BASELINE = {
-  q1: 147844 - 20520,
-  h1: 298449 - 43800,
-  fy: 600978 - 91680,
-} as const
-
 // ---------------------------------------------------------------------------
-// 3. Profit levers (approved recommendations, 6,840 KWD/month)
+// 3. Profit levers (management estimates; Keeta recovery is computed from Odoo)
 // ---------------------------------------------------------------------------
 export type LeverId = 'ardiya-yield' | 'chiller-overhaul' | 'keeta-cap' | 'beverage-attach' | 'menu-matrix'
 export type Tone = 'emerald' | 'sky' | 'amber' | 'rose' | 'slate'
@@ -95,83 +131,86 @@ export interface Lever {
   composioAction: string
 }
 
+const f3 = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
+const f0 = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 0 })
+
 export const LEVERS: Lever[] = [
   {
     id: 'beverage-attach',
-    monthly: 2450,
+    monthly: LEDGER.beverageGain,
     tone: 'sky',
     kind: 'growth',
     en: 'Mandatory beverage in delivery combos',
     ar: 'المشروب الإلزامي في وجبات الكومبو للتوصيل',
-    detailEn: 'Lifts group AOV from 5.471 to 5.750 KWD across Talabat Tgo, TMP and Keeta combos.',
-    detailAr: 'يرفع متوسط السلة من 5.471 إلى 5.750 د.ك في وجبات طلبات جو وسوق طلبات وكيتا.',
+    detailEn: `Lifts group AOV from ${f3(LEDGER.aov)} to ${f3(LEDGER.aovTarget)} KWD across Talabat Go, Talabat MP and Keeta combos (management estimate).`,
+    detailAr: `يرفع متوسط السلة من ${f3(LEDGER.aov)} إلى ${f3(LEDGER.aovTarget)} د.ك في وجبات طلبات جو وسوق طلبات وكيتا (تقدير إداري).`,
     ownerEn: 'Operations & POS',
     ownerAr: 'العمليات ونقاط البيع',
     composioAction: 'dispatch_combo_drinks',
   },
   {
     id: 'keeta-cap',
-    monthly: 1620,
+    monthly: LEDGER.keetaRecovery,
     tone: 'sky',
     kind: 'cost',
-    en: 'Cap Keeta promo burn at 3.5%',
-    ar: 'سقف خصومات كيتا عند 3.5%',
-    detailEn: 'Reduces Keeta promotions from 2,544 KWD to 924 KWD per month across 6,267 orders.',
-    detailAr: 'يخفض خصومات كيتا من 2,544 د.ك إلى 924 د.ك شهرياً عبر 6,267 طلباً.',
+    en: `Cap Keeta promo burn at ${LEDGER.keetaCapPct}%`,
+    ar: `سقف خصومات كيتا عند ${LEDGER.keetaCapPct}%`,
+    detailEn: `Odoo shows ${f3(LEDGER.keetaDiscounts)} KWD of Keeta promotions across ${f0(LEDGER.keetaOrders)} payments; a ${LEDGER.keetaCapPct}% cap is ${f3(LEDGER.keetaCapKwd)} KWD.`,
+    detailAr: `يظهر أودو ${f3(LEDGER.keetaDiscounts)} د.ك خصومات كيتا عبر ${f0(LEDGER.keetaOrders)} عملية دفع؛ سقف ${LEDGER.keetaCapPct}% يساوي ${f3(LEDGER.keetaCapKwd)} د.ك.`,
     ownerEn: 'Marketing & Channels',
     ownerAr: 'التسويق والقنوات',
     composioAction: 'dispatch_keeta_cap',
   },
   {
     id: 'ardiya-yield',
-    monthly: 1336,
+    monthly: LEDGER.cogsRecoverable,
     tone: 'rose',
     kind: 'cost',
-    en: 'Ardiya poultry & marination yield calibration',
-    ar: 'معايرة إنتاجية الدواجن والتتبيل في العارضية',
-    detailEn: 'Brings COGS from 24.8% back to the 24.0% target across 418 central-kitchen entries.',
-    detailAr: 'يعيد تكلفة الأغذية من 24.8% إلى المستهدف 24.0% عبر 418 قيداً للمطبخ المركزي.',
+    en: 'Central kitchen poultry & marination yield programme',
+    ar: 'برنامج إنتاجية الدواجن والتتبيل في المطبخ المركزي',
+    detailEn: `Odoo COGS is ${LEDGER.cogsPct}% against the ${LEDGER.cogsTargetPct}% target; the yield programme across ${LEDGER.cogsEntries} central-kitchen entries is a management estimate pending recipe-cost access.`,
+    detailAr: `تكلفة الأغذية في أودو ${LEDGER.cogsPct}% مقابل المستهدف ${LEDGER.cogsTargetPct}%؛ برنامج الإنتاجية عبر ${LEDGER.cogsEntries} قيداً للمطبخ المركزي تقدير إداري لحين إتاحة تكلفة الوصفات.`,
     ownerEn: 'Central Kitchen & QC',
     ownerAr: 'المطبخ المركزي والجودة',
     composioAction: 'dispatch_operations_plan',
   },
   {
     id: 'chiller-overhaul',
-    monthly: 850,
+    monthly: LEDGER.chillerRecovery,
     tone: 'amber',
     kind: 'cost',
     en: 'Commercial chiller overhaul',
     ar: 'تجديد المبردات التجارية',
-    detailEn: 'Ends repeated cash repairs behind 10,707.930 KWD custody across 312 entries in Al-Kout & Salmiya.',
-    detailAr: 'يوقف الإصلاحات النقدية المتكررة خلف عهدة 10,707.930 د.ك عبر 312 قيداً في الكوت والسالمية.',
+    detailEn: `Ends repeated cash repairs behind ${f3(LEDGER.maintCustody)} KWD custody across ${LEDGER.maintEntries} entries in Al-Kout Mall & Salmiya.`,
+    detailAr: `يوقف الإصلاحات النقدية المتكررة خلف عهدة ${f3(LEDGER.maintCustody)} د.ك عبر ${LEDGER.maintEntries} قيداً في مجمع الكوت والسالمية.`,
     ownerEn: 'Maintenance & Procurement',
     ownerAr: 'الصيانة والمشتريات',
     composioAction: 'dispatch_chiller_plan',
   },
   {
     id: 'menu-matrix',
-    monthly: 584,
+    monthly: LEDGER.menuMatrixGain,
     tone: 'emerald',
     kind: 'growth',
     en: 'Menu matrix rationalization',
     ar: 'إعادة هندسة مصفوفة المنيو',
-    detailEn: 'Purge 18 sluggish Dog items and apply +5% to 4 popular Plowhorses.',
-    detailAr: 'استبعاد 18 صنفاً ضعيفاً ورفع أسعار 4 أصناف شعبية منخفضة الهامش بنسبة 5%.',
+    detailEn: `Purge ${LEDGER.menuDogsPurge} sluggish Dog items and apply +5% to ${LEDGER.menuPlowhorsesReprice} popular Plowhorses across ${LEDGER.menuItems} Odoo items sold.`,
+    detailAr: `استبعاد ${LEDGER.menuDogsPurge} صنفاً ضعيفاً ورفع أسعار ${LEDGER.menuPlowhorsesReprice} أصناف شعبية منخفضة الهامش بنسبة 5% من أصل ${LEDGER.menuItems} صنفاً مبيعاً في أودو.`,
     ownerEn: 'Menu Engineering',
     ownerAr: 'هندسة المنيو',
     composioAction: 'dispatch_combo_drinks',
   },
 ]
 
-export const LEVERS_MONTHLY_TOTAL = LEVERS.reduce((s, l) => s + l.monthly, 0) // 6,840
+export const LEVERS_MONTHLY_TOTAL = LEVERS.reduce((s, l) => s + l.monthly, 0)
 
-/** Incremental profit for a subset of enabled levers across each approved horizon. */
+/** Incremental profit for a subset of enabled levers across each horizon. */
 export function leverImpact(enabled: Record<LeverId, boolean>) {
   const monthly = LEVERS.filter((l) => enabled[l.id]).reduce((s, l) => s + l.monthly, 0)
-  const share = monthly / LEVERS_MONTHLY_TOTAL
-  const q1 = 20520 * share
-  const h1 = 43800 * share
-  const fy = 91680 * share
+  const share = LEVERS_MONTHLY_TOTAL ? monthly / LEVERS_MONTHLY_TOTAL : 0
+  const q1 = LEVER_INCREMENTAL.q1 * share
+  const h1 = LEVER_INCREMENTAL.h1 * share
+  const fy = LEVER_INCREMENTAL.fy * share
   return {
     monthly,
     share,
@@ -185,16 +224,17 @@ export function leverImpact(enabled: Record<LeverId, boolean>) {
 }
 
 // ---------------------------------------------------------------------------
-// 4. Brands (7, from live Odoo) — reconciles to 167,092.160 KWD / 30,540 orders
+// 4. Brands (approved Venture Foods brands with Odoo POS sales in the period)
 // ---------------------------------------------------------------------------
-/** The 7 Venture Foods brands with POS sales in Odoo (October 2026 live sync, root POS categories). */
 export type BrandId = 'china-garden' | 'franks' | 'tahina' | 'farm-brown' | 'fresh-daily-canteen' | 'noodle-bar' | 'karak-cafeteria'
 
 export interface Brand {
   id: BrandId
   en: string
   ar: string
+  /** Odoo item sales (before order-level promotion lines). */
   sales: number
+  /** Odoo orders containing at least one item of the brand. */
   orders: number
   aov: number
   color: string
@@ -202,113 +242,117 @@ export interface Brand {
   cuisineAr: string
 }
 
-export const BRANDS: Brand[] = [
-  { id: 'china-garden', en: 'China Garden', ar: 'تشاينا جاردن', sales: 141662.4, orders: 25890, aov: 5.472, color: '#0284C7', cuisineEn: 'Chinese & Asian', cuisineAr: 'صيني وآسيوي' },
-  { id: 'franks', en: "Frank's Philly CheeseSteak", ar: 'فرانكس فيلي تشيز ستيك', sales: 11840.2, orders: 1580, aov: 7.49, color: '#059669', cuisineEn: 'Philly cheesesteaks', cuisineAr: 'ساندويتشات فيلي ستيك' },
-  { id: 'tahina', en: "Tahina", ar: 'طحينة', sales: 5458.1, orders: 1233, aov: 4.427, color: '#D97706', cuisineEn: 'Shawarma & Levant street food', cuisineAr: 'شاورما وأكل شارع شامي' },
-  { id: 'farm-brown', en: "Farm Brown", ar: 'فارم براون', sales: 3263.17, orders: 737, aov: 4.428, color: '#0F766E', cuisineEn: 'Fried chicken, sandwiches & wraps', cuisineAr: 'دجاج مقلي وساندويتشات وراب' },
-  { id: 'fresh-daily-canteen', en: "Fresh Daily Canteen", ar: 'فريش ديلي كانتين', sales: 2493.67, orders: 563, aov: 4.429, color: '#0891B2', cuisineEn: 'School canteens: sandwiches, bakery & drinks', cuisineAr: 'مقاصف مدرسية: ساندويتشات ومخبوزات ومشروبات' },
-  { id: 'noodle-bar', en: "The Noodle Bar", ar: 'ذا نودل بار', sales: 1897.31, orders: 429, aov: 4.423, color: '#E11D48', cuisineEn: 'Asian noodles & wok', cuisineAr: 'نودلز ووك آسيوي' },
-  { id: 'karak-cafeteria', en: "Karak Cafeteria", ar: 'كرك كافتيريا', sales: 477.31, orders: 108, aov: 4.42, color: '#475569', cuisineEn: 'Karak tea, chapati & snacks', cuisineAr: 'كرك وشاباتي ووجبات خفيفة' },
-]
+export const BRANDS: Brand[] = ODOO.brands
+  .filter((b) => b.active)
+  .map((b) => ({ id: b.id as BrandId, en: b.en, ar: b.ar, sales: b.netKwd, orders: b.orders, aov: b.aovKwd, color: b.color, cuisineEn: b.cuisineEn, cuisineAr: b.cuisineAr }))
+
+/** Approved brands that exist in Odoo but recorded no POS sales in the period. */
+export const INACTIVE_APPROVED_BRANDS = ODOO.brands.filter((b) => !b.active).map((b) => ({ id: b.id, en: b.en, ar: b.ar }))
+
+const BRAND_ITEM_TOTAL = BRANDS.reduce((s, b) => s + b.sales, 0)
 
 // ---------------------------------------------------------------------------
-// 5. Branches (9 active only)
+// 5. Branches = Odoo permanent restaurant locations (EXB and school canteens are separate units)
 // ---------------------------------------------------------------------------
-export type BranchId =
-  | 'salmiya'
-  | 'al-kout'
-  | 'sharq'
-  | 'hawally'
-  | 'farwaniya'
-  | 'ardiya'
-  | 'mahboula'
-  | 'mubarak-al-kabeer'
-  | 'jabriya'
-
-export interface Branch {
-  id: BranchId
-  en: string
-  ar: string
-  sales: number
-  orders: number
-  /** Relative operating margin weight; normalised so the 9 branches reconcile to 42,441.480 KWD. */
-  marginWeight: number
-  topChannel: ChannelId
-  statusEn: string
-  statusAr: string
-  tone: Tone
-}
-
-const RAW_BRANCHES: Branch[] = [
-  { id: 'salmiya', en: 'Salmiya', ar: 'السالمية', sales: 31246.23, orders: 5710, marginWeight: 0.286, topChannel: 'talabat-tgo', statusEn: 'Optimal', statusAr: 'مثالي', tone: 'emerald' },
-  { id: 'al-kout', en: 'Al-Kout / Fahaheel', ar: 'الكوت / الفحيحيل', sales: 27904.39, orders: 5100, marginWeight: 0.261, topChannel: 'talabat-tmp', statusEn: 'Optimal', statusAr: 'مثالي', tone: 'emerald' },
-  { id: 'sharq', en: 'Sharq', ar: 'شرق', sales: 24896.73, orders: 4550, marginWeight: 0.272, topChannel: 'deliveroo', statusEn: 'Optimal', statusAr: 'مثالي', tone: 'emerald' },
-  { id: 'hawally', en: 'Hawally', ar: 'حولي', sales: 21387.79, orders: 3910, marginWeight: 0.214, topChannel: 'keeta', statusEn: 'Chiller repairs required', statusAr: 'يحتاج صيانة مبردات', tone: 'amber' },
-  { id: 'farwaniya', en: 'Farwaniya', ar: 'الفروانية', sales: 18045.95, orders: 3300, marginWeight: 0.259, topChannel: 'talabat-tgo', statusEn: 'Optimal', statusAr: 'مثالي', tone: 'emerald' },
-  { id: 'ardiya', en: 'Ardiya Central', ar: 'العارضية الحرفية', sales: 15372.48, orders: 2810, marginWeight: 0.198, topChannel: 'dine-in', statusEn: 'Prep waste calibration', statusAr: 'معايرة هدر التتبيل', tone: 'rose' },
-  { id: 'mahboula', en: 'Mahboula', ar: 'المهبولة', sales: 11238.29, orders: 2055, marginWeight: 0.246, topChannel: 'talabat-tmp', statusEn: 'Optimal', statusAr: 'مثالي', tone: 'emerald' },
-  { id: 'mubarak-al-kabeer', en: 'Mubarak Al-Kabeer', ar: 'مبارك الكبير / صباح السالم', sales: 9200.3, orders: 1680, marginWeight: 0.242, topChannel: 'talabat-tgo', statusEn: 'Rapid growth', statusAr: 'نمو متصاعد', tone: 'sky' },
-  { id: 'jabriya', en: 'Jabriya', ar: 'الجابرية', sales: 7800.0, orders: 1425, marginWeight: 0.25, topChannel: 'talabat-tgo', statusEn: 'Optimal', statusAr: 'مثالي', tone: 'emerald' },
-]
-
-const MARGIN_NORMALISER =
-  LEDGER.netProfit / RAW_BRANCHES.reduce((s, b) => s + b.sales * b.marginWeight, 0)
-
-export const BRANCHES = RAW_BRANCHES.map((b) => ({
-  ...b,
-  marginPct: b.marginWeight * MARGIN_NORMALISER * 100,
-  profit: b.sales * b.marginWeight * MARGIN_NORMALISER,
-}))
-
-export type BranchRow = (typeof BRANCHES)[number]
+export type BranchId = 'promenade' | '360-mall' | 'ardiya' | 'assima' | 'salmiya' | 'al-kout' | 'avenues'
 
 // ---------------------------------------------------------------------------
-// 6. Sales channels (11)
+// 6. Sales channels (Odoo POS payment methods grouped into channels)
 // ---------------------------------------------------------------------------
-export type ChannelId =
-  | 'talabat-tgo'
-  | 'talabat-tmp'
-  | 'keeta'
-  | 'deliveroo'
-  | 'jahez'
-  | 'cari'
-  | 'direct-web'
-  | 'dine-in'
-  | 'takeaway'
-  | 'drive-thru'
-  | 'call-center'
+export type ChannelId = 'shop' | 'talabat-tgo' | 'keeta' | 'deliveroo-go' | 'talabat-tmp' | 'online-link' | 'snoonu' | 'jahez' | 'deliveroo-mp' | 'staff'
 
 export interface Channel {
   id: ChannelId
   en: string
   ar: string
   group: 'aggregator' | 'direct' | 'store'
+  /** Odoo payments (net after promotions). */
   sales: number
+  /** Item sales before order-level promotions. */
+  itemSales: number
   orders: number
+  /** Contract commission term (configuration, not POS data). */
   commissionPct: number
+  /** Promotion value = item sales − payments. */
   promo: number
-  /** Restaurant-paid rider cost per order (TMP model only). */
+  /** Restaurant-paid rider cost per order (TMP model only, contract term). */
   riderCostPerOrder: number
-  uptimePct: number
+  mode: 'Tgo' | 'TMP' | null
   color: string
 }
 
-export const CHANNELS: Channel[] = [
-  { id: 'talabat-tgo', en: 'Talabat Tgo', ar: 'طلبات جو', group: 'aggregator', sales: 38412.71, orders: 7180, commissionPct: 17, promo: 820, riderCostPerOrder: 0, uptimePct: 99.4, color: '#F97316' },
-  { id: 'talabat-tmp', en: 'Talabat TMP', ar: 'سوق طلبات', group: 'aggregator', sales: 24190.75, orders: 4420, commissionPct: 10, promo: 410, riderCostPerOrder: 0.35, uptimePct: 99.2, color: '#FB923C' },
-  { id: 'keeta', en: 'Keeta', ar: 'كيتا', group: 'aggregator', sales: 35607.98, orders: 6267, commissionPct: 12, promo: 2544, riderCostPerOrder: 0, uptimePct: 98.8, color: '#EAB308' },
-  { id: 'deliveroo', en: 'Deliveroo', ar: 'ديليفرو', group: 'aggregator', sales: 5418.2, orders: 905, commissionPct: 18, promo: 238, riderCostPerOrder: 0, uptimePct: 99.0, color: '#14B8A6' },
-  { id: 'jahez', en: 'Jahez', ar: 'جاهز', group: 'aggregator', sales: 2214.63, orders: 410, commissionPct: 15, promo: 140, riderCostPerOrder: 0, uptimePct: 98.9, color: '#DC2626' },
-  { id: 'cari', en: 'Cari', ar: 'كاري', group: 'aggregator', sales: 1302.4, orders: 236, commissionPct: 14, promo: 0, riderCostPerOrder: 0, uptimePct: 98.7, color: '#7C8798' },
-  { id: 'direct-web', en: 'Direct Web', ar: 'الموقع المباشر', group: 'direct', sales: 992.4, orders: 172, commissionPct: 2.5, promo: 0, riderCostPerOrder: 0.35, uptimePct: 99.9, color: '#0EA5E9' },
-  { id: 'dine-in', en: 'Dine-In', ar: 'الصالة', group: 'store', sales: 24310.42, orders: 4250, commissionPct: 0, promo: 0, riderCostPerOrder: 0, uptimePct: 100, color: '#133B5C' },
-  { id: 'takeaway', en: 'Takeaway', ar: 'السفري', group: 'store', sales: 21904.17, orders: 4310, commissionPct: 0, promo: 0, riderCostPerOrder: 0, uptimePct: 100, color: '#1B5B7A' },
-  { id: 'drive-thru', en: 'Drive-Thru', ar: 'خدمة السيارات', group: 'store', sales: 6120.5, orders: 1190, commissionPct: 0, promo: 0, riderCostPerOrder: 0, uptimePct: 100, color: '#2C7DA0' },
-  { id: 'call-center', en: 'Call Center', ar: 'مركز الاتصال', group: 'direct', sales: 6618.0, orders: 1200, commissionPct: 0, promo: 0, riderCostPerOrder: 0.35, uptimePct: 100, color: '#468FAF' },
-]
+export const CHANNELS: Channel[] = ODOO.channels.map((c) => ({
+  id: c.id as ChannelId,
+  en: c.en,
+  ar: c.ar,
+  group: c.group as Channel['group'],
+  sales: c.netKwd,
+  itemSales: c.itemSalesKwd,
+  orders: c.orders,
+  commissionPct: c.commissionPct,
+  promo: c.promoKwd,
+  riderCostPerOrder: c.riderCostPerOrder,
+  mode: (c.mode ?? null) as Channel['mode'],
+  color: c.color,
+}))
 
-export const AGGREGATOR_IDS: ChannelId[] = ['talabat-tgo', 'talabat-tmp', 'keeta', 'deliveroo', 'jahez', 'cari']
+export const AGGREGATOR_IDS: ChannelId[] = CHANNELS.filter((c) => c.group === 'aggregator').map((c) => c.id)
+
+export interface Branch {
+  id: BranchId
+  en: string
+  ar: string
+  code: string
+  sales: number
+  orders: number
+  topChannel: ChannelId
+  statusEn: string
+  statusAr: string
+  tone: Tone
+  /** Operating margin from the Odoo Branches analytic plan (location cost centre). */
+  marginPct: number
+  profit: number
+  revenue: number
+  cogs: number
+  opex: number
+  depreciation: number
+}
+
+const RESTAURANT_MARGINS = ODOO.restaurants.map((l) => (l.pnl && l.pnl.income ? (l.pnl.operatingProfit / l.pnl.income) * 100 : 0))
+const AVG_MARGIN = RESTAURANT_MARGINS.reduce((s, m) => s + m, 0) / Math.max(RESTAURANT_MARGINS.length, 1)
+
+export const BRANCHES: Branch[] = ODOO.restaurants.map((l) => {
+  const pnl = l.pnl ?? { income: 0, otherIncome: 0, cogs: 0, expense: 0, depreciation: 0, operatingProfit: 0 }
+  const marginPct = pnl.income ? r1((pnl.operatingProfit / pnl.income) * 100) : 0
+  const top = [...l.channels].sort((a, b) => b.amountKwd - a.amountKwd)[0]
+  const tone: Tone = marginPct >= AVG_MARGIN + 5 ? 'emerald' : marginPct >= AVG_MARGIN - 5 ? 'sky' : 'amber'
+  return {
+    id: l.id as BranchId,
+    en: l.en,
+    ar: l.ar,
+    code: l.code,
+    sales: l.netKwd,
+    orders: l.orders,
+    topChannel: (top?.channel ?? 'shop') as ChannelId,
+    statusEn: tone === 'emerald' ? 'Above group margin' : tone === 'sky' ? 'At group margin' : 'Below group margin',
+    statusAr: tone === 'emerald' ? 'أعلى من هامش المجموعة' : tone === 'sky' ? 'ضمن هامش المجموعة' : 'أقل من هامش المجموعة',
+    tone,
+    marginPct,
+    profit: pnl.operatingProfit,
+    revenue: pnl.income,
+    cogs: pnl.cogs,
+    opex: pnl.expense,
+    depreciation: pnl.depreciation,
+  }
+})
+
+export type BranchRow = (typeof BRANCHES)[number]
+
+/** Exhibitions & Booths (EXB) and school canteens: Odoo units kept out of the branch rankings. */
+export const OPERATING_UNITS = [...ODOO.exhibitions, ...ODOO.canteens].map((u) => ({ id: u.id, en: u.en, ar: u.ar, unit: u.unit, sales: u.netKwd, orders: u.orders, aov: u.aovKwd, registers: u.registers, pnl: u.pnl }))
+export const EXB_UNIT = OPERATING_UNITS.find((u) => u.unit === 'exhibition') ?? null
+export const EXB_REGISTERS = ODOO.exbRegisters
+export const SHARED_COSTS = ODOO.pnl.sharedCosts
 
 // ---------------------------------------------------------------------------
 // 7. Period
@@ -324,7 +368,7 @@ export const PERIODS: { id: Period; en: string; ar: string; factor: number }[] =
 export const periodFactor = (p: Period) => PERIODS.find((x) => x.id === p)?.factor ?? 1
 
 // ---------------------------------------------------------------------------
-// 8. Filter-aware ledger view
+// 8. Filter-aware ledger view (real Odoo cross-tabulations, no proportional splits)
 // ---------------------------------------------------------------------------
 export interface BiFilters {
   brand: BrandId | 'all'
@@ -339,18 +383,50 @@ export const brandById = (id: string | null | undefined) => BRANDS.find((b) => b
 export const branchById = (id: string | null | undefined) => BRANCHES.find((b) => b.id === id) ?? null
 export const channelById = (id: string | null | undefined) => CHANNELS.find((c) => c.id === id) ?? null
 
-/** Proportional sales and order shares for the selected brand × branch × channel slice. */
+type Slice = { net: number; orders: number; exact: boolean }
+
+/** Exact Odoo figures for any brand × location × channel slice. */
+export function odooSlice(f: Pick<BiFilters, 'brand' | 'branch' | 'channel'>): Slice {
+  const b = f.brand === 'all' ? null : f.brand
+  const l = f.branch === 'all' ? null : f.branch
+  const c = f.channel === 'all' ? null : f.channel
+  if (!b && !l && !c) return { net: LEDGER.netSales, orders: LEDGER.orders, exact: true }
+  if (b && !l && !c) { const x = brandById(b); return { net: x?.sales ?? 0, orders: x?.orders ?? 0, exact: true } }
+  if (!b && l && !c) { const x = branchById(l); return { net: x?.sales ?? 0, orders: x?.orders ?? 0, exact: true } }
+  if (!b && !l && c) { const x = channelById(c); return { net: x?.sales ?? 0, orders: x?.orders ?? 0, exact: true } }
+  if (b && l && !c) { const x = ODOO.brandLocation.find((r) => r.brand === b && r.location === l); return { net: x?.netKwd ?? 0, orders: x?.orders ?? 0, exact: true } }
+  if (b && !l && c) { const x = ODOO.brandChannel.find((r) => r.brand === b && r.channel === c); return { net: x?.netKwd ?? 0, orders: x?.orders ?? 0, exact: true } }
+  if (!b && l && c) {
+    const loc = ODOO.restaurants.find((r) => r.id === l)
+    const x = loc?.channels.find((r) => r.channel === c)
+    return { net: x?.amountKwd ?? 0, orders: x?.payments ?? 0, exact: true }
+  }
+  // brand × location × channel: exact net from the Odoo cube; orders follow the brand-at-location basket.
+  const cell = ODOO.cube.find((r) => r.brand === b && r.location === l && r.channel === c)
+  const bl = ODOO.brandLocation.find((r) => r.brand === b && r.location === l)
+  const orders = cell && bl && bl.netKwd > 0 ? Math.round((cell.netKwd / bl.netKwd) * bl.orders) : 0
+  return { net: cell?.netKwd ?? 0, orders, exact: false }
+}
+
+/** Shares of the selected slice against the group (kept for components that scale secondary metrics). */
 export function sliceShares(f: Pick<BiFilters, 'brand' | 'branch' | 'channel'>) {
   const brand = f.brand === 'all' ? null : brandById(f.brand)
   const branch = f.branch === 'all' ? null : branchById(f.branch)
   const channel = f.channel === 'all' ? null : channelById(f.channel)
-  const bS = brand ? brand.sales / LEDGER.netSales : 1
-  const bO = brand ? brand.orders / LEDGER.orders : 1
-  const brS = branch ? branch.sales / LEDGER.netSales : 1
-  const brO = branch ? branch.orders / LEDGER.orders : 1
-  const cS = channel ? channel.sales / LEDGER.netSales : 1
-  const cO = channel ? channel.orders / LEDGER.orders : 1
-  return { brand, branch, channel, salesShare: bS * brS * cS, ordersShare: bO * brO * cO, brandShare: bS, branchShare: brS, channelShare: cS }
+  const slice = odooSlice(f)
+  const salesShare = LEDGER.netSales ? slice.net / LEDGER.netSales : 0
+  const ordersShare = LEDGER.orders ? slice.orders / LEDGER.orders : 0
+  return {
+    brand,
+    branch,
+    channel,
+    salesShare,
+    ordersShare,
+    brandShare: brand ? brand.sales / BRAND_ITEM_TOTAL : 1,
+    branchShare: branch ? branch.sales / LEDGER.netSales : 1,
+    channelShare: channel ? channel.sales / LEDGER.netSales : 1,
+    exact: slice.exact,
+  }
 }
 
 export function isFiltered(f: BiFilters) {
@@ -359,15 +435,17 @@ export function isFiltered(f: BiFilters) {
 
 export function ledgerView(f: BiFilters) {
   const s = sliceShares(f)
+  const slice = odooSlice(f)
   const pf = periodFactor(f.period)
-  const netSales = LEDGER.netSales * s.salesShare * pf
-  const orders = LEDGER.orders * s.ordersShare * pf
+  const netSales = slice.net * pf
+  const orders = slice.orders * pf
+  // Margin: location cost-centre margin when a branch is selected, otherwise the group margin.
   const marginPct = s.branch ? s.branch.marginPct : LEDGER.marginPct
-  const netProfit = s.branch || s.brand || s.channel ? netSales * (marginPct / 100) : LEDGER.netProfit * pf
-  const cogs = netSales * (LEDGER.cogsPct / 100)
-  const opex = LEDGER.opex * s.salesShare * pf
-  const channelPromo = s.channel ? s.channel.promo : LEDGER.discounts
-  const discounts = channelPromo * s.brandShare * s.branchShare * pf
+  const netProfit = s.branch && !s.brand && !s.channel ? s.branch.profit * pf : isFiltered(f) ? netSales * (marginPct / 100) : LEDGER.netProfit * pf
+  const cogsPct = LEDGER.cogsPct
+  const cogs = s.branch && !s.brand && !s.channel ? s.branch.cogs * pf : netSales * (cogsPct / 100)
+  const opex = s.branch && !s.brand && !s.channel ? s.branch.opex * pf : LEDGER.opex * s.salesShare * pf
+  const discounts = (s.channel ? s.channel.promo : LEDGER.discounts) * (s.brand || s.branch ? s.salesShare / (s.channel ? s.channelShare || 1 : 1) : 1) * pf
   const custody = LEDGER.maintCustody * s.salesShare * pf
   const levers = LEVERS_MONTHLY_TOTAL * s.salesShare * pf
   return {
@@ -381,7 +459,7 @@ export function ledgerView(f: BiFilters) {
     netProfit,
     marginPct,
     cogs,
-    cogsPct: LEDGER.cogsPct,
+    cogsPct,
     opex,
     discounts,
     custody,
@@ -428,182 +506,20 @@ export interface MenuItem {
   prepSec: number
 }
 
-function mulberry32(seed: number) {
-  let a = seed >>> 0
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0
-    let t = a
-    t = Math.imul(t ^ (t >>> 15), t | 1)
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
-  }
-}
-
-type Seed = { en: string; ar: string; cat: CategoryId; price: number }
-
-const HERO_ITEMS: Record<BrandId, Seed[]> = {
-  'china-garden': [
-    { en: 'Chicken Manchurian Combo', ar: 'كومبو دجاج منشوريان', cat: 'combos', price: 3.75 },
-    { en: 'Kung Pao Chicken', ar: 'دجاج كونغ باو', cat: 'mains', price: 3.25 },
-    { en: 'Chicken Fried Rice', ar: 'أرز مقلي بالدجاج', cat: 'noodles-rice', price: 2.5 },
-    { en: 'Sweet & Sour Chicken', ar: 'دجاج حلو وحامض', cat: 'mains', price: 3.25 },
-    { en: 'Chicken Chow Mein', ar: 'تشاو مين بالدجاج', cat: 'noodles-rice', price: 2.75 },
-    { en: 'Dynamite Shrimp', ar: 'روبيان داينمايت', cat: 'starters', price: 3.5 },
-    { en: 'Family Feast Box', ar: 'بوكس وليمة العائلة', cat: 'combos', price: 11.5 },
-    { en: 'Chilli Chicken Dry', ar: 'دجاج بالفلفل الحار', cat: 'mains', price: 3.25 },
-    { en: 'Beef with Black Pepper', ar: 'لحم بالفلفل الأسود', cat: 'mains', price: 3.75 },
-    { en: 'Vegetable Spring Rolls', ar: 'سبرينغ رول خضار', cat: 'starters', price: 1.5 },
-    { en: 'Szechuan Noodles', ar: 'نودلز سيشوان', cat: 'noodles-rice', price: 2.75 },
-    { en: 'Chicken Corn Soup', ar: 'شوربة الذرة بالدجاج', cat: 'starters', price: 1.5 },
-    { en: 'Garlic Chicken', ar: 'دجاج بالثوم', cat: 'mains', price: 3.25 },
-    { en: 'Shrimp Fried Rice', ar: 'أرز مقلي بالروبيان', cat: 'noodles-rice', price: 3.0 },
-    { en: 'Crispy Honey Chicken', ar: 'دجاج مقرمش بالعسل', cat: 'mains', price: 3.25 },
-    { en: 'Lunch Box Combo', ar: 'كومبو صندوق الغداء', cat: 'combos', price: 2.95 },
-    { en: 'Chicken Lollipop', ar: 'دجاج لولي بوب', cat: 'starters', price: 2.25 },
-    { en: 'Hakka Noodles', ar: 'نودلز هاكا', cat: 'noodles-rice', price: 2.5 },
-    { en: 'Orange Chicken', ar: 'دجاج بالبرتقال', cat: 'mains', price: 3.25 },
-    { en: 'Mongolian Beef', ar: 'لحم منغولي', cat: 'mains', price: 3.75 },
-    { en: 'Hot & Sour Soup', ar: 'شوربة حارة وحامضة', cat: 'starters', price: 1.5 },
-    { en: 'Fish Manchurian', ar: 'سمك منشوريان', cat: 'mains', price: 3.5 },
-    { en: 'Egg Fried Rice', ar: 'أرز مقلي بالبيض', cat: 'noodles-rice', price: 2.0 },
-    { en: 'Chicken Noodles Box', ar: 'بوكس نودلز الدجاج', cat: 'noodles-rice', price: 2.5 },
-    { en: 'Prawn Tempura', ar: 'روبيان تمبورا', cat: 'starters', price: 3.25 },
-    { en: 'Duo Combo Meal', ar: 'وجبة كومبو مزدوجة', cat: 'combos', price: 6.5 },
-  ],
-  franks: [
-    { en: 'Classic Philly CheeseSteak', ar: 'فيلي تشيز ستيك كلاسيك', cat: 'sandwiches', price: 4.25 },
-    { en: 'Chicken Philly Combo', ar: 'كومبو فيلي دجاج', cat: 'combos', price: 4.75 },
-    { en: 'Loaded Cheese Fries', ar: 'بطاطس محملة بالجبن', cat: 'sides', price: 1.75 },
-  ],
-  tahina: [
-    { en: 'Chicken Shawarma Arabi', ar: 'شاورما دجاج عربي', cat: 'sandwiches', price: 2.25 },
-    { en: 'Loaded Shawarma Fries', ar: 'بطاطس شاورما محملة', cat: 'sides', price: 1.95 },
-  ],
-  'farm-brown': [],
-  'fresh-daily-canteen': [],
-  'noodle-bar': [{ en: 'Sriracha Chicken Noodles', ar: 'نودلز دجاج سريراتشا', cat: 'noodles-rice', price: 3.5 }],
-  'karak-cafeteria': [],
-}
-
-/** Top-tier revenue per brand (sums to exactly 80% of group net sales). */
-const HERO_REVENUE: Record<BrandId, number> = {
-  'china-garden': 133673.728 - 12700,
-  franks: 7600,
-  tahina: 3200,
-  'farm-brown': 0,
-  'fresh-daily-canteen': 0,
-  'noodle-bar': 1900,
-  'karak-cafeteria': 0,
-}
-
-const ITEM_COUNTS: Record<BrandId, number> = {
-  'china-garden': 168,
-  franks: 42,
-  tahina: 48,
-  'farm-brown': 30,
-  'fresh-daily-canteen': 24,
-  'noodle-bar': 34,
-  'karak-cafeteria': 18,
-}
-
-const TAIL_BASES: Record<BrandId, Seed[]> = {
-  'china-garden': [
-    { en: 'Ginger Chicken', ar: 'دجاج بالزنجبيل', cat: 'mains', price: 3.0 },
-    { en: 'Cashew Chicken', ar: 'دجاج بالكاجو', cat: 'mains', price: 3.25 },
-    { en: 'Lemon Chicken', ar: 'دجاج بالليمون', cat: 'mains', price: 3.0 },
-    { en: 'Pepper Beef', ar: 'لحم بالفلفل', cat: 'mains', price: 3.5 },
-    { en: 'Sesame Shrimp', ar: 'روبيان بالسمسم', cat: 'mains', price: 3.75 },
-    { en: 'Mixed Vegetables', ar: 'خضار مشكلة', cat: 'mains', price: 2.25 },
-    { en: 'Tofu Szechuan', ar: 'توفو سيشوان', cat: 'mains', price: 2.5 },
-    { en: 'Singapore Noodles', ar: 'نودلز سنغافورة', cat: 'noodles-rice', price: 2.75 },
-    { en: 'Seafood Fried Rice', ar: 'أرز مقلي بالمأكولات البحرية', cat: 'noodles-rice', price: 3.25 },
-    { en: 'Beef Chow Fun', ar: 'تشاو فن باللحم', cat: 'noodles-rice', price: 3.0 },
-    { en: 'Vegetable Fried Rice', ar: 'أرز مقلي بالخضار', cat: 'noodles-rice', price: 2.0 },
-    { en: 'Wonton Soup', ar: 'شوربة ونتون', cat: 'starters', price: 1.75 },
-    { en: 'Chicken Dumplings', ar: 'زلابية الدجاج', cat: 'starters', price: 2.0 },
-    { en: 'Crispy Calamari', ar: 'كاليماري مقرمش', cat: 'starters', price: 2.75 },
-    { en: 'Salt & Pepper Prawns', ar: 'روبيان بالملح والفلفل', cat: 'starters', price: 3.25 },
-    { en: 'Fortune Combo', ar: 'كومبو فورتشن', cat: 'combos', price: 4.25 },
-    { en: 'Kids Meal', ar: 'وجبة أطفال', cat: 'combos', price: 1.95 },
-    { en: 'Steamed Rice', ar: 'أرز أبيض مطهو', cat: 'sides', price: 0.75 },
-    { en: 'Prawn Crackers', ar: 'رقائق الروبيان', cat: 'sides', price: 0.75 },
-    { en: 'Soft Drink', ar: 'مشروب غازي', cat: 'beverages', price: 0.4 },
-    { en: 'Fresh Lemon Mint', ar: 'ليمون بالنعناع', cat: 'beverages', price: 1.0 },
-    { en: 'Iced Tea', ar: 'شاي مثلج', cat: 'beverages', price: 0.9 },
-    { en: 'Fried Ice Cream', ar: 'آيس كريم مقلي', cat: 'desserts', price: 1.5 },
-    { en: 'Mango Pudding', ar: 'بودينغ المانجو', cat: 'desserts', price: 1.25 },
-  ],
-  franks: [
-    { en: 'Mushroom Swiss Philly', ar: 'فيلي بالفطر والجبن السويسري', cat: 'sandwiches', price: 4.5 },
-    { en: 'Pepper Jack Philly', ar: 'فيلي بيبر جاك', cat: 'sandwiches', price: 4.5 },
-    { en: 'Philly Sliders', ar: 'سلايدرز فيلي', cat: 'sandwiches', price: 3.75 },
-    { en: 'Curly Fries', ar: 'بطاطس حلزونية', cat: 'sides', price: 1.25 },
-    { en: 'Onion Rings', ar: 'حلقات البصل', cat: 'sides', price: 1.25 },
-    { en: 'Milkshake', ar: 'ميلك شيك', cat: 'beverages', price: 1.75 },
-    { en: 'Brownie', ar: 'براوني', cat: 'desserts', price: 1.25 },
-  ],
-  tahina: [
-    { en: 'Beef Shawarma Plate', ar: 'صحن شاورما لحم', cat: 'mains', price: 2.95 },
-    { en: 'Falafel Wrap', ar: 'لفافة فلافل', cat: 'sandwiches', price: 1.25 },
-    { en: 'Hummus Bowl', ar: 'صحن حمص', cat: 'sides', price: 1.25 },
-    { en: 'Fattoush', ar: 'فتوش', cat: 'starters', price: 1.25 },
-    { en: 'Shawarma Saj', ar: 'شاورما صاج', cat: 'sandwiches', price: 1.95 },
-    { en: 'Laban Ayran', ar: 'لبن عيران', cat: 'beverages', price: 0.4 },
-    { en: 'Knafeh Cup', ar: 'كوب كنافة', cat: 'desserts', price: 1.25 },
-  ],
-  'farm-brown': [
-    { en: 'Chicken Fillet Meal', ar: 'وجبة فيليه دجاج', cat: 'combos', price: 3.75 },
-    { en: 'Kids Meal - Chicken Strip', ar: 'وجبة أطفال - أصابع دجاج', cat: 'combos', price: 1.9 },
-    { en: 'Kids Meal - Chicken Fillet', ar: 'وجبة أطفال - فيليه دجاج', cat: 'combos', price: 1.85 },
-    { en: 'Wrap Meal', ar: 'وجبة راب', cat: 'sandwiches', price: 3.5 },
-    { en: 'Popcorn Chicken', ar: 'دجاج بوب كورن', cat: 'starters', price: 1.25 },
-    { en: 'Mozzarella Croquette', ar: 'كروكيت موزاريلا', cat: 'sides', price: 1.75 },
-    { en: 'Boneless Buffalo Wings', ar: 'أجنحة بافلو بدون عظم', cat: 'starters', price: 2.5 },
-    { en: 'French Fries', ar: 'بطاطس مقلية', cat: 'sides', price: 0.95 },
-    { en: 'Mixed Ice Cream', ar: 'آيس كريم مشكل', cat: 'desserts', price: 0.5 },
-  ],
-  'fresh-daily-canteen': [
-    { en: 'Chicken Fillet Sandwich', ar: 'ساندويتش فيليه دجاج', cat: 'sandwiches', price: 0.45 },
-    { en: 'Cheese Burger Sandwich', ar: 'ساندويتش تشيز برجر', cat: 'sandwiches', price: 0.45 },
-    { en: 'Pizza Slice', ar: 'شريحة بيتزا', cat: 'mains', price: 0.5 },
-    { en: 'Falafel Sandwich', ar: 'ساندويتش فلافل', cat: 'sandwiches', price: 0.25 },
-    { en: 'Croissant Chocolate', ar: 'كرواسون شوكولاتة', cat: 'desserts', price: 0.25 },
-    { en: 'Cupcake Chocolate', ar: 'كب كيك شوكولاتة', cat: 'desserts', price: 0.15 },
-    { en: 'Chocolate Milk', ar: 'حليب بالشوكولاتة', cat: 'beverages', price: 0.25 },
-    { en: 'Pineapple Juice', ar: 'عصير أناناس', cat: 'beverages', price: 0.15 },
-    { en: 'Water', ar: 'مياه', cat: 'beverages', price: 0.05 },
-  ],
-  'noodle-bar': [
-    { en: 'Fresh Noodles - Chicken', ar: 'نودلز طازجة - دجاج', cat: 'noodles-rice', price: 3.25 },
-    { en: 'Fresh Noodles - Vegetarian', ar: 'نودلز طازجة - نباتي', cat: 'noodles-rice', price: 2.95 },
-    { en: 'Fresh Noodles - Beef', ar: 'نودلز طازجة - لحم', cat: 'noodles-rice', price: 3.0 },
-    { en: 'Fresh Noodles - Shrimp', ar: 'نودلز طازجة - روبيان', cat: 'noodles-rice', price: 3.5 },
-    { en: 'Fresh Noodles Combo', ar: 'كومبو نودلز طازجة', cat: 'combos', price: 3.65 },
-    { en: 'Mongolian Beef', ar: 'لحم منغولي', cat: 'mains', price: 4.65 },
-    { en: 'Sweet Corn Chicken Soup', ar: 'شوربة دجاج بالذرة الحلوة', cat: 'starters', price: 2.85 },
-    { en: 'Spicy Edamame', ar: 'إدامامي حار', cat: 'starters', price: 2.25 },
-  ],
-  'karak-cafeteria': [
-    { en: 'Matara Original Karak (1 L)', ar: 'مطارة كرك أصلي (1 لتر)', cat: 'beverages', price: 4.5 },
-    { en: 'Chapati Box (6 pcs)', ar: 'بوكس شباتي (6 حبات)', cat: 'combos', price: 3.25 },
-    { en: 'Original Karak Cup', ar: 'كوب كرك أصلي', cat: 'beverages', price: 0.5 },
-    { en: 'Karak & Chapati Meal (for 2)', ar: 'وجبة كرك وشباتي (لشخصين)', cat: 'combos', price: 3.85 },
-    { en: 'Mushroom & Swiss Omelette Chapati', ar: 'شباتي أومليت بالفطر والجبن السويسري', cat: 'sandwiches', price: 0.65 },
-    { en: 'Sambosa Cheese (5 pcs)', ar: 'سمبوسة جبن (5 حبات)', cat: 'starters', price: 0.9 },
-    { en: 'Plain Chapati Dozen', ar: 'دزينة شباتي سادة', cat: 'sides', price: 2.1 },
-  ],
-}
-
-const VARIANTS: { en: string; ar: string; priceMul: number }[] = [
-  { en: '', ar: '', priceMul: 1 },
-  { en: 'Large', ar: 'كبير', priceMul: 1.35 },
-  { en: 'Spicy', ar: 'حار', priceMul: 1.05 },
-  { en: 'Family', ar: 'عائلي', priceMul: 2.4 },
-  { en: 'Light', ar: 'خفيف', priceMul: 0.9 },
-  { en: 'Deluxe', ar: 'ديلوكس', priceMul: 1.25 },
-  { en: 'Mini', ar: 'ميني', priceMul: 0.7 },
-  { en: 'Signature', ar: 'المميز', priceMul: 1.15 },
+const CATEGORY_RULES: [RegExp, CategoryId][] = [
+  [/noodle|rice|chow|fried rice/i, 'noodles-rice'],
+  [/sandwich|wrap|burger|slider|philly|shawarma|chapati|croissant/i, 'sandwiches'],
+  [/combo|meal|platter|box|gathering|for (two|four)|between two/i, 'combos'],
+  [/drink|beverage|juice|water|milk|karak|tea|coffee|pepsi|soda|lemon|matara/i, 'beverages'],
+  [/dessert|sweet|cake|cupcake|cookie|biscuit|ice cream|brownie/i, 'desserts'],
+  [/side|fries|sauce|dip|extra|component/i, 'sides'],
+  [/starter|appetizer|soup|salad|edamame|sambosa|spring roll|dumpling/i, 'starters'],
 ]
+const categoryOf = (category: string, name: string): CategoryId => {
+  for (const [re, id] of CATEGORY_RULES) if (re.test(name)) return id
+  for (const [re, id] of CATEGORY_RULES) if (re.test(category)) return id
+  return 'mains'
+}
 
 const PREP_BY_CAT: Record<CategoryId, number> = {
   mains: 240,
@@ -616,76 +532,50 @@ const PREP_BY_CAT: Record<CategoryId, number> = {
   desserts: 60,
 }
 
+/**
+ * Menu items actually sold in Odoo during the period (product.product, realised price).
+ * Recipe cost (standard_price) is not readable by the service account, so every item carries the
+ * group Odoo COGS % until that read right is granted.
+ */
 function buildMenu(): MenuItem[] {
-  const rand = mulberry32(22838)
-  const raw: Omit<MenuItem, 'quadrant' | 'purgeCandidate' | 'repriceCandidate' | 'rank'>[] = []
-
-  for (const brand of BRANDS) {
-    const heroes = HERO_ITEMS[brand.id]
-    const heroRevenue = HERO_REVENUE[brand.id]
-    const heroWeights = heroes.map((_, i) => Math.pow(i + 1, -0.55))
-    const heroWeightSum = heroWeights.reduce((s, w) => s + w, 0) || 1
-    heroes.forEach((seed, i) => {
-      const revenue = (heroRevenue * heroWeights[i]) / heroWeightSum
-      const cogsPct = 20 + rand() * 10
-      raw.push({
-        id: `${brand.id}-h${i + 1}`,
-        en: seed.en,
-        ar: seed.ar,
-        brand: brand.id,
-        category: seed.cat,
-        price: seed.price,
-        cogsPct,
-        revenue,
-        units: revenue / seed.price,
-        unitMargin: seed.price * (1 - cogsPct / 100),
-        totalMargin: revenue * (1 - cogsPct / 100),
-        top32: true,
-        prepSec: Math.round(PREP_BY_CAT[seed.cat] * (0.8 + rand() * 0.4)),
-      })
-    })
-
-    const tailCount = ITEM_COUNTS[brand.id] - heroes.length
-    const tailRevenue = brand.sales - heroRevenue
-    const bases = TAIL_BASES[brand.id]
-    const tailWeights = Array.from({ length: tailCount }, (_, i) => 2 - (1.8 * i) / Math.max(tailCount - 1, 1))
-    const tailWeightSum = tailWeights.reduce((s, w) => s + w, 0)
-    for (let i = 0; i < tailCount; i++) {
-      const base = bases[i % bases.length]
-      const variant = VARIANTS[Math.floor(i / bases.length) % VARIANTS.length]
-      const price = Math.round(base.price * variant.priceMul * 20) / 20
-      const revenue = (tailRevenue * tailWeights[i]) / tailWeightSum
-      const cogsPct = 18 + rand() * 16
-      raw.push({
-        id: `${brand.id}-t${i + 1}`,
-        en: variant.en ? `${base.en} (${variant.en})` : base.en,
-        ar: variant.ar ? `${base.ar} (${variant.ar})` : base.ar,
-        brand: brand.id,
-        category: base.cat,
+  const activeBrands = new Set(BRANDS.map((b) => b.id))
+  const raw = ODOO.menu
+    .filter((m) => activeBrands.has(m.brand as BrandId) && m.qty > 0 && m.netKwd > 0)
+    .map((m, i) => {
+      const category = categoryOf(m.category, m.name)
+      const cogsPct = m.unitCostKwd > 0 && m.priceKwd > 0 ? Math.min(95, (m.unitCostKwd / m.priceKwd) * 100) : LEDGER.cogsPct
+      const price = m.priceKwd
+      return {
+        id: `${m.brand}-${m.code ?? i}`,
+        en: m.name,
+        ar: m.name,
+        brand: m.brand as BrandId,
+        category,
         price,
         cogsPct,
-        revenue,
-        units: revenue / price,
+        revenue: m.netKwd,
+        units: m.qty,
         unitMargin: price * (1 - cogsPct / 100),
-        totalMargin: revenue * (1 - cogsPct / 100),
+        totalMargin: m.netKwd * (1 - cogsPct / 100),
         top32: false,
-        prepSec: Math.round(PREP_BY_CAT[base.cat] * (0.8 + rand() * 0.4)),
-      })
-    }
-  }
+        prepSec: PREP_BY_CAT[category],
+      }
+    })
+    .sort((a, b) => b.revenue - a.revenue)
+  raw.forEach((r, idx) => {
+    r.top32 = idx < LEDGER.topItems
+  })
 
   // Kasavana & Smith classification: popularity ≥ 70% of the fair share, profitability ≥ weighted average CM.
   const totalUnits = raw.reduce((s, r) => s + r.units, 0)
-  const popularityThreshold = (totalUnits / raw.length) * 0.7
-  const avgUnitMargin = raw.reduce((s, r) => s + r.totalMargin, 0) / totalUnits
-  const classified = raw
-    .sort((a, b) => b.revenue - a.revenue)
-    .map((r, idx) => {
-      const popular = r.units >= popularityThreshold
-      const profitable = r.unitMargin >= avgUnitMargin
-      const quadrant: Quadrant = popular ? (profitable ? 'star' : 'plowhorse') : profitable ? 'puzzle' : 'dog'
-      return { ...r, rank: idx + 1, quadrant, purgeCandidate: false, repriceCandidate: false }
-    })
+  const popularityThreshold = (totalUnits / Math.max(raw.length, 1)) * 0.7
+  const avgUnitMargin = raw.reduce((s, r) => s + r.totalMargin, 0) / Math.max(totalUnits, 1)
+  const classified = raw.map((r, idx) => {
+    const popular = r.units >= popularityThreshold
+    const profitable = r.unitMargin >= avgUnitMargin
+    const quadrant: Quadrant = popular ? (profitable ? 'star' : 'plowhorse') : profitable ? 'puzzle' : 'dog'
+    return { ...r, rank: idx + 1, quadrant, purgeCandidate: false, repriceCandidate: false }
+  })
 
   classified
     .filter((r) => r.quadrant === 'dog')
@@ -756,20 +646,28 @@ export const ALERT_CATEGORIES: { id: AlertCategory; en: string; ar: string; tone
   { id: 'operations', en: 'Operations', ar: 'العمليات', tone: 'slate' },
 ]
 
+const LOWEST_MARGIN = [...BRANCHES].sort((a, b) => a.marginPct - b.marginPct)[0]
+const CK = SHARED_COSTS.centralKitchen
+const HO = SHARED_COSTS.headOffice
+const MENU_COUNTS = (() => {
+  const items = buildMenu()
+  return { dogs: items.filter((i) => i.quadrant === 'dog').length, plowhorses: items.filter((i) => i.quadrant === 'plowhorse').length }
+})()
+
 export const ALERTS: BiAlert[] = [
   {
     id: 'ALR-UPSELL-01',
     category: 'upsell',
     severity: 'high',
-    monthlyImpact: 2450,
-    exposure: 2450,
+    monthlyImpact: LEDGER.beverageGain,
+    exposure: LEDGER.beverageGain,
     entries: null,
     titleEn: 'Beverage attach gap on delivery combos',
     titleAr: 'فجوة إضافة المشروبات في وجبات التوصيل',
-    bodyEn: 'Delivery combos ship without a drink; group AOV is 5.471 KWD against a 5.750 KWD target.',
-    bodyAr: 'وجبات التوصيل تُباع دون مشروب؛ متوسط السلة 5.471 د.ك مقابل مستهدف 5.750 د.ك.',
-    askEn: 'How do we enforce a mandatory beverage in delivery combos to lift AOV from 5.471 to 5.750 KWD (+2,450 KWD/month)?',
-    askAr: 'كيف نفرض المشروب الإلزامي في وجبات التوصيل لرفع متوسط السلة من 5.471 إلى 5.750 د.ك (+2,450 د.ك شهرياً)؟',
+    bodyEn: `Odoo group AOV is ${f3(LEDGER.aov)} KWD; the beverage-attach target is ${f3(LEDGER.aovTarget)} KWD (management estimate).`,
+    bodyAr: `متوسط السلة في أودو ${f3(LEDGER.aov)} د.ك؛ مستهدف إضافة المشروب ${f3(LEDGER.aovTarget)} د.ك (تقدير إداري).`,
+    askEn: `How do we enforce a mandatory beverage in delivery combos to lift AOV from ${f3(LEDGER.aov)} to ${f3(LEDGER.aovTarget)} KWD?`,
+    askAr: `كيف نفرض المشروب الإلزامي في وجبات التوصيل لرفع متوسط السلة من ${f3(LEDGER.aov)} إلى ${f3(LEDGER.aovTarget)} د.ك؟`,
     composioAction: 'dispatch_combo_drinks',
     branches: 'all',
     channels: ['talabat-tgo', 'talabat-tmp', 'keeta'],
@@ -779,16 +677,16 @@ export const ALERTS: BiAlert[] = [
   {
     id: 'ALR-MKT-01',
     category: 'marketing',
-    severity: 'critical',
-    monthlyImpact: 1620,
-    exposure: 2544,
-    entries: 6267,
-    titleEn: 'Keeta promo burn above the 3.5% cap',
-    titleAr: 'خصومات كيتا تتجاوز سقف 3.5%',
-    bodyEn: '2,544 KWD of promotions across 6,267 Keeta orders; the approved cap is 924 KWD.',
-    bodyAr: '2,544 د.ك خصومات عبر 6,267 طلباً في كيتا؛ السقف المعتمد 924 د.ك.',
-    askEn: 'Build the plan to cap Keeta promotions at 3.5% (924 KWD) and recover 1,620 KWD per month without losing conversion.',
-    askAr: 'ضعي خطة لتحديد خصومات كيتا عند 3.5% (924 د.ك) واسترداد 1,620 د.ك شهرياً دون خسارة الطلبات.',
+    severity: LEDGER.keetaRecovery > 1000 ? 'critical' : 'high',
+    monthlyImpact: LEDGER.keetaRecovery,
+    exposure: LEDGER.keetaDiscounts,
+    entries: LEDGER.keetaOrders,
+    titleEn: `Keeta promo burn above the ${LEDGER.keetaCapPct}% cap`,
+    titleAr: `خصومات كيتا تتجاوز سقف ${LEDGER.keetaCapPct}%`,
+    bodyEn: `${f3(LEDGER.keetaDiscounts)} KWD of Keeta promotions in Odoo (item sales − payments) across ${f0(LEDGER.keetaOrders)} payments; a ${LEDGER.keetaCapPct}% cap is ${f3(LEDGER.keetaCapKwd)} KWD.`,
+    bodyAr: `${f3(LEDGER.keetaDiscounts)} د.ك خصومات كيتا في أودو (المبيعات − المدفوعات) عبر ${f0(LEDGER.keetaOrders)} عملية دفع؛ سقف ${LEDGER.keetaCapPct}% يساوي ${f3(LEDGER.keetaCapKwd)} د.ك.`,
+    askEn: `Build the plan to cap Keeta promotions at ${LEDGER.keetaCapPct}% (${f3(LEDGER.keetaCapKwd)} KWD) and recover ${f0(LEDGER.keetaRecovery)} KWD per month without losing conversion.`,
+    askAr: `ضعي خطة لتحديد خصومات كيتا عند ${LEDGER.keetaCapPct}% (${f3(LEDGER.keetaCapKwd)} د.ك) واسترداد ${f0(LEDGER.keetaRecovery)} د.ك شهرياً دون خسارة الطلبات.`,
     composioAction: 'dispatch_keeta_cap',
     branches: 'all',
     channels: ['keeta'],
@@ -798,35 +696,35 @@ export const ALERTS: BiAlert[] = [
   {
     id: 'ALR-COGS-01',
     category: 'cogs',
-    severity: 'critical',
-    monthlyImpact: 1336,
-    exposure: 41438.856,
-    entries: 418,
-    titleEn: 'Ardiya raw poultry & marination variance',
-    titleAr: 'انحراف الدواجن الخام والتتبيل في العارضية',
-    bodyEn: 'COGS at 24.8% vs 24.0% target across 418 central-kitchen entries.',
-    bodyAr: 'تكلفة الأغذية 24.8% مقابل المستهدف 24.0% عبر 418 قيداً للمطبخ المركزي.',
-    askEn: 'Analyse the Ardiya Central Kitchen variance (418 entries, COGS 24.8% vs 24.0%) and the plan to recover 1,336 KWD per month.',
-    askAr: 'حللي انحراف المطبخ المركزي بالعارضية (418 قيداً، تكلفة 24.8% مقابل 24.0%) وخطة استرداد 1,336 د.ك شهرياً.',
+    severity: 'medium',
+    monthlyImpact: LEDGER.cogsRecoverable,
+    exposure: CK ? CK.cogs + CK.expense + CK.depreciation : 0,
+    entries: LEDGER.cogsEntries,
+    titleEn: 'Central kitchen costs not charged to locations',
+    titleAr: 'تكاليف المطبخ المركزي غير المحمّلة على المواقع',
+    bodyEn: `Odoo COGS is ${LEDGER.cogsPct}% (target ${LEDGER.cogsTargetPct}%). The central-kitchen cost centre carries ${f3(CK ? CK.cogs + CK.expense + CK.depreciation : 0)} KWD that is not allocated to any location.`,
+    bodyAr: `تكلفة الأغذية في أودو ${LEDGER.cogsPct}% (المستهدف ${LEDGER.cogsTargetPct}%). مركز تكلفة المطبخ المركزي يحمل ${f3(CK ? CK.cogs + CK.expense + CK.depreciation : 0)} د.ك غير موزعة على المواقع.`,
+    askEn: 'How should central-kitchen costs be allocated across the restaurant locations, and where is the poultry & marination yield risk?',
+    askAr: 'كيف نوزع تكاليف المطبخ المركزي على مواقع المطاعم، وأين مخاطر إنتاجية الدواجن والتتبيل؟',
     composioAction: 'dispatch_operations_plan',
-    branches: ['ardiya'],
+    branches: 'all',
     channels: 'all',
     brands: 'all',
-    href: '/erp/sales-analysis',
+    href: '/erp/cost-intelligence',
   },
   {
     id: 'ALR-CUST-01',
     category: 'custody',
     severity: 'high',
-    monthlyImpact: 850,
-    exposure: 10707.93,
-    entries: 312,
-    titleEn: 'Open maintenance custody in Al-Kout & Salmiya',
-    titleAr: 'عهد صيانة مفتوحة في الكوت والسالمية',
-    bodyEn: '10,707.930 KWD across 312 entries from repeated chiller repairs; overhaul recovers 850 KWD/month.',
-    bodyAr: '10,707.930 د.ك عبر 312 قيداً بسبب تكرار إصلاح المبردات؛ التجديد يوفر 850 د.ك شهرياً.',
-    askEn: 'Review the 10,707.930 KWD maintenance custody (312 entries, Al-Kout & Salmiya) and the chiller overhaul saving 850 KWD per month.',
-    askAr: 'راجعي عهدة الصيانة 10,707.930 د.ك (312 قيداً، الكوت والسالمية) وخطة تجديد المبردات لتوفير 850 د.ك شهرياً.',
+    monthlyImpact: LEDGER.chillerRecovery,
+    exposure: LEDGER.maintCustody,
+    entries: LEDGER.maintEntries,
+    titleEn: 'Open maintenance custody in Al-Kout Mall & Salmiya',
+    titleAr: 'عهد صيانة مفتوحة في مجمع الكوت والسالمية',
+    bodyEn: `${f3(LEDGER.maintCustody)} KWD across ${LEDGER.maintEntries} entries from repeated chiller repairs; overhaul recovers ${f0(LEDGER.chillerRecovery)} KWD/month (management estimate).`,
+    bodyAr: `${f3(LEDGER.maintCustody)} د.ك عبر ${LEDGER.maintEntries} قيداً بسبب تكرار إصلاح المبردات؛ التجديد يوفر ${f0(LEDGER.chillerRecovery)} د.ك شهرياً (تقدير إداري).`,
+    askEn: `Review the ${f3(LEDGER.maintCustody)} KWD maintenance custody (${LEDGER.maintEntries} entries, Al-Kout Mall & Salmiya) and the chiller overhaul plan.`,
+    askAr: `راجعي عهدة الصيانة ${f3(LEDGER.maintCustody)} د.ك (${LEDGER.maintEntries} قيداً، مجمع الكوت والسالمية) وخطة تجديد المبردات.`,
     composioAction: 'dispatch_chiller_plan',
     branches: ['al-kout', 'salmiya'],
     channels: 'all',
@@ -837,15 +735,15 @@ export const ALERTS: BiAlert[] = [
     id: 'ALR-MENU-01',
     category: 'menu',
     severity: 'medium',
-    monthlyImpact: 584,
-    exposure: 584,
-    entries: 364,
-    titleEn: '18 Dog items and 4 under-priced Plowhorses',
-    titleAr: '18 صنفاً ضعيفاً و4 أصناف شعبية بسعر منخفض',
-    bodyEn: '364 active items; the top 32 make 80% of revenue. Purge 18 Dogs and re-price 4 Plowhorses by +5%.',
-    bodyAr: '364 صنفاً نشطاً؛ أعلى 32 صنفاً تحقق 80% من الإيراد. استبعاد 18 صنفاً ورفع 4 أصناف بنسبة 5%.',
-    askEn: 'Which 18 Dog items should we purge and which 4 Plowhorses should get +5% pricing (+584 KWD/month)?',
-    askAr: 'ما الأصناف الـ 18 التي نستبعدها والأصناف الأربعة التي نرفع سعرها 5% (+584 د.ك شهرياً)؟',
+    monthlyImpact: LEDGER.menuMatrixGain,
+    exposure: LEDGER.menuMatrixGain,
+    entries: LEDGER.menuItems,
+    titleEn: `${MENU_COUNTS.dogs} Dog items and ${MENU_COUNTS.plowhorses} Plowhorses in the Odoo menu`,
+    titleAr: `${MENU_COUNTS.dogs} صنفاً ضعيفاً و${MENU_COUNTS.plowhorses} صنفاً شعبياً منخفض الهامش في منيو أودو`,
+    bodyEn: `${LEDGER.menuItems} items sold in Odoo; the top ${LEDGER.topItems} make 80% of revenue. Purge ${LEDGER.menuDogsPurge} Dogs and re-price ${LEDGER.menuPlowhorsesReprice} Plowhorses by +5%.`,
+    bodyAr: `${LEDGER.menuItems} صنفاً مبيعاً في أودو؛ أعلى ${LEDGER.topItems} صنفاً تحقق 80% من الإيراد. استبعاد ${LEDGER.menuDogsPurge} صنفاً ورفع ${LEDGER.menuPlowhorsesReprice} أصناف بنسبة 5%.`,
+    askEn: `Which ${LEDGER.menuDogsPurge} Dog items should we purge and which ${LEDGER.menuPlowhorsesReprice} Plowhorses should get +5% pricing?`,
+    askAr: `ما الأصناف الـ ${LEDGER.menuDogsPurge} التي نستبعدها والأصناف الـ ${LEDGER.menuPlowhorsesReprice} التي نرفع سعرها 5%؟`,
     composioAction: 'dispatch_combo_drinks',
     branches: 'all',
     channels: 'all',
@@ -857,57 +755,38 @@ export const ALERTS: BiAlert[] = [
     category: 'operations',
     severity: 'medium',
     monthlyImpact: 0,
-    exposure: 51154.95,
-    entries: 2213,
-    titleEn: 'Petty-cash journal reconciliation queue',
-    titleAr: 'قائمة مطابقة قيود العهد النثرية',
-    bodyEn: '51,154.950 KWD operating expenses and custodies reconciled across 2,213 daily journal entries.',
-    bodyAr: '51,154.950 د.ك مصروفات تشغيلية وعهد مطابقة عبر 2,213 قيداً يومياً.',
-    askEn: 'Summarise the 2,213 operating-expense and custody journal entries (51,154.950 KWD) and the controls we should add.',
-    askAr: 'لخصي قيود المصروفات والعهد البالغة 2,213 قيداً (51,154.950 د.ك) والضوابط المطلوب إضافتها.',
+    exposure: LEDGER.opex,
+    entries: LEDGER.opexEntries,
+    titleEn: 'Operating-expense reconciliation queue',
+    titleAr: 'قائمة مطابقة المصروفات التشغيلية',
+    bodyEn: `${f3(LEDGER.opex)} KWD posted operating expenses in Odoo for the whitelisted locations (${LEDGER.opexPct}% of revenue); head office carries ${f3(HO ? HO.expense : 0)} KWD.`,
+    bodyAr: `${f3(LEDGER.opex)} د.ك مصروفات تشغيلية مرحّلة في أودو للمواقع المعتمدة (${LEDGER.opexPct}% من الإيراد)؛ يتحمل المكتب الرئيسي ${f3(HO ? HO.expense : 0)} د.ك.`,
+    askEn: `Summarise the ${f3(LEDGER.opex)} KWD of posted operating expenses and the controls we should add.`,
+    askAr: `لخصي المصروفات التشغيلية المرحّلة البالغة ${f3(LEDGER.opex)} د.ك والضوابط المطلوب إضافتها.`,
     composioAction: 'dispatch_operations_plan',
     branches: 'all',
     channels: 'all',
     brands: 'all',
-    href: '/erp/feryal-ai',
+    href: '/erp/executive-pnl',
   },
   {
     id: 'ALR-OPS-02',
     category: 'operations',
     severity: 'medium',
     monthlyImpact: 0,
-    exposure: 0,
+    exposure: LOWEST_MARGIN ? LOWEST_MARGIN.revenue : 0,
     entries: null,
-    titleEn: 'Hawally chiller repairs required',
-    titleAr: 'حولي تحتاج صيانة مبردات',
-    bodyEn: 'Branch status flagged in the 9-branch audit; schedule inside the chiller overhaul programme.',
-    bodyAr: 'حالة الفرع مرصودة في تدقيق الفروع التسعة؛ تُجدول ضمن برنامج تجديد المبردات.',
-    askEn: 'What is the operational risk of the Hawally chiller repairs and how should we schedule them?',
-    askAr: 'ما المخاطر التشغيلية لصيانة مبردات حولي وكيف نجدولها؟',
-    composioAction: 'dispatch_chiller_plan',
-    branches: ['hawally'],
+    titleEn: `Lowest location margin: ${LOWEST_MARGIN?.en ?? '—'}`,
+    titleAr: `أدنى هامش موقع: ${LOWEST_MARGIN?.ar ?? '—'}`,
+    bodyEn: `${LOWEST_MARGIN?.en ?? '—'} runs a ${LOWEST_MARGIN?.marginPct ?? 0}% operating margin in its Odoo cost centre against a ${r1(AVG_MARGIN)}% location average.`,
+    bodyAr: `يحقق ${LOWEST_MARGIN?.ar ?? '—'} هامشاً تشغيلياً ${LOWEST_MARGIN?.marginPct ?? 0}% في مركز تكلفته بأودو مقابل متوسط مواقع ${r1(AVG_MARGIN)}%.`,
+    askEn: `Why is ${LOWEST_MARGIN?.en ?? 'this location'} below the location margin average and what should we change?`,
+    askAr: `لماذا ${LOWEST_MARGIN?.ar ?? 'هذا الموقع'} أقل من متوسط هامش المواقع وما الذي يجب تغييره؟`,
+    composioAction: 'dispatch_operations_plan',
+    branches: LOWEST_MARGIN ? [LOWEST_MARGIN.id] : 'all',
     channels: 'all',
     brands: 'all',
-    href: '/erp/feryal-ai',
-  },
-  {
-    id: 'ALR-OPS-03',
-    category: 'operations',
-    severity: 'medium',
-    monthlyImpact: 0,
-    exposure: 0,
-    entries: null,
-    titleEn: 'Aggregator tablet availability at 99.1%',
-    titleAr: 'جاهزية أجهزة منصات التوصيل 99.1%',
-    bodyEn: 'Online availability across Talabat Tgo/TMP, Keeta and Deliveroo is 99.1%; Keeta is the lowest at 98.8%.',
-    bodyAr: 'الجاهزية عبر طلبات جو وسوق طلبات وكيتا وديليفرو 99.1%؛ كيتا الأدنى عند 98.8%.',
-    askEn: 'Which branches and platforms are pulling online availability down from 100% to 99.1%?',
-    askAr: 'ما الفروع والمنصات التي تخفض الجاهزية من 100% إلى 99.1%؟',
-    composioAction: null,
-    branches: 'all',
-    channels: ['talabat-tgo', 'talabat-tmp', 'keeta', 'deliveroo'],
-    brands: 'all',
-    href: '/erp/delivery-control',
+    href: '/erp/executive-pnl',
   },
 ]
 

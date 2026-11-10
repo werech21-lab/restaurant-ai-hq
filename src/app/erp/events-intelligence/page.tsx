@@ -45,6 +45,8 @@ import {
 } from '@/lib/feryal-gemini-brain'
 import { ContractSafetyScoreCard, EventCashflowCurve, ExbModerationCards, RiskTags } from '@/components/aether/EventsUpgrades'
 import { downloadCsv } from '@/components/aether/ui'
+import { EXB_ODOO, ExbOdooUnitCard } from '@/components/aether/ExbOdooUnit'
+import { LEDGER } from '@/lib/aether/ledger'
 
 // ==============================================================================
 // 1. MASTER EVENTS, CONTRACTS & EXB MENU DATASETS (ODOO ANALYTICAL ACCOUNTS)
@@ -1153,49 +1155,49 @@ export default function EventsContractsExbIntelligenceHub() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 pt-2">
           <div className="ae-tile-soft ae-lift rounded-2xl p-4">
             <div className="flex items-center justify-between text-xs font-bold text-slate-500">
-              <span>{isAr ? 'إجمالي إيرادات الفعاليات' : 'Total Events Revenue'}</span>
+              <span>{isAr ? 'مبيعات المعارض (أودو)' : 'EXB Sales (Odoo)'}</span>
               <DollarSign className="h-4 w-4 text-blue-600" />
             </div>
             <div className="mt-1.5 text-xl sm:text-2xl font-extrabold text-slate-950 dark:text-white font-mono tabular-nums">
-              84,650.000 <span className="text-xs font-bold text-slate-500 font-sans">{isAr ? 'د.ك' : 'KWD'}</span>
+              {EXB_ODOO.sales.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} <span className="text-xs font-bold text-slate-500 font-sans">{isAr ? 'د.ك' : 'KWD'}</span>
             </div>
             <div className="mt-2 pt-2 border-t border-slate-200/70 dark:border-slate-800 flex justify-between text-[11px] font-bold text-slate-600 dark:text-slate-400">
-              <span>{isAr ? '14,850 طلباً' : '14,850 Orders'}</span>
-              <span className="text-slate-900 dark:text-white">{isAr ? 'السلة: 5.700 د.ك' : 'AOV: 5.700 KWD'}</span>
+              <span>{isAr ? `${EXB_ODOO.orders.toLocaleString('en-US')} طلباً` : `${EXB_ODOO.orders.toLocaleString('en-US')} Orders`}</span>
+              <span className="text-slate-900 dark:text-white">{isAr ? `السلة: ${EXB_ODOO.aov.toFixed(3)} د.ك` : `AOV: ${EXB_ODOO.aov.toFixed(3)} KWD`}</span>
             </div>
           </div>
 
           <div className="ae-tile-soft ae-lift rounded-2xl p-4">
             <div className="flex items-center justify-between text-xs font-bold text-slate-500">
-              <span>{isAr ? 'صافي الربح التشغيلي للفعاليات' : 'Events Net Profit'}</span>
+              <span>{isAr ? 'الربح التشغيلي للمعارض (أودو)' : 'EXB Operating Profit (Odoo)'}</span>
               <TrendingUp className="h-4 w-4 text-emerald-600" />
             </div>
             <div className="mt-1.5 text-xl sm:text-2xl font-extrabold text-emerald-700 dark:text-emerald-400 font-mono tabular-nums">
-              24,890.000 <span className="text-xs font-bold text-emerald-800 font-sans">{isAr ? 'د.ك' : 'KWD'}</span>
+              {EXB_ODOO.profit.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} <span className="text-xs font-bold text-emerald-800 font-sans">{isAr ? 'د.ك' : 'KWD'}</span>
             </div>
             <div className="mt-2 pt-2 border-t border-slate-200/70 dark:border-slate-800 flex justify-between text-[11px] font-bold text-slate-600 dark:text-slate-400">
-              <span>{isAr ? 'بعد الإيجار والعمالة' : 'Net After Rent'}</span>
-              <span className="text-emerald-700 dark:text-emerald-400">29.4%</span>
+              <span>{isAr ? 'هامش التشغيل' : 'Operating margin'}</span>
+              <span className="text-emerald-700 dark:text-emerald-400">{EXB_ODOO.marginPct.toFixed(1)}%</span>
             </div>
           </div>
 
           <div className="ae-tile-soft ae-lift rounded-2xl p-4">
             <div className="flex items-center justify-between text-xs font-bold text-slate-500">
-              <span>{isAr ? 'تكلفة أغذية منيو المعارض' : 'EXB Menu COGS'}</span>
+              <span>{isAr ? 'تكلفة أغذية المعارض (أودو)' : 'EXB COGS (Odoo)'}</span>
               <Flame className="h-4 w-4 text-amber-500" />
             </div>
             <div className="mt-1.5 text-xl sm:text-2xl font-extrabold text-slate-950 dark:text-white font-mono tabular-nums">
-              21.4% <span className="text-xs font-bold text-emerald-600 font-sans">{isAr ? '(-3.4% وفر)' : '(-3.4% vs Branches)'}</span>
+              {EXB_ODOO.cogsPct.toFixed(1)}% <span className="text-xs font-bold text-amber-600 font-sans">{isAr ? '(المستهدف 21.4%)' : '(target 21.4%)'}</span>
             </div>
             <div className="mt-2 pt-2 border-t border-slate-200/70 dark:border-slate-800 flex justify-between text-[11px] font-bold text-slate-600 dark:text-slate-400">
-              <span>{isAr ? 'الفروع: 24.8%' : 'Branches: 24.8%'}</span>
+              <span>{isAr ? `المجموعة: ${LEDGER.cogsPct}%` : `Group: ${LEDGER.cogsPct}%`}</span>
               <span className="text-emerald-700 dark:text-emerald-400">{isAr ? '8 أصناف مركزة' : '8 Focused Items'}</span>
             </div>
           </div>
 
           <div className="ae-tile-soft ae-lift rounded-2xl p-4">
             <div className="flex items-center justify-between text-xs font-bold text-slate-500">
-              <span>{isAr ? 'نقطة التعادل اليومية للبوث' : 'Daily Break-Even'}</span>
+              <span>{isAr ? 'نقطة التعادل اليومية للبوث (محاكاة)' : 'Daily Break-Even (simulated)'}</span>
               <Activity className="h-4 w-4 text-blue-600" />
             </div>
             <div className="mt-1.5 text-xl sm:text-2xl font-extrabold text-slate-950 dark:text-white font-mono tabular-nums">
@@ -1209,7 +1211,7 @@ export default function EventsContractsExbIntelligenceHub() {
 
           <div className="ae-tile-soft ae-lift rounded-2xl p-4">
             <div className="flex items-center justify-between text-xs font-bold text-slate-500">
-              <span>{isAr ? 'العائد على الاستثمار الموسمي' : 'Seasonal Event ROI'}</span>
+              <span>{isAr ? 'العائد الموسمي (محاكاة)' : 'Seasonal Event ROI (simulated)'}</span>
               <Award className="h-4 w-4 text-emerald-600" />
             </div>
             <div className="mt-1.5 text-xl sm:text-2xl font-extrabold text-emerald-700 dark:text-emerald-400 font-mono tabular-nums">
@@ -1222,6 +1224,9 @@ export default function EventsContractsExbIntelligenceHub() {
           </div>
         </div>
       </div>
+
+      {/* Odoo actuals of the Exhibitions & Booths (EXB) unit */}
+      <ExbOdooUnitCard lang={isAr ? 'ar' : 'en'} />
 
       {/* ==================================================================== */}
       {/* UNIT 1: CONTRACT, DESCRIPTION & VISION DEEP-ANALYSIS STUDIO */}

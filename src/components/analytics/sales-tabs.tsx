@@ -6,6 +6,7 @@ import { LineChartV2 } from '@/components/aether/ui'
 import { DAILY_TREND_SAMPLE } from '@/lib/analytics/sales-tabs'
 import { RECS, RECS_TOTAL_KWD } from '@/lib/analytics/recommendations'
 import { BRANDS_DATA } from '@/lib/analytics/sales-core-data'
+import { ODOO } from '@/lib/odoo/odoo-dataset'
 import { ALL_BRANDS, ALL_CHANNELS, PAYMENT_SPLIT, TOTAL_NET, TOTAL_ORDERS, WEEKDAYS, channelDeliveryMode, computeBranches, computeHeat, hourShare, weekdayLabelAr, type SalesFilter, type SalesView } from '@/lib/analytics/sales-view'
 
 /* Tab bodies for /erp/sales-scorecard. Pure CSS/SVG, no chart library, no AI calls.
@@ -472,9 +473,10 @@ export function PromotionsTab({ channels, brands, totalDiscounts, totalNet, sele
           <p className="mt-2 text-xs font-medium text-slate-600">
             {selectedChannel !== ALL_CHANNELS || selectedBrand !== ALL_BRANDS
               ? T('Filtered view: channel discounts are re-scaled to the selected brand (rate scaled by the brand against the group rate); the selected channel is highlighted.', 'عرض مفلتر: خصومات القنوات معاد تناسبها مع العلامة المختارة (النسبة مضروبة في نسبة العلامة إلى متوسط المجموعة)، والقناة المختارة مظللة.')
-              : Math.abs(sumKwd - 4152) < 0.01
-              ? T('Channel discounts are allocated pro-rata from the channel rates so they add up exactly to the official KWD 4,152 (2.4%). Whatsapp shows a high rate on only 3 orders.', 'خصومات القنوات موزعة تناسبياً من نسب القنوات بحيث يطابق مجموعها الإجمالي الرسمي 4,152 د.ك (2.4%). واتساب يظهر نسبة مرتفعة على 3 طلبات فقط.')
-              : T(`The channel rows add up to KWD ${fmt0(sumKwd)}, which does not match the reported total of KWD 4,152.`, `مجموع صفوف القنوات ${fmt0(sumKwd)} د.ك وهو لا يطابق الإجمالي المعتمد 4,152 د.ك.`)}
+              : T(
+                  `Channel promotions are Odoo item sales minus channel payments (KWD ${fmt0(sumKwd)}). Item-level line discounts of KWD ${fmt0(ODOO.totals.lineDiscountKwd)} are recorded on the order lines, for KWD ${fmt0(ODOO.totals.discountsKwd)} of total discounts.`,
+                  `عروض القنوات = مبيعات الأصناف في أودو ناقص مدفوعات القناة (${fmt0(sumKwd)} د.ك). خصومات الأسطر البالغة ${fmt0(ODOO.totals.lineDiscountKwd)} د.ك مسجلة على أسطر الطلبات، بإجمالي خصومات ${fmt0(ODOO.totals.discountsKwd)} د.ك.`,
+                )}
             </p>
         </div>
       </div>
@@ -529,18 +531,18 @@ export function BranchesTab({ filter }: { filter: SalesFilter }) {
   const sumMOrders = rows.reduce((a, r) => a + r.mOrders, 0)
   const sumOtherNet = rows.reduce((a, r) => a + r.otherNet, 0)
   const sumOtherOrders = rows.reduce((a, r) => a + r.otherOrders, 0)
-  const sumTgoAcc = rows.reduce((a, r) => a + r.tgoAccountsCount, 0)
-  const sumMAcc = rows.reduce((a, r) => a + r.mAccountsCount, 0)
+  const sumRegisters = rows.reduce((a, r) => a + r.registers, 0)
+  const unitLabel = (u: string) => (u === 'restaurant' ? T('Restaurant', 'مطعم') : u === 'exhibition' ? T('Exhibitions & booths', 'معارض وأجنحة') : T('School canteen', 'مقصف مدرسي'))
   const unit = ar ? 'د.ك' : 'KWD'
   const bLabel = (bn: string) => (ar ? BRAND_NAME_AR[bn] ?? bn : bn)
   const name = (r: { nameAr: string; nameEn: string }) => (ar ? r.nameAr : r.nameEn)
   const scope = filter.brand === ALL_BRANDS && filter.channel === ALL_CHANNELS ? T('All brands, all channels', 'كل العلامات وكل القنوات') : `${filter.brand === ALL_BRANDS ? T('All brands', 'كل العلامات') : bLabel(filter.brand)} · ${filter.channel === ALL_CHANNELS ? T('All channels', 'كل القنوات') : filter.channel}`
   return (
     <div className="space-y-4">
-      {/* 4 Channel Bucket Summary Cards across the 9 Actual Operational Branches */}
+      {/* 4 channel bucket summary cards across the Odoo locations */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 items-stretch">
         <div className="ae-tile ae-lift rounded-2xl p-4 min-w-0">
-          <div className="text-xs font-semibold text-slate-600">{T('Shop Sales across 9 branches', 'مبيعات المحل في الفروع التسعة')}</div>
+          <div className="text-xs font-semibold text-slate-600">{T(`Shop Sales across ${rows.length} Odoo locations`, `مبيعات المحل في ${rows.length} مواقع أودو`)}</div>
           <div className="text-lg sm:text-xl xl:text-[22px] font-extrabold text-slate-900 mt-1 tabular-nums break-words leading-tight">
             <Num>{ar ? `${fmt2(sumShopNet)} د.ك` : `KWD ${fmt2(sumShopNet)}`}</Num>
           </div>
@@ -558,7 +560,7 @@ export function BranchesTab({ filter }: { filter: SalesFilter }) {
             <Num>{ar ? `${fmt2(sumTgoNet)} د.ك` : `KWD ${fmt2(sumTgoNet)}`}</Num>
           </div>
           <div className="text-xs font-semibold text-slate-600 mt-1">
-            <Num>{fmt0(sumTgoOrders)}</Num> {T('Talabat Go orders', 'طلب عبر حسابات Tgo')} · <Num>{sumTgoAcc}</Num> {T('Tgo accounts', 'حساب Tgo')}
+            <Num>{fmt0(sumTgoOrders)}</Num> {T('Talabat Go orders', 'طلب عبر حسابات Tgo')}
           </div>
         </div>
 
@@ -571,7 +573,7 @@ export function BranchesTab({ filter }: { filter: SalesFilter }) {
             <Num>{ar ? `${fmt2(sumMNet)} د.ك` : `KWD ${fmt2(sumMNet)}`}</Num>
           </div>
           <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mt-1">
-            <Num>{fmt0(sumMOrders)}</Num> {T('Talabat TMP + Deliveroo TMP orders', 'طلب عبر حسابات TMP')} · <Num>{sumMAcc}</Num> {T('TMP accounts', 'حساب TMP')}
+            <Num>{fmt0(sumMOrders)}</Num> {T('Talabat TMP + Deliveroo TMP orders', 'طلب عبر حسابات TMP')}
           </div>
         </div>
 
@@ -588,8 +590,8 @@ export function BranchesTab({ filter }: { filter: SalesFilter }) {
 
       <div className={card}>
         <Title
-          title={T('Net sales by actual restaurant branch (9 operational branches)', 'صافي المبيعات حسب الفرع الفعلي للمطعم (9 فروع تشغيلية)')}
-          sub={`${T('Only the 9 actual operational branches of Venture Foods (excluding residential customer areas)', 'فقط الفروع التسعة الفعلية لشركة فنتشر فودز (دون خلطها بمناطق سكن الزبائن)')} · ${scope}`}
+          title={T('Net sales by Odoo location (restaurants, then EXB and school canteens)', 'صافي المبيعات حسب موقع أودو (المطاعم ثم المعارض والمقاصف المدرسية)')}
+          sub={`${T('Whitelisted Odoo POS registers grouped by location', 'سجلات نقاط البيع المعتمدة في أودو مجمعة حسب الموقع')} · ${scope}`}
         />
         <Bars
           labelW={235}
@@ -618,15 +620,15 @@ export function BranchesTab({ filter }: { filter: SalesFilter }) {
 
       <div className={card}>
         <Title
-          title={T('Actual Restaurant Branches — Detailed Breakdown (Shop Sales | Tgo | TMP | Other Platforms)', 'تفصيل الفروع الفعلية للمطعم — مقسّمة حسب (مبيعات المحل | Tgo | TMP | باقي المنصات)')}
-          sub={T('The 9 actual operational restaurant branches of Venture Foods with sales & orders split across Shop Sales, Tgo (Talabat Go), TMP (Talabat Marketplace), and Other Platforms.', 'الفروع التشغيلية التسعة المعتمدة للمطعم مع تقسيم واضح لمبيعات وطلبات كل فرع إلى: مبيعات المحل، ومبيعات Tgo، ومبيعات TMP، وباقي المنصات.')}
+          title={T('Odoo locations — detailed breakdown (Shop Sales | Tgo | TMP | Other platforms)', 'مواقع أودو — تفصيل حسب (مبيعات المحل | Tgo | TMP | باقي المنصات)')}
+          sub={T('Real Odoo payments per location split across Shop Sales, Tgo (Talabat Go), TMP (Talabat & Deliveroo marketplace) and other platforms.', 'مدفوعات أودو الفعلية لكل موقع مقسمة إلى مبيعات المحل وTgo (طلبات جو) وTMP (سوق طلبات وديليفرو) وباقي المنصات.')}
         />
         <div className="ae-table-wrap w-full overflow-x-auto rounded-xl ring-1 ring-slate-200/70 dark:ring-slate-800">
           <table className="w-full text-[13.5px] md:text-sm border-collapse bg-white dark:bg-[#111827]">
             <thead className="sticky top-0 bg-[#F8FAFC] dark:bg-[#1E293B]/90 border-b border-slate-200/80 dark:border-slate-800">
               <tr>
-                <th className={thc}>{T('Actual Restaurant Branch', 'الفرع الفعلي للمطعم')}</th>
-                <th className={thc}>{T('Zone Accounts (Tgo / TMP)', 'حسابات التغطية (Tgo / TMP)')}</th>
+                <th className={thc}>{T('Odoo location', 'موقع أودو')}</th>
+                <th className={thc}>{T('Unit · POS registers', 'الوحدة · سجلات نقاط البيع')}</th>
                 <th className={thc + ' text-end'}>{T('Shop Sales (Orders)', 'مبيعات المحل (الطلبات)')}</th>
                 <th className={thc + ' text-end'}>
                   <span className="inline-flex items-center gap-1">{T('Tgo Sales (Orders)', 'مبيعات Tgo (الطلبات)')} <ChannelModeBadge channel="Talabat Go" /></span>
@@ -648,12 +650,8 @@ export function BranchesTab({ filter }: { filter: SalesFilter }) {
                   <td className={tdc + ' font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap'}>{name(r)}</td>
                   <td className={tdc + ' whitespace-nowrap'}>
                     <div className="inline-flex items-center gap-1.5">
-                      <span dir="ltr" className="inline-flex items-center bg-amber-50 text-amber-700 dark:bg-amber-950/70 dark:text-amber-300 ring-1 ring-amber-500/20 px-2.5 py-0.5 rounded-md font-bold text-xs">
-                        {r.tgoAccountsCount} Tgo
-                      </span>
-                      <span dir="ltr" className="inline-flex items-center bg-sky-50 text-sky-700 dark:bg-sky-950/70 dark:text-sky-300 ring-1 ring-sky-500/20 px-2.5 py-0.5 rounded-md font-bold text-xs">
-                        {r.mAccountsCount} TMP
-                      </span>
+                      <span className="inline-flex items-center rounded-md bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200">{unitLabel(r.unit)}</span>
+                      <span dir="ltr" className="inline-flex items-center rounded-md bg-sky-50 px-2.5 py-0.5 text-xs font-bold text-sky-700 dark:bg-sky-950/70 dark:text-sky-300">{r.registers} POS</span>
                     </div>
                   </td>
                   <td className={tdn}>
@@ -703,9 +701,9 @@ export function BranchesTab({ filter }: { filter: SalesFilter }) {
             </tbody>
             <tfoot>
               <tr className="border-t-2 border-slate-300 bg-slate-50 font-bold text-slate-900">
-                <td className={tdc + ' font-extrabold'}>{T('Total (9 Actual Branches)', 'الإجمالي (9 فروع فعلية)')}</td>
+                <td className={tdc + ' font-extrabold'}>{T(`Total (${rows.length} Odoo locations)`, `الإجمالي (${rows.length} مواقع أودو)`)}</td>
                 <td className={tdc}>
-                  <span dir="ltr" className="text-xs font-bold text-slate-700">{sumTgoAcc} Tgo + {sumMAcc} TMP</span>
+                  <span dir="ltr" className="text-xs font-bold text-slate-700">{sumRegisters} POS</span>
                 </td>
                 <td className={tdn}>
                   <div><Num>{fmt2(sumShopNet)}</Num></div>
@@ -734,8 +732,8 @@ export function BranchesTab({ filter }: { filter: SalesFilter }) {
         </div>
         <p className="mt-2 text-xs font-medium leading-relaxed text-slate-600">
           {T(
-            `Branch net sales are the official Odoo branch figures for the 9 actual operational branches (adding up to KWD 167,092.160 and 30,540 orders). Sales and orders are broken down into Shop Sales (KWD ${fmt2(sumShopNet)} / ${fmt0(sumShopOrders)} orders), Tgo — Talabat Go platform delivery (KWD ${fmt2(sumTgoNet)} / ${fmt0(sumTgoOrders)} orders), TMP — Talabat TMP & Deliveroo TMP restaurant delivery (KWD ${fmt2(sumMNet)} / ${fmt0(sumMOrders)} orders), and Other Platforms (KWD ${fmt2(sumOtherNet)} / ${fmt0(sumOtherOrders)} orders).`,
-            `صافي مبيعات الفروع هو الرقم الرسمي المعتمد للفروع التشغيلية التسعة في أودو (بإجمالي 167,092.160 د.ك و30,540 طلباً)، مقسّماً بدقة إلى: مبيعات المحل (${fmt2(sumShopNet)} د.ك / ${fmt0(sumShopOrders)} طلباً)، ومبيعات Tgo توصيل طلبات (${fmt2(sumTgoNet)} د.ك / ${fmt0(sumTgoOrders)} طلباً)، ومبيعات TMP توصيل المطعم عبر طلبات وديليفرو ماركت بليس (${fmt2(sumMNet)} د.ك / ${fmt0(sumMOrders)} طلباً)، وباقي المنصات (${fmt2(sumOtherNet)} د.ك / ${fmt0(sumOtherOrders)} طلباً).`,
+            `Location net sales are Odoo POS payments from the whitelisted registers (adding up to KWD ${fmt3(sumNet)} and ${fmt0(sumOrders)} orders). Sales and orders are broken down into Shop Sales (KWD ${fmt2(sumShopNet)} / ${fmt0(sumShopOrders)} orders), Tgo — Talabat Go platform delivery (KWD ${fmt2(sumTgoNet)} / ${fmt0(sumTgoOrders)} orders), TMP — Talabat TMP & Deliveroo TMP restaurant delivery (KWD ${fmt2(sumMNet)} / ${fmt0(sumMOrders)} orders), and Other Platforms (KWD ${fmt2(sumOtherNet)} / ${fmt0(sumOtherOrders)} orders).`,
+            `صافي مبيعات المواقع هو مدفوعات نقاط البيع في أودو من السجلات المعتمدة (بإجمالي ${fmt3(sumNet)} د.ك و${fmt0(sumOrders)} طلباً)، مقسّماً بدقة إلى: مبيعات المحل (${fmt2(sumShopNet)} د.ك / ${fmt0(sumShopOrders)} طلباً)، ومبيعات Tgo توصيل طلبات (${fmt2(sumTgoNet)} د.ك / ${fmt0(sumTgoOrders)} طلباً)، ومبيعات TMP توصيل المطعم عبر طلبات وديليفرو ماركت بليس (${fmt2(sumMNet)} د.ك / ${fmt0(sumMOrders)} طلباً)، وباقي المنصات (${fmt2(sumOtherNet)} د.ك / ${fmt0(sumOtherOrders)} طلباً).`,
           )}
         </p>
       </div>
@@ -743,7 +741,7 @@ export function BranchesTab({ filter }: { filter: SalesFilter }) {
         <div className={card}>
           <Title title={T('Food cost', 'تكلفة الأغذية')} />
           <p className="text-[13px] font-medium text-slate-700 leading-relaxed">
-            {T('Food cost is tracked at group level: 24.8% (KWD 41,438.856). Per-branch food cost is not in the dataset, so none is shown.', 'تكلفة الأغذية تُتابع على مستوى المجموعة: 24.8% (41,438.856 د.ك). تكلفة الأغذية لكل فرع غير متوفرة في البيانات، لذلك لا تُعرض.')}
+            {T(`Posted Odoo COGS is ${ODOO.pnl.cogsPct}% of revenue (KWD ${fmt0(ODOO.pnl.cogsKwd)}). Per-location COGS from the Odoo Branches analytic plan is shown on the Executive P&L; per-item recipe cost is not readable by the BI service user.`, `تكلفة الأغذية المرحّلة في أودو ${ODOO.pnl.cogsPct}% من الإيراد (${fmt0(ODOO.pnl.cogsKwd)} د.ك). تكلفة كل موقع من خطة الفروع التحليلية تظهر في قائمة الدخل التنفيذية؛ أما تكلفة الوصفة لكل صنف فغير متاحة لمستخدم التحليلات.`)}
           </p>
         </div>
         <div className="rounded-2xl bg-rose-50/70 dark:bg-rose-950/30 p-5">

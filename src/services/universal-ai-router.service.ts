@@ -185,7 +185,6 @@ function detectBranch(hay: string): string | null {
     [/assima|العاصمة|\basm\b/i, 'ASM'],
     [/avenues|أفنيوز|افنيوز/i, 'AVE'],
     [/kout|كوت/i, 'KOUT'],
-    [/qurain|قرين|\bqrn\b/i, 'QRN'],
     [/promenade|بروميناد|\bprm\b/i, 'PRM'],
     [/central.?kitchen|مطبخ|\bck\b/i, 'CK'],
   ]

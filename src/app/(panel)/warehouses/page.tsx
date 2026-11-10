@@ -30,9 +30,8 @@ async function WarehousesContent({ searchParams }: { searchParams: Promise<RawQu
   const query = await readQuery(searchParams);
   const scope = await getActiveScope(query);
   const allRawWarehouses = await listWarehouses();
-  const allWarehouses = allRawWarehouses.filter(
-    (w) => !w.name.includes("الجهراء") && !w.name.toLowerCase().includes("jahra")
-  );
+  // Positive whitelist: only warehouses that belong to whitelisted Odoo locations are shown.
+  const allWarehouses = allRawWarehouses.filter((w) => ALLOWED_WAREHOUSE_CODES.has(String(w.code ?? "").toUpperCase()));
   const scopeFilter = warehouseWhereForScope(scope);
   const warehouses = Object.keys(scopeFilter).length
     ? allWarehouses.filter((warehouse) => {
@@ -154,6 +153,12 @@ async function WarehousesContent({ searchParams }: { searchParams: Promise<RawQu
     />
   );
 }
+
+/** Warehouse codes (Odoo stock.warehouse + ERP seed) mapped to whitelisted Odoo POS locations. */
+const ALLOWED_WAREHOUSE_CODES = new Set([
+  "PRM", "360", "ASM", "KOUT", "SAL", "SMIA", "ARD", "ARDB", "AR", "ARTMP", "AVE", "AVNS", "CK", "MH", "SN", "MBAK", "EXB", "NPISH", "FAIPS", "FASFH",
+  "WH-ARDIYA", "WH-360", "WH-KOUT", "WH-AVENUES", "WH-SALM1", "WH-SHARQ", "WH-PROM", "WH-ALRAI", "WH-OUT", "WH-MAK",
+]);
 
 export default function WarehousesPage({ searchParams }: { searchParams: Promise<RawQuery> }) {
   return (

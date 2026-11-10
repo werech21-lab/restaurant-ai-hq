@@ -93,8 +93,8 @@ function scopeLabels(brandId: VentureBrandId | null, branchId: VentureBranchId |
     }
   }
   return {
-    labelAr: 'كل العلامات التجارية — كل الفروع النشطة (9)',
-    labelEn: 'All 7 brands — All 9 active branches',
+    labelAr: 'كل العلامات التجارية — كل مواقع المطاعم (7)',
+    labelEn: 'All 7 brands — All 7 restaurant locations',
   }
 }
 

@@ -42,6 +42,8 @@ function unitEconomics(c: Channel) {
   return { aov, commission, promo, cogs, rider, net, netPct: (net / aov) * 100, total: net * c.orders }
 }
 
+const AGGREGATOR_SHARE = (CHANNELS.filter((c) => c.group === 'aggregator').reduce((x, c) => x + c.sales, 0) / LEDGER.netSales) * 100
+
 export function DeliveryControlV2() {
   const { lang, isAr, T } = useLang()
   const { filters, view } = useBiFilters()
@@ -125,7 +127,7 @@ export function DeliveryControlV2() {
     { key: 'comm', en: 'Commission per order', ar: 'العمولة لكل طلب', tgo: eTgo.commission, tmp: eTmp.commission, fmtFn: (n) => fmt(n, 3), better: 'low' },
     { key: 'rider', en: 'Own rider cost per order', ar: 'تكلفة السائق لكل طلب', tgo: eTgo.rider, tmp: eTmp.rider, fmtFn: (n) => fmt(n, 3), better: 'low' },
     { key: 'promo', en: 'Promo per order', ar: 'الخصم لكل طلب', tgo: eTgo.promo, tmp: eTmp.promo, fmtFn: (n) => fmt(n, 3), better: 'low' },
-    { key: 'cogs', en: 'Food cost per order (24.8%)', ar: 'تكلفة الأغذية لكل طلب (24.8%)', tgo: eTgo.cogs, tmp: eTmp.cogs, fmtFn: (n) => fmt(n, 3), better: 'low' },
+    { key: 'cogs', en: `Food cost per order (${LEDGER.cogsPct}%)`, ar: `تكلفة الأغذية لكل طلب (${LEDGER.cogsPct}%)`, tgo: eTgo.cogs, tmp: eTmp.cogs, fmtFn: (n) => fmt(n, 3), better: 'low' },
     { key: 'net', en: 'Net contribution per order', ar: 'صافي المساهمة لكل طلب', tgo: eTgo.net, tmp: eTmp.net, fmtFn: (n) => fmt(n, 3), better: 'high' },
     { key: 'netpct', en: 'Contribution margin', ar: 'هامش المساهمة', tgo: eTgo.netPct, tmp: eTmp.netPct, fmtFn: (n) => pct(n), better: 'high' },
     { key: 'total', en: 'Monthly contribution', ar: 'المساهمة الشهرية', tgo: eTgo.total, tmp: eTmp.total, fmtFn: (n) => kwd(n, lang, 0), better: 'high' },
@@ -203,7 +205,7 @@ export function DeliveryControlV2() {
         </div>
         <div className="ae-tile flex flex-col items-center justify-around gap-4 p-5 lg:col-span-4">
           <CircularGauge value={LEDGER.marginPct} max={40} color="#059669" label={<><Num className="text-xl text-slate-900 dark:text-white">{pct(LEDGER.marginPct)}</Num><span className="text-[10px] text-slate-500">{T('net margin', 'صافي الهامش')}</span></>} caption={T('Group net operating margin', 'صافي هامش التشغيل للمجموعة')} />
-          <CircularGauge value={LEDGER.uptimePct} color="#0284C7" label={<><Num className="text-xl text-slate-900 dark:text-white">{pct(LEDGER.uptimePct)}</Num><span className="text-[10px] text-slate-500">{T('uptime', 'الجاهزية')}</span></>} caption={T('Online platform availability', 'جاهزية المنصات أونلاين')} />
+          <CircularGauge value={AGGREGATOR_SHARE} color="#0284C7" label={<><Num className="text-xl text-slate-900 dark:text-white">{pct(AGGREGATOR_SHARE)}</Num><span className="text-[10px] text-slate-500">{T('of sales', 'من المبيعات')}</span></>} caption={T('Aggregator share of Odoo POS sales', 'حصة المنصات من مبيعات أودو')} />
         </div>
       </section>
 

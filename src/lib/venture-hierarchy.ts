@@ -81,7 +81,7 @@ export const VENTURE_BRANCHES = [
     nameEn: 'Hawally Branch',
   },
   {
-    id: 'KK-QURAIN',
+    id: 'KK-MAK',
     brandId: 'KARAK-CAFETERIA',
     areaAr: 'صباح السالم / مبارك الكبير',
     areaEn: 'Sabah Al-Salem / Mubarak Al-Kabeer',

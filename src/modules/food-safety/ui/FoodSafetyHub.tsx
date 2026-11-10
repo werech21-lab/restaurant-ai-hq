@@ -94,7 +94,7 @@ export interface HealthCardRecord {
 export const COLD_UNITS_DATA: ColdUnit[] = [
   {
     id: 'CU-CK-01',
-    branchId: 'CK-QURAIN',
+    branchId: 'CK-MAIN',
     branchNameAr: 'المطبخ المركزي',
     branchNameEn: 'Central Kitchen',
     unitNameAr: 'غرفة تجميد اللحوم المركزية - المطبخ المركزي',
@@ -113,7 +113,7 @@ export const COLD_UNITS_DATA: ColdUnit[] = [
   },
   {
     id: 'CU-CK-02',
-    branchId: 'CK-QURAIN',
+    branchId: 'CK-MAIN',
     branchNameAr: 'المطبخ المركزي',
     branchNameEn: 'Central Kitchen',
     unitNameAr: 'غرفة تبريد الخضار والصوصات المركزية - المطبخ المركزي',
@@ -303,7 +303,7 @@ export const COLD_UNITS_DATA: ColdUnit[] = [
   },
   {
     id: 'CU-QRN-01',
-    branchId: 'QURAIN',
+    branchId: 'MAK',
     branchNameAr: 'فرع مبارك الكبير',
     branchNameEn: 'Mubarak Al-Kabeer Branch',
     unitNameAr: 'براد تجهيز العجائن والجبن - فرع مبارك الكبير',
@@ -936,12 +936,12 @@ export default function FoodSafetyHub() {
             <div className="flex flex-wrap items-center gap-1.5">
               {[
                 { id: 'ALL', labelAr: 'الكل (جميع الفروع الـ 9 والمطبخ)', labelEn: 'All Locations' },
-                { id: 'CK-QURAIN', labelAr: 'المطبخ المركزي', labelEn: 'Central Kitchen' },
+                { id: 'CK-MAIN', labelAr: 'المطبخ المركزي', labelEn: 'Central Kitchen' },
                 { id: 'AVENUES', labelAr: 'مجمع الأفنيوز', labelEn: 'The Avenues' },
                 { id: 'MURROUJ', labelAr: 'مجمع مروج', labelEn: 'Murrouj' },
                 { id: 'SALMIYA', labelAr: 'السالمية', labelEn: 'Salmiya' },
                 { id: 'FARWANIYA', labelAr: 'الفروانية', labelEn: 'Farwaniya' },
-                { id: 'QURAIN', labelAr: 'مبارك الكبير', labelEn: 'Mubarak Al-Kabeer' },
+                { id: 'MAK', labelAr: 'مبارك الكبير', labelEn: 'Mubarak Al-Kabeer' },
                 { id: 'KHAIRAN', labelAr: 'الخيران', labelEn: 'Khairan' },
                 { id: 'ALKOUT', labelAr: 'الكوت مول', labelEn: 'Al-Kout' },
                 { id: 'ARDIYA', labelAr: 'العارضية', labelEn: 'Ardiya' },

@@ -11,26 +11,29 @@ import {
   TOP_BEST_SELLERS,
   type MenuItemAnalytics,
 } from '@/lib/analytics/brand-sales-october-data'
+import { GROUP_ITEMS_SOLD } from '@/lib/analytics/sales-core-data'
+import { LEDGER } from '@/lib/aether/ledger'
 
 /* =========================================================================
    Menu engineering (Kasavana & Smith) for October 2026.
-   Every table is read from src/lib/analytics/brand-sales-october-data.ts,
-   the project's October dataset. Nothing here is typed in by hand except the
-   headline figures that match /dashboard. No AI calls, no CDN scripts.
+   Every table is read from the live Odoo sync (src/lib/odoo/odoo-dataset.ts via
+   brand-sales-october-data.ts and the ledger). No figure is typed in by hand.
+   No AI calls, no CDN scripts.
    ========================================================================= */
 
-// Headline figures, identical to /dashboard
-const NET_SALES = 167092.16
-const ORDERS = 30540
-const AOV = 5.471
-const ITEMS_SOLD = 79740
-const DISCOUNTS = 4152
-const COGS_PCT = 24.8
-const COGS_KWD = 41438.856
-const NET_PROFIT = 42441.48
-const NET_MARGIN_PCT = 25.4
-const CUSTODY = 51154.95
-const SALARIES_RENT_COMMISSION = 32056.874
+// Headline figures from the live Odoo sync (identical to /dashboard and /erp)
+const NET_SALES = LEDGER.netSales
+const ORDERS = LEDGER.orders
+const AOV = LEDGER.aov
+const ITEMS_SOLD = GROUP_ITEMS_SOLD
+const DISCOUNTS = LEDGER.discounts
+const COGS_PCT = LEDGER.cogsPct
+const COGS_KWD = LEDGER.cogs
+const NET_PROFIT = LEDGER.netProfit
+const NET_MARGIN_PCT = LEDGER.marginPct
+const OPEX = LEDGER.opex
+const DEPRECIATION = LEDGER.depreciation
+const REVENUE = LEDGER.revenue
 
 type Quad = 'star' | 'plowhorse' | 'puzzle' | 'dog'
 const QUAD_OF: Record<MenuItemAnalytics['classification'], Quad> = {
@@ -134,7 +137,7 @@ export default function MenuEngineeringPage() {
           <h1 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100 lg:text-2xl">{T('Menu engineering · October 2026', 'هندسة المنيو · أكتوبر 2026')}</h1>
           <p className="mt-0.5 text-sm text-slate-600">
             {T(
-              'Kasavana & Smith matrix built from the October item data: popularity, recipe cost and margin per item.',
+              'Kasavana & Smith matrix built from the items actually sold in Odoo in October: popularity, price and margin per item.',
               'مصفوفة كاسافانا وسميث مبنية على بيانات الأصناف لشهر أكتوبر: الشعبية وتكلفة الوصفة والهامش لكل صنف.',
             )}
           </p>
@@ -177,16 +180,16 @@ export default function MenuEngineeringPage() {
             <div className="font-semibold">{T('Net operating profit (official)', 'صافي الربح التشغيلي (المعتمد)')}</div>
             <p className="mt-1 text-slate-700">
               {T(
-                `Net sales minus food cost (${COGS_PCT}% = KWD ${fmt3(COGS_KWD)}), custody and expenses (KWD ${fmt3(CUSTODY)}) and salaries, rent and commissions (KWD ${fmt3(SALARIES_RENT_COMMISSION)}) = KWD ${fmt3(NET_PROFIT)} (${NET_MARGIN_PCT}%).`,
-                `صافي المبيعات ناقص تكلفة الأغذية (${COGS_PCT}% = ${fmt3(COGS_KWD)} د.ك) والعهد والمصروفات (${fmt3(CUSTODY)} د.ك) والرواتب والإيجارات والعمولات (${fmt3(SALARIES_RENT_COMMISSION)} د.ك) = ${fmt3(NET_PROFIT)} د.ك (${NET_MARGIN_PCT}%).`,
+                `Posted Odoo revenue (KWD ${fmt3(REVENUE)}) minus food cost (${COGS_PCT}% = KWD ${fmt3(COGS_KWD)}), operating expenses (KWD ${fmt3(OPEX)}) and depreciation (KWD ${fmt3(DEPRECIATION)}) = KWD ${fmt3(NET_PROFIT)} (${NET_MARGIN_PCT}%).`,
+                `الإيراد المرحّل في أودو (${fmt3(REVENUE)} د.ك) ناقص تكلفة الأغذية (${COGS_PCT}% = ${fmt3(COGS_KWD)} د.ك) والمصروفات التشغيلية (${fmt3(OPEX)} د.ك) والإهلاك (${fmt3(DEPRECIATION)} د.ك) = ${fmt3(NET_PROFIT)} د.ك (${NET_MARGIN_PCT}%).`,
               )}
             </p>
           </div>
         </div>
         <p className="mt-2 text-[11px] text-slate-500">
           {T(
-            'Item-level recipe cost below is per item and differs from the group food cost of 24.8%; do not compare them directly.',
-            'تكلفة الوصفة لكل صنف أدناه تخص الصنف وتختلف عن تكلفة الأغذية الإجمالية للمجموعة البالغة 24.8%؛ لا تقارنهما مباشرة.',
+            `Recipe cost is not readable by the Odoo service account yet, so item margins use the group Odoo food cost of ${COGS_PCT}%.`,
+            `تكلفة الوصفات غير متاحة بعد لحساب الخدمة في أودو، لذلك تستخدم هوامش الأصناف تكلفة الأغذية الإجمالية في أودو البالغة ${COGS_PCT}%.`,
           )}
         </p>
       </section>
@@ -277,7 +280,7 @@ export default function MenuEngineeringPage() {
           </div>
           <p className="mt-1 text-[11px] text-slate-500">
             {T(
-              `The dataset lists the ${TOP_BEST_SELLERS.length} best sellers and ${SLOW_MOVERS_LIST.length} slow movers; recipe cost is available for the best sellers only.`,
+              `Odoo lists the ${TOP_BEST_SELLERS.length} best sellers and ${SLOW_MOVERS_LIST.length} slowest movers shown here; recipe cost uses the group Odoo food cost until per-item cost is readable.`,
               `تضم البيانات أعلى ${TOP_BEST_SELLERS.length} صنفاً مبيعاً و${SLOW_MOVERS_LIST.length} أصناف بطيئة؛ وتكلفة الوصفة متاحة للأصناف الأكثر مبيعاً فقط.`,
             )}
           </p>

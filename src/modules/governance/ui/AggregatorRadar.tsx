@@ -214,8 +214,8 @@ export default function AggregatorRadar(_props: AggregatorRadarProps) {
               <span className="h-2 w-2 rounded-full bg-emerald-600" />
               <span>
                 {T(
-                  'Venture Foods W.L.L. · 9 Operational Restaurant Branches · Tgo & TMP Coverage Monitor',
-                  'شركة فنتشر فودز · 9 فروع تشغيلية فعلية · رادار حسابات المنصات (Tgo و TMP) ومناطق التوصيل',
+                  `Venture Foods W.L.L. · ${INITIAL_BRANCH_PROFILES.length} Odoo Restaurant Locations · Tgo & TMP Coverage Monitor (area statuses modeled)`,
+                  `شركة فنتشر فودز · ${INITIAL_BRANCH_PROFILES.length} مواقع مطاعم في أودو · رادار حسابات المنصات (Tgo و TMP) ومناطق التوصيل (حالات المناطق نموذجية)`,
                 )}
               </span>
             </div>
@@ -383,7 +383,7 @@ export default function AggregatorRadar(_props: AggregatorRadarProps) {
             <h2 className="text-[15px] md:text-base font-bold text-slate-900">
               {T(
                 '1. Actual Restaurant Branches & Their Platform Zone Accounts (Tgo / TMP)',
-                'أولاً وثانياً: الفروع الفعلية للمطعم (9 فروع) وحسابات تغطية المناطق التابعة لها (Tgo / TMP)',
+                `أولاً وثانياً: مواقع المطاعم في أودو (${INITIAL_BRANCH_PROFILES.length} مواقع) وحسابات تغطية المناطق التابعة لها (Tgo / TMP)`,
               )}
             </h2>
             <p className="text-xs font-semibold text-slate-600">
@@ -617,7 +617,7 @@ export default function AggregatorRadar(_props: AggregatorRadarProps) {
               onChange={(e) => setBranchFilter(e.target.value)}
               className="ae-select w-full min-w-0"
             >
-              <option value="ALL">{T('All 9 Branches', 'كل الفروع الفعلية (9)')}</option>
+              <option value="ALL">{T(`All ${INITIAL_BRANCH_PROFILES.length} Locations`, `كل المواقع (${INITIAL_BRANCH_PROFILES.length})`)}</option>
               {INITIAL_BRANCH_PROFILES.map((b) => (
                 <option key={b.branchId} value={b.branchId}>
                   {isEn ? b.branchNameEn : b.branchNameAr}

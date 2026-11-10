@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Banknote, Check, ClipboardCopy, FileWarning, Landmark, Receipt, Send, ShieldAlert, Sparkles, Undo2 } from 'lucide-react'
-import { BRANCHES, BRANDS, CHANNELS, feryalHref, fmt, kwd, pct } from '@/lib/aether/ledger'
+import { BRANCHES, BRANDS, CHANNELS, LEDGER, feryalHref, fmt, kwd, pct } from '@/lib/aether/ledger'
 import {
   CHARGEBACK_TYPES,
   WATERFALL_CHANNELS,
@@ -51,7 +51,7 @@ export function ThreeWayReconciliationTab() {
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatsCardV2 icon={<Receipt className="h-4 w-4" />} label={T('Odoo POS sales (11 channels)', 'مبيعات نقاط البيع (11 قناة)')} value={kwd(sum('posSales'), lang, digits)} valueTone="sky" />
+        <StatsCardV2 icon={<Receipt className="h-4 w-4" />} label={T(`Odoo POS sales (${LEDGER.channels} channels)`, `مبيعات نقاط البيع (${LEDGER.channels} قنوات)`)} value={kwd(sum('posSales'), lang, digits)} valueTone="sky" />
         <StatsCardV2 icon={<FileWarning className="h-4 w-4" />} label={T('Recoverable discrepancies', 'فروقات قابلة للاسترداد')} value={kwd(sum('recoverable'), lang, digits || 3)} valueTone="rose" sub={T(`${exceptions} channels flagged`, `${exceptions} قنوات مرصودة`)} />
         <StatsCardV2 icon={<Landmark className="h-4 w-4" />} label={T('Settlements in transit', 'تسويات قيد التحويل')} value={kwd(sum('inTransit'), lang, digits || 3)} valueTone="amber" sub={T('Delayed beyond the payout cycle', 'متأخرة عن دورة السداد')} />
         <StatsCardV2 icon={<Banknote className="h-4 w-4" />} label={T('Deposited in bank', 'المودع في البنك')} value={kwd(sum('bank'), lang, digits)} valueTone="emerald" target={{ label: T('Bank vs expected', 'البنك مقابل المتوقع'), progress: (sum('bank') / (sum('expected') || 1)) * 100, tone: 'emerald' }} />
@@ -293,8 +293,8 @@ export function OrderWaterfallTab() {
       </div>
       <p className="text-[11px] text-slate-500">
         {T(
-          'Per-order averages from October channel sales, contract commission rates, approved promotions, 24.8% food cost, 0.180 KWD packaging per delivery order and 0.350 KWD own-rider cost on TMP. Net pocket profit is before salaries, rent and overheads.',
-          'متوسطات لكل طلب من مبيعات القنوات لشهر أكتوبر ونسب العمولات التعاقدية والخصومات المعتمدة وتكلفة أغذية 24.8% وتغليف 0.180 د.ك لكل طلب توصيل وتكلفة سائق 0.350 د.ك في سوق طلبات. صافي الربح قبل الرواتب والإيجار والمصاريف العامة.',
+          `Per-order averages from October channel sales, contract commission rates, approved promotions, ${LEDGER.cogsPct}% food cost, 0.180 KWD packaging per delivery order and 0.350 KWD own-rider cost on TMP. Net pocket profit is before salaries, rent and overheads.`,
+          `متوسطات لكل طلب من مبيعات القنوات لشهر أكتوبر ونسب العمولات التعاقدية والخصومات المعتمدة وتكلفة أغذية ${LEDGER.cogsPct}% وتغليف 0.180 د.ك لكل طلب توصيل وتكلفة سائق 0.350 د.ك في سوق طلبات. صافي الربح قبل الرواتب والإيجار والمصاريف العامة.`,
         )}
       </p>
     </div>

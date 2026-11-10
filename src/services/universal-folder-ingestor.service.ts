@@ -107,7 +107,6 @@ function detectBranch(hay: string): string | null {
     [/\b360\b/i, '360'],
     [/\basm\b|assima/i, 'ASM'],
     [/\bkout\b|كوت/i, 'KOUT'],
-    [/\bqrn\b|قرين|qurain/i, 'QRN'],
     [/salmiya|السالمية/i, 'SALMIYA'],
     [/ardiya|العارضية/i, 'ARDIYA'],
     [/\bck\b|central.?kitchen|مطبخ/i, 'CK'],
