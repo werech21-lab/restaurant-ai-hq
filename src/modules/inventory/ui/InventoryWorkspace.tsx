@@ -78,7 +78,7 @@ export default function InventoryWorkspace({ initialItemId = null, permissions =
   return (
     <PermissionProvider permissions={permissions}>
     <div>
-      <Link href="/" className="mb-6 inline-block text-sm text-blue-400 hover:text-blue-300">
+      <Link href="/erp" className="mb-6 inline-block text-sm text-blue-400 hover:text-blue-300">
         {t('erp.back')}
       </Link>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">

@@ -185,7 +185,11 @@ export function Sidebar({ user }: { user: AccessUser; enabledKeys?: string[] | n
     >
       {/* Brand Header */}
       <div className="shrink-0 px-4 pb-4 pt-5">
-        <div className="flex items-center gap-3">
+        <Link
+          href="/erp"
+          className="flex items-center gap-3 rounded-2xl outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-sky-500/50"
+          aria-label={isAr ? 'العودة إلى الملخص التنفيذي' : 'Back to the executive summary'}
+        >
           <div className="ae-side-logo flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-base font-black tracking-wide shadow-sm" aria-hidden>
             VF
           </div>
@@ -193,7 +197,7 @@ export function Sidebar({ user }: { user: AccessUser; enabledKeys?: string[] | n
             <p className="ae-side-strong text-sm font-semibold leading-tight tracking-tight">{isAr ? 'فنتشر فودز' : 'Venture Foods'}</p>
             <p className="ae-side-muted text-[11px] font-medium leading-tight">{isAr ? 'منصة إيثر للتحليلات' : 'Aether BI · aetherbi.com'}</p>
           </div>
-        </div>
+        </Link>
 
         {/* Company info: three independent centred lines, nothing truncated */}
         <div className="ae-side-card mt-4 space-y-1.5 px-3 py-3 text-center leading-relaxed">

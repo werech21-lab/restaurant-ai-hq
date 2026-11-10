@@ -89,7 +89,7 @@ export default function ProductManager({ products, total, page, pageSize, query,
 
   return (
     <div>
-      <Link href="/" className="mb-6 inline-block text-sm text-blue-400 hover:text-blue-300">
+      <Link href="/erp" className="mb-6 inline-block text-sm text-blue-400 hover:text-blue-300">
         {t('admin.back')}
       </Link>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">

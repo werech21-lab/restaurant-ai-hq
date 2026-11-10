@@ -756,7 +756,7 @@ export default function FoodSafetyHub() {
           {/* Quick Header Controls */}
           <div className="flex flex-wrap items-center gap-2">
             <Link
-              href="/"
+              href="/erp"
               className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-900/80 px-3 py-2 text-xs font-bold text-slate-200 transition hover:border-slate-500 hover:text-white"
             >
               <span>🏠</span>

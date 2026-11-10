@@ -16,7 +16,7 @@ export default function ErpNav() {
   return (
     <header className="sticky top-0 z-30 border-b border-gold-300/10 bg-ink-950/90 backdrop-blur" suppressHydrationWarning>
       <div className="mx-auto flex w-full max-w-7xl items-center gap-3 px-4 py-2.5 sm:px-6" suppressHydrationWarning>
-        <Link href="/" className="flex shrink-0 items-center gap-2.5" title={t('erpnav.home')} suppressHydrationWarning>
+        <Link href="/erp" className="flex shrink-0 items-center gap-2.5" title={t('erpnav.home')} suppressHydrationWarning>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/venture-foods-logo-dark.svg" alt="Venture Foods" className="h-9 w-auto object-contain" />
           <span dir="ltr" className="hidden text-[11px] font-semibold tracking-[0.12em] text-[#8cc63f] sm:inline">

@@ -1,16 +1,9 @@
-import AetherLanding from '@/components/marketing/AetherLanding'
-import { getCurrentUser } from '@/lib/erp-auth'
+import { redirect } from 'next/navigation'
 
-export const dynamic = 'force-dynamic'
-
-export default async function Home() {
-  let signedIn = false
-  try {
-    const user = await getCurrentUser()
-    signedIn = Boolean(user)
-  } catch {
-    // Landing must render even if Prisma/session lookup is cold or unavailable.
-    signedIn = false
-  }
-  return <AetherLanding signedIn={signedIn} />
+/**
+ * aetherbi.com has no public landing page: the root always opens the Aether BI workspace.
+ * (next.config.js also redirects "/" → "/erp" before this page is reached.)
+ */
+export default function RootPage(): never {
+  redirect('/erp')
 }
