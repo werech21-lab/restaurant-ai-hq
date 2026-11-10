@@ -49,12 +49,12 @@ interface NavSection {
 const SIDEBAR_SECTIONS: NavSection[] = [
   {
     id: 'main',
-    titleAr: 'المحاور التنفيذية',
-    titleEn: 'Executive pillars',
+    titleAr: 'الأقسام الرئيسية',
+    titleEn: 'Main Sections',
     items: [
-      { key: 'playbook', href: '/erp', labelAr: 'المختصرات وقرارات الرحلة الكاملة', labelEn: '360° Shortcuts & Journey Playbook', icon: LayoutDashboard, alwaysVisible: true },
-      { key: 'feryal-ai', href: '/erp/feryal-ai', labelAr: 'المستشارة التنفيذية الشاملة فريال', labelEn: 'Feryal — 360° COO, CFO & Growth', icon: Sparkles, alwaysVisible: true },
-      { key: 'aggregator-radar', href: '/erp/aggregator-radar', labelAr: 'رادار منصات التوصيل', labelEn: 'Delivery Radar', icon: Radar, alwaysVisible: true },
+      { key: 'playbook', href: '/erp', labelAr: 'ملخص أداء الشركة وفرص زيادة الربح', labelEn: 'Company Summary & Profit Opportunities', icon: LayoutDashboard, alwaysVisible: true },
+      { key: 'feryal-ai', href: '/erp/feryal-ai', labelAr: 'المستشارة الذكية فريال', labelEn: 'Feryal — Smart Advisor', icon: Sparkles, alwaysVisible: true },
+      { key: 'aggregator-radar', href: '/erp/aggregator-radar', labelAr: 'الرادار الجنائي لمنصات التوصيل', labelEn: 'Forensic Delivery Radar', icon: Radar, alwaysVisible: true },
       { key: 'events-intelligence', href: '/erp/events-intelligence', labelAr: 'جدوى المعارض والبوثات الموسمية', labelEn: 'Seasonal Booths Study', icon: Calendar, alwaysVisible: true },
     ],
   },

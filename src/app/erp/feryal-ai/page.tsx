@@ -33,63 +33,63 @@ import { FeryalStudioMessage, feryalPlainText } from '@/components/aether/Feryal
 // ==============================================================================
 const welcomeText = (lang: 'ar' | 'en') =>
   lang === 'ar'
-    ? `أهلاً بك، أنا فريال، مستشارتك التنفيذية الشاملة للعمليات والمالية والنمو في فنتشر فودز. أراجع الرحلة الكاملة في أودو — من موردي المطبخ المركزي بالعارضية إلى مطابخ فروعنا الـ ${LEDGER.branches} ومنصات التوصيل وحتى التسويات البنكية وولاء العملاء — لنتخذ معاً قرارات جراحية ترفع الجودة وصافي الربح.`
-    : `Welcome, I'm Feryal, your 360° COO, CFO and growth strategist at Venture Foods. I review the full journey in Odoo — from Ardiya Central Kitchen suppliers to our ${LEDGER.branches} restaurant kitchens, delivery platforms, bank settlements and customer loyalty — so we can take surgical decisions that lift quality and net profit.`
+    ? `أهلاً بك، أنا فريال، مستشارتك الذكية في فنتشر فودز. أتابع معك مبيعات ومصاريف فروعنا الـ ${LEDGER.branches} ومطبخ العارضية وتطبيقات التوصيل لحظة بلحظة من أودو، وأساعدك بخطوات عملية واضحة لزيادة الربح وتقليل الهدر.`
+    : `Welcome, I'm Feryal, your smart advisor at Venture Foods. I track sales and costs across our ${LEDGER.branches} restaurant branches, Ardiya Central Kitchen, and delivery platforms live from Odoo — giving you clear, practical steps to grow profit and cut waste.`
 
 const TOPICS: { id: string; tagAr: string; tagEn: string; labelAr: string; labelEn: string; promptAr: string; promptEn: string }[] = [
   {
     id: 'zwarah-prep',
     tagAr: 'توقيت الرواتب والزوارة · تحضير العارضية',
     tagEn: 'Kuwait Payday & Zwarah · Ardiya Prep',
-    labelAr: 'تبديل باقات الرواتب والزوارة ومنع نفاد الخميس والجمعة',
-    labelEn: 'Kuwait Payday/Zwarah Bundles & Zero-Stockout Par Shield',
-    promptAr: 'ما خطة التوقيت الميداني في الكويت بين ذروة الرواتب والزوارة (٢٠–٢٩ والخميس والجمعة) ودرع سيولة منتصف الشهر (١٠–١٩)، وكيف نضبط تحضير المطبخ المركزي بالعارضية لمنع هدر أول الأسبوع ومنع نفاد الأصناف مساء الخميس؟',
-    promptEn: 'What is our Kuwait field-execution plan across Payday & Thu/Fri Zwarah surges (20th–29th) vs Mid-Month Liquidity Shield (10th–19th), and how do we set Ardiya Central Kitchen (#17) par levels to stop weekday spoilage and Thu/Fri stockouts?',
+    labelAr: 'عروض الرواتب والزوارة وضبط تحضير نهاية الأسبوع',
+    labelEn: 'Kuwait Payday/Zwarah Bundles & Weekend Prep Plan',
+    promptAr: 'ما أفضل عروض باقات الرواتب والزوارة (٢٠–٢٩ والخميس والجمعة) مقارنة بوجبات منتصف الشهر الاقتصادية (١٠–١٩)، وكيف نضبط كميات التحضير في مطبخ العارضية لمنع الهدر أول الأسبوع ومنع نفاد الأصناف مساء الخميس؟',
+    promptEn: 'What are the best Payday & Thu/Fri Zwarah bundles (20th–29th) vs mid-month value meals (10th–19th), and how should Ardiya Central Kitchen set prep quantities to stop weekday waste and Thu/Fri stockouts?',
   },
   {
     id: 'field-upsell-b2b',
-    tagAr: 'البيع الإضافي · الأبراج والديوانيات',
+    tagAr: 'اقتراحات الكاشير · الأبراج والديوانيات',
     tagEn: 'Cashier Upsell · Corporate & Diwaniya',
-    labelAr: 'حافز الكاشير المموّل ذاتياً وبوكسات الأبراج والديوانيات بعمولة ٠٪',
-    labelEn: 'Self-Funded Cashier Upsells & 0%-Commission B2B/Diwaniya Boxes',
-    promptAr: 'أعطني جمل البيع الإضافي للكاشير لكل علامة مع قاعدة المكافأة الأسبوعية المموّلة ذاتياً بعد تحقيق 500 د.ك هامش صافي، وخطة بوكسات غداء الأبراج والوزارات حول العاصمة مول وبوكسات الديوانيات بعمولة صفر بالمئة.',
-    promptEn: 'Give me the 1-line cashier upsell scripts per brand with the self-funded 25 KWD micro-bonus rule (unlocked after +500 KWD verified net margin), plus our 0%-commission Assima Tower Office Lunch & Kuwaiti Diwaniya box playbook.',
+    labelAr: 'مكافأة الكاشير التشجيعية وبوكسات الأبراج والديوانيات بعمولة ٠٪',
+    labelEn: 'Cashier Upsell Bonus & 0%-Commission Office/Diwaniya Boxes',
+    promptAr: 'أعطني جمل الاقتراح السريعة للكاشير لكل مطعم مع نظام المكافأة الأسبوعية بعد تحقيق 500 د.ك ربح إضافي، وخطة بوكسات غداء المكاتب حول العاصمة مول وبوكسات الديوانيات بدون عمولة تطبيقات.',
+    promptEn: 'Give me the 1-line cashier upsell scripts per brand with the 25 KWD weekly bonus rule (after +500 KWD net profit), plus our 0%-commission Assima Tower office lunch & Kuwaiti Diwaniya box plan.',
   },
   {
     id: 'cash-runway',
     tagAr: 'السيولة · التزامات نهاية الشهر',
-    tagEn: 'CFO Cash Runway · 15-Day Shield',
-    labelAr: 'نبض التزامات الإيجارات والرواتب وتوقيت تحصيل المنصات',
-    labelEn: 'Month-End Rent, Payroll & Vendor Runway vs Platform Payouts',
-    promptAr: 'راجعي نبض التزامات نهاية الشهر من الإيجارات والرواتب ومستحقات الموردين مقابل تدفقات نقاط البيع وخطة تحصيل تسويات طلبات وكيتا قبل 15 يوماً من نهاية الشهر.',
-    promptEn: 'Review our End-of-Month Cash Commitments (Rent, Payroll & Vendor payables) against 30-day POS cash inflow and our 15-day pre-month-end Talabat & Keeta clearing sweep plan.',
+    tagEn: 'Month-End Cash & Settlements',
+    labelAr: 'تغطية الإيجارات والرواتب ومواعيد تحصيل طلبات وكيتا',
+    labelEn: 'Month-End Rent, Payroll & Platform Payout Timing',
+    promptAr: 'راجعي معي التزامات نهاية الشهر من الإيجارات والرواتب ودفعات الموردين مقابل سيولة المبيعات، وخطة تحصيل مستحقات طلبات وكيتا قبل 15 يوماً من نهاية الشهر.',
+    promptEn: 'Review our month-end rent, payroll, and supplier payments against 30-day POS cash inflow, and show our 15-day pre-month-end Talabat & Keeta settlement collection plan.',
   },
   {
     id: 'yield',
-    tagAr: 'المطبخ المركزي بالعارضية (#17)',
-    tagEn: 'Ardiya Central Kitchen (#17)',
-    labelAr: 'فجوة الهدر الخفي وفروقات الجرد بالمطبخ المركزي',
-    labelEn: 'Central Kitchen Yield & Stock Variance Shield',
-    promptAr: 'أين يتسرب الربح بين المطبخ المركزي بالعارضية (مركز تكلفة #17) وفروعنا السبعة؟ حللي فروقات الجرد والهالك وانحراف حصص نودلز الدجاج وأعطني مذكرة تكليف مع فحص ميداني في 5 دقائق.',
-    promptEn: 'Where is profit leaking between Ardiya Central Kitchen (Analytic #17) and our 7 branches? Analyse stock count variance, scrap and Chicken Noodles portion drift, with a 5-minute spot-audit dispatch brief.',
+    tagAr: 'مطبخ العارضية المركزي',
+    tagEn: 'Ardiya Central Kitchen',
+    labelAr: 'تقليل هدر المطبخ المركزي وضبط أوزان الحصص بالفروع',
+    labelEn: 'Cut Central Kitchen Waste & Standardize Branch Portions',
+    promptAr: 'وين يضيع جزء من المواد بين مطبخ العارضية المركزي وفروعنا السبعة؟ راجعي فروقات الجرد والتالف وضبط وزن حصة نودلز الدجاج وأعطني رسالة توجيه سريعة للفريق.',
+    promptEn: 'Where are ingredients being lost between Ardiya Central Kitchen and our 7 branches? Review stock count gaps, kitchen waste, and Chicken Noodles portion weights with a 5-minute team check.',
   },
   {
     id: 'menu-elasticity',
-    tagAr: 'تشاينا جاردن (#86) · التسعير الجراحي',
-    tagEn: 'China Garden (#86) · Elasticity Guardrail',
-    labelAr: 'تسعير الأطباق القائدة وحماية الأصناف الجاذبة',
-    labelEn: 'Hero Dish Repricing & Traffic-Driver Guardrail',
-    promptAr: 'في تشاينا جاردن (مركز #86)، ما الأطباق القائدة غير الحساسة للسعر التي تتحمل +150 فلس بأمان (مثل نودلز الدجاج ودجاج سويت آند ساور) وما الأصناف الجاذبة التي يجب تجميد سعرها المنفرد؟',
-    promptEn: 'In China Garden (Analytic #86), which inelastic hero dishes safely take +150 fils (e.g. Chicken Noodles, Sweet & Sour Chicken) vs. traffic drivers whose standalone price must stay frozen?',
+    tagAr: 'تشاينا جاردن · تحسين أسعار المنيو',
+    tagEn: 'China Garden · Menu Pricing',
+    labelAr: 'تعديل بسيط لأسعار الأطباق الأكثر طلباً وتثبيت الأصناف الأساسية',
+    labelEn: 'Small Price Step on Popular Dishes & Keep Core Items Fixed',
+    promptAr: 'في تشاينا جاردن، ما الأطباق الأكثر طلباً التي تتحمل زيادة بسيطة (+150 فلس مثل نودلز الدجاج ودجاج سويت آند ساور) وما الأصناف الأساسية التي يبقى سعرها ثابتاً؟',
+    promptEn: 'In China Garden, which popular dishes can safely take a +150 fils price step (like Chicken Noodles and Sweet & Sour Chicken) and which core value items should keep their price fixed?',
   },
   {
     id: 'delivery',
     tagAr: 'طلبات جو وسوق طلبات · كيتا · التسويات',
-    tagEn: 'Talabat Tgo/TMP · Keeta · Claims',
-    labelAr: 'تشريح ربحية عروض كيتا ومطالبات فروقات طلبات',
-    labelEn: 'Keeta Promo Cap & Talabat Settlement Recovery',
-    promptAr: 'كم يصلنا صافياً في البنك من كيتا وطلبات (طلبات جو 17% مقابل سوق طلبات 10%) بعد العمولات والعروض المشتركة؟ ضعي خطة استرداد الفروقات وسقف العروض عند 3.5%.',
-    promptEn: 'How much true net cash hits our bank from Keeta and Talabat (Tgo 17% vs TMP 10%) after commissions and co-funded promos? Give me the 3.5% promo cap & claim recovery plan.',
+    tagEn: 'Talabat Tgo/TMP · Keeta · Settlements',
+    labelAr: 'صافي الربح من عروض كيتا واسترداد فروقات طلبات',
+    labelEn: 'Net Cash From Keeta Promos & Talabat Variance Recovery',
+    promptAr: 'كم يدخل حسابنا البنكي فعلياً من كيتا وطلبات (طلبات جو 17% مقابل سوق طلبات 10%) بعد العمولات والخصومات؟ أعطني خطة استرداد الفروقات وتحديد سقف الخصومات عند 3.5%.',
+    promptEn: 'How much net cash actually reaches our bank from Keeta and Talabat (Tgo 17% vs TMP 10%) after commissions and discounts? Give me the variance recovery and 3.5% discount cap plan.',
   },
 ]
 
@@ -745,28 +745,28 @@ export default function FeryalAiCommandPage() {
       const body = feryalPlainText(rawText)
       return isAr
         ? [
-            `📌 مذكرة تكليف ميدانية صادرة عن المستشارة فريال — شركة فنتشر فودز لإدارة المطاعم ذ.م.م`,
-            `• المكلّف بالتنفيذ: مدير المنطقة / مدير الفرع / شيف المطبخ المركزي بالعارضية (#17)`,
-            `• موعد مراجعة الأثر الفعلي (بعد 14 يوماً): ${reviewDate}`,
+            `📌 توجيه تنفيذي سريع من المستشارة فريال — شركة فنتشر فودز لإدارة المطاعم ذ.م.م`,
+            `• المسؤول عن المتابعة: مدير المنطقة / مدير الفرع / شيف مطبخ العارضية المركزي`,
+            `• موعد مراجعة النتيجة (بعد 14 يوماً): ${reviewDate}`,
             ``,
             body,
             ``,
-            `⏱️ قائمة التفتيش الميداني السريع لمدير المنطقة (٣ نقاط في ٥ دقائق):`,
-            `  ١) مطابقة تطبيق القرار فعلياً على شاشة نقاط البيع وخط الإنتاج بالفرع.`,
-            `  ٢) وزن ٣ حصص عشوائية على الميزان الرقمي وجرد علب التغليف مقابل فواتير أودو 17.`,
-            `  ٣) مراجعة سجل الخصومات والإلغاءات وجمل البيع الإضافي للشفت المسائي.`,
+            `⏱️ فحص ميداني سريع لمدير المنطقة (٣ نقاط في ٥ دقائق):`,
+            `  ١) التأكد من تطبيق الخطوة فعلياً على شاشة الكاشير وخط التحضير بالفرع.`,
+            `  ٢) وزن ٣ وجبات عشوائية على الميزان الرقمي ومطابقة رصيد علب التغليف مع أودو.`,
+            `  ٣) مراجعة الخصومات والطلبات الملغية واقتراحات البيع الإضافي للشفت المسائي.`,
           ].join('\n')
         : [
-            `📌 FERYAL FIELD EXECUTION DISPATCH BRIEF — Venture Foods Restaurants Management Co. W.L.L.`,
-            `• Accountable Owner: Area Manager / Branch Manager / Ardiya Central Kitchen Chef (#17)`,
-            `• 14-Day Impact Review Date: ${reviewDate}`,
+            `📌 QUICK TEAM BRIEF FROM FERYAL — Venture Foods Restaurants Management Co. W.L.L.`,
+            `• Owner: Area Manager / Branch Manager / Ardiya Central Kitchen Chef`,
+            `• 14-Day Results Check Date: ${reviewDate}`,
             ``,
             body,
             ``,
-            `⏱️ 5-Minute Surgical Physical Spot-Audit Checklist (Area Manager):`,
-            `  1) Verify live compliance on the branch Odoo POS terminal and hot-line station.`,
-            `  2) Weigh 3 random portions on the digital scale and reconcile physical packaging vs Odoo 17.`,
-            `  3) Audit evening-shift discount/void slips and 1-line cashier upsell execution.`,
+            `⏱️ 5-Minute Spot Check (Area Manager):`,
+            `  1) Confirm the step is active on the branch POS screen and kitchen line.`,
+            `  2) Weigh 3 random portions on the digital scale and match packaging count to Odoo.`,
+            `  3) Check evening-shift discounts, cancellations, and cashier upsell suggestions.`,
           ].join('\n')
     },
     [isAr],
@@ -789,12 +789,12 @@ export default function FeryalAiCommandPage() {
           </div>
           <div className="min-w-0">
             <h1 className="truncate text-[22px] font-bold tracking-tight text-slate-950 sm:text-[24px] dark:text-white">
-              {T('Feryal — 360° COO, CFO & Growth Strategist', 'المستشارة التنفيذية الشاملة فريال')}
+              {T('Feryal — Smart Business Advisor', 'المستشارة الذكية فريال')}
             </h1>
             <p className="truncate text-[13px] font-medium text-slate-500 dark:text-slate-400">
               {T(
-                'Full-journey surgical decisions & 1-click dispatch briefs grounded in Odoo 17 Analytic Cost Centers',
-                'قرارات جراحية ومذكرات تكليف جاهزة مبنية على مراكز التكلفة التحليلية الحية في أودو 17',
+                'Instant answers & practical steps to grow profit and control costs from live Odoo data',
+                'إجابات فورية وخطوات عملية واضحة لزيادة الربح وضبط المصاريف من بيانات أودو المباشرة',
               )}
             </p>
           </div>
@@ -911,7 +911,7 @@ export default function FeryalAiCommandPage() {
                                 className="inline-flex items-center gap-1 rounded-full bg-slate-900 px-3 py-1 font-semibold text-white hover:bg-slate-800 dark:bg-white dark:text-slate-950"
                               >
                                 {copiedMsgId === `${m.id}-brief` ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <FileText className="h-3.5 w-3.5" />}
-                                {copiedMsgId === `${m.id}-brief` ? T('Brief Copied', 'تم نسخ المذكرة') : T('Dispatch Brief', 'توليد مذكرة تنفيذ')}
+                                {copiedMsgId === `${m.id}-brief` ? T('Brief Copied', 'تم نسخ الرسالة') : T('Team Brief', 'رسالة توجيه للفريق')}
                               </button>
                               <a
                                 href={`https://wa.me/?text=${encodeURIComponent(briefText)}`}
@@ -920,7 +920,7 @@ export default function FeryalAiCommandPage() {
                                 className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-3 py-1 font-semibold text-white hover:bg-emerald-500"
                               >
                                 <MessageCircle className="h-3.5 w-3.5" />
-                                {T('WhatsApp Owner', 'إرسال عبر واتساب')}
+                                {T('Send via WhatsApp', 'إرسال عبر واتساب')}
                               </a>
                             </>
                           )}
@@ -955,7 +955,7 @@ export default function FeryalAiCommandPage() {
                   <Loader2 className="h-4 w-4 animate-spin" />
                 </div>
                 <div className="ae-studio-subcard px-5 py-3.5 text-[14.5px] font-medium text-slate-500">
-                  {T('Feryal is cross-checking Odoo 17 cost centers…', 'فريال تفحص مراكز تكلفة أودو 17 وتُعدّ القرار…')}
+                  {T('Feryal is checking branch numbers in Odoo…', 'فريال تراجع بيانات الفروع في أودو وتجهز الرد…')}
                 </div>
               </div>
             )}
@@ -993,7 +993,7 @@ export default function FeryalAiCommandPage() {
                     if (!isCopilotThinking) handleSendQuery()
                   }
                 }}
-                placeholder={T('Ask Feryal about any branch, brand, dish, cost center or claim…', 'اسأل فريال عن أي فرع أو علامة أو طبق أو مركز تكلفة أو تسوية…')}
+                placeholder={T('Ask Feryal about any branch, restaurant, dish, expense, or delivery platform…', 'اسأل فريال عن أي فرع أو مطعم أو طبق أو مصاريف أو منصة توصيل…')}
                 className="min-h-[52px] flex-1 resize-none rounded-2xl bg-[#F6F7F9] px-4 py-3.5 text-[15px] leading-relaxed text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/15 dark:bg-white/[0.06] dark:text-white"
               />
               <button
@@ -1026,23 +1026,23 @@ export default function FeryalAiCommandPage() {
         {!isExpanded && (
           <aside className={`lg:col-span-4 ${panelShell} space-y-4 overflow-y-auto p-6`}>
             <div>
-              <h2 className="text-[15px] font-bold text-slate-950 dark:text-white">{T('Best Surgical Play per Journey Stage', 'أفضل قرار جراحي في كل مرحلة من الرحلة')}</h2>
+              <h2 className="text-[15px] font-bold text-slate-950 dark:text-white">{T('Top Profit & Savings Steps Right Now', 'أهم فرص زيادة الربح وتقليل الهدر حالياً')}</h2>
               <p className="mt-1 text-[12.5px] text-slate-500 dark:text-slate-400">
-                {T(`Grounded in Odoo 17 Analytic Cost Centers · ${LEDGER.periodLabelEn}`, `مبني على مراكز التكلفة التحليلية في أودو 17 · ${LEDGER.periodLabelAr}`)}
+                {T(`Based directly on live branch & brand numbers in Odoo · ${LEDGER.periodLabelEn}`, `مبنية مباشرة على أرقام الفروع والمطاعم في أودو · ${LEDGER.periodLabelAr}`)}
               </p>
             </div>
             {FERYAL_PROPOSALS.map((p) => (
               <article key={p.id} className="ae-studio-subcard space-y-3 p-4">
                 <h3 className="text-[14px] font-bold text-slate-950 dark:text-white">{isAr ? p.titleAr : p.titleEn}</h3>
                 <div>
-                  <div className="text-[11px] font-bold uppercase tracking-wide text-slate-400">{T('Practical Solution', 'المقترح العملي')}</div>
+                  <div className="text-[11px] font-bold uppercase tracking-wide text-slate-400">{T('Practical Step', 'الخطوة العملية')}</div>
                   <p className="mt-1 text-[13px] leading-relaxed text-slate-700 dark:text-slate-300">{isAr ? p.solutionAr : p.solutionEn}</p>
                 </div>
                 <div className="rounded-xl bg-emerald-50/75 p-3 dark:bg-emerald-950/30">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300">{T('Expected Monthly Gain', 'العائد الشهري المتوقع')}</span>
+                    <span className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300">{T('Expected Monthly Gain', 'الربح أو التوفير الشهري المتوقع')}</span>
                     <span dir="ltr" className="whitespace-nowrap text-[12px] font-extrabold tabular-nums text-emerald-700 dark:text-emerald-300">
-                      {p.monthlyKwd > 0 ? (isAr ? `+${fmtKwd(p.monthlyKwd, true)}/شهر` : `+${fmtKwd(p.monthlyKwd, false)}/mo`) : T('Control', 'ضبط ورقابة')}
+                      {p.monthlyKwd > 0 ? (isAr ? `+${fmtKwd(p.monthlyKwd, true)}/شهر` : `+${fmtKwd(p.monthlyKwd, false)}/mo`) : T('Control', 'متابعة وسيولة')}
                     </span>
                   </div>
                   <p className="mt-1 text-[12.5px] leading-relaxed text-emerald-950 dark:text-emerald-50">{isAr ? p.outcomeAr : p.outcomeEn}</p>
@@ -1053,7 +1053,7 @@ export default function FeryalAiCommandPage() {
                   onClick={() => handleSendQuery(isAr ? p.promptAr : p.promptEn)}
                   className="w-full rounded-full bg-[#0F172A] px-4 py-2 text-[12.5px] font-bold text-white transition-all hover:bg-slate-800 active:scale-[0.98] disabled:opacity-50 dark:bg-white dark:text-slate-950"
                 >
-                  {T('Discuss & Generate Brief', 'مناقشة وتوليد مذكرة تنفيذ')}
+                  {T('Discuss & Prepare Team Brief', 'ناقش الخطوة وجهّز رسالة التنفيذ')}
                 </button>
               </article>
             ))}

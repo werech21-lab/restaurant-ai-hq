@@ -81,40 +81,39 @@ export function OdooSyncPill({ isAr }: { isAr: boolean }) {
   const label =
     state.status === 'syncing'
       ? isAr
-        ? 'جارٍ تحديث أودو 17…'
-        : 'Syncing Odoo 17…'
+        ? 'جارٍ تحديث بيانات أودو…'
+        : 'Updating Odoo data…'
       : state.status === 'unauthorized'
         ? isAr
-          ? 'سجّل الدخول للمزامنة'
-          : 'Sign in to sync'
+          ? 'سجّل الدخول للتحديث'
+          : 'Sign in to refresh'
         : state.status === 'error'
           ? isAr
-            ? 'آخر لقطة موثقة · إعادة المحاولة'
-            : 'Verified Snapshot · Retry'
+            ? 'آخر تحديث محفوظ · إعادة المحاولة'
+            : 'Saved Data · Retry'
           : isAr
-            ? `أودو 17 متصل · 30 يوماً (${r30From} ← ${r30To}) + ${mtdLabelAr}`
-            : `Odoo 17 Live · 30d (${r30From} → ${r30To}) + ${mtdLabelEn}`
+            ? `أودو متصل · آخر 30 يوماً (${r30From} ← ${r30To}) + ${mtdLabelAr}`
+            : `Odoo Live · Last 30d (${r30From} → ${r30To}) + ${mtdLabelEn}`
 
   const shortLabel =
     state.status === 'syncing'
       ? isAr
-        ? 'جارٍ المزامنة…'
-        : 'Syncing…'
+        ? 'جارٍ التحديث…'
+        : 'Updating…'
       : isAr
-        ? 'أودو 17 · 30 يوماً + نوفمبر'
-        : 'Odoo 17 · 30d + Nov MTD'
+        ? 'أودو متصل · 30 يوماً + نوفمبر'
+        : 'Odoo Live · 30d + Nov'
 
   const title = s
     ? [
-        isAr ? `نافذة 30 يوماً: ${s.period.from} ← ${s.period.to} + ${mtdLabelAr}` : `Rolling 30d: ${s.period.from} → ${s.period.to} + ${mtdLabelEn}`,
+        isAr ? `آخر 30 يوماً: ${s.period.from} ← ${s.period.to} + ${mtdLabelAr}` : `Last 30d: ${s.period.from} → ${s.period.to} + ${mtdLabelEn}`,
         isAr
           ? `صافي المبيعات: ${fmt(s.totals.netSalesKwd)} د.ك · ${s.totals.orders.toLocaleString('en-US')} طلب`
           : `Net sales: ${fmt(s.totals.netSalesKwd)} KWD · ${s.totals.orders.toLocaleString('en-US')} orders`,
-        isAr ? `مراكز التكلفة التحليلية النشطة: ${JOURNEY_META.analyticCenters}` : `Active Analytic Cost Centers: ${JOURNEY_META.analyticCenters}`,
       ].join('\n')
     : isAr
-      ? `أودو 17 متصل (${JOURNEY_META.analyticCenters} مركز تكلفة تحليلي) — اضغط للتحديث الفوري`
-      : `Odoo 17 connected (${JOURNEY_META.analyticCenters} Analytic Cost Centers) — click to refresh now`
+      ? 'متصل بأودو — اضغط لتحديث الأرقام الآن'
+      : 'Connected to Odoo — click to refresh numbers now'
 
   return (
     <button

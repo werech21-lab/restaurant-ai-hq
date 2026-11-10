@@ -26,8 +26,10 @@ import {
   JOURNEY_PLAYS,
   JOURNEY_SHORTCUTS,
   JOURNEY_STAGES,
+  arItemName,
   buildDispatchBrief,
   buildVendorCreditNoteRequest,
+  enItemName,
   evaluateKuwaitCashCycle,
   journeyKpiFormat,
   simulatePlay,
@@ -74,6 +76,7 @@ const SPRING = 'cubic-bezier(0.34, 1.4, 0.64, 1)'
 
 const f0 = (n: number) => Math.round(n).toLocaleString('en-US')
 const f1 = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+const f2 = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const f3 = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
 
 const GLOW_CLASS: Record<Glow, string> = {
@@ -88,9 +91,9 @@ const pill =
   'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-[#F6F7F9] px-3.5 py-1.5 text-[12.5px] font-semibold text-slate-800 shadow-[0_0_0_1px_rgba(15,23,42,0.05)] transition-all duration-150 hover:bg-slate-200/70 active:scale-[0.97] dark:bg-white/[0.06] dark:text-slate-100 dark:shadow-[0_0_0_1px_rgba(255,255,255,0.08)] dark:hover:bg-white/[0.1]'
 
 const SEVERITY: Record<JourneyPlay['severity'], { en: string; ar: string; cls: string }> = {
-  critical: { en: 'Critical', ar: 'حرج', cls: 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300' },
-  high: { en: 'High', ar: 'مرتفع', cls: 'bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300' },
-  medium: { en: 'Medium', ar: 'متوسط', cls: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300' },
+  critical: { en: 'Top Priority', ar: 'أولوية قصوى', cls: 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300' },
+  high: { en: 'Important', ar: 'مهم', cls: 'bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300' },
+  medium: { en: 'Helpful', ar: 'تحسين إضافي', cls: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300' },
 }
 
 function Shortcut({
@@ -99,7 +102,6 @@ function Shortcut({
   metric,
   sub,
   takeaway,
-  meta,
   action,
   children,
 }: {
@@ -108,13 +110,12 @@ function Shortcut({
   metric: ReactNode
   sub?: string
   takeaway: ReactNode
-  meta: string
   action: ReactNode
   children?: ReactNode
 }) {
   return (
     <article
-      className={`${card} ${GLOW_CLASS[glow]} group flex min-h-[232px] flex-col gap-3 p-6 transition-transform duration-200 hover:-translate-y-0.5`}
+      className={`${card} ${GLOW_CLASS[glow]} group flex min-h-[224px] flex-col gap-3 p-6 transition-transform duration-200 hover:-translate-y-0.5`}
       style={{ transitionTimingFunction: SPRING }}
     >
       <h2 className="relative text-[14px] font-semibold leading-snug tracking-tight text-slate-900 dark:text-white">{title}</h2>
@@ -124,15 +125,14 @@ function Shortcut({
       </div>
       {children}
       <p className="relative text-[13px] leading-relaxed text-slate-600 dark:text-slate-300">{takeaway}</p>
-      <div className="relative mt-auto flex flex-wrap items-center justify-between gap-2 pt-1.5">
-        <span className="text-[11px] font-medium text-slate-400">{meta}</span>
+      <div className="relative mt-auto flex flex-wrap items-center justify-end gap-2 pt-1.5">
         {action}
       </div>
     </article>
   )
 }
 
-/** المركز الشامل للمختصرات وقرارات الرحلة الكاملة — Loop AI × Palantir AIP Studio Workspace (1540px). */
+/** ملخص أداء الشركة وفرص زيادة الربح — Plain-Language Executive Workspace (1540px). */
 export function FullJourney360() {
   const { isAr, T } = useLang()
   const [tab, setTab] = useState<Tab>('shortcuts')
@@ -329,51 +329,51 @@ export function FullJourney360() {
   const visibleMonthly = visible.reduce((sumAcc, p) => sumAcc + getPlaySimulated(p).res.monthlyKwd, 0)
 
   const tabs: { id: Tab; en: string; ar: string }[] = [
-    { id: 'shortcuts', en: '360° Smart Shortcuts', ar: 'المختصرات الذكية الشاملة' },
-    { id: 'decisions', en: 'End-to-End Journey Decisions', ar: 'قرارات الرحلة الكاملة (من البداية للنهاية)' },
-    { id: 'tracker', en: 'Verified Impact Tracker', ar: 'متابعة الأثر الفعلي (قبل وبعد)' },
+    { id: 'shortcuts', en: 'Quick Summary', ar: 'الخلاصة السريعة' },
+    { id: 'decisions', en: 'Steps to Grow Profit & Cut Waste', ar: 'خطوات زيادة الربح وتقليل الهدر' },
+    { id: 'tracker', en: 'Results Tracker (Before & After)', ar: 'نتائج التنفيذ (قبل وبعد)' },
   ]
   const tabIndex = tabs.findIndex((t) => t.id === tab)
   const side = isAr ? 'right' : 'left'
   const scanLabel =
     live.status === 'scanning'
-      ? T('Scanning Odoo 17…', 'جارٍ فحص أودو 17…')
+      ? T('Updating from Odoo…', 'جارٍ تحديث بيانات أودو…')
       : live.status === 'unauthorized'
-        ? T('Sign in to scan', 'سجّل الدخول للفحص')
+        ? T('Sign in to update', 'سجّل الدخول للتحديث')
         : live.status === 'error'
-          ? T('Scan failed — retry', 'تعذّر الفحص — أعد المحاولة')
-          : T('Refresh & scan Odoo now', 'تحديث وفحص أودو الآن')
+          ? T('Update failed — retry', 'تعذّر التحديث — أعد المحاولة')
+          : T('Refresh Odoo data now', 'تحديث البيانات من أودو الآن')
 
   // 10.000 KWD Pocket-Split Proportional Bar segments
   const pocketSegments = [
     {
       key: 'food',
       labelEn: 'Food Cost & Packaging',
-      labelAr: 'تكلفة الطبق والتغليف',
+      labelAr: 'تكلفة الأكل والتغليف',
       val: S.netPocket.foodAndPack10,
       barCls: 'bg-amber-400',
       dotCls: 'bg-amber-400',
     },
     {
       key: 'platform',
-      labelEn: 'Platform Cut & Promos',
-      labelAr: 'عمولات وعروض المنصات',
+      labelEn: 'Delivery App Fees & Promos',
+      labelAr: 'عمولات وخصومات تطبيقات التوصيل',
       val: S.netPocket.platformCut10,
       barCls: 'bg-rose-400',
       dotCls: 'bg-rose-400',
     },
     {
       key: 'opex',
-      labelEn: 'Branch Rent, Payroll & OpEx',
-      labelAr: 'إيجارات ورواتب ومصاريف الفروع',
+      labelEn: 'Branch Rent, Salaries & Bills',
+      labelAr: 'الإيجار والرواتب ومصاريف الفرع',
       val: S.netPocket.branchOpexRent10,
       barCls: 'bg-sky-400',
       dotCls: 'bg-sky-400',
     },
     {
       key: 'net',
-      labelEn: 'True Net Cash Pocket',
-      labelAr: 'صافي الكاش الفعلي في الجيب',
+      labelEn: 'Final Net Profit in Pocket',
+      labelAr: 'الربح الصافي النهائي في الجيب',
       val: S.netPocket.trueNetCash10,
       barCls: 'bg-emerald-500',
       dotCls: 'bg-emerald-500',
@@ -407,12 +407,12 @@ export function FullJourney360() {
       <header className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
         <div className="min-w-0 space-y-1.5">
           <h1 className="text-[22px] font-bold tracking-tight text-slate-950 sm:text-[26px] dark:text-white">
-            {T('360° Executive Shortcuts & Full-Journey Playbook', 'المركز الشامل للمختصرات وقرارات الرحلة الكاملة')}
+            {T('Company Summary & Profit Opportunities', 'ملخص أداء الشركة وفرص زيادة الربح')}
           </h1>
           <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400">
             {T(
-              `Ardiya Central Kitchen (#17) to Bank Settlement · ${period} · ${f1(JOURNEY_META.growthPct)}% vs prior 30d · ${JOURNEY_META.stagesCovered}/7 stages · ${JOURNEY_META.analyticCenters} Odoo 17 Analytic Cost Centers`,
-              `من المطبخ المركزي بالعارضية (#17) حتى البنك · ${period} · ${f1(JOURNEY_META.growthPct)}% مقارنة بالثلاثين يوماً السابقة · ${JOURNEY_META.stagesCovered}/7 مراحل · ${JOURNEY_META.analyticCenters} مركز تكلفة تحليلي في أودو 17`,
+              `Live sales and expenses across our 7 branches from Odoo · ${period} · ${f1(JOURNEY_META.growthPct)}% vs prior 30 days`,
+              `قراءة مباشرة لمبيعات ومصاريف فروعنا السبعة من أودو · ${period} · ${f1(JOURNEY_META.growthPct)}% مقارنة بالشهر السابق`,
             )}
           </p>
         </div>
@@ -450,29 +450,32 @@ export function FullJourney360() {
         </div>
       </header>
 
-      {/* ─────────────── Tab 1 — 10 KWD Pocket-Split Micro-Visual + 8 Smart Shortcuts ─────────────── */}
+      {/* ─────────────── Tab 1 — 10 KWD Breakdown + 8 Quick Summary Cards ─────────────── */}
       {tab === 'shortcuts' && (
         <div className="space-y-5">
-          {/* Effortless Micro-Visual: 10.000 KWD Pocket-Split Proportional Bar */}
+          {/* Effortless Micro-Visual: 10.000 KWD Breakdown */}
           <section className={`${card} ae-glow-emerald p-6`}>
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <div className="flex items-center gap-2">
                   <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
                   <span className="text-[12px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
-                    {T('2-Second Unit-Economics X-Ray', 'تشريح فوري لاقتصاديات كل ١٠ د.ك خلال ثانيتين')}
+                    {T('Clear Breakdown per 10 KWD', 'توزيع مبسط لكل ١٠ دنانير مبيعات')}
                   </span>
                 </div>
                 <h2 className="mt-1 text-[17px] font-bold text-slate-950 dark:text-white">
                   {T(
-                    'Where Every 10.000 KWD of Customer Spend Actually Goes Across Our 7 Restaurants',
-                    'أين تذهب كل ١٠٫٠٠٠ د.ك يدفعها العميل فعلياً عبر مطاعم فنتشر فودز السبعة',
+                    'Where Does Every 10 KWD in Sales Go?',
+                    'وين تروح كل ١٠ دنانير مبيعات؟',
                   )}
                 </h2>
               </div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">
-                  {T('True Net Cash Kept / 10 KWD:', 'صافي الكاش الفعلي المتبقي من كل 10 د.ك:')}
+              <div className="flex flex-wrap items-baseline gap-2">
+                <span className="text-[12.5px] font-bold text-slate-700 dark:text-slate-200">
+                  {T(
+                    `Final Net Profit in Pocket (${f2(S.netPocket.trueNetCash10)} KWD)`,
+                    `الربح الصافي النهائي في الجيب (${f2(S.netPocket.trueNetCash10)} د.ك)`,
+                  )}
                 </span>
                 <span dir="ltr" className="rounded-full bg-emerald-50 px-3.5 py-1 text-[16px] font-extrabold tabular-nums text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
                   {f3(S.netPocket.trueNetCash10)} {isAr ? 'د.ك' : 'KWD'}
@@ -562,7 +565,7 @@ export function FullJourney360() {
                         : 'text-slate-500 hover:text-slate-800 dark:text-slate-400'
                     }`}
                   >
-                    {T('Mid-Month Shield (10–19)', 'درع منتصف الشهر (١٠–١٩)')}
+                    {T('Mid-Month Offers (10–19)', 'عروض منتصف الشهر (١٠–١٩)')}
                   </button>
                 </div>
               </div>
@@ -605,36 +608,36 @@ export function FullJourney360() {
                 </span>
                 <div className="flex flex-wrap gap-2">
                   <button type="button" onClick={() => openStage('kitchen', 'kitchen-ardiya-prep-par-shield')} className={pill}>
-                    {T('Ardiya Prep Shield', 'درع تحضير العارضية')}
+                    {T('Ardiya Prep Schedule', 'جدول تحضير العارضية')}
                     <ArrowUpRight className="h-3.5 w-3.5 rtl:-scale-x-100" />
                   </button>
                   <button type="button" onClick={() => openStage('menu', 'menu-kuwait-calendar-tactical')} className={pill}>
-                    {T('Tactical Bundles', 'باقات التوقيت')}
+                    {T('Monthly Offers', 'عروض الشهر')}
                     <ArrowUpRight className="h-3.5 w-3.5 rtl:-scale-x-100" />
                   </button>
                 </div>
               </div>
             </section>
 
-            {/* Card B: End-of-Month Cash Runway & 15-Day Payout Timing Shield */}
+            {/* Card B: End-of-Month Cash Commitments */}
             <section className={`${card} ae-glow-sky flex flex-col gap-4 p-6`}>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-3 py-0.5 text-[11.5px] font-bold text-sky-800 dark:bg-sky-950/40 dark:text-sky-300">
                       <Landmark className="h-3.5 w-3.5" />
-                      {T('End-of-Month Cash Commitments Pulse', 'نبض التزامات نهاية الشهر وتوقيت السيولة')}
+                      {T('End-of-Month Obligations & Cash Readiness', 'التزامات نهاية الشهر وجاهزية السيولة')}
                     </span>
                     <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
                       {T(
-                        `${f1(S.cashRunway.coverageRatio)}x covered · +${kwd(S.cashRunway.netCashBufferKwd)} buffer`,
+                        `${f1(S.cashRunway.coverageRatio)}x covered · +${kwd(S.cashRunway.netCashBufferKwd)} surplus`,
                         `تغطية ${f1(S.cashRunway.coverageRatio)} مرة · فائض +${kwd(S.cashRunway.netCashBufferKwd)}`,
                       )}
                     </span>
                   </div>
                   <h2 className="text-[16.5px] font-bold leading-snug text-slate-950 dark:text-white">
                     {T(
-                      `${kwd(S.cashRunway.totalCommitmentsKwd)} Monthly Obligations vs ${kwd(S.cashRunway.rollingPosInflowKwd)} 30d POS Inflow`,
+                      `${kwd(S.cashRunway.totalCommitmentsKwd)} Monthly Obligations vs ${kwd(S.cashRunway.rollingPosInflowKwd)} 30d Sales`,
                       `${kwd(S.cashRunway.totalCommitmentsKwd)} التزامات شهرية مقابل ${kwd(S.cashRunway.rollingPosInflowKwd)} مبيعات ٣٠ يوماً`,
                     )}
                   </h2>
@@ -646,25 +649,25 @@ export function FullJourney360() {
 
               <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
                 <div className="ae-studio-subcard p-3">
-                  <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{T('Mall & Branch Rents', 'إيجارات الفروع')}</div>
+                  <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{T('Branch Rents', 'إيجارات الفروع')}</div>
                   <div dir="ltr" className="mt-1 text-[15px] font-extrabold tabular-nums text-slate-950 dark:text-white">
                     {kwd(S.cashRunway.rentKwd)}
                   </div>
                 </div>
                 <div className="ae-studio-subcard p-3">
-                  <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{T('Full Payroll & Housing', 'الرواتب والسكن')}</div>
+                  <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{T('Salaries & Housing', 'الرواتب والسكن')}</div>
                   <div dir="ltr" className="mt-1 text-[15px] font-extrabold tabular-nums text-slate-950 dark:text-white">
                     {kwd(S.cashRunway.payrollKwd)}
                   </div>
                 </div>
                 <div className="ae-studio-subcard p-3">
-                  <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{T('30d Supplier Payables', 'مستحقات الموردين')}</div>
+                  <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{T('Supplier Bills', 'فواتير الموردين')}</div>
                   <div dir="ltr" className="mt-1 text-[15px] font-extrabold tabular-nums text-slate-950 dark:text-white">
                     {kwd(S.cashRunway.vendorKwd)}
                   </div>
                 </div>
                 <div className="rounded-2xl bg-amber-50/75 p-3 ring-1 ring-amber-500/20 dark:bg-amber-950/25">
-                  <div className="text-[11px] font-bold text-amber-900 dark:text-amber-300">{T('Open Platform Clearing', 'تسويات منصات معلقة')}</div>
+                  <div className="text-[11px] font-bold text-amber-900 dark:text-amber-300">{T('Pending App Payouts', 'مستحقات منصات معلقة')}</div>
                   <div dir="ltr" className="mt-1 text-[15px] font-extrabold tabular-nums text-amber-950 dark:text-amber-100">
                     {kwd(S.cashRunway.openClearingKwd)}
                   </div>
@@ -675,27 +678,22 @@ export function FullJourney360() {
                 {isAr ? S.cashRunway.verdictAr : S.cashRunway.verdictEn}
               </p>
 
-              <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-1">
-                <span className="text-[11px] font-medium text-slate-400">
-                  {T('15-day pre-month-end CFO liquidity lookahead', 'رصد استباقي للسيولة قبل ١٥ يوماً من استحقاق الرواتب والإيجارات')}
-                </span>
-                <div className="flex flex-wrap gap-2">
-                  <button type="button" onClick={() => openStage('delivery', 'delivery-unsettled-clearing')} className={pill}>
-                    {T('Sweep Clearing', 'تسريع تحصيل المنصات')}
-                    <ArrowUpRight className="h-3.5 w-3.5 rtl:-scale-x-100" />
-                  </button>
-                  <Link
-                    href={feryalHref(
-                      isAr
-                        ? 'راجعي معي نبض التزامات نهاية الشهر (الإيجارات والرواتب ومستحقات الموردين) وخطة تحصيل تسويات طلبات وكيتا قبل ١٥ يوماً من نهاية الشهر.'
-                        : 'Walk me through our End-of-Month Cash Commitments (Rent, Payroll & Vendor bills) and the 15-day pre-month-end Talabat & Keeta settlement sweep plan.',
-                    )}
-                    className={pill}
-                  >
-                    <Sparkles className="h-3.5 w-3.5" />
-                    {T('CFO Cash Brief', 'مراجعة السيولة مع فريال')}
-                  </Link>
-                </div>
+              <div className="mt-auto flex flex-wrap items-center justify-end gap-2 pt-1">
+                <button type="button" onClick={() => openStage('delivery', 'delivery-unsettled-clearing')} className={pill}>
+                  {T('Match App Payouts', 'متابعة تحصيل المنصات')}
+                  <ArrowUpRight className="h-3.5 w-3.5 rtl:-scale-x-100" />
+                </button>
+                <Link
+                  href={feryalHref(
+                    isAr
+                      ? 'راجعي معي التزامات نهاية الشهر (الإيجارات والرواتب وفواتير الموردين) وخطة تحصيل مستحقات طلبات وكيتا قبل ١٥ يوماً من نهاية الشهر.'
+                      : 'Walk me through our End-of-Month Obligations (Rent, Salaries & Supplier bills) and collecting Talabat & Keeta payouts 15 days before month-end.',
+                  )}
+                  className={pill}
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  {T('Review with Feryal', 'مراجعة السيولة مع فريال')}
+                </Link>
               </div>
             </section>
           </div>
@@ -703,68 +701,66 @@ export function FullJourney360() {
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
             <Shortcut
               glow="sky"
-              title={T('Gross Contribution Pocket per 10 KWD', 'صافي الجيب التشغيلي من كل ١٠ د.ك (قبل الإيجار)')}
-              metric={kwd(S.netPocket.per10, 3)}
-              sub={T('after food, packaging, commissions & promos', 'بعد تكلفة الطبق والتغليف والعمولات والعروض')}
-              takeaway={T(
-                `Actual food cost takes ${f3(S.netPocket.food)}, platform fees ${f3(S.netPocket.fees)}, promotions ${f3(S.netPocket.promos)} and packaging ${f3(S.netPocket.packaging)} KWD of every 10 KWD at the 7 restaurants.`,
-                `تأخذ تكلفة الأغذية الفعلية ${f3(S.netPocket.food)} وعمولات المنصات ${f3(S.netPocket.fees)} والعروض ${f3(S.netPocket.promos)} والتغليف ${f3(S.netPocket.packaging)} د.ك من كل 10 د.ك في المطاعم السبعة.`,
+              title={T(
+                `Sales Left Before Rent & Salaries (${f2(S.netPocket.per10)} KWD)`,
+                `متبقي المبيعات قبل الإيجار والرواتب (${f2(S.netPocket.per10)} د.ك)`,
               )}
-              meta={T('Posted Odoo costs · 7 restaurants', 'تكاليف أودو المرحّلة · المطاعم السبعة')}
-              action={goTo('kitchen', T('Raise it', 'كيف نرفعه'))}
+              metric={kwd(S.netPocket.per10, 3)}
+              sub={T('out of every 10 KWD after food, packaging & app fees', 'من كل ١٠ دنانير بعد تكلفة الأكل والتغليف والعمولات')}
+              takeaway={T(
+                `Out of every 10 KWD: food takes ${f3(S.netPocket.food)}, app fees ${f3(S.netPocket.fees)}, discounts ${f3(S.netPocket.promos)} and packaging ${f3(S.netPocket.packaging)} KWD — before paying rent & salaries.`,
+                `من كل ١٠ دنانير مبيعات: يذهب ${f3(S.netPocket.food)} للأكل و${f3(S.netPocket.fees)} لعمولات التطبيقات و${f3(S.netPocket.promos)} للخصومات و${f3(S.netPocket.packaging)} للتغليف — قبل دفع الإيجار والرواتب.`,
+              )}
+              action={goTo('kitchen', T('How to improve it', 'كيف نزيده'))}
             />
             <Shortcut
               glow="emerald"
-              title={T('Total Unlockable Annual Net Profit', 'إجمالي القفزة السنوية المتاحة في الأرباح')}
+              title={T('Total Potential Extra Profit per Year', 'إجمالي الزيادة الممكنة في أرباح السنة')}
               metric={kwd(S.unlockable.annualKwd)}
               sub={T(`${kwd(S.unlockable.monthlyKwd)} per month`, `${kwd(S.unlockable.monthlyKwd)} شهرياً`)}
               takeaway={T(
-                `${S.unlockable.plays} surgical decisions across ${JOURNEY_META.stagesCovered} journey stages, each with interactive What-If sliders, owner dispatch brief & 14-day audit.`,
-                `${S.unlockable.plays} قراراً جراحياً عبر ${JOURNEY_META.stagesCovered} مراحل، كل قرار مزود بمحاكي أثر تفاعلي ومذكرة تكليف جاهزة ودورة قياس 14 يوماً.`,
+                `${S.unlockable.plays} practical steps across ${JOURNEY_META.stagesCovered} areas, each with a quick profit calculator, team brief & 14-day follow-up.`,
+                `${S.unlockable.plays} خطوة عملية واضحة في ${JOURNEY_META.stagesCovered} مجالات، مع حاسبة ربح سريعة ورسالة توجيه جاهزة لفريق العمل.`,
               )}
-              meta={T('Posted + stated-assumption estimates', 'مرحّل + تقديرات بافتراضات معلنة')}
-              action={goTo('all', T('See all decisions', 'عرض كل القرارات'))}
+              action={goTo('all', T('View all steps', 'عرض كل الخطوات'))}
             />
             <Shortcut
               glow="amber"
-              title={T('Procurement & Kitchen Yield Shield', 'درع المشتريات والمطبخ المركزي')}
+              title={T('Purchasing Savings & Kitchen Waste Reduction', 'توفير المشتريات وتقليل هدر المطبخ')}
               metric={kwd(S.shield.monthlyKwd)}
-              sub={T('recoverable per month', 'قابلة للاسترداد شهرياً')}
+              sub={T('monthly savings opportunity', 'فرصة توفير شهرية')}
               takeaway={T(
-                `Count variance adds ${f1(S.shield.variancePctOfFood)}% on top of recipe consumption (${kwd(S.shield.varianceKwd)} in 30 days)${S.shield.topCreep ? `; ${S.shield.topCreep.name} rose ${f1(S.shield.topCreep.creepPct)}% from suppliers` : ''}.`,
-                `فروقات الجرد تضيف ${f1(S.shield.variancePctOfFood)}% فوق استهلاك الوصفات (${kwd(S.shield.varianceKwd)} خلال 30 يوماً)${S.shield.topCreep ? `؛ وارتفع ${S.shield.topCreep.name} بنسبة ${f1(S.shield.topCreep.creepPct)}% من الموردين` : ''}.`,
+                `Stock count differences add ${f1(S.shield.variancePctOfFood)}% above recipe usage (${kwd(S.shield.varianceKwd)} in 30 days)${S.shield.topCreep ? `; ${enItemName(S.shield.topCreep.name)} rose ${f1(S.shield.topCreep.creepPct)}% from suppliers` : ''}.`,
+                `فروقات المخزون تضيف ${f1(S.shield.variancePctOfFood)}% فوق استهلاك الوصفات (${kwd(S.shield.varianceKwd)} خلال ٣٠ يوماً)${S.shield.topCreep ? `؛ وارتفع سعر ${arItemName(S.shield.topCreep.name)} بنسبة ${f1(S.shield.topCreep.creepPct)}% من الموردين` : ''}.`,
               )}
-              meta={T('Purchase lines · BOMs · Credit-Note shield', 'سطور الشراء · الوصفات · إشعارات دائنة')}
-              action={goTo('procurement', T('Shield plan', 'خطة الدرع'))}
+              action={goTo('procurement', T('Purchasing steps', 'خطوات التوفير'))}
             />
             <Shortcut
               glow="rose"
-              title={T('Hidden OpEx, Custodies & Repair-vs-Replace', 'المصاريف الخفية والعُهد والصيانة')}
+              title={T('Expense Control, Petty Cash & Equipment Repairs', 'ضبط المصاريف والعُهد وصيانة المعدات')}
               metric={kwd(S.hiddenOpex.monthlyKwd)}
-              sub={T('hidden losses & unallocated OpEx in 30 days', 'خسائر خفية ومصاريف غير محمّلة خلال 30 يوماً')}
+              sub={T('waste, emergency repairs & untagged bills (30d)', 'هدر وصيانة طارئة وفواتير غير مربوطة بفرع (٣٠ يوم)')}
               takeaway={T(
-                `Count variance, scrap and reactive repairs on cost centers, ${kwd(S.hiddenOpex.unallocatedKwd)} unallocated OpEx, plus ${kwd(S.hiddenOpex.custodyKwd)} in open custodies.${S.hiddenOpex.repairLoop ? ` Alert: ${S.hiddenOpex.repairLoop.titleEn}.` : ''}`,
-                `فروقات الجرد والهالك والأعطال على مراكز التكلفة، و${kwd(S.hiddenOpex.unallocatedKwd)} غير محمّلة، إضافة إلى ${kwd(S.hiddenOpex.custodyKwd)} في عُهد مفتوحة.${S.hiddenOpex.repairLoop ? ` تنبيه: ${S.hiddenOpex.repairLoop.titleAr}.` : ''}`,
+                `Includes stock differences, scrap and emergency repairs, ${kwd(S.hiddenOpex.unallocatedKwd)} in untagged bills, plus ${kwd(S.hiddenOpex.custodyKwd)} in open petty cash.${S.hiddenOpex.repairLoop ? ` Note: ${S.hiddenOpex.repairLoop.titleEn}.` : ''}`,
+                `تشمل الهدر وفواتير الصيانة الطارئة، و${kwd(S.hiddenOpex.unallocatedKwd)} فواتير بدون تحديد فرع، و${kwd(S.hiddenOpex.custodyKwd)} عُهد نقدية مفتوحة.${S.hiddenOpex.repairLoop ? ` ملاحظة: ${S.hiddenOpex.repairLoop.titleAr}.` : ''}`,
               )}
-              meta={T('Odoo 17 Analytic Lines · unallocated scan', 'قيود مراكز التكلفة · فحص غير المحمّل')}
-              action={goTo('opex', T('Expose & fix', 'كشف ومعالجة'))}
+              action={goTo('opex', T('View fixes', 'عرض الحلول'))}
             />
             <Shortcut
               glow={S.ops.groupScore >= 80 ? 'emerald' : 'amber'}
-              title={T('Operations, Cashier Discipline & Speed Score', 'انضباط العمليات وجودة الخدمة بالفروع')}
+              title={T('Branch Operations & Cashier Performance', 'تقييم التزام الفروع والكاشير')}
               metric={
                 <span>
                   {S.ops.groupScore}
                   <span className="text-slate-300 dark:text-slate-600"> / 100</span>
                 </span>
               }
-              sub={T('sales-weighted discipline score', 'مؤشر انضباط مرجّح بالمبيعات')}
+              sub={T('overall branch commitment score', 'تقييم شامل لالتزام الفروع من ١٠٠')}
               takeaway={T(
-                `Best: ${loc(S.ops.best?.id)} (${S.ops.best?.score}). Needs attention: ${loc(S.ops.worst?.id)} (${S.ops.worst?.score}) — discounts, cancellations, late openings and comps.`,
-                `الأفضل: ${loc(S.ops.best?.id)} (${S.ops.best?.score}). يحتاج متابعة: ${loc(S.ops.worst?.id)} (${S.ops.worst?.score}) — خصومات وإلغاءات وتأخير فتح وضيافة.`,
+                `Top branch: ${loc(S.ops.best?.id)} (${S.ops.best?.score}). Needs follow-up: ${loc(S.ops.worst?.id)} (${S.ops.worst?.score}) on discounts, cancellations & opening times.`,
+                `الأفضل التزاماً: ${loc(S.ops.best?.id)} (${S.ops.best?.score}). يحتاج متابعة: ${loc(S.ops.worst?.id)} (${S.ops.worst?.score}) في الخصومات والإلغاءات ووقت الفتح.`,
               )}
-              meta={T('POS sessions · discounts · cancellations', 'جلسات نقاط البيع · الخصومات · الإلغاءات')}
-              action={goTo('operations', T('Branch fixes', 'حلول الفروع'))}
+              action={goTo('operations', T('Branch steps', 'خطوات الفروع'))}
             >
               <div className="relative flex flex-wrap gap-1.5">
                 {S.ops.rows.map((r) => (
@@ -780,57 +776,60 @@ export function FullJourney360() {
             </Shortcut>
             <Shortcut
               glow="emerald"
-              title={T('Elasticity-Guarded Menu & Bundle Engine', 'محرك التسعير الجراحي ودرع الأصناف الجاذبة')}
+              title={T(
+                'Update Top-Seller Prices & Keep Core Meal Prices Fixed',
+                'تحسين أسعار الأطباق الأكثر طلباً وتثبيت أسعار الأصناف الأساسية',
+              )}
               metric={kwd(S.menu.monthlyKwd)}
-              sub={T('per month · inelastic heroes + channel shield', 'شهرياً · تسعير الأصناف القائدة وحماية الصالة')}
+              sub={T('extra monthly profit from menu & bundles', 'ربح شهري إضافي من تسعير المنيو والوجبات')}
               takeaway={
                 S.menu.hero
                   ? T(
-                      `${S.menu.hero.name} leads China Garden (${f0(S.menu.hero.qty)} units at ${f3(S.menu.hero.avgPriceKwd)} KWD); ${S.menu.plays.length} plays separate inelastic margin builders from traffic drivers.`,
-                      `يتصدر ${S.menu.hero.name} مبيعات تشاينا جاردن (${f0(S.menu.hero.qty)} وحدة بسعر ${f3(S.menu.hero.avgPriceKwd)} د.ك)؛ و${S.menu.plays.length} قرارات تفصل الأصناف غير الحساسة عن الأصناف الجاذبة.`,
+                      `${enItemName(S.menu.hero.name)} leads China Garden (${f0(S.menu.hero.qty)} sold at ${f3(S.menu.hero.avgPriceKwd)} KWD); ${S.menu.plays.length} steps grow basket value while keeping core meal prices unchanged.`,
+                      `يتصدر ${arItemName(S.menu.hero.name)} مبيعات تشاينا جاردن (${f0(S.menu.hero.qty)} طلب بسعر ${f3(S.menu.hero.avgPriceKwd)} د.ك)؛ ${S.menu.plays.length} خطوات لزيادة ربح المنيو مع تثبيت أسعار وجبات الكومبو الأساسية.`,
                     )
                   : ''
               }
-              meta={T('RMS/Juicer elasticity guardrails', 'درع حساسية السعر وحماية الكاونتر')}
-              action={goTo('menu', T('Menu moves', 'قرارات المينيو'))}
+              action={goTo('menu', T('Menu steps', 'خطوات المنيو'))}
             />
             <Shortcut
               glow="sky"
-              title={T('Zero-Rent Virtual Host-Kitchen Turnaround', 'المطابخ المضيفة بدون إيجار إضافي')}
+              title={T(
+                'Run an Extra Brand in the Same Kitchen (Zero Extra Rent)',
+                'تشغيل مطعم إضافي بنفس المطبخ (بدون إيجار جديد)',
+              )}
               metric={S.host ? kwd(S.host.contribution) : '—'}
               sub={
                 S.host
                   ? T(
-                      `per month · ${brand(S.host.brand)} inside ${loc(S.host.target.id)} (#${S.host.target.analyticId ?? 114})`,
-                      `شهرياً · ${brand(S.host.brand)} داخل ${loc(S.host.target.id)} (#${S.host.target.analyticId ?? 114})`,
+                      `per month · ${brand(S.host.brand)} inside ${loc(S.host.target.id)}`,
+                      `شهرياً · ${brand(S.host.brand)} داخل مطبخ ${loc(S.host.target.id)}`,
                     )
                   : undefined
               }
               takeaway={
                 S.host
                   ? T(
-                      `${loc(S.host.target.id)} pays ${f1(S.host.target.rentPct)}% analytic rent (${kwd(S.host.dailyGapKwd)}/day · ${S.host.dailyGapOrders} orders/day gap); planting ${brand(S.host.brand)} cuts rent load to ${f1(S.host.rentAfterPct)}%.`,
-                      `يتحمل ${loc(S.host.target.id)} إيجاراً بنسبة ${f1(S.host.target.rentPct)}% (فجوة ${kwd(S.host.dailyGapKwd)}/يوم · ${S.host.dailyGapOrders} طلب/يوم)؛ وزرع ${brand(S.host.brand)} يخفض الإيجار إلى ${f1(S.host.rentAfterPct)}%.`,
+                      `${loc(S.host.target.id)} pays ${f1(S.host.target.rentPct)}% of sales in rent (needs +${kwd(S.host.dailyGapKwd)}/day · ${S.host.dailyGapOrders} orders/day); running ${brand(S.host.brand)} there brings rent down to ${f1(S.host.rentAfterPct)}%.`,
+                      `يدفع فرع ${loc(S.host.target.id)} إيجاراً يعادل ${f1(S.host.target.rentPct)}% من مبيعاته (يحتاج +${kwd(S.host.dailyGapKwd)}/يوم أي ${S.host.dailyGapOrders} طلب إضافي)؛ وتشغيل ${brand(S.host.brand)} بنفس المطبخ يخفض عبء الإيجار إلى ${f1(S.host.rentAfterPct)}%.`,
                     )
-                  : T('Every restaurant covers its rent within the group norm.', 'كل المطاعم تغطي إيجارها ضمن معيار المجموعة.')
+                  : T('Every restaurant covers its rent comfortably.', 'كل الفروع تغطي إيجاراتها بشكل مريح.')
               }
-              meta={T('Analytic Plan #1 & #2 True Net Cash P&L', 'صافي النقد الفعلي لخطط التكلفة #1 و#2')}
-              action={goTo('opex', T('Host-kitchen plan', 'خطة المطبخ المضيف'))}
+              action={goTo('opex', T('View plan', 'تفاصيل الخطوة'))}
             />
             <Shortcut
               glow="amber"
-              title={T('Delivery Net Takeback & Claim Dossiers', 'استرداد صافي التوصيل وملفات المطالبات')}
+              title={T('Delivery App Payouts & Commission Savings', 'مستحقات وتوفير من تطبيقات التوصيل')}
               metric={kwd(S.delivery.monthlyKwd)}
-              sub={T('per month back from platforms', 'شهرياً تعود من المنصات')}
+              sub={T('monthly savings from delivery apps', 'توفير شهري من عمولات وعروض المنصات')}
               takeaway={T(
-                `Campaign ROI autopsy, commission overcharge claims and TGO→TMP shift — plus ${kwd(S.delivery.openClearingKwd)} open clearing in Odoo.`,
-                `فحص ربحية العروض، ومطالبات فروقات العمولات وتحويل طلبات جو إلى سوق طلبات — مع ${kwd(S.delivery.openClearingKwd)} تسويات مفتوحة في أودو.`,
+                `Stop costly co-funded promos, check commission overcharges and shift nearby orders from Tgo (17%) to TMP (10%) — plus ${kwd(S.delivery.openClearingKwd)} awaiting bank matching.`,
+                `إيقاف الخصومات المشتركة المكلفة، ومراجعة فروقات العمولات وتحويل الطلبات القريبة إلى توصيل سائقينا (10%) — مع متابعة ${kwd(S.delivery.openClearingKwd)} مستحقات معلقة.`,
               )}
-              meta={T('Loop AI dispute dossiers ready', 'مطالبات رسمية جاهزة للإرسال')}
               action={
                 <Link href="/erp/aggregator-radar" className={pill}>
                   <Radar className="h-3.5 w-3.5" />
-                  {T('Open Delivery Radar', 'فتح رادار التوصيل')}
+                  {T('Open Forensic Radar', 'فتح الرادار الجنائي للتوصيل')}
                 </Link>
               }
             />
@@ -845,19 +844,19 @@ export function FullJourney360() {
             <div className="min-w-0 space-y-1">
               <p className="text-[14px] font-bold text-slate-900 dark:text-white">
                 {T(
-                  `${visible.length} surgical decisions in view · +${kwd(visibleMonthly)} / month · +${kwd(visibleMonthly * 12)} / year`,
-                  `${visible.length} قراراً جراحياً في العرض · +${kwd(visibleMonthly)} شهرياً · +${kwd(visibleMonthly * 12)} سنوياً`,
+                  `${visible.length} practical steps in view · +${kwd(visibleMonthly)} / month · +${kwd(visibleMonthly * 12)} / year`,
+                  `${visible.length} خطوة عملية في العرض · +${kwd(visibleMonthly)} شهرياً · +${kwd(visibleMonthly * 12)} سنوياً`,
                 )}
               </p>
               <p className="text-[12.5px] text-slate-500 dark:text-slate-400">
                 {live.status === 'done'
                   ? T(
-                      `${live.live ? 'Live Odoo 17' : 'Verified Odoo 17 snapshot'} · Nov MTD ${kwd(live.mtdNet ?? 0)}${live.mtdPerDay ? ` · ${kwd(live.mtdPerDay)}/day` : ''}`,
-                      `${live.live ? 'أودو 17 مباشر' : 'لقطة أودو 17 موثقة'} · منذ بداية نوفمبر ${kwd(live.mtdNet ?? 0)}${live.mtdPerDay ? ` · ${kwd(live.mtdPerDay)} يومياً` : ''}`,
+                      `${live.live ? 'Live Odoo data' : 'Verified Odoo snapshot'} · Nov MTD ${kwd(live.mtdNet ?? 0)}${live.mtdPerDay ? ` · ${kwd(live.mtdPerDay)}/day` : ''}`,
+                      `${live.live ? 'بيانات أودو المباشرة' : 'بيانات أودو الموثقة'} · منذ بداية نوفمبر ${kwd(live.mtdNet ?? 0)}${live.mtdPerDay ? ` · ${kwd(live.mtdPerDay)} يومياً` : ''}`,
                     )
                   : T(
-                      `Synced ${new Date(JOURNEY_META.syncedAt).toLocaleString('en-GB')} · ${JOURNEY_META.mtdEn}`,
-                      `آخر مزامنة خلفية ${new Date(JOURNEY_META.syncedAt).toLocaleString('en-GB')} · ${JOURNEY_META.mtdAr}`,
+                      `Last synced ${new Date(JOURNEY_META.syncedAt).toLocaleString('en-GB')} · ${JOURNEY_META.mtdEn}`,
+                      `آخر تحديث من أودو ${new Date(JOURNEY_META.syncedAt).toLocaleString('en-GB')} · ${JOURNEY_META.mtdAr}`,
                     )}
               </p>
             </div>
@@ -895,7 +894,7 @@ export function FullJourney360() {
 
           {visible.length === 0 ? (
             <p className={`${card} p-6 text-[14px] text-slate-500`}>
-              {T('No material leak detected in this stage for the current Odoo window.', 'لا يوجد خلل جوهري في هذه المرحلة ضمن نافذة أودو الحالية.')}
+              {T('No action needed in this section for the current Odoo period.', 'لا توجد ملاحظات تحتاج تدخلاً في هذا القسم حالياً.')}
             </p>
           ) : (
             <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
@@ -911,14 +910,14 @@ export function FullJourney360() {
                 const isHighlighted = highlightedPlayId === p.id
 
                 const prompt = isAr
-                  ? `ناقشي معي خطة تنفيذ قرار "${p.titleAr}" (${p.subjectAr}) الموجه إلى (${p.ownerRoleAr})، وكيف نضمن تحقيق +${f0(sim.monthlyKwd)} د.ك شهرياً خلال 14 يوماً.`
-                  : `Let's execute "${p.titleEn}" (${p.subjectEn}) assigned to ${p.ownerRoleEn}, and verify +${f0(sim.monthlyKwd)} KWD/month within 14 days.`
+                  ? `ناقشي معي خطوات تنفيذ "${p.titleAr}" (${p.subjectAr}) مع (${p.ownerRoleAr})، وكيف نحقق +${f0(sim.monthlyKwd)} د.ك شهرياً خلال 14 يوماً.`
+                  : `Let's walk through "${p.titleEn}" (${p.subjectEn}) with ${p.ownerRoleEn}, and verify +${f0(sim.monthlyKwd)} KWD/month within 14 days.`
 
                 const blocks = [
-                  { n: T('1', '١'), title: T('Hidden Leak / Strategic Lever', 'الخلل الخفي أو الفرصة الجوهرية'), body: isAr ? p.leakAr : p.leakEn, tone: 'plain' },
-                  { n: T('2', '٢'), title: T('Surgical Executive Action', 'القرار التنفيذي الجراحي'), body: isAr ? p.actionAr : p.actionEn, tone: 'plain' },
-                  { n: T('3', '٣'), title: T('Quality & Brand Prestige Elevation', 'أثر القرار على الجودة ومستوى العلامة'), body: isAr ? p.qualityAr : p.qualityEn, tone: 'plain' },
-                  { n: T('4', '٤'), title: T('Expected Monthly & Annual Net KWD Impact', 'العائد المالي المتوقع شهرياً وسنوياً'), body: isAr ? p.impactAr : p.impactEn, tone: 'outcome' },
+                  { n: T('1', '١'), title: T('What We Found', 'المشكلة أو الفرصة المرصودة'), body: isAr ? p.leakAr : p.leakEn, tone: 'plain' },
+                  { n: T('2', '٢'), title: T('Practical Step to Take', 'الخطوة العملية المقترحة'), body: isAr ? p.actionAr : p.actionEn, tone: 'plain' },
+                  { n: T('3', '٣'), title: T('Effect on Food & Service Quality', 'الأثر على جودة الأكل والخدمة'), body: isAr ? p.qualityAr : p.qualityEn, tone: 'plain' },
+                  { n: T('4', '٤'), title: T('Expected Monthly & Annual Gain', 'التوفير أو الربح الإضافي المتوقع'), body: isAr ? p.impactAr : p.impactEn, tone: 'outcome' },
                 ]
 
                 return (
@@ -941,7 +940,7 @@ export function FullJourney360() {
                             {isAr ? stageLabel?.ar : stageLabel?.en}
                           </span>
                           <span className="rounded-full bg-[#F6F7F9] px-2.5 py-0.5 text-[11px] font-semibold text-slate-500 dark:bg-white/[0.06] dark:text-slate-400">
-                            {p.basis === 'posted' ? T('Posted in Odoo 17', 'مرحّل في أودو 17') : T('Estimate · assumption stated', 'تقدير · الافتراض معلن')}
+                            {p.basis === 'posted' ? T('Recorded in Odoo', 'مسجل فعلياً في أودو') : T('Estimated gain', 'تقدير محسوب بوضوح')}
                           </span>
                         </div>
                         <h2 className="text-[16.5px] font-bold leading-snug text-slate-950 dark:text-white">{isAr ? p.titleAr : p.titleEn}</h2>
@@ -960,7 +959,7 @@ export function FullJourney360() {
                             ? isAr
                               ? `+${f0(sim.monthlyKwd)} د.ك / شهر`
                               : `+${f0(sim.monthlyKwd)} KWD / mo`
-                            : T('Control & cash', 'رقابة ونقد')}
+                            : T('Control & cash', 'متابعة وسيولة')}
                         </div>
                         {sim.annualKwd > 0 && (
                           <div dir="ltr" className="mt-1 text-[11.5px] font-bold tabular-nums text-slate-400">
@@ -982,12 +981,12 @@ export function FullJourney360() {
                         <div className="rounded-2xl bg-emerald-50/70 p-3.5 dark:bg-emerald-950/25">
                           <div className="flex items-center gap-1.5 text-[11.5px] font-bold text-emerald-800 dark:text-emerald-300">
                             <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
-                            {T('Inelastic Margin Builders (Safe Step)', 'أصناف قائدة غير حساسة (تتحمل الزيادة بأمان)')}
+                            {T('Popular Dishes Safe for Small Price Step', 'أصناف تتحمل تعديل بسيط بالسعر')}
                           </div>
                           <ul className="mt-1.5 space-y-1 text-[12px] font-medium text-emerald-950 dark:text-emerald-100">
                             {p.elasticityGuardrail.inelastic.map((it) => (
                               <li key={it.name} className="flex items-center justify-between gap-2">
-                                <span className="truncate">{it.name}</span>
+                                <span className="truncate">{isAr ? arItemName(it.name) : enItemName(it.name)}</span>
                                 <span dir="ltr" className="shrink-0 rounded-full bg-white/80 px-2 py-0.5 text-[11px] font-bold tabular-nums text-emerald-800 dark:bg-white/10 dark:text-emerald-200">
                                   +{it.suggestedFils} {isAr ? 'فلس' : 'fils'}
                                 </span>
@@ -998,12 +997,12 @@ export function FullJourney360() {
                         <div className="rounded-2xl bg-amber-50/75 p-3.5 dark:bg-amber-950/25">
                           <div className="flex items-center gap-1.5 text-[11.5px] font-bold text-amber-900 dark:text-amber-300">
                             <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                            {T('Protected Traffic Drivers (Freeze Solo Price)', 'أصناف جاذبة حساسة (يُمنع رفعها منفردة — تُدمج بباقات)')}
+                            {T('Core Value Dishes — Keep Price Fixed', 'أصناف أساسية تجذب الزبائن (يبقى سعرها ثابتاً)')}
                           </div>
                           <ul className="mt-1.5 space-y-1 text-[12px] font-medium text-amber-950 dark:text-amber-100">
                             {p.elasticityGuardrail.trafficDrivers.map((td) => (
                               <li key={td.name} className="truncate" title={isAr ? td.ruleAr : td.ruleEn}>
-                                • {td.name} ({f3(td.priceKwd)} {isAr ? 'د.ك' : 'KWD'})
+                                • {isAr ? arItemName(td.name) : enItemName(td.name)} ({f3(td.priceKwd)} {isAr ? 'د.ك' : 'KWD'})
                               </li>
                             ))}
                           </ul>
@@ -1016,7 +1015,7 @@ export function FullJourney360() {
                       <div className="rounded-2xl bg-amber-50/65 p-3.5 dark:bg-amber-950/25">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <span className="text-[11.5px] font-bold text-amber-900 dark:text-amber-300">
-                            {T('Vendor Price-Creep Shield · Affected Odoo Dishes:', 'درع زحف أسعار الموردين · الأطباق المتأثرة مباشرة:')}
+                            {T('Ingredients With Price Increases Affecting These Dishes:', 'مواد ارتفع سعرها وتؤثر على هذه الأطباق:')}
                           </span>
                           <button
                             type="button"
@@ -1024,13 +1023,13 @@ export function FullJourney360() {
                             className="inline-flex items-center gap-1.5 rounded-full bg-amber-900 px-3 py-1 text-[11px] font-bold text-white transition hover:bg-amber-950 dark:bg-amber-400 dark:text-slate-950"
                           >
                             <FileSpreadsheet className="h-3 w-3" />
-                            {T('Vendor Price-Lock / Credit-Note Request', 'طلب تثبيت سعر أو إشعار دائن للمورد')}
+                            {T('Vendor Price-Lock & Credit Request', 'طلب تثبيت السعر وتعويض الفرق من المورد')}
                           </button>
                         </div>
                         <div className="mt-2 flex flex-wrap gap-1.5">
                           {[...new Set(p.vendorShield.items.flatMap((i) => i.affectedDishes))].map((dish) => (
                             <span key={dish} className="rounded-full bg-white/90 px-2.5 py-0.5 text-[11px] font-semibold text-slate-800 shadow-sm dark:bg-white/10 dark:text-slate-200">
-                              {dish}
+                              {isAr ? arItemName(dish) : enItemName(dish)}
                             </span>
                           ))}
                         </div>
@@ -1171,7 +1170,7 @@ export function FullJourney360() {
                       <div className="ae-pop rounded-2xl bg-slate-900/[0.03] p-4 ring-1 ring-slate-900/[0.06] dark:bg-white/[0.04] dark:ring-white/[0.08]">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <span className="text-[12.5px] font-bold text-slate-900 dark:text-white">
-                            {T('Interactive What-If Decision Simulator', 'محاكي القرار التفاعلي قبل الاعتماد')}
+                            {T('Quick Profit Calculator (Adjust Numbers)', 'حاسبة الربح السريعة (جرّب تعديل النسب)')}
                           </span>
                           <span dir="ltr" className="rounded-full bg-emerald-600 px-3 py-0.5 text-[12px] font-extrabold tabular-nums text-white">
                             +{f0(sim.monthlyKwd)} {isAr ? 'د.ك/شهر' : 'KWD/mo'} · +{f0(sim.annualKwd)} {isAr ? 'د.ك/سنة' : 'KWD/yr'}
@@ -1218,8 +1217,8 @@ export function FullJourney360() {
                           <span className="inline-flex items-center gap-1.5 text-[12px] font-bold text-emerald-400">
                             <ClipboardCheck className="h-3.5 w-3.5" />
                             {activeBriefMode === 'vendor'
-                              ? T('Formal Vendor Price-Lock & Credit-Note Request', 'طلب تثبيت سعر وإشعار دائن رسمي للمورد')
-                              : T('Dispatch Brief + 5-Min Spot-Audit (3 Points)', 'مذكرة تكليف ميدانية + فحص ٣ نقاط في ٥ دقائق')}
+                              ? T('Vendor Price-Lock & Credit Request', 'طلب تثبيت السعر وتعويض الفرق من المورد')
+                              : T('Team Brief + 5-Min Spot Check (3 Points)', 'رسالة توجيه للفريق + فحص ٣ نقاط في ٥ دقائق')}
                           </span>
                           <div className="flex items-center gap-2">
                             <button
@@ -1228,7 +1227,7 @@ export function FullJourney360() {
                               className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-[11.5px] font-semibold text-white hover:bg-white/25"
                             >
                               {copiedKey === `${p.id}-${activeBriefMode}` ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
-                              {copiedKey === `${p.id}-${activeBriefMode}` ? T('Copied', 'تم النسخ') : T('Copy memo', 'نسخ المذكرة')}
+                              {copiedKey === `${p.id}-${activeBriefMode}` ? T('Copied', 'تم النسخ') : T('Copy message', 'نسخ الرسالة')}
                             </button>
                             <a
                               href={`https://wa.me/?text=${encodeURIComponent(activeBriefMode === 'vendor' && vendorClaimText ? vendorClaimText : dispatchText)}`}
@@ -1257,7 +1256,7 @@ export function FullJourney360() {
                             className={pill}
                           >
                             <SlidersHorizontal className="h-3.5 w-3.5" />
-                            {T('Simulate What-If', 'محاكاة الأثر وتعديل الفرضيات')}
+                            {T('Adjust Numbers', 'جرّب تعديل الأرقام')}
                           </button>
                         )}
                         <button
@@ -1266,7 +1265,7 @@ export function FullJourney360() {
                           className={pill}
                         >
                           <ClipboardCheck className="h-3.5 w-3.5" />
-                          {T('Dispatch Brief · 5-Min Audit', 'مذكرة تنفيذ + فحص ٥ دقائق')}
+                          {T('Team Brief · 5-Min Check', 'رسالة توجيه للفريق + فحص ٥ دقائق')}
                         </button>
                         <Link href={feryalHref(prompt)} className={pill}>
                           <Sparkles className="h-3.5 w-3.5" />
@@ -1283,8 +1282,8 @@ export function FullJourney360() {
                       >
                         <CheckCircle2 className="h-4 w-4" />
                         {approved
-                          ? T('Approved · Baseline Locked in 14-Day Tracker', 'معتمد · تم تثبيت خط الأساس في متابعة ١٤ يوماً')
-                          : T('Approve & Lock Odoo Baseline (Before vs. After)', 'اعتماد القرار وتثبيت خط الأساس (قبل وبعد)')}
+                          ? T('Approved · Tracking Before vs. After (14 Days)', 'معتمد · قيد متابعة النتيجة قبل وبعد (١٤ يوماً)')
+                          : T('Approve Step & Track Results (Before vs. After)', 'اعتماد الخطوة ومتابعة نتيجتها (قبل وبعد)')}
                       </button>
                     </footer>
                   </article>
@@ -1302,14 +1301,14 @@ export function FullJourney360() {
             <div className="min-w-0 space-y-1">
               <p className="text-[14px] font-bold text-slate-900 dark:text-white">
                 {T(
-                  `${approvals.length} approved decisions · +${kwd(approvals.reduce((s, a) => s + a.monthlyKwd, 0))} / month target`,
-                  `${approvals.length} قرارات معتمدة · المستهدف +${kwd(approvals.reduce((s, a) => s + a.monthlyKwd, 0))} شهرياً`,
+                  `${approvals.length} approved steps in tracking · +${kwd(approvals.reduce((s, a) => s + a.monthlyKwd, 0))} / month target`,
+                  `${approvals.length} خطوات معتمدة قيد المتابعة · المستهدف +${kwd(approvals.reduce((s, a) => s + a.monthlyKwd, 0))} شهرياً`,
                 )}
               </p>
               <p className="text-[12.5px] text-slate-500 dark:text-slate-400">
                 {T(
-                  `Real Odoo 17 baseline locked on approval; every ${CYCLE_DAYS}-day cycle verifies live movement across 3 execution states.`,
-                  `يُثبّت خط الأساس الفعلي من أودو 17 لحظة الاعتماد؛ وتقيس دورة ${CYCLE_DAYS} يوماً التحسن الفعلي عبر 3 حالات واضحة.`,
+                  `Odoo numbers are saved on approval so you can compare before vs. after every ${CYCLE_DAYS} days.`,
+                  `يُحفظ الرقم الحالي من أودو لحظة الاعتماد، وتتم مقارنة الأداء قبل وبعد كل ${CYCLE_DAYS} يوماً تلقائياً.`,
                 )}
               </p>
             </div>
@@ -1319,18 +1318,18 @@ export function FullJourney360() {
                   { id: 'all', labelEn: `All (${evaluatedApprovals.length})`, labelAr: `الكل (${evaluatedApprovals.length})` },
                   {
                     id: 'verified',
-                    labelEn: `✅ Verified (${evaluatedApprovals.filter((x) => x.status === 'verified').length})`,
-                    labelAr: `✅ نجح التطبيق (${evaluatedApprovals.filter((x) => x.status === 'verified').length})`,
+                    labelEn: `✅ Improved (${evaluatedApprovals.filter((x) => x.status === 'verified').length})`,
+                    labelAr: `✅ تحسن فعلي (${evaluatedApprovals.filter((x) => x.status === 'verified').length})`,
                   },
                   {
                     id: 'monitoring',
-                    labelEn: `⏳ Monitoring (${evaluatedApprovals.filter((x) => x.status === 'monitoring').length})`,
-                    labelAr: `⏳ قيد الرصد والقياس (${evaluatedApprovals.filter((x) => x.status === 'monitoring').length})`,
+                    labelEn: `⏳ Tracking (${evaluatedApprovals.filter((x) => x.status === 'monitoring').length})`,
+                    labelAr: `⏳ قيد المتابعة (${evaluatedApprovals.filter((x) => x.status === 'monitoring').length})`,
                   },
                   {
                     id: 'stalled',
-                    labelEn: `⚠️ Stalled (${evaluatedApprovals.filter((x) => x.status === 'stalled').length})`,
-                    labelAr: `⚠️ متعثر — ناقش مع فريال (${evaluatedApprovals.filter((x) => x.status === 'stalled').length})`,
+                    labelEn: `⚠️ Needs Follow-Up (${evaluatedApprovals.filter((x) => x.status === 'stalled').length})`,
+                    labelAr: `⚠️ يحتاج متابعة مع فريال (${evaluatedApprovals.filter((x) => x.status === 'stalled').length})`,
                   },
                 ] as const
               ).map((f) => (
@@ -1364,12 +1363,12 @@ export function FullJourney360() {
               <Timer className="h-8 w-8 text-slate-300" />
               <p className="max-w-xl text-[14px] leading-relaxed text-slate-600 dark:text-slate-300">
                 {T(
-                  'Approve any decision in the Journey Playbook to lock its real Odoo 17 baseline and start automatic 14-day before-vs-after verification.',
-                  'اعتمد أي قرار من قرارات الرحلة الكاملة لتثبيت خط الأساس الفعلي من أودو 17 وبدء الرصد الآلي قبل وبعد لمدة 14 يوماً.',
+                  'Approve any step in "Profit & Savings Steps" to save today’s Odoo numbers and track before-vs-after results over 14 days.',
+                  'اعتمد أي خطوة من تبويب «خطوات زيادة الربح وتقليل الهدر» لحفظ الرقم الحالي من أودو ومتابعة النتيجة قبل وبعد خلال 14 يوماً.',
                 )}
               </p>
               <button type="button" onClick={() => setTab('decisions')} className={pill}>
-                {T('Open journey decisions', 'فتح قرارات الرحلة')}
+                {T('View profit & savings steps', 'عرض خطوات زيادة الربح وتقليل الهدر')}
                 <ArrowUpRight className="h-3.5 w-3.5 rtl:-scale-x-100" />
               </button>
             </div>
@@ -1381,21 +1380,21 @@ export function FullJourney360() {
                   status === 'verified'
                     ? {
                         cls: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
-                        label: T('✅ Verified Improvement', '✅ نجح التطبيق وتحسن الأداء الفعلي'),
+                        label: T('✅ Verified Improvement', '✅ تحسن فعلي بالأرقام'),
                       }
                     : status === 'stalled'
                       ? {
                           cls: 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300',
-                          label: T('⚠️ Stalled — Discuss with Feryal', '⚠️ متعثر — ناقش مع فريال'),
+                          label: T('⚠️ Needs Follow-Up with Feryal', '⚠️ يحتاج متابعة مع فريال'),
                         }
                       : {
                           cls: 'bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300',
-                          label: T('⏳ Monitoring (14-Day Cycle)', '⏳ قيد الرصد والقياس'),
+                          label: T('⏳ Tracking (14-Day Window)', '⏳ قيد المتابعة (١٤ يوماً)'),
                         }
 
                 const stallPrompt = isAr
-                  ? `قرار "${a.titleAr}" يظهر في متابعة الأثر ضمن حالة الرصد/التعثر (خط الأساس: ${journeyKpiFormat(a.kpi, true)}). ما خطة التدخل السريع مع المسؤول (${a.ownerRoleAr ?? 'مدير الفرع'})؟`
-                  : `Decision "${a.titleEn}" is currently at baseline ${journeyKpiFormat(a.kpi, false)}. Give me an immediate corrective intervention plan with ${a.ownerRoleEn ?? 'the branch owner'}.`
+                  ? `خطوة "${a.titleAr}" قيد المتابعة حالياً (الرقم قبل التنفيذ: ${journeyKpiFormat(a.kpi, true)}). ما الإجراء السريع مع المسؤول (${a.ownerRoleAr ?? 'مدير الفرع'})؟`
+                  : `Step "${a.titleEn}" is currently at ${journeyKpiFormat(a.kpi, false)}. Give me a quick follow-up action with ${a.ownerRoleEn ?? 'the branch manager'}.`
 
                 return (
                   <article key={a.id} className={`${card} flex flex-col gap-4 p-6`}>
@@ -1411,7 +1410,7 @@ export function FullJourney360() {
 
                     <div className="grid grid-cols-2 gap-3">
                       <div className="ae-studio-subcard p-3.5">
-                        <div className="text-[11px] font-semibold text-slate-500">{T('Before (Odoo Baseline)', 'قبل (خط الأساس بأودو)')}</div>
+                        <div className="text-[11px] font-semibold text-slate-500">{T('Before (When Approved)', 'قبل التنفيذ')}</div>
                         <div dir="ltr" className="mt-1 text-[18px] font-extrabold tabular-nums text-slate-950 dark:text-white">
                           {journeyKpiFormat(a.kpi, isAr)}
                         </div>
@@ -1425,19 +1424,19 @@ export function FullJourney360() {
                               : 'ae-studio-subcard'
                         }`}
                       >
-                        <div className="text-[11px] font-semibold text-slate-500">{T('After (Latest Sync)', 'بعد (آخر مزامنة أودو)')}</div>
+                        <div className="text-[11px] font-semibold text-slate-500">{T('After (Latest Odoo Sync)', 'بعد التنفيذ (آخر تحديث)')}</div>
                         <div dir="ltr" className="mt-1 text-[18px] font-extrabold tabular-nums text-slate-950 dark:text-white">
-                          {fresh && now !== undefined ? journeyKpiFormat({ ...a.kpi, value: now }, isAr) : T('In cycle', 'قيد القياس')}
+                          {fresh && now !== undefined ? journeyKpiFormat({ ...a.kpi, value: now }, isAr) : T('Tracking', 'قيد المتابعة')}
                         </div>
                       </div>
                     </div>
 
                     <p className="text-[12.5px] leading-relaxed text-slate-600 dark:text-slate-300">
                       {status === 'verified'
-                        ? T('Verified positive shift in Odoo 17 — lock SOP permanently.', 'تحسّن فعلي موثق في أودو 17 — ثبّت الإجراء كمعيار دائم.')
+                        ? T('Numbers improved in Odoo — keep this step in place permanently.', 'تحسنت الأرقام فعلياً في أودو — استمر على هذه الخطوة بشكل دائم.')
                         : status === 'stalled'
-                          ? T('KPI has not moved toward target yet — escalate immediately with Feryal.', 'لم يتحرك المؤشر نحو الهدف بعد — صعّد المراجعة فوراً مع المستشارة فريال.')
-                          : T(`14-day audit window active · next checkpoint ${next.toLocaleDateString('en-GB')}.`, `نافذة الرصد لـ 14 يوماً نشطة · نقطة الفحص القادمة ${next.toLocaleDateString('en-GB')}.`)}
+                          ? T('Numbers have not improved yet — review the cause with Feryal.', 'لم تتحسن الأرقام بعد — راجع السبب مع المستشارة فريال.')
+                          : T(`14-day tracking active · next check on ${next.toLocaleDateString('en-GB')}.`, `المتابعة مستمرة لمدة 14 يوماً · المراجعة القادمة ${next.toLocaleDateString('en-GB')}.`)}
                     </p>
 
                     <div>
@@ -1472,15 +1471,6 @@ export function FullJourney360() {
                 )
               })}
             </div>
-          )}
-
-          {JOURNEY_META.restricted.length > 0 && (
-            <p className="text-[12px] text-slate-400">
-              {T(
-                `Odoo 17 ACL audit: ${JOURNEY_META.readable.length} models readable (${JOURNEY_META.analyticCenters} Analytic Cost Centers active); ${JOURNEY_META.restricted.length} restricted for BI user (${JOURNEY_META.restricted.map((r) => r.model).join(', ')}).`,
-                `تدقيق صلاحيات أودو 17: ${JOURNEY_META.readable.length} نموذجاً مقروءاً (${JOURNEY_META.analyticCenters} مركز تكلفة تحليلي نشط)؛ و${JOURNEY_META.restricted.length} نماذج مقيّدة القراءة لمستخدم التحليلات.`,
-              )}
-            </p>
           )}
         </div>
       )}

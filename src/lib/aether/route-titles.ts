@@ -5,14 +5,14 @@ export interface RouteTitle {
 }
 
 const ROUTE_TITLES: { match: string; exact?: boolean; title: RouteTitle }[] = [
-  { match: '/erp', exact: true, title: { en: '360° Executive Shortcuts & Full-Journey Playbook', ar: 'المركز الشامل للمختصرات وقرارات الرحلة الكاملة' } },
-  { match: '/erp/feryal-ai', title: { en: 'Feryal — 360° COO, CFO & Growth Strategist', ar: 'المستشارة التنفيذية الشاملة فريال' } },
+  { match: '/erp', exact: true, title: { en: 'Company Summary & Profit Opportunities', ar: 'ملخص أداء الشركة وفرص زيادة الربح' } },
+  { match: '/erp/feryal-ai', title: { en: 'Feryal — Smart Advisor', ar: 'المستشارة الذكية فريال' } },
   { match: '/erp/events-intelligence', title: { en: 'Seasonal Booths Study', ar: 'جدوى المعارض والبوثات الموسمية' } },
   { match: '/erp/sales-scorecard', title: { en: 'Sales & Items Scorecard', ar: 'سجل المبيعات والأصناف' } },
   { match: '/erp/sales-analysis', title: { en: 'Sales & Items Analysis', ar: 'تحليل المبيعات والأصناف' } },
   { match: '/erp/menu-engineering', title: { en: 'Menu Engineering Workbench', ar: 'منصة هندسة المنيو' } },
   { match: '/erp/delivery-control', title: { en: 'Delivery Aggregators Control', ar: 'رقابة منصات التوصيل' } },
-  { match: '/erp/aggregator-radar', title: { en: 'Delivery Radar', ar: 'رادار منصات التوصيل' } },
+  { match: '/erp/aggregator-radar', title: { en: 'Forensic Delivery Radar', ar: 'الرادار الجنائي لمنصات التوصيل' } },
   { match: '/erp/alerts', title: { en: 'Automated Financial Alerts', ar: 'التنبيهات المالية الآلية' } },
   { match: '/erp/demand-forecast', title: { en: 'Demand & Prep Forecaster', ar: 'توقع الطلب وتحضير المطبخ' } },
   { match: '/erp/cost-intelligence', title: { en: 'Cost & Supplier Intelligence', ar: 'ذكاء التكلفة وأسعار الموردين' } },

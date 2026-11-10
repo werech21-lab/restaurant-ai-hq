@@ -39,12 +39,12 @@ interface Command {
 }
 
 const GROUP_LABEL: Record<Group, { en: string; ar: string }> = {
-  pages: { en: '4 Executive Pillars', ar: 'المحاور التنفيذية الأربعة' },
-  decisions: { en: '360° Surgical Decisions', ar: 'قرارات الرحلة الكاملة الجراحية' },
-  branches: { en: 'Active Restaurant Locations (Analytic Cost Centers)', ar: 'مواقع المطاعم النشطة (مراكز التكلفة)' },
+  pages: { en: 'Main Sections', ar: 'الأقسام الرئيسية' },
+  decisions: { en: 'Practical Steps to Grow Profit', ar: 'خطوات زيادة الربح وتقليل الهدر' },
+  branches: { en: 'Active Restaurant Branches', ar: 'فروع المطاعم النشطة' },
   brands: { en: 'Venture Foods Brands', ar: 'علامات فنتشر فودز المعتمدة' },
   feryal: { en: 'Ask Feryal Immediately', ar: 'اسأل المستشارة فريال فوراً' },
-  actions: { en: 'Executive Actions', ar: 'إجراءات سريعة' },
+  actions: { en: 'Quick Actions', ar: 'إجراءات سريعة' },
 }
 
 const GROUP_ORDER: Group[] = ['pages', 'decisions', 'branches', 'brands', 'feryal', 'actions']
@@ -98,21 +98,21 @@ export function ExecutiveCommandPalette() {
       {
         id: 'p-erp',
         group: 'pages',
-        en: '360° Shortcuts & Journey Playbook',
-        ar: 'المختصرات وقرارات الرحلة الكاملة',
-        hintEn: `${JOURNEY_PLAYS.length} surgical plays`,
-        hintAr: `${JOURNEY_PLAYS.length} قراراً جراحياً`,
-        keywords: 'dashboard shortcuts playbook what-if ملخص قرارات مختصرات',
+        en: 'Company Summary & Profit Opportunities',
+        ar: 'ملخص أداء الشركة وفرص زيادة الربح',
+        hintEn: `${JOURNEY_PLAYS.length} practical steps`,
+        hintAr: `${JOURNEY_PLAYS.length} خطوة عملية`,
+        keywords: 'dashboard summary profit steps ملخص أداء ربح خطوات',
         icon: <LayoutDashboard className="h-4 w-4" />,
         run: () => go('/erp'),
       },
       {
         id: 'p-feryal',
         group: 'pages',
-        en: 'Feryal — 360° COO, CFO & Growth Strategist',
-        ar: 'المستشارة التنفيذية الشاملة فريال',
-        hintEn: 'Voice & Dispatch Briefs',
-        hintAr: 'حوار صوتي ومذكرات تكليف',
+        en: 'Feryal — Smart Advisor',
+        ar: 'المستشارة الذكية فريال',
+        hintEn: 'Voice & Action Briefs',
+        hintAr: 'محادثة صوتية وخطوات عملية',
         keywords: 'ai copilot voice nova feryal فريال ذكاء صوت مستشارة',
         icon: <Sparkles className="h-4 w-4" />,
         run: () => go('/erp/feryal-ai'),
@@ -120,21 +120,21 @@ export function ExecutiveCommandPalette() {
       {
         id: 'p-radar',
         group: 'pages',
-        en: 'Delivery & Aggregator Radar',
-        ar: 'رادار منصات التوصيل',
-        hintEn: 'Commissions, Campaign ROI & Claims',
-        hintAr: 'العمولات وربحية العروض والمطالبات',
-        keywords: 'radar talabat keeta deliveroo jahez tgo tmp رادار توصيل طلبات كيتا دليفرو جاهز',
+        en: 'Forensic Delivery Radar',
+        ar: 'الرادار الجنائي لمنصات التوصيل',
+        hintEn: 'Stopped Accounts, Tgo/TMP & Commissions',
+        hintAr: 'الحسابات المتوقفة والعمولات والطلبات',
+        keywords: 'radar forensic talabat keeta deliveroo jahez snoonu tgo tmp رادار جنائي توصيل طلبات كيتا دليفرو جاهز سنونو',
         icon: <Radar className="h-4 w-4" />,
         run: () => go('/erp/aggregator-radar'),
       },
       {
         id: 'p-events',
         group: 'pages',
-        en: 'Seasonal Booths & Exhibitions Study (EXB)',
+        en: 'Seasonal Booths & Exhibitions Study',
         ar: 'جدوى المعارض والبوثات الموسمية',
-        hintEn: 'Break-even & Contract Traps',
-        hintAr: 'نقطة التعادل وأفخاخ العقود',
+        hintEn: 'Break-even & Rent Review',
+        hintAr: 'نقطة التعادل ومراجعة الإيجار',
         keywords: 'events booth exb kashta winterland فعاليات بوث معارض كشتة',
         icon: <CalendarRange className="h-4 w-4" />,
         run: () => go('/erp/events-intelligence'),
@@ -159,18 +159,18 @@ export function ExecutiveCommandPalette() {
     const branches: Command[] = BRANCH_TRUE_CASH.map((b) => ({
       id: `br-loc-${b.id}`,
       group: 'branches',
-      en: `${b.en} (Analytic #${b.analyticId})`,
-      ar: `${b.ar} (مركز تكلفة #${b.analyticId})`,
-      hintEn: `True Net Cash: ${b.trueNetCash >= 0 ? '+' : ''}${Math.round(b.trueNetCash).toLocaleString('en-US')} KWD/30d`,
-      hintAr: `صافي النقد الفعلي: ${b.trueNetCash >= 0 ? '+' : ''}${Math.round(b.trueNetCash).toLocaleString('en-US')} د.ك/30 يوم`,
-      keywords: `branch location analytic cost center فرع موقع مركز تكلفة ${b.en} ${b.ar}`,
+      en: b.en,
+      ar: b.ar,
+      hintEn: `Net Profit: ${b.trueNetCash >= 0 ? '+' : ''}${Math.round(b.trueNetCash).toLocaleString('en-US')} KWD/30d`,
+      hintAr: `الربح الصافي: ${b.trueNetCash >= 0 ? '+' : ''}${Math.round(b.trueNetCash).toLocaleString('en-US')} د.ك/30 يوم`,
+      keywords: `branch location فرع موقع ${b.en} ${b.ar}`,
       icon: <Store className="h-4 w-4" />,
       run: () =>
         go(
           feryalHref(
             lang === 'ar'
-              ? `قدّمي تشخيصاً تنفيذياً كاملاً لفرع ${b.ar} (مركز تكلفة #${b.analyticId}): المبيعات، الإيجار المحمّل، المصاريف التشغيلية، وأسرع قرار لرفع صافي النقد.`
-              : `Give me a complete executive diagnostic for ${b.en} (Analytic #${b.analyticId}): POS sales, posted rent, branch OpEx, and the fastest decision to grow net cash.`,
+              ? `عطيني ملخص واضح لأداء فرع ${b.ar}: المبيعات، الإيجار، المصاريف، وأسرع خطوة لزيادة صافي الربح.`
+              : `Give me a clear summary for ${b.en}: sales, rent, expenses, and the fastest step to grow net profit.`,
           ),
         ),
     }))
@@ -178,38 +178,38 @@ export function ExecutiveCommandPalette() {
     const brands: Command[] = BRAND_TRUE_CASH.map((b) => ({
       id: `brand-${b.id}`,
       group: 'brands',
-      en: `${b.en} (Analytic #${b.analyticId})`,
-      ar: `${b.ar} (مركز تكلفة #${b.analyticId})`,
+      en: b.en,
+      ar: b.ar,
       hintEn: `${Math.round(b.netSales).toLocaleString('en-US')} KWD sales · ${b.orders.toLocaleString('en-US')} orders`,
       hintAr: `${Math.round(b.netSales).toLocaleString('en-US')} د.ك مبيعات · ${b.orders.toLocaleString('en-US')} طلب`,
-      keywords: `brand علامة براند ${b.en} ${b.ar}`,
+      keywords: `brand علامة براند مطعم ${b.en} ${b.ar}`,
       icon: <Building2 className="h-4 w-4" />,
       run: () =>
         go(
           feryalHref(
             lang === 'ar'
-              ? `حلّلي أداء علامة ${b.ar} (مركز تكلفة #${b.analyticId}) من حيث هامش الأصناف وعمولات التوصيل وفرص التوسع داخل مطابخ الفروع الحالية بدون إيجار إضافي.`
-              : `Analyze ${b.en} (Analytic #${b.analyticId}) across dish margins, aggregator commissions, and zero-rent host-kitchen expansion across our active branches.`,
+              ? `حلّلي أداء مطعم ${b.ar} من ناحية أرباح الأطباق وعمولات التوصيل وفرصة تشغيله داخل فروعنا الحالية بدون إيجار جديد.`
+              : `Review ${b.en} across dish margins, delivery commissions, and running it inside our existing branch kitchens with zero extra rent.`,
           ),
         ),
     }))
 
     const feryalPrompts: { en: string; ar: string }[] = [
       {
-        en: 'How do we stop the monthly cash bleed at Salmiya (#120) and Promenade Mall (#119) using zero-rent host kitchens?',
-        ar: 'كيف نوقف النزيف النقدي الشهري في السالمية (#120) وبروميناد مول (#119) عبر المطابخ المضيفة بدون إيجار جديد؟',
+        en: 'How can we grow profit at Salmiya and Promenade by running an extra brand in the same kitchen?',
+        ar: 'كيف نرفع أرباح فرع السالمية والبروميناد بتشغيل مطعم إضافي بنفس المطبخ بدون إيجار جديد؟',
       },
       {
-        en: 'Give me the exact Keeta 3.5% promo cap & Talabat Tgo/TMP claim plan to recover net cash this month.',
-        ar: 'أعطيني خطة سقف خصومات كيتا عند 3.5% ومطالبة فروقات طلبات Tgo/TMP لاسترداد السيولة هذا الشهر.',
+        en: 'Give me the plan to stop Keeta promo losses and shift nearby Talabat Tgo orders to TMP (10%).',
+        ar: 'أعطيني خطة إيقاف خصومات كيتا الزائدة وتحويل الطلبات القريبة في طلبات إلى توصيل سائقينا (10%).',
       },
       {
-        en: 'How do we close the Ardiya Central Kitchen (#17) theoretical vs. actual food variance and vendor price creep?',
-        ar: 'كيف نغلق فجوة الهدر الخفي في المطبخ المركزي بالعارضية (#17) وزحف أسعار الموردين؟',
+        en: 'How do we reduce kitchen waste at Ardiya Central Kitchen and stop supplier price increases?',
+        ar: 'كيف نقلل هدر المطبخ المركزي بالعارضية ونوقف ارتفاع أسعار الموردين؟',
       },
       {
-        en: 'Which China Garden (#86) and Burgerito (#83) dishes can take +150 fils safely vs. traffic drivers to protect?',
-        ar: 'ما أصناف تشاينا جاردن (#86) وبرجريتو (#83) التي تتحمل +150 فلس بأمان وما الأصناف الجاذبة التي يجب حمايتها؟',
+        en: "Which China Garden and Frank's top sellers can take a 150 fils update while keeping core combo prices fixed?",
+        ar: 'شنو الأطباق الأكثر طلباً في تشاينا جاردن وفرانكس اللي تتحمل زيادة 150 فلس مع تثبيت أسعار وجبات الكومبو؟',
       },
     ]
 
@@ -314,8 +314,8 @@ export function ExecutiveCommandPalette() {
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onKeyDown}
             placeholder={T(
-              'Jump to any decision, branch cost center, brand, or ask Feryal…',
-              'ابحث سريعاً في القرارات الجراحية أو مراكز تكلفة الفروع أو العلامات أو اسأل فريال…',
+              'Search any branch, brand, profit step, or ask Feryal…',
+              'ابحث في الفروع أو المطاعم أو خطوات زيادة الربح أو اسأل فريال…',
             )}
             className="w-full text-[15px] outline-none placeholder:text-slate-400"
           />

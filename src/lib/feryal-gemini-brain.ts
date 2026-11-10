@@ -16,6 +16,7 @@ import {
   JOURNEY_TOP_BY_STAGE,
   JOURNEY_TOTAL_MONTHLY,
   KUWAIT_CALENDAR_PULSE,
+  stripRawOdooTags,
   type JourneyPlay,
   type JourneyStage,
 } from './full-journey-enterprise-brain';
@@ -124,13 +125,16 @@ export const FERYAL_PROPOSALS: FeryalProposal[] = JOURNEY_TOP_BY_STAGE.map((p) =
   outcomeAr: p.impactAr,
   outcomeEn: p.impactEn,
   monthlyKwd: p.monthlyKwd,
-  promptAr: `ناقشي معي بالتفصيل قرار "${p.titleAr}" (${p.subjectAr}): ما الخلل الخفي بالضبط، وما القرار التنفيذي خطوة بخطوة، وأثره على الجودة، والعائد المتوقع؟`,
-  promptEn: `Let's go deeper on "${p.titleEn}" (${p.subjectEn}): what exactly is the hidden leak, what is the executive action step by step, how does it lift quality, and what return should we expect?`,
+  promptAr: `اشرحي لي ببساطة خطوة "${p.titleAr}" (${p.subjectAr}): وين المشكلة بالضبط، وشلون ننفذ الحل خطوة بخطوة، وكم التوفير أو الربح المتوقع؟`,
+  promptEn: `Walk me through "${p.titleEn}" (${p.subjectEn}) simply: what is the issue, how do we fix it step by step, and what monthly gain should we expect?`,
 }));
 
 export const FERYAL_VENTURE_FOODS_KNOWLEDGE = `
-You are "Feryal" (فريال), the 360° Executive COO, CFO & Growth Strategist for Venture Foods Restaurants Management Co. W.L.L. (شركة فنتشر فودز لإدارة المطاعم ذ.م.م — Licence ${LEDGER.licence}), connected to the company's Odoo ERP across the full restaurant journey: procurement & vendors, Ardiya central kitchen & yield, menu & pricing, branch operations, hidden expenses & rents, delivery-platform economics, and food quality & customer retention.
-Speak with a warm, authoritative Gulf executive tone in Arabic, or a sharp C-level tone in English.
+You are "Feryal" (فريال), the Smart Business Advisor for Venture Foods Restaurants Management Co. W.L.L. (شركة فنتشر فودز لإدارة المطاعم ذ.م.م — Licence ${LEDGER.licence}), connected to the company's Odoo data across procurement, Ardiya Central Kitchen, menu pricing, branch operations, operating expenses & rents, delivery platforms, and food quality.
+Speak in clear, natural, everyday Kuwaiti/Gulf business Arabic (or simple, direct plain English) that any restaurant owner or branch manager understands immediately in 2 seconds.
+PLAIN-LANGUAGE & NO-RAW-ID LOCK (mandatory):
+- NEVER use heavy academic/consulting jargon (never say "تشريح", "قرار جراحي", "درع", "أصناف غير حساسة", "المطابخ المضيفة", or "زرع فارم براون").
+- NEVER output internal Odoo database IDs, cost-center numbers (#17, #89, #40, #115), warehouse codes (CK1), raw SKU prefixes (CG TNB TAH), or chart-of-accounts codes (400008, 40233, 400000, 10101–10160). Always use human branch, restaurant, and dish names only.
 
 ANTI-HALLUCINATION LOCK (mandatory):
 - Base every diagnosis, proposal, and projected outcome strictly on verified Venture Foods Odoo POS & accounting facts. Never invent branches, brands, items, or experimental figures that do not exist in our Odoo database.
@@ -358,7 +362,9 @@ const SECTION_HEADINGS = {
 
 function threeSections(lang: 'ar' | 'en', solution: string, steps: string[], outcomes: string[]) {
   const [h1, h2, h3] = SECTION_HEADINGS[lang];
-  return [`### ${h1}`, solution, '', `### ${h2}`, ...steps.map((s, i) => `${i + 1}. ${s}`), '', `### ${h3}`, ...outcomes.map((o) => `- ${o}`)].join('\n');
+  return stripRawOdooTags(
+    [`### ${h1}`, solution, '', `### ${h2}`, ...steps.map((s, i) => `${i + 1}. ${s}`), '', `### ${h3}`, ...outcomes.map((o) => `- ${o}`)].join('\n'),
+  );
 }
 
 function findingReply(f: AetherFinding, lang: 'ar' | 'en') {
@@ -367,7 +373,7 @@ function findingReply(f: AetherFinding, lang: 'ar' | 'en') {
     lang,
     isAr ? `${f.faultAr} ${f.fixAr}` : `${f.faultEn} ${f.fixEn}`,
     isAr ? f.stepsAr : f.stepsEn,
-    [isAr ? f.resultAr : f.resultEn, isAr ? `المقترح الأفضل للنمو: ${f.growthAr}` : `Best growth move: ${f.growthEn}`],
+    [isAr ? f.resultAr : f.resultEn, isAr ? `خطوة إضافية لزيادة المبيعات: ${f.growthAr}` : `Best growth step: ${f.growthEn}`],
   );
 }
 
@@ -375,15 +381,15 @@ function journeyReply(p: JourneyPlay, lang: 'ar' | 'en') {
   const isAr = lang === 'ar';
   const stage = JOURNEY_STAGES.find((s) => s.id === p.stage);
   const auditStep = isAr
-    ? `تفتيش ميداني في 5 دقائق لمدير المنطقة: ${p.spotAudit.ar[0]}؛ ثم ${p.spotAudit.ar[1]}`
-    : `5-Minute Area Manager Spot-Audit: ${p.spotAudit.en[0]}; then ${p.spotAudit.en[1]}`;
+    ? `فحص سريع في 5 دقائق لمدير المنطقة: ${p.spotAudit.ar[0]}؛ ثم ${p.spotAudit.ar[1]}`
+    : `5-Minute Area Manager Spot Check: ${p.spotAudit.en[0]}; then ${p.spotAudit.en[1]}`;
   return threeSections(
     lang,
     isAr ? `${stage?.ar ?? ''} — ${p.subjectAr}: ${p.leakAr}` : `${stage?.en ?? ''} — ${p.subjectEn}: ${p.leakEn}`,
     isAr
-      ? [p.actionAr, auditStep, p.qualityAr, 'اعتماد القرار في المركز الشامل وقياس الأثر قبل وبعد عبر دورات 14 يوماً من بيانات أودو.']
-      : [p.actionEn, auditStep, p.qualityEn, 'Approve the decision in the 360° center and measure before vs after over 14-day Odoo cycles.'],
-    [isAr ? p.impactAr : p.impactEn, isAr ? `إجمالي القفزة المتاحة عبر الرحلة الكاملة نحو ${n0(JOURNEY_TOTAL_MONTHLY)} د.ك شهرياً.` : `Total unlockable across the full journey: about ${n0(JOURNEY_TOTAL_MONTHLY)} KWD per month.`],
+      ? [p.actionAr, auditStep, p.qualityAr, 'اعتماد الخطوة في صفحة ملخص الشركة ومتابعة نتيجتها قبل وبعد كل 14 يوماً.']
+      : [p.actionEn, auditStep, p.qualityEn, 'Approve the step on the company summary page and track before-vs-after results every 14 days.'],
+    [isAr ? p.impactAr : p.impactEn, isAr ? `إجمالي فرص زيادة الربح وتقليل الهدر المتاحة نحو ${n0(JOURNEY_TOTAL_MONTHLY)} د.ك شهرياً.` : `Total monthly profit & savings opportunity: about ${n0(JOURNEY_TOTAL_MONTHLY)} KWD per month.`],
   );
 }
 
@@ -419,11 +425,11 @@ export function getDeterministicFeryalReply(query: string, lang: 'ar' | 'en'): s
       isAr
         ? [
             `تغطية 100% من التزامات نهاية الشهر البالغة ${n0(cr.totalCommitmentsKwd)} د.ك بمعدل أمان ${n1(cr.coverageRatio)} مرة دون أي ضغط سيولة.`,
-            `تحرير ${n0(cr.openClearingKwd)} د.ك من أرصدة التسويات الوسيطة المفتوحة في أودو 17 قبل إقفال الشهر.`,
+            `تحصيل ${n0(cr.openClearingKwd)} د.ك من المستحقات المعلقة لدى منصات التوصيل في أودو قبل إقفال الشهر.`,
           ]
         : [
             `100% on-time coverage of ${n0(cr.totalCommitmentsKwd)} KWD monthly obligations at ${n1(cr.coverageRatio)}x POS inflow coverage with zero bridging.`,
-            `Accelerates ${n0(cr.openClearingKwd)} KWD in open Odoo 17 platform clearing balances into settled bank cash.`,
+            `Collects ${n0(cr.openClearingKwd)} KWD in open Odoo platform settlement balances into the bank account.`,
           ],
     );
   }
@@ -518,8 +524,8 @@ export async function askFeryalGeminiBrain({
   const isAr = lang === 'ar';
 
   const langDirective = isAr
-    ? 'أجيبي باللغة العربية فقط بلهجة خليجية تنفيذية راقية، وبالأقسام الثلاثة: المقترح والحل العملي، آلية التنفيذ الواقعية، النتائج المتوقعة في حال النجاح، مع أرقام أودو الموثقة بالدينار الكويتي فقط.'
-    : 'Answer strictly in clear executive English using the three sections Practical Solution, Execution Plan and Expected Outcomes Upon Success, citing only verified Odoo figures in KWD.';
+    ? 'أجيبي باللغة العربية فقط بلغة كويتية/خليجية عملية بسيطة وواضحة يفهمها أي مدير مطعم خلال ثانيتين، بدون أي مصطلحات معقدة أو أرقام مراكز تكلفة داخلية، وبالأقسام الثلاثة: المقترح والحل العملي، آلية التنفيذ الواقعية، النتائج المتوقعة في حال النجاح، مع أرقام أودو الموثقة بالدينار الكويتي فقط.'
+    : 'Answer strictly in clear, plain everyday business English (no heavy consulting jargon and no internal Odoo IDs or cost-center numbers), using the three sections Practical Solution, Execution Plan and Expected Outcomes Upon Success, citing only verified Odoo figures in KWD.';
 
   const userParts: Array<Record<string, unknown>> = [];
   if (audioBase64) {
@@ -580,20 +586,20 @@ export async function askFeryalGeminiBrain({
                 const parsed = JSON.parse(cleaned);
                 if (parsed.reply) {
                   return {
-                    reply: String(parsed.reply).trim(),
+                    reply: stripRawOdooTags(String(parsed.reply).trim()),
                     transcript: parsed.transcript ? String(parsed.transcript).trim() : undefined,
                     engine: `Argon High · ${model}`,
                   };
                 }
               } catch {
                 return {
-                  reply: rawText,
+                  reply: stripRawOdooTags(rawText),
                   engine: `Argon High · ${model}`,
                 };
               }
             }
             return {
-              reply: rawText,
+              reply: stripRawOdooTags(rawText),
               engine: `Argon High · ${model}`,
             };
           }
@@ -680,7 +686,7 @@ export async function askFeryalGeminiBrain({
         const text = chatData?.choices?.[0]?.message?.content?.trim();
         if (text) {
           return {
-            reply: text,
+            reply: stripRawOdooTags(text),
             transcript: extractedTranscript,
             engine: 'Argon High · Gemini 3.8 Pro',
           };
