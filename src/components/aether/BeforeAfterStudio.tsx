@@ -623,9 +623,9 @@ export function BeforeAfterStudio() {
 
           <InteractiveDonutChart
             slices={netGainDonutSlices}
-            centerValue={fmtSignedPct(snap.summary.pocket.pct)}
-            centerSubValue={fmtSignedKwd(snap.summary.pocket.diff, isAr)}
-            centerLabel={T('Net Gain', 'فرق الصافي')}
+            centerValue={netGainDonutSlices[0]?.pctFormatted ?? '—'}
+            centerSubValue={netGainDonutSlices[0]?.valueFormatted ?? ''}
+            centerLabel={netGainDonutSlices[0]?.label ?? T('Top Contributor', 'أعلى مساهمة')}
             isAr={isAr}
             legendColumns={1}
           />

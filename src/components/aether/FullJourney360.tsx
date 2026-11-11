@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
-  ArrowUpRight,
   Check,
   CheckCircle2,
   Copy,
@@ -86,13 +85,48 @@ const f2 = (n: number) =>
 /** ملخص الشركة — Finance V2 × Verdelo × Skerry Executive Bento Workspace */
 export function FullJourney360() {
   const { isAr, T } = useLang()
-  const { workspace, filters, liveSummary } = useGlobalFilter()
+  const { workspace, filters, liveSummary, setLens } = useGlobalFilter()
 
   const [tab, setTab] = useState<Tab>('numbers')
   const [flowGroup, setFlowGroup] = useState<FlowGroup>('timeline')
   const [stage, setStage] = useState<JourneyStage | 'all'>('all')
   const [highlightedPlayId, setHighlightedPlayId] = useState<string | null>(null)
   const [approvals, setApprovals] = useState<Approval[]>([])
+
+  const handleSummaryCardAction = useCallback(
+    (card: SummaryCardData) => {
+      switch (card.action) {
+        case 'stage-procurement':
+          setStage('procurement')
+          setTab('tips')
+          if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' })
+          break
+        case 'stage-opex':
+          setStage('opex')
+          setTab('tips')
+          if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' })
+          break
+        case 'chart-branches':
+          setFlowGroup('branches')
+          if (typeof document !== 'undefined') {
+            document
+              .getElementById('cash-flow-chart-card')
+              ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          }
+          break
+        case 'lens-quiet':
+          setLens('quiet-hours')
+          setStage('all')
+          setTab('tips')
+          if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' })
+          break
+        default:
+          setStage(card.targetStage ?? 'all')
+          setTab('tips')
+      }
+    },
+    [setLens],
+  )
   const [syncing, setSyncing] = useState(false)
 
   // Interactive "تجربة الأرقام" state per recommendation card
@@ -160,9 +194,14 @@ export function FullJourney360() {
       const vals = simValues[p.id] ?? [p.simulator.sliders[0].defaultValue, p.simulator.sliders[1].defaultValue]
       const sim = simulatePlay(p, vals[0], vals[1])
       const baseRatio = p.monthlyKwd > 0 ? sim.monthlyKwd / p.monthlyKwd : 1
-      const scaledPeriodKwd = Math.max(1, Math.round(sp.periodBenefitKwd * baseRatio * 10) / 10)
+      const scaledPeriodKwd = Math.max(0.5, Math.round(sp.periodBenefitKwd * baseRatio * 10) / 10)
       const scaledMonthlyKwd = Math.max(10, Math.round(sp.monthlyBenefitKwd * baseRatio))
-      return { vals, scaledPeriodKwd, scaledMonthlyKwd }
+      const tiersMonthly = {
+        conservativeKwd: Math.max(8, Math.round(sp.tiersMonthly.conservativeKwd * baseRatio)),
+        realisticKwd: Math.max(10, Math.round(sp.tiersMonthly.realisticKwd * baseRatio)),
+        stretchKwd: Math.max(12, Math.round(sp.tiersMonthly.stretchKwd * baseRatio)),
+      }
+      return { vals, scaledPeriodKwd, scaledMonthlyKwd, tiersMonthly }
     },
     [simValues],
   )
@@ -188,9 +227,16 @@ export function FullJourney360() {
 
   const copyWhatsApp = useCallback(
     async (sp: SimplePlayView, benefitLabel: string) => {
+      const stepsAr = sp.cfoRealism.fieldSteps
+        .map((s) => `${s.step}) ${s.ownerAr} (${s.branchAr}): ${s.actionAr}`)
+        .join('\n')
+      const stepsEn = sp.cfoRealism.fieldSteps
+        .map((s) => `${s.step}) ${s.ownerEn} (${s.branchEn}): ${s.actionEn}`)
+        .join('\n')
+      const tiers = sp.tiersMonthly
       const text = isAr
-        ? `*${sp.titleAr}* (${workspace.subtitleAr})\n• المشكلة: ${sp.problemAr}\n• الحل: ${sp.solutionAr}\n• الفايدة المتوقعة: +${benefitLabel}`
-        : `*${sp.titleEn}* (${workspace.subtitleEn})\n• Issue: ${sp.problemEn}\n• Fix: ${sp.solutionEn}\n• Expected Gain: +${benefitLabel}`
+        ? `*${sp.titleAr}* (${workspace.subtitleAr})\n• التوثيق: ${sp.cfoRealism.provenance.badgeAr} (${f0(sp.cfoRealism.provenance.recordsScanned)} سجل أودو)\n• المشكلة: ${sp.problemAr}\n• الحل: ${sp.solutionAr}\n• الأثر الشهري (د.ك): متحفظ ${f0(tiers.conservativeKwd)} | واقعي مرجّح ${f0(tiers.realisticKwd)} | هدف أعلى ${f0(tiers.stretchKwd)} (+${benefitLabel})\n• خطة الميدان:\n${stepsAr}`
+        : `*${sp.titleEn}* (${workspace.subtitleEn})\n• Provenance: ${sp.cfoRealism.provenance.badgeEn} (${f0(sp.cfoRealism.provenance.recordsScanned)} Odoo records)\n• Issue: ${sp.problemEn}\n• Fix: ${sp.solutionEn}\n• Monthly Impact (KWD): Conservative ${f0(tiers.conservativeKwd)} | Realistic ${f0(tiers.realisticKwd)} | Stretch ${f0(tiers.stretchKwd)} (+${benefitLabel})\n• Field Plan:\n${stepsEn}`
       try {
         await navigator.clipboard.writeText(text)
         setCopiedId(sp.id)
@@ -457,17 +503,23 @@ export function FullJourney360() {
                 {fmtKwdVal(netPocketKwd)}
               </div>
               <p className="mt-1 text-[12px] font-medium text-slate-400 dark:text-slate-400">
-                {isAr ? `${f2(netPocket10)} د.ك صافي من كل ١٠ دنانير` : `${f2(netPocket10)} KWD per 10 KWD sales`}
+                {isAr ? 'الصافي الفعلي بعد الإيجار وكل المصاريف' : 'Actual net cash after rent & all bills'}
               </p>
             </article>
 
             {/* KPI 4: فرص زيادة الربح */}
             <article
-              onClick={() => setTab('tips')}
+              onClick={() => {
+                setStage('all')
+                setTab('tips')
+              }}
               role="button"
               tabIndex={0}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') setTab('tips')
+                if (e.key === 'Enter' || e.key === ' ') {
+                  setStage('all')
+                  setTab('tips')
+                }
               }}
               className="ae-kpi-card ae-glow-amber cursor-pointer p-5"
             >
@@ -488,9 +540,8 @@ export function FullJourney360() {
               >
                 +{fmtKwdVal(workspace.totalPlaysBenefitPeriodKwd)}
               </div>
-              <p className="mt-1 inline-flex items-center gap-1 text-[12px] font-bold text-slate-600 dark:text-slate-300">
-                <span>{T('Open ready steps', 'عرض الخطوات الجاهزة')}</span>
-                <ArrowUpRight className="h-3.5 w-3.5" />
+              <p className="mt-1 inline-flex items-center gap-1 text-[12px] font-bold text-emerald-700 dark:text-emerald-300">
+                <span>{T('View Steps ↗', 'عرض الخطوات ↗')}</span>
               </p>
             </article>
           </div>
@@ -498,7 +549,10 @@ export function FullJourney360() {
           {/* Middle Bento Row: 8-Col Visual Cash-Flow Chart + 4-Col Interactive 10-KWD Donut */}
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
             {/* 8-Col Card: Interactive Cash-Flow & Net Performance Skerry Capsule Chart */}
-            <div className="ae-bento-card flex flex-col justify-between p-5 sm:p-6 lg:col-span-8">
+            <div
+              id="cash-flow-chart-card"
+              className="ae-bento-card flex flex-col justify-between p-5 sm:p-6 lg:col-span-8"
+            >
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h2 className="text-[17px] font-extrabold tracking-tight text-slate-950 dark:text-white">
@@ -547,24 +601,29 @@ export function FullJourney360() {
 
               <InteractiveDonutChart
                 slices={tenKwdDonutSlices}
-                centerValue={`${f1(netPocketPct)}%`}
-                centerSubValue={isAr ? `${f2(netPocket10)} د.ك` : `${f2(netPocket10)} KWD`}
-                centerLabel={T('Net in Pocket', 'الصافي بالجيب')}
+                centerValue={isAr ? `${f2(netPocket10)} د.ك` : `${f2(netPocket10)} KWD`}
+                centerSubValue={T('per 10 KWD', 'من كل ١٠ د.ك')}
+                centerLabel={T('Net Share', 'نصيب الصافي')}
                 isAr={isAr}
                 legendColumns={2}
               />
             </div>
           </div>
 
-          {/* Operational Detail Bento Cards */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {/* Non-Redundant 3 × 2 (6-Card) Operational & Financial Diagnostic Grid */}
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
             {workspace.summaryCards.map((c) => (
-              <article key={c.id} className="ae-kpi-card flex min-h-[178px] flex-col justify-between p-5">
-                <div className="space-y-1.5">
-                  <h3 className="text-[14.5px] font-bold text-slate-800 dark:text-slate-100">
+              <article
+                key={c.id}
+                className="ae-kpi-card flex min-h-[188px] flex-col justify-between p-6"
+              >
+                <div className="space-y-2">
+                  <h3 className="text-[15px] font-extrabold text-slate-800 dark:text-slate-100">
                     {isAr ? c.titleAr : c.titleEn}
                   </h3>
-                  <div className={`text-[24px] font-black tracking-tight tabular-nums ${ACCENT_RING[c.accent]}`}>
+                  <div
+                    className={`text-[25px] font-black tracking-tight tabular-nums ${ACCENT_RING[c.accent]}`}
+                  >
                     {isAr ? c.valueAr : c.valueEn}
                   </div>
                   <p className="text-[12.5px] leading-relaxed text-slate-500 dark:text-slate-400">
@@ -572,26 +631,21 @@ export function FullJourney360() {
                   </p>
                 </div>
 
-                <div className="mt-4 flex items-center justify-end">
+                <div className="mt-5 flex items-center justify-end">
                   {c.href ? (
                     <Link
                       href={c.href}
-                      className="ae-bento-subcard inline-flex items-center gap-1 rounded-full px-3.5 py-1.5 text-[12px] font-bold text-slate-800 transition-colors duration-150 hover:text-slate-950 dark:text-slate-100"
+                      className="ae-bento-subcard inline-flex items-center gap-1 rounded-full px-4 py-1.5 text-[12.5px] font-bold text-slate-800 transition-colors duration-150 hover:text-emerald-700 dark:text-slate-100 dark:hover:text-emerald-300"
                     >
-                      <span>{T('View', 'عرض')}</span>
-                      <ArrowUpRight className="h-3.5 w-3.5" />
+                      <span>{isAr ? c.ctaAr : c.ctaEn}</span>
                     </Link>
                   ) : (
                     <button
                       type="button"
-                      onClick={() => {
-                        setStage(c.targetStage ?? 'all')
-                        setTab('tips')
-                      }}
-                      className="ae-bento-subcard inline-flex cursor-pointer items-center gap-1 rounded-full px-3.5 py-1.5 text-[12px] font-bold text-slate-800 transition-colors duration-150 hover:text-slate-950 dark:text-slate-100"
+                      onClick={() => handleSummaryCardAction(c)}
+                      className="ae-bento-subcard inline-flex cursor-pointer items-center gap-1 rounded-full px-4 py-1.5 text-[12.5px] font-bold text-slate-800 transition-colors duration-150 hover:text-emerald-700 dark:text-slate-100 dark:hover:text-emerald-300"
                     >
-                      <span>{T('Profit Tips', 'توصيات الربح')}</span>
-                      <ArrowUpRight className="h-3.5 w-3.5" />
+                      <span>{isAr ? c.ctaAr : c.ctaEn}</span>
                     </button>
                   )}
                 </div>
@@ -623,12 +677,13 @@ export function FullJourney360() {
             {visiblePlays.map((sp) => {
               const approved = approvals.some((a) => a.id === sp.id)
               const simOpen = Boolean(openSim[sp.id])
-              const { vals, scaledPeriodKwd, scaledMonthlyKwd } = getSim(sp)
+              const { vals, scaledPeriodKwd, scaledMonthlyKwd, tiersMonthly } = getSim(sp)
               const benefitNum = scaledPeriodKwd >= 100 ? f0(scaledPeriodKwd) : scaledPeriodKwd.toFixed(1)
               const benefitDisplay = isAr
                 ? `${benefitNum} د.ك ${periodUnitAr}`
                 : `${benefitNum} KWD ${periodUnitEn}`
               const isHighlighted = highlightedPlayId === sp.id
+              const prov = sp.cfoRealism.provenance
 
               return (
                 <article
@@ -639,17 +694,31 @@ export function FullJourney360() {
                   }`}
                 >
                   <div className="space-y-3.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <h3 className="text-[17px] font-extrabold text-slate-950 dark:text-white">
-                        {isAr ? sp.titleAr : sp.titleEn}
-                      </h3>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="space-y-1">
+                        <h3 className="text-[17px] font-extrabold text-slate-950 dark:text-white">
+                          {isAr ? sp.titleAr : sp.titleEn}
+                        </h3>
+                        {/* (a) Odoo Record Provenance Badge */}
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span
+                            title={prov.models.join(' • ')}
+                            className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2.5 py-0.5 text-[11px] font-extrabold text-sky-800 ring-1 ring-sky-500/20 dark:bg-sky-950/50 dark:text-sky-200"
+                          >
+                            <span>✅ {isAr ? prov.badgeAr : prov.badgeEn}</span>
+                            <span dir="ltr" className="opacity-75">
+                              ({f0(prov.recordsScanned)})
+                            </span>
+                          </span>
+                        </div>
+                      </div>
                       <span className="rounded-full bg-emerald-50 px-3 py-1 text-[12.5px] font-extrabold tabular-nums text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
                         +{benefitDisplay}
                       </span>
                     </div>
 
-                    {/* ONLY 3 Simple Labels: المشكلة / الحل / الفايدة المتوقعة */}
-                    <div className="ae-bento-subcard space-y-2.5 rounded-2xl p-4 text-[13.5px] leading-relaxed">
+                    {/* Problem / Solution / Cross-Correlation */}
+                    <div className="ae-bento-subcard space-y-2 rounded-2xl p-4 text-[13px] leading-relaxed">
                       <p className="text-slate-700 dark:text-slate-200">
                         <strong className="font-extrabold text-slate-950 dark:text-white">
                           {T('Problem:', 'المشكلة:')}{' '}
@@ -662,12 +731,57 @@ export function FullJourney360() {
                         </strong>
                         {isAr ? sp.solutionAr : sp.solutionEn}
                       </p>
-                      <p className="text-emerald-800 dark:text-emerald-300">
-                        <strong className="font-extrabold">
-                          {T('Expected Gain:', 'الفايدة المتوقعة:')}{' '}
-                        </strong>
-                        <span className="font-extrabold tabular-nums">+{benefitDisplay}</span>
+                      <p className="text-[12px] font-medium text-slate-500 dark:text-slate-400">
+                        {isAr ? prov.correlationAr : prov.correlationEn}
                       </p>
+                    </div>
+
+                    {/* (c) 3-Tier Monthly KWD Impact (متحفظ | واقعي مرجّح | هدف أعلى) */}
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="ae-bento-subcard rounded-xl px-3 py-2 text-center">
+                        <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                          {T('Conservative', 'متحفظ')}
+                        </div>
+                        <div dir="ltr" className="mt-0.5 text-[13.5px] font-extrabold tabular-nums text-slate-800 dark:text-slate-100">
+                          +{f0(tiersMonthly.conservativeKwd)} {isAr ? 'د.ك/ش' : 'KWD/mo'}
+                        </div>
+                      </div>
+                      <div className="rounded-xl bg-emerald-50/90 px-3 py-2 text-center ring-1 ring-emerald-500/30 dark:bg-emerald-950/40 dark:ring-emerald-400/30">
+                        <div className="text-[11px] font-extrabold text-emerald-800 dark:text-emerald-300">
+                          {T('Realistic', 'واقعي مرجّح')}
+                        </div>
+                        <div dir="ltr" className="mt-0.5 text-[14px] font-black tabular-nums text-emerald-700 dark:text-emerald-300">
+                          +{f0(tiersMonthly.realisticKwd)} {isAr ? 'د.ك/ش' : 'KWD/mo'}
+                        </div>
+                      </div>
+                      <div className="ae-bento-subcard rounded-xl px-3 py-2 text-center">
+                        <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                          {T('Stretch', 'هدف أعلى')}
+                        </div>
+                        <div dir="ltr" className="mt-0.5 text-[13.5px] font-extrabold tabular-nums text-sky-700 dark:text-sky-300">
+                          +{f0(tiersMonthly.stretchKwd)} {isAr ? 'د.ك/ش' : 'KWD/mo'}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* (b) 3-Step Field Plan Naming Owner & Branch */}
+                    <div className="ae-bento-subcard space-y-1.5 rounded-2xl p-3.5 text-[12px]">
+                      <div className="font-extrabold text-slate-900 dark:text-white">
+                        {T('3-Step Field Plan', 'خطة التنفيذ بالميدان')}
+                      </div>
+                      {sp.cfoRealism.fieldSteps.map((st) => (
+                        <div key={st.step} className="flex items-start gap-2 leading-snug text-slate-700 dark:text-slate-200">
+                          <span className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-slate-200 text-[10px] font-black text-slate-800 dark:bg-white/15 dark:text-white">
+                            {st.step}
+                          </span>
+                          <span>
+                            <strong className="font-bold text-slate-950 dark:text-emerald-300">
+                              {isAr ? `${st.ownerAr} • ${st.branchAr}:` : `${st.ownerEn} • ${st.branchEn}:`}
+                            </strong>{' '}
+                            {isAr ? st.actionAr : st.actionEn}
+                          </span>
+                        </div>
+                      ))}
                     </div>
 
                     {/* Inline Number Tester (تجربة الأرقام) */}
@@ -781,8 +895,7 @@ export function FullJourney360() {
               href="/erp/before-after"
               className="ae-pill-dark inline-flex h-9 items-center gap-1.5 rounded-full px-4 text-[12.5px] font-bold"
             >
-              <span>{T('Open Before & After', 'فتح صفحة مقارنة قبل وبعد')}</span>
-              <ArrowUpRight className="h-3.5 w-3.5" />
+              <span>{T('Before & After ↗', 'مقارنة قبل وبعد ↗')}</span>
             </Link>
           </div>
           {trackedRows.length === 0 ? (

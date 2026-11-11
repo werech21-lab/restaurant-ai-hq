@@ -9,6 +9,7 @@ import {
   askDualHeavyBrain,
   BRAIN_MODE_EVENT,
   getActiveBrainMode,
+  normalizeBrainMode,
   type BrainMode,
   type DualBrainResponse,
 } from '@/lib/dual-heavy-brain'
@@ -32,21 +33,17 @@ export function DualBrainPagePanel({
   const isAr = locale === 'ar'
   const { filters, workspace } = useGlobalFilter()
 
-  const [mode, setMode] = useState<BrainMode>('dual')
+  const [mode, setMode] = useState<'triple' | 'claude' | 'gemini' | 'grok'>('triple')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<DualBrainResponse | null>(null)
   const [showSplit, setShowSplit] = useState(false)
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
-    setMode(getActiveBrainMode())
+    setMode(normalizeBrainMode(getActiveBrainMode()))
     const onMode = (e: Event) => {
       const detail = (e as CustomEvent<BrainMode>).detail
-      if (detail === 'dual' || detail === 'gemini' || detail === 'grok') {
-        setMode(detail)
-      } else {
-        setMode(getActiveBrainMode())
-      }
+      setMode(normalizeBrainMode(detail ?? getActiveBrainMode()))
     }
     window.addEventListener(BRAIN_MODE_EVENT, onMode)
     return () => window.removeEventListener(BRAIN_MODE_EVENT, onMode)
@@ -65,16 +62,17 @@ export function DualBrainPagePanel({
       })
       setResult(res)
     } catch {
-      // askDualHeavyBrain already guarantees a deterministic fallback
+      // askDualHeavyBrain guarantees a deterministic fallback
     } finally {
       setLoading(false)
     }
   }, [filters, isAr, mode, pageContext, promptAr, promptEn, workspace])
 
   const buttonLabel = (() => {
+    if (mode === 'claude') return isAr ? 'تحليل كلاود العميق 🔬' : 'Analyze with Claude Deep 🔬'
     if (mode === 'gemini') return isAr ? 'تحليل جميني Carbon ⚡' : 'Analyze with Gemini Carbon ⚡'
     if (mode === 'grok') return isAr ? 'تحليل جروك Heavy 🧠' : 'Analyze with Grok Heavy 🧠'
-    return isAr ? 'تحليل العقل المزدوج 🔥' : 'Dual-Brain Analysis 🔥'
+    return isAr ? 'تحليل العقل الثلاثي 🔥' : 'Triple-Brain Analysis 🔥'
   })()
 
   const whatsappText = result
@@ -92,13 +90,43 @@ export function DualBrainPagePanel({
     window.setTimeout(() => setCopied(false), 2000)
   }
 
-  const hasBothBrains = Boolean(result?.geminiReply && result?.grokReply)
+  const individualPanels = [
+    result?.claudeReply
+      ? {
+          key: 'claude',
+          titleAr: 'رأي كلاود العميق 🔬',
+          titleEn: 'Claude Extended Thinking 🔬',
+          model: result.claudeModel,
+          reply: result.claudeReply,
+        }
+      : null,
+    result?.geminiReply
+      ? {
+          key: 'gemini',
+          titleAr: 'رأي جميني Carbon Pro ⚡',
+          titleEn: 'Gemini Carbon Pro ⚡',
+          model: result.geminiModel,
+          reply: result.geminiReply,
+        }
+      : null,
+    result?.grokReply
+      ? {
+          key: 'grok',
+          titleAr: 'رأي جروك Heavy (٣ زوايا) 🧠',
+          titleEn: 'xAI Grok Heavy (3-Lens) 🧠',
+          model: result.grokModel,
+          reply: result.grokReply,
+        }
+      : null,
+  ].filter((x): x is NonNullable<typeof x> => Boolean(x))
+
+  const hasMultipleBrains = individualPanels.length >= 2
   const statusNote = isAr ? result?.statusNoteAr : result?.statusNoteEn
 
   return (
     <section
       dir={isAr ? 'rtl' : 'ltr'}
-      aria-label={isAr ? 'تحليل العقل المزدوج للصفحة' : 'Dual-Brain Page Analysis'}
+      aria-label={isAr ? 'تحليل العقل الثلاثي للصفحة' : 'Triple-Brain Page Analysis'}
       className="ae-bento-card no-print p-4 sm:p-5"
     >
       {/* Compact 1-Click Trigger Bar */}
@@ -132,7 +160,7 @@ export function DualBrainPagePanel({
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
                 <span>
-                  {isAr ? 'جارٍ تشغيل جميني + جروك…' : 'Running Gemini + Grok…'}
+                  {isAr ? 'جارٍ تشغيل مجلس العقل الثلاثي…' : 'Running AI Council…'}
                 </span>
               </>
             ) : result ? (
@@ -164,7 +192,7 @@ export function DualBrainPagePanel({
         </div>
       </div>
 
-      {/* Rendered Consensus + Optional Individual Gemini & Grok Split View */}
+      {/* Rendered Consensus + Individual Council Perspectives */}
       {result ? (
         <div className="mt-4 space-y-4 border-t border-slate-100 pt-4 dark:border-white/[0.06]">
           {statusNote ? (
@@ -180,7 +208,7 @@ export function DualBrainPagePanel({
           {/* Action Row: Toggle Split View + Copy / Send WhatsApp */}
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-2">
-              {hasBothBrains ? (
+              {hasMultipleBrains ? (
                 <button
                   type="button"
                   onClick={() => setShowSplit((v) => !v)}
@@ -194,8 +222,8 @@ export function DualBrainPagePanel({
                   <Columns2 className="h-3.5 w-3.5" />
                   <span>
                     {isAr
-                      ? 'عرض رأي جميني ورأي جروك كلٌّ على حدة'
-                      : 'View Gemini & Grok Separately'}
+                      ? `عرض آراء المحركات منفردة (${individualPanels.length})`
+                      : `View Individual Council Brains (${individualPanels.length})`}
                   </span>
                 </button>
               ) : null}
@@ -234,40 +262,33 @@ export function DualBrainPagePanel({
             </div>
           </div>
 
-          {/* Side-by-Side Individual Perspectives */}
-          {showSplit && hasBothBrains ? (
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <article className="ae-bento-subcard rounded-2xl p-5">
-                <div className="mb-3 flex items-center justify-between gap-2 border-b border-slate-200/70 pb-2.5 dark:border-white/[0.06]">
-                  <span className="text-[13.5px] font-extrabold text-slate-950 dark:text-white">
-                    {isAr ? 'رأي جميني Carbon High ⚡' : 'Gemini Carbon High Perspective ⚡'}
-                  </span>
-                  {result.geminiModel ? (
-                    <span dir="ltr" className="rounded-full bg-white px-2.5 py-0.5 font-mono text-[11px] font-bold text-slate-600 dark:bg-white/[0.06] dark:text-slate-300">
-                      {result.geminiModel}
+          {/* Side-by-Side Individual Perspectives (2 or 3 columns) */}
+          {showSplit && hasMultipleBrains ? (
+            <div
+              className={`grid grid-cols-1 gap-4 ${
+                individualPanels.length === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-2'
+              }`}
+            >
+              {individualPanels.map((panel) => (
+                <article key={panel.key} className="ae-bento-subcard rounded-2xl p-5">
+                  <div className="mb-3 flex items-center justify-between gap-2 border-b border-slate-200/70 pb-2.5 dark:border-white/[0.06]">
+                    <span className="text-[13.5px] font-extrabold text-slate-950 dark:text-white">
+                      {isAr ? panel.titleAr : panel.titleEn}
                     </span>
-                  ) : null}
-                </div>
-                <div className="text-[14px] leading-[1.8] text-slate-700 dark:text-slate-200">
-                  <FeryalStudioMessage text={result.geminiReply ?? ''} />
-                </div>
-              </article>
-
-              <article className="ae-bento-subcard rounded-2xl p-5">
-                <div className="mb-3 flex items-center justify-between gap-2 border-b border-slate-200/70 pb-2.5 dark:border-white/[0.06]">
-                  <span className="text-[13.5px] font-extrabold text-slate-950 dark:text-white">
-                    {isAr ? 'رأي جروك Heavy (٣ زوايا) 🧠' : 'xAI Grok Heavy (3-Lens) 🧠'}
-                  </span>
-                  {result.grokModel ? (
-                    <span dir="ltr" className="rounded-full bg-white px-2.5 py-0.5 font-mono text-[11px] font-bold text-slate-600 dark:bg-white/[0.06] dark:text-slate-300">
-                      {result.grokModel}
-                    </span>
-                  ) : null}
-                </div>
-                <div className="text-[14px] leading-[1.8] text-slate-700 dark:text-slate-200">
-                  <FeryalStudioMessage text={result.grokReply ?? ''} />
-                </div>
-              </article>
+                    {panel.model ? (
+                      <span
+                        dir="ltr"
+                        className="rounded-full bg-white px-2.5 py-0.5 font-mono text-[11px] font-bold text-slate-600 dark:bg-white/[0.06] dark:text-slate-300"
+                      >
+                        {panel.model}
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="text-[14px] leading-[1.8] text-slate-700 dark:text-slate-200">
+                    <FeryalStudioMessage text={panel.reply} />
+                  </div>
+                </article>
+              ))}
             </div>
           ) : null}
         </div>

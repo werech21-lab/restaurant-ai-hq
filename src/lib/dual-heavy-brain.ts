@@ -1,19 +1,26 @@
 /**
- * Dual-Brain Heavy Reasoning Engine ("GEMINI CARBON HIGH × xAI GROK HEAVY")
+ * Triple-Brain Heavy Council Engine
+ * ("GEMINI CARBON PRO × xAI GROK HEAVY × CLAUDE OPUS EXTENDED THINKING")
  *
  * Powers `aetherbi.com` across all 6 executive pages:
- *   - Engine A: Google Gemini "Carbon High" Auto-Resolver (6h model discovery + HIGH thinkingConfig + clean retry)
+ *   - Engine A: Google Gemini "Carbon Pro" Auto-Resolver (`-pro` strictly ranked above `-flash` + HIGH thinkingConfig)
  *   - Engine B: xAI "Grok Heavy" Multi-Angle Deep Engine (6h /v1/models discovery + 3-lens heavy synthesis)
- *   - Engine C: Default "Dual-Brain Consensus" (`العقل المزدوج: جميني + جروك 🔥`) running both in parallel
- *               via Promise.allSettled, synthesizing a plain everyday Kuwaiti/Gulf Arabic executive answer
- *               plus individual Gemini & Grok perspectives on demand.
+ *   - Engine C: Anthropic "Claude Deep" Extended Thinking (`claude-opus-4*` / `claude-sonnet-4*`,
+ *               `budget_tokens: 10000` + safe non-thinking retry + `cache_control: { type: "ephemeral" }`)
+ *   - Default Mode: "Triple-Brain Council" (`العقل الثلاثي 🔥`) running all active engines in parallel
+ *                   via Promise.allSettled, grounded in `<feryal_evolving_memory>` & Odoo 17 whitelisted figures.
  *
  * STRICT ENTITY WHITELIST:
  *   - ONLY 6 Venture Foods Brands: China Garden, Frank's, Tahina, Farm Brown, The Noodle Bar, Karak Cafeteria.
- *   - ONLY 7 Active Odoo Branches: The Avenues, 360, Assima, Promenade, Salmiya, Al-Kout, Ardiya.
+ *   - ONLY 7 Active Odoo Branches: The Avenues, 360, Assima, Promenade, Salmiya, Al-Kout, Ardiya (+ EXB booths).
  */
 
-import { getGeminiApiKey, getOpenAIApiKey, getXaiApiKey } from '@/lib/ai-keys'
+import {
+  getAnthropicApiKey,
+  getGeminiApiKey,
+  getOpenAIApiKey,
+  getXaiApiKey,
+} from '@/lib/ai-keys'
 import { ODOO } from '@/lib/odoo/odoo-dataset'
 import {
   APPROVED_BRANCH_IDS,
@@ -29,12 +36,18 @@ import {
   JOURNEY_SHORTCUTS,
   stripRawOdooTags,
 } from '@/lib/full-journey-enterprise-brain'
+import {
+  autoExtractLearningsFromTurn,
+  buildFeryalEvolvingMemoryXml,
+} from '@/lib/feryal-learning-engine'
 
-export type BrainMode = 'dual' | 'gemini' | 'grok'
+export type BrainMode = 'triple' | 'claude' | 'gemini' | 'grok' | 'dual'
 
 export interface BrainLiveHealth {
+  claudeReady: boolean
   geminiReady: boolean
   grokReady: boolean
+  claudeModel: string
   geminiModel: string
   grokModel: string
   grokQuotaNoteAr?: string
@@ -57,7 +70,11 @@ export interface DualBrainResponse {
   modeUsed: BrainMode
   /** Synthesized consensus reply (or active single-brain reply) in plain everyday Arabic/English */
   reply: string
-  /** Individual Gemini Carbon High perspective (when available) */
+  /** Individual Anthropic Claude Extended Thinking perspective (when available) */
+  claudeReply?: string
+  claudeModel?: string
+  claudeThinkingSummary?: string
+  /** Individual Gemini Carbon Pro perspective (when available) */
   geminiReply?: string
   geminiModel?: string
   /** Individual xAI Grok Heavy 3-lens perspective (when available) */
@@ -68,22 +85,25 @@ export interface DualBrainResponse {
   /** Human-readable engine badge */
   engineLabelAr: string
   engineLabelEn: string
-  /** Non-crashing status note if either API hit rate/credit limits and fell back cleanly */
+  /** Non-crashing status note if any API hit rate/credit limits and fell back cleanly */
   statusNoteAr?: string
   statusNoteEn?: string
 }
 
-export const BRAIN_MODE_STORAGE_KEY = 'aetherbi_active_brain_mode_v1'
+export const BRAIN_MODE_STORAGE_KEY = 'aetherbi_active_brain_mode_v2'
+const LEGACY_BRAIN_MODE_KEY = 'aetherbi_active_brain_mode_v1'
 export const BRAIN_MODE_EVENT = 'aetherbi-brain-mode-change'
 
-const GEMINI_CACHE_KEY = 'aetherbi_gemini_models_cache_v2'
+const GEMINI_CACHE_KEY = 'aetherbi_gemini_models_cache_v3'
 const XAI_CACHE_KEY = 'aetherbi_xai_models_cache_v2'
+const CLAUDE_CACHE_KEY = 'aetherbi_claude_models_cache_v1'
 const SIX_HOURS_MS = 6 * 60 * 60 * 1000
 const COOLDOWN_MS = 20 * 60 * 1000
 
 // In-memory 6h discovery caches + rate-limit cooldown tracker
 let geminiCachedModels: { at: number; models: string[] } | null = null
 let xaiCachedModels: { at: number; models: string[]; quotaWarning?: string } | null = null
+let claudeCachedModels: { at: number; models: string[] } | null = null
 const modelCooldownUntil = new Map<string, number>()
 
 function isCoolingDown(modelKey: string): boolean {
@@ -100,29 +120,35 @@ function markCooldown(modelKey: string, durationMs = COOLDOWN_MS) {
   modelCooldownUntil.set(modelKey, Date.now() + durationMs)
 }
 
+export function normalizeBrainMode(raw?: string | null): 'triple' | 'claude' | 'gemini' | 'grok' {
+  if (raw === 'claude' || raw === 'gemini' || raw === 'grok') return raw
+  return 'triple'
+}
+
 export function getActiveBrainMode(): BrainMode {
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
-      const saved = window.localStorage.getItem(BRAIN_MODE_STORAGE_KEY)
-      if (saved === 'dual' || saved === 'gemini' || saved === 'grok') {
-        return saved
-      }
+      const saved =
+        window.localStorage.getItem(BRAIN_MODE_STORAGE_KEY) ??
+        window.localStorage.getItem(LEGACY_BRAIN_MODE_KEY)
+      return normalizeBrainMode(saved)
     }
   } catch {}
-  return 'dual'
+  return 'triple'
 }
 
 export function setActiveBrainMode(mode: BrainMode): void {
+  const normalized = normalizeBrainMode(mode)
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
-      window.localStorage.setItem(BRAIN_MODE_STORAGE_KEY, mode)
-      window.dispatchEvent(new CustomEvent(BRAIN_MODE_EVENT, { detail: mode }))
+      window.localStorage.setItem(BRAIN_MODE_STORAGE_KEY, normalized)
+      window.dispatchEvent(new CustomEvent(BRAIN_MODE_EVENT, { detail: normalized }))
     }
   } catch {}
 }
 
 // ============================================================================
-// Verified Venture Foods Whitelisted Knowledge Base (6 Brands × 7 Branches)
+// Verified Venture Foods Whitelisted Knowledge Base + Evolving Memory
 // ============================================================================
 const f0 = (n: number) => Math.round(Number.isFinite(n) ? n : 0).toLocaleString('en-US')
 const f1 = (n: number) =>
@@ -164,6 +190,7 @@ function deriveWorkspaceFinancials(ws: GlobalWorkspaceSlice) {
 export function buildWhitelistedOdooKnowledge(
   filters: GlobalFilters = DEFAULT_GLOBAL_FILTERS,
   workspaceOverride?: GlobalWorkspaceSlice,
+  lang: 'ar' | 'en' = 'ar',
 ): string {
   const ws = workspaceOverride ?? computeGlobalWorkspace(filters)
   const fin = deriveWorkspaceFinancials(ws)
@@ -186,13 +213,17 @@ export function buildWhitelistedOdooKnowledge(
     )
     .join('\n')
 
+  const evolvingMemoryXml = buildFeryalEvolvingMemoryXml(lang)
+
   return `
 COMPANY: Venture Foods Restaurants Management Co. W.L.L. — Kuwait (شركة فنتشر فودز لإدارة المطاعم ذ.م.م).
 STRICT WHITELIST RULES (NON-NEGOTIABLE):
 - Mention ONLY our 6 approved restaurant brands: China Garden (تشاينا جاردن), Frank's (فرانكس), Tahina (طحينة), Farm Brown (فارم براون), The Noodle Bar (ذا نودل بار), Karak Cafeteria (كرك كافتيريا).
-- Mention ONLY our 7 active Odoo locations: The Avenues (الأفنيوز), 360 (مول 360), Assima (العاصمة), Promenade (بروميناد), Salmiya (السالمية), Al-Kout (الكوت), Ardiya Central Kitchen (مطبخ العارضية).
+- Mention ONLY our 7 active Odoo locations: The Avenues (الأفنيوز), 360 (مول 360), Assima (العاصمة), Promenade (بروميناد), Salmiya (السالمية), Al-Kout (الكوت), Ardiya Central Kitchen (مطبخ العارضية), plus EXB exhibition booths.
 - NEVER mention canceled brands, school canteens, removed legacy branches, internal Odoo IDs, or complex academic jargon.
 - Speak in ultra-simple, warm, everyday Kuwaiti/Gulf business Arabic (or plain everyday English when lang=en) that any restaurant owner or branch manager understands in 2 seconds.
+
+${evolvingMemoryXml}
 
 ACTIVE FILTER CONTEXT (${ws.subtitleAr} / ${ws.subtitleEn}):
 - Active Slice Sales: ${f0(ws.salesKwd)} KWD across ${f0(ws.orders)} orders (Average Bill: ${ws.aovKwd.toFixed(2)} KWD).
@@ -222,9 +253,10 @@ export function sanitizeExecutiveOutput(raw: string): string {
 }
 
 // ============================================================================
-// Engine A: Google Gemini "Carbon High" Auto-Resolver
+// Engine A: Google Gemini "Carbon Pro" Auto-Resolver
+// STRICT INVARIANT: ALL `-pro` models ALWAYS rank strictly above `-flash`!
 // ============================================================================
-function scoreGeminiModel(id: string): number {
+export function scoreGeminiModel(id: string): number {
   const m = id.toLowerCase()
   // Exclude non-text generation models or deprecated old names
   if (
@@ -234,30 +266,43 @@ function scoreGeminiModel(id: string): number {
   ) {
     return -1
   }
-  // Exclude known hanging preview endpoint
+  // Exclude known hanging preview endpoints
   if (m.includes('3.8-flash') || m.includes('3.7-flash')) return -1
 
-  if (m.includes('gemini-4') && m.includes('carbon')) return 1000
-  if (m.includes('carbon')) return 980
-  if (m.includes('gemini-4')) return 950
-  if (m === 'gemini-3.6-flash') return 920
-  if (m === 'gemini-3.5-flash') return 910
-  if (m === 'gemini-3-flash-preview') return 900
-  if (m.includes('gemini-3.1-pro')) return 890
-  if (m.includes('gemini-3') && m.includes('pro')) return 880
-  if (m.includes('gemini-3') && m.includes('flash')) return 860
-  if (m === 'gemini-2.5-pro') return 840
-  if (m === 'gemini-pro-latest') return 820
-  if (m === 'gemini-flash-latest') return 800
+  const isFlash = m.includes('flash') || m.includes('lite')
+  const isPro = m.includes('pro')
+
+  // Tier 1 (910–1000): Flagship Carbon & ALL `-pro` models (strictly >= 910)
+  if (!isFlash) {
+    if (m.includes('gemini-4') && (m.includes('carbon') || isPro)) return 1000
+    if (m.includes('carbon')) return 990
+    if (m.includes('gemini-4')) return 980
+    if (m.includes('gemini-3.5') && isPro) return 970
+    if (m.includes('gemini-3.1') && isPro) return 960
+    if (m.includes('gemini-3') && isPro) return 950
+    if (m === 'gemini-2.5-pro' || (m.includes('gemini-2.5') && isPro)) return 940
+    if (m === 'gemini-pro-latest') return 930
+    if (isPro) return 920
+  }
+
+  // Tier 2 (720–850): `-flash` models ONLY (strictly <= 850, ALWAYS below `-pro`!)
+  if (m.includes('gemini-4') && isFlash) return 850
+  if (m === 'gemini-3.6-flash') return 840
+  if (m === 'gemini-3.5-flash') return 830
+  if (m === 'gemini-3-flash-preview') return 820
+  if (m.includes('gemini-3') && isFlash) return 810
+  if (m === 'gemini-2.5-flash') return 800
+  if (m === 'gemini-flash-latest') return 790
+  if (isFlash) return 740
   if (m.includes('gemini')) return 700
   return -1
 }
 
-const DEFAULT_GEMINI_CHAIN = [
-  'gemini-4-carbon',
-  'gemini-3.6-flash',
-  'gemini-3.5-flash',
-  'gemini-3-flash-preview',
+export const DEFAULT_GEMINI_CHAIN = [
+  'gemini-2.5-pro',
+  'gemini-3.1-pro-preview',
+  'gemini-pro-latest',
+  'gemini-2.5-flash',
   'gemini-flash-latest',
 ]
 
@@ -272,8 +317,11 @@ export async function discoverGeminiCarbonModels(): Promise<string[]> {
       if (raw) {
         const parsed = JSON.parse(raw) as { at: number; models: string[] }
         if (parsed?.at && Array.isArray(parsed.models) && Date.now() - parsed.at < SIX_HOURS_MS) {
-          geminiCachedModels = parsed
-          return parsed.models
+          const reSorted = [...parsed.models].sort(
+            (a, b) => scoreGeminiModel(b) - scoreGeminiModel(a),
+          )
+          geminiCachedModels = { at: parsed.at, models: reSorted }
+          return reSorted
         }
       }
     }
@@ -299,16 +347,19 @@ export async function discoverGeminiCarbonModels(): Promise<string[]> {
         )
         .map((m) => (m.name ?? '').replace(/^models\//, ''))
         .filter((id) => scoreGeminiModel(id) > 0)
-        .sort((a, b) => scoreGeminiModel(b) - scoreGeminiModel(a))
 
-      const unique = [...new Set([...candidates, ...DEFAULT_GEMINI_CHAIN])].slice(0, 7)
-      geminiCachedModels = { at: Date.now(), models: unique }
+      const merged = [...new Set([...candidates, ...DEFAULT_GEMINI_CHAIN])]
+        .filter((id) => scoreGeminiModel(id) > 0)
+        .sort((a, b) => scoreGeminiModel(b) - scoreGeminiModel(a))
+        .slice(0, 7)
+
+      geminiCachedModels = { at: Date.now(), models: merged }
       try {
         if (typeof window !== 'undefined' && window.localStorage) {
           window.localStorage.setItem(GEMINI_CACHE_KEY, JSON.stringify(geminiCachedModels))
         }
       } catch {}
-      return unique
+      return merged
     }
   } catch {
     // Fall back to verified default chain
@@ -352,20 +403,18 @@ export async function runGeminiCarbonEngine({
   for (const model of chain) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`
 
-    // Attempt 1: HIGH Deep Reasoning config (`thinkingConfig`)
     const configsToTry: Record<string, unknown>[] = [
       {
         temperature: 0.3,
-        maxOutputTokens: 1500,
+        maxOutputTokens: 1600,
         ...(jsonMode ? { responseMimeType: 'application/json' } : {}),
         thinkingConfig: model.includes('gemini-4')
           ? { thinkingLevel: 'HIGH' }
           : { thinkingBudget: 8192 },
       },
-      // Attempt 2: Automatic clean-config retry fallback so zero calls ever fail on schema mismatch
       {
         temperature: 0.3,
-        maxOutputTokens: 1500,
+        maxOutputTokens: 1600,
         ...(jsonMode ? { responseMimeType: 'application/json' } : {}),
       },
     ]
@@ -374,7 +423,7 @@ export async function runGeminiCarbonEngine({
       try {
         const res = await fetch(url, {
           method: 'POST',
-          signal: AbortSignal.timeout(18000),
+          signal: AbortSignal.timeout(20000),
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             systemInstruction: { parts: [{ text: systemPrompt }] },
@@ -385,11 +434,11 @@ export async function runGeminiCarbonEngine({
 
         if (res.status === 429 || res.status === 404 || res.status === 403) {
           markCooldown(`gemini:${model}`)
-          break // Move immediately to next Gemini model in chain
+          break
         }
 
         if (res.status === 400 && attempt === 0) {
-          continue // Retry same model with clean generationConfig
+          continue
         }
 
         if (res.ok) {
@@ -421,7 +470,6 @@ export async function runGeminiCarbonEngine({
 // ============================================================================
 function scoreGrokModel(id: string): number {
   const m = id.toLowerCase()
-  // Exclude image/video/code-only/multi-agent-responses-only/non-reasoning variants
   if (/imagine|image|video|vision|multi-agent|non-reasoning|code-fast|embed/i.test(m)) {
     return -1
   }
@@ -539,7 +587,7 @@ export async function runGrokHeavyEngine({
 ### ١. زاوية الربح الصافي والمالية
 (الأثر المباشر بالدينار الكويتي على الصافي بالجيب والكاش)
 ### ٢. زاوية المطبخ والفروع والتشغيل
-(خطوة عملية فورية في الفرع أو مطبخ العارضية بدون زيادة موظفين أو إيجار)
+(خطوة عملية فورية في الفرع أو المخزن ومطبخ العارضية بدون زيادة موظفين أو إيجار)
 ### ٣. زاوية التسويق وكشف المخاطر الخفية
 (كيف نرفع الطلبات بذكاء ونتجنب الهدر أو عمولات التوصيل المخفية)`
     : `${knowledgeContext}
@@ -548,8 +596,8 @@ You are the "Grok Heavy" Multi-Angle Strategic Engine for Venture Foods Kuwait.
 Analyze every business question across 3 simultaneous lenses in crisp, plain everyday English (zero consulting jargon):
 ### 1. Net Profit & Cash Lens
 (Exact KWD impact on net cash in pocket)
-### 2. Kitchen & Branch Operations Lens
-(Immediate field step across our branches or Ardiya Central Kitchen)
+### 2. Kitchen, Warehouse & Branch Lens
+(Immediate field step across our branches, warehouse, or Ardiya Central Kitchen)
 ### 3. Growth & Hidden Risk Lens
 (Smart order growth play + hidden delivery/cost risk to guard against)`
 
@@ -565,7 +613,7 @@ Analyze every business question across 3 simultaneous lenses in crisp, plain eve
         body: JSON.stringify({
           model,
           temperature: 0.3,
-          max_tokens: 1100,
+          max_tokens: 1200,
           messages: [
             { role: 'system', content: heavySystemPrompt },
             { role: 'user', content: userPrompt },
@@ -604,48 +652,266 @@ Analyze every business question across 3 simultaneous lenses in crisp, plain eve
 }
 
 // ============================================================================
-// Live Health Check (for Top Header Status Dot)
+// Engine C: Anthropic "Claude Deep" Extended Thinking + Ephemeral Prompt Cache
+// ============================================================================
+export function scoreClaudeModel(id: string): number {
+  const m = id.toLowerCase()
+  if (/embed|instant|claude-1|claude-2|claude-3-haiku/i.test(m)) return -1
+  if (m.startsWith('claude-opus-4-6') || m.startsWith('claude-opus-4-7')) return 1000
+  if (m.startsWith('claude-opus-4-5')) return 990
+  if (m.startsWith('claude-opus-4-1')) return 985
+  if (m.startsWith('claude-opus-4')) return 980
+  if (m.startsWith('claude-sonnet-4-6') || m.startsWith('claude-sonnet-4-7')) return 960
+  if (m.startsWith('claude-sonnet-4-5')) return 950
+  if (m.startsWith('claude-sonnet-4')) return 940
+  if (m.startsWith('claude-3-7-sonnet')) return 900
+  if (m.startsWith('claude-3-5-sonnet')) return 860
+  if (m.includes('opus')) return 840
+  if (m.includes('sonnet')) return 820
+  if (m.includes('haiku')) return 720
+  return -1
+}
+
+export const DEFAULT_CLAUDE_CHAIN = [
+  'claude-opus-4-6',
+  'claude-sonnet-4-6',
+  'claude-opus-4-20250514',
+  'claude-sonnet-4-20250514',
+]
+
+export async function discoverClaudeDeepModels(): Promise<string[]> {
+  if (claudeCachedModels && Date.now() - claudeCachedModels.at < SIX_HOURS_MS) {
+    return claudeCachedModels.models
+  }
+
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const raw = window.localStorage.getItem(CLAUDE_CACHE_KEY)
+      if (raw) {
+        const parsed = JSON.parse(raw) as { at: number; models: string[] }
+        if (parsed?.at && Array.isArray(parsed.models) && Date.now() - parsed.at < SIX_HOURS_MS) {
+          claudeCachedModels = parsed
+          return parsed.models
+        }
+      }
+    }
+  } catch {}
+
+  const key = getAnthropicApiKey()
+  if (!key) return DEFAULT_CLAUDE_CHAIN
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/models', {
+      signal: AbortSignal.timeout(7000),
+      headers: {
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+    })
+    if (res.ok) {
+      const data = (await res.json()) as { data?: { id?: string }[] }
+      const ranked = (data.data ?? [])
+        .map((m) => m.id ?? '')
+        .filter((id) => scoreClaudeModel(id) > 0)
+        .sort((a, b) => scoreClaudeModel(b) - scoreClaudeModel(a))
+
+      const unique = [...new Set([...ranked, ...DEFAULT_CLAUDE_CHAIN])].slice(0, 6)
+      claudeCachedModels = { at: Date.now(), models: unique }
+      try {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          window.localStorage.setItem(CLAUDE_CACHE_KEY, JSON.stringify(claudeCachedModels))
+        }
+      } catch {}
+      return unique
+    }
+  } catch {}
+
+  claudeCachedModels = { at: Date.now(), models: DEFAULT_CLAUDE_CHAIN }
+  return DEFAULT_CLAUDE_CHAIN
+}
+
+export async function runClaudeDeepEngine({
+  knowledgeContext,
+  userPrompt,
+  lang,
+}: {
+  knowledgeContext: string
+  userPrompt: string
+  lang: 'ar' | 'en'
+}): Promise<{ text: string; model: string; thinkingSummary?: string }> {
+  const key = getAnthropicApiKey()
+  if (!key) throw new Error('ANTHROPIC_KEY_MISSING')
+
+  const models = await discoverClaudeDeepModels()
+  const activeModels = models.filter((m) => !isCoolingDown(`claude:${m}`))
+  const chain = activeModels.length > 0 ? activeModels : DEFAULT_CLAUDE_CHAIN
+
+  const isAr = lang === 'ar'
+  const claudeSystemText = isAr
+    ? `${knowledgeContext}
+
+أنت محرك "كلاود العميق 🔬" (Claude Forensic CFO & COO Architect) لشركة فنتشر فودز الكويت.
+دقّق الأرقام المحاسبية وسلسلة التوريد (المشتريات ← المخزن ← العارضية ← الفروع) وأسطول التوصيل المزدوج (TMP 15% + Tgo) بتفكير عميق، ثم قدّم التوصية بلغة كويتية تنفيذية صافية تحت ٣ عناوين واضحة:
+### ١. التشخيص الجذري المدقق 🔬
+### ٢. خطة التنفيذ الميدانية (المسؤول والفرع)
+### ٣. الأثر الشهري الصافي بالدينار (متحفظ | مرجّح | أعلى)`
+    : `${knowledgeContext}
+
+You are the "Claude Deep 🔬" Forensic CFO & COO Architect for Venture Foods Kuwait.
+Cross-audit POS baskets, supplier -> warehouse -> Ardiya -> branch flows, and dual TMP 15% + Tgo fleet economics using deep extended reasoning, then answer in crisp executive English under 3 clear headings:
+### 1. Forensic Root-Cause Audit 🔬
+### 2. Field Execution Plan (Owner & Branch)
+### 3. 3-Tier Monthly Net KWD Impact`
+
+  for (const model of chain) {
+    // Attempt 0: Extended Thinking (`budget_tokens: 10000`) + Ephemeral Prompt Cache
+    // Attempt 1: Safe standard fallback (in case model/tier rejects extended thinking)
+    const payloads: Array<Record<string, unknown>> = [
+      {
+        model,
+        max_tokens: 14000,
+        thinking: { type: 'enabled', budget_tokens: 10000 },
+        system: [
+          {
+            type: 'text',
+            text: claudeSystemText,
+            cache_control: { type: 'ephemeral' },
+          },
+        ],
+        messages: [{ role: 'user', content: userPrompt }],
+      },
+      {
+        model,
+        max_tokens: 2200,
+        temperature: 0.3,
+        system: [
+          {
+            type: 'text',
+            text: claudeSystemText,
+            cache_control: { type: 'ephemeral' },
+          },
+        ],
+        messages: [{ role: 'user', content: userPrompt }],
+      },
+    ]
+
+    for (let attempt = 0; attempt < payloads.length; attempt++) {
+      try {
+        const res = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          signal: AbortSignal.timeout(28000),
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': key,
+            'anthropic-version': '2023-06-01',
+            'anthropic-dangerous-direct-browser-access': 'true',
+          },
+          body: JSON.stringify(payloads[attempt]),
+        })
+
+        if (res.status === 401 || res.status === 403) {
+          throw new Error('ANTHROPIC_AUTH_FAILED')
+        }
+
+        if (res.status === 429 || res.status === 529 || res.status === 404) {
+          markCooldown(`claude:${model}`, 10 * 60 * 1000)
+          break
+        }
+
+        if (res.status === 400 && attempt === 0) {
+          continue // Retry cleanly without extended thinking
+        }
+
+        if (res.ok) {
+          const data = (await res.json()) as {
+            content?: Array<{ type?: string; text?: string; thinking?: string }>
+          }
+          const blocks = data.content ?? []
+          const thinkingText = blocks
+            .filter((b) => b.type === 'thinking' && typeof b.thinking === 'string')
+            .map((b) => b.thinking ?? '')
+            .join('\n')
+            .trim()
+          const answerText = blocks
+            .filter((b) => b.type === 'text' && typeof b.text === 'string')
+            .map((b) => b.text ?? '')
+            .join('\n')
+            .trim()
+
+          if (answerText) {
+            return {
+              text: sanitizeExecutiveOutput(answerText),
+              model,
+              thinkingSummary: thinkingText ? thinkingText.slice(0, 500) : undefined,
+            }
+          }
+        }
+      } catch (err) {
+        if (err instanceof Error && err.message === 'ANTHROPIC_AUTH_FAILED') {
+          throw err
+        }
+        markCooldown(`claude:${model}`, 3 * 60 * 1000)
+        break
+      }
+    }
+  }
+
+  throw new Error('CLAUDE_ALL_MODELS_UNAVAILABLE')
+}
+
+// ============================================================================
+// Live Health Check (for Top Header Status Dot & Key Modal)
 // ============================================================================
 export async function probeDualBrainHealth(): Promise<BrainLiveHealth> {
-  const [gemModels, grokInfo] = await Promise.all([
+  const [gemModels, grokInfo, claudeModels] = await Promise.all([
     discoverGeminiCarbonModels(),
     discoverGrokHeavyModels(),
+    discoverClaudeDeepModels(),
   ])
 
-  const geminiModel = gemModels.find((m) => !isCoolingDown(`gemini:${m}`)) ?? gemModels[0] ?? 'gemini-4-carbon'
-  const grokModel = grokInfo.models.find((m) => !isCoolingDown(`xai:${m}`)) ?? grokInfo.models[0] ?? 'grok-4.7'
+  const geminiModel =
+    gemModels.find((m) => !isCoolingDown(`gemini:${m}`)) ?? gemModels[0] ?? 'gemini-2.5-pro'
+  const grokModel =
+    grokInfo.models.find((m) => !isCoolingDown(`xai:${m}`)) ?? grokInfo.models[0] ?? 'grok-4.7'
+  const claudeModel =
+    claudeModels.find((m) => !isCoolingDown(`claude:${m}`)) ?? claudeModels[0] ?? 'claude-opus-4-6'
+
   const hasGeminiKey = Boolean(getGeminiApiKey())
   const hasXaiKey = Boolean(getXaiApiKey()) && !grokInfo.quotaWarning
+  const hasClaudeKey = Boolean(getAnthropicApiKey())
 
   return {
+    claudeReady: hasClaudeKey,
     geminiReady: hasGeminiKey,
     grokReady: hasXaiKey,
+    claudeModel,
     geminiModel,
     grokModel,
     grokQuotaNoteAr: grokInfo.quotaWarning
-      ? 'جروك بانتظار شحن الرصيد — يعمل جميني Carbon تلقائياً'
+      ? 'جروك بانتظار شحن الرصيد — يعمل المجلس تلقائياً بدون توقف'
       : undefined,
     grokQuotaNoteEn: grokInfo.quotaWarning
-      ? 'Grok awaiting credit top-up — Gemini Carbon active automatically'
+      ? 'Grok awaiting credit top-up — Council active automatically'
       : undefined,
     checkedAt: Date.now(),
   }
 }
 
 // ============================================================================
-// Engine C: Unified Dual-Brain Orchestrator (Default: Carbon High + Grok Heavy)
+// Unified Triple-Brain Council Orchestrator
 // ============================================================================
 export async function askDualHeavyBrain(req: DualBrainRequest): Promise<DualBrainResponse> {
-  const mode: BrainMode = req.mode ?? getActiveBrainMode()
+  const mode = normalizeBrainMode(req.mode ?? getActiveBrainMode())
   const isAr = req.lang === 'ar'
   const filters = req.filters ?? DEFAULT_GLOBAL_FILTERS
   const ws = req.workspace ?? computeGlobalWorkspace(filters)
-  const knowledge = buildWhitelistedOdooKnowledge(filters, ws)
+  const knowledge = buildWhitelistedOdooKnowledge(filters, ws, req.lang)
 
   let effectiveQuery = (req.query || '').trim()
   let extractedTranscript: string | undefined
 
-  // Step 0: If audioBase64 is passed (voice mic), transcribe cleanly first so BOTH Gemini & Grok can reason on it!
+  // Step 0: If audioBase64 is passed (voice mic), transcribe cleanly first so all council brains can reason on it!
   if (req.audioBase64 && !effectiveQuery) {
     try {
       const audioPrompt = isAr
@@ -665,10 +931,12 @@ export async function askDualHeavyBrain(req: DualBrainRequest): Promise<DualBrai
         effectiveQuery = extractedTranscript
       }
       if (mode === 'gemini' && parsed?.reply) {
+        const cleanReply = sanitizeExecutiveOutput(String(parsed.reply))
+        autoExtractLearningsFromTurn(effectiveQuery, cleanReply)
         return {
           modeUsed: 'gemini',
-          reply: sanitizeExecutiveOutput(String(parsed.reply)),
-          geminiReply: sanitizeExecutiveOutput(String(parsed.reply)),
+          reply: cleanReply,
+          geminiReply: cleanReply,
           geminiModel: gemAudio.model,
           transcript: extractedTranscript,
           engineLabelAr: `جميني Carbon (${gemAudio.model}) ⚡`,
@@ -676,7 +944,6 @@ export async function askDualHeavyBrain(req: DualBrainRequest): Promise<DualBrai
         }
       }
     } catch {
-      // Fallback to OpenAI Whisper if available
       const openAiKey = getOpenAIApiKey()
       if (openAiKey && typeof atob === 'function') {
         try {
@@ -719,17 +986,70 @@ export async function askDualHeavyBrain(req: DualBrainRequest): Promise<DualBrai
   const geminiFormatDirective = isAr
     ? `أجب باللغة العربية فقط بلغة كويتية/خليجية يومية بسيطة ومباشرة جداً بدون أي مصطلحات أكاديمية، وبالعناوين الثلاثة:
 ### المقترح والحل العملي
-### آلية التنفيذ الواقعية
-### النتائج المتوقعة في حال النجاح
+### آلية التنفيذ الواقعية (المسؤول والفرع)
+### الأثر المتوقع بالدينار (متحفظ | مرجّح | أعلى)
 التزم حصرياً بأرقام أودو الموثقة بالدينار الكويتي (د.ك) وبمطاعمنا الـ ٦ وفروعنا الـ ٧ فقط.`
     : `Answer strictly in plain, direct everyday English (zero consulting jargon) using these 3 headings:
 ### Practical Solution
-### Execution Plan
-### Expected Outcomes Upon Success
+### Field Execution Plan (Owner & Branch)
+### Expected Net KWD Impact (Conservative | Likely | Stretch)
 Cite only verified Odoo KWD numbers across our 6 approved brands and 7 active branches.`
 
   // --------------------------------------------------------------------------
-  // Single-Brain Mode: Gemini Carbon Only
+  // Single-Brain Mode: Claude Deep (`كلاود العميق 🔬`)
+  // --------------------------------------------------------------------------
+  if (mode === 'claude') {
+    if (getAnthropicApiKey()) {
+      try {
+        const claude = await runClaudeDeepEngine({
+          knowledgeContext: knowledge,
+          userPrompt: fullUserPrompt,
+          lang: req.lang,
+        })
+        autoExtractLearningsFromTurn(effectiveQuery, claude.text)
+        return {
+          modeUsed: 'claude',
+          reply: claude.text,
+          claudeReply: claude.text,
+          claudeModel: claude.model,
+          claudeThinkingSummary: claude.thinkingSummary,
+          transcript: extractedTranscript,
+          engineLabelAr: `كلاود العميق (${claude.model}) 🔬`,
+          engineLabelEn: `Claude Deep (${claude.model}) 🔬`,
+        }
+      } catch {
+        // Fall through cleanly to Gemini Carbon Pro backup
+      }
+    }
+
+    try {
+      const gemBackup = await runGeminiCarbonEngine({
+        systemPrompt: knowledge,
+        userPrompt: `${fullUserPrompt}\n\n${geminiFormatDirective}`,
+      })
+      const clean = sanitizeExecutiveOutput(gemBackup.text)
+      autoExtractLearningsFromTurn(effectiveQuery, clean)
+      const missingKey = !getAnthropicApiKey()
+      return {
+        modeUsed: 'gemini',
+        reply: clean,
+        geminiReply: clean,
+        geminiModel: gemBackup.model,
+        transcript: extractedTranscript,
+        engineLabelAr: `جميني Carbon Pro (${gemBackup.model}) ⚡`,
+        engineLabelEn: `Gemini Carbon Pro (${gemBackup.model}) ⚡`,
+        statusNoteAr: missingKey
+          ? 'لتفعيل كلاود العميق 🔬 مباشرة، الصق مفتاح Anthropic من زر 🔑 أعلى الشاشة — تم الرد فوراً عبر جميني Carbon Pro.'
+          : 'تم التحويل التلقائي إلى جميني Carbon Pro لضمان استجابة فورية بدون توقف.',
+        statusNoteEn: missingKey
+          ? 'Paste your Anthropic key in the top 🔑 modal to unlock Claude Extended Thinking 🔬 — answered seamlessly via Gemini Carbon Pro.'
+          : 'Automatically routed to Gemini Carbon Pro for uninterrupted response.',
+      }
+    } catch {}
+  }
+
+  // --------------------------------------------------------------------------
+  // Single-Brain Mode: Gemini Carbon Pro Only (`جميني Carbon ⚡`)
   // --------------------------------------------------------------------------
   if (mode === 'gemini') {
     try {
@@ -738,6 +1058,7 @@ Cite only verified Odoo KWD numbers across our 6 approved brands and 7 active br
         userPrompt: `${fullUserPrompt}\n\n${geminiFormatDirective}`,
       })
       const clean = sanitizeExecutiveOutput(gem.text)
+      autoExtractLearningsFromTurn(effectiveQuery, clean)
       return {
         modeUsed: 'gemini',
         reply: clean,
@@ -748,7 +1069,6 @@ Cite only verified Odoo KWD numbers across our 6 approved brands and 7 active br
         engineLabelEn: `Gemini Carbon (${gem.model}) ⚡`,
       }
     } catch {
-      // Seamless backup to Grok Heavy if Gemini is rate-limited
       try {
         const grokBackup = await runGrokHeavyEngine({
           knowledgeContext: knowledge,
@@ -756,6 +1076,7 @@ Cite only verified Odoo KWD numbers across our 6 approved brands and 7 active br
           lang: req.lang,
         })
         if (grokBackup.text) {
+          autoExtractLearningsFromTurn(effectiveQuery, grokBackup.text)
           return {
             modeUsed: 'grok',
             reply: grokBackup.text,
@@ -773,7 +1094,7 @@ Cite only verified Odoo KWD numbers across our 6 approved brands and 7 active br
   }
 
   // --------------------------------------------------------------------------
-  // Single-Brain Mode: xAI Grok Heavy Only
+  // Single-Brain Mode: xAI Grok Heavy Only (`جروك Heavy 🧠`)
   // --------------------------------------------------------------------------
   if (mode === 'grok') {
     try {
@@ -783,6 +1104,7 @@ Cite only verified Odoo KWD numbers across our 6 approved brands and 7 active br
         lang: req.lang,
       })
       if (grok.text) {
+        autoExtractLearningsFromTurn(effectiveQuery, grok.text)
         return {
           modeUsed: 'grok',
           reply: grok.text,
@@ -793,12 +1115,12 @@ Cite only verified Odoo KWD numbers across our 6 approved brands and 7 active br
           engineLabelEn: `Grok Heavy (${grok.model}) 🧠`,
         }
       }
-      // Graceful 402/429 fallback to Gemini Carbon High
       const gemFallback = await runGeminiCarbonEngine({
         systemPrompt: knowledge,
         userPrompt: `${fullUserPrompt}\n\n${geminiFormatDirective}`,
       })
       const clean = sanitizeExecutiveOutput(gemFallback.text)
+      autoExtractLearningsFromTurn(effectiveQuery, clean)
       return {
         modeUsed: 'gemini',
         reply: clean,
@@ -809,12 +1131,12 @@ Cite only verified Odoo KWD numbers across our 6 approved brands and 7 active br
         engineLabelEn: `Gemini Carbon (${gemFallback.model}) ⚡`,
         statusNoteAr:
           grok.quotaStatus === '402'
-            ? 'ملاحظة: رصيد مفتاح جروك قيد الشحن — تم الرد فوراً عبر جميني Carbon High بدون توقف.'
-            : 'ملاحظة: ضغط مؤقت على جروك — تم الرد فوراً عبر جميني Carbon High.',
+            ? 'ملاحظة: رصيد مفتاح جروك قيد الشحن — تم الرد فوراً عبر جميني Carbon Pro بدون توقف.'
+            : 'ملاحظة: ضغط مؤقت على جروك — تم الرد فوراً عبر جميني Carbon Pro.',
         statusNoteEn:
           grok.quotaStatus === '402'
-            ? 'Note: xAI key awaiting credit top-up — answered seamlessly via Gemini Carbon High.'
-            : 'Note: xAI rate limit reached — answered seamlessly via Gemini Carbon High.',
+            ? 'Note: xAI key awaiting credit top-up — answered seamlessly via Gemini Carbon Pro.'
+            : 'Note: xAI rate limit reached — answered seamlessly via Gemini Carbon Pro.',
       }
     } catch {
       try {
@@ -823,6 +1145,7 @@ Cite only verified Odoo KWD numbers across our 6 approved brands and 7 active br
           userPrompt: `${fullUserPrompt}\n\n${geminiFormatDirective}`,
         })
         const clean = sanitizeExecutiveOutput(gemFallback.text)
+        autoExtractLearningsFromTurn(effectiveQuery, clean)
         return {
           modeUsed: 'gemini',
           reply: clean,
@@ -831,18 +1154,27 @@ Cite only verified Odoo KWD numbers across our 6 approved brands and 7 active br
           transcript: extractedTranscript,
           engineLabelAr: `جميني Carbon (${gemFallback.model}) ⚡`,
           engineLabelEn: `Gemini Carbon (${gemFallback.model}) ⚡`,
-          statusNoteAr: 'تم الرد تلقائياً عبر جميني Carbon High.',
-          statusNoteEn: 'Answered seamlessly via Gemini Carbon High.',
+          statusNoteAr: 'تم الرد تلقائياً عبر جميني Carbon Pro.',
+          statusNoteEn: 'Answered seamlessly via Gemini Carbon Pro.',
         }
       } catch {}
     }
   }
 
   // --------------------------------------------------------------------------
-  // DEFAULT MODE: Dual-Brain Consensus (`العقل المزدوج: Carbon High + Grok Heavy 🔥`)
-  // Runs Gemini Carbon High + xAI Grok Heavy in parallel via Promise.allSettled!
+  // DEFAULT MODE: Triple-Brain Council (`العقل الثلاثي 🔥`)
+  // Runs Claude Opus Extended Thinking + Gemini Carbon Pro + Grok Heavy in parallel!
   // --------------------------------------------------------------------------
-  const [gemSettled, grokSettled] = await Promise.allSettled([
+  const hasClaudeKey = Boolean(getAnthropicApiKey())
+
+  const [claudeSettled, gemSettled, grokSettled] = await Promise.allSettled([
+    hasClaudeKey
+      ? runClaudeDeepEngine({
+          knowledgeContext: knowledge,
+          userPrompt: fullUserPrompt,
+          lang: req.lang,
+        })
+      : Promise.reject(new Error('ANTHROPIC_KEY_NOT_SET')),
     runGeminiCarbonEngine({
       systemPrompt: knowledge,
       userPrompt: `${fullUserPrompt}\n\n${geminiFormatDirective}`,
@@ -854,122 +1186,183 @@ Cite only verified Odoo KWD numbers across our 6 approved brands and 7 active br
     }),
   ])
 
-  const gemOk = gemSettled.status === 'fulfilled' && gemSettled.value.text ? gemSettled.value : null
+  const claudeOk =
+    claudeSettled.status === 'fulfilled' && claudeSettled.value.text ? claudeSettled.value : null
+  const gemOk =
+    gemSettled.status === 'fulfilled' && gemSettled.value.text ? gemSettled.value : null
   const grokVal = grokSettled.status === 'fulfilled' ? grokSettled.value : null
   const grokOk = grokVal && grokVal.text ? grokVal : null
 
-  // Both brains succeeded -> Run ultra-fast Dual-Brain Consensus Synthesis!
-  if (gemOk && grokOk) {
-    const cleanGem = sanitizeExecutiveOutput(gemOk.text)
-    const cleanGrok = sanitizeExecutiveOutput(grokOk.text)
+  const cleanClaude = claudeOk ? sanitizeExecutiveOutput(claudeOk.text) : undefined
+  const cleanGem = gemOk ? sanitizeExecutiveOutput(gemOk.text) : undefined
+  const cleanGrok = grokOk ? sanitizeExecutiveOutput(grokOk.text) : undefined
+
+  const activeCount = [cleanClaude, cleanGem, cleanGrok].filter(Boolean).length
+
+  // Multi-Brain Consensus Synthesis when >= 2 brains succeeded
+  if (activeCount >= 2) {
+    const sectionsAr = [
+      cleanClaude ? `[تحليل كلاود العميق (${claudeOk?.model})]:\n${cleanClaude}` : '',
+      cleanGem ? `[تحليل جميني Carbon Pro (${gemOk?.model})]:\n${cleanGem}` : '',
+      cleanGrok ? `[تحليل جروك Heavy الثلاثي (${grokOk?.model})]:\n${cleanGrok}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n\n')
+
+    const sectionsEn = [
+      cleanClaude ? `[Claude Deep (${claudeOk?.model})]:\n${cleanClaude}` : '',
+      cleanGem ? `[Gemini Carbon Pro (${gemOk?.model})]:\n${cleanGem}` : '',
+      cleanGrok ? `[xAI Grok Heavy (${grokOk?.model})]:\n${cleanGrok}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n\n')
+
+    const synthPrompt = isAr
+      ? `أمامك تحليلات مستقلة من مجلس العقل الثلاثي لنفس أرقام أودو ١٧ لشركة فنتشر فودز الكويت (${ws.subtitleAr}):
+
+${sectionsAr}
+
+ادمج النقاط المشتركة ودقّق كل الأرقام بالدينار الكويتي في إجابة تنفيذية واحدة صافية ومباشرة جداً بلغة كويتية/خليجية يومية (١٥٠ إلى ٢٣٠ كلمة) تحت هذه العناوين الثلاثة بالضبط:
+### إجماع العقل الثلاثي 🔥
+### خطة التنفيذ الميدانية (المسؤول والفرع)
+### الأثر الشهري الصافي بالدينار (متحفظ | مرجّح | أعلى)`
+      : `Below are independent analyses from our AI Executive Council on live Venture Foods Kuwait Odoo 17 data (${ws.subtitleEn}):
+
+${sectionsEn}
+
+Cross-verify all KWD figures and synthesize ONE crystal-clear executive consensus (150–230 words) using these exact 3 headings:
+### Triple-Brain Council Consensus 🔥
+### Field Execution Plan (Owner & Branch)
+### 3-Tier Monthly Net KWD Impact`
 
     let consensusReply = ''
     try {
-      const synthPrompt = isAr
-        ? `أمامك تحليلان مستقلان لنفس أرقام أودو ١٧ لشركة فنتشر فودز الكويت (${ws.subtitleAr}):
-
-[تحليل جميني Carbon]:
-${cleanGem}
-
-[تحليل جروك Heavy الثلاثي]:
-${cleanGrok}
-
-ادمج التحليلين ودقق الأرقام في إجابة تنفيذية واحدة صافية ومباشرة جداً بلغة كويتية/خليجية يومية يفهمها صاحب المطعم في ثوانٍ (١٤٠ إلى ٢١٠ كلمة فقط) تحت هذه العناوين الثلاثة بالضبط:
-### الخلاصة المشتركة 🔥
-### الخطوات العملية الفورية
-### الفايدة المتوقعة بالدينار`
-        : `Below are two independent analyses on live Venture Foods Kuwait Odoo 17 data (${ws.subtitleEn}):
-
-[Gemini Carbon Analysis]:
-${cleanGem}
-
-[xAI Grok Heavy 3-Lens Analysis]:
-${cleanGrok}
-
-Cross-check all KWD figures and synthesize ONE crystal-clear, plain everyday executive answer (140–210 words) using these exact 3 headings:
-### Dual-Brain Consensus 🔥
-### Immediate Action Steps
-### Expected KWD Gain`
-
-      // Use the fastest live engine to merge both brains cleanly within 12s
-      const merged = await fetch('https://api.x.ai/v1/chat/completions', {
-        method: 'POST',
-        signal: AbortSignal.timeout(12000),
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${getXaiApiKey()}`,
-        },
-        body: JSON.stringify({
-          model: grokOk.model,
-          temperature: 0.25,
-          max_tokens: 900,
-          messages: [
-            { role: 'system', content: knowledge },
-            { role: 'user', content: synthPrompt },
-          ],
-        }),
-      })
-      if (merged.ok) {
-        const mJson = await merged.json()
-        consensusReply = sanitizeExecutiveOutput(mJson?.choices?.[0]?.message?.content?.trim() ?? '')
+      if (grokOk && getXaiApiKey()) {
+        const merged = await fetch('https://api.x.ai/v1/chat/completions', {
+          method: 'POST',
+          signal: AbortSignal.timeout(12000),
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${getXaiApiKey()}`,
+          },
+          body: JSON.stringify({
+            model: grokOk.model,
+            temperature: 0.25,
+            max_tokens: 950,
+            messages: [
+              { role: 'system', content: knowledge },
+              { role: 'user', content: synthPrompt },
+            ],
+          }),
+        })
+        if (merged.ok) {
+          const mJson = await merged.json()
+          consensusReply = sanitizeExecutiveOutput(
+            mJson?.choices?.[0]?.message?.content?.trim() ?? '',
+          )
+        }
+      } else if (gemOk) {
+        const mergedGem = await runGeminiCarbonEngine({
+          systemPrompt: knowledge,
+          userPrompt: synthPrompt,
+        })
+        consensusReply = sanitizeExecutiveOutput(mergedGem.text)
       }
     } catch {
-      // Instant deterministic merge if synthesis call times out
+      // Deterministic merge below if fast synthesis times out
     }
 
     if (!consensusReply) {
+      const leadText = cleanClaude || cleanGrok || cleanGem || ''
       consensusReply = isAr
-        ? `### الخلاصة المشتركة 🔥\nاتفق جميني (${gemOk.model}) وجروك (${grokOk.model}) على التركيز الفوري في (${ws.subtitleAr}):\n\n${cleanGrok}`
-        : `### Dual-Brain Consensus 🔥\nGemini (${gemOk.model}) and Grok (${grokOk.model}) aligned on (${ws.subtitleEn}):\n\n${cleanGrok}`
+        ? `### إجماع العقل الثلاثي 🔥\nاتفقت محركات المجلس على خطة العمل الفورية لـ (${ws.subtitleAr}):\n\n${leadText}`
+        : `### Triple-Brain Council Consensus 🔥\nCouncil engines aligned on (${ws.subtitleEn}):\n\n${leadText}`
     }
 
+    const badgePartsAr = [
+      claudeOk ? `كلاود (${claudeOk.model})` : '',
+      gemOk ? `جميني (${gemOk.model})` : '',
+      grokOk ? `جروك (${grokOk.model})` : '',
+    ].filter(Boolean)
+
+    const badgePartsEn = [
+      claudeOk ? `Claude (${claudeOk.model})` : '',
+      gemOk ? `Gemini (${gemOk.model})` : '',
+      grokOk ? `Grok (${grokOk.model})` : '',
+    ].filter(Boolean)
+
+    autoExtractLearningsFromTurn(effectiveQuery, consensusReply)
+
     return {
-      modeUsed: 'dual',
+      modeUsed: 'triple',
       reply: consensusReply,
+      claudeReply: cleanClaude,
+      claudeModel: claudeOk?.model,
+      claudeThinkingSummary: claudeOk?.thinkingSummary,
       geminiReply: cleanGem,
-      geminiModel: gemOk.model,
+      geminiModel: gemOk?.model,
+      grokReply: cleanGrok,
+      grokModel: grokOk?.model,
+      transcript: extractedTranscript,
+      engineLabelAr: `العقل الثلاثي: ${badgePartsAr.join(' + ')} 🔥`,
+      engineLabelEn: `Triple Brain: ${badgePartsEn.join(' + ')} 🔥`,
+      statusNoteAr: !hasClaudeKey
+        ? 'يعمل جميني Carbon Pro + جروك Heavy معاً — أضف مفتاح كلاود من زر 🔑 لانضمام Claude Opus للتفكير الثلاثي.'
+        : undefined,
+      statusNoteEn: !hasClaudeKey
+        ? 'Gemini Carbon Pro + Grok Heavy active — add Anthropic key via 🔑 to include Claude Opus in the 3-brain council.'
+        : undefined,
+    }
+  }
+
+  // Single surviving brain in council mode
+  if (claudeOk && cleanClaude) {
+    autoExtractLearningsFromTurn(effectiveQuery, cleanClaude)
+    return {
+      modeUsed: 'triple',
+      reply: cleanClaude,
+      claudeReply: cleanClaude,
+      claudeModel: claudeOk.model,
+      claudeThinkingSummary: claudeOk.thinkingSummary,
+      transcript: extractedTranscript,
+      engineLabelAr: `العقل الثلاثي · كلاود العميق (${claudeOk.model}) 🔬`,
+      engineLabelEn: `Triple Brain · Claude Deep (${claudeOk.model}) 🔬`,
+    }
+  }
+
+  if (grokOk && cleanGrok) {
+    autoExtractLearningsFromTurn(effectiveQuery, cleanGrok)
+    return {
+      modeUsed: 'triple',
+      reply: cleanGrok,
       grokReply: cleanGrok,
       grokModel: grokOk.model,
       transcript: extractedTranscript,
-      engineLabelAr: `العقل المزدوج: جميني (${gemOk.model}) + جروك (${grokOk.model}) 🔥`,
-      engineLabelEn: `Dual Brain: Gemini (${gemOk.model}) + Grok (${grokOk.model}) 🔥`,
+      engineLabelAr: `العقل الثلاثي · جروك Heavy (${grokOk.model}) 🔥`,
+      engineLabelEn: `Triple Brain · Grok Heavy (${grokOk.model}) 🔥`,
+      statusNoteAr: 'يعمل جروك Heavy بكامل طاقته حالياً.',
+      statusNoteEn: 'Grok Heavy active at full capacity.',
     }
   }
 
-  // Only Grok Heavy succeeded (e.g. Gemini free tier hit 429)
-  if (grokOk) {
+  if (gemOk && cleanGem) {
+    autoExtractLearningsFromTurn(effectiveQuery, cleanGem)
     return {
-      modeUsed: 'dual',
-      reply: grokOk.text,
-      grokReply: grokOk.text,
-      grokModel: grokOk.model,
-      transcript: extractedTranscript,
-      engineLabelAr: `العقل المزدوج · جروك Heavy (${grokOk.model}) 🔥`,
-      engineLabelEn: `Dual Brain · Grok Heavy (${grokOk.model}) 🔥`,
-      statusNoteAr: 'يعمل جروك Heavy بكامل طاقته (جميني في فترة تهدئة الحصة المجانية).',
-      statusNoteEn: 'Grok Heavy active at full capacity (Gemini cooling down rate quota).',
-    }
-  }
-
-  // Only Gemini Carbon succeeded (e.g. xAI 402/429)
-  if (gemOk) {
-    const cleanGem = sanitizeExecutiveOutput(gemOk.text)
-    return {
-      modeUsed: 'dual',
+      modeUsed: 'triple',
       reply: cleanGem,
       geminiReply: cleanGem,
       geminiModel: gemOk.model,
       transcript: extractedTranscript,
-      engineLabelAr: `العقل المزدوج · جميني Carbon (${gemOk.model}) ⚡`,
-      engineLabelEn: `Dual Brain · Gemini Carbon (${gemOk.model}) ⚡`,
+      engineLabelAr: `العقل الثلاثي · جميني Carbon Pro (${gemOk.model}) ⚡`,
+      engineLabelEn: `Triple Brain · Gemini Carbon Pro (${gemOk.model}) ⚡`,
       statusNoteAr:
         grokVal?.quotaStatus === '402'
-          ? 'جروك بانتظار شحن الرصيد — تم التحليل فوراً عبر جميني Carbon High.'
-          : 'تم التحليل فوراً عبر جميني Carbon High.',
+          ? 'تم التحليل فوراً عبر جميني Carbon Pro (أضف مفتاح كلاود من زر 🔑 أو اشحن رصيد جروك لتشغيل المجلس الكامل).'
+          : 'تم التحليل فوراً عبر جميني Carbon Pro.',
       statusNoteEn:
         grokVal?.quotaStatus === '402'
-          ? 'Grok awaiting credit top-up — analyzed seamlessly via Gemini Carbon High.'
-          : 'Analyzed seamlessly via Gemini Carbon High.',
+          ? 'Analyzed immediately via Gemini Carbon Pro (paste Anthropic key via 🔑 or top up Grok for full 3-brain council).'
+          : 'Analyzed seamlessly via Gemini Carbon Pro.',
     }
   }
 
@@ -977,26 +1370,26 @@ Cross-check all KWD figures and synthesize ONE crystal-clear, plain everyday exe
   const topPlay = ws.plays[0]
   const fin = deriveWorkspaceFinancials(ws)
   const fallbackReply = isAr
-    ? `### الخلاصة المشتركة 🔥
+    ? `### إجماع العقل الثلاثي 🔥
 بناءً على أرقام أودو المباشرة لـ **${ws.subtitleAr}**: المبيعات **${f0(ws.salesKwd)} د.ك** عبر **${f0(ws.orders)} طلب**، والصافي الفعلي بالجيب **${f0(fin.netPocketKwd)} د.ك** (${fin.netPocket10.toFixed(2)} د.ك من كل ١٠ دنانير).
 
-### الخطوات العملية الفورية
-1. ${topPlay ? `${topPlay.titleAr}: ${topPlay.solutionAr}` : 'ضبط أوزان الوجبات في مطبخ العارضية ومراجعة أسعار الموردين.'}
-2. تنشيط الساعات الهادئة (٣ إلى ٦ عصراً) وتوجيه عملاء التطبيقات للطلب المباشر بدون عمولة.
+### خطة التنفيذ الميدانية (المسؤول والفرع)
+1. ${topPlay ? `${topPlay.titleAr}: ${topPlay.solutionAr}` : 'ضبط أوزان الوجبات في المخزن ومطبخ العارضية ومراجعة أسعار الموردين.'}
+2. تنشيط الساعات الهادئة (٣ إلى ٦ عصراً) وتحويل ضغط التوصيل إلى سائقي الشركة TMP بعمولة 15%.
 3. تحصيل مستحقات منصات التوصيل المعلقة والبالغة **${f0(fin.deliveryDueKwd)} د.ك**.
 
-### الفايدة المتوقعة بالدينار
-- استرداد وزيادة صافي الربح بنحو **+${topPlay ? topPlay.periodLabelAr : `${f0(ws.salesKwd * 0.05)} د.ك`}** خلال نفس الفترة.`
-    : `### Dual-Brain Consensus 🔥
+### الأثر الشهري الصافي بالدينار (متحفظ | مرجّح | أعلى)
+- استرداد وزيادة صافي الربح بنحو **+${topPlay ? topPlay.periodLabelAr : `${f0(ws.salesKwd * 0.04)} د.ك`}** خلال نفس الفترة.`
+    : `### Triple-Brain Council Consensus 🔥
 Based on verified Odoo 17 figures for **${ws.subtitleEn}**: Sales are **${f0(ws.salesKwd)} KWD** across **${f0(ws.orders)} orders**, with **${f0(fin.netPocketKwd)} KWD** net cash in pocket (${fin.netPocket10.toFixed(2)} KWD per 10 KWD sold).
 
-### Immediate Action Steps
-1. ${topPlay ? `${topPlay.titleEn}: ${topPlay.solutionEn}` : 'Lock daily portion weights at Ardiya Central Kitchen and audit supplier prices.'}
-2. Activate afternoon 3–6 PM combos and convert repeat app buyers to 0%-fee direct orders.
+### Field Execution Plan (Owner & Branch)
+1. ${topPlay ? `${topPlay.titleEn}: ${topPlay.solutionEn}` : 'Lock daily portion weights across Central Warehouse & Ardiya Kitchen and audit supplier prices.'}
+2. Activate afternoon 3–6 PM combos and route dense zones to TMP 15% company drivers.
 3. Collect **${f0(fin.deliveryDueKwd)} KWD** in open delivery platform settlements.
 
-### Expected KWD Gain
-- Projected net profit uplift of **+${topPlay ? topPlay.periodLabelEn : `${f0(ws.salesKwd * 0.05)} KWD`}** over the selected period.`
+### 3-Tier Monthly Net KWD Impact
+- Projected net profit uplift of **+${topPlay ? topPlay.periodLabelEn : `${f0(ws.salesKwd * 0.04)} KWD`}** over the selected period.`
 
   return {
     modeUsed: mode,
@@ -1019,15 +1412,20 @@ export function buildGrokUltraClipboardBrief(
   const fin = deriveWorkspaceFinancials(ws)
   const top3 = ws.plays
     .slice(0, 3)
-    .map((p, i) => `${i + 1}) ${isAr ? p.titleAr : p.titleEn}: +${isAr ? p.periodLabelAr : p.periodLabelEn}`)
+    .map(
+      (p, i) =>
+        `${i + 1}) ${isAr ? p.titleAr : p.titleEn}: +${isAr ? p.periodLabelAr : p.periodLabelEn}`,
+    )
     .join('\n')
 
   if (isAr) {
-    return `🧠 طلب تحليل عميق (Grok Heavy / Ultra) — شركة فنتشر فودز الكويت (Odoo 17)
+    return `🧠 طلب تحليل عميق (العقل الثلاثي / Grok Ultra / Claude Opus) — شركة فنتشر فودز الكويت (Odoo 17)
 • الصفحة: ${pageTitle || 'ملخص الشركة'}
 • الفلتر النشط: ${ws.subtitleAr}
 • المطاعم المعتمدة فقط (٦ مطاعم): تشاينا جاردن، فرانكس، طحينة، فارم براون، ذا نودل بار، كرك كافتيريا
-• الفروع النشطة فقط (٧ مواقع): الأفنيوز، مول 360، العاصمة، بروميناد، السالمية، الكوت، مطبخ العارضية
+• الفروع النشطة فقط (٧ مواقع + بوثات المعارض): الأفنيوز، مول 360، العاصمة، بروميناد، السالمية، الكوت، مطبخ العارضية
+• القاعدة المؤسسية للتوريد: المشتريات تشتري من الموردين ← نقل واستلام في المخزن ← توزيع المخزن ومطبخ العارضية على الفروع
+• قاعدة التوصيل المزدوج: تعاقد Tgo في كل الفروع + سائقو الشركة على TMP بعمولة 15% في الفروع المعتمدة
 
 📊 الأرقام الفعلية الحالية من أودو:
 - المبيعات: ${f0(ws.salesKwd)} د.ك (${f0(ws.orders)} طلب · متوسط الفاتورة ${ws.aovKwd.toFixed(2)} د.ك)
@@ -1040,15 +1438,17 @@ export function buildGrokUltraClipboardBrief(
 🎯 أهم الفرص المرصودة حالياً:
 ${top3}
 
-المطلوب من جروك الترا:
-حلّل هذه الأرقام عبر ٣ زوايا (١: زيادة الصافي بالجيب، ٢: ضبط المطبخ والفروع، ٣: خطة تسويق ذكية وكشف أي تسرب خفي) بلغة كويتية عملية بسيطة جداً وبأرقام محددة بالدينار الكويتي.`
+المطلوب:
+حلّل هذه الأرقام عبر ٣ زوايا (١: زيادة الصافي بالجيب، ٢: ضبط المخزن والعارضية والفروع، ٣: تعظيم سائقي TMP 15% وكشف أي تسرب خفي) بلغة كويتية عملية بسيطة وبأرقام محددة بالدينار الكويتي (متحفظ | مرجّح | أعلى).`
   }
 
-  return `🧠 Executive Deep Prompt for Grok Heavy / Ultra — Venture Foods Kuwait (Odoo 17)
+  return `🧠 Executive Deep Prompt (Triple Brain / Grok Ultra / Claude Opus) — Venture Foods Kuwait (Odoo 17)
 • Page: ${pageTitle || 'Company Summary'}
 • Active Filter: ${ws.subtitleEn}
 • Strictly 6 Approved Brands: China Garden, Frank's, Tahina, Farm Brown, The Noodle Bar, Karak Cafeteria
-• Strictly 7 Active Locations: The Avenues, 360, Assima, Promenade, Salmiya, Al-Kout, Ardiya
+• Strictly 7 Active Locations + EXB Booths: The Avenues, 360, Assima, Promenade, Salmiya, Al-Kout, Ardiya
+• Supply-Chain Rule: Procurement -> Central Warehouse receiving -> Warehouse & Ardiya dispatch to branches
+• Dual Delivery Fleet: Talabat Tgo across all branches + in-house company drivers on TMP (15% fee) in designated branches
 
 📊 Live Odoo 17 Numbers:
 - Net Sales: ${f0(ws.salesKwd)} KWD (${f0(ws.orders)} orders · Avg Bill ${ws.aovKwd.toFixed(2)} KWD)
@@ -1061,6 +1461,6 @@ ${top3}
 🎯 Top Flagged Opportunities:
 ${top3}
 
-Task for Grok Ultra:
-Analyze these figures across 3 simultaneous lenses (1: Net Cash & Margin, 2: Kitchen & Branch Execution, 3: Smart Kuwait Growth & Hidden Risk Detection) in plain, actionable business English with exact KWD targets.`
+Task:
+Analyze across 3 simultaneous lenses (1: Net Cash & Margin, 2: Warehouse, Ardiya & Branch Execution, 3: TMP 15% Fleet & Hidden Risk Audit) in plain business English with 3-tier monthly KWD targets.`
 }

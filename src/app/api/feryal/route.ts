@@ -208,14 +208,14 @@ CRITICAL RULES:
 • **الدواجن الطازجة والمجمدة:** أسعار كرتون الدجاج البرازيلي (10×1000جم) مستقرة عند 11.400 د.ك مع وفرة في الاستيراد.
 • **زيوت القلي النقية:** برميل زيت الذرة والشورتنينغ سعة 20 لتر يتداول عند 8.750 د.ك، مع توصية بالشراء الآجل قبل زيادة متوقعة بنسبة 4%.
 • **الخضار والورقيات (سوق الفرضة بالصليبية):** انخفاض 6% في أسعار البصل والبطاطس، وارتفاع طفيف في أسعار الطماطم المحمية.
-• **منصات التوصيل:** اشتداد حدة المنافسة بين Talabat و Keeta، حيث تقدم كيتا عروض توصيل مجاني تجذب شرائح جديدة في السالمية والفحيحيل.
+• **منصات التوصيل:** اشتداد حدة المنافسة بين Talabat و Keeta، حيث تقدم كيتا عروض توصيل مجاني تجذب شرائح جديدة في السالمية والكوت.
 💡 **توصية فريال:** تثبيت عقود توريد الزيوت لشهر نوفمبر للمطبخ المركزي لتحقيق وفر مباشر قدره 450 د.ك.`
 
       const fallbackIntelEn = `📊 **Kuwait Restaurant Market Intelligence (Shuwaikh Wholesale - 2026):**
 • **Poultry (Fresh & Frozen):** Brazilian frozen chicken carton (10x1000g) stabilized at 11.400 KWD with steady supply chains.
 • **Pure Cooking Oil & Shortening:** 20L corn oil drum trading at 8.750 KWD, with a recommended forward contract before an expected 4% price increase.
 • **Vegetables & Greens (Al-Fardha - Sulaibiya):** 6% price drop in bulk onions and potatoes; minor increase in greenhouse tomatoes.
-• **Aggregator Dynamics:** Fierce market competition between Talabat and Keeta; Keeta's aggressive subsidies drive user adoption in Salmiya & Fahaheel.
+• **Aggregator Dynamics:** Fierce market competition between Talabat and Keeta; Keeta's aggressive subsidies drive user adoption in Salmiya & Al-Kout.
 💡 **Feryal Recommendation:** Lock in November oil and poultry supply contracts for the central kitchen to capture 450 KWD in direct margin savings.`
 
       return NextResponse.json({

@@ -1,0 +1,5897 @@
+{
+  "syncedAt": "2026-11-11T07:46:32.148Z",
+  "ytdFrom": "2026-01-01",
+  "ytdWeeks": 44.9,
+  "auditCounts": {
+    "posOrdersYtd": 266536,
+    "posPaymentsYtd": 330005,
+    "vendorBillsYtd": 4528,
+    "accountMoveLinesYtd": 13616152,
+    "stockMovesYtd": 7343412,
+    "activeBoms": 1007,
+    "whitelistedPosRegisters": 27
+  },
+  "posConfigs": [
+    {
+      "id": 3,
+      "name": "Call Center",
+      "location": "ardiya"
+    },
+    {
+      "id": 8,
+      "name": "China Garden (Promenade)",
+      "location": "promenade"
+    },
+    {
+      "id": 9,
+      "name": "Farm Brown (Promenade)",
+      "location": "promenade"
+    },
+    {
+      "id": 10,
+      "name": "Tahina (promenade)",
+      "location": "promenade"
+    },
+    {
+      "id": 11,
+      "name": "Delivery (Promenade)",
+      "location": "promenade"
+    },
+    {
+      "id": 14,
+      "name": "China Garden (Assima Mall)",
+      "location": "assima"
+    },
+    {
+      "id": 15,
+      "name": "Delivery (Assima Mall)",
+      "location": "assima"
+    },
+    {
+      "id": 17,
+      "name": "China Garden (360)",
+      "location": "360-mall"
+    },
+    {
+      "id": 18,
+      "name": "Delivery (360)",
+      "location": "360-mall"
+    },
+    {
+      "id": 19,
+      "name": "China Garden (Salmiya)",
+      "location": "salmiya"
+    },
+    {
+      "id": 20,
+      "name": "Delivery (Salmyia)",
+      "location": "salmiya"
+    },
+    {
+      "id": 21,
+      "name": "China Garden (KOUT)",
+      "location": "al-kout"
+    },
+    {
+      "id": 22,
+      "name": "Delivery (Kout)",
+      "location": "al-kout"
+    },
+    {
+      "id": 23,
+      "name": "Delivery (Ardiya)",
+      "location": "ardiya"
+    },
+    {
+      "id": 26,
+      "name": "POS EXEBITION 1",
+      "location": "exhibitions"
+    },
+    {
+      "id": 27,
+      "name": "POS EXEBITION 2",
+      "location": "exhibitions"
+    },
+    {
+      "id": 28,
+      "name": "POS EXEBITION 3",
+      "location": "exhibitions"
+    },
+    {
+      "id": 29,
+      "name": "POS EXEBITION 4",
+      "location": "exhibitions"
+    },
+    {
+      "id": 30,
+      "name": "POS EXEBITION 5",
+      "location": "exhibitions"
+    },
+    {
+      "id": 31,
+      "name": "POS EXEBITION 6",
+      "location": "exhibitions"
+    },
+    {
+      "id": 32,
+      "name": "POS EXEBITION 7",
+      "location": "exhibitions"
+    },
+    {
+      "id": 33,
+      "name": "POS EXEBITION 8",
+      "location": "exhibitions"
+    },
+    {
+      "id": 34,
+      "name": "China Garden(Avenues)",
+      "location": "avenues"
+    },
+    {
+      "id": 37,
+      "name": "POS EXEBITION 9 (EXB POS 9)",
+      "location": "exhibitions"
+    },
+    {
+      "id": 38,
+      "name": "POS EXEBITION 10 (EXB POS 10)",
+      "location": "exhibitions"
+    }
+  ],
+  "paymentMethods": [
+    {
+      "id": 44,
+      "name": "Jahez MP Paid",
+      "uiChannel": "jahez"
+    },
+    {
+      "id": 57,
+      "name": "Snoonu",
+      "uiChannel": "snoonu"
+    },
+    {
+      "id": 17,
+      "name": "Talabat Go",
+      "uiChannel": "talabat-tgo"
+    },
+    {
+      "id": 18,
+      "name": "Talabat MP Paid",
+      "uiChannel": "talabat-tmp"
+    },
+    {
+      "id": 19,
+      "name": "Deliveroo Go",
+      "uiChannel": "deliveroo"
+    },
+    {
+      "id": 20,
+      "name": "Deliveroo MP Paid",
+      "uiChannel": "deliveroo"
+    },
+    {
+      "id": 24,
+      "name": "Jahez",
+      "uiChannel": "jahez"
+    },
+    {
+      "id": 50,
+      "name": "KEETA",
+      "uiChannel": "keeta"
+    }
+  ],
+  "storeLinks": {
+    "talabat-tgo": "https://www.talabat.com/kuwait",
+    "talabat-tmp": "https://www.talabat.com/kuwait",
+    "keeta": "https://www.keeta.com/kw",
+    "deliveroo": "https://deliveroo.com.kw",
+    "jahez": "https://www.jahez.net",
+    "snoonu": "https://snoonu.com"
+  },
+  "locChannelYtdOrders": {
+    "promenade|jahez": 1092,
+    "ardiya|snoonu": 431,
+    "ardiya|jahez": 1860,
+    "ardiya|talabat-tgo": 12048,
+    "promenade|snoonu": 314,
+    "ardiya|keeta": 12770,
+    "ardiya|deliveroo": 1445,
+    "ardiya|talabat-tmp": 1975,
+    "assima|snoonu": 123,
+    "assima|talabat-tmp": 2,
+    "assima|jahez": 123,
+    "promenade|deliveroo": 1975,
+    "promenade|talabat-tgo": 13283,
+    "promenade|keeta": 10977,
+    "promenade|talabat-tmp": 393,
+    "assima|talabat-tgo": 4444,
+    "assima|deliveroo": 244,
+    "360-mall|deliveroo": 835,
+    "360-mall|jahez": 634,
+    "assima|keeta": 2008,
+    "360-mall|keeta": 5395,
+    "360-mall|talabat-tgo": 11587,
+    "360-mall|talabat-tmp": 5,
+    "360-mall|snoonu": 53,
+    "al-kout|snoonu": 196,
+    "salmiya|talabat-tmp": 204,
+    "salmiya|snoonu": 312,
+    "salmiya|jahez": 812,
+    "salmiya|keeta": 9856,
+    "salmiya|deliveroo": 634,
+    "al-kout|jahez": 1180,
+    "salmiya|talabat-tgo": 16789,
+    "avenues|snoonu": 0,
+    "al-kout|talabat-tmp": 74,
+    "al-kout|deliveroo": 173,
+    "avenues|jahez": 0,
+    "avenues|talabat-tmp": 0,
+    "al-kout|talabat-tgo": 6684,
+    "al-kout|keeta": 4353,
+    "avenues|talabat-tgo": 0,
+    "avenues|deliveroo": 0,
+    "avenues|keeta": 0
+  },
+  "lastReceiptsByLocChannel": {
+    "promenade|jahez": [
+      {
+        "orderId": 818701,
+        "orderName": "CSC-CC/99380729",
+        "posRef": "Grubtech 15614-005-6843",
+        "dateKuwait": "2026-11-09 01:47",
+        "amountKwd": 13.85,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 814006,
+        "orderName": "CSC-CC/99378494",
+        "posRef": "Grubtech 15530-005-4616",
+        "dateKuwait": "2026-11-04 19:56",
+        "amountKwd": 11.7,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 812343,
+        "orderName": "CSC-CC/99377773",
+        "posRef": "Grubtech 15505-002-3900",
+        "dateKuwait": "2026-11-03 11:34",
+        "amountKwd": 6.5,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 810631,
+        "orderName": "CSC-CC/99377046",
+        "posRef": "Grubtech 15472-006-3178",
+        "dateKuwait": "2026-11-01 18:42",
+        "amountKwd": 2.3,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 807007,
+        "orderName": "CSC-CC/99375579",
+        "posRef": "Grubtech 15399-011-1716",
+        "dateKuwait": "2026-10-29 21:46",
+        "amountKwd": 9.85,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "farm-brown"
+      }
+    ],
+    "ardiya|snoonu": [
+      {
+        "orderId": 820629,
+        "orderName": "CSC-CC/99381592",
+        "posRef": "Grubtech 15656-010-7702",
+        "dateKuwait": "2026-11-11 00:59",
+        "amountKwd": 2.625,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "farm-brown"
+      },
+      {
+        "orderId": 819801,
+        "orderName": "CSC-CC/99381156",
+        "posRef": "Grubtech 15656-002-7266",
+        "dateKuwait": "2026-11-10 11:53",
+        "amountKwd": 1.13,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "karak-cafeteria"
+      },
+      {
+        "orderId": 819625,
+        "orderName": "CSC-CC/99381105",
+        "posRef": "Grubtech 15638-008-7215",
+        "dateKuwait": "2026-11-09 23:48",
+        "amountKwd": 5.17,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 819534,
+        "orderName": "CSC-CC/99381027",
+        "posRef": "Grubtech 15638-008-7137",
+        "dateKuwait": "2026-11-09 21:48",
+        "amountKwd": 2.025,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 819191,
+        "orderName": "CSC-CC/99380849",
+        "posRef": "Grubtech 15638-006-6961",
+        "dateKuwait": "2026-11-09 16:36",
+        "amountKwd": 6.49,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "franks"
+      }
+    ],
+    "ardiya|jahez": [
+      {
+        "orderId": 817778,
+        "orderName": "CSC-CC/99380169",
+        "posRef": "Grubtech 15604-004-6285",
+        "dateKuwait": "2026-11-07 21:21",
+        "amountKwd": 3.5,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 815314,
+        "orderName": "CSC-CC/99379003",
+        "posRef": "Grubtech 15554-006-5122",
+        "dateKuwait": "2026-11-05 20:32",
+        "amountKwd": 16.15,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 815194,
+        "orderName": "CSC-CC/99378951",
+        "posRef": "Grubtech 15554-006-5070",
+        "dateKuwait": "2026-11-05 19:36",
+        "amountKwd": 5.25,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 805431,
+        "orderName": "CSC-CC/99375086",
+        "posRef": "Grubtech 15375-013-1223",
+        "dateKuwait": "2026-10-29 00:34",
+        "amountKwd": 23.9,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 803785,
+        "orderName": "CSC-CC/99374399",
+        "posRef": "Grubtech 15354-005-0541",
+        "dateKuwait": "2026-10-27 20:46",
+        "amountKwd": 13,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "franks"
+      }
+    ],
+    "ardiya|talabat-tgo": [
+      {
+        "orderId": 820605,
+        "orderName": "CSC-CC/99381568",
+        "posRef": "Grubtech 15656-010-7678",
+        "dateKuwait": "2026-11-11 00:11",
+        "amountKwd": 7.7,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820593,
+        "orderName": "CSC-CC/99381556",
+        "posRef": "Grubtech 15656-009-7666",
+        "dateKuwait": "2026-11-10 23:44",
+        "amountKwd": 4.3,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820583,
+        "orderName": "CSC-CC/99381546",
+        "posRef": "Grubtech 15656-009-7656",
+        "dateKuwait": "2026-11-10 23:16",
+        "amountKwd": 12.15,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820546,
+        "orderName": "CSC-CC/99381515",
+        "posRef": "Grubtech 15656-009-7625",
+        "dateKuwait": "2026-11-10 22:18",
+        "amountKwd": 6.85,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820501,
+        "orderName": "CSC-CC/99381484",
+        "posRef": "Grubtech 15656-008-7594",
+        "dateKuwait": "2026-11-10 21:38",
+        "amountKwd": 15.1,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      }
+    ],
+    "promenade|snoonu": [
+      {
+        "orderId": 818965,
+        "orderName": "CSC-CC/99380756",
+        "posRef": "Grubtech 15638-004-6870",
+        "dateKuwait": "2026-11-09 12:50",
+        "amountKwd": 2.5,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 817823,
+        "orderName": "CSC-CC/99380200",
+        "posRef": "Grubtech 15604-004-6316",
+        "dateKuwait": "2026-11-07 21:54",
+        "amountKwd": 4.975,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 817565,
+        "orderName": "CSC-CC/99380047",
+        "posRef": "Grubtech 15604-002-6165",
+        "dateKuwait": "2026-11-07 18:50",
+        "amountKwd": 3.6,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 817334,
+        "orderName": "CSC-CC/99379943",
+        "posRef": "Grubtech 15604-000-6061",
+        "dateKuwait": "2026-11-07 15:50",
+        "amountKwd": 3.27,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 815792,
+        "orderName": "CSC-CC/99379282",
+        "posRef": "Grubtech 15589-000-5401",
+        "dateKuwait": "2026-11-06 13:35",
+        "amountKwd": 5.94,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      }
+    ],
+    "ardiya|keeta": [
+      {
+        "orderId": 820694,
+        "orderName": "CSC-CC/99381613",
+        "posRef": "Grubtech 15677-000-7723",
+        "dateKuwait": "2026-11-11 09:46",
+        "amountKwd": 2.4,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "karak-cafeteria"
+      },
+      {
+        "orderId": 820643,
+        "orderName": "CSC-CC/99381606",
+        "posRef": "Grubtech 15656-010-7716",
+        "dateKuwait": "2026-11-11 01:52",
+        "amountKwd": 2,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820625,
+        "orderName": "CSC-CC/99381588",
+        "posRef": "Grubtech 15656-010-7698",
+        "dateKuwait": "2026-11-11 00:43",
+        "amountKwd": 7.45,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820620,
+        "orderName": "CSC-CC/99381583",
+        "posRef": "Grubtech 15656-010-7693",
+        "dateKuwait": "2026-11-11 00:37",
+        "amountKwd": 2.5,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820615,
+        "orderName": "CSC-CC/99381578",
+        "posRef": "Grubtech 15656-010-7688",
+        "dateKuwait": "2026-11-11 00:25",
+        "amountKwd": 3.05,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      }
+    ],
+    "ardiya|deliveroo": [
+      {
+        "orderId": 820216,
+        "orderName": "CSC-CC/99381303",
+        "posRef": "Grubtech 15656-005-7413",
+        "dateKuwait": "2026-11-10 18:01",
+        "amountKwd": 7.15,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 819624,
+        "orderName": "CSC-CC/99381104",
+        "posRef": "Grubtech 15638-008-7214",
+        "dateKuwait": "2026-11-09 23:44",
+        "amountKwd": 7.1,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 819596,
+        "orderName": "CSC-CC/99381076",
+        "posRef": "Grubtech 15638-008-7186",
+        "dateKuwait": "2026-11-09 22:57",
+        "amountKwd": 3.15,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 819360,
+        "orderName": "CSC-CC/99380936",
+        "posRef": "Grubtech 15638-008-7047",
+        "dateKuwait": "2026-11-09 19:40",
+        "amountKwd": 21.95,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 20,
+        "paymentMethodName": "Deliveroo MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 819264,
+        "orderName": "CSC-CC/99380883",
+        "posRef": "Grubtech 15638-007-6995",
+        "dateKuwait": "2026-11-09 18:28",
+        "amountKwd": 23.1,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 20,
+        "paymentMethodName": "Deliveroo MP Paid",
+        "brandId": "china-garden"
+      }
+    ],
+    "ardiya|talabat-tmp": [
+      {
+        "orderId": 820695,
+        "orderName": "CSC-CC/99381614",
+        "posRef": "Grubtech 15677-000-7724",
+        "dateKuwait": "2026-11-11 09:50",
+        "amountKwd": 6.15,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "karak-cafeteria"
+      },
+      {
+        "orderId": 820627,
+        "orderName": "CSC-CC/99381590",
+        "posRef": "Grubtech 15656-010-7700",
+        "dateKuwait": "2026-11-11 00:46",
+        "amountKwd": 6.15,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820624,
+        "orderName": "CSC-CC/99381587",
+        "posRef": "Grubtech 15656-010-7697",
+        "dateKuwait": "2026-11-11 00:43",
+        "amountKwd": 8.25,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820619,
+        "orderName": "CSC-CC/99381582",
+        "posRef": "Grubtech 15656-010-7692",
+        "dateKuwait": "2026-11-11 00:36",
+        "amountKwd": 6.35,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820512,
+        "orderName": "CSC-CC/99381492",
+        "posRef": "Grubtech 15656-008-7602",
+        "dateKuwait": "2026-11-10 21:51",
+        "amountKwd": 12.1,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      }
+    ],
+    "assima|snoonu": [
+      {
+        "orderId": 814026,
+        "orderName": "CSC-CC/99378508",
+        "posRef": "Grubtech 15530-005-4630",
+        "dateKuwait": "2026-11-04 20:13",
+        "amountKwd": 3.38,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 813529,
+        "orderName": "CSC-CC/99378258",
+        "posRef": "Grubtech 15530-002-4382",
+        "dateKuwait": "2026-11-04 13:09",
+        "amountKwd": 4.75,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 800755,
+        "orderName": "CSC-CC/99373267",
+        "posRef": "Grubtech 15323-001-9413",
+        "dateKuwait": "2026-10-25 15:57",
+        "amountKwd": 2.5,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 800529,
+        "orderName": "CSC-CC/99373187",
+        "posRef": "Grubtech 15323-000-9334",
+        "dateKuwait": "2026-10-25 12:39",
+        "amountKwd": 5,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 788225,
+        "orderName": "CSC-CC/99367944",
+        "posRef": "Grubtech 15125-004-4111",
+        "dateKuwait": "2026-10-15 15:13",
+        "amountKwd": 5.75,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      }
+    ],
+    "assima|talabat-tmp": [
+      {
+        "orderId": 557017,
+        "orderName": "CSC-CC/99247065",
+        "posRef": "Grubtech 11163-000-3967",
+        "dateKuwait": "2026-02-25 16:39",
+        "amountKwd": 10.15,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 555544,
+        "orderName": "CSC-CC/99246050",
+        "posRef": "Grubtech 11103-003-2960",
+        "dateKuwait": "2026-02-22 16:50",
+        "amountKwd": 10.8,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      }
+    ],
+    "assima|jahez": [
+      {
+        "orderId": 816779,
+        "orderName": "CSC-CC/99379626",
+        "posRef": "Grubtech 15589-003-5745",
+        "dateKuwait": "2026-11-06 21:37",
+        "amountKwd": 9.45,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 763682,
+        "orderName": "CSC-CC/99357130",
+        "posRef": "Grubtech 14686-009-3352",
+        "dateKuwait": "2026-09-21 19:36",
+        "amountKwd": 3.55,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 762128,
+        "orderName": "CSC-CC/99356375",
+        "posRef": "Grubtech 14655-001-2601",
+        "dateKuwait": "2026-09-19 17:50",
+        "amountKwd": 5.45,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 742969,
+        "orderName": "CSC-CC/99347738",
+        "posRef": "Grubtech 14300-003-4014",
+        "dateKuwait": "2026-08-29 17:51",
+        "amountKwd": 1.95,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 727880,
+        "orderName": "CSC-CC/99340367",
+        "posRef": "Grubtech 14010-015-6701",
+        "dateKuwait": "2026-08-12 20:38",
+        "amountKwd": 10.7,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      }
+    ],
+    "promenade|deliveroo": [
+      {
+        "orderId": 820527,
+        "orderName": "CSC-CC/99381502",
+        "posRef": "Grubtech 15656-009-7612",
+        "dateKuwait": "2026-11-10 22:03",
+        "amountKwd": 5.55,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820468,
+        "orderName": "CSC-CC/99381458",
+        "posRef": "Grubtech 15656-007-7568",
+        "dateKuwait": "2026-11-10 20:59",
+        "amountKwd": 5,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820446,
+        "orderName": "CSC-CC/99381446",
+        "posRef": "Grubtech 15656-006-7556",
+        "dateKuwait": "2026-11-10 20:42",
+        "amountKwd": 6.25,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820251,
+        "orderName": "CSC-CC/99381323",
+        "posRef": "Grubtech 15656-005-7433",
+        "dateKuwait": "2026-11-10 18:30",
+        "amountKwd": 17,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820248,
+        "orderName": "CSC-CC/99381321",
+        "posRef": "Grubtech 15656-005-7431",
+        "dateKuwait": "2026-11-10 18:25",
+        "amountKwd": 2.5,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      }
+    ],
+    "promenade|talabat-tgo": [
+      {
+        "orderId": 820640,
+        "orderName": "CSC-CC/99381603",
+        "posRef": "Grubtech 15656-010-7713",
+        "dateKuwait": "2026-11-11 01:34",
+        "amountKwd": 5.1,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820623,
+        "orderName": "CSC-CC/99381586",
+        "posRef": "Grubtech 15656-010-7696",
+        "dateKuwait": "2026-11-11 00:41",
+        "amountKwd": 5.665,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820618,
+        "orderName": "CSC-CC/99381581",
+        "posRef": "Grubtech 15656-010-7691",
+        "dateKuwait": "2026-11-11 00:35",
+        "amountKwd": 8.15,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820610,
+        "orderName": "CSC-CC/99381573",
+        "posRef": "Grubtech 15656-010-7683",
+        "dateKuwait": "2026-11-11 00:14",
+        "amountKwd": 6.95,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820609,
+        "orderName": "CSC-CC/99381572",
+        "posRef": "Grubtech 15656-010-7682",
+        "dateKuwait": "2026-11-11 00:13",
+        "amountKwd": 8.9,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      }
+    ],
+    "promenade|keeta": [
+      {
+        "orderId": 820646,
+        "orderName": "CSC-CC/99381609",
+        "posRef": "Grubtech 15656-010-7719",
+        "dateKuwait": "2026-11-11 02:00",
+        "amountKwd": 8.9,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820641,
+        "orderName": "CSC-CC/99381604",
+        "posRef": "Grubtech 15656-010-7714",
+        "dateKuwait": "2026-11-11 01:43",
+        "amountKwd": 5.75,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820639,
+        "orderName": "CSC-CC/99381602",
+        "posRef": "Grubtech 15656-010-7712",
+        "dateKuwait": "2026-11-11 01:29",
+        "amountKwd": 8.25,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820636,
+        "orderName": "CSC-CC/99381599",
+        "posRef": "Grubtech 15656-010-7709",
+        "dateKuwait": "2026-11-11 01:19",
+        "amountKwd": 4,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820633,
+        "orderName": "CSC-CC/99381596",
+        "posRef": "Grubtech 15656-010-7706",
+        "dateKuwait": "2026-11-11 01:15",
+        "amountKwd": 3.7,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "franks"
+      }
+    ],
+    "promenade|talabat-tmp": [
+      {
+        "orderId": 817927,
+        "orderName": "CSC-CC/99380292",
+        "posRef": "Grubtech 15604-005-6408",
+        "dateKuwait": "2026-11-08 00:38",
+        "amountKwd": 11.65,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 817912,
+        "orderName": "CSC-CC/99380277",
+        "posRef": "Grubtech 15604-005-6393",
+        "dateKuwait": "2026-11-08 00:05",
+        "amountKwd": 9.45,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 817020,
+        "orderName": "CSC-CC/99379784",
+        "posRef": "Grubtech 15589-005-5902",
+        "dateKuwait": "2026-11-07 01:25",
+        "amountKwd": 9.75,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 816987,
+        "orderName": "CSC-CC/99379751",
+        "posRef": "Grubtech 15589-004-5869",
+        "dateKuwait": "2026-11-07 00:09",
+        "amountKwd": 8,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 816902,
+        "orderName": "CSC-CC/99379686",
+        "posRef": "Grubtech 15589-003-5805",
+        "dateKuwait": "2026-11-06 22:38",
+        "amountKwd": 7.55,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      }
+    ],
+    "assima|talabat-tgo": [
+      {
+        "orderId": 820539,
+        "orderName": "CSC-CC/99381508",
+        "posRef": "Grubtech 15656-009-7618",
+        "dateKuwait": "2026-11-10 22:10",
+        "amountKwd": 7,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820487,
+        "orderName": "CSC-CC/99381473",
+        "posRef": "Grubtech 15656-008-7583",
+        "dateKuwait": "2026-11-10 21:22",
+        "amountKwd": 7.4,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820481,
+        "orderName": "CSC-CC/99381469",
+        "posRef": "Grubtech 15656-008-7579",
+        "dateKuwait": "2026-11-10 21:15",
+        "amountKwd": 5.35,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820476,
+        "orderName": "CSC-CC/99381465",
+        "posRef": "Grubtech 15656-008-7575",
+        "dateKuwait": "2026-11-10 21:11",
+        "amountKwd": 9.7,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820429,
+        "orderName": "CSC-CC/99381433",
+        "posRef": "Grubtech 15656-006-7543",
+        "dateKuwait": "2026-11-10 20:32",
+        "amountKwd": 2.95,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      }
+    ],
+    "assima|deliveroo": [
+      {
+        "orderId": 818373,
+        "orderName": "CSC-CC/99380473",
+        "posRef": "Grubtech 15614-003-6588",
+        "dateKuwait": "2026-11-08 18:31",
+        "amountKwd": 7.5,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 817777,
+        "orderName": "CSC-CC/99380168",
+        "posRef": "Grubtech 15604-004-6284",
+        "dateKuwait": "2026-11-07 21:21",
+        "amountKwd": 4.45,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 817053,
+        "orderName": "CSC-CC/99379809",
+        "posRef": "Grubtech 15604-000-5927",
+        "dateKuwait": "2026-11-07 11:49",
+        "amountKwd": 12.05,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 814154,
+        "orderName": "CSC-CC/99378578",
+        "posRef": "Grubtech 15530-006-4699",
+        "dateKuwait": "2026-11-04 21:40",
+        "amountKwd": 6.95,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 812004,
+        "orderName": "CSC-CC/99377661",
+        "posRef": "Grubtech 15484-007-3788",
+        "dateKuwait": "2026-11-02 21:56",
+        "amountKwd": 10.5,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      }
+    ],
+    "360-mall|deliveroo": [
+      {
+        "orderId": 820565,
+        "orderName": "CSC-CC/99381529",
+        "posRef": "Grubtech 15656-009-7639",
+        "dateKuwait": "2026-11-10 22:35",
+        "amountKwd": 13.9,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820375,
+        "orderName": "CSC-CC/99381401",
+        "posRef": "Grubtech 15656-005-7511",
+        "dateKuwait": "2026-11-10 20:00",
+        "amountKwd": 2.65,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820280,
+        "orderName": "CSC-CC/99381342",
+        "posRef": "Grubtech 15656-005-7452",
+        "dateKuwait": "2026-11-10 18:54",
+        "amountKwd": 2.5,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 819997,
+        "orderName": "CSC-CC/99381202",
+        "posRef": "Grubtech 15656-004-7312",
+        "dateKuwait": "2026-11-10 14:05",
+        "amountKwd": 5,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 819506,
+        "orderName": "CSC-CC/99381011",
+        "posRef": "Grubtech 15638-008-7121",
+        "dateKuwait": "2026-11-09 21:26",
+        "amountKwd": 7.75,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      }
+    ],
+    "360-mall|jahez": [
+      {
+        "orderId": 818520,
+        "orderName": "CSC-CC/99380573",
+        "posRef": "Grubtech 15614-003-6688",
+        "dateKuwait": "2026-11-08 20:54",
+        "amountKwd": 35.5,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 818225,
+        "orderName": "CSC-CC/99380402",
+        "posRef": "Grubtech 15614-002-6517",
+        "dateKuwait": "2026-11-08 15:12",
+        "amountKwd": 6,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 815130,
+        "orderName": "CSC-CC/99378924",
+        "posRef": "Grubtech 15554-005-5043",
+        "dateKuwait": "2026-11-05 19:03",
+        "amountKwd": 13.3,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 814031,
+        "orderName": "CSC-CC/99378511",
+        "posRef": "Grubtech 15530-005-4633",
+        "dateKuwait": "2026-11-04 20:19",
+        "amountKwd": 8.35,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 813947,
+        "orderName": "CSC-CC/99378448",
+        "posRef": "Grubtech 15530-005-4571",
+        "dateKuwait": "2026-11-04 19:14",
+        "amountKwd": 7.05,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      }
+    ],
+    "assima|keeta": [
+      {
+        "orderId": 820319,
+        "orderName": "CSC-CC/99381362",
+        "posRef": "Grubtech 15656-005-7472",
+        "dateKuwait": "2026-11-10 19:20",
+        "amountKwd": 6.75,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820271,
+        "orderName": "CSC-CC/99381335",
+        "posRef": "Grubtech 15656-005-7445",
+        "dateKuwait": "2026-11-10 18:44",
+        "amountKwd": 5.9,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820151,
+        "orderName": "CSC-CC/99381277",
+        "posRef": "Grubtech 15656-004-7387",
+        "dateKuwait": "2026-11-10 16:50",
+        "amountKwd": 7.1,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820044,
+        "orderName": "CSC-CC/99381229",
+        "posRef": "Grubtech 15656-004-7339",
+        "dateKuwait": "2026-11-10 14:54",
+        "amountKwd": 2.5,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 819913,
+        "orderName": "CSC-CC/99381179",
+        "posRef": "Grubtech 15656-003-7289",
+        "dateKuwait": "2026-11-10 13:01",
+        "amountKwd": 3,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      }
+    ],
+    "360-mall|keeta": [
+      {
+        "orderId": 820553,
+        "orderName": "CSC-CC/99381520",
+        "posRef": "Grubtech 15656-009-7630",
+        "dateKuwait": "2026-11-10 22:23",
+        "amountKwd": 14.6,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820552,
+        "orderName": "CSC-CC/99381519",
+        "posRef": "Grubtech 15656-009-7629",
+        "dateKuwait": "2026-11-10 22:23",
+        "amountKwd": 14.35,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820542,
+        "orderName": "CSC-CC/99381511",
+        "posRef": "Grubtech 15656-009-7621",
+        "dateKuwait": "2026-11-10 22:15",
+        "amountKwd": 12.25,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820480,
+        "orderName": "CSC-CC/99381468",
+        "posRef": "Grubtech 15656-008-7578",
+        "dateKuwait": "2026-11-10 21:15",
+        "amountKwd": 5,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820470,
+        "orderName": "CSC-CC/99381460",
+        "posRef": "Grubtech 15656-007-7570",
+        "dateKuwait": "2026-11-10 20:59",
+        "amountKwd": 3.95,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      }
+    ],
+    "360-mall|talabat-tgo": [
+      {
+        "orderId": 820595,
+        "orderName": "CSC-CC/99381558",
+        "posRef": "Grubtech 15656-009-7668",
+        "dateKuwait": "2026-11-10 23:47",
+        "amountKwd": 12.75,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820592,
+        "orderName": "CSC-CC/99381555",
+        "posRef": "Grubtech 15656-009-7665",
+        "dateKuwait": "2026-11-10 23:43",
+        "amountKwd": 6.3,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820588,
+        "orderName": "CSC-CC/99381551",
+        "posRef": "Grubtech 15656-009-7661",
+        "dateKuwait": "2026-11-10 23:28",
+        "amountKwd": 4,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820581,
+        "orderName": "CSC-CC/99381544",
+        "posRef": "Grubtech 15656-009-7654",
+        "dateKuwait": "2026-11-10 23:15",
+        "amountKwd": 7.9,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820570,
+        "orderName": "CSC-CC/99381534",
+        "posRef": "Grubtech 15656-009-7644",
+        "dateKuwait": "2026-11-10 22:46",
+        "amountKwd": 8.3,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      }
+    ],
+    "360-mall|talabat-tmp": [
+      {
+        "orderId": 663824,
+        "orderName": "CSC-CC/99308505",
+        "posRef": "Grubtech 12904-009-5052",
+        "dateKuwait": "2026-06-07 19:50",
+        "amountKwd": 42.55,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 569634,
+        "orderName": "CSC-CC/99256023",
+        "posRef": "Grubtech 11500-010-2878",
+        "dateKuwait": "2026-03-17 14:48",
+        "amountKwd": 22.25,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 559520,
+        "orderName": "CSC-CC/99248323",
+        "posRef": "Grubtech 11221-004-5213",
+        "dateKuwait": "2026-02-28 16:42",
+        "amountKwd": 8.05,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 559456,
+        "orderName": "CSC-CC/99248261",
+        "posRef": "Grubtech 11221-002-5153",
+        "dateKuwait": "2026-02-28 14:10",
+        "amountKwd": 8.85,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 533154,
+        "orderName": "CSC-CC/99233557",
+        "posRef": "Grubtech 10555-002-0531",
+        "dateKuwait": "2026-01-30 11:49",
+        "amountKwd": 10.5,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      }
+    ],
+    "360-mall|snoonu": [
+      {
+        "orderId": 817161,
+        "orderName": "CSC-CC/99379870",
+        "posRef": "Grubtech 15604-000-5988",
+        "dateKuwait": "2026-11-07 13:56",
+        "amountKwd": 4.64,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 815711,
+        "orderName": "CSC-CC/99379233",
+        "posRef": "Grubtech 15589-000-5352",
+        "dateKuwait": "2026-11-06 12:19",
+        "amountKwd": 9.975,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 799714,
+        "orderName": "CSC-CC/99372892",
+        "posRef": "Grubtech 15290-006-9040",
+        "dateKuwait": "2026-10-24 19:25",
+        "amountKwd": 10.45,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 795664,
+        "orderName": "CSC-CC/99371196",
+        "posRef": "Grubtech 15236-006-7346",
+        "dateKuwait": "2026-10-21 20:10",
+        "amountKwd": 8.5,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 794386,
+        "orderName": "CSC-CC/99370633",
+        "posRef": "Grubtech 15215-003-6784",
+        "dateKuwait": "2026-10-20 18:59",
+        "amountKwd": 7.49,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      }
+    ],
+    "al-kout|snoonu": [
+      {
+        "orderId": 813921,
+        "orderName": "CSC-CC/99378436",
+        "posRef": "Grubtech 15530-005-4559",
+        "dateKuwait": "2026-11-04 18:57",
+        "amountKwd": 11.15,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 802755,
+        "orderName": "CSC-CC/99374077",
+        "posRef": "Grubtech 15333-005-0221",
+        "dateKuwait": "2026-10-27 01:59",
+        "amountKwd": 2,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "noodle-bar"
+      },
+      {
+        "orderId": 791473,
+        "orderName": "CSC-CC/99369526",
+        "posRef": "Grubtech 15168-007-5683",
+        "dateKuwait": "2026-10-18 00:39",
+        "amountKwd": 2.515,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "noodle-bar"
+      },
+      {
+        "orderId": 787234,
+        "orderName": "CSC-CC/99367502",
+        "posRef": "Grubtech 15105-007-3669",
+        "dateKuwait": "2026-10-14 18:21",
+        "amountKwd": 6.5,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 784311,
+        "orderName": "CSC-CC/99366177",
+        "posRef": "Grubtech 15058-002-2349",
+        "dateKuwait": "2026-10-11 20:21",
+        "amountKwd": 9.25,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      }
+    ],
+    "salmiya|talabat-tmp": [
+      {
+        "orderId": 817554,
+        "orderName": "CSC-CC/99380042",
+        "posRef": "Grubtech 15604-002-6160",
+        "dateKuwait": "2026-11-07 18:41",
+        "amountKwd": 11.2,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 815084,
+        "orderName": "CSC-CC/99378902",
+        "posRef": "Grubtech 15554-005-5021",
+        "dateKuwait": "2026-11-05 18:26",
+        "amountKwd": 7.5,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 798624,
+        "orderName": "CSC-CC/99372421",
+        "posRef": "Grubtech 15273-010-8569",
+        "dateKuwait": "2026-10-23 21:20",
+        "amountKwd": 10.5,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 797089,
+        "orderName": "CSC-CC/99371737",
+        "posRef": "Grubtech 15255-010-7885",
+        "dateKuwait": "2026-10-22 20:07",
+        "amountKwd": 13.25,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 795605,
+        "orderName": "CSC-CC/99371165",
+        "posRef": "Grubtech 15236-006-7315",
+        "dateKuwait": "2026-10-21 19:40",
+        "amountKwd": 7.7,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      }
+    ],
+    "salmiya|snoonu": [
+      {
+        "orderId": 820645,
+        "orderName": "CSC-CC/99381608",
+        "posRef": "Grubtech 15656-010-7718",
+        "dateKuwait": "2026-11-11 01:57",
+        "amountKwd": 6.19,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 819929,
+        "orderName": "CSC-CC/99381184",
+        "posRef": "Grubtech 15656-003-7294",
+        "dateKuwait": "2026-11-10 13:09",
+        "amountKwd": 10.525,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 819656,
+        "orderName": "CSC-CC/99381135",
+        "posRef": "Grubtech 15638-009-7245",
+        "dateKuwait": "2026-11-10 01:31",
+        "amountKwd": 3.675,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 818453,
+        "orderName": "CSC-CC/99380530",
+        "posRef": "Grubtech 15614-003-6645",
+        "dateKuwait": "2026-11-08 19:57",
+        "amountKwd": 2.55,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "karak-cafeteria"
+      },
+      {
+        "orderId": 818303,
+        "orderName": "CSC-CC/99380431",
+        "posRef": "Grubtech 15614-002-6546",
+        "dateKuwait": "2026-11-08 16:54",
+        "amountKwd": 9.31,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "franks"
+      }
+    ],
+    "salmiya|jahez": [
+      {
+        "orderId": 817015,
+        "orderName": "CSC-CC/99379779",
+        "posRef": "Grubtech 15589-005-5897",
+        "dateKuwait": "2026-11-07 01:12",
+        "amountKwd": 4.15,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 801335,
+        "orderName": "CSC-CC/99373571",
+        "posRef": "Grubtech 15323-003-9717",
+        "dateKuwait": "2026-10-25 23:39",
+        "amountKwd": 2.95,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 787285,
+        "orderName": "CSC-CC/99367532",
+        "posRef": "Grubtech 15105-008-3699",
+        "dateKuwait": "2026-10-14 19:15",
+        "amountKwd": 14.25,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 768142,
+        "orderName": "CSC-CC/99359114",
+        "posRef": "Grubtech 14777-003-5323",
+        "dateKuwait": "2026-09-26 13:41",
+        "amountKwd": 14.25,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "karak-cafeteria"
+      },
+      {
+        "orderId": 765011,
+        "orderName": "CSC-CC/99357763",
+        "posRef": "Grubtech 14734-003-3980",
+        "dateKuwait": "2026-09-23 16:37",
+        "amountKwd": 3,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      }
+    ],
+    "salmiya|keeta": [
+      {
+        "orderId": 820644,
+        "orderName": "CSC-CC/99381607",
+        "posRef": "Grubtech 15656-010-7717",
+        "dateKuwait": "2026-11-11 01:54",
+        "amountKwd": 2.5,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820630,
+        "orderName": "CSC-CC/99381593",
+        "posRef": "Grubtech 15656-010-7703",
+        "dateKuwait": "2026-11-11 01:04",
+        "amountKwd": 2.5,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820582,
+        "orderName": "CSC-CC/99381545",
+        "posRef": "Grubtech 15656-009-7655",
+        "dateKuwait": "2026-11-10 23:15",
+        "amountKwd": 8.9,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 820482,
+        "orderName": "CSC-CC/99381470",
+        "posRef": "Grubtech 15656-008-7580",
+        "dateKuwait": "2026-11-10 21:17",
+        "amountKwd": 6.25,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 820453,
+        "orderName": "CSC-CC/99381452",
+        "posRef": "Grubtech 15656-006-7562",
+        "dateKuwait": "2026-11-10 20:46",
+        "amountKwd": 4,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      }
+    ],
+    "salmiya|deliveroo": [
+      {
+        "orderId": 820635,
+        "orderName": "CSC-CC/99381598",
+        "posRef": "Grubtech 15656-010-7708",
+        "dateKuwait": "2026-11-11 01:18",
+        "amountKwd": 6.2,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820077,
+        "orderName": "CSC-CC/99381245",
+        "posRef": "Grubtech 15656-004-7355",
+        "dateKuwait": "2026-11-10 15:31",
+        "amountKwd": 4.5,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 818433,
+        "orderName": "CSC-CC/99380515",
+        "posRef": "Grubtech 15614-003-6630",
+        "dateKuwait": "2026-11-08 19:39",
+        "amountKwd": 24.95,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 817872,
+        "orderName": "CSC-CC/99380238",
+        "posRef": "Grubtech 15604-005-6354",
+        "dateKuwait": "2026-11-07 22:52",
+        "amountKwd": 3.5,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 817404,
+        "orderName": "CSC-CC/99379968",
+        "posRef": "Grubtech 15604-000-6086",
+        "dateKuwait": "2026-11-07 16:41",
+        "amountKwd": 4.25,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      }
+    ],
+    "al-kout|jahez": [
+      {
+        "orderId": 820554,
+        "orderName": "CSC-CC/99381521",
+        "posRef": "Grubtech 15656-009-7631",
+        "dateKuwait": "2026-11-10 22:24",
+        "amountKwd": 7.7,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820421,
+        "orderName": "CSC-CC/99381427",
+        "posRef": "Grubtech 15656-006-7537",
+        "dateKuwait": "2026-11-10 20:27",
+        "amountKwd": 6.25,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 819620,
+        "orderName": "CSC-CC/99381100",
+        "posRef": "Grubtech 15638-008-7210",
+        "dateKuwait": "2026-11-09 23:29",
+        "amountKwd": 5,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 819478,
+        "orderName": "CSC-CC/99380995",
+        "posRef": "Grubtech 15638-008-7105",
+        "dateKuwait": "2026-11-09 21:04",
+        "amountKwd": 5.45,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 819206,
+        "orderName": "CSC-CC/99380858",
+        "posRef": "Grubtech 15638-006-6970",
+        "dateKuwait": "2026-11-09 17:10",
+        "amountKwd": 5.85,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      }
+    ],
+    "salmiya|talabat-tgo": [
+      {
+        "orderId": 820632,
+        "orderName": "CSC-CC/99381595",
+        "posRef": "Grubtech 15656-010-7705",
+        "dateKuwait": "2026-11-11 01:12",
+        "amountKwd": 12.865,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820611,
+        "orderName": "CSC-CC/99381574",
+        "posRef": "Grubtech 15656-010-7684",
+        "dateKuwait": "2026-11-11 00:22",
+        "amountKwd": 8.3,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820607,
+        "orderName": "CSC-CC/99381570",
+        "posRef": "Grubtech 15656-010-7680",
+        "dateKuwait": "2026-11-11 00:12",
+        "amountKwd": 4,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820604,
+        "orderName": "CSC-CC/99381567",
+        "posRef": "Grubtech 15656-010-7677",
+        "dateKuwait": "2026-11-11 00:08",
+        "amountKwd": 3.5,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820603,
+        "orderName": "CSC-CC/99381566",
+        "posRef": "Grubtech 15656-010-7676",
+        "dateKuwait": "2026-11-11 00:07",
+        "amountKwd": 15.55,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      }
+    ],
+    "al-kout|talabat-tmp": [
+      {
+        "orderId": 810949,
+        "orderName": "CSC-CC/99377279",
+        "posRef": "Grubtech 15472-007-3408",
+        "dateKuwait": "2026-11-01 23:59",
+        "amountKwd": 9.15,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 790331,
+        "orderName": "CSC-CC/99368900",
+        "posRef": "Grubtech 15148-004-5059",
+        "dateKuwait": "2026-10-16 22:23",
+        "amountKwd": 7.4,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 781777,
+        "orderName": "CSC-CC/99364972",
+        "posRef": "Grubtech 15015-002-1149",
+        "dateKuwait": "2026-10-09 16:17",
+        "amountKwd": 14.05,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 778799,
+        "orderName": "CSC-CC/99363683",
+        "posRef": "Grubtech 14960-018-9865",
+        "dateKuwait": "2026-10-06 20:17",
+        "amountKwd": 5.55,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 776825,
+        "orderName": "CSC-CC/99362841",
+        "posRef": "Grubtech 14923-007-9029",
+        "dateKuwait": "2026-10-04 19:27",
+        "amountKwd": 9.35,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      }
+    ],
+    "al-kout|deliveroo": [
+      {
+        "orderId": 818535,
+        "orderName": "CSC-CC/99380587",
+        "posRef": "Grubtech 15614-003-6702",
+        "dateKuwait": "2026-11-08 21:08",
+        "amountKwd": 9.55,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 818390,
+        "orderName": "CSC-CC/99380482",
+        "posRef": "Grubtech 15614-003-6597",
+        "dateKuwait": "2026-11-08 18:45",
+        "amountKwd": 3.8,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 808208,
+        "orderName": "CSC-CC/99376043",
+        "posRef": "Grubtech 15419-004-2180",
+        "dateKuwait": "2026-10-30 20:05",
+        "amountKwd": 4.35,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 807526,
+        "orderName": "CSC-CC/99375827",
+        "posRef": "Grubtech 15419-002-1964",
+        "dateKuwait": "2026-10-30 14:30",
+        "amountKwd": 3.8,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 805160,
+        "orderName": "CSC-CC/99374925",
+        "posRef": "Grubtech 15375-011-1063",
+        "dateKuwait": "2026-10-28 20:58",
+        "amountKwd": 3.45,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      }
+    ],
+    "al-kout|talabat-tgo": [
+      {
+        "orderId": 820631,
+        "orderName": "CSC-CC/99381594",
+        "posRef": "Grubtech 15656-010-7704",
+        "dateKuwait": "2026-11-11 01:11",
+        "amountKwd": 5.2,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820621,
+        "orderName": "CSC-CC/99381584",
+        "posRef": "Grubtech 15656-010-7694",
+        "dateKuwait": "2026-11-11 00:37",
+        "amountKwd": 2.8,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820587,
+        "orderName": "CSC-CC/99381550",
+        "posRef": "Grubtech 15656-009-7660",
+        "dateKuwait": "2026-11-10 23:22",
+        "amountKwd": 4.15,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820580,
+        "orderName": "CSC-CC/99381543",
+        "posRef": "Grubtech 15656-009-7653",
+        "dateKuwait": "2026-11-10 23:08",
+        "amountKwd": 2.25,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820574,
+        "orderName": "CSC-CC/99381537",
+        "posRef": "Grubtech 15656-009-7647",
+        "dateKuwait": "2026-11-10 22:51",
+        "amountKwd": 9.45,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      }
+    ],
+    "al-kout|keeta": [
+      {
+        "orderId": 820642,
+        "orderName": "CSC-CC/99381605",
+        "posRef": "Grubtech 15656-010-7715",
+        "dateKuwait": "2026-11-11 01:46",
+        "amountKwd": 4.15,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820637,
+        "orderName": "CSC-CC/99381600",
+        "posRef": "Grubtech 15656-010-7710",
+        "dateKuwait": "2026-11-11 01:25",
+        "amountKwd": 2.5,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820634,
+        "orderName": "CSC-CC/99381597",
+        "posRef": "Grubtech 15656-010-7707",
+        "dateKuwait": "2026-11-11 01:17",
+        "amountKwd": 2,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820596,
+        "orderName": "CSC-CC/99381559",
+        "posRef": "Grubtech 15656-009-7669",
+        "dateKuwait": "2026-11-10 23:51",
+        "amountKwd": 3.05,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820589,
+        "orderName": "CSC-CC/99381552",
+        "posRef": "Grubtech 15656-009-7662",
+        "dateKuwait": "2026-11-10 23:30",
+        "amountKwd": 6.25,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      }
+    ]
+  },
+  "lastReceiptsByLocBrandChannel": {
+    "promenade|china-garden|jahez": [
+      {
+        "orderId": 818701,
+        "orderName": "CSC-CC/99380729",
+        "posRef": "Grubtech 15614-005-6843",
+        "dateKuwait": "2026-11-09 01:47",
+        "amountKwd": 13.85,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 814006,
+        "orderName": "CSC-CC/99378494",
+        "posRef": "Grubtech 15530-005-4616",
+        "dateKuwait": "2026-11-04 19:56",
+        "amountKwd": 11.7,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 812343,
+        "orderName": "CSC-CC/99377773",
+        "posRef": "Grubtech 15505-002-3900",
+        "dateKuwait": "2026-11-03 11:34",
+        "amountKwd": 6.5,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 810631,
+        "orderName": "CSC-CC/99377046",
+        "posRef": "Grubtech 15472-006-3178",
+        "dateKuwait": "2026-11-01 18:42",
+        "amountKwd": 2.3,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 802686,
+        "orderName": "CSC-CC/99374009",
+        "posRef": "Grubtech 15333-005-0153",
+        "dateKuwait": "2026-10-26 23:03",
+        "amountKwd": 9,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      }
+    ],
+    "promenade|farm-brown|jahez": [
+      {
+        "orderId": 807007,
+        "orderName": "CSC-CC/99375579",
+        "posRef": "Grubtech 15399-011-1716",
+        "dateKuwait": "2026-10-29 21:46",
+        "amountKwd": 9.85,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "farm-brown"
+      }
+    ],
+    "promenade|franks|jahez": [
+      {
+        "orderId": 799838,
+        "orderName": "CSC-CC/99372954",
+        "posRef": "Grubtech 15290-008-9101",
+        "dateKuwait": "2026-10-24 20:30",
+        "amountKwd": 3.5,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 786721,
+        "orderName": "CSC-CC/99367293",
+        "posRef": "Grubtech 15105-004-3462",
+        "dateKuwait": "2026-10-14 11:04",
+        "amountKwd": 5.25,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 785458,
+        "orderName": "CSC-CC/99366733",
+        "posRef": "Grubtech 15068-019-2904",
+        "dateKuwait": "2026-10-12 22:08",
+        "amountKwd": 8.1,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 775288,
+        "orderName": "CSC-CC/99362178",
+        "posRef": "Grubtech 14887-005-8373",
+        "dateKuwait": "2026-10-03 01:46",
+        "amountKwd": 5.75,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 773014,
+        "orderName": "CSC-CC/99361129",
+        "posRef": "Grubtech 14871-002-7331",
+        "dateKuwait": "2026-10-01 14:29",
+        "amountKwd": 6.9,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "franks"
+      }
+    ],
+    "ardiya|farm-brown|snoonu": [
+      {
+        "orderId": 820629,
+        "orderName": "CSC-CC/99381592",
+        "posRef": "Grubtech 15656-010-7702",
+        "dateKuwait": "2026-11-11 00:59",
+        "amountKwd": 2.625,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "farm-brown"
+      }
+    ],
+    "ardiya|karak-cafeteria|snoonu": [
+      {
+        "orderId": 819801,
+        "orderName": "CSC-CC/99381156",
+        "posRef": "Grubtech 15656-002-7266",
+        "dateKuwait": "2026-11-10 11:53",
+        "amountKwd": 1.13,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "karak-cafeteria"
+      },
+      {
+        "orderId": 817079,
+        "orderName": "CSC-CC/99379827",
+        "posRef": "Grubtech 15604-000-5945",
+        "dateKuwait": "2026-11-07 12:29",
+        "amountKwd": 1.62,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "karak-cafeteria"
+      },
+      {
+        "orderId": 817056,
+        "orderName": "CSC-CC/99379812",
+        "posRef": "Grubtech 15604-000-5930",
+        "dateKuwait": "2026-11-07 11:54",
+        "amountKwd": 1.955,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "karak-cafeteria"
+      },
+      {
+        "orderId": 813966,
+        "orderName": "CSC-CC/99378461",
+        "posRef": "Grubtech 15530-005-4583",
+        "dateKuwait": "2026-11-04 19:30",
+        "amountKwd": 1.62,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "karak-cafeteria"
+      },
+      {
+        "orderId": 813857,
+        "orderName": "CSC-CC/99378399",
+        "posRef": "Grubtech 15530-004-4522",
+        "dateKuwait": "2026-11-04 18:09",
+        "amountKwd": 3.375,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "karak-cafeteria"
+      }
+    ],
+    "ardiya|franks|snoonu": [
+      {
+        "orderId": 819625,
+        "orderName": "CSC-CC/99381105",
+        "posRef": "Grubtech 15638-008-7215",
+        "dateKuwait": "2026-11-09 23:48",
+        "amountKwd": 5.17,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 819191,
+        "orderName": "CSC-CC/99380849",
+        "posRef": "Grubtech 15638-006-6961",
+        "dateKuwait": "2026-11-09 16:36",
+        "amountKwd": 6.49,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 818503,
+        "orderName": "CSC-CC/99380561",
+        "posRef": "Grubtech 15614-003-6676",
+        "dateKuwait": "2026-11-08 20:40",
+        "amountKwd": 3.455,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 811725,
+        "orderName": "CSC-CC/99377497",
+        "posRef": "Grubtech 15484-003-3625",
+        "dateKuwait": "2026-11-02 18:28",
+        "amountKwd": 5.425,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 810109,
+        "orderName": "CSC-CC/99376885",
+        "posRef": "Grubtech 15472-000-3018",
+        "dateKuwait": "2026-11-01 11:08",
+        "amountKwd": 5.395,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "franks"
+      }
+    ],
+    "ardiya|china-garden|snoonu": [
+      {
+        "orderId": 819534,
+        "orderName": "CSC-CC/99381027",
+        "posRef": "Grubtech 15638-008-7137",
+        "dateKuwait": "2026-11-09 21:48",
+        "amountKwd": 2.025,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 818470,
+        "orderName": "CSC-CC/99380543",
+        "posRef": "Grubtech 15614-003-6658",
+        "dateKuwait": "2026-11-08 20:11",
+        "amountKwd": 3.415,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 814717,
+        "orderName": "CSC-CC/99378754",
+        "posRef": "Grubtech 15554-004-4873",
+        "dateKuwait": "2026-11-05 13:48",
+        "amountKwd": 2.5,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 812387,
+        "orderName": "CSC-CC/99377786",
+        "posRef": "Grubtech 15505-003-3913",
+        "dateKuwait": "2026-11-03 12:29",
+        "amountKwd": 1.725,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 810886,
+        "orderName": "CSC-CC/99377219",
+        "posRef": "Grubtech 15472-007-3348",
+        "dateKuwait": "2026-11-01 22:19",
+        "amountKwd": 1.69,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      }
+    ],
+    "ardiya|franks|jahez": [
+      {
+        "orderId": 817778,
+        "orderName": "CSC-CC/99380169",
+        "posRef": "Grubtech 15604-004-6285",
+        "dateKuwait": "2026-11-07 21:21",
+        "amountKwd": 3.5,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 815314,
+        "orderName": "CSC-CC/99379003",
+        "posRef": "Grubtech 15554-006-5122",
+        "dateKuwait": "2026-11-05 20:32",
+        "amountKwd": 16.15,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 815194,
+        "orderName": "CSC-CC/99378951",
+        "posRef": "Grubtech 15554-006-5070",
+        "dateKuwait": "2026-11-05 19:36",
+        "amountKwd": 5.25,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 805431,
+        "orderName": "CSC-CC/99375086",
+        "posRef": "Grubtech 15375-013-1223",
+        "dateKuwait": "2026-10-29 00:34",
+        "amountKwd": 23.9,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 803785,
+        "orderName": "CSC-CC/99374399",
+        "posRef": "Grubtech 15354-005-0541",
+        "dateKuwait": "2026-10-27 20:46",
+        "amountKwd": 13,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "franks"
+      }
+    ],
+    "ardiya|china-garden|jahez": [
+      {
+        "orderId": 796659,
+        "orderName": "CSC-CC/99371549",
+        "posRef": "Grubtech 15255-006-7698",
+        "dateKuwait": "2026-10-22 15:48",
+        "amountKwd": 14.55,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 790903,
+        "orderName": "CSC-CC/99369205",
+        "posRef": "Grubtech 15168-004-5363",
+        "dateKuwait": "2026-10-17 16:39",
+        "amountKwd": 2.25,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 784876,
+        "orderName": "CSC-CC/99366400",
+        "posRef": "Grubtech 15068-017-2572",
+        "dateKuwait": "2026-10-12 13:31",
+        "amountKwd": 6.45,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 781239,
+        "orderName": "CSC-CC/99364678",
+        "posRef": "Grubtech 14998-010-0856",
+        "dateKuwait": "2026-10-08 22:35",
+        "amountKwd": 7,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 770675,
+        "orderName": "CSC-CC/99360206",
+        "posRef": "Grubtech 14814-005-6410",
+        "dateKuwait": "2026-09-28 23:02",
+        "amountKwd": 11.2,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      }
+    ],
+    "ardiya|karak-cafeteria|jahez": [
+      {
+        "orderId": 776576,
+        "orderName": "CSC-CC/99362704",
+        "posRef": "Grubtech 14923-003-8893",
+        "dateKuwait": "2026-10-04 14:32",
+        "amountKwd": 1.9,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "karak-cafeteria"
+      },
+      {
+        "orderId": 754471,
+        "orderName": "CSC-CC/99352998",
+        "posRef": "Grubtech 14516-000-9249",
+        "dateKuwait": "2026-09-11 09:58",
+        "amountKwd": 2.05,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "karak-cafeteria"
+      }
+    ],
+    "ardiya|china-garden|talabat-tgo": [
+      {
+        "orderId": 820605,
+        "orderName": "CSC-CC/99381568",
+        "posRef": "Grubtech 15656-010-7678",
+        "dateKuwait": "2026-11-11 00:11",
+        "amountKwd": 7.7,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820593,
+        "orderName": "CSC-CC/99381556",
+        "posRef": "Grubtech 15656-009-7666",
+        "dateKuwait": "2026-11-10 23:44",
+        "amountKwd": 4.3,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820583,
+        "orderName": "CSC-CC/99381546",
+        "posRef": "Grubtech 15656-009-7656",
+        "dateKuwait": "2026-11-10 23:16",
+        "amountKwd": 12.15,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820546,
+        "orderName": "CSC-CC/99381515",
+        "posRef": "Grubtech 15656-009-7625",
+        "dateKuwait": "2026-11-10 22:18",
+        "amountKwd": 6.85,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820501,
+        "orderName": "CSC-CC/99381484",
+        "posRef": "Grubtech 15656-008-7594",
+        "dateKuwait": "2026-11-10 21:38",
+        "amountKwd": 15.1,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      }
+    ],
+    "ardiya|noodle-bar|talabat-tgo": [
+      {
+        "orderId": 820399,
+        "orderName": "CSC-CC/99381413",
+        "posRef": "Grubtech 15656-006-7523",
+        "dateKuwait": "2026-11-10 20:14",
+        "amountKwd": 9.1,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "noodle-bar"
+      },
+      {
+        "orderId": 820391,
+        "orderName": "CSC-CC/99381409",
+        "posRef": "Grubtech 15656-006-7519",
+        "dateKuwait": "2026-11-10 20:09",
+        "amountKwd": 3.25,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "noodle-bar"
+      }
+    ],
+    "ardiya|franks|talabat-tgo": [
+      {
+        "orderId": 820253,
+        "orderName": "CSC-CC/99381325",
+        "posRef": "Grubtech 15656-005-7435",
+        "dateKuwait": "2026-11-10 18:33",
+        "amountKwd": 4.95,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 820120,
+        "orderName": "CSC-CC/99381262",
+        "posRef": "Grubtech 15656-004-7372",
+        "dateKuwait": "2026-11-10 16:14",
+        "amountKwd": 5.4,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "franks"
+      }
+    ],
+    "promenade|china-garden|snoonu": [
+      {
+        "orderId": 818965,
+        "orderName": "CSC-CC/99380756",
+        "posRef": "Grubtech 15638-004-6870",
+        "dateKuwait": "2026-11-09 12:50",
+        "amountKwd": 2.5,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 817823,
+        "orderName": "CSC-CC/99380200",
+        "posRef": "Grubtech 15604-004-6316",
+        "dateKuwait": "2026-11-07 21:54",
+        "amountKwd": 4.975,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 817565,
+        "orderName": "CSC-CC/99380047",
+        "posRef": "Grubtech 15604-002-6165",
+        "dateKuwait": "2026-11-07 18:50",
+        "amountKwd": 3.6,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 815792,
+        "orderName": "CSC-CC/99379282",
+        "posRef": "Grubtech 15589-000-5401",
+        "dateKuwait": "2026-11-06 13:35",
+        "amountKwd": 5.94,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 810325,
+        "orderName": "CSC-CC/99376910",
+        "posRef": "Grubtech 15472-003-3043",
+        "dateKuwait": "2026-11-01 13:13",
+        "amountKwd": 5.4,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      }
+    ],
+    "promenade|franks|snoonu": [
+      {
+        "orderId": 817334,
+        "orderName": "CSC-CC/99379943",
+        "posRef": "Grubtech 15604-000-6061",
+        "dateKuwait": "2026-11-07 15:50",
+        "amountKwd": 3.27,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 815580,
+        "orderName": "CSC-CC/99379120",
+        "posRef": "Grubtech 15554-007-5239",
+        "dateKuwait": "2026-11-05 22:52",
+        "amountKwd": 7.315,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 814200,
+        "orderName": "CSC-CC/99378613",
+        "posRef": "Grubtech 15530-011-4734",
+        "dateKuwait": "2026-11-04 22:28",
+        "amountKwd": 5.365,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 814098,
+        "orderName": "CSC-CC/99378541",
+        "posRef": "Grubtech 15530-005-4663",
+        "dateKuwait": "2026-11-04 21:01",
+        "amountKwd": 13.47,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 813776,
+        "orderName": "CSC-CC/99378357",
+        "posRef": "Grubtech 15530-003-4480",
+        "dateKuwait": "2026-11-04 16:51",
+        "amountKwd": 9.16,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "franks"
+      }
+    ],
+    "promenade|karak-cafeteria|snoonu": [
+      {
+        "orderId": 796341,
+        "orderName": "CSC-CC/99371430",
+        "posRef": "Grubtech 15255-004-7579",
+        "dateKuwait": "2026-10-22 12:33",
+        "amountKwd": 2.56,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "karak-cafeteria"
+      }
+    ],
+    "ardiya|karak-cafeteria|keeta": [
+      {
+        "orderId": 820694,
+        "orderName": "CSC-CC/99381613",
+        "posRef": "Grubtech 15677-000-7723",
+        "dateKuwait": "2026-11-11 09:46",
+        "amountKwd": 2.4,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "karak-cafeteria"
+      }
+    ],
+    "ardiya|china-garden|keeta": [
+      {
+        "orderId": 820643,
+        "orderName": "CSC-CC/99381606",
+        "posRef": "Grubtech 15656-010-7716",
+        "dateKuwait": "2026-11-11 01:52",
+        "amountKwd": 2,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820625,
+        "orderName": "CSC-CC/99381588",
+        "posRef": "Grubtech 15656-010-7698",
+        "dateKuwait": "2026-11-11 00:43",
+        "amountKwd": 7.45,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820620,
+        "orderName": "CSC-CC/99381583",
+        "posRef": "Grubtech 15656-010-7693",
+        "dateKuwait": "2026-11-11 00:37",
+        "amountKwd": 2.5,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820615,
+        "orderName": "CSC-CC/99381578",
+        "posRef": "Grubtech 15656-010-7688",
+        "dateKuwait": "2026-11-11 00:25",
+        "amountKwd": 3.05,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820613,
+        "orderName": "CSC-CC/99381576",
+        "posRef": "Grubtech 15656-010-7686",
+        "dateKuwait": "2026-11-11 00:24",
+        "amountKwd": 2,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      }
+    ],
+    "ardiya|franks|keeta": [
+      {
+        "orderId": 820614,
+        "orderName": "CSC-CC/99381577",
+        "posRef": "Grubtech 15656-010-7687",
+        "dateKuwait": "2026-11-11 00:25",
+        "amountKwd": 5.25,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 820569,
+        "orderName": "CSC-CC/99381533",
+        "posRef": "Grubtech 15656-009-7643",
+        "dateKuwait": "2026-11-10 22:45",
+        "amountKwd": 7.95,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 820507,
+        "orderName": "CSC-CC/99381488",
+        "posRef": "Grubtech 15656-008-7598",
+        "dateKuwait": "2026-11-10 21:41",
+        "amountKwd": 14.2,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 820483,
+        "orderName": "CSC-CC/99381471",
+        "posRef": "Grubtech 15656-008-7581",
+        "dateKuwait": "2026-11-10 21:20",
+        "amountKwd": 3.5,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 820433,
+        "orderName": "CSC-CC/99381436",
+        "posRef": "Grubtech 15656-006-7546",
+        "dateKuwait": "2026-11-10 20:34",
+        "amountKwd": 5.4,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "franks"
+      }
+    ],
+    "ardiya|franks|deliveroo": [
+      {
+        "orderId": 820216,
+        "orderName": "CSC-CC/99381303",
+        "posRef": "Grubtech 15656-005-7413",
+        "dateKuwait": "2026-11-10 18:01",
+        "amountKwd": 7.15,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 819624,
+        "orderName": "CSC-CC/99381104",
+        "posRef": "Grubtech 15638-008-7214",
+        "dateKuwait": "2026-11-09 23:44",
+        "amountKwd": 7.1,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 814715,
+        "orderName": "CSC-CC/99378753",
+        "posRef": "Grubtech 15554-004-4872",
+        "dateKuwait": "2026-11-05 13:46",
+        "amountKwd": 3.65,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 814158,
+        "orderName": "CSC-CC/99378582",
+        "posRef": "Grubtech 15530-006-4703",
+        "dateKuwait": "2026-11-04 21:42",
+        "amountKwd": 6.4,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 813703,
+        "orderName": "CSC-CC/99378326",
+        "posRef": "Grubtech 15530-003-4450",
+        "dateKuwait": "2026-11-04 15:32",
+        "amountKwd": 4.95,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "franks"
+      }
+    ],
+    "ardiya|china-garden|deliveroo": [
+      {
+        "orderId": 819596,
+        "orderName": "CSC-CC/99381076",
+        "posRef": "Grubtech 15638-008-7186",
+        "dateKuwait": "2026-11-09 22:57",
+        "amountKwd": 3.15,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 819360,
+        "orderName": "CSC-CC/99380936",
+        "posRef": "Grubtech 15638-008-7047",
+        "dateKuwait": "2026-11-09 19:40",
+        "amountKwd": 21.95,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 20,
+        "paymentMethodName": "Deliveroo MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 819264,
+        "orderName": "CSC-CC/99380883",
+        "posRef": "Grubtech 15638-007-6995",
+        "dateKuwait": "2026-11-09 18:28",
+        "amountKwd": 23.1,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 20,
+        "paymentMethodName": "Deliveroo MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 818696,
+        "orderName": "CSC-CC/99380724",
+        "posRef": "Grubtech 15614-005-6838",
+        "dateKuwait": "2026-11-09 01:16",
+        "amountKwd": 6.4,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 20,
+        "paymentMethodName": "Deliveroo MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 818574,
+        "orderName": "CSC-CC/99380614",
+        "posRef": "Grubtech 15614-003-6729",
+        "dateKuwait": "2026-11-08 21:43",
+        "amountKwd": 2.25,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      }
+    ],
+    "ardiya|karak-cafeteria|talabat-tmp": [
+      {
+        "orderId": 820695,
+        "orderName": "CSC-CC/99381614",
+        "posRef": "Grubtech 15677-000-7724",
+        "dateKuwait": "2026-11-11 09:50",
+        "amountKwd": 6.15,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "karak-cafeteria"
+      },
+      {
+        "orderId": 819681,
+        "orderName": "CSC-CC/99381148",
+        "posRef": "Grubtech 15656-000-7258",
+        "dateKuwait": "2026-11-10 08:20",
+        "amountKwd": 11.7,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "karak-cafeteria"
+      }
+    ],
+    "ardiya|china-garden|talabat-tmp": [
+      {
+        "orderId": 820627,
+        "orderName": "CSC-CC/99381590",
+        "posRef": "Grubtech 15656-010-7700",
+        "dateKuwait": "2026-11-11 00:46",
+        "amountKwd": 6.15,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820624,
+        "orderName": "CSC-CC/99381587",
+        "posRef": "Grubtech 15656-010-7697",
+        "dateKuwait": "2026-11-11 00:43",
+        "amountKwd": 8.25,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820619,
+        "orderName": "CSC-CC/99381582",
+        "posRef": "Grubtech 15656-010-7692",
+        "dateKuwait": "2026-11-11 00:36",
+        "amountKwd": 6.35,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820512,
+        "orderName": "CSC-CC/99381492",
+        "posRef": "Grubtech 15656-008-7602",
+        "dateKuwait": "2026-11-10 21:51",
+        "amountKwd": 12.1,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820506,
+        "orderName": "CSC-CC/99381487",
+        "posRef": "Grubtech 15656-008-7597",
+        "dateKuwait": "2026-11-10 21:40",
+        "amountKwd": 6.05,
+        "posConfigId": 23,
+        "posConfigName": "Delivery (Ardiya)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      }
+    ],
+    "assima|china-garden|snoonu": [
+      {
+        "orderId": 814026,
+        "orderName": "CSC-CC/99378508",
+        "posRef": "Grubtech 15530-005-4630",
+        "dateKuwait": "2026-11-04 20:13",
+        "amountKwd": 3.38,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 813529,
+        "orderName": "CSC-CC/99378258",
+        "posRef": "Grubtech 15530-002-4382",
+        "dateKuwait": "2026-11-04 13:09",
+        "amountKwd": 4.75,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 800755,
+        "orderName": "CSC-CC/99373267",
+        "posRef": "Grubtech 15323-001-9413",
+        "dateKuwait": "2026-10-25 15:57",
+        "amountKwd": 2.5,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 800529,
+        "orderName": "CSC-CC/99373187",
+        "posRef": "Grubtech 15323-000-9334",
+        "dateKuwait": "2026-10-25 12:39",
+        "amountKwd": 5,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 788225,
+        "orderName": "CSC-CC/99367944",
+        "posRef": "Grubtech 15125-004-4111",
+        "dateKuwait": "2026-10-15 15:13",
+        "amountKwd": 5.75,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      }
+    ],
+    "assima|china-garden|talabat-tmp": [
+      {
+        "orderId": 557017,
+        "orderName": "CSC-CC/99247065",
+        "posRef": "Grubtech 11163-000-3967",
+        "dateKuwait": "2026-02-25 16:39",
+        "amountKwd": 10.15,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 555544,
+        "orderName": "CSC-CC/99246050",
+        "posRef": "Grubtech 11103-003-2960",
+        "dateKuwait": "2026-02-22 16:50",
+        "amountKwd": 10.8,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      }
+    ],
+    "assima|china-garden|jahez": [
+      {
+        "orderId": 816779,
+        "orderName": "CSC-CC/99379626",
+        "posRef": "Grubtech 15589-003-5745",
+        "dateKuwait": "2026-11-06 21:37",
+        "amountKwd": 9.45,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 763682,
+        "orderName": "CSC-CC/99357130",
+        "posRef": "Grubtech 14686-009-3352",
+        "dateKuwait": "2026-09-21 19:36",
+        "amountKwd": 3.55,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 762128,
+        "orderName": "CSC-CC/99356375",
+        "posRef": "Grubtech 14655-001-2601",
+        "dateKuwait": "2026-09-19 17:50",
+        "amountKwd": 5.45,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 742969,
+        "orderName": "CSC-CC/99347738",
+        "posRef": "Grubtech 14300-003-4014",
+        "dateKuwait": "2026-08-29 17:51",
+        "amountKwd": 1.95,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 727880,
+        "orderName": "CSC-CC/99340367",
+        "posRef": "Grubtech 14010-015-6701",
+        "dateKuwait": "2026-08-12 20:38",
+        "amountKwd": 10.7,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      }
+    ],
+    "promenade|china-garden|deliveroo": [
+      {
+        "orderId": 820527,
+        "orderName": "CSC-CC/99381502",
+        "posRef": "Grubtech 15656-009-7612",
+        "dateKuwait": "2026-11-10 22:03",
+        "amountKwd": 5.55,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820468,
+        "orderName": "CSC-CC/99381458",
+        "posRef": "Grubtech 15656-007-7568",
+        "dateKuwait": "2026-11-10 20:59",
+        "amountKwd": 5,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820446,
+        "orderName": "CSC-CC/99381446",
+        "posRef": "Grubtech 15656-006-7556",
+        "dateKuwait": "2026-11-10 20:42",
+        "amountKwd": 6.25,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820251,
+        "orderName": "CSC-CC/99381323",
+        "posRef": "Grubtech 15656-005-7433",
+        "dateKuwait": "2026-11-10 18:30",
+        "amountKwd": 17,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820248,
+        "orderName": "CSC-CC/99381321",
+        "posRef": "Grubtech 15656-005-7431",
+        "dateKuwait": "2026-11-10 18:25",
+        "amountKwd": 2.5,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      }
+    ],
+    "promenade|franks|deliveroo": [
+      {
+        "orderId": 819641,
+        "orderName": "CSC-CC/99381120",
+        "posRef": "Grubtech 15638-009-7230",
+        "dateKuwait": "2026-11-10 00:24",
+        "amountKwd": 3.65,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 819613,
+        "orderName": "CSC-CC/99381093",
+        "posRef": "Grubtech 15638-008-7203",
+        "dateKuwait": "2026-11-09 23:17",
+        "amountKwd": 7.3,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 819458,
+        "orderName": "CSC-CC/99380982",
+        "posRef": "Grubtech 15638-008-7092",
+        "dateKuwait": "2026-11-09 20:49",
+        "amountKwd": 14,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 818484,
+        "orderName": "CSC-CC/99380550",
+        "posRef": "Grubtech 15614-003-6665",
+        "dateKuwait": "2026-11-08 20:21",
+        "amountKwd": 5.1,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 818224,
+        "orderName": "CSC-CC/99380401",
+        "posRef": "Grubtech 15614-002-6516",
+        "dateKuwait": "2026-11-08 15:11",
+        "amountKwd": 6.35,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "franks"
+      }
+    ],
+    "promenade|noodle-bar|deliveroo": [
+      {
+        "orderId": 818407,
+        "orderName": "CSC-CC/99380498",
+        "posRef": "Grubtech 15614-003-6613",
+        "dateKuwait": "2026-11-08 19:05",
+        "amountKwd": 28.85,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "noodle-bar"
+      }
+    ],
+    "promenade|farm-brown|deliveroo": [
+      {
+        "orderId": 817498,
+        "orderName": "CSC-CC/99380012",
+        "posRef": "Grubtech 15604-001-6130",
+        "dateKuwait": "2026-11-07 17:56",
+        "amountKwd": 3.15,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "farm-brown"
+      }
+    ],
+    "promenade|china-garden|talabat-tgo": [
+      {
+        "orderId": 820640,
+        "orderName": "CSC-CC/99381603",
+        "posRef": "Grubtech 15656-010-7713",
+        "dateKuwait": "2026-11-11 01:34",
+        "amountKwd": 5.1,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820623,
+        "orderName": "CSC-CC/99381586",
+        "posRef": "Grubtech 15656-010-7696",
+        "dateKuwait": "2026-11-11 00:41",
+        "amountKwd": 5.665,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820618,
+        "orderName": "CSC-CC/99381581",
+        "posRef": "Grubtech 15656-010-7691",
+        "dateKuwait": "2026-11-11 00:35",
+        "amountKwd": 8.15,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820610,
+        "orderName": "CSC-CC/99381573",
+        "posRef": "Grubtech 15656-010-7683",
+        "dateKuwait": "2026-11-11 00:14",
+        "amountKwd": 6.95,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820609,
+        "orderName": "CSC-CC/99381572",
+        "posRef": "Grubtech 15656-010-7682",
+        "dateKuwait": "2026-11-11 00:13",
+        "amountKwd": 8.9,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      }
+    ],
+    "promenade|franks|talabat-tgo": [
+      {
+        "orderId": 820549,
+        "orderName": "CSC-CC/99381517",
+        "posRef": "Grubtech 15656-009-7627",
+        "dateKuwait": "2026-11-10 22:22",
+        "amountKwd": 3.65,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 820540,
+        "orderName": "CSC-CC/99381509",
+        "posRef": "Grubtech 15656-009-7619",
+        "dateKuwait": "2026-11-10 22:10",
+        "amountKwd": 6.25,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 820529,
+        "orderName": "CSC-CC/99381503",
+        "posRef": "Grubtech 15656-009-7613",
+        "dateKuwait": "2026-11-10 22:04",
+        "amountKwd": 3.65,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 820524,
+        "orderName": "CSC-CC/99381500",
+        "posRef": "Grubtech 15656-009-7610",
+        "dateKuwait": "2026-11-10 22:00",
+        "amountKwd": 17.3,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 820521,
+        "orderName": "CSC-CC/99381498",
+        "posRef": "Grubtech 15656-009-7608",
+        "dateKuwait": "2026-11-10 21:59",
+        "amountKwd": 11.5,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "franks"
+      }
+    ],
+    "promenade|farm-brown|talabat-tgo": [
+      {
+        "orderId": 820545,
+        "orderName": "CSC-CC/99381514",
+        "posRef": "Grubtech 15656-009-7624",
+        "dateKuwait": "2026-11-10 22:18",
+        "amountKwd": 2.8,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "farm-brown"
+      }
+    ],
+    "promenade|china-garden|keeta": [
+      {
+        "orderId": 820646,
+        "orderName": "CSC-CC/99381609",
+        "posRef": "Grubtech 15656-010-7719",
+        "dateKuwait": "2026-11-11 02:00",
+        "amountKwd": 8.9,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820641,
+        "orderName": "CSC-CC/99381604",
+        "posRef": "Grubtech 15656-010-7714",
+        "dateKuwait": "2026-11-11 01:43",
+        "amountKwd": 5.75,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820639,
+        "orderName": "CSC-CC/99381602",
+        "posRef": "Grubtech 15656-010-7712",
+        "dateKuwait": "2026-11-11 01:29",
+        "amountKwd": 8.25,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820636,
+        "orderName": "CSC-CC/99381599",
+        "posRef": "Grubtech 15656-010-7709",
+        "dateKuwait": "2026-11-11 01:19",
+        "amountKwd": 4,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820626,
+        "orderName": "CSC-CC/99381589",
+        "posRef": "Grubtech 15656-010-7699",
+        "dateKuwait": "2026-11-11 00:45",
+        "amountKwd": 3.3,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      }
+    ],
+    "promenade|franks|keeta": [
+      {
+        "orderId": 820633,
+        "orderName": "CSC-CC/99381596",
+        "posRef": "Grubtech 15656-010-7706",
+        "dateKuwait": "2026-11-11 01:15",
+        "amountKwd": 3.7,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 820381,
+        "orderName": "CSC-CC/99381406",
+        "posRef": "Grubtech 15656-006-7516",
+        "dateKuwait": "2026-11-10 20:04",
+        "amountKwd": 10.45,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 820343,
+        "orderName": "CSC-CC/99381379",
+        "posRef": "Grubtech 15656-005-7489",
+        "dateKuwait": "2026-11-10 19:39",
+        "amountKwd": 4.5,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 820172,
+        "orderName": "CSC-CC/99381285",
+        "posRef": "Grubtech 15656-004-7395",
+        "dateKuwait": "2026-11-10 17:09",
+        "amountKwd": 7.3,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "franks"
+      }
+    ],
+    "promenade|china-garden|talabat-tmp": [
+      {
+        "orderId": 817927,
+        "orderName": "CSC-CC/99380292",
+        "posRef": "Grubtech 15604-005-6408",
+        "dateKuwait": "2026-11-08 00:38",
+        "amountKwd": 11.65,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 817912,
+        "orderName": "CSC-CC/99380277",
+        "posRef": "Grubtech 15604-005-6393",
+        "dateKuwait": "2026-11-08 00:05",
+        "amountKwd": 9.45,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 817020,
+        "orderName": "CSC-CC/99379784",
+        "posRef": "Grubtech 15589-005-5902",
+        "dateKuwait": "2026-11-07 01:25",
+        "amountKwd": 9.75,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 816987,
+        "orderName": "CSC-CC/99379751",
+        "posRef": "Grubtech 15589-004-5869",
+        "dateKuwait": "2026-11-07 00:09",
+        "amountKwd": 8,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 816902,
+        "orderName": "CSC-CC/99379686",
+        "posRef": "Grubtech 15589-003-5805",
+        "dateKuwait": "2026-11-06 22:38",
+        "amountKwd": 7.55,
+        "posConfigId": 11,
+        "posConfigName": "Delivery (Promenade)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      }
+    ],
+    "assima|china-garden|talabat-tgo": [
+      {
+        "orderId": 820539,
+        "orderName": "CSC-CC/99381508",
+        "posRef": "Grubtech 15656-009-7618",
+        "dateKuwait": "2026-11-10 22:10",
+        "amountKwd": 7,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820487,
+        "orderName": "CSC-CC/99381473",
+        "posRef": "Grubtech 15656-008-7583",
+        "dateKuwait": "2026-11-10 21:22",
+        "amountKwd": 7.4,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820481,
+        "orderName": "CSC-CC/99381469",
+        "posRef": "Grubtech 15656-008-7579",
+        "dateKuwait": "2026-11-10 21:15",
+        "amountKwd": 5.35,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820476,
+        "orderName": "CSC-CC/99381465",
+        "posRef": "Grubtech 15656-008-7575",
+        "dateKuwait": "2026-11-10 21:11",
+        "amountKwd": 9.7,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820429,
+        "orderName": "CSC-CC/99381433",
+        "posRef": "Grubtech 15656-006-7543",
+        "dateKuwait": "2026-11-10 20:32",
+        "amountKwd": 2.95,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      }
+    ],
+    "assima|china-garden|deliveroo": [
+      {
+        "orderId": 818373,
+        "orderName": "CSC-CC/99380473",
+        "posRef": "Grubtech 15614-003-6588",
+        "dateKuwait": "2026-11-08 18:31",
+        "amountKwd": 7.5,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 817777,
+        "orderName": "CSC-CC/99380168",
+        "posRef": "Grubtech 15604-004-6284",
+        "dateKuwait": "2026-11-07 21:21",
+        "amountKwd": 4.45,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 817053,
+        "orderName": "CSC-CC/99379809",
+        "posRef": "Grubtech 15604-000-5927",
+        "dateKuwait": "2026-11-07 11:49",
+        "amountKwd": 12.05,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 814154,
+        "orderName": "CSC-CC/99378578",
+        "posRef": "Grubtech 15530-006-4699",
+        "dateKuwait": "2026-11-04 21:40",
+        "amountKwd": 6.95,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 812004,
+        "orderName": "CSC-CC/99377661",
+        "posRef": "Grubtech 15484-007-3788",
+        "dateKuwait": "2026-11-02 21:56",
+        "amountKwd": 10.5,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      }
+    ],
+    "360-mall|china-garden|deliveroo": [
+      {
+        "orderId": 820565,
+        "orderName": "CSC-CC/99381529",
+        "posRef": "Grubtech 15656-009-7639",
+        "dateKuwait": "2026-11-10 22:35",
+        "amountKwd": 13.9,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820375,
+        "orderName": "CSC-CC/99381401",
+        "posRef": "Grubtech 15656-005-7511",
+        "dateKuwait": "2026-11-10 20:00",
+        "amountKwd": 2.65,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820280,
+        "orderName": "CSC-CC/99381342",
+        "posRef": "Grubtech 15656-005-7452",
+        "dateKuwait": "2026-11-10 18:54",
+        "amountKwd": 2.5,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 819997,
+        "orderName": "CSC-CC/99381202",
+        "posRef": "Grubtech 15656-004-7312",
+        "dateKuwait": "2026-11-10 14:05",
+        "amountKwd": 5,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 819506,
+        "orderName": "CSC-CC/99381011",
+        "posRef": "Grubtech 15638-008-7121",
+        "dateKuwait": "2026-11-09 21:26",
+        "amountKwd": 7.75,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      }
+    ],
+    "360-mall|china-garden|jahez": [
+      {
+        "orderId": 818520,
+        "orderName": "CSC-CC/99380573",
+        "posRef": "Grubtech 15614-003-6688",
+        "dateKuwait": "2026-11-08 20:54",
+        "amountKwd": 35.5,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 818225,
+        "orderName": "CSC-CC/99380402",
+        "posRef": "Grubtech 15614-002-6517",
+        "dateKuwait": "2026-11-08 15:12",
+        "amountKwd": 6,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 815130,
+        "orderName": "CSC-CC/99378924",
+        "posRef": "Grubtech 15554-005-5043",
+        "dateKuwait": "2026-11-05 19:03",
+        "amountKwd": 13.3,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 814031,
+        "orderName": "CSC-CC/99378511",
+        "posRef": "Grubtech 15530-005-4633",
+        "dateKuwait": "2026-11-04 20:19",
+        "amountKwd": 8.35,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 813947,
+        "orderName": "CSC-CC/99378448",
+        "posRef": "Grubtech 15530-005-4571",
+        "dateKuwait": "2026-11-04 19:14",
+        "amountKwd": 7.05,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      }
+    ],
+    "assima|china-garden|keeta": [
+      {
+        "orderId": 820319,
+        "orderName": "CSC-CC/99381362",
+        "posRef": "Grubtech 15656-005-7472",
+        "dateKuwait": "2026-11-10 19:20",
+        "amountKwd": 6.75,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820271,
+        "orderName": "CSC-CC/99381335",
+        "posRef": "Grubtech 15656-005-7445",
+        "dateKuwait": "2026-11-10 18:44",
+        "amountKwd": 5.9,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820151,
+        "orderName": "CSC-CC/99381277",
+        "posRef": "Grubtech 15656-004-7387",
+        "dateKuwait": "2026-11-10 16:50",
+        "amountKwd": 7.1,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820044,
+        "orderName": "CSC-CC/99381229",
+        "posRef": "Grubtech 15656-004-7339",
+        "dateKuwait": "2026-11-10 14:54",
+        "amountKwd": 2.5,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 819913,
+        "orderName": "CSC-CC/99381179",
+        "posRef": "Grubtech 15656-003-7289",
+        "dateKuwait": "2026-11-10 13:01",
+        "amountKwd": 3,
+        "posConfigId": 15,
+        "posConfigName": "Delivery (Assima Mall)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      }
+    ],
+    "360-mall|china-garden|keeta": [
+      {
+        "orderId": 820553,
+        "orderName": "CSC-CC/99381520",
+        "posRef": "Grubtech 15656-009-7630",
+        "dateKuwait": "2026-11-10 22:23",
+        "amountKwd": 14.6,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820552,
+        "orderName": "CSC-CC/99381519",
+        "posRef": "Grubtech 15656-009-7629",
+        "dateKuwait": "2026-11-10 22:23",
+        "amountKwd": 14.35,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820542,
+        "orderName": "CSC-CC/99381511",
+        "posRef": "Grubtech 15656-009-7621",
+        "dateKuwait": "2026-11-10 22:15",
+        "amountKwd": 12.25,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820480,
+        "orderName": "CSC-CC/99381468",
+        "posRef": "Grubtech 15656-008-7578",
+        "dateKuwait": "2026-11-10 21:15",
+        "amountKwd": 5,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820470,
+        "orderName": "CSC-CC/99381460",
+        "posRef": "Grubtech 15656-007-7570",
+        "dateKuwait": "2026-11-10 20:59",
+        "amountKwd": 3.95,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      }
+    ],
+    "360-mall|china-garden|talabat-tgo": [
+      {
+        "orderId": 820595,
+        "orderName": "CSC-CC/99381558",
+        "posRef": "Grubtech 15656-009-7668",
+        "dateKuwait": "2026-11-10 23:47",
+        "amountKwd": 12.75,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820592,
+        "orderName": "CSC-CC/99381555",
+        "posRef": "Grubtech 15656-009-7665",
+        "dateKuwait": "2026-11-10 23:43",
+        "amountKwd": 6.3,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820588,
+        "orderName": "CSC-CC/99381551",
+        "posRef": "Grubtech 15656-009-7661",
+        "dateKuwait": "2026-11-10 23:28",
+        "amountKwd": 4,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820581,
+        "orderName": "CSC-CC/99381544",
+        "posRef": "Grubtech 15656-009-7654",
+        "dateKuwait": "2026-11-10 23:15",
+        "amountKwd": 7.9,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820570,
+        "orderName": "CSC-CC/99381534",
+        "posRef": "Grubtech 15656-009-7644",
+        "dateKuwait": "2026-11-10 22:46",
+        "amountKwd": 8.3,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      }
+    ],
+    "360-mall|china-garden|talabat-tmp": [
+      {
+        "orderId": 663824,
+        "orderName": "CSC-CC/99308505",
+        "posRef": "Grubtech 12904-009-5052",
+        "dateKuwait": "2026-06-07 19:50",
+        "amountKwd": 42.55,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 569634,
+        "orderName": "CSC-CC/99256023",
+        "posRef": "Grubtech 11500-010-2878",
+        "dateKuwait": "2026-03-17 14:48",
+        "amountKwd": 22.25,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 559520,
+        "orderName": "CSC-CC/99248323",
+        "posRef": "Grubtech 11221-004-5213",
+        "dateKuwait": "2026-02-28 16:42",
+        "amountKwd": 8.05,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 559456,
+        "orderName": "CSC-CC/99248261",
+        "posRef": "Grubtech 11221-002-5153",
+        "dateKuwait": "2026-02-28 14:10",
+        "amountKwd": 8.85,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 533154,
+        "orderName": "CSC-CC/99233557",
+        "posRef": "Grubtech 10555-002-0531",
+        "dateKuwait": "2026-01-30 11:49",
+        "amountKwd": 10.5,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      }
+    ],
+    "360-mall|china-garden|snoonu": [
+      {
+        "orderId": 817161,
+        "orderName": "CSC-CC/99379870",
+        "posRef": "Grubtech 15604-000-5988",
+        "dateKuwait": "2026-11-07 13:56",
+        "amountKwd": 4.64,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 815711,
+        "orderName": "CSC-CC/99379233",
+        "posRef": "Grubtech 15589-000-5352",
+        "dateKuwait": "2026-11-06 12:19",
+        "amountKwd": 9.975,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 799714,
+        "orderName": "CSC-CC/99372892",
+        "posRef": "Grubtech 15290-006-9040",
+        "dateKuwait": "2026-10-24 19:25",
+        "amountKwd": 10.45,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 795664,
+        "orderName": "CSC-CC/99371196",
+        "posRef": "Grubtech 15236-006-7346",
+        "dateKuwait": "2026-10-21 20:10",
+        "amountKwd": 8.5,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 794386,
+        "orderName": "CSC-CC/99370633",
+        "posRef": "Grubtech 15215-003-6784",
+        "dateKuwait": "2026-10-20 18:59",
+        "amountKwd": 7.49,
+        "posConfigId": 18,
+        "posConfigName": "Delivery (360)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      }
+    ],
+    "al-kout|china-garden|snoonu": [
+      {
+        "orderId": 813921,
+        "orderName": "CSC-CC/99378436",
+        "posRef": "Grubtech 15530-005-4559",
+        "dateKuwait": "2026-11-04 18:57",
+        "amountKwd": 11.15,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 787234,
+        "orderName": "CSC-CC/99367502",
+        "posRef": "Grubtech 15105-007-3669",
+        "dateKuwait": "2026-10-14 18:21",
+        "amountKwd": 6.5,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 784311,
+        "orderName": "CSC-CC/99366177",
+        "posRef": "Grubtech 15058-002-2349",
+        "dateKuwait": "2026-10-11 20:21",
+        "amountKwd": 9.25,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 770436,
+        "orderName": "CSC-CC/99360048",
+        "posRef": "Grubtech 14814-005-6253",
+        "dateKuwait": "2026-09-28 19:29",
+        "amountKwd": 3.875,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 763411,
+        "orderName": "CSC-CC/99357003",
+        "posRef": "Grubtech 14686-004-3226",
+        "dateKuwait": "2026-09-21 14:21",
+        "amountKwd": 4.875,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      }
+    ],
+    "al-kout|noodle-bar|snoonu": [
+      {
+        "orderId": 802755,
+        "orderName": "CSC-CC/99374077",
+        "posRef": "Grubtech 15333-005-0221",
+        "dateKuwait": "2026-10-27 01:59",
+        "amountKwd": 2,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "noodle-bar"
+      },
+      {
+        "orderId": 791473,
+        "orderName": "CSC-CC/99369526",
+        "posRef": "Grubtech 15168-007-5683",
+        "dateKuwait": "2026-10-18 00:39",
+        "amountKwd": 2.515,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "noodle-bar"
+      },
+      {
+        "orderId": 758780,
+        "orderName": "CSC-CC/99354876",
+        "posRef": "Grubtech 14585-009-1115",
+        "dateKuwait": "2026-09-15 22:24",
+        "amountKwd": 4.875,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "noodle-bar"
+      }
+    ],
+    "salmiya|china-garden|talabat-tmp": [
+      {
+        "orderId": 817554,
+        "orderName": "CSC-CC/99380042",
+        "posRef": "Grubtech 15604-002-6160",
+        "dateKuwait": "2026-11-07 18:41",
+        "amountKwd": 11.2,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 815084,
+        "orderName": "CSC-CC/99378902",
+        "posRef": "Grubtech 15554-005-5021",
+        "dateKuwait": "2026-11-05 18:26",
+        "amountKwd": 7.5,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 798624,
+        "orderName": "CSC-CC/99372421",
+        "posRef": "Grubtech 15273-010-8569",
+        "dateKuwait": "2026-10-23 21:20",
+        "amountKwd": 10.5,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 797089,
+        "orderName": "CSC-CC/99371737",
+        "posRef": "Grubtech 15255-010-7885",
+        "dateKuwait": "2026-10-22 20:07",
+        "amountKwd": 13.25,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 795605,
+        "orderName": "CSC-CC/99371165",
+        "posRef": "Grubtech 15236-006-7315",
+        "dateKuwait": "2026-10-21 19:40",
+        "amountKwd": 7.7,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      }
+    ],
+    "salmiya|franks|talabat-tmp": [
+      {
+        "orderId": 793304,
+        "orderName": "CSC-CC/99370212",
+        "posRef": "Grubtech 15195-006-6366",
+        "dateKuwait": "2026-10-19 20:06",
+        "amountKwd": 13.25,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 792886,
+        "orderName": "CSC-CC/99370009",
+        "posRef": "Grubtech 15195-003-6164",
+        "dateKuwait": "2026-10-19 13:35",
+        "amountKwd": 4.75,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "franks"
+      }
+    ],
+    "salmiya|franks|snoonu": [
+      {
+        "orderId": 820645,
+        "orderName": "CSC-CC/99381608",
+        "posRef": "Grubtech 15656-010-7718",
+        "dateKuwait": "2026-11-11 01:57",
+        "amountKwd": 6.19,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 819656,
+        "orderName": "CSC-CC/99381135",
+        "posRef": "Grubtech 15638-009-7245",
+        "dateKuwait": "2026-11-10 01:31",
+        "amountKwd": 3.675,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 818303,
+        "orderName": "CSC-CC/99380431",
+        "posRef": "Grubtech 15614-002-6546",
+        "dateKuwait": "2026-11-08 16:54",
+        "amountKwd": 9.31,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 816440,
+        "orderName": "CSC-CC/99379508",
+        "posRef": "Grubtech 15589-001-5627",
+        "dateKuwait": "2026-11-06 19:11",
+        "amountKwd": 8.065,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 815647,
+        "orderName": "CSC-CC/99379180",
+        "posRef": "Grubtech 15554-007-5299",
+        "dateKuwait": "2026-11-06 00:22",
+        "amountKwd": 10.33,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "franks"
+      }
+    ],
+    "salmiya|china-garden|snoonu": [
+      {
+        "orderId": 819929,
+        "orderName": "CSC-CC/99381184",
+        "posRef": "Grubtech 15656-003-7294",
+        "dateKuwait": "2026-11-10 13:09",
+        "amountKwd": 10.525,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 817845,
+        "orderName": "CSC-CC/99380216",
+        "posRef": "Grubtech 15604-004-6332",
+        "dateKuwait": "2026-11-07 22:15",
+        "amountKwd": 8.15,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 817264,
+        "orderName": "CSC-CC/99379915",
+        "posRef": "Grubtech 15604-000-6033",
+        "dateKuwait": "2026-11-07 15:04",
+        "amountKwd": 18.175,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 815612,
+        "orderName": "CSC-CC/99379146",
+        "posRef": "Grubtech 15554-007-5265",
+        "dateKuwait": "2026-11-05 23:23",
+        "amountKwd": 2.6,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 812358,
+        "orderName": "CSC-CC/99377778",
+        "posRef": "Grubtech 15505-003-3905",
+        "dateKuwait": "2026-11-03 12:02",
+        "amountKwd": 5.1,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "china-garden"
+      }
+    ],
+    "salmiya|karak-cafeteria|snoonu": [
+      {
+        "orderId": 818453,
+        "orderName": "CSC-CC/99380530",
+        "posRef": "Grubtech 15614-003-6645",
+        "dateKuwait": "2026-11-08 19:57",
+        "amountKwd": 2.55,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 57,
+        "paymentMethodName": "Snoonu",
+        "brandId": "karak-cafeteria"
+      }
+    ],
+    "salmiya|china-garden|jahez": [
+      {
+        "orderId": 817015,
+        "orderName": "CSC-CC/99379779",
+        "posRef": "Grubtech 15589-005-5897",
+        "dateKuwait": "2026-11-07 01:12",
+        "amountKwd": 4.15,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 801335,
+        "orderName": "CSC-CC/99373571",
+        "posRef": "Grubtech 15323-003-9717",
+        "dateKuwait": "2026-10-25 23:39",
+        "amountKwd": 2.95,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 765011,
+        "orderName": "CSC-CC/99357763",
+        "posRef": "Grubtech 14734-003-3980",
+        "dateKuwait": "2026-09-23 16:37",
+        "amountKwd": 3,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 761211,
+        "orderName": "CSC-CC/99355964",
+        "posRef": "Grubtech 14637-004-2193",
+        "dateKuwait": "2026-09-18 19:23",
+        "amountKwd": 3.9,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 755474,
+        "orderName": "CSC-CC/99353363",
+        "posRef": "Grubtech 14516-006-9614",
+        "dateKuwait": "2026-09-11 21:52",
+        "amountKwd": 1.95,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      }
+    ],
+    "salmiya|franks|jahez": [
+      {
+        "orderId": 787285,
+        "orderName": "CSC-CC/99367532",
+        "posRef": "Grubtech 15105-008-3699",
+        "dateKuwait": "2026-10-14 19:15",
+        "amountKwd": 14.25,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 749554,
+        "orderName": "CSC-CC/99350902",
+        "posRef": "Grubtech 14421-008-7166",
+        "dateKuwait": "2026-09-05 20:37",
+        "amountKwd": 4.6,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 745977,
+        "orderName": "CSC-CC/99349265",
+        "posRef": "Grubtech 14360-006-5536",
+        "dateKuwait": "2026-09-02 13:16",
+        "amountKwd": 4.5,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 743596,
+        "orderName": "CSC-CC/99348082",
+        "posRef": "Grubtech 14306-002-4358",
+        "dateKuwait": "2026-08-30 13:43",
+        "amountKwd": 11.5,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 722462,
+        "orderName": "CSC-CC/99337857",
+        "posRef": "Grubtech 13913-007-4203",
+        "dateKuwait": "2026-08-06 20:34",
+        "amountKwd": 4.5,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "franks"
+      }
+    ],
+    "salmiya|karak-cafeteria|jahez": [
+      {
+        "orderId": 768142,
+        "orderName": "CSC-CC/99359114",
+        "posRef": "Grubtech 14777-003-5323",
+        "dateKuwait": "2026-09-26 13:41",
+        "amountKwd": 14.25,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "karak-cafeteria"
+      },
+      {
+        "orderId": 761759,
+        "orderName": "CSC-CC/99356235",
+        "posRef": "Grubtech 14655-000-2461",
+        "dateKuwait": "2026-09-19 12:00",
+        "amountKwd": 9.5,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "karak-cafeteria"
+      },
+      {
+        "orderId": 733991,
+        "orderName": "CSC-CC/99343429",
+        "posRef": "Grubtech 14136-006-9727",
+        "dateKuwait": "2026-08-20 00:08",
+        "amountKwd": 5,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "karak-cafeteria"
+      },
+      {
+        "orderId": 720323,
+        "orderName": "CSC-CC/99336888",
+        "posRef": "Grubtech 13881-005-3245",
+        "dateKuwait": "2026-08-04 15:13",
+        "amountKwd": 1.65,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "karak-cafeteria"
+      },
+      {
+        "orderId": 716731,
+        "orderName": "CSC-CC/99335175",
+        "posRef": "Grubtech 13828-001-1547",
+        "dateKuwait": "2026-07-31 16:30",
+        "amountKwd": 1.75,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "karak-cafeteria"
+      }
+    ],
+    "salmiya|china-garden|keeta": [
+      {
+        "orderId": 820644,
+        "orderName": "CSC-CC/99381607",
+        "posRef": "Grubtech 15656-010-7717",
+        "dateKuwait": "2026-11-11 01:54",
+        "amountKwd": 2.5,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820630,
+        "orderName": "CSC-CC/99381593",
+        "posRef": "Grubtech 15656-010-7703",
+        "dateKuwait": "2026-11-11 01:04",
+        "amountKwd": 2.5,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820453,
+        "orderName": "CSC-CC/99381452",
+        "posRef": "Grubtech 15656-006-7562",
+        "dateKuwait": "2026-11-10 20:46",
+        "amountKwd": 4,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820440,
+        "orderName": "CSC-CC/99381442",
+        "posRef": "Grubtech 15656-006-7552",
+        "dateKuwait": "2026-11-10 20:37",
+        "amountKwd": 3.25,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820378,
+        "orderName": "CSC-CC/99381404",
+        "posRef": "Grubtech 15656-006-7514",
+        "dateKuwait": "2026-11-10 20:03",
+        "amountKwd": 7,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      }
+    ],
+    "salmiya|franks|keeta": [
+      {
+        "orderId": 820582,
+        "orderName": "CSC-CC/99381545",
+        "posRef": "Grubtech 15656-009-7655",
+        "dateKuwait": "2026-11-10 23:15",
+        "amountKwd": 8.9,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 820482,
+        "orderName": "CSC-CC/99381470",
+        "posRef": "Grubtech 15656-008-7580",
+        "dateKuwait": "2026-11-10 21:17",
+        "amountKwd": 6.25,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 820152,
+        "orderName": "CSC-CC/99381278",
+        "posRef": "Grubtech 15656-004-7388",
+        "dateKuwait": "2026-11-10 16:54",
+        "amountKwd": 4.5,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "franks"
+      }
+    ],
+    "salmiya|noodle-bar|keeta": [
+      {
+        "orderId": 820168,
+        "orderName": "CSC-CC/99381284",
+        "posRef": "Grubtech 15656-004-7394",
+        "dateKuwait": "2026-11-10 17:05",
+        "amountKwd": 10.6,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "noodle-bar"
+      }
+    ],
+    "salmiya|china-garden|deliveroo": [
+      {
+        "orderId": 820635,
+        "orderName": "CSC-CC/99381598",
+        "posRef": "Grubtech 15656-010-7708",
+        "dateKuwait": "2026-11-11 01:18",
+        "amountKwd": 6.2,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820077,
+        "orderName": "CSC-CC/99381245",
+        "posRef": "Grubtech 15656-004-7355",
+        "dateKuwait": "2026-11-10 15:31",
+        "amountKwd": 4.5,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 817872,
+        "orderName": "CSC-CC/99380238",
+        "posRef": "Grubtech 15604-005-6354",
+        "dateKuwait": "2026-11-07 22:52",
+        "amountKwd": 3.5,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 817404,
+        "orderName": "CSC-CC/99379968",
+        "posRef": "Grubtech 15604-000-6086",
+        "dateKuwait": "2026-11-07 16:41",
+        "amountKwd": 4.25,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 817268,
+        "orderName": "CSC-CC/99379916",
+        "posRef": "Grubtech 15604-000-6034",
+        "dateKuwait": "2026-11-07 15:07",
+        "amountKwd": 4.2,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      }
+    ],
+    "salmiya|franks|deliveroo": [
+      {
+        "orderId": 818433,
+        "orderName": "CSC-CC/99380515",
+        "posRef": "Grubtech 15614-003-6630",
+        "dateKuwait": "2026-11-08 19:39",
+        "amountKwd": 24.95,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 813825,
+        "orderName": "CSC-CC/99378386",
+        "posRef": "Grubtech 15530-003-4509",
+        "dateKuwait": "2026-11-04 17:39",
+        "amountKwd": 4.8,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 813663,
+        "orderName": "CSC-CC/99378308",
+        "posRef": "Grubtech 15530-002-4432",
+        "dateKuwait": "2026-11-04 14:53",
+        "amountKwd": 10.2,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 809266,
+        "orderName": "CSC-CC/99376494",
+        "posRef": "Grubtech 15446-002-2628",
+        "dateKuwait": "2026-10-31 16:36",
+        "amountKwd": 3.188,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "franks"
+      },
+      {
+        "orderId": 809144,
+        "orderName": "CSC-CC/99376453",
+        "posRef": "Grubtech 15446-002-2589",
+        "dateKuwait": "2026-10-31 15:24",
+        "amountKwd": 5.55,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "franks"
+      }
+    ],
+    "al-kout|china-garden|jahez": [
+      {
+        "orderId": 820554,
+        "orderName": "CSC-CC/99381521",
+        "posRef": "Grubtech 15656-009-7631",
+        "dateKuwait": "2026-11-10 22:24",
+        "amountKwd": 7.7,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820421,
+        "orderName": "CSC-CC/99381427",
+        "posRef": "Grubtech 15656-006-7537",
+        "dateKuwait": "2026-11-10 20:27",
+        "amountKwd": 6.25,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 819620,
+        "orderName": "CSC-CC/99381100",
+        "posRef": "Grubtech 15638-008-7210",
+        "dateKuwait": "2026-11-09 23:29",
+        "amountKwd": 5,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 819478,
+        "orderName": "CSC-CC/99380995",
+        "posRef": "Grubtech 15638-008-7105",
+        "dateKuwait": "2026-11-09 21:04",
+        "amountKwd": 5.45,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 819206,
+        "orderName": "CSC-CC/99380858",
+        "posRef": "Grubtech 15638-006-6970",
+        "dateKuwait": "2026-11-09 17:10",
+        "amountKwd": 5.85,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 24,
+        "paymentMethodName": "Jahez",
+        "brandId": "china-garden"
+      }
+    ],
+    "salmiya|china-garden|talabat-tgo": [
+      {
+        "orderId": 820632,
+        "orderName": "CSC-CC/99381595",
+        "posRef": "Grubtech 15656-010-7705",
+        "dateKuwait": "2026-11-11 01:12",
+        "amountKwd": 12.865,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820611,
+        "orderName": "CSC-CC/99381574",
+        "posRef": "Grubtech 15656-010-7684",
+        "dateKuwait": "2026-11-11 00:22",
+        "amountKwd": 8.3,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820607,
+        "orderName": "CSC-CC/99381570",
+        "posRef": "Grubtech 15656-010-7680",
+        "dateKuwait": "2026-11-11 00:12",
+        "amountKwd": 4,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820604,
+        "orderName": "CSC-CC/99381567",
+        "posRef": "Grubtech 15656-010-7677",
+        "dateKuwait": "2026-11-11 00:08",
+        "amountKwd": 3.5,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820603,
+        "orderName": "CSC-CC/99381566",
+        "posRef": "Grubtech 15656-010-7676",
+        "dateKuwait": "2026-11-11 00:07",
+        "amountKwd": 15.55,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      }
+    ],
+    "salmiya|noodle-bar|talabat-tgo": [
+      {
+        "orderId": 820518,
+        "orderName": "CSC-CC/99381497",
+        "posRef": "Grubtech 15656-009-7607",
+        "dateKuwait": "2026-11-10 21:56",
+        "amountKwd": 8.1,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "noodle-bar"
+      },
+      {
+        "orderId": 820366,
+        "orderName": "CSC-CC/99381394",
+        "posRef": "Grubtech 15656-005-7504",
+        "dateKuwait": "2026-11-10 19:55",
+        "amountKwd": 2.95,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "noodle-bar"
+      },
+      {
+        "orderId": 820250,
+        "orderName": "CSC-CC/99381322",
+        "posRef": "Grubtech 15656-005-7432",
+        "dateKuwait": "2026-11-10 18:28",
+        "amountKwd": 6.5,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "noodle-bar"
+      }
+    ],
+    "salmiya|franks|talabat-tgo": [
+      {
+        "orderId": 820496,
+        "orderName": "CSC-CC/99381480",
+        "posRef": "Grubtech 15656-008-7590",
+        "dateKuwait": "2026-11-10 21:34",
+        "amountKwd": 4.5,
+        "posConfigId": 20,
+        "posConfigName": "Delivery (Salmyia)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "franks"
+      }
+    ],
+    "al-kout|china-garden|talabat-tmp": [
+      {
+        "orderId": 810949,
+        "orderName": "CSC-CC/99377279",
+        "posRef": "Grubtech 15472-007-3408",
+        "dateKuwait": "2026-11-01 23:59",
+        "amountKwd": 9.15,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 790331,
+        "orderName": "CSC-CC/99368900",
+        "posRef": "Grubtech 15148-004-5059",
+        "dateKuwait": "2026-10-16 22:23",
+        "amountKwd": 7.4,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 781777,
+        "orderName": "CSC-CC/99364972",
+        "posRef": "Grubtech 15015-002-1149",
+        "dateKuwait": "2026-10-09 16:17",
+        "amountKwd": 14.05,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 778799,
+        "orderName": "CSC-CC/99363683",
+        "posRef": "Grubtech 14960-018-9865",
+        "dateKuwait": "2026-10-06 20:17",
+        "amountKwd": 5.55,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 776825,
+        "orderName": "CSC-CC/99362841",
+        "posRef": "Grubtech 14923-007-9029",
+        "dateKuwait": "2026-10-04 19:27",
+        "amountKwd": 9.35,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 18,
+        "paymentMethodName": "Talabat MP Paid",
+        "brandId": "china-garden"
+      }
+    ],
+    "al-kout|china-garden|deliveroo": [
+      {
+        "orderId": 818535,
+        "orderName": "CSC-CC/99380587",
+        "posRef": "Grubtech 15614-003-6702",
+        "dateKuwait": "2026-11-08 21:08",
+        "amountKwd": 9.55,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 818390,
+        "orderName": "CSC-CC/99380482",
+        "posRef": "Grubtech 15614-003-6597",
+        "dateKuwait": "2026-11-08 18:45",
+        "amountKwd": 3.8,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 808208,
+        "orderName": "CSC-CC/99376043",
+        "posRef": "Grubtech 15419-004-2180",
+        "dateKuwait": "2026-10-30 20:05",
+        "amountKwd": 4.35,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 807526,
+        "orderName": "CSC-CC/99375827",
+        "posRef": "Grubtech 15419-002-1964",
+        "dateKuwait": "2026-10-30 14:30",
+        "amountKwd": 3.8,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 805160,
+        "orderName": "CSC-CC/99374925",
+        "posRef": "Grubtech 15375-011-1063",
+        "dateKuwait": "2026-10-28 20:58",
+        "amountKwd": 3.45,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "china-garden"
+      }
+    ],
+    "al-kout|noodle-bar|deliveroo": [
+      {
+        "orderId": 802435,
+        "orderName": "CSC-CC/99373886",
+        "posRef": "Grubtech 15333-005-0030",
+        "dateKuwait": "2026-10-26 20:16",
+        "amountKwd": 4.95,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "noodle-bar"
+      },
+      {
+        "orderId": 777681,
+        "orderName": "CSC-CC/99363202",
+        "posRef": "Grubtech 14941-010-9386",
+        "dateKuwait": "2026-10-05 18:35",
+        "amountKwd": 4.95,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 19,
+        "paymentMethodName": "Deliveroo Go",
+        "brandId": "noodle-bar"
+      }
+    ],
+    "al-kout|china-garden|talabat-tgo": [
+      {
+        "orderId": 820631,
+        "orderName": "CSC-CC/99381594",
+        "posRef": "Grubtech 15656-010-7704",
+        "dateKuwait": "2026-11-11 01:11",
+        "amountKwd": 5.2,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820621,
+        "orderName": "CSC-CC/99381584",
+        "posRef": "Grubtech 15656-010-7694",
+        "dateKuwait": "2026-11-11 00:37",
+        "amountKwd": 2.8,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820587,
+        "orderName": "CSC-CC/99381550",
+        "posRef": "Grubtech 15656-009-7660",
+        "dateKuwait": "2026-11-10 23:22",
+        "amountKwd": 4.15,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820580,
+        "orderName": "CSC-CC/99381543",
+        "posRef": "Grubtech 15656-009-7653",
+        "dateKuwait": "2026-11-10 23:08",
+        "amountKwd": 2.25,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820574,
+        "orderName": "CSC-CC/99381537",
+        "posRef": "Grubtech 15656-009-7647",
+        "dateKuwait": "2026-11-10 22:51",
+        "amountKwd": 9.45,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 17,
+        "paymentMethodName": "Talabat Go",
+        "brandId": "china-garden"
+      }
+    ],
+    "al-kout|china-garden|keeta": [
+      {
+        "orderId": 820642,
+        "orderName": "CSC-CC/99381605",
+        "posRef": "Grubtech 15656-010-7715",
+        "dateKuwait": "2026-11-11 01:46",
+        "amountKwd": 4.15,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820637,
+        "orderName": "CSC-CC/99381600",
+        "posRef": "Grubtech 15656-010-7710",
+        "dateKuwait": "2026-11-11 01:25",
+        "amountKwd": 2.5,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820634,
+        "orderName": "CSC-CC/99381597",
+        "posRef": "Grubtech 15656-010-7707",
+        "dateKuwait": "2026-11-11 01:17",
+        "amountKwd": 2,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820596,
+        "orderName": "CSC-CC/99381559",
+        "posRef": "Grubtech 15656-009-7669",
+        "dateKuwait": "2026-11-10 23:51",
+        "amountKwd": 3.05,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      },
+      {
+        "orderId": 820589,
+        "orderName": "CSC-CC/99381552",
+        "posRef": "Grubtech 15656-009-7662",
+        "dateKuwait": "2026-11-10 23:30",
+        "amountKwd": 6.25,
+        "posConfigId": 22,
+        "posConfigName": "Delivery (Kout)",
+        "paymentMethodId": 50,
+        "paymentMethodName": "KEETA",
+        "brandId": "china-garden"
+      }
+    ]
+  }
+}

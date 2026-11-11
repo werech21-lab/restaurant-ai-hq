@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import { ChevronLeft, ChevronRight, PanelLeft, Search } from 'lucide-react'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { openCommandPalette } from '@/components/aether/BiFilterContext'
+import { OdooAuditCertificatePill } from '@/components/aether/OdooAuditCertificateModal'
 import { OdooSyncPill } from '@/components/aether/OdooSyncPill'
 import { BRAIN_BAR_ROUTES } from '@/components/aether/TopBrainSwitcher'
 import { RAIL_TOGGLE_EVENT } from '@/components/erp-sidebar'
@@ -82,6 +83,7 @@ export function PanelHeaderBar({
           </>
         ) : null}
         <OdooSyncPill isAr={isAr} />
+        <OdooAuditCertificatePill isAr={isAr} />
       </nav>
 
       {/* Fast ⌘K Quick Palette, Notifications, and fallback Theme/Language on non-ERP routes */}

@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  Brain,
   Check,
   Columns2,
   Copy,
@@ -13,6 +14,7 @@ import {
   Mic,
   MicOff,
   Minimize2,
+  Rocket,
   RotateCcw,
   Send,
   Sparkles,
@@ -26,28 +28,52 @@ import {
   askDualHeavyBrain,
   BRAIN_MODE_EVENT,
   getActiveBrainMode,
+  normalizeBrainMode,
   type BrainMode,
 } from '@/lib/dual-heavy-brain'
 import { askFeryalGeminiBrain, getDeterministicFeryalReply } from '@/lib/feryal-gemini-brain'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { FeryalStudioMessage, feryalPlainText } from '@/components/aether/FeryalStudioMessage'
+import {
+  autoSaveChatThread,
+  loadChatThread,
+  type StoredChatMessage,
+} from '@/lib/feryal-chat-store'
+import {
+  buildMacroBigBetPrompt,
+  FERYAL_MEMORY_UPDATED_EVENT,
+  getFeryalMemorySync,
+  hydrateFeryalMemory,
+  MACRO_BIG_BET_STRATEGIES,
+  type MacroBigBetId,
+} from '@/lib/feryal-learning-engine'
+import { FeryalSidebarNotebooks } from '@/components/aether/FeryalSidebarNotebooks'
+import { FeryalMemoryDrawer } from '@/components/aether/FeryalMemoryDrawer'
 
 // ==============================================================================
 // Conversation copy (strict Arabic / English isolation)
 // ==============================================================================
 const welcomeText = (lang: 'ar' | 'en') =>
   lang === 'ar'
-    ? `هلا بك، أنا فريال. أتابع معك أرقام الفروع والمطبخ والتوصيل مباشرة من أودو. اسألني بصوتك أو كتابة عن أي مطعم أو فرع.`
-    : `Hi, I'm Feryal. I track branch, kitchen, and delivery numbers live from Odoo. Ask me by voice or text about any brand or branch.`
+    ? `هلا بك، أنا فريال. أتابع معك أرقام الفروع والمخزن ومطبخ العارضية والتوصيل مباشرة من أودو عبر العقل الثلاثي. اسألني بصوتك أو كتابة، وتُحفظ محادثاتك تلقائياً في دفاترك.`
+    : `Hi, I'm Feryal. I audit branch, warehouse, Ardiya kitchen, and delivery numbers live from Odoo via the Triple-Brain Council. Ask by voice or text — every chat auto-saves to your notebooks.`
 
-const TOPICS: { id: string; tagAr: string; tagEn: string; labelAr: string; labelEn: string; promptAr: string; promptEn: string }[] = [
+const TOPICS: {
+  id: string
+  tagAr: string
+  tagEn: string
+  labelAr: string
+  labelEn: string
+  promptAr: string
+  promptEn: string
+}[] = [
   {
     id: 'kitchen-gap',
     tagAr: 'المطبخ',
     tagEn: 'Kitchen',
     labelAr: 'نقص بالمطبخ',
     labelEn: 'Kitchen Gap',
-    promptAr: 'وين يصير النقص في مواد المطبخ وكيف نضبط وزن الوجبات اليومي؟',
+    promptAr: 'وين يصير النقص في مواد المطبخ وكيف نضبط وزن الوجبات اليومي بين المخزن والعارضية والفروع؟',
     promptEn: 'Where is the kitchen food gap happening and how do we fix daily portion weights?',
   },
   {
@@ -56,7 +82,7 @@ const TOPICS: { id: string; tagAr: string; tagEn: string; labelAr: string; label
     tagEn: 'Buying',
     labelAr: 'فرق سعر مورد',
     labelEn: 'Supplier Price Diff',
-    promptAr: 'شنو أهم فروقات أسعار الموردين هالشهر وكيف نثبت السعر الأقل؟',
+    promptAr: 'شنو أهم فروقات أسعار الموردين هالشهر وكيف نثبت السعر الأقل لعقود المخزن المركزي؟',
     promptEn: 'What are the main supplier price differences this month and how do we lock the lowest price?',
   },
   {
@@ -72,14 +98,12 @@ const TOPICS: { id: string; tagAr: string; tagEn: string; labelAr: string; label
     id: 'delivery-dues',
     tagAr: 'التوصيل',
     tagEn: 'Delivery',
-    labelAr: 'مستحقات التوصيل',
-    labelEn: 'Delivery Dues',
-    promptAr: 'كم لنا مبالغ معلقة عند طلبات وكيتا وديليفرو وشنو الحسابات المتوقفة؟',
-    promptEn: 'How much is owed to us by Talabat, Keeta, and Deliveroo, and which app accounts are stopped?',
+    labelAr: 'مستحقات التوصيل وTMP',
+    labelEn: 'Delivery & TMP 15%',
+    promptAr: 'كم لنا مبالغ معلقة عند طلبات وكيتا وديليفرو وأي الفروع نربح فيها بتعيين سائق TMP بعمولة 15%؟',
+    promptEn: 'How much is owed by Talabat, Keeta, and Deliveroo, and where does a TMP 15% company driver pay off?',
   },
 ]
-
-const fmtKwd = (n: number, isAr: boolean) => `${Math.round(n).toLocaleString('en-US')} ${isAr ? 'د.ك' : 'KWD'}`
 
 /** Client-side text sanitizer for speech output. */
 function sanitizeTextForSpeechClient(rawText: string, lang: 'ar' | 'en'): string {
@@ -108,25 +132,20 @@ function sanitizeTextForSpeechClient(rawText: string, lang: 'ar' | 'en'): string
   return text.replace(/\s+/g, ' ').trim()
 }
 
-type ChatMessage = {
-  id: string
-  sender: 'user' | 'feryal'
-  text: string
-  time: string
-  engineLabelAr?: string
-  engineLabelEn?: string
-  geminiReply?: string
-  geminiModel?: string
-  grokReply?: string
-  grokModel?: string
-  statusNoteAr?: string
-  statusNoteEn?: string
-}
+type ChatMessage = StoredChatMessage
 
-const welcomeMessage = (lang: 'ar' | 'en'): ChatMessage => ({ id: 'welcome', sender: 'feryal', text: welcomeText(lang), time: '' })
+const welcomeMessage = (lang: 'ar' | 'en'): ChatMessage => ({
+  id: 'welcome',
+  sender: 'feryal',
+  text: welcomeText(lang),
+  time: '',
+})
+
+const makeFreshChatId = () =>
+  `chat-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
 
 // ==============================================================================
-// Feryal — Executive Solutions & Proposals Studio
+// Feryal — Executive Solutions, Notebooks & Self-Learning Studio
 // ==============================================================================
 export default function FeryalAiCommandPage() {
   const { locale: ctxLocale } = useI18n()
@@ -135,7 +154,10 @@ export default function FeryalAiCommandPage() {
   const [activeLocale, setActiveLocale] = useState<'ar' | 'en'>(() => {
     if (ctxLocale === 'en' || ctxLocale === 'ar') return ctxLocale
     if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('aetherbi_locale') || localStorage.getItem('NEXT_LOCALE') || localStorage.getItem('ai-hq-locale')
+      const stored =
+        localStorage.getItem('aetherbi_locale') ||
+        localStorage.getItem('NEXT_LOCALE') ||
+        localStorage.getItem('ai-hq-locale')
       if (stored === 'en' || stored === 'ar') return stored as 'ar' | 'en'
       const docLang = document.documentElement.lang
       if (docLang === 'en' || docLang === 'ar') return docLang as 'ar' | 'en'
@@ -152,7 +174,10 @@ export default function FeryalAiCommandPage() {
   useEffect(() => {
     if (typeof window === 'undefined') return
     const syncLocale = () => {
-      const stored = localStorage.getItem('aetherbi_locale') || localStorage.getItem('NEXT_LOCALE') || localStorage.getItem('ai-hq-locale')
+      const stored =
+        localStorage.getItem('aetherbi_locale') ||
+        localStorage.getItem('NEXT_LOCALE') ||
+        localStorage.getItem('ai-hq-locale')
       if (stored === 'en' || stored === 'ar') {
         setActiveLocale(stored)
         return
@@ -169,10 +194,15 @@ export default function FeryalAiCommandPage() {
     syncLocale()
     const observer = new MutationObserver((mutations) => {
       for (const m of mutations) {
-        if (m.type === 'attributes' && (m.attributeName === 'lang' || m.attributeName === 'dir')) syncLocale()
+        if (m.type === 'attributes' && (m.attributeName === 'lang' || m.attributeName === 'dir')) {
+          syncLocale()
+        }
       }
     })
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['lang', 'dir'] })
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['lang', 'dir'],
+    })
     window.addEventListener('storage', syncLocale)
     return () => {
       observer.disconnect()
@@ -180,38 +210,83 @@ export default function FeryalAiCommandPage() {
     }
   }, [])
 
-  const currentLang: 'ar' | 'en' = ctxLocale === 'en' || ctxLocale === 'ar' ? ctxLocale : activeLocale
+  const currentLang: 'ar' | 'en' =
+    ctxLocale === 'en' || ctxLocale === 'ar' ? ctxLocale : activeLocale
   const isAr = currentLang === 'ar'
   const T = useCallback((en: string, ar: string) => (isAr ? ar : en), [isAr])
   const { filters, workspace } = useGlobalFilter()
 
-  // Conversation state
+  // Persistent Chat & Notebook State
+  const [activeChatId, setActiveChatId] = useState<string>(() => makeFreshChatId())
+  const [activeNotebookId, setActiveNotebookId] = useState<string>('all')
   const [messages, setMessages] = useState<ChatMessage[]>(() => [welcomeMessage(currentLang)])
   const [inputText, setInputText] = useState('')
   const [isCopilotThinking, setIsCopilotThinking] = useState(false)
   const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null)
   const [isExpanded, setIsExpanded] = useState(false)
   const [openSplitIds, setOpenSplitIds] = useState<Record<string, boolean>>({})
-  const [activeBrainMode, setActiveBrainModeState] = useState<BrainMode>('dual')
+  const [activeBrainMode, setActiveBrainModeState] = useState<'triple' | 'claude' | 'gemini' | 'grok'>('triple')
+
+  // Self-Learning Memory & Macro Big-Bet UI State
+  const [memoryOpen, setMemoryOpen] = useState(false)
+  const [bigBetMenuOpen, setBigBetMenuOpen] = useState(false)
+  const [memoryCountBadge, setMemoryCountBadge] = useState<number>(7)
+  const bigBetMenuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    setActiveBrainModeState(getActiveBrainMode())
+    const syncMemCount = () => {
+      const m = getFeryalMemorySync()
+      setMemoryCountBadge(m.rules.length + m.outcomes.length)
+    }
+    void hydrateFeryalMemory().then((m) => {
+      setMemoryCountBadge(m.rules.length + m.outcomes.length)
+    })
+    window.addEventListener(FERYAL_MEMORY_UPDATED_EVENT, syncMemCount)
+    return () => window.removeEventListener(FERYAL_MEMORY_UPDATED_EVENT, syncMemCount)
+  }, [])
+
+  useEffect(() => {
+    if (!bigBetMenuOpen) return
+    const onDocClick = (e: MouseEvent) => {
+      if (bigBetMenuRef.current && !bigBetMenuRef.current.contains(e.target as Node)) {
+        setBigBetMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onDocClick)
+    return () => document.removeEventListener('mousedown', onDocClick)
+  }, [bigBetMenuOpen])
+
+  useEffect(() => {
+    setActiveBrainModeState(normalizeBrainMode(getActiveBrainMode()))
     const onBrainMode = (e: Event) => {
       const detail = (e as CustomEvent<BrainMode>).detail
-      if (detail === 'dual' || detail === 'gemini' || detail === 'grok') {
-        setActiveBrainModeState(detail)
-      } else {
-        setActiveBrainModeState(getActiveBrainMode())
-      }
+      setActiveBrainModeState(normalizeBrainMode(detail ?? getActiveBrainMode()))
     }
     window.addEventListener(BRAIN_MODE_EVENT, onBrainMode)
     return () => window.removeEventListener(BRAIN_MODE_EVENT, onBrainMode)
   }, [])
 
-  // A conversation lives in one language: switching the interface language opens a fresh discussion.
+  // Update welcome text if conversation has no user messages yet when switching language
   useEffect(() => {
-    setMessages([welcomeMessage(isAr ? 'ar' : 'en')])
+    setMessages((prev) => {
+      const hasUserMsg = prev.some((m) => m.sender === 'user')
+      if (hasUserMsg) return prev
+      return [welcomeMessage(isAr ? 'ar' : 'en')]
+    })
   }, [isAr])
+
+  // Real-time zero-click auto-save to IndexedDB (`aether_feryal_chats_v2`) + localStorage index
+  useEffect(() => {
+    const hasUser = messages.some((m) => m.sender === 'user' && m.text.trim().length > 0)
+    if (!hasUser) return
+    void autoSaveChatThread({
+      chatId: activeChatId,
+      messages,
+      lang: isAr ? 'ar' : 'en',
+      filterLabel: isAr ? workspace.subtitleAr : workspace.subtitleEn,
+      preferredNotebookId: activeNotebookId !== 'all' ? activeNotebookId : null,
+    })
+  }, [activeChatId, activeNotebookId, isAr, messages, workspace.subtitleAr, workspace.subtitleEn])
 
   const copyMessage = useCallback(async (id: string, text: string) => {
     try {
@@ -311,13 +386,20 @@ export default function FeryalAiCommandPage() {
       const voices = window.speechSynthesis.getVoices()
       const femaleVoice = voices.find(
         (v) =>
-          (v.name.includes('Female') || v.name.includes('Zira') || v.name.includes('Laila') || v.name.includes('Hoda') || v.name.includes('Salma') || v.name.includes('Maged')) &&
+          (v.name.includes('Female') ||
+            v.name.includes('Zira') ||
+            v.name.includes('Laila') ||
+            v.name.includes('Hoda') ||
+            v.name.includes('Salma') ||
+            v.name.includes('Maged')) &&
           (lang === 'ar' ? v.lang.startsWith('ar') : v.lang.startsWith('en')),
       )
       if (femaleVoice) utterance.voice = femaleVoice
       utterance.onend = () => {
         setPlayingMsgId(null)
-        if (isHandsFreeRef.current && !isVoiceMutedRef.current) setTimeout(() => startListeningRef.current?.(), 600)
+        if (isHandsFreeRef.current && !isVoiceMutedRef.current) {
+          setTimeout(() => startListeningRef.current?.(), 600)
+        }
       }
       utterance.onerror = () => setPlayingMsgId(null)
       window.speechSynthesis.speak(utterance)
@@ -328,12 +410,13 @@ export default function FeryalAiCommandPage() {
 
   const stopPlayback = useCallback(() => {
     if (audioPlayerRef.current) audioPlayerRef.current.pause()
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel()
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel()
+    }
     setPlayingMsgId(null)
   }, [])
 
   // OpenAI Nova voice through the visible audio element, with Google TTS and browser speech fallbacks.
-  // `force` plays even when Auto-Voice is off (explicit Listen buttons).
   const playFeryalSpeech = useCallback(
     async (text: string, msgId?: string, force = false) => {
       if (isVoiceMuted && !force) return
@@ -355,7 +438,9 @@ export default function FeryalAiCommandPage() {
         } catch {}
       }
       if (audioPlayerRef.current) audioPlayerRef.current.pause()
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel()
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel()
+      }
 
       const activeLang = isAr ? 'ar' : 'en'
       const activeId = msgId || 'live-speech'
@@ -372,8 +457,16 @@ export default function FeryalAiCommandPage() {
           try {
             const openAiRes = await fetch('https://api.openai.com/v1/audio/speech', {
               method: 'POST',
-              headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-              body: JSON.stringify({ model: 'tts-1', voice: 'nova', input: cleanText.slice(0, 4000), response_format: 'mp3' }),
+              headers: {
+                Authorization: `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                model: 'tts-1',
+                voice: 'nova',
+                input: cleanText.slice(0, 4000),
+                response_format: 'mp3',
+              }),
             })
             if (openAiRes.ok) {
               audioUrl = URL.createObjectURL(await openAiRes.blob())
@@ -386,12 +479,16 @@ export default function FeryalAiCommandPage() {
           }
         }
         if (!audioUrl) {
-          audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${activeLang === 'en' ? 'en' : 'ar'}&q=${encodeURIComponent(cleanText.slice(0, 200))}`
+          audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${
+            activeLang === 'en' ? 'en' : 'ar'
+          }&q=${encodeURIComponent(cleanText.slice(0, 200))}`
         }
 
         const onEnded = () => {
           setPlayingMsgId(null)
-          if (isHandsFreeRef.current && !isVoiceMutedRef.current) setTimeout(() => startListeningRef.current?.(), 600)
+          if (isHandsFreeRef.current && !isVoiceMutedRef.current) {
+            setTimeout(() => startListeningRef.current?.(), 600)
+          }
         }
         const player = audioPlayerRef.current
         if (player) {
@@ -406,7 +503,9 @@ export default function FeryalAiCommandPage() {
             fallbackSpeechSynthesis(cleanText, activeLang)
           }
           const playPromise = player.play()
-          if (playPromise !== undefined) playPromise.catch(() => fallbackSpeechSynthesis(cleanText, activeLang))
+          if (playPromise !== undefined) {
+            playPromise.catch(() => fallbackSpeechSynthesis(cleanText, activeLang))
+          }
           return
         }
         const audio = new Audio(audioUrl)
@@ -423,15 +522,22 @@ export default function FeryalAiCommandPage() {
     [fallbackSpeechSynthesis, isAr, isVoiceMuted, stopAllMicTracks],
   )
 
-  // Send a message to Feryal: Dual-Brain Consensus (Gemini Carbon + Grok Heavy) → /api/feryal → deterministic Odoo reply
+  // Send a message to Feryal: Triple-Brain Council -> /api/feryal -> deterministic Odoo reply
   const handleSendQuery = useCallback(
     async (queryText?: string) => {
       const textToSend = (queryText ?? inputText).trim()
       if (!textToSend) return
       const lang: 'ar' | 'en' = isAr ? 'ar' : 'en'
-      const stamp = () => new Date().toLocaleTimeString(lang === 'ar' ? 'ar-KW' : 'en-US', { hour: '2-digit', minute: '2-digit' })
+      const stamp = () =>
+        new Date().toLocaleTimeString(lang === 'ar' ? 'ar-KW' : 'en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+        })
 
-      setMessages((prev) => [...prev, { id: `user-${Date.now()}`, sender: 'user', text: textToSend, time: stamp() }])
+      setMessages((prev) => [
+        ...prev,
+        { id: `user-${Date.now()}`, sender: 'user', text: textToSend, time: stamp() },
+      ])
       setInputText('')
       setIsCopilotThinking(true)
 
@@ -442,6 +548,9 @@ export default function FeryalAiCommandPage() {
         let reply = ''
         let engineLabelAr: string | undefined
         let engineLabelEn: string | undefined
+        let claudeReply: string | undefined
+        let claudeModel: string | undefined
+        let claudeThinkingSummary: string | undefined
         let geminiReply: string | undefined
         let geminiModel: string | undefined
         let grokReply: string | undefined
@@ -460,6 +569,9 @@ export default function FeryalAiCommandPage() {
           reply = dualRes.reply?.trim() || ''
           engineLabelAr = dualRes.engineLabelAr
           engineLabelEn = dualRes.engineLabelEn
+          claudeReply = dualRes.claudeReply
+          claudeModel = dualRes.claudeModel
+          claudeThinkingSummary = dualRes.claudeThinkingSummary
           geminiReply = dualRes.geminiReply
           geminiModel = dualRes.geminiModel
           grokReply = dualRes.grokReply
@@ -467,7 +579,7 @@ export default function FeryalAiCommandPage() {
           statusNoteAr = dualRes.statusNoteAr
           statusNoteEn = dualRes.statusNoteEn
         } catch (brainErr) {
-          console.warn('Feryal dual-brain warning:', brainErr)
+          console.warn('Feryal triple-brain warning:', brainErr)
         }
         if (!reply) {
           try {
@@ -492,6 +604,9 @@ export default function FeryalAiCommandPage() {
             time: stamp(),
             engineLabelAr,
             engineLabelEn,
+            claudeReply,
+            claudeModel,
+            claudeThinkingSummary,
             geminiReply,
             geminiModel,
             grokReply,
@@ -533,7 +648,8 @@ export default function FeryalAiCommandPage() {
     stopAllMicTracks()
 
     let speechRecognitionActive = false
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
     if (SpeechRecognition) {
       try {
         const recognizer = new SpeechRecognition()
@@ -605,7 +721,11 @@ export default function FeryalAiCommandPage() {
           if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
           const errCode = event.error || 'speech-recognition-error'
           if (errCode !== 'no-speech') {
-            setMicToast(micLangRef.current === 'ar' ? 'تعذر التعرف على الصوت، حاول مرة أخرى أو اكتب رسالتك.' : 'Speech could not be recognised. Try again or type your message.')
+            setMicToast(
+              micLangRef.current === 'ar'
+                ? 'تعذر التعرف على الصوت، حاول مرة أخرى أو اكتب رسالتك.'
+                : 'Speech could not be recognised. Try again or type your message.',
+            )
           }
         }
         recognizer.onend = () => {
@@ -633,7 +753,11 @@ export default function FeryalAiCommandPage() {
         setIsListening(false)
         isListeningRef.current = false
         mediaStreamRef.current = null
-        setMicToast(micLangRef.current === 'ar' ? 'تعذر تشغيل المايكروفون. يمكنك متابعة المحادثة كتابياً.' : 'The microphone could not start. You can continue by typing.')
+        setMicToast(
+          micLangRef.current === 'ar'
+            ? 'تعذر تشغيل المايكروفون. يمكنك متابعة المحادثة كتابياً.'
+            : 'The microphone could not start. You can continue by typing.',
+        )
         setTimeout(() => setMicToast(null), 6000)
         inputFieldRef.current?.focus()
         return
@@ -666,7 +790,11 @@ export default function FeryalAiCommandPage() {
               })
               if (base64Audio && getGeminiApiKey()) {
                 try {
-                  const multimodalRes = await askFeryalGeminiBrain({ lang: micLangRef.current === 'en' ? 'en' : 'ar', audioBase64: base64Audio, mimeType: 'audio/webm' })
+                  const multimodalRes = await askFeryalGeminiBrain({
+                    lang: micLangRef.current === 'en' ? 'en' : 'ar',
+                    audioBase64: base64Audio,
+                    mimeType: 'audio/webm',
+                  })
                   if (multimodalRes.transcript && multimodalRes.transcript.trim()) {
                     const qText = multimodalRes.transcript.trim()
                     setInputText(qText)
@@ -689,7 +817,7 @@ export default function FeryalAiCommandPage() {
                 'prompt',
                 micLangRef.current === 'en'
                   ? "Feryal, Venture Foods, Odoo, Keeta, Talabat, China Garden, Frank's, Tahina, KWD"
-                  : 'فريال، فنتشر فودز، أودو، كيتا، طلبات، تشاينا جاردن، فرانكس، طحينة، دينار كويتي، السالمية، الكوت',
+                  : 'فريال، فنتشر فودز، أودو، كيتا، طلبات، تشاينا جاردن، فرانكس، طحينة، دينار كويتي، السالمية، الكوت، العارضية',
               )
               let finalQuery = ''
               if (apiKey) {
@@ -701,7 +829,9 @@ export default function FeryalAiCommandPage() {
                   })
                   if (whisperRes.ok) {
                     const whisperData = await whisperRes.json()
-                    if (whisperData.text && whisperData.text.trim()) finalQuery = whisperData.text.trim()
+                    if (whisperData.text && whisperData.text.trim()) {
+                      finalQuery = whisperData.text.trim()
+                    }
                   }
                 } catch (directWhisperErr) {
                   console.warn('Whisper request failed:', directWhisperErr)
@@ -713,11 +843,15 @@ export default function FeryalAiCommandPage() {
                   const sttRes = await fetch('/api/feryal/stt', { method: 'POST', body: fd })
                   if (sttRes.ok) {
                     const sttData = await sttRes.json()
-                    if (sttData.ok && sttData.transcript && sttData.transcript.trim()) finalQuery = sttData.transcript.trim()
+                    if (sttData.ok && sttData.transcript && sttData.transcript.trim()) {
+                      finalQuery = sttData.transcript.trim()
+                    }
                   }
                 } catch {}
               }
-              if (!finalQuery && interimTranscriptRef.current.trim()) finalQuery = interimTranscriptRef.current.trim()
+              if (!finalQuery && interimTranscriptRef.current.trim()) {
+                finalQuery = interimTranscriptRef.current.trim()
+              }
               if (finalQuery) {
                 setInputText(finalQuery)
                 interimTranscriptRef.current = ''
@@ -771,7 +905,9 @@ export default function FeryalAiCommandPage() {
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
       stopAllMicTracks()
       if (player) player.pause()
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel()
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel()
+      }
     }
   }, [stopAllMicTracks])
 
@@ -779,18 +915,51 @@ export default function FeryalAiCommandPage() {
   useEffect(() => {
     const player = audioPlayerRef.current
     if (!player) return
-    const clean = sanitizeTextForSpeechClient(welcomeText(isAr ? 'ar' : 'en'), isAr ? 'ar' : 'en').slice(0, 200)
-    player.src = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${isAr ? 'ar' : 'en'}&q=${encodeURIComponent(clean)}`
+    const clean = sanitizeTextForSpeechClient(
+      welcomeText(isAr ? 'ar' : 'en'),
+      isAr ? 'ar' : 'en',
+    ).slice(0, 200)
+    player.src = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${
+      isAr ? 'ar' : 'en'
+    }&q=${encodeURIComponent(clean)}`
   }, [isAr])
 
-  const lastFeryal = useMemo(() => [...messages].reverse().find((m) => m.sender === 'feryal') ?? null, [messages])
+  const lastFeryal = useMemo(
+    () => [...messages].reverse().find((m) => m.sender === 'feryal') ?? null,
+    [messages],
+  )
 
   const newDiscussion = useCallback(() => {
     stopPlayback()
     stopAllMicTracks()
     setInputText('')
+    setOpenSplitIds({})
+    setActiveChatId(makeFreshChatId())
     setMessages([welcomeMessage(isAr ? 'ar' : 'en')])
   }, [isAr, stopAllMicTracks, stopPlayback])
+
+  const handleSelectSavedChat = useCallback(
+    async (chatId: string) => {
+      stopPlayback()
+      stopAllMicTracks()
+      const thread = await loadChatThread(chatId)
+      if (thread && thread.messages.length > 0) {
+        setActiveChatId(thread.id)
+        setOpenSplitIds({})
+        setMessages(thread.messages)
+      }
+    },
+    [stopAllMicTracks, stopPlayback],
+  )
+
+  const launchMacroBigBet = useCallback(
+    (strategyId: MacroBigBetId) => {
+      setBigBetMenuOpen(false)
+      const prompt = buildMacroBigBetPrompt(strategyId, workspace, isAr)
+      void handleSendQuery(prompt)
+    },
+    [handleSendQuery, isAr, workspace],
+  )
 
   const formatAsDispatchBrief = useCallback(
     (rawText: string) => {
@@ -826,22 +995,26 @@ export default function FeryalAiCommandPage() {
   )
 
   const activeBrainBadgeText =
-    activeBrainMode === 'gemini'
-      ? T('Gemini Carbon ⚡', 'جميني Carbon ⚡')
-      : activeBrainMode === 'grok'
-        ? T('Grok Heavy 🧠', 'جروك Heavy 🧠')
-        : T('Dual Brain 🔥', 'العقل المزدوج 🔥')
+    activeBrainMode === 'claude'
+      ? T('Claude Deep 🔬', 'كلاود العميق 🔬')
+      : activeBrainMode === 'gemini'
+        ? T('Gemini Carbon ⚡', 'جميني Carbon ⚡')
+        : activeBrainMode === 'grok'
+          ? T('Grok Heavy 🧠', 'جروك Heavy 🧠')
+          : T('Triple Brain 🔥', 'العقل الثلاثي 🔥')
 
   const pill =
     'inline-flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-2 text-[12.5px] font-bold transition-all duration-150 focus:outline-none'
-  const pillIdle =
-    'ae-bento-subcard text-slate-700 hover:opacity-90 dark:text-slate-200'
+  const pillIdle = 'ae-bento-subcard text-slate-700 hover:opacity-90 dark:text-slate-200'
   const pillOn =
     'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-500/30 dark:bg-emerald-950/50 dark:text-emerald-300 dark:ring-emerald-500/40'
-  const panelShell = 'ae-bento-card h-[75vh] min-h-[580px] max-h-[820px]'
+  const panelShell = 'ae-bento-card h-[76vh] min-h-[600px] max-h-[840px]'
 
   return (
-    <div dir={isAr ? 'rtl' : 'ltr'} className="mx-auto w-full max-w-[1600px] space-y-5 font-sans text-slate-900 antialiased dark:text-slate-100">
+    <div
+      dir={isAr ? 'rtl' : 'ltr'}
+      className="mx-auto w-full max-w-[1600px] space-y-5 font-sans text-slate-900 antialiased dark:text-slate-100"
+    >
       {/* ───────────── Finance V2 × Verdelo Studio Bar ───────────── */}
       <header className="ae-bento-card flex flex-col gap-4 p-5 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex min-w-0 items-center gap-3.5">
@@ -863,46 +1036,169 @@ export default function FeryalAiCommandPage() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 xl:flex-nowrap">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* ابتكار الحلول الكبرى 🚀 */}
+          <div ref={bigBetMenuRef} className="relative">
+            <button
+              type="button"
+              disabled={isCopilotThinking}
+              onClick={() => setBigBetMenuOpen((v) => !v)}
+              className="ae-btn-primary inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3.5 py-2 text-[12.5px] font-extrabold transition-all hover:opacity-95 disabled:opacity-50"
+            >
+              <Rocket className="h-3.5 w-3.5" />
+              <span>{T('Big-Bet Generator 🚀', 'ابتكار الحلول الكبرى 🚀')}</span>
+            </button>
+
+            {bigBetMenuOpen ? (
+              <div className="ae-bento-card absolute end-0 z-50 mt-2 w-[340px] space-y-2 p-3.5 sm:w-[390px]">
+                <div className="text-[12.5px] font-extrabold text-slate-950 dark:text-white">
+                  {T(
+                    'Launch Macro Profit Strategy 🚀',
+                    'اختر محور ابتكار الحلول الكبرى 🚀',
+                  )}
+                </div>
+                {MACRO_BIG_BET_STRATEGIES.map((st) => (
+                  <button
+                    key={st.id}
+                    type="button"
+                    onClick={() => launchMacroBigBet(st.id)}
+                    className="ae-bento-subcard block w-full cursor-pointer rounded-2xl p-3 text-start transition-all hover:ring-1 hover:ring-emerald-500/50"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[12.5px] font-extrabold text-slate-950 dark:text-white">
+                        {isAr ? st.titleAr : st.titleEn}
+                      </span>
+                      <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10.5px] font-extrabold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+                        +{st.estMonthlyKwdMin.toLocaleString('en-US')}–
+                        {st.estMonthlyKwdMax.toLocaleString('en-US')} {isAr ? 'د.ك' : 'KWD'}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-[11.5px] leading-relaxed text-slate-500 dark:text-slate-400">
+                      {isAr ? st.summaryAr : st.summaryEn}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+
+          {/* ذاكرة وتطور فريال 🧠 */}
           <button
             type="button"
-            onClick={() => (playingMsgId ? stopPlayback() : lastFeryal && playFeryalSpeech(lastFeryal.text, lastFeryal.id, true))}
+            onClick={() => setMemoryOpen(true)}
+            className={`${pill} ${pillIdle}`}
+          >
+            <Brain className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            <span>{T('Feryal Memory 🧠', 'ذاكرة وتطور فريال 🧠')}</span>
+            <span className="rounded-full bg-emerald-100 px-1.5 py-0.2 text-[10.5px] font-extrabold tabular-nums text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300">
+              {memoryCountBadge}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() =>
+              playingMsgId
+                ? stopPlayback()
+                : lastFeryal && playFeryalSpeech(lastFeryal.text, lastFeryal.id, true)
+            }
             className={`${pill} ${playingMsgId ? pillOn : pillIdle}`}
           >
             {playingMsgId ? <Square className="h-3.5 w-3.5" /> : <Headphones className="h-4 w-4" />}
             {playingMsgId ? T('Stop', 'إيقاف') : T('Listen', 'استماع')}
           </button>
-          <audio ref={audioPlayerRef} controls preload="none" className="h-9 w-[170px] shrink-0 rounded-full" aria-label={T('Feryal voice player', 'مشغل صوت فريال')} />
-          <button type="button" aria-pressed={!isVoiceMuted} onClick={() => setIsVoiceMuted((v) => !v)} className={`${pill} ${!isVoiceMuted ? pillOn : pillIdle}`}>
+          <audio
+            ref={audioPlayerRef}
+            controls
+            preload="none"
+            className="h-9 w-[155px] shrink-0 rounded-full"
+            aria-label={T('Feryal voice player', 'مشغل صوت فريال')}
+          />
+          <button
+            type="button"
+            aria-pressed={!isVoiceMuted}
+            onClick={() => setIsVoiceMuted((v) => !v)}
+            className={`${pill} ${!isVoiceMuted ? pillOn : pillIdle}`}
+          >
             {isVoiceMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
             {T('Auto-Voice', 'رد صوتي')}
           </button>
-          <button type="button" aria-pressed={isHandsFree} onClick={() => setIsHandsFree((v) => !v)} className={`${pill} ${isHandsFree ? pillOn : pillIdle}`}>
+          <button
+            type="button"
+            aria-pressed={isHandsFree}
+            onClick={() => setIsHandsFree((v) => !v)}
+            className={`${pill} ${isHandsFree ? pillOn : pillIdle}`}
+          >
             <Mic className="h-4 w-4" />
             {T('Hands-Free', 'محادثة مستمرة')}
           </button>
-          <button type="button" aria-pressed={isExpanded} onClick={() => setIsExpanded((v) => !v)} className={`${pill} ${isExpanded ? pillOn : pillIdle} hidden lg:inline-flex`}>
+          <button
+            type="button"
+            aria-pressed={isExpanded}
+            onClick={() => setIsExpanded((v) => !v)}
+            className={`${pill} ${isExpanded ? pillOn : pillIdle} hidden lg:inline-flex`}
+          >
             {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-            {isExpanded ? T('Notes', 'الملاحظات') : T('Expand', 'تكبير')}
+            {isExpanded ? T('Side Panel', 'الدفاتر') : T('Expand', 'تكبير')}
           </button>
           <button type="button" onClick={newDiscussion} className={`${pill} ${pillIdle}`}>
             <RotateCcw className="h-4 w-4" />
-            {T('Reset', 'محادثة جديدة')}
+            {T('+ New Chat', '+ محادثة جديدة')}
           </button>
         </div>
       </header>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
-        {/* ───────────── Conversation studio ───────────── */}
-        <section className={`${isExpanded ? 'lg:col-span-12' : 'lg:col-span-8'} flex ${panelShell} flex-col overflow-hidden`}>
-          <div ref={chatScrollRef} className="flex-1 space-y-6 overflow-y-auto px-4 py-6 sm:px-7" aria-live="polite">
+        {/* ───────────── Conversation Studio ───────────── */}
+        <section
+          className={`${
+            isExpanded ? 'lg:col-span-12' : 'lg:col-span-8'
+          } flex ${panelShell} flex-col overflow-hidden`}
+        >
+          <div
+            ref={chatScrollRef}
+            className="flex-1 space-y-6 overflow-y-auto px-4 py-6 sm:px-7"
+            aria-live="polite"
+          >
             {messages.map((m) => {
               const mine = m.sender === 'user'
               const briefText = !mine && m.id !== 'welcome' ? formatAsDispatchBrief(m.text) : ''
-              const hasBothBrains = Boolean(!mine && m.geminiReply && m.grokReply)
+              const brainPanels = !mine
+                ? [
+                    m.claudeReply
+                      ? {
+                          key: 'claude',
+                          titleAr: 'رأي كلاود العميق 🔬',
+                          titleEn: 'Claude Extended Thinking 🔬',
+                          model: m.claudeModel,
+                          reply: m.claudeReply,
+                        }
+                      : null,
+                    m.geminiReply
+                      ? {
+                          key: 'gemini',
+                          titleAr: 'رأي جميني Carbon Pro ⚡',
+                          titleEn: 'Gemini Carbon Pro ⚡',
+                          model: m.geminiModel,
+                          reply: m.geminiReply,
+                        }
+                      : null,
+                    m.grokReply
+                      ? {
+                          key: 'grok',
+                          titleAr: 'رأي جروك Heavy (٣ زوايا) 🧠',
+                          titleEn: 'xAI Grok Heavy (3-Lens) 🧠',
+                          model: m.grokModel,
+                          reply: m.grokReply,
+                        }
+                      : null,
+                  ].filter((x): x is NonNullable<typeof x> => Boolean(x))
+                : []
+              const hasMultipleBrains = brainPanels.length >= 2
               const splitOpen = Boolean(openSplitIds[m.id])
               const engineBadge = !mine ? (isAr ? m.engineLabelAr : m.engineLabelEn) : undefined
               const noteText = !mine ? (isAr ? m.statusNoteAr : m.statusNoteEn) : undefined
+
               return (
                 <div key={m.id} className={`flex gap-3 ${mine ? 'justify-end' : 'justify-start'}`}>
                   {!mine && (
@@ -910,7 +1206,7 @@ export default function FeryalAiCommandPage() {
                       <Sparkles className="h-4 w-4" />
                     </div>
                   )}
-                  <div className={`min-w-0 ${mine ? 'max-w-[78%]' : 'max-w-[90%] flex-1'}`}>
+                  <div className={`min-w-0 ${mine ? 'max-w-[78%]' : 'max-w-[92%] flex-1'}`}>
                     {engineBadge ? (
                       <div className="mb-1.5 flex flex-wrap items-center gap-2">
                         <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">
@@ -932,14 +1228,20 @@ export default function FeryalAiCommandPage() {
                     >
                       {mine ? m.text : <FeryalStudioMessage text={m.text} />}
                     </div>
-                    <div className={`mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-400 ${mine ? 'justify-end' : ''}`}>
+                    <div
+                      className={`mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-400 ${
+                        mine ? 'justify-end' : ''
+                      }`}
+                    >
                       {m.time && <span className="tabular-nums">{m.time}</span>}
                       {!mine && (
                         <>
-                          {hasBothBrains && (
+                          {hasMultipleBrains && (
                             <button
                               type="button"
-                              onClick={() => setOpenSplitIds((prev) => ({ ...prev, [m.id]: !prev[m.id] }))}
+                              onClick={() =>
+                                setOpenSplitIds((prev) => ({ ...prev, [m.id]: !prev[m.id] }))
+                              }
                               className={`inline-flex cursor-pointer items-center gap-1 rounded-full px-3 py-1 font-semibold transition-colors ${
                                 splitOpen
                                   ? 'ae-btn-primary'
@@ -947,15 +1249,26 @@ export default function FeryalAiCommandPage() {
                               }`}
                             >
                               <Columns2 className="h-3.5 w-3.5" />
-                              {T('View Gemini & Grok Separately', 'عرض رأي جميني ورأي جروك كلٌّ على حدة')}
+                              {T(
+                                `View Council Brains Separately (${brainPanels.length})`,
+                                `عرض آراء محركات المجلس منفردة (${brainPanels.length})`,
+                              )}
                             </button>
                           )}
                           <button
                             type="button"
-                            onClick={() => (playingMsgId === m.id ? stopPlayback() : playFeryalSpeech(m.text, m.id, true))}
+                            onClick={() =>
+                              playingMsgId === m.id
+                                ? stopPlayback()
+                                : playFeryalSpeech(m.text, m.id, true)
+                            }
                             className="ae-bento-subcard inline-flex cursor-pointer items-center gap-1 rounded-full px-2.5 py-1 font-semibold text-slate-600 hover:opacity-90 dark:text-slate-300"
                           >
-                            {playingMsgId === m.id ? <Square className="h-3 w-3" /> : <Volume2 className="h-3.5 w-3.5" />}
+                            {playingMsgId === m.id ? (
+                              <Square className="h-3 w-3" />
+                            ) : (
+                              <Volume2 className="h-3.5 w-3.5" />
+                            )}
                             {playingMsgId === m.id ? T('Stop', 'إيقاف') : T('Listen', 'استماع للرد')}
                           </button>
                           <button
@@ -963,8 +1276,14 @@ export default function FeryalAiCommandPage() {
                             onClick={() => copyMessage(m.id, m.text)}
                             className="ae-bento-subcard inline-flex cursor-pointer items-center gap-1 rounded-full px-2.5 py-1 font-semibold text-slate-600 hover:opacity-90 dark:text-slate-300"
                           >
-                            {copiedMsgId === m.id ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
-                            {copiedMsgId === m.id ? T('Copied', 'تم النسخ') : T('Copy Reply', 'نسخ الرد')}
+                            {copiedMsgId === m.id ? (
+                              <Check className="h-3.5 w-3.5 text-emerald-600" />
+                            ) : (
+                              <Copy className="h-3.5 w-3.5" />
+                            )}
+                            {copiedMsgId === m.id
+                              ? T('Copied', 'تم النسخ')
+                              : T('Copy Reply', 'نسخ الرد')}
                           </button>
                           {m.id !== 'welcome' && (
                             <>
@@ -973,8 +1292,14 @@ export default function FeryalAiCommandPage() {
                                 onClick={() => copyMessage(`${m.id}-brief`, briefText)}
                                 className="ae-btn-primary inline-flex cursor-pointer items-center gap-1 rounded-full px-3 py-1 font-semibold hover:opacity-95"
                               >
-                                {copiedMsgId === `${m.id}-brief` ? <Check className="h-3.5 w-3.5" /> : <FileText className="h-3.5 w-3.5" />}
-                                {copiedMsgId === `${m.id}-brief` ? T('Brief Copied', 'تم نسخ الرسالة') : T('Team Brief', 'رسالة توجيه للفريق')}
+                                {copiedMsgId === `${m.id}-brief` ? (
+                                  <Check className="h-3.5 w-3.5" />
+                                ) : (
+                                  <FileText className="h-3.5 w-3.5" />
+                                )}
+                                {copiedMsgId === `${m.id}-brief`
+                                  ? T('Brief Copied', 'تم نسخ الرسالة')
+                                  : T('Team Brief', 'رسالة توجيه للفريق')}
                               </button>
                               <a
                                 href={`https://wa.me/?text=${encodeURIComponent(briefText)}`}
@@ -990,65 +1315,111 @@ export default function FeryalAiCommandPage() {
                         </>
                       )}
                     </div>
-                    {hasBothBrains && splitOpen ? (
-                      <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
-                        <div className="ae-bento-subcard rounded-2xl p-4 text-[13.5px] leading-[1.8] text-slate-700 dark:text-slate-200">
-                          <div className="mb-2 flex items-center justify-between gap-2 border-b border-slate-200/70 pb-2 dark:border-white/[0.06]">
-                            <span className="font-extrabold text-slate-950 dark:text-white">
-                              {T('Gemini Carbon High ⚡', 'رأي جميني Carbon High ⚡')}
-                            </span>
-                            {m.geminiModel ? (
-                              <span dir="ltr" className="font-mono text-[11px] font-bold text-slate-500">
-                                {m.geminiModel}
+
+                    {hasMultipleBrains && splitOpen ? (
+                      <div
+                        className={`mt-3 grid grid-cols-1 gap-3 ${
+                          brainPanels.length === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-2'
+                        }`}
+                      >
+                        {brainPanels.map((panel) => (
+                          <div
+                            key={panel.key}
+                            className="ae-bento-subcard rounded-2xl p-4 text-[13.5px] leading-[1.8] text-slate-700 dark:text-slate-200"
+                          >
+                            <div className="mb-2 flex items-center justify-between gap-2 border-b border-slate-200/70 pb-2 dark:border-white/[0.06]">
+                              <span className="font-extrabold text-slate-950 dark:text-white">
+                                {isAr ? panel.titleAr : panel.titleEn}
                               </span>
-                            ) : null}
+                              {panel.model ? (
+                                <span
+                                  dir="ltr"
+                                  className="font-mono text-[11px] font-bold text-slate-500"
+                                >
+                                  {panel.model}
+                                </span>
+                              ) : null}
+                            </div>
+                            <FeryalStudioMessage text={panel.reply} />
                           </div>
-                          <FeryalStudioMessage text={m.geminiReply ?? ''} />
-                        </div>
-                        <div className="ae-bento-subcard rounded-2xl p-4 text-[13.5px] leading-[1.8] text-slate-700 dark:text-slate-200">
-                          <div className="mb-2 flex items-center justify-between gap-2 border-b border-slate-200/70 pb-2 dark:border-white/[0.06]">
-                            <span className="font-extrabold text-slate-950 dark:text-white">
-                              {T('xAI Grok Heavy (3-Lens) 🧠', 'رأي جروك Heavy (٣ زوايا) 🧠')}
-                            </span>
-                            {m.grokModel ? (
-                              <span dir="ltr" className="font-mono text-[11px] font-bold text-slate-500">
-                                {m.grokModel}
-                              </span>
-                            ) : null}
-                          </div>
-                          <FeryalStudioMessage text={m.grokReply ?? ''} />
-                        </div>
+                        ))}
                       </div>
                     ) : null}
                   </div>
                 </div>
               )
             })}
+
             {messages.length <= 1 && !isCopilotThinking && (
-              <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-                {TOPICS.map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => handleSendQuery(isAr ? t.promptAr : t.promptEn)}
-                    className="ae-kpi-card group cursor-pointer p-4 text-start active:scale-[0.99]"
-                  >
-                    <span className="inline-block rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10.5px] font-bold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
-                      {isAr ? t.tagAr : t.tagEn}
+              <div className="space-y-4">
+                {/* Macro Big-Bet Quick Pills */}
+                <div className="ae-bento-subcard rounded-2xl p-4">
+                  <div className="mb-2.5 flex items-center justify-between gap-2">
+                    <span className="text-[13px] font-extrabold text-slate-950 dark:text-white">
+                      {T(
+                        'Macro Big-Bet Generator 🚀 (Strategic Profit Levers)',
+                        'ابتكار الحلول الكبرى 🚀 (قفزات الربح الاستراتيجية)',
+                      )}
                     </span>
-                    <div className="mt-2 text-[14px] font-bold text-slate-950 dark:text-white">{isAr ? t.labelAr : t.labelEn}</div>
-                    <p className="mt-1 line-clamp-3 text-[12.5px] leading-relaxed text-slate-500 dark:text-slate-400">{isAr ? t.promptAr : t.promptEn}</p>
-                  </button>
-                ))}
+                  </div>
+                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                    {MACRO_BIG_BET_STRATEGIES.map((st) => (
+                      <button
+                        key={st.id}
+                        type="button"
+                        onClick={() => launchMacroBigBet(st.id)}
+                        className="ae-kpi-card cursor-pointer rounded-xl p-3 text-start transition-all active:scale-[0.99]"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-extrabold text-emerald-700 dark:text-emerald-400">
+                            {isAr ? st.badgeAr : st.badgeEn}
+                          </span>
+                          <span className="font-mono text-[10.5px] font-bold text-slate-500">
+                            +{st.estMonthlyKwdMin.toLocaleString('en-US')} {isAr ? 'د.ك+' : 'KWD+'}
+                          </span>
+                        </div>
+                        <div className="mt-1 text-[13px] font-extrabold text-slate-950 dark:text-white">
+                          {isAr ? st.titleAr : st.titleEn}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Daily Operational Topics */}
+                <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+                  {TOPICS.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => handleSendQuery(isAr ? t.promptAr : t.promptEn)}
+                      className="ae-kpi-card group cursor-pointer p-4 text-start active:scale-[0.99]"
+                    >
+                      <span className="inline-block rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10.5px] font-bold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
+                        {isAr ? t.tagAr : t.tagEn}
+                      </span>
+                      <div className="mt-2 text-[14px] font-bold text-slate-950 dark:text-white">
+                        {isAr ? t.labelAr : t.labelEn}
+                      </div>
+                      <p className="mt-1 line-clamp-3 text-[12.5px] leading-relaxed text-slate-500 dark:text-slate-400">
+                        {isAr ? t.promptAr : t.promptEn}
+                      </p>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
+
             {isCopilotThinking && (
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#0B1220] text-white dark:bg-[#10B981] dark:text-[#04130D]">
                   <Loader2 className="h-4 w-4 animate-spin" />
                 </div>
                 <div className="ae-bento-subcard px-5 py-3.5 text-[14.5px] font-medium text-slate-600 dark:text-slate-300">
-                  {T('Running Gemini Carbon + Grok Heavy on live Odoo numbers…', 'فريال تشغّل العقل المزدوج (جميني + جروك) على أرقام أودو…')}
+                  {T(
+                    'Running Triple-Brain Council + Evolving Memory on live Odoo numbers…',
+                    'فريال تشغّل العقل الثلاثي وذاكرة الشركة المتطورة على أرقام أودو…',
+                  )}
                 </div>
               </div>
             )}
@@ -1070,8 +1441,17 @@ export default function FeryalAiCommandPage() {
               ))}
             </div>
             {(micToast || isListening || isTranscribing) && (
-              <div className={`mb-2 text-[13px] font-medium ${micToast ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
-                {micToast ?? (isTranscribing ? T('Transcribing your voice…', 'جارٍ تحويل صوتك إلى نص…') : T('Listening… speak now', 'أستمع إليك… تفضل بالحديث'))}
+              <div
+                className={`mb-2 text-[13px] font-medium ${
+                  micToast
+                    ? 'text-rose-600 dark:text-rose-400'
+                    : 'text-emerald-700 dark:text-emerald-400'
+                }`}
+              >
+                {micToast ??
+                  (isTranscribing
+                    ? T('Transcribing your voice…', 'جارٍ تحويل صوتك إلى نص…')
+                    : T('Listening… speak now', 'أستمع إليك… تفضل بالحديث'))}
               </div>
             )}
             <div className="flex items-end gap-2.5">
@@ -1086,14 +1466,21 @@ export default function FeryalAiCommandPage() {
                     if (!isCopilotThinking) handleSendQuery()
                   }
                 }}
-                placeholder={T('Ask Feryal about any branch, restaurant, dish, expense, or delivery platform…', 'اسأل فريال عن أي فرع أو مطعم أو طبق أو مصاريف أو منصة توصيل…')}
+                placeholder={T(
+                  'Ask Feryal or teach a permanent rule (e.g., "Remember that our supplier contract…")…',
+                  'اسأل فريال عن أي فرع أو مورد أو علّمها قاعدة دائمة (مثال: تذكري أن…)',
+                )}
                 className="ae-bento-subcard min-h-[52px] flex-1 resize-none rounded-2xl px-4 py-3.5 text-[15px] leading-relaxed text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/35 dark:text-white"
               />
               <button
                 type="button"
                 onClick={toggleListening}
                 aria-pressed={isListening}
-                aria-label={isListening ? T('Stop microphone', 'إيقاف المايكروفون') : T('Speak to Feryal', 'التحدث إلى فريال')}
+                aria-label={
+                  isListening
+                    ? T('Stop microphone', 'إيقاف المايكروفون')
+                    : T('Speak to Feryal', 'التحدث إلى فريال')
+                }
                 className={`flex h-[52px] w-[52px] shrink-0 cursor-pointer items-center justify-center rounded-2xl transition-all active:scale-95 ${
                   isListening
                     ? 'animate-pulse bg-rose-600 text-white'
@@ -1115,43 +1502,30 @@ export default function FeryalAiCommandPage() {
           </div>
         </section>
 
-        {/* ───────────── أهم ملاحظات اليوم ───────────── */}
+        {/* ───────────── Gemini-Style Persistent Chats & Topic Notebooks Side Panel ───────────── */}
         {!isExpanded && (
-          <aside className={`lg:col-span-4 ${panelShell} space-y-3.5 overflow-y-auto p-6`}>
-            <div>
-              <h2 className="text-[16px] font-extrabold text-slate-950 dark:text-white">
-                {T("Today's Top Notes", 'أهم ملاحظات اليوم')}
-              </h2>
-              <p className="mt-0.5 text-[12px] font-medium text-slate-500 dark:text-slate-400">
-                {isAr ? workspace.subtitleAr : workspace.subtitleEn}
-              </p>
-            </div>
-            {workspace.feryalNotes.map((note) => (
-              <article key={note.id} className="ae-bento-subcard space-y-2.5 p-4">
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-[14.5px] font-extrabold text-slate-950 dark:text-white">
-                    {isAr ? note.titleAr : note.titleEn}
-                  </h3>
-                  <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11.5px] font-extrabold tabular-nums text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
-                    {isAr ? note.benefitAr : note.benefitEn}
-                  </span>
-                </div>
-                <p className="text-[13px] leading-relaxed text-slate-600 dark:text-slate-300">
-                  {isAr ? note.summaryAr : note.summaryEn}
-                </p>
-                <button
-                  type="button"
-                  disabled={isCopilotThinking}
-                  onClick={() => handleSendQuery(isAr ? note.promptAr : note.promptEn)}
-                  className="ae-btn-primary w-full cursor-pointer rounded-full px-4 py-2 text-[12.5px] font-bold transition-all duration-150 hover:opacity-95 active:scale-[0.98] disabled:opacity-50"
-                >
-                  {T('Ask Feryal', 'اسأل فريال')}
-                </button>
-              </article>
-            ))}
-          </aside>
+          <FeryalSidebarNotebooks
+            isAr={isAr}
+            activeChatId={activeChatId}
+            activeNotebookId={activeNotebookId}
+            onSelectNotebook={setActiveNotebookId}
+            onSelectChat={(id) => void handleSelectSavedChat(id)}
+            onNewChat={newDiscussion}
+            workspace={workspace}
+            isCopilotThinking={isCopilotThinking}
+            onRunNotePrompt={(p) => void handleSendQuery(p)}
+            panelClassName={panelShell}
+          />
         )}
       </div>
+
+      {/* Slide-Over Institutional Memory & Continuous Learning Drawer */}
+      <FeryalMemoryDrawer
+        open={memoryOpen}
+        onClose={() => setMemoryOpen(false)}
+        isAr={isAr}
+        onAskScalePlan={(p) => void handleSendQuery(p)}
+      />
     </div>
   )
 }

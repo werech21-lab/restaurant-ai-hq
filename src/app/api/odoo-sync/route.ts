@@ -58,7 +58,8 @@ export async function GET(request: NextRequest) {
   try {
     const live = await fetchLiveOdooSummary(env, periodWindowForBucket(bucket), 25_000, bucket)
     const snapSummary = summaryFromSnapshot(snapshot, undefined, bucket)
-    const data: OdooLiveSummary = { ...live, ...(snapSummary.buckets ? { buckets: snapSummary.buckets } : {}) }
+    const mergedBuckets = snapSummary.buckets || live.buckets ? { ...(snapSummary.buckets ?? {}), ...(live.buckets ?? {}) } : undefined
+    const data: OdooLiveSummary = { ...live, ...(mergedBuckets ? { buckets: mergedBuckets } : {}) }
     cacheByBucket.set(bucket, { at: Date.now(), data })
     return NextResponse.json(data, { headers })
   } catch (error) {

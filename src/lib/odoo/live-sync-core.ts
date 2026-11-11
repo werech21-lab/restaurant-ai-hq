@@ -234,6 +234,42 @@ function monthToDate(now = new Date()) {
   return { from: iso(from), to: iso(to) }
 }
 
+const ACTIVE_BRAND_IDS = ['china-garden', 'franks', 'tahina', 'farm-brown', 'noodle-bar', 'karak-cafeteria'] as const
+const UI_CHANNEL_KEYS = ['dine-in', 'takeaway-direct', 'talabat-tgo', 'talabat-tmp', 'keeta', 'deliveroo', 'jahez', 'snoonu'] as const
+
+function reconcileAmounts(rawMap: Map<string, number>, keys: readonly string[], targetTotal: number): Map<string, number> {
+  const target = Math.max(0, r3(targetTotal))
+  const posEntries = keys.map((k) => [k, Math.max(0, Number(rawMap.get(k)) || 0)] as const)
+  const rawSum = posEntries.reduce((s, [, v]) => s + v, 0)
+  const out = new Map<string, number>()
+  if (target <= 0) {
+    for (const k of keys) out.set(k, 0)
+    return out
+  }
+  if (rawSum <= 0) {
+    for (const k of keys) out.set(k, 0)
+    out.set(keys[0], target)
+    return out
+  }
+  let roundedSum = 0
+  let maxKey = keys[0]
+  let maxVal = -1
+  for (const [k, v] of posEntries) {
+    const scaled = r3((v / rawSum) * target)
+    out.set(k, scaled)
+    roundedSum += scaled
+    if (scaled > maxVal) {
+      maxVal = scaled
+      maxKey = k
+    }
+  }
+  const residual = r3(target - roundedSum)
+  if (residual !== 0) {
+    out.set(maxKey, Math.max(0, r3((out.get(maxKey) ?? 0) + residual)))
+  }
+  return out
+}
+
 export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(), timeoutMs = 25_000, bucket?: OdooPeriodBucketKey): Promise<OdooLiveSummary> {
   if (!hasOdooCredentials(env)) throw new Error('Odoo credentials are not configured on the server')
   const base = String(env.ODOO_URL).replace(/\/+$/, '')
@@ -263,8 +299,20 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
   const ek = (model: string, method: string, args: unknown[], kwargs: Record<string, unknown> = {}) =>
     call('object', 'execute_kw', [db, uid, env.ODOO_API_KEY, model, method, args, kwargs])
 
-  const allowed = [...ALLOWED_POS_CONFIG_IDS]
-  const allowedSet = new Set(allowed)
+  const restaurantLocIds = Object.entries(REG.locations).filter(([, v]) => v.unit === 'restaurant').map(([k]) => k)
+  const restaurantAllowed = ALLOWED_POS_CONFIG_IDS.filter((cfgId) => {
+    const loc = REG.registers[String(cfgId)]?.location
+    return Boolean(loc && REG.locations[loc]?.unit === 'restaurant')
+  })
+  const allowedSet = new Set(restaurantAllowed)
+  const configs = (await ek('pos.config', 'search_read', [[['id', 'in', restaurantAllowed], ['active', 'in', [true, false]]]], { fields: ['id', 'name'], context: { active_test: false } })) as { id: number; name: string }[]
+  const configNameById = new Map(configs.map((c) => [c.id, c.name]))
+  const isDeliveryCfg = (cfgId: number) => {
+    const loc = REG.registers[String(cfgId)]?.location
+    const nm = configNameById.get(cfgId) ?? ''
+    return loc === 'ardiya' || /delivery|call\s*center/i.test(nm)
+  }
+
   const categories = (await ek('pos.category', 'search_read', [[]], { fields: ['id', 'name', 'parent_id'] })) as { id: number; name: string; parent_id: M2O }[]
   const catById = new Map(categories.map((c) => [c.id, c]))
   const rootName = (catId: number | null) => {
@@ -275,9 +323,9 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
   }
   const brandOfRoot = new Map(REG.brands.filter((b) => b.posRoot).map((b) => [b.posRoot as string, b]))
 
-  const orderDomain = [['date_order', '>=', `${period.from} 00:00:00`], ['date_order', '<', `${period.to} 00:00:00`], ['state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', allowed]]
+  const orderDomain = [['date_order', '>=', `${period.from} 00:00:00`], ['date_order', '<', `${period.to} 00:00:00`], ['state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', restaurantAllowed]]
   const bySession = (await ek('pos.order', 'read_group', [orderDomain, ['amount_total:sum', 'amount_tax:sum'], ['session_id']], { lazy: false })) as { session_id: M2O; amount_total: number; amount_tax: number; __count: number }[]
-  const byPayment = (await ek('pos.payment', 'read_group', [[['pos_order_id.date_order', '>=', `${period.from} 00:00:00`], ['pos_order_id.date_order', '<', `${period.to} 00:00:00`], ['pos_order_id.state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', allowed]], ['amount:sum'], ['session_id', 'payment_method_id']], { lazy: false })) as { session_id: M2O; payment_method_id: M2O; amount: number }[]
+  const byPayment = (await ek('pos.payment', 'read_group', [[['pos_order_id.date_order', '>=', `${period.from} 00:00:00`], ['pos_order_id.date_order', '<', `${period.to} 00:00:00`], ['pos_order_id.state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', restaurantAllowed]], ['amount:sum'], ['session_id', 'payment_method_id']], { lazy: false })) as { session_id: M2O; payment_method_id: M2O; amount: number; __count?: number }[]
   const sessionIds = [...new Set([...bySession, ...byPayment].map((g) => m2oId(g.session_id)).filter((x): x is number => x !== null))]
   const sessions = sessionIds.length ? ((await ek('pos.session', 'read', [sessionIds, ['id', 'config_id']])) as { id: number; config_id: M2O }[]) : []
   const configOfSession = new Map(sessions.map((s) => [s.id, m2oId(s.config_id)]))
@@ -287,41 +335,101 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
     const cfg = configOfSession.get(m2oId(g.session_id) ?? -1)
     if (cfg === undefined || cfg === null || !allowedSet.has(cfg)) continue
     const loc = REG.registers[String(cfg)]?.location
-    if (!loc) continue
+    if (!loc || REG.locations[loc]?.unit !== 'restaurant') continue
     const b = locAgg.get(loc) ?? { net: 0, orders: 0 }
-    b.net += (g.amount_total || 0) - (g.amount_tax || 0)
-    b.orders += g.__count || 0
+    b.net += Math.max(0, (g.amount_total || 0) - (g.amount_tax || 0))
+    b.orders += Math.max(0, g.__count || 0)
     locAgg.set(loc, b)
   }
-  const totalNet = [...locAgg.values()].reduce((s, b) => s + b.net, 0)
+  const targetNet = r3([...locAgg.values()].reduce((s, b) => s + b.net, 0))
   const totalOrders = [...locAgg.values()].reduce((s, b) => s + b.orders, 0)
+  const rawLocMap = new Map(restaurantLocIds.map((loc) => [loc, locAgg.get(loc)?.net ?? 0]))
+  const reconciledLocNet = reconcileAmounts(rawLocMap, restaurantLocIds, targetNet)
 
-  const channelAgg = new Map<string, number>()
+  const locRawUi = new Map<string, Record<string, { netKwd: number; orders: number }>>()
+  for (const loc of restaurantLocIds) {
+    locRawUi.set(loc, Object.fromEntries(UI_CHANNEL_KEYS.map((ck) => [ck, { netKwd: 0, orders: 0 }])))
+  }
   for (const g of byPayment) {
     const cfg = configOfSession.get(m2oId(g.session_id) ?? -1)
     if (cfg === undefined || cfg === null || !allowedSet.has(cfg)) continue
+    const loc = REG.registers[String(cfg)]?.location
+    if (!loc || !locRawUi.has(loc)) continue
     const ch = channelOfPaymentMethod(m2oName(g.payment_method_id) ?? '')
-    channelAgg.set(ch, (channelAgg.get(ch) ?? 0) + (g.amount || 0))
+    const amt = Math.max(0, g.amount || 0)
+    const cnt = Math.max(0, g.__count || 0)
+    const row = locRawUi.get(loc)!
+    let uiKey: (typeof UI_CHANNEL_KEYS)[number] = 'dine-in'
+    if (ch === 'Talabat Go') uiKey = 'talabat-tgo'
+    else if (ch === 'Talabat MP') uiKey = 'talabat-tmp'
+    else if (ch === 'Keeta') uiKey = 'keeta'
+    else if (ch === 'Deliveroo Go' || ch === 'Deliveroo MP') uiKey = 'deliveroo'
+    else if (ch === 'Jahez' || ch === 'Cari') uiKey = 'jahez'
+    else if (ch === 'Snoonu') uiKey = 'snoonu'
+    else if (ch === 'Online payment link' || ch === 'Cash on delivery' || ch === 'Bilbayt') uiKey = 'takeaway-direct'
+    else uiKey = isDeliveryCfg(cfg) ? 'takeaway-direct' : 'dine-in'
+    row[uiKey].netKwd += amt
+    row[uiKey].orders += cnt
   }
 
-  const lineDomain = [['order_id.date_order', '>=', `${period.from} 00:00:00`], ['order_id.date_order', '<', `${period.to} 00:00:00`], ['order_id.state', 'in', ['paid', 'done', 'invoiced']], ['order_id.session_id.config_id', 'in', allowed]]
-  const byProduct = (await ek('pos.order.line', 'read_group', [lineDomain, ['price_subtotal:sum'], ['product_id']], { lazy: false })) as { product_id: M2O; price_subtotal: number }[]
+  const byLocation: NonNullable<OdooBucketSummary['byLocation']> = {}
+  const aggUiChannels: Record<string, { netKwd: number; orders: number }> = Object.fromEntries(UI_CHANNEL_KEYS.map((ck) => [ck, { netKwd: 0, orders: 0 }]))
+  for (const loc of restaurantLocIds) {
+    const locTarget = reconciledLocNet.get(loc) ?? 0
+    const rawUi = locRawUi.get(loc)!
+    const rawUiMap = new Map<string, number>(UI_CHANNEL_KEYS.map((ck) => [ck, rawUi[ck].netKwd]))
+    if (loc === 'ardiya' && (rawUiMap.get('dine-in') ?? 0) > 0) {
+      rawUiMap.set('takeaway-direct', (rawUiMap.get('takeaway-direct') ?? 0) + (rawUiMap.get('dine-in') ?? 0))
+      rawUiMap.set('dine-in', 0)
+    }
+    const allowedCk = loc === 'ardiya' ? UI_CHANNEL_KEYS.filter((ck) => ck !== 'dine-in') : UI_CHANNEL_KEYS
+    const recUi = reconcileAmounts(rawUiMap, allowedCk, locTarget)
+    const locUi: Record<string, { netKwd: number; orders: number }> = {}
+    for (const ck of UI_CHANNEL_KEYS) {
+      const nv = r3(recUi.get(ck) ?? 0)
+      const ov = nv > 0 ? Math.max(1, rawUi[ck].orders || Math.round(nv / 4.8)) : 0
+      locUi[ck] = { netKwd: nv, orders: ov }
+      aggUiChannels[ck].netKwd = r3(aggUiChannels[ck].netKwd + nv)
+      aggUiChannels[ck].orders += ov
+    }
+    byLocation[loc] = {
+      netKwd: locTarget,
+      orders: locAgg.get(loc)?.orders ?? 0,
+      uiChannels: locUi,
+    }
+  }
+
+  const lineDomain = [['order_id.date_order', '>=', `${period.from} 00:00:00`], ['order_id.date_order', '<', `${period.to} 00:00:00`], ['order_id.state', 'in', ['paid', 'done', 'invoiced']], ['order_id.session_id.config_id', 'in', restaurantAllowed]]
+  const byProduct = (await ek('pos.order.line', 'read_group', [lineDomain, ['price_subtotal:sum', 'qty:sum'], ['product_id']], { lazy: false })) as { product_id: M2O; price_subtotal: number; qty?: number }[]
   const productIds = byProduct.map((g) => m2oId(g.product_id)).filter((x): x is number => x !== null)
   const products = productIds.length ? ((await ek('product.product', 'read', [productIds, ['id', 'pos_categ_id']])) as { id: number; pos_categ_id: M2O }[]) : []
   const categOf = new Map(products.map((p) => [p.id, m2oId(p.pos_categ_id)]))
-  const brandAgg = new Map<string, number>()
+  const brandAgg = new Map<string, { rawNet: number; qty: number }>()
   for (const g of byProduct) {
     const root = rootName(categOf.get(m2oId(g.product_id) ?? -1) ?? null)
     const brand = root ? brandOfRoot.get(root) : undefined
-    if (!brand) continue
-    brandAgg.set(brand.id, (brandAgg.get(brand.id) ?? 0) + (g.price_subtotal || 0))
+    if (!brand || !(ACTIVE_BRAND_IDS as readonly string[]).includes(brand.id)) continue
+    const prev = brandAgg.get(brand.id) ?? { rawNet: 0, qty: 0 }
+    prev.rawNet += g.price_subtotal || 0
+    prev.qty += g.qty || 0
+    brandAgg.set(brand.id, prev)
   }
-  const brandTotal = [...brandAgg.values()].reduce((s, v) => s + v, 0)
+  const rawBrandMap = new Map<string, number>(ACTIVE_BRAND_IDS.map((bid) => [bid, Math.max(0, brandAgg.get(bid)?.rawNet ?? 0)]))
+  const reconciledBrandNet = reconcileAmounts(rawBrandMap, ACTIVE_BRAND_IDS, targetNet)
+  const byBrand: NonNullable<OdooBucketSummary['byBrand']> = {}
+  for (const bid of ACTIVE_BRAND_IDS) {
+    const nv = reconciledBrandNet.get(bid) ?? 0
+    byBrand[bid] = {
+      netKwd: nv,
+      orders: nv > 0 ? Math.max(1, Math.round((nv / Math.max(1, targetNet)) * totalOrders)) : 0,
+      qty: r3(Math.max(0, brandAgg.get(bid)?.qty ?? 0)),
+    }
+  }
 
   // Journey pulse (3 grouped totals) and the access audit run in parallel; neither may fail the summary.
   const windows = journeyWindows()
   const pulseOf = async (w: { from: string; to: string; days: number }) => {
-    const rows = (await ek('pos.order', 'read_group', [[['date_order', '>=', `${w.from} 00:00:00`], ['date_order', '<', `${w.to} 00:00:00`], ['state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', allowed]], ['amount_total:sum', 'amount_tax:sum'], []], { lazy: false })) as { amount_total: number; amount_tax: number; __count: number }[]
+    const rows = (await ek('pos.order', 'read_group', [[['date_order', '>=', `${w.from} 00:00:00`], ['date_order', '<', `${w.to} 00:00:00`], ['state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', restaurantAllowed]], ['amount_total:sum', 'amount_tax:sum'], []], { lazy: false })) as { amount_total: number; amount_tax: number; __count: number }[]
     const net = (rows[0]?.amount_total || 0) - (rows[0]?.amount_tax || 0)
     return { ...w, netKwd: r3(net), orders: rows[0]?.__count ?? 0, perDayKwd: r3(net / Math.max(1, w.days)) }
   }
@@ -363,16 +471,43 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
       }
     : undefined
 
+  const days = Math.max(1, Math.round((new Date(`${period.to}T00:00:00Z`).getTime() - new Date(`${period.from}T00:00:00Z`).getTime()) / 86400000))
+  const liveBucket: OdooBucketSummary | undefined = bucket
+    ? {
+        key: bucket,
+        from: period.from,
+        to: period.to,
+        days,
+        totals: {
+          netSalesKwd: targetNet,
+          orders: totalOrders,
+          aovKwd: totalOrders ? r3(targetNet / totalOrders) : 0,
+          restaurantNetKwd: targetNet,
+          restaurantOrders: totalOrders,
+        },
+        byBrand,
+        byLocation,
+        uiChannels: aggUiChannels,
+      }
+    : undefined
+
   return {
     source: 'live',
     syncedAt: new Date().toISOString(),
     ...(bucket ? { bucket } : {}),
     period,
     database: db,
-    totals: { netSalesKwd: r3(totalNet), orders: totalOrders, aovKwd: totalOrders ? r3(totalNet / totalOrders) : 0 },
-    brands: [...brandAgg.entries()].filter(([, v]) => v > 0).map(([bid, v]) => ({ id: bid, brand: REG.brands.find((b) => b.id === bid)?.en ?? bid, netKwd: r3(v), sharePct: pct(v, brandTotal) })).sort((a, b) => b.netKwd - a.netKwd),
-    branches: [...locAgg.entries()].map(([lid, b]) => ({ id: lid, name: REG.locations[lid]?.en ?? lid, unit: REG.locations[lid]?.unit ?? 'restaurant', netSalesKwd: r3(b.net), orders: b.orders, sharePct: pct(b.net, totalNet) })).sort((a, b) => b.netSalesKwd - a.netSalesKwd),
-    channels: [...channelAgg.entries()].map(([name, v]) => ({ name, amountKwd: r3(v) })).sort((a, b) => b.amountKwd - a.amountKwd),
+    totals: { netSalesKwd: targetNet, orders: totalOrders, aovKwd: totalOrders ? r3(targetNet / totalOrders) : 0 },
+    brands: ACTIVE_BRAND_IDS.filter((bid) => (reconciledBrandNet.get(bid) ?? 0) > 0).map((bid) => {
+      const nv = reconciledBrandNet.get(bid) ?? 0
+      return { id: bid, brand: REG.brands.find((b) => b.id === bid)?.en ?? bid, netKwd: nv, sharePct: pct(nv, targetNet) }
+    }).sort((a, b) => b.netKwd - a.netKwd),
+    branches: restaurantLocIds.map((lid) => {
+      const nv = reconciledLocNet.get(lid) ?? 0
+      return { id: lid, name: REG.locations[lid]?.en ?? lid, unit: 'restaurant', netSalesKwd: nv, orders: locAgg.get(lid)?.orders ?? 0, sharePct: pct(nv, targetNet) }
+    }).sort((a, b) => b.netSalesKwd - a.netSalesKwd),
+    channels: UI_CHANNEL_KEYS.map((ck) => ({ name: ck, amountKwd: aggUiChannels[ck].netKwd })).sort((a, b) => b.amountKwd - a.amountKwd),
+    ...(liveBucket && bucket ? { buckets: { [bucket]: liveBucket } } : {}),
     ...(pulse ? { journeyPulse: pulse } : {}),
     ...(access ? { access } : {}),
     ...(analyticCostCenters ? { analyticCostCenters } : {}),

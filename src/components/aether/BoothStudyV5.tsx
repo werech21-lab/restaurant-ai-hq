@@ -427,9 +427,9 @@ export function BoothStudyV5() {
           </div>
           <InteractiveDonutChart
             slices={boothDonutSlices}
-            centerValue={kwd(base.revenue)}
-            centerSubValue={`${base.profit >= 0 ? '+' : '-'}${kwd(Math.abs(base.profit))}`}
-            centerLabel={T('Expected Sales', 'المبيعات المتوقعة')}
+            centerValue={kwd(rent + setup + staff)}
+            centerSubValue={`${f1(model.rentShare)}% ${T('rent share', 'حصة الإيجار')}`}
+            centerLabel={T('Fixed Costs', 'التكاليف الثابتة')}
             isAr={isAr}
           />
         </div>

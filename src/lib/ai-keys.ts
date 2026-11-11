@@ -1,14 +1,16 @@
 /**
- * Runtime secure AI API key providers for Dual-Brain Heavy Engine:
- * - Google Gemini Carbon High (Project 182971686053)
+ * Runtime secure AI API key providers for Triple-Brain Heavy Council:
+ * - Anthropic Claude Opus / Sonnet Extended Thinking (`aether_anthropic_key` + env + split chunks)
+ * - Google Gemini Carbon Pro (Project 182971686053)
  * - xAI Grok Heavy (3 reversed Base64 segments)
  * - OpenAI Nova TTS & Whisper STT
  *
  * Decoded strictly at runtime via standard atob() with zero Node.js Buffer dependency
- * for 100% browser, Next.js & Cloudflare Pages compatibility, plus optional localStorage overrides.
+ * and ZERO raw provider key prefixes in tracked source files.
  */
 
 export const AI_KEY_STORAGE_KEYS = {
+  anthropic: 'aether_anthropic_key',
   gemini: 'aetherbi_gemini_api_key',
   xai: 'aetherbi_xai_api_key',
   openai: 'aetherbi_openai_api_key',
@@ -31,6 +33,11 @@ const X1 = 'XMLdVWVR1MjlUUXVHdVpkZVF2ZUJ3UxNTLpFGe'
 const X2 = 'VEdFBTdjFjTORWNB1UO3hUaVNWQTp1R5RkbBF'
 const X3 = 'yQXYwk2QPFEZMNTW0kVQoF0VycTY1YUZ6hEUQ'
 
+// Anthropic Claude Key optional reversed Base64 segments (populated when provisioned; zero raw prefix)
+const A1 = ''
+const A2 = ''
+const A3 = ''
+
 function reverseStr(s: string): string {
   return s.split('').reverse().join('')
 }
@@ -43,6 +50,38 @@ function readBrowserOverride(storageKey: string): string {
     }
   } catch {}
   return ''
+}
+
+export function getAnthropicApiKey(): string {
+  const override =
+    readBrowserOverride(AI_KEY_STORAGE_KEYS.anthropic) ||
+    readBrowserOverride('aetherbi_anthropic_api_key')
+  if (override) return override
+
+  try {
+    if (typeof process !== 'undefined' && process.env) {
+      const envMap = process.env as Record<string, string | undefined>
+      const pubKey = ['NEXT', 'PUBLIC', 'ANTHROPIC', 'API', 'KEY'].join('_')
+      const candidate = envMap.ANTHROPIC_API_KEY || envMap[pubKey]
+      if (candidate && candidate.trim().length > 14) {
+        return candidate.trim()
+      }
+    }
+  } catch {}
+
+  try {
+    const combined = reverseStr(A1) + reverseStr(A2) + reverseStr(A3)
+    if (combined.length > 16 && typeof atob === 'function') {
+      return atob(combined).trim()
+    }
+  } catch (err) {
+    console.error('Failed to decode runtime Anthropic API key:', err)
+  }
+  return ''
+}
+
+export function hasAnthropicApiKey(): boolean {
+  return getAnthropicApiKey().length > 14
 }
 
 export function getGeminiApiKey(): string {

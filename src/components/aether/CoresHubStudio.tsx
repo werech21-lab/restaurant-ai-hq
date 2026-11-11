@@ -767,9 +767,9 @@ export function CoresHubStudio() {
 
               <InteractiveDonutChart
                 slices={marketingDonutSlices}
-                centerValue={`${snap.marketing.kpis.promoSharePct}%`}
-                centerSubValue={`${f1(snap.marketing.kpis.roasPer1Kwd)}x ${kwdSuffix}`}
-                centerLabel={isAr ? 'حصة العروض' : 'Promo Share'}
+                centerValue={`+${f0(Math.max(0, snap.marketing.kpis.promoAdSalesKwd - snap.marketing.kpis.totalMarketingCostKwd))} ${kwdSuffix}`}
+                centerSubValue={isAr ? 'بعد خصم الإعلان' : 'net of ad spend'}
+                centerLabel={isAr ? 'فائض العروض' : 'Promo Surplus'}
                 isAr={isAr}
                 legendColumns={1}
               />
@@ -1300,7 +1300,7 @@ export function CoresHubStudio() {
               <InteractiveDonutChart
                 slices={salesBrandDonutSlices}
                 centerValue={`${snap.sales.brandShare[0]?.sharePct ?? 0}%`}
-                centerSubValue={`${f0(workspace.salesKwd)} ${kwdSuffix}`}
+                centerSubValue={`${snap.sales.brandShare.length} ${isAr ? 'مطاعم نشطة' : 'active brands'}`}
                 centerLabel={
                   isAr
                     ? (snap.sales.brandShare[0]?.labelAr ?? 'المبيعات')
@@ -1521,9 +1521,9 @@ export function CoresHubStudio() {
 
               <InteractiveDonutChart
                 slices={menuTagDonutSlices}
-                centerValue={`${snap.menu.avgMarginPct}%`}
-                centerSubValue={`${f0(snap.menu.totalActiveSkus)} ${isAr ? 'صنف' : 'SKUs'}`}
-                centerLabel={isAr ? 'متوسط الهامش' : 'Avg Margin'}
+                centerValue={`${f0(snap.menu.dishes.reduce((acc, d) => acc + Math.max(0, d.netProfitKwd), 0))} ${kwdSuffix}`}
+                centerSubValue={isAr ? 'صافي ربح الأطباق' : 'dishes net profit'}
+                centerLabel={isAr ? 'ربح المينيو' : 'Menu Profit'}
                 isAr={isAr}
                 legendColumns={1}
               />
@@ -1717,9 +1717,9 @@ export function CoresHubStudio() {
 
               <InteractiveDonutChart
                 slices={qualityPlatformDonutSlices}
-                centerValue={`${snap.quality.avgPlatformRating.toFixed(1)} ★`}
-                centerSubValue={`${snap.quality.qualityScore}%`}
-                centerLabel={isAr ? 'متوسط التقييم' : 'Avg Rating'}
+                centerValue={f0(snap.quality.platformRatings.reduce((acc, p) => acc + Math.max(0, p.orders), 0))}
+                centerSubValue={isAr ? 'طلب عبر التطبيقات' : 'app delivery orders'}
+                centerLabel={isAr ? 'طلبات المنصات' : 'Platform Orders'}
                 isAr={isAr}
                 legendColumns={1}
               />

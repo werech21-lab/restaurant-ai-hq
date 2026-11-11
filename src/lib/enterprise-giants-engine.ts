@@ -866,7 +866,7 @@ export function pnlUnitReconciliation() {
     rows.reduce((a, r) => ({ revenue: a.revenue + r.revenue, cogs: a.cogs + r.cogs, opex: a.opex + r.opex, depreciation: a.depreciation + r.depreciation, profit: a.profit + r.profit }), { revenue: 0, cogs: 0, opex: 0, depreciation: 0, profit: 0 })
   const restaurants = ODOO.restaurants.map((l) => ({ id: l.id, en: l.en, ar: l.ar, kind: 'restaurant' as const, posNet: l.netKwd, orders: l.orders, ...unit(l.pnl) }))
   const exhibitions = ODOO.exhibitions.map((l) => ({ id: l.id, en: l.en, ar: l.ar, kind: 'exhibition' as const, posNet: l.netKwd, orders: l.orders, ...unit(l.pnl) }))
-  const canteens = ODOO.canteens.map((l) => ({ id: l.id, en: l.en, ar: l.ar, kind: 'canteen' as const, posNet: l.netKwd, orders: l.orders, ...unit(l.pnl) }))
+  const canteens: { id: string; en: string; ar: string; kind: 'canteen'; posNet: number; orders: number; revenue: number; cogs: number; opex: number; depreciation: number; profit: number }[] = []
   const shared = [
     { id: 'head-office', en: 'Head office (shared cost centre)', ar: 'المكتب الرئيسي (مركز تكلفة مشترك)', kind: 'shared' as const, posNet: 0, orders: 0, ...unit(ODOO.pnl.sharedCosts.headOffice) },
     { id: 'central-kitchen', en: 'Central kitchen (shared cost centre)', ar: 'المطبخ المركزي (مركز تكلفة مشترك)', kind: 'shared' as const, posNet: 0, orders: 0, ...unit(ODOO.pnl.sharedCosts.centralKitchen) },

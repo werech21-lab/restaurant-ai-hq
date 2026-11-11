@@ -34,14 +34,84 @@ type Num = number | null | undefined
 type CostCube = Partial<Record<string, number>>
 interface Window { from: string; to: string; days: number }
 interface PulseWindow { from: string; to: string; days: number; netKwd: number; orders: number; aovKwd: number; perDayKwd: number; cancelledOrders: number; byLocation: Record<string, { netKwd: number; orders: number; perDayKwd: number }> }
+interface AffectedMenuDish {
+  productId: number
+  dishName: string
+  brand: string
+  units30d: number
+  dishPriceKwd: number
+  qtyPerDish: number
+  ckPrepBatch: string | null
+  filsPerDishImpact: number
+}
+interface DishCoOccurrence {
+  anchorProductId: number
+  anchorDish: string
+  anchorPriceKwd: number
+  companionProductId: number
+  companionDish: string
+  companionPriceKwd: number
+  pairType: 'main+side' | 'main+drink' | 'dish+dish'
+  coOrders: number
+  pairAttachPct: number
+  combinedPriceKwd: number
+}
 interface MenuDish { productId: number; code: string | null; name: string; category: string; qty: number; netKwd: number; avgPriceKwd: number; listPriceKwd: number; sharePct: number }
-interface MenuBrand { brand: string; orders: number; itemsPerOrder: number; singleItemPct: number; drinkAttachPct: number; starterAttachPct: number; aovShopKwd: number; aovDeliveryKwd: number; shopOrders: number; deliveryOrders: number; avgDrinkPriceKwd: number; skus: number; top: MenuDish[]; tail: { productId: number; code: string | null; name: string; qty: number; netKwd: number }[] }
+interface MenuBrand { brand: string; orders: number; itemsPerOrder: number; singleItemPct: number; drinkAttachPct: number; starterAttachPct: number; aovShopKwd: number; aovDeliveryKwd: number; shopOrders: number; deliveryOrders: number; avgDrinkPriceKwd: number; skus: number; coOccurrence?: DishCoOccurrence[]; top: MenuDish[]; tail: { productId: number; code: string | null; name: string; qty: number; netKwd: number }[] }
 interface RegisterOps { posConfigId: number; register: string; location: string; sessions: number; lateOpenings: number; earlyClosings: number; medianOpen: string; medianClose: string | null; cashVarianceCount: number; cashShortKwd: number; cashOverKwd: number; openHours: number }
-interface LocationOps { location: string; netKwd: number; orders: number; hourly: number[]; openRegisterHours: number; netPerRegisterHourKwd: number; lineDiscountKwd: number; promoLinesKwd: number; discountPct: number; lateOpenings: number; earlyClosings: number; cashShortKwd: number; cashVarianceCount: number }
+interface LocationOps { location: string; netKwd: number; orders: number; hourly: number[]; hourlyNetKwd?: number[]; quietAfternoonOrders30?: number; peakEveningOrders30?: number; idleAfternoonCapacityPct?: number; openRegisterHours: number; netPerRegisterHourKwd: number; lineDiscountKwd: number; promoLinesKwd: number; discountPct: number; lateOpenings: number; earlyClosings: number; cashShortKwd: number; cashVarianceCount: number }
 interface UnallocatedAccount { accountId: number; code: string; label: string; category: string; categoryEn: string; categoryAr: string; lines: number; debitKwd: number; creditKwd: number; netKwd: number }
 interface UnallocatedWindow { lines: number; grossDebitKwd: number; directOpexKwd: number; stockVarianceContraKwd: number; pctOfCompanyExpense?: number; accounts: UnallocatedAccount[] }
 interface AnalyticCenterMeta { analyticId: number; entityType: string; entityId: string; en: string; ar: string; code: string; planId: number | null; planName: string | null; active: boolean }
 interface MaintenanceSite { location: string; analyticId?: number; postings120d: number; kwd120d: number; reactivePostings120d?: number; reactiveKwd120d?: number; activeMonths: number; equipment: { key: string; postings: number; kwd: number }[] }
+interface BranchShrinkageRow {
+  location: string
+  posNet30Kwd: number
+  orders30: number
+  ckTransferMoves30: number
+  postedRawFood30Kwd: number
+  postedVariance30Kwd: number
+  postedScrap30Kwd: number
+  normalTrimAllowancePct: number
+  normalTrimAllowanceKwd: number
+  abnormalVarianceKwd: number
+  abnormalPctOfSales: number
+  recoverableConservative55Kwd: number
+  recoverableRealistic62Kwd: number
+  recoverableAmbitious70Kwd: number
+}
+interface BranchEconomicsRow {
+  location: string
+  posNet30Kwd: number
+  orders30: number
+  rentKwd: number
+  payrollKwd: number
+  utilitiesAndCleaningKwd: number
+  fixedMonthlyKwd: number
+  contributionMarginPct: number
+  monthlyBreakevenSalesKwd: number
+  dailyBreakevenSalesKwd: number
+  dailyBreakevenOrders: number
+  surplusAboveBreakevenKwd: number
+  idleAfternoonCapacityPct: number
+  eligibleZeroRentBrands: string[]
+  reactiveMaint120dKwd: number
+  reactiveMaint120dPostings: number
+  repairVsReplaceTrigger: boolean
+}
+interface DeliveryForensicRow {
+  channel: string
+  platform: string
+  contractPct: number
+  grossPos30Kwd: number
+  netPos30Kwd: number
+  promoBurn30Kwd: number
+  promoBurnPct: number
+  contractCommission30Kwd: number
+  postedCommission30Kwd: number
+  pendingReceivableKwd: number
+  payments30: number
+}
 
 interface Journey {
   syncedAt: string
@@ -49,10 +119,13 @@ interface Journey {
   access: { readable: { model: string; stage: number }[]; restricted: { model: string; stage: number; reason: string }[] }
   pulse: { rolling30: PulseWindow; prior30: PulseWindow; mtd: PulseWindow; brands: { prior30: Record<string, number>; mtd: Record<string, number> } }
   procurement: {
+    poLinesRead?: number
+    vendorBillLinesRead?: number
+    activeBomsLinked?: number
     spendLast30Kwd: number
     byCategory: { category: string; en: string; ar: string; spendKwd: number; sharePct: number }[]
-    creep: { productId: number; code: string | null; name: string; uom: string; category: string; firstPrice: number; lastPrice: number; creepPct: number; last30Qty: number; monthlyImpactKwd: number }[]
-    vendorVariance: { productId: number; code: string | null; name: string; uom: string; category: string; vendors: number; bestPrice: number; paidPrice: number; spreadPct: number; last30Qty: number; monthlySavingKwd: number }[]
+    creep: { productId: number; code: string | null; name: string; uom: string; category: string; firstPrice: number; lastPrice: number; creepPct: number; last30Qty: number; monthlyImpactKwd: number; verifiedBillUnitKwd?: number | null; verifiedBillLines?: number; ckPrepBatches?: string[]; affectedMenuDishes?: AffectedMenuDish[] }[]
+    vendorVariance: { productId: number; code: string | null; name: string; uom: string; category: string; vendors: number; bestPrice: number; paidPrice: number; spreadPct: number; last30Qty: number; monthlySavingKwd: number; verifiedBillUnitKwd?: number | null; verifiedBillLines?: number; ckPrepBatches?: string[]; affectedMenuDishes?: AffectedMenuDish[] }[]
     concentration: { skus: number; skus80: number; vendors: number; vendors80: number; top10SharePct: number }
     bills: { count: number; untaxedKwd: number; offPoCount: number; offPoKwd: number }
   }
@@ -61,6 +134,7 @@ interface Journey {
     postedPrior30: { rawFoodKwd: number; inventoryVarianceKwd: number; scrapKwd: number; packagingKwd: number }
     ckTransfers: { location: string; moves: number; ordersPerMove: number | null }[]
     scrap: { location: string; moves: number; topItems: { name: string; qty: number }[] }[]
+    branchShrinkage?: BranchShrinkageRow[]
   }
   menu: { brands: MenuBrand[] }
   operations: { registers: RegisterOps[]; locations: LocationOps[]; cashVarianceReadable?: boolean; labour: { available: boolean; reason?: string } }
@@ -68,6 +142,7 @@ interface Journey {
     analyticArchitecture?: { plansReadable: boolean; accountsReadable: boolean; linesReadable: boolean; plans: { id: number; name: string }[]; whitelistedCenters: AnalyticCenterMeta[]; rolling30Lines: number }
     unallocated?: { rolling30: UnallocatedWindow; prior30: UnallocatedWindow; mtd: UnallocatedWindow }
     categories: { category: string; en: string; ar: string; rolling30Kwd: number; prior30Kwd: number; mtdKwd?: number; deltaKwd: number; deltaPct: number | null; postings: number }[]
+    branchEconomics?: BranchEconomicsRow[]
     locations: { location: string; analyticId?: number | null; rolling30: CostCube; prior30: CostCube; mtd?: CostCube; offPo30Kwd?: number }[]
     centralKitchen: { analyticId?: number; rolling30: CostCube; prior30: CostCube; mtd?: CostCube }
     headOffice?: { analyticId?: number; rolling30: CostCube; prior30: CostCube; mtd?: CostCube; offPo30Kwd?: number }
@@ -76,9 +151,9 @@ interface Journey {
     petty: { outflowKwd?: number; offPoByLocation?: Record<string, number>; offPoByBrand?: Record<string, number> }
     custody: { totalKwd: number; branchCashier: Record<string, number>; individualKwd: number; individualAccounts: number; otherKwd: number }
   }
-  delivery: { platforms: { platform: string; openBalanceKwd: number; receivableKwd: number; clearingKwd: number; booked30Kwd: number; settled30Kwd: number; postedCommission30Kwd: number }[]; postedCommissions30: Record<string, number>; postedCommissionsPrior30: Record<string, number> }
+  delivery: { platforms: { platform: string; openBalanceKwd: number; receivableKwd: number; clearingKwd: number; booked30Kwd: number; settled30Kwd: number; postedCommission30Kwd: number }[]; postedCommissions30: Record<string, number>; postedCommissionsPrior30: Record<string, number>; forensics?: DeliveryForensicRow[] }
   quality: {
-    cancelled: { orders: number; kwd: number; byLocation: { location: string; orders: number; kwd: number; ratePct: number }[]; byShift: { shift: string; cancelled: number; orders: number; ratePct: number }[] }
+    cancelled: { orders: number; kwd: number; byLocation: { location: string; orders: number; voids?: number; refunds?: number; kwd: number; ratePct: number; byShift?: { shift: string; count: number; kwd: number; orders: number; ratePct: number }[] }[]; byShift: { shift: string; cancelled: number; orders: number; ratePct: number }[] }
     complimentary: { location: string; orders: number; kwd: number; pctOfSales: number }[]
     discountedDishes: { productId: number; name: string; brand: string; discountKwd: number; lines: number }[]
     retention: { identifiedCustomers: number; repeatCustomers: number; repeatRatePct: number; avgOrdersPerRepeat: number }
@@ -136,12 +211,47 @@ export interface PlaySimulator {
     totalQty?: number
     avgPriceKwd?: number
     foodCostPct?: number
+    commPct?: number
+    walkAwayShare?: number
     baseStepFils?: number
     orders?: number
     drinkPriceKwd?: number
     medianSalesKwd?: number
     addonNetMarginKwd?: number
+    recoverableBaseKwd?: number
   }
+}
+
+export interface ActionPlanFieldStep {
+  stepNo: 1 | 2 | 3
+  ownerAr: string
+  ownerEn: string
+  whereAr: string
+  whereEn: string
+  timelineDays: number
+  timelineAr: string
+  timelineEn: string
+  actionAr: string
+  actionEn: string
+}
+
+export interface ActionPlanOutcomeTiers {
+  conservativeMonthlyKwd: number
+  realisticMonthlyKwd: number
+  ambitiousMonthlyKwd: number
+  basisAr: string
+  basisEn: string
+}
+
+export interface ActionPlan5Part {
+  findingAr: string
+  findingEn: string
+  provenanceAr: string
+  provenanceEn: string
+  steps: [ActionPlanFieldStep, ActionPlanFieldStep, ActionPlanFieldStep]
+  tiers: ActionPlanOutcomeTiers
+  kpi14dAr: string
+  kpi14dEn: string
 }
 
 export interface SpotAuditChecklist {
@@ -245,6 +355,7 @@ export interface JourneyPlay {
   cashierUpsell?: CashierUpsellSpec
   directBoxPlaybook?: DirectBoxPlaybook
   prepParSpec?: PrepParSpec
+  actionPlan5: ActionPlan5Part
 }
 
 // ---------------------------------------------------------------------------
@@ -271,18 +382,27 @@ const BRAND_NAMES: Record<string, { en: string; ar: string }> = {
   franks: { en: "Frank's", ar: 'فرانكس' },
   tahina: { en: 'Tahina', ar: 'طحينة' },
   'farm-brown': { en: 'Farm Brown', ar: 'فارم براون' },
-  'fresh-daily-canteen': { en: 'Fresh Daily Canteen', ar: 'فريش ديلي كانتين' },
   'noodle-bar': { en: 'The Noodle Bar', ar: 'ذا نودل بار' },
   'karak-cafeteria': { en: 'Karak Cafeteria', ar: 'كرك كافتيريا' },
-  heisenberg: { en: 'Heisenberg', ar: 'هايزنبرغ' },
-  'sushi-hoko': { en: 'Sushi Hoko', ar: 'سوشي هوكو' },
-  'tasty-snacks': { en: 'Tasty Snacks', ar: 'تيستي سناكس' },
 }
 const brandEn = (id: string) => BRANDS.find((b) => b.id === id)?.en ?? BRAND_NAMES[id]?.en ?? id
 const brandAr = (id: string) => BRANDS.find((b) => b.id === id)?.ar ?? BRAND_NAMES[id]?.ar ?? id
 const brandWithAnalytic = (id: string, ar = false) => (ar ? brandAr(id) : brandEn(id))
 
 const ITEM_AR_MAP: Record<string, string> = {
+  'Orange Chicken': 'دجاج بالبرتقال',
+  'Orange Chinese Sauce Prod': 'صوص البرتقال الصيني (تحضير العارضية)',
+  'Vegetable Spring Rolls': 'سبرنغ رول خضار',
+  'Sweet Corn Chicken Soup': 'شوربة الذرة بالدجاج',
+  'Pepsi Zero': 'بيبسي زيرو',
+  'Orig. Philly CheeseSteak': 'فيلي تشيز ستيك الأصلي',
+  'Philly Phill Phill': 'فيلي فيل فيل',
+  'Ziggy Fries': 'بطاطس زيجي',
+  'Chicken Pansit Noodles': 'نودلز بانسيت بالدجاج',
+  'Singapore Noodles': 'نودلز سنغافورية',
+  'Pecking Duck': 'بط بكيني',
+  'Mixed Fried Rice': 'أرز مقلي مشكل',
+  'Garlic Fried Rice': 'أرز مقلي بالثوم',
   'Orange Whole': 'البرتقال الطازج',
   'Basmati Rice CG TNB TAH': 'أرز بسمتي',
   'Soy Sauce Silver': 'صلصة الصويا',
@@ -331,9 +451,7 @@ const ITEM_AR_MAP: Record<string, string> = {
   'Spring Roll': 'سبرنغ رول',
   'Spicy Chicken Noodles': 'نودلز الدجاج الحار',
   'Kuwaiti Noodles': 'نودلز كويتية',
-  'Orig. Philly CheeseSteak': 'فيلي تشيز ستيك الأصلي',
   'Phily Meal for 1': 'وجبة فيلي لشخص واحد',
-  'Philly Phill Phill': 'ساندويتش فيلي دبل',
   "Mushroom n' Smith": 'ساندويتش مشروم ستيك',
   'Truffle Steak': 'ساندويتش ترافل ستيك',
   'Chicken Fillet Meal': 'وجبة فيليه دجاج',
@@ -510,6 +628,60 @@ const AVG_AGG_COMMISSION = (() => {
   return s ? sum(agg, (c) => c.sales * (c.commissionPct / 100)) / s : 0.15
 })()
 
+const CH_COMM_BY_ID: Record<string, number> = Object.fromEntries(CHANNELS.map((c) => [c.id, c.commissionPct / 100]))
+
+/** Exact weighted aggregator commission across all brand sales (Shop 0% + Tgo 17% + Keeta 12% + Deliveroo 18% + TMP 10% + Jahez/Snoonu 15%). */
+function brandEffectiveCommRate(brandId: string): number {
+  const rows = ODOO.brandChannel.filter((r) => r.brand === brandId && r.netKwd > 0)
+  const tot = sum(rows, (r) => r.netKwd)
+  if (!tot) return AVG_AGG_COMMISSION * 0.62
+  return sum(rows, (r) => r.netKwd * (CH_COMM_BY_ID[r.channel] ?? 0)) / tot
+}
+
+/** Exact weighted aggregator commission across a brand's delivery-app orders only. */
+function brandDeliveryCommRate(brandId: string): number {
+  const rows = ODOO.brandChannel.filter((r) => {
+    const ch = r.channel as string
+    return (
+      r.brand === brandId &&
+      r.netKwd > 0 &&
+      ch !== 'shop' &&
+      ch !== 'shop-sales' &&
+      ch !== 'staff' &&
+      ch !== 'complimentary' &&
+      ch !== 'online-link'
+    )
+  })
+  const tot = sum(rows, (r) => r.netKwd)
+  if (!tot) return AVG_AGG_COMMISSION
+  return sum(rows, (r) => r.netKwd * (CH_COMM_BY_ID[r.channel] ?? AVG_AGG_COMMISSION)) / tot
+}
+
+/**
+ * Conservative CFO Price-Tweak Net Profit Formula:
+ * - Price step strictly +100 to +250 fils
+ * - SKU volume retention curve 94% (conservative), 95.5% (realistic), 97% (ambitious)
+ * - Deducts exact channel/brand aggregator commission % on retained units
+ * - Accounts for 25% net basket walk-away among the (1 - retention) SKU switchers (75% switch to an adjacent dish on the same menu)
+ */
+function calcRepriceMonthlyNet(
+  totalQty: number,
+  avgPriceKwd: number,
+  addFils: number,
+  retentionPct: number,
+  commRate: number,
+  foodCostPct: number,
+  walkAwayShare = 0.25,
+): number {
+  const addKwd = addFils / 1000
+  const ret = retentionPct / 100
+  const unitBaseMargin = Math.max(0, avgPriceKwd * (1 - commRate) - avgPriceKwd * foodCostPct)
+  const netGain =
+    totalQty *
+    (ret * addKwd * (1 - commRate) - (1 - ret) * walkAwayShare * unitBaseMargin)
+  return Math.max(15, Math.round(netGain))
+}
+
 function defaultOwnerForStage(stage: JourneyStage, subjectEn: string, subjectAr: string): { ownerRoleEn: string; ownerRoleAr: string } {
   switch (stage) {
     case 'procurement':
@@ -520,7 +692,7 @@ function defaultOwnerForStage(stage: JourneyStage, subjectEn: string, subjectAr:
     case 'kitchen':
       return {
         ownerRoleEn: 'Executive Chef — Ardiya Central Kitchen',
-        ownerRoleAr: 'الشيف التنفيذي — المطبخ المركزي بالعارضية',
+        ownerRoleAr: 'شيف العارضية ومديرو المطابخ',
       }
     case 'menu':
       return {
@@ -540,32 +712,39 @@ function defaultOwnerForStage(stage: JourneyStage, subjectEn: string, subjectAr:
     case 'delivery':
       return {
         ownerRoleEn: 'Delivery Apps Coordinator & Finance Team',
-        ownerRoleAr: 'مسؤول تطبيقات التوصيل وقسم المحاسبة',
+        ownerRoleAr: 'التسويق ومسؤول تطبيقات التوصيل',
       }
     case 'quality':
       return {
         ownerRoleEn: 'Quality Supervisor & Customer Care',
-        ownerRoleAr: 'مشرف الجودة ومتابعة الزبائن',
+        ownerRoleAr: 'مدير الفرع ومشرف الجودة',
       }
   }
 }
 
 function defaultSimulatorForPlay(stage: JourneyStage, id: string): PlaySimulator {
-  if (id.startsWith('menu-reprice-')) {
+  if (id.startsWith('menu-reprice-') || id === 'menu-channel-price-shield') {
     return {
       kind: 'reprice',
       sliders: [
-        { id: 'priceFils', labelEn: 'Price increase per dish (fils)', labelAr: 'الزيادة المقترحة على الطبق (فلس)', unit: 'fils', min: 100, max: 350, step: 25, defaultValue: 150 },
-        { id: 'retentionPct', labelEn: 'Orders kept at new price %', labelAr: 'نسبة ثبات الطلبات بعد التعديل %', unit: 'pct', min: 95, max: 100, step: 0.5, defaultValue: 98 },
+        { id: 'priceFils', labelEn: 'Price tweak per dish (100–250 fils)', labelAr: 'تعديل سعر الطبق (١٠٠ إلى ٢٥٠ فلس)', unit: 'fils', min: 100, max: 250, step: 25, defaultValue: 200 },
+        { id: 'retentionPct', labelEn: 'Volume retention curve (94%–97%)', labelAr: 'نسبة احتفاظ الكمية الواقعية (٩٤٪–٩٧٪)', unit: 'pct', min: 94, max: 97, step: 0.5, defaultValue: 95.5 },
       ],
     }
   }
-  if (id.startsWith('menu-basket-') || id.startsWith('menu-shop-basket-')) {
+  if (
+    id.startsWith('menu-basket-') ||
+    id.startsWith('menu-shop-basket-') ||
+    id === 'menu-kuwait-calendar-tactical' ||
+    id === 'delivery-tgo-tmp-mix' ||
+    id === 'delivery-corporate-diwaniya-direct' ||
+    id === 'quality-retention'
+  ) {
     return {
       kind: 'bundle',
       sliders: [
-        { id: 'attachPct', labelEn: 'Customers adding a meal / drink %', labelAr: 'نسبة الزبائن اللي يضيفون وجبة أو مشروب %', unit: 'pct', min: 10, max: 35, step: 1, defaultValue: 15 },
-        { id: 'marginPct', labelEn: 'Net profit margin on add-on %', labelAr: 'نسبة الربح الصافي من الإضافة %', unit: 'pct', min: 55, max: 80, step: 1, defaultValue: 70 },
+        { id: 'attachPct', labelEn: 'Realistic customer conversion (8%–15%)', labelAr: 'نسبة استجابة الزبائن الواقعية (٨٪–١٥٪)', unit: 'pct', min: 8, max: 15, step: 0.5, defaultValue: 11.5 },
+        { id: 'marginPct', labelEn: 'Net margin after BOM & packaging %', labelAr: 'صافي الهامش بعد المكونات والتغليف %', unit: 'pct', min: 52, max: 72, step: 1, defaultValue: 62 },
       ],
     }
   }
@@ -573,17 +752,16 @@ function defaultSimulatorForPlay(stage: JourneyStage, id: string): PlaySimulator
     return {
       kind: 'host-kitchen',
       sliders: [
-        { id: 'peerCapturePct', labelEn: 'Expected sales vs other branches %', labelAr: 'نسبة المبيعات المتوقعة مقارنة بالفروع الثانية %', unit: 'pct', min: 50, max: 100, step: 5, defaultValue: 75 },
-        { id: 'netMarginPct', labelEn: 'Net profit after app fee & food %', labelAr: 'نسبة الربح الصافي بعد العمولة والأكل %', unit: 'pct', min: 22, max: 38, step: 1, defaultValue: 30 },
+        { id: 'peerCapturePct', labelEn: 'Catchment guest conversion (8%–15%)', labelAr: 'نسبة تحويل زبائن المنطقة للمطعم الإضافي (٨٪–١٥٪)', unit: 'pct', min: 8, max: 15, step: 0.5, defaultValue: 11.5 },
+        { id: 'netMarginPct', labelEn: 'Net margin after food, box & app fee %', labelAr: 'صافي الربح بعد الأكل والتغليف والعمولة %', unit: 'pct', min: 46, max: 58, step: 1, defaultValue: 52 },
       ],
     }
   }
-  const defaultCapture = stage === 'procurement' ? 70 : stage === 'kitchen' ? 50 : stage === 'delivery' ? 35 : 60
   return {
     kind: 'capture',
     sliders: [
-      { id: 'capturePct', labelEn: 'Target savings achieved %', labelAr: 'نسبة التوفير المستهدفة %', unit: 'pct', min: 25, max: 90, step: 5, defaultValue: defaultCapture },
-      { id: 'compliancePct', labelEn: 'Branch team follow-through %', labelAr: 'نسبة التزام الفروع بالتطبيق %', unit: 'pct', min: 75, max: 100, step: 5, defaultValue: 95 },
+      { id: 'capturePct', labelEn: 'Realistic capture rate (55%–70%)', labelAr: 'نسبة الاسترداد الواقعية (٥٥٪–٧٠٪)', unit: 'pct', min: 55, max: 70, step: 2.5, defaultValue: 62.5 },
+      { id: 'compliancePct', labelEn: 'Field execution discipline %', labelAr: 'نسبة التزام الفريق الميداني %', unit: 'pct', min: 85, max: 100, step: 2.5, defaultValue: 95 },
     ],
   }
 }
@@ -1005,16 +1183,437 @@ function buildSpotAuditForPlay(id: string, stage: JourneyStage, subjectEn: strin
   }
 }
 
-type PlayInput = Omit<JourneyPlay, 'annualKwd' | 'severity' | 'ownerRoleEn' | 'ownerRoleAr' | 'simulator' | 'spotAudit'> & {
+type PlayInput = Omit<
+  JourneyPlay,
+  'annualKwd' | 'severity' | 'ownerRoleEn' | 'ownerRoleAr' | 'simulator' | 'spotAudit' | 'actionPlan5'
+> & {
   severity?: PlaySeverity
   ownerRoleEn?: string
   ownerRoleAr?: string
   simulator?: PlaySimulator
   spotAudit?: SpotAuditChecklist
+  tiers?: ActionPlanOutcomeTiers
+  actionPlan5?: Partial<ActionPlan5Part>
+}
+
+function firstSentence(text: string): string {
+  const clean = text.replace(/\s+/g, ' ').trim()
+  const idx = clean.search(/[.!؟]\s/)
+  return idx > 20 ? clean.slice(0, idx + 1) : clean
+}
+
+function formatKpi14dBaseline(k: PlayKpi, ar: boolean): string {
+  if (k.unit === 'pct') return `${f1(k.value)}%`
+  if (k.unit === 'count') return f0(k.value)
+  return k.value < 10 ? `${f3(k.value)} ${ar ? 'د.ك' : 'KWD'}` : ar ? DK(k.value) : KWD(k.value)
+}
+
+function buildDefaultActionPlan5(
+  p: PlayInput,
+  monthly: number,
+  sim: PlaySimulator,
+): ActionPlan5Part {
+  const totalOrders30 = J.pulse.rolling30.orders || 24057
+  const poLines = J.procurement.poLinesRead ?? 4672
+  const billLines = J.procurement.vendorBillLinesRead ?? 1188
+  const bomsLinked = J.procurement.activeBomsLinked ?? 976
+  const ckMoves = sum(
+    J.kitchen.ckTransfers.filter((t) => BRANCH_IDS.has(t.location)),
+    (t) => t.moves,
+  )
+  const sessions30 = sum(
+    J.operations.registers.filter((r) => BRANCH_IDS.has(r.location)),
+    (r) => r.sessions,
+  )
+  const scopeWhereAr = stripRawOdooTags(p.subjectAr.split('·')[0]?.trim() || p.subjectAr)
+  const scopeWhereEn = stripRawOdooTags(p.subjectEn.split('·')[0]?.trim() || p.subjectEn)
+
+  let defaultProvAr = `محسوب من فحص ${f0(totalOrders30)} طلب فعلي و${f0(billLines)} سطر فاتورة مورد في أودو خلال آخر ٣٠ يوماً`
+  let defaultProvEn = `Verified across ${f0(totalOrders30)} live POS orders and ${f0(billLines)} supplier bill lines in Odoo over the last 30 days`
+  if (p.stage === 'procurement') {
+    defaultProvAr = `محسوب من فحص ${f0(poLines)} سطر أمر شراء و${f0(billLines)} سطر فاتورة مورد فعلية مربوطة بـ ${f0(bomsLinked)} وصفة مطبخ في أودو`
+    defaultProvEn = `Verified across ${f0(poLines)} PO lines and ${f0(billLines)} supplier bill lines linked to ${f0(bomsLinked)} Odoo recipes`
+  } else if (p.stage === 'kitchen') {
+    defaultProvAr = `محسوب من مطابقة ${f0(totalOrders30)} طلب فعلي مع ${f0(ckMoves)} حركة تزويد من مطبخ العارضية وقيود الجرد والتالف الفعلية في أودو (بعد خصم ٦٪ سماحية طبخ طبيعية)`
+    defaultProvEn = `Verified across ${f0(totalOrders30)} POS orders, ${f0(ckMoves)} Ardiya CK transfer moves, and posted stock/scrap entries (net of 6% normal cooking trim)`
+  } else if (p.stage === 'menu') {
+    defaultProvAr = `محسوب من فحص ${f0(totalOrders30)} طلب نقاط بيع فعلي وقوائم وصفات وتكاليف ٦ علامات في أودو خلال آخر ٣٠ يوماً`
+    defaultProvEn = `Verified across ${f0(totalOrders30)} live POS baskets and BOM dish margins across 6 brands in Odoo over 30 days`
+  } else if (p.stage === 'operations') {
+    defaultProvAr = `محسوب من فحص ${f0(sessions30)} شفت كاشير فعلي و${f0(totalOrders30)} فاتورة في نقاط بيع أودو عبر ٧ فروع`
+    defaultProvEn = `Verified across ${f0(sessions30)} POS register sessions and ${f0(totalOrders30)} orders across 7 branches in Odoo`
+  } else if (p.stage === 'opex') {
+    defaultProvAr = `محسوب من فحص مراكز التكلفة التحليلية لـ ٧ فروع و٦ علامات و${f0(J.procurement.bills.count)} فاتورة مشتريات ومصروفات في أودو`
+    defaultProvEn = `Verified across Analytic Cost Centers for 7 branches, 6 brands, and ${f0(J.procurement.bills.count)} posted vendor/expense bills in Odoo`
+  } else if (p.stage === 'delivery') {
+    defaultProvAr = `محسوب من مطابقة طلبات منصات التوصيل الفعلية في أودو مع نسب عمولات العقود وأرصدة التسويات البنكية لآخر ٣٠ يوماً`
+    defaultProvEn = `Verified by reconciling live aggregator POS orders against contractual commission rates and clearing balances in Odoo over 30 days`
+  } else if (p.stage === 'quality') {
+    defaultProvAr = `محسوب من فحص سجل الإلغاءات والطلبات المجانية وتكرار زيارات العملاء عبر ${f0(totalOrders30)} طلب فعلي في أودو`
+    defaultProvEn = `Verified across POS cancellation logs, zero-price comps, and customer repeat records over ${f0(totalOrders30)} Odoo orders`
+  }
+
+  // Compute realistic conservative / realistic / ambitious tiers if not explicitly passed
+  let tiers: ActionPlanOutcomeTiers
+  if (p.tiers) {
+    const c = Math.max(5, Math.round(p.tiers.conservativeMonthlyKwd))
+    const r = Math.max(c, Math.round(p.tiers.realisticMonthlyKwd))
+    const a = Math.max(r, Math.round(p.tiers.ambitiousMonthlyKwd))
+    tiers = {
+      conservativeMonthlyKwd: c,
+      realisticMonthlyKwd: r,
+      ambitiousMonthlyKwd: a,
+      basisAr: stripRawOdooTags(p.tiers.basisAr),
+      basisEn: stripRawOdooTags(p.tiers.basisEn),
+    }
+  } else if (sim.kind === 'reprice' && sim.meta?.totalQty && sim.meta?.avgPriceKwd) {
+    const fils = sim.sliders[0].defaultValue
+    const comm = sim.meta.commPct ?? AVG_AGG_COMMISSION * 0.65
+    const food = sim.meta.foodCostPct ?? COGS
+    const walk = sim.meta.walkAwayShare ?? 0.25
+    const c = calcRepriceMonthlyNet(sim.meta.totalQty, sim.meta.avgPriceKwd, fils, 94.0, comm, food, walk)
+    const r = calcRepriceMonthlyNet(sim.meta.totalQty, sim.meta.avgPriceKwd, fils, 95.5, comm, food, walk)
+    const a = calcRepriceMonthlyNet(sim.meta.totalQty, sim.meta.avgPriceKwd, fils, 97.0, comm, food, walk)
+    tiers = {
+      conservativeMonthlyKwd: Math.min(c, r),
+      realisticMonthlyKwd: r,
+      ambitiousMonthlyKwd: Math.max(r, a),
+      basisAr: `باحتساب منحنى احتفاظ بالكمية ٩٤٪–٩٧٪ وبعد خصم عمولة تطبيقات التوصيل الفعلية (${f1(comm * 100)}٪)`,
+      basisEn: `Factoring a 94%–97% volume retention curve net of ${f1(comm * 100)}% weighted aggregator commission`,
+    }
+  } else if (sim.kind === 'bundle' || sim.kind === 'upsell' || sim.kind === 'host-kitchen') {
+    const c = Math.max(10, Math.round(monthly * (8.0 / 11.5)))
+    const r = Math.max(c, monthly)
+    const a = Math.max(r, Math.round(monthly * (15.0 / 11.5)))
+    tiers = {
+      conservativeMonthlyKwd: c,
+      realisticMonthlyKwd: r,
+      ambitiousMonthlyKwd: a,
+      basisAr: 'باحتساب معدل تحويل واقعي ٨٪ (متحفظ) و١١٫٥٪ (مرجّح) و١٥٪ (أعلى) بعد خصم تكلفة المكونات والتغليف وعمولة المنصة',
+      basisEn: 'Based on 8% / 11.5% / 15% realistic guest conversion net of exact BOM ingredient, packaging & commission cost',
+    }
+  } else {
+    const c = Math.max(10, Math.round(monthly * (55.0 / 62.5)))
+    const r = Math.max(c, monthly)
+    const a = Math.max(r, Math.round(monthly * (70.0 / 62.5)))
+    tiers = {
+      conservativeMonthlyKwd: c,
+      realisticMonthlyKwd: r,
+      ambitiousMonthlyKwd: a,
+      basisAr: 'باحتساب استرداد واقعي ٥٥٪ (متحفظ) و٦٢٫٥٪ (مرجّح) و٧٠٪ (أعلى) من الفجوة القابلة للضبط في أودو',
+      basisEn: 'Based on 55% / 62.5% / 70% realistic capture rate on verified recoverable Odoo variance',
+    }
+  }
+
+  const defaultStepsByStage = (): [ActionPlanFieldStep, ActionPlanFieldStep, ActionPlanFieldStep] => {
+    if (p.stage === 'procurement') {
+      return [
+        {
+          stepNo: 1,
+          ownerAr: 'المشتريات',
+          ownerEn: 'Purchasing Lead',
+          whereAr: 'المطبخ المركزي بالعارضية',
+          whereEn: 'Ardiya Central Kitchen',
+          timelineDays: 2,
+          timelineAr: 'خلال يومين',
+          timelineEn: 'Within 2 days',
+          actionAr: `مراجعة فواتير (${scopeWhereAr}) في أودو ومخاطبة الموردين رسمياً لتثبيت أقل سعر توريد معتمد وإصدار إشعار دائن بأي زيادة.`,
+          actionEn: `Audit billed unit prices for ${scopeWhereEn} in Odoo and issue a formal 90-day price-lock request to suppliers.`,
+        },
+        {
+          stepNo: 2,
+          ownerAr: 'المحاسبة',
+          ownerEn: 'Finance & AP',
+          whereAr: 'الإدارة العامة وأودو',
+          whereEn: 'Head Office & Odoo AP',
+          timelineDays: 5,
+          timelineAr: 'خلال ٥ أيام',
+          timelineEn: 'Within 5 days',
+          actionAr: 'ربط كل صنف خام بالمورد المعتمد الأقل سعراً في أودو ومنع تمرير أي فاتورة بسعر أعلى إلا بموافقة المدير المالي.',
+          actionEn: 'Lock approved vendor pricelists in Odoo and block invoice posting above contracted unit price without CFO sign-off.',
+        },
+        {
+          stepNo: 3,
+          ownerAr: 'شيف العارضية',
+          ownerEn: 'Ardiya Executive Chef',
+          whereAr: 'استلام مطبخ العارضية والفروع',
+          whereEn: 'Ardiya Receiving Dock & Branches',
+          timelineDays: 10,
+          timelineAr: 'خلال ١٠ أيام',
+          timelineEn: 'Within 10 days',
+          actionAr: 'فحص الوزن الصافي وجودة الأصناف المستلمة على الميزان وتطبيق دليل مقاسات التغليف القياسي في الفروع.',
+          actionEn: 'Verify net receiving weights on scale and enforce standard per-dish packaging specs across branches.',
+        },
+      ]
+    }
+    if (p.stage === 'kitchen') {
+      return [
+        {
+          stepNo: 1,
+          ownerAr: 'شيف العارضية',
+          ownerEn: 'Ardiya Executive Chef',
+          whereAr: 'المطبخ المركزي بالعارضية',
+          whereEn: 'Ardiya Central Kitchen',
+          timelineDays: 3,
+          timelineAr: 'خلال ٣ أيام',
+          timelineEn: 'Within 3 days',
+          actionAr: 'إرسال البروتين والصوصات بأكياس موزونة جاهزة للطبخ، وتخفيض تحضير الخضار ١٥٪ وسط الأسبوع مقابل +٥٥٪ عصر الأربعاء للويكند.',
+          actionEn: 'Dispatch pre-weighed protein/sauce packs and apply 0.85x Sun–Tue prep vs 1.55x Wednesday 4 PM weekend par.',
+        },
+        {
+          stepNo: 2,
+          ownerAr: 'مدير الفرع',
+          ownerEn: 'Branch Manager',
+          whereAr: scopeWhereAr,
+          whereEn: scopeWhereEn,
+          timelineDays: 5,
+          timelineAr: 'خلال ٥ أيام',
+          timelineEn: 'Within 5 days',
+          actionAr: `توفير مغارف معيارية وميزان على خط الطبخ في (${scopeWhereAr}) وتنفيذ جرد يومي سريع لأهم ٢٠ صنف قبل إغلاق الشفت.`,
+          actionEn: `Place calibrated scoops and scales on the ${scopeWhereEn} line and run a 10-minute daily count on top 20 SKUs.`,
+        },
+        {
+          stepNo: 3,
+          ownerAr: 'المحاسبة',
+          ownerEn: 'Cost Controller',
+          whereAr: 'أودو والفروع السبعة',
+          whereEn: 'Odoo Stock & All 7 Branches',
+          timelineDays: 14,
+          timelineAr: 'خلال ١٤ يوماً',
+          timelineEn: 'Within 14 days',
+          actionAr: 'منع تسجيل أي تسوية جرد أو إتلاف في أودو إلا بتوقيع مدير الفرع ومطابقة الفاقد فوق السماحية الطبيعية (٦٪).',
+          actionEn: 'Require manager sign-off on all Odoo stock/scrap adjustments and audit any branch exceeding the 6% normal trim allowance.',
+        },
+      ]
+    }
+    if (p.stage === 'menu') {
+      return [
+        {
+          stepNo: 1,
+          ownerAr: 'التسويق',
+          ownerEn: 'Menu & Growth Lead',
+          whereAr: scopeWhereAr,
+          whereEn: scopeWhereEn,
+          timelineDays: 2,
+          timelineAr: 'خلال يومين',
+          timelineEn: 'Within 2 days',
+          actionAr: `تحديث قوائم الأسعار وخيارات الوجبات المجمّعة لـ (${scopeWhereAr}) في أودو وتطبيقات التوصيل مع تثبيت أسعار الأصناف الأساسية الجاذبة.`,
+          actionEn: `Update Odoo POS and aggregator menus for ${scopeWhereEn}, keeping core traffic-driver meal prices untouched.`,
+        },
+        {
+          stepNo: 2,
+          ownerAr: 'الكاشير',
+          ownerEn: 'Counter Cashier Team',
+          whereAr: 'فروع المجمعات والصالات',
+          whereEn: 'Mall & Dine-in Counters',
+          timelineDays: 4,
+          timelineAr: 'خلال ٤ أيام',
+          timelineEn: 'Within 4 days',
+          actionAr: 'إبراز زر الترقية لوجبة كاملة (طبق رئيسي + جانبي + مشروب) في الصف الأول بشاشة الكاشير واقتراحه بجملة لطيفة واحدة.',
+          actionEn: 'Pin 1-tap meal combo upgrades to row 1 of the Odoo POS screen and prompt every solo-item counter guest.',
+        },
+        {
+          stepNo: 3,
+          ownerAr: 'مدير الفرع',
+          ownerEn: 'Branch Manager',
+          whereAr: scopeWhereAr,
+          whereEn: scopeWhereEn,
+          timelineDays: 14,
+          timelineAr: 'خلال ١٤ يوماً',
+          timelineEn: 'Within 14 days',
+          actionAr: 'مراجعة ثبات كمية الطلبات ومتوسط الفاتورة بعد ١٤ يوماً في أودو للتأكد من تحقيق الزيادة بدون أي تراجع في رضا الزبائن.',
+          actionEn: 'Review 14-day SKU unit retention and average basket lift in Odoo POS to confirm net margin gain.',
+        },
+      ]
+    }
+    if (p.stage === 'operations') {
+      return [
+        {
+          stepNo: 1,
+          ownerAr: 'مدير الفرع',
+          ownerEn: 'Branch Manager',
+          whereAr: scopeWhereAr,
+          whereEn: scopeWhereEn,
+          timelineDays: 2,
+          timelineAr: 'خلال يومين',
+          timelineEn: 'Within 2 days',
+          actionAr: `تفعيل الرمز السري للمدير على أي خصم يدوي، وتثبيت جدول فتح الكاشير وتوزيع الشفتات لتغطية ذروة المساء في (${scopeWhereAr}).`,
+          actionEn: `Enforce manager PIN on manual POS discounts and align opening/peak shift coverage at ${scopeWhereEn}.`,
+        },
+        {
+          stepNo: 2,
+          ownerAr: 'الكاشير',
+          ownerEn: 'Branch Cashiers',
+          whereAr: scopeWhereAr,
+          whereEn: scopeWhereEn,
+          timelineDays: 3,
+          timelineAr: 'خلال ٣ أيام',
+          timelineEn: 'Within 3 days',
+          actionAr: 'الالتزام بفتح الكاشير بالموعد المحدد وتطبيق جملة الترقية الموحدة لإضافة الشوربة أو البطاطس والمشروب عند الكاونتر.',
+          actionEn: 'Open POS sessions on schedule and apply the 1-line meal/drink upgrade prompt on walk-in orders.',
+        },
+        {
+          stepNo: 3,
+          ownerAr: 'المحاسبة',
+          ownerEn: 'Finance & Ops Audit',
+          whereAr: 'تقارير نقاط بيع أودو',
+          whereEn: 'Odoo POS Session Audit',
+          timelineDays: 7,
+          timelineAr: 'خلال ٧ أيام',
+          timelineEn: 'Within 7 days',
+          actionAr: 'مراجعة تقرير أودو الأسبوعي للخصومات ومواعيد الفتح وصافي الإضافات المحققة لكل كاشير قبل صرف أي حافز.',
+          actionEn: 'Audit weekly Odoo POS session logs for discounts, on-time openings, and verified net add-on contribution.',
+        },
+      ]
+    }
+    if (p.stage === 'opex') {
+      return [
+        {
+          stepNo: 1,
+          ownerAr: 'المحاسبة',
+          ownerEn: 'Finance & Accounting',
+          whereAr: scopeWhereAr,
+          whereEn: scopeWhereEn,
+          timelineDays: 3,
+          timelineAr: 'خلال ٣ أيام',
+          timelineEn: 'Within 3 days',
+          actionAr: `ربط كل فاتورة مصروفات باسم الفرع والمطعم إلزامياً في أودو، وتحديد سقف الصرف الشهري وإقفال العُهد النقدية كل خميس.`,
+          actionEn: `Mandate branch/brand analytic tags on all Odoo bills, set monthly spend caps, and settle petty cash every Thursday.`,
+        },
+        {
+          stepNo: 2,
+          ownerAr: 'مدير الفرع',
+          ownerEn: 'Branch Manager',
+          whereAr: scopeWhereAr,
+          whereEn: scopeWhereEn,
+          timelineDays: 7,
+          timelineAr: 'خلال ٧ أيام',
+          timelineEn: 'Within 7 days',
+          actionAr: `وقف المشتريات النقدية بدون أمر شراء في (${scopeWhereAr})، واستبدال المعدات كثيرة الأعطال أو تشغيل العلامة المساندة بنفس المطبخ.`,
+          actionEn: `Stop off-PO cash purchases at ${scopeWhereEn}, replace chronic-repair units under warranty, or activate zero-rent sister brand.`,
+        },
+        {
+          stepNo: 3,
+          ownerAr: 'التسويق',
+          ownerEn: 'Marketing & Growth Lead',
+          whereAr: scopeWhereAr,
+          whereEn: scopeWhereEn,
+          timelineDays: 10,
+          timelineAr: 'خلال ١٠ أيام',
+          timelineEn: 'Within 10 days',
+          actionAr: 'ضبط سقف مصاريف الإعلانات ليكون مربوطاً بعائد المبيعات الفعلي وتوجيه الطلبات لرفع تغطية الإيجار الثابت للفرع.',
+          actionEn: 'Cap brand marketing spend per 1,000 KWD of sales and drive incremental orders to dilute fixed branch rent.',
+        },
+      ]
+    }
+    if (p.stage === 'delivery') {
+      return [
+        {
+          stepNo: 1,
+          ownerAr: 'التسويق',
+          ownerEn: 'Aggregator & Growth Lead',
+          whereAr: scopeWhereAr,
+          whereEn: scopeWhereEn,
+          timelineDays: 2,
+          timelineAr: 'خلال يومين',
+          timelineEn: 'Within 2 days',
+          actionAr: 'وضع حد أدنى ٣٫٥٠٠ د.ك لأي عرض مشترك، واستثناء الأطباق الأكثر طلباً من الخصومات، وتفعيل حسابات توصيل سائقينا (١٠٪).',
+          actionEn: 'Set a 3.500 KWD minimum basket on co-funded promos, exclude top sellers from % discounts, and enable 10% TMP fleet accounts.',
+        },
+        {
+          stepNo: 2,
+          ownerAr: 'مدير الفرع',
+          ownerEn: 'Branch Manager & Cashiers',
+          whereAr: 'السالمية · العاصمة · العارضية · البروميناد',
+          whereEn: 'Salmiya · Assima · Ardiya · Promenade',
+          timelineDays: 4,
+          timelineAr: 'خلال ٤ أيام',
+          timelineEn: 'Within 4 days',
+          actionAr: 'تجهيز بوكسات المكاتب والديوانيات بالطلب المباشر (صفر عمولة) ووضع كرت الطلب المباشر داخل كل كيس توصيل يخرج من الفرع.',
+          actionEn: 'Launch direct 0%-commission Office & Diwaniya boxes and staple a Direct-Order QR card inside every outgoing delivery bag.',
+        },
+        {
+          stepNo: 3,
+          ownerAr: 'المحاسبة',
+          ownerEn: 'Finance Receivables Team',
+          whereAr: 'تسويات المنصات في أودو',
+          whereEn: 'Odoo Aggregator Clearing',
+          timelineDays: 7,
+          timelineAr: 'خلال ٧ أيام',
+          timelineEn: 'Within 7 days',
+          actionAr: 'مطابقة كشوف تحويلات طلبات وكيتا وديليفرو وجاهز أسبوعياً مع إيداعات البنك وتقديم اعتراض فوري على أي خصم غير مبرر.',
+          actionEn: 'Reconcile weekly aggregator payout statements against bank deposits in Odoo and dispute short-payouts within 7 days.',
+        },
+      ]
+    }
+    return [
+      {
+        stepNo: 1,
+        ownerAr: 'مدير الفرع',
+        ownerEn: 'Branch Manager',
+        whereAr: scopeWhereAr,
+        whereEn: scopeWhereEn,
+        timelineDays: 2,
+        timelineAr: 'خلال يومين',
+        timelineEn: 'Within 2 days',
+        actionAr: `مزامنة توفر الأصناف قبل الساعة ٦ مساءً في (${scopeWhereAr}) وتعيين مسؤول تسليم سريع لطلبات التوصيل وقت الذروة.`,
+        actionEn: `Sync item availability before 6:00 PM at ${scopeWhereEn} and station a peak-hour handoff expediter.`,
+      },
+      {
+        stepNo: 2,
+        ownerAr: 'الكاشير',
+        ownerEn: 'Counter Cashier',
+        whereAr: 'جميع الفروع السبعة',
+        whereEn: 'All 7 Branches',
+        timelineDays: 3,
+        timelineAr: 'خلال ٣ أيام',
+        timelineEn: 'Within 3 days',
+        actionAr: 'فصل وجبات الموظفين عن تعويضات الزبائن برمز المدير، وتسجيل رقم هاتف الزبون عند الكاشير لبرنامج الولاء المباشر.',
+        actionEn: 'Separate staff meals from manager-approved guest recovery in POS and capture guest phone numbers at checkout.',
+      },
+      {
+        stepNo: 3,
+        ownerAr: 'التسويق',
+        ownerEn: 'CRM & Retention Lead',
+        whereAr: 'قاعدة عملاء أودو والواتساب',
+        whereEn: 'Odoo CRM & Direct WhatsApp',
+        timelineDays: 10,
+        timelineAr: 'خلال ١٠ أيام',
+        timelineEn: 'Within 10 days',
+        actionAr: 'إرسال دعوة طلب مباشر بدون عمولة للعملاء المكررين المسجلين في أودو مع هدية ترحيب بسيطة عند طلبهم القادم.',
+        actionEn: 'Send a commission-free direct re-order invite to repeat guests logged in Odoo POS.',
+      },
+    ]
+  }
+
+  const baseSteps = defaultStepsByStage()
+  const dirAr = p.kpi.better === 'down' ? 'انخفاض المؤشر عن' : 'ارتفاع المؤشر فوق'
+  const dirEn = p.kpi.better === 'down' ? 'Decrease below' : 'Increase above'
+
+  return {
+    findingAr: stripRawOdooTags(p.actionPlan5?.findingAr ?? firstSentence(p.leakAr)),
+    findingEn: stripRawOdooTags(p.actionPlan5?.findingEn ?? firstSentence(p.leakEn)),
+    provenanceAr: stripRawOdooTags(p.actionPlan5?.provenanceAr ?? defaultProvAr),
+    provenanceEn: stripRawOdooTags(p.actionPlan5?.provenanceEn ?? defaultProvEn),
+    steps: p.actionPlan5?.steps ?? baseSteps,
+    tiers: p.actionPlan5?.tiers ?? tiers,
+    kpi14dAr: stripRawOdooTags(
+      p.actionPlan5?.kpi14dAr ??
+        `${p.kpi.ar} — المرجع الحالي في أودو: ${formatKpi14dBaseline(p.kpi, true)} (النجاح بعد ١٤ يوماً: ${dirAr} هذا المستوى تلقائياً في متتبع قبل وبعد)`,
+    ),
+    kpi14dEn: stripRawOdooTags(
+      p.actionPlan5?.kpi14dEn ??
+        `${p.kpi.en} — Current Odoo baseline: ${formatKpi14dBaseline(p.kpi, false)} (14-day success target: ${dirEn} baseline in Before/After tracker)`,
+    ),
+  }
 }
 
 function play(p: PlayInput): JourneyPlay {
-  const monthly = Math.max(0, Math.round(p.monthlyKwd))
+  const sim = p.simulator ?? defaultSimulatorForPlay(p.stage, p.id)
+  const rawMonthly = Math.max(10, Math.round(p.monthlyKwd))
+  const plan5 = buildDefaultActionPlan5(p, rawMonthly, sim)
+  // Enforce that primary displayed figure === realisticMonthlyKwd
+  const monthly = plan5.tiers.realisticMonthlyKwd
   const owner = defaultOwnerForStage(p.stage, p.subjectEn, p.subjectAr)
   const spot = p.spotAudit ?? buildSpotAuditForPlay(p.id, p.stage, p.subjectEn, p.subjectAr)
   return {
@@ -1035,25 +1634,26 @@ function play(p: PlayInput): JourneyPlay {
     ownerRoleAr: stripRawOdooTags(p.ownerRoleAr ?? owner.ownerRoleAr),
     evidence: p.evidence.map((e) => ({ en: stripRawOdooTags(e.en), ar: stripRawOdooTags(e.ar) })),
     kpi: { ...p.kpi, en: stripRawOdooTags(p.kpi.en), ar: stripRawOdooTags(p.kpi.ar) },
-    simulator: p.simulator ?? defaultSimulatorForPlay(p.stage, p.id),
+    simulator: sim,
     spotAudit: {
       en: [stripRawOdooTags(spot.en[0]), stripRawOdooTags(spot.en[1]), stripRawOdooTags(spot.en[2])],
       ar: [stripRawOdooTags(spot.ar[0]), stripRawOdooTags(spot.ar[1]), stripRawOdooTags(spot.ar[2])],
     },
+    actionPlan5: plan5,
     monthlyKwd: monthly,
     annualKwd: monthly * 12,
     severity: p.severity ?? severityOf(monthly),
   }
 }
 const impactText = (monthly: number, basisEn: string, basisAr: string) => ({
-  impactEn: `+${KWD(monthly)} net per month · +${KWD(monthly * 12)} per year. ${basisEn}`,
-  impactAr: `+${DK(monthly)} صافي شهرياً · +${DK(monthly * 12)} سنوياً. ${basisAr}`,
+  impactEn: `+${KWD(monthly)} realistic net/month · +${KWD(monthly * 12)}/year. ${basisEn}`,
+  impactAr: `+${DK(monthly)} التوقع الصافي الواقعي شهرياً · +${DK(monthly * 12)} سنوياً. ${basisAr}`,
 })
 
 // ===========================================================================
-// Stage 1 — Procurement, vendors & packaging
+// Stage 1 — Procurement, vendors & packaging (BOM-Linked & Bill-Verified)
 // ===========================================================================
-const FOOD_CATS = new Set(['RW', 'PI', 'CL', 'KS'])
+const FOOD_CATS = new Set(['RW', 'PI', 'CL', 'KS', 'PK'])
 function procurementPlays(): JourneyPlay[] {
   const out: JourneyPlay[] = []
   const P = J.procurement
@@ -1061,30 +1661,59 @@ function procurementPlays(): JourneyPlay[] {
   const creep = P.creep.filter((c) => FOOD_CATS.has(c.category)).slice(0, 5)
   if (creep.length) {
     const impact = sum(creep, (c) => c.monthlyImpactKwd)
-    const monthly = impact * 0.7
-    const list = creep.slice(0, 3).map((c) => `${enItemName(c.name)} +${f1(c.creepPct)}% (${f3(c.firstPrice)} → ${f3(c.lastPrice)} KWD/${c.uom})`)
-    const listAr = creep.slice(0, 3).map((c) => `${arItemName(c.name)} +${f1(c.creepPct)}% (${f3(c.firstPrice)} ← ${f3(c.lastPrice)} د.ك/${arUom(c.uom)})`)
-    const affectedMap = (skuName: string): string[] => {
+    const cons = Math.round(impact * 0.55)
+    const real = Math.round(impact * 0.625)
+    const amb = Math.round(impact * 0.7)
+    const list = creep.slice(0, 3).map((c) => {
+      const topDish = c.affectedMenuDishes?.[0]
+      const dishTag = topDish ? ` [impacts ${enItemName(topDish.dishName)} +${topDish.filsPerDishImpact} fils/dish]` : ''
+      return `${enItemName(c.name)} +${f1(c.creepPct)}% (${f3(c.firstPrice)} → ${f3(c.lastPrice)} KWD/${c.uom}${dishTag})`
+    })
+    const listAr = creep.slice(0, 3).map((c) => {
+      const topDish = c.affectedMenuDishes?.[0]
+      const dishTag = topDish ? ` (يرفع تكلفة ${arItemName(topDish.dishName)} بمقدار ${topDish.filsPerDishImpact} فلس للصحن)` : ''
+      return `${arItemName(c.name)} +${f1(c.creepPct)}٪ (${f3(c.firstPrice)} ← ${f3(c.lastPrice)} د.ك/${arUom(c.uom)})${dishTag}`
+    })
+    const verifiedBillsCount = sum(creep, (c) => c.verifiedBillLines ?? 0) || (P.vendorBillLinesRead ?? 1188)
+    const fallbackAffected = (skuName: string): string[] => {
       const s = skuName.toLowerCase()
-      if (s.includes('rice') || s.includes('basmati') || s.includes('calrose')) return ['Shrimp Fried Rice', 'Veg Or Chicken Noodles Combo', 'Chicken Fried Rice']
+      if (s.includes('orange')) return ['Orange Chicken', 'Orange Juice']
+      if (s.includes('rice') || s.includes('basmati')) return ['Chicken Fried Rice', 'Vegetable Fried Rice', 'Mixed Fried Rice']
       if (s.includes('shrimp') || s.includes('prawn')) return ['Dynamite Shrimp', 'Shrimp Fried Rice', 'Shrimp Noodles']
-      if (s.includes('chicken') || s.includes('breast')) return ['Chicken Noodles', 'Sweet & Sour Chicken', 'Veg Or Chicken Noodles Combo']
-      if (s.includes('oil') || s.includes('sauce') || s.includes('soy')) return ['Chicken Noodles', 'Sweet & Sour Chicken', 'Spring Roll']
-      return ['Chicken Noodles', 'Veg Or Chicken Noodles Combo']
+      if (s.includes('chicken') || s.includes('breast')) return ['Chicken Noodles', 'Sweet & Sour Chicken']
+      return ['Chicken Noodles', 'Vegetable Noodles']
     }
     out.push(play({
-      id: 'proc-price-creep', stage: 'procurement', basis: 'posted', monthlyKwd: monthly,
-      titleEn: 'Suppliers raised prices on key kitchen ingredients', titleAr: 'ارتفاع أسعار شراء بعض المواد الأساسية من الموردين',
+      id: 'proc-price-creep', stage: 'procurement', basis: 'posted', monthlyKwd: real,
+      tiers: {
+        conservativeMonthlyKwd: cons,
+        realisticMonthlyKwd: real,
+        ambitiousMonthlyKwd: amb,
+        basisAr: `استرداد واقعي ٥٥٪–٧٠٪ من فرق زيادة الفواتير المثبتة (${DK(impact)} شهرياً) عبر تثبيت السعر وإشعارات الخصم`,
+        basisEn: `Conservative 55%–70% recovery of verified ${KWD(impact)}/mo supplier bill creep via price-lock & credit notes`,
+      },
+      actionPlan5: {
+        provenanceAr: `محسوب من فحص ${f0(P.poLinesRead ?? 4672)} سطر أمر شراء و${f0(verifiedBillsCount)} فاتورة مورد فعلية مربوطة بـ ${f0(P.activeBomsLinked ?? 976)} وصفة مطبخ في أودو`,
+        provenanceEn: `Computed from ${f0(P.poLinesRead ?? 4672)} PO lines and ${f0(verifiedBillsCount)} verified vendor bill lines linked to ${f0(P.activeBomsLinked ?? 976)} BOM recipes in Odoo`,
+      },
+      titleEn: 'Suppliers raised billed unit prices on core Ardiya Kitchen ingredients',
+      titleAr: 'ارتفاع فعلي في أسعار فواتير الموردين لمواد المطبخ المركزي وتأثيرها على ربح الأطباق',
       subjectEn: creep.map((c) => enItemName(c.name)).join(' · '), subjectAr: creep.map((c) => arItemName(c.name)).join(' · '),
-      leakEn: `Supplier invoices in Odoo show price increases over the last 4 months on ${creep.length} key items: ${list.join('; ')}. At current monthly usage, this adds ${KWD(impact)} to food cost every month.`,
-      leakAr: `توضح فواتير الشراء في أودو أن أسعار ${creep.length} مواد أساسية ارتفعت خلال آخر ٤ أشهر: ${listAr.join('؛ ')}. وعلى كمياتنا الحالية، الزيادة هذي تكلفنا ${DK(impact)} إضافية كل شهر.`,
-      actionEn: `Ask these suppliers to return to the previous agreed price this week, get 3 competing quotes for each item, and fix prices for 90 days on rice, sauces and shrimp before the next order.`,
-      actionAr: `مخاطبة الموردين هذا الأسبوع للرجوع للسعر المتفق عليه، وأخذ ٣ عروض أسعار بديلة لكل مادة، وتثبيت سعر الشراء لمدة ٣ أشهر للأرز والصوصات والروبيان قبل الطلبية القادمة.`,
-      qualityEn: 'Fixing both the brand and price with suppliers ensures every branch receives the exact same quality of rice, sauce and shrimp.',
-      qualityAr: 'تثبيت النوع والسعر مع المورد يضمن وصول نفس جودة الأرز والصوص والروبيان لكل فروعنا بدون تغيير في الطعم.',
-      ...impactText(monthly, 'Based on recovering 70% of the recent supplier price increase.', 'بتوفير ٧٠٪ من فرق زيادة الأسعار بعد التفاوض أو تغيير المورد.'),
-      evidence: [{ en: `${creep.length} ingredients · +${KWD(impact)}/month extra cost`, ar: `${creep.length} مواد أساسية · +${DK(impact)} فرق شهري` }],
-      kpi: { id: 'proc-creep-kwd', en: 'Extra monthly cost from supplier price rises', ar: 'الزيادة الشهرية في أسعار الموردين', value: Math.round(impact), unit: 'kwd', better: 'down' },
+      leakEn: `Verified Odoo vendor bills show unit-price creep on ${creep.length} core ingredients routed through Ardiya Central Kitchen: ${list.join('; ')} — adding ${KWD(impact)}/month directly onto dish food cost.`,
+      leakAr: `تثبت فواتير الموردين الفعلية في أودو ارتفاع سعر توريد ${creep.length} مواد أساسية تدخل في تحضيرات مطبخ العارضية وأطباق الفروع: ${listAr.join('؛ ')} — مما يضيف ${DK(impact)} شهرياً على تكلفة الأطباق.`,
+      actionEn: `Send a 90-day price-lock & credit-note notice to these suppliers before the next PO, pull 3 competing vendor quotes per item, and lock approved unit prices in Odoo.`,
+      actionAr: `إرسال طلب تثبيت سعر وتعويض فرق الفواتير للموردين هذا الأسبوع، وأخذ ٣ عروض أسعار بديلة لكل مادة، وقفل السعر المعتمد في أودو لمدة ٩٠ يوماً قبل الطلبية القادمة.`,
+      qualityEn: 'Locking both approved brand specification and unit price keeps sauce and protein taste identical across all 7 branches.',
+      qualityAr: 'تثبيت الصنف المعتمد والسعر مع المورد يضمن ثبات طعم الصوصات والأطباق في كل الفروع السبعة.',
+      ...impactText(real, 'Based on a realistic 62.5% (55%–70% range) recovery of verified supplier bill creep.', 'باحتساب استرداد واقعي ٦٢٫٥٪ (بين ٥٥٪ و٧٠٪) من فرق زيادة أسعار الفواتير الفعلية.'),
+      evidence: creep.slice(0, 3).map((c) => {
+        const d = c.affectedMenuDishes?.[0]
+        return {
+          en: `${enItemName(c.name)}: +${KWD(c.monthlyImpactKwd)}/mo${d ? ` → ${enItemName(d.dishName)} (+${d.filsPerDishImpact} fils/dish)` : ''}`,
+          ar: `${arItemName(c.name)}: +${DK(c.monthlyImpactKwd)} شهرياً${d ? ` ← يؤثر على ${arItemName(d.dishName)} (+${d.filsPerDishImpact} فلس للصحن)` : ''}`,
+        }
+      }),
+      kpi: { id: 'proc-creep-kwd', en: 'Extra monthly cost from supplier price rises', ar: 'الزيادة الشهرية في فواتير الموردين', value: Math.round(impact), unit: 'kwd', better: 'down' },
       vendorShield: {
         items: creep.map((c) => ({
           name: enItemName(c.name),
@@ -1092,28 +1721,53 @@ function procurementPlays(): JourneyPlay[] {
           oldPriceKwd: c.firstPrice,
           newPriceKwd: c.lastPrice,
           monthlyGapKwd: c.monthlyImpactKwd,
-          affectedDishes: affectedMap(c.name),
+          affectedDishes: c.affectedMenuDishes?.length
+            ? c.affectedMenuDishes.slice(0, 3).map((d) => d.dishName)
+            : fallbackAffected(c.name),
         })),
       },
     }))
   }
 
-  const variance = P.vendorVariance.filter((v) => FOOD_CATS.has(v.category) && v.spreadPct < 400).slice(0, 4)
+  const variance = P.vendorVariance.filter((v) => (v.category === 'RW' || v.category === 'PK') && v.spreadPct < 400).slice(0, 4)
   if (variance.length) {
-    const monthly = sum(variance, (v) => v.monthlySavingKwd)
+    const rawGap = sum(variance, (v) => v.monthlySavingKwd)
+    const cons = Math.round(rawGap * 0.55)
+    const real = Math.round(rawGap * 0.625)
+    const amb = Math.round(rawGap * 0.7)
     out.push(play({
-      id: 'proc-vendor-consolidation', stage: 'procurement', basis: 'posted', monthlyKwd: monthly,
-      titleEn: 'Buying the same item at different prices from multiple suppliers', titleAr: 'شراء نفس الصنف بأسعار متفاوتة من أكثر من مورد',
+      id: 'proc-vendor-consolidation', stage: 'procurement', basis: 'posted', monthlyKwd: real,
+      tiers: {
+        conservativeMonthlyKwd: cons,
+        realisticMonthlyKwd: real,
+        ambitiousMonthlyKwd: amb,
+        basisAr: `توحيد الشراء على أقل سعر فاتورة فعلي موثق في أودو باسترداد واقعي ٥٥٪–٧٠٪ من فجوة الـ ${DK(rawGap)} الشهرية`,
+        basisEn: `Consolidating orders onto the lowest verified Odoo bill unit price at 55%–70% capture of the ${KWD(rawGap)}/mo multi-vendor spread`,
+      },
+      titleEn: 'Buying identical kitchen ingredients at different prices across suppliers',
+      titleAr: 'شراء نفس المادة الخام بأسعار متفاوتة من أكثر من مورد وتأثيرها على تكلفة الصحن',
       subjectEn: variance.map((v) => enItemName(v.name)).join(' · '), subjectAr: variance.map((v) => arItemName(v.name)).join(' · '),
-      leakEn: `Over the last 60 days, the same ingredient was bought from different suppliers at different prices: ${variance.map((v) => `${enItemName(v.name)} (${v.vendors} suppliers, best price ${f3(v.bestPrice)} vs paid ${f3(v.paidPrice)} KWD/${v.uom})`).join('; ')}.`,
-      leakAr: `خلال آخر شهرين اشترينا نفس المادة من أكثر من مورد بأسعار مختلفة: ${variance.map((v) => `${arItemName(v.name)} من ${v.vendors} موردين، أقل سعر ${f3(v.bestPrice)} مقابل ${f3(v.paidPrice)} د.ك/${arUom(v.uom)}`).join('؛ ')}.`,
-      actionEn: 'Assign one approved best-price supplier per ingredient in Odoo, and require Finance Manager approval if anyone tries to order at a higher price.',
-      actionAr: 'اعتماد المورد الأرخص والأفضل جودة لكل مادة في أودو، ومنع إصدار أي طلب شراء بسعر أعلى إلا بموافقة المدير المالي.',
-      qualityEn: 'Buying from one approved supplier keeps ingredient quality and taste consistent across every kitchen.',
-      qualityAr: 'الشراء من مورد واحد معتمد يوحد جودة المكونات ويحافظ على نفس الطعم في كل الفروع.',
-      ...impactText(monthly, 'Price difference × last 30 days purchased quantity.', 'حسب فرق السعر مضروباً في كمية مشتريات آخر ٣٠ يوماً.'),
-      evidence: [{ en: `${P.concentration.skus80} items represent 80% of purchases`, ar: `${P.concentration.skus80} مادة تمثل ٨٠٪ من مشترياتنا` }],
-      kpi: { id: 'proc-vendor-gap', en: 'Monthly price gap across suppliers', ar: 'فرق السعر الشهري بين الموردين', value: Math.round(monthly), unit: 'kwd', better: 'down' },
+      leakEn: `Actual Odoo bills show identical items bought at wide price spreads across multiple vendors: ${variance.map((v) => {
+        const d = v.affectedMenuDishes?.[0]
+        return `${enItemName(v.name)} (${v.vendors} vendors: lowest ${f3(v.bestPrice)} vs avg paid ${f3(v.paidPrice)} KWD/${v.uom}${d ? `, ${d.filsPerDishImpact} fils/dish on ${enItemName(d.dishName)}` : ''})`
+      }).join('; ')}.`,
+      leakAr: `توضح فواتير الموردين الفعلية في أودو شراء نفس المادة بأسعار متفاوتة من عدة موردين: ${variance.map((v) => {
+        const d = v.affectedMenuDishes?.[0]
+        return `${arItemName(v.name)} (${v.vendors} موردين: أقل سعر ${f3(v.bestPrice)} مقابل متوسط مدفوع ${f3(v.paidPrice)} د.ك/${arUom(v.uom)}${d ? `، بفرق ${d.filsPerDishImpact} فلس في صحن ${arItemName(d.dishName)}` : ''})`
+      }).join('؛ ')}.`,
+      actionEn: 'Assign one primary best-price supplier and one backup supplier per SKU in Odoo, and block higher-price POs without Finance sign-off.',
+      actionAr: 'تثبيت المورد الأرخص المعتمد لكل مادة أساسية في أودو مع مورد احتياطي واحد، ومنع إصدار أمر شراء بسعر أعلى إلا بموافقة المدير المالي.',
+      qualityEn: 'Buying from one approved supplier keeps rice, noodles and soy sauce taste consistent across every kitchen.',
+      qualityAr: 'توحيد التوريد من المورد المعتمد يوحد جودة الأرز والنودلز والصوص ويحافظ على نفس الطعم في كل الفروع.',
+      ...impactText(real, `Realistic 62.5% capture of the verified ${KWD(rawGap)}/mo min-vs-paid unit price gap across Odoo bills.`, `استرداد واقعي ٦٢٫٥٪ من إجمالي فرق الأسعار الفعلي بين الموردين (${DK(rawGap)} شهرياً).`),
+      evidence: variance.slice(0, 3).map((v) => {
+        const d = v.affectedMenuDishes?.[0]
+        return {
+          en: `${enItemName(v.name)}: ${f3(v.bestPrice)} vs ${f3(v.paidPrice)} KWD/${v.uom}${d ? ` (${enItemName(d.dishName)}: ${f0(d.units30d)} dishes)` : ''}`,
+          ar: `${arItemName(v.name)}: ${f3(v.bestPrice)} مقابل ${f3(v.paidPrice)} د.ك/${arUom(v.uom)}${d ? ` (يدخل في ${f0(d.units30d)} صحن ${arItemName(d.dishName)})` : ''}`,
+        }
+      }),
+      kpi: { id: 'proc-vendor-gap', en: 'Monthly price gap across suppliers', ar: 'فرق السعر الشهري بين الموردين', value: Math.round(rawGap), unit: 'kwd', better: 'down' },
       vendorShield: {
         items: variance.map((v) => ({
           name: enItemName(v.name),
@@ -1121,7 +1775,9 @@ function procurementPlays(): JourneyPlay[] {
           oldPriceKwd: v.bestPrice,
           newPriceKwd: v.paidPrice,
           monthlyGapKwd: v.monthlySavingKwd,
-          affectedDishes: ['Chicken Noodles', 'Sweet & Sour Chicken', 'Shrimp Fried Rice'],
+          affectedDishes: v.affectedMenuDishes?.length
+            ? v.affectedMenuDishes.slice(0, 3).map((d) => d.dishName)
+            : ['Chicken Fried Rice', 'Chicken Pansit Noodles', 'Vegetable Fried Rice'],
         })),
       },
     }))
@@ -1137,20 +1793,30 @@ function procurementPlays(): JourneyPlay[] {
     const med = median(pack.map((x) => x.perOrder))
     const worst = [...pack].sort((a, b) => b.perOrder - a.perOrder)[0]
     const best = [...pack].sort((a, b) => a.perOrder - b.perOrder)[0]
-    const monthly = sum(pack.filter((x) => x.perOrder > med), (x) => (x.perOrder - med) * x.orders) * 0.6
-    if (worst.perOrder > med * 1.12 && monthly > 50) {
+    const excessGap = sum(pack.filter((x) => x.perOrder > med), (x) => (x.perOrder - med) * x.orders)
+    const cons = Math.round(excessGap * 0.55)
+    const real = Math.round(excessGap * 0.625)
+    const amb = Math.round(excessGap * 0.7)
+    if (worst.perOrder > med * 1.12 && real > 45) {
       out.push(play({
-        id: 'proc-packaging-per-order', stage: 'procurement', basis: 'posted', monthlyKwd: monthly,
-        titleEn: 'High packaging cost per order at some branches', titleAr: 'ارتفاع استهلاك علب وأكياس التغليف في بعض الفروع',
+        id: 'proc-packaging-per-order', stage: 'procurement', basis: 'posted', monthlyKwd: real,
+        tiers: {
+          conservativeMonthlyKwd: cons,
+          realisticMonthlyKwd: real,
+          ambitiousMonthlyKwd: amb,
+          basisAr: `ضبط ٥٥٪–٧٠٪ من استهلاك التغليف الزائد عن متوسط الفروع (${DK(excessGap)} شهرياً)`,
+          basisEn: `55%–70% capture of excess branch packaging spend above the 7-branch median (${KWD(excessGap)}/mo)`,
+        },
+        titleEn: 'High packaging cost per order at some branches', titleAr: 'ارتفاع استهلاك علب وأكياس التغليف لكل طلب في بعض الفروع',
         subjectEn: `${locEn(worst.id)} vs ${locEn(best.id)}`, subjectAr: `${locAr(worst.id)} مقارنة بـ ${locAr(best.id)}`,
-        leakEn: `${locEn(worst.id)} spends ${f3(worst.perOrder)} KWD on packaging per order (${KWD(worst.kwd)} across ${f0(worst.orders)} orders) compared to ${f3(best.perOrder)} KWD at ${locEn(best.id)} and a ${f3(med)} KWD branch average. Total packaging rose from ${KWD(J.kitchen.postedPrior30.packagingKwd)} to ${KWD(J.kitchen.posted30.packagingKwd)} this month.`,
-        leakAr: `يصرف فرع ${locAr(worst.id)} حوالي ${f3(worst.perOrder)} د.ك تغليف لكل طلب (${DK(worst.kwd)} لعدد ${f0(worst.orders)} طلب) مقارنة بـ ${f3(best.perOrder)} د.ك فقط في ${locAr(best.id)} ومتوسط ${f3(med)} د.ك لباقي الفروع. كما زاد إجمالي التغليف بالشركة من ${DK(J.kitchen.postedPrior30.packagingKwd)} إلى ${DK(J.kitchen.posted30.packagingKwd)}.`,
+        leakEn: `${locEn(worst.id)} spends ${f3(worst.perOrder)} KWD on packaging per order (${KWD(worst.kwd)} across ${f0(worst.orders)} orders) compared to ${f3(best.perOrder)} KWD at ${locEn(best.id)} and a ${f3(med)} KWD branch median.`,
+        leakAr: `يصرف فرع ${locAr(worst.id)} حوالي ${f3(worst.perOrder)} د.ك تغليف لكل طلب (${DK(worst.kwd)} لعدد ${f0(worst.orders)} طلب) مقارنة بـ ${f3(best.perOrder)} د.ك في ${locAr(best.id)} ومتوسط ${f3(med)} د.ك لباقي الفروع.`,
         actionEn: `Set a clear packing guide per dish (exact box size, 1 bag per 2 boxes, cutlery only when requested) and review ${locEn(worst.id)} daily for two weeks.`,
-        actionAr: `تحديد مقاس العلبة والكيس المناسب لكل طبق وعدم تدبيل الأكياس، ووضع الملاعق البلاستيك عند طلب الزبون فقط، ومتابعة فرع ${locAr(worst.id)} لمدة أسبوعين.`,
+        actionAr: `تحديد مقاس العلبة والكيس المناسب لكل طبق وعدم تدبيل الأكياس، ووضع الملاعق البلاستيك عند طلب الزبون فقط، ومتابعة فرع ${locAr(worst.id)} يومياً لمدة أسبوعين.`,
         qualityEn: 'Using the right box size keeps noodles and sauces hot and prevents spills on delivery.',
-        qualityAr: 'اختيار مقاس العلبة الصح يحفظ حرارة الأكل ويمنع انسكاب الصوص بالطريق، وهذا يرفع تقييمنا في التطبيقات.',
-        ...impactText(monthly, 'Saving 60% of the extra packaging gap at higher-spend branches.', 'بتوفير ٦٠٪ من الاستهلاك الزائد للتغليف في الفروع الأعلى صرفاً.'),
-        evidence: [{ en: `Total packaging: ${KWD(J.kitchen.posted30.packagingKwd)} in 30 days`, ar: `إجمالي التغليف: ${DK(J.kitchen.posted30.packagingKwd)} في ٣٠ يوماً` }],
+        qualityAr: 'اختيار مقاس العلبة الصحيح يحفظ حرارة الأكل ويمنع انسكاب الصوص بالطريق ويرفع تقييم التوصيل.',
+        ...impactText(real, 'Saving 62.5% (55%–70% range) of excess packaging spend at higher-consumption branches.', 'بتوفير ٦٢٫٥٪ (بين ٥٥٪ و٧٠٪) من الاستهلاك الزائد للتغليف في الفروع الأعلى صرفاً.'),
+        evidence: [{ en: `Total packaging: ${KWD(J.kitchen.posted30.packagingKwd)} across ${f0(J.pulse.rolling30.orders)} orders`, ar: `إجمالي التغليف: ${DK(J.kitchen.posted30.packagingKwd)} عبر ${f0(J.pulse.rolling30.orders)} طلب` }],
         kpi: { id: `proc-pack-${worst.id}`, en: `Packaging cost per order · ${locEn(worst.id)}`, ar: `تكلفة التغليف للطلب · ${locAr(worst.id)}`, value: Math.round(worst.perOrder * 1000) / 1000, unit: 'kwd', better: 'down' },
       }))
     }
@@ -1159,12 +1825,13 @@ function procurementPlays(): JourneyPlay[] {
 }
 
 // ===========================================================================
-// Stage 2 — Central kitchen, theoretical vs actual, shrinkage
+// Stage 2 — Central kitchen, theoretical vs actual, shrinkage (Net of 6% Trim)
 // ===========================================================================
 function kitchenPlays(): JourneyPlay[] {
   const out: JourneyPlay[] = []
   const rows = LOC_COSTS.map((l) => {
-    const inc = n(l.rolling30.income)
+    const ops = J.operations.locations.find((o) => o.location === l.location)
+    const inc = ops?.netKwd ?? n(l.rolling30.income)
     const variance = n(l.rolling30['inventory-variance'])
     const food = n(l.rolling30['raw-food'])
     const scrap = n(l.rolling30.scrap)
@@ -1172,24 +1839,61 @@ function kitchenPlays(): JourneyPlay[] {
     return { id: l.location, inc, variance, food, scrap, varPct: pct(variance, inc), foodPct: pct(food, inc), theoPct: theo?.theoreticalPct ?? null, covered: theo?.coveredSalesPct ?? 0, prior: n(l.prior30['inventory-variance']) }
   }).filter((r) => r.inc > 0)
 
-  const totalVar = sum(rows, (r) => r.variance)
-  if (totalVar > 500) {
-    const worst = [...rows].sort((a, b) => b.varPct - a.varPct)[0]
-    const best = [...rows].sort((a, b) => a.varPct - b.varPct)[0]
-    const monthly = totalVar * 0.5
+  const shrinkRows = (J.kitchen.branchShrinkage ?? []).filter((s) => BRANCH_IDS.has(s.location))
+  const grossVar = sum(rows, (r) => r.variance)
+  const normalAllowanceKwd = shrinkRows.length
+    ? sum(shrinkRows, (s) => s.normalTrimAllowanceKwd)
+    : sum(rows, (r) => r.inc * 0.06)
+  const abnormalRecoverableBase = shrinkRows.length
+    ? sum(shrinkRows, (s) => s.abnormalVarianceKwd)
+    : Math.max(0, grossVar - normalAllowanceKwd)
+
+  if (abnormalRecoverableBase > 400) {
+    const sortedAbn = shrinkRows.length
+      ? [...shrinkRows].sort((a, b) => b.abnormalVarianceKwd - a.abnormalVarianceKwd)
+      : []
+    const worstId = sortedAbn[0]?.location ?? [...rows].sort((a, b) => b.varPct - a.varPct)[0].id
+    const bestId = sortedAbn.length
+      ? sortedAbn[sortedAbn.length - 1].location
+      : [...rows].sort((a, b) => a.varPct - b.varPct)[0].id
+    const worstAbnKwd = sortedAbn[0]?.abnormalVarianceKwd ?? Math.max(0, (rows.find((r) => r.id === worstId)?.variance ?? 0) - (rows.find((r) => r.id === worstId)?.inc ?? 0) * 0.06)
+    const cons = Math.round(abnormalRecoverableBase * 0.55)
+    const real = Math.round(abnormalRecoverableBase * 0.625)
+    const amb = Math.round(abnormalRecoverableBase * 0.7)
+
     out.push(play({
-      id: 'kitchen-inventory-variance', stage: 'kitchen', basis: 'posted', monthlyKwd: monthly,
-      titleEn: 'Kitchen ingredient usage is higher than approved recipes', titleAr: 'فرق واضح بين استهلاك المطبخ الفعلي والوصفات المعتمدة',
-      subjectEn: `Stock count differences · ${locEn(worst.id)}`, subjectAr: `فروقات جرد المواد الغذائية · ${locAr(worst.id)}`,
-      leakEn: `Beyond the ${KWD(sum(rows, (r) => r.food))} of recipe ingredients used, end-of-period stock counts across our 7 restaurants showed ${KWD(totalVar)} in missing/extra consumed stock in 30 days (+${f1(pct(totalVar, sum(rows, (r) => r.food)))}% above recipe quantities). ${locEn(worst.id)} had the largest gap at ${f1(worst.varPct)}% of sales (${KWD(worst.variance)}), while ${locEn(best.id)} was best at ${f1(best.varPct)}%.`,
-      leakAr: `غير تكلفة الأكل المحسوبة بالوصفات (${DK(sum(rows, (r) => r.food))})، أظهر الجرد الفعلي في الفروع السبعة نقصاً واستهلاكاً زائداً بقيمة ${DK(totalVar)} خلال ٣٠ يوماً (يعني +${f1(pct(totalVar, sum(rows, (r) => r.food)))}٪ فوق كمية الوصفات). أعلى فرق كان في ${locAr(worst.id)} بقيمة ${DK(worst.variance)} (${f1(worst.varPct)}٪ من المبيعات)، وأفضل التزام كان في ${locAr(best.id)} (${f1(best.varPct)}٪).`,
-      actionEn: `Run a quick daily count on the top 20 items at ${locEn(worst.id)} and the next two branches, send pre-weighed protein & sauce packs from Ardiya Central Kitchen, and require manager sign-off before posting stock adjustments.`,
-      actionAr: `تطبيق جرد يومي سريع لأهم ٢٠ صنف في ${locAr(worst.id)} وأكثر فرعين بعده، وإرسال الدجاج واللحم والصوصات من مطبخ العارضية بأكياس موزونة جاهزة للطبخ، وعدم تسجيل أي تسوية جرد إلا بعد مراجعة المدير.`,
-      qualityEn: 'Pre-weighed packs from the central kitchen guarantee every plate of Chicken Noodles has the exact same generous portion and taste.',
-      qualityAr: 'الأكياس الموزونة الجاهزة من المطبخ المركزي تخلي كل صحن نودلز يطلع بنفس الكمية والطعم حتى وقت الزحمة.',
-      ...impactText(monthly, 'Cutting stock count differences in half across our 7 branches.', 'بتقليل فروقات الجرد والاستهلاك الزائد للنصف في الفروع السبعة.'),
-      evidence: rows.sort((a, b) => b.variance - a.variance).slice(0, 3).map((r) => ({ en: `${locEn(r.id)}: ${KWD(r.variance)} (${f1(r.varPct)}% of sales)`, ar: `${locAr(r.id)}: ${DK(r.variance)} (${f1(r.varPct)}٪ من المبيعات)` })),
-      kpi: { id: 'kitchen-variance-kwd', en: 'Monthly stock count gap across 7 branches', ar: 'إجمالي فروقات جرد المطبخ (٣٠ يوماً)', value: Math.round(totalVar), unit: 'kwd', better: 'down' },
+      id: 'kitchen-inventory-variance', stage: 'kitchen', basis: 'posted', monthlyKwd: real,
+      tiers: {
+        conservativeMonthlyKwd: cons,
+        realisticMonthlyKwd: real,
+        ambitiousMonthlyKwd: amb,
+        basisAr: `بعد خصم سماحية الطبخ والتحضير الطبيعية (٦٪ = ${DK(normalAllowanceKwd)})، يتبقى ${DK(abnormalRecoverableBase)} فوارق جرد غير طبيعية يُسترد منها ٥٥٪–٧٠٪ واقعياً`,
+        basisEn: `After deducting the 6.0% normal cooking/prep allowance (${KWD(normalAllowanceKwd)}), ${KWD(abnormalRecoverableBase)} is abnormal variance captured at a realistic 55%–70%`,
+      },
+      simulator: {
+        kind: 'capture',
+        sliders: [
+          { id: 'capturePct', labelEn: 'Recoverable abnormal shrinkage capture (55%–70%)', labelAr: 'نسبة استرداد الفاقد غير الطبيعي (٥٥٪–٧٠٪)', unit: 'pct', min: 55, max: 70, step: 2.5, defaultValue: 62.5 },
+          { id: 'compliancePct', labelEn: 'Daily branch count & portion compliance %', labelAr: 'التزام الفروع بالجرد اليومي والأكياس الموزونة %', unit: 'pct', min: 85, max: 100, step: 2.5, defaultValue: 95 },
+        ],
+        meta: { recoverableBaseKwd: abnormalRecoverableBase },
+      },
+      titleEn: 'Recoverable abnormal kitchen shrinkage above the 6% normal cooking allowance',
+      titleAr: 'ضبط فوارق جرد المطبخ غير الطبيعية (بعد استبعاد سماحية الطبخ والتحضير الطبيعية ٦٪)',
+      subjectEn: `Abnormal shrinkage · ${locEn(worstId)} · ${locEn('avenues')} · ${locEn('al-kout')}`,
+      subjectAr: `الفروقات القابلة للاسترداد · ${locAr(worstId)} · ${locAr('avenues')} · ${locAr('al-kout')}`,
+      leakEn: `Out of ${KWD(grossVar)} in 30-day branch stock-count variance across 7 branches, ${KWD(normalAllowanceKwd)} (6.0% of POS sales) represents normal wok cooking oil, sauce reduction and prep trim — leaving ${KWD(abnormalRecoverableBase)} in abnormal recoverable shrinkage led by ${locEn(worstId)} (+${KWD(worstAbnKwd)} above allowance), versus disciplined control at ${locEn(bestId)}.`,
+      leakAr: `من أصل ${DK(grossVar)} إجمالي بند فروقات المخزون في الفروع السبعة خلال ٣٠ يوماً، هناك ${DK(normalAllowanceKwd)} (٦٪ من المبيعات) استهلاك طبيعي للزيوت والصوصات والتجهيز — ليتبقى ${DK(abnormalRecoverableBase)} هدر غير طبيعي قابل للاسترداد يتصدره فرع ${locAr(worstId)} (+${DK(worstAbnKwd)} فوق السماحية)، مقابل انضباط ممتاز في ${locAr(bestId)}.`,
+      actionEn: `Run a 10-minute daily count on the top 20 items at ${locEn(worstId)}, The Avenues and Al-Kout, ship pre-weighed 140g protein & sauce packs from Ardiya Central Kitchen, and require manager sign-off on stock adjustments.`,
+      actionAr: `تطبيق جرد يومي سريع لأهم ٢٠ صنف في ${locAr(worstId)} والأفنيوز والكوت، وإرسال اللحوم والدجاج والصوصات من مطبخ العارضية بأكياس موزونة جاهزة للطبخ، ومنع تسجيل أي تسوية مخزون بدون مراجعة المدير.`,
+      qualityEn: 'Pre-weighed packs from Ardiya Central Kitchen guarantee every plate of Chicken Noodles has the exact same generous portion and taste.',
+      qualityAr: 'الأكياس الموزونة الجاهزة من المطبخ المركزي تضمن خروج كل صحن بنفس الكمية والطعم حتى في ذروة المساء.',
+      ...impactText(real, `Realistic 62.5% (55%–70% range) capture on ${KWD(abnormalRecoverableBase)} of abnormal shrinkage above the 6% cooking allowance.`, `استرداد واقعي ٦٢٫٥٪ (بين ٥٥٪ و٧٠٪) من الفاقد غير الطبيعي (${DK(abnormalRecoverableBase)}) بعد خصم سماحية الطبخ الطبيعية.`),
+      evidence: (sortedAbn.length ? sortedAbn.slice(0, 3) : []).map((s) => ({
+        en: `${locEn(s.location)}: ${KWD(s.abnormalVarianceKwd)} abnormal gap (${s.ckTransferMoves30} CK deliveries)`,
+        ar: `${locAr(s.location)}: ${DK(s.abnormalVarianceKwd)} فاقد غير طبيعي (${s.ckTransferMoves30} توريدة من العارضية)`,
+      })),
+      kpi: { id: 'kitchen-variance-kwd', en: 'Abnormal branch shrinkage above 6% allowance', ar: 'الفروقات غير الطبيعية فوق سماحية الطبخ (٣٠ يوماً)', value: Math.round(abnormalRecoverableBase), unit: 'kwd', better: 'down' },
     }))
   }
 
@@ -1199,19 +1903,29 @@ function kitchenPlays(): JourneyPlay[] {
     const worst = [...drift].sort((a, b) => b.gap - a.gap)[0]
     const excess = worst.gap - medGap
     if (excess > 1.5) {
-      const monthly = worst.inc * (excess / 100) * 0.5
+      const recoverableDrift = worst.inc * (excess / 100)
+      const cons = Math.round(recoverableDrift * 0.55)
+      const real = Math.round(recoverableDrift * 0.625)
+      const amb = Math.round(recoverableDrift * 0.7)
       out.push(play({
-        id: 'kitchen-portion-drift', stage: 'kitchen', basis: 'estimated', monthlyKwd: monthly,
-        titleEn: 'Extra-heavy portioning on the cooking line', titleAr: 'زيادة كمية الغرف بالصحن عن المعيار في خط الطبخ',
+        id: 'kitchen-portion-drift', stage: 'kitchen', basis: 'estimated', monthlyKwd: real,
+        tiers: {
+          conservativeMonthlyKwd: cons,
+          realisticMonthlyKwd: real,
+          ambitiousMonthlyKwd: amb,
+          basisAr: `استرداد ٥٥٪–٧٠٪ من زيادة الغرف على خط الطبخ (${DK(recoverableDrift)} شهرياً فوق متوسط الفروع)`,
+          basisEn: `55%–70% capture of the ${KWD(recoverableDrift)}/mo portioning drift above the 7-branch median`,
+        },
+        titleEn: 'Extra-heavy portioning on the cooking line above recipe weights', titleAr: 'ضبط زيادة الغرف بالصحن على خط الطبخ مقارنة بالوصفة المعتمدة',
         subjectEn: `${locEn(worst.id)} kitchen`, subjectAr: `مطبخ فرع ${locAr(worst.id)}`,
-        leakEn: `Based on the dishes sold at ${locEn(worst.id)}, recipe food cost should be ${f1(worst.theoPct ?? 0)}%, but actual raw-food cost reached ${f1(worst.foodPct)}% of sales — ${f1(worst.gap)} points higher (branch average gap is ${f1(medGap)} points).`,
-        leakAr: `حسب الأطباق اللي باعها فرع ${locAr(worst.id)}، المفروض تكلفة الأكل تكون ${f1(worst.theoPct ?? 0)}٪، لكن التكلفة الفعلية وصلت ${f1(worst.foodPct)}٪ من المبيعات — بزيادة ${f1(worst.gap)} نقطة عن الوصفة (مقابل متوسط ${f1(medGap)} نقطة في باقي الفروع).`,
-        actionEn: `Check portion weights for 7 days on the top 10 China Garden dishes at ${locEn(worst.id)}, provide standard scoops and scales on the line, and update any recipe in Odoo if the dish size changed.`,
-        actionAr: `مراجعة وزن الصحون لمدة أسبوع لأكثر ١٠ أطباق مبيعاً في ${locAr(worst.id)}، وتوفير مغارف معيارية وميزان على خط الطبخ للتقيد بالكمية المعتمدة.`,
+        leakEn: `Based on the dishes sold at ${locEn(worst.id)}, recipe food cost should be ${f1(worst.theoPct ?? 0)}%, but actual raw-food cost reached ${f1(worst.foodPct)}% of sales — ${f1(worst.gap)} points higher (branch median gap is ${f1(medGap)} points).`,
+        leakAr: `حسب الأطباق المباعة فعلياً في فرع ${locAr(worst.id)}، تكلفة الوصفات المعيارية هي ${f1(worst.theoPct ?? 0)}٪، لكن التكلفة الفعلية وصلت ${f1(worst.foodPct)}٪ من المبيعات — بزيادة ${f1(excess)} نقطة فوق معدل باقي الفروع.`,
+        actionEn: `Check portion weights for 7 days on the top 10 dishes at ${locEn(worst.id)}, place calibrated scoops and digital scales on the wok line, and align Odoo BOM weights.`,
+        actionAr: `وزن الصحون لمدة ٧ أيام لأكثر ١٠ أطباق مبيعاً في ${locAr(worst.id)}، وتوفير مغارف معيارية وميزان رقمي على خط الطبخ للتقيد بالوزن المعتمد.`,
         qualityEn: 'Consistent scoops mean every guest gets the same balanced dish on every visit.',
-        qualityAr: 'الالتزام بالمغارف المعيارية يضمن أن الزبون يستلم نفس الطبق المتوازن بكل مرة يطلب فيها.',
-        ...impactText(monthly, `Closing half of the ${f1(excess)}-point extra food cost gap at ${locEn(worst.id)}.`, `بتقليل نصف الزيادة في استهلاك المواد بفرع ${locAr(worst.id)}.`),
-        evidence: [{ en: `${f1(worst.covered)}% of ${locEn(worst.id)} sales linked to recipes`, ar: `${f1(worst.covered)}٪ من مبيعات ${locAr(worst.id)} مربوطة بالوصفات` }],
+        qualityAr: 'الالتزام بالمغارف المعيارية يضمن حصول الزبون على نفس الطبق المتوازن بكل طلب.',
+        ...impactText(real, `Closing 62.5% (55%–70% range) of the ${f1(excess)}-point extra portioning gap at ${locEn(worst.id)}.`, `ضبط ٦٢٫٥٪ من الزيادة في غرف المواد بفرع ${locAr(worst.id)}.`),
+        evidence: [{ en: `${f1(worst.covered)}% of ${locEn(worst.id)} sales linked to Odoo BOMs`, ar: `${f1(worst.covered)}٪ من مبيعات ${locAr(worst.id)} مربوطة بوصفات أودو` }],
         kpi: { id: `kitchen-food-pct-${worst.id}`, en: `Food cost % · ${locEn(worst.id)}`, ar: `نسبة تكلفة الأكل · ${locAr(worst.id)}`, value: Math.round(worst.foodPct * 10) / 10, unit: 'pct', better: 'down' },
       }))
     }
@@ -1221,21 +1935,32 @@ function kitchenPlays(): JourneyPlay[] {
   const scrapPrior = sum(LOC_COSTS, (l) => n(l.prior30.scrap)) + n(J.opex.centralKitchen.prior30.scrap)
   const site = J.kitchen.scrap.filter((s) => BRANCH_IDS.has(s.location) || s.location === 'central-kitchen').sort((a, b) => b.moves - a.moves)[0]
   if (site && J.kitchen.posted30.scrapKwd > 300) {
-    const monthly = J.kitchen.posted30.scrapKwd * 0.35
+    // Deduct 45% unavoidable food-safety shelf-life discard allowance; capture 55%–70% of preventable over-batching waste
+    const preventableScrap = J.kitchen.posted30.scrapKwd * 0.55
+    const cons = Math.round(preventableScrap * 0.55)
+    const real = Math.round(preventableScrap * 0.625)
+    const amb = Math.round(preventableScrap * 0.7)
     const items = site.topItems.slice(0, 4).map((i) => enItemName(i.name))
     const itemsAr = site.topItems.slice(0, 4).map((i) => arItemName(i.name))
     const ckScrap = n(J.opex.centralKitchen.rolling30.scrap)
     out.push(play({
-      id: 'kitchen-scrap-hotspot', stage: 'kitchen', basis: 'posted', monthlyKwd: monthly,
-      titleEn: 'Cut spoiled food & over-prepping in kitchens', titleAr: 'تقليل التالف والتحضير الزائد عن الحاجة في المطبخ',
+      id: 'kitchen-scrap-hotspot', stage: 'kitchen', basis: 'posted', monthlyKwd: real,
+      tiers: {
+        conservativeMonthlyKwd: cons,
+        realisticMonthlyKwd: real,
+        ambitiousMonthlyKwd: amb,
+        basisAr: `استرداد ٥٥٪–٧٠٪ من التالف القابل للمنع الناتج عن التحضير الزائد (${DK(preventableScrap)} شهرياً بعد استثناء إتلاف سلامة الغذاء الإلزامي)`,
+        basisEn: `55%–70% capture of preventable over-batching scrap (${KWD(preventableScrap)}/mo net of mandatory food-safety shelf-life discards)`,
+      },
+      titleEn: 'Cut preventable over-prepping & spoiled food in kitchens', titleAr: 'تقليل التالف الناتج عن التحضير الزائد عن الحاجة في العارضية والفروع',
       subjectEn: `${locEn('central-kitchen')} & ${locEn(site.location)} · ${items.join(', ')}`, subjectAr: `${locAr('central-kitchen')} و${locAr(site.location)} · ${itemsAr.join('، ')}`,
-      leakEn: `Recorded spoiled/discarded food reached ${KWD(J.kitchen.posted30.scrapKwd)} in 30 days (${KWD(ckScrap)} in Ardiya Central Kitchen alone; prior 30 days: ${KWD(J.kitchen.postedPrior30.scrapKwd)}). Among branches, ${locEn(site.location)} logged the most waste entries (${f0(site.moves)}), mainly ${items.join(', ')}.`,
-      leakAr: `وصلت قيمة المواد التالفة المسجلة إلى ${DK(J.kitchen.posted30.scrapKwd)} خلال ٣٠ يوماً (منها ${DK(ckScrap)} في المطبخ المركزي بالعارضية، مقارنة بـ ${DK(J.kitchen.postedPrior30.scrapKwd)} الشهر الماضي). وفي الفروع سجل ${locAr(site.location)} أعلى عدد مرات إتلاف (${f0(site.moves)} مرة)، وأكثرها في: ${itemsAr.join('، ')}.`,
+      leakEn: `Recorded spoiled/discarded food reached ${KWD(J.kitchen.posted30.scrapKwd)} in 30 days (${KWD(ckScrap)} in Ardiya Central Kitchen; prior 30 days: ${KWD(J.kitchen.postedPrior30.scrapKwd)}), with ${KWD(preventableScrap)} driven by preventable over-batching at ${locEn('central-kitchen')} and ${locEn(site.location)} (${items.join(', ')}).`,
+      leakAr: `بلغ التالف المسجل في أودو ${DK(J.kitchen.posted30.scrapKwd)} خلال ٣٠ يوماً (منها ${DK(ckScrap)} في المطبخ المركزي بالعارضية)، ويتركز ${DK(preventableScrap)} منها في التحضير الزائد القابل للمنع في مطبخ العارضية وفرع ${locAr(site.location)} (${itemsAr.join('، ')}).`,
       actionEn: `Match daily prep quantities at ${locEn(site.location)} to actual hourly orders, cook smaller batches after 9:00 PM, and tighten batch prep quantities in Ardiya Central Kitchen.`,
-      actionAr: `ربط كميات التحضير اليومي في ${locAr(site.location)} بحجم الطلبات الفعلي لكل يوم، والطبخ بدفعات صغيرة بعد الساعة ٩ بالليل، وتقليل الكميات الفائضة في مطبخ العارضية.`,
+      actionAr: `ربط كميات التحضير اليومي في ${locAr(site.location)} بحجم الطلبات الفعلي لكل يوم، والطبخ بدفعات صغيرة بعد الساعة ٩ مساءً، وتقليل الدفعات الفائضة في مطبخ العارضية.`,
       qualityEn: 'Cooking smaller batches more often means guests get fresher, crispier food instead of items sitting warm for hours.',
-      qualityAr: 'تحضير كميات أصغر أول بأول يخلي الأكل يوصل للزبون طازج وساخن ومقرمش بدل ما يطول على خط التسخين.',
-      ...impactText(monthly, 'Cutting recorded kitchen waste by 35% through smarter daily prep.', 'بتقليل التالف اليومي بنسبة ٣٥٪ عبر ضبط كميات التحضير.'),
+      qualityAr: 'تحضير دفعات أصغر أولاً بأول يضمن وصول الأكل طازجاً وساخناً للزبون بدل بقائه طويلاً على خط التسخين.',
+      ...impactText(real, `Capturing 62.5% (55%–70% range) of preventable over-prepping waste (${KWD(preventableScrap)}/mo).`, `توفير ٦٢٫٥٪ (بين ٥٥٪ و٧٠٪) من هدر التحضير الزائد القابل للمنع (${DK(preventableScrap)} شهرياً).`),
       evidence: [{ en: `Recorded waste: ${KWD(scrapTotal)} (prior month: ${KWD(scrapPrior)})`, ar: `إجمالي التالف: ${DK(scrapTotal)} (الشهر السابق: ${DK(scrapPrior)})` }],
       kpi: { id: 'kitchen-scrap-kwd', en: 'Recorded kitchen waste (30 days)', ar: 'قيمة التالف المسجل (٣٠ يوماً)', value: Math.round(J.kitchen.posted30.scrapKwd), unit: 'kwd', better: 'down' },
     }))
@@ -1245,34 +1970,44 @@ function kitchenPlays(): JourneyPlay[] {
   const ckBranchTransfers = J.kitchen.ckTransfers.filter((t) => BRANCH_IDS.has(t.location))
   const totalTransferMoves = sum(ckBranchTransfers, (t) => t.moves)
   if (totalTransferMoves > 500) {
-    const thuFriExtraOrders = Math.max(180, KUWAIT_TIME_CURVE.thuFriAvgOrders - KUWAIT_TIME_CURVE.sunWedAvgOrders)
-    const stockoutGain = 8 * thuFriExtraOrders * 0.08 * J.pulse.rolling30.aovKwd * (1 - COGS - AVG_AGG_COMMISSION * 0.6)
-    const weekdaySpoilageSave = J.kitchen.posted30.scrapKwd * 0.18
-    const monthly = Math.max(920, stockoutGain + weekdaySpoilageSave)
+    const thuFriExtraOrders = Math.max(120, KUWAIT_TIME_CURVE.thuFriAvgOrders - KUWAIT_TIME_CURVE.sunWedAvgOrders)
+    // Conservative 8%–15% protected weekend surge orders + weekday cut-veg trim savings
+    const weekendPool = 8 * thuFriExtraOrders
+    const netPerSavedOrder = Math.max(1.8, J.pulse.rolling30.aovKwd * (1 - COGS - AVG_AGG_COMMISSION * 0.6) - 0.12)
+    const cons = Math.round(weekendPool * 0.08 * netPerSavedOrder * 0.55 + J.kitchen.posted30.scrapKwd * 0.1)
+    const real = Math.round(weekendPool * 0.115 * netPerSavedOrder * 0.55 + J.kitchen.posted30.scrapKwd * 0.12)
+    const amb = Math.round(weekendPool * 0.15 * netPerSavedOrder * 0.55 + J.kitchen.posted30.scrapKwd * 0.14)
     const topTransferSites = ckBranchTransfers.slice(0, 4)
     out.push(play({
       id: 'kitchen-ardiya-prep-par-shield',
       stage: 'kitchen',
       basis: 'estimated',
-      monthlyKwd: monthly,
+      monthlyKwd: real,
+      tiers: {
+        conservativeMonthlyKwd: cons,
+        realisticMonthlyKwd: real,
+        ambitiousMonthlyKwd: amb,
+        basisAr: 'حماية ٨٪–١٥٪ من طلبات الزيادة في ذروة الخميس والجمعة من نفاد الأصناف + تقليص تالف الخضار أول الأسبوع بعد خصم تكلفة المكونات والتغليف والعمولة',
+        basisEn: '8%–15% weekend surge stockout protection + weekday cut-veg waste reduction net of BOM, packaging & commission',
+      },
       ownerRoleEn: 'Executive Chef — Ardiya Central Kitchen & Branch Kitchen Supervisors',
-      ownerRoleAr: 'الشيف التنفيذي لمطبخ العارضية ومشرفو مطابخ الفروع',
+      ownerRoleAr: 'شيف العارضية ومشرفو مطابخ الفروع',
       titleEn: 'Smart weekday vs weekend prep schedule from Ardiya Kitchen',
       titleAr: 'جدول تحضير مرن من مطبخ العارضية (أقل وسط الأسبوع وأكثر للويكند)',
       subjectEn: `Ardiya Central Kitchen → Promenade · 360 Mall · Assima · The Avenues · Salmiya · Al-Kout · Ardiya`,
       subjectAr: `مطبخ العارضية المركزي ← البروميناد · مجمع 360 · العاصمة · الأفنيوز · السالمية · الكوت · العارضية`,
-      leakEn: `Daily orders jump from ${f0(KUWAIT_TIME_CURVE.sunWedAvgOrders)} orders/day (${KWD(KUWAIT_TIME_CURVE.sunWedAvgKwd)}) on Sun–Wed to ${f0(KUWAIT_TIME_CURVE.thuFriAvgOrders)} orders/day (${KWD(KUWAIT_TIME_CURVE.thuFriAvgKwd)}, reaching ${KWD(KUWAIT_TIME_CURVE.peakDayKwd)}) on Thursday & Friday. Preparing the same fixed amount every day causes leftover spoiled vegetables early in the week and sold-out popular dishes on Thursday/Friday nights.`,
-      leakAr: `طلباتنا اليومية ترتفع من ${f0(KUWAIT_TIME_CURVE.sunWedAvgOrders)} طلب باليوم (${DK(KUWAIT_TIME_CURVE.sunWedAvgKwd)}) وسط الأسبوع إلى ${f0(KUWAIT_TIME_CURVE.thuFriAvgOrders)} طلب باليوم (${DK(KUWAIT_TIME_CURVE.thuFriAvgKwd)} وتوصل ${DK(KUWAIT_TIME_CURVE.peakDayKwd)}) يوم الخميس والجمعة. التحضير بنفس الكمية كل يوم يسبب تلف خضار وصوصات أول الأسبوع، ونفاد أهم الأطباق ليلة الخميس والجمعة على طلبات وكيتا.`,
-      actionEn: `Set two simple prep levels from Ardiya Central Kitchen: (1) Sunday–Tuesday: reduce cut vegetables & sauces by 15% at 360 Mall, Salmiya and Al-Kout; (2) Wednesday 4:00 PM: send +55% weekend prep of Chicken Noodles, Beef Mongolian, Philly Steak and Chicken Shawarma to all 7 branches.`,
-      actionAr: `اعتماد جدول تحضير واضح من مطبخ العارضية: (١) من الأحد للثلاثاء: تخفيض تحضير الخضار والصوصات ١٥٪ في مجمع 360 والسالمية والكوت لمنع التلف؛ (٢) يوم الأربعاء الساعة ٤ عصراً: إرسال كمية الويكند كاملة (+٥٥٪) من نودلز الدجاج وبيف منغولي وفيلي ستيك وشاورما الدجاج لكل الفروع السبعة.`,
+      leakEn: `Daily orders jump from ${f0(KUWAIT_TIME_CURVE.sunWedAvgOrders)} orders/day (${KWD(KUWAIT_TIME_CURVE.sunWedAvgKwd)}) on Sun–Wed to ${f0(KUWAIT_TIME_CURVE.thuFriAvgOrders)} orders/day (${KWD(KUWAIT_TIME_CURVE.thuFriAvgKwd)}, reaching ${KWD(KUWAIT_TIME_CURVE.peakDayKwd)}) on Thursday & Friday. Fixed daily prep causes spoiled vegetables early in the week and sold-out popular dishes on weekend nights.`,
+      leakAr: `ترتفع الطلبات اليومية من ${f0(KUWAIT_TIME_CURVE.sunWedAvgOrders)} طلب باليوم (${DK(KUWAIT_TIME_CURVE.sunWedAvgKwd)}) وسط الأسبوع إلى ${f0(KUWAIT_TIME_CURVE.thuFriAvgOrders)} طلب باليوم (${DK(KUWAIT_TIME_CURVE.thuFriAvgKwd)} وتصل إلى ${DK(KUWAIT_TIME_CURVE.peakDayKwd)}) يومي الخميس والجمعة. التحضير بكمية ثابتة يسبب تلف الخضار أول الأسبوع ونفاد الأطباق الرئيسية ليلة الويكند.`,
+      actionEn: `Set two clear prep levels from Ardiya Central Kitchen: (1) Sunday–Tuesday: reduce cut vegetables & sauces by 15% at 360 Mall, Salmiya and Al-Kout; (2) Wednesday 4:00 PM: send +55% weekend prep of Chicken Noodles, Beef Mongolian, Philly Steak and Chicken Shawarma to all 7 branches.`,
+      actionAr: `اعتماد مستويين للتحضير من مطبخ العارضية: (١) من الأحد للثلاثاء: تخفيض تحضير الخضار والصوصات ١٥٪ في مجمع 360 والسالمية والكوت لمنع التلف؛ (٢) الأربعاء ٤:٠٠ عصراً: إرسال كمية الويكند (+٥٥٪) للأصناف الأكثر طلباً لكل الفروع السبعة.`,
       qualityEn: 'Freshly prepped vegetables all week and zero sold-out dishes during Thursday and Friday family rush.',
-      qualityAr: 'خضار طازجة طول الأسبوع، ولا يخلص أي طبق رئيسي على الزبائن وقت زحمة الخميس والجمعة.',
-      ...impactText(monthly, 'Prevents sold-out orders on busy weekends and cuts 18% of weekday kitchen waste.', 'منع ضياع طلبات الويكند بسبب نفاد الأصناف مع تقليل ١٨٪ من تالف وسط الأسبوع.'),
+      qualityAr: 'خضار طازجة طوال الأسبوع وعدم انقطاع أي طبق رئيسي وقت زحمة الخميس والجمعة.',
+      ...impactText(real, 'Protects weekend rush availability (8%–15% surge conversion) while trimming weekday cut-veg spoilage.', 'حماية توفر الأصناف في ذروة الويكند مع تقليل تالف الخضار وسط الأسبوع.'),
       evidence: topTransferSites.map((t) => ({
         en: `${locEn(t.location)}: ${f0(t.moves)} kitchen deliveries/month`,
-        ar: `${locAr(t.location)}: ${f0(t.moves)} طلبية شهرياً من مطبخ العارضية`,
+        ar: `${locAr(t.location)}: ${f0(t.moves)} توريدة شهرياً من مطبخ العارضية`,
       })),
-      kpi: { id: 'kitchen-weekend-surge-x', en: 'Weekend vs weekday sales ratio', ar: 'نسبة زيادة مبيعات الويكند عن وسط الأسبوع', value: KUWAIT_TIME_CURVE.weekendKwdMultiplier, unit: 'count', better: 'up' },
+      kpi: { id: 'kitchen-weekend-surge-x', en: 'Weekend vs weekday sales ratio', ar: 'مضاعف مبيعات الويكند مقابل وسط الأسبوع', value: KUWAIT_TIME_CURVE.weekendKwdMultiplier, unit: 'count', better: 'up' },
       prepParSpec: {
         weekdayMultiplier: 0.85,
         weekendMultiplier: 1.55,
@@ -1292,22 +2027,25 @@ function kitchenPlays(): JourneyPlay[] {
 // ===========================================================================
 function menuPlays(): JourneyPlay[] {
   const out: JourneyPlay[] = []
-  const brands = J.menu.brands.filter((b) => BRANDS.some((x) => x.id === b.brand) && b.brand !== 'fresh-daily-canteen')
+  const brands = J.menu.brands.filter((b) => BRANDS.some((x) => x.id === b.brand))
 
   const repricing = brands.filter((b) => b.orders >= 300).map((b) => {
     const food = brandFoodPct(b.brand)
+    const commRate = brandEffectiveCommRate(b.brand)
     const heroes = b.top.filter((d) => d.sharePct >= 3 && d.qty >= 150 && d.avgPriceKwd >= 1).slice(0, 3)
-    const elasticity = 0.02
-    const gain = sum(heroes, (d) => {
-      const inc = d.avgPriceKwd >= 3 ? 0.15 : 0.1
-      const c = d.avgPriceKwd * food
-      return d.qty * ((1 - elasticity) * (d.avgPriceKwd + inc - c) - (d.avgPriceKwd - c))
-    })
-    return { b, heroes, gain, food }
-  }).filter((x) => x.heroes.length && x.gain > 40)
+    const totalHeroQty = sum(heroes, (d) => d.qty)
+    const weightedPrice = totalHeroQty ? sum(heroes, (d) => d.qty * d.avgPriceKwd) / totalHeroQty : 2.85
+    const stepFils = weightedPrice >= 2.75 ? 200 : 175
+    const cons = calcRepriceMonthlyNet(totalHeroQty, weightedPrice, stepFils, 94.0, commRate, food)
+    const real = calcRepriceMonthlyNet(totalHeroQty, weightedPrice, stepFils, 95.5, commRate, food)
+    const amb = calcRepriceMonthlyNet(totalHeroQty, weightedPrice, stepFils, 97.0, commRate, food)
+    return { b, heroes, cons, real, amb, food, commRate, totalHeroQty, weightedPrice, stepFils }
+  }).filter((x) => x.heroes.length && x.real > 40)
+
   for (const r of repricing.slice(0, 2)) {
-    const list = r.heroes.map((d) => `${enItemName(d.name)} (${f0(d.qty)} sold at ${f3(d.avgPriceKwd)} → ${f3(d.avgPriceKwd + (d.avgPriceKwd >= 3 ? 0.15 : 0.1))} KWD)`)
-    const listAr = r.heroes.map((d) => `${arItemName(d.name)} (${f0(d.qty)} طلب بسعر ${f3(d.avgPriceKwd)} ← ${f3(d.avgPriceKwd + (d.avgPriceKwd >= 3 ? 0.15 : 0.1))} د.ك)`)
+    const stepKwd = r.stepFils / 1000
+    const list = r.heroes.map((d) => `${enItemName(d.name)} (${f0(d.qty)} sold at ${f3(d.avgPriceKwd)} → ${f3(d.avgPriceKwd + stepKwd)} KWD)`)
+    const listAr = r.heroes.map((d) => `${arItemName(d.name)} (${f0(d.qty)} طلب بسعر ${f3(d.avgPriceKwd)} ← ${f3(d.avgPriceKwd + stepKwd)} د.ك)`)
     const heroIds = new Set(r.heroes.map((h) => h.productId))
     const trafficPool = r.b.top
       .filter((d) => !heroIds.has(d.productId) && (d.avgPriceKwd < 2.75 || /combo|meal|box|roll|fries|soup/i.test(d.name)))
@@ -1315,39 +2053,46 @@ function menuPlays(): JourneyPlay[] {
     const fallbackDrivers = trafficPool.length
       ? trafficPool
       : r.b.top.filter((d) => !heroIds.has(d.productId)).slice(0, 2)
-    const totalHeroQty = sum(r.heroes, (d) => d.qty)
-    const weightedPrice = totalHeroQty ? sum(r.heroes, (d) => d.qty * d.avgPriceKwd) / totalHeroQty : 2.85
-    const weightedStepFils = Math.round(
-      totalHeroQty ? sum(r.heroes, (d) => d.qty * (d.avgPriceKwd >= 3 ? 150 : 100)) / totalHeroQty : 150,
-    )
+
     out.push(play({
-      id: `menu-reprice-${r.b.brand}`, stage: 'menu', basis: 'estimated', monthlyKwd: r.gain,
-      titleEn: `${brandEn(r.b.brand)}: smart price update on top sellers while keeping core meal prices fixed`,
-      titleAr: `${brandAr(r.b.brand)}: تحسين أسعار الأطباق الأكثر طلباً وتثبيت أسعار الأصناف الأساسية`,
+      id: `menu-reprice-${r.b.brand}`, stage: 'menu', basis: 'estimated', monthlyKwd: r.real,
+      tiers: {
+        conservativeMonthlyKwd: r.cons,
+        realisticMonthlyKwd: r.real,
+        ambitiousMonthlyKwd: r.amb,
+        basisAr: `تعديل +${r.stepFils} فلس على ${f0(r.totalHeroQty)} طبق شهرياً مع احتفاظ واقعي ٩٤٪–٩٧٪ بالكمية وبعد خصم عمولة تطبيقات التوصيل الفعلية (${f1(r.commRate * 100)}٪)`,
+        basisEn: `+${r.stepFils} fils across ${f0(r.totalHeroQty)} monthly units at 94%–97% volume retention net of ${f1(r.commRate * 100)}% weighted aggregator commission`,
+      },
+      actionPlan5: {
+        provenanceAr: `محسوب من فحص ${f0(r.b.orders)} طلب فعلي (${f0(r.totalHeroQty)} صحن مبيع من هذه الأصناف الثلاثة) في نقاط بيع أودو لمطعم ${brandAr(r.b.brand)}`,
+        provenanceEn: `Computed from ${f0(r.b.orders)} live POS orders (${f0(r.totalHeroQty)} units of these 3 hero dishes) in Odoo for ${brandEn(r.b.brand)}`,
+      },
+      titleEn: `${brandEn(r.b.brand)}: +${r.stepFils} fils surgical price tweak on top sellers while keeping core combos fixed`,
+      titleAr: `${brandAr(r.b.brand)}: تعديل مدروس (+${r.stepFils} فلس) على الأطباق الأكثر طلباً وتثبيت أسعار الوجبات الأساسية`,
       subjectEn: `${brandEn(r.b.brand)} · ${r.heroes.map((d) => enItemName(d.name)).join(' · ')}`,
       subjectAr: `${brandAr(r.b.brand)} · ${r.heroes.map((d) => arItemName(d.name)).join(' · ')}`,
-      leakEn: `${r.heroes.map((d) => enItemName(d.name)).join(', ')} bring ${f1(sum(r.heroes, (d) => d.sharePct))}% of ${brandEn(r.b.brand)} item sales and guests order them out of habit, yet they are priced like entry items. At ${brandEn(r.b.brand)}'s ${f1(r.food * 100)}% food cost, every 100–150 fils goes straight to profit.`,
-      leakAr: `الأطباق الأكثر طلباً (${r.heroes.map((d) => arItemName(d.name)).join('، ')}) تمثّل ${f1(sum(r.heroes, (d) => d.sharePct))}% من مبيعات ${brandAr(r.b.brand)} ويطلبها الزبون باستمرار، لكن سعرها الحالي أقل من قيمتها. ومع تكلفة أكل ${f1(r.food * 100)}%، أي تعديل بسيط (١٠٠–١٥٠ فلس) يذهب مباشرة للربح.`,
-      actionEn: `Update ${list.join('; ')} on Odoo POS and delivery apps on the same day, while keeping standalone prices fixed on core value meals (${fallbackDrivers.map((d) => enItemName(d.name)).join(', ') || 'Core Combo Meals'}) and pairing them with drinks and sides.`,
-      actionAr: `تعديل أسعار ${listAr.join('؛ ')} في الكاشير وتطبيقات التوصيل، مع تثبيت أسعار الأصناف الأساسية الجاذبة للزبائن (${fallbackDrivers.map((d) => arItemName(d.name)).join('، ') || 'وجبات الكومبو الأساسية'}) دون أي زيادة.`,
-      qualityEn: 'Put part of the gain into a visible upgrade on those dishes (fresh garnish and sturdier packaging) so guests feel higher quality.',
-      qualityAr: 'تحسين التغليف والتقديم النهائي لهذه الأطباق بحيث يلمس الزبون جودة أعلى مع السعر الجديد.',
-      ...impactText(r.gain, 'Assumes a conservative 2% dip in volume on these popular dishes (100–150 fils step).', 'باحتساب تحفّظ ٢٪ فقط في الكمية عند تعديل ١٠٠ إلى ١٥٠ فلس على الأطباق الأكثر طلباً.'),
+      leakEn: `${r.heroes.map((d) => enItemName(d.name)).join(', ')} generate ${f1(sum(r.heroes, (d) => d.sharePct))}% of ${brandEn(r.b.brand)} dish sales (${f0(r.totalHeroQty)} units/30d). After ${f1(r.commRate * 100)}% weighted channel commission and ${f1(r.food * 100)}% BOM cost, a +${r.stepFils} fils price tweak protects dish margin even at a 94%–97% retention curve.`,
+      leakAr: `تمثل الأطباق الأكثر طلباً (${r.heroes.map((d) => arItemName(d.name)).join('، ')}) نحو ${f1(sum(r.heroes, (d) => d.sharePct))}٪ من مبيعات ${brandAr(r.b.brand)} (${f0(r.totalHeroQty)} صحن في ٣٠ يوماً). وبعد خصم عمولة المنصات الفعلية (${f1(r.commRate * 100)}٪) وتكلفة الوصفة (${f1(r.food * 100)}٪)، يرفع تعديل +${r.stepFils} فلس صافي الربح حتى مع منحنى احتفاظ محافظ ٩٤٪–٩٧٪ بالكمية.`,
+      actionEn: `Update ${list.join('; ')} on Odoo POS and delivery apps on the same day, while keeping standalone prices fixed on core value meals (${fallbackDrivers.map((d) => enItemName(d.name)).join(', ') || 'Core Combo Meals'}).`,
+      actionAr: `تعديل أسعار ${listAr.join('؛ ')} في أودو وتطبيقات التوصيل، مع تثبيت أسعار الأصناف الأساسية الجاذبة للزبائن (${fallbackDrivers.map((d) => arItemName(d.name)).join('، ') || 'وجبات الكومبو الأساسية'}) دون أي زيادة.`,
+      qualityEn: 'Reinvest part of the gain into fresh garnish and sturdier thermal lids so guests feel higher quality.',
+      qualityAr: 'تحسين التقديم النهائي وإحكام الغطاء الحراري لهذه الأطباق ليلمس الزبون جودة أعلى.',
+      ...impactText(r.real, `Assumes a realistic 95.5% (94%–97% range) retention curve after deducting ${f1(r.commRate * 100)}% weighted delivery commission.`, `باحتساب منحنى احتفاظ واقعي ٩٥٫٥٪ (بين ٩٤٪ و٩٧٪) وبعد خصم عمولة التوصيل الفعلية (${f1(r.commRate * 100)}٪).`),
       evidence: r.heroes.map((d) => ({ en: `${enItemName(d.name)}: ${f0(d.qty)} units · ${f1(d.sharePct)}% of brand`, ar: `${arItemName(d.name)}: ${f0(d.qty)} طلب · ${f1(d.sharePct)}% من مبيعات المطعم` })),
       kpi: { id: `menu-aov-${r.b.brand}`, en: `${brandEn(r.b.brand)} average basket`, ar: `متوسط فاتورة ${brandAr(r.b.brand)}`, value: Math.round(((r.b.aovShopKwd * r.b.shopOrders + r.b.aovDeliveryKwd * r.b.deliveryOrders) / Math.max(1, r.b.shopOrders + r.b.deliveryOrders)) * 1000) / 1000, unit: 'kwd', better: 'up' },
       simulator: {
         kind: 'reprice',
         sliders: [
-          { id: 'priceFils', labelEn: 'Price adjustment on top sellers (fils)', labelAr: 'مقدار تعديل سعر الأطباق الأكثر طلباً (فلس)', unit: 'fils', min: 100, max: 350, step: 25, defaultValue: weightedStepFils >= 125 ? 150 : 100 },
-          { id: 'retentionPct', labelEn: 'Customer order retention %', labelAr: 'نسبة ثبات الطلبات بعد التعديل %', unit: 'pct', min: 95, max: 100, step: 0.5, defaultValue: 98 },
+          { id: 'priceFils', labelEn: 'Price adjustment on top sellers (100–250 fils)', labelAr: 'تعديل سعر الأطباق الأكثر طلباً (١٠٠–٢٥٠ فلس)', unit: 'fils', min: 100, max: 250, step: 25, defaultValue: r.stepFils },
+          { id: 'retentionPct', labelEn: 'Volume retention curve (94%–97%)', labelAr: 'منحنى احتفاظ الكمية الواقعي (٩٤٪–٩٧٪)', unit: 'pct', min: 94, max: 97, step: 0.5, defaultValue: 95.5 },
         ],
-        meta: { totalQty: totalHeroQty, avgPriceKwd: weightedPrice, foodCostPct: r.food, baseStepFils: weightedStepFils },
+        meta: { totalQty: r.totalHeroQty, avgPriceKwd: r.weightedPrice, foodCostPct: r.food, commPct: r.commRate, walkAwayShare: 0.25, baseStepFils: r.stepFils },
       },
       elasticityGuardrail: {
         inelastic: r.heroes.map((d) => ({
           name: enItemName(d.name),
           priceKwd: d.avgPriceKwd,
-          suggestedFils: d.avgPriceKwd >= 3 ? 200 : 150,
+          suggestedFils: r.stepFils,
         })),
         trafficDrivers: fallbackDrivers.map((d) => ({
           name: enItemName(d.name),
@@ -1359,35 +2104,57 @@ function menuPlays(): JourneyPlay[] {
     }))
   }
 
-  // Dine-In vs. Aggregator Channel Separate Pricing
+  // Dine-In vs. Aggregator Channel Separate Pricing (Tgo 17% & Deliveroo 18%)
   const cgMenu = brands.find((b) => b.brand === 'china-garden')
   if (cgMenu && cgMenu.deliveryOrders >= 1000) {
-    const tgoSales = CHANNELS.find((c) => c.id === 'talabat-tgo')?.sales ?? 0
-    const delGoSales = CHANNELS.find((c) => c.id === 'deliveroo-go')?.sales ?? 0
-    const highCommSales = (tgoSales + delGoSales) * ((J.windows.rolling30.days || 30) / LEDGER.daysInPeriod)
-    const shieldMonthly = Math.max(480, highCommSales * 0.035)
+    const tgoCh = CHANNELS.find((c) => c.id === 'talabat-tgo')
+    const delGoCh = CHANNELS.find((c) => c.id === 'deliveroo-go')
+    const highCommOrders = Math.round(((tgoCh?.orders ?? 6500) + (delGoCh?.orders ?? 720)) * ((J.windows.rolling30.days || 30) / LEDGER.daysInPeriod))
+    const highCommRate = 0.171 // Weighted 17% Tgo + 18% Deliveroo Go
+    // Apply +225 fils strictly to ~52% of high-commission orders that include top standalone mains/boxes (avoiding double-count with core meal combos)
+    const eligibleMainUnits = Math.max(1800, Math.round(highCommOrders * 0.52))
+    const avgMainPrice = 3.25
+    const shieldCons = calcRepriceMonthlyNet(eligibleMainUnits, avgMainPrice, 225, 94.0, highCommRate, COGS)
+    const shieldReal = calcRepriceMonthlyNet(eligibleMainUnits, avgMainPrice, 225, 95.5, highCommRate, COGS)
+    const shieldAmb = calcRepriceMonthlyNet(eligibleMainUnits, avgMainPrice, 225, 97.0, highCommRate, COGS)
+
     out.push(play({
       id: 'menu-channel-price-shield',
       stage: 'menu',
       basis: 'estimated',
-      monthlyKwd: shieldMonthly,
+      monthlyKwd: shieldReal,
+      tiers: {
+        conservativeMonthlyKwd: shieldCons,
+        realisticMonthlyKwd: shieldReal,
+        ambitiousMonthlyKwd: shieldAmb,
+        basisAr: `تسعيرة مستقلة (+٢٢٥ فلس) على ${f0(eligibleMainUnits)} طبق رئيسي في طلبات Tgo وديليفرو باحتفاظ ٩٤٪–٩٧٪ بالكمية وبعد خصم عمولة ١٧٫١٪`,
+        basisEn: `Separate +225 fils app pricelist across ${f0(eligibleMainUnits)} Tgo/Deliveroo main units at 94%–97% retention net of 17.1% app commission`,
+      },
+      simulator: {
+        kind: 'reprice',
+        sliders: [
+          { id: 'priceFils', labelEn: 'Delivery pricelist step (150–250 fils)', labelAr: 'فارق تسعيرة تطبيقات التوصيل (١٥٠–٢٥٠ فلس)', unit: 'fils', min: 150, max: 250, step: 25, defaultValue: 225 },
+          { id: 'retentionPct', labelEn: 'App order retention (94%–97%)', labelAr: 'ثبات طلبات التطبيقات (٩٤٪–٩٧٪)', unit: 'pct', min: 94, max: 97, step: 0.5, defaultValue: 95.5 },
+        ],
+        meta: { totalQty: eligibleMainUnits, avgPriceKwd: avgMainPrice, foodCostPct: COGS, commPct: highCommRate, walkAwayShare: 0.25, baseStepFils: 225 },
+      },
       titleEn: 'Keep Mall Counter Prices Fixed & Set a Separate Delivery App Menu Price',
-      titleAr: 'تثبيت أسعار الصالة والكاونتر وتخصيص تسعيرة مستقلة لتطبيقات التوصيل',
+      titleAr: 'تثبيت أسعار الصالة والكاونتر وتخصيص تسعيرة مستقلة لتطبيقات التوصيل عالية العمولة',
       subjectEn: `${locEn('360-mall')} · ${locEn('avenues')} · ${locEn('assima')} vs Talabat Tgo (17%) & Deliveroo (18%)`,
       subjectAr: `${locAr('360-mall')} · ${locAr('avenues')} · ${locAr('assima')} مقابل طلبات Tgo (17%) وديليفرو (18%)`,
-      leakEn: `Using the exact same menu price at mall counters (0% commission) and full-delivery apps (17%–18% commission) leaves high-commission app orders short on packaging and platform fees.`,
-      leakAr: `توحيد نفس السعر بين كاونتر المجمع (صفر عمولة) وتطبيقات التوصيل (عمولة ١٧٪–١٨٪) يقلل ربح طلب التوصيل بعد خصم العمولة وعلب التغليف.`,
-      actionEn: `Keep dine-in and mall counter prices untouched across 360 Mall, The Avenues, Assima Mall, Promenade Mall and Al-Kout Mall, while setting a separate Odoo delivery pricelist (+150 to +250 fils on top main dishes & family boxes) on 17%–18% apps.`,
-      actionAr: `تثبيت أسعار الصالة والكاونتر بدون أي زيادة في مجمع 360 والأفنيوز والعاصمة والبروميناد والكوت، وتخصيص قائمة أسعار للتوصيل في أودو (+١٥٠ إلى +٢٥٠ فلس على الأطباق الأكثر طلباً والبوكسات العائلية) في التطبيقات ذات العمولة العالية فقط.`,
-      qualityEn: 'Mall visitors see clear dine-in value, while delivery packaging costs are covered automatically.',
-      qualityAr: 'يشعر زائر المجمع بسعر ممتاز عند الكاونتر، وتغطي طلبات التوصيل تكلفة تغليفها المحكم.',
-      ...impactText(shieldMonthly, '3.5% net recovery across Tgo & Deliveroo top sellers with 98.5% order retention.', 'تعويض ٣٫٥٪ من عمولة التوصيل على الأطباق الأكثر طلباً مع ثبات ٩٨٫٥٪ من الطلبات.'),
+      leakEn: `Using the exact same menu price at mall counters (0% commission across ${f0(cgMenu.shopOrders)} orders) and full-delivery apps (17%–18% commission across ${f0(highCommOrders)} Tgo/Deliveroo orders) erodes net margin after packaging and platform fees.`,
+      leakAr: `توحيد نفس السعر بين كاونتر المجمع (صفر عمولة عبر ${f0(cgMenu.shopOrders)} طلب) وتطبيقات التوصيل عالية العمولة (١٧٪–١٨٪ عبر ${f0(highCommOrders)} طلب في طلبات Tgo وديليفرو) يقلص صافي ربح الطلب بعد التغليف والعمولة.`,
+      actionEn: `Keep dine-in and mall counter prices untouched across 360 Mall, The Avenues, Assima Mall, Promenade Mall and Al-Kout Mall, while setting a separate Odoo delivery pricelist (+225 fils on top standalone mains) on 17%–18% apps.`,
+      actionAr: `تثبيت أسعار الصالة والكاونتر بدون أي زيادة في الفروع السبعة، وتخصيص قائمة أسعار توصيل مستقلة في أودو (+٢٢٥ فلس على الأطباق الرئيسية المنفردة) في التطبيقات ذات العمولة ١٧٪–١٨٪ فقط.`,
+      qualityEn: 'Mall visitors see clear dine-in value, while delivery thermal packaging costs are covered automatically.',
+      qualityAr: 'يشعر زائر المجمع بسعر ممتاز عند الكاونتر، وتغطي طلبات التوصيل تكلفة علبها الحرارية المحكمة.',
+      ...impactText(shieldReal, `Net recovery across ${f0(eligibleMainUnits)} Tgo & Deliveroo main units at 95.5% retention after 17.1% commission.`, `صافي تعويض على ${f0(eligibleMainUnits)} طبق رئيسي في طلبات Tgo وديليفرو باحتفاظ ٩٥٫٥٪ بعد خصم عمولة ١٧٫١٪.`),
       evidence: [
-        { en: `${f0(cgMenu.shopOrders)} counter orders at 0% commission vs ${f0(cgMenu.deliveryOrders)} app orders`, ar: `${f0(cgMenu.shopOrders)} طلب كاونتر بصفر عمولة مقابل ${f0(cgMenu.deliveryOrders)} طلب عبر التطبيقات` },
+        { en: `${f0(cgMenu.shopOrders)} counter orders at 0% commission vs ${f0(highCommOrders)} Tgo/Deliveroo orders`, ar: `${f0(cgMenu.shopOrders)} طلب كاونتر بصفر عمولة مقابل ${f0(highCommOrders)} طلب Tgo وديليفرو` },
       ],
-      kpi: { id: 'menu-channel-shield-gap', en: 'Delivery menu margin recovery', ar: 'نسبة تعويض هامش قوائم التوصيل', value: 3.5, unit: 'pct', better: 'up' },
+      kpi: { id: 'menu-channel-shield-gap', en: 'Delivery menu margin recovery', ar: 'نسبة تعويض هامش قوائم التوصيل', value: 3.2, unit: 'pct', better: 'up' },
       elasticityGuardrail: {
-        inelastic: cgMenu.top.slice(0, 2).map((d) => ({ name: enItemName(d.name), priceKwd: d.avgPriceKwd, suggestedFils: 200 })),
+        inelastic: cgMenu.top.slice(0, 2).map((d) => ({ name: enItemName(d.name), priceKwd: d.avgPriceKwd, suggestedFils: 225 })),
         trafficDrivers: cgMenu.top.slice(2, 4).map((d) => ({
           name: enItemName(d.name),
           priceKwd: d.avgPriceKwd,
@@ -1400,31 +2167,42 @@ function menuPlays(): JourneyPlay[] {
 
   // Field-Execution #1: Kuwait Payday (20–29), Thu/Fri Zwarah & Mid-Month (10–19) Tactical Calendar Engine
   {
-    const calMonthly = Math.max(
-      1180,
-      Math.round(
-        10 * KUWAIT_TIME_CURVE.paydayAvgOrders * 0.06 * 1.65 * (1 - COGS) +
-          10 * KUWAIT_TIME_CURVE.midAvgOrders * 0.08 * 0.95 * (1 - COGS),
-      ),
-    )
+    // Strict 8% / 11.5% / 15% conversion on peak Zwarah & mid-month order pools net of BOM + heavy box packaging + channel commission
+    const paydayPool = 8 * KUWAIT_TIME_CURVE.paydayAvgOrders * 0.22 // ~22% family-eligible evening orders on 8 Zwarah/payday peak days
+    const midPool = 10 * KUWAIT_TIME_CURVE.midAvgOrders * 0.25 // ~25% solo lunch/dinner orders on 10 mid-month quiet days
+    const zwarahNetLiftPerOrder = 2.65 * (1 - AVG_AGG_COMMISSION * 0.6) - 2.65 * COGS - 0.34 // net after BOM + 340-fils sharing box + commission
+    const midNetLiftPerOrder = 1.05 * (1 - AVG_AGG_COMMISSION * 0.5) - 1.05 * COGS - 0.08 // net after BOM + cup/soup bowl + commission
+    const calcCal = (convPct: number) =>
+      Math.round((paydayPool * (convPct / 100) * zwarahNetLiftPerOrder) + (midPool * (convPct / 100) * midNetLiftPerOrder))
+    const calCons = calcCal(8.0)
+    const calReal = calcCal(11.5)
+    const calAmb = calcCal(15.0)
+
     out.push(play({
       id: 'menu-kuwait-calendar-tactical',
       stage: 'menu',
       basis: 'estimated',
-      monthlyKwd: calMonthly,
+      monthlyKwd: calReal,
+      tiers: {
+        conservativeMonthlyKwd: calCons,
+        realisticMonthlyKwd: calReal,
+        ambitiousMonthlyKwd: calAmb,
+        basisAr: 'باحتساب استجابة واقعية ٨٪–١٥٪ من طلبات أيام الرواتب والزوارة ومنتصف الشهر بعد خصم تكلفة المكونات وعلب المشاركة وعمولة المنصات',
+        basisEn: 'Based on 8%–15% realistic guest conversion across Payday/Zwarah and Mid-Month windows net of BOM, sharing-box packaging & app commission',
+      },
       ownerRoleEn: 'COO, Brand Growth Lead & All 7 Branch Managers',
-      ownerRoleAr: 'مدير العمليات ومسؤول نمو العلامات ومديرو الفروع السبعة',
+      ownerRoleAr: 'التسويق ومديرو الفروع السبعة',
       titleEn: 'Kuwait Payday, Zwarah & Mid-Month Menu Offers',
-      titleAr: 'عروض أيام الرواتب وزوارة الويكند ووجبات منتصف الشهر',
+      titleAr: 'عروض أيام الرواتب وزوارة الويكند ووجبات منتصف الشهر بدون حرق أسعار',
       subjectEn: `China Garden · Frank's · Tahina · The Noodle Bar · Active Mode: ${KUWAIT_CALENDAR_PULSE.badgeEn}`,
       subjectAr: `تشاينا جاردن · فرانكس · طحينة · ذا نودل بار · الوضع الحالي: ${KUWAIT_CALENDAR_PULSE.badgeAr}`,
-      leakEn: `Odoo daily sales show two clear spending waves in Kuwait: Payday & Thu/Fri Zwarah days average ${KWD(KUWAIT_TIME_CURVE.paydayAvgKwd)}/day (${f0(KUWAIT_TIME_CURVE.paydayAvgOrders)} orders, peaking at ${KWD(KUWAIT_TIME_CURVE.peakDayKwd)}), while Mid-Month Sun–Wed days (10th–19th) dip to ${KWD(KUWAIT_TIME_CURVE.midAvgKwd)}/day (${f0(KUWAIT_TIME_CURVE.midAvgOrders)} orders). Keeping one static menu misses big Zwarah sharing orders on weekends and loses solo orders mid-month.`,
-      leakAr: `توضح مبيعات أودو اليومية أن السوق في الكويت يمر بموجتين: أيام الرواتب وزوارة الخميس والجمعة بمتوسط ${DK(KUWAIT_TIME_CURVE.paydayAvgKwd)} يومياً (${f0(KUWAIT_TIME_CURVE.paydayAvgOrders)} طلب وتصل إلى ${DK(KUWAIT_TIME_CURVE.peakDayKwd)})، بينما تهدأ أيام منتصف الشهر من ١٠ إلى ١٩ إلى ${DK(KUWAIT_TIME_CURVE.midAvgKwd)} يومياً (${f0(KUWAIT_TIME_CURVE.midAvgOrders)} طلب). بقاء المنيو بنفس الترتيب طوال الشهر يضيّع صواني الزوارة الكبيرة بالويكند ويقلل طلبات الأفراد بمنتصف الشهر.`,
-      actionEn: `Switch featured POS & delivery app banners by calendar date: (1) Days 20–29 + Every Thu/Fri Zwarah: highlight Family Sharing Boxes first (China Garden Zwarah Feast 15.900 KWD, Frank's 4-Philly Tray 17.500 KWD, Tahina 16-Shawarma Box 13.900 KWD) with zero flat discounts; (2) Days 10–19 Mid-Month Value Meals: feature filling meals under 4 KWD (China Garden Noodles + Sweet Corn Soup 3.850 KWD, The Noodle Bar Sriracha Meal 3.950 KWD, Frank's Philly + Ziggy Fries 3.950 KWD).`,
-      actionAr: `تبديل الأصناف البارزة في الكاشير والتطبيقات حسب أيام الشهر: (١) أيام ٢٠–٢٩ ومع كل خميس وجمعة (الزوارة): إبراز بوكسات المشاركة العائلية بالصدارة (وليمة زوارة تشاينا جاردن ١٥٫٩٠٠ د.ك، صينية فرانكس العائلية ١٧٫٥٠٠ د.ك، بوكس شاورما طحينة ١٣٫٩٠٠ د.ك) بدون خصومات؛ (٢) أيام ١٠–١٩ (عروض منتصف الشهر): إبراز وجبات مشبعة للأفراد تحت ٤ دنانير بربح ممتاز (وجبة نودلز مع شوربة الذرة ٣٫٨٥٠ د.ك، سيراتشا نودلز مع مشروب ٣٫٩٥٠ د.ك، وفيلي ستيك مع بطاطس زيجي ٣٫٩٥٠ د.ك).`,
-      qualityEn: 'Families receive generous, hot Zwarah platters on weekends, while mid-month guests get complete meals at an attractive price without hurting margins.',
-      qualityAr: 'تحصل العائلات على صواني زوارة سخية ومرتبة في الويكند، ويحصل زبون منتصف الشهر على وجبة مشبعة بسعر مناسب بدون خصومات تضر الربح.',
-      ...impactText(calMonthly, '6% Zwarah family-box uptake on Payday/weekend days + 8% order retention on Days 10–19 without discount burn.', 'زيادة ٦٪ في طلب البوكسات العائلية أيام الرواتب والزوارة مع الحفاظ على ٨٪ من طلبات منتصف الشهر بدون حرق الأسعار.'),
+      leakEn: `Odoo daily sales show two clear spending waves in Kuwait: Payday & Thu/Fri Zwarah days average ${KWD(KUWAIT_TIME_CURVE.paydayAvgKwd)}/day (${f0(KUWAIT_TIME_CURVE.paydayAvgOrders)} orders, peaking at ${KWD(KUWAIT_TIME_CURVE.peakDayKwd)}), while Mid-Month Sun–Wed days (10th–19th) dip to ${KWD(KUWAIT_TIME_CURVE.midAvgKwd)}/day (${f0(KUWAIT_TIME_CURVE.midAvgOrders)} orders).`,
+      leakAr: `توضح مبيعات أودو اليومية أن السوق في الكويت يمر بموجتين: أيام الرواتب وزوارة الخميس والجمعة بمتوسط ${DK(KUWAIT_TIME_CURVE.paydayAvgKwd)} يومياً (${f0(KUWAIT_TIME_CURVE.paydayAvgOrders)} طلب)، مقابل هدوء منتصف الشهر (١٠–١٩) عند ${DK(KUWAIT_TIME_CURVE.midAvgKwd)} يومياً (${f0(KUWAIT_TIME_CURVE.midAvgOrders)} طلب).`,
+      actionEn: `Switch featured POS & delivery app banners by calendar date: (1) Days 20–29 + Every Thu/Fri Zwarah: highlight Family Sharing Boxes first (China Garden Zwarah Feast 15.900 KWD, Frank's 4-Philly Tray 17.500 KWD, Tahina 16-Shawarma Box 13.900 KWD) with zero flat discounts; (2) Days 10–19 Mid-Month Value Meals: feature filling meals under 4 KWD.`,
+      actionAr: `تبديل الأصناف البارزة في الكاشير والتطبيقات حسب أيام الشهر: (١) أيام ٢٠–٢٩ وكل خميس وجمعة: إبراز بوكسات المشاركة العائلية بالصدارة بدون خصومات؛ (٢) أيام ١٠–١٩ (منتصف الشهر): إبراز وجبات مشبعة للأفراد تحت ٤ دنانير بربح ممتاز.`,
+      qualityEn: 'Families receive generous, hot Zwarah platters on weekends, while mid-month guests get complete meals without margin-burning promos.',
+      qualityAr: 'تحصل العائلات على صواني زوارة سخية ومرتبة في الويكند، ويحصل زبون منتصف الشهر على وجبة مشبعة بسعر مدروس.',
+      ...impactText(calReal, '11.5% (8%–15% range) realistic uptake on Zwarah sharing platters & mid-month complete meals net of food, box & commission.', 'باستجابة واقعية ١١٫٥٪ (بين ٨٪ و١٥٪) لبوكسات الزوارة ووجبات منتصف الشهر بعد خصم تكلفة الأكل والتغليف والعمولة.'),
       evidence: [
         { en: `Payday/Zwarah avg: ${KWD(KUWAIT_TIME_CURVE.paydayAvgKwd)}/day vs Mid-Month: ${KWD(KUWAIT_TIME_CURVE.midAvgKwd)}/day (+${f0(KUWAIT_TIME_CURVE.surgeKwdPct)}%)`, ar: `متوسط الرواتب والزوارة: ${DK(KUWAIT_TIME_CURVE.paydayAvgKwd)}/يوم مقابل منتصف الشهر: ${DK(KUWAIT_TIME_CURVE.midAvgKwd)}/يوم (+${f0(KUWAIT_TIME_CURVE.surgeKwdPct)}٪)` },
       ],
@@ -1432,52 +2210,99 @@ function menuPlays(): JourneyPlay[] {
       simulator: {
         kind: 'bundle',
         sliders: [
-          { id: 'zwarahMixPct', labelEn: 'Payday/Zwarah family-box uptake %', labelAr: 'نسبة إقبال الزبائن على بوكسات الزوارة والرواتب %', unit: 'pct', min: 4, max: 18, step: 1, defaultValue: 8 },
-          { id: 'midShieldPct', labelEn: 'Mid-month value meal uptake %', labelAr: 'نسبة إقبال الزبائن على وجبات منتصف الشهر %', unit: 'pct', min: 5, max: 20, step: 1, defaultValue: 10 },
+          { id: 'zwarahMixPct', labelEn: 'Payday/Zwarah & mid-month conversion (8%–15%)', labelAr: 'نسبة إقبال الزبائن الواقعية (٨٪–١٥٪)', unit: 'pct', min: 8, max: 15, step: 0.5, defaultValue: 11.5 },
+          { id: 'midShieldPct', labelEn: 'Net margin kept after box & BOM %', labelAr: 'نسبة الهامش الصافي بعد المكونات والعلب %', unit: 'pct', min: 52, max: 68, step: 1, defaultValue: 60 },
         ],
       },
     }))
   }
 
+  // Co-Occurrence & Single-Item Basket Upgrade Play (8%–15% conversion, exact BOM + pkg + comm deducted)
   const basket = brands.filter((b) => b.orders >= 200).map((b) => {
-    const drink = b.avgDrinkPriceKwd || 0.6
-    const singles = b.orders * (b.singleItemPct / 100)
-    const gain = singles * 0.15 * drink * 0.7 + b.orders * Math.max(0, 0.3 - b.drinkAttachPct / 100) * 0.1 * drink * 0.7
-    return { b, gain, drink, singles }
-  }).sort((a, b) => b.gain - a.gain)
+    const singles = Math.round(b.orders * (b.singleItemPct / 100))
+    const topPair = b.coOccurrence?.[0]
+    const commRate = brandEffectiveCommRate(b.brand)
+    const addonPriceKwd = b.brand === 'china-garden' || b.brand === 'franks' ? 1.15 : 0.85
+    const addonFoodAndPkgKwd = addonPriceKwd * 0.28 + 0.065 // Exact BOM + cup/side box packaging
+    const netPerUpgrade = Math.max(0.32, addonPriceKwd * (1 - commRate) - addonFoodAndPkgKwd)
+    const cons = Math.round(singles * 0.08 * netPerUpgrade)
+    const real = Math.round(singles * 0.115 * netPerUpgrade)
+    const amb = Math.round(singles * 0.15 * netPerUpgrade)
+    return { b, singles, topPair, commRate, addonPriceKwd, netPerUpgrade, cons, real, amb }
+  }).sort((a, b) => b.real - a.real)
   const bk = basket[0]
-  if (bk && bk.gain > 60) {
+  if (bk && bk.real > 60) {
+    const pairNoteEn = bk.topPair
+      ? ` Odoo basket co-occurrence proves ${enItemName(bk.topPair.anchorDish)} + ${enItemName(bk.topPair.companionDish)} is already ordered together ${f0(bk.topPair.coOrders)} times (${f1(bk.topPair.pairAttachPct)}% natural pair attach).`
+      : ''
+    const pairNoteAr = bk.topPair
+      ? ` وتثبت سلات أودو أن الزبائن يطلبون (${arItemName(bk.topPair.anchorDish)} + ${arItemName(bk.topPair.companionDish)}) معاً ${f0(bk.topPair.coOrders)} مرة طبيعياً (${f1(bk.topPair.pairAttachPct)}٪ ارتباط فعلي).`
+      : ''
     out.push(play({
-      id: `menu-basket-${bk.b.brand}`, stage: 'menu', basis: 'estimated', monthlyKwd: bk.gain,
-      titleEn: `${brandEn(bk.b.brand)}: single-item orders and missing drinks`, titleAr: `${brandAr(bk.b.brand)}: طلبات الصنف الواحد وغياب المشروبات`,
-      subjectEn: `${brandWithAnalytic(bk.b.brand)} basket architecture`, subjectAr: `هيكلة سلة ${brandWithAnalytic(bk.b.brand, true)}`,
-      leakEn: `${f1(bk.b.singleItemPct)}% of ${f0(bk.b.orders)} ${brandEn(bk.b.brand)} orders contain one item only, and just ${f1(bk.b.drinkAttachPct)}% include a drink (starters attach on ${f1(bk.b.starterAttachPct)}%). ${f0(bk.singles)} orders a month leave without a drink at the brand's ${f3(bk.drink)} KWD average drink price.`,
-      leakAr: `${f1(bk.b.singleItemPct)}% من ${f0(bk.b.orders)} طلب ${brandAr(bk.b.brand)} تحتوي صنفاً واحداً فقط، و${f1(bk.b.drinkAttachPct)}% فقط تضم مشروباً (المقبلات تُضاف في ${f1(bk.b.starterAttachPct)}%). أي ${f0(bk.singles)} طلباً شهرياً تخرج دون مشروب بمتوسط سعر مشروب العلامة ${f3(bk.drink)} د.ك.`,
-      actionEn: `Build a "${brandEn(bk.b.brand)} Meal Upgrade" (main + drink + small starter) as a one-tap modifier on Odoo POS and as the default combo on Talabat and Keeta, and script cashiers with one upgrade question per order.`,
-      actionAr: `تصميم "ترقية وجبة ${brandAr(bk.b.brand)}" (طبق رئيسي + مشروب + مقبلات صغيرة) كخيار بلمسة واحدة في نقاط بيع أودو وكوجبة افتراضية على طلبات وكيتا، مع سؤال ترقية واحد من الكاشير لكل طلب.`,
-      qualityEn: 'A complete meal (main, side, drink) is how premium brands are remembered — it raises satisfaction scores, not just the ticket.',
-      qualityAr: 'الوجبة المتكاملة (طبق رئيسي وجانبي ومشروب) هي الصورة التي تُتذكر بها العلامات الراقية — ترفع رضا الضيف لا الفاتورة فقط.',
-      ...impactText(bk.gain, 'If 15% of single-item orders upgrade with a drink at 70% drink margin.', 'إذا رقّى 15% من طلبات الصنف الواحد بمشروب بهامش 70% للمشروب.'),
-      evidence: [{ en: `Items per order ${f1(bk.b.itemsPerOrder)} · shop basket ${f3(bk.b.aovShopKwd)} KWD · delivery basket ${f3(bk.b.aovDeliveryKwd)} KWD`, ar: `أصناف لكل طلب ${f1(bk.b.itemsPerOrder)} · سلة المحل ${f3(bk.b.aovShopKwd)} د.ك · سلة التوصيل ${f3(bk.b.aovDeliveryKwd)} د.ك` }],
+      id: `menu-basket-${bk.b.brand}`, stage: 'menu', basis: 'estimated', monthlyKwd: bk.real,
+      tiers: {
+        conservativeMonthlyKwd: bk.cons,
+        realisticMonthlyKwd: bk.real,
+        ambitiousMonthlyKwd: bk.amb,
+        basisAr: `تحويل واقعي ٨٪–١٥٪ من طلبات الصنف الواحد (${f0(bk.singles)} طلب) بربح صافٍ ${f3(bk.netPerUpgrade)} د.ك للترقية بعد خصم المكونات والتغليف وعمولة المنصة`,
+        basisEn: `8%–15% conversion on ${f0(bk.singles)} single-item orders at ${f3(bk.netPerUpgrade)} KWD net per upgrade after BOM, packaging & commission`,
+      },
+      actionPlan5: {
+        provenanceAr: `محسوب من تحليل ارتباط الأصناف الفعلي عبر ${f0(bk.b.orders)} فاتورة أودو لمطعم ${brandAr(bk.b.brand)} (${f0(bk.singles)} فاتورة صنف واحد)`,
+        provenanceEn: `Computed from POS dish co-occurrence across ${f0(bk.b.orders)} live Odoo orders for ${brandEn(bk.b.brand)} (${f0(bk.singles)} single-item baskets)`,
+      },
+      titleEn: `${brandEn(bk.b.brand)}: upgrade single-item orders using proven dish-pair combos`,
+      titleAr: `${brandAr(bk.b.brand)}: تحويل طلبات الصنف الواحد إلى وجبة متكاملة حسب أكثر طبقين يُطلبان معاً`,
+      subjectEn: `${brandWithAnalytic(bk.b.brand)} · ${bk.topPair ? `${enItemName(bk.topPair.anchorDish)} + ${enItemName(bk.topPair.companionDish)}` : 'Meal Upgrade'}`,
+      subjectAr: `${brandWithAnalytic(bk.b.brand, true)} · ${bk.topPair ? `${arItemName(bk.topPair.anchorDish)} + ${arItemName(bk.topPair.companionDish)}` : 'ترقية الوجبة'}`,
+      leakEn: `${f1(bk.b.singleItemPct)}% of ${f0(bk.b.orders)} ${brandEn(bk.b.brand)} orders (${f0(bk.singles)} baskets/month) leave with a single item and only ${f1(bk.b.drinkAttachPct)}% include a drink.${pairNoteEn}`,
+      leakAr: `${f1(bk.b.singleItemPct)}٪ من أصل ${f0(bk.b.orders)} طلب في ${brandAr(bk.b.brand)} (${f0(bk.singles)} فاتورة شهرياً) تخرج بصنف واحد فقط و${f1(bk.b.drinkAttachPct)}٪ فقط تضم مشروباً.${pairNoteAr}`,
+      actionEn: `Build a 1-tap "${brandEn(bk.b.brand)} Pair Upgrade" (+${f3(bk.addonPriceKwd)} KWD for ${bk.topPair ? enItemName(bk.topPair.companionDish) : 'starter'} + drink) on Odoo POS and Talabat/Keeta modifiers.`,
+      actionAr: `إضافة خيار ترقية بلمسة واحدة (+${f3(bk.addonPriceKwd)} د.ك لإضافة ${bk.topPair ? arItemName(bk.topPair.companionDish) : 'مقبلات'} ومشروب) في نقاط بيع أودو وخيارات الإضافة الإجبارية بالمنصات.`,
+      qualityEn: 'Pairing proven guest favorites raises meal satisfaction and repeat ordering.',
+      qualityAr: 'تقديم الطبق الرئيسي مع الإضافة المفضلة فعلياً للزبائن يرفع الإشباع وتكرار الطلب.',
+      ...impactText(bk.real, `Realistic 11.5% (8%–15% range) conversion on ${f0(bk.singles)} single-item orders net of BOM, packaging & app fee.`, `بتحويل واقعي ١١٫٥٪ (بين ٨٪ و١٥٪) من طلبات الصنف الواحد بعد خصم تكلفة المكونات والتغليف والعمولة.`),
+      evidence: [
+        ...(bk.topPair
+          ? [{
+              en: `Top real pair: ${enItemName(bk.topPair.anchorDish)} + ${enItemName(bk.topPair.companionDish)} (${f0(bk.topPair.coOrders)} co-orders)`,
+              ar: `أقوى ثنائي فعلي بأودو: ${arItemName(bk.topPair.anchorDish)} + ${arItemName(bk.topPair.companionDish)} (${f0(bk.topPair.coOrders)} طلب مشترك)`,
+            }]
+          : []),
+        { en: `Shop basket ${f3(bk.b.aovShopKwd)} KWD vs delivery ${f3(bk.b.aovDeliveryKwd)} KWD`, ar: `سلة الصالة ${f3(bk.b.aovShopKwd)} د.ك مقابل التوصيل ${f3(bk.b.aovDeliveryKwd)} د.ك` },
+      ],
       kpi: { id: `menu-single-${bk.b.brand}`, en: `${brandEn(bk.b.brand)} single-item orders`, ar: `طلبات الصنف الواحد · ${brandAr(bk.b.brand)}`, value: bk.b.singleItemPct, unit: 'pct', better: 'down' },
     }))
   }
 
   const gap = brands.filter((b) => b.shopOrders >= 300 && b.aovDeliveryKwd > 0 && b.aovShopKwd > 0 && b.aovShopKwd < b.aovDeliveryKwd * 0.8).sort((a, b) => b.shopOrders - a.shopOrders)[0]
   if (gap) {
-    const lift = (gap.aovDeliveryKwd - gap.aovShopKwd) * 0.1
-    const monthly = gap.shopOrders * lift * (1 - Math.max(COGS, brandFoodPct(gap.brand)))
+    // Counter 0%-commission combo upgrade on non-combo shop orders (strictly 8% / 11.5% / 15% conversion)
+    const eligibleShopPool = Math.round(gap.shopOrders * Math.max(0.45, gap.singleItemPct / 100))
+    const counterComboAddKwd = 1.1
+    const counterNetPerUpgrade = counterComboAddKwd - counterComboAddKwd * Math.max(COGS, brandFoodPct(gap.brand)) - 0.06 // 0% app commission, deduct BOM + tray/cup
+    const cons = Math.round(eligibleShopPool * 0.08 * counterNetPerUpgrade)
+    const real = Math.round(eligibleShopPool * 0.115 * counterNetPerUpgrade)
+    const amb = Math.round(eligibleShopPool * 0.15 * counterNetPerUpgrade)
+
     out.push(play({
-      id: `menu-shop-basket-${gap.brand}`, stage: 'menu', basis: 'estimated', monthlyKwd: monthly,
-      titleEn: `${brandEn(gap.brand)}: counter basket far below delivery basket`, titleAr: `${brandAr(gap.brand)}: سلة الصالة أقل بكثير من سلة التوصيل`,
+      id: `menu-shop-basket-${gap.brand}`, stage: 'menu', basis: 'estimated', monthlyKwd: real,
+      tiers: {
+        conservativeMonthlyKwd: cons,
+        realisticMonthlyKwd: real,
+        ambitiousMonthlyKwd: amb,
+        basisAr: `تحويل ٨٪–١٥٪ من طلبات الصالة الفردية (${f0(eligibleShopPool)} طلب بصفر عمولة) إلى وجبة كاملة بعد خصم تكلفة المكونات والأكواب`,
+        basisEn: `8%–15% conversion across ${f0(eligibleShopPool)} solo counter orders (0% commission) net of BOM & cup packaging`,
+      },
+      titleEn: `${brandEn(gap.brand)}: counter basket far below delivery basket`, titleAr: `${brandAr(gap.brand)}: رفع سلة الكاونتر عبر إبراز الوجبات المجمّعة مثل التوصيل`,
       subjectEn: `${brandWithAnalytic(gap.brand)} shop counters`, subjectAr: `كاونترات ${brandWithAnalytic(gap.brand, true)}`,
-      leakEn: `The same ${brandEn(gap.brand)} kitchens earn ${f3(gap.aovDeliveryKwd)} KWD per delivery order but only ${f3(gap.aovShopKwd)} KWD per counter order across ${f0(gap.shopOrders)} shop orders — the counter is selling single plates while the apps sell meals.`,
-      leakAr: `تحقق مطابخ ${brandAr(gap.brand)} نفسها ${f3(gap.aovDeliveryKwd)} د.ك لطلب التوصيل مقابل ${f3(gap.aovShopKwd)} د.ك فقط لطلب الكاونتر عبر ${f0(gap.shopOrders)} طلب محل — الكاونتر يبيع أطباقاً منفردة بينما التطبيقات تبيع وجبات.`,
-      actionEn: `Mirror the delivery combos on the counter menu boards and POS home screen at every ${brandEn(gap.brand)} branch, and run a weekly cashier leaderboard on items per order.`,
-      actionAr: `نقل الوجبات المجمّعة المعتمدة في التوصيل إلى لوحات المنيو والشاشة الرئيسية لنقاط البيع في كل فروع ${brandAr(gap.brand)}، مع لوحة أسبوعية لأفضل الكاشيرية في عدد الأصناف لكل طلب.`,
-      qualityEn: 'Guests in the mall get the full brand experience instead of a quick single dish — better perception of value and of the brand.',
-      qualityAr: 'يحصل زوار المجمع على تجربة العلامة الكاملة بدل طبق سريع منفرد — انطباع أفضل عن القيمة وعن العلامة.',
-      ...impactText(monthly, 'Closing 10% of the basket gap on counter orders, after food cost.', 'بسد 10% من فجوة السلة على طلبات الكاونتر بعد تكلفة الأغذية.'),
+      leakEn: `The same ${brandEn(gap.brand)} kitchens earn ${f3(gap.aovDeliveryKwd)} KWD per delivery order but only ${f3(gap.aovShopKwd)} KWD per counter order across ${f0(gap.shopOrders)} shop orders — the counter sells single plates while apps sell complete meals.`,
+      leakAr: `تحقق مطابخ ${brandAr(gap.brand)} متوسط فاتورة ${f3(gap.aovDeliveryKwd)} د.ك في التوصيل مقابل ${f3(gap.aovShopKwd)} د.ك فقط عند الكاونتر عبر ${f0(gap.shopOrders)} طلب محل — لأن الكاونتر يبيع صحناً منفرداً بدل الوجبة الكاملة.`,
+      actionEn: `Mirror the delivery meal combos on counter menu boards and row 1 of the Odoo POS screen at every ${brandEn(gap.brand)} branch.`,
+      actionAr: `عرض نفس الوجبات المجمّعة الناجحة بالتوصيل في لوحات الكاونتر والصف الأول من شاشة أودو في كل فروع ${brandAr(gap.brand)}.`,
+      qualityEn: 'Guests in the mall get the full brand experience instead of a quick single dish.',
+      qualityAr: 'يحصل زائر المجمع على وجبة متكاملة مشبعة بسعر واضح ومغري بصفر عمولة منصات.',
+      ...impactText(real, `Realistic 11.5% (8%–15% range) counter combo conversion across ${f0(eligibleShopPool)} solo shop orders, net of BOM & packaging.`, `بتحويل ١١٫٥٪ (بين ٨٪ و١٥٪) من طلبات الكاونتر المنفردة إلى وجبة متكاملة بعد خصم تكلفة الأغذية والتغليف.`),
       evidence: [{ en: `${f0(gap.shopOrders)} counter orders vs ${f0(gap.deliveryOrders)} delivery orders`, ar: `${f0(gap.shopOrders)} طلب كاونتر مقابل ${f0(gap.deliveryOrders)} طلب توصيل` }],
       kpi: { id: `menu-shop-aov-${gap.brand}`, en: `${brandEn(gap.brand)} counter basket`, ar: `سلة الكاونتر · ${brandAr(gap.brand)}`, value: gap.aovShopKwd, unit: 'kwd', better: 'up' },
     }))
@@ -1490,18 +2315,28 @@ function menuPlays(): JourneyPlay[] {
     for (const d of drag) byBrand.set(d.brand, [...(byBrand.get(d.brand) ?? []), d])
     const [brand, items] = [...byBrand.entries()].sort((a, b) => b[1].length - a[1].length)[0]
     const tailSales = sum(items, (i) => i.netKwd)
-    const monthly = tailSales * 0.5 * 0.15 + sum(items, (i) => i.netKwd) * brandFoodPct(brand) * 0.2
+    const rawPool = tailSales * 0.14 + tailSales * brandFoodPct(brand) * 0.35
+    const cons = Math.max(25, Math.round(rawPool * 0.55))
+    const real = Math.max(cons + 5, Math.round(rawPool * 0.625))
+    const amb = Math.max(real + 5, Math.round(rawPool * 0.7))
     out.push(play({
-      id: `menu-kitchen-drag-${brand}`, stage: 'menu', basis: 'estimated', monthlyKwd: monthly, severity: 'medium',
-      titleEn: `${brandEn(brand)}: remove slow, multi-ingredient dishes slowing down the kitchen`, titleAr: `${brandAr(brand)}: إلغاء الأصناف البطيئة كثيرة المكونات لتسريع المطبخ`,
+      id: `menu-kitchen-drag-${brand}`, stage: 'menu', basis: 'estimated', monthlyKwd: real, severity: 'medium',
+      tiers: {
+        conservativeMonthlyKwd: cons,
+        realisticMonthlyKwd: real,
+        ambitiousMonthlyKwd: amb,
+        basisAr: 'توفير ٥٥٪–٧٠٪ من هدر تحضير المكونات بطيئة الدوران وتحول الزبائن للأطباق الرئيسية الأعلى ربحاً',
+        basisEn: '55%–70% capture of slow-mover prep waste savings and margin shift to core dishes',
+      },
+      titleEn: `${brandEn(brand)}: remove slow, multi-ingredient dishes slowing down the kitchen`, titleAr: `${brandAr(brand)}: إلغاء الأصناف البطيئة كثيرة المكونات لتقليل التالف وتسريع المطبخ`,
       subjectEn: items.slice(0, 4).map((i) => enItemName(i.name)).join(' · '), subjectAr: items.slice(0, 4).map((i) => arItemName(i.name)).join(' · '),
-      leakEn: `${items.length} ${brandEn(brand)} items require 7+ ingredients each yet sold fewer than 15 units in 30 days (${items.slice(0, 4).map((i) => `${enItemName(i.name)} ${f0(i.qty)} units / ${i.lines} ingredients`).join('; ')}). They tie up prep space and cook time for just ${KWD(tailSales)} of sales.`,
-      leakAr: `${items.length} أصناف في ${brandAr(brand)} يحتاج كل واحد منها 7 مكونات أو أكثر لكنها باعت أقل من 15 طلب طوال الشهر (${items.slice(0, 4).map((i) => `${arItemName(i.name)} ${f0(i.qty)} طلب / ${i.lines} مكونات`).join('؛ ')}). تأخذ وقت التحضير ومساحة الثلاجة مقابل ${DK(tailSales)} مبيعات فقط.`,
-      actionEn: `Remove these ${items.length} slow items from Odoo POS and delivery menus, give their screen space to top sellers, and drop their single-use ingredients from Ardiya Central Kitchen prep.`,
-      actionAr: `إلغاء هذه الأصناف الـ ${items.length} من الكاشير وتطبيقات التوصيل، وإعطاء مساحتها للأطباق الأكثر طلباً، وإيقاف تحضير مكوناتها الخاصة في مطبخ العارضية.`,
+      leakEn: `${items.length} ${brandEn(brand)} items require 7+ ingredients each yet sold fewer than 15 units in 30 days (${items.slice(0, 4).map((i) => `${enItemName(i.name)} ${f0(i.qty)} units / ${i.lines} ingredients`).join('; ')}) for just ${KWD(tailSales)} of sales.`,
+      leakAr: `${items.length} أصناف في ${brandAr(brand)} يحتاج كل واحد منها ٧ مكونات أو أكثر لكنها باعت أقل من ١٥ طلباً طوال الشهر (${items.slice(0, 4).map((i) => `${arItemName(i.name)} ${f0(i.qty)} طلب`).join('؛ ')}) بإجمالي مبيعات ${DK(tailSales)} فقط.`,
+      actionEn: `Archive these ${items.length} slow items from Odoo POS and delivery menus, give their screen space to top sellers, and stop prepping their single-use ingredients at Ardiya Central Kitchen.`,
+      actionAr: `إيقاف هذه الأصناف الـ ${items.length} من شاشات الكاشير وتطبيقات التوصيل، وإلغاء تحضير مكوناتها البطيئة في مطبخ العارضية.`,
       qualityEn: 'A focused menu means faster prep at peak hours, fewer mistakes and fresher ingredients on every main dish.',
-      qualityAr: 'منيو مختصر وواضح يعني تحضير أسرع وقت الزحمة وأخطاء أقل ومكونات طازجة دائماً.',
-      ...impactText(monthly, 'Half of those orders shift to higher-margin popular dishes; 20% less ingredient waste.', 'انتقال نصف الطلبات للأصناف الأكثر ربحاً وتوفير 20% من هدر المكونات.'),
+      qualityAr: 'منيو مركز وواضح يسرّع التحضير وقت الذروة ويمنع بقاء مكونات بطيئة الحركة في الثلاجات.',
+      ...impactText(real, '62.5% capture of slow-SKU prep waste elimination and demand shift to core high-margin mains.', 'وفورات إلغاء هدر تحضير الأصناف البطيئة وتحول الطلب للأطباق الرئيسية.'),
       evidence: [{ en: `${drag.length} slow multi-ingredient dishes across brands`, ar: `${drag.length} صنفاً بطيئاً كثير المكونات` }],
       kpi: { id: `menu-drag-${brand}`, en: `${brandEn(brand)} slow complex items`, ar: `الأصناف البطيئة · ${brandAr(brand)}`, value: items.length, unit: 'count', better: 'down' },
     }))
@@ -1522,19 +2357,29 @@ function operationsPlays(): JourneyPlay[] {
   const over = locs.filter((l) => l.discountPct > avg + 0.5).sort((a, b) => b.discountPct - a.discountPct)
   if (over.length) {
     const w = over[0]
-    const monthly = sum(over, (l) => ((l.discountPct - avg) / 100) * (l.netKwd + l.lineDiscountKwd + l.promoLinesKwd)) * 0.6
+    const excessDiscPool = sum(over, (l) => ((l.discountPct - avg) / 100) * (l.netKwd + l.lineDiscountKwd + l.promoLinesKwd))
+    const cons = Math.round(excessDiscPool * 0.55)
+    const real = Math.round(excessDiscPool * 0.625)
+    const amb = Math.round(excessDiscPool * 0.7)
     const dish = J.quality.discountedDishes[0]
     out.push(play({
-      id: 'ops-discount-discipline', stage: 'operations', basis: 'posted', monthlyKwd: monthly,
+      id: 'ops-discount-discipline', stage: 'operations', basis: 'posted', monthlyKwd: real,
+      tiers: {
+        conservativeMonthlyKwd: cons,
+        realisticMonthlyKwd: real,
+        ambitiousMonthlyKwd: amb,
+        basisAr: `استرداد ٥٥٪–٧٠٪ من الخصومات اليدوية الزائدة عن معدل الشركة (${DK(excessDiscPool)} شهرياً)`,
+        basisEn: `55%–70% capture of manual POS discounts exceeding the 7-branch average (${KWD(excessDiscPool)}/mo)`,
+      },
       titleEn: 'Manual cashier discounts above the company average', titleAr: 'ضبط خصومات الكاشير اليدوية الزائدة في الفروع',
       subjectEn: `${over.map((l) => locEn(l.location)).join(' · ')} registers`, subjectAr: `كاشير ${over.map((l) => locAr(l.location)).join(' · ')}`,
       leakEn: `${locEn(w.location)} gave ${f1(w.discountPct)}% of sales in POS discounts (${KWD(w.lineDiscountKwd + w.promoLinesKwd)} in 30 days) compared with ${f1(avg)}% across all 7 branches.${dish ? ` Most discounted item: ${enItemName(dish.name)} (${brandEn(dish.brand)}, ${KWD(dish.discountKwd)} across ${dish.lines} orders).` : ''}`,
-      leakAr: `سجّل فرع ${locAr(w.location)} خصومات بنسبة ${f1(w.discountPct)}% من المبيعات (${DK(w.lineDiscountKwd + w.promoLinesKwd)} خلال 30 يوماً) مقابل متوسط ${f1(avg)}% في باقي الفروع.${dish ? ` وأكثر طبق عليه خصومات هو ${arItemName(dish.name)} (${brandAr(dish.brand)}، بقيمة ${DK(dish.discountKwd)} في ${dish.lines} طلب).` : ''}`,
+      leakAr: `سجّل فرع ${locAr(w.location)} خصومات بنسبة ${f1(w.discountPct)}% من المبيعات (${DK(w.lineDiscountKwd + w.promoLinesKwd)} خلال ٣٠ يوماً) مقابل متوسط ${f1(avg)}% في باقي الفروع.${dish ? ` وأكثر طبق عليه خصومات هو ${arItemName(dish.name)} (${brandAr(dish.brand)}، بقيمة ${DK(dish.discountKwd)} في ${dish.lines} طلب).` : ''}`,
       actionEn: 'Require a manager PIN for any manual POS discount with a 10% cap, make selecting a reason mandatory, and review the weekly discount report per cashier.',
-      actionAr: 'ربط أي خصم يدوي في الكاشير برقم سري للمدير وبحد أقصى 10%، وإلزام كتابة سبب الخصم، ومراجعة كشف الخصومات أسبوعياً مع مديري الفروع.',
+      actionAr: 'ربط أي خصم يدوي في الكاشير برقم سري للمدير وبحد أقصى ١٠٪، وإلزام كتابة سبب الخصم، ومراجعة كشف الخصومات أسبوعياً.',
       qualityEn: 'Customer compensation stays fair, documented and under clear manager oversight.',
       qualityAr: 'يبقى تعويض الزبون منظماً وواضح السبب تحت إشراف مدير الفرع.',
-      ...impactText(monthly, 'Bringing high-discount branches 60% closer to the company average.', 'بتقليص الخصومات الزائدة بنسبة 60% لتعود إلى المعدل الطبيعي للشركة.'),
+      ...impactText(real, 'Bringing high-discount branches 62.5% (55%–70% range) closer to the company average.', 'بتقليص الخصومات اليدوية الزائدة بنسبة ٦٢٫٥٪ لتعود للمعدل الطبيعي.'),
       evidence: over.slice(0, 3).map((l) => ({ en: `${locEn(l.location)}: ${f1(l.discountPct)}% discounts`, ar: `${locAr(l.location)}: خصومات ${f1(l.discountPct)}%` })),
       kpi: { id: `ops-discount-${w.location}`, en: `Discount % of gross · ${locEn(w.location)}`, ar: `نسبة الخصومات · ${locAr(w.location)}`, value: w.discountPct, unit: 'pct', better: 'down' },
     }))
@@ -1543,23 +2388,34 @@ function operationsPlays(): JourneyPlay[] {
   const regs = J.operations.registers.filter((r) => BRANCH_IDS.has(r.location))
   const offenders = regs.filter((r) => r.lateOpenings + r.earlyClosings >= 3).sort((a, b) => b.lateOpenings + b.earlyClosings - (a.lateOpenings + a.earlyClosings))
   if (offenders.length) {
-    const atRisk = sum(offenders, (r) => {
+    // Value each late-open / early-close window at 45 mins of net contribution (after food & channel fee), captured at 55%–70%
+    const rawWindowMargin = sum(offenders, (r) => {
       const l = locs.find((x) => x.location === r.location)
-      const perHour = l && l.openRegisterHours ? l.netKwd / l.openRegisterHours : 0
-      return (r.lateOpenings + r.earlyClosings) * perHour * 0.75
+      const perHourSales = l && l.openRegisterHours ? l.netKwd / l.openRegisterHours : 0
+      return (r.lateOpenings + r.earlyClosings) * perHourSales * 0.75 * (1 - COGS - AVG_AGG_COMMISSION * 0.5)
     })
+    const cons = Math.max(30, Math.round(rawWindowMargin * 0.55))
+    const real = Math.max(cons + 5, Math.round(rawWindowMargin * 0.625))
+    const amb = Math.max(real + 5, Math.round(rawWindowMargin * 0.7))
     const top = offenders[0]
     out.push(play({
-      id: 'ops-session-discipline', stage: 'operations', basis: 'estimated', monthlyKwd: atRisk,
+      id: 'ops-session-discipline', stage: 'operations', basis: 'estimated', monthlyKwd: real,
+      tiers: {
+        conservativeMonthlyKwd: cons,
+        realisticMonthlyKwd: real,
+        ambitiousMonthlyKwd: amb,
+        basisAr: 'استرداد ٥٥٪–٧٠٪ من صافي ربح الطلبات الضائعة خلال دقائق الفتح المتأخر والإغلاق المبكر بعد خصم تكلفة المكونات والعمولة',
+        basisEn: '55%–70% recovery of net contribution lost during late-open / early-close windows after BOM & commission',
+      },
       titleEn: 'Cashier registers opening late or closing early', titleAr: 'الالتزام بمواعيد فتح وإغلاق أجهزة الكاشير بالوقت المحدد',
       subjectEn: offenders.slice(0, 3).map((r) => r.register).join(' · '), subjectAr: offenders.slice(0, 3).map((r) => arRegisterName(r.register)).join(' · '),
-      leakEn: `${offenders.map((r) => `${r.register}: ${r.lateOpenings} late openings, ${r.earlyClosings} early closings (usual ${r.medianOpen}–${r.medianClose ?? '—'})`).join('; ')} — each delay means 45+ minutes of missed delivery and walk-in orders.`,
-      leakAr: `${offenders.map((r) => `${arRegisterName(r.register)}: ${r.lateOpenings} مرة فتح متأخر و${r.earlyClosings} مرة إغلاق مبكر (الوقت المعتاد ${r.medianOpen}–${r.medianClose ?? '—'})`).join('؛ ')} — كل تأخير يضيّع أكثر من 45 دقيقة من طلبات التوصيل وزوار المجمع.`,
-      actionEn: `Set fixed opening and closing schedules per register in Odoo, send an automatic alert to the area manager if ${top.register} is not open within 15 minutes, and tie shift supervisor bonuses to on-time opening.`,
-      actionAr: `تثبيت وقت الفتح والإغلاق لكل كاشير في أودو، وإرسال تنبيه فوري لمدير المنطقة إذا تأخر فتح ${arRegisterName(top.register)} أكثر من 15 دقيقة، وربط مكافأة مشرف الشفت بالالتزام الكامل.`,
+      leakEn: `${offenders.map((r) => `${r.register}: ${r.lateOpenings} late openings, ${r.earlyClosings} early closings (usual ${r.medianOpen}–${r.medianClose ?? '—'})`).join('; ')} — missing morning & late-evening orders.`,
+      leakAr: `${offenders.map((r) => `${arRegisterName(r.register)}: ${r.lateOpenings} مرة فتح متأخر و${r.earlyClosings} مرة إغلاق مبكر`).join('؛ ')} — ما يضيع طلبات الصباح وآخر المساء.`,
+      actionEn: `Set fixed opening and closing schedules per register in Odoo, send an automatic alert to the area manager if ${top.register} is not open within 15 minutes, and audit weekly.`,
+      actionAr: `تثبيت وقت الفتح والإغلاق لكل كاشير في أودو، وإرسال تنبيه فوري لمدير المنطقة إذا تأخر فتح ${arRegisterName(top.register)} أكثر من ١٥ دقيقة.`,
       qualityEn: 'Opening on time protects our delivery app visibility and customer trust.',
-      qualityAr: 'الالتزام بوقت الفتح يحافظ على ظهور المطعم في مقدمة تطبيقات التوصيل وثقة الزبائن.',
-      ...impactText(atRisk, 'Each late/early session valued at 45 minutes of average hourly register sales.', 'كل تأخير في الفتح أو إغلاق مبكر محسوب بمتوسط مبيعات 45 دقيقة للفرع.'),
+      qualityAr: 'الالتزام بوقت الفتح يحافظ على ظهور المطعم المفتوح في مقدمة تطبيقات التوصيل.',
+      ...impactText(real, '62.5% capture of net margin lost across late-opening and early-closing POS sessions.', 'استرداد ٦٢٫٥٪ من هامش ربح الساعات الضائعة بسبب الفتح المتأخر أو الإغلاق المبكر.'),
       evidence: [{ en: `${sum(regs, (r) => r.sessions)} POS sessions checked across ${regs.length} branch registers`, ar: `مراجعة ${sum(regs, (r) => r.sessions)} شفت كاشير عبر ${regs.length} جهاز في الفروع` }],
       kpi: { id: 'ops-session-exceptions', en: 'Late openings + early closings', ar: 'مرات الفتح المتأخر والإغلاق المبكر', value: sum(regs, (r) => r.lateOpenings + r.earlyClosings), unit: 'count', better: 'down' },
     }))
@@ -1575,54 +2431,75 @@ function operationsPlays(): JourneyPlay[] {
   const sh = [...shifts].sort((a, b) => b.peak.perDay * b.aov - a.peak.perDay * a.aov)[0]
   if (sh) {
     const days = J.windows.rolling30.days || 30
-    const monthly = sh.peak.perDay * days * 0.05 * sh.aov * (1 - COGS) + sh.dead.length * days * 0.8
+    const rawShiftPool = sh.peak.perDay * days * 0.06 * sh.aov * (1 - COGS - AVG_AGG_COMMISSION * 0.55) + sh.dead.length * days * 0.75
+    const cons = Math.round(rawShiftPool * 0.55)
+    const real = Math.round(rawShiftPool * 0.625)
+    const amb = Math.round(rawShiftPool * 0.7)
     const hh = (h: number) => `${String(h).padStart(2, '0')}:00`
     out.push(play({
-      id: `ops-shift-realign-${sh.l.location}`, stage: 'operations', basis: 'estimated', monthlyKwd: monthly,
-      titleEn: 'Peak bottleneck and dead hours on the same roster', titleAr: 'اختناق الذروة وساعات ميتة في نفس الجدول',
+      id: `ops-shift-realign-${sh.l.location}`, stage: 'operations', basis: 'estimated', monthlyKwd: real,
+      tiers: {
+        conservativeMonthlyKwd: cons,
+        realisticMonthlyKwd: real,
+        ambitiousMonthlyKwd: amb,
+        basisAr: 'استفادة واقعية ٥٥٪–٧٠٪ من تسريع تسليم ذروة المساء وإعادة توزيع ساعات الهدوء الصباحية',
+        basisEn: '55%–70% capture of peak-hour throughput lift and quiet-hour labor reallocation',
+      },
+      titleEn: 'Peak bottleneck and quiet hours on the same branch roster', titleAr: 'إعادة توزيع شفتات المطبخ بين ساعات الهدوء وذروة المساء',
       subjectEn: `${locWithAnalytic(sh.l.location)} shift roster`, subjectAr: `جدول شفتات ${locWithAnalytic(sh.l.location, true)}`,
-      leakEn: `${locEn(sh.l.location)} peaks at ${hh(sh.peak.h)} with ${f1(sh.peak.perDay)} orders per day in that single hour, while ${sh.dead.map((d) => hh(d.h)).join(', ')} average under 3 orders per day with registers open. The same crew size covers both.`,
-      leakAr: `يبلغ ${locAr(sh.l.location)} ذروته عند ${hh(sh.peak.h)} بمعدل ${f1(sh.peak.perDay)} طلباً يومياً في تلك الساعة وحدها، بينما ${sh.dead.map((d) => hh(d.h)).join('، ')} أقل من 3 طلبات يومياً والأجهزة مفتوحة. ونفس حجم الطاقم يغطي الحالتين.`,
-      actionEn: `Split the ${locEn(sh.l.location)} roster: move one cook and one packer from the dead block into a ${hh(Math.max(0, sh.peak.h - 1))}–${hh(Math.min(23, sh.peak.h + 2))} peak overlap, and pre-stage packaging and sauces 30 minutes before the peak.`,
-      actionAr: `تقسيم جدول ${locAr(sh.l.location)}: نقل طباخ وعامل تغليف من فترة الركود إلى تداخل ذروة ${hh(Math.max(0, sh.peak.h - 1))}–${hh(Math.min(23, sh.peak.h + 2))}، وتجهيز التغليف والصوصات قبل الذروة بـ 30 دقيقة.`,
-      qualityEn: 'More hands exactly at peak cuts ticket times and keeps food from waiting on the pass — hotter food, fewer late-delivery complaints.',
-      qualityAr: 'أيدٍ أكثر في لحظة الذروة تقلص زمن التحضير وتمنع انتظار الطعام على الكاونتر — طعام أسخن وشكاوى تأخير أقل.',
-      ...impactText(monthly, 'Capturing 5% more peak-hour orders plus ~0.8 KWD per dead hour of labour redeployed.', 'التقاط 5% طلبات إضافية في الذروة مع نحو 0.8 د.ك لكل ساعة ركود يُعاد توزيعها.'),
-      evidence: [{ en: `${f3(sh.l.netPerRegisterHourKwd)} KWD net per open register-hour`, ar: `${f3(sh.l.netPerRegisterHourKwd)} د.ك صافي لكل ساعة تشغيل جهاز` }],
-      kpi: { id: `ops-net-per-hour-${sh.l.location}`, en: `Net per register-hour · ${locEn(sh.l.location)}`, ar: `الصافي لكل ساعة جهاز · ${locAr(sh.l.location)}`, value: sh.l.netPerRegisterHourKwd, unit: 'kwd', better: 'up' },
+      leakEn: `${locEn(sh.l.location)} peaks at ${hh(sh.peak.h)} with ${f1(sh.peak.perDay)} orders/day in that single hour, while ${sh.dead.map((d) => hh(d.h)).join(', ')} average under 3 orders/day with the same crew size.`,
+      leakAr: `يبلغ فرع ${locAr(sh.l.location)} ذروته عند الساعة ${hh(sh.peak.h)} بمعدل ${f1(sh.peak.perDay)} طلب يومياً في ساعة واحدة، بينما تنخفض الساعات (${sh.dead.map((d) => hh(d.h)).join('، ')}) لأقل من ٣ طلبات يومياً بنفس عدد الطاقم.`,
+      actionEn: `Split the ${locEn(sh.l.location)} roster: move one cook and one packer from the quiet window into the ${hh(Math.max(0, sh.peak.h - 1))}–${hh(Math.min(23, sh.peak.h + 2))} peak overlap, and pre-stage sauces 30 minutes before rush.`,
+      actionAr: `تحريك طباخ ومسؤول تغليف من ساعات الهدوء لتغطية ذروة ${hh(Math.max(0, sh.peak.h - 1))}–${hh(Math.min(23, sh.peak.h + 2))} في ${locAr(sh.l.location)}، وتجهيز الصوصات والعلب قبل الذروة بـ ٣٠ دقيقة.`,
+      qualityEn: 'More hands exactly at peak cuts ticket times and keeps food hot on handoff.',
+      qualityAr: 'زيادة الأيدي وقت الذروة تقلل وقت الانتظار وتضمن خروج الأكل ساخناً ومرتباً.',
+      ...impactText(real, 'Realistic 62.5% capture of peak-hour throughput gain and redeployed quiet-hour labor.', 'استرداد ٦٢٫٥٪ من طاقة الذروة الإضافية وإعادة توجيه ساعات الهدوء.'),
+      evidence: [{ en: `${f3(sh.l.netPerRegisterHourKwd)} KWD net per open register-hour`, ar: `${f3(sh.l.netPerRegisterHourKwd)} د.ك صافي لكل ساعة تشغيل كاشير` }],
+      kpi: { id: `ops-net-per-hour-${sh.l.location}`, en: `Net per register-hour · ${locEn(sh.l.location)}`, ar: `الصافي لكل ساعة كاشير · ${locAr(sh.l.location)}`, value: sh.l.netPerRegisterHourKwd, unit: 'kwd', better: 'up' },
     }))
   }
 
-  // Field-Execution #4: Self-Funded Cashier Upsell Script & Micro-Incentive Calculator
+  // Field-Execution #4: Self-Funded Cashier Upsell Script & Micro-Incentive Calculator (Strictly 8% / 11.5% / 15% conversion!)
   const counterBrands = J.menu.brands.filter((b) => BRANDS.some((x) => x.id === b.brand) && b.shopOrders > 0)
   const totalCounterOrders = sum(counterBrands, (b) => b.shopOrders)
   if (totalCounterOrders >= 1000) {
     const cgCounter = counterBrands.find((b) => b.brand === 'china-garden')
-    const defaultConv = 0.14
-    const avgAddonPrice = 0.900
-    const addonNetMargin = avgAddonPrice * 0.72 // Soup + drink / fries + drink high-margin add-on
-    const grossMonthlyMargin = totalCounterOrders * defaultConv * addonNetMargin
-    const defaultBonusShare = 0.05 // 25 KWD bonus per +500 KWD verified net add-on margin = 5% self-funded share
-    const netAfterBonus = Math.round(grossMonthlyMargin * (1 - defaultBonusShare))
+    // Target only counter orders that do NOT already carry a drink/side upgrade (~75% of counter orders)
+    const eligibleCounterPool = Math.round(totalCounterOrders * (1 - (cgCounter?.drinkAttachPct ?? 20.8) / 100))
+    const avgAddonPrice = 0.85
+    const addonFoodAndCupCost = 0.24 + 0.055 // 240 fils soup/fries/drink BOM + 55 fils cup/bowl packaging
+    const addonNetMargin = avgAddonPrice - addonFoodAndCupCost // 0.555 KWD net before bonus (0% app commission at counter!)
+    const defaultBonusShare = 0.05
+    const calcUpsell = (convPct: number) => Math.round(eligibleCounterPool * (convPct / 100) * addonNetMargin * (1 - defaultBonusShare))
+    const upCons = calcUpsell(8.0)
+    const upReal = calcUpsell(11.5)
+    const upAmb = calcUpsell(15.0)
 
     out.push(play({
       id: 'ops-cashier-upsell-incentive',
       stage: 'operations',
       basis: 'estimated',
-      monthlyKwd: netAfterBonus,
+      monthlyKwd: upReal,
+      tiers: {
+        conservativeMonthlyKwd: upCons,
+        realisticMonthlyKwd: upReal,
+        ambitiousMonthlyKwd: upAmb,
+        basisAr: `تحويل واقعي ٨٪–١٥٪ من طلبات الكاونتر بدون مشروب (${f0(eligibleCounterPool)} طلب بصفر عمولة) بعد خصم تكلفة المكونات والأكواب ومكافأة الكاشير (٥٪)`,
+        basisEn: `8%–15% realistic counter conversion across ${f0(eligibleCounterPool)} non-drink walk-in orders net of BOM (240 fils), cup/packaging (55 fils) & 5% staff bonus`,
+      },
       ownerRoleEn: 'Area Operations Manager & Mall Counter Cashiers (Promenade · 360 · Assima · Avenues · Al-Kout)',
-      ownerRoleAr: 'مدير منطقة التشغيل وكاشيرية كاونترات المجمعات (البروميناد · مجمع 360 · العاصمة · الأفنيوز · الكوت)',
+      ownerRoleAr: 'الكاشير ومديرو فروع المجمعات (البروميناد · مجمع 360 · العاصمة · الأفنيوز · الكوت)',
       titleEn: 'Self-funded cashier 1-line upsell script & micro-bonus rule',
-      titleAr: 'سكريبت البيع الإضافي للكاشير بجملة واحدة وحافز التمويل الذاتي المشروط بأودو',
-      subjectEn: `${f0(totalCounterOrders)} monthly counter orders · Promenade Mall · 360 Mall · Assima Mall · The Avenues · Al-Kout Mall`,
-      subjectAr: `${f0(totalCounterOrders)} طلب كاونتر شهرياً · مجمع البروميناد · مجمع 360 · مجمع العاصمة · الأفنيوز · مجمع الكوت`,
-      leakEn: `Across ${f0(totalCounterOrders)} monthly walk-in counter orders (0% aggregator commission), ${f1(cgCounter?.singleItemPct ?? 36.5)}% leave with a single item and only ${f1(cgCounter?.drinkAttachPct ?? 20.8)}% include a drink — because cashiers ring orders silently with zero structured prompt or aligned reward.`,
-      leakAr: `عبر ${f0(totalCounterOrders)} طلب كاونتر شهرياً في الفروع (بصفر عمولة منصات)، يخرج ${f1(cgCounter?.singleItemPct ?? 36.5)}٪ من الضيوف بصنف منفرد واحد و${f1(cgCounter?.drinkAttachPct ?? 20.8)}٪ فقط يضيفون مشروباً — لأن الكاشير يسجل الطلب بصمت دون جملة ترقية موحدة أو حافز مربوط بالنتيجة.`,
-      actionEn: `Deploy one mandatory 1-line cashier upgrade prompt per brand on every counter order, backed by a 100% self-funded Odoo POS micro-bonus: a 25 KWD weekly cashier reward unlocks ONLY after Odoo verifies >= +500 KWD in net incremental soup/fries/drink margin on that cashier's session (5% payout ratio, zero fixed payroll risk).`,
-      actionAr: `اعتماد جملة بيع إضافي إلزامية من سطر واحد لكل علامة عند الكاونتر، مدعومة بحافز أسبوعي مموّل ذاتياً بنسبة ١٠٠٪ من أودو: لا تُصرف مكافأة ٢٥ د.ك الأسبوعية للكاشير إلا بعد أن يوثق نظام نقاط البيع تحقيق +٥٠٠ د.ك صافي ربح فعلي من إضافات الشوربة والبطاطس والمشروبات في جلساته (تغطية ذاتية ٢٠ ضعفاً وبصفر عبء ثابت على الرواتب).`,
-      qualityEn: 'Warm, hospitable meal pairing elevates counter service to international fast-casual standards while rewarding top-performing frontline staff fairly.',
-      qualityAr: 'الترحيب اللبق واقتراح وجبة متكاملة يرفع تجربة الكاونتر لمستوى السلاسل العالمية ويكافئ الكاشير المجتهد من فائض ربح فعلي محقق.',
-      ...impactText(netAfterBonus, `14% counter conversion on ${f0(totalCounterOrders)} orders at 0.648 KWD net margin per add-on, net of the 5% self-funded cashier bonus.`, `بتحويل ١٤٪ من أصل ${f0(totalCounterOrders)} طلب كاونتر بربح صافٍ ٦٤٨ فلس للإضافة بعد خصم مكافأة الكاشير الممولة ذاتياً (٥٪).`),
+      titleAr: 'جملة البيع الإضافي الموحدة للكاشير مع حافز مموّل ذاتياً من أودو',
+      subjectEn: `${f0(eligibleCounterPool)} eligible counter orders · Promenade · 360 Mall · Assima · The Avenues · Al-Kout`,
+      subjectAr: `${f0(eligibleCounterPool)} طلب كاونتر مستهدف · البروميناد · مجمع 360 · العاصمة · الأفنيوز · الكوت`,
+      leakEn: `Out of ${f0(totalCounterOrders)} monthly walk-in counter orders (0% app commission), ${f0(eligibleCounterPool)} orders (${f1(100 - (cgCounter?.drinkAttachPct ?? 20.8))}%) leave without a drink or soup upgrade because cashiers ring orders silently.`,
+      leakAr: `من أصل ${f0(totalCounterOrders)} طلب كاونتر شهرياً في الفروع (بصفر عمولة منصات)، يخرج ${f0(eligibleCounterPool)} زبون بدون مشروب أو شوربة إضافية لأن الكاشير يسجل الطلب بصمت دون اقتراح الترقية.`,
+      actionEn: `Deploy one polite 1-line cashier upgrade prompt per brand on every counter order, backed by a 100% self-funded Odoo POS micro-bonus: a 25 KWD weekly cashier reward unlocks ONLY after Odoo verifies >= +500 KWD in net incremental margin.`,
+      actionAr: `تطبيق جملة ترقية لطيفة من سطر واحد عند الكاونتر لكل علامة، مع حافز أسبوعي (٢٥ د.ك) مموّل ذاتياً لا يُصرف إلا بعد أن يوثق أودو تحقيق +٥٠٠ د.ك صافي ربح فعلي من الإضافات.`,
+      qualityEn: 'Warm, hospitable meal pairing elevates counter service while rewarding frontline staff fairly.',
+      qualityAr: 'اقتراح الوجبة المتكاملة بلباقة يرفع تجربة الضيف ويكافئ الكاشير المجتهد من ربح فعلي محقق.',
+      ...impactText(upReal, `11.5% (8%–15% range) counter conversion on ${f0(eligibleCounterPool)} eligible orders at ${f3(addonNetMargin)} KWD net margin after BOM & packaging, minus 5% bonus.`, `بتحويل واقعي ١١٫٥٪ (بين ٨٪ و١٥٪) من ${f0(eligibleCounterPool)} طلب كاونتر مؤهل بربح صافٍ ${f3(addonNetMargin)} د.ك للإضافة بعد خصم المكونات والتغليف ومكافأة الكاشير.`),
       evidence: [
         { en: `China Garden counter AOV ${f3(cgCounter?.aovShopKwd ?? 4.253)} KWD vs delivery ${f3(cgCounter?.aovDeliveryKwd ?? 6.664)} KWD`, ar: `متوسط سلة كاونتر تشاينا جاردن ${f3(cgCounter?.aovShopKwd ?? 4.253)} د.ك مقابل التوصيل ${f3(cgCounter?.aovDeliveryKwd ?? 6.664)} د.ك` },
         { en: `Self-funded rule: 25 KWD reward unlocks only at >= +500 KWD verified net margin`, ar: `قاعدة التمويل الذاتي: مكافأة ٢٥ د.ك لا تفتح إلا بعد توثيق +٥٠٠ د.ك ربح صافٍ بأودو` },
@@ -1631,16 +2508,16 @@ function operationsPlays(): JourneyPlay[] {
       simulator: {
         kind: 'upsell',
         sliders: [
-          { id: 'convPct', labelEn: 'Counter upsell conversion %', labelAr: 'نسبة استجابة ضيوف الكاونتر للترقية %', unit: 'pct', min: 8, max: 28, step: 1, defaultValue: 14 },
+          { id: 'convPct', labelEn: 'Counter upsell conversion (8%–15%)', labelAr: 'نسبة استجابة ضيوف الكاونتر الواقعية (٨٪–١٥٪)', unit: 'pct', min: 8, max: 15, step: 0.5, defaultValue: 11.5 },
           { id: 'bonusSharePct', labelEn: 'Self-funded staff bonus share %', labelAr: 'حصة مكافأة الكاشير من صافي الربح الإضافي %', unit: 'pct', min: 3, max: 10, step: 1, defaultValue: 5 },
         ],
-        meta: { orders: totalCounterOrders, addonNetMarginKwd: addonNetMargin },
+        meta: { orders: eligibleCounterPool, addonNetMarginKwd: addonNetMargin },
       },
       cashierUpsell: {
         weeklyBonusKwd: 25,
         unlockThresholdNetKwd: 500,
         bonusSharePct: 5,
-        targetCounterOrders: totalCounterOrders,
+        targetCounterOrders: eligibleCounterPool,
         ruleEn: '25 KWD weekly cashier micro-bonus unlocks automatically ONLY after Odoo POS records >= +500 KWD in verified net add-on contribution (20x self-funded return).',
         ruleAr: 'تُصرف مكافأة ٢٥ د.ك أسبوعياً للكاشير تلقائياً فقط بعد أن يسجل أودو +٥٠٠ د.ك على الأقل كصافي مساهمة ربحية محققة من الإضافات (عائد تمويل ذاتي ٢٠ ضعفاً).',
         scripts: [

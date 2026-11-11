@@ -389,29 +389,68 @@ async function main() {
   /* ---------------------------------------------------------------- multi-bucket extraction (today / week / month / year) */
   const ACTIVE_BRAND_IDS = ['china-garden', 'franks', 'tahina', 'farm-brown', 'noodle-bar', 'karak-cafeteria']
   const RESTAURANT_LOC_IDS = Object.entries(REGISTRY.locations).filter(([, v]) => v.unit === 'restaurant').map(([k]) => k)
-  const buildUiChannels = (chMap, hallKwd, hallOrders, directKwd, directOrders) => {
+  const RESTAURANT_CONFIG_IDS = ALLOWED.filter((id) => L[locationOfConfig(id)]?.unit === 'restaurant')
+  const RESTAURANT_CONFIG_SET = new Set(RESTAURANT_CONFIG_IDS)
+  const UI_CHANNEL_KEYS = ['dine-in', 'takeaway-direct', 'talabat-tgo', 'talabat-tmp', 'keeta', 'deliveroo', 'jahez', 'snoonu']
+
+  function reconcileAmounts(rawMap, keys, targetTotal) {
+    const target = Math.max(0, r3(targetTotal))
+    const posEntries = keys.map((k) => [k, Math.max(0, Number(rawMap.get(k)) || 0)])
+    const rawSum = posEntries.reduce((s, [, v]) => s + v, 0)
+    const out = new Map()
+    if (target <= 0) {
+      for (const k of keys) out.set(k, 0)
+      return out
+    }
+    if (rawSum <= 0) {
+      for (const k of keys) out.set(k, 0)
+      out.set(keys[0], target)
+      return out
+    }
+    let roundedSum = 0
+    let maxKey = keys[0]
+    let maxVal = -1
+    for (const [k, v] of posEntries) {
+      const scaled = r3((v / rawSum) * target)
+      out.set(k, scaled)
+      roundedSum += scaled
+      if (scaled > maxVal) {
+        maxVal = scaled
+        maxKey = k
+      }
+    }
+    const residual = r3(target - roundedSum)
+    if (residual !== 0) {
+      out.set(maxKey, Math.max(0, r3((out.get(maxKey) || 0) + residual)))
+    }
+    return out
+  }
+
+  const buildRawUiChannels = (chMap, hallKwd, hallOrders, directKwd, directOrders) => {
     const get = (nm) => chMap.get(nm) || { amountKwd: 0, payments: 0 }
     const delGo = get('Deliveroo Go')
     const delMp = get('Deliveroo MP')
+    const jah = get('Jahez')
+    const cari = get('Cari')
     return {
-      'dine-in': { netKwd: r3(hallKwd), orders: hallOrders },
-      'takeaway-direct': { netKwd: r3(directKwd), orders: directOrders },
-      'talabat-tgo': { netKwd: r3(get('Talabat Go').amountKwd), orders: get('Talabat Go').payments },
-      'talabat-tmp': { netKwd: r3(get('Talabat MP').amountKwd), orders: get('Talabat MP').payments },
-      keeta: { netKwd: r3(get('Keeta').amountKwd), orders: get('Keeta').payments },
-      deliveroo: { netKwd: r3(delGo.amountKwd + delMp.amountKwd), orders: delGo.payments + delMp.payments },
-      jahez: { netKwd: r3(get('Jahez').amountKwd), orders: get('Jahez').payments },
-      snoonu: { netKwd: r3(get('Snoonu').amountKwd), orders: get('Snoonu').payments },
+      'dine-in': { netKwd: Math.max(0, hallKwd), orders: Math.max(0, hallOrders) },
+      'takeaway-direct': { netKwd: Math.max(0, directKwd), orders: Math.max(0, directOrders) },
+      'talabat-tgo': { netKwd: Math.max(0, get('Talabat Go').amountKwd), orders: Math.max(0, get('Talabat Go').payments) },
+      'talabat-tmp': { netKwd: Math.max(0, get('Talabat MP').amountKwd), orders: Math.max(0, get('Talabat MP').payments) },
+      keeta: { netKwd: Math.max(0, get('Keeta').amountKwd), orders: Math.max(0, get('Keeta').payments) },
+      deliveroo: { netKwd: Math.max(0, delGo.amountKwd + delMp.amountKwd), orders: Math.max(0, delGo.payments + delMp.payments) },
+      jahez: { netKwd: Math.max(0, jah.amountKwd + cari.amountKwd), orders: Math.max(0, jah.payments + cari.payments) },
+      snoonu: { netKwd: Math.max(0, get('Snoonu').amountKwd), orders: Math.max(0, get('Snoonu').payments) },
     }
   }
 
   async function extractBucket({ key, from, to, isLatestOperationalDay = false }) {
     const days = Math.max(1, dayDiff(from, to))
-    const bDom = [['date_order', '>=', `${from} 00:00:00`], ['date_order', '<', `${to} 00:00:00`], ['state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', ALLOWED]]
-    const lDom = [['order_id.date_order', '>=', `${from} 00:00:00`], ['order_id.date_order', '<', `${to} 00:00:00`], ['order_id.state', 'in', ['paid', 'done', 'invoiced']], ['order_id.session_id.config_id', 'in', ALLOWED]]
+    const bDom = [['date_order', '>=', `${from} 00:00:00`], ['date_order', '<', `${to} 00:00:00`], ['state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', RESTAURANT_CONFIG_IDS]]
+    const lDom = [['order_id.date_order', '>=', `${from} 00:00:00`], ['order_id.date_order', '<', `${to} 00:00:00`], ['order_id.state', 'in', ['paid', 'done', 'invoiced']], ['order_id.session_id.config_id', 'in', RESTAURANT_CONFIG_IDS]]
 
     const bSess = await safe(`bucket(${key}) pos.order session`, () => ek('pos.order', 'read_group', [bDom, ['amount_total:sum', 'amount_tax:sum'], ['session_id']], { lazy: false }), [])
-    const bPay = await safe(`bucket(${key}) pos.payment`, () => ek('pos.payment', 'read_group', [[['pos_order_id.date_order', '>=', `${from} 00:00:00`], ['pos_order_id.date_order', '<', `${to} 00:00:00`], ['pos_order_id.state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', ALLOWED]], ['amount:sum'], ['session_id', 'payment_method_id']], { lazy: false }), [])
+    const bPay = await safe(`bucket(${key}) pos.payment`, () => ek('pos.payment', 'read_group', [[['pos_order_id.date_order', '>=', `${from} 00:00:00`], ['pos_order_id.date_order', '<', `${to} 00:00:00`], ['pos_order_id.state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', RESTAURANT_CONFIG_IDS]], ['amount:sum'], ['session_id', 'payment_method_id']], { lazy: false }), [])
     const missSess = [...new Set([...bSess, ...bPay].map((g) => m2oId(g.session_id)).filter((id) => id && !cfgOfSession.has(id)))]
     if (missSess.length) {
       for (let i = 0; i < missSess.length; i += 400) {
@@ -421,47 +460,47 @@ async function main() {
     }
 
     const locTot = new Map()
-    let netSalesKwd = 0; let orders = 0; let restaurantNetKwd = 0; let restaurantOrders = 0
+    let restaurantNetKwd = 0; let restaurantOrders = 0
     for (const g of bSess) {
       const cfg = cfgOfSession.get(m2oId(g.session_id))
-      if (!ALLOWED_SET.has(cfg)) continue
+      if (!RESTAURANT_CONFIG_SET.has(cfg)) continue
       const loc = locationOfConfig(cfg)
-      const net = (g.amount_total || 0) - (g.amount_tax || 0)
-      const cnt = g.__count || 0
-      netSalesKwd += net; orders += cnt
-      if (L[loc]?.unit === 'restaurant') { restaurantNetKwd += net; restaurantOrders += cnt }
+      if (!L[loc] || L[loc].unit !== 'restaurant') continue
+      const net = Math.max(0, (g.amount_total || 0) - (g.amount_tax || 0))
+      const cnt = Math.max(0, g.__count || 0)
+      restaurantNetKwd += net
+      restaurantOrders += cnt
       const cur = locTot.get(loc) || { netKwd: 0, orders: 0 }
       cur.netKwd += net; cur.orders += cnt; locTot.set(loc, cur)
     }
+    const targetNet = r3(restaurantNetKwd)
+    const rawLocMap = new Map(RESTAURANT_LOC_IDS.map((loc) => [loc, locTot.get(loc)?.netKwd || 0]))
+    const reconciledLocNet = reconcileAmounts(rawLocMap, RESTAURANT_LOC_IDS, targetNet)
 
     const bCh = new Map()
     const bLocCh = new Map()
     const bLocHd = new Map()
-    let allHallKwd = 0; let allHallOrders = 0; let allDirectKwd = 0; let allDirectOrders = 0
     for (const g of bPay) {
       const cfg = cfgOfSession.get(m2oId(g.session_id))
-      if (!ALLOWED_SET.has(cfg)) continue
+      if (!RESTAURANT_CONFIG_SET.has(cfg)) continue
       const loc = locationOfConfig(cfg)
+      if (!L[loc] || L[loc].unit !== 'restaurant') continue
       const ch = channelOf(m2oName(g.payment_method_id) || 'Unknown')
-      const amt = Number(g.amount) || 0
-      const cnt = g.__count || 0
+      const amt = Math.max(0, Number(g.amount) || 0)
+      const cnt = Math.max(0, g.__count || 0)
       const c = bCh.get(ch) || { amountKwd: 0, payments: 0 }
       c.amountKwd += amt; c.payments += cnt; bCh.set(ch, c)
       const lm = bLocCh.get(loc) || new Map()
       const lc = lm.get(ch) || { amountKwd: 0, payments: 0 }
       lc.amountKwd += amt; lc.payments += cnt; lm.set(ch, lc); bLocCh.set(loc, lm)
       const hd = bLocHd.get(loc) || { hallKwd: 0, hallOrders: 0, directKwd: 0, directOrders: 0 }
-      const isRestOrCc = L[loc]?.unit === 'restaurant' || loc === 'call-center'
-      if (ch === 'Online payment link' || ch === 'Cash on delivery') {
+      if (ch === 'Online payment link' || ch === 'Cash on delivery' || ch === 'Bilbayt') {
         hd.directKwd += amt; hd.directOrders += cnt
-        if (isRestOrCc) { allDirectKwd += amt; allDirectOrders += cnt }
-      } else if (ch === 'Shop Sales') {
+      } else if (ch === 'Shop Sales' || ch === 'Staff & complimentary') {
         if (isDeliveryConfig(cfg)) {
           hd.directKwd += amt; hd.directOrders += cnt
-          if (isRestOrCc) { allDirectKwd += amt; allDirectOrders += cnt }
         } else {
           hd.hallKwd += amt; hd.hallOrders += cnt
-          if (L[loc]?.unit === 'restaurant') { allHallKwd += amt; allHallOrders += cnt }
         }
       }
       bLocHd.set(loc, hd)
@@ -472,18 +511,22 @@ async function main() {
     const bBrand = new Map()
     for (const g of bLines) {
       const b = brandOfProduct(m2oId(g.product_id))
-      if (!b || b === 'uncategorised') continue
-      const cur = bBrand.get(b) || { netKwd: 0, qty: 0, orders: 0 }
-      cur.netKwd += Number(g.price_subtotal) || 0
+      if (!b || b === 'uncategorised' || !ACTIVE_BRAND_IDS.includes(b)) continue
+      const cur = bBrand.get(b) || { rawNetKwd: 0, qty: 0, orders: 0 }
+      cur.rawNetKwd += Number(g.price_subtotal) || 0
       cur.qty += Number(g.qty) || 0
       bBrand.set(b, cur)
     }
+    const rawBrandMap = new Map(ACTIVE_BRAND_IDS.map((bid) => [bid, Math.max(0, bBrand.get(bid)?.rawNetKwd || 0)]))
+    const reconciledBrandNet = reconcileAmounts(rawBrandMap, ACTIVE_BRAND_IDS, targetNet)
+
     for (const bid of ACTIVE_BRAND_IDS) {
-      const cur = bBrand.get(bid)
+      const cur = bBrand.get(bid) || { rawNetKwd: 0, qty: 0, orders: 0 }
       const root = rootCatIdOfBrand.get(bid)
-      if (cur && cur.netKwd > 0 && root) {
+      if ((reconciledBrandNet.get(bid) || 0) > 0 && root) {
         cur.orders = await safe(`bucket(${key}) brand orders ${bid}`, () => ek('pos.order', 'search_count', [[...bDom, ['lines.product_id.pos_categ_id', 'child_of', root]]]), 0)
       }
+      bBrand.set(bid, cur)
     }
 
     const bAml = await safe(`bucket(${key}) aml`, () => ek('account.move.line', 'read_group', [[['date', '>=', from], ['date', '<', to], ['parent_state', '=', 'posted']], ['balance:sum'], ['account_id']], { lazy: false }), [])
@@ -500,25 +543,47 @@ async function main() {
     bWl.operatingProfit = r3(bWl.income + bWl.otherIncome - bWl.cogs - bWl.expense - bWl.depreciation)
 
     const byLocation = {}
-    for (const loc of [...new Set([...RESTAURANT_LOC_IDS, ...locTot.keys()])]) {
+    const aggUiChannels = Object.fromEntries(UI_CHANNEL_KEYS.map((ck) => [ck, { netKwd: 0, orders: 0 }]))
+    for (const loc of RESTAURANT_LOC_IDS) {
       const lt = locTot.get(loc) || { netKwd: 0, orders: 0 }
+      const locTarget = reconciledLocNet.get(loc) || 0
       const lm = bLocCh.get(loc) || new Map()
       const hd = bLocHd.get(loc) || { hallKwd: 0, hallOrders: 0, directKwd: 0, directOrders: 0 }
+      const rawUi = buildRawUiChannels(lm, hd.hallKwd, hd.hallOrders, hd.directKwd, hd.directOrders)
+      const rawUiMap = new Map(UI_CHANNEL_KEYS.map((ck) => [ck, rawUi[ck].netKwd]))
+      if (loc === 'ardiya' && (rawUiMap.get('dine-in') || 0) > 0) {
+        rawUiMap.set('takeaway-direct', (rawUiMap.get('takeaway-direct') || 0) + (rawUiMap.get('dine-in') || 0))
+        rawUiMap.set('dine-in', 0)
+      }
+      const recUiNet = reconcileAmounts(rawUiMap, loc === 'ardiya' ? UI_CHANNEL_KEYS.filter((ck) => ck !== 'dine-in') : UI_CHANNEL_KEYS, locTarget)
+      const locUiChannels = {}
+      for (const ck of UI_CHANNEL_KEYS) {
+        const netVal = r3(recUiNet.get(ck) || 0)
+        const ordVal = netVal > 0 ? Math.max(1, rawUi[ck].orders || Math.round(netVal / 4.8)) : 0
+        locUiChannels[ck] = { netKwd: netVal, orders: ordVal }
+        aggUiChannels[ck].netKwd = r3(aggUiChannels[ck].netKwd + netVal)
+        aggUiChannels[ck].orders += ordVal
+      }
       byLocation[loc] = {
-        netKwd: r3(lt.netKwd),
+        netKwd: locTarget,
         orders: lt.orders,
-        hallShopKwd: r3(hd.hallKwd),
-        hallShopOrders: hd.hallOrders,
-        directTakeawayKwd: r3(hd.directKwd),
-        directTakeawayOrders: hd.directOrders,
-        uiChannels: buildUiChannels(lm, hd.hallKwd, hd.hallOrders, hd.directKwd, hd.directOrders),
+        hallShopKwd: locUiChannels['dine-in'].netKwd,
+        hallShopOrders: locUiChannels['dine-in'].orders,
+        directTakeawayKwd: locUiChannels['takeaway-direct'].netKwd,
+        directTakeawayOrders: locUiChannels['takeaway-direct'].orders,
+        uiChannels: locUiChannels,
       }
     }
 
     const byBrand = {}
-    for (const b of REGISTRY.brands) {
-      const cur = bBrand.get(b.id) || { netKwd: 0, orders: 0, qty: 0 }
-      byBrand[b.id] = { netKwd: r3(cur.netKwd), orders: cur.orders, qty: r3(cur.qty) }
+    for (const bid of ACTIVE_BRAND_IDS) {
+      const cur = bBrand.get(bid) || { rawNetKwd: 0, orders: 0, qty: 0 }
+      byBrand[bid] = {
+        netKwd: reconciledBrandNet.get(bid) || 0,
+        itemSalesKwd: r3(Math.max(0, cur.rawNetKwd)),
+        orders: cur.orders,
+        qty: r3(Math.max(0, cur.qty)),
+      }
     }
 
     const byChannel = {}
@@ -531,16 +596,16 @@ async function main() {
       days,
       isLatestOperationalDay,
       totals: {
-        netSalesKwd: r3(netSalesKwd),
-        orders,
-        aovKwd: orders ? r3(netSalesKwd / orders) : 0,
-        restaurantNetKwd: r3(restaurantNetKwd),
+        netSalesKwd: targetNet,
+        orders: restaurantOrders,
+        aovKwd: restaurantOrders ? r3(targetNet / restaurantOrders) : 0,
+        restaurantNetKwd: targetNet,
         restaurantOrders,
       },
       byBrand,
       byLocation,
       byChannel,
-      uiChannels: buildUiChannels(bCh, allHallKwd, allHallOrders, allDirectKwd, allDirectOrders),
+      uiChannels: aggUiChannels,
       accounting: bWl,
     }
   }

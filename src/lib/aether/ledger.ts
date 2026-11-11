@@ -243,7 +243,7 @@ export function leverImpact(enabled: Record<LeverId, boolean>) {
 // ---------------------------------------------------------------------------
 // 4. Brands (approved Venture Foods brands with Odoo POS sales in the period)
 // ---------------------------------------------------------------------------
-export type BrandId = 'china-garden' | 'franks' | 'tahina' | 'farm-brown' | 'fresh-daily-canteen' | 'noodle-bar' | 'karak-cafeteria'
+export type BrandId = 'china-garden' | 'franks' | 'tahina' | 'farm-brown' | 'noodle-bar' | 'karak-cafeteria'
 
 export interface Brand {
   id: BrandId
