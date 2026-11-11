@@ -482,19 +482,25 @@ export interface HorizontalRankDatum {
   value: number
   valueFormatted: string
   color?: string
+  barClassName?: string
+  dotClassName?: string
   badgeText?: string
+  active?: boolean
   lines: TooltipLine[]
 }
 
 /**
- * Interactive Horizontal Skerry Capsule Ranking Bars with floating white tooltip on hover.
+ * Interactive Horizontal Skerry Capsule Ranking Bars with floating white tooltip on hover
+ * and optional click-to-filter selection.
  */
 export function InteractiveHorizontalRankList({
   items,
   isAr,
+  onSelect,
 }: {
   items: HorizontalRankDatum[]
   isAr: boolean
+  onSelect?: (id: string) => void
 }) {
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const maxVal = Math.max(1, ...items.map((x) => (Number.isFinite(x.value) ? Math.max(0, x.value) : 0)))
@@ -502,47 +508,98 @@ export function InteractiveHorizontalRankList({
   return (
     <div dir={isAr ? 'rtl' : 'ltr'} className="space-y-2.5">
       {items.map((item) => {
-        const widthPct = Math.max(3, Math.min(100, (Math.max(0, item.value) / maxVal) * 100))
+        const safeVal = Number.isFinite(item.value) ? Math.max(0, item.value) : 0
+        const widthPct = safeVal > 0 ? Math.max(3, Math.min(100, (safeVal / maxVal) * 100)) : 0
         const isHovered = hoveredId === item.id
+        const isInteractive = typeof onSelect === 'function'
 
         return (
           <div
             key={item.id}
+            role={isInteractive ? 'button' : undefined}
+            aria-pressed={isInteractive ? Boolean(item.active) : undefined}
             tabIndex={0}
+            onClick={isInteractive ? () => onSelect(item.id) : undefined}
+            onKeyDown={
+              isInteractive
+                ? (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      onSelect(item.id)
+                    }
+                  }
+                : undefined
+            }
             onMouseEnter={() => setHoveredId(item.id)}
             onMouseLeave={() => setHoveredId((cur) => (cur === item.id ? null : cur))}
             onFocus={() => setHoveredId(item.id)}
             onBlur={() => setHoveredId((cur) => (cur === item.id ? null : cur))}
-            className="ae-bento-subcard relative rounded-xl bg-[#F4F6F9] p-3 transition-colors duration-150 hover:bg-slate-100 focus:outline-none dark:hover:bg-white/[0.07]"
+            className={`relative rounded-xl p-3 transition-all duration-[180ms] focus:outline-none ${
+              isInteractive ? 'cursor-pointer' : ''
+            } ${
+              item.active
+                ? 'bg-emerald-50/80 ring-1 ring-emerald-500/50 dark:bg-emerald-950/40 dark:ring-emerald-400/40'
+                : 'ae-bento-subcard bg-[#F7F7F8] hover:bg-neutral-100 dark:hover:bg-white/[0.06]'
+            }`}
           >
-            <div className="flex items-center justify-between gap-2 text-[13px]">
-              <div className="flex min-w-0 items-center gap-2">
-                {item.color ? (
-                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: item.color }} />
-                ) : null}
-                <span className="truncate font-bold text-slate-900 dark:text-white">{item.label}</span>
-                {item.subLabel ? (
-                  <span className="truncate text-[11.5px] font-medium text-slate-400 dark:text-slate-400">
-                    {item.subLabel}
+            <div className="flex items-start justify-between gap-2 text-[13px]">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  {item.dotClassName ? (
+                    <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${item.dotClassName}`} />
+                  ) : item.color ? (
+                    <span
+                      className="h-2.5 w-2.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: item.color }}
+                    />
+                  ) : null}
+                  <span className="truncate font-semibold tracking-tight text-neutral-950 dark:text-white">
+                    {item.label}
                   </span>
+                  {item.active ? (
+                    <span className="shrink-0 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
+                      {isAr ? 'مفعل' : 'Active'}
+                    </span>
+                  ) : null}
+                </div>
+                {item.subLabel ? (
+                  <p
+                    dir="ltr"
+                    className={`mt-0.5 truncate text-[11.5px] tabular-nums text-neutral-500 dark:text-slate-400 ${
+                      isAr ? 'text-end' : 'text-start'
+                    }`}
+                  >
+                    {item.subLabel}
+                  </p>
                 ) : null}
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 {item.badgeText ? (
-                  <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-bold text-slate-700 ring-1 ring-slate-900/[0.05] dark:bg-white/10 dark:text-slate-200">
+                  <span
+                    dir="ltr"
+                    className="rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold tabular-nums text-neutral-700 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-white/10 dark:text-slate-200"
+                  >
                     {item.badgeText}
                   </span>
                 ) : null}
-                <span dir="ltr" className="font-extrabold tabular-nums text-slate-950 dark:text-white">
+                <span
+                  dir="ltr"
+                  className="font-semibold tracking-tight tabular-nums text-neutral-950 dark:text-white"
+                >
                   {item.valueFormatted}
                 </span>
               </div>
             </div>
 
-            <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-slate-200/80 dark:bg-slate-800">
+            <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-neutral-200/70 dark:bg-white/[0.08]">
               <div
-                style={{ width: `${widthPct}%`, backgroundColor: item.color ?? '#10B981' }}
-                className="h-full rounded-full transition-all duration-200"
+                style={{
+                  width: `${widthPct}%`,
+                  ...(item.barClassName ? {} : { backgroundColor: item.color ?? '#10B981' }),
+                }}
+                className={`h-full rounded-full transition-all duration-[180ms] ${
+                  item.barClassName ?? ''
+                }`}
               />
             </div>
 
@@ -551,14 +608,14 @@ export function InteractiveHorizontalRankList({
                 role="tooltip"
                 className="pointer-events-none absolute inset-x-3 bottom-full z-30 mb-1.5 rounded-2xl bg-white p-3 text-[12px] text-slate-950"
               >
-                <div className="mb-1.5 font-extrabold text-slate-950">{item.label}</div>
+                <div className="mb-1.5 font-semibold text-slate-950">{item.label}</div>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1">
                   {item.lines.map((line) => (
                     <div key={line.label} className="flex items-center justify-between gap-2">
                       <span className="text-slate-500">{line.label}</span>
                       <span
                         dir="ltr"
-                        className={`tabular-nums ${line.bold ? 'font-extrabold' : 'font-semibold'} ${
+                        className={`tabular-nums ${line.bold ? 'font-bold' : 'font-medium'} ${
                           TOOLTIP_TONE_CLS[line.tone ?? 'neutral']
                         }`}
                       >

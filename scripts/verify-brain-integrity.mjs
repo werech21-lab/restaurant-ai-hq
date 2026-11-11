@@ -14,7 +14,7 @@
 
 import fs from 'node:fs'
 import path from 'node:path'
-import { execSync } from 'node:child_process'
+import { execFileSync, execSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -369,16 +369,147 @@ assert(
     coresSrc.includes('centerValue={`${f1(snap.marketing.kpis.promoSharePct)}%`}') &&
     coresSrc.includes('حصة العروض') &&
     coresSrc.includes('Net Pocket Cash') &&
-    coresSrc.includes('+ Calculate New Influencer Ad') &&
-    coresSrc.includes('+ حساب جدوى إعلان مشهور') &&
+    coresSrc.includes('+ Check New Influencer Ad') &&
+    coresSrc.includes('+ فحص إعلان مشهور جديد') &&
     coresSrc.includes('Show Demo Examples 🧪') &&
     coresSrc.includes('عرض أمثلة توضيحية 🧪') &&
     !coresSrc.includes('bg-neutral-950') &&
+    !coresSrc.includes('Brand Sales Share') &&
+    coresSrc.includes('0%-Fee Direct vs Aggregator Mix') &&
+    coresSrc.includes('الصالة والاستلام مقابل التوصيل') &&
+    coresSrc.includes('صافي المبيعات والطلبات') &&
+    coresSrc.includes('مبيعات بدون عمولة (صالة ومباشر)') &&
+    coresSrc.includes('ذروة المبيعات اليومية') &&
+    coresSrc.includes('مبيعات الساعات الهادئة (٣–٦ م)') &&
+    coresSrc.includes('bg-emerald-500/85') &&
+    coresSrc.includes('bg-sky-500/80') &&
+    coresSrc.includes('bg-neutral-300 dark:bg-neutral-700') &&
     coresSrc.includes('upsideBadgeAr') &&
     coresSrc.includes('نسخ للواتساب 📋') &&
     coresSrc.includes('التفاصيل') &&
     shellSrc.includes('max-w-[1520px]'),
-  'Unslop /erp/cores redesign passed: max-w-[1520px] layout, soft high-contrast pills, bounded donut + Net Pocket Cash row, 4 non-duplicate KPIs, collapsible ad form + gated demo ads & streamlined growth plays',
+  'Unslop /erp/cores 4-tab redesign passed: max-w-[1520px] layout, duplicate Brand Sales Share replaced with 0%-Fee Direct vs Aggregator Mix, 4 non-redundant Sales & Marketing KPIs, soft proportional bars, collapsible + فحص إعلان مشهور جديد & gated demo toggle',
+)
+
+// 8. Runtime Sales Tab 0.000 KWD Reconciliation Across All Periods & Filters
+console.log('\n8) Sales Tab Runtime Reconciliation (sum(Brands) === sum(Branches) === sum(Channels) === Total Sales):')
+const tsxCli = path.join(ROOT, 'node_modules', 'tsx', 'dist', 'cli.mjs')
+
+const reconcileProbeScript = `
+import { computeCoresHubSnapshot } from './src/lib/aether/cores-hub-engine';
+import { computeGlobalWorkspace, DEFAULT_GLOBAL_FILTERS } from './src/lib/aether/global-filter-engine';
+
+const slices = [
+  { period: 'today' },
+  { period: 'week' },
+  { period: 'month' },
+  { period: 'year' },
+  { period: 'week', brand: 'china-garden' },
+  { period: 'week', branch: 'promenade' },
+  { period: 'week', channel: 'talabat-tgo' },
+  { period: 'week', brand: 'china-garden', branch: 'promenade' },
+  { period: 'month', kuwaitSlice: 'weekend' },
+  { period: 'month', kuwaitSlice: 'quiet-hours' },
+] as const;
+
+let maxGap = 0;
+let maxShareDrift = 0;
+let maxDisplayGap = 0;
+
+for (const sl of slices) {
+  const f = { ...DEFAULT_GLOBAL_FILTERS, ...sl };
+  const ws = computeGlobalWorkspace(f);
+  const s = computeCoresHubSnapshot(f, []);
+  const sumB = s.sales.brandShare.reduce((a, r) => a + r.salesKwd, 0);
+  const sumL = s.sales.branchRanking.reduce((a, r) => a + r.salesKwd, 0);
+  const sumC = s.sales.channelRanking.reduce((a, r) => a + r.salesKwd, 0);
+  const sumM = s.menu.dishes.reduce((a, r) => a + r.salesKwd, 0);
+
+  const gap = Math.max(
+    Math.abs(sumB - ws.salesKwd),
+    Math.abs(sumL - ws.salesKwd),
+    Math.abs(sumC - ws.salesKwd),
+    Math.abs(sumM - ws.salesKwd),
+  );
+  if (gap > maxGap) maxGap = gap;
+
+  const shB = s.sales.brandShare.reduce((a, r) => a + r.sharePct, 0);
+  const shL = s.sales.branchRanking.reduce((a, r) => a + r.sharePct, 0);
+  const shC = s.sales.channelRanking.reduce((a, r) => a + r.sharePct, 0);
+  const shDrift = Math.max(Math.abs(shB - 100), Math.abs(shL - 100), Math.abs(shC - 100));
+  if (shDrift > maxShareDrift) maxShareDrift = shDrift;
+
+  const dispTarget = Math.round(ws.salesKwd);
+  const dispB = s.sales.brandShare.reduce((a, r) => a + r.displaySalesKwd, 0);
+  const dispL = s.sales.branchRanking.reduce((a, r) => a + r.displaySalesKwd, 0);
+  const dispC = s.sales.channelRanking.reduce((a, r) => a + r.displaySalesKwd, 0);
+  const dGap = Math.max(Math.abs(dispB - dispTarget), Math.abs(dispL - dispTarget), Math.abs(dispC - dispTarget));
+  if (dGap > maxDisplayGap) maxDisplayGap = dGap;
+}
+
+const driftedLive: any = {
+  source: 'live',
+  syncedAt: '2026-11-11T12:00:00Z',
+  period: { from: '2026-11-04', to: '2026-11-11' },
+  database: 'venturefoods',
+  totals: { netSalesKwd: 28990.861, orders: 5328, aovKwd: 5.441 },
+  brands: [],
+  branches: [],
+  channels: [],
+  buckets: {
+    week: {
+      key: 'week',
+      from: '2026-11-04',
+      to: '2026-11-11',
+      days: 7,
+      totals: { netSalesKwd: 28990.861, orders: 5328, aovKwd: 5.441, restaurantNetKwd: 28990.861, restaurantOrders: 5328 },
+      byBrand: {
+        'china-garden': { netKwd: 25814.0, orders: 4450 },
+        franks: { netKwd: 2099.34, orders: 410 },
+        tahina: { netKwd: 236.441, orders: 55 },
+        'farm-brown': { netKwd: 589.521, orders: 210 },
+        'noodle-bar': { netKwd: 357.582, orders: 140 },
+        'karak-cafeteria': { netKwd: 47.989, orders: 63 },
+      },
+      uiChannels: {
+        'dine-in': { netKwd: 8646.205, orders: 1800 },
+        'takeaway-direct': { netKwd: 512.3, orders: 110 },
+        'talabat-tgo': { netKwd: 9879.409, orders: 1820 },
+        'talabat-tmp': { netKwd: 1032.8, orders: 190 },
+        keeta: { netKwd: 5658.667, orders: 1120 },
+        deliveroo: { netKwd: 819.602, orders: 155 },
+        jahez: { netKwd: 262.952, orders: 52 },
+        snoonu: { netKwd: 207.065, orders: 41 },
+      },
+    },
+  },
+};
+const fDrift = { ...DEFAULT_GLOBAL_FILTERS, period: 'week' as const };
+const wsDrift = computeGlobalWorkspace(fDrift, driftedLive);
+const sDrift = computeCoresHubSnapshot(fDrift, [], driftedLive);
+const driftGap = Math.max(
+  Math.abs(sDrift.sales.brandShare.reduce((a, r) => a + r.salesKwd, 0) - wsDrift.salesKwd),
+  Math.abs(sDrift.sales.branchRanking.reduce((a, r) => a + r.salesKwd, 0) - wsDrift.salesKwd),
+  Math.abs(sDrift.sales.channelRanking.reduce((a, r) => a + r.salesKwd, 0) - wsDrift.salesKwd),
+);
+if (driftGap > maxGap) maxGap = driftGap;
+
+console.log(JSON.stringify({ maxGap, maxShareDrift, maxDisplayGap, weekTotal: wsDrift.salesKwd }));
+`
+
+const probeRaw = execFileSync(process.execPath, [tsxCli, '-e', reconcileProbeScript], {
+  cwd: ROOT,
+  encoding: 'utf8',
+}).trim()
+const probeJsonLine = probeRaw.split('\n').pop() ?? '{}'
+const probe = JSON.parse(probeJsonLine)
+assert(
+  typeof probe.maxGap === 'number' &&
+    probe.maxGap < 0.0005 &&
+    probe.maxShareDrift < 0.05 &&
+    probe.maxDisplayGap === 0,
+  'Sales & Menu runtime reconciliation across all periods, 5D filters & unmapped-POS live buckets',
+  `maxGap=${Number(probe.maxGap).toFixed(3)} KWD, shareDrift=${Number(probe.maxShareDrift).toFixed(2)}%, displayIntGap=${probe.maxDisplayGap} KWD`,
 )
 
 const pagePanelSrc = fs.readFileSync(path.join(ROOT, 'src/components/aether/DualBrainPagePanel.tsx'), 'utf8')

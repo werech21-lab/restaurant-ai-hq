@@ -398,6 +398,11 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
       uiChannels: locUi,
     }
   }
+  const aggRawMap = new Map<string, number>(UI_CHANNEL_KEYS.map((ck) => [ck, aggUiChannels[ck].netKwd]))
+  const reconciledAggUi = reconcileAmounts(aggRawMap, UI_CHANNEL_KEYS, targetNet)
+  for (const ck of UI_CHANNEL_KEYS) {
+    aggUiChannels[ck].netKwd = reconciledAggUi.get(ck) ?? 0
+  }
 
   const lineDomain = [['order_id.date_order', '>=', `${period.from} 00:00:00`], ['order_id.date_order', '<', `${period.to} 00:00:00`], ['order_id.state', 'in', ['paid', 'done', 'invoiced']], ['order_id.session_id.config_id', 'in', restaurantAllowed]]
   const byProduct = (await ek('pos.order.line', 'read_group', [lineDomain, ['price_subtotal:sum', 'qty:sum'], ['product_id']], { lazy: false })) as { product_id: M2O; price_subtotal: number; qty?: number }[]

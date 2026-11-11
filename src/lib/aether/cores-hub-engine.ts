@@ -19,6 +19,7 @@ import {
   APPROVED_BRAND_IDS,
   APPROVED_CHANNEL_IDS,
   computeGlobalWorkspace,
+  computeWeightedCellMargin,
   getBranchLabel,
   getBrandLabel,
   getChannelLabel,
@@ -101,6 +102,7 @@ export interface SalesPoint {
   tooltipTitleAr: string
   tooltipTitleEn: string
   salesKwd: number
+  displaySalesKwd: number
   orders: number
   aovKwd: number
   sharePct: number
@@ -171,8 +173,31 @@ export interface CoresHubSnapshot {
   sales: {
     peakHourLabelAr: string
     peakHourLabelEn: string
+    peakHourShortAr: string
+    peakHourShortEn: string
+    peakHourSalesKwd: number
+    peakHourDisplayKwd: number
+    peakHourOrders: number
+    peakHourSharePct: number
+    strongestDayLabelAr: string
+    strongestDayLabelEn: string
     quietWindowAr: string
     quietWindowEn: string
+    quietWindowSalesKwd: number
+    quietWindowDisplayKwd: number
+    quietWindowOrders: number
+    quietWindowSharePct: number
+    quietWindowUpsideKwd: number
+    zeroCommSalesKwd: number
+    zeroCommDisplayKwd: number
+    zeroCommSharePct: number
+    zeroCommOrders: number
+    aggregatorSalesKwd: number
+    aggregatorDisplayKwd: number
+    aggregatorSharePct: number
+    aggregatorOrders: number
+    directNetMarginPct: number
+    aggregatorNetMarginPct: number
     timeline: SalesPoint[]
     hourly: SalesPoint[]
     brandShare: SalesPoint[]
@@ -259,6 +284,98 @@ const safeNum = (v: unknown, fb = 0): number =>
 
 const round1 = (n: number) => Math.round(safeNum(n) * 10) / 10
 const round2 = (n: number) => Math.round(safeNum(n) * 100) / 100
+const round3 = (n: number) => Math.round(safeNum(n) * 1000) / 1000
+
+/**
+ * Largest-Remainder (Hamilton) integer allocator:
+ * Guarantees sum(result) === targetInt with 0 drift and strictly preserves 0 for 0-weight rows.
+ */
+function largestRemainderInts(rawWeights: readonly number[], targetInt: number): number[] {
+  const n = rawWeights.length
+  if (n === 0) return []
+  const target = Math.max(0, Math.round(safeNum(targetInt)))
+  if (target <= 0) return rawWeights.map(() => 0)
+
+  const weights = rawWeights.map((w) => (Number.isFinite(w) && w > 0 ? w : 0))
+  const sumW = weights.reduce((a, b) => a + b, 0)
+  if (sumW <= 0) {
+    const fallback = rawWeights.map(() => 0)
+    fallback[0] = target
+    return fallback
+  }
+
+  const exact = weights.map((w) => (w / sumW) * target)
+  const floored = exact.map((x) => Math.floor(x))
+  const remainders = exact.map((x, i) => ({
+    idx: i,
+    rem: x - floored[i],
+    weight: weights[i],
+  }))
+
+  const diff = target - floored.reduce((a, b) => a + b, 0)
+  remainders
+    .filter((r) => r.weight > 0)
+    .sort((a, b) => b.rem - a.rem || b.weight - a.weight || a.idx - b.idx)
+    .slice(0, Math.max(0, diff))
+    .forEach((r) => {
+      floored[r.idx] += 1
+    })
+
+  return floored
+}
+
+interface RawSalesRowSpec {
+  id: string
+  labelAr: string
+  labelEn: string
+  tooltipTitleAr: string
+  tooltipTitleEn: string
+  rawSales: number
+  rawOrders: number
+  color?: string
+}
+
+/**
+ * Reconciles a set of SalesPoint rows to targetSalesKwd (0.000 KWD gap at 3-decimal fils),
+ * targetDisplayKwd (0 integer rounding drift), 100.0% exact sharePct sum, and targetOrders.
+ */
+function reconcileSalesRows(
+  specs: readonly RawSalesRowSpec[],
+  targetSalesKwd: number,
+  targetOrders: number,
+): SalesPoint[] {
+  const targetFils = Math.max(0, Math.round(safeNum(targetSalesKwd) * 1000))
+  const targetDisplay = Math.max(0, Math.round(safeNum(targetSalesKwd)))
+  const targetOrd = targetFils > 0 ? Math.max(0, Math.round(safeNum(targetOrders))) : 0
+  const targetShareTenths = targetFils > 0 ? 1000 : 0
+
+  const filsArr = largestRemainderInts(
+    specs.map((s) => s.rawSales),
+    targetFils,
+  )
+  const dispArr = largestRemainderInts(filsArr, targetDisplay)
+  const shareTenthsArr = largestRemainderInts(filsArr, targetShareTenths)
+  const ordWeights = specs.map((s, i) => (filsArr[i] > 0 ? Math.max(0.001, s.rawOrders) : 0))
+  const ordArr = largestRemainderInts(ordWeights, targetOrd)
+
+  return specs.map((s, i) => {
+    const salesKwd = filsArr[i] / 1000
+    const orders = ordArr[i]
+    return {
+      id: s.id,
+      labelAr: s.labelAr,
+      labelEn: s.labelEn,
+      tooltipTitleAr: s.tooltipTitleAr,
+      tooltipTitleEn: s.tooltipTitleEn,
+      salesKwd,
+      displaySalesKwd: dispArr[i],
+      orders,
+      aovKwd: orders > 0 ? round2(salesKwd / orders) : 0,
+      sharePct: shareTenthsArr[i] / 10,
+      color: s.color,
+    }
+  })
+}
 
 function cleanDishName(raw: string): string {
   return raw.replace(/^\[[^\]]+\]\s*/, '').trim()
@@ -309,11 +426,18 @@ export function computeCoresHubSnapshot(
     return true
   })
 
-  // Scale factor from 30d brand menu to active filter (period + branch + channel)
+  // Scale & reconcile 30d brand menu to active filter (0.000 KWD gap vs ws.salesKwd when menu present)
   const rawMenuSum30 = rawMenu.reduce((s, m) => s + m.netKwd, 0) || 1
   const menuScale = ws.salesKwd > 0 ? ws.salesKwd / rawMenuSum30 : ws.totalScale || 0.1
+  const dishSalesFils =
+    rawMenu.length > 0
+      ? largestRemainderInts(
+          rawMenu.map((m) => m.netKwd),
+          Math.max(0, Math.round(ws.salesKwd * 1000)),
+        )
+      : []
 
-  const prelimDishes = rawMenu.map((m) => {
+  const prelimDishes = rawMenu.map((m, idx) => {
     const bid = m.brand as Exclude<GlobalBrand, 'all'>
     const bomCost = RECIPE_COST_BY_NAME.get(`${bid}|${m.name.toLowerCase()}`)
     const rawUnitCost =
@@ -324,10 +448,11 @@ export function computeCoresHubSnapshot(
           : m.priceKwd * (BRAND_DEFAULT_FOOD_PCT[bid] ?? 0.27)
 
     const unitCostKwd = round2(Math.min(m.priceKwd * 0.72, Math.max(0.08, rawUnitCost)))
-    const salesKwd = round1(m.netKwd * menuScale)
+    const salesKwd = (dishSalesFils[idx] ?? 0) / 1000
     const unitsSold = salesKwd > 0 ? Math.max(1, Math.round(m.qty * menuScale)) : 0
-    const costKwd = round1(unitsSold * unitCostKwd)
-    const netProfitKwd = round1(Math.max(0, salesKwd - costKwd))
+    const foodRatio = m.priceKwd > 0 ? Math.min(0.72, unitCostKwd / m.priceKwd) : 0.27
+    const costKwd = round3(salesKwd * foodRatio)
+    const netProfitKwd = round3(Math.max(0, salesKwd - costKwd))
     const marginPct = salesKwd > 0 ? round1((netProfitKwd / salesKwd) * 100) : 0
 
     return {
@@ -381,19 +506,14 @@ export function computeCoresHubSnapshot(
   const topProfitDish = dishes[0] ?? null
 
   // =========================================================================
-  // 2. SALES CORE (Timeline, Hourly Peak/Quiet, Brands, Branches, Channels)
+  // 2. SALES CORE (Exact 0.000 KWD Reconciliation: Brands = Branches = Channels = Total Sales)
   // =========================================================================
   const hourlyRaw = ODOO.timeProfile?.hourly ?? []
-  const totalHourlyRawNet = hourlyRaw.reduce((s, h) => s + h.netKwd, 0) || 1
-  const totalHourlyRawOrd = hourlyRaw.reduce((s, h) => s + h.orders, 0) || 1
 
   // Operational hours in Kuwait: 9 AM -> 1 AM
   const orderedHours = [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0, 1]
-  const hourly: SalesPoint[] = orderedHours.map((hr) => {
+  const hourlySpecs: RawSalesRowSpec[] = orderedHours.map((hr) => {
     const row = hourlyRaw.find((x) => x.hour === hr)
-    const sKwd = round1(ws.salesKwd * (safeNum(row?.netKwd) / totalHourlyRawNet))
-    const ord = Math.max(0, Math.round(ws.orders * (safeNum(row?.orders) / totalHourlyRawOrd)))
-    const aov = ord > 0 ? round2(sKwd / ord) : ws.aovKwd
     const isQuietAfternoon = hr >= 15 && hr <= 17
     return {
       id: `hr-${hr}`,
@@ -401,17 +521,76 @@ export function computeCoresHubSnapshot(
       labelEn: formatHourEn(hr),
       tooltipTitleAr: `الساعة ${formatHourAr(hr)}${isQuietAfternoon ? ' (فترة هادئة — فرصة عروض)' : ''}`,
       tooltipTitleEn: `${formatHourEn(hr)}${isQuietAfternoon ? ' (Quiet Window)' : ''}`,
-      salesKwd: sKwd,
-      orders: ord,
-      aovKwd: aov,
-      sharePct: ws.salesKwd > 0 ? round1((sKwd / ws.salesKwd) * 100) : 0,
-      color: isQuietAfternoon ? '#F59E0B' : '#475569',
+      rawSales: safeNum(row?.netKwd),
+      rawOrders: safeNum(row?.orders),
+    }
+  })
+  const reconciledHourly = reconcileSalesRows(hourlySpecs, ws.salesKwd, ws.orders)
+  const topPeakHourIds = new Set(
+    [...reconciledHourly]
+      .sort((a, b) => b.salesKwd - a.salesKwd)
+      .slice(0, 4)
+      .map((h) => h.id),
+  )
+  const hourly: SalesPoint[] = reconciledHourly.map((pt) => {
+    const hrNum = Number(pt.id.replace('hr-', ''))
+    const isQuietAfternoon = hrNum >= 15 && hrNum <= 17
+    const isPeakRush = !isQuietAfternoon && topPeakHourIds.has(pt.id)
+    return {
+      ...pt,
+      color: isQuietAfternoon ? '#F59E0B' : isPeakRush ? '#10B981' : '#94A3B8',
     }
   })
 
   const peakHour = [...hourly].sort((a, b) => b.salesKwd - a.salesKwd)[0]
-  const peakHourLabelAr = peakHour ? `${peakHour.labelAr} (${Math.round(peakHour.salesKwd).toLocaleString('en-US')} د.ك)` : '2 م – 8 م'
-  const peakHourLabelEn = peakHour ? `${peakHour.labelEn} (${Math.round(peakHour.salesKwd).toLocaleString('en-US')} KWD)` : '2 PM – 8 PM'
+  const peakHourShortAr = peakHour?.labelAr ?? '8 م'
+  const peakHourShortEn = peakHour?.labelEn ?? '8 PM'
+  const peakHourSalesKwd = peakHour?.salesKwd ?? 0
+  const peakHourDisplayKwd = peakHour?.displaySalesKwd ?? 0
+  const peakHourOrders = peakHour?.orders ?? 0
+  const peakHourSharePct = peakHour?.sharePct ?? 0
+  const peakHourLabelAr = peakHour
+    ? `${peakHour.labelAr} (${peakHour.displaySalesKwd.toLocaleString('en-US')} د.ك)`
+    : '8 م'
+  const peakHourLabelEn = peakHour
+    ? `${peakHour.labelEn} (${peakHour.displaySalesKwd.toLocaleString('en-US')} KWD)`
+    : '8 PM'
+
+  // Strongest day of week from Odoo daily POS profile
+  const dayNamesAr = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']
+  const dayNamesEn = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+  const dowTotals = [0, 0, 0, 0, 0, 0, 0]
+  const dowCounts = [0, 0, 0, 0, 0, 0, 0]
+  for (const d of fullDays) {
+    const dow = new Date(`${d.day}T12:00:00Z`).getUTCDay()
+    if (dow >= 0 && dow <= 6) {
+      dowTotals[dow] += safeNum(d.netKwd)
+      dowCounts[dow] += 1
+    }
+  }
+  let bestDow = 4 // Thursday default in Kuwait
+  let bestDowAvg = -1
+  for (let i = 0; i < 7; i++) {
+    const avg = dowCounts[i] > 0 ? dowTotals[i] / dowCounts[i] : 0
+    if (avg > bestDowAvg) {
+      bestDowAvg = avg
+      bestDow = i
+    }
+  }
+  const strongestDayLabelAr = dayNamesAr[bestDow] ?? 'الخميس'
+  const strongestDayLabelEn = dayNamesEn[bestDow] ?? 'Thursday'
+
+  // Quiet Window (3:00 PM – 6:00 PM => hours 15, 16, 17)
+  const quietHourRows = hourly.filter(
+    (h) => h.id === 'hr-15' || h.id === 'hr-16' || h.id === 'hr-17',
+  )
+  const quietWindowSalesKwd = round3(quietHourRows.reduce((s, r) => s + r.salesKwd, 0))
+  const quietWindowDisplayKwd = quietHourRows.reduce((s, r) => s + r.displaySalesKwd, 0)
+  const quietWindowOrders = quietHourRows.reduce((s, r) => s + r.orders, 0)
+  const quietWindowSharePct = round1(quietHourRows.reduce((s, r) => s + r.sharePct, 0))
+  // Conservative 12.5% recoverable net sales lift (strictly within 8%–15% CFO realism bound)
+  const quietWindowUpsideKwd =
+    quietWindowSalesKwd > 0 ? Math.max(10, Math.round(quietWindowSalesKwd * 0.125)) : 0
 
   // Sales Timeline points matched to active period
   let timeline: SalesPoint[] = []
@@ -419,27 +598,25 @@ export function computeCoresHubSnapshot(
     timeline = hourly.filter((_, i) => i % 2 === 0 || hourly[i].salesKwd === peakHour?.salesKwd)
   } else if (filters.period === 'week') {
     const last7 = fullDays.slice(-7)
-    const sum7 = last7.reduce((s, d) => s + d.netKwd, 0) || 1
-    const sum7Ord = last7.reduce((s, d) => s + d.orders, 0) || 1
     const dayAr = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']
     const dayEn = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-    timeline = last7.map((d) => {
-      const dow = new Date(`${d.day}T12:00:00Z`).getUTCDay()
-      const sKwd = round1(ws.salesKwd * (d.netKwd / sum7))
-      const ord = Math.max(0, Math.round(ws.orders * (d.orders / sum7Ord)))
-      return {
-        id: d.day,
-        labelAr: dayAr[dow] ?? d.day.slice(5),
-        labelEn: dayEn[dow] ?? d.day.slice(5),
-        tooltipTitleAr: `${dayAr[dow]} (${d.day})`,
-        tooltipTitleEn: `${dayEn[dow]} (${d.day})`,
-        salesKwd: sKwd,
-        orders: ord,
-        aovKwd: ord > 0 ? round2(sKwd / ord) : ws.aovKwd,
-        sharePct: ws.salesKwd > 0 ? round1((sKwd / ws.salesKwd) * 100) : 0,
-        color: dow === 4 || dow === 5 ? '#10B981' : '#475569',
-      }
-    })
+    timeline = reconcileSalesRows(
+      last7.map((d) => {
+        const dow = new Date(`${d.day}T12:00:00Z`).getUTCDay()
+        return {
+          id: d.day,
+          labelAr: dayAr[dow] ?? d.day.slice(5),
+          labelEn: dayEn[dow] ?? d.day.slice(5),
+          tooltipTitleAr: `${dayAr[dow]} (${d.day})`,
+          tooltipTitleEn: `${dayEn[dow]} (${d.day})`,
+          rawSales: safeNum(d.netKwd),
+          rawOrders: safeNum(d.orders),
+          color: dow === 4 || dow === 5 ? '#10B981' : '#38BDF8',
+        }
+      }),
+      ws.salesKwd,
+      ws.orders,
+    )
   } else if (filters.period === 'month') {
     const recent14 = fullDays.slice(-14)
     const sum30 = fullDays.reduce((s, d) => s + d.netKwd, 0) || 1
@@ -455,10 +632,11 @@ export function computeCoresHubSnapshot(
         tooltipTitleAr: `تاريخ ${d.day}`,
         tooltipTitleEn: `Date ${d.day}`,
         salesKwd: sKwd,
+        displaySalesKwd: Math.round(sKwd),
         orders: ord,
         aovKwd: ord > 0 ? round2(sKwd / ord) : ws.aovKwd,
         sharePct: ws.salesKwd > 0 ? round1((sKwd / ws.salesKwd) * 100) : 0,
-        color: dow === 4 || dow === 5 ? '#10B981' : '#475569',
+        color: dow === 4 || dow === 5 ? '#10B981' : '#38BDF8',
       }
     })
   } else {
@@ -475,83 +653,178 @@ export function computeCoresHubSnapshot(
       { id: 'm10', ar: 'أكتوبر', en: 'Oct', w: 0.106 },
       { id: 'm11', ar: 'نوفمبر', en: 'Nov', w: 0.078 },
     ]
-    timeline = months.map((m) => {
-      const sKwd = round1(ws.salesKwd * m.w)
-      const ord = Math.max(1, Math.round(ws.orders * m.w))
-      return {
+    timeline = reconcileSalesRows(
+      months.map((m) => ({
         id: m.id,
         labelAr: m.ar,
         labelEn: m.en,
         tooltipTitleAr: `${m.ar} 2026`,
         tooltipTitleEn: `${m.en} 2026`,
-        salesKwd: sKwd,
-        orders: ord,
-        aovKwd: ord > 0 ? round2(sKwd / ord) : ws.aovKwd,
-        sharePct: round1(m.w * 100),
-        color: m.id === 'm10' || m.id === 'm2' ? '#10B981' : '#475569',
-      }
-    })
+        rawSales: m.w,
+        rawOrders: m.w,
+        color: m.id === 'm10' || m.id === 'm2' ? '#10B981' : '#38BDF8',
+      })),
+      ws.salesKwd,
+      ws.orders,
+    )
   }
 
-  const brandRawRows = APPROVED_BRAND_IDS.map((bid) => {
+  // Reconcile 6 Approved Brands strictly to ws.salesKwd & ws.orders (0.000 KWD gap)
+  const brandSpecs: RawSalesRowSpec[] = APPROVED_BRAND_IDS.map((bid) => {
+    if (filters.brand !== 'all') {
+      const isSelected = filters.brand === bid
+      return {
+        id: bid,
+        labelAr: getBrandLabel(bid, true),
+        labelEn: getBrandLabel(bid, false),
+        tooltipTitleAr: getBrandLabel(bid, true),
+        tooltipTitleEn: getBrandLabel(bid, false),
+        rawSales: isSelected ? Math.max(0.001, ws.salesKwd) : 0,
+        rawOrders: isSelected ? Math.max(1, ws.orders) : 0,
+        color: BRAND_COLORS[bid],
+      }
+    }
     const sub = computeGlobalWorkspace({ ...filters, brand: bid }, liveSummary)
-    return { bid, salesKwd: sub.salesKwd, orders: sub.orders, aovKwd: sub.aovKwd }
+    return {
+      id: bid,
+      labelAr: getBrandLabel(bid, true),
+      labelEn: getBrandLabel(bid, false),
+      tooltipTitleAr: getBrandLabel(bid, true),
+      tooltipTitleEn: getBrandLabel(bid, false),
+      rawSales: sub.salesKwd,
+      rawOrders: sub.orders,
+      color: BRAND_COLORS[bid],
+    }
   })
-  const sumBrands = brandRawRows.reduce((s, r) => s + r.salesKwd, 0) || 1
-  const brandShare: SalesPoint[] = brandRawRows
-    .map((r) => ({
-      id: r.bid,
-      labelAr: getBrandLabel(r.bid, true),
-      labelEn: getBrandLabel(r.bid, false),
-      tooltipTitleAr: getBrandLabel(r.bid, true),
-      tooltipTitleEn: getBrandLabel(r.bid, false),
-      salesKwd: r.salesKwd,
-      orders: r.orders,
-      aovKwd: r.aovKwd,
-      sharePct: round1((r.salesKwd / sumBrands) * 100),
-      color: BRAND_COLORS[r.bid],
-    }))
-    .sort((a, b) => b.salesKwd - a.salesKwd)
+  const brandShare: SalesPoint[] = reconcileSalesRows(brandSpecs, ws.salesKwd, ws.orders).sort(
+    (a, b) => b.salesKwd - a.salesKwd,
+  )
 
-  const branchRawRows = APPROVED_BRANCH_IDS.map((lid) => {
+  // Reconcile 7 Active Branches strictly to ws.salesKwd & ws.orders (0.000 KWD gap)
+  const branchSpecs: RawSalesRowSpec[] = APPROVED_BRANCH_IDS.map((lid) => {
+    if (filters.branch !== 'all') {
+      const isSelected = filters.branch === lid
+      return {
+        id: lid,
+        labelAr: getBranchLabel(lid, true),
+        labelEn: getBranchLabel(lid, false),
+        tooltipTitleAr: `فرع ${getBranchLabel(lid, true)}`,
+        tooltipTitleEn: `${getBranchLabel(lid, false)} Branch`,
+        rawSales: isSelected ? Math.max(0.001, ws.salesKwd) : 0,
+        rawOrders: isSelected ? Math.max(1, ws.orders) : 0,
+        color: '#0EA5E9',
+      }
+    }
     const sub = computeGlobalWorkspace({ ...filters, branch: lid }, liveSummary)
-    return { lid, salesKwd: sub.salesKwd, orders: sub.orders, aovKwd: sub.aovKwd }
+    return {
+      id: lid,
+      labelAr: getBranchLabel(lid, true),
+      labelEn: getBranchLabel(lid, false),
+      tooltipTitleAr: `فرع ${getBranchLabel(lid, true)}`,
+      tooltipTitleEn: `${getBranchLabel(lid, false)} Branch`,
+      rawSales: sub.salesKwd,
+      rawOrders: sub.orders,
+      color: '#0EA5E9',
+    }
   })
-  const sumBranches = branchRawRows.reduce((s, r) => s + r.salesKwd, 0) || 1
-  const branchRanking: SalesPoint[] = branchRawRows
-    .map((r) => ({
-      id: r.lid,
-      labelAr: getBranchLabel(r.lid, true),
-      labelEn: getBranchLabel(r.lid, false),
-      tooltipTitleAr: `فرع ${getBranchLabel(r.lid, true)}`,
-      tooltipTitleEn: `${getBranchLabel(r.lid, false)} Branch`,
-      salesKwd: r.salesKwd,
-      orders: r.orders,
-      aovKwd: r.aovKwd,
-      sharePct: round1((r.salesKwd / sumBranches) * 100),
-      color: '#475569',
-    }))
-    .sort((a, b) => b.salesKwd - a.salesKwd)
+  const branchRanking: SalesPoint[] = reconcileSalesRows(branchSpecs, ws.salesKwd, ws.orders).sort(
+    (a, b) => b.salesKwd - a.salesKwd,
+  )
 
-  const channelRawRows = APPROVED_CHANNEL_IDS.map((cid) => {
+  // Reconcile 8 Approved Sales Channels strictly to ws.salesKwd & ws.orders (0.000 KWD gap)
+  const channelPrelim = APPROVED_CHANNEL_IDS.map((cid) => {
+    if (filters.channel !== 'all') {
+      const isSelected = filters.channel === cid
+      return {
+        cid,
+        rawSales: isSelected ? Math.max(0.001, ws.salesKwd) : 0,
+        rawOrders: isSelected ? Math.max(1, ws.orders) : 0,
+      }
+    }
     const sub = computeGlobalWorkspace({ ...filters, channel: cid }, liveSummary)
-    return { cid, salesKwd: sub.salesKwd, orders: sub.orders, aovKwd: sub.aovKwd }
+    return { cid, rawSales: sub.salesKwd, rawOrders: sub.orders }
   })
-  const sumChannels = channelRawRows.reduce((s, r) => s + r.salesKwd, 0) || 1
-  const channelRanking: SalesPoint[] = channelRawRows
-    .map((r) => ({
-      id: r.cid,
-      labelAr: getChannelLabel(r.cid, true),
-      labelEn: getChannelLabel(r.cid, false),
-      tooltipTitleAr: getChannelLabel(r.cid, true),
-      tooltipTitleEn: getChannelLabel(r.cid, false),
-      salesKwd: r.salesKwd,
-      orders: r.orders,
-      aovKwd: r.aovKwd,
-      sharePct: round1((r.salesKwd / sumChannels) * 100),
-      color: r.cid === 'dine-in' || r.cid === 'takeaway-direct' ? '#10B981' : '#475569',
-    }))
-    .sort((a, b) => b.salesKwd - a.salesKwd)
+
+  // Fold any unmapped POS/split-tender bucket residual into direct POS before reconciliation
+  if (filters.channel === 'all') {
+    const rawChSum = channelPrelim.reduce((s, r) => s + r.rawSales, 0)
+    const missingPosGap = ws.salesKwd - rawChSum
+    if (missingPosGap > 0.5) {
+      const dineRow = channelPrelim.find((r) => r.cid === 'dine-in')
+      const takeRow = channelPrelim.find((r) => r.cid === 'takeaway-direct')
+      const estGapOrders = ws.aovKwd > 0 ? missingPosGap / ws.aovKwd : missingPosGap / 5.2
+      if (filters.branch === 'ardiya') {
+        if (takeRow) {
+          takeRow.rawSales += missingPosGap
+          takeRow.rawOrders += estGapOrders
+        }
+      } else {
+        if (dineRow) {
+          dineRow.rawSales += missingPosGap * 0.9
+          dineRow.rawOrders += estGapOrders * 0.9
+        }
+        if (takeRow) {
+          takeRow.rawSales += missingPosGap * 0.1
+          takeRow.rawOrders += estGapOrders * 0.1
+        }
+      }
+    }
+  }
+
+  const channelSpecs: RawSalesRowSpec[] = channelPrelim.map((r) => ({
+    id: r.cid,
+    labelAr: getChannelLabel(r.cid, true),
+    labelEn: getChannelLabel(r.cid, false),
+    tooltipTitleAr: getChannelLabel(r.cid, true),
+    tooltipTitleEn: getChannelLabel(r.cid, false),
+    rawSales: r.rawSales,
+    rawOrders: r.rawOrders,
+    color: r.cid === 'dine-in' || r.cid === 'takeaway-direct' ? '#10B981' : '#0EA5E9',
+  }))
+  const channelRanking: SalesPoint[] = reconcileSalesRows(
+    channelSpecs,
+    ws.salesKwd,
+    ws.orders,
+  ).sort((a, b) => b.salesKwd - a.salesKwd)
+
+  // 0%-Fee Direct (Dine-In + Takeaway/Direct) vs Delivery Aggregators Mix & Weighted Net Margins
+  const zeroCommRows = channelRanking.filter(
+    (c) => c.id === 'dine-in' || c.id === 'takeaway-direct',
+  )
+  const aggregatorRows = channelRanking.filter(
+    (c) => c.id !== 'dine-in' && c.id !== 'takeaway-direct',
+  )
+  const zeroCommSalesKwd = round3(zeroCommRows.reduce((s, r) => s + r.salesKwd, 0))
+  const zeroCommDisplayKwd = zeroCommRows.reduce((s, r) => s + r.displaySalesKwd, 0)
+  const zeroCommOrders = zeroCommRows.reduce((s, r) => s + r.orders, 0)
+  const aggregatorSalesKwd = round3(aggregatorRows.reduce((s, r) => s + r.salesKwd, 0))
+  const aggregatorDisplayKwd = aggregatorRows.reduce((s, r) => s + r.displaySalesKwd, 0)
+  const aggregatorOrders = aggregatorRows.reduce((s, r) => s + r.orders, 0)
+
+  const mixTenths = largestRemainderInts(
+    [zeroCommSalesKwd, aggregatorSalesKwd],
+    ws.salesKwd > 0 ? 1000 : 0,
+  )
+  const zeroCommSharePct = mixTenths[0] / 10
+  const aggregatorSharePct = mixTenths[1] / 10
+
+  const directMarginStats = computeWeightedCellMargin(
+    (b, l, c) =>
+      (filters.brand === 'all' || b === filters.brand) &&
+      (filters.branch === 'all' || l === filters.branch) &&
+      (c === 'dine-in' || c === 'takeaway-direct'),
+  )
+  const aggMarginStats = computeWeightedCellMargin(
+    (b, l, c) =>
+      (filters.brand === 'all' || b === filters.brand) &&
+      (filters.branch === 'all' || l === filters.branch) &&
+      c !== 'dine-in' &&
+      c !== 'takeaway-direct',
+  )
+  const directNetMarginPct =
+    directMarginStats.salesKwd > 0 ? directMarginStats.weightedNetPct : 39.4
+  const aggregatorNetMarginPct =
+    aggMarginStats.salesKwd > 0 ? aggMarginStats.weightedNetPct : 21.8
 
   // =========================================================================
   // 3. MARKETING IMPACT, SOCIAL/INFLUENCER HALO & 6 KUWAIT GROWTH ENGINES
@@ -1032,7 +1305,9 @@ export function computeCoresHubSnapshot(
       platformEn: 'Talabat',
       rating: 4.6,
       targetRating: 4.8,
-      orders: channelRanking.find((c) => c.id === 'talabat-tgo')?.orders ?? 0,
+      orders:
+        (channelRanking.find((c) => c.id === 'talabat-tgo')?.orders ?? 0) +
+        (channelRanking.find((c) => c.id === 'talabat-tmp')?.orders ?? 0),
       issueAr: 'نقص صوص إضافي أو تأخر تحضير وقت ذروة العشاء',
       issueEn: 'Missing extra sauce or dinner-peak prep delay',
       stepAr: 'وضع قائمة فحص من ٣ نقاط عند خط التغليف + كرت اعتذار وهدية بسيطة لأي طلب تأخر.',
@@ -1104,8 +1379,31 @@ export function computeCoresHubSnapshot(
     sales: {
       peakHourLabelAr,
       peakHourLabelEn,
+      peakHourShortAr,
+      peakHourShortEn,
+      peakHourSalesKwd,
+      peakHourDisplayKwd,
+      peakHourOrders,
+      peakHourSharePct,
+      strongestDayLabelAr,
+      strongestDayLabelEn,
       quietWindowAr: '٣:٠٠ م – ٦:٠٠ م',
       quietWindowEn: '3:00 PM – 6:00 PM',
+      quietWindowSalesKwd,
+      quietWindowDisplayKwd,
+      quietWindowOrders,
+      quietWindowSharePct,
+      quietWindowUpsideKwd,
+      zeroCommSalesKwd,
+      zeroCommDisplayKwd,
+      zeroCommSharePct,
+      zeroCommOrders,
+      aggregatorSalesKwd,
+      aggregatorDisplayKwd,
+      aggregatorSharePct,
+      aggregatorOrders,
+      directNetMarginPct,
+      aggregatorNetMarginPct,
       timeline,
       hourly,
       brandShare,

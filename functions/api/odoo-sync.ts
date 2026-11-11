@@ -59,7 +59,8 @@ export async function onRequestGet({ request, env }: PagesContext): Promise<Resp
   try {
     const live = await fetchLiveOdooSummary(env, periodWindowForBucket(bucket), 25_000, bucket)
     const snapSummary = summaryFromSnapshot(snapshot, undefined, bucket)
-    return json({ ...live, ...(snapSummary.buckets ? { buckets: snapSummary.buckets } : {}) })
+    const mergedBuckets = snapSummary.buckets || live.buckets ? { ...(snapSummary.buckets ?? {}), ...(live.buckets ?? {}) } : undefined
+    return json({ ...live, ...(mergedBuckets ? { buckets: mergedBuckets } : {}) })
   } catch (error) {
     const reason = error instanceof Error ? error.message : 'unknown error'
     return json(summaryFromSnapshot(snapshot, `Live Odoo pull failed (${reason}); showing the last synced snapshot.`, bucket))

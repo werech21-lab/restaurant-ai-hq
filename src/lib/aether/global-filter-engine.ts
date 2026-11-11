@@ -357,7 +357,7 @@ const CUBE30: Cube30Data = (() => {
     else if (chStr === 'jahez') addCell(b, loc, 'jahez', net)
     else if (chStr === 'snoonu') addCell(b, loc, 'snoonu', net)
     else if (chStr === 'online-link' || chStr === 'cod') addCell(b, loc, 'takeaway-direct', net)
-    else if (chStr === 'shop') {
+    else {
       const hr = hallShareOfShop[loc] ?? (loc === 'ardiya' ? 0 : 0.9)
       addCell(b, loc, 'dine-in', net * hr)
       addCell(b, loc, 'takeaway-direct', net * (1 - hr))
