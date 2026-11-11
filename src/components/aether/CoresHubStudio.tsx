@@ -4,8 +4,11 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
   ArrowUpRight,
+  Calculator,
   Check,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Copy,
   Edit3,
   Megaphone,
@@ -16,6 +19,7 @@ import {
   Trash2,
   TrendingUp,
   UtensilsCrossed,
+  X,
 } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
@@ -41,7 +45,9 @@ import {
 } from '@/lib/aether/social-campaigns'
 import {
   computeCoresHubSnapshot,
+  simulateDishPriceAndCost,
   type DishSimpleTag,
+  type MenuDishRow,
   type SalesPoint,
 } from '@/lib/aether/cores-hub-engine'
 import {
@@ -55,7 +61,9 @@ import {
 import { SlidingPillTabs } from '@/components/ui/SlidingPillTabs'
 
 type CoreTabId = 'marketing' | 'sales' | 'menu' | 'quality'
-type MenuSortKey = 'profit' | 'units' | 'sales'
+type MenuSortKey = 'profit' | 'units' | 'sales' | 'costPct'
+type MenuPageSize = 12 | 25 | 'all'
+type MenuRankView = 'split' | 'heroes' | 'bleeders'
 
 const f0 = (n: number) => Math.round(Number.isFinite(n) ? n : 0).toLocaleString('en-US')
 const f1 = (n: number) =>
@@ -68,6 +76,15 @@ const f2 = (n: number) =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })
+const f3 = (n: number) =>
+  (Number.isFinite(n) ? n : 0).toLocaleString('en-US', {
+    minimumFractionDigits: 3,
+    maximumFractionDigits: 3,
+  })
+const fArInt = (n: number) =>
+  Math.max(0, Math.round(Number.isFinite(n) ? n : 0))
+    .toString()
+    .replace(/\d/g, (d) => '٠١٢٣٤٥٦٧٨٩'[Number(d)] ?? d)
 
 const CARD_CLS =
   'ae-bento-card bg-white p-5 sm:p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-[#111A22]'
@@ -91,16 +108,46 @@ const CORE_TABS: readonly {
 }[] = [
   { id: 'marketing', ar: 'التسويق ونمو المبيعات', en: 'Marketing & Growth', icon: Megaphone },
   { id: 'sales', ar: 'المبيعات', en: 'Sales', icon: TrendingUp },
-  { id: 'menu', ar: 'المنتجات والأصناف', en: 'Products & Menu', icon: UtensilsCrossed },
+  { id: 'menu', ar: 'المنتجات والمينيو', en: 'Products & Menu', icon: UtensilsCrossed },
   { id: 'quality', ar: 'التقييم والجودة', en: 'Ratings & Quality', icon: Star },
 ] as const
 
-const TAG_FILTERS: readonly { id: 'all' | DishSimpleTag; ar: string; en: string }[] = [
-  { id: 'all', ar: 'الكل', en: 'All Dishes' },
-  { id: 'golden', ar: 'صنف ذهبي ⭐', en: 'Golden Star ⭐' },
-  { id: 'reprice', ar: 'يحتاج تعديل سعر 💡', en: 'Needs Price Tweak 💡' },
-  { id: 'box-gem', ar: 'ممتاز للبوكسات 🍱', en: 'Great for Boxes 🍱' },
-  { id: 'slow', ar: 'ضعيف الحركة ⚠️', en: 'Slow Mover ⚠️' },
+const TAG_FILTERS: readonly {
+  id: 'all' | DishSimpleTag
+  ar: string
+  en: string
+  subAr: string
+  subEn: string
+}[] = [
+  { id: 'all', ar: 'الكل', en: 'All', subAr: 'كل الأصناف', subEn: 'All menu items' },
+  {
+    id: 'golden',
+    ar: 'أبطال الربح ⭐',
+    en: 'Profit Heroes ⭐',
+    subAr: 'مبيعات عالية + هامش عالٍ',
+    subEn: 'High Sales + High Margin',
+  },
+  {
+    id: 'reprice',
+    ar: 'شعبي بربح ضعيف 🐎',
+    en: 'Plowhorses 🐎',
+    subAr: 'مبيعات عالية + هامش ضعيف',
+    subEn: 'High Sales + Low Margin',
+  },
+  {
+    id: 'box-gem',
+    ar: 'كنوز مخفية 💎',
+    en: 'Hidden Gems 💎',
+    subAr: 'هامش عالٍ + طلب منخفض',
+    subEn: 'High Margin + Low Volume',
+  },
+  {
+    id: 'slow',
+    ar: 'يحتاج مراجعة ⚠️',
+    en: 'Needs Review ⚠️',
+    subAr: 'مبيعات ضعيفة + هامش ضعيف',
+    subEn: 'Low Sales + Low Margin',
+  },
 ] as const
 
 export function CoresHubStudio() {
@@ -125,10 +172,21 @@ export function CoresHubStudio() {
   const [formDate, setFormDate] = useState('2026-10-29')
   const [formItem, setFormItem] = useState('')
 
-  // Menu tab local filters
+  // Menu tab local filters, pagination (default 12 rows), ranking view & Price/Cost Simulator Drawer
   const [dishTagFilter, setDishTagFilter] = useState<'all' | DishSimpleTag>('all')
   const [dishSearch, setDishSearch] = useState('')
   const [dishSort, setDishSort] = useState<MenuSortKey>('profit')
+  const [menuPageSize, setMenuPageSize] = useState<MenuPageSize>(12)
+  const [menuPage, setMenuPage] = useState(1)
+  const [menuRankView, setMenuRankView] = useState<MenuRankView>('split')
+  const [selectedDish, setSelectedDish] = useState<MenuDishRow | null>(null)
+  const [simDeltaPrice, setSimDeltaPrice] = useState(0.1)
+  const [simCostSavePct, setSimCostSavePct] = useState(0)
+  const [simRetentionPct, setSimRetentionPct] = useState(95)
+  const [simPromoLiftPct, setSimPromoLiftPct] = useState(0)
+
+  // Quality tab pagination (12 rows max)
+  const [qualityPage, setQualityPage] = useState(1)
 
   // Hydrate real saved Venture Foods campaigns (zero unmarked demo campaigns mixed in) + optional URL ?tab=
   useEffect(() => {
@@ -444,6 +502,35 @@ export function CoresHubStudio() {
     [isAr, kwdSuffix],
   )
 
+  const openDishSimulator = useCallback((dish: MenuDishRow) => {
+    setSelectedDish(dish)
+    setSimDeltaPrice(
+      dish.recommendedDeltaPriceKwd > 0 ? dish.recommendedDeltaPriceKwd : 0.1,
+    )
+    setSimCostSavePct(dish.recommendedCostSavePct)
+    setSimRetentionPct(95)
+    setSimPromoLiftPct(dish.recommendedPromoLiftPct)
+  }, [])
+
+  // Reset Menu & Quality pagination to Page 1 whenever search, quadrant, sort, or global filter changes
+  useEffect(() => {
+    setMenuPage(1)
+  }, [dishTagFilter, dishSearch, dishSort, menuPageSize, filters])
+
+  useEffect(() => {
+    setQualityPage(1)
+  }, [filters])
+
+  // Close Price & Cost Simulator Drawer on Escape key
+  useEffect(() => {
+    if (!selectedDish) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSelectedDish(null)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [selectedDish])
+
   const filteredDishes = useMemo(() => {
     const q = dishSearch.trim().toLowerCase()
     return snap.menu.dishes
@@ -462,56 +549,67 @@ export function CoresHubStudio() {
       .sort((a, b) => {
         if (dishSort === 'units') return b.unitsSold - a.unitsSold
         if (dishSort === 'sales') return b.salesKwd - a.salesKwd
+        if (dishSort === 'costPct') return b.foodCostPct - a.foodCostPct || b.costGapPct - a.costGapPct
         return b.netProfitKwd - a.netProfitKwd
       })
   }, [snap.menu.dishes, dishTagFilter, dishSearch, dishSort])
 
-  const menuChartData = useMemo<MultiSeriesBarDatum[]>(() => {
-    return filteredDishes.slice(0, 12).map((d) => ({
-      id: d.id,
-      label: d.name.length > 13 ? `${d.name.slice(0, 12)}…` : d.name,
-      tooltipTitle: `${d.name} · ${isAr ? d.brandAr : d.brandEn}`,
-      primaryValue: d.netProfitKwd,
-      secondaryValue: d.costKwd,
-      primaryColor: '#10B981',
-      secondaryColor: '#CBD5E1',
-      badgeText: isAr ? d.tagAr : d.tagEn,
-      badgeTone:
-        d.tag === 'golden'
-          ? 'emerald'
-          : d.tag === 'reprice'
-            ? 'amber'
-            : d.tag === 'slow'
-              ? 'rose'
-              : 'neutral',
-      lines: [
-        {
-          label: isAr ? 'الكمية المباعة:' : 'Units Sold:',
-          value: `${f0(d.unitsSold)} ${isAr ? 'طبق' : 'units'}`,
-          bold: true,
-        },
-        {
-          label: isAr ? 'المبيعات:' : 'Sales:',
-          value: `${f1(d.salesKwd)} ${kwdSuffix}`,
-        },
-        {
-          label: isAr ? 'التكلفة:' : 'Food Cost:',
-          value: `${f1(d.costKwd)} ${kwdSuffix}`,
-          tone: 'amber',
-        },
-        {
-          label: isAr ? 'الربح الصافي:' : 'Net Profit:',
-          value: `${f1(d.netProfitKwd)} ${kwdSuffix}`,
-          tone: 'emerald',
-          bold: true,
-        },
-        {
-          label: isAr ? 'سعر البيع / التكلفة:' : 'Unit Price / Cost:',
-          value: `${f2(d.unitPriceKwd)} / ${f2(d.unitCostKwd)} ${kwdSuffix}`,
-        },
-      ],
-    }))
-  }, [filteredDishes, isAr, kwdSuffix])
+  const menuTotalPages = useMemo(() => {
+    if (menuPageSize === 'all') return 1
+    return Math.max(1, Math.ceil(filteredDishes.length / menuPageSize))
+  }, [filteredDishes.length, menuPageSize])
+
+  const safeMenuPage = Math.min(menuPage, menuTotalPages)
+  const paginatedDishes = useMemo(() => {
+    if (menuPageSize === 'all') return filteredDishes
+    const start = (safeMenuPage - 1) * menuPageSize
+    return filteredDishes.slice(start, start + menuPageSize)
+  }, [filteredDishes, menuPageSize, safeMenuPage])
+
+  const menuStartRow =
+    filteredDishes.length === 0
+      ? 0
+      : menuPageSize === 'all'
+        ? 1
+        : (safeMenuPage - 1) * menuPageSize + 1
+  const menuEndRow =
+    filteredDishes.length === 0
+      ? 0
+      : menuPageSize === 'all'
+        ? filteredDishes.length
+        : Math.min(filteredDishes.length, safeMenuPage * menuPageSize)
+
+  const simResult = useMemo(() => {
+    if (!selectedDish) return null
+    return simulateDishPriceAndCost({
+      monthlyUnitsSold: selectedDish.monthlyUnitsSold,
+      unitPriceKwd: selectedDish.unitPriceKwd,
+      unitCostKwd: selectedDish.unitCostKwd,
+      deltaPriceKwd: simDeltaPrice,
+      costSavePct: simCostSavePct,
+      retentionPct: simRetentionPct,
+      promoLiftPct: simPromoLiftPct,
+      channelFeePct: snap.menu.effectiveChannelFeePct,
+    })
+  }, [
+    selectedDish,
+    simDeltaPrice,
+    simCostSavePct,
+    simRetentionPct,
+    simPromoLiftPct,
+    snap.menu.effectiveChannelFeePct,
+  ])
+
+  const qualityPageSize = 12
+  const qualityTotalPages = Math.max(
+    1,
+    Math.ceil(snap.quality.branchQuality.length / qualityPageSize),
+  )
+  const safeQualityPage = Math.min(qualityPage, qualityTotalPages)
+  const paginatedQualityRows = useMemo(() => {
+    const start = (safeQualityPage - 1) * qualityPageSize
+    return snap.quality.branchQuality.slice(start, start + qualityPageSize)
+  }, [snap.quality.branchQuality, safeQualityPage])
 
   const qualityChartData = useMemo<MultiSeriesBarDatum[]>(() => {
     return snap.quality.branchQuality.map((b) => ({
@@ -605,16 +703,48 @@ export function CoresHubStudio() {
   }, [isAr, kwdSuffix, snap.sales])
 
   const menuTagDonutSlices = useMemo<DonutSliceDatum[]>(() => {
-    const groups: { id: DishSimpleTag; ar: string; en: string; color: string }[] = [
-      { id: 'golden', ar: 'أصناف ذهبية ⭐', en: 'Golden Stars ⭐', color: '#10B981' },
-      { id: 'box-gem', ar: 'ممتازة للبوكسات 🍱', en: 'Box Gems 🍱', color: '#0EA5E9' },
-      { id: 'reprice', ar: 'تحتاج تعديل سعر 💡', en: 'Price Tweaks 💡', color: '#F59E0B' },
-      { id: 'slow', ar: 'ضعيفة الحركة ⚠️', en: 'Slow Movers ⚠️', color: '#64748B' },
+    const groups: {
+      id: DishSimpleTag
+      ar: string
+      en: string
+      subAr: string
+      subEn: string
+      color: string
+    }[] = [
+      {
+        id: 'golden',
+        ar: 'أبطال الربح ⭐',
+        en: 'Profit Heroes ⭐',
+        subAr: 'ثبّت بالصدارة',
+        subEn: 'High Sales + High Margin',
+        color: '#10B981',
+      },
+      {
+        id: 'reprice',
+        ar: 'شعبي بربح ضعيف 🐎',
+        en: 'Plowhorses 🐎',
+        subAr: 'ارفع +١٠٠ فلس / كومبو',
+        subEn: 'High Sales + Low Margin',
+        color: '#F59E0B',
+      },
+      {
+        id: 'box-gem',
+        ar: 'كنوز مخفية 💎',
+        en: 'Hidden Gems 💎',
+        subAr: 'أبرزه بالتطبيقات',
+        subEn: 'High Margin + Low Volume',
+        color: '#0EA5E9',
+      },
+      {
+        id: 'slow',
+        ar: 'يحتاج مراجعة ⚠️',
+        en: 'Needs Review ⚠️',
+        subAr: 'راجع الوصفة',
+        subEn: 'Low Sales + Low Margin',
+        color: '#94A3B8',
+      },
     ]
-    const totalProfit = Math.max(
-      1,
-      snap.menu.dishes.reduce((acc, d) => acc + Math.max(0, d.netProfitKwd), 0),
-    )
+    const totalProfit = Math.max(1, snap.menu.totalNetProfitKwd)
     return groups.map((g) => {
       const val = snap.menu.dishes
         .filter((d) => d.tag === g.id)
@@ -622,13 +752,14 @@ export function CoresHubStudio() {
       return {
         id: g.id,
         label: isAr ? g.ar : g.en,
+        subLabel: isAr ? g.subAr : g.subEn,
         value: val,
         valueFormatted: `${f0(val)} ${kwdSuffix}`,
         pctFormatted: `${f1((val / totalProfit) * 100)}%`,
         color: g.color,
       }
     })
-  }, [isAr, kwdSuffix, snap.menu.dishes])
+  }, [isAr, kwdSuffix, snap.menu.dishes, snap.menu.totalNetProfitKwd])
 
   const qualityPlatformDonutSlices = useMemo<DonutSliceDatum[]>(() => {
     const palette = ['#10B981', '#0EA5E9', '#F59E0B', '#64748B']
@@ -646,6 +777,25 @@ export function CoresHubStudio() {
       color: palette[i % palette.length],
     }))
   }, [isAr, snap.quality.platformRatings])
+
+  const formatDishSimWhatsapp = useCallback(
+    (dish: MenuDishRow) => {
+      if (!simResult) return ''
+      const deltaFils = Math.round(simDeltaPrice * 1000)
+      if (!isAr) {
+        return `*Menu Pricing & Recipe Action — ${dish.brandEn}*\n• Dish: ${dish.name} (${dish.tagEn})\n• Price Change: ${f2(dish.unitPriceKwd)} -> ${f2(simResult.newPriceKwd)} KWD (${deltaFils >= 0 ? `+${deltaFils}` : deltaFils} fils)\n• Ardiya Recipe Saving: -${simCostSavePct}% (Cost ${f2(dish.unitCostKwd)} -> ${f2(simResult.newUnitCostKwd)} KWD)\n• Assumptions: ${simRetentionPct}% volume retention, ${f1(snap.menu.effectiveChannelFeePct)}% app fee\n• Conservative Monthly Net Gain: ${simResult.monthlyNetGainKwd >= 0 ? '+' : ''}${f0(simResult.monthlyNetGainKwd)} KWD / mo`
+      }
+      return `*قرار تسعير وهندسة صنف — ${dish.brandAr}*\n• الطبق: ${dish.name} (${dish.tagAr})\n• تعديل السعر: ${f2(dish.unitPriceKwd)} ← ${f2(simResult.newPriceKwd)} د.ك (${deltaFils >= 0 ? `+${deltaFils}` : deltaFils} فلس)\n• ضبط وصفة العارضية: -${simCostSavePct}% (التكلفة ${f2(dish.unitCostKwd)} ← ${f2(simResult.newUnitCostKwd)} د.ك)\n• افتراض متحفظ: ثبات ${simRetentionPct}% من الكمية بعد خصم عمولة ${f1(snap.menu.effectiveChannelFeePct)}%\n• الربح الصافي الإضافي بالجيب: ${simResult.monthlyNetGainKwd >= 0 ? '+' : ''}${f0(simResult.monthlyNetGainKwd)} د.ك شهرياً`
+    },
+    [
+      isAr,
+      simDeltaPrice,
+      simCostSavePct,
+      simRetentionPct,
+      simResult,
+      snap.menu.effectiveChannelFeePct,
+    ],
+  )
 
   const formatCampaignWhatsapp = (ev: CampaignHaloEvaluation) => {
     if (!isAr) {
@@ -1686,15 +1836,22 @@ export function CoresHubStudio() {
       ) : null}
 
       {/* =====================================================================
-          TAB 3: المنتجات والأصناف (Products & Menu Core)
+          TAB 3: المنتجات والمينيو (Products & Menu Engineering Matrix)
          ===================================================================== */}
       {activeTab === 'menu' ? (
         <div className="space-y-4">
-          {/* 4 Crisp Menu KPIs */}
+          {/* 4 Crisp Non-Redundant Menu KPIs ("One Metric, One Place" — Gross Margin % lives in the Donut) */}
           <section className="ae-stagger grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <article className={`${KPI_CARD_CLS} ae-glow-sky`}>
-              <div className="text-xs font-medium text-neutral-500 dark:text-slate-400">
-                {isAr ? 'الأصناف النشطة' : 'Active Menu Items'}
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-medium text-neutral-500 dark:text-slate-400">
+                  {isAr ? 'الأصناف النشطة' : 'Active Menu Items'}
+                </span>
+                <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-[11px] font-medium tabular-nums text-neutral-700 dark:bg-white/[0.08] dark:text-slate-200">
+                  {isAr
+                    ? `⭐ ${snap.menu.quadrantCounts.golden} · 💎 ${snap.menu.quadrantCounts['box-gem']}`
+                    : `⭐ ${snap.menu.quadrantCounts.golden} · 💎 ${snap.menu.quadrantCounts['box-gem']}`}
+                </span>
               </div>
               <div
                 dir="ltr"
@@ -1703,13 +1860,21 @@ export function CoresHubStudio() {
                 {f0(snap.menu.totalActiveSkus)} {isAr ? 'صنف' : 'items'}
               </div>
               <p className="mt-1 text-xs text-neutral-400">
-                {isAr ? 'مربوطة بوصفات وتكاليف أودو' : 'Linked to Odoo POS & BOM recipes'}
+                {isAr ? 'مربوطة بوصفات العارضية ونقاط البيع' : 'Linked to Ardiya BOM & POS sales'}
               </p>
             </article>
 
             <article className={`${KPI_CARD_CLS} ae-glow-emerald`}>
-              <div className="text-xs font-medium text-neutral-500 dark:text-slate-400">
-                {isAr ? 'الأطباق المباعة' : 'Total Units Sold'}
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-medium text-neutral-500 dark:text-slate-400">
+                  {isAr ? 'الأطباق المباعة' : 'Total Units Sold'}
+                </span>
+                <span
+                  dir="ltr"
+                  className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-[11px] font-medium tabular-nums text-neutral-700 dark:bg-white/[0.08] dark:text-slate-200"
+                >
+                  {f0(snap.menu.totalSalesKwd)} {kwdSuffix}
+                </span>
               </div>
               <div
                 dir="ltr"
@@ -1718,233 +1883,645 @@ export function CoresHubStudio() {
                 {f0(snap.menu.totalUnitsSold)} {isAr ? 'طبق' : 'units'}
               </div>
               <p className="mt-1 text-xs text-neutral-400">
-                {isAr ? 'خلال الفترة والفلاتر المختارة' : 'Across selected period & filters'}
+                {isAr ? 'مطابق ١٠٠٪ لصافي مبيعات أودو' : '100% reconciled to Odoo net sales'}
               </p>
             </article>
 
             <article className={`${KPI_CARD_CLS} ae-glow-emerald`}>
-              <div className="text-xs font-medium text-neutral-500 dark:text-slate-400">
-                {isAr ? 'هامش ربح الأكل' : 'Avg Dish Margin'}
+              <div className="flex items-center justify-between gap-2">
+                <span className="truncate text-xs font-medium text-neutral-500 dark:text-slate-400">
+                  {isAr ? 'فرصة تحسين التسعير والكومبو' : 'Menu Optimization Upside'}
+                </span>
+                <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold tabular-nums text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+                  {isAr ? 'ثبات 95%' : '95% Retention'}
+                </span>
               </div>
               <div
                 dir="ltr"
                 className="mt-2 text-[26px] font-semibold tracking-tight tabular-nums text-emerald-700 dark:text-emerald-400"
               >
-                {snap.menu.avgMarginPct}%
+                +{f0(snap.menu.optimizationUpsideKwd)} {kwdSuffix}
               </div>
               <p className="mt-1 text-xs text-neutral-400">
-                {isAr ? 'بعد خصم تكلفة المواد والتغليف' : 'After BOM food & packaging cost'}
+                {isAr
+                  ? 'صافي متحفظ بعد خصم عمولة التطبيقات'
+                  : 'Conservative net gain after app fees'}
               </p>
             </article>
 
-            <article className={`${KPI_CARD_CLS} ae-glow-amber`}>
-              <div className="text-xs font-medium text-neutral-500 dark:text-slate-400">
-                {isAr ? 'أعلى صنف ربحاً' : 'Top Profit Dish'}
+            <article
+              onClick={() => snap.menu.topProfitDish && openDishSimulator(snap.menu.topProfitDish)}
+              className={`${KPI_CARD_CLS} ae-glow-amber cursor-pointer transition-transform duration-150 hover:scale-[1.005]`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-medium text-neutral-500 dark:text-slate-400">
+                  {isAr ? 'أعلى صنف ربحاً' : 'Top Profit Dish'}
+                </span>
+                {snap.menu.topProfitDish ? (
+                  <span className={SOFT_SCOPE_PILL_CLS}>
+                    {isAr ? snap.menu.topProfitDish.brandAr : snap.menu.topProfitDish.brandEn}
+                  </span>
+                ) : null}
               </div>
-              <div className="mt-2 truncate text-[18px] font-semibold tracking-tight text-neutral-950 dark:text-white">
+              <div className="mt-2 truncate text-[17.5px] font-semibold tracking-tight text-neutral-950 dark:text-white">
                 {snap.menu.topProfitDish?.name ?? '—'}
               </div>
-              <p dir="ltr" className="mt-1 text-xs font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
+              <p
+                dir="ltr"
+                className="mt-1 text-xs font-semibold tabular-nums text-emerald-700 dark:text-emerald-400"
+              >
                 {snap.menu.topProfitDish
-                  ? `+${f0(snap.menu.topProfitDish.netProfitKwd)} ${kwdSuffix}`
+                  ? `+${f0(snap.menu.topProfitDish.netProfitKwd)} ${kwdSuffix} · ${f0(snap.menu.topProfitDish.unitsSold)} ${isAr ? 'طبق' : 'units'}`
                   : '—'}
               </p>
             </article>
           </section>
 
-          {/* Verdelo Sliding Tag Filter Pills + Search */}
-          <section className="flex flex-wrap items-center justify-between gap-3">
-            <SlidingPillTabs<'all' | DishSimpleTag>
-              ariaLabel={isAr ? 'تصنيف الأصناف' : 'Dish Tags'}
-              surface="white"
-              size="sm"
-              value={dishTagFilter}
-              onChange={setDishTagFilter}
-              options={TAG_FILTERS.map((tf) => ({
-                id: tf.id,
-                label: isAr ? tf.ar : tf.en,
-              }))}
-            />
-
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="relative w-56 sm:w-64">
-                <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
-                <input
-                  type="text"
-                  value={dishSearch}
-                  onChange={(e) => setDishSearch(e.target.value)}
-                  placeholder={isAr ? 'ابحث باسم الصنف...' : 'Search dish...'}
-                  className="ae-input ae-input-icon h-9 w-full font-medium"
-                />
-              </div>
-
-              <select
-                value={dishSort}
-                onChange={(e) => setDishSort(e.target.value as MenuSortKey)}
-                className="ae-select h-9"
-              >
-                <option value="profit">{isAr ? 'الأعلى ربحاً' : 'Highest Profit'}</option>
-                <option value="units">{isAr ? 'الأكثر طلباً' : 'Most Units Sold'}</option>
-                <option value="sales">{isAr ? 'الأعلى مبيعات' : 'Highest Sales KWD'}</option>
-              </select>
-            </div>
-          </section>
-
-          {/* Finance V2 Bento Split: 8-Col Dish Profit Capsule Chart + 4-Col Tag Profit Donut */}
+          {/* Bento Split: 8-Col Horizontal Executive Ranking (Heroes vs Margin Bleeders) + 4-Col Green Gross Margin Donut */}
           <section className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+            {/* Left 8-Col: Horizontal Executive Dish Ranking (Zero Truncated Vertical X-Axis Labels!) */}
             <div className={`${CARD_CLS} flex flex-col justify-between lg:col-span-8`}>
-              <div className="mb-4">
-                <h2 className="text-[17px] font-semibold tracking-tight text-neutral-950 dark:text-white">
-                  {isAr
-                    ? 'الربح الصافي مقابل التكلفة لأهم الأصناف'
-                    : 'Dish Net Profit vs Food Cost'}
-                </h2>
-                <p className="mt-0.5 text-xs text-neutral-400">
-                  {isAr
-                    ? 'مرّر الماوس على أي صنف لرؤية الكمية المباعة، المبيعات، التكلفة، والربح الصافي'
-                    : 'Hover any dish capsule to view Units Sold, Sales KWD, Cost KWD & Net Profit'}
-                </p>
+              <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-[17px] font-semibold tracking-tight text-neutral-950 dark:text-white">
+                    {isAr
+                      ? 'ترتيب الأطباق التنفيذي: أبطال الربح مقابل ضعيفة الهامش'
+                      : 'Executive Dish Ranking: Profit Heroes vs Margin Bleeders'}
+                  </h2>
+                  <p className="mt-0.5 text-xs text-neutral-400">
+                    {isAr
+                      ? 'اضغط على أي طبق لفتح حاسبة التسعير وتكلفة العارضية (ثبات ٩٥٪ من الكمية)'
+                      : 'Click any dish to launch the Conservative 95%-Retention Price & Cost Simulator'}
+                  </p>
+                </div>
+
+                {/* Instant View Mode Switcher */}
+                <div className="inline-flex items-center gap-1 rounded-full bg-[#F7F7F8] p-1 dark:bg-white/[0.05]">
+                  {(
+                    [
+                      { id: 'split', ar: 'جنباً إلى جنب', en: 'Side-by-Side' },
+                      { id: 'heroes', ar: 'أبطال الربح 🟢', en: 'Top 8 Heroes 🟢' },
+                      { id: 'bleeders', ar: 'ضعيفة الهامش 🔴', en: 'Top 8 Bleeders 🔴' },
+                    ] as const
+                  ).map((v) => {
+                    const active = menuRankView === v.id
+                    return (
+                      <button
+                        key={v.id}
+                        type="button"
+                        onClick={() => setMenuRankView(v.id)}
+                        className={`cursor-pointer rounded-full px-3 py-1 text-xs font-medium transition-all duration-150 ${
+                          active
+                            ? 'bg-white font-semibold text-neutral-950 shadow-[0_1px_2px_rgba(0,0,0,0.06)] dark:bg-emerald-950/80 dark:text-emerald-200'
+                            : 'text-neutral-500 hover:text-neutral-900 dark:text-slate-400 dark:hover:text-white'
+                        }`}
+                      >
+                        {isAr ? v.ar : v.en}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
 
-              {menuChartData.length > 0 ? (
-                <InteractiveHoverBarChart
-                  data={menuChartData}
-                  isAr={isAr}
-                  primaryLegend={isAr ? 'الربح الصافي (د.ك)' : 'Net Profit (KWD)'}
-                  secondaryLegend={isAr ? 'تكلفة الصنف (د.ك)' : 'Food Cost (KWD)'}
-                  primaryColor="#10B981"
-                  secondaryColor="#CBD5E1"
-                  stacked
-                  heightClass="h-64"
-                />
-              ) : (
-                <p className="py-8 text-center text-xs font-medium text-neutral-400">
-                  {isAr ? 'لا توجد أصناف مطابقة للبحث الحالي.' : 'No dishes match the current filter.'}
-                </p>
-              )}
+              <div
+                className={`grid grid-cols-1 gap-4 ${
+                  menuRankView === 'split' ? 'xl:grid-cols-2' : ''
+                }`}
+              >
+                {/* List 1: Top 8 Profit Heroes */}
+                {menuRankView === 'split' || menuRankView === 'heroes' ? (
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between gap-2 px-1">
+                      <h3 className="text-[14px] font-semibold tracking-tight text-neutral-900 dark:text-white">
+                        {isAr
+                          ? 'أعلى ٨ أطباق تدرّ صافياً بالجيب 🟢'
+                          : 'Top 8 Profit Heroes 🟢'}
+                      </h3>
+                      <span className="text-[11px] font-medium text-neutral-400">
+                        {isAr ? 'الربح الصافي بعد الأكل' : 'Net Dish Profit'}
+                      </span>
+                    </div>
+
+                    {(() => {
+                      const maxHeroProfit = Math.max(
+                        1,
+                        ...snap.menu.topProfitHeroes.map((x) => x.netProfitKwd),
+                      )
+                      return snap.menu.topProfitHeroes.map((d, idx) => {
+                        const widthPct = Math.max(
+                          6,
+                          Math.min(100, (d.netProfitKwd / maxHeroProfit) * 100),
+                        )
+                        return (
+                          <button
+                            key={`hero-${d.id}`}
+                            type="button"
+                            onClick={() => openDishSimulator(d)}
+                            className="ae-bento-subcard group block w-full cursor-pointer rounded-xl bg-[#F7F7F8] p-3 text-start transition-all duration-150 hover:bg-neutral-100 dark:bg-white/[0.04] dark:hover:bg-white/[0.07]"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex min-w-0 items-start gap-2">
+                                <span
+                                  dir="ltr"
+                                  className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-[11px] font-semibold tabular-nums text-emerald-700 dark:text-emerald-300"
+                                >
+                                  {idx + 1}
+                                </span>
+                                <span className="break-words text-[13px] font-semibold leading-snug text-neutral-950 dark:text-white">
+                                  {d.name}
+                                </span>
+                              </div>
+                              <span
+                                dir="ltr"
+                                className="shrink-0 text-[13px] font-semibold tabular-nums text-emerald-700 dark:text-emerald-400"
+                              >
+                                +{f0(d.netProfitKwd)} {kwdSuffix}
+                              </span>
+                            </div>
+
+                            <div className="mt-1.5 flex flex-wrap items-center justify-between gap-1.5 text-[11.5px]">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-medium text-neutral-700 shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:bg-emerald-950/60 dark:text-emerald-200">
+                                  {isAr ? d.brandAr : d.brandEn}
+                                </span>
+                                <span dir="ltr" className="tabular-nums text-neutral-500 dark:text-slate-400">
+                                  {f0(d.unitsSold)} {isAr ? 'طبق' : 'units'}
+                                </span>
+                              </div>
+                              <span
+                                dir="ltr"
+                                className="tabular-nums font-medium text-neutral-500 dark:text-slate-400"
+                              >
+                                {isAr ? 'تكلفة الأكل' : 'Food Cost'} {f1(d.foodCostPct)}%
+                              </span>
+                            </div>
+
+                            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-neutral-200/70 dark:bg-white/[0.08]">
+                              <div
+                                style={{ width: `${widthPct}%` }}
+                                className="h-full rounded-full bg-emerald-500/85 transition-all duration-150"
+                              />
+                            </div>
+                          </button>
+                        )
+                      })
+                    })()}
+                  </div>
+                ) : null}
+
+                {/* List 2: Top 8 Margin Bleeders / Ardiya Cost Creep */}
+                {menuRankView === 'split' || menuRankView === 'bleeders' ? (
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between gap-2 px-1">
+                      <h3 className="text-[14px] font-semibold tracking-tight text-neutral-900 dark:text-white">
+                        {isAr
+                          ? 'أخطر ٨ أطباق عالية التكلفة أو ضعيفة الهامش 🔴'
+                          : 'Top 8 Margin Bleeders / Price Gaps 🔴'}
+                      </h3>
+                      <span className="text-[11px] font-medium text-neutral-400">
+                        {isAr ? 'تضخم وصفة العارضية' : 'Ardiya BOM Creep'}
+                      </span>
+                    </div>
+
+                    {(() => {
+                      const maxFoodPct = Math.max(
+                        45,
+                        ...snap.menu.topMarginBleeders.map((x) => x.foodCostPct),
+                      )
+                      return snap.menu.topMarginBleeders.map((d, idx) => {
+                        const widthPct = Math.max(
+                          12,
+                          Math.min(100, (d.foodCostPct / maxFoodPct) * 100),
+                        )
+                        return (
+                          <button
+                            key={`bleed-${d.id}`}
+                            type="button"
+                            onClick={() => openDishSimulator(d)}
+                            className="ae-bento-subcard group block w-full cursor-pointer rounded-xl bg-[#F7F7F8] p-3 text-start transition-all duration-150 hover:bg-neutral-100 dark:bg-white/[0.04] dark:hover:bg-white/[0.07]"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex min-w-0 items-start gap-2">
+                                <span
+                                  dir="ltr"
+                                  className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-rose-500/15 text-[11px] font-semibold tabular-nums text-rose-700 dark:text-rose-300"
+                                >
+                                  {idx + 1}
+                                </span>
+                                <span className="break-words text-[13px] font-semibold leading-snug text-neutral-950 dark:text-white">
+                                  {d.name}
+                                </span>
+                              </div>
+                              <span
+                                dir="ltr"
+                                className="shrink-0 rounded-full bg-rose-50 px-2 py-0.5 text-[11.5px] font-semibold tabular-nums text-rose-700 dark:bg-rose-950/60 dark:text-rose-300"
+                              >
+                                {isAr ? 'تكلفة' : 'Cost'} {f1(d.foodCostPct)}%
+                              </span>
+                            </div>
+
+                            <div className="mt-1.5 flex flex-wrap items-center justify-between gap-1.5 text-[11.5px]">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-medium text-neutral-700 shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:bg-emerald-950/60 dark:text-emerald-200">
+                                  {isAr ? d.brandAr : d.brandEn}
+                                </span>
+                                <span dir="ltr" className="tabular-nums text-neutral-500 dark:text-slate-400">
+                                  {f0(d.unitsSold)} {isAr ? 'طبق' : 'units'}
+                                </span>
+                                {d.costGapPct > 0 ? (
+                                  <span
+                                    dir="ltr"
+                                    className="font-medium tabular-nums text-amber-700 dark:text-amber-300"
+                                  >
+                                    +{f1(d.costGapPct)}% {isAr ? 'فوق الهدف' : 'over target'}
+                                  </span>
+                                ) : null}
+                              </div>
+                              <span
+                                dir="ltr"
+                                className="tabular-nums font-semibold text-neutral-800 dark:text-slate-200"
+                              >
+                                +{f0(d.netProfitKwd)} {kwdSuffix}
+                              </span>
+                            </div>
+
+                            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-neutral-200/70 dark:bg-white/[0.08]">
+                              <div
+                                style={{ width: `${widthPct}%` }}
+                                className="h-full rounded-full bg-rose-500/80 transition-all duration-150"
+                              />
+                            </div>
+                          </button>
+                        )
+                      })
+                    })()}
+                  </div>
+                ) : null}
+              </div>
             </div>
 
+            {/* Right 4-Col: Green Gross Margin Donut (Single % Inside Ring + Exact KWD Summary Rows Below) */}
             <div className={`${CARD_CLS} flex flex-col justify-between lg:col-span-4`}>
               <div className="mb-3">
                 <h2 className="text-[17px] font-semibold tracking-tight text-neutral-950 dark:text-white">
-                  {isAr ? 'توزيعة ربح المينيو' : 'Menu Profit Split'}
+                  {isAr ? 'هامش الأطباق وتوزيعة الربح' : 'Gross Margin & Profit Mix'}
                 </h2>
                 <p className="mt-0.5 text-xs text-neutral-400">
-                  {isAr ? 'حصة الربح حسب تصنيف الأصناف' : 'Net profit share across dish tags'}
+                  {isAr
+                    ? 'النسبة الصافية بالوسط وتفاصيل الدينار بالأسفل'
+                    : 'Single % centered in ring · exact KWD rows below'}
                 </p>
               </div>
 
               <InteractiveDonutChart
                 slices={menuTagDonutSlices}
-                centerValue={menuTagDonutSlices[0]?.pctFormatted ?? '0%'}
-                centerLabel={isAr ? 'الأصناف الذهبية' : 'Golden Stars'}
-                summaryPill={{
-                  label: isAr ? 'صافي ربح المينيو' : 'Total Menu Profit',
-                  value: `+${f0(snap.menu.dishes.reduce((acc, d) => acc + Math.max(0, d.netProfitKwd), 0))} ${kwdSuffix}`,
-                  tone: 'emerald',
-                }}
+                centerValue={`${f1(snap.menu.avgMarginPct)}%`}
+                centerLabel={isAr ? 'هامش الأطباق' : 'Gross Margin'}
+                summaryRows={[
+                  {
+                    label: isAr ? 'مبيعات المينيو المطابقة' : 'Reconciled Menu Sales',
+                    value: `${f0(snap.menu.totalSalesKwd)} ${kwdSuffix}`,
+                    tone: 'neutral',
+                  },
+                  {
+                    label: isAr ? 'تكلفة المواد والتغليف' : 'Food & Packaging Cost',
+                    value: `${f0(snap.menu.totalCostKwd)} ${kwdSuffix} (${f1(snap.menu.avgFoodCostPct)}%)`,
+                    tone: 'amber',
+                  },
+                  {
+                    label: isAr ? 'صافي ربح الأطباق' : 'Net Dish Gross Profit',
+                    value: `+${f0(snap.menu.totalNetProfitKwd)} ${kwdSuffix}`,
+                    tone: 'emerald',
+                  },
+                ]}
+                activeSliceId={dishTagFilter === 'all' ? undefined : dishTagFilter}
+                onSelectSlice={(id) =>
+                  setDishTagFilter((cur) => (cur === id ? 'all' : (id as DishSimpleTag)))
+                }
                 isAr={isAr}
                 legendColumns={1}
               />
             </div>
           </section>
 
-          {/* Clean Menu Table */}
+          {/* Paginated Menu Engineering Matrix Table (12 Rows Default + Search + 4 Quadrant Pills + Simulator Trigger) */}
           <section className={`${CARD_CLS} overflow-hidden p-0`}>
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-100 px-5 py-4 dark:border-white/10">
-              <h3 className="text-[16px] font-semibold tracking-tight text-neutral-950 dark:text-white">
-                {isAr ? 'جدول الأصناف وتكلفة وربح كل طبق' : 'Menu Dishes Breakdown'}
-              </h3>
-              <span
-                dir="ltr"
-                className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium tabular-nums text-neutral-700 dark:bg-white/[0.08] dark:text-slate-200"
-              >
-                {isAr ? 'إجمالي المينيو المطابق:' : 'Reconciled Menu Sales:'}{' '}
-                {f0(snap.menu.dishes.reduce((s, d) => s + d.salesKwd, 0))} {kwdSuffix}
-              </span>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[780px] text-start text-[13px]">
-                <thead>
-                  <tr className="bg-[#F7F7F8] text-xs font-semibold text-neutral-500 dark:bg-white/[0.04] dark:text-slate-400">
-                    <th className="px-5 py-3 text-start">{isAr ? 'الصنف' : 'Dish'}</th>
-                    <th className="px-3 py-3 text-start">{isAr ? 'المطعم' : 'Brand'}</th>
-                    <th className="px-3 py-3 text-end">{isAr ? 'الكمية المباعة' : 'Units Sold'}</th>
-                    <th className="px-3 py-3 text-end">{isAr ? 'سعر البيع' : 'Price'}</th>
-                    <th className="px-3 py-3 text-end">{isAr ? 'تكلفة الطبق' : 'Unit Cost'}</th>
-                    <th className="px-3 py-3 text-end">{isAr ? 'المبيعات' : 'Sales KWD'}</th>
-                    <th className="px-3 py-3 text-end">{isAr ? 'التكلفة' : 'Cost KWD'}</th>
-                    <th className="px-3 py-3 text-end">{isAr ? 'الربح الصافي' : 'Net Profit'}</th>
-                    <th className="px-5 py-3 text-end">{isAr ? 'التصنيف' : 'Tag'}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-neutral-100 dark:divide-white/[0.06]">
-                  {filteredDishes.slice(0, 45).map((d) => {
-                    const tagCls =
-                      d.tag === 'golden'
-                        ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300'
-                        : d.tag === 'reprice'
-                          ? 'bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300'
-                          : d.tag === 'box-gem'
-                            ? 'bg-sky-50 text-sky-800 dark:bg-sky-950/50 dark:text-sky-300'
-                            : 'bg-neutral-100 text-neutral-700 dark:bg-white/10 dark:text-slate-300'
+            {/* Table Header: Title + Search + Sort + 4 Menu Engineering Matrix Pills */}
+            <div className="space-y-3.5 px-5 pt-5 pb-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-[17px] font-semibold tracking-tight text-neutral-950 dark:text-white">
+                    {isAr
+                      ? 'مصفوفة هندسة المينيو وحاسبة تسعير الأطباق'
+                      : 'Menu Engineering Matrix & Dish Pricing Studio'}
+                  </h3>
+                  <p className="mt-0.5 text-xs text-neutral-400">
+                    {isAr
+                      ? 'اضغط على أي صنف لمحاكاة رفع السعر أو الكومبو بنسبة ثبات ٩٥٪ بعد خصم عمولة المنصة'
+                      : 'Click any dish row to simulate +100/+150 fils or recipe fixes at 95% volume retention'}
+                  </p>
+                </div>
 
-                    return (
-                      <tr
-                        key={d.id}
-                        className="transition-colors duration-150 hover:bg-[#F7F7F8]/80 dark:hover:bg-white/[0.03]"
+                {/* Instant Dish & Brand Search + Sort Selector */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="relative w-64 sm:w-72">
+                    <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+                    <input
+                      type="text"
+                      value={dishSearch}
+                      onChange={(e) => setDishSearch(e.target.value)}
+                      placeholder={
+                        isAr ? 'ابحث عن طبق أو مطعم... 🔍' : 'Search dish or brand... 🔍'
+                      }
+                      className="h-9 w-full rounded-full bg-[#F7F7F8] ps-9 pe-8 text-xs font-medium text-neutral-900 transition-all duration-150 placeholder:text-neutral-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600/30 dark:bg-white/[0.06] dark:text-white"
+                    />
+                    {dishSearch ? (
+                      <button
+                        type="button"
+                        onClick={() => setDishSearch('')}
+                        aria-label={isAr ? 'مسح البحث' : 'Clear search'}
+                        className="absolute end-2.5 top-1/2 -translate-y-1/2 cursor-pointer rounded-full p-0.5 text-neutral-400 hover:text-neutral-700 dark:hover:text-white"
                       >
-                        <td className="px-5 py-3 font-semibold text-neutral-950 dark:text-white">
-                          {d.name}
-                        </td>
-                        <td className="px-3 py-3">
-                          <span className={SOFT_SCOPE_PILL_CLS}>
-                            {isAr ? d.brandAr : d.brandEn}
-                          </span>
-                        </td>
-                        <td dir="ltr" className="px-3 py-3 text-end font-semibold tabular-nums text-neutral-800 dark:text-slate-200">
-                          {f0(d.unitsSold)}
-                        </td>
-                        <td dir="ltr" className="px-3 py-3 text-end tabular-nums text-neutral-600 dark:text-slate-300">
-                          {f2(d.unitPriceKwd)}
-                        </td>
-                        <td dir="ltr" className="px-3 py-3 text-end tabular-nums text-neutral-500 dark:text-slate-400">
-                          {f2(d.unitCostKwd)}
-                        </td>
-                        <td dir="ltr" className="px-3 py-3 text-end font-semibold tabular-nums text-neutral-900 dark:text-white">
-                          {f1(d.salesKwd)}
-                        </td>
-                        <td dir="ltr" className="px-3 py-3 text-end tabular-nums text-neutral-500 dark:text-slate-400">
-                          {f1(d.costKwd)}
-                        </td>
-                        <td dir="ltr" className="px-3 py-3 text-end font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
-                          {f1(d.netProfitKwd)} ({d.marginPct}%)
-                        </td>
-                        <td className="px-5 py-3 text-end">
-                          <span className={`inline-block whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ${tagCls}`}>
-                            {isAr ? d.tagAr : d.tagEn}
-                          </span>
-                        </td>
-                      </tr>
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    ) : null}
+                  </div>
+
+                  <select
+                    value={dishSort}
+                    onChange={(e) => setDishSort(e.target.value as MenuSortKey)}
+                    className="h-9 cursor-pointer rounded-full bg-[#F7F7F8] px-3.5 text-xs font-medium text-neutral-800 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 dark:bg-white/[0.06] dark:text-slate-200"
+                  >
+                    <option value="profit">{isAr ? 'الأعلى ربحاً' : 'Highest Profit'}</option>
+                    <option value="units">{isAr ? 'الأكثر طلباً' : 'Most Units Sold'}</option>
+                    <option value="costPct">{isAr ? 'الأعلى تكلفة %' : 'Highest Food Cost %'}</option>
+                    <option value="sales">{isAr ? 'الأعلى مبيعات' : 'Highest Sales KWD'}</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* 4 Menu Engineering Matrix Filter Pills + All */}
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-1.5" role="tablist">
+                  {TAG_FILTERS.map((tf) => {
+                    const isSelected = dishTagFilter === tf.id
+                    const count =
+                      tf.id === 'all'
+                        ? snap.menu.totalActiveSkus
+                        : snap.menu.quadrantCounts[tf.id]
+                    return (
+                      <button
+                        key={tf.id}
+                        type="button"
+                        role="tab"
+                        aria-selected={isSelected}
+                        title={isAr ? tf.subAr : tf.subEn}
+                        onClick={() => setDishTagFilter(tf.id)}
+                        className={`inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full px-3 text-xs transition-all duration-150 ${
+                          isSelected
+                            ? 'bg-emerald-600 font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.08)] dark:bg-emerald-500 dark:text-neutral-950'
+                            : 'bg-[#F7F7F8] font-medium text-neutral-700 hover:bg-neutral-200/70 dark:bg-white/[0.05] dark:text-slate-200 dark:hover:bg-white/[0.09]'
+                        }`}
+                      >
+                        <span>{isAr ? tf.ar : tf.en}</span>
+                        <span
+                          dir="ltr"
+                          className={`rounded-full px-1.5 py-0.5 text-[10.5px] tabular-nums ${
+                            isSelected
+                              ? 'bg-white/20 text-white dark:bg-black/15 dark:text-neutral-950'
+                              : 'bg-white text-neutral-500 dark:bg-white/10 dark:text-slate-300'
+                          }`}
+                        >
+                          {count}
+                        </span>
+                      </button>
                     )
                   })}
+                </div>
+
+                <span
+                  dir="ltr"
+                  className="rounded-full bg-[#F7F7F8] px-3 py-1 text-xs font-medium tabular-nums text-neutral-600 dark:bg-white/[0.06] dark:text-slate-300"
+                >
+                  {isAr ? 'إجمالي المينيو المطابق:' : 'Reconciled Menu Sales:'}{' '}
+                  {f0(snap.menu.totalSalesKwd)} {kwdSuffix}
+                </span>
+              </div>
+            </div>
+
+            {/* Crisp Executive Table (Default 12 rows — Zero 50-Row Wall!) */}
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[860px] text-start text-[13px]">
+                <thead>
+                  <tr className="bg-[#F7F7F8] text-xs font-semibold text-neutral-500 dark:bg-white/[0.04] dark:text-slate-400">
+                    <th className="px-5 py-3 text-start">{isAr ? 'الطبق' : 'Dish'}</th>
+                    <th className="px-3 py-3 text-start">{isAr ? 'المطعم' : 'Brand'}</th>
+                    <th className="px-3 py-3 text-end">{isAr ? 'الكمية' : 'Qty Sold'}</th>
+                    <th className="px-3 py-3 text-end">{isAr ? 'سعر البيع' : 'Price'}</th>
+                    <th className="px-3 py-3 text-end">{isAr ? 'تكلفة الطبق %' : 'Unit Cost (%)'}</th>
+                    <th className="px-3 py-3 text-end">{isAr ? 'المبيعات' : 'Sales KWD'}</th>
+                    <th className="px-3 py-3 text-end">{isAr ? 'الربح الصافي' : 'Net Profit'}</th>
+                    <th className="px-5 py-3 text-end">
+                      {isAr ? 'التوصية والمحاكاة' : 'Matrix Action'}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-100/80 dark:divide-white/[0.05]">
+                  {paginatedDishes.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={8}
+                        className="px-5 py-10 text-center text-xs font-medium text-neutral-400"
+                      >
+                        {isAr
+                          ? 'لا توجد أطباق مطابقة للبحث أو التصنيف المختار.'
+                          : 'No dishes match the selected search or matrix lens.'}
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedDishes.map((d) => {
+                      const actionBadgeCls =
+                        d.tag === 'golden'
+                          ? 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-300'
+                          : d.tag === 'reprice'
+                            ? 'bg-amber-50 text-amber-900 hover:bg-amber-100 dark:bg-amber-950/60 dark:text-amber-200'
+                            : d.tag === 'box-gem'
+                              ? 'bg-sky-50 text-sky-800 hover:bg-sky-100 dark:bg-sky-950/60 dark:text-sky-200'
+                              : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200/80 dark:bg-white/10 dark:text-slate-200'
+
+                      const costHigh = d.costGapPct > 0 || d.foodCostPct >= 33
+
+                      return (
+                        <tr
+                          key={d.id}
+                          onClick={() => openDishSimulator(d)}
+                          className="cursor-pointer transition-colors duration-150 hover:bg-[#F7F7F8]/90 dark:hover:bg-white/[0.04]"
+                        >
+                          <td className="px-5 py-3">
+                            <div className="font-semibold text-neutral-950 dark:text-white">
+                              {d.name}
+                            </div>
+                            <div className="mt-0.5 text-[11px] text-neutral-400">
+                              {isAr ? d.tagAr : d.tagEn}
+                            </div>
+                          </td>
+                          <td className="px-3 py-3">
+                            <span className={SOFT_SCOPE_PILL_CLS}>
+                              {isAr ? d.brandAr : d.brandEn}
+                            </span>
+                          </td>
+                          <td
+                            dir="ltr"
+                            className="px-3 py-3 text-end font-semibold tabular-nums text-neutral-800 dark:text-slate-200"
+                          >
+                            {f0(d.unitsSold)}
+                          </td>
+                          <td
+                            dir="ltr"
+                            className="px-3 py-3 text-end tabular-nums text-neutral-700 dark:text-slate-300"
+                          >
+                            {f2(d.unitPriceKwd)}
+                          </td>
+                          <td dir="ltr" className="px-3 py-3 text-end tabular-nums">
+                            <span className="text-neutral-600 dark:text-slate-300">
+                              {f2(d.unitCostKwd)}
+                            </span>{' '}
+                            <span
+                              className={`inline-block rounded-full px-1.5 py-0.5 text-[11px] font-semibold ${
+                                costHigh
+                                  ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'
+                                  : 'bg-neutral-100 text-neutral-600 dark:bg-white/[0.06] dark:text-slate-300'
+                              }`}
+                            >
+                              {f1(d.foodCostPct)}%
+                            </span>
+                          </td>
+                          <td
+                            dir="ltr"
+                            className="px-3 py-3 text-end font-semibold tabular-nums text-neutral-900 dark:text-white"
+                          >
+                            {f1(d.salesKwd)}
+                          </td>
+                          <td
+                            dir="ltr"
+                            className="px-3 py-3 text-end font-semibold tabular-nums text-emerald-700 dark:text-emerald-400"
+                          >
+                            +{f1(d.netProfitKwd)}{' '}
+                            <span className="text-[11.5px] font-medium text-neutral-400">
+                              ({f1(d.marginPct)}%)
+                            </span>
+                          </td>
+                          <td className="px-5 py-3 text-end">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                openDishSimulator(d)
+                              }}
+                              className={`inline-flex cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold transition-colors duration-150 ${actionBadgeCls}`}
+                            >
+                              <span>{isAr ? d.actionBadgeAr : d.actionBadgeEn}</span>
+                              <Calculator className="h-3 w-3 opacity-75" />
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })
+                  )}
                 </tbody>
               </table>
+            </div>
+
+            {/* Clean Executive Pagination Bar (12 / 25 / عرض الكل + السابق / التالي) */}
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-[#F7F7F8]/80 px-5 py-3.5 text-xs dark:bg-white/[0.03]">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="font-medium text-neutral-600 dark:text-slate-300">
+                  {isAr
+                    ? `عرض ${fArInt(menuStartRow)}–${fArInt(menuEndRow)} من ${fArInt(filteredDishes.length)} صنفاً`
+                    : `Showing ${menuStartRow}–${menuEndRow} of ${filteredDishes.length} items`}
+                </span>
+
+                {/* Page Size Pills: 12 / 25 / عرض الكل */}
+                <div className="inline-flex items-center gap-1 rounded-full bg-white p-1 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-[#111A22]">
+                  {([12, 25, 'all'] as const).map((sz) => {
+                    const active = menuPageSize === sz
+                    return (
+                      <button
+                        key={String(sz)}
+                        type="button"
+                        onClick={() => setMenuPageSize(sz)}
+                        className={`cursor-pointer rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors duration-150 ${
+                          active
+                            ? 'bg-emerald-600 font-semibold text-white dark:bg-emerald-500 dark:text-neutral-950'
+                            : 'text-neutral-600 hover:bg-neutral-100 dark:text-slate-300 dark:hover:bg-white/[0.06]'
+                        }`}
+                      >
+                        {sz === 'all' ? (isAr ? 'عرض الكل' : 'Show All') : sz}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Previous / Next Controls */}
+              {menuPageSize !== 'all' ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={safeMenuPage <= 1}
+                    onClick={() => setMenuPage((p) => Math.max(1, p - 1))}
+                    className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-white px-3 text-xs font-medium text-neutral-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors duration-150 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-45 dark:bg-[#111A22] dark:text-slate-200 dark:hover:bg-white/[0.08]"
+                  >
+                    {isAr ? (
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    ) : (
+                      <ChevronLeft className="h-3.5 w-3.5" />
+                    )}
+                    <span>{isAr ? 'السابق' : 'Previous'}</span>
+                  </button>
+
+                  <span
+                    dir="ltr"
+                    className="px-1.5 font-semibold tabular-nums text-neutral-600 dark:text-slate-300"
+                  >
+                    {safeMenuPage} / {menuTotalPages}
+                  </span>
+
+                  <button
+                    type="button"
+                    disabled={safeMenuPage >= menuTotalPages}
+                    onClick={() => setMenuPage((p) => Math.min(menuTotalPages, p + 1))}
+                    className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-white px-3 text-xs font-medium text-neutral-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors duration-150 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-45 dark:bg-[#111A22] dark:text-slate-200 dark:hover:bg-white/[0.08]"
+                  >
+                    <span>{isAr ? 'التالي' : 'Next'}</span>
+                    {isAr ? (
+                      <ChevronLeft className="h-3.5 w-3.5" />
+                    ) : (
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    )}
+                  </button>
+                </div>
+              ) : null}
             </div>
           </section>
         </div>
       ) : null}
 
       {/* =====================================================================
-          TAB 4: التقييم والجودة (Ratings & Quality Core)
+          TAB 4: التقييم والجودة (Ratings & Quality Core — Polished & Paginated)
          ===================================================================== */}
       {activeTab === 'quality' ? (
         <div className="space-y-4">
-          {/* 4 Crisp Quality KPIs */}
+          {/* 4 Crisp Non-Redundant Quality KPIs */}
           <section className="ae-stagger grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <article className={`${KPI_CARD_CLS} ae-glow-emerald`}>
-              <div className="text-xs font-medium text-neutral-500 dark:text-slate-400">
-                {isAr ? 'تقييم المنصات' : 'Avg App Rating'}
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-medium text-neutral-500 dark:text-slate-400">
+                  {isAr ? 'تقييم المنصات' : 'Avg App Rating'}
+                </span>
+                <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold tabular-nums text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+                  {isAr ? 'الهدف 4.8 ★' : 'Target 4.8 ★'}
+                </span>
               </div>
               <div
                 dir="ltr"
@@ -1953,7 +2530,7 @@ export function CoresHubStudio() {
                 {snap.quality.avgPlatformRating.toFixed(1)} ★
               </div>
               <p className="mt-1 text-xs text-neutral-400">
-                {isAr ? 'الهدف التشغيلي: 4.8 ★ بكل التطبيقات' : 'Target benchmark: 4.8 ★ across apps'}
+                {isAr ? 'متوسط التقييم عبر منصات التوصيل' : 'Weighted across active delivery apps'}
               </p>
             </article>
 
@@ -1986,13 +2563,21 @@ export function CoresHubStudio() {
                 {snap.quality.qualityScore}%
               </div>
               <p className="mt-1 text-xs text-neutral-400">
-                {isAr ? 'انضباط التحضير والتغليف وعدم الإلغاء' : 'Prep speed, packing accuracy & low voids'}
+                {isAr ? 'سرعة التحضير ودقة التغليف' : 'Prep speed, packing accuracy & low voids'}
               </p>
             </article>
 
             <article className={`${KPI_CARD_CLS} ae-glow-emerald`}>
-              <div className="text-xs font-medium text-neutral-500 dark:text-slate-400">
-                {isAr ? 'العملاء المتكررون' : 'Repeat Guests'}
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-medium text-neutral-500 dark:text-slate-400">
+                  {isAr ? 'العملاء المتكررون' : 'Repeat Guests'}
+                </span>
+                <span
+                  dir="ltr"
+                  className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-[11px] font-medium tabular-nums text-neutral-700 dark:bg-white/[0.08] dark:text-slate-200"
+                >
+                  {f0(snap.quality.identifiedGuests)} {isAr ? 'مسجل' : 'IDs'}
+                </span>
               </div>
               <div
                 dir="ltr"
@@ -2001,9 +2586,7 @@ export function CoresHubStudio() {
                 {f0(snap.quality.repeatGuests)}
               </div>
               <p className="mt-1 text-xs text-neutral-400">
-                {isAr
-                  ? `من أصل ${f0(snap.quality.identifiedGuests)} عميل مسجل بأودو`
-                  : `Out of ${f0(snap.quality.identifiedGuests)} identified Odoo customers`}
+                {isAr ? 'عملاء كرروا الطلب بنفس الفترة' : 'Verified repeat customers in period'}
               </p>
             </article>
           </section>
@@ -2039,7 +2622,7 @@ export function CoresHubStudio() {
                   {isAr ? 'تقييم وطلبات التطبيقات' : 'App Ratings & Share'}
                 </h2>
                 <p className="mt-0.5 text-xs text-neutral-400">
-                  {isAr ? 'توزيع الطلبات ومتوسط التقييم' : 'Delivery volume split & star rating'}
+                  {isAr ? 'نسبة المنصة الأعلى بالوسط والطلبات بالأسفل' : 'Top app share centered · total orders below'}
                 </p>
               </div>
 
@@ -2047,11 +2630,13 @@ export function CoresHubStudio() {
                 slices={qualityPlatformDonutSlices}
                 centerValue={qualityPlatformDonutSlices[0]?.pctFormatted ?? '0%'}
                 centerLabel={isAr ? 'حصة طلبات' : 'Talabat Share'}
-                summaryPill={{
-                  label: isAr ? 'إجمالي طلبات التطبيقات' : 'Total App Orders',
-                  value: `${f0(snap.quality.platformRatings.reduce((acc, p) => acc + Math.max(0, p.orders), 0))} ${isAr ? 'طلب' : 'orders'}`,
-                  tone: 'neutral',
-                }}
+                summaryRows={[
+                  {
+                    label: isAr ? 'إجمالي طلبات التطبيقات' : 'Total App Orders',
+                    value: `${f0(snap.quality.platformRatings.reduce((acc, p) => acc + Math.max(0, p.orders), 0))} ${isAr ? 'طلب' : 'orders'}`,
+                    tone: 'neutral',
+                  },
+                ]}
                 isAr={isAr}
                 legendColumns={1}
               />
@@ -2063,7 +2648,7 @@ export function CoresHubStudio() {
             <h2 className="text-[17px] font-semibold tracking-tight text-neutral-950 dark:text-white">
               {isAr
                 ? 'خطوات عملية لرفع التقييم في طلبات وكيتا وديليفرو'
-                : 'Simple Steps to Raise Ratings on Talabat, Keeta & Deliveroo'}
+                : 'Action Steps to Raise Ratings on Talabat, Keeta & Deliveroo'}
             </h2>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -2132,12 +2717,26 @@ export function CoresHubStudio() {
             </div>
           </section>
 
-          {/* Branch Alerts & POS Refunds Table */}
+          {/* Branch Alerts & POS Refunds Table (Capped at 12 Rows Max with Clean Footer) */}
           <section className={`${CARD_CLS} overflow-hidden p-0`}>
-            <div className="border-b border-neutral-100 px-5 py-4 dark:border-white/10">
-              <h3 className="text-[16px] font-semibold tracking-tight text-neutral-950 dark:text-white">
-                {isAr ? 'تنبيهات الفروع والطلبات الملغية من أودو' : 'Branch Alerts & Odoo POS Cancellations'}
-              </h3>
+            <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-4">
+              <div>
+                <h3 className="text-[16px] font-semibold tracking-tight text-neutral-950 dark:text-white">
+                  {isAr ? 'تنبيهات الفروع والطلبات الملغية من أودو' : 'Branch Alerts & Odoo POS Cancellations'}
+                </h3>
+                <p className="mt-0.5 text-xs text-neutral-400">
+                  {isAr ? 'اضغط على أي فرع لفلترة المؤشرات عليه' : 'Click any branch row to filter by branch'}
+                </p>
+              </div>
+              {filters.branch !== 'all' ? (
+                <button
+                  type="button"
+                  onClick={() => setBranch('all')}
+                  className="cursor-pointer rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/70 dark:text-emerald-200"
+                >
+                  {isAr ? 'عرض كل الفروع ✕' : 'All Branches ✕'}
+                </button>
+              ) : null}
             </div>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[760px] text-start text-[13px]">
@@ -2151,11 +2750,14 @@ export function CoresHubStudio() {
                     <th className="px-5 py-3 text-start">{isAr ? 'الخطوة المطلوبة' : 'Action Step'}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-neutral-100 dark:divide-white/[0.06]">
-                  {snap.quality.branchQuality.map((b) => (
+                <tbody className="divide-y divide-neutral-100/80 dark:divide-white/[0.05]">
+                  {paginatedQualityRows.map((b) => (
                     <tr
                       key={b.branchId}
-                      className="transition-colors duration-150 hover:bg-[#F7F7F8]/80 dark:hover:bg-white/[0.03]"
+                      onClick={() =>
+                        setBranch(filters.branch === b.branchId ? 'all' : b.branchId)
+                      }
+                      className="cursor-pointer transition-colors duration-150 hover:bg-[#F7F7F8]/90 dark:hover:bg-white/[0.04]"
                     >
                       <td className="px-5 py-3">
                         <span className={SOFT_SCOPE_PILL_CLS}>
@@ -2182,7 +2784,351 @@ export function CoresHubStudio() {
                 </tbody>
               </table>
             </div>
+            <div className="flex items-center justify-between bg-[#F7F7F8]/80 px-5 py-3 text-xs text-neutral-500 dark:bg-white/[0.03] dark:text-slate-400">
+              <span>
+                {isAr
+                  ? `عرض ${fArInt(paginatedQualityRows.length > 0 ? 1 : 0)}–${fArInt(paginatedQualityRows.length)} من ${fArInt(snap.quality.branchQuality.length)} فروع نشطة`
+                  : `Showing ${paginatedQualityRows.length > 0 ? 1 : 0}–${paginatedQualityRows.length} of ${snap.quality.branchQuality.length} active branches`}
+              </span>
+              {qualityTotalPages > 1 ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={safeQualityPage <= 1}
+                    onClick={() => setQualityPage((p) => Math.max(1, p - 1))}
+                    className="rounded-full bg-white px-2.5 py-1 font-medium text-neutral-700 disabled:opacity-40 dark:bg-[#111A22] dark:text-slate-200"
+                  >
+                    {isAr ? 'السابق' : 'Prev'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={safeQualityPage >= qualityTotalPages}
+                    onClick={() => setQualityPage((p) => Math.min(qualityTotalPages, p + 1))}
+                    className="rounded-full bg-white px-2.5 py-1 font-medium text-neutral-700 disabled:opacity-40 dark:bg-[#111A22] dark:text-slate-200"
+                  >
+                    {isAr ? 'التالي' : 'Next'}
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </section>
+        </div>
+      ) : null}
+
+      {/* =====================================================================
+          INTERACTIVE PRICE & COST SIMULATOR DRAWER (95% Volume Retention Net of App Fee)
+         ===================================================================== */}
+      {selectedDish && simResult ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={
+            isAr
+              ? `حاسبة تسعير وتكلفة ${selectedDish.name}`
+              : `Price & Cost Simulator — ${selectedDish.name}`
+          }
+          onClick={() => setSelectedDish(null)}
+          className="fixed inset-0 z-50 flex justify-end bg-black/35 backdrop-blur-[2px] transition-opacity duration-150"
+        >
+          <div
+            dir={isAr ? 'rtl' : 'ltr'}
+            onClick={(e) => e.stopPropagation()}
+            className="flex h-full w-full max-w-lg flex-col justify-between overflow-y-auto bg-white p-6 shadow-2xl dark:bg-[#0E161E]"
+          >
+            <div className="space-y-5">
+              {/* Drawer Header */}
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-1.5">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className={SOFT_SCOPE_PILL_CLS}>
+                      {isAr ? selectedDish.brandAr : selectedDish.brandEn}
+                    </span>
+                    <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                      {isAr ? selectedDish.tagAr : selectedDish.tagEn}
+                    </span>
+                  </div>
+                  <h2 className="text-[19px] font-semibold tracking-tight text-neutral-950 dark:text-white">
+                    {selectedDish.name}
+                  </h2>
+                  <p className="text-xs text-neutral-500 dark:text-slate-400">
+                    {isAr ? selectedDish.costCreepNoteAr : selectedDish.costCreepNoteEn}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedDish(null)}
+                  aria-label={isAr ? 'إغلاق الحاسبة' : 'Close simulator'}
+                  className="inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-[#F7F7F8] text-neutral-600 transition-colors duration-150 hover:bg-neutral-200/80 dark:bg-white/[0.08] dark:text-slate-200"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* 4 Current Baseline Tiles */}
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="rounded-2xl bg-[#F7F7F8] p-3.5 dark:bg-white/[0.04]">
+                  <div className="text-[11px] font-medium text-neutral-400">
+                    {isAr ? 'سعر البيع الحالي' : 'Current Price'}
+                  </div>
+                  <div
+                    dir="ltr"
+                    className="mt-1 text-[16px] font-semibold tabular-nums text-neutral-950 dark:text-white"
+                  >
+                    {f2(selectedDish.unitPriceKwd)} {kwdSuffix}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl bg-[#F7F7F8] p-3.5 dark:bg-white/[0.04]">
+                  <div className="text-[11px] font-medium text-neutral-400">
+                    {isAr ? 'تكلفة العارضية والتغليف' : 'Ardiya BOM + Pack'}
+                  </div>
+                  <div
+                    dir="ltr"
+                    className="mt-1 text-[16px] font-semibold tabular-nums text-neutral-950 dark:text-white"
+                  >
+                    {f2(selectedDish.unitCostKwd)} {kwdSuffix}{' '}
+                    <span className="text-xs font-medium text-rose-600 dark:text-rose-400">
+                      ({f1(selectedDish.foodCostPct)}%)
+                    </span>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl bg-[#F7F7F8] p-3.5 dark:bg-white/[0.04]">
+                  <div className="text-[11px] font-medium text-neutral-400">
+                    {isAr ? 'الكمية الشهرية (٣٠ يوم)' : 'Monthly Volume (30d)'}
+                  </div>
+                  <div
+                    dir="ltr"
+                    className="mt-1 text-[16px] font-semibold tabular-nums text-neutral-950 dark:text-white"
+                  >
+                    {f0(selectedDish.monthlyUnitsSold)} {isAr ? 'طبق' : 'units'}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl bg-[#F7F7F8] p-3.5 dark:bg-white/[0.04]">
+                  <div className="text-[11px] font-medium text-neutral-400">
+                    {isAr ? 'عمولة القناة المعتمدة' : 'Effective Channel Fee'}
+                  </div>
+                  <div
+                    dir="ltr"
+                    className="mt-1 text-[16px] font-semibold tabular-nums text-amber-700 dark:text-amber-300"
+                  >
+                    {f1(snap.menu.effectiveChannelFeePct)}%
+                  </div>
+                </div>
+              </div>
+
+              {/* Control 1: Price / Combo Tweak Presets */}
+              <div className="space-y-2 rounded-2xl bg-[#F7F7F8] p-4 dark:bg-white/[0.03]">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="text-xs font-semibold text-neutral-800 dark:text-slate-200">
+                    {isAr ? '١) تعديل سعر البيع أو كومبو' : '1) Price or Combo Tweak'}
+                  </label>
+                  <span
+                    dir="ltr"
+                    className="rounded-full bg-white px-2.5 py-0.5 text-xs font-semibold tabular-nums text-emerald-700 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-emerald-950/60 dark:text-emerald-300"
+                  >
+                    {f2(selectedDish.unitPriceKwd)} → {f2(simResult.newPriceKwd)} {kwdSuffix}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { val: 0, ar: 'بدون رفع', en: '0 fils' },
+                    { val: 0.05, ar: '+٥٠ فلس', en: '+50 fils' },
+                    { val: 0.1, ar: '+١٠٠ فلس', en: '+100 fils' },
+                    { val: 0.15, ar: '+١٥٠ فلس', en: '+150 fils' },
+                    { val: 0.2, ar: '+٢٠٠ فلس', en: '+200 fils' },
+                    { val: 0.25, ar: '+٢٥٠ فلس', en: '+250 fils' },
+                  ].map((p) => {
+                    const active = Math.abs(simDeltaPrice - p.val) < 0.005
+                    return (
+                      <button
+                        key={p.val}
+                        type="button"
+                        onClick={() => setSimDeltaPrice(p.val)}
+                        className={`cursor-pointer rounded-full px-3 py-1 text-xs font-medium transition-all duration-150 ${
+                          active
+                            ? 'bg-emerald-600 font-semibold text-white dark:bg-emerald-500 dark:text-neutral-950'
+                            : 'bg-white text-neutral-700 hover:bg-neutral-100 dark:bg-[#111A22] dark:text-slate-200'
+                        }`}
+                      >
+                        {isAr ? p.ar : p.en}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Control 2: Ardiya Recipe / Portion Trim Saving */}
+              <div className="space-y-2 rounded-2xl bg-[#F7F7F8] p-4 dark:bg-white/[0.03]">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="text-xs font-semibold text-neutral-800 dark:text-slate-200">
+                    {isAr
+                      ? '٢) ضبط هدر ومقادير مطبخ العارضية'
+                      : '2) Ardiya Recipe & Portion Calibration'}
+                  </label>
+                  <span
+                    dir="ltr"
+                    className="text-xs font-semibold tabular-nums text-neutral-700 dark:text-slate-300"
+                  >
+                    -{simCostSavePct}% ({f2(simResult.newUnitCostKwd)} {kwdSuffix})
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {[0, 3, 5, 8].map((pct) => {
+                    const active = simCostSavePct === pct
+                    return (
+                      <button
+                        key={pct}
+                        type="button"
+                        onClick={() => setSimCostSavePct(pct)}
+                        className={`cursor-pointer rounded-full px-3 py-1 text-xs font-medium transition-all duration-150 ${
+                          active
+                            ? 'bg-emerald-600 font-semibold text-white dark:bg-emerald-500 dark:text-neutral-950'
+                            : 'bg-white text-neutral-700 hover:bg-neutral-100 dark:bg-[#111A22] dark:text-slate-200'
+                        }`}
+                      >
+                        {pct === 0 ? (isAr ? 'الحالي (0%)' : 'Current (0%)') : `-${pct}%`}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Control 3: Conservative Volume Retention (Default 95%) & App Pinning Lift */}
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                <div className="space-y-2 rounded-2xl bg-[#F7F7F8] p-3.5 dark:bg-white/[0.03]">
+                  <div className="text-xs font-semibold text-neutral-800 dark:text-slate-200">
+                    {isAr ? 'ثبات الكمية المحافظ' : 'Volume Retention'}
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {[94, 95, 96, 97].map((ret) => {
+                      const active = simRetentionPct === ret
+                      return (
+                        <button
+                          key={ret}
+                          type="button"
+                          onClick={() => setSimRetentionPct(ret)}
+                          className={`cursor-pointer rounded-full px-2.5 py-1 text-xs tabular-nums transition-all duration-150 ${
+                            active
+                              ? 'bg-emerald-600 font-semibold text-white dark:bg-emerald-500 dark:text-neutral-950'
+                              : 'bg-white text-neutral-700 dark:bg-[#111A22] dark:text-slate-200'
+                          }`}
+                        >
+                          {ret}%
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <div className="space-y-2 rounded-2xl bg-[#F7F7F8] p-3.5 dark:bg-white/[0.03]">
+                  <div className="text-xs font-semibold text-neutral-800 dark:text-slate-200">
+                    {isAr ? 'دفعة تثبيت بالتطبيقات' : 'App Top-Slot Lift'}
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {[0, 6, 12].map((lift) => {
+                      const active = simPromoLiftPct === lift
+                      return (
+                        <button
+                          key={lift}
+                          type="button"
+                          onClick={() => setSimPromoLiftPct(lift)}
+                          className={`cursor-pointer rounded-full px-2.5 py-1 text-xs tabular-nums transition-all duration-150 ${
+                            active
+                              ? 'bg-sky-600 font-semibold text-white dark:bg-sky-500 dark:text-neutral-950'
+                              : 'bg-white text-neutral-700 dark:bg-[#111A22] dark:text-slate-200'
+                          }`}
+                        >
+                          {lift === 0 ? '0%' : `+${lift}%`}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Live Conservative CFO Gain Result Box */}
+              <div className="rounded-2xl bg-emerald-50/90 p-4 dark:bg-emerald-950/45">
+                <div className="flex items-center justify-between gap-2 text-xs font-medium text-emerald-900 dark:text-emerald-200">
+                  <span>
+                    {isAr
+                      ? `الربح الإضافي الصافي بالجيب (ثبات ${simRetentionPct}% بعد العمولة)`
+                      : `Conservative Monthly Net Gain (${simRetentionPct}% retention, net of fee)`}
+                  </span>
+                </div>
+                <div
+                  dir="ltr"
+                  className={`mt-1.5 text-[26px] font-semibold tracking-tight tabular-nums ${
+                    simResult.monthlyNetGainKwd >= 0
+                      ? 'text-emerald-700 dark:text-emerald-300'
+                      : 'text-rose-600 dark:text-rose-400'
+                  }`}
+                >
+                  {simResult.monthlyNetGainKwd >= 0 ? '+' : ''}
+                  {f0(simResult.monthlyNetGainKwd)} {kwdSuffix}{' '}
+                  <span className="text-xs font-medium text-emerald-800/80 dark:text-emerald-200/80">
+                    {isAr ? '/ شهرياً' : '/ month'}
+                  </span>
+                </div>
+
+                <div className="mt-3 space-y-1 text-xs text-emerald-900/85 dark:text-emerald-200/85">
+                  <div className="flex items-center justify-between">
+                    <span>{isAr ? 'الصافي الشهري قبل ← بعد:' : 'Monthly Net Before -> After:'}</span>
+                    <span dir="ltr" className="font-semibold tabular-nums">
+                      {f0(simResult.currentMonthlyNetKwd)} → {f0(simResult.simulatedMonthlyNetKwd)}{' '}
+                      {kwdSuffix}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>{isAr ? 'صافي الطبق الواحد بالجيب:' : 'Net Pocket per Unit:'}</span>
+                    <span dir="ltr" className="font-semibold tabular-nums">
+                      {f3(simResult.unitNetBeforeKwd)} → {f3(simResult.unitNetAfterKwd)} {kwdSuffix}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>{isAr ? 'الكمية الشهرية المتوقعة:' : 'Simulated Monthly Units:'}</span>
+                    <span dir="ltr" className="font-semibold tabular-nums">
+                      {f0(simResult.baseUnitsMo)} → {f0(simResult.simUnitsMo)}{' '}
+                      {isAr ? 'طبق' : 'units'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Drawer Footer Actions */}
+            <div className="mt-6 flex items-center justify-between gap-2 pt-3">
+              <button
+                type="button"
+                onClick={() =>
+                  copyText(`sim-${selectedDish.id}`, formatDishSimWhatsapp(selectedDish))
+                }
+                className="ae-btn-primary inline-flex h-10 flex-1 cursor-pointer items-center justify-center gap-2 rounded-full px-4 text-xs font-semibold transition-all duration-150 hover:opacity-95"
+              >
+                {copiedId === `sim-${selectedDish.id}` ? (
+                  <>
+                    <Check className="h-4 w-4" />
+                    <span>{isAr ? 'تم نسخ القرار للواتساب ✓' : 'Copied to WhatsApp ✓'}</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-3.5 w-3.5" />
+                    <span>{isAr ? 'نسخ قرار التسعير للواتساب 📋' : 'Copy Action to WhatsApp 📋'}</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSelectedDish(null)}
+                className="inline-flex h-10 cursor-pointer items-center justify-center rounded-full bg-neutral-100 px-4 text-xs font-medium text-neutral-700 transition-colors duration-150 hover:bg-neutral-200/80 dark:bg-white/10 dark:text-slate-200"
+              >
+                {isAr ? 'إغلاق' : 'Close'}
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
     </div>

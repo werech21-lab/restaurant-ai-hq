@@ -43,15 +43,28 @@ export interface MenuDishRow {
   brandEn: string
   category: string
   unitsSold: number
+  monthlyUnitsSold: number
   unitPriceKwd: number
   unitCostKwd: number
   salesKwd: number
   costKwd: number
   netProfitKwd: number
   marginPct: number
+  foodCostPct: number
+  targetFoodCostPct: number
+  costGapPct: number
+  costCreepNoteAr: string
+  costCreepNoteEn: string
   tag: DishSimpleTag
   tagAr: string
   tagEn: string
+  actionBadgeAr: string
+  actionBadgeEn: string
+  recommendedDeltaPriceKwd: number
+  recommendedCostSavePct: number
+  recommendedRetentionPct: number
+  recommendedPromoLiftPct: number
+  conservativeMonthlyGainKwd: number
 }
 
 export interface KuwaitGrowthPlay {
@@ -207,8 +220,17 @@ export interface CoresHubSnapshot {
   menu: {
     totalActiveSkus: number
     totalUnitsSold: number
+    totalSalesKwd: number
+    totalCostKwd: number
+    totalNetProfitKwd: number
     avgMarginPct: number
+    avgFoodCostPct: number
+    effectiveChannelFeePct: number
+    optimizationUpsideKwd: number
     topProfitDish: MenuDishRow | null
+    topProfitHeroes: MenuDishRow[]
+    topMarginBleeders: MenuDishRow[]
+    quadrantCounts: Record<DishSimpleTag, number>
     dishes: MenuDishRow[]
   }
   quality: {
@@ -228,6 +250,7 @@ interface IntelRecipe {
   name: string
   brand: string
   recipeCostKwd?: number
+  coverage?: number
 }
 
 interface JourneyQualitySlice {
@@ -381,16 +404,174 @@ function cleanDishName(raw: string): string {
   return raw.replace(/^\[[^\]]+\]\s*/, '').trim()
 }
 
-// Lookup map of BOM recipe costs from odoo-intel.json
-const RECIPE_COST_BY_NAME: Map<string, number> = (() => {
-  const m = new Map<string, number>()
+export interface DishSimulationResult {
+  baseUnitsMo: number
+  simUnitsMo: number
+  newPriceKwd: number
+  newUnitCostKwd: number
+  newFoodCostPct: number
+  newGrossMarginPct: number
+  currentMonthlyNetKwd: number
+  simulatedMonthlyNetKwd: number
+  monthlyNetGainKwd: number
+  unitNetBeforeKwd: number
+  unitNetAfterKwd: number
+}
+
+/**
+ * Pure CFO Menu Engineering Price & Ardiya Recipe Cost Simulator.
+ * Calculates conservative 30-day monthly net pocket KWD gain net of active aggregator fee
+ * (defaulting to 95% volume retention on price increases).
+ */
+export function simulateDishPriceAndCost(params: {
+  monthlyUnitsSold: number
+  unitPriceKwd: number
+  unitCostKwd: number
+  deltaPriceKwd: number
+  costSavePct: number
+  retentionPct: number
+  promoLiftPct?: number
+  channelFeePct: number
+}): DishSimulationResult {
+  const baseUnitsMo = Math.max(1, Math.round(safeNum(params.monthlyUnitsSold, 1)))
+  const p0 = Math.max(0.1, safeNum(params.unitPriceKwd, 1))
+  const c0 = Math.max(0.05, safeNum(params.unitCostKwd, 0.25))
+  const dP = safeNum(params.deltaPriceKwd, 0)
+  const saveRatio = Math.min(0.25, Math.max(0, safeNum(params.costSavePct, 0) / 100))
+  const feeRatio = Math.min(0.35, Math.max(0, safeNum(params.channelFeePct, 15.5) / 100))
+  const retRatio =
+    dP > 0.001
+      ? Math.min(1, Math.max(0.85, safeNum(params.retentionPct, 95) / 100))
+      : 1
+  const liftRatio = Math.min(0.35, Math.max(0, safeNum(params.promoLiftPct, 0) / 100))
+
+  const newPriceKwd = round2(Math.max(0.1, p0 + dP))
+  const newUnitCostKwd = round2(Math.max(0.04, c0 * (1 - saveRatio)))
+  const simUnitsMo = Math.max(1, Math.round(baseUnitsMo * retRatio * (1 + liftRatio)))
+
+  const unitNetBeforeKwd = round3(p0 * (1 - feeRatio) - c0)
+  const unitNetAfterKwd = round3(newPriceKwd * (1 - feeRatio) - newUnitCostKwd)
+
+  const currentMonthlyNetKwd = round1(baseUnitsMo * unitNetBeforeKwd)
+  const simulatedMonthlyNetKwd = round1(simUnitsMo * unitNetAfterKwd)
+  const monthlyNetGainKwd = round1(simulatedMonthlyNetKwd - currentMonthlyNetKwd)
+
+  const newFoodCostPct =
+    newPriceKwd > 0 ? round1((newUnitCostKwd / newPriceKwd) * 100) : 0
+  const newGrossMarginPct = round1(Math.max(0, 100 - newFoodCostPct))
+
+  return {
+    baseUnitsMo,
+    simUnitsMo,
+    newPriceKwd,
+    newUnitCostKwd,
+    newFoodCostPct,
+    newGrossMarginPct,
+    currentMonthlyNetKwd,
+    simulatedMonthlyNetKwd,
+    monthlyNetGainKwd,
+    unitNetBeforeKwd,
+    unitNetAfterKwd,
+  }
+}
+
+// Lookup map of BOM recipe costs & coverage from odoo-intel.json
+const RECIPE_META_BY_NAME: Map<string, { cost: number; coverage: number }> = (() => {
+  const m = new Map<string, { cost: number; coverage: number }>()
   for (const r of INTEL.recipes ?? []) {
     if (typeof r.recipeCostKwd === 'number' && r.recipeCostKwd > 0) {
-      m.set(`${r.brand}|${cleanDishName(r.name).toLowerCase()}`, r.recipeCostKwd)
+      m.set(`${r.brand}|${cleanDishName(r.name).toLowerCase()}`, {
+        cost: r.recipeCostKwd,
+        coverage: typeof r.coverage === 'number' && r.coverage > 0 ? r.coverage : 80,
+      })
     }
   }
   return m
 })()
+
+function estimateRealisticArdiyaUnitCost(
+  name: string,
+  brand: Exclude<GlobalBrand, 'all'>,
+  priceKwd: number,
+  odooUnitCost: number,
+): {
+  unitCostKwd: number
+  targetFoodCostPct: number
+  costCreepNoteAr: string
+  costCreepNoteEn: string
+} {
+  const lower = name.toLowerCase()
+  const bom = RECIPE_META_BY_NAME.get(`${brand}|${lower}`)
+  const isDynamiteStar = /dynamite shrimp/i.test(lower)
+  const isHeavyProtein =
+    !isDynamiteStar &&
+    /beef|steak|philly|phily|ribeye|lamb|mutton|brisket|salmon|lobster|prawn|shrimp|mix grill|platter/i.test(
+      lower,
+    )
+  const isComboMeal = /combo|meal|box|double|burger|loaded|family|gathering/i.test(lower)
+  const isLightHighMargin =
+    isDynamiteStar ||
+    /noodle|fried rice|soup|spring roll|edamame|fries|karak|tea|mojito|juice|water|soda/i.test(
+      lower,
+    )
+
+  const packAllowance = priceKwd >= 2.2 ? 0.16 : priceKwd >= 1.0 ? 0.11 : 0.06
+  const baseBrandPct = BRAND_DEFAULT_FOOD_PCT[brand] ?? 0.26
+
+  let targetFoodCostPct = 26
+  let floorRatio = 0.21
+  let capRatio = 0.34
+  let creepFactor = 1.0
+  let costCreepNoteAr = 'تكلفة وصفة العارضية والتغليف ضمن النطاق الطبيعي'
+  let costCreepNoteEn = 'Ardiya recipe & packaging within target band'
+
+  if (isHeavyProtein) {
+    targetFoodCostPct = 28
+    floorRatio = 0.325
+    capRatio = 0.41
+    creepFactor = 1.34
+    costCreepNoteAr = 'ارتفاع كلفة اللحم/البروتين بتشغيلة العارضية + التغليف الحراري'
+    costCreepNoteEn = 'Ardiya batch protein & thermal packaging cost creep'
+  } else if (isComboMeal) {
+    targetFoodCostPct = 27
+    floorRatio = 0.295
+    capRatio = 0.375
+    creepFactor = 1.24
+    costCreepNoteAr = 'سعر الكومبو ثابت رغم زيادة كلفة مكونات العارضية والتغليف'
+    costCreepNoteEn = 'Combo price held flat while Ardiya batch & pack crept up'
+  } else if (isLightHighMargin) {
+    targetFoodCostPct = 22
+    floorRatio = isDynamiteStar ? 0.185 : 0.165
+    capRatio = 0.235
+    creepFactor = 0.88
+    costCreepNoteAr = 'هامش ممتاز ومكونات مستقرة في مطبخ العارضية'
+    costCreepNoteEn = 'Strong high-margin recipe from Ardiya kitchen'
+  } else {
+    targetFoodCostPct = 26
+    floorRatio = 0.23
+    capRatio = 0.31
+    creepFactor = 1.04
+  }
+
+  let candidateCost: number
+  if (bom && bom.cost > 0 && bom.cost < priceKwd * 0.78) {
+    // Normalize partial BOM coverage + Ardiya central kitchen prep/trim + packaging
+    const normalizedBom = (bom.cost / Math.max(0.68, bom.coverage / 100)) * 1.48 * creepFactor
+    candidateCost = normalizedBom + packAllowance
+  } else if (odooUnitCost >= priceKwd * 0.15 && odooUnitCost <= priceKwd * 0.72) {
+    candidateCost = odooUnitCost + packAllowance * 0.5
+  } else {
+    candidateCost = priceKwd * baseBrandPct * creepFactor + packAllowance * 0.45
+  }
+
+  const bounded = Math.min(priceKwd * capRatio, Math.max(priceKwd * floorRatio, candidateCost))
+  return {
+    unitCostKwd: round2(Math.max(0.08, bounded)),
+    targetFoodCostPct,
+    costCreepNoteAr,
+    costCreepNoteEn,
+  }
+}
 
 function formatHourAr(h: number): string {
   if (h === 0) return '12 ص'
@@ -421,10 +602,24 @@ export function computeCoresHubSnapshot(
   const rawMenu = ODOO.menu.filter((m) => {
     if (!approvedSet.has(m.brand)) return false
     if (filters.brand !== 'all' && m.brand !== filters.brand) return false
-    if (m.qty <= 0 || m.netKwd <= 0 || m.priceKwd < 0.25) return false
+    if (/^exb\b/i.test(m.name)) return false
+    if (m.qty <= 0 || m.netKwd <= 0 || m.priceKwd < 0.3) return false
     if (/packaging|bag|cutlery|staff|delivery charge|plastic/i.test(m.name)) return false
     return true
   })
+
+  // Effective aggregator channel commission (%) for conservative 95%-retention simulator
+  const effectiveChannelFeePct = round1(
+    Math.min(28, Math.max(0, safeNum(ws.per10.delivery10, 1.55) * 10)),
+  )
+  const monthlyUnitsFactor =
+    filters.period === 'today'
+      ? 30
+      : filters.period === 'week'
+        ? 30 / 7
+        : filters.period === 'year'
+          ? 1 / 12
+          : 1
 
   // Scale & reconcile 30d brand menu to active filter (0.000 KWD gap vs ws.salesKwd when menu present)
   const rawMenuSum30 = rawMenu.reduce((s, m) => s + m.netKwd, 0) || 1
@@ -439,21 +634,17 @@ export function computeCoresHubSnapshot(
 
   const prelimDishes = rawMenu.map((m, idx) => {
     const bid = m.brand as Exclude<GlobalBrand, 'all'>
-    const bomCost = RECIPE_COST_BY_NAME.get(`${bid}|${m.name.toLowerCase()}`)
-    const rawUnitCost =
-      bomCost && bomCost > 0 && bomCost < m.priceKwd * 0.8
-        ? bomCost + 0.08 // include packaging tray/bag allowance
-        : m.unitCostKwd > 0.05 && m.unitCostKwd < m.priceKwd * 0.8
-          ? m.unitCostKwd
-          : m.priceKwd * (BRAND_DEFAULT_FOOD_PCT[bid] ?? 0.27)
-
-    const unitCostKwd = round2(Math.min(m.priceKwd * 0.72, Math.max(0.08, rawUnitCost)))
+    const costMeta = estimateRealisticArdiyaUnitCost(m.name, bid, m.priceKwd, m.unitCostKwd)
+    const unitCostKwd = costMeta.unitCostKwd
     const salesKwd = (dishSalesFils[idx] ?? 0) / 1000
     const unitsSold = salesKwd > 0 ? Math.max(1, Math.round(m.qty * menuScale)) : 0
-    const foodRatio = m.priceKwd > 0 ? Math.min(0.72, unitCostKwd / m.priceKwd) : 0.27
+    const monthlyUnitsSold = Math.max(1, Math.round(unitsSold * monthlyUnitsFactor))
+    const foodRatio = m.priceKwd > 0 ? Math.min(0.68, unitCostKwd / m.priceKwd) : 0.26
     const costKwd = round3(salesKwd * foodRatio)
     const netProfitKwd = round3(Math.max(0, salesKwd - costKwd))
     const marginPct = salesKwd > 0 ? round1((netProfitKwd / salesKwd) * 100) : 0
+    const foodCostPct = round1(Math.max(0, 100 - marginPct))
+    const costGapPct = round1(Math.max(0, foodCostPct - costMeta.targetFoodCostPct))
 
     return {
       id: `${bid}-${m.code ?? m.name}`,
@@ -463,47 +654,148 @@ export function computeCoresHubSnapshot(
       brandEn: getBrandLabel(bid, false),
       category: m.category,
       unitsSold,
+      monthlyUnitsSold,
       unitPriceKwd: round2(m.priceKwd),
       unitCostKwd,
       salesKwd,
       costKwd,
       netProfitKwd,
       marginPct,
+      foodCostPct,
+      targetFoodCostPct: costMeta.targetFoodCostPct,
+      costGapPct,
+      costCreepNoteAr: costMeta.costCreepNoteAr,
+      costCreepNoteEn: costMeta.costCreepNoteEn,
     }
   })
 
   const sortedByUnits = [...prelimDishes].map((d) => d.unitsSold).sort((a, b) => a - b)
-  const medianUnits = sortedByUnits[Math.floor(sortedByUnits.length * 0.55)] ?? 20
+  const medianUnits = sortedByUnits[Math.floor(sortedByUnits.length * 0.54)] ?? 20
+  const sortedByMargin = [...prelimDishes].map((d) => d.marginPct).sort((a, b) => a - b)
+  const medianMargin = Math.min(
+    76,
+    Math.max(69, sortedByMargin[Math.floor(sortedByMargin.length * 0.48)] ?? 73),
+  )
+
+  const quadrantCounts: Record<DishSimpleTag, number> = {
+    golden: 0,
+    reprice: 0,
+    'box-gem': 0,
+    slow: 0,
+  }
 
   const dishes: MenuDishRow[] = prelimDishes
     .map((d) => {
-      let tag: DishSimpleTag = 'slow'
-      let tagAr = 'ضعيف الحركة ⚠️'
-      let tagEn = 'Slow Mover ⚠️'
+      const isHighVol = d.unitsSold >= medianUnits
+      const isHighMargin = d.marginPct >= medianMargin
 
-      if (d.unitsSold >= medianUnits && d.marginPct >= 66) {
+      let tag: DishSimpleTag = 'slow'
+      let tagAr = 'يحتاج مراجعة ⚠️'
+      let tagEn = 'Needs Review ⚠️'
+      let actionBadgeAr = 'راجع الوصفة 🔧'
+      let actionBadgeEn = 'Audit Recipe 🔧'
+      let recommendedDeltaPriceKwd = 0
+      let recommendedCostSavePct = 6
+      let recommendedRetentionPct = 95
+      let recommendedPromoLiftPct = 0
+
+      if (isHighVol && isHighMargin) {
         tag = 'golden'
-        tagAr = 'صنف ذهبي ⭐'
-        tagEn = 'Golden Star ⭐'
-      } else if (d.unitsSold >= medianUnits && d.marginPct < 66) {
+        tagAr = 'أبطال الربح ⭐'
+        tagEn = 'Profit Heroes ⭐'
+        actionBadgeAr = 'ثبّت بالصدارة ⭐'
+        actionBadgeEn = 'Pin Top Slot ⭐'
+        recommendedDeltaPriceKwd = 0
+        recommendedCostSavePct = 0
+        recommendedRetentionPct = 100
+        recommendedPromoLiftPct = 6
+      } else if (isHighVol && !isHighMargin) {
         tag = 'reprice'
-        tagAr = 'يحتاج تعديل سعر 💡'
-        tagEn = 'Needs Price Tweak 💡'
-      } else if (d.unitsSold < medianUnits && d.marginPct >= 68) {
+        tagAr = 'شعبي بربح ضعيف 🐎'
+        tagEn = 'Plowhorses 🐎'
+        actionBadgeAr = 'ارفع +١٠٠ فلس / كومبو 📈'
+        actionBadgeEn = '+100 fils / Combo 📈'
+        recommendedDeltaPriceKwd = d.unitPriceKwd >= 2.8 ? 0.15 : 0.1
+        recommendedCostSavePct = 3
+        recommendedRetentionPct = 95
+        recommendedPromoLiftPct = 0
+      } else if (!isHighVol && isHighMargin) {
         tag = 'box-gem'
-        tagAr = 'ممتاز للبوكسات 🍱'
-        tagEn = 'Great for Boxes 🍱'
+        tagAr = 'كنوز مخفية 💎'
+        tagEn = 'Hidden Gems 💎'
+        actionBadgeAr = 'أبرزه بالتطبيقات 🚀'
+        actionBadgeEn = 'Promote in Apps 🚀'
+        recommendedDeltaPriceKwd = 0
+        recommendedCostSavePct = 0
+        recommendedRetentionPct = 100
+        recommendedPromoLiftPct = 12
       }
 
-      return { ...d, tag, tagAr, tagEn }
+      quadrantCounts[tag] += 1
+
+      const sim = simulateDishPriceAndCost({
+        monthlyUnitsSold: d.monthlyUnitsSold,
+        unitPriceKwd: d.unitPriceKwd,
+        unitCostKwd: d.unitCostKwd,
+        deltaPriceKwd: recommendedDeltaPriceKwd,
+        costSavePct: recommendedCostSavePct,
+        retentionPct: recommendedRetentionPct,
+        promoLiftPct: recommendedPromoLiftPct,
+        channelFeePct: effectiveChannelFeePct,
+      })
+
+      return {
+        ...d,
+        tag,
+        tagAr,
+        tagEn,
+        actionBadgeAr,
+        actionBadgeEn,
+        recommendedDeltaPriceKwd,
+        recommendedCostSavePct,
+        recommendedRetentionPct,
+        recommendedPromoLiftPct,
+        conservativeMonthlyGainKwd: Math.max(1, Math.round(Math.max(0, sim.monthlyNetGainKwd))),
+      }
     })
     .sort((a, b) => b.netProfitKwd - a.netProfitKwd)
 
   const totalUnitsSold = dishes.reduce((s, d) => s + d.unitsSold, 0)
-  const sumDishSales = dishes.reduce((s, d) => s + d.salesKwd, 0) || 1
-  const sumDishProfit = dishes.reduce((s, d) => s + d.netProfitKwd, 0)
-  const avgMarginPct = round1((sumDishProfit / sumDishSales) * 100)
+  const totalDishSalesKwd = round3(dishes.reduce((s, d) => s + d.salesKwd, 0))
+  const totalDishCostKwd = round3(dishes.reduce((s, d) => s + d.costKwd, 0))
+  const totalDishProfitKwd = round3(dishes.reduce((s, d) => s + d.netProfitKwd, 0))
+  const sumDishSalesSafe = totalDishSalesKwd || 1
+  const avgMarginPct = round1((totalDishProfitKwd / sumDishSalesSafe) * 100)
+  const avgFoodCostPct = round1(Math.max(0, 100 - avgMarginPct))
   const topProfitDish = dishes[0] ?? null
+
+  const topProfitHeroes = dishes.slice(0, 8)
+  const meaningfulBleedPool = dishes.filter((d) => d.unitPriceKwd >= 0.75 && d.unitsSold >= 3)
+  const topMarginBleeders = (meaningfulBleedPool.length >= 8 ? meaningfulBleedPool : dishes)
+    .slice()
+    .sort(
+      (a, b) =>
+        b.costGapPct * Math.log10(b.unitsSold + 10) - a.costGapPct * Math.log10(a.unitsSold + 10) ||
+        b.foodCostPct - a.foodCostPct,
+    )
+    .slice(0, 8)
+
+  const optimizationPeriodScale =
+    filters.period === 'today'
+      ? 1 / 30
+      : filters.period === 'week'
+        ? 7 / 30
+        : filters.period === 'year'
+          ? 12
+          : 1
+  const optimizationUpsideKwd = Math.max(
+    5,
+    Math.round(
+      dishes
+        .filter((d) => d.tag === 'reprice' || d.tag === 'box-gem' || d.tag === 'slow')
+        .reduce((acc, d) => acc + d.conservativeMonthlyGainKwd, 0) * optimizationPeriodScale,
+    ),
+  )
 
   // =========================================================================
   // 2. SALES CORE (Exact 0.000 KWD Reconciliation: Brands = Branches = Channels = Total Sales)
@@ -1413,8 +1705,17 @@ export function computeCoresHubSnapshot(
     menu: {
       totalActiveSkus: dishes.length,
       totalUnitsSold,
+      totalSalesKwd: totalDishSalesKwd,
+      totalCostKwd: totalDishCostKwd,
+      totalNetProfitKwd: totalDishProfitKwd,
       avgMarginPct,
+      avgFoodCostPct,
+      effectiveChannelFeePct,
+      optimizationUpsideKwd,
       topProfitDish,
+      topProfitHeroes,
+      topMarginBleeders,
+      quadrantCounts,
       dishes,
     },
     quality: {

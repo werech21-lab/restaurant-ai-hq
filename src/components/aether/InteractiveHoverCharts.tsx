@@ -646,12 +646,12 @@ export interface DonutSliceDatum {
 export interface DonutSummaryPill {
   label: string
   value: string
-  tone?: 'emerald' | 'neutral' | 'amber'
+  tone?: 'emerald' | 'neutral' | 'amber' | 'rose'
 }
 
 /**
  * Finance V2 Signature Interactive Circular Donut Ring + Pill Legend Breakdown.
- * Center container is strictly bounded (`max-w-[62%]` centered flex column with `tabular-nums`)
+ * Center container is strictly bounded (`max-w-[62%]` outer guard + `104px` circular safe zone inside a `140px` inner ring diameter with `tabular-nums`)
  * so zero characters ever touch or collide with the SVG ring stroke.
  */
 export function InteractiveDonutChart({
@@ -660,14 +660,20 @@ export function InteractiveDonutChart({
   centerSubValue,
   centerLabel,
   summaryPill,
+  summaryRows,
+  activeSliceId,
+  onSelectSlice,
   isAr,
   legendColumns = 2,
 }: {
   slices: DonutSliceDatum[]
   centerValue: string
   centerSubValue?: string
-  centerLabel: string
+  centerLabel?: string
   summaryPill?: DonutSummaryPill
+  summaryRows?: DonutSummaryPill[]
+  activeSliceId?: string
+  onSelectSlice?: (id: string) => void
   isAr: boolean
   legendColumns?: 1 | 2
 }) {
@@ -679,7 +685,8 @@ export function InteractiveDonutChart({
   }))
   const total = Math.max(0.0001, positiveSlices.reduce((acc, s) => acc + s.safeVal, 0))
 
-  const radius = 71
+  // 192x192 SVG with r=78 and strokeWidth=13..15 => inner clear diameter = 141px (zero stroke collision)
+  const radius = 78
   const circumference = 2 * Math.PI * radius
   const activeCount = positiveSlices.filter((s) => s.safeVal > 0).length
   const gapPx = activeCount > 1 ? 3 : 0
@@ -697,58 +704,69 @@ export function InteractiveDonutChart({
   const hoveredSlice = hoveredId ? slices.find((s) => s.id === hoveredId) ?? null : null
   const activeCenterText = hoveredSlice ? hoveredSlice.pctFormatted : centerValue
   const centerFontCls =
-    activeCenterText.length > 9
-      ? 'text-[14px]'
+    activeCenterText.length > 8
+      ? 'text-[15px]'
       : activeCenterText.length > 6
-        ? 'text-[16.5px]'
+        ? 'text-[18px]'
         : 'text-[22px]'
 
-  const summaryToneCls =
-    summaryPill?.tone === 'amber'
+  const resolvePillToneCls = (tone?: DonutSummaryPill['tone']) =>
+    tone === 'amber'
       ? 'bg-amber-50 text-amber-900 dark:bg-amber-950/45 dark:text-amber-200'
-      : summaryPill?.tone === 'neutral'
-        ? 'bg-[#F7F7F8] text-neutral-800 dark:bg-white/[0.05] dark:text-slate-200'
-        : 'bg-emerald-50 text-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-200'
+      : tone === 'rose'
+        ? 'bg-rose-50 text-rose-900 dark:bg-rose-950/45 dark:text-rose-200'
+        : tone === 'neutral'
+          ? 'bg-[#F7F7F8] text-neutral-800 dark:bg-white/[0.05] dark:text-slate-200'
+          : 'bg-emerald-50 text-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-200'
 
-  const summaryValCls =
-    summaryPill?.tone === 'amber'
+  const resolveValToneCls = (tone?: DonutSummaryPill['tone']) =>
+    tone === 'amber'
       ? 'text-amber-800 dark:text-amber-300'
-      : summaryPill?.tone === 'neutral'
-        ? 'text-neutral-950 dark:text-white'
-        : 'text-emerald-700 dark:text-emerald-300'
+      : tone === 'rose'
+        ? 'text-rose-700 dark:text-rose-300'
+        : tone === 'neutral'
+          ? 'text-neutral-950 dark:text-white'
+          : 'text-emerald-700 dark:text-emerald-300'
+
+  const allSummaryRows: DonutSummaryPill[] = summaryRows
+    ? summaryRows
+    : summaryPill
+      ? [summaryPill]
+      : []
 
   return (
     <div dir={isAr ? 'rtl' : 'ltr'} className="flex flex-col justify-between gap-3.5">
-      {/* Circular Donut Ring */}
-      <div className="relative mx-auto flex h-44 w-44 sm:h-48 sm:w-48 items-center justify-center">
-        <svg viewBox="0 0 184 184" className="h-full w-full overflow-visible">
+      {/* Circular Donut Ring with generous inner breathing room */}
+      <div className="relative mx-auto flex h-48 w-48 items-center justify-center">
+        <svg viewBox="0 0 192 192" className="h-full w-full overflow-visible">
           <circle
-            cx="92"
-            cy="92"
+            cx="96"
+            cy="96"
             r={radius}
             fill="none"
             stroke="currentColor"
-            strokeWidth="16"
+            strokeWidth="13"
             className="text-neutral-100 dark:text-white/[0.06]"
           />
           {arcs.map((arc) => {
             if (arc.len <= 0) return null
-            const isHovered = hoveredId === arc.id
-            const isDimmed = hoveredId !== null && !isHovered
+            const isHovered = hoveredId === arc.id || activeSliceId === arc.id
+            const isDimmed = hoveredId !== null && hoveredId !== arc.id
             return (
               <circle
                 key={arc.id}
-                cx="92"
-                cy="92"
+                cx="96"
+                cy="96"
                 r={radius}
                 fill="none"
                 stroke={arc.color}
-                strokeWidth={isHovered ? 19 : 16}
+                strokeWidth={isHovered ? 15.5 : 13}
                 strokeDasharray={`${arc.len} ${circumference}`}
                 strokeDashoffset={arc.offset}
-                transform="rotate(-90 92 92)"
+                transform="rotate(-90 96 96)"
                 onMouseEnter={() => setHoveredId(arc.id)}
                 onMouseLeave={() => setHoveredId((cur) => (cur === arc.id ? null : cur))}
+                onClick={onSelectSlice ? () => onSelectSlice(arc.id) : undefined}
                 className="cursor-pointer transition-all duration-[180ms]"
                 style={{ opacity: isDimmed ? 0.42 : 1 }}
               />
@@ -756,46 +774,56 @@ export function InteractiveDonutChart({
           })}
         </svg>
 
-        {/* Bounded Center Callout (`max-w-[62%]` centered flex column with generous inner padding & `tabular-nums`) */}
+        {/* Strictly Padded Circular Center Safe Zone: 102px inside 141px clear ring (>19px radial padding all around) */}
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <div className="mx-auto flex max-w-[62%] flex-col items-center justify-center px-2.5 text-center tabular-nums">
+          <div className="mx-auto flex h-[102px] w-[102px] max-w-[62%] flex-col items-center justify-center rounded-full px-2 text-center tabular-nums">
             <span
               dir="ltr"
-              className={`${centerFontCls} max-w-full truncate font-semibold leading-none tracking-tight tabular-nums text-neutral-950 dark:text-white`}
+              className={`${centerFontCls} max-w-[88px] truncate font-semibold leading-none tracking-tight tabular-nums text-neutral-950 dark:text-white`}
             >
               {activeCenterText}
             </span>
-            {hoveredSlice ? (
+            {centerSubValue && !hoveredSlice ? (
               <span
                 dir="ltr"
-                className="mt-1 max-w-full truncate text-[11px] font-semibold tabular-nums text-emerald-600 dark:text-emerald-400"
-              >
-                {hoveredSlice.valueFormatted}
-              </span>
-            ) : centerSubValue ? (
-              <span
-                dir="ltr"
-                className="mt-1 max-w-full truncate text-[11px] font-semibold tabular-nums text-emerald-600 dark:text-emerald-400"
+                className="mt-1 max-w-[84px] truncate text-[10.5px] font-semibold tabular-nums text-emerald-600 dark:text-emerald-400"
               >
                 {centerSubValue}
               </span>
             ) : null}
-            <span className="mt-1 max-w-full truncate text-xs font-medium text-neutral-400 dark:text-slate-400">
-              {hoveredSlice ? hoveredSlice.label : centerLabel}
-            </span>
+            {centerLabel ? (
+              <span className="mt-1.5 max-w-[86px] truncate text-[10.5px] font-medium leading-tight text-neutral-400 dark:text-slate-400">
+                {centerLabel}
+              </span>
+            ) : null}
           </div>
         </div>
       </div>
 
-      {/* Dedicated Summary Row Beneath the Ring */}
-      {summaryPill ? (
-        <div
-          className={`flex items-center justify-between gap-2 rounded-xl px-3.5 py-2.5 text-xs ${summaryToneCls}`}
-        >
-          <span className="truncate font-medium">{summaryPill.label}</span>
-          <span dir="ltr" className={`shrink-0 font-semibold tabular-nums ${summaryValCls}`}>
-            {summaryPill.value}
-          </span>
+      {/* Dedicated KWD Summary Rows Beneath the Ring */}
+      {allSummaryRows.length > 0 ? (
+        <div className="space-y-1.5">
+          {hoveredSlice ? (
+            <div className="flex items-center justify-between gap-2 rounded-xl bg-emerald-50/90 px-3.5 py-2 text-xs text-emerald-950 dark:bg-emerald-950/50 dark:text-emerald-200">
+              <span className="truncate font-medium">{hoveredSlice.label}</span>
+              <span dir="ltr" className="shrink-0 font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">
+                {hoveredSlice.valueFormatted} ({hoveredSlice.pctFormatted})
+              </span>
+            </div>
+          ) : null}
+          {allSummaryRows.map((row) => (
+            <div
+              key={row.label}
+              className={`flex items-center justify-between gap-2 rounded-xl px-3.5 py-2 text-xs ${resolvePillToneCls(
+                row.tone,
+              )}`}
+            >
+              <span className="truncate font-medium">{row.label}</span>
+              <span dir="ltr" className={`shrink-0 font-semibold tabular-nums ${resolveValToneCls(row.tone)}`}>
+                {row.value}
+              </span>
+            </div>
+          ))}
         </div>
       ) : null}
 
@@ -803,34 +831,50 @@ export function InteractiveDonutChart({
       <div className={`grid gap-2 ${legendColumns === 2 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
         {slices.map((s) => {
           const isHovered = hoveredId === s.id
+          const isSelected = activeSliceId === s.id
           return (
             <div
               key={s.id}
+              role={onSelectSlice ? 'button' : undefined}
+              aria-pressed={onSelectSlice ? isSelected : undefined}
               tabIndex={0}
+              onClick={onSelectSlice ? () => onSelectSlice(s.id) : undefined}
+              onKeyDown={
+                onSelectSlice
+                  ? (e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        onSelectSlice(s.id)
+                      }
+                    }
+                  : undefined
+              }
               onMouseEnter={() => setHoveredId(s.id)}
               onMouseLeave={() => setHoveredId((cur) => (cur === s.id ? null : cur))}
               onFocus={() => setHoveredId(s.id)}
               onBlur={() => setHoveredId((cur) => (cur === s.id ? null : cur))}
-              className={`ae-bento-subcard flex cursor-pointer items-center justify-between gap-2 rounded-2xl px-3 py-2.5 transition-all duration-150 focus:outline-none ${
-                isHovered
-                  ? 'ring-1 ring-emerald-500/50 bg-white dark:bg-white/[0.08]'
-                  : 'bg-[#F4F6F9] hover:bg-slate-100/90'
+              className={`ae-bento-subcard flex cursor-pointer items-center justify-between gap-2 rounded-xl px-3 py-2 transition-all duration-150 focus:outline-none ${
+                isSelected
+                  ? 'bg-emerald-50/90 ring-1 ring-emerald-500/50 dark:bg-emerald-950/45 dark:ring-emerald-400/40'
+                  : isHovered
+                    ? 'bg-white ring-1 ring-emerald-500/40 dark:bg-white/[0.08]'
+                    : 'bg-[#F7F7F8] hover:bg-neutral-100 dark:bg-white/[0.04] dark:hover:bg-white/[0.07]'
               }`}
             >
               <div className="flex min-w-0 items-center gap-2">
                 <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: s.color }} />
                 <div className="min-w-0">
-                  <p className="truncate text-[12px] font-bold text-slate-800 dark:text-slate-200">{s.label}</p>
+                  <p className="truncate text-xs font-semibold text-neutral-800 dark:text-slate-200">{s.label}</p>
                   {s.subLabel ? (
-                    <p className="truncate text-[10.5px] font-medium text-slate-400">{s.subLabel}</p>
+                    <p className="truncate text-[10.5px] font-medium text-neutral-400">{s.subLabel}</p>
                   ) : null}
                 </div>
               </div>
               <div className="shrink-0 text-end">
-                <p dir="ltr" className="text-[12px] font-extrabold tabular-nums text-slate-950 dark:text-white">
+                <p dir="ltr" className="text-xs font-semibold tabular-nums text-neutral-950 dark:text-white">
                   {s.valueFormatted}
                 </p>
-                <p dir="ltr" className="text-[10.5px] font-bold tabular-nums text-slate-500 dark:text-slate-400">
+                <p dir="ltr" className="text-[10.5px] font-medium tabular-nums text-neutral-500 dark:text-slate-400">
                   {s.pctFormatted}
                 </p>
               </div>

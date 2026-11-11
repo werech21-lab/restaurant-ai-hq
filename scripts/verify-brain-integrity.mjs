@@ -344,6 +344,7 @@ assert(
 )
 
 const coresSrc = fs.readFileSync(path.join(ROOT, 'src/components/aether/CoresHubStudio.tsx'), 'utf8')
+const coresEngineSrc = fs.readFileSync(path.join(ROOT, 'src/lib/aether/cores-hub-engine.ts'), 'utf8')
 const donutSrc = fs.readFileSync(path.join(ROOT, 'src/components/aether/InteractiveHoverCharts.tsx'), 'utf8')
 const shellSrc = fs.readFileSync(path.join(ROOT, 'src/components/shell.tsx'), 'utf8')
 const beforeAfterSrc = fs.readFileSync(path.join(ROOT, 'src/components/aether/BeforeAfterStudio.tsx'), 'utf8')
@@ -351,7 +352,8 @@ const boothSrc = fs.readFileSync(path.join(ROOT, 'src/components/aether/BoothStu
 assert(
   !coresSrc.includes("'Promo vs Organic'") &&
     !coresSrc.includes("'العروض مقابل الطبيعي'") &&
-    !coresSrc.includes('centerValue={`${snap.menu.avgMarginPct}%`}') &&
+    !coresSrc.includes('Avg Dish Margin') &&
+    !coresSrc.includes('هامش ربح الأكل') &&
     !coresSrc.includes('centerValue={`${snap.quality.avgPlatformRating.toFixed(1)} ★`}') &&
     !beforeAfterSrc.includes('centerValue={fmtSignedPct(snap.summary.pocket.pct)}') &&
     !boothSrc.includes('centerValue={kwd(base.revenue)}'),
@@ -359,8 +361,9 @@ assert(
 )
 assert(
   donutSrc.includes('max-w-[62%]') &&
+    donutSrc.includes('h-[102px] w-[102px]') &&
     donutSrc.includes('tabular-nums') &&
-    donutSrc.includes('summaryPill') &&
+    donutSrc.includes('summaryRows') &&
     coresSrc.includes('bg-neutral-100 text-neutral-800 dark:bg-emerald-950/70 dark:text-emerald-200') &&
     coresSrc.includes('Return per 1 KWD Ad') &&
     coresSrc.includes('Discounts & Ad Spend') &&
@@ -389,6 +392,27 @@ assert(
     coresSrc.includes('التفاصيل') &&
     shellSrc.includes('max-w-[1520px]'),
   'Unslop /erp/cores 4-tab redesign passed: max-w-[1520px] layout, duplicate Brand Sales Share replaced with 0%-Fee Direct vs Aggregator Mix, 4 non-redundant Sales & Marketing KPIs, soft proportional bars, collapsible + فحص إعلان مشهور جديد & gated demo toggle',
+)
+assert(
+  coresSrc.includes('أعلى ٨ أطباق تدرّ صافياً بالجيب 🟢') &&
+    coresSrc.includes('Top 8 Profit Heroes') &&
+    coresSrc.includes('أخطر ٨ أطباق عالية التكلفة أو ضعيفة الهامش 🔴') &&
+    coresSrc.includes('Top 8 Margin Bleeders / Price Gaps') &&
+    coresSrc.includes('هامش الأطباق') &&
+    coresSrc.includes('Gross Margin') &&
+    coresSrc.includes('ابحث عن طبق أو مطعم... 🔍') &&
+    coresSrc.includes('أبطال الربح ⭐') &&
+    coresSrc.includes('شعبي بربح ضعيف 🐎') &&
+    coresSrc.includes('كنوز مخفية 💎') &&
+    coresSrc.includes('يحتاج مراجعة ⚠️') &&
+    coresEngineSrc.includes('ثبّت بالصدارة ⭐') &&
+    coresEngineSrc.includes('ارفع +١٠٠ فلس / كومبو 📈') &&
+    coresEngineSrc.includes('أبرزه بالتطبيقات 🚀') &&
+    coresEngineSrc.includes('راجع الوصفة 🔧') &&
+    coresSrc.includes('useState<MenuPageSize>(12)') &&
+    coresSrc.includes('عرض الكل') &&
+    coresSrc.includes('simulateDishPriceAndCost'),
+  'Tab 3 Menu Engineering Matrix overhaul passed: zero-collision Gross Margin donut, Top 8 Heroes & Bleeders horizontal ranking, 12-row default pagination, 4-quadrant lenses & 95%-retention Price/Cost Simulator Drawer',
 )
 
 // 8. Runtime Sales Tab 0.000 KWD Reconciliation Across All Periods & Filters
