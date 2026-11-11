@@ -13,7 +13,7 @@ export default async function CoresHubPage() {
   await requirePageUser('/erp/cores')
 
   return (
-    <div className="w-full min-w-0">
+    <div className="max-w-[1520px] w-full mx-auto min-w-0">
       <CoresHubStudio />
     </div>
   )

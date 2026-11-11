@@ -24,7 +24,7 @@ html[data-rail-collapsed='true'] {
   --ae-rail-w: 76px;
 }
 
-/* ---------- 1. Outer Architectural Studio Shell (#F4F6F9 / #090F15) ---------- */
+/* ---------- 1. Outer Architectural Studio Shell (#F7F7F8 / #090F15) ---------- */
 #ae-root,
 html[data-theme='light'] #ae-root,
 html.light-mode #ae-root,
@@ -34,7 +34,7 @@ html.light-mode #ae-root .app-content,
 html:not(.dark) #ae-root .app-content {
   position: relative;
   color: #0f172a !important;
-  background-color: #F4F6F9 !important;
+  background-color: #F7F7F8 !important;
 }
 
 #ae-root {
@@ -461,8 +461,8 @@ html[data-theme='dark'] #ae-canvas {
 #ae-root .ae-tile {
   position: relative;
   background-color: #FFFFFF !important;
-  border-radius: 22px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03), 0 8px 24px -6px rgba(15, 23, 42, 0.045), 0 0 0 1px rgba(15, 23, 42, 0.035) !important;
+  border-radius: 20px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 6px 20px -6px rgba(15, 23, 42, 0.035) !important;
   border: none !important;
 }
 
@@ -482,10 +482,10 @@ html[data-theme='dark'] #ae-root .app-content .bg-white:not([role='tooltip']) {
 #ae-root .ae-kpi-card {
   position: relative;
   background-color: #FFFFFF !important;
-  border-radius: 20px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03), 0 8px 24px -6px rgba(15, 23, 42, 0.045), 0 0 0 1px rgba(15, 23, 42, 0.035) !important;
+  border-radius: 18px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 6px 20px -6px rgba(15, 23, 42, 0.035) !important;
   border: none !important;
-  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 180ms ease;
+  transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 160ms ease;
 }
 
 #ae-root .ae-kpi-card:hover {

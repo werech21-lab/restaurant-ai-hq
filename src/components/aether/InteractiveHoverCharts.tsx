@@ -622,7 +622,7 @@ export function InteractiveDonutChart({
   }))
   const total = Math.max(0.0001, positiveSlices.reduce((acc, s) => acc + s.safeVal, 0))
 
-  const radius = 68
+  const radius = 71
   const circumference = 2 * Math.PI * radius
   const activeCount = positiveSlices.filter((s) => s.safeVal > 0).length
   const gapPx = activeCount > 1 ? 3 : 0
@@ -641,23 +641,23 @@ export function InteractiveDonutChart({
   const activeCenterText = hoveredSlice ? hoveredSlice.pctFormatted : centerValue
   const centerFontCls =
     activeCenterText.length > 9
-      ? 'text-[14.5px]'
+      ? 'text-[14px]'
       : activeCenterText.length > 6
-        ? 'text-[17px]'
-        : 'text-[21px]'
+        ? 'text-[16.5px]'
+        : 'text-[22px]'
 
   const summaryToneCls =
     summaryPill?.tone === 'amber'
-      ? 'bg-amber-50/80 text-amber-900 ring-amber-500/20 dark:bg-amber-950/40 dark:text-amber-200 dark:ring-amber-400/20'
+      ? 'bg-amber-50 text-amber-900 dark:bg-amber-950/45 dark:text-amber-200'
       : summaryPill?.tone === 'neutral'
-        ? 'bg-[#F4F6F9] text-slate-800 ring-slate-900/[0.05] dark:bg-white/[0.05] dark:text-slate-200 dark:ring-white/[0.08]'
-        : 'bg-emerald-50/85 text-emerald-900 ring-emerald-500/20 dark:bg-emerald-950/45 dark:text-emerald-200 dark:ring-emerald-400/25'
+        ? 'bg-[#F7F7F8] text-neutral-800 dark:bg-white/[0.05] dark:text-slate-200'
+        : 'bg-emerald-50 text-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-200'
 
   const summaryValCls =
     summaryPill?.tone === 'amber'
       ? 'text-amber-800 dark:text-amber-300'
       : summaryPill?.tone === 'neutral'
-        ? 'text-slate-950 dark:text-white'
+        ? 'text-neutral-950 dark:text-white'
         : 'text-emerald-700 dark:text-emerald-300'
 
   return (
@@ -671,8 +671,8 @@ export function InteractiveDonutChart({
             r={radius}
             fill="none"
             stroke="currentColor"
-            strokeWidth="18"
-            className="text-slate-100 dark:text-white/[0.06]"
+            strokeWidth="16"
+            className="text-neutral-100 dark:text-white/[0.06]"
           />
           {arcs.map((arc) => {
             if (arc.len <= 0) return null
@@ -686,7 +686,7 @@ export function InteractiveDonutChart({
                 r={radius}
                 fill="none"
                 stroke={arc.color}
-                strokeWidth={isHovered ? 21 : 18}
+                strokeWidth={isHovered ? 19 : 16}
                 strokeDasharray={`${arc.len} ${circumference}`}
                 strokeDashoffset={arc.offset}
                 transform="rotate(-90 92 92)"
@@ -699,44 +699,44 @@ export function InteractiveDonutChart({
           })}
         </svg>
 
-        {/* Bounded Center Callout (`max-w-[62%]` centered flex column with `tabular-nums`) */}
+        {/* Bounded Center Callout (`max-w-[62%]` centered flex column with generous inner padding & `tabular-nums`) */}
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <div className="mx-auto flex max-w-[62%] flex-col items-center justify-center text-center tabular-nums">
+          <div className="mx-auto flex max-w-[62%] flex-col items-center justify-center px-2.5 text-center tabular-nums">
             <span
               dir="ltr"
-              className={`${centerFontCls} max-w-full truncate font-black leading-none tracking-tight tabular-nums text-slate-950 dark:text-white`}
+              className={`${centerFontCls} max-w-full truncate font-semibold leading-none tracking-tight tabular-nums text-neutral-950 dark:text-white`}
             >
               {activeCenterText}
             </span>
             {hoveredSlice ? (
               <span
                 dir="ltr"
-                className="mt-1 max-w-full truncate text-[11px] font-extrabold tabular-nums text-emerald-600 dark:text-emerald-400"
+                className="mt-1 max-w-full truncate text-[11px] font-semibold tabular-nums text-emerald-600 dark:text-emerald-400"
               >
                 {hoveredSlice.valueFormatted}
               </span>
             ) : centerSubValue ? (
               <span
                 dir="ltr"
-                className="mt-1 max-w-full truncate text-[11px] font-extrabold tabular-nums text-emerald-600 dark:text-emerald-400"
+                className="mt-1 max-w-full truncate text-[11px] font-semibold tabular-nums text-emerald-600 dark:text-emerald-400"
               >
                 {centerSubValue}
               </span>
             ) : null}
-            <span className="mt-1 max-w-full truncate text-[11px] font-bold text-slate-500 dark:text-slate-400">
+            <span className="mt-1 max-w-full truncate text-xs font-medium text-neutral-400 dark:text-slate-400">
               {hoveredSlice ? hoveredSlice.label : centerLabel}
             </span>
           </div>
         </div>
       </div>
 
-      {/* Dedicated Summary Pill Below the Chart */}
+      {/* Dedicated Summary Row Beneath the Ring */}
       {summaryPill ? (
         <div
-          className={`flex items-center justify-between gap-2 rounded-2xl px-3.5 py-2 text-[12px] ring-1 ${summaryToneCls}`}
+          className={`flex items-center justify-between gap-2 rounded-xl px-3.5 py-2.5 text-xs ${summaryToneCls}`}
         >
-          <span className="truncate font-bold">{summaryPill.label}</span>
-          <span dir="ltr" className={`shrink-0 font-extrabold tabular-nums ${summaryValCls}`}>
+          <span className="truncate font-medium">{summaryPill.label}</span>
+          <span dir="ltr" className={`shrink-0 font-semibold tabular-nums ${summaryValCls}`}>
             {summaryPill.value}
           </span>
         </div>

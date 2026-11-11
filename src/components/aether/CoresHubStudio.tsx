@@ -40,6 +40,7 @@ import {
 import {
   computeCoresHubSnapshot,
   type DishSimpleTag,
+  type SalesPoint,
 } from '@/lib/aether/cores-hub-engine'
 import {
   InteractiveDonutChart,
@@ -66,11 +67,15 @@ const f2 = (n: number) =>
     maximumFractionDigits: 2,
   })
 
-const CARD_CLS = 'ae-bento-card p-5 sm:p-6'
-const KPI_CARD_CLS = 'ae-kpi-card p-5'
+const CARD_CLS =
+  'ae-bento-card bg-white p-5 sm:p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-[#111A22]'
+const KPI_CARD_CLS =
+  'ae-kpi-card bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-[#111A22]'
+const SOFT_SCOPE_PILL_CLS =
+  'bg-neutral-100 text-neutral-800 dark:bg-emerald-950/70 dark:text-emerald-200 font-medium text-xs px-2.5 py-1 rounded-full'
 
 const INPUT_CLS =
-  'h-10 w-full rounded-xl bg-[#F4F6F9] px-3 text-[13px] font-semibold text-slate-900 ring-1 ring-slate-950/[0.05] transition-all duration-150 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-600/70 dark:bg-white/[0.06] dark:text-white dark:ring-white/[0.08]'
+  'h-10 w-full rounded-xl bg-white px-3 text-[13px] font-medium text-neutral-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 dark:bg-[#0F1821] dark:text-white'
 
 const BRAND_CHOICES = GLOBAL_BRAND_OPTIONS.filter(
   (b): b is { id: Exclude<GlobalBrand, 'all'>; ar: string; en: string } => b.id !== 'all',
@@ -104,6 +109,7 @@ export function CoresHubStudio() {
   const [activeTab, setActiveTab] = useState<CoreTabId>('marketing')
   const [campaigns, setCampaigns] = useState<SocialCampaign[]>([])
   const [showDemoCampaigns, setShowDemoCampaigns] = useState(false)
+  const [isAdFormOpen, setIsAdFormOpen] = useState(false)
   const [expandedPlays, setExpandedPlays] = useState<Record<string, boolean>>({})
   const [hydrated, setHydrated] = useState(false)
   const [copiedId, setCopiedId] = useState<string | null>(null)
@@ -177,6 +183,7 @@ export function CoresHubStudio() {
     setFormSpend('150')
     setFormDate('2026-10-29')
     setFormItem('')
+    setIsAdFormOpen(false)
   }, [filters.brand])
 
   const handleSaveCampaign = useCallback(
@@ -240,6 +247,7 @@ export function CoresHubStudio() {
     setFormSpend(String(c.spendKwd))
     setFormDate(c.date)
     setFormItem(c.promotedItem ?? '')
+    setIsAdFormOpen(true)
   }, [])
 
   const handleDeleteCampaign = useCallback(
@@ -376,7 +384,7 @@ export function CoresHubStudio() {
   }, [snap.sales.hourly, isAr, kwdSuffix])
 
   const toRankItems = useCallback(
-    (rows: typeof snap.sales.brandShare): HorizontalRankDatum[] =>
+    (rows: SalesPoint[]): HorizontalRankDatum[] =>
       rows.map((r) => ({
         id: r.id,
         label: isAr ? r.labelAr : r.labelEn,
@@ -604,14 +612,14 @@ export function CoresHubStudio() {
   }
 
   return (
-    <div dir={isAr ? 'rtl' : 'ltr'} className="w-full space-y-4 pb-10">
+    <div dir={isAr ? 'rtl' : 'ltr'} className="w-full space-y-3.5 pb-10">
       {/* ───────────── Page Header & Verdelo 4 Core SlidingPillTabs ───────────── */}
-      <header className="ae-bento-card flex flex-col gap-3 px-5 py-3.5 lg:flex-row lg:items-center lg:justify-between">
+      <header className="ae-bento-card flex flex-col gap-2.5 bg-white px-5 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.04)] lg:flex-row lg:items-center lg:justify-between dark:bg-[#111A22]">
         <div>
-          <h1 className="text-[21px] font-extrabold tracking-tight text-slate-950 sm:text-[23px] dark:text-white">
+          <h1 className="text-[20px] font-semibold tracking-tight text-neutral-950 sm:text-[22px] dark:text-white">
             {isAr ? 'المبيعات والتسويق والمنتجات' : 'Sales, Marketing & Menu'}
           </h1>
-          <p className="mt-0.5 text-[12.5px] font-medium text-slate-500 dark:text-slate-400">
+          <p className="mt-0.5 text-xs text-neutral-400">
             {isAr ? workspace.subtitleAr : workspace.subtitleEn}
           </p>
         </div>
@@ -637,41 +645,41 @@ export function CoresHubStudio() {
         pageTitleEn={`Sales, Marketing & Menu — ${CORE_TABS.find((t) => t.id === activeTab)?.en ?? ''}`}
         promptAr={`حلّل قسم (${CORE_TABS.find((t) => t.id === activeTab)?.ar ?? ''}) وعطني أهم ٣ قرارات عملية لزيادة الطلبات والصافي بالجيب فوراً.`}
         promptEn={`Analyze the (${CORE_TABS.find((t) => t.id === activeTab)?.en ?? ''}) tab and give me the top 3 immediate actions to grow orders and net cash.`}
-        pageContext={`القسم النشط: ${activeTab}. عائد كل 1 د.ك إعلان: ${f1(snap.marketing.kpis.roasPer1Kwd)}x د.ك | تكلفة الخصومات والإعلانات: ${f0(snap.marketing.kpis.totalMarketingCostKwd)} د.ك (${snap.marketing.kpis.marketingCostPctOfSales}%) | الصافي بعد التسويق: ${f0(snap.marketing.kpis.netPocketAfterAdsKwd)} د.ك | إجمالي الأصناف النشطة: ${snap.menu.dishes.length} صنف | درجة الجودة العامة: ${snap.quality.qualityScore}%.`}
+        pageContext={`القسم النشط: ${activeTab}. عائد كل 1 د.ك إعلان: ${f1(snap.marketing.kpis.roasPer1Kwd)}x | تكلفة الخصومات والإعلانات: ${f0(snap.marketing.kpis.totalMarketingCostKwd)} د.ك (${snap.marketing.kpis.marketingCostPctOfSales}%) | الصافي النقدي بعد الإعلانات: ${f0(snap.marketing.kpis.netAfterAdSpendKwd)} د.ك | إجمالي الأصناف النشطة: ${snap.menu.dishes.length} صنف | درجة الجودة العامة: ${snap.quality.qualityScore}%.`}
       />
 
       {/* =====================================================================
           TAB 1: التسويق ونمو المبيعات (Marketing, Social/Influencer ROI & 6 Growth Plays)
          ===================================================================== */}
       {activeTab === 'marketing' ? (
-        <div className="space-y-5">
+        <div className="space-y-4">
           {/* 1. 4 Crisp Non-Duplicate Odoo-Derived Marketing KPIs ("One Metric, One Place") */}
           <section className="ae-stagger grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {/* KPI 1: Return per 1 KWD Ad */}
+            {/* KPI 1: Return per 1 KWD Ad (4.6x) */}
             <article className={`${KPI_CARD_CLS} ae-glow-emerald`}>
-              <div className="text-[13px] font-bold text-slate-500 dark:text-slate-400">
+              <div className="text-xs font-medium text-neutral-500 dark:text-slate-400">
                 {isAr ? 'عائد كل ١ د.ك إعلان' : 'Return per 1 KWD Ad'}
               </div>
               <div
                 dir="ltr"
-                className="mt-2 text-[26px] font-black tracking-tight tabular-nums text-emerald-700 dark:text-emerald-400"
+                className="mt-2 text-[26px] font-semibold tracking-tight tabular-nums text-emerald-700 dark:text-emerald-400"
               >
-                {f1(snap.marketing.kpis.roasPer1Kwd)}x {kwdSuffix}
+                {f1(snap.marketing.kpis.roasPer1Kwd)}x
               </div>
-              <p className="mt-1 text-[12px] font-medium text-slate-400">
+              <p className="mt-1 text-xs text-neutral-400">
                 {isAr ? 'مبيعات لكل ١ د.ك عروض وإعلان' : 'Sales per 1 KWD promo & ad spend'}
               </p>
             </article>
 
-            {/* KPI 2: Discounts & Ad Spend + % of sales badge */}
+            {/* KPI 2: Discounts & Ad Spend (1,158 KWD) */}
             <article className={`${KPI_CARD_CLS} ae-glow-amber`}>
               <div className="flex items-center justify-between gap-2">
-                <span className="text-[13px] font-bold text-slate-500 dark:text-slate-400">
+                <span className="text-xs font-medium text-neutral-500 dark:text-slate-400">
                   {isAr ? 'تكلفة الخصومات والإعلانات' : 'Discounts & Ad Spend'}
                 </span>
                 <span
                   dir="ltr"
-                  className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-extrabold tabular-nums text-amber-800 dark:bg-amber-950/60 dark:text-amber-300"
+                  className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-medium tabular-nums text-amber-800 dark:bg-amber-950/60 dark:text-amber-300"
                 >
                   {f1(snap.marketing.kpis.marketingCostPctOfSales)}%{' '}
                   {isAr ? 'من المبيعات' : 'of sales'}
@@ -679,50 +687,50 @@ export function CoresHubStudio() {
               </div>
               <div
                 dir="ltr"
-                className="mt-2 text-[26px] font-black tracking-tight tabular-nums text-slate-950 dark:text-white"
+                className="mt-2 text-[26px] font-semibold tracking-tight tabular-nums text-neutral-950 dark:text-white"
               >
                 {f0(snap.marketing.kpis.totalMarketingCostKwd)} {kwdSuffix}
               </div>
-              <p className="mt-1 text-[12px] font-medium text-slate-400">
+              <p className="mt-1 text-xs text-neutral-400">
                 {isAr ? 'خصومات الكاشير والتطبيقات والحملات' : 'POS discounts, app promos & ads'}
               </p>
             </article>
 
-            {/* KPI 3: Net Pocket After Ads */}
+            {/* KPI 3: Net Cash After Ads (4,205 KWD) */}
             <article className={`${KPI_CARD_CLS} ae-glow-emerald`}>
               <div className="flex items-center justify-between gap-2">
-                <span className="text-[13px] font-bold text-slate-500 dark:text-slate-400">
-                  {isAr ? 'الصافي بعد التسويق' : 'Net Pocket After Ads'}
+                <span className="text-xs font-medium text-neutral-500 dark:text-slate-400">
+                  {isAr ? 'الصافي النقدي بعد الإعلانات' : 'Net Cash After Ads'}
                 </span>
                 <span
                   dir="ltr"
-                  className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-extrabold tabular-nums text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+                  className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-medium tabular-nums text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
                 >
-                  {f1(snap.marketing.kpis.netPocketAfterAdsPct)}%
+                  {isAr ? 'فائض العروض' : 'Net Surplus'}
                 </span>
               </div>
               <div
                 dir="ltr"
-                className="mt-2 text-[26px] font-black tracking-tight tabular-nums text-emerald-700 dark:text-emerald-400"
+                className="mt-2 text-[26px] font-semibold tracking-tight tabular-nums text-emerald-700 dark:text-emerald-400"
               >
-                {f0(snap.marketing.kpis.netPocketAfterAdsKwd)} {kwdSuffix}
+                {f0(snap.marketing.kpis.netAfterAdSpendKwd)} {kwdSuffix}
               </div>
-              <p className="mt-1 text-[12px] font-medium text-slate-400">
+              <p className="mt-1 text-xs text-neutral-400">
                 {isAr
-                  ? 'بعد الأكل والعمولة والمصاريف والإعلان'
-                  : 'After food, fees, opex & ad spend'}
+                  ? 'مبيعات العروض بعد خصم تكلفة الإعلان والخصم'
+                  : 'Promo sales retained after discounts & ad spend'}
               </p>
             </article>
 
             {/* KPI 4: Promo vs Organic Avg Bill */}
             <article className={`${KPI_CARD_CLS} ae-glow-sky`}>
               <div className="flex items-center justify-between gap-2">
-                <span className="truncate text-[12.5px] font-bold text-slate-500 dark:text-slate-400">
+                <span className="truncate text-xs font-medium text-neutral-500 dark:text-slate-400">
                   {isAr ? 'متوسط فاتورة العرض مقابل الطبيعي' : 'Promo vs Organic Avg Bill'}
                 </span>
                 <span
                   dir="ltr"
-                  className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-extrabold tabular-nums ${
+                  className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-medium tabular-nums ${
                     snap.marketing.kpis.aovDeltaPct >= 0
                       ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
                       : 'bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
@@ -734,14 +742,14 @@ export function CoresHubStudio() {
               </div>
               <div
                 dir="ltr"
-                className="mt-2 text-[22px] font-black tracking-tight tabular-nums text-slate-950 dark:text-white"
+                className="mt-2 text-[22px] font-semibold tracking-tight tabular-nums text-neutral-950 dark:text-white"
               >
                 {f2(snap.marketing.kpis.promoAovKwd)}{' '}
-                <span className="text-[14px] font-semibold text-slate-400">
+                <span className="text-[13.5px] font-medium text-neutral-400">
                   vs {f2(snap.marketing.kpis.organicAovKwd)} {kwdSuffix}
                 </span>
               </div>
-              <p className="mt-1 text-[12px] font-medium text-slate-400">
+              <p className="mt-1 text-xs text-neutral-400">
                 {isAr
                   ? `فرق السلة: ${snap.marketing.kpis.aovDeltaKwd >= 0 ? '+' : ''}${f2(snap.marketing.kpis.aovDeltaKwd)} د.ك للطلب`
                   : `Basket delta: ${snap.marketing.kpis.aovDeltaKwd >= 0 ? '+' : ''}${f2(snap.marketing.kpis.aovDeltaKwd)} KWD/order`}
@@ -750,16 +758,16 @@ export function CoresHubStudio() {
           </section>
 
           {/* 2. Finance V2 Bento Split: 8-Col Stacked Capsule Chart + 4-Col Promo Mix Donut */}
-          <section className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+          <section className="grid grid-cols-1 gap-4 lg:grid-cols-12">
             <div className={`${CARD_CLS} flex flex-col justify-between lg:col-span-8`}>
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-[17px] font-extrabold text-slate-950 dark:text-white">
+                  <h2 className="text-[17px] font-semibold tracking-tight text-neutral-950 dark:text-white">
                     {isAr
                       ? 'المبيعات الطبيعية مقابل العروض والإعلانات'
                       : 'Organic vs Promo/Ad Sales & Net Profit'}
                   </h2>
-                  <p className="mt-0.5 text-[12.5px] font-medium text-slate-500 dark:text-slate-400">
+                  <p className="mt-0.5 text-xs text-neutral-400">
                     {isAr
                       ? 'مرّر الماوس على أي يوم لمعرفة المبيعات، الطلبات، تكلفة الإعلان، والصافي'
                       : 'Hover any capsule to inspect exact KWD, orders, ad cost, and net profit'}
@@ -767,7 +775,7 @@ export function CoresHubStudio() {
                 </div>
                 <Link
                   href="/erp/before-after"
-                  className="ae-bento-subcard inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-[12px] font-bold text-slate-800 transition-colors duration-[180ms] hover:text-slate-950 dark:text-slate-200"
+                  className="inline-flex h-8 items-center gap-1.5 rounded-full bg-neutral-100 px-3.5 text-xs font-medium text-neutral-800 transition-colors duration-150 hover:bg-neutral-200/80 hover:text-neutral-950 dark:bg-emerald-950/70 dark:text-emerald-200 dark:hover:bg-emerald-900/70"
                 >
                   <span>{isAr ? 'مقارنة قبل وبعد' : 'Before & After'}</span>
                   <ArrowUpRight className="h-3.5 w-3.5" />
@@ -788,21 +796,21 @@ export function CoresHubStudio() {
 
             <div className={`${CARD_CLS} flex flex-col justify-between lg:col-span-4`}>
               <div className="mb-3">
-                <h2 className="text-[17px] font-extrabold text-slate-950 dark:text-white">
+                <h2 className="text-[17px] font-semibold tracking-tight text-neutral-950 dark:text-white">
                   {isAr ? 'حصة العروض والطبيعي' : 'Promo vs Organic Mix'}
                 </h2>
-                <p className="text-[12.5px] font-medium text-slate-500 dark:text-slate-400">
-                  {isAr ? 'توزيعة مبيعات الفترة بدون تداخل' : 'Clean sales mix & net promo surplus'}
+                <p className="mt-0.5 text-xs text-neutral-400">
+                  {isAr ? 'نسبة العروض داخل الدائرة والصافي بالأسفل' : 'Promo share centered · net cash row below'}
                 </p>
               </div>
 
               <InteractiveDonutChart
                 slices={marketingDonutSlices}
                 centerValue={`${f1(snap.marketing.kpis.promoSharePct)}%`}
-                centerLabel={isAr ? 'نسبة العروض' : 'Promo Share'}
+                centerLabel={isAr ? 'حصة العروض' : 'Promo Share'}
                 summaryPill={{
-                  label: isAr ? 'الصافي بعد خصم الإعلان' : 'Net After Ad Spend',
-                  value: `+${f0(snap.marketing.kpis.netAfterAdSpendKwd)} ${kwdSuffix}`,
+                  label: isAr ? 'صافي الجيب النقدي' : 'Net Pocket Cash',
+                  value: `+${f0(snap.marketing.kpis.netPocketAfterAdsKwd)} ${kwdSuffix}`,
                   tone: 'emerald',
                 }}
                 isAr={isAr}
@@ -811,241 +819,263 @@ export function CoresHubStudio() {
             </div>
           </section>
 
-          {/* 3. Social Media & Influencer Ad ROI Calculator + Log */}
+          {/* 3. Social Media & Influencer Ad ROI Calculator (Collapsible Form + Gated Demo Toggle) */}
           <section className={CARD_CLS}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h2 className="text-[18px] font-extrabold text-slate-950 dark:text-white">
+                <h2 className="text-[17px] font-semibold tracking-tight text-neutral-950 dark:text-white">
                   {isAr
                     ? 'حاسبة أثر إعلانات السوشيال والمشاهير'
                     : 'Social Media & Influencer Ad ROI Calculator'}
                 </h2>
-                <p className="mt-0.5 text-[12.5px] font-medium text-slate-500 dark:text-slate-400">
+                <p className="mt-0.5 text-xs text-neutral-400">
                   {isAr
                     ? 'تقارن مبيعات أودو ٣ أيام قبل الإعلان بـ ٣ أيام بعده وتخصم الأكل والعمولة وسعر الإعلان'
                     : 'Compares real Odoo POS sales 3 days before vs 3 days after ad date, net of food, fees & spend'}
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setShowDemoCampaigns((v) => !v)}
-                aria-pressed={showDemoCampaigns}
-                className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-[12px] font-bold transition-all duration-[180ms] ${
-                  showDemoCampaigns
-                    ? 'bg-amber-50 text-amber-900 ring-1 ring-amber-500/30 dark:bg-amber-950/50 dark:text-amber-200 dark:ring-amber-400/30'
-                    : 'bg-[#F4F6F9] text-slate-700 hover:bg-slate-200/70 hover:text-slate-950 dark:bg-white/[0.06] dark:text-slate-200 dark:hover:bg-white/[0.1]'
-                }`}
-              >
-                <span>
-                  {showDemoCampaigns
-                    ? isAr
-                      ? 'إخفاء الأمثلة التوضيحية 🧪'
-                      : 'Hide 4 Demo Examples 🧪'
-                    : isAr
-                      ? 'عرض ٤ أمثلة توضيحية 🧪'
-                      : 'Show 4 Demo Examples 🧪'}
-                </span>
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowDemoCampaigns((v) => !v)}
+                  aria-pressed={showDemoCampaigns}
+                  className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-xs font-medium transition-all duration-150 ${
+                    showDemoCampaigns
+                      ? 'bg-amber-50 text-amber-900 dark:bg-amber-950/60 dark:text-amber-200'
+                      : 'bg-neutral-100 text-neutral-800 hover:bg-neutral-200/80 dark:bg-emerald-950/70 dark:text-emerald-200 dark:hover:bg-emerald-900/70'
+                  }`}
+                >
+                  <span>
+                    {showDemoCampaigns
+                      ? isAr
+                        ? 'إخفاء الأمثلة التوضيحية 🧪'
+                        : 'Hide Demo Examples 🧪'
+                      : isAr
+                        ? 'عرض أمثلة توضيحية 🧪'
+                        : 'Show Demo Examples 🧪'}
+                  </span>
+                </button>
+
+                {isAdFormOpen ? (
+                  <button
+                    type="button"
+                    onClick={resetCampaignForm}
+                    className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-neutral-100 px-3.5 text-xs font-medium text-neutral-800 transition-colors duration-150 hover:bg-neutral-200/80 dark:bg-white/[0.08] dark:text-slate-200"
+                  >
+                    <span>{isAr ? 'إغلاق النموذج ✕' : 'Close Form ✕'}</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setIsAdFormOpen(true)}
+                    className="ae-btn-primary inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-4 text-xs font-semibold transition-all duration-150 hover:opacity-95 active:scale-[0.99]"
+                  >
+                    <span>
+                      {isAr
+                        ? '+ حساب جدوى إعلان مشهور'
+                        : '+ Calculate New Influencer Ad'}
+                    </span>
+                  </button>
+                )}
+              </div>
             </div>
 
-            {/* Inline Add / Edit Form */}
-            <form
-              onSubmit={handleSaveCampaign}
-              className="mt-4 rounded-2xl bg-[#F7F7F8] p-4 dark:bg-white/[0.03]"
-            >
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
-                <div>
-                  <label className="mb-1 block text-[11.5px] font-bold text-slate-600 dark:text-slate-300">
-                    {isAr ? 'المطعم' : 'Brand'}
-                  </label>
-                  <select
-                    value={formBrand}
-                    onChange={(e) => setFormBrand(e.target.value as Exclude<GlobalBrand, 'all'>)}
-                    className={`${INPUT_CLS} bg-white dark:bg-[#0F1626]`}
-                  >
-                    {BRAND_CHOICES.map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {isAr ? b.ar : b.en}
-                      </option>
-                    ))}
-                  </select>
+            {/* Collapsible 6-Field Input Form */}
+            {isAdFormOpen ? (
+              <form
+                onSubmit={handleSaveCampaign}
+                className="mt-4 rounded-2xl bg-[#F7F7F8] p-4 transition-all duration-150 dark:bg-white/[0.03]"
+              >
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-neutral-600 dark:text-slate-300">
+                      {isAr ? 'المطعم' : 'Brand'}
+                    </label>
+                    <select
+                      value={formBrand}
+                      onChange={(e) => setFormBrand(e.target.value as Exclude<GlobalBrand, 'all'>)}
+                      className={INPUT_CLS}
+                    >
+                      {BRAND_CHOICES.map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {isAr ? b.ar : b.en}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-neutral-600 dark:text-slate-300">
+                      {isAr ? 'نوع الإعلان' : 'Ad Type'}
+                    </label>
+                    <select
+                      value={formAdType}
+                      onChange={(e) => setFormAdType(e.target.value as SocialAdType)}
+                      className={INPUT_CLS}
+                    >
+                      {SOCIAL_AD_TYPE_OPTIONS.map((opt) => (
+                        <option key={opt.id} value={opt.id}>
+                          {isAr ? opt.ar : opt.en}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="lg:col-span-2">
+                    <label className="mb-1 block text-xs font-medium text-neutral-600 dark:text-slate-300">
+                      {isAr ? 'اسم الحملة أو المشهور' : 'Campaign or Influencer Name'}
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formName}
+                      onChange={(e) => setFormName(e.target.value)}
+                      placeholder={
+                        isAr
+                          ? 'مثال: تغطية بلوقر أو إعلان تيك توك...'
+                          : 'e.g. Food blogger coverage or TikTok reel...'
+                      }
+                      className={INPUT_CLS}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-neutral-600 dark:text-slate-300">
+                      {isAr ? 'المبلغ المدفوع (د.ك)' : 'Ad Spend (KWD)'}
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="5"
+                      required
+                      value={formSpend}
+                      onChange={(e) => setFormSpend(e.target.value)}
+                      className={`${INPUT_CLS} tabular-nums`}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-neutral-600 dark:text-slate-300">
+                      {isAr ? 'تاريخ الإعلان' : 'Campaign Date'}
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={formDate}
+                      onChange={(e) => setFormDate(e.target.value)}
+                      className={`${INPUT_CLS} tabular-nums`}
+                    />
+                  </div>
                 </div>
 
-                <div>
-                  <label className="mb-1 block text-[11.5px] font-bold text-slate-600 dark:text-slate-300">
-                    {isAr ? 'نوع الإعلان' : 'Ad Type'}
-                  </label>
-                  <select
-                    value={formAdType}
-                    onChange={(e) => setFormAdType(e.target.value as SocialAdType)}
-                    className={`${INPUT_CLS} bg-white dark:bg-[#0F1626]`}
-                  >
-                    {SOCIAL_AD_TYPE_OPTIONS.map((opt) => (
-                      <option key={opt.id} value={opt.id}>
-                        {isAr ? opt.ar : opt.en}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex-1 sm:max-w-md">
+                    <input
+                      type="text"
+                      value={formItem}
+                      onChange={(e) => setFormItem(e.target.value)}
+                      placeholder={
+                        isAr
+                          ? 'الصنف المعلن عنه (اختياري) — مثال: داينمايت شرمب أو فيلي ستيك'
+                          : 'Promoted Dish (optional) — e.g. Dynamite Shrimp'
+                      }
+                      className={INPUT_CLS}
+                    />
+                  </div>
 
-                <div className="lg:col-span-2">
-                  <label className="mb-1 block text-[11.5px] font-bold text-slate-600 dark:text-slate-300">
-                    {isAr ? 'اسم الحملة أو المشهور' : 'Campaign or Influencer Name'}
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formName}
-                    onChange={(e) => setFormName(e.target.value)}
-                    placeholder={
-                      isAr
-                        ? 'مثال: تغطية بلوقر أو إعلان تيك توك...'
-                        : 'e.g. Food blogger coverage or TikTok reel...'
-                    }
-                    className={`${INPUT_CLS} bg-white dark:bg-[#0F1626]`}
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1 block text-[11.5px] font-bold text-slate-600 dark:text-slate-300">
-                    {isAr ? 'المبلغ المدفوع (د.ك)' : 'Ad Spend (KWD)'}
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="5"
-                    required
-                    value={formSpend}
-                    onChange={(e) => setFormSpend(e.target.value)}
-                    className={`${INPUT_CLS} bg-white tabular-nums dark:bg-[#0F1626]`}
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1 block text-[11.5px] font-bold text-slate-600 dark:text-slate-300">
-                    {isAr ? 'تاريخ الإعلان' : 'Campaign Date'}
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    value={formDate}
-                    onChange={(e) => setFormDate(e.target.value)}
-                    className={`${INPUT_CLS} bg-white tabular-nums dark:bg-[#0F1626]`}
-                  />
-                </div>
-              </div>
-
-              <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex-1 sm:max-w-md">
-                  <input
-                    type="text"
-                    value={formItem}
-                    onChange={(e) => setFormItem(e.target.value)}
-                    placeholder={
-                      isAr
-                        ? 'الصنف المعلن عنه (اختياري) — مثال: داينمايت شرمب أو فيلي ستيك'
-                        : 'Promoted Dish (optional) — e.g. Dynamite Shrimp'
-                    }
-                    className={`${INPUT_CLS} bg-white dark:bg-[#0F1626]`}
-                  />
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {editingId ? (
+                  <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={resetCampaignForm}
-                      className="h-10 rounded-full bg-white px-4 text-[12.5px] font-bold text-slate-600 ring-1 ring-slate-950/[0.06] hover:text-slate-950 dark:bg-white/10 dark:text-slate-200"
+                      className="h-9 rounded-full bg-neutral-100 px-4 text-xs font-medium text-neutral-700 transition-colors duration-150 hover:bg-neutral-200/80 dark:bg-white/10 dark:text-slate-200"
                     >
                       {isAr ? 'إلغاء' : 'Cancel'}
                     </button>
-                  ) : null}
-                  <button
-                    type="submit"
-                    className="ae-btn-primary inline-flex h-10 cursor-pointer items-center gap-1.5 rounded-full px-5 text-[13px] font-bold transition-all duration-[180ms] hover:opacity-95 active:scale-[0.99]"
-                  >
-                    <Plus className="h-4 w-4" />
-                    <span>
-                      {editingId
-                        ? isAr
-                          ? 'حفظ تعديل الإعلان'
-                          : 'Save Changes'
-                        : isAr
-                          ? 'احسب أثر الإعلان وأضفه للسجل'
-                          : 'Calculate Odoo Halo & Save'}
-                    </span>
-                  </button>
+                    <button
+                      type="submit"
+                      className="ae-btn-primary inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-5 text-xs font-semibold transition-all duration-150 hover:opacity-95 active:scale-[0.99]"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      <span>
+                        {editingId
+                          ? isAr
+                            ? 'حفظ تعديل الإعلان'
+                            : 'Save Changes'
+                          : isAr
+                            ? 'احسب أثر الإعلان وأضفه للسجل'
+                            : 'Calculate Odoo Halo & Save'}
+                      </span>
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </form>
+              </form>
+            ) : null}
 
             {/* Evaluated Campaigns List (Real Venture Foods records by default; Demo gated behind toggle) */}
             {displayedEvaluations.length === 0 ? (
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-[#F7F7F8] px-4 py-3 text-[12.5px] dark:bg-white/[0.03]">
-                <span className="font-semibold text-slate-600 dark:text-slate-300">
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[#F7F7F8] px-4 py-3 text-xs dark:bg-white/[0.03]">
+                <span className="font-medium text-neutral-500 dark:text-slate-300">
                   {isAr
-                    ? 'لا توجد حملات مسجلة بعد — سجّل أول إعلان مشهور أو سوشيال بالأعلى لقياس أثره الفعلي من أودو.'
-                    : 'No real influencer campaigns logged yet — add your first ad above to measure live 3-day Odoo lift.'}
+                    ? 'لا توجد حملات مسجلة بعد — اضغط (+ حساب جدوى إعلان مشهور) لقياس الأثر الفعلي من أودو.'
+                    : 'No live influencer campaigns logged yet — click (+ Calculate New Influencer Ad) to measure real 3-day Odoo lift.'}
                 </span>
                 <button
                   type="button"
                   onClick={() => setShowDemoCampaigns(true)}
-                  className="cursor-pointer font-extrabold text-emerald-700 underline-offset-4 hover:underline dark:text-emerald-400"
+                  className="cursor-pointer font-semibold text-emerald-700 underline-offset-4 hover:underline dark:text-emerald-400"
                 >
-                  {isAr ? 'عرض ٤ أمثلة توضيحية 🧪' : 'Show 4 Demo Examples 🧪'}
+                  {isAr ? 'عرض أمثلة توضيحية 🧪' : 'Show Demo Examples 🧪'}
                 </button>
               </div>
             ) : (
-              <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <div className="mt-4 grid grid-cols-1 gap-3.5 rounded-2xl bg-[#F7F7F8] p-3.5 lg:grid-cols-2 dark:bg-white/[0.02]">
                 {displayedEvaluations.map((ev) => {
                   const isDemo = isDemoSocialCampaign(ev.campaign.id)
                   const badgeCls =
                     ev.verdict === 'winner'
-                      ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-600/20 dark:bg-emerald-950/50 dark:text-emerald-300'
+                      ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
                       : ev.verdict === 'breakeven'
-                        ? 'bg-amber-50 text-amber-800 ring-1 ring-amber-600/20 dark:bg-amber-950/50 dark:text-amber-300'
-                        : 'bg-rose-50 text-rose-700 ring-1 ring-rose-600/20 dark:bg-rose-950/50 dark:text-rose-300'
+                        ? 'bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                        : 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'
 
                   return (
                     <article
                       key={ev.campaign.id}
-                      className="flex flex-col justify-between rounded-2xl bg-[#F7F7F8] p-4 ring-1 ring-slate-950/[0.04] transition-all duration-[180ms] hover:ring-slate-950/10 dark:bg-white/[0.04] dark:ring-white/[0.08]"
+                      className="flex flex-col justify-between rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-150 dark:bg-[#111A22]"
                     >
                       <div>
                         <div className="flex flex-wrap items-start justify-between gap-2">
                           <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-[11.5px] font-extrabold text-neutral-800 dark:bg-emerald-950/60 dark:text-emerald-200">
+                            {/* Soft High-Contrast Brand Pill (Zero Dark-on-Dark) */}
+                            <span className={SOFT_SCOPE_PILL_CLS}>
                               {isAr ? ev.brandAr : ev.brandEn}
                             </span>
-                            <span className="rounded-full bg-white px-2.5 py-0.5 text-[11.5px] font-bold text-slate-700 ring-1 ring-slate-950/[0.05] dark:bg-white/10 dark:text-slate-200">
+                            <span className="bg-neutral-100 text-neutral-700 dark:bg-white/[0.08] dark:text-slate-200 font-medium text-xs px-2.5 py-1 rounded-full">
                               {isAr ? ev.adTypeAr : ev.adTypeEn}
                             </span>
                             {isDemo ? (
-                              <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-extrabold text-amber-800 ring-1 ring-amber-500/20 dark:bg-amber-950/60 dark:text-amber-200">
-                                {isAr ? 'مثال توضيحي 🧪' : 'Demo Example 🧪'}
+                              <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
+                                {isAr ? 'مثال توضيحي' : 'Demo'}
                               </span>
                             ) : null}
-                            <span
-                              dir="ltr"
-                              className="text-[11.5px] font-semibold tabular-nums text-slate-400"
-                            >
+                            <span dir="ltr" className="text-xs tabular-nums text-neutral-400">
                               {ev.campaign.date}
                             </span>
                           </div>
 
-                          <span className={`rounded-full px-3 py-1 text-[11.5px] font-extrabold ${badgeCls}`}>
+                          <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${badgeCls}`}>
                             {isAr ? ev.verdictAr : ev.verdictEn}
                           </span>
                         </div>
 
-                        <h3 className="mt-2.5 text-[15px] font-extrabold text-slate-950 dark:text-white">
+                        <h3 className="mt-2.5 text-[15px] font-semibold tracking-tight text-neutral-950 dark:text-white">
                           {ev.campaign.campaignName}
                         </h3>
                         {ev.campaign.promotedItem ? (
-                          <p className="mt-0.5 text-[12px] font-semibold text-slate-500 dark:text-slate-400">
+                          <p className="mt-0.5 text-xs text-neutral-400">
                             {isAr ? 'الصنف المعلن عنه: ' : 'Promoted Dish: '}
-                            <span className="text-slate-800 dark:text-slate-200">
+                            <span className="font-medium text-neutral-700 dark:text-slate-200">
                               {ev.campaign.promotedItem}
                             </span>
                           </p>
@@ -1053,30 +1083,30 @@ export function CoresHubStudio() {
 
                         {/* 3-Box Metrics Row */}
                         <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
-                          <div className="rounded-xl bg-white p-3 ring-1 ring-slate-950/[0.04] dark:bg-[#0F1626] dark:ring-white/[0.06]">
-                            <div className="text-[11px] font-bold text-slate-400">
+                          <div className="rounded-xl bg-[#F7F7F8] p-3 dark:bg-[#0C141B]">
+                            <div className="text-xs text-neutral-400">
                               {isAr ? '٣ أيام قبل ← ٣ أيام بعد' : '3d Before -> 3d After'}
                             </div>
                             <div
                               dir="ltr"
-                              className="mt-1 text-[13.5px] font-extrabold tabular-nums text-slate-900 dark:text-white"
+                              className="mt-1 text-[13.5px] font-semibold tabular-nums text-neutral-900 dark:text-white"
                             >
                               {f0(ev.before3dSalesKwd)} → {f0(ev.after3dSalesKwd)} {kwdSuffix}
                             </div>
-                            <div dir="ltr" className="mt-0.5 text-[11px] font-semibold tabular-nums text-slate-400">
+                            <div dir="ltr" className="mt-0.5 text-xs tabular-nums text-neutral-400">
                               {isAr
-                                ? `المدفوع للإعلان: ${f0(ev.campaign.spendKwd)} د.ك`
-                                : `Ad Spend: ${f0(ev.campaign.spendKwd)} KWD`}
+                                ? `المدفوع: ${f0(ev.campaign.spendKwd)} د.ك`
+                                : `Spend: ${f0(ev.campaign.spendKwd)} KWD`}
                             </div>
                           </div>
 
-                          <div className="rounded-xl bg-white p-3 ring-1 ring-slate-950/[0.04] dark:bg-[#0F1626] dark:ring-white/[0.06]">
-                            <div className="text-[11px] font-bold text-slate-400">
+                          <div className="rounded-xl bg-[#F7F7F8] p-3 dark:bg-[#0C141B]">
+                            <div className="text-xs text-neutral-400">
                               {isAr ? 'زيادة المبيعات الفعلية' : 'Real Sales Lift'}
                             </div>
                             <div
                               dir="ltr"
-                              className={`mt-1 text-[15px] font-extrabold tabular-nums ${
+                              className={`mt-1 text-[15px] font-semibold tabular-nums ${
                                 ev.liftSalesKwd >= 0
                                   ? 'text-emerald-700 dark:text-emerald-400'
                                   : 'text-rose-600 dark:text-rose-400'
@@ -1085,20 +1115,20 @@ export function CoresHubStudio() {
                               {ev.liftSalesKwd >= 0 ? '+' : ''}
                               {f1(ev.liftSalesKwd)} {kwdSuffix}
                             </div>
-                            <div dir="ltr" className="mt-0.5 text-[11px] font-bold tabular-nums text-slate-500">
+                            <div dir="ltr" className="mt-0.5 text-xs tabular-nums text-neutral-400">
                               {ev.liftOrders >= 0 ? '+' : ''}
                               {f0(ev.liftOrders)} {isAr ? 'طلب' : 'orders'} ({ev.liftPct >= 0 ? '+' : ''}
                               {ev.liftPct}%)
                             </div>
                           </div>
 
-                          <div className="rounded-xl bg-white p-3 ring-1 ring-slate-950/[0.04] dark:bg-[#0F1626] dark:ring-white/[0.06]">
-                            <div className="text-[11px] font-bold text-slate-400">
+                          <div className="rounded-xl bg-[#F7F7F8] p-3 dark:bg-[#0C141B]">
+                            <div className="text-xs text-neutral-400">
                               {isAr ? 'الربح الصافي بعد الإعلان' : 'Net Profit After Ad'}
                             </div>
                             <div
                               dir="ltr"
-                              className={`mt-1 text-[15px] font-extrabold tabular-nums ${
+                              className={`mt-1 text-[15px] font-semibold tabular-nums ${
                                 ev.netProfitAfterAdKwd >= 0
                                   ? 'text-emerald-700 dark:text-emerald-400'
                                   : 'text-rose-600 dark:text-rose-400'
@@ -1107,7 +1137,7 @@ export function CoresHubStudio() {
                               {ev.netProfitAfterAdKwd >= 0 ? '+' : ''}
                               {f1(ev.netProfitAfterAdKwd)} {kwdSuffix}
                             </div>
-                            <div className="mt-0.5 text-[10.5px] font-medium text-slate-400">
+                            <div className="mt-0.5 text-xs text-neutral-400">
                               {isAr
                                 ? `بعد الأكل (${f0(ev.foodAndPackCostKwd)}) والعمولة (${f0(ev.platformFeeKwd)})`
                                 : `After food (${f0(ev.foodAndPackCostKwd)}) & fee (${f0(ev.platformFeeKwd)})`}
@@ -1122,18 +1152,15 @@ export function CoresHubStudio() {
                           <button
                             type="button"
                             onClick={() => copyText(ev.campaign.id, formatCampaignWhatsapp(ev))}
-                            className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-white px-3 text-[12px] font-bold text-slate-800 ring-1 ring-slate-950/[0.06] transition-colors duration-[180ms] hover:bg-slate-100 dark:bg-white/10 dark:text-slate-200"
+                            className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-neutral-100 px-3 text-xs font-medium text-neutral-900 transition-colors duration-150 hover:bg-neutral-200/80 dark:bg-emerald-950/70 dark:text-emerald-200 dark:hover:bg-emerald-900/70"
                           >
                             {copiedId === ev.campaign.id ? (
                               <>
-                                <Check className="h-3.5 w-3.5 text-emerald-600" />
-                                <span>{isAr ? 'تم النسخ' : 'Copied'}</span>
+                                <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-300" />
+                                <span>{isAr ? 'تم النسخ ✓' : 'Copied ✓'}</span>
                               </>
                             ) : (
-                              <>
-                                <Copy className="h-3.5 w-3.5" />
-                                <span>{isAr ? 'نسخ للواتساب' : 'Copy WhatsApp'}</span>
-                              </>
+                              <span>{isAr ? 'نسخ للواتساب 📋' : 'Copy WhatsApp 📋'}</span>
                             )}
                           </button>
 
@@ -1141,7 +1168,7 @@ export function CoresHubStudio() {
                             <button
                               type="button"
                               onClick={() => handleEditCampaign(ev.campaign)}
-                              className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-white px-3 text-[12px] font-bold text-slate-600 ring-1 ring-slate-950/[0.06] hover:text-slate-950 dark:bg-white/10 dark:text-slate-300"
+                              className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-neutral-100 px-3 text-xs font-medium text-neutral-700 transition-colors duration-150 hover:bg-neutral-200/80 hover:text-neutral-950 dark:bg-white/10 dark:text-slate-300"
                             >
                               <Edit3 className="h-3 w-3" />
                               <span>{isAr ? 'تعديل' : 'Edit'}</span>
@@ -1154,7 +1181,7 @@ export function CoresHubStudio() {
                             type="button"
                             onClick={() => handleDeleteCampaign(ev.campaign.id)}
                             aria-label={isAr ? 'حذف الحملة' : 'Delete campaign'}
-                            className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full px-2.5 text-[12px] font-semibold text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40"
+                            className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full px-2.5 text-xs font-medium text-neutral-400 transition-colors duration-150 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -1167,16 +1194,16 @@ export function CoresHubStudio() {
             )}
           </section>
 
-          {/* 4. 6 Concise Ready-to-Run Kuwait Growth Plays (Dynamic Filter Math + Secondary Actions) */}
-          <section className="space-y-3.5">
+          {/* 4. 6 Streamlined Ready-to-Run Kuwait Growth Plays (Cut Text Wall by 60%) */}
+          <section className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h2 className="text-[18px] font-extrabold text-slate-950 dark:text-white">
+                <h2 className="text-[17px] font-semibold tracking-tight text-neutral-950 dark:text-white">
                   {isAr
                     ? '٦ خطط جاهزة لزيادة المبيعات بالكويت'
                     : '6 Ready-to-Run Kuwait Growth Plays'}
                 </h2>
-                <p className="mt-0.5 text-[12.5px] font-medium text-slate-500 dark:text-slate-400">
+                <p className="mt-0.5 text-xs text-neutral-400">
                   {isAr
                     ? `عائد صافي (متحفظ – واقعي) محسوب لنطاق: ${workspace.subtitleAr}`
                     : `Conservative–Realistic net KWD scaled to: ${workspace.subtitleEn}`}
@@ -1185,17 +1212,17 @@ export function CoresHubStudio() {
 
               <div className="flex flex-wrap items-center gap-2">
                 {/* Dish of the Week Spotlight Pill */}
-                <div className="inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-1.5 text-[12px] shadow-[0_1px_2px_rgba(15,23,42,0.03)] ring-1 ring-slate-900/[0.05] dark:bg-[#111A22] dark:ring-white/[0.08]">
+                <div className="inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-1.5 text-xs shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-[#111A22]">
                   <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
-                  <span className="font-semibold text-slate-500 dark:text-slate-400">
+                  <span className="text-neutral-400">
                     {isAr ? 'طبق الأسبوع:' : 'Dish of Week:'}
                   </span>
-                  <span className="font-extrabold text-slate-950 dark:text-white">
+                  <span className="font-semibold text-neutral-950 dark:text-white">
                     {snap.marketing.dishOfTheWeek.dishName}
                   </span>
                   <span
                     dir="ltr"
-                    className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-extrabold tabular-nums text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+                    className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
                   >
                     {snap.marketing.dishOfTheWeek.marginPct}%
                   </span>
@@ -1212,7 +1239,7 @@ export function CoresHubStudio() {
                         .join('\n\n'),
                     )
                   }
-                  className="ae-btn-primary inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-4 text-[12px] font-bold transition-all duration-[180ms] hover:opacity-95 active:scale-[0.99]"
+                  className="ae-btn-primary inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-4 text-xs font-semibold transition-all duration-150 hover:opacity-95 active:scale-[0.99]"
                 >
                   {copiedId === 'all-6-plays' ? (
                     <>
@@ -1238,28 +1265,28 @@ export function CoresHubStudio() {
                     className={`${CARD_CLS} flex flex-col justify-between space-y-3`}
                   >
                     <div className="space-y-2.5">
-                      {/* Scope Soft Pill + Dynamic Conservative-Realistic KWD Upside Badge */}
+                      {/* Soft Scope Pill + Dynamic Filter-Scaled KWD Upside Badge */}
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-[11.5px] font-bold text-neutral-700 dark:bg-white/[0.07] dark:text-slate-200">
+                        <span className={SOFT_SCOPE_PILL_CLS}>
                           {isAr ? play.scopeAr : play.scopeEn}
                         </span>
                         <span
                           dir="ltr"
                           title={isAr ? 'نطاق العائد الصافي (متحفظ – واقعي)' : 'Conservative – Realistic Net Upside'}
-                          className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11.5px] font-extrabold tabular-nums text-emerald-800 ring-1 ring-emerald-500/20 dark:bg-emerald-950/60 dark:text-emerald-300 dark:ring-emerald-400/25"
+                          className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold tabular-nums text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-200"
                         >
                           {isAr ? play.upsideBadgeAr : play.upsideBadgeEn}
                         </span>
                       </div>
 
-                      {/* Clear Concise Title */}
-                      <h3 className="text-[15.5px] font-extrabold leading-snug text-slate-950 dark:text-white">
+                      {/* Concise Title */}
+                      <h3 className="text-[15px] font-semibold tracking-tight leading-snug text-neutral-950 dark:text-white">
                         {isAr ? play.titleAr : play.titleEn}
                       </h3>
 
-                      {/* 2 Short Single-Line Action Bullets (<= 8 words each) */}
-                      <ul className="space-y-1.5 text-[12.5px] font-medium leading-snug text-slate-700 dark:text-slate-200">
-                        {(isAr ? play.shortBulletsAr : play.shortBulletsEn).map((b) => (
+                      {/* Maximum 2 Short Single-Line Action Bullets (<= 8 words each) */}
+                      <ul className="space-y-1.5 text-[12.5px] leading-snug text-neutral-600 dark:text-slate-300">
+                        {(isAr ? play.shortBulletsAr : play.shortBulletsEn).slice(0, 2).map((b) => (
                           <li key={b} className="flex items-start gap-2">
                             <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
                             <span>{b}</span>
@@ -1267,30 +1294,30 @@ export function CoresHubStudio() {
                         ))}
                       </ul>
 
-                      {/* Expandable Details Drawer */}
+                      {/* Optional Expandable Details Drawer */}
                       {isExpanded ? (
-                        <div className="rounded-xl bg-[#F7F7F8] p-3 text-[12px] leading-relaxed text-slate-600 dark:bg-white/[0.04] dark:text-slate-300">
+                        <div className="rounded-xl bg-[#F7F7F8] p-3 text-xs leading-relaxed text-neutral-600 dark:bg-white/[0.04] dark:text-slate-300">
                           {isAr ? play.detailsAr : play.detailsEn}
                         </div>
                       ) : null}
                     </div>
 
-                    {/* Clean Secondary Surface Action Buttons */}
-                    <div className="flex items-center justify-between gap-2 border-t border-slate-100 pt-2.5 dark:border-white/[0.06]">
+                    {/* Soft Neutral WhatsApp Button + Optional التفاصيل ▾ Toggle */}
+                    <div className="flex items-center justify-between gap-2 pt-1">
                       <button
                         type="button"
                         onClick={() =>
                           copyText(play.id, isAr ? play.whatsappTextAr : play.whatsappTextEn)
                         }
-                        className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-[#F4F6F9] px-3 text-[12px] font-bold text-slate-800 transition-colors duration-[180ms] hover:bg-slate-200/75 hover:text-slate-950 dark:bg-white/[0.06] dark:text-slate-200 dark:hover:bg-white/[0.12]"
+                        className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-neutral-100 hover:bg-neutral-200/80 text-neutral-900 dark:bg-emerald-950/70 dark:hover:bg-emerald-900/70 dark:text-emerald-200 px-3 text-xs font-medium transition-colors duration-150"
                       >
                         {copiedId === play.id ? (
                           <>
-                            <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                            <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-300" />
                             <span>{isAr ? 'تم النسخ ✓' : 'Copied ✓'}</span>
                           </>
                         ) : (
-                          <span>{isAr ? 'نسخ خطة التنفيذ 📋' : 'Copy Plan 📋'}</span>
+                          <span>{isAr ? 'نسخ للواتساب 📋' : 'Copy WhatsApp 📋'}</span>
                         )}
                       </button>
 
@@ -1298,11 +1325,11 @@ export function CoresHubStudio() {
                         type="button"
                         aria-expanded={isExpanded}
                         onClick={() => togglePlayDrawer(play.id)}
-                        className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full px-2.5 text-[12px] font-bold text-slate-500 transition-colors duration-[180ms] hover:bg-[#F4F6F9] hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/[0.06] dark:hover:text-white"
+                        className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full px-2.5 text-xs font-medium text-neutral-400 transition-colors duration-150 hover:bg-neutral-100 hover:text-neutral-900 dark:text-slate-400 dark:hover:bg-white/[0.06] dark:hover:text-white"
                       >
-                        <span>{isAr ? 'تفاصيل' : 'Details'}</span>
+                        <span>{isAr ? 'التفاصيل' : 'Details'}</span>
                         <ChevronDown
-                          className={`h-3.5 w-3.5 transition-transform duration-[180ms] ${
+                          className={`h-3.5 w-3.5 transition-transform duration-150 ${
                             isExpanded ? 'rotate-180' : ''
                           }`}
                         />
@@ -1858,7 +1885,7 @@ export function CoresHubStudio() {
 
           {/* Platform Action Cards: Talabat, Keeta, Deliveroo, Jahez & Snoonu */}
           <section className="space-y-3">
-            <h2 className="text-[18px] font-extrabold text-neutral-950 dark:text-white">
+            <h2 className="text-[17px] font-semibold tracking-tight text-neutral-950 dark:text-white">
               {isAr
                 ? 'خطوات عملية لرفع التقييم في طلبات وكيتا وديليفرو'
                 : 'Simple Steps to Raise Ratings on Talabat, Keeta & Deliveroo'}
@@ -1869,30 +1896,28 @@ export function CoresHubStudio() {
                 <article key={p.id} className={`${CARD_CLS} flex flex-col justify-between space-y-3`}>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between gap-2">
-                      <h3 className="text-[16px] font-extrabold text-neutral-950 dark:text-white">
+                      <span className={SOFT_SCOPE_PILL_CLS}>
                         {isAr ? p.platformAr : p.platformEn}
-                      </h3>
-                      <div className="flex items-center gap-2">
-                        <span
-                          dir="ltr"
-                          className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[12px] font-extrabold tabular-nums text-amber-800 dark:bg-amber-950/50 dark:text-amber-300"
-                        >
-                          {p.rating.toFixed(1)} ★ → {p.targetRating.toFixed(1)} ★
-                        </span>
-                      </div>
+                      </span>
+                      <span
+                        dir="ltr"
+                        className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold tabular-nums text-amber-800 dark:bg-amber-950/60 dark:text-amber-200"
+                      >
+                        {p.rating.toFixed(1)} ★ → {p.targetRating.toFixed(1)} ★
+                      </span>
                     </div>
 
                     <div className="text-[12.5px] leading-relaxed">
-                      <span className="font-bold text-rose-600 dark:text-rose-400">
+                      <span className="font-semibold text-rose-600 dark:text-rose-400">
                         {isAr ? 'المشكلة المتكررة: ' : 'Main Issue: '}
                       </span>
-                      <span className="text-neutral-700 dark:text-slate-300">
+                      <span className="text-neutral-600 dark:text-slate-300">
                         {isAr ? p.issueAr : p.issueEn}
                       </span>
                     </div>
 
                     <div className="rounded-xl bg-[#F7F7F8] p-3 text-[12.5px] leading-relaxed dark:bg-white/[0.04]">
-                      <span className="font-bold text-emerald-700 dark:text-emerald-400">
+                      <span className="font-semibold text-emerald-700 dark:text-emerald-400">
                         {isAr ? 'الحل العملي: ' : 'Action Step: '}
                       </span>
                       <span className="font-medium text-neutral-800 dark:text-slate-200">
@@ -1902,7 +1927,7 @@ export function CoresHubStudio() {
                   </div>
 
                   <div className="flex items-center justify-between pt-1">
-                    <span className="text-[12px] font-semibold tabular-nums text-neutral-400">
+                    <span className="text-xs tabular-nums text-neutral-400">
                       {f0(p.orders)} {isAr ? 'طلب بالفترة' : 'orders in period'}
                     </span>
                     <button
@@ -1915,18 +1940,15 @@ export function CoresHubStudio() {
                             : `*Raise ${p.platformEn} Rating (${p.rating} ★ -> ${p.targetRating} ★)*\n• Issue: ${p.issueEn}\n• Action: ${p.stepEn}`,
                         )
                       }
-                      className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-[#F4F6F9] px-3 text-[12px] font-bold text-slate-800 transition-colors duration-[180ms] hover:bg-slate-200/75 hover:text-slate-950 dark:bg-white/[0.06] dark:text-slate-200 dark:hover:bg-white/[0.12]"
+                      className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-neutral-100 hover:bg-neutral-200/80 text-neutral-900 dark:bg-emerald-950/70 dark:hover:bg-emerald-900/70 dark:text-emerald-200 px-3 text-xs font-medium transition-colors duration-150"
                     >
                       {copiedId === p.id ? (
                         <>
-                          <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                          <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-300" />
                           <span>{isAr ? 'تم النسخ ✓' : 'Copied ✓'}</span>
                         </>
                       ) : (
-                        <>
-                          <Copy className="h-3.5 w-3.5" />
-                          <span>{isAr ? 'نسخ خطة التنفيذ' : 'Copy Plan'}</span>
-                        </>
+                        <span>{isAr ? 'نسخ للواتساب 📋' : 'Copy WhatsApp 📋'}</span>
                       )}
                     </button>
                   </div>

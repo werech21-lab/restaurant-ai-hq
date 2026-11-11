@@ -361,19 +361,24 @@ assert(
   donutSrc.includes('max-w-[62%]') &&
     donutSrc.includes('tabular-nums') &&
     donutSrc.includes('summaryPill') &&
+    coresSrc.includes('bg-neutral-100 text-neutral-800 dark:bg-emerald-950/70 dark:text-emerald-200') &&
     coresSrc.includes('Return per 1 KWD Ad') &&
     coresSrc.includes('Discounts & Ad Spend') &&
-    coresSrc.includes('Net Pocket After Ads') &&
+    coresSrc.includes('Net Cash After Ads') &&
     coresSrc.includes('Promo vs Organic Avg Bill') &&
     coresSrc.includes('centerValue={`${f1(snap.marketing.kpis.promoSharePct)}%`}') &&
-    coresSrc.includes('Net After Ad Spend') &&
-    coresSrc.includes('Show 4 Demo Examples 🧪') &&
-    coresSrc.includes('عرض ٤ أمثلة توضيحية 🧪') &&
+    coresSrc.includes('حصة العروض') &&
+    coresSrc.includes('Net Pocket Cash') &&
+    coresSrc.includes('+ Calculate New Influencer Ad') &&
+    coresSrc.includes('+ حساب جدوى إعلان مشهور') &&
+    coresSrc.includes('Show Demo Examples 🧪') &&
+    coresSrc.includes('عرض أمثلة توضيحية 🧪') &&
     !coresSrc.includes('bg-neutral-950') &&
     coresSrc.includes('upsideBadgeAr') &&
-    coresSrc.includes('نسخ خطة التنفيذ 📋') &&
-    shellSrc.includes('max-w-[1440px]'),
-  'Unslop /erp/cores audit passed: bounded max-w-[62%] donut center + summaryPill, 4 non-duplicate KPIs, gated demo influencer toggle, zero black bg-neutral-950 pills, dynamic growth plays & max-w-[1440px] layout',
+    coresSrc.includes('نسخ للواتساب 📋') &&
+    coresSrc.includes('التفاصيل') &&
+    shellSrc.includes('max-w-[1520px]'),
+  'Unslop /erp/cores redesign passed: max-w-[1520px] layout, soft high-contrast pills, bounded donut + Net Pocket Cash row, 4 non-duplicate KPIs, collapsible ad form + gated demo ads & streamlined growth plays',
 )
 
 const pagePanelSrc = fs.readFileSync(path.join(ROOT, 'src/components/aether/DualBrainPagePanel.tsx'), 'utf8')

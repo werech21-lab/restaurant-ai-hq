@@ -56,8 +56,8 @@ export async function Shell({ children }: { children: React.ReactNode }) {
               plus explicit LTR/RTL physical fallbacks so content never slides under the rail.
             */}
             <div className="ae-content-col w-full min-w-0 md:ps-64 ltr:md:pl-64 rtl:md:pl-0 rtl:md:pr-64">
-              <div className="px-4 pt-2 lg:px-6">
-                <header id="ae-topbar" className="no-print sticky top-2 z-40 mx-auto w-full max-w-[1440px] overflow-visible">
+              <div className="px-4 pt-1.5 sm:px-6 lg:px-8">
+                <header id="ae-topbar" className="no-print sticky top-2 z-40 mx-auto w-full max-w-[1520px] overflow-visible">
                   <PanelHeaderBar
                     companyNameAr={company.name}
                     notifications={
@@ -83,8 +83,8 @@ export async function Shell({ children }: { children: React.ReactNode }) {
               </div>
               <main className="w-full max-w-none pb-20 md:pb-8">
                 <div id="ae-canvas" className="app-content w-full">
-                  {/* Wide Executive Studio Container: max-w-[1440px] w-full mx-auto px-4 lg:px-6 with tight above-the-fold rhythm */}
-                  <div className="ae-page max-w-[1440px] w-full mx-auto min-w-0 space-y-3 px-4 py-2.5 lg:px-6">
+                  {/* Full-Width Executive Studio Container: max-w-[1520px] w-full mx-auto px-4 sm:px-6 lg:px-8 */}
+                  <div className="ae-page max-w-[1520px] w-full mx-auto min-w-0 space-y-2.5 px-4 py-2 sm:px-6 lg:px-8">
                     <TopFilterBar />
                     <GlobalFilterBar />
                     {children}
