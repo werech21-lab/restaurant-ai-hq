@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Check,
+  Columns2,
   Copy,
   FileText,
   Headphones,
@@ -21,6 +22,7 @@ import {
 } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
 import { getOpenAIApiKey, getGeminiApiKey } from '@/lib/ai-keys'
+import { askDualHeavyBrain } from '@/lib/dual-heavy-brain'
 import { askFeryalGeminiBrain, getDeterministicFeryalReply } from '@/lib/feryal-gemini-brain'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { FeryalStudioMessage, feryalPlainText } from '@/components/aether/FeryalStudioMessage'
@@ -101,7 +103,20 @@ function sanitizeTextForSpeechClient(rawText: string, lang: 'ar' | 'en'): string
   return text.replace(/\s+/g, ' ').trim()
 }
 
-type ChatMessage = { id: string; sender: 'user' | 'feryal'; text: string; time: string }
+type ChatMessage = {
+  id: string
+  sender: 'user' | 'feryal'
+  text: string
+  time: string
+  engineLabelAr?: string
+  engineLabelEn?: string
+  geminiReply?: string
+  geminiModel?: string
+  grokReply?: string
+  grokModel?: string
+  statusNoteAr?: string
+  statusNoteEn?: string
+}
 
 const welcomeMessage = (lang: 'ar' | 'en'): ChatMessage => ({ id: 'welcome', sender: 'feryal', text: welcomeText(lang), time: '' })
 
@@ -163,7 +178,7 @@ export default function FeryalAiCommandPage() {
   const currentLang: 'ar' | 'en' = ctxLocale === 'en' || ctxLocale === 'ar' ? ctxLocale : activeLocale
   const isAr = currentLang === 'ar'
   const T = useCallback((en: string, ar: string) => (isAr ? ar : en), [isAr])
-  const { workspace } = useGlobalFilter()
+  const { filters, workspace } = useGlobalFilter()
 
   // Conversation state
   const [messages, setMessages] = useState<ChatMessage[]>(() => [welcomeMessage(currentLang)])
@@ -171,6 +186,7 @@ export default function FeryalAiCommandPage() {
   const [isCopilotThinking, setIsCopilotThinking] = useState(false)
   const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null)
   const [isExpanded, setIsExpanded] = useState(false)
+  const [openSplitIds, setOpenSplitIds] = useState<Record<string, boolean>>({})
 
   // A conversation lives in one language: switching the interface language opens a fresh discussion.
   useEffect(() => {
@@ -387,7 +403,7 @@ export default function FeryalAiCommandPage() {
     [fallbackSpeechSynthesis, isAr, isVoiceMuted, stopAllMicTracks],
   )
 
-  // Send a message to Feryal: Gemini brain → OpenAI → /api/feryal → deterministic Odoo-grounded reply
+  // Send a message to Feryal: Dual-Brain Consensus (Gemini Carbon + Grok Heavy) → /api/feryal → deterministic Odoo reply
   const handleSendQuery = useCallback(
     async (queryText?: string) => {
       const textToSend = (queryText ?? inputText).trim()
@@ -399,15 +415,39 @@ export default function FeryalAiCommandPage() {
       setInputText('')
       setIsCopilotThinking(true)
 
-      const contextualQuery = `${lang === 'ar' ? workspace.feryalContextAr : workspace.feryalContextEn}\n${textToSend}`
+      const pageCtx = lang === 'ar' ? workspace.feryalContextAr : workspace.feryalContextEn
+      const contextualQuery = `${pageCtx}\n${textToSend}`
 
       try {
         let reply = ''
+        let engineLabelAr: string | undefined
+        let engineLabelEn: string | undefined
+        let geminiReply: string | undefined
+        let geminiModel: string | undefined
+        let grokReply: string | undefined
+        let grokModel: string | undefined
+        let statusNoteAr: string | undefined
+        let statusNoteEn: string | undefined
+
         try {
-          const brainRes = await askFeryalGeminiBrain({ query: contextualQuery, lang })
-          reply = brainRes.reply?.trim() || ''
+          const dualRes = await askDualHeavyBrain({
+            query: textToSend,
+            lang,
+            filters,
+            workspace,
+            pageContext: pageCtx,
+          })
+          reply = dualRes.reply?.trim() || ''
+          engineLabelAr = dualRes.engineLabelAr
+          engineLabelEn = dualRes.engineLabelEn
+          geminiReply = dualRes.geminiReply
+          geminiModel = dualRes.geminiModel
+          grokReply = dualRes.grokReply
+          grokModel = dualRes.grokModel
+          statusNoteAr = dualRes.statusNoteAr
+          statusNoteEn = dualRes.statusNoteEn
         } catch (brainErr) {
-          console.warn('Feryal brain warning:', brainErr)
+          console.warn('Feryal dual-brain warning:', brainErr)
         }
         if (!reply) {
           try {
@@ -423,7 +463,23 @@ export default function FeryalAiCommandPage() {
         if (!reply) reply = getDeterministicFeryalReply(textToSend, lang)
 
         const feryalMsgId = `feryal-${Date.now()}`
-        setMessages((prev) => [...prev, { id: feryalMsgId, sender: 'feryal', text: reply, time: stamp() }])
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: feryalMsgId,
+            sender: 'feryal',
+            text: reply,
+            time: stamp(),
+            engineLabelAr,
+            engineLabelEn,
+            geminiReply,
+            geminiModel,
+            grokReply,
+            grokModel,
+            statusNoteAr,
+            statusNoteEn,
+          },
+        ])
         playFeryalSpeech(reply, feryalMsgId)
       } catch (e) {
         console.error('handleSendQuery error:', e)
@@ -431,7 +487,7 @@ export default function FeryalAiCommandPage() {
         setIsCopilotThinking(false)
       }
     },
-    [inputText, isAr, playFeryalSpeech, workspace.feryalContextAr, workspace.feryalContextEn],
+    [filters, inputText, isAr, playFeryalSpeech, workspace],
   )
 
   useEffect(() => {
@@ -810,6 +866,10 @@ export default function FeryalAiCommandPage() {
             {messages.map((m) => {
               const mine = m.sender === 'user'
               const briefText = !mine && m.id !== 'welcome' ? formatAsDispatchBrief(m.text) : ''
+              const hasBothBrains = Boolean(!mine && m.geminiReply && m.grokReply)
+              const splitOpen = Boolean(openSplitIds[m.id])
+              const engineBadge = !mine ? (isAr ? m.engineLabelAr : m.engineLabelEn) : undefined
+              const noteText = !mine ? (isAr ? m.statusNoteAr : m.statusNoteEn) : undefined
               return (
                 <div key={m.id} className={`flex gap-3 ${mine ? 'justify-end' : 'justify-start'}`}>
                   {!mine && (
@@ -818,6 +878,18 @@ export default function FeryalAiCommandPage() {
                     </div>
                   )}
                   <div className={`min-w-0 ${mine ? 'max-w-[78%]' : 'max-w-[90%] flex-1'}`}>
+                    {engineBadge ? (
+                      <div className="mb-1.5 flex flex-wrap items-center gap-2">
+                        <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">
+                          {engineBadge}
+                        </span>
+                        {noteText ? (
+                          <span className="text-[11px] font-medium text-amber-700 dark:text-amber-300">
+                            {noteText}
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : null}
                     <div
                       className={
                         mine
@@ -831,6 +903,20 @@ export default function FeryalAiCommandPage() {
                       {m.time && <span>{m.time}</span>}
                       {!mine && (
                         <>
+                          {hasBothBrains && (
+                            <button
+                              type="button"
+                              onClick={() => setOpenSplitIds((prev) => ({ ...prev, [m.id]: !prev[m.id] }))}
+                              className={`inline-flex items-center gap-1 rounded-full px-3 py-1 font-semibold transition-colors ${
+                                splitOpen
+                                  ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950'
+                                  : 'bg-[#F6F7F9] text-slate-700 hover:bg-slate-200/70 dark:bg-white/[0.06] dark:text-slate-200'
+                              }`}
+                            >
+                              <Columns2 className="h-3.5 w-3.5" />
+                              {T('View Gemini & Grok Separately', 'عرض رأي جميني ورأي جروك كلٌّ على حدة')}
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => (playingMsgId === m.id ? stopPlayback() : playFeryalSpeech(m.text, m.id, true))}
@@ -871,6 +957,36 @@ export default function FeryalAiCommandPage() {
                         </>
                       )}
                     </div>
+                    {hasBothBrains && splitOpen ? (
+                      <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
+                        <div className="rounded-2xl bg-white p-4 text-[13.5px] leading-[1.8] text-slate-700 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-neutral-950/[0.05] dark:bg-[#0D1320] dark:text-slate-200 dark:ring-white/[0.08]">
+                          <div className="mb-2 flex items-center justify-between gap-2 border-b border-neutral-100 pb-2 dark:border-white/[0.06]">
+                            <span className="font-extrabold text-slate-950 dark:text-white">
+                              {T('Gemini Carbon High ⚡', 'رأي جميني Carbon High ⚡')}
+                            </span>
+                            {m.geminiModel ? (
+                              <span dir="ltr" className="font-mono text-[11px] font-bold text-slate-500">
+                                {m.geminiModel}
+                              </span>
+                            ) : null}
+                          </div>
+                          <FeryalStudioMessage text={m.geminiReply ?? ''} />
+                        </div>
+                        <div className="rounded-2xl bg-white p-4 text-[13.5px] leading-[1.8] text-slate-700 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-neutral-950/[0.05] dark:bg-[#0D1320] dark:text-slate-200 dark:ring-white/[0.08]">
+                          <div className="mb-2 flex items-center justify-between gap-2 border-b border-neutral-100 pb-2 dark:border-white/[0.06]">
+                            <span className="font-extrabold text-slate-950 dark:text-white">
+                              {T('xAI Grok Heavy (3-Lens) 🧠', 'رأي جروك Heavy (٣ زوايا) 🧠')}
+                            </span>
+                            {m.grokModel ? (
+                              <span dir="ltr" className="font-mono text-[11px] font-bold text-slate-500">
+                                {m.grokModel}
+                              </span>
+                            ) : null}
+                          </div>
+                          <FeryalStudioMessage text={m.grokReply ?? ''} />
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               )
@@ -899,7 +1015,7 @@ export default function FeryalAiCommandPage() {
                   <Loader2 className="h-4 w-4 animate-spin" />
                 </div>
                 <div className="ae-studio-subcard px-5 py-3.5 text-[14.5px] font-medium text-slate-500">
-                  {T('Feryal is checking branch numbers in Odoo…', 'فريال تراجع بيانات الفروع في أودو وتجهز الرد…')}
+                  {T('Running Gemini Carbon + Grok Heavy on live Odoo numbers…', 'فريال تشغّل العقل المزدوج (جميني + جروك) على أرقام أودو…')}
                 </div>
               </div>
             )}

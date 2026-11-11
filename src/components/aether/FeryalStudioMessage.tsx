@@ -7,7 +7,7 @@ import { Fragment, type ReactNode } from 'react'
  * Turns markdown-style headings, numbered/bullet lists, **bold** terms and pipe tables into clean
  * sections, highlights the expected-outcome section, and never leaves raw markdown symbols on screen.
  */
-const OUTCOME_RE = /النتائج المتوقعة|النتيجة المتوقعة|expected outcome/i
+const OUTCOME_RE = /النتائج المتوقعة|النتيجة المتوقعة|الفايدة المتوقعة|expected outcome|expected kwd gain/i
 
 function clean(text: string) {
   return text.replace(/`+/g, '').replace(/^#+\s*/, '').replace(/__/g, '')

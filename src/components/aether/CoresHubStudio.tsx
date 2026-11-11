@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
+import { DualBrainPagePanel } from '@/components/aether/DualBrainPagePanel'
 import {
   GLOBAL_BRAND_OPTIONS,
   getPeriodLabel,
@@ -549,6 +550,15 @@ export function CoresHubStudio() {
           })}
         </div>
       </header>
+
+      {/* 1-Click Dual-Brain Analysis synced with Active Core Tab */}
+      <DualBrainPagePanel
+        pageTitleAr={`المبيعات والتسويق والمنتجات — ${CORE_TABS.find((t) => t.id === activeTab)?.ar ?? ''}`}
+        pageTitleEn={`Sales, Marketing & Menu — ${CORE_TABS.find((t) => t.id === activeTab)?.en ?? ''}`}
+        promptAr={`حلّل قسم (${CORE_TABS.find((t) => t.id === activeTab)?.ar ?? ''}) وعطني أهم ٣ قرارات عملية لزيادة الطلبات والصافي بالجيب فوراً.`}
+        promptEn={`Analyze the (${CORE_TABS.find((t) => t.id === activeTab)?.en ?? ''}) tab and give me the top 3 immediate actions to grow orders and net cash.`}
+        pageContext={`القسم النشط: ${activeTab}. عائد كل 1 د.ك تسويق: ${f1(snap.marketing.kpis.roasPer1Kwd)} د.ك | نسبة مبيعات العروض والإعلانات: ${snap.marketing.kpis.promoSharePct}% | إجمالي الأصناف النشطة: ${snap.menu.dishes.length} صنف (أعلى صنف ربحاً: ${snap.menu.dishes[0]?.name ?? '-'}) | درجة الجودة العامة: ${snap.quality.qualityScore}%.`}
+      />
 
       {/* =====================================================================
           TAB 1: التسويق ونمو المبيعات (Marketing, Social/Influencer ROI & 6 Growth Plays)

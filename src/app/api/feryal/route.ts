@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getOpenAIApiKey } from '@/lib/openai-key'
 import { BRANCHES, CHANNELS, LEDGER, LEVERS_MONTHLY_TOTAL } from '@/lib/aether/ledger'
+import { askDualHeavyBrain } from '@/lib/dual-heavy-brain'
 import { FERYAL_VENTURE_FOODS_KNOWLEDGE, getDeterministicFeryalReply } from '@/lib/feryal-gemini-brain'
 import { ODOO } from '@/lib/odoo/odoo-dataset'
 
@@ -48,9 +49,34 @@ export async function POST(req: NextRequest) {
     const { action, query, url, actionType, lang } = body
     const isEn = lang === 'en'
 
-    // 1. CHAT ACTION (Feryal AI Copilot with GPT-4o-mini & live Odoo master data)
+    // 1. CHAT ACTION (Dual-Brain Consensus: Gemini Carbon + xAI Grok Heavy → GPT-4o-mini → deterministic Odoo master data)
     if (action === 'chat') {
       const q = (query || '').trim()
+
+      if (q) {
+        try {
+          const dualRes = await askDualHeavyBrain({
+            query: q,
+            lang: isEn ? 'en' : 'ar',
+          })
+          if (dualRes.reply?.trim()) {
+            return NextResponse.json({
+              success: true,
+              replyAr: isEn ? '' : dualRes.reply,
+              replyEn: isEn ? dualRes.reply : '',
+              geminiReply: dualRes.geminiReply,
+              grokReply: dualRes.grokReply,
+              engineLabelAr: dualRes.engineLabelAr,
+              engineLabelEn: dualRes.engineLabelEn,
+              keyMetrics: headlineMetrics(isEn),
+              timestamp: new Date().toISOString(),
+              model: dualRes.grokModel || dualRes.geminiModel || 'dual-heavy-brain',
+            })
+          }
+        } catch (dualErr) {
+          console.error('Dual-Brain server route fallback:', dualErr)
+        }
+      }
 
       const apiKey = getOpenAIApiKey()
       if (apiKey && q) {

@@ -1,11 +1,17 @@
 /**
- * Feryal Executive AI Brain — Powered by Google Gemini (Argon High / Gemini 3.8 Pro)
+ * Feryal Executive AI Brain — Powered by Dual-Brain Heavy Engine (Gemini Carbon High × xAI Grok Heavy)
  * Multimodal Financial Analysis & Kuwaiti/Arabic/English Audio Understanding
  * Knowledge base is generated from the whitelisted live Odoo dataset (src/lib/odoo/odoo-dataset.ts)
  */
 
-import { getGeminiApiKey, getOpenAIApiKey } from './ai-keys';
-import { BRANCHES, BRANDS, CHANNELS, EXB_REGISTERS, EXB_UNIT, INACTIVE_APPROVED_BRANDS, LEDGER, OPERATING_UNITS, SHARED_COSTS } from './aether/ledger';
+import { getGeminiApiKey, getXaiApiKey } from './ai-keys';
+import {
+  askDualHeavyBrain,
+  discoverGrokHeavyModels,
+  runGeminiCarbonEngine,
+  type BrainMode,
+} from './dual-heavy-brain';
+import { BRANCHES, BRANDS, CHANNELS, EXB_REGISTERS, EXB_UNIT, LEDGER, SHARED_COSTS } from './aether/ledger';
 import { ODOO } from './odoo/odoo-dataset';
 import { AETHER_FINDINGS, type AetherFinding } from './aether-proprietary-brain';
 import {
@@ -34,9 +40,8 @@ const RANKED_BY_PROFIT = [...BRANCHES].sort((a, b) => b.profit - a.profit);
 const RANKED_BY_SALES = [...BRANCHES].sort((a, b) => b.sales - a.sales);
 const TOP_PROFIT = RANKED_BY_PROFIT[0];
 const TOP_SALES = RANKED_BY_SALES[0];
-const CANTEENS = OPERATING_UNITS.filter((u) => u.unit === 'canteen');
-const CANTEEN_SALES = CANTEENS.reduce((s, u) => s + u.sales, 0);
-const CANTEEN_ORDERS = CANTEENS.reduce((s, u) => s + u.orders, 0);
+const APPROVED_SIX = new Set(['china-garden', 'franks', 'tahina', 'farm-brown', 'noodle-bar', 'karak-cafeteria']);
+const SIX_BRANDS = BRANDS.filter((b) => APPROVED_SIX.has(b.id));
 const EXB_PNL = EXB_UNIT?.pnl ?? null;
 const EXB_COGS_PCT = EXB_PNL && EXB_PNL.income ? (EXB_PNL.cogs / EXB_PNL.income) * 100 : 0;
 const EXB_MARGIN_PCT = EXB_PNL && EXB_PNL.income ? (EXB_PNL.operatingProfit / EXB_PNL.income) * 100 : 0;
@@ -149,12 +154,11 @@ VERIFIED ODOO FACTS — ${LEDGER.periodLabelEn.toUpperCase()} (whitelisted POS r
 3. Restaurant locations (${BRANCHES.length}, Odoo Branches analytic plan, ranked by operating profit):
 ${RANKED_BY_PROFIT.map((b, i) => `   ${i + 1}. ${b.en} (${b.ar}): POS net ${n3(b.sales)} KWD · ${n0(b.orders)} orders · revenue ${n3(b.revenue)} · food cost ${n1(shareOf(b.cogs, b.revenue))}% · operating profit ${n3(b.profit)} KWD (${n1(b.marginPct)}%).`).join('\n')}
    Highest profit: ${TOP_PROFIT?.en}. Highest POS sales: ${TOP_SALES?.en}. Restaurant average food cost ${n1(REST_COGS_PCT)}%, average margin ${n1(REST_MARGIN)}%.
-4. Other Odoo units (not branches): Exhibitions & Booths (EXB, registers ${EXB_REGISTERS.map((r) => r.posConfigId).join(', ')}) ${n3(EXB_UNIT?.sales ?? 0)} KWD · ${n0(EXB_UNIT?.orders ?? 0)} orders · basket ${n3(EXB_AOV)} KWD · food cost ${n1(EXB_COGS_PCT)}% · operating profit ${n3(EXB_PNL?.operatingProfit ?? 0)} KWD (${n1(EXB_MARGIN_PCT)}%).
-   School canteens (Fresh Daily Canteen): ${CANTEENS.map((u) => `${u.en} ${n3(u.sales)} KWD`).join('; ')} — ${n3(CANTEEN_SALES)} KWD across ${n0(CANTEEN_ORDERS)} orders.
+4. Exhibitions & Booths unit (EXB, registers ${EXB_REGISTERS.map((r) => r.posConfigId).join(', ')}): ${n3(EXB_UNIT?.sales ?? 0)} KWD · ${n0(EXB_UNIT?.orders ?? 0)} orders · basket ${n3(EXB_AOV)} KWD · food cost ${n1(EXB_COGS_PCT)}% · operating profit ${n3(EXB_PNL?.operatingProfit ?? 0)} KWD (${n1(EXB_MARGIN_PCT)}%).
    Shared cost centres: head office ${n3(SHARED_COSTS.headOffice.operatingProfit)} KWD, central kitchen ${n3(SHARED_COSTS.centralKitchen.operatingProfit)} KWD.
-5. Brands with sales in the synced period (item basis):
-${BRANDS.map((b) => `   - ${b.en} (${b.ar}): ${n3(b.sales)} KWD · ${n0(b.orders)} orders · basket ${n3(b.aov)} KWD · ${n1(shareOf(b.sales, BRAND_ITEM_SUM))}% of item sales.`).join('\n')}
-   Approved brands without sales in the period: ${INACTIVE_APPROVED_BRANDS.map((b) => `${b.en} (${b.ar})`).join(', ') || 'none'}. ${LEAD_BRAND?.en} leads the mix; ${TOP_AOV_BRAND?.en} has the highest basket.
+5. Strictly 6 Approved Venture Foods Restaurant Brands:
+${SIX_BRANDS.map((b) => `   - ${b.en} (${b.ar}): ${n3(b.sales)} KWD · ${n0(b.orders)} orders · basket ${n3(b.aov)} KWD · ${n1(shareOf(b.sales, BRAND_ITEM_SUM))}% of item sales.`).join('\n')}
+   ${LEAD_BRAND?.en} leads the mix; ${TOP_AOV_BRAND?.en} has the highest basket.
 6. Sales channels (${CHANNELS.length} Odoo payment channels):
 ${CHANNELS.map((c) => `   - ${c.en} (${c.ar}): ${n3(c.sales)} KWD · ${n0(c.orders)} payments${c.promo > 0 ? ` · promotions ${n3(c.promo)} KWD` : ''}.`).join('\n')}
    Delivery platforms ${n3(AGG_SALES)} KWD (${n1(shareOf(AGG_SALES, LEDGER.netSales))}% of net sales, ${n0(AGG_ORDERS)} payments); shop sales ${n3(SHOP_CH?.sales ?? 0)} KWD. Keeta promotions ${n3(LEDGER.keetaDiscounts)} KWD = ${n1(KEETA_PROMO_PCT)}% of Keeta item sales.
@@ -176,16 +180,10 @@ ANSWER FORMAT (always, unless the user only greets you):
 - Language isolation: Arabic answers contain no Latin letters (use the Arabic names in parentheses above, "أودو" for Odoo and "د.ك" for KWD); the only exception is an Odoo product name that has no Arabic name. English answers contain no Arabic script.
 `;
 
-const GEMINI_MODELS = [
-  'gemini-3.8-pro',
-  'argon-high',
-  'gemini-2.5-pro',
-  'gemini-2.0-flash',
-];
-
 export interface FeryalBrainRequest {
   query?: string;
   lang: 'ar' | 'en';
+  mode?: BrainMode;
   audioBase64?: string;
   mimeType?: string;
   attachmentBase64?: string;
@@ -279,7 +277,8 @@ export async function analyzeEventContractWithGemini({
   };
 
   const geminiKey = getGeminiApiKey();
-  if (!geminiKey) return defaultResult;
+  const xaiKey = getXaiApiKey();
+  if (!geminiKey && !xaiKey) return defaultResult;
 
   const promptText = `
 Analyze this restaurant event/exhibition booth contract, general description, and executive vision for Venture Foods Kuwait (Odoo 17 ERP):
@@ -300,49 +299,62 @@ Return strictly valid JSON with these exact keys:
   "verdictBadgeEn": "English executive verdict badge starting with ✅ or ⚠️",
   "voiceSummaryAr": "2-3 sentence executive Kuwaiti/Arabic spoken verdict with KWD numbers",
   "voiceSummaryEn": "2-3 sentence executive English spoken verdict with KWD numbers",
-  "recommendedBrandId": "One of: China Garden, Frank's, Tahina, Farm Brown, Fresh Daily Canteen, The Noodle Bar, Karak Cafeteria"
+  "recommendedBrandId": "One of: China Garden, Frank's, Tahina, Farm Brown, The Noodle Bar, Karak Cafeteria"
 }`;
 
-  const parts: Array<Record<string, unknown>> = [];
-  if (attachmentBase64 && attachmentMimeType) {
-    parts.push({
-      inlineData: {
-        mimeType: attachmentMimeType,
-        data: attachmentBase64,
-      },
-    });
-  }
-  parts.push({ text: promptText });
-
-  for (const model of GEMINI_MODELS) {
+  // 1. Try xAI Grok Heavy JSON contract audit first when no binary attachment is required
+  if (xaiKey && !attachmentBase64) {
     try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(geminiKey)}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            systemInstruction: { parts: [{ text: FERYAL_VENTURE_FOODS_KNOWLEDGE }] },
-            contents: [{ role: 'user', parts }],
-            generationConfig: { temperature: 0.3, maxOutputTokens: 1200 },
-          }),
-        }
-      );
-      if (res.ok) {
-        const data = await res.json();
-        const raw =
-          data?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text || '').join(' ')?.trim() || '';
+      const { models } = await discoverGrokHeavyModels();
+      const grokModel = models[0] ?? 'grok-4.7';
+      const xr = await fetch('https://api.x.ai/v1/chat/completions', {
+        method: 'POST',
+        signal: AbortSignal.timeout(18000),
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${xaiKey}`,
+        },
+        body: JSON.stringify({
+          model: grokModel,
+          temperature: 0.25,
+          max_tokens: 1300,
+          messages: [
+            { role: 'system', content: FERYAL_VENTURE_FOODS_KNOWLEDGE },
+            { role: 'user', content: promptText },
+          ],
+        }),
+      });
+      if (xr.ok) {
+        const xData = await xr.json();
+        const raw = xData?.choices?.[0]?.message?.content?.trim() || '';
         const cleaned = raw.replace(/```json|```/g, '').trim();
         const parsed = JSON.parse(cleaned);
         if (parsed && Array.isArray(parsed.risksAr) && parsed.voiceSummaryAr) {
-          return {
-            ...defaultResult,
-            ...parsed,
-          };
+          return { ...defaultResult, ...parsed };
         }
       }
     } catch {
-      // Continue to fallback
+      // Fall through to Gemini Carbon High
+    }
+  }
+
+  // 2. Gemini Carbon High multimodal / JSON contract audit
+  if (geminiKey) {
+    try {
+      const gemRes = await runGeminiCarbonEngine({
+        systemPrompt: FERYAL_VENTURE_FOODS_KNOWLEDGE,
+        userPrompt: promptText,
+        audioBase64: attachmentBase64,
+        mimeType: attachmentMimeType,
+        jsonMode: true,
+      });
+      const cleaned = gemRes.text.replace(/```json|```/g, '').trim();
+      const parsed = JSON.parse(cleaned);
+      if (parsed && Array.isArray(parsed.risksAr) && parsed.voiceSummaryAr) {
+        return { ...defaultResult, ...parsed };
+      }
+    } catch {
+      // Fall through to deterministic result
     }
   }
 
@@ -353,6 +365,12 @@ export interface FeryalBrainResponse {
   reply: string;
   transcript?: string;
   engine: string;
+  geminiReply?: string;
+  geminiModel?: string;
+  grokReply?: string;
+  grokModel?: string;
+  statusNoteAr?: string;
+  statusNoteEn?: string;
 }
 
 const SECTION_HEADINGS = {
@@ -512,194 +530,39 @@ export function getDeterministicFeryalReply(query: string, lang: 'ar' | 'en'): s
 }
 
 /**
- * Calls Google Gemini API (`Argon High / Gemini 3.8 Pro` fallback chain) for text or multimodal audio
+ * Routes 100% of text & multimodal audio consultations through the unified Dual-Brain Heavy Engine
+ * (`Gemini Carbon High × xAI Grok Heavy`), with deterministic Odoo fallback safety.
  */
 export async function askFeryalGeminiBrain({
   query = '',
   lang,
+  mode,
   audioBase64,
   mimeType = 'audio/webm',
 }: FeryalBrainRequest): Promise<FeryalBrainResponse> {
-  const geminiKey = getGeminiApiKey();
-  const isAr = lang === 'ar';
-
-  const langDirective = isAr
-    ? 'أجيبي باللغة العربية فقط بلغة كويتية/خليجية عملية بسيطة وواضحة يفهمها أي مدير مطعم خلال ثانيتين، بدون أي مصطلحات معقدة أو أرقام مراكز تكلفة داخلية، وبالأقسام الثلاثة: المقترح والحل العملي، آلية التنفيذ الواقعية، النتائج المتوقعة في حال النجاح، مع أرقام أودو الموثقة بالدينار الكويتي فقط.'
-    : 'Answer strictly in clear, plain everyday business English (no heavy consulting jargon and no internal Odoo IDs or cost-center numbers), using the three sections Practical Solution, Execution Plan and Expected Outcomes Upon Success, citing only verified Odoo figures in KWD.';
-
-  const userParts: Array<Record<string, unknown>> = [];
-  if (audioBase64) {
-    userParts.push({
-      inlineData: {
-        mimeType: mimeType.split(';')[0] || 'audio/webm',
-        data: audioBase64,
-      },
+  try {
+    const dualRes = await askDualHeavyBrain({
+      query,
+      lang,
+      mode,
+      audioBase64,
+      mimeType,
     });
-    userParts.push({
-      text: isAr
-        ? `استمع إلى هذا التسجيل الصوتي للمستخدم (باللهجة الكويتية/العربية أو الإنجليزية). أولاً استخرج النص المنطوق، ثم أجب عليه كفريال المستشارة المالية التنفيذية لشركة فينشر فودز الكويت. أعد الإجابة بصيغة JSON فقط تحتوي على الحقلين: {"transcript": "النص المسموع", "reply": "رد فريال التنفيذي"}. ${langDirective}`
-        : `Listen to this user audio recording. First transcribe what the user said, then answer as Feryal, Executive AI Copilot for Venture Foods Kuwait. Return strictly valid JSON with two fields: {"transcript": "spoken text", "reply": "Feryal executive response"}. ${langDirective}`,
-    });
-  } else {
-    userParts.push({
-      text: `${query}\n\n${langDirective}`,
-    });
+    return {
+      reply: dualRes.reply,
+      transcript: dualRes.transcript,
+      engine: lang === 'ar' ? dualRes.engineLabelAr : dualRes.engineLabelEn,
+      geminiReply: dualRes.geminiReply,
+      geminiModel: dualRes.geminiModel,
+      grokReply: dualRes.grokReply,
+      grokModel: dualRes.grokModel,
+      statusNoteAr: dualRes.statusNoteAr,
+      statusNoteEn: dualRes.statusNoteEn,
+    };
+  } catch {
+    return {
+      reply: getDeterministicFeryalReply(query, lang),
+      engine: lang === 'ar' ? 'محرك أودو المباشر' : 'Verified Odoo Engine',
+    };
   }
-
-  const requestBody = {
-    systemInstruction: {
-      parts: [{ text: FERYAL_VENTURE_FOODS_KNOWLEDGE }],
-    },
-    contents: [
-      {
-        role: 'user',
-        parts: userParts,
-      },
-    ],
-    generationConfig: {
-      temperature: 0.35,
-      maxOutputTokens: 900,
-    },
-  };
-
-  // 1. Try Google Gemini Models (supporting both ?key= and Bearer if AQ. token)
-  if (geminiKey) {
-    for (const model of GEMINI_MODELS) {
-      try {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(geminiKey)}`;
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(requestBody),
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          const rawText: string =
-            data?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text || '').join(' ')?.trim() || '';
-          if (rawText) {
-            if (audioBase64) {
-              try {
-                const cleaned = rawText.replace(/```json|```/g, '').trim();
-                const parsed = JSON.parse(cleaned);
-                if (parsed.reply) {
-                  return {
-                    reply: stripRawOdooTags(String(parsed.reply).trim()),
-                    transcript: parsed.transcript ? String(parsed.transcript).trim() : undefined,
-                    engine: `Argon High · ${model}`,
-                  };
-                }
-              } catch {
-                return {
-                  reply: stripRawOdooTags(rawText),
-                  engine: `Argon High · ${model}`,
-                };
-              }
-            }
-            return {
-              reply: stripRawOdooTags(rawText),
-              engine: `Argon High · ${model}`,
-            };
-          }
-        }
-      } catch {
-        // Continue to next model in fallback chain
-      }
-    }
-  }
-
-  // 2. Seamless Fallback to OpenAI (Whisper for audio + GPT-4o-mini for financial brain)
-  const openAiKey = getOpenAIApiKey();
-  let finalQuery = query;
-  let extractedTranscript: string | undefined;
-
-  if (audioBase64 && openAiKey && !finalQuery) {
-    try {
-      const byteCharacters = atob(audioBase64);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-      const audioBlob = new Blob([byteArray], { type: mimeType || 'audio/webm' });
-
-      const formData = new FormData();
-      formData.append('file', audioBlob, 'speech.webm');
-      formData.append('model', 'whisper-1');
-      formData.append('language', isAr ? 'ar' : 'en');
-      formData.append(
-        'prompt',
-        isAr
-          ? `فريال، فنتشر فودز، أودو، ${LOCATION_NAMES_AR}، ${BRAND_NAMES_AR}، كيتا، طلبات، Tgo، TMP`
-          : `Feryal, Venture Foods, Odoo, ${LOCATION_NAMES_EN}, ${BRANDS.map((b) => b.en).join(', ')}, Keeta, Talabat, Tgo, TMP`
-      );
-
-      const sttRes = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${openAiKey}`,
-        },
-        body: formData,
-      });
-
-      if (sttRes.ok) {
-        const sttData = await sttRes.json();
-        if (sttData?.text?.trim()) {
-          extractedTranscript = sttData.text.trim();
-          finalQuery = extractedTranscript || '';
-        }
-      }
-    } catch {
-      // Fall through
-    }
-  }
-
-  if (openAiKey && finalQuery) {
-    try {
-      const chatRes = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${openAiKey}`,
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          temperature: 0.35,
-          max_tokens: 800,
-          messages: [
-            {
-              role: 'system',
-              content: `${FERYAL_VENTURE_FOODS_KNOWLEDGE}\n\n${langDirective}`,
-            },
-            {
-              role: 'user',
-              content: finalQuery,
-            },
-          ],
-        }),
-      });
-
-      if (chatRes.ok) {
-        const chatData = await chatRes.json();
-        const text = chatData?.choices?.[0]?.message?.content?.trim();
-        if (text) {
-          return {
-            reply: stripRawOdooTags(text),
-            transcript: extractedTranscript,
-            engine: 'Argon High · Gemini 3.8 Pro',
-          };
-        }
-      }
-    } catch {
-      // Fall through to deterministic engine
-    }
-  }
-
-  return {
-    reply: getDeterministicFeryalReply(finalQuery || query, lang),
-    transcript: extractedTranscript,
-    engine: 'Argon High · Gemini 3.8 Pro',
-  };
 }

@@ -15,6 +15,7 @@ import { ODOO } from '@/lib/odoo/odoo-dataset'
 import JOURNEY from '@/lib/odoo/odoo-journey.json'
 import type { OdooBucketSummary } from '@/lib/odoo/live-sync-core'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
+import { DualBrainPagePanel } from '@/components/aether/DualBrainPagePanel'
 import type { GlobalPeriod } from '@/lib/aether/global-filter-engine'
 import { useLang } from '@/components/aether/ui'
 
@@ -636,6 +637,15 @@ export function DeliveryRadarV5() {
           {T('Export CSV', 'تحميل الجدول')}
         </button>
       </header>
+
+      {/* 1-Click Dual-Brain Delivery Radar Readout (Forensic Table below remains 100% untouched) */}
+      <DualBrainPagePanel
+        pageTitleAr="مراقبة التوصيل"
+        pageTitleEn="Delivery Radar"
+        promptAr="راجع حالة حسابات التوصيل المتوقفة والضعيفة وفروقات العمولة بين Tgo و TMP، وعطني خطة عمل فورية لاسترداد المبيعات وتقليل العمولة."
+        promptEn="Audit our stopped/low delivery app accounts and Tgo vs TMP commission variances, and give an immediate action plan to recover orders and cut fees."
+        pageContext={`حسابات التوصيل في النطاق الحالي (${summary.totalAccounts} حساب): متوقف 🔴 (${summary.stoppedCount}) | ضعيف 🟠 (${summary.stalledCount}) | شغال 🟢 (${summary.activeCount}). مبيعات التوصيل: ${fmtAmount(summary.totalSalesKwd)} د.ك (${f0(summary.totalOrders)} طلب) | الصافي بعد العمولة: ${fmtAmount(summary.totalNetKwd)} د.ك | فرق عمولة إضافية (Tgo مقابل TMP والعقود): ${fmtAmount(summary.totalVarianceKwd)} د.ك.`}
+      />
 
       {/* Non-App Channel Helper Banner */}
       {isNonAppChannelSelected ? (

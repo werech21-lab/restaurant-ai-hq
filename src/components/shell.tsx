@@ -7,6 +7,7 @@ import { BiFilterProvider } from '@/components/aether/BiFilterContext'
 import { GlobalFilterProvider } from '@/components/aether/GlobalFilterContext'
 import { ExecutiveCommandPalette } from '@/components/aether/ExecutiveCommandPalette'
 import { GlobalFilterBar } from '@/components/aether/GlobalFilterBar'
+import { TopBrainSwitcher } from '@/components/aether/TopBrainSwitcher'
 import { TopFilterBar } from '@/components/aether/TopFilterBar'
 import { Sidebar } from '@/components/erp-sidebar'
 import { prisma } from '@/lib/db'
@@ -85,6 +86,7 @@ export async function Shell({ children }: { children: React.ReactNode }) {
                 <div id="ae-canvas" className="app-content w-full">
                   {/* Generous Fluid Studio Width: 1540px max, centred across all 4 executive pillars */}
                   <div className="ae-page mx-auto w-full min-w-0 max-w-[1540px] space-y-6 px-6 py-6 lg:px-10">
+                    <TopBrainSwitcher />
                     <TopFilterBar />
                     <GlobalFilterBar />
                     {children}

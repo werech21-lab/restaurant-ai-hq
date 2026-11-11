@@ -15,7 +15,7 @@ function originOf(value) {
 
 function buildContentSecurityPolicy({ supabaseUrl, isProduction }) {
   const supabase = originOf(supabaseUrl)
-  const connect = ["'self'", 'https://generativelanguage.googleapis.com', 'https://*.googleapis.com', 'https://api.openai.com', 'https://translate.google.com', 'https://*.openai.com']
+  const connect = ["'self'", 'https://generativelanguage.googleapis.com', 'https://*.googleapis.com', 'https://api.x.ai', 'https://*.x.ai', 'https://api.openai.com', 'https://translate.google.com', 'https://*.openai.com']
   if (supabase) {
     connect.push(supabase)
     connect.push(supabase.replace(/^http/, 'ws'))
