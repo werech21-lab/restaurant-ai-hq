@@ -6,12 +6,18 @@ import { Check, ClipboardCopy, RefreshCw, RotateCcw, X } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { SlidingPillTabs } from '@/components/ui/SlidingPillTabs'
-import { AI_KEY_STORAGE_KEYS, hasAnthropicApiKey } from '@/lib/ai-keys'
+import {
+  AI_KEY_STORAGE_KEYS,
+  hasAnthropicApiKey,
+  hasGeminiApiKey,
+  isValidGeminiApiKey,
+} from '@/lib/ai-keys'
 import {
   BRAIN_HEALTH_EVENT,
   BRAIN_MODE_EVENT,
   buildGrokUltraClipboardBrief,
   formatClaudeModelBadge,
+  formatGeminiModelBadge,
   getActiveBrainMode,
   getClaudeSonnetOnly,
   normalizeBrainMode,
@@ -39,7 +45,7 @@ const MODE_OPTIONS: readonly {
 }[] = [
   { id: 'triple', ar: 'العقل الثلاثي 🔥', en: 'Triple Brain 🔥' },
   { id: 'claude', ar: 'كلاود العميق 🔬', en: 'Claude Deep 🔬' },
-  { id: 'gemini', ar: 'جميني Carbon ⚡', en: 'Gemini Carbon ⚡' },
+  { id: 'gemini', ar: 'جميني كاربون High ⚡', en: 'Gemini Carbon High ⚡' },
   { id: 'grok', ar: 'جروك Heavy 🧠', en: 'Grok Heavy 🧠' },
 ] as const
 
@@ -167,9 +173,9 @@ export function BrainControlsInline() {
         if (customXai.trim()) window.localStorage.setItem(AI_KEY_STORAGE_KEYS.xai, customXai.trim())
         else window.localStorage.removeItem(AI_KEY_STORAGE_KEYS.xai)
 
-        if (customGemini.trim()) {
+        if (customGemini.trim() && isValidGeminiApiKey(customGemini.trim())) {
           window.localStorage.setItem(AI_KEY_STORAGE_KEYS.gemini, customGemini.trim())
-        } else {
+        } else if (!customGemini.trim()) {
           window.localStorage.removeItem(AI_KEY_STORAGE_KEYS.gemini)
         }
 
@@ -218,9 +224,9 @@ export function BrainControlsInline() {
       ? formatClaudeModelBadge(opusModelRaw)
       : formatClaudeModelBadge(sonnetModelRaw)
   const grokModelId = health?.grokModel ?? 'grok-4.20-0309-reasoning'
-  const geminiModelId = health?.geminiModel ?? 'gemini-2.5-pro'
+  const geminiModelId = formatGeminiModelBadge(health?.geminiModel)
   const grokReady = health ? health.grokReady : true
-  const geminiReady = health ? health.geminiReady : true
+  const geminiReady = health ? health.geminiReady : hasGeminiApiKey()
 
   const hasWarning = Boolean(health?.grokQuotaNoteAr && mode === 'grok')
 
@@ -526,7 +532,7 @@ export function BrainControlsInline() {
               <label className="block space-y-1">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[11.5px] font-bold text-slate-700 dark:text-slate-300">
-                    Google Gemini ⚡
+                    Google Gemini Carbon High ⚡
                   </span>
                   <span
                     dir="ltr"
@@ -542,8 +548,8 @@ export function BrainControlsInline() {
                   onChange={(e) => setCustomGemini(e.target.value)}
                   placeholder={
                     isAr
-                      ? 'مفعّل تلقائياً (اتركه فارغاً للافتراضي)'
-                      : 'Built-in active (leave blank for default)'
+                      ? 'مفتاح AQ. مفعّل تلقائياً عبر الخادم (اتركه فارغاً للافتراضي)'
+                      : 'AQ. Auth Key active via server proxy (leave blank for default)'
                   }
                   className="h-9 w-full rounded-xl bg-[#F4F6F9] px-3 font-mono text-[12px] text-slate-900 ring-1 ring-slate-950/[0.05] focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-900/80 dark:bg-white/[0.06] dark:text-white"
                 />

@@ -998,7 +998,7 @@ export default function FeryalAiCommandPage() {
     activeBrainMode === 'claude'
       ? T('Claude Deep 🔬', 'كلاود العميق 🔬')
       : activeBrainMode === 'gemini'
-        ? T('Gemini Carbon ⚡', 'جميني Carbon ⚡')
+        ? T('Gemini Carbon High ⚡', 'جميني كاربون High ⚡')
         : activeBrainMode === 'grok'
           ? T('Grok Heavy 🧠', 'جروك Heavy 🧠')
           : T('Triple Brain 🔥', 'العقل الثلاثي 🔥')
@@ -1177,8 +1177,8 @@ export default function FeryalAiCommandPage() {
                     m.geminiReply
                       ? {
                           key: 'gemini',
-                          titleAr: 'رأي جميني Carbon Pro ⚡',
-                          titleEn: 'Gemini Carbon Pro ⚡',
+                          titleAr: 'رأي جميني كاربون High ⚡',
+                          titleEn: 'Gemini Carbon High ⚡',
                           model: m.geminiModel,
                           reply: m.geminiReply,
                         }

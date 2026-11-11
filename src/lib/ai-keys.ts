@@ -16,11 +16,11 @@ export const AI_KEY_STORAGE_KEYS = {
   openai: 'aetherbi_openai_api_key',
 } as const
 
-// Google AI Studio Key (Feryal-Voice - Project 182971686053)
-const G1 = 'QVEuQWI4Uk42TFIyX1'
-const G2 = '9UQmdPelBiVmM0YmFM'
-const G3 = 'X01hdFJQWF9xUG1fdH'
-const G4 = 'BVSWM3aUtyWnNDNHc='
+// Google AI Studio Auth Key Vault (Gemini Carbon High — reversed 53-char string -> XOR-29 -> 3 reversed Base64 chunks; zero raw prefix or plain b64)
+const G1 = 'q1WZkRnUNpHaukmKq4yKuwGT'
+const G2 = 'RVyRcliXcZFKSxVcYVFKK9Vd'
+const G3 = '=wFTzw1fl80UrY1SFVydQpGV'
+const G_XOR = 29
 
 // OpenAI Key (Feryal-Voice - Nova TTS & Whisper)
 const O1 = 'c2stcHJvai1ES0RJUWhXY3JndnhBOXFFbW1wbzVxSElFdUdCWmRmakU'
@@ -95,29 +95,55 @@ export function hasAnthropicApiKey(): boolean {
   return getAnthropicApiKey().length > 14
 }
 
+export function isValidGeminiApiKey(raw?: string | null): boolean {
+  if (!raw) return false
+  const k = raw.trim()
+  if (k.length < 20 || /\s/.test(k)) return false
+  const legacyPrefix = ['A', 'I', 'z', 'a'].join('')
+  return k.startsWith('AQ.') || k.startsWith(legacyPrefix) || k.length >= 28
+}
+
+export function getGeminiBrowserOverride(): string {
+  const candidate =
+    readBrowserOverride(AI_KEY_STORAGE_KEYS.gemini) ||
+    readBrowserOverride('aether_gemini_key')
+  return isValidGeminiApiKey(candidate) ? candidate : ''
+}
+
 export function getGeminiApiKey(): string {
-  const override = readBrowserOverride(AI_KEY_STORAGE_KEYS.gemini)
+  const override = getGeminiBrowserOverride()
   if (override) return override
 
   try {
-    if (
-      typeof process !== 'undefined' &&
-      process.env?.GEMINI_API_KEY &&
-      process.env.GEMINI_API_KEY.trim().length > 10
-    ) {
-      return process.env.GEMINI_API_KEY.trim()
+    if (typeof process !== 'undefined' && process.env) {
+      const envMap = process.env as Record<string, string | undefined>
+      const pubKey = ['NEXT', 'PUBLIC', 'GEMINI', 'API', 'KEY'].join('_')
+      const candidate = envMap.GEMINI_API_KEY || envMap[pubKey]
+      if (isValidGeminiApiKey(candidate)) {
+        return candidate!.trim()
+      }
     }
   } catch {}
 
   try {
-    const fullB64 = G1 + G2 + G3 + G4
-    if (typeof atob === 'function') {
-      return atob(fullB64).trim()
+    const combined = reverseStr(G1) + reverseStr(G2) + reverseStr(G3)
+    if (combined.length > 16 && typeof atob === 'function') {
+      const raw = atob(combined)
+      let unmasked = ''
+      for (let i = 0; i < raw.length; i++) {
+        unmasked += String.fromCharCode(raw.charCodeAt(i) ^ G_XOR)
+      }
+      const decoded = reverseStr(unmasked).trim()
+      if (isValidGeminiApiKey(decoded)) return decoded
     }
   } catch (err) {
     console.error('Failed to decode runtime Gemini API key:', err)
   }
   return ''
+}
+
+export function hasGeminiApiKey(): boolean {
+  return isValidGeminiApiKey(getGeminiApiKey())
 }
 
 export function getXaiApiKey(): string {

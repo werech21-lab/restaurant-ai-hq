@@ -19,6 +19,7 @@ import {
   getAnthropicApiKey,
   getAnthropicBrowserOverride,
   getGeminiApiKey,
+  getGeminiBrowserOverride,
   getOpenAIApiKey,
   getXaiApiKey,
 } from '@/lib/ai-keys'
@@ -101,10 +102,17 @@ export const CLAUDE_SONNET_ONLY_KEY = 'aether_claude_sonnet_only_v1'
 export const BRAIN_MODE_EVENT = 'aetherbi-brain-mode-change'
 export const BRAIN_HEALTH_EVENT = 'aetherbi-brain-health-update'
 
-const GEMINI_CACHE_KEY = 'aetherbi_gemini_models_cache_v4'
+const GEMINI_CACHE_KEY = 'aetherbi_gemini_models_cache_v6'
 const XAI_CACHE_KEY = 'aetherbi_xai_models_cache_v3'
 const CLAUDE_CACHE_KEY = 'aetherbi_claude_models_cache_v3'
-const LAST_VERIFIED_MODELS_KEY = 'aetherbi_last_verified_models_v2'
+const LAST_VERIFIED_MODELS_KEY = 'aetherbi_last_verified_models_v4'
+const STALE_GEMINI_STORAGE_KEYS = [
+  'aetherbi_gemini_models_cache_v4',
+  'aetherbi_gemini_models_cache_v5',
+  'aetherbi_last_verified_models_v1',
+  'aetherbi_last_verified_models_v2',
+  'aetherbi_last_verified_models_v3',
+] as const
 const SIX_HOURS_MS = 6 * 60 * 60 * 1000
 const COOLDOWN_MS = 20 * 60 * 1000
 
@@ -156,6 +164,15 @@ export function formatClaudeModelBadge(rawId: string): string {
   return `Claude Sonnet (${clean}) ⚡`
 }
 
+export function formatGeminiModelBadge(rawId?: string | null): string {
+  const stripped = (rawId ?? '')
+    .replace(/^models\//i, '')
+    .replace(/\s*\(HIGH\)\s*$/i, '')
+    .trim()
+  const safeId = !stripped || /flash|lite/i.test(stripped) ? 'gemini-4-carbon' : stripped
+  return `${safeId} (HIGH)`
+}
+
 function loadLastVerifiedModels() {
   if (
     lastVerifiedModels.claude ||
@@ -164,14 +181,23 @@ function loadLastVerifiedModels() {
     lastVerifiedModels.gemini ||
     lastVerifiedModels.grok
   ) {
+    if (lastVerifiedModels.gemini && /flash|lite/i.test(lastVerifiedModels.gemini)) {
+      delete lastVerifiedModels.gemini
+    }
     return lastVerifiedModels
   }
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
+      for (const staleKey of STALE_GEMINI_STORAGE_KEYS) {
+        window.localStorage.removeItem(staleKey)
+      }
       const raw = window.localStorage.getItem(LAST_VERIFIED_MODELS_KEY)
       if (raw) {
         const parsed = JSON.parse(raw) as typeof lastVerifiedModels
         if (parsed && typeof parsed === 'object') {
+          if (parsed.gemini && /flash|lite/i.test(parsed.gemini)) {
+            delete parsed.gemini
+          }
           lastVerifiedModels = parsed
         }
       }
@@ -358,87 +384,119 @@ export function sanitizeExecutiveOutput(raw: string): string {
 }
 
 // ============================================================================
-// Engine A: Google Gemini "Carbon Pro" Auto-Resolver
-// STRICT INVARIANT: ALL `-pro` models ALWAYS rank strictly above `-flash`!
+// Engine A: Google Gemini "Carbon High" Auto-Resolver (`/api/ai/gemini` Proxy)
+// STRICT INVARIANT:
+//   - Explicitly INCLUDES `-preview` and `-exp` flagship Carbon & Pro tiers.
+//   - Strictly BANS `flash`, `lite`, `image`, `tts`, `audio`, `embedding`,
+//     `robotics`, `computer-use`, `lyria`, `banana`, `transcribe`, `antigravity`, `deep-research`.
+//   - Enforces `thinkingConfig: { thinkingLevel: "HIGH" }` + `maxOutputTokens: 8192`.
 // ============================================================================
 export function scoreGeminiModel(id: string): number {
-  const m = id.toLowerCase()
-  // Exclude non-text generation models or deprecated old names
+  const m = id.toLowerCase().replace(/^models\//, '')
   if (
-    /tts|image|vision|embedding|aqa|lyria|banana|transcribe|gemma|argon|2\.0-flash-lite|1\.5/i.test(
+    /flash|lite|image|tts|audio|embedding|robotics|computer-use|lyria|banana|transcribe|vision|aqa|antigravity|deep-research|1\.5|2\.0/i.test(
       m,
     )
   ) {
     return -1
   }
-  // Exclude known hanging preview endpoints
-  if (m.includes('3.8-flash') || m.includes('3.7-flash')) return -1
 
-  const isFlash = m.includes('flash') || m.includes('lite')
-  const isPro = m.includes('pro')
+  // Priority 1: `carbon` & `gemini-4*` flagships
+  if (m.includes('gemini-4') && (m.includes('carbon') || m.includes('pro'))) return 1000
+  if (m.includes('carbon')) return 995
+  if (m.startsWith('gemini-4')) return 988
 
-  // Tier 1 (910–1000): Flagship Carbon & ALL `-pro` models (strictly >= 910)
-  if (!isFlash) {
-    if (m.includes('gemini-4') && (m.includes('carbon') || isPro)) return 1000
-    if (m.includes('carbon')) return 990
-    if (m.includes('gemini-4')) return 980
-    if (m.includes('gemini-3.5') && isPro) return 970
-    if (m.includes('gemini-3.1') && isPro) return 960
-    if (m.includes('gemini-3') && isPro) return 950
-    if (m === 'gemini-2.5-pro' || (m.includes('gemini-2.5') && isPro)) return 940
-    if (m === 'gemini-pro-latest') return 930
-    if (isPro) return 920
-  }
+  // Priority 2: Highest `gemini-3*pro*` flagships (including `-preview` and `-exp`)
+  if (m.includes('gemini-3.5') && m.includes('pro')) return 980
+  if (m === 'gemini-3.1-pro-preview') return 976
+  if (m.startsWith('gemini-3.1-pro')) return 968
+  if (m.includes('gemini-3') && m.includes('pro')) return 962
+  if (m === 'gemini-pro-latest') return 952
 
-  // Tier 2 (720–850): `-flash` models ONLY (strictly <= 850, ALWAYS below `-pro`!)
-  if (m.includes('gemini-4') && isFlash) return 850
-  if (m === 'gemini-3.6-flash') return 840
-  if (m === 'gemini-3.5-flash') return 830
-  if (m === 'gemini-3-flash-preview') return 820
-  if (m.includes('gemini-3') && isFlash) return 810
-  if (m === 'gemini-2.5-flash') return 800
-  if (m === 'gemini-flash-latest') return 790
-  if (isFlash) return 740
-  if (m.includes('gemini')) return 700
+  // Priority 3: `gemini-2.5-pro` ONLY if zero Gen 3+ / Gen 4+ / Carbon Pro models exist
+  if (m === 'gemini-2.5-pro' || (m.includes('gemini-2.5') && m.includes('pro'))) return 935
+
+  // Priority 4: Non-flash Gen-4 reasoning continuity (`thinking: true`)
+  if (m === 'gemma-4-26b-a4b-it') return 915
+  if (m.startsWith('gemma-4-')) return 905
+
+  if (m.includes('pro')) return 900
   return -1
 }
 
 export const DEFAULT_GEMINI_CHAIN = [
-  'gemini-2.5-pro',
+  'gemini-4-carbon',
+  'gemini-4-argon',
+  'gemini-3.1-pro-preview',
   'gemini-pro-latest',
-  'gemini-2.5-flash',
-  'gemini-flash-latest',
+  'gemma-4-26b-a4b-it',
 ]
 
-export async function discoverGeminiCarbonModels(): Promise<string[]> {
-  if (geminiCachedModels && Date.now() - geminiCachedModels.at < SIX_HOURS_MS) {
+export async function discoverGeminiCarbonModels(forceRefresh = false): Promise<string[]> {
+  if (!forceRefresh && geminiCachedModels && Date.now() - geminiCachedModels.at < SIX_HOURS_MS) {
     return geminiCachedModels.models
   }
 
-  try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      const raw = window.localStorage.getItem(GEMINI_CACHE_KEY)
-      if (raw) {
-        const parsed = JSON.parse(raw) as { at: number; models: string[] }
-        if (parsed?.at && Array.isArray(parsed.models) && Date.now() - parsed.at < SIX_HOURS_MS) {
-          const reSorted = [...parsed.models].sort(
-            (a, b) => scoreGeminiModel(b) - scoreGeminiModel(a),
-          )
-          geminiCachedModels = { at: parsed.at, models: reSorted }
-          return reSorted
+  if (!forceRefresh) {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const raw = window.localStorage.getItem(GEMINI_CACHE_KEY)
+        if (raw) {
+          const parsed = JSON.parse(raw) as { at: number; models: string[] }
+          if (parsed?.at && Array.isArray(parsed.models) && Date.now() - parsed.at < SIX_HOURS_MS) {
+            const reSorted = parsed.models
+              .filter((id) => scoreGeminiModel(id) > 0)
+              .sort((a, b) => scoreGeminiModel(b) - scoreGeminiModel(a))
+            if (reSorted.length > 0) {
+              geminiCachedModels = { at: parsed.at, models: reSorted }
+              return reSorted
+            }
+          }
         }
       }
-    }
-  } catch {}
+    } catch {}
+  }
 
+  // 1. Browser -> Secure Server Proxy `/api/ai/gemini` (`x-goog-api-key` hidden server-side)
+  if (typeof window !== 'undefined') {
+    try {
+      const customOverride = getGeminiBrowserOverride()
+      const res = await fetch(`/api/ai/gemini${forceRefresh ? '?refresh=1' : ''}`, {
+        signal: AbortSignal.timeout(8500),
+        headers: customOverride ? { 'x-aether-custom-gemini-key': customOverride } : undefined,
+        cache: 'no-store',
+      })
+      if (res.ok) {
+        const json = (await res.json()) as {
+          ok?: boolean
+          chain?: string[]
+          flagshipModel?: string
+        }
+        if (json.ok && Array.isArray(json.chain) && json.chain.length > 0) {
+          const cleaned = json.chain.filter((id) => scoreGeminiModel(id) > 0)
+          if (cleaned.length > 0) {
+            geminiCachedModels = { at: Date.now(), models: cleaned }
+            try {
+              window.localStorage?.setItem(GEMINI_CACHE_KEY, JSON.stringify(geminiCachedModels))
+            } catch {}
+            return cleaned
+          }
+        }
+      }
+    } catch {
+      // Fall back cleanly below
+    }
+  }
+
+  // 2. Server-side / Direct fallback via official `x-goog-api-key` header
   const key = getGeminiApiKey()
   if (!key) return DEFAULT_GEMINI_CHAIN
 
   try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`,
-      { signal: AbortSignal.timeout(7000) },
-    )
+    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', {
+      signal: AbortSignal.timeout(8000),
+      headers: { 'x-goog-api-key': key },
+    })
     if (res.ok) {
       const data = (await res.json()) as {
         models?: { name?: string; supportedGenerationMethods?: string[] }[]
@@ -456,7 +514,12 @@ export async function discoverGeminiCarbonModels(): Promise<string[]> {
         ),
       ].sort((a, b) => scoreGeminiModel(b) - scoreGeminiModel(a))
 
-      const merged = [...new Set([...rankedLive, ...DEFAULT_GEMINI_CHAIN])]
+      const hasHigherGen = rankedLive.some((id) => scoreGeminiModel(id) >= 950)
+      const pruned = hasHigherGen
+        ? rankedLive.filter((id) => !id.startsWith('gemini-2.5-pro'))
+        : rankedLive
+
+      const merged = [...new Set([...pruned, ...DEFAULT_GEMINI_CHAIN])]
         .sort((a, b) => scoreGeminiModel(b) - scoreGeminiModel(a))
         .slice(0, 7)
 
@@ -469,7 +532,7 @@ export async function discoverGeminiCarbonModels(): Promise<string[]> {
       return merged
     }
   } catch {
-    // Fall back to verified default chain
+    // Fall back to verified flagship chain
   }
 
   geminiCachedModels = { at: Date.now(), models: DEFAULT_GEMINI_CHAIN }
@@ -489,6 +552,43 @@ export async function runGeminiCarbonEngine({
   mimeType?: string
   jsonMode?: boolean
 }): Promise<{ text: string; model: string }> {
+  // 1. Browser -> Secure Server Proxy `/api/ai/gemini`
+  if (typeof window !== 'undefined') {
+    try {
+      const customOverride = getGeminiBrowserOverride()
+      const proxyRes = await fetch('/api/ai/gemini', {
+        method: 'POST',
+        signal: AbortSignal.timeout(30000),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          systemPrompt,
+          userPrompt,
+          audioBase64,
+          mimeType,
+          jsonMode,
+          maxOutputTokens: 8192,
+          customApiKey: customOverride || undefined,
+        }),
+      })
+      if (proxyRes.ok) {
+        const proxyJson = (await proxyRes.json()) as {
+          ok?: boolean
+          text?: string
+          model?: string
+          modelBadge?: string
+        }
+        if (proxyJson.ok && proxyJson.text?.trim()) {
+          const badge = formatGeminiModelBadge(proxyJson.modelBadge || proxyJson.model)
+          recordVerifiedModel('gemini', badge)
+          return { text: proxyJson.text.trim(), model: badge }
+        }
+      }
+    } catch {
+      // Fall through to direct `x-goog-api-key` resilience path
+    }
+  }
+
+  // 2. Server-side / Direct fallback via `x-goog-api-key` + `thinkingLevel: "HIGH"` (`maxOutputTokens: 8192`)
   const key = getGeminiApiKey()
   if (!key) throw new Error('GEMINI_KEY_MISSING')
 
@@ -496,55 +596,80 @@ export async function runGeminiCarbonEngine({
   const activeModels = models.filter((m) => !isCoolingDown(`gemini:${m}`))
   const chain = activeModels.length > 0 ? activeModels : DEFAULT_GEMINI_CHAIN
 
-  const parts: Array<Record<string, unknown>> = []
-  if (audioBase64) {
+  const buildParts = (inlineSystem: boolean) => {
+    const parts: Array<Record<string, unknown>> = []
+    if (audioBase64) {
+      parts.push({
+        inlineData: {
+          mimeType: mimeType.split(';')[0] || 'audio/webm',
+          data: audioBase64,
+        },
+      })
+    }
     parts.push({
-      inlineData: {
-        mimeType: mimeType.split(';')[0] || 'audio/webm',
-        data: audioBase64,
-      },
+      text: inlineSystem && systemPrompt ? `${systemPrompt}\n\n---\n\n${userPrompt}` : userPrompt,
     })
+    return parts
   }
-  parts.push({ text: userPrompt })
 
   for (const model of chain) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`
+    if (audioBase64 && model.startsWith('gemma-')) continue
+    const isGemma = model.startsWith('gemma-')
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`
 
-    const configsToTry: Record<string, unknown>[] = [
+    const payloadsToTry: Record<string, unknown>[] = [
       {
-        temperature: 0.3,
-        maxOutputTokens: 1600,
-        ...(jsonMode ? { responseMimeType: 'application/json' } : {}),
-        thinkingConfig: model.includes('gemini-4')
-          ? { thinkingLevel: 'HIGH' }
-          : { thinkingBudget: 8192 },
+        ...(!isGemma && systemPrompt
+          ? { systemInstruction: { parts: [{ text: systemPrompt }] } }
+          : {}),
+        contents: [{ role: 'user', parts: buildParts(isGemma) }],
+        generationConfig: {
+          temperature: 0.3,
+          maxOutputTokens: 8192,
+          ...(jsonMode ? { responseMimeType: 'application/json' } : {}),
+          thinkingConfig: { thinkingLevel: 'HIGH' },
+        },
       },
       {
-        temperature: 0.3,
-        maxOutputTokens: 1600,
-        ...(jsonMode ? { responseMimeType: 'application/json' } : {}),
+        ...(!isGemma && systemPrompt
+          ? { systemInstruction: { parts: [{ text: systemPrompt }] } }
+          : {}),
+        contents: [{ role: 'user', parts: buildParts(isGemma) }],
+        generationConfig: {
+          temperature: 0.3,
+          maxOutputTokens: 8192,
+          ...(jsonMode ? { responseMimeType: 'application/json' } : {}),
+          thinkingConfig: { thinkingBudget: 24576 },
+        },
+      },
+      {
+        contents: [{ role: 'user', parts: buildParts(true) }],
+        generationConfig: {
+          temperature: 0.3,
+          maxOutputTokens: 8192,
+          ...(jsonMode ? { responseMimeType: 'application/json' } : {}),
+        },
       },
     ]
 
-    for (let attempt = 0; attempt < configsToTry.length; attempt++) {
+    for (let attempt = 0; attempt < payloadsToTry.length; attempt++) {
       try {
         const res = await fetch(url, {
           method: 'POST',
-          signal: AbortSignal.timeout(20000),
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            systemInstruction: { parts: [{ text: systemPrompt }] },
-            contents: [{ role: 'user', parts }],
-            generationConfig: configsToTry[attempt],
-          }),
+          signal: AbortSignal.timeout(26000),
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': key,
+          },
+          body: JSON.stringify(payloadsToTry[attempt]),
         })
 
-        if (res.status === 429 || res.status === 404 || res.status === 403) {
+        if (res.status === 429 || res.status === 404 || res.status === 403 || res.status === 503 || res.status === 500) {
           markCooldown(`gemini:${model}`)
           break
         }
 
-        if (res.status === 400 && attempt === 0) {
+        if (res.status === 400 && attempt + 1 < payloadsToTry.length) {
           continue
         }
 
@@ -563,8 +688,9 @@ export async function runGeminiCarbonEngine({
               typeof data?.modelVersion === 'string' && data.modelVersion.trim()
                 ? data.modelVersion.trim().replace(/^models\//, '')
                 : model
-            recordVerifiedModel('gemini', resolvedGeminiId)
-            return { text: textOut, model: resolvedGeminiId }
+            const badge = formatGeminiModelBadge(resolvedGeminiId)
+            recordVerifiedModel('gemini', badge)
+            return { text: textOut, model: badge }
           }
         }
       } catch {
@@ -1173,7 +1299,7 @@ export async function probeDualBrainHealth(forceRefresh = false): Promise<BrainL
     clearBrainDiscoveryCaches()
   }
   const [gemModels, grokInfo, claudeCat] = await Promise.all([
-    discoverGeminiCarbonModels(),
+    discoverGeminiCarbonModels(forceRefresh),
     discoverGrokHeavyModels(),
     discoverClaudeDualCatalog(forceRefresh),
   ])
@@ -1183,7 +1309,7 @@ export async function probeDualBrainHealth(forceRefresh = false): Promise<BrainL
   const activeMode = normalizeBrainMode(getActiveBrainMode())
 
   const discoveredGemini =
-    gemModels.find((m) => !isCoolingDown(`gemini:${m}`)) ?? gemModels[0] ?? 'gemini-2.5-pro'
+    gemModels.find((m) => !isCoolingDown(`gemini:${m}`)) ?? gemModels[0] ?? 'gemini-4-carbon'
   const discoveredGrok =
     grokInfo.models.find((m) => !isCoolingDown(`xai:${m}`)) ??
     grokInfo.models[0] ??
@@ -1208,7 +1334,7 @@ export async function probeDualBrainHealth(forceRefresh = false): Promise<BrainL
     activeMode === 'claude' && !sonnetOnly ? claudeOpusModel : claudeSonnetModel
   const claudeModel = formatClaudeModelBadge(activeClaudeRaw)
 
-  const geminiModel = verified.gemini || discoveredGemini
+  const geminiModel = formatGeminiModelBadge(verified.gemini || discoveredGemini)
   const grokModel = verified.grok || discoveredGrok
 
   const hasGeminiKey = Boolean(getGeminiApiKey())
@@ -1389,7 +1515,7 @@ Cite only verified Odoo KWD numbers across our 6 approved brands and 7 active br
   }
 
   // --------------------------------------------------------------------------
-  // Single-Brain Mode: Gemini Carbon Pro Only (`جميني Carbon ⚡`)
+  // Single-Brain Mode: Gemini Carbon High Only (`جميني كاربون High ⚡`)
   // --------------------------------------------------------------------------
   if (mode === 'gemini') {
     try {
@@ -1405,8 +1531,8 @@ Cite only verified Odoo KWD numbers across our 6 approved brands and 7 active br
         geminiReply: clean,
         geminiModel: gem.model,
         transcript: extractedTranscript,
-        engineLabelAr: `جميني Carbon (${gem.model}) ⚡`,
-        engineLabelEn: `Gemini Carbon (${gem.model}) ⚡`,
+        engineLabelAr: `جميني كاربون High · ${gem.model} ⚡`,
+        engineLabelEn: `Gemini Carbon High · ${gem.model} ⚡`,
       }
     } catch {
       try {

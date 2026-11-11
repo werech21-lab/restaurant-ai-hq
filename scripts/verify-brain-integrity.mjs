@@ -45,36 +45,41 @@ assert(trackedEnv === '', '.env.local is NOT tracked in Git')
 const prefixA = ['x', 'a', 'i', '-'].join('')
 const prefixB = ['s', 'k', '-', 'a', 'n', 't'].join('')
 const prefixC = ['c2st', 'YW50'].join('')
+const prefixD = ['A', 'Q', '.', 'A', 'b', '8'].join('')
+const prefixE = ['A', 'b', '8', 'R', 'N', '6'].join('')
+const prefixF = ['A', 'I', 'z', 'a'].join('')
 
-let rawKeyMatchesA = 0
-let rawKeyMatchesB = 0
-let rawKeyMatchesC = 0
-try {
-  const outA = execSync(`git grep "${prefixA}"`, { cwd: ROOT, encoding: 'utf8' }).trim()
-  rawKeyMatchesA = outA ? outA.split('\n').length : 0
-} catch {
-  rawKeyMatchesA = 0
+function countGitGrep(pat) {
+  try {
+    const out = execSync(`git grep -F "${pat}"`, { cwd: ROOT, encoding: 'utf8' }).trim()
+    return out ? out.split('\n').length : 0
+  } catch {
+    return 0
+  }
 }
-try {
-  const outB = execSync(`git grep "${prefixB}"`, { cwd: ROOT, encoding: 'utf8' }).trim()
-  rawKeyMatchesB = outB ? outB.split('\n').length : 0
-} catch {
-  rawKeyMatchesB = 0
-}
-try {
-  const outC = execSync(`git grep "${prefixC}"`, { cwd: ROOT, encoding: 'utf8' }).trim()
-  rawKeyMatchesC = outC ? outC.split('\n').length : 0
-} catch {
-  rawKeyMatchesC = 0
-}
+
+const rawKeyMatchesA = countGitGrep(prefixA)
+const rawKeyMatchesB = countGitGrep(prefixB)
+const rawKeyMatchesC = countGitGrep(prefixC)
+const rawKeyMatchesD = countGitGrep(prefixD)
+const rawKeyMatchesE = countGitGrep(prefixE)
+const rawKeyMatchesF = countGitGrep(prefixF)
+
 assert(rawKeyMatchesA === 0, 'Zero raw Grok key prefixes in tracked files', `matches=${rawKeyMatchesA}`)
 assert(rawKeyMatchesB === 0, 'Zero raw Claude key prefixes in tracked files', `matches=${rawKeyMatchesB}`)
 assert(rawKeyMatchesC === 0, 'Zero standard Base64 Claude prefixes in tracked files', `matches=${rawKeyMatchesC}`)
+assert(rawKeyMatchesD === 0, 'Zero raw modern Gemini Auth prefixes in tracked files', `matches=${rawKeyMatchesD}`)
+assert(rawKeyMatchesE === 0, 'Zero raw modern Gemini Auth segments in tracked files', `matches=${rawKeyMatchesE}`)
+assert(rawKeyMatchesF === 0, 'Zero raw legacy Google key prefixes in tracked files', `matches=${rawKeyMatchesF}`)
 
 const aiKeysSrc = fs.readFileSync(path.join(ROOT, 'src/lib/ai-keys.ts'), 'utf8')
 assert(
-  aiKeysSrc.includes('atob(') && aiKeysSrc.includes('A_XOR') && aiKeysSrc.includes('reverseStr'),
-  'src/lib/ai-keys.ts preserves reversed + XOR + 3-chunk atob() vaulting',
+  aiKeysSrc.includes('atob(') &&
+    aiKeysSrc.includes('A_XOR') &&
+    aiKeysSrc.includes('G_XOR') &&
+    aiKeysSrc.includes("k.startsWith('AQ.')") &&
+    aiKeysSrc.includes('reverseStr'),
+  'src/lib/ai-keys.ts preserves reversed + XOR + 3-chunk atob() vaulting & AQ. auth key validator',
 )
 
 // 2. Strict 6-Brand & 7-Branch + EXB Whitelist + Exact 0.000 KWD Odoo Reconciliation
@@ -261,20 +266,27 @@ assert(
     brainSrc.includes("fetch('/api/ai/claude'"),
   'Server proxy /api/ai/claude + Sonnet(4096)/Opus(8192) dual-tier routing + ephemeral cache + 5.x effort / 4.x thinking wired',
 )
+const geminiRouteSrc = fs.readFileSync(path.join(ROOT, 'src/app/api/ai/gemini/route.ts'), 'utf8')
 assert(
-  brainSrc.indexOf("'gemini-2.5-pro'") < brainSrc.indexOf("'gemini-2.5-flash'") &&
-    brainSrc.includes('Tier 1 (910–1000): Flagship Carbon & ALL `-pro` models') &&
-    brainSrc.includes('Tier 2 (720–850): `-flash` models ONLY'),
-  'Gemini -pro models strictly rank above -flash models in scoreGeminiModel & DEFAULT_GEMINI_CHAIN',
+  geminiRouteSrc.includes("'x-goog-api-key'") &&
+    geminiRouteSrc.includes("thinkingLevel: 'HIGH'") &&
+    geminiRouteSrc.includes('thinkingBudget: 24576') &&
+    geminiRouteSrc.includes('8192') &&
+    geminiRouteSrc.includes("'gemini-4-carbon'") &&
+    geminiRouteSrc.includes("'gemini-3.1-pro-preview'") &&
+    !brainSrc.includes('gemini-flash-latest') &&
+    brainSrc.includes("fetch('/api/ai/gemini'"),
+  'Server proxy /api/ai/gemini + x-goog-api-key + Carbon/3.1-Pro Flagship chain + thinkingLevel HIGH (8192) & zero flash fallback',
 )
 
 const switcherSrc = fs.readFileSync(path.join(ROOT, 'src/components/aether/TopBrainSwitcher.tsx'), 'utf8')
 assert(
   switcherSrc.includes('العقل الثلاثي 🔥') &&
     switcherSrc.includes('كلاود العميق 🔬') &&
-    switcherSrc.includes('جميني Carbon ⚡') &&
+    switcherSrc.includes('جميني كاربون High ⚡') &&
+    switcherSrc.includes('Gemini Carbon High ⚡') &&
     switcherSrc.includes('جروك Heavy 🧠'),
-  'TopBrainSwitcher displays all 4 Council modes across all 6 executive pages',
+  'TopBrainSwitcher displays all 4 Council modes (with Gemini Carbon High ⚡) across all 6 executive pages',
 )
 
 const chatStoreSrc = fs.readFileSync(path.join(ROOT, 'src/lib/feryal-chat-store.ts'), 'utf8')

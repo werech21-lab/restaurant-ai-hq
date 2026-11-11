@@ -10,6 +10,7 @@ import {
   BRAIN_HEALTH_EVENT,
   BRAIN_MODE_EVENT,
   formatClaudeModelBadge,
+  formatGeminiModelBadge,
   getActiveBrainMode,
   getClaudeSonnetOnly,
   isExecutiveDeepClaudeCall,
@@ -95,7 +96,8 @@ export function DualBrainPagePanel({
 
   const buttonLabel = (() => {
     if (mode === 'claude') return isAr ? 'تحليل كلاود العميق 🔬' : 'Analyze with Claude Deep 🔬'
-    if (mode === 'gemini') return isAr ? 'تحليل جميني Carbon ⚡' : 'Analyze with Gemini Carbon ⚡'
+    if (mode === 'gemini')
+      return isAr ? 'تحليل جميني كاربون High ⚡' : 'Analyze with Gemini Carbon High ⚡'
     if (mode === 'grok') return isAr ? 'تحليل جروك Heavy 🧠' : 'Analyze with Grok Heavy 🧠'
     return isAr ? 'تحليل العقل الثلاثي 🔥' : 'Triple-Brain Analysis 🔥'
   })()
@@ -128,8 +130,8 @@ export function DualBrainPagePanel({
     result?.geminiReply
       ? {
           key: 'gemini',
-          titleAr: 'رأي جميني Carbon Pro ⚡',
-          titleEn: 'Gemini Carbon Pro ⚡',
+          titleAr: 'رأي جميني كاربون High ⚡',
+          titleEn: 'Gemini Carbon High ⚡',
           model: result.geminiModel,
           reply: result.geminiReply,
         }
@@ -160,7 +162,7 @@ export function DualBrainPagePanel({
 
   const liveClaudeId = result?.claudeModel ?? expectedClaudeBadge
   const liveGrokId = result?.grokModel ?? health?.grokModel ?? 'grok-4.20-0309-reasoning'
-  const liveGeminiId = result?.geminiModel ?? health?.geminiModel ?? 'gemini-2.5-pro'
+  const liveGeminiId = formatGeminiModelBadge(result?.geminiModel ?? health?.geminiModel)
   const claudeReady = Boolean(result?.claudeModel || (health?.claudeReady ?? true))
   const grokReady = health ? health.grokReady : true
   const geminiReady = health ? health.geminiReady : true
