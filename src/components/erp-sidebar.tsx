@@ -2,7 +2,6 @@
 
 import React, { Suspense, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { LEDGER } from '@/lib/aether/ledger'
 import { usePathname, useSearchParams } from 'next/navigation'
 import {
   Calendar,
@@ -49,13 +48,13 @@ interface NavSection {
 const SIDEBAR_SECTIONS: NavSection[] = [
   {
     id: 'main',
-    titleAr: 'الأقسام الرئيسية',
-    titleEn: 'Main Sections',
+    titleAr: 'القائمة',
+    titleEn: 'Menu',
     items: [
-      { key: 'playbook', href: '/erp', labelAr: 'ملخص أداء الشركة وفرص زيادة الربح', labelEn: 'Company Summary & Profit Opportunities', icon: LayoutDashboard, alwaysVisible: true },
-      { key: 'feryal-ai', href: '/erp/feryal-ai', labelAr: 'المستشارة الذكية فريال', labelEn: 'Feryal — Smart Advisor', icon: Sparkles, alwaysVisible: true },
-      { key: 'aggregator-radar', href: '/erp/aggregator-radar', labelAr: 'الرادار الجنائي لمنصات التوصيل', labelEn: 'Forensic Delivery Radar', icon: Radar, alwaysVisible: true },
-      { key: 'events-intelligence', href: '/erp/events-intelligence', labelAr: 'جدوى المعارض والبوثات الموسمية', labelEn: 'Seasonal Booths Study', icon: Calendar, alwaysVisible: true },
+      { key: 'playbook', href: '/erp', labelAr: 'الرئيسية', labelEn: 'Overview', icon: LayoutDashboard, alwaysVisible: true },
+      { key: 'feryal-ai', href: '/erp/feryal-ai', labelAr: 'المستشارة فريال', labelEn: 'Ask Feryal', icon: Sparkles, alwaysVisible: true },
+      { key: 'aggregator-radar', href: '/erp/aggregator-radar', labelAr: 'مراقبة التوصيل', labelEn: 'Delivery Radar', icon: Radar, alwaysVisible: true },
+      { key: 'events-intelligence', href: '/erp/events-intelligence', labelAr: 'حاسبة المعارض', labelEn: 'Booth Calculator', icon: Calendar, alwaysVisible: true },
     ],
   },
 ]
@@ -156,7 +155,7 @@ export function Sidebar({ user }: { user: AccessUser; enabledKeys?: string[] | n
           </p>
           <p className="ae-side-muted inline-flex items-center justify-center gap-1.5 text-[11px] font-semibold">
             <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#34D399' }} />
-            {isAr ? `${LEDGER.brands} علامات تجارية · ${LEDGER.branches} مواقع مطاعم · ${LEDGER.channels} قنوات` : `${LEDGER.brands} Brands · ${LEDGER.branches} Restaurant Locations · ${LEDGER.channels} Channels`}
+            {isAr ? '6 مطاعم · 7 فروع · 8 قنوات' : '6 Brands · 7 Branches · 8 Channels'}
           </p>
         </div>
       </div>

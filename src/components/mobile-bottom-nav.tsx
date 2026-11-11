@@ -5,10 +5,10 @@ import { useI18n } from '@/lib/i18n'
 
 // Strictly locked to the 4 Executive Pillars on mobile
 const links = [
-  { href: '/erp', exact: true, ar: 'المختصرات', en: 'Playbook' },
-  { href: '/erp/feryal-ai', ar: 'فريال AI', en: 'Feryal AI' },
-  { href: '/erp/aggregator-radar', ar: 'رادار التوصيل', en: 'Delivery Radar' },
-  { href: '/erp/events-intelligence', ar: 'جدوى البوثات', en: 'Booths Study' },
+  { href: '/erp', exact: true, ar: 'الرئيسية', en: 'Overview' },
+  { href: '/erp/feryal-ai', ar: 'المستشارة فريال', en: 'Ask Feryal' },
+  { href: '/erp/aggregator-radar', ar: 'مراقبة التوصيل', en: 'Delivery Radar' },
+  { href: '/erp/events-intelligence', ar: 'حاسبة المعارض', en: 'Booth Calculator' },
 ]
 
 export function MobileBottomNav() {

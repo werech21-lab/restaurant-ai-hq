@@ -2,12 +2,10 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  CalendarClock,
   Check,
   Copy,
   FileText,
   Headphones,
-  Landmark,
   Loader2,
   Maximize2,
   MessageCircle,
@@ -23,9 +21,8 @@ import {
 } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
 import { getOpenAIApiKey, getGeminiApiKey } from '@/lib/ai-keys'
-import { askFeryalGeminiBrain, FERYAL_PROPOSALS, getDeterministicFeryalReply } from '@/lib/feryal-gemini-brain'
-import { CASH_RUNWAY_PULSE, evaluateKuwaitCashCycle, KUWAIT_CALENDAR_PULSE, type KuwaitCalendarPulse } from '@/lib/full-journey-enterprise-brain'
-import { LEDGER } from '@/lib/aether/ledger'
+import { askFeryalGeminiBrain, getDeterministicFeryalReply } from '@/lib/feryal-gemini-brain'
+import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { FeryalStudioMessage, feryalPlainText } from '@/components/aether/FeryalStudioMessage'
 
 // ==============================================================================
@@ -33,63 +30,45 @@ import { FeryalStudioMessage, feryalPlainText } from '@/components/aether/Feryal
 // ==============================================================================
 const welcomeText = (lang: 'ar' | 'en') =>
   lang === 'ar'
-    ? `أهلاً بك، أنا فريال، مستشارتك الذكية في فنتشر فودز. أتابع معك مبيعات ومصاريف فروعنا الـ ${LEDGER.branches} ومطبخ العارضية وتطبيقات التوصيل لحظة بلحظة من أودو، وأساعدك بخطوات عملية واضحة لزيادة الربح وتقليل الهدر.`
-    : `Welcome, I'm Feryal, your smart advisor at Venture Foods. I track sales and costs across our ${LEDGER.branches} restaurant branches, Ardiya Central Kitchen, and delivery platforms live from Odoo — giving you clear, practical steps to grow profit and cut waste.`
+    ? `هلا بك، أنا فريال. أتابع معك أرقام الفروع والمطبخ والتوصيل مباشرة من أودو. اسألني بصوتك أو كتابة عن أي مطعم أو فرع.`
+    : `Hi, I'm Feryal. I track branch, kitchen, and delivery numbers live from Odoo. Ask me by voice or text about any brand or branch.`
 
 const TOPICS: { id: string; tagAr: string; tagEn: string; labelAr: string; labelEn: string; promptAr: string; promptEn: string }[] = [
   {
-    id: 'zwarah-prep',
-    tagAr: 'توقيت الرواتب والزوارة · تحضير العارضية',
-    tagEn: 'Kuwait Payday & Zwarah · Ardiya Prep',
-    labelAr: 'عروض الرواتب والزوارة وضبط تحضير نهاية الأسبوع',
-    labelEn: 'Kuwait Payday/Zwarah Bundles & Weekend Prep Plan',
-    promptAr: 'ما أفضل عروض باقات الرواتب والزوارة (٢٠–٢٩ والخميس والجمعة) مقارنة بوجبات منتصف الشهر الاقتصادية (١٠–١٩)، وكيف نضبط كميات التحضير في مطبخ العارضية لمنع الهدر أول الأسبوع ومنع نفاد الأصناف مساء الخميس؟',
-    promptEn: 'What are the best Payday & Thu/Fri Zwarah bundles (20th–29th) vs mid-month value meals (10th–19th), and how should Ardiya Central Kitchen set prep quantities to stop weekday waste and Thu/Fri stockouts?',
+    id: 'kitchen-gap',
+    tagAr: 'المطبخ',
+    tagEn: 'Kitchen',
+    labelAr: 'نقص بالمطبخ',
+    labelEn: 'Kitchen Gap',
+    promptAr: 'وين يصير النقص في مواد المطبخ وكيف نضبط وزن الوجبات اليومي؟',
+    promptEn: 'Where is the kitchen food gap happening and how do we fix daily portion weights?',
   },
   {
-    id: 'field-upsell-b2b',
-    tagAr: 'اقتراحات الكاشير · الأبراج والديوانيات',
-    tagEn: 'Cashier Upsell · Corporate & Diwaniya',
-    labelAr: 'مكافأة الكاشير التشجيعية وبوكسات الأبراج والديوانيات بعمولة ٠٪',
-    labelEn: 'Cashier Upsell Bonus & 0%-Commission Office/Diwaniya Boxes',
-    promptAr: 'أعطني جمل الاقتراح السريعة للكاشير لكل مطعم مع نظام المكافأة الأسبوعية بعد تحقيق 500 د.ك ربح إضافي، وخطة بوكسات غداء المكاتب حول العاصمة مول وبوكسات الديوانيات بدون عمولة تطبيقات.',
-    promptEn: 'Give me the 1-line cashier upsell scripts per brand with the 25 KWD weekly bonus rule (after +500 KWD net profit), plus our 0%-commission Assima Tower office lunch & Kuwaiti Diwaniya box plan.',
+    id: 'supplier-diff',
+    tagAr: 'المشتريات',
+    tagEn: 'Buying',
+    labelAr: 'فرق سعر مورد',
+    labelEn: 'Supplier Price Diff',
+    promptAr: 'شنو أهم فروقات أسعار الموردين هالشهر وكيف نثبت السعر الأقل؟',
+    promptEn: 'What are the main supplier price differences this month and how do we lock the lowest price?',
   },
   {
-    id: 'cash-runway',
-    tagAr: 'السيولة · التزامات نهاية الشهر',
-    tagEn: 'Month-End Cash & Settlements',
-    labelAr: 'تغطية الإيجارات والرواتب ومواعيد تحصيل طلبات وكيتا',
-    labelEn: 'Month-End Rent, Payroll & Platform Payout Timing',
-    promptAr: 'راجعي معي التزامات نهاية الشهر من الإيجارات والرواتب ودفعات الموردين مقابل سيولة المبيعات، وخطة تحصيل مستحقات طلبات وكيتا قبل 15 يوماً من نهاية الشهر.',
-    promptEn: 'Review our month-end rent, payroll, and supplier payments against 30-day POS cash inflow, and show our 15-day pre-month-end Talabat & Keeta settlement collection plan.',
+    id: 'item-price',
+    tagAr: 'المينيو',
+    tagEn: 'Menu',
+    labelAr: 'تعديل سعر صنف',
+    labelEn: 'Item Price Tweak',
+    promptAr: 'شنو الأصناف اللي تتحمل زيادة بسيطة (١٠٠-١٥٠ فلس) مع عرض مشروب بدون خسارة زباين؟',
+    promptEn: 'Which best-sellers can take a small 100–150 fils tweak plus a drink combo without losing guests?',
   },
   {
-    id: 'yield',
-    tagAr: 'مطبخ العارضية المركزي',
-    tagEn: 'Ardiya Central Kitchen',
-    labelAr: 'تقليل هدر المطبخ المركزي وضبط أوزان الحصص بالفروع',
-    labelEn: 'Cut Central Kitchen Waste & Standardize Branch Portions',
-    promptAr: 'وين يضيع جزء من المواد بين مطبخ العارضية المركزي وفروعنا السبعة؟ راجعي فروقات الجرد والتالف وضبط وزن حصة نودلز الدجاج وأعطني رسالة توجيه سريعة للفريق.',
-    promptEn: 'Where are ingredients being lost between Ardiya Central Kitchen and our 7 branches? Review stock count gaps, kitchen waste, and Chicken Noodles portion weights with a 5-minute team check.',
-  },
-  {
-    id: 'menu-elasticity',
-    tagAr: 'تشاينا جاردن · تحسين أسعار المنيو',
-    tagEn: 'China Garden · Menu Pricing',
-    labelAr: 'تعديل بسيط لأسعار الأطباق الأكثر طلباً وتثبيت الأصناف الأساسية',
-    labelEn: 'Small Price Step on Popular Dishes & Keep Core Items Fixed',
-    promptAr: 'في تشاينا جاردن، ما الأطباق الأكثر طلباً التي تتحمل زيادة بسيطة (+150 فلس مثل نودلز الدجاج ودجاج سويت آند ساور) وما الأصناف الأساسية التي يبقى سعرها ثابتاً؟',
-    promptEn: 'In China Garden, which popular dishes can safely take a +150 fils price step (like Chicken Noodles and Sweet & Sour Chicken) and which core value items should keep their price fixed?',
-  },
-  {
-    id: 'delivery',
-    tagAr: 'طلبات جو وسوق طلبات · كيتا · التسويات',
-    tagEn: 'Talabat Tgo/TMP · Keeta · Settlements',
-    labelAr: 'صافي الربح من عروض كيتا واسترداد فروقات طلبات',
-    labelEn: 'Net Cash From Keeta Promos & Talabat Variance Recovery',
-    promptAr: 'كم يدخل حسابنا البنكي فعلياً من كيتا وطلبات (طلبات جو 17% مقابل سوق طلبات 10%) بعد العمولات والخصومات؟ أعطني خطة استرداد الفروقات وتحديد سقف الخصومات عند 3.5%.',
-    promptEn: 'How much net cash actually reaches our bank from Keeta and Talabat (Tgo 17% vs TMP 10%) after commissions and discounts? Give me the variance recovery and 3.5% discount cap plan.',
+    id: 'delivery-dues',
+    tagAr: 'التوصيل',
+    tagEn: 'Delivery',
+    labelAr: 'مستحقات التوصيل',
+    labelEn: 'Delivery Dues',
+    promptAr: 'كم لنا مبالغ معلقة عند طلبات وكيتا وديليفرو وشنو الحسابات المتوقفة؟',
+    promptEn: 'How much is owed to us by Talabat, Keeta, and Deliveroo, and which app accounts are stopped?',
   },
 ]
 
@@ -184,6 +163,7 @@ export default function FeryalAiCommandPage() {
   const currentLang: 'ar' | 'en' = ctxLocale === 'en' || ctxLocale === 'ar' ? ctxLocale : activeLocale
   const isAr = currentLang === 'ar'
   const T = useCallback((en: string, ar: string) => (isAr ? ar : en), [isAr])
+  const { workspace } = useGlobalFilter()
 
   // Conversation state
   const [messages, setMessages] = useState<ChatMessage[]>(() => [welcomeMessage(currentLang)])
@@ -191,11 +171,6 @@ export default function FeryalAiCommandPage() {
   const [isCopilotThinking, setIsCopilotThinking] = useState(false)
   const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null)
   const [isExpanded, setIsExpanded] = useState(false)
-  const [calPulse, setCalPulse] = useState<KuwaitCalendarPulse>(() => KUWAIT_CALENDAR_PULSE)
-
-  useEffect(() => {
-    setCalPulse(evaluateKuwaitCashCycle(new Date()))
-  }, [])
 
   // A conversation lives in one language: switching the interface language opens a fresh discussion.
   useEffect(() => {
@@ -424,10 +399,12 @@ export default function FeryalAiCommandPage() {
       setInputText('')
       setIsCopilotThinking(true)
 
+      const contextualQuery = `${lang === 'ar' ? workspace.feryalContextAr : workspace.feryalContextEn}\n${textToSend}`
+
       try {
         let reply = ''
         try {
-          const brainRes = await askFeryalGeminiBrain({ query: textToSend, lang })
+          const brainRes = await askFeryalGeminiBrain({ query: contextualQuery, lang })
           reply = brainRes.reply?.trim() || ''
         } catch (brainErr) {
           console.warn('Feryal brain warning:', brainErr)
@@ -437,7 +414,7 @@ export default function FeryalAiCommandPage() {
             const res = await fetch('/api/feryal', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ action: 'chat', query: textToSend, lang }),
+              body: JSON.stringify({ action: 'chat', query: contextualQuery, lang }),
             })
             const data = await res.json()
             if (data.success) reply = (lang === 'ar' ? data.replyAr : data.replyEn) || ''
@@ -454,7 +431,7 @@ export default function FeryalAiCommandPage() {
         setIsCopilotThinking(false)
       }
     },
-    [inputText, isAr, playFeryalSpeech],
+    [inputText, isAr, playFeryalSpeech, workspace.feryalContextAr, workspace.feryalContextEn],
   )
 
   useEffect(() => {
@@ -782,20 +759,17 @@ export default function FeryalAiCommandPage() {
   return (
     <div dir={isAr ? 'rtl' : 'ltr'} className="w-full space-y-5 font-sans text-slate-900 antialiased dark:text-slate-100">
       {/* ───────────── Studio bar ───────────── */}
-      <header className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+      <header className="flex flex-col gap-4 rounded-3xl bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-neutral-950/[0.04] xl:flex-row xl:items-center xl:justify-between dark:bg-[#0F1626] dark:ring-white/[0.07]">
         <div className="flex min-w-0 items-center gap-3.5">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#0F172A] text-white shadow-sm dark:bg-white dark:text-slate-950">
             <Sparkles className="h-5 w-5" />
           </div>
           <div className="min-w-0">
-            <h1 className="truncate text-[22px] font-bold tracking-tight text-slate-950 sm:text-[24px] dark:text-white">
-              {T('Feryal — Smart Business Advisor', 'المستشارة الذكية فريال')}
+            <h1 className="truncate text-[22px] font-extrabold tracking-tight text-slate-950 sm:text-[24px] dark:text-white">
+              {T('Ask Feryal', 'المستشارة فريال')}
             </h1>
             <p className="truncate text-[13px] font-medium text-slate-500 dark:text-slate-400">
-              {T(
-                'Instant answers & practical steps to grow profit and control costs from live Odoo data',
-                'إجابات فورية وخطوات عملية واضحة لزيادة الربح وضبط المصاريف من بيانات أودو المباشرة',
-              )}
+              {isAr ? workspace.subtitleAr : workspace.subtitleEn}
             </p>
           </div>
         </div>
@@ -812,52 +786,22 @@ export default function FeryalAiCommandPage() {
           <audio ref={audioPlayerRef} controls preload="none" className="h-9 w-[170px] shrink-0 rounded-full" aria-label={T('Feryal voice player', 'مشغل صوت فريال')} />
           <button type="button" aria-pressed={!isVoiceMuted} onClick={() => setIsVoiceMuted((v) => !v)} className={`${pill} ${!isVoiceMuted ? pillOn : pillIdle}`}>
             {isVoiceMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-            {T('Auto-Voice', 'الرد الصوتي التلقائي')}
+            {T('Auto-Voice', 'رد صوتي')}
           </button>
           <button type="button" aria-pressed={isHandsFree} onClick={() => setIsHandsFree((v) => !v)} className={`${pill} ${isHandsFree ? pillOn : pillIdle}`}>
             <Mic className="h-4 w-4" />
-            {T('Hands-Free', 'محادثة صوتية مستمرة')}
+            {T('Hands-Free', 'محادثة مستمرة')}
           </button>
           <button type="button" aria-pressed={isExpanded} onClick={() => setIsExpanded((v) => !v)} className={`${pill} ${isExpanded ? pillOn : pillIdle} hidden lg:inline-flex`}>
             {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-            {isExpanded ? T('Show Proposals', 'إظهار المقترحات') : T('Full-Screen Chat', 'تكبير مساحة المحادثة')}
+            {isExpanded ? T('Notes', 'الملاحظات') : T('Expand', 'تكبير')}
           </button>
           <button type="button" onClick={newDiscussion} className={`${pill} ${pillIdle}`}>
             <RotateCcw className="h-4 w-4" />
-            {T('New Discussion', 'محادثة جديدة')}
+            {T('Reset', 'محادثة جديدة')}
           </button>
         </div>
       </header>
-
-      {/* Live Field-Execution & Month-End Cash Runway Pulse Pills (1-Click Briefing) */}
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          disabled={isCopilotThinking}
-          onClick={() => handleSendQuery(isAr ? TOPICS[0].promptAr : TOPICS[0].promptEn)}
-          className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3.5 py-1.5 text-[12px] font-bold text-emerald-800 transition hover:bg-emerald-100 disabled:opacity-50 dark:bg-emerald-950/40 dark:text-emerald-300"
-        >
-          <CalendarClock className="h-3.5 w-3.5 shrink-0" />
-          <span>
-            {isAr
-              ? `${calPulse.badgeAr} · ${calPulse.weekdayAr} (${calPulse.kuwaitDateIso})`
-              : `${calPulse.badgeEn} · ${calPulse.weekdayEn} (${calPulse.kuwaitDateIso})`}
-          </span>
-        </button>
-        <button
-          type="button"
-          disabled={isCopilotThinking}
-          onClick={() => handleSendQuery(isAr ? TOPICS[2].promptAr : TOPICS[2].promptEn)}
-          className="inline-flex items-center gap-2 rounded-full bg-sky-50 px-3.5 py-1.5 text-[12px] font-bold text-sky-800 transition hover:bg-sky-100 disabled:opacity-50 dark:bg-sky-950/40 dark:text-sky-300"
-        >
-          <Landmark className="h-3.5 w-3.5 shrink-0" />
-          <span>
-            {isAr
-              ? `التزامات نهاية الشهر: ${fmtKwd(CASH_RUNWAY_PULSE.totalCommitmentsKwd, true)} · تغطية ${CASH_RUNWAY_PULSE.coverageRatio} مرة · تسويات معلقة ${fmtKwd(CASH_RUNWAY_PULSE.openClearingKwd, true)}`
-              : `Month-End Obligations: ${fmtKwd(CASH_RUNWAY_PULSE.totalCommitmentsKwd, false)} · ${CASH_RUNWAY_PULSE.coverageRatio}x covered · ${fmtKwd(CASH_RUNWAY_PULSE.openClearingKwd, false)} open clearing`}
-          </span>
-        </button>
-      </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
         {/* ───────────── Conversation studio ───────────── */}
@@ -1022,38 +966,37 @@ export default function FeryalAiCommandPage() {
           </div>
         </section>
 
-        {/* ───────────── Verified proposals ───────────── */}
+        {/* ───────────── أهم ملاحظات اليوم ───────────── */}
         {!isExpanded && (
-          <aside className={`lg:col-span-4 ${panelShell} space-y-4 overflow-y-auto p-6`}>
+          <aside className={`lg:col-span-4 ${panelShell} space-y-3.5 overflow-y-auto p-6`}>
             <div>
-              <h2 className="text-[15px] font-bold text-slate-950 dark:text-white">{T('Top Profit & Savings Steps Right Now', 'أهم فرص زيادة الربح وتقليل الهدر حالياً')}</h2>
-              <p className="mt-1 text-[12.5px] text-slate-500 dark:text-slate-400">
-                {T(`Based directly on live branch & brand numbers in Odoo · ${LEDGER.periodLabelEn}`, `مبنية مباشرة على أرقام الفروع والمطاعم في أودو · ${LEDGER.periodLabelAr}`)}
+              <h2 className="text-[16px] font-extrabold text-slate-950 dark:text-white">
+                {T("Today's Top Notes", 'أهم ملاحظات اليوم')}
+              </h2>
+              <p className="mt-0.5 text-[12px] font-medium text-slate-500 dark:text-slate-400">
+                {isAr ? workspace.subtitleAr : workspace.subtitleEn}
               </p>
             </div>
-            {FERYAL_PROPOSALS.map((p) => (
-              <article key={p.id} className="ae-studio-subcard space-y-3 p-4">
-                <h3 className="text-[14px] font-bold text-slate-950 dark:text-white">{isAr ? p.titleAr : p.titleEn}</h3>
-                <div>
-                  <div className="text-[11px] font-bold uppercase tracking-wide text-slate-400">{T('Practical Step', 'الخطوة العملية')}</div>
-                  <p className="mt-1 text-[13px] leading-relaxed text-slate-700 dark:text-slate-300">{isAr ? p.solutionAr : p.solutionEn}</p>
+            {workspace.feryalNotes.map((note) => (
+              <article key={note.id} className="ae-studio-subcard space-y-2.5 p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-[14.5px] font-extrabold text-slate-950 dark:text-white">
+                    {isAr ? note.titleAr : note.titleEn}
+                  </h3>
+                  <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11.5px] font-extrabold tabular-nums text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                    {isAr ? note.benefitAr : note.benefitEn}
+                  </span>
                 </div>
-                <div className="rounded-xl bg-emerald-50/75 p-3 dark:bg-emerald-950/30">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300">{T('Expected Monthly Gain', 'الربح أو التوفير الشهري المتوقع')}</span>
-                    <span dir="ltr" className="whitespace-nowrap text-[12px] font-extrabold tabular-nums text-emerald-700 dark:text-emerald-300">
-                      {p.monthlyKwd > 0 ? (isAr ? `+${fmtKwd(p.monthlyKwd, true)}/شهر` : `+${fmtKwd(p.monthlyKwd, false)}/mo`) : T('Control', 'متابعة وسيولة')}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-[12.5px] leading-relaxed text-emerald-950 dark:text-emerald-50">{isAr ? p.outcomeAr : p.outcomeEn}</p>
-                </div>
+                <p className="text-[13px] leading-relaxed text-slate-600 dark:text-slate-300">
+                  {isAr ? note.summaryAr : note.summaryEn}
+                </p>
                 <button
                   type="button"
                   disabled={isCopilotThinking}
-                  onClick={() => handleSendQuery(isAr ? p.promptAr : p.promptEn)}
-                  className="w-full rounded-full bg-[#0F172A] px-4 py-2 text-[12.5px] font-bold text-white transition-all hover:bg-slate-800 active:scale-[0.98] disabled:opacity-50 dark:bg-white dark:text-slate-950"
+                  onClick={() => handleSendQuery(isAr ? note.promptAr : note.promptEn)}
+                  className="w-full rounded-full bg-[#0F172A] px-4 py-2 text-[12.5px] font-bold text-white transition-all duration-150 hover:bg-slate-800 active:scale-[0.98] disabled:opacity-50 dark:bg-white dark:text-slate-950"
                 >
-                  {T('Discuss & Prepare Team Brief', 'ناقش الخطوة وجهّز رسالة التنفيذ')}
+                  {T('Ask Feryal', 'اسأل فريال')}
                 </button>
               </article>
             ))}

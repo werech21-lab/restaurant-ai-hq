@@ -19,8 +19,9 @@ import {
   BRANCH_TRUE_CASH,
   BRAND_TRUE_CASH,
   JOURNEY_PLAYS,
-  JOURNEY_STAGES,
 } from '@/lib/full-journey-enterprise-brain'
+import { APPROVED_BRANCH_IDS, APPROVED_BRAND_IDS } from '@/lib/aether/global-filter-engine'
+import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { COMMAND_PALETTE_EVENT } from '@/components/aether/BiFilterContext'
 import { useLang } from '@/components/aether/ui'
 
@@ -39,12 +40,12 @@ interface Command {
 }
 
 const GROUP_LABEL: Record<Group, { en: string; ar: string }> = {
-  pages: { en: 'Main Sections', ar: 'الأقسام الرئيسية' },
-  decisions: { en: 'Practical Steps to Grow Profit', ar: 'خطوات زيادة الربح وتقليل الهدر' },
-  branches: { en: 'Active Restaurant Branches', ar: 'فروع المطاعم النشطة' },
-  brands: { en: 'Venture Foods Brands', ar: 'علامات فنتشر فودز المعتمدة' },
-  feryal: { en: 'Ask Feryal Immediately', ar: 'اسأل المستشارة فريال فوراً' },
-  actions: { en: 'Quick Actions', ar: 'إجراءات سريعة' },
+  pages: { en: 'Pages', ar: 'الصفحات' },
+  decisions: { en: 'Profit Tips', ar: 'توصيات الربح' },
+  branches: { en: 'Branches', ar: 'الفروع' },
+  brands: { en: 'Brands', ar: 'المطاعم' },
+  feryal: { en: 'Ask Feryal', ar: 'المستشارة فريال' },
+  actions: { en: 'Actions', ar: 'إجراءات' },
 }
 
 const GROUP_ORDER: Group[] = ['pages', 'decisions', 'branches', 'brands', 'feryal', 'actions']
@@ -57,6 +58,7 @@ export function ExecutiveCommandPalette() {
   const router = useRouter()
   const pathname = usePathname()
   const { lang, isAr, T } = useLang()
+  const { workspace } = useGlobalFilter()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
@@ -98,71 +100,70 @@ export function ExecutiveCommandPalette() {
       {
         id: 'p-erp',
         group: 'pages',
-        en: 'Company Summary & Profit Opportunities',
-        ar: 'ملخص أداء الشركة وفرص زيادة الربح',
-        hintEn: `${JOURNEY_PLAYS.length} practical steps`,
-        hintAr: `${JOURNEY_PLAYS.length} خطوة عملية`,
-        keywords: 'dashboard summary profit steps ملخص أداء ربح خطوات',
+        en: 'Overview · Company Summary',
+        ar: 'الرئيسية · ملخص الشركة',
+        hintEn: `${JOURNEY_PLAYS.length} profit tips`,
+        hintAr: `${JOURNEY_PLAYS.length} توصية ربح`,
+        keywords: 'dashboard summary profit steps الرئيسية ملخص الشركة توصيات الربح',
         icon: <LayoutDashboard className="h-4 w-4" />,
         run: () => go('/erp'),
       },
       {
         id: 'p-feryal',
         group: 'pages',
-        en: 'Feryal — Smart Advisor',
-        ar: 'المستشارة الذكية فريال',
-        hintEn: 'Voice & Action Briefs',
-        hintAr: 'محادثة صوتية وخطوات عملية',
-        keywords: 'ai copilot voice nova feryal فريال ذكاء صوت مستشارة',
+        en: 'Ask Feryal',
+        ar: 'المستشارة فريال',
+        hintEn: 'Voice & Daily Notes',
+        hintAr: 'محادثة صوتية وأهم الملاحظات',
+        keywords: 'ai copilot voice nova feryal المستشارة فريال ذكاء صوت',
         icon: <Sparkles className="h-4 w-4" />,
         run: () => go('/erp/feryal-ai'),
       },
       {
         id: 'p-radar',
         group: 'pages',
-        en: 'Forensic Delivery Radar',
-        ar: 'الرادار الجنائي لمنصات التوصيل',
-        hintEn: 'Stopped Accounts, Tgo/TMP & Commissions',
-        hintAr: 'الحسابات المتوقفة والعمولات والطلبات',
-        keywords: 'radar forensic talabat keeta deliveroo jahez snoonu tgo tmp رادار جنائي توصيل طلبات كيتا دليفرو جاهز سنونو',
+        en: 'Delivery Radar',
+        ar: 'مراقبة التوصيل',
+        hintEn: 'Tgo, TMP & Stopped Apps',
+        hintAr: 'حالة التطبيقات والعمولات',
+        keywords: 'radar delivery talabat keeta deliveroo jahez snoonu tgo tmp مراقبة التوصيل طلبات كيتا دليفرو جاهز سنونو',
         icon: <Radar className="h-4 w-4" />,
         run: () => go('/erp/aggregator-radar'),
       },
       {
         id: 'p-events',
         group: 'pages',
-        en: 'Seasonal Booths & Exhibitions Study',
-        ar: 'جدوى المعارض والبوثات الموسمية',
-        hintEn: 'Break-even & Rent Review',
-        hintAr: 'نقطة التعادل ومراجعة الإيجار',
-        keywords: 'events booth exb kashta winterland فعاليات بوث معارض كشتة',
+        en: 'Booth Calculator',
+        ar: 'حاسبة المعارض',
+        hintEn: 'Profit & Rent Check',
+        hintAr: 'حسبة الربح والإيجار',
+        keywords: 'events booth exb kashta winterland حاسبة المعارض بوث كشتة',
         icon: <CalendarRange className="h-4 w-4" />,
         run: () => go('/erp/events-intelligence'),
       },
     ]
 
-    const decisions: Command[] = JOURNEY_PLAYS.map((p) => {
-      const st = JOURNEY_STAGES.find((s) => s.id === p.stage)
-      return {
-        id: `d-${p.id}`,
-        group: 'decisions',
-        en: p.titleEn,
-        ar: p.titleAr,
-        hintEn: `+${fmtKwd(p.monthlyKwd, false)} · ${st?.en ?? p.stage}`,
-        hintAr: `+${fmtKwd(p.monthlyKwd, true)} · ${st?.ar ?? p.stage}`,
-        keywords: `${p.subjectEn} ${p.subjectAr} ${p.stage} ${p.id}`,
-        icon: <Target className="h-4 w-4 text-emerald-600" />,
-        run: () => go(`/erp?stage=${encodeURIComponent(p.stage)}&play=${encodeURIComponent(p.id)}`),
-      }
-    })
+    const decisions: Command[] = workspace.plays.map((p) => ({
+      id: `d-${p.id}`,
+      group: 'decisions',
+      en: p.titleEn,
+      ar: p.titleAr,
+      hintEn: `+${p.periodLabelEn}`,
+      hintAr: `+${p.periodLabelAr}`,
+      keywords: `${p.problemEn} ${p.problemAr} ${p.stage} ${p.id}`,
+      icon: <Target className="h-4 w-4 text-emerald-600" />,
+      run: () => go(`/erp?stage=${encodeURIComponent(p.stage)}&play=${encodeURIComponent(p.id)}`),
+    }))
 
-    const branches: Command[] = BRANCH_TRUE_CASH.map((b) => ({
+    const branches: Command[] = BRANCH_TRUE_CASH.filter((b) =>
+      (APPROVED_BRANCH_IDS as readonly string[]).includes(b.id),
+    ).map((b) => ({
       id: `br-loc-${b.id}`,
       group: 'branches',
       en: b.en,
       ar: b.ar,
-      hintEn: `Net Profit: ${b.trueNetCash >= 0 ? '+' : ''}${Math.round(b.trueNetCash).toLocaleString('en-US')} KWD/30d`,
-      hintAr: `الربح الصافي: ${b.trueNetCash >= 0 ? '+' : ''}${Math.round(b.trueNetCash).toLocaleString('en-US')} د.ك/30 يوم`,
+      hintEn: `Net: ${b.trueNetCash >= 0 ? '+' : ''}${Math.round(b.trueNetCash).toLocaleString('en-US')} KWD`,
+      hintAr: `الصافي: ${b.trueNetCash >= 0 ? '+' : ''}${Math.round(b.trueNetCash).toLocaleString('en-US')} د.ك`,
       keywords: `branch location فرع موقع ${b.en} ${b.ar}`,
       icon: <Store className="h-4 w-4" />,
       run: () =>
@@ -175,7 +176,9 @@ export function ExecutiveCommandPalette() {
         ),
     }))
 
-    const brands: Command[] = BRAND_TRUE_CASH.map((b) => ({
+    const brands: Command[] = BRAND_TRUE_CASH.filter((b) =>
+      (APPROVED_BRAND_IDS as readonly string[]).includes(b.id),
+    ).map((b) => ({
       id: `brand-${b.id}`,
       group: 'brands',
       en: b.en,
@@ -240,7 +243,7 @@ export function ExecutiveCommandPalette() {
     ]
 
     return [...pages, ...decisions, ...branches, ...brands, ...feryal, ...actions]
-  }, [close, go, lang, pathname, router])
+  }, [close, go, lang, pathname, router, workspace.plays])
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase()

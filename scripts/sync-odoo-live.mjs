@@ -239,7 +239,13 @@ async function main() {
   const byPayment = await safe('pos.payment read_group', () => ek('pos.payment', 'read_group', [[['pos_order_id.date_order', '>=', `${PERIOD.from} 00:00:00`], ['pos_order_id.date_order', '<', `${PERIOD.to} 00:00:00`], ['pos_order_id.state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', ALLOWED]], ['amount:sum'], ['session_id', 'payment_method_id']], { lazy: false }), [])
   const paySessionIds = [...new Set(byPayment.map((g) => m2oId(g.session_id)).filter((id) => id && !cfgOfSession.has(id)))]
   if (paySessionIds.length) for (const s of await safe('pos.session read (payments)', () => ek('pos.session', 'read', [paySessionIds, ['id', 'config_id']]), [])) cfgOfSession.set(s.id, m2oId(s.config_id))
+  const isDeliveryConfig = (cfg) => {
+    const loc = locationOfConfig(cfg)
+    const nm = configById.get(cfg)?.name || ''
+    return loc === 'ardiya' || loc === 'call-center' || /delivery|call\s*center/i.test(nm)
+  }
   const channelAgg = new Map(); const locChannel = new Map(); const methodAgg = new Map()
+  const locHallDirect = new Map()
   for (const g of byPayment) {
     const cfg = cfgOfSession.get(m2oId(g.session_id))
     if (!ALLOWED_SET.has(cfg)) continue
@@ -247,13 +253,25 @@ async function main() {
     const pm = m2oName(g.payment_method_id) || 'Unknown'
     const ch = channelOf(pm)
     const amt = Number(g.amount) || 0
+    const cnt = g.__count || 0
     const c = channelAgg.get(ch) || { name: ch, amountKwd: 0, payments: 0 }
-    c.amountKwd += amt; c.payments += g.__count || 0; channelAgg.set(ch, c)
+    c.amountKwd += amt; c.payments += cnt; channelAgg.set(ch, c)
     const lk = `${loc}|${ch}`
     const l = locChannel.get(lk) || { location: loc, channel: ch, amountKwd: 0, payments: 0 }
-    l.amountKwd += amt; l.payments += g.__count || 0; locChannel.set(lk, l)
+    l.amountKwd += amt; l.payments += cnt; locChannel.set(lk, l)
     const m = methodAgg.get(pm) || { name: pm, channel: ch, amountKwd: 0, payments: 0 }
-    m.amountKwd += amt; m.payments += g.__count || 0; methodAgg.set(pm, m)
+    m.amountKwd += amt; m.payments += cnt; methodAgg.set(pm, m)
+    const hd = locHallDirect.get(loc) || { hallShopKwd: 0, hallShopOrders: 0, directTakeawayKwd: 0, directTakeawayOrders: 0 }
+    if (ch === 'Online payment link' || ch === 'Cash on delivery') {
+      hd.directTakeawayKwd += amt; hd.directTakeawayOrders += cnt
+    } else if (ch === 'Shop Sales') {
+      if (isDeliveryConfig(cfg)) {
+        hd.directTakeawayKwd += amt; hd.directTakeawayOrders += cnt
+      } else {
+        hd.hallShopKwd += amt; hd.hallShopOrders += cnt
+      }
+    }
+    locHallDirect.set(loc, hd)
   }
 
   /* brand × channel: lines of orders paid through the channel's payment methods (orders with split tenders count once per channel) */
@@ -368,6 +386,180 @@ async function main() {
     return { id: b.id, en: b.en, ar: b.ar, posRoot: b.posRoot, netKwd: r3(net), orders, aovKwd: orders ? r3(net / orders) : 0, qty: r3(brandQty.get(b.id) || 0), sharePct: pct(net, brandItemTotal), discountKwd: r3(brandDiscount.get(b.id) || 0) }
   })
 
+  /* ---------------------------------------------------------------- multi-bucket extraction (today / week / month / year) */
+  const ACTIVE_BRAND_IDS = ['china-garden', 'franks', 'tahina', 'farm-brown', 'noodle-bar', 'karak-cafeteria']
+  const RESTAURANT_LOC_IDS = Object.entries(REGISTRY.locations).filter(([, v]) => v.unit === 'restaurant').map(([k]) => k)
+  const buildUiChannels = (chMap, hallKwd, hallOrders, directKwd, directOrders) => {
+    const get = (nm) => chMap.get(nm) || { amountKwd: 0, payments: 0 }
+    const delGo = get('Deliveroo Go')
+    const delMp = get('Deliveroo MP')
+    return {
+      'dine-in': { netKwd: r3(hallKwd), orders: hallOrders },
+      'takeaway-direct': { netKwd: r3(directKwd), orders: directOrders },
+      'talabat-tgo': { netKwd: r3(get('Talabat Go').amountKwd), orders: get('Talabat Go').payments },
+      'talabat-tmp': { netKwd: r3(get('Talabat MP').amountKwd), orders: get('Talabat MP').payments },
+      keeta: { netKwd: r3(get('Keeta').amountKwd), orders: get('Keeta').payments },
+      deliveroo: { netKwd: r3(delGo.amountKwd + delMp.amountKwd), orders: delGo.payments + delMp.payments },
+      jahez: { netKwd: r3(get('Jahez').amountKwd), orders: get('Jahez').payments },
+      snoonu: { netKwd: r3(get('Snoonu').amountKwd), orders: get('Snoonu').payments },
+    }
+  }
+
+  async function extractBucket({ key, from, to, isLatestOperationalDay = false }) {
+    const days = Math.max(1, dayDiff(from, to))
+    const bDom = [['date_order', '>=', `${from} 00:00:00`], ['date_order', '<', `${to} 00:00:00`], ['state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', ALLOWED]]
+    const lDom = [['order_id.date_order', '>=', `${from} 00:00:00`], ['order_id.date_order', '<', `${to} 00:00:00`], ['order_id.state', 'in', ['paid', 'done', 'invoiced']], ['order_id.session_id.config_id', 'in', ALLOWED]]
+
+    const bSess = await safe(`bucket(${key}) pos.order session`, () => ek('pos.order', 'read_group', [bDom, ['amount_total:sum', 'amount_tax:sum'], ['session_id']], { lazy: false }), [])
+    const bPay = await safe(`bucket(${key}) pos.payment`, () => ek('pos.payment', 'read_group', [[['pos_order_id.date_order', '>=', `${from} 00:00:00`], ['pos_order_id.date_order', '<', `${to} 00:00:00`], ['pos_order_id.state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', ALLOWED]], ['amount:sum'], ['session_id', 'payment_method_id']], { lazy: false }), [])
+    const missSess = [...new Set([...bSess, ...bPay].map((g) => m2oId(g.session_id)).filter((id) => id && !cfgOfSession.has(id)))]
+    if (missSess.length) {
+      for (let i = 0; i < missSess.length; i += 400) {
+        const chunk = missSess.slice(i, i + 400)
+        for (const s of await safe(`bucket(${key}) pos.session`, () => ek('pos.session', 'read', [chunk, ['id', 'config_id']]), [])) cfgOfSession.set(s.id, m2oId(s.config_id))
+      }
+    }
+
+    const locTot = new Map()
+    let netSalesKwd = 0; let orders = 0; let restaurantNetKwd = 0; let restaurantOrders = 0
+    for (const g of bSess) {
+      const cfg = cfgOfSession.get(m2oId(g.session_id))
+      if (!ALLOWED_SET.has(cfg)) continue
+      const loc = locationOfConfig(cfg)
+      const net = (g.amount_total || 0) - (g.amount_tax || 0)
+      const cnt = g.__count || 0
+      netSalesKwd += net; orders += cnt
+      if (L[loc]?.unit === 'restaurant') { restaurantNetKwd += net; restaurantOrders += cnt }
+      const cur = locTot.get(loc) || { netKwd: 0, orders: 0 }
+      cur.netKwd += net; cur.orders += cnt; locTot.set(loc, cur)
+    }
+
+    const bCh = new Map()
+    const bLocCh = new Map()
+    const bLocHd = new Map()
+    let allHallKwd = 0; let allHallOrders = 0; let allDirectKwd = 0; let allDirectOrders = 0
+    for (const g of bPay) {
+      const cfg = cfgOfSession.get(m2oId(g.session_id))
+      if (!ALLOWED_SET.has(cfg)) continue
+      const loc = locationOfConfig(cfg)
+      const ch = channelOf(m2oName(g.payment_method_id) || 'Unknown')
+      const amt = Number(g.amount) || 0
+      const cnt = g.__count || 0
+      const c = bCh.get(ch) || { amountKwd: 0, payments: 0 }
+      c.amountKwd += amt; c.payments += cnt; bCh.set(ch, c)
+      const lm = bLocCh.get(loc) || new Map()
+      const lc = lm.get(ch) || { amountKwd: 0, payments: 0 }
+      lc.amountKwd += amt; lc.payments += cnt; lm.set(ch, lc); bLocCh.set(loc, lm)
+      const hd = bLocHd.get(loc) || { hallKwd: 0, hallOrders: 0, directKwd: 0, directOrders: 0 }
+      const isRestOrCc = L[loc]?.unit === 'restaurant' || loc === 'call-center'
+      if (ch === 'Online payment link' || ch === 'Cash on delivery') {
+        hd.directKwd += amt; hd.directOrders += cnt
+        if (isRestOrCc) { allDirectKwd += amt; allDirectOrders += cnt }
+      } else if (ch === 'Shop Sales') {
+        if (isDeliveryConfig(cfg)) {
+          hd.directKwd += amt; hd.directOrders += cnt
+          if (isRestOrCc) { allDirectKwd += amt; allDirectOrders += cnt }
+        } else {
+          hd.hallKwd += amt; hd.hallOrders += cnt
+          if (L[loc]?.unit === 'restaurant') { allHallKwd += amt; allHallOrders += cnt }
+        }
+      }
+      bLocHd.set(loc, hd)
+    }
+
+    const bLines = await safe(`bucket(${key}) pos.order.line`, () => ek('pos.order.line', 'read_group', [lDom, ['price_subtotal:sum', 'qty:sum'], ['product_id']], { lazy: false }), [])
+    await ensureProducts(bLines.map((g) => m2oId(g.product_id)).filter(Boolean))
+    const bBrand = new Map()
+    for (const g of bLines) {
+      const b = brandOfProduct(m2oId(g.product_id))
+      if (!b || b === 'uncategorised') continue
+      const cur = bBrand.get(b) || { netKwd: 0, qty: 0, orders: 0 }
+      cur.netKwd += Number(g.price_subtotal) || 0
+      cur.qty += Number(g.qty) || 0
+      bBrand.set(b, cur)
+    }
+    for (const bid of ACTIVE_BRAND_IDS) {
+      const cur = bBrand.get(bid)
+      const root = rootCatIdOfBrand.get(bid)
+      if (cur && cur.netKwd > 0 && root) {
+        cur.orders = await safe(`bucket(${key}) brand orders ${bid}`, () => ek('pos.order', 'search_count', [[...bDom, ['lines.product_id.pos_categ_id', 'child_of', root]]]), 0)
+      }
+    }
+
+    const bAml = await safe(`bucket(${key}) aml`, () => ek('account.move.line', 'read_group', [[['date', '>=', from], ['date', '<', to], ['parent_state', '=', 'posted']], ['balance:sum'], ['account_id']], { lazy: false }), [])
+    const bAccIds = bAml.map((g) => m2oId(g.account_id)).filter((id) => id && !typeOf.has(id))
+    if (bAccIds.length) for (const a of await safe(`bucket(${key}) acc`, () => ek('account.account', 'read', [[...new Set(bAccIds)], ['id', 'account_type']]), [])) typeOf.set(a.id, a.account_type)
+    const bPosted = { income: 0, otherIncome: 0, cogs: 0, expense: 0, depreciation: 0 }
+    for (const g of bAml) { const t = TYPES[typeOf.get(m2oId(g.account_id))]; if (t) bPosted[t] += t === 'income' || t === 'otherIncome' ? -(g.balance || 0) : g.balance || 0 }
+    const bAal = await safe(`bucket(${key}) aal excl`, () => ek('account.analytic.line', 'read_group', [[['date', '>=', from], ['date', '<', to], ['account_id', 'in', REGISTRY.excludedBranchAnalyticIds]], ['amount:sum'], ['general_account_id']], { lazy: false }), [])
+    const bAalAccIds = bAal.map((g) => m2oId(g.general_account_id)).filter((id) => id && !typeOf.has(id))
+    if (bAalAccIds.length) for (const a of await safe(`bucket(${key}) aal acc`, () => ek('account.account', 'read', [[...new Set(bAalAccIds)], ['id', 'account_type']]), [])) typeOf.set(a.id, a.account_type)
+    const bExcl = { income: 0, otherIncome: 0, cogs: 0, expense: 0, depreciation: 0 }
+    for (const g of bAal) { const t = TYPES[typeOf.get(m2oId(g.general_account_id))]; if (t) bExcl[t] += t === 'income' || t === 'otherIncome' ? g.amount || 0 : -(g.amount || 0) }
+    const bWl = Object.fromEntries(Object.keys(bPosted).map((k) => [k, r3(bPosted[k] - bExcl[k])]))
+    bWl.operatingProfit = r3(bWl.income + bWl.otherIncome - bWl.cogs - bWl.expense - bWl.depreciation)
+
+    const byLocation = {}
+    for (const loc of [...new Set([...RESTAURANT_LOC_IDS, ...locTot.keys()])]) {
+      const lt = locTot.get(loc) || { netKwd: 0, orders: 0 }
+      const lm = bLocCh.get(loc) || new Map()
+      const hd = bLocHd.get(loc) || { hallKwd: 0, hallOrders: 0, directKwd: 0, directOrders: 0 }
+      byLocation[loc] = {
+        netKwd: r3(lt.netKwd),
+        orders: lt.orders,
+        hallShopKwd: r3(hd.hallKwd),
+        hallShopOrders: hd.hallOrders,
+        directTakeawayKwd: r3(hd.directKwd),
+        directTakeawayOrders: hd.directOrders,
+        uiChannels: buildUiChannels(lm, hd.hallKwd, hd.hallOrders, hd.directKwd, hd.directOrders),
+      }
+    }
+
+    const byBrand = {}
+    for (const b of REGISTRY.brands) {
+      const cur = bBrand.get(b.id) || { netKwd: 0, orders: 0, qty: 0 }
+      byBrand[b.id] = { netKwd: r3(cur.netKwd), orders: cur.orders, qty: r3(cur.qty) }
+    }
+
+    const byChannel = {}
+    for (const [ch, c] of bCh) byChannel[ch] = { amountKwd: r3(c.amountKwd), payments: c.payments }
+
+    return {
+      key,
+      from,
+      to,
+      days,
+      isLatestOperationalDay,
+      totals: {
+        netSalesKwd: r3(netSalesKwd),
+        orders,
+        aovKwd: orders ? r3(netSalesKwd / orders) : 0,
+        restaurantNetKwd: r3(restaurantNetKwd),
+        restaurantOrders,
+      },
+      byBrand,
+      byLocation,
+      byChannel,
+      uiChannels: buildUiChannels(bCh, allHallKwd, allHallOrders, allDirectKwd, allDirectOrders),
+      accounting: bWl,
+    }
+  }
+
+  console.log(`\n▶ Extracting multi-period Odoo buckets (Today / Week 7d / Month 30d / Year 2026 YTD)...`)
+  let todayBucket = await extractBucket({ key: 'today', from: TODAY, to: addDays(TODAY, 1), isLatestOperationalDay: false })
+  for (let back = 1; back <= 7 && todayBucket.totals.restaurantOrders === 0; back++) {
+    const d = addDays(TODAY, -back)
+    todayBucket = await extractBucket({ key: 'today', from: d, to: addDays(d, 1), isLatestOperationalDay: true })
+  }
+  const weekTo = todayBucket.isLatestOperationalDay ? TODAY : addDays(TODAY, 1)
+  const weekBucket = await extractBucket({ key: 'week', from: addDays(weekTo, -7), to: weekTo, isLatestOperationalDay: false })
+  const monthBucket = await extractBucket({ key: 'month', from: PERIOD.from, to: PERIOD.to, isLatestOperationalDay: false })
+  const yearBucket = await extractBucket({ key: 'year', from: `${TODAY.slice(0, 4)}-01-01`, to: addDays(TODAY, 1), isLatestOperationalDay: false })
+  const buckets = { today: todayBucket, week: weekBucket, month: monthBucket, year: yearBucket }
+  for (const [k, b] of Object.entries(buckets)) {
+    console.log(`   - [${k.padEnd(5)}] ${b.from} → ${b.to} (${b.days}d${b.isLatestOperationalDay ? ', latest active day' : ''}): ${b.totals.netSalesKwd} KWD (${b.totals.orders} orders · restaurants ${b.totals.restaurantNetKwd} KWD)`)
+  }
+
   const snapshot = {
     source: ODOO_URL,
     database: ODOO_DB,
@@ -376,6 +568,7 @@ async function main() {
     period: PERIOD,
     scope: { allowedPosConfigIds: ALLOWED, brands: REGISTRY.brands.map((b) => b.id) },
     totals: { netSalesKwd: r3(totalNet), orders: totalOrders, aovKwd: totalOrders ? r3(totalNet / totalOrders) : 0, brandItemsKwd: r3(brandItemTotal), promoAdjustmentsKwd: r3(promoAdjustments), discountKwd: r3(discountKwd), productsSold: productAgg.size },
+    buckets,
     registers,
     locations,
     brands,
@@ -420,6 +613,13 @@ async function main() {
     console.log(`   - account.analytic.account : ${aa?.accountsReadable ? `✅ READ OK (${aa.whitelistedCenters.length} whitelisted Venture Foods cost centers mapped)` : '⛔ RESTRICTED — enable Odoo group "Analytic Accounting" / "Billing Read-Only"'}`)
     console.log(`   - account.analytic.line    : ${aa?.linesReadable ? `✅ READ OK (${aa.rolling30Lines.toLocaleString('en-US')} rolling-30d ledger postings across Branches, Brands & EXB)` : '⛔ RESTRICTED — enable Odoo group "Analytic Accounting" / "Billing Read-Only"'}`)
     if (un) console.log(`   - Unallocated Expense Scan : ✅ READ OK (${un.grossDebitKwd} KWD gross debit · ${un.directOpexKwd} KWD direct unallocated OpEx across ${un.lines} lines with empty analytic_distribution)`)
+  } else if (fs.existsSync(SNAPSHOT)) {
+    try {
+      const prev = JSON.parse(fs.readFileSync(SNAPSHOT, 'utf8'))
+      if (prev.windows) snapshot.windows = prev.windows
+      if (prev.journey) snapshot.journey = prev.journey
+      if (prev.permissions?.audit) snapshot.permissions.audit = prev.permissions.audit
+    } catch {}
   }
 
   console.log(`\n■ Whitelisted POS: ${snapshot.totals.netSalesKwd} KWD · ${totalOrders} orders · AOV ${snapshot.totals.aovKwd} · promo/discount lines ${snapshot.totals.promoAdjustmentsKwd} · line discounts ${snapshot.totals.discountKwd}`)

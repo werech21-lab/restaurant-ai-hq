@@ -14,7 +14,7 @@
   min-height: 100dvh;
   isolation: isolate;
   color: #0f172a;
-  background: #F6F7F9 !important;
+  background: #F7F7F8 !important;
 }
 
 html.dark #ae-root,

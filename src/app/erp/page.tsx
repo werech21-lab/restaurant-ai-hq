@@ -4,8 +4,8 @@ import { FullJourney360 } from '@/components/aether/FullJourney360'
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: 'ملخص أداء الشركة وفرص زيادة الربح | فنتشر فودز',
-  description: 'ملخص واضح لأداء الفروع وخطوات عملية لزيادة الربح وتقليل الهدر من بيانات أودو المباشرة — شركة فنتشر فودز لإدارة المطاعم ذ.م.م، ترخيص رقم 2021/22838.',
+  title: 'ملخص الشركة | فنتشر فودز',
+  description: 'ملخص الشركة والأرقام المهمة وتوصيات الربح من بيانات أودو المباشرة.',
 }
 
 export default async function ExecutiveCenterPage() {

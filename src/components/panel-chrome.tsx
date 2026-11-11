@@ -19,8 +19,8 @@ function useDocumentTitle(pathname: string, isAr: boolean) {
         ? `${t.ar} | فنتشر فودز · إيثر`
         : `${t.en} | Venture Foods · Aether BI`
       : isAr
-        ? 'ملخص أداء الشركة وفرص زيادة الربح | فنتشر فودز'
-        : 'Company Summary & Profit Opportunities | Venture Foods'
+        ? 'ملخص الشركة | فنتشر فودز'
+        : 'Company Summary | Venture Foods'
     const apply = () => {
       if (document.title !== label) document.title = label
     }
@@ -81,7 +81,7 @@ export function PanelHeaderBar({
         >
           <Search className="h-3.5 w-3.5 opacity-70" />
           <span className="hidden md:inline">
-            {isAr ? 'بحث سريع في الفروع والمطاعم' : 'Quick search branches & brands'}
+            {isAr ? 'بحث سريع' : 'Quick Search'}
           </span>
           <kbd dir="ltr" className="rounded-md px-1.5 py-0.5 font-mono text-[10px] font-bold">
             ⌘K

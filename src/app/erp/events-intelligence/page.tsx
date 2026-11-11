@@ -4,8 +4,8 @@ import { BoothStudyV5 } from '@/components/aether/BoothStudyV5'
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: 'جدوى المعارض والبوثات الموسمية | فنتشر فودز',
-  description: 'الحكم الاستثماري وأفخاخ العقد ونقطة التعادل اليومية وثلاثة سيناريوهات للربح قبل توقيع عقد المعرض أو البوث الموسمي.',
+  title: 'حاسبة المعارض | فنتشر فودز',
+  description: 'حاسبة المعارض والبوثات لمعرفة الربح والإيجار المناسب قبل التعاقد.',
 }
 
 export default async function EventsIntelligencePage() {

@@ -5,14 +5,14 @@ export interface RouteTitle {
 }
 
 const ROUTE_TITLES: { match: string; exact?: boolean; title: RouteTitle }[] = [
-  { match: '/erp', exact: true, title: { en: 'Company Summary & Profit Opportunities', ar: 'ملخص أداء الشركة وفرص زيادة الربح' } },
-  { match: '/erp/feryal-ai', title: { en: 'Feryal — Smart Advisor', ar: 'المستشارة الذكية فريال' } },
-  { match: '/erp/events-intelligence', title: { en: 'Seasonal Booths Study', ar: 'جدوى المعارض والبوثات الموسمية' } },
-  { match: '/erp/sales-scorecard', title: { en: 'Sales & Items Scorecard', ar: 'سجل المبيعات والأصناف' } },
-  { match: '/erp/sales-analysis', title: { en: 'Sales & Items Analysis', ar: 'تحليل المبيعات والأصناف' } },
-  { match: '/erp/menu-engineering', title: { en: 'Menu Engineering Workbench', ar: 'منصة هندسة المنيو' } },
-  { match: '/erp/delivery-control', title: { en: 'Delivery Aggregators Control', ar: 'رقابة منصات التوصيل' } },
-  { match: '/erp/aggregator-radar', title: { en: 'Forensic Delivery Radar', ar: 'الرادار الجنائي لمنصات التوصيل' } },
+  { match: '/erp', exact: true, title: { en: 'Company Summary', ar: 'ملخص الشركة' } },
+  { match: '/erp/feryal-ai', title: { en: 'Ask Feryal', ar: 'المستشارة فريال' } },
+  { match: '/erp/events-intelligence', title: { en: 'Booth Calculator', ar: 'حاسبة المعارض' } },
+  { match: '/erp/sales-scorecard', title: { en: 'Sales Scorecard', ar: 'سجل المبيعات' } },
+  { match: '/erp/sales-analysis', title: { en: 'Sales Analysis', ar: 'تحليل المبيعات' } },
+  { match: '/erp/menu-engineering', title: { en: 'Menu Prices', ar: 'أسعار المينيو' } },
+  { match: '/erp/delivery-control', title: { en: 'Delivery Control', ar: 'مراقبة التوصيل' } },
+  { match: '/erp/aggregator-radar', title: { en: 'Delivery Radar', ar: 'مراقبة التوصيل' } },
   { match: '/erp/alerts', title: { en: 'Automated Financial Alerts', ar: 'التنبيهات المالية الآلية' } },
   { match: '/erp/demand-forecast', title: { en: 'Demand & Prep Forecaster', ar: 'توقع الطلب وتحضير المطبخ' } },
   { match: '/erp/cost-intelligence', title: { en: 'Cost & Supplier Intelligence', ar: 'ذكاء التكلفة وأسعار الموردين' } },

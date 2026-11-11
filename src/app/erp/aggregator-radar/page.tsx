@@ -4,8 +4,8 @@ import { DeliveryRadarV5 } from '@/components/aether/DeliveryRadarV5'
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: 'الرادار الجنائي لمنصات التوصيل | فنتشر فودز · AetherBI',
-  description: 'الرادار الجنائي الموحد لرصد حسابات طلبات Tgo وTMP وكيتا وديليفرو وجاهز وسنونو عبر براندات وفروع فنتشر فودز.',
+  title: 'مراقبة التوصيل | فنتشر فودز',
+  description: 'مراقبة تطبيقات التوصيل وحالة الحسابات والعمولات وصافي المبيعات.',
 }
 
 /** Permanent pillar: Unified Forensic Delivery Radar (`/erp/aggregator-radar`). Never redirected or removed. */

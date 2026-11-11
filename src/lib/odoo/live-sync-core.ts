@@ -17,15 +17,38 @@ export interface OdooEnv {
   ODOO_API_KEY?: string
 }
 
+export type OdooPeriodBucketKey = 'today' | 'week' | 'month' | 'year'
+
+export interface OdooBucketSummary {
+  key: OdooPeriodBucketKey
+  from: string
+  to: string
+  days: number
+  isLatestOperationalDay?: boolean
+  totals: {
+    netSalesKwd: number
+    orders: number
+    aovKwd: number
+    restaurantNetKwd: number
+    restaurantOrders: number
+  }
+  byBrand?: Record<string, { netKwd: number; orders: number; qty?: number }>
+  byLocation?: Record<string, { netKwd: number; orders: number; uiChannels?: Record<string, { netKwd: number; orders: number }> }>
+  uiChannels?: Record<string, { netKwd: number; orders: number }>
+  accounting?: { income: number; otherIncome: number; cogs: number; expense: number; depreciation: number; operatingProfit: number }
+}
+
 export interface OdooLiveSummary {
   source: 'live' | 'snapshot'
   syncedAt: string
+  bucket?: OdooPeriodBucketKey
   period: { from: string; to: string }
   database: string | null
   totals: { netSalesKwd: number; orders: number; aovKwd: number }
   brands: { id: string; brand: string; netKwd: number; sharePct: number }[]
   branches: { id: string; name: string; unit: string; netSalesKwd: number; orders: number; sharePct: number }[]
   channels: { name: string; amountKwd: number }[]
+  buckets?: Partial<Record<OdooPeriodBucketKey, OdooBucketSummary>>
   /** Rolling 30-day vs prior 30-day vs month-to-date totals (whitelisted registers, Kuwait calendar days). */
   journeyPulse?: Record<'rolling30' | 'prior30' | 'mtd', { from: string; to: string; days: number; netKwd: number; orders: number; perDayKwd: number }>
   /** Read-permission audit of the 7 journey stages for the BI service user. */
@@ -118,6 +141,7 @@ interface SnapshotShape {
   database?: string
   period?: { from: string; to: string }
   totals?: { netSalesKwd: number; orders: number; aovKwd: number }
+  buckets?: Partial<Record<OdooPeriodBucketKey, OdooBucketSummary>>
   brands?: { id: string; en: string; netKwd: number; sharePct: number }[]
   locations?: { id: string; en: string; unit: string; netKwd: number; orders: number; sharePct: number }[]
   channels?: { name: string; amountKwd: number }[]
@@ -131,20 +155,57 @@ interface SnapshotShape {
   }
 }
 
-export function summaryFromSnapshot(raw: unknown, note?: string): OdooLiveSummary {
+export function parseBucketKey(raw?: string | null): OdooPeriodBucketKey {
+  if (raw === 'today' || raw === 'week' || raw === 'month' || raw === 'year') return raw
+  return 'month'
+}
+
+export function periodWindowForBucket(bucket: OdooPeriodBucketKey, now = new Date()): { from: string; to: string } {
+  const iso = (d: Date) => d.toISOString().slice(0, 10)
+  const kw = new Date(now.getTime() + 3 * 3600 * 1000)
+  const t = new Date(Date.UTC(kw.getUTCFullYear(), kw.getUTCMonth(), kw.getUTCDate()))
+  const shift = (d: Date, days: number) => new Date(d.getTime() + days * 86400000)
+  if (bucket === 'today') {
+    // Before 10:00 AM Kuwait time, use the most recent complete operational day so morning checks aren't zero.
+    if (kw.getUTCHours() < 10) return { from: iso(shift(t, -1)), to: iso(t) }
+    return { from: iso(t), to: iso(shift(t, 1)) }
+  }
+  if (bucket === 'week') return { from: iso(shift(t, -7)), to: iso(shift(t, 1)) }
+  if (bucket === 'year') return { from: `${t.getUTCFullYear()}-01-01`, to: iso(shift(t, 1)) }
+  return { from: iso(shift(t, -30)), to: iso(shift(t, 1)) }
+}
+
+export function summaryFromSnapshot(raw: unknown, note?: string, bucket: OdooPeriodBucketKey = 'month'): OdooLiveSummary {
   const s = (raw ?? {}) as SnapshotShape
   const jp = s.journey?.pulse
   const aa = s.journey?.opex?.analyticArchitecture
   const un = s.journey?.opex?.unallocated?.rolling30
+  const b = s.buckets?.[bucket]
+  const bucketBrandEntries = b?.byBrand ? Object.entries(b.byBrand).filter(([, v]) => v.netKwd > 0) : null
+  const bucketBrandTotal = bucketBrandEntries ? bucketBrandEntries.reduce((acc, [, v]) => acc + v.netKwd, 0) : 0
+  const bucketLocEntries = b?.byLocation ? Object.entries(b.byLocation) : null
+  const bucketLocTotal = b?.totals.netSalesKwd ?? 0
   return {
     source: 'snapshot',
     syncedAt: s.syncedAt ?? new Date(0).toISOString(),
-    period: s.period ?? { from: '', to: '' },
+    bucket,
+    period: b ? { from: b.from, to: b.to } : (s.period ?? { from: '', to: '' }),
     database: s.database ?? null,
-    totals: s.totals ? { netSalesKwd: s.totals.netSalesKwd, orders: s.totals.orders, aovKwd: s.totals.aovKwd } : { netSalesKwd: 0, orders: 0, aovKwd: 0 },
-    brands: (s.brands ?? []).filter((b) => b.netKwd > 0).map((b) => ({ id: b.id, brand: b.en, netKwd: b.netKwd, sharePct: b.sharePct })),
-    branches: (s.locations ?? []).map((l) => ({ id: l.id, name: l.en, unit: l.unit, netSalesKwd: l.netKwd, orders: l.orders, sharePct: l.sharePct })),
-    channels: (s.channels ?? []).map((c) => ({ name: c.name, amountKwd: c.amountKwd })),
+    totals: b
+      ? { netSalesKwd: b.totals.netSalesKwd, orders: b.totals.orders, aovKwd: b.totals.aovKwd }
+      : s.totals
+        ? { netSalesKwd: s.totals.netSalesKwd, orders: s.totals.orders, aovKwd: s.totals.aovKwd }
+        : { netSalesKwd: 0, orders: 0, aovKwd: 0 },
+    brands: bucketBrandEntries
+      ? bucketBrandEntries.map(([bid, v]) => ({ id: bid, brand: REG.brands.find((x) => x.id === bid)?.en ?? bid, netKwd: v.netKwd, sharePct: pct(v.netKwd, bucketBrandTotal) })).sort((a, x) => x.netKwd - a.netKwd)
+      : (s.brands ?? []).filter((x) => x.netKwd > 0).map((x) => ({ id: x.id, brand: x.en, netKwd: x.netKwd, sharePct: x.sharePct })),
+    branches: bucketLocEntries
+      ? bucketLocEntries.map(([lid, v]) => ({ id: lid, name: REG.locations[lid]?.en ?? lid, unit: REG.locations[lid]?.unit ?? 'restaurant', netSalesKwd: v.netKwd, orders: v.orders, sharePct: pct(v.netKwd, bucketLocTotal) })).sort((a, x) => x.netSalesKwd - a.netSalesKwd)
+      : (s.locations ?? []).map((l) => ({ id: l.id, name: l.en, unit: l.unit, netSalesKwd: l.netKwd, orders: l.orders, sharePct: l.sharePct })),
+    channels: b?.uiChannels
+      ? Object.entries(b.uiChannels).map(([name, v]) => ({ name, amountKwd: v.netKwd })).sort((a, x) => x.amountKwd - a.amountKwd)
+      : (s.channels ?? []).map((c) => ({ name: c.name, amountKwd: c.amountKwd })),
+    ...(s.buckets ? { buckets: s.buckets } : {}),
     ...(jp
       ? { journeyPulse: Object.fromEntries((['rolling30', 'prior30', 'mtd'] as const).map((k) => [k, { from: jp[k].from, to: jp[k].to, days: jp[k].days, netKwd: jp[k].netKwd, orders: jp[k].orders, perDayKwd: jp[k].perDayKwd }])) as OdooLiveSummary['journeyPulse'] }
       : {}),
@@ -173,7 +234,7 @@ function monthToDate(now = new Date()) {
   return { from: iso(from), to: iso(to) }
 }
 
-export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(), timeoutMs = 25_000): Promise<OdooLiveSummary> {
+export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(), timeoutMs = 25_000, bucket?: OdooPeriodBucketKey): Promise<OdooLiveSummary> {
   if (!hasOdooCredentials(env)) throw new Error('Odoo credentials are not configured on the server')
   const base = String(env.ODOO_URL).replace(/\/+$/, '')
   const url = new URL(base)
@@ -305,6 +366,7 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
   return {
     source: 'live',
     syncedAt: new Date().toISOString(),
+    ...(bucket ? { bucket } : {}),
     period,
     database: db,
     totals: { netSalesKwd: r3(totalNet), orders: totalOrders, aovKwd: totalOrders ? r3(totalNet / totalOrders) : 0 },

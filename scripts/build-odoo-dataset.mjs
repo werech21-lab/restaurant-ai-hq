@@ -140,6 +140,7 @@ const dataset = {
     discountsKwd: r3(-t.promoAdjustmentsKwd + t.discountKwd), productsSold: t.productsSold ?? snap.products.length,
     restaurantNetKwd: r3(restaurants.reduce((s, l) => s + l.netKwd, 0)), restaurantOrders: restaurants.reduce((s, l) => s + l.orders, 0),
   },
+  buckets: snap.buckets ?? null,
   pnl,
   brands,
   restaurants,

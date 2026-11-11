@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import snapshot from '@/lib/odoo-live-snapshot.json'
-import { fetchLiveOdooSummary, hasOdooCredentials, isSameSiteRequest, summaryFromSnapshot, type OdooLiveSummary } from '@/lib/odoo/live-sync-core'
+import { fetchLiveOdooSummary, hasOdooCredentials, isSameSiteRequest, parseBucketKey, periodWindowForBucket, summaryFromSnapshot, type OdooLiveSummary } from '@/lib/odoo/live-sync-core'
 import { SESSION_COOKIE, verifySessionToken } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 
@@ -8,9 +8,9 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 export const maxDuration = 30
 
-/** Live pulls are throttled so the topbar pill can never hammer Odoo. */
+/** Live pulls are throttled per period bucket so the topbar pill can never hammer Odoo. */
 const MIN_INTERVAL_MS = 60_000
-let cache: { at: number; data: OdooLiveSummary } | null = null
+const cacheByBucket = new Map<string, { at: number; data: OdooLiveSummary }>()
 
 const headers = { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' }
 
@@ -42,7 +42,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'unauthorized', message: 'Sign in to view Odoo sales figures.' }, { status: 401, headers: { ...headers, 'www-authenticate': 'Session' } })
   }
 
-  if (cache && Date.now() - cache.at < MIN_INTERVAL_MS) return NextResponse.json({ ...cache.data, cached: true }, { headers })
+  const bucket = parseBucketKey(request.nextUrl.searchParams.get('period'))
+  const cached = cacheByBucket.get(bucket)
+  if (cached && Date.now() - cached.at < MIN_INTERVAL_MS) return NextResponse.json({ ...cached.data, cached: true }, { headers })
 
   const env = {
     ODOO_URL: process.env.ODOO_URL,
@@ -51,14 +53,16 @@ export async function GET(request: NextRequest) {
     ODOO_API_KEY: process.env.ODOO_API_KEY,
   }
   if (!hasOdooCredentials(env)) {
-    return NextResponse.json(summaryFromSnapshot(snapshot, 'Odoo credentials are not configured on this server; showing the last synced snapshot.'), { headers })
+    return NextResponse.json(summaryFromSnapshot(snapshot, 'Odoo credentials are not configured on this server; showing the last synced snapshot.', bucket), { headers })
   }
   try {
-    const data = await fetchLiveOdooSummary(env)
-    cache = { at: Date.now(), data }
+    const live = await fetchLiveOdooSummary(env, periodWindowForBucket(bucket), 25_000, bucket)
+    const snapSummary = summaryFromSnapshot(snapshot, undefined, bucket)
+    const data: OdooLiveSummary = { ...live, ...(snapSummary.buckets ? { buckets: snapSummary.buckets } : {}) }
+    cacheByBucket.set(bucket, { at: Date.now(), data })
     return NextResponse.json(data, { headers })
   } catch (error) {
     const reason = error instanceof Error ? error.message : 'unknown error'
-    return NextResponse.json(summaryFromSnapshot(snapshot, `Live Odoo pull failed (${reason}); showing the last synced snapshot.`), { headers })
+    return NextResponse.json(summaryFromSnapshot(snapshot, `Live Odoo pull failed (${reason}); showing the last synced snapshot.`, bucket), { headers })
   }
 }

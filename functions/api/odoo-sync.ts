@@ -12,7 +12,7 @@
  */
 import { jwtVerify } from 'jose'
 import snapshot from '../../src/lib/odoo-live-snapshot.json'
-import { fetchLiveOdooSummary, hasOdooCredentials, isSameSiteRequest, summaryFromSnapshot, type OdooEnv } from '../../src/lib/odoo/live-sync-core'
+import { fetchLiveOdooSummary, hasOdooCredentials, isSameSiteRequest, parseBucketKey, periodWindowForBucket, summaryFromSnapshot, type OdooEnv } from '../../src/lib/odoo/live-sync-core'
 
 interface PagesEnv extends OdooEnv {
   AUTH_SECRET?: string
@@ -52,13 +52,16 @@ export async function onRequestGet({ request, env }: PagesContext): Promise<Resp
   if (!(await hasValidSession(request, env.AUTH_SECRET))) {
     return json({ error: 'unauthorized', message: 'Sign in to view Odoo sales figures.' }, 401, { 'www-authenticate': 'Session' })
   }
+  const bucket = parseBucketKey(new URL(request.url).searchParams.get('period'))
   if (!hasOdooCredentials(env)) {
-    return json(summaryFromSnapshot(snapshot, 'Odoo environment variables are not set on Cloudflare Pages; showing the last synced snapshot.'))
+    return json(summaryFromSnapshot(snapshot, 'Odoo environment variables are not set on Cloudflare Pages; showing the last synced snapshot.', bucket))
   }
   try {
-    return json(await fetchLiveOdooSummary(env))
+    const live = await fetchLiveOdooSummary(env, periodWindowForBucket(bucket), 25_000, bucket)
+    const snapSummary = summaryFromSnapshot(snapshot, undefined, bucket)
+    return json({ ...live, ...(snapSummary.buckets ? { buckets: snapSummary.buckets } : {}) })
   } catch (error) {
     const reason = error instanceof Error ? error.message : 'unknown error'
-    return json(summaryFromSnapshot(snapshot, `Live Odoo pull failed (${reason}); showing the last synced snapshot.`))
+    return json(summaryFromSnapshot(snapshot, `Live Odoo pull failed (${reason}); showing the last synced snapshot.`, bucket))
   }
 }
