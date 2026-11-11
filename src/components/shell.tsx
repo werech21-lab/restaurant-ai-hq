@@ -7,7 +7,6 @@ import { BiFilterProvider } from '@/components/aether/BiFilterContext'
 import { GlobalFilterProvider } from '@/components/aether/GlobalFilterContext'
 import { ExecutiveCommandPalette } from '@/components/aether/ExecutiveCommandPalette'
 import { GlobalFilterBar } from '@/components/aether/GlobalFilterBar'
-import { TopBrainSwitcher } from '@/components/aether/TopBrainSwitcher'
 import { TopFilterBar } from '@/components/aether/TopFilterBar'
 import { Sidebar } from '@/components/erp-sidebar'
 import { prisma } from '@/lib/db'
@@ -57,8 +56,8 @@ export async function Shell({ children }: { children: React.ReactNode }) {
               plus explicit LTR/RTL physical fallbacks so content never slides under the rail.
             */}
             <div className="ae-content-col w-full min-w-0 md:ps-64 ltr:md:pl-64 rtl:md:pl-0 rtl:md:pr-64">
-              <div className="px-4 pt-3 sm:px-6 lg:px-10">
-                <header id="ae-topbar" className="no-print sticky top-3 z-40 mx-auto w-full max-w-[1540px] overflow-visible">
+              <div className="px-4 pt-3 sm:px-6 lg:px-8">
+                <header id="ae-topbar" className="no-print sticky top-3 z-40 mx-auto w-full max-w-[1600px] overflow-visible">
                   <PanelHeaderBar
                     companyNameAr={company.name}
                     notifications={
@@ -84,9 +83,8 @@ export async function Shell({ children }: { children: React.ReactNode }) {
               </div>
               <main className="w-full max-w-none pb-24 md:pb-8">
                 <div id="ae-canvas" className="app-content w-full">
-                  {/* Generous Fluid Studio Width: 1540px max, centred across all 4 executive pillars */}
-                  <div className="ae-page mx-auto w-full min-w-0 max-w-[1540px] space-y-6 px-6 py-6 lg:px-10">
-                    <TopBrainSwitcher />
+                  {/* Generous Fluid Studio Width: 1600px max, centred across all 6 executive pillars */}
+                  <div className="ae-page mx-auto w-full min-w-0 max-w-[1600px] space-y-5 px-4 py-5 sm:px-6 lg:px-8">
                     <TopFilterBar />
                     <GlobalFilterBar />
                     {children}

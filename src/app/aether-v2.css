@@ -1,26 +1,55 @@
 /* ==========================================================================
-   AETHER BI V11 — LOOP AI × PALANTIR AIP ARCHITECTURAL STUDIO (1540px UNSLOP UI)
+   AETHER BI V12 — "FINANCE V2 × VERDELO × SKERRY" SIGNATURE DESIGN SYSTEM
    --------------------------------------------------------------------------
-   Light Studio: Warm Alabaster #F6F7F9 canvas · Pure White #FFFFFF 22px cards
-                 Refined multi-layer elevation · ring-1 slate-900/[0.04]
-   Dark Studio : Obsidian #090D16 canvas · #0F1626 architectural cards
-   Zero harsh 1px solid gray/black borders · Zero purple AI gradients.
-   Semantic accents: emerald #059669 · sky-teal #0284C7 · amber #D97706 · rose #E11D48
+   1. Finance V2 Light Studio (Default):
+      - Sidebar Rail : Deep Slate #0B1220
+      - Canvas       : Warm-Cool Porcelain #F4F6F9
+      - Bento Cards  : Pure White #FFFFFF · Multi-layer ambient elevation
+                       0 1px 2px rgba(15,23,42,0.03), 0 8px 24px -6px rgba(15,23,42,0.045)
+   2. Verdelo Obsidian-Emerald Dark Theme (Optional Toggle):
+      - Sidebar Rail : Deep Obsidian #070C12
+      - Canvas       : Obsidian-Emerald #090F15
+      - Bento Cards  : Elevated Slate-Obsidian #111A22 · ring-1 rgba(255,255,255,0.06)
+      - Accent       : Signature Emerald #10B981
+   3. Skerry Collapsible Rail & Capsule Geometry:
+      - Smooth 260px <-> 76px rail collapse (--ae-rail-w) in RTL & LTR
+      - Zero purple AI gradients · Zero harsh 1px solid dark borders · Crisp tabular-nums
    ========================================================================== */
 
-/* ---------- 1. Outer architectural studio shell ---------- */
-#ae-root {
+:root {
+  --ae-rail-w: 260px;
+}
+
+html[data-rail-collapsed='true'] {
+  --ae-rail-w: 76px;
+}
+
+/* ---------- 1. Outer Architectural Studio Shell (#F4F6F9 / #090F15) ---------- */
+#ae-root,
+html[data-theme='light'] #ae-root,
+html.light-mode #ae-root,
+html:not(.dark) #ae-root,
+html[data-theme='light'] #ae-root .app-content,
+html.light-mode #ae-root .app-content,
+html:not(.dark) #ae-root .app-content {
   position: relative;
+  color: #0f172a !important;
+  background-color: #F4F6F9 !important;
+}
+
+#ae-root {
   min-height: 100dvh;
   isolation: isolate;
-  color: #0f172a;
-  background: #F7F7F8 !important;
 }
 
 html.dark #ae-root,
-html[data-theme='dark'] #ae-root {
-  color: #f8fafc;
-  background: #090D16 !important;
+html[data-theme='dark'] #ae-root,
+html.dark #ae-root .app-content,
+html[data-theme='dark'] #ae-root .app-content,
+html.dark #ae-root main,
+html[data-theme='dark'] #ae-root main {
+  color: #f8fafc !important;
+  background-color: #090F15 !important;
 }
 
 #ae-root .ae-ambient {
@@ -34,16 +63,16 @@ html[data-theme='dark'] #ae-root {
 #ae-root .ae-ambient span {
   position: absolute;
   border-radius: 9999px;
-  filter: blur(72px);
-  opacity: 0.42;
+  filter: blur(80px);
+  opacity: 0.38;
 }
 
 #ae-root .ae-ambient span:nth-child(1) {
-  width: 38rem;
-  height: 38rem;
+  width: 40rem;
+  height: 40rem;
   inset-inline-start: -10rem;
   top: -14rem;
-  background: radial-gradient(circle, rgba(16, 185, 129, 0.11), transparent 68%);
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.09), transparent 68%);
 }
 
 #ae-root .ae-ambient span:nth-child(2) {
@@ -51,7 +80,7 @@ html[data-theme='dark'] #ae-root {
   height: 34rem;
   inset-inline-end: -8rem;
   top: 24%;
-  background: radial-gradient(circle, rgba(14, 165, 233, 0.09), transparent 68%);
+  background: radial-gradient(circle, rgba(14, 165, 233, 0.07), transparent 68%);
 }
 
 #ae-root .ae-ambient span:nth-child(3) {
@@ -59,185 +88,282 @@ html[data-theme='dark'] #ae-root {
   height: 30rem;
   inset-inline-start: 35%;
   bottom: -14rem;
-  background: radial-gradient(circle, rgba(245, 158, 11, 0.07), transparent 68%);
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.05), transparent 68%);
 }
 
 html.dark #ae-root .ae-ambient span:nth-child(1),
 html[data-theme='dark'] #ae-root .ae-ambient span:nth-child(1) {
-  background: radial-gradient(circle, rgba(16, 185, 129, 0.14), transparent 68%);
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.16), transparent 68%);
 }
 
 html.dark #ae-root .ae-ambient span:nth-child(2),
 html[data-theme='dark'] #ae-root .ae-ambient span:nth-child(2) {
-  background: radial-gradient(circle, rgba(56, 189, 248, 0.14), transparent 68%);
+  background: radial-gradient(circle, rgba(20, 184, 166, 0.10), transparent 68%);
 }
 
-/* ---------- 2. Architectural Studio Sidebar ---------- */
-#ae-sidebar {
-  background: #FFFFFF !important;
+/* ---------- 2. Skerry Collapsible Deep-Slate Sidebar (#0B1220 / #070C12) ---------- */
+@media (min-width: 768px) {
+  #ae-sidebar {
+    width: var(--ae-rail-w) !important;
+    transition: width 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  #ae-root .ae-content-col {
+    padding-inline-start: var(--ae-rail-w) !important;
+    transition: padding 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  html[dir='rtl'] #ae-root .ae-content-col {
+    padding-right: var(--ae-rail-w) !important;
+    padding-left: 0 !important;
+  }
+
+  html[dir='ltr'] #ae-root .ae-content-col {
+    padding-left: var(--ae-rail-w) !important;
+    padding-right: 0 !important;
+  }
+}
+
+/* Deep Obsidian-Slate Rail in BOTH Light (#0B1220) & Dark (#070C12) */
+#ae-sidebar,
+html[data-theme='light'] #ae-sidebar,
+html.light-mode #ae-sidebar,
+html:not(.dark) #ae-sidebar {
+  background: #0B1220 !important;
   border: none !important;
-  box-shadow: 1px 0 0 rgba(15, 23, 42, 0.05), 0 8px 28px -12px rgba(15, 23, 42, 0.04) !important;
-  color: #334155 !important;
+  box-shadow: 1px 0 0 rgba(15, 23, 42, 0.08), 0 16px 36px -12px rgba(11, 18, 32, 0.28) !important;
+  color: #cbd5e1 !important;
 }
 
 [dir='rtl'] #ae-sidebar,
 #ae-sidebar[dir='rtl'] {
-  box-shadow: -1px 0 0 rgba(15, 23, 42, 0.05), 0 8px 28px -12px rgba(15, 23, 42, 0.04) !important;
+  box-shadow: -1px 0 0 rgba(15, 23, 42, 0.08), 0 16px 36px -12px rgba(11, 18, 32, 0.28) !important;
 }
 
 html.dark #ae-sidebar,
 html[data-theme='dark'] #ae-sidebar {
-  background: #0D1321 !important;
-  box-shadow: 1px 0 0 rgba(255, 255, 255, 0.06) !important;
+  background: #070C12 !important;
+  box-shadow: 1px 0 0 rgba(255, 255, 255, 0.05) !important;
   color: #cbd5e1 !important;
 }
 
 html.dark [dir='rtl'] #ae-sidebar,
 html.dark #ae-sidebar[dir='rtl'],
 html[data-theme='dark'] #ae-sidebar[dir='rtl'] {
-  box-shadow: -1px 0 0 rgba(255, 255, 255, 0.06) !important;
+  box-shadow: -1px 0 0 rgba(255, 255, 255, 0.05) !important;
 }
 
-#ae-sidebar .ae-side-strong {
-  color: #0f172a !important;
-}
-
-html.dark #ae-sidebar .ae-side-strong,
-html[data-theme='dark'] #ae-sidebar .ae-side-strong {
+/* Protect dark-rail typography and surfaces from global light-mode overrides */
+#ae-sidebar .ae-side-strong,
+html[data-theme='light'] #ae-sidebar .ae-side-strong,
+html.light-mode #ae-sidebar .ae-side-strong {
   color: #f8fafc !important;
 }
 
-#ae-sidebar .ae-side-muted {
-  color: #64748b !important;
-}
-
-html.dark #ae-sidebar .ae-side-muted,
-html[data-theme='dark'] #ae-sidebar .ae-side-muted {
+#ae-sidebar .ae-side-muted,
+html[data-theme='light'] #ae-sidebar .ae-side-muted,
+html.light-mode #ae-sidebar .ae-side-muted {
   color: #94a3b8 !important;
 }
 
-#ae-sidebar .ae-side-card {
-  background: #F6F7F9 !important;
+#ae-sidebar .ae-side-card,
+html[data-theme='light'] #ae-sidebar .ae-side-card,
+html.light-mode #ae-sidebar .ae-side-card {
+  background: rgba(255, 255, 255, 0.045) !important;
   border: none !important;
-  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.045) !important;
-  border-radius: 1.125rem;
-}
-
-html.dark #ae-sidebar .ae-side-card,
-html[data-theme='dark'] #ae-sidebar .ae-side-card {
-  background: rgba(255, 255, 255, 0.04) !important;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.07) !important;
+  border-radius: 1rem;
 }
 
-#ae-sidebar .ae-side-chip {
-  background: #FFFFFF !important;
-  border: none !important;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 0 0 1px rgba(15, 23, 42, 0.06) !important;
-  color: #0f172a !important;
-}
-
-html.dark #ae-sidebar .ae-side-chip,
-html[data-theme='dark'] #ae-sidebar .ae-side-chip {
+#ae-sidebar .ae-side-chip,
+html[data-theme='light'] #ae-sidebar .ae-side-chip,
+html.light-mode #ae-sidebar .ae-side-chip {
   background: rgba(255, 255, 255, 0.08) !important;
+  border: none !important;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1) !important;
   color: #f8fafc !important;
 }
 
-#ae-sidebar .ae-side-logo {
-  background: #0f172a !important;
+#ae-sidebar .ae-side-logo,
+html[data-theme='light'] #ae-sidebar .ae-side-logo,
+html.light-mode #ae-sidebar .ae-side-logo {
+  background: #10B981 !important;
+  color: #04130d !important;
+  box-shadow: 0 4px 14px -2px rgba(16, 185, 129, 0.45) !important;
+}
+
+#ae-sidebar .ae-side-toggle,
+html[data-theme='light'] #ae-sidebar .ae-side-toggle,
+html.light-mode #ae-sidebar .ae-side-toggle {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #cbd5e1 !important;
+  border: none !important;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08) !important;
+}
+
+#ae-sidebar .ae-side-toggle:hover,
+html[data-theme='light'] #ae-sidebar .ae-side-toggle:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
   color: #ffffff !important;
 }
 
-html.dark #ae-sidebar .ae-side-logo,
-html[data-theme='dark'] #ae-sidebar .ae-side-logo {
-  background: #f8fafc !important;
-  color: #090D16 !important;
-}
-
-#ae-sidebar .ae-side-link {
-  color: #475569 !important;
+#ae-sidebar .ae-side-link,
+html[data-theme='light'] #ae-sidebar .ae-side-link,
+html.light-mode #ae-sidebar .ae-side-link {
+  position: relative;
+  color: #94a3b8 !important;
   background: transparent !important;
   border: none !important;
-  transition: background-color 160ms ease, color 160ms ease, transform 160ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: none !important;
+  transition: color 160ms ease, background-color 160ms ease, transform 160ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-html.dark #ae-sidebar .ae-side-link,
-html[data-theme='dark'] #ae-sidebar .ae-side-link {
-  color: #94a3b8 !important;
+#ae-sidebar .ae-side-link span:not([role='tooltip']),
+#ae-sidebar .ae-side-link svg,
+html[data-theme='light'] #ae-sidebar .ae-side-link span:not([role='tooltip']),
+html[data-theme='light'] #ae-sidebar .ae-side-link svg {
+  color: inherit !important;
 }
 
-#ae-sidebar .ae-side-link:hover {
-  background: #F6F7F9 !important;
-  color: #0f172a !important;
-}
-
-html.dark #ae-sidebar .ae-side-link:hover,
-html[data-theme='dark'] #ae-sidebar .ae-side-link:hover {
-  background: rgba(255, 255, 255, 0.06) !important;
+#ae-sidebar .ae-side-link:hover,
+html[data-theme='light'] #ae-sidebar .ae-side-link:hover {
+  background: rgba(255, 255, 255, 0.055) !important;
   color: #f8fafc !important;
 }
 
-#ae-sidebar .ae-side-link[data-active='true'] {
-  background: #0f172a !important;
+#ae-sidebar .ae-side-link[data-active='true'],
+html[data-theme='light'] #ae-sidebar .ae-side-link[data-active='true'] {
   color: #ffffff !important;
   font-weight: 700;
-  box-shadow: 0 4px 14px -4px rgba(15, 23, 42, 0.25);
 }
 
-html.dark #ae-sidebar .ae-side-link[data-active='true'],
-html[data-theme='dark'] #ae-sidebar .ae-side-link[data-active='true'] {
-  background: #f8fafc !important;
-  color: #090D16 !important;
-  box-shadow: 0 4px 14px -4px rgba(0, 0, 0, 0.45);
+#ae-sidebar .ae-side-link[data-active='true'] .ae-side-icon,
+html[data-theme='light'] #ae-sidebar .ae-side-link[data-active='true'] .ae-side-icon {
+  color: #10B981 !important;
 }
 
-#ae-sidebar .ae-side-link:active {
-  transform: scale(0.985);
+#ae-sidebar .ae-side-pill-indicator,
+html[data-theme='light'] #ae-sidebar .ae-side-pill-indicator {
+  background: rgba(16, 185, 129, 0.13) !important;
+  box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.28), 0 4px 16px -4px rgba(16, 185, 129, 0.22) !important;
 }
 
 #ae-sidebar .ae-side-divider {
-  box-shadow: 0 -1px 0 rgba(15, 23, 42, 0.05);
-}
-
-html.dark #ae-sidebar .ae-side-divider,
-html[data-theme='dark'] #ae-sidebar .ae-side-divider {
   box-shadow: 0 -1px 0 rgba(255, 255, 255, 0.06);
 }
 
-#ae-sidebar .ae-side-logout {
-  background: #F6F7F9 !important;
-  border: none !important;
-  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.06) !important;
-  color: #334155 !important;
-}
-
-#ae-sidebar .ae-side-logout:hover {
-  background: #eef1f5 !important;
-  color: #0f172a !important;
-}
-
-html.dark #ae-sidebar .ae-side-logout,
-html[data-theme='dark'] #ae-sidebar .ae-side-logout {
+#ae-sidebar .ae-side-logout,
+html[data-theme='light'] #ae-sidebar .ae-side-logout,
+html.light-mode #ae-sidebar .ae-side-logout {
   background: rgba(255, 255, 255, 0.06) !important;
+  border: none !important;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1) !important;
   color: #e2e8f0 !important;
 }
 
-/* ---------- 3. Single-Row Executive Command Bar ---------- */
+#ae-sidebar .ae-side-logout *,
+html[data-theme='light'] #ae-sidebar .ae-side-logout * {
+  color: #e2e8f0 !important;
+}
+
+#ae-sidebar .ae-side-logout:hover,
+html[data-theme='light'] #ae-sidebar .ae-side-logout:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: #ffffff !important;
+}
+
+/* ---------- 3. Verdelo Sliding Pill Segmented Controls ---------- */
+#ae-root .ae-sliding-tabs {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  padding: 0.25rem;
+  background-color: #EEF1F6 !important;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+}
+
+html.dark #ae-root .ae-sliding-tabs,
+html[data-theme='dark'] #ae-root .ae-sliding-tabs {
+  background-color: #0C131A !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06) !important;
+}
+
+#ae-root .ae-sliding-tabs[data-surface='white'] {
+  background-color: #FFFFFF !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03), 0 8px 24px -6px rgba(15, 23, 42, 0.045), 0 0 0 1px rgba(15, 23, 42, 0.04) !important;
+}
+
+html.dark #ae-root .ae-sliding-tabs[data-surface='white'],
+html[data-theme='dark'] #ae-root .ae-sliding-tabs[data-surface='white'] {
+  background-color: #111A22 !important;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 8px 20px -6px rgba(0, 0, 0, 0.45) !important;
+}
+
+#ae-root [data-sliding-pill-indicator='true'],
+html[data-theme='light'] #ae-root [data-sliding-pill-indicator='true'] {
+  background-color: #0B1220 !important;
+  box-shadow: 0 2px 8px -2px rgba(11, 18, 32, 0.28) !important;
+  border: none !important;
+}
+
+html.dark #ae-root [data-sliding-pill-indicator='true'],
+html[data-theme='dark'] #ae-root [data-sliding-pill-indicator='true'] {
+  background-color: #10B981 !important;
+  box-shadow: 0 2px 12px -2px rgba(16, 185, 129, 0.38) !important;
+}
+
+#ae-root button[data-sliding-pill-btn='true'] {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: #475569 !important;
+  transition: color 160ms ease;
+}
+
+#ae-root button[data-sliding-pill-btn='true']:hover {
+  color: #0f172a !important;
+}
+
+html.dark #ae-root button[data-sliding-pill-btn='true'],
+html[data-theme='dark'] #ae-root button[data-sliding-pill-btn='true'] {
+  color: #94a3b8 !important;
+}
+
+html.dark #ae-root button[data-sliding-pill-btn='true']:hover,
+html[data-theme='dark'] #ae-root button[data-sliding-pill-btn='true']:hover {
+  color: #f8fafc !important;
+}
+
+#ae-root button[data-sliding-pill-btn='true'][data-active='true'],
+#ae-root button[data-sliding-pill-btn='true'][data-active='true'] *,
+html[data-theme='light'] #ae-root button[data-sliding-pill-btn='true'][data-active='true'],
+html[data-theme='light'] #ae-root button[data-sliding-pill-btn='true'][data-active='true'] * {
+  color: #FFFFFF !important;
+}
+
+html.dark #ae-root button[data-sliding-pill-btn='true'][data-active='true'],
+html.dark #ae-root button[data-sliding-pill-btn='true'][data-active='true'] *,
+html[data-theme='dark'] #ae-root button[data-sliding-pill-btn='true'][data-active='true'],
+html[data-theme='dark'] #ae-root button[data-sliding-pill-btn='true'][data-active='true'] * {
+  color: #04130D !important;
+}
+
+/* ---------- 4. Single-Row Executive Command Bar ---------- */
 #ae-topbar {
-  background: rgba(255, 255, 255, 0.88) !important;
+  background: rgba(255, 255, 255, 0.92) !important;
   -webkit-backdrop-filter: blur(20px) saturate(160%);
   backdrop-filter: blur(20px) saturate(160%);
   border: none !important;
   border-radius: 20px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 10px 28px -6px rgba(15, 23, 42, 0.045), 0 0 0 1px rgba(15, 23, 42, 0.045) !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03), 0 8px 24px -6px rgba(15, 23, 42, 0.045), 0 0 0 1px rgba(15, 23, 42, 0.04) !important;
   color: #0f172a !important;
 }
 
 html.dark #ae-topbar,
 html[data-theme='dark'] #ae-topbar {
-  background: rgba(13, 19, 33, 0.88) !important;
-  box-shadow: 0 10px 28px -6px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.07) !important;
+  background: rgba(17, 26, 34, 0.9) !important;
+  box-shadow: 0 10px 28px -6px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.06) !important;
   color: #f8fafc !important;
 }
 
@@ -258,7 +384,7 @@ html[data-theme='dark'] #ae-topbar .ae-top-title {
 
 #ae-topbar .ae-top-link:hover {
   color: #0f172a !important;
-  background: #F6F7F9 !important;
+  background: #F4F6F9 !important;
 }
 
 html.dark #ae-topbar .ae-top-link,
@@ -269,28 +395,28 @@ html[data-theme='dark'] #ae-topbar .ae-top-link {
 html.dark #ae-topbar .ae-top-link:hover,
 html[data-theme='dark'] #ae-topbar .ae-top-link:hover {
   color: #ffffff !important;
-  background: rgba(255, 255, 255, 0.08) !important;
+  background: rgba(255, 255, 255, 0.07) !important;
 }
 
 #ae-topbar .ae-capsule {
-  background: #F6F7F9 !important;
+  background: #F4F6F9 !important;
   border: none !important;
-  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.06) !important;
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.05) !important;
   color: #334155 !important;
   border-radius: 9999px;
   transition: background-color 150ms ease, box-shadow 150ms ease;
 }
 
 #ae-topbar .ae-capsule:hover {
-  background: #eef1f6 !important;
+  background: #e9eef5 !important;
   color: #0f172a !important;
   box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.12) !important;
 }
 
 html.dark #ae-topbar .ae-capsule,
 html[data-theme='dark'] #ae-topbar .ae-capsule {
-  background: rgba(255, 255, 255, 0.06) !important;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1) !important;
+  background: rgba(255, 255, 255, 0.055) !important;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08) !important;
   color: #e2e8f0 !important;
 }
 
@@ -308,7 +434,7 @@ html[data-theme='dark'] #ae-topbar .ae-capsule kbd {
   color: #f8fafc !important;
 }
 
-/* ---------- 4. Generous Fluid Studio Canvas (#F6F7F9 / #090D16) ---------- */
+/* ---------- 5. Generous Fluid Studio Canvas (1600px max) ---------- */
 #ae-canvas {
   position: relative;
   background-color: transparent !important;
@@ -324,33 +450,65 @@ html[data-theme='dark'] #ae-canvas {
   color: #e2e8f0 !important;
 }
 
-/* Legacy pages nested in the canvas: let the warm alabaster stage show through. */
 #ae-root main,
 #ae-canvas div.min-h-screen {
   background-color: transparent !important;
 }
 
-/* ---------- 5. Loop AI × Palantir AIP Architectural Cards (22px, soft corner glows) ---------- */
+/* ---------- 6. Finance V2 × Verdelo Bento Cards (#FFFFFF / #111A22) ---------- */
+#ae-root .ae-bento-card,
 #ae-root .ae-studio-card,
 #ae-root .ae-tile {
   position: relative;
   background-color: #FFFFFF !important;
   border-radius: 22px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 10px 28px -6px rgba(15, 23, 42, 0.045), 0 0 0 1px rgba(15, 23, 42, 0.04) !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03), 0 8px 24px -6px rgba(15, 23, 42, 0.045), 0 0 0 1px rgba(15, 23, 42, 0.035) !important;
   border: none !important;
 }
 
+html.dark #ae-root .ae-bento-card,
+html[data-theme='dark'] #ae-root .ae-bento-card,
 html.dark #ae-root .ae-studio-card,
 html[data-theme='dark'] #ae-root .ae-studio-card,
 html.dark #ae-root .ae-tile,
-html[data-theme='dark'] #ae-root .ae-tile {
-  background-color: #0F1626 !important;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 12px 32px -8px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.06) !important;
+html[data-theme='dark'] #ae-root .ae-tile,
+html.dark #ae-root .app-content .bg-white:not([role='tooltip']),
+html[data-theme='dark'] #ae-root .app-content .bg-white:not([role='tooltip']) {
+  background-color: #111A22 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 12px 28px -8px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+#ae-root .ae-kpi-card {
+  position: relative;
+  background-color: #FFFFFF !important;
+  border-radius: 20px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03), 0 8px 24px -6px rgba(15, 23, 42, 0.045), 0 0 0 1px rgba(15, 23, 42, 0.035) !important;
+  border: none !important;
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 180ms ease;
+}
+
+#ae-root .ae-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.045), 0 14px 30px -8px rgba(15, 23, 42, 0.07), 0 0 0 1px rgba(16, 185, 129, 0.18) !important;
+}
+
+html.dark #ae-root .ae-kpi-card,
+html[data-theme='dark'] #ae-root .ae-kpi-card {
+  background-color: #111A22 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 26px -8px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.06) !important;
+}
+
+html.dark #ae-root .ae-kpi-card:hover,
+html[data-theme='dark'] #ae-root .ae-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px -6px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(16, 185, 129, 0.32) !important;
 }
 
 #ae-root .ae-studio-subcard,
+#ae-root .ae-bento-subcard,
 #ae-root .ae-tile-soft {
-  background-color: #F6F7F9 !important;
+  background-color: #F4F6F9 !important;
   border-radius: 16px;
   box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.035) !important;
   border: none !important;
@@ -358,10 +516,102 @@ html[data-theme='dark'] #ae-root .ae-tile {
 
 html.dark #ae-root .ae-studio-subcard,
 html[data-theme='dark'] #ae-root .ae-studio-subcard,
+html.dark #ae-root .ae-bento-subcard,
+html[data-theme='dark'] #ae-root .ae-bento-subcard,
 html.dark #ae-root .ae-tile-soft,
-html[data-theme='dark'] #ae-root .ae-tile-soft {
-  background-color: rgba(255, 255, 255, 0.035) !important;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06) !important;
+html[data-theme='dark'] #ae-root .ae-tile-soft,
+html.dark #ae-root .app-content .bg-\[\#F7F7F8\]:not([role='tooltip'] *),
+html.dark #ae-root .app-content .bg-\[\#F4F6F9\]:not([role='tooltip'] *),
+html.dark #ae-root .app-content .bg-\[\#F6F7F9\]:not([role='tooltip'] *) {
+  background-color: #0C141B !important;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.055) !important;
+}
+
+/* Primary action dark buttons keep high-contrast text in both themes */
+#ae-root button.ae-btn-primary,
+html[data-theme='light'] #ae-root button.ae-btn-primary {
+  background-color: #0B1220 !important;
+  color: #FFFFFF !important;
+  border: none !important;
+  box-shadow: 0 2px 8px -2px rgba(11, 18, 32, 0.22) !important;
+}
+
+#ae-root button.ae-btn-primary *,
+html[data-theme='light'] #ae-root button.ae-btn-primary * {
+  color: #FFFFFF !important;
+}
+
+html.dark #ae-root button.ae-btn-primary,
+html[data-theme='dark'] #ae-root button.ae-btn-primary {
+  background-color: #10B981 !important;
+  color: #04130D !important;
+  box-shadow: 0 2px 12px -2px rgba(16, 185, 129, 0.35) !important;
+}
+
+html.dark #ae-root button.ae-btn-primary *,
+html[data-theme='dark'] #ae-root button.ae-btn-primary * {
+  color: #04130D !important;
+}
+
+/* Protect dark-filled buttons in light mode (e.g. bg-neutral-950 / bg-[#0F172A]) */
+html[data-theme='light'] #ae-root button.bg-neutral-950,
+html[data-theme='light'] #ae-root button.bg-neutral-900,
+html[data-theme='light'] #ae-root button.bg-slate-900,
+html[data-theme='light'] #ae-root button.bg-\[\#0F172A\],
+html[data-theme='light'] #ae-root button.bg-\[\#0B1220\] {
+  background-color: #0B1220 !important;
+  color: #FFFFFF !important;
+}
+
+html[data-theme='light'] #ae-root button.bg-neutral-950 *,
+html[data-theme='light'] #ae-root button.bg-neutral-900 *,
+html[data-theme='light'] #ae-root button.bg-slate-900 *,
+html[data-theme='light'] #ae-root button.bg-\[\#0F172A\] *,
+html[data-theme='light'] #ae-root button.bg-\[\#0B1220\] * {
+  color: #FFFFFF !important;
+}
+
+html.dark #ae-root button.bg-neutral-950,
+html.dark #ae-root button.bg-neutral-900,
+html.dark #ae-root button.bg-\[\#0F172A\],
+html.dark #ae-root button.bg-\[\#0B1220\] {
+  background-color: #10B981 !important;
+  color: #04130D !important;
+}
+
+html.dark #ae-root button.bg-neutral-950 *,
+html.dark #ae-root button.bg-neutral-900 *,
+html.dark #ae-root button.bg-\[\#0F172A\] *,
+html.dark #ae-root button.bg-\[\#0B1220\] * {
+  color: #04130D !important;
+}
+
+/* Dark mode tables inside #ae-root match Obsidian-Emerald (#0C141B / #111A22) */
+html.dark #ae-root .app-content thead th,
+html[data-theme='dark'] #ae-root .app-content thead th {
+  background-color: #0C141B !important;
+  color: #94a3b8 !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+html.dark #ae-root .app-content tbody td,
+html[data-theme='dark'] #ae-root .app-content tbody td,
+html.dark #ae-root .app-content tfoot td,
+html[data-theme='dark'] #ae-root .app-content tfoot td {
+  border-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+html.dark #ae-root .app-content tbody tr:hover,
+html[data-theme='dark'] #ae-root .app-content tbody tr:hover {
+  background-color: rgba(16, 185, 129, 0.05) !important;
+}
+
+/* Tooltip contrast guarantee in both Light & Dark themes */
+#ae-root [role='tooltip'],
+[role='tooltip'] {
+  background-color: #FFFFFF !important;
+  color: #0F172A !important;
+  box-shadow: 0 14px 34px -8px rgba(15, 23, 42, 0.2), 0 2px 6px rgba(15, 23, 42, 0.06), 0 0 0 1px rgba(15, 23, 42, 0.08) !important;
 }
 
 /* Soft blurred pastel status corner glows (zero harsh stripes) */
@@ -384,13 +634,13 @@ html[data-theme='dark'] #ae-root .ae-tile-soft {
 }
 
 #ae-root .ae-lift:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 28px rgba(15, 41, 66, 0.09), 0 0 0 1px rgba(226, 232, 240, 0.7) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.07), 0 0 0 1px rgba(16, 185, 129, 0.16) !important;
 }
 
 html.dark #ae-root .ae-lift:hover,
 html[data-theme='dark'] #ae-root .ae-lift:hover {
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(71, 85, 105, 0.7) !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(16, 185, 129, 0.28) !important;
 }
 
 #ae-root .ae-icon-badge {
@@ -400,24 +650,24 @@ html[data-theme='dark'] #ae-root .ae-lift:hover {
   width: 2.25rem;
   height: 2.25rem;
   flex-shrink: 0;
-  border-radius: 9999px;
-  background-color: #ebf3f9 !important;
-  color: #133b5c !important;
+  border-radius: 0.875rem;
+  background-color: #ECFDF5 !important;
+  color: #059669 !important;
 }
 
 html.dark #ae-root .ae-icon-badge,
 html[data-theme='dark'] #ae-root .ae-icon-badge {
-  background-color: rgba(56, 189, 248, 0.12) !important;
-  color: #7dd3fc !important;
+  background-color: rgba(16, 185, 129, 0.14) !important;
+  color: #34d399 !important;
 }
 
-/* ---------- 6. Obsidian & crisp pills ---------- */
+/* ---------- 7. Obsidian & Crisp Pills ---------- */
 #ae-root .ae-pill-dark {
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
   border-radius: 9999px;
-  background-color: #0f172a !important;
+  background-color: #0B1220 !important;
   color: #ffffff !important;
   padding: 0.5rem 1rem;
   font-size: 0.75rem;
@@ -430,24 +680,10 @@ html[data-theme='dark'] #ae-root .ae-icon-badge {
   white-space: nowrap;
 }
 
-#ae-root .ae-pill-dark:hover {
-  background-color: #1e293b !important;
-}
-
-#ae-root .ae-pill-dark:active,
-#ae-root .ae-pill-light:active {
-  transform: scale(0.97);
-}
-
 html.dark #ae-root .ae-pill-dark,
 html[data-theme='dark'] #ae-root .ae-pill-dark {
-  background-color: #e2e8f0 !important;
-  color: #0f172a !important;
-}
-
-html.dark #ae-root .ae-pill-dark:hover,
-html[data-theme='dark'] #ae-root .ae-pill-dark:hover {
-  background-color: #ffffff !important;
+  background-color: #10B981 !important;
+  color: #04130D !important;
 }
 
 #ae-root .ae-pill-light {
@@ -455,40 +691,29 @@ html[data-theme='dark'] #ae-root .ae-pill-dark:hover {
   align-items: center;
   gap: 0.375rem;
   border-radius: 9999px;
-  background-color: rgba(255, 255, 255, 0.9) !important;
+  background-color: rgba(255, 255, 255, 0.95) !important;
   color: #334155 !important;
   padding: 0.5rem 1rem;
   font-size: 0.75rem;
   font-weight: 600;
   line-height: 1rem;
-  box-shadow: 0 0 0 1px rgba(226, 232, 240, 0.7) !important;
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.06) !important;
   border: none !important;
   transition: background-color 150ms ease, transform 150ms cubic-bezier(0.34, 1.56, 0.64, 1);
   cursor: pointer;
   white-space: nowrap;
 }
 
-#ae-root .ae-pill-light:hover {
-  background-color: #ffffff !important;
-  color: #0f172a !important;
-}
-
 html.dark #ae-root .ae-pill-light,
 html[data-theme='dark'] #ae-root .ae-pill-light {
-  background-color: rgba(30, 41, 59, 0.9) !important;
+  background-color: #111A22 !important;
   color: #e2e8f0 !important;
-  box-shadow: 0 0 0 1px rgba(71, 85, 105, 0.6) !important;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08) !important;
 }
 
 #ae-root .ae-pill-sm {
   padding: 0.3rem 0.7rem;
   font-size: 0.6875rem;
-}
-
-#ae-root .ae-pill-dark:disabled,
-#ae-root .ae-pill-light:disabled {
-  opacity: 0.45 !important;
-  cursor: not-allowed;
 }
 
 /* Segmented tabs */
@@ -498,12 +723,12 @@ html[data-theme='dark'] #ae-root .ae-pill-light {
   gap: 0.125rem;
   border-radius: 9999px;
   padding: 0.1875rem;
-  background-color: rgba(15, 23, 42, 0.06) !important;
+  background-color: rgba(15, 23, 42, 0.05) !important;
 }
 
 html.dark #ae-root .ae-seg,
 html[data-theme='dark'] #ae-root .ae-seg {
-  background-color: rgba(148, 163, 184, 0.12) !important;
+  background-color: rgba(255, 255, 255, 0.06) !important;
 }
 
 #ae-root .ae-seg > button {
@@ -523,25 +748,27 @@ html[data-theme='dark'] #ae-root .ae-seg > button {
 }
 
 #ae-root .ae-seg > button[data-active='true'] {
-  background-color: #0f172a !important;
+  background-color: #0B1220 !important;
   color: #ffffff !important;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.14);
 }
 
 html.dark #ae-root .ae-seg > button[data-active='true'],
 html[data-theme='dark'] #ae-root .ae-seg > button[data-active='true'] {
-  background-color: #e2e8f0 !important;
-  color: #0f172a !important;
+  background-color: #10B981 !important;
+  color: #04130D !important;
 }
 
-/* Chat bubble (user) — deep ocean with guaranteed white text in both themes */
-#ae-root .ae-bubble-user {
-  background-color: #133b5c !important;
+/* Chat bubble (user) */
+#ae-root .ae-bubble-user,
+html[data-theme='light'] #ae-root .ae-bubble-user {
+  background-color: #0B1220 !important;
   color: #ffffff !important;
-  box-shadow: 0 2px 8px rgba(19, 59, 92, 0.18);
+  box-shadow: 0 2px 8px rgba(11, 18, 32, 0.18);
 }
 
-#ae-root .ae-bubble-user p {
+#ae-root .ae-bubble-user *,
+html[data-theme='light'] #ae-root .ae-bubble-user * {
   color: #ffffff !important;
 }
 
@@ -554,15 +781,15 @@ html[data-theme='dark'] #ae-root .ae-seg > button[data-active='true'] {
   padding: 0.25rem 0.625rem;
   font-size: 0.6875rem;
   font-weight: 600;
-  background-color: #ebf3f9 !important;
-  color: #133b5c !important;
-  box-shadow: 0 0 0 1px rgba(19, 59, 92, 0.12) !important;
+  background-color: #ECFDF5 !important;
+  color: #065F46 !important;
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.18) !important;
 }
 
 html.dark #ae-root .ae-chip,
 html[data-theme='dark'] #ae-root .ae-chip {
-  background-color: rgba(56, 189, 248, 0.12) !important;
-  color: #bae6fd !important;
+  background-color: rgba(16, 185, 129, 0.14) !important;
+  color: #6ee7b7 !important;
 }
 
 /* Native selects styled as crisp pills */
@@ -576,7 +803,7 @@ html[data-theme='dark'] #ae-root .ae-chip {
   background-color: #ffffff !important;
   color: #0f172a !important;
   border: none !important;
-  box-shadow: 0 0 0 1px rgba(203, 213, 225, 0.8) !important;
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.08) !important;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
   background-repeat: no-repeat !important;
   background-position: right 0.75rem center !important;
@@ -592,9 +819,9 @@ html[data-theme='dark'] #ae-root .ae-chip {
 
 html.dark #ae-root .ae-select,
 html[data-theme='dark'] #ae-root .ae-select {
-  background-color: #1e293b !important;
+  background-color: #111A22 !important;
   color: #f1f5f9 !important;
-  box-shadow: 0 0 0 1px rgba(71, 85, 105, 0.8) !important;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.09) !important;
 }
 
 #ae-root .ae-input {
@@ -604,7 +831,7 @@ html[data-theme='dark'] #ae-root .ae-select {
   background-color: #ffffff !important;
   color: #0f172a !important;
   border: none !important;
-  box-shadow: 0 0 0 1px rgba(203, 213, 225, 0.8) !important;
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.08) !important;
   outline: none;
 }
 
@@ -614,12 +841,12 @@ html[data-theme='dark'] #ae-root .ae-select {
 
 html.dark #ae-root .ae-input,
 html[data-theme='dark'] #ae-root .ae-input {
-  background-color: #1e293b !important;
+  background-color: #111A22 !important;
   color: #f1f5f9 !important;
-  box-shadow: 0 0 0 1px rgba(71, 85, 105, 0.8) !important;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.09) !important;
 }
 
-/* ---------- 7. Typography ---------- */
+/* ---------- 8. Typography ---------- */
 #ae-root .ae-num {
   font-variant-numeric: tabular-nums;
   font-weight: 800;
@@ -644,11 +871,11 @@ html[data-theme='dark'] #ae-root .ae-meta {
   color: #94a3b8 !important;
 }
 
-/* ---------- 8. Motion ---------- */
+/* ---------- 9. Motion ---------- */
 @keyframes ae-rise {
   from {
     opacity: 0;
-    transform: translateY(10px) scale(0.985);
+    transform: translateY(8px) scale(0.99);
   }
   to {
     opacity: 1;
@@ -659,7 +886,7 @@ html[data-theme='dark'] #ae-root .ae-meta {
 @keyframes ae-pop {
   from {
     opacity: 0;
-    transform: translateY(-6px) scale(0.97);
+    transform: translateY(-4px) scale(0.98);
   }
   to {
     opacity: 1;
@@ -668,31 +895,27 @@ html[data-theme='dark'] #ae-root .ae-meta {
 }
 
 #ae-root .ae-stagger > * {
-  animation: ae-rise 420ms cubic-bezier(0.22, 1.2, 0.36, 1) both;
+  animation: ae-rise 360ms cubic-bezier(0.22, 1.2, 0.36, 1) both;
 }
 
 #ae-root .ae-stagger > *:nth-child(1) { animation-delay: 0ms; }
-#ae-root .ae-stagger > *:nth-child(2) { animation-delay: 45ms; }
-#ae-root .ae-stagger > *:nth-child(3) { animation-delay: 90ms; }
-#ae-root .ae-stagger > *:nth-child(4) { animation-delay: 135ms; }
-#ae-root .ae-stagger > *:nth-child(5) { animation-delay: 180ms; }
-#ae-root .ae-stagger > *:nth-child(6) { animation-delay: 225ms; }
-#ae-root .ae-stagger > *:nth-child(7) { animation-delay: 270ms; }
-#ae-root .ae-stagger > *:nth-child(8) { animation-delay: 315ms; }
-#ae-root .ae-stagger > *:nth-child(n + 9) { animation-delay: 350ms; }
+#ae-root .ae-stagger > *:nth-child(2) { animation-delay: 40ms; }
+#ae-root .ae-stagger > *:nth-child(3) { animation-delay: 80ms; }
+#ae-root .ae-stagger > *:nth-child(4) { animation-delay: 120ms; }
+#ae-root .ae-stagger > *:nth-child(n + 5) { animation-delay: 160ms; }
 
 #ae-root .ae-pop {
-  animation: ae-pop 200ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation: ae-pop 180ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
 #ae-root .ae-bar-grow {
   transform-origin: bottom;
-  animation: ae-grow 520ms cubic-bezier(0.22, 1.2, 0.36, 1) both;
+  animation: ae-grow 420ms cubic-bezier(0.22, 1.2, 0.36, 1) both;
 }
 
 @keyframes ae-grow {
   from {
-    transform: scaleY(0.05);
+    transform: scaleY(0.08);
   }
   to {
     transform: scaleY(1);
@@ -705,20 +928,21 @@ html[data-theme='dark'] #ae-root .ae-meta {
   #ae-root .ae-bar-grow {
     animation: none !important;
   }
-  #ae-root .ae-lift:hover {
+  #ae-root .ae-lift:hover,
+  #ae-root .ae-kpi-card:hover {
     transform: none;
   }
 }
 
-/* ---------- 9. Command palette (rendered inside #ae-root) ---------- */
+/* ---------- 10. Command palette ---------- */
 #ae-root .ae-palette-backdrop {
-  background: rgba(4, 14, 26, 0.55) !important;
+  background: rgba(7, 12, 18, 0.6) !important;
   -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
 }
 
 #ae-root .ae-palette {
-  background: rgba(255, 255, 255, 0.97) !important;
+  background: rgba(255, 255, 255, 0.98) !important;
   color: #0f172a !important;
   border-radius: 1.5rem;
   box-shadow: 0 32px 80px rgba(3, 14, 26, 0.45), 0 0 0 1px rgba(226, 232, 240, 0.8) !important;
@@ -726,9 +950,9 @@ html[data-theme='dark'] #ae-root .ae-meta {
 
 html.dark #ae-root .ae-palette,
 html[data-theme='dark'] #ae-root .ae-palette {
-  background: rgba(11, 21, 34, 0.98) !important;
+  background: #111A22 !important;
   color: #e2e8f0 !important;
-  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(51, 65, 85, 0.8) !important;
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.08) !important;
 }
 
 #ae-root .ae-palette input {
@@ -739,15 +963,15 @@ html[data-theme='dark'] #ae-root .ae-palette {
 }
 
 #ae-root .ae-palette-item[data-active='true'] {
-  background-color: #ebf3f9 !important;
+  background-color: #ECFDF5 !important;
 }
 
 html.dark #ae-root .ae-palette-item[data-active='true'],
 html[data-theme='dark'] #ae-root .ae-palette-item[data-active='true'] {
-  background-color: rgba(56, 189, 248, 0.12) !important;
+  background-color: rgba(16, 185, 129, 0.14) !important;
 }
 
-/* ---------- 10. Print / board brief export ---------- */
+/* ---------- 11. Print / board brief export ---------- */
 @media print {
   #ae-root {
     background: #ffffff !important;
@@ -769,21 +993,10 @@ html[data-theme='dark'] #ae-root .ae-palette-item[data-active='true'] {
     background: #ffffff !important;
     padding: 0 !important;
     min-height: auto !important;
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-  }
-  #ae-root .ae-tile {
-    box-shadow: 0 0 0 1px #e2e8f0 !important;
-    break-inside: avoid;
-  }
-  #ae-root .ae-stagger > * {
-    animation: none !important;
   }
 }
 
-/* ==========================================================================
-   11. TOPBAR BREADCRUMB & LIVE ODOO HEARTBEAT PILL
-   ========================================================================== */
+/* ---------- 12. Topbar Breadcrumb & Live Odoo Heartbeat ---------- */
 #ae-topbar .ae-top-sep {
   color: #94a3b8 !important;
 }
@@ -797,59 +1010,17 @@ html[data-theme='dark'] #ae-root .ae-palette-item[data-active='true'] {
 
 html.dark #ae-topbar .ae-top-live,
 html[data-theme='dark'] #ae-topbar .ae-top-live {
-  background: rgba(16, 185, 129, 0.14) !important;
-  box-shadow: 0 0 0 1px rgba(52, 211, 153, 0.28) !important;
+  background: rgba(16, 185, 129, 0.16) !important;
+  box-shadow: 0 0 0 1px rgba(52, 211, 153, 0.3) !important;
   color: #6ee7b7 !important;
 }
 
-/* ==========================================================================
-   12. SITE-WIDE NORMALISATION LAYER FOR LEGACY WORKSPACES
-   Legacy pages were written against a royal-blue / indigo palette with harsh
-   1px borders. These token overrides re-skin them to the oceanic system
-   (obsidian primaries, sky-teal links, soft surface-contrast tiles).
-   ========================================================================== */
+/* ---------- 13. Zero-Purple Normalisation Layer ---------- */
 #ae-canvas .ae-page,
 #ae-canvas .ae-page > * {
   min-width: 0;
 }
 
-/* Royal-blue / indigo solid fills → obsidian pills */
-#ae-canvas .bg-\[\#2563EB\],
-#ae-canvas .bg-\[\#2563eb\],
-#ae-canvas .bg-blue-600,
-#ae-canvas .bg-blue-700,
-#ae-canvas .bg-indigo-600,
-#ae-canvas .bg-violet-600,
-#ae-canvas .bg-purple-600 {
-  background-color: #0f172a !important;
-  color: #ffffff !important;
-  border-color: #0f172a !important;
-}
-
-#ae-canvas .bg-\[\#2563EB\] .text-white,
-#ae-canvas .bg-blue-600 .text-white,
-#ae-canvas .bg-\[\#2563EB\] svg,
-#ae-canvas .bg-blue-600 svg {
-  color: #ffffff !important;
-}
-
-#ae-canvas .hover\:bg-blue-600:hover,
-#ae-canvas .hover\:bg-blue-700:hover,
-#ae-canvas .hover\:bg-blue-500:hover {
-  background-color: #1e293b !important;
-}
-
-html.dark #ae-canvas .bg-\[\#2563EB\],
-html.dark #ae-canvas .bg-blue-600,
-html.dark #ae-canvas .bg-blue-700,
-html.dark #ae-canvas .bg-indigo-600,
-html[data-theme='dark'] #ae-canvas .bg-\[\#2563EB\],
-html[data-theme='dark'] #ae-canvas .bg-blue-600 {
-  background-color: #334155 !important;
-  border-color: #334155 !important;
-}
-
-/* Blue / indigo / purple gradients → oceanic obsidian gradient (zero purple) */
 #ae-canvas .bg-gradient-to-br.from-blue-600,
 #ae-canvas .bg-gradient-to-r.from-blue-600,
 #ae-canvas .bg-gradient-to-br.from-indigo-600,
@@ -857,257 +1028,17 @@ html[data-theme='dark'] #ae-canvas .bg-blue-600 {
 #ae-canvas .bg-gradient-to-br.from-purple-600,
 #ae-canvas .bg-gradient-to-r.from-purple-600,
 #ae-canvas .bg-gradient-to-br.from-violet-600 {
-  background-image: linear-gradient(135deg, #0f172a 0%, #133b5c 100%) !important;
+  background-image: linear-gradient(135deg, #0B1220 0%, #064E3B 100%) !important;
 }
 
-/* Royal-blue text & accents → sky-teal */
-#ae-canvas .text-\[\#2563EB\],
-#ae-canvas .text-blue-600,
-#ae-canvas .text-blue-700 {
-  color: #0284c7 !important;
-}
-
-#ae-canvas .ring-blue-600,
-#ae-canvas .ring-blue-500,
-#ae-canvas .focus\:ring-blue-600:focus {
-  --tw-ring-color: rgba(2, 132, 199, 0.55) !important;
-}
-
-#ae-canvas .border-blue-600,
-#ae-canvas .border-\[\#2563EB\],
-#ae-canvas .border-b-blue-600 {
-  border-color: #0f172a !important;
-}
-
-/* Indigo / purple / violet / pink tinted badges → oceanic ice chips */
-#ae-canvas .bg-indigo-50,
-#ae-canvas .bg-purple-50,
-#ae-canvas .bg-violet-50,
-#ae-canvas .bg-pink-50 {
-  background-color: #ebf3f9 !important;
-}
-
-#ae-canvas .text-indigo-600,
-#ae-canvas .text-indigo-700,
-#ae-canvas .text-indigo-800,
-#ae-canvas .text-purple-600,
-#ae-canvas .text-purple-700,
-#ae-canvas .text-purple-800,
-#ae-canvas .text-violet-700,
-#ae-canvas .text-pink-700,
-#ae-canvas .text-pink-800 {
-  color: #133b5c !important;
-}
-
-html.dark #ae-canvas .text-indigo-300,
-html.dark #ae-canvas .text-indigo-400,
-html.dark #ae-canvas .text-purple-300,
-html.dark #ae-canvas .text-purple-400 {
-  color: #7dd3fc !important;
-}
-
-/* Harsh 1px bordered alert boxes & badges → soft surface-contrast rings */
-#ae-canvas .border-rose-200,
-#ae-canvas .border-red-200,
-#ae-canvas .border-rose-300,
-#ae-canvas .border-red-300 {
-  border-color: rgba(254, 205, 211, 0.6) !important;
-}
-
-#ae-canvas .border-amber-200,
-#ae-canvas .border-orange-200,
-#ae-canvas .border-amber-300,
-#ae-canvas .border-orange-300 {
-  border-color: rgba(253, 230, 138, 0.6) !important;
-}
-
-#ae-canvas .border-emerald-200,
-#ae-canvas .border-emerald-300,
-#ae-canvas .border-green-200 {
-  border-color: rgba(167, 243, 208, 0.6) !important;
-}
-
-#ae-canvas .border-blue-200,
-#ae-canvas .border-blue-300,
-#ae-canvas .border-sky-200,
-#ae-canvas .border-indigo-200,
-#ae-canvas .border-purple-200,
-#ae-canvas .border-pink-200 {
-  border-color: rgba(186, 230, 253, 0.6) !important;
-}
-
-#ae-canvas .border-rose-600,
-#ae-canvas .border-red-600 {
-  border-color: rgba(225, 29, 72, 0.28) !important;
-}
-
-#ae-canvas .border-amber-600,
-#ae-canvas .border-orange-600 {
-  border-color: rgba(217, 119, 6, 0.28) !important;
-}
-
-#ae-canvas .border-emerald-600 {
-  border-color: rgba(5, 150, 105, 0.28) !important;
-}
-
-#ae-canvas .border-indigo-600,
-#ae-canvas .border-purple-600,
-#ae-canvas .border-pink-600 {
-  border-color: rgba(19, 59, 92, 0.22) !important;
-}
-
-#ae-canvas .bg-rose-50,
-#ae-canvas .bg-red-50 {
-  background-color: rgba(255, 241, 242, 0.7) !important;
-}
-
-#ae-canvas .bg-amber-50,
-#ae-canvas .bg-orange-50 {
-  background-color: rgba(255, 251, 235, 0.7) !important;
-}
-
-#ae-canvas .bg-emerald-50,
-#ae-canvas .bg-green-50 {
-  background-color: rgba(236, 253, 245, 0.7) !important;
-}
-
-/* Every chart surface: SVG text never scales beyond 12px; shapes stay bounded */
-#ae-canvas .ae-chart {
-  position: relative;
-  width: 100%;
-  overflow: hidden;
-}
-
-#ae-canvas .ae-chart > svg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-}
-
-#ae-canvas .ae-chart-label {
-  position: absolute;
-  font-size: 11px;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-  color: #64748b;
-  white-space: nowrap;
-  pointer-events: none;
-}
-
-html.dark #ae-canvas .ae-chart-label {
-  color: #94a3b8;
-}
-
-#ae-canvas .ae-chart-callout {
-  position: absolute;
-  transform: translate(-50%, 0);
-  border-radius: 9999px;
-  background: #0f172a !important;
-  color: #ffffff !important;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 0.2rem 0.6rem;
-  white-space: nowrap;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.18);
-  pointer-events: none;
-}
-
-/* Unified masthead */
-#ae-root .ae-masthead {
-  border-radius: 24px;
-  background-color: #ffffff !important;
-  box-shadow: 0 2px 16px rgba(10, 30, 50, 0.04), 0 0 0 1px rgba(226, 232, 240, 0.7) !important;
-}
-
-html.dark #ae-root .ae-masthead,
-html[data-theme='dark'] #ae-root .ae-masthead {
-  background-color: rgba(15, 23, 42, 0.92) !important;
-  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(51, 65, 85, 0.6) !important;
-}
-
-/* Segmented sub-tabs (replaces underline tab strips) */
-#ae-root .ae-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem;
-  border-radius: 1rem;
-  padding: 0.375rem;
-  background-color: rgba(226, 232, 240, 0.7) !important;
-}
-
-html.dark #ae-root .ae-tabs,
-html[data-theme='dark'] #ae-root .ae-tabs {
-  background-color: rgba(51, 65, 85, 0.45) !important;
-}
-
-#ae-root .ae-tabs > a,
-#ae-root .ae-tabs > button {
-  border-radius: 0.75rem;
-  padding: 0.45rem 0.9rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #475569 !important;
-  background: transparent !important;
-  border: none !important;
-  white-space: nowrap;
-  transition: background-color 150ms ease, color 150ms ease;
-}
-
-#ae-root .ae-tabs > a:hover,
-#ae-root .ae-tabs > button:hover {
-  color: #0f172a !important;
-  background: rgba(255, 255, 255, 0.6) !important;
-}
-
-#ae-root .ae-tabs > [data-active='true'],
-#ae-root .ae-tabs > [aria-current='page'] {
-  background-color: #0f172a !important;
-  color: #ffffff !important;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.16);
-}
-
-html.dark #ae-root .ae-tabs > a,
-html.dark #ae-root .ae-tabs > button {
-  color: #cbd5e1 !important;
-}
-
-html.dark #ae-root .ae-tabs > [data-active='true'],
-html.dark #ae-root .ae-tabs > [aria-current='page'] {
-  background-color: #e2e8f0 !important;
-  color: #0f172a !important;
-}
-
-/* Shared table geometry for normalised workspaces */
 #ae-root .ae-table-wrap {
   width: 100%;
   overflow-x: auto;
-  border-radius: 0.75rem;
+  border-radius: 1rem;
 }
+
 #ae-root .ae-table-wrap table th,
 #ae-root .ae-table-wrap table td {
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
-}
-#ae-root .ae-table-wrap table td.leading-relaxed {
-  white-space: normal;
-  min-width: 280px;
-}
-
-/* Oceanic hero tile — obsidian → deep-ocean gradient with guaranteed light text */
-#ae-root .ae-hero-ocean {
-  background-image: linear-gradient(135deg, #0f172a 0%, #133b5c 100%) !important;
-  background-color: #0f172a !important;
-  color: #ffffff !important;
-  box-shadow: 0 10px 30px -12px rgba(15, 23, 42, 0.45);
-}
-#ae-root .ae-hero-ocean,
-#ae-root .ae-hero-ocean * {
-  color: #ffffff !important;
-}
-#ae-root .ae-hero-ocean .ae-hero-muted {
-  color: #bae6fd !important;
-}
-#ae-root .ae-hero-ocean .ae-hero-chip {
-  background-color: rgba(255, 255, 255, 0.14) !important;
 }

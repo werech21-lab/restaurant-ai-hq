@@ -22,7 +22,12 @@ import {
 } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
 import { getOpenAIApiKey, getGeminiApiKey } from '@/lib/ai-keys'
-import { askDualHeavyBrain } from '@/lib/dual-heavy-brain'
+import {
+  askDualHeavyBrain,
+  BRAIN_MODE_EVENT,
+  getActiveBrainMode,
+  type BrainMode,
+} from '@/lib/dual-heavy-brain'
 import { askFeryalGeminiBrain, getDeterministicFeryalReply } from '@/lib/feryal-gemini-brain'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { FeryalStudioMessage, feryalPlainText } from '@/components/aether/FeryalStudioMessage'
@@ -187,6 +192,21 @@ export default function FeryalAiCommandPage() {
   const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null)
   const [isExpanded, setIsExpanded] = useState(false)
   const [openSplitIds, setOpenSplitIds] = useState<Record<string, boolean>>({})
+  const [activeBrainMode, setActiveBrainModeState] = useState<BrainMode>('dual')
+
+  useEffect(() => {
+    setActiveBrainModeState(getActiveBrainMode())
+    const onBrainMode = (e: Event) => {
+      const detail = (e as CustomEvent<BrainMode>).detail
+      if (detail === 'dual' || detail === 'gemini' || detail === 'grok') {
+        setActiveBrainModeState(detail)
+      } else {
+        setActiveBrainModeState(getActiveBrainMode())
+      }
+    }
+    window.addEventListener(BRAIN_MODE_EVENT, onBrainMode)
+    return () => window.removeEventListener(BRAIN_MODE_EVENT, onBrainMode)
+  }, [])
 
   // A conversation lives in one language: switching the interface language opens a fresh discussion.
   useEffect(() => {
@@ -805,25 +825,38 @@ export default function FeryalAiCommandPage() {
     [isAr],
   )
 
+  const activeBrainBadgeText =
+    activeBrainMode === 'gemini'
+      ? T('Gemini Carbon ⚡', 'جميني Carbon ⚡')
+      : activeBrainMode === 'grok'
+        ? T('Grok Heavy 🧠', 'جروك Heavy 🧠')
+        : T('Dual Brain 🔥', 'العقل المزدوج 🔥')
+
   const pill =
-    'inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-2 text-[12.5px] font-semibold transition-all focus:outline-none'
+    'inline-flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-2 text-[12.5px] font-bold transition-all duration-150 focus:outline-none'
   const pillIdle =
-    'bg-white text-slate-700 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_0_0_1px_rgba(15,23,42,0.05)] hover:bg-slate-50 dark:bg-[#0F1626] dark:text-slate-200 dark:shadow-[0_0_0_1px_rgba(255,255,255,0.07)]'
-  const pillOn = 'bg-emerald-50 text-emerald-800 shadow-[0_0_0_1px_rgba(16,185,129,0.28)] dark:bg-emerald-950/40 dark:text-emerald-200'
-  const panelShell = 'ae-studio-card h-[75vh] min-h-[580px] max-h-[800px]'
+    'ae-bento-subcard text-slate-700 hover:opacity-90 dark:text-slate-200'
+  const pillOn =
+    'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-500/30 dark:bg-emerald-950/50 dark:text-emerald-300 dark:ring-emerald-500/40'
+  const panelShell = 'ae-bento-card h-[75vh] min-h-[580px] max-h-[820px]'
 
   return (
-    <div dir={isAr ? 'rtl' : 'ltr'} className="w-full space-y-5 font-sans text-slate-900 antialiased dark:text-slate-100">
-      {/* ───────────── Studio bar ───────────── */}
-      <header className="flex flex-col gap-4 rounded-3xl bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-neutral-950/[0.04] xl:flex-row xl:items-center xl:justify-between dark:bg-[#0F1626] dark:ring-white/[0.07]">
+    <div dir={isAr ? 'rtl' : 'ltr'} className="mx-auto w-full max-w-[1600px] space-y-5 font-sans text-slate-900 antialiased dark:text-slate-100">
+      {/* ───────────── Finance V2 × Verdelo Studio Bar ───────────── */}
+      <header className="ae-bento-card flex flex-col gap-4 p-5 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex min-w-0 items-center gap-3.5">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#0F172A] text-white shadow-sm dark:bg-white dark:text-slate-950">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#0B1220] text-white shadow-sm dark:bg-[#10B981] dark:text-[#04130D]">
             <Sparkles className="h-5 w-5" />
           </div>
           <div className="min-w-0">
-            <h1 className="truncate text-[22px] font-extrabold tracking-tight text-slate-950 sm:text-[24px] dark:text-white">
-              {T('Ask Feryal', 'المستشارة فريال')}
-            </h1>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="truncate text-[22px] font-extrabold tracking-tight text-slate-950 sm:text-[24px] dark:text-white">
+                {T('Ask Feryal', 'المستشارة فريال')}
+              </h1>
+              <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-extrabold text-emerald-800 ring-1 ring-emerald-500/20 dark:bg-emerald-950/50 dark:text-emerald-300">
+                {activeBrainBadgeText}
+              </span>
+            </div>
             <p className="truncate text-[13px] font-medium text-slate-500 dark:text-slate-400">
               {isAr ? workspace.subtitleAr : workspace.subtitleEn}
             </p>
@@ -873,7 +906,7 @@ export default function FeryalAiCommandPage() {
               return (
                 <div key={m.id} className={`flex gap-3 ${mine ? 'justify-end' : 'justify-start'}`}>
                   {!mine && (
-                    <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#0F172A] text-white dark:bg-white dark:text-slate-950">
+                    <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#0B1220] text-white dark:bg-[#10B981] dark:text-[#04130D]">
                       <Sparkles className="h-4 w-4" />
                     </div>
                   )}
@@ -893,24 +926,24 @@ export default function FeryalAiCommandPage() {
                     <div
                       className={
                         mine
-                          ? 'whitespace-pre-wrap rounded-2xl bg-[#0F172A] px-5 py-4 text-[15px] leading-[1.85] text-white'
-                          : 'ae-studio-subcard px-6 py-5 text-[15px] leading-[1.85] text-slate-800 dark:text-slate-100'
+                          ? 'whitespace-pre-wrap rounded-2xl bg-[#0B1220] px-5 py-4 text-[15px] leading-[1.85] text-white dark:bg-[#0F2920] dark:text-emerald-50 dark:ring-1 dark:ring-emerald-500/30'
+                          : 'ae-bento-subcard px-6 py-5 text-[15px] leading-[1.85] text-slate-800 dark:text-slate-100'
                       }
                     >
                       {mine ? m.text : <FeryalStudioMessage text={m.text} />}
                     </div>
                     <div className={`mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-400 ${mine ? 'justify-end' : ''}`}>
-                      {m.time && <span>{m.time}</span>}
+                      {m.time && <span className="tabular-nums">{m.time}</span>}
                       {!mine && (
                         <>
                           {hasBothBrains && (
                             <button
                               type="button"
                               onClick={() => setOpenSplitIds((prev) => ({ ...prev, [m.id]: !prev[m.id] }))}
-                              className={`inline-flex items-center gap-1 rounded-full px-3 py-1 font-semibold transition-colors ${
+                              className={`inline-flex cursor-pointer items-center gap-1 rounded-full px-3 py-1 font-semibold transition-colors ${
                                 splitOpen
-                                  ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950'
-                                  : 'bg-[#F6F7F9] text-slate-700 hover:bg-slate-200/70 dark:bg-white/[0.06] dark:text-slate-200'
+                                  ? 'ae-btn-primary'
+                                  : 'ae-bento-subcard text-slate-700 hover:opacity-90 dark:text-slate-200'
                               }`}
                             >
                               <Columns2 className="h-3.5 w-3.5" />
@@ -920,7 +953,7 @@ export default function FeryalAiCommandPage() {
                           <button
                             type="button"
                             onClick={() => (playingMsgId === m.id ? stopPlayback() : playFeryalSpeech(m.text, m.id, true))}
-                            className="inline-flex items-center gap-1 rounded-full bg-[#F6F7F9] px-2.5 py-1 font-semibold text-slate-600 hover:bg-slate-200/70 dark:bg-white/[0.06] dark:text-slate-300"
+                            className="ae-bento-subcard inline-flex cursor-pointer items-center gap-1 rounded-full px-2.5 py-1 font-semibold text-slate-600 hover:opacity-90 dark:text-slate-300"
                           >
                             {playingMsgId === m.id ? <Square className="h-3 w-3" /> : <Volume2 className="h-3.5 w-3.5" />}
                             {playingMsgId === m.id ? T('Stop', 'إيقاف') : T('Listen', 'استماع للرد')}
@@ -928,7 +961,7 @@ export default function FeryalAiCommandPage() {
                           <button
                             type="button"
                             onClick={() => copyMessage(m.id, m.text)}
-                            className="inline-flex items-center gap-1 rounded-full bg-[#F6F7F9] px-2.5 py-1 font-semibold text-slate-600 hover:bg-slate-200/70 dark:bg-white/[0.06] dark:text-slate-300"
+                            className="ae-bento-subcard inline-flex cursor-pointer items-center gap-1 rounded-full px-2.5 py-1 font-semibold text-slate-600 hover:opacity-90 dark:text-slate-300"
                           >
                             {copiedMsgId === m.id ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
                             {copiedMsgId === m.id ? T('Copied', 'تم النسخ') : T('Copy Reply', 'نسخ الرد')}
@@ -938,9 +971,9 @@ export default function FeryalAiCommandPage() {
                               <button
                                 type="button"
                                 onClick={() => copyMessage(`${m.id}-brief`, briefText)}
-                                className="inline-flex items-center gap-1 rounded-full bg-slate-900 px-3 py-1 font-semibold text-white hover:bg-slate-800 dark:bg-white dark:text-slate-950"
+                                className="ae-btn-primary inline-flex cursor-pointer items-center gap-1 rounded-full px-3 py-1 font-semibold hover:opacity-95"
                               >
-                                {copiedMsgId === `${m.id}-brief` ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <FileText className="h-3.5 w-3.5" />}
+                                {copiedMsgId === `${m.id}-brief` ? <Check className="h-3.5 w-3.5" /> : <FileText className="h-3.5 w-3.5" />}
                                 {copiedMsgId === `${m.id}-brief` ? T('Brief Copied', 'تم نسخ الرسالة') : T('Team Brief', 'رسالة توجيه للفريق')}
                               </button>
                               <a
@@ -959,8 +992,8 @@ export default function FeryalAiCommandPage() {
                     </div>
                     {hasBothBrains && splitOpen ? (
                       <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
-                        <div className="rounded-2xl bg-white p-4 text-[13.5px] leading-[1.8] text-slate-700 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-neutral-950/[0.05] dark:bg-[#0D1320] dark:text-slate-200 dark:ring-white/[0.08]">
-                          <div className="mb-2 flex items-center justify-between gap-2 border-b border-neutral-100 pb-2 dark:border-white/[0.06]">
+                        <div className="ae-bento-subcard rounded-2xl p-4 text-[13.5px] leading-[1.8] text-slate-700 dark:text-slate-200">
+                          <div className="mb-2 flex items-center justify-between gap-2 border-b border-slate-200/70 pb-2 dark:border-white/[0.06]">
                             <span className="font-extrabold text-slate-950 dark:text-white">
                               {T('Gemini Carbon High ⚡', 'رأي جميني Carbon High ⚡')}
                             </span>
@@ -972,8 +1005,8 @@ export default function FeryalAiCommandPage() {
                           </div>
                           <FeryalStudioMessage text={m.geminiReply ?? ''} />
                         </div>
-                        <div className="rounded-2xl bg-white p-4 text-[13.5px] leading-[1.8] text-slate-700 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-neutral-950/[0.05] dark:bg-[#0D1320] dark:text-slate-200 dark:ring-white/[0.08]">
-                          <div className="mb-2 flex items-center justify-between gap-2 border-b border-neutral-100 pb-2 dark:border-white/[0.06]">
+                        <div className="ae-bento-subcard rounded-2xl p-4 text-[13.5px] leading-[1.8] text-slate-700 dark:text-slate-200">
+                          <div className="mb-2 flex items-center justify-between gap-2 border-b border-slate-200/70 pb-2 dark:border-white/[0.06]">
                             <span className="font-extrabold text-slate-950 dark:text-white">
                               {T('xAI Grok Heavy (3-Lens) 🧠', 'رأي جروك Heavy (٣ زوايا) 🧠')}
                             </span>
@@ -998,9 +1031,9 @@ export default function FeryalAiCommandPage() {
                     key={t.id}
                     type="button"
                     onClick={() => handleSendQuery(isAr ? t.promptAr : t.promptEn)}
-                    className="ae-studio-subcard group p-4 text-start transition-all hover:-translate-y-0.5 hover:ring-1 hover:ring-slate-900/15 active:scale-[0.99] dark:hover:ring-white/20"
+                    className="ae-kpi-card group cursor-pointer p-4 text-start active:scale-[0.99]"
                   >
-                    <span className="inline-block rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10.5px] font-bold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                    <span className="inline-block rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10.5px] font-bold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
                       {isAr ? t.tagAr : t.tagEn}
                     </span>
                     <div className="mt-2 text-[14px] font-bold text-slate-950 dark:text-white">{isAr ? t.labelAr : t.labelEn}</div>
@@ -1011,10 +1044,10 @@ export default function FeryalAiCommandPage() {
             )}
             {isCopilotThinking && (
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#0F172A] text-white">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#0B1220] text-white dark:bg-[#10B981] dark:text-[#04130D]">
                   <Loader2 className="h-4 w-4 animate-spin" />
                 </div>
-                <div className="ae-studio-subcard px-5 py-3.5 text-[14.5px] font-medium text-slate-500">
+                <div className="ae-bento-subcard px-5 py-3.5 text-[14.5px] font-medium text-slate-600 dark:text-slate-300">
                   {T('Running Gemini Carbon + Grok Heavy on live Odoo numbers…', 'فريال تشغّل العقل المزدوج (جميني + جروك) على أرقام أودو…')}
                 </div>
               </div>
@@ -1022,7 +1055,7 @@ export default function FeryalAiCommandPage() {
           </div>
 
           {/* Input dock */}
-          <div className="border-t border-slate-100 bg-white/95 px-4 pb-4 pt-3 sm:px-6 dark:border-white/[0.06] dark:bg-[#0F1626]/95">
+          <div className="border-t border-slate-100 bg-white/95 px-4 pb-4 pt-3 sm:px-6 dark:border-white/[0.06] dark:bg-[#111A22]/95">
             <div className={`mb-3 flex-wrap gap-2 ${messages.length <= 1 ? 'hidden' : 'flex'}`}>
               {TOPICS.map((t) => (
                 <button
@@ -1030,14 +1063,14 @@ export default function FeryalAiCommandPage() {
                   type="button"
                   disabled={isCopilotThinking}
                   onClick={() => handleSendQuery(isAr ? t.promptAr : t.promptEn)}
-                  className="rounded-full bg-[#F6F7F9] px-3.5 py-1.5 text-[12px] font-semibold text-slate-700 transition-colors hover:bg-slate-200/70 disabled:opacity-50 dark:bg-white/[0.06] dark:text-slate-200"
+                  className="ae-bento-subcard cursor-pointer rounded-full px-3.5 py-1.5 text-[12px] font-semibold text-slate-700 transition-opacity hover:opacity-90 disabled:opacity-50 dark:text-slate-200"
                 >
                   {isAr ? t.labelAr : t.labelEn}
                 </button>
               ))}
             </div>
             {(micToast || isListening || isTranscribing) && (
-              <div className={`mb-2 text-[13px] font-medium ${micToast ? 'text-rose-600' : 'text-emerald-700 dark:text-emerald-400'}`}>
+              <div className={`mb-2 text-[13px] font-medium ${micToast ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
                 {micToast ?? (isTranscribing ? T('Transcribing your voice…', 'جارٍ تحويل صوتك إلى نص…') : T('Listening… speak now', 'أستمع إليك… تفضل بالحديث'))}
               </div>
             )}
@@ -1054,17 +1087,17 @@ export default function FeryalAiCommandPage() {
                   }
                 }}
                 placeholder={T('Ask Feryal about any branch, restaurant, dish, expense, or delivery platform…', 'اسأل فريال عن أي فرع أو مطعم أو طبق أو مصاريف أو منصة توصيل…')}
-                className="min-h-[52px] flex-1 resize-none rounded-2xl bg-[#F6F7F9] px-4 py-3.5 text-[15px] leading-relaxed text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/15 dark:bg-white/[0.06] dark:text-white"
+                className="ae-bento-subcard min-h-[52px] flex-1 resize-none rounded-2xl px-4 py-3.5 text-[15px] leading-relaxed text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/35 dark:text-white"
               />
               <button
                 type="button"
                 onClick={toggleListening}
                 aria-pressed={isListening}
                 aria-label={isListening ? T('Stop microphone', 'إيقاف المايكروفون') : T('Speak to Feryal', 'التحدث إلى فريال')}
-                className={`flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-2xl transition-all active:scale-95 ${
+                className={`flex h-[52px] w-[52px] shrink-0 cursor-pointer items-center justify-center rounded-2xl transition-all active:scale-95 ${
                   isListening
                     ? 'animate-pulse bg-rose-600 text-white'
-                    : 'bg-[#F6F7F9] text-slate-700 hover:bg-slate-200/70 dark:bg-white/[0.06] dark:text-slate-100'
+                    : 'ae-bento-subcard text-slate-700 hover:opacity-90 dark:text-slate-100'
                 }`}
               >
                 {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
@@ -1073,7 +1106,7 @@ export default function FeryalAiCommandPage() {
                 type="button"
                 onClick={() => handleSendQuery()}
                 disabled={isCopilotThinking || !inputText.trim()}
-                className="inline-flex h-[52px] shrink-0 items-center gap-2 rounded-2xl bg-[#0F172A] px-5 text-[14.5px] font-bold text-white shadow-sm transition-all hover:bg-slate-800 active:scale-95 disabled:opacity-40 dark:bg-white dark:text-slate-950"
+                className="ae-btn-primary inline-flex h-[52px] shrink-0 cursor-pointer items-center gap-2 rounded-2xl px-5 text-[14.5px] font-bold transition-all hover:opacity-95 active:scale-95 disabled:opacity-40"
               >
                 <Send className={`h-4 w-4 ${isAr ? 'rotate-180' : ''}`} />
                 {T('Send', 'إرسال')}
@@ -1094,12 +1127,12 @@ export default function FeryalAiCommandPage() {
               </p>
             </div>
             {workspace.feryalNotes.map((note) => (
-              <article key={note.id} className="ae-studio-subcard space-y-2.5 p-4">
+              <article key={note.id} className="ae-bento-subcard space-y-2.5 p-4">
                 <div className="flex items-center justify-between gap-2">
                   <h3 className="text-[14.5px] font-extrabold text-slate-950 dark:text-white">
                     {isAr ? note.titleAr : note.titleEn}
                   </h3>
-                  <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11.5px] font-extrabold tabular-nums text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                  <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11.5px] font-extrabold tabular-nums text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
                     {isAr ? note.benefitAr : note.benefitEn}
                   </span>
                 </div>
@@ -1110,7 +1143,7 @@ export default function FeryalAiCommandPage() {
                   type="button"
                   disabled={isCopilotThinking}
                   onClick={() => handleSendQuery(isAr ? note.promptAr : note.promptEn)}
-                  className="w-full rounded-full bg-[#0F172A] px-4 py-2 text-[12.5px] font-bold text-white transition-all duration-150 hover:bg-slate-800 active:scale-[0.98] disabled:opacity-50 dark:bg-white dark:text-slate-950"
+                  className="ae-btn-primary w-full cursor-pointer rounded-full px-4 py-2 text-[12.5px] font-bold transition-all duration-150 hover:opacity-95 active:scale-[0.98] disabled:opacity-50"
                 >
                   {T('Ask Feryal', 'اسأل فريال')}
                 </button>

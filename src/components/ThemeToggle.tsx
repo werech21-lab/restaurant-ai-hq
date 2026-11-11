@@ -1,9 +1,15 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
+import { Moon, Sun } from 'lucide-react'
 import { useTheme } from '@/lib/theme'
 import { useI18n } from '@/lib/i18n'
 
+/**
+ * Tactile Executive Theme Switcher:
+ * - Light Studio ("Finance V2" #F4F6F9 / #FFFFFF)
+ * - Dark Obsidian-Emerald ("Verdelo" #090F15 / #111A22 / #10B981)
+ */
 export function ThemeToggle({ className = '' }: { className?: string }) {
   const { theme, toggleTheme } = useTheme()
   const { locale } = useI18n()
@@ -14,18 +20,15 @@ export function ThemeToggle({ className = '' }: { className?: string }) {
   }, [])
 
   const isAr = locale === 'ar'
-  const isDark = theme === 'dark'
-
-  // Label text strictly adheres to language selection (zero English in Arabic mode)
-  // When currently Dark: displays button to switch to Light mode (☀️ وضع نهاري / ☀️ Light)
-  // When currently Light: displays button to switch to Dark mode (🌙 وضع ليلي / 🌙 Dark)
-  const label = isDark
-    ? (isAr ? '☀️ وضع نهاري' : '☀️ Light')
-    : (isAr ? '🌙 وضع ليلي' : '🌙 Dark')
+  const isDark = mounted ? theme === 'dark' : false
 
   const ariaLabel = isDark
-    ? (isAr ? 'التبديل إلى الوضع النهاري' : 'Switch to Light Mode')
-    : (isAr ? 'التبديل إلى الوضع الليلي' : 'Switch to Dark Mode')
+    ? isAr
+      ? 'التبديل إلى الوضع النهاري (Finance V2)'
+      : 'Switch to Finance V2 Light Mode'
+    : isAr
+      ? 'التبديل إلى الوضع الليلي الزمردي (Verdelo)'
+      : 'Switch to Verdelo Emerald Dark Mode'
 
   return (
     <button
@@ -34,17 +37,19 @@ export function ThemeToggle({ className = '' }: { className?: string }) {
       aria-label={ariaLabel}
       title={ariaLabel}
       data-no-translate=""
-      className={`group relative inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold transition-all duration-200 cursor-pointer active:scale-95 shadow-sm ${
+      className={`group relative inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3 text-[12px] font-bold transition-all duration-150 active:scale-95 ${
         isDark
-          ? 'border-amber-400/30 bg-ink-900/80 text-amber-300 hover:border-amber-400 hover:bg-amber-400/15 hover:text-amber-200 shadow-amber-950/20'
-          : 'border-slate-300 bg-white text-slate-800 hover:border-indigo-400 hover:bg-slate-50 hover:text-indigo-900 shadow-slate-200/50'
+          ? 'bg-[#111A22] text-emerald-300 ring-1 ring-emerald-500/30 hover:ring-emerald-400/60'
+          : 'bg-white text-slate-800 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ring-1 ring-slate-900/[0.05] hover:bg-slate-50 hover:ring-slate-900/15'
       } ${className}`}
     >
-      <span className="text-sm leading-none transition-transform duration-200 group-hover:scale-110" aria-hidden>
-        {isDark ? '☀️' : '🌙'}
-      </span>
-      <span className="tracking-tight whitespace-nowrap">
-        {mounted ? (isDark ? (isAr ? 'وضع نهاري' : 'Light') : (isAr ? 'وضع ليلي' : 'Dark')) : (isDark ? (isAr ? 'وضع نهاري' : 'Light') : (isAr ? 'وضع ليلي' : 'Dark'))}
+      {isDark ? (
+        <Sun className="h-3.5 w-3.5 text-amber-400 transition-transform duration-200 group-hover:rotate-12" />
+      ) : (
+        <Moon className="h-3.5 w-3.5 text-emerald-600 transition-transform duration-200 group-hover:-rotate-12" />
+      )}
+      <span className="whitespace-nowrap tracking-tight">
+        {isDark ? (isAr ? 'نهاري ☀️' : 'Light ☀️') : isAr ? 'ليلي 🌙' : 'Emerald 🌙'}
       </span>
     </button>
   )

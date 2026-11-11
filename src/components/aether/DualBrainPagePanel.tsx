@@ -99,13 +99,13 @@ export function DualBrainPagePanel({
     <section
       dir={isAr ? 'rtl' : 'ltr'}
       aria-label={isAr ? 'تحليل العقل المزدوج للصفحة' : 'Dual-Brain Page Analysis'}
-      className="no-print rounded-2xl bg-white p-4 sm:p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-neutral-950/[0.04] dark:bg-[#0F1626] dark:ring-white/[0.08]"
+      className="ae-bento-card no-print p-4 sm:p-5"
     >
       {/* Compact 1-Click Trigger Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0 space-y-0.5">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[14.5px] font-extrabold text-neutral-950 dark:text-white">
+            <span className="text-[14.5px] font-extrabold text-slate-950 dark:text-white">
               {isAr ? 'قراءة ذكية فورية لأرقام هذه الصفحة' : 'Instant Executive Readout for This Page'}
             </span>
             {result ? (
@@ -114,7 +114,7 @@ export function DualBrainPagePanel({
               </span>
             ) : null}
           </div>
-          <p className="truncate text-[12.5px] font-medium text-neutral-500 dark:text-slate-400">
+          <p className="truncate text-[12.5px] font-medium text-slate-500 dark:text-slate-400">
             {isAr
               ? `${pageTitleAr} • ${workspace.subtitleAr}`
               : `${pageTitleEn} • ${workspace.subtitleEn}`}
@@ -126,7 +126,7 @@ export function DualBrainPagePanel({
             type="button"
             disabled={loading}
             onClick={() => void runAnalysis()}
-            className="inline-flex h-10 items-center gap-2 rounded-full bg-neutral-950 px-4 text-[13px] font-bold text-white shadow-[0_1px_2px_rgba(0,0,0,0.08)] ring-1 ring-neutral-900/80 transition-all duration-150 hover:bg-neutral-800 active:scale-[0.99] disabled:opacity-60 dark:bg-white dark:text-neutral-950 dark:hover:bg-neutral-200"
+            className="ae-btn-primary inline-flex h-10 items-center gap-2 rounded-full px-4 text-[13px] font-bold transition-all duration-150 hover:opacity-95 active:scale-[0.99] disabled:opacity-60"
           >
             {loading ? (
               <>
@@ -142,7 +142,7 @@ export function DualBrainPagePanel({
               </>
             ) : (
               <>
-                <Flame className="h-4 w-4 text-amber-400 dark:text-amber-600" />
+                <Flame className="h-4 w-4" />
                 <span>{buttonLabel}</span>
               </>
             )}
@@ -156,7 +156,7 @@ export function DualBrainPagePanel({
                 setShowSplit(false)
               }}
               aria-label={isAr ? 'إغلاق التحليل' : 'Close analysis'}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#F7F7F8] text-neutral-600 ring-1 ring-neutral-950/[0.04] transition-all duration-150 hover:bg-neutral-200/70 hover:text-neutral-950 dark:bg-white/[0.06] dark:text-slate-300"
+              className="ae-bento-subcard inline-flex h-10 w-10 items-center justify-center rounded-full text-slate-600 transition-all duration-150 hover:opacity-90 dark:text-slate-300"
             >
               <X className="h-4 w-4" />
             </button>
@@ -166,14 +166,14 @@ export function DualBrainPagePanel({
 
       {/* Rendered Consensus + Optional Individual Gemini & Grok Split View */}
       {result ? (
-        <div className="mt-4 space-y-4 border-t border-neutral-100 pt-4 dark:border-white/[0.06]">
+        <div className="mt-4 space-y-4 border-t border-slate-100 pt-4 dark:border-white/[0.06]">
           {statusNote ? (
             <div className="rounded-xl bg-amber-50/80 px-3.5 py-2 text-[12px] font-semibold text-amber-900 ring-1 ring-amber-500/20 dark:bg-amber-950/30 dark:text-amber-200">
               {statusNote}
             </div>
           ) : null}
 
-          <div className="rounded-2xl bg-[#F7F7F8] p-5 text-[14.5px] leading-[1.85] text-neutral-800 ring-1 ring-neutral-950/[0.04] dark:bg-white/[0.04] dark:text-slate-100 dark:ring-white/[0.06]">
+          <div className="ae-bento-subcard rounded-2xl p-5 text-[14.5px] leading-[1.85] text-slate-800 dark:text-slate-100">
             <FeryalStudioMessage text={result.reply} />
           </div>
 
@@ -187,8 +187,8 @@ export function DualBrainPagePanel({
                   aria-expanded={showSplit}
                   className={`inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-[12.5px] font-bold transition-all duration-150 ${
                     showSplit
-                      ? 'bg-neutral-950 text-white ring-1 ring-neutral-900/80 dark:bg-white dark:text-neutral-950'
-                      : 'bg-[#F7F7F8] text-neutral-700 ring-1 ring-neutral-950/[0.05] hover:bg-neutral-200/70 hover:text-neutral-950 dark:bg-white/[0.06] dark:text-slate-200'
+                      ? 'ae-btn-primary'
+                      : 'ae-bento-subcard text-slate-700 hover:opacity-90 dark:text-slate-200'
                   }`}
                 >
                   <Columns2 className="h-3.5 w-3.5" />
@@ -205,7 +205,7 @@ export function DualBrainPagePanel({
               <button
                 type="button"
                 onClick={() => void handleCopy()}
-                className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[#F7F7F8] px-3.5 text-[12.5px] font-bold text-neutral-700 ring-1 ring-neutral-950/[0.05] transition-all duration-150 hover:bg-neutral-200/70 hover:text-neutral-950 dark:bg-white/[0.06] dark:text-slate-200"
+                className="ae-bento-subcard inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-[12.5px] font-bold text-slate-700 transition-all duration-150 hover:opacity-90 dark:text-slate-200"
               >
                 {copied ? (
                   <>
@@ -237,34 +237,34 @@ export function DualBrainPagePanel({
           {/* Side-by-Side Individual Perspectives */}
           {showSplit && hasBothBrains ? (
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <article className="rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-neutral-950/[0.05] dark:bg-[#0D1320] dark:ring-white/[0.08]">
-                <div className="mb-3 flex items-center justify-between gap-2 border-b border-neutral-100 pb-2.5 dark:border-white/[0.06]">
-                  <span className="text-[13.5px] font-extrabold text-neutral-950 dark:text-white">
+              <article className="ae-bento-subcard rounded-2xl p-5">
+                <div className="mb-3 flex items-center justify-between gap-2 border-b border-slate-200/70 pb-2.5 dark:border-white/[0.06]">
+                  <span className="text-[13.5px] font-extrabold text-slate-950 dark:text-white">
                     {isAr ? 'رأي جميني Carbon High ⚡' : 'Gemini Carbon High Perspective ⚡'}
                   </span>
                   {result.geminiModel ? (
-                    <span dir="ltr" className="rounded-full bg-[#F7F7F8] px-2.5 py-0.5 font-mono text-[11px] font-bold text-neutral-600 dark:bg-white/[0.06] dark:text-slate-300">
+                    <span dir="ltr" className="rounded-full bg-white px-2.5 py-0.5 font-mono text-[11px] font-bold text-slate-600 dark:bg-white/[0.06] dark:text-slate-300">
                       {result.geminiModel}
                     </span>
                   ) : null}
                 </div>
-                <div className="text-[14px] leading-[1.8] text-neutral-700 dark:text-slate-200">
+                <div className="text-[14px] leading-[1.8] text-slate-700 dark:text-slate-200">
                   <FeryalStudioMessage text={result.geminiReply ?? ''} />
                 </div>
               </article>
 
-              <article className="rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-neutral-950/[0.05] dark:bg-[#0D1320] dark:ring-white/[0.08]">
-                <div className="mb-3 flex items-center justify-between gap-2 border-b border-neutral-100 pb-2.5 dark:border-white/[0.06]">
-                  <span className="text-[13.5px] font-extrabold text-neutral-950 dark:text-white">
+              <article className="ae-bento-subcard rounded-2xl p-5">
+                <div className="mb-3 flex items-center justify-between gap-2 border-b border-slate-200/70 pb-2.5 dark:border-white/[0.06]">
+                  <span className="text-[13.5px] font-extrabold text-slate-950 dark:text-white">
                     {isAr ? 'رأي جروك Heavy (٣ زوايا) 🧠' : 'xAI Grok Heavy (3-Lens) 🧠'}
                   </span>
                   {result.grokModel ? (
-                    <span dir="ltr" className="rounded-full bg-[#F7F7F8] px-2.5 py-0.5 font-mono text-[11px] font-bold text-neutral-600 dark:bg-white/[0.06] dark:text-slate-300">
+                    <span dir="ltr" className="rounded-full bg-white px-2.5 py-0.5 font-mono text-[11px] font-bold text-slate-600 dark:bg-white/[0.06] dark:text-slate-300">
                       {result.grokModel}
                     </span>
                   ) : null}
                 </div>
-                <div className="text-[14px] leading-[1.8] text-neutral-700 dark:text-slate-200">
+                <div className="text-[14px] leading-[1.8] text-slate-700 dark:text-slate-200">
                   <FeryalStudioMessage text={result.grokReply ?? ''} />
                 </div>
               </article>

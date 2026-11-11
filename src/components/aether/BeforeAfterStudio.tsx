@@ -1,10 +1,26 @@
 'use client'
 
-import React, { useEffect, useMemo, useState } from 'react'
-import { ArrowLeftRight, TrendingDown, TrendingUp } from 'lucide-react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  ArrowLeftRight,
+  Download,
+  Printer,
+  Receipt,
+  ShoppingBag,
+  Sparkles,
+  TrendingDown,
+  TrendingUp,
+  Wallet,
+} from 'lucide-react'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { DualBrainPagePanel } from '@/components/aether/DualBrainPagePanel'
-import { BeforeAfterDualBarChart, type DualBarDatum } from '@/components/aether/InteractiveHoverCharts'
+import {
+  BeforeAfterDualBarChart,
+  InteractiveDonutChart,
+  type DonutSliceDatum,
+  type DualBarDatum,
+} from '@/components/aether/InteractiveHoverCharts'
+import { SlidingPillTabs } from '@/components/ui/SlidingPillTabs'
 import {
   computeBeforeAfterSnapshot,
   type ApprovedDecisionItem,
@@ -23,9 +39,17 @@ import { useLang } from '@/components/aether/ui'
 
 const APPROVALS_STORE = 'vf-journey-approvals-v1'
 
-const f0 = (n: number) => Math.round(n).toLocaleString('en-US')
-const f1 = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
-const f2 = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const f0 = (n: number) => Math.round(Number.isFinite(n) ? n : 0).toLocaleString('en-US')
+const f1 = (n: number) =>
+  (Number.isFinite(n) ? n : 0).toLocaleString('en-US', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  })
+const f2 = (n: number) =>
+  (Number.isFinite(n) ? n : 0).toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
 
 const fmtKwd = (n: number, isAr: boolean, decimals = 0) => {
   const numStr = decimals === 2 ? f2(n) : decimals === 1 || (Math.abs(n) > 0 && Math.abs(n) < 100) ? f1(n) : f0(n)
@@ -40,6 +64,8 @@ const fmtSignedKwd = (n: number, isAr: boolean, decimals = 0) => {
 const fmtSignedPct = (pct: number) => `${pct > 0 ? '+' : ''}${f1(pct)}%`
 
 type TableScopeTab = 'all' | 'brands' | 'branches' | 'channels'
+
+const DONUT_PALETTE = ['#10B981', '#0EA5E9', '#F59E0B', '#64748B']
 
 export function BeforeAfterStudio() {
   const { isAr, T } = useLang()
@@ -85,17 +111,28 @@ export function BeforeAfterStudio() {
   )
 
   const periodModeLabel = useMemo(() => {
-    if (filters.period === 'today') {
-      return T('Today vs Yesterday', 'اليوم مقابل أمس')
-    }
-    if (filters.period === 'week') {
-      return T('This Week vs Last Week', 'هذا الأسبوع مقابل السابق')
-    }
-    if (filters.period === 'year') {
-      return T('This Year vs Prior Period', 'هذه السنة مقابل الفترة المقابلة')
-    }
-    return T('This Month vs Last Month', 'هذا الشهر مقابل السابق')
+    if (filters.period === 'today') return T('Today vs Yesterday', 'اليوم مقابل أمس')
+    if (filters.period === 'week') return T('This Week vs Prior', 'هذا الأسبوع مقابل السابق')
+    if (filters.period === 'year') return T('This Year vs Prior', 'هذه السنة مقابل السابق')
+    return T('This Month vs Prior', 'هذا الشهر مقابل السابق')
   }, [T, filters.period])
+
+  const modeOptions = useMemo(() => {
+    const opts: { id: ComparisonMode; label: string }[] = [
+      { id: 'period-prev', label: periodModeLabel },
+    ]
+    if (filters.period === 'today') {
+      opts.push({
+        id: 'today-lastweek',
+        label: T('Same Day Last Week', 'نفس اليوم الأسبوع الماضي'),
+      })
+    }
+    opts.push({
+      id: 'decision-campaign',
+      label: T('Campaign / Play', 'قبل وبعد قرار أو حملة'),
+    })
+    return opts
+  }, [T, filters.period, periodModeLabel])
 
   // Build DualBarDatum[] for the active metric & grouping
   const chartData = useMemo<DualBarDatum[]>(() => {
@@ -171,11 +208,100 @@ export function BeforeAfterStudio() {
     })
   }, [chartGrouping, chartMetric, isAr, snap.branchPoints, snap.timelinePoints])
 
+  // 4-Col Net Gain Donut Breakdown (by active Branches when Brand filtered, otherwise top active Brands)
+  const netGainDonutSlices = useMemo<DonutSliceDatum[]>(() => {
+    const sourceRows = filters.brand !== 'all' ? snap.byBranchRows : snap.byBrandRows
+    const sorted = [...sourceRows].sort((a, b) => b.afterPocketKwd - a.afterPocketKwd)
+    const top3 = sorted.slice(0, 3)
+    const rest = sorted.slice(3)
+    const totalAfterPocket = Math.max(1, sorted.reduce((acc, r) => acc + Math.max(0, r.afterPocketKwd), 0))
+
+    const items: DonutSliceDatum[] = top3.map((r, i) => {
+      const val = Math.max(0, r.afterPocketKwd)
+      const share = (val / totalAfterPocket) * 100
+      return {
+        id: r.id,
+        label: isAr ? r.nameAr : r.nameEn,
+        subLabel: fmtSignedKwd(r.afterPocketKwd - r.beforePocketKwd, isAr),
+        value: val,
+        valueFormatted: fmtKwd(val, isAr),
+        pctFormatted: `${f1(share)}%`,
+        color: DONUT_PALETTE[i % DONUT_PALETTE.length],
+      }
+    })
+
+    if (rest.length > 0) {
+      const restPocket = rest.reduce((acc, r) => acc + Math.max(0, r.afterPocketKwd), 0)
+      const restDiff = rest.reduce((acc, r) => acc + (r.afterPocketKwd - r.beforePocketKwd), 0)
+      if (restPocket > 0) {
+        items.push({
+          id: 'others',
+          label: isAr ? 'باقي الفروع والمطاعم' : 'Other Locations',
+          subLabel: fmtSignedKwd(restDiff, isAr),
+          value: restPocket,
+          valueFormatted: fmtKwd(restPocket, isAr),
+          pctFormatted: `${f1((restPocket / totalAfterPocket) * 100)}%`,
+          color: DONUT_PALETTE[3],
+        })
+      }
+    }
+
+    return items
+  }, [filters.brand, isAr, snap.byBranchRows, snap.byBrandRows])
+
+  // 1-Click CSV Export
+  const handleExportCsv = useCallback(() => {
+    const headers = [
+      isAr ? 'التصنيف' : 'Group',
+      isAr ? 'الاسم' : 'Item',
+      isAr ? 'المبيعات قبل (د.ك)' : 'Sales Before (KWD)',
+      isAr ? 'المبيعات بعد (د.ك)' : 'Sales After (KWD)',
+      isAr ? 'الفرق (د.ك)' : 'Diff (KWD)',
+      isAr ? 'التغير %' : 'Change %',
+      isAr ? 'الطلبات قبل' : 'Orders Before',
+      isAr ? 'الطلبات بعد' : 'Orders After',
+      isAr ? 'الصافي قبل (د.ك)' : 'Net Pocket Before (KWD)',
+      isAr ? 'الصافي بعد (د.ك)' : 'Net Pocket After (KWD)',
+    ]
+    const toLines = (groupLabel: string, rows: ComparisonTableRow[]) =>
+      rows.map((r) =>
+        [
+          `"${groupLabel}"`,
+          `"${(isAr ? r.nameAr : r.nameEn).replace(/"/g, '""')}"`,
+          r.beforeSalesKwd.toFixed(2),
+          r.afterSalesKwd.toFixed(2),
+          r.diffSalesKwd.toFixed(2),
+          `${r.pctSales.toFixed(1)}%`,
+          Math.round(r.beforeOrders),
+          Math.round(r.afterOrders),
+          r.beforePocketKwd.toFixed(2),
+          r.afterPocketKwd.toFixed(2),
+        ].join(','),
+      )
+
+    const csvLines = [
+      headers.join(','),
+      ...toLines(isAr ? 'المطعم' : 'Brand', snap.byBrandRows),
+      ...toLines(isAr ? 'الفرع' : 'Branch', snap.byBranchRows),
+      ...toLines(isAr ? 'القناة' : 'Channel', snap.byChannelRows),
+    ]
+    const blob = new Blob(['\uFEFF' + csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `aetherbi-before-after-${filters.period}.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }, [filters.period, isAr, snap.byBranchRows, snap.byBrandRows, snap.byChannelRows])
+
   const summaryCards = [
     {
       id: 'sales',
-      titleAr: 'المبيعات (قبل ← بعد)',
-      titleEn: 'Sales (Before → After)',
+      titleAr: 'المبيعات',
+      titleEn: 'Sales',
+      icon: Wallet,
       beforeStr: fmtKwd(snap.summary.sales.before, isAr),
       afterStr: fmtKwd(snap.summary.sales.after, isAr),
       diffStr: fmtSignedKwd(snap.summary.sales.diff, isAr),
@@ -184,8 +310,9 @@ export function BeforeAfterStudio() {
     },
     {
       id: 'pocket',
-      titleAr: 'الصافي بالجيب (قبل ← بعد)',
-      titleEn: 'Net in Pocket (Before → After)',
+      titleAr: 'الصافي بالجيب',
+      titleEn: 'Net in Pocket',
+      icon: Sparkles,
       beforeStr: fmtKwd(snap.summary.pocket.before, isAr),
       afterStr: fmtKwd(snap.summary.pocket.after, isAr),
       diffStr: fmtSignedKwd(snap.summary.pocket.diff, isAr),
@@ -194,8 +321,9 @@ export function BeforeAfterStudio() {
     },
     {
       id: 'orders',
-      titleAr: 'عدد الطلبات (قبل ← بعد)',
-      titleEn: 'Orders (Before → After)',
+      titleAr: 'الطلبات',
+      titleEn: 'Orders',
+      icon: ShoppingBag,
       beforeStr: f0(snap.summary.orders.before),
       afterStr: f0(snap.summary.orders.after),
       diffStr: `${snap.summary.orders.diff > 0 ? '+' : ''}${f0(snap.summary.orders.diff)} ${isAr ? 'طلب' : 'orders'}`,
@@ -204,8 +332,9 @@ export function BeforeAfterStudio() {
     },
     {
       id: 'aov',
-      titleAr: 'متوسط الفاتورة (قبل ← بعد)',
-      titleEn: 'Avg Bill (Before → After)',
+      titleAr: 'متوسط الفاتورة',
+      titleEn: 'Average Bill',
+      icon: Receipt,
       beforeStr: fmtKwd(snap.summary.aov.before, isAr, 2),
       afterStr: fmtKwd(snap.summary.aov.after, isAr, 2),
       diffStr: fmtSignedKwd(snap.summary.aov.diff, isAr, 2),
@@ -216,39 +345,52 @@ export function BeforeAfterStudio() {
 
   const renderSectionTable = (titleAr: string, titleEn: string, rows: ComparisonTableRow[]) => (
     <div className="space-y-2.5">
-      <h3 className="text-[14.5px] font-extrabold text-neutral-900 dark:text-white">
+      <h3 className="text-[14.5px] font-extrabold text-slate-900 dark:text-white">
         {isAr ? titleAr : titleEn}
       </h3>
-      <div className="overflow-x-auto rounded-2xl ring-1 ring-neutral-950/[0.05] dark:ring-white/10">
-        <table className="w-full min-w-[780px] border-collapse bg-white text-[13px] dark:bg-[#0D1320]">
-          <thead className="bg-[#F7F7F8] text-neutral-600 dark:bg-slate-900/80 dark:text-slate-300">
+      <div className="ae-table-wrap rounded-2xl ring-1 ring-slate-950/[0.04] dark:ring-white/[0.06]">
+        <table className="w-full min-w-[780px] border-collapse text-[13px]">
+          <thead className="sticky top-0 z-10 bg-[#F4F6F9] text-slate-600 dark:bg-[#0C141B] dark:text-slate-300">
             <tr>
-              <th className="px-4 py-2.5 text-start text-[12px] font-bold">{T('Item', 'البند')}</th>
-              <th className="px-4 py-2.5 text-end text-[12px] font-bold">{T('Sales Before', 'المبيعات قبل')}</th>
-              <th className="px-4 py-2.5 text-end text-[12px] font-bold">{T('Sales After', 'المبيعات بعد')}</th>
-              <th className="px-4 py-2.5 text-end text-[12px] font-bold">{T('Diff (KWD)', 'الفرق (د.ك)')}</th>
-              <th className="px-4 py-2.5 text-center text-[12px] font-bold">{T('Change %', 'التغير %')}</th>
-              <th className="px-4 py-2.5 text-end text-[12px] font-bold">{T('Orders (Before → After)', 'الطلبات (قبل ← بعد)')}</th>
-              <th className="px-4 py-2.5 text-end text-[12px] font-bold">{T('Net Pocket (Before → After)', 'الصافي بالجيب (قبل ← بعد)')}</th>
+              <th className="px-4 py-3 text-start text-[12px] font-bold">{T('Item', 'البند')}</th>
+              <th className="px-4 py-3 text-end text-[12px] font-bold">{T('Sales Before', 'المبيعات قبل')}</th>
+              <th className="px-4 py-3 text-end text-[12px] font-bold">{T('Sales After', 'المبيعات بعد')}</th>
+              <th className="px-4 py-3 text-end text-[12px] font-bold">{T('Diff (KWD)', 'الفرق (د.ك)')}</th>
+              <th className="px-4 py-3 text-center text-[12px] font-bold">{T('Change %', 'التغير %')}</th>
+              <th className="px-4 py-3 text-end text-[12px] font-bold">
+                {T('Orders (Before → After)', 'الطلبات (قبل ← بعد)')}
+              </th>
+              <th className="px-4 py-3 text-end text-[12px] font-bold">
+                {T('Net Pocket (Before → After)', 'الصافي بالجيب (قبل ← بعد)')}
+              </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-neutral-100 dark:divide-white/[0.06]">
+          <tbody className="divide-y divide-slate-100 dark:divide-white/[0.05]">
             {rows.map((r) => {
               const up = r.diffSalesKwd >= 0
               return (
-                <tr key={r.id} className="transition-colors duration-150 hover:bg-neutral-50/80 dark:hover:bg-white/[0.03]">
-                  <td className="px-4 py-3 font-bold text-neutral-950 whitespace-nowrap dark:text-white">
+                <tr
+                  key={r.id}
+                  className="transition-colors duration-150 hover:bg-emerald-50/40 dark:hover:bg-emerald-500/[0.05]"
+                >
+                  <td className="px-4 py-3 font-bold whitespace-nowrap text-slate-950 dark:text-white">
                     {isAr ? r.nameAr : r.nameEn}
                   </td>
-                  <td dir="ltr" className="px-4 py-3 text-end font-medium tabular-nums text-neutral-500 whitespace-nowrap dark:text-slate-400">
+                  <td
+                    dir="ltr"
+                    className="px-4 py-3 text-end font-medium whitespace-nowrap tabular-nums text-slate-500 dark:text-slate-400"
+                  >
                     {fmtKwd(r.beforeSalesKwd, isAr)}
                   </td>
-                  <td dir="ltr" className="px-4 py-3 text-end font-extrabold tabular-nums text-neutral-950 whitespace-nowrap dark:text-white">
+                  <td
+                    dir="ltr"
+                    className="px-4 py-3 text-end font-extrabold whitespace-nowrap tabular-nums text-slate-950 dark:text-white"
+                  >
                     {fmtKwd(r.afterSalesKwd, isAr)}
                   </td>
                   <td
                     dir="ltr"
-                    className={`px-4 py-3 text-end font-extrabold tabular-nums whitespace-nowrap ${
+                    className={`px-4 py-3 text-end font-extrabold whitespace-nowrap tabular-nums ${
                       up ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
                     }`}
                   >
@@ -265,10 +407,16 @@ export function BeforeAfterStudio() {
                       {fmtSignedPct(r.pctSales)}
                     </span>
                   </td>
-                  <td dir="ltr" className="px-4 py-3 text-end font-semibold tabular-nums text-neutral-700 whitespace-nowrap dark:text-slate-200">
+                  <td
+                    dir="ltr"
+                    className="px-4 py-3 text-end font-semibold whitespace-nowrap tabular-nums text-slate-700 dark:text-slate-200"
+                  >
                     {f0(r.beforeOrders)} → {f0(r.afterOrders)}
                   </td>
-                  <td dir="ltr" className="px-4 py-3 text-end font-bold tabular-nums text-emerald-800 whitespace-nowrap dark:text-emerald-300">
+                  <td
+                    dir="ltr"
+                    className="px-4 py-3 text-end font-bold whitespace-nowrap tabular-nums text-emerald-800 dark:text-emerald-300"
+                  >
                     {fmtKwd(r.beforePocketKwd, isAr)} → {fmtKwd(r.afterPocketKwd, isAr)}
                   </td>
                 </tr>
@@ -281,9 +429,9 @@ export function BeforeAfterStudio() {
   )
 
   return (
-    <div dir={isAr ? 'rtl' : 'ltr'} className="mx-auto w-full max-w-[1540px] space-y-6 pb-12">
-      {/* Masthead + Comparison Mode Selector */}
-      <header className="flex flex-col gap-4 rounded-3xl bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-neutral-950/[0.04] lg:flex-row lg:items-center lg:justify-between dark:bg-[#0F1626] dark:ring-white/[0.07]">
+    <div dir={isAr ? 'rtl' : 'ltr'} className="w-full space-y-5 pb-12">
+      {/* Masthead + Sliding Comparison Mode + 1-Click Export CSV / Print */}
+      <header className="ae-bento-card flex flex-col gap-4 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
         <div className="space-y-1">
           <div className="inline-flex items-center gap-2 text-[12px] font-bold text-emerald-700 dark:text-emerald-400">
             <ArrowLeftRight className="h-3.5 w-3.5" />
@@ -291,61 +439,29 @@ export function BeforeAfterStudio() {
               {isAr ? `${snap.beforeLabelAr}  ←  ${snap.afterLabelAr}` : `${snap.beforeLabelEn}  →  ${snap.afterLabelEn}`}
             </span>
           </div>
-          <h1 className="text-[24px] font-extrabold tracking-tight text-neutral-950 sm:text-[28px] dark:text-white">
+          <h1 className="text-[24px] font-extrabold tracking-tight text-slate-950 sm:text-[26px] dark:text-white">
             {T('Before & After', 'مقارنة قبل وبعد')}
           </h1>
-          <p className="text-[13.5px] font-medium text-neutral-500 dark:text-slate-400">
+          <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400">
             {isAr ? workspace.subtitleAr : workspace.subtitleEn}
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex flex-wrap items-center gap-1 rounded-full bg-[#F7F7F8] p-1 ring-1 ring-neutral-950/[0.04] dark:bg-white/[0.05] dark:ring-white/[0.08]">
-            <button
-              type="button"
-              onClick={() => setMode('period-prev')}
-              className={`rounded-full px-3.5 py-2 text-[12.5px] font-bold transition duration-150 ${
-                mode === 'period-prev'
-                  ? 'bg-neutral-950 text-white shadow-[0_1px_2px_rgba(0,0,0,0.08)] dark:bg-white dark:text-neutral-950'
-                  : 'text-neutral-600 hover:text-neutral-950 dark:text-slate-300'
-              }`}
-            >
-              {periodModeLabel}
-            </button>
-
-            {filters.period === 'today' ? (
-              <button
-                type="button"
-                onClick={() => setMode('today-lastweek')}
-                className={`rounded-full px-3.5 py-2 text-[12.5px] font-bold transition duration-150 ${
-                  mode === 'today-lastweek'
-                    ? 'bg-neutral-950 text-white shadow-[0_1px_2px_rgba(0,0,0,0.08)] dark:bg-white dark:text-neutral-950'
-                    : 'text-neutral-600 hover:text-neutral-950 dark:text-slate-300'
-                }`}
-              >
-                {T('Same Day Last Week', 'نفس اليوم الأسبوع الماضي')}
-              </button>
-            ) : null}
-
-            <button
-              type="button"
-              onClick={() => setMode('decision-campaign')}
-              className={`rounded-full px-3.5 py-2 text-[12.5px] font-bold transition duration-150 ${
-                mode === 'decision-campaign'
-                  ? 'bg-neutral-950 text-white shadow-[0_1px_2px_rgba(0,0,0,0.08)] dark:bg-white dark:text-neutral-950'
-                  : 'text-neutral-600 hover:text-neutral-950 dark:text-slate-300'
-              }`}
-            >
-              {T('Before & After Campaign / Play', 'مقارنة قبل وبعد قرار أو حملة معتمدة')}
-            </button>
-          </div>
+        <div className="no-print flex flex-wrap items-center gap-2">
+          <SlidingPillTabs<ComparisonMode>
+            ariaLabel={T('Comparison Mode', 'نوع المقارنة')}
+            size="sm"
+            value={mode}
+            onChange={setMode}
+            options={modeOptions}
+          />
 
           {mode === 'decision-campaign' ? (
             <select
               value={snap.activeEvent?.id ?? ''}
               onChange={(e) => setSelectedEventId(e.target.value)}
               aria-label={T('Select approved play or campaign', 'اختر قرار أو حملة معتمدة')}
-              className="h-10 max-w-full rounded-full bg-white px-4 text-[12.5px] font-bold text-neutral-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-neutral-900/80 focus:outline-none dark:bg-[#0F1626] dark:text-white dark:ring-white/60"
+              className="ae-select h-9"
             >
               {snap.eventOptions.map((ev) => (
                 <option key={ev.id} value={ev.id}>
@@ -354,6 +470,24 @@ export function BeforeAfterStudio() {
               ))}
             </select>
           ) : null}
+
+          <button
+            type="button"
+            onClick={handleExportCsv}
+            className="ae-bento-subcard inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-[12px] font-bold text-slate-800 transition-all duration-150 hover:text-slate-950 active:scale-95 dark:text-slate-100"
+          >
+            <Download className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span>{T('Export CSV', 'تحميل CSV')}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="ae-bento-subcard inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-[12px] font-bold text-slate-800 transition-all duration-150 hover:text-slate-950 active:scale-95 dark:text-slate-100"
+          >
+            <Printer className="h-3.5 w-3.5 text-slate-500 dark:text-slate-300" />
+            <span>{T('Print', 'طباعة')}</span>
+          </button>
         </div>
       </header>
 
@@ -366,170 +500,166 @@ export function BeforeAfterStudio() {
         pageContext={`المقارنة النشطة: (${snap.beforeLabelAr}) مقابل (${snap.afterLabelAr}). المبيعات: قبل ${f0(snap.summary.sales.before)} د.ك ← بعد ${f0(snap.summary.sales.after)} د.ك (${fmtSignedPct(snap.summary.sales.pct)}). الصافي بالجيب: قبل ${f0(snap.summary.pocket.before)} د.ك ← بعد ${f0(snap.summary.pocket.after)} د.ك (${fmtSignedPct(snap.summary.pocket.pct)}). الطلبات: قبل ${f0(snap.summary.orders.before)} ← بعد ${f0(snap.summary.orders.after)} (${fmtSignedPct(snap.summary.orders.pct)}). متوسط الفاتورة: قبل ${f2(snap.summary.aov.before)} د.ك ← بعد ${f2(snap.summary.aov.after)} د.ك.`}
       />
 
-      {/* 4 Simple Summary Cards (tabular-nums) */}
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {summaryCards.map((c) => (
-          <div
-            key={c.id}
-            className="rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-neutral-950/[0.04] dark:bg-[#0F1626] dark:ring-white/[0.07]"
-          >
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[13px] font-bold text-neutral-600 dark:text-slate-300">
-                {isAr ? c.titleAr : c.titleEn}
-              </span>
-              <span
-                dir="ltr"
-                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11.5px] font-extrabold tabular-nums ${
-                  c.good
-                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
-                    : 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'
-                }`}
-              >
-                {c.good ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                {fmtSignedPct(c.pct)}
-              </span>
-            </div>
-
-            <div dir="ltr" className="mt-3 flex items-baseline justify-between gap-2">
-              <div className="text-[13px] font-semibold tabular-nums text-neutral-400 dark:text-slate-400">
-                <span className="block text-[10.5px] font-bold uppercase">{T('Before', 'قبل')}</span>
-                {c.beforeStr}
-              </div>
-              <span className="text-neutral-300 dark:text-slate-600">→</span>
-              <div className="text-end text-[22px] font-extrabold tabular-nums text-neutral-950 dark:text-white">
-                <span className="block text-[10.5px] font-bold text-emerald-600 dark:text-emerald-400">
-                  {T('After', 'بعد')}
-                </span>
-                {c.afterStr}
-              </div>
-            </div>
-
-            <div className="mt-2.5 flex items-center justify-between border-t border-neutral-100 pt-2 text-[12.5px] dark:border-white/[0.06]">
-              <span className="font-medium text-neutral-500 dark:text-slate-400">{T('Difference:', 'الفرق:')}</span>
-              <span
-                dir="ltr"
-                className={`font-extrabold tabular-nums ${
-                  c.good ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
-                }`}
-              >
-                {c.diffStr}
-              </span>
-            </div>
-          </div>
-        ))}
-      </section>
-
-      {/* Interactive Dual Chart with Rich Hover Numbers */}
-      <section className="rounded-3xl bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-neutral-950/[0.04] space-y-5 dark:bg-[#0F1626] dark:ring-white/[0.07]">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          {/* 5 Metric Switcher Pills */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            {(
-              [
-                ['sales', T('Sales', 'المبيعات')],
-                ['pocket', T('Net in Pocket', 'الصافي بالجيب')],
-                ['orders', T('Orders', 'الطلبات')],
-                ['aov', T('Avg Bill', 'متوسط الفاتورة')],
-                ['expenses', T('Expenses', 'المصاريف')],
-              ] as const
-            ).map(([key, label]) => {
-              const active = chartMetric === key
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setChartMetric(key)}
-                  className={`rounded-full px-4 py-2 text-[13px] font-bold transition duration-150 ${
-                    active
-                      ? 'bg-neutral-950 text-white ring-1 ring-neutral-900/80 dark:bg-white dark:text-neutral-950'
-                      : 'bg-[#F7F7F8] text-neutral-700 hover:bg-neutral-200/70 dark:bg-white/[0.06] dark:text-slate-200'
+      {/* Top Row: 4 Before-vs-After KPI Cards (tabular-nums + + / - KWD & % pills) */}
+      <section className="ae-stagger grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {summaryCards.map((c) => {
+          const Icon = c.icon
+          return (
+            <article
+              key={c.id}
+              className={`ae-kpi-card p-5 ${c.good ? 'ae-glow-emerald' : 'ae-glow-rose'}`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="ae-icon-badge">
+                    <Icon className="h-4 w-4" />
+                  </span>
+                  <span className="text-[13.5px] font-extrabold text-slate-800 dark:text-slate-100">
+                    {isAr ? c.titleAr : c.titleEn}
+                  </span>
+                </div>
+                <span
+                  dir="ltr"
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11.5px] font-extrabold tabular-nums ${
+                    c.good
+                      ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
+                      : 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'
                   }`}
                 >
-                  {label}
-                </button>
-              )
-            })}
-          </div>
+                  {c.good ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                  {fmtSignedPct(c.pct)}
+                </span>
+              </div>
 
-          {/* Grouping Toggle: Timeline vs Branches */}
-          <div className="inline-flex items-center gap-1 rounded-full bg-[#F7F7F8] p-1 dark:bg-white/[0.05]">
-            <button
-              type="button"
-              onClick={() => setChartGrouping('timeline')}
-              className={`rounded-full px-3.5 py-1.5 text-[12px] font-bold transition duration-150 ${
-                chartGrouping === 'timeline'
-                  ? 'bg-white text-neutral-950 shadow-sm dark:bg-slate-800 dark:text-white'
-                  : 'text-neutral-600 dark:text-slate-300'
-              }`}
-            >
-              {T('By Date / Time', 'حسب التاريخ')}
-            </button>
-            <button
-              type="button"
-              onClick={() => setChartGrouping('branches')}
-              className={`rounded-full px-3.5 py-1.5 text-[12px] font-bold transition duration-150 ${
-                chartGrouping === 'branches'
-                  ? 'bg-white text-neutral-950 shadow-sm dark:bg-slate-800 dark:text-white'
-                  : 'text-neutral-600 dark:text-slate-300'
-              }`}
-            >
-              {T('By Branch', 'حسب الفروع')}
-            </button>
-          </div>
-        </div>
+              <div dir="ltr" className="mt-3.5 flex items-baseline justify-between gap-2">
+                <div className="text-[13px] font-semibold tabular-nums text-slate-400 dark:text-slate-400">
+                  <span className="block text-[10.5px] font-bold uppercase">{T('Before', 'قبل')}</span>
+                  {c.beforeStr}
+                </div>
+                <span className="text-slate-300 dark:text-slate-600">→</span>
+                <div className="text-end text-[23px] font-black tracking-tight tabular-nums text-slate-950 dark:text-white">
+                  <span className="block text-[10.5px] font-bold text-emerald-600 dark:text-emerald-400">
+                    {T('After', 'بعد')}
+                  </span>
+                  {c.afterStr}
+                </div>
+              </div>
 
-        <BeforeAfterDualBarChart
-          data={chartData}
-          isAr={isAr}
-          beforeLegend={`${T('Before', 'قبل')} (${isAr ? snap.beforeLabelAr : snap.beforeLabelEn})`}
-          afterLegend={`${T('After', 'بعد')} (${isAr ? snap.afterLabelAr : snap.afterLabelEn})`}
-          formatAxisValue={
-            chartMetric === 'aov'
-              ? (v) => v.toFixed(1)
-              : (v) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : Math.round(v).toLocaleString('en-US'))
-          }
-        />
+              <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2.5 text-[12px] dark:border-white/[0.06]">
+                <span className="font-semibold text-slate-500 dark:text-slate-400">
+                  {T('Delta:', 'الفرق:')}
+                </span>
+                <span
+                  dir="ltr"
+                  className={`rounded-full px-2.5 py-0.5 font-extrabold tabular-nums ${
+                    c.good
+                      ? 'bg-emerald-50/80 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+                      : 'bg-rose-50/80 text-rose-600 dark:bg-rose-950/40 dark:text-rose-300'
+                  }`}
+                >
+                  {c.diffStr}
+                </span>
+              </div>
+            </article>
+          )
+        })}
       </section>
 
-      {/* Simple Comparison Tables Underneath: Brand, Branch, Channel */}
-      <section className="rounded-3xl bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-neutral-950/[0.04] space-y-5 dark:bg-[#0F1626] dark:ring-white/[0.07]">
+      {/* Middle Bento Row: 8-Col Dual Capsule Chart + 4-Col Net Gain Donut Breakdown */}
+      <section className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+        {/* 8-Col Card: Interactive Before vs After Dual Capsule Chart */}
+        <div className="ae-bento-card flex flex-col justify-between space-y-4 p-5 sm:p-6 lg:col-span-8">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <SlidingPillTabs<ChartMetricKey>
+              ariaLabel={T('Metric', 'المؤشر')}
+              size="sm"
+              value={chartMetric}
+              onChange={setChartMetric}
+              options={[
+                { id: 'sales', label: T('Sales', 'المبيعات') },
+                { id: 'pocket', label: T('Net Pocket', 'الصافي بالجيب') },
+                { id: 'orders', label: T('Orders', 'الطلبات') },
+                { id: 'aov', label: T('Avg Bill', 'متوسط الفاتورة') },
+                { id: 'expenses', label: T('Expenses', 'المصاريف') },
+              ]}
+            />
+
+            <SlidingPillTabs<ChartGroupingKey>
+              ariaLabel={T('Grouping', 'التقسيم')}
+              size="sm"
+              value={chartGrouping}
+              onChange={setChartGrouping}
+              options={[
+                { id: 'timeline', label: T('By Date', 'حسب التاريخ') },
+                { id: 'branches', label: T('By Branch', 'حسب الفروع') },
+              ]}
+            />
+          </div>
+
+          <BeforeAfterDualBarChart
+            data={chartData}
+            isAr={isAr}
+            beforeLegend={`${T('Before', 'قبل')} (${isAr ? snap.beforeLabelAr : snap.beforeLabelEn})`}
+            afterLegend={`${T('After', 'بعد')} (${isAr ? snap.afterLabelAr : snap.afterLabelEn})`}
+            formatAxisValue={
+              chartMetric === 'aov'
+                ? (v) => v.toFixed(1)
+                : (v) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : Math.round(v).toLocaleString('en-US'))
+            }
+            heightClass="h-64"
+          />
+        </div>
+
+        {/* 4-Col Card: Net Pocket Gain & Share Donut Breakdown */}
+        <div className="ae-bento-card flex flex-col justify-between p-5 sm:p-6 lg:col-span-4">
+          <div className="mb-3">
+            <h2 className="text-[17px] font-extrabold tracking-tight text-slate-950 dark:text-white">
+              {T('Net Pocket Breakdown', 'توزيعة الصافي بعد')}
+            </h2>
+            <p className="text-[12.5px] font-medium text-slate-500 dark:text-slate-400">
+              {T('Share of post-period net cash & delta', 'مساهمة كل مطعم أو فرع في الصافي والفرق')}
+            </p>
+          </div>
+
+          <InteractiveDonutChart
+            slices={netGainDonutSlices}
+            centerValue={fmtSignedPct(snap.summary.pocket.pct)}
+            centerSubValue={fmtSignedKwd(snap.summary.pocket.diff, isAr)}
+            centerLabel={T('Net Gain', 'فرق الصافي')}
+            isAr={isAr}
+            legendColumns={1}
+          />
+        </div>
+      </section>
+
+      {/* Clean Comparison Table Underneath */}
+      <section className="ae-bento-card space-y-5 p-5 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-[18px] font-extrabold text-neutral-950 dark:text-white">
-            {T('Detailed Before vs After Table', 'جدول مقارنة قبل وبعد التفصيلي')}
+          <h2 className="text-[17.5px] font-extrabold text-slate-950 dark:text-white">
+            {T('Before vs After Table', 'جدول مقارنة قبل وبعد')}
           </h2>
 
-          <div className="flex flex-wrap items-center gap-1.5">
-            {(
-              [
-                ['all', T('Show All', 'عرض الكل')],
-                ['brands', T('By Brand', 'حسب المطعم')],
-                ['branches', T('By Branch', 'حسب الفرع')],
-                ['channels', T('By Channel', 'حسب القناة')],
-              ] as const
-            ).map(([id, label]) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setTableTab(id)}
-                className={`rounded-full px-3.5 py-1.5 text-[12.5px] font-bold transition duration-150 ${
-                  tableTab === id
-                    ? 'bg-neutral-950 text-white dark:bg-white dark:text-neutral-950'
-                    : 'bg-[#F7F7F8] text-neutral-700 hover:bg-neutral-200/70 dark:bg-white/[0.06] dark:text-slate-200'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <SlidingPillTabs<TableScopeTab>
+            ariaLabel={T('Table Filter', 'تصفية الجدول')}
+            size="sm"
+            value={tableTab}
+            onChange={setTableTab}
+            options={[
+              { id: 'all', label: T('Show All', 'عرض الكل') },
+              { id: 'brands', label: T('By Brand', 'حسب المطعم') },
+              { id: 'branches', label: T('By Branch', 'حسب الفرع') },
+              { id: 'channels', label: T('By Channel', 'حسب القناة') },
+            ]}
+          />
         </div>
 
         <div className="space-y-6">
           {(tableTab === 'all' || tableTab === 'brands') &&
-            renderSectionTable('حسب المطعم (براندات فنتشر فودز المعتمدة)', 'By Venture Foods Brand', snap.byBrandRows)}
+            renderSectionTable('حسب المطعم', 'By Brand', snap.byBrandRows)}
           {(tableTab === 'all' || tableTab === 'branches') &&
-            renderSectionTable('حسب الفرع الفعلي', 'By Active Branch', snap.byBranchRows)}
+            renderSectionTable('حسب الفرع', 'By Branch', snap.byBranchRows)}
           {(tableTab === 'all' || tableTab === 'channels') &&
-            renderSectionTable('حسب قناة البيع والتوصيل', 'By Sales & Delivery Channel', snap.byChannelRows)}
+            renderSectionTable('حسب القناة', 'By Channel', snap.byChannelRows)}
         </div>
       </section>
     </div>

@@ -16,6 +16,7 @@ import JOURNEY from '@/lib/odoo/odoo-journey.json'
 import type { OdooBucketSummary } from '@/lib/odoo/live-sync-core'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { DualBrainPagePanel } from '@/components/aether/DualBrainPagePanel'
+import { SlidingPillTabs } from '@/components/ui/SlidingPillTabs'
 import type { GlobalPeriod } from '@/lib/aether/global-filter-engine'
 import { useLang } from '@/components/aether/ui'
 
@@ -35,7 +36,17 @@ const fmtAmount = (n: number) => {
 type ForensicStatus = 'stopped' | 'stalled' | 'active'
 type ChannelKey = 'talabat-tgo' | 'talabat-tmp' | 'keeta' | 'deliveroo' | 'jahez' | 'snoonu'
 type DeliveryMode = 'Tgo' | 'TMP'
-type QuickFilter = 'all' | 'stopped' | 'stalled' | 'active' | 'tgo' | 'tmp'
+type QuickFilter =
+  | 'all'
+  | 'stopped'
+  | 'stalled'
+  | 'active'
+  | 'tgo'
+  | 'tmp'
+  | 'keeta'
+  | 'deliveroo'
+  | 'jahez'
+  | 'gap'
 type SortMode = 'forensic' | 'sales'
 
 interface DeliverySnapshot {
@@ -478,6 +489,12 @@ export function DeliveryRadarV5() {
     const activeCount = globalScopedRows.filter((r) => r.status === 'active').length
     const tgoCount = globalScopedRows.filter((r) => r.channelKey === 'talabat-tgo').length
     const tmpCount = globalScopedRows.filter((r) => r.channelKey === 'talabat-tmp').length
+    const keetaCount = globalScopedRows.filter((r) => r.channelKey === 'keeta').length
+    const deliverooCount = globalScopedRows.filter((r) => r.channelKey === 'deliveroo').length
+    const jahezCount = globalScopedRows.filter((r) => r.channelKey === 'jahez').length
+    const gapCount = globalScopedRows.filter(
+      (r) => r.varianceKwd > 0.05 || r.divertedToTgo || (r.actualPct !== null && r.actualPct > r.contractPct + 0.3),
+    ).length
     const totalOrders = globalScopedRows.reduce((s, r) => s + r.orders, 0)
     const totalSalesKwd = globalScopedRows.reduce((s, r) => s + r.salesKwd, 0)
     const totalNetKwd = globalScopedRows.reduce((s, r) => s + r.netKwd, 0)
@@ -490,6 +507,10 @@ export function DeliveryRadarV5() {
       activeCount,
       tgoCount,
       tmpCount,
+      keetaCount,
+      deliverooCount,
+      jahezCount,
+      gapCount,
       totalOrders,
       totalSalesKwd,
       totalNetKwd,
@@ -508,6 +529,15 @@ export function DeliveryRadarV5() {
         if (quickFilter === 'active' && r.status !== 'active') return false
         if (quickFilter === 'tgo' && r.channelKey !== 'talabat-tgo') return false
         if (quickFilter === 'tmp' && r.channelKey !== 'talabat-tmp') return false
+        if (quickFilter === 'keeta' && r.channelKey !== 'keeta') return false
+        if (quickFilter === 'deliveroo' && r.channelKey !== 'deliveroo') return false
+        if (quickFilter === 'jahez' && r.channelKey !== 'jahez') return false
+        if (
+          quickFilter === 'gap' &&
+          !(r.varianceKwd > 0.05 || r.divertedToTgo || (r.actualPct !== null && r.actualPct > r.contractPct + 0.3))
+        ) {
+          return false
+        }
         if (!q) return true
         const hay = `${r.brandEn} ${r.brandAr} ${r.branchEn} ${r.branchAr} ${r.platformEn} ${r.platformAr} ${r.noteEn} ${r.noteAr}`.toLowerCase()
         return hay.includes(q)
@@ -616,14 +646,14 @@ export function DeliveryRadarV5() {
   }
 
   return (
-    <div dir={isAr ? 'rtl' : 'ltr'} className="mx-auto w-full max-w-[1540px] space-y-5">
-      {/* Ultra-Simple Header */}
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div dir={isAr ? 'rtl' : 'ltr'} className="mx-auto w-full max-w-[1600px] space-y-5">
+      {/* Finance V2 Executive Masthead */}
+      <header className="ae-bento-card flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div className="min-w-0 space-y-1">
-          <h1 className="text-[24px] font-extrabold tracking-tight text-neutral-950 sm:text-[28px] dark:text-white">
+          <h1 className="text-[24px] font-extrabold tracking-tight text-slate-950 sm:text-[28px] dark:text-white">
             {T('Delivery Radar', 'مراقبة التوصيل')}
           </h1>
-          <p className="text-[13.5px] font-medium text-neutral-500 dark:text-slate-400">
+          <p className="text-[13.5px] font-medium text-slate-500 dark:text-slate-400">
             {isAr ? workspace.subtitleAr : workspace.subtitleEn}
           </p>
         </div>
@@ -631,9 +661,9 @@ export function DeliveryRadarV5() {
         <button
           type="button"
           onClick={exportCsv}
-          className="inline-flex h-10 items-center gap-2 self-start rounded-full bg-white px-4 text-[12.5px] font-bold text-neutral-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-neutral-950/[0.06] transition duration-150 hover:bg-neutral-50 sm:self-auto dark:bg-[#0F1626] dark:text-white dark:ring-white/10"
+          className="ae-bento-subcard inline-flex h-10 cursor-pointer items-center gap-2 self-start rounded-full px-4 text-[12.5px] font-bold text-slate-900 transition duration-150 hover:opacity-90 sm:self-auto dark:text-white"
         >
-          <Download className="h-3.5 w-3.5" />
+          <Download className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
           {T('Export CSV', 'تحميل الجدول')}
         </button>
       </header>
@@ -649,8 +679,8 @@ export function DeliveryRadarV5() {
 
       {/* Non-App Channel Helper Banner */}
       {isNonAppChannelSelected ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-neutral-950/[0.05] dark:bg-[#0F1626] dark:ring-white/10">
-          <p className="text-[13.5px] font-semibold text-neutral-700 dark:text-slate-200">
+        <div className="ae-bento-card flex flex-wrap items-center justify-between gap-3 p-4">
+          <p className="text-[13.5px] font-semibold text-slate-700 dark:text-slate-200">
             {T(
               'You selected an in-store or direct channel. Switch channel to view delivery apps.',
               'القناة المختارة حالياً هي الصالة أو السفري المباشر. لعرض تطبيقات التوصيل اضغط الزر التالي.',
@@ -659,62 +689,62 @@ export function DeliveryRadarV5() {
           <button
             type="button"
             onClick={() => setChannel('all')}
-            className="rounded-full bg-neutral-950 px-4 py-2 text-[12.5px] font-bold text-white transition duration-150 hover:bg-neutral-800 dark:bg-white dark:text-neutral-950"
+            className="ae-btn-primary rounded-full px-4 py-2 text-[12.5px] font-bold transition duration-150 hover:opacity-95"
           >
             {T('Show All Apps', 'عرض كل القنوات')}
           </button>
         </div>
       ) : null}
 
-      {/* 4 Ultra-Simple Summary Cards */}
+      {/* 4 Top Status KPI Cards (Finance V2 × Verdelo Micro-Lift) */}
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-neutral-950/[0.04] dark:bg-[#0F1626] dark:ring-white/[0.08]">
-          <div className="flex items-center justify-between gap-2 text-[13px] font-bold text-neutral-600 dark:text-slate-300">
+        <div className="ae-kpi-card p-5">
+          <div className="flex items-center justify-between gap-2 text-[13px] font-bold text-slate-600 dark:text-slate-300">
             <span>{T('Stopped Accounts', 'حسابات متوقفة')}</span>
-            <XCircle className="h-4 w-4 text-rose-600" />
+            <XCircle className="h-4 w-4 text-rose-600 dark:text-rose-400" />
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-[26px] font-extrabold tabular-nums text-rose-700 dark:text-rose-400">
+            <span className="text-[28px] font-extrabold tabular-nums text-rose-700 dark:text-rose-400">
               {summary.stoppedCount}
             </span>
-            <span className="text-[12px] font-medium text-neutral-400 dark:text-slate-400">
+            <span className="text-[12px] font-medium text-slate-400 dark:text-slate-400">
               {T(`of ${summary.totalAccounts}`, `من ${summary.totalAccounts}`)}
             </span>
           </div>
-          <p className="mt-1 text-[12.5px] text-neutral-500 dark:text-slate-400">
+          <p className="mt-1 text-[12.5px] text-slate-500 dark:text-slate-400">
             {T('Accounts receiving zero orders right now.', 'حسابات لا تستقبل أي طلبات حالياً.')}
           </p>
         </div>
 
-        <div className="rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-neutral-950/[0.04] dark:bg-[#0F1626] dark:ring-white/[0.08]">
-          <div className="flex items-center justify-between gap-2 text-[13px] font-bold text-neutral-600 dark:text-slate-300">
+        <div className="ae-kpi-card p-5">
+          <div className="flex items-center justify-between gap-2 text-[13px] font-bold text-slate-600 dark:text-slate-300">
             <span>{T('Low Accounts', 'حسابات ضعيفة')}</span>
-            <AlertTriangle className="h-4 w-4 text-amber-600" />
+            <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-[26px] font-extrabold tabular-nums text-amber-700 dark:text-amber-400">
+            <span className="text-[28px] font-extrabold tabular-nums text-amber-700 dark:text-amber-400">
               {summary.stalledCount}
             </span>
             <span className="text-[12px] font-semibold text-emerald-700 dark:text-emerald-400">
               · {summary.activeCount} {T('Active 🟢', 'شغال 🟢')}
             </span>
           </div>
-          <p className="mt-1 text-[12.5px] text-neutral-500 dark:text-slate-400">
+          <p className="mt-1 text-[12.5px] text-slate-500 dark:text-slate-400">
             {T('Very few orders or restricted delivery zone.', 'طلبات قليلة جداً أو نطاق توصيل مقيد.')}
           </p>
         </div>
 
-        <div className="rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-neutral-950/[0.04] dark:bg-[#0F1626] dark:ring-white/[0.08]">
-          <div className="flex items-center justify-between gap-2 text-[13px] font-bold text-neutral-600 dark:text-slate-300">
+        <div className="ae-kpi-card p-5">
+          <div className="flex items-center justify-between gap-2 text-[13px] font-bold text-slate-600 dark:text-slate-300">
             <span>{T('Delivery Sales', 'مبيعات التوصيل')}</span>
-            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+            <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
           </div>
-          <div dir="ltr" className="mt-2 flex items-baseline gap-2 text-[25px] font-extrabold tabular-nums text-neutral-950 dark:text-white">
+          <div dir="ltr" className="mt-2 flex items-baseline gap-2 text-[26px] font-extrabold tabular-nums text-slate-950 dark:text-white">
             <span>
               {fmtAmount(summary.totalSalesKwd)} {isAr ? 'د.ك' : 'KWD'}
             </span>
           </div>
-          <p className="mt-1 text-[12.5px] text-neutral-500 dark:text-slate-400">
+          <p className="mt-1 text-[12.5px] text-slate-500 dark:text-slate-400">
             {T(
               `${f0(summary.totalOrders)} orders · Net ${fmtAmount(summary.totalNetKwd)} KWD.`,
               `${f0(summary.totalOrders)} طلب · الصافي بعد العمولة ${fmtAmount(summary.totalNetKwd)} د.ك.`,
@@ -722,15 +752,15 @@ export function DeliveryRadarV5() {
           </p>
         </div>
 
-        <div className="rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-neutral-950/[0.04] dark:bg-[#0F1626] dark:ring-white/[0.08]">
-          <div className="flex items-center justify-between gap-2 text-[13px] font-bold text-neutral-600 dark:text-slate-300">
+        <div className="ae-kpi-card p-5">
+          <div className="flex items-center justify-between gap-2 text-[13px] font-bold text-slate-600 dark:text-slate-300">
             <span>{T('Commission Gap', 'فرق العمولات')}</span>
-            <AlertTriangle className="h-4 w-4 text-rose-600" />
+            <AlertTriangle className="h-4 w-4 text-rose-600 dark:text-rose-400" />
           </div>
-          <div dir="ltr" className="mt-2 text-[25px] font-extrabold tabular-nums text-rose-700 dark:text-rose-400">
+          <div dir="ltr" className="mt-2 text-[26px] font-extrabold tabular-nums text-rose-700 dark:text-rose-400">
             -{fmtAmount(summary.totalVarianceKwd)} {isAr ? 'د.ك' : 'KWD'}
           </div>
-          <p className="mt-1 text-[12.5px] text-neutral-500 dark:text-slate-400">
+          <p className="mt-1 text-[12.5px] text-slate-500 dark:text-slate-400">
             {T(
               'Extra fees above contract or Tgo 17% shift.',
               'خصومات فوق نسبة العقد أو تحول إلى Tgo الأعلى عمولة.',
@@ -739,66 +769,57 @@ export function DeliveryRadarV5() {
         </div>
       </section>
 
-      {/* Single Unified Delivery Table */}
-      <section className="rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-neutral-950/[0.04] sm:p-6 space-y-4 dark:bg-[#0F1626] dark:ring-white/[0.08]">
-        {/* Quick Status Pills + Search + Sort */}
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-wrap items-center gap-1.5">
-            {(
-              [
-                { id: 'all', labelAr: `الكل (${summary.totalAccounts})`, labelEn: `All (${summary.totalAccounts})` },
-                { id: 'stopped', labelAr: `متوقف 🔴 (${summary.stoppedCount})`, labelEn: `Stopped 🔴 (${summary.stoppedCount})` },
-                { id: 'stalled', labelAr: `ضعيف 🟠 (${summary.stalledCount})`, labelEn: `Low 🟠 (${summary.stalledCount})` },
-                { id: 'active', labelAr: `شغال 🟢 (${summary.activeCount})`, labelEn: `Active 🟢 (${summary.activeCount})` },
-                { id: 'tgo', labelAr: `طلبات Tgo (${summary.tgoCount})`, labelEn: `Talabat Tgo (${summary.tgoCount})` },
-                { id: 'tmp', labelAr: `طلبات TMP (${summary.tmpCount})`, labelEn: `Talabat TMP (${summary.tmpCount})` },
-              ] as const
-            ).map((pill) => {
-              const active = quickFilter === pill.id
-              return (
-                <button
-                  key={pill.id}
-                  type="button"
-                  onClick={() => setQuickFilter(pill.id)}
-                  className={`rounded-full px-3.5 py-1.5 text-[12.5px] font-bold transition duration-150 whitespace-nowrap ${
-                    active
-                      ? 'bg-neutral-950 text-white ring-1 ring-neutral-900/80 dark:bg-white dark:text-neutral-950'
-                      : 'bg-[#F7F7F8] text-neutral-700 hover:bg-neutral-200/70 dark:bg-white/[0.06] dark:text-slate-200 dark:hover:bg-white/[0.12]'
-                  }`}
-                >
-                  {isAr ? pill.labelAr : pill.labelEn}
-                </button>
-              )
-            })}
-          </div>
+      {/* Single Unified Forensic Delivery Radar Table */}
+      <section className="ae-bento-card space-y-4 p-5 sm:p-6">
+        {/* Verdelo Sliding Quick-Filter Pills + Search + Sort */}
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <SlidingPillTabs<QuickFilter>
+            value={quickFilter}
+            onChange={setQuickFilter}
+            size="sm"
+            ariaLabel={T('Delivery Quick Filter', 'فلتر سريع للتوصيل')}
+            options={[
+              { id: 'all', label: isAr ? 'الكل' : 'All', badge: summary.totalAccounts },
+              { id: 'stopped', label: isAr ? 'متوقف 🔴' : 'Stopped 🔴', badge: summary.stoppedCount },
+              { id: 'stalled', label: isAr ? 'ضعيف 🟠' : 'Low 🟠', badge: summary.stalledCount },
+              { id: 'active', label: isAr ? 'شغال 🟢' : 'Active 🟢', badge: summary.activeCount },
+              { id: 'tgo', label: isAr ? 'طلبات Tgo' : 'Talabat Tgo', badge: summary.tgoCount },
+              { id: 'tmp', label: isAr ? 'طلبات TMP' : 'Talabat TMP', badge: summary.tmpCount },
+              { id: 'keeta', label: isAr ? 'كيتا' : 'Keeta', badge: summary.keetaCount },
+              { id: 'deliveroo', label: isAr ? 'ديليفرو' : 'Deliveroo', badge: summary.deliverooCount },
+              { id: 'jahez', label: isAr ? 'جاهز' : 'Jahez', badge: summary.jahezCount },
+              { id: 'gap', label: isAr ? 'فروقات عمولة' : 'Fee Gaps', badge: summary.gapCount },
+            ]}
+          />
 
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative min-w-[210px] flex-1 sm:flex-initial">
-              <Search className="pointer-events-none absolute start-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-neutral-400" />
+              <Search className="pointer-events-none absolute start-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
               <input
                 type="search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={T('Search branch, brand, app…', 'ابحث بالفرع أو المطعم أو التطبيق…')}
-                className="h-9 w-full rounded-full bg-[#F7F7F8] ps-8 pe-3 text-[12.5px] font-medium text-neutral-900 placeholder:text-neutral-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-neutral-900/80 dark:bg-white/[0.06] dark:text-white"
+                className="ae-bento-subcard h-9 w-full rounded-full ps-8 pe-3 text-[12.5px] font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/35 dark:text-white"
               />
             </div>
 
-            <select
+            <SlidingPillTabs<SortMode>
               value={sortMode}
-              onChange={(e) => setSortMode(e.target.value as SortMode)}
-              aria-label={T('Sort', 'الترتيب')}
-              className="h-9 rounded-full bg-[#F7F7F8] px-3.5 text-[12.5px] font-semibold text-neutral-800 focus:outline-none focus:ring-1 focus:ring-neutral-900/80 dark:bg-white/[0.06] dark:text-slate-100"
-            >
-              <option value="forensic">{T('Stopped First', 'المتوقف أولاً')}</option>
-              <option value="sales">{T('Highest Sales', 'الأعلى مبيعات')}</option>
-            </select>
+              onChange={setSortMode}
+              size="sm"
+              ariaLabel={T('Sort', 'الترتيب')}
+              options={[
+                { id: 'forensic', label: T('Stopped First', 'المتوقف أولاً') },
+                { id: 'sales', label: T('Highest Sales', 'الأعلى مبيعات') },
+              ]}
+            />
 
             {hasLocalFilters ? (
               <button
                 type="button"
                 onClick={resetLocalFilters}
-                className="inline-flex h-9 items-center gap-1 rounded-full bg-neutral-900 px-3 text-[12px] font-bold text-white transition duration-150 hover:bg-neutral-800 dark:bg-white dark:text-neutral-950"
+                className="ae-btn-primary inline-flex h-8 items-center gap-1 rounded-full px-3 text-[12px] font-bold transition duration-150 hover:opacity-95"
               >
                 <RotateCcw className="h-3 w-3" />
                 {T('All', 'الكل')}
@@ -808,9 +829,9 @@ export function DeliveryRadarV5() {
         </div>
 
         {/* Exact 9 Ultra-Simple Columns: الفرع | المطعم | التطبيق | الحالة | الطلبات | المبيعات | العمولة | الصافي | الفرق */}
-        <div className="overflow-x-auto rounded-2xl ring-1 ring-neutral-950/[0.05] dark:ring-white/10">
-          <table className="w-full min-w-[980px] border-collapse bg-white text-[13px] dark:bg-[#0D1320]">
-            <thead className="bg-[#F7F7F8] text-neutral-600 dark:bg-slate-900/80 dark:text-slate-300">
+        <div className="max-h-[680px] overflow-auto rounded-2xl ring-1 ring-slate-950/[0.04] dark:ring-white/[0.06]">
+          <table className="w-full min-w-[980px] border-collapse bg-white text-[13px] dark:bg-[#111A22]">
+            <thead className="sticky top-0 z-10 bg-[#F4F6F9] text-slate-600 shadow-[0_1px_0_rgba(15,23,42,0.05)] dark:bg-[#0C141B] dark:text-slate-300 dark:shadow-[0_1px_0_rgba(255,255,255,0.06)]">
               <tr>
                 <th className="px-4 py-3 text-start text-[12px] font-bold whitespace-nowrap">
                   {T('Branch', 'الفرع')}
@@ -853,10 +874,10 @@ export function DeliveryRadarV5() {
                   const hasCommissionGap = r.actualPct !== null && r.actualPct > r.contractPct + 0.3
                   const rowBg =
                     r.status === 'stopped'
-                      ? 'bg-rose-50/25 hover:bg-rose-50/50 dark:bg-rose-950/10 dark:hover:bg-rose-950/20'
+                      ? 'bg-rose-50/25 hover:bg-rose-50/50 dark:bg-rose-950/15 dark:hover:bg-rose-950/25'
                       : r.status === 'stalled'
-                        ? 'bg-amber-50/20 hover:bg-amber-50/45 dark:bg-amber-950/10 dark:hover:bg-amber-950/20'
-                        : 'hover:bg-neutral-50/80 dark:hover:bg-white/[0.03]'
+                        ? 'bg-amber-50/20 hover:bg-amber-50/45 dark:bg-amber-950/15 dark:hover:bg-amber-950/25'
+                        : 'hover:bg-emerald-50/30 dark:hover:bg-emerald-500/[0.05]'
 
                   return (
                     <tr key={r.id} className={`transition-colors duration-150 ${rowBg}`}>
@@ -951,10 +972,10 @@ export function DeliveryRadarV5() {
                             onClick={() => void copyRowAlert(r)}
                             title={T('Copy for WhatsApp', 'نسخ للواتساب')}
                             aria-label={T('Copy for WhatsApp', 'نسخ للواتساب')}
-                            className={`inline-flex h-7 w-7 items-center justify-center rounded-full transition duration-150 ${
+                            className={`inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-full transition duration-150 ${
                               copiedId === r.id
                                 ? 'bg-emerald-600 text-white'
-                                : 'bg-[#F7F7F8] text-neutral-600 hover:bg-neutral-900 hover:text-white dark:bg-white/10 dark:text-slate-300 dark:hover:bg-white dark:hover:text-neutral-950'
+                                : 'bg-[#F4F6F9] text-slate-600 hover:bg-[#0B1220] hover:text-white dark:bg-white/10 dark:text-slate-300 dark:hover:bg-[#10B981] dark:hover:text-[#04130D]'
                             }`}
                           >
                             {copiedId === r.id ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}

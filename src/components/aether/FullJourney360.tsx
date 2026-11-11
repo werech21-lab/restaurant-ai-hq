@@ -7,8 +7,12 @@ import {
   Check,
   CheckCircle2,
   Copy,
+  Lightbulb,
   RefreshCw,
   SlidersHorizontal,
+  Sparkles,
+  TrendingUp,
+  Wallet,
 } from 'lucide-react'
 import {
   JOURNEY_KPI_NOW,
@@ -16,16 +20,24 @@ import {
   JOURNEY_STAGES,
   journeyKpiFormat,
   simulatePlay,
-  type JourneyPlay,
   type JourneyStage,
   type PlayKpi,
 } from '@/lib/full-journey-enterprise-brain'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { DualBrainPagePanel } from '@/components/aether/DualBrainPagePanel'
+import {
+  InteractiveDonutChart,
+  InteractiveHoverBarChart,
+  type DonutSliceDatum,
+  type MultiSeriesBarDatum,
+} from '@/components/aether/InteractiveHoverCharts'
+import { SlidingPillTabs } from '@/components/ui/SlidingPillTabs'
+import { computeCoresHubSnapshot } from '@/lib/aether/cores-hub-engine'
 import type { SimplePlayView, SummaryCardData } from '@/lib/aether/global-filter-engine'
 import { useLang } from '@/components/aether/ui'
 
 type Tab = 'numbers' | 'tips' | 'compare'
+type FlowGroup = 'timeline' | 'branches'
 type TrackerStatus = 'verified' | 'monitoring' | 'stalled'
 
 interface Approval {
@@ -59,15 +71,25 @@ const ACCENT_RING: Record<SummaryCardData['accent'], string> = {
   rose: 'text-rose-700 dark:text-rose-400',
 }
 
-const f0 = (n: number) => Math.round(n).toLocaleString('en-US')
-const f2 = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const f0 = (n: number) => Math.round(Number.isFinite(n) ? n : 0).toLocaleString('en-US')
+const f1 = (n: number) =>
+  (Number.isFinite(n) ? n : 0).toLocaleString('en-US', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  })
+const f2 = (n: number) =>
+  (Number.isFinite(n) ? n : 0).toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
 
-/** ملخص الشركة — Ultra-Simple Executive Workspace wired to GlobalFilterContext. */
+/** ملخص الشركة — Finance V2 × Verdelo × Skerry Executive Bento Workspace */
 export function FullJourney360() {
   const { isAr, T } = useLang()
-  const { workspace, filters } = useGlobalFilter()
+  const { workspace, filters, liveSummary } = useGlobalFilter()
 
   const [tab, setTab] = useState<Tab>('numbers')
+  const [flowGroup, setFlowGroup] = useState<FlowGroup>('timeline')
   const [stage, setStage] = useState<JourneyStage | 'all'>('all')
   const [highlightedPlayId, setHighlightedPlayId] = useState<string | null>(null)
   const [approvals, setApprovals] = useState<Approval[]>([])
@@ -196,43 +218,107 @@ export function FullJourney360() {
     })
   }, [approvals])
 
-  // 10-KWD bar segments (guaranteed finite, summing to 10.00)
+  // 10-KWD breakdown & derived executive KPIs
   const { food10, delivery10, opexRent10, netPocket10 } = workspace.per10
-  const barSegments = [
-    {
-      id: 'food',
-      labelAr: 'تكلفة الأكل',
-      labelEn: 'Food Cost',
-      val: food10,
-      bg: 'bg-amber-500',
-      dot: 'bg-amber-500',
+  const beforeRentRatio = Math.max(0, (10 - food10 - delivery10) / 10)
+  const netPocketRatio = Math.max(0, netPocket10 / 10)
+  const beforeRentKwd = workspace.salesKwd * beforeRentRatio
+  const netPocketKwd = workspace.salesKwd * netPocketRatio
+  const netPocketPct = netPocket10 * 10
+
+  const fmtKwdVal = useCallback(
+    (v: number) => {
+      const num = v >= 100 ? f0(v) : f1(v)
+      return isAr ? `${num} د.ك` : `${num} KWD`
     },
-    {
-      id: 'delivery',
-      labelAr: 'عمولة التوصيل',
-      labelEn: 'Delivery Fee',
-      val: delivery10,
-      bg: 'bg-rose-500',
-      dot: 'bg-rose-500',
-    },
-    {
-      id: 'opex',
-      labelAr: 'الإيجار والرواتب والمصاريف',
-      labelEn: 'Rent, Pay & Bills',
-      val: opexRent10,
-      bg: 'bg-slate-400 dark:bg-slate-500',
-      dot: 'bg-slate-400',
-    },
-    {
-      id: 'pocket',
-      labelAr: 'الصافي بالجيب',
-      labelEn: 'Net in Pocket',
-      val: netPocket10,
-      bg: 'bg-emerald-600',
-      dot: 'bg-emerald-600',
-      strong: true,
-    },
-  ]
+    [isAr],
+  )
+
+  // Live daily & branch cash-flow capsule series from cores engine
+  const coresSnap = useMemo(
+    () => computeCoresHubSnapshot(filters, [], liveSummary),
+    [filters, liveSummary],
+  )
+
+  const cashFlowBars = useMemo<MultiSeriesBarDatum[]>(() => {
+    const src = flowGroup === 'branches' ? coresSnap.sales.branchRanking : coresSnap.sales.timeline
+    return src.map((pt) => {
+      const sales = Math.max(0, pt.salesKwd)
+      const pocket = Math.max(0, sales * netPocketRatio)
+      const beforeRent = Math.max(0, sales * beforeRentRatio)
+      const foodAndDelivery = Math.max(0, sales - beforeRent)
+      return {
+        id: pt.id,
+        label: isAr ? pt.labelAr : pt.labelEn,
+        tooltipTitle: isAr ? pt.tooltipTitleAr : pt.tooltipTitleEn,
+        primaryValue: sales,
+        secondaryValue: pocket,
+        badgeText: `${f1(netPocketPct)}%`,
+        badgeTone: netPocketPct >= 12 ? 'emerald' : 'amber',
+        primaryColor: '#334155',
+        secondaryColor: '#10B981',
+        lines: [
+          { label: isAr ? 'المبيعات:' : 'Sales:', value: fmtKwdVal(sales), bold: true },
+          { label: isAr ? 'الأكل والتوصيل:' : 'Food & Delivery:', value: fmtKwdVal(foodAndDelivery), tone: 'amber' },
+          { label: isAr ? 'الباقي قبل الإيجار:' : 'Before Rent:', value: fmtKwdVal(beforeRent), tone: 'slate' },
+          { label: isAr ? 'الصافي بالجيب:' : 'Net in Pocket:', value: fmtKwdVal(pocket), tone: 'emerald', bold: true },
+        ],
+      }
+    })
+  }, [beforeRentRatio, coresSnap.sales.branchRanking, coresSnap.sales.timeline, flowGroup, fmtKwdVal, isAr, netPocketPct, netPocketRatio])
+
+  const tenKwdDonutSlices = useMemo<DonutSliceDatum[]>(
+    () => [
+      {
+        id: 'food',
+        label: isAr ? 'تكلفة الأكل' : 'Food Cost',
+        value: food10,
+        valueFormatted: isAr ? `${f2(food10)} د.ك` : `${f2(food10)} KWD`,
+        pctFormatted: `${f1(food10 * 10)}%`,
+        color: '#F59E0B',
+      },
+      {
+        id: 'delivery',
+        label: isAr ? 'عمولة التوصيل' : 'Delivery Fee',
+        value: delivery10,
+        valueFormatted: isAr ? `${f2(delivery10)} د.ك` : `${f2(delivery10)} KWD`,
+        pctFormatted: `${f1(delivery10 * 10)}%`,
+        color: '#F43F5E',
+      },
+      {
+        id: 'opex',
+        label: isAr ? 'الإيجار والرواتب' : 'Rent & Payroll',
+        value: opexRent10,
+        valueFormatted: isAr ? `${f2(opexRent10)} د.ك` : `${f2(opexRent10)} KWD`,
+        pctFormatted: `${f1(opexRent10 * 10)}%`,
+        color: '#64748B',
+      },
+      {
+        id: 'pocket',
+        label: isAr ? 'الصافي بالجيب' : 'Net in Pocket',
+        value: netPocket10,
+        valueFormatted: isAr ? `${f2(netPocket10)} د.ك` : `${f2(netPocket10)} KWD`,
+        pctFormatted: `${f1(netPocket10 * 10)}%`,
+        color: '#10B981',
+      },
+    ],
+    [delivery10, food10, isAr, netPocket10, opexRent10],
+  )
+
+  const stageOptions = useMemo(() => {
+    const ids = ['all', 'procurement', 'kitchen', 'menu', 'operations', 'opex', 'delivery', 'quality'] as const
+    return ids
+      .map((sid) => {
+        const count = sid === 'all' ? workspace.plays.length : workspace.plays.filter((p) => p.stage === sid).length
+        return { sid, count, lbl: STAGE_SHORT_LABELS[sid] }
+      })
+      .filter((x) => x.sid === 'all' || x.count > 0)
+      .map((x) => ({
+        id: x.sid,
+        label: isAr ? x.lbl.ar : x.lbl.en,
+        badge: x.count,
+      }))
+  }, [isAr, workspace.plays])
 
   const periodUnitAr =
     filters.period === 'today' ? 'يومياً' : filters.period === 'week' ? 'أسبوعياً' : filters.period === 'year' ? 'سنوياً' : 'شهرياً'
@@ -240,58 +326,37 @@ export function FullJourney360() {
     filters.period === 'today' ? '/ day' : filters.period === 'week' ? '/ week' : filters.period === 'year' ? '/ year' : '/ month'
 
   return (
-    <div dir={isAr ? 'rtl' : 'ltr'} className="space-y-6 pb-12">
-      {/* Masthead: Ultra-Simple 2-Word Title + Dynamic 1-Line Active Filter Subtitle + 3 Tabs */}
-      <header className="flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-neutral-950/[0.04] dark:bg-[#0F1626] dark:ring-white/[0.07]">
+    <div dir={isAr ? 'rtl' : 'ltr'} className="space-y-5 pb-12">
+      {/* Masthead: Clean Finance V2 Bento Header + Verdelo SlidingPillTabs */}
+      <header className="ae-bento-card flex flex-wrap items-center justify-between gap-4 p-5 sm:p-6">
         <div className="space-y-1">
-          <h1 className="text-2xl font-extrabold tracking-tight text-neutral-950 dark:text-white sm:text-[26px]">
+          <h1 className="text-2xl font-extrabold tracking-tight text-slate-950 dark:text-white sm:text-[26px]">
             {T('Company Summary', 'ملخص الشركة')}
           </h1>
-          <p className="text-[13.5px] font-medium text-neutral-500 dark:text-slate-400">
+          <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400">
             {isAr ? workspace.subtitleAr : workspace.subtitleEn}
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* 3 Ultra-Simple Tabs */}
-          <nav
-            role="tablist"
-            aria-label={T('Sections', 'الأقسام')}
-            className="inline-flex items-center gap-1 rounded-full bg-[#F7F7F8] p-1 ring-1 ring-neutral-950/[0.04] dark:bg-white/[0.05] dark:ring-white/[0.08]"
-          >
-            {(
-              [
-                ['numbers', T('Key Numbers', 'الأرقام المهمة')],
-                ['tips', `${T('Profit Tips', 'توصيات الربح')} (${workspace.plays.length})`],
-                ['compare', `${T('Before & After', 'قبل وبعد')} (${approvals.length})`],
-              ] as const
-            ).map(([id, label]) => {
-              const active = tab === id
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => setTab(id)}
-                  className={`rounded-full px-4 py-2 text-[13px] font-bold transition-all duration-150 ${
-                    active
-                      ? 'bg-neutral-950 text-white shadow-[0_1px_2px_rgba(0,0,0,0.08)] dark:bg-white dark:text-neutral-950'
-                      : 'text-neutral-600 hover:text-neutral-950 dark:text-slate-300 dark:hover:text-white'
-                  }`}
-                >
-                  {label}
-                </button>
-              )
-            })}
-          </nav>
+          <SlidingPillTabs<Tab>
+            ariaLabel={T('Sections', 'الأقسام')}
+            value={tab}
+            onChange={setTab}
+            options={[
+              { id: 'numbers', label: T('Key Numbers', 'الأرقام المهمة') },
+              { id: 'tips', label: T('Profit Tips', 'توصيات الربح'), badge: workspace.plays.length },
+              { id: 'compare', label: T('Before & After', 'قبل وبعد'), badge: approvals.length },
+            ]}
+          />
 
           <button
             type="button"
             onClick={() => void refreshLive()}
             disabled={syncing}
             aria-label={T('Refresh', 'تحديث')}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#F7F7F8] text-neutral-700 ring-1 ring-neutral-950/[0.04] transition-all duration-150 hover:bg-neutral-200/70 hover:text-neutral-950 disabled:opacity-50 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-white/[0.08]"
+            title={T('Refresh Odoo Data', 'تحديث أرقام أودو')}
+            className="ae-bento-subcard inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-slate-700 transition-all duration-150 hover:text-slate-950 disabled:opacity-50 dark:text-slate-200"
           >
             <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
           </button>
@@ -308,81 +373,201 @@ export function FullJourney360() {
       />
 
       {/* =====================================================================
-          TAB 1: الأرقام المهمة (10-KWD Bar + 8 Ultra-Simple Summary Cards)
+          TAB 1: الأرقام المهمة (Finance V2 4 KPI Cards -> 8+4 Bento Split -> Summary Cards)
       ===================================================================== */}
       {tab === 'numbers' && (
-        <section className="space-y-6">
-          {/* 10-KWD Visual Breakdown Card */}
-          <div className="rounded-3xl bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-neutral-950/[0.04] dark:bg-[#0F1626] dark:ring-white/[0.07]">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h2 className="text-lg font-extrabold tracking-tight text-neutral-950 dark:text-white">
-                {T('Where Every 10 KWD Goes?', 'وين تروح كل ١٠ دنانير مبيعات؟')}
-              </h2>
-              <span className="text-[13px] font-bold tabular-nums text-emerald-700 dark:text-emerald-400">
-                {isAr ? `الصافي بالجيب: ${f2(netPocket10)} د.ك` : `Net in Pocket: ${f2(netPocket10)} KWD`}
-              </span>
-            </div>
+        <section className="space-y-5">
+          {/* Top Row: 4 Crisp Finance V2 KPI Cards with Hover Micro-Lift */}
+          <div className="ae-stagger grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {/* KPI 1: المبيعات */}
+            <article className="ae-kpi-card ae-glow-emerald p-5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="ae-icon-badge">
+                  <Wallet className="h-4 w-4" />
+                </span>
+                <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11.5px] font-extrabold tabular-nums text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
+                  {f0(workspace.orders)} {T('orders', 'طلب')}
+                </span>
+              </div>
+              <p className="mt-3.5 text-[13px] font-bold text-slate-500 dark:text-slate-400">
+                {T('Sales', 'المبيعات')}
+              </p>
+              <div
+                dir="ltr"
+                className="mt-1 text-[26px] font-black tracking-tight tabular-nums text-slate-950 dark:text-white"
+              >
+                {fmtKwdVal(workspace.salesKwd)}
+              </div>
+              <p className="mt-1 text-[12px] font-medium text-slate-400 dark:text-slate-400">
+                {isAr ? `متوسط الفاتورة ${f2(workspace.aovKwd)} د.ك` : `Avg bill ${f2(workspace.aovKwd)} KWD`}
+              </p>
+            </article>
 
-            {/* Proportional Bar */}
-            <div className="mt-4 flex h-4 w-full overflow-hidden rounded-full bg-neutral-100 dark:bg-slate-800">
-              {barSegments.map((seg) => {
-                const widthPct = Math.max(0, Math.min(100, (seg.val / 10) * 100))
-                if (widthPct <= 0) return null
-                return (
-                  <div
-                    key={seg.id}
-                    style={{ width: `${widthPct}%` }}
-                    className={`${seg.bg} h-full transition-all duration-150`}
-                    title={`${isAr ? seg.labelAr : seg.labelEn}: ${f2(seg.val)}`}
-                  />
-                )
-              })}
-            </div>
+            {/* KPI 2: الباقي قبل الإيجار */}
+            <article className="ae-kpi-card ae-glow-sky p-5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-sky-50 text-sky-600 dark:bg-sky-500/15 dark:text-sky-300">
+                  <TrendingUp className="h-4 w-4" />
+                </span>
+                <span
+                  dir="ltr"
+                  className="rounded-full bg-sky-50 px-2.5 py-0.5 text-[11.5px] font-extrabold tabular-nums text-sky-700 dark:bg-sky-950/50 dark:text-sky-300"
+                >
+                  {f1(beforeRentRatio * 100)}%
+                </span>
+              </div>
+              <p className="mt-3.5 text-[13px] font-bold text-slate-500 dark:text-slate-400">
+                {T('Left Before Rent', 'الباقي قبل الإيجار')}
+              </p>
+              <div
+                dir="ltr"
+                className="mt-1 text-[26px] font-black tracking-tight tabular-nums text-slate-950 dark:text-white"
+              >
+                {fmtKwdVal(beforeRentKwd)}
+              </div>
+              <p className="mt-1 text-[12px] font-medium text-slate-400 dark:text-slate-400">
+                {isAr ? 'بعد خصم الأكل وعمولة التوصيل' : 'After food & delivery fees'}
+              </p>
+            </article>
 
-            {/* 4 Clean Labels */}
-            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {barSegments.map((seg) => (
-                <div
-                  key={seg.id}
-                  className={`rounded-2xl p-3.5 transition-colors duration-150 ${
-                    seg.strong
-                      ? 'bg-emerald-50/80 ring-1 ring-emerald-600/20 dark:bg-emerald-950/30 dark:ring-emerald-400/20'
-                      : 'bg-[#F7F7F8] dark:bg-white/[0.04]'
+            {/* KPI 3: الصافي بالجيب */}
+            <article className="ae-kpi-card ae-glow-emerald p-5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="ae-icon-badge">
+                  <Sparkles className="h-4 w-4" />
+                </span>
+                <span
+                  dir="ltr"
+                  className={`rounded-full px-2.5 py-0.5 text-[11.5px] font-extrabold tabular-nums ${
+                    netPocketPct >= 12
+                      ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
+                      : 'bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300'
                   }`}
                 >
-                  <div className="flex items-center gap-2 text-[12.5px] font-semibold text-neutral-600 dark:text-slate-300">
-                    <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${seg.dot}`} />
-                    <span className={seg.strong ? 'font-extrabold text-emerald-900 dark:text-emerald-200' : ''}>
-                      {isAr ? seg.labelAr : seg.labelEn}
-                    </span>
-                  </div>
-                  <div
-                    className={`mt-1.5 text-xl font-extrabold tabular-nums ${
-                      seg.strong ? 'text-emerald-700 dark:text-emerald-300' : 'text-neutral-950 dark:text-white'
-                    }`}
-                  >
-                    {f2(seg.val)} <span className="text-xs font-semibold">{isAr ? 'د.ك' : 'KWD'}</span>
-                  </div>
+                  {f1(netPocketPct)}%
+                </span>
+              </div>
+              <p className="mt-3.5 text-[13px] font-bold text-slate-500 dark:text-slate-400">
+                {T('Net in Pocket', 'الصافي بالجيب')}
+              </p>
+              <div
+                dir="ltr"
+                className="mt-1 text-[26px] font-black tracking-tight tabular-nums text-emerald-700 dark:text-emerald-400"
+              >
+                {fmtKwdVal(netPocketKwd)}
+              </div>
+              <p className="mt-1 text-[12px] font-medium text-slate-400 dark:text-slate-400">
+                {isAr ? `${f2(netPocket10)} د.ك صافي من كل ١٠ دنانير` : `${f2(netPocket10)} KWD per 10 KWD sales`}
+              </p>
+            </article>
+
+            {/* KPI 4: فرص زيادة الربح */}
+            <article
+              onClick={() => setTab('tips')}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') setTab('tips')
+              }}
+              className="ae-kpi-card ae-glow-amber cursor-pointer p-5"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300">
+                  <Lightbulb className="h-4 w-4" />
+                </span>
+                <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11.5px] font-extrabold tabular-nums text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
+                  {workspace.plays.length} {T('tips', 'توصية')}
+                </span>
+              </div>
+              <p className="mt-3.5 text-[13px] font-bold text-slate-500 dark:text-slate-400">
+                {T('Profit Opportunities', 'فرص زيادة الربح')}
+              </p>
+              <div
+                dir="ltr"
+                className="mt-1 text-[26px] font-black tracking-tight tabular-nums text-emerald-700 dark:text-emerald-400"
+              >
+                +{fmtKwdVal(workspace.totalPlaysBenefitPeriodKwd)}
+              </div>
+              <p className="mt-1 inline-flex items-center gap-1 text-[12px] font-bold text-slate-600 dark:text-slate-300">
+                <span>{T('Open ready steps', 'عرض الخطوات الجاهزة')}</span>
+                <ArrowUpRight className="h-3.5 w-3.5" />
+              </p>
+            </article>
+          </div>
+
+          {/* Middle Bento Row: 8-Col Visual Cash-Flow Chart + 4-Col Interactive 10-KWD Donut */}
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+            {/* 8-Col Card: Interactive Cash-Flow & Net Performance Skerry Capsule Chart */}
+            <div className="ae-bento-card flex flex-col justify-between p-5 sm:p-6 lg:col-span-8">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-[17px] font-extrabold tracking-tight text-slate-950 dark:text-white">
+                    {T('Sales & Net Cash Flow', 'المبيعات والصافي بالجيب')}
+                  </h2>
+                  <p className="text-[12.5px] font-medium text-slate-500 dark:text-slate-400">
+                    {T(
+                      'Hover any capsule bar to inspect exact sales, costs, and net pocket cash',
+                      'مرّر الماوس على أي عمود لمعرفة المبيعات والمصاريف والصافي بالجيب بدقة',
+                    )}
+                  </p>
                 </div>
-              ))}
+
+                <SlidingPillTabs<FlowGroup>
+                  size="sm"
+                  value={flowGroup}
+                  onChange={setFlowGroup}
+                  options={[
+                    { id: 'timeline', label: T('Timeline', 'حسب الفترة') },
+                    { id: 'branches', label: T('Branches', 'حسب الفروع') },
+                  ]}
+                />
+              </div>
+
+              <InteractiveHoverBarChart
+                data={cashFlowBars}
+                isAr={isAr}
+                primaryLegend={T('Sales', 'المبيعات')}
+                secondaryLegend={T('Net in Pocket', 'الصافي بالجيب')}
+                primaryColor="#334155"
+                secondaryColor="#10B981"
+                heightClass="h-64"
+              />
+            </div>
+
+            {/* 4-Col Card: Finance V2 Interactive Donut Ring ("وين تروح كل ١٠ دنانير؟") */}
+            <div className="ae-bento-card flex flex-col justify-between p-5 sm:p-6 lg:col-span-4">
+              <div className="mb-3">
+                <h2 className="text-[17px] font-extrabold tracking-tight text-slate-950 dark:text-white">
+                  {T('Where Every 10 KWD Goes?', 'وين تروح كل ١٠ دنانير؟')}
+                </h2>
+                <p className="text-[12.5px] font-medium text-slate-500 dark:text-slate-400">
+                  {T('Per 10 KWD of sales', 'توزيعة كل ١٠ دنانير مبيعات')}
+                </p>
+              </div>
+
+              <InteractiveDonutChart
+                slices={tenKwdDonutSlices}
+                centerValue={`${f1(netPocketPct)}%`}
+                centerSubValue={isAr ? `${f2(netPocket10)} د.ك` : `${f2(netPocket10)} KWD`}
+                centerLabel={T('Net in Pocket', 'الصافي بالجيب')}
+                isAr={isAr}
+                legendColumns={2}
+              />
             </div>
           </div>
 
-          {/* 8 Summary Cards (2–3 simple words ONLY, max 1 short clear sentence underneath) */}
+          {/* Operational Detail Bento Cards */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {workspace.summaryCards.map((c) => (
-              <article
-                key={c.id}
-                className="flex min-h-[188px] flex-col justify-between rounded-3xl bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-neutral-950/[0.04] transition-all duration-150 hover:-translate-y-0.5 hover:ring-neutral-950/[0.1] dark:bg-[#0F1626] dark:ring-white/[0.07]"
-              >
-                <div className="space-y-2">
-                  <h3 className="text-[15px] font-bold text-neutral-900 dark:text-white">
+              <article key={c.id} className="ae-kpi-card flex min-h-[178px] flex-col justify-between p-5">
+                <div className="space-y-1.5">
+                  <h3 className="text-[14.5px] font-bold text-slate-800 dark:text-slate-100">
                     {isAr ? c.titleAr : c.titleEn}
                   </h3>
-                  <div className={`text-[26px] font-extrabold tracking-tight tabular-nums ${ACCENT_RING[c.accent]}`}>
+                  <div className={`text-[24px] font-black tracking-tight tabular-nums ${ACCENT_RING[c.accent]}`}>
                     {isAr ? c.valueAr : c.valueEn}
                   </div>
-                  <p className="text-[13px] leading-relaxed text-neutral-500 dark:text-slate-400">
+                  <p className="text-[12.5px] leading-relaxed text-slate-500 dark:text-slate-400">
                     {isAr ? c.descAr : c.descEn}
                   </p>
                 </div>
@@ -391,7 +576,7 @@ export function FullJourney360() {
                   {c.href ? (
                     <Link
                       href={c.href}
-                      className="inline-flex items-center gap-1 rounded-full bg-[#F7F7F8] px-3.5 py-1.5 text-[12px] font-bold text-neutral-800 transition-colors duration-150 hover:bg-neutral-200/80 dark:bg-white/[0.06] dark:text-slate-100"
+                      className="ae-bento-subcard inline-flex items-center gap-1 rounded-full px-3.5 py-1.5 text-[12px] font-bold text-slate-800 transition-colors duration-150 hover:text-slate-950 dark:text-slate-100"
                     >
                       <span>{T('View', 'عرض')}</span>
                       <ArrowUpRight className="h-3.5 w-3.5" />
@@ -403,7 +588,7 @@ export function FullJourney360() {
                         setStage(c.targetStage ?? 'all')
                         setTab('tips')
                       }}
-                      className="inline-flex items-center gap-1 rounded-full bg-[#F7F7F8] px-3.5 py-1.5 text-[12px] font-bold text-neutral-800 transition-colors duration-150 hover:bg-neutral-200/80 dark:bg-white/[0.06] dark:text-slate-100"
+                      className="ae-bento-subcard inline-flex cursor-pointer items-center gap-1 rounded-full px-3.5 py-1.5 text-[12px] font-bold text-slate-800 transition-colors duration-150 hover:text-slate-950 dark:text-slate-100"
                     >
                       <span>{T('Profit Tips', 'توصيات الربح')}</span>
                       <ArrowUpRight className="h-3.5 w-3.5" />
@@ -417,35 +602,20 @@ export function FullJourney360() {
       )}
 
       {/* =====================================================================
-          TAB 2: توصيات الربح (3 Simple Labels + 3 Crisp Action Buttons)
+          TAB 2: توصيات الربح (Sliding Category Pills + Crisp Action Cards)
       ===================================================================== */}
       {tab === 'tips' && (
         <section className="space-y-5">
-          {/* Short 1-word category filter pills */}
-          <div className="flex flex-wrap items-center gap-2">
-            {(['all', 'procurement', 'kitchen', 'menu', 'operations', 'opex', 'delivery', 'quality'] as const).map(
-              (sid) => {
-                const count =
-                  sid === 'all' ? workspace.plays.length : workspace.plays.filter((p) => p.stage === sid).length
-                if (sid !== 'all' && count === 0) return null
-                const active = stage === sid
-                const lbl = STAGE_SHORT_LABELS[sid]
-                return (
-                  <button
-                    key={sid}
-                    type="button"
-                    onClick={() => setStage(sid)}
-                    className={`rounded-full px-3.5 py-1.5 text-[12.5px] font-bold transition-all duration-150 ${
-                      active
-                        ? 'bg-neutral-950 text-white ring-1 ring-neutral-900/80 dark:bg-white dark:text-neutral-950'
-                        : 'bg-white text-neutral-600 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-neutral-950/[0.04] hover:text-neutral-950 dark:bg-[#0F1626] dark:text-slate-300 dark:ring-white/[0.08]'
-                    }`}
-                  >
-                    {isAr ? lbl.ar : lbl.en} ({count})
-                  </button>
-                )
-              },
-            )}
+          {/* Verdelo Sliding Category Filter Pills */}
+          <div className="flex flex-wrap items-center">
+            <SlidingPillTabs
+              ariaLabel={T('Filter Tips', 'تصنيف التوصيات')}
+              surface="white"
+              size="sm"
+              value={stage}
+              onChange={setStage}
+              options={stageOptions}
+            />
           </div>
 
           {/* Scannable Recommendation Cards */}
@@ -464,15 +634,13 @@ export function FullJourney360() {
                 <article
                   key={sp.id}
                   id={`play-card-${sp.id}`}
-                  className={`flex flex-col justify-between rounded-3xl bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-150 dark:bg-[#0F1626] ${
-                    isHighlighted
-                      ? 'ring-2 ring-neutral-900 dark:ring-white'
-                      : 'ring-1 ring-neutral-950/[0.04] dark:ring-white/[0.07]'
+                  className={`ae-bento-card flex flex-col justify-between p-6 transition-all duration-150 ${
+                    isHighlighted ? 'ring-2 ring-emerald-500' : ''
                   }`}
                 >
                   <div className="space-y-3.5">
                     <div className="flex items-center justify-between gap-2">
-                      <h3 className="text-[17px] font-extrabold text-neutral-950 dark:text-white">
+                      <h3 className="text-[17px] font-extrabold text-slate-950 dark:text-white">
                         {isAr ? sp.titleAr : sp.titleEn}
                       </h3>
                       <span className="rounded-full bg-emerald-50 px-3 py-1 text-[12.5px] font-extrabold tabular-nums text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
@@ -481,15 +649,15 @@ export function FullJourney360() {
                     </div>
 
                     {/* ONLY 3 Simple Labels: المشكلة / الحل / الفايدة المتوقعة */}
-                    <div className="space-y-2.5 rounded-2xl bg-[#F7F7F8] p-4 text-[13.5px] leading-relaxed dark:bg-white/[0.04]">
-                      <p className="text-neutral-700 dark:text-slate-200">
-                        <strong className="font-extrabold text-neutral-950 dark:text-white">
+                    <div className="ae-bento-subcard space-y-2.5 rounded-2xl p-4 text-[13.5px] leading-relaxed">
+                      <p className="text-slate-700 dark:text-slate-200">
+                        <strong className="font-extrabold text-slate-950 dark:text-white">
                           {T('Problem:', 'المشكلة:')}{' '}
                         </strong>
                         {isAr ? sp.problemAr : sp.problemEn}
                       </p>
-                      <p className="text-neutral-700 dark:text-slate-200">
-                        <strong className="font-extrabold text-neutral-950 dark:text-white">
+                      <p className="text-slate-700 dark:text-slate-200">
+                        <strong className="font-extrabold text-slate-950 dark:text-white">
                           {T('Solution:', 'الحل:')}{' '}
                         </strong>
                         {isAr ? sp.solutionAr : sp.solutionEn}
@@ -504,12 +672,12 @@ export function FullJourney360() {
 
                     {/* Inline Number Tester (تجربة الأرقام) */}
                     {simOpen && (
-                      <div className="space-y-3 rounded-2xl bg-[#F7F7F8] p-4 ring-1 ring-neutral-950/[0.05] dark:bg-white/[0.04] dark:ring-white/[0.08]">
+                      <div className="ae-bento-subcard space-y-3 rounded-2xl p-4">
                         {sp.play.simulator.sliders.map((sl, idx) => {
                           const curVal = vals[idx]
                           return (
                             <label key={sl.id} className="block space-y-1 text-[12.5px]">
-                              <div className="flex items-center justify-between font-bold text-neutral-800 dark:text-slate-200">
+                              <div className="flex items-center justify-between font-bold text-slate-800 dark:text-slate-200">
                                 <span>{isAr ? sl.labelAr : sl.labelEn}</span>
                                 <span className="tabular-nums">
                                   {curVal} {sl.unit === 'fils' ? (isAr ? 'فلس' : 'fils') : '%'}
@@ -528,7 +696,7 @@ export function FullJourney360() {
                                     [sp.id]: idx === 0 ? [v, vals[1]] : [vals[0], v],
                                   }))
                                 }}
-                                className="w-full accent-neutral-900 dark:accent-white"
+                                className="w-full accent-emerald-600"
                               />
                             </label>
                           )
@@ -542,10 +710,10 @@ export function FullJourney360() {
                     <button
                       type="button"
                       onClick={() => setOpenSim((prev) => ({ ...prev, [sp.id]: !prev[sp.id] }))}
-                      className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[12.5px] font-bold transition-all duration-150 ${
+                      className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3.5 py-2 text-[12.5px] font-bold transition-all duration-150 ${
                         simOpen
-                          ? 'bg-neutral-950 text-white dark:bg-white dark:text-neutral-950'
-                          : 'bg-[#F7F7F8] text-neutral-800 hover:bg-neutral-200/80 dark:bg-white/[0.06] dark:text-slate-100'
+                          ? 'ae-btn-primary'
+                          : 'ae-bento-subcard text-slate-800 hover:text-slate-950 dark:text-slate-100'
                       }`}
                     >
                       <SlidersHorizontal className="h-3.5 w-3.5" />
@@ -555,7 +723,7 @@ export function FullJourney360() {
                     <button
                       type="button"
                       onClick={() => void copyWhatsApp(sp, benefitDisplay)}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-[#F7F7F8] px-3.5 py-2 text-[12.5px] font-bold text-neutral-800 transition-all duration-150 hover:bg-neutral-200/80 dark:bg-white/[0.06] dark:text-slate-100"
+                      className="ae-bento-subcard inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3.5 py-2 text-[12.5px] font-bold text-slate-800 transition-all duration-150 hover:text-slate-950 dark:text-slate-100"
                     >
                       {copiedId === sp.id ? (
                         <>
@@ -575,10 +743,10 @@ export function FullJourney360() {
                     <button
                       type="button"
                       onClick={() => toggleApprove(sp, scaledMonthlyKwd)}
-                      className={`ms-auto inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-[12.5px] font-bold transition-all duration-150 ${
+                      className={`ms-auto inline-flex cursor-pointer items-center gap-1.5 rounded-full px-4 py-2 text-[12.5px] font-bold transition-all duration-150 ${
                         approved
                           ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                          : 'bg-neutral-950 text-white hover:bg-neutral-800 dark:bg-white dark:text-neutral-950'
+                          : 'ae-btn-primary'
                       }`}
                     >
                       <CheckCircle2 className="h-3.5 w-3.5" />
@@ -597,12 +765,12 @@ export function FullJourney360() {
       ===================================================================== */}
       {tab === 'compare' && (
         <section className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-neutral-950/[0.04] dark:bg-[#0F1626] dark:ring-white/[0.07]">
+          <div className="ae-bento-card flex flex-wrap items-center justify-between gap-3 p-5">
             <div>
-              <h3 className="text-[15px] font-extrabold text-neutral-950 dark:text-white">
+              <h3 className="text-[15.5px] font-extrabold text-slate-950 dark:text-white">
                 {T('Interactive Before & After Charts', 'مقارنة قبل وبعد بالرسوم البيانية التفاعلية')}
               </h3>
-              <p className="text-[12.5px] font-medium text-neutral-500 dark:text-slate-400">
+              <p className="text-[12.5px] font-medium text-slate-500 dark:text-slate-400">
                 {T(
                   'Compare sales, net cash, orders & average bill before and after any period or campaign.',
                   'قارن المبيعات والصافي بالجيب والطلبات ومتوسط الفاتورة قبل وبعد أي فترة أو إعلان.',
@@ -611,18 +779,18 @@ export function FullJourney360() {
             </div>
             <Link
               href="/erp/before-after"
-              className="inline-flex h-9 items-center gap-1.5 rounded-full bg-neutral-950 px-4 text-[12.5px] font-bold text-white transition-colors hover:bg-neutral-800 dark:bg-white dark:text-neutral-950"
+              className="ae-pill-dark inline-flex h-9 items-center gap-1.5 rounded-full px-4 text-[12.5px] font-bold"
             >
-              <span>{T('Open Before & After Page', 'فتح صفحة مقارنة قبل وبعد')}</span>
+              <span>{T('Open Before & After', 'فتح صفحة مقارنة قبل وبعد')}</span>
               <ArrowUpRight className="h-3.5 w-3.5" />
             </Link>
           </div>
           {trackedRows.length === 0 ? (
-            <div className="rounded-3xl bg-white p-8 text-center shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-neutral-950/[0.04] dark:bg-[#0F1626] dark:ring-white/[0.07]">
-              <p className="text-[15px] font-bold text-neutral-900 dark:text-white">
+            <div className="ae-bento-card p-8 text-center">
+              <p className="text-[15px] font-bold text-slate-900 dark:text-white">
                 {T('No approved tips yet', 'لا توجد توصيات معتمدة حالياً')}
               </p>
-              <p className="mt-1 text-[13px] text-neutral-500 dark:text-slate-400">
+              <p className="mt-1 text-[13px] text-slate-500 dark:text-slate-400">
                 {T(
                   'Click "Approve" on any profit tip to track numbers before and after.',
                   'اضغط «اعتماد» على أي توصية لمتابعة الأرقام قبل وبعد التنفيذ.',
@@ -631,7 +799,7 @@ export function FullJourney360() {
               <button
                 type="button"
                 onClick={() => setTab('tips')}
-                className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-neutral-950 px-4 py-2 text-[13px] font-bold text-white dark:bg-white dark:text-neutral-950"
+                className="ae-btn-primary mt-4 inline-flex cursor-pointer items-center gap-1.5 rounded-full px-4 py-2 text-[13px] font-bold"
               >
                 {T('Open Profit Tips', 'فتح توصيات الربح')}
               </button>
@@ -641,17 +809,14 @@ export function FullJourney360() {
               {trackedRows.map(({ a, nowVal, status }) => {
                 const statusBadge =
                   status === 'verified'
-                    ? { ar: 'تحسن فعلي 🟢', en: 'Improved 🟢', cls: 'bg-emerald-50 text-emerald-700' }
+                    ? { ar: 'تحسن فعلي 🟢', en: 'Improved 🟢', cls: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300' }
                     : status === 'stalled'
-                      ? { ar: 'يحتاج متابعة 🔴', en: 'Needs Check 🔴', cls: 'bg-rose-50 text-rose-700' }
-                      : { ar: 'قيد المتابعة 🟠', en: 'Tracking 🟠', cls: 'bg-amber-50 text-amber-800' }
+                      ? { ar: 'يحتاج متابعة 🔴', en: 'Needs Check 🔴', cls: 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300' }
+                      : { ar: 'قيد المتابعة 🟠', en: 'Tracking 🟠', cls: 'bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300' }
                 return (
-                  <article
-                    key={a.id}
-                    className="rounded-3xl bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-neutral-950/[0.04] dark:bg-[#0F1626] dark:ring-white/[0.07]"
-                  >
+                  <article key={a.id} className="ae-bento-card p-6">
                     <div className="flex items-center justify-between gap-2">
-                      <h3 className="text-[16px] font-extrabold text-neutral-950 dark:text-white">
+                      <h3 className="text-[16px] font-extrabold text-slate-950 dark:text-white">
                         {isAr ? a.titleAr : a.titleEn}
                       </h3>
                       <span className={`rounded-full px-3 py-1 text-[12px] font-bold ${statusBadge.cls}`}>
@@ -659,21 +824,21 @@ export function FullJourney360() {
                       </span>
                     </div>
 
-                    <div className="mt-4 grid grid-cols-3 gap-3 rounded-2xl bg-[#F7F7F8] p-4 text-center dark:bg-white/[0.04]">
+                    <div className="ae-bento-subcard mt-4 grid grid-cols-3 gap-3 rounded-2xl p-4 text-center">
                       <div>
-                        <div className="text-[11.5px] font-medium text-neutral-500">{T('Before', 'قبل')}</div>
-                        <div className="mt-1 text-[15px] font-extrabold tabular-nums text-neutral-900 dark:text-white">
+                        <div className="text-[11.5px] font-medium text-slate-500">{T('Before', 'قبل')}</div>
+                        <div className="mt-1 text-[15px] font-extrabold tabular-nums text-slate-900 dark:text-white">
                           {journeyKpiFormat(a.kpi, isAr)}
                         </div>
                       </div>
                       <div>
-                        <div className="text-[11.5px] font-medium text-neutral-500">{T('Now', 'الآن')}</div>
-                        <div className="mt-1 text-[15px] font-extrabold tabular-nums text-neutral-900 dark:text-white">
+                        <div className="text-[11.5px] font-medium text-slate-500">{T('Now', 'الآن')}</div>
+                        <div className="mt-1 text-[15px] font-extrabold tabular-nums text-slate-900 dark:text-white">
                           {journeyKpiFormat({ ...a.kpi, value: nowVal }, isAr)}
                         </div>
                       </div>
                       <div>
-                        <div className="text-[11.5px] font-medium text-neutral-500">
+                        <div className="text-[11.5px] font-medium text-slate-500">
                           {T('Expected Gain', 'الفايدة المتوقعة')}
                         </div>
                         <div className="mt-1 text-[15px] font-extrabold tabular-nums text-emerald-700 dark:text-emerald-400">
@@ -686,7 +851,7 @@ export function FullJourney360() {
                       <button
                         type="button"
                         onClick={() => persist(approvals.filter((x) => x.id !== a.id))}
-                        className="rounded-full bg-[#F7F7F8] px-3.5 py-1.5 text-[12px] font-bold text-neutral-600 hover:bg-neutral-200/80 hover:text-neutral-950 dark:bg-white/[0.06] dark:text-slate-300"
+                        className="ae-bento-subcard cursor-pointer rounded-full px-3.5 py-1.5 text-[12px] font-bold text-slate-600 hover:text-slate-950 dark:text-slate-300"
                       >
                         {T('Remove', 'إلغاء الاعتماد')}
                       </button>

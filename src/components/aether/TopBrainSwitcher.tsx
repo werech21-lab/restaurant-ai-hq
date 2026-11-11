@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { Check, ClipboardCopy, RotateCcw, Settings, X } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
+import { SlidingPillTabs } from '@/components/ui/SlidingPillTabs'
 import { AI_KEY_STORAGE_KEYS } from '@/lib/ai-keys'
 import {
   BRAIN_MODE_EVENT,
@@ -17,7 +18,7 @@ import {
 } from '@/lib/dual-heavy-brain'
 import { routeTitle } from '@/lib/aether/route-titles'
 
-const BRAIN_BAR_ROUTES = new Set([
+export const BRAIN_BAR_ROUTES = new Set([
   '/erp',
   '/erp/cores',
   '/erp/before-after',
@@ -36,7 +37,11 @@ const MODE_OPTIONS: readonly {
   { id: 'grok', ar: 'جروك Heavy 🧠', en: 'Grok Heavy 🧠' },
 ] as const
 
-export function TopBrainSwitcher() {
+/**
+ * Compact inline Dual-Brain Switcher + Copy for Grok Ultra + Key Settings gear,
+ * designed to sit seamlessly inside the Unified Executive Top Bar.
+ */
+export function BrainControlsInline() {
   const pathname = usePathname()
   const { locale } = useI18n()
   const isAr = locale === 'ar'
@@ -111,8 +116,6 @@ export function TopBrainSwitcher() {
     }
   }, [gearOpen])
 
-  if (!pathname || !BRAIN_BAR_ROUTES.has(pathname)) return null
-
   const handleSelectMode = (next: BrainMode) => {
     setMode(next)
     setActiveBrainMode(next)
@@ -185,182 +188,192 @@ export function TopBrainSwitcher() {
   })()
 
   return (
-    <section
-      aria-label={isAr ? 'مبدل العقل الذكي' : 'AI Brain Switcher'}
-      dir={isAr ? 'rtl' : 'ltr'}
-      className="no-print relative z-30 flex flex-wrap items-center justify-between gap-2.5"
-    >
-      {/* Left / Start: 3 Clean 2-Word Brain Mode Pills + Live Status Pill */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div
-          role="tablist"
-          aria-label={isAr ? 'اختيار محرك التحليل' : 'Select AI Brain'}
-          className="inline-flex h-10 items-center gap-1 rounded-full bg-white p-1 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-neutral-950/[0.04] dark:bg-[#0F1626] dark:ring-white/[0.08]"
+    <div className="flex flex-wrap items-center gap-1.5">
+      {/* Verdelo Sliding Pill Brain Mode Switcher */}
+      <div className="group relative inline-flex items-center">
+        <SlidingPillTabs
+          ariaLabel={isAr ? 'اختيار محرك التحليل' : 'Select AI Brain'}
+          surface="white"
+          size="sm"
+          value={mode}
+          onChange={handleSelectMode}
+          options={MODE_OPTIONS.map((opt) => ({
+            id: opt.id,
+            label: isAr ? opt.ar : opt.en,
+          }))}
+        />
+        <span
+          role="tooltip"
+          dir="ltr"
+          className="pointer-events-none invisible absolute top-full start-1/2 z-50 mt-2 -translate-x-1/2 whitespace-nowrap rounded-xl bg-white px-3 py-1.5 text-[11.5px] font-bold text-slate-900 opacity-0 transition-all duration-150 group-hover:visible group-hover:opacity-100"
         >
-          {MODE_OPTIONS.map((opt) => {
-            const active = mode === opt.id
-            return (
-              <button
-                key={opt.id}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => handleSelectMode(opt.id)}
-                className={`h-8 rounded-full px-3.5 text-[12.5px] font-bold whitespace-nowrap transition-all duration-150 focus:outline-none ${
-                  active
-                    ? 'bg-neutral-950 text-white ring-1 ring-neutral-900/80 shadow-[0_1px_2px_rgba(0,0,0,0.08)] dark:bg-white dark:text-neutral-950'
-                    : 'text-neutral-600 hover:bg-neutral-100/80 hover:text-neutral-950 dark:text-slate-300 dark:hover:bg-white/[0.06]'
-                }`}
-              >
-                {isAr ? opt.ar : opt.en}
-              </button>
-            )
-          })}
-        </div>
-
-        {/* Live Status Dot + Active Models Readout */}
-        <div className="inline-flex h-10 items-center gap-2 rounded-full bg-white px-3.5 text-[12px] font-semibold text-neutral-600 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-neutral-950/[0.04] dark:bg-[#0F1626] dark:text-slate-300 dark:ring-white/[0.08]">
           <span
-            className={`h-2 w-2 shrink-0 rounded-full ${
+            className={`me-1.5 inline-block h-2 w-2 rounded-full ${
               hasWarning ? 'bg-amber-500' : 'bg-emerald-500'
             }`}
           />
-          <span dir="ltr" className="truncate max-w-[260px] sm:max-w-[340px]">
-            {statusText}
-          </span>
-        </div>
+          {statusText}
+        </span>
       </div>
 
-      {/* Right / End: 1-Click Copy for Grok Ultra + Optional API Keys Gear */}
-      <div className="flex items-center gap-2">
+      {/* 1-Click Copy for Grok Ultra */}
+      <button
+        type="button"
+        onClick={() => void handleCopyForGrokUltra()}
+        className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-white px-3 text-[12px] font-bold text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ring-1 ring-slate-900/[0.05] transition-all duration-150 hover:bg-slate-50 hover:ring-slate-900/15 active:scale-95 dark:bg-[#111A22] dark:text-slate-100 dark:ring-white/[0.08]"
+        title={
+          isAr
+            ? 'نسخ أرقام الفلتر الحالي مع أمر جاهز لتطبيق Grok Ultra'
+            : 'Copy filtered Odoo figures + executive prompt for Grok Ultra'
+        }
+      >
+        {copiedUltra ? (
+          <>
+            <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span className="whitespace-nowrap text-emerald-700 dark:text-emerald-400">
+              {isAr ? 'تم النسخ ✓' : 'Copied ✓'}
+            </span>
+          </>
+        ) : (
+          <>
+            <ClipboardCopy className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
+            <span className="whitespace-nowrap">{isAr ? 'نسخ لجروك الترا 📋' : 'Grok Ultra 📋'}</span>
+          </>
+        )}
+      </button>
+
+      {/* Optional Local API Key Override Gear */}
+      <div ref={gearWrapRef} className="relative">
         <button
           type="button"
-          onClick={() => void handleCopyForGrokUltra()}
-          className="inline-flex h-10 items-center gap-1.5 rounded-full bg-white px-4 text-[12.5px] font-bold text-neutral-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-neutral-950/[0.05] transition-all duration-150 hover:bg-neutral-50 hover:ring-neutral-900/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-neutral-900/80 dark:bg-[#0F1626] dark:text-white dark:ring-white/[0.08]"
-          title={
-            isAr
-              ? 'نسخ أرقام الفلتر الحالي مع أمر جاهز لتطبيق Grok Ultra'
-              : 'Copy filtered Odoo figures + executive prompt for Grok Ultra'
-          }
+          onClick={() => setGearOpen((v) => !v)}
+          aria-label={isAr ? 'إعدادات مفاتيح الذكاء' : 'AI Key Settings'}
+          title={statusText}
+          aria-expanded={gearOpen}
+          className={`relative inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-white text-slate-700 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all duration-150 focus:outline-none dark:bg-[#111A22] dark:text-slate-200 ${
+            gearOpen
+              ? 'ring-1 ring-slate-900/80 dark:ring-emerald-400/70'
+              : 'ring-1 ring-slate-900/[0.05] hover:text-slate-950 hover:ring-slate-900/20 dark:ring-white/[0.08]'
+          }`}
         >
-          {copiedUltra ? (
-            <>
-              <Check className="h-3.5 w-3.5 text-emerald-600" />
-              <span className="text-emerald-700 dark:text-emerald-400">
-                {isAr ? 'تم النسخ ✓' : 'Copied ✓'}
-              </span>
-            </>
-          ) : (
-            <>
-              <ClipboardCopy className="h-3.5 w-3.5 text-neutral-500" />
-              <span>{isAr ? 'نسخ لجروك الترا 📋' : 'Copy for Grok Ultra 📋'}</span>
-            </>
-          )}
+          <Settings className="h-3.5 w-3.5" />
+          <span
+            aria-hidden
+            className={`absolute top-1.5 end-1.5 h-1.5 w-1.5 rounded-full ${
+              hasWarning ? 'bg-amber-500' : 'bg-emerald-500'
+            }`}
+          />
         </button>
 
-        {/* Optional Local API Key Override Gear */}
-        <div ref={gearWrapRef} className="relative">
-          <button
-            type="button"
-            onClick={() => setGearOpen((v) => !v)}
-            aria-label={isAr ? 'إعدادات مفاتيح الذكاء' : 'AI Key Settings'}
-            aria-expanded={gearOpen}
-            className={`inline-flex h-10 w-10 items-center justify-center rounded-full bg-white text-neutral-700 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-150 focus:outline-none dark:bg-[#0F1626] dark:text-slate-200 ${
-              gearOpen
-                ? 'ring-1 ring-neutral-900/80 dark:ring-white/70'
-                : 'ring-1 ring-neutral-950/[0.05] hover:text-neutral-950 hover:ring-neutral-900/20 dark:ring-white/[0.08]'
-            }`}
-          >
-            <Settings className="h-4 w-4" />
-          </button>
-
-          {gearOpen ? (
-            <div className="absolute end-0 z-50 mt-2 w-[320px] sm:w-[360px] rounded-2xl bg-white p-4 shadow-[0_16px_40px_-8px_rgba(15,23,42,0.16),0_2px_6px_rgba(15,23,42,0.04)] ring-1 ring-neutral-950/[0.06] dark:bg-[#0F1626] dark:ring-white/[0.1]">
-              <div className="flex items-center justify-between gap-2 pb-2">
-                <h3 className="text-[13.5px] font-extrabold text-neutral-950 dark:text-white">
-                  {isAr ? 'مفاتيح مخصصة (اختياري)' : 'Custom API Keys (Optional)'}
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setGearOpen(false)}
-                  aria-label={isAr ? 'إغلاق' : 'Close'}
-                  className="rounded-full p-1 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-900 dark:hover:bg-white/10 dark:hover:text-white"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-              <p className="text-[11.5px] leading-relaxed text-neutral-500 dark:text-slate-400">
-                {isAr
-                  ? 'المفاتيح الأساسية مدمجة ومؤمنة تلقائياً. يمكنك إضافة مفتاح بديل في متصفحك فقط عند الحاجة.'
-                  : 'Built-in keys are active by default. Add optional browser-only overrides if needed.'}
-              </p>
-
-              <div className="mt-3 space-y-2.5">
-                <label className="block space-y-1">
-                  <span className="text-[11.5px] font-bold text-neutral-700 dark:text-slate-300">
-                    xAI Grok Heavy Key
-                  </span>
-                  <input
-                    type="password"
-                    dir="ltr"
-                    value={customXai}
-                    onChange={(e) => setCustomXai(e.target.value)}
-                    placeholder={isAr ? 'مفعّل تلقائياً (اتركه فارغاً للافتراضي)' : 'Built-in active (leave blank for default)'}
-                    className="h-9 w-full rounded-xl bg-[#F7F7F8] px-3 text-[12px] font-mono text-neutral-900 ring-1 ring-neutral-950/[0.05] focus:bg-white focus:outline-none focus:ring-1 focus:ring-neutral-900/80 dark:bg-white/[0.06] dark:text-white"
-                  />
-                </label>
-
-                <label className="block space-y-1">
-                  <span className="text-[11.5px] font-bold text-neutral-700 dark:text-slate-300">
-                    Google Gemini Carbon Key
-                  </span>
-                  <input
-                    type="password"
-                    dir="ltr"
-                    value={customGemini}
-                    onChange={(e) => setCustomGemini(e.target.value)}
-                    placeholder={isAr ? 'مفعّل تلقائياً (اتركه فارغاً للافتراضي)' : 'Built-in active (leave blank for default)'}
-                    className="h-9 w-full rounded-xl bg-[#F7F7F8] px-3 text-[12px] font-mono text-neutral-900 ring-1 ring-neutral-950/[0.05] focus:bg-white focus:outline-none focus:ring-1 focus:ring-neutral-900/80 dark:bg-white/[0.06] dark:text-white"
-                  />
-                </label>
-
-                <label className="block space-y-1">
-                  <span className="text-[11.5px] font-bold text-neutral-700 dark:text-slate-300">
-                    OpenAI Nova Voice Key
-                  </span>
-                  <input
-                    type="password"
-                    dir="ltr"
-                    value={customOpenAi}
-                    onChange={(e) => setCustomOpenAi(e.target.value)}
-                    placeholder={isAr ? 'مفعّل تلقائياً (اتركه فارغاً للافتراضي)' : 'Built-in active (leave blank for default)'}
-                    className="h-9 w-full rounded-xl bg-[#F7F7F8] px-3 text-[12px] font-mono text-neutral-900 ring-1 ring-neutral-950/[0.05] focus:bg-white focus:outline-none focus:ring-1 focus:ring-neutral-900/80 dark:bg-white/[0.06] dark:text-white"
-                  />
-                </label>
-              </div>
-
-              <div className="mt-4 flex items-center justify-between gap-2">
-                <button
-                  type="button"
-                  onClick={handleClearOverrides}
-                  className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[#F7F7F8] px-3 text-[12px] font-bold text-neutral-600 hover:bg-neutral-200/70 hover:text-neutral-950 dark:bg-white/[0.06] dark:text-slate-300"
-                >
-                  <RotateCcw className="h-3.5 w-3.5" />
-                  <span>{isAr ? 'استعادة الافتراضي' : 'Use Defaults'}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSaveCustomKeys}
-                  className="inline-flex h-9 items-center gap-1.5 rounded-full bg-neutral-950 px-4 text-[12px] font-bold text-white transition-all duration-150 hover:bg-neutral-800 dark:bg-white dark:text-neutral-950"
-                >
-                  {savedNotice ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : null}
-                  <span>{savedNotice ? (isAr ? 'تم الحفظ ✓' : 'Saved ✓') : isAr ? 'حفظ' : 'Save'}</span>
-                </button>
-              </div>
+        {gearOpen ? (
+          <div className="ae-bento-card absolute end-0 z-50 mt-2 w-[320px] p-4 sm:w-[360px]">
+            <div className="flex items-center justify-between gap-2 pb-2">
+              <h3 className="text-[13.5px] font-extrabold text-slate-950 dark:text-white">
+                {isAr ? 'مفاتيح مخصصة (اختياري)' : 'Custom API Keys (Optional)'}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setGearOpen(false)}
+                aria-label={isAr ? 'إغلاق' : 'Close'}
+                className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-white/10 dark:hover:text-white"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
-          ) : null}
-        </div>
+            <p className="text-[11.5px] leading-relaxed text-slate-500 dark:text-slate-400">
+              {isAr
+                ? 'المفاتيح الأساسية مدمجة ومؤمنة تلقائياً. يمكنك إضافة مفتاح بديل في متصفحك فقط عند الحاجة.'
+                : 'Built-in keys are active by default. Add optional browser-only overrides if needed.'}
+            </p>
+            <div className="mt-2 flex items-center gap-2 rounded-xl bg-[#F4F6F9] px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 dark:bg-white/[0.05] dark:text-slate-300">
+              <span className={`h-2 w-2 shrink-0 rounded-full ${hasWarning ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+              <span dir="ltr" className="truncate">
+                {statusText}
+              </span>
+            </div>
+
+            <div className="mt-3 space-y-2.5">
+              <label className="block space-y-1">
+                <span className="text-[11.5px] font-bold text-slate-700 dark:text-slate-300">
+                  xAI Grok Heavy Key
+                </span>
+                <input
+                  type="password"
+                  dir="ltr"
+                  value={customXai}
+                  onChange={(e) => setCustomXai(e.target.value)}
+                  placeholder={isAr ? 'مفعّل تلقائياً (اتركه فارغاً للافتراضي)' : 'Built-in active (leave blank for default)'}
+                  className="h-9 w-full rounded-xl bg-[#F4F6F9] px-3 font-mono text-[12px] text-slate-900 ring-1 ring-slate-950/[0.05] focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-900/80 dark:bg-white/[0.06] dark:text-white"
+                />
+              </label>
+
+              <label className="block space-y-1">
+                <span className="text-[11.5px] font-bold text-slate-700 dark:text-slate-300">
+                  Google Gemini Carbon Key
+                </span>
+                <input
+                  type="password"
+                  dir="ltr"
+                  value={customGemini}
+                  onChange={(e) => setCustomGemini(e.target.value)}
+                  placeholder={isAr ? 'مفعّل تلقائياً (اتركه فارغاً للافتراضي)' : 'Built-in active (leave blank for default)'}
+                  className="h-9 w-full rounded-xl bg-[#F4F6F9] px-3 font-mono text-[12px] text-slate-900 ring-1 ring-slate-950/[0.05] focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-900/80 dark:bg-white/[0.06] dark:text-white"
+                />
+              </label>
+
+              <label className="block space-y-1">
+                <span className="text-[11.5px] font-bold text-slate-700 dark:text-slate-300">
+                  OpenAI Nova Voice Key
+                </span>
+                <input
+                  type="password"
+                  dir="ltr"
+                  value={customOpenAi}
+                  onChange={(e) => setCustomOpenAi(e.target.value)}
+                  placeholder={isAr ? 'مفعّل تلقائياً (اتركه فارغاً للافتراضي)' : 'Built-in active (leave blank for default)'}
+                  className="h-9 w-full rounded-xl bg-[#F4F6F9] px-3 font-mono text-[12px] text-slate-900 ring-1 ring-slate-950/[0.05] focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-900/80 dark:bg-white/[0.06] dark:text-white"
+                />
+              </label>
+            </div>
+
+            <div className="mt-4 flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={handleClearOverrides}
+                className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[#F4F6F9] px-3 text-[12px] font-bold text-slate-600 hover:bg-slate-200/70 hover:text-slate-950 dark:bg-white/[0.06] dark:text-slate-300"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                <span>{isAr ? 'استعادة الافتراضي' : 'Use Defaults'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveCustomKeys}
+                className="ae-btn-primary inline-flex h-9 items-center gap-1.5 rounded-full px-4 text-[12px] font-bold transition-all duration-150"
+              >
+                {savedNotice ? <Check className="h-3.5 w-3.5" /> : null}
+                <span>{savedNotice ? (isAr ? 'تم الحفظ ✓' : 'Saved ✓') : isAr ? 'حفظ' : 'Save'}</span>
+              </button>
+            </div>
+          </div>
+        ) : null}
       </div>
+    </div>
+  )
+}
+
+export function TopBrainSwitcher() {
+  const pathname = usePathname()
+  const { locale } = useI18n()
+  const isAr = locale === 'ar'
+  if (!pathname || !BRAIN_BAR_ROUTES.has(pathname)) return null
+
+  return (
+    <section
+      aria-label={isAr ? 'مبدل العقل الذكي' : 'AI Brain Switcher'}
+      dir={isAr ? 'rtl' : 'ltr'}
+      className="no-print relative z-30 flex flex-wrap items-center justify-end gap-2"
+    >
+      <BrainControlsInline />
     </section>
   )
 }
