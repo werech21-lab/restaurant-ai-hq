@@ -6,6 +6,8 @@ export interface RouteTitle {
 
 const ROUTE_TITLES: { match: string; exact?: boolean; title: RouteTitle }[] = [
   { match: '/erp', exact: true, title: { en: 'Company Summary', ar: 'ملخص الشركة' } },
+  { match: '/erp/cores', title: { en: 'Sales, Marketing & Menu', ar: 'المبيعات والتسويق والمنتجات' } },
+  { match: '/erp/before-after', title: { en: 'Before & After', ar: 'مقارنة قبل وبعد' } },
   { match: '/erp/feryal-ai', title: { en: 'Ask Feryal', ar: 'المستشارة فريال' } },
   { match: '/erp/events-intelligence', title: { en: 'Booth Calculator', ar: 'حاسبة المعارض' } },
   { match: '/erp/sales-scorecard', title: { en: 'Sales Scorecard', ar: 'سجل المبيعات' } },

@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import {
+  ArrowLeftRight,
+  BarChart3,
   Building2,
   CalendarRange,
   CornerDownLeft,
@@ -107,6 +109,28 @@ export function ExecutiveCommandPalette() {
         keywords: 'dashboard summary profit steps الرئيسية ملخص الشركة توصيات الربح',
         icon: <LayoutDashboard className="h-4 w-4" />,
         run: () => go('/erp'),
+      },
+      {
+        id: 'p-cores',
+        group: 'pages',
+        en: 'Sales, Marketing & Menu',
+        ar: 'المبيعات والتسويق والمنتجات',
+        hintEn: 'Social/Influencer ROI & 6 Growth Plays',
+        hintAr: 'حاسبة السوشيال والمشاهير والأصناف',
+        keywords: 'cores marketing social influencer menu sales ratings المبيعات والتسويق والمنتجات مشاهير اعلانات منيو تقييم',
+        icon: <BarChart3 className="h-4 w-4" />,
+        run: () => go('/erp/cores'),
+      },
+      {
+        id: 'p-before-after',
+        group: 'pages',
+        en: 'Before & After',
+        ar: 'مقارنة قبل وبعد',
+        hintEn: 'Interactive Period & Campaign Comparison',
+        hintAr: 'مقارنة الفترات والحملات بالأرقام',
+        keywords: 'before after compare period campaign مقارنة قبل وبعد',
+        icon: <ArrowLeftRight className="h-4 w-4" />,
+        run: () => go('/erp/before-after'),
       },
       {
         id: 'p-feryal',

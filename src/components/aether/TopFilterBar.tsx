@@ -14,7 +14,13 @@ import {
 } from '@/lib/aether/global-filter-engine'
 
 /** Routes where the global top filter bar is prominently displayed. */
-const TOP_FILTER_ROUTES = new Set(['/erp', '/erp/feryal-ai', '/erp/aggregator-radar'])
+const TOP_FILTER_ROUTES = new Set([
+  '/erp',
+  '/erp/cores',
+  '/erp/before-after',
+  '/erp/feryal-ai',
+  '/erp/aggregator-radar',
+])
 
 function PillDropdown<T extends string>({
   label,

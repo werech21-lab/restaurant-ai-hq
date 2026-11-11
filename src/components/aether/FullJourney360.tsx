@@ -587,6 +587,26 @@ export function FullJourney360() {
       ===================================================================== */}
       {tab === 'compare' && (
         <section className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-neutral-950/[0.04] dark:bg-[#0F1626] dark:ring-white/[0.07]">
+            <div>
+              <h3 className="text-[15px] font-extrabold text-neutral-950 dark:text-white">
+                {T('Interactive Before & After Charts', 'مقارنة قبل وبعد بالرسوم البيانية التفاعلية')}
+              </h3>
+              <p className="text-[12.5px] font-medium text-neutral-500 dark:text-slate-400">
+                {T(
+                  'Compare sales, net cash, orders & average bill before and after any period or campaign.',
+                  'قارن المبيعات والصافي بالجيب والطلبات ومتوسط الفاتورة قبل وبعد أي فترة أو إعلان.',
+                )}
+              </p>
+            </div>
+            <Link
+              href="/erp/before-after"
+              className="inline-flex h-9 items-center gap-1.5 rounded-full bg-neutral-950 px-4 text-[12.5px] font-bold text-white transition-colors hover:bg-neutral-800 dark:bg-white dark:text-neutral-950"
+            >
+              <span>{T('Open Before & After Page', 'فتح صفحة مقارنة قبل وبعد')}</span>
+              <ArrowUpRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
           {trackedRows.length === 0 ? (
             <div className="rounded-3xl bg-white p-8 text-center shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-neutral-950/[0.04] dark:bg-[#0F1626] dark:ring-white/[0.07]">
               <p className="text-[15px] font-bold text-neutral-900 dark:text-white">

@@ -4,6 +4,8 @@ import React, { Suspense, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import {
+  ArrowLeftRight,
+  BarChart3,
   Calendar,
   ChevronDown,
   LayoutDashboard,
@@ -44,7 +46,7 @@ interface NavSection {
   items: NavItem[]
 }
 
-/** The four executive pillars of Aether BI. The Delivery & Aggregator Radar is a permanent pillar. */
+/** The six executive items of Aether BI. The Delivery & Aggregator Radar is a permanent pillar. */
 const SIDEBAR_SECTIONS: NavSection[] = [
   {
     id: 'main',
@@ -52,6 +54,8 @@ const SIDEBAR_SECTIONS: NavSection[] = [
     titleEn: 'Menu',
     items: [
       { key: 'playbook', href: '/erp', labelAr: 'الرئيسية', labelEn: 'Overview', icon: LayoutDashboard, alwaysVisible: true },
+      { key: 'cores', href: '/erp/cores', labelAr: 'المبيعات والتسويق والمنتجات', labelEn: 'Sales, Marketing & Menu', icon: BarChart3, alwaysVisible: true },
+      { key: 'before-after', href: '/erp/before-after', labelAr: 'مقارنة قبل وبعد', labelEn: 'Before & After', icon: ArrowLeftRight, alwaysVisible: true },
       { key: 'feryal-ai', href: '/erp/feryal-ai', labelAr: 'المستشارة فريال', labelEn: 'Ask Feryal', icon: Sparkles, alwaysVisible: true },
       { key: 'aggregator-radar', href: '/erp/aggregator-radar', labelAr: 'مراقبة التوصيل', labelEn: 'Delivery Radar', icon: Radar, alwaysVisible: true },
       { key: 'events-intelligence', href: '/erp/events-intelligence', labelAr: 'حاسبة المعارض', labelEn: 'Booth Calculator', icon: Calendar, alwaysVisible: true },
