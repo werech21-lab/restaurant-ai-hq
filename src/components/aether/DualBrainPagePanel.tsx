@@ -171,11 +171,11 @@ export function DualBrainPagePanel({
     <section
       dir={isAr ? 'rtl' : 'ltr'}
       aria-label={isAr ? 'تحليل العقل الثلاثي للصفحة' : 'Triple-Brain Page Analysis'}
-      className="ae-bento-card no-print p-4 sm:p-5"
+      className="ae-bento-card no-print px-4 py-3 sm:px-5 sm:py-3.5"
     >
       {/* Compact 1-Click Trigger Bar + Live 3-Brain Model ID Badges */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0 space-y-1.5">
+      <div className="flex flex-wrap items-center justify-between gap-2.5">
+        <div className="min-w-0 space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-[14.5px] font-extrabold text-slate-950 dark:text-white">
               {isAr ? 'قراءة ذكية فورية لأرقام هذه الصفحة' : 'Instant Executive Readout for This Page'}

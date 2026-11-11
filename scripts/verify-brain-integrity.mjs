@@ -344,15 +344,36 @@ assert(
 )
 
 const coresSrc = fs.readFileSync(path.join(ROOT, 'src/components/aether/CoresHubStudio.tsx'), 'utf8')
+const donutSrc = fs.readFileSync(path.join(ROOT, 'src/components/aether/InteractiveHoverCharts.tsx'), 'utf8')
+const shellSrc = fs.readFileSync(path.join(ROOT, 'src/components/shell.tsx'), 'utf8')
 const beforeAfterSrc = fs.readFileSync(path.join(ROOT, 'src/components/aether/BeforeAfterStudio.tsx'), 'utf8')
 const boothSrc = fs.readFileSync(path.join(ROOT, 'src/components/aether/BoothStudyV5.tsx'), 'utf8')
 assert(
-  !coresSrc.includes('centerValue={`${snap.marketing.kpis.promoSharePct}%`}') &&
+  !coresSrc.includes("'Promo vs Organic'") &&
+    !coresSrc.includes("'العروض مقابل الطبيعي'") &&
     !coresSrc.includes('centerValue={`${snap.menu.avgMarginPct}%`}') &&
     !coresSrc.includes('centerValue={`${snap.quality.avgPlatformRating.toFixed(1)} ★`}') &&
     !beforeAfterSrc.includes('centerValue={fmtSignedPct(snap.summary.pocket.pct)}') &&
     !boothSrc.includes('centerValue={kwd(base.revenue)}'),
   'Zero top-row KPI figures duplicated inside donut centers across /erp/cores, /erp/before-after & /erp/events-intelligence',
+)
+assert(
+  donutSrc.includes('max-w-[62%]') &&
+    donutSrc.includes('tabular-nums') &&
+    donutSrc.includes('summaryPill') &&
+    coresSrc.includes('Return per 1 KWD Ad') &&
+    coresSrc.includes('Discounts & Ad Spend') &&
+    coresSrc.includes('Net Pocket After Ads') &&
+    coresSrc.includes('Promo vs Organic Avg Bill') &&
+    coresSrc.includes('centerValue={`${f1(snap.marketing.kpis.promoSharePct)}%`}') &&
+    coresSrc.includes('Net After Ad Spend') &&
+    coresSrc.includes('Show 4 Demo Examples 🧪') &&
+    coresSrc.includes('عرض ٤ أمثلة توضيحية 🧪') &&
+    !coresSrc.includes('bg-neutral-950') &&
+    coresSrc.includes('upsideBadgeAr') &&
+    coresSrc.includes('نسخ خطة التنفيذ 📋') &&
+    shellSrc.includes('max-w-[1440px]'),
+  'Unslop /erp/cores audit passed: bounded max-w-[62%] donut center + summaryPill, 4 non-duplicate KPIs, gated demo influencer toggle, zero black bg-neutral-950 pills, dynamic growth plays & max-w-[1440px] layout',
 )
 
 const pagePanelSrc = fs.readFileSync(path.join(ROOT, 'src/components/aether/DualBrainPagePanel.tsx'), 'utf8')

@@ -206,10 +206,10 @@ export function TopFilterBar() {
     <section
       aria-label={isAr ? 'شريط التحكم التنفيذي الموحد' : 'Unified Executive Control Bar'}
       dir={isAr ? 'rtl' : 'ltr'}
-      className="no-print relative z-30 space-y-2"
+      className="no-print relative z-30 space-y-1.5"
     >
       {/* Row 1: 5D Filters + Share for WhatsApp + Dual-Brain + Theme + AR/EN */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-1.5">
         <div className="flex flex-wrap items-center gap-1.5">
           {showPosFilters ? (
             <>
@@ -341,7 +341,7 @@ export function TopFilterBar() {
 
       {/* Row 2 (POS & Ledger Pages): Verdelo Sliding 7 Profit Lenses + 1-Line Peer Benchmark & Root-Cause Strip */}
       {showPosFilters ? (
-        <div className="space-y-1.5">
+        <div className="space-y-1">
           <div className="overflow-x-auto pb-0.5">
             <SlidingPillTabs<ProfitLens>
               ariaLabel={isAr ? 'عدسات الربح السبع' : '7 Profit Lenses'}
@@ -356,7 +356,7 @@ export function TopFilterBar() {
             />
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-white/90 px-3.5 py-2 text-[12px] shadow-[0_1px_2px_rgba(15,23,42,0.03)] ring-1 ring-slate-900/[0.05] dark:bg-[#111A22]/95 dark:ring-white/[0.07]">
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-white/90 px-3 py-1.5 text-[12px] shadow-[0_1px_2px_rgba(15,23,42,0.03)] ring-1 ring-slate-900/[0.05] dark:bg-[#111A22]/95 dark:ring-white/[0.07]">
             <div className="flex flex-wrap items-center gap-2">
               <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11.5px] font-extrabold ring-1 ${diagPillTone}`}>
                 {isAr ? diag.benchmarkAr : diag.benchmarkEn}

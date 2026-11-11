@@ -52,6 +52,7 @@ export interface CampaignHaloEvaluation {
 }
 
 export const SOCIAL_CAMPAIGNS_STORAGE_KEY = 'vf-social-campaigns-v1'
+export const REAL_SOCIAL_CAMPAIGNS_STORAGE_KEY = 'vf-real-social-campaigns-v2'
 
 export const SOCIAL_AD_TYPE_OPTIONS: readonly {
   id: SocialAdType
@@ -133,8 +134,16 @@ function shiftIsoDate(iso: string, deltaDays: number): string {
   return dt.toISOString().slice(0, 10)
 }
 
-export function sanitizeCampaigns(raw: unknown): SocialCampaign[] {
-  if (!Array.isArray(raw)) return SEEDED_SOCIAL_CAMPAIGNS
+export const DEMO_SOCIAL_CAMPAIGN_IDS = new Set<string>(
+  SEEDED_SOCIAL_CAMPAIGNS.map((c) => c.id),
+)
+
+export function isDemoSocialCampaign(id: string): boolean {
+  return DEMO_SOCIAL_CAMPAIGN_IDS.has(id)
+}
+
+function parseValidCampaignList(raw: unknown, excludeDemoIds: boolean): SocialCampaign[] {
+  if (!Array.isArray(raw)) return []
   const validBrands = new Set<string>(APPROVED_BRAND_IDS)
   const validTypes = new Set<string>(SOCIAL_AD_TYPE_OPTIONS.map((t) => t.id))
   const out: SocialCampaign[] = []
@@ -142,20 +151,39 @@ export function sanitizeCampaigns(raw: unknown): SocialCampaign[] {
     if (!item || typeof item !== 'object') continue
     const rec = item as Partial<SocialCampaign>
     if (!rec.brand || !validBrands.has(rec.brand)) continue
+    const id =
+      typeof rec.id === 'string' && rec.id ? rec.id : `camp-${Date.now()}-${out.length}`
+    if (excludeDemoIds && DEMO_SOCIAL_CAMPAIGN_IDS.has(id)) continue
     const adType: SocialAdType =
       rec.adType && validTypes.has(rec.adType) ? (rec.adType as SocialAdType) : 'instagram'
     const spend = Math.max(0, safeNum(Number(rec.spendKwd), 0))
-    const date = typeof rec.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rec.date) ? rec.date : '2026-11-05'
+    const date =
+      typeof rec.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rec.date)
+        ? rec.date
+        : '2026-11-05'
     out.push({
-      id: typeof rec.id === 'string' && rec.id ? rec.id : `camp-${Date.now()}-${out.length}`,
+      id,
       brand: rec.brand as Exclude<GlobalBrand, 'all'>,
       adType,
-      campaignName: typeof rec.campaignName === 'string' && rec.campaignName.trim() ? rec.campaignName.trim() : 'حملة سوشيال',
+      campaignName:
+        typeof rec.campaignName === 'string' && rec.campaignName.trim()
+          ? rec.campaignName.trim()
+          : 'حملة سوشيال',
       spendKwd: spend,
       date,
       promotedItem: typeof rec.promotedItem === 'string' ? rec.promotedItem.trim() : '',
     })
   }
+  return out
+}
+
+/** Sanitizes user-saved real Venture Foods campaigns; preserves `[]` when empty and strips demo IDs. */
+export function sanitizeRealCampaigns(raw: unknown): SocialCampaign[] {
+  return parseValidCampaignList(raw, true)
+}
+
+export function sanitizeCampaigns(raw: unknown): SocialCampaign[] {
+  const out = parseValidCampaignList(raw, false)
   return out.length > 0 ? out : SEEDED_SOCIAL_CAMPAIGNS
 }
 
