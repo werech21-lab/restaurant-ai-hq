@@ -17,6 +17,7 @@
 
 import {
   getAnthropicApiKey,
+  getAnthropicBrowserOverride,
   getGeminiApiKey,
   getOpenAIApiKey,
   getXaiApiKey,
@@ -48,6 +49,9 @@ export interface BrainLiveHealth {
   geminiReady: boolean
   grokReady: boolean
   claudeModel: string
+  claudeSonnetModel?: string
+  claudeOpusModel?: string
+  sonnetOnly?: boolean
   geminiModel: string
   grokModel: string
   grokQuotaNoteAr?: string
@@ -59,6 +63,7 @@ export interface DualBrainRequest {
   query: string
   lang: 'ar' | 'en'
   mode?: BrainMode
+  claudeTier?: 'daily' | 'deep'
   filters?: GlobalFilters
   workspace?: GlobalWorkspaceSlice
   pageContext?: string
@@ -92,32 +97,80 @@ export interface DualBrainResponse {
 
 export const BRAIN_MODE_STORAGE_KEY = 'aetherbi_active_brain_mode_v2'
 const LEGACY_BRAIN_MODE_KEY = 'aetherbi_active_brain_mode_v1'
+export const CLAUDE_SONNET_ONLY_KEY = 'aether_claude_sonnet_only_v1'
 export const BRAIN_MODE_EVENT = 'aetherbi-brain-mode-change'
 export const BRAIN_HEALTH_EVENT = 'aetherbi-brain-health-update'
 
 const GEMINI_CACHE_KEY = 'aetherbi_gemini_models_cache_v4'
 const XAI_CACHE_KEY = 'aetherbi_xai_models_cache_v3'
-const CLAUDE_CACHE_KEY = 'aetherbi_claude_models_cache_v2'
-const LAST_VERIFIED_MODELS_KEY = 'aetherbi_last_verified_models_v1'
+const CLAUDE_CACHE_KEY = 'aetherbi_claude_models_cache_v3'
+const LAST_VERIFIED_MODELS_KEY = 'aetherbi_last_verified_models_v2'
 const SIX_HOURS_MS = 6 * 60 * 60 * 1000
 const COOLDOWN_MS = 20 * 60 * 1000
 
 // In-memory 6h discovery caches + runtime verified model IDs + rate-limit cooldown tracker
 let geminiCachedModels: { at: number; models: string[] } | null = null
 let xaiCachedModels: { at: number; models: string[]; quotaWarning?: string } | null = null
-let claudeCachedModels: { at: number; models: string[] } | null = null
-let lastVerifiedModels: { claude?: string; gemini?: string; grok?: string } = {}
+let claudeCachedCatalog: {
+  at: number
+  sonnetChain: string[]
+  opusChain: string[]
+} | null = null
+let lastVerifiedModels: {
+  claude?: string
+  claudeSonnet?: string
+  claudeOpus?: string
+  gemini?: string
+  grok?: string
+} = {}
 const modelCooldownUntil = new Map<string, number>()
 
-function loadLastVerifiedModels(): { claude?: string; gemini?: string; grok?: string } {
-  if (lastVerifiedModels.claude || lastVerifiedModels.gemini || lastVerifiedModels.grok) {
+export function getClaudeSonnetOnly(): boolean {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return window.localStorage.getItem(CLAUDE_SONNET_ONLY_KEY) === '1'
+    }
+  } catch {}
+  return false
+}
+
+export function setClaudeSonnetOnly(enabled: boolean): void {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      if (enabled) window.localStorage.setItem(CLAUDE_SONNET_ONLY_KEY, '1')
+      else window.localStorage.removeItem(CLAUDE_SONNET_ONLY_KEY)
+      window.dispatchEvent(new CustomEvent(BRAIN_HEALTH_EVENT, { detail: { sonnetOnly: enabled } }))
+    }
+  } catch {}
+}
+
+export function formatClaudeModelBadge(rawId: string): string {
+  const clean = rawId
+    .replace(/^Claude\s+(?:Sonnet|Opus)\s*\(/i, '')
+    .replace(/\)\s*[⚡🔬].*$/u, '')
+    .replace(/\s*\(Extended Thinking\)\s*$/i, '')
+    .trim()
+  if (clean.includes('opus')) {
+    return `Claude Opus (${clean}) 🔬`
+  }
+  return `Claude Sonnet (${clean}) ⚡`
+}
+
+function loadLastVerifiedModels() {
+  if (
+    lastVerifiedModels.claude ||
+    lastVerifiedModels.claudeSonnet ||
+    lastVerifiedModels.claudeOpus ||
+    lastVerifiedModels.gemini ||
+    lastVerifiedModels.grok
+  ) {
     return lastVerifiedModels
   }
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
       const raw = window.localStorage.getItem(LAST_VERIFIED_MODELS_KEY)
       if (raw) {
-        const parsed = JSON.parse(raw) as { claude?: string; gemini?: string; grok?: string }
+        const parsed = JSON.parse(raw) as typeof lastVerifiedModels
         if (parsed && typeof parsed === 'object') {
           lastVerifiedModels = parsed
         }
@@ -127,7 +180,10 @@ function loadLastVerifiedModels(): { claude?: string; gemini?: string; grok?: st
   return lastVerifiedModels
 }
 
-function recordVerifiedModel(engine: 'claude' | 'gemini' | 'grok', modelId: string) {
+function recordVerifiedModel(
+  engine: 'claude' | 'claudeSonnet' | 'claudeOpus' | 'gemini' | 'grok',
+  modelId: string,
+) {
   if (!modelId) return
   const cur = loadLastVerifiedModels()
   lastVerifiedModels = { ...cur, [engine]: modelId }
@@ -142,7 +198,7 @@ function recordVerifiedModel(engine: 'claude' | 'gemini' | 'grok', modelId: stri
 export function clearBrainDiscoveryCaches(): void {
   geminiCachedModels = null
   xaiCachedModels = null
-  claudeCachedModels = null
+  claudeCachedCatalog = null
   lastVerifiedModels = {}
   modelCooldownUntil.clear()
   try {
@@ -710,138 +766,322 @@ Analyze every business question across 3 simultaneous lenses in crisp, plain eve
 }
 
 // ============================================================================
-// Engine C: Anthropic "Claude Deep" Extended Thinking + Ephemeral Prompt Cache
+// Engine C: Anthropic Smart Dual-Tier Engine (`Sonnet` Daily ⚡ + `Opus` Deep 🔬)
+// Routed via `/api/ai/claude` server proxy (keeps AetherBI-Live key out of browser headers)
 // ============================================================================
 export function scoreClaudeModel(id: string): number {
   const m = id.toLowerCase()
-  if (/embed|instant|claude-1|claude-2|claude-3-haiku/i.test(m)) return -1
-  if (m.startsWith('claude-opus-4-6') || m.startsWith('claude-opus-4-7')) return 1000
-  if (m.startsWith('claude-opus-4-5')) return 990
-  if (m.startsWith('claude-opus-4-1')) return 985
-  if (m.startsWith('claude-opus-4')) return 980
-  if (m.startsWith('claude-sonnet-4-6') || m.startsWith('claude-sonnet-4-7')) return 960
-  if (m.startsWith('claude-sonnet-4-5')) return 950
-  if (m.startsWith('claude-sonnet-4')) return 940
-  if (m.startsWith('claude-3-7-sonnet')) return 900
-  if (m.startsWith('claude-3-5-sonnet')) return 860
-  if (m.includes('opus')) return 840
-  if (m.includes('sonnet')) return 820
-  if (m.includes('haiku')) return 720
+  if (/fable|mythos|embed|instant|haiku|claude-1|claude-2|claude-3|4-0|4-1|4\.0|4\.1/i.test(m)) {
+    return -1
+  }
+  if (m.startsWith('claude-opus-5-5')) return 1000
+  if (m.startsWith('claude-opus-5')) return 990
+  if (m.startsWith('claude-sonnet-5-5')) return 985
+  if (m.startsWith('claude-sonnet-5')) return 980
+  if (m.startsWith('claude-opus-4-8') || m.startsWith('claude-opus-4-7')) return 970
+  if (m.startsWith('claude-opus-4-6')) return 965
+  if (m.startsWith('claude-sonnet-4-6')) return 960
+  if (m.startsWith('claude-opus-4-5')) return 950
+  if (m.startsWith('claude-sonnet-4-5')) return 940
+  if (m.includes('opus')) return 900
+  if (m.includes('sonnet')) return 890
   return -1
 }
 
-export const DEFAULT_CLAUDE_CHAIN = [
-  'claude-opus-4-6',
+export const DEFAULT_CLAUDE_SONNET_CHAIN = [
+  'claude-sonnet-5-5',
+  'claude-sonnet-5',
   'claude-sonnet-4-6',
-  'claude-opus-4-20250514',
-  'claude-sonnet-4-20250514',
 ]
 
-export async function discoverClaudeDeepModels(): Promise<string[]> {
-  if (claudeCachedModels && Date.now() - claudeCachedModels.at < SIX_HOURS_MS) {
-    return claudeCachedModels.models
+export const DEFAULT_CLAUDE_OPUS_CHAIN = [
+  'claude-opus-5-5',
+  'claude-opus-5',
+  'claude-opus-4-8',
+  'claude-opus-4-7',
+  'claude-opus-4-6',
+]
+
+export const DEFAULT_CLAUDE_CHAIN = [
+  ...DEFAULT_CLAUDE_OPUS_CHAIN,
+  ...DEFAULT_CLAUDE_SONNET_CHAIN,
+]
+
+export async function discoverClaudeDualCatalog(
+  forceRefresh = false,
+): Promise<{ sonnetChain: string[]; opusChain: string[] }> {
+  if (
+    !forceRefresh &&
+    claudeCachedCatalog &&
+    Date.now() - claudeCachedCatalog.at < SIX_HOURS_MS
+  ) {
+    return {
+      sonnetChain: claudeCachedCatalog.sonnetChain,
+      opusChain: claudeCachedCatalog.opusChain,
+    }
   }
 
-  try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      const raw = window.localStorage.getItem(CLAUDE_CACHE_KEY)
-      if (raw) {
-        const parsed = JSON.parse(raw) as { at: number; models: string[] }
-        if (parsed?.at && Array.isArray(parsed.models) && Date.now() - parsed.at < SIX_HOURS_MS) {
-          claudeCachedModels = parsed
-          return parsed.models
+  if (!forceRefresh) {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const raw = window.localStorage.getItem(CLAUDE_CACHE_KEY)
+        if (raw) {
+          const parsed = JSON.parse(raw) as {
+            at: number
+            sonnetChain: string[]
+            opusChain: string[]
+          }
+          if (
+            parsed?.at &&
+            Array.isArray(parsed.sonnetChain) &&
+            Array.isArray(parsed.opusChain) &&
+            Date.now() - parsed.at < SIX_HOURS_MS
+          ) {
+            claudeCachedCatalog = parsed
+            return { sonnetChain: parsed.sonnetChain, opusChain: parsed.opusChain }
+          }
         }
       }
-    }
-  } catch {}
+    } catch {}
+  }
 
-  const key = getAnthropicApiKey()
-  if (!key) return DEFAULT_CLAUDE_CHAIN
-
-  try {
-    const res = await fetch('https://api.anthropic.com/v1/models', {
-      signal: AbortSignal.timeout(7000),
-      headers: {
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-    })
-    if (res.ok) {
-      const data = (await res.json()) as { data?: { id?: string }[] }
-      const ranked = (data.data ?? [])
-        .map((m) => m.id ?? '')
-        .filter((id) => scoreClaudeModel(id) > 0)
-        .sort((a, b) => scoreClaudeModel(b) - scoreClaudeModel(a))
-
-      const unique = [...new Set([...ranked, ...DEFAULT_CLAUDE_CHAIN])].slice(0, 6)
-      claudeCachedModels = { at: Date.now(), models: unique }
-      try {
-        if (typeof window !== 'undefined' && window.localStorage) {
-          window.localStorage.setItem(CLAUDE_CACHE_KEY, JSON.stringify(claudeCachedModels))
+  // 1. Primary path in browser: Server proxy `/api/ai/claude` (zero API key in network headers!)
+  if (typeof window !== 'undefined') {
+    try {
+      const customKey = getAnthropicBrowserOverride()
+      const headers: Record<string, string> = {}
+      if (customKey) headers['x-aether-custom-anthropic-key'] = customKey
+      const res = await fetch(`/api/ai/claude${forceRefresh ? '?refresh=1' : ''}`, {
+        signal: AbortSignal.timeout(8000),
+        headers,
+      })
+      if (res.ok) {
+        const data = (await res.json()) as {
+          ok?: boolean
+          sonnetChain?: string[]
+          opusChain?: string[]
         }
-      } catch {}
-      return unique
-    }
-  } catch {}
+        if (data?.ok && Array.isArray(data.sonnetChain) && Array.isArray(data.opusChain)) {
+          claudeCachedCatalog = {
+            at: Date.now(),
+            sonnetChain: data.sonnetChain,
+            opusChain: data.opusChain,
+          }
+          try {
+            window.localStorage?.setItem(CLAUDE_CACHE_KEY, JSON.stringify(claudeCachedCatalog))
+          } catch {}
+          return {
+            sonnetChain: data.sonnetChain,
+            opusChain: data.opusChain,
+          }
+        }
+      }
+    } catch {}
+  }
 
-  claudeCachedModels = { at: Date.now(), models: DEFAULT_CLAUDE_CHAIN }
-  return DEFAULT_CLAUDE_CHAIN
+  // 2. Direct Node/SSR fallback
+  const key = getAnthropicApiKey()
+  if (key) {
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/models?limit=100', {
+        signal: AbortSignal.timeout(7000),
+        headers: {
+          'x-api-key': key,
+          'anthropic-version': '2023-06-01',
+        },
+      })
+      if (res.ok) {
+        const data = (await res.json()) as { data?: { id?: string }[] }
+        const valid = (data.data ?? [])
+          .map((m) => m.id ?? '')
+          .filter((id) => scoreClaudeModel(id) > 0)
+        const sonnets = valid
+          .filter((id) => id.includes('sonnet'))
+          .sort((a, b) => scoreClaudeModel(b) - scoreClaudeModel(a))
+        const opuses = valid
+          .filter((id) => id.includes('opus'))
+          .sort((a, b) => scoreClaudeModel(b) - scoreClaudeModel(a))
+
+        const sonnetChain =
+          sonnets.length > 0
+            ? [...new Set([...sonnets, ...DEFAULT_CLAUDE_SONNET_CHAIN])].slice(0, 5)
+            : DEFAULT_CLAUDE_SONNET_CHAIN
+        const opusChain =
+          opuses.length > 0
+            ? [...new Set([...opuses, ...DEFAULT_CLAUDE_OPUS_CHAIN])].slice(0, 5)
+            : DEFAULT_CLAUDE_OPUS_CHAIN
+
+        claudeCachedCatalog = { at: Date.now(), sonnetChain, opusChain }
+        return { sonnetChain, opusChain }
+      }
+    } catch {}
+  }
+
+  claudeCachedCatalog = {
+    at: Date.now(),
+    sonnetChain: DEFAULT_CLAUDE_SONNET_CHAIN,
+    opusChain: DEFAULT_CLAUDE_OPUS_CHAIN,
+  }
+  return {
+    sonnetChain: DEFAULT_CLAUDE_SONNET_CHAIN,
+    opusChain: DEFAULT_CLAUDE_OPUS_CHAIN,
+  }
+}
+
+export async function discoverClaudeDeepModels(): Promise<string[]> {
+  const cat = await discoverClaudeDualCatalog(false)
+  return [...new Set([...cat.opusChain, ...cat.sonnetChain])]
+}
+
+export function isExecutiveDeepClaudeCall(
+  mode: BrainMode,
+  query: string,
+  pageContext?: string,
+  explicitTier?: 'daily' | 'deep',
+): boolean {
+  if (explicitTier === 'deep') return true
+  if (explicitTier === 'daily') return false
+  if (mode === 'claude') return true
+  const hay = `${query || ''}\n${pageContext || ''}`
+  return /الحلول الكبرى|بلا سقف تقليدي|big-bet|moonshot|المعرض:|حاسبة المعارض|booth calculator|booth contract/i.test(
+    hay,
+  )
 }
 
 export async function runClaudeDeepEngine({
   knowledgeContext,
   userPrompt,
   lang,
+  tier = 'deep',
 }: {
   knowledgeContext: string
   userPrompt: string
   lang: 'ar' | 'en'
-}): Promise<{ text: string; model: string; thinkingSummary?: string }> {
-  const key = getAnthropicApiKey()
-  if (!key) throw new Error('ANTHROPIC_KEY_MISSING')
-
-  const models = await discoverClaudeDeepModels()
-  const activeModels = models.filter((m) => !isCoolingDown(`claude:${m}`))
-  const chain = activeModels.length > 0 ? activeModels : DEFAULT_CLAUDE_CHAIN
-
+  tier?: 'daily' | 'deep'
+}): Promise<{ text: string; model: string; rawModel: string; thinkingSummary?: string }> {
+  const sonnetOnly = getClaudeSonnetOnly()
+  const effectiveDeep = tier === 'deep' && !sonnetOnly
   const isAr = lang === 'ar'
+
   const claudeSystemText = isAr
     ? `${knowledgeContext}
 
-أنت محرك "كلاود العميق 🔬" (Claude Forensic CFO & COO Architect) لشركة فنتشر فودز الكويت.
-دقّق الأرقام المحاسبية وسلسلة التوريد (المشتريات ← المخزن ← العارضية ← الفروع) وأسطول التوصيل المزدوج (TMP 15% + Tgo) بتفكير عميق، ثم قدّم التوصية بلغة كويتية تنفيذية صافية تحت ٣ عناوين واضحة:
+أنت محرك "${effectiveDeep ? 'كلاود Opus العميق 🔬' : 'كلاود Sonnet السريع ⚡'}" (Claude Forensic CFO & COO Architect) لشركة فنتشر فودز الكويت.
+دقّق الأرقام المحاسبية وسلسلة التوريد (المشتريات ← المخزن ← العارضية ← الفروع) وأسطول التوصيل المزدوج (TMP 15% + Tgo)، ثم قدّم التوصية بلغة كويتية تنفيذية صافية تحت ٣ عناوين واضحة:
 ### ١. التشخيص الجذري المدقق 🔬
 ### ٢. خطة التنفيذ الميدانية (المسؤول والفرع)
 ### ٣. الأثر الشهري الصافي بالدينار (متحفظ | مرجّح | أعلى)`
     : `${knowledgeContext}
 
-You are the "Claude Deep 🔬" Forensic CFO & COO Architect for Venture Foods Kuwait.
-Cross-audit POS baskets, supplier -> warehouse -> Ardiya -> branch flows, and dual TMP 15% + Tgo fleet economics using deep extended reasoning, then answer in crisp executive English under 3 clear headings:
+You are the "${effectiveDeep ? 'Claude Opus Deep 🔬' : 'Claude Sonnet ⚡'}" Forensic CFO & COO Architect for Venture Foods Kuwait.
+Cross-audit POS baskets, supplier -> warehouse -> Ardiya -> branch flows, and dual TMP 15% + Tgo fleet economics, then answer in crisp executive English under 3 clear headings:
 ### 1. Forensic Root-Cause Audit 🔬
 ### 2. Field Execution Plan (Owner & Branch)
 ### 3. 3-Tier Monthly Net KWD Impact`
 
+  // 1. Primary secure browser path: Next.js Server Route `/api/ai/claude`
+  if (typeof window !== 'undefined') {
+    const customApiKey = getAnthropicBrowserOverride()
+    const proxyRes = await fetch('/api/ai/claude', {
+      method: 'POST',
+      signal: AbortSignal.timeout(34000),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tier,
+        sonnetOnly,
+        systemText: claudeSystemText,
+        userPrompt,
+        maxTokens: effectiveDeep ? 8192 : 4096,
+        ...(customApiKey ? { customApiKey } : {}),
+      }),
+    })
+
+    if (proxyRes.ok) {
+      const data = (await proxyRes.json()) as {
+        ok?: boolean
+        model?: string
+        text?: string
+        thinkingSummary?: string
+        sonnetModel?: string
+        opusModel?: string
+      }
+      if (data?.ok && data.text) {
+        const rawClaudeId = (data.model || (effectiveDeep ? 'claude-opus-5-5' : 'claude-sonnet-5-5')).trim()
+        const badge = formatClaudeModelBadge(rawClaudeId)
+        if (rawClaudeId.includes('opus')) recordVerifiedModel('claudeOpus', rawClaudeId)
+        else recordVerifiedModel('claudeSonnet', rawClaudeId)
+        recordVerifiedModel('claude', badge)
+        return {
+          text: sanitizeExecutiveOutput(data.text),
+          model: badge,
+          rawModel: rawClaudeId,
+          thinkingSummary: data.thinkingSummary,
+        }
+      }
+    } else if (proxyRes.status === 401) {
+      throw new Error('ANTHROPIC_AUTH_FAILED')
+    }
+  }
+
+  // 2. Direct server/CLI fallback (e.g. non-Next Node scripts)
+  const key = getAnthropicApiKey()
+  if (!key) throw new Error('ANTHROPIC_KEY_MISSING')
+
+  const cat = await discoverClaudeDualCatalog(false)
+  const rawChain = effectiveDeep
+    ? [...new Set([...cat.opusChain, cat.sonnetChain[0]])]
+    : cat.sonnetChain
+  const activeModels = rawChain.filter((m) => !isCoolingDown(`claude:${m}`))
+  const chain = activeModels.length > 0 ? activeModels : rawChain
+  const maxTokens = effectiveDeep ? 8192 : 4096
+
   for (const model of chain) {
-    // Attempt 0: Extended Thinking (`budget_tokens: 10000`) + Ephemeral Prompt Cache
-    // Attempt 1: Safe standard fallback (in case model/tier rejects extended thinking)
+    const fiveSeries = /claude-[a-z]+-5(?:$|[-.])/i.test(model)
     const payloads: Array<Record<string, unknown>> = [
+      fiveSeries
+        ? {
+            model,
+            max_tokens: maxTokens,
+            output_config: { effort: effectiveDeep ? 'high' : 'medium' },
+            system: [
+              {
+                type: 'text',
+                text: claudeSystemText,
+                cache_control: { type: 'ephemeral' },
+              },
+            ],
+            messages: [{ role: 'user', content: userPrompt }],
+          }
+        : effectiveDeep
+          ? {
+              model,
+              max_tokens: Math.max(maxTokens, 10000),
+              thinking: { type: 'enabled', budget_tokens: 8000 },
+              system: [
+                {
+                  type: 'text',
+                  text: claudeSystemText,
+                  cache_control: { type: 'ephemeral' },
+                },
+              ],
+              messages: [{ role: 'user', content: userPrompt }],
+            }
+          : {
+              model,
+              max_tokens: maxTokens,
+              temperature: 0.3,
+              system: [
+                {
+                  type: 'text',
+                  text: claudeSystemText,
+                  cache_control: { type: 'ephemeral' },
+                },
+              ],
+              messages: [{ role: 'user', content: userPrompt }],
+            },
       {
         model,
-        max_tokens: 14000,
-        thinking: { type: 'enabled', budget_tokens: 10000 },
-        system: [
-          {
-            type: 'text',
-            text: claudeSystemText,
-            cache_control: { type: 'ephemeral' },
-          },
-        ],
-        messages: [{ role: 'user', content: userPrompt }],
-      },
-      {
-        model,
-        max_tokens: 2200,
+        max_tokens: maxTokens,
         temperature: 0.3,
         system: [
           {
@@ -863,7 +1103,6 @@ Cross-audit POS baskets, supplier -> warehouse -> Ardiya -> branch flows, and du
             'Content-Type': 'application/json',
             'x-api-key': key,
             'anthropic-version': '2023-06-01',
-            'anthropic-dangerous-direct-browser-access': 'true',
           },
           body: JSON.stringify(payloads[attempt]),
         })
@@ -878,7 +1117,7 @@ Cross-audit POS baskets, supplier -> warehouse -> Ardiya -> branch flows, and du
         }
 
         if (res.status === 400 && attempt === 0) {
-          continue // Retry cleanly without extended thinking
+          continue // Retry cleanly without optional thinking/effort fields
         }
 
         if (res.ok) {
@@ -888,25 +1127,27 @@ Cross-audit POS baskets, supplier -> warehouse -> Ardiya -> branch flows, and du
           }
           const blocks = data.content ?? []
           const thinkingText = blocks
-            .filter((b) => b.type === 'thinking' && typeof b.thinking === 'string')
-            .map((b) => b.thinking ?? '')
+            .filter((b: any) => b.type === 'thinking')
+            .map((b: any) => b.thinking ?? '')
             .join('\n')
             .trim()
           const answerText = blocks
-            .filter((b) => b.type === 'text' && typeof b.text === 'string')
-            .map((b) => b.text ?? '')
+            .filter((b: any) => b.type === 'text')
+            .map((b: any) => b.text ?? '')
             .join('\n')
             .trim()
 
           if (answerText) {
             const rawClaudeId =
               typeof data.model === 'string' && data.model.trim() ? data.model.trim() : model
-            const formattedClaudeId =
-              attempt === 0 ? `${rawClaudeId} (Extended Thinking)` : rawClaudeId
-            recordVerifiedModel('claude', formattedClaudeId)
+            const badge = formatClaudeModelBadge(rawClaudeId)
+            if (rawClaudeId.includes('opus')) recordVerifiedModel('claudeOpus', rawClaudeId)
+            else recordVerifiedModel('claudeSonnet', rawClaudeId)
+            recordVerifiedModel('claude', badge)
             return {
               text: sanitizeExecutiveOutput(answerText),
-              model: formattedClaudeId,
+              model: badge,
+              rawModel: rawClaudeId,
               thinkingSummary: thinkingText ? thinkingText.slice(0, 500) : undefined,
             }
           }
@@ -925,19 +1166,21 @@ Cross-audit POS baskets, supplier -> warehouse -> Ardiya -> branch flows, and du
 }
 
 // ============================================================================
-// Live Health Check (for Top Header Status Dot & Key Modal)
+// Live Health Check (for Top Header Sub-Badge & `🔑⚙️` Modal)
 // ============================================================================
 export async function probeDualBrainHealth(forceRefresh = false): Promise<BrainLiveHealth> {
   if (forceRefresh) {
     clearBrainDiscoveryCaches()
   }
-  const [gemModels, grokInfo, claudeModels] = await Promise.all([
+  const [gemModels, grokInfo, claudeCat] = await Promise.all([
     discoverGeminiCarbonModels(),
     discoverGrokHeavyModels(),
-    discoverClaudeDeepModels(),
+    discoverClaudeDualCatalog(forceRefresh),
   ])
 
   const verified = loadLastVerifiedModels()
+  const sonnetOnly = getClaudeSonnetOnly()
+  const activeMode = normalizeBrainMode(getActiveBrainMode())
 
   const discoveredGemini =
     gemModels.find((m) => !isCoolingDown(`gemini:${m}`)) ?? gemModels[0] ?? 'gemini-2.5-pro'
@@ -945,15 +1188,28 @@ export async function probeDualBrainHealth(forceRefresh = false): Promise<BrainL
     grokInfo.models.find((m) => !isCoolingDown(`xai:${m}`)) ??
     grokInfo.models[0] ??
     'grok-4.20-0309-reasoning'
-  const discoveredClaudeRaw =
-    claudeModels.find((m) => !isCoolingDown(`claude:${m}`)) ?? claudeModels[0] ?? 'claude-opus-4-6'
-  const discoveredClaude = discoveredClaudeRaw.includes('Extended Thinking')
-    ? discoveredClaudeRaw
-    : `${discoveredClaudeRaw} (Extended Thinking)`
+
+  const claudeSonnetModel =
+    verified.claudeSonnet ||
+    claudeCat.sonnetChain.find((m) => !isCoolingDown(`claude:${m}`)) ||
+    claudeCat.sonnetChain[0] ||
+    'claude-sonnet-5-5'
+
+  const claudeOpusModel =
+    verified.claudeOpus ||
+    claudeCat.opusChain.find((m) => !isCoolingDown(`claude:${m}`)) ||
+    claudeCat.opusChain[0] ||
+    'claude-opus-5-5'
+
+  // Active Claude badge reflects Smart Dual-Tier Routing:
+  // - `Claude Deep` mode (when not in Sonnet-only max economy) -> `Claude Opus (claude-opus-5-5) 🔬`
+  // - `Triple Brain` daily council or `Sonnet-only` max economy -> `Claude Sonnet (claude-sonnet-5-5) ⚡`
+  const activeClaudeRaw =
+    activeMode === 'claude' && !sonnetOnly ? claudeOpusModel : claudeSonnetModel
+  const claudeModel = formatClaudeModelBadge(activeClaudeRaw)
 
   const geminiModel = verified.gemini || discoveredGemini
   const grokModel = verified.grok || discoveredGrok
-  const claudeModel = verified.claude || discoveredClaude
 
   const hasGeminiKey = Boolean(getGeminiApiKey())
   const hasXaiKey = Boolean(getXaiApiKey()) && !grokInfo.quotaWarning
@@ -964,6 +1220,9 @@ export async function probeDualBrainHealth(forceRefresh = false): Promise<BrainL
     geminiReady: hasGeminiKey,
     grokReady: hasXaiKey,
     claudeModel,
+    claudeSonnetModel,
+    claudeOpusModel,
+    sonnetOnly,
     geminiModel,
     grokModel,
     grokQuotaNoteAr: grokInfo.quotaWarning
@@ -1073,31 +1332,39 @@ export async function askDualHeavyBrain(req: DualBrainRequest): Promise<DualBrai
 ### Expected Net KWD Impact (Conservative | Likely | Stretch)
 Cite only verified Odoo KWD numbers across our 6 approved brands and 7 active branches.`
 
+  const claudeTier: 'daily' | 'deep' = isExecutiveDeepClaudeCall(
+    mode,
+    effectiveQuery,
+    req.pageContext,
+    req.claudeTier,
+  )
+    ? 'deep'
+    : 'daily'
+
   // --------------------------------------------------------------------------
-  // Single-Brain Mode: Claude Deep (`كلاود العميق 🔬`)
+  // Single-Brain Mode: Claude Deep (`كلاود العميق 🔬` -> Opus Deep Tier)
   // --------------------------------------------------------------------------
   if (mode === 'claude') {
-    if (getAnthropicApiKey()) {
-      try {
-        const claude = await runClaudeDeepEngine({
-          knowledgeContext: knowledge,
-          userPrompt: fullUserPrompt,
-          lang: req.lang,
-        })
-        autoExtractLearningsFromTurn(effectiveQuery, claude.text)
-        return {
-          modeUsed: 'claude',
-          reply: claude.text,
-          claudeReply: claude.text,
-          claudeModel: claude.model,
-          claudeThinkingSummary: claude.thinkingSummary,
-          transcript: extractedTranscript,
-          engineLabelAr: `كلاود العميق (${claude.model}) 🔬`,
-          engineLabelEn: `Claude Deep (${claude.model}) 🔬`,
-        }
-      } catch {
-        // Fall through cleanly to Gemini Carbon Pro backup
+    try {
+      const claude = await runClaudeDeepEngine({
+        knowledgeContext: knowledge,
+        userPrompt: fullUserPrompt,
+        lang: req.lang,
+        tier: 'deep',
+      })
+      autoExtractLearningsFromTurn(effectiveQuery, claude.text)
+      return {
+        modeUsed: 'claude',
+        reply: claude.text,
+        claudeReply: claude.text,
+        claudeModel: claude.model,
+        claudeThinkingSummary: claude.thinkingSummary,
+        transcript: extractedTranscript,
+        engineLabelAr: `${claude.model}`,
+        engineLabelEn: `${claude.model}`,
       }
+    } catch {
+      // Seamless automatic continuity if network blips
     }
 
     try {
@@ -1107,7 +1374,6 @@ Cite only verified Odoo KWD numbers across our 6 approved brands and 7 active br
       })
       const clean = sanitizeExecutiveOutput(gemBackup.text)
       autoExtractLearningsFromTurn(effectiveQuery, clean)
-      const missingKey = !getAnthropicApiKey()
       return {
         modeUsed: 'gemini',
         reply: clean,
@@ -1116,12 +1382,8 @@ Cite only verified Odoo KWD numbers across our 6 approved brands and 7 active br
         transcript: extractedTranscript,
         engineLabelAr: `جميني Carbon Pro (${gemBackup.model}) ⚡`,
         engineLabelEn: `Gemini Carbon Pro (${gemBackup.model}) ⚡`,
-        statusNoteAr: missingKey
-          ? 'لتفعيل كلاود العميق 🔬 مباشرة، الصق مفتاح Anthropic من زر 🔑 أعلى الشاشة — تم الرد فوراً عبر جميني Carbon Pro.'
-          : 'تم التحويل التلقائي إلى جميني Carbon Pro لضمان استجابة فورية بدون توقف.',
-        statusNoteEn: missingKey
-          ? 'Paste your Anthropic key in the top 🔑 modal to unlock Claude Extended Thinking 🔬 — answered seamlessly via Gemini Carbon Pro.'
-          : 'Automatically routed to Gemini Carbon Pro for uninterrupted response.',
+        statusNoteAr: 'تم التحويل التلقائي إلى جميني Carbon Pro لضمان استجابة فورية بدون توقف.',
+        statusNoteEn: 'Automatically routed to Gemini Carbon Pro for uninterrupted response.',
       }
     } catch {}
   }
@@ -1241,18 +1503,17 @@ Cite only verified Odoo KWD numbers across our 6 approved brands and 7 active br
 
   // --------------------------------------------------------------------------
   // DEFAULT MODE: Triple-Brain Council (`العقل الثلاثي 🔥`)
-  // Runs Claude Opus Extended Thinking + Gemini Carbon Pro + Grok Heavy in parallel!
+  // Smart Dual-Tier Routing:
+  //   - Daily Speed & Economy -> Claude Sonnet (`claude-sonnet-5-5` ⚡, max_tokens: 4096)
+  //   - Big-Bet / Booth Contract Forensics -> Claude Opus (`claude-opus-5-5` 🔬, max_tokens: 8192)
   // --------------------------------------------------------------------------
-  const hasClaudeKey = Boolean(getAnthropicApiKey())
-
   const [claudeSettled, gemSettled, grokSettled] = await Promise.allSettled([
-    hasClaudeKey
-      ? runClaudeDeepEngine({
-          knowledgeContext: knowledge,
-          userPrompt: fullUserPrompt,
-          lang: req.lang,
-        })
-      : Promise.reject(new Error('ANTHROPIC_KEY_NOT_SET')),
+    runClaudeDeepEngine({
+      knowledgeContext: knowledge,
+      userPrompt: fullUserPrompt,
+      lang: req.lang,
+      tier: claudeTier,
+    }),
     runGeminiCarbonEngine({
       systemPrompt: knowledge,
       userPrompt: `${fullUserPrompt}\n\n${geminiFormatDirective}`,
@@ -1358,13 +1619,13 @@ Cross-verify all KWD figures and synthesize ONE crystal-clear executive consensu
     }
 
     const badgePartsAr = [
-      claudeOk ? `كلاود (${claudeOk.model})` : '',
+      claudeOk ? claudeOk.model : '',
       gemOk ? `جميني (${gemOk.model})` : '',
       grokOk ? `جروك (${grokOk.model})` : '',
     ].filter(Boolean)
 
     const badgePartsEn = [
-      claudeOk ? `Claude (${claudeOk.model})` : '',
+      claudeOk ? claudeOk.model : '',
       gemOk ? `Gemini (${gemOk.model})` : '',
       grokOk ? `Grok (${grokOk.model})` : '',
     ].filter(Boolean)
@@ -1384,12 +1645,6 @@ Cross-verify all KWD figures and synthesize ONE crystal-clear executive consensu
       transcript: extractedTranscript,
       engineLabelAr: `العقل الثلاثي: ${badgePartsAr.join(' + ')} 🔥`,
       engineLabelEn: `Triple Brain: ${badgePartsEn.join(' + ')} 🔥`,
-      statusNoteAr: !hasClaudeKey
-        ? 'يعمل جميني Carbon Pro + جروك Heavy معاً — أضف مفتاح كلاود من زر 🔑 لانضمام Claude Opus للتفكير الثلاثي.'
-        : undefined,
-      statusNoteEn: !hasClaudeKey
-        ? 'Gemini Carbon Pro + Grok Heavy active — add Anthropic key via 🔑 to include Claude Opus in the 3-brain council.'
-        : undefined,
     }
   }
 
@@ -1403,8 +1658,8 @@ Cross-verify all KWD figures and synthesize ONE crystal-clear executive consensu
       claudeModel: claudeOk.model,
       claudeThinkingSummary: claudeOk.thinkingSummary,
       transcript: extractedTranscript,
-      engineLabelAr: `العقل الثلاثي · كلاود العميق (${claudeOk.model}) 🔬`,
-      engineLabelEn: `Triple Brain · Claude Deep (${claudeOk.model}) 🔬`,
+      engineLabelAr: `العقل الثلاثي · ${claudeOk.model}`,
+      engineLabelEn: `Triple Brain · ${claudeOk.model}`,
     }
   }
 
@@ -1418,8 +1673,6 @@ Cross-verify all KWD figures and synthesize ONE crystal-clear executive consensu
       transcript: extractedTranscript,
       engineLabelAr: `العقل الثلاثي · جروك Heavy (${grokOk.model}) 🔥`,
       engineLabelEn: `Triple Brain · Grok Heavy (${grokOk.model}) 🔥`,
-      statusNoteAr: 'يعمل جروك Heavy بكامل طاقته حالياً.',
-      statusNoteEn: 'Grok Heavy active at full capacity.',
     }
   }
 
@@ -1433,14 +1686,8 @@ Cross-verify all KWD figures and synthesize ONE crystal-clear executive consensu
       transcript: extractedTranscript,
       engineLabelAr: `العقل الثلاثي · جميني Carbon Pro (${gemOk.model}) ⚡`,
       engineLabelEn: `Triple Brain · Gemini Carbon Pro (${gemOk.model}) ⚡`,
-      statusNoteAr:
-        grokVal?.quotaStatus === '402'
-          ? 'تم التحليل فوراً عبر جميني Carbon Pro (أضف مفتاح كلاود من زر 🔑 أو اشحن رصيد جروك لتشغيل المجلس الكامل).'
-          : 'تم التحليل فوراً عبر جميني Carbon Pro.',
-      statusNoteEn:
-        grokVal?.quotaStatus === '402'
-          ? 'Analyzed immediately via Gemini Carbon Pro (paste Anthropic key via 🔑 or top up Grok for full 3-brain council).'
-          : 'Analyzed seamlessly via Gemini Carbon Pro.',
+      statusNoteAr: 'تم التحليل فوراً عبر جميني Carbon Pro.',
+      statusNoteEn: 'Analyzed seamlessly via Gemini Carbon Pro.',
     }
   }
 

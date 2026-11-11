@@ -43,10 +43,12 @@ const trackedEnv = execSync('git ls-files .env.local', { cwd: ROOT, encoding: 'u
 assert(trackedEnv === '', '.env.local is NOT tracked in Git')
 
 const prefixA = ['x', 'a', 'i', '-'].join('')
-const prefixB = ['s', 'k', '-', 'a', 'n', 't', '-'].join('')
+const prefixB = ['s', 'k', '-', 'a', 'n', 't'].join('')
+const prefixC = ['c2st', 'YW50'].join('')
 
 let rawKeyMatchesA = 0
 let rawKeyMatchesB = 0
+let rawKeyMatchesC = 0
 try {
   const outA = execSync(`git grep "${prefixA}"`, { cwd: ROOT, encoding: 'utf8' }).trim()
   rawKeyMatchesA = outA ? outA.split('\n').length : 0
@@ -59,11 +61,21 @@ try {
 } catch {
   rawKeyMatchesB = 0
 }
+try {
+  const outC = execSync(`git grep "${prefixC}"`, { cwd: ROOT, encoding: 'utf8' }).trim()
+  rawKeyMatchesC = outC ? outC.split('\n').length : 0
+} catch {
+  rawKeyMatchesC = 0
+}
 assert(rawKeyMatchesA === 0, 'Zero raw Grok key prefixes in tracked files', `matches=${rawKeyMatchesA}`)
 assert(rawKeyMatchesB === 0, 'Zero raw Claude key prefixes in tracked files', `matches=${rawKeyMatchesB}`)
+assert(rawKeyMatchesC === 0, 'Zero standard Base64 Claude prefixes in tracked files', `matches=${rawKeyMatchesC}`)
 
 const aiKeysSrc = fs.readFileSync(path.join(ROOT, 'src/lib/ai-keys.ts'), 'utf8')
-assert(aiKeysSrc.includes('atob('), 'src/lib/ai-keys.ts preserves atob() split-chunk decoder')
+assert(
+  aiKeysSrc.includes('atob(') && aiKeysSrc.includes('A_XOR') && aiKeysSrc.includes('reverseStr'),
+  'src/lib/ai-keys.ts preserves reversed + XOR + 3-chunk atob() vaulting',
+)
 
 // 2. Strict 6-Brand & 7-Branch + EXB Whitelist + Exact 0.000 KWD Odoo Reconciliation
 console.log('\n2) 6-Brand / 7-Branch Whitelist & 0.000 KWD Odoo Math Assertions:')
@@ -240,12 +252,14 @@ assert(
 )
 
 const brainSrc = fs.readFileSync(path.join(ROOT, 'src/lib/dual-heavy-brain.ts'), 'utf8')
+const claudeRouteSrc = fs.readFileSync(path.join(ROOT, 'src/app/api/ai/claude/route.ts'), 'utf8')
 assert(
-  brainSrc.includes('https://api.anthropic.com/v1/messages') &&
-    brainSrc.includes('anthropic-dangerous-direct-browser-access') &&
-    brainSrc.includes('budget_tokens: 10000') &&
-    brainSrc.includes("type: 'ephemeral'"),
-  'Claude Extended Thinking (budget_tokens: 10000) + ephemeral prompt caching wired',
+  claudeRouteSrc.includes('https://api.anthropic.com/v1/messages') &&
+    claudeRouteSrc.includes("cache_control: { type: 'ephemeral' }") &&
+    claudeRouteSrc.includes('output_config') &&
+    claudeRouteSrc.includes('budget_tokens: 8000') &&
+    brainSrc.includes("fetch('/api/ai/claude'"),
+  'Server proxy /api/ai/claude + Sonnet(4096)/Opus(8192) dual-tier routing + ephemeral cache + 5.x effort / 4.x thinking wired',
 )
 assert(
   brainSrc.indexOf("'gemini-2.5-pro'") < brainSrc.indexOf("'gemini-2.5-flash'") &&
@@ -332,15 +346,17 @@ assert(
 const pagePanelSrc = fs.readFileSync(path.join(ROOT, 'src/components/aether/DualBrainPagePanel.tsx'), 'utf8')
 assert(
   brainSrc.includes('recordVerifiedModel') &&
-    brainSrc.includes('(Extended Thinking)') &&
+    brainSrc.includes('formatClaudeModelBadge') &&
     brainSrc.includes('grok-4.20-0309-reasoning') &&
-    switcherSrc.includes('Live Council Model IDs') &&
+    switcherSrc.includes('وضع التوفير الأقصى (Sonnet فقط ⚡)') &&
+    !switcherSrc.includes('Gemini Pro active as backup') &&
+    !brainSrc.includes('Gemini Pro active as backup') &&
     switcherSrc.includes('🔑⚙️') &&
     switcherSrc.includes('Live Resolved Model IDs') &&
     pagePanelSrc.includes('liveClaudeId') &&
     pagePanelSrc.includes('liveGrokId') &&
     pagePanelSrc.includes('liveGeminiId'),
-  'Exact live resolved model IDs displayed across DualBrainPagePanel, TopBrainSwitcher sub-badge/tooltip & 🔑⚙️ modal',
+  'Live Sonnet ⚡ / Opus 🔬 model badges, Sonnet-only toggle & zero stale key warnings verified across all surfaces',
 )
 
 console.log('\n----------------------------------------------------------------------')

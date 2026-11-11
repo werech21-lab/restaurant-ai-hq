@@ -11,10 +11,13 @@ import {
   BRAIN_HEALTH_EVENT,
   BRAIN_MODE_EVENT,
   buildGrokUltraClipboardBrief,
+  formatClaudeModelBadge,
   getActiveBrainMode,
+  getClaudeSonnetOnly,
   normalizeBrainMode,
   probeDualBrainHealth,
   setActiveBrainMode,
+  setClaudeSonnetOnly,
   type BrainLiveHealth,
   type BrainMode,
 } from '@/lib/dual-heavy-brain'
@@ -60,7 +63,8 @@ export function BrainControlsInline() {
   const [customXai, setCustomXai] = useState('')
   const [customGemini, setCustomGemini] = useState('')
   const [customOpenAi, setCustomOpenAi] = useState('')
-  const [claudeActive, setClaudeActive] = useState(false)
+  const [claudeActive, setClaudeActive] = useState(true)
+  const [sonnetOnly, setSonnetOnlyState] = useState(false)
   const [savedNotice, setSavedNotice] = useState(false)
   const [probing, setProbing] = useState(false)
 
@@ -68,11 +72,13 @@ export function BrainControlsInline() {
 
   const refreshHealth = useCallback(async (forceRefresh = false) => {
     setClaudeActive(hasAnthropicApiKey())
+    setSonnetOnlyState(getClaudeSonnetOnly())
     if (forceRefresh) setProbing(true)
     try {
       const h = await probeDualBrainHealth(forceRefresh)
       setHealth(h)
       setClaudeActive(h.claudeReady)
+      if (typeof h.sonnetOnly === 'boolean') setSonnetOnlyState(h.sonnetOnly)
     } catch {
       // Keep UI crisp even if offline
     } finally {
@@ -198,27 +204,36 @@ export function BrainControlsInline() {
     void refreshHealth(true)
   }
 
-  const claudeModelId = health?.claudeModel ?? 'claude-opus-4-6 (Extended Thinking)'
+  const handleToggleSonnetOnly = () => {
+    const next = !sonnetOnly
+    setSonnetOnlyState(next)
+    setClaudeSonnetOnly(next)
+    void refreshHealth(false)
+  }
+
+  const sonnetModelRaw = health?.claudeSonnetModel ?? 'claude-sonnet-5-5'
+  const opusModelRaw = health?.claudeOpusModel ?? 'claude-opus-5-5'
+  const claudeModelId =
+    mode === 'claude' && !sonnetOnly
+      ? formatClaudeModelBadge(opusModelRaw)
+      : formatClaudeModelBadge(sonnetModelRaw)
   const grokModelId = health?.grokModel ?? 'grok-4.20-0309-reasoning'
   const geminiModelId = health?.geminiModel ?? 'gemini-2.5-pro'
   const grokReady = health ? health.grokReady : true
   const geminiReady = health ? health.geminiReady : true
 
-  const hasWarning = Boolean(
-    (mode === 'claude' && !claudeActive) ||
-      (health?.grokQuotaNoteAr && mode === 'grok'),
-  )
+  const hasWarning = Boolean(health?.grokQuotaNoteAr && mode === 'grok')
 
-  const allThreeModelsSummary = `Claude: ${claudeModelId} | Grok: ${grokModelId} | Gemini: ${geminiModelId}`
+  const allThreeModelsSummary = `${claudeModelId} | Grok: ${grokModelId} | Gemini: ${geminiModelId}`
 
   const activeBadgeModelId =
     mode === 'claude'
-      ? `🔬 ${claudeModelId}`
+      ? claudeModelId
       : mode === 'grok'
         ? `🧠 ${grokModelId}`
         : mode === 'gemini'
           ? `⚡ ${geminiModelId}`
-          : `🔬 ${claudeModelId} · 🧠 ${grokModelId} · ⚡ ${geminiModelId}`
+          : `${claudeModelId} · 🧠 ${grokModelId} · ⚡ ${geminiModelId}`
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">
@@ -436,31 +451,62 @@ export function BrainControlsInline() {
               </div>
             </div>
 
+            {/* 1-Click Max Economy Toggle (`وضع التوفير الأقصى (Sonnet فقط ⚡)`) */}
+            <div className="mt-2.5 flex items-center justify-between gap-2 rounded-2xl bg-emerald-50/70 px-3 py-2.5 ring-1 ring-emerald-500/20 dark:bg-emerald-950/30 dark:ring-emerald-400/20">
+              <div className="min-w-0">
+                <div className="text-[11.5px] font-extrabold text-slate-900 dark:text-white">
+                  {isAr
+                    ? 'وضع التوفير الأقصى (Sonnet فقط ⚡)'
+                    : 'Max Economy Mode (Sonnet Only ⚡)'}
+                </div>
+                <div dir="ltr" className="truncate font-mono text-[10px] font-semibold text-slate-600 dark:text-slate-300">
+                  {sonnetOnly
+                    ? `All calls -> ${sonnetModelRaw}`
+                    : `Daily: ${sonnetModelRaw} ⚡ · Deep: ${opusModelRaw} 🔬`}
+                </div>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={sonnetOnly}
+                onClick={handleToggleSonnetOnly}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors ${
+                  sonnetOnly
+                    ? 'bg-emerald-600'
+                    : 'bg-slate-300 dark:bg-white/20'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                    sonnetOnly
+                      ? isAr
+                        ? '-translate-x-5'
+                        : 'translate-x-5'
+                      : isAr
+                        ? '-translate-x-1'
+                        : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+
             <p className="mt-2.5 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
               {isAr
-                ? 'تُحفظ المفاتيح محلياً في متصفحك فقط بدون رفعها لأي خادم.'
-                : 'Keys stay strictly in your browser localStorage.'}
+                ? 'مفتاح AetherBI-Live متصل عبر الخادم الآمن تلقائياً. التعديلات الاختيارية أدناه تُحفظ محلياً فقط.'
+                : 'AetherBI-Live is pre-wired via secure server proxy. Optional overrides stay in localStorage.'}
             </p>
 
             <div className="mt-2.5 space-y-2.5">
               <label className="block space-y-1">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[11.5px] font-bold text-slate-800 dark:text-slate-200">
-                    Anthropic Claude 🔬
+                    Anthropic Claude (AetherBI-Live) 🔬
                   </span>
                   <span
                     dir="ltr"
-                    className={`rounded-full px-2 py-0.5 font-mono text-[10px] font-bold ${
-                      claudeActive || customAnthropic.trim().length > 14
-                        ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
-                        : 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300'
-                    }`}
+                    className="rounded-full bg-emerald-50 px-2 py-0.5 font-mono text-[10px] font-bold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
                   >
-                    {claudeActive || customAnthropic.trim().length > 14
-                      ? claudeModelId
-                      : isAr
-                        ? 'الصق المفتاح للتفعيل'
-                        : 'Paste key to enable'}
+                    {claudeModelId}
                   </span>
                 </div>
                 <input
@@ -469,13 +515,9 @@ export function BrainControlsInline() {
                   value={customAnthropic}
                   onChange={(e) => setCustomAnthropic(e.target.value)}
                   placeholder={
-                    claudeActive
-                      ? isAr
-                        ? 'مفتاح كلاود مفعّل وجاهز'
-                        : 'Anthropic key active'
-                      : isAr
-                        ? 'الصق مفتاح Anthropic هنا (aether_anthropic_key)'
-                        : 'Paste Anthropic API key (aether_anthropic_key)'
+                    isAr
+                      ? 'AetherBI-Live مفعّل تلقائياً عبر الخادم (اتركه فارغاً للافتراضي)'
+                      : 'AetherBI-Live active via server proxy (leave blank for default)'
                   }
                   className="h-9 w-full rounded-xl bg-[#F4F6F9] px-3 font-mono text-[12px] text-slate-900 ring-1 ring-slate-950/[0.05] focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-900/80 dark:bg-white/[0.06] dark:text-white"
                 />

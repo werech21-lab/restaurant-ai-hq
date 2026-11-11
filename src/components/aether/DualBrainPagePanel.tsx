@@ -9,7 +9,10 @@ import {
   askDualHeavyBrain,
   BRAIN_HEALTH_EVENT,
   BRAIN_MODE_EVENT,
+  formatClaudeModelBadge,
   getActiveBrainMode,
+  getClaudeSonnetOnly,
+  isExecutiveDeepClaudeCall,
   normalizeBrainMode,
   probeDualBrainHealth,
   type BrainLiveHealth,
@@ -145,11 +148,20 @@ export function DualBrainPagePanel({
   const hasMultipleBrains = individualPanels.length >= 2
   const statusNote = isAr ? result?.statusNoteAr : result?.statusNoteEn
 
-  const liveClaudeId =
-    result?.claudeModel ?? health?.claudeModel ?? 'claude-opus-4-6 (Extended Thinking)'
+  const sonnetOnly = health?.sonnetOnly ?? getClaudeSonnetOnly()
+  const isDeepStudy =
+    !sonnetOnly &&
+    isExecutiveDeepClaudeCall(mode, isAr ? promptAr : promptEn, pageContext)
+  const expectedClaudeBadge = formatClaudeModelBadge(
+    isDeepStudy
+      ? (health?.claudeOpusModel ?? 'claude-opus-5-5')
+      : (health?.claudeSonnetModel ?? 'claude-sonnet-5-5'),
+  )
+
+  const liveClaudeId = result?.claudeModel ?? expectedClaudeBadge
   const liveGrokId = result?.grokModel ?? health?.grokModel ?? 'grok-4.20-0309-reasoning'
   const liveGeminiId = result?.geminiModel ?? health?.geminiModel ?? 'gemini-2.5-pro'
-  const claudeReady = Boolean(result?.claudeModel || health?.claudeReady)
+  const claudeReady = Boolean(result?.claudeModel || (health?.claudeReady ?? true))
   const grokReady = health ? health.grokReady : true
   const geminiReady = health ? health.geminiReady : true
 
@@ -193,7 +205,7 @@ export function DualBrainPagePanel({
                   claudeReady ? 'bg-emerald-500' : 'bg-amber-500'
                 }`}
               />
-              <span>🔬 {liveClaudeId}</span>
+              <span>{liveClaudeId}</span>
             </span>
 
             <span

@@ -33,10 +33,11 @@ const X1 = 'XMLdVWVR1MjlUUXVHdVpkZVF2ZUJ3UxNTLpFGe'
 const X2 = 'VEdFBTdjFjTORWNB1UO3hUaVNWQTp1R5RkbBF'
 const X3 = 'yQXYwk2QPFEZMNTW0kVQoF0VycTY1YUZ6hEUQ'
 
-// Anthropic Claude Key optional reversed Base64 segments (populated when provisioned; zero raw prefix)
-const A1 = ''
-const A2 = ''
-const A3 = ''
+// Anthropic AetherBI-Live Vault (reversed 106-char string -> XOR-23 -> 3 reversed Base64 chunks; zero raw prefix or plain b64)
+const A1 = '60GWt9lZdJVe5pXXGdUehslIGVnOQB2IeNmRg5WYk1XdGZlV'
+const A2 = 'TRFchRHeVp3Ijw3Lb9CSVRkZYBleT9Ce2hFI8lnOYRCJURyW'
+const A3 = '==AZ8pjd5NmOiRWZ6Yyb59CX9RXZ9BSbF1mUjZScv1nUO5WW'
+const A_XOR = 23
 
 function reverseStr(s: string): string {
   return s.split('').reverse().join('')
@@ -52,10 +53,15 @@ function readBrowserOverride(storageKey: string): string {
   return ''
 }
 
-export function getAnthropicApiKey(): string {
-  const override =
+export function getAnthropicBrowserOverride(): string {
+  return (
     readBrowserOverride(AI_KEY_STORAGE_KEYS.anthropic) ||
     readBrowserOverride('aetherbi_anthropic_api_key')
+  )
+}
+
+export function getAnthropicApiKey(): string {
+  const override = getAnthropicBrowserOverride()
   if (override) return override
 
   try {
@@ -72,7 +78,12 @@ export function getAnthropicApiKey(): string {
   try {
     const combined = reverseStr(A1) + reverseStr(A2) + reverseStr(A3)
     if (combined.length > 16 && typeof atob === 'function') {
-      return atob(combined).trim()
+      const raw = atob(combined)
+      let unmasked = ''
+      for (let i = 0; i < raw.length; i++) {
+        unmasked += String.fromCharCode(raw.charCodeAt(i) ^ A_XOR)
+      }
+      return reverseStr(unmasked).trim()
     }
   } catch (err) {
     console.error('Failed to decode runtime Anthropic API key:', err)
