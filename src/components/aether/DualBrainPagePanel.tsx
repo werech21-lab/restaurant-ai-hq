@@ -7,9 +7,12 @@ import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { FeryalStudioMessage, feryalPlainText } from '@/components/aether/FeryalStudioMessage'
 import {
   askDualHeavyBrain,
+  BRAIN_HEALTH_EVENT,
   BRAIN_MODE_EVENT,
   getActiveBrainMode,
   normalizeBrainMode,
+  probeDualBrainHealth,
+  type BrainLiveHealth,
   type BrainMode,
   type DualBrainResponse,
 } from '@/lib/dual-heavy-brain'
@@ -34,20 +37,39 @@ export function DualBrainPagePanel({
   const { filters, workspace } = useGlobalFilter()
 
   const [mode, setMode] = useState<'triple' | 'claude' | 'gemini' | 'grok'>('triple')
+  const [health, setHealth] = useState<BrainLiveHealth | null>(null)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<DualBrainResponse | null>(null)
   const [showSplit, setShowSplit] = useState(false)
   const [copied, setCopied] = useState(false)
 
+  const syncLiveModels = useCallback(async () => {
+    try {
+      const h = await probeDualBrainHealth(false)
+      setHealth(h)
+    } catch {}
+  }, [])
+
   useEffect(() => {
     setMode(normalizeBrainMode(getActiveBrainMode()))
+    void syncLiveModels()
+
     const onMode = (e: Event) => {
       const detail = (e as CustomEvent<BrainMode>).detail
       setMode(normalizeBrainMode(detail ?? getActiveBrainMode()))
     }
+    const onHealth = () => {
+      void syncLiveModels()
+    }
     window.addEventListener(BRAIN_MODE_EVENT, onMode)
-    return () => window.removeEventListener(BRAIN_MODE_EVENT, onMode)
-  }, [])
+    window.addEventListener(BRAIN_HEALTH_EVENT, onHealth)
+    window.addEventListener('storage', onHealth)
+    return () => {
+      window.removeEventListener(BRAIN_MODE_EVENT, onMode)
+      window.removeEventListener(BRAIN_HEALTH_EVENT, onHealth)
+      window.removeEventListener('storage', onHealth)
+    }
+  }, [syncLiveModels])
 
   const runAnalysis = useCallback(async () => {
     setLoading(true)
@@ -123,15 +145,23 @@ export function DualBrainPagePanel({
   const hasMultipleBrains = individualPanels.length >= 2
   const statusNote = isAr ? result?.statusNoteAr : result?.statusNoteEn
 
+  const liveClaudeId =
+    result?.claudeModel ?? health?.claudeModel ?? 'claude-opus-4-6 (Extended Thinking)'
+  const liveGrokId = result?.grokModel ?? health?.grokModel ?? 'grok-4.20-0309-reasoning'
+  const liveGeminiId = result?.geminiModel ?? health?.geminiModel ?? 'gemini-2.5-pro'
+  const claudeReady = Boolean(result?.claudeModel || health?.claudeReady)
+  const grokReady = health ? health.grokReady : true
+  const geminiReady = health ? health.geminiReady : true
+
   return (
     <section
       dir={isAr ? 'rtl' : 'ltr'}
       aria-label={isAr ? 'تحليل العقل الثلاثي للصفحة' : 'Triple-Brain Page Analysis'}
       className="ae-bento-card no-print p-4 sm:p-5"
     >
-      {/* Compact 1-Click Trigger Bar */}
+      {/* Compact 1-Click Trigger Bar + Live 3-Brain Model ID Badges */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0 space-y-0.5">
+        <div className="min-w-0 space-y-1.5">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-[14.5px] font-extrabold text-slate-950 dark:text-white">
               {isAr ? 'قراءة ذكية فورية لأرقام هذه الصفحة' : 'Instant Executive Readout for This Page'}
@@ -147,6 +177,57 @@ export function DualBrainPagePanel({
               ? `${pageTitleAr} • ${workspace.subtitleAr}`
               : `${pageTitleEn} • ${workspace.subtitleEn}`}
           </p>
+
+          {/* Always-visible Exact Live Resolved Model IDs for All 3 Brains */}
+          <div dir="ltr" className="flex flex-wrap items-center gap-1.5 pt-0.5 font-mono text-[11px]">
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 font-bold ring-1 ${
+                mode === 'triple' || mode === 'claude'
+                  ? 'bg-slate-900/[0.04] text-slate-800 ring-slate-900/10 dark:bg-white/[0.07] dark:text-slate-100 dark:ring-white/15'
+                  : 'bg-slate-900/[0.02] text-slate-500 ring-slate-900/[0.05] dark:bg-white/[0.03] dark:text-slate-400 dark:ring-white/[0.06]'
+              }`}
+              title="Anthropic Claude Resolved Model ID"
+            >
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${
+                  claudeReady ? 'bg-emerald-500' : 'bg-amber-500'
+                }`}
+              />
+              <span>🔬 {liveClaudeId}</span>
+            </span>
+
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 font-bold ring-1 ${
+                mode === 'triple' || mode === 'grok'
+                  ? 'bg-slate-900/[0.04] text-slate-800 ring-slate-900/10 dark:bg-white/[0.07] dark:text-slate-100 dark:ring-white/15'
+                  : 'bg-slate-900/[0.02] text-slate-500 ring-slate-900/[0.05] dark:bg-white/[0.03] dark:text-slate-400 dark:ring-white/[0.06]'
+              }`}
+              title="xAI Grok Resolved Model ID"
+            >
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${
+                  grokReady ? 'bg-emerald-500' : 'bg-amber-500'
+                }`}
+              />
+              <span>🧠 {liveGrokId}</span>
+            </span>
+
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 font-bold ring-1 ${
+                mode === 'triple' || mode === 'gemini'
+                  ? 'bg-slate-900/[0.04] text-slate-800 ring-slate-900/10 dark:bg-white/[0.07] dark:text-slate-100 dark:ring-white/15'
+                  : 'bg-slate-900/[0.02] text-slate-500 ring-slate-900/[0.05] dark:bg-white/[0.03] dark:text-slate-400 dark:ring-white/[0.06]'
+              }`}
+              title="Google Gemini Resolved Model ID"
+            >
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${
+                  geminiReady ? 'bg-emerald-500' : 'bg-amber-500'
+                }`}
+              />
+              <span>⚡ {liveGeminiId}</span>
+            </span>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">

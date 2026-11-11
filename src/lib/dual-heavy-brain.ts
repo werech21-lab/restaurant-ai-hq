@@ -93,18 +93,67 @@ export interface DualBrainResponse {
 export const BRAIN_MODE_STORAGE_KEY = 'aetherbi_active_brain_mode_v2'
 const LEGACY_BRAIN_MODE_KEY = 'aetherbi_active_brain_mode_v1'
 export const BRAIN_MODE_EVENT = 'aetherbi-brain-mode-change'
+export const BRAIN_HEALTH_EVENT = 'aetherbi-brain-health-update'
 
-const GEMINI_CACHE_KEY = 'aetherbi_gemini_models_cache_v3'
-const XAI_CACHE_KEY = 'aetherbi_xai_models_cache_v2'
-const CLAUDE_CACHE_KEY = 'aetherbi_claude_models_cache_v1'
+const GEMINI_CACHE_KEY = 'aetherbi_gemini_models_cache_v4'
+const XAI_CACHE_KEY = 'aetherbi_xai_models_cache_v3'
+const CLAUDE_CACHE_KEY = 'aetherbi_claude_models_cache_v2'
+const LAST_VERIFIED_MODELS_KEY = 'aetherbi_last_verified_models_v1'
 const SIX_HOURS_MS = 6 * 60 * 60 * 1000
 const COOLDOWN_MS = 20 * 60 * 1000
 
-// In-memory 6h discovery caches + rate-limit cooldown tracker
+// In-memory 6h discovery caches + runtime verified model IDs + rate-limit cooldown tracker
 let geminiCachedModels: { at: number; models: string[] } | null = null
 let xaiCachedModels: { at: number; models: string[]; quotaWarning?: string } | null = null
 let claudeCachedModels: { at: number; models: string[] } | null = null
+let lastVerifiedModels: { claude?: string; gemini?: string; grok?: string } = {}
 const modelCooldownUntil = new Map<string, number>()
+
+function loadLastVerifiedModels(): { claude?: string; gemini?: string; grok?: string } {
+  if (lastVerifiedModels.claude || lastVerifiedModels.gemini || lastVerifiedModels.grok) {
+    return lastVerifiedModels
+  }
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const raw = window.localStorage.getItem(LAST_VERIFIED_MODELS_KEY)
+      if (raw) {
+        const parsed = JSON.parse(raw) as { claude?: string; gemini?: string; grok?: string }
+        if (parsed && typeof parsed === 'object') {
+          lastVerifiedModels = parsed
+        }
+      }
+    }
+  } catch {}
+  return lastVerifiedModels
+}
+
+function recordVerifiedModel(engine: 'claude' | 'gemini' | 'grok', modelId: string) {
+  if (!modelId) return
+  const cur = loadLastVerifiedModels()
+  lastVerifiedModels = { ...cur, [engine]: modelId }
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem(LAST_VERIFIED_MODELS_KEY, JSON.stringify(lastVerifiedModels))
+      window.dispatchEvent(new CustomEvent(BRAIN_HEALTH_EVENT, { detail: lastVerifiedModels }))
+    }
+  } catch {}
+}
+
+export function clearBrainDiscoveryCaches(): void {
+  geminiCachedModels = null
+  xaiCachedModels = null
+  claudeCachedModels = null
+  lastVerifiedModels = {}
+  modelCooldownUntil.clear()
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.removeItem(GEMINI_CACHE_KEY)
+      window.localStorage.removeItem(XAI_CACHE_KEY)
+      window.localStorage.removeItem(CLAUDE_CACHE_KEY)
+      window.localStorage.removeItem(LAST_VERIFIED_MODELS_KEY)
+    }
+  } catch {}
+}
 
 function isCoolingDown(modelKey: string): boolean {
   const until = modelCooldownUntil.get(modelKey)
@@ -300,7 +349,6 @@ export function scoreGeminiModel(id: string): number {
 
 export const DEFAULT_GEMINI_CHAIN = [
   'gemini-2.5-pro',
-  'gemini-3.1-pro-preview',
   'gemini-pro-latest',
   'gemini-2.5-flash',
   'gemini-flash-latest',
@@ -339,17 +387,20 @@ export async function discoverGeminiCarbonModels(): Promise<string[]> {
       const data = (await res.json()) as {
         models?: { name?: string; supportedGenerationMethods?: string[] }[]
       }
-      const candidates = (data.models ?? [])
-        .filter(
-          (m) =>
-            !m.supportedGenerationMethods ||
-            m.supportedGenerationMethods.includes('generateContent'),
-        )
-        .map((m) => (m.name ?? '').replace(/^models\//, ''))
-        .filter((id) => scoreGeminiModel(id) > 0)
+      const rankedLive = [
+        ...new Set(
+          (data.models ?? [])
+            .filter(
+              (m) =>
+                !m.supportedGenerationMethods ||
+                m.supportedGenerationMethods.includes('generateContent'),
+            )
+            .map((m) => (m.name ?? '').replace(/^models\//, ''))
+            .filter((id) => scoreGeminiModel(id) > 0),
+        ),
+      ].sort((a, b) => scoreGeminiModel(b) - scoreGeminiModel(a))
 
-      const merged = [...new Set([...candidates, ...DEFAULT_GEMINI_CHAIN])]
-        .filter((id) => scoreGeminiModel(id) > 0)
+      const merged = [...new Set([...rankedLive, ...DEFAULT_GEMINI_CHAIN])]
         .sort((a, b) => scoreGeminiModel(b) - scoreGeminiModel(a))
         .slice(0, 7)
 
@@ -452,7 +503,12 @@ export async function runGeminiCarbonEngine({
             .trim()
 
           if (textOut) {
-            return { text: textOut, model }
+            const resolvedGeminiId =
+              typeof data?.modelVersion === 'string' && data.modelVersion.trim()
+                ? data.modelVersion.trim().replace(/^models\//, '')
+                : model
+            recordVerifiedModel('gemini', resolvedGeminiId)
+            return { text: textOut, model: resolvedGeminiId }
           }
         }
       } catch {
@@ -488,11 +544,10 @@ function scoreGrokModel(id: string): number {
 }
 
 const DEFAULT_GROK_CHAIN = [
-  'grok-4.7',
   'grok-4.20-0309-reasoning',
-  'grok-4.6',
-  'grok-4.5',
-  'grok-4.3',
+  'grok-4-0709',
+  'grok-4-latest',
+  'grok-3',
 ]
 
 export async function discoverGrokHeavyModels(): Promise<{
@@ -639,7 +694,10 @@ Analyze every business question across 3 simultaneous lenses in crisp, plain eve
         const data = await res.json()
         const content: string = data?.choices?.[0]?.message?.content?.trim() ?? ''
         if (content) {
-          return { text: sanitizeExecutiveOutput(content), model }
+          const resolvedGrokId =
+            typeof data?.model === 'string' && data.model.trim() ? data.model.trim() : model
+          recordVerifiedModel('grok', resolvedGrokId)
+          return { text: sanitizeExecutiveOutput(content), model: resolvedGrokId }
         }
       }
     } catch {
@@ -825,6 +883,7 @@ Cross-audit POS baskets, supplier -> warehouse -> Ardiya -> branch flows, and du
 
         if (res.ok) {
           const data = (await res.json()) as {
+            model?: string
             content?: Array<{ type?: string; text?: string; thinking?: string }>
           }
           const blocks = data.content ?? []
@@ -840,9 +899,14 @@ Cross-audit POS baskets, supplier -> warehouse -> Ardiya -> branch flows, and du
             .trim()
 
           if (answerText) {
+            const rawClaudeId =
+              typeof data.model === 'string' && data.model.trim() ? data.model.trim() : model
+            const formattedClaudeId =
+              attempt === 0 ? `${rawClaudeId} (Extended Thinking)` : rawClaudeId
+            recordVerifiedModel('claude', formattedClaudeId)
             return {
               text: sanitizeExecutiveOutput(answerText),
-              model,
+              model: formattedClaudeId,
               thinkingSummary: thinkingText ? thinkingText.slice(0, 500) : undefined,
             }
           }
@@ -863,19 +927,33 @@ Cross-audit POS baskets, supplier -> warehouse -> Ardiya -> branch flows, and du
 // ============================================================================
 // Live Health Check (for Top Header Status Dot & Key Modal)
 // ============================================================================
-export async function probeDualBrainHealth(): Promise<BrainLiveHealth> {
+export async function probeDualBrainHealth(forceRefresh = false): Promise<BrainLiveHealth> {
+  if (forceRefresh) {
+    clearBrainDiscoveryCaches()
+  }
   const [gemModels, grokInfo, claudeModels] = await Promise.all([
     discoverGeminiCarbonModels(),
     discoverGrokHeavyModels(),
     discoverClaudeDeepModels(),
   ])
 
-  const geminiModel =
+  const verified = loadLastVerifiedModels()
+
+  const discoveredGemini =
     gemModels.find((m) => !isCoolingDown(`gemini:${m}`)) ?? gemModels[0] ?? 'gemini-2.5-pro'
-  const grokModel =
-    grokInfo.models.find((m) => !isCoolingDown(`xai:${m}`)) ?? grokInfo.models[0] ?? 'grok-4.7'
-  const claudeModel =
+  const discoveredGrok =
+    grokInfo.models.find((m) => !isCoolingDown(`xai:${m}`)) ??
+    grokInfo.models[0] ??
+    'grok-4.20-0309-reasoning'
+  const discoveredClaudeRaw =
     claudeModels.find((m) => !isCoolingDown(`claude:${m}`)) ?? claudeModels[0] ?? 'claude-opus-4-6'
+  const discoveredClaude = discoveredClaudeRaw.includes('Extended Thinking')
+    ? discoveredClaudeRaw
+    : `${discoveredClaudeRaw} (Extended Thinking)`
+
+  const geminiModel = verified.gemini || discoveredGemini
+  const grokModel = verified.grok || discoveredGrok
+  const claudeModel = verified.claude || discoveredClaude
 
   const hasGeminiKey = Boolean(getGeminiApiKey())
   const hasXaiKey = Boolean(getXaiApiKey()) && !grokInfo.quotaWarning

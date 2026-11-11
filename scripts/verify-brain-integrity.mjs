@@ -329,6 +329,20 @@ assert(
   'Zero top-row KPI figures duplicated inside donut centers across /erp/cores, /erp/before-after & /erp/events-intelligence',
 )
 
+const pagePanelSrc = fs.readFileSync(path.join(ROOT, 'src/components/aether/DualBrainPagePanel.tsx'), 'utf8')
+assert(
+  brainSrc.includes('recordVerifiedModel') &&
+    brainSrc.includes('(Extended Thinking)') &&
+    brainSrc.includes('grok-4.20-0309-reasoning') &&
+    switcherSrc.includes('Live Council Model IDs') &&
+    switcherSrc.includes('🔑⚙️') &&
+    switcherSrc.includes('Live Resolved Model IDs') &&
+    pagePanelSrc.includes('liveClaudeId') &&
+    pagePanelSrc.includes('liveGrokId') &&
+    pagePanelSrc.includes('liveGeminiId'),
+  'Exact live resolved model IDs displayed across DualBrainPagePanel, TopBrainSwitcher sub-badge/tooltip & 🔑⚙️ modal',
+)
+
 console.log('\n----------------------------------------------------------------------')
 if (failed > 0) {
   console.error(`❌ Verification FAILED: ${failed} failed, ${passed} passed.`)

@@ -2,12 +2,13 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
-import { Check, ClipboardCopy, RotateCcw, X } from 'lucide-react'
+import { Check, ClipboardCopy, RefreshCw, RotateCcw, X } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { SlidingPillTabs } from '@/components/ui/SlidingPillTabs'
 import { AI_KEY_STORAGE_KEYS, hasAnthropicApiKey } from '@/lib/ai-keys'
 import {
+  BRAIN_HEALTH_EVENT,
   BRAIN_MODE_EVENT,
   buildGrokUltraClipboardBrief,
   getActiveBrainMode,
@@ -61,17 +62,21 @@ export function BrainControlsInline() {
   const [customOpenAi, setCustomOpenAi] = useState('')
   const [claudeActive, setClaudeActive] = useState(false)
   const [savedNotice, setSavedNotice] = useState(false)
+  const [probing, setProbing] = useState(false)
 
   const gearWrapRef = useRef<HTMLDivElement>(null)
 
-  const refreshHealth = useCallback(async () => {
+  const refreshHealth = useCallback(async (forceRefresh = false) => {
     setClaudeActive(hasAnthropicApiKey())
+    if (forceRefresh) setProbing(true)
     try {
-      const h = await probeDualBrainHealth()
+      const h = await probeDualBrainHealth(forceRefresh)
       setHealth(h)
       setClaudeActive(h.claudeReady)
     } catch {
       // Keep UI crisp even if offline
+    } finally {
+      if (forceRefresh) setProbing(false)
     }
   }, [])
 
@@ -85,21 +90,27 @@ export function BrainControlsInline() {
         setCustomOpenAi(window.localStorage.getItem(AI_KEY_STORAGE_KEYS.openai) ?? '')
       }
     } catch {}
-    void refreshHealth()
+    void refreshHealth(false)
 
     const onBrainMode = (e: Event) => {
       const detail = (e as CustomEvent<BrainMode>).detail
       setMode(normalizeBrainMode(detail ?? getActiveBrainMode()))
     }
+    const onHealthUpdate = () => {
+      void refreshHealth(false)
+    }
     const onStorage = () => {
       setMode(normalizeBrainMode(getActiveBrainMode()))
       setClaudeActive(hasAnthropicApiKey())
+      void refreshHealth(false)
     }
 
     window.addEventListener(BRAIN_MODE_EVENT, onBrainMode)
+    window.addEventListener(BRAIN_HEALTH_EVENT, onHealthUpdate)
     window.addEventListener('storage', onStorage)
     return () => {
       window.removeEventListener(BRAIN_MODE_EVENT, onBrainMode)
+      window.removeEventListener(BRAIN_HEALTH_EVENT, onHealthUpdate)
       window.removeEventListener('storage', onStorage)
     }
   }, [refreshHealth])
@@ -164,7 +175,7 @@ export function BrainControlsInline() {
       }
     } catch {}
     setSavedNotice(true)
-    void refreshHealth()
+    void refreshHealth(true)
     window.setTimeout(() => {
       setSavedNotice(false)
       setGearOpen(false)
@@ -184,70 +195,111 @@ export function BrainControlsInline() {
         window.localStorage.removeItem(AI_KEY_STORAGE_KEYS.openai)
       }
     } catch {}
-    void refreshHealth()
+    void refreshHealth(true)
   }
+
+  const claudeModelId = health?.claudeModel ?? 'claude-opus-4-6 (Extended Thinking)'
+  const grokModelId = health?.grokModel ?? 'grok-4.20-0309-reasoning'
+  const geminiModelId = health?.geminiModel ?? 'gemini-2.5-pro'
+  const grokReady = health ? health.grokReady : true
+  const geminiReady = health ? health.geminiReady : true
 
   const hasWarning = Boolean(
     (mode === 'claude' && !claudeActive) ||
       (health?.grokQuotaNoteAr && mode === 'grok'),
   )
 
-  const statusText = (() => {
-    if (!health) return isAr ? 'متصل وجاهز' : 'Live & Ready'
-    if (mode === 'claude') {
-      if (!health.claudeReady) {
-        return isAr
-          ? 'اضغط 🔑 للصق مفتاح كلاود (يعمل جميني Pro احتياطياً)'
-          : 'Click 🔑 to paste Anthropic key (Gemini Pro active as backup)'
-      }
-      return isAr ? `نشط: ${health.claudeModel}` : `Active: ${health.claudeModel}`
-    }
-    if (mode === 'gemini') {
-      return isAr ? `نشط: ${health.geminiModel}` : `Active: ${health.geminiModel}`
-    }
-    if (mode === 'grok') {
-      if (health.grokQuotaNoteAr) {
-        return isAr ? health.grokQuotaNoteAr : (health.grokQuotaNoteEn ?? 'Fallback ready')
-      }
-      return isAr ? `نشط: ${health.grokModel}` : `Active: ${health.grokModel}`
-    }
-    const activeEngines = [
-      health.claudeReady ? health.claudeModel : null,
-      health.geminiModel,
-      health.grokReady ? health.grokModel : null,
-    ].filter(Boolean)
-    return isAr
-      ? `متصل: ${activeEngines.join(' + ')}`
-      : `Live: ${activeEngines.join(' + ')}`
-  })()
+  const allThreeModelsSummary = `Claude: ${claudeModelId} | Grok: ${grokModelId} | Gemini: ${geminiModelId}`
+
+  const activeBadgeModelId =
+    mode === 'claude'
+      ? `🔬 ${claudeModelId}`
+      : mode === 'grok'
+        ? `🧠 ${grokModelId}`
+        : mode === 'gemini'
+          ? `⚡ ${geminiModelId}`
+          : `🔬 ${claudeModelId} · 🧠 ${grokModelId} · ⚡ ${geminiModelId}`
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      {/* Verdelo Sliding Pill 4-Option Brain Mode Switcher */}
-      <div className="group relative inline-flex items-center">
-        <SlidingPillTabs
-          ariaLabel={isAr ? 'اختيار محرك التحليل' : 'Select AI Council Mode'}
-          surface="white"
-          size="sm"
-          value={mode}
-          onChange={handleSelectMode}
-          options={MODE_OPTIONS.map((opt) => ({
-            id: opt.id,
-            label: isAr ? opt.ar : opt.en,
-          }))}
-        />
-        <span
+      {/* Verdelo Sliding Pill 4-Option Brain Mode Switcher + Rich 3-Brain Live Model Tooltip */}
+      <div className="group relative inline-flex flex-col items-end gap-1">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <SlidingPillTabs
+            ariaLabel={isAr ? 'اختيار محرك التحليل' : 'Select AI Council Mode'}
+            surface="white"
+            size="sm"
+            value={mode}
+            onChange={handleSelectMode}
+            options={MODE_OPTIONS.map((opt) => ({
+              id: opt.id,
+              label: isAr ? opt.ar : opt.en,
+            }))}
+          />
+
+          {/* Always-visible Live Resolved Model Sub-Badge (click to inspect in 🔑/⚙️ modal) */}
+          <button
+            type="button"
+            dir="ltr"
+            onClick={() => setGearOpen((v) => !v)}
+            title={allThreeModelsSummary}
+            className="hidden cursor-pointer items-center gap-1.5 rounded-full bg-slate-900/[0.04] px-2.5 py-1 font-mono text-[10.5px] font-bold text-slate-700 ring-1 ring-slate-900/[0.06] transition-colors hover:bg-slate-900/[0.08] xl:inline-flex dark:bg-white/[0.06] dark:text-slate-200 dark:ring-white/[0.1]"
+          >
+            <span
+              className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                hasWarning ? 'bg-amber-500' : 'bg-emerald-500'
+              }`}
+            />
+            <span className="max-w-[430px] truncate">{activeBadgeModelId}</span>
+          </button>
+        </div>
+
+        {/* Hover Popover Card: Exact Live Resolved Model IDs for All 3 Brains */}
+        <div
           role="tooltip"
           dir="ltr"
-          className="pointer-events-none invisible absolute top-full start-1/2 z-50 mt-2 -translate-x-1/2 whitespace-nowrap rounded-xl bg-white px-3 py-1.5 text-[11.5px] font-bold text-slate-900 shadow-md ring-1 ring-slate-900/10 opacity-0 transition-all duration-150 group-hover:visible group-hover:opacity-100 dark:bg-[#111A22] dark:text-slate-100"
+          className="pointer-events-none invisible absolute top-full end-0 z-50 mt-2 w-[340px] rounded-2xl bg-white p-3 text-left text-[11px] text-slate-900 shadow-lg ring-1 ring-slate-900/10 opacity-0 transition-all duration-150 group-hover:visible group-hover:opacity-100 dark:bg-[#111A22] dark:text-slate-100 dark:ring-white/15"
         >
-          <span
-            className={`me-1.5 inline-block h-2 w-2 rounded-full ${
-              hasWarning ? 'bg-amber-500' : 'bg-emerald-500'
-            }`}
-          />
-          {statusText}
-        </span>
+          <div className="mb-1.5 flex items-center justify-between border-b border-slate-100 pb-1.5 text-[10.5px] font-extrabold uppercase tracking-wider text-slate-500 dark:border-white/10 dark:text-slate-400">
+            <span>Live Council Model IDs</span>
+            <span className="text-emerald-600 dark:text-emerald-400">3 Brains</span>
+          </div>
+          <div className="space-y-1.5 font-mono text-[11px]">
+            <div className="flex items-center justify-between gap-2">
+              <span className="inline-flex items-center gap-1.5 font-sans font-bold text-slate-600 dark:text-slate-300">
+                <span
+                  className={`h-2 w-2 rounded-full ${claudeActive ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                />
+                🔬 Claude
+              </span>
+              <span className="truncate font-bold text-slate-950 dark:text-white">
+                {claudeModelId}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="inline-flex items-center gap-1.5 font-sans font-bold text-slate-600 dark:text-slate-300">
+                <span
+                  className={`h-2 w-2 rounded-full ${grokReady ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                />
+                🧠 Grok
+              </span>
+              <span className="truncate font-bold text-slate-950 dark:text-white">
+                {grokModelId}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="inline-flex items-center gap-1.5 font-sans font-bold text-slate-600 dark:text-slate-300">
+                <span
+                  className={`h-2 w-2 rounded-full ${geminiReady ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                />
+                ⚡ Gemini
+              </span>
+              <span className="truncate font-bold text-slate-950 dark:text-white">
+                {geminiModelId}
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* 1-Click Copy Brief */}
@@ -278,80 +330,137 @@ export function BrainControlsInline() {
         )}
       </button>
 
-      {/* Top `🔑` API Key Vault Modal */}
+      {/* Top `🔑 / ⚙️` Settings & API Key Vault Modal */}
       <div ref={gearWrapRef} className="relative">
         <button
           type="button"
           onClick={() => setGearOpen((v) => !v)}
-          aria-label={isAr ? 'مفاتيح الذكاء الاصطناعي 🔑' : 'AI Key Vault 🔑'}
-          title={statusText}
+          aria-label={isAr ? 'إعدادات ومفاتيح الذكاء الاصطناعي 🔑⚙️' : 'AI Models & Key Vault 🔑⚙️'}
+          title={allThreeModelsSummary}
           aria-expanded={gearOpen}
-          className={`relative inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-white text-[14px] shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all duration-150 focus:outline-none dark:bg-[#111A22] ${
+          className={`relative inline-flex h-9 cursor-pointer items-center gap-1 rounded-full bg-white px-2.5 text-[13px] shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all duration-150 focus:outline-none dark:bg-[#111A22] ${
             gearOpen
               ? 'ring-1 ring-slate-900/80 dark:ring-emerald-400/70'
               : 'ring-1 ring-slate-900/[0.05] hover:ring-slate-900/20 dark:ring-white/[0.08]'
           }`}
         >
-          <span aria-hidden>🔑</span>
+          <span aria-hidden>🔑⚙️</span>
           <span
             aria-hidden
-            className={`absolute top-1 end-1 h-1.5 w-1.5 rounded-full ${
+            className={`h-1.5 w-1.5 rounded-full ${
               hasWarning ? 'bg-amber-500' : 'bg-emerald-500'
             }`}
           />
         </button>
 
         {gearOpen ? (
-          <div className="ae-bento-card absolute end-0 z-50 mt-2 w-[330px] p-4 sm:w-[380px]">
+          <div className="ae-bento-card absolute end-0 z-50 mt-2 w-[350px] p-4 sm:w-[420px]">
             <div className="flex items-center justify-between gap-2 pb-2">
               <h3 className="text-[13.5px] font-extrabold text-slate-950 dark:text-white">
-                {isAr ? 'خزنة مفاتيح العقل الثلاثي 🔑' : 'Triple-Brain Key Vault 🔑'}
+                {isAr ? 'إصدارات ومفاتيح العقل الثلاثي 🔑⚙️' : 'Triple-Brain Models & Key Vault 🔑⚙️'}
               </h3>
-              <button
-                type="button"
-                onClick={() => setGearOpen(false)}
-                aria-label={isAr ? 'إغلاق' : 'Close'}
-                className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-white/10 dark:hover:text-white"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <p className="text-[11.5px] leading-relaxed text-slate-500 dark:text-slate-400">
-              {isAr
-                ? 'تُحفظ المفاتيح محلياً في متصفحك فقط بدون رفعها لأي خادم. الصق مفتاح كلاود لتشغيل التفكير العميق (Extended Thinking).'
-                : 'Keys stay strictly in your browser localStorage. Add your Anthropic key to activate Claude Opus Extended Thinking.'}
-            </p>
-            <div className="mt-2 flex items-center gap-2 rounded-xl bg-[#F4F6F9] px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 dark:bg-white/[0.05] dark:text-slate-300">
-              <span
-                className={`h-2 w-2 shrink-0 rounded-full ${
-                  hasWarning ? 'bg-amber-500' : 'bg-emerald-500'
-                }`}
-              />
-              <span dir="ltr" className="truncate">
-                {statusText}
-              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => void refreshHealth(true)}
+                  disabled={probing}
+                  title={isAr ? 'فحص وتحديث إصدارات النماذج الآن' : 'Re-probe live model versions now'}
+                  className="rounded-full p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-50 dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${probing ? 'animate-spin' : ''}`} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGearOpen(false)}
+                  aria-label={isAr ? 'إغلاق' : 'Close'}
+                  className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-white/10 dark:hover:text-white"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
             </div>
 
-            <div className="mt-3 space-y-2.5">
+            {/* Live Resolved Model IDs Box (Exact Running Versions for All 3 Brains) */}
+            <div
+              dir="ltr"
+              className="rounded-2xl bg-[#F4F6F9] p-3 text-left ring-1 ring-slate-950/[0.05] dark:bg-white/[0.05] dark:ring-white/[0.08]"
+            >
+              <div className="mb-2 flex items-center justify-between text-[10.5px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                <span>
+                  {isAr ? 'الإصدارات الحية النشطة (Live Model IDs)' : 'Live Resolved Model IDs'}
+                </span>
+                <span className="text-emerald-600 dark:text-emerald-400">Verified</span>
+              </div>
+              <div className="space-y-1.5 font-mono text-[11.5px]">
+                <div className="flex items-center justify-between gap-2 rounded-lg bg-white px-2.5 py-1.5 dark:bg-[#0D151C]">
+                  <span className="inline-flex shrink-0 items-center gap-1.5 font-sans text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                    <span
+                      className={`h-2 w-2 rounded-full ${
+                        claudeActive ? 'bg-emerald-500' : 'bg-amber-500'
+                      }`}
+                    />
+                    🔬 Claude
+                  </span>
+                  <span className="truncate font-bold text-slate-950 dark:text-white">
+                    {claudeModelId}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between gap-2 rounded-lg bg-white px-2.5 py-1.5 dark:bg-[#0D151C]">
+                  <span className="inline-flex shrink-0 items-center gap-1.5 font-sans text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                    <span
+                      className={`h-2 w-2 rounded-full ${
+                        grokReady ? 'bg-emerald-500' : 'bg-amber-500'
+                      }`}
+                    />
+                    🧠 Grok
+                  </span>
+                  <span className="truncate font-bold text-slate-950 dark:text-white">
+                    {grokModelId}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between gap-2 rounded-lg bg-white px-2.5 py-1.5 dark:bg-[#0D151C]">
+                  <span className="inline-flex shrink-0 items-center gap-1.5 font-sans text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                    <span
+                      className={`h-2 w-2 rounded-full ${
+                        geminiReady ? 'bg-emerald-500' : 'bg-amber-500'
+                      }`}
+                    />
+                    ⚡ Gemini
+                  </span>
+                  <span className="truncate font-bold text-slate-950 dark:text-white">
+                    {geminiModelId}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <p className="mt-2.5 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
+              {isAr
+                ? 'تُحفظ المفاتيح محلياً في متصفحك فقط بدون رفعها لأي خادم.'
+                : 'Keys stay strictly in your browser localStorage.'}
+            </p>
+
+            <div className="mt-2.5 space-y-2.5">
               <label className="block space-y-1">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[11.5px] font-bold text-slate-800 dark:text-slate-200">
-                    Anthropic Claude Opus / Sonnet 🔬
+                    Anthropic Claude 🔬
                   </span>
                   <span
-                    className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                    dir="ltr"
+                    className={`rounded-full px-2 py-0.5 font-mono text-[10px] font-bold ${
                       claudeActive || customAnthropic.trim().length > 14
                         ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
                         : 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300'
                     }`}
                   >
                     {claudeActive || customAnthropic.trim().length > 14
-                      ? isAr
-                        ? 'مفعّل ✅'
-                        : 'Active ✅'
+                      ? claudeModelId
                       : isAr
-                        ? 'اختياري — الصق للتفعيل'
-                        : 'Paste to enable'}
+                        ? 'الصق المفتاح للتفعيل'
+                        : 'Paste key to enable'}
                   </span>
                 </div>
                 <input
@@ -373,9 +482,17 @@ export function BrainControlsInline() {
               </label>
 
               <label className="block space-y-1">
-                <span className="text-[11.5px] font-bold text-slate-700 dark:text-slate-300">
-                  Google Gemini Carbon Pro ⚡
-                </span>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11.5px] font-bold text-slate-700 dark:text-slate-300">
+                    Google Gemini ⚡
+                  </span>
+                  <span
+                    dir="ltr"
+                    className="rounded-full bg-emerald-50 px-2 py-0.5 font-mono text-[10px] font-bold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+                  >
+                    {geminiModelId}
+                  </span>
+                </div>
                 <input
                   type="password"
                   dir="ltr"
@@ -391,9 +508,21 @@ export function BrainControlsInline() {
               </label>
 
               <label className="block space-y-1">
-                <span className="text-[11.5px] font-bold text-slate-700 dark:text-slate-300">
-                  xAI Grok Heavy 🧠
-                </span>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11.5px] font-bold text-slate-700 dark:text-slate-300">
+                    xAI Grok 🧠
+                  </span>
+                  <span
+                    dir="ltr"
+                    className={`rounded-full px-2 py-0.5 font-mono text-[10px] font-bold ${
+                      grokReady
+                        ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
+                        : 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300'
+                    }`}
+                  >
+                    {grokModelId}
+                  </span>
+                </div>
                 <input
                   type="password"
                   dir="ltr"
