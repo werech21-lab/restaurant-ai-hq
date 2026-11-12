@@ -410,13 +410,13 @@ export function TopFilterBar({ companyNameAr = '', notifications }: TopFilterBar
   }
 
   const page = routeTitle(pathname)
-  const activePageTitle = page
+  const mobilePageTitle = page
     ? isAr
-      ? page.ar
-      : page.en
+      ? (page.mobileAr ?? page.ar)
+      : (page.mobileEn ?? page.en)
     : isAr
       ? 'ملخص الشركة'
-      : 'Company Summary'
+      : 'Overview'
   const showPosFilters = POS_FILTER_ROUTES.has(pathname)
   // CRITICAL: Row 2 (7 Quick-Lens Pills + Green Weighted Margin / Peer Diagnostic Strip)
   // renders ONLY when pathname === '/erp' — NEVER on any subpage.
@@ -465,22 +465,22 @@ export function TopFilterBar({ companyNameAr = '', notifications }: TopFilterBar
       <header
         aria-label={isAr ? 'الشريط العلوي للجوال' : 'Mobile Executive App Bar'}
         dir={isAr ? 'rtl' : 'ltr'}
-        className="ae-mobile-appbar no-print sticky top-0 z-40 -mx-4 flex h-14 items-center justify-between gap-2 bg-white/90 px-4 shadow-[0_1px_0_rgba(15,23,42,0.06)] backdrop-blur-md sm:-mx-6 sm:px-6 lg:hidden dark:bg-[#0B1512]/90 dark:shadow-[0_1px_0_rgba(16,185,129,0.12)]"
+        className="ae-mobile-appbar no-print sticky top-0 z-40 -mx-4 flex h-14 items-center justify-between gap-1.5 bg-white/90 px-3.5 shadow-[0_1px_0_rgba(15,23,42,0.06)] backdrop-blur-md sm:-mx-6 sm:px-6 lg:hidden dark:bg-[#0B1512]/90 dark:shadow-[0_1px_0_rgba(16,185,129,0.12)]"
       >
-        {/* Start: VF Brand Badge + Single Active Page Title */}
-        <div className="flex min-w-0 flex-1 items-center gap-2.5">
+        {/* Start: VF Brand Badge + Single Concise Active Page Title */}
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           <Link
             href="/erp"
-            aria-label={isAr ? 'ملخص الشركة' : 'Company Summary'}
-            className="btn-colored flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-xs font-black text-white shadow-xs transition-transform duration-150 active:scale-95"
+            aria-label={isAr ? 'ملخص الشركة' : 'Overview'}
+            className="btn-colored flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-[11px] font-black text-white shadow-xs transition-transform duration-150 active:scale-95"
           >
             VF
           </Link>
           <span
-            className="truncate text-[15px] font-semibold text-slate-900 dark:text-white"
+            className="truncate text-[14px] sm:text-[15px] font-semibold tracking-tight text-slate-900 dark:text-white"
             aria-current="page"
           >
-            {activePageTitle}
+            {mobilePageTitle}
           </span>
         </div>
 
@@ -492,7 +492,7 @@ export function TopFilterBar({ companyNameAr = '', notifications }: TopFilterBar
               onClick={() => setMobileSheetOpen(true)}
               aria-expanded={mobileSheetOpen}
               aria-label={isAr ? 'فتح الفلاتر والإعدادات' : 'Open Filters & Quick Controls'}
-              className={`inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-xl px-2.5 text-xs font-semibold transition-all duration-[160ms] active:scale-95 ${
+              className={`inline-flex h-8 cursor-pointer items-center gap-1 rounded-xl px-2 sm:px-2.5 text-[11.5px] font-semibold transition-all duration-[160ms] active:scale-95 ${
                 hasActiveMobileFilter
                   ? 'bg-emerald-50 text-emerald-900 ring-1 ring-emerald-500/35 dark:bg-emerald-500/15 dark:text-emerald-200 dark:ring-emerald-400/35'
                   : 'bg-neutral-100/90 text-slate-700 ring-1 ring-slate-900/[0.05] dark:bg-white/[0.06] dark:text-slate-200 dark:ring-emerald-500/15'
@@ -520,7 +520,7 @@ export function TopFilterBar({ companyNameAr = '', notifications }: TopFilterBar
             data-no-translate=""
             onClick={() => setLocale(isAr ? 'en' : 'ar')}
             aria-label={isAr ? 'Switch language to English' : 'تغيير اللغة إلى العربية'}
-            className="inline-flex h-8 cursor-pointer items-center justify-center rounded-xl bg-neutral-100/90 px-2.5 text-xs font-bold text-slate-700 ring-1 ring-slate-900/[0.05] transition-all duration-[160ms] active:scale-95 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-emerald-500/15"
+            className="inline-flex h-8 cursor-pointer items-center justify-center rounded-xl bg-neutral-100/90 px-2 sm:px-2.5 text-[11.5px] font-bold text-slate-700 ring-1 ring-slate-900/[0.05] transition-all duration-[160ms] active:scale-95 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-emerald-500/15"
           >
             {isAr ? 'EN' : 'AR'}
           </button>

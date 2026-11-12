@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import {
+  formatCompactAxisLabel,
   InteractiveDonutChart,
   InteractiveHoverBarChart,
   type DonutSliceDatum,
@@ -169,9 +170,22 @@ export function FullJourney360() {
       const pocket = Math.max(0, sales * netPocketRatio)
       const beforeRent = Math.max(0, sales * beforeRentRatio)
       const foodAndDelivery = Math.max(0, sales - beforeRent)
+      const rawLabel = isAr ? pt.labelAr : pt.labelEn
+      const axisLabel =
+        flowGroup === 'branches'
+          ? pt.id === 'avenues'
+            ? isAr
+              ? 'الأفنيوز'
+              : 'Avenues'
+            : pt.id === 'ardiya'
+              ? isAr
+                ? 'العارضية'
+                : 'Ardiya'
+              : rawLabel
+          : formatCompactAxisLabel(rawLabel)
       return {
         id: pt.id,
-        label: isAr ? pt.labelAr : pt.labelEn,
+        label: axisLabel,
         tooltipTitle: isAr ? pt.tooltipTitleAr : pt.tooltipTitleEn,
         primaryValue: sales,
         secondaryValue: pocket,
@@ -387,8 +401,8 @@ export function FullJourney360() {
                 </h2>
                 <p className="text-[13px] sm:text-[14px] font-medium text-slate-500 dark:text-slate-400">
                   {T(
-                    'Hover any capsule bar to inspect exact sales, costs, and net pocket cash',
-                    'مرّر الماوس على أي عمود لمعرفة المبيعات والمصاريف والصافي بالجيب بدقة',
+                    'Tap or hover any bar to inspect exact KWD',
+                    'اضغط أو مرر على أي عمود لعرض التفاصيل بالدينار',
                   )}
                 </p>
               </div>

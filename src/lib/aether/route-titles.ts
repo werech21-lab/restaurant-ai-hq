@@ -2,31 +2,154 @@
 export interface RouteTitle {
   en: string
   ar: string
+  mobileEn?: string
+  mobileAr?: string
 }
 
 const ROUTE_TITLES: { match: string; exact?: boolean; title: RouteTitle }[] = [
   // 1. القيادة والمبيعات (Executive & Sales)
-  { match: '/erp', exact: true, title: { en: 'Company Summary', ar: 'ملخص الشركة' } },
-  { match: '/erp/cores', title: { en: 'Sales, Marketing & Menu', ar: 'المبيعات والتسويق والمينيو' } },
-  { match: '/erp/weekday-comparison', title: { en: 'Weekday Sales Comparison', ar: 'مقارنة أيام الأسبوع' } },
-  { match: '/erp/before-after', title: { en: 'Decision Impact (Before & After)', ar: 'أثر القرارات (قبل وبعد)' } },
+  {
+    match: '/erp',
+    exact: true,
+    title: {
+      en: 'Company Summary',
+      ar: 'ملخص الشركة',
+      mobileEn: 'Overview',
+      mobileAr: 'ملخص الشركة',
+    },
+  },
+  {
+    match: '/erp/cores',
+    title: {
+      en: 'Sales, Marketing & Menu',
+      ar: 'المبيعات والتسويق والمينيو',
+      mobileEn: 'Sales & Menu',
+      mobileAr: 'المبيعات والمينيو',
+    },
+  },
+  {
+    match: '/erp/weekday-comparison',
+    title: {
+      en: 'Weekday Sales Comparison',
+      ar: 'مقارنة أيام الأسبوع',
+      mobileEn: 'Weekdays',
+      mobileAr: 'أيام الأسبوع',
+    },
+  },
+  {
+    match: '/erp/before-after',
+    title: {
+      en: 'Decision Impact (Before & After)',
+      ar: 'أثر القرارات (قبل وبعد)',
+      mobileEn: 'Before & After',
+      mobileAr: 'قبل وبعد',
+    },
+  },
 
   // 2. التشغيل وسلسلة الإمداد (Operations & SLA)
-  { match: '/erp/warehouse-chain', title: { en: 'Warehouse-to-Branch Chain', ar: 'سلسلة المخزن والفروع' } },
-  { match: '/erp/prep-sla', title: { en: 'Kitchen Prep SLA', ar: 'زمن تجهيز المطبخ' } },
-  { match: '/erp/delivery-sla', title: { en: 'Rider Delivery SLA', ar: 'زمن توصيل السائق' } },
-  { match: '/erp/aggregator-radar', title: { en: 'Aggregator Commissions', ar: 'عمولات منصات التوصيل' } },
+  {
+    match: '/erp/warehouse-chain',
+    title: {
+      en: 'Warehouse-to-Branch Chain',
+      ar: 'سلسلة المخزن والفروع',
+      mobileEn: 'Warehouse',
+      mobileAr: 'المخزن والفروع',
+    },
+  },
+  {
+    match: '/erp/prep-sla',
+    title: {
+      en: 'Kitchen Prep SLA',
+      ar: 'زمن تجهيز المطبخ',
+      mobileEn: 'Prep SLA',
+      mobileAr: 'زمن التجهيز',
+    },
+  },
+  {
+    match: '/erp/delivery-sla',
+    title: {
+      en: 'Rider Delivery SLA',
+      ar: 'زمن توصيل السائق',
+      mobileEn: 'Delivery SLA',
+      mobileAr: 'زمن التوصيل',
+    },
+  },
+  {
+    match: '/erp/aggregator-radar',
+    title: {
+      en: 'Aggregator Commissions',
+      ar: 'عمولات منصات التوصيل',
+      mobileEn: 'Delivery Fees',
+      mobileAr: 'عمولات التوصيل',
+    },
+  },
 
   // 3. السمعة والذكاء المرئي (Reputation & Vision AI)
-  { match: '/erp/social-reviews', title: { en: 'Social & Aggregator Reviews', ar: 'التقييمات ومنصات التواصل' } },
-  { match: '/erp/feryal-ai', title: { en: 'Ask Feryal (Vision & Video)', ar: 'المستشارة فريال (صور وفيديو)' } },
-  { match: '/erp/feryal', title: { en: 'Ask Feryal (Vision & Video)', ar: 'المستشارة فريال (صور وفيديو)' } },
+  {
+    match: '/erp/social-reviews',
+    title: {
+      en: 'Social & Aggregator Reviews',
+      ar: 'التقييمات ومنصات التواصل',
+      mobileEn: 'Reviews',
+      mobileAr: 'التقييمات',
+    },
+  },
+  {
+    match: '/erp/feryal-ai',
+    title: {
+      en: 'Ask Feryal (Vision & Video)',
+      ar: 'المستشارة فريال (صور وفيديو)',
+      mobileEn: 'Ask Feryal',
+      mobileAr: 'المستشارة فريال',
+    },
+  },
+  {
+    match: '/erp/feryal',
+    title: {
+      en: 'Ask Feryal (Vision & Video)',
+      ar: 'المستشارة فريال (صور وفيديو)',
+      mobileEn: 'Ask Feryal',
+      mobileAr: 'المستشارة فريال',
+    },
+  },
 
   // 4. الحوكمة والتخطيط (Governance & Strategy)
-  { match: '/erp/planning', title: { en: 'Strategic Planning & Forecast', ar: 'التخطيط والتوقعات' } },
-  { match: '/erp/regulations', title: { en: 'Regulations & Licensing', ar: 'التشريعات والتراخيص' } },
-  { match: '/erp/booth-feasibility', title: { en: 'Booth Feasibility Calculator', ar: 'حاسبة جدوى المعارض' } },
-  { match: '/erp/events-intelligence', title: { en: 'Booth Feasibility Calculator', ar: 'حاسبة جدوى المعارض' } },
+  {
+    match: '/erp/planning',
+    title: {
+      en: 'Strategic Planning & Forecast',
+      ar: 'التخطيط والتوقعات',
+      mobileEn: 'Planning',
+      mobileAr: 'التخطيط',
+    },
+  },
+  {
+    match: '/erp/regulations',
+    title: {
+      en: 'Regulations & Licensing',
+      ar: 'التشريعات والتراخيص',
+      mobileEn: 'Regulations',
+      mobileAr: 'التشريعات',
+    },
+  },
+  {
+    match: '/erp/booth-feasibility',
+    title: {
+      en: 'Booth Feasibility Calculator',
+      ar: 'حاسبة جدوى المعارض',
+      mobileEn: 'Booth ROI',
+      mobileAr: 'حاسبة المعارض',
+    },
+  },
+  {
+    match: '/erp/events-intelligence',
+    title: {
+      en: 'Booth Feasibility Calculator',
+      ar: 'حاسبة جدوى المعارض',
+      mobileEn: 'Booth ROI',
+      mobileAr: 'حاسبة المعارض',
+    },
+  },
 
   // Legacy & secondary panel routes
   { match: '/erp/sales-scorecard', title: { en: 'Sales Scorecard', ar: 'سجل المبيعات' } },

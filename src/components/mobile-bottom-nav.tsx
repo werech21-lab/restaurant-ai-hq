@@ -179,30 +179,30 @@ export function MobileBottomNav() {
             aria-modal="true"
             aria-label={isAr ? 'جميع أقسام النظام التنفيذي (13 شاشة)' : 'All 13 Executive ERP Modules'}
             dir={isAr ? 'rtl' : 'ltr'}
-            className="ae-bottom-sheet no-print fixed inset-x-0 bottom-0 z-50 max-h-[85dvh] overflow-y-auto rounded-t-3xl bg-white p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-2xl ring-1 ring-slate-900/5 lg:hidden dark:bg-[#101C17] dark:ring-emerald-500/15"
+            className="ae-bottom-sheet no-print fixed inset-x-0 bottom-0 z-50 max-h-[85dvh] overflow-y-auto rounded-t-3xl bg-white p-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-2xl ring-1 ring-slate-900/5 sm:p-5 sm:pb-[calc(1.25rem+env(safe-area-inset-bottom))] lg:hidden dark:bg-[#101C17] dark:ring-emerald-500/15"
           >
             <div className="mx-auto mb-3 h-1.5 w-11 rounded-full bg-slate-200 dark:bg-white/15" />
 
             {/* Sheet Header + ThemeToggle + AR/EN */}
-            <div className="flex items-center justify-between gap-2 pb-3">
+            <div className="flex items-center justify-between gap-1.5 pb-3">
               <div className="min-w-0">
-                <h2 className="truncate text-[15px] font-bold text-slate-900 dark:text-white">
-                  {isAr ? 'أقسام فنتشر فودز (13 وحدة)' : 'Venture Foods Modules (13)'}
+                <h2 className="whitespace-nowrap text-[15px] font-bold tracking-tight text-slate-900 dark:text-white">
+                  {isAr ? 'فنتشر فودز' : 'Venture Foods'}
                 </h2>
-                <p className="truncate text-[11.5px] font-medium text-slate-500 dark:text-slate-400">
-                  {isAr ? '6 مطاعم · 7 فروع · 8 قنوات' : '6 Brands · 7 Branches · 8 Channels'}
+                <p className="whitespace-nowrap text-[11.5px] font-medium text-slate-500 dark:text-slate-400">
+                  {isAr ? '6 مطاعم · 7 فروع' : '6 Brands · 7 Branches'}
                 </p>
               </div>
 
               <div className="flex shrink-0 items-center gap-1.5">
-                <ThemeToggle className="h-8 px-2.5 text-[11.5px]" />
+                <ThemeToggle className="h-8 !gap-1 !px-2 text-[11px]" />
 
                 <button
                   type="button"
                   dir="ltr"
                   data-no-translate=""
                   onClick={() => setLocale(isAr ? 'en' : 'ar')}
-                  className="inline-flex h-8 cursor-pointer items-center justify-center rounded-xl bg-neutral-100 px-2.5 text-xs font-bold text-slate-700 ring-1 ring-slate-900/[0.05] transition-colors hover:bg-neutral-200/80 dark:bg-white/[0.07] dark:text-slate-200 dark:ring-emerald-500/15"
+                  className="inline-flex h-8 cursor-pointer items-center justify-center rounded-xl bg-neutral-100 px-2 text-[11.5px] font-bold text-slate-700 ring-1 ring-slate-900/[0.05] transition-colors hover:bg-neutral-200/80 dark:bg-white/[0.07] dark:text-slate-200 dark:ring-emerald-500/15"
                 >
                   {isAr ? 'EN' : 'AR'}
                 </button>

@@ -1,6 +1,19 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useRef, useState } from 'react'
+
+/**
+ * Normalizes YYYY-MM-DD ("2026-10-29") or MM-DD ("10-29", "11-01") date labels
+ * into compact DD/MM ("29/10", "01/11") so X-axis ticks never truncate into "1." on 390px mobile.
+ */
+export function formatCompactAxisLabel(raw: string): string {
+  const s = (raw ?? '').trim()
+  const fullIso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s)
+  if (fullIso) return `${fullIso[3]}/${fullIso[2]}`
+  const mmDd = /^(\d{2})-(\d{2})$/.exec(s)
+  if (mmDd) return `${mmDd[2]}/${mmDd[1]}`
+  return s
+}
 
 export interface TooltipLine {
   label: string
@@ -54,6 +67,7 @@ export function BeforeAfterDualBarChart({
   heightClass?: string
 }) {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null)
+  const isTouchRef = useRef(false)
 
   const maxVal = Math.max(
     1,
@@ -71,7 +85,7 @@ export function BeforeAfterDualBarChart({
 
   return (
     <div dir={isAr ? 'rtl' : 'ltr'} className="relative select-none space-y-3">
-      {/* Legend + Live Active Readout */}
+      {/* Legend */}
       <div className="flex flex-wrap items-center justify-between gap-3 text-[12.5px]">
         <div className="flex flex-wrap items-center gap-4">
           <span className="inline-flex items-center gap-2 font-semibold text-slate-600 dark:text-slate-300">
@@ -83,15 +97,12 @@ export function BeforeAfterDualBarChart({
             {afterLegend}
           </span>
         </div>
-        <span className="text-[12px] font-medium text-slate-400 dark:text-slate-400">
-          {isAr ? 'مرّر الماوس على أي عمود لعرض الأرقام الدقيقة' : 'Hover any capsule for exact numbers'}
-        </span>
       </div>
 
       {/* Plot Canvas */}
-      <div className="ae-bento-subcard relative rounded-2xl bg-[#F4F6F9] p-4 pt-6">
+      <div className="ae-bento-subcard relative rounded-2xl bg-[#F4F6F9] px-2.5 py-3.5 pt-6 sm:p-4 sm:pt-6">
         {/* Horizontal subtle guide lines */}
-        <div className="pointer-events-none absolute inset-x-4 top-6 bottom-11 flex flex-col justify-between">
+        <div className="pointer-events-none absolute inset-x-2.5 sm:inset-x-4 top-6 bottom-11 flex flex-col justify-between">
           {[1, 0.75, 0.5, 0.25, 0].map((ratio) => (
             <div
               key={ratio}
@@ -99,7 +110,7 @@ export function BeforeAfterDualBarChart({
             >
               <span
                 dir="ltr"
-                className="-translate-y-2 text-[10.5px] font-semibold tabular-nums text-slate-400 dark:text-slate-500"
+                className="-translate-y-2 text-[10px] sm:text-[10.5px] font-semibold tabular-nums text-slate-400 dark:text-slate-500"
               >
                 {fmtAxis(maxVal * ratio)}
               </span>
@@ -107,14 +118,14 @@ export function BeforeAfterDualBarChart({
           ))}
         </div>
 
-        {/* Floating Rich White Tooltip */}
+        {/* Floating Rich White Tooltip (mobile-clamped inside 390px viewport) */}
         {activeDatum && hoveredIdx !== null ? (
           <div
             role="tooltip"
             style={{
-              insetInlineStart: `${Math.min(82, Math.max(18, ((hoveredIdx + 0.5) / Math.max(1, data.length)) * 100))}%`,
+              insetInlineStart: `clamp(128px, ${(((hoveredIdx + 0.5) / Math.max(1, data.length)) * 100).toFixed(1)}%, calc(100% - 128px))`,
             }}
-            className="pointer-events-none absolute top-2 z-30 w-64 -translate-x-1/2 rounded-2xl bg-white p-3.5 text-[12.5px] text-slate-950 transition-all duration-100 rtl:translate-x-1/2"
+            className="pointer-events-none absolute top-2 z-30 w-56 sm:w-64 max-w-[calc(100%-16px)] -translate-x-1/2 rounded-2xl bg-white p-3 sm:p-3.5 text-[12px] sm:text-[12.5px] text-slate-950 shadow-lg ring-1 ring-slate-900/5 transition-all duration-100 rtl:translate-x-1/2"
           >
             <div className="mb-2 flex items-center justify-between gap-2 border-b border-slate-100 pb-1.5">
               <span className="truncate font-extrabold text-slate-950">{activeDatum.tooltipTitle}</span>
@@ -193,7 +204,7 @@ export function BeforeAfterDualBarChart({
         ) : null}
 
         {/* Skerry Rounded Capsule Bars Row */}
-        <div className={`relative z-10 flex ${heightClass} items-end gap-1.5 ps-10 pt-6 sm:gap-2.5`}>
+        <div className={`relative z-10 flex ${heightClass} items-end gap-1 ps-8 pt-6 sm:gap-2.5 sm:ps-10`}>
           {data.map((d, idx) => {
             const bPct = Math.max(4, Math.min(100, (Math.max(0, d.before) / maxVal) * 100))
             const aPct = Math.max(4, Math.min(100, (Math.max(0, d.after) / maxVal) * 100))
@@ -201,40 +212,64 @@ export function BeforeAfterDualBarChart({
             const higherGood = d.higherIsBetter !== false
             const isGood = higherGood ? rawDelta >= 0 : rawDelta <= 0
             const isHovered = hoveredIdx === idx
+            const displayLabel = formatCompactAxisLabel(d.label)
 
             return (
               <div
                 key={d.id}
                 tabIndex={0}
-                onMouseEnter={() => setHoveredIdx(idx)}
-                onMouseLeave={() => setHoveredIdx((cur) => (cur === idx ? null : cur))}
-                onFocus={() => setHoveredIdx(idx)}
+                onPointerMove={(e) => {
+                  if (e.pointerType === 'mouse') isTouchRef.current = false
+                }}
+                onTouchStart={() => {
+                  isTouchRef.current = true
+                }}
+                onMouseEnter={() => {
+                  if (!isTouchRef.current) setHoveredIdx(idx)
+                }}
+                onMouseLeave={() => {
+                  if (!isTouchRef.current) setHoveredIdx((cur) => (cur === idx ? null : cur))
+                }}
+                onFocus={() => {
+                  if (!isTouchRef.current) setHoveredIdx(idx)
+                }}
                 onBlur={() => setHoveredIdx((cur) => (cur === idx ? null : cur))}
-                onClick={() => setHoveredIdx(idx)}
-                className={`group flex h-full min-w-0 flex-1 cursor-pointer flex-col justify-end rounded-2xl px-1 pt-2 transition-colors duration-150 focus:outline-none ${
+                onClick={() => setHoveredIdx((prev) => (prev === idx ? null : idx))}
+                className={`group flex h-full min-w-0 flex-1 cursor-pointer flex-col justify-end rounded-2xl px-0 pt-2 transition-colors duration-150 focus:outline-none sm:px-1 ${
                   isHovered
                     ? 'bg-white/90 ring-1 ring-emerald-500/30 dark:bg-white/[0.07]'
                     : 'hover:bg-white/60 dark:hover:bg-white/[0.04]'
                 }`}
               >
-                <div className="flex h-full items-end justify-center gap-1 sm:gap-1.5">
+                <div className="flex h-full w-full items-end justify-center gap-[2px] sm:gap-1.5">
                   {/* Before Capsule (#CBD5E1) */}
                   <div
                     style={{ height: `${bPct}%` }}
-                    className="ae-bar-grow w-full max-w-[18px] rounded-t-full rounded-b-md bg-[#CBD5E1] transition-all duration-200 group-hover:bg-slate-400 dark:bg-slate-600"
+                    className="ae-bar-grow w-full min-w-[6px] sm:min-w-[10px] max-w-[18px] rounded-full bg-[#CBD5E1] transition-all duration-200 group-hover:bg-slate-400 dark:bg-slate-600"
                   />
                   {/* After Capsule (#10B981 or Rose/Slate) */}
                   <div
                     style={{ height: `${aPct}%` }}
-                    className={`ae-bar-grow w-full max-w-[18px] rounded-t-full rounded-b-md transition-all duration-200 ${
+                    className={`ae-bar-grow w-full min-w-[6px] sm:min-w-[10px] max-w-[18px] rounded-full transition-all duration-200 ${
                       isGood
                         ? 'bg-[#10B981] shadow-[0_4px_12px_-2px_rgba(16,185,129,0.35)] group-hover:bg-emerald-500'
                         : 'bg-[#F43F5E] group-hover:bg-rose-500'
                     }`}
                   />
                 </div>
-                <div className="mt-2 truncate text-center text-[11px] font-bold text-slate-600 dark:text-slate-300">
-                  {d.label}
+                <div className="mt-2 flex h-4 items-center justify-center">
+                  <span
+                    dir="ltr"
+                    className={`whitespace-nowrap text-center text-[10px] sm:text-[11px] font-bold tabular-nums text-slate-600 dark:text-slate-300 ${
+                      data.length > 7
+                        ? (idx % 3 === 0 || idx === data.length - 1) && idx !== data.length - 2
+                          ? ''
+                          : 'hidden sm:inline-block'
+                        : ''
+                    }`}
+                  >
+                    {displayLabel}
+                  </span>
                 </div>
               </div>
             )
@@ -261,7 +296,7 @@ export interface MultiSeriesBarDatum {
 
 /**
  * Interactive Skerry Rounded Capsule Chart for Cash-Flow, Marketing ROI, Sales Timeline, Peak Hours, Menu & Quality.
- * Hovering any capsule pops up a crisp white tooltip with exact numbers.
+ * Tapping or hovering any capsule pops up a crisp white tooltip with exact numbers.
  */
 export function InteractiveHoverBarChart({
   data,
@@ -285,6 +320,7 @@ export function InteractiveHoverBarChart({
   heightClass?: string
 }) {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null)
+  const isTouchRef = useRef(false)
 
   const maxVal = Math.max(
     1,
@@ -322,14 +358,11 @@ export function InteractiveHoverBarChart({
             </span>
           ) : null}
         </div>
-        <span className="text-[12px] font-medium text-slate-400 dark:text-slate-400">
-          {isAr ? 'مرّر الماوس على أي عمود لعرض الأرقام' : 'Hover any capsule for exact numbers'}
-        </span>
       </div>
 
-      <div className="ae-bento-subcard relative rounded-2xl bg-[#F4F6F9] p-4 pt-6">
+      <div className="ae-bento-subcard relative rounded-2xl bg-[#F4F6F9] px-2.5 py-3.5 pt-6 sm:p-4 sm:pt-6">
         {/* Guide lines */}
-        <div className="pointer-events-none absolute inset-x-4 top-6 bottom-11 flex flex-col justify-between">
+        <div className="pointer-events-none absolute inset-x-2.5 sm:inset-x-4 top-6 bottom-11 flex flex-col justify-between">
           {[1, 0.75, 0.5, 0.25, 0].map((ratio) => (
             <div
               key={ratio}
@@ -337,7 +370,7 @@ export function InteractiveHoverBarChart({
             >
               <span
                 dir="ltr"
-                className="-translate-y-2 text-[10.5px] font-semibold tabular-nums text-slate-400 dark:text-slate-500"
+                className="-translate-y-2 text-[10px] sm:text-[10.5px] font-semibold tabular-nums text-slate-400 dark:text-slate-500"
               >
                 {fmtAxis(maxVal * ratio)}
               </span>
@@ -345,14 +378,14 @@ export function InteractiveHoverBarChart({
           ))}
         </div>
 
-        {/* Rich Hover Tooltip */}
+        {/* Rich Tap/Hover Tooltip (mobile-clamped inside 390px viewport) */}
         {activeDatum && hoveredIdx !== null ? (
           <div
             role="tooltip"
             style={{
-              insetInlineStart: `${Math.min(82, Math.max(18, ((hoveredIdx + 0.5) / Math.max(1, data.length)) * 100))}%`,
+              insetInlineStart: `clamp(128px, ${(((hoveredIdx + 0.5) / Math.max(1, data.length)) * 100).toFixed(1)}%, calc(100% - 128px))`,
             }}
-            className="pointer-events-none absolute top-2 z-30 w-64 -translate-x-1/2 rounded-2xl bg-white p-3.5 text-[12.5px] text-slate-950 transition-all duration-100 rtl:translate-x-1/2"
+            className="pointer-events-none absolute top-2 z-30 w-56 sm:w-64 max-w-[calc(100%-16px)] -translate-x-1/2 rounded-2xl bg-white p-3 sm:p-3.5 text-[12px] sm:text-[12.5px] text-slate-950 shadow-lg ring-1 ring-slate-900/5 transition-all duration-100 rtl:translate-x-1/2"
           >
             <div className="mb-2 flex items-center justify-between gap-2 border-b border-slate-100 pb-1.5">
               <span className="truncate font-extrabold text-slate-950">{activeDatum.tooltipTitle}</span>
@@ -391,7 +424,7 @@ export function InteractiveHoverBarChart({
         ) : null}
 
         {/* Skerry Capsule Bars */}
-        <div className={`relative z-10 flex ${heightClass} items-end gap-1 ps-10 pt-6 sm:gap-2`}>
+        <div className={`relative z-10 flex ${heightClass} items-end gap-0.5 ps-8 pt-6 sm:gap-2 sm:ps-10`}>
           {data.map((d, idx) => {
             const pVal = Math.max(0, d.primaryValue || 0)
             const sVal = Math.max(0, d.secondaryValue || 0)
@@ -403,27 +436,40 @@ export function InteractiveHoverBarChart({
             const isHovered = hoveredIdx === idx
             const pColor = resolvePrimaryColor(d.primaryColor)
             const sColor = d.secondaryColor ?? secondaryColor
+            const displayLabel = formatCompactAxisLabel(d.label)
 
             return (
               <div
                 key={d.id}
                 tabIndex={0}
-                onMouseEnter={() => setHoveredIdx(idx)}
-                onMouseLeave={() => setHoveredIdx((cur) => (cur === idx ? null : cur))}
-                onFocus={() => setHoveredIdx(idx)}
+                onPointerMove={(e) => {
+                  if (e.pointerType === 'mouse') isTouchRef.current = false
+                }}
+                onTouchStart={() => {
+                  isTouchRef.current = true
+                }}
+                onMouseEnter={() => {
+                  if (!isTouchRef.current) setHoveredIdx(idx)
+                }}
+                onMouseLeave={() => {
+                  if (!isTouchRef.current) setHoveredIdx((cur) => (cur === idx ? null : cur))
+                }}
+                onFocus={() => {
+                  if (!isTouchRef.current) setHoveredIdx(idx)
+                }}
                 onBlur={() => setHoveredIdx((cur) => (cur === idx ? null : cur))}
-                onClick={() => setHoveredIdx(idx)}
-                className={`group flex h-full min-w-0 flex-1 cursor-pointer flex-col justify-end rounded-2xl px-0.5 pt-2 transition-colors duration-150 focus:outline-none ${
+                onClick={() => setHoveredIdx((prev) => (prev === idx ? null : idx))}
+                className={`group flex h-full min-w-0 flex-1 cursor-pointer flex-col justify-end rounded-2xl px-0 pt-2 transition-colors duration-150 focus:outline-none sm:px-0.5 ${
                   isHovered
                     ? 'bg-white/90 ring-1 ring-emerald-500/30 dark:bg-white/[0.07]'
                     : 'hover:bg-white/60 dark:hover:bg-white/[0.04]'
                 }`}
               >
                 {stacked && secondaryLegend ? (
-                  <div className="flex h-full items-end justify-center">
+                  <div className="flex h-full w-full items-end justify-center">
                     <div
                       style={{ height: `${totalPct}%` }}
-                      className="ae-bar-grow flex w-full max-w-[22px] flex-col justify-end overflow-hidden rounded-t-full rounded-b-md"
+                      className="ae-bar-grow flex w-full min-w-[6px] sm:min-w-[10px] max-w-[16px] sm:max-w-[22px] flex-col justify-end overflow-hidden rounded-full"
                     >
                       {sVal > 0 ? (
                         <div
@@ -444,27 +490,38 @@ export function InteractiveHoverBarChart({
                     </div>
                   </div>
                 ) : secondaryLegend ? (
-                  <div className="flex h-full items-end justify-center gap-1">
+                  <div className="flex h-full w-full items-end justify-center gap-[2px] sm:gap-1">
                     <div
                       style={{ height: `${pHeightPct}%`, backgroundColor: pColor }}
-                      className="ae-bar-grow w-full max-w-[16px] rounded-t-full rounded-b-md transition-all duration-150"
+                      className="ae-bar-grow w-full min-w-[6px] sm:min-w-[10px] max-w-[16px] rounded-full transition-all duration-150"
                     />
                     <div
                       style={{ height: `${sHeightPct}%`, backgroundColor: sColor }}
-                      className="ae-bar-grow w-full max-w-[16px] rounded-t-full rounded-b-md transition-all duration-150"
+                      className="ae-bar-grow w-full min-w-[6px] sm:min-w-[10px] max-w-[16px] rounded-full transition-all duration-150"
                     />
                   </div>
                 ) : (
-                  <div className="flex h-full items-end justify-center">
+                  <div className="flex h-full w-full items-end justify-center">
                     <div
                       style={{ height: `${pHeightPct}%`, backgroundColor: pColor }}
-                      className="ae-bar-grow w-full max-w-[22px] rounded-t-full rounded-b-md transition-all duration-150 group-hover:opacity-90"
+                      className="ae-bar-grow w-full min-w-[6px] sm:min-w-[10px] max-w-[16px] sm:max-w-[22px] rounded-full transition-all duration-150 group-hover:opacity-90"
                     />
                   </div>
                 )}
 
-                <div className="mt-2 truncate text-center text-[10.5px] font-bold text-slate-600 dark:text-slate-300">
-                  {d.label}
+                <div className="mt-2 flex h-4 items-center justify-center">
+                  <span
+                    dir="ltr"
+                    className={`whitespace-nowrap text-center text-[10px] sm:text-[10.5px] font-bold tabular-nums text-slate-600 dark:text-slate-300 ${
+                      data.length > 7
+                        ? (idx % 3 === 0 || idx === data.length - 1) && idx !== data.length - 2
+                          ? ''
+                          : 'hidden sm:inline-block'
+                        : ''
+                    }`}
+                  >
+                    {displayLabel}
+                  </span>
                 </div>
               </div>
             )

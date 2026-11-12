@@ -53,6 +53,7 @@ import {
   type SalesPoint,
 } from '@/lib/aether/cores-hub-engine'
 import {
+  formatCompactAxisLabel,
   InteractiveDonutChart,
   InteractiveHorizontalRankList,
   InteractiveHoverBarChart,
@@ -420,7 +421,7 @@ export function CoresHubStudio() {
   const marketingChartData = useMemo<MultiSeriesBarDatum[]>(() => {
     return snap.marketing.chartPoints.map((pt) => ({
       id: pt.id,
-      label: isAr ? pt.labelAr : pt.labelEn,
+      label: formatCompactAxisLabel(isAr ? pt.labelAr : pt.labelEn),
       tooltipTitle: isAr ? pt.tooltipTitleAr : pt.tooltipTitleEn,
       primaryValue: pt.organicSalesKwd,
       secondaryValue: pt.promoAdSalesKwd,
@@ -463,7 +464,7 @@ export function CoresHubStudio() {
   const salesTimelineData = useMemo<MultiSeriesBarDatum[]>(() => {
     return snap.sales.timeline.map((pt) => ({
       id: pt.id,
-      label: isAr ? pt.labelAr : pt.labelEn,
+      label: formatCompactAxisLabel(isAr ? pt.labelAr : pt.labelEn),
       tooltipTitle: isAr ? pt.tooltipTitleAr : pt.tooltipTitleEn,
       primaryValue: pt.salesKwd,
       primaryColor: pt.color ?? '#38BDF8',
@@ -961,8 +962,8 @@ export function CoresHubStudio() {
                   </h2>
                   <p className="mt-0.5 text-xs text-neutral-400">
                     {isAr
-                      ? 'مرّر الماوس على أي يوم لمعرفة المبيعات، الطلبات، تكلفة الإعلان، والصافي'
-                      : 'Hover any capsule to inspect exact KWD, orders, ad cost, and net profit'}
+                      ? 'اضغط أو مرر على أي عمود لعرض التفاصيل بالدينار'
+                      : 'Tap or hover any bar to inspect exact KWD'}
                   </p>
                 </div>
                 <Link
@@ -992,7 +993,9 @@ export function CoresHubStudio() {
                   {isAr ? 'حصة العروض والطبيعي' : 'Promo vs Organic Mix'}
                 </h2>
                 <p className="mt-0.5 text-xs text-neutral-400">
-                  {isAr ? 'نسبة العروض داخل الدائرة والصافي بالأسفل' : 'Promo share centered · net cash row below'}
+                  {isAr
+                    ? 'حصة مبيعات العروض والإعلانات مقابل الطلبات الطبيعية بالسعر الكامل'
+                    : 'Share of promo & ad-driven revenue vs organic full-price orders'}
                 </p>
               </div>
 
@@ -1027,12 +1030,12 @@ export function CoresHubStudio() {
                 </p>
               </div>
 
-              <div className="flex max-w-full items-center gap-2 overflow-x-auto no-scrollbar">
+              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                 <button
                   type="button"
                   onClick={() => setShowDemoCampaigns((v) => !v)}
                   aria-pressed={showDemoCampaigns}
-                  className={`inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 text-xs font-medium transition-all duration-150 ${
+                  className={`inline-flex h-9 w-full sm:w-auto cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 text-xs font-medium transition-all duration-150 ${
                     showDemoCampaigns
                       ? 'bg-amber-50 text-amber-900 dark:bg-amber-950/60 dark:text-amber-200'
                       : 'bg-neutral-100 text-neutral-800 hover:bg-neutral-200/80 dark:bg-emerald-950/70 dark:text-emerald-200 dark:hover:bg-emerald-900/70'
@@ -1053,7 +1056,7 @@ export function CoresHubStudio() {
                   <button
                     type="button"
                     onClick={resetCampaignForm}
-                    className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl bg-neutral-100 px-3.5 text-xs font-medium text-neutral-800 transition-colors duration-150 hover:bg-neutral-200/80 dark:bg-white/[0.08] dark:text-slate-200"
+                    className="inline-flex h-9 w-full sm:w-auto cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-neutral-100 px-3.5 text-xs font-medium text-neutral-800 transition-colors duration-150 hover:bg-neutral-200/80 dark:bg-white/[0.08] dark:text-slate-200"
                   >
                     <span>{isAr ? 'إغلاق النموذج ✕' : 'Close Form ✕'}</span>
                   </button>
@@ -1061,7 +1064,7 @@ export function CoresHubStudio() {
                   <button
                     type="button"
                     onClick={() => setIsAdFormOpen(true)}
-                    className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl bg-emerald-600 px-4 text-[13px] font-bold text-white shadow-sm transition-all duration-150 hover:bg-emerald-700 active:scale-[0.99]"
+                    className="inline-flex h-9 w-full sm:w-auto cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-emerald-600 px-4 text-[13px] font-bold text-white shadow-sm transition-all duration-150 hover:bg-emerald-700 active:scale-[0.99]"
                   >
                     <span>
                       {isAr
@@ -1189,7 +1192,7 @@ export function CoresHubStudio() {
                     />
                   </div>
 
-                  <div className="flex max-w-full items-center gap-2 overflow-x-auto no-scrollbar">
+                  <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                     <button
                       type="button"
                       onClick={resetCampaignForm}
@@ -1211,7 +1214,7 @@ export function CoresHubStudio() {
                     </button>
                     <button
                       type="submit"
-                      className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl bg-emerald-600 px-5 text-[13px] font-bold text-white shadow-sm transition-all duration-150 hover:bg-emerald-700 active:scale-[0.99]"
+                      className="inline-flex h-9 w-full sm:w-auto cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-emerald-600 px-5 text-[13px] font-bold text-white shadow-sm transition-all duration-150 hover:bg-emerald-700 active:scale-[0.99]"
                     >
                       <Plus className="h-3.5 w-3.5" />
                       <span>
@@ -1390,12 +1393,12 @@ export function CoresHubStudio() {
                       </div>
 
                       {/* Action Bar */}
-                      <div className="mt-3 flex items-center justify-between gap-2 pt-1">
-                        <div className="flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar">
+                      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 pt-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
                           <button
                             type="button"
                             onClick={() => copyText(ev.campaign.id, formatCampaignWhatsapp(ev))}
-                            className="inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl bg-neutral-100 px-3 text-xs font-medium text-neutral-900 transition-colors duration-150 hover:bg-neutral-200/80 dark:bg-emerald-950/70 dark:text-emerald-200 dark:hover:bg-emerald-900/70"
+                            className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl bg-neutral-100 px-3 py-1.5 text-xs font-medium text-neutral-900 transition-colors duration-150 hover:bg-neutral-200/80 dark:bg-emerald-950/70 dark:text-emerald-200 dark:hover:bg-emerald-900/70"
                           >
                             {copiedId === ev.campaign.id ? (
                               <>
@@ -1411,7 +1414,7 @@ export function CoresHubStudio() {
                             <button
                               type="button"
                               onClick={() => submitCampaignApproval(ev.campaign, ev)}
-                              className="inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-xl bg-amber-50 px-3 text-xs font-semibold text-amber-900 transition-colors duration-150 hover:bg-amber-100 dark:bg-amber-950/60 dark:text-amber-200"
+                              className="inline-flex shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-xl bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-900 transition-colors duration-150 hover:bg-amber-100 dark:bg-amber-950/60 dark:text-amber-200"
                             >
                               <span>{isAr ? 'طلب موافقة المدير 🔔' : 'Request Approval 🔔'}</span>
                             </button>
@@ -1421,7 +1424,7 @@ export function CoresHubStudio() {
                             <button
                               type="button"
                               onClick={() => handleEditCampaign(ev.campaign)}
-                              className="inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-xl bg-neutral-100 px-3 text-xs font-medium text-neutral-700 transition-colors duration-150 hover:bg-neutral-200/80 hover:text-neutral-950 dark:bg-white/10 dark:text-slate-300"
+                              className="inline-flex shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-xl bg-neutral-100 px-3 py-1.5 text-xs font-medium text-neutral-700 transition-colors duration-150 hover:bg-neutral-200/80 hover:text-neutral-950 dark:bg-white/10 dark:text-slate-300"
                             >
                               <Edit3 className="h-3 w-3" />
                               <span>{isAr ? 'تعديل' : 'Edit'}</span>
@@ -1434,7 +1437,7 @@ export function CoresHubStudio() {
                             type="button"
                             onClick={() => handleDeleteCampaign(ev.campaign.id)}
                             aria-label={isAr ? 'حذف الحملة' : 'Delete campaign'}
-                            className="inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 rounded-xl px-2.5 text-xs font-medium text-neutral-400 transition-colors duration-150 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40"
+                            className="inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 rounded-xl px-2.5 text-xs font-medium text-neutral-400 transition-colors duration-150 hover:bg-rose-50 hover:text-rose-600 ms-auto dark:hover:bg-rose-950/40"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -1463,19 +1466,19 @@ export function CoresHubStudio() {
                 </p>
               </div>
 
-              <div className="flex max-w-full items-center gap-2 overflow-x-auto no-scrollbar">
+              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                 {/* Dish of the Week Spotlight Pill */}
-                <div className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl bg-white px-3.5 py-1.5 text-xs shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10">
-                  <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
-                  <span className="text-neutral-400">
+                <div className="inline-flex max-w-full items-center gap-2 rounded-xl bg-white px-3.5 py-1.5 text-xs shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10">
+                  <Sparkles className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                  <span className="shrink-0 text-neutral-400">
                     {isAr ? 'طبق الأسبوع:' : 'Dish of Week:'}
                   </span>
-                  <span className="font-semibold text-neutral-950 dark:text-white">
+                  <span className="truncate font-semibold text-neutral-950 dark:text-white">
                     {snap.marketing.dishOfTheWeek.dishName}
                   </span>
                   <span
                     dir="ltr"
-                    className="rounded-lg bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+                    className="shrink-0 rounded-lg bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
                   >
                     {snap.marketing.dishOfTheWeek.marginPct}%
                   </span>
@@ -1492,7 +1495,7 @@ export function CoresHubStudio() {
                         .join('\n\n'),
                     )
                   }
-                  className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl bg-emerald-600 px-4 text-[13px] font-bold text-white shadow-sm transition-all duration-150 hover:bg-emerald-700 active:scale-[0.99]"
+                  className="inline-flex h-9 w-full sm:w-auto cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-emerald-600 px-4 text-[13px] font-bold text-white shadow-sm transition-all duration-150 hover:bg-emerald-700 active:scale-[0.99]"
                 >
                   {copiedId === 'all-6-plays' ? (
                     <>
@@ -1556,13 +1559,13 @@ export function CoresHubStudio() {
                     </div>
 
                     {/* Clean Governance Action (`رفع للاعتماد 🔔` / `اسأل فريال ✨`) + Subtle Details Toggle */}
-                    <div className="flex items-center justify-between gap-2 border-t border-neutral-100 pt-3 dark:border-white/[0.06]">
-                      <div className="flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-neutral-100 pt-3 dark:border-white/[0.06]">
+                      <div className="flex flex-wrap items-center gap-1.5">
                         {playApproval?.status === 'approved' ? (
                           <button
                             type="button"
                             onClick={() => openDrawer('approvals')}
-                            className="inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-xl bg-emerald-50 px-3 text-xs font-semibold text-emerald-800 transition-colors duration-150 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-300"
+                            className="inline-flex shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-xl bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 transition-colors duration-150 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-300"
                           >
                             <ShieldCheck className="h-3.5 w-3.5" />
                             <span>{isAr ? 'معتمد رسمياً ✓' : 'Approved ✓'}</span>
@@ -1571,7 +1574,7 @@ export function CoresHubStudio() {
                           <button
                             type="button"
                             onClick={() => openDrawer('approvals')}
-                            className="inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-xl bg-amber-50 px-3 text-xs font-semibold text-amber-900 transition-colors duration-150 hover:bg-amber-100 dark:bg-amber-950/60 dark:text-amber-200"
+                            className="inline-flex shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-xl bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-900 transition-colors duration-150 hover:bg-amber-100 dark:bg-amber-950/60 dark:text-amber-200"
                           >
                             <Bell className="h-3.5 w-3.5" />
                             <span>{isAr ? 'بانتظار الاعتماد 🔔' : 'Pending Approval 🔔'}</span>
@@ -1594,7 +1597,7 @@ export function CoresHubStudio() {
                                 href: '/erp/cores?tab=marketing',
                               })
                             }
-                            className="inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-xl bg-amber-50 px-3 text-xs font-semibold text-amber-900 transition-colors duration-150 hover:bg-amber-100 dark:bg-amber-950/60 dark:text-amber-200"
+                            className="inline-flex shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-xl bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-900 transition-colors duration-150 hover:bg-amber-100 dark:bg-amber-950/60 dark:text-amber-200"
                           >
                             <span>{isAr ? 'رفع للاعتماد 🔔' : 'Submit for Approval 🔔'}</span>
                           </button>
@@ -1602,7 +1605,7 @@ export function CoresHubStudio() {
 
                         <Link
                           href={`/erp/feryal-ai?prompt=${encodeURIComponent(feryalPrompt)}`}
-                          className="inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-xl bg-emerald-50 px-3 text-xs font-semibold text-emerald-800 transition-colors duration-150 hover:bg-emerald-100 dark:bg-emerald-950/70 dark:text-emerald-200 dark:hover:bg-emerald-900/70"
+                          className="inline-flex shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-xl bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 transition-colors duration-150 hover:bg-emerald-100 dark:bg-emerald-950/70 dark:text-emerald-200 dark:hover:bg-emerald-900/70"
                         >
                           <span>{isAr ? 'اسأل فريال ✨' : 'Ask Feryal ✨'}</span>
                         </Link>
@@ -1612,7 +1615,7 @@ export function CoresHubStudio() {
                         type="button"
                         aria-expanded={isExpanded}
                         onClick={() => togglePlayDrawer(play.id)}
-                        className="inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-xl px-2.5 text-xs font-medium text-neutral-400 transition-colors duration-150 hover:bg-neutral-100 hover:text-neutral-900 dark:text-slate-400 dark:hover:bg-white/[0.06] dark:hover:text-white"
+                        className="inline-flex shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-xl px-2.5 py-1.5 text-xs font-medium text-neutral-500 transition-colors duration-150 hover:bg-neutral-100 hover:text-neutral-900 ms-auto dark:text-slate-400 dark:hover:bg-white/[0.06] dark:hover:text-white"
                       >
                         <span>{isAr ? 'التفاصيل' : 'Details'}</span>
                         <ChevronDown
@@ -1747,8 +1750,8 @@ export function CoresHubStudio() {
                 </h2>
                 <p className="mt-0.5 text-xs text-neutral-400">
                   {isAr
-                    ? 'مرّر الماوس على أي عمود لعرض المبيعات بالدينار وعدد الطلبات ومتوسط الفاتورة'
-                    : 'Hover any capsule for exact Sales KWD, Orders, and Average Bill'}
+                    ? 'اضغط أو مرر على أي عمود لعرض التفاصيل بالدينار'
+                    : 'Tap or hover any bar to inspect exact KWD'}
                 </p>
               </div>
               <InteractiveHoverBarChart
@@ -2267,8 +2270,8 @@ export function CoresHubStudio() {
                 </h2>
                 <p className="mt-0.5 text-xs text-neutral-400">
                   {isAr
-                    ? 'النسبة الصافية بالوسط وتفاصيل الدينار بالأسفل'
-                    : 'Single % centered in ring · exact KWD rows below'}
+                    ? 'هامش ربح الأطباق بعد خصم تكلفة المواد الخام والتغليف'
+                    : 'Menu profit mix across dish quadrants net of food & packaging cost'}
                 </p>
               </div>
 

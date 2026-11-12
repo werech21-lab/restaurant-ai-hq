@@ -334,7 +334,62 @@ export function OrderPrepSlaStudio() {
             </p>
           </div>
 
-          <div className={TABLE_SCROLL_CLS}>
+          {/* Mobile (< sm) full-width responsive rows — zero horizontal overflow or clipped % */}
+          <div className="divide-y divide-neutral-100 dark:divide-white/[0.06] sm:hidden">
+            {snap.branchMatrix.map((row) => (
+              <div key={row.id} className="space-y-2 py-3 first:pt-1 last:pb-0">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex min-w-0 items-baseline gap-1.5">
+                    <span className="truncate text-[14px] font-semibold text-neutral-950 dark:text-white">
+                      {isAr ? row.nameAr : row.nameEn}
+                    </span>
+                    <span className="shrink-0 text-[11.5px] font-normal tabular-nums text-neutral-400 dark:text-slate-400">
+                      · {f0(row.ticketCount)} {isAr ? 'طلب' : 'tickets'}
+                    </span>
+                  </div>
+                  <div className="shrink-0">
+                    <PrepTrafficBadge tier={row.tier} isAr={isAr} compact />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-2 text-[12px] tabular-nums">
+                    <div>
+                      <span className="text-neutral-500 dark:text-slate-400">
+                        {T('Avg Prep:', 'المعدل الوسطي:')}{' '}
+                      </span>
+                      <span className="font-bold text-neutral-950 dark:text-white">
+                        {f1(row.avgPrepMinutes)} {isAr ? 'د' : 'm'}
+                      </span>{' '}
+                      <span className="font-mono text-[11px] font-normal text-neutral-400">
+                        ({row.avgDurationMmSs})
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-neutral-500 dark:text-slate-400">
+                        {T('P90 Peak:', 'ذروة P90:')}{' '}
+                      </span>
+                      <span className="font-semibold text-neutral-700 dark:text-slate-200">
+                        {f1(row.p90PrepMinutes)} {isAr ? 'د' : 'm'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex h-2 w-full overflow-hidden rounded-full bg-neutral-100 dark:bg-white/[0.08]">
+                    <div style={{ width: `${row.greenPct}%` }} className="bg-emerald-500/85" />
+                    <div style={{ width: `${row.yellowPct}%` }} className="bg-amber-400/90" />
+                    <div style={{ width: `${row.redPct}%` }} className="bg-rose-500/85" />
+                  </div>
+                </div>
+
+                <div className="text-[11.5px] font-medium tabular-nums text-neutral-600 dark:text-slate-300">
+                  🟢 {f1(row.greenPct)}% · 🟡 {f1(row.yellowPct)}% · 🔴 {f1(row.redPct)}%
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className={`hidden sm:block ${TABLE_SCROLL_CLS}`}>
             <table className="w-full min-w-[560px] border-collapse text-start text-[14px] sm:text-[14.5px]">
               <thead>
                 <tr className="border-b border-neutral-100 text-[12.5px] font-semibold text-neutral-500 dark:border-white/[0.06] dark:text-slate-400">
@@ -407,7 +462,62 @@ export function OrderPrepSlaStudio() {
             </p>
           </div>
 
-          <div className={TABLE_SCROLL_CLS}>
+          {/* Mobile (< sm) full-width responsive rows — zero horizontal overflow or clipped % */}
+          <div className="divide-y divide-neutral-100 dark:divide-white/[0.06] sm:hidden">
+            {snap.brandMatrix.map((row) => (
+              <div key={row.id} className="space-y-2 py-3 first:pt-1 last:pb-0">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex min-w-0 items-baseline gap-1.5">
+                    <span className="truncate text-[14px] font-semibold text-neutral-950 dark:text-white">
+                      {isAr ? row.nameAr : row.nameEn}
+                    </span>
+                    <span className="shrink-0 text-[11.5px] font-normal tabular-nums text-neutral-400 dark:text-slate-400">
+                      · {f0(row.ticketCount)} {isAr ? 'طلب' : 'tickets'}
+                    </span>
+                  </div>
+                  <div className="shrink-0">
+                    <PrepTrafficBadge tier={row.tier} isAr={isAr} compact />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-2 text-[12px] tabular-nums">
+                    <div>
+                      <span className="text-neutral-500 dark:text-slate-400">
+                        {T('Avg Prep:', 'المعدل الوسطي:')}{' '}
+                      </span>
+                      <span className="font-bold text-neutral-950 dark:text-white">
+                        {f1(row.avgPrepMinutes)} {isAr ? 'د' : 'm'}
+                      </span>{' '}
+                      <span className="font-mono text-[11px] font-normal text-neutral-400">
+                        ({row.avgDurationMmSs})
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-neutral-500 dark:text-slate-400">
+                        {T('P90 Peak:', 'ذروة P90:')}{' '}
+                      </span>
+                      <span className="font-semibold text-neutral-700 dark:text-slate-200">
+                        {f1(row.p90PrepMinutes)} {isAr ? 'د' : 'm'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex h-2 w-full overflow-hidden rounded-full bg-neutral-100 dark:bg-white/[0.08]">
+                    <div style={{ width: `${row.greenPct}%` }} className="bg-emerald-500/85" />
+                    <div style={{ width: `${row.yellowPct}%` }} className="bg-amber-400/90" />
+                    <div style={{ width: `${row.redPct}%` }} className="bg-rose-500/85" />
+                  </div>
+                </div>
+
+                <div className="text-[11.5px] font-medium tabular-nums text-neutral-600 dark:text-slate-300">
+                  🟢 {f1(row.greenPct)}% · 🟡 {f1(row.yellowPct)}% · 🔴 {f1(row.redPct)}%
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className={`hidden sm:block ${TABLE_SCROLL_CLS}`}>
             <table className="w-full min-w-[560px] border-collapse text-start text-[14px] sm:text-[14.5px]">
               <thead>
                 <tr className="border-b border-neutral-100 text-[12.5px] font-semibold text-neutral-500 dark:border-white/[0.06] dark:text-slate-400">

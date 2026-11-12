@@ -34,7 +34,7 @@ function assert(condition, label, detail = '') {
 }
 
 console.log('\n======================================================================')
-console.log('  Venture Foods — Odoo 17 Forensic & CFO Integrity Verification (v14)')
+console.log('  Venture Foods — Odoo 17 Forensic & CFO Integrity Verification (v15)')
 console.log('======================================================================\n')
 
 // 1. Secret & Theme / Sidebar Invariants
@@ -1590,6 +1590,162 @@ assert(
     lensProbe.subpageLeaks === 0,
   'Runtime Stuck-Lens subpage guard (auto-reset/ignore lens & kuwaitSlice when pathname !== /erp) & zero duplicate "Quiet Hours" / "Payday" subtitle segments verified',
   `quietEn=${lensProbe.quietEnCount}, quietAr=${lensProbe.quietArCount}, subpageLeaks=${lensProbe.subpageLeaks}`,
+)
+
+// 15. 390px Smartphone Pixel-Perfection Checks
+console.log('\n15) 390px Smartphone Pixel-Perfection Checks:')
+
+const chartsSrc = donutSrc
+const routeTitlesSrc = fs.readFileSync(path.join(ROOT, 'src/lib/aether/route-titles.ts'), 'utf8')
+
+function collectAllSrcCodeFiles(dir, out = []) {
+  for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, ent.name)
+    if (ent.isDirectory()) collectAllSrcCodeFiles(full, out)
+    else if (/\.(ts|tsx|js|jsx|mjs)$/.test(ent.name)) out.push(full)
+  }
+  return out
+}
+
+const allSrcFiles = collectAllSrcCodeFiles(path.join(ROOT, 'src'))
+let promoCenteredMatchesInSrc = 0
+for (const file of allSrcFiles) {
+  const txt = fs.readFileSync(file, 'utf8')
+  if (txt.includes('Promo share centered')) promoCenteredMatchesInSrc += 1
+}
+
+// Item 1: Charts (DD/MM dates, mobile tick thinning, min-w-[6px] capsule thickness, touch-tap & deduplicated copy)
+assert(
+  !chartsSrc.includes('Hover any capsule for exact numbers') &&
+    !chartsSrc.includes('مرّر الماوس على أي عمود') &&
+    chartsSrc.includes('formatCompactAxisLabel') &&
+    chartsSrc.includes('whitespace-nowrap') &&
+    chartsSrc.includes('idx % 3 === 0') &&
+    chartsSrc.includes('idx === data.length - 1') &&
+    chartsSrc.includes('hidden sm:inline-block') &&
+    chartsSrc.includes('min-w-[6px] sm:min-w-[10px]') &&
+    chartsSrc.includes('rounded-full') &&
+    chartsSrc.includes('setHoveredIdx((prev) => (prev === idx ? null : idx))') &&
+    journeySrc.includes('Tap or hover any bar to inspect exact KWD') &&
+    journeySrc.includes('اضغط أو مرر على أي عمود لعرض التفاصيل بالدينار') &&
+    coresSrc.includes('Tap or hover any bar to inspect exact KWD') &&
+    coresSrc.includes('اضغط أو مرر على أي عمود لعرض التفاصيل بالدينار'),
+  'Item 1 (Charts): DD/MM compact axis dates, < sm tick thinning (idx % 3 === 0), min-w-[6px] sm:min-w-[10px] capsules, touch-tap toggle & zero duplicate "Hover any capsule" line',
+)
+
+// Item 2: Unclipped Mobile CTAs on /erp/cores & Responsive 7-Branch / 6-Brand Prep SLA Mobile Rows
+const prepMobileHiddenCount = (prepSlaStudioSrc.match(/\bsm:hidden\b/g) ?? []).length
+assert(
+  coresSrc.includes('flex flex-wrap items-center justify-between gap-2 border-t') &&
+    coresSrc.includes('px-3 py-1.5 text-xs') &&
+    coresSrc.includes('flex flex-wrap items-center gap-2 w-full sm:w-auto') &&
+    coresSrc.includes(
+      'w-full sm:w-auto cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-emerald-600',
+    ) &&
+    prepMobileHiddenCount >= 2 &&
+    prepSlaStudioSrc.includes('hidden sm:block') &&
+    prepSlaStudioSrc.includes(
+      '🟢 {f1(row.greenPct)}% · 🟡 {f1(row.yellowPct)}% · 🔴 {f1(row.redPct)}%',
+    ),
+  'Item 2 (Unclipped Mobile CTAs & Prep SLA): Growth Play flex-wrap compact footer, full-width mobile Influencer ROI CTA & sm:hidden 7-Branch / 6-Brand SLA rows',
+  `prepMobileLists=${prepMobileHiddenCount}`,
+)
+
+// Item 3: Concise Mobile Titles Across All 13 ERP Routes & Unclipped Mobile Sheet Header
+const pixelRouteProbeScript = `
+import { routeTitle } from './src/lib/aether/route-titles';
+import { formatCompactAxisLabel } from './src/components/aether/InteractiveHoverCharts';
+
+const expectedMobileRoutes: Array<[string, string, string]> = [
+  ['/erp', 'Overview', 'ملخص الشركة'],
+  ['/erp/cores', 'Sales & Menu', 'المبيعات والمينيو'],
+  ['/erp/prep-sla', 'Prep SLA', 'زمن التجهيز'],
+  ['/erp/delivery-sla', 'Delivery SLA', 'زمن التوصيل'],
+  ['/erp/warehouse-chain', 'Warehouse', 'المخزن والفروع'],
+  ['/erp/social-reviews', 'Reviews', 'التقييمات'],
+  ['/erp/weekday-comparison', 'Weekdays', 'أيام الأسبوع'],
+  ['/erp/before-after', 'Before & After', 'قبل وبعد'],
+  ['/erp/aggregator-radar', 'Delivery Fees', 'عمولات التوصيل'],
+  ['/erp/booth-feasibility', 'Booth ROI', 'حاسبة المعارض'],
+  ['/erp/events-intelligence', 'Booth ROI', 'حاسبة المعارض'],
+  ['/erp/planning', 'Planning', 'التخطيط'],
+  ['/erp/regulations', 'Regulations', 'التشريعات'],
+  ['/erp/feryal-ai', 'Ask Feryal', 'المستشارة فريال'],
+  ['/erp/feryal', 'Ask Feryal', 'المستشارة فريال'],
+];
+
+const mismatches: string[] = [];
+for (const [route, expEn, expAr] of expectedMobileRoutes) {
+  const t = routeTitle(route);
+  if (!t || t.mobileEn !== expEn || t.mobileAr !== expAr) {
+    mismatches.push(route + ':' + JSON.stringify(t));
+  }
+}
+
+const axisOk =
+  formatCompactAxisLabel('2026-10-29') === '29/10' &&
+  formatCompactAxisLabel('11-01') === '01/11' &&
+  formatCompactAxisLabel('10-29') === '29/10';
+
+console.log(JSON.stringify({ checked: expectedMobileRoutes.length, mismatches, axisOk }));
+`
+
+const pixelRouteRaw = execFileSync(process.execPath, [tsxCli, '-e', pixelRouteProbeScript], {
+  cwd: ROOT,
+  encoding: 'utf8',
+}).trim()
+const pixelRouteProbe = JSON.parse(pixelRouteRaw.split('\n').pop() ?? '{}')
+
+assert(
+  routeTitlesSrc.includes('mobileEn') &&
+    routeTitlesSrc.includes('mobileAr') &&
+    topBarSrc.includes('page.mobileAr ?? page.ar') &&
+    topBarSrc.includes('page.mobileEn ?? page.en') &&
+    topBarSrc.includes('h-7 w-7') &&
+    mobileBottomNavSrc.includes('Venture Foods') &&
+    mobileBottomNavSrc.includes('6 Brands · 7 Branches') &&
+    mobileBottomNavSrc.includes('whitespace-nowrap') &&
+    pixelRouteProbe.checked === 15 &&
+    Array.isArray(pixelRouteProbe.mismatches) &&
+    pixelRouteProbe.mismatches.length === 0 &&
+    pixelRouteProbe.axisOk === true,
+  'Item 3 (Concise Mobile AppBar Titles & Sheet Header): All 13 ERP routes mapped to concise mobileEn/mobileAr titles & unclipped Venture Foods Bottom Sheet header',
+  `routesVerified=${pixelRouteProbe.checked}, mismatches=${pixelRouteProbe.mismatches?.length ?? -1}`,
+)
+
+// Item 4: Donut Copy Cleaned of Developer Layout Spec Text Across src/
+assert(
+  !coresSrc.includes('Promo share centered') &&
+    !coresSrc.includes('نسبة العروض داخل الدائرة والصافي بالأسفل') &&
+    promoCenteredMatchesInSrc === 0 &&
+    coresSrc.includes('Share of promo & ad-driven revenue vs organic full-price orders') &&
+    coresSrc.includes('حصة مبيعات العروض والإعلانات مقابل الطلبات الطبيعية بالسعر الكامل'),
+  'Item 4 (Donut Copy): Zero "Promo share centered" developer spec strings in src/ & executive Promo vs Organic Mix copy active',
+  `srcMatches=${promoCenteredMatchesInSrc}`,
+)
+
+// Item 5: All 6 /erp Bottom Jump Cards Link Cleanly via <Link> to Valid Standalone /erp/* Routes
+const sixErpJumpHrefs = [
+  '/erp/warehouse-chain',
+  '/erp/planning',
+  '/erp/aggregator-radar',
+  '/erp/prep-sla',
+  '/erp/cores',
+  '/erp/weekday-comparison',
+]
+const allSixJumpPagesExist = sixErpJumpHrefs.every((href) =>
+  fs.existsSync(path.join(ROOT, 'src/app', href.replace(/^\//, ''), 'page.tsx')),
+)
+assert(
+  sixErpJumpHrefs.every((href) => filterEngineSrc.includes(`href: '${href}'`)) &&
+    allSixJumpPagesExist &&
+    journeySrc.includes("import Link from 'next/link'") &&
+    journeySrc.includes('href={c.href}') &&
+    journeySrc.includes('href="/erp/planning"') &&
+    journeySrc.includes('href="/erp/before-after"') &&
+    !/href=["']#/i.test(journeySrc),
+  'Item 5 (/erp Jump Links): All 6 bottom jump cards & hero CTAs link via <Link> to verified standalone /erp/* page routes',
+  sixErpJumpHrefs.join(', '),
 )
 
 console.log('\n----------------------------------------------------------------------')
