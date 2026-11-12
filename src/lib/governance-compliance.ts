@@ -23,7 +23,6 @@ import {
   evaluateCampaignOdooHalo,
   REAL_SOCIAL_CAMPAIGNS_STORAGE_KEY,
   sanitizeRealCampaigns,
-  SEEDED_SOCIAL_CAMPAIGNS,
   type SocialCampaign,
 } from '@/lib/aether/social-campaigns'
 
@@ -217,6 +216,11 @@ export interface ComplianceBreachItem {
   id: string
   category: BreachCategory
   severity: 'critical' | 'high'
+  breachKind?: 'financial-bleed' | 'procedural-cap-overrun'
+  capOverrunKwd?: number
+  badgeLabelAr?: string
+  badgeLabelEn?: string
+  retroactiveApprovalEligible?: boolean
   approvedDecisionTitleAr: string
   approvedDecisionTitleEn: string
   breachHeadlineAr: string
@@ -478,6 +482,47 @@ export function unfreezeBreachById(breachId: string): void {
   saveGovernanceStore({ ...store, frozenBreachIds: nextFrozen, resolvedBreachIds: nextResolved })
 }
 
+export function retroactivelyApproveBreachById(
+  breach: ComplianceBreachItem,
+): DigitalExecutiveSeal {
+  const store = loadGovernanceStore()
+  const seal = createDigitalSeal()
+  const nextFrozen = { ...store.frozenBreachIds }
+  delete nextFrozen[breach.id]
+  const nextResolved = { ...store.resolvedBreachIds, [breach.id]: seal.approvedAtIso }
+
+  const refKey = `retro:${breach.id}`
+  const existingIdx = store.approvals.findIndex((a) => a.refKey === refKey)
+  const retroItem: GovernanceApprovalRequest = {
+    id: existingIdx >= 0 ? store.approvals[existingIdx].id : `req-retro-${Date.now()}`,
+    refKey,
+    domain: 'marketing',
+    titleAr: `اعتماد استثنائي بأثر رجعي: ${breach.approvedDecisionTitleAr}`,
+    titleEn: `Retroactive Executive Approval: ${breach.approvedDecisionTitleEn}`,
+    summaryAr: breach.odooMetricProofAr,
+    summaryEn: breach.odooMetricProofEn,
+    departmentAr: breach.affectedScopeAr,
+    departmentEn: breach.affectedScopeEn,
+    budgetOrCostKwd: breach.capOverrunKwd ?? breach.monthlyLeakKwd,
+    expectedMonthlyReturnKwd: 0,
+    href: breach.href,
+    createdAtIso: seal.approvedAtIso,
+    status: 'approved',
+    seal,
+  }
+  const nextApprovals = [...store.approvals]
+  if (existingIdx >= 0) nextApprovals[existingIdx] = retroItem
+  else nextApprovals.unshift(retroItem)
+
+  saveGovernanceStore({
+    ...store,
+    approvals: nextApprovals,
+    frozenBreachIds: nextFrozen,
+    resolvedBreachIds: nextResolved,
+  })
+  return seal
+}
+
 export function toggleBranchCircularReceipt(
   circularKey: string,
   branchId: Exclude<GlobalBranch, 'all'>,
@@ -571,17 +616,125 @@ export function evaluateLiveOdooBreaches(
     } catch {}
   }
 
-  const allCheckedCampaigns =
-    savedCampaigns.length > 0 ? savedCampaigns : SEEDED_SOCIAL_CAMPAIGNS
-  const losingEval = allCheckedCampaigns
-    .map((c) => evaluateCampaignOdooHalo(c))
-    .find((ev) => ev.verdict === 'loser' || ev.campaign.spendKwd > 250)
+  const savedEvaluations = savedCampaigns.map((c) => evaluateCampaignOdooHalo(c))
+  // Strictly match ONLY genuinely negative-net losing campaigns (never flag positive profit as a loss!)
+  const userLosingEval = savedEvaluations.find(
+    (ev) => ev.verdict === 'loser' && ev.netProfitAfterAdKwd < 0,
+  )
+  // Separate procedural cap overrun check for profitable user-saved campaigns (> 250 KWD without prior seal)
+  const approvedRefKeys = new Set(
+    store.approvals.filter((a) => a.status === 'approved').map((a) => a.refKey),
+  )
+  const proceduralOverrunEval = savedEvaluations.find(
+    (ev) =>
+      ev.campaign.spendKwd > 250 &&
+      ev.netProfitAfterAdKwd >= 0 &&
+      !approvedRefKeys.has(`mkt:${ev.campaign.id}`) &&
+      !approvedRefKeys.has(`retro:breach-ad-cap-${ev.campaign.id}`),
+  )
+
+  const losingAdBreach: Omit<ComplianceBreachItem, 'frozen' | 'frozenAtIso'> = userLosingEval
+    ? (() => {
+        const netLossAbs = Math.max(1, Math.round(Math.abs(userLosingEval.netProfitAfterAdKwd)))
+        return {
+          id: `breach-ad-roi-${userLosingEval.campaign.id}`,
+          category: 'ad-roi-floor',
+          severity: 'high',
+          breachKind: 'financial-bleed',
+          approvedDecisionTitleAr:
+            'قرار الحد الأدنى لعائد إعلانات المشاهير والنقرات (ROAS ≥ 1.5x وصافي موجب)',
+          approvedDecisionTitleEn:
+            'Approved Influencer & Ad Spend ROI Floor (Positive Net Cash)',
+          breachHeadlineAr: `🚨 مخالفة لقرار معتمد: حملة (${userLosingEval.campaign.campaignName}) حققت صافي خسارة -${netLossAbs.toLocaleString('en-US')} د.ك`,
+          breachHeadlineEn: `🚨 Approved Policy Breach: Campaign (${userLosingEval.campaign.campaignName}) netted -${netLossAbs.toLocaleString('en-US')} KWD loss`,
+          odooMetricProofAr: `مقارنة أودو قبل/بعد (${userLosingEval.brandAr}): صرف ${userLosingEval.campaign.spendKwd.toLocaleString('en-US')} د.ك بعائد ${userLosingEval.roasMultiple}x وصافي سالب بعد التكلفة والعمولات`,
+          odooMetricProofEn: `Odoo Halo Check (${userLosingEval.brandEn}): ${userLosingEval.campaign.spendKwd.toLocaleString('en-US')} KWD spend yielded ${userLosingEval.roasMultiple}x ROAS (-${netLossAbs.toLocaleString('en-US')} KWD net pocket loss)`,
+          approvedRuleLimitAr: 'إيقاف أي حملة إعلانية خاسرة أو تتجاوز ٢٥٠ د.ك بدون اعتماد مسبق',
+          approvedRuleLimitEn: 'Auto-freeze losing ad spend or unapproved campaigns > 250 KWD',
+          monthlyLeakKwd: netLossAbs,
+          affectedScopeAr: `${userLosingEval.brandAr} · ${userLosingEval.adTypeAr}`,
+          affectedScopeEn: `${userLosingEval.brandEn} · ${userLosingEval.adTypeEn}`,
+          href: '/erp/cores',
+          stopDirectiveAr: `*أمر إيقاف وتجميد ميزانية إعلان ⛔ — فنتشر فودز*\n• المخالفة المرصودة بأودو: حملة "${userLosingEval.campaign.campaignName}" (${userLosingEval.brandAr}) حققت صافي خسارة -${netLossAbs} د.ك.\n• القرار الإلزامي: إيقاف تجديد الحملة وتجميد الصرف الإعلاني على هذا المسار فوراً.`,
+          stopDirectiveEn: `*IMMEDIATE AD SPEND FREEZE ⛔ — Venture Foods*\n• Odoo Verified Breach: Campaign "${userLosingEval.campaign.campaignName}" (${userLosingEval.brandEn}) resulted in -${netLossAbs} KWD net loss.\n• Mandatory Action: Stop ad renewal and freeze spend immediately.`,
+        }
+      })()
+    : {
+        // Odoo 17 verified value-destroying unapproved campaign:
+        // 420 KWD unapproved spend (>250 KWD cap) -> +263 KWD sales lift (0.63x ROAS)
+        // -> +155 KWD gross margin after 68 KWD food/pack & 40 KWD platform cut -> -265 KWD net pocket loss
+        id: 'breach-ad-roi-unapproved-snap-noodle',
+        category: 'ad-roi-floor',
+        severity: 'high',
+        breachKind: 'financial-bleed',
+        approvedDecisionTitleAr:
+          'قرار الحد الأدنى لعائد إعلانات المشاهير وسقف ٢٥٠ د.ك للاعتماد المسبق',
+        approvedDecisionTitleEn:
+          'Approved Influencer ROI Floor & 250 KWD Pre-Approval Spend Cap',
+        breachHeadlineAr:
+          '🚨 مخالفة لقرار معتمد: تغطية مشهور سناب غير معتمدة (ذا نودل بار) حققت صافي خسارة -265 د.ك',
+        breachHeadlineEn:
+          '🚨 Approved Policy Breach: Unapproved Snapchat Influencer Ad (The Noodle Bar) netted -265 KWD loss',
+        odooMetricProofAr:
+          'مقارنة أودو قبل/بعد (ذا نودل بار): صرف 420 د.ك بدون إذن مسبق (فوق سقف 250 د.ك) بعائد 0.63x (+155 د.ك هامش أكل بعد العمولات − 420 د.ك إعلان = -265 د.ك خسارة جيب)',
+        odooMetricProofEn:
+          'Odoo Halo Audit (The Noodle Bar): 420 KWD unapproved spend (>250 KWD cap) at 0.63x ROAS (+155 KWD post-fee margin − 420 KWD ad = -265 KWD net pocket bleed)',
+        approvedRuleLimitAr:
+          'منع صرف أكثر من ٢٥٠ د.ك بدون ختم المدير وإيقاف أي حملة ذات صافي جيب سالب فوراً',
+        approvedRuleLimitEn:
+          'Pre-approval required > 250 KWD; immediate freeze on negative net-pocket campaigns',
+        monthlyLeakKwd: 265,
+        affectedScopeAr: 'ذا نودل بار · مشهور سناب شات',
+        affectedScopeEn: 'The Noodle Bar · Snapchat Influencer',
+        href: '/erp/cores',
+        stopDirectiveAr:
+          '*أمر إيقاف وتجميد ميزانية إعلان ⛔ — فنتشر فودز*\n• المخالفة المرصودة بأودو: صرف 420 د.ك بدون اعتماد مسبق على تغطية سناب (ذا نودل بار) بصافي خسارة جيب -265 د.ك (عائد 0.63x).\n• القرار الإلزامي: تجميد الصرف الإعلاني فوراً وحظر أي دفعة مشهور تتجاوز 250 د.ك بدون ختم المدير.',
+        stopDirectiveEn:
+          '*IMMEDIATE AD SPEND FREEZE ⛔ — Venture Foods*\n• Odoo Verified Breach: 420 KWD unapproved Snapchat ad (The Noodle Bar) yielded -265 KWD net pocket loss (0.63x ROAS).\n• Mandatory Action: Freeze spend immediately and block >250 KWD influencer payouts without Executive PIN seal.',
+      }
+
+  const proceduralCapBreaches: Omit<ComplianceBreachItem, 'frozen' | 'frozenAtIso'>[] =
+    proceduralOverrunEval
+      ? (() => {
+          const overrunKwd = Math.max(1, Math.round(proceduralOverrunEval.campaign.spendKwd - 250))
+          const posProfit = Math.round(proceduralOverrunEval.netProfitAfterAdKwd)
+          return [
+            {
+              id: `breach-ad-cap-${proceduralOverrunEval.campaign.id}`,
+              category: 'plan-cap-breach' as const,
+              severity: 'high' as const,
+              breachKind: 'procedural-cap-overrun' as const,
+              capOverrunKwd: overrunKwd,
+              badgeLabelAr: `+${overrunKwd.toLocaleString('en-US')} د.ك تجاوز سقف بدون إذن مسبق`,
+              badgeLabelEn: `+${overrunKwd.toLocaleString('en-US')} KWD unapproved cap overrun`,
+              retroactiveApprovalEligible: true,
+              approvedDecisionTitleAr: `تجاوز سقف الصرف المسبق (٢٥٠ د.ك) على حملة رابحة — ${proceduralOverrunEval.campaign.campaignName}`,
+              approvedDecisionTitleEn: `Pre-Approval Spend Cap Overrun (250 KWD) on Profitable Ad — ${proceduralOverrunEval.campaign.campaignName}`,
+              breachHeadlineAr: `⚠️ تجاوز إجرائي لسقف الصرف: حملة (${proceduralOverrunEval.campaign.campaignName}) مربحة (+${posProfit.toLocaleString('en-US')} د.ك صافي) لكن صُرف ${proceduralOverrunEval.campaign.spendKwd.toLocaleString('en-US')} د.ك بدون إذن مسبق`,
+              breachHeadlineEn: `⚠️ Procedural Cap Overrun: Campaign (${proceduralOverrunEval.campaign.campaignName}) netted +${posProfit.toLocaleString('en-US')} KWD profit, but spent ${proceduralOverrunEval.campaign.spendKwd.toLocaleString('en-US')} KWD without prior seal`,
+              odooMetricProofAr: `قراءة أودو (${proceduralOverrunEval.brandAr}): صافي ربح موجب +${posProfit.toLocaleString('en-US')} د.ك بعائد ${proceduralOverrunEval.roasMultiple}x · التجاوز الإجرائي +${overrunKwd.toLocaleString('en-US')} د.ك فوق سقف ٢٥٠ د.ك`,
+              odooMetricProofEn: `Odoo Halo (${proceduralOverrunEval.brandEn}): +${posProfit.toLocaleString('en-US')} KWD net profit (${proceduralOverrunEval.roasMultiple}x ROAS) · +${overrunKwd.toLocaleString('en-US')} KWD above 250 KWD pre-approval cap`,
+              approvedRuleLimitAr:
+                'يتطلب أي التزام إعلاني فوق ٢٥٠ د.ك ختم المدير المسبق أو اعتماداً استثنائياً بأثر رجعي',
+              approvedRuleLimitEn:
+                'Spend > 250 KWD requires prior Manager PIN seal or retroactive executive approval',
+              monthlyLeakKwd: overrunKwd,
+              affectedScopeAr: `${proceduralOverrunEval.brandAr} · ${proceduralOverrunEval.adTypeAr}`,
+              affectedScopeEn: `${proceduralOverrunEval.brandEn} · ${proceduralOverrunEval.adTypeEn}`,
+              href: '/erp/cores',
+              stopDirectiveAr: `*تنبيه ضبط سقف الصرف الإعلاني ⛔ — فنتشر فودز*\n• الملاحظة الرقابية: حملة "${proceduralOverrunEval.campaign.campaignName}" تجاوزت سقف ٢٥٠ د.ك بـ +${overrunKwd} د.ك بدون إذن مسبق (رغم تحقيق ربح صافي +${posProfit} د.ك).\n• القرار الإلزامي: تجميد أي دفعات إضافية لحين صدور اعتماد استثنائي بختم المدير.`,
+              stopDirectiveEn: `*PROCEDURAL CAP HOLD ⛔ — Venture Foods*\n• Audit Note: Campaign "${proceduralOverrunEval.campaign.campaignName}" exceeded the 250 KWD cap by +${overrunKwd} KWD without prior seal (+${posProfit} KWD net profit).\n• Mandatory Action: Hold further spend pending retroactive Executive PIN seal.`,
+            },
+          ]
+        })()
+      : []
 
   const breaches: Omit<ComplianceBreachItem, 'frozen' | 'frozenAtIso'>[] = [
     {
       id: 'breach-odoo-discount-cap',
       category: 'discount-cap',
       severity: 'critical',
+      breachKind: 'financial-bleed',
       approvedDecisionTitleAr: 'قرار سقف الخصومات والعروض الترويجية (حد أقصى ٣.٠٪)',
       approvedDecisionTitleEn: 'Approved Promo & POS Discount Cap Policy (Max 3.0%)',
       breachHeadlineAr: `🚨 مخالفة لقرار معتمد: خصومات الكاشير والتطبيقات بلغت ${discountPct > 3.0 ? discountPct : 3.4}%`,
@@ -601,6 +754,7 @@ export function evaluateLiveOdooBreaches(
       id: 'breach-odoo-ardiya-supplier-cap',
       category: 'ardiya-supplier-cost',
       severity: 'critical',
+      breachKind: 'financial-bleed',
       approvedDecisionTitleAr: 'قرار تثبيت سقف أسعار توريد البروتين — مطبخ العارضية المركزي',
       approvedDecisionTitleEn: 'Approved Ardiya Central Kitchen Protein Unit-Cost Ceiling',
       breachHeadlineAr: `🚨 مخالفة لقرار معتمد: ارتفاع فاتورة توريد اللحم والفيلي +${ardiyaCreepPct}% فوق السقف`,
@@ -616,29 +770,8 @@ export function evaluateLiveOdooBreaches(
       stopDirectiveAr: `*أمر إيقاف وتجميد صرف مورد ⛔ — مطبخ العارضية*\n• المخالفة المرصودة بأودو: استلام توريد بروتين بزيادة +${ardiyaCreepPct}% (+${ardiyaCreepKwd} د.ك/شهر) فوق السعر التعاقدي المعتمد.\n• القرار الإلزامي: تجميد صرف الفاتورة الزائدة ومطالبة المورد بإشعار دائن فوري أو التحول للمورد البديل المعتمد.`,
       stopDirectiveEn: `*IMMEDIATE SUPPLIER SPEND FREEZE ⛔ — Ardiya Kitchen*\n• Odoo Verified Breach: Protein batch billed +${ardiyaCreepPct}% (+${ardiyaCreepKwd} KWD/mo) over approved contract cap.\n• Mandatory Action: Freeze excess invoice payout and demand immediate credit note or switch to backup supplier.`,
     },
-    ...(losingEval
-      ? [
-          {
-            id: `breach-ad-roi-${losingEval.campaign.id}`,
-            category: 'ad-roi-floor' as const,
-            severity: 'high' as const,
-            approvedDecisionTitleAr: 'قرار الحد الأدنى لعائد إعلانات المشاهير والنقرات (ROAS ≥ 1.5x وصافي موجب)',
-            approvedDecisionTitleEn: 'Approved Influencer & Ad Spend ROI Floor (Positive Net Cash)',
-            breachHeadlineAr: `🚨 مخالفة لقرار معتمد: حملة (${losingEval.campaign.campaignName}) حققت صافي ${losingEval.netProfitAfterAdKwd} د.ك`,
-            breachHeadlineEn: `🚨 Approved Policy Breach: Campaign (${losingEval.campaign.campaignName}) netted ${losingEval.netProfitAfterAdKwd} KWD`,
-            odooMetricProofAr: `مقارنة أودو قبل/بعد (${losingEval.brandAr}): صرف ${losingEval.campaign.spendKwd} د.ك بعائد ${losingEval.roasMultiple}x`,
-            odooMetricProofEn: `Odoo Halo Check (${losingEval.brandEn}): ${losingEval.campaign.spendKwd} KWD spend yielded ${losingEval.roasMultiple}x ROAS`,
-            approvedRuleLimitAr: 'إيقاف أي حملة إعلانية خاسرة أو تتجاوز ٢٥٠ د.ك بدون اعتماد مسبق',
-            approvedRuleLimitEn: 'Auto-freeze losing ad spend or unapproved campaigns > 250 KWD',
-            monthlyLeakKwd: Math.max(95, Math.round(Math.abs(losingEval.netProfitAfterAdKwd) || losingEval.campaign.spendKwd * 0.5)),
-            affectedScopeAr: `${losingEval.brandAr} · ${losingEval.adTypeAr}`,
-            affectedScopeEn: `${losingEval.brandEn} · ${losingEval.adTypeEn}`,
-            href: '/erp/cores',
-            stopDirectiveAr: `*أمر إيقاف وتجميد ميزانية إعلان ⛔ — فنتشر فودز*\n• المخالفة المرصودة بأودو: حملة "${losingEval.campaign.campaignName}" (${losingEval.brandAr}) كسرت حد الربحية المعتمد (صافي ${losingEval.netProfitAfterAdKwd} د.ك).\n• القرار الإلزامي: إيقاف تجديد الحملة وتجميد الصرف الإعلاني على هذا المسار فوراً.`,
-            stopDirectiveEn: `*IMMEDIATE AD SPEND FREEZE ⛔ — Venture Foods*\n• Odoo Verified Breach: Campaign "${losingEval.campaign.campaignName}" (${losingEval.brandEn}) missed net ROI floor (${losingEval.netProfitAfterAdKwd} KWD).\n• Mandatory Action: Stop ad renewal and freeze spend immediately.`,
-          },
-        ]
-      : []),
+    losingAdBreach,
+    ...proceduralCapBreaches,
     {
       id: 'breach-odoo-tmp-tgo-routing',
       category: 'tmp-tgo-routing',

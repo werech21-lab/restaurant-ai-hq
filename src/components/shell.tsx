@@ -38,8 +38,8 @@ export async function Shell({ children }: { children: React.ReactNode }) {
       <BiFilterProvider>
         <GlobalFilterProvider>
           <GovernanceProvider>
-            {/* Aether BI V12 studio shell: sticky rail → floating topbar → fluid 1520px canvas */}
-            <div id="ae-root">
+            {/* Aether BI V12 studio shell: persistent live canvas underneath z-50 frosted overlays */}
+            <div id="ae-root" className="relative z-0" data-erp-shell="persistent">
               <div className="ae-ambient" aria-hidden>
                 <span />
                 <span />

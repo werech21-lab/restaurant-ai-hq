@@ -40,6 +40,7 @@ import {
   markAllBranchesReceived,
   recordIssuedCircular,
   rejectRequestById,
+  retroactivelyApproveBreachById,
   SEEDED_APPROVAL_REQUESTS,
   submitApprovalRequest,
   toggleBranchCircularReceipt,
@@ -91,6 +92,7 @@ export interface GovernanceContextValue {
     breach: ComplianceBreachItem,
     broadcastDirective?: boolean,
   ) => void
+  retroactiveApproveBreachWithPin: (breach: ComplianceBreachItem) => void
   unfreezeBreachWithPin: (breach: ComplianceBreachItem) => void
   toggleBranchReceipt: (circularKey: string, branchId: Exclude<GlobalBranch, 'all'>) => void
   confirmAllBranchesReceipt: (circularKey: string) => void
@@ -230,7 +232,9 @@ export function GovernanceProvider({ children }: { children: React.ReactNode }) 
   const freezeBreachWithPin = useCallback(
     (breach: ComplianceBreachItem, broadcastDirective = false) => {
       requireManagerPin({
-        titleAr: 'إيقاف المخالفة وتجميد الصرف فوراً ⛔',
+        titleAr: broadcastDirective
+          ? 'إيقاف المخالفة وتعميم أمر إيقاف فوري ⛔'
+          : 'إيقاف المخالفة وتجميد الصرف فوراً ⛔',
         titleEn: 'Stop Breach & Freeze Spend Immediately ⛔',
         onSuccess: () => {
           freezeBreachById(breach.id)
@@ -251,6 +255,24 @@ export function GovernanceProvider({ children }: { children: React.ReactNode }) 
               'Compliance breach stopped & spend frozen ⛔',
             )
           }
+        },
+      })
+    },
+    [requireManagerPin, showToast, syncFromStorage],
+  )
+
+  const retroactiveApproveBreachWithPin = useCallback(
+    (breach: ComplianceBreachItem) => {
+      requireManagerPin({
+        titleAr: 'اعتماد استثنائي بأثر رجعي وختم التجاوز ✅',
+        titleEn: 'Retroactive Executive Approval & Digital Seal ✅',
+        onSuccess: () => {
+          const seal = retroactivelyApproveBreachById(breach)
+          syncFromStorage()
+          showToast(
+            `تم الاعتماد الاستثنائي بأثر رجعي بالختم (${seal.sealId}) ✅`,
+            `Retroactive approval sealed (${seal.sealId}) ✅`,
+          )
         },
       })
     },
@@ -360,6 +382,7 @@ export function GovernanceProvider({ children }: { children: React.ReactNode }) 
       approveItemWithPin,
       rejectItemWithPin,
       freezeBreachWithPin,
+      retroactiveApproveBreachWithPin,
       unfreezeBreachWithPin,
       toggleBranchReceipt,
       confirmAllBranchesReceipt,
@@ -383,6 +406,7 @@ export function GovernanceProvider({ children }: { children: React.ReactNode }) 
       rejectItemWithPin,
       requestApproval,
       requireManagerPin,
+      retroactiveApproveBreachWithPin,
       session,
       store,
       toggleBranchReceipt,
@@ -429,7 +453,7 @@ function GovernanceToast({ ar, en }: { ar: string; en: string }) {
   return createPortal(
     <div
       dir={isAr ? 'rtl' : 'ltr'}
-      className="fixed bottom-5 start-1/2 z-[130] -translate-x-1/2 rounded-full bg-white px-4 py-2 text-xs font-semibold text-neutral-900 shadow-[0_8px_28px_rgba(15,23,42,0.16)] ring-1 ring-emerald-500/25 dark:bg-[#111A22] dark:text-emerald-200"
+      className="fixed bottom-5 start-1/2 z-[70] -translate-x-1/2 rounded-full bg-white px-4 py-2 text-xs font-semibold text-neutral-900 shadow-[0_8px_28px_rgba(15,23,42,0.16)] ring-1 ring-emerald-500/25 dark:bg-neutral-900 dark:text-emerald-200"
     >
       {isAr ? ar : en}
     </div>,
@@ -481,7 +505,7 @@ export function GovernanceBellTrigger() {
             type="button"
             onClick={lockSession}
             title={isAr ? 'قفل الصلاحية فوراً' : 'Lock Executive Session'}
-            className="ms-1 cursor-pointer rounded-full bg-white px-2 py-0.5 text-[10.5px] font-semibold text-neutral-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors duration-150 hover:bg-rose-50 hover:text-rose-700 dark:bg-[#111A22] dark:text-slate-200"
+            className="ms-1 cursor-pointer rounded-full bg-white px-2 py-0.5 text-[10.5px] font-semibold text-neutral-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors duration-150 hover:bg-rose-50 hover:text-rose-700 dark:bg-neutral-900 dark:text-slate-200"
           >
             {isAr ? 'قفل الصلاحية 🔒' : 'Lock 🔒'}
           </button>
@@ -533,7 +557,8 @@ export function GovernanceBellTrigger() {
         {liveBadgeCount > 0 ? (
           <span
             dir="ltr"
-            className={`inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold tabular-nums text-white ${
+            style={{ color: '#FFFFFF' }}
+            className={`btn-colored inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold tabular-nums text-white ${
               activeBreaches.length > 0 ? 'bg-rose-600' : 'bg-emerald-600'
             }`}
           >
@@ -579,6 +604,7 @@ function GovernanceSlideOverDrawer({
     approveItemWithPin,
     rejectItemWithPin,
     freezeBreachWithPin,
+    retroactiveApproveBreachWithPin,
     unfreezeBreachWithPin,
   } = useGovernance()
 
@@ -639,20 +665,45 @@ function GovernanceSlideOverDrawer({
 
   return createPortal(
     <div
+      id="vf-gov-drawer-backdrop"
       dir={isAr ? 'rtl' : 'ltr'}
-      className="fixed inset-0 z-[110] flex justify-end bg-slate-950/30 backdrop-blur-[2px]"
+      className="fixed inset-0 z-50 flex justify-end bg-neutral-950/35 backdrop-blur-[2px] transition-opacity duration-200"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose()
       }}
     >
+      <style>{`
+        #vf-gov-drawer-backdrop {
+          background-color: rgba(10, 10, 10, 0.35) !important;
+          -webkit-backdrop-filter: blur(2px) !important;
+          backdrop-filter: blur(2px) !important;
+        }
+        @keyframes vfBellDrawerSlideRtl {
+          from { transform: translateX(-100%); opacity: 0.96; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes vfBellDrawerSlideLtr {
+          from { transform: translateX(100%); opacity: 0.96; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        .vf-bell-drawer-rtl {
+          animation: vfBellDrawerSlideRtl 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+        .vf-bell-drawer-ltr {
+          animation: vfBellDrawerSlideLtr 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+      `}</style>
+
       <aside
         role="dialog"
         aria-modal="true"
         aria-label={isAr ? 'مركز اعتماد المدير ورقابة أودو الحية' : 'Executive Approval & Odoo Watchdog'}
-        className="flex h-full w-full max-w-[540px] flex-col bg-[#F7F7F8] shadow-[0_20px_60px_rgba(15,23,42,0.25)] dark:bg-[#0B1218]"
+        className={`flex h-full w-full max-w-[480px] flex-col bg-[#F7F7F8] shadow-2xl dark:bg-neutral-950 dark:ring-1 dark:ring-white/[0.08] ${
+          isAr ? 'vf-bell-drawer-rtl' : 'vf-bell-drawer-ltr'
+        }`}
       >
         {/* Drawer Header */}
-        <div className="bg-white px-5 py-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-[#111A22]">
+        <div className="bg-white px-5 py-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-neutral-900">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-2.5">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300">
@@ -683,7 +734,7 @@ function GovernanceSlideOverDrawer({
           </div>
 
           {/* Executive Session Control Bar */}
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-[#F7F7F8] px-3.5 py-2.5 text-xs dark:bg-[#0B1218]">
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-[#F7F7F8] px-3.5 py-2.5 text-xs dark:bg-neutral-950">
             {session.active ? (
               <div className="flex items-center gap-2 font-semibold text-emerald-700 dark:text-emerald-300">
                 <Unlock className="h-4 w-4" />
@@ -711,7 +762,7 @@ function GovernanceSlideOverDrawer({
                 <button
                   type="button"
                   onClick={lockSession}
-                  className="cursor-pointer rounded-full bg-white px-3 py-1 font-semibold text-neutral-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors duration-150 hover:bg-rose-50 hover:text-rose-700 dark:bg-[#111A22] dark:text-slate-200"
+                  className="cursor-pointer rounded-full bg-white px-3 py-1 font-semibold text-neutral-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors duration-150 hover:bg-rose-50 hover:text-rose-700 dark:bg-neutral-900 dark:text-slate-200"
                 >
                   {isAr ? 'قفل الصلاحية 🔒' : 'Lock Session 🔒'}
                 </button>
@@ -740,7 +791,7 @@ function GovernanceSlideOverDrawer({
                   })
                 }
                 title={isAr ? 'تغيير رمز المدير ⚙️' : 'Change Manager PIN ⚙️'}
-                className="inline-flex cursor-pointer items-center gap-1 rounded-full bg-white px-2.5 py-1 font-medium text-neutral-600 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors duration-150 hover:text-neutral-950 dark:bg-[#111A22] dark:text-slate-300"
+                className="inline-flex cursor-pointer items-center gap-1 rounded-full bg-white px-2.5 py-1 font-medium text-neutral-600 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors duration-150 hover:text-neutral-950 dark:bg-neutral-900 dark:text-slate-300"
               >
                 <Settings className="h-3.5 w-3.5" />
                 <span>{isAr ? 'تغيير رمز المدير ⚙️' : 'PIN ⚙️'}</span>
@@ -802,17 +853,20 @@ function GovernanceSlideOverDrawer({
               {breaches.map((b) => {
                 const directiveText = isAr ? b.stopDirectiveAr : b.stopDirectiveEn
                 const waUrl = `https://wa.me/?text=${encodeURIComponent(directiveText)}`
+                const isProceduralOverrun = b.breachKind === 'procedural-cap-overrun'
                 return (
                   <article
                     key={b.id}
-                    className="rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-150 dark:bg-[#111A22]"
+                    className="rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-150 dark:bg-neutral-900"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span
                         className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
                           b.frozen
                             ? 'bg-neutral-100 text-neutral-700 dark:bg-white/10 dark:text-slate-300'
-                            : 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'
+                            : isProceduralOverrun
+                              ? 'bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-200'
+                              : 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'
                         }`}
                       >
                         <AlertTriangle className="h-3 w-3" />
@@ -821,18 +875,32 @@ function GovernanceSlideOverDrawer({
                             ? isAr
                               ? 'مجمد بأمر المدير ⛔'
                               : 'Spend Frozen by Manager ⛔'
-                            : isAr
-                              ? '🚨 مخالفة لقرار معتمد'
-                              : '🚨 Approved Decision Breach'}
+                            : isProceduralOverrun
+                              ? isAr
+                                ? '⚠️ تجاوز سقف بدون إذن مسبق'
+                                : '⚠️ Unapproved Cap Overrun'
+                              : isAr
+                                ? '🚨 مخالفة لقرار معتمد'
+                                : '🚨 Approved Decision Breach'}
                         </span>
                       </span>
 
-                      <span
-                        dir="ltr"
-                        className="rounded-full bg-rose-50 px-2.5 py-0.5 text-[11px] font-semibold tabular-nums text-rose-700 dark:bg-rose-950/60 dark:text-rose-300"
-                      >
-                        -{b.monthlyLeakKwd.toLocaleString('en-US')} {isAr ? 'د.ك/شهر' : 'KWD/mo'}
-                      </span>
+                      {isProceduralOverrun ? (
+                        <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold tabular-nums text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
+                          {isAr
+                            ? (b.badgeLabelAr ??
+                              `+${(b.capOverrunKwd ?? b.monthlyLeakKwd).toLocaleString('en-US')} د.ك تجاوز سقف بدون إذن مسبق`)
+                            : (b.badgeLabelEn ??
+                              `+${(b.capOverrunKwd ?? b.monthlyLeakKwd).toLocaleString('en-US')} KWD unapproved cap overrun`)}
+                        </span>
+                      ) : (
+                        <span
+                          dir="ltr"
+                          className="rounded-full bg-rose-50 px-2.5 py-0.5 text-[11px] font-semibold tabular-nums text-rose-700 dark:bg-rose-950/60 dark:text-rose-300"
+                        >
+                          -{b.monthlyLeakKwd.toLocaleString('en-US')} {isAr ? 'د.ك/شهر' : 'KWD/mo'}
+                        </span>
+                      )}
                     </div>
 
                     <h3 className="mt-2 text-[14px] font-semibold leading-snug text-neutral-950 dark:text-white">
@@ -841,84 +909,115 @@ function GovernanceSlideOverDrawer({
                     <p className="mt-1 text-xs text-neutral-500 dark:text-slate-300">
                       {isAr ? b.odooMetricProofAr : b.odooMetricProofEn}
                     </p>
-                    <div className="mt-2 rounded-xl bg-[#F7F7F8] px-3 py-2 text-[11.5px] text-neutral-600 dark:bg-[#0B1218] dark:text-slate-300">
+                    <div className="mt-2 rounded-xl bg-[#F7F7F8] px-3 py-2 text-[11.5px] text-neutral-600 dark:bg-neutral-950 dark:text-slate-300">
                       {isAr ? b.approvedRuleLimitAr : b.approvedRuleLimitEn}
                     </div>
 
                     <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                       {!b.frozen ? (
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => freezeBreachWithPin(b, true)}
-                            className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-rose-600 px-3 text-xs font-semibold text-white transition-colors duration-150 hover:bg-rose-700"
-                          >
-                            <span>
-                              {isAr
-                                ? 'إيقاف المخالفة وتعميم أمر إيقاف فوري ⛔'
-                                : 'Stop Breach & Broadcast Freeze ⛔'}
-                            </span>
-                          </button>
+                        <>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => freezeBreachWithPin(b, true)}
+                              style={{ color: '#FFFFFF' }}
+                              className="btn-colored inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-rose-600 px-3.5 text-xs font-semibold text-white transition-colors duration-150 hover:bg-rose-700"
+                            >
+                              <span>
+                                {isAr
+                                  ? 'إيقاف فوري وتعميم أمر تجميد ⛔'
+                                  : 'Immediate Stop & Broadcast Freeze ⛔'}
+                              </span>
+                            </button>
 
-                          <button
-                            type="button"
-                            onClick={() => freezeBreachWithPin(b, false)}
-                            className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-neutral-100 px-3 text-xs font-medium text-neutral-800 transition-colors duration-150 hover:bg-neutral-200/80 dark:bg-white/10 dark:text-slate-200"
-                          >
-                            <span>
-                              {isAr ? 'إيقاف المخالفة وتجميد الصرف ⛔' : 'Freeze Spend ⛔'}
-                            </span>
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => unfreezeBreachWithPin(b)}
-                            className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-emerald-50 px-3 text-xs font-semibold text-emerald-800 transition-colors duration-150 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-200"
-                          >
-                            <span>
-                              {isAr ? 'فك التجميد بعد التصحيح 🔓' : 'Unfreeze After Fix 🔓'}
-                            </span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => copyDirective(b.id, directiveText)}
-                            className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-neutral-100 px-2.5 text-xs font-medium text-neutral-800 dark:bg-white/10 dark:text-slate-200"
-                          >
-                            {copiedId === b.id ? (
-                              <>
-                                <Check className="h-3.5 w-3.5 text-emerald-600" />
-                                <span>{isAr ? 'تم النسخ' : 'Copied'}</span>
-                              </>
+                            {b.retroactiveApprovalEligible ? (
+                              <button
+                                type="button"
+                                onClick={() => retroactiveApproveBreachWithPin(b)}
+                                style={{ color: '#FFFFFF' }}
+                                className="btn-colored inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-emerald-600 px-3 text-xs font-semibold text-white transition-colors duration-150 hover:bg-emerald-700"
+                              >
+                                <span>
+                                  {isAr
+                                    ? 'اعتماد استثنائي بأثر رجعي ✅'
+                                    : 'Retroactive Approval ✅'}
+                                </span>
+                              </button>
                             ) : (
-                              <>
-                                <Copy className="h-3.5 w-3.5" />
-                                <span>{isAr ? 'نسخ الأمر' : 'Copy Order'}</span>
-                              </>
+                              <Link
+                                href={b.href}
+                                onClick={onClose}
+                                className="inline-flex h-8 items-center gap-1 rounded-full bg-neutral-100 px-3 text-xs font-medium text-neutral-700 transition-colors duration-150 hover:bg-neutral-200/80 hover:text-neutral-950 dark:bg-white/10 dark:text-slate-200 dark:hover:bg-white/15"
+                              >
+                                <span>
+                                  {isAr ? 'فتح المصدر للمراجعة ↗' : 'Review Source ↗'}
+                                </span>
+                              </Link>
                             )}
-                          </button>
+                          </div>
 
-                          <a
-                            href={waUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex h-8 items-center gap-1 rounded-full bg-emerald-600 px-2.5 text-xs font-semibold text-white hover:bg-emerald-700"
+                          {b.retroactiveApprovalEligible ? (
+                            <Link
+                              href={b.href}
+                              onClick={onClose}
+                              className="text-xs font-medium text-neutral-400 hover:text-emerald-700 dark:hover:text-emerald-300"
+                            >
+                              {isAr ? 'فتح المصدر للمراجعة ↗' : 'Review Source ↗'}
+                            </Link>
+                          ) : null}
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => unfreezeBreachWithPin(b)}
+                              className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-emerald-50 px-3 text-xs font-semibold text-emerald-800 transition-colors duration-150 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-200"
+                            >
+                              <span>
+                                {isAr ? 'فك التجميد بعد التصحيح 🔓' : 'Unfreeze After Fix 🔓'}
+                              </span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => copyDirective(b.id, directiveText)}
+                              className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-neutral-100 px-2.5 text-xs font-medium text-neutral-800 dark:bg-white/10 dark:text-slate-200"
+                            >
+                              {copiedId === b.id ? (
+                                <>
+                                  <Check className="h-3.5 w-3.5 text-emerald-600" />
+                                  <span>{isAr ? 'تم النسخ' : 'Copied'}</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="h-3.5 w-3.5" />
+                                  <span>{isAr ? 'نسخ الأمر' : 'Copy Order'}</span>
+                                </>
+                              )}
+                            </button>
+
+                            <a
+                              href={waUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ color: '#FFFFFF' }}
+                              className="btn-colored inline-flex h-8 items-center gap-1 rounded-full bg-emerald-600 px-2.5 text-xs font-semibold text-white hover:bg-emerald-700"
+                            >
+                              <MessageCircle className="h-3.5 w-3.5" />
+                              <span>{isAr ? 'واتساب' : 'WhatsApp'}</span>
+                            </a>
+                          </div>
+
+                          <Link
+                            href={b.href}
+                            onClick={onClose}
+                            className="text-xs font-medium text-neutral-400 hover:text-emerald-700 dark:hover:text-emerald-300"
                           >
-                            <MessageCircle className="h-3.5 w-3.5" />
-                            <span>{isAr ? 'واتساب' : 'WhatsApp'}</span>
-                          </a>
-                        </div>
+                            {isAr ? 'فتح المصدر للمراجعة ↗' : 'Review Source ↗'}
+                          </Link>
+                        </>
                       )}
-
-                      <Link
-                        href={b.href}
-                        onClick={onClose}
-                        className="text-xs font-medium text-neutral-400 hover:text-emerald-700 dark:hover:text-emerald-300"
-                      >
-                        {isAr ? 'فتح الصفحة ↗' : 'Inspect ↗'}
-                      </Link>
                     </div>
                   </article>
                 )
@@ -939,7 +1038,7 @@ function GovernanceSlideOverDrawer({
               </div>
 
               {pendingApprovals.length === 0 ? (
-                <div className="rounded-2xl bg-white p-4 text-center text-xs text-neutral-400 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-[#111A22]">
+                <div className="rounded-2xl bg-white p-4 text-center text-xs text-neutral-400 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-neutral-900">
                   {isAr
                     ? 'لا توجد طلبات معلقة حالياً — جميع القرارات معتمدة ومختومة ✅'
                     : 'Zero pending requests — all department items are reviewed ✅'}
@@ -948,7 +1047,7 @@ function GovernanceSlideOverDrawer({
                 pendingApprovals.map((req) => (
                   <article
                     key={req.id}
-                    className="rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-[#111A22]"
+                    className="rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-neutral-900"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-[11px] font-medium text-neutral-700 dark:bg-emerald-950/60 dark:text-emerald-200">
@@ -1014,14 +1113,14 @@ function GovernanceSlideOverDrawer({
           {tab === 'sealed' ? (
             <section className="space-y-2.5">
               {sealedHistory.length === 0 ? (
-                <div className="rounded-2xl bg-white p-5 text-center text-xs text-neutral-400 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-[#111A22]">
+                <div className="rounded-2xl bg-white p-5 text-center text-xs text-neutral-400 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-neutral-900">
                   {isAr ? 'لم يتم ختم قرارات جديدة بعد في هذه الجلسة.' : 'No sealed decisions recorded yet.'}
                 </div>
               ) : (
                 sealedHistory.map((item) => (
                   <article
                     key={item.id}
-                    className="rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-[#111A22]"
+                    className="rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-neutral-900"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span

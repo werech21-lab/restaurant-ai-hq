@@ -208,13 +208,19 @@ export function ExecutivePinModal({
 
   return createPortal(
     <div
+      id="vf-exec-pin-backdrop"
       dir={isAr ? 'rtl' : 'ltr'}
-      className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-[2px] transition-opacity duration-150"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-950/35 p-4 backdrop-blur-[2px] transition-opacity duration-150"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose()
       }}
     >
       <style>{`
+        #vf-exec-pin-backdrop {
+          background-color: rgba(10, 10, 10, 0.35) !important;
+          -webkit-backdrop-filter: blur(2px) !important;
+          backdrop-filter: blur(2px) !important;
+        }
         @keyframes vfPinShake {
           0%, 100% { transform: translateX(0); }
           20% { transform: translateX(-7px); }
@@ -231,7 +237,7 @@ export function ExecutivePinModal({
         role="dialog"
         aria-modal="true"
         aria-label={titleText}
-        className="w-full max-w-[390px] rounded-3xl bg-[#F7F7F8] p-5 shadow-[0_20px_50px_-12px_rgba(15,23,42,0.22)] transition-all duration-150 dark:bg-[#0D151C] dark:ring-1 dark:ring-white/[0.08]"
+        className="w-full max-w-[390px] rounded-3xl bg-[#F7F7F8] p-5 shadow-2xl transition-all duration-150 dark:bg-neutral-950 dark:ring-1 dark:ring-white/[0.08]"
       >
         {/* Header */}
         <div className="flex items-start justify-between gap-3">
@@ -257,7 +263,7 @@ export function ExecutivePinModal({
             type="button"
             onClick={onClose}
             aria-label={isAr ? 'إغلاق' : 'Close'}
-            className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-white text-neutral-500 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors duration-150 hover:text-neutral-900 dark:bg-[#111A22] dark:text-slate-300"
+            className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-white text-neutral-500 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors duration-150 hover:text-neutral-900 dark:bg-neutral-900 dark:text-slate-300"
           >
             <X className="h-4 w-4" />
           </button>
@@ -292,7 +298,7 @@ export function ExecutivePinModal({
             return (
               <div
                 key={idx}
-                className={`flex h-16 w-14 cursor-text items-center justify-center rounded-2xl bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-150 dark:bg-[#111A22] ${
+                className={`flex h-16 w-14 cursor-text items-center justify-center rounded-2xl bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-150 dark:bg-neutral-900 ${
                   errorMsg
                     ? 'ring-2 ring-rose-500/80 shadow-[0_0_0_4px_rgba(244,63,94,0.10)]'
                     : isCurrent
@@ -344,7 +350,7 @@ export function ExecutivePinModal({
               key={n}
               type="button"
               onClick={() => pushDigit(n)}
-              className="flex h-11 cursor-pointer items-center justify-center rounded-2xl bg-white text-[16px] font-semibold tabular-nums text-neutral-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-150 hover:bg-emerald-50/60 active:scale-95 dark:bg-[#111A22] dark:text-white dark:hover:bg-emerald-950/40"
+              className="flex h-11 cursor-pointer items-center justify-center rounded-2xl bg-white text-[16px] font-semibold tabular-nums text-neutral-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-150 hover:bg-emerald-50/60 active:scale-95 dark:bg-neutral-900 dark:text-white dark:hover:bg-emerald-950/40"
             >
               {n}
             </button>
@@ -361,7 +367,7 @@ export function ExecutivePinModal({
           <button
             type="button"
             onClick={() => pushDigit('0')}
-            className="flex h-11 cursor-pointer items-center justify-center rounded-2xl bg-white text-[16px] font-semibold tabular-nums text-neutral-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-150 hover:bg-emerald-50/60 active:scale-95 dark:bg-[#111A22] dark:text-white dark:hover:bg-emerald-950/40"
+            className="flex h-11 cursor-pointer items-center justify-center rounded-2xl bg-white text-[16px] font-semibold tabular-nums text-neutral-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-150 hover:bg-emerald-50/60 active:scale-95 dark:bg-neutral-900 dark:text-white dark:hover:bg-emerald-950/40"
           >
             0
           </button>
@@ -391,7 +397,7 @@ export function ExecutivePinModal({
               setChangeStep('current')
               setMode((m) => (m === 'verify' ? 'change' : 'verify'))
             }}
-            className="inline-flex cursor-pointer items-center gap-1 rounded-full bg-white px-3 py-1.5 font-medium text-neutral-700 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors duration-150 hover:text-emerald-700 dark:bg-[#111A22] dark:text-slate-200 dark:hover:text-emerald-300"
+            className="inline-flex cursor-pointer items-center gap-1 rounded-full bg-white px-3 py-1.5 font-medium text-neutral-700 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors duration-150 hover:text-emerald-700 dark:bg-neutral-900 dark:text-slate-200 dark:hover:text-emerald-300"
           >
             <Settings className="h-3.5 w-3.5" />
             <span>
