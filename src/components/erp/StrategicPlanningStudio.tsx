@@ -40,11 +40,11 @@ import {
 } from '@/lib/aether/planning-engine'
 
 const CARD_CLS =
-  'ae-bento-card bg-white p-5 sm:p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-[#111A22]'
+  'ae-bento-card bg-white p-5 sm:p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-neutral-900'
 const KPI_CARD_CLS =
-  'ae-kpi-card bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-[#111A22]'
+  'ae-kpi-card bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-neutral-900'
 const INPUT_CLS =
-  'h-10 w-full rounded-xl bg-white px-3 text-[13px] font-medium text-neutral-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 dark:bg-[#0F1821] dark:text-white'
+  'h-10 w-full rounded-xl bg-white px-3 text-[13px] font-medium text-neutral-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 dark:bg-neutral-950 dark:text-white'
 
 const f0 = (n: number) => Math.round(Number.isFinite(n) ? n : 0).toLocaleString('en-US')
 const f1 = (n: number) =>
@@ -317,7 +317,7 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
 
       {/* Custom Horizon Inline Date Inputs */}
       {horizon === 'custom' ? (
-        <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-white px-4 py-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-[#111A22]">
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-white px-4 py-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-neutral-900">
           <span className="text-xs font-semibold text-neutral-600 dark:text-slate-300">
             {isAr ? 'نطاق التخطيط المخصص:' : 'Custom Forecast Window:'}
           </span>
@@ -368,7 +368,7 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
               {aiForecastUpdatedAt ? <span>{aiForecastUpdatedAt}</span> : null}
             </div>
           </div>
-          <div className="whitespace-pre-line rounded-2xl bg-[#F7F7F8] p-3.5 text-[13px] leading-relaxed text-neutral-800 dark:bg-[#0C141B] dark:text-slate-200">
+          <div className="whitespace-pre-line rounded-2xl bg-[#F7F7F8] p-3.5 text-[13px] leading-relaxed text-neutral-800 dark:bg-neutral-950 dark:text-slate-200">
             {aiForecastText}
           </div>
         </section>
@@ -445,7 +445,7 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
                 : 'Select any scenario to link with official circulars & Odoo compliance targets'}
             </p>
           </div>
-          <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-neutral-700 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-[#111A22] dark:text-slate-200">
+          <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-neutral-700 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-neutral-900 dark:text-slate-200">
             {isAr ? snap.horizonLabelAr : snap.horizonLabelEn}
           </span>
         </div>
@@ -483,7 +483,7 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
 
                   <span
                     dir="ltr"
-                    className="rounded-full bg-[#F7F7F8] px-2.5 py-1 text-[11px] font-semibold tabular-nums text-neutral-700 dark:bg-[#0C141B] dark:text-slate-200"
+                    className="rounded-full bg-[#F7F7F8] px-2.5 py-1 text-[11px] font-semibold tabular-nums text-neutral-700 dark:bg-neutral-950 dark:text-slate-200"
                   >
                     {isAr ? sc.paybackLabelAr : sc.paybackLabelEn}
                   </span>
@@ -491,7 +491,7 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
 
                 {/* 3 Core Numbers: Projected Sales | Costs (التكاليف KWD) | Net Cash */}
                 <div className="mt-4 grid grid-cols-3 gap-2">
-                  <div className="rounded-xl bg-[#F7F7F8] p-3 dark:bg-[#0C141B]">
+                  <div className="rounded-xl bg-[#F7F7F8] p-3 dark:bg-neutral-950">
                     <div className="text-[11px] text-neutral-400">
                       {isAr ? 'المبيعات المتوقعة' : 'Projected Sales'}
                     </div>
@@ -501,7 +501,7 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
                     <div className="text-[10.5px] text-neutral-400">{kwd}</div>
                   </div>
 
-                  <div className="rounded-xl bg-[#F7F7F8] p-3 dark:bg-[#0C141B]">
+                  <div className="rounded-xl bg-[#F7F7F8] p-3 dark:bg-neutral-950">
                     <div className="text-[11px] text-neutral-400">
                       {isAr ? 'التكاليف' : 'Total Costs'}
                     </div>
@@ -515,8 +515,9 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
                     <div className="text-[11px] text-emerald-800 dark:text-emerald-300">
                       {isAr ? 'صافي الكاش' : 'Net Cash'}
                     </div>
-                    <div dir="ltr" className="mt-1 text-[15px] font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">
-                      +{f0(sc.projectedNetCashKwd)}
+                    <div className="mt-1 text-[15px] font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">
+                      {sc.projectedNetCashKwd >= 0 ? '+' : ''}
+                      {f0(sc.projectedNetCashKwd)}
                     </div>
                     <div dir="ltr" className="text-[10.5px] font-semibold tabular-nums text-emerald-700/80 dark:text-emerald-400">
                       {f1(sc.netMarginPct)}% {kwd}
@@ -577,8 +578,8 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
             </h2>
             <p className="text-xs text-neutral-400">
               {isAr
-                ? 'ارفع طلب موافقة المدير 🔔، واعتمد بـ PIN المدير (2026) لتعميم الخطة رسمياً على الفروع الـ 7'
-                : 'Submit for Manager Approval 🔔, then seal & broadcast with Manager PIN (2026) across all 7 branches'}
+                ? 'ارفع طلب موافقة المدير 🔔، واعتمد بختم المدير السري لتعميم الخطة رسمياً على الفروع الـ 7'
+                : 'Submit for Manager Approval 🔔, then seal & broadcast with Secret Manager Seal across all 7 branches'}
             </p>
           </div>
 
@@ -595,7 +596,7 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
         {formOpen ? (
           <form
             onSubmit={handleAddPhase}
-            className="rounded-2xl bg-[#F7F7F8] p-4 space-y-3 dark:bg-[#0C141B]"
+            className="rounded-2xl bg-[#F7F7F8] p-4 space-y-3 dark:bg-neutral-950"
           >
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
               <div className="lg:col-span-2">
@@ -726,18 +727,18 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
             return (
               <article
                 key={phase.id}
-                className="rounded-2xl bg-[#F7F7F8] p-4 transition-all duration-150 dark:bg-[#0C141B]"
+                className="rounded-2xl bg-[#F7F7F8] p-4 transition-all duration-150 dark:bg-neutral-950"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="space-y-1.5">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-emerald-600 px-2.5 py-0.5 font-mono text-xs font-bold text-white">
+                      <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 font-mono text-xs font-bold text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-200">
                         {phase.phaseCode}
                       </span>
-                      <span dir="ltr" className="rounded-full bg-white px-2.5 py-0.5 text-xs font-semibold tabular-nums text-neutral-700 dark:bg-[#111A22] dark:text-slate-200">
+                      <span dir="ltr" className="rounded-full bg-white px-2.5 py-0.5 text-xs font-semibold tabular-nums text-neutral-700 dark:bg-neutral-900 dark:text-slate-200">
                         {phase.startDate} → {phase.endDate}
                       </span>
-                      <span className="rounded-full bg-white px-2.5 py-0.5 text-xs font-medium text-neutral-700 dark:bg-[#111A22] dark:text-slate-300">
+                      <span className="rounded-full bg-white px-2.5 py-0.5 text-xs font-medium text-neutral-700 dark:bg-neutral-900 dark:text-slate-300">
                         {isAr ? phase.ownerAr : phase.ownerEn}
                       </span>
                       {approval?.status === 'approved' ? (
@@ -780,7 +781,7 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
-                    <div className="rounded-xl bg-white px-3 py-1.5 text-end shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:bg-[#111A22]">
+                    <div className="rounded-xl bg-white px-3 py-1.5 text-end shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:bg-neutral-900">
                       <div className="text-[10.5px] text-neutral-400">
                         {isAr ? 'سقف التكلفة' : 'Cost Cap'}
                       </div>
@@ -789,7 +790,7 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
                       </div>
                     </div>
 
-                    <div className="rounded-xl bg-white px-3 py-1.5 text-end shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:bg-[#111A22]">
+                    <div className="rounded-xl bg-white px-3 py-1.5 text-end shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:bg-neutral-900">
                       <div className="text-[10.5px] text-neutral-400">
                         {isAr ? 'العائد الشهري' : 'Monthly Gain'}
                       </div>
@@ -865,7 +866,7 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
                     <button
                       type="button"
                       onClick={() => copyToClipboard(`circ-${phase.id}`, activeCircularText)}
-                      className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-white px-3 text-xs font-medium text-neutral-800 shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:bg-neutral-100 dark:bg-[#111A22] dark:text-slate-200"
+                      className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-white px-3 text-xs font-medium text-neutral-800 shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:bg-neutral-100 dark:bg-neutral-900 dark:text-slate-200"
                     >
                       {copiedKey === `circ-${phase.id}` ? (
                         <>
@@ -904,7 +905,7 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
 
                 {/* 7/7 Branch Receipt Tracker & Stamped Circular Preview */}
                 {showCircularPanel ? (
-                  <div className="mt-3 rounded-2xl bg-white p-3.5 space-y-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:bg-[#111A22]">
+                  <div className="mt-3 rounded-2xl bg-white p-3.5 space-y-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:bg-neutral-900">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-2 text-xs font-semibold text-neutral-900 dark:text-white">
                         <CheckCircle2 className="h-4 w-4 text-emerald-600" />
@@ -939,7 +940,7 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
                             className={`inline-flex cursor-pointer items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
                               checked
                                 ? 'bg-emerald-600 text-white'
-                                : 'bg-[#F7F7F8] text-neutral-600 hover:bg-neutral-200/70 dark:bg-[#0C141B] dark:text-slate-300'
+                                : 'bg-[#F7F7F8] text-neutral-600 hover:bg-neutral-200/70 dark:bg-neutral-950 dark:text-slate-300'
                             }`}
                           >
                             {checked ? <Check className="h-3 w-3" /> : null}
@@ -988,28 +989,45 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
               className={`rounded-2xl p-4 transition-all ${
                 b.frozen
                   ? 'bg-emerald-50/60 dark:bg-emerald-950/25'
-                  : 'bg-[#F7F7F8] dark:bg-[#0C141B]'
+                  : 'bg-[#F7F7F8] dark:bg-neutral-950'
               }`}
             >
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <span
                   className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                     b.frozen
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-rose-50 text-rose-700 dark:bg-rose-950/70 dark:text-rose-300'
+                      ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300'
+                      : b.breachKind === 'procedural-cap-overrun'
+                        ? 'bg-amber-50 text-amber-800 dark:bg-amber-950/70 dark:text-amber-200'
+                        : 'bg-rose-50 text-rose-700 dark:bg-rose-950/70 dark:text-rose-300'
                   }`}
                 >
                   {b.frozen
                     ? isAr
                       ? 'تم تجميد الصرف وتعميم الإيقاف ⛔✓'
                       : 'Frozen & Stop-Order Issued ⛔✓'
-                    : isAr
-                      ? '🚨 مخالفة لقرار معتمد'
-                      : '🚨 Approved Rule Breach'}
+                    : b.breachKind === 'procedural-cap-overrun'
+                      ? isAr
+                        ? '⚠️ تجاوز سقف بدون إذن مسبق'
+                        : '⚠️ Unapproved Cap Overrun'
+                      : isAr
+                        ? '🚨 مخالفة لقرار معتمد'
+                        : '🚨 Approved Rule Breach'}
                 </span>
 
-                <span dir="ltr" className="text-xs font-semibold tabular-nums text-rose-600 dark:text-rose-400">
-                  -{f0(b.monthlyLeakKwd)} {kwd}/{isAr ? 'شهر' : 'mo'}
+                <span
+                  dir="ltr"
+                  className={`text-xs font-semibold tabular-nums ${
+                    b.breachKind === 'procedural-cap-overrun'
+                      ? 'text-amber-700 dark:text-amber-300'
+                      : 'text-rose-600 dark:text-rose-400'
+                  }`}
+                >
+                  {b.badgeLabelAr && b.badgeLabelEn
+                    ? isAr
+                      ? b.badgeLabelAr
+                      : b.badgeLabelEn
+                    : `-${f0(b.monthlyLeakKwd)} ${kwd}/${isAr ? 'شهر' : 'mo'}`}
                 </span>
               </div>
 
@@ -1027,7 +1045,8 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
                   <button
                     type="button"
                     onClick={() => freezeBreachWithPin(b, true)}
-                    className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-rose-600 px-3.5 text-xs font-semibold text-white transition-colors hover:bg-rose-700"
+                    className="btn-colored inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-rose-600 px-3.5 text-xs font-semibold text-white transition-colors hover:bg-rose-700"
+                    style={{ color: '#FFFFFF' }}
                   >
                     <Lock className="h-3 w-3" />
                     <span>{isAr ? 'إيقاف المخالفة فوراً ⛔' : 'Stop Breach Immediately ⛔'}</span>
@@ -1051,7 +1070,7 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
                       isAr ? b.stopDirectiveAr : b.stopDirectiveEn,
                     )
                   }
-                  className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-white px-3 text-xs font-medium text-neutral-800 shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:bg-[#111A22] dark:text-slate-200"
+                  className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-white px-3 text-xs font-medium text-neutral-800 shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:bg-neutral-900 dark:text-slate-200"
                 >
                   {copiedKey === `stop-${b.id}` ? (
                     <>

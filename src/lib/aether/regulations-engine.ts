@@ -4,6 +4,8 @@
  * Manpower & Delivery Permits, MOCI Pricing/Promos & Aggregator Rules, and Mall/EXB/Fire Force Rules.
  */
 
+import type { GlobalBranch } from '@/lib/aether/global-filter-engine'
+
 export type RegulationTrackId =
   | 'municipality-pafn'
   | 'manpower-delivery'
@@ -31,6 +33,57 @@ export interface RegulationPlaybookItem {
 
 export const REGULATIONS_STORAGE_KEY = 'vf_kuwait_regulations_v1'
 export const REG_STOP_ORDERS_STORAGE_KEY = 'vf_reg_stop_orders_v1'
+
+/**
+ * Realistic baseline branch compliance checkpoints across the 7 active Venture Foods locations
+ * (19 of 28 checkpoints compliant = 68% out of the box), leaving specific pending branches
+ * highlighted per upcoming deadline while keeping every branch toggle 100% interactive.
+ */
+export const DEFAULT_REGULATION_BRANCH_READINESS: Record<
+  string,
+  Record<Exclude<GlobalBranch, 'all'>, boolean>
+> = {
+  // REG-KW-01 (Deadline 2026-11-30): 5/7 compliant — Salmiya & Al-Kout pending 21-day health card renewal
+  'reg-pafn-ardiya-coldchain': {
+    avenues: true,
+    '360-mall': true,
+    assima: true,
+    promenade: true,
+    salmiya: false,
+    'al-kout': false,
+    ardiya: true,
+  },
+  // REG-KW-02 (Deadline 2026-12-15): 5/7 compliant — Avenues & Assima pending TMP rider permit match
+  'reg-pam-delivery-permits': {
+    avenues: false,
+    '360-mall': true,
+    assima: false,
+    promenade: true,
+    salmiya: true,
+    'al-kout': true,
+    ardiya: true,
+  },
+  // REG-KW-03 (Deadline 2026-11-25): 5/7 compliant — Promenade & Ardiya pending MOCI promo notice sync
+  'reg-moci-pricing-platforms': {
+    avenues: true,
+    '360-mall': true,
+    assima: true,
+    promenade: false,
+    salmiya: true,
+    'al-kout': true,
+    ardiya: false,
+  },
+  // REG-KW-04 (Deadline 2026-12-05): 4/7 compliant — Promenade, Salmiya & Al-Kout pending hood/EXB permit
+  'reg-kff-malls-exb': {
+    avenues: true,
+    '360-mall': true,
+    assima: true,
+    promenade: false,
+    salmiya: false,
+    'al-kout': false,
+    ardiya: true,
+  },
+}
 
 export const REGULATION_TRACK_OPTIONS: readonly {
   id: 'all' | RegulationTrackId

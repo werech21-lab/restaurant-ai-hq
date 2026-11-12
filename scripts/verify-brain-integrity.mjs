@@ -595,10 +595,121 @@ assert(
     planningSrc.includes('تحديث التوقعات بالذكاء الاستراتيجي ✨') &&
     planningSrc.includes('تعميم الخطة المعتمدة رسمياً 📢') &&
     planningSrc.includes('إيقاف المخالفة فوراً ⛔') &&
+    planningSrc.includes('واعتمد بختم المدير السري لتعميم الخطة رسمياً على الفروع الـ 7') &&
     regulationsSrc.includes('تعميم خطة التعامل رسمياً 📢') &&
     regulationsSrc.includes('إيقاف أي مخالفة رقابية ⛔') &&
-    regulationsSrc.includes('+ إضافة تشريع جديد'),
-  'Sidebar sticky indicator + /erp/planning & /erp/regulations hubs with PIN-sealed circulars & 7/7 branch trackers active',
+    regulationsSrc.includes('+ إضافة تشريع جديد') &&
+    !/(?<![:\w-])bg-neutral-900\b/.test(regulationsSrc),
+  'Sidebar sticky indicator + /erp/planning & /erp/regulations hubs with PIN-sealed circulars, soft readable pills & 7/7 branch trackers active',
+)
+
+const pinUiLeakPattern = ['(', '2026', ')'].join('')
+let pinUiLeakMatches = 0
+try {
+  const pinLeakOut = execSync(`git grep -F "${pinUiLeakPattern}" src/`, {
+    cwd: ROOT,
+    encoding: 'utf8',
+  }).trim()
+  pinUiLeakMatches = pinLeakOut ? pinLeakOut.split('\n').length : 0
+} catch {
+  pinUiLeakMatches = 0
+}
+assert(
+  pinUiLeakMatches === 0,
+  'Zero exposed Manager PIN label leaks across src/ UI components',
+  `matches=${pinUiLeakMatches}`,
+)
+
+const planningReconcileScript = `
+import { computeGlobalWorkspace, DEFAULT_GLOBAL_FILTERS, APPROVED_BRANCH_IDS } from './src/lib/aether/global-filter-engine';
+import { computePlanningHubSnapshot, SEEDED_STRATEGIC_PHASES } from './src/lib/aether/planning-engine';
+import { SEEDED_REGULATIONS, DEFAULT_REGULATION_BRANCH_READINESS } from './src/lib/aether/regulations-engine';
+
+const horizons = ['30d', '90d', '6m', '12m', 'custom'] as const;
+const filterMatrix = [
+  DEFAULT_GLOBAL_FILTERS,
+  { ...DEFAULT_GLOBAL_FILTERS, period: 'week' as const, brand: 'china-garden' as const },
+  { ...DEFAULT_GLOBAL_FILTERS, period: 'year' as const, branch: 'salmiya' as const },
+  { ...DEFAULT_GLOBAL_FILTERS, channel: 'dine-in' as const },
+  { ...DEFAULT_GLOBAL_FILTERS, channel: 'talabat-tgo' as const, branch: 'assima' as const },
+  { ...DEFAULT_GLOBAL_FILTERS, period: 'custom' as const, customFrom: '2026-10-15', customTo: '2026-11-11' },
+];
+
+let maxNetGap = 0;
+let maxMarginGap = 0;
+let checkedScenarios = 0;
+
+for (const f of filterMatrix) {
+  const ws = computeGlobalWorkspace(f);
+  for (const h of horizons) {
+    const snap = computePlanningHubSnapshot(ws, SEEDED_STRATEGIC_PHASES, h, '2026-11-15', '2027-02-15');
+    const baseGap = Math.abs(
+      snap.monthlyBaselineNetKwd - (Math.round(snap.monthlyBaselineSalesKwd) - Math.round(snap.monthlyBaselineCostsKwd))
+    );
+    if (baseGap > maxNetGap) maxNetGap = baseGap;
+
+    for (const sc of snap.scenarios) {
+      checkedScenarios += 1;
+      const expectedNet = Math.round(sc.projectedSalesKwd) - Math.round(sc.projectedCostsKwd);
+      const netGap = Math.abs(sc.projectedNetCashKwd - expectedNet);
+      if (netGap > maxNetGap) maxNetGap = netGap;
+
+      const expectedMargin = sc.projectedSalesKwd > 0 ? (sc.projectedNetCashKwd / sc.projectedSalesKwd) * 100 : 0;
+      const marginGap = Math.abs(sc.netMarginPct - expectedMargin);
+      if (marginGap > maxMarginGap) maxMarginGap = marginGap;
+    }
+  }
+}
+
+const snap90 = computePlanningHubSnapshot(
+  computeGlobalWorkspace(DEFAULT_GLOBAL_FILTERS),
+  SEEDED_STRATEGIC_PHASES,
+  '90d',
+  '2026-11-15',
+  '2027-02-15',
+);
+
+let regReadyCount = 0;
+const regTotalSlots = SEEDED_REGULATIONS.length * APPROVED_BRANCH_IDS.length;
+for (const r of SEEDED_REGULATIONS) {
+  const map = DEFAULT_REGULATION_BRANCH_READINESS[r.id] ?? {};
+  for (const b of APPROVED_BRANCH_IDS) {
+    if (map[b]) regReadyCount += 1;
+  }
+}
+const regReadinessPct = Math.round((regReadyCount / regTotalSlots) * 100);
+
+console.log(JSON.stringify({
+  maxNetGap,
+  maxMarginGap,
+  checkedScenarios,
+  regReadyCount,
+  regTotalSlots,
+  regReadinessPct,
+  s90: snap90.scenarios.map((s) => ({
+    id: s.id,
+    sales: s.projectedSalesKwd,
+    costs: s.projectedCostsKwd,
+    net: s.projectedNetCashKwd,
+    margin: Number(s.netMarginPct.toFixed(1)),
+  })),
+}));
+`
+
+const planProbeRaw = execFileSync(process.execPath, [tsxCli, '-e', planningReconcileScript], {
+  cwd: ROOT,
+  encoding: 'utf8',
+}).trim()
+const planProbe = JSON.parse(planProbeRaw.split('\n').pop() ?? '{}')
+assert(
+  planProbe.maxNetGap === 0 &&
+    planProbe.maxMarginGap < 1e-9 &&
+    planProbe.checkedScenarios === 90 &&
+    planProbe.regReadyCount === 19 &&
+    planProbe.regTotalSlots === 28 &&
+    planProbe.regReadinessPct === 68,
+  'Planning scenarios Sales - Costs === Net Cash (0 KWD gap across 90 scenario/horizon/filter slices) & Regulations 68% (19/28) baseline readiness',
+  `netGap=${planProbe.maxNetGap} KWD, marginGap=${Number(planProbe.maxMarginGap).toFixed(6)}%, regReadiness=${planProbe.regReadyCount}/${planProbe.regTotalSlots} (${planProbe.regReadinessPct}%)`,
 )
 
 console.log('\n----------------------------------------------------------------------')

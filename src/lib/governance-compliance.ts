@@ -25,6 +25,7 @@ import {
   sanitizeRealCampaigns,
   type SocialCampaign,
 } from '@/lib/aether/social-campaigns'
+import { DEFAULT_REGULATION_BRANCH_READINESS } from '@/lib/aether/regulations-engine'
 
 export const GOVERNANCE_STORAGE_KEY = 'vf.governance.store.v1'
 export const MANAGER_PIN_HASH_KEY = 'vf.executive.pinHash.v1'
@@ -295,7 +296,7 @@ export const SEEDED_APPROVAL_REQUESTS: GovernanceApprovalRequest[] = [
   },
 ]
 
-const DEFAULT_BRANCH_RECEIPTS: CircularReceiptMap = {
+export const DEFAULT_BRANCH_RECEIPTS: CircularReceiptMap = {
   'plan:master-q4': {
     avenues: true,
     '360-mall': true,
@@ -314,6 +315,13 @@ const DEFAULT_BRANCH_RECEIPTS: CircularReceiptMap = {
     'al-kout': false,
     ardiya: true,
   },
+  'reg-ready:reg-pafn-ardiya-coldchain':
+    DEFAULT_REGULATION_BRANCH_READINESS['reg-pafn-ardiya-coldchain'],
+  'reg-ready:reg-pam-delivery-permits':
+    DEFAULT_REGULATION_BRANCH_READINESS['reg-pam-delivery-permits'],
+  'reg-ready:reg-moci-pricing-platforms':
+    DEFAULT_REGULATION_BRANCH_READINESS['reg-moci-pricing-platforms'],
+  'reg-ready:reg-kff-malls-exb': DEFAULT_REGULATION_BRANCH_READINESS['reg-kff-malls-exb'],
 }
 
 export function loadGovernanceStore(): PersistedGovernanceStore {

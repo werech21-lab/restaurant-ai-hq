@@ -210,10 +210,14 @@ export function computePlanningHubSnapshot(
   const activeDays = Math.max(1, workspace.periodDays || 30)
   const monthlyFactor = 30 / activeDays
 
-  const monthlyBaselineSalesKwd = Math.max(1200, workspace.salesKwd * monthlyFactor)
-  const monthlyBaselineNetKwd =
+  const monthlyBaselineSalesRaw = Math.max(1200, workspace.salesKwd * monthlyFactor)
+  const monthlyBaselineNetRaw =
     workspace.salesKwd * (workspace.weightedNetPct / 100) * monthlyFactor
-  const monthlyBaselineCostsKwd = Math.max(0, monthlyBaselineSalesKwd - monthlyBaselineNetKwd)
+  const monthlyBaselineSalesKwd = Math.round(monthlyBaselineSalesRaw)
+  const monthlyBaselineCostsKwd = Math.round(
+    Math.max(0, monthlyBaselineSalesRaw - monthlyBaselineNetRaw),
+  )
+  const monthlyBaselineNetKwd = monthlyBaselineSalesKwd - monthlyBaselineCostsKwd
   const monthlyBaselineOrders = Math.max(50, Math.round(workspace.orders * monthlyFactor))
 
   // Resolve horizon days
@@ -308,21 +312,29 @@ export function computePlanningHubSnapshot(
     const baseSalesHorizon = monthlyBaselineSalesKwd * monthsSpan
     const baseCostsHorizon = monthlyBaselineCostsKwd * monthsSpan
 
-    const projectedSalesKwd = Math.round(baseSalesHorizon * (1 + salesGrowthPct))
+    const roadmapRevenueLiftKwd =
+      totalMonthlyRoadmapGainKwd * monthsSpan * roadmapCaptureRatio * 0.2
+    const roadmapCostSavingKwd = Math.min(
+      baseCostsHorizon * 0.12,
+      totalMonthlyRoadmapGainKwd * monthsSpan * roadmapCaptureRatio * 0.15,
+    )
+
+    const projectedSalesKwd = Math.round(
+      Math.max(1, baseSalesHorizon * (1 + salesGrowthPct) + roadmapRevenueLiftKwd),
+    )
     const variableCostAdjust = 1 + salesGrowthPct * 0.58 - costEfficiencyPct
     const projectedCostsKwd = Math.round(
-      Math.max(0, baseCostsHorizon * variableCostAdjust + totalRoadmapCapexKwd),
+      Math.max(0, baseCostsHorizon * variableCostAdjust + totalRoadmapCapexKwd - roadmapCostSavingKwd),
     )
-    const roadmapExtraNet = totalMonthlyRoadmapGainKwd * monthsSpan * roadmapCaptureRatio * 0.35
-    const projectedNetCashKwd = Math.round(projectedSalesKwd - projectedCostsKwd + roadmapExtraNet)
+    // Strict CFO Reconciliation Identity: Net Cash === Math.round(Projected Sales) - Math.round(Total Costs)
+    const projectedNetCashKwd = projectedSalesKwd - projectedCostsKwd
     const projectedOrders = Math.max(
       1,
       Math.round(monthlyBaselineOrders * monthsSpan * (1 + salesGrowthPct * 0.85)),
     )
+    // Strict Margin Identity: Net Margin % === (Displayed Net Cash / Displayed Projected Sales) * 100
     const netMarginPct =
-      projectedSalesKwd > 0
-        ? Math.round((projectedNetCashKwd / projectedSalesKwd) * 1000) / 10
-        : 0
+      projectedSalesKwd > 0 ? (projectedNetCashKwd / projectedSalesKwd) * 100 : 0
 
     const dailyIncrementalGain = Math.max(
       8,

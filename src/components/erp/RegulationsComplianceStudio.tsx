@@ -5,6 +5,7 @@ import {
   Bell,
   Check,
   CheckCircle2,
+  Clock,
   Copy,
   Lock,
   Megaphone,
@@ -27,6 +28,7 @@ import { useGovernance } from '@/components/erp/GovernanceBellDrawer'
 import {
   buildRegulationCircularText,
   buildRegulationStopDirective,
+  DEFAULT_REGULATION_BRANCH_READINESS,
   REG_STOP_ORDERS_STORAGE_KEY,
   REGULATION_TRACK_OPTIONS,
   REGULATIONS_STORAGE_KEY,
@@ -37,11 +39,11 @@ import {
 } from '@/lib/aether/regulations-engine'
 
 const CARD_CLS =
-  'ae-bento-card bg-white p-5 sm:p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-[#111A22]'
+  'ae-bento-card bg-white p-5 sm:p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-neutral-900'
 const KPI_CARD_CLS =
-  'ae-kpi-card bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-[#111A22]'
+  'ae-kpi-card bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-neutral-900'
 const INPUT_CLS =
-  'h-10 w-full rounded-xl bg-white px-3 text-[13px] font-medium text-neutral-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 dark:bg-[#0F1821] dark:text-white'
+  'h-10 w-full rounded-xl bg-white px-3 text-[13px] font-medium text-neutral-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 dark:bg-neutral-950 dark:text-white'
 
 const f0 = (n: number) => Math.round(Number.isFinite(n) ? n : 0).toLocaleString('en-US')
 
@@ -217,7 +219,10 @@ export function RegulationsComplianceStudio() {
     let readyBranchSlots = 0
     const totalSlots = Math.max(1, regulations.length * APPROVED_BRANCH_IDS.length)
     for (const r of regulations) {
-      const rec = store.branchReceipts[`reg-ready:${r.id}`] ?? {}
+      const rec =
+        store.branchReceipts[`reg-ready:${r.id}`] ??
+        DEFAULT_REGULATION_BRANCH_READINESS[r.id] ??
+        {}
       for (const b of APPROVED_BRANCH_IDS) {
         if (rec[b]) readyBranchSlots += 1
       }
@@ -263,7 +268,7 @@ export function RegulationsComplianceStudio() {
           <button
             type="button"
             onClick={() => openDrawer('all')}
-            className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-[#F7F7F8] px-3.5 text-xs font-semibold text-neutral-800 transition-colors hover:bg-neutral-200/70 dark:bg-[#0C141B] dark:text-slate-200"
+            className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-[#F7F7F8] px-3.5 text-xs font-semibold text-neutral-800 transition-colors hover:bg-neutral-200/70 dark:bg-neutral-950 dark:text-slate-200"
           >
             <Bell className="h-3.5 w-3.5 text-emerald-600" />
             <span>{isAr ? 'مركز اعتمادات المدير 🔔' : 'Governance Bell 🔔'}</span>
@@ -428,7 +433,7 @@ export function RegulationsComplianceStudio() {
                     ? '١. تعميم القرار على مديري الفروع السبعة...\n٢. توثيق الفحص في مطبخ العارضية...'
                     : '1. Notify all 7 branch managers...\n2. Verify compliance at Ardiya kitchen...'
                 }
-                className="w-full rounded-xl bg-[#F7F7F8] p-3 text-xs text-neutral-900 outline-none focus:ring-2 focus:ring-emerald-600/30 dark:bg-[#0C141B] dark:text-white"
+                className="w-full rounded-xl bg-[#F7F7F8] p-3 text-xs text-neutral-900 outline-none focus:ring-2 focus:ring-emerald-600/30 dark:bg-neutral-950 dark:text-white"
               />
             </div>
 
@@ -504,9 +509,29 @@ export function RegulationsComplianceStudio() {
           const readinessKey = `reg-ready:${reg.id}`
           const circularKey = `reg-circular:${reg.id}`
           const issuedCircular = store.issuedCirculars[circularKey]
-          const readinessMap = store.branchReceipts[readinessKey] ?? {}
+          const readinessMap =
+            store.branchReceipts[readinessKey] ??
+            DEFAULT_REGULATION_BRANCH_READINESS[reg.id] ??
+            {}
           const readyBranchesCount = APPROVED_BRANCH_IDS.filter((b) => readinessMap[b]).length
+          const pendingBranchesCount = APPROVED_BRANCH_IDS.length - readyBranchesCount
           const isStopActive = Boolean(stoppedRegs[reg.id])
+
+          const severityBadge =
+            reg.severity === 'critical'
+              ? {
+                  cls: 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300',
+                  label: isAr ? 'أولوية قصوى' : 'Critical',
+                }
+              : reg.severity === 'high'
+                ? {
+                    cls: 'bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-200',
+                    label: isAr ? 'أولوية عالية' : 'High Priority',
+                  }
+                : {
+                    cls: 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300',
+                    label: isAr ? 'امتثال دوري' : 'Standard',
+                  }
 
           const circularBodyAr = buildRegulationCircularText(
             reg,
@@ -526,15 +551,18 @@ export function RegulationsComplianceStudio() {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="space-y-1.5">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-full bg-neutral-900 px-2.5 py-0.5 font-mono text-xs font-bold text-white dark:bg-emerald-500 dark:text-[#04130D]">
+                    <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 font-mono text-xs font-bold text-neutral-800 dark:bg-neutral-800 dark:text-slate-100">
                       {reg.code}
                     </span>
-                    <span className="rounded-full bg-[#F7F7F8] px-3 py-0.5 text-xs font-semibold text-neutral-700 dark:bg-[#0C141B] dark:text-slate-200">
+                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${severityBadge.cls}`}>
+                      {severityBadge.label}
+                    </span>
+                    <span className="rounded-full bg-neutral-100 px-3 py-0.5 text-xs font-semibold text-neutral-800 dark:bg-neutral-800 dark:text-slate-200">
                       {isAr ? reg.authorityAr : reg.authorityEn}
                     </span>
                     <span
                       dir="ltr"
-                      className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-amber-900 dark:bg-amber-950/60 dark:text-amber-200"
+                      className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-amber-800 dark:bg-amber-950/60 dark:text-amber-200"
                     >
                       {isAr ? `المهلة: ${reg.deadlineDate}` : `Deadline: ${reg.deadlineDate}`}
                     </span>
@@ -563,7 +591,7 @@ export function RegulationsComplianceStudio() {
                     ) : null}
 
                     {isStopActive ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-rose-600 px-2.5 py-0.5 text-xs font-semibold text-white">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-semibold text-rose-700 dark:bg-rose-950/70 dark:text-rose-300">
                         <ShieldAlert className="h-3 w-3" />
                         <span>{isAr ? 'أمر إيقاف مخالفة مفعل ⛔' : 'Stop Order Active ⛔'}</span>
                       </span>
@@ -580,7 +608,7 @@ export function RegulationsComplianceStudio() {
 
                 {/* Cost Impact vs Penalty Shielded Pills */}
                 <div className="flex flex-wrap items-center gap-2">
-                  <div className="rounded-xl bg-[#F7F7F8] px-3.5 py-2 text-end dark:bg-[#0C141B]">
+                  <div className="rounded-xl bg-[#F7F7F8] px-3.5 py-2 text-end dark:bg-neutral-950">
                     <div className="text-[10.5px] text-neutral-400">
                       {isAr ? 'تكلفة الامتثال' : 'Cost Impact'}
                     </div>
@@ -601,7 +629,7 @@ export function RegulationsComplianceStudio() {
               </div>
 
               {/* Step-by-Step Mitigation Plan (`خطة التعامل`) */}
-              <div className="rounded-2xl bg-[#F7F7F8] p-4 dark:bg-[#0C141B]">
+              <div className="rounded-2xl bg-[#F7F7F8] p-4 dark:bg-neutral-950">
                 <div className="mb-2 text-xs font-semibold text-neutral-900 dark:text-white">
                   {isAr ? 'خطة التعامل التنفيذية خطوة بخطوة:' : 'Step-by-Step Mitigation Plan:'}
                 </div>
@@ -609,7 +637,7 @@ export function RegulationsComplianceStudio() {
                   {(isAr ? reg.mitigationStepsAr : reg.mitigationStepsEn).map((step, idx) => (
                     <li
                       key={`${reg.id}-step-${idx}`}
-                      className="flex items-start gap-2 rounded-xl bg-white p-2.5 text-xs leading-relaxed text-neutral-700 shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:bg-[#111A22] dark:text-slate-200"
+                      className="flex items-start gap-2 rounded-xl bg-white p-2.5 text-xs leading-relaxed text-neutral-700 shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:bg-neutral-900 dark:text-slate-200"
                     >
                       <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-[11px] font-bold text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300">
                         {idx + 1}
@@ -621,15 +649,26 @@ export function RegulationsComplianceStudio() {
               </div>
 
               {/* 7/7 Branch Readiness Checklist */}
-              <div className="rounded-2xl bg-[#F7F7F8] p-3.5 space-y-2.5 dark:bg-[#0C141B]">
+              <div className="rounded-2xl bg-[#F7F7F8] p-3.5 space-y-2.5 dark:bg-neutral-950">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 text-xs font-semibold text-neutral-900 dark:text-white">
+                  <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-neutral-900 dark:text-white">
                     <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                     <span>
                       {isAr
                         ? `قائمة جاهزية الفروع السبعة (${readyBranchesCount}/7 فروع مطابقة)`
                         : `7-Branch Readiness Checklist (${readyBranchesCount}/7 Verified)`}
                     </span>
+                    {pendingBranchesCount > 0 ? (
+                      <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
+                        {isAr
+                          ? `${pendingBranchesCount} بانتظار الاستكمال قبل ${reg.deadlineDate}`
+                          : `${pendingBranchesCount} pending before ${reg.deadlineDate}`}
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                        {isAr ? 'جميع الفروع مطابقة 100% ✓' : '100% Compliant ✓'}
+                      </span>
+                    )}
                   </div>
 
                   <button
@@ -654,13 +693,17 @@ export function RegulationsComplianceStudio() {
                             branchId as Exclude<GlobalBranch, 'all'>,
                           )
                         }
-                        className={`inline-flex cursor-pointer items-center gap-1 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                        className={`inline-flex cursor-pointer items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
                           ready
-                            ? 'bg-emerald-600 text-white'
-                            : 'bg-white text-neutral-600 shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:bg-neutral-100 dark:bg-[#111A22] dark:text-slate-300'
+                            ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-600/20 hover:bg-emerald-100 dark:bg-emerald-950/70 dark:text-emerald-200'
+                            : 'bg-amber-50 text-amber-800 ring-1 ring-amber-500/25 hover:bg-amber-100 dark:bg-amber-950/50 dark:text-amber-200'
                         }`}
                       >
-                        {ready ? <Check className="h-3 w-3" /> : null}
+                        {ready ? (
+                          <Check className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                        ) : (
+                          <Clock className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                        )}
                         <span>{getBranchLabel(branchId, isAr)}</span>
                       </button>
                     )
@@ -700,7 +743,8 @@ export function RegulationsComplianceStudio() {
                       onClick={() =>
                         approveItemWithPin(approval.id, approval.titleAr, approval.titleEn)
                       }
-                      className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-emerald-600 px-3.5 text-xs font-semibold text-white hover:bg-emerald-700"
+                      className="btn-colored inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-emerald-600 px-3.5 text-xs font-semibold text-white hover:bg-emerald-700"
+                      style={{ color: '#FFFFFF' }}
                     >
                       <Lock className="h-3 w-3" />
                       <span>{isAr ? 'موافقة واعتماد بـ PIN ✅' : 'Approve & Seal (PIN) ✅'}</span>
@@ -732,7 +776,8 @@ export function RegulationsComplianceStudio() {
                     <button
                       type="button"
                       onClick={() => handleStopRegulatoryViolation(reg)}
-                      className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-rose-600 px-3.5 text-xs font-semibold text-white transition-colors hover:bg-rose-700"
+                      className="btn-colored inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-rose-600 px-3.5 text-xs font-semibold text-white transition-colors hover:bg-rose-700"
+                      style={{ color: '#FFFFFF' }}
                     >
                       <Lock className="h-3 w-3" />
                       <span>
@@ -755,7 +800,7 @@ export function RegulationsComplianceStudio() {
                   <button
                     type="button"
                     onClick={() => copyToClipboard(`reg-circ-${reg.id}`, activeCircularText)}
-                    className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-[#F7F7F8] px-3 text-xs font-medium text-neutral-800 hover:bg-neutral-200/70 dark:bg-[#0C141B] dark:text-slate-200"
+                    className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-[#F7F7F8] px-3 text-xs font-medium text-neutral-800 hover:bg-neutral-200/70 dark:bg-neutral-950 dark:text-slate-200"
                   >
                     {copiedKey === `reg-circ-${reg.id}` ? (
                       <>
