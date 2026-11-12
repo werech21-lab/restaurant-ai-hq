@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
+  ArrowUpRight,
   Bell,
   Check,
   CheckCircle2,
@@ -74,7 +75,13 @@ export function RegulationsComplianceStudio() {
     issueOfficialCircularWithPin,
     openCircularPrintModal,
     openDrawer,
+    breaches,
   } = useGovernance()
+
+  const activeBreachCount = useMemo(
+    () => breaches.filter((b) => !b.frozen).length,
+    [breaches],
+  )
 
   const [trackFilter, setTrackFilter] = useState<'all' | RegulationTrackId>('all')
   const [regulations, setRegulations] = useState<RegulationPlaybookItem[]>(SEEDED_REGULATIONS)
@@ -878,7 +885,7 @@ export function RegulationsComplianceStudio() {
                   )}
                 </div>
 
-                {/* Quiet Compact Overflow Menu (`مشاركة / معاينة ⋯`) */}
+                {/* Quiet Compact Overflow Menu (`مشاركة ⋯`) */}
                 <div data-reg-menu-root className="relative">
                   <button
                     type="button"
@@ -886,7 +893,7 @@ export function RegulationsComplianceStudio() {
                     onClick={() => setOpenMenuId((cur) => (cur === reg.id ? null : reg.id))}
                     className="ae-pill-light h-9 px-3.5 text-[13px]"
                   >
-                    <span>{isAr ? 'مشاركة / معاينة ⋯' : 'Share / Preview ⋯'}</span>
+                    <span>{isAr ? 'مشاركة ⋯' : 'Share ⋯'}</span>
                   </button>
 
                   {menuOpen ? (
@@ -1023,6 +1030,46 @@ export function RegulationsComplianceStudio() {
           )
         })}
       </section>
+
+      {/* ───────────── Single Compact Odoo 17 Compliance Status Strip (Opens Manager Bell Breaches Tab) ───────────── */}
+      <button
+        type="button"
+        onClick={() => openDrawer('breaches')}
+        className="ae-bento-card ae-lift flex w-full cursor-pointer flex-wrap items-center justify-between gap-3 px-5 py-4 text-start transition-all"
+      >
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="ae-icon-badge">
+            <ShieldCheck className="h-4 w-4" />
+          </span>
+          <span className="text-[14.5px] font-semibold text-slate-900 dark:text-white">
+            {isAr
+              ? 'مراقب أودو ١٧ نشط • افتح جرس الاعتمادات لمراجعة المخالفات 🔔'
+              : 'Odoo 17 Watchdog Active • Open Approval Bell to Review Breaches 🔔'}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2.5">
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1 text-[13px] font-semibold tabular-nums ${
+              activeBreachCount > 0
+                ? 'bg-rose-50 text-rose-700 ring-1 ring-rose-500/20 dark:bg-rose-950/60 dark:text-rose-300'
+                : 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-500/20 dark:bg-emerald-950/60 dark:text-emerald-300'
+            }`}
+          >
+            <span
+              className={`h-2 w-2 rounded-full ${
+                activeBreachCount > 0 ? 'bg-rose-500' : 'bg-emerald-500'
+              }`}
+            />
+            <span>
+              {isAr
+                ? `${activeBreachCount} مخالفات نشطة`
+                : `${activeBreachCount} Active Breaches`}
+            </span>
+          </span>
+          <ArrowUpRight className="h-4 w-4 text-slate-400" />
+        </div>
+      </button>
     </div>
   )
 }

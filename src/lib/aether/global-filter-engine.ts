@@ -620,6 +620,171 @@ const fKwd = (v: number, ar: boolean): string => {
   return ar ? `${rounded} د.ك` : `${rounded} KWD`
 }
 
+const PLAY_CURATED_TOPICS: Record<
+  string,
+  { topicKey: string; titleAr: string; titleEn: string }
+> = {
+  'quality-retention': {
+    topicKey: 'direct-vip-retention',
+    titleAr: 'تحويل الضيوف لطلب مباشر دائم',
+    titleEn: 'Convert Guests to Direct Regulars',
+  },
+  'kitchen-inventory-variance': {
+    topicKey: 'kitchen-inventory-variance',
+    titleAr: 'ضبط فوارق جرد المطبخ الخام',
+    titleEn: 'Control Abnormal Kitchen Variance',
+  },
+  'delivery-corporate-diwaniya-direct': {
+    topicKey: 'direct-corporate-diwaniya-boxes',
+    titleAr: 'بوكسات الشركات والديوانيات المباشرة',
+    titleEn: 'Direct Office & Diwaniya Boxes',
+  },
+  'kitchen-ardiya-prep-par-shield': {
+    topicKey: 'ardiya-flexible-prep-par',
+    titleAr: 'جدول تحضير مرن بمطبخ العارضية',
+    titleEn: 'Flexible Ardiya Prep Schedule',
+  },
+  'menu-reprice-china-garden': {
+    topicKey: 'menu-surgical-reprice-cg',
+    titleAr: 'تعديل تسعير أصناف تشاينا جاردن',
+    titleEn: 'Surgical Repricing at China Garden',
+  },
+  'delivery-promo-burn': {
+    topicKey: 'aggregator-promo-burn-cap',
+    titleAr: 'سقف الخصومات المشتركة بالتطبيقات',
+    titleEn: 'Cap Co-Funded App Discounts',
+  },
+  'opex-host-kitchen-avenues': {
+    topicKey: 'host-kitchen-brand-sharing',
+    titleAr: 'تشغيل فارم براون بمطبخ الأفنيوز',
+    titleEn: 'Host Farm Brown in Avenues Kitchen',
+  },
+  'kitchen-scrap-hotspot': {
+    topicKey: 'kitchen-overprep-waste',
+    titleAr: 'تقليل هدر التحضير المسبق بالمطبخ',
+    titleEn: 'Cut Over-Prep Kitchen Spoilage',
+  },
+  'delivery-commission-keeta': {
+    topicKey: 'keeta-contract-rate-audit',
+    titleAr: 'مطابقة عمولة كيتا مع العقد',
+    titleEn: 'Audit Keeta Contract Fee Rate',
+  },
+  'ops-cashier-upsell-incentive': {
+    topicKey: 'cashier-upsell-script',
+    titleAr: 'تحفيز البيع الإضافي عند الكاشير',
+    titleEn: 'Cashier Combo Upsell Prompt',
+  },
+  'menu-basket-china-garden': {
+    topicKey: 'single-item-combo-upgrade',
+    titleAr: 'ترقية طلبات الصنف الواحد لكومبو',
+    titleEn: 'Upgrade Single-Item Orders to Combos',
+  },
+  'delivery-unsettled-clearing': {
+    topicKey: 'weekly-aggregator-payout-clearing',
+    titleAr: 'مطابقة مستحقات التطبيقات أسبوعياً',
+    titleEn: 'Reconcile Weekly App Payouts',
+  },
+  'menu-channel-price-shield': {
+    topicKey: 'delivery-menu-price-shield',
+    titleAr: 'تسعيرة مستقلة لتطبيقات التوصيل',
+    titleEn: 'Dedicated Delivery App Menu Pricing',
+  },
+  'delivery-tgo-tmp-mix': {
+    topicKey: 'shift-tgo-to-tmp-drivers',
+    titleAr: 'تحويل الطلبات القريبة لسائقي TMP',
+    titleEn: 'Shift Nearby Orders to TMP Drivers',
+  },
+  'menu-shop-basket-china-garden': {
+    topicKey: 'single-item-combo-upgrade',
+    titleAr: 'ترقية طلبات الصنف الواحد لكومبو',
+    titleEn: 'Upgrade Single-Item Orders to Combos',
+  },
+  'menu-kuwait-calendar-tactical': {
+    topicKey: 'kuwait-payday-weekend-bundles',
+    titleAr: 'باقات الرواتب وزوارة الويكند',
+    titleEn: 'Payday & Weekend Family Bundles',
+  },
+  'ops-discount-discipline': {
+    topicKey: 'manual-pos-discount-cap',
+    titleAr: 'قصر الخصومات اليدوية برمز المدير',
+    titleEn: 'Gate Manual POS Discounts by PIN',
+  },
+  'opex-custody-offpo-anomalies': {
+    topicKey: 'petty-cash-po-governance',
+    titleAr: 'إقفال العهد ومنع الشراء بلا أمر',
+    titleEn: 'Close Petty Cash & Enforce POs',
+  },
+  'proc-price-creep': {
+    topicKey: 'supplier-contract-price-lock',
+    titleAr: 'تثبيت أسعار عقود مواد المطبخ',
+    titleEn: 'Lock Core Ingredient Contract Rates',
+  },
+  'proc-vendor-consolidation': {
+    topicKey: 'vendor-rate-consolidation',
+    titleAr: 'توحيد شراء الأصناف بأقل مورد',
+    titleEn: 'Consolidate Multi-Supplier Rates',
+  },
+  'quality-cancellations': {
+    topicKey: 'evening-peak-cancellations',
+    titleAr: 'تقليل إلغاءات ذروة المساء',
+    titleEn: 'Cut Evening Rush Cancellations',
+  },
+  'kitchen-portion-drift': {
+    topicKey: 'cooking-line-portion-weights',
+    titleAr: 'ضبط أوزان الحصص على خط الطبخ',
+    titleEn: 'Standardize Cooking-Line Portions',
+  },
+  'menu-reprice-franks': {
+    topicKey: 'menu-surgical-reprice-franks',
+    titleAr: 'تعديل تسعير أصناف فرانكس المختارة',
+    titleEn: "Surgical Repricing at Frank's",
+  },
+  'ops-session-discipline': {
+    topicKey: 'pos-opening-closing-discipline',
+    titleAr: 'الالتزام بمواعيد فتح الكاشير',
+    titleEn: 'Enforce On-Time Register Hours',
+  },
+  'opex-repair-loop-capex': {
+    topicKey: 'repeat-equipment-repair-cap',
+    titleAr: 'استبدال المعدات متكررة الأعطال',
+    titleEn: 'Replace Repeat-Failure Equipment',
+  },
+  'opex-cross-branch-anomalies': {
+    topicKey: 'branch-supplies-spend-cap',
+    titleAr: 'ترشيد استهلاك مستلزمات الفروع',
+    titleEn: 'Cap Branch Supplies Over-Spend',
+  },
+  'proc-packaging-per-order': {
+    topicKey: 'packaging-per-order-control',
+    titleAr: 'ربط صرف التغليف بعدد الطلبات',
+    titleEn: 'Tie Packaging Issue to Order Count',
+  },
+  'opex-unallocated-analytic-governance': {
+    topicKey: 'petty-cash-po-governance',
+    titleAr: 'إقفال العهد ومنع الشراء بلا أمر',
+    titleEn: 'Close Petty Cash & Enforce POs',
+  },
+  'ops-shift-realign-360-mall': {
+    topicKey: 'branch-peak-shift-realignment',
+    titleAr: 'إعادة توزيع شفتات ذروة المساء',
+    titleEn: 'Realign Shifts to Evening Rush',
+  },
+  'menu-kitchen-drag-farm-brown': {
+    topicKey: 'prune-slow-complex-skus',
+    titleAr: 'حذف الأصناف البطيئة كثيرة الهدر',
+    titleEn: 'Prune Slow High-Waste Menu Items',
+  },
+}
+
+function normalizePlayTopicKey(raw: string): string {
+  return raw
+    .normalize('NFKC')
+    .replace(/[\u064B-\u065F\u0670\u0640]/g, '')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim()
+    .toLowerCase()
+}
+
 function simplifyPlayCopy(p: JourneyPlay): {
   titleAr: string
   titleEn: string
@@ -628,6 +793,17 @@ function simplifyPlayCopy(p: JourneyPlay): {
   solutionAr: string
   solutionEn: string
 } {
+  const curated = PLAY_CURATED_TOPICS[p.id]
+  if (curated) {
+    return {
+      titleAr: curated.titleAr,
+      titleEn: curated.titleEn,
+      problemAr: p.leakAr || p.titleAr,
+      problemEn: p.leakEn || p.titleEn,
+      solutionAr: p.actionAr || p.titleAr,
+      solutionEn: p.actionEn || p.titleEn,
+    }
+  }
   const id = p.id
   if (id === 'proc-price-creep') {
     return {
@@ -1499,7 +1675,7 @@ export function computeGlobalWorkspace(
         ? Math.min(1.4, Math.max(0.2, sliceNetMult))
         : Math.min(1, Math.max(0.18, sliceNetMult))
 
-  const plays: SimplePlayView[] = effectivePlays.map((p) => {
+  const rawMappedPlays: SimplePlayView[] = effectivePlays.map((p) => {
     const scope = detectPlayScope(p)
     const copy = simplifyPlayCopy(p)
     const cfoRealism = buildCfoRealismForPlay(p)
@@ -1538,6 +1714,54 @@ export function computeGlobalWorkspace(
       tiersPeriod,
     }
   })
+
+  // Consolidate multi-branch/brand insights sharing the same topic/title into ONE single card
+  const consolidatedPlaysMap = new Map<string, SimplePlayView>()
+  for (const item of rawMappedPlays) {
+    const curatedTopic = PLAY_CURATED_TOPICS[item.id]?.topicKey
+    const key = normalizePlayTopicKey(curatedTopic ?? item.titleEn ?? item.titleAr)
+    const existing = consolidatedPlaysMap.get(key)
+    if (!existing) {
+      consolidatedPlaysMap.set(key, item)
+      continue
+    }
+    const mergedBrands: readonly BrandKey[] | 'all' =
+      existing.brands === 'all' || item.brands === 'all'
+        ? 'all'
+        : Array.from(new Set([...existing.brands, ...item.brands]))
+    const mergedBranches: readonly BranchKey[] | 'all' =
+      existing.branches === 'all' || item.branches === 'all'
+        ? 'all'
+        : Array.from(new Set([...existing.branches, ...item.branches]))
+    const mergedChannels: readonly ChannelKey[] | 'all' =
+      existing.channels === 'all' || item.channels === 'all'
+        ? 'all'
+        : Array.from(new Set([...existing.channels, ...item.channels]))
+    const nextMonthly = existing.monthlyBenefitKwd + item.monthlyBenefitKwd
+    const nextPeriod = Math.round((existing.periodBenefitKwd + item.periodBenefitKwd) * 10) / 10
+    consolidatedPlaysMap.set(key, {
+      ...existing,
+      brands: Array.isArray(mergedBrands) && mergedBrands.length >= 6 ? 'all' : mergedBrands,
+      branches: Array.isArray(mergedBranches) && mergedBranches.length >= 6 ? 'all' : mergedBranches,
+      channels: mergedChannels,
+      monthlyBenefitKwd: nextMonthly,
+      periodBenefitKwd: nextPeriod,
+      annualBenefitKwd: nextMonthly * 12,
+      periodLabelAr: `${fKwd(nextPeriod, true)} ${periodBenefitUnitAr[filters.period]}`,
+      periodLabelEn: `${fKwd(nextPeriod, false)} ${periodBenefitUnitEn[filters.period]}`,
+      tiersMonthly: {
+        conservativeKwd: existing.tiersMonthly.conservativeKwd + item.tiersMonthly.conservativeKwd,
+        realisticKwd: existing.tiersMonthly.realisticKwd + item.tiersMonthly.realisticKwd,
+        stretchKwd: existing.tiersMonthly.stretchKwd + item.tiersMonthly.stretchKwd,
+      },
+      tiersPeriod: {
+        conservativeKwd: existing.tiersPeriod.conservativeKwd + item.tiersPeriod.conservativeKwd,
+        realisticKwd: existing.tiersPeriod.realisticKwd + item.tiersPeriod.realisticKwd,
+        stretchKwd: existing.tiersPeriod.stretchKwd + item.tiersPeriod.stretchKwd,
+      },
+    })
+  }
+  const plays: SimplePlayView[] = Array.from(consolidatedPlaysMap.values())
 
   const totalPlaysBenefitMonthlyKwd = plays.reduce((s, p) => s + p.monthlyBenefitKwd, 0)
   const totalPlaysBenefitPeriodKwd = Math.round(plays.reduce((s, p) => s + p.periodBenefitKwd, 0))
@@ -1587,6 +1811,7 @@ export function computeGlobalWorkspace(
       ctaEn: 'Audit Buying ↗',
       action: 'stage-procurement',
       targetStage: 'procurement',
+      href: '/erp/warehouse-chain',
     },
     {
       id: 'expenses-maint',
@@ -1602,6 +1827,7 @@ export function computeGlobalWorkspace(
       ctaEn: 'Expense Details ↗',
       action: 'stage-opex',
       targetStage: 'opex',
+      href: '/erp/planning',
     },
     {
       id: 'delivery-dues',
@@ -1632,6 +1858,7 @@ export function computeGlobalWorkspace(
       ctaEn: 'Compare Branches ↗',
       action: 'chart-branches',
       targetStage: 'operations',
+      href: '/erp/prep-sla',
     },
     {
       id: 'menu-prices',
@@ -1662,6 +1889,7 @@ export function computeGlobalWorkspace(
       ctaEn: 'Quiet-Hours Plan ↗',
       action: 'lens-quiet',
       targetStage: 'operations',
+      href: '/erp/weekday-comparison',
     },
   ]
 

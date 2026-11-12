@@ -263,6 +263,24 @@ export function ExecutiveCommandPalette() {
       },
     ]
 
+    const stageRoute = (stg: string) => {
+      switch (stg) {
+        case 'procurement':
+        case 'kitchen':
+          return '/erp/warehouse-chain'
+        case 'menu':
+          return '/erp/cores?tab=menu'
+        case 'delivery':
+          return '/erp/aggregator-radar'
+        case 'opex':
+          return '/erp/planning'
+        case 'operations':
+          return '/erp/prep-sla'
+        default:
+          return '/erp/cores?tab=marketing'
+      }
+    }
+
     const decisions: Command[] = workspace.plays.map((p) => ({
       id: `d-${p.id}`,
       group: 'decisions',
@@ -272,7 +290,7 @@ export function ExecutiveCommandPalette() {
       hintAr: `+${p.periodLabelAr}`,
       keywords: `${p.problemEn} ${p.problemAr} ${p.stage} ${p.id}`,
       icon: <Target className="h-4 w-4 text-emerald-600" />,
-      run: () => go(`/erp?stage=${encodeURIComponent(p.stage)}&play=${encodeURIComponent(p.id)}`),
+      run: () => go(stageRoute(p.stage)),
     }))
 
     const branches: Command[] = BRANCH_TRUE_CASH.filter((b) =>

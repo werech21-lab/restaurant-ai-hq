@@ -12,7 +12,7 @@ export const metadata = {
 export default async function AggregatorRadarPage() {
   await requirePageUser('/erp/aggregator-radar')
   return (
-    <div className="w-full min-w-0" suppressHydrationWarning>
+    <div className="w-full max-w-[1920px] mx-auto min-w-0" suppressHydrationWarning>
       <DeliveryRadarV5 />
     </div>
   )

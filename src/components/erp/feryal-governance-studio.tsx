@@ -1664,15 +1664,17 @@ export function FeryalGovernanceStudio() {
 
           {/* Input Dock (Multimodal Vision: Photos + Videos + Voice + Text) */}
           <div className="border-t border-neutral-100 bg-white px-4 pb-4 pt-3 sm:px-6 dark:border-white/[0.06] dark:bg-[#111A22]">
-            <FeryalVisionQuickBar
-              isAr={isAr}
-              disabled={isCopilotThinking || isProcessingMedia}
-              onOpenPicker={() => openPickerRef.current?.()}
-              onSelectVisionPrompt={(presetPrompt) => {
-                setInputText(presetPrompt)
-                inputFieldRef.current?.focus()
-              }}
-            />
+            {messages.length > 1 ? (
+              <FeryalVisionQuickBar
+                isAr={isAr}
+                disabled={isCopilotThinking || isProcessingMedia}
+                onOpenPicker={() => openPickerRef.current?.()}
+                onSelectVisionPrompt={(presetPrompt) => {
+                  setInputText(presetPrompt)
+                  inputFieldRef.current?.focus()
+                }}
+              />
+            ) : null}
 
             <FeryalPendingAttachmentsTray
               isAr={isAr}

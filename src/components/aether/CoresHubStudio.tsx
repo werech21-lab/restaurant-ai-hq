@@ -1295,7 +1295,7 @@ export function CoresHubStudio() {
                                 className="inline-flex cursor-pointer items-center gap-1 rounded-full bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100 dark:bg-rose-950/60 dark:text-rose-300"
                               >
                                 <ShieldAlert className="h-3 w-3" />
-                                <span>{isAr ? '🚨 مخالفة لقرار معتمد' : '🚨 Compliance Alert'}</span>
+                                <span>{isAr ? 'تصعيد ↗' : 'Escalate ↗'}</span>
                               </button>
                             ) : null}
                             <span dir="ltr" className="text-xs tabular-nums text-neutral-400">

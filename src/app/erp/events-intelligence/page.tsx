@@ -11,7 +11,7 @@ export const metadata = {
 export default async function EventsIntelligencePage() {
   await requirePageUser('/erp/events-intelligence')
   return (
-    <div className="w-full">
+    <div className="w-full max-w-[1920px] mx-auto min-w-0">
       <BoothStudyV5 />
     </div>
   )

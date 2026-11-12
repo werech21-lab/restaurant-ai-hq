@@ -1057,7 +1057,7 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
                     )}
                   </div>
 
-                  {/* Quiet Compact Overflow Menu (`مشاركة / معاينة ⋯`) */}
+                  {/* Quiet Compact Overflow Menu (`مشاركة ⋯`) */}
                   <div data-plan-menu-root className="relative">
                     <button
                       type="button"
@@ -1065,7 +1065,7 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
                       onClick={() => setOpenMenuId((cur) => (cur === phase.id ? null : phase.id))}
                       className="ae-pill-light h-9 px-3.5 text-[13px]"
                     >
-                      <span>{isAr ? 'مشاركة / معاينة ⋯' : 'Share / Preview ⋯'}</span>
+                      <span>{isAr ? 'مشاركة ⋯' : 'Share ⋯'}</span>
                     </button>
 
                     {menuOpen ? (
@@ -1226,8 +1226,8 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
           </span>
           <span className="text-[14.5px] font-semibold text-slate-900 dark:text-white">
             {isAr
-              ? 'مراقب أودو ١٧ نشط • عرض وإدارة المخالفات في جرس الاعتمادات 🔔'
-              : 'Odoo 17 Watchdog Active • View & Manage Breaches in Approval Bell 🔔'}
+              ? 'مراقب أودو ١٧ نشط • افتح جرس الاعتمادات لمراجعة المخالفات 🔔'
+              : 'Odoo 17 Watchdog Active • Open Approval Bell to Review Breaches 🔔'}
           </span>
         </div>
 

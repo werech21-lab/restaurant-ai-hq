@@ -937,14 +937,6 @@ export function DeliveryRadarV5() {
     ]
   }, [deliveryMixStats, isAr, summary.totalSalesKwd, T])
 
-  const deliveryBreaches = useMemo(
-    () =>
-      gov.breaches.filter(
-        (b) => b.category === 'aggregator-promo-cap' || b.category === 'tmp-tgo-routing',
-      ),
-    [gov.breaches],
-  )
-
   const handleRequestDeliveryApproval = () => {
     gov.requestApproval({
       refKey: DELIVERY_PLAN_REF,
@@ -1489,73 +1481,6 @@ export function DeliveryRadarV5() {
               </span>
             ) : null}
           </div>
-
-          {/* Live Aggregator Compliance Watchdog Alerts */}
-          {deliveryBreaches.length > 0 ? (
-            <div className="space-y-2 pt-1">
-              {deliveryBreaches.map((b) => (
-                <div
-                  key={b.id}
-                  className={`flex flex-col gap-2.5 rounded-2xl p-3.5 sm:flex-row sm:items-center sm:justify-between ${
-                    b.frozen
-                      ? 'bg-emerald-50/70 dark:bg-emerald-950/30'
-                      : 'bg-rose-50/75 dark:bg-rose-950/30'
-                  }`}
-                >
-                  <div className="min-w-0 space-y-0.5">
-                    <div className="flex flex-wrap items-center gap-1.5 text-[12.5px] font-bold text-slate-900 dark:text-white">
-                      <ShieldAlert
-                        className={`h-4 w-4 shrink-0 ${
-                          b.frozen ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
-                        }`}
-                      />
-                      <span>{isAr ? b.breachHeadlineAr : b.breachHeadlineEn}</span>
-                      <span
-                        dir="ltr"
-                        className="rounded-full bg-white/90 px-2 py-0.5 text-[11px] font-extrabold tabular-nums text-rose-700 dark:bg-white/10 dark:text-rose-300"
-                      >
-                        -{f0(b.monthlyLeakKwd)} {isAr ? 'د.ك/شهر' : 'KWD/mo'}
-                      </span>
-                    </div>
-                    <p className="text-[11.5px] text-slate-600 dark:text-slate-300">
-                      {isAr ? b.odooMetricProofAr : b.odooMetricProofEn}
-                    </p>
-                  </div>
-
-                  <div className="flex shrink-0 flex-wrap items-center gap-1.5">
-                    {b.frozen ? (
-                      <button
-                        type="button"
-                        onClick={() => gov.unfreezeBreachWithPin(b)}
-                        className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-white px-3 text-[11.5px] font-bold text-emerald-800 transition duration-150 hover:bg-emerald-100 dark:bg-white/10 dark:text-emerald-200"
-                      >
-                        <Unlock className="h-3 w-3" />
-                        <span>{T('Unfreeze 🔓', 'فك التجميد 🔓')}</span>
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => gov.freezeBreachWithPin(b, true)}
-                        className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-rose-600 px-3 text-[11.5px] font-bold text-white transition duration-150 hover:bg-rose-700"
-                      >
-                        <Lock className="h-3 w-3" />
-                        <span>{T('Stop Violation ⛔', 'إيقاف المخالفة ⛔')}</span>
-                      </button>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={() => gov.openBreachStopCircularPrint(b)}
-                      className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-white px-3 text-[11.5px] font-bold text-slate-800 transition duration-150 hover:bg-slate-100 dark:bg-white/10 dark:text-slate-200"
-                    >
-                      <FileText className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
-                      <span>{T('Print Stop Order 📄', 'طباعة أمر الإيقاف 📄')}</span>
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : null}
         </div>
 
         {/* 4-Col Zero-Collision TMP (15%) vs Tgo (27%) & Apps Donut */}

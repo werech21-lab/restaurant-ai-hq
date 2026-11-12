@@ -22,9 +22,6 @@ import {
   type ProfitLens,
 } from '@/lib/aether/global-filter-engine'
 
-export const ERP_SUBTAB_EVENT = 'aether:erp-subtab'
-export type ErpOverviewSubtab = 'summary' | 'plays'
-
 /** Routes that display the 5D POS & ledger filters (Period incl. Custom + Brand/Branch/Channel). */
 export const POS_FILTER_ROUTES = new Set([
   '/erp',
@@ -69,11 +66,6 @@ function useDocumentTitle(pathname: string, isAr: boolean, enabled: boolean) {
       observer.disconnect()
     }
   }, [pathname, isAr, enabled])
-}
-
-function readDomErpSubtab(): ErpOverviewSubtab {
-  if (typeof document === 'undefined') return 'summary'
-  return document.documentElement.dataset.erpSubtab === 'plays' ? 'plays' : 'summary'
 }
 
 function EmeraldPillTabs<T extends string>({
@@ -281,48 +273,11 @@ export function TopFilterBar({ companyNameAr = '', notifications }: TopFilterBar
   const [sharedCopied, setSharedCopied] = useState(false)
   const [draftFrom, setDraftFrom] = useState(filters.customFrom)
   const [draftTo, setDraftTo] = useState(filters.customTo)
-  const [erpSubtab, setErpSubtab] = useState<ErpOverviewSubtab>('summary')
 
   useEffect(() => {
     setDraftFrom(filters.customFrom)
     setDraftTo(filters.customTo)
   }, [filters.customFrom, filters.customTo])
-
-  useEffect(() => {
-    if (pathname !== '/erp') {
-      setErpSubtab('summary')
-      return
-    }
-    setErpSubtab(readDomErpSubtab())
-
-    const onSubtabEvent = (e: Event) => {
-      const detail = (e as CustomEvent<string>).detail
-      if (detail === 'plays' || detail === 'summary') {
-        setErpSubtab(detail)
-      } else {
-        setErpSubtab(readDomErpSubtab())
-      }
-    }
-
-    window.addEventListener(ERP_SUBTAB_EVENT, onSubtabEvent)
-    const observer =
-      typeof MutationObserver !== 'undefined'
-        ? new MutationObserver(() => {
-            setErpSubtab(readDomErpSubtab())
-          })
-        : null
-    if (observer && typeof document !== 'undefined') {
-      observer.observe(document.documentElement, {
-        attributes: true,
-        attributeFilter: ['data-erp-subtab'],
-      })
-    }
-
-    return () => {
-      window.removeEventListener(ERP_SUBTAB_EVENT, onSubtabEvent)
-      observer?.disconnect()
-    }
-  }, [pathname])
 
   const copyShareDeepLink = useCallback(async () => {
     if (!pathname) return
@@ -349,8 +304,8 @@ export function TopFilterBar({ companyNameAr = '', notifications }: TopFilterBar
   const page = routeTitle(pathname)
   const showPosFilters = POS_FILTER_ROUTES.has(pathname)
   // CRITICAL: Row 2 (7 Quick-Lens Pills + Green Weighted Margin / Peer Diagnostic Strip)
-  // renders ONLY when pathname === '/erp' AND active /erp sub-tab is 'summary' ('الأرقام المهمة').
-  const showOverviewSummaryRow2 = pathname === '/erp' && erpSubtab === 'summary'
+  // renders STRICTLY ONLY on `/erp` (`Overview / ملخص الشركة`) — NEVER on any subpage!
+  const showOverviewSummaryRow2 = pathname === '/erp'
 
   const diag = workspace.diagnosticStrip
   const diagPillTone =

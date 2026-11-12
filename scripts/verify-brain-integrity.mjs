@@ -598,12 +598,16 @@ assert(
     planningSrc.includes('تحديث التوقعات بالذكاء الاستراتيجي ✨') &&
     planningSrc.includes('تعميم الخطة المعتمدة رسمياً 📢') &&
     planningSrc.includes('إيقاف المخالفة فوراً ⛔') &&
-    planningSrc.includes('مراقب أودو ١٧ نشط • عرض وإدارة المخالفات في جرس الاعتمادات 🔔') &&
+    planningSrc.includes('مراقب أودو ١٧ نشط • افتح جرس الاعتمادات لمراجعة المخالفات 🔔') &&
     planningSrc.includes("openDrawer('breaches')") &&
+    planningSrc.includes('مشاركة ⋯') &&
     planningSrc.includes('grid-cols-1 xl:grid-cols-2 gap-6') &&
     planningSrc.includes('طلب اعتماد المدير') &&
     planningSrc.includes('معتمد رسمياً ✓') &&
     planningSrc.includes('طباعة التعميم الرسمي 📄') &&
+    regulationsSrc.includes('مراقب أودو ١٧ نشط • افتح جرس الاعتمادات لمراجعة المخالفات 🔔') &&
+    regulationsSrc.includes("openDrawer('breaches')") &&
+    regulationsSrc.includes('مشاركة ⋯') &&
     regulationsSrc.includes('تعميم خطة التعامل رسمياً 📢') &&
     regulationsSrc.includes('إيقاف المخالفة فوراً ⛔') &&
     regulationsSrc.includes('+ إضافة تشريع جديد') &&
@@ -1007,24 +1011,41 @@ assert(
 )
 
 assert(
-  topBarSrc.includes("pathname === '/erp' && erpSubtab === 'summary'") &&
-    topBarSrc.includes('aether:erp-subtab') &&
+  topBarSrc.includes("const showOverviewSummaryRow2 = pathname === '/erp'") &&
+    !topBarSrc.includes('aether:erp-subtab') &&
     sidebarSrc.includes('القيادة والمبيعات') &&
     sidebarSrc.includes('التشغيل وسلسلة الإمداد') &&
     sidebarSrc.includes('السمعة والذكاء المرئي') &&
     sidebarSrc.includes('الحوكمة والتخطيط'),
-  'Global Header Row 2 (7 Quick-Lens Pills + Weighted Margin Strip) strictly scoped to /erp summary & Sidebar categorized into 4 executive sections',
+  'Global Header Row 2 (7 Quick-Lens Pills + Weighted Margin Strip) strictly scoped ONLY to /erp & Sidebar categorized into 4 executive sections',
 )
 
 assert(
-  !journeySrc.includes('قبل وبعد 0') &&
+  !journeySrc.includes('فرص الربح المعتمدة') &&
+    !journeySrc.includes('Approved Profit Plays') &&
+    !journeySrc.includes("tab === 'tips'") &&
+    !journeySrc.includes('PLAYS_PER_PAGE') &&
+    !journeySrc.includes('قبل وبعد 0') &&
     journeySrc.includes('/erp/before-after') &&
-    journeySrc.includes('aether:erp-subtab') &&
-    journeySrc.includes('PLAYS_PER_PAGE = 6') &&
-    journeySrc.includes('normalizeTopicString') &&
-    journeySrc.includes('line-clamp-2') &&
-    journeySrc.includes('رفع للاعتماد 🔔'),
-  '/erp Before-After 0 sub-tab deduplicated & Profit Tips strictly topic-deduplicated, paginated 6/page (3x2), 2-line diagnosis & single رفع للاعتماد 🔔 CTA',
+    journeySrc.includes('/erp/cores?tab=marketing') &&
+    filterEngineSrc.includes("href: '/erp/warehouse-chain'") &&
+    filterEngineSrc.includes("href: '/erp/planning'") &&
+    filterEngineSrc.includes("href: '/erp/aggregator-radar'") &&
+    filterEngineSrc.includes("href: '/erp/prep-sla'") &&
+    filterEngineSrc.includes("href: '/erp/cores?tab=menu'") &&
+    filterEngineSrc.includes("href: '/erp/weekday-comparison'"),
+  '/erp Overview is a pure Single-View Executive Financial Cockpit (Profit Tips & Before-After sub-tabs completely deleted, 3x2 jump cards linked)',
+)
+
+assert(
+  !radarSrc.includes('deliveryBreaches.map') &&
+    !boothSrc.includes('boothBreaches.map') &&
+    !planningSrc.includes('breaches.map') &&
+    !regulationsSrc.includes('breaches.map') &&
+    !beforeAfterSrc.includes('breaches.map') &&
+    !coresSrc.includes('مخالفة لقرار معتمد') &&
+    govDrawerSrc.includes('breaches'),
+  'Single canonical home for live compliance breaches (GovernanceBellDrawer 🔔 ONLY — zero inline breach card grids on operational/planning pages)',
 )
 
 const feryalRedirectSrc = fs.readFileSync(path.join(ROOT, 'src/app/erp/feryal/page.tsx'), 'utf8')
@@ -1056,6 +1077,12 @@ const opsFiveClean = opsFiveStudioPaths.every((rel) => {
 
 const opsCalibrationProbeScript = `
 import { computeGlobalWorkspace, DEFAULT_GLOBAL_FILTERS } from './src/lib/aether/global-filter-engine';
+import { computeCoresHubSnapshot } from './src/lib/aether/cores-hub-engine';
+import { SEEDED_STRATEGIC_PHASES } from './src/lib/aether/planning-engine';
+import { SEEDED_REGULATIONS } from './src/lib/aether/regulations-engine';
+import { evaluateApprovedDecisionsImpact } from './src/lib/aether/before-after-engine';
+import { SEEDED_SOCIAL_CAMPAIGNS } from './src/lib/aether/social-campaigns';
+import { AETHER_FINDINGS } from './src/lib/aether-proprietary-brain';
 import { computeWarehouseDailyChain, computeOrderPrepSlaSnapshot } from './src/lib/warehouse-prep-engine';
 import {
   computeDeliverySlaSnapshot,
@@ -1063,13 +1090,53 @@ import {
   computeWeekdayComparisonData,
 } from './src/lib/ops-expansion-part2';
 
+const norm = (s) =>
+  String(s || '')
+    .normalize('NFKC')
+    .replace(/[\\u064B-\\u065F\\u0670\\u0640]/g, '')
+    .replace(/[^\\p{L}\\p{N}]+/gu, ' ')
+    .trim()
+    .toLowerCase();
+
+const countDups = (arr) => {
+  const seen = new Set();
+  let dups = 0;
+  for (const raw of arr) {
+    const k = norm(raw);
+    if (!k) continue;
+    if (seen.has(k)) dups++;
+    else seen.add(k);
+  }
+  return dups;
+};
+
 const f = DEFAULT_GLOBAL_FILTERS;
 const ws = computeGlobalWorkspace(f);
+const cores = computeCoresHubSnapshot(f, SEEDED_SOCIAL_CAMPAIGNS);
+const baRows = evaluateApprovedDecisionsImpact(f, [], SEEDED_SOCIAL_CAMPAIGNS);
 const wh = computeWarehouseDailyChain(f, ws, 'all');
 const prep = computeOrderPrepSlaSnapshot(f, ws);
 const del = computeDeliverySlaSnapshot(ws);
 const rev = computeSocialReviewsSnapshot(ws, new Set());
 const wk = computeWeekdayComparisonData(ws);
+
+const duplicateTitleCount =
+  countDups(ws.plays.map((p) => p.titleAr)) +
+  countDups(ws.plays.map((p) => p.titleEn)) +
+  countDups(ws.summaryCards.map((c) => c.titleAr)) +
+  countDups(ws.summaryCards.map((c) => c.titleEn)) +
+  countDups(cores.marketing.growthPlays.map((g) => g.titleAr)) +
+  countDups(cores.marketing.growthPlays.map((g) => g.titleEn)) +
+  countDups(SEEDED_STRATEGIC_PHASES.map((p) => p.titleAr)) +
+  countDups(SEEDED_STRATEGIC_PHASES.map((p) => p.titleEn)) +
+  countDups(SEEDED_REGULATIONS.map((r) => r.titleAr)) +
+  countDups(SEEDED_REGULATIONS.map((r) => r.titleEn)) +
+  countDups(baRows.map((r) => r.titleAr)) +
+  countDups(baRows.map((r) => r.titleEn)) +
+  countDups(rev.reviews.map((r) => r.commentAr)) +
+  countDups(rev.reviews.map((r) => r.commentEn)) +
+  countDups(AETHER_FINDINGS.map((a) => a.titleAr)) +
+  countDups(AETHER_FINDINGS.map((a) => a.titleEn));
 
 const prepHealthyPct = prep.greenPct + prep.yellowPct;
 const delHealthyPct = del.greenPct + del.yellowPct;
@@ -1080,6 +1147,8 @@ const revP1Red = rev.reviews.slice(0, 12).filter((r) => r.tier === 'red' || r.se
 const wkRed = wk.rows.filter((r) => r.tier === 'red').length;
 
 console.log(JSON.stringify({
+  duplicateTitleCount,
+  uniquePlaysCount: ws.plays.length,
   prepHealthyPct,
   delHealthyPct,
   wkHealthyPct,
@@ -1094,6 +1163,12 @@ const opsCalRaw = execFileSync(process.execPath, [tsxCli, '-e', opsCalibrationPr
   encoding: 'utf8',
 }).trim()
 const opsCal = JSON.parse(opsCalRaw.split('\n').pop() ?? '{}')
+
+assert(
+  opsCal.duplicateTitleCount === 0,
+  'Zero duplicate card/recommendation/phase/regulation/decision/review titles across all data engines',
+  `duplicateTitles=${opsCal.duplicateTitleCount}, uniquePlays=${opsCal.uniquePlaysCount}`,
+)
 
 assert(
   opsFiveClean &&

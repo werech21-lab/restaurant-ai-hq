@@ -67,7 +67,16 @@ export function GrowthPlaybookV5({
     }
   }, [])
 
-  const scoped = useMemo(() => (onlyIds ? AETHER_FINDINGS.filter((f) => onlyIds.includes(f.id)) : AETHER_FINDINGS), [onlyIds])
+  const scoped = useMemo(() => {
+    const raw = onlyIds ? AETHER_FINDINGS.filter((f) => onlyIds.includes(f.id)) : AETHER_FINDINGS
+    const seen = new Set<string>()
+    return raw.filter((f) => {
+      const k = `${f.titleEn.trim().toLowerCase()}|${f.titleAr.trim()}`
+      if (seen.has(k)) return false
+      seen.add(k)
+      return true
+    })
+  }, [onlyIds])
   const counts = useMemo(() => {
     const c: Record<string, number> = { all: scoped.length }
     for (const f of scoped) c[f.domain] = (c[f.domain] ?? 0) + 1
