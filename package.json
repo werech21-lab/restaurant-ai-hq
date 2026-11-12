@@ -17,6 +17,7 @@
     "db:odoo-indexes": "tsx scripts/apply-odoo-indexes.ts",
     "postinstall": "prisma generate",
     "typecheck": "tsc --noEmit",
+    "safe-push": "node scripts/parallel-sync-push.mjs",
     "ingest:direct": "tsx scripts/direct-db-ingest.ts",
     "ingest:desktop": "tsx scripts/direct-db-ingest.ts --scan-desktop-docs"
   },
