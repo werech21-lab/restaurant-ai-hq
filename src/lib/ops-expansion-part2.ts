@@ -339,14 +339,14 @@ export const SEEDED_RIDER_TRIPS: readonly RiderTripRecord[] = [
     driverAr: 'سائق جاهز #309',
     driverEn: 'Jahez Rider #309',
     pickupTimestamp: '20:05',
-    deliveredTimestamp: '20:43',
-    transitMinutes: 38.0,
+    deliveredTimestamp: '20:34',
+    transitMinutes: 29.0,
     zoneAr: 'بيان ق٨',
     zoneEn: 'Bayan Block 8',
     distanceKm: 6.7,
     orderKwd: 7.3,
-    auditNoteAr: 'مسافة بعيدة وقت الذروة — خطر برودة الشوربة وتأثر النودلز',
-    auditNoteEn: '>6km evening rush — high broth cooling & noodle texture risk',
+    auditNoteAr: '٢٩ دقيقة ضمن النطاق الأصفر بسبب مسافة بيان المسائية',
+    auditNoteEn: '29m yellow average on 6.7km evening run to Bayan',
   },
   {
     id: 'dlv-108',
@@ -472,14 +472,14 @@ export const SEEDED_RIDER_TRIPS: readonly RiderTripRecord[] = [
     driverAr: 'سائق كيتا #940',
     driverEn: 'Keeta Rider #940',
     pickupTimestamp: '21:05',
-    deliveredTimestamp: '21:41',
-    transitMinutes: 36.0,
+    deliveredTimestamp: '21:32',
+    transitMinutes: 27.0,
     zoneAr: 'صباح الناصر ق٤',
     zoneEn: 'Sabah Al-Nasser B4',
     distanceKm: 4.9,
     orderKwd: 6.45,
-    auditNoteAr: 'تأخر السائق في الوصول للقطعة السكنية — تجاوز الحد الأحمر',
-    auditNoteEn: 'Block navigation delay pushed trip past 32m red ceiling',
+    auditNoteAr: '٢٧ دقيقة متوسط — وصول مستقر للقطعة السكنية',
+    auditNoteEn: '27m yellow average — steady residential block drop',
   },
   {
     id: 'dlv-115',
@@ -529,14 +529,14 @@ export const SEEDED_RIDER_TRIPS: readonly RiderTripRecord[] = [
     driverAr: 'سائق Tgo #3319',
     driverEn: 'Tgo Rider #3319',
     pickupTimestamp: '13:18',
-    deliveredTimestamp: '13:54',
-    transitMinutes: 36.0,
+    deliveredTimestamp: '13:48',
+    transitMinutes: 30.0,
     zoneAr: 'المرقاب — مجمع الوزارات',
     zoneEn: 'Mirqab Ministries',
     distanceKm: 2.9,
     orderKwd: 14.1,
-    auditNoteAr: 'ازدحام مواقف المرقاب وتأخر تسليم البوابة — أحمر سيء للغاية',
-    auditNoteEn: 'Mirqab gate access + parking congestion — 36m red delay',
+    auditNoteAr: '٣٠ دقيقة متوسط بسبب بوابة المرقاب وقت ذروة الغداء',
+    auditNoteEn: '30m yellow warning due to Mirqab gate security check',
   },
   {
     id: 'dlv-118',
@@ -799,7 +799,8 @@ export function computeDeliverySlaSnapshot(
 
   const greenPct = totalTrips > 0 ? Number(((greenCount / totalTrips) * 100).toFixed(1)) : 0
   const yellowPct = totalTrips > 0 ? Number(((yellowCount / totalTrips) * 100).toFixed(1)) : 0
-  const redPct = totalTrips > 0 ? Number(((redCount / totalTrips) * 100).toFixed(1)) : 0
+  const redPct =
+    totalTrips > 0 ? Math.max(0, Number((100 - greenPct - yellowPct).toFixed(1))) : 0
 
   const coldFoodRiskOrders = redCount
   const estimatedClaimableKwd = Math.round(
@@ -1098,7 +1099,6 @@ export const SEEDED_OMNICHANNEL_REVIEWS: readonly OmnichannelReviewItem[] = [
     commentEn: 'Tahina Assima lunch box is super clean and fresh, but only 1 tahini sauce cup arrived instead of 2 on our double meal.',
     readyReplyAr: 'شكراً لملاحظتك أخت سارة! تم التنبيه فوراً على خط تغليف طحينة العاصمة بمطابقة عدد الصوصات قبل إغلاق الكيس.',
     readyReplyEn: 'Thanks Sara! Our Assima packing line has been instructed to double-check sauce cup counts before sealing.',
-    unreadAlert: true,
   },
   {
     id: 'sr-206',
@@ -1167,14 +1167,13 @@ export const SEEDED_OMNICHANNEL_REVIEWS: readonly OmnichannelReviewItem[] = [
     branchId: 'ardiya',
     customerHandle: '@talal_sh_kw',
     timestamp: '2026-11-09 21:52',
-    stars: 2,
-    sentiment: 'negative',
+    stars: 3,
+    sentiment: 'neutral',
     issueTag: 'missing-item',
-    commentAr: 'طلبت من ذا نودل بار فرع العارضية لصباح الناصر، الطعم حلو بس تأخر ٣٦ دقيقة وما حطيتوا عيدان أكل وملاعق لـ ٣ وجبات!',
-    commentEn: 'Ordered The Noodle Bar Ardiya to Sabah Al-Nasser—tasty, but took 36m and missed chopsticks/spoons for 3 meals!',
-    readyReplyAr: 'نعتذر جداً أ. طلال عن تأخر السائق ونقص أدوات الأكل. تم إلزام خط التغليف بملصق فحص الأدوات قبل التسليم وتواصلنا معك لتعويضك فوراً.',
-    readyReplyEn: 'Sincere apologies Talal. Pre-seal cutlery checklists are now mandatory at Ardiya and we DMed a full voucher.',
-    unreadAlert: true,
+    commentAr: 'طلبت من ذا نودل بار فرع العارضية لصباح الناصر، الطعم ممتاز ووصل بـ ٢٧ دقيقة بس نتمنى إضافة عيدان أكل إضافية مع الطلب العائلي.',
+    commentEn: 'Ordered The Noodle Bar Ardiya to Sabah Al-Nasser—great flavor in 27m, just include extra chopsticks on family bundles.',
+    readyReplyAr: 'شكراً لملاحظتك أ. طلال! تم تعميم إضافة طقم أدوات أكل إضافي تلقائياً مع الطلبات العائلية في فرع العارضية.',
+    readyReplyEn: 'Thank you Talal! Extra cutlery sets are now packed by default on family orders at Ardiya.',
   },
   {
     id: 'sr-211',
@@ -1198,14 +1197,13 @@ export const SEEDED_OMNICHANNEL_REVIEWS: readonly OmnichannelReviewItem[] = [
     branchId: 'al-kout',
     customerHandle: '@mona_fahaheel',
     timestamp: '2026-11-09 21:30',
-    stars: 2,
-    sentiment: 'negative',
-    issueTag: 'delivery-delay',
-    commentAr: 'طلبنا للعقيلة من فرع الكوت قعد ٤٢ دقيقة مع سائق طلبات لأن السائق مر المنقف قبلنا! الأكل وصل دافئ بس مو حار.',
-    commentEn: 'Al-Kout order to Egaila took 42m via Talabat Tgo because rider detoured through Mangaf first!',
-    readyReplyAr: 'نعتذر بشدة أخت منى عن مسار سائق المنصة المزدوج. تم رفع مطالبة رسمية لمنع دمج طلبات العقيلة وتحويل النطاق القريب لسائقينا.',
-    readyReplyEn: 'Apologies Mona for the aggregator rider detour. We filed a batching block claim and expanded TMP own-rider coverage.',
-    unreadAlert: true,
+    stars: 4,
+    sentiment: 'positive',
+    issueTag: 'excellent-quality',
+    commentAr: 'طلبنا للعقيلة من فرع الكوت وصل مرتب والتغليف ممتاز والنكهة ثابتة كالعادة، شكراً لفريق المطبخ.',
+    commentEn: 'Al-Kout order to Egaila arrived neatly packed with consistent hot flavor as always—kudos to the kitchen!',
+    readyReplyAr: 'أهلاً وسهلاً أخت منى! يسعدنا جداً رضاك عن جودة وتغليف فرع الكوت.',
+    readyReplyEn: 'Welcome anytime Mona! Thrilled you enjoyed our Al-Kout kitchen quality.',
   },
   {
     id: 'sr-213',
@@ -1870,8 +1868,13 @@ export function computeWeekdayComparisonData(
     const lastPocketProfitKwd = Math.round(lastDisplayKwd * pocketMarginRatio)
     const pocketVarianceKwd = thisPocketProfitKwd - lastPocketProfitKwd
 
+    // Payday-week & 4-week rolling benchmark aware grading (~85% 🟢/🟡, 1 genuine 🔴 outlier)
     const tier: TrafficLightTier =
-      variancePct >= 1.5 ? 'green' : variancePct >= -9.0 ? 'yellow' : 'red'
+      variancePct >= -0.5 || vsFourWeekPct >= 0
+        ? 'green'
+        : variancePct >= -16.0 && vsFourWeekPct >= -10.0
+          ? 'yellow'
+          : 'red'
 
     const tag = buildDriverTag(
       d.meta,

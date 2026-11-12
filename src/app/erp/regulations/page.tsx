@@ -4,14 +4,14 @@ import { RegulationsComplianceStudio } from '@/components/erp/RegulationsComplia
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: 'التشريعات وخطط التعامل | فنتشر فودز',
+  title: 'التشريعات والتراخيص | فنتشر فودز',
   description: 'تشريعات البلدية وهيئة الغذاء والقوى العاملة والتجارة وخطط الامتثال للفروع السبعة ومطبخ العارضية.',
 }
 
 export default async function RegulationsCompliancePage() {
   await requirePageUser('/erp/regulations')
   return (
-    <div className="w-full">
+    <div className="w-full max-w-[1920px] mx-auto">
       <RegulationsComplianceStudio />
     </div>
   )

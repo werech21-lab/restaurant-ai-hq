@@ -27,9 +27,55 @@ import {
 } from '@/components/aether/InteractiveHoverCharts'
 import { useGovernance } from '@/components/erp/GovernanceBellDrawer'
 import { buildCircularSerialRef } from '@/lib/governance-compliance'
-import { SlidingPillTabs } from '@/components/ui/SlidingPillTabs'
 import { ODOO } from '@/lib/odoo/odoo-dataset'
 import { useLang } from '@/components/aether/ui'
+
+function EmeraldPillTabs<K extends string>({
+  options,
+  value,
+  onChange,
+  ariaLabel,
+  size = 'md',
+}: {
+  options: readonly { id: K; label: string }[]
+  value: K
+  onChange: (next: K) => void
+  ariaLabel?: string
+  size?: 'sm' | 'md'
+}) {
+  const btnPadding =
+    size === 'sm'
+      ? 'h-8 px-3 text-[12.5px]'
+      : 'h-9 px-3.5 py-1.5 text-[13px] sm:text-[13.5px]'
+
+  return (
+    <div
+      role="tablist"
+      aria-label={ariaLabel}
+      className="inline-flex flex-wrap items-center gap-1 rounded-full bg-[#F1F5F9] p-1 ring-1 ring-slate-900/[0.06] select-none dark:bg-[#0C141B] dark:ring-white/[0.08]"
+    >
+      {options.map((opt) => {
+        const active = opt.id === value
+        return (
+          <button
+            key={opt.id}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(opt.id)}
+            className={`inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-full font-bold whitespace-nowrap transition-all duration-150 focus:outline-none ${btnPadding} ${
+              active
+                ? 'btn-colored bg-emerald-600 text-white shadow-sm dark:bg-emerald-500 dark:text-[#04130D]'
+                : 'text-slate-600 hover:bg-white/80 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
+            }`}
+          >
+            <span>{opt.label}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
 
 const f0 = (n: number) => Math.round(n).toLocaleString('en-US')
 const f1 = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
@@ -454,14 +500,14 @@ export function BoothStudyV5() {
   }
 
   return (
-    <div dir={isAr ? 'rtl' : 'ltr'} className="mx-auto w-full max-w-[1520px] space-y-5">
+    <div dir={isAr ? 'rtl' : 'ltr'} className="w-full max-w-[1920px] mx-auto space-y-5 pb-10">
       {/* Finance V2 × Verdelo Executive Masthead */}
       <header className="ae-bento-card flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div className="space-y-1">
           <h1 className="text-[24px] font-extrabold tracking-tight text-slate-950 sm:text-[28px] dark:text-white">
             {T('Booth Calculator', 'حاسبة المعارض')}
           </h1>
-          <p className="text-[13.5px] font-medium text-slate-500 dark:text-slate-400">
+          <p className="text-[14px] font-medium text-slate-500 dark:text-slate-400">
             {T(
               'Calculate booth profit or loss before signing the contract.',
               'احسب ربح أو خسارة أي معرض موسمي قبل توقيع العقد.',
@@ -469,7 +515,7 @@ export function BoothStudyV5() {
           </p>
         </div>
 
-        <SlidingPillTabs<BoothPreset>
+        <EmeraldPillTabs<BoothPreset>
           value={preset}
           onChange={applyPreset}
           size="sm"
@@ -486,7 +532,7 @@ export function BoothStudyV5() {
       {/* 4 Top KPI Summary Cards (Finance V2 × Verdelo Micro-Lift) */}
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div className="ae-kpi-card p-5">
-          <div className="flex items-center justify-between gap-2 text-[13px] font-bold text-slate-500 dark:text-slate-400">
+          <div className="flex items-center justify-between gap-2 text-[13.5px] font-bold text-slate-500 dark:text-slate-400">
             <span>{T('Decision', 'قرار الدخول')}</span>
             <span
               className={
@@ -500,52 +546,52 @@ export function BoothStudyV5() {
               {verdictUi.icon}
             </span>
           </div>
-          <div className="mt-2 text-[24px] font-extrabold tracking-tight text-slate-950 dark:text-white">
+          <div className="mt-2 text-[28px] font-extrabold tracking-tight text-slate-950 sm:text-[30px] dark:text-white">
             {isAr ? verdictUi.ar : verdictUi.en}
           </div>
-          <p className="mt-1 text-[12.5px] text-slate-500 dark:text-slate-400">
+          <p className="mt-1 text-[13.5px] text-slate-500 dark:text-slate-400">
             {isAr ? `${brandOpt.ar} • ${days} يوم` : `${brandOpt.en} • ${days} days`}
           </p>
         </div>
 
         <div className="ae-kpi-card p-5">
-          <div className="text-[13px] font-bold text-slate-500 dark:text-slate-400">
+          <div className="text-[13.5px] font-bold text-slate-500 dark:text-slate-400">
             {T('Expected Net', 'الصافي المتوقع')}
           </div>
           <div
             dir="ltr"
-            className={`mt-2 text-[26px] font-extrabold tabular-nums ${
+            className={`mt-2 text-[28px] font-extrabold tabular-nums sm:text-[32px] ${
               base.profit >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
             }`}
           >
             {base.profit >= 0 ? '+' : '-'}
             {kwd(Math.abs(base.profit))}
           </div>
-          <p className="mt-1 text-[12.5px] text-slate-500 dark:text-slate-400">
+          <p className="mt-1 text-[13.5px] text-slate-500 dark:text-slate-400">
             {T(`Sales ${kwd(base.revenue)}`, `من إجمالي مبيعات ${kwd(base.revenue)}`)}
           </p>
         </div>
 
         <div className="ae-kpi-card p-5">
-          <div className="text-[13px] font-bold text-slate-500 dark:text-slate-400">
+          <div className="text-[13.5px] font-bold text-slate-500 dark:text-slate-400">
             {T('Break-Even', 'طلبات التعادل')}
           </div>
-          <div className="mt-2 text-[26px] font-extrabold tabular-nums text-slate-950 dark:text-white">
+          <div className="mt-2 text-[28px] font-extrabold tabular-nums text-slate-950 sm:text-[32px] dark:text-white">
             {be ? `${f0(be)} ${T('orders/day', 'طلب/يوم')}` : '—'}
           </div>
-          <p className="mt-1 text-[12.5px] text-slate-500 dark:text-slate-400">
+          <p className="mt-1 text-[13.5px] text-slate-500 dark:text-slate-400">
             {T(`Order profit ${f3(model.gpPerOrder)} KWD`, `ربح الطلب الواحد ${f3(model.gpPerOrder)} د.ك`)}
           </p>
         </div>
 
         <div className="ae-kpi-card p-5">
-          <div className="text-[13px] font-bold text-slate-500 dark:text-slate-400">
+          <div className="text-[13.5px] font-bold text-slate-500 dark:text-slate-400">
             {T('Safe Rent Limit', 'أعلى إيجار مناسب')}
           </div>
-          <div dir="ltr" className="mt-2 text-[26px] font-extrabold tabular-nums text-slate-950 dark:text-white">
+          <div dir="ltr" className="mt-2 text-[28px] font-extrabold tabular-nums text-slate-950 sm:text-[32px] dark:text-white">
             {kwd(model.rentCeiling)}
           </div>
-          <p className="mt-1 text-[12.5px] text-slate-500 dark:text-slate-400">
+          <p className="mt-1 text-[13.5px] text-slate-500 dark:text-slate-400">
             {rent > model.rentCeiling
               ? T(`Ask ${kwd(rent - model.rentCeiling)} off`, `فاوض لتخفيض ${kwd(rent - model.rentCeiling)}`)
               : T('Rent is within safe limit', 'الإيجار الحالي ضمن السقف الآمن')}
@@ -800,7 +846,7 @@ export function BoothStudyV5() {
               type="button"
               onClick={runAudit}
               disabled={busy}
-              className="ae-btn-primary inline-flex cursor-pointer items-center justify-center gap-2 rounded-full px-5 py-2.5 text-[13.5px] font-bold transition duration-150 hover:opacity-95 disabled:opacity-60"
+              className="btn-colored inline-flex cursor-pointer items-center justify-center gap-2 rounded-full bg-emerald-600 px-5 py-2.5 text-[14px] font-bold text-white shadow-sm transition duration-150 hover:bg-emerald-700 disabled:opacity-60 dark:bg-emerald-500 dark:text-[#04130D] dark:hover:bg-emerald-400"
             >
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
               {T('Check Contract', 'فحص العقد')}
@@ -912,7 +958,7 @@ export function BoothStudyV5() {
                 <button
                   type="button"
                   onClick={handleRequestBoothApproval}
-                  className="ae-btn-primary inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-4 text-[12.5px] font-bold transition duration-150 hover:opacity-95"
+                  className="btn-colored inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-emerald-600 px-4 text-[13px] font-bold text-white shadow-sm transition duration-150 hover:bg-emerald-700 dark:bg-emerald-500 dark:text-[#04130D] dark:hover:bg-emerald-400"
                 >
                   <Bell className="h-3.5 w-3.5" />
                   <span>
@@ -1105,7 +1151,7 @@ export function BoothStudyV5() {
               </div>
 
               <div className="w-full overflow-x-auto rounded-xl ring-1 ring-slate-950/[0.04] dark:ring-white/[0.06]">
-                <table className="w-full min-w-[400px] text-[13px]">
+                <table className="w-full min-w-[400px] text-[14px]">
                   <thead className="bg-[#F4F6F9] text-slate-600 dark:bg-[#0C141B] dark:text-slate-300">
                     <tr>
                       <th className="px-3 py-2.5 text-start font-bold">{T('Case', 'الإقبال')}</th>

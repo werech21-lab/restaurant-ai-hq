@@ -12,7 +12,7 @@ export default async function BeforeAfterPage() {
   await requirePageUser('/erp/before-after')
 
   return (
-    <div className="w-full min-w-0">
+    <div className="w-full max-w-[1920px] mx-auto min-w-0">
       <BeforeAfterStudio />
     </div>
   )

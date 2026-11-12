@@ -4,9 +4,9 @@ import React, { useCallback, useMemo, useState } from 'react'
 import {
   ArrowDownRight,
   ArrowUpRight,
-  Bell,
   CalendarDays,
   Check,
+  CheckCircle2,
   Copy,
   TrendingDown,
   TrendingUp,
@@ -14,19 +14,20 @@ import {
 import { useI18n } from '@/lib/i18n'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { useGovernance } from '@/components/erp/GovernanceBellDrawer'
-import { OpsFilterSyncBar } from '@/components/erp/ops-expansion/OpsFilterSyncBar'
 import { tierBadgeCls } from '@/components/erp/ops-expansion/DeliverySlaStudio'
 import {
   computeWeekdayComparisonData,
   WEEKDAY_SELECTOR_OPTIONS,
   type LikeForLikeWeekdayRow,
+  type TrafficLightTier,
   type WeekdayDow,
 } from '@/lib/ops-expansion-part2'
 
 const CARD_CLS =
-  'ae-bento-card rounded-2xl bg-white p-5 sm:p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-neutral-900/[0.04] dark:bg-neutral-900 dark:ring-white/[0.06]'
+  'ae-bento-card rounded-2xl border border-neutral-200/70 bg-white p-5 sm:p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:border-white/[0.06] dark:bg-[#0D1614]'
 const KPI_CLS =
-  'ae-kpi-card rounded-2xl bg-white p-4 sm:p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-neutral-900/[0.04] dark:bg-neutral-900 dark:ring-white/[0.06]'
+  'ae-kpi-card rounded-2xl border border-neutral-200/70 bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:border-white/[0.06] dark:bg-[#0D1614]'
+const SUBCARD_CLS = 'rounded-2xl bg-[#F7F7F8] dark:bg-[#111E1B]'
 
 const fmt0 = (n: number) => Math.round(Number.isFinite(n) ? n : 0).toLocaleString('en-US')
 const fmtSigned0 = (n: number) => {
@@ -38,19 +39,29 @@ const fmtSignedPct = (n: number) => {
   return `${v > 0 ? '+' : ''}${v.toFixed(1)}%`
 }
 
+function tierDot(tier: TrafficLightTier): string {
+  if (tier === 'green') return '🟢'
+  if (tier === 'yellow') return '🟡'
+  return '🔴'
+}
+
 export function WeekdayComparisonStudio() {
   const { locale } = useI18n()
-  const isAr = locale === 'ar'
+  const isAr = locale !== 'en'
   const kwd = isAr ? 'د.ك' : 'KWD'
-  const { workspace } = useGlobalFilter()
+  const { filters, workspace } = useGlobalFilter()
   const { requestApproval, getApprovalByRef, openDrawer } = useGovernance()
 
-  // Default to Wednesday (dow = 3) matching "الأربعاء هذا الأسبوع مقارنة مع الأربعاء الأسبوع الماضي", or 'all' side-by-side
+  // Default to Wednesday (dow = 3) matching same-weekday benchmark, or 'all' side-by-side
   const [selectedMode, setSelectedMode] = useState<WeekdayDow | 'all'>(3)
   const [hoveredHour, setHoveredHour] = useState<number | null>(null)
   const [copiedReport, setCopiedReport] = useState(false)
+  const [toastMsg, setToastMsg] = useState<{ ar: string; en: string } | null>(null)
 
-  const data = useMemo(() => computeWeekdayComparisonData(workspace), [workspace])
+  const data = useMemo(
+    () => computeWeekdayComparisonData(workspace),
+    [workspace, filters.brand, filters.branch, filters.channel, filters.period, filters.kuwaitSlice],
+  )
 
   const activeDow: WeekdayDow = selectedMode === 'all' ? 3 : selectedMode
   const activeRow: LikeForLikeWeekdayRow = useMemo(
@@ -85,17 +96,21 @@ export function WeekdayComparisonStudio() {
         domain: 'marketing',
         titleAr: `خطة تعويض وتنشيط مبيعات يوم ${row.weekdayAr} (فارق ${fmtSigned0(row.varianceDisplayKwd)} د.ك)`,
         titleEn: `Recovery & Combo Plan for ${row.weekdayEn} (${fmtSigned0(row.varianceDisplayKwd)} KWD Variance)`,
-        summaryAr: `مبيعات ${row.weekdayAr} هذا الأسبوع (${row.thisDate}: ${fmt0(row.thisDisplayKwd)} د.ك) مقابل ${row.weekdayAr} الأسبوع الماضي (${row.lastDate}: ${fmt0(row.lastDisplayKwd)} د.ك) بفارق ${fmtSignedPct(row.variancePct)}. تفعيل عرض كومبو الساعات الهادئة (3–6 م) وحملة واتساب مباشر بدون عمولة.`,
-        summaryEn: `${row.weekdayEn} (${row.thisDate}: ${fmt0(row.thisDisplayKwd)} KWD) vs last ${row.weekdayEn} (${row.lastDate}: ${fmt0(row.lastDisplayKwd)} KWD, ${fmtSignedPct(row.variancePct)}). Launch 3–6 PM value combo & 0%-fee direct push.`,
+        summaryAr: `مبيعات ${row.weekdayAr} هذا الأسبوع (${row.thisDate}: ${fmt0(row.thisDisplayKwd)} د.ك) مقابل ${row.weekdayAr} الأسبوع الماضي (${row.lastDate}: ${fmt0(row.lastDisplayKwd)} د.ك) بفارق ${fmtSignedPct(row.variancePct)} وأقل من متوسط ٤ أسابيع (${fmtSignedPct(row.vsFourWeekPct)}). تفعيل عرض كومبو الساعات الهادئة (3–6 م) وحملة طلب مباشر بدون عمولة.`,
+        summaryEn: `${row.weekdayEn} (${row.thisDate}: ${fmt0(row.thisDisplayKwd)} KWD) vs last ${row.weekdayEn} (${row.lastDate}: ${fmt0(row.lastDisplayKwd)} KWD, ${fmtSignedPct(row.variancePct)}, 4W ${fmtSignedPct(row.vsFourWeekPct)}). Launch 3–6 PM value combo & 0%-fee direct push.`,
         departmentAr: 'إدارة نمو المبيعات والتشغيل',
         departmentEn: 'Revenue Growth & Operations',
         budgetOrCostKwd: 95,
         expectedMonthlyReturnKwd: targetRecovery * 3,
         href: '/erp/weekday-comparison',
       })
-      openDrawer('approvals')
+      setToastMsg({
+        ar: `تم تصعيد خطة تعويض يوم ${row.weekdayAr} إلى جرس المدير 🔔`,
+        en: `Escalated ${row.weekdayEn} recovery plan to Manager Bell 🔔`,
+      })
+      window.setTimeout(() => setToastMsg(null), 3200)
     },
-    [openDrawer, requestApproval],
+    [requestApproval],
   )
 
   const handleCopyReport = useCallback(async () => {
@@ -128,64 +143,220 @@ export function WeekdayComparisonStudio() {
   }, [data, isAr, workspace.subtitleAr, workspace.subtitleEn])
 
   return (
-    <div dir={isAr ? 'rtl' : 'ltr'} className="mx-auto max-w-[1520px] space-y-5 pb-12">
-      <OpsFilterSyncBar />
+    <div
+      dir={isAr ? 'rtl' : 'ltr'}
+      className="w-full max-w-[1920px] mx-auto space-y-6 pb-12 font-sans text-[14px] sm:text-[15px] text-neutral-900 antialiased dark:text-slate-100"
+    >
+      {/* Toast Feedback */}
+      {toastMsg && (
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-emerald-200/80 bg-emerald-50/95 px-4 py-3 text-[14px] font-medium text-emerald-950 shadow-sm dark:border-emerald-500/30 dark:bg-emerald-950/60 dark:text-emerald-100">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+            <span>{isAr ? toastMsg.ar : toastMsg.en}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => openDrawer('approvals')}
+            className="cursor-pointer rounded-full border border-emerald-300/70 bg-white px-3 py-1 text-[12.5px] font-semibold text-emerald-800 transition hover:bg-emerald-100 dark:border-emerald-500/40 dark:bg-[#0D1614] dark:text-emerald-200"
+          >
+            {isAr ? 'فتح جرس المدير' : 'Open Bell'}
+          </button>
+        </div>
+      )}
 
-      {/* ───────────── 1. Header + Interactive 7-Weekday + Side-by-Side Selector ───────────── */}
+      {/* ───────────── 1. Header ───────────── */}
       <header className={CARD_CLS}>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-1.5">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-[11.5px] font-bold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-[12px] font-bold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
                 <CalendarDays className="h-3.5 w-3.5" />
                 {isAr
                   ? 'مقارنة اليوم بنظيره الأسبوعي + متوسط ٤ أسابيع (أودو ١٧)'
                   : 'Like-for-Like Same-Weekday + 4-Week Rolling Benchmark (Odoo 17)'}
               </span>
+              <span className="inline-flex items-center rounded-full border border-neutral-200/80 bg-[#F7F7F8] px-3 py-1 text-[12px] font-medium text-neutral-600 dark:border-white/[0.08] dark:bg-[#111E1B] dark:text-slate-300">
+                {isAr ? workspace.subtitleAr : workspace.subtitleEn}
+              </span>
             </div>
-            <h1 className="text-xl font-extrabold tracking-tight text-neutral-950 sm:text-2xl dark:text-white">
+            <h1 className="text-[22px] font-extrabold tracking-tight text-neutral-950 sm:text-[26px] dark:text-white">
               {isAr
                 ? 'مقارنة المبيعات بين أيام الأسبوع المتناظرة (الأربعاء مقابل الأربعاء وهكذا)'
                 : 'Like-for-Like Same-Weekday Sales & Intraday Comparison'}
             </h1>
-            <p className="max-w-3xl text-[13px] leading-relaxed text-neutral-600 dark:text-neutral-400">
+            <p className="max-w-4xl text-[14px] leading-relaxed text-neutral-600 dark:text-slate-400">
               {isAr
-                ? 'قارن مبيعات كل يوم في هذا الأسبوع مع نفس اليوم بالضبط في الأسبوع الماضي ومع متوسط ٤ أسابيع متتالية، شاملاً إجمالي وصافي المبيعات، عدد الطلبات، متوسط السلة، صافي الربح بالجيب، ومنحنى المبيعات بالساعة.'
-                : 'Compares each weekday directly against the exact same weekday last week and its 4-week rolling benchmark across gross/net sales, orders, basket size, pocket profit, and hourly intraday curve.'}
+                ? 'قارن مبيعات كل يوم في هذا الأسبوع مع نفس اليوم بالضبط في الأسبوع الماضي ومع متوسط ٤ أسابيع متتالية، شاملاً صافي وإجمالي المبيعات، الطلبات، السلة، صافي الجيب، ومنحنى الساعات.'
+                : 'Compares each weekday directly against the exact same weekday last week and its 4-week rolling benchmark across net/gross sales, orders, basket size, pocket profit, and hourly curve.'}
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={() => handleEscalateWeakDay(data.weakestDay)}
-              className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl bg-amber-50 px-3.5 py-2 text-[12px] font-bold text-amber-900 transition hover:bg-amber-100 dark:bg-amber-950/60 dark:text-amber-200"
-            >
-              <Bell className="h-3.5 w-3.5" />
-              {isAr
-                ? `رفع خطة تعويض ${data.weakestDay.weekdayAr} لجرس المدير 🔔`
-                : `Escalate ${data.weakestDay.weekdayEn} Recovery 🔔`}
-            </button>
-
-            <button
-              type="button"
               onClick={handleCopyReport}
-              className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl bg-[#F7F7F8] px-3.5 py-2 text-[12px] font-bold text-neutral-800 transition hover:bg-neutral-200/70 dark:bg-neutral-950 dark:text-neutral-200"
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-neutral-200/70 bg-[#F7F7F8] px-3.5 py-2 text-[13px] font-semibold text-neutral-800 transition hover:bg-neutral-200/70 dark:border-white/[0.08] dark:bg-[#111E1B] dark:text-slate-200"
             >
-              {copiedReport ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+              {copiedReport ? (
+                <Check className="h-4 w-4 text-emerald-600" />
+              ) : (
+                <Copy className="h-4 w-4" />
+              )}
               {copiedReport
                 ? isAr
-                  ? 'تم النسخ ✅'
-                  : 'Copied ✅'
+                  ? 'تم النسخ ✓'
+                  : 'Copied ✓'
                 : isAr
-                  ? 'نسخ المقارنة 📋'
-                  : 'Copy Report 📋'}
+                  ? 'نسخ المقارنة'
+                  : 'Copy Report'}
             </button>
           </div>
         </div>
+      </header>
 
-        {/* Interactive 7-Weekday Selector + Side-by-Side Mode */}
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-[#F7F7F8] p-3 dark:bg-neutral-950">
+      {/* ───────────── 2. Selected Day 5-Card Executive KPI Strip (28px–32px Values) ───────────── */}
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <div className={KPI_CLS}>
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-bold text-emerald-800 dark:text-emerald-300">
+              {isAr
+                ? `${activeRow.weekdayAr} هذا الأسبوع`
+                : `This ${activeRow.weekdayEn}`}
+            </span>
+            {activeRow.varianceDisplayKwd >= 0 ? (
+              <ArrowUpRight className="h-4 w-4 text-emerald-600" />
+            ) : (
+              <ArrowDownRight className="h-4 w-4 text-rose-600" />
+            )}
+          </div>
+          <div className="mt-2.5 flex items-baseline gap-2 tabular-nums">
+            <span className="text-[28px] sm:text-[32px] leading-none font-extrabold tracking-tight text-neutral-950 dark:text-white">
+              {fmt0(activeRow.thisDisplayKwd)}
+            </span>
+            <span className="text-[13.5px] font-bold text-neutral-500">{kwd}</span>
+          </div>
+          <p className="mt-2 text-[12.5px] text-neutral-500 tabular-nums dark:text-slate-400">
+            {isAr
+              ? `${activeRow.thisDate} • الإجمالي: ${fmt0(activeRow.thisGrossKwd)} ${kwd}`
+              : `${activeRow.thisDate} • Gross: ${fmt0(activeRow.thisGrossKwd)} ${kwd}`}
+          </p>
+        </div>
+
+        <div className={KPI_CLS}>
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-semibold text-neutral-500 dark:text-slate-400">
+              {isAr
+                ? `${activeRow.weekdayAr} الأسبوع الماضي`
+                : `Last ${activeRow.weekdayEn}`}
+            </span>
+          </div>
+          <div className="mt-2.5 flex items-baseline gap-2 tabular-nums">
+            <span className="text-[28px] sm:text-[32px] leading-none font-extrabold tracking-tight text-neutral-950 dark:text-white">
+              {fmt0(activeRow.lastDisplayKwd)}
+            </span>
+            <span className="text-[13.5px] font-bold text-neutral-500">{kwd}</span>
+          </div>
+          <p className="mt-2 text-[12.5px] text-neutral-500 tabular-nums dark:text-slate-400">
+            {isAr
+              ? `${activeRow.lastDate} • الإجمالي: ${fmt0(activeRow.lastGrossKwd)} ${kwd}`
+              : `${activeRow.lastDate} • Gross: ${fmt0(activeRow.lastGrossKwd)} ${kwd}`}
+          </p>
+        </div>
+
+        <div className={KPI_CLS}>
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-semibold text-neutral-500 dark:text-slate-400">
+              {isAr ? 'الفرق ومقارنة متوسط ٤ أسابيع' : 'Variance & 4-Week Avg'}
+            </span>
+            {activeRow.variancePct >= 0 ? (
+              <TrendingUp className="h-4 w-4 text-emerald-600" />
+            ) : (
+              <TrendingDown className="h-4 w-4 text-rose-600" />
+            )}
+          </div>
+          <div className="mt-2.5 flex items-baseline gap-2 tabular-nums">
+            <span
+              className={`text-[28px] sm:text-[32px] leading-none font-extrabold tracking-tight ${
+                activeRow.varianceDisplayKwd >= 0
+                  ? 'text-emerald-700 dark:text-emerald-300'
+                  : 'text-rose-700 dark:text-rose-300'
+              }`}
+            >
+              {fmtSigned0(activeRow.varianceDisplayKwd)}
+            </span>
+            <span
+              className={`rounded-full px-2.5 py-0.5 text-[12px] font-extrabold ${tierBadgeCls(activeRow.tier)}`}
+            >
+              {fmtSignedPct(activeRow.variancePct)}
+            </span>
+          </div>
+          <p className="mt-2 text-[12.5px] text-neutral-500 tabular-nums dark:text-slate-400">
+            {isAr
+              ? `متوسط ٤ أسابيع: ${fmt0(activeRow.fourWeekAvgDisplayKwd)} ${kwd} (${fmtSignedPct(activeRow.vsFourWeekPct)})`
+              : `4W Avg: ${fmt0(activeRow.fourWeekAvgDisplayKwd)} ${kwd} (${fmtSignedPct(activeRow.vsFourWeekPct)})`}
+          </p>
+        </div>
+
+        <div className={KPI_CLS}>
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-semibold text-neutral-500 dark:text-slate-400">
+              {isAr ? 'الطلبات ومتوسط السلة' : 'Orders & Average Basket'}
+            </span>
+          </div>
+          <div className="mt-2.5 flex items-baseline gap-2 tabular-nums">
+            <span className="text-[28px] sm:text-[32px] leading-none font-extrabold tracking-tight text-neutral-950 dark:text-white">
+              {fmt0(activeRow.thisOrders)}
+            </span>
+            <span className="text-[13px] font-semibold text-neutral-500">
+              {isAr ? `مقابل ${fmt0(activeRow.lastOrders)}` : `vs ${fmt0(activeRow.lastOrders)}`}
+            </span>
+          </div>
+          <p className="mt-2 text-[12.5px] text-neutral-500 tabular-nums dark:text-slate-400">
+            {isAr
+              ? `متوسط السلة: ${activeRow.thisAvgBasketKwd.toFixed(2)} ${kwd} (الماضي ${activeRow.lastAvgBasketKwd.toFixed(2)})`
+              : `AOV: ${activeRow.thisAvgBasketKwd.toFixed(2)} ${kwd} (Last ${activeRow.lastAvgBasketKwd.toFixed(2)})`}
+          </p>
+        </div>
+
+        <div className={KPI_CLS}>
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-bold text-emerald-800 dark:text-emerald-300">
+              {isAr ? 'صافي الربح بالجيب (Pocket)' : 'Net Pocket Profit'}
+            </span>
+          </div>
+          <div className="mt-2.5 flex items-baseline gap-2 tabular-nums">
+            <span className="text-[28px] sm:text-[32px] leading-none font-extrabold tracking-tight text-emerald-700 dark:text-emerald-300">
+              {fmt0(activeRow.thisPocketProfitKwd)}
+            </span>
+            <span className="text-[13.5px] font-bold text-neutral-500">{kwd}</span>
+            <span className="ms-auto text-[12.5px] font-bold text-neutral-600 dark:text-slate-300">
+              {fmtSigned0(activeRow.pocketVarianceKwd)} {kwd}
+            </span>
+          </div>
+          <p className="mt-2 text-[12.5px] text-neutral-500 tabular-nums dark:text-slate-400">
+            {isAr
+              ? `الأسبوع الماضي بالجيب: ${fmt0(activeRow.lastPocketProfitKwd)} ${kwd}`
+              : `Prior week pocket: ${fmt0(activeRow.lastPocketProfitKwd)} ${kwd}`}
+          </p>
+        </div>
+      </section>
+
+      {/* ───────────── 3. Hourly Intraday Capsule Curve + Compact 7-Weekday Selector ───────────── */}
+      <section className={CARD_CLS}>
+        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h2 className="text-[17px] font-extrabold text-neutral-950 dark:text-white">
+              {isAr
+                ? `منحنى المبيعات بالساعة ليوم ${activeRow.weekdayAr}: هذا الأسبوع (${activeRow.thisDate}) مقابل الأسبوع الماضي (${activeRow.lastDate})`
+                : `Hourly Intraday Sales Curve: This ${activeRow.weekdayEn} (${activeRow.thisDate}) vs Last ${activeRow.weekdayEn} (${activeRow.lastDate})`}
+            </h2>
+            <p className="text-[13.5px] text-neutral-500 dark:text-slate-400">
+              {isAr
+                ? `(${data.thisWeekLabelAr}) مقابل (${data.lastWeekLabelAr}) — اختر أي يوم لعرض منحنى الساعات`
+                : `(${data.thisWeekLabelEn}) vs (${data.lastWeekLabelEn}) — select any weekday curve`}
+            </p>
+          </div>
+
           <div className="flex flex-wrap items-center gap-1.5">
             {WEEKDAY_SELECTOR_OPTIONS.map((opt) => {
               const active = selectedMode === opt.dow
@@ -197,7 +368,7 @@ export function WeekdayComparisonStudio() {
                   className={`cursor-pointer rounded-full px-3.5 py-1.5 text-[12.5px] font-bold transition ${
                     active
                       ? 'btn-colored bg-emerald-600 text-white shadow-sm'
-                      : 'bg-white text-neutral-700 hover:bg-neutral-100 dark:bg-neutral-900 dark:text-neutral-200'
+                      : 'border border-neutral-200/70 bg-[#F7F7F8] text-neutral-700 hover:bg-neutral-200/70 dark:border-white/[0.08] dark:bg-[#111E1B] dark:text-slate-300'
                   }`}
                   style={active ? { color: '#FFFFFF' } : undefined}
                 >
@@ -212,81 +383,58 @@ export function WeekdayComparisonStudio() {
               className={`cursor-pointer rounded-full px-3.5 py-1.5 text-[12.5px] font-bold transition ${
                 selectedMode === 'all'
                   ? 'btn-colored bg-emerald-600 text-white shadow-sm'
-                  : 'bg-white text-neutral-800 hover:bg-neutral-100 dark:bg-neutral-900 dark:text-neutral-200'
+                  : 'border border-neutral-200/70 bg-[#F7F7F8] text-neutral-800 hover:bg-neutral-200/70 dark:border-white/[0.08] dark:bg-[#111E1B] dark:text-slate-200'
               }`}
               style={selectedMode === 'all' ? { color: '#FFFFFF' } : undefined}
             >
-              {isAr ? 'كل أيام الأسبوع جنباً إلى جنب' : 'All 7 Weekdays Side-by-Side'}
+              {isAr ? '٧ أيام جنباً إلى جنب' : '7-Day Side-by-Side'}
             </button>
           </div>
-
-          <span className="text-[11.5px] font-semibold text-neutral-500 tabular-nums dark:text-neutral-400">
-            {isAr
-              ? `(${data.thisWeekLabelAr}) مقابل (${data.lastWeekLabelAr})`
-              : `(${data.thisWeekLabelEn}) vs (${data.lastWeekLabelEn})`}
-          </span>
         </div>
-      </header>
 
-      {/* ───────────── 2. Selected Day Head-to-Head KPI Strip (or 7-Day Side-by-Side Visual Bars) ───────────── */}
-      {selectedMode === 'all' ? (
-        <section className={CARD_CLS}>
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <h2 className="text-[15.5px] font-extrabold text-neutral-950 dark:text-white">
-                {isAr
-                  ? 'مقارنة كل أيام الأسبوع السبعة جنباً إلى جنب (هذا الأسبوع vs الأسبوع الماضي vs متوسط ٤ أسابيع)'
-                  : 'All 7 Weekdays Side-by-Side (This Week vs Last Week vs 4-Week Average)'}
-              </h2>
-              <p className="text-[12px] text-neutral-500 dark:text-neutral-400">
-                {isAr
-                  ? 'اضغط على أي عمود يوم لعرض منحنى الساعات التفصيلي وبطاقة الأرقام الكاملة له'
-                  : 'Click any weekday card to inspect its hour-by-hour capsule curve'}
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-7">
+        {/* Optional 7-Day Side-by-Side Visual Bars when 'all' mode is toggled */}
+        {selectedMode === 'all' && (
+          <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-7">
             {data.rows.map((r) => {
-              const hThis = Math.max(12, Math.round((r.thisDisplayKwd / maxDayKwd) * 120))
-              const hLast = Math.max(12, Math.round((r.lastDisplayKwd / maxDayKwd) * 120))
-              const hAvg = Math.max(12, Math.round((r.fourWeekAvgDisplayKwd / maxDayKwd) * 120))
+              const hThis = Math.max(12, Math.round((r.thisDisplayKwd / maxDayKwd) * 116))
+              const hLast = Math.max(12, Math.round((r.lastDisplayKwd / maxDayKwd) * 116))
+              const hAvg = Math.max(12, Math.round((r.fourWeekAvgDisplayKwd / maxDayKwd) * 116))
               return (
                 <button
                   key={r.dow}
                   type="button"
                   onClick={() => setSelectedMode(r.dow)}
-                  className="flex cursor-pointer flex-col justify-between rounded-2xl bg-[#F7F7F8] p-3.5 text-start transition hover:bg-emerald-50/50 dark:bg-neutral-950 dark:hover:bg-emerald-950/20"
+                  className={`flex cursor-pointer flex-col justify-between border border-neutral-200/60 p-3.5 text-start transition hover:border-emerald-400/60 dark:border-white/[0.06] ${SUBCARD_CLS}`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-[13px] font-extrabold text-neutral-950 dark:text-white">
+                    <span className="text-[13.5px] font-extrabold text-neutral-950 dark:text-white">
                       {isAr ? r.weekdayAr : r.weekdayEn}
                     </span>
                     <span
-                      className={`rounded-full px-2 py-0.5 text-[10.5px] font-extrabold tabular-nums ${tierBadgeCls(r.tier)}`}
+                      className={`rounded-full px-2 py-0.5 text-[11px] font-extrabold tabular-nums ${tierBadgeCls(r.tier)}`}
                     >
                       {fmtSignedPct(r.variancePct)}
                     </span>
                   </div>
 
-                  <div className="my-4 flex h-[126px] items-end justify-center gap-2.5">
+                  <div className="my-4 flex h-[122px] items-end justify-center gap-2.5">
                     <div className="flex flex-col items-center gap-1">
                       <div
                         style={{ height: `${hThis}px` }}
                         className="w-4 rounded-full bg-emerald-500"
                         title={`${isAr ? 'هذا الأسبوع' : 'This Week'}: ${fmt0(r.thisDisplayKwd)}`}
                       />
-                      <span className="text-[9.5px] font-bold text-emerald-700 dark:text-emerald-300">
+                      <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
                         {isAr ? 'الحالي' : 'This'}
                       </span>
                     </div>
                     <div className="flex flex-col items-center gap-1">
                       <div
                         style={{ height: `${hLast}px` }}
-                        className="w-4 rounded-full bg-neutral-300 dark:bg-neutral-700"
+                        className="w-4 rounded-full bg-neutral-300 dark:bg-slate-600"
                         title={`${isAr ? 'الأسبوع الماضي' : 'Last Week'}: ${fmt0(r.lastDisplayKwd)}`}
                       />
-                      <span className="text-[9.5px] font-semibold text-neutral-500">
+                      <span className="text-[10px] font-semibold text-neutral-500">
                         {isAr ? 'الماضي' : 'Last'}
                       </span>
                     </div>
@@ -296,17 +444,17 @@ export function WeekdayComparisonStudio() {
                         className="w-4 rounded-full bg-sky-400/75"
                         title={`${isAr ? 'متوسط ٤ أسابيع' : '4W Avg'}: ${fmt0(r.fourWeekAvgDisplayKwd)}`}
                       />
-                      <span className="text-[9.5px] font-semibold text-sky-700 dark:text-sky-300">
+                      <span className="text-[10px] font-semibold text-sky-700 dark:text-sky-300">
                         4W
                       </span>
                     </div>
                   </div>
 
-                  <div className="space-y-0.5 border-t border-neutral-200/60 pt-2 text-[11px] tabular-nums dark:border-neutral-800">
+                  <div className="space-y-0.5 border-t border-neutral-200/60 pt-2 text-[12px] tabular-nums dark:border-white/[0.06]">
                     <div className="font-extrabold text-neutral-950 dark:text-white">
                       {fmt0(r.thisDisplayKwd)} {kwd}
                     </div>
-                    <div className="text-neutral-500">
+                    <div className="text-neutral-500 dark:text-slate-400">
                       {isAr ? 'الماضي:' : 'Last:'} {fmt0(r.lastDisplayKwd)} {kwd}
                     </div>
                   </div>
@@ -314,190 +462,45 @@ export function WeekdayComparisonStudio() {
               )
             })}
           </div>
-        </section>
-      ) : null}
-
-      {/* Selected Day 5-Card Executive KPI Strip */}
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <div className={KPI_CLS}>
-          <div className="flex items-center justify-between">
-            <span className="text-[12px] font-bold text-emerald-800 dark:text-emerald-300">
-              {isAr
-                ? `${activeRow.weekdayAr} هذا الأسبوع (صافي / إجمالي)`
-                : `This ${activeRow.weekdayEn} (Net / Gross)`}
-            </span>
-            {activeRow.varianceDisplayKwd >= 0 ? (
-              <ArrowUpRight className="h-4 w-4 text-emerald-600" />
-            ) : (
-              <ArrowDownRight className="h-4 w-4 text-rose-600" />
-            )}
-          </div>
-          <div className="mt-2 flex items-baseline gap-2 tabular-nums">
-            <span className="text-2xl font-extrabold text-neutral-950 dark:text-white">
-              {fmt0(activeRow.thisDisplayKwd)}
-            </span>
-            <span className="text-[12px] font-bold text-neutral-500">{kwd}</span>
-          </div>
-          <p className="mt-1.5 text-[11px] text-neutral-500 tabular-nums">
-            {isAr
-              ? `${activeRow.thisDate} • الإجمالي قبل الخصم: ${fmt0(activeRow.thisGrossKwd)} ${kwd}`
-              : `${activeRow.thisDate} • Gross: ${fmt0(activeRow.thisGrossKwd)} ${kwd}`}
-          </p>
-        </div>
-
-        <div className={KPI_CLS}>
-          <div className="flex items-center justify-between">
-            <span className="text-[12px] font-semibold text-neutral-500 dark:text-neutral-400">
-              {isAr
-                ? `${activeRow.weekdayAr} الأسبوع الماضي`
-                : `Last ${activeRow.weekdayEn}`}
-            </span>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2 tabular-nums">
-            <span className="text-2xl font-extrabold text-neutral-950 dark:text-white">
-              {fmt0(activeRow.lastDisplayKwd)}
-            </span>
-            <span className="text-[12px] font-bold text-neutral-500">{kwd}</span>
-          </div>
-          <p className="mt-1.5 text-[11px] text-neutral-500 tabular-nums">
-            {isAr
-              ? `${activeRow.lastDate} • الإجمالي قبل الخصم: ${fmt0(activeRow.lastGrossKwd)} ${kwd}`
-              : `${activeRow.lastDate} • Gross: ${fmt0(activeRow.lastGrossKwd)} ${kwd}`}
-          </p>
-        </div>
-
-        <div className={KPI_CLS}>
-          <div className="flex items-center justify-between">
-            <span className="text-[12px] font-semibold text-neutral-500 dark:text-neutral-400">
-              {isAr ? 'الفرق ومقارنة متوسط ٤ أسابيع' : 'Variance & 4-Week Avg'}
-            </span>
-            {activeRow.variancePct >= 0 ? (
-              <TrendingUp className="h-4 w-4 text-emerald-600" />
-            ) : (
-              <TrendingDown className="h-4 w-4 text-rose-600" />
-            )}
-          </div>
-          <div className="mt-2 flex items-baseline gap-2 tabular-nums">
-            <span
-              className={`text-2xl font-extrabold ${
-                activeRow.varianceDisplayKwd >= 0
-                  ? 'text-emerald-700 dark:text-emerald-300'
-                  : 'text-rose-700 dark:text-rose-300'
-              }`}
-            >
-              {fmtSigned0(activeRow.varianceDisplayKwd)}
-            </span>
-            <span
-              className={`rounded-full px-2 py-0.5 text-[11px] font-extrabold ${tierBadgeCls(activeRow.tier)}`}
-            >
-              {fmtSignedPct(activeRow.variancePct)}
-            </span>
-          </div>
-          <p className="mt-1.5 text-[11px] text-neutral-500 tabular-nums">
-            {isAr
-              ? `متوسط ٤ أسابيع لـ ${activeRow.weekdayAr}: ${fmt0(activeRow.fourWeekAvgDisplayKwd)} ${kwd} (${fmtSignedPct(activeRow.vsFourWeekPct)})`
-              : `4W Avg: ${fmt0(activeRow.fourWeekAvgDisplayKwd)} ${kwd} (${fmtSignedPct(activeRow.vsFourWeekPct)})`}
-          </p>
-        </div>
-
-        <div className={KPI_CLS}>
-          <div className="flex items-center justify-between">
-            <span className="text-[12px] font-semibold text-neutral-500 dark:text-neutral-400">
-              {isAr ? 'الطلبات ومتوسط السلة' : 'Orders & Average Basket'}
-            </span>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2 tabular-nums">
-            <span className="text-2xl font-extrabold text-neutral-950 dark:text-white">
-              {fmt0(activeRow.thisOrders)}
-            </span>
-            <span className="text-[12px] font-semibold text-neutral-500">
-              {isAr ? `طلب (مقابل ${fmt0(activeRow.lastOrders)})` : `vs ${fmt0(activeRow.lastOrders)}`}
-            </span>
-          </div>
-          <p className="mt-1.5 text-[11px] text-neutral-500 tabular-nums">
-            {isAr
-              ? `متوسط السلة: ${activeRow.thisAvgBasketKwd.toFixed(2)} ${kwd} (الماضي ${activeRow.lastAvgBasketKwd.toFixed(2)})`
-              : `AOV: ${activeRow.thisAvgBasketKwd.toFixed(2)} ${kwd} (Last ${activeRow.lastAvgBasketKwd.toFixed(2)})`}
-          </p>
-        </div>
-
-        <div className={KPI_CLS}>
-          <div className="flex items-center justify-between">
-            <span className="text-[12px] font-bold text-emerald-800 dark:text-emerald-300">
-              {isAr ? 'صافي الربح بالجيب (Pocket)' : 'Net Pocket Profit'}
-            </span>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2 tabular-nums">
-            <span className="text-2xl font-extrabold text-emerald-700 dark:text-emerald-300">
-              {fmt0(activeRow.thisPocketProfitKwd)}
-            </span>
-            <span className="text-[12px] font-bold text-neutral-500">{kwd}</span>
-            <span className="ms-auto text-[11.5px] font-bold text-neutral-600 dark:text-neutral-300">
-              {fmtSigned0(activeRow.pocketVarianceKwd)} {kwd}
-            </span>
-          </div>
-          <p className="mt-1.5 text-[11px] text-neutral-500 tabular-nums">
-            {isAr
-              ? `الأسبوع الماضي بالجيب: ${fmt0(activeRow.lastPocketProfitKwd)} ${kwd}`
-              : `Prior week pocket: ${fmt0(activeRow.lastPocketProfitKwd)} ${kwd}`}
-          </p>
-        </div>
-      </section>
-
-      {/* ───────────── 3. Hourly Intraday Capsule Curve (This Weekday vs Last Weekday) ───────────── */}
-      <section className={CARD_CLS}>
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h2 className="text-[15.5px] font-extrabold text-neutral-950 dark:text-white">
-              {isAr
-                ? `منحنى المبيعات بالساعة ليوم ${activeRow.weekdayAr}: هذا الأسبوع (${activeRow.thisDate}) مقابل الأسبوع الماضي (${activeRow.lastDate})`
-                : `Hourly Intraday Sales Curve: This ${activeRow.weekdayEn} (${activeRow.thisDate}) vs Last ${activeRow.weekdayEn} (${activeRow.lastDate})`}
-            </h2>
-            <p className="text-[12px] text-neutral-500 dark:text-neutral-400">
-              {isAr
-                ? 'مرّر المؤشر على أي ساعة لمقارنة مبيعات وطلبات الساعة الواحدة بين الأسبوعين'
-                : 'Hover over any hour capsule pair to inspect exact hourly KWD & order counts'}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-4 text-[12px] font-bold">
-            <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-300">
-              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-              {isAr ? `${activeRow.weekdayAr} هذا الأسبوع` : `This ${activeRow.weekdayEn}`}
-            </span>
-            <span className="inline-flex items-center gap-1.5 text-neutral-600 dark:text-neutral-400">
-              <span className="h-2.5 w-2.5 rounded-full bg-neutral-300 dark:bg-neutral-700" />
-              {isAr ? `${activeRow.weekdayAr} الأسبوع الماضي` : `Last ${activeRow.weekdayEn}`}
-            </span>
-          </div>
-        </div>
+        )}
 
         {/* Capsule Bar Chart */}
-        <div className="rounded-2xl bg-[#F7F7F8] p-4 dark:bg-neutral-950">
-          {hoveredHour !== null && (
-            <div className="mb-3 flex flex-wrap items-center justify-between rounded-xl bg-white px-3.5 py-2 text-[12px] font-bold tabular-nums dark:bg-neutral-900">
-              {(() => {
-                const pt =
-                  activeRow.hourlyCurve.find((x) => x.hour === hoveredHour) ??
-                  activeRow.hourlyCurve[0]
-                return (
-                  <>
-                    <span className="text-neutral-900 dark:text-white">
-                      ⏰ {pt.label}
-                    </span>
-                    <span className="text-emerald-700 dark:text-emerald-300">
-                      {isAr ? 'هذا الأسبوع:' : 'This Week:'} {pt.thisWeekKwd.toFixed(1)} {kwd} ({pt.thisWeekOrders}{' '}
-                      {isAr ? 'طلب' : 'ord'})
-                    </span>
-                    <span className="text-neutral-600 dark:text-neutral-300">
-                      {isAr ? 'الأسبوع الماضي:' : 'Last Week:'} {pt.lastWeekKwd.toFixed(1)} {kwd} ({pt.lastWeekOrders}{' '}
-                      {isAr ? 'طلب' : 'ord'})
-                    </span>
-                  </>
-                )
-              })()}
+        <div className={`p-4 ${SUBCARD_CLS}`}>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-[13px] font-bold">
+            <div className="flex items-center gap-4">
+              <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-300">
+                <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                {isAr ? `${activeRow.weekdayAr} هذا الأسبوع` : `This ${activeRow.weekdayEn}`}
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-neutral-600 dark:text-slate-400">
+                <span className="h-2.5 w-2.5 rounded-full bg-neutral-300 dark:bg-slate-600" />
+                {isAr ? `${activeRow.weekdayAr} الأسبوع الماضي` : `Last ${activeRow.weekdayEn}`}
+              </span>
             </div>
-          )}
+
+            {hoveredHour !== null && (
+              <div className="flex flex-wrap items-center gap-4 rounded-xl border border-neutral-200/70 bg-white px-3.5 py-1.5 text-[12.5px] font-bold tabular-nums dark:border-white/[0.08] dark:bg-[#0D1614]">
+                {(() => {
+                  const pt =
+                    activeRow.hourlyCurve.find((x) => x.hour === hoveredHour) ??
+                    activeRow.hourlyCurve[0]
+                  return (
+                    <>
+                      <span className="text-neutral-900 dark:text-white">⏰ {pt.label}</span>
+                      <span className="text-emerald-700 dark:text-emerald-300">
+                        {isAr ? 'الحالي:' : 'This:'} {pt.thisWeekKwd.toFixed(1)} {kwd} (
+                        {pt.thisWeekOrders})
+                      </span>
+                      <span className="text-neutral-600 dark:text-slate-300">
+                        {isAr ? 'الماضي:' : 'Last:'} {pt.lastWeekKwd.toFixed(1)} {kwd} (
+                        {pt.lastWeekOrders})
+                      </span>
+                    </>
+                  )
+                })()}
+              </div>
+            )}
+          </div>
 
           <div className="grid grid-cols-7 gap-2 sm:grid-cols-14">
             {activeRow.hourlyCurve.map((pt) => {
@@ -510,7 +513,7 @@ export function WeekdayComparisonStudio() {
                   onMouseEnter={() => setHoveredHour(pt.hour)}
                   onMouseLeave={() => setHoveredHour(null)}
                   className={`flex flex-col items-center rounded-xl py-2 transition ${
-                    isHover ? 'bg-white dark:bg-neutral-900' : ''
+                    isHover ? 'bg-white dark:bg-[#0D1614]' : ''
                   }`}
                 >
                   <div className="flex h-[136px] items-end justify-center gap-1">
@@ -520,10 +523,10 @@ export function WeekdayComparisonStudio() {
                     />
                     <div
                       style={{ height: `${hLast}px` }}
-                      className="w-2.5 rounded-full bg-neutral-300 transition-all duration-200 dark:bg-neutral-700 sm:w-3"
+                      className="w-2.5 rounded-full bg-neutral-300 transition-all duration-200 dark:bg-slate-600 sm:w-3"
                     />
                   </div>
-                  <span className="mt-2 text-[10px] font-bold text-neutral-600 tabular-nums dark:text-neutral-400">
+                  <span className="mt-2 text-[11px] font-bold text-neutral-600 tabular-nums dark:text-slate-400">
                     {pt.label}
                   </span>
                 </div>
@@ -537,35 +540,35 @@ export function WeekdayComparisonStudio() {
       <section className={CARD_CLS}>
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2 className="text-[15.5px] font-extrabold text-neutral-950 dark:text-white">
+            <h2 className="text-[17px] font-extrabold text-neutral-950 dark:text-white">
               {isAr
                 ? 'جدول مصفوفة الأيام السبعة الكامل (هذا الأسبوع مقابل الأسبوع الماضي ومتوسط ٤ أسابيع)'
                 : '7-Day Full Like-for-Like Matrix Table'}
             </h2>
-            <p className="text-[12px] text-neutral-500 dark:text-neutral-400">
+            <p className="text-[13.5px] text-neutral-500 dark:text-slate-400">
               {isAr
-                ? 'اضغط على أي يوم في الجدول لتحديث منحنى الساعات أعلاه — تطابق محاسبي تام (0 د.ك فرق)'
-                : 'Click any weekday row to inspect its hourly capsule curve — 0 KWD reconciliation variance'}
+                ? 'اضغط على أي يوم لتحديث المنحنى أعلاه — يظهر زر التصعيد فقط لليوم الحرج الفعلي دون ضوضاء'
+                : 'Click any weekday row to inspect its hourly curve — Escalate ↗ shown strictly on Red critical outlier'}
             </p>
           </div>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px] border-collapse text-start text-[12.5px] tabular-nums">
+          <table className="w-full min-w-[1040px] border-collapse text-start text-[14px] sm:text-[14.5px] tabular-nums">
             <thead>
-              <tr className="bg-[#F7F7F8] text-[11.5px] font-bold text-neutral-600 dark:bg-neutral-950 dark:text-neutral-300">
-                <th className="px-3 py-2.5 text-start">{isAr ? 'اليوم والتواريخ' : 'Weekday & Dates'}</th>
-                <th className="px-3 py-2.5 text-end">{isAr ? 'هذا الأسبوع (د.ك)' : 'This Week (KWD)'}</th>
-                <th className="px-3 py-2.5 text-end">{isAr ? 'الأسبوع الماضي (د.ك)' : 'Last Week (KWD)'}</th>
-                <th className="px-3 py-2.5 text-end">{isAr ? 'الفرق (د.ك و %)' : 'Variance (KWD & %)'}</th>
-                <th className="px-3 py-2.5 text-end">{isAr ? 'متوسط ٤ أسابيع' : '4-Week Avg'}</th>
-                <th className="px-3 py-2.5 text-end">{isAr ? 'الطلبات' : 'Orders'}</th>
-                <th className="px-3 py-2.5 text-end">{isAr ? 'صافي الجيب' : 'Net Pocket'}</th>
-                <th className="px-3 py-2.5 text-start">{isAr ? 'محرك الأداء (رواتب/ويكند/عروض)' : 'Driver Tag'}</th>
-                <th className="px-3 py-2.5 text-end">{isAr ? 'خطة التعويض' : 'Action'}</th>
+              <tr className="border-b border-neutral-200/80 bg-[#F7F7F8] text-[12.5px] font-bold text-neutral-600 dark:border-white/[0.08] dark:bg-[#111E1B] dark:text-slate-300">
+                <th className="px-3.5 py-3 text-start">{isAr ? 'اليوم والتواريخ' : 'Weekday & Dates'}</th>
+                <th className="px-3.5 py-3 text-end">{isAr ? 'هذا الأسبوع (د.ك)' : 'This Week (KWD)'}</th>
+                <th className="px-3.5 py-3 text-end">{isAr ? 'الأسبوع الماضي (د.ك)' : 'Last Week (KWD)'}</th>
+                <th className="px-3.5 py-3 text-end">{isAr ? 'الفرق والتقييم' : 'Variance & Tier'}</th>
+                <th className="px-3.5 py-3 text-end">{isAr ? 'متوسط ٤ أسابيع' : '4-Week Avg'}</th>
+                <th className="px-3.5 py-3 text-end">{isAr ? 'الطلبات' : 'Orders'}</th>
+                <th className="px-3.5 py-3 text-end">{isAr ? 'صافي الجيب' : 'Net Pocket'}</th>
+                <th className="px-3.5 py-3 text-start">{isAr ? 'محرك الأداء' : 'Driver Tag'}</th>
+                <th className="px-3.5 py-3 text-end">{isAr ? 'الإجراء' : 'Action'}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800/70">
+            <tbody className="divide-y divide-neutral-100 dark:divide-white/[0.05]">
               {data.rows.map((r) => {
                 const isSelected = r.dow === activeDow
                 const existingPlan = getApprovalByRef(`weekday-recovery-plan-${r.dow}`)
@@ -576,69 +579,70 @@ export function WeekdayComparisonStudio() {
                     className={`cursor-pointer transition ${
                       isSelected
                         ? 'bg-emerald-50/45 dark:bg-emerald-950/20'
-                        : 'hover:bg-[#F7F7F8]/70 dark:hover:bg-neutral-800/30'
+                        : 'hover:bg-[#F7F7F8]/70 dark:hover:bg-white/[0.03]'
                     }`}
                   >
-                    <td className="px-3 py-3">
+                    <td className="px-3.5 py-3.5">
                       <div className="font-extrabold text-neutral-950 dark:text-white">
                         {isAr ? r.weekdayAr : r.weekdayEn}
                       </div>
-                      <div className="text-[11px] text-neutral-500">
+                      <div className="text-[12px] text-neutral-500 dark:text-slate-400">
                         {r.thisDate} {isAr ? 'مقابل' : 'vs'} {r.lastDate}
                       </div>
                     </td>
-                    <td className="px-3 py-3 text-end font-extrabold text-neutral-950 dark:text-white">
+                    <td className="px-3.5 py-3.5 text-end font-extrabold text-neutral-950 dark:text-white">
                       {fmt0(r.thisDisplayKwd)} {kwd}
                     </td>
-                    <td className="px-3 py-3 text-end font-semibold text-neutral-600 dark:text-neutral-300">
+                    <td className="px-3.5 py-3.5 text-end font-semibold text-neutral-600 dark:text-slate-300">
                       {fmt0(r.lastDisplayKwd)} {kwd}
                     </td>
-                    <td className="px-3 py-3 text-end">
+                    <td className="px-3.5 py-3.5 text-end whitespace-nowrap">
                       <span
-                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11.5px] font-extrabold ${tierBadgeCls(r.tier)}`}
+                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[12.5px] font-extrabold ${tierBadgeCls(r.tier)}`}
                       >
-                        {fmtSigned0(r.varianceDisplayKwd)} {kwd} ({fmtSignedPct(r.variancePct)})
+                        {tierDot(r.tier)} {fmtSigned0(r.varianceDisplayKwd)} {kwd} ({fmtSignedPct(r.variancePct)})
                       </span>
                     </td>
-                    <td className="px-3 py-3 text-end font-semibold text-neutral-700 dark:text-neutral-300">
+                    <td className="px-3.5 py-3.5 text-end font-semibold text-neutral-700 dark:text-slate-300">
                       {fmt0(r.fourWeekAvgDisplayKwd)} {kwd}{' '}
-                      <span className="text-[11px] text-neutral-500">({fmtSignedPct(r.vsFourWeekPct)})</span>
+                      <span className="text-[12px] text-neutral-400">({fmtSignedPct(r.vsFourWeekPct)})</span>
                     </td>
-                    <td className="px-3 py-3 text-end text-neutral-700 dark:text-neutral-300">
+                    <td className="px-3.5 py-3.5 text-end text-neutral-700 dark:text-slate-300">
                       <span className="font-bold text-neutral-900 dark:text-white">{fmt0(r.thisOrders)}</span> /{' '}
                       {fmt0(r.lastOrders)}
                     </td>
-                    <td className="px-3 py-3 text-end font-bold text-emerald-700 dark:text-emerald-300">
+                    <td className="px-3.5 py-3.5 text-end font-bold text-emerald-700 dark:text-emerald-300">
                       {fmt0(r.thisPocketProfitKwd)} {kwd}
                     </td>
-                    <td className="px-3 py-3 text-[11.5px] font-semibold text-neutral-700 dark:text-neutral-300">
+                    <td className="px-3.5 py-3.5 text-[13px] font-medium text-neutral-700 dark:text-slate-300">
                       {isAr ? r.driverTagAr : r.driverTagEn}
                     </td>
                     <td
-                      className="px-3 py-3 text-end"
+                      className="px-3.5 py-3.5 text-end whitespace-nowrap"
                       onClick={(e) => {
                         e.stopPropagation()
                       }}
                     >
-                      {r.varianceDisplayKwd < 0 ? (
-                        <button
-                          type="button"
-                          onClick={() => handleEscalateWeakDay(r)}
-                          className="inline-flex cursor-pointer items-center gap-1 rounded-xl bg-amber-50 px-2.5 py-1.5 text-[11px] font-bold text-amber-900 transition hover:bg-amber-100 dark:bg-amber-950/60 dark:text-amber-200"
-                        >
-                          <Bell className="h-3.5 w-3.5" />
-                          {existingPlan
-                            ? isAr
-                              ? 'تم الرفع ✅'
-                              : 'Sent ✅'
-                            : isAr
-                              ? 'رفع خطة تعويض اليوم الضعيف لجرس المدير 🔔'
-                              : 'Submit Recovery Plan 🔔'}
-                        </button>
+                      {r.tier === 'red' ? (
+                        existingPlan ? (
+                          <button
+                            type="button"
+                            onClick={() => openDrawer('approvals')}
+                            className="inline-flex h-8 cursor-pointer items-center rounded-full border border-emerald-200/80 bg-emerald-50 px-3 text-[12.5px] font-semibold text-emerald-800 transition-colors hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-950/50 dark:text-emerald-300"
+                          >
+                            {isAr ? 'تم التصعيد ✓' : 'Escalated ✓'}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleEscalateWeakDay(r)}
+                            className="inline-flex h-8 cursor-pointer items-center rounded-full border border-rose-200/80 bg-rose-50/70 px-3 text-[12.5px] font-semibold text-rose-700 transition-colors hover:bg-rose-100 dark:border-rose-500/30 dark:bg-rose-950/40 dark:text-rose-200"
+                          >
+                            {isAr ? 'تصعيد ↗' : 'Escalate ↗'}
+                          </button>
+                        )
                       ) : (
-                        <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
-                          {isAr ? 'أداء متفوق 🟢' : 'Outperforming 🟢'}
-                        </span>
+                        <span className="select-none text-neutral-300 dark:text-slate-600">—</span>
                       )}
                     </td>
                   </tr>
@@ -646,19 +650,19 @@ export function WeekdayComparisonStudio() {
               })}
             </tbody>
             <tfoot>
-              <tr className="bg-[#F7F7F8] font-extrabold text-neutral-950 dark:bg-neutral-950 dark:text-white">
-                <td className="px-3 py-3">
+              <tr className="border-t border-neutral-200/80 bg-[#F7F7F8] font-extrabold text-neutral-950 dark:border-white/[0.08] dark:bg-[#111E1B] dark:text-white">
+                <td className="px-3.5 py-3.5">
                   {isAr ? 'الإجمالي الأسبوعي (٧ أيام)' : '7-Day Weekly Total'}
                 </td>
-                <td className="px-3 py-3 text-end">
+                <td className="px-3.5 py-3.5 text-end">
                   {fmt0(data.totalThisDisplayKwd)} {kwd}
                 </td>
-                <td className="px-3 py-3 text-end">
+                <td className="px-3.5 py-3.5 text-end">
                   {fmt0(data.totalLastDisplayKwd)} {kwd}
                 </td>
-                <td className="px-3 py-3 text-end">
+                <td className="px-3.5 py-3.5 text-end">
                   <span
-                    className={`rounded-full px-2.5 py-0.5 text-[11.5px] font-extrabold ${
+                    className={`rounded-full px-2.5 py-1 text-[12.5px] font-extrabold ${
                       data.totalVarianceDisplayKwd >= 0
                         ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
                         : 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'
@@ -667,19 +671,19 @@ export function WeekdayComparisonStudio() {
                     {fmtSigned0(data.totalVarianceDisplayKwd)} {kwd} ({fmtSignedPct(data.totalVariancePct)})
                   </span>
                 </td>
-                <td className="px-3 py-3 text-end">
+                <td className="px-3.5 py-3.5 text-end">
                   {fmt0(data.totalFourWeekAvgDisplayKwd)} {kwd}
                 </td>
-                <td className="px-3 py-3 text-end">
+                <td className="px-3.5 py-3.5 text-end">
                   {fmt0(data.totalThisOrders)} / {fmt0(data.totalLastOrders)}
                 </td>
-                <td className="px-3 py-3 text-end text-emerald-700 dark:text-emerald-300">
+                <td className="px-3.5 py-3.5 text-end text-emerald-700 dark:text-emerald-300">
                   {fmt0(data.totalThisPocketKwd)} {kwd}
                 </td>
-                <td className="px-3 py-3 text-[11px] text-neutral-500">
+                <td className="px-3.5 py-3.5 text-[12.5px] font-semibold text-neutral-500 dark:text-slate-400">
                   {isAr ? 'مطابق ١٠٠٪ مع أودو (0 د.ك فرق)' : '0 KWD Variance Verified'}
                 </td>
-                <td className="px-3 py-3" />
+                <td className="px-3.5 py-3.5 text-end text-neutral-300 dark:text-slate-600">—</td>
               </tr>
             </tfoot>
           </table>

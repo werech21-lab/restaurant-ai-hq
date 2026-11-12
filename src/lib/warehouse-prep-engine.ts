@@ -346,9 +346,11 @@ function deterministicDayWave(dateIso: string, salt: string): number {
 function classifyBranchChainHealth(
   transitGapKwd: number,
   wastePct: number,
+  catShare = 1,
 ): ChainHealthStatus {
-  if (transitGapKwd > 4 || wastePct > 3.2) return 'critical'
-  if (transitGapKwd !== 0 || wastePct > 1.8) return 'watch'
+  const criticalGapThreshold = Math.max(0.6, 3.6 * catShare)
+  if (transitGapKwd >= criticalGapThreshold || wastePct > 3.2) return 'critical'
+  if (transitGapKwd > 0 || wastePct > 1.8) return 'watch'
   return 'healthy'
 }
 
@@ -456,7 +458,9 @@ export function computeWarehouseDailyChain(
       const bomTheoreticalCostKwd = r3(posSalesKwd * branchRawRatio * catShare)
       const bomTheoreticalKg = r1(bomTheoreticalCostKwd / unitKwd)
 
-      const abnormalRatio = (ref.abnormalPctOfSales || 0) / 100
+      // Calibrated daily post-reconciliation kitchen shrinkage (~85% of branches 🟢/🟡, 1–2 genuine 🔴 outliers)
+      const dailyWasteScale = bw.bid === 'avenues' ? 0.59 : row.dow === 5 ? 0.58 : 0.54
+      const abnormalRatio = ((ref.abnormalPctOfSales || 0) * dailyWasteScale) / 100
       const abnormalShrinkageKwd = r3(posSalesKwd * abnormalRatio * catShare)
       const abnormalShrinkageKg = r1(abnormalShrinkageKwd / unitKwd)
 
@@ -467,9 +471,14 @@ export function computeWarehouseDailyChain(
       const receivedKg = r1(actualConsumedKg * replenishFactor)
       const receivedByBranchKwd = r3(actualConsumedKwd * replenishFactor)
 
+      const dayOfMonth = row.dt.getUTCDate()
+      const isBiweeklyAuditFriday = row.dow === 5 && (dayOfMonth === 6 || dayOfMonth === 23)
       const hasTransitSlip =
-        (bw.bid === 'promenade' && row.dow === 5) || (bw.bid === 'al-kout' && row.dow === 4)
-      const transitGapKwd = hasTransitSlip ? r3(Math.max(0.45, posSalesKwd * 0.0045 * catShare)) : 0
+        (bw.bid === 'promenade' && isBiweeklyAuditFriday) ||
+        (bw.bid === 'al-kout' && row.dow === 4 && dayOfMonth === 5)
+      const transitGapKwd = hasTransitSlip
+        ? r3(Math.max(0.65 * catShare, posSalesKwd * 0.0062 * catShare))
+        : 0
       const transitGapKg = hasTransitSlip ? Math.max(0.5, r1(transitGapKwd / unitKwd)) : 0
 
       const dispatchedFromWarehouseKwd = r3(receivedByBranchKwd + transitGapKwd)
@@ -481,7 +490,8 @@ export function computeWarehouseDailyChain(
       const abnormalPctOfSales = posSalesKwd > 0 ? r2((abnormalShrinkageKwd / posSalesKwd) * 100) : 0
       const wastePct =
         posSalesKwd > 0 ? r2((abnormalShrinkageKwd / Math.max(1, posSalesKwd)) * 100) : 0
-      const requiresInvestigation = transitGapKwd !== 0 || wastePct > 1.8
+      const branchHealth = classifyBranchChainHealth(transitGapKwd, wastePct, catShare)
+      const requiresInvestigation = branchHealth === 'critical'
 
       branchNodes.push({
         branchId: bw.bid,
@@ -507,7 +517,7 @@ export function computeWarehouseDailyChain(
         wastePct,
         requiresInvestigation,
         branchNetStockDeltaKwd: r3(receivedByBranchKwd - actualConsumedKwd),
-        health: classifyBranchChainHealth(transitGapKwd, wastePct),
+        health: branchHealth,
       })
     }
 
@@ -545,15 +555,18 @@ export function computeWarehouseDailyChain(
     const warehouseOpeningKg = runningOpeningKg
     const warehouseOnHandTotalKwd = r3(warehouseOpeningKwd + supplierInboundKwd)
     const warehouseOnHandTotalKg = r1(warehouseOpeningKg + supplierInboundKg)
-    const warehouseClosingKwd = r3(warehouseOnHandTotalKwd - warehouseDispatchedKwd)
-    const warehouseClosingKg = r1(warehouseOnHandTotalKg - warehouseDispatchedKg)
+    const warehouseClosingKwd = r3(
+      warehouseOpeningKwd + supplierInboundKwd - warehouseDispatchedKwd,
+    )
+    const warehouseClosingKg = r1(warehouseOpeningKg + supplierInboundKg - warehouseDispatchedKg)
 
     runningOpeningKwd = warehouseClosingKwd
     runningOpeningKg = warehouseClosingKg
 
     const wastePct =
       branchesPosSalesKwd > 0 ? r2((abnormalShrinkageKwd / branchesPosSalesKwd) * 100) : 0
-    const requiresInvestigation = transitGapKwd !== 0 || wastePct > 1.8
+    const dayHealth = classifyBranchChainHealth(transitGapKwd, wastePct, catShare)
+    const requiresInvestigation = dayHealth === 'critical'
 
     days.push({
       dateIso: row.dateIso,
@@ -587,7 +600,7 @@ export function computeWarehouseDailyChain(
       abnormalShrinkageKg,
       wastePct,
       requiresInvestigation,
-      health: classifyBranchChainHealth(transitGapKwd, wastePct),
+      health: dayHealth,
       branches: branchNodes,
     })
   }
@@ -618,7 +631,12 @@ export function computeWarehouseDailyChain(
       const abnormalPctOfSales =
         posSalesKwd > 0 ? r2((abnormalShrinkageKwd / posSalesKwd) * 100) : 0
       const wastePct = abnormalPctOfSales
-      const requiresInvestigation = transitGapKwd !== 0 || wastePct > 1.8
+      const summaryHealth = classifyBranchChainHealth(
+        transitGapKwd / Math.max(1, dayCount),
+        wastePct,
+        catShare,
+      )
+      const requiresInvestigation = summaryHealth === 'critical'
 
       return {
         branchId: bid,
@@ -644,7 +662,7 @@ export function computeWarehouseDailyChain(
         wastePct,
         requiresInvestigation,
         branchNetStockDeltaKwd: r3(receivedByBranchKwd - actualConsumedKwd),
-        health: classifyBranchChainHealth(transitGapKwd / Math.max(1, dayCount), wastePct),
+        health: summaryHealth,
       }
     })
     .sort((a, b) => b.posSalesKwd - a.posSalesKwd)
@@ -1011,23 +1029,23 @@ const OPERATING_HOUR_SLOTS: ReadonlyArray<{
 
 /** Calibrated baseline prep speed per brand (seconds) anchored to cooking station complexity */
 const BRAND_BASE_PREP_SEC: Record<ActiveBrandId, number> = {
-  'china-garden': 655, // Wok + multi-dish family combos
-  franks: 585, // Smash grill + fries
-  tahina: 540, // Shawarma & grill assembly
-  'farm-brown': 520, // Bakery & bowls
-  'noodle-bar': 610, // Fresh wok noodles
-  'karak-cafeteria': 395, // Fast karak & chapati line
+  'china-garden': 585, // Wok + multi-dish family combos
+  franks: 525, // Smash grill + fries
+  tahina: 485, // Shawarma & grill assembly
+  'farm-brown': 465, // Bakery & bowls
+  'noodle-bar': 545, // Fresh wok noodles
+  'karak-cafeteria': 360, // Fast karak & chapati line
 }
 
 /** Calibrated location kitchen load offset (seconds) anchored to Odoo cancellation/void pressure */
 const BRANCH_LOAD_OFFSET_SEC: Record<ActiveBranchId, number> = {
-  ardiya: 165, // Highest multi-brand dark-kitchen aggregator volume (37 voids hotspot)
-  salmiya: 130, // High evening delivery rush (28 voids)
-  promenade: 85, // High dine-in + delivery overlap
-  '360-mall': 55, // Balanced mall food-court + Tgo
-  assima: 25, // Disciplined central mall line
-  'al-kout': 35, // Steady southern hub
-  avenues: -35, // Fastest high-throughput mall line
+  ardiya: 115, // Highest multi-brand dark-kitchen aggregator volume (37 voids hotspot)
+  salmiya: 85, // High evening delivery rush (28 voids)
+  promenade: 50, // High dine-in + delivery overlap
+  '360-mall': 30, // Balanced mall food-court + Tgo
+  assima: 10, // Disciplined central mall line
+  'al-kout': 20, // Steady southern hub
+  avenues: -40, // Fastest high-throughput mall line
 }
 
 const DELAY_ROOT_CAUSES: ReadonlyArray<{
@@ -1082,6 +1100,7 @@ function pickDelayCause(
 
 export function computeOrderPrepSlaSnapshot(
   filters: GlobalFilters = DEFAULT_GLOBAL_FILTERS,
+  _workspaceOverride?: GlobalWorkspaceSlice,
 ): OrderPrepSlaSnapshot {
   const dateWindow = buildDateWindow(filters)
   const latestIso = dateWindow[dateWindow.length - 1] ?? '2026-11-10'
@@ -1133,15 +1152,15 @@ export function computeOrderPrepSlaSnapshot(
         channelId === 'dine-in' ? -35 : channelId === 'takeaway-direct' ? -45 : 40
       const weekendExtra = kuwaitSlice === 'weekend' ? 55 : 0
 
-      // Deterministic variance (-190s .. +440s) producing realistic Green / Yellow / Red mix
+      // Deterministic variance producing ~88% Green/Yellow & ~12% genuine Red (>18m) critical outliers (1–2 per 12-row page)
       const spreadBucket = (hSeed % 100) / 100
       let jitterSec = 0
-      if (spreadBucket < 0.58) {
-        jitterSec = -175 + Math.round(spreadBucket * 210)
-      } else if (spreadBucket < 0.84) {
-        jitterSec = 95 + Math.round((spreadBucket - 0.58) * 620)
+      if (spreadBucket < 0.66) {
+        jitterSec = -165 + Math.round(spreadBucket * 185)
+      } else if (spreadBucket < 0.89) {
+        jitterSec = 85 + Math.round((spreadBucket - 0.66) * 520)
       } else {
-        jitterSec = 310 + Math.round((spreadBucket - 0.84) * 950)
+        jitterSec = 415 + Math.round((spreadBucket - 0.89) * 680)
       }
 
       const rawPrepSec =
@@ -1191,10 +1210,11 @@ export function computeOrderPrepSlaSnapshot(
     }
   }
 
-  // Sort newest / highest urgency easily viewable while keeping chronological order by date + arrival desc
+  // Sort chronologically by date + exact arrival timestamp desc (avoiding artificial clustering of red tickets)
   const tickets = [...allGeneratedTickets].sort((a, b) => {
     if (a.dateIso !== b.dateIso) return b.dateIso.localeCompare(a.dateIso)
-    return b.hourIndex - a.hourIndex || b.prepSeconds - a.prepSeconds
+    if (a.arrivedAt !== b.arrivedAt) return b.arrivedAt.localeCompare(a.arrivedAt)
+    return b.orderId.localeCompare(a.orderId)
   })
 
   const summarizeEntities = <ID extends string>(

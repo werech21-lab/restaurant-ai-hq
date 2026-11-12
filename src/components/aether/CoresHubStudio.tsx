@@ -18,7 +18,6 @@ import {
   ShieldAlert,
   ShieldCheck,
   Sparkles,
-  Star,
   Trash2,
   TrendingUp,
   UtensilsCrossed,
@@ -61,9 +60,48 @@ import {
   type HorizontalRankDatum,
   type MultiSeriesBarDatum,
 } from '@/components/aether/InteractiveHoverCharts'
-import { SlidingPillTabs } from '@/components/ui/SlidingPillTabs'
+function EmeraldPillTabs<K extends string>({
+  options,
+  value,
+  onChange,
+  ariaLabel,
+}: {
+  options: readonly { id: K; label: string; icon?: React.ReactNode }[]
+  value: K
+  onChange: (next: K) => void
+  ariaLabel?: string
+}) {
+  return (
+    <div
+      role="tablist"
+      aria-label={ariaLabel}
+      className="inline-flex flex-wrap items-center gap-1 rounded-full bg-[#F1F5F9] p-1 ring-1 ring-slate-900/[0.06] select-none dark:bg-[#0C141B] dark:ring-white/[0.08]"
+    >
+      {options.map((opt) => {
+        const active = opt.id === value
+        return (
+          <button
+            key={opt.id}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(opt.id)}
+            className={`inline-flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-bold whitespace-nowrap transition-all duration-150 focus:outline-none sm:text-[13.5px] ${
+              active
+                ? 'btn-colored bg-emerald-600 text-white shadow-sm dark:bg-emerald-500 dark:text-[#04130D]'
+                : 'text-slate-600 hover:bg-white/80 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
+            }`}
+          >
+            {opt.icon ? <span className="shrink-0">{opt.icon}</span> : null}
+            <span>{opt.label}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
 
-type CoreTabId = 'marketing' | 'sales' | 'menu' | 'quality'
+type CoreTabId = 'marketing' | 'sales' | 'menu'
 type MenuSortKey = 'profit' | 'units' | 'sales' | 'costPct'
 type MenuPageSize = 12 | 25 | 'all'
 type MenuRankView = 'split' | 'heroes' | 'bleeders'
@@ -90,14 +128,14 @@ const fArInt = (n: number) =>
     .replace(/\d/g, (d) => '٠١٢٣٤٥٦٧٨٩'[Number(d)] ?? d)
 
 const CARD_CLS =
-  'ae-bento-card bg-white p-5 sm:p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-[#111A22]'
+  'ae-bento-card bg-white p-5 sm:p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)] dark:bg-[#111A22]'
 const KPI_CARD_CLS =
-  'ae-kpi-card bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-[#111A22]'
+  'ae-kpi-card bg-white p-5 sm:p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)] dark:bg-[#111A22]'
 const SOFT_SCOPE_PILL_CLS =
-  'bg-neutral-100 text-neutral-800 dark:bg-emerald-950/70 dark:text-emerald-200 font-medium text-xs px-2.5 py-1 rounded-full'
+  'bg-neutral-100 text-neutral-800 dark:bg-emerald-950/70 dark:text-emerald-200 font-medium text-[12.5px] px-2.5 py-1 rounded-full'
 
 const INPUT_CLS =
-  'h-10 w-full rounded-xl bg-white px-3 text-[13px] font-medium text-neutral-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 dark:bg-[#0F1821] dark:text-white'
+  'h-10 w-full rounded-xl bg-white px-3 text-[14px] font-medium text-neutral-900 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 dark:bg-[#0F1821] dark:text-white'
 
 const BRAND_CHOICES = GLOBAL_BRAND_OPTIONS.filter(
   (b): b is { id: Exclude<GlobalBrand, 'all'>; ar: string; en: string } => b.id !== 'all',
@@ -109,10 +147,9 @@ const CORE_TABS: readonly {
   en: string
   icon: React.ComponentType<{ className?: string }>
 }[] = [
-  { id: 'marketing', ar: 'التسويق ونمو المبيعات', en: 'Marketing & Growth', icon: Megaphone },
-  { id: 'sales', ar: 'المبيعات', en: 'Sales', icon: TrendingUp },
-  { id: 'menu', ar: 'المنتجات والمينيو', en: 'Products & Menu', icon: UtensilsCrossed },
-  { id: 'quality', ar: 'التقييم والجودة', en: 'Ratings & Quality', icon: Star },
+  { id: 'marketing', ar: 'التسويق وإعلانات المشاهير', en: 'Marketing & Influencer Ads', icon: Megaphone },
+  { id: 'sales', ar: 'المبيعات والقنوات', en: 'Sales & Channels', icon: TrendingUp },
+  { id: 'menu', ar: 'هندسة المينيو', en: 'Menu Engineering', icon: UtensilsCrossed },
 ] as const
 
 const TAG_FILTERS: readonly {
@@ -190,15 +227,12 @@ export function CoresHubStudio() {
   const [simRetentionPct, setSimRetentionPct] = useState(95)
   const [simPromoLiftPct, setSimPromoLiftPct] = useState(0)
 
-  // Quality tab pagination (12 rows max)
-  const [qualityPage, setQualityPage] = useState(1)
-
   // Hydrate real saved Venture Foods campaigns (zero unmarked demo campaigns mixed in) + optional URL ?tab=
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search)
       const qTab = params.get('tab') as CoreTabId | null
-      if (qTab && ['marketing', 'sales', 'menu', 'quality'].includes(qTab)) {
+      if (qTab && ['marketing', 'sales', 'menu'].includes(qTab)) {
         setActiveTab(qTab)
       }
     } catch {}
@@ -547,14 +581,10 @@ export function CoresHubStudio() {
     setSimPromoLiftPct(dish.recommendedPromoLiftPct)
   }, [])
 
-  // Reset Menu & Quality pagination to Page 1 whenever search, quadrant, sort, or global filter changes
+  // Reset Menu pagination to Page 1 whenever search, quadrant, sort, or global filter changes
   useEffect(() => {
     setMenuPage(1)
   }, [dishTagFilter, dishSearch, dishSort, menuPageSize, filters])
-
-  useEffect(() => {
-    setQualityPage(1)
-  }, [filters])
 
   // Close Price & Cost Simulator Drawer on Escape key
   useEffect(() => {
@@ -634,57 +664,6 @@ export function CoresHubStudio() {
     simPromoLiftPct,
     snap.menu.effectiveChannelFeePct,
   ])
-
-  const qualityPageSize = 12
-  const qualityTotalPages = Math.max(
-    1,
-    Math.ceil(snap.quality.branchQuality.length / qualityPageSize),
-  )
-  const safeQualityPage = Math.min(qualityPage, qualityTotalPages)
-  const paginatedQualityRows = useMemo(() => {
-    const start = (safeQualityPage - 1) * qualityPageSize
-    return snap.quality.branchQuality.slice(start, start + qualityPageSize)
-  }, [snap.quality.branchQuality, safeQualityPage])
-
-  const qualityChartData = useMemo<MultiSeriesBarDatum[]>(() => {
-    return snap.quality.branchQuality.map((b) => ({
-      id: b.branchId,
-      label: isAr ? b.branchAr : b.branchEn,
-      tooltipTitle: isAr ? b.branchAr : b.branchEn,
-      primaryValue: b.qualityScore,
-      primaryColor:
-        b.qualityScore >= 90 ? '#10B981' : b.qualityScore >= 84 ? '#0EA5E9' : '#F59E0B',
-      badgeText: `${b.rating.toFixed(1)} ★`,
-      badgeTone: b.rating >= 4.6 ? 'emerald' : 'amber',
-      lines: [
-        {
-          label: isAr ? 'تقييم المنصات:' : 'App Rating:',
-          value: `${b.rating.toFixed(1)} / 5.0 ★`,
-          tone: b.rating >= 4.6 ? 'emerald' : 'amber',
-          bold: true,
-        },
-        {
-          label: isAr ? 'درجة الجودة والالتزام:' : 'Quality Score:',
-          value: `${b.qualityScore}%`,
-          bold: true,
-        },
-        {
-          label: isAr ? 'الطلبات الملغية والمرتجعة:' : 'Cancelled / Refunded:',
-          value: `${f0(b.cancelledOrders)} (${f1(b.cancelledKwd)} ${kwdSuffix})`,
-          tone: b.cancelledOrders > 15 ? 'rose' : 'neutral',
-        },
-        {
-          label: isAr ? 'نسبة الإلغاء:' : 'Cancel Rate:',
-          value: `${b.cancelRatePct}%`,
-          tone: b.cancelRatePct >= 0.8 ? 'rose' : 'emerald',
-        },
-        {
-          label: isAr ? 'ضيافة وتعويض:' : 'Complimentary:',
-          value: `${f1(b.compKwd)} ${kwdSuffix}`,
-        },
-      ],
-    }))
-  }, [snap.quality.branchQuality, isAr, kwdSuffix])
 
   const marketingDonutSlices = useMemo<DonutSliceDatum[]>(() => {
     const org = Math.max(0, snap.marketing.kpis.organicSalesKwd)
@@ -796,23 +775,6 @@ export function CoresHubStudio() {
     })
   }, [isAr, kwdSuffix, snap.menu.dishes, snap.menu.totalNetProfitKwd])
 
-  const qualityPlatformDonutSlices = useMemo<DonutSliceDatum[]>(() => {
-    const palette = ['#10B981', '#0EA5E9', '#F59E0B', '#64748B']
-    const totalOrd = Math.max(
-      1,
-      snap.quality.platformRatings.reduce((acc, p) => acc + Math.max(0, p.orders), 0),
-    )
-    return snap.quality.platformRatings.slice(0, 4).map((p, i) => ({
-      id: p.id,
-      label: isAr ? p.platformAr : p.platformEn,
-      subLabel: `${p.rating.toFixed(1)} ★`,
-      value: Math.max(0, p.orders),
-      valueFormatted: `${f0(p.orders)} ${isAr ? 'طلب' : 'ord'}`,
-      pctFormatted: `${f1((Math.max(0, p.orders) / totalOrd) * 100)}%`,
-      color: palette[i % palette.length],
-    }))
-  }, [isAr, snap.quality.platformRatings])
-
   const formatDishSimWhatsapp = useCallback(
     (dish: MenuDishRow) => {
       if (!simResult) return ''
@@ -840,35 +802,44 @@ export function CoresHubStudio() {
   }
 
   return (
-    <div dir={isAr ? 'rtl' : 'ltr'} className="w-full space-y-3.5 pb-10">
-      {/* ───────────── Page Header & Verdelo 4 Core SlidingPillTabs ───────────── */}
-      <header className="ae-bento-card flex flex-col gap-2.5 bg-white px-5 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.04)] lg:flex-row lg:items-center lg:justify-between dark:bg-[#111A22]">
+    <div dir={isAr ? 'rtl' : 'ltr'} className="w-full max-w-[1920px] mx-auto space-y-4 pb-10">
+      {/* ───────────── Page Header & 3 Crisp Core EmeraldPillTabs + Social Reviews Link Pill ───────────── */}
+      <header className="ae-bento-card flex flex-col gap-3 bg-white px-5 py-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] lg:flex-row lg:items-center lg:justify-between dark:bg-[#111A22]">
         <div>
-          <h1 className="text-[20px] font-semibold tracking-tight text-neutral-950 sm:text-[22px] dark:text-white">
+          <h1 className="text-[22px] font-extrabold tracking-tight text-neutral-950 sm:text-[25px] dark:text-white">
             {isAr ? 'المبيعات والتسويق والمنتجات' : 'Sales, Marketing & Menu'}
           </h1>
-          <p className="mt-0.5 text-xs text-neutral-400">
+          <p className="mt-0.5 text-[14px] text-neutral-500 dark:text-slate-400">
             {isAr ? workspace.subtitleAr : workspace.subtitleEn}
           </p>
         </div>
 
-        <SlidingPillTabs<CoreTabId>
-          ariaLabel={isAr ? 'أقسام المركز' : 'Core Hub Tabs'}
-          value={activeTab}
-          onChange={setActiveTab}
-          options={CORE_TABS.map((t) => {
-            const Icon = t.icon
-            return {
-              id: t.id,
-              label: isAr ? t.ar : t.en,
-              icon: <Icon className="h-3.5 w-3.5" />,
-            }
-          })}
-        />
+        <div className="flex flex-wrap items-center gap-2.5">
+          <EmeraldPillTabs<CoreTabId>
+            ariaLabel={isAr ? 'أقسام المركز' : 'Core Hub Tabs'}
+            value={activeTab}
+            onChange={setActiveTab}
+            options={CORE_TABS.map((t) => {
+              const Icon = t.icon
+              return {
+                id: t.id,
+                label: isAr ? t.ar : t.en,
+                icon: <Icon className="h-3.5 w-3.5" />,
+              }
+            })}
+          />
+
+          <Link
+            href="/erp/social-reviews"
+            className="ae-bento-subcard inline-flex h-10 items-center gap-1.5 rounded-full px-4 text-[13.5px] font-bold text-slate-700 transition-colors duration-150 hover:text-emerald-700 dark:text-slate-200 dark:hover:text-emerald-300"
+          >
+            <span>{isAr ? 'التقييمات ومنصات التواصل ↗' : 'Social & App Reviews ↗'}</span>
+          </Link>
+        </div>
       </header>
 
       {/* =====================================================================
-          TAB 1: التسويق ونمو المبيعات (Marketing, Social/Influencer ROI & 6 Growth Plays)
+          TAB 1: التسويق وإعلانات المشاهير (Marketing, Social/Influencer ROI & 6 Growth Plays)
          ===================================================================== */}
       {activeTab === 'marketing' ? (
         <div className="space-y-4">
@@ -876,16 +847,16 @@ export function CoresHubStudio() {
           <section className="ae-stagger grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {/* KPI 1: Return per 1 KWD Ad (4.6x) */}
             <article className={`${KPI_CARD_CLS} ae-glow-emerald`}>
-              <div className="text-xs font-medium text-neutral-500 dark:text-slate-400">
+              <div className="text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
                 {isAr ? 'عائد كل ١ د.ك إعلان' : 'Return per 1 KWD Ad'}
               </div>
               <div
                 dir="ltr"
-                className="mt-2 text-[26px] font-semibold tracking-tight tabular-nums text-emerald-700 dark:text-emerald-400"
+                className="mt-2 text-[28px] font-black tracking-tight tabular-nums text-emerald-700 sm:text-[32px] dark:text-emerald-400"
               >
                 {f1(snap.marketing.kpis.roasPer1Kwd)}x
               </div>
-              <p className="mt-1 text-xs text-neutral-400">
+              <p className="mt-1 text-[13.5px] text-neutral-500 dark:text-slate-400">
                 {isAr ? 'مبيعات لكل ١ د.ك عروض وإعلان' : 'Sales per 1 KWD promo & ad spend'}
               </p>
             </article>
@@ -893,12 +864,12 @@ export function CoresHubStudio() {
             {/* KPI 2: Discounts & Ad Spend (1,158 KWD) */}
             <article className={`${KPI_CARD_CLS} ae-glow-amber`}>
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-medium text-neutral-500 dark:text-slate-400">
+                <span className="text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
                   {isAr ? 'تكلفة الخصومات والإعلانات' : 'Discounts & Ad Spend'}
                 </span>
                 <span
                   dir="ltr"
-                  className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-medium tabular-nums text-amber-800 dark:bg-amber-950/60 dark:text-amber-300"
+                  className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[11.5px] font-bold tabular-nums text-amber-800 dark:bg-amber-950/60 dark:text-amber-300"
                 >
                   {f1(snap.marketing.kpis.marketingCostPctOfSales)}%{' '}
                   {isAr ? 'من المبيعات' : 'of sales'}
@@ -906,11 +877,11 @@ export function CoresHubStudio() {
               </div>
               <div
                 dir="ltr"
-                className="mt-2 text-[26px] font-semibold tracking-tight tabular-nums text-neutral-950 dark:text-white"
+                className="mt-2 text-[28px] font-black tracking-tight tabular-nums text-neutral-950 sm:text-[32px] dark:text-white"
               >
                 {f0(snap.marketing.kpis.totalMarketingCostKwd)} {kwdSuffix}
               </div>
-              <p className="mt-1 text-xs text-neutral-400">
+              <p className="mt-1 text-[13.5px] text-neutral-500 dark:text-slate-400">
                 {isAr ? 'خصومات الكاشير والتطبيقات والحملات' : 'POS discounts, app promos & ads'}
               </p>
             </article>
@@ -918,23 +889,23 @@ export function CoresHubStudio() {
             {/* KPI 3: Net Cash After Ads (4,205 KWD) */}
             <article className={`${KPI_CARD_CLS} ae-glow-emerald`}>
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-medium text-neutral-500 dark:text-slate-400">
+                <span className="text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
                   {isAr ? 'الصافي النقدي بعد الإعلانات' : 'Net Cash After Ads'}
                 </span>
                 <span
                   dir="ltr"
-                  className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-medium tabular-nums text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+                  className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11.5px] font-bold tabular-nums text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
                 >
                   {isAr ? 'فائض العروض' : 'Net Surplus'}
                 </span>
               </div>
               <div
                 dir="ltr"
-                className="mt-2 text-[26px] font-semibold tracking-tight tabular-nums text-emerald-700 dark:text-emerald-400"
+                className="mt-2 text-[28px] font-black tracking-tight tabular-nums text-emerald-700 sm:text-[32px] dark:text-emerald-400"
               >
                 {f0(snap.marketing.kpis.netAfterAdSpendKwd)} {kwdSuffix}
               </div>
-              <p className="mt-1 text-xs text-neutral-400">
+              <p className="mt-1 text-[13.5px] text-neutral-500 dark:text-slate-400">
                 {isAr
                   ? 'مبيعات العروض بعد خصم تكلفة الإعلان والخصم'
                   : 'Promo sales retained after discounts & ad spend'}
@@ -944,12 +915,12 @@ export function CoresHubStudio() {
             {/* KPI 4: Promo vs Organic Avg Bill */}
             <article className={`${KPI_CARD_CLS} ae-glow-sky`}>
               <div className="flex items-center justify-between gap-2">
-                <span className="truncate text-xs font-medium text-neutral-500 dark:text-slate-400">
+                <span className="truncate text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
                   {isAr ? 'متوسط فاتورة العرض مقابل الطبيعي' : 'Promo vs Organic Avg Bill'}
                 </span>
                 <span
                   dir="ltr"
-                  className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-medium tabular-nums ${
+                  className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11.5px] font-bold tabular-nums ${
                     snap.marketing.kpis.aovDeltaPct >= 0
                       ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
                       : 'bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
@@ -961,14 +932,14 @@ export function CoresHubStudio() {
               </div>
               <div
                 dir="ltr"
-                className="mt-2 text-[22px] font-semibold tracking-tight tabular-nums text-neutral-950 dark:text-white"
+                className="mt-2 text-[28px] font-black tracking-tight tabular-nums text-neutral-950 dark:text-white"
               >
                 {f2(snap.marketing.kpis.promoAovKwd)}{' '}
-                <span className="text-[13.5px] font-medium text-neutral-400">
+                <span className="text-[14px] font-semibold text-neutral-400">
                   vs {f2(snap.marketing.kpis.organicAovKwd)} {kwdSuffix}
                 </span>
               </div>
-              <p className="mt-1 text-xs text-neutral-400">
+              <p className="mt-1 text-[13.5px] text-neutral-500 dark:text-slate-400">
                 {isAr
                   ? `فرق السلة: ${snap.marketing.kpis.aovDeltaKwd >= 0 ? '+' : ''}${f2(snap.marketing.kpis.aovDeltaKwd)} د.ك للطلب`
                   : `Basket delta: ${snap.marketing.kpis.aovDeltaKwd >= 0 ? '+' : ''}${f2(snap.marketing.kpis.aovDeltaKwd)} KWD/order`}
@@ -1088,7 +1059,7 @@ export function CoresHubStudio() {
                   <button
                     type="button"
                     onClick={() => setIsAdFormOpen(true)}
-                    className="ae-btn-primary inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-4 text-xs font-semibold transition-all duration-150 hover:opacity-95 active:scale-[0.99]"
+                    className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-emerald-600 px-4 text-[13px] font-bold text-white shadow-sm transition-all duration-150 hover:bg-emerald-700 active:scale-[0.99]"
                   >
                     <span>
                       {isAr
@@ -1238,7 +1209,7 @@ export function CoresHubStudio() {
                     </button>
                     <button
                       type="submit"
-                      className="ae-btn-primary inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-5 text-xs font-semibold transition-all duration-150 hover:opacity-95 active:scale-[0.99]"
+                      className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-emerald-600 px-5 text-[13px] font-bold text-white shadow-sm transition-all duration-150 hover:bg-emerald-700 active:scale-[0.99]"
                     >
                       <Plus className="h-3.5 w-3.5" />
                       <span>
@@ -1508,7 +1479,7 @@ export function CoresHubStudio() {
                   </span>
                 </div>
 
-                {/* Single Primary Dark CTA for the Growth Plays Section */}
+                {/* Single Primary Emerald CTA for the Growth Plays Section */}
                 <button
                   type="button"
                   onClick={() =>
@@ -1519,7 +1490,7 @@ export function CoresHubStudio() {
                         .join('\n\n'),
                     )
                   }
-                  className="ae-btn-primary inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-4 text-xs font-semibold transition-all duration-150 hover:opacity-95 active:scale-[0.99]"
+                  className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-emerald-600 px-4 text-[13px] font-bold text-white shadow-sm transition-all duration-150 hover:bg-emerald-700 active:scale-[0.99]"
                 >
                   {copiedId === 'all-6-plays' ? (
                     <>
@@ -1604,7 +1575,7 @@ export function CoresHubStudio() {
                     <div className="flex flex-wrap items-center justify-between gap-1.5 pt-1">
                       <div className="flex flex-wrap items-center gap-1.5">
                         <Link
-                          href={`/erp/feryal?prompt=${encodeURIComponent(feryalPrompt)}`}
+                          href={`/erp/feryal-ai?prompt=${encodeURIComponent(feryalPrompt)}`}
                           className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-emerald-50 px-3 text-xs font-semibold text-emerald-800 transition-colors duration-150 hover:bg-emerald-100 dark:bg-emerald-950/70 dark:text-emerald-200 dark:hover:bg-emerald-900/70"
                         >
                           <span>{isAr ? 'اسأل فريال ✨' : 'Ask Feryal ✨'}</span>
@@ -1675,7 +1646,7 @@ export function CoresHubStudio() {
       ) : null}
 
       {/* =====================================================================
-          TAB 2: المبيعات (Sales Core — Exact 0.000 KWD Reconciliation & Zero Duplication)
+          TAB 2: المبيعات والقنوات (Sales Core — Exact 0.000 KWD Reconciliation & Zero Duplication)
          ===================================================================== */}
       {activeTab === 'sales' ? (
         <div className="space-y-4">
@@ -1684,20 +1655,20 @@ export function CoresHubStudio() {
             {/* KPI 1: Total Net Sales + Orders + Avg Bill in One Anchor Card */}
             <article className={`${KPI_CARD_CLS} ae-glow-emerald`}>
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-medium text-neutral-500 dark:text-slate-400">
+                <span className="text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
                   {isAr ? 'صافي المبيعات والطلبات' : 'Total Net Sales'}
                 </span>
-                <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-[11px] font-medium text-neutral-700 dark:bg-white/[0.08] dark:text-slate-200">
+                <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-[11.5px] font-semibold text-neutral-700 dark:bg-white/[0.08] dark:text-slate-200">
                   {getPeriodLabel(filters.period, isAr)}
                 </span>
               </div>
               <div
                 dir="ltr"
-                className="mt-2 text-[26px] font-semibold tracking-tight tabular-nums text-neutral-950 dark:text-white"
+                className="mt-2 text-[28px] font-black tracking-tight tabular-nums text-neutral-950 sm:text-[32px] dark:text-white"
               >
                 {f0(workspace.salesKwd)} {kwdSuffix}
               </div>
-              <p dir="ltr" className="mt-1 text-xs tabular-nums text-neutral-400">
+              <p dir="ltr" className="mt-1 text-[13.5px] tabular-nums text-neutral-500 dark:text-slate-400">
                 {f0(workspace.orders)} {isAr ? 'طلب' : 'orders'} • {isAr ? 'متوسط' : 'Avg'}{' '}
                 {f2(workspace.aovKwd)} {kwdSuffix}
               </p>
@@ -1706,23 +1677,23 @@ export function CoresHubStudio() {
             {/* KPI 2: Zero-Commission Sales (Dine-In + Direct Takeaway) */}
             <article className={`${KPI_CARD_CLS} ae-glow-emerald`}>
               <div className="flex items-center justify-between gap-2">
-                <span className="truncate text-xs font-medium text-neutral-500 dark:text-slate-400">
+                <span className="truncate text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
                   {isAr ? 'مبيعات بدون عمولة (صالة ومباشر)' : 'Zero-Commission Sales'}
                 </span>
                 <span
                   dir="ltr"
-                  className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold tabular-nums text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+                  className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11.5px] font-bold tabular-nums text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
                 >
                   {f1(snap.sales.zeroCommSharePct)}%
                 </span>
               </div>
               <div
                 dir="ltr"
-                className="mt-2 text-[26px] font-semibold tracking-tight tabular-nums text-emerald-700 dark:text-emerald-400"
+                className="mt-2 text-[28px] font-black tracking-tight tabular-nums text-emerald-700 sm:text-[32px] dark:text-emerald-400"
               >
                 {f0(snap.sales.zeroCommDisplayKwd)} {kwdSuffix}
               </div>
-              <p className="mt-1 text-xs tabular-nums text-neutral-400">
+              <p className="mt-1 text-[13.5px] tabular-nums text-neutral-500 dark:text-slate-400">
                 {isAr
                   ? `صالة وسفري مباشر • ${f0(snap.sales.zeroCommOrders)} طلب`
                   : `Dine-In + Takeaway • ${f0(snap.sales.zeroCommOrders)} orders`}
@@ -1732,10 +1703,10 @@ export function CoresHubStudio() {
             {/* KPI 3: Peak Sales Hour + Strongest Day Badge */}
             <article className={`${KPI_CARD_CLS} ae-glow-sky`}>
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-medium text-neutral-500 dark:text-slate-400">
+                <span className="text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
                   {isAr ? 'ذروة المبيعات اليومية' : 'Peak Sales Hour'}
                 </span>
-                <span className="shrink-0 rounded-full bg-sky-50 px-2.5 py-0.5 text-[11px] font-medium text-sky-800 dark:bg-sky-950/60 dark:text-sky-300">
+                <span className="shrink-0 rounded-full bg-sky-50 px-2.5 py-0.5 text-[11.5px] font-semibold text-sky-800 dark:bg-sky-950/60 dark:text-sky-300">
                   {isAr
                     ? `الأقوى: ${snap.sales.strongestDayLabelAr}`
                     : `Top: ${snap.sales.strongestDayLabelEn}`}
@@ -1743,12 +1714,12 @@ export function CoresHubStudio() {
               </div>
               <div
                 dir="ltr"
-                className="mt-2 text-[22px] font-semibold tracking-tight tabular-nums text-neutral-950 dark:text-white"
+                className="mt-2 text-[26px] font-black tracking-tight tabular-nums text-neutral-950 sm:text-[28px] dark:text-white"
               >
                 {isAr ? snap.sales.peakHourShortAr : snap.sales.peakHourShortEn} •{' '}
                 {f0(snap.sales.peakHourDisplayKwd)} {kwdSuffix}
               </div>
-              <p className="mt-1 text-xs tabular-nums text-neutral-400">
+              <p className="mt-1 text-[13.5px] tabular-nums text-neutral-500 dark:text-slate-400">
                 {isAr
                   ? `${f0(snap.sales.peakHourOrders)} طلب (${f1(snap.sales.peakHourSharePct)}% من اليوم)`
                   : `${f0(snap.sales.peakHourOrders)} orders (${f1(snap.sales.peakHourSharePct)}% of day)`}
@@ -1758,23 +1729,23 @@ export function CoresHubStudio() {
             {/* KPI 4: Quiet Window (3–6 PM) + Recoverable Upside Badge */}
             <article className={`${KPI_CARD_CLS} ae-glow-amber`}>
               <div className="flex items-center justify-between gap-2">
-                <span className="truncate text-xs font-medium text-neutral-500 dark:text-slate-400">
+                <span className="truncate text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
                   {isAr ? 'مبيعات الساعات الهادئة (٣–٦ م)' : 'Quiet Window (3–6 PM)'}
                 </span>
                 <span
                   dir="ltr"
-                  className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold tabular-nums text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+                  className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11.5px] font-bold tabular-nums text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
                 >
                   +{f0(snap.sales.quietWindowUpsideKwd)} {kwdSuffix}
                 </span>
               </div>
               <div
                 dir="ltr"
-                className="mt-2 text-[26px] font-semibold tracking-tight tabular-nums text-neutral-950 dark:text-white"
+                className="mt-2 text-[28px] font-black tracking-tight tabular-nums text-neutral-950 sm:text-[32px] dark:text-white"
               >
                 {f0(snap.sales.quietWindowDisplayKwd)} {kwdSuffix}
               </div>
-              <p className="mt-1 text-xs tabular-nums text-neutral-400">
+              <p className="mt-1 text-[13.5px] tabular-nums text-neutral-500 dark:text-slate-400">
                 {isAr
                   ? `${f1(snap.sales.quietWindowSharePct)}% من المبيعات • جاهزة لعروض العصر`
                   : `${f1(snap.sales.quietWindowSharePct)}% of sales • recoverable combo upside`}
@@ -1974,7 +1945,7 @@ export function CoresHubStudio() {
       ) : null}
 
       {/* =====================================================================
-          TAB 3: المنتجات والمينيو (Products & Menu Engineering Matrix)
+          TAB 3: هندسة المينيو (Products & Menu Engineering Matrix)
          ===================================================================== */}
       {activeTab === 'menu' ? (
         <div className="space-y-4">
@@ -1982,10 +1953,10 @@ export function CoresHubStudio() {
           <section className="ae-stagger grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <article className={`${KPI_CARD_CLS} ae-glow-sky`}>
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-medium text-neutral-500 dark:text-slate-400">
+                <span className="text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
                   {isAr ? 'الأصناف النشطة' : 'Active Menu Items'}
                 </span>
-                <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-[11px] font-medium tabular-nums text-neutral-700 dark:bg-white/[0.08] dark:text-slate-200">
+                <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-[11.5px] font-semibold tabular-nums text-neutral-700 dark:bg-white/[0.08] dark:text-slate-200">
                   {isAr
                     ? `⭐ ${snap.menu.quadrantCounts.golden} · 💎 ${snap.menu.quadrantCounts['box-gem']}`
                     : `⭐ ${snap.menu.quadrantCounts.golden} · 💎 ${snap.menu.quadrantCounts['box-gem']}`}
@@ -1993,54 +1964,54 @@ export function CoresHubStudio() {
               </div>
               <div
                 dir="ltr"
-                className="mt-2 text-[26px] font-semibold tracking-tight tabular-nums text-neutral-950 dark:text-white"
+                className="mt-2 text-[28px] font-black tracking-tight tabular-nums text-neutral-950 sm:text-[32px] dark:text-white"
               >
                 {f0(snap.menu.totalActiveSkus)} {isAr ? 'صنف' : 'items'}
               </div>
-              <p className="mt-1 text-xs text-neutral-400">
+              <p className="mt-1 text-[13.5px] text-neutral-500 dark:text-slate-400">
                 {isAr ? 'مربوطة بوصفات العارضية ونقاط البيع' : 'Linked to Ardiya BOM & POS sales'}
               </p>
             </article>
 
             <article className={`${KPI_CARD_CLS} ae-glow-emerald`}>
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-medium text-neutral-500 dark:text-slate-400">
+                <span className="text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
                   {isAr ? 'الأطباق المباعة' : 'Total Units Sold'}
                 </span>
                 <span
                   dir="ltr"
-                  className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-[11px] font-medium tabular-nums text-neutral-700 dark:bg-white/[0.08] dark:text-slate-200"
+                  className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-[11.5px] font-semibold tabular-nums text-neutral-700 dark:bg-white/[0.08] dark:text-slate-200"
                 >
                   {f0(snap.menu.totalSalesKwd)} {kwdSuffix}
                 </span>
               </div>
               <div
                 dir="ltr"
-                className="mt-2 text-[26px] font-semibold tracking-tight tabular-nums text-neutral-950 dark:text-white"
+                className="mt-2 text-[28px] font-black tracking-tight tabular-nums text-neutral-950 sm:text-[32px] dark:text-white"
               >
                 {f0(snap.menu.totalUnitsSold)} {isAr ? 'طبق' : 'units'}
               </div>
-              <p className="mt-1 text-xs text-neutral-400">
+              <p className="mt-1 text-[13.5px] text-neutral-500 dark:text-slate-400">
                 {isAr ? 'مطابق ١٠٠٪ لصافي مبيعات أودو' : '100% reconciled to Odoo net sales'}
               </p>
             </article>
 
             <article className={`${KPI_CARD_CLS} ae-glow-emerald`}>
               <div className="flex items-center justify-between gap-2">
-                <span className="truncate text-xs font-medium text-neutral-500 dark:text-slate-400">
+                <span className="truncate text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
                   {isAr ? 'فرصة تحسين التسعير والكومبو' : 'Menu Optimization Upside'}
                 </span>
-                <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold tabular-nums text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+                <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11.5px] font-bold tabular-nums text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
                   {isAr ? 'ثبات 95%' : '95% Retention'}
                 </span>
               </div>
               <div
                 dir="ltr"
-                className="mt-2 text-[26px] font-semibold tracking-tight tabular-nums text-emerald-700 dark:text-emerald-400"
+                className="mt-2 text-[28px] font-black tracking-tight tabular-nums text-emerald-700 sm:text-[32px] dark:text-emerald-400"
               >
                 +{f0(snap.menu.optimizationUpsideKwd)} {kwdSuffix}
               </div>
-              <p className="mt-1 text-xs text-neutral-400">
+              <p className="mt-1 text-[13.5px] text-neutral-500 dark:text-slate-400">
                 {isAr
                   ? 'صافي متحفظ بعد خصم عمولة التطبيقات'
                   : 'Conservative net gain after app fees'}
@@ -2426,7 +2397,7 @@ export function CoresHubStudio() {
                           dir="ltr"
                           className={`rounded-full px-1.5 py-0.5 text-[10.5px] tabular-nums ${
                             isSelected
-                              ? 'bg-white/20 text-white dark:bg-black/15 dark:text-neutral-950'
+                              ? 'bg-white/20 text-white dark:bg-slate-950/20 dark:text-neutral-950'
                               : 'bg-white text-neutral-500 dark:bg-white/10 dark:text-slate-300'
                           }`}
                         >
@@ -2439,7 +2410,7 @@ export function CoresHubStudio() {
 
                 <span
                   dir="ltr"
-                  className="rounded-full bg-[#F7F7F8] px-3 py-1 text-xs font-medium tabular-nums text-neutral-600 dark:bg-white/[0.06] dark:text-slate-300"
+                  className="rounded-full bg-[#F7F7F8] px-3 py-1 text-[13px] font-medium tabular-nums text-neutral-600 dark:bg-white/[0.06] dark:text-slate-300"
                 >
                   {isAr ? 'إجمالي المينيو المطابق:' : 'Reconciled Menu Sales:'}{' '}
                   {f0(snap.menu.totalSalesKwd)} {kwdSuffix}
@@ -2449,9 +2420,9 @@ export function CoresHubStudio() {
 
             {/* Crisp Executive Table (Default 12 rows — Zero 50-Row Wall!) */}
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[860px] text-start text-[13px]">
+              <table className="w-full min-w-[860px] text-start text-[14px]">
                 <thead>
-                  <tr className="bg-[#F7F7F8] text-xs font-semibold text-neutral-500 dark:bg-white/[0.04] dark:text-slate-400">
+                  <tr className="bg-[#F7F7F8] text-[13px] font-semibold text-neutral-500 dark:bg-white/[0.04] dark:text-slate-400">
                     <th className="px-5 py-3 text-start">{isAr ? 'الطبق' : 'Dish'}</th>
                     <th className="px-3 py-3 text-start">{isAr ? 'المطعم' : 'Brand'}</th>
                     <th className="px-3 py-3 text-end">{isAr ? 'الكمية' : 'Qty Sold'}</th>
@@ -2646,314 +2617,6 @@ export function CoresHubStudio() {
       ) : null}
 
       {/* =====================================================================
-          TAB 4: التقييم والجودة (Ratings & Quality Core — Polished & Paginated)
-         ===================================================================== */}
-      {activeTab === 'quality' ? (
-        <div className="space-y-4">
-          {/* 4 Crisp Non-Redundant Quality KPIs */}
-          <section className="ae-stagger grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <article className={`${KPI_CARD_CLS} ae-glow-emerald`}>
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-medium text-neutral-500 dark:text-slate-400">
-                  {isAr ? 'تقييم المنصات' : 'Avg App Rating'}
-                </span>
-                <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold tabular-nums text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
-                  {isAr ? 'الهدف 4.8 ★' : 'Target 4.8 ★'}
-                </span>
-              </div>
-              <div
-                dir="ltr"
-                className="mt-2 text-[26px] font-semibold tracking-tight tabular-nums text-emerald-700 dark:text-emerald-400"
-              >
-                {snap.quality.avgPlatformRating.toFixed(1)} ★
-              </div>
-              <p className="mt-1 text-xs text-neutral-400">
-                {isAr ? 'متوسط التقييم عبر منصات التوصيل' : 'Weighted across active delivery apps'}
-              </p>
-            </article>
-
-            <article className={`${KPI_CARD_CLS} ae-glow-rose`}>
-              <div className="text-xs font-medium text-neutral-500 dark:text-slate-400">
-                {isAr ? 'الطلبات الملغية' : 'Cancelled Orders'}
-              </div>
-              <div
-                dir="ltr"
-                className="mt-2 text-[26px] font-semibold tracking-tight tabular-nums text-rose-600 dark:text-rose-400"
-              >
-                {f0(snap.quality.cancelledOrders)}{' '}
-                <span className="text-[15px] font-medium text-neutral-400">
-                  ({f1(snap.quality.cancelledKwd)} {kwdSuffix})
-                </span>
-              </div>
-              <p className="mt-1 text-xs text-neutral-400">
-                {isAr ? 'من سجلات نقاط البيع الفعلية في أودو' : 'Directly from Odoo POS void/refund logs'}
-              </p>
-            </article>
-
-            <article className={`${KPI_CARD_CLS} ae-glow-sky`}>
-              <div className="text-xs font-medium text-neutral-500 dark:text-slate-400">
-                {isAr ? 'درجة الالتزام والجودة' : 'Quality Score'}
-              </div>
-              <div
-                dir="ltr"
-                className="mt-2 text-[26px] font-semibold tracking-tight tabular-nums text-neutral-950 dark:text-white"
-              >
-                {snap.quality.qualityScore}%
-              </div>
-              <p className="mt-1 text-xs text-neutral-400">
-                {isAr ? 'سرعة التحضير ودقة التغليف' : 'Prep speed, packing accuracy & low voids'}
-              </p>
-            </article>
-
-            <article className={`${KPI_CARD_CLS} ae-glow-emerald`}>
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-medium text-neutral-500 dark:text-slate-400">
-                  {isAr ? 'العملاء المتكررون' : 'Repeat Guests'}
-                </span>
-                <span
-                  dir="ltr"
-                  className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-[11px] font-medium tabular-nums text-neutral-700 dark:bg-white/[0.08] dark:text-slate-200"
-                >
-                  {f0(snap.quality.identifiedGuests)} {isAr ? 'مسجل' : 'IDs'}
-                </span>
-              </div>
-              <div
-                dir="ltr"
-                className="mt-2 text-[26px] font-semibold tracking-tight tabular-nums text-neutral-950 dark:text-white"
-              >
-                {f0(snap.quality.repeatGuests)}
-              </div>
-              <p className="mt-1 text-xs text-neutral-400">
-                {isAr ? 'عملاء كرروا الطلب بنفس الفترة' : 'Verified repeat customers in period'}
-              </p>
-            </article>
-          </section>
-
-          {/* Finance V2 Bento Split: 8-Col Branch Quality Capsule Chart + 4-Col Platform Orders/Rating Donut */}
-          <section className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-            <div className={`${CARD_CLS} flex flex-col justify-between lg:col-span-8`}>
-              <div className="mb-4">
-                <h2 className="text-[17px] font-semibold tracking-tight text-neutral-950 dark:text-white">
-                  {isAr
-                    ? 'مؤشر الجودة والتقييم لكل فرع'
-                    : 'Branch Quality Score & App Rating'}
-                </h2>
-                <p className="mt-0.5 text-xs text-neutral-400">
-                  {isAr
-                    ? 'مرّر الماوس على أي فرع لمعرفة التقييم ★، عدد وقيمة الطلبات الملغية، ونسبة الإلغاء'
-                    : 'Hover any branch capsule to inspect exact ★ rating, cancelled orders/KWD & cancel rate'}
-                </p>
-              </div>
-              <InteractiveHoverBarChart
-                data={qualityChartData}
-                isAr={isAr}
-                primaryLegend={isAr ? 'درجة الجودة والالتزام (%)' : 'Quality Score (%)'}
-                primaryColor="#10B981"
-                formatAxisValue={(v) => `${Math.round(v)}%`}
-                heightClass="h-60"
-              />
-            </div>
-
-            <div className={`${CARD_CLS} flex flex-col justify-between lg:col-span-4`}>
-              <div className="mb-3">
-                <h2 className="text-[17px] font-semibold tracking-tight text-neutral-950 dark:text-white">
-                  {isAr ? 'تقييم وطلبات التطبيقات' : 'App Ratings & Share'}
-                </h2>
-                <p className="mt-0.5 text-xs text-neutral-400">
-                  {isAr ? 'نسبة المنصة الأعلى بالوسط والطلبات بالأسفل' : 'Top app share centered · total orders below'}
-                </p>
-              </div>
-
-              <InteractiveDonutChart
-                slices={qualityPlatformDonutSlices}
-                centerValue={qualityPlatformDonutSlices[0]?.pctFormatted ?? '0%'}
-                centerLabel={isAr ? 'حصة طلبات' : 'Talabat Share'}
-                summaryRows={[
-                  {
-                    label: isAr ? 'إجمالي طلبات التطبيقات' : 'Total App Orders',
-                    value: `${f0(snap.quality.platformRatings.reduce((acc, p) => acc + Math.max(0, p.orders), 0))} ${isAr ? 'طلب' : 'orders'}`,
-                    tone: 'neutral',
-                  },
-                ]}
-                isAr={isAr}
-                legendColumns={1}
-              />
-            </div>
-          </section>
-
-          {/* Platform Action Cards: Talabat, Keeta, Deliveroo, Jahez & Snoonu */}
-          <section className="space-y-3">
-            <h2 className="text-[17px] font-semibold tracking-tight text-neutral-950 dark:text-white">
-              {isAr
-                ? 'خطوات عملية لرفع التقييم في طلبات وكيتا وديليفرو'
-                : 'Action Steps to Raise Ratings on Talabat, Keeta & Deliveroo'}
-            </h2>
-
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              {snap.quality.platformRatings.map((p) => (
-                <article key={p.id} className={`${CARD_CLS} flex flex-col justify-between space-y-3`}>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className={SOFT_SCOPE_PILL_CLS}>
-                        {isAr ? p.platformAr : p.platformEn}
-                      </span>
-                      <span
-                        dir="ltr"
-                        className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold tabular-nums text-amber-800 dark:bg-amber-950/60 dark:text-amber-200"
-                      >
-                        {p.rating.toFixed(1)} ★ → {p.targetRating.toFixed(1)} ★
-                      </span>
-                    </div>
-
-                    <div className="text-[12.5px] leading-relaxed">
-                      <span className="font-semibold text-rose-600 dark:text-rose-400">
-                        {isAr ? 'المشكلة المتكررة: ' : 'Main Issue: '}
-                      </span>
-                      <span className="text-neutral-600 dark:text-slate-300">
-                        {isAr ? p.issueAr : p.issueEn}
-                      </span>
-                    </div>
-
-                    <div className="rounded-xl bg-[#F7F7F8] p-3 text-[12.5px] leading-relaxed dark:bg-white/[0.04]">
-                      <span className="font-semibold text-emerald-700 dark:text-emerald-400">
-                        {isAr ? 'الحل العملي: ' : 'Action Step: '}
-                      </span>
-                      <span className="font-medium text-neutral-800 dark:text-slate-200">
-                        {isAr ? p.stepAr : p.stepEn}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-1">
-                    <span className="text-xs tabular-nums text-neutral-400">
-                      {f0(p.orders)} {isAr ? 'طلب بالفترة' : 'orders in period'}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        copyText(
-                          p.id,
-                          isAr
-                            ? `*تحسين تقييم ${p.platformAr} (${p.rating} ★ ← ${p.targetRating} ★)*\n• المشكلة: ${p.issueAr}\n• المطلوب من الفرع اليوم: ${p.stepAr}`
-                            : `*Raise ${p.platformEn} Rating (${p.rating} ★ -> ${p.targetRating} ★)*\n• Issue: ${p.issueEn}\n• Action: ${p.stepEn}`,
-                        )
-                      }
-                      className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-neutral-100 hover:bg-neutral-200/80 text-neutral-900 dark:bg-emerald-950/70 dark:hover:bg-emerald-900/70 dark:text-emerald-200 px-3 text-xs font-medium transition-colors duration-150"
-                    >
-                      {copiedId === p.id ? (
-                        <>
-                          <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-300" />
-                          <span>{isAr ? 'تم النسخ ✓' : 'Copied ✓'}</span>
-                        </>
-                      ) : (
-                        <span>{isAr ? 'نسخ للواتساب 📋' : 'Copy WhatsApp 📋'}</span>
-                      )}
-                    </button>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </section>
-
-          {/* Branch Alerts & POS Refunds Table (Capped at 12 Rows Max with Clean Footer) */}
-          <section className={`${CARD_CLS} overflow-hidden p-0`}>
-            <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-4">
-              <div>
-                <h3 className="text-[16px] font-semibold tracking-tight text-neutral-950 dark:text-white">
-                  {isAr ? 'تنبيهات الفروع والطلبات الملغية من أودو' : 'Branch Alerts & Odoo POS Cancellations'}
-                </h3>
-                <p className="mt-0.5 text-xs text-neutral-400">
-                  {isAr ? 'اضغط على أي فرع لفلترة المؤشرات عليه' : 'Click any branch row to filter by branch'}
-                </p>
-              </div>
-              {filters.branch !== 'all' ? (
-                <button
-                  type="button"
-                  onClick={() => setBranch('all')}
-                  className="cursor-pointer rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/70 dark:text-emerald-200"
-                >
-                  {isAr ? 'عرض كل الفروع ✕' : 'All Branches ✕'}
-                </button>
-              ) : null}
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-start text-[13px]">
-                <thead>
-                  <tr className="bg-[#F7F7F8] text-xs font-semibold text-neutral-500 dark:bg-white/[0.04] dark:text-slate-400">
-                    <th className="px-5 py-3 text-start">{isAr ? 'الفرع' : 'Branch'}</th>
-                    <th className="px-3 py-3 text-end">{isAr ? 'التقييم' : 'Rating'}</th>
-                    <th className="px-3 py-3 text-end">{isAr ? 'الطلبات الملغية' : 'Cancelled'}</th>
-                    <th className="px-3 py-3 text-end">{isAr ? 'قيمة الملغي' : 'Cancelled KWD'}</th>
-                    <th className="px-3 py-3 text-start">{isAr ? 'التنبيه' : 'Alert'}</th>
-                    <th className="px-5 py-3 text-start">{isAr ? 'الخطوة المطلوبة' : 'Action Step'}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-neutral-100/80 dark:divide-white/[0.05]">
-                  {paginatedQualityRows.map((b) => (
-                    <tr
-                      key={b.branchId}
-                      onClick={() =>
-                        setBranch(filters.branch === b.branchId ? 'all' : b.branchId)
-                      }
-                      className="cursor-pointer transition-colors duration-150 hover:bg-[#F7F7F8]/90 dark:hover:bg-white/[0.04]"
-                    >
-                      <td className="px-5 py-3">
-                        <span className={SOFT_SCOPE_PILL_CLS}>
-                          {isAr ? b.branchAr : b.branchEn}
-                        </span>
-                      </td>
-                      <td dir="ltr" className="px-3 py-3 text-end font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
-                        {b.rating.toFixed(1)} ★
-                      </td>
-                      <td dir="ltr" className="px-3 py-3 text-end font-semibold tabular-nums text-neutral-800 dark:text-slate-200">
-                        {f0(b.cancelledOrders)} ({b.cancelRatePct}%)
-                      </td>
-                      <td dir="ltr" className="px-3 py-3 text-end font-semibold tabular-nums text-rose-600 dark:text-rose-400">
-                        {f1(b.cancelledKwd)} {kwdSuffix}
-                      </td>
-                      <td className="px-3 py-3 font-medium text-neutral-700 dark:text-slate-300">
-                        {isAr ? b.alertAr : b.alertEn}
-                      </td>
-                      <td className="px-5 py-3 font-medium text-neutral-900 dark:text-slate-100">
-                        {isAr ? b.fixAr : b.fixEn}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="flex items-center justify-between bg-[#F7F7F8]/80 px-5 py-3 text-xs text-neutral-500 dark:bg-white/[0.03] dark:text-slate-400">
-              <span>
-                {isAr
-                  ? `عرض ${fArInt(paginatedQualityRows.length > 0 ? 1 : 0)}–${fArInt(paginatedQualityRows.length)} من ${fArInt(snap.quality.branchQuality.length)} فروع نشطة`
-                  : `Showing ${paginatedQualityRows.length > 0 ? 1 : 0}–${paginatedQualityRows.length} of ${snap.quality.branchQuality.length} active branches`}
-              </span>
-              {qualityTotalPages > 1 ? (
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    disabled={safeQualityPage <= 1}
-                    onClick={() => setQualityPage((p) => Math.max(1, p - 1))}
-                    className="rounded-full bg-white px-2.5 py-1 font-medium text-neutral-700 disabled:opacity-40 dark:bg-[#111A22] dark:text-slate-200"
-                  >
-                    {isAr ? 'السابق' : 'Prev'}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={safeQualityPage >= qualityTotalPages}
-                    onClick={() => setQualityPage((p) => Math.min(qualityTotalPages, p + 1))}
-                    className="rounded-full bg-white px-2.5 py-1 font-medium text-neutral-700 disabled:opacity-40 dark:bg-[#111A22] dark:text-slate-200"
-                  >
-                    {isAr ? 'التالي' : 'Next'}
-                  </button>
-                </div>
-              ) : null}
-            </div>
-          </section>
-        </div>
-      ) : null}
-
-      {/* =====================================================================
           INTERACTIVE PRICE & COST SIMULATOR DRAWER (95% Volume Retention Net of App Fee)
          ===================================================================== */}
       {selectedDish && simResult ? (
@@ -2966,7 +2629,7 @@ export function CoresHubStudio() {
               : `Price & Cost Simulator — ${selectedDish.name}`
           }
           onClick={() => setSelectedDish(null)}
-          className="fixed inset-0 z-50 flex justify-end bg-black/35 backdrop-blur-[2px] transition-opacity duration-150"
+          className="fixed inset-0 z-50 flex justify-end bg-slate-950/45 backdrop-blur-[2px] transition-opacity duration-150"
         >
           <div
             dir={isAr ? 'rtl' : 'ltr'}
@@ -3243,7 +2906,7 @@ export function CoresHubStudio() {
                 onClick={() =>
                   copyText(`sim-${selectedDish.id}`, formatDishSimWhatsapp(selectedDish))
                 }
-                className="ae-btn-primary inline-flex h-10 flex-1 cursor-pointer items-center justify-center gap-2 rounded-full px-4 text-xs font-semibold transition-all duration-150 hover:opacity-95"
+                className="inline-flex h-10 flex-1 cursor-pointer items-center justify-center gap-2 rounded-full bg-emerald-600 px-4 text-[13px] font-bold text-white shadow-sm transition-all duration-150 hover:bg-emerald-700"
               >
                 {copiedId === `sim-${selectedDish.id}` ? (
                   <>

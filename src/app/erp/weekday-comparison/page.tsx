@@ -4,7 +4,7 @@ import { WeekdayComparisonStudio } from '@/components/erp/ops-expansion/WeekdayC
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: 'مقارنة مبيعات أيام الأسبوع المتناظرة | فنتشر فودز',
+  title: 'مقارنة أيام الأسبوع | فنتشر فودز',
   description:
     'مقارنة المبيعات بين أيام الأسبوع المتناظرة مثل الأربعاء هذا الأسبوع مقارنة مع الأربعاء الأسبوع الماضي مع منحنى الساعات ومتوسط 4 أسابيع.',
 }
@@ -12,7 +12,7 @@ export const metadata = {
 export default async function WeekdayComparisonPage() {
   await requirePageUser('/erp/weekday-comparison')
   return (
-    <div className="w-full">
+    <div className="w-full max-w-[1920px] mx-auto">
       <WeekdayComparisonStudio />
     </div>
   )

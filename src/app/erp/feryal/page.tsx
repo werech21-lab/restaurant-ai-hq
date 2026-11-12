@@ -1,22 +1,34 @@
-import { Suspense } from 'react'
-import { requirePageUser } from '@/lib/auth/context'
-import { FeryalGovernanceStudio } from '@/components/erp/feryal-governance-studio'
+import { redirect } from 'next/navigation'
 
 export const dynamic = 'force-dynamic'
 
-export const metadata = {
-  title: 'المستشارة فريال — الذكاء والحوكمة | فنتشر فودز',
-  description:
-    'استوديو المستشارة فريال المتصل لحظياً بأودو 17 وسجل المخالفات والتخطيط والتشريعات وجرس اعتماد المدير.',
+type FeryalRedirectPageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>
 }
 
-export default async function FeryalCentralGovernancePage() {
-  await requirePageUser('/erp/feryal')
-  return (
-    <div className="w-full">
-      <Suspense fallback={<div className="h-[600px] w-full animate-pulse rounded-3xl bg-white/60 dark:bg-neutral-900/60" />}>
-        <FeryalGovernanceStudio />
-      </Suspense>
-    </div>
-  )
+/**
+ * Legacy `/erp/feryal` route cleanly redirects to the unified Multimodal Vision & Video Studio
+ * at `/erp/feryal-ai`, preserving `?prompt=...` and all other query parameters.
+ */
+export default async function FeryalCentralGovernancePage({
+  searchParams,
+}: FeryalRedirectPageProps) {
+  const resolved = searchParams ? await searchParams : {}
+  const params = new URLSearchParams()
+
+  for (const [key, value] of Object.entries(resolved)) {
+    if (typeof value === 'string') {
+      params.append(key, value)
+    } else if (Array.isArray(value)) {
+      for (const item of value) {
+        if (typeof item === 'string') {
+          params.append(key, item)
+        }
+      }
+    }
+  }
+
+  const query = params.toString()
+  const preservedQueryString = query ? `?${query}` : ''
+  redirect('/erp/feryal-ai' + preservedQueryString)
 }

@@ -4,7 +4,7 @@ import { DeliverySlaStudio } from '@/components/erp/ops-expansion/DeliverySlaStu
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: 'مراقبة مدة توصيل الطلبات | فنتشر فودز',
+  title: 'زمن توصيل السائق | فنتشر فودز',
   description:
     'مراقبة مدة توصيل الطلبات من لحظة استلام السائق للطلب ولغاية توصيله للزبون بتقييم أخضر جيد وأصفر متوسط وأحمر سيء للغاية.',
 }
@@ -12,7 +12,7 @@ export const metadata = {
 export default async function DeliverySlaPage() {
   await requirePageUser('/erp/delivery-sla')
   return (
-    <div className="w-full">
+    <div className="w-full max-w-[1920px] mx-auto">
       <DeliverySlaStudio />
     </div>
   )

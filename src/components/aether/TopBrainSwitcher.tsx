@@ -5,7 +5,6 @@ import { usePathname } from 'next/navigation'
 import { Check, ClipboardCopy, RefreshCw, RotateCcw, X } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
-import { SlidingPillTabs } from '@/components/ui/SlidingPillTabs'
 import {
   AI_KEY_STORAGE_KEYS,
   hasAnthropicApiKey,
@@ -32,19 +31,19 @@ import { routeTitle } from '@/lib/aether/route-titles'
 export const BRAIN_BAR_ROUTES = new Set([
   '/erp',
   '/erp/cores',
+  '/erp/weekday-comparison',
+  '/erp/before-after',
   '/erp/warehouse-chain',
   '/erp/prep-sla',
   '/erp/delivery-sla',
+  '/erp/aggregator-radar',
   '/erp/social-reviews',
-  '/erp/weekday-comparison',
-  '/erp/before-after',
   '/erp/feryal-ai',
   '/erp/feryal',
-  '/erp/aggregator-radar',
-  '/erp/events-intelligence',
-  '/erp/booth-feasibility',
   '/erp/planning',
   '/erp/regulations',
+  '/erp/booth-feasibility',
+  '/erp/events-intelligence',
 ])
 
 /** Full AI model switcher controls appear ONLY inside Ask Feryal pages. */
@@ -265,17 +264,31 @@ export function BrainControlsInline() {
       {/* Verdelo Sliding Pill 4-Option Brain Mode Switcher + Rich 3-Brain Live Model Tooltip */}
       <div className="group relative inline-flex flex-col items-end gap-1">
         <div className="flex flex-wrap items-center gap-1.5">
-          <SlidingPillTabs
-            ariaLabel={isAr ? 'اختيار محرك التحليل' : 'Select AI Council Mode'}
-            surface="white"
-            size="sm"
-            value={mode}
-            onChange={handleSelectMode}
-            options={MODE_OPTIONS.map((opt) => ({
-              id: opt.id,
-              label: isAr ? opt.ar : opt.en,
-            }))}
-          />
+          <div
+            role="tablist"
+            aria-label={isAr ? 'اختيار محرك التحليل' : 'Select AI Council Mode'}
+            className="inline-flex flex-wrap items-center gap-0.5 rounded-full bg-white p-1 shadow-[0_1px_2px_rgba(15,23,42,0.03)] ring-1 ring-slate-900/[0.06] dark:bg-[#111A22] dark:ring-white/[0.08]"
+          >
+            {MODE_OPTIONS.map((opt) => {
+              const active = mode === opt.id
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => handleSelectMode(opt.id)}
+                  className={`inline-flex h-7 cursor-pointer items-center justify-center rounded-full px-3 text-[12px] font-bold whitespace-nowrap transition-all duration-150 focus:outline-none ${
+                    active
+                      ? 'btn-colored bg-emerald-600 text-white shadow-sm dark:bg-emerald-500 dark:text-[#04130D]'
+                      : 'text-slate-600 hover:bg-[#F4F6F9] hover:text-slate-950 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
+                  }`}
+                >
+                  <span>{isAr ? opt.ar : opt.en}</span>
+                </button>
+              )
+            })}
+          </div>
 
           {/* Always-visible Live Resolved Model Sub-Badge (click to inspect in 🔑/⚙️ modal) */}
           <button
@@ -380,7 +393,7 @@ export function BrainControlsInline() {
           aria-expanded={gearOpen}
           className={`relative inline-flex h-9 cursor-pointer items-center gap-1 rounded-full bg-white px-2.5 text-[13px] shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all duration-150 focus:outline-none dark:bg-[#111A22] ${
             gearOpen
-              ? 'ring-1 ring-slate-900/80 dark:ring-emerald-400/70'
+              ? 'ring-1 ring-emerald-500/50 dark:ring-emerald-400/70'
               : 'ring-1 ring-slate-900/[0.05] hover:ring-slate-900/20 dark:ring-white/[0.08]'
           }`}
         >
@@ -544,7 +557,7 @@ export function BrainControlsInline() {
                       ? 'AetherBI-Live مفعّل تلقائياً عبر الخادم (اتركه فارغاً للافتراضي)'
                       : 'AetherBI-Live active via server proxy (leave blank for default)'
                   }
-                  className="h-9 w-full rounded-xl bg-[#F4F6F9] px-3 font-mono text-[12px] text-slate-900 ring-1 ring-slate-950/[0.05] focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-900/80 dark:bg-white/[0.06] dark:text-white"
+                  className="h-9 w-full rounded-xl bg-[#F4F6F9] px-3 font-mono text-[12px] text-slate-900 ring-1 ring-slate-950/[0.05] focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500/50 dark:bg-white/[0.06] dark:text-white"
                 />
               </label>
 
@@ -570,7 +583,7 @@ export function BrainControlsInline() {
                       ? 'مفتاح AQ. مفعّل تلقائياً عبر الخادم (اتركه فارغاً للافتراضي)'
                       : 'AQ. Auth Key active via server proxy (leave blank for default)'
                   }
-                  className="h-9 w-full rounded-xl bg-[#F4F6F9] px-3 font-mono text-[12px] text-slate-900 ring-1 ring-slate-950/[0.05] focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-900/80 dark:bg-white/[0.06] dark:text-white"
+                  className="h-9 w-full rounded-xl bg-[#F4F6F9] px-3 font-mono text-[12px] text-slate-900 ring-1 ring-slate-950/[0.05] focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500/50 dark:bg-white/[0.06] dark:text-white"
                 />
               </label>
 
@@ -600,7 +613,7 @@ export function BrainControlsInline() {
                       ? 'مفعّل تلقائياً (اتركه فارغاً للافتراضي)'
                       : 'Built-in active (leave blank for default)'
                   }
-                  className="h-9 w-full rounded-xl bg-[#F4F6F9] px-3 font-mono text-[12px] text-slate-900 ring-1 ring-slate-950/[0.05] focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-900/80 dark:bg-white/[0.06] dark:text-white"
+                  className="h-9 w-full rounded-xl bg-[#F4F6F9] px-3 font-mono text-[12px] text-slate-900 ring-1 ring-slate-950/[0.05] focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500/50 dark:bg-white/[0.06] dark:text-white"
                 />
               </label>
 
@@ -618,7 +631,7 @@ export function BrainControlsInline() {
                       ? 'مفعّل تلقائياً (اتركه فارغاً للافتراضي)'
                       : 'Built-in active (leave blank for default)'
                   }
-                  className="h-9 w-full rounded-xl bg-[#F4F6F9] px-3 font-mono text-[12px] text-slate-900 ring-1 ring-slate-950/[0.05] focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-900/80 dark:bg-white/[0.06] dark:text-white"
+                  className="h-9 w-full rounded-xl bg-[#F4F6F9] px-3 font-mono text-[12px] text-slate-900 ring-1 ring-slate-950/[0.05] focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500/50 dark:bg-white/[0.06] dark:text-white"
                 />
               </label>
             </div>
@@ -635,7 +648,7 @@ export function BrainControlsInline() {
               <button
                 type="button"
                 onClick={handleSaveCustomKeys}
-                className="ae-btn-primary inline-flex h-9 items-center gap-1.5 rounded-full px-4 text-[12px] font-bold transition-all duration-150"
+                className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-emerald-600 px-4 text-[12px] font-bold text-white shadow-sm transition-all duration-150 hover:bg-emerald-700 dark:bg-emerald-500 dark:text-[#04130D] dark:hover:bg-emerald-400"
               >
                 {savedNotice ? <Check className="h-3.5 w-3.5" /> : null}
                 <span>
@@ -660,7 +673,7 @@ export function TopBrainSwitcher() {
     <section
       aria-label={isAr ? 'مبدل العقل الثلاثي' : 'Triple-Brain Switcher'}
       dir={isAr ? 'rtl' : 'ltr'}
-      className="no-print relative z-30 flex flex-wrap items-center justify-end gap-2"
+      className="no-print relative z-30 mx-auto flex w-full max-w-[1920px] flex-wrap items-center justify-end gap-2"
     >
       <BrainControlsInline />
     </section>

@@ -3,8 +3,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
-  Bell,
-  Check,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -20,14 +18,12 @@ import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { useGovernance } from '@/components/erp/GovernanceBellDrawer'
 import {
   computeOrderPrepSlaSnapshot,
-  type ActiveBranchId,
-  type ActiveBrandId,
   type PrepSlaOrderTicket,
   type PrepSlaTier,
 } from '@/lib/warehouse-prep-engine'
 
 const CARD_CLS =
-  'ae-bento-card bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-[#0D1614]'
+  'ae-bento-card rounded-2xl border border-neutral-200/70 bg-white p-5 sm:p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:border-white/[0.06] dark:bg-[#0D1614]'
 const SUBCARD_CLS = 'rounded-2xl bg-[#F7F7F8] dark:bg-[#111E1B]'
 const TICKETS_PER_PAGE = 12
 
@@ -49,27 +45,27 @@ export function PrepTrafficBadge({
 }) {
   if (tier === 'green') {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
+      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[12px] font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
         <span>🟢</span>
-        <span>{compact ? (isAr ? 'جيد' : 'Good') : isAr ? 'أخضر — جيد' : 'Good (<=12m)'}</span>
+        <span>{compact ? (isAr ? 'جيد' : 'Good') : isAr ? 'أخضر — جيد' : 'Good (<=12.0m)'}</span>
       </span>
     )
   }
   if (tier === 'yellow') {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
+      <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[12px] font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
         <span>🟡</span>
         <span>
-          {compact ? (isAr ? 'وسط' : 'Medium') : isAr ? 'أصفر — وسط' : 'Medium (12.1–18m)'}
+          {compact ? (isAr ? 'وسط' : 'Medium') : isAr ? 'أصفر — وسط' : 'Medium (12.1–18.0m)'}
         </span>
       </span>
     )
   }
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-0.5 text-[11px] font-semibold text-rose-700 dark:bg-rose-950/60 dark:text-rose-200">
+    <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-1 text-[12px] font-semibold text-rose-700 dark:bg-rose-950/60 dark:text-rose-200">
       <span>🔴</span>
       <span>
-        {compact ? (isAr ? 'خطر وسيء' : 'Critical') : isAr ? 'أحمر — خطر وسيء' : 'Critical (>18m)'}
+        {compact ? (isAr ? 'حرج' : 'Critical') : isAr ? 'أحمر — حرج' : 'Critical (>18.0m)'}
       </span>
     </span>
   )
@@ -80,10 +76,10 @@ export function OrderPrepSlaStudio() {
   const isAr = locale !== 'en'
   const T = useCallback((en: string, ar: string) => (isAr ? ar : en), [isAr])
 
-  const { filters, setBranch, setBrand } = useGlobalFilter()
+  const { filters, workspace } = useGlobalFilter()
   const { requestApproval, getApprovalByRef, openDrawer } = useGovernance()
 
-  const snap = useMemo(() => computeOrderPrepSlaSnapshot(filters), [filters])
+  const snap = useMemo(() => computeOrderPrepSlaSnapshot(filters, workspace), [filters, workspace])
 
   const [tierFilter, setTierFilter] = useState<'all' | PrepSlaTier>('all')
   const [selectedHour, setSelectedHour] = useState<number | null>(null)
@@ -147,21 +143,21 @@ export function OrderPrepSlaStudio() {
       requestApproval({
         refKey,
         domain: 'operations',
-        titleAr: `تنبيه تأخير تجهيز طلب ${t.orderId} — ${t.branchNameAr} (${t.brandNameAr})`,
-        titleEn: `Kitchen Prep SLA Alert ${t.orderId} — ${t.branchNameEn} (${t.brandNameEn})`,
-        summaryAr: `وصل الطلب الساعة ${t.arrivedAt} وجهز الساعة ${t.readyAt} بمدة ${t.durationMmSs} (${f1(t.prepMinutes)} دقيقة · تصنيف ${t.tier === 'red' ? 'أحمر خطر' : 'أصفر وسط'}). السبب: ${t.delayRootCauseAr}.`,
-        summaryEn: `Order arrived ${t.arrivedAt}, ready ${t.readyAt} — prep duration ${t.durationMmSs} (${f1(t.prepMinutes)} min). Root cause: ${t.delayRootCauseEn}.`,
+        titleAr: `تنبيه تأخير تجهيز حرج ${t.orderId} — ${t.branchNameAr} (${t.brandNameAr})`,
+        titleEn: `Critical Kitchen Prep Alert ${t.orderId} — ${t.branchNameEn} (${t.brandNameEn})`,
+        summaryAr: `وصل الطلب الساعة ${t.arrivedAt} وجهز الساعة ${t.readyAt} بمدة ${t.durationMmSs} (${f1(t.prepMinutes)} دقيقة > 18.0 د). السبب: ${t.delayRootCauseAr}.`,
+        summaryEn: `Order arrived ${t.arrivedAt}, ready ${t.readyAt} — prep duration ${t.durationMmSs} (${f1(t.prepMinutes)} min > 18.0m). Root cause: ${t.delayRootCauseEn}.`,
         departmentAr: 'تشغيل المطابخ وضبط زمن التحضير (KDS)',
         departmentEn: 'Kitchen Operations & KDS SLA',
         budgetOrCostKwd: 0,
-        expectedMonthlyReturnKwd: t.tier === 'red' ? 240 : 120,
+        expectedMonthlyReturnKwd: 240,
         href: '/erp/prep-sla',
       })
       setToastMsg({
-        ar: `تم رفع تنبيه تأخير المطبخ للطلب ${t.orderId} إلى جرس المدير 🔔`,
-        en: `Kitchen delay alert for ${t.orderId} queued in Manager Bell 🔔`,
+        ar: `تم تصعيد تأخير الطلب ${t.orderId} إلى جرس المدير 🔔`,
+        en: `Escalated critical ticket ${t.orderId} to Manager Bell 🔔`,
       })
-      window.setTimeout(() => setToastMsg(null), 3400)
+      window.setTimeout(() => setToastMsg(null), 3200)
     },
     [requestApproval],
   )
@@ -169,90 +165,77 @@ export function OrderPrepSlaStudio() {
   return (
     <div
       dir={isAr ? 'rtl' : 'ltr'}
-      className="mx-auto w-full max-w-[1520px] space-y-5 pb-10 font-sans text-neutral-900 antialiased dark:text-slate-100"
+      className="w-full max-w-[1920px] mx-auto space-y-6 pb-12 font-sans text-[14px] sm:text-[15px] text-neutral-900 antialiased dark:text-slate-100"
     >
       {toastMsg ? (
-        <div className="fixed bottom-6 end-6 z-50 flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-xs font-semibold text-emerald-800 shadow-xl ring-1 ring-emerald-500/25 dark:bg-neutral-900 dark:text-emerald-300">
+        <div className="fixed bottom-6 end-6 z-50 flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-[13.5px] font-semibold text-emerald-800 shadow-xl ring-1 ring-emerald-500/25 dark:bg-[#0D1614] dark:text-emerald-300">
           <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
           <span>{isAr ? toastMsg.ar : toastMsg.en}</span>
         </div>
       ) : null}
 
       {/* ───────────── 1. Studio Header ───────────── */}
-      <header className={`${CARD_CLS} flex flex-col gap-3.5 xl:flex-row xl:items-center xl:justify-between`}>
-        <div className="space-y-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
-              <Timer className="h-4 w-4" />
+      <header className={`${CARD_CLS} flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between`}>
+        <div className="space-y-1.5">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+              <Timer className="h-5 w-5" />
             </span>
-            <h1 className="text-[20px] font-semibold tracking-tight text-neutral-950 sm:text-[22px] dark:text-white">
+            <h1 className="text-[21px] font-bold tracking-tight text-neutral-950 sm:text-[24px] dark:text-white">
               {T(
                 'Kitchen Order Preparation SLA Monitor',
-                'مراقبة مدة تجهيز الطلبات حسب البراند والفرع (KDS SLA)',
+                'مراقبة زمن تجهيز المطبخ حسب البراند والفرع (KDS SLA)',
               )}
             </h1>
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-              <ShieldCheck className="h-3 w-3" />
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-[12px] font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+              <ShieldCheck className="h-3.5 w-3.5" />
               <span>{T('6 Brands · 7 Locations', '٦ براندات · ٧ فروع نشطة')}</span>
             </span>
           </div>
-          <p className="text-xs text-neutral-500 dark:text-slate-400">
+          <p className="text-[14px] leading-relaxed text-neutral-500 dark:text-slate-400">
             {T(
-              'Exact duration from POS/KDS order arrival to kitchen handoff — classified into Green (<=12m), Yellow (12.1–18m), and Red (>18m).',
-              'قياس دقيق من لحظة وصول الطلب للفرع ولغاية جاهزية التسليم مع تصنيف كل طلب وحساب المعدل الوسطي لكل فرع ولكل براند.',
+              'Exact duration from POS/KDS order arrival to kitchen handoff — classified into Green (<=12.0m), Yellow (12.1–18.0m), and Red (>18.0m).',
+              'قياس دقيق من لحظة وصول الطلب للفرع ولغاية جاهزية التسليم: أخضر ≤ 12.0 دقيقة، أصفر 12.1–18.0 دقيقة، وأحمر حرج > 18.0 دقيقة.',
             )}
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {(filters.brand !== 'all' || filters.branch !== 'all') ? (
-            <button
-              type="button"
-              onClick={() => {
-                setBrand('all')
-                setBranch('all')
-              }}
-              className="cursor-pointer rounded-full bg-[#F7F7F8] px-3.5 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#111E1B] dark:text-slate-200"
-            >
-              {T('Show All 6 Brands & 7 Branches', 'عرض كل البراندات والفروع')}
-            </button>
-          ) : null}
-
+        <div className="flex flex-wrap items-center gap-2.5">
           <Link
-            href={`/erp/feryal?prompt=${encodeURIComponent(
+            href={`/erp/feryal-ai?prompt=${encodeURIComponent(
               isAr
-                ? `حلّلي مدة تجهيز الطلبات بالمطابخ: المعدل الوسطي العام ${f1(snap.avgPrepMinutes)} دقيقة (P90 = ${f1(snap.p90PrepMinutes)} دقيقة)، أخضر جيد ${f1(snap.greenPct)}%، أصفر وسط ${f1(snap.yellowPct)}%، وأحمر خطر ${f1(snap.redPct)}%. أعطيني خطة تسريع فورية للفروع الأبطأ.`
+                ? `حلّلي مدة تجهيز الطلبات بالمطابخ: المعدل الوسطي العام ${f1(snap.avgPrepMinutes)} دقيقة (P90 = ${f1(snap.p90PrepMinutes)} دقيقة)، أخضر جيد ${f1(snap.greenPct)}%، أصفر وسط ${f1(snap.yellowPct)}%، وأحمر حرج ${f1(snap.redPct)}%. أعطيني خطة تسريع فورية للفروع الأبطأ.`
                 : `Analyze kitchen order prep SLA: avg ${f1(snap.avgPrepMinutes)}m (P90 ${f1(snap.p90PrepMinutes)}m), Green ${f1(snap.greenPct)}%, Yellow ${f1(snap.yellowPct)}%, Red ${f1(snap.redPct)}%.`,
             )}`}
-            className="inline-flex h-9 items-center gap-1.5 rounded-full bg-emerald-50 px-3.5 text-xs font-semibold text-emerald-800 transition-colors hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-200"
+            className="inline-flex h-9 items-center gap-1.5 rounded-full bg-emerald-50 px-4 text-[13px] font-semibold text-emerald-800 transition-colors hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-200"
           >
-            <Sparkles className="h-3.5 w-3.5" />
+            <Sparkles className="h-4 w-4" />
             <span>{T('Ask Feryal ✨', 'اسأل فريال ✨')}</span>
           </Link>
         </div>
       </header>
 
-      {/* ───────────── 2. Top 4 Traffic-Light SLA Summary KPIs ───────────── */}
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div className={`${CARD_CLS} space-y-1.5`}>
+      {/* ───────────── 2. Top 4 Traffic-Light SLA Summary KPIs (`28px–34px`) ───────────── */}
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className={`${CARD_CLS} space-y-2`}>
           <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-medium text-neutral-500 dark:text-slate-400">
+            <span className="text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
               {T('Overall Average Prep Time', 'المعدل الوسطي لتجهيز الطلب')}
             </span>
             <PrepTrafficBadge tier={snap.overallTier} isAr={isAr} compact />
           </div>
           <div className="flex items-baseline justify-between gap-2">
-            <div className="text-2xl font-bold tracking-tight tabular-nums text-neutral-950 dark:text-white">
+            <div className="text-[28px] sm:text-[32px] leading-none font-extrabold tracking-tight tabular-nums text-neutral-950 dark:text-white">
               {f1(snap.avgPrepMinutes)}{' '}
-              <span className="text-xs font-semibold text-neutral-500">
+              <span className="text-[13.5px] font-semibold text-neutral-500">
                 {isAr ? 'دقيقة' : 'min'}
               </span>
             </div>
-            <span className="font-mono text-xs font-semibold tabular-nums text-neutral-500 dark:text-slate-400">
+            <span className="font-mono text-[13px] font-semibold tabular-nums text-neutral-500 dark:text-slate-400">
               {snap.avgDurationMmSs}
             </span>
           </div>
-          <p className="text-[11px] tabular-nums text-neutral-400">
+          <p className="text-[12.5px] tabular-nums text-neutral-400">
             {T(
               `P90 Peak Time: ${f1(snap.p90PrepMinutes)} min · ${f0(snap.totalTickets)} audited tickets`,
               `زمن الذروة P90: ${f1(snap.p90PrepMinutes)} د · ${f0(snap.totalTickets)} طلب مدقق`,
@@ -263,22 +246,22 @@ export function OrderPrepSlaStudio() {
         <button
           type="button"
           onClick={() => setTierFilter(tierFilter === 'green' ? 'all' : 'green')}
-          className={`${CARD_CLS} cursor-pointer space-y-1.5 text-start transition-all duration-150 hover:-translate-y-0.5 ${
+          className={`${CARD_CLS} cursor-pointer space-y-2 text-start transition-all duration-150 hover:-translate-y-0.5 ${
             tierFilter === 'green' ? 'ring-2 ring-emerald-500/50' : ''
           }`}
         >
           <div className="flex items-center justify-between gap-2">
-            <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
+            <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[12px] font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
               {T('🟢 Good (<= 12.0 min)', '🟢 أخضر — جيد (≤ 12.0 د)')}
             </span>
-            <span className="text-xs font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">
+            <span className="text-[13px] font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">
               {f0(snap.greenCount)} {isAr ? 'طلب' : 'orders'}
             </span>
           </div>
-          <div className="text-2xl font-bold tracking-tight tabular-nums text-emerald-700 dark:text-emerald-400">
+          <div className="text-[28px] sm:text-[32px] leading-none font-extrabold tracking-tight tabular-nums text-emerald-700 dark:text-emerald-400">
             {f1(snap.greenPct)}%
           </div>
-          <p className="text-[11px] text-neutral-400">
+          <p className="text-[12.5px] text-neutral-400">
             {T('Handed off smoothly within target SLA', 'طلبات جُهزت وسُلمت ضمن الزمن المثالي')}
           </p>
         </button>
@@ -286,126 +269,114 @@ export function OrderPrepSlaStudio() {
         <button
           type="button"
           onClick={() => setTierFilter(tierFilter === 'yellow' ? 'all' : 'yellow')}
-          className={`${CARD_CLS} cursor-pointer space-y-1.5 text-start transition-all duration-150 hover:-translate-y-0.5 ${
+          className={`${CARD_CLS} cursor-pointer space-y-2 text-start transition-all duration-150 hover:-translate-y-0.5 ${
             tierFilter === 'yellow' ? 'ring-2 ring-amber-500/50' : ''
           }`}
         >
           <div className="flex items-center justify-between gap-2">
-            <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
+            <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[12px] font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
               {T('🟡 Medium (12.1 – 18.0 min)', '🟡 أصفر — وسط (12.1 – 18.0 د)')}
             </span>
-            <span className="text-xs font-semibold tabular-nums text-amber-800 dark:text-amber-300">
+            <span className="text-[13px] font-semibold tabular-nums text-amber-800 dark:text-amber-300">
               {f0(snap.yellowCount)} {isAr ? 'طلب' : 'orders'}
             </span>
           </div>
-          <div className="text-2xl font-bold tracking-tight tabular-nums text-amber-700 dark:text-amber-300">
+          <div className="text-[28px] sm:text-[32px] leading-none font-extrabold tracking-tight tabular-nums text-amber-700 dark:text-amber-300">
             {f1(snap.yellowPct)}%
           </div>
-          <p className="text-[11px] text-neutral-400">
-            {T('Moderate station pressure — watch closely', 'ضغط متوسط بالمطبخ يحتاج متابعة الوردية')}
+          <p className="text-[12.5px] text-neutral-400">
+            {T('Moderate station pressure — shift watch', 'ضغط متوسط بالمطبخ تحت متابعة الوردية')}
           </p>
         </button>
 
         <button
           type="button"
           onClick={() => setTierFilter(tierFilter === 'red' ? 'all' : 'red')}
-          className={`${CARD_CLS} cursor-pointer space-y-1.5 text-start transition-all duration-150 hover:-translate-y-0.5 ${
+          className={`${CARD_CLS} cursor-pointer space-y-2 text-start transition-all duration-150 hover:-translate-y-0.5 ${
             tierFilter === 'red' ? 'ring-2 ring-rose-500/50' : ''
           }`}
         >
           <div className="flex items-center justify-between gap-2">
-            <span className="rounded-full bg-rose-50 px-2.5 py-0.5 text-[11px] font-semibold text-rose-700 dark:bg-rose-950/60 dark:text-rose-200">
-              {T('🔴 Critical / Bad (> 18.0 min)', '🔴 أحمر — خطر وسيء (> 18.0 د)')}
+            <span className="rounded-full bg-rose-50 px-2.5 py-1 text-[12px] font-semibold text-rose-700 dark:bg-rose-950/60 dark:text-rose-200">
+              {T('🔴 Critical (> 18.0 min)', '🔴 أحمر — حرج (> 18.0 د)')}
             </span>
-            <span className="text-xs font-semibold tabular-nums text-rose-700 dark:text-rose-300">
+            <span className="text-[13px] font-semibold tabular-nums text-rose-700 dark:text-rose-300">
               {f0(snap.redCount)} {isAr ? 'طلب' : 'orders'}
             </span>
           </div>
-          <div className="text-2xl font-bold tracking-tight tabular-nums text-rose-600 dark:text-rose-400">
+          <div className="text-[28px] sm:text-[32px] leading-none font-extrabold tracking-tight tabular-nums text-rose-600 dark:text-rose-400">
             {f1(snap.redPct)}%
           </div>
-          <p className="text-[11px] text-neutral-400">
-            {T('High risk of cold food, rider wait & 1★ rating', 'خطر برودة الطبق وتأخير السائق وتقييم سلبي')}
+          <p className="text-[12.5px] text-neutral-400">
+            {T('Critical outliers eligible for Escalate ↗', 'حالات التأخير الحرجة المؤهلة للتصعيد المباشر')}
           </p>
         </button>
       </section>
 
       {/* ───────────── 3. Branch & Brand Average Matrix ───────────── */}
-      <section className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+      <section className="grid grid-cols-1 gap-5 xl:grid-cols-2">
         {/* Per-Branch Average Matrix (7 Locations) */}
         <div className={CARD_CLS}>
-          <div className="mb-3.5 flex items-center justify-between gap-2">
-            <div>
-              <h2 className="text-[16px] font-semibold tracking-tight text-neutral-950 dark:text-white">
-                {T(
-                  'Average Prep Time by Branch (7 Locations)',
-                  'المعدل الوسطي لتجهيز الطلب لكل فرع (٧ فروع)',
-                )}
-              </h2>
-              <p className="text-xs text-neutral-400">
-                {T(
-                  'Sorted slowest-first to spotlight kitchen bottlenecks.',
-                  'مرتبة من الأبطأ إلى الأسرع لكشف نقاط الاختناق فوراً.',
-                )}
-              </p>
-            </div>
+          <div className="mb-4">
+            <h2 className="text-[17px] font-bold tracking-tight text-neutral-950 dark:text-white">
+              {T(
+                'Average Prep Time by Branch (7 Locations)',
+                'المعدل الوسطي لتجهيز الطلب لكل فرع (٧ فروع)',
+              )}
+            </h2>
+            <p className="text-[13.5px] text-neutral-500 dark:text-slate-400">
+              {T(
+                'Sorted slowest-first to spotlight kitchen station load.',
+                'مرتبة من الأبطأ إلى الأسرع لكشف ضغط خطوط التحضير.',
+              )}
+            </p>
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[560px] border-collapse text-start text-xs">
+            <table className="w-full min-w-[560px] border-collapse text-start text-[14px] sm:text-[14.5px]">
               <thead>
-                <tr className="border-b border-neutral-100 text-[11px] font-semibold text-neutral-400 dark:border-white/[0.06]">
-                  <th className="py-2 pe-2 text-start">{T('Branch', 'الفرع')}</th>
-                  <th className="px-2 py-2 text-start">{T('Avg Prep', 'المعدل الوسطي')}</th>
-                  <th className="px-2 py-2 text-start">{T('P90 Peak', 'ذروة P90')}</th>
-                  <th className="px-2 py-2 text-start">{T('🟢 / 🟡 / 🔴 Mix', 'توزيع الأخضر / الأصفر / الأحمر')}</th>
-                  <th className="py-2 ps-2 text-end">{T('Grade', 'التصنيف')}</th>
+                <tr className="border-b border-neutral-100 text-[12.5px] font-semibold text-neutral-500 dark:border-white/[0.06] dark:text-slate-400">
+                  <th className="py-2.5 pe-2 text-start">{T('Branch', 'الفرع')}</th>
+                  <th className="px-2 py-2.5 text-start">{T('Avg Prep', 'المعدل الوسطي')}</th>
+                  <th className="px-2 py-2.5 text-start">{T('P90 Peak', 'ذروة P90')}</th>
+                  <th className="px-2 py-2.5 text-start">
+                    {T('🟢 / 🟡 / 🔴 Mix', 'توزيع الأخضر / الأصفر / الأحمر')}
+                  </th>
+                  <th className="py-2.5 ps-2 text-end">{T('Grade', 'التصنيف')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100 dark:divide-white/[0.05]">
                 {snap.branchMatrix.map((row) => (
                   <tr
                     key={row.id}
-                    onClick={() =>
-                      setBranch(filters.branch === row.id ? 'all' : (row.id as ActiveBranchId))
-                    }
-                    className="cursor-pointer transition-colors hover:bg-[#F7F7F8]/80 dark:hover:bg-white/[0.03]"
+                    className="transition-colors hover:bg-[#F7F7F8]/80 dark:hover:bg-white/[0.03]"
                   >
-                    <td className="py-2.5 pe-2 font-semibold text-neutral-950 dark:text-white">
+                    <td className="py-3 pe-2 font-semibold text-neutral-950 dark:text-white">
                       <div>{isAr ? row.nameAr : row.nameEn}</div>
-                      <div className="text-[10.5px] font-normal text-neutral-400">
+                      <div className="text-[12px] font-normal text-neutral-400">
                         {f0(row.ticketCount)} {isAr ? 'طلب' : 'tickets'}
                       </div>
                     </td>
-                    <td className="px-2 py-2.5 font-bold tabular-nums text-neutral-950 dark:text-white">
+                    <td className="px-2 py-3 font-bold tabular-nums text-neutral-950 dark:text-white">
                       {f1(row.avgPrepMinutes)} {isAr ? 'د' : 'm'}{' '}
-                      <span className="font-mono text-[10.5px] font-normal text-neutral-400">
+                      <span className="font-mono text-[12px] font-normal text-neutral-400">
                         ({row.avgDurationMmSs})
                       </span>
                     </td>
-                    <td className="px-2 py-2.5 font-semibold tabular-nums text-neutral-600 dark:text-slate-300">
+                    <td className="px-2 py-3 font-semibold tabular-nums text-neutral-600 dark:text-slate-300">
                       {f1(row.p90PrepMinutes)} {isAr ? 'د' : 'm'}
                     </td>
-                    <td className="px-2 py-2.5">
-                      <div className="flex h-2 w-36 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
-                        <div
-                          style={{ width: `${row.greenPct}%` }}
-                          className="bg-emerald-500/85"
-                        />
-                        <div
-                          style={{ width: `${row.yellowPct}%` }}
-                          className="bg-amber-400/90"
-                        />
-                        <div
-                          style={{ width: `${row.redPct}%` }}
-                          className="bg-rose-500/85"
-                        />
+                    <td className="px-2 py-3">
+                      <div className="flex h-2 w-36 overflow-hidden rounded-full bg-neutral-100 dark:bg-[#111E1B]">
+                        <div style={{ width: `${row.greenPct}%` }} className="bg-emerald-500/85" />
+                        <div style={{ width: `${row.yellowPct}%` }} className="bg-amber-400/90" />
+                        <div style={{ width: `${row.redPct}%` }} className="bg-rose-500/85" />
                       </div>
-                      <div className="mt-1 text-[10.5px] tabular-nums text-neutral-500 dark:text-slate-400">
+                      <div className="mt-1 text-[12px] tabular-nums text-neutral-500 dark:text-slate-400">
                         🟢 {f1(row.greenPct)}% · 🟡 {f1(row.yellowPct)}% · 🔴 {f1(row.redPct)}%
                       </div>
                     </td>
-                    <td className="py-2.5 ps-2 text-end">
+                    <td className="py-3 ps-2 text-end">
                       <PrepTrafficBadge tier={row.tier} isAr={isAr} compact />
                     </td>
                   </tr>
@@ -417,78 +388,66 @@ export function OrderPrepSlaStudio() {
 
         {/* Per-Brand Average Matrix (6 Brands) */}
         <div className={CARD_CLS}>
-          <div className="mb-3.5 flex items-center justify-between gap-2">
-            <div>
-              <h2 className="text-[16px] font-semibold tracking-tight text-neutral-950 dark:text-white">
-                {T(
-                  'Average Prep Time by Brand (6 Brands)',
-                  'المعدل الوسطي لتجهيز الطلب لكل براند (٦ براندات)',
-                )}
-              </h2>
-              <p className="text-xs text-neutral-400">
-                {T(
-                  'Click any brand to filter its exact station tickets.',
-                  'اضغط على أي براند لتصفية تذاكر مطبخه وفروعه.',
-                )}
-              </p>
-            </div>
+          <div className="mb-4">
+            <h2 className="text-[17px] font-bold tracking-tight text-neutral-950 dark:text-white">
+              {T(
+                'Average Prep Time by Brand (6 Brands)',
+                'المعدل الوسطي لتجهيز الطلب لكل براند (٦ براندات)',
+              )}
+            </h2>
+            <p className="text-[13.5px] text-neutral-500 dark:text-slate-400">
+              {T(
+                'Station speed comparison across all 6 Venture Foods concepts.',
+                'مقارنة سرعة خطوط التحضير عبر كافة البراندات الستة.',
+              )}
+            </p>
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[560px] border-collapse text-start text-xs">
+            <table className="w-full min-w-[560px] border-collapse text-start text-[14px] sm:text-[14.5px]">
               <thead>
-                <tr className="border-b border-neutral-100 text-[11px] font-semibold text-neutral-400 dark:border-white/[0.06]">
-                  <th className="py-2 pe-2 text-start">{T('Brand', 'البراند')}</th>
-                  <th className="px-2 py-2 text-start">{T('Avg Prep', 'المعدل الوسطي')}</th>
-                  <th className="px-2 py-2 text-start">{T('P90 Peak', 'ذروة P90')}</th>
-                  <th className="px-2 py-2 text-start">{T('🟢 / 🟡 / 🔴 Mix', 'توزيع الأخضر / الأصفر / الأحمر')}</th>
-                  <th className="py-2 ps-2 text-end">{T('Grade', 'التصنيف')}</th>
+                <tr className="border-b border-neutral-100 text-[12.5px] font-semibold text-neutral-500 dark:border-white/[0.06] dark:text-slate-400">
+                  <th className="py-2.5 pe-2 text-start">{T('Brand', 'البراند')}</th>
+                  <th className="px-2 py-2.5 text-start">{T('Avg Prep', 'المعدل الوسطي')}</th>
+                  <th className="px-2 py-2.5 text-start">{T('P90 Peak', 'ذروة P90')}</th>
+                  <th className="px-2 py-2.5 text-start">
+                    {T('🟢 / 🟡 / 🔴 Mix', 'توزيع الأخضر / الأصفر / الأحمر')}
+                  </th>
+                  <th className="py-2.5 ps-2 text-end">{T('Grade', 'التصنيف')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100 dark:divide-white/[0.05]">
                 {snap.brandMatrix.map((row) => (
                   <tr
                     key={row.id}
-                    onClick={() =>
-                      setBrand(filters.brand === row.id ? 'all' : (row.id as ActiveBrandId))
-                    }
-                    className="cursor-pointer transition-colors hover:bg-[#F7F7F8]/80 dark:hover:bg-white/[0.03]"
+                    className="transition-colors hover:bg-[#F7F7F8]/80 dark:hover:bg-white/[0.03]"
                   >
-                    <td className="py-2.5 pe-2 font-semibold text-neutral-950 dark:text-white">
+                    <td className="py-3 pe-2 font-semibold text-neutral-950 dark:text-white">
                       <div>{isAr ? row.nameAr : row.nameEn}</div>
-                      <div className="text-[10.5px] font-normal text-neutral-400">
+                      <div className="text-[12px] font-normal text-neutral-400">
                         {f0(row.ticketCount)} {isAr ? 'طلب' : 'tickets'}
                       </div>
                     </td>
-                    <td className="px-2 py-2.5 font-bold tabular-nums text-neutral-950 dark:text-white">
+                    <td className="px-2 py-3 font-bold tabular-nums text-neutral-950 dark:text-white">
                       {f1(row.avgPrepMinutes)} {isAr ? 'د' : 'm'}{' '}
-                      <span className="font-mono text-[10.5px] font-normal text-neutral-400">
+                      <span className="font-mono text-[12px] font-normal text-neutral-400">
                         ({row.avgDurationMmSs})
                       </span>
                     </td>
-                    <td className="px-2 py-2.5 font-semibold tabular-nums text-neutral-600 dark:text-slate-300">
+                    <td className="px-2 py-3 font-semibold tabular-nums text-neutral-600 dark:text-slate-300">
                       {f1(row.p90PrepMinutes)} {isAr ? 'د' : 'm'}
                     </td>
-                    <td className="px-2 py-2.5">
-                      <div className="flex h-2 w-36 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
-                        <div
-                          style={{ width: `${row.greenPct}%` }}
-                          className="bg-emerald-500/85"
-                        />
-                        <div
-                          style={{ width: `${row.yellowPct}%` }}
-                          className="bg-amber-400/90"
-                        />
-                        <div
-                          style={{ width: `${row.redPct}%` }}
-                          className="bg-rose-500/85"
-                        />
+                    <td className="px-2 py-3">
+                      <div className="flex h-2 w-36 overflow-hidden rounded-full bg-neutral-100 dark:bg-[#111E1B]">
+                        <div style={{ width: `${row.greenPct}%` }} className="bg-emerald-500/85" />
+                        <div style={{ width: `${row.yellowPct}%` }} className="bg-amber-400/90" />
+                        <div style={{ width: `${row.redPct}%` }} className="bg-rose-500/85" />
                       </div>
-                      <div className="mt-1 text-[10.5px] tabular-nums text-neutral-500 dark:text-slate-400">
+                      <div className="mt-1 text-[12px] tabular-nums text-neutral-500 dark:text-slate-400">
                         🟢 {f1(row.greenPct)}% · 🟡 {f1(row.yellowPct)}% · 🔴 {f1(row.redPct)}%
                       </div>
                     </td>
-                    <td className="py-2.5 ps-2 text-end">
+                    <td className="py-3 ps-2 text-end">
                       <PrepTrafficBadge tier={row.tier} isAr={isAr} compact />
                     </td>
                   </tr>
@@ -502,14 +461,14 @@ export function OrderPrepSlaStudio() {
       {/* 6 × 7 Brand × Location Cross-Matrix */}
       {snap.brandMatrix.length > 1 && snap.branchMatrix.length > 1 ? (
         <section className={CARD_CLS}>
-          <div className="mb-3.5">
-            <h2 className="text-[16px] font-semibold tracking-tight text-neutral-950 dark:text-white">
+          <div className="mb-4">
+            <h2 className="text-[17px] font-bold tracking-tight text-neutral-950 dark:text-white">
               {T(
                 '6 Brands × 7 Locations Cross-Matrix (Average Prep Minutes)',
                 'مصفوفة المعدل الوسطي للتجهيز (٦ براندات × ٧ فروع بالدقائق)',
               )}
             </h2>
-            <p className="text-xs text-neutral-400">
+            <p className="text-[13.5px] text-neutral-500 dark:text-slate-400">
               {T(
                 'Green <= 12.0m · Yellow 12.1–18.0m · Red > 18.0m across every kitchen cell.',
                 'خلية خضراء ≤ 12.0 د · صفراء 12.1–18.0 د · حمراء > 18.0 د لكل براند داخل كل فرع.',
@@ -517,12 +476,12 @@ export function OrderPrepSlaStudio() {
             </p>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[820px] border-collapse text-start text-xs">
+            <table className="w-full min-w-[880px] border-collapse text-start text-[14px]">
               <thead>
-                <tr className="border-b border-neutral-100 text-[11px] font-semibold text-neutral-400 dark:border-white/[0.06]">
-                  <th className="py-2 pe-3 text-start">{T('Brand \\ Branch', 'البراند \\ الفرع')}</th>
+                <tr className="border-b border-neutral-100 text-[12.5px] font-semibold text-neutral-500 dark:border-white/[0.06] dark:text-slate-400">
+                  <th className="py-2.5 pe-3 text-start">{T('Brand \\ Branch', 'البراند \\ الفرع')}</th>
                   {snap.branchMatrix.map((loc) => (
-                    <th key={loc.id} className="px-2 py-2 text-center">
+                    <th key={loc.id} className="px-2 py-2.5 text-center">
                       {isAr ? loc.nameAr : loc.nameEn}
                     </th>
                   ))}
@@ -531,14 +490,14 @@ export function OrderPrepSlaStudio() {
               <tbody className="divide-y divide-neutral-100 dark:divide-white/[0.05]">
                 {snap.brandMatrix.map((br) => (
                   <tr key={br.id}>
-                    <td className="py-2.5 pe-3 font-semibold text-neutral-950 dark:text-white">
+                    <td className="py-3 pe-3 font-semibold text-neutral-950 dark:text-white">
                       {isAr ? br.nameAr : br.nameEn}
                     </td>
                     {snap.branchMatrix.map((loc) => {
                       const cell = cellLookup.get(`${br.id}::${loc.id}`)
                       if (!cell) {
                         return (
-                          <td key={loc.id} className="px-2 py-2.5 text-center text-neutral-300">
+                          <td key={loc.id} className="px-2 py-3 text-center text-neutral-300">
                             —
                           </td>
                         )
@@ -550,9 +509,9 @@ export function OrderPrepSlaStudio() {
                             ? 'bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-200'
                             : 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-200'
                       return (
-                        <td key={loc.id} className="px-2 py-2 text-center">
+                        <td key={loc.id} className="px-2 py-2.5 text-center">
                           <span
-                            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold tabular-nums ${pillCls}`}
+                            className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-[12.5px] font-semibold tabular-nums ${pillCls}`}
                           >
                             <span>
                               {cell.tier === 'green' ? '🟢' : cell.tier === 'yellow' ? '🟡' : '🔴'}
@@ -575,19 +534,19 @@ export function OrderPrepSlaStudio() {
       {/* ───────────── 4. Peak-Hour Bottleneck Strip (12 PM – 1 AM) ───────────── */}
       <section className={CARD_CLS}>
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <Flame className="h-4 w-4 text-rose-500" />
+          <div className="flex items-center gap-2.5">
+            <Flame className="h-5 w-5 text-rose-500" />
             <div>
-              <h2 className="text-[16px] font-semibold tracking-tight text-neutral-950 dark:text-white">
+              <h2 className="text-[17px] font-bold tracking-tight text-neutral-950 dark:text-white">
                 {T(
                   'Peak-Hour Bottleneck Strip (12 PM – 1 AM)',
                   'شريط ساعات الذروة والاختناق بالمطابخ (12 ظهراً – 1 صباحاً)',
                 )}
               </h2>
-              <p className="text-xs text-neutral-400">
+              <p className="text-[13.5px] text-neutral-500 dark:text-slate-400">
                 {T(
-                  'Spotlights exact hours when red (>18m) tickets spike; click any hour bar to filter tickets.',
-                  'يوضح متى تقفز الطلبات الحمراء (>18 دقيقة) خلال اليوم؛ اضغط على أي ساعة لتصفية التذاكر بالأسفل.',
+                  'Click any hour capsule to inspect tickets from that service window.',
+                  'اضغط على أي ساعة لتصفية تذاكر الطلبات الخاصة بها بالأسفل.',
                 )}
               </p>
             </div>
@@ -597,14 +556,14 @@ export function OrderPrepSlaStudio() {
             <button
               type="button"
               onClick={() => setSelectedHour(null)}
-              className="cursor-pointer rounded-full bg-[#F7F7F8] px-3 py-1 text-xs font-semibold text-neutral-700 hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#111E1B] dark:text-slate-200"
+              className="cursor-pointer rounded-full bg-[#F7F7F8] px-3.5 py-1.5 text-[13px] font-semibold text-neutral-700 hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#111E1B] dark:text-slate-200"
             >
               {T('Clear Hour Filter ✕', 'إلغاء فلتر الساعة ✕')}
             </button>
           ) : null}
         </div>
 
-        <div className="grid grid-cols-7 gap-2 sm:grid-cols-14">
+        <div className="grid grid-cols-7 gap-2.5 sm:grid-cols-14">
           {snap.hourlyBottlenecks.map((h) => {
             const active = selectedHour === h.hourIndex
             const barHeightPct = Math.max(16, Math.round((h.totalTickets / maxHourTickets) * 100))
@@ -623,7 +582,7 @@ export function OrderPrepSlaStudio() {
                   active ? 'ring-2 ring-emerald-500' : 'hover:ring-1 hover:ring-neutral-300'
                 }`}
               >
-                <span className="text-[10.5px] font-semibold tabular-nums text-neutral-600 dark:text-slate-300">
+                <span className="text-[11.5px] font-semibold tabular-nums text-neutral-600 dark:text-slate-300">
                   {isAr ? h.labelAr : h.labelEn}
                 </span>
 
@@ -635,11 +594,11 @@ export function OrderPrepSlaStudio() {
                 </div>
 
                 <div className="space-y-0.5 tabular-nums">
-                  <div className="text-[11px] font-bold text-neutral-900 dark:text-white">
+                  <div className="text-[12px] font-bold text-neutral-900 dark:text-white">
                     {h.totalTickets > 0 ? `${f1(h.avgPrepMinutes)}${isAr ? 'د' : 'm'}` : '—'}
                   </div>
                   <div
-                    className={`text-[10px] font-semibold ${
+                    className={`text-[11px] font-semibold ${
                       h.redCount > 0
                         ? 'text-rose-600 dark:text-rose-400'
                         : 'text-emerald-700 dark:text-emerald-400'
@@ -658,35 +617,34 @@ export function OrderPrepSlaStudio() {
       <section className={CARD_CLS}>
         <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h2 className="text-[16px] font-semibold tracking-tight text-neutral-950 dark:text-white">
+            <h2 className="text-[17px] font-bold tracking-tight text-neutral-950 dark:text-white">
               {T(
                 'Order Ticket Preparation Audit Ledger (12 Tickets / Page)',
                 'سجل تدقيق تذاكر الطلبات الفردية (١٢ تذكرة بالصفحة)',
               )}
             </h2>
-            <p className="text-xs text-neutral-400">
+            <p className="text-[13.5px] text-neutral-500 dark:text-slate-400">
               {T(
-                'Exact POS/KDS arrival -> ready timestamps, mm:ss prep duration, root cause, and 1-click Manager Bell escalation.',
-                'توقيت وصول الطلب للفرع ولحظة جاهزيته بالدقيقة والثانية مع سبب التأخير وزر الرفع المباشر لجرس المدير.',
+                'Green & Yellow tickets stay clean; only genuine Red (>18.0m) critical delays display Escalate ↗.',
+                'التذاكر الخضراء والصفراء تُعرض بهدوء؛ ويظهر زر تصعيد ↗ فقط للطلبات الحمراء الحرجة (> 18.0 دقيقة).',
               )}
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {/* Traffic-Light Filter Pills */}
             {(
               [
                 { id: 'all', ar: 'الكل', en: 'All' },
-                { id: 'green', ar: '🟢 أخضر — جيد', en: '🟢 Good' },
-                { id: 'yellow', ar: '🟡 أصفر — وسط', en: '🟡 Medium' },
-                { id: 'red', ar: '🔴 أحمر — خطر وسيء', en: '🔴 Critical' },
+                { id: 'green', ar: '🟢 أخضر', en: '🟢 Good' },
+                { id: 'yellow', ar: '🟡 أصفر', en: '🟡 Medium' },
+                { id: 'red', ar: '🔴 حرج', en: '🔴 Critical' },
               ] as const
             ).map((pill) => (
               <button
                 key={pill.id}
                 type="button"
                 onClick={() => setTierFilter(pill.id)}
-                className={`cursor-pointer rounded-full px-3 py-1.5 text-xs font-semibold transition-all duration-150 ${
+                className={`cursor-pointer rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-all duration-150 ${
                   tierFilter === pill.id
                     ? 'bg-emerald-600 text-white shadow-sm'
                     : `${SUBCARD_CLS} text-neutral-700 hover:bg-emerald-50 hover:text-emerald-800 dark:text-slate-200`
@@ -696,20 +654,18 @@ export function OrderPrepSlaStudio() {
               </button>
             ))}
 
-            {/* Search Input */}
-            <div className={`${SUBCARD_CLS} inline-flex h-8 items-center gap-1.5 px-3`}>
-              <Search className="h-3.5 w-3.5 text-neutral-400" />
+            <div className={`${SUBCARD_CLS} inline-flex h-9 items-center gap-1.5 px-3.5`}>
+              <Search className="h-4 w-4 text-neutral-400" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={T('Search order / branch…', 'ابحث برقم الطلب أو الفرع…')}
-                className="w-36 bg-transparent text-xs text-neutral-900 placeholder:text-neutral-400 focus:outline-none dark:text-white"
+                className="w-40 bg-transparent text-[13px] text-neutral-900 placeholder:text-neutral-400 focus:outline-none dark:text-white"
               />
             </div>
 
-            {/* Pagination (`12 tickets/page`) */}
-            <div className="flex items-center gap-1.5 text-xs">
+            <div className="flex items-center gap-1.5 text-[13px]">
               <span className="tabular-nums text-neutral-500 dark:text-slate-400">
                 {safePage}/{totalPages}
               </span>
@@ -736,25 +692,23 @@ export function OrderPrepSlaStudio() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1100px] border-collapse text-start text-xs">
+          <table className="w-full min-w-[1120px] border-collapse text-start text-[14px] sm:text-[14.5px]">
             <thead>
-              <tr className="border-b border-neutral-100 text-[11px] font-semibold text-neutral-400 dark:border-white/[0.06]">
-                <th className="py-2.5 pe-3 text-start">{T('Order ID', 'رقم الطلب')}</th>
-                <th className="px-2.5 py-2.5 text-start">
-                  {T('Arrived at Branch', 'لحظة وصول الطلب للفرع')}
+              <tr className="border-b border-neutral-100 text-[12.5px] font-semibold text-neutral-500 dark:border-white/[0.06] dark:text-slate-400">
+                <th className="py-3 pe-3 text-start">{T('Order ID', 'رقم الطلب')}</th>
+                <th className="px-2.5 py-3 text-start">
+                  {T('Arrived at Branch', 'لحظة وصول الطلب')}
                 </th>
-                <th className="px-2.5 py-2.5 text-start">
-                  {T('Ready Handoff', 'لحظة جاهزية الطلب')}
-                </th>
-                <th className="px-2.5 py-2.5 text-start">
+                <th className="px-2.5 py-3 text-start">{T('Ready Handoff', 'لحظة الجاهزية')}</th>
+                <th className="px-2.5 py-3 text-start">
                   {T('Prep Duration', 'مدة التجهيز (mm:ss)')}
                 </th>
-                <th className="px-2.5 py-2.5 text-start">{T('Brand', 'البراند')}</th>
-                <th className="px-2.5 py-2.5 text-start">{T('Branch', 'الفرع')}</th>
-                <th className="px-2.5 py-2.5 text-start">{T('Channel', 'القناة')}</th>
-                <th className="px-2.5 py-2.5 text-start">{T('Grade', 'التصنيف')}</th>
-                <th className="px-2.5 py-2.5 text-start">{T('Delay Root Cause', 'التشخيص / سبب التأخير')}</th>
-                <th className="py-2.5 ps-3 text-end">{T('Manager Bell', 'جرس المدير')}</th>
+                <th className="px-2.5 py-3 text-start">{T('Brand', 'البراند')}</th>
+                <th className="px-2.5 py-3 text-start">{T('Branch', 'الفرع')}</th>
+                <th className="px-2.5 py-3 text-start">{T('Channel', 'القناة')}</th>
+                <th className="px-2.5 py-3 text-start">{T('Grade', 'التصنيف')}</th>
+                <th className="px-2.5 py-3 text-start">{T('Diagnosis', 'التشخيص')}</th>
+                <th className="py-3 ps-3 text-end">{T('Action', 'الإجراء')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100 dark:divide-white/[0.05]">
@@ -766,83 +720,79 @@ export function OrderPrepSlaStudio() {
                     key={t.orderId}
                     className="transition-colors hover:bg-[#F7F7F8]/70 dark:hover:bg-white/[0.03]"
                   >
-                    <td className="py-3 pe-3 font-mono font-semibold tabular-nums text-neutral-950 dark:text-white">
+                    <td className="py-3.5 pe-3 font-mono font-semibold tabular-nums text-neutral-950 dark:text-white">
                       <div>{t.orderId}</div>
-                      <div className="font-sans text-[10.5px] font-normal text-neutral-400">
+                      <div className="font-sans text-[12px] font-normal text-neutral-400">
                         {t.dateIso}
                       </div>
                     </td>
 
-                    <td dir="ltr" className="px-2.5 py-3 font-mono tabular-nums text-neutral-700 dark:text-slate-200">
+                    <td
+                      dir="ltr"
+                      className="px-2.5 py-3.5 font-mono tabular-nums text-neutral-700 dark:text-slate-200"
+                    >
                       {t.arrivedAt}
                     </td>
 
-                    <td dir="ltr" className="px-2.5 py-3 font-mono tabular-nums text-neutral-700 dark:text-slate-200">
+                    <td
+                      dir="ltr"
+                      className="px-2.5 py-3.5 font-mono tabular-nums text-neutral-700 dark:text-slate-200"
+                    >
                       {t.readyAt}
                     </td>
 
-                    <td className="px-2.5 py-3 tabular-nums">
+                    <td className="px-2.5 py-3.5 tabular-nums">
                       <span className="inline-flex items-center gap-1 font-mono font-bold text-neutral-950 dark:text-white">
-                        <Clock className="h-3 w-3 text-neutral-400" />
+                        <Clock className="h-3.5 w-3.5 text-neutral-400" />
                         {t.durationMmSs}
                       </span>
-                      <span className="ms-1 text-[10.5px] text-neutral-400">
+                      <span className="ms-1 text-[12px] text-neutral-400">
                         ({f1(t.prepMinutes)} {isAr ? 'د' : 'm'})
                       </span>
                     </td>
 
-                    <td className="px-2.5 py-3 font-semibold text-neutral-900 dark:text-white">
+                    <td className="px-2.5 py-3.5 font-semibold text-neutral-900 dark:text-white">
                       {isAr ? t.brandNameAr : t.brandNameEn}
                     </td>
 
-                    <td className="px-2.5 py-3 font-medium text-neutral-700 dark:text-slate-200">
+                    <td className="px-2.5 py-3.5 font-medium text-neutral-700 dark:text-slate-200">
                       {isAr ? t.branchNameAr : t.branchNameEn}
                     </td>
 
-                    <td className="px-2.5 py-3 text-neutral-600 dark:text-slate-300">
+                    <td className="px-2.5 py-3.5 text-neutral-600 dark:text-slate-300">
                       {isAr ? t.channelNameAr : t.channelNameEn}
                     </td>
 
-                    <td className="px-2.5 py-3">
-                      <PrepTrafficBadge tier={t.tier} isAr={isAr} />
+                    <td className="px-2.5 py-3.5">
+                      <PrepTrafficBadge tier={t.tier} isAr={isAr} compact />
                     </td>
 
-                    <td className="max-w-[240px] px-2.5 py-3 text-[11.5px] leading-snug text-neutral-600 dark:text-slate-300">
+                    <td className="max-w-[260px] px-2.5 py-3.5 text-[13px] leading-snug text-neutral-600 dark:text-slate-300">
                       {isAr ? t.delayRootCauseAr : t.delayRootCauseEn}
                     </td>
 
-                    <td className="py-3 ps-3 text-end">
-                      {queued ? (
-                        <button
-                          type="button"
-                          onClick={() => openDrawer('approvals')}
-                          className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-emerald-50 px-3 text-[11px] font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
-                        >
-                          <Check className="h-3.5 w-3.5" />
-                          <span>{T('In Bell 🔔', 'بالجرس 🔔')}</span>
-                        </button>
-                      ) : t.tier !== 'green' ? (
-                        <button
-                          type="button"
-                          onClick={() => handleEscalateTicketDelay(t)}
-                          className={`inline-flex h-8 cursor-pointer items-center gap-1 rounded-full px-3 text-[11px] font-semibold transition-colors ${
-                            t.tier === 'red'
-                              ? 'bg-rose-50 text-rose-700 hover:bg-rose-100 dark:bg-rose-950/60 dark:text-rose-200'
-                              : 'bg-amber-50 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/60 dark:text-amber-200'
-                          }`}
-                        >
-                          <Bell className="h-3.5 w-3.5" />
-                          <span>
-                            {T(
-                              'Escalate Kitchen Delay 🔔',
-                              'رفع تنبيه تأخير المطبخ لجرس المدير 🔔',
-                            )}
-                          </span>
-                        </button>
+                    <td className="py-3.5 ps-3 text-end">
+                      {t.tier === 'red' ? (
+                        queued ? (
+                          <button
+                            type="button"
+                            onClick={() => openDrawer('approvals')}
+                            className="inline-flex h-8 cursor-pointer items-center rounded-full border border-emerald-200/80 bg-emerald-50 px-3 text-[12.5px] font-semibold text-emerald-800 transition-colors hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-950/50 dark:text-emerald-300"
+                          >
+                            {T('Escalated ✓', 'تم التصعيد ✓')}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            title="رفع تنبيه تأخير المطبخ لجرس المدير 🔔"
+                            onClick={() => handleEscalateTicketDelay(t)}
+                            className="inline-flex h-8 cursor-pointer items-center rounded-full border border-rose-200/80 bg-rose-50/70 px-3 text-[12.5px] font-semibold text-rose-700 transition-colors hover:bg-rose-100 dark:border-rose-500/30 dark:bg-rose-950/40 dark:text-rose-200"
+                          >
+                            {T('Escalate ↗', 'تصعيد ↗')}
+                          </button>
+                        )
                       ) : (
-                        <span className="text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
-                          {T('On Time ✓', 'ضمن المعيار ✓')}
-                        </span>
+                        <span className="select-none text-neutral-300 dark:text-slate-600">—</span>
                       )}
                     </td>
                   </tr>

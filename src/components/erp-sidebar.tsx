@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
@@ -32,36 +32,200 @@ import { displayRoleName, displayTeamName } from '@/lib/venture-foods-team'
 const RAIL_STORAGE_KEY = 'aetherbi_rail_collapsed_v1'
 export const RAIL_TOGGLE_EVENT = 'aetherbi:toggle-rail'
 
-interface NavItem {
+export type SidebarSectionId =
+  | 'executive-sales'
+  | 'operations-sla'
+  | 'reputation-vision'
+  | 'governance-strategy'
+
+export interface NavItem {
   key: string
+  sectionId: SidebarSectionId
   href: string
+  aliases?: readonly string[]
   labelAr: string
   labelEn: string
   icon: React.ComponentType<{ size?: number; className?: string }>
   alwaysVisible?: boolean
 }
 
-/** Executive, operational & governance pillars of Aether BI (Workstation #1 + #2 unified routes). */
-export const SIDEBAR_ITEMS: NavItem[] = [
-  { key: 'playbook', href: '/erp', labelAr: 'الرئيسية', labelEn: 'Overview', icon: LayoutDashboard, alwaysVisible: true },
-  { key: 'cores', href: '/erp/cores', labelAr: 'المبيعات والتسويق والمنتجات', labelEn: 'Sales, Marketing & Menu', icon: BarChart3, alwaysVisible: true },
-  { key: 'warehouse-chain', href: '/erp/warehouse-chain', labelAr: 'سلسلة المخزن والفروع', labelEn: 'Warehouse-to-Branch Chain', icon: PackageCheck, alwaysVisible: true },
-  { key: 'prep-sla', href: '/erp/prep-sla', labelAr: 'مدة تجهيز الطلبات', labelEn: 'Kitchen Prep SLA', icon: Timer, alwaysVisible: true },
-  { key: 'delivery-sla', href: '/erp/delivery-sla', labelAr: 'مدة توصيل الطلبات', labelEn: 'Rider Delivery SLA', icon: Truck, alwaysVisible: true },
-  { key: 'social-reviews', href: '/erp/social-reviews', labelAr: 'التقييمات ومنصات التواصل', labelEn: 'Social & Aggregator Reviews', icon: MessageSquareHeart, alwaysVisible: true },
-  { key: 'weekday-comparison', href: '/erp/weekday-comparison', labelAr: 'مقارنة أيام الأسبوع', labelEn: 'Weekday Sales Comparison', icon: CalendarDays, alwaysVisible: true },
-  { key: 'before-after', href: '/erp/before-after', labelAr: 'مقارنة قبل وبعد', labelEn: 'Before & After', icon: ArrowLeftRight, alwaysVisible: true },
-  { key: 'feryal-ai', href: '/erp/feryal-ai', labelAr: 'المستشارة فريال', labelEn: 'Ask Feryal', icon: Sparkles, alwaysVisible: true },
-  { key: 'aggregator-radar', href: '/erp/aggregator-radar', labelAr: 'مراقبة التوصيل', labelEn: 'Delivery Radar', icon: Radar, alwaysVisible: true },
-  { key: 'events-intelligence', href: '/erp/events-intelligence', labelAr: 'حاسبة المعارض', labelEn: 'Booth Calculator', icon: Calendar, alwaysVisible: true },
-  { key: 'planning', href: '/erp/planning', labelAr: 'التخطيط والتوقعات والامتثال', labelEn: 'Planning & Compliance', icon: Compass, alwaysVisible: true },
-  { key: 'regulations', href: '/erp/regulations', labelAr: 'التشريعات وخطط التعامل', labelEn: 'Regulations & Playbooks', icon: Scale, alwaysVisible: true },
+export interface SidebarSection {
+  id: SidebarSectionId
+  labelAr: string
+  labelEn: string
+  items: readonly NavItem[]
+}
+
+/** 4 Clean Executive Sections & 13 Unified ERP Routes (AR & EN). */
+export const SIDEBAR_SECTIONS: readonly SidebarSection[] = [
+  {
+    id: 'executive-sales',
+    labelAr: 'القيادة والمبيعات',
+    labelEn: 'Executive & Sales',
+    items: [
+      {
+        key: 'playbook',
+        sectionId: 'executive-sales',
+        href: '/erp',
+        labelAr: 'ملخص الشركة',
+        labelEn: 'Company Summary',
+        icon: LayoutDashboard,
+        alwaysVisible: true,
+      },
+      {
+        key: 'cores',
+        sectionId: 'executive-sales',
+        href: '/erp/cores',
+        labelAr: 'المبيعات والتسويق والمينيو',
+        labelEn: 'Sales, Marketing & Menu',
+        icon: BarChart3,
+        alwaysVisible: true,
+      },
+      {
+        key: 'weekday-comparison',
+        sectionId: 'executive-sales',
+        href: '/erp/weekday-comparison',
+        labelAr: 'مقارنة أيام الأسبوع',
+        labelEn: 'Weekday Sales Comparison',
+        icon: CalendarDays,
+        alwaysVisible: true,
+      },
+      {
+        key: 'before-after',
+        sectionId: 'executive-sales',
+        href: '/erp/before-after',
+        labelAr: 'أثر القرارات (قبل وبعد)',
+        labelEn: 'Decision Impact (Before & After)',
+        icon: ArrowLeftRight,
+        alwaysVisible: true,
+      },
+    ],
+  },
+  {
+    id: 'operations-sla',
+    labelAr: 'التشغيل وسلسلة الإمداد',
+    labelEn: 'Operations & SLA',
+    items: [
+      {
+        key: 'warehouse-chain',
+        sectionId: 'operations-sla',
+        href: '/erp/warehouse-chain',
+        labelAr: 'سلسلة المخزن والفروع',
+        labelEn: 'Warehouse-to-Branch Chain',
+        icon: PackageCheck,
+        alwaysVisible: true,
+      },
+      {
+        key: 'prep-sla',
+        sectionId: 'operations-sla',
+        href: '/erp/prep-sla',
+        labelAr: 'زمن تجهيز المطبخ',
+        labelEn: 'Kitchen Prep SLA',
+        icon: Timer,
+        alwaysVisible: true,
+      },
+      {
+        key: 'delivery-sla',
+        sectionId: 'operations-sla',
+        href: '/erp/delivery-sla',
+        labelAr: 'زمن توصيل السائق',
+        labelEn: 'Rider Delivery SLA',
+        icon: Truck,
+        alwaysVisible: true,
+      },
+      {
+        key: 'aggregator-radar',
+        sectionId: 'operations-sla',
+        href: '/erp/aggregator-radar',
+        labelAr: 'عمولات منصات التوصيل',
+        labelEn: 'Aggregator Commissions',
+        icon: Radar,
+        alwaysVisible: true,
+      },
+    ],
+  },
+  {
+    id: 'reputation-vision',
+    labelAr: 'السمعة والذكاء المرئي',
+    labelEn: 'Reputation & Vision AI',
+    items: [
+      {
+        key: 'social-reviews',
+        sectionId: 'reputation-vision',
+        href: '/erp/social-reviews',
+        labelAr: 'التقييمات ومنصات التواصل',
+        labelEn: 'Social & Aggregator Reviews',
+        icon: MessageSquareHeart,
+        alwaysVisible: true,
+      },
+      {
+        key: 'feryal-ai',
+        sectionId: 'reputation-vision',
+        href: '/erp/feryal-ai',
+        aliases: ['/erp/feryal'],
+        labelAr: 'المستشارة فريال (صور وفيديو)',
+        labelEn: 'Ask Feryal (Vision & Video)',
+        icon: Sparkles,
+        alwaysVisible: true,
+      },
+    ],
+  },
+  {
+    id: 'governance-strategy',
+    labelAr: 'الحوكمة والتخطيط',
+    labelEn: 'Governance & Strategy',
+    items: [
+      {
+        key: 'planning',
+        sectionId: 'governance-strategy',
+        href: '/erp/planning',
+        labelAr: 'التخطيط والتوقعات',
+        labelEn: 'Strategic Planning & Forecast',
+        icon: Compass,
+        alwaysVisible: true,
+      },
+      {
+        key: 'regulations',
+        sectionId: 'governance-strategy',
+        href: '/erp/regulations',
+        labelAr: 'التشريعات والتراخيص',
+        labelEn: 'Regulations & Licensing',
+        icon: Scale,
+        alwaysVisible: true,
+      },
+      {
+        key: 'booth-feasibility',
+        sectionId: 'governance-strategy',
+        href: '/erp/booth-feasibility',
+        aliases: ['/erp/events-intelligence'],
+        labelAr: 'حاسبة جدوى المعارض',
+        labelEn: 'Booth Feasibility Calculator',
+        icon: Calendar,
+        alwaysVisible: true,
+      },
+    ],
+  },
 ]
+
+export const SIDEBAR_ITEMS: NavItem[] = SIDEBAR_SECTIONS.flatMap((section) => [...section.items])
 
 const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect
 
+function isItemActive(item: NavItem, pathname: string): boolean {
+  if (item.href === '/erp') {
+    return pathname === '/erp'
+  }
+  if (pathname === item.href || pathname.startsWith(`${item.href}/`)) {
+    return true
+  }
+  if (item.aliases) {
+    return item.aliases.some((alias) => pathname === alias || pathname.startsWith(`${alias}/`))
+  }
+  return false
+}
+
 export function Sidebar({ user }: { user: AccessUser; enabledKeys?: string[] | null }) {
-  const pathname = usePathname()
+  const pathname = usePathname() ?? ''
   const { t, locale } = useI18n()
   const isAr = locale === 'ar'
 
@@ -115,34 +279,47 @@ export function Sidebar({ user }: { user: AccessUser; enabledKeys?: string[] | n
     }
   }, [toggleRail])
 
-  const visibleItems = SIDEBAR_ITEMS.filter((item) => {
-    if (user.role.isAdmin) return true
-    if (item.alwaysVisible) return true
-    return can(user, item.key, 'view')
-  })
+  const visibleSections = useMemo(
+    () =>
+      SIDEBAR_SECTIONS.map((section) => ({
+        ...section,
+        items: section.items.filter((item) => {
+          if (user.role.isAdmin) return true
+          if (item.alwaysVisible) return true
+          return can(user, item.key, 'view')
+        }),
+      })).filter((section) => section.items.length > 0),
+    [user],
+  )
 
-  const normalizedPathname =
-    pathname === '/erp/feryal'
-      ? '/erp/feryal-ai'
-      : pathname === '/erp/booth-feasibility'
-        ? '/erp/events-intelligence'
-        : pathname ?? ''
-
-  const activeKey =
-    visibleItems.find((item) =>
-      item.href === '/erp'
-        ? normalizedPathname === '/erp'
-        : normalizedPathname === item.href || normalizedPathname.startsWith(`${item.href}/`),
-    )?.key ?? null
+  const activeKey = useMemo(() => {
+    for (const section of visibleSections) {
+      for (const item of section.items) {
+        if (isItemActive(item, pathname)) {
+          return item.key
+        }
+      }
+    }
+    return null
+  }, [pathname, visibleSections])
 
   const measureIndicator = useCallback(() => {
-    if (!activeKey) {
+    if (!activeKey || !navListRef.current) {
       setIndicator(null)
       return
     }
     const el = linkRefs.current.get(activeKey)
-    if (!el) return
-    setIndicator({ top: el.offsetTop, height: el.offsetHeight })
+    const container = navListRef.current
+    if (!el) {
+      setIndicator(null)
+      return
+    }
+    const containerRect = container.getBoundingClientRect()
+    const elRect = el.getBoundingClientRect()
+    setIndicator({
+      top: elRect.top - containerRect.top,
+      height: elRect.height,
+    })
   }, [activeKey])
 
   useIsomorphicLayoutEffect(() => {
@@ -179,13 +356,13 @@ export function Sidebar({ user }: { user: AccessUser; enabledKeys?: string[] | n
       }`}
       dir={isAr ? 'rtl' : 'ltr'}
     >
-      {/* Brand Header + Skerry Tactile Collapse/Expand Trigger */}
+      {/* Brand Header + Tactile Collapse/Expand Trigger */}
       <div className={`shrink-0 pt-5 pb-3 ${collapsed ? 'px-2.5' : 'px-4'}`}>
         <div className={`flex items-center ${collapsed ? 'flex-col gap-2.5' : 'justify-between gap-2'}`}>
           <Link
             href="/erp"
             className="flex min-w-0 items-center gap-3 rounded-2xl outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-emerald-500/50"
-            aria-label={isAr ? 'العودة إلى الرئيسية' : 'Back to Overview'}
+            aria-label={isAr ? 'العودة إلى ملخص الشركة' : 'Back to Company Summary'}
           >
             <div
               className="ae-side-logo flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-sm font-black tracking-wide"
@@ -228,7 +405,7 @@ export function Sidebar({ user }: { user: AccessUser; enabledKeys?: string[] | n
 
         {/* Company badge card — cleanly hidden in 76px icon rail mode */}
         {!collapsed ? (
-          <div className="ae-side-card mt-4 space-y-1.5 px-3 py-2.5 text-center leading-relaxed">
+          <div className="ae-side-card mt-3.5 space-y-1 px-3 py-2 text-center leading-relaxed">
             <p className="ae-side-strong text-[11.5px] font-semibold">
               {isAr ? 'شركة فنتشر فودز لإدارة المطاعم ذ.م.م' : 'Venture Foods Restaurants Co. W.L.L.'}
             </p>
@@ -240,22 +417,12 @@ export function Sidebar({ user }: { user: AccessUser; enabledKeys?: string[] | n
         ) : null}
       </div>
 
-      {/* Navigation Sections with Verdelo Sliding Emerald Active Pill */}
+      {/* 4 Categorized Executive Navigation Sections with Smooth Sliding Emerald Active Pill */}
       <nav
         aria-label={isAr ? 'القائمة الرئيسية' : 'Main Navigation'}
-        className={`flex-1 pt-2 pb-6 ${
-          collapsed ? 'overflow-visible px-2.5' : 'px-3'
-        }`}
+        className={`flex-1 pt-1.5 pb-5 ${collapsed ? 'overflow-visible px-2.5' : 'px-3'}`}
       >
-        {!collapsed ? (
-          <div className="px-3 pb-2">
-            <span className="ae-side-muted text-[10.5px] font-bold uppercase tracking-wider">
-              {isAr ? 'القائمة' : 'Menu'}
-            </span>
-          </div>
-        ) : null}
-
-        <div ref={navListRef} className="relative space-y-1">
+        <div ref={navListRef} className="relative space-y-3.5">
           {indicator ? (
             <div
               aria-hidden
@@ -269,42 +436,61 @@ export function Sidebar({ user }: { user: AccessUser; enabledKeys?: string[] | n
               }}
               className="ae-side-pill-indicator pointer-events-none absolute inset-x-0 z-0 rounded-2xl"
             >
-              <span className="absolute inset-y-2.5 start-1 w-1 rounded-full bg-[#10B981]" />
+              <span className="absolute inset-y-2 start-1 w-1 rounded-full bg-[#10B981]" />
             </div>
           ) : null}
 
-          {visibleItems.map((item) => {
-            const Icon = item.icon
-            const active = item.key === activeKey
-            const label = isAr ? item.labelAr : item.labelEn
-
+          {visibleSections.map((section, sectionIndex) => {
+            const sectionLabel = isAr ? section.labelAr : section.labelEn
             return (
-              <div key={item.key} className="group relative">
-                <Link
-                  ref={(el) => {
-                    if (el) linkRefs.current.set(item.key, el)
-                    else linkRefs.current.delete(item.key)
-                  }}
-                  href={item.href}
-                  data-active={active}
-                  aria-current={active ? 'page' : undefined}
-                  aria-label={collapsed ? label : undefined}
-                  className={`ae-side-link relative z-10 flex items-center rounded-2xl py-2.5 text-[13px] font-medium ${
-                    collapsed ? 'justify-center px-0' : 'gap-3 px-3.5'
-                  }`}
-                >
-                  <Icon size={18} className="ae-side-icon shrink-0" />
-                  {!collapsed ? <span className="leading-snug">{label}</span> : null}
-                </Link>
-
+              <div key={section.id} className="space-y-0.5">
                 {collapsed ? (
-                  <span
-                    role="tooltip"
-                    className="pointer-events-none invisible absolute start-full top-1/2 z-50 ms-3 -translate-y-1/2 whitespace-nowrap rounded-xl bg-white px-3 py-1.5 text-xs font-extrabold text-slate-950 opacity-0 transition-all duration-150 group-hover:visible group-hover:opacity-100"
-                  >
-                    {label}
-                  </span>
-                ) : null}
+                  sectionIndex > 0 ? (
+                    <div aria-hidden className="mx-2 my-1.5 h-px bg-white/[0.08]" />
+                  ) : null
+                ) : (
+                  <div className="px-3 pb-1 pt-0.5">
+                    <span className="ae-side-muted text-[10.5px] font-bold uppercase tracking-wider">
+                      {sectionLabel}
+                    </span>
+                  </div>
+                )}
+
+                {section.items.map((item) => {
+                  const Icon = item.icon
+                  const active = item.key === activeKey
+                  const label = isAr ? item.labelAr : item.labelEn
+
+                  return (
+                    <div key={item.key} className="group relative">
+                      <Link
+                        ref={(el) => {
+                          if (el) linkRefs.current.set(item.key, el)
+                          else linkRefs.current.delete(item.key)
+                        }}
+                        href={item.href}
+                        data-active={active}
+                        aria-current={active ? 'page' : undefined}
+                        aria-label={collapsed ? label : undefined}
+                        className={`ae-side-link relative z-10 flex items-center rounded-2xl py-2 text-[13.5px] font-medium ${
+                          collapsed ? 'justify-center px-0' : 'gap-2.5 px-3'
+                        }`}
+                      >
+                        <Icon size={17} className="ae-side-icon shrink-0" />
+                        {!collapsed ? <span className="leading-snug">{label}</span> : null}
+                      </Link>
+
+                      {collapsed ? (
+                        <span
+                          role="tooltip"
+                          className="pointer-events-none invisible absolute start-full top-1/2 z-50 ms-3 -translate-y-1/2 whitespace-nowrap rounded-xl bg-white px-3 py-1.5 text-xs font-extrabold text-slate-950 opacity-0 transition-all duration-150 group-hover:visible group-hover:opacity-100"
+                        >
+                          {label}
+                        </span>
+                      ) : null}
+                    </div>
+                  )
+                })}
               </div>
             )
           })}

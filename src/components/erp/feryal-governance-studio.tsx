@@ -5,11 +5,13 @@ import { useSearchParams } from 'next/navigation'
 import {
   Bell,
   Brain,
+  Camera,
   Check,
   CheckCircle2,
   Columns2,
   Copy,
   Headphones,
+  ImagePlus,
   Loader2,
   Maximize2,
   MessageCircle,
@@ -35,7 +37,6 @@ import {
   BRAIN_MODE_EVENT,
   getActiveBrainMode,
   normalizeBrainMode,
-  setActiveBrainMode,
   type BrainMode,
 } from '@/lib/dual-heavy-brain'
 import { askFeryalGeminiBrain, getDeterministicFeryalReply } from '@/lib/feryal-gemini-brain'
@@ -79,6 +80,7 @@ import {
 import {
   buildDefaultMediaPrompt,
   callFeryalVisionInspector,
+  FERYAL_VISION_QUICK_PRESETS,
   inferVisionComplianceFromText,
   isSupportedMediaFile,
   processFeryalMediaFile,
@@ -100,20 +102,19 @@ import {
   FERYAL_EXECUTIVE_AUDIT_CHIPS,
   formatFeryalExecutiveSummary,
   readLiveGovernanceSnapshot,
-  submitFeryalRecommendationToBell,
   type QuickAuditChipId,
 } from '@/lib/feryal-governance-bridge'
 
-const CARD_CLS =
-  'ae-bento-card bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-neutral-900'
-const SUBCARD_CLS = 'rounded-2xl bg-[#F7F7F8] dark:bg-neutral-950'
+const STUDIO_PANEL_CLS =
+  'ae-bento-card h-[calc(100dvh-160px)] min-h-[620px] max-h-[880px] rounded-3xl bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-[#111A22]'
+const SUBCARD_CLS = 'rounded-2xl bg-[#F7F7F8] dark:bg-[#0D1614]'
 
 const f0 = (n: number) => Math.round(Number.isFinite(n) ? n : 0).toLocaleString('en-US')
 
 const welcomeText = (lang: 'ar' | 'en') =>
   lang === 'ar'
-    ? 'هلا بك، أنا فريال. متصلة لحظياً بأرقام أودو 17، سجل المخالفات الرقابية، خارطة التخطيط الاستراتيجي، وجاهزية التشريعات عبر الفروع السبعة ومطبخ العارضية. اختر فحصاً سريعاً بالأسفل أو اسألني مباشرة، ويمكنك رفع أي توصية بضغطة واحدة إلى جرس اعتماد المدير 🔔.'
-    : "Welcome — I'm Feryal, connected live to Venture Foods Odoo 17 telemetry, active compliance violations, the 90-day strategic roadmap, and 7-branch Kuwait regulatory readiness. Pick a quick audit below or ask anything, then queue any recommendation to the Manager Bell 🔔 in one click."
+    ? 'هلا بك، أنا فريال. أرفق أو اسحب أي صورة (JPG / PNG / WEBP) أو فيديو (MP4 / WEBM / MOV) لفحص جودة الأطباق، نظافة المطبخ والثلاجات، فواتير الموردين، أو ازدحام وسرعة التحضير، أو اسألني مباشرة بصوتك أو كتابة عن أرقام أودو 17 والتخطيط والتشريعات عبر الفروع السبعة ومطبخ العارضية.'
+    : "Welcome — I'm Feryal. Drop, paste, or capture any photo (JPG / PNG / WEBP) or video (MP4 / WEBM / MOV) to inspect dish plating, kitchen hygiene, supplier invoices, or rush-hour prep bottlenecks, or ask by voice or text across live Odoo 17 telemetry, 90-day plans, and 7-branch compliance."
 
 type ChatMessage = StoredChatMessage
 
@@ -125,17 +126,6 @@ const welcomeMessage = (lang: 'ar' | 'en'): ChatMessage => ({
 })
 
 const makeFreshChatId = () => `chat-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
-
-const BRAIN_ENGINE_OPTIONS: readonly {
-  id: 'triple' | 'claude' | 'gemini' | 'grok'
-  ar: string
-  en: string
-}[] = [
-  { id: 'triple', ar: 'العقل الثلاثي 🔥', en: 'Triple Brain 🔥' },
-  { id: 'claude', ar: 'Claude 5.5 🔬', en: 'Claude 5.5 🔬' },
-  { id: 'gemini', ar: 'Gemini Carbon ⚡', en: 'Gemini Carbon ⚡' },
-  { id: 'grok', ar: 'Grok 4.20 🧠', en: 'Grok 4.20 🧠' },
-] as const
 
 function sanitizeTextForSpeechClient(rawText: string, lang: 'ar' | 'en'): string {
   if (!rawText) return ''
@@ -177,13 +167,13 @@ export function FeryalGovernanceStudio() {
     setChannel,
     setLens,
   } = useGlobalFilter()
-  const { openDrawer, getApprovalByRef } = useGovernance()
+  const { requestApproval, openDrawer, getApprovalByRef } = useGovernance()
 
   const isAr = ctxLocale !== 'en'
   const currentLang: 'ar' | 'en' = isAr ? 'ar' : 'en'
   const T = useCallback((en: string, ar: string) => (isAr ? ar : en), [isAr])
 
-  // Live Governance, Planning & Compliance Snapshot State
+  // Live Governance, Planning & Compliance Snapshot State (feeds Triple-Brain & Quick Audits)
   const [govTick, setGovTick] = useState(0)
   useEffect(() => {
     void syncGovernanceFromServer().then((changed) => {
@@ -203,14 +193,7 @@ export function FeryalGovernanceStudio() {
     return readLiveGovernanceSnapshot(workspace)
   }, [workspace, govTick])
 
-  const realistic90 = useMemo(
-    () =>
-      govSnap.planning90d.scenarios.find((s) => s.id === 'realistic') ??
-      govSnap.planning90d.scenarios[0],
-    [govSnap.planning90d.scenarios],
-  )
-
-  // Persistent Chat, Brain Mode & UI State
+  // Persistent Chat, Brain Mode (synced with global TopBrainSwitcher) & UI State
   const [activeChatId, setActiveChatId] = useState<string>(() => makeFreshChatId())
   const [activeNotebookId, setActiveNotebookId] = useState<string>('all')
   const [messages, setMessages] = useState<ChatMessage[]>(() => [welcomeMessage(currentLang)])
@@ -225,6 +208,7 @@ export function FeryalGovernanceStudio() {
   const [submittedBellMap, setSubmittedBellMap] = useState<Record<string, string>>({})
   const [toastNotice, setToastNotice] = useState<{ ar: string; en: string } | null>(null)
   const [ingestedDeepLinkLabel, setIngestedDeepLinkLabel] = useState<string | null>(null)
+  const [isDragActive, setIsDragActive] = useState(false)
 
   // Institutional Memory & Big-Bet Generator State
   const [memoryOpen, setMemoryOpen] = useState(false)
@@ -238,6 +222,7 @@ export function FeryalGovernanceStudio() {
   const [mediaErrorText, setMediaErrorText] = useState<string | null>(null)
   const [isListening, setIsListening] = useState(false)
   const [isVoiceMuted, setIsVoiceMuted] = useState(true)
+  const [isHandsFree, setIsHandsFree] = useState(false)
   const [playingMsgId, setPlayingMsgId] = useState<string | null>(null)
   const [isTranscribing, setIsTranscribing] = useState(false)
   const [micToast, setMicToast] = useState<string | null>(null)
@@ -249,11 +234,24 @@ export function FeryalGovernanceStudio() {
   const audioChunksRef = useRef<Blob[]>([])
   const chatScrollRef = useRef<HTMLDivElement>(null)
   const inputFieldRef = useRef<HTMLTextAreaElement | null>(null)
+  const openPickerRef = useRef<(() => void) | null>(null)
+  const openCameraRef = useRef<(() => void) | null>(null)
   const silenceTimerRef = useRef<any>(null)
   const interimTranscriptRef = useRef<string>('')
   const isListeningRef = useRef(false)
+  const isHandsFreeRef = useRef(false)
+  const isVoiceMutedRef = useRef(true)
+  const startListeningRef = useRef<(() => void) | null>(null)
   const handleSendQueryRef = useRef<((text?: string) => Promise<void>) | null>(null)
   const ingestedPromptSigRef = useRef<string>('')
+
+  useEffect(() => {
+    isHandsFreeRef.current = isHandsFree
+  }, [isHandsFree])
+
+  useEffect(() => {
+    isVoiceMutedRef.current = isVoiceMuted
+  }, [isVoiceMuted])
 
   const showToast = useCallback((ar: string, en: string) => {
     setToastNotice({ ar, en })
@@ -295,11 +293,6 @@ export function FeryalGovernanceStudio() {
     return () => window.removeEventListener(BRAIN_MODE_EVENT, onBrainMode)
   }, [])
 
-  const handleSelectBrainMode = useCallback((mode: 'triple' | 'claude' | 'gemini' | 'grok') => {
-    setActiveBrainModeState(mode)
-    setActiveBrainMode(mode)
-  }, [])
-
   // Keep welcome message language synced before user sends first message
   useEffect(() => {
     setMessages((prev) => {
@@ -333,7 +326,7 @@ export function FeryalGovernanceStudio() {
     const el = inputFieldRef.current
     if (!el) return
     el.style.height = 'auto'
-    el.style.height = `${Math.min(el.scrollHeight, 160)}px`
+    el.style.height = `${Math.min(el.scrollHeight, 168)}px`
   }, [inputText])
 
   const copyToClipboard = useCallback(async (key: string, text: string) => {
@@ -370,7 +363,12 @@ export function FeryalGovernanceStudio() {
       const utterance = new SpeechSynthesisUtterance(sanitizeTextForSpeechClient(rawText, lang))
       utterance.lang = lang === 'ar' ? 'ar-XA' : 'en-US'
       utterance.rate = 1.0
-      utterance.onend = () => setPlayingMsgId(null)
+      utterance.onend = () => {
+        setPlayingMsgId(null)
+        if (isHandsFreeRef.current && !isVoiceMutedRef.current) {
+          window.setTimeout(() => startListeningRef.current?.(), 600)
+        }
+      }
       utterance.onerror = () => setPlayingMsgId(null)
       window.speechSynthesis.speak(utterance)
     } catch {
@@ -400,6 +398,13 @@ export function FeryalGovernanceStudio() {
       setPlayingMsgId(activeId)
       const cleanText = sanitizeTextForSpeechClient(text, activeLang) || feryalPlainText(text)
 
+      const onEnded = () => {
+        setPlayingMsgId(null)
+        if (isHandsFreeRef.current && !isVoiceMutedRef.current) {
+          window.setTimeout(() => startListeningRef.current?.(), 600)
+        }
+      }
+
       try {
         const apiKey = getOpenAIApiKey()
         let audioUrl = ''
@@ -425,14 +430,15 @@ export function FeryalGovernanceStudio() {
         }
 
         if (!audioUrl) {
-          fallbackSpeechSynthesis(cleanText, activeLang)
-          return
+          audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${
+            activeLang === 'en' ? 'en' : 'ar'
+          }&q=${encodeURIComponent(cleanText.slice(0, 200))}`
         }
 
         const player = audioPlayerRef.current
         if (player) {
           player.src = audioUrl
-          player.onended = () => setPlayingMsgId(null)
+          player.onended = onEnded
           player.onerror = () => fallbackSpeechSynthesis(cleanText, activeLang)
           await player.play().catch(() => fallbackSpeechSynthesis(cleanText, activeLang))
           return
@@ -461,8 +467,8 @@ export function FeryalGovernanceStudio() {
       } catch {
         setMediaErrorText(
           isAr
-            ? 'تعذر قراءة أحد الملفات — يرجى إرفاق صورة (JPG/PNG/WEBP) أو فيديو (MP4/MOV/WEBM).'
-            : 'Could not read media file — please attach a valid image (JPG/PNG/WEBP) or video (MP4/MOV/WEBM).',
+            ? 'تعذر قراءة الملف المرفق — يرجى اختيار صورة (JPG/PNG/WEBP) أو فيديو (MP4/WEBM/MOV).'
+            : 'Could not read media file — please attach a valid image (JPG/PNG/WEBP) or video (MP4/WEBM/MOV).',
         )
       } finally {
         setIsProcessingMedia(false)
@@ -471,7 +477,24 @@ export function FeryalGovernanceStudio() {
     [isAr],
   )
 
-  // Core Strategic Dispatch: Injects Live Governance + Planning + Regulatory Snapshot + Multimodal Vision across all 4 Brain Modes
+  // Global clipboard paste support when focused anywhere on the page outside secondary text inputs
+  useEffect(() => {
+    const onWindowPaste = (e: ClipboardEvent) => {
+      const target = e.target as HTMLElement | null
+      if (target && (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT')) {
+        return
+      }
+      const pasted = Array.from(e.clipboardData?.files ?? []).filter(isSupportedMediaFile)
+      if (pasted.length > 0) {
+        e.preventDefault()
+        void handleFilesSelected(pasted)
+      }
+    }
+    window.addEventListener('paste', onWindowPaste)
+    return () => window.removeEventListener('paste', onWindowPaste)
+  }, [handleFilesSelected])
+
+  // Core Strategic & Multimodal Dispatch (`/api/erp/feryal/vision` -> Triple-Brain Council -> `/api/feryal` -> Deterministic Odoo 17)
   const handleSendQuery = useCallback(
     async (queryText?: string) => {
       const lang: 'ar' | 'en' = isAr ? 'ar' : 'en'
@@ -533,7 +556,7 @@ export function FeryalGovernanceStudio() {
         let statusNoteAr: string | undefined
         let statusNoteEn: string | undefined
 
-        // Dedicated Multimodal Vision & Video Route (`/api/erp/feryal/vision`) when images/videos are attached
+        // 1. Dedicated Multimodal Vision & Video Route (`/api/erp/feryal/vision`) when images/videos are attached
         if (hasVisualEvidence) {
           try {
             const visionRes = await callFeryalVisionInspector({
@@ -560,6 +583,7 @@ export function FeryalGovernanceStudio() {
           }
         }
 
+        // 2. Triple-Brain Council (`Claude Sonnet/Opus 5.5` + `Grok 4.20` + `Gemini Carbon High`)
         if (!reply) {
           try {
             const dualRes = await askDualHeavyBrain({
@@ -595,6 +619,7 @@ export function FeryalGovernanceStudio() {
           revokeAttachmentObjectUrls(attachmentsSnapshot)
         }
 
+        // 3. Server `/api/feryal` fallback
         if (!reply) {
           try {
             const res = await fetch('/api/feryal', {
@@ -619,6 +644,7 @@ export function FeryalGovernanceStudio() {
           } catch {}
         }
 
+        // 4. Deterministic Odoo 17 + Governance fallback
         if (!reply) {
           reply =
             buildGovernanceAwareFallbackReply(textToSend, liveSnapshot, workspace, lang) ||
@@ -662,12 +688,11 @@ export function FeryalGovernanceStudio() {
     handleSendQueryRef.current = handleSendQuery
   }, [handleSendQuery])
 
-  // Auto-Ingest `?prompt=` (and optional filter params) from Growth Plays & Operational Pages without duplicate triggers
+  // Auto-Ingest `?prompt=` (and optional filter params) from Growth Plays, Operational Pages & `/erp/feryal` Redirect
   useEffect(() => {
     if (typeof window === 'undefined') return
     const sp = new URLSearchParams(searchParams?.toString() || window.location.search)
 
-    // Sync any explicit deep-link filter parameters cleanly
     const urlPeriod = sp.get('period') as GlobalPeriod | null
     if (
       urlPeriod &&
@@ -710,13 +735,11 @@ export function FeryalGovernanceStudio() {
     if (!incomingPrompt) return
     if (ingestedPromptSigRef.current === incomingPrompt) return
 
-    // Lock synchronously so StrictMode or filter hydration never fires twice
     ingestedPromptSigRef.current = incomingPrompt
     setIngestedDeepLinkLabel(
       incomingPrompt.length > 96 ? `${incomingPrompt.slice(0, 96)}…` : incomingPrompt,
     )
 
-    // Strip prompt/q from URL bar while preserving active filter query params
     try {
       const cleanUrl = new URL(window.location.href)
       cleanUrl.searchParams.delete('prompt')
@@ -733,7 +756,6 @@ export function FeryalGovernanceStudio() {
     }, 180)
 
     return () => {
-      // Intentionally keep ingestedPromptSigRef locked for this exact prompt string
       void timer
     }
   }, [
@@ -753,6 +775,7 @@ export function FeryalGovernanceStudio() {
     setPeriod,
   ])
 
+  // Multi-Tier Voice Input: Web Speech API + MediaRecorder (Gemini Audio -> OpenAI Whisper -> `/api/feryal/stt`)
   const startListening = useCallback(async () => {
     if (typeof window === 'undefined') return
     stopPlayback()
@@ -795,9 +818,20 @@ export function FeryalGovernanceStudio() {
             const q = finalText.trim()
             interimTranscriptRef.current = ''
             void handleSendQueryRef.current?.(q)
+          } else if (interimText.trim()) {
+            silenceTimerRef.current = window.setTimeout(() => {
+              if (!isListeningRef.current) return
+              stopAllMicTracks()
+              if (interimTranscriptRef.current.trim()) {
+                const q = interimTranscriptRef.current.trim()
+                interimTranscriptRef.current = ''
+                void handleSendQueryRef.current?.(q)
+              }
+            }, 1800)
           }
         }
         recognizer.onerror = () => {
+          if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
           stopAllMicTracks()
         }
         recognitionRef.current = recognizer
@@ -822,6 +856,7 @@ export function FeryalGovernanceStudio() {
           audioChunksRef.current = []
           setIsTranscribing(true)
           try {
+            let finalQuery = ''
             const base64Audio = await new Promise<string>((resolve) => {
               const reader = new FileReader()
               reader.onloadend = () => {
@@ -832,14 +867,53 @@ export function FeryalGovernanceStudio() {
               reader.readAsDataURL(recordedBlob)
             })
             if (base64Audio && getGeminiApiKey()) {
-              const multimodalRes = await askFeryalGeminiBrain({
-                lang: isAr ? 'ar' : 'en',
-                audioBase64: base64Audio,
-                mimeType: 'audio/webm',
-              })
-              if (multimodalRes.transcript?.trim()) {
-                void handleSendQueryRef.current?.(multimodalRes.transcript.trim())
+              try {
+                const multimodalRes = await askFeryalGeminiBrain({
+                  lang: isAr ? 'ar' : 'en',
+                  audioBase64: base64Audio,
+                  mimeType: 'audio/webm',
+                })
+                if (multimodalRes.transcript?.trim()) {
+                  finalQuery = multimodalRes.transcript.trim()
+                }
+              } catch {}
+            }
+
+            if (!finalQuery) {
+              const fd = new FormData()
+              fd.append('file', recordedBlob, 'audio.webm')
+              fd.append('model', 'whisper-1')
+              fd.append('language', isAr ? 'ar' : 'en')
+              const openAiKey = getOpenAIApiKey()
+              if (openAiKey) {
+                try {
+                  const whisperRes = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${openAiKey}` },
+                    body: fd,
+                  })
+                  if (whisperRes.ok) {
+                    const whisperData = (await whisperRes.json()) as { text?: string }
+                    if (whisperData.text?.trim()) finalQuery = whisperData.text.trim()
+                  }
+                } catch {}
               }
+              if (!finalQuery) {
+                try {
+                  const sttRes = await fetch('/api/feryal/stt', { method: 'POST', body: fd })
+                  if (sttRes.ok) {
+                    const sttData = (await sttRes.json()) as { ok?: boolean; transcript?: string }
+                    if (sttData.ok && sttData.transcript?.trim()) {
+                      finalQuery = sttData.transcript.trim()
+                    }
+                  }
+                } catch {}
+              }
+            }
+
+            if (finalQuery) {
+              setInputText(finalQuery)
+              void handleSendQueryRef.current?.(finalQuery)
             }
           } catch {}
           setIsTranscribing(false)
@@ -859,8 +933,13 @@ export function FeryalGovernanceStudio() {
     }
   }, [isAr, stopAllMicTracks, stopPlayback])
 
+  useEffect(() => {
+    startListeningRef.current = startListening
+  }, [startListening])
+
   const toggleListening = useCallback(() => {
     if (isListening) {
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
       if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
         try {
           mediaRecorderRef.current.stop()
@@ -874,6 +953,7 @@ export function FeryalGovernanceStudio() {
 
   useEffect(() => {
     return () => {
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
       stopPlayback()
       stopAllMicTracks()
     }
@@ -928,200 +1008,43 @@ export function FeryalGovernanceStudio() {
     [messages],
   )
 
-  const totalBellAttentionCount =
-    govSnap.activeBreaches.length + govSnap.pendingApprovals.length
+  const activeBrainBadgeText =
+    activeBrainMode === 'claude'
+      ? T('Claude 5.5 🔬', 'كلاود 5.5 🔬')
+      : activeBrainMode === 'gemini'
+        ? T('Gemini Carbon High ⚡', 'جميني كاربون High ⚡')
+        : activeBrainMode === 'grok'
+          ? T('Grok 4.20 🧠', 'جروك 4.20 🧠')
+          : T('Triple-Brain Council 🔥', 'العقل الثلاثي 🔥')
+
+  const utilityPillIdle =
+    'inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-[#F7F7F8] px-3 text-xs font-semibold text-neutral-700 transition-colors hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#0D1614] dark:text-slate-200 dark:hover:bg-emerald-950/60 dark:hover:text-emerald-200'
+  const utilityPillActive =
+    'inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-emerald-50 px-3 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-500/25 dark:bg-emerald-950/60 dark:text-emerald-200 dark:ring-emerald-500/35'
 
   return (
     <div
       dir={isAr ? 'rtl' : 'ltr'}
-      className="mx-auto w-full max-w-[1520px] space-y-4 pb-10 font-sans text-neutral-900 antialiased dark:text-slate-100"
+      className="w-full max-w-[1920px] mx-auto space-y-3 pb-8 font-sans text-[15px] text-neutral-900 antialiased dark:text-slate-100"
     >
-      {/* Hidden Audio Element (keeps header clean & unslopped) */}
+      {/* Hidden Audio Player (keeps studio completely unslopped) */}
       <audio ref={audioPlayerRef} className="hidden" preload="none" />
 
       {/* Instant Confirmation Toast */}
       {toastNotice ? (
-        <div className="fixed bottom-6 end-6 z-50 flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-xs font-semibold text-emerald-800 shadow-xl ring-1 ring-emerald-500/25 dark:bg-neutral-900 dark:text-emerald-300">
+        <div className="fixed bottom-6 end-6 z-50 flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-xs font-semibold text-emerald-800 shadow-xl ring-1 ring-emerald-500/25 dark:bg-[#111A22] dark:text-emerald-300">
           <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
           <span>{isAr ? toastNotice.ar : toastNotice.en}</span>
         </div>
       ) : null}
 
-      {/* ───────────── 1. Clean Executive Studio Header ───────────── */}
-      <header className={`${CARD_CLS} flex flex-col gap-3.5 xl:flex-row xl:items-center xl:justify-between`}>
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
-            <Sparkles className="h-5 w-5" />
-          </span>
-          <div className="min-w-0 space-y-0.5">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-[20px] font-semibold tracking-tight text-neutral-950 sm:text-[22px] dark:text-white">
-                {T('Ask Feryal — AI & Governance Studio', 'المستشارة فريال — استوديو الذكاء والحوكمة')}
-              </h1>
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-                <ShieldCheck className="h-3 w-3" />
-                <span>{T('Live Odoo 17 + Bell Synced', 'متصل بأودو 17 وجرس الاعتماد')}</span>
-              </span>
-            </div>
-            <p className="truncate text-xs text-neutral-500 dark:text-slate-400">
-              {isAr ? workspace.subtitleAr : workspace.subtitleEn}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {/* 4-Mode Brain Switcher Pills */}
-          <div className="inline-flex flex-wrap items-center gap-1 rounded-full bg-[#F7F7F8] p-1 dark:bg-neutral-950">
-            {BRAIN_ENGINE_OPTIONS.map((opt) => {
-              const active = activeBrainMode === opt.id
-              return (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() => handleSelectBrainMode(opt.id)}
-                  className={`cursor-pointer rounded-full px-2.5 py-1 text-[11.5px] font-semibold transition-all ${
-                    active
-                      ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-600/20 dark:bg-emerald-950/70 dark:text-emerald-200'
-                      : 'text-neutral-600 hover:text-neutral-900 dark:text-slate-300 dark:hover:text-white'
-                  }`}
-                >
-                  {isAr ? opt.ar : opt.en}
-                </button>
-              )
-            })}
-          </div>
-
-          {/* Manager Bell Quick Trigger */}
-          <button
-            type="button"
-            onClick={() => openDrawer('approvals')}
-            className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-amber-50 px-3.5 text-xs font-semibold text-amber-800 transition-colors hover:bg-amber-100 dark:bg-amber-950/60 dark:text-amber-200"
-          >
-            <Bell className="h-3.5 w-3.5" />
-            <span>{T('Manager Bell', 'جرس المدير')}</span>
-            <span className="rounded-full bg-white/90 px-1.5 py-0.5 text-[10.5px] font-bold tabular-nums text-amber-900 dark:bg-neutral-900 dark:text-amber-200">
-              {totalBellAttentionCount}
-            </span>
-          </button>
-
-          {/* Macro Big-Bet Menu */}
-          <div ref={bigBetMenuRef} className="relative">
-            <button
-              type="button"
-              disabled={isCopilotThinking}
-              onClick={() => setBigBetMenuOpen((v) => !v)}
-              className="ae-btn-primary btn-colored inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-xs font-semibold transition-all hover:opacity-95 disabled:opacity-50"
-            >
-              <Rocket className="h-3.5 w-3.5" />
-              <span>{T('Big-Bet Plays 🚀', 'ابتكار الحلول الكبرى 🚀')}</span>
-            </button>
-
-            {bigBetMenuOpen ? (
-              <div className="absolute end-0 z-50 mt-2 w-[330px] rounded-2xl bg-white p-3.5 shadow-xl ring-1 ring-neutral-200/80 space-y-2 sm:w-[380px] dark:bg-neutral-900 dark:ring-white/10">
-                <div className="text-xs font-semibold text-neutral-950 dark:text-white">
-                  {T('Launch Macro Profit Strategy 🚀', 'اختر محور ابتكار الحلول الكبرى 🚀')}
-                </div>
-                {MACRO_BIG_BET_STRATEGIES.map((st) => (
-                  <button
-                    key={st.id}
-                    type="button"
-                    onClick={() => launchMacroBigBet(st.id)}
-                    className={`${SUBCARD_CLS} block w-full cursor-pointer p-3 text-start transition-all hover:ring-1 hover:ring-emerald-500/40`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-semibold text-neutral-950 dark:text-white">
-                        {isAr ? st.titleAr : st.titleEn}
-                      </span>
-                      <span
-                        dir="ltr"
-                        className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10.5px] font-semibold tabular-nums text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
-                      >
-                        +{st.estMonthlyKwdMin.toLocaleString('en-US')}–
-                        {st.estMonthlyKwdMax.toLocaleString('en-US')} {isAr ? 'د.ك' : 'KWD'}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-[11.5px] leading-relaxed text-neutral-500 dark:text-slate-400">
-                      {isAr ? st.summaryAr : st.summaryEn}
-                    </p>
-                  </button>
-                ))}
-              </div>
-            ) : null}
-          </div>
-
-          {/* Institutional Memory */}
-          <button
-            type="button"
-            onClick={() => setMemoryOpen(true)}
-            className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-[#F7F7F8] px-3 text-xs font-semibold text-neutral-700 hover:bg-neutral-200/70 dark:bg-neutral-950 dark:text-slate-200"
-          >
-            <Brain className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span>{T('Memory', 'الذاكرة')}</span>
-            <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10.5px] font-bold tabular-nums text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300">
-              {memoryCountBadge}
-            </span>
-          </button>
-
-          {/* Compact Voice Controls */}
-          <button
-            type="button"
-            onClick={() =>
-              playingMsgId
-                ? stopPlayback()
-                : lastFeryal && void playFeryalSpeech(lastFeryal.text, lastFeryal.id, true)
-            }
-            className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition-colors ${
-              playingMsgId
-                ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                : 'bg-[#F7F7F8] text-neutral-700 hover:bg-neutral-200/70 dark:bg-neutral-950 dark:text-slate-200'
-            }`}
-          >
-            {playingMsgId ? <Square className="h-3 w-3" /> : <Headphones className="h-3.5 w-3.5" />}
-            <span>{playingMsgId ? T('Stop', 'إيقاف') : T('Listen', 'استماع')}</span>
-          </button>
-
-          <button
-            type="button"
-            aria-pressed={!isVoiceMuted}
-            onClick={() => setIsVoiceMuted((v) => !v)}
-            className={`inline-flex h-9 cursor-pointer items-center gap-1 rounded-full px-3 text-xs font-semibold transition-colors ${
-              !isVoiceMuted
-                ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                : 'bg-[#F7F7F8] text-neutral-600 hover:bg-neutral-200/70 dark:bg-neutral-950 dark:text-slate-300'
-            }`}
-          >
-            {isVoiceMuted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
-            <span>{T('Auto-Voice', 'رد صوتي')}</span>
-          </button>
-
-          <button
-            type="button"
-            aria-pressed={isExpanded}
-            onClick={() => setIsExpanded((v) => !v)}
-            className="hidden h-9 cursor-pointer items-center gap-1 rounded-full bg-[#F7F7F8] px-3 text-xs font-semibold text-neutral-700 hover:bg-neutral-200/70 lg:inline-flex dark:bg-neutral-950 dark:text-slate-200"
-          >
-            {isExpanded ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
-            <span>{isExpanded ? T('Notebooks', 'الدفاتر') : T('Expand', 'تكبير')}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={newDiscussion}
-            className="inline-flex h-9 cursor-pointer items-center gap-1 rounded-full bg-[#F7F7F8] px-3 text-xs font-semibold text-neutral-700 hover:bg-neutral-200/70 dark:bg-neutral-950 dark:text-slate-200"
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-            <span>{T('+ New Chat', '+ محادثة جديدة')}</span>
-          </button>
-        </div>
-      </header>
-
-      {/* Auto-Ingested Deep-Link Banner (when arriving via `?prompt=` from Growth Plays / Operational Pages) */}
+      {/* Dismissible Deep-Link Prompt Notice (only shown when arriving via `?prompt=`) */}
       {ingestedDeepLinkLabel ? (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-emerald-50/80 px-4 py-2.5 text-xs font-medium text-emerald-900 ring-1 ring-emerald-500/20 dark:bg-emerald-950/40 dark:text-emerald-200">
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-emerald-50/85 px-4 py-2.5 text-xs font-medium text-emerald-900 ring-1 ring-emerald-500/20 dark:bg-emerald-950/45 dark:text-emerald-200">
           <div className="flex min-w-0 items-center gap-2">
             <Sparkles className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
             <span className="font-semibold">
-              {T('Growth Play Prompt Loaded:', 'تم استلام سياق البطاقة التشغيلية تلقائياً:')}
+              {T('Prompt Auto-Executed:', 'تم تشغيل السؤال تلقائياً:')}
             </span>
             <span className="truncate text-emerald-800/90 dark:text-emerald-300">
               {ingestedDeepLinkLabel}
@@ -1130,150 +1053,172 @@ export function FeryalGovernanceStudio() {
           <button
             type="button"
             onClick={() => setIngestedDeepLinkLabel(null)}
-            className="cursor-pointer rounded-full bg-white/80 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800 hover:bg-white dark:bg-neutral-900 dark:text-emerald-300"
+            className="cursor-pointer rounded-full bg-white/90 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800 hover:bg-white dark:bg-[#111A22] dark:text-emerald-300"
           >
             {T('Dismiss', 'إخفاء')}
           </button>
         </div>
       ) : null}
 
-      {/* ───────────── 2. Live Governance, Planning & Compliance Pulse Strip ───────────── */}
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <button
-          type="button"
-          onClick={() => handleRunQuickAuditChip('open-violations')}
-          className="ae-kpi-card cursor-pointer bg-white p-4 text-start shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all hover:-translate-y-0.5 dark:bg-neutral-900"
-        >
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-medium text-neutral-500 dark:text-slate-400">
-              {T('Open Odoo 17 Violations', 'المخالفات الرقابية المفتوحة')}
-            </span>
-            <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[10.5px] font-semibold text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
-              {T('Live Audit', 'رقابة حية')}
-            </span>
-          </div>
-          <div className="mt-1.5 flex items-baseline justify-between gap-2">
-            <span className="text-[20px] font-semibold tabular-nums text-neutral-950 dark:text-white">
-              {govSnap.activeBreaches.length}{' '}
-              <span className="text-xs font-normal text-neutral-400">
-                {T('active', 'نشطة')}
-              </span>
-            </span>
-            <span dir="ltr" className="text-xs font-semibold tabular-nums text-rose-600 dark:text-rose-400">
-              -{f0(govSnap.totalMonthlyBleedKwd)} {isAr ? 'د.ك/شهر' : 'KWD/mo'}
-            </span>
-          </div>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => openDrawer('approvals')}
-          className="ae-kpi-card cursor-pointer bg-white p-4 text-start shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all hover:-translate-y-0.5 dark:bg-neutral-900"
-        >
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-medium text-neutral-500 dark:text-slate-400">
-              {T('Manager Bell Queue 🔔', 'بانتظار ختم جرس المدير 🔔')}
-            </span>
-            <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10.5px] font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
-              {govSnap.approvedDecisions.length} {T('sealed', 'معتمدة')}
-            </span>
-          </div>
-          <div className="mt-1.5 flex items-baseline justify-between gap-2">
-            <span className="text-[20px] font-semibold tabular-nums text-neutral-950 dark:text-white">
-              {govSnap.pendingApprovals.length}{' '}
-              <span className="text-xs font-normal text-neutral-400">
-                {T('pending', 'طلبات معلقة')}
-              </span>
-            </span>
-            <span className="text-xs font-medium text-amber-700 dark:text-amber-300">
-              {T('Open Bell ↗', 'عرض بالجرس ↗')}
-            </span>
-          </div>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => handleRunQuickAuditChip('seven-branch-plan')}
-          className="ae-kpi-card cursor-pointer bg-white p-4 text-start shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all hover:-translate-y-0.5 dark:bg-neutral-900"
-        >
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-medium text-neutral-500 dark:text-slate-400">
-              {T('90d Realistic Plan Net Cash', 'صافي الخطة الواقعية (90 يوم)')}
-            </span>
-            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10.5px] font-semibold tabular-nums text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-              {govSnap.planReceiptSummary.readinessPct}% {T('branch ack', 'استلام الفروع')}
-            </span>
-          </div>
-          <div className="mt-1.5 flex items-baseline justify-between gap-2">
-            <span dir="ltr" className="text-[20px] font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
-              +{f0(realistic90.projectedNetCashKwd)} {isAr ? 'د.ك' : 'KWD'}
-            </span>
-            <span className="text-xs tabular-nums text-neutral-400">
-              {govSnap.phases.length} {T('phases', 'مراحل')}
-            </span>
-          </div>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => handleRunQuickAuditChip('regulatory-readiness')}
-          className="ae-kpi-card cursor-pointer bg-white p-4 text-start shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all hover:-translate-y-0.5 dark:bg-neutral-900"
-        >
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-medium text-neutral-500 dark:text-slate-400">
-              {T('7-Branch Regulatory Readiness', 'جاهزية التشريعات (7 فروع)')}
-            </span>
-            <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[10.5px] font-semibold tabular-nums text-sky-800 dark:bg-sky-950/60 dark:text-sky-200">
-              {govSnap.regulatoryReadySlots}/{govSnap.regulatoryTotalSlots}
-            </span>
-          </div>
-          <div className="mt-1.5 flex items-baseline justify-between gap-2">
-            <span dir="ltr" className="text-[20px] font-semibold tabular-nums text-neutral-950 dark:text-white">
-              {govSnap.regulatoryReadinessPct}%
-            </span>
-            <span dir="ltr" className="text-xs font-medium tabular-nums text-emerald-700 dark:text-emerald-400">
-              {f0(govSnap.totalPenaltiesShieldedKwd)} {isAr ? 'د.ك محمية' : 'KWD shielded'}
-            </span>
-          </div>
-        </button>
-      </section>
-
-      {/* ───────────── 3. Main Studio Workspace + Persistent Notebooks ───────────── */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+      {/* Unified Full-Width Multimodal Studio + Persistent Notebooks Grid */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
         <section
+          onDragEnter={(e) => {
+            e.preventDefault()
+            setIsDragActive(true)
+          }}
+          onDragOver={(e) => {
+            e.preventDefault()
+            if (!isDragActive) setIsDragActive(true)
+          }}
+          onDragLeave={(e) => {
+            if (e.currentTarget === e.target) setIsDragActive(false)
+          }}
+          onDrop={(e) => {
+            e.preventDefault()
+            setIsDragActive(false)
+            const dropped = Array.from(e.dataTransfer?.files ?? []).filter(isSupportedMediaFile)
+            if (dropped.length > 0) {
+              void handleFilesSelected(dropped)
+            }
+          }}
           className={`${
-            isExpanded ? 'lg:col-span-12' : 'lg:col-span-8'
-          } flex h-[74vh] min-h-[580px] max-h-[840px] flex-col overflow-hidden rounded-3xl bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-neutral-900`}
+            isExpanded ? 'lg:col-span-12' : 'lg:col-span-8 xl:col-span-9'
+          } ${STUDIO_PANEL_CLS} flex flex-col overflow-hidden transition-shadow ${
+            isDragActive ? 'ring-2 ring-emerald-500/45' : ''
+          }`}
         >
-          {/* 4 Crisp 1-Click Executive Quick-Audit Chips Strip */}
-          <div className="flex flex-wrap items-center gap-2 border-b border-neutral-100 bg-[#F7F7F8]/70 px-4 py-3 sm:px-6 dark:border-white/[0.06] dark:bg-neutral-950/60">
-            {FERYAL_EXECUTIVE_AUDIT_CHIPS.map((chip) => {
-              const chipToneCls =
-                chip.tone === 'rose'
-                  ? 'bg-rose-50 text-rose-700 hover:bg-rose-100 dark:bg-rose-950/60 dark:text-rose-200'
-                  : chip.tone === 'emerald'
-                    ? 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-200'
-                    : chip.tone === 'amber'
-                      ? 'bg-amber-50 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/60 dark:text-amber-200'
-                      : 'bg-sky-50 text-sky-800 hover:bg-sky-100 dark:bg-sky-950/60 dark:text-sky-200'
-              return (
+          {/* Single Calm Studio Utility Strip (Zero duplicate Page Title, Filters, Brain Switcher or Bell) */}
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-100 px-4 py-3 sm:px-6 dark:border-white/[0.06]">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                <Sparkles className="h-3.5 w-3.5" />
+                <span>
+                  {T(
+                    'Photo & Video Inspector + Live Odoo 17',
+                    'فحص الصور والفيديو + أودو 17 اللحظي',
+                  )}
+                </span>
+              </span>
+              <span className="hidden items-center rounded-full bg-[#F7F7F8] px-2.5 py-1 text-[11.5px] font-medium text-neutral-600 sm:inline-flex dark:bg-[#0D1614] dark:text-slate-300">
+                {activeBrainBadgeText}
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5">
+              {/* ابتكار الحلول الكبرى 🚀 */}
+              <div ref={bigBetMenuRef} className="relative">
                 <button
-                  key={chip.id}
                   type="button"
                   disabled={isCopilotThinking}
-                  onClick={() => handleRunQuickAuditChip(chip.id)}
-                  className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all disabled:opacity-50 ${chipToneCls}`}
+                  onClick={() => setBigBetMenuOpen((v) => !v)}
+                  className={`${utilityPillActive} disabled:opacity-50`}
                 >
-                  <span>{isAr ? chip.labelAr : chip.labelEn}</span>
+                  <Rocket className="h-3.5 w-3.5" />
+                  <span>{T('Big-Bet Generator 🚀', 'ابتكار الحلول الكبرى 🚀')}</span>
                 </button>
-              )
-            })}
+
+                {bigBetMenuOpen ? (
+                  <div className="absolute end-0 z-50 mt-2 w-[330px] space-y-2 rounded-2xl bg-white p-3.5 shadow-xl ring-1 ring-neutral-200/80 sm:w-[380px] dark:bg-[#111A22] dark:ring-white/10">
+                    <div className="text-xs font-semibold text-neutral-950 dark:text-white">
+                      {T('Launch Macro Profit Strategy 🚀', 'اختر محور ابتكار الحلول الكبرى 🚀')}
+                    </div>
+                    {MACRO_BIG_BET_STRATEGIES.map((st) => (
+                      <button
+                        key={st.id}
+                        type="button"
+                        onClick={() => launchMacroBigBet(st.id)}
+                        className={`${SUBCARD_CLS} block w-full cursor-pointer p-3 text-start transition-all hover:ring-1 hover:ring-emerald-500/40`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-semibold text-neutral-950 dark:text-white">
+                            {isAr ? st.titleAr : st.titleEn}
+                          </span>
+                          <span
+                            dir="ltr"
+                            className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10.5px] font-semibold tabular-nums text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
+                          >
+                            +{st.estMonthlyKwdMin.toLocaleString('en-US')}–
+                            {st.estMonthlyKwdMax.toLocaleString('en-US')} {isAr ? 'د.ك' : 'KWD'}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-[11.5px] leading-relaxed text-neutral-500 dark:text-slate-400">
+                          {isAr ? st.summaryAr : st.summaryEn}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+
+              {/* ذاكرة وتطور فريال 🧠 */}
+              <button
+                type="button"
+                onClick={() => setMemoryOpen(true)}
+                className={utilityPillIdle}
+              >
+                <Brain className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>{T('Feryal Memory 🧠', 'ذاكرة وتطور فريال 🧠')}</span>
+                <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10.5px] font-bold tabular-nums text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300">
+                  {memoryCountBadge}
+                </span>
+              </button>
+
+              {/* Compact Voice & Playback Controls */}
+              <button
+                type="button"
+                onClick={() =>
+                  playingMsgId
+                    ? stopPlayback()
+                    : lastFeryal && void playFeryalSpeech(lastFeryal.text, lastFeryal.id, true)
+                }
+                className={playingMsgId ? utilityPillActive : utilityPillIdle}
+              >
+                {playingMsgId ? <Square className="h-3 w-3" /> : <Headphones className="h-3.5 w-3.5" />}
+                <span>{playingMsgId ? T('Stop', 'إيقاف') : T('Listen', 'استماع')}</span>
+              </button>
+
+              <button
+                type="button"
+                aria-pressed={!isVoiceMuted}
+                onClick={() => setIsVoiceMuted((v) => !v)}
+                className={!isVoiceMuted ? utilityPillActive : utilityPillIdle}
+              >
+                {isVoiceMuted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+                <span className="hidden sm:inline">{T('Auto-Voice', 'رد صوتي')}</span>
+              </button>
+
+              <button
+                type="button"
+                aria-pressed={isHandsFree}
+                onClick={() => setIsHandsFree((v) => !v)}
+                className={isHandsFree ? utilityPillActive : utilityPillIdle}
+              >
+                <Mic className="h-3.5 w-3.5" />
+                <span className="hidden xl:inline">{T('Hands-Free', 'محادثة مستمرة')}</span>
+              </button>
+
+              <button
+                type="button"
+                aria-pressed={isExpanded}
+                onClick={() => setIsExpanded((v) => !v)}
+                className={`${isExpanded ? utilityPillActive : utilityPillIdle} hidden lg:inline-flex`}
+              >
+                {isExpanded ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+                <span>{isExpanded ? T('Notebooks', 'الدفاتر') : T('Expand', 'تكبير')}</span>
+              </button>
+
+              <button type="button" onClick={newDiscussion} className={utilityPillIdle}>
+                <RotateCcw className="h-3.5 w-3.5" />
+                <span>{T('+ New Chat', '+ محادثة جديدة')}</span>
+              </button>
+            </div>
           </div>
 
           {/* Conversation Stream */}
           <div
             ref={chatScrollRef}
-            className="flex-1 space-y-5 overflow-y-auto px-4 py-5 sm:px-6"
+            className="flex-1 space-y-5 overflow-y-auto px-4 py-5 sm:px-7"
             aria-live="polite"
           >
             {messages.map((m, idx) => {
@@ -1288,9 +1233,15 @@ export function FeryalGovernanceStudio() {
                   ? extractFeryalRecommendationMeta(m.text, prevUserMsg?.text, workspace)
                   : null
 
-              const existingApproval = recMeta ? getApprovalByRef(recMeta.refKey) : undefined
+              const hasVisualDoc = Boolean(
+                m.hasVisualEvidence ||
+                  (prevUserMsg?.attachmentsMeta && prevUserMsg.attachmentsMeta.length > 0),
+              )
+
+              const approvalRefKey = hasVisualDoc ? `feryal-vision:${m.id}` : recMeta?.refKey ?? ''
+              const existingApproval = approvalRefKey ? getApprovalByRef(approvalRefKey) : undefined
               const isQueuedInBell =
-                Boolean(recMeta && submittedBellMap[recMeta.refKey]) ||
+                Boolean(approvalRefKey && submittedBellMap[approvalRefKey]) ||
                 existingApproval?.status === 'pending'
               const isApprovedSealed = existingApproval?.status === 'approved'
 
@@ -1339,16 +1290,16 @@ export function FeryalGovernanceStudio() {
               return (
                 <div key={m.id} className={`flex gap-3 ${mine ? 'justify-end' : 'justify-start'}`}>
                   {!mine ? (
-                    <span className="mt-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+                    <span className="mt-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
                       <Sparkles className="h-4 w-4" />
                     </span>
                   ) : null}
 
                   <div className={`min-w-0 ${mine ? 'max-w-[80%]' : 'max-w-[94%] flex-1'}`}>
-                    {(engineBadge || (!mine && m.visionCompliance)) ? (
+                    {(engineBadge || (!mine && m.visionCompliance) || noteText) ? (
                       <div className="mb-1.5 flex flex-wrap items-center gap-2">
                         {engineBadge ? (
-                          <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                          <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
                             {engineBadge}
                           </span>
                         ) : null}
@@ -1356,7 +1307,7 @@ export function FeryalGovernanceStudio() {
                           <FeryalVisionCompliancePill tier={m.visionCompliance} isAr={isAr} />
                         ) : null}
                         {noteText ? (
-                          <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
+                          <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
                             {noteText}
                           </span>
                         ) : null}
@@ -1366,8 +1317,8 @@ export function FeryalGovernanceStudio() {
                     <div
                       className={
                         mine
-                          ? 'whitespace-pre-wrap rounded-2xl bg-emerald-50/90 px-4 py-3.5 text-[14.5px] leading-relaxed font-medium text-emerald-950 ring-1 ring-emerald-600/15 dark:bg-emerald-950/50 dark:text-emerald-50 dark:ring-emerald-500/30'
-                          : `${SUBCARD_CLS} px-5 py-4 text-[14.5px] leading-[1.85] text-neutral-800 dark:text-slate-100`
+                          ? 'whitespace-pre-wrap rounded-2xl bg-emerald-50/90 px-5 py-4 text-[15px] leading-[1.85] font-medium text-emerald-950 ring-1 ring-emerald-600/15 dark:bg-emerald-950/55 dark:text-emerald-50 dark:ring-emerald-500/30'
+                          : `${SUBCARD_CLS} px-5 py-4 text-[15px] leading-[1.85] text-neutral-800 sm:px-6 sm:py-5 dark:text-slate-100`
                       }
                     >
                       {mine && m.attachmentsMeta && m.attachmentsMeta.length > 0 ? (
@@ -1379,26 +1330,25 @@ export function FeryalGovernanceStudio() {
                       {mine ? m.text : <FeryalStudioMessage text={m.text} />}
                     </div>
 
-                    {/* Strategic Response Governance & Executive Action Bar */}
+                    {/* Calm Executive Action Bar (1-Click Manager Bell Escalation + Copy + WhatsApp) */}
                     {!mine && m.id !== 'welcome' && recMeta ? (
-                      <div className="mt-2.5 rounded-2xl bg-[#F7F7F8]/90 p-3 space-y-2.5 dark:bg-neutral-950/80">
-                        {/* Extracted Recommendation Scope + Conservative KWD Impact + Watchdog Rule */}
-                        <div className="flex flex-wrap items-center gap-1.5 text-[11.5px]">
-                          <span className="rounded-full bg-white px-2.5 py-0.5 font-medium text-neutral-700 shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:bg-neutral-900 dark:text-slate-200">
+                      <div className="mt-2.5 space-y-2.5 rounded-2xl bg-[#F7F7F8]/90 p-3 dark:bg-[#0D1614]/90">
+                        <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                          <span className="rounded-full bg-white px-2.5 py-0.5 font-medium text-neutral-700 shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:bg-[#111A22] dark:text-slate-200">
                             {isAr ? recMeta.targetScopeAr : recMeta.targetScopeEn}
                           </span>
                           <span
                             dir="ltr"
                             className="rounded-full bg-emerald-50 px-2.5 py-0.5 font-semibold tabular-nums text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
                           >
-                            +{f0(recMeta.conservativeMonthlyReturnKwd)} {isAr ? 'د.ك/شهر (متحفظ)' : 'KWD/mo (conservative)'}
+                            +{f0(recMeta.conservativeMonthlyReturnKwd)}{' '}
+                            {isAr ? 'د.ك/شهر (متحفظ)' : 'KWD/mo (conservative)'}
                           </span>
                           <span className="rounded-full bg-amber-50 px-2.5 py-0.5 font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
                             {isAr ? recMeta.complianceRuleAr : recMeta.complianceRuleEn}
                           </span>
                         </div>
 
-                        {/* Sleek High-Contrast Action Buttons */}
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div className="flex flex-wrap items-center gap-2">
                             {isApprovedSealed ? (
@@ -1432,23 +1382,46 @@ export function FeryalGovernanceStudio() {
                               <button
                                 type="button"
                                 onClick={() => {
-                                  const created = submitFeryalRecommendationToBell(recMeta)
+                                  const created = requestApproval({
+                                    refKey: approvalRefKey,
+                                    domain: hasVisualDoc ? 'operations' : recMeta.domain,
+                                    titleAr: hasVisualDoc
+                                      ? 'ملاحظة فحص بصري موثقة من فريال'
+                                      : recMeta.titleAr,
+                                    titleEn: hasVisualDoc
+                                      ? 'Feryal Photo/Video Audit Finding'
+                                      : recMeta.titleEn,
+                                    summaryAr: hasVisualDoc
+                                      ? feryalPlainText(m.text).slice(0, 220)
+                                      : recMeta.summaryAr,
+                                    summaryEn: hasVisualDoc
+                                      ? feryalPlainText(m.text).slice(0, 220)
+                                      : recMeta.summaryEn,
+                                    departmentAr: hasVisualDoc
+                                      ? 'الرقابة الميدانية والجودة'
+                                      : recMeta.departmentAr,
+                                    departmentEn: hasVisualDoc
+                                      ? 'Field Quality & Compliance'
+                                      : recMeta.departmentEn,
+                                    budgetOrCostKwd: recMeta.budgetOrCostKwd,
+                                    expectedMonthlyReturnKwd: recMeta.conservativeMonthlyReturnKwd,
+                                    href: '/erp/feryal-ai',
+                                  })
                                   setSubmittedBellMap((prev) => ({
                                     ...prev,
-                                    [recMeta.refKey]: created.id,
+                                    [approvalRefKey]: created.id,
                                   }))
                                   setGovTick((t) => t + 1)
                                   showToast(
-                                    `تم رفع التوصية إلى جرس المدير للاعتماد (+${f0(recMeta.conservativeMonthlyReturnKwd)} د.ك/شهر) 🔔`,
-                                    `Recommendation queued in Manager Bell (+${f0(recMeta.conservativeMonthlyReturnKwd)} KWD/mo) 🔔`,
+                                    `تم رفع الملاحظة والتوصية إلى جرس المدير للاعتماد (+${f0(recMeta.conservativeMonthlyReturnKwd)} د.ك/شهر) 🔔`,
+                                    `Finding queued in Manager Bell (+${f0(recMeta.conservativeMonthlyReturnKwd)} KWD/mo) 🔔`,
                                   )
                                 }}
-                                className="ae-btn-primary btn-colored inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-xs font-semibold transition-all hover:opacity-95"
+                                className="btn-colored inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-emerald-600 px-3.5 text-xs font-semibold text-white transition-all hover:bg-emerald-500 dark:bg-emerald-500 dark:text-emerald-950"
                               >
                                 <Bell className="h-3.5 w-3.5" />
                                 <span>
-                                  {m.hasVisualEvidence ||
-                                  (prevUserMsg?.attachmentsMeta && prevUserMsg.attachmentsMeta.length > 0)
+                                  {hasVisualDoc
                                     ? T(
                                         'Escalate Photo-Documented Finding to Manager Bell 🔔',
                                         'رفع الملاحظة الموثقة بالصورة لجرس المدير 🔔',
@@ -1461,16 +1434,15 @@ export function FeryalGovernanceStudio() {
                               </button>
                             )}
 
-                            {/* Copy Crisp Executive Summary (`نسخ الملخص التنفيذي 📋`) */}
                             <button
                               type="button"
                               onClick={() => void copyToClipboard(`${m.id}-exec-memo`, execMemoText)}
-                              className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-white px-3.5 text-xs font-semibold text-neutral-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors hover:bg-neutral-100 dark:bg-neutral-900 dark:text-slate-200 dark:hover:bg-neutral-800"
+                              className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-white px-3.5 text-xs font-semibold text-neutral-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#111A22] dark:text-slate-200 dark:hover:bg-emerald-950/50"
                             >
                               {copiedKey === `${m.id}-exec-memo` ? (
                                 <>
                                   <Check className="h-3.5 w-3.5 text-emerald-600" />
-                                  <span>{T('Executive Summary Copied ✓', 'تم نسخ الملخص التنفيذي ✓')}</span>
+                                  <span>{T('Copied ✓', 'تم النسخ ✓')}</span>
                                 </>
                               ) : (
                                 <>
@@ -1498,7 +1470,7 @@ export function FeryalGovernanceStudio() {
                                 onClick={() =>
                                   setOpenSplitIds((prev) => ({ ...prev, [m.id]: !prev[m.id] }))
                                 }
-                                className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-full bg-white px-2.5 text-[11.5px] font-medium text-neutral-700 shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:bg-neutral-100 dark:bg-neutral-900 dark:text-slate-300"
+                                className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-full bg-white px-2.5 text-[11.5px] font-medium text-neutral-700 shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#111A22] dark:text-slate-300"
                               >
                                 <Columns2 className="h-3 w-3" />
                                 <span>
@@ -1517,7 +1489,7 @@ export function FeryalGovernanceStudio() {
                                   ? stopPlayback()
                                   : void playFeryalSpeech(m.text, m.id, true)
                               }
-                              className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-full bg-white px-2.5 text-[11.5px] font-medium text-neutral-600 shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:bg-neutral-100 dark:bg-neutral-900 dark:text-slate-300"
+                              className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-full bg-white px-2.5 text-[11.5px] font-medium text-neutral-600 shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#111A22] dark:text-slate-300"
                             >
                               {playingMsgId === m.id ? (
                                 <Square className="h-3 w-3" />
@@ -1547,7 +1519,7 @@ export function FeryalGovernanceStudio() {
                         {brainPanels.map((panel) => (
                           <div
                             key={panel.key}
-                            className={`${SUBCARD_CLS} p-4 text-[13.5px] leading-relaxed text-neutral-700 dark:text-slate-200`}
+                            className={`${SUBCARD_CLS} p-4 text-[14px] leading-relaxed text-neutral-700 dark:text-slate-200`}
                           >
                             <div className="mb-2 flex items-center justify-between gap-2 border-b border-neutral-200/70 pb-2 dark:border-white/[0.06]">
                               <span className="text-xs font-semibold text-neutral-950 dark:text-white">
@@ -1556,7 +1528,7 @@ export function FeryalGovernanceStudio() {
                               {panel.model ? (
                                 <span
                                   dir="ltr"
-                                  className="rounded-full bg-white px-2 py-0.5 font-mono text-[10.5px] font-medium text-neutral-600 dark:bg-neutral-900 dark:text-slate-300"
+                                  className="rounded-full bg-white px-2 py-0.5 font-mono text-[10.5px] font-medium text-neutral-600 dark:bg-[#111A22] dark:text-slate-300"
                                 >
                                   {panel.model}
                                 </span>
@@ -1572,59 +1544,118 @@ export function FeryalGovernanceStudio() {
               )
             })}
 
-            {/* Empty Conversation Starter Grid */}
-            {messages.length <= 1 && !isCopilotThinking ? (
-              <div className="grid grid-cols-1 gap-3 pt-1 sm:grid-cols-2">
-                {FERYAL_EXECUTIVE_AUDIT_CHIPS.map((chip) => {
-                  const Icon =
-                    chip.id === 'open-violations'
-                      ? ShieldAlert
-                      : chip.id === 'seven-branch-plan'
-                        ? CheckCircle2
-                        : chip.id === 'odoo-growth-plan'
-                          ? TrendingUp
-                          : Scale
-                  const badgeCls =
-                    chip.tone === 'rose'
-                      ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'
-                      : chip.tone === 'emerald'
-                        ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                        : chip.tone === 'amber'
-                          ? 'bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-200'
-                          : 'bg-sky-50 text-sky-800 dark:bg-sky-950/60 dark:text-sky-200'
+            {/* Calm Empty-State Multimodal Vision Dropzone + 4 Live Odoo Quick Audits */}
+            {messages.length <= 1 && !isCopilotThinking && pendingAttachments.length === 0 ? (
+              <div className="space-y-4 pt-1">
+                <div
+                  className={`${SUBCARD_CLS} rounded-2xl p-4 ring-1 ring-emerald-500/15 sm:p-5 dark:ring-emerald-500/20`}
+                >
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="space-y-1">
+                      <div className="text-[14.5px] font-semibold text-neutral-950 dark:text-white">
+                        {T(
+                          'Multimodal Photo & Video Inspection (Gemini Carbon High + Claude 5.5)',
+                          'الفحص البصري للصور والفيديو (Gemini Carbon High + Claude 5.5)',
+                        )}
+                      </div>
+                      <p className="text-[13px] leading-relaxed text-neutral-600 dark:text-slate-300">
+                        {T(
+                          'Drag & drop, paste (Ctrl+V), or capture JPG / PNG / WEBP photos and MP4 / WEBM / MOV videos (6-keyframe timeline extraction) for instant compliance scoring (🟢 / 🟡 / 🔴).',
+                          'اسحب وأفلت أو الصق (Ctrl+V) أو التقط صور (JPG / PNG / WEBP) وفيديوهات (MP4 / WEBM / MOV) لاستخراج 6 لقطات زمنية وتقييم المطابقة فوراً (🟢 مطابق / 🟡 ملاحظة متوسطة / 🔴 مخالفة حرجة).',
+                        )}
+                      </p>
+                    </div>
 
-                  return (
-                    <button
-                      key={`card-${chip.id}`}
-                      type="button"
-                      onClick={() => handleRunQuickAuditChip(chip.id)}
-                      className={`${SUBCARD_CLS} group cursor-pointer p-4 text-start transition-all hover:ring-1 hover:ring-emerald-500/35`}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${badgeCls}`}>
-                          {isAr ? chip.badgeAr : chip.badgeEn}
-                        </span>
-                        <Icon className="h-4 w-4 text-neutral-400 transition-colors group-hover:text-emerald-600" />
-                      </div>
-                      <div className="mt-2 text-[14px] font-semibold text-neutral-950 dark:text-white">
-                        {isAr ? chip.labelAr : chip.labelEn}
-                      </div>
-                    </button>
-                  )
-                })}
+                    <div className="flex shrink-0 flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => openPickerRef.current?.()}
+                        className="btn-colored inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-emerald-600 px-4 text-xs font-semibold text-white transition-colors hover:bg-emerald-500 dark:bg-emerald-500 dark:text-emerald-950"
+                      >
+                        <ImagePlus className="h-3.5 w-3.5" />
+                        <span>{T('Choose Photo / Video', 'إرفاق صورة أو فيديو')}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openCameraRef.current?.()}
+                        className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-white px-3.5 text-xs font-semibold text-emerald-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-emerald-500/20 transition-colors hover:bg-emerald-50 dark:bg-[#111A22] dark:text-emerald-300"
+                      >
+                        <Camera className="h-3.5 w-3.5" />
+                        <span>{T('Camera Capture', 'التقاط بالكاميرا')}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                    {FERYAL_VISION_QUICK_PRESETS.map((preset) => (
+                      <button
+                        key={`empty-${preset.id}`}
+                        type="button"
+                        onClick={() => {
+                          setInputText(isAr ? preset.promptAr : preset.promptEn)
+                          openPickerRef.current?.()
+                        }}
+                        className="cursor-pointer rounded-full bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-colors hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#111A22] dark:text-slate-200 dark:hover:bg-emerald-950/60"
+                      >
+                        {isAr ? preset.badgeAr : preset.badgeEn}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 2x2 Live Odoo 17 & Governance Quick-Audit Starters */}
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {FERYAL_EXECUTIVE_AUDIT_CHIPS.map((chip) => {
+                    const Icon =
+                      chip.id === 'open-violations'
+                        ? ShieldAlert
+                        : chip.id === 'seven-branch-plan'
+                          ? CheckCircle2
+                          : chip.id === 'odoo-growth-plan'
+                            ? TrendingUp
+                            : Scale
+                    const badgeCls =
+                      chip.tone === 'rose'
+                        ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'
+                        : chip.tone === 'emerald'
+                          ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                          : chip.tone === 'amber'
+                            ? 'bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-200'
+                            : 'bg-sky-50 text-sky-800 dark:bg-sky-950/60 dark:text-sky-200'
+
+                    return (
+                      <button
+                        key={`card-${chip.id}`}
+                        type="button"
+                        onClick={() => handleRunQuickAuditChip(chip.id)}
+                        className={`${SUBCARD_CLS} group cursor-pointer p-4 text-start transition-all hover:ring-1 hover:ring-emerald-500/35`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className={`rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold ${badgeCls}`}>
+                            {isAr ? chip.badgeAr : chip.badgeEn}
+                          </span>
+                          <Icon className="h-4 w-4 text-neutral-400 transition-colors group-hover:text-emerald-600" />
+                        </div>
+                        <div className="mt-2 text-[14.5px] font-semibold text-neutral-950 dark:text-white">
+                          {isAr ? chip.labelAr : chip.labelEn}
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
             ) : null}
 
             {/* Thinking Indicator */}
             {isCopilotThinking ? (
               <div className="flex items-center gap-3">
-                <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+                <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
                   <Loader2 className="h-4 w-4 animate-spin" />
                 </span>
-                <div className={`${SUBCARD_CLS} px-4 py-3 text-xs font-medium text-neutral-600 dark:text-slate-300`}>
+                <div className={`${SUBCARD_CLS} px-4 py-3 text-[14px] font-medium text-neutral-600 dark:text-slate-300`}>
                   {T(
-                    'Feryal is auditing live Odoo 17 telemetry, active compliance caps & 7-branch plans…',
-                    'فريال تدقق الآن أرقام أودو 17 الحية وسجل المخالفات وخارطة الفروع السبعة…',
+                    'Feryal is inspecting visual evidence & live Odoo 17 telemetry…',
+                    'فريال تدقق المرفقات البصرية وأرقام أودو 17 وسجل الحوكمة…',
                   )}
                 </div>
               </div>
@@ -1632,22 +1663,11 @@ export function FeryalGovernanceStudio() {
           </div>
 
           {/* Input Dock (Multimodal Vision: Photos + Videos + Voice + Text) */}
-          <div
-            onDragOver={(e) => {
-              e.preventDefault()
-            }}
-            onDrop={(e) => {
-              e.preventDefault()
-              const dropped = Array.from(e.dataTransfer?.files ?? []).filter(isSupportedMediaFile)
-              if (dropped.length > 0) {
-                void handleFilesSelected(dropped)
-              }
-            }}
-            className="border-t border-neutral-100 bg-white px-4 pb-4 pt-3 sm:px-6 dark:border-white/[0.06] dark:bg-neutral-900"
-          >
+          <div className="border-t border-neutral-100 bg-white px-4 pb-4 pt-3 sm:px-6 dark:border-white/[0.06] dark:bg-[#111A22]">
             <FeryalVisionQuickBar
               isAr={isAr}
               disabled={isCopilotThinking || isProcessingMedia}
+              onOpenPicker={() => openPickerRef.current?.()}
               onSelectVisionPrompt={(presetPrompt) => {
                 setInputText(presetPrompt)
                 inputFieldRef.current?.focus()
@@ -1676,7 +1696,7 @@ export function FeryalGovernanceStudio() {
 
             {(micToast || isListening || isTranscribing) ? (
               <div
-                className={`mb-2 text-xs font-medium ${
+                className={`mb-2 text-[13px] font-medium ${
                   micToast
                     ? 'text-rose-600 dark:text-rose-400'
                     : 'text-emerald-700 dark:text-emerald-400'
@@ -1696,7 +1716,9 @@ export function FeryalGovernanceStudio() {
                 processing={isProcessingMedia}
                 attachmentCount={pendingAttachments.length}
                 onFilesSelected={(files) => void handleFilesSelected(files)}
-                size="md"
+                openPickerRef={openPickerRef}
+                openCameraRef={openCameraRef}
+                size="lg"
               />
 
               <textarea
@@ -1720,10 +1742,10 @@ export function FeryalGovernanceStudio() {
                   }
                 }}
                 placeholder={T(
-                  'Attach a photo/video (dish, kitchen prep, warehouse, invoice) or ask Feryal anything…',
-                  'أرفق صورة أو فيديو (طبق، مطبخ، مخزن، فاتورة) أو اسأل فريال مباشرة…',
+                  'Attach a photo/video (dish, kitchen, fridge, invoice) or ask Feryal anything…',
+                  'أرفق صورة أو فيديو (طبق، مطبخ، ثلاجة، فاتورة) أو اسأل فريال مباشرة…',
                 )}
-                className={`${SUBCARD_CLS} min-h-[48px] flex-1 resize-none px-4 py-3 text-[14px] leading-relaxed text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:text-white`}
+                className={`${SUBCARD_CLS} min-h-[52px] flex-1 resize-none px-4 py-3.5 text-[15px] leading-relaxed text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:text-white`}
               />
 
               <button
@@ -1735,10 +1757,10 @@ export function FeryalGovernanceStudio() {
                     ? T('Stop microphone', 'إيقاف المايكروفون')
                     : T('Speak to Feryal', 'التحدث إلى فريال')
                 }
-                className={`inline-flex h-[48px] w-[48px] shrink-0 cursor-pointer items-center justify-center rounded-2xl transition-all ${
+                className={`inline-flex h-[52px] w-[52px] shrink-0 cursor-pointer items-center justify-center rounded-2xl transition-all ${
                   isListening
                     ? 'btn-colored animate-pulse bg-rose-600 text-white'
-                    : `${SUBCARD_CLS} text-neutral-700 hover:bg-neutral-200/70 dark:text-slate-200`
+                    : `${SUBCARD_CLS} text-neutral-700 hover:bg-emerald-50 hover:text-emerald-800 dark:text-slate-200 dark:hover:bg-emerald-950/60`
                 }`}
               >
                 {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
@@ -1752,9 +1774,9 @@ export function FeryalGovernanceStudio() {
                   isProcessingMedia ||
                   (!inputText.trim() && pendingAttachments.length === 0)
                 }
-                className="ae-btn-primary btn-colored inline-flex h-[48px] shrink-0 cursor-pointer items-center gap-2 rounded-2xl px-5 text-xs font-semibold transition-all hover:opacity-95 disabled:opacity-40"
+                className="btn-colored inline-flex h-[52px] shrink-0 cursor-pointer items-center gap-2 rounded-2xl bg-emerald-600 px-5 text-[14.5px] font-semibold text-white transition-all hover:bg-emerald-500 active:scale-[0.98] disabled:opacity-40 dark:bg-emerald-500 dark:text-emerald-950"
               >
-                <Send className={`h-3.5 w-3.5 ${isAr ? 'rotate-180' : ''}`} />
+                <Send className={`h-4 w-4 ${isAr ? 'rotate-180' : ''}`} />
                 <span>{T('Send', 'إرسال')}</span>
               </button>
             </div>
@@ -1773,7 +1795,7 @@ export function FeryalGovernanceStudio() {
             workspace={workspace}
             isCopilotThinking={isCopilotThinking}
             onRunNotePrompt={(p) => void handleSendQuery(p)}
-            panelClassName="ae-bento-card h-[74vh] min-h-[580px] max-h-[840px] bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-neutral-900"
+            panelClassName={STUDIO_PANEL_CLS}
           />
         ) : null}
       </div>

@@ -1,6 +1,14 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
+} from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   ArrowLeftRight,
@@ -49,20 +57,17 @@ interface Command {
 }
 
 const GROUP_LABEL: Record<Group, { en: string; ar: string }> = {
-  pages: { en: 'Pages', ar: 'الصفحات' },
+  pages: { en: 'Executive Pages (4 Sections)', ar: 'صفحات المنصة (٤ أقسام)' },
   decisions: { en: 'Profit Tips', ar: 'توصيات الربح' },
   branches: { en: 'Branches', ar: 'الفروع' },
   brands: { en: 'Brands', ar: 'المطاعم' },
-  feryal: { en: 'Ask Feryal', ar: 'المستشارة فريال' },
+  feryal: { en: 'Ask Feryal (Vision & Video)', ar: 'المستشارة فريال (صور وفيديو)' },
   actions: { en: 'Actions', ar: 'إجراءات' },
 }
 
 const GROUP_ORDER: Group[] = ['pages', 'decisions', 'branches', 'brands', 'feryal', 'actions']
 
-const fmtKwd = (n: number, isAr: boolean) =>
-  `${Math.round(n).toLocaleString('en-US')} ${isAr ? 'د.ك/شهر' : 'KWD/mo'}`
-
-/** Bilingual Executive Command Palette (⌘K / Ctrl+K) strictly locked to Venture Foods entities & 4 Executive Pillars. */
+/** Bilingual Executive Command Palette (⌘K / Ctrl+K) aligned to the 4 Executive Sections & 13 ERP Routes. */
 export function ExecutiveCommandPalette() {
   const router = useRouter()
   const pathname = usePathname()
@@ -106,14 +111,15 @@ export function ExecutiveCommandPalette() {
 
   const commands = useMemo<Command[]>(() => {
     const pages: Command[] = [
+      // 1) القيادة والمبيعات (Executive & Sales)
       {
         id: 'p-erp',
         group: 'pages',
-        en: 'Overview · Company Summary',
-        ar: 'الرئيسية · ملخص الشركة',
-        hintEn: `${JOURNEY_PLAYS.length} profit tips`,
-        hintAr: `${JOURNEY_PLAYS.length} توصية ربح`,
-        keywords: 'dashboard summary profit steps الرئيسية ملخص الشركة توصيات الربح',
+        en: 'Company Summary',
+        ar: 'ملخص الشركة',
+        hintEn: `Executive & Sales · ${JOURNEY_PLAYS.length} profit plays`,
+        hintAr: `القيادة والمبيعات · ${JOURNEY_PLAYS.length} توصية ربح`,
+        keywords: 'overview dashboard company summary executive sales القيادة والمبيعات ملخص الشركة الرئيسية توصيات الربح',
         icon: <LayoutDashboard className="h-4 w-4" />,
         run: () => go('/erp'),
       },
@@ -121,87 +127,45 @@ export function ExecutiveCommandPalette() {
         id: 'p-cores',
         group: 'pages',
         en: 'Sales, Marketing & Menu',
-        ar: 'المبيعات والتسويق والمنتجات',
-        hintEn: 'Social/Influencer ROI & 6 Growth Plays',
-        hintAr: 'حاسبة السوشيال والمشاهير والأصناف',
-        keywords: 'cores marketing social influencer menu sales ratings المبيعات والتسويق والمنتجات مشاهير اعلانات منيو تقييم',
+        ar: 'المبيعات والتسويق والمينيو',
+        hintEn: 'Executive & Sales · Influencer ROI, Channel Mix & Menu Matrix',
+        hintAr: 'القيادة والمبيعات · إعلانات المشاهير، القنوات، وهندسة المينيو',
+        keywords: 'cores marketing social influencer menu sales المبيعات والتسويق والمينيو مشاهير اعلانات منيو اصناف',
         icon: <BarChart3 className="h-4 w-4" />,
         run: () => go('/erp/cores'),
       },
       {
+        id: 'p-weekday-comparison',
+        group: 'pages',
+        en: 'Weekday Sales Comparison',
+        ar: 'مقارنة أيام الأسبوع',
+        hintEn: 'Executive & Sales · Day-of-Week Sales & Margin Rhythm',
+        hintAr: 'القيادة والمبيعات · أداء المبيعات والربحية حسب أيام الأسبوع',
+        keywords: 'weekday comparison day of week weekend مقارنة أيام الأسبوع خميس جمعة سبت القيادة والمبيعات',
+        icon: <CalendarDays className="h-4 w-4" />,
+        run: () => go('/erp/weekday-comparison'),
+      },
+      {
         id: 'p-before-after',
         group: 'pages',
-        en: 'Before & After',
-        ar: 'مقارنة قبل وبعد',
-        hintEn: 'Interactive Period & Campaign Comparison',
-        hintAr: 'مقارنة الفترات والحملات بالأرقام',
-        keywords: 'before after compare period campaign مقارنة قبل وبعد',
+        en: 'Decision Impact (Before & After)',
+        ar: 'أثر القرارات (قبل وبعد)',
+        hintEn: 'Executive & Sales · Verified Before vs. After Odoo Variance',
+        hintAr: 'القيادة والمبيعات · قياس أثر القرارات المعتمدة قبل وبعد التنفيذ',
+        keywords: 'decision impact before after compare variance أثر القرارات قبل وبعد مقارنة',
         icon: <ArrowLeftRight className="h-4 w-4" />,
         run: () => go('/erp/before-after'),
       },
-      {
-        id: 'p-feryal',
-        group: 'pages',
-        en: 'Ask Feryal',
-        ar: 'المستشارة فريال',
-        hintEn: 'Voice & Daily Notes',
-        hintAr: 'محادثة صوتية وأهم الملاحظات',
-        keywords: 'ai copilot voice nova feryal المستشارة فريال ذكاء صوت',
-        icon: <Sparkles className="h-4 w-4" />,
-        run: () => go('/erp/feryal-ai'),
-      },
-      {
-        id: 'p-radar',
-        group: 'pages',
-        en: 'Delivery Radar',
-        ar: 'مراقبة التوصيل',
-        hintEn: 'Tgo, TMP & Stopped Apps',
-        hintAr: 'حالة التطبيقات والعمولات',
-        keywords: 'radar delivery talabat keeta deliveroo jahez snoonu tgo tmp مراقبة التوصيل طلبات كيتا دليفرو جاهز سنونو',
-        icon: <Radar className="h-4 w-4" />,
-        run: () => go('/erp/aggregator-radar'),
-      },
-      {
-        id: 'p-events',
-        group: 'pages',
-        en: 'Booth Calculator',
-        ar: 'حاسبة المعارض',
-        hintEn: 'Profit & Rent Check',
-        hintAr: 'حسبة الربح والإيجار',
-        keywords: 'events booth exb kashta winterland حاسبة المعارض بوث كشتة',
-        icon: <CalendarRange className="h-4 w-4" />,
-        run: () => go('/erp/events-intelligence'),
-      },
-      {
-        id: 'p-planning',
-        group: 'pages',
-        en: 'Strategic Planning & Compliance',
-        ar: 'التخطيط والتوقعات والامتثال',
-        hintEn: '3 Scenarios, Phased Roadmap & Odoo Watchdog',
-        hintAr: '٣ سيناريوهات، خارطة المراحل، وتعميم القرارات',
-        keywords: 'planning forecast scenarios roadmap compliance التخطيط والتوقعات والامتثال خطة مراحل ميزانية تعميم',
-        icon: <Compass className="h-4 w-4" />,
-        run: () => go('/erp/planning'),
-      },
-      {
-        id: 'p-regulations',
-        group: 'pages',
-        en: 'Regulations & Playbooks',
-        ar: 'التشريعات وخطط التعامل',
-        hintEn: 'Municipality, PAFN, Manpower & MOCI Playbooks',
-        hintAr: 'البلدية، الغذاء، القوى العاملة، والتجارة',
-        keywords: 'regulations compliance municipality pafn manpower moci التشريعات وخطط التعامل بلدية هيئة الغذاء القوى العاملة التجارة',
-        icon: <Scale className="h-4 w-4" />,
-        run: () => go('/erp/regulations'),
-      },
+
+      // 2) التشغيل وسلسلة الإمداد (Operations & SLA)
       {
         id: 'p-warehouse-chain',
         group: 'pages',
         en: 'Warehouse-to-Branch Chain',
         ar: 'سلسلة المخزن والفروع',
-        hintEn: 'Ardiya Stock, Outbound, Received & Branch Depletion',
-        hintAr: 'رصيد العارضية، المنصرف، المستلم، والمباع يومياً',
-        keywords: 'warehouse chain stock outbound received sold depletion سلسلة المخزن والفروع العارضية منصرف مستلم هدر',
+        hintEn: 'Operations & SLA · Ardiya Stock, Outbound, Received & Depletion',
+        hintAr: 'التشغيل وسلسلة الإمداد · رصيد العارضية، المنصرف، المستلم، والمباع',
+        keywords: 'warehouse chain stock outbound received depletion التشغيل وسلسلة الإمداد سلسلة المخزن والفروع العارضية هدر',
         icon: <PackageCheck className="h-4 w-4" />,
         run: () => go('/erp/warehouse-chain'),
       },
@@ -209,10 +173,10 @@ export function ExecutiveCommandPalette() {
         id: 'p-prep-sla',
         group: 'pages',
         en: 'Kitchen Prep SLA',
-        ar: 'مدة تجهيز الطلبات',
-        hintEn: 'Order Arrival to Kitchen Ready (Green / Yellow / Red)',
-        hintAr: 'زمن تحضير المطبخ حسب البراند والفرع (أخضر / أصفر / أحمر)',
-        keywords: 'prep sla kitchen ready kds green yellow red مدة تجهيز الطلبات مطبخ تحضير اخضر اصفر احمر',
+        ar: 'زمن تجهيز المطبخ',
+        hintEn: 'Operations & SLA · Order Arrival to Kitchen Ready Speed',
+        hintAr: 'التشغيل وسلسلة الإمداد · سرعة تحضير المطبخ حسب المطعم والفرع',
+        keywords: 'prep sla kitchen ready kds زمن تجهيز المطبخ مدة تجهيز الطلبات تحضير اخضر اصفر احمر',
         icon: <Timer className="h-4 w-4" />,
         run: () => go('/erp/prep-sla'),
       },
@@ -220,34 +184,82 @@ export function ExecutiveCommandPalette() {
         id: 'p-delivery-sla',
         group: 'pages',
         en: 'Rider Delivery SLA',
-        ar: 'مدة توصيل الطلبات',
-        hintEn: 'Dispatch to Customer Handoff Speed',
-        hintAr: 'سرعة توصيل السائقين والمنصات',
-        keywords: 'delivery sla rider driver speed مدة توصيل الطلبات سائق توصيل',
+        ar: 'زمن توصيل السائق',
+        hintEn: 'Operations & SLA · Dispatch to Customer Handoff Speed',
+        hintAr: 'التشغيل وسلسلة الإمداد · سرعة توصيل السائقين والمنصات',
+        keywords: 'delivery sla rider driver speed زمن توصيل السائق مدة توصيل الطلبات سائق',
         icon: <Truck className="h-4 w-4" />,
         run: () => go('/erp/delivery-sla'),
       },
+      {
+        id: 'p-radar',
+        group: 'pages',
+        en: 'Aggregator Commissions',
+        ar: 'عمولات منصات التوصيل',
+        hintEn: 'Operations & SLA · Talabat Tgo/TMP, Keeta, Deliveroo & Jahez',
+        hintAr: 'التشغيل وسلسلة الإمداد · عمولات طلبات وكيتا ودليفرو وجاهز وسنونو',
+        keywords: 'aggregator commissions radar delivery talabat keeta deliveroo jahez snoonu tgo tmp عمولات منصات التوصيل مراقبة التوصيل',
+        icon: <Radar className="h-4 w-4" />,
+        run: () => go('/erp/aggregator-radar'),
+      },
+
+      // 3) السمعة والذكاء المرئي (Reputation & Vision AI)
       {
         id: 'p-social-reviews',
         group: 'pages',
         en: 'Social & Aggregator Reviews',
         ar: 'التقييمات ومنصات التواصل',
-        hintEn: 'Customer Ratings & Social Sentiment',
-        hintAr: 'تقييمات المنصات والتفاعل الاجتماعي',
-        keywords: 'social reviews ratings talabat google instagram التقييمات ومنصات التواصل تعليقات تقييم',
+        hintEn: 'Reputation & Vision AI · Customer Ratings & Social Sentiment',
+        hintAr: 'السمعة والذكاء المرئي · تقييمات المنصات والتفاعل الاجتماعي',
+        keywords: 'social reviews ratings talabat google instagram السمعة والذكاء المرئي التقييمات ومنصات التواصل تعليقات تقييم',
         icon: <MessageSquareHeart className="h-4 w-4" />,
         run: () => go('/erp/social-reviews'),
       },
       {
-        id: 'p-weekday-comparison',
+        id: 'p-feryal',
         group: 'pages',
-        en: 'Weekday Sales Comparison',
-        ar: 'مقارنة أيام الأسبوع',
-        hintEn: 'Day-of-Week Sales & Margin Rhythm',
-        hintAr: 'مقارنة أداء المبيعات حسب أيام الأسبوع',
-        keywords: 'weekday comparison day of week weekend مقارنة أيام الأسبوع خميس جمعة سبت',
-        icon: <CalendarDays className="h-4 w-4" />,
-        run: () => go('/erp/weekday-comparison'),
+        en: 'Ask Feryal (Vision & Video)',
+        ar: 'المستشارة فريال (صور وفيديو)',
+        hintEn: 'Reputation & Vision AI · Multimodal Inspection, Voice & Triple-Brain',
+        hintAr: 'السمعة والذكاء المرئي · فحص الصور والفيديو والمحادثة الصوتية',
+        keywords: 'ai copilot voice vision video feryal المستشارة فريال صور وفيديو السمعة والذكاء المرئي',
+        icon: <Sparkles className="h-4 w-4" />,
+        run: () => go('/erp/feryal-ai'),
+      },
+
+      // 4) الحوكمة والتخطيط (Governance & Strategy)
+      {
+        id: 'p-planning',
+        group: 'pages',
+        en: 'Strategic Planning & Forecast',
+        ar: 'التخطيط والتوقعات',
+        hintEn: 'Governance & Strategy · 3 Scenarios & Phased Execution Roadmap',
+        hintAr: 'الحوكمة والتخطيط · ٣ سيناريوهات، التوقعات، وخارطة المراحل',
+        keywords: 'planning forecast scenarios roadmap strategy الحوكمة والتخطيط التخطيط والتوقعات خطة مراحل ميزانية',
+        icon: <Compass className="h-4 w-4" />,
+        run: () => go('/erp/planning'),
+      },
+      {
+        id: 'p-regulations',
+        group: 'pages',
+        en: 'Regulations & Licensing',
+        ar: 'التشريعات والتراخيص',
+        hintEn: 'Governance & Strategy · Municipality, PAFN, Manpower & MOCI',
+        hintAr: 'الحوكمة والتخطيط · البلدية، الغذاء، القوى العاملة، والتجارة',
+        keywords: 'regulations licensing compliance municipality pafn manpower moci الحوكمة والتخطيط التشريعات والتراخيص بلدية تراخيص',
+        icon: <Scale className="h-4 w-4" />,
+        run: () => go('/erp/regulations'),
+      },
+      {
+        id: 'p-booth-feasibility',
+        group: 'pages',
+        en: 'Booth Feasibility Calculator',
+        ar: 'حاسبة جدوى المعارض',
+        hintEn: 'Governance & Strategy · Exhibition Rent, Break-Even & Profit Study',
+        hintAr: 'الحوكمة والتخطيط · دراسة جدوى البوثات والإيجار ونقطة التعادل',
+        keywords: 'events booth feasibility calculator exb kashta winterland الحوكمة والتخطيط حاسبة جدوى المعارض حاسبة المعارض بوث كشتة',
+        icon: <CalendarRange className="h-4 w-4" />,
+        run: () => go('/erp/booth-feasibility'),
       },
     ]
 
@@ -375,8 +387,8 @@ export function ExecutiveCommandPalette() {
       group: g,
       items: scored
         .filter((x) => x.c.group === g)
-        .sort((a, b) => b.score - a.score)
-        .slice(0, q ? 8 : g === 'pages' ? 4 : g === 'decisions' ? 6 : 4)
+        .sort((a, b) => (b.score !== a.score ? b.score - a.score : 0))
+        .slice(0, q ? 13 : g === 'pages' ? 13 : g === 'decisions' ? 6 : 4)
         .map((x) => x.c),
     })).filter((g) => g.items.length > 0)
 
@@ -416,7 +428,11 @@ export function ExecutiveCommandPalette() {
       aria-label={T('Executive command palette', 'لوحة البحث السريع في القرارات والفروع')}
       onClick={close}
     >
-      <div className="ae-palette ae-pop w-full max-w-2xl overflow-hidden" dir={isAr ? 'rtl' : 'ltr'} onClick={(e) => e.stopPropagation()}>
+      <div
+        className="ae-palette ae-pop w-full max-w-2xl overflow-hidden"
+        dir={isAr ? 'rtl' : 'ltr'}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center gap-3 border-b border-slate-200/60 px-5 py-4 dark:border-slate-700/60">
           <Search className="h-4 w-4 shrink-0 text-slate-400" />
           <input
@@ -425,21 +441,31 @@ export function ExecutiveCommandPalette() {
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onKeyDown}
             placeholder={T(
-              'Search any branch, brand, profit step, or ask Feryal…',
-              'ابحث في الفروع أو المطاعم أو خطوات زيادة الربح أو اسأل فريال…',
+              'Search any page, branch, brand, profit step, or ask Feryal…',
+              'ابحث في الصفحات أو الفروع أو المطاعم أو خطوات الربح أو اسأل فريال…',
             )}
             className="w-full text-[15px] outline-none placeholder:text-slate-400"
           />
-          <kbd dir="ltr" className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[10px] font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-300">
+          <kbd
+            dir="ltr"
+            className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[10px] font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-300"
+          >
             ESC
           </kbd>
         </div>
         <div ref={listRef} className="max-h-[62vh] overflow-y-auto p-2">
           {results.groups.length === 0 ? (
             <div className="px-4 py-10 text-center text-sm text-slate-500">
-              {T('No exact match — send this question directly to Feryal.', 'لا توجد نتيجة مطابقة — اسأل المستشارة فريال مباشرة.')}
+              {T(
+                'No exact match — send this question directly to Feryal.',
+                'لا توجد نتيجة مطابقة — اسأل المستشارة فريال مباشرة.',
+              )}
               <div className="mt-3">
-                <button type="button" className="ae-pill-dark" onClick={() => go(feryalHref(query))}>
+                <button
+                  type="button"
+                  className="btn-colored inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition-colors hover:bg-emerald-700 dark:bg-emerald-500 dark:text-[#04130D]"
+                  onClick={() => go(feryalHref(query))}
+                >
                   <Sparkles className="h-3.5 w-3.5" />
                   {T('Ask Feryal now', 'اسأل فريال الآن')}
                 </button>
@@ -462,16 +488,22 @@ export function ExecutiveCommandPalette() {
                       data-active={active === i}
                       onMouseEnter={() => setActive(i)}
                       onClick={() => c.run()}
-                      className="ae-palette-item flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-start transition-colors"
+                      className="ae-palette-item flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-start transition-colors"
                     >
                       <span className="ae-icon-badge h-8 w-8">{c.icon}</span>
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-semibold">{isAr ? c.ar : c.en}</span>
+                        <span className="block truncate text-[14px] font-semibold">
+                          {isAr ? c.ar : c.en}
+                        </span>
                         {(isAr ? c.hintAr : c.hintEn) ? (
-                          <span className="block truncate text-[11px] font-medium text-slate-500">{isAr ? c.hintAr : c.hintEn}</span>
+                          <span className="block truncate text-[11.5px] font-medium text-slate-500">
+                            {isAr ? c.hintAr : c.hintEn}
+                          </span>
                         ) : null}
                       </span>
-                      {active === i ? <CornerDownLeft className="h-3.5 w-3.5 shrink-0 text-slate-400" /> : null}
+                      {active === i ? (
+                        <CornerDownLeft className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                      ) : null}
                     </button>
                   )
                 })}
@@ -480,8 +512,15 @@ export function ExecutiveCommandPalette() {
           )}
         </div>
         <div className="flex items-center justify-between border-t border-slate-200/60 px-5 py-2.5 text-[11px] text-slate-500 dark:border-slate-700/60">
-          <span>{T('↑ ↓ to navigate · Enter to jump · Esc to close', '↑ ↓ للتنقل · إدخال للانتقال الفوري · Esc للإغلاق')}</span>
-          <span dir="ltr" className="font-mono text-[10px] font-bold">⌘K</span>
+          <span>
+            {T(
+              '↑ ↓ to navigate · Enter to jump · Esc to close',
+              '↑ ↓ للتنقل · إدخال للانتقال الفوري · Esc للإغلاق',
+            )}
+          </span>
+          <span dir="ltr" className="font-mono text-[10px] font-bold">
+            ⌘K
+          </span>
         </div>
       </div>
     </div>

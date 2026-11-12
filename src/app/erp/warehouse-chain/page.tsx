@@ -5,7 +5,7 @@ import { WarehouseDailyChainStudio } from '@/components/erp/WarehouseDailyChainS
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: 'سلسلة المخزن والأفرع اليومية | فنتشر فودز',
+  title: 'سلسلة المخزن والفروع | فنتشر فودز',
   description:
     'مراقبة السلسلة اليومية المتصلة: الموجود في المخزن كل يوم، الصادر من المخزن، المستلم بكل فرع، والمباع بكل فرع من الأفرع السبعة.',
 }
@@ -13,10 +13,10 @@ export const metadata = {
 export default async function WarehouseDailyChainPage() {
   await requirePageUser('/erp/warehouse-chain')
   return (
-    <div className="w-full">
+    <div className="w-full max-w-[1920px] mx-auto">
       <Suspense
         fallback={
-          <div className="h-[600px] w-full animate-pulse rounded-3xl bg-white/60 dark:bg-neutral-900/60" />
+          <div className="h-[600px] w-full animate-pulse rounded-3xl bg-white/60 dark:bg-[#0D1614]/60" />
         }
       >
         <WarehouseDailyChainStudio />

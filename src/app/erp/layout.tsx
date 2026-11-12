@@ -1,23 +1,23 @@
 import { Suspense, type ReactNode } from 'react'
 import GovernancePulse from '@/components/erp/GovernancePulse'
-import { Shell } from '@/components/shell'
+import { ErpShell } from '@/components/erp/shell'
 
 export const dynamic = 'force-dynamic'
 
 /**
- * ERP layout. The Ctrl/⌘+K Executive Command Palette (pages, branches, brands, channels, menu items,
- * Feryal queries and live record search) is mounted once by <Shell />, replacing the legacy
- * CommandPalette + PanelSpotlight pair that both listened to the same shortcut.
+ * ERP root layout powered by first-class <ErpShell /> (`src/components/erp/shell.tsx`)
+ * with full-width fluid viewport (`w-full max-w-[1920px] mx-auto px-5 sm:px-7 xl:px-10`)
+ * and unified Ctrl/⌘+K Executive Command Palette.
  */
 export default async function ErpLayout({ children }: { children: ReactNode }) {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-ink-950" />}>
-      <Shell>
-        <div className="relative w-full max-w-none">
+    <Suspense fallback={<div className="min-h-screen bg-[#F7F7F8] dark:bg-[#090F15]" />}>
+      <ErpShell>
+        <div className="relative w-full max-w-none min-w-0 text-[14.5px]">
           <GovernancePulse />
           {children}
         </div>
-      </Shell>
+      </ErpShell>
     </Suspense>
   )
 }

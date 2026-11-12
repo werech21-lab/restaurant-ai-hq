@@ -390,8 +390,11 @@ assert(
     coresSrc.includes('upsideBadgeAr') &&
     coresSrc.includes('نسخ للواتساب 📋') &&
     coresSrc.includes('التفاصيل') &&
-    shellSrc.includes('max-w-[1520px]'),
-  'Unslop /erp/cores 4-tab redesign passed: max-w-[1520px] layout, duplicate Brand Sales Share replaced with 0%-Fee Direct vs Aggregator Mix, 4 non-redundant Sales & Marketing KPIs, soft proportional bars, collapsible + فحص إعلان مشهور جديد & gated demo toggle',
+    coresSrc.includes('max-w-[1920px]') &&
+    !coresSrc.includes("id: 'quality'") &&
+    coresSrc.includes('/erp/social-reviews') &&
+    shellSrc.includes('max-w-[1920px]'),
+  'Unslop /erp/cores 3-tab redesign passed: fluid max-w-[1920px] layout, Ratings 4th tab deduplicated to /erp/social-reviews, 0%-Fee Direct vs Aggregator Mix, 4 non-redundant Sales & Marketing KPIs, soft proportional bars, collapsible + فحص إعلان مشهور جديد & gated demo toggle',
 )
 assert(
   coresSrc.includes('أعلى ٨ أطباق تدرّ صافياً بالجيب 🟢') &&
@@ -595,12 +598,22 @@ assert(
     planningSrc.includes('تحديث التوقعات بالذكاء الاستراتيجي ✨') &&
     planningSrc.includes('تعميم الخطة المعتمدة رسمياً 📢') &&
     planningSrc.includes('إيقاف المخالفة فوراً ⛔') &&
-    planningSrc.includes('واعتمد بختم المدير السري لتعميم الخطة رسمياً على الفروع الـ 7') &&
+    planningSrc.includes('مراقب أودو ١٧ نشط • عرض وإدارة المخالفات في جرس الاعتمادات 🔔') &&
+    planningSrc.includes("openDrawer('breaches')") &&
+    planningSrc.includes('grid-cols-1 xl:grid-cols-2 gap-6') &&
+    planningSrc.includes('طلب اعتماد المدير') &&
+    planningSrc.includes('معتمد رسمياً ✓') &&
+    planningSrc.includes('طباعة التعميم الرسمي 📄') &&
     regulationsSrc.includes('تعميم خطة التعامل رسمياً 📢') &&
-    regulationsSrc.includes('إيقاف أي مخالفة رقابية ⛔') &&
+    regulationsSrc.includes('إيقاف المخالفة فوراً ⛔') &&
     regulationsSrc.includes('+ إضافة تشريع جديد') &&
+    regulationsSrc.includes('grid-cols-1 xl:grid-cols-2 gap-6') &&
+    regulationsSrc.includes('طلب اعتماد المدير') &&
+    regulationsSrc.includes('معتمد رسمياً ✓') &&
+    regulationsSrc.includes('طباعة التعميم الرسمي 📄') &&
+    !/(?<![:\w-])bg-neutral-900\b/.test(planningSrc) &&
     !/(?<![:\w-])bg-neutral-900\b/.test(regulationsSrc),
-  'Sidebar sticky indicator + /erp/planning & /erp/regulations hubs with PIN-sealed circulars, soft readable pills & 7/7 branch trackers active',
+  'Sidebar sticky indicator + /erp/planning & /erp/regulations 2x2 hubs with progressive PIN-sealed circulars, Compliance Status Strip & 7/7 branch trackers active',
 )
 
 const pinUiLeakPattern = ['(', '2026', ')'].join('')
@@ -744,14 +757,15 @@ assert(
 
 assert(
   beforeAfterSrc.includes('أثر القرارات المعتمدة: قبل القرار مقابل بعده في أودو') &&
-    beforeAfterSrc.includes('طلب مراجعة / إيقاف المخالفة 🔔') &&
-    beforeAfterSrc.includes('max-w-[1520px]') &&
+    !beforeAfterSrc.includes('InteractiveDonut') &&
+    beforeAfterSrc.includes('تصعيد ↗') &&
+    beforeAfterSrc.includes('max-w-[1920px]') &&
     radarSrc.includes('طلب موافقة المدير على خطة التوصيل 🔔') &&
-    radarSrc.includes('max-w-[1520px]') &&
+    radarSrc.includes('max-w-[1920px]') &&
     boothSrc.includes('طلب موافقة المدير على مشاركة المعرض 🔔') &&
     boothSrc.includes('تعميم خطة المعرض 📄') &&
-    boothSrc.includes('max-w-[1520px]'),
-  'Before & After Impact Tracker, Delivery Radar TMP/Tgo Cap Governance & Booth Calculator EXB Budget Watchdog all wired to Manager PIN compliance',
+    boothSrc.includes('max-w-[1920px]'),
+  'Before & After Impact Tracker (differentiated + تصعيد ↗), Delivery Radar TMP/Tgo Cap Governance & Booth Calculator EXB Budget Watchdog all wired on fluid max-w-[1920px] layout',
 )
 
 // 11. Multimodal Feryal Vision, Daily Warehouse-to-Branch Chain, Kitchen Prep SLA & 5 Unified Sidebar Routes
@@ -926,6 +940,176 @@ assert(
     whPrep.hourCount === 14,
   'Warehouse 4-Stage Continuous Ledger (0.000 KWD drift across 20 period×category slices) & Kitchen Prep SLA 3-Tier Traffic-Light Math (7 branches × 6 brands × 14 hours)',
   `stockDrift=${Number(whPrep.maxStockIdentityDrift).toFixed(6)}, rolloverDrift=${Number(whPrep.maxRolloverDrift).toFixed(6)}, tickets=${whPrep.slaTicketsChecked}`,
+)
+
+// 12. Master 13-Screen Unslop Deduplication & Full-Width Fluid Architecture Invariants
+console.log('\n12) Master 13-Screen Unslop Deduplication & Full-Width Fluid Architecture Checks:')
+const erpScreensFiles = [
+  'src/components/shell.tsx',
+  'src/components/erp/shell.tsx',
+  'src/app/erp/layout.tsx',
+  'src/components/erp-sidebar.tsx',
+  'src/components/aether/TopFilterBar.tsx',
+  'src/components/aether/TopBrainSwitcher.tsx',
+  'src/components/aether/ExecutiveCommandPalette.tsx',
+  'src/app/erp/page.tsx',
+  'src/components/aether/FullJourney360.tsx',
+  'src/components/aether/GrowthPlaybookV5.tsx',
+  'src/app/erp/cores/page.tsx',
+  'src/components/aether/CoresHubStudio.tsx',
+  'src/app/erp/before-after/page.tsx',
+  'src/components/aether/BeforeAfterStudio.tsx',
+  'src/app/erp/aggregator-radar/page.tsx',
+  'src/components/aether/DeliveryRadarV5.tsx',
+  'src/app/erp/booth-feasibility/page.tsx',
+  'src/app/erp/events-intelligence/page.tsx',
+  'src/components/aether/BoothStudyV5.tsx',
+  'src/app/erp/planning/page.tsx',
+  'src/components/erp/StrategicPlanningStudio.tsx',
+  'src/app/erp/regulations/page.tsx',
+  'src/components/erp/RegulationsComplianceStudio.tsx',
+  'src/app/erp/warehouse-chain/page.tsx',
+  'src/components/erp/WarehouseDailyChainStudio.tsx',
+  'src/app/erp/prep-sla/page.tsx',
+  'src/components/erp/OrderPrepSlaStudio.tsx',
+  'src/components/erp/ops-expansion/OpsFilterSyncBar.tsx',
+  'src/app/erp/delivery-sla/page.tsx',
+  'src/components/erp/ops-expansion/DeliverySlaStudio.tsx',
+  'src/app/erp/social-reviews/page.tsx',
+  'src/components/erp/ops-expansion/SocialReviewsStudio.tsx',
+  'src/app/erp/weekday-comparison/page.tsx',
+  'src/components/erp/ops-expansion/WeekdayComparisonStudio.tsx',
+  'src/app/erp/feryal/page.tsx',
+  'src/app/erp/feryal-ai/page.tsx',
+  'src/components/erp/feryal-governance-studio.tsx',
+  'src/components/aether/FeryalMultimodalBar.tsx',
+  'src/components/aether/FeryalStudioMessage.tsx',
+  'src/components/aether/FeryalSidebarNotebooks.tsx',
+]
+
+const narrowWrapperRe = /\bmax-w-\[(10\d\d|11\d\d|12\d\d|13\d\d|14\d\d|15\d\d|16\d\d)px\]|\bmax-w-(5xl|6xl|7xl)\b/
+const solidBlackRe = /(?<![:\w-])(bg-neutral-900|bg-neutral-950|bg-black|bg-\[#000000\]|bg-\[#000\]|ae-btn-primary|ae-pill-dark)\b/
+
+const narrowOffenders = []
+const solidBlackOffenders = []
+for (const rel of erpScreensFiles) {
+  const txt = fs.readFileSync(path.join(ROOT, rel), 'utf8')
+  if (narrowWrapperRe.test(txt)) narrowOffenders.push(rel)
+  if (solidBlackRe.test(txt)) solidBlackOffenders.push(rel)
+}
+
+assert(
+  narrowOffenders.length === 0 &&
+    solidBlackOffenders.length === 0 &&
+    erpShellReexportSrc.includes('w-full max-w-[1920px] mx-auto px-5 sm:px-7 xl:px-10'),
+  'Full-width fluid max-w-[1920px] viewport & zero narrow containers or solid black pills across all 40 shell/ERP files',
+  `narrow=${narrowOffenders.length}, black=${solidBlackOffenders.length}`,
+)
+
+assert(
+  topBarSrc.includes("pathname === '/erp' && erpSubtab === 'summary'") &&
+    topBarSrc.includes('aether:erp-subtab') &&
+    sidebarSrc.includes('القيادة والمبيعات') &&
+    sidebarSrc.includes('التشغيل وسلسلة الإمداد') &&
+    sidebarSrc.includes('السمعة والذكاء المرئي') &&
+    sidebarSrc.includes('الحوكمة والتخطيط'),
+  'Global Header Row 2 (7 Quick-Lens Pills + Weighted Margin Strip) strictly scoped to /erp summary & Sidebar categorized into 4 executive sections',
+)
+
+assert(
+  !journeySrc.includes('قبل وبعد 0') &&
+    journeySrc.includes('/erp/before-after') &&
+    journeySrc.includes('aether:erp-subtab') &&
+    journeySrc.includes('PLAYS_PER_PAGE = 6') &&
+    journeySrc.includes('normalizeTopicString') &&
+    journeySrc.includes('line-clamp-2') &&
+    journeySrc.includes('رفع للاعتماد 🔔'),
+  '/erp Before-After 0 sub-tab deduplicated & Profit Tips strictly topic-deduplicated, paginated 6/page (3x2), 2-line diagnosis & single رفع للاعتماد 🔔 CTA',
+)
+
+const feryalRedirectSrc = fs.readFileSync(path.join(ROOT, 'src/app/erp/feryal/page.tsx'), 'utf8')
+assert(
+  feryalRedirectSrc.includes("redirect('/erp/feryal-ai'") &&
+    feryalPageSrc.includes('<FeryalGovernanceStudio') &&
+    !/<header\b/i.test(feryalStudioSrc) &&
+    feryalStudioSrc.includes('max-w-[1920px]'),
+  '/erp/feryal redirects cleanly to /erp/feryal-ai preserving ?prompt= & renders unified clutter-free Multimodal Vision & Video Studio',
+)
+
+const opsFiveStudioPaths = [
+  'src/components/erp/WarehouseDailyChainStudio.tsx',
+  'src/components/erp/OrderPrepSlaStudio.tsx',
+  'src/components/erp/ops-expansion/DeliverySlaStudio.tsx',
+  'src/components/erp/ops-expansion/SocialReviewsStudio.tsx',
+  'src/components/erp/ops-expansion/WeekdayComparisonStudio.tsx',
+]
+const opsFiveClean = opsFiveStudioPaths.every((rel) => {
+  const s = fs.readFileSync(path.join(ROOT, rel), 'utf8')
+  return (
+    s.includes('max-w-[1920px]') &&
+    s.includes('useGlobalFilter') &&
+    !/<select\b/i.test(s) &&
+    !s.includes('<OpsFilterSyncBar') &&
+    s.includes('تصعيد ↗')
+  )
+})
+
+const opsCalibrationProbeScript = `
+import { computeGlobalWorkspace, DEFAULT_GLOBAL_FILTERS } from './src/lib/aether/global-filter-engine';
+import { computeWarehouseDailyChain, computeOrderPrepSlaSnapshot } from './src/lib/warehouse-prep-engine';
+import {
+  computeDeliverySlaSnapshot,
+  computeSocialReviewsSnapshot,
+  computeWeekdayComparisonData,
+} from './src/lib/ops-expansion-part2';
+
+const f = DEFAULT_GLOBAL_FILTERS;
+const ws = computeGlobalWorkspace(f);
+const wh = computeWarehouseDailyChain(f, ws, 'all');
+const prep = computeOrderPrepSlaSnapshot(f, ws);
+const del = computeDeliverySlaSnapshot(ws);
+const rev = computeSocialReviewsSnapshot(ws, new Set());
+const wk = computeWeekdayComparisonData(ws);
+
+const prepHealthyPct = prep.greenPct + prep.yellowPct;
+const delHealthyPct = del.greenPct + del.yellowPct;
+const wkHealthyPct = (wk.rows.filter((r) => r.tier !== 'red').length / wk.rows.length) * 100;
+const prepP1Red = prep.tickets.slice(0, 12).filter((t) => t.tier === 'red').length;
+const delP1Red = del.trips.slice(0, 12).filter((t) => t.tier === 'red').length;
+const revP1Red = rev.reviews.slice(0, 12).filter((r) => r.tier === 'red' || r.sentiment === 'negative').length;
+const wkRed = wk.rows.filter((r) => r.tier === 'red').length;
+
+console.log(JSON.stringify({
+  prepHealthyPct,
+  delHealthyPct,
+  wkHealthyPct,
+  prepP1Red,
+  delP1Red,
+  revP1Red,
+  wkRed,
+}));
+`
+const opsCalRaw = execFileSync(process.execPath, [tsxCli, '-e', opsCalibrationProbeScript], {
+  cwd: ROOT,
+  encoding: 'utf8',
+}).trim()
+const opsCal = JSON.parse(opsCalRaw.split('\n').pop() ?? '{}')
+
+assert(
+  opsFiveClean &&
+    opsCal.prepHealthyPct >= 70 &&
+    opsCal.delHealthyPct >= 70 &&
+    opsCal.wkHealthyPct >= 70 &&
+    opsCal.prepP1Red >= 1 &&
+    opsCal.prepP1Red <= 2 &&
+    opsCal.delP1Red >= 1 &&
+    opsCal.delP1Red <= 2 &&
+    opsCal.revP1Red >= 1 &&
+    opsCal.revP1Red <= 2 &&
+    opsCal.wkRed >= 1 &&
+    opsCal.wkRed <= 2,
+  'Zero duplicate local filter bars across all 5 operational studios & realistic >=70% healthy SLA distribution with 1–2 تصعيد ↗ critical outliers',
+  `prepHealthy=${Number(opsCal.prepHealthyPct).toFixed(1)}%, delHealthy=${Number(opsCal.delHealthyPct).toFixed(1)}%, wkHealthy=${Number(opsCal.wkHealthyPct).toFixed(1)}%`,
 )
 
 console.log('\n----------------------------------------------------------------------')
