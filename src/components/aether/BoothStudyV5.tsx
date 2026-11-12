@@ -5,7 +5,6 @@ import { AlertTriangle, CheckCircle2, FileUp, Loader2, Scale, ShieldCheck, XCirc
 import { analyzeEventContractWithGemini, type ContractDeepAuditResult } from '@/lib/feryal-gemini-brain'
 import { BRANDS, EXB_UNIT, LEDGER } from '@/lib/aether/ledger'
 import { APPROVED_BRAND_IDS, GLOBAL_BRAND_OPTIONS } from '@/lib/aether/global-filter-engine'
-import { DualBrainPagePanel } from '@/components/aether/DualBrainPagePanel'
 import {
   InteractiveDonutChart,
   InteractiveHoverBarChart,
@@ -312,15 +311,6 @@ export function BoothStudyV5() {
           ]}
         />
       </header>
-
-      {/* 1-Click Dual-Brain Booth Feasibility Verdict */}
-      <DualBrainPagePanel
-        pageTitleAr="حاسبة المعارض"
-        pageTitleEn="Booth Calculator"
-        promptAr="ادرس أرقام هذا البوث والمعرض الموسمى بعمق وعطني قرار نهائي واضح: هل ندخل أو نفاوض الإيجار وكيف نضمن أعلى ربح صافي؟"
-        promptEn="Evaluate this seasonal booth opportunity deeply and give a clear Go / Negotiate / Walk decision plus 3 field plays to maximize net booth profit."
-        pageContext={`المعرض: ${eventName || 'معرض موسمي'} | المطعم المختار: ${brandOpt.ar} (${brandOpt.en}) | المدة: ${days} يوم | إيجار البوث: ${f0(rent)} د.ك | التجهيز: ${f0(setup)} د.ك | عمالة إضافية: ${f0(staff)} د.ك | الطلبات اليومية المتوقعة: ${f0(dailyOrders)} طلب/يوم (متوسط الفاتورة ${f3(basket)} د.ك) | نقطة التعادل: ${f0(be)} طلب/يوم | الربح الصافي المتوقع: ${f0(base.profit)} د.ك (وفي الإقبال الضعيف 60%: ${f0(low.profit)} د.ك) | سقف الإيجار الآمن: ${f0(model.rentCeiling)} د.ك.`}
-      />
 
       {/* 4 Top KPI Summary Cards (Finance V2 × Verdelo Micro-Lift) */}
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">

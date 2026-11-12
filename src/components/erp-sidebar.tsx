@@ -7,6 +7,7 @@ import {
   ArrowLeftRight,
   BarChart3,
   Calendar,
+  Compass,
   LayoutDashboard,
   LogOut,
   PanelLeftClose,
@@ -14,6 +15,7 @@ import {
   PanelRightClose,
   PanelRightOpen,
   Radar,
+  Scale,
   Sparkles,
 } from 'lucide-react'
 import { logout } from '@/app/actions/auth'
@@ -34,7 +36,7 @@ interface NavItem {
   alwaysVisible?: boolean
 }
 
-/** The 6 ultra-simple executive pillars of Aether BI. */
+/** The 8 executive & governance pillars of Aether BI. */
 const SIDEBAR_ITEMS: NavItem[] = [
   { key: 'playbook', href: '/erp', labelAr: 'الرئيسية', labelEn: 'Overview', icon: LayoutDashboard, alwaysVisible: true },
   { key: 'cores', href: '/erp/cores', labelAr: 'المبيعات والتسويق والمنتجات', labelEn: 'Sales, Marketing & Menu', icon: BarChart3, alwaysVisible: true },
@@ -42,6 +44,8 @@ const SIDEBAR_ITEMS: NavItem[] = [
   { key: 'feryal-ai', href: '/erp/feryal-ai', labelAr: 'المستشارة فريال', labelEn: 'Ask Feryal', icon: Sparkles, alwaysVisible: true },
   { key: 'aggregator-radar', href: '/erp/aggregator-radar', labelAr: 'مراقبة التوصيل', labelEn: 'Delivery Radar', icon: Radar, alwaysVisible: true },
   { key: 'events-intelligence', href: '/erp/events-intelligence', labelAr: 'حاسبة المعارض', labelEn: 'Booth Calculator', icon: Calendar, alwaysVisible: true },
+  { key: 'planning', href: '/erp/planning', labelAr: 'التخطيط والتوقعات والامتثال', labelEn: 'Planning & Compliance', icon: Compass, alwaysVisible: true },
+  { key: 'regulations', href: '/erp/regulations', labelAr: 'التشريعات وخطط التعامل', labelEn: 'Regulations & Playbooks', icon: Scale, alwaysVisible: true },
 ]
 
 const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect
@@ -107,11 +111,18 @@ export function Sidebar({ user }: { user: AccessUser; enabledKeys?: string[] | n
     return can(user, item.key, 'view')
   })
 
+  const normalizedPathname =
+    pathname === '/erp/feryal'
+      ? '/erp/feryal-ai'
+      : pathname === '/erp/booth-feasibility'
+        ? '/erp/events-intelligence'
+        : pathname ?? ''
+
   const activeKey =
-    visibleItems.find(
-      (item) =>
-        pathname === item.href ||
-        (item.href !== '/erp' && item.href !== '/dashboard' && pathname?.startsWith(`${item.href}/`)),
+    visibleItems.find((item) =>
+      item.href === '/erp'
+        ? normalizedPathname === '/erp'
+        : normalizedPathname === item.href || normalizedPathname.startsWith(`${item.href}/`),
     )?.key ?? null
 
   const measureIndicator = useCallback(() => {
@@ -131,7 +142,7 @@ export function Sidebar({ user }: { user: AccessUser; enabledKeys?: string[] | n
       setAnimateIndicator(true)
     })
     return () => window.cancelAnimationFrame(raf)
-  }, [measureIndicator, collapsed, locale])
+  }, [measureIndicator, pathname, collapsed, locale])
 
   const CollapseIcon = isAr
     ? collapsed
@@ -153,8 +164,8 @@ export function Sidebar({ user }: { user: AccessUser; enabledKeys?: string[] | n
     <aside
       id="ae-sidebar"
       data-collapsed={collapsed}
-      className={`no-print fixed inset-y-0 start-0 z-30 hidden shrink-0 flex-col md:flex ${
-        collapsed ? 'overflow-visible' : 'overflow-hidden'
+      className={`no-print sticky top-0 z-30 hidden h-screen shrink-0 flex-col md:flex ${
+        collapsed ? 'overflow-visible' : 'overflow-y-auto'
       }`}
       dir={isAr ? 'rtl' : 'ltr'}
     >
@@ -222,8 +233,8 @@ export function Sidebar({ user }: { user: AccessUser; enabledKeys?: string[] | n
       {/* Navigation Sections with Verdelo Sliding Emerald Active Pill */}
       <nav
         aria-label={isAr ? 'القائمة الرئيسية' : 'Main Navigation'}
-        className={`min-h-0 flex-1 pt-2 pb-6 ${
-          collapsed ? 'overflow-visible px-2.5' : 'overflow-y-auto px-3'
+        className={`flex-1 pt-2 pb-6 ${
+          collapsed ? 'overflow-visible px-2.5' : 'px-3'
         }`}
       >
         {!collapsed ? (

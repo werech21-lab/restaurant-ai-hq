@@ -629,9 +629,10 @@ export default function FeryalAiCommandPage() {
     handleSendQueryRef.current = handleSendQuery
   }, [handleSendQuery])
 
-  // Deep link ?q= — sends text only, never opens the microphone
+  // Deep link ?prompt= or ?q= — sends text only, never opens the microphone
   useEffect(() => {
-    const q = new URLSearchParams(window.location.search).get('q')
+    const sp = new URLSearchParams(window.location.search)
+    const q = sp.get('prompt') ?? sp.get('q')
     if (!q || !q.trim()) return
     const timer = window.setTimeout(() => {
       handleSendQueryRef.current?.(q.trim())

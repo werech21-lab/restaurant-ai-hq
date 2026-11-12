@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
   ArrowUpRight,
+  Bell,
   Calculator,
   Check,
   ChevronDown,
@@ -14,6 +15,8 @@ import {
   Megaphone,
   Plus,
   Search,
+  ShieldAlert,
+  ShieldCheck,
   Sparkles,
   Star,
   Trash2,
@@ -23,7 +26,7 @@ import {
 } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
-import { DualBrainPagePanel } from '@/components/aether/DualBrainPagePanel'
+import { useGovernance } from '@/components/erp/GovernanceBellDrawer'
 import {
   GLOBAL_BRAND_OPTIONS,
   getPeriodLabel,
@@ -154,6 +157,7 @@ export function CoresHubStudio() {
   const { locale } = useI18n()
   const isAr = locale === 'ar'
   const { filters, workspace, liveSummary, setBrand, setBranch, setChannel } = useGlobalFilter()
+  const { requestApproval, getApprovalByRef, openDrawer } = useGovernance()
 
   const [activeTab, setActiveTab] = useState<CoreTabId>('marketing')
   const [campaigns, setCampaigns] = useState<SocialCampaign[]>([])
@@ -169,7 +173,8 @@ export function CoresHubStudio() {
   const [formAdType, setFormAdType] = useState<SocialAdType>('influencer')
   const [formName, setFormName] = useState('')
   const [formSpend, setFormSpend] = useState('150')
-  const [formDate, setFormDate] = useState('2026-10-29')
+  const [formStartDate, setFormStartDate] = useState('2026-10-29')
+  const [formEndDate, setFormEndDate] = useState('2026-10-31')
   const [formItem, setFormItem] = useState('')
 
   // Menu tab local filters, pagination (default 12 rows), ranking view & Price/Cost Simulator Drawer
@@ -241,62 +246,91 @@ export function CoresHubStudio() {
     setFormAdType('influencer')
     setFormName('')
     setFormSpend('150')
-    setFormDate('2026-10-29')
+    setFormStartDate('2026-10-29')
+    setFormEndDate('2026-10-31')
     setFormItem('')
     setIsAdFormOpen(false)
   }, [filters.brand])
 
+  const upsertCampaignFromForm = useCallback((): SocialCampaign => {
+    const cleanName =
+      formName.trim() || (isAr ? 'حملة سوشيال ومشاهير' : 'Social Media Campaign')
+    const spend = Math.max(0, Number(formSpend) || 0)
+    const rawStart = /^\d{4}-\d{2}-\d{2}$/.test(formStartDate) ? formStartDate : '2026-10-29'
+    const rawEnd = /^\d{4}-\d{2}-\d{2}$/.test(formEndDate) ? formEndDate : rawStart
+    const startIso = rawStart <= rawEnd ? rawStart : rawEnd
+    const endIso = rawStart <= rawEnd ? rawEnd : rawStart
+
+    if (editingId) {
+      const updated: SocialCampaign = {
+        id: editingId,
+        brand: formBrand,
+        adType: formAdType,
+        campaignName: cleanName,
+        spendKwd: spend,
+        date: startIso,
+        startDate: startIso,
+        endDate: endIso,
+        promotedItem: formItem.trim(),
+      }
+      persistCampaigns(campaigns.map((c) => (c.id === editingId ? updated : c)))
+      return updated
+    }
+
+    const created: SocialCampaign = {
+      id: `camp-${Date.now()}`,
+      brand: formBrand,
+      adType: formAdType,
+      campaignName: cleanName,
+      spendKwd: spend,
+      date: startIso,
+      startDate: startIso,
+      endDate: endIso,
+      promotedItem: formItem.trim(),
+    }
+    persistCampaigns([created, ...campaigns])
+    return created
+  }, [
+    campaigns,
+    editingId,
+    formAdType,
+    formBrand,
+    formEndDate,
+    formItem,
+    formName,
+    formSpend,
+    formStartDate,
+    isAr,
+    persistCampaigns,
+  ])
+
   const handleSaveCampaign = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault()
-      const cleanName =
-        formName.trim() ||
-        (isAr ? 'حملة سوشيال ومشاهير' : 'Social Media Campaign')
-      const spend = Math.max(0, Number(formSpend) || 0)
-      const dateIso = /^\d{4}-\d{2}-\d{2}$/.test(formDate) ? formDate : '2026-10-29'
-
-      if (editingId) {
-        const next = campaigns.map((c) =>
-          c.id === editingId
-            ? {
-                ...c,
-                brand: formBrand,
-                adType: formAdType,
-                campaignName: cleanName,
-                spendKwd: spend,
-                date: dateIso,
-                promotedItem: formItem.trim(),
-              }
-            : c,
-        )
-        persistCampaigns(next)
-      } else {
-        const created: SocialCampaign = {
-          id: `camp-${Date.now()}`,
-          brand: formBrand,
-          adType: formAdType,
-          campaignName: cleanName,
-          spendKwd: spend,
-          date: dateIso,
-          promotedItem: formItem.trim(),
-        }
-        persistCampaigns([created, ...campaigns])
-      }
+      upsertCampaignFromForm()
       resetCampaignForm()
     },
-    [
-      campaigns,
-      editingId,
-      formAdType,
-      formBrand,
-      formDate,
-      formItem,
-      formName,
-      formSpend,
-      isAr,
-      persistCampaigns,
-      resetCampaignForm,
-    ],
+    [resetCampaignForm, upsertCampaignFromForm],
+  )
+
+  const submitCampaignApproval = useCallback(
+    (c: SocialCampaign, ev?: CampaignHaloEvaluation) => {
+      const evalRow = ev ?? evaluateCampaignOdooHalo(c, filters.branch, filters.channel)
+      requestApproval({
+        refKey: `campaign:${c.id}`,
+        domain: 'marketing',
+        titleAr: `اعتماد حملة تسويق: ${c.campaignName} (${evalRow.brandAr})`,
+        titleEn: `Approve Ad Campaign: ${c.campaignName} (${evalRow.brandEn})`,
+        summaryAr: `الفترة ${evalRow.startDate} ← ${evalRow.endDate} (${evalRow.windowDays} أيام) • الميزانية ${f0(c.spendKwd)} د.ك • الصافي المتوقع ${evalRow.netProfitAfterAdKwd >= 0 ? '+' : ''}${f1(evalRow.netProfitAfterAdKwd)} د.ك.`,
+        summaryEn: `Window ${evalRow.startDate} -> ${evalRow.endDate} (${evalRow.windowDays}d) • Spend ${f0(c.spendKwd)} KWD • Net ${evalRow.netProfitAfterAdKwd >= 0 ? '+' : ''}${f1(evalRow.netProfitAfterAdKwd)} KWD.`,
+        departmentAr: 'إدارة التسويق والنمو',
+        departmentEn: 'Marketing & Growth',
+        budgetOrCostKwd: c.spendKwd,
+        expectedMonthlyReturnKwd: Math.max(0, Math.round(evalRow.netProfitAfterAdKwd)),
+        href: '/erp/cores?tab=marketing',
+      })
+    },
+    [filters.branch, filters.channel, requestApproval],
   )
 
   const handleEditCampaign = useCallback((c: SocialCampaign) => {
@@ -305,7 +339,8 @@ export function CoresHubStudio() {
     setFormAdType(c.adType)
     setFormName(c.campaignName)
     setFormSpend(String(c.spendKwd))
-    setFormDate(c.date)
+    setFormStartDate(c.startDate ?? c.date)
+    setFormEndDate(c.endDate ?? c.startDate ?? c.date)
     setFormItem(c.promotedItem ?? '')
     setIsAdFormOpen(true)
   }, [])
@@ -799,9 +834,9 @@ export function CoresHubStudio() {
 
   const formatCampaignWhatsapp = (ev: CampaignHaloEvaluation) => {
     if (!isAr) {
-      return `*Ad ROI Check — ${ev.brandEn}*\n• Campaign: ${ev.campaign.campaignName} (${ev.adTypeEn})\n• Date: ${ev.campaign.date} | Spend: ${f0(ev.campaign.spendKwd)} KWD\n• 3d Before: ${f1(ev.before3dSalesKwd)} KWD -> 3d After: ${f1(ev.after3dSalesKwd)} KWD\n• Real Sales Lift: ${ev.liftSalesKwd >= 0 ? '+' : ''}${f1(ev.liftSalesKwd)} KWD (${ev.liftOrders >= 0 ? '+' : ''}${ev.liftOrders} orders)\n• Net Profit After Ad: ${ev.netProfitAfterAdKwd >= 0 ? '+' : ''}${f1(ev.netProfitAfterAdKwd)} KWD\n• Verdict: ${ev.verdictEn}`
+      return `*Ad ROI Check — ${ev.brandEn}*\n• Campaign: ${ev.campaign.campaignName} (${ev.adTypeEn})\n• Window: ${ev.startDate} -> ${ev.endDate} (${ev.windowDays}d) | Spend: ${f0(ev.campaign.spendKwd)} KWD\n• Prior ${ev.windowDays}d: ${f1(ev.before3dSalesKwd)} KWD -> Campaign ${ev.windowDays}d: ${f1(ev.after3dSalesKwd)} KWD\n• Real Sales Lift: ${ev.liftSalesKwd >= 0 ? '+' : ''}${f1(ev.liftSalesKwd)} KWD (${ev.liftOrders >= 0 ? '+' : ''}${ev.liftOrders} orders)\n• Net Profit After Ad: ${ev.netProfitAfterAdKwd >= 0 ? '+' : ''}${f1(ev.netProfitAfterAdKwd)} KWD\n• Verdict: ${ev.verdictEn}`
     }
-    return `*نتيجة إعلان — ${ev.brandAr}*\n• الحملة: ${ev.campaign.campaignName} (${ev.adTypeAr})\n• التاريخ: ${ev.campaign.date} | المدفوع: ${f0(ev.campaign.spendKwd)} د.ك\n• المبيعات ٣ أيام قبل: ${f1(ev.before3dSalesKwd)} د.ك ← ٣ أيام بعد: ${f1(ev.after3dSalesKwd)} د.ك\n• زيادة المبيعات الفعلية: ${ev.liftSalesKwd >= 0 ? '+' : ''}${f1(ev.liftSalesKwd)} د.ك (${ev.liftOrders >= 0 ? '+' : ''}${ev.liftOrders} طلب)\n• الربح الصافي بعد خصم الإعلان: ${ev.netProfitAfterAdKwd >= 0 ? '+' : ''}${f1(ev.netProfitAfterAdKwd)} د.ك\n• القرار: ${ev.verdictAr}`
+    return `*نتيجة إعلان — ${ev.brandAr}*\n• الحملة: ${ev.campaign.campaignName} (${ev.adTypeAr})\n• الفترة: ${ev.startDate} ← ${ev.endDate} (${ev.windowDays} أيام) | المدفوع: ${f0(ev.campaign.spendKwd)} د.ك\n• المبيعات قبل (${ev.windowDays} أيام): ${f1(ev.before3dSalesKwd)} د.ك ← خلال الحملة: ${f1(ev.after3dSalesKwd)} د.ك\n• زيادة المبيعات الفعلية: ${ev.liftSalesKwd >= 0 ? '+' : ''}${f1(ev.liftSalesKwd)} د.ك (${ev.liftOrders >= 0 ? '+' : ''}${ev.liftOrders} طلب)\n• الربح الصافي بعد خصم الإعلان: ${ev.netProfitAfterAdKwd >= 0 ? '+' : ''}${f1(ev.netProfitAfterAdKwd)} د.ك\n• القرار: ${ev.verdictAr}`
   }
 
   return (
@@ -831,15 +866,6 @@ export function CoresHubStudio() {
           })}
         />
       </header>
-
-      {/* 1-Click Dual-Brain Analysis synced with Active Core Tab */}
-      <DualBrainPagePanel
-        pageTitleAr={`المبيعات والتسويق والمنتجات — ${CORE_TABS.find((t) => t.id === activeTab)?.ar ?? ''}`}
-        pageTitleEn={`Sales, Marketing & Menu — ${CORE_TABS.find((t) => t.id === activeTab)?.en ?? ''}`}
-        promptAr={`حلّل قسم (${CORE_TABS.find((t) => t.id === activeTab)?.ar ?? ''}) وعطني أهم ٣ قرارات عملية لزيادة الطلبات والصافي بالجيب فوراً.`}
-        promptEn={`Analyze the (${CORE_TABS.find((t) => t.id === activeTab)?.en ?? ''}) tab and give me the top 3 immediate actions to grow orders and net cash.`}
-        pageContext={`القسم النشط: ${activeTab}. عائد كل 1 د.ك إعلان: ${f1(snap.marketing.kpis.roasPer1Kwd)}x | تكلفة الخصومات والإعلانات: ${f0(snap.marketing.kpis.totalMarketingCostKwd)} د.ك (${snap.marketing.kpis.marketingCostPctOfSales}%) | الصافي النقدي بعد الإعلانات: ${f0(snap.marketing.kpis.netAfterAdSpendKwd)} د.ك | إجمالي الأصناف النشطة: ${snap.menu.dishes.length} صنف | درجة الجودة العامة: ${snap.quality.qualityScore}%.`}
-      />
 
       {/* =====================================================================
           TAB 1: التسويق ونمو المبيعات (Marketing, Social/Influencer ROI & 6 Growth Plays)
@@ -1074,7 +1100,7 @@ export function CoresHubStudio() {
               </div>
             </div>
 
-            {/* Collapsible 6-Field Input Form */}
+            {/* Collapsible 7-Field Input Form (Start Date + End Date + Manager Approval Request) */}
             {isAdFormOpen ? (
               <form
                 onSubmit={handleSaveCampaign}
@@ -1115,9 +1141,9 @@ export function CoresHubStudio() {
                     </select>
                   </div>
 
-                  <div className="lg:col-span-2">
+                  <div>
                     <label className="mb-1 block text-xs font-medium text-neutral-600 dark:text-slate-300">
-                      {isAr ? 'اسم الحملة أو المشهور' : 'Campaign or Influencer Name'}
+                      {isAr ? 'اسم الحملة أو المشهور' : 'Campaign or Influencer'}
                     </label>
                     <input
                       type="text"
@@ -1127,7 +1153,7 @@ export function CoresHubStudio() {
                       placeholder={
                         isAr
                           ? 'مثال: تغطية بلوقر أو إعلان تيك توك...'
-                          : 'e.g. Food blogger coverage or TikTok reel...'
+                          : 'e.g. Food blogger or TikTok reel...'
                       }
                       className={INPUT_CLS}
                     />
@@ -1150,13 +1176,26 @@ export function CoresHubStudio() {
 
                   <div>
                     <label className="mb-1 block text-xs font-medium text-neutral-600 dark:text-slate-300">
-                      {isAr ? 'تاريخ الإعلان' : 'Campaign Date'}
+                      {isAr ? 'تاريخ البداية' : 'Start Date'}
                     </label>
                     <input
                       type="date"
                       required
-                      value={formDate}
-                      onChange={(e) => setFormDate(e.target.value)}
+                      value={formStartDate}
+                      onChange={(e) => setFormStartDate(e.target.value)}
+                      className={`${INPUT_CLS} tabular-nums`}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-neutral-600 dark:text-slate-300">
+                      {isAr ? 'تاريخ النهاية' : 'End Date'}
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={formEndDate}
+                      onChange={(e) => setFormEndDate(e.target.value)}
                       className={`${INPUT_CLS} tabular-nums`}
                     />
                   </div>
@@ -1177,13 +1216,25 @@ export function CoresHubStudio() {
                     />
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
                       onClick={resetCampaignForm}
                       className="h-9 rounded-full bg-neutral-100 px-4 text-xs font-medium text-neutral-700 transition-colors duration-150 hover:bg-neutral-200/80 dark:bg-white/10 dark:text-slate-200"
                     >
                       {isAr ? 'إلغاء' : 'Cancel'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const saved = upsertCampaignFromForm()
+                        submitCampaignApproval(saved)
+                        resetCampaignForm()
+                      }}
+                      className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-amber-50 px-4 text-xs font-semibold text-amber-900 transition-all duration-150 hover:bg-amber-100 dark:bg-amber-950/60 dark:text-amber-200"
+                    >
+                      <Bell className="h-3.5 w-3.5" />
+                      <span>{isAr ? 'طلب موافقة المدير 🔔' : 'Request Manager Approval 🔔'}</span>
                     </button>
                     <button
                       type="submit"
@@ -1225,6 +1276,9 @@ export function CoresHubStudio() {
               <div className="mt-4 grid grid-cols-1 gap-3.5 rounded-2xl bg-[#F7F7F8] p-3.5 lg:grid-cols-2 dark:bg-white/[0.02]">
                 {displayedEvaluations.map((ev) => {
                   const isDemo = isDemoSocialCampaign(ev.campaign.id)
+                  const approvalRec = getApprovalByRef(`campaign:${ev.campaign.id}`)
+                  const isWatchdogBreach =
+                    !isDemo && (ev.verdict === 'loser' || ev.campaign.spendKwd > 450)
                   const badgeCls =
                     ev.verdict === 'winner'
                       ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
@@ -1252,8 +1306,29 @@ export function CoresHubStudio() {
                                 {isAr ? 'مثال توضيحي' : 'Demo'}
                               </span>
                             ) : null}
+                            {approvalRec?.status === 'approved' ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                                <ShieldCheck className="h-3 w-3" />
+                                <span>{isAr ? 'معتمد بختم المدير ✅' : 'Manager Sealed ✅'}</span>
+                              </span>
+                            ) : approvalRec?.status === 'pending' ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
+                                <Bell className="h-3 w-3" />
+                                <span>{isAr ? 'بانتظار الموافقة 🔔' : 'Pending Approval 🔔'}</span>
+                              </span>
+                            ) : null}
+                            {isWatchdogBreach ? (
+                              <button
+                                type="button"
+                                onClick={() => openDrawer('breaches')}
+                                className="inline-flex cursor-pointer items-center gap-1 rounded-full bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100 dark:bg-rose-950/60 dark:text-rose-300"
+                              >
+                                <ShieldAlert className="h-3 w-3" />
+                                <span>{isAr ? '🚨 مخالفة لقرار معتمد' : '🚨 Compliance Alert'}</span>
+                              </button>
+                            ) : null}
                             <span dir="ltr" className="text-xs tabular-nums text-neutral-400">
-                              {ev.campaign.date}
+                              {ev.startDate} → {ev.endDate}
                             </span>
                           </div>
 
@@ -1278,7 +1353,9 @@ export function CoresHubStudio() {
                         <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
                           <div className="rounded-xl bg-[#F7F7F8] p-3 dark:bg-[#0C141B]">
                             <div className="text-xs text-neutral-400">
-                              {isAr ? '٣ أيام قبل ← ٣ أيام بعد' : '3d Before -> 3d After'}
+                              {isAr
+                                ? `${ev.windowDays} أيام قبل ← ${ev.windowDays} أيام الحملة`
+                                : `Prior ${ev.windowDays}d -> Campaign ${ev.windowDays}d`}
                             </div>
                             <div
                               dir="ltr"
@@ -1341,7 +1418,7 @@ export function CoresHubStudio() {
 
                       {/* Action Bar */}
                       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 pt-1">
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex flex-wrap items-center gap-1.5">
                           <button
                             type="button"
                             onClick={() => copyText(ev.campaign.id, formatCampaignWhatsapp(ev))}
@@ -1356,6 +1433,16 @@ export function CoresHubStudio() {
                               <span>{isAr ? 'نسخ للواتساب 📋' : 'Copy WhatsApp 📋'}</span>
                             )}
                           </button>
+
+                          {!approvalRec ? (
+                            <button
+                              type="button"
+                              onClick={() => submitCampaignApproval(ev.campaign, ev)}
+                              className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-amber-50 px-3 text-xs font-semibold text-amber-900 transition-colors duration-150 hover:bg-amber-100 dark:bg-amber-950/60 dark:text-amber-200"
+                            >
+                              <span>{isAr ? 'طلب موافقة المدير 🔔' : 'Request Approval 🔔'}</span>
+                            </button>
+                          ) : null}
 
                           {!isDemo ? (
                             <button
@@ -1452,6 +1539,11 @@ export function CoresHubStudio() {
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
               {snap.marketing.growthPlays.map((play) => {
                 const isExpanded = Boolean(expandedPlays[play.id])
+                const playApproval = getApprovalByRef(`growth-play:${play.id}`)
+                const feryalPrompt = isAr
+                  ? `فصّلي لي خطة التنفيذ العملية لـ (${play.titleAr}) لنطاق (${play.scopeAr}) مع جدول خطوات واضح وعائد (${play.upsideBadgeAr}).`
+                  : `Give me the step-by-step execution plan for (${play.titleEn}) scoped to (${play.scopeEn}) targeting (${play.upsideBadgeEn}).`
+
                 return (
                   <article
                     key={play.id}
@@ -1460,9 +1552,22 @@ export function CoresHubStudio() {
                     <div className="space-y-2.5">
                       {/* Soft Scope Pill + Dynamic Filter-Scaled KWD Upside Badge */}
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className={SOFT_SCOPE_PILL_CLS}>
-                          {isAr ? play.scopeAr : play.scopeEn}
-                        </span>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className={SOFT_SCOPE_PILL_CLS}>
+                            {isAr ? play.scopeAr : play.scopeEn}
+                          </span>
+                          {playApproval?.status === 'approved' ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                              <ShieldCheck className="h-3 w-3" />
+                              <span>{isAr ? 'معتمد ✅' : 'Approved ✅'}</span>
+                            </span>
+                          ) : playApproval?.status === 'pending' ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
+                              <Bell className="h-3 w-3" />
+                              <span>{isAr ? 'بانتظار الموافقة' : 'Pending'}</span>
+                            </span>
+                          ) : null}
+                        </div>
                         <span
                           dir="ltr"
                           title={isAr ? 'نطاق العائد الصافي (متحفظ – واقعي)' : 'Conservative – Realistic Net Upside'}
@@ -1495,24 +1600,57 @@ export function CoresHubStudio() {
                       ) : null}
                     </div>
 
-                    {/* Soft Neutral WhatsApp Button + Optional التفاصيل ▾ Toggle */}
-                    <div className="flex items-center justify-between gap-2 pt-1">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          copyText(play.id, isAr ? play.whatsappTextAr : play.whatsappTextEn)
-                        }
-                        className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-neutral-100 hover:bg-neutral-200/80 text-neutral-900 dark:bg-emerald-950/70 dark:hover:bg-emerald-900/70 dark:text-emerald-200 px-3 text-xs font-medium transition-colors duration-150"
-                      >
-                        {copiedId === play.id ? (
-                          <>
-                            <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-300" />
-                            <span>{isAr ? 'تم النسخ ✓' : 'Copied ✓'}</span>
-                          </>
-                        ) : (
-                          <span>{isAr ? 'نسخ للواتساب 📋' : 'Copy WhatsApp 📋'}</span>
-                        )}
-                      </button>
+                    {/* Side-by-Side Ask Feryal ✨ + Copy 📋 + Request Approval 🔔 + Details ▾ */}
+                    <div className="flex flex-wrap items-center justify-between gap-1.5 pt-1">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <Link
+                          href={`/erp/feryal?prompt=${encodeURIComponent(feryalPrompt)}`}
+                          className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-emerald-50 px-3 text-xs font-semibold text-emerald-800 transition-colors duration-150 hover:bg-emerald-100 dark:bg-emerald-950/70 dark:text-emerald-200 dark:hover:bg-emerald-900/70"
+                        >
+                          <span>{isAr ? 'اسأل فريال ✨' : 'Ask Feryal ✨'}</span>
+                        </Link>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            copyText(play.id, isAr ? play.whatsappTextAr : play.whatsappTextEn)
+                          }
+                          className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-neutral-100 px-3 text-xs font-medium text-neutral-900 transition-colors duration-150 hover:bg-neutral-200/80 dark:bg-white/[0.08] dark:text-slate-200"
+                        >
+                          {copiedId === play.id ? (
+                            <>
+                              <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-300" />
+                              <span>{isAr ? 'تم النسخ ✓' : 'Copied ✓'}</span>
+                            </>
+                          ) : (
+                            <span>{isAr ? 'نسخ 📋' : 'Copy 📋'}</span>
+                          )}
+                        </button>
+
+                        {!playApproval ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              requestApproval({
+                                refKey: `growth-play:${play.id}`,
+                                domain: 'growth-play',
+                                titleAr: `تفعيل خطة نمو: ${play.titleAr}`,
+                                titleEn: `Activate Growth Play: ${play.titleEn}`,
+                                summaryAr: `${play.scopeAr} • العائد المتوقع: ${play.upsideBadgeAr} • ${play.shortBulletsAr.slice(0, 2).join(' — ')}`,
+                                summaryEn: `${play.scopeEn} • Target Upside: ${play.upsideBadgeEn} • ${play.shortBulletsEn.slice(0, 2).join(' — ')}`,
+                                departmentAr: 'التسويق وتشغيل الفروع',
+                                departmentEn: 'Marketing & Branch Ops',
+                                budgetOrCostKwd: 0,
+                                expectedMonthlyReturnKwd: Math.max(150, Math.round(play.upsideMaxKwd)),
+                                href: '/erp/cores?tab=marketing',
+                              })
+                            }
+                            className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-amber-50 px-2.5 text-xs font-semibold text-amber-900 transition-colors duration-150 hover:bg-amber-100 dark:bg-amber-950/60 dark:text-amber-200"
+                          >
+                            <span>{isAr ? 'طلب موافقة 🔔' : 'Approve 🔔'}</span>
+                          </button>
+                        ) : null}
+                      </div>
 
                       <button
                         type="button"

@@ -20,11 +20,9 @@ import {
 import { ODOO } from '@/lib/odoo/odoo-dataset'
 import JOURNEY from '@/lib/odoo/odoo-journey.json'
 import RECEIPTS_PROOF from '@/lib/odoo/delivery-receipts-proof.json'
-import type { OdooBucketSummary } from '@/lib/odoo/live-sync-core'
+import type { OdooBucketSummary, OdooPeriodBucketKey } from '@/lib/odoo/live-sync-core'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
-import { DualBrainPagePanel } from '@/components/aether/DualBrainPagePanel'
 import { SlidingPillTabs } from '@/components/ui/SlidingPillTabs'
-import type { GlobalPeriod } from '@/lib/aether/global-filter-engine'
 import { useLang } from '@/components/aether/ui'
 
 const safeNum = (v: unknown, fb = 0): number =>
@@ -364,9 +362,11 @@ export function DeliveryRadarV5() {
 
   const allPeriodRows = useMemo(() => {
     const allowedBrandMap = new Map(VF_SIX_BRANDS.map((b) => [b.id, b]))
-    const rawBuckets = (ODOO as unknown as { buckets?: Partial<Record<GlobalPeriod, OdooBucketSummary>> }).buckets
+    const rawBuckets = (ODOO as unknown as { buckets?: Partial<Record<OdooPeriodBucketKey, OdooBucketSummary>> }).buckets
     const monthBkt = liveSummary?.buckets?.month ?? rawBuckets?.month
-    let activeBkt = liveSummary?.buckets?.[filters.period] ?? rawBuckets?.[filters.period]
+    const bucketKey: OdooPeriodBucketKey | undefined =
+      filters.period === 'custom' ? undefined : filters.period
+    let activeBkt = bucketKey ? (liveSummary?.buckets?.[bucketKey] ?? rawBuckets?.[bucketKey]) : undefined
     if (filters.period === 'today' && safeNum(activeBkt?.totals?.restaurantOrders) <= 0 && rawBuckets?.today) {
       activeBkt = rawBuckets.today
     }
@@ -961,15 +961,6 @@ export function DeliveryRadarV5() {
           </button>
         </div>
       </header>
-
-      {/* 1-Click Dual-Brain Delivery Radar Readout */}
-      <DualBrainPagePanel
-        pageTitleAr="مراقبة التوصيل"
-        pageTitleEn="Delivery Radar"
-        promptAr="راجع الحسابات المتوقفة فعلياً (بإثبات آخر فاتورة أودو) وفرص تعيين سائق TMP (15%) مقابل Tgo، وعطني خطة فورية."
-        promptEn="Audit verified stopped delivery accounts (with Odoo receipt proof) and TMP (15%) company-driver opportunities vs Tgo."
-        pageContext={`حسابات التوصيل (${summary.totalAccounts} سطر): متوقف فعلياً بإثبات فاتورة أودو 🔴 (${summary.stoppedCount}) | ضعيف 🟠 (${summary.stalledCount}) | شغال 🟢 (${summary.activeCount}) | توصيل Tgo فقط ⚪ (${summary.tgoOnlyCount}) | فرص تعيين سائق TMP 💡 (${summary.tmpOppCount}). مبيعات التوصيل: ${fmtAmount(summary.totalSalesKwd)} د.ك (${f0(summary.totalOrders)} طلب) | الصافي بعد العمولة: ${fmtAmount(summary.totalNetKwd)} د.ك | فروقات عمولة فعلية: ${fmtAmount(summary.totalVarianceKwd)} د.ك.`}
-      />
 
       {/* Non-App Channel Helper Banner */}
       {isNonAppChannelSelected ? (

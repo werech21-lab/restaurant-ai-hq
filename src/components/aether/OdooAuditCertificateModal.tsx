@@ -176,7 +176,8 @@ export function OdooAuditCertificatePill({ isAr }: { isAr: boolean }) {
   const handleRefreshAudit = useCallback(async () => {
     setRefreshing(true)
     try {
-      const res = await fetch(`/api/odoo-sync?period=${encodeURIComponent(filters.period)}`, {
+      const syncBucket = filters.period === 'custom' ? 'month' : filters.period
+      const res = await fetch(`/api/odoo-sync?period=${encodeURIComponent(syncBucket)}`, {
         cache: 'no-store',
         credentials: 'same-origin',
       })

@@ -23,7 +23,6 @@ import {
   type PlayKpi,
 } from '@/lib/full-journey-enterprise-brain'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
-import { DualBrainPagePanel } from '@/components/aether/DualBrainPagePanel'
 import {
   InteractiveDonutChart,
   InteractiveHoverBarChart,
@@ -367,9 +366,25 @@ export function FullJourney360() {
   }, [isAr, workspace.plays])
 
   const periodUnitAr =
-    filters.period === 'today' ? 'يومياً' : filters.period === 'week' ? 'أسبوعياً' : filters.period === 'year' ? 'سنوياً' : 'شهرياً'
+    filters.period === 'today'
+      ? 'يومياً'
+      : filters.period === 'week'
+        ? 'أسبوعياً'
+        : filters.period === 'year'
+          ? 'سنوياً'
+          : filters.period === 'custom'
+            ? 'خلال الفترة'
+            : 'شهرياً'
   const periodUnitEn =
-    filters.period === 'today' ? '/ day' : filters.period === 'week' ? '/ week' : filters.period === 'year' ? '/ year' : '/ month'
+    filters.period === 'today'
+      ? '/ day'
+      : filters.period === 'week'
+        ? '/ week'
+        : filters.period === 'year'
+          ? '/ year'
+          : filters.period === 'custom'
+            ? '/ period'
+            : '/ month'
 
   return (
     <div dir={isAr ? 'rtl' : 'ltr'} className="space-y-5 pb-12">
@@ -408,15 +423,6 @@ export function FullJourney360() {
           </button>
         </div>
       </header>
-
-      {/* 1-Click Dual-Brain Executive Analysis */}
-      <DualBrainPagePanel
-        pageTitleAr="ملخص الشركة"
-        pageTitleEn="Company Summary"
-        promptAr="حلّل أرقام ملخص الشركة وتوزيعة كل ١٠ دنانير وعطني أهم ٣ خطوات فورية لزيادة الصافي بالجيب الآن."
-        promptEn="Analyze our Company Summary and 10-KWD breakdown, and give me the top 3 immediate steps to grow net cash in pocket."
-        pageContext={`توزيعة كل 10 د.ك مبيعات: تكلفة الأكل ${f2(food10)} د.ك | عمولة التوصيل ${f2(delivery10)} د.ك | الإيجار والرواتب والمصاريف ${f2(opexRent10)} د.ك | الصافي بالجيب ${f2(netPocket10)} د.ك. إجمالي المبيعات: ${f0(workspace.salesKwd)} د.ك (${f0(workspace.orders)} طلب). التوصيات المتاحة: ${workspace.plays.length} توصية. القرارات المعتمدة: ${approvals.length}.`}
-      />
 
       {/* =====================================================================
           TAB 1: الأرقام المهمة (Finance V2 4 KPI Cards -> 8+4 Bento Split -> Summary Cards)

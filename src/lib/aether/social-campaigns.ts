@@ -20,7 +20,9 @@ export interface SocialCampaign {
   adType: SocialAdType
   campaignName: string
   spendKwd: number
-  date: string // YYYY-MM-DD
+  date: string // YYYY-MM-DD (campaign start date)
+  startDate?: string // YYYY-MM-DD
+  endDate?: string // YYYY-MM-DD
   promotedItem?: string
 }
 
@@ -32,6 +34,9 @@ export interface CampaignHaloEvaluation {
   brandEn: string
   adTypeAr: string
   adTypeEn: string
+  startDate: string
+  endDate: string
+  windowDays: number
   beforeRangeLabel: string
   afterRangeLabel: string
   before3dSalesKwd: number
@@ -74,6 +79,8 @@ export const SEEDED_SOCIAL_CAMPAIGNS: SocialCampaign[] = [
     campaignName: 'تغطية بلوقر مطاعم الكويت — داينمايت شرمب ونودلز',
     spendKwd: 350,
     date: '2026-10-29',
+    startDate: '2026-10-29',
+    endDate: '2026-10-31',
     promotedItem: 'Dynamite Shrimp & Chicken Noodles',
   },
   {
@@ -83,6 +90,8 @@ export const SEEDED_SOCIAL_CAMPAIGNS: SocialCampaign[] = [
     campaignName: 'فيديو تيك توك وريلز — فيلي ستيك على الصاج',
     spendKwd: 95,
     date: '2026-10-22',
+    startDate: '2026-10-22',
+    endDate: '2026-10-24',
     promotedItem: 'Orig. Philly CheeseSteak',
   },
   {
@@ -92,6 +101,8 @@ export const SEEDED_SOCIAL_CAMPAIGNS: SocialCampaign[] = [
     campaignName: 'إعلان سناب شات — وجبات كرسبي وساندويتشات',
     spendKwd: 75,
     date: '2026-11-04',
+    startDate: '2026-11-04',
+    endDate: '2026-11-06',
     promotedItem: 'Crispy Chicken Combo',
   },
   {
@@ -101,6 +112,8 @@ export const SEEDED_SOCIAL_CAMPAIGNS: SocialCampaign[] = [
     campaignName: 'إعلان نقرات ممول بدون حد أدنى للطلب',
     spendKwd: 190,
     date: '2026-11-01',
+    startDate: '2026-11-01',
+    endDate: '2026-11-03',
     promotedItem: 'Wok Noodles',
   },
 ]
@@ -157,10 +170,18 @@ function parseValidCampaignList(raw: unknown, excludeDemoIds: boolean): SocialCa
     const adType: SocialAdType =
       rec.adType && validTypes.has(rec.adType) ? (rec.adType as SocialAdType) : 'instagram'
     const spend = Math.max(0, safeNum(Number(rec.spendKwd), 0))
-    const date =
-      typeof rec.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rec.date)
-        ? rec.date
-        : '2026-11-05'
+    const rawStart =
+      typeof rec.startDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rec.startDate)
+        ? rec.startDate
+        : typeof rec.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rec.date)
+          ? rec.date
+          : '2026-11-05'
+    const rawEnd =
+      typeof rec.endDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rec.endDate)
+        ? rec.endDate
+        : shiftIsoDate(rawStart, 2)
+    const startDate = rawStart <= rawEnd ? rawStart : rawEnd
+    const endDate = rawStart <= rawEnd ? rawEnd : rawStart
     out.push({
       id,
       brand: rec.brand as Exclude<GlobalBrand, 'all'>,
@@ -170,7 +191,9 @@ function parseValidCampaignList(raw: unknown, excludeDemoIds: boolean): SocialCa
           ? rec.campaignName.trim()
           : 'حملة سوشيال',
       spendKwd: spend,
-      date,
+      date: startDate,
+      startDate,
+      endDate,
       promotedItem: typeof rec.promotedItem === 'string' ? rec.promotedItem.trim() : '',
     })
   }
@@ -263,8 +286,32 @@ export function evaluateCampaignOdooHalo(
     sliceShare *= activeChannel === 'dine-in' ? chRatio * 0.85 : activeChannel === 'takeaway-direct' ? Math.max(0.05, chRatio * 0.15) : chRatio
   }
 
-  const beforeDates = [shiftIsoDate(campaign.date, -3), shiftIsoDate(campaign.date, -2), shiftIsoDate(campaign.date, -1)]
-  const afterDates = [campaign.date, shiftIsoDate(campaign.date, 1), shiftIsoDate(campaign.date, 2)]
+  const startIso =
+    campaign.startDate && /^\d{4}-\d{2}-\d{2}$/.test(campaign.startDate)
+      ? campaign.startDate
+      : campaign.date
+  const rawEndIso =
+    campaign.endDate && /^\d{4}-\d{2}-\d{2}$/.test(campaign.endDate)
+      ? campaign.endDate
+      : shiftIsoDate(startIso, 2)
+  const effectiveStart = startIso <= rawEndIso ? startIso : rawEndIso
+  const effectiveEnd = startIso <= rawEndIso ? rawEndIso : startIso
+  const rawSpanDays =
+    Math.round(
+      (new Date(`${effectiveEnd}T00:00:00Z`).getTime() -
+        new Date(`${effectiveStart}T00:00:00Z`).getTime()) /
+        86_400_000,
+    ) + 1
+  const windowDays = Math.max(1, Math.min(60, Number.isFinite(rawSpanDays) ? rawSpanDays : 3))
+
+  const beforeDates: string[] = []
+  const afterDates: string[] = []
+  for (let i = windowDays; i >= 1; i--) {
+    beforeDates.push(shiftIsoDate(effectiveStart, -i))
+  }
+  for (let i = 0; i < windowDays; i++) {
+    afterDates.push(shiftIsoDate(effectiveStart, i))
+  }
 
   let before3dSalesKwd = 0
   let after3dSalesKwd = 0
@@ -323,8 +370,11 @@ export function evaluateCampaignOdooHalo(
     brandEn: getBrandLabel(campaign.brand, false),
     adTypeAr: adOpt.ar,
     adTypeEn: adOpt.en,
-    beforeRangeLabel: `${beforeDates[0].slice(5)} → ${beforeDates[2].slice(5)}`,
-    afterRangeLabel: `${afterDates[0].slice(5)} → ${afterDates[2].slice(5)}`,
+    startDate: effectiveStart,
+    endDate: afterDates[afterDates.length - 1] ?? effectiveEnd,
+    windowDays,
+    beforeRangeLabel: `${beforeDates[0].slice(5)} → ${beforeDates[beforeDates.length - 1].slice(5)}`,
+    afterRangeLabel: `${afterDates[0].slice(5)} → ${afterDates[afterDates.length - 1].slice(5)}`,
     before3dSalesKwd,
     after3dSalesKwd,
     before3dOrders,

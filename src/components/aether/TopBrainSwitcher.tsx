@@ -34,8 +34,18 @@ export const BRAIN_BAR_ROUTES = new Set([
   '/erp/cores',
   '/erp/before-after',
   '/erp/feryal-ai',
+  '/erp/feryal',
   '/erp/aggregator-radar',
   '/erp/events-intelligence',
+  '/erp/booth-feasibility',
+  '/erp/planning',
+  '/erp/regulations',
+])
+
+/** Full AI model switcher controls appear ONLY inside Ask Feryal pages. */
+export const AI_SWITCHER_ROUTES = new Set([
+  '/erp/feryal-ai',
+  '/erp/feryal',
 ])
 
 const MODE_OPTIONS: readonly {
@@ -240,6 +250,10 @@ export function BrainControlsInline() {
         : mode === 'gemini'
           ? `⚡ ${geminiModelId}`
           : `${claudeModelId} · 🧠 ${grokModelId} · ⚡ ${geminiModelId}`
+
+  if (!pathname || !AI_SWITCHER_ROUTES.has(pathname)) {
+    return null
+  }
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">
@@ -635,7 +649,7 @@ export function TopBrainSwitcher() {
   const pathname = usePathname()
   const { locale } = useI18n()
   const isAr = locale === 'ar'
-  if (!pathname || !BRAIN_BAR_ROUTES.has(pathname)) return null
+  if (!pathname || !AI_SWITCHER_ROUTES.has(pathname)) return null
 
   return (
     <section

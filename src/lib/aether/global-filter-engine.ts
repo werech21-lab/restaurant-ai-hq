@@ -29,9 +29,13 @@ import {
   scaleCfoTiers,
   type CfoRealismProfile,
 } from '@/lib/odoo-cfo-realism'
-import type { OdooBucketSummary, OdooLiveSummary } from '@/lib/odoo/live-sync-core'
+import type {
+  OdooBucketSummary,
+  OdooLiveSummary,
+  OdooPeriodBucketKey,
+} from '@/lib/odoo/live-sync-core'
 
-export type GlobalPeriod = 'today' | 'week' | 'month' | 'year'
+export type GlobalPeriod = 'today' | 'week' | 'month' | 'year' | 'custom'
 
 export type KuwaitSlice = 'all' | 'payday' | 'mid-month' | 'weekend' | 'quiet-hours'
 
@@ -76,6 +80,8 @@ export type GlobalChannel =
 
 export interface GlobalFilters {
   period: GlobalPeriod
+  customFrom?: string
+  customTo?: string
   kuwaitSlice?: KuwaitSlice
   brand: GlobalBrand
   branch: GlobalBranch
@@ -83,8 +89,13 @@ export interface GlobalFilters {
   lens?: ProfitLens
 }
 
+export const DEFAULT_CUSTOM_FROM = '2026-10-15'
+export const DEFAULT_CUSTOM_TO = '2026-11-11'
+
 export const DEFAULT_GLOBAL_FILTERS: Required<GlobalFilters> = {
   period: 'month',
+  customFrom: DEFAULT_CUSTOM_FROM,
+  customTo: DEFAULT_CUSTOM_TO,
   kuwaitSlice: 'all',
   brand: 'all',
   branch: 'all',
@@ -109,6 +120,7 @@ export const GLOBAL_PERIOD_OPTIONS: readonly FilterOption<GlobalPeriod>[] = [
   { id: 'week', ar: 'الأسبوع', en: 'Week' },
   { id: 'month', ar: 'الشهر', en: 'Month' },
   { id: 'year', ar: 'السنة', en: 'Year' },
+  { id: 'custom', ar: 'مخصص 📅', en: 'Custom 📅' },
 ] as const
 
 export const GLOBAL_KUWAIT_SLICE_OPTIONS: readonly FilterOption<KuwaitSlice>[] = [
@@ -259,7 +271,11 @@ export function getChannelLabel(c: GlobalChannel, isAr: boolean): string {
 export function buildFilterSubtitle(f: GlobalFilters, isAr: boolean): string {
   const parts = [getBrandLabel(f.brand, isAr), getBranchLabel(f.branch, isAr)]
   if (f.channel !== 'all') parts.push(getChannelLabel(f.channel, isAr))
-  parts.push(getPeriodLabel(f.period, isAr))
+  if (f.period === 'custom' && f.customFrom && f.customTo) {
+    parts.push(`${f.customFrom} → ${f.customTo}`)
+  } else {
+    parts.push(getPeriodLabel(f.period, isAr))
+  }
   const ks = f.kuwaitSlice ?? 'all'
   if (ks !== 'all') parts.push(getKuwaitSliceLabel(ks, isAr))
   const ln = f.lens ?? 'all'
@@ -323,7 +339,7 @@ const CUBE30: Cube30Data = (() => {
     cell[k] = (cell[k] ?? 0) + val
   }
 
-  const rawBuckets = (ODOO as unknown as { buckets?: Partial<Record<GlobalPeriod, OdooBucketSummary>> }).buckets
+  const rawBuckets = (ODOO as unknown as { buckets?: Partial<Record<OdooPeriodBucketKey, OdooBucketSummary>> }).buckets
   const monthBkt = rawBuckets?.month
 
   // Hall vs Direct-Shop ratio per restaurant branch in 30d
@@ -911,12 +927,91 @@ export interface GlobalWorkspaceSlice {
   feryalContextEn: string
 }
 
+function normalizeIsoRange(
+  fromRaw?: string,
+  toRaw?: string,
+): { from: string; to: string; days: number } {
+  const isoRe = /^\d{4}-\d{2}-\d{2}$/
+  let f = fromRaw && isoRe.test(fromRaw) ? fromRaw : DEFAULT_CUSTOM_FROM
+  let t = toRaw && isoRe.test(toRaw) ? toRaw : DEFAULT_CUSTOM_TO
+  if (f > t) {
+    const tmp = f
+    f = t
+    t = tmp
+  }
+  const msFrom = Date.parse(`${f}T00:00:00Z`)
+  const msTo = Date.parse(`${t}T00:00:00Z`)
+  const rawDays =
+    Number.isFinite(msFrom) && Number.isFinite(msTo)
+      ? Math.round((msTo - msFrom) / 86_400_000) + 1
+      : 30
+  return { from: f, to: t, days: Math.min(730, Math.max(1, rawDays)) }
+}
+
+function computeCustomRangeOdooTotals(
+  from: string,
+  to: string,
+  days: number,
+  monthGroupSales: number,
+  monthGroupOrders: number,
+): { salesKwd: number; orders: number } {
+  const fullDays = (ODOO.timeProfile?.daily ?? []).filter((d) => d.orders >= 150)
+  const dayMap = new Map<string, (typeof fullDays)[number]>(fullDays.map((d) => [d.day, d]))
+  const avgDailyNet = monthGroupSales / 30
+  const avgDailyOrd = monthGroupOrders / 30
+
+  if (days <= 62 && fullDays.length > 0) {
+    const weekdayBuckets: Record<number, { net: number; ord: number; n: number }> = {}
+    for (const d of fullDays) {
+      const dow = new Date(`${d.day}T12:00:00Z`).getUTCDay()
+      weekdayBuckets[dow] ??= { net: 0, ord: 0, n: 0 }
+      weekdayBuckets[dow].net += d.netKwd
+      weekdayBuckets[dow].ord += d.orders
+      weekdayBuckets[dow].n += 1
+    }
+    let sumNet = 0
+    let sumOrd = 0
+    const startMs = Date.parse(`${from}T12:00:00Z`)
+    for (let i = 0; i < days; i++) {
+      const dt = new Date(startMs + i * 86_400_000)
+      const iso = dt.toISOString().slice(0, 10)
+      const hit = dayMap.get(iso)
+      if (hit) {
+        sumNet += hit.netKwd
+        sumOrd += hit.orders
+      } else {
+        const wb = weekdayBuckets[dt.getUTCDay()]
+        if (wb && wb.n > 0) {
+          sumNet += wb.net / wb.n
+          sumOrd += wb.ord / wb.n
+        } else {
+          sumNet += avgDailyNet
+          sumOrd += avgDailyOrd
+        }
+      }
+    }
+    return {
+      salesKwd: Math.round(sumNet * 1000) / 1000,
+      orders: Math.max(1, Math.round(sumOrd)),
+    }
+  }
+
+  const ratio = days / 30
+  return {
+    salesKwd: Math.round(monthGroupSales * ratio * 1000) / 1000,
+    orders: Math.max(1, Math.round(monthGroupOrders * ratio)),
+  }
+}
+
 export function computeGlobalWorkspace(
   rawFilters: GlobalFilters,
   liveSummary?: OdooLiveSummary | null,
 ): GlobalWorkspaceSlice {
+  const customNorm = normalizeIsoRange(rawFilters.customFrom, rawFilters.customTo)
   const filters: Required<GlobalFilters> = {
     period: rawFilters.period ?? 'month',
+    customFrom: customNorm.from,
+    customTo: customNorm.to,
     kuwaitSlice: rawFilters.kuwaitSlice ?? 'all',
     brand: rawFilters.brand ?? 'all',
     branch: rawFilters.branch ?? 'all',
@@ -924,11 +1019,13 @@ export function computeGlobalWorkspace(
     lens: rawFilters.lens ?? 'all',
   }
 
-  const rawBuckets = (ODOO as unknown as { buckets?: Partial<Record<GlobalPeriod, OdooBucketSummary>> }).buckets
+  const rawBuckets = (ODOO as unknown as { buckets?: Partial<Record<OdooPeriodBucketKey, OdooBucketSummary>> }).buckets
   const monthBkt = liveSummary?.buckets?.month ?? rawBuckets?.month
 
   // Automatic fallback to last completed POS operating day if early-morning `today` receipts === 0
-  let activeBkt = liveSummary?.buckets?.[filters.period] ?? rawBuckets?.[filters.period]
+  const bucketKey: OdooPeriodBucketKey | undefined =
+    filters.period === 'custom' ? undefined : filters.period
+  let activeBkt = bucketKey ? (liveSummary?.buckets?.[bucketKey] ?? rawBuckets?.[bucketKey]) : undefined
   let isTodayFallback = false
   let todayFallbackDate: string | null = null
 
@@ -954,7 +1051,24 @@ export function computeGlobalWorkspace(
   const monthGroupSales = safeNum(monthBkt?.totals.restaurantNetKwd, CUBE30.totalNet30)
   const monthGroupOrders = safeNum(monthBkt?.totals.restaurantOrders, CUBE30.totalOrders30)
 
-  const defaultDays: Record<GlobalPeriod, number> = { today: 1, week: 7, month: 30, year: 315 }
+  const customTotals =
+    filters.period === 'custom'
+      ? computeCustomRangeOdooTotals(
+          filters.customFrom,
+          filters.customTo,
+          customNorm.days,
+          monthGroupSales,
+          monthGroupOrders,
+        )
+      : null
+
+  const defaultDays: Record<GlobalPeriod, number> = {
+    today: 1,
+    week: 7,
+    month: 30,
+    year: 315,
+    custom: customNorm.days,
+  }
   let periodDays = safeNum(activeBkt?.days, defaultDays[filters.period])
 
   const fallbackPeriodRatio: Record<GlobalPeriod, number> = {
@@ -962,21 +1076,28 @@ export function computeGlobalWorkspace(
     week: 7 / 30,
     month: 1,
     year: 10.9,
+    custom: customTotals
+      ? safeDiv(customTotals.salesKwd, monthGroupSales, customNorm.days / 30)
+      : customNorm.days / 30,
   }
 
   const basePeriodSales =
-    activeBkt && safeNum(activeBkt.totals.restaurantNetKwd) > 0
-      ? safeNum(activeBkt.totals.restaurantNetKwd)
-      : filters.period === 'today'
-        ? KUWAIT_SLICE_PROFILE.lastCompletedDay.netKwd
-        : monthGroupSales * fallbackPeriodRatio[filters.period]
+    filters.period === 'custom' && customTotals
+      ? customTotals.salesKwd
+      : activeBkt && safeNum(activeBkt.totals.restaurantNetKwd) > 0
+        ? safeNum(activeBkt.totals.restaurantNetKwd)
+        : filters.period === 'today'
+          ? KUWAIT_SLICE_PROFILE.lastCompletedDay.netKwd
+          : monthGroupSales * fallbackPeriodRatio[filters.period]
 
   const basePeriodOrders =
-    activeBkt && safeNum(activeBkt.totals.restaurantOrders) > 0
-      ? safeNum(activeBkt.totals.restaurantOrders)
-      : filters.period === 'today'
-        ? KUWAIT_SLICE_PROFILE.lastCompletedDay.orders
-        : Math.round(monthGroupOrders * fallbackPeriodRatio[filters.period])
+    filters.period === 'custom' && customTotals
+      ? customTotals.orders
+      : activeBkt && safeNum(activeBkt.totals.restaurantOrders) > 0
+        ? safeNum(activeBkt.totals.restaurantOrders)
+        : filters.period === 'today'
+          ? KUWAIT_SLICE_PROFILE.lastCompletedDay.orders
+          : Math.round(monthGroupOrders * fallbackPeriodRatio[filters.period])
 
   // Apply Kuwait Slice multiplier from live ODOO.timeProfile
   let sliceNetMult = 1
@@ -1340,12 +1461,14 @@ export function computeGlobalWorkspace(
     week: 'أسبوعياً',
     month: 'شهرياً',
     year: 'سنوياً',
+    custom: 'خلال الفترة',
   }
   const periodBenefitUnitEn: Record<GlobalPeriod, string> = {
     today: '/ day',
     week: '/ week',
     month: '/ month',
     year: '/ year',
+    custom: '/ period',
   }
 
   const dimFactorForPlay =
@@ -1392,7 +1515,9 @@ export function computeGlobalWorkspace(
           ? 7 / 30
           : filters.period === 'today'
             ? 1 / 30
-            : 1
+            : filters.period === 'custom'
+              ? periodDays / 30
+              : 1
     const tiersPeriod = scaleCfoTiers(cfoRealism.monthlyTiers, scopeFactor * pMult)
     const periodBenefitKwd = Math.max(0.5, Math.round(tiersPeriod.realisticKwd * 10) / 10)
     return {
@@ -1594,12 +1719,18 @@ export function computeGlobalWorkspace(
     },
   ]
 
-  const periodRangeLabelAr = activeBkt
-    ? `${activeBkt.from} → ${activeBkt.to}${isTodayFallback ? ' (آخر يوم عمل مكتمل)' : ''}`
-    : getPeriodLabel(filters.period, true)
-  const periodRangeLabelEn = activeBkt
-    ? `${activeBkt.from} → ${activeBkt.to}${isTodayFallback ? ' (last full POS day)' : ''}`
-    : getPeriodLabel(filters.period, false)
+  const periodRangeLabelAr =
+    filters.period === 'custom'
+      ? `${filters.customFrom} → ${filters.customTo} (${periodDays} يوم)`
+      : activeBkt
+        ? `${activeBkt.from} → ${activeBkt.to}${isTodayFallback ? ' (آخر يوم عمل مكتمل)' : ''}`
+        : getPeriodLabel(filters.period, true)
+  const periodRangeLabelEn =
+    filters.period === 'custom'
+      ? `${filters.customFrom} → ${filters.customTo} (${periodDays}d)`
+      : activeBkt
+        ? `${activeBkt.from} → ${activeBkt.to}${isTodayFallback ? ' (last full POS day)' : ''}`
+        : getPeriodLabel(filters.period, false)
 
   const subtitleAr = buildFilterSubtitle(filters, true)
   const subtitleEn = buildFilterSubtitle(filters, false)

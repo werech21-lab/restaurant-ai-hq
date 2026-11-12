@@ -469,11 +469,23 @@ export function computeBeforeAfterSnapshot(
         pocketRatioAfter,
       )
     })
-  } else if (filters.period === 'month') {
-    beforeLabelAr = 'الشهر السابق (٣٠ يوم سابقة)'
-    beforeLabelEn = 'Previous 30 Days'
-    afterLabelAr = 'الشهر الحالي (آخر ٣٠ يوم)'
-    afterLabelEn = 'Current 30 Days'
+  } else if (filters.period === 'month' || filters.period === 'custom') {
+    beforeLabelAr =
+      filters.period === 'custom'
+        ? `الفترة المقابلة السابقة (${ws.periodDays} يوم)`
+        : 'الشهر السابق (٣٠ يوم سابقة)'
+    beforeLabelEn =
+      filters.period === 'custom'
+        ? `Prior Comparable Range (${ws.periodDays}d)`
+        : 'Previous 30 Days'
+    afterLabelAr =
+      filters.period === 'custom'
+        ? `الفترة المخصصة (${filters.customFrom ?? ''} → ${filters.customTo ?? ''})`
+        : 'الشهر الحالي (آخر ٣٠ يوم)'
+    afterLabelEn =
+      filters.period === 'custom'
+        ? `Custom Range (${filters.customFrom ?? ''} → ${filters.customTo ?? ''})`
+        : 'Current 30 Days'
 
     totalAfterSales = ws.salesKwd
     totalBeforeSales = round1(safeDiv(totalAfterSales, baseAfterToBeforeRatio, totalAfterSales * 0.9))

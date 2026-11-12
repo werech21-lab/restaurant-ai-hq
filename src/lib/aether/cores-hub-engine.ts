@@ -619,7 +619,9 @@ export function computeCoresHubSnapshot(
         ? 30 / 7
         : filters.period === 'year'
           ? 1 / 12
-          : 1
+          : filters.period === 'custom'
+            ? 30 / Math.max(1, ws.periodDays)
+            : 1
 
   // Scale & reconcile 30d brand menu to active filter (0.000 KWD gap vs ws.salesKwd when menu present)
   const rawMenuSum30 = rawMenu.reduce((s, m) => s + m.netKwd, 0) || 1
@@ -787,7 +789,9 @@ export function computeCoresHubSnapshot(
         ? 7 / 30
         : filters.period === 'year'
           ? 12
-          : 1
+          : filters.period === 'custom'
+            ? Math.max(1, ws.periodDays) / 30
+            : 1
   const optimizationUpsideKwd = Math.max(
     5,
     Math.round(
@@ -909,28 +913,52 @@ export function computeCoresHubSnapshot(
       ws.salesKwd,
       ws.orders,
     )
-  } else if (filters.period === 'month') {
-    const recent14 = fullDays.slice(-14)
-    const sum30 = fullDays.reduce((s, d) => s + d.netKwd, 0) || 1
-    const sum30Ord = fullDays.reduce((s, d) => s + d.orders, 0) || 1
-    timeline = recent14.map((d) => {
-      const dow = new Date(`${d.day}T12:00:00Z`).getUTCDay()
-      const sKwd = round1(ws.salesKwd * (d.netKwd / sum30))
-      const ord = Math.max(0, Math.round(ws.orders * (d.orders / sum30Ord)))
-      return {
-        id: d.day,
-        labelAr: d.day.slice(5),
-        labelEn: d.day.slice(5),
-        tooltipTitleAr: `تاريخ ${d.day}`,
-        tooltipTitleEn: `Date ${d.day}`,
-        salesKwd: sKwd,
-        displaySalesKwd: Math.round(sKwd),
-        orders: ord,
-        aovKwd: ord > 0 ? round2(sKwd / ord) : ws.aovKwd,
-        sharePct: ws.salesKwd > 0 ? round1((sKwd / ws.salesKwd) * 100) : 0,
-        color: dow === 4 || dow === 5 ? '#10B981' : '#38BDF8',
-      }
-    })
+  } else if (filters.period === 'month' || filters.period === 'custom') {
+    const customMatching =
+      filters.period === 'custom' && filters.customFrom && filters.customTo
+        ? fullDays.filter((d) => d.day >= filters.customFrom! && d.day <= filters.customTo!)
+        : []
+    const baseSlice = customMatching.length >= 2 ? customMatching.slice(-14) : fullDays.slice(-14)
+    if (filters.period === 'custom') {
+      timeline = reconcileSalesRows(
+        baseSlice.map((d) => {
+          const dow = new Date(`${d.day}T12:00:00Z`).getUTCDay()
+          return {
+            id: d.day,
+            labelAr: d.day.slice(5),
+            labelEn: d.day.slice(5),
+            tooltipTitleAr: `تاريخ ${d.day}`,
+            tooltipTitleEn: `Date ${d.day}`,
+            rawSales: safeNum(d.netKwd, 1),
+            rawOrders: safeNum(d.orders, 1),
+            color: dow === 4 || dow === 5 ? '#10B981' : '#38BDF8',
+          }
+        }),
+        ws.salesKwd,
+        ws.orders,
+      )
+    } else {
+      const sum30 = fullDays.reduce((s, d) => s + d.netKwd, 0) || 1
+      const sum30Ord = fullDays.reduce((s, d) => s + d.orders, 0) || 1
+      timeline = baseSlice.map((d) => {
+        const dow = new Date(`${d.day}T12:00:00Z`).getUTCDay()
+        const sKwd = round1(ws.salesKwd * (d.netKwd / sum30))
+        const ord = Math.max(0, Math.round(ws.orders * (d.orders / sum30Ord)))
+        return {
+          id: d.day,
+          labelAr: d.day.slice(5),
+          labelEn: d.day.slice(5),
+          tooltipTitleAr: `تاريخ ${d.day}`,
+          tooltipTitleEn: `Date ${d.day}`,
+          salesKwd: sKwd,
+          displaySalesKwd: Math.round(sKwd),
+          orders: ord,
+          aovKwd: ord > 0 ? round2(sKwd / ord) : ws.aovKwd,
+          sharePct: ws.salesKwd > 0 ? round1((sKwd / ws.salesKwd) * 100) : 0,
+          color: dow === 4 || dow === 5 ? '#10B981' : '#38BDF8',
+        }
+      })
+    }
   } else {
     const months = [
       { id: 'm1', ar: 'يناير', en: 'Jan', w: 0.088 },
@@ -1132,7 +1160,15 @@ export function computeCoresHubSnapshot(
   const baseDiscounts30 = safeNum(ODOO.totals.discountsKwd, 4420)
   const scaledPosDiscounts = round1(baseDiscounts30 * ws.totalScale)
   const periodAdFactor =
-    filters.period === 'today' ? 1 / 30 : filters.period === 'week' ? 7 / 30 : filters.period === 'year' ? 10 : 1
+    filters.period === 'today'
+      ? 1 / 30
+      : filters.period === 'week'
+        ? 7 / 30
+        : filters.period === 'year'
+          ? 10
+          : filters.period === 'custom'
+            ? Math.max(1, ws.periodDays) / 30
+            : 1
   const externalAdSpendSlice = round1(
     loggedAdSpend * periodAdFactor * (filters.branch === 'all' ? 1 : Math.max(0.12, ws.dimensionShare)),
   )
@@ -1238,7 +1274,9 @@ export function computeCoresHubSnapshot(
         ? 'أسبوعياً'
         : filters.period === 'year'
           ? 'سنوياً'
-          : 'شهرياً'
+          : filters.period === 'custom'
+            ? 'خلال الفترة'
+            : 'شهرياً'
   const periodUnitEn =
     filters.period === 'today'
       ? '/ day'
@@ -1246,7 +1284,9 @@ export function computeCoresHubSnapshot(
         ? '/ wk'
         : filters.period === 'year'
           ? '/ yr'
-          : '/ mo'
+          : filters.period === 'custom'
+            ? '/ period'
+            : '/ mo'
 
   const activeBrandAr = filters.brand === 'all' ? 'المطاعم الـ ٦' : getBrandLabel(filters.brand, true)
   const activeBrandEn = filters.brand === 'all' ? 'All 6 Brands' : getBrandLabel(filters.brand, false)

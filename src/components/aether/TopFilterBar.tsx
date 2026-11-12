@@ -16,12 +16,25 @@ import {
   type ProfitLens,
 } from '@/lib/aether/global-filter-engine'
 
-/** Routes that display the 5D POS & ledger filters + 7 Profit Lenses. */
+/** Routes that display the 5D POS & ledger filters (Period incl. Custom + Brand/Branch/Channel). */
 const POS_FILTER_ROUTES = new Set([
   '/erp',
   '/erp/cores',
   '/erp/before-after',
   '/erp/feryal-ai',
+  '/erp/feryal',
+  '/erp/aggregator-radar',
+  '/erp/planning',
+  '/erp/regulations',
+])
+
+/** Routes that also show Row 2 (7 Profit Lenses + Peer Diagnostic Strip). */
+const PROFIT_LENS_ROUTES = new Set([
+  '/erp',
+  '/erp/cores',
+  '/erp/before-after',
+  '/erp/feryal-ai',
+  '/erp/feryal',
   '/erp/aggregator-radar',
 ])
 
@@ -168,6 +181,7 @@ export function TopFilterBar() {
     filters,
     workspace,
     setPeriod,
+    setCustomRange,
     setKuwaitSlice,
     setBrand,
     setBranch,
@@ -178,6 +192,13 @@ export function TopFilterBar() {
   } = useGlobalFilter()
 
   const [sharedCopied, setSharedCopied] = useState(false)
+  const [draftFrom, setDraftFrom] = useState(filters.customFrom)
+  const [draftTo, setDraftTo] = useState(filters.customTo)
+
+  useEffect(() => {
+    setDraftFrom(filters.customFrom)
+    setDraftTo(filters.customTo)
+  }, [filters.customFrom, filters.customTo])
 
   const copyShareDeepLink = useCallback(async () => {
     if (!pathname) return
@@ -194,6 +215,7 @@ export function TopFilterBar() {
   if (!pathname || !BRAIN_BAR_ROUTES.has(pathname)) return null
 
   const showPosFilters = POS_FILTER_ROUTES.has(pathname)
+  const showProfitLenses = PROFIT_LENS_ROUTES.has(pathname)
   const diag = workspace.diagnosticStrip
   const diagPillTone =
     diag.tone === 'emerald'
@@ -224,6 +246,38 @@ export function TopFilterBar() {
                   label: isAr ? p.ar : p.en,
                 }))}
               />
+
+              {filters.period === 'custom' ? (
+                <div className="inline-flex flex-wrap items-center gap-1.5 rounded-full bg-white px-2.5 py-1 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-[#111A22] dark:ring-1 dark:ring-white/[0.08]">
+                  <label className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-slate-500 dark:text-slate-300">
+                    <span>{isAr ? 'من تاريخ' : 'Start Date'}</span>
+                    <input
+                      type="date"
+                      dir="ltr"
+                      value={draftFrom}
+                      onChange={(e) => setDraftFrom(e.target.value)}
+                      className="h-7 rounded-full bg-[#F7F7F8] px-2.5 text-[11.5px] font-bold tabular-nums text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500/40 dark:bg-[#090F15] dark:text-white"
+                    />
+                  </label>
+                  <label className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-slate-500 dark:text-slate-300">
+                    <span>{isAr ? 'إلى تاريخ' : 'End Date'}</span>
+                    <input
+                      type="date"
+                      dir="ltr"
+                      value={draftTo}
+                      onChange={(e) => setDraftTo(e.target.value)}
+                      className="h-7 rounded-full bg-[#F7F7F8] px-2.5 text-[11.5px] font-bold tabular-nums text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500/40 dark:bg-[#090F15] dark:text-white"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setCustomRange(draftFrom, draftTo)}
+                    className="ae-btn-primary inline-flex h-7 cursor-pointer items-center rounded-full px-3 text-[11.5px] font-bold transition-all duration-150 active:scale-95"
+                  >
+                    {isAr ? 'تطبيق' : 'Apply'}
+                  </button>
+                </div>
+              ) : null}
 
               {filters.period === 'today' && workspace.isTodayFallback ? (
                 <span
@@ -340,7 +394,7 @@ export function TopFilterBar() {
       </div>
 
       {/* Row 2 (POS & Ledger Pages): Verdelo Sliding 7 Profit Lenses + 1-Line Peer Benchmark & Root-Cause Strip */}
-      {showPosFilters ? (
+      {showProfitLenses ? (
         <div className="space-y-1">
           <div className="overflow-x-auto pb-0.5">
             <SlidingPillTabs<ProfitLens>

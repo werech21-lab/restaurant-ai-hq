@@ -13,7 +13,6 @@ import {
   Wallet,
 } from 'lucide-react'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
-import { DualBrainPagePanel } from '@/components/aether/DualBrainPagePanel'
 import {
   BeforeAfterDualBarChart,
   InteractiveDonutChart,
@@ -490,15 +489,6 @@ export function BeforeAfterStudio() {
           </button>
         </div>
       </header>
-
-      {/* 1-Click Dual-Brain Before & After Verdict */}
-      <DualBrainPagePanel
-        pageTitleAr="مقارنة قبل وبعد"
-        pageTitleEn="Before & After"
-        promptAr="حلّل فروقات (قبل وبعد) الظاهرة أمامي في المبيعات والصافي بالجيب والطلبات، وقل لي شنو سبب التغير وكيف نضاعف الربح في الفترة القادمة."
-        promptEn="Analyze these Before vs After deltas across Sales, Net Pocket, and Orders, explain what drove the shift, and give 3 actions to compound gains next period."
-        pageContext={`المقارنة النشطة: (${snap.beforeLabelAr}) مقابل (${snap.afterLabelAr}). المبيعات: قبل ${f0(snap.summary.sales.before)} د.ك ← بعد ${f0(snap.summary.sales.after)} د.ك (${fmtSignedPct(snap.summary.sales.pct)}). الصافي بالجيب: قبل ${f0(snap.summary.pocket.before)} د.ك ← بعد ${f0(snap.summary.pocket.after)} د.ك (${fmtSignedPct(snap.summary.pocket.pct)}). الطلبات: قبل ${f0(snap.summary.orders.before)} ← بعد ${f0(snap.summary.orders.after)} (${fmtSignedPct(snap.summary.orders.pct)}). متوسط الفاتورة: قبل ${f2(snap.summary.aov.before)} د.ك ← بعد ${f2(snap.summary.aov.after)} د.ك.`}
-      />
 
       {/* Top Row: 4 Before-vs-After KPI Cards (tabular-nums + + / - KWD & % pills) */}
       <section className="ae-stagger grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">

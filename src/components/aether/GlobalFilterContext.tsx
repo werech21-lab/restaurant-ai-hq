@@ -8,6 +8,8 @@ import {
   APPROVED_KUWAIT_SLICES,
   APPROVED_PROFIT_LENSES,
   computeGlobalWorkspace,
+  DEFAULT_CUSTOM_FROM,
+  DEFAULT_CUSTOM_TO,
   DEFAULT_GLOBAL_FILTERS,
   isBrandBranchCompatible,
   type GlobalBranch,
@@ -28,6 +30,7 @@ interface GlobalFilterContextValue {
   workspace: GlobalWorkspaceSlice
   liveSummary: OdooLiveSummary | null
   setPeriod: (period: GlobalPeriod) => void
+  setCustomRange: (from: string, to: string) => void
   setKuwaitSlice: (slice: KuwaitSlice) => void
   setBrand: (brand: GlobalBrand) => void
   setBranch: (branch: GlobalBranch) => void
@@ -42,9 +45,21 @@ const GlobalFilterContext = createContext<GlobalFilterContextValue | null>(null)
 function sanitizeFilters(raw: Partial<GlobalFilters> | null | undefined): Required<GlobalFilters> {
   if (!raw) return DEFAULT_GLOBAL_FILTERS
   const period: GlobalPeriod =
-    raw.period === 'today' || raw.period === 'week' || raw.period === 'month' || raw.period === 'year'
+    raw.period === 'today' ||
+    raw.period === 'week' ||
+    raw.period === 'month' ||
+    raw.period === 'year' ||
+    raw.period === 'custom'
       ? raw.period
       : 'month'
+  const isoRe = /^\d{4}-\d{2}-\d{2}$/
+  let customFrom = raw.customFrom && isoRe.test(raw.customFrom) ? raw.customFrom : DEFAULT_CUSTOM_FROM
+  let customTo = raw.customTo && isoRe.test(raw.customTo) ? raw.customTo : DEFAULT_CUSTOM_TO
+  if (customFrom > customTo) {
+    const tmp = customFrom
+    customFrom = customTo
+    customTo = tmp
+  }
   const kuwaitSlice: KuwaitSlice =
     raw.kuwaitSlice && (APPROVED_KUWAIT_SLICES as readonly string[]).includes(raw.kuwaitSlice)
       ? (raw.kuwaitSlice as KuwaitSlice)
@@ -68,7 +83,7 @@ function sanitizeFilters(raw: Partial<GlobalFilters> | null | undefined): Requir
     raw.lens && (APPROVED_PROFIT_LENSES as readonly string[]).includes(raw.lens)
       ? (raw.lens as ProfitLens)
       : 'all'
-  return { period, kuwaitSlice, brand, branch, channel, lens }
+  return { period, customFrom, customTo, kuwaitSlice, brand, branch, channel, lens }
 }
 
 export function GlobalFilterProvider({ children }: { children: React.ReactNode }) {
@@ -82,6 +97,8 @@ export function GlobalFilterProvider({ children }: { children: React.ReactNode }
       const sp = new URLSearchParams(window.location.search)
       const hasUrl =
         sp.has('period') ||
+        sp.has('from') ||
+        sp.has('to') ||
         sp.has('slice') ||
         sp.has('brand') ||
         sp.has('branch') ||
@@ -91,6 +108,8 @@ export function GlobalFilterProvider({ children }: { children: React.ReactNode }
         setFilters(
           sanitizeFilters({
             period: (sp.get('period') as GlobalPeriod) || undefined,
+            customFrom: sp.get('from') || undefined,
+            customTo: sp.get('to') || undefined,
             kuwaitSlice: (sp.get('slice') as KuwaitSlice) || undefined,
             brand: (sp.get('brand') as GlobalBrand) || undefined,
             branch: (sp.get('branch') as GlobalBranch) || undefined,
@@ -117,8 +136,20 @@ export function GlobalFilterProvider({ children }: { children: React.ReactNode }
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(filters))
       const url = new URL(window.location.href)
-      if (filters.period === 'month') url.searchParams.delete('period')
-      else url.searchParams.set('period', filters.period)
+      if (filters.period === 'month') {
+        url.searchParams.delete('period')
+        url.searchParams.delete('from')
+        url.searchParams.delete('to')
+      } else {
+        url.searchParams.set('period', filters.period)
+        if (filters.period === 'custom') {
+          url.searchParams.set('from', filters.customFrom)
+          url.searchParams.set('to', filters.customTo)
+        } else {
+          url.searchParams.delete('from')
+          url.searchParams.delete('to')
+        }
+      }
       if (filters.kuwaitSlice === 'all') url.searchParams.delete('slice')
       else url.searchParams.set('slice', filters.kuwaitSlice)
       if (filters.brand === 'all') url.searchParams.delete('brand')
@@ -159,6 +190,14 @@ export function GlobalFilterProvider({ children }: { children: React.ReactNode }
   }, [filters.period])
 
   const setPeriod = useCallback((period: GlobalPeriod) => setFilters((f) => ({ ...f, period })), [])
+  const setCustomRange = useCallback((from: string, to: string) => {
+    setFilters((f) => {
+      const fClean = /^\d{4}-\d{2}-\d{2}$/.test(from) ? from : f.customFrom
+      const tClean = /^\d{4}-\d{2}-\d{2}$/.test(to) ? to : f.customTo
+      const [start, end] = fClean <= tClean ? [fClean, tClean] : [tClean, fClean]
+      return { ...f, period: 'custom', customFrom: start, customTo: end }
+    })
+  }, [])
   const setKuwaitSlice = useCallback(
     (kuwaitSlice: KuwaitSlice) => setFilters((f) => ({ ...f, kuwaitSlice })),
     [],
@@ -231,6 +270,7 @@ export function GlobalFilterProvider({ children }: { children: React.ReactNode }
       workspace,
       liveSummary,
       setPeriod,
+      setCustomRange,
       setKuwaitSlice,
       setBrand,
       setBranch,
@@ -244,6 +284,7 @@ export function GlobalFilterProvider({ children }: { children: React.ReactNode }
       workspace,
       liveSummary,
       setPeriod,
+      setCustomRange,
       setKuwaitSlice,
       setBrand,
       setBranch,
@@ -266,6 +307,7 @@ export function useGlobalFilter(): GlobalFilterContextValue {
       workspace: fallbackWorkspace,
       liveSummary: null,
       setPeriod: () => {},
+      setCustomRange: () => {},
       setKuwaitSlice: () => {},
       setBrand: () => {},
       setBranch: () => {},

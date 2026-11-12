@@ -428,6 +428,7 @@ const slices = [
   { period: 'week' },
   { period: 'month' },
   { period: 'year' },
+  { period: 'custom', customFrom: '2026-10-25', customTo: '2026-11-05' },
   { period: 'week', brand: 'china-garden' },
   { period: 'week', branch: 'promenade' },
   { period: 'week', channel: 'talabat-tgo' },
@@ -550,6 +551,54 @@ assert(
     pagePanelSrc.includes('liveGrokId') &&
     pagePanelSrc.includes('liveGeminiId'),
   'Live Sonnet ⚡ / Opus 🔬 model badges, Sonnet-only toggle & zero stale key warnings verified across all surfaces',
+)
+
+// 9. Executive Governance PIN Bell, Clean Operational Pages, Custom Dates, Planning & Regulations Hubs
+console.log('\n9) Governance PIN Bell, Clean Operational UI, Custom Period, Planning & Regulations Checks:')
+const pinModalSrc = fs.readFileSync(path.join(ROOT, 'src/components/erp/ExecutivePinModal.tsx'), 'utf8')
+const govDrawerSrc = fs.readFileSync(path.join(ROOT, 'src/components/erp/GovernanceBellDrawer.tsx'), 'utf8')
+const govEngineSrc = fs.readFileSync(path.join(ROOT, 'src/lib/governance-compliance.ts'), 'utf8')
+const sidebarSrc = fs.readFileSync(path.join(ROOT, 'src/components/erp-sidebar.tsx'), 'utf8')
+const planningSrc = fs.readFileSync(path.join(ROOT, 'src/components/erp/StrategicPlanningStudio.tsx'), 'utf8')
+const regulationsSrc = fs.readFileSync(path.join(ROOT, 'src/components/erp/RegulationsComplianceStudio.tsx'), 'utf8')
+
+assert(
+  pinModalSrc.includes('تغيير رمز المدير ⚙️') &&
+    govEngineSrc.includes("'2026'") &&
+    govEngineSrc.includes('15 * 60 * 1000') &&
+    govDrawerSrc.includes('وضع المدير نشط 🔓') &&
+    govDrawerSrc.includes('قفل الصلاحية 🔒') &&
+    govDrawerSrc.includes('موافقة واعتماد ✅') &&
+    govDrawerSrc.includes('إيقاف المخالفة وتعميم أمر إيقاف فوري ⛔') &&
+    shellSrc.includes('<GovernanceBellTrigger />'),
+  'Executive 4-digit PIN (2026) modal, 15m Manager Session, live Bell badge & Odoo Compliance Watchdog wired',
+)
+
+assert(
+  !journeySrc.includes('<DualBrainPagePanel') &&
+    !coresSrc.includes('<DualBrainPagePanel') &&
+    !beforeAfterSrc.includes('<DualBrainPagePanel') &&
+    !radarSrc.includes('<DualBrainPagePanel') &&
+    !boothSrc.includes('<DualBrainPagePanel') &&
+    switcherSrc.includes('AI_SWITCHER_ROUTES') &&
+    topBarSrc.includes('من تاريخ') &&
+    topBarSrc.includes('إلى تاريخ') &&
+    coresSrc.includes('اسأل فريال ✨') &&
+    coresSrc.includes('طلب موافقة المدير 🔔'),
+  'Operational pages cleaned of AI clutter, Custom Start/End dates wired, and /erp/cores upgraded with Start/End dates, Ask Feryal ✨ & Approval 🔔',
+)
+
+assert(
+  sidebarSrc.includes('/erp/planning') &&
+    sidebarSrc.includes('/erp/regulations') &&
+    sidebarSrc.includes('sticky top-0') &&
+    planningSrc.includes('تحديث التوقعات بالذكاء الاستراتيجي ✨') &&
+    planningSrc.includes('تعميم الخطة المعتمدة رسمياً 📢') &&
+    planningSrc.includes('إيقاف المخالفة فوراً ⛔') &&
+    regulationsSrc.includes('تعميم خطة التعامل رسمياً 📢') &&
+    regulationsSrc.includes('إيقاف أي مخالفة رقابية ⛔') &&
+    regulationsSrc.includes('+ إضافة تشريع جديد'),
+  'Sidebar sticky indicator + /erp/planning & /erp/regulations hubs with PIN-sealed circulars & 7/7 branch trackers active',
 )
 
 console.log('\n----------------------------------------------------------------------')
