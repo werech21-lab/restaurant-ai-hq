@@ -2,10 +2,17 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import {
+  AlertTriangle,
   ArrowLeftRight,
+  Bell,
+  CheckCircle2,
   Download,
+  FileText,
+  Lock,
   Printer,
   Receipt,
+  ShieldAlert,
+  ShieldCheck,
   ShoppingBag,
   Sparkles,
   TrendingDown,
@@ -20,16 +27,21 @@ import {
   type DualBarDatum,
 } from '@/components/aether/InteractiveHoverCharts'
 import { SlidingPillTabs } from '@/components/ui/SlidingPillTabs'
+import { useGovernance } from '@/components/erp/GovernanceBellDrawer'
 import {
   computeBeforeAfterSnapshot,
+  evaluateApprovedDecisionsImpact,
   type ApprovedDecisionItem,
   type ChartGroupingKey,
   type ChartMetricKey,
   type ComparisonMode,
   type ComparisonTableRow,
+  type DecisionImpactAuditRow,
 } from '@/lib/aether/before-after-engine'
 import {
+  REAL_SOCIAL_CAMPAIGNS_STORAGE_KEY,
   sanitizeCampaigns,
+  sanitizeRealCampaigns,
   SEEDED_SOCIAL_CAMPAIGNS,
   SOCIAL_CAMPAIGNS_STORAGE_KEY,
   type SocialCampaign,
@@ -51,7 +63,12 @@ const f2 = (n: number) =>
   })
 
 const fmtKwd = (n: number, isAr: boolean, decimals = 0) => {
-  const numStr = decimals === 2 ? f2(n) : decimals === 1 || (Math.abs(n) > 0 && Math.abs(n) < 100) ? f1(n) : f0(n)
+  const numStr =
+    decimals === 2
+      ? f2(n)
+      : decimals === 1 || (Math.abs(n) > 0 && Math.abs(n) < 100)
+        ? f1(n)
+        : f0(n)
   return isAr ? `${numStr} د.ك` : `${numStr} KWD`
 }
 
@@ -63,26 +80,45 @@ const fmtSignedKwd = (n: number, isAr: boolean, decimals = 0) => {
 const fmtSignedPct = (pct: number) => `${pct > 0 ? '+' : ''}${f1(pct)}%`
 
 type TableScopeTab = 'all' | 'brands' | 'branches' | 'channels'
+type AuditFilterTab = 'all' | 'regressions' | 'on-track'
 
 const DONUT_PALETTE = ['#10B981', '#0EA5E9', '#F59E0B', '#64748B']
 
 export function BeforeAfterStudio() {
   const { isAr, T } = useLang()
   const { filters, workspace, liveSummary } = useGlobalFilter()
+  const {
+    approvals,
+    breaches,
+    requestApproval,
+    getApprovalByRef,
+    freezeBreachWithPin,
+    flagRegressionToWatchdog,
+    openBreachStopCircularPrint,
+  } = useGovernance()
 
   const [mode, setMode] = useState<ComparisonMode>('period-prev')
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null)
   const [chartMetric, setChartMetric] = useState<ChartMetricKey>('sales')
   const [chartGrouping, setChartGrouping] = useState<ChartGroupingKey>('timeline')
   const [tableTab, setTableTab] = useState<TableScopeTab>('all')
+  const [auditTab, setAuditTab] = useState<AuditFilterTab>('all')
 
   const [campaigns, setCampaigns] = useState<SocialCampaign[]>(SEEDED_SOCIAL_CAMPAIGNS)
   const [decisions, setDecisions] = useState<ApprovedDecisionItem[]>([])
 
   useEffect(() => {
     try {
-      const savedCamps = localStorage.getItem(SOCIAL_CAMPAIGNS_STORAGE_KEY)
-      if (savedCamps) setCampaigns(sanitizeCampaigns(JSON.parse(savedCamps)))
+      const realRaw = localStorage.getItem(REAL_SOCIAL_CAMPAIGNS_STORAGE_KEY)
+      if (realRaw) {
+        const realList = sanitizeRealCampaigns(JSON.parse(realRaw))
+        if (realList.length > 0) {
+          setCampaigns([...realList, ...SEEDED_SOCIAL_CAMPAIGNS])
+        }
+      } else {
+        const savedCamps = localStorage.getItem(SOCIAL_CAMPAIGNS_STORAGE_KEY)
+        if (savedCamps) setCampaigns(sanitizeCampaigns(JSON.parse(savedCamps)))
+      }
     } catch {
       // ignore storage error
     }
@@ -97,7 +133,20 @@ export function BeforeAfterStudio() {
     }
   }, [])
 
-  // Reset today-lastweek mode when user switches away from 'today'
+  // Merge sealed approvals from GovernanceContext into `decisions` for timeline event selector
+  const mergedApprovedDecisions = useMemo<ApprovedDecisionItem[]>(() => {
+    const fromGov: ApprovedDecisionItem[] = approvals
+      .filter((a) => a.status === 'approved')
+      .map((a) => ({
+        id: a.id,
+        approvedAt: a.seal?.approvedAtIso ?? a.createdAtIso,
+        monthlyKwd: a.expectedMonthlyReturnKwd,
+        titleAr: a.titleAr,
+        titleEn: a.titleEn,
+      }))
+    return [...fromGov, ...decisions]
+  }, [approvals, decisions])
+
   useEffect(() => {
     if (filters.period !== 'today' && mode === 'today-lastweek') {
       setMode('period-prev')
@@ -105,14 +154,82 @@ export function BeforeAfterStudio() {
   }, [filters.period, mode])
 
   const snap = useMemo(
-    () => computeBeforeAfterSnapshot(filters, mode, selectedEventId, campaigns, decisions, liveSummary),
-    [filters, mode, selectedEventId, campaigns, decisions, liveSummary],
+    () =>
+      computeBeforeAfterSnapshot(
+        filters,
+        mode,
+        selectedEventId,
+        campaigns,
+        mergedApprovedDecisions,
+        liveSummary,
+      ),
+    [filters, mode, selectedEventId, campaigns, mergedApprovedDecisions, liveSummary],
+  )
+
+  const impactAuditRows = useMemo(
+    () => evaluateApprovedDecisionsImpact(filters, approvals, campaigns, liveSummary),
+    [approvals, campaigns, filters, liveSummary],
+  )
+
+  const regressionRowsCount = useMemo(
+    () => impactAuditRows.filter((r) => r.hasRegression).length,
+    [impactAuditRows],
+  )
+
+  const filteredImpactRows = useMemo(() => {
+    if (auditTab === 'regressions') return impactAuditRows.filter((r) => r.hasRegression)
+    if (auditTab === 'on-track') return impactAuditRows.filter((r) => !r.hasRegression)
+    return impactAuditRows
+  }, [auditTab, impactAuditRows])
+
+  const handleFlagOrStopRegression = useCallback(
+    (row: DecisionImpactAuditRow) => {
+      const linkedBreach =
+        (row.linkedBreachId ? breaches.find((b) => b.id === row.linkedBreachId) : undefined) ??
+        breaches.find((b) => b.id === `breach-regression-${row.refKey}`)
+
+      // Always ensure regression is registered in Compliance Watchdog & Manager Bell
+      flagRegressionToWatchdog({
+        id: row.id,
+        decisionKey: row.refKey,
+        titleAr: row.titleAr,
+        titleEn: row.titleEn,
+        scopeAr: row.scopeAr,
+        scopeEn: row.scopeEn,
+        monthlyLeakKwd: row.monthlyLeakKwd,
+        odooProofAr: `صافي الجيب قبل القرار ${f0(row.netPocketBeforeKwd)} د.ك ← بعد القرار ${f0(row.netPocketAfterKwd)} د.ك (خصم ${f1(row.promoDiscountAfterPct)}% • تكلفة ${f1(row.foodCostAfterPct)}%)`,
+        odooProofEn: `Net Pocket ${f0(row.netPocketBeforeKwd)} -> ${f0(row.netPocketAfterKwd)} KWD (Promo ${f1(row.promoDiscountAfterPct)}% • Cost ${f1(row.foodCostAfterPct)}%)`,
+        ruleLimitAr: row.regressionReasonAr,
+        ruleLimitEn: row.regressionReasonEn,
+        href: '/erp/before-after',
+      })
+
+      requestApproval({
+        refKey: `review-reg:${row.refKey}`,
+        domain: 'before-after',
+        titleAr: `مراجعة وإيقاف تراجع بعد القرار: ${row.titleAr}`,
+        titleEn: `Review & Stop Post-Decision Regression: ${row.titleEn}`,
+        summaryAr: `${row.regressionReasonAr} • تسرب مقدر: -${f0(row.monthlyLeakKwd)} د.ك/شهر.`,
+        summaryEn: `${row.regressionReasonEn} • Est. leak: -${f0(row.monthlyLeakKwd)} KWD/mo.`,
+        departmentAr: 'التدقيق المالي ومقارنة قبل وبعد',
+        departmentEn: 'CFO Before & After Audit',
+        budgetOrCostKwd: 0,
+        expectedMonthlyReturnKwd: row.monthlyLeakKwd,
+        href: '/erp/before-after',
+      })
+
+      if (linkedBreach && !linkedBreach.frozen) {
+        freezeBreachWithPin(linkedBreach, true)
+      }
+    },
+    [breaches, flagRegressionToWatchdog, freezeBreachWithPin, requestApproval],
   )
 
   const periodModeLabel = useMemo(() => {
     if (filters.period === 'today') return T('Today vs Yesterday', 'اليوم مقابل أمس')
     if (filters.period === 'week') return T('This Week vs Prior', 'هذا الأسبوع مقابل السابق')
     if (filters.period === 'year') return T('This Year vs Prior', 'هذه السنة مقابل السابق')
+    if (filters.period === 'custom') return T('Custom vs Prior Span', 'الفترة المخصصة مقابل السابقة')
     return T('This Month vs Prior', 'هذا الشهر مقابل السابق')
   }, [T, filters.period])
 
@@ -133,7 +250,6 @@ export function BeforeAfterStudio() {
     return opts
   }, [T, filters.period, periodModeLabel])
 
-  // Build DualBarDatum[] for the active metric & grouping
   const chartData = useMemo<DualBarDatum[]>(() => {
     const srcPoints = chartGrouping === 'branches' ? snap.branchPoints : snap.timelinePoints
     return srcPoints.map((pt) => {
@@ -207,13 +323,15 @@ export function BeforeAfterStudio() {
     })
   }, [chartGrouping, chartMetric, isAr, snap.branchPoints, snap.timelinePoints])
 
-  // 4-Col Net Gain Donut Breakdown (by active Branches when Brand filtered, otherwise top active Brands)
   const netGainDonutSlices = useMemo<DonutSliceDatum[]>(() => {
     const sourceRows = filters.brand !== 'all' ? snap.byBranchRows : snap.byBrandRows
     const sorted = [...sourceRows].sort((a, b) => b.afterPocketKwd - a.afterPocketKwd)
     const top3 = sorted.slice(0, 3)
     const rest = sorted.slice(3)
-    const totalAfterPocket = Math.max(1, sorted.reduce((acc, r) => acc + Math.max(0, r.afterPocketKwd), 0))
+    const totalAfterPocket = Math.max(
+      1,
+      sorted.reduce((acc, r) => acc + Math.max(0, r.afterPocketKwd), 0),
+    )
 
     const items: DonutSliceDatum[] = top3.map((r, i) => {
       const val = Math.max(0, r.afterPocketKwd)
@@ -248,7 +366,6 @@ export function BeforeAfterStudio() {
     return items
   }, [filters.brand, isAr, snap.byBranchRows, snap.byBrandRows])
 
-  // 1-Click CSV Export
   const handleExportCsv = useCallback(() => {
     const headers = [
       isAr ? 'التصنيف' : 'Group',
@@ -344,27 +461,27 @@ export function BeforeAfterStudio() {
 
   const renderSectionTable = (titleAr: string, titleEn: string, rows: ComparisonTableRow[]) => (
     <div className="space-y-2.5">
-      <h3 className="text-[14.5px] font-extrabold text-slate-900 dark:text-white">
+      <h3 className="text-[14.5px] font-semibold tracking-tight text-neutral-950 dark:text-white">
         {isAr ? titleAr : titleEn}
       </h3>
-      <div className="ae-table-wrap rounded-2xl ring-1 ring-slate-950/[0.04] dark:ring-white/[0.06]">
+      <div className="ae-table-wrap rounded-2xl bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-[#111A22]">
         <table className="w-full min-w-[780px] border-collapse text-[13px]">
-          <thead className="sticky top-0 z-10 bg-[#F4F6F9] text-slate-600 dark:bg-[#0C141B] dark:text-slate-300">
+          <thead className="sticky top-0 z-10 bg-[#F7F7F8] text-neutral-600 dark:bg-[#0C141B] dark:text-slate-300">
             <tr>
-              <th className="px-4 py-3 text-start text-[12px] font-bold">{T('Item', 'البند')}</th>
-              <th className="px-4 py-3 text-end text-[12px] font-bold">{T('Sales Before', 'المبيعات قبل')}</th>
-              <th className="px-4 py-3 text-end text-[12px] font-bold">{T('Sales After', 'المبيعات بعد')}</th>
-              <th className="px-4 py-3 text-end text-[12px] font-bold">{T('Diff (KWD)', 'الفرق (د.ك)')}</th>
-              <th className="px-4 py-3 text-center text-[12px] font-bold">{T('Change %', 'التغير %')}</th>
-              <th className="px-4 py-3 text-end text-[12px] font-bold">
+              <th className="px-4 py-3 text-start text-xs font-semibold">{T('Item', 'البند')}</th>
+              <th className="px-4 py-3 text-end text-xs font-semibold">{T('Sales Before', 'المبيعات قبل')}</th>
+              <th className="px-4 py-3 text-end text-xs font-semibold">{T('Sales After', 'المبيعات بعد')}</th>
+              <th className="px-4 py-3 text-end text-xs font-semibold">{T('Diff (KWD)', 'الفرق (د.ك)')}</th>
+              <th className="px-4 py-3 text-center text-xs font-semibold">{T('Change %', 'التغير %')}</th>
+              <th className="px-4 py-3 text-end text-xs font-semibold">
                 {T('Orders (Before → After)', 'الطلبات (قبل ← بعد)')}
               </th>
-              <th className="px-4 py-3 text-end text-[12px] font-bold">
+              <th className="px-4 py-3 text-end text-xs font-semibold">
                 {T('Net Pocket (Before → After)', 'الصافي بالجيب (قبل ← بعد)')}
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-white/[0.05]">
+          <tbody className="divide-y divide-neutral-100 dark:divide-white/[0.05]">
             {rows.map((r) => {
               const up = r.diffSalesKwd >= 0
               return (
@@ -372,24 +489,24 @@ export function BeforeAfterStudio() {
                   key={r.id}
                   className="transition-colors duration-150 hover:bg-emerald-50/40 dark:hover:bg-emerald-500/[0.05]"
                 >
-                  <td className="px-4 py-3 font-bold whitespace-nowrap text-slate-950 dark:text-white">
+                  <td className="px-4 py-3 font-semibold whitespace-nowrap text-neutral-950 dark:text-white">
                     {isAr ? r.nameAr : r.nameEn}
                   </td>
                   <td
                     dir="ltr"
-                    className="px-4 py-3 text-end font-medium whitespace-nowrap tabular-nums text-slate-500 dark:text-slate-400"
+                    className="px-4 py-3 text-end font-medium whitespace-nowrap tabular-nums text-neutral-500 dark:text-slate-400"
                   >
                     {fmtKwd(r.beforeSalesKwd, isAr)}
                   </td>
                   <td
                     dir="ltr"
-                    className="px-4 py-3 text-end font-extrabold whitespace-nowrap tabular-nums text-slate-950 dark:text-white"
+                    className="px-4 py-3 text-end font-semibold whitespace-nowrap tabular-nums text-neutral-950 dark:text-white"
                   >
                     {fmtKwd(r.afterSalesKwd, isAr)}
                   </td>
                   <td
                     dir="ltr"
-                    className={`px-4 py-3 text-end font-extrabold whitespace-nowrap tabular-nums ${
+                    className={`px-4 py-3 text-end font-semibold whitespace-nowrap tabular-nums ${
                       up ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
                     }`}
                   >
@@ -397,7 +514,7 @@ export function BeforeAfterStudio() {
                   </td>
                   <td dir="ltr" className="px-4 py-3 text-center whitespace-nowrap">
                     <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11.5px] font-extrabold tabular-nums ${
+                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold tabular-nums ${
                         up
                           ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
                           : 'bg-rose-50 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
@@ -408,13 +525,13 @@ export function BeforeAfterStudio() {
                   </td>
                   <td
                     dir="ltr"
-                    className="px-4 py-3 text-end font-semibold whitespace-nowrap tabular-nums text-slate-700 dark:text-slate-200"
+                    className="px-4 py-3 text-end font-medium whitespace-nowrap tabular-nums text-neutral-700 dark:text-slate-200"
                   >
                     {f0(r.beforeOrders)} → {f0(r.afterOrders)}
                   </td>
                   <td
                     dir="ltr"
-                    className="px-4 py-3 text-end font-bold whitespace-nowrap tabular-nums text-emerald-800 dark:text-emerald-300"
+                    className="px-4 py-3 text-end font-semibold whitespace-nowrap tabular-nums text-emerald-800 dark:text-emerald-300"
                   >
                     {fmtKwd(r.beforePocketKwd, isAr)} → {fmtKwd(r.afterPocketKwd, isAr)}
                   </td>
@@ -428,20 +545,22 @@ export function BeforeAfterStudio() {
   )
 
   return (
-    <div dir={isAr ? 'rtl' : 'ltr'} className="w-full space-y-5 pb-12">
-      {/* Masthead + Sliding Comparison Mode + 1-Click Export CSV / Print */}
-      <header className="ae-bento-card flex flex-col gap-4 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
+    <div dir={isAr ? 'rtl' : 'ltr'} className="mx-auto w-full max-w-[1520px] space-y-5 pb-12">
+      {/* 1. Executive Masthead + Sliding Comparison Mode + Export / Print */}
+      <header className="ae-bento-card flex flex-col gap-4 bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:p-6 lg:flex-row lg:items-center lg:justify-between dark:bg-[#111A22]">
         <div className="space-y-1">
-          <div className="inline-flex items-center gap-2 text-[12px] font-bold text-emerald-700 dark:text-emerald-400">
+          <div className="inline-flex items-center gap-2 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
             <ArrowLeftRight className="h-3.5 w-3.5" />
             <span>
-              {isAr ? `${snap.beforeLabelAr}  ←  ${snap.afterLabelAr}` : `${snap.beforeLabelEn}  →  ${snap.afterLabelEn}`}
+              {isAr
+                ? `${snap.beforeLabelAr}  ←  ${snap.afterLabelAr}`
+                : `${snap.beforeLabelEn}  →  ${snap.afterLabelEn}`}
             </span>
           </div>
-          <h1 className="text-[24px] font-extrabold tracking-tight text-slate-950 sm:text-[26px] dark:text-white">
+          <h1 className="text-[24px] font-semibold tracking-tight text-neutral-950 sm:text-[26px] dark:text-white">
             {T('Before & After', 'مقارنة قبل وبعد')}
           </h1>
-          <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400">
+          <p className="text-xs text-neutral-400">
             {isAr ? workspace.subtitleAr : workspace.subtitleEn}
           </p>
         </div>
@@ -473,7 +592,7 @@ export function BeforeAfterStudio() {
           <button
             type="button"
             onClick={handleExportCsv}
-            className="ae-bento-subcard inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-[12px] font-bold text-slate-800 transition-all duration-150 hover:text-slate-950 active:scale-95 dark:text-slate-100"
+            className="ae-bento-subcard inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-xs font-semibold text-neutral-800 transition-all duration-150 hover:text-neutral-950 active:scale-95 dark:text-slate-100"
           >
             <Download className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
             <span>{T('Export CSV', 'تحميل CSV')}</span>
@@ -482,35 +601,37 @@ export function BeforeAfterStudio() {
           <button
             type="button"
             onClick={() => window.print()}
-            className="ae-bento-subcard inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-[12px] font-bold text-slate-800 transition-all duration-150 hover:text-slate-950 active:scale-95 dark:text-slate-100"
+            className="ae-bento-subcard inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-xs font-semibold text-neutral-800 transition-all duration-150 hover:text-neutral-950 active:scale-95 dark:text-slate-100"
           >
-            <Printer className="h-3.5 w-3.5 text-slate-500 dark:text-slate-300" />
+            <Printer className="h-3.5 w-3.5 text-neutral-500 dark:text-slate-300" />
             <span>{T('Print', 'طباعة')}</span>
           </button>
         </div>
       </header>
 
-      {/* Top Row: 4 Before-vs-After KPI Cards (tabular-nums + + / - KWD & % pills) */}
+      {/* 2. Top Row: 4 Non-Redundant Before-vs-After KPI Cards */}
       <section className="ae-stagger grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {summaryCards.map((c) => {
           const Icon = c.icon
           return (
             <article
               key={c.id}
-              className={`ae-kpi-card p-5 ${c.good ? 'ae-glow-emerald' : 'ae-glow-rose'}`}
+              className={`ae-kpi-card bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-[#111A22] ${
+                c.good ? 'ae-glow-emerald' : 'ae-glow-rose'
+              }`}
             >
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <span className="ae-icon-badge">
                     <Icon className="h-4 w-4" />
                   </span>
-                  <span className="text-[13.5px] font-extrabold text-slate-800 dark:text-slate-100">
+                  <span className="text-[13px] font-semibold text-neutral-800 dark:text-slate-100">
                     {isAr ? c.titleAr : c.titleEn}
                   </span>
                 </div>
                 <span
                   dir="ltr"
-                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11.5px] font-extrabold tabular-nums ${
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold tabular-nums ${
                     c.good
                       ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
                       : 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'
@@ -522,29 +643,27 @@ export function BeforeAfterStudio() {
               </div>
 
               <div dir="ltr" className="mt-3.5 flex items-baseline justify-between gap-2">
-                <div className="text-[13px] font-semibold tabular-nums text-slate-400 dark:text-slate-400">
-                  <span className="block text-[10.5px] font-bold uppercase">{T('Before', 'قبل')}</span>
+                <div className="text-[13px] font-medium tabular-nums text-neutral-400 dark:text-slate-400">
+                  <span className="block text-[10.5px] font-semibold uppercase">{T('Before', 'قبل')}</span>
                   {c.beforeStr}
                 </div>
-                <span className="text-slate-300 dark:text-slate-600">→</span>
-                <div className="text-end text-[23px] font-black tracking-tight tabular-nums text-slate-950 dark:text-white">
-                  <span className="block text-[10.5px] font-bold text-emerald-600 dark:text-emerald-400">
+                <span className="text-neutral-300 dark:text-slate-600">→</span>
+                <div className="text-end text-[23px] font-semibold tracking-tight tabular-nums text-neutral-950 dark:text-white">
+                  <span className="block text-[10.5px] font-semibold text-emerald-600 dark:text-emerald-400">
                     {T('After', 'بعد')}
                   </span>
                   {c.afterStr}
                 </div>
               </div>
 
-              <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2.5 text-[12px] dark:border-white/[0.06]">
-                <span className="font-semibold text-slate-500 dark:text-slate-400">
-                  {T('Delta:', 'الفرق:')}
-                </span>
+              <div className="mt-3 flex items-center justify-between border-t border-neutral-100 pt-2.5 text-xs dark:border-white/[0.06]">
+                <span className="font-medium text-neutral-400">{T('Delta:', 'الفرق:')}</span>
                 <span
                   dir="ltr"
-                  className={`rounded-full px-2.5 py-0.5 font-extrabold tabular-nums ${
+                  className={`rounded-full px-2.5 py-0.5 font-semibold tabular-nums ${
                     c.good
-                      ? 'bg-emerald-50/80 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
-                      : 'bg-rose-50/80 text-rose-600 dark:bg-rose-950/40 dark:text-rose-300'
+                      ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+                      : 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-300'
                   }`}
                 >
                   {c.diffStr}
@@ -555,10 +674,289 @@ export function BeforeAfterStudio() {
         })}
       </section>
 
-      {/* Middle Bento Row: 8-Col Dual Capsule Chart + 4-Col Net Gain Donut Breakdown */}
+      {/* 3. Approved Decisions Before vs. After Impact Tracker (`أثر القرارات المعتمدة: قبل القرار مقابل بعده في أودو`) */}
+      <section className="ae-bento-card space-y-4 bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:p-6 dark:bg-[#111A22]">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-1">
+            <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+              <ShieldCheck className="h-4 w-4" />
+              <span>
+                {T(
+                  'Live Odoo 17 Governance Audit',
+                  'مراجعة أثر القرارات المعتمدة في أودو ١٧',
+                )}
+              </span>
+            </div>
+            <h2 className="text-[17px] font-semibold tracking-tight text-neutral-950 dark:text-white">
+              {T(
+                'Approved Decisions Impact: Before vs. After in Odoo',
+                'أثر القرارات المعتمدة: قبل القرار مقابل بعده في أودو',
+              )}
+            </h2>
+            <p className="text-xs text-neutral-400">
+              {T(
+                'Compares pre-decision baseline vs post-decision Sales, Food/Supplier Cost %, Promo %, and Net Pocket KWD.',
+                'يقارن المبيعات وتكلفة المواد والموردين ونسبة الخصومات وصافي الجيب قبل القرار وبعده مع رصد أي تراجع تلقائياً.',
+              )}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {regressionRowsCount > 0 ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
+                <ShieldAlert className="h-3.5 w-3.5" />
+                <span>
+                  {isAr
+                    ? `${regressionRowsCount} تراجع بعد القرار يحتاج تدخل`
+                    : `${regressionRowsCount} Post-Decision Regressions`}
+                </span>
+              </span>
+            ) : null}
+
+            <SlidingPillTabs<AuditFilterTab>
+              ariaLabel={T('Decision Audit Filter', 'فلتر مراجعة القرارات')}
+              size="sm"
+              value={auditTab}
+              onChange={setAuditTab}
+              options={[
+                { id: 'all', label: T('All Decisions', 'كل القرارات'), badge: impactAuditRows.length },
+                {
+                  id: 'regressions',
+                  label: T('Regressions 🚨', 'تراجع بعد القرار 🚨'),
+                  badge: regressionRowsCount,
+                },
+                {
+                  id: 'on-track',
+                  label: T('Accretive ✅', 'محقق للمستهدف ✅'),
+                  badge: impactAuditRows.length - regressionRowsCount,
+                },
+              ]}
+            />
+          </div>
+        </div>
+
+        <div className="overflow-x-auto rounded-2xl bg-[#F7F7F8] p-1 dark:bg-[#0C141B]">
+          <table className="w-full min-w-[980px] border-collapse rounded-xl bg-white text-[12.5px] dark:bg-[#111A22]">
+            <thead className="bg-[#F7F7F8] text-neutral-600 dark:bg-[#0C141B] dark:text-slate-300">
+              <tr>
+                <th className="px-3.5 py-3 text-start text-xs font-semibold">
+                  {T('Approved Decision / Campaign', 'القرار أو الحملة المعتمدة')}
+                </th>
+                <th className="px-3 py-3 text-end text-xs font-semibold">
+                  {T('Sales (Before → After)', 'المبيعات (قبل ← بعد)')}
+                </th>
+                <th className="px-3 py-3 text-center text-xs font-semibold">
+                  {T('Food / Supplier %', 'تكلفة المواد %')}
+                </th>
+                <th className="px-3 py-3 text-center text-xs font-semibold">
+                  {T('Promo Discount %', 'نسبة الخصومات %')}
+                </th>
+                <th className="px-3 py-3 text-end text-xs font-semibold">
+                  {T('Net Pocket (Before → After)', 'صافي الجيب (قبل ← بعد)')}
+                </th>
+                <th className="px-3 py-3 text-start text-xs font-semibold">
+                  {T('Watchdog Status', 'حالة الرقابة')}
+                </th>
+                <th className="px-3.5 py-3 text-end text-xs font-semibold">
+                  {T('Governance Action', 'إجراء الامتثال')}
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-neutral-100 dark:divide-white/[0.05]">
+              {filteredImpactRows.map((row) => {
+                const linkedBreach =
+                  (row.linkedBreachId
+                    ? breaches.find((b) => b.id === row.linkedBreachId)
+                    : undefined) ??
+                  breaches.find((b) => b.id === `breach-regression-${row.refKey}`)
+                const reviewApproval = getApprovalByRef(`review-reg:${row.refKey}`)
+                const isFrozen = Boolean(linkedBreach?.frozen)
+
+                return (
+                  <tr
+                    key={row.id}
+                    className={`transition-colors duration-150 ${
+                      row.hasRegression
+                        ? 'bg-rose-50/25 hover:bg-rose-50/45 dark:bg-rose-950/10 dark:hover:bg-rose-950/20'
+                        : 'hover:bg-emerald-50/35 dark:hover:bg-emerald-500/[0.04]'
+                    }`}
+                  >
+                    <td className="px-3.5 py-3">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span
+                          dir="ltr"
+                          className="rounded-full bg-[#F7F7F8] px-2 py-0.5 font-mono text-[10.5px] font-semibold text-neutral-600 dark:bg-[#0C141B] dark:text-slate-300"
+                        >
+                          {row.sealId}
+                        </span>
+                        <span dir="ltr" className="text-[11px] tabular-nums text-neutral-400">
+                          {row.approvedDate}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (row.eventSelectId) {
+                            setMode('decision-campaign')
+                            setSelectedEventId(row.eventSelectId)
+                          }
+                        }}
+                        className="mt-1 block text-start font-semibold text-neutral-950 hover:text-emerald-700 dark:text-white dark:hover:text-emerald-300"
+                      >
+                        {isAr ? row.titleAr : row.titleEn}
+                      </button>
+                      <span className="text-[11px] text-neutral-400">
+                        {isAr ? row.scopeAr : row.scopeEn}
+                      </span>
+                    </td>
+
+                    <td dir="ltr" className="px-3 py-3 text-end whitespace-nowrap tabular-nums">
+                      <div className="font-semibold text-neutral-900 dark:text-white">
+                        {f0(row.salesBeforeKwd)} → {f0(row.salesAfterKwd)} {isAr ? 'د.ك' : 'KWD'}
+                      </div>
+                      <div
+                        className={`text-[11px] font-semibold ${
+                          row.salesDiffKwd >= 0
+                            ? 'text-emerald-700 dark:text-emerald-400'
+                            : 'text-rose-600 dark:text-rose-400'
+                        }`}
+                      >
+                        {fmtSignedKwd(row.salesDiffKwd, isAr)}
+                      </div>
+                    </td>
+
+                    <td dir="ltr" className="px-3 py-3 text-center whitespace-nowrap tabular-nums">
+                      <span
+                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold ${
+                          row.foodCostAfterPct > row.foodCostBeforePct + 0.5
+                            ? 'bg-rose-50 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
+                            : 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300'
+                        }`}
+                      >
+                        {f1(row.foodCostBeforePct)}% → {f1(row.foodCostAfterPct)}%
+                      </span>
+                    </td>
+
+                    <td dir="ltr" className="px-3 py-3 text-center whitespace-nowrap tabular-nums">
+                      <span
+                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold ${
+                          row.promoDiscountAfterPct > 3.0
+                            ? 'bg-rose-50 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
+                            : 'bg-[#F7F7F8] text-neutral-700 dark:bg-[#0C141B] dark:text-slate-200'
+                        }`}
+                      >
+                        {f1(row.promoDiscountBeforePct)}% → {f1(row.promoDiscountAfterPct)}%
+                      </span>
+                    </td>
+
+                    <td dir="ltr" className="px-3 py-3 text-end whitespace-nowrap tabular-nums">
+                      <div className="font-semibold text-neutral-900 dark:text-white">
+                        {f0(row.netPocketBeforeKwd)} → {f0(row.netPocketAfterKwd)}{' '}
+                        {isAr ? 'د.ك' : 'KWD'}
+                      </div>
+                      <div
+                        className={`text-[11px] font-bold ${
+                          row.netPocketDiffKwd >= 0
+                            ? 'text-emerald-700 dark:text-emerald-400'
+                            : 'text-rose-600 dark:text-rose-400'
+                        }`}
+                      >
+                        {fmtSignedKwd(row.netPocketDiffKwd, isAr)}
+                      </div>
+                    </td>
+
+                    <td className="px-3 py-3 min-w-[205px]">
+                      {row.hasRegression ? (
+                        <div className="space-y-1">
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
+                              isFrozen
+                                ? 'bg-neutral-100 text-neutral-700 dark:bg-white/10 dark:text-slate-200'
+                                : 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'
+                            }`}
+                          >
+                            <AlertTriangle className="h-3 w-3" />
+                            <span>
+                              {isFrozen
+                                ? T('Frozen by Manager ⛔', 'مجمد بأمر المدير ⛔')
+                                : T('Regression Detected 🚨', 'تراجع بعد القرار 🚨')}
+                            </span>
+                          </span>
+                          <p className="text-[11px] leading-snug text-neutral-500 dark:text-slate-400">
+                            {isAr ? row.regressionReasonAr : row.regressionReasonEn}
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-1">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                            <CheckCircle2 className="h-3 w-3" />
+                            <span>{T('On Target ✅', 'محقق للمستهدف ✅')}</span>
+                          </span>
+                          <p className="text-[11px] leading-snug text-neutral-400">
+                            {isAr ? row.regressionReasonAr : row.regressionReasonEn}
+                          </p>
+                        </div>
+                      )}
+                    </td>
+
+                    <td className="px-3.5 py-3 text-end whitespace-nowrap">
+                      {row.hasRegression ? (
+                        <div className="inline-flex flex-wrap items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleFlagOrStopRegression(row)}
+                            className={`inline-flex h-8 cursor-pointer items-center gap-1 rounded-full px-3 text-xs font-semibold transition-colors duration-150 ${
+                              isFrozen
+                                ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                                : 'bg-rose-600 text-white hover:bg-rose-700'
+                            }`}
+                          >
+                            {isFrozen ? (
+                              <Lock className="h-3 w-3" />
+                            ) : (
+                              <Bell className="h-3.5 w-3.5" />
+                            )}
+                            <span>
+                              {isFrozen
+                                ? T('Stopped ⛔', 'تم الإيقاف ⛔')
+                                : reviewApproval?.status === 'pending'
+                                  ? T('Stop Breach (PIN) ⛔', 'إيقاف المخالفة فوراً ⛔')
+                                  : T(
+                                      'Review / Stop Breach 🔔',
+                                      'طلب مراجعة / إيقاف المخالفة 🔔',
+                                    )}
+                            </span>
+                          </button>
+
+                          {linkedBreach ? (
+                            <button
+                              type="button"
+                              onClick={() => openBreachStopCircularPrint(linkedBreach)}
+                              title={T('Print Official Stop Circular 📄', 'طباعة تعميم الإيقاف 📄')}
+                              className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-[#F7F7F8] px-2.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-200/70 dark:bg-[#0C141B] dark:text-slate-200"
+                            >
+                              <FileText className="h-3.5 w-3.5 text-emerald-600" />
+                              <span>{T('PDF 📄', 'تعميم 📄')}</span>
+                            </button>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                          {T('Compliant ✓', 'ملتزم بالسقف ✓')}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* 4. Middle Bento Row: 8-Col Dual Capsule Chart + 4-Col Zero-Collision Net Gain Donut */}
       <section className="grid grid-cols-1 gap-5 lg:grid-cols-12">
-        {/* 8-Col Card: Interactive Before vs After Dual Capsule Chart */}
-        <div className="ae-bento-card flex flex-col justify-between space-y-4 p-5 sm:p-6 lg:col-span-8">
+        <div className="ae-bento-card flex flex-col justify-between space-y-4 bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:p-6 lg:col-span-8 dark:bg-[#111A22]">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <SlidingPillTabs<ChartMetricKey>
               ariaLabel={T('Metric', 'المؤشر')}
@@ -594,19 +992,21 @@ export function BeforeAfterStudio() {
             formatAxisValue={
               chartMetric === 'aov'
                 ? (v) => v.toFixed(1)
-                : (v) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : Math.round(v).toLocaleString('en-US'))
+                : (v) =>
+                    v >= 1000
+                      ? `${(v / 1000).toFixed(1)}k`
+                      : Math.round(v).toLocaleString('en-US')
             }
             heightClass="h-64"
           />
         </div>
 
-        {/* 4-Col Card: Net Pocket Gain & Share Donut Breakdown */}
-        <div className="ae-bento-card flex flex-col justify-between p-5 sm:p-6 lg:col-span-4">
+        <div className="ae-bento-card flex flex-col justify-between bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:p-6 lg:col-span-4 dark:bg-[#111A22]">
           <div className="mb-3">
-            <h2 className="text-[17px] font-extrabold tracking-tight text-slate-950 dark:text-white">
+            <h2 className="text-[17px] font-semibold tracking-tight text-neutral-950 dark:text-white">
               {T('Net Pocket Breakdown', 'توزيعة الصافي بعد')}
             </h2>
-            <p className="text-[12.5px] font-medium text-slate-500 dark:text-slate-400">
+            <p className="text-xs text-neutral-400">
               {T('Share of post-period net cash & delta', 'مساهمة كل مطعم أو فرع في الصافي والفرق')}
             </p>
           </div>
@@ -614,18 +1014,28 @@ export function BeforeAfterStudio() {
           <InteractiveDonutChart
             slices={netGainDonutSlices}
             centerValue={netGainDonutSlices[0]?.pctFormatted ?? '—'}
-            centerSubValue={netGainDonutSlices[0]?.valueFormatted ?? ''}
-            centerLabel={netGainDonutSlices[0]?.label ?? T('Top Contributor', 'أعلى مساهمة')}
+            centerLabel={T('Top Share', 'أعلى حصة')}
+            summaryRows={
+              netGainDonutSlices[0]
+                ? [
+                    {
+                      label: netGainDonutSlices[0].label,
+                      value: netGainDonutSlices[0].valueFormatted,
+                      tone: 'emerald',
+                    },
+                  ]
+                : []
+            }
             isAr={isAr}
             legendColumns={1}
           />
         </div>
       </section>
 
-      {/* Clean Comparison Table Underneath */}
-      <section className="ae-bento-card space-y-5 p-5 sm:p-6">
+      {/* 5. Clean Comparison Table Underneath */}
+      <section className="ae-bento-card space-y-5 bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:p-6 dark:bg-[#111A22]">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-[17.5px] font-extrabold text-slate-950 dark:text-white">
+          <h2 className="text-[17px] font-semibold tracking-tight text-neutral-950 dark:text-white">
             {T('Before vs After Table', 'جدول مقارنة قبل وبعد')}
           </h2>
 

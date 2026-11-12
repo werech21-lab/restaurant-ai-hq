@@ -17,8 +17,10 @@ import {
   Check,
   CheckCircle2,
   Copy,
+  FileText,
   Lock,
   MessageCircle,
+  RefreshCw,
   Settings,
   ShieldAlert,
   ShieldCheck,
@@ -29,9 +31,13 @@ import {
 import { useI18n } from '@/lib/i18n'
 import type { GlobalBranch } from '@/lib/aether/global-filter-engine'
 import { ExecutivePinModal } from '@/components/erp/ExecutivePinModal'
+import { OfficialCircularPrintModal } from '@/components/erp/OfficialCircularPrintModal'
 import {
   approveRequestById,
+  buildCircularSerialRef,
+  createInitialGovernanceStore,
   evaluateLiveOdooBreaches,
+  flagDecisionRegressionInStore,
   freezeBreachById,
   getExecutiveSession,
   GOVERNANCE_UPDATED_EVENT,
@@ -41,14 +47,18 @@ import {
   recordIssuedCircular,
   rejectRequestById,
   retroactivelyApproveBreachById,
-  SEEDED_APPROVAL_REQUESTS,
   submitApprovalRequest,
+  syncGovernanceFromServer,
   toggleBranchCircularReceipt,
   unfreezeBreachById,
   type ComplianceBreachItem,
   type ExecutiveSessionState,
+  type FlaggedDecisionRegression,
+  type GovernanceApprovalMeta,
   type GovernanceApprovalRequest,
   type GovernanceDomain,
+  type OfficialCircularDocument,
+  type OfficialCircularKind,
   type PersistedGovernanceStore,
 } from '@/lib/governance-compliance'
 
@@ -68,6 +78,8 @@ export interface GovernanceContextValue {
   activeBreaches: ComplianceBreachItem[]
   liveBadgeCount: number
   drawerOpen: boolean
+  syncingCrossDevice: boolean
+  triggerCrossDeviceSync: () => Promise<void>
   openDrawer: (initialTab?: DrawerTabId) => void
   closeDrawer: () => void
   requireManagerPin: (opts: PendingPinRequest) => void
@@ -84,38 +96,79 @@ export interface GovernanceContextValue {
     budgetOrCostKwd: number
     expectedMonthlyReturnKwd: number
     href: string
+    meta?: GovernanceApprovalMeta
   }) => GovernanceApprovalRequest
   getApprovalByRef: (refKey: string) => GovernanceApprovalRequest | undefined
   approveItemWithPin: (id: string, titleAr: string, titleEn: string) => void
   rejectItemWithPin: (id: string, titleAr: string, titleEn: string) => void
-  freezeBreachWithPin: (
-    breach: ComplianceBreachItem,
-    broadcastDirective?: boolean,
-  ) => void
+  freezeBreachWithPin: (breach: ComplianceBreachItem, broadcastDirective?: boolean) => void
   retroactiveApproveBreachWithPin: (breach: ComplianceBreachItem) => void
   unfreezeBreachWithPin: (breach: ComplianceBreachItem) => void
   toggleBranchReceipt: (circularKey: string, branchId: Exclude<GlobalBranch, 'all'>) => void
   confirmAllBranchesReceipt: (circularKey: string) => void
   issueOfficialCircularWithPin: (opts: {
     circularKey: string
+    kind?: OfficialCircularKind
     titleAr: string
     titleEn: string
     circularBodyAr: string
     circularBodyEn: string
-    onIssued?: (meta: { sealId: string; issuedAtIso: string }) => void
+    scopeAr?: string
+    scopeEn?: string
+    mandatoryRulesAr?: string[]
+    mandatoryRulesEn?: string[]
+    financialSummaryAr?: string
+    financialSummaryEn?: string
+    effectiveWindow?: string
+    onIssued?: (meta: { sealId: string; issuedAtIso: string; serialRef: string }) => void
   }) => void
+  openCircularPrintModal: (doc: OfficialCircularDocument) => void
+  openBreachStopCircularPrint: (breach: ComplianceBreachItem) => void
+  flagRegressionToWatchdog: (input: Omit<FlaggedDecisionRegression, 'flaggedAtIso'>) => void
 }
 
 export type DrawerTabId = 'all' | 'approvals' | 'breaches' | 'sealed'
 
 const GovernanceContext = createContext<GovernanceContextValue | null>(null)
 
-const INITIAL_SSR_STORE: PersistedGovernanceStore = {
-  approvals: SEEDED_APPROVAL_REQUESTS,
-  frozenBreachIds: {},
-  resolvedBreachIds: {},
-  branchReceipts: {},
-  issuedCirculars: {},
+const INITIAL_SSR_STORE: PersistedGovernanceStore = createInitialGovernanceStore()
+
+export function buildStopDirectiveCircularDoc(
+  breach: ComplianceBreachItem,
+  store: PersistedGovernanceStore,
+): OfficialCircularDocument {
+  const circularKey = `stop-circular:${breach.id}`
+  const issued = store.issuedCirculars[circularKey]
+  const frozenIso = breach.frozenAtIso || issued?.issuedAtIso || new Date().toISOString()
+  return {
+    circularKey,
+    serialRef: issued?.serialRef || buildCircularSerialRef(circularKey),
+    kind: 'stop-directive',
+    titleAr: `أمر إيقاف مخالفة وتجميد صرف فوري ⛔ — ${breach.approvedDecisionTitleAr}`,
+    titleEn: `Immediate Stop-Violation & Spend Freeze Order ⛔ — ${breach.approvedDecisionTitleEn}`,
+    classificationAr: 'أمر إيقاف تنفيذي عاجل ⛔',
+    classificationEn: 'Urgent Executive Stop-Violation Directive ⛔',
+    scopeAr: breach.affectedScopeAr,
+    scopeEn: breach.affectedScopeEn,
+    issuedAtIso: frozenIso,
+    sealId: issued?.sealId || (breach.frozen ? `VF-STOP-${frozenIso.slice(0, 4)}-2026` : undefined),
+    financialSummaryAr: `إيقاف تسرب شهري مرصود بأودو بقيمة ${breach.monthlyLeakKwd.toLocaleString('en-US')} د.ك/شهر`,
+    financialSummaryEn: `Halts verified Odoo leakage of ${breach.monthlyLeakKwd.toLocaleString('en-US')} KWD/mo`,
+    mandatoryRulesAr: [
+      breach.approvedRuleLimitAr,
+      `الدليل المرصود في أودو ١٧: ${breach.odooMetricProofAr}`,
+      'تجميد أي صرف أو خصم أو استلام يخالف السقف المعتمد فوراً لحين التصحيح وفك التجميد بختم المدير.',
+      'يلتزم مديرو الفروع السبعة والمطبخ المركزي بالعارضية بالتنفيذ الفوري وتأكيد الاستلام.',
+    ],
+    mandatoryRulesEn: [
+      breach.approvedRuleLimitEn,
+      `Live Odoo 17 Evidence: ${breach.odooMetricProofEn}`,
+      'Immediately freeze any spend, discount, or PO receipt exceeding the approved cap until verified fix.',
+      'Mandatory immediate compliance across all 7 active branches & Ardiya Central Kitchen.',
+    ],
+    bodyAr: breach.stopDirectiveAr,
+    bodyEn: breach.stopDirectiveEn,
+  }
 }
 
 export function GovernanceProvider({ children }: { children: React.ReactNode }) {
@@ -129,6 +182,8 @@ export function GovernanceProvider({ children }: { children: React.ReactNode }) 
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [drawerTab, setDrawerTab] = useState<DrawerTabId>('all')
   const [pinPrompt, setPinPrompt] = useState<PendingPinRequest | null>(null)
+  const [printDoc, setPrintDoc] = useState<OfficialCircularDocument | null>(null)
+  const [syncingCrossDevice, setSyncingCrossDevice] = useState(false)
   const [toastMsg, setToastMsg] = useState<{ ar: string; en: string } | null>(null)
   const pendingCallbackRef = useRef<(() => void) | undefined>(undefined)
 
@@ -137,21 +192,56 @@ export function GovernanceProvider({ children }: { children: React.ReactNode }) 
     setSession(getExecutiveSession())
   }, [])
 
+  const triggerCrossDeviceSync = useCallback(async () => {
+    setSyncingCrossDevice(true)
+    try {
+      const changed = await syncGovernanceFromServer()
+      if (changed) syncFromStorage()
+    } finally {
+      setSyncingCrossDevice(false)
+    }
+  }, [syncFromStorage])
+
   useEffect(() => {
     syncFromStorage()
+    void triggerCrossDeviceSync()
+
     const onGovUpdate = () => syncFromStorage()
     const onStorage = () => syncFromStorage()
+    const onFocusOrVisible = () => {
+      if (typeof document === 'undefined' || document.visibilityState === 'visible') {
+        void syncGovernanceFromServer().then((changed) => {
+          if (changed) syncFromStorage()
+        })
+      }
+    }
+
     window.addEventListener(GOVERNANCE_UPDATED_EVENT, onGovUpdate)
     window.addEventListener('storage', onStorage)
-    const tick = window.setInterval(() => {
+    window.addEventListener('focus', onFocusOrVisible)
+    document.addEventListener('visibilitychange', onFocusOrVisible)
+
+    const sessionTick = window.setInterval(() => {
       setSession(getExecutiveSession())
     }, 1000)
+
+    const crossDevicePoll = window.setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        void syncGovernanceFromServer().then((changed) => {
+          if (changed) syncFromStorage()
+        })
+      }
+    }, 12000)
+
     return () => {
       window.removeEventListener(GOVERNANCE_UPDATED_EVENT, onGovUpdate)
       window.removeEventListener('storage', onStorage)
-      window.clearInterval(tick)
+      window.removeEventListener('focus', onFocusOrVisible)
+      document.removeEventListener('visibilitychange', onFocusOrVisible)
+      window.clearInterval(sessionTick)
+      window.clearInterval(crossDevicePoll)
     }
-  }, [syncFromStorage])
+  }, [syncFromStorage, triggerCrossDeviceSync])
 
   const showToast = useCallback((ar: string, en: string) => {
     setToastMsg({ ar, en })
@@ -181,8 +271,8 @@ export function GovernanceProvider({ children }: { children: React.ReactNode }) 
       const created = submitApprovalRequest(input)
       syncFromStorage()
       showToast(
-        'تم رفع طلب موافقة المدير إلى جرس الاعتماد 🔔',
-        'Approval request sent to Manager Bell 🔔',
+        'تم رفع الطلب ومزامنته مع جرس المدير عبر الأجهزة 🔔',
+        'Approval request synced to Manager Bell across devices 🔔',
       )
       return created
     },
@@ -204,8 +294,8 @@ export function GovernanceProvider({ children }: { children: React.ReactNode }) 
           syncFromStorage()
           if (item?.seal) {
             showToast(
-              `تم الاعتماد بالختم الرقمي (${item.seal.sealId}) ✅`,
-              `Approved with Digital Seal (${item.seal.sealId}) ✅`,
+              `تم الاعتماد بالختم الرقمي (${item.seal.sealId}) ومزامنته ✅`,
+              `Approved & synced with Digital Seal (${item.seal.sealId}) ✅`,
             )
           }
         },
@@ -238,6 +328,18 @@ export function GovernanceProvider({ children }: { children: React.ReactNode }) 
         titleEn: 'Stop Breach & Freeze Spend Immediately ⛔',
         onSuccess: () => {
           freezeBreachById(breach.id)
+          recordIssuedCircular(
+            `stop-circular:${breach.id}`,
+            `أمر إيقاف مخالفة: ${breach.approvedDecisionTitleAr}`,
+            `Stop-Violation Order: ${breach.approvedDecisionTitleEn}`,
+            {
+              kind: 'stop-directive',
+              scopeAr: breach.affectedScopeAr,
+              scopeEn: breach.affectedScopeEn,
+              bodyAr: breach.stopDirectiveAr,
+              bodyEn: breach.stopDirectiveEn,
+            },
+          )
           syncFromStorage()
           if (broadcastDirective && typeof navigator !== 'undefined' && navigator.clipboard) {
             const isDocAr =
@@ -246,8 +348,8 @@ export function GovernanceProvider({ children }: { children: React.ReactNode }) 
               .writeText(isDocAr ? breach.stopDirectiveAr : breach.stopDirectiveEn)
               .catch(() => {})
             showToast(
-              'تم تجميد الصرف ونسخ أمر الإيقاف الرسمي للتعميم ⛔📋',
-              'Spend frozen & official stop directive copied ⛔📋',
+              'تم تجميد الصرف وختم أمر الإيقاف الرسمي للتعميم والطباعة ⛔📄',
+              'Spend frozen & official stop directive sealed for print ⛔📄',
             )
           } else {
             showToast(
@@ -316,35 +418,78 @@ export function GovernanceProvider({ children }: { children: React.ReactNode }) 
   const issueOfficialCircularWithPin = useCallback(
     (opts: {
       circularKey: string
+      kind?: OfficialCircularKind
       titleAr: string
       titleEn: string
       circularBodyAr: string
       circularBodyEn: string
-      onIssued?: (meta: { sealId: string; issuedAtIso: string }) => void
+      scopeAr?: string
+      scopeEn?: string
+      mandatoryRulesAr?: string[]
+      mandatoryRulesEn?: string[]
+      financialSummaryAr?: string
+      financialSummaryEn?: string
+      effectiveWindow?: string
+      onIssued?: (meta: { sealId: string; issuedAtIso: string; serialRef: string }) => void
     }) => {
       requireManagerPin({
         titleAr: `تعميم رسمي مختوم: ${opts.titleAr}`,
         titleEn: `Issue Stamped Circular: ${opts.titleEn}`,
         onSuccess: () => {
-          const meta = recordIssuedCircular(opts.circularKey, opts.titleAr, opts.titleEn)
+          const meta = recordIssuedCircular(opts.circularKey, opts.titleAr, opts.titleEn, {
+            kind: opts.kind,
+            scopeAr: opts.scopeAr,
+            scopeEn: opts.scopeEn,
+            mandatoryRulesAr: opts.mandatoryRulesAr,
+            mandatoryRulesEn: opts.mandatoryRulesEn,
+            financialSummaryAr: opts.financialSummaryAr,
+            financialSummaryEn: opts.financialSummaryEn,
+            effectiveWindow: opts.effectiveWindow,
+            bodyAr: opts.circularBodyAr,
+            bodyEn: opts.circularBodyEn,
+          })
           syncFromStorage()
           if (typeof navigator !== 'undefined' && navigator.clipboard) {
             const isDocAr =
               typeof document !== 'undefined' ? document.documentElement.lang !== 'en' : true
             const stampedText = isDocAr
-              ? `${opts.circularBodyAr}\n\n🔐 الختم التنفيذي الرقمي: ${meta.sealId} · ${meta.issuedAtIso.slice(0, 16).replace('T', ' ')}`
-              : `${opts.circularBodyEn}\n\n🔐 Digital Executive Seal: ${meta.sealId} · ${meta.issuedAtIso.slice(0, 16).replace('T', ' ')}`
+              ? `${opts.circularBodyAr}\n\n🔐 المرجع: ${meta.serialRef} · الختم التنفيذي: ${meta.sealId}`
+              : `${opts.circularBodyEn}\n\n🔐 Ref: ${meta.serialRef} · Digital Executive Seal: ${meta.sealId}`
             void navigator.clipboard.writeText(stampedText).catch(() => {})
           }
           opts.onIssued?.(meta)
           showToast(
-            `تم إصدار التعميم بالختم (${meta.sealId}) ونسخه 📋`,
-            `Official circular sealed (${meta.sealId}) & copied 📋`,
+            `تم إصدار التعميم (${meta.serialRef}) بالختم (${meta.sealId}) 📋`,
+            `Official circular (${meta.serialRef}) sealed (${meta.sealId}) 📋`,
           )
         },
       })
     },
     [requireManagerPin, showToast, syncFromStorage],
+  )
+
+  const openCircularPrintModal = useCallback((doc: OfficialCircularDocument) => {
+    setPrintDoc(doc)
+  }, [])
+
+  const openBreachStopCircularPrint = useCallback(
+    (breach: ComplianceBreachItem) => {
+      const liveStore = loadGovernanceStore()
+      setPrintDoc(buildStopDirectiveCircularDoc(breach, liveStore))
+    },
+    [],
+  )
+
+  const flagRegressionToWatchdog = useCallback(
+    (input: Omit<FlaggedDecisionRegression, 'flaggedAtIso'>) => {
+      flagDecisionRegressionInStore(input)
+      syncFromStorage()
+      showToast(
+        'تم تسجيل التراجع في مراقب الامتثال وجرس المدير 🔔🚨',
+        'Post-decision regression flagged to Compliance Watchdog 🔔🚨',
+      )
+    },
+    [showToast, syncFromStorage],
   )
 
   const approvals = store.approvals
@@ -373,6 +518,8 @@ export function GovernanceProvider({ children }: { children: React.ReactNode }) 
       activeBreaches,
       liveBadgeCount,
       drawerOpen,
+      syncingCrossDevice,
+      triggerCrossDeviceSync,
       openDrawer,
       closeDrawer,
       requireManagerPin,
@@ -387,6 +534,9 @@ export function GovernanceProvider({ children }: { children: React.ReactNode }) 
       toggleBranchReceipt,
       confirmAllBranchesReceipt,
       issueOfficialCircularWithPin,
+      openCircularPrintModal,
+      openBreachStopCircularPrint,
+      flagRegressionToWatchdog,
     }),
     [
       activeBreaches,
@@ -396,11 +546,14 @@ export function GovernanceProvider({ children }: { children: React.ReactNode }) 
       closeDrawer,
       confirmAllBranchesReceipt,
       drawerOpen,
+      flagRegressionToWatchdog,
       freezeBreachWithPin,
       getApprovalByRef,
       issueOfficialCircularWithPin,
       liveBadgeCount,
       lockSession,
+      openBreachStopCircularPrint,
+      openCircularPrintModal,
       openDrawer,
       pendingApprovals,
       rejectItemWithPin,
@@ -409,7 +562,9 @@ export function GovernanceProvider({ children }: { children: React.ReactNode }) 
       retroactiveApproveBreachWithPin,
       session,
       store,
+      syncingCrossDevice,
       toggleBranchReceipt,
+      triggerCrossDeviceSync,
       unfreezeBreachWithPin,
     ],
   )
@@ -422,6 +577,43 @@ export function GovernanceProvider({ children }: { children: React.ReactNode }) 
         tab={drawerTab}
         onTabChange={setDrawerTab}
         onClose={closeDrawer}
+      />
+      <OfficialCircularPrintModal
+        open={Boolean(printDoc)}
+        doc={printDoc}
+        store={store}
+        onClose={() => setPrintDoc(null)}
+        onToggleBranchReceipt={toggleBranchReceipt}
+        onConfirmAllBranches={confirmAllBranchesReceipt}
+        onSealNow={(docToSeal) => {
+          issueOfficialCircularWithPin({
+            circularKey: docToSeal.circularKey,
+            kind: docToSeal.kind,
+            titleAr: docToSeal.titleAr,
+            titleEn: docToSeal.titleEn,
+            circularBodyAr: docToSeal.bodyAr ?? docToSeal.titleAr,
+            circularBodyEn: docToSeal.bodyEn ?? docToSeal.titleEn,
+            scopeAr: docToSeal.scopeAr,
+            scopeEn: docToSeal.scopeEn,
+            mandatoryRulesAr: docToSeal.mandatoryRulesAr,
+            mandatoryRulesEn: docToSeal.mandatoryRulesEn,
+            financialSummaryAr: docToSeal.financialSummaryAr,
+            financialSummaryEn: docToSeal.financialSummaryEn,
+            effectiveWindow: docToSeal.effectiveWindow,
+            onIssued: (meta) => {
+              setPrintDoc((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      sealId: meta.sealId,
+                      serialRef: meta.serialRef,
+                      issuedAtIso: meta.issuedAtIso,
+                    }
+                  : null,
+              )
+            },
+          })
+        }}
       />
       <ExecutivePinModal
         open={Boolean(pinPrompt)}
@@ -453,7 +645,7 @@ function GovernanceToast({ ar, en }: { ar: string; en: string }) {
   return createPortal(
     <div
       dir={isAr ? 'rtl' : 'ltr'}
-      className="fixed bottom-5 start-1/2 z-[70] -translate-x-1/2 rounded-full bg-white px-4 py-2 text-xs font-semibold text-neutral-900 shadow-[0_8px_28px_rgba(15,23,42,0.16)] ring-1 ring-emerald-500/25 dark:bg-neutral-900 dark:text-emerald-200"
+      className="fixed bottom-5 start-1/2 z-[140] -translate-x-1/2 rounded-full bg-white px-4 py-2 text-xs font-semibold text-neutral-900 shadow-[0_8px_28px_rgba(15,23,42,0.16)] ring-1 ring-emerald-500/25 dark:bg-neutral-900 dark:text-emerald-200"
     >
       {isAr ? ar : en}
     </div>,
@@ -494,7 +686,6 @@ export function GovernanceBellTrigger() {
 
   return (
     <div className="flex items-center gap-1.5">
-      {/* Executive Session Status + 1-Click Lock / Unlock */}
       {session.active ? (
         <div className="hidden items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11.5px] font-semibold text-emerald-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:inline-flex dark:bg-emerald-950/60 dark:text-emerald-200">
           <span>{isAr ? 'وضع المدير نشط 🔓' : 'Manager Active 🔓'}</span>
@@ -531,7 +722,6 @@ export function GovernanceBellTrigger() {
         </button>
       )}
 
-      {/* Live Governance & Odoo Compliance Bell (Zero static 99+!) */}
       <button
         type="button"
         onClick={() => openDrawer('all')}
@@ -599,6 +789,8 @@ function GovernanceSlideOverDrawer({
     pendingApprovals,
     breaches,
     activeBreaches,
+    syncingCrossDevice,
+    triggerCrossDeviceSync,
     requireManagerPin,
     lockSession,
     approveItemWithPin,
@@ -606,6 +798,7 @@ function GovernanceSlideOverDrawer({
     freezeBreachWithPin,
     retroactiveApproveBreachWithPin,
     unfreezeBreachWithPin,
+    openBreachStopCircularPrint,
   } = useGovernance()
 
   useEffect(() => {
@@ -614,12 +807,13 @@ function GovernanceSlideOverDrawer({
 
   useEffect(() => {
     if (!open) return
+    void triggerCrossDeviceSync()
     const onEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
     }
     window.addEventListener('keydown', onEsc)
     return () => window.removeEventListener('keydown', onEsc)
-  }, [onClose, open])
+  }, [onClose, open, triggerCrossDeviceSync])
 
   const sealedHistory = useMemo(
     () => approvals.filter((a) => a.status === 'approved' || a.status === 'rejected'),
@@ -717,20 +911,31 @@ function GovernanceSlideOverDrawer({
                 </h2>
                 <p className="mt-0.5 text-xs text-neutral-400">
                   {isAr
-                    ? `${pendingApprovals.length} طلب بانتظار الختم · ${activeBreaches.length} مخالفة لقرارات معتمدة`
-                    : `${pendingApprovals.length} awaiting PIN seal · ${activeBreaches.length} active policy breaches`}
+                    ? `${pendingApprovals.length} طلب بانتظار الختم · ${activeBreaches.length} مخالفة · متزامن عبر الأجهزة`
+                    : `${pendingApprovals.length} awaiting PIN seal · ${activeBreaches.length} breaches · Cross-device synced`}
                 </p>
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label={isAr ? 'إغلاق' : 'Close'}
-              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-neutral-100 text-neutral-600 transition-colors duration-150 hover:bg-neutral-200/80 dark:bg-white/[0.06] dark:text-slate-300"
-            >
-              <X className="h-4 w-4" />
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => void triggerCrossDeviceSync()}
+                title={isAr ? 'مزامنة فورية مع الخادم والأجهزة' : 'Sync now across devices'}
+                className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-neutral-100 text-neutral-600 transition-colors duration-150 hover:bg-emerald-50 hover:text-emerald-700 dark:bg-white/[0.06] dark:text-slate-300"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${syncingCrossDevice ? 'animate-spin text-emerald-600' : ''}`} />
+              </button>
+
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label={isAr ? 'إغلاق' : 'Close'}
+                className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-neutral-100 text-neutral-600 transition-colors duration-150 hover:bg-neutral-200/80 dark:bg-white/[0.06] dark:text-slate-300"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
           </div>
 
           {/* Executive Session Control Bar */}
@@ -954,6 +1159,17 @@ function GovernanceSlideOverDrawer({
                                 </span>
                               </Link>
                             )}
+
+                            <button
+                              type="button"
+                              onClick={() => openBreachStopCircularPrint(b)}
+                              className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-[#F7F7F8] px-2.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-200/70 dark:bg-white/10 dark:text-slate-200"
+                            >
+                              <FileText className="h-3.5 w-3.5 text-emerald-600" />
+                              <span>
+                                {isAr ? 'طباعة / تصدير تعميم رسمي 📄' : 'Print Circular 📄'}
+                              </span>
+                            </button>
                           </div>
 
                           {b.retroactiveApprovalEligible ? (
@@ -976,6 +1192,17 @@ function GovernanceSlideOverDrawer({
                             >
                               <span>
                                 {isAr ? 'فك التجميد بعد التصحيح 🔓' : 'Unfreeze After Fix 🔓'}
+                              </span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => openBreachStopCircularPrint(b)}
+                              className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-emerald-50 px-2.5 text-xs font-semibold text-emerald-900 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-200"
+                            >
+                              <FileText className="h-3.5 w-3.5" />
+                              <span>
+                                {isAr ? 'طباعة / تصدير تعميم رسمي 📄' : 'Print Official Circular 📄'}
                               </span>
                             </button>
 
@@ -1026,7 +1253,7 @@ function GovernanceSlideOverDrawer({
           ) : null}
 
           {/* 2. Pending Department Approval Requests */}
-          {(tab === 'all' || tab === 'approvals') ? (
+          {tab === 'all' || tab === 'approvals' ? (
             <section className="space-y-2.5">
               <div className="flex items-center justify-between px-1">
                 <span className="text-xs font-semibold text-neutral-700 dark:text-slate-200">
@@ -1139,7 +1366,10 @@ function GovernanceSlideOverDrawer({
                             : 'Rejected ❌'}
                       </span>
                       {item.seal ? (
-                        <span dir="ltr" className="font-mono text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+                        <span
+                          dir="ltr"
+                          className="font-mono text-[11px] font-semibold text-emerald-700 dark:text-emerald-400"
+                        >
                           {item.seal.sealId}
                         </span>
                       ) : null}

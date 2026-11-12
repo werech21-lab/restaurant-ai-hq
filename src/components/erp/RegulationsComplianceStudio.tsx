@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   Clock,
   Copy,
+  FileText,
   Lock,
   Megaphone,
   MessageCircle,
@@ -25,6 +26,7 @@ import {
 } from '@/lib/aether/global-filter-engine'
 import { SlidingPillTabs } from '@/components/ui/SlidingPillTabs'
 import { useGovernance } from '@/components/erp/GovernanceBellDrawer'
+import { buildCircularSerialRef } from '@/lib/governance-compliance'
 import {
   buildRegulationCircularText,
   buildRegulationStopDirective,
@@ -62,6 +64,7 @@ export function RegulationsComplianceStudio() {
     toggleBranchReceipt,
     confirmAllBranchesReceipt,
     issueOfficialCircularWithPin,
+    openCircularPrintModal,
     openDrawer,
   } = useGovernance()
 
@@ -551,7 +554,7 @@ export function RegulationsComplianceStudio() {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="space-y-1.5">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 font-mono text-xs font-bold text-neutral-800 dark:bg-neutral-800 dark:text-slate-100">
+                    <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 font-mono text-xs font-bold text-emerald-900 dark:bg-emerald-950/70 dark:text-emerald-200">
                       {reg.code}
                     </span>
                     <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${severityBadge.cls}`}>
@@ -756,10 +759,18 @@ export function RegulationsComplianceStudio() {
                     onClick={() =>
                       issueOfficialCircularWithPin({
                         circularKey,
+                        kind: 'regulation',
                         titleAr: `${reg.code} — ${reg.titleAr}`,
                         titleEn: `${reg.code} — ${reg.titleEn}`,
                         circularBodyAr,
                         circularBodyEn,
+                        scopeAr: `${reg.authorityAr} · الفروع السبعة ومطبخ العارضية`,
+                        scopeEn: `${reg.authorityEn} · All 7 Active Branches & Ardiya Kitchen`,
+                        effectiveWindow: `${reg.effectiveDate} → ${reg.deadlineDate}`,
+                        financialSummaryAr: `تكلفة الامتثال: ${f0(reg.costImpactKwd)} د.ك • غرامات متفاداة: ${f0(reg.penaltyAvoidedKwd)} د.ك`,
+                        financialSummaryEn: `Cost Impact: ${f0(reg.costImpactKwd)} KWD • Fines Shielded: ${f0(reg.penaltyAvoidedKwd)} KWD`,
+                        mandatoryRulesAr: reg.mitigationStepsAr,
+                        mandatoryRulesEn: reg.mitigationStepsEn,
                       })
                     }
                     className="ae-btn-primary inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-xs font-semibold transition-all duration-150"
@@ -769,6 +780,55 @@ export function RegulationsComplianceStudio() {
                       {isAr
                         ? 'تعميم خطة التعامل رسمياً 📢'
                         : 'Broadcast Mitigation Plan Officially 📢'}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openCircularPrintModal({
+                        circularKey: readinessKey,
+                        serialRef:
+                          issuedCircular?.serialRef ?? buildCircularSerialRef(circularKey),
+                        kind: isStopActive ? 'stop-directive' : 'regulation',
+                        titleAr: isStopActive
+                          ? `أمر إيقاف مخالفة رقابية ⛔ — ${reg.code}: ${reg.titleAr}`
+                          : `${reg.code} — ${reg.titleAr}`,
+                        titleEn: isStopActive
+                          ? `Regulatory Stop-Violation Directive ⛔ — ${reg.code}: ${reg.titleEn}`
+                          : `${reg.code} — ${reg.titleEn}`,
+                        classificationAr: isStopActive
+                          ? 'أمر إيقاف مخالفة رقابية عاجل ⛔'
+                          : 'تعميم خطة امتثال تشريعي ورقابي',
+                        classificationEn: isStopActive
+                          ? 'Urgent Regulatory Stop-Violation Order ⛔'
+                          : 'Official Regulatory Compliance Playbook',
+                        scopeAr: `${reg.authorityAr} · الفروع السبعة المعتمدة ومطبخ العارضية`,
+                        scopeEn: `${reg.authorityEn} · All 7 Active Branches & Ardiya Central Kitchen`,
+                        issuedAtIso:
+                          stoppedRegs[reg.id] ??
+                          issuedCircular?.issuedAtIso ??
+                          approval?.seal?.approvedAtIso ??
+                          new Date().toISOString(),
+                        effectiveWindow: `${isAr ? 'المهلة:' : 'Deadline:'} ${reg.deadlineDate}`,
+                        sealId: issuedCircular?.sealId ?? approval?.seal?.sealId,
+                        financialSummaryAr: `تكلفة الامتثال: ${f0(reg.costImpactKwd)} د.ك • الحماية من غرامات: ${f0(reg.penaltyAvoidedKwd)} د.ك`,
+                        financialSummaryEn: `Compliance Cost: ${f0(reg.costImpactKwd)} KWD • Penalties Shielded: ${f0(reg.penaltyAvoidedKwd)} KWD`,
+                        mandatoryRulesAr: reg.mitigationStepsAr,
+                        mandatoryRulesEn: reg.mitigationStepsEn,
+                        bodyAr: isStopActive
+                          ? buildRegulationStopDirective(reg, true)
+                          : circularBodyAr,
+                        bodyEn: isStopActive
+                          ? buildRegulationStopDirective(reg, false)
+                          : circularBodyEn,
+                      })
+                    }
+                    className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-white px-3 text-xs font-semibold text-emerald-900 shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:bg-emerald-50 dark:bg-[#0C141B] dark:text-emerald-300"
+                  >
+                    <FileText className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <span>
+                      {isAr ? 'طباعة / تصدير تعميم رسمي 📄' : 'Print Official Circular 📄'}
                     </span>
                   </button>
 

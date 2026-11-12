@@ -712,6 +712,48 @@ assert(
   `netGap=${planProbe.maxNetGap} KWD, marginGap=${Number(planProbe.maxMarginGap).toFixed(6)}%, regReadiness=${planProbe.regReadyCount}/${planProbe.regTotalSlots} (${planProbe.regReadinessPct}%)`,
 )
 
+// 10. Phase 2: Cross-Device Governance Server Sync, Printable A4 Official Circulars & Remaining Tabs Governance
+console.log('\n10) Cross-Device Governance Sync, Printable A4 Circulars & Remaining Tabs Governance:')
+const govApiSrc = fs.readFileSync(path.join(ROOT, 'src/app/api/erp/governance/route.ts'), 'utf8')
+const circularModalSrc = fs.readFileSync(
+  path.join(ROOT, 'src/components/erp/OfficialCircularPrintModal.tsx'),
+  'utf8',
+)
+
+assert(
+  govApiSrc.includes('export async function GET') &&
+    govApiSrc.includes('export async function POST') &&
+    govApiSrc.includes('export async function PATCH') &&
+    govEngineSrc.includes("fetch('/api/erp/governance'") &&
+    govEngineSrc.includes('mergeGovernanceStores'),
+  'Cross-device governance API (/api/erp/governance GET/POST/PATCH) & conflict-free client sync active',
+)
+
+assert(
+  circularModalSrc.includes('Venture Foods Co.') &&
+    circularModalSrc.includes('شركة فنتشر فودز') &&
+    govEngineSrc.includes('VF-CIR-2026-') &&
+    circularModalSrc.includes('buildCircularSerialRef') &&
+    circularModalSrc.includes('معتمد رسمياً بختم الإدارة التنفيذية') &&
+    circularModalSrc.includes('@media print') &&
+    planningSrc.includes('طباعة / تصدير تعميم رسمي 📄') &&
+    regulationsSrc.includes('طباعة / تصدير تعميم رسمي 📄') &&
+    govDrawerSrc.includes('طباعة / تصدير تعميم رسمي 📄'),
+  'Printable A4 Official Circulars (VF-CIR-2026-XXX, Digital Seal, 7 Active Branches table & @media print) wired across Planning, Regulations & Stop Directives',
+)
+
+assert(
+  beforeAfterSrc.includes('أثر القرارات المعتمدة: قبل القرار مقابل بعده في أودو') &&
+    beforeAfterSrc.includes('طلب مراجعة / إيقاف المخالفة 🔔') &&
+    beforeAfterSrc.includes('max-w-[1520px]') &&
+    radarSrc.includes('طلب موافقة المدير على خطة التوصيل 🔔') &&
+    radarSrc.includes('max-w-[1520px]') &&
+    boothSrc.includes('طلب موافقة المدير على مشاركة المعرض 🔔') &&
+    boothSrc.includes('تعميم خطة المعرض 📄') &&
+    boothSrc.includes('max-w-[1520px]'),
+  'Before & After Impact Tracker, Delivery Radar TMP/Tgo Cap Governance & Booth Calculator EXB Budget Watchdog all wired to Manager PIN compliance',
+)
+
 console.log('\n----------------------------------------------------------------------')
 if (failed > 0) {
   console.error(`❌ Verification FAILED: ${failed} failed, ${passed} passed.`)

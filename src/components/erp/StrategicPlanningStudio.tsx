@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   Compass,
   Copy,
+  FileText,
   Lock,
   Megaphone,
   MessageCircle,
@@ -27,6 +28,7 @@ import {
 } from '@/lib/aether/global-filter-engine'
 import { SlidingPillTabs } from '@/components/ui/SlidingPillTabs'
 import { useGovernance } from '@/components/erp/GovernanceBellDrawer'
+import { buildCircularSerialRef } from '@/lib/governance-compliance'
 import {
   buildPlanCircularText,
   computePlanningHubSnapshot,
@@ -70,6 +72,8 @@ export function StrategicPlanningStudio() {
     toggleBranchReceipt,
     confirmAllBranchesReceipt,
     issueOfficialCircularWithPin,
+    openCircularPrintModal,
+    openBreachStopCircularPrint,
   } = useGovernance()
 
   const [horizon, setHorizon] = useState<ForecastHorizonId>('90d')
@@ -846,10 +850,26 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
                       onClick={() =>
                         issueOfficialCircularWithPin({
                           circularKey,
+                          kind: 'strategic-plan',
                           titleAr: `${phase.phaseCode} — ${phase.titleAr}`,
                           titleEn: `${phase.phaseCode} — ${phase.titleEn}`,
                           circularBodyAr,
                           circularBodyEn,
+                          scopeAr: `${phase.ownerAr} · الفروع السبعة المعتمدة`,
+                          scopeEn: `${phase.ownerEn} · All 7 Active Branches`,
+                          effectiveWindow: `${phase.startDate} → ${phase.endDate}`,
+                          financialSummaryAr: `سقف التكلفة: ${f0(phase.costCapKwd)} د.ك • العائد المستهدف: +${f0(phase.expectedMonthlyGainKwd)} د.ك/شهر`,
+                          financialSummaryEn: `Cost Cap: ${f0(phase.costCapKwd)} KWD • Target Return: +${f0(phase.expectedMonthlyGainKwd)} KWD/mo`,
+                          mandatoryRulesAr: [
+                            `تحقيق المؤشر المستهدف: ${phase.targetKpiAr}`,
+                            `عدم تجاوز سقف ميزانية المرحلة المحدد بـ ${f0(phase.costCapKwd)} د.ك بدون ختم المدير التنفيذي.`,
+                            'ربط التنفيذ آلياً بمراقب الامتثال الحي في أودو ١٧ وتأكيد استلام الفروع السبعة.',
+                          ],
+                          mandatoryRulesEn: [
+                            `Deliver Target KPI: ${phase.targetKpiEn}`,
+                            `Strict phase cost cap <= ${f0(phase.costCapKwd)} KWD without Executive PIN Seal.`,
+                            'Monitored continuously in Odoo 17 Watchdog with 7-branch digital receipt tracking.',
+                          ],
                           onIssued: () => setExpandedCircularId(phase.id),
                         })
                       }
@@ -860,6 +880,52 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
                         {isAr
                           ? 'تعميم الخطة المعتمدة رسمياً 📢'
                           : 'Broadcast Approved Plan Officially 📢'}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        openCircularPrintModal({
+                          circularKey,
+                          serialRef:
+                            issuedCircular?.serialRef ?? buildCircularSerialRef(circularKey),
+                          kind: 'strategic-plan',
+                          titleAr: `${phase.phaseCode} — ${phase.titleAr}`,
+                          titleEn: `${phase.phaseCode} — ${phase.titleEn}`,
+                          classificationAr: 'تعميم خطة استراتيجية معتمدة',
+                          classificationEn: 'Approved Strategic Execution Circular',
+                          scopeAr: `${phase.ownerAr} · الفروع السبعة ومطبخ العارضية`,
+                          scopeEn: `${phase.ownerEn} · All 7 Active Branches & Ardiya Kitchen`,
+                          issuedAtIso:
+                            issuedCircular?.issuedAtIso ??
+                            approval?.seal?.approvedAtIso ??
+                            new Date().toISOString(),
+                          effectiveWindow: `${phase.startDate} → ${phase.endDate}`,
+                          sealId: issuedCircular?.sealId ?? approval?.seal?.sealId,
+                          financialSummaryAr: `سقف التكلفة: ${f0(phase.costCapKwd)} د.ك • العائد المتوقع: +${f0(phase.expectedMonthlyGainKwd)} د.ك/شهر`,
+                          financialSummaryEn: `Cost Cap: ${f0(phase.costCapKwd)} KWD • Expected Gain: +${f0(phase.expectedMonthlyGainKwd)} KWD/mo`,
+                          mandatoryRulesAr: [
+                            `المؤشر التشغيلي الإلزامي: ${phase.targetKpiAr}`,
+                            `سقف الصرف المسموح لهذه المرحلة لا يتجاوز ${f0(phase.costCapKwd)} د.ك.`,
+                            `السيناريو المالي المربوط: ${activeScenario.badgeAr} (صافي كاش +${f0(activeScenario.projectedNetCashKwd)} د.ك).`,
+                            'يتم تجميد أي انحراف آلياً عبر جرس الامتثال في أودو ١٧.',
+                          ],
+                          mandatoryRulesEn: [
+                            `Mandatory Target KPI: ${phase.targetKpiEn}`,
+                            `Phase spending strictly capped at <= ${f0(phase.costCapKwd)} KWD.`,
+                            `Linked Scenario: ${activeScenario.badgeEn} (+${f0(activeScenario.projectedNetCashKwd)} KWD net cash).`,
+                            'Any deviation triggers immediate Odoo 17 Compliance Watchdog alert.',
+                          ],
+                          bodyAr: circularBodyAr,
+                          bodyEn: circularBodyEn,
+                        })
+                      }
+                      className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-white px-3 text-xs font-semibold text-emerald-900 shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:bg-emerald-50 dark:bg-[#111A22] dark:text-emerald-300"
+                    >
+                      <FileText className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                      <span>
+                        {isAr ? 'طباعة / تصدير تعميم رسمي 📄' : 'Print Official Circular 📄'}
                       </span>
                     </button>
 
@@ -1061,6 +1127,17 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
                     <span>{isAr ? 'فك التجميد بعد التصحيح 🔓' : 'Unfreeze After Fix 🔓'}</span>
                   </button>
                 )}
+
+                <button
+                  type="button"
+                  onClick={() => openBreachStopCircularPrint(b)}
+                  className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-white px-3 text-xs font-semibold text-emerald-900 shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:bg-emerald-50 dark:bg-[#111A22] dark:text-emerald-300"
+                >
+                  <FileText className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>
+                    {isAr ? 'طباعة / تصدير تعميم رسمي 📄' : 'Print Official Circular 📄'}
+                  </span>
+                </button>
 
                 <button
                   type="button"

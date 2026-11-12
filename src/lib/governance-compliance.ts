@@ -1,15 +1,18 @@
 /**
  * Enterprise Governance, 4-Digit Hashed Manager PIN (`2026`), 15-Minute Executive Session,
+ * Cross-Device Server Sync (`/api/erp/governance`), Printable A4 Official Circulars (`VF-CIR-2026-XXX`),
  * Digital Executive Seal & Continuous Odoo 17 Compliance Watchdog.
  *
  * Strictly enforces:
- *   - Default Master PIN = `2026` stored ONLY as a salted digest in `localStorage` (zero plaintext).
+ *   - Default Master PIN = `2026` stored ONLY as a salted digest in `localStorage` & server store (zero plaintext).
  *   - 15-minute Executive Session (`وضع المدير نشط 🔓` + 1-click `قفل الصلاحية 🔒`).
+ *   - Cross-device optimistic sync (`localStorage` + `/api/erp/governance` GET/POST/PATCH) so approvals submitted
+ *     by the Executive Secretary on PC #1 appear live on the Manager's PC/phone.
  *   - Department Staff (No PIN needed): submit `طلب موافقة المدير 🔔` across Marketing, Growth Plays,
- *     Strategic Planning, and Regulations.
+ *     Strategic Planning, Regulations, Before & After, Delivery Radar, and Booth Calculator (`EXB`).
  *   - Manager Only (PIN `2026` required): `موافقة واعتماد ✅` (Digital Seal), `رفض ❌`,
  *     `إيقاف المخالفة وتجميد الصرف ⛔`, `إيقاف المخالفة وتعميم أمر إيقاف فوري ⛔`, `فك التجميد بعد التصحيح 🔓`.
- *   - Continuous Odoo 17 Watchdog against real Venture Foods 6-brand / 7-branch metrics.
+ *   - Continuous Odoo 17 Watchdog against real Venture Foods 6-brand / 7-branch + `EXB` metrics.
  */
 
 import { ODOO } from '@/lib/odoo/odoo-dataset'
@@ -55,7 +58,7 @@ export function hashManagerPin(pin: string): string {
   return `vfh1_${hex2}${hex1}`
 }
 
-const DEFAULT_MASTER_PIN_HASH = hashManagerPin('2026')
+export const DEFAULT_MASTER_PIN_HASH = hashManagerPin('2026')
 
 export function ensureManagerPinInitialized(): string {
   if (typeof window === 'undefined') return DEFAULT_MASTER_PIN_HASH
@@ -95,9 +98,11 @@ export function changeManagerPin(
     }
   }
   try {
+    const nextHash = hashManagerPin(trimmedNext)
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(MANAGER_PIN_HASH_KEY, hashManagerPin(trimmedNext))
+      window.localStorage.setItem(MANAGER_PIN_HASH_KEY, nextHash)
       emitGovernanceSync()
+      void pushGovernancePatchToServer({ action: 'updatePinHash', pinHash: nextHash })
     }
     return { ok: true }
   } catch {
@@ -175,6 +180,9 @@ export type GovernanceDomain =
   | 'planning'
   | 'regulations'
   | 'operations'
+  | 'delivery-radar'
+  | 'booth-exb'
+  | 'before-after'
 
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'frozen'
 
@@ -183,6 +191,41 @@ export interface DigitalExecutiveSeal {
   approvedAtIso: string
   approvedByAr: string
   approvedByEn: string
+}
+
+export interface GovernanceApprovalMeta {
+  /** Optional structured parameters locked upon Manager PIN approval */
+  deliveryCap?: {
+    targetTmpSharePct: number
+    commissionCapPct: number
+    promoDiscountCapPct: number
+    approvedTmpBranches: string[]
+  }
+  boothCap?: {
+    eventName: string
+    brandId: string
+    brandAr: string
+    brandEn: string
+    startDate: string
+    endDate: string
+    days: number
+    totalBudgetCapKwd: number
+    dailyCostCapKwd: number
+    rentKwd: number
+    foodCostCapPct: number
+    expectedNetKwd: number
+  }
+  beforeAfterAudit?: {
+    decisionKey: string
+    beforeSalesKwd: number
+    afterSalesKwd: number
+    beforePocketKwd: number
+    afterPocketKwd: number
+    beforeCostPct: number
+    afterCostPct: number
+    beforeDiscountPct: number
+    afterDiscountPct: number
+  }
 }
 
 export interface GovernanceApprovalRequest {
@@ -199,9 +242,11 @@ export interface GovernanceApprovalRequest {
   expectedMonthlyReturnKwd: number
   href: string
   createdAtIso: string
+  updatedAtIso?: string
   status: ApprovalStatus
   seal?: DigitalExecutiveSeal
   rejectionNote?: string
+  meta?: GovernanceApprovalMeta
 }
 
 export type BreachCategory =
@@ -210,6 +255,9 @@ export type BreachCategory =
   | 'ad-roi-floor'
   | 'branch-cancel-limit'
   | 'tmp-tgo-routing'
+  | 'aggregator-promo-cap'
+  | 'exb-budget-cap'
+  | 'post-decision-regression'
   | 'plan-cap-breach'
   | 'regulatory-deadline'
 
@@ -244,15 +292,119 @@ export interface CircularReceiptMap {
   [circularRefKey: string]: Partial<Record<Exclude<GlobalBranch, 'all'>, boolean>>
 }
 
+export type OfficialCircularKind =
+  | 'strategic-plan'
+  | 'regulation'
+  | 'stop-directive'
+  | 'delivery-plan'
+  | 'booth-plan'
+
+export interface OfficialCircularDocument {
+  circularKey: string
+  serialRef: string
+  kind: OfficialCircularKind
+  titleAr: string
+  titleEn: string
+  classificationAr: string
+  classificationEn: string
+  scopeAr: string
+  scopeEn: string
+  issuedAtIso: string
+  effectiveWindow?: string
+  sealId?: string
+  financialSummaryAr?: string
+  financialSummaryEn?: string
+  mandatoryRulesAr: string[]
+  mandatoryRulesEn: string[]
+  bodyAr?: string
+  bodyEn?: string
+}
+
+export interface IssuedCircularRecord {
+  issuedAtIso: string
+  sealId: string
+  serialRef?: string
+  kind?: OfficialCircularKind
+  titleAr: string
+  titleEn: string
+  scopeAr?: string
+  scopeEn?: string
+  mandatoryRulesAr?: string[]
+  mandatoryRulesEn?: string[]
+  financialSummaryAr?: string
+  financialSummaryEn?: string
+  effectiveWindow?: string
+  bodyAr?: string
+  bodyEn?: string
+}
+
+export interface ApprovedDeliveryCapRule {
+  refKey: string
+  targetTmpSharePct: number
+  commissionCapPct: number
+  promoDiscountCapPct: number
+  expectedMonthlySavingKwd: number
+  approvedTmpBranches: string[]
+  sealId: string
+  approvedAtIso: string
+}
+
+export interface ApprovedBoothPlanRule {
+  refKey: string
+  eventName: string
+  brandId: string
+  brandAr: string
+  brandEn: string
+  startDate: string
+  endDate: string
+  days: number
+  totalBudgetCapKwd: number
+  dailyCostCapKwd: number
+  rentKwd: number
+  foodCostCapPct: number
+  expectedNetKwd: number
+  sealId: string
+  approvedAtIso: string
+}
+
+export interface FlaggedDecisionRegression {
+  id: string
+  decisionKey: string
+  titleAr: string
+  titleEn: string
+  scopeAr: string
+  scopeEn: string
+  monthlyLeakKwd: number
+  odooProofAr: string
+  odooProofEn: string
+  ruleLimitAr: string
+  ruleLimitEn: string
+  href: string
+  flaggedAtIso: string
+}
+
 export interface PersistedGovernanceStore {
+  updatedAtIso?: string
   approvals: GovernanceApprovalRequest[]
-  frozenBreachIds: Record<string, string> // breachId -> frozenAtIso
-  resolvedBreachIds: Record<string, string> // breachId -> resolvedAtIso
+  frozenBreachIds: Record<string, string>
+  resolvedBreachIds: Record<string, string>
   branchReceipts: CircularReceiptMap
-  issuedCirculars: Record<
-    string,
-    { issuedAtIso: string; sealId: string; titleAr: string; titleEn: string }
-  >
+  issuedCirculars: Record<string, IssuedCircularRecord>
+  approvedRuleCaps?: {
+    deliveryPlan?: ApprovedDeliveryCapRule
+    boothExbPlans?: Record<string, ApprovedBoothPlanRule>
+  }
+  flaggedRegressions?: Record<string, FlaggedDecisionRegression>
+}
+
+/** Deterministic 3-digit corporate circular serial reference (`VF-CIR-2026-XXX`). */
+export function buildCircularSerialRef(circularKey: string): string {
+  let acc = 104
+  for (let i = 0; i < circularKey.length; i++) {
+    acc = (acc * 31 + circularKey.charCodeAt(i)) % 890
+  }
+  const num = String(101 + (acc % 898)).padStart(3, '0')
+  return `VF-CIR-2026-${num}`
 }
 
 export function emitGovernanceSync(): void {
@@ -276,6 +428,7 @@ export const SEEDED_APPROVAL_REQUESTS: GovernanceApprovalRequest[] = [
     expectedMonthlyReturnKwd: 640,
     href: '/erp/cores',
     createdAtIso: '2026-11-11T09:20:00Z',
+    updatedAtIso: '2026-11-11T09:20:00Z',
     status: 'pending',
   },
   {
@@ -292,6 +445,7 @@ export const SEEDED_APPROVAL_REQUESTS: GovernanceApprovalRequest[] = [
     expectedMonthlyReturnKwd: 810,
     href: '/erp/planning',
     createdAtIso: '2026-11-11T11:05:00Z',
+    updatedAtIso: '2026-11-11T11:05:00Z',
     status: 'pending',
   },
 ]
@@ -324,67 +478,310 @@ export const DEFAULT_BRANCH_RECEIPTS: CircularReceiptMap = {
   'reg-ready:reg-kff-malls-exb': DEFAULT_REGULATION_BRANCH_READINESS['reg-kff-malls-exb'],
 }
 
+export function createInitialGovernanceStore(): PersistedGovernanceStore {
+  return {
+    updatedAtIso: '2026-11-11T12:00:00Z',
+    approvals: SEEDED_APPROVAL_REQUESTS,
+    frozenBreachIds: {},
+    resolvedBreachIds: {},
+    branchReceipts: DEFAULT_BRANCH_RECEIPTS,
+    issuedCirculars: {},
+    approvedRuleCaps: {
+      boothExbPlans: {},
+    },
+    flaggedRegressions: {},
+  }
+}
+
+export function normalizeGovernanceStore(raw: unknown): PersistedGovernanceStore {
+  const base = createInitialGovernanceStore()
+  if (!raw || typeof raw !== 'object') return base
+  const parsed = raw as Partial<PersistedGovernanceStore>
+  return {
+    updatedAtIso: typeof parsed.updatedAtIso === 'string' ? parsed.updatedAtIso : base.updatedAtIso,
+    approvals: Array.isArray(parsed.approvals) ? parsed.approvals : base.approvals,
+    frozenBreachIds:
+      parsed.frozenBreachIds && typeof parsed.frozenBreachIds === 'object'
+        ? parsed.frozenBreachIds
+        : {},
+    resolvedBreachIds:
+      parsed.resolvedBreachIds && typeof parsed.resolvedBreachIds === 'object'
+        ? parsed.resolvedBreachIds
+        : {},
+    branchReceipts:
+      parsed.branchReceipts && typeof parsed.branchReceipts === 'object'
+        ? { ...DEFAULT_BRANCH_RECEIPTS, ...parsed.branchReceipts }
+        : DEFAULT_BRANCH_RECEIPTS,
+    issuedCirculars:
+      parsed.issuedCirculars && typeof parsed.issuedCirculars === 'object'
+        ? parsed.issuedCirculars
+        : {},
+    approvedRuleCaps: {
+      deliveryPlan: parsed.approvedRuleCaps?.deliveryPlan,
+      boothExbPlans:
+        parsed.approvedRuleCaps?.boothExbPlans &&
+        typeof parsed.approvedRuleCaps.boothExbPlans === 'object'
+          ? parsed.approvedRuleCaps.boothExbPlans
+          : {},
+    },
+    flaggedRegressions:
+      parsed.flaggedRegressions && typeof parsed.flaggedRegressions === 'object'
+        ? parsed.flaggedRegressions
+        : {},
+  }
+}
+
+function getApprovalStampMs(a: GovernanceApprovalRequest): number {
+  const iso = a.updatedAtIso ?? a.seal?.approvedAtIso ?? a.createdAtIso
+  const ms = Date.parse(iso)
+  return Number.isFinite(ms) ? ms : 0
+}
+
+/**
+ * Conflict-free cross-device merge between two governance stores so Secretary requests on PC #1
+ * and Manager PIN seals on PC #2 / mobile phone merge cleanly without overwriting each other.
+ */
+export function mergeGovernanceStores(
+  localRaw: PersistedGovernanceStore,
+  remoteRaw: PersistedGovernanceStore,
+): PersistedGovernanceStore {
+  const local = normalizeGovernanceStore(localRaw)
+  const remote = normalizeGovernanceStore(remoteRaw)
+
+  const byRef = new Map<string, GovernanceApprovalRequest>()
+  for (const item of [...remote.approvals, ...local.approvals]) {
+    if (!item?.refKey) continue
+    const prev = byRef.get(item.refKey)
+    if (!prev) {
+      byRef.set(item.refKey, item)
+      continue
+    }
+    const prevMs = getApprovalStampMs(prev)
+    const nextMs = getApprovalStampMs(item)
+    if (nextMs > prevMs) {
+      byRef.set(item.refKey, item)
+    } else if (nextMs === prevMs && item.status !== 'pending' && prev.status === 'pending') {
+      byRef.set(item.refKey, item)
+    }
+  }
+
+  const mergedApprovals = Array.from(byRef.values()).sort(
+    (a, b) => getApprovalStampMs(b) - getApprovalStampMs(a),
+  )
+
+  const mergedFrozen: Record<string, string> = { ...remote.frozenBreachIds, ...local.frozenBreachIds }
+  const mergedResolved: Record<string, string> = {
+    ...remote.resolvedBreachIds,
+    ...local.resolvedBreachIds,
+  }
+  for (const id of Object.keys(mergedFrozen)) {
+    const fMs = Date.parse(mergedFrozen[id] ?? '') || 0
+    const rMs = Date.parse(mergedResolved[id] ?? '') || 0
+    if (rMs > fMs) delete mergedFrozen[id]
+    else if (fMs >= rMs && mergedResolved[id]) delete mergedResolved[id]
+  }
+
+  const allReceiptKeys = new Set([
+    ...Object.keys(DEFAULT_BRANCH_RECEIPTS),
+    ...Object.keys(remote.branchReceipts),
+    ...Object.keys(local.branchReceipts),
+  ])
+  const mergedReceipts: CircularReceiptMap = {}
+  for (const k of allReceiptKeys) {
+    const rMap = remote.branchReceipts[k] ?? {}
+    const lMap = local.branchReceipts[k] ?? {}
+    const combined: Partial<Record<Exclude<GlobalBranch, 'all'>, boolean>> = {}
+    for (const b of APPROVED_BRANCH_IDS) {
+      if (rMap[b] !== undefined || lMap[b] !== undefined) {
+        combined[b] = Boolean(rMap[b] || lMap[b])
+      }
+    }
+    mergedReceipts[k] = combined
+  }
+
+  const mergedCirculars: Record<string, IssuedCircularRecord> = {
+    ...remote.issuedCirculars,
+    ...local.issuedCirculars,
+  }
+  for (const k of Object.keys(remote.issuedCirculars)) {
+    const rItem = remote.issuedCirculars[k]
+    const lItem = local.issuedCirculars[k]
+    if (rItem && lItem) {
+      mergedCirculars[k] =
+        (Date.parse(rItem.issuedAtIso) || 0) >= (Date.parse(lItem.issuedAtIso) || 0) ? rItem : lItem
+    }
+  }
+
+  const rDel = remote.approvedRuleCaps?.deliveryPlan
+  const lDel = local.approvedRuleCaps?.deliveryPlan
+  const mergedDeliveryPlan =
+    rDel && lDel
+      ? (Date.parse(rDel.approvedAtIso) || 0) >= (Date.parse(lDel.approvedAtIso) || 0)
+        ? rDel
+        : lDel
+      : (lDel ?? rDel)
+
+  const mergedBoothPlans: Record<string, ApprovedBoothPlanRule> = {
+    ...(remote.approvedRuleCaps?.boothExbPlans ?? {}),
+    ...(local.approvedRuleCaps?.boothExbPlans ?? {}),
+  }
+
+  const mergedRegressions: Record<string, FlaggedDecisionRegression> = {
+    ...(remote.flaggedRegressions ?? {}),
+    ...(local.flaggedRegressions ?? {}),
+  }
+
+  const localUpdatedMs = Date.parse(local.updatedAtIso ?? '') || 0
+  const remoteUpdatedMs = Date.parse(remote.updatedAtIso ?? '') || 0
+  const latestIso =
+    remoteUpdatedMs > localUpdatedMs
+      ? remote.updatedAtIso
+      : (local.updatedAtIso ?? new Date().toISOString())
+
+  return {
+    updatedAtIso: latestIso,
+    approvals: mergedApprovals,
+    frozenBreachIds: mergedFrozen,
+    resolvedBreachIds: mergedResolved,
+    branchReceipts: mergedReceipts,
+    issuedCirculars: mergedCirculars,
+    approvedRuleCaps: {
+      deliveryPlan: mergedDeliveryPlan,
+      boothExbPlans: mergedBoothPlans,
+    },
+    flaggedRegressions: mergedRegressions,
+  }
+}
+
 export function loadGovernanceStore(): PersistedGovernanceStore {
   if (typeof window === 'undefined') {
-    return {
-      approvals: SEEDED_APPROVAL_REQUESTS,
-      frozenBreachIds: {},
-      resolvedBreachIds: {},
-      branchReceipts: DEFAULT_BRANCH_RECEIPTS,
-      issuedCirculars: {},
-    }
+    return createInitialGovernanceStore()
   }
   try {
     ensureManagerPinInitialized()
     const raw = window.localStorage.getItem(GOVERNANCE_STORAGE_KEY)
     if (!raw) {
-      const initial: PersistedGovernanceStore = {
-        approvals: SEEDED_APPROVAL_REQUESTS,
-        frozenBreachIds: {},
-        resolvedBreachIds: {},
-        branchReceipts: DEFAULT_BRANCH_RECEIPTS,
-        issuedCirculars: {},
-      }
+      const initial = createInitialGovernanceStore()
       window.localStorage.setItem(GOVERNANCE_STORAGE_KEY, JSON.stringify(initial))
       return initial
     }
-    const parsed = JSON.parse(raw) as Partial<PersistedGovernanceStore>
-    return {
-      approvals: Array.isArray(parsed.approvals) ? parsed.approvals : SEEDED_APPROVAL_REQUESTS,
-      frozenBreachIds:
-        parsed.frozenBreachIds && typeof parsed.frozenBreachIds === 'object'
-          ? parsed.frozenBreachIds
-          : {},
-      resolvedBreachIds:
-        parsed.resolvedBreachIds && typeof parsed.resolvedBreachIds === 'object'
-          ? parsed.resolvedBreachIds
-          : {},
-      branchReceipts:
-        parsed.branchReceipts && typeof parsed.branchReceipts === 'object'
-          ? { ...DEFAULT_BRANCH_RECEIPTS, ...parsed.branchReceipts }
-          : DEFAULT_BRANCH_RECEIPTS,
-      issuedCirculars:
-        parsed.issuedCirculars && typeof parsed.issuedCirculars === 'object'
-          ? parsed.issuedCirculars
-          : {},
-    }
+    return normalizeGovernanceStore(JSON.parse(raw))
   } catch {
-    return {
-      approvals: SEEDED_APPROVAL_REQUESTS,
-      frozenBreachIds: {},
-      resolvedBreachIds: {},
-      branchReceipts: DEFAULT_BRANCH_RECEIPTS,
-      issuedCirculars: {},
-    }
+    return createInitialGovernanceStore()
   }
 }
 
-export function saveGovernanceStore(next: PersistedGovernanceStore): void {
+export function saveGovernanceStore(
+  next: PersistedGovernanceStore,
+  opts?: { skipRemotePush?: boolean },
+): void {
   if (typeof window === 'undefined') return
   try {
-    window.localStorage.setItem(GOVERNANCE_STORAGE_KEY, JSON.stringify(next))
+    const stamped: PersistedGovernanceStore = {
+      ...next,
+      updatedAtIso: opts?.skipRemotePush ? next.updatedAtIso : new Date().toISOString(),
+    }
+    window.localStorage.setItem(GOVERNANCE_STORAGE_KEY, JSON.stringify(stamped))
     emitGovernanceSync()
+    if (!opts?.skipRemotePush) {
+      void pushGovernanceStoreToServer(stamped)
+    }
   } catch {}
+}
+
+/** Push full optimistic store to `/api/erp/governance` (`POST`) for cross-device sync. */
+export async function pushGovernanceStoreToServer(
+  store: PersistedGovernanceStore,
+): Promise<PersistedGovernanceStore | null> {
+  if (typeof window === 'undefined') return null
+  try {
+    const pinHash = ensureManagerPinInitialized()
+    const res = await fetch('/api/erp/governance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ store, pinHash }),
+      cache: 'no-store',
+    })
+    if (!res.ok) return null
+    const json = (await res.json()) as {
+      ok?: boolean
+      store?: PersistedGovernanceStore
+      pinHash?: string
+    }
+    if (json?.ok && json.store) {
+      const currentLocal = loadGovernanceStore()
+      const merged = mergeGovernanceStores(currentLocal, json.store)
+      if (JSON.stringify(merged) !== JSON.stringify(currentLocal)) {
+        saveGovernanceStore(merged, { skipRemotePush: true })
+      }
+      return merged
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+/** Atomic cross-device patch helper (`PATCH /api/erp/governance`). */
+export async function pushGovernancePatchToServer(
+  payload: Record<string, unknown>,
+): Promise<void> {
+  if (typeof window === 'undefined') return
+  try {
+    await fetch('/api/erp/governance', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      cache: 'no-store',
+    })
+  } catch {}
+}
+
+/** Pull latest cross-device governance state (`GET /api/erp/governance`) and merge into `localStorage`. */
+export async function syncGovernanceFromServer(): Promise<boolean> {
+  if (typeof window === 'undefined') return false
+  try {
+    const res = await fetch('/api/erp/governance', {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+      cache: 'no-store',
+    })
+    if (!res.ok) return false
+    const json = (await res.json()) as {
+      ok?: boolean
+      store?: PersistedGovernanceStore
+      pinHash?: string
+      seededOnly?: boolean
+    }
+    if (!json?.ok || !json.store) return false
+
+    if (
+      typeof json.pinHash === 'string' &&
+      json.pinHash.startsWith('vfh1_') &&
+      json.pinHash !== DEFAULT_MASTER_PIN_HASH
+    ) {
+      window.localStorage.setItem(MANAGER_PIN_HASH_KEY, json.pinHash)
+    }
+
+    const currentLocal = loadGovernanceStore()
+    const merged = mergeGovernanceStores(currentLocal, json.store)
+    const changed = JSON.stringify(merged) !== JSON.stringify(currentLocal)
+    if (changed) {
+      saveGovernanceStore(merged, { skipRemotePush: true })
+    }
+    // If local had richer state than a freshly initialized server, push merged up once
+    if (
+      json.seededOnly &&
+      (currentLocal.approvals.length > SEEDED_APPROVAL_REQUESTS.length ||
+        Object.keys(currentLocal.issuedCirculars).length > 0 ||
+        Object.keys(currentLocal.frozenBreachIds).length > 0)
+    ) {
+      void pushGovernanceStoreToServer(merged)
+    }
+    return changed
+  } catch {
+    return false
+  }
 }
 
 export function createDigitalSeal(): DigitalExecutiveSeal {
@@ -400,7 +797,7 @@ export function createDigitalSeal(): DigitalExecutiveSeal {
 
 /**
  * Department Staff Action (NO Manager PIN required):
- * Submits or re-submits an item for Executive Manager Approval.
+ * Submits or re-submits an item for Executive Manager Approval and syncs across devices.
  */
 export function submitApprovalRequest(input: {
   refKey: string
@@ -414,11 +811,16 @@ export function submitApprovalRequest(input: {
   budgetOrCostKwd: number
   expectedMonthlyReturnKwd: number
   href: string
+  meta?: GovernanceApprovalMeta
 }): GovernanceApprovalRequest {
   const store = loadGovernanceStore()
+  const nowIso = new Date().toISOString()
   const existingIdx = store.approvals.findIndex((a) => a.refKey === input.refKey)
   const item: GovernanceApprovalRequest = {
-    id: existingIdx >= 0 ? store.approvals[existingIdx].id : `req-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    id:
+      existingIdx >= 0
+        ? store.approvals[existingIdx].id
+        : `req-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     refKey: input.refKey,
     domain: input.domain,
     titleAr: input.titleAr,
@@ -430,8 +832,10 @@ export function submitApprovalRequest(input: {
     budgetOrCostKwd: Math.max(0, Math.round(input.budgetOrCostKwd)),
     expectedMonthlyReturnKwd: Math.max(0, Math.round(input.expectedMonthlyReturnKwd)),
     href: input.href,
-    createdAtIso: new Date().toISOString(),
+    createdAtIso: existingIdx >= 0 ? store.approvals[existingIdx].createdAtIso : nowIso,
+    updatedAtIso: nowIso,
     status: 'pending',
+    meta: input.meta ?? (existingIdx >= 0 ? store.approvals[existingIdx].meta : undefined),
   }
   const nextApprovals = [...store.approvals]
   if (existingIdx >= 0) nextApprovals[existingIdx] = item
@@ -444,28 +848,81 @@ export function submitApprovalRequest(input: {
 export function approveRequestById(id: string): GovernanceApprovalRequest | null {
   const store = loadGovernanceStore()
   let updated: GovernanceApprovalRequest | null = null
+  const seal = createDigitalSeal()
   const nextApprovals = store.approvals.map((a) => {
     if (a.id !== id) return a
     updated = {
       ...a,
       status: 'approved',
-      seal: createDigitalSeal(),
+      seal,
+      updatedAtIso: seal.approvedAtIso,
       rejectionNote: undefined,
     }
     return updated
   })
-  if (updated) saveGovernanceStore({ ...store, approvals: nextApprovals })
-  return updated
+  if (!updated) return null
+
+  const approvedItem = updated as GovernanceApprovalRequest
+  const nextCaps = {
+    deliveryPlan: store.approvedRuleCaps?.deliveryPlan,
+    boothExbPlans: { ...(store.approvedRuleCaps?.boothExbPlans ?? {}) },
+  }
+
+  // Auto-lock Delivery Radar Commission & Promo Caps into Compliance Watchdog when approved!
+  if (approvedItem.meta?.deliveryCap) {
+    const dc = approvedItem.meta.deliveryCap
+    nextCaps.deliveryPlan = {
+      refKey: approvedItem.refKey,
+      targetTmpSharePct: dc.targetTmpSharePct,
+      commissionCapPct: dc.commissionCapPct,
+      promoDiscountCapPct: dc.promoDiscountCapPct,
+      expectedMonthlySavingKwd: approvedItem.expectedMonthlyReturnKwd,
+      approvedTmpBranches: dc.approvedTmpBranches,
+      sealId: seal.sealId,
+      approvedAtIso: seal.approvedAtIso,
+    }
+  }
+
+  // Auto-lock Exhibition Booth (`EXB`) Budget & Daily Cost Cap into Compliance Watchdog when approved!
+  if (approvedItem.meta?.boothCap) {
+    const bc = approvedItem.meta.boothCap
+    nextCaps.boothExbPlans[approvedItem.refKey] = {
+      refKey: approvedItem.refKey,
+      eventName: bc.eventName,
+      brandId: bc.brandId,
+      brandAr: bc.brandAr,
+      brandEn: bc.brandEn,
+      startDate: bc.startDate,
+      endDate: bc.endDate,
+      days: bc.days,
+      totalBudgetCapKwd: bc.totalBudgetCapKwd,
+      dailyCostCapKwd: bc.dailyCostCapKwd,
+      rentKwd: bc.rentKwd,
+      foodCostCapPct: bc.foodCostCapPct,
+      expectedNetKwd: bc.expectedNetKwd,
+      sealId: seal.sealId,
+      approvedAtIso: seal.approvedAtIso,
+    }
+  }
+
+  saveGovernanceStore({
+    ...store,
+    approvals: nextApprovals,
+    approvedRuleCaps: nextCaps,
+  })
+  return approvedItem
 }
 
 export function rejectRequestById(id: string, note?: string): GovernanceApprovalRequest | null {
   const store = loadGovernanceStore()
   let updated: GovernanceApprovalRequest | null = null
+  const nowIso = new Date().toISOString()
   const nextApprovals = store.approvals.map((a) => {
     if (a.id !== id) return a
     updated = {
       ...a,
       status: 'rejected',
+      updatedAtIso: nowIso,
       rejectionNote: note?.trim() || undefined,
     }
     return updated
@@ -558,25 +1015,56 @@ export function recordIssuedCircular(
   circularKey: string,
   titleAr: string,
   titleEn: string,
-): { issuedAtIso: string; sealId: string } {
+  details?: Partial<Omit<IssuedCircularRecord, 'issuedAtIso' | 'sealId' | 'titleAr' | 'titleEn'>>,
+): { issuedAtIso: string; sealId: string; serialRef: string } {
   const store = loadGovernanceStore()
   const seal = createDigitalSeal()
-  const meta = {
+  const serialRef =
+    details?.serialRef ??
+    store.issuedCirculars[circularKey]?.serialRef ??
+    buildCircularSerialRef(circularKey)
+  const meta: IssuedCircularRecord = {
     issuedAtIso: seal.approvedAtIso,
     sealId: seal.sealId,
+    serialRef,
     titleAr,
     titleEn,
+    ...details,
   }
   saveGovernanceStore({
     ...store,
     issuedCirculars: { ...store.issuedCirculars, [circularKey]: meta },
   })
-  return { issuedAtIso: meta.issuedAtIso, sealId: meta.sealId }
+  return { issuedAtIso: meta.issuedAtIso, sealId: meta.sealId, serialRef }
+}
+
+export function flagDecisionRegressionInStore(input: Omit<FlaggedDecisionRegression, 'flaggedAtIso'>): void {
+  const store = loadGovernanceStore()
+  const next: FlaggedDecisionRegression = {
+    ...input,
+    flaggedAtIso: new Date().toISOString(),
+  }
+  const nextResolved = { ...store.resolvedBreachIds }
+  delete nextResolved[`breach-regression-${input.decisionKey}`]
+  saveGovernanceStore({
+    ...store,
+    resolvedBreachIds: nextResolved,
+    flaggedRegressions: {
+      ...(store.flaggedRegressions ?? {}),
+      [input.decisionKey]: next,
+    },
+  })
 }
 
 interface JourneyCreepShape {
   procurement?: {
-    creep?: { product?: string; prevUnitKwd?: number; currUnitKwd?: number; pctChange?: number; impact30Kwd?: number }[]
+    creep?: {
+      product?: string
+      prevUnitKwd?: number
+      currUnitKwd?: number
+      pctChange?: number
+      impact30Kwd?: number
+    }[]
   }
   quality?: {
     cancelled?: {
@@ -585,12 +1073,21 @@ interface JourneyCreepShape {
       byLocation?: { location: string; orders: number; kwd: number; ratePct: number }[]
     }
   }
+  delivery?: {
+    platforms?: {
+      platform: string
+      clearingKwd: number
+      booked30Kwd: number
+      postedCommission30Kwd: number
+    }[]
+  }
 }
 
 /**
  * Continuous Odoo 17 Compliance Watchdog:
  * Evaluates approved Venture Foods governance caps against live Odoo 17 telemetry
- * and saved marketing/planning/regulatory records.
+ * across POS Discounts, Ardiya Suppliers, Influencer Ads, Delivery TMP/Tgo & Promo Caps,
+ * Exhibition Booth (`EXB`) Budget Caps, and Post-Decision Regressions.
  */
 export function evaluateLiveOdooBreaches(
   store: PersistedGovernanceStore,
@@ -601,10 +1098,12 @@ export function evaluateLiveOdooBreaches(
     ODOO.restaurants.reduce((s, r) => s + (r.netKwd || 0), 0) || ODOO.totals.restaurantNetKwd || 129211.7
   const discounts30 = ODOO.totals.discountsKwd || 4420
   const discountPct = Math.round((discounts30 / Math.max(1, restSales30)) * 1000) / 10
-  const approvedDiscountCapPct = 3.0
+  const approvedDeliveryRule = store.approvedRuleCaps?.deliveryPlan
+  const approvedDiscountCapPct = approvedDeliveryRule?.promoDiscountCapPct ?? 3.0
+  const liveDiscountReadingPct = Math.max(discountPct, 3.4)
   const excessDiscountKwd = Math.max(
     180,
-    Math.round(((Math.max(discountPct, 3.4) - approvedDiscountCapPct) / 100) * restSales30),
+    Math.round(((liveDiscountReadingPct - approvedDiscountCapPct) / 100) * restSales30),
   )
 
   const topCreep = journey.procurement?.creep?.[0]
@@ -737,26 +1236,114 @@ export function evaluateLiveOdooBreaches(
         })()
       : []
 
+  // Check Exhibition Booth (`EXB`) live Odoo actuals vs approved Booth Budget & Daily Cost Cap
+  const exbUnit = ODOO.exhibitions?.[0]
+  const exbActualSpendKwd = Math.round(
+    (exbUnit?.pnl?.cogs ?? 1820) + (exbUnit?.pnl?.expense ?? 2490),
+  )
+  const exbActualDays = 30
+  const exbActualDailyCostKwd = Math.round(exbActualSpendKwd / exbActualDays)
+  const approvedBoothList = Object.values(store.approvedRuleCaps?.boothExbPlans ?? {})
+
+  const boothBreaches: Omit<ComplianceBreachItem, 'frozen' | 'frozenAtIso'>[] = approvedBoothList
+    .filter(
+      (bp) =>
+        exbActualSpendKwd > bp.totalBudgetCapKwd || exbActualDailyCostKwd > bp.dailyCostCapKwd,
+    )
+    .map((bp) => {
+      const overTotal = Math.max(0, exbActualSpendKwd - bp.totalBudgetCapKwd)
+      const overDaily = Math.max(0, exbActualDailyCostKwd - bp.dailyCostCapKwd)
+      const leakKwd = Math.max(120, overTotal > 0 ? overTotal : overDaily * Math.max(1, bp.days))
+      return {
+        id: `breach-exb-budget-${bp.refKey}`,
+        category: 'exb-budget-cap' as const,
+        severity: 'critical' as const,
+        approvedDecisionTitleAr: `قرار سقف ميزانية معرض (${bp.eventName}) — ختم ${bp.sealId}`,
+        approvedDecisionTitleEn: `Approved Booth Budget Cap (${bp.eventName}) — Seal ${bp.sealId}`,
+        breachHeadlineAr: `🚨 تجاوز ميزانية المعرض (EXB): الصرف الفعلي ${exbActualSpendKwd.toLocaleString('en-US')} د.ك مقابل سقف ${bp.totalBudgetCapKwd.toLocaleString('en-US')} د.ك`,
+        breachHeadlineEn: `🚨 EXB Booth Cap Breach: Actual spend ${exbActualSpendKwd.toLocaleString('en-US')} KWD vs ${bp.totalBudgetCapKwd.toLocaleString('en-US')} KWD cap`,
+        odooMetricProofAr: `كاشيرات المعارض بأودو (EXB ٢٦–٢٩): مصاريف ومواد ${exbActualSpendKwd.toLocaleString('en-US')} د.ك (${exbActualDailyCostKwd} د.ك/يوم)`,
+        odooMetricProofEn: `Odoo 17 EXB Registers (26–29): ${exbActualSpendKwd.toLocaleString('en-US')} KWD actual spend (${exbActualDailyCostKwd} KWD/day)`,
+        approvedRuleLimitAr: `السقف المعتمد: إجمالي ≤ ${bp.totalBudgetCapKwd.toLocaleString('en-US')} د.ك • يومي ≤ ${bp.dailyCostCapKwd.toLocaleString('en-US')} د.ك/يوم`,
+        approvedRuleLimitEn: `Approved Cap: Total <= ${bp.totalBudgetCapKwd.toLocaleString('en-US')} KWD • Daily <= ${bp.dailyCostCapKwd.toLocaleString('en-US')} KWD/day`,
+        monthlyLeakKwd: leakKwd,
+        affectedScopeAr: `${bp.brandAr} · وحدة المعارض EXB`,
+        affectedScopeEn: `${bp.brandEn} · EXB Exhibitions Unit`,
+        href: '/erp/booth-feasibility',
+        stopDirectiveAr: `*أمر إيقاف وتجميد صرف معرض ⛔ — شركة فنتشر فودز*\n• المعرض: ${bp.eventName} (${bp.brandAr}) — الختم: ${bp.sealId}\n• المخالفة المرصودة بأودو (EXB): الصرف الفعلي بلغ ${exbActualSpendKwd} د.ك (${exbActualDailyCostKwd} د.ك/يوم) متجاوزاً السقف المعتمد (${bp.totalBudgetCapKwd} د.ك).\n• القرار الإلزامي: تجميد أي مصاريف إضافية أو ساعات إضافية بالمعرض فوراً وقصر التموين على حصص المطبخ المركزي المعتمدة.`,
+        stopDirectiveEn: `*IMMEDIATE EXB BOOTH SPEND FREEZE ⛔ — Venture Foods*\n• Event: ${bp.eventName} (${bp.brandEn}) — Seal: ${bp.sealId}\n• Odoo EXB Breach: Actual spend hit ${exbActualSpendKwd} KWD (${exbActualDailyCostKwd} KWD/day) over ${bp.totalBudgetCapKwd} KWD cap.\n• Mandatory Action: Freeze discretionary booth spend & overtime immediately; restrict stock to approved Ardiya prep quotas.`,
+      }
+    })
+
+  // Approved Delivery Plan Aggregator Promo & Commission Cap Breach
+  const deliveryCapBreaches: Omit<ComplianceBreachItem, 'frozen' | 'frozenAtIso'>[] =
+    approvedDeliveryRule && liveDiscountReadingPct > approvedDeliveryRule.promoDiscountCapPct
+      ? [
+          {
+            id: 'breach-approved-delivery-promo-cap',
+            category: 'aggregator-promo-cap' as const,
+            severity: 'critical' as const,
+            approvedDecisionTitleAr: `خطة التوصيل المعتمدة (${approvedDeliveryRule.sealId}) — سقف خصم التطبيقات ${approvedDeliveryRule.promoDiscountCapPct}% وعمولة ≤ ${approvedDeliveryRule.commissionCapPct}%`,
+            approvedDecisionTitleEn: `Approved Delivery Plan (${approvedDeliveryRule.sealId}) — App Promo <= ${approvedDeliveryRule.promoDiscountCapPct}% & Fee <= ${approvedDeliveryRule.commissionCapPct}%`,
+            breachHeadlineAr: `🚨 خرق سقف عروض منصات التوصيل: حرق خصومات غير معتمد بنسبة ${liveDiscountReadingPct}% (السقف ${approvedDeliveryRule.promoDiscountCapPct}%)`,
+            breachHeadlineEn: `🚨 Unapproved Aggregator Promo Burn: ${liveDiscountReadingPct}% live vs ${approvedDeliveryRule.promoDiscountCapPct}% approved cap`,
+            odooMetricProofAr: `تسويات منصات التوصيل بأودو: خصومات وفروقات عمولة بقيمة ${excessDiscountKwd.toLocaleString('en-US')} د.ك فوق السقف المختوم`,
+            odooMetricProofEn: `Odoo 17 Aggregator Settlements: ${excessDiscountKwd.toLocaleString('en-US')} KWD promo & fee burn above sealed cap`,
+            approvedRuleLimitAr: `حصة TMP المستهدفة ≥ ${approvedDeliveryRule.targetTmpSharePct}% • سقف خصم المنصات ≤ ${approvedDeliveryRule.promoDiscountCapPct}%`,
+            approvedRuleLimitEn: `Target TMP Share >= ${approvedDeliveryRule.targetTmpSharePct}% • Max App Promo <= ${approvedDeliveryRule.promoDiscountCapPct}%`,
+            monthlyLeakKwd: excessDiscountKwd,
+            affectedScopeAr: 'منصات التوصيل (طلبات وكيتا وديليفرو)',
+            affectedScopeEn: 'Delivery Aggregators (Talabat, Keeta, Deliveroo)',
+            href: '/erp/aggregator-radar',
+            stopDirectiveAr: `*أمر إيقاف حرق عروض تطبيقات التوصيل ⛔ — فنتشر فودز*\n• مرجع الاعتماد: ${approvedDeliveryRule.sealId}\n• المخالفة بأودو: تجاوز خصومات المنصات السقف المعتمد (${liveDiscountReadingPct}% مقابل ${approvedDeliveryRule.promoDiscountCapPct}%).\n• القرار الإلزامي: إيقاف الحملة الترويجية المشتركة غير المعتمدة على المنصات فوراً وتحويل النطاق القريب إلى TMP (١٥٪).`,
+            stopDirectiveEn: `*IMMEDIATE AGGREGATOR PROMO FREEZE ⛔ — Venture Foods*\n• Seal Ref: ${approvedDeliveryRule.sealId}\n• Odoo Breach: Aggregator promo burn at ${liveDiscountReadingPct}% vs ${approvedDeliveryRule.promoDiscountCapPct}% cap.\n• Mandatory Action: Terminate unapproved co-funded app promos immediately and enforce TMP 15% near-zone dispatch.`,
+          },
+        ]
+      : []
+
+  // Post-Decision Regressions flagged from `/erp/before-after`
+  const regressionBreaches: Omit<ComplianceBreachItem, 'frozen' | 'frozenAtIso'>[] = Object.values(
+    store.flaggedRegressions ?? {},
+  ).map((reg) => ({
+    id: `breach-regression-${reg.decisionKey}`,
+    category: 'post-decision-regression' as const,
+    severity: 'high' as const,
+    approvedDecisionTitleAr: reg.titleAr,
+    approvedDecisionTitleEn: reg.titleEn,
+    breachHeadlineAr: `🚨 تراجع في أودو بعد القرار: ${reg.titleAr}`,
+    breachHeadlineEn: `🚨 Post-Decision Odoo Regression: ${reg.titleEn}`,
+    odooMetricProofAr: reg.odooProofAr,
+    odooMetricProofEn: reg.odooProofEn,
+    approvedRuleLimitAr: reg.ruleLimitAr,
+    approvedRuleLimitEn: reg.ruleLimitEn,
+    monthlyLeakKwd: Math.max(85, Math.round(reg.monthlyLeakKwd)),
+    affectedScopeAr: reg.scopeAr,
+    affectedScopeEn: reg.scopeEn,
+    href: reg.href || '/erp/before-after',
+    stopDirectiveAr: `*أمر مراجعة وإيقاف تراجع ما بعد القرار ⛔ — فنتشر فودز*\n• القرار: ${reg.titleAr}\n• قراءة أودو بعد التنفيذ: ${reg.odooProofAr}\n• الإجراء الإلزامي: تجميد البند المتراجع فوراً وإعادة ضبط السقف التشغيلي.`,
+    stopDirectiveEn: `*IMMEDIATE POST-DECISION REGRESSION STOP ORDER ⛔ — Venture Foods*\n• Decision: ${reg.titleEn}\n• Post-Decision Odoo Proof: ${reg.odooProofEn}\n• Mandatory Action: Freeze regressing item immediately and restore baseline cap.`,
+  }))
+
   const breaches: Omit<ComplianceBreachItem, 'frozen' | 'frozenAtIso'>[] = [
     {
       id: 'breach-odoo-discount-cap',
       category: 'discount-cap',
       severity: 'critical',
       breachKind: 'financial-bleed',
-      approvedDecisionTitleAr: 'قرار سقف الخصومات والعروض الترويجية (حد أقصى ٣.٠٪)',
-      approvedDecisionTitleEn: 'Approved Promo & POS Discount Cap Policy (Max 3.0%)',
-      breachHeadlineAr: `🚨 مخالفة لقرار معتمد: خصومات الكاشير والتطبيقات بلغت ${discountPct > 3.0 ? discountPct : 3.4}%`,
-      breachHeadlineEn: `🚨 Approved Policy Breach: POS & App Discounts hit ${discountPct > 3.0 ? discountPct : 3.4}%`,
+      approvedDecisionTitleAr: `قرار سقف الخصومات والعروض الترويجية (حد أقصى ${approvedDiscountCapPct.toFixed(1)}٪)`,
+      approvedDecisionTitleEn: `Approved Promo & POS Discount Cap Policy (Max ${approvedDiscountCapPct.toFixed(1)}%)`,
+      breachHeadlineAr: `🚨 مخالفة لقرار معتمد: خصومات الكاشير والتطبيقات بلغت ${liveDiscountReadingPct}%`,
+      breachHeadlineEn: `🚨 Approved Policy Breach: POS & App Discounts hit ${liveDiscountReadingPct}%`,
       odooMetricProofAr: `قراءة أودو الحية: ${Math.round(discounts30).toLocaleString('en-US')} د.ك خصومات مقابل مبيعات ${Math.round(restSales30).toLocaleString('en-US')} د.ك`,
       odooMetricProofEn: `Live Odoo 17 POS: ${Math.round(discounts30).toLocaleString('en-US')} KWD discounts on ${Math.round(restSales30).toLocaleString('en-US')} KWD sales`,
-      approvedRuleLimitAr: 'السقف المعتمد: ٣.٠٪ من صافي المبيعات بدون كود خصم مفتوح',
-      approvedRuleLimitEn: 'Approved Cap: <= 3.0% of net sales; zero open cashier promo codes',
+      approvedRuleLimitAr: `السقف المعتمد: ${approvedDiscountCapPct.toFixed(1)}٪ من صافي المبيعات بدون كود خصم مفتوح`,
+      approvedRuleLimitEn: `Approved Cap: <= ${approvedDiscountCapPct.toFixed(1)}% of net sales; zero open cashier promo codes`,
       monthlyLeakKwd: excessDiscountKwd,
       affectedScopeAr: 'تشاينا جاردن وفرانكس · طلبات وكيتا',
       affectedScopeEn: "China Garden & Frank's · Talabat & Keeta",
       href: '/erp/cores',
-      stopDirectiveAr: `*أمر إيقاف تنفيذي فوري ⛔ — فنتشر فودز*\n• المخالفة المرصودة بأودو: تجاوز سقف الخصومات المعتمد (${discountPct > 3.0 ? discountPct : 3.4}% مقابل حد ٣.٠٪) بتسرب ${excessDiscountKwd} د.ك/شهر.\n• القرار الإلزامي: إيقاف الأكواد الترويجية المفتوحة فوراً وقصر العروض على كومبو المشروبات المعتمد فقط.`,
-      stopDirectiveEn: `*IMMEDIATE EXECUTIVE STOP ORDER ⛔ — Venture Foods*\n• Odoo Verified Breach: POS/App discounts exceeded 3.0% cap (${excessDiscountKwd} KWD/mo leak).\n• Mandatory Action: Freeze open promo codes immediately; restrict offers to approved drink combos only.`,
+      stopDirectiveAr: `*أمر إيقاف تنفيذي فوري ⛔ — فنتشر فودز*\n• المخالفة المرصودة بأودو: تجاوز سقف الخصومات المعتمد (${liveDiscountReadingPct}% مقابل حد ${approvedDiscountCapPct.toFixed(1)}٪) بتسرب ${excessDiscountKwd} د.ك/شهر.\n• القرار الإلزامي: إيقاف الأكواد الترويجية المفتوحة فوراً وقصر العروض على كومبو المشروبات المعتمد فقط.`,
+      stopDirectiveEn: `*IMMEDIATE EXECUTIVE STOP ORDER ⛔ — Venture Foods*\n• Odoo Verified Breach: POS/App discounts exceeded ${approvedDiscountCapPct.toFixed(1)}% cap (${excessDiscountKwd} KWD/mo leak).\n• Mandatory Action: Freeze open promo codes immediately; restrict offers to approved drink combos only.`,
     },
     {
       id: 'breach-odoo-ardiya-supplier-cap',
@@ -780,6 +1367,9 @@ export function evaluateLiveOdooBreaches(
     },
     losingAdBreach,
     ...proceduralCapBreaches,
+    ...deliveryCapBreaches,
+    ...boothBreaches,
+    ...regressionBreaches,
     {
       id: 'breach-odoo-tmp-tgo-routing',
       category: 'tmp-tgo-routing',

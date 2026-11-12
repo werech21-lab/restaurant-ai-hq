@@ -4,16 +4,22 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   AlertTriangle,
+  Bell,
   Check,
   CheckCircle2,
   Copy,
   Download,
   ExternalLink,
   FileSearch,
+  FileText,
   Lightbulb,
+  Lock,
   RotateCcw,
   Search,
   Settings2,
+  ShieldAlert,
+  ShieldCheck,
+  Unlock,
   X,
   XCircle,
 } from 'lucide-react'
@@ -22,6 +28,9 @@ import JOURNEY from '@/lib/odoo/odoo-journey.json'
 import RECEIPTS_PROOF from '@/lib/odoo/delivery-receipts-proof.json'
 import type { OdooBucketSummary, OdooPeriodBucketKey } from '@/lib/odoo/live-sync-core'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
+import { InteractiveDonutChart, type DonutSliceDatum } from '@/components/aether/InteractiveHoverCharts'
+import { useGovernance } from '@/components/erp/GovernanceBellDrawer'
+import { buildCircularSerialRef } from '@/lib/governance-compliance'
 import { SlidingPillTabs } from '@/components/ui/SlidingPillTabs'
 import { useLang } from '@/components/aether/ui'
 
@@ -259,6 +268,7 @@ function StatusBadge({ status, isAr }: { status: ForensicStatus; isAr: boolean }
 export function DeliveryRadarV5() {
   const { isAr, T } = useLang()
   const { filters, workspace, liveSummary, setChannel } = useGlobalFilter()
+  const gov = useGovernance()
 
   const defaultTmpBranches = useMemo(() => detectDefaultTmpBranches(), [])
   const [tmpBranches, setTmpBranches] = useState<string[]>(defaultTmpBranches)
@@ -266,10 +276,24 @@ export function DeliveryRadarV5() {
   const [proofRowId, setProofRowId] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
 
+  const lockedDeliveryCap = gov.store.approvedRuleCaps?.deliveryPlan
+  const [targetTmpSharePct, setTargetTmpSharePct] = useState<number>(lockedDeliveryCap?.targetTmpSharePct ?? 65)
+  const [commissionCapPct, setCommissionCapPct] = useState<number>(lockedDeliveryCap?.commissionCapPct ?? 19.5)
+  const [promoDiscountCapPct, setPromoDiscountCapPct] = useState<number>(lockedDeliveryCap?.promoDiscountCapPct ?? 3.0)
+  const [approvalSubmittedFlash, setApprovalSubmittedFlash] = useState(false)
+
   const [quickFilter, setQuickFilter] = useState<QuickFilter>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [sortMode, setSortMode] = useState<SortMode>('forensic')
   const [copiedId, setCopiedId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (lockedDeliveryCap) {
+      setTargetTmpSharePct(lockedDeliveryCap.targetTmpSharePct)
+      setCommissionCapPct(lockedDeliveryCap.commissionCapPct)
+      setPromoDiscountCapPct(lockedDeliveryCap.promoDiscountCapPct)
+    }
+  }, [lockedDeliveryCap])
 
   useEffect(() => {
     setMounted(true)
@@ -759,6 +783,174 @@ export function DeliveryRadarV5() {
     }
   }, [globalScopedRows])
 
+  const DELIVERY_PLAN_REF = 'delivery:tmp-commission-cap-plan'
+  const deliveryApproval = gov.getApprovalByRef(DELIVERY_PLAN_REF)
+
+  const deliveryMixStats = useMemo(() => {
+    const tmpSalesKwd = globalScopedRows
+      .filter((r) => r.channelKey === 'talabat-tmp')
+      .reduce((s, r) => s + r.salesKwd, 0)
+    const tgoSalesKwd = globalScopedRows
+      .filter((r) => r.channelKey === 'talabat-tgo')
+      .reduce((s, r) => s + r.salesKwd, 0)
+    const keetaDeliverooSalesKwd = globalScopedRows
+      .filter((r) => r.channelKey === 'keeta' || r.channelKey === 'deliveroo')
+      .reduce((s, r) => s + r.salesKwd, 0)
+    const jahezSnoonuSalesKwd = globalScopedRows
+      .filter((r) => r.channelKey === 'jahez' || r.channelKey === 'snoonu')
+      .reduce((s, r) => s + r.salesKwd, 0)
+
+    const talabatTotalSalesKwd = tmpSalesKwd + tgoSalesKwd
+    const currentTmpSharePct =
+      talabatTotalSalesKwd > 0 ? (tmpSalesKwd / talabatTotalSalesKwd) * 100 : 0
+    const effectiveCommissionPct =
+      summary.totalSalesKwd > 0
+        ? ((summary.totalSalesKwd - summary.totalNetKwd) / summary.totalSalesKwd) * 100
+        : 0
+
+    const monthlyScale = 30 / Math.max(1, workspace.periodDays || 30)
+    const shiftableMonthlyKwd = Math.max(
+      0,
+      ((targetTmpSharePct - currentTmpSharePct) / 100) * talabatTotalSalesKwd * monthlyScale,
+    )
+    const estimatedMonthlySavingKwd = Math.max(
+      180,
+      Math.round(shiftableMonthlyKwd * 0.12 + summary.totalVarianceKwd * monthlyScale),
+    )
+
+    return {
+      tmpSalesKwd,
+      tgoSalesKwd,
+      keetaDeliverooSalesKwd,
+      jahezSnoonuSalesKwd,
+      talabatTotalSalesKwd,
+      currentTmpSharePct,
+      effectiveCommissionPct,
+      estimatedMonthlySavingKwd,
+    }
+  }, [globalScopedRows, summary.totalNetKwd, summary.totalSalesKwd, summary.totalVarianceKwd, targetTmpSharePct, workspace.periodDays])
+
+  const deliveryDonutSlices: DonutSliceDatum[] = useMemo(() => {
+    const baseTotal = Math.max(1, summary.totalSalesKwd)
+    const fmtPct = (v: number) => `${f1((v / baseTotal) * 100)}%`
+    const unit = isAr ? 'د.ك' : 'KWD'
+    return [
+      {
+        id: 'tmp',
+        label: T('Talabat TMP (15%)', 'طلبات TMP (١٥٪)'),
+        value: deliveryMixStats.tmpSalesKwd,
+        valueFormatted: `${fmtAmount(deliveryMixStats.tmpSalesKwd)} ${unit}`,
+        pctFormatted: fmtPct(deliveryMixStats.tmpSalesKwd),
+        color: '#10B981',
+      },
+      {
+        id: 'tgo',
+        label: T('Talabat Tgo (27%)', 'طلبات Tgo (٢٧٪)'),
+        value: deliveryMixStats.tgoSalesKwd,
+        valueFormatted: `${fmtAmount(deliveryMixStats.tgoSalesKwd)} ${unit}`,
+        pctFormatted: fmtPct(deliveryMixStats.tgoSalesKwd),
+        color: '#F59E0B',
+      },
+      {
+        id: 'keeta-deliv',
+        label: T('Keeta & Deliveroo', 'كيتا وديليفرو'),
+        value: deliveryMixStats.keetaDeliverooSalesKwd,
+        valueFormatted: `${fmtAmount(deliveryMixStats.keetaDeliverooSalesKwd)} ${unit}`,
+        pctFormatted: fmtPct(deliveryMixStats.keetaDeliverooSalesKwd),
+        color: '#0EA5E9',
+      },
+      {
+        id: 'jahez-snoonu',
+        label: T('Jahez & Snoonu', 'جاهز وسنونو'),
+        value: deliveryMixStats.jahezSnoonuSalesKwd,
+        valueFormatted: `${fmtAmount(deliveryMixStats.jahezSnoonuSalesKwd)} ${unit}`,
+        pctFormatted: fmtPct(deliveryMixStats.jahezSnoonuSalesKwd),
+        color: '#64748B',
+      },
+    ]
+  }, [deliveryMixStats, isAr, summary.totalSalesKwd, T])
+
+  const deliveryBreaches = useMemo(
+    () =>
+      gov.breaches.filter(
+        (b) => b.category === 'aggregator-promo-cap' || b.category === 'tmp-tgo-routing',
+      ),
+    [gov.breaches],
+  )
+
+  const handleRequestDeliveryApproval = () => {
+    gov.requestApproval({
+      refKey: DELIVERY_PLAN_REF,
+      domain: 'delivery-radar',
+      titleAr: `خطة التوصيل المعتمدة: رفع حصة TMP إلى ${targetTmpSharePct}% وسقف عمولة ${f1(commissionCapPct)}% وعروض ${f1(promoDiscountCapPct)}%`,
+      titleEn: `Approved Delivery Plan: ${targetTmpSharePct}% TMP Share, ${f1(commissionCapPct)}% Fee Cap & ${f1(promoDiscountCapPct)}% Promo Cap`,
+      summaryAr: `تثبيت سائق شركة TMP (١٥٪) في ${tmpBranches.length} فروع، ومنع أي خصومات أو عروض ممولة تتجاوز ${f1(promoDiscountCapPct)}% على المنصات — وفر صافي متوقع +${f0(deliveryMixStats.estimatedMonthlySavingKwd)} د.ك/شهر.`,
+      summaryEn: `Lock in-house TMP (15%) routing across ${tmpBranches.length} branches and cap aggregator promo burn at ${f1(promoDiscountCapPct)}% — +${f0(deliveryMixStats.estimatedMonthlySavingKwd)} KWD/mo net saving.`,
+      departmentAr: 'عمليات التوصيل والمنصات',
+      departmentEn: 'Delivery & Aggregator Ops',
+      budgetOrCostKwd: tmpBranches.length * 320,
+      expectedMonthlyReturnKwd: deliveryMixStats.estimatedMonthlySavingKwd,
+      href: '/erp/aggregator-radar',
+      meta: {
+        deliveryCap: {
+          targetTmpSharePct,
+          commissionCapPct,
+          promoDiscountCapPct,
+          approvedTmpBranches: tmpBranches,
+        },
+      },
+    })
+    setApprovalSubmittedFlash(true)
+    setTimeout(() => setApprovalSubmittedFlash(false), 3000)
+  }
+
+  const handlePrintDeliveryCircular = () => {
+    const circularKey = 'circular:delivery-plan'
+    const issued = gov.store.issuedCirculars[circularKey]
+    const activeSealId =
+      issued?.sealId || lockedDeliveryCap?.sealId || deliveryApproval?.seal?.sealId
+    const activeIso =
+      issued?.issuedAtIso ||
+      lockedDeliveryCap?.approvedAtIso ||
+      deliveryApproval?.seal?.approvedAtIso ||
+      new Date().toISOString()
+    const cap = lockedDeliveryCap ?? {
+      targetTmpSharePct,
+      commissionCapPct,
+      promoDiscountCapPct,
+      expectedMonthlySavingKwd: deliveryMixStats.estimatedMonthlySavingKwd,
+      approvedTmpBranches: tmpBranches,
+    }
+
+    gov.openCircularPrintModal({
+      circularKey,
+      serialRef: issued?.serialRef || buildCircularSerialRef(circularKey),
+      kind: 'delivery-plan',
+      titleAr: `تعميم خطة توجيه التوصيل وسقف عمولات وخصومات المنصات (${cap.targetTmpSharePct}% TMP)`,
+      titleEn: `Official Delivery Routing & Aggregator Cap Circular (${cap.targetTmpSharePct}% TMP)`,
+      classificationAr: 'تعميم تشغيلي ومالي ملزم لتطبيقات التوصيل',
+      classificationEn: 'Mandatory Delivery & Aggregator Operations Circular',
+      scopeAr: `جميع الفروع السبعة النشطة (${cap.approvedTmpBranches.length} فروع سائقي شركة TMP ١٥٪)`,
+      scopeEn: `All 7 Active Branches (${cap.approvedTmpBranches.length} In-House TMP 15% Branches)`,
+      issuedAtIso: activeIso,
+      sealId: activeSealId,
+      financialSummaryAr: `الوفر الشهري المستهدف: +${f0(cap.expectedMonthlySavingKwd)} د.ك/شهر عبر خفض عمولة Tgo (٢٧٪) إلى TMP (١٥٪) وضبط خصومات التطبيقات`,
+      financialSummaryEn: `Target Monthly Savings: +${f0(cap.expectedMonthlySavingKwd)} KWD/mo via TMP (15%) routing & aggregator promo cap`,
+      mandatoryRulesAr: [
+        `رفع حصة توصيل سائقي الشركة TMP (١٥٪) للطلبات القريبة إلى ${cap.targetTmpSharePct}% كحد أدنى في الفروع المعتمدة.`,
+        `سقف العمولة الفعلية المرجحة عبر قنوات التوصيل لا يتجاوز ${f1(cap.commissionCapPct)}% من مبيعات القناة في أودو ١٧.`,
+        `يُمنع منعاً باتاً تفعيل أي خصومات أو عروض ممولة على تطبيقات التوصيل تتجاوز ${f1(cap.promoDiscountCapPct)}% بدون ختم رقمي مسبق من المدير.`,
+        'يرصد نظام الرقابة الآلي في أودو ١٧ أي انحراف يومياً ويُفعّل تنبيه إيقاف فوري عند تجاوز السقف المعتمد.',
+      ],
+      mandatoryRulesEn: [
+        `Maintain minimum ${cap.targetTmpSharePct}% near-zone order routing on company-driver TMP (15%) across designated branches.`,
+        `Blended effective aggregator commission must not exceed ${f1(cap.commissionCapPct)}% of channel sales in Odoo 17.`,
+        `Strictly prohibit any aggregator-funded or co-funded promo burn above ${f1(cap.promoDiscountCapPct)}% without prior Executive PIN seal.`,
+        'Live Odoo 17 Watchdog continuously audits POS receipts and triggers an immediate violation alert upon breach.',
+      ],
+    })
+  }
+
   const filteredRows = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
     const statusWeight: Record<ForensicStatus, number> = {
@@ -926,7 +1118,7 @@ export function DeliveryRadarV5() {
   }
 
   return (
-    <div dir={isAr ? 'rtl' : 'ltr'} className="mx-auto w-full max-w-[1600px] space-y-5">
+    <div dir={isAr ? 'rtl' : 'ltr'} className="mx-auto w-full max-w-[1520px] space-y-5">
       {/* Finance V2 Executive Masthead */}
       <header className="ae-bento-card flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div className="min-w-0 space-y-1">
@@ -1057,6 +1249,276 @@ export function DeliveryRadarV5() {
               'فروقات عمولة محققة على المبيعات الفعلية فقط (صفر فجوات وهمية).',
             )}
           </p>
+        </div>
+      </section>
+
+      {/* Executive Delivery Plan Governance & Zero-Collision TMP (15%) vs Tgo (27%) Mix Row */}
+      <section className="grid grid-cols-1 gap-5 xl:grid-cols-12">
+        <div className="ae-bento-card flex flex-col justify-between space-y-4 p-5 sm:p-6 xl:col-span-8">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-[16px] font-semibold tracking-tight text-slate-950 dark:text-white">
+                  {T(
+                    'Delivery Routing & Aggregator Cap Plan',
+                    'اعتماد خطة التوصيل وسقف عمولات وعروض التطبيقات',
+                  )}
+                </h2>
+                {lockedDeliveryCap || deliveryApproval?.status === 'approved' ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11.5px] font-bold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    <span>
+                      {T(
+                        'Sealed by Manager PIN',
+                        'معتمد بختم الإدارة التنفيذية',
+                      )}
+                    </span>
+                  </span>
+                ) : deliveryApproval?.status === 'pending' ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-[11.5px] font-bold text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
+                    <Bell className="h-3.5 w-3.5" />
+                    <span>{T('Awaiting Manager PIN', 'بانتظار ختم المدير')}</span>
+                  </span>
+                ) : null}
+              </div>
+              <p className="text-xs text-neutral-400 dark:text-slate-400">
+                {T(
+                  'Lock TMP (15%) near-zone routing & aggregator promo caps into the live Odoo 17 Compliance Watchdog.',
+                  'ثبّت حصة توصيل الشركة TMP (١٥٪) وسقف خصومات وعمولات المنصات لربطها آلياً بجرس الرقابة في أودو ١٧.',
+                )}
+              </p>
+            </div>
+
+            <div className="ae-bento-subcard rounded-2xl px-3.5 py-2 text-end">
+              <div className="text-[11px] font-semibold text-neutral-400 dark:text-slate-400">
+                {T('Projected Savings', 'الوفر الشهري المتوقع')}
+              </div>
+              <div dir="ltr" className="text-[18px] font-extrabold tabular-nums text-emerald-700 dark:text-emerald-400">
+                +{f0(deliveryMixStats.estimatedMonthlySavingKwd)} {isAr ? 'د.ك/شهر' : 'KWD/mo'}
+              </div>
+            </div>
+          </div>
+
+          {/* 3 Crisp Unslop Cap Inputs */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <label className="ae-bento-subcard space-y-1 rounded-2xl p-3">
+              <span className="block text-[11.5px] font-semibold text-slate-600 dark:text-slate-300">
+                {T('Target TMP (15%) Share %', 'حصة TMP (١٥٪) المستهدفة %')}
+              </span>
+              <div className="flex items-center justify-between gap-2">
+                <input
+                  type="number"
+                  min={10}
+                  max={95}
+                  step={5}
+                  value={targetTmpSharePct}
+                  onChange={(e) => setTargetTmpSharePct(Math.min(95, Math.max(10, Number(e.target.value) || 0)))}
+                  className="w-24 rounded-xl bg-white px-2.5 py-1.5 text-[14px] font-extrabold tabular-nums text-slate-950 focus:outline-none focus:ring-2 focus:ring-emerald-500/35 dark:bg-white/10 dark:text-white"
+                />
+                <span className="text-[11px] font-medium tabular-nums text-neutral-400">
+                  {T(`Now ${f1(deliveryMixStats.currentTmpSharePct)}%`, `حالياً ${f1(deliveryMixStats.currentTmpSharePct)}%`)}
+                </span>
+              </div>
+            </label>
+
+            <label className="ae-bento-subcard space-y-1 rounded-2xl p-3">
+              <span className="block text-[11.5px] font-semibold text-slate-600 dark:text-slate-300">
+                {T('Max Blended Fee Cap %', 'سقف العمولة المرجحة %')}
+              </span>
+              <div className="flex items-center justify-between gap-2">
+                <input
+                  type="number"
+                  min={10}
+                  max={30}
+                  step={0.5}
+                  value={commissionCapPct}
+                  onChange={(e) => setCommissionCapPct(Math.min(30, Math.max(10, Number(e.target.value) || 0)))}
+                  className="w-24 rounded-xl bg-white px-2.5 py-1.5 text-[14px] font-extrabold tabular-nums text-slate-950 focus:outline-none focus:ring-2 focus:ring-emerald-500/35 dark:bg-white/10 dark:text-white"
+                />
+                <span className="text-[11px] font-medium tabular-nums text-neutral-400">
+                  {T(`Now ${f1(deliveryMixStats.effectiveCommissionPct)}%`, `حالياً ${f1(deliveryMixStats.effectiveCommissionPct)}%`)}
+                </span>
+              </div>
+            </label>
+
+            <label className="ae-bento-subcard space-y-1 rounded-2xl p-3">
+              <span className="block text-[11.5px] font-semibold text-slate-600 dark:text-slate-300">
+                {T('Aggregator Promo Cap %', 'سقف عروض التطبيقات %')}
+              </span>
+              <div className="flex items-center justify-between gap-2">
+                <input
+                  type="number"
+                  min={0}
+                  max={15}
+                  step={0.5}
+                  value={promoDiscountCapPct}
+                  onChange={(e) => setPromoDiscountCapPct(Math.min(15, Math.max(0, Number(e.target.value) || 0)))}
+                  className="w-24 rounded-xl bg-white px-2.5 py-1.5 text-[14px] font-extrabold tabular-nums text-slate-950 focus:outline-none focus:ring-2 focus:ring-emerald-500/35 dark:bg-white/10 dark:text-white"
+                />
+                <span className="text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+                  {T('Odoo Guarded', 'مراقب بأودو')}
+                </span>
+              </div>
+            </label>
+          </div>
+
+          {/* Action Bar: Request Manager Approval + PIN Seal + Printable A4 Circular */}
+          <div className="flex flex-wrap items-center justify-between gap-2.5 pt-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={handleRequestDeliveryApproval}
+                className="ae-btn-primary inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-4 text-[12.5px] font-bold transition duration-150 hover:opacity-95"
+              >
+                <Bell className="h-3.5 w-3.5" />
+                <span>
+                  {T(
+                    'Request Manager Approval on Delivery Plan 🔔',
+                    'طلب موافقة المدير على خطة التوصيل 🔔',
+                  )}
+                </span>
+              </button>
+
+              {deliveryApproval?.status === 'pending' ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    gov.approveItemWithPin(
+                      deliveryApproval.id,
+                      deliveryApproval.titleAr,
+                      deliveryApproval.titleEn,
+                    )
+                  }
+                  className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-emerald-50 px-3.5 text-[12px] font-bold text-emerald-900 transition duration-150 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-200"
+                >
+                  <Lock className="h-3.5 w-3.5" />
+                  <span>{T('Approve with PIN ✅', 'موافقة واعتماد بـ PIN ✅')}</span>
+                </button>
+              ) : null}
+
+              {lockedDeliveryCap || deliveryApproval?.status === 'approved' ? (
+                <button
+                  type="button"
+                  onClick={handlePrintDeliveryCircular}
+                  className="ae-bento-subcard inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-[12px] font-bold text-slate-800 transition duration-150 hover:bg-emerald-50 hover:text-emerald-900 dark:text-slate-100 dark:hover:bg-emerald-950/50"
+                >
+                  <FileText className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>
+                    {T('Print Official Circular 📄', 'طباعة / تصدير تعميم رسمي 📄')}
+                  </span>
+                </button>
+              ) : null}
+            </div>
+
+            {approvalSubmittedFlash ? (
+              <span className="text-[12px] font-semibold text-emerald-700 dark:text-emerald-400">
+                {T('Sent to Manager Bell across devices ✓', 'تم الرفع لجرس المدير ومزامنة الأجهزة ✓')}
+              </span>
+            ) : lockedDeliveryCap ? (
+              <span className="text-[11.5px] font-medium tabular-nums text-neutral-400">
+                {isAr
+                  ? `السقف المعتمد: TMP ${lockedDeliveryCap.targetTmpSharePct}% · عروض ${f1(lockedDeliveryCap.promoDiscountCapPct)}%`
+                  : `Locked Cap: TMP ${lockedDeliveryCap.targetTmpSharePct}% · Promo ${f1(lockedDeliveryCap.promoDiscountCapPct)}%`}
+              </span>
+            ) : null}
+          </div>
+
+          {/* Live Aggregator Compliance Watchdog Alerts */}
+          {deliveryBreaches.length > 0 ? (
+            <div className="space-y-2 pt-1">
+              {deliveryBreaches.map((b) => (
+                <div
+                  key={b.id}
+                  className={`flex flex-col gap-2.5 rounded-2xl p-3.5 sm:flex-row sm:items-center sm:justify-between ${
+                    b.frozen
+                      ? 'bg-emerald-50/70 dark:bg-emerald-950/30'
+                      : 'bg-rose-50/75 dark:bg-rose-950/30'
+                  }`}
+                >
+                  <div className="min-w-0 space-y-0.5">
+                    <div className="flex flex-wrap items-center gap-1.5 text-[12.5px] font-bold text-slate-900 dark:text-white">
+                      <ShieldAlert
+                        className={`h-4 w-4 shrink-0 ${
+                          b.frozen ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
+                        }`}
+                      />
+                      <span>{isAr ? b.breachHeadlineAr : b.breachHeadlineEn}</span>
+                      <span
+                        dir="ltr"
+                        className="rounded-full bg-white/90 px-2 py-0.5 text-[11px] font-extrabold tabular-nums text-rose-700 dark:bg-white/10 dark:text-rose-300"
+                      >
+                        -{f0(b.monthlyLeakKwd)} {isAr ? 'د.ك/شهر' : 'KWD/mo'}
+                      </span>
+                    </div>
+                    <p className="text-[11.5px] text-slate-600 dark:text-slate-300">
+                      {isAr ? b.odooMetricProofAr : b.odooMetricProofEn}
+                    </p>
+                  </div>
+
+                  <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+                    {b.frozen ? (
+                      <button
+                        type="button"
+                        onClick={() => gov.unfreezeBreachWithPin(b)}
+                        className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-white px-3 text-[11.5px] font-bold text-emerald-800 transition duration-150 hover:bg-emerald-100 dark:bg-white/10 dark:text-emerald-200"
+                      >
+                        <Unlock className="h-3 w-3" />
+                        <span>{T('Unfreeze 🔓', 'فك التجميد 🔓')}</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => gov.freezeBreachWithPin(b, true)}
+                        className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-rose-600 px-3 text-[11.5px] font-bold text-white transition duration-150 hover:bg-rose-700"
+                      >
+                        <Lock className="h-3 w-3" />
+                        <span>{T('Stop Violation ⛔', 'إيقاف المخالفة ⛔')}</span>
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => gov.openBreachStopCircularPrint(b)}
+                      className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-white px-3 text-[11.5px] font-bold text-slate-800 transition duration-150 hover:bg-slate-100 dark:bg-white/10 dark:text-slate-200"
+                    >
+                      <FileText className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                      <span>{T('Print Stop Order 📄', 'طباعة أمر الإيقاف 📄')}</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+
+        {/* 4-Col Zero-Collision TMP (15%) vs Tgo (27%) & Apps Donut */}
+        <div className="ae-bento-card flex flex-col justify-between p-5 sm:p-6 xl:col-span-4">
+          <div className="mb-3 space-y-0.5">
+            <h2 className="text-[16px] font-semibold tracking-tight text-slate-950 dark:text-white">
+              {T('TMP (15%) vs Tgo (27%) Mix', 'توزيع TMP (١٥٪) مقابل Tgo (٢٧٪)')}
+            </h2>
+            <p className="text-xs text-neutral-400 dark:text-slate-400">
+              {T('Verified Odoo POS channel mix', 'حصة قنوات التوصيل من إيصالات أودو')}
+            </p>
+          </div>
+          <InteractiveDonutChart
+            slices={deliveryDonutSlices}
+            centerValue={`${f1(deliveryMixStats.currentTmpSharePct)}%`}
+            centerLabel={T('TMP 15% Share', 'حصة TMP ١٥٪')}
+            summaryRows={[
+              {
+                label: T('TMP 15% Sales', 'مبيعات TMP ١٥٪'),
+                value: `${fmtAmount(deliveryMixStats.tmpSalesKwd)} ${isAr ? 'د.ك' : 'KWD'}`,
+                tone: 'emerald',
+              },
+              {
+                label: T('Tgo 27% Sales', 'مبيعات Tgo ٢٧٪'),
+                value: `${fmtAmount(deliveryMixStats.tgoSalesKwd)} ${isAr ? 'د.ك' : 'KWD'}`,
+                tone: 'amber',
+              },
+            ]}
+            isAr={isAr}
+          />
         </div>
       </section>
 
@@ -1294,7 +1756,7 @@ export function DeliveryRadarV5() {
                             className={`inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-full transition duration-150 ${
                               copiedId === r.id
                                 ? 'bg-emerald-600 text-white'
-                                : 'bg-[#F4F6F9] text-slate-600 hover:bg-[#0B1220] hover:text-white dark:bg-white/10 dark:text-slate-300 dark:hover:bg-[#10B981] dark:hover:text-[#04130D]'
+                                : 'bg-[#F4F6F9] text-slate-600 hover:bg-emerald-50 hover:text-emerald-800 dark:bg-white/10 dark:text-slate-300 dark:hover:bg-[#10B981] dark:hover:text-[#04130D]'
                             }`}
                           >
                             {copiedId === r.id ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
