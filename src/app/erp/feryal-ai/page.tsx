@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  Bell,
   Brain,
   Check,
   Columns2,
@@ -49,6 +50,25 @@ import {
 } from '@/lib/feryal-learning-engine'
 import { FeryalSidebarNotebooks } from '@/components/aether/FeryalSidebarNotebooks'
 import { FeryalMemoryDrawer } from '@/components/aether/FeryalMemoryDrawer'
+import {
+  FeryalMediaPickerButton,
+  FeryalMessageAttachmentsGallery,
+  FeryalPendingAttachmentsTray,
+  FeryalVisionCompliancePill,
+  FeryalVisionQuickBar,
+} from '@/components/aether/FeryalMultimodalBar'
+import {
+  buildDefaultMediaPrompt,
+  callFeryalVisionInspector,
+  inferVisionComplianceFromText,
+  isSupportedMediaFile,
+  processFeryalMediaFile,
+  revokeAttachmentObjectUrls,
+  toStoredAttachmentMeta,
+  type FeryalMediaAttachment,
+  type VisionComplianceTier,
+} from '@/lib/feryal-multimodal'
+import { useGovernance } from '@/components/erp/GovernanceBellDrawer'
 
 // ==============================================================================
 // Conversation copy (strict Arabic / English isolation)
@@ -296,7 +316,11 @@ export default function FeryalAiCommandPage() {
     window.setTimeout(() => setCopiedMsgId((c) => (c === id ? null : c)), 1800)
   }, [])
 
-  // Voice interaction state (audio element + Web Speech API + MediaRecorder)
+  // Voice & Multimodal Vision interaction state (photos + videos + audio element + Web Speech API + MediaRecorder)
+  const { requestApproval, openDrawer, getApprovalByRef } = useGovernance()
+  const [pendingAttachments, setPendingAttachments] = useState<FeryalMediaAttachment[]>([])
+  const [isProcessingMedia, setIsProcessingMedia] = useState(false)
+  const [mediaErrorText, setMediaErrorText] = useState<string | null>(null)
   const [isListening, setIsListening] = useState(false)
   const [micLang, setMicLang] = useState<'ar' | 'en'>(isAr ? 'ar' : 'en')
   const [isVoiceMuted, setIsVoiceMuted] = useState(false)
@@ -522,23 +546,69 @@ export default function FeryalAiCommandPage() {
     [fallbackSpeechSynthesis, isAr, isVoiceMuted, stopAllMicTracks],
   )
 
-  // Send a message to Feryal: Triple-Brain Council -> /api/feryal -> deterministic Odoo reply
+  const handleFilesSelected = useCallback(
+    async (files: File[]) => {
+      const valid = files.filter(isSupportedMediaFile).slice(0, 5)
+      if (valid.length === 0) return
+      setMediaErrorText(null)
+      setIsProcessingMedia(true)
+      try {
+        const processed: FeryalMediaAttachment[] = []
+        for (const f of valid) {
+          const item = await processFeryalMediaFile(f)
+          processed.push(item)
+        }
+        setPendingAttachments((prev) => [...prev, ...processed].slice(0, 6))
+      } catch {
+        setMediaErrorText(
+          isAr
+            ? 'تعذر قراءة الملف المرفق — يرجى اختيار صورة (JPG/PNG/WEBP) أو فيديو (MP4/MOV/WEBM).'
+            : 'Could not process media file — please attach a valid image or video.',
+        )
+      } finally {
+        setIsProcessingMedia(false)
+      }
+    },
+    [isAr],
+  )
+
+  // Send a message to Feryal: Triple-Brain Council (+ Multimodal Image/Video Vision) -> /api/feryal -> deterministic Odoo reply
   const handleSendQuery = useCallback(
     async (queryText?: string) => {
-      const textToSend = (queryText ?? inputText).trim()
-      if (!textToSend) return
       const lang: 'ar' | 'en' = isAr ? 'ar' : 'en'
+      const attachmentsSnapshot = pendingAttachments
+      const rawText = (queryText ?? inputText).trim()
+      const textToSend =
+        rawText ||
+        (attachmentsSnapshot.length > 0
+          ? buildDefaultMediaPrompt(attachmentsSnapshot, lang)
+          : '')
+      if (!textToSend && attachmentsSnapshot.length === 0) return
+
       const stamp = () =>
         new Date().toLocaleTimeString(lang === 'ar' ? 'ar-KW' : 'en-US', {
           hour: '2-digit',
           minute: '2-digit',
         })
 
+      const storedMeta =
+        attachmentsSnapshot.length > 0
+          ? attachmentsSnapshot.map(toStoredAttachmentMeta)
+          : undefined
+
       setMessages((prev) => [
         ...prev,
-        { id: `user-${Date.now()}`, sender: 'user', text: textToSend, time: stamp() },
+        {
+          id: `user-${Date.now()}`,
+          sender: 'user',
+          text: textToSend,
+          time: stamp(),
+          attachmentsMeta: storedMeta,
+        },
       ])
       setInputText('')
+      setPendingAttachments([])
+      setMediaErrorText(null)
       setIsCopilotThinking(true)
 
       const pageCtx = lang === 'ar' ? workspace.feryalContextAr : workspace.feryalContextEn
@@ -546,6 +616,8 @@ export default function FeryalAiCommandPage() {
 
       try {
         let reply = ''
+        let visionCompliance: VisionComplianceTier | undefined
+        const hasVisualEvidence = attachmentsSnapshot.length > 0
         let engineLabelAr: string | undefined
         let engineLabelEn: string | undefined
         let claudeReply: string | undefined
@@ -558,28 +630,62 @@ export default function FeryalAiCommandPage() {
         let statusNoteAr: string | undefined
         let statusNoteEn: string | undefined
 
-        try {
-          const dualRes = await askDualHeavyBrain({
-            query: textToSend,
-            lang,
-            filters,
-            workspace,
-            pageContext: pageCtx,
-          })
-          reply = dualRes.reply?.trim() || ''
-          engineLabelAr = dualRes.engineLabelAr
-          engineLabelEn = dualRes.engineLabelEn
-          claudeReply = dualRes.claudeReply
-          claudeModel = dualRes.claudeModel
-          claudeThinkingSummary = dualRes.claudeThinkingSummary
-          geminiReply = dualRes.geminiReply
-          geminiModel = dualRes.geminiModel
-          grokReply = dualRes.grokReply
-          grokModel = dualRes.grokModel
-          statusNoteAr = dualRes.statusNoteAr
-          statusNoteEn = dualRes.statusNoteEn
-        } catch (brainErr) {
-          console.warn('Feryal triple-brain warning:', brainErr)
+        if (hasVisualEvidence) {
+          try {
+            const visionRes = await callFeryalVisionInspector({
+              prompt: textToSend,
+              lang,
+              workspaceContext: pageCtx,
+              attachments: attachmentsSnapshot,
+            })
+            if (visionRes && visionRes.reply) {
+              reply = visionRes.reply
+              visionCompliance = visionRes.complianceTier
+              engineLabelAr = visionRes.engineLabelAr
+              engineLabelEn = visionRes.engineLabelEn
+              if (visionRes.provider === 'gemini') {
+                geminiReply = visionRes.reply
+                geminiModel = visionRes.model
+              } else if (visionRes.provider === 'claude') {
+                claudeReply = visionRes.reply
+                claudeModel = visionRes.model
+              }
+            }
+          } catch {}
+        }
+
+        if (!reply) {
+          try {
+            const dualRes = await askDualHeavyBrain({
+              query: textToSend,
+              lang,
+              filters,
+              workspace,
+              pageContext: pageCtx,
+              attachments: hasVisualEvidence ? attachmentsSnapshot : undefined,
+            })
+            reply = dualRes.reply?.trim() || ''
+            if (hasVisualEvidence && reply) {
+              visionCompliance = inferVisionComplianceFromText(reply)
+            }
+            engineLabelAr = dualRes.engineLabelAr
+            engineLabelEn = dualRes.engineLabelEn
+            claudeReply = dualRes.claudeReply
+            claudeModel = dualRes.claudeModel
+            claudeThinkingSummary = dualRes.claudeThinkingSummary
+            geminiReply = dualRes.geminiReply
+            geminiModel = dualRes.geminiModel
+            grokReply = dualRes.grokReply
+            grokModel = dualRes.grokModel
+            statusNoteAr = dualRes.statusNoteAr
+            statusNoteEn = dualRes.statusNoteEn
+          } catch (brainErr) {
+            console.warn('Feryal triple-brain warning:', brainErr)
+          }
+        }
+
+        if (hasVisualEvidence) {
+          revokeAttachmentObjectUrls(attachmentsSnapshot)
         }
         if (!reply) {
           try {
@@ -602,6 +708,8 @@ export default function FeryalAiCommandPage() {
             sender: 'feryal',
             text: reply,
             time: stamp(),
+            visionCompliance,
+            hasVisualEvidence,
             engineLabelAr,
             engineLabelEn,
             claudeReply,
@@ -622,7 +730,7 @@ export default function FeryalAiCommandPage() {
         setIsCopilotThinking(false)
       }
     },
-    [filters, inputText, isAr, playFeryalSpeech, workspace],
+    [filters, inputText, isAr, pendingAttachments, playFeryalSpeech, workspace],
   )
 
   useEffect(() => {
@@ -934,6 +1042,8 @@ export default function FeryalAiCommandPage() {
     stopPlayback()
     stopAllMicTracks()
     setInputText('')
+    setPendingAttachments([])
+    setMediaErrorText(null)
     setOpenSplitIds({})
     setActiveChatId(makeFreshChatId())
     setMessages([welcomeMessage(isAr ? 'ar' : 'en')])
@@ -1208,11 +1318,16 @@ export default function FeryalAiCommandPage() {
                     </div>
                   )}
                   <div className={`min-w-0 ${mine ? 'max-w-[78%]' : 'max-w-[92%] flex-1'}`}>
-                    {engineBadge ? (
+                    {(engineBadge || (!mine && m.visionCompliance)) ? (
                       <div className="mb-1.5 flex flex-wrap items-center gap-2">
-                        <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">
-                          {engineBadge}
-                        </span>
+                        {engineBadge ? (
+                          <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">
+                            {engineBadge}
+                          </span>
+                        ) : null}
+                        {!mine && m.visionCompliance ? (
+                          <FeryalVisionCompliancePill tier={m.visionCompliance} isAr={isAr} />
+                        ) : null}
                         {noteText ? (
                           <span className="text-[11px] font-medium text-amber-700 dark:text-amber-300">
                             {noteText}
@@ -1227,6 +1342,12 @@ export default function FeryalAiCommandPage() {
                           : 'ae-bento-subcard px-6 py-5 text-[15px] leading-[1.85] text-slate-800 dark:text-slate-100'
                       }
                     >
+                      {mine && m.attachmentsMeta && m.attachmentsMeta.length > 0 ? (
+                        <FeryalMessageAttachmentsGallery
+                          attachmentsMeta={m.attachmentsMeta}
+                          isAr={isAr}
+                        />
+                      ) : null}
                       {mine ? m.text : <FeryalStudioMessage text={m.text} />}
                     </div>
                     <div
@@ -1288,6 +1409,45 @@ export default function FeryalAiCommandPage() {
                           </button>
                           {m.id !== 'welcome' && (
                             <>
+                              {m.hasVisualEvidence ? (
+                                getApprovalByRef(`feryal-vision:${m.id}`) ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => openDrawer('approvals')}
+                                    className="inline-flex cursor-pointer items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200"
+                                  >
+                                    <Check className="h-3.5 w-3.5" />
+                                    {T('Queued in Bell 🔔', 'تم الرفع لجرس المدير 🔔')}
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      requestApproval({
+                                        refKey: `feryal-vision:${m.id}`,
+                                        domain: 'operations',
+                                        titleAr: 'ملاحظة فحص بصري موثقة من فريال',
+                                        titleEn: 'Feryal Photo/Video Audit Finding',
+                                        summaryAr: feryalPlainText(m.text).slice(0, 220),
+                                        summaryEn: feryalPlainText(m.text).slice(0, 220),
+                                        departmentAr: 'الرقابة الميدانية والجودة',
+                                        departmentEn: 'Field Quality & Compliance',
+                                        budgetOrCostKwd: 0,
+                                        expectedMonthlyReturnKwd: 185,
+                                        href: '/erp/feryal-ai',
+                                      })
+                                      openDrawer('approvals')
+                                    }}
+                                    className="ae-btn-primary inline-flex cursor-pointer items-center gap-1 rounded-full px-3 py-1 font-semibold hover:opacity-95"
+                                  >
+                                    <Bell className="h-3.5 w-3.5" />
+                                    {T(
+                                      'Escalate Photo-Documented Finding to Manager Bell 🔔',
+                                      'رفع الملاحظة الموثقة بالصورة لجرس المدير 🔔',
+                                    )}
+                                  </button>
+                                )
+                              ) : null}
                               <button
                                 type="button"
                                 onClick={() => copyMessage(`${m.id}-brief`, briefText)}
@@ -1426,8 +1586,20 @@ export default function FeryalAiCommandPage() {
             )}
           </div>
 
-          {/* Input dock */}
-          <div className="border-t border-slate-100 bg-white/95 px-4 pb-4 pt-3 sm:px-6 dark:border-white/[0.06] dark:bg-[#111A22]/95">
+          {/* Input dock (Multimodal Vision: Photos + Videos + Voice + Text) */}
+          <div
+            onDragOver={(e) => {
+              e.preventDefault()
+            }}
+            onDrop={(e) => {
+              e.preventDefault()
+              const dropped = Array.from(e.dataTransfer?.files ?? []).filter(isSupportedMediaFile)
+              if (dropped.length > 0) {
+                void handleFilesSelected(dropped)
+              }
+            }}
+            className="border-t border-slate-100 bg-white/95 px-4 pb-4 pt-3 sm:px-6 dark:border-white/[0.06] dark:bg-[#111A22]/95"
+          >
             <div className={`mb-3 flex-wrap gap-2 ${messages.length <= 1 ? 'hidden' : 'flex'}`}>
               {TOPICS.map((t) => (
                 <button
@@ -1441,6 +1613,36 @@ export default function FeryalAiCommandPage() {
                 </button>
               ))}
             </div>
+
+            <FeryalVisionQuickBar
+              isAr={isAr}
+              disabled={isCopilotThinking || isProcessingMedia}
+              onSelectVisionPrompt={(presetPrompt) => {
+                setInputText(presetPrompt)
+                inputFieldRef.current?.focus()
+              }}
+            />
+
+            <FeryalPendingAttachmentsTray
+              isAr={isAr}
+              attachments={pendingAttachments}
+              processing={isProcessingMedia}
+              errorText={mediaErrorText}
+              onRemove={(id) =>
+                setPendingAttachments((prev) => {
+                  const rem = prev.find((item) => item.id === id)
+                  if (rem) revokeAttachmentObjectUrls([rem])
+                  return prev.filter((item) => item.id !== id)
+                })
+              }
+              onClearAll={() => {
+                revokeAttachmentObjectUrls(pendingAttachments)
+                setPendingAttachments([])
+                setMediaErrorText(null)
+              }}
+              onApplyPresetPrompt={(presetPrompt) => setInputText(presetPrompt)}
+            />
+
             {(micToast || isListening || isTranscribing) && (
               <div
                 className={`mb-2 text-[13px] font-medium ${
@@ -1456,20 +1658,37 @@ export default function FeryalAiCommandPage() {
               </div>
             )}
             <div className="flex items-end gap-2.5">
+              <FeryalMediaPickerButton
+                isAr={isAr}
+                disabled={isCopilotThinking}
+                processing={isProcessingMedia}
+                attachmentCount={pendingAttachments.length}
+                onFilesSelected={(files) => void handleFilesSelected(files)}
+                size="lg"
+              />
               <textarea
                 ref={inputFieldRef}
                 rows={1}
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
+                onPaste={(e) => {
+                  const pastedFiles = Array.from(e.clipboardData?.files ?? []).filter(
+                    isSupportedMediaFile,
+                  )
+                  if (pastedFiles.length > 0) {
+                    e.preventDefault()
+                    void handleFilesSelected(pastedFiles)
+                  }
+                }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault()
-                    if (!isCopilotThinking) handleSendQuery()
+                    if (!isCopilotThinking && !isProcessingMedia) handleSendQuery()
                   }
                 }}
                 placeholder={T(
-                  'Ask Feryal or teach a permanent rule (e.g., "Remember that our supplier contract…")…',
-                  'اسأل فريال عن أي فرع أو مورد أو علّمها قاعدة دائمة (مثال: تذكري أن…)',
+                  'Attach a photo/video (dish, kitchen, warehouse, invoice) or ask Feryal anything…',
+                  'أرفق صورة أو فيديو (طبق، مطبخ، مخزن، فاتورة) أو اسأل فريال عن أي فرع أو مورد…',
                 )}
                 className="ae-bento-subcard min-h-[52px] flex-1 resize-none rounded-2xl px-4 py-3.5 text-[15px] leading-relaxed text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/35 dark:text-white"
               />
@@ -1493,7 +1712,11 @@ export default function FeryalAiCommandPage() {
               <button
                 type="button"
                 onClick={() => handleSendQuery()}
-                disabled={isCopilotThinking || !inputText.trim()}
+                disabled={
+                  isCopilotThinking ||
+                  isProcessingMedia ||
+                  (!inputText.trim() && pendingAttachments.length === 0)
+                }
                 className="ae-btn-primary inline-flex h-[52px] shrink-0 cursor-pointer items-center gap-2 rounded-2xl px-5 text-[14.5px] font-bold transition-all hover:opacity-95 active:scale-95 disabled:opacity-40"
               >
                 <Send className={`h-4 w-4 ${isAr ? 'rotate-180' : ''}`} />

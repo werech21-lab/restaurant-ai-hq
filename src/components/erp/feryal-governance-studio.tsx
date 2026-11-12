@@ -69,6 +69,24 @@ import {
 } from '@/lib/feryal-learning-engine'
 import { FeryalSidebarNotebooks } from '@/components/aether/FeryalSidebarNotebooks'
 import { FeryalMemoryDrawer } from '@/components/aether/FeryalMemoryDrawer'
+import {
+  FeryalMediaPickerButton,
+  FeryalMessageAttachmentsGallery,
+  FeryalPendingAttachmentsTray,
+  FeryalVisionCompliancePill,
+  FeryalVisionQuickBar,
+} from '@/components/aether/FeryalMultimodalBar'
+import {
+  buildDefaultMediaPrompt,
+  callFeryalVisionInspector,
+  inferVisionComplianceFromText,
+  isSupportedMediaFile,
+  processFeryalMediaFile,
+  revokeAttachmentObjectUrls,
+  toStoredAttachmentMeta,
+  type FeryalMediaAttachment,
+  type VisionComplianceTier,
+} from '@/lib/feryal-multimodal'
 import { useGovernance } from '@/components/erp/GovernanceBellDrawer'
 import {
   GOVERNANCE_UPDATED_EVENT,
@@ -214,7 +232,10 @@ export function FeryalGovernanceStudio() {
   const [memoryCountBadge, setMemoryCountBadge] = useState<number>(7)
   const bigBetMenuRef = useRef<HTMLDivElement>(null)
 
-  // Voice & Audio Refs
+  // Voice, Multimodal Vision & Audio Refs
+  const [pendingAttachments, setPendingAttachments] = useState<FeryalMediaAttachment[]>([])
+  const [isProcessingMedia, setIsProcessingMedia] = useState(false)
+  const [mediaErrorText, setMediaErrorText] = useState<string | null>(null)
   const [isListening, setIsListening] = useState(false)
   const [isVoiceMuted, setIsVoiceMuted] = useState(true)
   const [playingMsgId, setPlayingMsgId] = useState<string | null>(null)
@@ -424,24 +445,69 @@ export function FeryalGovernanceStudio() {
     [fallbackSpeechSynthesis, isAr, isVoiceMuted, stopAllMicTracks],
   )
 
-  // Core Strategic Dispatch: Injects Live Governance + Planning + Regulatory Snapshot across all 4 Brain Modes
+  const handleFilesSelected = useCallback(
+    async (files: File[]) => {
+      const valid = files.filter(isSupportedMediaFile).slice(0, 5)
+      if (valid.length === 0) return
+      setMediaErrorText(null)
+      setIsProcessingMedia(true)
+      try {
+        const processed: FeryalMediaAttachment[] = []
+        for (const f of valid) {
+          const item = await processFeryalMediaFile(f)
+          processed.push(item)
+        }
+        setPendingAttachments((prev) => [...prev, ...processed].slice(0, 6))
+      } catch {
+        setMediaErrorText(
+          isAr
+            ? 'تعذر قراءة أحد الملفات — يرجى إرفاق صورة (JPG/PNG/WEBP) أو فيديو (MP4/MOV/WEBM).'
+            : 'Could not read media file — please attach a valid image (JPG/PNG/WEBP) or video (MP4/MOV/WEBM).',
+        )
+      } finally {
+        setIsProcessingMedia(false)
+      }
+    },
+    [isAr],
+  )
+
+  // Core Strategic Dispatch: Injects Live Governance + Planning + Regulatory Snapshot + Multimodal Vision across all 4 Brain Modes
   const handleSendQuery = useCallback(
     async (queryText?: string) => {
-      const textToSend = (queryText ?? inputText).trim()
-      if (!textToSend) return
-
       const lang: 'ar' | 'en' = isAr ? 'ar' : 'en'
+      const attachmentsSnapshot = pendingAttachments
+      const rawText = (queryText ?? inputText).trim()
+      const textToSend =
+        rawText ||
+        (attachmentsSnapshot.length > 0
+          ? buildDefaultMediaPrompt(attachmentsSnapshot, lang)
+          : '')
+      if (!textToSend && attachmentsSnapshot.length === 0) return
+
       const stamp = () =>
         new Date().toLocaleTimeString(lang === 'ar' ? 'ar-KW' : 'en-US', {
           hour: '2-digit',
           minute: '2-digit',
         })
 
+      const storedMeta =
+        attachmentsSnapshot.length > 0
+          ? attachmentsSnapshot.map(toStoredAttachmentMeta)
+          : undefined
+
       setMessages((prev) => [
         ...prev,
-        { id: `user-${Date.now()}`, sender: 'user', text: textToSend, time: stamp() },
+        {
+          id: `user-${Date.now()}`,
+          sender: 'user',
+          text: textToSend,
+          time: stamp(),
+          attachmentsMeta: storedMeta,
+        },
       ])
       setInputText('')
+      setPendingAttachments([])
+      setMediaErrorText(null)
       setIsCopilotThinking(true)
 
       const liveSnapshot = readLiveGovernanceSnapshot(workspace)
@@ -453,6 +519,8 @@ export function FeryalGovernanceStudio() {
 
       try {
         let reply = ''
+        let visionCompliance: VisionComplianceTier | undefined
+        const hasVisualEvidence = attachmentsSnapshot.length > 0
         let engineLabelAr: string | undefined
         let engineLabelEn: string | undefined
         let claudeReply: string | undefined
@@ -465,29 +533,66 @@ export function FeryalGovernanceStudio() {
         let statusNoteAr: string | undefined
         let statusNoteEn: string | undefined
 
-        try {
-          const dualRes = await askDualHeavyBrain({
-            query: textToSend,
-            lang,
-            mode: activeBrainMode,
-            filters,
-            workspace,
-            pageContext: richGovernanceContext,
-          })
-          reply = dualRes.reply?.trim() || ''
-          engineLabelAr = dualRes.engineLabelAr
-          engineLabelEn = dualRes.engineLabelEn
-          claudeReply = dualRes.claudeReply
-          claudeModel = dualRes.claudeModel
-          claudeThinkingSummary = dualRes.claudeThinkingSummary
-          geminiReply = dualRes.geminiReply
-          geminiModel = dualRes.geminiModel
-          grokReply = dualRes.grokReply
-          grokModel = dualRes.grokModel
-          statusNoteAr = dualRes.statusNoteAr
-          statusNoteEn = dualRes.statusNoteEn
-        } catch (brainErr) {
-          console.warn('Feryal council warning:', brainErr)
+        // Dedicated Multimodal Vision & Video Route (`/api/erp/feryal/vision`) when images/videos are attached
+        if (hasVisualEvidence) {
+          try {
+            const visionRes = await callFeryalVisionInspector({
+              prompt: textToSend,
+              lang,
+              workspaceContext: richGovernanceContext,
+              attachments: attachmentsSnapshot,
+            })
+            if (visionRes && visionRes.reply) {
+              reply = visionRes.reply
+              visionCompliance = visionRes.complianceTier
+              engineLabelAr = visionRes.engineLabelAr
+              engineLabelEn = visionRes.engineLabelEn
+              if (visionRes.provider === 'gemini') {
+                geminiReply = visionRes.reply
+                geminiModel = visionRes.model
+              } else if (visionRes.provider === 'claude') {
+                claudeReply = visionRes.reply
+                claudeModel = visionRes.model
+              }
+            }
+          } catch (visErr) {
+            console.warn('Feryal vision route fallback to council:', visErr)
+          }
+        }
+
+        if (!reply) {
+          try {
+            const dualRes = await askDualHeavyBrain({
+              query: textToSend,
+              lang,
+              mode: activeBrainMode,
+              filters,
+              workspace,
+              pageContext: richGovernanceContext,
+              attachments: hasVisualEvidence ? attachmentsSnapshot : undefined,
+            })
+            reply = dualRes.reply?.trim() || ''
+            if (hasVisualEvidence && reply) {
+              visionCompliance = inferVisionComplianceFromText(reply)
+            }
+            engineLabelAr = dualRes.engineLabelAr
+            engineLabelEn = dualRes.engineLabelEn
+            claudeReply = dualRes.claudeReply
+            claudeModel = dualRes.claudeModel
+            claudeThinkingSummary = dualRes.claudeThinkingSummary
+            geminiReply = dualRes.geminiReply
+            geminiModel = dualRes.geminiModel
+            grokReply = dualRes.grokReply
+            grokModel = dualRes.grokModel
+            statusNoteAr = dualRes.statusNoteAr
+            statusNoteEn = dualRes.statusNoteEn
+          } catch (brainErr) {
+            console.warn('Feryal council warning:', brainErr)
+          }
+        }
+
+        if (hasVisualEvidence) {
+          revokeAttachmentObjectUrls(attachmentsSnapshot)
         }
 
         if (!reply) {
@@ -530,6 +635,8 @@ export function FeryalGovernanceStudio() {
             sender: 'feryal',
             text: reply,
             time: stamp(),
+            visionCompliance,
+            hasVisualEvidence,
             engineLabelAr,
             engineLabelEn,
             claudeReply,
@@ -548,7 +655,7 @@ export function FeryalGovernanceStudio() {
         setIsCopilotThinking(false)
       }
     },
-    [activeBrainMode, filters, inputText, isAr, playFeryalSpeech, workspace],
+    [activeBrainMode, filters, inputText, isAr, pendingAttachments, playFeryalSpeech, workspace],
   )
 
   useEffect(() => {
@@ -794,6 +901,8 @@ export function FeryalGovernanceStudio() {
     stopPlayback()
     stopAllMicTracks()
     setInputText('')
+    setPendingAttachments([])
+    setMediaErrorText(null)
     setOpenSplitIds({})
     setIngestedDeepLinkLabel(null)
     setActiveChatId(makeFreshChatId())
@@ -1236,11 +1345,16 @@ export function FeryalGovernanceStudio() {
                   ) : null}
 
                   <div className={`min-w-0 ${mine ? 'max-w-[80%]' : 'max-w-[94%] flex-1'}`}>
-                    {engineBadge ? (
+                    {(engineBadge || (!mine && m.visionCompliance)) ? (
                       <div className="mb-1.5 flex flex-wrap items-center gap-2">
-                        <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-                          {engineBadge}
-                        </span>
+                        {engineBadge ? (
+                          <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                            {engineBadge}
+                          </span>
+                        ) : null}
+                        {!mine && m.visionCompliance ? (
+                          <FeryalVisionCompliancePill tier={m.visionCompliance} isAr={isAr} />
+                        ) : null}
                         {noteText ? (
                           <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
                             {noteText}
@@ -1256,6 +1370,12 @@ export function FeryalGovernanceStudio() {
                           : `${SUBCARD_CLS} px-5 py-4 text-[14.5px] leading-[1.85] text-neutral-800 dark:text-slate-100`
                       }
                     >
+                      {mine && m.attachmentsMeta && m.attachmentsMeta.length > 0 ? (
+                        <FeryalMessageAttachmentsGallery
+                          attachmentsMeta={m.attachmentsMeta}
+                          isAr={isAr}
+                        />
+                      ) : null}
                       {mine ? m.text : <FeryalStudioMessage text={m.text} />}
                     </div>
 
@@ -1327,10 +1447,16 @@ export function FeryalGovernanceStudio() {
                               >
                                 <Bell className="h-3.5 w-3.5" />
                                 <span>
-                                  {T(
-                                    'Submit Recommendation to Manager Bell 🔔',
-                                    'رفع التوصية لجرس المدير 🔔',
-                                  )}
+                                  {m.hasVisualEvidence ||
+                                  (prevUserMsg?.attachmentsMeta && prevUserMsg.attachmentsMeta.length > 0)
+                                    ? T(
+                                        'Escalate Photo-Documented Finding to Manager Bell 🔔',
+                                        'رفع الملاحظة الموثقة بالصورة لجرس المدير 🔔',
+                                      )
+                                    : T(
+                                        'Submit Recommendation to Manager Bell 🔔',
+                                        'رفع التوصية لجرس المدير 🔔',
+                                      )}
                                 </span>
                               </button>
                             )}
@@ -1505,8 +1631,49 @@ export function FeryalGovernanceStudio() {
             ) : null}
           </div>
 
-          {/* Input Dock */}
-          <div className="border-t border-neutral-100 bg-white px-4 pb-4 pt-3 sm:px-6 dark:border-white/[0.06] dark:bg-neutral-900">
+          {/* Input Dock (Multimodal Vision: Photos + Videos + Voice + Text) */}
+          <div
+            onDragOver={(e) => {
+              e.preventDefault()
+            }}
+            onDrop={(e) => {
+              e.preventDefault()
+              const dropped = Array.from(e.dataTransfer?.files ?? []).filter(isSupportedMediaFile)
+              if (dropped.length > 0) {
+                void handleFilesSelected(dropped)
+              }
+            }}
+            className="border-t border-neutral-100 bg-white px-4 pb-4 pt-3 sm:px-6 dark:border-white/[0.06] dark:bg-neutral-900"
+          >
+            <FeryalVisionQuickBar
+              isAr={isAr}
+              disabled={isCopilotThinking || isProcessingMedia}
+              onSelectVisionPrompt={(presetPrompt) => {
+                setInputText(presetPrompt)
+                inputFieldRef.current?.focus()
+              }}
+            />
+
+            <FeryalPendingAttachmentsTray
+              isAr={isAr}
+              attachments={pendingAttachments}
+              processing={isProcessingMedia}
+              errorText={mediaErrorText}
+              onRemove={(id) =>
+                setPendingAttachments((prev) => {
+                  const rem = prev.find((item) => item.id === id)
+                  if (rem) revokeAttachmentObjectUrls([rem])
+                  return prev.filter((item) => item.id !== id)
+                })
+              }
+              onClearAll={() => {
+                revokeAttachmentObjectUrls(pendingAttachments)
+                setPendingAttachments([])
+                setMediaErrorText(null)
+              }}
+              onApplyPresetPrompt={(presetPrompt) => setInputText(presetPrompt)}
+            />
+
             {(micToast || isListening || isTranscribing) ? (
               <div
                 className={`mb-2 text-xs font-medium ${
@@ -1523,20 +1690,38 @@ export function FeryalGovernanceStudio() {
             ) : null}
 
             <div className="flex items-end gap-2.5">
+              <FeryalMediaPickerButton
+                isAr={isAr}
+                disabled={isCopilotThinking}
+                processing={isProcessingMedia}
+                attachmentCount={pendingAttachments.length}
+                onFilesSelected={(files) => void handleFilesSelected(files)}
+                size="md"
+              />
+
               <textarea
                 ref={inputFieldRef}
                 rows={1}
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
+                onPaste={(e) => {
+                  const pastedFiles = Array.from(e.clipboardData?.files ?? []).filter(
+                    isSupportedMediaFile,
+                  )
+                  if (pastedFiles.length > 0) {
+                    e.preventDefault()
+                    void handleFilesSelected(pastedFiles)
+                  }
+                }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault()
-                    if (!isCopilotThinking) void handleSendQuery()
+                    if (!isCopilotThinking && !isProcessingMedia) void handleSendQuery()
                   }
                 }}
                 placeholder={T(
-                  'Ask Feryal about any branch, supplier, campaign, regulation, or growth play…',
-                  'اسأل فريال عن أي فرع أو مخالفة رقابية أو خطة نمو أو تشريع في أودو 17…',
+                  'Attach a photo/video (dish, kitchen prep, warehouse, invoice) or ask Feryal anything…',
+                  'أرفق صورة أو فيديو (طبق، مطبخ، مخزن، فاتورة) أو اسأل فريال مباشرة…',
                 )}
                 className={`${SUBCARD_CLS} min-h-[48px] flex-1 resize-none px-4 py-3 text-[14px] leading-relaxed text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:text-white`}
               />
@@ -1562,7 +1747,11 @@ export function FeryalGovernanceStudio() {
               <button
                 type="button"
                 onClick={() => void handleSendQuery()}
-                disabled={isCopilotThinking || !inputText.trim()}
+                disabled={
+                  isCopilotThinking ||
+                  isProcessingMedia ||
+                  (!inputText.trim() && pendingAttachments.length === 0)
+                }
                 className="ae-btn-primary btn-colored inline-flex h-[48px] shrink-0 cursor-pointer items-center gap-2 rounded-2xl px-5 text-xs font-semibold transition-all hover:opacity-95 disabled:opacity-40"
               >
                 <Send className={`h-3.5 w-3.5 ${isAr ? 'rotate-180' : ''}`} />

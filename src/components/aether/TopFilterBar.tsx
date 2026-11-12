@@ -20,6 +20,11 @@ import {
 const POS_FILTER_ROUTES = new Set([
   '/erp',
   '/erp/cores',
+  '/erp/warehouse-chain',
+  '/erp/prep-sla',
+  '/erp/delivery-sla',
+  '/erp/social-reviews',
+  '/erp/weekday-comparison',
   '/erp/before-after',
   '/erp/feryal-ai',
   '/erp/feryal',

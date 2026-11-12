@@ -7,6 +7,11 @@ export interface RouteTitle {
 const ROUTE_TITLES: { match: string; exact?: boolean; title: RouteTitle }[] = [
   { match: '/erp', exact: true, title: { en: 'Company Summary', ar: 'ملخص الشركة' } },
   { match: '/erp/cores', title: { en: 'Sales, Marketing & Menu', ar: 'المبيعات والتسويق والمنتجات' } },
+  { match: '/erp/warehouse-chain', title: { en: 'Warehouse-to-Branch Chain', ar: 'سلسلة المخزن والفروع' } },
+  { match: '/erp/prep-sla', title: { en: 'Kitchen Prep SLA', ar: 'مدة تجهيز الطلبات' } },
+  { match: '/erp/delivery-sla', title: { en: 'Rider Delivery SLA', ar: 'مدة توصيل الطلبات' } },
+  { match: '/erp/social-reviews', title: { en: 'Social & Aggregator Reviews', ar: 'التقييمات ومنصات التواصل' } },
+  { match: '/erp/weekday-comparison', title: { en: 'Weekday Sales Comparison', ar: 'مقارنة أيام الأسبوع' } },
   { match: '/erp/before-after', title: { en: 'Before & After', ar: 'مقارنة قبل وبعد' } },
   { match: '/erp/feryal-ai', title: { en: 'Ask Feryal', ar: 'المستشارة فريال' } },
   { match: '/erp/feryal', title: { en: 'Ask Feryal', ar: 'المستشارة فريال' } },

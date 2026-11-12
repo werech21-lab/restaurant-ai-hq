@@ -7,9 +7,12 @@ import {
   ArrowLeftRight,
   BarChart3,
   Calendar,
+  CalendarDays,
   Compass,
   LayoutDashboard,
   LogOut,
+  MessageSquareHeart,
+  PackageCheck,
   PanelLeftClose,
   PanelLeftOpen,
   PanelRightClose,
@@ -17,6 +20,8 @@ import {
   Radar,
   Scale,
   Sparkles,
+  Timer,
+  Truck,
 } from 'lucide-react'
 import { logout } from '@/app/actions/auth'
 import { useI18n } from '@/lib/i18n'
@@ -36,10 +41,15 @@ interface NavItem {
   alwaysVisible?: boolean
 }
 
-/** The 8 executive & governance pillars of Aether BI. */
-const SIDEBAR_ITEMS: NavItem[] = [
+/** Executive, operational & governance pillars of Aether BI (Workstation #1 + #2 unified routes). */
+export const SIDEBAR_ITEMS: NavItem[] = [
   { key: 'playbook', href: '/erp', labelAr: 'الرئيسية', labelEn: 'Overview', icon: LayoutDashboard, alwaysVisible: true },
   { key: 'cores', href: '/erp/cores', labelAr: 'المبيعات والتسويق والمنتجات', labelEn: 'Sales, Marketing & Menu', icon: BarChart3, alwaysVisible: true },
+  { key: 'warehouse-chain', href: '/erp/warehouse-chain', labelAr: 'سلسلة المخزن والفروع', labelEn: 'Warehouse-to-Branch Chain', icon: PackageCheck, alwaysVisible: true },
+  { key: 'prep-sla', href: '/erp/prep-sla', labelAr: 'مدة تجهيز الطلبات', labelEn: 'Kitchen Prep SLA', icon: Timer, alwaysVisible: true },
+  { key: 'delivery-sla', href: '/erp/delivery-sla', labelAr: 'مدة توصيل الطلبات', labelEn: 'Rider Delivery SLA', icon: Truck, alwaysVisible: true },
+  { key: 'social-reviews', href: '/erp/social-reviews', labelAr: 'التقييمات ومنصات التواصل', labelEn: 'Social & Aggregator Reviews', icon: MessageSquareHeart, alwaysVisible: true },
+  { key: 'weekday-comparison', href: '/erp/weekday-comparison', labelAr: 'مقارنة أيام الأسبوع', labelEn: 'Weekday Sales Comparison', icon: CalendarDays, alwaysVisible: true },
   { key: 'before-after', href: '/erp/before-after', labelAr: 'مقارنة قبل وبعد', labelEn: 'Before & After', icon: ArrowLeftRight, alwaysVisible: true },
   { key: 'feryal-ai', href: '/erp/feryal-ai', labelAr: 'المستشارة فريال', labelEn: 'Ask Feryal', icon: Sparkles, alwaysVisible: true },
   { key: 'aggregator-radar', href: '/erp/aggregator-radar', labelAr: 'مراقبة التوصيل', labelEn: 'Delivery Radar', icon: Radar, alwaysVisible: true },

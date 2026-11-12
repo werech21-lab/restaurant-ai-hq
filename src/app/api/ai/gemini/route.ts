@@ -190,11 +190,18 @@ export async function GET(req: NextRequest) {
   })
 }
 
+interface GeminiMediaPartInput {
+  mimeType: string
+  data: string
+  label?: string
+}
+
 interface GeminiProxyPostBody {
   systemPrompt?: string
   userPrompt?: string
   audioBase64?: string
   mimeType?: string
+  mediaParts?: GeminiMediaPartInput[]
   jsonMode?: boolean
   maxOutputTokens?: number
   customApiKey?: string
@@ -214,7 +221,12 @@ export async function POST(req: NextRequest) {
   }
 
   const userPrompt = (body.userPrompt ?? '').trim()
-  if (!userPrompt && !body.audioBase64) {
+  const incomingMedia = Array.isArray(body.mediaParts)
+    ? body.mediaParts.filter((p) => p && typeof p.mimeType === 'string' && typeof p.data === 'string' && p.data.length > 0)
+    : []
+  const hasMultimodal = Boolean(body.audioBase64) || incomingMedia.length > 0
+
+  if (!userPrompt && !hasMultimodal) {
     return NextResponse.json({ ok: false, error: 'EMPTY_PROMPT' }, { status: 400 })
   }
 
@@ -229,7 +241,7 @@ export async function POST(req: NextRequest) {
   const readyModels = catalog.chain.filter((m) => !isCoolingDown(m))
   const chain = readyModels.length > 0 ? readyModels : catalog.chain
 
-  const buildParts = (includeInlineSystem: boolean) => {
+  const buildParts = (includeInlineSystem: boolean, skipRawVideo = false) => {
     const parts: Array<Record<string, unknown>> = []
     if (body.audioBase64) {
       parts.push({
@@ -239,20 +251,37 @@ export async function POST(req: NextRequest) {
         },
       })
     }
+    for (const mp of incomingMedia) {
+      const cleanMime = (mp.mimeType || 'image/jpeg').split(';')[0].trim() || 'image/jpeg'
+      if (skipRawVideo && cleanMime.startsWith('video/')) {
+        continue
+      }
+      if (mp.label) {
+        parts.push({ text: mp.label })
+      }
+      parts.push({
+        inlineData: {
+          mimeType: cleanMime,
+          data: mp.data,
+        },
+      })
+    }
+    const effectiveUserText = userPrompt || 'Analyze the attached visual media in full detail.'
     const mergedText =
       includeInlineSystem && systemPrompt
-        ? `${systemPrompt}\n\n---\n\n${userPrompt}`
-        : userPrompt
+        ? `${systemPrompt}\n\n---\n\n${effectiveUserText}`
+        : effectiveUserText
     parts.push({ text: mergedText })
     return parts
   }
 
   let lastStatus = 500
   let lastError = 'GEMINI_UNAVAILABLE'
+  const hasNativeVideoPart = incomingMedia.some((p) => p.mimeType.startsWith('video/'))
 
   for (const model of chain) {
-    // If audio attachment is sent, skip text-only Gemma models
-    if (body.audioBase64 && model.startsWith('gemma-')) {
+    // If audio/image/video attachment is sent, skip text-only Gemma models
+    if (hasMultimodal && model.startsWith('gemma-')) {
       continue
     }
 
@@ -269,7 +298,7 @@ export async function POST(req: NextRequest) {
           ...(!isGemma && systemPrompt
             ? { systemInstruction: { parts: [{ text: systemPrompt }] } }
             : {}),
-          contents: [{ role: 'user', parts: buildParts(isGemma) }],
+          contents: [{ role: 'user', parts: buildParts(isGemma, false) }],
           generationConfig: {
             temperature: 0.3,
             maxOutputTokens,
@@ -284,7 +313,7 @@ export async function POST(req: NextRequest) {
           ...(!isGemma && systemPrompt
             ? { systemInstruction: { parts: [{ text: systemPrompt }] } }
             : {}),
-          contents: [{ role: 'user', parts: buildParts(isGemma) }],
+          contents: [{ role: 'user', parts: buildParts(isGemma, false) }],
           generationConfig: {
             temperature: 0.3,
             maxOutputTokens,
@@ -296,7 +325,7 @@ export async function POST(req: NextRequest) {
       {
         thinkingMode: 'HIGH',
         payload: {
-          contents: [{ role: 'user', parts: buildParts(true) }],
+          contents: [{ role: 'user', parts: buildParts(true, hasNativeVideoPart) }],
           generationConfig: {
             temperature: 0.3,
             maxOutputTokens,
@@ -310,7 +339,7 @@ export async function POST(req: NextRequest) {
       try {
         const upstream = await fetch(url, {
           method: 'POST',
-          signal: AbortSignal.timeout(28000),
+          signal: AbortSignal.timeout(hasMultimodal ? 45000 : 28000),
           headers: {
             'Content-Type': 'application/json',
             'x-goog-api-key': apiKey,

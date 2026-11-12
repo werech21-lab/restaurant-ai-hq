@@ -42,6 +42,7 @@ import {
   autoExtractLearningsFromTurn,
   buildFeryalEvolvingMemoryXml,
 } from '@/lib/feryal-learning-engine'
+import type { FeryalMediaAttachment } from '@/lib/feryal-multimodal'
 
 export type BrainMode = 'triple' | 'claude' | 'gemini' | 'grok' | 'dual'
 
@@ -70,6 +71,7 @@ export interface DualBrainRequest {
   pageContext?: string
   audioBase64?: string
   mimeType?: string
+  attachments?: FeryalMediaAttachment[]
 }
 
 export interface DualBrainResponse {
@@ -539,32 +541,163 @@ export async function discoverGeminiCarbonModels(forceRefresh = false): Promise<
   return DEFAULT_GEMINI_CHAIN
 }
 
+export interface GeminiInlineMediaPart {
+  mimeType: string
+  data: string
+  label?: string
+}
+
+export interface ClaudeInlineImagePart {
+  mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif'
+  data: string
+  label?: string
+}
+
+export function buildMultimodalEngineInputs(
+  attachments: readonly FeryalMediaAttachment[] | undefined,
+  isAr: boolean,
+): {
+  hasAttachments: boolean
+  geminiMediaParts: GeminiInlineMediaPart[]
+  claudeImages: ClaudeInlineImagePart[]
+  grokImageUrls: Array<{ label: string; dataUrl: string }>
+  visionSummaryLine: string
+  visionDirective: string
+} {
+  const list = Array.isArray(attachments) ? attachments : []
+  if (list.length === 0) {
+    return {
+      hasAttachments: false,
+      geminiMediaParts: [],
+      claudeImages: [],
+      grokImageUrls: [],
+      visionSummaryLine: '',
+      visionDirective: '',
+    }
+  }
+
+  const geminiMediaParts: GeminiInlineMediaPart[] = []
+  const claudeImages: ClaudeInlineImagePart[] = []
+  const grokImageUrls: Array<{ label: string; dataUrl: string }> = []
+  const summaryBullets: string[] = []
+
+  for (const att of list) {
+    if (att.kind === 'image' && att.base64Data) {
+      const label = isAr
+        ? `[صورة مرفقة: ${att.name} (${att.width}×${att.height})]`
+        : `[Attached Photo: ${att.name} (${att.width}x${att.height})]`
+      summaryBullets.push(label)
+      geminiMediaParts.push({
+        mimeType: 'image/jpeg',
+        data: att.base64Data,
+        label,
+      })
+      if (claudeImages.length < 10) {
+        claudeImages.push({
+          mediaType: 'image/jpeg',
+          data: att.base64Data,
+          label,
+        })
+      }
+      if (grokImageUrls.length < 6) {
+        grokImageUrls.push({
+          label,
+          dataUrl: `data:image/jpeg;base64,${att.base64Data}`,
+        })
+      }
+    } else if (att.kind === 'video') {
+      const durText = att.durationSec ? `${att.durationSec.toFixed(1)}s` : ''
+      const frames = att.extractedFrames ?? []
+      const videoHeader = isAr
+        ? `[فيديو مرفق: ${att.name} · المدة ${durText} · ${frames.length} لقطات زمنية مستخرجة]`
+        : `[Attached Video: ${att.name} · Duration ${durText} · ${frames.length} chronological keyframes]`
+      summaryBullets.push(videoHeader)
+
+      if (att.nativeVideoBase64 && att.nativeVideoMimeType) {
+        geminiMediaParts.push({
+          mimeType: att.nativeVideoMimeType,
+          data: att.nativeVideoBase64,
+          label: isAr
+            ? `[ملف الفيديو الكامل مع الصوت والحركة: ${att.name}]`
+            : `[Full Native Video Stream: ${att.name}]`,
+        })
+      }
+
+      for (const fr of frames) {
+        const frameLabel = isAr
+          ? `[لقطة فيديو ${att.name} عند الثانية ${fr.timestampLabel}]`
+          : `[Video Frame ${att.name} @ ${fr.timestampLabel}]`
+        geminiMediaParts.push({
+          mimeType: 'image/jpeg',
+          data: fr.base64Data,
+          label: frameLabel,
+        })
+        if (claudeImages.length < 10) {
+          claudeImages.push({
+            mediaType: 'image/jpeg',
+            data: fr.base64Data,
+            label: frameLabel,
+          })
+        }
+        if (grokImageUrls.length < 6) {
+          grokImageUrls.push({
+            label: frameLabel,
+            dataUrl: `data:image/jpeg;base64,${fr.base64Data}`,
+          })
+        }
+      }
+    }
+  }
+
+  const visionSummaryLine = summaryBullets.join(' | ')
+  const visionDirective = isAr
+    ? `👁️ توجيه الفحص البصري للصور والفيديوهات المرفقة (${visionSummaryLine}):
+- ابدأ فوراً بوصف دقيق ومحدد لما تراه بعينك داخل الصورة أو عبر اللقطات الزمنية للفيديو (الأصناف، الأوزان التقريبية، التغليف، النظافة، التواريخ/الأرقام في الفاتورة، أو سرعة وحركة الطاقم بالمطبخ).
+- اربط ملاحظاتك البصرية مباشرة بمعايير وأرقام فنتشر فودز في أودو ١٧ (مطبخ العارضية، الفروع السبعة، وسلاسة التجهيز تحت ١٢ دقيقة) وقدّم توصية عملية قابلة للتنفيذ فوراً.`
+    : `👁️ Multimodal Vision & Video Inspection Directive (${visionSummaryLine}):
+- Begin by explicitly describing the exact visual details observed in the attached photo(s) or across the video timestamps (dish quality/portioning, packaging seal, kitchen prep speed/PPE, shelf stock, or invoice line items/prices).
+- Cross-reference your visual findings against Venture Foods Odoo 17 benchmarks across our 6 brands and 7 branches and give immediate field actions.`
+
+  return {
+    hasAttachments: geminiMediaParts.length > 0 || claudeImages.length > 0,
+    geminiMediaParts,
+    claudeImages,
+    grokImageUrls,
+    visionSummaryLine,
+    visionDirective,
+  }
+}
+
 export async function runGeminiCarbonEngine({
   systemPrompt,
   userPrompt,
   audioBase64,
   mimeType = 'audio/webm',
+  mediaParts,
   jsonMode = false,
 }: {
   systemPrompt: string
   userPrompt: string
   audioBase64?: string
   mimeType?: string
+  mediaParts?: GeminiInlineMediaPart[]
   jsonMode?: boolean
 }): Promise<{ text: string; model: string }> {
+  const hasMedia = Boolean(audioBase64) || Boolean(mediaParts && mediaParts.length > 0)
   // 1. Browser -> Secure Server Proxy `/api/ai/gemini`
   if (typeof window !== 'undefined') {
     try {
       const customOverride = getGeminiBrowserOverride()
       const proxyRes = await fetch('/api/ai/gemini', {
         method: 'POST',
-        signal: AbortSignal.timeout(30000),
+        signal: AbortSignal.timeout(hasMedia ? 46000 : 30000),
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           systemPrompt,
           userPrompt,
           audioBase64,
           mimeType,
+          mediaParts: mediaParts && mediaParts.length > 0 ? mediaParts : undefined,
           jsonMode,
           maxOutputTokens: 8192,
           customApiKey: customOverride || undefined,
@@ -596,7 +729,7 @@ export async function runGeminiCarbonEngine({
   const activeModels = models.filter((m) => !isCoolingDown(`gemini:${m}`))
   const chain = activeModels.length > 0 ? activeModels : DEFAULT_GEMINI_CHAIN
 
-  const buildParts = (inlineSystem: boolean) => {
+  const buildParts = (inlineSystem: boolean, skipRawVideo = false) => {
     const parts: Array<Record<string, unknown>> = []
     if (audioBase64) {
       parts.push({
@@ -606,6 +739,19 @@ export async function runGeminiCarbonEngine({
         },
       })
     }
+    if (mediaParts && mediaParts.length > 0) {
+      for (const mp of mediaParts) {
+        const cleanMime = (mp.mimeType || 'image/jpeg').split(';')[0].trim() || 'image/jpeg'
+        if (skipRawVideo && cleanMime.startsWith('video/')) continue
+        if (mp.label) parts.push({ text: mp.label })
+        parts.push({
+          inlineData: {
+            mimeType: cleanMime,
+            data: mp.data,
+          },
+        })
+      }
+    }
     parts.push({
       text: inlineSystem && systemPrompt ? `${systemPrompt}\n\n---\n\n${userPrompt}` : userPrompt,
     })
@@ -613,7 +759,7 @@ export async function runGeminiCarbonEngine({
   }
 
   for (const model of chain) {
-    if (audioBase64 && model.startsWith('gemma-')) continue
+    if (hasMedia && model.startsWith('gemma-')) continue
     const isGemma = model.startsWith('gemma-')
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`
 
@@ -622,7 +768,7 @@ export async function runGeminiCarbonEngine({
         ...(!isGemma && systemPrompt
           ? { systemInstruction: { parts: [{ text: systemPrompt }] } }
           : {}),
-        contents: [{ role: 'user', parts: buildParts(isGemma) }],
+        contents: [{ role: 'user', parts: buildParts(isGemma, false) }],
         generationConfig: {
           temperature: 0.3,
           maxOutputTokens: 8192,
@@ -634,7 +780,7 @@ export async function runGeminiCarbonEngine({
         ...(!isGemma && systemPrompt
           ? { systemInstruction: { parts: [{ text: systemPrompt }] } }
           : {}),
-        contents: [{ role: 'user', parts: buildParts(isGemma) }],
+        contents: [{ role: 'user', parts: buildParts(isGemma, false) }],
         generationConfig: {
           temperature: 0.3,
           maxOutputTokens: 8192,
@@ -643,7 +789,7 @@ export async function runGeminiCarbonEngine({
         },
       },
       {
-        contents: [{ role: 'user', parts: buildParts(true) }],
+        contents: [{ role: 'user', parts: buildParts(true, true) }],
         generationConfig: {
           temperature: 0.3,
           maxOutputTokens: 8192,
@@ -803,10 +949,12 @@ export async function runGrokHeavyEngine({
   knowledgeContext,
   userPrompt,
   lang,
+  grokImageUrls,
 }: {
   knowledgeContext: string
   userPrompt: string
   lang: 'ar' | 'en'
+  grokImageUrls?: Array<{ label: string; dataUrl: string }>
 }): Promise<{ text: string; model: string; quotaStatus?: '402' | '429' }> {
   const key = getXaiApiKey()
   if (!key) throw new Error('XAI_KEY_MISSING')
@@ -814,6 +962,7 @@ export async function runGrokHeavyEngine({
   const { models } = await discoverGrokHeavyModels()
   const activeModels = models.filter((m) => !isCoolingDown(`xai:${m}`))
   const chain = activeModels.length > 0 ? activeModels : DEFAULT_GROK_CHAIN
+  const hasVision = Boolean(grokImageUrls && grokImageUrls.length > 0)
 
   const isAr = lang === 'ar'
   const heavySystemPrompt = isAr
@@ -839,52 +988,72 @@ Analyze every business question across 3 simultaneous lenses in crisp, plain eve
 (Smart order growth play + hidden delivery/cost risk to guard against)`
 
   for (const model of chain) {
-    try {
-      const res = await fetch('https://api.x.ai/v1/chat/completions', {
-        method: 'POST',
-        signal: AbortSignal.timeout(22000),
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${key}`,
-        },
-        body: JSON.stringify({
-          model,
-          temperature: 0.3,
-          max_tokens: 1200,
-          messages: [
-            { role: 'system', content: heavySystemPrompt },
-            { role: 'user', content: userPrompt },
+    const userPayloads: Array<string | Array<Record<string, unknown>>> = hasVision
+      ? [
+          [
+            ...(grokImageUrls ?? []).flatMap((item) => [
+              { type: 'text', text: item.label },
+              { type: 'image_url', image_url: { url: item.dataUrl } },
+            ]),
+            { type: 'text', text: userPrompt },
           ],
-        }),
-      })
+          userPrompt,
+        ]
+      : [userPrompt]
 
-      if (res.status === 402 || res.status === 429) {
-        markCooldown(`xai:${model}`, 10 * 60 * 1000)
-        return {
-          text: '',
-          model,
-          quotaStatus: res.status === 402 ? '402' : '429',
+    for (let uIdx = 0; uIdx < userPayloads.length; uIdx++) {
+      try {
+        const res = await fetch('https://api.x.ai/v1/chat/completions', {
+          method: 'POST',
+          signal: AbortSignal.timeout(hasVision ? 32000 : 22000),
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${key}`,
+          },
+          body: JSON.stringify({
+            model,
+            temperature: 0.3,
+            max_tokens: 1400,
+            messages: [
+              { role: 'system', content: heavySystemPrompt },
+              { role: 'user', content: userPayloads[uIdx] },
+            ],
+          }),
+        })
+
+        if (res.status === 402 || res.status === 429) {
+          markCooldown(`xai:${model}`, 10 * 60 * 1000)
+          return {
+            text: '',
+            model,
+            quotaStatus: res.status === 402 ? '402' : '429',
+          }
         }
-      }
 
-      if (res.status === 400 || res.status === 404) {
-        markCooldown(`xai:${model}`)
-        continue
-      }
-
-      if (res.ok) {
-        const data = await res.json()
-        const content: string = data?.choices?.[0]?.message?.content?.trim() ?? ''
-        if (content) {
-          const resolvedGrokId =
-            typeof data?.model === 'string' && data.model.trim() ? data.model.trim() : model
-          recordVerifiedModel('grok', resolvedGrokId)
-          return { text: sanitizeExecutiveOutput(content), model: resolvedGrokId }
+        if (res.status === 400 && uIdx + 1 < userPayloads.length) {
+          // If this Grok reasoning endpoint doesn't accept image_url blocks, retry text cleanly
+          continue
         }
+
+        if (res.status === 400 || res.status === 404) {
+          markCooldown(`xai:${model}`)
+          break
+        }
+
+        if (res.ok) {
+          const data = await res.json()
+          const content: string = data?.choices?.[0]?.message?.content?.trim() ?? ''
+          if (content) {
+            const resolvedGrokId =
+              typeof data?.model === 'string' && data.model.trim() ? data.model.trim() : model
+            recordVerifiedModel('grok', resolvedGrokId)
+            return { text: sanitizeExecutiveOutput(content), model: resolvedGrokId }
+          }
+        }
+      } catch {
+        markCooldown(`xai:${model}`, 3 * 60 * 1000)
+        break
       }
-    } catch {
-      markCooldown(`xai:${model}`, 3 * 60 * 1000)
-      continue
     }
   }
 
@@ -1079,15 +1248,18 @@ export async function runClaudeDeepEngine({
   userPrompt,
   lang,
   tier = 'deep',
+  images,
 }: {
   knowledgeContext: string
   userPrompt: string
   lang: 'ar' | 'en'
   tier?: 'daily' | 'deep'
+  images?: ClaudeInlineImagePart[]
 }): Promise<{ text: string; model: string; rawModel: string; thinkingSummary?: string }> {
   const sonnetOnly = getClaudeSonnetOnly()
   const effectiveDeep = tier === 'deep' && !sonnetOnly
   const isAr = lang === 'ar'
+  const hasImages = Boolean(images && images.length > 0)
 
   const claudeSystemText = isAr
     ? `${knowledgeContext}
@@ -1110,13 +1282,14 @@ Cross-audit POS baskets, supplier -> warehouse -> Ardiya -> branch flows, and du
     const customApiKey = getAnthropicBrowserOverride()
     const proxyRes = await fetch('/api/ai/claude', {
       method: 'POST',
-      signal: AbortSignal.timeout(34000),
+      signal: AbortSignal.timeout(hasImages ? 44000 : 34000),
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         tier,
         sonnetOnly,
         systemText: claudeSystemText,
         userPrompt,
+        images: hasImages ? images : undefined,
         maxTokens: effectiveDeep ? 8192 : 4096,
         ...(customApiKey ? { customApiKey } : {}),
       }),
@@ -1161,6 +1334,25 @@ Cross-audit POS baskets, supplier -> warehouse -> Ardiya -> branch flows, and du
   const chain = activeModels.length > 0 ? activeModels : rawChain
   const maxTokens = effectiveDeep ? 8192 : 4096
 
+  const directUserContent: string | Array<Record<string, unknown>> = hasImages
+    ? [
+        ...(images ?? []).flatMap((img) => {
+          const out: Array<Record<string, unknown>> = []
+          if (img.label) out.push({ type: 'text', text: img.label })
+          out.push({
+            type: 'image',
+            source: {
+              type: 'base64',
+              media_type: img.mediaType,
+              data: img.data,
+            },
+          })
+          return out
+        }),
+        { type: 'text', text: userPrompt },
+      ]
+    : userPrompt
+
   for (const model of chain) {
     const fiveSeries = /claude-[a-z]+-5(?:$|[-.])/i.test(model)
     const payloads: Array<Record<string, unknown>> = [
@@ -1176,7 +1368,7 @@ Cross-audit POS baskets, supplier -> warehouse -> Ardiya -> branch flows, and du
                 cache_control: { type: 'ephemeral' },
               },
             ],
-            messages: [{ role: 'user', content: userPrompt }],
+            messages: [{ role: 'user', content: directUserContent }],
           }
         : effectiveDeep
           ? {
@@ -1190,7 +1382,7 @@ Cross-audit POS baskets, supplier -> warehouse -> Ardiya -> branch flows, and du
                   cache_control: { type: 'ephemeral' },
                 },
               ],
-              messages: [{ role: 'user', content: userPrompt }],
+              messages: [{ role: 'user', content: directUserContent }],
             }
           : {
               model,
@@ -1203,7 +1395,7 @@ Cross-audit POS baskets, supplier -> warehouse -> Ardiya -> branch flows, and du
                   cache_control: { type: 'ephemeral' },
                 },
               ],
-              messages: [{ role: 'user', content: userPrompt }],
+              messages: [{ role: 'user', content: directUserContent }],
             },
       {
         model,
@@ -1216,7 +1408,7 @@ Cross-audit POS baskets, supplier -> warehouse -> Ardiya -> branch flows, and du
             cache_control: { type: 'ephemeral' },
           },
         ],
-        messages: [{ role: 'user', content: userPrompt }],
+        messages: [{ role: 'user', content: directUserContent }],
       },
     ]
 
@@ -1436,12 +1628,19 @@ export async function askDualHeavyBrain(req: DualBrainRequest): Promise<DualBrai
     }
   }
 
+  const visionInput = buildMultimodalEngineInputs(req.attachments, isAr)
+
   const fullUserPrompt = [
     req.pageContext ? `[سياق الصفحة الحالية / Page Slice]:\n${req.pageContext}` : '',
+    visionInput.visionDirective,
     effectiveQuery ||
-      (isAr
-        ? 'عطني أهم ٣ خطوات عملية لزيادة الصافي بالجيب الآن حسب الفلتر المختار.'
-        : 'Give me the top 3 practical steps to grow net cash in pocket right now for the active filter.'),
+      (visionInput.hasAttachments
+        ? isAr
+          ? 'افحصي المرفقات البصرية بدقة واشرحي كل ما يظهر فيها مع التوصية العملية.'
+          : 'Inspect the attached visual media in detail and provide an actionable operational recommendation.'
+        : isAr
+          ? 'عطني أهم ٣ خطوات عملية لزيادة الصافي بالجيب الآن حسب الفلتر المختار.'
+          : 'Give me the top 3 practical steps to grow net cash in pocket right now for the active filter.'),
   ]
     .filter(Boolean)
     .join('\n\n')
@@ -1477,6 +1676,7 @@ Cite only verified Odoo KWD numbers across our 6 approved brands and 7 active br
         userPrompt: fullUserPrompt,
         lang: req.lang,
         tier: 'deep',
+        images: visionInput.claudeImages,
       })
       autoExtractLearningsFromTurn(effectiveQuery, claude.text)
       return {
@@ -1497,6 +1697,7 @@ Cite only verified Odoo KWD numbers across our 6 approved brands and 7 active br
       const gemBackup = await runGeminiCarbonEngine({
         systemPrompt: knowledge,
         userPrompt: `${fullUserPrompt}\n\n${geminiFormatDirective}`,
+        mediaParts: visionInput.geminiMediaParts,
       })
       const clean = sanitizeExecutiveOutput(gemBackup.text)
       autoExtractLearningsFromTurn(effectiveQuery, clean)
@@ -1522,6 +1723,7 @@ Cite only verified Odoo KWD numbers across our 6 approved brands and 7 active br
       const gem = await runGeminiCarbonEngine({
         systemPrompt: knowledge,
         userPrompt: `${fullUserPrompt}\n\n${geminiFormatDirective}`,
+        mediaParts: visionInput.geminiMediaParts,
       })
       const clean = sanitizeExecutiveOutput(gem.text)
       autoExtractLearningsFromTurn(effectiveQuery, clean)
@@ -1540,6 +1742,7 @@ Cite only verified Odoo KWD numbers across our 6 approved brands and 7 active br
           knowledgeContext: knowledge,
           userPrompt: fullUserPrompt,
           lang: req.lang,
+          grokImageUrls: visionInput.grokImageUrls,
         })
         if (grokBackup.text) {
           autoExtractLearningsFromTurn(effectiveQuery, grokBackup.text)
@@ -1568,6 +1771,7 @@ Cite only verified Odoo KWD numbers across our 6 approved brands and 7 active br
         knowledgeContext: knowledge,
         userPrompt: fullUserPrompt,
         lang: req.lang,
+        grokImageUrls: visionInput.grokImageUrls,
       })
       if (grok.text) {
         autoExtractLearningsFromTurn(effectiveQuery, grok.text)
@@ -1584,6 +1788,7 @@ Cite only verified Odoo KWD numbers across our 6 approved brands and 7 active br
       const gemFallback = await runGeminiCarbonEngine({
         systemPrompt: knowledge,
         userPrompt: `${fullUserPrompt}\n\n${geminiFormatDirective}`,
+        mediaParts: visionInput.geminiMediaParts,
       })
       const clean = sanitizeExecutiveOutput(gemFallback.text)
       autoExtractLearningsFromTurn(effectiveQuery, clean)
@@ -1609,6 +1814,7 @@ Cite only verified Odoo KWD numbers across our 6 approved brands and 7 active br
         const gemFallback = await runGeminiCarbonEngine({
           systemPrompt: knowledge,
           userPrompt: `${fullUserPrompt}\n\n${geminiFormatDirective}`,
+          mediaParts: visionInput.geminiMediaParts,
         })
         const clean = sanitizeExecutiveOutput(gemFallback.text)
         autoExtractLearningsFromTurn(effectiveQuery, clean)
@@ -1639,15 +1845,18 @@ Cite only verified Odoo KWD numbers across our 6 approved brands and 7 active br
       userPrompt: fullUserPrompt,
       lang: req.lang,
       tier: claudeTier,
+      images: visionInput.claudeImages,
     }),
     runGeminiCarbonEngine({
       systemPrompt: knowledge,
       userPrompt: `${fullUserPrompt}\n\n${geminiFormatDirective}`,
+      mediaParts: visionInput.geminiMediaParts,
     }),
     runGrokHeavyEngine({
       knowledgeContext: knowledge,
       userPrompt: fullUserPrompt,
       lang: req.lang,
+      grokImageUrls: visionInput.grokImageUrls,
     }),
   ])
 

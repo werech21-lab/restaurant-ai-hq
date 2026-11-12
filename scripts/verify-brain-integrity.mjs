@@ -754,6 +754,180 @@ assert(
   'Before & After Impact Tracker, Delivery Radar TMP/Tgo Cap Governance & Booth Calculator EXB Budget Watchdog all wired to Manager PIN compliance',
 )
 
+// 11. Multimodal Feryal Vision, Daily Warehouse-to-Branch Chain, Kitchen Prep SLA & 5 Unified Sidebar Routes
+console.log('\n11) Multimodal Feryal Vision, Warehouse-to-Branch Chain, Kitchen Prep SLA & 5 Sidebar Routes:')
+const feryalVisionApiSrc = fs.readFileSync(
+  path.join(ROOT, 'src/app/api/erp/feryal/vision/route.ts'),
+  'utf8',
+)
+const feryalMultimodalSrc = fs.readFileSync(
+  path.join(ROOT, 'src/lib/feryal-multimodal.ts'),
+  'utf8',
+)
+const feryalMultimodalBarSrc = fs.readFileSync(
+  path.join(ROOT, 'src/components/aether/FeryalMultimodalBar.tsx'),
+  'utf8',
+)
+const feryalStudioSrc = fs.readFileSync(
+  path.join(ROOT, 'src/components/erp/feryal-governance-studio.tsx'),
+  'utf8',
+)
+const erpShellReexportSrc = fs.readFileSync(
+  path.join(ROOT, 'src/components/erp/shell.tsx'),
+  'utf8',
+)
+const warehouseStudioSrc = fs.readFileSync(
+  path.join(ROOT, 'src/components/erp/WarehouseDailyChainStudio.tsx'),
+  'utf8',
+)
+const prepSlaStudioSrc = fs.readFileSync(
+  path.join(ROOT, 'src/components/erp/OrderPrepSlaStudio.tsx'),
+  'utf8',
+)
+
+assert(
+  feryalVisionApiSrc.includes('getGeminiApiKey') &&
+    feryalVisionApiSrc.includes('getAnthropicApiKey') &&
+    feryalVisionApiSrc.includes('🟢 مطابق') &&
+    feryalVisionApiSrc.includes('🟡 ملاحظة متوسطة') &&
+    feryalVisionApiSrc.includes('🔴 مخالفة حرجة') &&
+    feryalMultimodalSrc.includes('فحص جودة وتقديم الطبق 🍽️') &&
+    feryalMultimodalSrc.includes('تدقيق نظافة وسلامة المطبخ والثلاجات 🧊') &&
+    feryalMultimodalSrc.includes('قراءة ومطابقة فاتورة مورد مع أودو 🧾') &&
+    feryalMultimodalSrc.includes('تحليل فيديو ازدحام الفرع أو تحضير الطلب 🎥') &&
+    feryalMultimodalBarSrc.includes('capture="environment"') &&
+    feryalMultimodalBarSrc.includes('<video') &&
+    feryalStudioSrc.includes('رفع الملاحظة الموثقة بالصورة لجرس المدير 🔔'),
+  'Feryal Multimodal Vision & Video Analyzer (/api/erp/feryal/vision, 4 Quick Presets, Camera/Video preview, Compliance Badges & Manager Bell Escalation) active',
+)
+
+const fiveUnifiedRoutes = [
+  '/erp/warehouse-chain',
+  '/erp/prep-sla',
+  '/erp/delivery-sla',
+  '/erp/social-reviews',
+  '/erp/weekday-comparison',
+]
+assert(
+  fiveUnifiedRoutes.every((r) => sidebarSrc.includes(r)) &&
+    erpShellReexportSrc.includes('SIDEBAR_ITEMS'),
+  'All 5 new standalone navigation routes registered in Sidebar & src/components/erp/shell.tsx',
+  fiveUnifiedRoutes.join(', '),
+)
+
+assert(
+  warehouseStudioSrc.includes('طلب تحقيق / إيقاف هدر عبر جرس المدير 🔔') &&
+    warehouseStudioSrc.includes('مخزن ومطبخ العارضية المركزي') &&
+    prepSlaStudioSrc.includes('رفع تنبيه تأخير المطبخ لجرس المدير 🔔') &&
+    prepSlaStudioSrc.includes('12.0') &&
+    prepSlaStudioSrc.includes('18.0'),
+  'Warehouse-to-Branch Continuous Chain & Kitchen Prep SLA UI studios wired with Manager Bell PIN escalations',
+)
+
+const warehouseAndPrepProbeScript = `
+import { computeGlobalWorkspace, DEFAULT_GLOBAL_FILTERS } from './src/lib/aether/global-filter-engine';
+import {
+  computeWarehouseDailyChain,
+  computeOrderPrepSlaSnapshot,
+  RAW_MATERIAL_CATEGORIES,
+} from './src/lib/warehouse-prep-engine';
+
+const periods = ['today', 'week', 'month', 'custom'] as const;
+let maxStockIdentityDrift = 0;
+let maxRolloverDrift = 0;
+let maxTransitDrift = 0;
+let chainSlicesChecked = 0;
+
+for (const period of periods) {
+  const filters = {
+    ...DEFAULT_GLOBAL_FILTERS,
+    period,
+    customFrom: '2026-11-01',
+    customTo: '2026-11-10',
+  };
+  const ws = computeGlobalWorkspace(filters);
+  for (const cat of RAW_MATERIAL_CATEGORIES) {
+    chainSlicesChecked += 1;
+    const snap = computeWarehouseDailyChain(filters, ws, cat.id);
+    for (let i = 0; i < snap.days.length; i++) {
+      const d = snap.days[i];
+      const expectedClosing = d.warehouseOpeningKwd + d.supplierInboundKwd - d.warehouseDispatchedKwd;
+      const stockDrift = Math.abs(expectedClosing - d.warehouseClosingKwd);
+      if (stockDrift > maxStockIdentityDrift) maxStockIdentityDrift = stockDrift;
+
+      const transitDrift = Math.abs((d.warehouseDispatchedKwd - d.branchesReceivedKwd) - d.transitGapKwd);
+      if (transitDrift > maxTransitDrift) maxTransitDrift = transitDrift;
+
+      if (i > 0) {
+        const prev = snap.days[i - 1];
+        const rollover = Math.abs(d.warehouseOpeningKwd - prev.warehouseClosingKwd);
+        if (rollover > maxRolloverDrift) maxRolloverDrift = rollover;
+      }
+    }
+  }
+}
+
+let slaTicketsChecked = 0;
+let slaTierMismatches = 0;
+let maxPctSumDrift = 0;
+
+for (const period of periods) {
+  const filters = {
+    ...DEFAULT_GLOBAL_FILTERS,
+    period,
+    customFrom: '2026-11-01',
+    customTo: '2026-11-10',
+  };
+  const ws = computeGlobalWorkspace(filters);
+  const sla = computeOrderPrepSlaSnapshot(filters, ws);
+  if (sla.greenCount + sla.yellowCount + sla.redCount !== sla.totalTickets) {
+    slaTierMismatches += 1;
+  }
+  const pctDrift = Math.abs((sla.greenPct + sla.yellowPct + sla.redPct) - 100);
+  if (pctDrift > maxPctSumDrift) maxPctSumDrift = pctDrift;
+  for (const t of sla.tickets) {
+    slaTicketsChecked += 1;
+    const expectedTier = t.prepMinutes <= 12.0 ? 'green' : t.prepMinutes <= 18.0 ? 'yellow' : 'red';
+    if (t.tier !== expectedTier) slaTierMismatches += 1;
+  }
+}
+
+const fullSla = computeOrderPrepSlaSnapshot(DEFAULT_GLOBAL_FILTERS, computeGlobalWorkspace(DEFAULT_GLOBAL_FILTERS));
+
+console.log(JSON.stringify({
+  chainSlicesChecked,
+  maxStockIdentityDrift,
+  maxRolloverDrift,
+  maxTransitDrift,
+  slaTicketsChecked,
+  slaTierMismatches,
+  maxPctSumDrift,
+  branchCount: fullSla.branchMatrix.length,
+  brandCount: fullSla.brandMatrix.length,
+  hourCount: fullSla.hourlyBottlenecks.length,
+}));
+`
+
+const whPrepRaw = execFileSync(process.execPath, [tsxCli, '-e', warehouseAndPrepProbeScript], {
+  cwd: ROOT,
+  encoding: 'utf8',
+}).trim()
+const whPrep = JSON.parse(whPrepRaw.split('\n').pop() ?? '{}')
+
+assert(
+  whPrep.chainSlicesChecked === 20 &&
+    whPrep.maxStockIdentityDrift < 1e-6 &&
+    whPrep.maxRolloverDrift < 1e-6 &&
+    whPrep.maxTransitDrift < 1e-6 &&
+    whPrep.slaTierMismatches === 0 &&
+    whPrep.maxPctSumDrift < 0.05 &&
+    whPrep.branchCount === 7 &&
+    whPrep.brandCount === 6 &&
+    whPrep.hourCount === 14,
+  'Warehouse 4-Stage Continuous Ledger (0.000 KWD drift across 20 period×category slices) & Kitchen Prep SLA 3-Tier Traffic-Light Math (7 branches × 6 brands × 14 hours)',
+  `stockDrift=${Number(whPrep.maxStockIdentityDrift).toFixed(6)}, rolloverDrift=${Number(whPrep.maxRolloverDrift).toFixed(6)}, tickets=${whPrep.slaTicketsChecked}`,
+)
+
 console.log('\n----------------------------------------------------------------------')
 if (failed > 0) {
   console.error(`❌ Verification FAILED: ${failed} failed, ${passed} passed.`)

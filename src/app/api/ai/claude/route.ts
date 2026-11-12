@@ -163,11 +163,18 @@ export async function GET(req: NextRequest) {
   })
 }
 
+interface ClaudeImageInput {
+  mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif'
+  data: string
+  label?: string
+}
+
 interface ClaudeProxyPostBody {
   tier?: 'daily' | 'deep'
   sonnetOnly?: boolean
   systemText?: string
   userPrompt?: string
+  images?: ClaudeImageInput[]
   maxTokens?: number
   customApiKey?: string
 }
@@ -190,9 +197,44 @@ export async function POST(req: NextRequest) {
   }
 
   const userPrompt = (body.userPrompt ?? '').trim()
-  if (!userPrompt) {
+  const validImages = Array.isArray(body.images)
+    ? body.images
+        .filter((img) => img && typeof img.data === 'string' && img.data.length > 0)
+        .slice(0, 12)
+    : []
+
+  if (!userPrompt && validImages.length === 0) {
     return NextResponse.json({ ok: false, error: 'EMPTY_PROMPT' }, { status: 400 })
   }
+
+  const effectivePrompt = userPrompt || 'Analyze the attached visual frames in detail.'
+  const userMessageContent: string | Array<Record<string, unknown>> =
+    validImages.length > 0
+      ? [
+          ...validImages.flatMap((img) => {
+            const items: Array<Record<string, unknown>> = []
+            if (img.label) {
+              items.push({ type: 'text', text: img.label })
+            }
+            const allowedMime =
+              img.mediaType === 'image/png' ||
+              img.mediaType === 'image/webp' ||
+              img.mediaType === 'image/gif'
+                ? img.mediaType
+                : 'image/jpeg'
+            items.push({
+              type: 'image',
+              source: {
+                type: 'base64',
+                media_type: allowedMime,
+                data: img.data,
+              },
+            })
+            return items
+          }),
+          { type: 'text', text: effectivePrompt },
+        ]
+      : effectivePrompt
 
   const systemText = (body.systemText ?? '').trim()
   const sonnetOnly = Boolean(body.sonnetOnly)
@@ -235,7 +277,7 @@ export async function POST(req: NextRequest) {
         max_tokens: requestedMaxTokens,
         thinking: { type: 'between_tools' },
         ...(systemBlocks ? { system: systemBlocks } : {}),
-        messages: [{ role: 'user', content: userPrompt }],
+        messages: [{ role: 'user', content: userMessageContent }],
       })
     } else if (fiveSeries) {
       // 5.x Cross-Version Adaptive Effort (`high` for Deep Study, `medium` for Daily Speed & Economy)
@@ -244,7 +286,7 @@ export async function POST(req: NextRequest) {
         max_tokens: requestedMaxTokens,
         output_config: { effort: modelIsDeepOpus && body.tier === 'deep' ? 'high' : 'medium' },
         ...(systemBlocks ? { system: systemBlocks } : {}),
-        messages: [{ role: 'user', content: userPrompt }],
+        messages: [{ role: 'user', content: userMessageContent }],
       })
     } else if (body.tier === 'deep' && requestedMaxTokens >= 2048) {
       // 4.x Deep Extended Thinking (`budget_tokens: 8000`)
@@ -253,7 +295,7 @@ export async function POST(req: NextRequest) {
         max_tokens: Math.max(requestedMaxTokens, 10000),
         thinking: { type: 'enabled', budget_tokens: 8000 },
         ...(systemBlocks ? { system: systemBlocks } : {}),
-        messages: [{ role: 'user', content: userPrompt }],
+        messages: [{ role: 'user', content: userMessageContent }],
       })
     }
 
@@ -263,14 +305,14 @@ export async function POST(req: NextRequest) {
       max_tokens: requestedMaxTokens,
       temperature: 0.3,
       ...(systemBlocks ? { system: systemBlocks } : {}),
-      messages: [{ role: 'user', content: userPrompt }],
+      messages: [{ role: 'user', content: userMessageContent }],
     })
 
     for (let attempt = 0; attempt < payloads.length; attempt++) {
       try {
         const upstream = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
-          signal: AbortSignal.timeout(32000),
+          signal: AbortSignal.timeout(validImages.length > 0 ? 44000 : 32000),
           headers: {
             'Content-Type': 'application/json',
             'x-api-key': apiKey,

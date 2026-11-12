@@ -15,6 +15,7 @@ import {
   hydrateFeryalMemory,
   type FeryalMemoryState,
 } from '@/lib/feryal-learning-engine'
+import type { StoredAttachmentMeta, VisionComplianceTier } from '@/lib/feryal-multimodal'
 
 export const FERYAL_CHATS_DB_NAME = 'aether_feryal_chats_v2'
 export const FERYAL_CHATS_INDEX_KEY = 'aether_feryal_chats_index_v2'
@@ -27,6 +28,9 @@ export interface StoredChatMessage {
   sender: 'user' | 'feryal'
   text: string
   time: string
+  attachmentsMeta?: StoredAttachmentMeta[]
+  visionCompliance?: VisionComplianceTier
+  hasVisualEvidence?: boolean
   engineLabelAr?: string
   engineLabelEn?: string
   claudeReply?: string
