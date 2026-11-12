@@ -10,9 +10,8 @@ const nextConfig = {
     ignoreDuringBuilds: false,
   },
   async redirects() {
-    // No public marketing landing page: aetherbi.com opens the Aether BI workspace directly.
-    // Four executive pillars: /erp, /erp/feryal-ai, /erp/aggregator-radar (permanent), /erp/events-intelligence.
-    // Report screens that duplicate Odoo redirect to the playbook. /erp/aggregator-radar is never redirected.
+    // Root "/" is enforced directly by src/middleware.ts (unauthenticated -> /login, authenticated -> /erp).
+    // Report screens that duplicate Odoo redirect to /erp (which itself requires authentication in middleware).
     const consolidated = [
       '/erp/sales-scorecard',
       '/dashboard',
@@ -25,10 +24,11 @@ const nextConfig = {
       '/automations',
       '/erp/demand-forecast',
     ]
-    return [
-      { source: '/', destination: '/erp', permanent: false },
-      ...consolidated.map((source) => ({ source, destination: '/erp', permanent: false })),
-    ]
+    return consolidated.map((source) => ({
+      source,
+      destination: '/erp',
+      permanent: false,
+    }))
   },
   async rewrites() {
     // Canonical P&L lives at /reports?tab=pnl; keep /reports/pnl as a stable alias (200).
@@ -38,10 +38,13 @@ const nextConfig = {
     return [
       {
         source: '/:path*',
-        headers: buildSecurityHeaders({
-          supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
-          isProduction: process.env.NODE_ENV === 'production',
-        }),
+        headers: [
+          ...buildSecurityHeaders({
+            supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+            isProduction: process.env.NODE_ENV === 'production',
+          }),
+          { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' },
+        ],
       },
     ]
   },

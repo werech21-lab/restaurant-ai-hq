@@ -16,6 +16,7 @@ import {
   type SidebarSectionId,
 } from '@/components/erp-sidebar'
 import { GovernanceBellTrigger, GovernanceProvider } from '@/components/erp/GovernanceBellDrawer'
+import { ExecutiveFooter } from '@/components/erp/ExecutiveFooter'
 import { getCompany } from '@/lib/company'
 import { LOCKED_MODULES } from '@/lib/modules'
 import { enabledModuleKeys } from '@/lib/modules-db'
@@ -82,6 +83,7 @@ export async function ErpShell({ children }: { children: React.ReactNode }) {
                       {children}
                     </div>
                   </main>
+                  <ExecutiveFooter />
                 </div>
               </div>
               <ExecutiveCommandPalette />

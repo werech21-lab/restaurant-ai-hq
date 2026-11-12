@@ -1,8 +1,22 @@
+import type { Metadata } from 'next'
 import { Suspense, type ReactNode } from 'react'
 import GovernancePulse from '@/components/erp/GovernancePulse'
 import { ErpShell } from '@/components/erp/shell'
 
 export const dynamic = 'force-dynamic'
+
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: {
+      index: false,
+      follow: false,
+      noimageindex: true,
+    },
+  },
+}
 
 /**
  * ERP root layout powered by first-class <ErpShell /> (`src/components/erp/shell.tsx`)

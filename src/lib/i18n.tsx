@@ -4800,10 +4800,77 @@ const en: { [K in keyof typeof ar]: string } = {
   'iam.err.system_role_locked': 'Built-in roles cannot be edited.',
 }
 
-export type MessageKey = keyof typeof ar | keyof typeof panelAr
+const loginOverridesAr = {
+  'login.title': 'بوابة الإدارة التنفيذية',
+  'login.lead': 'الوصول مقتصر على الحسابات التنفيذية المخوّلة في شركة فنتشر فودز.',
+  'login.email': 'البريد الإلكتروني المؤسسي',
+  'login.password': 'كلمة المرور',
+  'login.submit': 'تسجيل الدخول الآمن',
+  'login.submitting': 'جارٍ التحقق من الصلاحية…',
+  'login.demo': '',
+  'login.heroLead':
+    'المنصة التنفيذية الموحدة لشركة فنتشر فودز لإدارة المطاعم (6 مطاعم • 7 فروع • 8 قنوات) — الرقابة المالية، سلاسل الإمداد، ومنصات التوصيل بالدينار الكويتي.',
+  'login.currency': 'العملة والأساس المالي',
+  'login.currencyVal': 'دينار كويتي (د.ك) • مطابقة أودو 17',
+  'login.coverage': 'نطاق التشغيل الرسمي',
+  'login.coverageVal': '6 مطاعم • 7 فروع • 8 قنوات',
+  'login.securityNote': 'جلسة تنفيذية مشفّرة • وصول خاص غير مفهرس في محركات البحث',
+  'login.demo.aether': '',
+  'login.demo.aetherRole': '',
+  'login.demo.aetherDesc': '',
+  'login.demo.admin': '',
+  'login.demo.adminRole': '',
+  'login.demo.adminDesc': '',
+  'login.demo.acc': '',
+  'login.demo.accRole': '',
+  'login.demo.accDesc': '',
+  'login.demo.store': '',
+  'login.demo.storeRole': '',
+  'login.demo.storeDesc': '',
+  'login.demo.sales': '',
+  'login.demo.salesRole': '',
+  'login.demo.salesDesc': '',
+} as const
 
-const messagesAr = { ...ar, ...panelAr } as Record<MessageKey, string>
-const messagesEn = { ...en, ...panelEn } as Record<MessageKey, string>
+const loginOverridesEn: { [K in keyof typeof loginOverridesAr]: string } = {
+  'login.title': 'Executive Access Portal',
+  'login.lead': 'Restricted to authorized Venture Foods executive accounts.',
+  'login.email': 'Corporate Email',
+  'login.password': 'Password',
+  'login.submit': 'Sign In Securely',
+  'login.submitting': 'Verifying credentials…',
+  'login.demo': '',
+  'login.heroLead':
+    'Unified executive intelligence platform for Venture Foods (6 Brands • 7 Branches • 8 Channels) — KWD financial control, supply chain, and aggregator operations.',
+  'login.currency': 'Base Currency & Ledger',
+  'login.currencyVal': 'Kuwaiti Dinar (KWD) • Odoo 17 Verified',
+  'login.coverage': 'Official Operating Scope',
+  'login.coverageVal': '6 Brands • 7 Branches • 8 Channels',
+  'login.securityNote': 'Encrypted executive session • Private non-indexed workspace',
+  'login.demo.aether': '',
+  'login.demo.aetherRole': '',
+  'login.demo.aetherDesc': '',
+  'login.demo.admin': '',
+  'login.demo.adminRole': '',
+  'login.demo.adminDesc': '',
+  'login.demo.acc': '',
+  'login.demo.accRole': '',
+  'login.demo.accDesc': '',
+  'login.demo.store': '',
+  'login.demo.storeRole': '',
+  'login.demo.storeDesc': '',
+  'login.demo.sales': '',
+  'login.demo.salesRole': '',
+  'login.demo.salesDesc': '',
+}
+
+export type MessageKey =
+  | keyof typeof ar
+  | keyof typeof panelAr
+  | keyof typeof loginOverridesAr
+
+const messagesAr = { ...ar, ...panelAr, ...loginOverridesAr } as Record<MessageKey, string>
+const messagesEn = { ...en, ...panelEn, ...loginOverridesEn } as Record<MessageKey, string>
 const messages: Record<Locale, Record<MessageKey, string>> = { ar: messagesAr, en: messagesEn }
 const storageKey = 'ai-hq-locale'
 

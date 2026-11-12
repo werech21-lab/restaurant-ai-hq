@@ -123,12 +123,13 @@ export const GLOBAL_PERIOD_OPTIONS: readonly FilterOption<GlobalPeriod>[] = [
   { id: 'custom', ar: 'مخصص 📅', en: 'Custom 📅' },
 ] as const
 
+/** Kuwait behavioral time slices (audit ref: أيام الرواتب ٢٠–٢٨ | منتصف الشهر ١٠–١٩ | الويكند والزوارة | الساعات الهادئة ٣–٦) — rendered in Western 0-9 numerals */
 export const GLOBAL_KUWAIT_SLICE_OPTIONS: readonly FilterOption<KuwaitSlice>[] = [
   { id: 'all', ar: 'كل الأوقات', en: 'All Times' },
-  { id: 'payday', ar: 'أيام الرواتب ٢٠–٢٨', en: 'Paydays 20–28' },
-  { id: 'mid-month', ar: 'منتصف الشهر ١٠–١٩', en: 'Mid-Month 10–19' },
+  { id: 'payday', ar: 'أيام الرواتب 20–28', en: 'Paydays 20–28' },
+  { id: 'mid-month', ar: 'منتصف الشهر 10–19', en: 'Mid-Month 10–19' },
   { id: 'weekend', ar: 'الويكند والزوارة', en: 'Weekend & Gatherings' },
-  { id: 'quiet-hours', ar: 'الساعات الهادئة ٣–٦', en: 'Quiet Hours 3–6' },
+  { id: 'quiet-hours', ar: 'الساعات الهادئة 3–6', en: 'Quiet Hours 3–6' },
 ] as const
 
 export const GLOBAL_PROFIT_LENS_OPTIONS: readonly FilterOption<ProfitLens>[] = [
@@ -188,7 +189,7 @@ export const GLOBAL_CHANNEL_OPTIONS: readonly FilterOption<GlobalChannel>[] = [
   { id: 'dine-in', ar: 'الصالة', en: 'Dine-in' },
   { id: 'takeaway-direct', ar: 'سفري ومباشر', en: 'Takeaway/Direct' },
   { id: 'talabat-tgo', ar: 'طلبات Tgo', en: 'Talabat Tgo' },
-  { id: 'talabat-tmp', ar: 'طلبات TMP', en: 'Talabat TMP' },
+  { id: 'talabat-tmp', ar: 'منصة توصيل طلبات TMP', en: 'Talabat TMP' },
   { id: 'keeta', ar: 'كيتا', en: 'Keeta' },
   { id: 'deliveroo', ar: 'ديليفرو', en: 'Deliveroo' },
   { id: 'jahez', ar: 'جاهز', en: 'Jahez' },
@@ -236,6 +237,43 @@ export function isNonDefaultFilter(f: GlobalFilters): boolean {
     f.channel !== 'all' ||
     (f.lens ?? 'all') !== 'all'
   )
+}
+
+/**
+ * Formal Arabic number-noun agreement for days (`يوم واحد`, `يومان`, `6 أيام`, `11 يوماً`) using Western 0-9 numerals.
+ */
+export function formatArDays(n: number): string {
+  const count = Math.max(0, Math.round(Number.isFinite(n) ? n : 0))
+  if (count === 0) return '0 يوم'
+  if (count === 1) return 'يوم واحد'
+  if (count === 2) return 'يومان'
+  const mod100 = count % 100
+  if (mod100 >= 3 && mod100 <= 10) return `${count} أيام`
+  if (mod100 >= 11 && mod100 <= 99) return `${count} يوماً`
+  return `${count} يوم`
+}
+
+/**
+ * Formal Arabic prepositional phrase `خلال ...` (`خلال يوم واحد`, `خلال يومين`, `خلال 6 أيام`, `خلال 11 يوماً`).
+ */
+export function formatArWithinDays(n: number): string {
+  const count = Math.max(0, Math.round(Number.isFinite(n) ? n : 0))
+  if (count === 1) return 'خلال يوم واحد'
+  if (count === 2) return 'خلال يومين'
+  return `خلال ${formatArDays(count)}`
+}
+
+/**
+ * Formal Arabic number-noun agreement for opportunities (`فرصة واحدة`, `فرصتان`, `6 فرص`, `27 فرصة`) using Western 0-9 numerals.
+ */
+export function formatArOpportunities(n: number): string {
+  const count = Math.max(0, Math.round(Number.isFinite(n) ? n : 0))
+  if (count === 0) return '0 فرص'
+  if (count === 1) return 'فرصة واحدة'
+  if (count === 2) return 'فرصتان'
+  const mod100 = count % 100
+  if (mod100 >= 3 && mod100 <= 10) return `${count} فرص`
+  return `${count} فرصة`
 }
 
 export function getPeriodLabel(p: GlobalPeriod, isAr: boolean): string {
@@ -675,7 +713,7 @@ const SPECIFIC_PLAY_COPY: Record<
   'kitchen-inventory-variance': {
     titleAr: 'نقص بالمطبخ',
     titleEn: 'Kitchen Food Gap',
-    problemAr: 'استهلاك المواد الخام أعلى من المبيعات بعد عزل ٦٪ تقليم الطبخ الطبيعي.',
+    problemAr: 'استهلاك المواد الخام أعلى من المبيعات بعد عزل 6% تقليم الطبخ الطبيعي.',
     problemEn: 'Raw food usage exceeds dishes sold even after 6% normal cooking trim.',
     solutionAr: 'جرد الأصناف البروتينية الغالية نهاية كل شفت ومطابقتها مع مبيعات الكاشير.',
     solutionEn: 'Count top proteins at the end of every shift against POS recipe usage.',
@@ -710,7 +748,7 @@ const SPECIFIC_PLAY_COPY: Record<
     titleEn: 'Menu Price Tweak',
     problemAr: 'الأصناف الأكثر مبيعاً هامش ربحها أقل بسبب ثبات سعرها القديم أمام ارتفاع الكلفة.',
     problemEn: 'Top-selling signature mains carry thinner margins due to unchanged older prices.',
-    solutionAr: 'زيادة ١٠٠–١٥٠ فلس على الأصناف القوية مع احتفاظ ٩٤٪–٩٧٪ بالطلبات.',
+    solutionAr: 'زيادة 100–150 فلس على الأصناف القوية مع احتفاظ 94%–97% بالطلبات.',
     solutionEn: 'Apply a 100–150 fils tweak on inelastic mains at 94%–97% guest retention.',
   },
   'menu-reprice-franks': {
@@ -718,7 +756,7 @@ const SPECIFIC_PLAY_COPY: Record<
     titleEn: 'Menu Price Tweak',
     problemAr: 'الأصناف الأكثر مبيعاً هامش ربحها أقل بسبب ثبات سعرها القديم أمام ارتفاع الكلفة.',
     problemEn: 'Top-selling signature mains carry thinner margins due to unchanged older prices.',
-    solutionAr: 'زيادة ١٠٠–١٥٠ فلس على الأصناف القوية مع احتفاظ ٩٤٪–٩٧٪ بالطلبات.',
+    solutionAr: 'زيادة 100–150 فلس على الأصناف القوية مع احتفاظ 94%–97% بالطلبات.',
     solutionEn: 'Apply a 100–150 fils tweak on inelastic mains at 94%–97% guest retention.',
   },
   // Intentionally consolidated single-item basket combo plays into ONE unified Drink & Combo Add-on play:
@@ -727,7 +765,7 @@ const SPECIFIC_PLAY_COPY: Record<
     titleEn: 'Drink & Combo Add-on',
     problemAr: 'أغلب الفواتير تخرج بصنف واحد بدون مشروب أو طبق جانبي عالي الهامش.',
     problemEn: 'Most single-item orders go out without a high-margin drink or side.',
-    solutionAr: 'عرض مشروب وسبرنغ رول عند الدفع بتحويل واقعي ٨٪–١٥٪ من السلات.',
+    solutionAr: 'عرض مشروب وسبرنغ رول عند الدفع بتحويل واقعي 8%–15% من السلات.',
     solutionEn: 'Prompt a drink or spring roll combo targeting 8%–15% basket conversion.',
   },
   'menu-shop-basket-china-garden': {
@@ -735,7 +773,7 @@ const SPECIFIC_PLAY_COPY: Record<
     titleEn: 'Drink & Combo Add-on',
     problemAr: 'أغلب الفواتير تخرج بصنف واحد بدون مشروب أو طبق جانبي عالي الهامش.',
     problemEn: 'Most single-item orders go out without a high-margin drink or side.',
-    solutionAr: 'عرض مشروب وسبرنغ رول عند الدفع بتحويل واقعي ٨٪–١٥٪ من السلات.',
+    solutionAr: 'عرض مشروب وسبرنغ رول عند الدفع بتحويل واقعي 8%–15% من السلات.',
     solutionEn: 'Prompt a drink or spring roll combo targeting 8%–15% basket conversion.',
   },
   'menu-channel-price-shield': {
@@ -751,7 +789,7 @@ const SPECIFIC_PLAY_COPY: Record<
     titleEn: 'Payday & Weekend Bundles',
     problemAr: 'ذروة الرواتب وعطلة نهاية الأسبوع تمر بدون باقات عائلية مسبقة التجهيز.',
     problemEn: 'Payday and Thursday-Friday peaks lack pre-built high-margin family platters.',
-    solutionAr: 'تفعيل بوكس العائلة والرواتب تلقائياً أيام ٢٤–٢٩ الشهر والخميس والجمعة.',
+    solutionAr: 'تفعيل بوكس العائلة والرواتب تلقائياً أيام 24–29 الشهر والخميس والجمعة.',
     solutionEn: 'Auto-feature high-margin family platters on payday week and weekends.',
   },
   'menu-kitchen-drag-farm-brown': {
@@ -848,7 +886,7 @@ const SPECIFIC_PLAY_COPY: Record<
     titleEn: 'Aggregator Promo Spend Cap',
     problemAr: 'بعض حملات الخصم التلقائية بالتطبيقات تخصم من صافي الفاتورة بدون حد أدنى مجزٍ.',
     problemEn: 'Uncapped co-funded aggregator promos erode per-order net pocket cash.',
-    solutionAr: 'قصر العروض التشاركية على حد أدنى للطلب ٥.٥٠٠ د.ك وسقف خصم معتمد ١٠٪.',
+    solutionAr: 'قصر العروض التشاركية على حد أدنى للطلب 5.500 د.ك وسقف خصم معتمد 10%.',
     solutionEn: 'Gate co-funded app promos behind a 5.500 KWD minimum basket and 10% cap.',
   },
   'delivery-commission-keeta': {
@@ -860,7 +898,7 @@ const SPECIFIC_PLAY_COPY: Record<
     solutionEn: 'Cap co-funded Keeta discounts and restrict promos to high-margin bundles.',
   },
   'delivery-unsettled-clearing': {
-    titleAr: 'تحصيل مستحقات التطبيقات',
+    titleAr: 'تحصيل ذمم منصات التوصيل المتراكمة',
     titleEn: 'Collect App Payouts',
     problemAr: 'توجد مبالغ مبيعات معلقة في حسابات تسوية تطبيقات التوصيل تحتاج مطابقة وتحصيلاً.',
     problemEn: 'Open delivery aggregator clearing balances require weekly payout matching.',
@@ -868,11 +906,11 @@ const SPECIFIC_PLAY_COPY: Record<
     solutionEn: 'Reconcile Talabat, Keeta, and Deliveroo statements weekly to clear overdue dues.',
   },
   'delivery-tgo-tmp-mix': {
-    titleAr: 'التحويل لسائقي الشركة TMP',
+    titleAr: 'التحويل إلى منصة توصيل طلبات TMP',
     titleEn: 'Shift to TMP (15%)',
     problemAr: 'الاعتماد الكامل على عمولة Tgo المرتفعة يقلل الصافي المتبقي للشركة في الطلبات القريبة.',
     problemEn: 'Relying solely on Tgo fleet fees trims take-home cash on nearby delivery zones.',
-    solutionAr: 'تشغيل سائقي الشركة TMP (١٥٪) في الفروع المؤهلة لتوفير فرق العمولة.',
+    solutionAr: 'تشغيل سائقي الشركة عبر منصة توصيل طلبات TMP (15%) في الفروع المؤهلة لتوفير فرق العمولة.',
     solutionEn: 'Activate company-driver TMP (15%) in eligible branches to save commission spread.',
   },
   'quality-retention': {
@@ -888,7 +926,7 @@ const SPECIFIC_PLAY_COPY: Record<
     titleEn: 'Cut Late-Order Refunds',
     problemAr: 'إلغاء الطلبات المتأخرة ومرتجعات النواقص يخصم قيمة الوجبة كاملة من صافي الفرع.',
     problemEn: 'Late-order cancellations and missing-item refunds deduct full order value.',
-    solutionAr: 'فحص مطابقة الفاتورة قبل تسليم السائق وتنبيه الشيف عند تجاوز التحضير ١٢ دقيقة.',
+    solutionAr: 'فحص مطابقة الفاتورة قبل تسليم السائق وتنبيه الشيف عند تجاوز التحضير 12 دقيقة.',
     solutionEn: 'Verify bag accuracy at handoff and alert kitchen leads past the 12-minute mark.',
   },
 }
@@ -1005,6 +1043,11 @@ export interface SummaryCardData {
   descAr: string
   descEn: string
   accent: 'emerald' | 'sky' | 'amber' | 'rose'
+  statusDot: HealthDot
+  statusLabelAr: string
+  statusLabelEn: string
+  badgeAr?: string
+  badgeEn?: string
   ctaAr: string
   ctaEn: string
   action: SummaryCardAction
@@ -1029,6 +1072,8 @@ export interface PeerDiagnosticStrip {
   activeWeightedNetPct: number
   groupWeightedNetPct: number
   deltaPctPoints: number
+  /** False when viewing unfiltered full group scope (brand/branch/channel/slice === 'all') so redundant 14.7% vs 14.7% is hidden */
+  showPeerComparison: boolean
   tone: 'emerald' | 'amber' | 'rose'
   benchmarkAr: string
   benchmarkEn: string
@@ -1394,7 +1439,7 @@ export function computeGlobalWorkspace(
   const totalScale = safeDiv(salesKwd, monthGroupSales, 0)
 
   // -------------------------------------------------------------------------
-  // 10-KWD Breakdown (وين تروح كل ١٠ دنانير مبيعات؟)
+  // 10-KWD Breakdown (كيف تتوزع كل 10 دنانير من المبيعات؟)
   // -------------------------------------------------------------------------
   const baseNP = JOURNEY_SHORTCUTS.netPocket
   const groupFood10 = safeNum(baseNP.foodAndPack10, 2.68)
@@ -1555,19 +1600,26 @@ export function computeGlobalWorkspace(
   // -------------------------------------------------------------------------
   // 1-Line Peer Benchmark & Root-Cause Diagnostic Strip
   // -------------------------------------------------------------------------
+  const isFullGroupScope =
+    brand === 'all' && branch === 'all' && channel === 'all' && filters.kuwaitSlice === 'all'
+  const showPeerComparison = !isFullGroupScope
   const deltaPctPoints = Math.round((weightedNetPct - groupWeightedNetPct) * 10) / 10
   const diagTone: PeerDiagnosticStrip['tone'] =
     salesKwd <= 0 || deltaPctPoints <= -3 ? 'rose' : deltaPctPoints < 0 ? 'amber' : 'emerald'
 
   const benchmarkAr =
     salesKwd <= 0
-      ? `صفر مبيعات في هذا التقاطع مقابل ${groupWeightedNetPct.toFixed(1)}% صافي مرجّح للمجموعة`
-      : `الصافي المرجّح ${weightedNetPct.toFixed(1)}% مقابل ${groupWeightedNetPct.toFixed(1)}% للمجموعة (${deltaPctPoints >= 0 ? '+' : ''}${deltaPctPoints.toFixed(1)} نقطة)`
+      ? `صفر مبيعات في هذا التقاطع مقابل متوسط المجموعة ${groupWeightedNetPct.toFixed(1)}%`
+      : showPeerComparison
+        ? `الصافي المرجّح ${weightedNetPct.toFixed(1)}% مقابل متوسط المجموعة ${groupWeightedNetPct.toFixed(1)}% (${deltaPctPoints >= 0 ? '+' : ''}${deltaPctPoints.toFixed(1)} نقطة)`
+        : `الصافي المرجّح للمجموعة ${weightedNetPct.toFixed(1)}%`
 
   const benchmarkEn =
     salesKwd <= 0
-      ? `Zero sales in this slice vs ${groupWeightedNetPct.toFixed(1)}% group weighted net`
-      : `Weighted Net ${weightedNetPct.toFixed(1)}% vs ${groupWeightedNetPct.toFixed(1)}% group (${deltaPctPoints >= 0 ? '+' : ''}${deltaPctPoints.toFixed(1)} pts)`
+      ? `Zero sales in this slice vs ${groupWeightedNetPct.toFixed(1)}% group avg`
+      : showPeerComparison
+        ? `Weighted Net ${weightedNetPct.toFixed(1)}% vs ${groupWeightedNetPct.toFixed(1)}% group avg (${deltaPctPoints >= 0 ? '+' : ''}${deltaPctPoints.toFixed(1)} pts)`
+        : `Group Weighted Net ${weightedNetPct.toFixed(1)}%`
 
   let rootCauseAr = ''
   let rootCauseEn = ''
@@ -1578,22 +1630,22 @@ export function computeGlobalWorkspace(
     rootCauseAr = 'عدسة النزيف: ركّز على إيقاف هدر المطبخ ومراجعة الحسابات المتوقفة فوراً.'
     rootCauseEn = 'Bleed Lens: Focus on stopping abnormal kitchen variance and offline app accounts.'
   } else if (filters.lens === 'delivery-audit' || delivery10 > groupDeliv10 + 0.22) {
-    rootCauseAr = `عمولة التوصيل تقتطع ${delivery10.toFixed(2)} د.ك من كل ١٠ دنانير — انقل القريب إلى TMP (15%).`
+    rootCauseAr = `عمولة التوصيل تقتطع ${delivery10.toFixed(2)} د.ك من كل 10 دنانير — انقل الطلبات القريبة إلى منصة توصيل طلبات TMP (15%).`
     rootCauseEn = `Delivery fees take ${delivery10.toFixed(2)} KWD per 10 KWD — shift nearby orders to TMP (15%).`
   } else if (filters.lens === 'ardiya-buying' || food10 > groupFood10 + 0.16) {
-    rootCauseAr = `تكلفة الأكل ${food10.toFixed(2)} د.ك/١٠ — ثبّت أسعار موردي العارضية واضبط وزن الوجبات.`
+    rootCauseAr = `تكلفة المواد الغذائية ${food10.toFixed(2)} د.ك/10 — ثبّت أسعار موردي العارضية واضبط أوزان الوجبات.`
     rootCauseEn = `Food cost is ${food10.toFixed(2)} KWD/10 — lock Ardiya supplier rates and portion weights.`
   } else if (filters.lens === 'quiet-hours' || filters.kuwaitSlice === 'quiet-hours') {
-    rootCauseAr = 'الساعات الهادئة (٣–٦ عصراً): فعّل عرض كومبو مشروب وسبرنغ رول لرفع السلة.'
+    rootCauseAr = 'الساعات الهادئة (3–6 مساءً): فعّل عرض كومبو مشروب وسبرنغ رول لرفع متوسط السلة.'
     rootCauseEn = 'Quiet Hours (3–6 PM): Trigger drink + spring roll combo prompts to lift AOV.'
   } else if (filters.lens === 'payday-weekend' || filters.kuwaitSlice === 'payday' || filters.kuwaitSlice === 'weekend') {
-    rootCauseAr = 'ذروة الرواتب والويكند: ارفع تحضير العارضية ٢٠٪ وامنع إغلاق تابلت التوصيل.'
+    rootCauseAr = 'ذروة الرواتب والويكند: ارفع تحضير العارضية 20% وامنع إغلاق أجهزة التوصيل.'
     rootCauseEn = 'Payday & Weekend Surge: Pre-stage +20% Ardiya prep and keep all tablets open.'
   } else if (opexRent10 > groupOpex10 + 0.25) {
-    rootCauseAr = `ضغط الإيجار والرواتب (${opexRent10.toFixed(2)} د.ك/١٠) — شغّل علامة ثانية بنفس المطبخ.`
+    rootCauseAr = `ضغط الإيجارات والرواتب (${opexRent10.toFixed(2)} د.ك/10) — شغّل علامة ثانية بنفس المطبخ.`
     rootCauseEn = `Fixed rent & payroll (${opexRent10.toFixed(2)} KWD/10) — run a host brand in the same kitchen.`
   } else {
-    rootCauseAr = `ربحية صحية (${netPocket10.toFixed(2)} د.ك بالـ ١٠) مدعومة بالصالة و TMP وضبط المطبخ.`
+    rootCauseAr = `ربحية صحية (${netPocket10.toFixed(2)} د.ك لكل 10 د.ك) مدعومة بالصالة ومنصة توصيل طلبات TMP وضبط المطبخ.`
     rootCauseEn = `Healthy pocket margin (${netPocket10.toFixed(2)} KWD/10) backed by dine-in, TMP & kitchen control.`
   }
 
@@ -1601,6 +1653,7 @@ export function computeGlobalWorkspace(
     activeWeightedNetPct: weightedNetPct,
     groupWeightedNetPct,
     deltaPctPoints,
+    showPeerComparison,
     tone: diagTone,
     benchmarkAr,
     benchmarkEn,
@@ -1847,6 +1900,10 @@ export function computeGlobalWorkspace(
     ),
   )
 
+  const disciplineDot: HealthDot = opsScore >= 85 ? '🟢' : opsScore >= 60 ? '🟠' : '🔴'
+  const disciplineAccent: SummaryCardData['accent'] =
+    opsScore >= 85 ? 'emerald' : opsScore >= 60 ? 'amber' : 'rose'
+
   const summaryCards: SummaryCardData[] = [
     {
       id: 'procurement-kitchen',
@@ -1855,9 +1912,12 @@ export function computeGlobalWorkspace(
       titleEn: 'Buying & Kitchen',
       valueAr: fKwd(kitchenGapKwd, true),
       valueEn: fKwd(kitchenGapKwd, false),
-      descAr: 'فروقات أسعار الموردين وهدر المطبخ بعد عزل ٦٪ تقليم طبيعي.',
+      descAr: 'فروقات أسعار الموردين وهدر المطبخ بعد عزل 6% تقليم طبيعي.',
       descEn: 'Supplier price gaps & kitchen variance net of 6% normal trim.',
-      accent: 'amber',
+      accent: 'rose',
+      statusDot: '🔴',
+      statusLabelAr: 'يتطلب ضبطاً عاجلاً',
+      statusLabelEn: 'Urgent Action Required',
       ctaAr: 'فحص المشتريات ↗',
       ctaEn: 'Audit Buying ↗',
       action: 'stage-procurement',
@@ -1874,6 +1934,9 @@ export function computeGlobalWorkspace(
       descAr: 'الصيانة المتكررة والعهد النثرية والفواتير التشغيلية العامة.',
       descEn: 'Repeated equipment repairs, petty cash & monthly bills.',
       accent: 'rose',
+      statusDot: '🔴',
+      statusLabelAr: 'يتطلب ضبطاً عاجلاً',
+      statusLabelEn: 'Urgent Action Required',
       ctaAr: 'تفاصيل المصاريف ↗',
       ctaEn: 'Monthly Bills ↗',
       action: 'stage-opex',
@@ -1881,15 +1944,23 @@ export function computeGlobalWorkspace(
       href: '/erp/planning',
     },
     {
+      // Taxonomy ref: مستحقات التوصيل -> ذمم منصات التوصيل المتراكمة
       id: 'delivery-dues',
       num: 3,
-      titleAr: 'مستحقات التوصيل',
-      titleEn: 'Delivery Apps',
+      titleAr: 'ذمم منصات التوصيل المتراكمة',
+      titleEn: 'Cumulative Aggregator Receivables',
       valueAr: fKwd(deliveryDuesKwd, true),
       valueEn: fKwd(deliveryDuesKwd, false),
-      descAr: 'مبالغ مفتوحة مستحقة عند طلبات وكيتا وديليفرو وجاهز وسنونو.',
-      descEn: 'Open aggregator receivables across Talabat, Keeta & Deliveroo.',
+      descAr:
+        'مبالغ مستحقة لدى طلبات وكيتا وديليفرو وجاهز وسنونو (رصيد مفتوح قيد التحصيل يشمل فترات سابقة).',
+      descEn:
+        'Unsettled aggregator payouts across Talabat, Keeta & Deliveroo (Open unsettled balance including prior periods).',
       accent: 'amber',
+      statusDot: '🟠',
+      statusLabelAr: 'رصيد/التزام تحت المتابعة',
+      statusLabelEn: 'Monitored Balance / Obligation',
+      badgeAr: 'رصيد تراكمي',
+      badgeEn: 'Cumulative Balance',
       ctaAr: 'مراقبة التوصيل ↗',
       ctaEn: 'Delivery Radar ↗',
       action: 'href-radar',
@@ -1899,12 +1970,27 @@ export function computeGlobalWorkspace(
       id: 'branch-discipline',
       num: 4,
       titleAr: 'انضباط الفروع',
-      titleEn: 'Branch Speed',
-      valueAr: `${opsScore} / 100`,
+      titleEn: 'Branch Discipline',
+      valueAr: `${opsScore} من 100`,
       valueEn: `${opsScore} / 100`,
       descAr: 'سرعة التجهيز والتزام الفتح وتقليل المرتجعات والخصومات.',
       descEn: 'Prep SLA speed, opening discipline & POS discount control.',
-      accent: 'sky',
+      accent: disciplineAccent,
+      statusDot: disciplineDot,
+      statusLabelAr:
+        opsScore >= 85
+          ? 'ضمن المستهدف'
+          : opsScore >= 60
+            ? 'رصيد/التزام تحت المتابعة'
+            : 'يتطلب ضبطاً عاجلاً',
+      statusLabelEn:
+        opsScore >= 85
+          ? 'On Target'
+          : opsScore >= 60
+            ? 'Monitored Balance / Obligation'
+            : 'Urgent Action Required',
+      badgeAr: 'المستهدف: 85+',
+      badgeEn: 'Target: 85+',
       ctaAr: 'مقارنة الفروع ↗',
       ctaEn: 'Branch Speed ↗',
       action: 'chart-branches',
@@ -1918,9 +2004,12 @@ export function computeGlobalWorkspace(
       titleEn: 'Menu Profit',
       valueAr: `+${fKwd(menuBenefitKwd, true)}`,
       valueEn: `+${fKwd(menuBenefitKwd, false)}`,
-      descAr: 'رفع ربح الوجبات والإضافات بتحويل ٨٪–١٥٪ واحتفاظ ٩٤٪–٩٧٪.',
+      descAr: 'رفع ربح الوجبات والإضافات بتحويل 8%–15% واحتفاظ 94%–97%.',
       descEn: 'Combo & add-on margin lift at 8%–15% conversion.',
-      accent: 'sky',
+      accent: 'emerald',
+      statusDot: '🟢',
+      statusLabelAr: 'فرصة زيادة ربح جاهزة',
+      statusLabelEn: 'Ready Profit Upside',
       ctaAr: 'المينيو والأصناف ↗',
       ctaEn: 'Menu Profit ↗',
       action: 'href-menu',
@@ -1933,9 +2022,12 @@ export function computeGlobalWorkspace(
       titleEn: 'Quiet Hours',
       valueAr: `+${fKwd(kitchenHostKwd, true)}`,
       valueEn: `+${fKwd(kitchenHostKwd, false)}`,
-      descAr: 'تشغيل علامات إضافية وعروض الساعات الهادئة بدون إيجار جديد.',
-      descEn: 'Zero-rent cross-brand quiet-hour upside inside existing kitchens.',
+      descAr: 'تشغيل علامات إضافية وعروض الساعات الهادئة (3–6 مساءً) بدون إيجار جديد.',
+      descEn: 'Zero-rent cross-brand quiet-hour upside (3–6 PM) inside existing kitchens.',
       accent: 'emerald',
+      statusDot: '🟢',
+      statusLabelAr: 'فرصة زيادة ربح جاهزة',
+      statusLabelEn: 'Ready Profit Upside',
       ctaAr: 'خطة الساعات الهادئة ↗',
       ctaEn: 'Quiet-Hours Plan ↗',
       action: 'lens-quiet',
@@ -1952,11 +2044,11 @@ export function computeGlobalWorkspace(
       id: 'note-kitchen',
       titleAr: 'نقص بالمطبخ',
       titleEn: 'Kitchen Gap',
-      summaryAr: `فرق استهلاك مواد المطبخ يبلغ ${fKwd(kitchenGapKwd, true)} بعد عزل ٦٪ تقليم الطبخ الطبيعي.`,
+      summaryAr: `فرق استهلاك مواد المطبخ يبلغ ${fKwd(kitchenGapKwd, true)} بعد عزل 6% تقليم الطبخ الطبيعي.`,
       summaryEn: `Kitchen ingredient gap is ${fKwd(kitchenGapKwd, false)} net of 6% normal trim.`,
       benefitAr: `+${fKwd(Math.max(25, Math.round(kitchenGapKwd * 0.35)), true)}`,
       benefitEn: `+${fKwd(Math.max(25, Math.round(kitchenGapKwd * 0.35)), false)}`,
-      promptAr: `اشرحي لي ببساطة سبب نقص المطبخ حالياً (${buildFilterSubtitle(filters, true)}) وكيف نوقفه هالأسبوع؟`,
+      promptAr: `اشرحي لي بوضوح سبب نقص المطبخ حالياً (${buildFilterSubtitle(filters, true)}) وكيف نوقفه هذا الأسبوع؟`,
       promptEn: `Explain simply why there is a kitchen food gap (${buildFilterSubtitle(filters, false)}) and how to stop it this week.`,
       tone: 'rose',
     },
@@ -1968,7 +2060,7 @@ export function computeGlobalWorkspace(
       summaryEn: 'Several Ardiya recipe ingredients rose vs last month and need a price lock.',
       benefitAr: plays.find((p) => p.id === 'proc-price-creep')?.periodLabelAr ?? `+${fKwd(Math.round(740 * periodScale), true)}`,
       benefitEn: plays.find((p) => p.id === 'proc-price-creep')?.periodLabelEn ?? `+${fKwd(Math.round(740 * periodScale), false)}`,
-      promptAr: `شنو أهم فروقات أسعار الموردين في (${buildFilterSubtitle(filters, true)}) وشنو نطلب من المشتريات اليوم؟`,
+      promptAr: `ما أهم فروقات أسعار الموردين في (${buildFilterSubtitle(filters, true)}) وما الإجراء المطلوب من المشتريات اليوم؟`,
       promptEn: `What are the main supplier price differences in (${buildFilterSubtitle(filters, false)}) and what should purchasing do today?`,
       tone: 'amber',
     },
@@ -1976,31 +2068,31 @@ export function computeGlobalWorkspace(
       id: 'note-menu',
       titleAr: 'تعديل سعر صنف',
       titleEn: 'Item Price Tweak',
-      summaryAr: 'كومبو مشروبات (تحويل ٨٪–١٥٪) وتعديل بسيط للأسعار (احتفاظ ٩٤٪–٩٧٪) يرفع الصافي فوراً.',
+      summaryAr: 'كومبو مشروبات (تحويل 8%–15%) وتعديل مدروس للأسعار (احتفاظ 94%–97%) يرفع الصافي فوراً.',
       summaryEn: 'Drink combo (8%–15% conversion) and gentle price tweak (94%–97% retention) lift profit.',
       benefitAr: `+${fKwd(menuBenefitKwd, true)}`,
       benefitEn: `+${fKwd(menuBenefitKwd, false)}`,
-      promptAr: `اقترحي لي أبسط تعديل أسعار وكومبو مشروبات لنطاق (${buildFilterSubtitle(filters, true)}) بدون ما نخسر زباين.`,
+      promptAr: `اقترحي لي أنسب تعديل أسعار وكومبو مشروبات لنطاق (${buildFilterSubtitle(filters, true)}) دون خسارة عملاء.`,
       promptEn: `Suggest the simplest menu price tweak and drink combo for (${buildFilterSubtitle(filters, false)}) without losing guests.`,
       tone: 'sky',
     },
     {
       id: 'note-delivery',
-      titleAr: 'توصيل TMP و Tgo',
+      titleAr: 'منصة توصيل طلبات TMP و Tgo',
       titleEn: 'Dual TMP & Tgo',
-      summaryAr: `مراجعة الحسابات المتوقفة فعلياً وتحصيل ${fKwd(deliveryDuesKwd, true)} من تطبيقات التوصيل.`,
-      summaryEn: `Check verified stopped accounts and collect ${fKwd(deliveryDuesKwd, false)} from delivery apps.`,
+      summaryAr: `مراجعة الحسابات المتوقفة فعلياً ومتابعة تحصيل ذمم منصات التوصيل المتراكمة (${fKwd(deliveryDuesKwd, true)} — رصيد مفتوح قيد التحصيل يشمل فترات سابقة).`,
+      summaryEn: `Check verified stopped accounts and collect cumulative aggregator receivables (${fKwd(deliveryDuesKwd, false)} — open unsettled balance including prior periods).`,
       benefitAr: fKwd(deliveryDuesKwd, true),
       benefitEn: fKwd(deliveryDuesKwd, false),
-      promptAr: `عطيني ملخص سريع لحسابات TMP (15%) و Tgo ومستحقات التوصيل في (${buildFilterSubtitle(filters, true)}).`,
-      promptEn: `Give me a quick summary of TMP (15%) vs Tgo accounts and payouts for (${buildFilterSubtitle(filters, false)}).`,
+      promptAr: `أعطني ملخصاً سريعاً لحسابات منصة توصيل طلبات TMP (15%) و Tgo وذمم منصات التوصيل المتراكمة في (${buildFilterSubtitle(filters, true)}).`,
+      promptEn: `Give me a quick summary of TMP (15%) vs Tgo accounts and cumulative aggregator receivables for (${buildFilterSubtitle(filters, false)}).`,
       tone: 'emerald',
     },
   ]
 
   const periodRangeLabelAr =
     filters.period === 'custom'
-      ? `${filters.customFrom} → ${filters.customTo} (${periodDays} يوم)`
+      ? `${filters.customFrom} → ${filters.customTo} (${formatArDays(periodDays)})`
       : activeBkt
         ? `${activeBkt.from} → ${activeBkt.to}${isTodayFallback ? ' (آخر يوم عمل مكتمل)' : ''}`
         : getPeriodLabel(filters.period, true)
@@ -2014,8 +2106,10 @@ export function computeGlobalWorkspace(
   const subtitleAr = buildFilterSubtitle(filters, true)
   const subtitleEn = buildFilterSubtitle(filters, false)
 
-  const feryalContextAr = `[الفلتر النشط: ${subtitleAr} | المبيعات الصافية: ${fKwd(salesKwd, true)} | الطلبات: ${orders.toLocaleString('en-US')} | متوسط الفاتورة: ${aovKwd.toFixed(2)} د.ك | الصافي المرجّح بالجيب: ${weightedNetPct.toFixed(1)}% (${netPocket10.toFixed(2)} د.ك/10) مقابل ${groupWeightedNetPct.toFixed(1)}% للمجموعة | التشخيص: ${rootCauseAr}]`
-  const feryalContextEn = `[Active Filter: ${subtitleEn} | Net Sales: ${fKwd(salesKwd, false)} | Orders: ${orders.toLocaleString('en-US')} | AOV: ${aovKwd.toFixed(2)} KWD | Weighted Net Pocket: ${weightedNetPct.toFixed(1)}% (${netPocket10.toFixed(2)} KWD/10) vs ${groupWeightedNetPct.toFixed(1)}% group | Diagnosis: ${rootCauseEn}]`
+  const peerClauseAr = showPeerComparison ? ` مقابل متوسط المجموعة ${groupWeightedNetPct.toFixed(1)}%` : ''
+  const peerClauseEn = showPeerComparison ? ` vs ${groupWeightedNetPct.toFixed(1)}% group avg` : ''
+  const feryalContextAr = `[الفلتر النشط: ${subtitleAr} | المبيعات الصافية: ${fKwd(salesKwd, true)} | الطلبات: ${orders.toLocaleString('en-US')} | متوسط الفاتورة: ${aovKwd.toFixed(2)} د.ك | الصافي المرجّح بالجيب: ${weightedNetPct.toFixed(1)}% (${netPocket10.toFixed(2)} د.ك/10)${peerClauseAr} | التشخيص: ${rootCauseAr}]`
+  const feryalContextEn = `[Active Filter: ${subtitleEn} | Net Sales: ${fKwd(salesKwd, false)} | Orders: ${orders.toLocaleString('en-US')} | AOV: ${aovKwd.toFixed(2)} KWD | Weighted Net Pocket: ${weightedNetPct.toFixed(1)}% (${netPocket10.toFixed(2)} KWD/10)${peerClauseEn} | Diagnosis: ${rootCauseEn}]`
 
   return {
     filters,

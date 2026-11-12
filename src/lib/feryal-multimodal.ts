@@ -10,7 +10,7 @@
  *     - Preserves a live `videoPreviewUrl` (`URL.createObjectURL`) so `<video controls>` plays directly
  *       inside the chat composer before sending.
  *     - When the video file is <= 2.4 MB, also includes native `video/*` `inlineData` for temporal
- *       inspection by `Gemini Carbon High` while strictly respecting Vercel body size limits.
+ *       visual inspection while strictly respecting Vercel body size limits.
  */
 
 import { AI_KEY_STORAGE_KEYS } from '@/lib/ai-keys'
@@ -592,9 +592,9 @@ export async function callFeryalVisionInspector(params: {
     complianceBadgeAr: data.complianceBadgeAr || badge.ar,
     complianceBadgeEn: data.complianceBadgeEn || badge.en,
     provider: data.provider || 'gemini',
-    model: data.model || 'gemini-4-carbon (HIGH)',
-    engineLabelAr: data.engineLabelAr || 'فريال للرؤية البصرية (Gemini Carbon High 👁️⚡)',
-    engineLabelEn: data.engineLabelEn || 'Feryal Multimodal Vision (Gemini Carbon High 👁️⚡)',
+    model: params.lang === 'ar' ? 'فحص الصور والفيديو' : 'Vision & Video Inspector',
+    engineLabelAr: 'فحص الصور والفيديو',
+    engineLabelEn: 'Vision & Video Inspector',
   }
 }
 

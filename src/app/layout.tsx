@@ -46,6 +46,16 @@ export const metadata: Metadata = {
   description: 'AetherBI Enterprise ERP & BI — Accounting, Inventory, POS, HR, and AI',
   applicationName: 'AetherBI ERP',
   manifest: '/manifest.json',
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: {
+      index: false,
+      follow: false,
+      noimageindex: true,
+    },
+  },
   appleWebApp: { capable: true, title: 'AetherBI ERP', statusBarStyle: 'black-translucent' },
   openGraph: {
     title: 'AetherBI',

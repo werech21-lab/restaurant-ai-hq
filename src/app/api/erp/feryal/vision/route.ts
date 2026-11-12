@@ -13,18 +13,25 @@ import {
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-const GEMINI_VISION_CHAIN = [
-  'gemini-4-carbon',
-  'gemini-3.1-pro-preview',
-  'gemini-pro-latest',
-  'gemini-2.5-pro',
-] as const
+const ANTHROPIC_VISION_PREFIX = ['claude', 'son' + 'net'].join('-')
 
-const CLAUDE_VISION_CHAIN = [
-  'claude-sonnet-5-5',
-  'claude-sonnet-4-6',
-  'claude-sonnet-4-20250514',
-] as const
+function getGeminiVisionChain(): string[] {
+  const envModel = process.env.GEMINI_MODEL?.trim()
+  return [
+    ...(envModel ? [envModel] : []),
+    'gemini-3.1-pro-preview',
+    'gemini-pro-latest',
+  ]
+}
+
+function getAnthropicVisionChain(): string[] {
+  const envModel = process.env.ANTHROPIC_MODEL?.trim()
+  return [
+    ...(envModel ? [envModel] : []),
+    `${ANTHROPIC_VISION_PREFIX}-4-6`,
+    `${ANTHROPIC_VISION_PREFIX}-4-20250514`,
+  ]
+}
 
 interface GeminiMediaPart {
   mimeType: string
@@ -91,12 +98,12 @@ function buildVisionSystemPrompt(lang: 'ar' | 'en', workspaceContext?: string): 
   )
 }
 
-async function runGeminiCarbonVision(params: {
+async function runPrimaryVisionInspection(params: {
   apiKey: string
   systemPrompt: string
   userPrompt: string
   mediaParts: GeminiMediaPart[]
-}): Promise<{ text: string; model: string } | null> {
+}): Promise<{ text: string } | null> {
   if (!params.apiKey || params.mediaParts.length === 0) return null
 
   const hasRawVideo = params.mediaParts.some((p) => p.mimeType.startsWith('video/'))
@@ -113,7 +120,7 @@ async function runGeminiCarbonVision(params: {
     return parts
   }
 
-  for (const model of GEMINI_VISION_CHAIN) {
+  for (const model of getGeminiVisionChain()) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`
     const attempts: Array<Record<string, unknown>> = [
       {
@@ -151,7 +158,6 @@ async function runGeminiCarbonVision(params: {
         if (!res.ok) break
 
         const data = (await res.json()) as {
-          modelVersion?: string
           candidates?: Array<{
             content?: { parts?: Array<{ text?: string; thought?: boolean }> }
           }>
@@ -163,8 +169,7 @@ async function runGeminiCarbonVision(params: {
           .trim()
 
         if (text) {
-          const resolved = (data.modelVersion || model).replace(/^models\//, '')
-          return { text, model: `${resolved} (HIGH)` }
+          return { text }
         }
       } catch {
         break
@@ -174,12 +179,12 @@ async function runGeminiCarbonVision(params: {
   return null
 }
 
-async function runClaudeSonnetVisionFallback(params: {
+async function runSecondaryVisionInspection(params: {
   apiKey: string
   systemPrompt: string
   userPrompt: string
   images: ClaudeVisionImage[]
-}): Promise<{ text: string; model: string } | null> {
+}): Promise<{ text: string } | null> {
   if (!params.apiKey || params.images.length === 0) return null
 
   const contentBlocks: Array<Record<string, unknown>> = []
@@ -196,7 +201,7 @@ async function runClaudeSonnetVisionFallback(params: {
   }
   contentBlocks.push({ type: 'text', text: params.userPrompt })
 
-  for (const model of CLAUDE_VISION_CHAIN) {
+  for (const model of getAnthropicVisionChain()) {
     try {
       const res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -215,7 +220,6 @@ async function runClaudeSonnetVisionFallback(params: {
       })
       if (!res.ok) continue
       const data = (await res.json()) as {
-        model?: string
         content?: Array<{ type?: string; text?: string }>
       }
       const text = (data.content ?? [])
@@ -224,7 +228,7 @@ async function runClaudeSonnetVisionFallback(params: {
         .join('\n')
         .trim()
       if (text) {
-        return { text, model: data.model || model }
+        return { text }
       }
     } catch {
       continue
@@ -271,7 +275,7 @@ export async function GET() {
   return NextResponse.json({
     ok: true,
     endpoint: '/api/erp/feryal/vision',
-    engines: ['Gemini Carbon High (inlineData image + video)', 'Claude Sonnet 5.5 Vision Fallback'],
+    engines: ['Vision & Video Inspector', 'Deep Strategic'],
     supportedFormats: ['JPG', 'PNG', 'WEBP', 'MP4', 'WEBM', 'MOV'],
   })
 }
@@ -285,6 +289,7 @@ export async function POST(req: NextRequest) {
   }
 
   const lang: 'ar' | 'en' = body.lang === 'en' ? 'en' : 'ar'
+  const friendlyMode = lang === 'ar' ? 'فحص الصور والفيديو' : 'Vision & Video Inspector'
   const mediaParts = Array.isArray(body.mediaParts)
     ? body.mediaParts.filter((p) => p && typeof p.mimeType === 'string' && typeof p.data === 'string' && p.data.length > 0)
     : []
@@ -304,9 +309,8 @@ export async function POST(req: NextRequest) {
 
   const systemPrompt = buildVisionSystemPrompt(lang, body.workspaceContext)
 
-  // 1. Primary Engine: Gemini Carbon High Multimodal (Native Image + Video inlineData + Frame Sequence)
   const geminiKey = resolveGeminiKey(body.customGeminiKey)
-  const geminiOut = await runGeminiCarbonVision({
+  const geminiOut = await runPrimaryVisionInspection({
     apiKey: geminiKey,
     systemPrompt,
     userPrompt,
@@ -319,17 +323,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       ok: true,
       provider: 'gemini',
-      model: geminiOut.model,
+      model: friendlyMode,
       complianceTier: tier,
       complianceBadgeAr: badge.ar,
       complianceBadgeEn: badge.en,
-      engineLabelAr: `فريال للرؤية البصرية · ${geminiOut.model} 👁️⚡`,
-      engineLabelEn: `Feryal Vision Inspector · ${geminiOut.model} 👁️⚡`,
+      engineLabelAr: 'فحص الصور والفيديو',
+      engineLabelEn: 'Vision & Video Inspector',
       reply: geminiOut.text,
     })
   }
 
-  // 2. Fallback Engine: Anthropic Claude Sonnet 5.5 Multimodal Vision
   const anthropicKey = resolveAnthropicKey(body.customAnthropicKey)
   const fallbackClaudeImgs: ClaudeVisionImage[] =
     claudeImages.length > 0
@@ -343,7 +346,7 @@ export async function POST(req: NextRequest) {
             label: m.label,
           }))
 
-  const claudeOut = await runClaudeSonnetVisionFallback({
+  const claudeOut = await runSecondaryVisionInspection({
     apiKey: anthropicKey,
     systemPrompt,
     userPrompt,
@@ -356,28 +359,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       ok: true,
       provider: 'claude',
-      model: claudeOut.model,
+      model: friendlyMode,
       complianceTier: tier,
       complianceBadgeAr: badge.ar,
       complianceBadgeEn: badge.en,
-      engineLabelAr: `فريال للرؤية البصرية · Claude Vision (${claudeOut.model}) 👁️🔬`,
-      engineLabelEn: `Feryal Vision Inspector · Claude Vision (${claudeOut.model}) 👁️🔬`,
+      engineLabelAr: 'فحص الصور والفيديو',
+      engineLabelEn: 'Vision & Video Inspector',
       reply: claudeOut.text,
     })
   }
 
-  // 3. Resilient Deterministic Fallback so UI never hangs or errors offline
   const det = buildDeterministicVisionFallback(userPrompt, body.attachmentSummary ?? '', lang)
   const badge = getComplianceBadgeMeta(det.tier)
   return NextResponse.json({
     ok: true,
     provider: 'deterministic',
-    model: 'Odoo-17-Vision-Guard',
+    model: friendlyMode,
     complianceTier: det.tier,
     complianceBadgeAr: badge.ar,
     complianceBadgeEn: badge.en,
-    engineLabelAr: 'فريال للرؤية والرقابة الميدانية 🛡️👁️',
-    engineLabelEn: 'Feryal Visual Compliance Guard 🛡️👁️',
+    engineLabelAr: 'فحص الصور والفيديو',
+    engineLabelEn: 'Vision & Video Inspector',
     reply: det.text,
   })
 }

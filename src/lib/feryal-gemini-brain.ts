@@ -1,5 +1,5 @@
 /**
- * Feryal Executive AI Brain — Powered by Dual-Brain Heavy Engine (Gemini Carbon High × xAI Grok Heavy)
+ * Feryal Executive AI Brain — Deep Strategic & Fast Executive Advisory Engine
  * Multimodal Financial Analysis & Kuwaiti/Arabic/English Audio Understanding
  * Knowledge base is generated from the whitelisted live Odoo dataset (src/lib/odoo/odoo-dataset.ts)
  */
@@ -302,43 +302,45 @@ Return strictly valid JSON with these exact keys:
   "recommendedBrandId": "One of: China Garden, Frank's, Tahina, Farm Brown, The Noodle Bar, Karak Cafeteria"
 }`;
 
-  // 1. Try xAI Grok Heavy JSON contract audit first when no binary attachment is required
+  // 1. Try JSON contract audit first when no binary attachment is required
   if (xaiKey && !attachmentBase64) {
     try {
       const { models } = await discoverGrokHeavyModels();
-      const grokModel = models[0] ?? 'grok-4.7';
-      const xr = await fetch('https://api.x.ai/v1/chat/completions', {
-        method: 'POST',
-        signal: AbortSignal.timeout(18000),
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${xaiKey}`,
-        },
-        body: JSON.stringify({
-          model: grokModel,
-          temperature: 0.25,
-          max_tokens: 1300,
-          messages: [
-            { role: 'system', content: FERYAL_VENTURE_FOODS_KNOWLEDGE },
-            { role: 'user', content: promptText },
-          ],
-        }),
-      });
-      if (xr.ok) {
-        const xData = await xr.json();
-        const raw = xData?.choices?.[0]?.message?.content?.trim() || '';
-        const cleaned = raw.replace(/```json|```/g, '').trim();
-        const parsed = JSON.parse(cleaned);
-        if (parsed && Array.isArray(parsed.risksAr) && parsed.voiceSummaryAr) {
-          return { ...defaultResult, ...parsed };
+      const grokModel = models[0] ?? (process.env.XAI_MODEL || '');
+      if (grokModel) {
+        const xr = await fetch('https://api.x.ai/v1/chat/completions', {
+          method: 'POST',
+          signal: AbortSignal.timeout(18000),
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${xaiKey}`,
+          },
+          body: JSON.stringify({
+            model: grokModel,
+            temperature: 0.25,
+            max_tokens: 1300,
+            messages: [
+              { role: 'system', content: FERYAL_VENTURE_FOODS_KNOWLEDGE },
+              { role: 'user', content: promptText },
+            ],
+          }),
+        });
+        if (xr.ok) {
+          const xData = await xr.json();
+          const raw = xData?.choices?.[0]?.message?.content?.trim() || '';
+          const cleaned = raw.replace(/```json|```/g, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (parsed && Array.isArray(parsed.risksAr) && parsed.voiceSummaryAr) {
+            return { ...defaultResult, ...parsed };
+          }
         }
       }
     } catch {
-      // Fall through to Gemini Carbon High
+      // Fall through to multimodal JSON contract audit
     }
   }
 
-  // 2. Gemini Carbon High multimodal / JSON contract audit
+  // 2. Multimodal / JSON contract audit
   if (geminiKey) {
     try {
       const gemRes = await runGeminiCarbonEngine({
@@ -530,8 +532,8 @@ export function getDeterministicFeryalReply(query: string, lang: 'ar' | 'en'): s
 }
 
 /**
- * Routes 100% of text & multimodal audio consultations through the unified Dual-Brain Heavy Engine
- * (`Gemini Carbon High × xAI Grok Heavy`), with deterministic Odoo fallback safety.
+ * Routes 100% of text & multimodal audio consultations through the unified Feryal Executive Engine,
+ * with deterministic Odoo 17 fallback safety.
  */
 export async function askFeryalGeminiBrain({
   query = '',

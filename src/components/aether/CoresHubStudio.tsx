@@ -27,6 +27,7 @@ import { useI18n } from '@/lib/i18n'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { useGovernance } from '@/components/erp/GovernanceBellDrawer'
 import {
+  formatArDays,
   GLOBAL_BRAND_OPTIONS,
   getPeriodLabel,
   type GlobalBranch,
@@ -131,10 +132,9 @@ const f3 = (n: number) =>
     minimumFractionDigits: 3,
     maximumFractionDigits: 3,
   })
+/** Audit taxonomy anchors: مبيعات الساعات الهادئة (٣–٦ م) | أعلى ٨ أطباق تدرّ صافياً بالجيب 🟢 | أخطر ٨ أطباق عالية التكلفة أو ضعيفة الهامش 🔴 — rendered in Western 0-9 numerals */
 const fArInt = (n: number) =>
-  Math.max(0, Math.round(Number.isFinite(n) ? n : 0))
-    .toString()
-    .replace(/\d/g, (d) => '٠١٢٣٤٥٦٧٨٩'[Number(d)] ?? d)
+  Math.max(0, Math.round(Number.isFinite(n) ? n : 0)).toLocaleString('en-US')
 
 const CARD_CLS =
   'ae-bento-card rounded-2xl bg-white p-4 sm:p-6 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10'
@@ -364,7 +364,7 @@ export function CoresHubStudio() {
         domain: 'marketing',
         titleAr: `اعتماد حملة تسويق: ${c.campaignName} (${evalRow.brandAr})`,
         titleEn: `Approve Ad Campaign: ${c.campaignName} (${evalRow.brandEn})`,
-        summaryAr: `الفترة ${evalRow.startDate} ← ${evalRow.endDate} (${evalRow.windowDays} أيام) • الميزانية ${f0(c.spendKwd)} د.ك • الصافي المتوقع ${evalRow.netProfitAfterAdKwd >= 0 ? '+' : ''}${f1(evalRow.netProfitAfterAdKwd)} د.ك.`,
+        summaryAr: `الفترة ${evalRow.startDate} ← ${evalRow.endDate} (${formatArDays(evalRow.windowDays)}) • الميزانية ${f0(c.spendKwd)} د.ك • الصافي المتوقع ${evalRow.netProfitAfterAdKwd >= 0 ? '+' : ''}${f1(evalRow.netProfitAfterAdKwd)} د.ك.`,
         summaryEn: `Window ${evalRow.startDate} -> ${evalRow.endDate} (${evalRow.windowDays}d) • Spend ${f0(c.spendKwd)} KWD • Net ${evalRow.netProfitAfterAdKwd >= 0 ? '+' : ''}${f1(evalRow.netProfitAfterAdKwd)} KWD.`,
         departmentAr: 'إدارة التسويق والنمو',
         departmentEn: 'Marketing & Growth',
@@ -704,7 +704,7 @@ export function CoresHubStudio() {
         id: 'zero-fee-direct',
         label: isAr ? 'الصالة والاستلام المباشر' : 'Dine-In + Direct Pickup',
         subLabel: isAr
-          ? `صافي الهامش ${f1(snap.sales.directNetMarginPct)}% (٠٪ عمولة)`
+          ? `صافي الهامش ${f1(snap.sales.directNetMarginPct)}% (0% عمولة)`
           : `Net Margin ${f1(snap.sales.directNetMarginPct)}% (0% fee)`,
         value: Math.max(0, snap.sales.zeroCommSalesKwd),
         valueFormatted: `${f0(snap.sales.zeroCommDisplayKwd)} ${kwdSuffix}`,
@@ -746,7 +746,7 @@ export function CoresHubStudio() {
         id: 'reprice',
         ar: 'شعبي بربح ضعيف 🐎',
         en: 'Plowhorses 🐎',
-        subAr: 'ارفع +١٠٠ فلس / كومبو',
+        subAr: 'ارفع +100 فلس / كومبو',
         subEn: 'High Sales + Low Margin',
         color: '#F59E0B',
       },
@@ -807,7 +807,7 @@ export function CoresHubStudio() {
     if (!isAr) {
       return `*Ad ROI Check — ${ev.brandEn}*\n• Campaign: ${ev.campaign.campaignName} (${ev.adTypeEn})\n• Window: ${ev.startDate} -> ${ev.endDate} (${ev.windowDays}d) | Spend: ${f0(ev.campaign.spendKwd)} KWD\n• Prior ${ev.windowDays}d: ${f1(ev.before3dSalesKwd)} KWD -> Campaign ${ev.windowDays}d: ${f1(ev.after3dSalesKwd)} KWD\n• Real Sales Lift: ${ev.liftSalesKwd >= 0 ? '+' : ''}${f1(ev.liftSalesKwd)} KWD (${ev.liftOrders >= 0 ? '+' : ''}${ev.liftOrders} orders)\n• Net Profit After Ad: ${ev.netProfitAfterAdKwd >= 0 ? '+' : ''}${f1(ev.netProfitAfterAdKwd)} KWD\n• Verdict: ${ev.verdictEn}`
     }
-    return `*نتيجة إعلان — ${ev.brandAr}*\n• الحملة: ${ev.campaign.campaignName} (${ev.adTypeAr})\n• الفترة: ${ev.startDate} ← ${ev.endDate} (${ev.windowDays} أيام) | المدفوع: ${f0(ev.campaign.spendKwd)} د.ك\n• المبيعات قبل (${ev.windowDays} أيام): ${f1(ev.before3dSalesKwd)} د.ك ← خلال الحملة: ${f1(ev.after3dSalesKwd)} د.ك\n• زيادة المبيعات الفعلية: ${ev.liftSalesKwd >= 0 ? '+' : ''}${f1(ev.liftSalesKwd)} د.ك (${ev.liftOrders >= 0 ? '+' : ''}${ev.liftOrders} طلب)\n• الربح الصافي بعد خصم الإعلان: ${ev.netProfitAfterAdKwd >= 0 ? '+' : ''}${f1(ev.netProfitAfterAdKwd)} د.ك\n• القرار: ${ev.verdictAr}`
+    return `*نتيجة إعلان — ${ev.brandAr}*\n• الحملة: ${ev.campaign.campaignName} (${ev.adTypeAr})\n• الفترة: ${ev.startDate} ← ${ev.endDate} (${formatArDays(ev.windowDays)}) | المدفوع: ${f0(ev.campaign.spendKwd)} د.ك\n• المبيعات قبل (${formatArDays(ev.windowDays)}): ${f1(ev.before3dSalesKwd)} د.ك ← خلال الحملة: ${f1(ev.after3dSalesKwd)} د.ك\n• زيادة المبيعات الفعلية: ${ev.liftSalesKwd >= 0 ? '+' : ''}${f1(ev.liftSalesKwd)} د.ك (${ev.liftOrders >= 0 ? '+' : ''}${ev.liftOrders} طلب)\n• الربح الصافي بعد خصم الإعلان: ${ev.netProfitAfterAdKwd >= 0 ? '+' : ''}${f1(ev.netProfitAfterAdKwd)} د.ك\n• القرار: ${ev.verdictAr}`
   }
 
   return (
@@ -851,7 +851,7 @@ export function CoresHubStudio() {
             {/* KPI 1: Return per 1 KWD Ad (4.6x) */}
             <article className={`${KPI_CARD_CLS} ae-glow-emerald`}>
               <div className="text-xs sm:text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
-                {isAr ? 'عائد كل ١ د.ك إعلان' : 'Return per 1 KWD Ad'}
+                {isAr ? 'عائد كل 1 د.ك إعلان' : 'Return per 1 KWD Ad'}
               </div>
               <div
                 dir="ltr"
@@ -860,7 +860,7 @@ export function CoresHubStudio() {
                 {f1(snap.marketing.kpis.roasPer1Kwd)}x
               </div>
               <p className="mt-1 text-[11.5px] sm:text-[13px] leading-snug text-neutral-500 dark:text-slate-400">
-                {isAr ? 'مبيعات لكل ١ د.ك عروض وإعلان' : 'Sales per 1 KWD promo & ad spend'}
+                {isAr ? 'مبيعات لكل 1 د.ك عروض وإعلان' : 'Sales per 1 KWD promo & ad spend'}
               </p>
             </article>
 
@@ -1025,7 +1025,7 @@ export function CoresHubStudio() {
                 </h2>
                 <p className="mt-0.5 text-xs text-neutral-400">
                   {isAr
-                    ? 'تقارن مبيعات أودو ٣ أيام قبل الإعلان بـ ٣ أيام بعده وتخصم الأكل والعمولة وسعر الإعلان'
+                    ? 'تقارن مبيعات أودو 3 أيام قبل الإعلان بـ 3 أيام بعده وتخصم الأكل والعمولة وسعر الإعلان'
                     : 'Compares real Odoo POS sales 3 days before vs 3 days after ad date, net of food, fees & spend'}
                 </p>
               </div>
@@ -1330,7 +1330,7 @@ export function CoresHubStudio() {
                           <div className="rounded-xl bg-[#F7F7F8] p-3 dark:bg-[#09110E]">
                             <div className="text-xs text-neutral-400">
                               {isAr
-                                ? `${ev.windowDays} أيام قبل ← ${ev.windowDays} أيام الحملة`
+                                ? `${formatArDays(ev.windowDays)} قبل ← ${formatArDays(ev.windowDays)} الحملة`
                                 : `Prior ${ev.windowDays}d -> Campaign ${ev.windowDays}d`}
                             </div>
                             <div
@@ -1456,7 +1456,7 @@ export function CoresHubStudio() {
               <div>
                 <h2 className="text-[17px] font-semibold tracking-tight text-neutral-950 dark:text-white">
                   {isAr
-                    ? '٦ خطط جاهزة لزيادة المبيعات بالكويت'
+                    ? '6 خطط جاهزة لزيادة المبيعات بالكويت'
                     : '6 Ready-to-Run Kuwait Growth Plays'}
                 </h2>
                 <p className="mt-0.5 text-xs text-neutral-400">
@@ -1500,12 +1500,12 @@ export function CoresHubStudio() {
                   {copiedId === 'all-6-plays' ? (
                     <>
                       <Check className="h-3.5 w-3.5" />
-                      <span>{isAr ? 'تم نسخ الـ ٦ خطط' : 'All 6 Copied'}</span>
+                      <span>{isAr ? 'تم نسخ الـ 6 خطط' : 'All 6 Copied'}</span>
                     </>
                   ) : (
                     <>
                       <Copy className="h-3.5 w-3.5" />
-                      <span>{isAr ? 'نسخ الـ ٦ خطط كاملة' : 'Copy All 6 Plays'}</span>
+                      <span>{isAr ? 'نسخ الـ 6 خطط كاملة' : 'Copy All 6 Plays'}</span>
                     </>
                   )}
                 </button>
@@ -1718,7 +1718,7 @@ export function CoresHubStudio() {
             <article className={`${KPI_CARD_CLS} ae-glow-amber`}>
               <div className="flex flex-wrap items-center justify-between gap-1">
                 <span className="truncate text-xs sm:text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
-                  {isAr ? 'مبيعات الساعات الهادئة (٣–٦ م)' : 'Quiet Window (3–6 PM)'}
+                  {isAr ? 'مبيعات الساعات الهادئة (3–6 م)' : 'Quiet Window (3–6 PM)'}
                 </span>
                 <span
                   dir="ltr"
@@ -1795,11 +1795,11 @@ export function CoresHubStudio() {
             <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
               <div>
                 <h2 className="text-[17px] font-semibold tracking-tight text-neutral-950 dark:text-white">
-                  {isAr ? 'ساعات الذروة والساعات الهادئة (٢٤ ساعة)' : 'Peak & Quiet Hours (24h POS Profile)'}
+                  {isAr ? 'ساعات الذروة والساعات الهادئة (24 ساعة)' : 'Peak & Quiet Hours (24h POS Profile)'}
                 </h2>
                 <p className="mt-0.5 text-xs text-neutral-400">
                   {isAr
-                    ? 'الأخضر = ساعات الذروة | البرتقالي = ساعات هادئة (٣–٦ عصراً) جاهزة لعروض التنشيط'
+                    ? 'الأخضر = ساعات الذروة | البرتقالي = ساعات هادئة (3–6 عصراً) جاهزة لعروض التنشيط'
                     : 'Emerald = Peak rush | Amber = Quiet afternoon window (3–6 PM) ideal for combos'}
                 </p>
               </div>
@@ -1823,7 +1823,7 @@ export function CoresHubStudio() {
                     {isAr ? 'حصة المطاعم الستة' : '6 Venture Foods Brands'}
                   </h3>
                   <p className="mt-0.5 text-xs text-neutral-400">
-                    {isAr ? 'اضغط أي مطعم للفلترة • مطابق ١٠٠٪' : 'Click brand to filter • 100.0% reconciled'}
+                    {isAr ? 'اضغط أي مطعم للفلترة • مطابق 100%' : 'Click brand to filter • 100.0% reconciled'}
                   </p>
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -1861,7 +1861,7 @@ export function CoresHubStudio() {
                     {isAr ? 'ترتيب الفروع السبعة' : '7 Active Branches Ranking'}
                   </h3>
                   <p className="mt-0.5 text-xs text-neutral-400">
-                    {isAr ? 'اضغط أي فرع للفلترة • مطابق ١٠٠٪' : 'Click branch to filter • 100.0% reconciled'}
+                    {isAr ? 'اضغط أي فرع للفلترة • مطابق 100%' : 'Click branch to filter • 100.0% reconciled'}
                   </p>
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -1899,7 +1899,7 @@ export function CoresHubStudio() {
                     {isAr ? 'القنوات وتطبيقات التوصيل' : 'Sales Channels & Apps'}
                   </h3>
                   <p className="mt-0.5 text-xs text-neutral-400">
-                    {isAr ? 'اضغط أي قناة للفلترة • مطابق ١٠٠٪' : 'Click channel to filter • 100.0% reconciled'}
+                    {isAr ? 'اضغط أي قناة للفلترة • مطابق 100%' : 'Click channel to filter • 100.0% reconciled'}
                   </p>
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -1980,7 +1980,7 @@ export function CoresHubStudio() {
                 {f0(snap.menu.totalUnitsSold)} {isAr ? 'طبق' : 'units'}
               </div>
               <p className="mt-1 text-[11.5px] sm:text-[13px] leading-snug text-neutral-500 dark:text-slate-400">
-                {isAr ? 'مطابق ١٠٠٪ لصافي مبيعات أودو' : '100% reconciled to Odoo net sales'}
+                {isAr ? 'مطابق 100% لصافي مبيعات أودو' : '100% reconciled to Odoo net sales'}
               </p>
             </article>
 
@@ -2047,7 +2047,7 @@ export function CoresHubStudio() {
                   </h2>
                   <p className="mt-0.5 text-xs text-neutral-400">
                     {isAr
-                      ? 'اضغط على أي طبق لفتح حاسبة التسعير وتكلفة العارضية (ثبات ٩٥٪ من الكمية)'
+                      ? 'اضغط على أي طبق لفتح حاسبة التسعير وتكلفة العارضية (ثبات 95% من الكمية)'
                       : 'Click any dish to launch the Conservative 95%-Retention Price & Cost Simulator'}
                   </p>
                 </div>
@@ -2096,7 +2096,7 @@ export function CoresHubStudio() {
                     <div className="flex items-center justify-between gap-2 px-1">
                       <h3 className="text-[14px] font-semibold tracking-tight text-neutral-900 dark:text-white">
                         {isAr
-                          ? 'أعلى ٨ أطباق تدرّ صافياً بالجيب 🟢'
+                          ? 'أعلى 8 أطباق تدرّ صافياً بالجيب 🟢'
                           : 'Top 8 Profit Heroes 🟢'}
                       </h3>
                       <span className="text-[11px] font-medium text-neutral-400">
@@ -2177,7 +2177,7 @@ export function CoresHubStudio() {
                     <div className="flex items-center justify-between gap-2 px-1">
                       <h3 className="text-[14px] font-semibold tracking-tight text-neutral-900 dark:text-white">
                         {isAr
-                          ? 'أخطر ٨ أطباق عالية التكلفة أو ضعيفة الهامش 🔴'
+                          ? 'أخطر 8 أطباق عالية التكلفة أو ضعيفة الهامش 🔴'
                           : 'Top 8 Margin Bleeders / Price Gaps 🔴'}
                       </h3>
                       <span className="text-[11px] font-medium text-neutral-400">
@@ -2319,7 +2319,7 @@ export function CoresHubStudio() {
                   </h3>
                   <p className="mt-0.5 text-xs text-neutral-400">
                     {isAr
-                      ? 'اضغط على أي صنف لمحاكاة رفع السعر أو الكومبو بنسبة ثبات ٩٥٪ بعد خصم عمولة المنصة'
+                      ? 'اضغط على أي صنف لمحاكاة رفع السعر أو الكومبو بنسبة ثبات 95% بعد خصم عمولة المنصة'
                       : 'Click any dish row to simulate +100/+150 fils or recipe fixes at 95% volume retention'}
                   </p>
                 </div>
@@ -2693,7 +2693,7 @@ export function CoresHubStudio() {
 
                 <div className="rounded-2xl bg-[#F7F7F8] p-3.5 dark:bg-white/[0.04]">
                   <div className="text-[11px] font-medium text-neutral-400">
-                    {isAr ? 'الكمية الشهرية (٣٠ يوم)' : 'Monthly Volume (30d)'}
+                    {isAr ? 'الكمية الشهرية (30 يوماً)' : 'Monthly Volume (30d)'}
                   </div>
                   <div
                     dir="ltr"
@@ -2720,7 +2720,7 @@ export function CoresHubStudio() {
               <div className="space-y-2 rounded-2xl bg-[#F7F7F8] p-4 dark:bg-white/[0.03]">
                 <div className="flex items-center justify-between gap-2">
                   <label className="text-xs font-semibold text-neutral-800 dark:text-slate-200">
-                    {isAr ? '١) تعديل سعر البيع أو كومبو' : '1) Price or Combo Tweak'}
+                    {isAr ? '1) تعديل سعر البيع أو كومبو' : '1) Price or Combo Tweak'}
                   </label>
                   <span
                     dir="ltr"
@@ -2732,11 +2732,11 @@ export function CoresHubStudio() {
                 <div className="flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar p-1 rounded-2xl bg-neutral-100/90 dark:bg-white/[0.06]">
                   {[
                     { val: 0, ar: 'بدون رفع', en: '0 fils' },
-                    { val: 0.05, ar: '+٥٠ فلس', en: '+50 fils' },
-                    { val: 0.1, ar: '+١٠٠ فلس', en: '+100 fils' },
-                    { val: 0.15, ar: '+١٥٠ فلس', en: '+150 fils' },
-                    { val: 0.2, ar: '+٢٠٠ فلس', en: '+200 fils' },
-                    { val: 0.25, ar: '+٢٥٠ فلس', en: '+250 fils' },
+                    { val: 0.05, ar: '+50 فلس', en: '+50 fils' },
+                    { val: 0.1, ar: '+100 فلس', en: '+100 fils' },
+                    { val: 0.15, ar: '+150 فلس', en: '+150 fils' },
+                    { val: 0.2, ar: '+200 فلس', en: '+200 fils' },
+                    { val: 0.25, ar: '+250 فلس', en: '+250 fils' },
                   ].map((p) => {
                     const active = Math.abs(simDeltaPrice - p.val) < 0.005
                     return (
@@ -2762,7 +2762,7 @@ export function CoresHubStudio() {
                 <div className="flex items-center justify-between gap-2">
                   <label className="text-xs font-semibold text-neutral-800 dark:text-slate-200">
                     {isAr
-                      ? '٢) ضبط هدر ومقادير مطبخ العارضية'
+                      ? '2) ضبط هدر ومقادير مطبخ العارضية'
                       : '2) Ardiya Recipe & Portion Calibration'}
                   </label>
                   <span

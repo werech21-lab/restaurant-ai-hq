@@ -680,10 +680,12 @@ function formatCountdown(sec: number): string {
 }
 
 /**
- * Topbar Executive Session Pill + Live Governance & Odoo Breach Bell (`🔔`).
- * Replaces the legacy static `99+` NotificationBell in `shell.tsx`.
+ * Topbar Live Governance & Odoo Breach Bell (`🔔`).
+ * Shows the pending/breach count badge ONCE cleanly (Manager PIN lives in the Executive Account menu).
  */
-export function GovernanceBellTrigger() {
+export function GovernanceBellTrigger({
+  showInlinePin = false,
+}: { showInlinePin?: boolean } = {}) {
   const { locale } = useI18n()
   const isAr = locale === 'ar'
   const {
@@ -697,42 +699,44 @@ export function GovernanceBellTrigger() {
   } = useGovernance()
 
   return (
-    <div className="flex items-center gap-1.5">
-      {session.active ? (
-        <div className="hidden items-center gap-1 rounded-xl bg-emerald-50 px-2.5 py-1 text-[11.5px] font-semibold text-emerald-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)] lg:inline-flex dark:bg-emerald-950/60 dark:text-emerald-200">
-          <span>{isAr ? 'وضع المدير نشط 🔓' : 'Manager Active 🔓'}</span>
-          <span dir="ltr" className="font-mono text-[11px] tabular-nums opacity-80">
-            {formatCountdown(session.remainingSeconds)}
-          </span>
+    <div className="inline-flex items-center gap-1.5">
+      {showInlinePin ? (
+        session.active ? (
+          <div className="hidden items-center gap-1 rounded-xl bg-emerald-50 px-2.5 py-1 text-[11.5px] font-semibold text-emerald-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)] lg:inline-flex dark:bg-emerald-950/60 dark:text-emerald-200">
+            <span>{isAr ? 'وضع المدير نشط 🔓' : 'Manager Active 🔓'}</span>
+            <span dir="ltr" className="font-mono text-[11px] tabular-nums opacity-80">
+              {formatCountdown(session.remainingSeconds)}
+            </span>
+            <button
+              type="button"
+              onClick={lockSession}
+              title={isAr ? 'قفل الصلاحية فوراً' : 'Lock Executive Session'}
+              className="ms-1 cursor-pointer rounded-lg bg-white px-2 py-0.5 text-[10.5px] font-semibold text-slate-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors duration-150 hover:bg-rose-50 hover:text-rose-700 dark:bg-[#101C17] dark:text-slate-200"
+            >
+              {isAr ? 'قفل الصلاحية 🔒' : 'Lock 🔒'}
+            </button>
+          </div>
+        ) : (
           <button
             type="button"
-            onClick={lockSession}
-            title={isAr ? 'قفل الصلاحية فوراً' : 'Lock Executive Session'}
-            className="ms-1 cursor-pointer rounded-lg bg-white px-2 py-0.5 text-[10.5px] font-semibold text-slate-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors duration-150 hover:bg-rose-50 hover:text-rose-700 dark:bg-[#101C17] dark:text-slate-200"
+            onClick={() =>
+              requireManagerPin({
+                titleAr: 'تفعيل وضع المدير لمدة 15 دقيقة',
+                titleEn: 'Unlock 15-Minute Manager Session',
+              })
+            }
+            title={
+              isAr
+                ? 'فتح صلاحية المدير بالرمز السري (4 أرقام)'
+                : 'Unlock Manager Session (4-digit PIN)'
+            }
+            className="ae-capsule hidden h-9 cursor-pointer items-center gap-1.5 px-3 py-1.5 text-xs font-semibold transition-colors duration-150 lg:inline-flex"
           >
-            {isAr ? 'قفل الصلاحية 🔒' : 'Lock 🔒'}
+            <Lock className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span>{isAr ? 'صلاحية المدير' : 'Manager PIN'}</span>
           </button>
-        </div>
-      ) : (
-        <button
-          type="button"
-          onClick={() =>
-            requireManagerPin({
-              titleAr: 'تفعيل وضع المدير لمدة ١٥ دقيقة',
-              titleEn: 'Unlock 15-Minute Manager Session',
-            })
-          }
-          title={
-            isAr
-              ? 'فتح صلاحية المدير بالرمز السري (٤ أرقام)'
-              : 'Unlock Manager Session (4-digit PIN)'
-          }
-          className="ae-capsule hidden h-9 cursor-pointer items-center gap-1.5 px-3 py-1.5 text-xs font-semibold transition-colors duration-150 lg:inline-flex"
-        >
-          <Lock className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-          <span>{isAr ? 'صلاحية المدير' : 'Manager PIN'}</span>
-        </button>
-      )}
+        )
+      ) : null}
 
       <button
         type="button"
@@ -747,7 +751,7 @@ export function GovernanceBellTrigger() {
             ? `${pendingApprovals.length} بانتظار الموافقة · ${activeBreaches.length} مخالفات أودو حية`
             : `${pendingApprovals.length} Pending Approvals · ${activeBreaches.length} Active Odoo Breaches`
         }
-        className="ae-capsule relative inline-flex h-8 cursor-pointer items-center gap-1 rounded-xl px-2.5 text-xs font-semibold transition-all duration-[160ms] active:scale-95 lg:h-9 lg:gap-1.5 lg:px-3"
+        className="ae-capsule relative inline-flex h-8 cursor-pointer items-center gap-1 rounded-xl px-2.5 text-xs font-semibold transition-all duration-[160ms] active:scale-95 lg:inline-flex lg:h-9 lg:gap-1.5 lg:px-3"
       >
         <Bell
           className={`h-4 w-4 shrink-0 ${

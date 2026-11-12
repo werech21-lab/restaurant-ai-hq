@@ -16,13 +16,15 @@ interface CachedGeminiCatalog {
 let cachedCatalog: CachedGeminiCatalog | null = null
 const modelCooldownUntil = new Map<string, number>()
 
-const DEFAULT_FLAGSHIP_CHAIN = [
-  'gemini-4-carbon',
-  'gemini-4-argon',
-  'gemini-3.1-pro-preview',
-  'gemini-pro-latest',
-  'gemma-4-26b-a4b-it',
-]
+function getDefaultFlagshipChain(): string[] {
+  const envModel = process.env.GEMINI_MODEL?.trim()
+  return [
+    ...(envModel ? [envModel] : []),
+    'gemini-3.1-pro-preview',
+    'gemini-pro-latest',
+    'gemma-4-26b-a4b-it',
+  ]
+}
 
 function isCoolingDown(model: string): boolean {
   const until = modelCooldownUntil.get(model)
@@ -38,12 +40,6 @@ function markCooldown(model: string, ms = ZERO_QUOTA_COOLDOWN_MS) {
   modelCooldownUntil.set(model, Date.now() + ms)
 }
 
-/**
- * Strict Flagship Scorer:
- * - Explicitly INCLUDES `-preview` and `-exp` flagship Pro/Carbon models.
- * - Strictly BANS `flash`, `lite`, `image`, `tts`, `audio`, `embedding`, `robotics`, `computer-use`,
- *   `lyria`, `banana`, `transcribe`, `antigravity` (agent-only), and `deep-research` (async-only).
- */
 function scoreGeminiFlagshipModel(id: string): number {
   const m = id.toLowerCase().replace(/^models\//, '')
   if (
@@ -54,25 +50,15 @@ function scoreGeminiFlagshipModel(id: string): number {
     return -1
   }
 
-  // Priority 1: `carbon` or `gemini-4*` flagships
-  if (m.includes('gemini-4') && (m.includes('carbon') || m.includes('pro'))) return 1000
-  if (m.includes('carbon')) return 995
+  if (m.includes('gemini-4') && m.includes('pro')) return 1000
   if (m.startsWith('gemini-4')) return 988
-
-  // Priority 2: Highest `gemini-3*pro*` flagships (including `-preview` and `-exp`)
   if (m.includes('gemini-3.5') && m.includes('pro')) return 980
   if (m === 'gemini-3.1-pro-preview') return 976
   if (m.startsWith('gemini-3.1-pro')) return 968
   if (m.includes('gemini-3') && m.includes('pro')) return 962
   if (m === 'gemini-pro-latest') return 952
-
-  // Priority 3: `gemini-2.5-pro` ONLY if higher Pro/Carbon models are absent
-  if (m === 'gemini-2.5-pro' || (m.includes('gemini-2.5') && m.includes('pro'))) return 935
-
-  // Priority 4: Non-flash Gen-4 reasoning models (`thinking: true`) for uninterrupted HTTP 200 continuity
   if (m === 'gemma-4-26b-a4b-it') return 915
   if (m.startsWith('gemma-4-')) return 905
-
   if (m.includes('pro')) return 900
   return -1
 }
@@ -105,6 +91,8 @@ async function discoverFlagshipGeminiCatalog(
     return { chain: cachedCatalog.chain, liveVerified: true }
   }
 
+  const defaultChain = getDefaultFlagshipChain()
+
   try {
     const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', {
       signal: AbortSignal.timeout(8000),
@@ -132,15 +120,10 @@ async function discoverFlagshipGeminiCatalog(
         ),
       ].sort((a, b) => scoreGeminiFlagshipModel(b) - scoreGeminiFlagshipModel(a))
 
-      const hasHigherGen = unlocked.some((id) => scoreGeminiFlagshipModel(id) >= 950)
-      const filteredChain = hasHigherGen
-        ? unlocked.filter((id) => !id.startsWith('gemini-2.5-pro'))
-        : unlocked
-
       const chain =
-        filteredChain.length > 0
-          ? [...new Set([...filteredChain, ...DEFAULT_FLAGSHIP_CHAIN.filter((x) => !x.startsWith('gemini-2.5-pro'))])].slice(0, 7)
-          : DEFAULT_FLAGSHIP_CHAIN
+        unlocked.length > 0
+          ? [...new Set([...unlocked, ...defaultChain])].slice(0, 7)
+          : defaultChain
 
       cachedCatalog = {
         at: Date.now(),
@@ -149,43 +132,44 @@ async function discoverFlagshipGeminiCatalog(
       }
       return { chain, liveVerified: true }
     }
-  } catch {
-    // Graceful fallback to verified flagship chain
-  }
+  } catch {}
 
-  return { chain: DEFAULT_FLAGSHIP_CHAIN, liveVerified: false }
+  return { chain: defaultChain, liveVerified: false }
 }
 
 export async function GET(req: NextRequest) {
   const customKey = req.headers.get('x-aether-custom-gemini-key')
   const forceRefresh = req.nextUrl.searchParams.get('refresh') === '1'
   const apiKey = resolveServerGeminiKey(customKey)
+  const defaultChain = getDefaultFlagshipChain()
 
   if (!apiKey) {
     return NextResponse.json(
       {
         ok: false,
         status: 401,
-        topModel: DEFAULT_FLAGSHIP_CHAIN[0],
-        topBadge: `${DEFAULT_FLAGSHIP_CHAIN[0]} (HIGH)`,
-        chain: DEFAULT_FLAGSHIP_CHAIN,
+        topModel: 'Fast Executive',
+        topBadge: 'Fast Executive',
+        engineLabelAr: 'إجابة تنفيذية سريعة',
+        engineLabelEn: 'Fast Executive',
+        chain: defaultChain,
       },
       { status: 200 },
     )
   }
 
   const catalog = await discoverFlagshipGeminiCatalog(apiKey, forceRefresh)
-  const activeTop = catalog.chain.find((m) => !isCoolingDown(m)) ?? catalog.chain[0]
-  const flagshipTop = catalog.chain[0] ?? 'gemini-4-carbon'
 
   return NextResponse.json({
     ok: true,
     status: 200,
     liveVerified: catalog.liveVerified,
-    flagshipModel: flagshipTop,
-    flagshipBadge: `${flagshipTop} (HIGH)`,
-    activeModel: activeTop,
-    activeBadge: `${activeTop} (HIGH)`,
+    flagshipModel: 'Fast Executive',
+    flagshipBadge: 'Fast Executive',
+    activeModel: 'Fast Executive',
+    activeBadge: 'Fast Executive',
+    engineLabelAr: 'إجابة تنفيذية سريعة',
+    engineLabelEn: 'Fast Executive',
     chain: catalog.chain,
   })
 }
@@ -280,7 +264,6 @@ export async function POST(req: NextRequest) {
   const hasNativeVideoPart = incomingMedia.some((p) => p.mimeType.startsWith('video/'))
 
   for (const model of chain) {
-    // If audio/image/video attachment is sent, skip text-only Gemma models
     if (hasMultimodal && model.startsWith('gemma-')) {
       continue
     }
@@ -364,7 +347,6 @@ export async function POST(req: NextRequest) {
             if (errJson?.error?.message) errMsg = errJson.error.message
           } catch {}
           lastError = errMsg
-          // Cooldown zero-quota / unavailable model so subsequent calls route instantaneously
           const cooldownMs = /limit:\s*0\b/i.test(errMsg) || upstream.status === 404
             ? ZERO_QUOTA_COOLDOWN_MS
             : 2 * 60 * 1000
@@ -374,7 +356,6 @@ export async function POST(req: NextRequest) {
 
         if (upstream.ok) {
           const data = (await upstream.json()) as {
-            modelVersion?: string
             candidates?: Array<{
               content?: { parts?: Array<{ text?: string; thought?: boolean }> }
             }>
@@ -389,16 +370,15 @@ export async function POST(req: NextRequest) {
             .trim()
 
           if (textOut) {
-            const resolvedModel =
-              typeof data?.modelVersion === 'string' && data.modelVersion.trim()
-                ? data.modelVersion.trim().replace(/^models\//, '')
-                : model
+            const friendlyEn = incomingMedia.length > 0 ? 'Vision & Video Inspector' : 'Fast Executive'
+            const friendlyAr = incomingMedia.length > 0 ? 'فحص الصور والفيديو' : 'إجابة تنفيذية سريعة'
             return NextResponse.json({
               ok: true,
               status: 200,
-              model: resolvedModel,
-              modelBadge: `${resolvedModel} (HIGH)`,
-              flagshipCatalogTop: catalog.chain[0] ?? 'gemini-4-carbon',
+              model: friendlyEn,
+              modelBadge: friendlyEn,
+              engineLabelAr: friendlyAr,
+              engineLabelEn: friendlyEn,
               thinkingLevel: attempts[i].thinkingMode,
               thoughtsTokenCount: data?.usageMetadata?.thoughtsTokenCount ?? 0,
               text: textOut,

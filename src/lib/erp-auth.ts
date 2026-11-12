@@ -2,34 +2,47 @@ import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
+import {
+  DEFAULT_ADMIN_EMAIL,
+  EXEC_SESSION_COOKIE,
+  verifyExecSessionToken,
+} from "@/lib/auth/exec-session";
 import { can, type AccessUser, type PermissionAction } from "@/lib/permissions";
 import { SESSION_COOKIE, verifySessionToken } from "@/lib/session";
 
-const EXECUTIVE_FALLBACK_USER: AccessUser = {
-  id: 'usr_venture_exec_001',
-  name: 'الإدارة التنفيذية · فنتشر فودز',
-  email: 'executive@venturefoods.co',
-  role: {
-    id: 'role_executive_admin',
-    name: 'Executive Admin',
-    isAdmin: true,
-    permissions: [],
-  },
-};
+function buildExecutiveAdminUser(email = DEFAULT_ADMIN_EMAIL): AccessUser {
+  return {
+    id: "usr_venture_exec_001",
+    name: "الإدارة التنفيذية · فنتشر فودز",
+    email: email || DEFAULT_ADMIN_EMAIL,
+    role: {
+      id: "role_executive_admin",
+      name: "Executive Admin",
+      isAdmin: true,
+      permissions: [],
+    },
+  };
+}
 
 export const getCurrentUser = cache(async (): Promise<AccessUser | null> => {
   try {
     const jar = await cookies();
+    const execToken = jar.get(EXEC_SESSION_COOKIE)?.value;
+    const execSession = await verifyExecSessionToken(execToken);
+    if (execSession) {
+      return buildExecutiveAdminUser(execSession.sub);
+    }
+
     const token = jar.get(SESSION_COOKIE)?.value;
-    if (!token) return EXECUTIVE_FALLBACK_USER;
+    if (!token) return null;
     const userId = await verifySessionToken(token);
-    if (!userId) return EXECUTIVE_FALLBACK_USER;
+    if (!userId) return null;
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: { role: { include: { permissions: true } } },
     });
-    if (!user || !user.isActive) return EXECUTIVE_FALLBACK_USER;
+    if (!user || !user.isActive) return null;
 
     return {
       id: user.id,
@@ -49,14 +62,15 @@ export const getCurrentUser = cache(async (): Promise<AccessUser | null> => {
       },
     };
   } catch {
-    // Never throw into the RSC tree for auth lookups (missing SQLite, slow disk, etc.).
-    return EXECUTIVE_FALLBACK_USER;
+    return null;
   }
 });
 
-export async function requireUser() {
+export async function requireUser(): Promise<AccessUser> {
   const user = await getCurrentUser();
-  if (!user) return EXECUTIVE_FALLBACK_USER;
+  if (!user) {
+    redirect("/login");
+  }
   return user;
 }
 

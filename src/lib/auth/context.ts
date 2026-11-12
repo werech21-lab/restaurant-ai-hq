@@ -1,9 +1,14 @@
 import { cookies, headers } from 'next/headers'
+import { redirect } from 'next/navigation'
 import type { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { AppError } from '@/lib/api/errors'
-import { DEV_OWNER_COOKIE, devOwnerEnabled, devOwnerHostAllowed, devOwnerUserId } from '@/lib/auth/dev-owner'
+import { DEV_OWNER_COOKIE, devOwnerEnabled, devOwnerUserId } from '@/lib/auth/dev-owner'
 import { E2E_COOKIE, e2eEnabled, e2eUserId } from '@/lib/auth/e2e-session'
+import {
+  EXEC_SESSION_COOKIE,
+  verifyExecSessionToken,
+} from '@/lib/auth/exec-session'
 import {
   getPanelSessionUser,
   panelBridgePermissionSet,
@@ -35,6 +40,17 @@ const membershipSql = `select m.tenant_id, m.permission_flags as flags,
      left join role_permissions rp on rp.role_id = m.role_id
      where m.user_id = $1 and m.status = 'active'`
 
+async function resolveExecSessionEmail(): Promise<string | null> {
+  try {
+    const jar = await cookies()
+    const execToken = jar.get(EXEC_SESSION_COOKIE)?.value
+    const payload = await verifyExecSessionToken(execToken)
+    return payload ? payload.sub : null
+  } catch {
+    return null
+  }
+}
+
 /**
  * Supabase when a real session exists. The local cookie is consulted only while the e2e gate is open.
  * API calls treat a missing Supabase client as a misconfigured server. Pages treat it as signed out.
@@ -61,17 +77,41 @@ async function resolveUserId(missingClient: 'throw' | 'none'): Promise<string | 
   return data.user.id
 }
 
-/** Unconditionally allows multi-device executive read/live access to ERP modules without 307 bounce: */
-export async function requirePageUser(_nextPath?: string): Promise<string> {
+/**
+ * Server-enforced RSC page authentication guard:
+ * Checks `aether_exec_session` first, then Supabase/E2E/Prisma sessions.
+ * Redirects unauthenticated visitors to `/login`.
+ */
+export async function requirePageUser(nextPath?: string): Promise<string> {
+  let resolvedId: string | null = null
   try {
-    const userId = await resolveUserId('none')
-    if (userId) return userId
-    const panel = await getPanelSessionUser()
-    if (panel) return panelBridgeUserId(panel.id)
+    const execEmail = await resolveExecSessionEmail()
+    if (execEmail) {
+      resolvedId = panelBridgeUserId('usr_venture_exec_001')
+    } else {
+      const userId = await resolveUserId('none')
+      if (userId) {
+        resolvedId = userId
+      } else {
+        const panel = await getPanelSessionUser()
+        if (panel) {
+          resolvedId = panelBridgeUserId(panel.id)
+        }
+      }
+    }
   } catch {
-    // fallback
+    resolvedId = null
   }
-  return '00000000-0000-0000-0000-000000000001'
+
+  if (!resolvedId) {
+    const safeTarget =
+      nextPath && nextPath.startsWith('/') && !nextPath.startsWith('//')
+        ? `/login?next=${encodeURIComponent(nextPath)}`
+        : '/login'
+    redirect(safeTarget)
+  }
+
+  return resolvedId
 }
 
 /**
@@ -88,14 +128,23 @@ export async function authenticate(request: NextRequest, permission: Permission)
 
 /**
  * The same checks for callers that have no NextRequest, such as server actions.
- * The requested tenant is only a choice among the
- * tenants the user belongs to. It never grants access: membership and permissions are read from the database.
  */
 export async function authenticateUser(permission: Permission, requestedTenant: string | null): Promise<AuthContext> {
   if (requestedTenant !== null && !tenantHeader.safeParse(requestedTenant).success) {
     throw new AppError(400, 'tenant_invalid', 'The tenant must be a UUID.')
   }
-  // Prefer Supabase/e2e/dev-owner; fall back to panel Prisma admin (additive bridge).
+
+  const execEmail = await resolveExecSessionEmail()
+  if (execEmail) {
+    const tenantId = requestedTenant ?? (await resolvePanelBridgeTenantId()) ?? '00000000-0000-0000-0000-000000000001'
+    const granted = panelBridgePermissionSet()
+    return {
+      userId: panelBridgeUserId('usr_venture_exec_001'),
+      tenantId,
+      permissions: granted,
+    }
+  }
+
   const userId = await resolveUserId('none')
   if (userId) {
     const memberships = await db.query<MembershipRow>(
@@ -121,16 +170,24 @@ export async function authenticateUser(permission: Permission, requestedTenant: 
   }
 
   const panel = await getPanelSessionUser()
+  if (!panel) {
+    throw new AppError(401, 'unauthenticated', 'Sign in to continue.')
+  }
   const tenantId = requestedTenant ?? (await resolvePanelBridgeTenantId()) ?? '00000000-0000-0000-0000-000000000001'
   const granted = panelBridgePermissionSet()
-  return { userId: panelBridgeUserId(panel?.id ?? 'admin'), tenantId, permissions: granted }
+  return { userId: panelBridgeUserId(panel.id), tenantId, permissions: granted }
 }
 
 /**
- * Returns full permissions for executive and live visitors so radar, governance, and archive tabs work 100%.
+ * Returns permissions for the authenticated session user, or an empty array when unauthenticated.
  */
 export async function readSessionPermissions(): Promise<string[]> {
   try {
+    const execEmail = await resolveExecSessionEmail()
+    if (execEmail) {
+      return [...panelBridgePermissionSet()].sort()
+    }
+
     const userId = await resolveUserId('none')
     if (userId) {
       const memberships = await db.query<MembershipRow>(
@@ -144,14 +201,27 @@ export async function readSessionPermissions(): Promise<string[]> {
         return [...granted].sort()
       }
     }
+
+    const panel = await getPanelSessionUser()
+    if (panel) {
+      return [...panelBridgePermissionSet()].sort()
+    }
   } catch {
     // fall through
   }
-  return [...panelBridgePermissionSet()].sort()
+  return []
 }
 
 /** The signed-in user without any tenant. Only for calls a person makes before they belong to a company. */
 export async function authenticateSession(): Promise<SessionUser> {
+  const execEmail = await resolveExecSessionEmail()
+  if (execEmail) {
+    return {
+      userId: panelBridgeUserId('usr_venture_exec_001'),
+      email: execEmail,
+      emailConfirmed: true,
+    }
+  }
   if (e2eEnabled()) {
     const jar = await cookies()
     const local = await e2eUserId(jar.get(E2E_COOKIE)?.value)

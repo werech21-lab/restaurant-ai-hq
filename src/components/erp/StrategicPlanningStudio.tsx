@@ -242,7 +242,7 @@ export function StrategicPlanningStudio() {
     setAiForecastLoading(true)
     const fallbackSynthesis = isAr
       ? [
-          `• قراءة أودو 17 والسوق الكويتي (${snap.horizonLabelAr}): خط الأساس الشهري ${f0(snap.monthlyBaselineSalesKwd)} د.ك مبيعات بصافي ${f0(snap.monthlyBaselineNetKwd)} د.ك، مع قفزة +${snap.paydayLiftPct}% في أسبوع الرواتب (٢٠–٢٨ الشهر).`,
+          `• قراءة أودو 17 والسوق الكويتي (${snap.horizonLabelAr}): خط الأساس الشهري ${f0(snap.monthlyBaselineSalesKwd)} د.ك مبيعات بصافي ${f0(snap.monthlyBaselineNetKwd)} د.ك، مع قفزة +${snap.paydayLiftPct}% في أسبوع الرواتب (20–28 الشهر).`,
           `• التوصية التنفيذية الأولى: اعتمد السيناريو الواقعي (${f0(activeScenario.projectedSalesKwd)} د.ك مبيعات | ${f0(activeScenario.projectedCostsKwd)} د.ك تكاليف | +${f0(activeScenario.projectedNetCashKwd)} د.ك صافي كاش) عبر تحويل الطلبات القريبة إلى أسطول TMP (15%) بدلاً من Tgo (25%).`,
           `• حماية الهامش بالعارضية والفروع السبعة: ثبّت سقف الخصومات عند ≤ 3.0% وسقف هدر مطبخ العارضية ≤ 1.8%، وشغّل طاحينة ونودل بار داخل السالمية والبروميناد لالتقاط ذروة موسم الشتاء والكشتات بدون دينار إيجار إضافي.`,
         ].join('\n')
@@ -260,9 +260,9 @@ export function StrategicPlanningStudio() {
       const userPrompt = isAr
         ? `حلل أفق التخطيط (${snap.horizonLabelAr}) للنطاق (${workspace.subtitleAr}):
 - خط الأساس الشهري من أودو 17: المبيعات ${f0(snap.monthlyBaselineSalesKwd)} د.ك، التكاليف ${f0(snap.monthlyBaselineCostsKwd)} د.ك، الصافي ${f0(snap.monthlyBaselineNetKwd)} د.ك.
-- تكلفة المواد والعارضية: ${snap.ardiyaFoodPct}% | عمولة التوصيل: ${snap.deliveryFeePct}% | حصة الصالة والمباشر: ${snap.directChannelSharePct}% | قفزة الرواتب (٢٠–٢٨): +${snap.paydayLiftPct}%.
+- تكلفة المواد والعارضية: ${snap.ardiyaFoodPct}% | عمولة التوصيل: ${snap.deliveryFeePct}% | حصة الصالة والمباشر: ${snap.directChannelSharePct}% | قفزة الرواتب (20–28): +${snap.paydayLiftPct}%.
 - السيناريو الواقعي المختار: مبيعات ${f0(activeScenario.projectedSalesKwd)} د.ك، التكاليف ${f0(activeScenario.projectedCostsKwd)} د.ك، الصافي ${f0(activeScenario.projectedNetCashKwd)} د.ك، استرداد ${activeScenario.paybackLabelAr}.
-أعطني ٣ توصيات استراتيجية مركزة تجمع بيانات أودو ومواسم الكويت (الشتاء والكشتات والرواتب).`
+أعطني 3 توصيات استراتيجية مركزة تجمع بيانات أودو ومواسم الكويت (الشتاء والكشتات والرواتب).`
         : `Analyze planning horizon (${snap.horizonLabelEn}) for scope (${workspace.subtitleEn}):
 - Odoo 17 monthly baseline: Sales ${f0(snap.monthlyBaselineSalesKwd)} KWD, Costs ${f0(snap.monthlyBaselineCostsKwd)} KWD, Net ${f0(snap.monthlyBaselineNetKwd)} KWD.
 - Food/Ardiya COGS: ${snap.ardiyaFoodPct}% | Delivery cut: ${snap.deliveryFeePct}% | Direct 0%-fee share: ${snap.directChannelSharePct}% | Kuwait payday surge: +${snap.paydayLiftPct}%.
@@ -281,24 +281,24 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
       })
 
       if (res.ok) {
-        const data = (await res.json()) as { ok?: boolean; text?: string; model?: string }
+        const data = (await res.json()) as { ok?: boolean; text?: string }
         if (data.ok && data.text?.trim()) {
           setAiForecastText(data.text.trim())
-          setAiForecastModel(data.model ?? 'claude-sonnet')
+          setAiForecastModel(isAr ? 'تحليل استراتيجي معمّق' : 'Deep Strategic')
         } else {
           setAiForecastText(fallbackSynthesis)
-          setAiForecastModel('Odoo 17 CFO Deterministic Engine')
+          setAiForecastModel(isAr ? 'تحليل استراتيجي معمّق' : 'Deep Strategic')
         }
       } else {
         setAiForecastText(fallbackSynthesis)
-        setAiForecastModel('Odoo 17 CFO Deterministic Engine')
+        setAiForecastModel(isAr ? 'تحليل استراتيجي معمّق' : 'Deep Strategic')
       }
     } catch {
       setAiForecastText(fallbackSynthesis)
-      setAiForecastModel('Odoo 17 CFO Deterministic Engine')
+      setAiForecastModel(isAr ? 'تحليل استراتيجي معمّق' : 'Deep Strategic')
     } finally {
       setAiForecastUpdatedAt(
-        new Date().toLocaleTimeString(isAr ? 'ar-KW' : 'en-GB', {
+        new Date().toLocaleTimeString('en-GB', {
           hour: '2-digit',
           minute: '2-digit',
         }),
@@ -436,16 +436,13 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
                   : 'Updated Strategic AI Forecast Readout (Odoo 17 + Kuwait Market)'}
               </h2>
             </div>
-            <div className="flex items-center gap-2 text-[12.5px] text-slate-400">
+            <div className="flex flex-wrap items-center gap-2 text-[12.5px] text-slate-400">
               {aiForecastModel ? (
-                <span
-                  dir="ltr"
-                  className="ae-bento-subcard rounded-full px-3 py-0.5 font-mono text-[11.5px] font-semibold text-slate-700 dark:text-slate-200"
-                >
+                <span className="ae-bento-subcard rounded-xl px-3 py-0.5 text-[11.5px] font-semibold text-emerald-800 dark:text-emerald-300">
                   {aiForecastModel}
                 </span>
               ) : null}
-              {aiForecastUpdatedAt ? <span>{aiForecastUpdatedAt}</span> : null}
+              {aiForecastUpdatedAt ? <span className="tabular-nums">{aiForecastUpdatedAt}</span> : null}
             </div>
           </div>
           <div className={`${SUBCARD_CLS} whitespace-pre-line text-[14.5px] leading-relaxed text-slate-800 dark:text-slate-200`}>
@@ -491,7 +488,7 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
           </div>
           <p className="mt-1.5 text-[12px] sm:text-[13.5px] leading-snug text-slate-500 dark:text-slate-400">
             {isAr
-              ? `حصة الصالة والمباشر (٠٪ عمولة): ${f1(snap.directChannelSharePct)}%`
+              ? `حصة الصالة والمباشر (0% عمولة): ${f1(snap.directChannelSharePct)}%`
               : `Zero-fee Dine-In & Pickup share: ${f1(snap.directChannelSharePct)}%`}
           </p>
         </article>
@@ -508,7 +505,7 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
             +{f1(snap.paydayLiftPct)}%
           </div>
           <p className="mt-1.5 text-[12px] sm:text-[13.5px] leading-snug text-slate-500 dark:text-slate-400">
-            {isAr ? 'قفزة ٢٠–٢٨ الشهر + ذروة الشتاء والكشتات' : '20th–28th salary surge + winter peak'}
+            {isAr ? 'قفزة 20–28 الشهر + ذروة الشتاء والكشتات' : '20th–28th salary surge + winter peak'}
           </p>
         </article>
 
@@ -871,7 +868,7 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
                   `المؤشر التشغيلي الإلزامي: ${phase.targetKpiAr}`,
                   `سقف الصرف المسموح لهذه المرحلة لا يتجاوز ${f0(phase.costCapKwd)} د.ك.`,
                   `السيناريو المالي المربوط: ${activeScenario.badgeAr} (صافي كاش +${f0(activeScenario.projectedNetCashKwd)} د.ك).`,
-                  'يتم تجميد أي انحراف آلياً عبر جرس الامتثال في أودو ١٧.',
+                  'يتم تجميد أي انحراف آلياً عبر جرس الامتثال في أودو 17.',
                 ],
                 mandatoryRulesEn: [
                   `Mandatory Target KPI: ${phase.targetKpiEn}`,
@@ -962,7 +959,7 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
                     </p>
                     <p className="text-[13.5px] text-slate-500 dark:text-slate-400">
                       <span className="font-semibold text-emerald-800 dark:text-emerald-300">
-                        {isAr ? 'قاعدة أودو ١٧: ' : 'Odoo 17 Rule: '}
+                        {isAr ? 'قاعدة أودو 17: ' : 'Odoo 17 Rule: '}
                       </span>
                       {isAr ? phase.odooWatchMetricAr : phase.odooWatchMetricEn}
                     </p>
@@ -1131,7 +1128,7 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
                                 mandatoryRulesAr: [
                                   `تحقيق المؤشر المستهدف: ${phase.targetKpiAr}`,
                                   `عدم تجاوز سقف ميزانية المرحلة المحدد بـ ${f0(phase.costCapKwd)} د.ك بدون ختم المدير التنفيذي.`,
-                                  'ربط التنفيذ آلياً بمراقب الامتثال الحي في أودو ١٧ وتأكيد استلام الفروع السبعة.',
+                                  'ربط التنفيذ آلياً بمراقب الامتثال الحي في أودو 17 وتأكيد استلام الفروع السبعة.',
                                 ],
                                 mandatoryRulesEn: [
                                   `Deliver Target KPI: ${phase.targetKpiEn}`,

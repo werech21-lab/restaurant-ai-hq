@@ -12,6 +12,7 @@
  *   6. Dual TMP (15%) + Tgo receipt-verified Delivery Radar invariants
  */
 
+import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { execFileSync, execSync } from 'node:child_process'
@@ -34,7 +35,7 @@ function assert(condition, label, detail = '') {
 }
 
 console.log('\n======================================================================')
-console.log('  Venture Foods — Odoo 17 Forensic & CFO Integrity Verification (v15)')
+console.log('  Venture Foods — Odoo 17 Forensic & CFO Integrity Verification (v16)')
 console.log('======================================================================\n')
 
 // 1. Secret & Theme / Sidebar Invariants
@@ -272,21 +273,23 @@ assert(
     geminiRouteSrc.includes("thinkingLevel: 'HIGH'") &&
     geminiRouteSrc.includes('thinkingBudget: 24576') &&
     geminiRouteSrc.includes('8192') &&
-    geminiRouteSrc.includes("'gemini-4-carbon'") &&
     geminiRouteSrc.includes("'gemini-3.1-pro-preview'") &&
+    geminiRouteSrc.includes('إجابة تنفيذية سريعة') &&
     !brainSrc.includes('gemini-flash-latest') &&
     brainSrc.includes("fetch('/api/ai/gemini'"),
-  'Server proxy /api/ai/gemini + x-goog-api-key + Carbon/3.1-Pro Flagship chain + thinkingLevel HIGH (8192) & zero flash fallback',
+  'Server proxy /api/ai/gemini + x-goog-api-key + 3.1-Pro Flagship chain + thinkingLevel HIGH (8192), friendly mode labels & zero flash fallback',
 )
 
 const switcherSrc = fs.readFileSync(path.join(ROOT, 'src/components/aether/TopBrainSwitcher.tsx'), 'utf8')
 assert(
-  switcherSrc.includes('العقل الثلاثي 🔥') &&
-    switcherSrc.includes('كلاود العميق 🔬') &&
-    switcherSrc.includes('جميني كاربون High ⚡') &&
-    switcherSrc.includes('Gemini Carbon High ⚡') &&
-    switcherSrc.includes('جروك Heavy 🧠'),
-  'TopBrainSwitcher displays all 4 Council modes (with Gemini Carbon High ⚡) across all 6 executive pages',
+  switcherSrc.includes('FERYAL_EXECUTIVE_MODES') &&
+    switcherSrc.includes('تحليل استراتيجي معمّق') &&
+    switcherSrc.includes('إجابة تنفيذية سريعة') &&
+    switcherSrc.includes('فحص الصور والفيديو') &&
+    brainSrc.includes('Deep Strategic') &&
+    brainSrc.includes('Fast Executive') &&
+    brainSrc.includes('Vision & Video Inspector'),
+  'TopBrainSwitcher & dual-heavy-brain expose all 3 friendly Executive Modes (Deep Strategic, Fast Executive, Vision & Video Inspector)',
 )
 
 const chatStoreSrc = fs.readFileSync(path.join(ROOT, 'src/lib/feryal-chat-store.ts'), 'utf8')
@@ -544,16 +547,16 @@ const pagePanelSrc = fs.readFileSync(path.join(ROOT, 'src/components/aether/Dual
 assert(
   brainSrc.includes('recordVerifiedModel') &&
     brainSrc.includes('formatClaudeModelBadge') &&
-    brainSrc.includes('grok-4.20-0309-reasoning') &&
-    switcherSrc.includes('وضع التوفير الأقصى (Sonnet فقط ⚡)') &&
+    brainSrc.includes('getExecutiveModeLabel') &&
+    switcherSrc.includes('وضع الاستجابة الاقتصادية السريعة ⚡') &&
     !switcherSrc.includes('Gemini Pro active as backup') &&
     !brainSrc.includes('Gemini Pro active as backup') &&
     switcherSrc.includes('🔑⚙️') &&
-    switcherSrc.includes('Live Resolved Model IDs') &&
+    switcherSrc.includes('الأنماط التنفيذية المعتمدة') &&
     pagePanelSrc.includes('liveClaudeId') &&
     pagePanelSrc.includes('liveGrokId') &&
     pagePanelSrc.includes('liveGeminiId'),
-  'Live Sonnet ⚡ / Opus 🔬 model badges, Sonnet-only toggle & zero stale key warnings verified across all surfaces',
+  'Friendly Executive Mode status badges, economy routing toggle & zero stale key warnings verified across all surfaces',
 )
 
 // 9. Executive Governance PIN Bell, Clean Operational Pages, Custom Dates, Planning & Regulations Hubs
@@ -1746,6 +1749,266 @@ assert(
     !/href=["']#/i.test(journeySrc),
   'Item 5 (/erp Jump Links): All 6 bottom jump cards & hero CTAs link via <Link> to verified standalone /erp/* page routes',
   sixErpJumpHrefs.join(', '),
+)
+
+// 16. CISO Security Auth Wall, Global noindex, Login Hardening, Friendly Feryal Modes & Executive Audit Remediation
+console.log('\n16) CISO Security Auth Wall, Global noindex, Login Hardening, Feryal Clean Modes & Executive Audit Checks:')
+
+// 16.1 Edge Auth Middleware, Salted SHA-256 + HMAC Session & Root Redirect Lockdown
+const middlewarePath = path.join(ROOT, 'src/middleware.ts')
+const middlewareSrc = fs.existsSync(middlewarePath) ? fs.readFileSync(middlewarePath, 'utf8') : ''
+const nextConfigSrc = fs.readFileSync(path.join(ROOT, 'next.config.js'), 'utf8')
+const execSessionPath = path.join(ROOT, 'src/lib/auth/exec-session.ts')
+const execSessionSrc = fs.existsSync(execSessionPath) ? fs.readFileSync(execSessionPath, 'utf8') : ''
+const loginApiRouteSrc = fs.readFileSync(path.join(ROOT, 'src/app/api/auth/login/route.ts'), 'utf8')
+const logoutApiRouteSrc = fs.readFileSync(path.join(ROOT, 'src/app/api/auth/logout/route.ts'), 'utf8')
+
+const authRuntimeProbeScript = `
+import {
+  EXEC_SESSION_COOKIE,
+  verifyExecutiveCredentials,
+  createExecSessionToken,
+  verifyExecSessionToken,
+} from './src/lib/auth/exec-session';
+
+;(async () => {
+  const wrongPw = await verifyExecutiveCredentials('admin@venturefoodskw.com', 'WrongPass#999');
+  const legacyDemo = await verifyExecutiveCredentials('admin@venturefoodskw.com', '123456');
+  process.env.AETHER_ADMIN_PASSWORD = 'RuntimeProbeSecret#2026!';
+  const validOverride = await verifyExecutiveCredentials('admin@venturefoodskw.com', 'RuntimeProbeSecret#2026!');
+  const wrongOverride = await verifyExecutiveCredentials('admin@venturefoodskw.com', 'WrongOverride#2026!');
+  delete process.env.AETHER_ADMIN_PASSWORD;
+  const token = await createExecSessionToken('admin@venturefoodskw.com');
+  const verified = await verifyExecSessionToken(token);
+  const tampered = await verifyExecSessionToken(token.slice(0, -3) + 'xyz');
+  console.log(JSON.stringify({
+    cookie: EXEC_SESSION_COOKIE,
+    wrongPw,
+    legacyDemo,
+    validOverride,
+    wrongOverride,
+    verifiedSub: verified?.sub ?? null,
+    verifiedRole: verified?.role ?? null,
+    tampered,
+  }));
+})();
+`
+const authProbeRaw = execFileSync(process.execPath, [tsxCli, '-e', authRuntimeProbeScript], {
+  cwd: ROOT,
+  encoding: 'utf8',
+}).trim()
+const authProbe = JSON.parse(authProbeRaw.split('\n').pop() ?? '{}')
+
+assert(
+  fs.existsSync(middlewarePath) &&
+    middlewareSrc.includes('aether_exec_session') &&
+    middlewareSrc.includes("'/erp'") &&
+    middlewareSrc.includes("'/api/erp'") &&
+    middlewareSrc.includes("'/login'") &&
+    middlewareSrc.includes('status: 307') &&
+    middlewareSrc.includes('status: 401') &&
+    middlewareSrc.includes('X-Robots-Tag') &&
+    middlewareSrc.includes('noindex') &&
+    !/source:\s*['"]\/['"]\s*,\s*destination:\s*['"]\/erp['"]/.test(nextConfigSrc) &&
+    execSessionSrc.includes('218deb04287696d7cfc35ba2a0c8863ea54e678dc562d8c5e4cc04731529ecd3') &&
+    loginApiRouteSrc.includes('verifyExecutiveCredentials') &&
+    logoutApiRouteSrc.includes('EXEC_SESSION_COOKIE') &&
+    authProbe.cookie === 'aether_exec_session' &&
+    authProbe.wrongPw === false &&
+    authProbe.legacyDemo === false &&
+    authProbe.validOverride === true &&
+    authProbe.wrongOverride === false &&
+    authProbe.verifiedSub === 'admin@venturefoodskw.com' &&
+    authProbe.verifiedRole === 'exec_admin' &&
+    authProbe.tampered === null,
+  '16.1 Edge Auth Wall: src/middleware.ts enforces aether_exec_session HMAC on /, /erp & /api/erp (307 /login, 401 JSON, X-Robots-Tag noindex) & exec-session round-trips cleanly',
+  `cookie=${authProbe.cookie}, sub=${authProbe.verifiedSub}`,
+)
+
+// 16.2 Global Search Engine Indexing Lockdown (robots.ts, public/robots.txt & layout metadata)
+const robotsTsPath = path.join(ROOT, 'src/app/robots.ts')
+const publicRobotsPath = path.join(ROOT, 'public/robots.txt')
+const robotsTsSrc = fs.existsSync(robotsTsPath) ? fs.readFileSync(robotsTsPath, 'utf8') : ''
+const publicRobotsSrc = fs.existsSync(publicRobotsPath) ? fs.readFileSync(publicRobotsPath, 'utf8') : ''
+const erpLayoutSrc = fs.readFileSync(path.join(ROOT, 'src/app/erp/layout.tsx'), 'utf8')
+
+assert(
+  fs.existsSync(robotsTsPath) &&
+    fs.existsSync(publicRobotsPath) &&
+    robotsTsSrc.includes("disallow: '/'") &&
+    publicRobotsSrc.includes('User-agent: *') &&
+    publicRobotsSrc.includes('Disallow: /') &&
+    rootLayoutSrc.includes('index: false') &&
+    rootLayoutSrc.includes('follow: false') &&
+    rootLayoutSrc.includes('nocache: true') &&
+    erpLayoutSrc.includes('index: false'),
+  '16.2 Search Indexing Block: src/app/robots.ts & public/robots.txt disallow "/" and root/ERP layouts enforce robots index: false, follow: false, nocache: true',
+)
+
+// 16.3 Hardened /login Surface (Zero Demo Bypass, Zero Plaintext Passwords & 6x7x8 Scope)
+const loginPageSrc = fs.readFileSync(path.join(ROOT, 'src/app/login/page.tsx'), 'utf8')
+const loginFormSrc = fs.readFileSync(path.join(ROOT, 'src/app/login/login-form.tsx'), 'utf8')
+const loginHeroSrc = fs.readFileSync(path.join(ROOT, 'src/app/login/login-hero.tsx'), 'utf8')
+const i18nSrc = fs.readFileSync(path.join(ROOT, 'src/lib/i18n.tsx'), 'utf8')
+const combinedLoginSrc = `${loginPageSrc}\n${loginFormSrc}\n${loginHeroSrc}`
+
+const bannedLoginTokens = [
+  ['Direct Executive ', 'Access'].join(''),
+  ['دخول تنفيذي ', 'فوري'].join(''),
+  ['123', '456'].join(''),
+  ['AetherAdmin', '#2026!'].join(''),
+  ['7 Brands × ', '7 Locations'].join(''),
+  ['7 علامات × ', '7 فروع'].join(''),
+]
+const loginBannedHits = bannedLoginTokens.filter((tok) => combinedLoginSrc.includes(tok))
+
+// Cryptographic zero-knowledge scan: verify ZERO string literals across src/ & scripts/ hash to DEFAULT_PASSWORD_SHA256
+const EXEC_PW_SALT = 'vf-aether-exec-2026-v1:'
+const EXEC_PW_TARGET_HASH = '218deb04287696d7cfc35ba2a0c8863ea54e678dc562d8c5e4cc04731529ecd3'
+const quotedLiteralRe = /['"`]([^'"`\r\n]{4,128})['"`]/g
+let rotatedPwPlaintextLeaks = 0
+for (const file of [
+  ...allSrcFiles,
+  ...fs
+    .readdirSync(path.join(ROOT, 'scripts'))
+    .filter((n) => /\.(mjs|js|ts)$/.test(n))
+    .map((n) => path.join(ROOT, 'scripts', n)),
+]) {
+  const txt = fs.readFileSync(file, 'utf8')
+  let m
+  while ((m = quotedLiteralRe.exec(txt)) !== null) {
+    const digest = crypto
+      .createHash('sha256')
+      .update(`${EXEC_PW_SALT}${m[1]}`)
+      .digest('hex')
+    if (digest === EXEC_PW_TARGET_HASH) {
+      rotatedPwPlaintextLeaks += 1
+    }
+  }
+}
+
+assert(
+  loginBannedHits.length === 0 &&
+    rotatedPwPlaintextLeaks === 0 &&
+    !i18nSrc.includes(['7 Brands × ', '7 Locations'].join('')) &&
+    !i18nSrc.includes(['7 علامات × ', '7 فروع'].join('')) &&
+    combinedLoginSrc.includes('6 مطاعم') &&
+    combinedLoginSrc.includes('7 فروع') &&
+    combinedLoginSrc.includes('6 Brands') &&
+    combinedLoginSrc.includes('7 Branches') &&
+    loginFormSrc.includes("fetch('/api/auth/login'"),
+  '16.3 Login Hardening: Zero demo-bypass buttons on /login, cryptographic proof of ZERO plaintext rotated password across src/ & scripts/, and aligned 6 Brands • 7 Branches • 8 Channels scope',
+  `bannedHits=${loginBannedHits.length}, rotatedPwPlaintextLeaks=${rotatedPwPlaintextLeaks}`,
+)
+
+// 16.4 Feryal AI Studio Overflow Fix & Zero Raw Technical Model Slugs
+const feryalAuditPaths = [
+  'src/app/erp/feryal-ai/page.tsx',
+  'src/components/erp/feryal-governance-studio.tsx',
+  'src/lib/dual-heavy-brain.ts',
+  'src/lib/feryal-gemini-brain.ts',
+  'src/lib/feryal-multimodal.ts',
+  'src/components/aether/TopBrainSwitcher.tsx',
+  'src/components/aether/DualBrainPagePanel.tsx',
+]
+const bannedModelSlugs = [
+  ['claude-', 'sonnet'].join(''),
+  ['gemini-', '4-carbon'].join(''),
+  ['grok-', '4.7'].join(''),
+  ['جروك', ' Heavy'].join(''),
+]
+const feryalSlugHits = []
+for (const rel of feryalAuditPaths) {
+  const txt = fs.readFileSync(path.join(ROOT, rel), 'utf8')
+  for (const slug of bannedModelSlugs) {
+    if (txt.includes(slug)) feryalSlugHits.push(`${rel}:${slug}`)
+  }
+}
+
+assert(
+  feryalSlugHits.length === 0 &&
+    feryalStudioSrc.includes('min-w-0') &&
+    feryalStudioSrc.includes('overflow-x-hidden') &&
+    !feryalStudioSrc.includes('h-[calc(100dvh-148px)]') &&
+    feryalStudioSrc.includes('تحليل استراتيجي معمّق') &&
+    feryalStudioSrc.includes('إجابة تنفيذية سريعة') &&
+    feryalStudioSrc.includes('فحص الصور والفيديو'),
+  '16.4 Feryal Clean Studio: min-w-0 overflow-x-hidden without top void, friendly 3 executive modes & ZERO raw model IDs across all 7 Feryal UI/lib files',
+  `slugHits=${feryalSlugHits.length}`,
+)
+
+// 16.5 Executive Shell, Footer, Start-Here Bar, Combo Net-Line Chart & Arabic CFO Copy Assertions
+const execFooterPath = path.join(ROOT, 'src/components/erp/ExecutiveFooter.tsx')
+const execFooterSrc = fs.existsSync(execFooterPath) ? fs.readFileSync(execFooterPath, 'utf8') : ''
+
+const cfoCopyProbeScript = `
+import {
+  computeGlobalWorkspace,
+  DEFAULT_GLOBAL_FILTERS,
+  formatArDays,
+  formatArWithinDays,
+  formatArOpportunities,
+} from './src/lib/aether/global-filter-engine';
+import { formatCompactKwdTick } from './src/components/aether/InteractiveHoverCharts';
+
+const wsAll = computeGlobalWorkspace(DEFAULT_GLOBAL_FILTERS, null, '/erp');
+const wsBrand = computeGlobalWorkspace({ ...DEFAULT_GLOBAL_FILTERS, brand: 'china-garden' }, null, '/erp');
+const rec = wsAll.summaryCards.find((c) => c.id === 'delivery-dues');
+const disc = wsAll.summaryCards.find((c) => c.id === 'branch-discipline');
+
+console.log(JSON.stringify({
+  tickAr: formatCompactKwdTick(7300, true),
+  days11: formatArDays(11),
+  within6: formatArWithinDays(6),
+  opps27: formatArOpportunities(27),
+  recTitleAr: rec?.titleAr ?? '',
+  recBadgeAr: rec?.badgeAr ?? '',
+  discValAr: disc?.valueAr ?? '',
+  discBadgeAr: disc?.badgeAr ?? '',
+  showPeerAll: wsAll.diagnosticStrip.showPeerComparison,
+  showPeerBrand: wsBrand.diagnosticStrip.showPeerComparison,
+}));
+`
+const cfoCopyRaw = execFileSync(process.execPath, [tsxCli, '-e', cfoCopyProbeScript], {
+  cwd: ROOT,
+  encoding: 'utf8',
+}).trim()
+const cfoCopy = JSON.parse(cfoCopyRaw.split('\n').pop() ?? '{}')
+
+assert(
+  fs.existsSync(execFooterPath) &&
+    erpShellReexportSrc.includes('ExecutiveFooter') &&
+    erpShellReexportSrc.includes('<ExecutiveFooter />') &&
+    execFooterSrc.includes('OdooAuditCertificatePill') &&
+    execFooterSrc.includes('شركة فنتشر فودز • 6 مطاعم • 7 فروع • 8 قنوات') &&
+    execFooterSrc.includes('Aether BI v2.6 Enterprise') &&
+    !topBarSrc.includes('OdooAuditCertificatePill') &&
+    !topBarSrc.includes('OdooSyncPill') &&
+    topBarSrc.includes('حساب الإدارة') &&
+    topBarSrc.includes('تسجيل الخروج') &&
+    journeySrc.includes('ابدأ من هنا هذا الأسبوع') &&
+    journeySrc.includes('Start Here This Week') &&
+    journeySrc.includes('SalesNetComboChart') &&
+    chartsSrc.includes('strokeWidth={2.5}') &&
+    journeySrc.includes('كيف تتوزع كل 10 دنانير من المبيعات؟') &&
+    !journeySrc.includes('وين تروح') &&
+    journeySrc.includes('الصافي الفعلي بعد الإيجار وكافة المصاريف') &&
+    filterEngineSrc.includes('ذمم منصات التوصيل المتراكمة') &&
+    filterEngineSrc.includes('المستهدف: 85+') &&
+    filterEngineSrc.includes('منصة توصيل طلبات TMP') &&
+    journeySrc.includes('🔴 يتطلب ضبطاً عاجلاً') &&
+    cfoCopy.tickAr === '7.3 ألف' &&
+    cfoCopy.days11 === '11 يوماً' &&
+    cfoCopy.within6 === 'خلال 6 أيام' &&
+    cfoCopy.opps27 === '27 فرصة' &&
+    cfoCopy.recTitleAr === 'ذمم منصات التوصيل المتراكمة' &&
+    cfoCopy.recBadgeAr === 'رصيد تراكمي' &&
+    cfoCopy.discValAr === '64 من 100' &&
+    cfoCopy.discBadgeAr === 'المستهدف: 85+' &&
+    cfoCopy.showPeerAll === false &&
+    cfoCopy.showPeerBrand === true,
+  '16.5 Shell, Footer & Overview CFO Audit: ExecutiveFooter mounted in shell.tsx, OdooAuditCertificatePill removed from TopFilterBar, Start-Here bar, Combo Net-Line chart (7.3 ألف), unclipped Donut & formal Arabic CFO copy active',
+  `tickAr="${cfoCopy.tickAr}", disc="${cfoCopy.discValAr}", peerAll=${cfoCopy.showPeerAll}`,
 )
 
 console.log('\n----------------------------------------------------------------------')

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useCallback, useEffect, useState } from 'react'
-import { Check, Columns2, Copy, Flame, Loader2, MessageCircle, RefreshCw, X } from 'lucide-react'
+import { Check, Columns2, Copy, Loader2, MessageCircle, RefreshCw, Sparkles, X } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { FeryalStudioMessage, feryalPlainText } from '@/components/aether/FeryalStudioMessage'
@@ -9,11 +9,8 @@ import {
   askDualHeavyBrain,
   BRAIN_HEALTH_EVENT,
   BRAIN_MODE_EVENT,
-  formatClaudeModelBadge,
-  formatGeminiModelBadge,
   getActiveBrainMode,
-  getClaudeSonnetOnly,
-  isExecutiveDeepClaudeCall,
+  getExecutiveModeLabel,
   normalizeBrainMode,
   probeDualBrainHealth,
   type BrainLiveHealth,
@@ -47,7 +44,7 @@ export function DualBrainPagePanel({
   const [showSplit, setShowSplit] = useState(false)
   const [copied, setCopied] = useState(false)
 
-  const syncLiveModels = useCallback(async () => {
+  const syncLiveModes = useCallback(async () => {
     try {
       const h = await probeDualBrainHealth(false)
       setHealth(h)
@@ -56,14 +53,14 @@ export function DualBrainPagePanel({
 
   useEffect(() => {
     setMode(normalizeBrainMode(getActiveBrainMode()))
-    void syncLiveModels()
+    void syncLiveModes()
 
     const onMode = (e: Event) => {
       const detail = (e as CustomEvent<BrainMode>).detail
       setMode(normalizeBrainMode(detail ?? getActiveBrainMode()))
     }
     const onHealth = () => {
-      void syncLiveModels()
+      void syncLiveModes()
     }
     window.addEventListener(BRAIN_MODE_EVENT, onMode)
     window.addEventListener(BRAIN_HEALTH_EVENT, onHealth)
@@ -73,7 +70,7 @@ export function DualBrainPagePanel({
       window.removeEventListener(BRAIN_HEALTH_EVENT, onHealth)
       window.removeEventListener('storage', onHealth)
     }
-  }, [syncLiveModels])
+  }, [syncLiveModes])
 
   const runAnalysis = useCallback(async () => {
     setLoading(true)
@@ -88,19 +85,13 @@ export function DualBrainPagePanel({
       })
       setResult(res)
     } catch {
-      // askDualHeavyBrain guarantees a deterministic fallback
+      // Deterministic fallback guaranteed
     } finally {
       setLoading(false)
     }
   }, [filters, isAr, mode, pageContext, promptAr, promptEn, workspace])
 
-  const buttonLabel = (() => {
-    if (mode === 'claude') return isAr ? 'تحليل كلاود العميق 🔬' : 'Analyze with Claude Deep 🔬'
-    if (mode === 'gemini')
-      return isAr ? 'تحليل جميني كاربون High ⚡' : 'Analyze with Gemini Carbon High ⚡'
-    if (mode === 'grok') return isAr ? 'تحليل جروك Heavy 🧠' : 'Analyze with Grok Heavy 🧠'
-    return isAr ? 'تحليل العقل الثلاثي 🔥' : 'Triple-Brain Analysis 🔥'
-  })()
+  const buttonLabel = getExecutiveModeLabel(mode, isAr)
 
   const whatsappText = result
     ? isAr
@@ -121,27 +112,27 @@ export function DualBrainPagePanel({
     result?.claudeReply
       ? {
           key: 'claude',
-          titleAr: 'رأي كلاود العميق 🔬',
-          titleEn: 'Claude Extended Thinking 🔬',
-          model: result.claudeModel,
+          titleAr: 'تحليل استراتيجي معمّق',
+          titleEn: 'Deep Strategic',
+          badge: isAr ? 'تحليل استراتيجي معمّق' : 'Deep Strategic',
           reply: result.claudeReply,
         }
       : null,
     result?.geminiReply
       ? {
           key: 'gemini',
-          titleAr: 'رأي جميني كاربون High ⚡',
-          titleEn: 'Gemini Carbon High ⚡',
-          model: result.geminiModel,
+          titleAr: 'إجابة تنفيذية سريعة',
+          titleEn: 'Fast Executive',
+          badge: isAr ? 'إجابة تنفيذية سريعة' : 'Fast Executive',
           reply: result.geminiReply,
         }
       : null,
     result?.grokReply
       ? {
           key: 'grok',
-          titleAr: 'رأي جروك Heavy (٣ زوايا) 🧠',
-          titleEn: 'xAI Grok Heavy (3-Lens) 🧠',
-          model: result.grokModel,
+          titleAr: 'تحليل المخاطر والنمو (3 زوايا)',
+          titleEn: 'Growth & Risk Synthesis (3 Angles)',
+          badge: isAr ? 'تحليل استراتيجي معمّق' : 'Deep Strategic',
           reply: result.grokReply,
         }
       : null,
@@ -150,38 +141,27 @@ export function DualBrainPagePanel({
   const hasMultipleBrains = individualPanels.length >= 2
   const statusNote = isAr ? result?.statusNoteAr : result?.statusNoteEn
 
-  const sonnetOnly = health?.sonnetOnly ?? getClaudeSonnetOnly()
-  const isDeepStudy =
-    !sonnetOnly &&
-    isExecutiveDeepClaudeCall(mode, isAr ? promptAr : promptEn, pageContext)
-  const expectedClaudeBadge = formatClaudeModelBadge(
-    isDeepStudy
-      ? (health?.claudeOpusModel ?? 'claude-opus-5-5')
-      : (health?.claudeSonnetModel ?? 'claude-sonnet-5-5'),
-  )
-
-  const liveClaudeId = result?.claudeModel ?? expectedClaudeBadge
-  const liveGrokId = result?.grokModel ?? health?.grokModel ?? 'grok-4.20-0309-reasoning'
-  const liveGeminiId = formatGeminiModelBadge(result?.geminiModel ?? health?.geminiModel)
-  const claudeReady = Boolean(result?.claudeModel || (health?.claudeReady ?? true))
-  const grokReady = health ? health.grokReady : true
-  const geminiReady = health ? health.geminiReady : true
+  const liveClaudeId = isAr ? 'تحليل استراتيجي معمّق' : 'Deep Strategic'
+  const liveGeminiId = isAr ? 'إجابة تنفيذية سريعة' : 'Fast Executive'
+  const liveGrokId = isAr ? 'فحص الصور والفيديو' : 'Vision & Video Inspector'
+  const claudeReady = Boolean(health?.claudeReady ?? true)
+  const geminiReady = Boolean(health?.geminiReady ?? true)
+  const grokReady = Boolean(health?.grokReady ?? true)
 
   return (
     <section
       dir={isAr ? 'rtl' : 'ltr'}
-      aria-label={isAr ? 'تحليل العقل الثلاثي للصفحة' : 'Triple-Brain Page Analysis'}
-      className="ae-bento-card no-print px-4 py-3 sm:px-5 sm:py-3.5"
+      aria-label={isAr ? 'قراءة تنفيذية ذكية للصفحة' : 'Executive Page Readout'}
+      className="ae-bento-card no-print w-full max-w-full min-w-0 overflow-x-hidden px-4 py-3 sm:px-5 sm:py-3.5"
     >
-      {/* Compact 1-Click Trigger Bar + Live 3-Brain Model ID Badges */}
-      <div className="flex flex-wrap items-center justify-between gap-2.5">
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-2.5">
         <div className="min-w-0 space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-[14.5px] font-extrabold text-slate-950 dark:text-white">
               {isAr ? 'قراءة ذكية فورية لأرقام هذه الصفحة' : 'Instant Executive Readout for This Page'}
             </span>
             {result ? (
-              <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11.5px] font-bold text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">
+              <span className="rounded-xl bg-emerald-50 px-2.5 py-0.5 text-[11.5px] font-bold text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">
                 {isAr ? result.engineLabelAr : result.engineLabelEn}
               </span>
             ) : null}
@@ -192,54 +172,39 @@ export function DualBrainPagePanel({
               : `${pageTitleEn} • ${workspace.subtitleEn}`}
           </p>
 
-          {/* Always-visible Exact Live Resolved Model IDs for All 3 Brains */}
-          <div dir="ltr" className="flex flex-wrap items-center gap-1.5 pt-0.5 font-mono text-[11px]">
+          {/* Friendly 3 Executive Mode Status Pills */}
+          <div className="flex flex-wrap items-center gap-1.5 pt-0.5 text-[11.5px]">
             <span
-              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 font-bold ring-1 ${
-                mode === 'triple' || mode === 'claude'
-                  ? 'bg-slate-900/[0.04] text-slate-800 ring-slate-900/10 dark:bg-white/[0.07] dark:text-slate-100 dark:ring-white/15'
+              className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-0.5 font-semibold ring-1 ${
+                mode === 'triple' || mode === 'grok'
+                  ? 'bg-emerald-50/80 text-emerald-900 ring-emerald-500/20 dark:bg-emerald-950/40 dark:text-emerald-200 dark:ring-emerald-500/30'
                   : 'bg-slate-900/[0.02] text-slate-500 ring-slate-900/[0.05] dark:bg-white/[0.03] dark:text-slate-400 dark:ring-white/[0.06]'
               }`}
-              title="Anthropic Claude Resolved Model ID"
             >
-              <span
-                className={`h-1.5 w-1.5 rounded-full ${
-                  claudeReady ? 'bg-emerald-500' : 'bg-amber-500'
-                }`}
-              />
+              <span className={`h-1.5 w-1.5 rounded-full ${claudeReady ? 'bg-emerald-500' : 'bg-amber-500'}`} />
               <span>{liveClaudeId}</span>
             </span>
 
             <span
-              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 font-bold ring-1 ${
-                mode === 'triple' || mode === 'grok'
-                  ? 'bg-slate-900/[0.04] text-slate-800 ring-slate-900/10 dark:bg-white/[0.07] dark:text-slate-100 dark:ring-white/15'
+              className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-0.5 font-semibold ring-1 ${
+                mode === 'gemini'
+                  ? 'bg-emerald-50/80 text-emerald-900 ring-emerald-500/20 dark:bg-emerald-950/40 dark:text-emerald-200 dark:ring-emerald-500/30'
                   : 'bg-slate-900/[0.02] text-slate-500 ring-slate-900/[0.05] dark:bg-white/[0.03] dark:text-slate-400 dark:ring-white/[0.06]'
               }`}
-              title="xAI Grok Resolved Model ID"
             >
-              <span
-                className={`h-1.5 w-1.5 rounded-full ${
-                  grokReady ? 'bg-emerald-500' : 'bg-amber-500'
-                }`}
-              />
-              <span>🧠 {liveGrokId}</span>
+              <span className={`h-1.5 w-1.5 rounded-full ${geminiReady ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+              <span>{liveGeminiId}</span>
             </span>
 
             <span
-              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 font-bold ring-1 ${
-                mode === 'triple' || mode === 'gemini'
-                  ? 'bg-slate-900/[0.04] text-slate-800 ring-slate-900/10 dark:bg-white/[0.07] dark:text-slate-100 dark:ring-white/15'
+              className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-0.5 font-semibold ring-1 ${
+                mode === 'claude'
+                  ? 'bg-emerald-50/80 text-emerald-900 ring-emerald-500/20 dark:bg-emerald-950/40 dark:text-emerald-200 dark:ring-emerald-500/30'
                   : 'bg-slate-900/[0.02] text-slate-500 ring-slate-900/[0.05] dark:bg-white/[0.03] dark:text-slate-400 dark:ring-white/[0.06]'
               }`}
-              title="Google Gemini Resolved Model ID"
             >
-              <span
-                className={`h-1.5 w-1.5 rounded-full ${
-                  geminiReady ? 'bg-emerald-500' : 'bg-amber-500'
-                }`}
-              />
-              <span>⚡ {liveGeminiId}</span>
+              <span className={`h-1.5 w-1.5 rounded-full ${grokReady ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+              <span>{liveGrokId}</span>
             </span>
           </div>
         </div>
@@ -249,23 +214,23 @@ export function DualBrainPagePanel({
             type="button"
             disabled={loading}
             onClick={() => void runAnalysis()}
-            className="ae-btn-primary inline-flex h-10 items-center gap-2 rounded-full px-4 text-[13px] font-bold transition-all duration-150 hover:opacity-95 active:scale-[0.99] disabled:opacity-60"
+            className="btn-colored inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl bg-emerald-600 px-4 text-[13px] font-bold text-white transition-all duration-150 hover:bg-emerald-500 active:scale-[0.99] disabled:opacity-60 dark:bg-emerald-500 dark:text-emerald-950"
           >
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
                 <span>
-                  {isAr ? 'جارٍ تشغيل مجلس العقل الثلاثي…' : 'Running AI Council…'}
+                  {isAr ? 'جارٍ إعداد القراءة التنفيذية…' : 'Preparing Executive Readout…'}
                 </span>
               </>
             ) : result ? (
               <>
                 <RefreshCw className="h-3.5 w-3.5" />
-                <span>{isAr ? 'تحديث التحليل 🔥' : 'Refresh Analysis 🔥'}</span>
+                <span>{isAr ? 'تحديث التحليل' : 'Refresh Readout'}</span>
               </>
             ) : (
               <>
-                <Flame className="h-4 w-4" />
+                <Sparkles className="h-4 w-4" />
                 <span>{buttonLabel}</span>
               </>
             )}
@@ -279,7 +244,7 @@ export function DualBrainPagePanel({
                 setShowSplit(false)
               }}
               aria-label={isAr ? 'إغلاق التحليل' : 'Close analysis'}
-              className="ae-bento-subcard inline-flex h-10 w-10 items-center justify-center rounded-full text-slate-600 transition-all duration-150 hover:opacity-90 dark:text-slate-300"
+              className="ae-bento-subcard inline-flex h-10 w-10 items-center justify-center rounded-xl text-slate-600 transition-all duration-150 hover:opacity-90 dark:text-slate-300"
             >
               <X className="h-4 w-4" />
             </button>
@@ -287,7 +252,6 @@ export function DualBrainPagePanel({
         </div>
       </div>
 
-      {/* Rendered Consensus + Individual Council Perspectives */}
       {result ? (
         <div className="mt-4 space-y-4 border-t border-slate-100 pt-4 dark:border-white/[0.06]">
           {statusNote ? (
@@ -300,7 +264,6 @@ export function DualBrainPagePanel({
             <FeryalStudioMessage text={result.reply} />
           </div>
 
-          {/* Action Row: Toggle Split View + Copy / Send WhatsApp */}
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-2">
               {hasMultipleBrains ? (
@@ -308,17 +271,17 @@ export function DualBrainPagePanel({
                   type="button"
                   onClick={() => setShowSplit((v) => !v)}
                   aria-expanded={showSplit}
-                  className={`inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-[12.5px] font-bold transition-all duration-150 ${
+                  className={`inline-flex h-9 items-center gap-1.5 rounded-xl px-3.5 text-[12.5px] font-bold tabular-nums transition-all duration-150 ${
                     showSplit
-                      ? 'ae-btn-primary'
+                      ? 'btn-colored bg-emerald-600 text-white dark:bg-emerald-500 dark:text-emerald-950'
                       : 'ae-bento-subcard text-slate-700 hover:opacity-90 dark:text-slate-200'
                   }`}
                 >
                   <Columns2 className="h-3.5 w-3.5" />
                   <span>
                     {isAr
-                      ? `عرض آراء المحركات منفردة (${individualPanels.length})`
-                      : `View Individual Council Brains (${individualPanels.length})`}
+                      ? `عرض الزوايا التفصيلية (${individualPanels.length})`
+                      : `View Detailed Perspectives (${individualPanels.length})`}
                   </span>
                 </button>
               ) : null}
@@ -328,7 +291,7 @@ export function DualBrainPagePanel({
               <button
                 type="button"
                 onClick={() => void handleCopy()}
-                className="ae-bento-subcard inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-[12.5px] font-bold text-slate-700 transition-all duration-150 hover:opacity-90 dark:text-slate-200"
+                className="ae-bento-subcard inline-flex h-9 items-center gap-1.5 rounded-xl px-3.5 text-[12.5px] font-bold text-slate-700 transition-all duration-150 hover:opacity-90 dark:text-slate-200"
               >
                 {copied ? (
                   <>
@@ -340,7 +303,7 @@ export function DualBrainPagePanel({
                 ) : (
                   <>
                     <Copy className="h-3.5 w-3.5" />
-                    <span>{isAr ? 'نسخ للواتساب' : 'Copy Brief'}</span>
+                    <span>{isAr ? 'نسخ الملخص' : 'Copy Brief'}</span>
                   </>
                 )}
               </button>
@@ -349,7 +312,7 @@ export function DualBrainPagePanel({
                 href={`https://wa.me/?text=${encodeURIComponent(whatsappText)}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex h-9 items-center gap-1.5 rounded-full bg-emerald-600 px-3.5 text-[12.5px] font-bold text-white transition-all duration-150 hover:bg-emerald-500"
+                className="btn-colored inline-flex h-9 items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 text-[12.5px] font-bold text-white transition-all duration-150 hover:bg-emerald-500"
               >
                 <MessageCircle className="h-3.5 w-3.5" />
                 <span>{isAr ? 'إرسال واتساب' : 'WhatsApp'}</span>
@@ -357,7 +320,6 @@ export function DualBrainPagePanel({
             </div>
           </div>
 
-          {/* Side-by-Side Individual Perspectives (2 or 3 columns) */}
           {showSplit && hasMultipleBrains ? (
             <div
               className={`grid grid-cols-1 gap-4 ${
@@ -365,19 +327,14 @@ export function DualBrainPagePanel({
               }`}
             >
               {individualPanels.map((panel) => (
-                <article key={panel.key} className="ae-bento-subcard rounded-2xl p-5">
-                  <div className="mb-3 flex items-center justify-between gap-2 border-b border-slate-200/70 pb-2.5 dark:border-white/[0.06]">
+                <article key={panel.key} className="ae-bento-subcard min-w-0 rounded-2xl p-5">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/70 pb-2.5 dark:border-white/[0.06]">
                     <span className="text-[13.5px] font-extrabold text-slate-950 dark:text-white">
                       {isAr ? panel.titleAr : panel.titleEn}
                     </span>
-                    {panel.model ? (
-                      <span
-                        dir="ltr"
-                        className="rounded-full bg-white px-2.5 py-0.5 font-mono text-[11px] font-bold text-slate-600 dark:bg-white/[0.06] dark:text-slate-300"
-                      >
-                        {panel.model}
-                      </span>
-                    ) : null}
+                    <span className="rounded-lg bg-white px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800 dark:bg-white/[0.06] dark:text-emerald-300">
+                      {panel.badge}
+                    </span>
                   </div>
                   <div className="text-[14px] leading-[1.8] text-slate-700 dark:text-slate-200">
                     <FeryalStudioMessage text={panel.reply} />

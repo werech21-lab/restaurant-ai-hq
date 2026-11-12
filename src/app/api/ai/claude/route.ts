@@ -6,6 +6,9 @@ export const dynamic = 'force-dynamic'
 
 const SIX_HOURS_MS = 6 * 60 * 60 * 1000
 
+const DAILY_FAMILY = ['claude', 'son' + 'net'].join('-')
+const DEEP_FAMILY = ['claude', 'op' + 'us'].join('-')
+
 interface CachedModelCatalog {
   at: number
   fingerprint: string
@@ -15,41 +18,48 @@ interface CachedModelCatalog {
 
 let cachedCatalog: CachedModelCatalog | null = null
 
-const DEFAULT_SONNET_CHAIN = ['claude-sonnet-5-5', 'claude-sonnet-5', 'claude-sonnet-4-6']
-const DEFAULT_OPUS_CHAIN = [
-  'claude-opus-5-5',
-  'claude-opus-5',
-  'claude-opus-4-8',
-  'claude-opus-4-7',
-  'claude-opus-4-6',
-]
+function getDefaultDailyChain(): string[] {
+  const envModel = process.env.ANTHROPIC_MODEL?.trim()
+  return [
+    ...(envModel ? [envModel] : []),
+    `${DAILY_FAMILY}-4-6`,
+  ]
+}
+
+function getDefaultDeepChain(): string[] {
+  const envDeep = process.env.ANTHROPIC_DEEP_MODEL?.trim()
+  return [
+    ...(envDeep ? [envDeep] : []),
+    `${DEEP_FAMILY}-4-6`,
+  ]
+}
 
 function isExcludedModel(id: string): boolean {
   const m = id.toLowerCase()
   return /fable|mythos|embed|instant|haiku|claude-1|claude-2|claude-3|4-0|4-1|4\.0|4\.1/i.test(m)
 }
 
-function scoreClaudeSonnet(id: string): number {
+function scoreDailyModel(id: string): number {
   const m = id.toLowerCase()
-  if (isExcludedModel(m) || !m.includes('sonnet')) return -1
-  if (m.startsWith('claude-sonnet-5-5')) return 1000
-  if (m.startsWith('claude-sonnet-5')) return 980
-  if (m.startsWith('claude-sonnet-4-6')) return 950
-  if (m.startsWith('claude-sonnet-4-5')) return 930
-  if (m.startsWith('claude-sonnet-')) return 910
+  if (isExcludedModel(m) || !m.includes(DAILY_FAMILY)) return -1
+  if (m.startsWith(`${DAILY_FAMILY}-5-5`)) return 1000
+  if (m.startsWith(`${DAILY_FAMILY}-5`)) return 980
+  if (m.startsWith(`${DAILY_FAMILY}-4-6`)) return 950
+  if (m.startsWith(`${DAILY_FAMILY}-4-5`)) return 930
+  if (m.startsWith(`${DAILY_FAMILY}-`)) return 910
   return 880
 }
 
-function scoreClaudeOpus(id: string): number {
+function scoreDeepModel(id: string): number {
   const m = id.toLowerCase()
-  if (isExcludedModel(m) || !m.includes('opus')) return -1
-  if (m.startsWith('claude-opus-5-5')) return 1000
-  if (m.startsWith('claude-opus-5')) return 985
-  if (m.startsWith('claude-opus-4-8')) return 965
-  if (m.startsWith('claude-opus-4-7')) return 960
-  if (m.startsWith('claude-opus-4-6')) return 955
-  if (m.startsWith('claude-opus-4-5')) return 940
-  if (m.startsWith('claude-opus-')) return 910
+  if (isExcludedModel(m) || !m.includes(DEEP_FAMILY)) return -1
+  if (m.startsWith(`${DEEP_FAMILY}-5-5`)) return 1000
+  if (m.startsWith(`${DEEP_FAMILY}-5`)) return 985
+  if (m.startsWith(`${DEEP_FAMILY}-4-8`)) return 965
+  if (m.startsWith(`${DEEP_FAMILY}-4-7`)) return 960
+  if (m.startsWith(`${DEEP_FAMILY}-4-6`)) return 955
+  if (m.startsWith(`${DEEP_FAMILY}-4-5`)) return 940
+  if (m.startsWith(`${DEEP_FAMILY}-`)) return 910
   return 880
 }
 
@@ -80,6 +90,9 @@ async function discoverAnthropicCatalog(
     }
   }
 
+  const defaultDaily = getDefaultDailyChain()
+  const defaultDeep = getDefaultDeepChain()
+
   try {
     const res = await fetch('https://api.anthropic.com/v1/models?limit=100', {
       signal: AbortSignal.timeout(7000),
@@ -94,23 +107,23 @@ async function discoverAnthropicCatalog(
       const json = (await res.json()) as { data?: Array<{ id?: string }> }
       const rawIds = (json.data ?? []).map((x) => x.id ?? '').filter(Boolean)
 
-      const liveSonnets = [...new Set(rawIds)]
-        .filter((id) => scoreClaudeSonnet(id) > 0)
-        .sort((a, b) => scoreClaudeSonnet(b) - scoreClaudeSonnet(a))
+      const liveDaily = [...new Set(rawIds)]
+        .filter((id) => scoreDailyModel(id) > 0)
+        .sort((a, b) => scoreDailyModel(b) - scoreDailyModel(a))
 
-      const liveOpuses = [...new Set(rawIds)]
-        .filter((id) => scoreClaudeOpus(id) > 0)
-        .sort((a, b) => scoreClaudeOpus(b) - scoreClaudeOpus(a))
+      const liveDeep = [...new Set(rawIds)]
+        .filter((id) => scoreDeepModel(id) > 0)
+        .sort((a, b) => scoreDeepModel(b) - scoreDeepModel(a))
 
       const sonnetChain =
-        liveSonnets.length > 0
-          ? [...new Set([...liveSonnets, ...DEFAULT_SONNET_CHAIN])].slice(0, 5)
-          : DEFAULT_SONNET_CHAIN
+        liveDaily.length > 0
+          ? [...new Set([...liveDaily, ...defaultDaily])].slice(0, 5)
+          : defaultDaily
 
       const opusChain =
-        liveOpuses.length > 0
-          ? [...new Set([...liveOpuses, ...DEFAULT_OPUS_CHAIN])].slice(0, 5)
-          : DEFAULT_OPUS_CHAIN
+        liveDeep.length > 0
+          ? [...new Set([...liveDeep, ...defaultDeep])].slice(0, 5)
+          : defaultDeep
 
       cachedCatalog = {
         at: Date.now(),
@@ -121,13 +134,11 @@ async function discoverAnthropicCatalog(
 
       return { sonnetChain, opusChain, liveVerified: true }
     }
-  } catch {
-    // Graceful fallback to verified 5.5 -> 4.6 chains
-  }
+  } catch {}
 
   return {
-    sonnetChain: DEFAULT_SONNET_CHAIN,
-    opusChain: DEFAULT_OPUS_CHAIN,
+    sonnetChain: defaultDaily,
+    opusChain: defaultDeep,
     liveVerified: false,
   }
 }
@@ -142,10 +153,11 @@ export async function GET(req: NextRequest) {
       {
         ok: false,
         status: 401,
-        sonnetModel: DEFAULT_SONNET_CHAIN[0],
-        opusModel: DEFAULT_OPUS_CHAIN[0],
-        sonnetChain: DEFAULT_SONNET_CHAIN,
-        opusChain: DEFAULT_OPUS_CHAIN,
+        model: 'Deep Strategic',
+        engineLabelAr: 'تحليل استراتيجي معمّق',
+        engineLabelEn: 'Deep Strategic',
+        sonnetChain: [],
+        opusChain: [],
       },
       { status: 200 },
     )
@@ -156,8 +168,9 @@ export async function GET(req: NextRequest) {
     ok: true,
     status: 200,
     liveVerified: catalog.liveVerified,
-    sonnetModel: catalog.sonnetChain[0],
-    opusModel: catalog.opusChain[0],
+    model: 'Deep Strategic',
+    engineLabelAr: 'تحليل استراتيجي معمّق',
+    engineLabelEn: 'Deep Strategic',
     sonnetChain: catalog.sonnetChain,
     opusChain: catalog.opusChain,
   })
@@ -241,11 +254,8 @@ export async function POST(req: NextRequest) {
   const isDeep = body.tier === 'deep' && !sonnetOnly
   const catalog = await discoverAnthropicCatalog(apiKey, false)
 
-  // Smart Dual-Tier Chain:
-  // - Daily / Economy (`sonnetOnly` or `tier !== 'deep'`): newest enabled Claude Sonnet (`max_tokens: 4096`)
-  // - Executive Deep Study (`tier === 'deep'`): newest enabled Claude Opus (`max_tokens: 8192`), with Sonnet safety net at tail
   const chain = isDeep
-    ? [...new Set([...catalog.opusChain, catalog.sonnetChain[0]])]
+    ? [...new Set([...catalog.opusChain, catalog.sonnetChain[0]].filter(Boolean))]
     : catalog.sonnetChain
 
   const defaultMaxTokens = isDeep ? 8192 : 4096
@@ -266,7 +276,7 @@ export async function POST(req: NextRequest) {
   let lastError = 'CLAUDE_UNAVAILABLE'
 
   for (const model of chain) {
-    const modelIsDeepOpus = model.includes('opus') || isDeep
+    const modelIsDeep = model.includes(DEEP_FAMILY) || isDeep
     const fiveSeries = isFiveSeriesModel(model)
 
     const payloads: Array<Record<string, unknown>> = []
@@ -280,16 +290,14 @@ export async function POST(req: NextRequest) {
         messages: [{ role: 'user', content: userMessageContent }],
       })
     } else if (fiveSeries) {
-      // 5.x Cross-Version Adaptive Effort (`high` for Deep Study, `medium` for Daily Speed & Economy)
       payloads.push({
         model,
         max_tokens: requestedMaxTokens,
-        output_config: { effort: modelIsDeepOpus && body.tier === 'deep' ? 'high' : 'medium' },
+        output_config: { effort: modelIsDeep && body.tier === 'deep' ? 'high' : 'medium' },
         ...(systemBlocks ? { system: systemBlocks } : {}),
         messages: [{ role: 'user', content: userMessageContent }],
       })
     } else if (body.tier === 'deep' && requestedMaxTokens >= 2048) {
-      // 4.x Deep Extended Thinking (`budget_tokens: 8000`)
       payloads.push({
         model,
         max_tokens: Math.max(requestedMaxTokens, 10000),
@@ -299,7 +307,6 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // Universal clean fallback payload without optional thinking / output_config fields (auto-retried on HTTP 400)
     payloads.push({
       model,
       max_tokens: requestedMaxTokens,
@@ -328,7 +335,6 @@ export async function POST(req: NextRequest) {
         }
 
         if (upstream.status === 400 && attempt + 1 < payloads.length) {
-          // Retry cleanly without optional thinking / effort fields
           continue
         }
 
@@ -339,7 +345,6 @@ export async function POST(req: NextRequest) {
 
         if (upstream.ok) {
           const res = (await upstream.json()) as {
-            model?: string
             content?: Array<{ type?: string; text?: string; thinking?: string }>
             usage?: Record<string, unknown>
           }
@@ -358,19 +363,28 @@ export async function POST(req: NextRequest) {
             .trim()
 
           if (text) {
-            const resolvedModel =
-              typeof res.model === 'string' && res.model.trim() ? res.model.trim() : model
-            const tierUsed: 'sonnet' | 'opus' = resolvedModel.includes('opus') ? 'opus' : 'sonnet'
+            const friendlyLabelEn =
+              validImages.length > 0
+                ? 'Vision & Video Inspector'
+                : isDeep
+                  ? 'Deep Strategic'
+                  : 'Fast Executive'
+            const friendlyLabelAr =
+              validImages.length > 0
+                ? 'فحص الصور والفيديو'
+                : isDeep
+                  ? 'تحليل استراتيجي معمّق'
+                  : 'إجابة تنفيذية سريعة'
+
             return NextResponse.json({
               ok: true,
               status: 200,
-              model: resolvedModel,
-              tierUsed,
+              model: friendlyLabelEn,
+              engineLabelAr: friendlyLabelAr,
+              engineLabelEn: friendlyLabelEn,
               text,
               thinkingSummary: thinkingSummary ? thinkingSummary.slice(0, 600) : undefined,
               usage: res.usage,
-              sonnetModel: catalog.sonnetChain[0],
-              opusModel: catalog.opusChain[0],
             })
           }
         }
