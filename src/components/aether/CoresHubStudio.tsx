@@ -1295,7 +1295,7 @@ export function CoresHubStudio() {
                                 className="inline-flex cursor-pointer items-center gap-1 rounded-full bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100 dark:bg-rose-950/60 dark:text-rose-300"
                               >
                                 <ShieldAlert className="h-3 w-3" />
-                                <span>{isAr ? 'تصعيد ↗' : 'Escalate ↗'}</span>
+                                <span>{isAr ? '🚨 مخالفة لقرار معتمد' : '🚨 Compliance Alert'}</span>
                               </button>
                             ) : null}
                             <span dir="ltr" className="text-xs tabular-nums text-neutral-400">
@@ -1520,25 +1520,12 @@ export function CoresHubStudio() {
                     key={play.id}
                     className={`${CARD_CLS} flex flex-col justify-between space-y-3`}
                   >
-                    <div className="space-y-2.5">
-                      {/* Soft Scope Pill + Dynamic Filter-Scaled KWD Upside Badge */}
+                    <div className="space-y-2">
+                      {/* Compact Affected Brand/Branch Pill + Dynamic Filter-Scaled KWD Lift Badge */}
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <span className={SOFT_SCOPE_PILL_CLS}>
-                            {isAr ? play.scopeAr : play.scopeEn}
-                          </span>
-                          {playApproval?.status === 'approved' ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-                              <ShieldCheck className="h-3 w-3" />
-                              <span>{isAr ? 'معتمد ✅' : 'Approved ✅'}</span>
-                            </span>
-                          ) : playApproval?.status === 'pending' ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
-                              <Bell className="h-3 w-3" />
-                              <span>{isAr ? 'بانتظار الموافقة' : 'Pending'}</span>
-                            </span>
-                          ) : null}
-                        </div>
+                        <span className={SOFT_SCOPE_PILL_CLS}>
+                          {isAr ? play.scopeAr : play.scopeEn}
+                        </span>
                         <span
                           dir="ltr"
                           title={isAr ? 'نطاق العائد الصافي (متحفظ – واقعي)' : 'Conservative – Realistic Net Upside'}
@@ -1548,22 +1535,17 @@ export function CoresHubStudio() {
                         </span>
                       </div>
 
-                      {/* Concise Title */}
-                      <h3 className="text-[15px] font-semibold tracking-tight leading-snug text-neutral-950 dark:text-white">
+                      {/* Unique Title */}
+                      <h3 className="text-[15.5px] font-bold tracking-tight leading-snug text-neutral-950 dark:text-white">
                         {isAr ? play.titleAr : play.titleEn}
                       </h3>
 
-                      {/* Maximum 2 Short Single-Line Action Bullets (<= 8 words each) */}
-                      <ul className="space-y-1.5 text-[12.5px] leading-snug text-neutral-600 dark:text-slate-300">
-                        {(isAr ? play.shortBulletsAr : play.shortBulletsEn).slice(0, 2).map((b) => (
-                          <li key={b} className="flex items-start gap-2">
-                            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
-                            <span>{b}</span>
-                          </li>
-                        ))}
-                      </ul>
+                      {/* Concise 2-Line Executive Insight (Zero Boilerplate Bullet Walls) */}
+                      <p className="line-clamp-2 text-[13px] leading-relaxed text-neutral-600 dark:text-slate-300">
+                        {isAr ? play.summaryAr : play.summaryEn}
+                      </p>
 
-                      {/* Optional Expandable Details Drawer */}
+                      {/* Optional Expandable CFO Math Disclosure */}
                       {isExpanded ? (
                         <div className="rounded-xl bg-[#F7F7F8] p-3 text-xs leading-relaxed text-neutral-600 dark:bg-white/[0.04] dark:text-slate-300">
                           {isAr ? play.detailsAr : play.detailsEn}
@@ -1571,34 +1553,28 @@ export function CoresHubStudio() {
                       ) : null}
                     </div>
 
-                    {/* Side-by-Side Ask Feryal ✨ + Copy 📋 + Request Approval 🔔 + Details ▾ */}
-                    <div className="flex flex-wrap items-center justify-between gap-1.5 pt-1">
+                    {/* Clean Governance Action (`رفع للاعتماد 🔔` / `اسأل فريال ✨`) + Subtle Details Toggle */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-neutral-100 pt-3 dark:border-white/[0.06]">
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <Link
-                          href={`/erp/feryal-ai?prompt=${encodeURIComponent(feryalPrompt)}`}
-                          className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-emerald-50 px-3 text-xs font-semibold text-emerald-800 transition-colors duration-150 hover:bg-emerald-100 dark:bg-emerald-950/70 dark:text-emerald-200 dark:hover:bg-emerald-900/70"
-                        >
-                          <span>{isAr ? 'اسأل فريال ✨' : 'Ask Feryal ✨'}</span>
-                        </Link>
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            copyText(play.id, isAr ? play.whatsappTextAr : play.whatsappTextEn)
-                          }
-                          className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-neutral-100 px-3 text-xs font-medium text-neutral-900 transition-colors duration-150 hover:bg-neutral-200/80 dark:bg-white/[0.08] dark:text-slate-200"
-                        >
-                          {copiedId === play.id ? (
-                            <>
-                              <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-300" />
-                              <span>{isAr ? 'تم النسخ ✓' : 'Copied ✓'}</span>
-                            </>
-                          ) : (
-                            <span>{isAr ? 'نسخ 📋' : 'Copy 📋'}</span>
-                          )}
-                        </button>
-
-                        {!playApproval ? (
+                        {playApproval?.status === 'approved' ? (
+                          <button
+                            type="button"
+                            onClick={() => openDrawer('approvals')}
+                            className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-emerald-50 px-3 text-xs font-semibold text-emerald-800 transition-colors duration-150 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-300"
+                          >
+                            <ShieldCheck className="h-3.5 w-3.5" />
+                            <span>{isAr ? 'معتمد رسمياً ✓' : 'Approved ✓'}</span>
+                          </button>
+                        ) : playApproval?.status === 'pending' ? (
+                          <button
+                            type="button"
+                            onClick={() => openDrawer('approvals')}
+                            className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-amber-50 px-3 text-xs font-semibold text-amber-900 transition-colors duration-150 hover:bg-amber-100 dark:bg-amber-950/60 dark:text-amber-200"
+                          >
+                            <Bell className="h-3.5 w-3.5" />
+                            <span>{isAr ? 'بانتظار الاعتماد 🔔' : 'Pending Approval 🔔'}</span>
+                          </button>
+                        ) : (
                           <button
                             type="button"
                             onClick={() =>
@@ -1607,8 +1583,8 @@ export function CoresHubStudio() {
                                 domain: 'growth-play',
                                 titleAr: `تفعيل خطة نمو: ${play.titleAr}`,
                                 titleEn: `Activate Growth Play: ${play.titleEn}`,
-                                summaryAr: `${play.scopeAr} • العائد المتوقع: ${play.upsideBadgeAr} • ${play.shortBulletsAr.slice(0, 2).join(' — ')}`,
-                                summaryEn: `${play.scopeEn} • Target Upside: ${play.upsideBadgeEn} • ${play.shortBulletsEn.slice(0, 2).join(' — ')}`,
+                                summaryAr: `${play.scopeAr} • العائد المتوقع: ${play.upsideBadgeAr} • ${play.summaryAr}`,
+                                summaryEn: `${play.scopeEn} • Target Upside: ${play.upsideBadgeEn} • ${play.summaryEn}`,
                                 departmentAr: 'التسويق وتشغيل الفروع',
                                 departmentEn: 'Marketing & Branch Ops',
                                 budgetOrCostKwd: 0,
@@ -1616,11 +1592,18 @@ export function CoresHubStudio() {
                                 href: '/erp/cores?tab=marketing',
                               })
                             }
-                            className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-amber-50 px-2.5 text-xs font-semibold text-amber-900 transition-colors duration-150 hover:bg-amber-100 dark:bg-amber-950/60 dark:text-amber-200"
+                            className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-amber-50 px-3 text-xs font-semibold text-amber-900 transition-colors duration-150 hover:bg-amber-100 dark:bg-amber-950/60 dark:text-amber-200"
                           >
-                            <span>{isAr ? 'طلب موافقة 🔔' : 'Approve 🔔'}</span>
+                            <span>{isAr ? 'رفع للاعتماد 🔔' : 'Submit for Approval 🔔'}</span>
                           </button>
-                        ) : null}
+                        )}
+
+                        <Link
+                          href={`/erp/feryal-ai?prompt=${encodeURIComponent(feryalPrompt)}`}
+                          className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-emerald-50 px-3 text-xs font-semibold text-emerald-800 transition-colors duration-150 hover:bg-emerald-100 dark:bg-emerald-950/70 dark:text-emerald-200 dark:hover:bg-emerald-900/70"
+                        >
+                          <span>{isAr ? 'اسأل فريال ✨' : 'Ask Feryal ✨'}</span>
+                        </Link>
                       </div>
 
                       <button

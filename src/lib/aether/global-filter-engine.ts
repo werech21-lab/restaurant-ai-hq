@@ -573,6 +573,9 @@ export interface SimplePlayView {
   brands: readonly BrandKey[] | 'all'
   branches: readonly BranchKey[] | 'all'
   channels: readonly ChannelKey[] | 'all'
+  scopeLabelAr: string
+  scopeLabelEn: string
+  mergedIds: readonly string[]
   cfoRealism: CfoRealismProfile
   tiersMonthly: { conservativeKwd: number; realisticKwd: number; stretchKwd: number }
   tiersPeriod: { conservativeKwd: number; realisticKwd: number; stretchKwd: number }
@@ -596,6 +599,7 @@ function detectPlayScope(p: JourneyPlay): {
   const matchedBranches = APPROVED_BRANCH_IDS.filter((lid) => {
     if (lid === '360-mall') return txt.includes('360')
     if (lid === 'al-kout') return txt.includes('kout')
+    if (lid === 'salmiya') return txt.includes('salmiya') || txt.includes('salmyia')
     return txt.includes(lid)
   })
   const matchedChannels: ChannelKey[] = []
@@ -620,169 +624,260 @@ const fKwd = (v: number, ar: boolean): string => {
   return ar ? `${rounded} د.ك` : `${rounded} KWD`
 }
 
-const PLAY_CURATED_TOPICS: Record<
+const SPECIFIC_PLAY_COPY: Record<
   string,
-  { topicKey: string; titleAr: string; titleEn: string }
+  {
+    titleAr: string
+    titleEn: string
+    problemAr: string
+    problemEn: string
+    solutionAr: string
+    solutionEn: string
+  }
 > = {
-  'quality-retention': {
-    topicKey: 'direct-vip-retention',
-    titleAr: 'تحويل الضيوف لطلب مباشر دائم',
-    titleEn: 'Convert Guests to Direct Regulars',
-  },
-  'kitchen-inventory-variance': {
-    topicKey: 'kitchen-inventory-variance',
-    titleAr: 'ضبط فوارق جرد المطبخ الخام',
-    titleEn: 'Control Abnormal Kitchen Variance',
-  },
-  'delivery-corporate-diwaniya-direct': {
-    topicKey: 'direct-corporate-diwaniya-boxes',
-    titleAr: 'بوكسات الشركات والديوانيات المباشرة',
-    titleEn: 'Direct Office & Diwaniya Boxes',
-  },
-  'kitchen-ardiya-prep-par-shield': {
-    topicKey: 'ardiya-flexible-prep-par',
-    titleAr: 'جدول تحضير مرن بمطبخ العارضية',
-    titleEn: 'Flexible Ardiya Prep Schedule',
-  },
-  'menu-reprice-china-garden': {
-    topicKey: 'menu-surgical-reprice-cg',
-    titleAr: 'تعديل تسعير أصناف تشاينا جاردن',
-    titleEn: 'Surgical Repricing at China Garden',
-  },
-  'delivery-promo-burn': {
-    topicKey: 'aggregator-promo-burn-cap',
-    titleAr: 'سقف الخصومات المشتركة بالتطبيقات',
-    titleEn: 'Cap Co-Funded App Discounts',
-  },
-  'opex-host-kitchen-avenues': {
-    topicKey: 'host-kitchen-brand-sharing',
-    titleAr: 'تشغيل فارم براون بمطبخ الأفنيوز',
-    titleEn: 'Host Farm Brown in Avenues Kitchen',
-  },
-  'kitchen-scrap-hotspot': {
-    topicKey: 'kitchen-overprep-waste',
-    titleAr: 'تقليل هدر التحضير المسبق بالمطبخ',
-    titleEn: 'Cut Over-Prep Kitchen Spoilage',
-  },
-  'delivery-commission-keeta': {
-    topicKey: 'keeta-contract-rate-audit',
-    titleAr: 'مطابقة عمولة كيتا مع العقد',
-    titleEn: 'Audit Keeta Contract Fee Rate',
-  },
-  'ops-cashier-upsell-incentive': {
-    topicKey: 'cashier-upsell-script',
-    titleAr: 'تحفيز البيع الإضافي عند الكاشير',
-    titleEn: 'Cashier Combo Upsell Prompt',
-  },
-  'menu-basket-china-garden': {
-    topicKey: 'single-item-combo-upgrade',
-    titleAr: 'ترقية طلبات الصنف الواحد لكومبو',
-    titleEn: 'Upgrade Single-Item Orders to Combos',
-  },
-  'delivery-unsettled-clearing': {
-    topicKey: 'weekly-aggregator-payout-clearing',
-    titleAr: 'مطابقة مستحقات التطبيقات أسبوعياً',
-    titleEn: 'Reconcile Weekly App Payouts',
-  },
-  'menu-channel-price-shield': {
-    topicKey: 'delivery-menu-price-shield',
-    titleAr: 'تسعيرة مستقلة لتطبيقات التوصيل',
-    titleEn: 'Dedicated Delivery App Menu Pricing',
-  },
-  'delivery-tgo-tmp-mix': {
-    topicKey: 'shift-tgo-to-tmp-drivers',
-    titleAr: 'تحويل الطلبات القريبة لسائقي TMP',
-    titleEn: 'Shift Nearby Orders to TMP Drivers',
-  },
-  'menu-shop-basket-china-garden': {
-    topicKey: 'single-item-combo-upgrade',
-    titleAr: 'ترقية طلبات الصنف الواحد لكومبو',
-    titleEn: 'Upgrade Single-Item Orders to Combos',
-  },
-  'menu-kuwait-calendar-tactical': {
-    topicKey: 'kuwait-payday-weekend-bundles',
-    titleAr: 'باقات الرواتب وزوارة الويكند',
-    titleEn: 'Payday & Weekend Family Bundles',
-  },
-  'ops-discount-discipline': {
-    topicKey: 'manual-pos-discount-cap',
-    titleAr: 'قصر الخصومات اليدوية برمز المدير',
-    titleEn: 'Gate Manual POS Discounts by PIN',
-  },
-  'opex-custody-offpo-anomalies': {
-    topicKey: 'petty-cash-po-governance',
-    titleAr: 'إقفال العهد ومنع الشراء بلا أمر',
-    titleEn: 'Close Petty Cash & Enforce POs',
-  },
   'proc-price-creep': {
-    topicKey: 'supplier-contract-price-lock',
-    titleAr: 'تثبيت أسعار عقود مواد المطبخ',
-    titleEn: 'Lock Core Ingredient Contract Rates',
+    titleAr: 'فرق سعر مورد',
+    titleEn: 'Supplier Price Rise',
+    problemAr: 'ارتفعت أسعار بعض مواد المطبخ تدريجياً عن الشهر الماضي بدون إشعار مسبق.',
+    problemEn: 'Several kitchen ingredients crept up in price vs last month without notice.',
+    solutionAr: 'تثبيت أسعار العقود ومطالبة المورد بفرق السعر أو طلب عرض بديل.',
+    solutionEn: 'Lock contract prices and request a supplier credit or alternate quote.',
   },
   'proc-vendor-consolidation': {
-    topicKey: 'vendor-rate-consolidation',
-    titleAr: 'توحيد شراء الأصناف بأقل مورد',
-    titleEn: 'Consolidate Multi-Supplier Rates',
-  },
-  'quality-cancellations': {
-    topicKey: 'evening-peak-cancellations',
-    titleAr: 'تقليل إلغاءات ذروة المساء',
-    titleEn: 'Cut Evening Rush Cancellations',
-  },
-  'kitchen-portion-drift': {
-    topicKey: 'cooking-line-portion-weights',
-    titleAr: 'ضبط أوزان الحصص على خط الطبخ',
-    titleEn: 'Standardize Cooking-Line Portions',
-  },
-  'menu-reprice-franks': {
-    topicKey: 'menu-surgical-reprice-franks',
-    titleAr: 'تعديل تسعير أصناف فرانكس المختارة',
-    titleEn: "Surgical Repricing at Frank's",
-  },
-  'ops-session-discipline': {
-    topicKey: 'pos-opening-closing-discipline',
-    titleAr: 'الالتزام بمواعيد فتح الكاشير',
-    titleEn: 'Enforce On-Time Register Hours',
-  },
-  'opex-repair-loop-capex': {
-    topicKey: 'repeat-equipment-repair-cap',
-    titleAr: 'استبدال المعدات متكررة الأعطال',
-    titleEn: 'Replace Repeat-Failure Equipment',
-  },
-  'opex-cross-branch-anomalies': {
-    topicKey: 'branch-supplies-spend-cap',
-    titleAr: 'ترشيد استهلاك مستلزمات الفروع',
-    titleEn: 'Cap Branch Supplies Over-Spend',
+    titleAr: 'توحيد أسعار الشراء',
+    titleEn: 'Unify Vendor Prices',
+    problemAr: 'نشتري نفس الصنف الخام من أكثر من مورد بأسعار متفاوتة في أودو.',
+    problemEn: 'The same raw ingredient is purchased from multiple vendors at varying rates.',
+    solutionAr: 'الشراء بأقل سعر معتمد وتوحيد الطلبية مع المورد الأفضل.',
+    solutionEn: 'Standardize orders at the lowest approved vendor contract rate.',
   },
   'proc-packaging-per-order': {
-    topicKey: 'packaging-per-order-control',
-    titleAr: 'ربط صرف التغليف بعدد الطلبات',
-    titleEn: 'Tie Packaging Issue to Order Count',
+    titleAr: 'تكلفة التغليف لكل طلب',
+    titleEn: 'Packaging Cost Cap',
+    problemAr: 'صرف علب وأكياس التغليف في بعض الفروع أعلى من عدد طلبات التوصيل الفعلية.',
+    problemEn: 'Packaging issuance at select branches exceeds actual delivery order volume.',
+    solutionAr: 'ربط صرف العلب والأكياس بعدد الطلبات الفعلي لكل فرع في أودو.',
+    solutionEn: 'Tie packaging issuance directly to verified order counts per branch.',
   },
-  'opex-unallocated-analytic-governance': {
-    topicKey: 'petty-cash-po-governance',
-    titleAr: 'إقفال العهد ومنع الشراء بلا أمر',
-    titleEn: 'Close Petty Cash & Enforce POs',
+  'kitchen-inventory-variance': {
+    titleAr: 'نقص بالمطبخ',
+    titleEn: 'Kitchen Food Gap',
+    problemAr: 'استهلاك المواد الخام أعلى من المبيعات بعد عزل ٦٪ تقليم الطبخ الطبيعي.',
+    problemEn: 'Raw food usage exceeds dishes sold even after 6% normal cooking trim.',
+    solutionAr: 'جرد الأصناف البروتينية الغالية نهاية كل شفت ومطابقتها مع مبيعات الكاشير.',
+    solutionEn: 'Count top proteins at the end of every shift against POS recipe usage.',
   },
-  'ops-shift-realign-360-mall': {
-    topicKey: 'branch-peak-shift-realignment',
-    titleAr: 'إعادة توزيع شفتات ذروة المساء',
-    titleEn: 'Realign Shifts to Evening Rush',
+  'kitchen-ardiya-prep-par-shield': {
+    titleAr: 'سقف تحضير العارضية',
+    titleEn: 'Ardiya Daily Par Prep',
+    problemAr: 'دفعات التحضير المركزي بالعارضية تتجاوز السحب الفعلي للفروع في أيام وسط الأسبوع.',
+    problemEn: 'Central kitchen prep batches in Ardiya exceed mid-week branch pull.',
+    solutionAr: 'ربط جدول تحضير العارضية بسقف سحب يومي مرن لكل فرع حسب اليوم.',
+    solutionEn: 'Tie Ardiya central prep batches to dynamic weekday branch par levels.',
+  },
+  'kitchen-scrap-hotspot': {
+    titleAr: 'هدر التحضير بالفروع',
+    titleEn: 'Kitchen Prep Waste',
+    problemAr: 'توجد كميات طعام تالفة بالفروع بسبب التحضير الزائد قبل وقت الذروة.',
+    problemEn: 'Excess pre-peak batching is causing avoidable food scrap at branches.',
+    solutionAr: 'تقسيم التحضير على دفعتين حسب حركة البيع الفعلية لتصفير التالف.',
+    solutionEn: 'Split branch prep into two smaller waves matched to live order flow.',
+  },
+  'kitchen-portion-drift': {
+    titleAr: 'ضبط أوزان الوجبات',
+    titleEn: 'Recipe Portion Control',
+    problemAr: 'زيادة غرامات الغرف اليدوي عن الوصفة المعتمدة ترفع تكلفة الطبق بصمت.',
+    problemEn: 'Unweighed manual plating drifts above standard recipe gram targets.',
+    solutionAr: 'اعتماد ملاعق معيارية وميزان خط التجهيز للأصناف الأعلى مبيعاً.',
+    solutionEn: 'Enforce calibrated portion scoops and line scales on top-selling dishes.',
+  },
+  // Intentionally consolidated across China Garden & Frank's into ONE unified Menu Price Tweak play:
+  'menu-reprice-china-garden': {
+    titleAr: 'تعديل سعر صنف',
+    titleEn: 'Menu Price Tweak',
+    problemAr: 'الأصناف الأكثر مبيعاً هامش ربحها أقل بسبب ثبات سعرها القديم أمام ارتفاع الكلفة.',
+    problemEn: 'Top-selling signature mains carry thinner margins due to unchanged older prices.',
+    solutionAr: 'زيادة ١٠٠–١٥٠ فلس على الأصناف القوية مع احتفاظ ٩٤٪–٩٧٪ بالطلبات.',
+    solutionEn: 'Apply a 100–150 fils tweak on inelastic mains at 94%–97% guest retention.',
+  },
+  'menu-reprice-franks': {
+    titleAr: 'تعديل سعر صنف',
+    titleEn: 'Menu Price Tweak',
+    problemAr: 'الأصناف الأكثر مبيعاً هامش ربحها أقل بسبب ثبات سعرها القديم أمام ارتفاع الكلفة.',
+    problemEn: 'Top-selling signature mains carry thinner margins due to unchanged older prices.',
+    solutionAr: 'زيادة ١٠٠–١٥٠ فلس على الأصناف القوية مع احتفاظ ٩٤٪–٩٧٪ بالطلبات.',
+    solutionEn: 'Apply a 100–150 fils tweak on inelastic mains at 94%–97% guest retention.',
+  },
+  // Intentionally consolidated single-item basket combo plays into ONE unified Drink & Combo Add-on play:
+  'menu-basket-china-garden': {
+    titleAr: 'إضافة مشروب وكومبو',
+    titleEn: 'Drink & Combo Add-on',
+    problemAr: 'أغلب الفواتير تخرج بصنف واحد بدون مشروب أو طبق جانبي عالي الهامش.',
+    problemEn: 'Most single-item orders go out without a high-margin drink or side.',
+    solutionAr: 'عرض مشروب وسبرنغ رول عند الدفع بتحويل واقعي ٨٪–١٥٪ من السلات.',
+    solutionEn: 'Prompt a drink or spring roll combo targeting 8%–15% basket conversion.',
+  },
+  'menu-shop-basket-china-garden': {
+    titleAr: 'إضافة مشروب وكومبو',
+    titleEn: 'Drink & Combo Add-on',
+    problemAr: 'أغلب الفواتير تخرج بصنف واحد بدون مشروب أو طبق جانبي عالي الهامش.',
+    problemEn: 'Most single-item orders go out without a high-margin drink or side.',
+    solutionAr: 'عرض مشروب وسبرنغ رول عند الدفع بتحويل واقعي ٨٪–١٥٪ من السلات.',
+    solutionEn: 'Prompt a drink or spring roll combo targeting 8%–15% basket conversion.',
+  },
+  'menu-channel-price-shield': {
+    titleAr: 'تسعير قنوات التوصيل',
+    titleEn: 'Aggregator Menu Pricing',
+    problemAr: 'بيع بعض الوجبات بنفس سعر الصالة على التطبيقات يلتهم هامش الربح بعد العمولة.',
+    problemEn: 'Selling select combos at dine-in parity on high-fee apps erodes net margin.',
+    solutionAr: 'ضبط هيكل أسعار التطبيقات لتغطية العمولة مع إبراز ميزة السعر للطلب المباشر.',
+    solutionEn: 'Align delivery app menu pricing to protect net pocket margin vs direct orders.',
+  },
+  'menu-kuwait-calendar-tactical': {
+    titleAr: 'باقات الرواتب والويكند',
+    titleEn: 'Payday & Weekend Bundles',
+    problemAr: 'ذروة الرواتب وعطلة نهاية الأسبوع تمر بدون باقات عائلية مسبقة التجهيز.',
+    problemEn: 'Payday and Thursday-Friday peaks lack pre-built high-margin family platters.',
+    solutionAr: 'تفعيل بوكس العائلة والرواتب تلقائياً أيام ٢٤–٢٩ الشهر والخميس والجمعة.',
+    solutionEn: 'Auto-feature high-margin family platters on payday week and weekends.',
   },
   'menu-kitchen-drag-farm-brown': {
-    topicKey: 'prune-slow-complex-skus',
-    titleAr: 'حذف الأصناف البطيئة كثيرة الهدر',
-    titleEn: 'Prune Slow High-Waste Menu Items',
+    titleAr: 'تقليص الأصناف البطيئة',
+    titleEn: 'Trim Slow Menu Tail',
+    problemAr: 'الأصناف النادرة الطلب تبطئ خط التجهيز وتزيد هدر التحضير المسبق.',
+    problemEn: 'Low-velocity tail items slow kitchen ticket times and inflate prep waste.',
+    solutionAr: 'إيقاف الأصناف ضعيفة الدوران في ذروة المساء والتركيز على الأطباق المربحة.',
+    solutionEn: 'Retire slow-moving tail SKUs during peak hours to speed up kitchen throughput.',
   },
-}
-
-function normalizePlayTopicKey(raw: string): string {
-  return raw
-    .normalize('NFKC')
-    .replace(/[\u064B-\u065F\u0670\u0640]/g, '')
-    .replace(/[^\p{L}\p{N}]+/gu, ' ')
-    .trim()
-    .toLowerCase()
+  'ops-cashier-upsell-incentive': {
+    titleAr: 'حافز البيع الإضافي للكاشير',
+    titleEn: 'Cashier Upsell Prompt',
+    problemAr: 'تفاوت واضح في متوسط الفاتورة بين موظفي الكاشير لنفس الفرع والشفت.',
+    problemEn: 'Average check varies sharply across POS cashiers on the exact same shift.',
+    solutionAr: 'ربط شاشة الكاشير باقتراح فوري للمقبلات والمشروب مع حافز شهري بسيط.',
+    solutionEn: 'Enable one-tap POS side/drink prompts with a clear monthly cashier target.',
+  },
+  'ops-discount-discipline': {
+    titleAr: 'ضبط الخصومات والمجاني',
+    titleEn: 'Cap Freebies & Discounts',
+    problemAr: 'توجد خصومات يدوية وطلبات ضيافة متفرقة بالكاشير تقلل صافي المبيعات.',
+    problemEn: 'Manual POS discounts and unlogged comps are trimming net branch sales.',
+    solutionAr: 'قصر الخصم والضيافة على رمز المدير فقط وبسقف يومي واضح.',
+    solutionEn: 'Require manager PIN and enforce a strict daily cap for POS discounts.',
+  },
+  'ops-session-discipline': {
+    titleAr: 'التزام فتح وإغلاق الفروع',
+    titleEn: 'On-Time Shift Discipline',
+    problemAr: 'تأخر فتح جلسات الكاشير أو الإغلاق غير المطابق يضيع طلبات أول وآخر اليوم.',
+    problemEn: 'Late POS session openings or unclosed shifts miss ready orders and delay audit.',
+    solutionAr: 'إلزام فتح وإغلاق جلسات الكاشير والأجهزة اللوحية بالموعد المحدد في كل شفت.',
+    solutionEn: 'Enforce on-time POS and aggregator tablet session discipline every shift.',
+  },
+  'ops-shift-realign-360-mall': {
+    titleAr: 'توزيع طاقم ساعات الذروة',
+    titleEn: 'Peak Shift Crew Match',
+    problemAr: 'توزيع شفتات الموظفين ثابت بينما تتركز الطلبات فعلياً في ذروة الغداء والمساء.',
+    problemEn: 'Flat crew scheduling leaves peak rush understaffed and quiet hours idle.',
+    solutionAr: 'تقديم ساعة حضور شفت المساء لتغطية الذروة وتقليل الساعات الإضافية.',
+    solutionEn: 'Stagger shift starts to match hourly order peaks without overtime.',
+  },
+  'opex-host-kitchen-avenues': {
+    titleAr: 'تشغيل علامة إضافية بالمطبخ',
+    titleEn: 'Add Brand to Kitchen',
+    problemAr: 'بعض مطابخنا تشغّل علامة واحدة رغم قدرتها على تجهيز علامة ثانية بنفس الفريق.',
+    problemEn: 'Existing kitchens have spare capacity to run a second brand on the same team.',
+    solutionAr: 'تشغيل فرانكس أو نودل بار من نفس المطبخ الحالي لزيادة المبيعات بدون إيجار جديد.',
+    solutionEn: "Launch Frank's or Noodle Bar from existing kitchens with zero extra rent.",
+  },
+  // Intentionally consolidated OPEX petty-cash/off-PO governance twins into ONE unified play:
+  'opex-custody-offpo-anomalies': {
+    titleAr: 'ضبط العهد وفواتير بدون طلب شراء',
+    titleEn: 'Tighten Petty Cash & Off-PO Bills',
+    problemAr: 'توجد عهد نقدية وفواتير عامة دخلت الحسابات بدون طلب شراء أو توزيع فرعي.',
+    problemEn: 'Open cash custodies and direct bills posted without PO or branch analytic tag.',
+    solutionAr: 'منع صرف أي فاتورة بلا أمر شراء معتمد وتصفية العهد النقدية أسبوعياً لكل فرع.',
+    solutionEn: 'Require approved POs before bill payment and settle branch petty cash weekly.',
+  },
+  'opex-unallocated-analytic-governance': {
+    titleAr: 'ضبط العهد وفواتير بدون طلب شراء',
+    titleEn: 'Tighten Petty Cash & Off-PO Bills',
+    problemAr: 'توجد عهد نقدية وفواتير عامة دخلت الحسابات بدون طلب شراء أو توزيع فرعي.',
+    problemEn: 'Open cash custodies and direct bills posted without PO or branch analytic tag.',
+    solutionAr: 'منع صرف أي فاتورة بلا أمر شراء معتمد وتصفية العهد النقدية أسبوعياً لكل فرع.',
+    solutionEn: 'Require approved POs before bill payment and settle branch petty cash weekly.',
+  },
+  'opex-repair-loop-capex': {
+    titleAr: 'تكرار صيانة المعدات',
+    titleEn: 'Repeat Equipment Fixes',
+    problemAr: 'بعض أجهزة التبريد والقلي تتكرر عليها فواتير الصيانة أكثر من قيمة استبدالها.',
+    problemEn: 'Repeated emergency repair bills on aging kitchen units cost more than replacement.',
+    solutionAr: 'استبدال القطعة كثيرة الأعطال أو توقيع عقد صيانة وقائية ثابت السعر.',
+    solutionEn: 'Replace repeat-failure units or lock a flat preventive maintenance contract.',
+  },
+  'opex-cross-branch-anomalies': {
+    titleAr: 'مراجعة مصاريف الفروع الشاذة',
+    titleEn: 'Branch Expense Outlier Cap',
+    problemAr: 'بعض الفروع تسجل استهلاك مستلزمات وخدمات أعلى بوضوح من فروع مماثلة بالمبيعات.',
+    problemEn: 'Select branches log noticeably higher consumables and utility spend than peers.',
+    solutionAr: 'ربط سقف المصاريف التشغيلية الشهرية بنسبة ثابتة من مبيعات كل فرع.',
+    solutionEn: 'Benchmark and cap monthly branch consumables as a fixed share of sales.',
+  },
+  'delivery-corporate-diwaniya-direct': {
+    titleAr: 'طلبات الديوانيات والشركات المباشرة',
+    titleEn: 'Direct Diwaniya & Office Catering',
+    problemAr: 'طلبات المجموعات والديوانيات تمر عبر التطبيقات بعمولة عالية بدلاً من الطلب المباشر.',
+    problemEn: 'Large office and Diwaniya platters route through high-commission apps.',
+    solutionAr: 'تخصيص خط واتساب سريع لباقات الشركات والديوانيات بدون عمولة وسطاء.',
+    solutionEn: 'Route corporate lunches and Diwaniya platters via 0%-fee direct WhatsApp.',
+  },
+  'delivery-promo-burn': {
+    titleAr: 'سقف الخصم التشاركي بالتطبيقات',
+    titleEn: 'Aggregator Promo Spend Cap',
+    problemAr: 'بعض حملات الخصم التلقائية بالتطبيقات تخصم من صافي الفاتورة بدون حد أدنى مجزٍ.',
+    problemEn: 'Uncapped co-funded aggregator promos erode per-order net pocket cash.',
+    solutionAr: 'قصر العروض التشاركية على حد أدنى للطلب ٥.٥٠٠ د.ك وسقف خصم معتمد ١٠٪.',
+    solutionEn: 'Gate co-funded app promos behind a 5.500 KWD minimum basket and 10% cap.',
+  },
+  'delivery-commission-keeta': {
+    titleAr: 'ضبط عمولة وخصومات كيتا',
+    titleEn: 'Keeta Promo & Fee Cap',
+    problemAr: 'تراكم العمولة مع حملات الخصم المشتركة في كيتا يقلص صافي الربح لكل طلب.',
+    problemEn: 'Stacked commission and co-funded discounts on Keeta squeeze per-order profit.',
+    solutionAr: 'تحديد سقف الخصم التشاركي على كيتا وقصره على الأصناف عالية الهامش.',
+    solutionEn: 'Cap co-funded Keeta discounts and restrict promos to high-margin bundles.',
+  },
+  'delivery-unsettled-clearing': {
+    titleAr: 'تحصيل مستحقات التطبيقات',
+    titleEn: 'Collect App Payouts',
+    problemAr: 'توجد مبالغ مبيعات معلقة في حسابات تسوية تطبيقات التوصيل تحتاج مطابقة وتحصيلاً.',
+    problemEn: 'Open delivery aggregator clearing balances require weekly payout matching.',
+    solutionAr: 'مطابقة كشوف طلبات وكيتا وديليفرو أسبوعياً وتحصيل أي فروقات متأخرة فوراً.',
+    solutionEn: 'Reconcile Talabat, Keeta, and Deliveroo statements weekly to clear overdue dues.',
+  },
+  'delivery-tgo-tmp-mix': {
+    titleAr: 'التحويل لسائقي الشركة TMP',
+    titleEn: 'Shift to TMP (15%)',
+    problemAr: 'الاعتماد الكامل على عمولة Tgo المرتفعة يقلل الصافي المتبقي للشركة في الطلبات القريبة.',
+    problemEn: 'Relying solely on Tgo fleet fees trims take-home cash on nearby delivery zones.',
+    solutionAr: 'تشغيل سائقي الشركة TMP (١٥٪) في الفروع المؤهلة لتوفير فرق العمولة.',
+    solutionEn: 'Activate company-driver TMP (15%) in eligible branches to save commission spread.',
+  },
+  'quality-retention': {
+    titleAr: 'زيادة العملاء الدائمين مباشرة',
+    titleEn: 'Grow Direct Repeat Guests',
+    problemAr: 'أغلب العملاء المتكررين يعيدون الطلب عبر التطبيقات فنخسر العمولة في كل مرة.',
+    problemEn: 'Repeat guests keep re-ordering via high-fee apps instead of direct channels.',
+    solutionAr: 'وضع كرت QR للطلب المباشر داخل كل كيس توصيل لمنح العميل ميزة فورية بالطلب القادم.',
+    solutionEn: 'Insert a direct-order VIP QR card in every delivery bag to convert repeat guests.',
+  },
+  'quality-cancellations': {
+    titleAr: 'تقليل إلغاء وتأخير الطلبات',
+    titleEn: 'Cut Late-Order Refunds',
+    problemAr: 'إلغاء الطلبات المتأخرة ومرتجعات النواقص يخصم قيمة الوجبة كاملة من صافي الفرع.',
+    problemEn: 'Late-order cancellations and missing-item refunds deduct full order value.',
+    solutionAr: 'فحص مطابقة الفاتورة قبل تسليم السائق وتنبيه الشيف عند تجاوز التحضير ١٢ دقيقة.',
+    solutionEn: 'Verify bag accuracy at handoff and alert kitchen leads past the 12-minute mark.',
+  },
 }
 
 function simplifyPlayCopy(p: JourneyPlay): {
@@ -793,186 +888,55 @@ function simplifyPlayCopy(p: JourneyPlay): {
   solutionAr: string
   solutionEn: string
 } {
-  const curated = PLAY_CURATED_TOPICS[p.id]
-  if (curated) {
-    return {
-      titleAr: curated.titleAr,
-      titleEn: curated.titleEn,
-      problemAr: p.leakAr || p.titleAr,
-      problemEn: p.leakEn || p.titleEn,
-      solutionAr: p.actionAr || p.titleAr,
-      solutionEn: p.actionEn || p.titleEn,
-    }
-  }
-  const id = p.id
-  if (id === 'proc-price-creep') {
-    return {
-      titleAr: 'فرق سعر مورد',
-      titleEn: 'Supplier Price Rise',
-      problemAr: 'ارتفعت أسعار بعض مواد المطبخ تدريجياً عن الشهر الماضي بدون إشعار مسبق.',
-      problemEn: 'Several kitchen ingredients crept up in price vs last month without notice.',
-      solutionAr: 'تثبيت أسعار العقود ومطالبة المورد بفرق السعر أو طلب عرض بديل.',
-      solutionEn: 'Lock contract prices and request a supplier credit or alternate quote.',
-    }
-  }
-  if (id === 'proc-multi-vendor') {
-    return {
-      titleAr: 'توحيد أسعار الشراء',
-      titleEn: 'Unify Vendor Prices',
-      problemAr: 'نشتري نفس الصنف من أكثر من مورد بأسعار مختلفة.',
-      problemEn: 'The same ingredient is bought from multiple suppliers at different prices.',
-      solutionAr: 'الشراء بأقل سعر معتمد وتوحيد الطلبية مع المورد الأفضل.',
-      solutionEn: 'Standardize orders at the lowest approved supplier rate.',
-    }
-  }
-  if (id === 'proc-off-po') {
-    return {
-      titleAr: 'فواتير بدون طلب شراء',
-      titleEn: 'Bills Without PO',
-      problemAr: 'توجد فواتير مشتريات دخلت الحسابات مباشرة بدون أمر شراء مسبق.',
-      problemEn: 'Some vendor bills were posted directly without a prior purchase order.',
-      solutionAr: 'منع صرف أي فاتورة مورد لا ترتبط بأمر شراء معتمد بالنظام.',
-      solutionEn: 'Require an approved purchase order before paying any supplier bill.',
-    }
-  }
-  if (id.startsWith('kitchen-variance') || id.includes('variance')) {
-    return {
-      titleAr: 'نقص بالمطبخ',
-      titleEn: 'Kitchen Food Gap',
-      problemAr: 'استهلاك المواد الخام أعلى من المبيعات بعد عزل ٦٪ تقليم الطبخ الطبيعي.',
-      problemEn: 'Raw food usage exceeds dishes sold even after 6% normal cooking trim.',
-      solutionAr: 'وزن الوجبات يومياً وجرد الأصناف الغالية نهاية كل شفت.',
-      solutionEn: 'Weigh portions daily and count top proteins at the end of every shift.',
-    }
-  }
-  if (id.startsWith('kitchen-scrap') || id.includes('scrap')) {
-    return {
-      titleAr: 'هدر التحضير',
-      titleEn: 'Kitchen Prep Waste',
-      problemAr: 'توجد كميات طعام تالفة بسبب التحضير الزائد قبل وقت الذروة.',
-      problemEn: 'Excess pre-prep is causing avoidable food waste at branches.',
-      solutionAr: 'تقسيم التحضير على دفعتين حسب حركة البيع الفعلية.',
-      solutionEn: 'Split prep into two smaller batches matched to live order flow.',
-    }
-  }
-  if (id.startsWith('kitchen-pack') || id.includes('pack')) {
-    return {
-      titleAr: 'تكلفة التغليف',
-      titleEn: 'Packaging Cost',
-      problemAr: 'صرف علب وأكياس التغليف في بعض الفروع أعلى من عدد طلبات التوصيل.',
-      problemEn: 'Packaging spend at some branches exceeds actual delivery order volume.',
-      solutionAr: 'ربط صرف العلب والأكياس بعدد الطلبات الفعلي لكل فرع.',
-      solutionEn: 'Tie packaging issuance directly to actual order counts per branch.',
-    }
-  }
-  if (id.includes('reprice') || id.includes('price')) {
-    return {
-      titleAr: 'تعديل سعر صنف',
-      titleEn: 'Menu Price Tweak',
-      problemAr: 'بعض الأصناف الأكثر مبيعاً هامش ربحها أقل بسبب ثبات سعرها القديم.',
-      problemEn: 'Top-selling dishes carry thinner margins due to unchanged older prices.',
-      solutionAr: 'زيادة ١٠٠–١٥٠ فلس على الأصناف القوية مع احتفاظ ٩٤٪–٩٧٪ بالطلبات.',
-      solutionEn: 'Apply a 100–150 fils tweak on inelastic mains at 94%–97% retention.',
-    }
-  }
-  if (id.includes('combo') || id.includes('drink') || id.includes('upsell') || p.stage === 'menu') {
-    return {
-      titleAr: 'إضافة مشروب وكومبو',
-      titleEn: 'Drink & Combo Add-on',
-      problemAr: 'أغلب الفواتير تخرج بصنف واحد بدون مشروب أو طبق جانبي.',
-      problemEn: 'Most orders go out as a single item without a drink or side.',
-      solutionAr: 'عرض مشروب وسبرنغ رول عند الدفع بتحويل واقعي ٨٪–١٥٪ من السلات.',
-      solutionEn: 'Prompt a drink or spring roll combo targeting 8%–15% conversion.',
-    }
-  }
-  if (id.includes('host') || id.includes('salmiya') || id.includes('ardiya')) {
-    return {
-      titleAr: 'تشغيل مطبخ إضافي',
-      titleEn: 'Add Brand to Kitchen',
-      problemAr: 'بعض مطابخنا تشغّل علامة واحدة رغم قدرتها على تجهيز علامة ثانية بنفس الفريق.',
-      problemEn: 'Existing kitchens have spare capacity to run a second brand on the same team.',
-      solutionAr: 'تشغيل فرانكس وذا نودل بار من نفس المطبخ الحالي لزيادة المبيعات بدون إيجار جديد.',
-      solutionEn: "Launch Frank's or Noodle Bar from existing kitchens with zero extra rent.",
-    }
-  }
-  if (id.includes('discount') || id.includes('comp')) {
-    return {
-      titleAr: 'ضبط الخصومات والمجاني',
-      titleEn: 'Cap Freebies & Discounts',
-      problemAr: 'توجد خصومات يدوية وطلبات مجانية متفرقة تقلل صافي المبيعات.',
-      problemEn: 'Manual discounts and unlogged free orders are trimming net sales.',
-      solutionAr: 'قصر الخصم والضيافة على رمز المدير فقط وبحد يومي واضح.',
-      solutionEn: 'Require manager PIN and a clear daily cap for discounts and comps.',
-    }
-  }
-  if (p.stage === 'operations') {
-    return {
-      titleAr: 'التزام فتح الفروع',
-      titleEn: 'On-Time Branch Open',
-      problemAr: 'تأخر فتح الكاشير أو الإغلاق المبكر يضيع طلبات جاهزة أول وآخر اليوم.',
-      problemEn: 'Late register openings or early closings miss ready orders.',
-      solutionAr: 'الالتزام بفتح واستلام الطلبات بالموعد المحدد في كل شفت.',
-      solutionEn: 'Enforce on-time POS and tablet opening across every shift.',
-    }
-  }
-  if (id.includes('repair') || id.includes('maint')) {
-    return {
-      titleAr: 'تكرار صيانة المعدات',
-      titleEn: 'Repeat Equipment Fixes',
-      problemAr: 'بعض الأجهزة تتكرر عليها فواتير الصيانة أكثر من قيمة استبدالها.',
-      problemEn: 'Repeated repair bills on aging equipment cost more than replacement.',
-      solutionAr: 'استبدال القطعة كثيرة الأعطال أو توقيع عقد صيانة ثابت السعر.',
-      solutionEn: 'Replace repeat-failure units or lock a flat preventive maintenance contract.',
-    }
-  }
-  if (p.stage === 'opex') {
-    return {
-      titleAr: 'ضبط المصاريف والعهد',
-      titleEn: 'Tighten Petty Cash',
-      problemAr: 'توجد عهد نقدية ومصاريف عامة مفتوحة تحتاج تسوية وتوزيعاً على الفروع.',
-      problemEn: 'Open cash custodies and general bills need prompt branch settlement.',
-      solutionAr: 'تصفية العهد أسبوعياً وربط كل مصروف بالفرع المسؤول عنه.',
-      solutionEn: 'Settle cash custodies weekly and tag every bill to its branch.',
-    }
-  }
-  if (id.includes('keeta')) {
-    return {
-      titleAr: 'خصومات تطبيق كيتا',
-      titleEn: 'Keeta Promo Cap',
-      problemAr: 'حملات الخصم المشتركة في كيتا تأكل جزءاً كبيراً من صافي الطلب.',
-      problemEn: 'Co-funded promo discounts on Keeta eat into per-order profit.',
-      solutionAr: 'وضع حد أدنى للطلب وتحديد سقف الخصم الذي تتحمله الشركة.',
-      solutionEn: 'Set a minimum basket size and cap our co-funded promo share.',
-    }
-  }
-  if (id.includes('tmp') || id.includes('tgo') || id.includes('talabat')) {
-    return {
-      titleAr: 'سائقي الشركة TMP',
-      titleEn: 'Shift to TMP (15%)',
-      problemAr: 'الاعتماد الكامل على عمولة Tgo يقلل الصافي المتبقي للشركة بفرق ١٢٪.',
-      problemEn: 'Relying solely on Tgo trims take-home cash by a 12% commission spread.',
-      solutionAr: 'تشغيل سائقي الشركة TMP (15%) في الفروع المؤهلة لتوفير فرق العمولة.',
-      solutionEn: 'Activate company-driver TMP (15%) in eligible branches to save fees.',
-    }
-  }
-  if (p.stage === 'delivery') {
-    return {
-      titleAr: 'تحصيل مستحقات التطبيقات',
-      titleEn: 'Collect App Payouts',
-      problemAr: 'توجد مبالغ مبيعات معلقة لدى تطبيقات التوصيل تحتاج مطابقة وتحصيلاً.',
-      problemEn: 'Pending delivery app balances need weekly bank payout matching.',
-      solutionAr: 'مطابقة كشوف التطبيقات أسبوعياً وتحصيل أي فروقات متأخرة فوراً.',
-      solutionEn: 'Reconcile app statements weekly and collect delayed payouts.',
-    }
-  }
+  const known = SPECIFIC_PLAY_COPY[p.id]
+  if (known) return known
   return {
-    titleAr: 'زيادة العملاء الدائمين',
-    titleEn: 'Grow Repeat Guests',
-    problemAr: 'أغلب العملاء يطلبون عبر التطبيقات المتكررة فنخسر العمولة في كل مرة.',
-    problemEn: 'Repeat guests keep ordering via high-fee apps instead of direct.',
-    solutionAr: 'وضع كرت خصم للطلب المباشر داخل كل كيس توصيل وعند الكاشير.',
-    solutionEn: 'Place a direct-order VIP card in every bag and ask for phone at POS.',
+    titleAr: p.titleAr || p.id,
+    titleEn: p.titleEn || p.id,
+    problemAr: `مراجعة تشغيلية: ${p.titleAr || p.id}`,
+    problemEn: `Operational review: ${p.titleEn || p.id}`,
+    solutionAr: `تطبيق خطة التحسين لـ ${p.titleAr || p.id}`,
+    solutionEn: `Apply optimization plan for ${p.titleEn || p.id}`,
   }
+}
+
+function normalizePlayDedupKey(raw: string): string {
+  return raw
+    .trim()
+    .toLowerCase()
+    .replace(/[\u064B-\u065F\u0670\u0640]/g, '')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function formatConsolidatedScopeLabel(
+  brands: readonly BrandKey[] | 'all',
+  branches: readonly BranchKey[] | 'all',
+  specificBrands: ReadonlySet<BrandKey>,
+  specificBranches: ReadonlySet<BranchKey>,
+  isAr: boolean,
+): string {
+  const orderedBranches = APPROVED_BRANCH_IDS.filter((id) =>
+    branches !== 'all' ? branches.includes(id) : specificBranches.has(id),
+  )
+  const orderedBrands = APPROVED_BRAND_IDS.filter((id) =>
+    brands !== 'all' ? brands.includes(id) : specificBrands.has(id),
+  )
+
+  const branchText =
+    orderedBranches.length > 0
+      ? orderedBranches.map((id) => getBranchLabel(id, isAr)).join(' • ')
+      : ''
+  const brandText =
+    orderedBrands.length > 0
+      ? orderedBrands.map((id) => getBrandLabel(id, isAr)).join(' • ')
+      : ''
+
+  if (brandText && branchText) return `${brandText} • ${branchText}`
+  if (branchText) return branchText
+  if (brandText) return brandText
+  return isAr ? 'كل العلامات والفروع السبعة' : 'All 6 Brands & 7 Branches'
 }
 
 function matchesProfitLens(p: JourneyPlay, lens: ProfitLens): boolean {
@@ -1032,7 +996,7 @@ export interface SummaryCardData {
   ctaEn: string
   action: SummaryCardAction
   targetStage?: JourneyPlay['stage'] | 'all'
-  href?: string
+  href: string
 }
 
 export interface FeryalSimpleNote {
@@ -1675,7 +1639,7 @@ export function computeGlobalWorkspace(
         ? Math.min(1.4, Math.max(0.2, sliceNetMult))
         : Math.min(1, Math.max(0.18, sliceNetMult))
 
-  const rawMappedPlays: SimplePlayView[] = effectivePlays.map((p) => {
+  const rawPlays: SimplePlayView[] = effectivePlays.map((p) => {
     const scope = detectPlayScope(p)
     const copy = simplifyPlayCopy(p)
     const cfoRealism = buildCfoRealismForPlay(p)
@@ -1696,6 +1660,8 @@ export function computeGlobalWorkspace(
               : 1
     const tiersPeriod = scaleCfoTiers(cfoRealism.monthlyTiers, scopeFactor * pMult)
     const periodBenefitKwd = Math.max(0.5, Math.round(tiersPeriod.realisticKwd * 10) / 10)
+    const specBrands = new Set<BrandKey>(scope.brands === 'all' ? [] : scope.brands)
+    const specBranches = new Set<BranchKey>(scope.branches === 'all' ? [] : scope.branches)
     return {
       play: p,
       id: p.id,
@@ -1709,65 +1675,135 @@ export function computeGlobalWorkspace(
       brands: scope.brands,
       branches: scope.branches,
       channels: scope.channels,
+      scopeLabelAr: formatConsolidatedScopeLabel(scope.brands, scope.branches, specBrands, specBranches, true),
+      scopeLabelEn: formatConsolidatedScopeLabel(scope.brands, scope.branches, specBrands, specBranches, false),
+      mergedIds: [p.id],
       cfoRealism,
       tiersMonthly,
       tiersPeriod,
     }
   })
 
-  // Consolidate multi-branch/brand insights sharing the same topic/title into ONE single card
-  const consolidatedPlaysMap = new Map<string, SimplePlayView>()
-  for (const item of rawMappedPlays) {
-    const curatedTopic = PLAY_CURATED_TOPICS[item.id]?.topicKey
-    const key = normalizePlayTopicKey(curatedTopic ?? item.titleEn ?? item.titleAr)
-    const existing = consolidatedPlaysMap.get(key)
-    if (!existing) {
-      consolidatedPlaysMap.set(key, item)
-      continue
+  // Consolidate any items sharing normalized titleEn, titleAr, problemAr, problemEn, solutionAr, or solutionEn
+  // into ONE single SimplePlayView card: sum KWD/tier lifts and union affected brands, branches & channels.
+  const consolidatedPlays: SimplePlayView[] = []
+  const specificBrandsByIdx = new Map<number, Set<BrandKey>>()
+  const specificBranchesByIdx = new Map<number, Set<BranchKey>>()
+  const idxByTitleEn = new Map<string, number>()
+  const idxByTitleAr = new Map<string, number>()
+  const idxByProblemAr = new Map<string, number>()
+  const idxByProblemEn = new Map<string, number>()
+  const idxBySolutionAr = new Map<string, number>()
+  const idxBySolutionEn = new Map<string, number>()
+
+  for (const item of rawPlays) {
+    const kTitleEn = normalizePlayDedupKey(item.titleEn)
+    const kTitleAr = normalizePlayDedupKey(item.titleAr)
+    const kProbAr = normalizePlayDedupKey(item.problemAr)
+    const kProbEn = normalizePlayDedupKey(item.problemEn)
+    const kSolAr = normalizePlayDedupKey(item.solutionAr)
+    const kSolEn = normalizePlayDedupKey(item.solutionEn)
+
+    const existingIdx =
+      idxByTitleEn.get(kTitleEn) ??
+      idxByTitleAr.get(kTitleAr) ??
+      idxByProblemAr.get(kProbAr) ??
+      idxByProblemEn.get(kProbEn) ??
+      idxBySolutionAr.get(kSolAr) ??
+      idxBySolutionEn.get(kSolEn)
+
+    if (existingIdx === undefined) {
+      const nextIdx = consolidatedPlays.length
+      const bSet = new Set<BrandKey>(item.brands === 'all' ? [] : item.brands)
+      const lSet = new Set<BranchKey>(item.branches === 'all' ? [] : item.branches)
+      specificBrandsByIdx.set(nextIdx, bSet)
+      specificBranchesByIdx.set(nextIdx, lSet)
+      consolidatedPlays.push(item)
+      idxByTitleEn.set(kTitleEn, nextIdx)
+      idxByTitleAr.set(kTitleAr, nextIdx)
+      idxByProblemAr.set(kProbAr, nextIdx)
+      idxByProblemEn.set(kProbEn, nextIdx)
+      idxBySolutionAr.set(kSolAr, nextIdx)
+      idxBySolutionEn.set(kSolEn, nextIdx)
+    } else {
+      const prev = consolidatedPlays[existingIdx]
+      const bSet = specificBrandsByIdx.get(existingIdx) ?? new Set<BrandKey>()
+      const lSet = specificBranchesByIdx.get(existingIdx) ?? new Set<BranchKey>()
+      if (item.brands !== 'all') item.brands.forEach((b) => bSet.add(b))
+      if (item.branches !== 'all') item.branches.forEach((l) => lSet.add(l))
+
+      const mergedBrands: readonly BrandKey[] | 'all' =
+        prev.brands === 'all' || item.brands === 'all'
+          ? 'all'
+          : APPROVED_BRAND_IDS.filter((b) => prev.brands.includes(b) || item.brands.includes(b))
+      const mergedBranches: readonly BranchKey[] | 'all' =
+        prev.branches === 'all' || item.branches === 'all'
+          ? 'all'
+          : APPROVED_BRANCH_IDS.filter((l) => prev.branches.includes(l) || item.branches.includes(l))
+      const mergedChannels: readonly ChannelKey[] | 'all' =
+        prev.channels === 'all' || item.channels === 'all'
+          ? 'all'
+          : APPROVED_CHANNEL_IDS.filter((c) => prev.channels.includes(c) || item.channels.includes(c))
+
+      const nextMonthly = prev.monthlyBenefitKwd + item.monthlyBenefitKwd
+      const nextPeriod = Math.round((prev.periodBenefitKwd + item.periodBenefitKwd) * 10) / 10
+      const nextTiersMonthly = {
+        conservativeKwd: prev.tiersMonthly.conservativeKwd + item.tiersMonthly.conservativeKwd,
+        realisticKwd: prev.tiersMonthly.realisticKwd + item.tiersMonthly.realisticKwd,
+        stretchKwd: prev.tiersMonthly.stretchKwd + item.tiersMonthly.stretchKwd,
+      }
+      const nextTiersPeriod = {
+        conservativeKwd:
+          Math.round((prev.tiersPeriod.conservativeKwd + item.tiersPeriod.conservativeKwd) * 10) / 10,
+        realisticKwd:
+          Math.round((prev.tiersPeriod.realisticKwd + item.tiersPeriod.realisticKwd) * 10) / 10,
+        stretchKwd:
+          Math.round((prev.tiersPeriod.stretchKwd + item.tiersPeriod.stretchKwd) * 10) / 10,
+      }
+
+      consolidatedPlays[existingIdx] = {
+        ...prev,
+        id: prev.id === 'proc-price-creep' || item.id === 'proc-price-creep' ? 'proc-price-creep' : prev.id,
+        periodBenefitKwd: nextPeriod,
+        monthlyBenefitKwd: nextMonthly,
+        annualBenefitKwd: nextMonthly * 12,
+        periodLabelAr: `${fKwd(nextPeriod, true)} ${periodBenefitUnitAr[filters.period]}`,
+        periodLabelEn: `${fKwd(nextPeriod, false)} ${periodBenefitUnitEn[filters.period]}`,
+        brands: mergedBrands,
+        branches: mergedBranches,
+        channels: mergedChannels,
+        scopeLabelAr: formatConsolidatedScopeLabel(mergedBrands, mergedBranches, bSet, lSet, true),
+        scopeLabelEn: formatConsolidatedScopeLabel(mergedBrands, mergedBranches, bSet, lSet, false),
+        mergedIds: Array.from(new Set([...prev.mergedIds, ...item.mergedIds])),
+        cfoRealism: {
+          ...prev.cfoRealism,
+          monthlyTiers: {
+            ...prev.cfoRealism.monthlyTiers,
+            ...nextTiersMonthly,
+          },
+        },
+        tiersMonthly: nextTiersMonthly,
+        tiersPeriod: nextTiersPeriod,
+      }
+
+      idxByTitleEn.set(kTitleEn, existingIdx)
+      idxByTitleAr.set(kTitleAr, existingIdx)
+      idxByProblemAr.set(kProbAr, existingIdx)
+      idxByProblemEn.set(kProbEn, existingIdx)
+      idxBySolutionAr.set(kSolAr, existingIdx)
+      idxBySolutionEn.set(kSolEn, existingIdx)
     }
-    const mergedBrands: readonly BrandKey[] | 'all' =
-      existing.brands === 'all' || item.brands === 'all'
-        ? 'all'
-        : Array.from(new Set([...existing.brands, ...item.brands]))
-    const mergedBranches: readonly BranchKey[] | 'all' =
-      existing.branches === 'all' || item.branches === 'all'
-        ? 'all'
-        : Array.from(new Set([...existing.branches, ...item.branches]))
-    const mergedChannels: readonly ChannelKey[] | 'all' =
-      existing.channels === 'all' || item.channels === 'all'
-        ? 'all'
-        : Array.from(new Set([...existing.channels, ...item.channels]))
-    const nextMonthly = existing.monthlyBenefitKwd + item.monthlyBenefitKwd
-    const nextPeriod = Math.round((existing.periodBenefitKwd + item.periodBenefitKwd) * 10) / 10
-    consolidatedPlaysMap.set(key, {
-      ...existing,
-      brands: Array.isArray(mergedBrands) && mergedBrands.length >= 6 ? 'all' : mergedBrands,
-      branches: Array.isArray(mergedBranches) && mergedBranches.length >= 6 ? 'all' : mergedBranches,
-      channels: mergedChannels,
-      monthlyBenefitKwd: nextMonthly,
-      periodBenefitKwd: nextPeriod,
-      annualBenefitKwd: nextMonthly * 12,
-      periodLabelAr: `${fKwd(nextPeriod, true)} ${periodBenefitUnitAr[filters.period]}`,
-      periodLabelEn: `${fKwd(nextPeriod, false)} ${periodBenefitUnitEn[filters.period]}`,
-      tiersMonthly: {
-        conservativeKwd: existing.tiersMonthly.conservativeKwd + item.tiersMonthly.conservativeKwd,
-        realisticKwd: existing.tiersMonthly.realisticKwd + item.tiersMonthly.realisticKwd,
-        stretchKwd: existing.tiersMonthly.stretchKwd + item.tiersMonthly.stretchKwd,
-      },
-      tiersPeriod: {
-        conservativeKwd: existing.tiersPeriod.conservativeKwd + item.tiersPeriod.conservativeKwd,
-        realisticKwd: existing.tiersPeriod.realisticKwd + item.tiersPeriod.realisticKwd,
-        stretchKwd: existing.tiersPeriod.stretchKwd + item.tiersPeriod.stretchKwd,
-      },
-    })
   }
-  const plays: SimplePlayView[] = Array.from(consolidatedPlaysMap.values())
+
+  const plays: SimplePlayView[] = consolidatedPlays.sort(
+    (a, b) => b.monthlyBenefitKwd - a.monthlyBenefitKwd,
+  )
 
   const totalPlaysBenefitMonthlyKwd = plays.reduce((s, p) => s + p.monthlyBenefitKwd, 0)
   const totalPlaysBenefitPeriodKwd = Math.round(plays.reduce((s, p) => s + p.periodBenefitKwd, 0))
 
   // -------------------------------------------------------------------------
-  // 8 Ultra-Simple Summary Cards (2–3 words title, 1 short clear sentence)
+  // 6 Canonical Executive Module Jump Cards (3x2 Grid -> Single Canonical Home)
   // -------------------------------------------------------------------------
   const s = JOURNEY_SHORTCUTS
   const beforeRentPocketRatio = Math.max(0.15, (10 - food10 - delivery10) / 10)
@@ -1817,14 +1853,14 @@ export function computeGlobalWorkspace(
       id: 'expenses-maint',
       num: 2,
       titleAr: 'الفواتير والصيانة',
-      titleEn: 'Bills & Repairs',
+      titleEn: 'Monthly Bills',
       valueAr: fKwd(opexLeakKwd, true),
       valueEn: fKwd(opexLeakKwd, false),
       descAr: 'الصيانة المتكررة والعهد النثرية والفواتير التشغيلية العامة.',
-      descEn: 'Repeated equipment repairs, petty cash & general bills.',
+      descEn: 'Repeated equipment repairs, petty cash & monthly bills.',
       accent: 'rose',
       ctaAr: 'تفاصيل المصاريف ↗',
-      ctaEn: 'Expense Details ↗',
+      ctaEn: 'Monthly Bills ↗',
       action: 'stage-opex',
       targetStage: 'opex',
       href: '/erp/planning',
@@ -1833,7 +1869,7 @@ export function computeGlobalWorkspace(
       id: 'delivery-dues',
       num: 3,
       titleAr: 'مستحقات التوصيل',
-      titleEn: 'Delivery Dues',
+      titleEn: 'Delivery Apps',
       valueAr: fKwd(deliveryDuesKwd, true),
       valueEn: fKwd(deliveryDuesKwd, false),
       descAr: 'مبالغ مفتوحة مستحقة عند طلبات وكيتا وديليفرو وجاهز وسنونو.',
@@ -1848,14 +1884,14 @@ export function computeGlobalWorkspace(
       id: 'branch-discipline',
       num: 4,
       titleAr: 'انضباط الفروع',
-      titleEn: 'Branch Discipline',
+      titleEn: 'Branch Speed',
       valueAr: `${opsScore} / 100`,
       valueEn: `${opsScore} / 100`,
-      descAr: 'التزام مواعيد الفتح وتقليل المرتجعات والخصومات اليدوية.',
-      descEn: 'Opening discipline, refunds & manual POS discounts.',
+      descAr: 'سرعة التجهيز والتزام الفتح وتقليل المرتجعات والخصومات.',
+      descEn: 'Prep SLA speed, opening discipline & POS discount control.',
       accent: 'sky',
       ctaAr: 'مقارنة الفروع ↗',
-      ctaEn: 'Compare Branches ↗',
+      ctaEn: 'Branch Speed ↗',
       action: 'chart-branches',
       targetStage: 'operations',
       href: '/erp/prep-sla',
@@ -1864,22 +1900,22 @@ export function computeGlobalWorkspace(
       id: 'menu-prices',
       num: 5,
       titleAr: 'أسعار المينيو والوجبات',
-      titleEn: 'Menu & Combos',
+      titleEn: 'Menu Profit',
       valueAr: `+${fKwd(menuBenefitKwd, true)}`,
       valueEn: `+${fKwd(menuBenefitKwd, false)}`,
       descAr: 'رفع ربح الوجبات والإضافات بتحويل ٨٪–١٥٪ واحتفاظ ٩٤٪–٩٧٪.',
       descEn: 'Combo & add-on margin lift at 8%–15% conversion.',
       accent: 'sky',
       ctaAr: 'المينيو والأصناف ↗',
-      ctaEn: 'Menu & Dishes ↗',
+      ctaEn: 'Menu Profit ↗',
       action: 'href-menu',
-      href: '/erp/cores?tab=menu',
+      href: '/erp/cores',
     },
     {
       id: 'kitchen-capacity',
       num: 6,
       titleAr: 'طاقة المطابخ الهادئة',
-      titleEn: 'Idle Kitchen Capacity',
+      titleEn: 'Quiet Hours',
       valueAr: `+${fKwd(kitchenHostKwd, true)}`,
       valueEn: `+${fKwd(kitchenHostKwd, false)}`,
       descAr: 'تشغيل علامات إضافية وعروض الساعات الهادئة بدون إيجار جديد.',

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import {
   Lightbulb,
@@ -16,6 +16,7 @@ import {
   type DonutSliceDatum,
   type MultiSeriesBarDatum,
 } from '@/components/aether/InteractiveHoverCharts'
+import { OdooAuditCertificatePill } from '@/components/aether/OdooAuditCertificateModal'
 import { computeCoresHubSnapshot } from '@/lib/aether/cores-hub-engine'
 import type { SummaryCardData } from '@/lib/aether/global-filter-engine'
 import { useLang } from '@/components/aether/ui'
@@ -24,6 +25,7 @@ interface EmeraldPillOption<K extends string> {
   id: K
   label: string
   icon?: ReactNode
+  badge?: string | number
 }
 
 function EmeraldPillTabs<K extends string>({
@@ -67,6 +69,17 @@ function EmeraldPillTabs<K extends string>({
           >
             {opt.icon ? <span className="shrink-0">{opt.icon}</span> : null}
             <span>{opt.label}</span>
+            {opt.badge !== undefined ? (
+              <span
+                className={`rounded-full px-1.5 py-0.5 text-[11px] font-extrabold tabular-nums ${
+                  active
+                    ? 'bg-white/20 text-white dark:bg-[#04130D]/20 dark:text-[#04130D]'
+                    : 'bg-white text-slate-700 dark:bg-white/10 dark:text-slate-300'
+                }`}
+              >
+                {opt.badge}
+              </span>
+            ) : null}
           </button>
         )
       })}
@@ -95,19 +108,19 @@ const f2 = (n: number) =>
     maximumFractionDigits: 2,
   })
 
-/**
- * ملخص الشركة (`/erp`) — Pure Single-View Executive Financial Cockpit.
- * Strictly zero Profit Tips or Before & After sub-tabs:
- *  1) Top 4 Financial KPIs (with clean module link to `/erp/cores?tab=marketing`)
- *  2) 8 + 4 Bento Split: Cash Flow Timeline / Branch Bar Chart + 10 KWD Breakdown Donut
- *  3) Compact 3 × 2 Executive Module Jump Cards linking directly to specialized ERP pages
- */
+/** ملخص الشركة — Pure Single-View Executive Financial Cockpit */
 export function FullJourney360() {
   const { isAr, T } = useLang()
   const { workspace, filters, liveSummary } = useGlobalFilter()
 
   const [flowGroup, setFlowGroup] = useState<FlowGroup>('timeline')
   const [syncing, setSyncing] = useState(false)
+
+  useEffect(() => {
+    if (typeof document === 'undefined' || typeof window === 'undefined') return
+    document.documentElement.dataset.erpSubtab = 'summary'
+    window.dispatchEvent(new CustomEvent('aether:erp-subtab', { detail: 'summary' }))
+  }, [])
 
   const refreshLive = useCallback(async () => {
     setSyncing(true)
@@ -216,7 +229,7 @@ export function FullJourney360() {
 
   return (
     <div dir={isAr ? 'rtl' : 'ltr'} className="w-full max-w-[1920px] mx-auto space-y-5 pb-12">
-      {/* Masthead: Pure Single-View Executive Cockpit Header */}
+      {/* Masthead: Single-View Executive Financial Cockpit Header + Odoo Audit Seal + Canonical Jump Links */}
       <header className="ae-bento-card flex flex-wrap items-center justify-between gap-4 p-5 sm:p-6">
         <div className="space-y-1">
           <h1 className="text-2xl font-extrabold tracking-tight text-slate-950 dark:text-white sm:text-[26px]">
@@ -228,6 +241,8 @@ export function FullJourney360() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
+          <OdooAuditCertificatePill isAr={isAr} />
+
           <Link
             href="/erp/before-after"
             className="ae-bento-subcard inline-flex h-10 items-center gap-1.5 rounded-full px-4 text-[13.5px] font-bold text-slate-700 transition-colors duration-150 hover:text-emerald-700 dark:text-slate-200 dark:hover:text-emerald-300"
@@ -248,7 +263,6 @@ export function FullJourney360() {
         </div>
       </header>
 
-      {/* Pure Single-View Executive Financial Cockpit */}
       <section className="space-y-5">
         {/* Top Row: 4 Crisp Financial KPIs */}
         <div className="ae-stagger grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -334,17 +348,17 @@ export function FullJourney360() {
             </p>
           </article>
 
-          {/* KPI 4: فرص زيادة الربح (Direct Jump to Marketing & Growth Hub) */}
+          {/* KPI 4: فرص زيادة الربح -> Canonical Direct Link to /erp/planning */}
           <Link
-            href="/erp/cores?tab=marketing"
-            className="ae-kpi-card ae-glow-amber block cursor-pointer p-5 transition-transform duration-150 hover:-translate-y-0.5 sm:p-6"
+            href="/erp/planning"
+            className="ae-kpi-card ae-glow-amber block p-5 transition-transform duration-150 hover:-translate-y-0.5 sm:p-6"
           >
             <div className="flex items-center justify-between gap-2">
               <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300">
                 <Lightbulb className="h-4 w-4" />
               </span>
               <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[12px] font-extrabold tabular-nums text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
-                {coresSnap.marketing.growthPlays.length} {T('plays', 'خطط نمو')}
+                {workspace.plays.length} {T('plays', 'فرصة')}
               </span>
             </div>
             <p className="mt-3.5 text-[14px] font-bold text-slate-500 dark:text-slate-400">
@@ -426,12 +440,12 @@ export function FullJourney360() {
           </div>
         </div>
 
-        {/* Compact 3 × 2 Executive Module Jump Cards (Zero Repeated Tables or Boilerplate) */}
+        {/* Non-Redundant 3 × 2 (6-Card) Executive Module Jump Cards -> Direct Canonical Links */}
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
           {workspace.summaryCards.map((c) => (
             <article
               key={c.id}
-              className="ae-kpi-card flex min-h-[196px] flex-col justify-between p-6"
+              className="ae-kpi-card flex min-h-[192px] flex-col justify-between p-6"
             >
               <div className="space-y-2">
                 <h3 className="text-[15.5px] font-extrabold text-slate-800 dark:text-slate-100">
@@ -449,7 +463,7 @@ export function FullJourney360() {
 
               <div className="mt-5 flex items-center justify-end">
                 <Link
-                  href={c.href ?? '/erp/cores'}
+                  href={c.href}
                   className="ae-bento-subcard inline-flex items-center gap-1 rounded-full px-4 py-1.5 text-[13.5px] font-bold text-slate-800 transition-colors duration-150 hover:text-emerald-700 dark:text-slate-100 dark:hover:text-emerald-300"
                 >
                   <span>{isAr ? c.ctaAr : c.ctaEn}</span>

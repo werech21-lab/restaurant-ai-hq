@@ -691,7 +691,7 @@ export function SocialReviewsStudio() {
             }`}
             style={channelFilter === 'all' ? { color: '#FFFFFF' } : undefined}
           >
-            {isAr ? 'كل المنصات' : 'All Platforms'}
+            {isAr ? 'كل مصادر التقييم' : 'All Review Sources'}
           </button>
 
           {snap.channelPills.map((pill) => {

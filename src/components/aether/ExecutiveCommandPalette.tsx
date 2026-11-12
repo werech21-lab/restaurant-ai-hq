@@ -35,7 +35,6 @@ import { feryalHref } from '@/lib/aether/ledger'
 import {
   BRANCH_TRUE_CASH,
   BRAND_TRUE_CASH,
-  JOURNEY_PLAYS,
 } from '@/lib/full-journey-enterprise-brain'
 import { APPROVED_BRANCH_IDS, APPROVED_BRAND_IDS } from '@/lib/aether/global-filter-engine'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
@@ -43,6 +42,56 @@ import { COMMAND_PALETTE_EVENT } from '@/components/aether/BiFilterContext'
 import { useLang } from '@/components/aether/ui'
 
 type Group = 'pages' | 'decisions' | 'branches' | 'brands' | 'feryal' | 'actions'
+
+function normalizeDecisionTitle(raw: string): string {
+  return raw
+    .toLowerCase()
+    .replace(/[\u064B-\u065F\u0670]/g, '')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim()
+}
+
+function resolvePlayCanonicalDestination(stage: string): {
+  href: string
+  domainEn: string
+  domainAr: string
+} {
+  switch (stage) {
+    case 'procurement':
+    case 'kitchen':
+      return {
+        href: '/erp/warehouse-chain',
+        domainEn: 'Warehouse-to-Branch Chain',
+        domainAr: 'سلسلة المخزن والفروع',
+      }
+    case 'delivery':
+      return {
+        href: '/erp/aggregator-radar',
+        domainEn: 'Aggregator Commissions',
+        domainAr: 'عمولات منصات التوصيل',
+      }
+    case 'menu':
+    case 'quality':
+      return {
+        href: '/erp/cores',
+        domainEn: 'Sales, Marketing & Menu',
+        domainAr: 'المبيعات والتسويق والمينيو',
+      }
+    case 'operations':
+      return {
+        href: '/erp/prep-sla',
+        domainEn: 'Kitchen Prep SLA',
+        domainAr: 'زمن تجهيز المطبخ',
+      }
+    case 'opex':
+    default:
+      return {
+        href: '/erp/planning',
+        domainEn: 'Strategic Planning & Forecast',
+        domainAr: 'التخطيط والتوقعات',
+      }
+  }
+}
 
 interface Command {
   id: string
@@ -117,9 +166,9 @@ export function ExecutiveCommandPalette() {
         group: 'pages',
         en: 'Company Summary',
         ar: 'ملخص الشركة',
-        hintEn: `Executive & Sales · ${JOURNEY_PLAYS.length} profit plays`,
-        hintAr: `القيادة والمبيعات · ${JOURNEY_PLAYS.length} توصية ربح`,
-        keywords: 'overview dashboard company summary executive sales القيادة والمبيعات ملخص الشركة الرئيسية توصيات الربح',
+        hintEn: 'Executive & Sales · 4 KPIs, Cash Flow & 10-KWD Split',
+        hintAr: 'القيادة والمبيعات · المؤشرات الرباعية وتوزيعة الـ ١٠ د.ك',
+        keywords: 'overview dashboard company summary executive sales القيادة والمبيعات ملخص الشركة الرئيسية الصافي',
         icon: <LayoutDashboard className="h-4 w-4" />,
         run: () => go('/erp'),
       },
@@ -263,35 +312,37 @@ export function ExecutiveCommandPalette() {
       },
     ]
 
-    const stageRoute = (stg: string) => {
-      switch (stg) {
-        case 'procurement':
-        case 'kitchen':
-          return '/erp/warehouse-chain'
-        case 'menu':
-          return '/erp/cores?tab=menu'
-        case 'delivery':
-          return '/erp/aggregator-radar'
-        case 'opex':
-          return '/erp/planning'
-        case 'operations':
-          return '/erp/prep-sla'
-        default:
-          return '/erp/cores?tab=marketing'
+    const seenTitleAr = new Set<string>()
+    const seenTitleEn = new Set<string>()
+    const seenProblemAr = new Set<string>()
+    const dedupedPlays = workspace.plays.filter((p) => {
+      const keyAr = normalizeDecisionTitle(p.titleAr)
+      const keyEn = normalizeDecisionTitle(p.titleEn)
+      const probAr = normalizeDecisionTitle(p.problemAr)
+      if (!keyAr || !keyEn) return false
+      if (seenTitleAr.has(keyAr) || seenTitleEn.has(keyEn) || (probAr && seenProblemAr.has(probAr))) {
+        return false
       }
-    }
+      seenTitleAr.add(keyAr)
+      seenTitleEn.add(keyEn)
+      if (probAr) seenProblemAr.add(probAr)
+      return true
+    })
 
-    const decisions: Command[] = workspace.plays.map((p) => ({
-      id: `d-${p.id}`,
-      group: 'decisions',
-      en: p.titleEn,
-      ar: p.titleAr,
-      hintEn: `+${p.periodLabelEn}`,
-      hintAr: `+${p.periodLabelAr}`,
-      keywords: `${p.problemEn} ${p.problemAr} ${p.stage} ${p.id}`,
-      icon: <Target className="h-4 w-4 text-emerald-600" />,
-      run: () => go(stageRoute(p.stage)),
-    }))
+    const decisions: Command[] = dedupedPlays.map((p) => {
+      const dest = resolvePlayCanonicalDestination(p.stage)
+      return {
+        id: `d-${p.id}`,
+        group: 'decisions',
+        en: p.titleEn,
+        ar: p.titleAr,
+        hintEn: `${dest.domainEn} · +${p.periodLabelEn}`,
+        hintAr: `${dest.domainAr} · +${p.periodLabelAr}`,
+        keywords: `${p.problemEn} ${p.problemAr} ${p.stage} ${p.id} ${dest.domainEn} ${dest.domainAr}`,
+        icon: <Target className="h-4 w-4 text-emerald-600" />,
+        run: () => go(dest.href),
+      }
+    })
 
     const branches: Command[] = BRANCH_TRUE_CASH.filter((b) =>
       (APPROVED_BRANCH_IDS as readonly string[]).includes(b.id),

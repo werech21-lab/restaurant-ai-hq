@@ -1700,33 +1700,64 @@ function buildDriverTag(
 ): { ar: string; en: string } {
   const lastPayday = lastDayOfMonth >= 24 && lastDayOfMonth <= 31
   const thisPayday = thisDayOfMonth >= 24 && thisDayOfMonth <= 31
-  if (lastPayday && !thisPayday && variancePct < -5) {
-    return {
-      ar: '💰 الأسبوع الماضي ذروة رواتب (٢٨–٣١ أكت)',
-      en: '💰 Prior Week Payday Surge (Oct 28–31)',
-    }
-  }
-  if (meta.isWeekend && variancePct >= -6) {
-    return {
-      ar: '🔥 زوارة الويكند وطلبات العائلات',
-      en: '🔥 Weekend Family Gatherings',
-    }
-  }
-  if (variancePct >= 1.5) {
-    return {
-      ar: '📈 نمو طلبات الصالة وعروض الكومبو',
-      en: '📈 Dine-In & Combo Bundle Lift',
-    }
-  }
-  if (variancePct <= -10) {
-    return {
-      ar: '⚡ هدوء منتصف الأسبوع — فرصة عرض ٣–٦ م',
-      en: '⚡ Mid-Week Lull — 3–6 PM Promo Opportunity',
-    }
-  }
-  return {
-    ar: '☀️ إيقاع تشغيلي مستقر',
-    en: '☀️ Steady Baseline Cadence',
+
+  switch (meta.dow) {
+    case 6: // Saturday
+      return lastPayday && !thisPayday && variancePct < -4
+        ? {
+            ar: '💰 مقارنة بسبت الرواتب (٣١ أكت) مع ثبات عشاء العائلات',
+            en: '💰 Vs Oct 31 Payday Saturday — steady family dinner base',
+          }
+        : {
+            ar: '🏡 ذروة غداء وعشاء السبت العائلي في الأفنيوز ومول 360',
+            en: '🏡 Saturday mall family lunch & dinner peak',
+          }
+    case 0: // Sunday
+      return {
+        ar: '🏢 انطلاقة أسبوع العمل وزخم غداء المكاتب في العاصمة وشرق',
+        en: '🏢 Workweek kickoff & strong Assima/Sharq office lunch',
+      }
+    case 1: // Monday
+      return {
+        ar: '⚡ هدوء عصر الاثنين (٣–٦ م) مع استقرار توصيل المساء',
+        en: '⚡ Monday 3–6 PM afternoon lull with steady evening delivery',
+      }
+    case 2: // Tuesday
+      return {
+        ar: '📈 انتعاش منتصف الأسبوع ونمو بوكسات المشاركة بالمكاتب',
+        en: '📈 Mid-week office sharing-box & combo bundle lift',
+      }
+    case 3: // Wednesday
+      return lastPayday && !thisPayday && variancePct < -4
+        ? {
+            ar: '🌙 سهرة الأربعاء والديوانيات مقارنة بذروة رواتب ٢٨ أكت',
+            en: '🌙 Wednesday diwaniya dinners vs Oct 28 payday peak',
+          }
+        : {
+            ar: '🌙 سهرة الأربعاء المبكرة وارتفاع متوسط سلة الديوانيات',
+            en: '🌙 Pre-weekend Wednesday diwaniya & late-dinner lift',
+          }
+    case 4: // Thursday
+      return lastPayday && !thisPayday && variancePct < -8
+        ? {
+            ar: '🔻 فجوة خميس ما بعد الرواتب مقابل ذروة ٢٩ أكت — فرصة عرض كومبو',
+            en: '🔻 Post-payday Thursday gap vs Oct 29 surge — combo promo window',
+          }
+        : {
+            ar: '🔥 ذروة سهرة الخميس والطلبات العائلية المتأخرة حتى ١ ص',
+            en: '🔥 Thursday night family & late-night rush through 1 AM',
+          }
+    case 5: // Friday
+    default:
+      return lastPayday && !thisPayday && variancePct < -4
+        ? {
+            ar: '🕌 زوارة الجمعة العائلية مقارنة بجمعة الرواتب (٣٠ أكت)',
+            en: '🕌 Friday family Zuwara vs Oct 30 payday weekend',
+          }
+        : {
+            ar: '🕌 زوارة الجمعة بعد الصلاة وذروة العشاء في المولات',
+            en: '🕌 Post-prayer Friday Zuwara & mall dinner peak',
+          }
   }
 }
 

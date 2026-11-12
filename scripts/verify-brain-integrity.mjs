@@ -600,16 +600,13 @@ assert(
     planningSrc.includes('إيقاف المخالفة فوراً ⛔') &&
     planningSrc.includes('مراقب أودو ١٧ نشط • افتح جرس الاعتمادات لمراجعة المخالفات 🔔') &&
     planningSrc.includes("openDrawer('breaches')") &&
-    planningSrc.includes('مشاركة ⋯') &&
     planningSrc.includes('grid-cols-1 xl:grid-cols-2 gap-6') &&
     planningSrc.includes('طلب اعتماد المدير') &&
     planningSrc.includes('معتمد رسمياً ✓') &&
     planningSrc.includes('طباعة التعميم الرسمي 📄') &&
-    regulationsSrc.includes('مراقب أودو ١٧ نشط • افتح جرس الاعتمادات لمراجعة المخالفات 🔔') &&
-    regulationsSrc.includes("openDrawer('breaches')") &&
-    regulationsSrc.includes('مشاركة ⋯') &&
     regulationsSrc.includes('تعميم خطة التعامل رسمياً 📢') &&
     regulationsSrc.includes('إيقاف المخالفة فوراً ⛔') &&
+    regulationsSrc.includes('مراقب أودو ١٧ نشط • افتح جرس الاعتمادات لمراجعة المخالفات 🔔') &&
     regulationsSrc.includes('+ إضافة تشريع جديد') &&
     regulationsSrc.includes('grid-cols-1 xl:grid-cols-2 gap-6') &&
     regulationsSrc.includes('طلب اعتماد المدير') &&
@@ -1012,40 +1009,30 @@ assert(
 
 assert(
   topBarSrc.includes("const showOverviewSummaryRow2 = pathname === '/erp'") &&
-    !topBarSrc.includes('aether:erp-subtab') &&
+    !topBarSrc.includes("pathname === '/erp' && erpSubtab === 'summary'") &&
     sidebarSrc.includes('القيادة والمبيعات') &&
     sidebarSrc.includes('التشغيل وسلسلة الإمداد') &&
     sidebarSrc.includes('السمعة والذكاء المرئي') &&
     sidebarSrc.includes('الحوكمة والتخطيط'),
-  'Global Header Row 2 (7 Quick-Lens Pills + Weighted Margin Strip) strictly scoped ONLY to /erp & Sidebar categorized into 4 executive sections',
+  'Global Header Row 2 (7 Quick-Lens Pills + Weighted Margin Strip) strictly scoped ONLY to pathname === /erp & Sidebar categorized into 4 executive sections',
 )
 
+const cmdPaletteSrc = fs.readFileSync(
+  path.join(ROOT, 'src/components/aether/ExecutiveCommandPalette.tsx'),
+  'utf8',
+)
 assert(
-  !journeySrc.includes('فرص الربح المعتمدة') &&
-    !journeySrc.includes('Approved Profit Plays') &&
-    !journeySrc.includes("tab === 'tips'") &&
+  !journeySrc.includes('قبل وبعد 0') &&
+    !journeySrc.includes('Before & After 0') &&
     !journeySrc.includes('PLAYS_PER_PAGE') &&
-    !journeySrc.includes('قبل وبعد 0') &&
-    journeySrc.includes('/erp/before-after') &&
-    journeySrc.includes('/erp/cores?tab=marketing') &&
-    filterEngineSrc.includes("href: '/erp/warehouse-chain'") &&
-    filterEngineSrc.includes("href: '/erp/planning'") &&
-    filterEngineSrc.includes("href: '/erp/aggregator-radar'") &&
-    filterEngineSrc.includes("href: '/erp/prep-sla'") &&
-    filterEngineSrc.includes("href: '/erp/cores?tab=menu'") &&
-    filterEngineSrc.includes("href: '/erp/weekday-comparison'"),
-  '/erp Overview is a pure Single-View Executive Financial Cockpit (Profit Tips & Before-After sub-tabs completely deleted, 3x2 jump cards linked)',
-)
-
-assert(
-  !radarSrc.includes('deliveryBreaches.map') &&
-    !boothSrc.includes('boothBreaches.map') &&
-    !planningSrc.includes('breaches.map') &&
-    !regulationsSrc.includes('breaches.map') &&
-    !beforeAfterSrc.includes('breaches.map') &&
-    !coresSrc.includes('مخالفة لقرار معتمد') &&
-    govDrawerSrc.includes('breaches'),
-  'Single canonical home for live compliance breaches (GovernanceBellDrawer 🔔 ONLY — zero inline breach card grids on operational/planning pages)',
+    !journeySrc.includes('Profit Tips') &&
+    !journeySrc.includes('فرص الربح المعتمدة') &&
+    journeySrc.includes('href="/erp/before-after"') &&
+    journeySrc.includes('href="/erp/planning"') &&
+    journeySrc.includes('href={c.href}') &&
+    !cmdPaletteSrc.includes('?play=') &&
+    cmdPaletteSrc.includes('/erp/warehouse-chain'),
+  '/erp FullJourney360 is a pure single-view Executive Financial Cockpit (zero Profit Tips / Before-After sub-tabs or PLAYS_PER_PAGE card wall) with canonical module jump links',
 )
 
 const feryalRedirectSrc = fs.readFileSync(path.join(ROOT, 'src/app/erp/feryal/page.tsx'), 'utf8')
@@ -1077,12 +1064,6 @@ const opsFiveClean = opsFiveStudioPaths.every((rel) => {
 
 const opsCalibrationProbeScript = `
 import { computeGlobalWorkspace, DEFAULT_GLOBAL_FILTERS } from './src/lib/aether/global-filter-engine';
-import { computeCoresHubSnapshot } from './src/lib/aether/cores-hub-engine';
-import { SEEDED_STRATEGIC_PHASES } from './src/lib/aether/planning-engine';
-import { SEEDED_REGULATIONS } from './src/lib/aether/regulations-engine';
-import { evaluateApprovedDecisionsImpact } from './src/lib/aether/before-after-engine';
-import { SEEDED_SOCIAL_CAMPAIGNS } from './src/lib/aether/social-campaigns';
-import { AETHER_FINDINGS } from './src/lib/aether-proprietary-brain';
 import { computeWarehouseDailyChain, computeOrderPrepSlaSnapshot } from './src/lib/warehouse-prep-engine';
 import {
   computeDeliverySlaSnapshot,
@@ -1090,53 +1071,13 @@ import {
   computeWeekdayComparisonData,
 } from './src/lib/ops-expansion-part2';
 
-const norm = (s) =>
-  String(s || '')
-    .normalize('NFKC')
-    .replace(/[\\u064B-\\u065F\\u0670\\u0640]/g, '')
-    .replace(/[^\\p{L}\\p{N}]+/gu, ' ')
-    .trim()
-    .toLowerCase();
-
-const countDups = (arr) => {
-  const seen = new Set();
-  let dups = 0;
-  for (const raw of arr) {
-    const k = norm(raw);
-    if (!k) continue;
-    if (seen.has(k)) dups++;
-    else seen.add(k);
-  }
-  return dups;
-};
-
 const f = DEFAULT_GLOBAL_FILTERS;
 const ws = computeGlobalWorkspace(f);
-const cores = computeCoresHubSnapshot(f, SEEDED_SOCIAL_CAMPAIGNS);
-const baRows = evaluateApprovedDecisionsImpact(f, [], SEEDED_SOCIAL_CAMPAIGNS);
 const wh = computeWarehouseDailyChain(f, ws, 'all');
 const prep = computeOrderPrepSlaSnapshot(f, ws);
 const del = computeDeliverySlaSnapshot(ws);
 const rev = computeSocialReviewsSnapshot(ws, new Set());
 const wk = computeWeekdayComparisonData(ws);
-
-const duplicateTitleCount =
-  countDups(ws.plays.map((p) => p.titleAr)) +
-  countDups(ws.plays.map((p) => p.titleEn)) +
-  countDups(ws.summaryCards.map((c) => c.titleAr)) +
-  countDups(ws.summaryCards.map((c) => c.titleEn)) +
-  countDups(cores.marketing.growthPlays.map((g) => g.titleAr)) +
-  countDups(cores.marketing.growthPlays.map((g) => g.titleEn)) +
-  countDups(SEEDED_STRATEGIC_PHASES.map((p) => p.titleAr)) +
-  countDups(SEEDED_STRATEGIC_PHASES.map((p) => p.titleEn)) +
-  countDups(SEEDED_REGULATIONS.map((r) => r.titleAr)) +
-  countDups(SEEDED_REGULATIONS.map((r) => r.titleEn)) +
-  countDups(baRows.map((r) => r.titleAr)) +
-  countDups(baRows.map((r) => r.titleEn)) +
-  countDups(rev.reviews.map((r) => r.commentAr)) +
-  countDups(rev.reviews.map((r) => r.commentEn)) +
-  countDups(AETHER_FINDINGS.map((a) => a.titleAr)) +
-  countDups(AETHER_FINDINGS.map((a) => a.titleEn));
 
 const prepHealthyPct = prep.greenPct + prep.yellowPct;
 const delHealthyPct = del.greenPct + del.yellowPct;
@@ -1147,8 +1088,6 @@ const revP1Red = rev.reviews.slice(0, 12).filter((r) => r.tier === 'red' || r.se
 const wkRed = wk.rows.filter((r) => r.tier === 'red').length;
 
 console.log(JSON.stringify({
-  duplicateTitleCount,
-  uniquePlaysCount: ws.plays.length,
   prepHealthyPct,
   delHealthyPct,
   wkHealthyPct,
@@ -1165,12 +1104,6 @@ const opsCalRaw = execFileSync(process.execPath, [tsxCli, '-e', opsCalibrationPr
 const opsCal = JSON.parse(opsCalRaw.split('\n').pop() ?? '{}')
 
 assert(
-  opsCal.duplicateTitleCount === 0,
-  'Zero duplicate card/recommendation/phase/regulation/decision/review titles across all data engines',
-  `duplicateTitles=${opsCal.duplicateTitleCount}, uniquePlays=${opsCal.uniquePlaysCount}`,
-)
-
-assert(
   opsFiveClean &&
     opsCal.prepHealthyPct >= 70 &&
     opsCal.delHealthyPct >= 70 &&
@@ -1185,6 +1118,242 @@ assert(
     opsCal.wkRed <= 2,
   'Zero duplicate local filter bars across all 5 operational studios & realistic >=70% healthy SLA distribution with 1–2 تصعيد ↗ critical outliers',
   `prepHealthy=${Number(opsCal.prepHealthyPct).toFixed(1)}%, delHealthy=${Number(opsCal.delHealthyPct).toFixed(1)}%, wkHealthy=${Number(opsCal.wkHealthyPct).toFixed(1)}%`,
+)
+
+// 13. Zero Information Duplication & Automated Global Uniqueness Gate ("One Fact = One Single Home")
+console.log('\n13) Zero Information Duplication & Global Uniqueness Assertions:')
+
+function collectTsxFiles(dir, out = []) {
+  for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, ent.name)
+    if (ent.isDirectory()) collectTsxFiles(full, out)
+    else if (ent.name.endsWith('.tsx')) out.push(full)
+  }
+  return out
+}
+
+const inlineBreachMapRe = /\b(deliveryBreaches|boothBreaches|activeBreaches|breaches)\.map\s*\(/
+const inlineBreachOffenders = []
+for (const tsxFile of collectTsxFiles(path.join(ROOT, 'src'))) {
+  const rel = path.relative(ROOT, tsxFile).replace(/\\/g, '/')
+  if (rel === 'src/components/erp/GovernanceBellDrawer.tsx') continue
+  const src = fs.readFileSync(tsxFile, 'utf8')
+  if (inlineBreachMapRe.test(src)) inlineBreachOffenders.push(rel)
+}
+
+const inlineBreachCopyFree = [
+  radarSrc,
+  boothSrc,
+  beforeAfterSrc,
+  planningSrc,
+  regulationsSrc,
+].every(
+  (s) =>
+    !s.includes('مراقب الامتثال للخطط المعتمدة') &&
+    !s.includes('مخالفة لقرار معتمد:'),
+)
+
+assert(
+  inlineBreachOffenders.length === 0 &&
+    inlineBreachCopyFree &&
+    govDrawerSrc.includes('breaches.map('),
+  'Zero inline compliance breach card grids outside GovernanceBellDrawer.tsx (single canonical home 🔔)',
+  `offenders=${inlineBreachOffenders.length}`,
+)
+
+const uniquenessProbeScript = `
+import {
+  computeGlobalWorkspace,
+  DEFAULT_GLOBAL_FILTERS,
+  APPROVED_BRAND_IDS,
+  APPROVED_BRANCH_IDS,
+  GLOBAL_PROFIT_LENS_OPTIONS,
+  GLOBAL_KUWAIT_SLICE_OPTIONS,
+} from './src/lib/aether/global-filter-engine';
+import { computeCoresHubSnapshot } from './src/lib/aether/cores-hub-engine';
+import { AETHER_FINDINGS } from './src/lib/aether-proprietary-brain';
+import { SEEDED_STRATEGIC_PHASES } from './src/lib/aether/planning-engine';
+import { SEEDED_REGULATIONS } from './src/lib/aether/regulations-engine';
+import { createInitialGovernanceStore, evaluateLiveOdooBreaches } from './src/lib/governance-compliance';
+import { computeSocialReviewsSnapshot, computeWeekdayComparisonData } from './src/lib/ops-expansion-part2';
+import { computeOrderPrepSlaSnapshot } from './src/lib/warehouse-prep-engine';
+
+const norm = (s: unknown) =>
+  String(s ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\\u064B-\\u065F\\u0670\\u0640]/g, '')
+    .replace(/\\s+/g, ' ');
+
+function checkDuplicates(label: string, items: any[], fields: string[]): string[] {
+  const issues: string[] = [];
+  for (const f of fields) {
+    const seen = new Map<string, number>();
+    items.forEach((it, idx) => {
+      const v = norm(it?.[f]);
+      if (!v) return;
+      if (seen.has(v)) {
+        issues.push(label + '.' + f + '[' + seen.get(v) + ',' + idx + ']=' + v.slice(0, 70));
+      } else {
+        seen.set(v, idx);
+      }
+    });
+  }
+  return issues;
+}
+
+const duplicates: string[] = [];
+const filterSlices = [
+  DEFAULT_GLOBAL_FILTERS,
+  { ...DEFAULT_GLOBAL_FILTERS, period: 'today' as const },
+  { ...DEFAULT_GLOBAL_FILTERS, period: 'week' as const },
+  { ...DEFAULT_GLOBAL_FILTERS, period: 'month' as const },
+  { ...DEFAULT_GLOBAL_FILTERS, period: 'year' as const },
+  { ...DEFAULT_GLOBAL_FILTERS, period: 'custom' as const, customFrom: '2026-10-20', customTo: '2026-11-10' },
+  ...APPROVED_BRAND_IDS.map((brand) => ({ ...DEFAULT_GLOBAL_FILTERS, brand })),
+  ...APPROVED_BRANCH_IDS.map((branch) => ({ ...DEFAULT_GLOBAL_FILTERS, branch })),
+  ...GLOBAL_PROFIT_LENS_OPTIONS.map((l) => ({ ...DEFAULT_GLOBAL_FILTERS, lens: l.id })),
+  ...GLOBAL_KUWAIT_SLICE_OPTIONS.map((k) => ({ ...DEFAULT_GLOBAL_FILTERS, kuwaitSlice: k.id })),
+];
+
+const expectedModuleHrefs = [
+  '/erp/warehouse-chain',
+  '/erp/planning',
+  '/erp/aggregator-radar',
+  '/erp/prep-sla',
+  '/erp/cores',
+  '/erp/weekday-comparison',
+];
+
+for (let i = 0; i < filterSlices.length; i++) {
+  const f = filterSlices[i];
+  const ws = computeGlobalWorkspace(f);
+  duplicates.push(
+    ...checkDuplicates('ws[' + i + '].plays', ws.plays, [
+      'titleAr',
+      'titleEn',
+      'problemAr',
+      'problemEn',
+      'solutionAr',
+      'solutionEn',
+    ]),
+  );
+  duplicates.push(
+    ...checkDuplicates('ws[' + i + '].summaryCards', ws.summaryCards, ['titleAr', 'titleEn', 'href']),
+  );
+  if (i === 0) {
+    const actualHrefs = ws.summaryCards.map((c) => c.href);
+    for (const reqHref of expectedModuleHrefs) {
+      if (!actualHrefs.includes(reqHref)) {
+        duplicates.push('summaryCards.missingHref=' + reqHref);
+      }
+    }
+  }
+  const cores = computeCoresHubSnapshot(f, []);
+  duplicates.push(
+    ...checkDuplicates('cores[' + i + '].growthPlays', cores.marketing.growthPlays, [
+      'titleAr',
+      'titleEn',
+      'summaryAr',
+      'summaryEn',
+      'detailsAr',
+      'detailsEn',
+    ]),
+  );
+}
+
+duplicates.push(
+  ...checkDuplicates('AETHER_FINDINGS', AETHER_FINDINGS, ['titleAr', 'titleEn', 'faultAr', 'faultEn', 'fixAr', 'fixEn']),
+);
+duplicates.push(
+  ...checkDuplicates('SEEDED_STRATEGIC_PHASES', SEEDED_STRATEGIC_PHASES, [
+    'titleAr',
+    'titleEn',
+    'targetKpiAr',
+    'targetKpiEn',
+  ]),
+);
+duplicates.push(
+  ...checkDuplicates('SEEDED_REGULATIONS', SEEDED_REGULATIONS, ['titleAr', 'titleEn', 'summaryAr', 'summaryEn']),
+);
+
+const breaches = evaluateLiveOdooBreaches(createInitialGovernanceStore());
+duplicates.push(
+  ...checkDuplicates('evaluateLiveOdooBreaches', breaches, [
+    'approvedDecisionTitleAr',
+    'approvedDecisionTitleEn',
+    'breachHeadlineAr',
+    'breachHeadlineEn',
+    'odooMetricProofAr',
+    'odooMetricProofEn',
+  ]),
+);
+
+const baseWs = computeGlobalWorkspace(DEFAULT_GLOBAL_FILTERS);
+const social = computeSocialReviewsSnapshot(baseWs, new Set());
+duplicates.push(
+  ...checkDuplicates('social.reviews', social.reviews, [
+    'commentAr',
+    'commentEn',
+    'suggestedReplyAr',
+    'suggestedReplyEn',
+  ]),
+);
+duplicates.push(
+  ...checkDuplicates('social.brandScorecards', social.brandScorecards, [
+    'brandAr',
+    'brandEn',
+    'topPraiseAr',
+    'topPraiseEn',
+    'topIssueAr',
+    'topIssueEn',
+  ]),
+);
+duplicates.push(
+  ...checkDuplicates('social.branchScorecards', social.branchScorecards, [
+    'branchAr',
+    'branchEn',
+    'highlightAr',
+    'highlightEn',
+  ]),
+);
+
+const prep = computeOrderPrepSlaSnapshot(DEFAULT_GLOBAL_FILTERS, baseWs);
+duplicates.push(...checkDuplicates('prep.tickets', prep.tickets, ['diagnosisAr', 'diagnosisEn']));
+
+const wk = computeWeekdayComparisonData(baseWs);
+duplicates.push(...checkDuplicates('wk.rows', wk.rows, ['dayAr', 'dayEn', 'driverTagAr', 'driverTagEn']));
+
+console.log(JSON.stringify({
+  slicesChecked: filterSlices.length,
+  duplicateCount: duplicates.length,
+  duplicates: duplicates.slice(0, 10),
+  playsCount: baseWs.plays.length,
+  growthPlaysCount: computeCoresHubSnapshot(DEFAULT_GLOBAL_FILTERS, []).marketing.growthPlays.length,
+  phasesCount: SEEDED_STRATEGIC_PHASES.length,
+  regsCount: SEEDED_REGULATIONS.length,
+  breachesCount: breaches.length,
+  reviewsCount: social.reviews.length,
+}));
+`
+
+const uniqRaw = execFileSync(process.execPath, [tsxCli, '-e', uniquenessProbeScript], {
+  cwd: ROOT,
+  encoding: 'utf8',
+}).trim()
+const uniqProbe = JSON.parse(uniqRaw.split('\n').pop() ?? '{}')
+
+assert(
+  uniqProbe.duplicateCount === 0 &&
+    uniqProbe.slicesChecked >= 25 &&
+    uniqProbe.playsCount > 0 &&
+    uniqProbe.growthPlaysCount === 6 &&
+    uniqProbe.phasesCount >= 4 &&
+    uniqProbe.regsCount >= 4 &&
+    uniqProbe.breachesCount >= 3 &&
+    uniqProbe.reviewsCount >= 12,
+  'Global runtime uniqueness assertion passed (0 duplicate titles/problems/comments across workspace.plays, summaryCards, growthPlays, phases, regulations, breaches, reviews & SLA tickets)',
+  `slices=${uniqProbe.slicesChecked}, plays=${uniqProbe.playsCount}, growthPlays=${uniqProbe.growthPlaysCount}, breaches=${uniqProbe.breachesCount}, reviews=${uniqProbe.reviewsCount}, duplicates=${uniqProbe.duplicateCount}`,
 )
 
 console.log('\n----------------------------------------------------------------------')

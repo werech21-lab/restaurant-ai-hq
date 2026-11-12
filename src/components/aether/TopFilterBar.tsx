@@ -22,6 +22,9 @@ import {
   type ProfitLens,
 } from '@/lib/aether/global-filter-engine'
 
+export const ERP_SUBTAB_EVENT = 'aether:erp-subtab'
+export type ErpOverviewSubtab = 'summary' | 'plays'
+
 /** Routes that display the 5D POS & ledger filters (Period incl. Custom + Brand/Branch/Channel). */
 export const POS_FILTER_ROUTES = new Set([
   '/erp',
@@ -246,7 +249,7 @@ export interface TopFilterBarProps {
  *   + Brand + Branch + Channel + WhatsApp Share + Manager PIN Session + Bell `🔔` + Theme + `AR/EN`
  *   (+ Feryal AI Switcher strictly on `/erp/feryal-ai` & `/erp/feryal`).
  * - Row 2 (7 Quick-Lens Pills + Green Weighted Margin / Peer Diagnostic Strip):
- *   Rendered STRICTLY ONLY when `pathname === '/erp'` AND the active `/erp` sub-tab is `'summary'` (`الأرقام المهمة`).
+ *   Rendered STRICTLY ONLY when `pathname === '/erp'` — NEVER on any subpage.
  */
 export function TopFilterBar({ companyNameAr = '', notifications }: TopFilterBarProps = {}) {
   const pathname = usePathname() ?? ''
@@ -304,7 +307,7 @@ export function TopFilterBar({ companyNameAr = '', notifications }: TopFilterBar
   const page = routeTitle(pathname)
   const showPosFilters = POS_FILTER_ROUTES.has(pathname)
   // CRITICAL: Row 2 (7 Quick-Lens Pills + Green Weighted Margin / Peer Diagnostic Strip)
-  // renders STRICTLY ONLY on `/erp` (`Overview / ملخص الشركة`) — NEVER on any subpage!
+  // renders ONLY when pathname === '/erp' — NEVER on any subpage.
   const showOverviewSummaryRow2 = pathname === '/erp'
 
   const diag = workspace.diagnosticStrip

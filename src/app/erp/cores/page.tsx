@@ -4,9 +4,9 @@ import { CoresHubStudio } from '@/components/aether/CoresHubStudio'
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: 'المبيعات والتسويق والمنتجات | فنتشر فودز',
+  title: 'المبيعات والتسويق والمينيو | فنتشر فودز',
   description:
-    'مركز المبيعات والتسويق وحاسبة إعلانات السوشيال والمشاهير وهندسة الأصناف والجودة.',
+    'مركز المبيعات والقنوات وحاسبة إعلانات المشاهير وهندسة المينيو المباشرة من أودو ١٧.',
 }
 
 export default async function CoresHubPage() {

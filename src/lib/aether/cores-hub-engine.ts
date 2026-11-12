@@ -1,11 +1,10 @@
 /**
- * Multi-Core Hub Data Engine (`/erp/cores` — المبيعات والتسويق والمنتجات)
+ * Multi-Core Hub Data Engine (`/erp/cores` — المبيعات والتسويق والمينيو)
  *
- * Powers the 4 interactive Core Tabs synced live with GlobalFilterContext:
- *   1. التسويق ونمو المبيعات (Marketing Impact, Social/Influencer ROI & 6 Kuwait Growth Plays)
- *   2. المبيعات (Sales Core: Timeline, Peak Hours, Brand Share, Branch Ranking, Channels)
- *   3. المنتجات والأصناف (Products & Menu Core: BOM Costs, Net Profit & 4 Actionable Tags)
- *   4. التقييم والجودة (Ratings & Quality Core: Platform Ratings, Odoo POS Voids & Action Steps)
+ * Powers the 3 interactive Core Tabs synced live with GlobalFilterContext:
+ *   1. التسويق وإعلانات المشاهير (Marketing Impact, Social/Influencer ROI & Kuwait Growth Plays)
+ *   2. المبيعات والقنوات (Sales Core: Timeline, Peak Hours, Brand Share, Branch Ranking, Channels)
+ *   3. هندسة المينيو (Products & Menu Core: BOM Costs, Net Profit & 4 Actionable Tags)
  *
  * Strictly uses ONLY our 6 Venture Foods restaurant brands and 7 active Odoo branches.
  */
@@ -1336,14 +1335,72 @@ export function computeCoresHubSnapshot(
   const shortDishName =
     dishOfTheWeek.dishName.split(/\s+/).slice(0, 2).join(' ') || dishOfTheWeek.dishName
 
-  const growthPlays: KuwaitGrowthPlay[] = [
+  const p1ScopeAr =
+    filters.branch !== 'all'
+      ? `${activeBrandAr} • ${activeBranchAr}`
+      : filters.brand !== 'all'
+        ? `${activeBrandAr} • الأفنيوز • بروميناد • الكوت`
+        : 'الأفنيوز • بروميناد • الكوت'
+  const p1ScopeEn =
+    filters.branch !== 'all'
+      ? `${activeBrandEn} • ${activeBranchEn}`
+      : filters.brand !== 'all'
+        ? `${activeBrandEn} • Avenues • Promenade • Al Kout`
+        : 'Avenues • Promenade • Al Kout'
+
+  const p2ScopeAr =
+    filters.brand !== 'all'
+      ? `${activeBrandAr} • كرك كافتيريا • السالمية`
+      : 'تشاينا جاردن • كرك كافتيريا • السالمية'
+  const p2ScopeEn =
+    filters.brand !== 'all'
+      ? `${activeBrandEn} • Karak • Salmiya`
+      : 'China Garden • Karak • Salmiya'
+
+  const p3ScopeAr =
+    filters.branch !== 'all'
+      ? `${activeBranchAr} • ٣–٦ م`
+      : 'الأفنيوز • مول 360 • العاصمة'
+  const p3ScopeEn =
+    filters.branch !== 'all'
+      ? `${activeBranchEn} • 3–6 PM`
+      : 'Avenues • 360 Mall • Assima'
+
+  const p4ScopeAr =
+    filters.brand !== 'all'
+      ? `${activeBrandAr} • السالمية • الأفنيوز`
+      : 'تشاينا جاردن • فرانكس • طحينة'
+  const p4ScopeEn =
+    filters.brand !== 'all'
+      ? `${activeBrandEn} • Salmiya • Avenues`
+      : "China Garden • Frank's • Tahina"
+
+  const p5ScopeAr =
+    filters.branch !== 'all'
+      ? `${activeBrandAr} • ${activeBranchAr}`
+      : 'السالمية • بروميناد • العارضية'
+  const p5ScopeEn =
+    filters.branch !== 'all'
+      ? `${activeBrandEn} • ${activeBranchEn}`
+      : 'Salmiya • Promenade • Ardiya'
+
+  const p6ScopeAr =
+    filters.branch !== 'all'
+      ? `${dishOfTheWeek.brandAr} • ${activeBranchAr}`
+      : `${dishOfTheWeek.brandAr} • الأفنيوز • السالمية`
+  const p6ScopeEn =
+    filters.branch !== 'all'
+      ? `${dishOfTheWeek.brandEn} • ${activeBranchEn}`
+      : `${dishOfTheWeek.brandEn} • Avenues • Salmiya`
+
+  const rawGrowthPlays: KuwaitGrowthPlay[] = [
     {
       id: 'kw-winter-boxes',
       num: '١',
       titleAr: 'بوكسات الشتاء والزوارة',
       titleEn: 'Winter & Gathering Boxes',
-      scopeAr: filters.brand === 'all' ? 'موسم الكشتات · ٦ مطاعم' : `${activeBrandAr} · بوكس عائلي`,
-      scopeEn: filters.brand === 'all' ? 'Kashta Season · 6 Brands' : `${activeBrandEn} · Family Box`,
+      scopeAr: p1ScopeAr,
+      scopeEn: p1ScopeEn,
       badgeAr: 'موسم الشتاء',
       badgeEn: 'Winter Boxes',
       upsideMinKwd: p1Range.minKwd,
@@ -1358,10 +1415,10 @@ export function computeCoresHubSnapshot(
         'Pin 4 family boxes (16.9–19.5 KWD) top-of-app.',
         'Push Wed–Fri Zwarah & Kashta pre-orders.',
       ],
-      detailsAr: `${p1Range.detailRangeAr} للنطاق (${activeScopeAr}) عبر رفع متوسط الفاتورة من ${ws.aovKwd.toFixed(2)} د.ك إلى 16.9–19.5 د.ك بنفس تكلفة التوصيل (تحويل محافظ 8%–12%).`,
-      detailsEn: `${p1Range.detailRangeEn} for (${activeScopeEn}) by lifting basket size from ${ws.aovKwd.toFixed(2)} KWD to 16.9–19.5 KWD on one delivery fee (8%–12% conversion).`,
-      summaryAr: `${p1Range.detailRangeAr} برفع متوسط سلة الجمعات والزوارة.`,
-      summaryEn: `${p1Range.detailRangeEn} by lifting family gathering basket size.`,
+      detailsAr: `${p1Range.detailRangeAr} للنطاق (${p1ScopeAr}) عبر رفع متوسط الفاتورة من ${ws.aovKwd.toFixed(2)} د.ك إلى 16.9–19.5 د.ك بنفس تكلفة التوصيل (تحويل محافظ 8%–12%).`,
+      detailsEn: `${p1Range.detailRangeEn} for (${p1ScopeEn}) by lifting basket size from ${ws.aovKwd.toFixed(2)} KWD to 16.9–19.5 KWD on one delivery fee (8%–12% conversion).`,
+      summaryAr: `تثبيت ٤ بوكسات مشاركة (١٦.٩–١٩.٥ د.ك) بأعلى طلبات وكيتا من الأربعاء للجمعة لرفع السلة فوق ${ws.aovKwd.toFixed(2)} د.ك.`,
+      summaryEn: `Pin 4 family share boxes (16.9–19.5 KWD) top-of-app Wed–Fri to lift basket size above ${ws.aovKwd.toFixed(2)} KWD.`,
       bulletsAr: [
         'تثبيت ٤ بوكسات عائلية بأعلى طلبات وكيتا.',
         'تفعيل طلبات الزوارة والمخيمات من الأربعاء للجمعة.',
@@ -1372,16 +1429,16 @@ export function computeCoresHubSnapshot(
       ],
       expectedAr: p1Range.badgeAr,
       expectedEn: p1Range.badgeEn,
-      whatsappTextAr: `*خطة بوكسات الشتاء والزوارة (${activeScopeAr})*\n• العائد الصافي المتوقع: ${p1Range.detailRangeAr}\n• تثبيت بوكسات المشاركة (16.9–19.5 د.ك) بأعلى طلبات وكيتا والطلب المباشر من الأربعاء عصراً.`,
-      whatsappTextEn: `*Winter & Gathering Boxes (${activeScopeEn})*\n• Expected Net Upside: ${p1Range.detailRangeEn}\n• Pin family share boxes (16.9–19.5 KWD) top-of-menu on apps & direct ordering from Wednesday 4 PM.`,
+      whatsappTextAr: `*خطة بوكسات الشتاء والزوارة (${p1ScopeAr})*\n• العائد الصافي المتوقع: ${p1Range.detailRangeAr}\n• تثبيت بوكسات المشاركة (16.9–19.5 د.ك) بأعلى طلبات وكيتا والطلب المباشر من الأربعاء عصراً.`,
+      whatsappTextEn: `*Winter & Gathering Boxes (${p1ScopeEn})*\n• Expected Net Upside: ${p1Range.detailRangeEn}\n• Pin family share boxes (16.9–19.5 KWD) top-of-menu on apps & direct ordering from Wednesday 4 PM.`,
     },
     {
       id: 'kw-cross-brand',
       num: '٢',
       titleAr: 'تبادل الزبائن بصفر إعلان',
       titleEn: 'Cross-Brand Bag Swap',
-      scopeAr: filters.brand === 'all' ? '٦ مطاعم · صفر إعلان' : `${activeBrandAr} ↔ شقيقاتها`,
-      scopeEn: filters.brand === 'all' ? '6 Brands · 0 Ad Cost' : `${activeBrandEn} ↔ Sister Brands`,
+      scopeAr: p2ScopeAr,
+      scopeEn: p2ScopeEn,
       badgeAr: 'صفر تكلفة إعلان',
       badgeEn: '0 KWD Ad Spend',
       upsideMinKwd: p2Range.minKwd,
@@ -1396,10 +1453,10 @@ export function computeCoresHubSnapshot(
         'Drop morning Karak cards inside dinner bags.',
         'Add 1.5 KWD direct dinner voucher mornings.',
       ],
-      detailsAr: `${p2Range.detailRangeAr} من ${ws.orders.toLocaleString('en-US')} طلب حالي في (${activeScopeAr}) عبر تحويل 3%–4.5% لطلب مباشر بدون عمولة أو تكلفة إعلان.`,
-      detailsEn: `${p2Range.detailRangeEn} from ${ws.orders.toLocaleString('en-US')} active orders in (${activeScopeEn}) converting 3%–4.5% into 0%-commission direct sister orders.`,
-      summaryAr: `${p2Range.detailRangeAr} عبر كروت تبادل داخل أكياس الطلبات الحالية.`,
-      summaryEn: `${p2Range.detailRangeEn} via zero-ad-cost bag voucher swaps.`,
+      detailsAr: `${p2Range.detailRangeAr} من ${ws.orders.toLocaleString('en-US')} طلب حالي في (${p2ScopeAr}) عبر تحويل 3%–4.5% لطلب مباشر بدون عمولة أو تكلفة إعلان.`,
+      detailsEn: `${p2Range.detailRangeEn} from ${ws.orders.toLocaleString('en-US')} active orders in (${p2ScopeEn}) converting 3%–4.5% into 0%-commission direct sister orders.`,
+      summaryAr: 'إرفاق كرت كرك صباحي داخل أكياس العشاء وكوبون طلب مباشر ١.٥ د.ك صباحاً بتحويل ٣٪–٤.٥٪ بلا إعلان.',
+      summaryEn: 'Drop morning Karak cards in dinner bags and 1.5 KWD direct dinner vouchers mornings at 0 ad cost.',
       bulletsAr: [
         'كرت كرك صباحي داخل أكياس طلبات العشاء.',
         'كوبون عشاء مباشر ١.٥ د.ك بأكياس الصباح.',
@@ -1410,16 +1467,16 @@ export function computeCoresHubSnapshot(
       ],
       expectedAr: p2Range.badgeAr,
       expectedEn: p2Range.badgeEn,
-      whatsappTextAr: `*خطة تبادل الزبائن بصفر إعلان (${activeScopeAr})*\n• العائد الصافي المتوقع: ${p2Range.detailRangeAr}\n• وضع كرت كرك الصباح بأكياس العشاء وكوبون عشاء مباشر 1.5 د.ك بأكياس الصباح.`,
-      whatsappTextEn: `*Cross-Brand Bag Swap (${activeScopeEn})*\n• Expected Net Upside: ${p2Range.detailRangeEn}\n• Insert morning Karak cards in dinner bags & 1.5 KWD direct dinner vouchers in morning bags.`,
+      whatsappTextAr: `*خطة تبادل الزبائن بصفر إعلان (${p2ScopeAr})*\n• العائد الصافي المتوقع: ${p2Range.detailRangeAr}\n• وضع كرت كرك الصباح بأكياس العشاء وكوبون عشاء مباشر 1.5 د.ك بأكياس الصباح.`,
+      whatsappTextEn: `*Cross-Brand Bag Swap (${p2ScopeEn})*\n• Expected Net Upside: ${p2Range.detailRangeEn}\n• Insert morning Karak cards in dinner bags & 1.5 KWD direct dinner vouchers in morning bags.`,
     },
     {
       id: 'kw-quiet-hours',
       num: '٣',
       titleAr: 'عروض الساعات الهادئة ٣–٦',
       titleEn: 'Quiet Hours 3–6 PM Combo',
-      scopeAr: `${activeBranchAr} · ٣–٦ م`,
-      scopeEn: `${activeBranchEn} · 3–6 PM`,
+      scopeAr: p3ScopeAr,
+      scopeEn: p3ScopeEn,
       badgeAr: 'ساعات أودو الهادئة',
       badgeEn: 'Off-Peak POS',
       upsideMinKwd: p3Range.minKwd,
@@ -1436,8 +1493,8 @@ export function computeCoresHubSnapshot(
       ],
       detailsAr: `${p3Range.detailRangeAr} من مبيعات ٣–٦ عصراً الحالية (${quiet3to6Kwd.toLocaleString('en-US')} د.ك) مع ثبات الإيجار والرواتب بالكامل خلال الشفت.`,
       detailsEn: `${p3Range.detailRangeEn} off current 3–6 PM sales (${quiet3to6Kwd.toLocaleString('en-US')} KWD) utilizing already-paid branch rent and shift labor.`,
-      summaryAr: `${p3Range.detailRangeAr} باستغلال طاقة المطبخ الهادئة ٣–٦ عصراً.`,
-      summaryEn: `${p3Range.detailRangeEn} utilizing off-peak 3–6 PM kitchen capacity.`,
+      summaryAr: 'تشغيل وجبة العصرية مع مشروب وبوكسات كرك المكاتب بين ٣:٠٠ و٦:٠٠ مساءً لاستثمار طاقة الشفت الثابتة.',
+      summaryEn: 'Activate 3–6 PM afternoon meal+drink combos and office Karak trays on fixed rent & shift labor.',
       bulletsAr: [
         'وجبة عصرية مع مشروب من ٣–٦ مساءً.',
         'توصيل بوكسات كرك المكاتب الساعة ٣:٣٠ عصراً.',
@@ -1448,16 +1505,16 @@ export function computeCoresHubSnapshot(
       ],
       expectedAr: p3Range.badgeAr,
       expectedEn: p3Range.badgeEn,
-      whatsappTextAr: `*خطة الساعات الهادئة ٣–٦ عصراً (${activeScopeAr})*\n• العائد الصافي المتوقع: ${p3Range.detailRangeAr}\n• تشغيل كومبو العصرية ٣–٦ م وبوكسات كرك المكاتب الساعة ٣:٣٠ م.`,
-      whatsappTextEn: `*Quiet Hours 3–6 PM Combo (${activeScopeEn})*\n• Expected Net Upside: ${p3Range.detailRangeEn}\n• Activate 3–6 PM meal+drink combo and 3:30 PM office Karak trays.`,
+      whatsappTextAr: `*خطة الساعات الهادئة ٣–٦ عصراً (${p3ScopeAr})*\n• العائد الصافي المتوقع: ${p3Range.detailRangeAr}\n• تشغيل كومبو العصرية ٣–٦ م وبوكسات كرك المكاتب الساعة ٣:٣٠ م.`,
+      whatsappTextEn: `*Quiet Hours 3–6 PM Combo (${p3ScopeEn})*\n• Expected Net Upside: ${p3Range.detailRangeEn}\n• Activate 3–6 PM meal+drink combo and 3:30 PM office Karak trays.`,
     },
     {
       id: 'kw-hidden-gems',
       num: '٤',
       titleAr: 'رفع وتصوير الأصناف الذهبية',
       titleEn: 'Pin & Film 80% Margin Gems',
-      scopeAr: `${activeBrandAr} · هامش +80%`,
-      scopeEn: `${activeBrandEn} · 80%+ Margin`,
+      scopeAr: p4ScopeAr,
+      scopeEn: p4ScopeEn,
       badgeAr: 'هامش +80%',
       badgeEn: '80%+ Margin',
       upsideMinKwd: p4Range.minKwd,
@@ -1474,8 +1531,8 @@ export function computeCoresHubSnapshot(
       ],
       detailsAr: `${p4Range.detailRangeAr} عبر توجيه 8%–13% من الزبائن نحو الأصناف الذهبية الأعلى ربحاً في وصفات العارضية (${dishOfTheWeek.dishName} وأخواتها).`,
       detailsEn: `${p4Range.detailRangeEn} by shifting 8%–13% of app browsers into top BOM-margin dishes (${dishOfTheWeek.dishName} & top Golden Stars).`,
-      summaryAr: `${p4Range.detailRangeAr} عبر رفع الأصناف الذهبية لأعلى القائمة.`,
-      summaryEn: `${p4Range.detailRangeEn} by pinning 80%+ margin dishes top-of-menu.`,
+      summaryAr: `تثبيت الأصناف ذات هامش +٨٠٪ في أول ٣ خانات بالتطبيقات مع تحديث صورها لتحويل ٨٪–١٣٪ من التصفح.`,
+      summaryEn: 'Pin 80%+ BOM-margin dishes into Top-3 app slots with close-up thumbnails for 8%–13% mix shift.',
       bulletsAr: [
         'رفع الأصناف الذهبية لأول ٣ خانات بالتطبيقات.',
         'تحديث الصور بلقطة قريبة ١٢ ثانية للصوص.',
@@ -1486,16 +1543,16 @@ export function computeCoresHubSnapshot(
       ],
       expectedAr: p4Range.badgeAr,
       expectedEn: p4Range.badgeEn,
-      whatsappTextAr: `*خطة رفع وتصوير الأصناف الذهبية (${activeScopeAr})*\n• العائد الصافي المتوقع: ${p4Range.detailRangeAr}\n• تثبيت الأصناف الأعلى ربحاً بأول ٣ خانات في طلبات وكيتا مع تحديث صورها.`,
-      whatsappTextEn: `*Pin & Film 80% Margin Gems (${activeScopeEn})*\n• Expected Net Upside: ${p4Range.detailRangeEn}\n• Move highest-margin dishes to Top-3 on Talabat & Keeta with fresh close-up photos.`,
+      whatsappTextAr: `*خطة رفع وتصوير الأصناف الذهبية (${p4ScopeAr})*\n• العائد الصافي المتوقع: ${p4Range.detailRangeAr}\n• تثبيت الأصناف الأعلى ربحاً بأول ٣ خانات في طلبات وكيتا مع تحديث صورها.`,
+      whatsappTextEn: `*Pin & Film 80% Margin Gems (${p4ScopeEn})*\n• Expected Net Upside: ${p4Range.detailRangeEn}\n• Move highest-margin dishes to Top-3 on Talabat & Keeta with fresh close-up photos.`,
     },
     {
       id: 'kw-smart-gift',
       num: '٥',
       titleAr: 'هدية فوق ٦.٥ د.ك بدل الخصم',
       titleEn: 'Free Gift >=6.5 KWD vs % Off',
-      scopeAr: `${activeScopeAr}`,
-      scopeEn: `${activeScopeEn}`,
+      scopeAr: p5ScopeAr,
+      scopeEn: p5ScopeEn,
       badgeAr: 'حماية الصافي',
       badgeEn: 'Margin Shield',
       upsideMinKwd: p5Range.minKwd,
@@ -1512,8 +1569,8 @@ export function computeCoresHubSnapshot(
       ],
       detailsAr: `${p5Range.detailRangeAr} بتوفير ثلث تكلفة الخصومات الحالية (${Math.round(totalMarketingCostKwd).toLocaleString('en-US')} د.ك) واستبدالها بصنف هديته علينا 180 فلس فقط يرفع السلة فوق 6.500 د.ك.`,
       detailsEn: `${p5Range.detailRangeEn} by cutting open-% discount bleed (${Math.round(totalMarketingCostKwd).toLocaleString('en-US')} KWD current cost) with a 180-fils item unlocked at >= 6.500 KWD.`,
-      summaryAr: `${p5Range.detailRangeAr} باستبدال الخصم المفتوح بهدية مشروطة بالسلة.`,
-      summaryEn: `${p5Range.detailRangeEn} replacing flat % discounts with min-basket gifts.`,
+      summaryAr: 'استبدال خصومات ٢٠٪–٣٠٪ المفتوحة بهدية مقبلات (كلفة ١٨٠ فلس) تفتح تلقائياً عند سلة ٦.٥٠٠ د.ك فأكثر.',
+      summaryEn: 'Replace open 20%–30% app discounts with a 180-fils side gift unlocked above a 6.500 KWD basket.',
       bulletsAr: [
         'إيقاف خصومات النسبة المفتوحة ٢٠٪–٣٠٪ بالتطبيقات.',
         'هدية شوربة أو رول للطلبات فوق ٦.٥ د.ك.',
@@ -1524,16 +1581,16 @@ export function computeCoresHubSnapshot(
       ],
       expectedAr: p5Range.badgeAr,
       expectedEn: p5Range.badgeEn,
-      whatsappTextAr: `*خطة حماية الهامش من الخصم المفتوح (${activeScopeAr})*\n• الوفر والربح المتوقع: ${p5Range.detailRangeAr}\n• استبدال خصم ٢٠–٣٠٪ بهدية شوربة/رول للطلبات فوق 6.500 د.ك + ملصق خصم طلب مباشر.`,
-      whatsappTextEn: `*Free Gift >=6.5 KWD vs Flat % Off (${activeScopeEn})*\n• Expected Net Savings: ${p5Range.detailRangeEn}\n• Replace flat % promos with free soup/roll on orders >= 6.500 KWD + direct-order QR sticker.`,
+      whatsappTextAr: `*خطة حماية الهامش من الخصم المفتوح (${p5ScopeAr})*\n• الوفر والربح المتوقع: ${p5Range.detailRangeAr}\n• استبدال خصم ٢٠–٣٠٪ بهدية شوربة/رول للطلبات فوق 6.500 د.ك + ملصق خصم طلب مباشر.`,
+      whatsappTextEn: `*Free Gift >=6.5 KWD vs Flat % Off (${p5ScopeEn})*\n• Expected Net Savings: ${p5Range.detailRangeEn}\n• Replace flat % promos with free soup/roll on orders >= 6.500 KWD + direct-order QR sticker.`,
     },
     {
       id: 'kw-cpc-spotlight',
       num: '٦',
       titleAr: 'ضبط النقرات + طبق الأسبوع',
       titleEn: 'CPC Ad Guard + Dish of Week',
-      scopeAr: `${dishOfTheWeek.brandAr} · تطبيقات`,
-      scopeEn: `${dishOfTheWeek.brandEn} · In-App CPC`,
+      scopeAr: p6ScopeAr,
+      scopeEn: p6ScopeEn,
       badgeAr: `مرشح: ${dishOfTheWeek.brandAr}`,
       badgeEn: `Pick: ${dishOfTheWeek.brandEn}`,
       upsideMinKwd: p6Range.minKwd,
@@ -1550,8 +1607,8 @@ export function computeCoresHubSnapshot(
       ],
       detailsAr: `${p6Range.detailRangeAr} عبر تصوير "${dishOfTheWeek.dishName}" (${dishOfTheWeek.priceKwd.toFixed(2)} د.ك · هامش ${dishOfTheWeek.marginPct}%) وإيقاف هدر نقرات التطبيقات وقت ذروة المطبخ.`,
       detailsEn: `${p6Range.detailRangeEn} spotlighting "${dishOfTheWeek.dishName}" (${dishOfTheWeek.priceKwd.toFixed(2)} KWD · ${dishOfTheWeek.marginPct}% margin) while pausing peak-hour CPC waste.`,
-      summaryAr: `${p6Range.detailRangeAr} بضبط سقف إعلانات النقرات وتصوير طبق الأسبوع.`,
-      summaryEn: `${p6Range.detailRangeEn} via off-peak CPC caps and Dish of the Week reel.`,
+      summaryAr: `إبراز "${shortDishName}" (هامش ${dishOfTheWeek.marginPct}٪) وقصر إعلانات النقرات على غير الذروة بسقف ٠.٣٥٠ د.ك للطلب.`,
+      summaryEn: `Spotlight "${shortDishName}" (${dishOfTheWeek.marginPct}% margin) and cap in-app CPC at 0.350 KWD off-peak only.`,
       bulletsAr: [
         'تصوير طبق الأسبوع وفيديو ١٢ ثانية للتطبيقات.',
         'إيقاف إعلانات النقرات وقت الذروة وفوق ٣٥٠ فلس.',
@@ -1562,10 +1619,35 @@ export function computeCoresHubSnapshot(
       ],
       expectedAr: p6Range.badgeAr,
       expectedEn: p6Range.badgeEn,
-      whatsappTextAr: `*خطة طبق الأسبوع وضبط النقرات (${dishOfTheWeek.brandAr})*\n• العائد الصافي المتوقع: ${p6Range.detailRangeAr}\n• تصوير "${dishOfTheWeek.dishName}" وقصر إعلانات النقرات على الأوقات الهادئة بأقل من 350 فلس للطلب.`,
-      whatsappTextEn: `*Dish of the Week & CPC Guard (${dishOfTheWeek.brandEn})*\n• Expected Net Upside: ${p6Range.detailRangeEn}\n• Film "${dishOfTheWeek.dishName}" and cap in-app CPC below 0.350 KWD/order off-peak.`,
+      whatsappTextAr: `*خطة طبق الأسبوع وضبط النقرات (${p6ScopeAr})*\n• العائد الصافي المتوقع: ${p6Range.detailRangeAr}\n• تصوير "${dishOfTheWeek.dishName}" وقصر إعلانات النقرات على الأوقات الهادئة بأقل من 350 فلس للطلب.`,
+      whatsappTextEn: `*Dish of the Week & CPC Guard (${p6ScopeEn})*\n• Expected Net Upside: ${p6Range.detailRangeEn}\n• Film "${dishOfTheWeek.dishName}" and cap in-app CPC below 0.350 KWD/order off-peak.`,
     },
   ]
+
+  // Strict runtime normalized deduplication so growthPlays NEVER emits duplicate titles or summaries
+  const normKey = (s: string) =>
+    s
+      .trim()
+      .toLowerCase()
+      .replace(/[\u064B-\u065F\u0670\u0640]/g, '')
+      .replace(/[^\p{L}\p{N}]+/gu, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+  const seenGrowthTitleAr = new Set<string>()
+  const seenGrowthTitleEn = new Set<string>()
+  const seenGrowthSummaryAr = new Set<string>()
+  const growthPlays: KuwaitGrowthPlay[] = rawGrowthPlays.filter((gp) => {
+    const ka = normKey(gp.titleAr)
+    const ke = normKey(gp.titleEn)
+    const ks = normKey(gp.summaryAr)
+    if (seenGrowthTitleAr.has(ka) || seenGrowthTitleEn.has(ke) || seenGrowthSummaryAr.has(ks)) {
+      return false
+    }
+    seenGrowthTitleAr.add(ka)
+    seenGrowthTitleEn.add(ke)
+    seenGrowthSummaryAr.add(ks)
+    return true
+  })
 
   // =========================================================================
   // 4. RATINGS & QUALITY CORE

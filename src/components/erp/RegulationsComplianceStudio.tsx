@@ -57,6 +57,23 @@ const MENU_ITEM_CLS =
 
 const f0 = (n: number) => Math.round(Number.isFinite(n) ? n : 0).toLocaleString('en-US')
 
+const normalizeUniqueTitle = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ')
+
+function dedupeRegulations(list: RegulationPlaybookItem[]): RegulationPlaybookItem[] {
+  const seenAr = new Set<string>()
+  const seenEn = new Set<string>()
+  const out: RegulationPlaybookItem[] = []
+  for (const item of list) {
+    const kAr = normalizeUniqueTitle(item.titleAr)
+    const kEn = normalizeUniqueTitle(item.titleEn)
+    if ((kAr && seenAr.has(kAr)) || (kEn && seenEn.has(kEn))) continue
+    if (kAr) seenAr.add(kAr)
+    if (kEn) seenEn.add(kEn)
+    out.push(item)
+  }
+  return out
+}
+
 export function RegulationsComplianceStudio() {
   const { locale } = useI18n()
   const isAr = locale === 'ar'
@@ -66,6 +83,7 @@ export function RegulationsComplianceStudio() {
   const {
     store,
     session,
+    activeBreaches,
     requestApproval,
     getApprovalByRef,
     approveItemWithPin,
@@ -75,13 +93,7 @@ export function RegulationsComplianceStudio() {
     issueOfficialCircularWithPin,
     openCircularPrintModal,
     openDrawer,
-    breaches,
   } = useGovernance()
-
-  const activeBreachCount = useMemo(
-    () => breaches.filter((b) => !b.frozen).length,
-    [breaches],
-  )
 
   const [trackFilter, setTrackFilter] = useState<'all' | RegulationTrackId>('all')
   const [regulations, setRegulations] = useState<RegulationPlaybookItem[]>(SEEDED_REGULATIONS)
@@ -103,7 +115,7 @@ export function RegulationsComplianceStudio() {
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(REGULATIONS_STORAGE_KEY)
-      if (raw) setRegulations(sanitizeRegulations(JSON.parse(raw)))
+      if (raw) setRegulations(dedupeRegulations(sanitizeRegulations(JSON.parse(raw))))
     } catch {}
     try {
       const rawStop = window.localStorage.getItem(REG_STOP_ORDERS_STORAGE_KEY)
@@ -131,9 +143,10 @@ export function RegulationsComplianceStudio() {
   }, [openMenuId])
 
   const persistRegulations = useCallback((next: RegulationPlaybookItem[]) => {
-    setRegulations(next)
+    const clean = dedupeRegulations(next)
+    setRegulations(clean)
     try {
-      window.localStorage.setItem(REGULATIONS_STORAGE_KEY, JSON.stringify(next))
+      window.localStorage.setItem(REGULATIONS_STORAGE_KEY, JSON.stringify(clean))
     } catch {}
   }, [])
 
@@ -739,7 +752,7 @@ export function RegulationsComplianceStudio() {
                   <div className="text-[13.5px] font-semibold text-slate-900 dark:text-white">
                     {isAr ? 'خطة التعامل التنفيذية خطوة بخطوة:' : 'Step-by-Step Mitigation Plan:'}
                   </div>
-                  <ol className="grid grid-cols-1 gap-2">
+                  <ol className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {(isAr ? reg.mitigationStepsAr : reg.mitigationStepsEn).map((step, idx) => (
                       <li
                         key={`${reg.id}-step-${idx}`}
@@ -1031,7 +1044,7 @@ export function RegulationsComplianceStudio() {
         })}
       </section>
 
-      {/* ───────────── Single Compact Odoo 17 Compliance Status Strip (Opens Manager Bell Breaches Tab) ───────────── */}
+      {/* ───────────── 4. Single Compact 1-Line Odoo 17 Watchdog Banner (Opens Approval Bell Breaches Tab) ───────────── */}
       <button
         type="button"
         onClick={() => openDrawer('breaches')}
@@ -1051,20 +1064,20 @@ export function RegulationsComplianceStudio() {
         <div className="flex items-center gap-2.5">
           <span
             className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1 text-[13px] font-semibold tabular-nums ${
-              activeBreachCount > 0
+              activeBreaches.length > 0
                 ? 'bg-rose-50 text-rose-700 ring-1 ring-rose-500/20 dark:bg-rose-950/60 dark:text-rose-300'
                 : 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-500/20 dark:bg-emerald-950/60 dark:text-emerald-300'
             }`}
           >
             <span
               className={`h-2 w-2 rounded-full ${
-                activeBreachCount > 0 ? 'bg-rose-500' : 'bg-emerald-500'
+                activeBreaches.length > 0 ? 'bg-rose-500' : 'bg-emerald-500'
               }`}
             />
             <span>
               {isAr
-                ? `${activeBreachCount} مخالفات نشطة`
-                : `${activeBreachCount} Active Breaches`}
+                ? `${activeBreaches.length} مخالفات نشطة`
+                : `${activeBreaches.length} Active Breaches`}
             </span>
           </span>
           <ArrowUpRight className="h-4 w-4 text-slate-400" />

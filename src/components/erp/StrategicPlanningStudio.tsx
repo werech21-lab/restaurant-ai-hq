@@ -61,6 +61,23 @@ const f1 = (n: number) =>
     maximumFractionDigits: 1,
   })
 
+const normalizeUniqueTitle = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ')
+
+function dedupeStrategicPhases(list: StrategicRoadmapPhase[]): StrategicRoadmapPhase[] {
+  const seenAr = new Set<string>()
+  const seenEn = new Set<string>()
+  const out: StrategicRoadmapPhase[] = []
+  for (const item of list) {
+    const kAr = normalizeUniqueTitle(item.titleAr)
+    const kEn = normalizeUniqueTitle(item.titleEn)
+    if ((kAr && seenAr.has(kAr)) || (kEn && seenEn.has(kEn))) continue
+    if (kAr) seenAr.add(kAr)
+    if (kEn) seenEn.add(kEn)
+    out.push(item)
+  }
+  return out
+}
+
 export function StrategicPlanningStudio() {
   const { locale } = useI18n()
   const isAr = locale === 'ar'
@@ -109,7 +126,7 @@ export function StrategicPlanningStudio() {
     try {
       const raw = window.localStorage.getItem(STRATEGIC_ROADMAP_STORAGE_KEY)
       if (raw) {
-        setPhases(sanitizeStrategicPhases(JSON.parse(raw)))
+        setPhases(dedupeStrategicPhases(sanitizeStrategicPhases(JSON.parse(raw))))
       }
     } catch {}
   }, [])
@@ -134,9 +151,10 @@ export function StrategicPlanningStudio() {
   }, [openMenuId])
 
   const persistPhases = useCallback((next: StrategicRoadmapPhase[]) => {
-    setPhases(next)
+    const clean = dedupeStrategicPhases(next)
+    setPhases(clean)
     try {
-      window.localStorage.setItem(STRATEGIC_ROADMAP_STORAGE_KEY, JSON.stringify(next))
+      window.localStorage.setItem(STRATEGIC_ROADMAP_STORAGE_KEY, JSON.stringify(clean))
     } catch {}
   }, [])
 

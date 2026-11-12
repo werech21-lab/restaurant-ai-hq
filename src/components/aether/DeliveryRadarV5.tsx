@@ -17,9 +17,7 @@ import {
   RotateCcw,
   Search,
   Settings2,
-  ShieldAlert,
   ShieldCheck,
-  Unlock,
   X,
   XCircle,
 } from 'lucide-react'
@@ -937,6 +935,14 @@ export function DeliveryRadarV5() {
     ]
   }, [deliveryMixStats, isAr, summary.totalSalesKwd, T])
 
+  const activeDeliveryBreachCount = useMemo(
+    () =>
+      gov.activeBreaches.filter(
+        (b) => b.category === 'aggregator-promo-cap' || b.category === 'tmp-tgo-routing',
+      ).length,
+    [gov.activeBreaches],
+  )
+
   const handleRequestDeliveryApproval = () => {
     gov.requestApproval({
       refKey: DELIVERY_PLAN_REF,
@@ -1481,6 +1487,25 @@ export function DeliveryRadarV5() {
               </span>
             ) : null}
           </div>
+
+          {/* Single-Line Compact Watchdog Link -> Canonical Home in GovernanceBellDrawer (`🔔`) */}
+          {activeDeliveryBreachCount > 0 ? (
+            <button
+              type="button"
+              onClick={() => gov.openDrawer('breaches')}
+              className="ae-bento-subcard flex w-full cursor-pointer flex-wrap items-center justify-between gap-2 rounded-2xl px-3.5 py-2 text-start text-[12.5px] font-semibold text-slate-800 transition-colors hover:bg-emerald-50/70 dark:text-slate-100 dark:hover:bg-emerald-950/40"
+            >
+              <span>
+                {T(
+                  'Odoo 17 Watchdog Active • Open Approval Bell to Review Breaches 🔔',
+                  'مراقب أودو ١٧ نشط • افتح جرس الاعتمادات لمراجعة المخالفات 🔔',
+                )}
+              </span>
+              <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[11.5px] font-bold tabular-nums text-amber-800 ring-1 ring-amber-500/20 dark:bg-amber-950/60 dark:text-amber-200">
+                {isAr ? `${activeDeliveryBreachCount} تنبيه` : `${activeDeliveryBreachCount} active`}
+              </span>
+            </button>
+          ) : null}
         </div>
 
         {/* 4-Col Zero-Collision TMP (15%) vs Tgo (27%) & Apps Donut */}

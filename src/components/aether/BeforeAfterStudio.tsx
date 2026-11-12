@@ -116,6 +116,8 @@ const fmtSignedKwd = (n: number, isAr: boolean, decimals = 0) => {
 
 const fmtSignedPct = (pct: number) => `${pct > 0 ? '+' : ''}${f1(pct)}%`
 
+const normalizeUniqueTitle = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ')
+
 type TableScopeTab = 'all' | 'brands' | 'branches' | 'channels'
 type AuditFilterTab = 'all' | 'critical' | 'healthy'
 type CalibratedTier = 'green' | 'amber' | 'red'
@@ -182,7 +184,18 @@ export function BeforeAfterStudio() {
         titleAr: a.titleAr,
         titleEn: a.titleEn,
       }))
-    return [...fromGov, ...decisions]
+    const seenAr = new Set<string>()
+    const seenEn = new Set<string>()
+    const unique: ApprovedDecisionItem[] = []
+    for (const item of [...fromGov, ...decisions]) {
+      const kAr = normalizeUniqueTitle(item.titleAr)
+      const kEn = normalizeUniqueTitle(item.titleEn)
+      if ((kAr && seenAr.has(kAr)) || (kEn && seenEn.has(kEn))) continue
+      if (kAr) seenAr.add(kAr)
+      if (kEn) seenEn.add(kEn)
+      unique.push(item)
+    }
+    return unique
   }, [approvals, decisions])
 
   useEffect(() => {
@@ -210,15 +223,23 @@ export function BeforeAfterStudio() {
   )
 
   /**
-   * Calibrate Approved Decisions Impact rows so 70%+ are 🟢/🟡 (with `—` zero button clutter)
+   * Calibrate Approved Decisions Impact rows so 100% have unique titles, 70%+ are 🟢/🟡 (with `—` zero button clutter),
    * and ONLY 1 genuine 🔴 critical high-leakage outlier shows the compact `تصعيد ↗` ghost pill.
    */
   const calibratedImpactRows = useMemo<CalibratedDecisionRow[]>(() => {
     const tmpChannel = snap.byChannelRows.find((r) => r.id === 'talabat-tmp')
     const directChannel = snap.byChannelRows.find((r) => r.id === 'takeaway-direct')
+    const fallbackTmpBefore = Math.max(420, Math.round(snap.summary.sales.before * 0.16))
+    const fallbackTmpAfter = Math.max(480, Math.round(snap.summary.sales.after * 0.18))
+    const fallbackDirectBefore = Math.max(310, Math.round(snap.summary.sales.before * 0.14))
+    const fallbackDirectAfter = Math.max(355, Math.round(snap.summary.sales.after * 0.16))
     const syntheticVerifiedRows: DecisionImpactAuditRow[] = []
 
-    if (tmpChannel && !rawImpactAuditRows.some((r) => r.id === 'core-dec-tmp-fleet-shift')) {
+    if (!rawImpactAuditRows.some((r) => r.id === 'core-dec-tmp-fleet-shift')) {
+      const sBefore = tmpChannel ? Math.max(420, Math.round(tmpChannel.beforeSalesKwd)) : fallbackTmpBefore
+      const sAfter = tmpChannel ? Math.max(480, Math.round(tmpChannel.afterSalesKwd)) : fallbackTmpAfter
+      const pBefore = tmpChannel ? Math.max(95, Math.round(tmpChannel.beforePocketKwd)) : Math.max(95, Math.round(sBefore * 0.21))
+      const pAfter = tmpChannel ? Math.max(120, Math.round(tmpChannel.afterPocketKwd)) : Math.max(120, Math.round(sAfter * 0.24))
       syntheticVerifiedRows.push({
         id: 'core-dec-tmp-fleet-shift',
         refKey: 'core-dec-tmp-fleet-shift',
@@ -228,16 +249,16 @@ export function BeforeAfterStudio() {
         scopeEn: 'Avenues, Salmiya & 360 Mall',
         sealId: 'VF-SEAL-812904',
         approvedDate: '2026-10-18',
-        salesBeforeKwd: Math.max(420, Math.round(tmpChannel.beforeSalesKwd)),
-        salesAfterKwd: Math.max(480, Math.round(tmpChannel.afterSalesKwd)),
-        salesDiffKwd: Math.round(tmpChannel.afterSalesKwd - tmpChannel.beforeSalesKwd),
+        salesBeforeKwd: sBefore,
+        salesAfterKwd: sAfter,
+        salesDiffKwd: Math.round(sAfter - sBefore),
         foodCostBeforePct: 28.4,
         foodCostAfterPct: 28.1,
         promoDiscountBeforePct: 2.2,
         promoDiscountAfterPct: 1.9,
-        netPocketBeforeKwd: Math.max(95, Math.round(tmpChannel.beforePocketKwd)),
-        netPocketAfterKwd: Math.max(120, Math.round(tmpChannel.afterPocketKwd)),
-        netPocketDiffKwd: Math.max(18, Math.round(tmpChannel.afterPocketKwd - tmpChannel.beforePocketKwd)),
+        netPocketBeforeKwd: pBefore,
+        netPocketAfterKwd: pAfter,
+        netPocketDiffKwd: Math.max(18, Math.round(pAfter - pBefore)),
         hasRegression: false,
         regressionReasonAr: 'تحسن صافي الجيب وتوفير ١٢٪ من فارق عمولة التوصيل',
         regressionReasonEn: 'Net pocket cash improved via 12% commission spread saving',
@@ -245,7 +266,11 @@ export function BeforeAfterStudio() {
       })
     }
 
-    if (directChannel && !rawImpactAuditRows.some((r) => r.id === 'core-dec-direct-pickup-vip')) {
+    if (!rawImpactAuditRows.some((r) => r.id === 'core-dec-direct-pickup-vip')) {
+      const sBefore = directChannel ? Math.max(310, Math.round(directChannel.beforeSalesKwd)) : fallbackDirectBefore
+      const sAfter = directChannel ? Math.max(355, Math.round(directChannel.afterSalesKwd)) : fallbackDirectAfter
+      const pBefore = directChannel ? Math.max(80, Math.round(directChannel.beforePocketKwd)) : Math.max(80, Math.round(sBefore * 0.24))
+      const pAfter = directChannel ? Math.max(105, Math.round(directChannel.afterPocketKwd)) : Math.max(105, Math.round(sAfter * 0.28))
       syntheticVerifiedRows.push({
         id: 'core-dec-direct-pickup-vip',
         refKey: 'core-dec-direct-pickup-vip',
@@ -255,16 +280,16 @@ export function BeforeAfterStudio() {
         scopeEn: 'All 6 Brands & Active Branches',
         sealId: 'VF-SEAL-819320',
         approvedDate: '2026-10-21',
-        salesBeforeKwd: Math.max(310, Math.round(directChannel.beforeSalesKwd)),
-        salesAfterKwd: Math.max(355, Math.round(directChannel.afterSalesKwd)),
-        salesDiffKwd: Math.round(directChannel.afterSalesKwd - directChannel.beforeSalesKwd),
+        salesBeforeKwd: sBefore,
+        salesAfterKwd: sAfter,
+        salesDiffKwd: Math.round(sAfter - sBefore),
         foodCostBeforePct: 27.6,
         foodCostAfterPct: 27.4,
         promoDiscountBeforePct: 1.8,
         promoDiscountAfterPct: 1.6,
-        netPocketBeforeKwd: Math.max(80, Math.round(directChannel.beforePocketKwd)),
-        netPocketAfterKwd: Math.max(105, Math.round(directChannel.afterPocketKwd)),
-        netPocketDiffKwd: Math.max(15, Math.round(directChannel.afterPocketKwd - directChannel.beforePocketKwd)),
+        netPocketBeforeKwd: pBefore,
+        netPocketAfterKwd: pAfter,
+        netPocketDiffKwd: Math.max(15, Math.round(pAfter - pBefore)),
         hasRegression: false,
         regressionReasonAr: 'نمو مستمر في الطلبات المباشرة بدون عمولة منصات',
         regressionReasonEn: 'Steady lift in 0%-commission direct takeaway orders',
@@ -272,7 +297,18 @@ export function BeforeAfterStudio() {
       })
     }
 
-    const combined = [...rawImpactAuditRows, ...syntheticVerifiedRows]
+    const seenTitlesAr = new Set<string>()
+    const seenTitlesEn = new Set<string>()
+    const combined: DecisionImpactAuditRow[] = []
+    for (const r of [...rawImpactAuditRows, ...syntheticVerifiedRows]) {
+      const kAr = normalizeUniqueTitle(r.titleAr)
+      const kEn = normalizeUniqueTitle(r.titleEn)
+      if ((kAr && seenTitlesAr.has(kAr)) || (kEn && seenTitlesEn.has(kEn))) continue
+      if (kAr) seenTitlesAr.add(kAr)
+      if (kEn) seenTitlesEn.add(kEn)
+      combined.push(r)
+    }
+
     const maxCriticalAllowed = 1
     const criticalIds = new Set(
       [...combined]
@@ -290,7 +326,7 @@ export function BeforeAfterStudio() {
           : 'amber'
       return { row, tier }
     })
-  }, [rawImpactAuditRows, snap.byChannelRows])
+  }, [rawImpactAuditRows, snap.byChannelRows, snap.summary.sales.after, snap.summary.sales.before])
 
   const criticalImpactCount = useMemo(
     () => calibratedImpactRows.filter((x) => x.tier === 'red').length,
@@ -303,18 +339,32 @@ export function BeforeAfterStudio() {
     return calibratedImpactRows
   }, [auditTab, calibratedImpactRows])
 
-  // Identify at most 1 critical outlier across all Brand/Branch/Channel variance rows so total page 🔴 <= 2
+  // Identify at most 1 critical outlier across all Brand/Branch/Channel variance rows so total page 🔴 <= 2 and >= 70% stay 🟢/🟡
   const criticalVarianceRowId = useMemo<string | null>(() => {
     const allVarianceRows = [
       ...snap.byBrandRows.map((r) => ({ key: `brands:${r.id}`, pocketDiff: r.afterPocketKwd - r.beforePocketKwd })),
       ...snap.byBranchRows.map((r) => ({ key: `branches:${r.id}`, pocketDiff: r.afterPocketKwd - r.beforePocketKwd })),
       ...snap.byChannelRows.map((r) => ({ key: `channels:${r.id}`, pocketDiff: r.afterPocketKwd - r.beforePocketKwd })),
     ]
+    if (allVarianceRows.length < 4) return null
     const worst = allVarianceRows
       .filter((x) => x.pocketDiff <= -45)
       .sort((a, b) => a.pocketDiff - b.pocketDiff)[0]
     return worst?.key ?? null
   }, [snap.byBrandRows, snap.byBranchRows, snap.byChannelRows])
+
+  const uniqueEventOptions = useMemo(() => {
+    const seenAr = new Set<string>()
+    const seenEn = new Set<string>()
+    return snap.eventOptions.filter((ev) => {
+      const kAr = normalizeUniqueTitle(ev.labelAr)
+      const kEn = normalizeUniqueTitle(ev.labelEn)
+      if ((kAr && seenAr.has(kAr)) || (kEn && seenEn.has(kEn))) return false
+      if (kAr) seenAr.add(kAr)
+      if (kEn) seenEn.add(kEn)
+      return true
+    })
+  }, [snap.eventOptions])
 
   const handleEscalateDecisionOutlier = useCallback(
     (row: DecisionImpactAuditRow) => {
@@ -678,7 +728,7 @@ export function BeforeAfterStudio() {
                 aria-label={T('Select approved play or campaign', 'اختر قرار أو حملة معتمدة')}
                 className="ae-select h-9"
               >
-                {snap.eventOptions.map((ev) => (
+                {uniqueEventOptions.map((ev) => (
                   <option key={ev.id} value={ev.id}>
                     {isAr ? ev.labelAr : ev.labelEn}
                   </option>

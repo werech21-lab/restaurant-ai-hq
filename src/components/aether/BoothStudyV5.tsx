@@ -11,9 +11,7 @@ import {
   Loader2,
   Lock,
   Scale,
-  ShieldAlert,
   ShieldCheck,
-  Unlock,
   XCircle,
 } from 'lucide-react'
 import { analyzeEventContractWithGemini, type ContractDeepAuditResult } from '@/lib/feryal-gemini-brain'
@@ -409,6 +407,10 @@ export function BoothStudyV5() {
   const allApprovedBoothRules = gov.store.approvedRuleCaps?.boothExbPlans ?? {}
   const lockedBoothCap =
     allApprovedBoothRules[boothRefKey] ?? Object.values(allApprovedBoothRules)[0]
+  const activeBoothBreachCount = useMemo(
+    () => gov.activeBreaches.filter((b) => b.category === 'exb-budget-cap').length,
+    [gov.activeBreaches],
+  )
 
   const handleRequestBoothApproval = () => {
     gov.requestApproval({
@@ -1000,6 +1002,25 @@ export function BoothStudyV5() {
                 </span>
               ) : null}
             </div>
+
+            {/* Single-Line Compact Watchdog Link -> Canonical Home in GovernanceBellDrawer (`🔔`) */}
+            {activeBoothBreachCount > 0 ? (
+              <button
+                type="button"
+                onClick={() => gov.openDrawer('breaches')}
+                className="ae-bento-subcard flex w-full cursor-pointer flex-wrap items-center justify-between gap-2 rounded-2xl px-3.5 py-2 text-start text-[12.5px] font-semibold text-slate-800 transition-colors hover:bg-emerald-50/70 dark:text-slate-100 dark:hover:bg-emerald-950/40"
+              >
+                <span>
+                  {T(
+                    'Odoo 17 Watchdog Active • Open Approval Bell to Review Breaches 🔔',
+                    'مراقب أودو ١٧ نشط • افتح جرس الاعتمادات لمراجعة المخالفات 🔔',
+                  )}
+                </span>
+                <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[11.5px] font-bold tabular-nums text-amber-800 ring-1 ring-amber-500/20 dark:bg-amber-950/60 dark:text-amber-200">
+                  {isAr ? `${activeBoothBreachCount} تنبيه` : `${activeBoothBreachCount} active`}
+                </span>
+              </button>
+            ) : null}
           </section>
 
           <div className="grid grid-cols-1 gap-5 2xl:grid-cols-2">

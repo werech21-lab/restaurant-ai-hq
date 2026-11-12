@@ -1048,54 +1048,106 @@ const BRANCH_LOAD_OFFSET_SEC: Record<ActiveBranchId, number> = {
   avenues: -40, // Fastest high-throughput mall line
 }
 
-const DELAY_ROOT_CAUSES: ReadonlyArray<{
-  brandMatch?: ActiveBrandId
-  ar: string
-  en: string
-}> = [
-  {
-    brandMatch: 'china-garden',
-    ar: 'تزاحم مقالي الووك في ذروة العشاء وتعدد الأطباق الساخنة بالطلب',
-    en: 'Evening wok-station queue spike on multi-dish family orders',
-  },
-  {
-    brandMatch: 'franks',
-    ar: 'انتظار دفعة البطاطس والجرل المزدوج مع تذاكر التوصيل المتزامنة',
-    en: 'Simultaneous smash-grill & fryer batch contention during rush',
-  },
-  {
-    brandMatch: 'noodle-bar',
-    ar: 'تأخر تجهيز الصوصات الساخنة والتغليف المحكم قبل التسليم',
-    en: 'Hot sauce finishing & tamper-seal packaging handoff bottleneck',
-  },
-  {
-    ar: 'وصول موجة طلبات مجمعة من طلبات وكيتا بنفس الدقيقة على شاشة KDS',
-    en: 'Concurrent Talabat + Keeta burst hitting KDS within the same minute',
-  },
-  {
-    ar: 'انتظار مطابقة وتجميع الصنف الجانبي على طاولة التغليف النهائية',
-    en: 'Expo table hold awaiting final side-item assembly check',
-  },
-]
+const BRAND_STATION_ITEMS: Record<
+  ActiveBrandId,
+  ReadonlyArray<{
+    itemAr: string
+    itemEn: string
+    bayAr: string
+    bayEn: string
+  }>
+> = {
+  'china-garden': [
+    { itemAr: 'دجاج سيشوان مع أرز الياسمين', itemEn: 'Szechuan Chicken & Jasmine Rice', bayAr: 'مقلاة الووك #1', bayEn: 'Wok Burner #1' },
+    { itemAr: 'روبيان ديناميت ونودلز كانتون', itemEn: 'Dynamite Shrimp & Canton Noodles', bayAr: 'مقلاة الووك #2', bayEn: 'Wok Burner #2' },
+    { itemAr: 'لحم بقري منغولي مع خضار سوتيه', itemEn: 'Mongolian Beef & Wok Greens', bayAr: 'محطة الصوص الساخن', bayEn: 'Hot Wok Sauce Bay' },
+    { itemAr: 'بوكس العائلة الآسيوي المشكل', itemEn: 'Family Asian Sharing Box', bayAr: 'طاولة التجميع الحراري', bayEn: 'Thermal Expo Pass' },
+    { itemAr: 'سبرينغ رول مقرمش ودجاج حامض حلو', itemEn: 'Crispy Spring Rolls & Sweet-Sour Chicken', bayAr: 'قلاية القرمشة السريعة', bayEn: 'Crisp Fryer Station' },
+  ],
+  franks: [
+    { itemAr: 'دبل سماش برجر بالجبنة الأمريكية', itemEn: 'Double American Cheese Smash', bayAr: 'الجرل المسطح #1', bayEn: 'Flat-Top Grill #1' },
+    { itemAr: 'ترافل مشروم برجر وبطاط كرنكل', itemEn: 'Truffle Mushroom Smash & Crinkle Fries', bayAr: 'الجرل المسطح #2', bayEn: 'Flat-Top Grill #2' },
+    { itemAr: 'تشكن تندرز مقرمش مع صوص فرانكس', itemEn: 'Crispy Tenders & Signature Dip', bayAr: 'حوض القلي المزدوج', bayEn: 'Twin Fryer Basket' },
+    { itemAr: 'بوكس سلايدرز الديوانية (٦ قطع)', itemEn: 'Diwaniya 6-Slider Box', bayAr: 'خط البريوش المحمص', bayEn: 'Brioche Toast Line' },
+    { itemAr: 'هوت دوغ نيويورك مع بطاط بالجبن', itemEn: 'NY Beef Frank & Cheese Fries', bayAr: 'منصة التغليف الساخن', bayEn: 'Hot Chute Expo' },
+  ],
+  tahina: [
+    { itemAr: 'بوكس شاورما عربي دبل مع طحينة', itemEn: 'Double Arabic Shawarma Platter', bayAr: 'سيخ الشاورما الرئيسي', bayEn: 'Main Shawarma Spit' },
+    { itemAr: 'مشويات مشكلة كباب وتكا طازجة', itemEn: 'Charcoal Mixed Kabab & Tikka', bayAr: 'شواية الفحم الحية', bayEn: 'Live Charcoal Grill' },
+    { itemAr: 'راب فلافل وحمص بالخبز الحار', itemEn: 'Hot Saj Falafel & Hummus Wrap', bayAr: 'صاج الخبز الطازج', bayEn: 'Fresh Saj Griddle' },
+    { itemAr: 'بوكس غداء المكاتب المتكامل', itemEn: 'Executive Office Mezze Lunch Box', bayAr: 'خط المازة الباردة والساخنة', bayEn: 'Mezze Assembly Line' },
+    { itemAr: 'عرايس لحم مشوية مع دبس الرمان', itemEn: 'Pomegranate Molasses Grilled Arayes', bayAr: 'مكبس الشوي الحراري', bayEn: 'Charcoal Press Bay' },
+  ],
+  'farm-brown': [
+    { itemAr: 'كرواسون الزبدة الفرنسي وقهوة مختصة', itemEn: 'Artisan Butter Croissant & Pour-Over', bayAr: 'فرن التخمير الصباحي', bayEn: 'Artisan Deck Oven' },
+    { itemAr: 'ساندويتش ديك رومي مدخن بالساوردو', itemEn: 'Smoked Turkey Sourdough Melt', bayAr: 'محطة الساوردو المحمص', bayEn: 'Sourdough Panini Bay' },
+    { itemAr: 'سلطة الكينوا والأفوكادو الطازجة', itemEn: 'Avocado Quinoa Harvest Bowl', bayAr: 'ركن السلطات المبرد', bayEn: 'Chilled Garde-Manger' },
+    { itemAr: 'بوكس فطور المكاتب المخبوز طازجاً', itemEn: 'Fresh-Baked Office Pastry Box', bayAr: 'طاولة تعبئة المخبوزات', bayEn: 'Bakery Box Pass' },
+    { itemAr: 'توست الحلوم المشوي مع البيستو', itemEn: 'Grilled Halloumi Pesto Brioche', bayAr: 'فرن التحمير السريع', bayEn: 'Speed Convection Oven' },
+  ],
+  'noodle-bar': [
+    { itemAr: 'رامن المرق الغني بلحم البريسكت', itemEn: 'Slow-Simmered Brisket Ramen', bayAr: 'قدور المرق الساخن', bayEn: 'Broth Kettle Station' },
+    { itemAr: 'باد تاي الروبيان بالفول السوداني', itemEn: 'Tiger Prawn Pad Thai', bayAr: 'ووك النودلز السريع', bayEn: 'High-Heat Noodle Wok' },
+    { itemAr: 'ياكيسوبا الدجاج المشوي مع الغيوزا', itemEn: 'Charred Chicken Yakisoba & Gyoza', bayAr: 'صاج التيبانياكي', bayEn: 'Teppanyaki Griddle' },
+    { itemAr: 'نودلز الكاري الآسيوي الحار', itemEn: 'Spicy Laksa Curry Noodle Bowl', bayAr: 'محطة عزل الشوربة المحكم', bayEn: 'Thermal Soup Seal Bay' },
+    { itemAr: 'باو الدجاج المقرمش وباو اللحم', itemEn: 'Crispy Chicken & Braised Beef Bao', bayAr: 'سلال التبخير الخيزرانية', bayEn: 'Bamboo Steamer Stack' },
+  ],
+  'karak-cafeteria': [
+    { itemAr: 'دلة كرك بالزعفران والهيل (١ لتر)', itemEn: '1L Saffron-Cardamom Karak Flask', bayAr: 'غلاية الكرك النحاسية', bayEn: 'Saffron Karak Kettle' },
+    { itemAr: 'شباتي جبن كرافت وعسل طازج', itemEn: 'Fresh Griddle Kraft-Honey Chapati', bayAr: 'صاج الشباتي الساخن', bayEn: 'Hot Chapati Tawa' },
+    { itemAr: 'شباتي بيض وجبن مع شاي كرك', itemEn: 'Egg-Cheese Chapati & Karak Combo', bayAr: 'خط الفطور السريع', bayEn: 'Express Karak Pass' },
+    { itemAr: 'بوكس سمبوسة مشكلة وشباتي نوتيلا', itemEn: 'Mixed Samosa & Nutella Chapati Box', bayAr: 'محطة القرمشة والتغليف', bayEn: 'Crisp Samosa Station' },
+    { itemAr: 'دلتان كرك للديوانية مع لقيمات', itemEn: 'Twin Diwaniya Karak Flasks & Luqaimat', bayAr: 'مسار تعبئة الدلال الحرارية', bayEn: 'Thermal Flask Fill Line' },
+  ],
+}
 
-function pickDelayCause(
-  tier: PrepSlaTier,
-  brandId: ActiveBrandId,
-  seed: number,
-): { ar: string; en: string } {
+function buildUniqueTicketDiagnosis(params: {
+  orderId: string
+  tier: PrepSlaTier
+  brandId: ActiveBrandId
+  branchNameAr: string
+  branchNameEn: string
+  channelNameAr: string
+  channelNameEn: string
+  arrivedAt: string
+  durationMmSs: string
+  basketKwd: number
+  seed: number
+}): { ar: string; en: string } {
+  const {
+    orderId,
+    tier,
+    brandId,
+    branchNameAr,
+    branchNameEn,
+    channelNameAr,
+    channelNameEn,
+    arrivedAt,
+    durationMmSs,
+    basketKwd,
+    seed,
+  } = params
+  const stations = BRAND_STATION_ITEMS[brandId]
+  const st = stations[seed % stations.length] ?? stations[0]
+
   if (tier === 'green') {
     return {
-      ar: 'انسيابية مثالية لخط التحضير والتسليم ضمن المعيار الأخضر',
-      en: 'Smooth KDS station flow — handed off inside <=12m green SLA',
+      ar: `انسيابية ${st.bayAr} في ${branchNameAr}: تجهيز «${st.itemAr}» وتسليم ${channelNameAr} خلال ${durationMmSs} (وصول ${arrivedAt} · ${basketKwd.toFixed(2)} د.ك)`,
+      en: `${st.bayEn} smooth at ${branchNameEn}: "${st.itemEn}" handed to ${channelNameEn} in ${durationMmSs} (in ${arrivedAt} · ${basketKwd.toFixed(2)} KWD)`,
     }
   }
-  const brandSpecific = DELAY_ROOT_CAUSES.find((c) => c.brandMatch === brandId)
-  if (brandSpecific && seed % 2 === 0) {
-    return { ar: brandSpecific.ar, en: brandSpecific.en }
+
+  if (tier === 'yellow') {
+    return {
+      ar: `ضغط وردية متوسط على ${st.bayAr} بفرع ${branchNameAr} لطلب «${st.itemAr}» عبر ${channelNameAr} (${durationMmSs} من ${arrivedAt} · تذكرة ${orderId})`,
+      en: `Moderate shift load on ${st.bayEn} at ${branchNameEn} for "${st.itemEn}" via ${channelNameEn} (${durationMmSs} from ${arrivedAt} · ${orderId})`,
+    }
   }
-  const pool = DELAY_ROOT_CAUSES.filter((c) => !c.brandMatch)
-  const chosen = pool[seed % pool.length] ?? DELAY_ROOT_CAUSES[3]
-  return { ar: chosen.ar, en: chosen.en }
+
+  return {
+    ar: `اختناق حرج في ${st.bayAr} بفرع ${branchNameAr}: تأخر «${st.itemAr}» لـ ${durationMmSs} مع تزامن تذاكر ${channelNameAr} عند ${arrivedAt} (${orderId})`,
+    en: `Critical ${st.bayEn} bottleneck at ${branchNameEn}: "${st.itemEn}" took ${durationMmSs} during ${channelNameEn} surge at ${arrivedAt} (${orderId})`,
+  }
 }
 
 export function computeOrderPrepSlaSnapshot(
@@ -1179,11 +1231,32 @@ export function computeOrderPrepSlaSnapshot(
       const readyAt = formatClockTime(readyHour, readyMin, readySec)
 
       const basketKwd = r2(3.4 + ((hSeed % 68) / 10))
-      const cause = pickDelayCause(tier, brandId, hSeed + pass)
-
       seq += 1
+      const orderId = `VF-${seq}`
+      const durationMmSs = formatSecondsMmSs(prepSeconds)
+      const brandNameAr = getBrandLabel(brandId, true)
+      const brandNameEn = getBrandLabel(brandId, false)
+      const branchNameAr = getBranchLabel(branchId, true)
+      const branchNameEn = getBranchLabel(branchId, false)
+      const channelNameAr = getChannelLabel(channelId, true)
+      const channelNameEn = getChannelLabel(channelId, false)
+
+      const rawCause = buildUniqueTicketDiagnosis({
+        orderId,
+        tier,
+        brandId,
+        branchNameAr,
+        branchNameEn,
+        channelNameAr,
+        channelNameEn,
+        arrivedAt,
+        durationMmSs,
+        basketKwd,
+        seed: hSeed + pass,
+      })
+
       allGeneratedTickets.push({
-        orderId: `VF-${seq}`,
+        orderId,
         dateIso: dayIso,
         arrivedAt,
         readyAt,
@@ -1192,20 +1265,20 @@ export function computeOrderPrepSlaSnapshot(
         hourLabelEn: slot.en,
         prepSeconds,
         prepMinutes,
-        durationMmSs: formatSecondsMmSs(prepSeconds),
+        durationMmSs,
         brandId,
-        brandNameAr: getBrandLabel(brandId, true),
-        brandNameEn: getBrandLabel(brandId, false),
+        brandNameAr,
+        brandNameEn,
         branchId,
-        branchNameAr: getBranchLabel(branchId, true),
-        branchNameEn: getBranchLabel(branchId, false),
+        branchNameAr,
+        branchNameEn,
         channelId,
-        channelNameAr: getChannelLabel(channelId, true),
-        channelNameEn: getChannelLabel(channelId, false),
+        channelNameAr,
+        channelNameEn,
         basketKwd,
         tier,
-        delayRootCauseAr: cause.ar,
-        delayRootCauseEn: cause.en,
+        delayRootCauseAr: rawCause.ar,
+        delayRootCauseEn: rawCause.en,
       })
     }
   }
