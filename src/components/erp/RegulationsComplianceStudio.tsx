@@ -43,15 +43,26 @@ import {
   type RegulationTrackId,
 } from '@/lib/aether/regulations-engine'
 
-const CARD_CLS = 'ae-bento-card p-5 sm:p-6'
-const KPI_CARD_CLS = 'ae-kpi-card p-5 sm:p-6'
-const SUBCARD_CLS = 'ae-bento-subcard p-3.5'
+const CARD_CLS =
+  'ae-bento-card rounded-2xl bg-white p-3.5 sm:p-6 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10'
+const KPI_CARD_CLS =
+  'ae-kpi-card rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10'
+const SUBCARD_CLS =
+  'ae-bento-subcard rounded-2xl bg-[#F6F7F8] p-3.5 ring-1 ring-slate-900/[0.03] dark:bg-[#0B1410] dark:ring-emerald-500/[0.08]'
+const SEGMENT_TRACK_CLS =
+  'flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar p-1 rounded-2xl bg-neutral-100/90 dark:bg-white/[0.06]'
+const SEGMENT_BTN_CLS =
+  'shrink-0 whitespace-nowrap rounded-xl px-3.5 py-2 text-[13px] font-medium transition-all duration-150 cursor-pointer'
+const SEGMENT_BTN_ACTIVE_CLS =
+  'bg-white font-semibold text-emerald-900 shadow-[0_1px_2px_rgba(15,23,42,0.06)] ring-1 ring-slate-900/[0.05] dark:bg-emerald-500/20 dark:text-emerald-200 dark:ring-emerald-400/25'
+const SEGMENT_BTN_IDLE_CLS =
+  'text-slate-600 hover:bg-white/70 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
 const INPUT_CLS =
-  'h-10 w-full rounded-xl bg-white px-3.5 text-[14px] font-medium text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ring-1 ring-slate-200/80 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-emerald-500/35 dark:text-slate-100 dark:ring-white/10'
+  'h-10 w-full rounded-xl bg-white px-3.5 text-[14px] font-medium text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ring-1 ring-slate-200/80 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-emerald-500/35 dark:bg-[#0B1410] dark:text-slate-100 dark:ring-emerald-500/15'
 const PRIMARY_SOFT_BTN_CLS =
-  'inline-flex h-9 cursor-pointer items-center gap-2 rounded-full bg-emerald-50 px-4 text-[13.5px] font-semibold text-emerald-900 ring-1 ring-emerald-500/25 transition-all duration-150 hover:bg-emerald-100/90 disabled:opacity-60 dark:bg-emerald-950/65 dark:text-emerald-200 dark:ring-emerald-400/25 dark:hover:bg-emerald-900/60'
+  'inline-flex h-9 shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-xl bg-emerald-50 px-3.5 text-[13px] font-semibold text-emerald-900 ring-1 ring-emerald-500/25 transition-all duration-150 hover:bg-emerald-100/90 disabled:opacity-60 dark:bg-emerald-950/65 dark:text-emerald-200 dark:ring-emerald-400/25 dark:hover:bg-emerald-900/60'
 const HEADER_ACTION_BTN_CLS =
-  'inline-flex h-10 cursor-pointer items-center gap-2 rounded-full bg-emerald-50 px-4 text-[13.5px] font-semibold text-emerald-900 ring-1 ring-emerald-500/25 transition-all duration-150 hover:bg-emerald-100/90 disabled:opacity-60 dark:bg-emerald-950/65 dark:text-emerald-200 dark:ring-emerald-400/25 dark:hover:bg-emerald-900/60'
+  'inline-flex h-9 sm:h-10 shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-xl bg-emerald-50 px-3.5 sm:px-4 text-[13px] font-semibold text-emerald-900 ring-1 ring-emerald-500/25 transition-all duration-150 hover:bg-emerald-100/90 disabled:opacity-60 dark:bg-emerald-950/65 dark:text-emerald-200 dark:ring-emerald-400/25 dark:hover:bg-emerald-900/60'
 const MENU_ITEM_CLS =
   'flex w-full cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2 text-start text-[13.5px] font-medium text-slate-700 transition-colors hover:bg-emerald-50/70 hover:text-emerald-900 dark:text-slate-200 dark:hover:bg-emerald-950/50 dark:hover:text-emerald-200'
 
@@ -294,67 +305,60 @@ export function RegulationsComplianceStudio() {
       dir={isAr ? 'rtl' : 'ltr'}
       className="w-full max-w-[1920px] mx-auto space-y-6 pb-12 text-[14.5px] leading-relaxed text-slate-800 dark:text-slate-100"
     >
-      {/* ───────────── 1. Executive Header + Add Regulation ───────────── */}
-      <header className={`${CARD_CLS} flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between`}>
-        <div className="space-y-1.5">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <span className="ae-icon-badge">
+      {/* ───────────── 1. Slim Contextual Bar + Scrollable Track Filter + Add Regulation ───────────── */}
+      <div className={`${CARD_CLS} !p-3.5 sm:!p-4 space-y-3`}>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="ae-icon-badge shrink-0">
               <Scale className="h-4 w-4" />
             </span>
-            <h1 className="text-[20px] font-semibold tracking-tight text-slate-900 sm:text-[22px] dark:text-white">
+            <p className="min-w-0 text-[13px] sm:text-[13.5px] font-medium leading-snug text-slate-600 dark:text-slate-300">
               {isAr
-                ? 'التشريعات والتراخيص وخطط التعامل'
-                : 'Kuwait F&B Regulations & Mitigation Playbooks'}
-            </h1>
+                ? `${workspace.subtitleAr} • البلدية وهيئة الغذاء (مطبخ العارضية)، القوى العاملة، التجارة، والمعارض EXB`
+                : `${workspace.subtitleEn} • Municipality & PAFN (Ardiya), Manpower & Rider Permits, MOCI & EXB`}
+            </p>
             {session.active ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-[12px] font-semibold text-emerald-800 ring-1 ring-emerald-500/20 dark:bg-emerald-950/60 dark:text-emerald-300">
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-emerald-50 px-2.5 py-1 text-[12px] font-semibold text-emerald-800 ring-1 ring-emerald-500/20 dark:bg-emerald-950/60 dark:text-emerald-300">
                 <Unlock className="h-3.5 w-3.5" />
                 <span>{isAr ? 'وضع المدير نشط 🔓' : 'Manager Active 🔓'}</span>
               </span>
             ) : null}
           </div>
-          <p className="text-[14px] text-slate-500 dark:text-slate-400">
-            {isAr
-              ? `النطاق النشط: ${workspace.subtitleAr} • البلدية وهيئة الغذاء (مطبخ العارضية)، القوى العاملة وتصاريح التوصيل، التجارة، والمعارض EXB`
-              : `Scope: ${workspace.subtitleEn} • Municipality & PAFN (Ardiya), Manpower & Rider Permits, MOCI Promos, and Mall/EXB Rules`}
-          </p>
+
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+            <button
+              type="button"
+              onClick={() => openDrawer('all')}
+              className="ae-pill-light h-9 sm:h-10 shrink-0 !rounded-xl px-3.5 text-[13px]"
+            >
+              <Bell className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              <span>{isAr ? 'مركز اعتمادات المدير 🔔' : 'Governance Bell 🔔'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setFormOpen((v) => !v)}
+              className={HEADER_ACTION_BTN_CLS}
+            >
+              <Plus className="h-4 w-4 shrink-0 text-emerald-700 dark:text-emerald-300" />
+              <span>
+                {formOpen
+                  ? isAr
+                    ? 'إغلاق النموذج ✕'
+                    : 'Close ✕'
+                  : isAr
+                    ? '+ إضافة تشريع جديد'
+                    : '+ Add New Regulation'}
+              </span>
+            </button>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => openDrawer('all')}
-            className="ae-pill-light h-10 px-4 text-[13.5px]"
-          >
-            <Bell className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-            <span>{isAr ? 'مركز اعتمادات المدير 🔔' : 'Governance Bell 🔔'}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setFormOpen((v) => !v)}
-            className={HEADER_ACTION_BTN_CLS}
-          >
-            <Plus className="h-4 w-4 text-emerald-700 dark:text-emerald-300" />
-            <span>
-              {formOpen
-                ? isAr
-                  ? 'إغلاق النموذج ✕'
-                  : 'Close ✕'
-                : isAr
-                  ? '+ إضافة تشريع جديد'
-                  : '+ Add New Regulation'}
-            </span>
-          </button>
-        </div>
-      </header>
-
-      {/* Soft Unslop Track Filter Pills */}
-      <div className="overflow-x-auto pb-0.5">
+        {/* Horizontal Touch-Scrollable Regulatory Track Segmented Control */}
         <div
           role="tablist"
           aria-label={isAr ? 'تصفية المسارات الرقابية' : 'Filter Regulatory Tracks'}
-          className="ae-bento-card inline-flex flex-wrap items-center gap-1 rounded-full p-1.5"
+          className={SEGMENT_TRACK_CLS}
         >
           {REGULATION_TRACK_OPTIONS.map((t) => {
             const active = trackFilter === t.id
@@ -365,10 +369,8 @@ export function RegulationsComplianceStudio() {
                 role="tab"
                 aria-selected={active}
                 onClick={() => setTrackFilter(t.id)}
-                className={`inline-flex h-8.5 cursor-pointer items-center justify-center rounded-full px-4 text-[13.5px] font-semibold whitespace-nowrap transition-all duration-150 ${
-                  active
-                    ? 'bg-emerald-50 text-emerald-900 ring-1 ring-emerald-500/25 shadow-[0_1px_2px_rgba(16,185,129,0.08)] dark:bg-emerald-950/70 dark:text-emerald-200 dark:ring-emerald-400/30'
-                    : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
+                className={`${SEGMENT_BTN_CLS} ${
+                  active ? SEGMENT_BTN_ACTIVE_CLS : SEGMENT_BTN_IDLE_CLS
                 }`}
               >
                 {isAr ? t.ar : t.en}
@@ -512,69 +514,70 @@ export function RegulationsComplianceStudio() {
         </form>
       ) : null}
 
-      {/* ───────────── 2. 4 Executive Regulatory KPIs ───────────── */}
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {/* ───────────── 2. 4 Executive Regulatory KPIs (`2x2` Mobile Grid) ───────────── */}
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <article className={`${KPI_CARD_CLS} ae-glow-emerald`}>
-          <div className="text-[14px] font-medium text-slate-500 dark:text-slate-400">
+          <div className="text-[12.5px] sm:text-[13.5px] font-medium text-slate-500 dark:text-slate-400">
             {isAr ? 'التشريعات الفعالة المتابعة' : 'Active Tracked Regulations'}
           </div>
           <div
             dir="ltr"
             data-kpi-val
-            className="mt-2 text-[28px] font-bold tracking-tight tabular-nums text-slate-900 sm:text-[32px] dark:text-white"
+            className="mt-1.5 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-slate-900 dark:text-white"
           >
             {stats.totalCount}
           </div>
-          <p className="mt-1.5 text-[14px] text-slate-500 dark:text-slate-400">
+          <p className="mt-1.5 text-[12px] sm:text-[13.5px] leading-snug text-slate-500 dark:text-slate-400">
             {isAr ? 'بلدية، غذاء، قوى عاملة، تجارة، وإطفاء' : 'Municipality, PAFN, PAM, MOCI & KFF'}
           </p>
         </article>
 
         <article className={`${KPI_CARD_CLS} ae-glow-amber`}>
-          <div className="text-[14px] font-medium text-slate-500 dark:text-slate-400">
+          <div className="text-[12.5px] sm:text-[13.5px] font-medium text-slate-500 dark:text-slate-400">
             {isAr ? 'إجمالي تكلفة الامتثال' : 'Total Compliance Cost Impact'}
           </div>
           <div
             dir="ltr"
             data-kpi-val
-            className="mt-2 text-[28px] font-bold tracking-tight tabular-nums text-slate-900 sm:text-[32px] dark:text-white"
+            className="mt-1.5 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-slate-900 dark:text-white"
           >
-            {f0(stats.totalCostKwd)} <span className="text-[16px] font-semibold text-slate-400">{kwd}</span>
+            {f0(stats.totalCostKwd)}{' '}
+            <span className="text-[12.5px] sm:text-[15px] font-semibold text-slate-400">{kwd}</span>
           </div>
-          <p className="mt-1.5 text-[14px] text-slate-500 dark:text-slate-400">
+          <p className="mt-1.5 text-[12px] sm:text-[13.5px] leading-snug text-slate-500 dark:text-slate-400">
             {isAr ? 'شهادات صحية، تصاريح توصيل، وصيانة سلامة' : 'Permits, health cards & safety calibration'}
           </p>
         </article>
 
         <article className={`${KPI_CARD_CLS} ae-glow-emerald`}>
-          <div className="text-[14px] font-medium text-slate-500 dark:text-slate-400">
+          <div className="text-[12.5px] sm:text-[13.5px] font-medium text-slate-500 dark:text-slate-400">
             {isAr ? 'الحماية من الغرامات والإغلاق' : 'Penalty Exposure Shielded'}
           </div>
           <div
             dir="ltr"
             data-kpi-val
-            className="mt-2 text-[28px] font-bold tracking-tight tabular-nums text-emerald-700 sm:text-[32px] dark:text-emerald-400"
+            className="mt-1.5 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-emerald-700 dark:text-emerald-400"
           >
             {f0(stats.totalPenaltyAvoidedKwd)}{' '}
-            <span className="text-[16px] font-semibold text-slate-400">{kwd}</span>
+            <span className="text-[12.5px] sm:text-[15px] font-semibold text-slate-400">{kwd}</span>
           </div>
-          <p className="mt-1.5 text-[14px] text-slate-500 dark:text-slate-400">
+          <p className="mt-1.5 text-[12px] sm:text-[13.5px] leading-snug text-slate-500 dark:text-slate-400">
             {isAr ? 'تفادي غرامات إدارية وتوقف تشغيل الفروع' : 'Fines & closure downtime prevented'}
           </p>
         </article>
 
         <article className={`${KPI_CARD_CLS} ae-glow-sky`}>
-          <div className="text-[14px] font-medium text-slate-500 dark:text-slate-400">
+          <div className="text-[12.5px] sm:text-[13.5px] font-medium text-slate-500 dark:text-slate-400">
             {isAr ? 'مؤشر جاهزية الفروع الـ 7' : '7-Branch Readiness Score'}
           </div>
           <div
             dir="ltr"
             data-kpi-val
-            className="mt-2 text-[28px] font-bold tracking-tight tabular-nums text-slate-900 sm:text-[32px] dark:text-white"
+            className="mt-1.5 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-slate-900 dark:text-white"
           >
             {stats.readinessPct}%
           </div>
-          <p className="mt-1.5 text-[14px] text-slate-500 dark:text-slate-400">
+          <p className="mt-1.5 text-[12px] sm:text-[13.5px] leading-snug text-slate-500 dark:text-slate-400">
             {isAr
               ? `${stats.readyBranchSlots} من ${stats.totalSlots} نقطة مطابقة مكتملة`
               : `${stats.readyBranchSlots} of ${stats.totalSlots} branch checks verified`}
@@ -799,7 +802,7 @@ export function RegulationsComplianceStudio() {
                     </button>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-1.5">
+                  <div className={SEGMENT_TRACK_CLS}>
                     {APPROVED_BRANCH_IDS.map((branchId) => {
                       const ready = Boolean(readinessMap[branchId])
                       const isActiveGlobalBranch = filters.branch === branchId
@@ -813,7 +816,7 @@ export function RegulationsComplianceStudio() {
                               branchId as Exclude<GlobalBranch, 'all'>,
                             )
                           }
-                          className={`inline-flex cursor-pointer items-center gap-1 rounded-full px-3 py-1 text-[12.5px] font-semibold transition-colors ${
+                          className={`inline-flex shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-xl px-3 py-1.5 text-[12.5px] font-semibold transition-all duration-150 ${
                             ready
                               ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-500/25 hover:bg-emerald-100 dark:bg-emerald-950/70 dark:text-emerald-200'
                               : 'bg-amber-50 text-amber-800 ring-1 ring-amber-500/25 hover:bg-amber-100 dark:bg-amber-950/50 dark:text-amber-200'

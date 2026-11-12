@@ -15,7 +15,6 @@ function EmeraldPillTabs<K extends string>({
   value,
   onChange,
   ariaLabel,
-  size = 'md',
 }: {
   options: readonly { id: K; label: string; badge?: string | number }[]
   value: K
@@ -23,16 +22,11 @@ function EmeraldPillTabs<K extends string>({
   ariaLabel?: string
   size?: 'sm' | 'md'
 }) {
-  const btnPadding =
-    size === 'sm'
-      ? 'h-8 px-3 text-[12.5px]'
-      : 'h-9 px-3.5 py-1.5 text-[13px] sm:text-[13.5px]'
-
   return (
     <div
       role="tablist"
       aria-label={ariaLabel}
-      className="inline-flex flex-wrap items-center gap-1 rounded-full bg-[#F1F5F9] p-1 ring-1 ring-slate-900/[0.06] select-none dark:bg-[#0C141B] dark:ring-white/[0.08]"
+      className="flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar p-1 rounded-2xl bg-neutral-100/90 ring-1 ring-slate-900/[0.04] select-none dark:bg-white/[0.06] dark:ring-emerald-500/10"
     >
       {options.map((opt) => {
         const active = opt.id === value
@@ -43,16 +37,16 @@ function EmeraldPillTabs<K extends string>({
             role="tab"
             aria-selected={active}
             onClick={() => onChange(opt.id)}
-            className={`inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-full font-bold whitespace-nowrap transition-all duration-150 focus:outline-none ${btnPadding} ${
+            className={`inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-2 text-[13px] font-medium transition-all duration-150 focus:outline-none ${
               active
-                ? 'btn-colored bg-emerald-600 text-white shadow-sm dark:bg-emerald-500 dark:text-[#04130D]'
+                ? 'btn-colored bg-emerald-600 font-semibold text-white shadow-sm dark:bg-emerald-500 dark:text-[#04130D]'
                 : 'text-slate-600 hover:bg-white/80 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
             }`}
           >
             <span>{opt.label}</span>
             {opt.badge !== undefined ? (
               <span
-                className={`rounded-full px-1.5 py-0.5 text-[11px] font-extrabold tabular-nums ${
+                className={`rounded-md px-1.5 py-0.5 text-[11px] font-extrabold tabular-nums ${
                   active
                     ? 'bg-white/20 text-white dark:bg-[#04130D]/20 dark:text-[#04130D]'
                     : 'bg-white text-slate-700 dark:bg-white/10 dark:text-slate-300'
@@ -518,22 +512,23 @@ export function BeforeAfterStudio() {
       <h3 className="text-[15px] font-bold tracking-tight text-neutral-950 dark:text-white">
         {isAr ? titleAr : titleEn}
       </h3>
-      <div className="ae-table-wrap rounded-2xl bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] dark:bg-[#111A22]">
-        <table className="w-full min-w-[860px] border-collapse text-[14px]">
-          <thead className="sticky top-0 z-10 bg-[#F7F7F8] text-neutral-600 dark:bg-[#0C141B] dark:text-slate-300">
-            <tr>
-              <th className="px-4 py-3 text-start text-[13px] font-semibold">{T('Item', 'البند')}</th>
-              <th className="px-4 py-3 text-end text-[13px] font-semibold">{T('Sales Before', 'المبيعات قبل')}</th>
-              <th className="px-4 py-3 text-end text-[13px] font-semibold">{T('Sales After', 'المبيعات بعد')}</th>
-              <th className="px-4 py-3 text-end text-[13px] font-semibold">{T('Variance (KWD)', 'الفرق (د.ك)')}</th>
-              <th className="px-4 py-3 text-center text-[13px] font-semibold">{T('Change %', 'التغير %')}</th>
-              <th className="px-4 py-3 text-end text-[13px] font-semibold">
-                {T('Net Pocket (Before → After)', 'الصافي بالجيب (قبل ← بعد)')}
-              </th>
-              <th className="px-4 py-3 text-center text-[13px] font-semibold">{T('Status', 'الحالة')}</th>
-              <th className="px-4 py-3 text-end text-[13px] font-semibold">{T('Action', 'الإجراء')}</th>
-            </tr>
-          </thead>
+      <div className="overflow-x-auto -mx-3.5 px-3.5 sm:mx-0 sm:px-0">
+        <div className="overflow-hidden rounded-2xl bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10">
+          <table className="w-full min-w-[860px] border-collapse text-[14px]">
+            <thead className="sticky top-0 z-10 bg-[#F7F7F8] text-neutral-600 dark:bg-[#09110E] dark:text-slate-300">
+              <tr>
+                <th className="whitespace-nowrap px-4 py-3 text-start text-[13px] font-semibold">{T('Item', 'البند')}</th>
+                <th className="whitespace-nowrap px-4 py-3 text-end text-[13px] font-semibold">{T('Sales Before', 'المبيعات قبل')}</th>
+                <th className="whitespace-nowrap px-4 py-3 text-end text-[13px] font-semibold">{T('Sales After', 'المبيعات بعد')}</th>
+                <th className="whitespace-nowrap px-4 py-3 text-end text-[13px] font-semibold">{T('Variance (KWD)', 'الفرق (د.ك)')}</th>
+                <th className="whitespace-nowrap px-4 py-3 text-center text-[13px] font-semibold">{T('Change %', 'التغير %')}</th>
+                <th className="whitespace-nowrap px-4 py-3 text-end text-[13px] font-semibold">
+                  {T('Net Pocket (Before → After)', 'الصافي بالجيب (قبل ← بعد)')}
+                </th>
+                <th className="whitespace-nowrap px-4 py-3 text-center text-[13px] font-semibold">{T('Status', 'الحالة')}</th>
+                <th className="whitespace-nowrap px-4 py-3 text-end text-[13px] font-semibold">{T('Action', 'الإجراء')}</th>
+              </tr>
+            </thead>
           <tbody className="divide-y divide-neutral-100 dark:divide-white/[0.05]">
             {rows.map((r) => {
               const rowKey = `${scopeKey}:${r.id}`
@@ -649,116 +644,186 @@ export function BeforeAfterStudio() {
             })}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   )
 
   return (
-    <div dir={isAr ? 'rtl' : 'ltr'} className="w-full max-w-[1920px] mx-auto space-y-5 pb-12">
-      {/* 1. Focused Variance Masthead (Zero Cloned 4-Card Overview KPIs, Zero Donut, Zero Bar Chart) */}
-      <header className="ae-bento-card flex flex-col gap-4 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:p-6 xl:flex-row xl:items-center xl:justify-between dark:bg-[#111A22]">
-        <div className="space-y-1.5">
-          <div className="inline-flex items-center gap-2 text-[13px] font-semibold text-emerald-700 dark:text-emerald-400">
-            <ArrowLeftRight className="h-4 w-4" />
+    <div dir={isAr ? 'rtl' : 'ltr'} className="w-full max-w-[1920px] mx-auto space-y-4 pb-12">
+      {/* 1. Slim Context & Segmented Mode Bar (Single Active Page Title in TopFilterBar) */}
+      <div className="flex flex-col gap-2.5 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-neutral-500 dark:text-slate-400">
+          <span className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-50 px-3 py-1.5 text-[12.5px] font-semibold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+            <ArrowLeftRight className="h-3.5 w-3.5" />
             <span>
               {isAr
                 ? `${snap.beforeLabelAr}  ←  ${snap.afterLabelAr}`
                 : `${snap.beforeLabelEn}  →  ${snap.afterLabelEn}`}
             </span>
+          </span>
+          <span className="truncate">{isAr ? workspace.subtitleAr : workspace.subtitleEn}</span>
+        </div>
+
+        <div className="no-print flex max-w-full items-center gap-2 overflow-x-auto no-scrollbar">
+          <EmeraldPillTabs<ComparisonMode>
+            ariaLabel={T('Comparison Mode', 'نوع المقارنة')}
+            size="sm"
+            value={mode}
+            onChange={setMode}
+            options={modeOptions}
+          />
+
+          {mode === 'decision-campaign' ? (
+            <select
+              value={snap.activeEvent?.id ?? ''}
+              onChange={(e) => setSelectedEventId(e.target.value)}
+              aria-label={T('Select approved play or campaign', 'اختر قرار أو حملة معتمدة')}
+              className="ae-select h-9 shrink-0"
+            >
+              {uniqueEventOptions.map((ev) => (
+                <option key={ev.id} value={ev.id}>
+                  {isAr ? ev.labelAr : ev.labelEn}
+                </option>
+              ))}
+            </select>
+          ) : null}
+
+          <button
+            type="button"
+            onClick={handleExportCsv}
+            className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl bg-white px-3.5 text-[13px] font-medium text-neutral-800 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-900/[0.04] transition-all duration-150 hover:text-neutral-950 active:scale-95 dark:bg-[#101C17] dark:text-slate-100 dark:ring-emerald-500/10"
+          >
+            <Download className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span>{T('Export CSV', 'تحميل CSV')}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl bg-white px-3.5 text-[13px] font-medium text-neutral-800 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-900/[0.04] transition-all duration-150 hover:text-neutral-950 active:scale-95 dark:bg-[#101C17] dark:text-slate-100 dark:ring-emerald-500/10"
+          >
+            <Printer className="h-3.5 w-3.5 text-neutral-500 dark:text-slate-300" />
+            <span>{T('Print', 'طباعة')}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* 1B. Compact 2x2 Variance KPI Strip (Pure Delta Metrics — Fits Single Glance on 390px) */}
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <article className="ae-kpi-card rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10">
+          <div className="flex flex-wrap items-center justify-between gap-1">
+            <span className="text-xs sm:text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
+              {T('Net Sales Variance', 'صافي فرق المبيعات')}
+            </span>
+            <span
+              dir="ltr"
+              className={`rounded-lg px-2 py-0.5 text-[10.5px] sm:text-[11.5px] font-semibold tabular-nums ${
+                snap.summary.sales.pct >= 0
+                  ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
+                  : 'bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-200'
+              }`}
+            >
+              {fmtSignedPct(snap.summary.sales.pct)}
+            </span>
           </div>
-          <h1 className="text-[24px] font-extrabold tracking-tight text-neutral-950 sm:text-[26px] dark:text-white">
-            {T('Before vs. After Variance & Decision Impact', 'أثر القرارات والفروقات (قبل وبعد)')}
-          </h1>
-          <p className="text-[14px] text-neutral-500 dark:text-slate-400">
-            {isAr ? workspace.subtitleAr : workspace.subtitleEn}
+          <div
+            dir="ltr"
+            className={`mt-1.5 sm:mt-2 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums ${
+              snap.summary.sales.diff >= 0
+                ? 'text-emerald-700 dark:text-emerald-400'
+                : 'text-amber-700 dark:text-amber-300'
+            }`}
+          >
+            {fmtSignedKwd(snap.summary.sales.diff, isAr)}
+          </div>
+          <p dir="ltr" className="mt-1 text-[11.5px] sm:text-[13px] tabular-nums text-neutral-500 dark:text-slate-400">
+            {f0(snap.summary.sales.before)} → {f0(snap.summary.sales.after)} {isAr ? 'د.ك' : 'KWD'}
           </p>
-        </div>
+        </article>
 
-        {/* Compact Inline Variance Readout + Mode Switcher + Export/Print */}
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex items-center gap-5 rounded-2xl bg-[#F7F7F8] px-4 py-2.5 dark:bg-[#0C141B]">
-            <div>
-              <div className="text-[12px] font-semibold text-neutral-500 dark:text-slate-400">
-                {T('Net Sales Variance', 'صافي فرق المبيعات')}
-              </div>
-              <div
-                dir="ltr"
-                className={`text-[28px] font-black tracking-tight tabular-nums ${
-                  snap.summary.sales.diff >= 0
-                    ? 'text-emerald-700 dark:text-emerald-400'
-                    : 'text-rose-600 dark:text-rose-400'
-                }`}
-              >
-                {fmtSignedKwd(snap.summary.sales.diff, isAr)}
-              </div>
-            </div>
-
-            <div className="h-9 w-px bg-neutral-200 dark:bg-white/10" />
-
-            <div>
-              <div className="text-[12px] font-semibold text-neutral-500 dark:text-slate-400">
-                {T('Net Pocket Variance', 'صافي فرق الجيب')}
-              </div>
-              <div
-                dir="ltr"
-                className={`text-[28px] font-black tracking-tight tabular-nums ${
-                  snap.summary.pocket.diff >= 0
-                    ? 'text-emerald-700 dark:text-emerald-400'
-                    : 'text-rose-600 dark:text-rose-400'
-                }`}
-              >
-                {fmtSignedKwd(snap.summary.pocket.diff, isAr)}
-              </div>
-            </div>
-          </div>
-
-          <div className="no-print flex flex-wrap items-center gap-2">
-            <EmeraldPillTabs<ComparisonMode>
-              ariaLabel={T('Comparison Mode', 'نوع المقارنة')}
-              size="sm"
-              value={mode}
-              onChange={setMode}
-              options={modeOptions}
-            />
-
-            {mode === 'decision-campaign' ? (
-              <select
-                value={snap.activeEvent?.id ?? ''}
-                onChange={(e) => setSelectedEventId(e.target.value)}
-                aria-label={T('Select approved play or campaign', 'اختر قرار أو حملة معتمدة')}
-                className="ae-select h-9"
-              >
-                {uniqueEventOptions.map((ev) => (
-                  <option key={ev.id} value={ev.id}>
-                    {isAr ? ev.labelAr : ev.labelEn}
-                  </option>
-                ))}
-              </select>
-            ) : null}
-
-            <button
-              type="button"
-              onClick={handleExportCsv}
-              className="ae-bento-subcard inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold text-neutral-800 transition-all duration-150 hover:text-neutral-950 active:scale-95 dark:text-slate-100"
+        <article className="ae-kpi-card rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10">
+          <div className="flex flex-wrap items-center justify-between gap-1">
+            <span className="text-xs sm:text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
+              {T('Net Pocket Variance', 'صافي فرق الجيب')}
+            </span>
+            <span
+              dir="ltr"
+              className={`rounded-lg px-2 py-0.5 text-[10.5px] sm:text-[11.5px] font-semibold tabular-nums ${
+                snap.summary.pocket.pct >= 0
+                  ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
+                  : 'bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-200'
+              }`}
             >
-              <Download className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span>{T('Export CSV', 'تحميل CSV')}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="ae-bento-subcard inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold text-neutral-800 transition-all duration-150 hover:text-neutral-950 active:scale-95 dark:text-slate-100"
-            >
-              <Printer className="h-3.5 w-3.5 text-neutral-500 dark:text-slate-300" />
-              <span>{T('Print', 'طباعة')}</span>
-            </button>
+              {fmtSignedPct(snap.summary.pocket.pct)}
+            </span>
           </div>
-        </div>
-      </header>
+          <div
+            dir="ltr"
+            className={`mt-1.5 sm:mt-2 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums ${
+              snap.summary.pocket.diff >= 0
+                ? 'text-emerald-700 dark:text-emerald-400'
+                : 'text-amber-700 dark:text-amber-300'
+            }`}
+          >
+            {fmtSignedKwd(snap.summary.pocket.diff, isAr)}
+          </div>
+          <p dir="ltr" className="mt-1 text-[11.5px] sm:text-[13px] tabular-nums text-neutral-500 dark:text-slate-400">
+            {f0(snap.summary.pocket.before)} → {f0(snap.summary.pocket.after)} {isAr ? 'د.ك' : 'KWD'}
+          </p>
+        </article>
+
+        <article className="ae-kpi-card rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10">
+          <div className="flex flex-wrap items-center justify-between gap-1">
+            <span className="text-xs sm:text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
+              {T('Orders Variance', 'فرق الطلبات')}
+            </span>
+            <span
+              dir="ltr"
+              className={`rounded-lg px-2 py-0.5 text-[10.5px] sm:text-[11.5px] font-semibold tabular-nums ${
+                snap.summary.orders.pct >= 0
+                  ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
+                  : 'bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-200'
+              }`}
+            >
+              {fmtSignedPct(snap.summary.orders.pct)}
+            </span>
+          </div>
+          <div
+            dir="ltr"
+            className="mt-1.5 sm:mt-2 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-neutral-950 dark:text-white"
+          >
+            {snap.summary.orders.diff >= 0 ? '+' : ''}
+            {f0(snap.summary.orders.diff)}
+          </div>
+          <p dir="ltr" className="mt-1 text-[11.5px] sm:text-[13px] tabular-nums text-neutral-500 dark:text-slate-400">
+            {f0(snap.summary.orders.before)} → {f0(snap.summary.orders.after)} {isAr ? 'طلب' : 'orders'}
+          </p>
+        </article>
+
+        <article className="ae-kpi-card rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10">
+          <div className="flex flex-wrap items-center justify-between gap-1">
+            <span className="text-xs sm:text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
+              {T('Decisions On Track', 'قرارات محققة للمستهدف')}
+            </span>
+            <span className="rounded-lg bg-emerald-50 px-2 py-0.5 text-[10.5px] sm:text-[11.5px] font-semibold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+              🟢🟡
+            </span>
+          </div>
+          <div
+            dir="ltr"
+            className="mt-1.5 sm:mt-2 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-neutral-950 dark:text-white"
+          >
+            {calibratedImpactRows.length - criticalImpactCount} / {calibratedImpactRows.length}
+          </div>
+          <p className="mt-1 text-[11.5px] sm:text-[13px] leading-snug text-neutral-500 dark:text-slate-400">
+            {T('Verified post-decision seals in Odoo', 'ختم الإدارة المراجع بعد التنفيذ')}
+          </p>
+        </article>
+      </section>
 
       {/* 2. Primary Focus: Approved Decisions Before vs. After Impact Tracker */}
-      <section className="ae-bento-card space-y-4 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:p-6 dark:bg-[#111A22]">
+      <section className="ae-bento-card space-y-4 rounded-2xl bg-white px-3.5 py-4 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] sm:p-6 dark:bg-[#101C17] dark:ring-emerald-500/10">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-1">
             <div className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-emerald-700 dark:text-emerald-400">
@@ -805,33 +870,34 @@ export function BeforeAfterStudio() {
           />
         </div>
 
-        <div className="overflow-x-auto rounded-2xl bg-[#F7F7F8] p-1 dark:bg-[#0C141B]">
-          <table className="w-full min-w-[980px] border-collapse rounded-xl bg-white text-[14px] dark:bg-[#111A22]">
-            <thead className="bg-[#F7F7F8] text-neutral-600 dark:bg-[#0C141B] dark:text-slate-300">
-              <tr>
-                <th className="px-4 py-3 text-start text-[13px] font-semibold">
-                  {T('Approved Decision / Campaign', 'القرار أو الحملة المعتمدة')}
-                </th>
-                <th className="px-3.5 py-3 text-end text-[13px] font-semibold">
-                  {T('Sales (Before → After)', 'المبيعات (قبل ← بعد)')}
-                </th>
-                <th className="px-3.5 py-3 text-center text-[13px] font-semibold">
-                  {T('Food / Supplier %', 'تكلفة المواد %')}
-                </th>
-                <th className="px-3.5 py-3 text-center text-[13px] font-semibold">
-                  {T('Promo Discount %', 'نسبة الخصومات %')}
-                </th>
-                <th className="px-3.5 py-3 text-end text-[13px] font-semibold">
-                  {T('Net Pocket (Before → After)', 'صافي الجيب (قبل ← بعد)')}
-                </th>
-                <th className="px-3.5 py-3 text-start text-[13px] font-semibold">
-                  {T('Audit Status', 'حالة الأثر')}
-                </th>
-                <th className="px-4 py-3 text-end text-[13px] font-semibold">
-                  {T('Action', 'الإجراء')}
-                </th>
-              </tr>
-            </thead>
+        <div className="overflow-x-auto -mx-3.5 px-3.5 sm:mx-0 sm:px-0">
+          <div className="overflow-hidden rounded-2xl bg-[#F7F7F8] p-1 dark:bg-[#09110E]">
+            <table className="w-full min-w-[980px] border-collapse rounded-xl bg-white text-[14px] dark:bg-[#101C17]">
+              <thead className="bg-[#F7F7F8] text-neutral-600 dark:bg-[#09110E] dark:text-slate-300">
+                <tr>
+                  <th className="whitespace-nowrap px-4 py-3 text-start text-[13px] font-semibold">
+                    {T('Approved Decision / Campaign', 'القرار أو الحملة المعتمدة')}
+                  </th>
+                  <th className="whitespace-nowrap px-3.5 py-3 text-end text-[13px] font-semibold">
+                    {T('Sales (Before → After)', 'المبيعات (قبل ← بعد)')}
+                  </th>
+                  <th className="whitespace-nowrap px-3.5 py-3 text-center text-[13px] font-semibold">
+                    {T('Food / Supplier %', 'تكلفة المواد %')}
+                  </th>
+                  <th className="whitespace-nowrap px-3.5 py-3 text-center text-[13px] font-semibold">
+                    {T('Promo Discount %', 'نسبة الخصومات %')}
+                  </th>
+                  <th className="whitespace-nowrap px-3.5 py-3 text-end text-[13px] font-semibold">
+                    {T('Net Pocket (Before → After)', 'صافي الجيب (قبل ← بعد)')}
+                  </th>
+                  <th className="whitespace-nowrap px-3.5 py-3 text-start text-[13px] font-semibold">
+                    {T('Audit Status', 'حالة الأثر')}
+                  </th>
+                  <th className="whitespace-nowrap px-4 py-3 text-end text-[13px] font-semibold">
+                    {T('Action', 'الإجراء')}
+                  </th>
+                </tr>
+              </thead>
             <tbody className="divide-y divide-neutral-100 dark:divide-white/[0.05]">
               {filteredImpactRows.map(({ row, tier }) => {
                 const linkedBreach =
@@ -856,7 +922,7 @@ export function BeforeAfterStudio() {
                       <div className="flex flex-wrap items-center gap-1.5">
                         <span
                           dir="ltr"
-                          className="rounded-full bg-[#F7F7F8] px-2 py-0.5 font-mono text-[11px] font-semibold text-neutral-600 dark:bg-[#0C141B] dark:text-slate-300"
+                          className="rounded-lg bg-[#F7F7F8] px-2 py-0.5 font-mono text-[11px] font-semibold text-neutral-600 dark:bg-[#09110E] dark:text-slate-300"
                         >
                           {row.sealId}
                         </span>
@@ -917,7 +983,7 @@ export function BeforeAfterStudio() {
                             ? 'bg-rose-50 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
                             : row.promoDiscountAfterPct > 3.0
                               ? 'bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200'
-                              : 'bg-[#F7F7F8] text-neutral-700 dark:bg-[#0C141B] dark:text-slate-200'
+                              : 'bg-[#F7F7F8] text-neutral-700 dark:bg-[#09110E] dark:text-slate-200'
                         }`}
                       >
                         {f1(row.promoDiscountBeforePct)}% → {f1(row.promoDiscountAfterPct)}%
@@ -1004,12 +1070,13 @@ export function BeforeAfterStudio() {
               })}
             </tbody>
           </table>
+          </div>
         </div>
       </section>
 
       {/* 3. Dimensional Before vs. After Variance Table (Brands / Branches / Channels) */}
-      <section className="ae-bento-card space-y-5 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:p-6 dark:bg-[#111A22]">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <section className="ae-bento-card space-y-5 rounded-2xl bg-white px-3.5 py-4 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] sm:p-6 dark:bg-[#101C17] dark:ring-emerald-500/10">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h2 className="text-[18px] font-extrabold tracking-tight text-neutral-950 dark:text-white">
               {T('Before vs. After Dimensional Variance Table', 'جدول الفروقات التفصيلي (قبل وبعد)')}

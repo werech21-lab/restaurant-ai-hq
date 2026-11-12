@@ -42,15 +42,26 @@ import {
   type StrategicRoadmapPhase,
 } from '@/lib/aether/planning-engine'
 
-const CARD_CLS = 'ae-bento-card p-5 sm:p-6'
-const KPI_CARD_CLS = 'ae-kpi-card p-5 sm:p-6'
-const SUBCARD_CLS = 'ae-bento-subcard p-3.5'
+const CARD_CLS =
+  'ae-bento-card rounded-2xl bg-white p-3.5 sm:p-6 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10'
+const KPI_CARD_CLS =
+  'ae-kpi-card rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10'
+const SUBCARD_CLS =
+  'ae-bento-subcard rounded-2xl bg-[#F6F7F8] p-3.5 ring-1 ring-slate-900/[0.03] dark:bg-[#0B1410] dark:ring-emerald-500/[0.08]'
+const SEGMENT_TRACK_CLS =
+  'flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar p-1 rounded-2xl bg-neutral-100/90 dark:bg-white/[0.06]'
+const SEGMENT_BTN_CLS =
+  'shrink-0 whitespace-nowrap rounded-xl px-3.5 py-2 text-[13px] font-medium transition-all duration-150 cursor-pointer'
+const SEGMENT_BTN_ACTIVE_CLS =
+  'bg-white font-semibold text-emerald-900 shadow-[0_1px_2px_rgba(15,23,42,0.06)] ring-1 ring-slate-900/[0.05] dark:bg-emerald-500/20 dark:text-emerald-200 dark:ring-emerald-400/25'
+const SEGMENT_BTN_IDLE_CLS =
+  'text-slate-600 hover:bg-white/70 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
 const INPUT_CLS =
-  'h-10 w-full rounded-xl bg-white px-3.5 text-[14px] font-medium text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ring-1 ring-slate-200/80 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-emerald-500/35 dark:text-slate-100 dark:ring-white/10'
+  'h-10 w-full rounded-xl bg-white px-3.5 text-[14px] font-medium text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ring-1 ring-slate-200/80 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-emerald-500/35 dark:bg-[#0B1410] dark:text-slate-100 dark:ring-emerald-500/15'
 const PRIMARY_SOFT_BTN_CLS =
-  'inline-flex h-9 cursor-pointer items-center gap-2 rounded-full bg-emerald-50 px-4 text-[13.5px] font-semibold text-emerald-900 ring-1 ring-emerald-500/25 transition-all duration-150 hover:bg-emerald-100/90 disabled:opacity-60 dark:bg-emerald-950/65 dark:text-emerald-200 dark:ring-emerald-400/25 dark:hover:bg-emerald-900/60'
+  'inline-flex h-9 shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-xl bg-emerald-50 px-3.5 text-[13px] font-semibold text-emerald-900 ring-1 ring-emerald-500/25 transition-all duration-150 hover:bg-emerald-100/90 disabled:opacity-60 dark:bg-emerald-950/65 dark:text-emerald-200 dark:ring-emerald-400/25 dark:hover:bg-emerald-900/60'
 const HEADER_ACTION_BTN_CLS =
-  'inline-flex h-10 cursor-pointer items-center gap-2 rounded-full bg-emerald-50 px-4 text-[13.5px] font-semibold text-emerald-900 ring-1 ring-emerald-500/25 transition-all duration-150 hover:bg-emerald-100/90 disabled:opacity-60 dark:bg-emerald-950/65 dark:text-emerald-200 dark:ring-emerald-400/25 dark:hover:bg-emerald-900/60'
+  'inline-flex h-9 sm:h-10 shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-xl bg-emerald-50 px-3.5 sm:px-4 text-[13px] font-semibold text-emerald-900 ring-1 ring-emerald-500/25 transition-all duration-150 hover:bg-emerald-100/90 disabled:opacity-60 dark:bg-emerald-950/65 dark:text-emerald-200 dark:ring-emerald-400/25 dark:hover:bg-emerald-900/60'
 const MENU_ITEM_CLS =
   'flex w-full cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2 text-start text-[13.5px] font-medium text-slate-700 transition-colors hover:bg-emerald-50/70 hover:text-emerald-900 dark:text-slate-200 dark:hover:bg-emerald-950/50 dark:hover:text-emerald-200'
 
@@ -310,35 +321,30 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
       dir={isAr ? 'rtl' : 'ltr'}
       className="w-full max-w-[1920px] mx-auto space-y-6 pb-12 text-[14.5px] leading-relaxed text-slate-800 dark:text-slate-100"
     >
-      {/* ───────────── 1. Executive Header + Horizon Picker + On-Demand Strategic AI Button ───────────── */}
-      <header className={`${CARD_CLS} flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between`}>
-        <div className="space-y-1.5">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <span className="ae-icon-badge">
-              <Compass className="h-4 w-4" />
-            </span>
-            <h1 className="text-[20px] font-semibold tracking-tight text-slate-900 sm:text-[22px] dark:text-white">
-              {isAr ? 'التخطيط الاستراتيجي والتوقعات المالية' : 'Strategic Planning & Financial Forecast'}
-            </h1>
-            {session.active ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-[12px] font-semibold text-emerald-800 ring-1 ring-emerald-500/20 dark:bg-emerald-950/60 dark:text-emerald-300">
-                <Unlock className="h-3.5 w-3.5" />
-                <span>{isAr ? 'وضع المدير نشط 🔓' : 'Manager Active 🔓'}</span>
-              </span>
-            ) : null}
-          </div>
-          <p className="text-[14px] text-slate-500 dark:text-slate-400">
+      {/* ───────────── 1. Slim Contextual Bar + Touch-Scrollable Horizon Picker + On-Demand Strategic AI Button ───────────── */}
+      <div className={`${CARD_CLS} !p-3.5 sm:!p-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between`}>
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span className="ae-icon-badge shrink-0">
+            <Compass className="h-4 w-4" />
+          </span>
+          <p className="min-w-0 text-[13px] sm:text-[13.5px] font-medium leading-snug text-slate-600 dark:text-slate-300">
             {isAr
-              ? `${snap.horizonLabelAr} • النطاق النشط: ${workspace.subtitleAr} • مبني على بيانات أودو 17 الحية ومواسم الكويت`
-              : `${snap.horizonLabelEn} • Scope: ${workspace.subtitleEn} • Live Venture Foods Odoo 17 + Kuwait seasonality`}
+              ? `${snap.horizonLabelAr} • ${workspace.subtitleAr} • بيانات أودو 17 ومواسم الكويت`
+              : `${snap.horizonLabelEn} • ${workspace.subtitleEn} • Live Odoo 17 + Kuwait seasonality`}
           </p>
+          {session.active ? (
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-emerald-50 px-2.5 py-1 text-[12px] font-semibold text-emerald-800 ring-1 ring-emerald-500/20 dark:bg-emerald-950/60 dark:text-emerald-300">
+              <Unlock className="h-3.5 w-3.5" />
+              <span>{isAr ? 'وضع المدير نشط 🔓' : 'Manager Active 🔓'}</span>
+            </span>
+          ) : null}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex max-w-full flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between xl:justify-end">
           <div
             role="tablist"
             aria-label={isAr ? 'أفق التوقعات' : 'Forecast Horizon'}
-            className="ae-bento-subcard inline-flex flex-wrap items-center gap-1 rounded-full p-1"
+            className={SEGMENT_TRACK_CLS}
           >
             {FORECAST_HORIZON_OPTIONS.map((h) => {
               const active = horizon === h.id
@@ -349,10 +355,8 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
                   role="tab"
                   aria-selected={active}
                   onClick={() => setHorizon(h.id)}
-                  className={`inline-flex h-8 cursor-pointer items-center justify-center rounded-full px-3.5 text-[13px] font-semibold whitespace-nowrap transition-all duration-150 ${
-                    active
-                      ? 'bg-emerald-50 text-emerald-900 ring-1 ring-emerald-500/25 shadow-[0_1px_2px_rgba(16,185,129,0.08)] dark:bg-emerald-950/70 dark:text-emerald-200 dark:ring-emerald-400/30'
-                      : 'text-slate-600 hover:bg-white/75 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
+                  className={`${SEGMENT_BTN_CLS} ${
+                    active ? SEGMENT_BTN_ACTIVE_CLS : SEGMENT_BTN_IDLE_CLS
                   }`}
                 >
                   {isAr ? h.ar : h.en}
@@ -368,11 +372,11 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
             className={HEADER_ACTION_BTN_CLS}
           >
             {aiForecastLoading ? (
-              <RefreshCw className="h-4 w-4 animate-spin text-emerald-700 dark:text-emerald-300" />
+              <RefreshCw className="h-4 w-4 shrink-0 animate-spin text-emerald-700 dark:text-emerald-300" />
             ) : (
-              <Sparkles className="h-4 w-4 text-emerald-700 dark:text-emerald-300" />
+              <Sparkles className="h-4 w-4 shrink-0 text-emerald-700 dark:text-emerald-300" />
             )}
-            <span>
+            <span className="truncate">
               {aiForecastLoading
                 ? isAr
                   ? 'جارٍ تحديث التوقعات...'
@@ -383,7 +387,7 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
             </span>
           </button>
         </div>
-      </header>
+      </div>
 
       {/* Custom Horizon Inline Date Inputs */}
       {horizon === 'custom' ? (
@@ -450,20 +454,21 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
         </section>
       ) : null}
 
-      {/* ───────────── 2. 4 Live Baseline & Kuwait Pulse KPI Cards ───────────── */}
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {/* ───────────── 2. 4 Live Baseline & Kuwait Pulse KPI Cards (`2x2` Mobile Grid) ───────────── */}
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <article className={`${KPI_CARD_CLS} ae-glow-emerald`}>
-          <div className="text-[14px] font-medium text-slate-500 dark:text-slate-400">
+          <div className="text-[12.5px] sm:text-[13.5px] font-medium text-slate-500 dark:text-slate-400">
             {isAr ? 'خط الأساس الشهري (أودو 17)' : 'Monthly Odoo 17 Baseline'}
           </div>
           <div
             dir="ltr"
             data-kpi-val
-            className="mt-2 text-[28px] font-bold tracking-tight tabular-nums text-slate-900 sm:text-[32px] dark:text-white"
+            className="mt-1.5 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-slate-900 dark:text-white"
           >
-            {f0(snap.monthlyBaselineSalesKwd)} <span className="text-[16px] font-semibold text-slate-400">{kwd}</span>
+            {f0(snap.monthlyBaselineSalesKwd)}{' '}
+            <span className="text-[12.5px] sm:text-[15px] font-semibold text-slate-400">{kwd}</span>
           </div>
-          <p className="mt-1.5 text-[14px] text-slate-500 dark:text-slate-400">
+          <p className="mt-1.5 text-[12px] sm:text-[13.5px] leading-snug text-slate-500 dark:text-slate-400">
             {isAr
               ? `الصافي الشهري الحالي: ${f0(snap.monthlyBaselineNetKwd)} د.ك`
               : `Current monthly net cash: ${f0(snap.monthlyBaselineNetKwd)} KWD`}
@@ -471,18 +476,20 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
         </article>
 
         <article className={`${KPI_CARD_CLS} ae-glow-amber`}>
-          <div className="text-[14px] font-medium text-slate-500 dark:text-slate-400">
+          <div className="text-[12.5px] sm:text-[13.5px] font-medium text-slate-500 dark:text-slate-400">
             {isAr ? 'مطبخ العارضية + عمولة التوصيل' : 'Ardiya COGS + Delivery Cut'}
           </div>
           <div
             dir="ltr"
             data-kpi-val
-            className="mt-2 text-[28px] font-bold tracking-tight tabular-nums text-slate-900 sm:text-[32px] dark:text-white"
+            className="mt-1.5 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-slate-900 dark:text-white"
           >
             {f1(snap.ardiyaFoodPct)}%{' '}
-            <span className="text-[16px] font-semibold text-slate-400">+ {f1(snap.deliveryFeePct)}%</span>
+            <span className="text-[12.5px] sm:text-[15px] font-semibold text-slate-400">
+              + {f1(snap.deliveryFeePct)}%
+            </span>
           </div>
-          <p className="mt-1.5 text-[14px] text-slate-500 dark:text-slate-400">
+          <p className="mt-1.5 text-[12px] sm:text-[13.5px] leading-snug text-slate-500 dark:text-slate-400">
             {isAr
               ? `حصة الصالة والمباشر (٠٪ عمولة): ${f1(snap.directChannelSharePct)}%`
               : `Zero-fee Dine-In & Pickup share: ${f1(snap.directChannelSharePct)}%`}
@@ -490,34 +497,36 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
         </article>
 
         <article className={`${KPI_CARD_CLS} ae-glow-sky`}>
-          <div className="text-[14px] font-medium text-slate-500 dark:text-slate-400">
+          <div className="text-[12.5px] sm:text-[13.5px] font-medium text-slate-500 dark:text-slate-400">
             {isAr ? 'نبض الرواتب والموسم بالكويت' : 'Kuwait Payday & Seasonal Lift'}
           </div>
           <div
             dir="ltr"
             data-kpi-val
-            className="mt-2 text-[28px] font-bold tracking-tight tabular-nums text-emerald-700 sm:text-[32px] dark:text-emerald-400"
+            className="mt-1.5 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-emerald-700 dark:text-emerald-400"
           >
             +{f1(snap.paydayLiftPct)}%
           </div>
-          <p className="mt-1.5 text-[14px] text-slate-500 dark:text-slate-400">
+          <p className="mt-1.5 text-[12px] sm:text-[13.5px] leading-snug text-slate-500 dark:text-slate-400">
             {isAr ? 'قفزة ٢٠–٢٨ الشهر + ذروة الشتاء والكشتات' : '20th–28th salary surge + winter peak'}
           </p>
         </article>
 
         <article className={`${KPI_CARD_CLS} ae-glow-emerald`}>
-          <div className="text-[14px] font-medium text-slate-500 dark:text-slate-400">
+          <div className="text-[12.5px] sm:text-[13.5px] font-medium text-slate-500 dark:text-slate-400">
             {isAr ? 'عائد خارطة المراحل مقابل السقف' : 'Roadmap Return vs Cost Cap'}
           </div>
           <div
             dir="ltr"
             data-kpi-val
-            className="mt-2 text-[28px] font-bold tracking-tight tabular-nums text-emerald-700 sm:text-[32px] dark:text-emerald-400"
+            className="mt-1.5 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-emerald-700 dark:text-emerald-400"
           >
             +{f0(totalMonthlyUpside)}{' '}
-            <span className="text-[15px] font-semibold text-slate-400">{kwd}/{isAr ? 'شهر' : 'mo'}</span>
+            <span className="text-[12px] sm:text-[14.5px] font-semibold text-slate-400">
+              {kwd}/{isAr ? 'شهر' : 'mo'}
+            </span>
           </div>
-          <p className="mt-1.5 text-[14px] text-slate-500 dark:text-slate-400">
+          <p className="mt-1.5 text-[12px] sm:text-[13.5px] leading-snug text-slate-500 dark:text-slate-400">
             {isAr
               ? `سقف تكلفة المراحل الـ ${phases.length}: ${f0(totalCostCap)} د.ك`
               : `Total cost cap across ${phases.length} phases: ${f0(totalCostCap)} KWD`}
@@ -583,47 +592,47 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
                 </div>
 
                 {/* 3 Core Numbers: Projected Sales | Costs (التكاليف KWD) | Net Cash */}
-                <div className="mt-4 grid grid-cols-3 gap-2.5">
-                  <div className="ae-bento-subcard p-3">
-                    <div className="text-[12px] font-medium text-slate-500 dark:text-slate-400">
+                <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-2.5">
+                  <div className="ae-bento-subcard p-2.5 sm:p-3">
+                    <div className="text-[11px] sm:text-[12px] font-medium text-slate-500 dark:text-slate-400">
                       {isAr ? 'المبيعات المتوقعة' : 'Projected Sales'}
                     </div>
                     <div
                       dir="ltr"
-                      className="mt-1 text-[18px] font-bold tabular-nums text-slate-900 sm:text-[19px] dark:text-white"
+                      className="mt-1 text-base sm:text-[19px] font-semibold tracking-tight tabular-nums text-slate-900 dark:text-white"
                     >
                       {f0(sc.projectedSalesKwd)}
                     </div>
-                    <div className="text-[12px] text-slate-400">{kwd}</div>
+                    <div className="text-[11px] sm:text-[12px] text-slate-400">{kwd}</div>
                   </div>
 
-                  <div className="ae-bento-subcard p-3">
-                    <div className="text-[12px] font-medium text-slate-500 dark:text-slate-400">
+                  <div className="ae-bento-subcard p-2.5 sm:p-3">
+                    <div className="text-[11px] sm:text-[12px] font-medium text-slate-500 dark:text-slate-400">
                       {isAr ? 'التكاليف' : 'Total Costs'}
                     </div>
                     <div
                       dir="ltr"
-                      className="mt-1 text-[18px] font-bold tabular-nums text-amber-700 sm:text-[19px] dark:text-amber-300"
+                      className="mt-1 text-base sm:text-[19px] font-semibold tracking-tight tabular-nums text-amber-700 dark:text-amber-300"
                     >
                       {f0(sc.projectedCostsKwd)}
                     </div>
-                    <div className="text-[12px] text-slate-400">{kwd}</div>
+                    <div className="text-[11px] sm:text-[12px] text-slate-400">{kwd}</div>
                   </div>
 
-                  <div className="rounded-2xl bg-emerald-50/80 p-3 ring-1 ring-emerald-500/15 dark:bg-emerald-950/35 dark:ring-emerald-400/20">
-                    <div className="text-[12px] font-medium text-emerald-800 dark:text-emerald-300">
+                  <div className="rounded-2xl bg-emerald-50/80 p-2.5 sm:p-3 ring-1 ring-emerald-500/15 dark:bg-emerald-950/35 dark:ring-emerald-400/20">
+                    <div className="text-[11px] sm:text-[12px] font-medium text-emerald-800 dark:text-emerald-300">
                       {isAr ? 'صافي الكاش' : 'Net Cash'}
                     </div>
                     <div
                       dir="ltr"
-                      className="mt-1 text-[18px] font-bold tabular-nums text-emerald-700 sm:text-[19px] dark:text-emerald-300"
+                      className="mt-1 text-base sm:text-[19px] font-semibold tracking-tight tabular-nums text-emerald-700 dark:text-emerald-300"
                     >
                       {sc.projectedNetCashKwd >= 0 ? '+' : ''}
                       {f0(sc.projectedNetCashKwd)}
                     </div>
                     <div
                       dir="ltr"
-                      className="text-[12px] font-semibold tabular-nums text-emerald-700/85 dark:text-emerald-400"
+                      className="text-[11px] sm:text-[12px] font-semibold tabular-nums text-emerald-700/85 dark:text-emerald-400"
                     >
                       {f1(sc.netMarginPct)}% {kwd}
                     </div>
@@ -980,7 +989,7 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
                         </button>
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-1.5">
+                      <div className={SEGMENT_TRACK_CLS}>
                         {APPROVED_BRANCH_IDS.map((branchId) => {
                           const checked = Boolean(receipts[branchId])
                           return (
@@ -993,7 +1002,7 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
                                   branchId as Exclude<GlobalBranch, 'all'>,
                                 )
                               }
-                              className={`inline-flex cursor-pointer items-center gap-1 rounded-full px-3 py-1 text-[12.5px] font-semibold transition-colors ${
+                              className={`inline-flex shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-xl px-3 py-1.5 text-[12.5px] font-semibold transition-all duration-150 ${
                                 checked
                                   ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-500/25 hover:bg-emerald-100 dark:bg-emerald-950/70 dark:text-emerald-200'
                                   : 'bg-white text-slate-600 ring-1 ring-slate-200/80 hover:bg-slate-50 dark:bg-white/[0.06] dark:text-slate-300 dark:ring-white/10'

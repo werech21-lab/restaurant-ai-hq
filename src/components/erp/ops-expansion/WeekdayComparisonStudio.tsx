@@ -24,10 +24,20 @@ import {
 } from '@/lib/ops-expansion-part2'
 
 const CARD_CLS =
-  'ae-bento-card rounded-2xl border border-neutral-200/70 bg-white p-5 sm:p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:border-white/[0.06] dark:bg-[#0D1614]'
+  'ae-bento-card rounded-2xl bg-white p-3.5 sm:p-6 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10'
 const KPI_CLS =
-  'ae-kpi-card rounded-2xl border border-neutral-200/70 bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:border-white/[0.06] dark:bg-[#0D1614]'
-const SUBCARD_CLS = 'rounded-2xl bg-[#F7F7F8] dark:bg-[#111E1B]'
+  'ae-kpi-card rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10'
+const SUBCARD_CLS =
+  'rounded-2xl bg-[#F6F7F8] ring-1 ring-slate-900/[0.03] dark:bg-[#0B1410] dark:ring-emerald-500/[0.08]'
+const SEGMENT_TRACK_CLS =
+  'flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar p-1 rounded-2xl bg-neutral-100/90 dark:bg-white/[0.06]'
+const SEGMENT_BTN_CLS =
+  'shrink-0 whitespace-nowrap rounded-xl px-3.5 py-2 text-[13px] font-medium transition-all duration-150 cursor-pointer'
+const SEGMENT_BTN_ACTIVE_CLS =
+  'bg-white font-semibold text-emerald-900 shadow-[0_1px_2px_rgba(15,23,42,0.06)] ring-1 ring-slate-900/[0.05] dark:bg-emerald-500/20 dark:text-emerald-200 dark:ring-emerald-400/25'
+const SEGMENT_BTN_IDLE_CLS =
+  'text-slate-600 hover:bg-white/70 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
+const TABLE_SCROLL_CLS = 'overflow-x-auto -mx-3.5 px-3.5 sm:mx-0 sm:px-0'
 
 const fmt0 = (n: number) => Math.round(Number.isFinite(n) ? n : 0).toLocaleString('en-US')
 const fmtSigned0 = (n: number) => {
@@ -157,126 +167,90 @@ export function WeekdayComparisonStudio() {
           <button
             type="button"
             onClick={() => openDrawer('approvals')}
-            className="cursor-pointer rounded-full border border-emerald-300/70 bg-white px-3 py-1 text-[12.5px] font-semibold text-emerald-800 transition hover:bg-emerald-100 dark:border-emerald-500/40 dark:bg-[#0D1614] dark:text-emerald-200"
+            className="cursor-pointer rounded-xl border border-emerald-300/70 bg-white px-3 py-1 text-[12.5px] font-semibold text-emerald-800 transition hover:bg-emerald-100 dark:border-emerald-500/40 dark:bg-[#101C17] dark:text-emerald-200"
           >
             {isAr ? 'فتح جرس المدير' : 'Open Bell'}
           </button>
         </div>
       )}
 
-      {/* ───────────── 1. Header ───────────── */}
-      <header className={CARD_CLS}>
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="space-y-1.5">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-[12px] font-bold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-                <CalendarDays className="h-3.5 w-3.5" />
-                {isAr
-                  ? 'مقارنة اليوم بنظيره الأسبوعي + متوسط ٤ أسابيع (أودو ١٧)'
-                  : 'Like-for-Like Same-Weekday + 4-Week Rolling Benchmark (Odoo 17)'}
-              </span>
-              <span className="inline-flex items-center rounded-full border border-neutral-200/80 bg-[#F7F7F8] px-3 py-1 text-[12px] font-medium text-neutral-600 dark:border-white/[0.08] dark:bg-[#111E1B] dark:text-slate-300">
-                {isAr ? workspace.subtitleAr : workspace.subtitleEn}
-              </span>
-            </div>
-            <h1 className="text-[22px] font-extrabold tracking-tight text-neutral-950 sm:text-[26px] dark:text-white">
-              {isAr
-                ? 'مقارنة المبيعات بين أيام الأسبوع المتناظرة (الأربعاء مقابل الأربعاء وهكذا)'
-                : 'Like-for-Like Same-Weekday Sales & Intraday Comparison'}
-            </h1>
-            <p className="max-w-4xl text-[14px] leading-relaxed text-neutral-600 dark:text-slate-400">
-              {isAr
-                ? 'قارن مبيعات كل يوم في هذا الأسبوع مع نفس اليوم بالضبط في الأسبوع الماضي ومع متوسط ٤ أسابيع متتالية، شاملاً صافي وإجمالي المبيعات، الطلبات، السلة، صافي الجيب، ومنحنى الساعات.'
-                : 'Compares each weekday directly against the exact same weekday last week and its 4-week rolling benchmark across net/gross sales, orders, basket size, pocket profit, and hourly curve.'}
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={handleCopyReport}
-              className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-neutral-200/70 bg-[#F7F7F8] px-3.5 py-2 text-[13px] font-semibold text-neutral-800 transition hover:bg-neutral-200/70 dark:border-white/[0.08] dark:bg-[#111E1B] dark:text-slate-200"
-            >
-              {copiedReport ? (
-                <Check className="h-4 w-4 text-emerald-600" />
-              ) : (
-                <Copy className="h-4 w-4" />
-              )}
-              {copiedReport
-                ? isAr
-                  ? 'تم النسخ ✓'
-                  : 'Copied ✓'
-                : isAr
-                  ? 'نسخ المقارنة'
-                  : 'Copy Report'}
-            </button>
-          </div>
+      {/* ───────────── 1. Slim Contextual Bar ───────────── */}
+      <div className={`${CARD_CLS} !p-3.5 sm:!p-4 flex flex-wrap items-center justify-between gap-3`}>
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+            <CalendarDays className="h-4 w-4" />
+          </span>
+          <p className="min-w-0 text-[13px] sm:text-[13.5px] font-medium leading-snug text-slate-600 dark:text-slate-300">
+            {isAr
+              ? `مقارنة اليوم بنظيره الأسبوعي + متوسط ٤ أسابيع (أودو ١٧) • ${workspace.subtitleAr}`
+              : `Like-for-Like Same-Weekday + 4W Rolling Benchmark (Odoo 17) • ${workspace.subtitleEn}`}
+          </p>
         </div>
-      </header>
 
-      {/* ───────────── 2. Selected Day 5-Card Executive KPI Strip (28px–32px Values) ───────────── */}
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <button
+          type="button"
+          onClick={handleCopyReport}
+          className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl bg-[#F6F7F8] px-3.5 text-[13px] font-semibold text-neutral-800 ring-1 ring-slate-900/[0.05] transition hover:bg-neutral-200/70 dark:bg-[#0B1410] dark:text-slate-200 dark:ring-emerald-500/15"
+        >
+          {copiedReport ? (
+            <Check className="h-4 w-4 shrink-0 text-emerald-600" />
+          ) : (
+            <Copy className="h-4 w-4 shrink-0" />
+          )}
+          <span>
+            {copiedReport
+              ? isAr
+                ? 'تم النسخ ✓'
+                : 'Copied ✓'
+              : isAr
+                ? 'نسخ المقارنة'
+                : 'Copy Report'}
+          </span>
+        </button>
+      </div>
+
+      {/* ───────────── 2. Selected Day 4-Card Executive KPI Strip (`2x2` Mobile Grid) ───────────── */}
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <div className={KPI_CLS}>
-          <div className="flex items-center justify-between">
-            <span className="text-[13px] font-bold text-emerald-800 dark:text-emerald-300">
+          <div className="flex items-center justify-between gap-1.5">
+            <span className="text-[12.5px] sm:text-[13.5px] font-semibold text-emerald-800 dark:text-emerald-300">
               {isAr
                 ? `${activeRow.weekdayAr} هذا الأسبوع`
                 : `This ${activeRow.weekdayEn}`}
             </span>
             {activeRow.varianceDisplayKwd >= 0 ? (
-              <ArrowUpRight className="h-4 w-4 text-emerald-600" />
+              <ArrowUpRight className="h-4 w-4 shrink-0 text-emerald-600" />
             ) : (
-              <ArrowDownRight className="h-4 w-4 text-rose-600" />
+              <ArrowDownRight className="h-4 w-4 shrink-0 text-rose-600" />
             )}
           </div>
-          <div className="mt-2.5 flex items-baseline gap-2 tabular-nums">
-            <span className="text-[28px] sm:text-[32px] leading-none font-extrabold tracking-tight text-neutral-950 dark:text-white">
+          <div className="mt-1.5 flex items-baseline gap-1.5 tabular-nums">
+            <span className="text-xl sm:text-3xl font-semibold tracking-tight text-neutral-950 dark:text-white">
               {fmt0(activeRow.thisDisplayKwd)}
             </span>
-            <span className="text-[13.5px] font-bold text-neutral-500">{kwd}</span>
+            <span className="text-[12px] sm:text-[13.5px] font-semibold text-neutral-500">{kwd}</span>
           </div>
-          <p className="mt-2 text-[12.5px] text-neutral-500 tabular-nums dark:text-slate-400">
+          <p className="mt-1.5 text-[11.5px] sm:text-[12.5px] leading-snug text-neutral-500 tabular-nums dark:text-slate-400">
             {isAr
-              ? `${activeRow.thisDate} • الإجمالي: ${fmt0(activeRow.thisGrossKwd)} ${kwd}`
-              : `${activeRow.thisDate} • Gross: ${fmt0(activeRow.thisGrossKwd)} ${kwd}`}
+              ? `الماضي (${activeRow.lastDate}): ${fmt0(activeRow.lastDisplayKwd)} ${kwd}`
+              : `Last (${activeRow.lastDate}): ${fmt0(activeRow.lastDisplayKwd)} ${kwd}`}
           </p>
         </div>
 
         <div className={KPI_CLS}>
-          <div className="flex items-center justify-between">
-            <span className="text-[13px] font-semibold text-neutral-500 dark:text-slate-400">
-              {isAr
-                ? `${activeRow.weekdayAr} الأسبوع الماضي`
-                : `Last ${activeRow.weekdayEn}`}
-            </span>
-          </div>
-          <div className="mt-2.5 flex items-baseline gap-2 tabular-nums">
-            <span className="text-[28px] sm:text-[32px] leading-none font-extrabold tracking-tight text-neutral-950 dark:text-white">
-              {fmt0(activeRow.lastDisplayKwd)}
-            </span>
-            <span className="text-[13.5px] font-bold text-neutral-500">{kwd}</span>
-          </div>
-          <p className="mt-2 text-[12.5px] text-neutral-500 tabular-nums dark:text-slate-400">
-            {isAr
-              ? `${activeRow.lastDate} • الإجمالي: ${fmt0(activeRow.lastGrossKwd)} ${kwd}`
-              : `${activeRow.lastDate} • Gross: ${fmt0(activeRow.lastGrossKwd)} ${kwd}`}
-          </p>
-        </div>
-
-        <div className={KPI_CLS}>
-          <div className="flex items-center justify-between">
-            <span className="text-[13px] font-semibold text-neutral-500 dark:text-slate-400">
-              {isAr ? 'الفرق ومقارنة متوسط ٤ أسابيع' : 'Variance & 4-Week Avg'}
+          <div className="flex items-center justify-between gap-1.5">
+            <span className="text-[12.5px] sm:text-[13.5px] font-medium text-neutral-500 dark:text-slate-400">
+              {isAr ? 'الفرق ومقارنة ٤ أسابيع' : 'Variance & 4W Avg'}
             </span>
             {activeRow.variancePct >= 0 ? (
-              <TrendingUp className="h-4 w-4 text-emerald-600" />
+              <TrendingUp className="h-4 w-4 shrink-0 text-emerald-600" />
             ) : (
-              <TrendingDown className="h-4 w-4 text-rose-600" />
+              <TrendingDown className="h-4 w-4 shrink-0 text-rose-600" />
             )}
           </div>
-          <div className="mt-2.5 flex items-baseline gap-2 tabular-nums">
+          <div className="mt-1.5 flex items-baseline gap-1.5 tabular-nums">
             <span
-              className={`text-[28px] sm:text-[32px] leading-none font-extrabold tracking-tight ${
+              className={`text-xl sm:text-3xl font-semibold tracking-tight ${
                 activeRow.varianceDisplayKwd >= 0
                   ? 'text-emerald-700 dark:text-emerald-300'
                   : 'text-rose-700 dark:text-rose-300'
@@ -285,92 +259,91 @@ export function WeekdayComparisonStudio() {
               {fmtSigned0(activeRow.varianceDisplayKwd)}
             </span>
             <span
-              className={`rounded-full px-2.5 py-0.5 text-[12px] font-extrabold ${tierBadgeCls(activeRow.tier)}`}
+              className={`rounded-lg px-2 py-0.5 text-[11px] font-bold ${tierBadgeCls(activeRow.tier)}`}
             >
               {fmtSignedPct(activeRow.variancePct)}
             </span>
           </div>
-          <p className="mt-2 text-[12.5px] text-neutral-500 tabular-nums dark:text-slate-400">
+          <p className="mt-1.5 text-[11.5px] sm:text-[12.5px] leading-snug text-neutral-500 tabular-nums dark:text-slate-400">
             {isAr
-              ? `متوسط ٤ أسابيع: ${fmt0(activeRow.fourWeekAvgDisplayKwd)} ${kwd} (${fmtSignedPct(activeRow.vsFourWeekPct)})`
-              : `4W Avg: ${fmt0(activeRow.fourWeekAvgDisplayKwd)} ${kwd} (${fmtSignedPct(activeRow.vsFourWeekPct)})`}
+              ? `٤ أسابيع: ${fmt0(activeRow.fourWeekAvgDisplayKwd)} ${kwd} (${fmtSignedPct(activeRow.vsFourWeekPct)})`
+              : `4W: ${fmt0(activeRow.fourWeekAvgDisplayKwd)} ${kwd} (${fmtSignedPct(activeRow.vsFourWeekPct)})`}
           </p>
         </div>
 
         <div className={KPI_CLS}>
-          <div className="flex items-center justify-between">
-            <span className="text-[13px] font-semibold text-neutral-500 dark:text-slate-400">
-              {isAr ? 'الطلبات ومتوسط السلة' : 'Orders & Average Basket'}
+          <div className="flex items-center justify-between gap-1.5">
+            <span className="text-[12.5px] sm:text-[13.5px] font-medium text-neutral-500 dark:text-slate-400">
+              {isAr ? 'الطلبات ومتوسط السلة' : 'Orders & Basket'}
             </span>
           </div>
-          <div className="mt-2.5 flex items-baseline gap-2 tabular-nums">
-            <span className="text-[28px] sm:text-[32px] leading-none font-extrabold tracking-tight text-neutral-950 dark:text-white">
+          <div className="mt-1.5 flex items-baseline gap-1.5 tabular-nums">
+            <span className="text-xl sm:text-3xl font-semibold tracking-tight text-neutral-950 dark:text-white">
               {fmt0(activeRow.thisOrders)}
             </span>
-            <span className="text-[13px] font-semibold text-neutral-500">
-              {isAr ? `مقابل ${fmt0(activeRow.lastOrders)}` : `vs ${fmt0(activeRow.lastOrders)}`}
+            <span className="text-[12px] font-semibold text-neutral-500">
+              {isAr ? `/ ${fmt0(activeRow.lastOrders)}` : `/ ${fmt0(activeRow.lastOrders)}`}
             </span>
           </div>
-          <p className="mt-2 text-[12.5px] text-neutral-500 tabular-nums dark:text-slate-400">
+          <p className="mt-1.5 text-[11.5px] sm:text-[12.5px] leading-snug text-neutral-500 tabular-nums dark:text-slate-400">
             {isAr
-              ? `متوسط السلة: ${activeRow.thisAvgBasketKwd.toFixed(2)} ${kwd} (الماضي ${activeRow.lastAvgBasketKwd.toFixed(2)})`
+              ? `السلة: ${activeRow.thisAvgBasketKwd.toFixed(2)} ${kwd} (الماضي ${activeRow.lastAvgBasketKwd.toFixed(2)})`
               : `AOV: ${activeRow.thisAvgBasketKwd.toFixed(2)} ${kwd} (Last ${activeRow.lastAvgBasketKwd.toFixed(2)})`}
           </p>
         </div>
 
         <div className={KPI_CLS}>
-          <div className="flex items-center justify-between">
-            <span className="text-[13px] font-bold text-emerald-800 dark:text-emerald-300">
-              {isAr ? 'صافي الربح بالجيب (Pocket)' : 'Net Pocket Profit'}
+          <div className="flex items-center justify-between gap-1.5">
+            <span className="text-[12.5px] sm:text-[13.5px] font-semibold text-emerald-800 dark:text-emerald-300">
+              {isAr ? 'صافي الجيب (Pocket)' : 'Net Pocket Profit'}
             </span>
           </div>
-          <div className="mt-2.5 flex items-baseline gap-2 tabular-nums">
-            <span className="text-[28px] sm:text-[32px] leading-none font-extrabold tracking-tight text-emerald-700 dark:text-emerald-300">
+          <div className="mt-1.5 flex items-baseline gap-1.5 tabular-nums">
+            <span className="text-xl sm:text-3xl font-semibold tracking-tight text-emerald-700 dark:text-emerald-300">
               {fmt0(activeRow.thisPocketProfitKwd)}
             </span>
-            <span className="text-[13.5px] font-bold text-neutral-500">{kwd}</span>
-            <span className="ms-auto text-[12.5px] font-bold text-neutral-600 dark:text-slate-300">
-              {fmtSigned0(activeRow.pocketVarianceKwd)} {kwd}
+            <span className="text-[12px] sm:text-[13.5px] font-semibold text-neutral-500">{kwd}</span>
+            <span className="ms-auto text-[11.5px] font-bold text-neutral-600 dark:text-slate-300">
+              {fmtSigned0(activeRow.pocketVarianceKwd)}
             </span>
           </div>
-          <p className="mt-2 text-[12.5px] text-neutral-500 tabular-nums dark:text-slate-400">
+          <p className="mt-1.5 text-[11.5px] sm:text-[12.5px] leading-snug text-neutral-500 tabular-nums dark:text-slate-400">
             {isAr
-              ? `الأسبوع الماضي بالجيب: ${fmt0(activeRow.lastPocketProfitKwd)} ${kwd}`
-              : `Prior week pocket: ${fmt0(activeRow.lastPocketProfitKwd)} ${kwd}`}
+              ? `الماضي بالجيب: ${fmt0(activeRow.lastPocketProfitKwd)} ${kwd}`
+              : `Prior pocket: ${fmt0(activeRow.lastPocketProfitKwd)} ${kwd}`}
           </p>
         </div>
       </section>
 
-      {/* ───────────── 3. Hourly Intraday Capsule Curve + Compact 7-Weekday Selector ───────────── */}
+      {/* ───────────── 3. Hourly Intraday Capsule Curve + Touch-Scrollable Weekday Segmented Control ───────────── */}
       <section className={CARD_CLS}>
         <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h2 className="text-[17px] font-extrabold text-neutral-950 dark:text-white">
+            <h2 className="text-[16px] sm:text-[17px] font-extrabold text-neutral-950 dark:text-white">
               {isAr
                 ? `منحنى المبيعات بالساعة ليوم ${activeRow.weekdayAr}: هذا الأسبوع (${activeRow.thisDate}) مقابل الأسبوع الماضي (${activeRow.lastDate})`
                 : `Hourly Intraday Sales Curve: This ${activeRow.weekdayEn} (${activeRow.thisDate}) vs Last ${activeRow.weekdayEn} (${activeRow.lastDate})`}
             </h2>
-            <p className="text-[13.5px] text-neutral-500 dark:text-slate-400">
+            <p className="text-[13px] sm:text-[13.5px] text-neutral-500 dark:text-slate-400">
               {isAr
                 ? `(${data.thisWeekLabelAr}) مقابل (${data.lastWeekLabelAr}) — اختر أي يوم لعرض منحنى الساعات`
                 : `(${data.thisWeekLabelEn}) vs (${data.lastWeekLabelEn}) — select any weekday curve`}
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div role="tablist" className={SEGMENT_TRACK_CLS}>
             {WEEKDAY_SELECTOR_OPTIONS.map((opt) => {
               const active = selectedMode === opt.dow
               return (
                 <button
                   key={opt.dow}
                   type="button"
+                  role="tab"
+                  aria-selected={active}
                   onClick={() => setSelectedMode(opt.dow)}
-                  className={`cursor-pointer rounded-full px-3.5 py-1.5 text-[12.5px] font-bold transition ${
-                    active
-                      ? 'btn-colored bg-emerald-600 text-white shadow-sm'
-                      : 'border border-neutral-200/70 bg-[#F7F7F8] text-neutral-700 hover:bg-neutral-200/70 dark:border-white/[0.08] dark:bg-[#111E1B] dark:text-slate-300'
+                  className={`${SEGMENT_BTN_CLS} ${
+                    active ? SEGMENT_BTN_ACTIVE_CLS : SEGMENT_BTN_IDLE_CLS
                   }`}
-                  style={active ? { color: '#FFFFFF' } : undefined}
                 >
                   {isAr ? opt.ar : opt.en}
                 </button>
@@ -379,13 +352,12 @@ export function WeekdayComparisonStudio() {
 
             <button
               type="button"
+              role="tab"
+              aria-selected={selectedMode === 'all'}
               onClick={() => setSelectedMode('all')}
-              className={`cursor-pointer rounded-full px-3.5 py-1.5 text-[12.5px] font-bold transition ${
-                selectedMode === 'all'
-                  ? 'btn-colored bg-emerald-600 text-white shadow-sm'
-                  : 'border border-neutral-200/70 bg-[#F7F7F8] text-neutral-800 hover:bg-neutral-200/70 dark:border-white/[0.08] dark:bg-[#111E1B] dark:text-slate-200'
+              className={`${SEGMENT_BTN_CLS} ${
+                selectedMode === 'all' ? SEGMENT_BTN_ACTIVE_CLS : SEGMENT_BTN_IDLE_CLS
               }`}
-              style={selectedMode === 'all' ? { color: '#FFFFFF' } : undefined}
             >
               {isAr ? '٧ أيام جنباً إلى جنب' : '7-Day Side-by-Side'}
             </button>
@@ -479,7 +451,7 @@ export function WeekdayComparisonStudio() {
             </div>
 
             {hoveredHour !== null && (
-              <div className="flex flex-wrap items-center gap-4 rounded-xl border border-neutral-200/70 bg-white px-3.5 py-1.5 text-[12.5px] font-bold tabular-nums dark:border-white/[0.08] dark:bg-[#0D1614]">
+              <div className="flex flex-wrap items-center gap-4 rounded-xl border border-neutral-200/70 bg-white px-3.5 py-1.5 text-[12.5px] font-bold tabular-nums dark:border-white/[0.08] dark:bg-[#101C17]">
                 {(() => {
                   const pt =
                     activeRow.hourlyCurve.find((x) => x.hour === hoveredHour) ??
@@ -502,7 +474,7 @@ export function WeekdayComparisonStudio() {
             )}
           </div>
 
-          <div className="grid grid-cols-7 gap-2 sm:grid-cols-14">
+          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 sm:grid sm:grid-cols-14 sm:overflow-visible">
             {activeRow.hourlyCurve.map((pt) => {
               const hThis = Math.max(8, Math.round((pt.thisWeekKwd / maxHourKwd) * 130))
               const hLast = Math.max(8, Math.round((pt.lastWeekKwd / maxHourKwd) * 130))
@@ -512,8 +484,8 @@ export function WeekdayComparisonStudio() {
                   key={pt.hour}
                   onMouseEnter={() => setHoveredHour(pt.hour)}
                   onMouseLeave={() => setHoveredHour(null)}
-                  className={`flex flex-col items-center rounded-xl py-2 transition ${
-                    isHover ? 'bg-white dark:bg-[#0D1614]' : ''
+                  className={`flex w-[46px] shrink-0 sm:w-auto flex-col items-center rounded-xl py-2 transition ${
+                    isHover ? 'bg-white dark:bg-[#101C17]' : ''
                   }`}
                 >
                   <div className="flex h-[136px] items-end justify-center gap-1">
@@ -553,19 +525,21 @@ export function WeekdayComparisonStudio() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className={TABLE_SCROLL_CLS}>
           <table className="w-full min-w-[1040px] border-collapse text-start text-[14px] sm:text-[14.5px] tabular-nums">
             <thead>
-              <tr className="border-b border-neutral-200/80 bg-[#F7F7F8] text-[12.5px] font-bold text-neutral-600 dark:border-white/[0.08] dark:bg-[#111E1B] dark:text-slate-300">
-                <th className="px-3.5 py-3 text-start">{isAr ? 'اليوم والتواريخ' : 'Weekday & Dates'}</th>
-                <th className="px-3.5 py-3 text-end">{isAr ? 'هذا الأسبوع (د.ك)' : 'This Week (KWD)'}</th>
-                <th className="px-3.5 py-3 text-end">{isAr ? 'الأسبوع الماضي (د.ك)' : 'Last Week (KWD)'}</th>
-                <th className="px-3.5 py-3 text-end">{isAr ? 'الفرق والتقييم' : 'Variance & Tier'}</th>
-                <th className="px-3.5 py-3 text-end">{isAr ? 'متوسط ٤ أسابيع' : '4-Week Avg'}</th>
-                <th className="px-3.5 py-3 text-end">{isAr ? 'الطلبات' : 'Orders'}</th>
-                <th className="px-3.5 py-3 text-end">{isAr ? 'صافي الجيب' : 'Net Pocket'}</th>
-                <th className="px-3.5 py-3 text-start">{isAr ? 'محرك الأداء' : 'Driver Tag'}</th>
-                <th className="px-3.5 py-3 text-end">{isAr ? 'الإجراء' : 'Action'}</th>
+              <tr className="border-b border-neutral-200/80 bg-[#F6F7F8] text-[12.5px] font-bold text-neutral-600 dark:border-white/[0.08] dark:bg-[#0B1410] dark:text-slate-300">
+                <th className="sticky start-0 z-10 bg-[#F6F7F8] px-3.5 py-3 text-start whitespace-nowrap dark:bg-[#0B1410]">
+                  {isAr ? 'اليوم والتواريخ' : 'Weekday & Dates'}
+                </th>
+                <th className="px-3.5 py-3 text-end whitespace-nowrap">{isAr ? 'هذا الأسبوع (د.ك)' : 'This Week (KWD)'}</th>
+                <th className="px-3.5 py-3 text-end whitespace-nowrap">{isAr ? 'الأسبوع الماضي (د.ك)' : 'Last Week (KWD)'}</th>
+                <th className="px-3.5 py-3 text-end whitespace-nowrap">{isAr ? 'الفرق والتقييم' : 'Variance & Tier'}</th>
+                <th className="px-3.5 py-3 text-end whitespace-nowrap">{isAr ? 'متوسط ٤ أسابيع' : '4-Week Avg'}</th>
+                <th className="px-3.5 py-3 text-end whitespace-nowrap">{isAr ? 'الطلبات' : 'Orders'}</th>
+                <th className="px-3.5 py-3 text-end whitespace-nowrap">{isAr ? 'صافي الجيب' : 'Net Pocket'}</th>
+                <th className="px-3.5 py-3 text-start whitespace-nowrap">{isAr ? 'محرك الأداء' : 'Driver Tag'}</th>
+                <th className="px-3.5 py-3 text-end whitespace-nowrap">{isAr ? 'الإجراء' : 'Action'}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100 dark:divide-white/[0.05]">
@@ -579,10 +553,10 @@ export function WeekdayComparisonStudio() {
                     className={`cursor-pointer transition ${
                       isSelected
                         ? 'bg-emerald-50/45 dark:bg-emerald-950/20'
-                        : 'hover:bg-[#F7F7F8]/70 dark:hover:bg-white/[0.03]'
+                        : 'hover:bg-[#F6F7F8]/70 dark:hover:bg-white/[0.03]'
                     }`}
                   >
-                    <td className="px-3.5 py-3.5">
+                    <td className="sticky start-0 z-10 bg-white px-3.5 py-3.5 whitespace-nowrap dark:bg-[#101C17]">
                       <div className="font-extrabold text-neutral-950 dark:text-white">
                         {isAr ? r.weekdayAr : r.weekdayEn}
                       </div>
@@ -650,8 +624,8 @@ export function WeekdayComparisonStudio() {
               })}
             </tbody>
             <tfoot>
-              <tr className="border-t border-neutral-200/80 bg-[#F7F7F8] font-extrabold text-neutral-950 dark:border-white/[0.08] dark:bg-[#111E1B] dark:text-white">
-                <td className="px-3.5 py-3.5">
+              <tr className="border-t border-neutral-200/80 bg-[#F6F7F8] font-extrabold text-neutral-950 dark:border-white/[0.08] dark:bg-[#0B1410] dark:text-white">
+                <td className="sticky start-0 z-10 bg-[#F6F7F8] px-3.5 py-3.5 whitespace-nowrap dark:bg-[#0B1410]">
                   {isAr ? 'الإجمالي الأسبوعي (٧ أيام)' : '7-Day Weekly Total'}
                 </td>
                 <td className="px-3.5 py-3.5 text-end">

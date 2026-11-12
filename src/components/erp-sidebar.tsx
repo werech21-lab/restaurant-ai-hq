@@ -211,7 +211,7 @@ export const SIDEBAR_ITEMS: NavItem[] = SIDEBAR_SECTIONS.flatMap((section) => [.
 
 const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect
 
-function isItemActive(item: NavItem, pathname: string): boolean {
+export function isNavItemActive(item: NavItem, pathname: string): boolean {
   if (item.href === '/erp') {
     return pathname === '/erp'
   }
@@ -223,6 +223,8 @@ function isItemActive(item: NavItem, pathname: string): boolean {
   }
   return false
 }
+
+const isItemActive = isNavItemActive
 
 export function Sidebar({ user }: { user: AccessUser; enabledKeys?: string[] | null }) {
   const pathname = usePathname() ?? ''
@@ -351,7 +353,7 @@ export function Sidebar({ user }: { user: AccessUser; enabledKeys?: string[] | n
     <aside
       id="ae-sidebar"
       data-collapsed={collapsed}
-      className={`no-print sticky top-0 z-30 hidden h-screen shrink-0 flex-col md:flex ${
+      className={`no-print sticky top-0 z-30 hidden h-screen shrink-0 flex-col lg:flex ${
         collapsed ? 'overflow-visible' : 'overflow-y-auto'
       }`}
       dir={isAr ? 'rtl' : 'ltr'}

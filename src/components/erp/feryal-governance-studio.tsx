@@ -106,8 +106,8 @@ import {
 } from '@/lib/feryal-governance-bridge'
 
 const STUDIO_PANEL_CLS =
-  'ae-bento-card h-[calc(100dvh-160px)] min-h-[620px] max-h-[880px] rounded-3xl bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-[#111A22]'
-const SUBCARD_CLS = 'rounded-2xl bg-[#F7F7F8] dark:bg-[#0D1614]'
+  'ae-bento-card h-[calc(100dvh-148px)] min-h-[520px] sm:min-h-[620px] max-h-[880px] rounded-2xl bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10'
+const SUBCARD_CLS = 'rounded-2xl bg-[#F6F7F8] dark:bg-[#09110E]'
 
 const f0 = (n: number) => Math.round(Number.isFinite(n) ? n : 0).toLocaleString('en-US')
 
@@ -1018,9 +1018,9 @@ export function FeryalGovernanceStudio() {
           : T('Triple-Brain Council 🔥', 'العقل الثلاثي 🔥')
 
   const utilityPillIdle =
-    'inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-[#F7F7F8] px-3 text-xs font-semibold text-neutral-700 transition-colors hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#0D1614] dark:text-slate-200 dark:hover:bg-emerald-950/60 dark:hover:text-emerald-200'
+    'inline-flex shrink-0 whitespace-nowrap cursor-pointer items-center gap-1.5 rounded-xl px-3 py-1.5 text-[12.5px] font-medium text-neutral-600 transition-all duration-150 hover:bg-white/80 hover:text-neutral-900 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
   const utilityPillActive =
-    'inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-emerald-50 px-3 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-500/25 dark:bg-emerald-950/60 dark:text-emerald-200 dark:ring-emerald-500/35'
+    'inline-flex shrink-0 whitespace-nowrap cursor-pointer items-center gap-1.5 rounded-xl bg-white px-3 py-1.5 text-[12.5px] font-semibold text-emerald-800 shadow-sm ring-1 ring-slate-900/[0.06] transition-all duration-150 dark:bg-emerald-500/20 dark:text-emerald-200 dark:ring-emerald-500/30'
 
   return (
     <div
@@ -1032,7 +1032,7 @@ export function FeryalGovernanceStudio() {
 
       {/* Instant Confirmation Toast */}
       {toastNotice ? (
-        <div className="fixed bottom-6 end-6 z-50 flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-xs font-semibold text-emerald-800 shadow-xl ring-1 ring-emerald-500/25 dark:bg-[#111A22] dark:text-emerald-300">
+        <div className="fixed bottom-6 end-6 z-50 flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-xs font-semibold text-emerald-800 shadow-xl ring-1 ring-emerald-500/25 dark:bg-[#101C17] dark:text-emerald-300">
           <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
           <span>{isAr ? toastNotice.ar : toastNotice.en}</span>
         </div>
@@ -1053,7 +1053,7 @@ export function FeryalGovernanceStudio() {
           <button
             type="button"
             onClick={() => setIngestedDeepLinkLabel(null)}
-            className="cursor-pointer rounded-full bg-white/90 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800 hover:bg-white dark:bg-[#111A22] dark:text-emerald-300"
+            className="shrink-0 whitespace-nowrap cursor-pointer rounded-xl bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-emerald-800 hover:bg-white dark:bg-[#101C17] dark:text-emerald-300"
           >
             {T('Dismiss', 'إخفاء')}
           </button>
@@ -1089,9 +1089,9 @@ export function FeryalGovernanceStudio() {
           }`}
         >
           {/* Single Calm Studio Utility Strip (Zero duplicate Page Title, Filters, Brain Switcher or Bell) */}
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-100 px-4 py-3 sm:px-6 dark:border-white/[0.06]">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+          <div className="flex flex-col gap-2 border-b border-neutral-100 px-3.5 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:px-6 dark:border-white/[0.06]">
+            <div className="flex min-w-0 items-center gap-2 overflow-x-auto no-scrollbar">
+              <span className="inline-flex shrink-0 whitespace-nowrap items-center gap-1.5 rounded-xl bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
                 <Sparkles className="h-3.5 w-3.5" />
                 <span>
                   {T(
@@ -1100,26 +1100,26 @@ export function FeryalGovernanceStudio() {
                   )}
                 </span>
               </span>
-              <span className="hidden items-center rounded-full bg-[#F7F7F8] px-2.5 py-1 text-[11.5px] font-medium text-neutral-600 sm:inline-flex dark:bg-[#0D1614] dark:text-slate-300">
+              <span className="hidden shrink-0 whitespace-nowrap items-center rounded-xl bg-[#F6F7F8] px-2.5 py-1 text-[11.5px] font-medium text-neutral-600 sm:inline-flex dark:bg-[#09110E] dark:text-slate-300">
                 {activeBrainBadgeText}
               </span>
             </div>
 
-            <div className="flex flex-wrap items-center gap-1.5">
-              {/* ابتكار الحلول الكبرى 🚀 */}
-              <div ref={bigBetMenuRef} className="relative">
+            <div className="flex min-w-0 max-w-full items-center gap-1.5">
+              {/* ابتكار الحلول الكبرى 🚀 (outside overflow-x-auto so dropdown never clips) */}
+              <div ref={bigBetMenuRef} className="relative shrink-0">
                 <button
                   type="button"
                   disabled={isCopilotThinking}
                   onClick={() => setBigBetMenuOpen((v) => !v)}
-                  className={`${utilityPillActive} disabled:opacity-50`}
+                  className="inline-flex shrink-0 whitespace-nowrap cursor-pointer items-center gap-1.5 rounded-xl bg-emerald-50 px-3 py-2 text-[12.5px] font-semibold text-emerald-800 ring-1 ring-emerald-500/25 transition-all duration-150 hover:bg-emerald-100 disabled:opacity-50 dark:bg-emerald-950/60 dark:text-emerald-200 dark:ring-emerald-500/35"
                 >
                   <Rocket className="h-3.5 w-3.5" />
                   <span>{T('Big-Bet Generator 🚀', 'ابتكار الحلول الكبرى 🚀')}</span>
                 </button>
 
                 {bigBetMenuOpen ? (
-                  <div className="absolute end-0 z-50 mt-2 w-[330px] space-y-2 rounded-2xl bg-white p-3.5 shadow-xl ring-1 ring-neutral-200/80 sm:w-[380px] dark:bg-[#111A22] dark:ring-white/10">
+                  <div className="absolute start-0 sm:start-auto sm:end-0 z-50 mt-2 w-[min(330px,calc(100vw-2rem))] space-y-2 rounded-2xl bg-white p-3.5 shadow-xl ring-1 ring-neutral-200/80 sm:w-[380px] dark:bg-[#101C17] dark:ring-emerald-500/20">
                     <div className="text-xs font-semibold text-neutral-950 dark:text-white">
                       {T('Launch Macro Profit Strategy 🚀', 'اختر محور ابتكار الحلول الكبرى 🚀')}
                     </div>
@@ -1136,7 +1136,7 @@ export function FeryalGovernanceStudio() {
                           </span>
                           <span
                             dir="ltr"
-                            className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10.5px] font-semibold tabular-nums text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
+                            className="shrink-0 whitespace-nowrap rounded-lg bg-emerald-50 px-2 py-0.5 text-[10.5px] font-semibold tabular-nums text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
                           >
                             +{st.estMonthlyKwdMin.toLocaleString('en-US')}–
                             {st.estMonthlyKwdMax.toLocaleString('en-US')} {isAr ? 'د.ك' : 'KWD'}
@@ -1151,67 +1151,70 @@ export function FeryalGovernanceStudio() {
                 ) : null}
               </div>
 
-              {/* ذاكرة وتطور فريال 🧠 */}
-              <button
-                type="button"
-                onClick={() => setMemoryOpen(true)}
-                className={utilityPillIdle}
-              >
-                <Brain className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span>{T('Feryal Memory 🧠', 'ذاكرة وتطور فريال 🧠')}</span>
-                <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10.5px] font-bold tabular-nums text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300">
-                  {memoryCountBadge}
-                </span>
-              </button>
+              {/* Single-row horizontal touch-scrollable utility segmented bar */}
+              <div className="flex min-w-0 max-w-full items-center gap-1 overflow-x-auto no-scrollbar p-1 rounded-2xl bg-neutral-100/90 dark:bg-white/[0.06]">
+                {/* ذاكرة وتطور فريال 🧠 */}
+                <button
+                  type="button"
+                  onClick={() => setMemoryOpen(true)}
+                  className={utilityPillIdle}
+                >
+                  <Brain className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>{T('Feryal Memory 🧠', 'ذاكرة وتطور فريال 🧠')}</span>
+                  <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10.5px] font-bold tabular-nums text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300">
+                    {memoryCountBadge}
+                  </span>
+                </button>
 
-              {/* Compact Voice & Playback Controls */}
-              <button
-                type="button"
-                onClick={() =>
-                  playingMsgId
-                    ? stopPlayback()
-                    : lastFeryal && void playFeryalSpeech(lastFeryal.text, lastFeryal.id, true)
-                }
-                className={playingMsgId ? utilityPillActive : utilityPillIdle}
-              >
-                {playingMsgId ? <Square className="h-3 w-3" /> : <Headphones className="h-3.5 w-3.5" />}
-                <span>{playingMsgId ? T('Stop', 'إيقاف') : T('Listen', 'استماع')}</span>
-              </button>
+                {/* Compact Voice & Playback Controls */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    playingMsgId
+                      ? stopPlayback()
+                      : lastFeryal && void playFeryalSpeech(lastFeryal.text, lastFeryal.id, true)
+                  }
+                  className={playingMsgId ? utilityPillActive : utilityPillIdle}
+                >
+                  {playingMsgId ? <Square className="h-3 w-3" /> : <Headphones className="h-3.5 w-3.5" />}
+                  <span>{playingMsgId ? T('Stop', 'إيقاف') : T('Listen', 'استماع')}</span>
+                </button>
 
-              <button
-                type="button"
-                aria-pressed={!isVoiceMuted}
-                onClick={() => setIsVoiceMuted((v) => !v)}
-                className={!isVoiceMuted ? utilityPillActive : utilityPillIdle}
-              >
-                {isVoiceMuted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
-                <span className="hidden sm:inline">{T('Auto-Voice', 'رد صوتي')}</span>
-              </button>
+                <button
+                  type="button"
+                  aria-pressed={!isVoiceMuted}
+                  onClick={() => setIsVoiceMuted((v) => !v)}
+                  className={!isVoiceMuted ? utilityPillActive : utilityPillIdle}
+                >
+                  {isVoiceMuted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+                  <span className="hidden sm:inline">{T('Auto-Voice', 'رد صوتي')}</span>
+                </button>
 
-              <button
-                type="button"
-                aria-pressed={isHandsFree}
-                onClick={() => setIsHandsFree((v) => !v)}
-                className={isHandsFree ? utilityPillActive : utilityPillIdle}
-              >
-                <Mic className="h-3.5 w-3.5" />
-                <span className="hidden xl:inline">{T('Hands-Free', 'محادثة مستمرة')}</span>
-              </button>
+                <button
+                  type="button"
+                  aria-pressed={isHandsFree}
+                  onClick={() => setIsHandsFree((v) => !v)}
+                  className={isHandsFree ? utilityPillActive : utilityPillIdle}
+                >
+                  <Mic className="h-3.5 w-3.5" />
+                  <span className="hidden xl:inline">{T('Hands-Free', 'محادثة مستمرة')}</span>
+                </button>
 
-              <button
-                type="button"
-                aria-pressed={isExpanded}
-                onClick={() => setIsExpanded((v) => !v)}
-                className={`${isExpanded ? utilityPillActive : utilityPillIdle} hidden lg:inline-flex`}
-              >
-                {isExpanded ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
-                <span>{isExpanded ? T('Notebooks', 'الدفاتر') : T('Expand', 'تكبير')}</span>
-              </button>
+                <button
+                  type="button"
+                  aria-pressed={isExpanded}
+                  onClick={() => setIsExpanded((v) => !v)}
+                  className={`${isExpanded ? utilityPillActive : utilityPillIdle} hidden lg:inline-flex`}
+                >
+                  {isExpanded ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+                  <span>{isExpanded ? T('Notebooks', 'الدفاتر') : T('Expand', 'تكبير')}</span>
+                </button>
 
-              <button type="button" onClick={newDiscussion} className={utilityPillIdle}>
-                <RotateCcw className="h-3.5 w-3.5" />
-                <span>{T('+ New Chat', '+ محادثة جديدة')}</span>
-              </button>
+                <button type="button" onClick={newDiscussion} className={utilityPillIdle}>
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  <span>{T('+ New Chat', '+ محادثة جديدة')}</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -1295,11 +1298,11 @@ export function FeryalGovernanceStudio() {
                     </span>
                   ) : null}
 
-                  <div className={`min-w-0 ${mine ? 'max-w-[80%]' : 'max-w-[94%] flex-1'}`}>
+                  <div className={`min-w-0 ${mine ? 'max-w-[85%] sm:max-w-[80%]' : 'max-w-full sm:max-w-[94%] flex-1'}`}>
                     {(engineBadge || (!mine && m.visionCompliance) || noteText) ? (
-                      <div className="mb-1.5 flex flex-wrap items-center gap-2">
+                      <div className="mb-1.5 flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar">
                         {engineBadge ? (
-                          <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                          <span className="inline-flex shrink-0 whitespace-nowrap items-center rounded-lg bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
                             {engineBadge}
                           </span>
                         ) : null}
@@ -1307,7 +1310,7 @@ export function FeryalGovernanceStudio() {
                           <FeryalVisionCompliancePill tier={m.visionCompliance} isAr={isAr} />
                         ) : null}
                         {noteText ? (
-                          <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
+                          <span className="shrink-0 whitespace-nowrap rounded-lg bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
                             {noteText}
                           </span>
                         ) : null}
@@ -1317,8 +1320,8 @@ export function FeryalGovernanceStudio() {
                     <div
                       className={
                         mine
-                          ? 'whitespace-pre-wrap rounded-2xl bg-emerald-50/90 px-5 py-4 text-[15px] leading-[1.85] font-medium text-emerald-950 ring-1 ring-emerald-600/15 dark:bg-emerald-950/55 dark:text-emerald-50 dark:ring-emerald-500/30'
-                          : `${SUBCARD_CLS} px-5 py-4 text-[15px] leading-[1.85] text-neutral-800 sm:px-6 sm:py-5 dark:text-slate-100`
+                          ? 'whitespace-pre-wrap rounded-2xl bg-emerald-50/90 px-4 py-3.5 sm:px-5 sm:py-4 text-[15px] leading-[1.85] font-medium text-emerald-950 ring-1 ring-emerald-600/15 dark:bg-emerald-950/55 dark:text-emerald-50 dark:ring-emerald-500/30'
+                          : `${SUBCARD_CLS} px-4 py-3.5 text-[15px] leading-[1.85] text-neutral-800 sm:px-6 sm:py-5 dark:text-slate-100`
                       }
                     >
                       {mine && m.attachmentsMeta && m.attachmentsMeta.length > 0 ? (
@@ -1332,30 +1335,30 @@ export function FeryalGovernanceStudio() {
 
                     {/* Calm Executive Action Bar (1-Click Manager Bell Escalation + Copy + WhatsApp) */}
                     {!mine && m.id !== 'welcome' && recMeta ? (
-                      <div className="mt-2.5 space-y-2.5 rounded-2xl bg-[#F7F7F8]/90 p-3 dark:bg-[#0D1614]/90">
-                        <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                          <span className="rounded-full bg-white px-2.5 py-0.5 font-medium text-neutral-700 shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:bg-[#111A22] dark:text-slate-200">
+                      <div className="mt-2.5 space-y-2.5 rounded-2xl bg-[#F6F7F8]/95 p-3 dark:bg-[#09110E]/95">
+                        <div className="flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar text-xs">
+                          <span className="shrink-0 whitespace-nowrap rounded-lg bg-white px-2.5 py-0.5 font-medium text-neutral-700 shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:bg-[#101C17] dark:text-slate-200">
                             {isAr ? recMeta.targetScopeAr : recMeta.targetScopeEn}
                           </span>
                           <span
                             dir="ltr"
-                            className="rounded-full bg-emerald-50 px-2.5 py-0.5 font-semibold tabular-nums text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
+                            className="shrink-0 whitespace-nowrap rounded-lg bg-emerald-50 px-2.5 py-0.5 font-semibold tabular-nums text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
                           >
                             +{f0(recMeta.conservativeMonthlyReturnKwd)}{' '}
                             {isAr ? 'د.ك/شهر (متحفظ)' : 'KWD/mo (conservative)'}
                           </span>
-                          <span className="rounded-full bg-amber-50 px-2.5 py-0.5 font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
+                          <span className="shrink-0 whitespace-nowrap rounded-lg bg-amber-50 px-2.5 py-0.5 font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
                             {isAr ? recMeta.complianceRuleAr : recMeta.complianceRuleEn}
                           </span>
                         </div>
 
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar">
                             {isApprovedSealed ? (
                               <button
                                 type="button"
                                 onClick={() => openDrawer('sealed')}
-                                className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-emerald-50 px-3.5 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-600/20 hover:bg-emerald-100 dark:bg-emerald-950/70 dark:text-emerald-200"
+                                className="inline-flex h-8 shrink-0 whitespace-nowrap cursor-pointer items-center gap-1.5 rounded-xl bg-emerald-50 px-3.5 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-600/20 hover:bg-emerald-100 dark:bg-emerald-950/70 dark:text-emerald-200"
                               >
                                 <ShieldCheck className="h-3.5 w-3.5" />
                                 <span>
@@ -1368,7 +1371,7 @@ export function FeryalGovernanceStudio() {
                               <button
                                 type="button"
                                 onClick={() => openDrawer('approvals')}
-                                className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-emerald-50 px-3.5 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-600/25 hover:bg-emerald-100 dark:bg-emerald-950/70 dark:text-emerald-200"
+                                className="inline-flex h-8 shrink-0 whitespace-nowrap cursor-pointer items-center gap-1.5 rounded-xl bg-emerald-50 px-3.5 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-600/25 hover:bg-emerald-100 dark:bg-emerald-950/70 dark:text-emerald-200"
                               >
                                 <Check className="h-3.5 w-3.5" />
                                 <span>
@@ -1417,7 +1420,7 @@ export function FeryalGovernanceStudio() {
                                     `Finding queued in Manager Bell (+${f0(recMeta.conservativeMonthlyReturnKwd)} KWD/mo) 🔔`,
                                   )
                                 }}
-                                className="btn-colored inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-emerald-600 px-3.5 text-xs font-semibold text-white transition-all hover:bg-emerald-500 dark:bg-emerald-500 dark:text-emerald-950"
+                                className="btn-colored inline-flex h-8 shrink-0 whitespace-nowrap cursor-pointer items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 text-xs font-semibold text-white transition-all hover:bg-emerald-500 dark:bg-emerald-500 dark:text-emerald-950"
                               >
                                 <Bell className="h-3.5 w-3.5" />
                                 <span>
@@ -1437,7 +1440,7 @@ export function FeryalGovernanceStudio() {
                             <button
                               type="button"
                               onClick={() => void copyToClipboard(`${m.id}-exec-memo`, execMemoText)}
-                              className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-white px-3.5 text-xs font-semibold text-neutral-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#111A22] dark:text-slate-200 dark:hover:bg-emerald-950/50"
+                              className="inline-flex h-8 shrink-0 whitespace-nowrap cursor-pointer items-center gap-1.5 rounded-xl bg-white px-3.5 text-xs font-semibold text-neutral-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#101C17] dark:text-slate-200 dark:hover:bg-emerald-950/50"
                             >
                               {copiedKey === `${m.id}-exec-memo` ? (
                                 <>
@@ -1456,21 +1459,21 @@ export function FeryalGovernanceStudio() {
                               href={`https://wa.me/?text=${encodeURIComponent(execMemoText)}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex h-8 items-center gap-1 rounded-full bg-emerald-50 px-3 text-xs font-semibold text-emerald-800 transition-colors hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-300"
+                              className="inline-flex h-8 shrink-0 whitespace-nowrap items-center gap-1 rounded-xl bg-emerald-50 px-3 text-xs font-semibold text-emerald-800 transition-colors hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-300"
                             >
                               <MessageCircle className="h-3.5 w-3.5" />
                               <span>{T('WhatsApp 📲', 'واتساب 📲')}</span>
                             </a>
                           </div>
 
-                          <div className="flex flex-wrap items-center gap-1.5 text-xs text-neutral-400">
+                          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar text-xs text-neutral-400">
                             {hasMultipleBrains ? (
                               <button
                                 type="button"
                                 onClick={() =>
                                   setOpenSplitIds((prev) => ({ ...prev, [m.id]: !prev[m.id] }))
                                 }
-                                className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-full bg-white px-2.5 text-[11.5px] font-medium text-neutral-700 shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#111A22] dark:text-slate-300"
+                                className="inline-flex h-7 shrink-0 whitespace-nowrap cursor-pointer items-center gap-1 rounded-xl bg-white px-2.5 text-[11.5px] font-medium text-neutral-700 shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#101C17] dark:text-slate-300"
                               >
                                 <Columns2 className="h-3 w-3" />
                                 <span>
@@ -1489,7 +1492,7 @@ export function FeryalGovernanceStudio() {
                                   ? stopPlayback()
                                   : void playFeryalSpeech(m.text, m.id, true)
                               }
-                              className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-full bg-white px-2.5 text-[11.5px] font-medium text-neutral-600 shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#111A22] dark:text-slate-300"
+                              className="inline-flex h-7 shrink-0 whitespace-nowrap cursor-pointer items-center gap-1 rounded-xl bg-white px-2.5 text-[11.5px] font-medium text-neutral-600 shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#101C17] dark:text-slate-300"
                             >
                               {playingMsgId === m.id ? (
                                 <Square className="h-3 w-3" />
@@ -1499,7 +1502,7 @@ export function FeryalGovernanceStudio() {
                               <span>{playingMsgId === m.id ? T('Stop', 'إيقاف') : T('Listen', 'استماع')}</span>
                             </button>
 
-                            {m.time ? <span className="tabular-nums">{m.time}</span> : null}
+                            {m.time ? <span className="shrink-0 tabular-nums">{m.time}</span> : null}
                           </div>
                         </div>
                       </div>
@@ -1528,7 +1531,7 @@ export function FeryalGovernanceStudio() {
                               {panel.model ? (
                                 <span
                                   dir="ltr"
-                                  className="rounded-full bg-white px-2 py-0.5 font-mono text-[10.5px] font-medium text-neutral-600 dark:bg-[#111A22] dark:text-slate-300"
+                                  className="shrink-0 whitespace-nowrap rounded-lg bg-white px-2 py-0.5 font-mono text-[10.5px] font-medium text-neutral-600 dark:bg-[#101C17] dark:text-slate-300"
                                 >
                                   {panel.model}
                                 </span>
@@ -1566,11 +1569,11 @@ export function FeryalGovernanceStudio() {
                       </p>
                     </div>
 
-                    <div className="flex shrink-0 flex-wrap items-center gap-2">
+                    <div className="flex shrink-0 items-center gap-2 overflow-x-auto no-scrollbar">
                       <button
                         type="button"
                         onClick={() => openPickerRef.current?.()}
-                        className="btn-colored inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-emerald-600 px-4 text-xs font-semibold text-white transition-colors hover:bg-emerald-500 dark:bg-emerald-500 dark:text-emerald-950"
+                        className="btn-colored inline-flex h-9 shrink-0 whitespace-nowrap cursor-pointer items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-500 dark:bg-emerald-500 dark:text-emerald-950"
                       >
                         <ImagePlus className="h-3.5 w-3.5" />
                         <span>{T('Choose Photo / Video', 'إرفاق صورة أو فيديو')}</span>
@@ -1578,7 +1581,7 @@ export function FeryalGovernanceStudio() {
                       <button
                         type="button"
                         onClick={() => openCameraRef.current?.()}
-                        className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-white px-3.5 text-xs font-semibold text-emerald-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-emerald-500/20 transition-colors hover:bg-emerald-50 dark:bg-[#111A22] dark:text-emerald-300"
+                        className="inline-flex h-9 shrink-0 whitespace-nowrap cursor-pointer items-center gap-1.5 rounded-xl bg-white px-3.5 text-xs font-semibold text-emerald-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-emerald-500/20 transition-colors hover:bg-emerald-50 dark:bg-[#101C17] dark:text-emerald-300"
                       >
                         <Camera className="h-3.5 w-3.5" />
                         <span>{T('Camera Capture', 'التقاط بالكاميرا')}</span>
@@ -1586,7 +1589,7 @@ export function FeryalGovernanceStudio() {
                     </div>
                   </div>
 
-                  <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                  <div className="mt-3 flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar p-1 rounded-2xl bg-neutral-100/90 dark:bg-white/[0.06]">
                     {FERYAL_VISION_QUICK_PRESETS.map((preset) => (
                       <button
                         key={`empty-${preset.id}`}
@@ -1595,7 +1598,7 @@ export function FeryalGovernanceStudio() {
                           setInputText(isAr ? preset.promptAr : preset.promptEn)
                           openPickerRef.current?.()
                         }}
-                        className="cursor-pointer rounded-full bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-colors hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#111A22] dark:text-slate-200 dark:hover:bg-emerald-950/60"
+                        className="shrink-0 whitespace-nowrap cursor-pointer rounded-xl bg-white px-3.5 py-2 text-[13px] font-medium text-neutral-700 shadow-sm ring-1 ring-slate-900/[0.05] transition-all duration-150 hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#101C17] dark:text-slate-200 dark:ring-emerald-500/20 dark:hover:bg-emerald-950/60"
                       >
                         {isAr ? preset.badgeAr : preset.badgeEn}
                       </button>
@@ -1631,7 +1634,7 @@ export function FeryalGovernanceStudio() {
                         className={`${SUBCARD_CLS} group cursor-pointer p-4 text-start transition-all hover:ring-1 hover:ring-emerald-500/35`}
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <span className={`rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold ${badgeCls}`}>
+                          <span className={`rounded-lg px-2.5 py-0.5 text-[11.5px] font-semibold ${badgeCls}`}>
                             {isAr ? chip.badgeAr : chip.badgeEn}
                           </span>
                           <Icon className="h-4 w-4 text-neutral-400 transition-colors group-hover:text-emerald-600" />
@@ -1663,7 +1666,7 @@ export function FeryalGovernanceStudio() {
           </div>
 
           {/* Input Dock (Multimodal Vision: Photos + Videos + Voice + Text) */}
-          <div className="border-t border-neutral-100 bg-white px-4 pb-4 pt-3 sm:px-6 dark:border-white/[0.06] dark:bg-[#111A22]">
+          <div className="border-t border-neutral-100 bg-white px-3.5 pb-3.5 pt-2.5 sm:px-6 sm:pb-4 sm:pt-3 dark:border-white/[0.06] dark:bg-[#101C17]">
             <FeryalVisionQuickBar
               isAr={isAr}
               disabled={isCopilotThinking || isProcessingMedia}
@@ -1709,7 +1712,7 @@ export function FeryalGovernanceStudio() {
               </div>
             ) : null}
 
-            <div className="flex items-end gap-2.5">
+            <div className="flex items-end gap-1.5 sm:gap-2.5">
               <FeryalMediaPickerButton
                 isAr={isAr}
                 disabled={isCopilotThinking}
@@ -1745,7 +1748,7 @@ export function FeryalGovernanceStudio() {
                   'Attach a photo/video (dish, kitchen, fridge, invoice) or ask Feryal anything…',
                   'أرفق صورة أو فيديو (طبق، مطبخ، ثلاجة، فاتورة) أو اسأل فريال مباشرة…',
                 )}
-                className={`${SUBCARD_CLS} min-h-[52px] flex-1 resize-none px-4 py-3.5 text-[15px] leading-relaxed text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:text-white`}
+                className={`${SUBCARD_CLS} min-h-[48px] sm:min-h-[52px] min-w-0 flex-1 resize-none px-3.5 py-3 sm:px-4 sm:py-3.5 text-[14.5px] sm:text-[15px] leading-relaxed text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:text-white`}
               />
 
               <button
@@ -1757,7 +1760,7 @@ export function FeryalGovernanceStudio() {
                     ? T('Stop microphone', 'إيقاف المايكروفون')
                     : T('Speak to Feryal', 'التحدث إلى فريال')
                 }
-                className={`inline-flex h-[52px] w-[52px] shrink-0 cursor-pointer items-center justify-center rounded-2xl transition-all ${
+                className={`inline-flex h-[48px] w-[44px] sm:h-[52px] sm:w-[52px] shrink-0 cursor-pointer items-center justify-center rounded-2xl transition-all ${
                   isListening
                     ? 'btn-colored animate-pulse bg-rose-600 text-white'
                     : `${SUBCARD_CLS} text-neutral-700 hover:bg-emerald-50 hover:text-emerald-800 dark:text-slate-200 dark:hover:bg-emerald-950/60`
@@ -1774,10 +1777,10 @@ export function FeryalGovernanceStudio() {
                   isProcessingMedia ||
                   (!inputText.trim() && pendingAttachments.length === 0)
                 }
-                className="btn-colored inline-flex h-[52px] shrink-0 cursor-pointer items-center gap-2 rounded-2xl bg-emerald-600 px-5 text-[14.5px] font-semibold text-white transition-all hover:bg-emerald-500 active:scale-[0.98] disabled:opacity-40 dark:bg-emerald-500 dark:text-emerald-950"
+                className="btn-colored inline-flex h-[48px] sm:h-[52px] shrink-0 cursor-pointer items-center gap-1.5 sm:gap-2 rounded-2xl bg-emerald-600 px-3.5 sm:px-5 text-[13.5px] sm:text-[14.5px] font-semibold text-white transition-all hover:bg-emerald-500 active:scale-[0.98] disabled:opacity-40 dark:bg-emerald-500 dark:text-emerald-950"
               >
                 <Send className={`h-4 w-4 ${isAr ? 'rotate-180' : ''}`} />
-                <span>{T('Send', 'إرسال')}</span>
+                <span className="hidden sm:inline">{T('Send', 'إرسال')}</span>
               </button>
             </div>
           </div>

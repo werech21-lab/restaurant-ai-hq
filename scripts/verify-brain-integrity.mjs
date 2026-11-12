@@ -34,7 +34,7 @@ function assert(condition, label, detail = '') {
 }
 
 console.log('\n======================================================================')
-console.log('  Venture Foods — Odoo 17 Forensic & CFO Integrity Verification (v13)')
+console.log('  Venture Foods — Odoo 17 Forensic & CFO Integrity Verification (v14)')
 console.log('======================================================================\n')
 
 // 1. Secret & Theme / Sidebar Invariants
@@ -1354,6 +1354,242 @@ assert(
     uniqProbe.reviewsCount >= 12,
   'Global runtime uniqueness assertion passed (0 duplicate titles/problems/comments across workspace.plays, summaryCards, growthPlays, phases, regulations, breaches, reviews & SLA tickets)',
   `slices=${uniqProbe.slicesChecked}, plays=${uniqProbe.playsCount}, growthPlays=${uniqProbe.growthPlaysCount}, breaches=${uniqProbe.breachesCount}, reviews=${uniqProbe.reviewsCount}, duplicates=${uniqProbe.duplicateCount}`,
+)
+
+// 14. Mobile-First App Bar, Filter Bottom Sheet, 5-Tab Bottom Dock, Scrollable Segmented Controls, 2x2 Mobile KPIs & Stuck-Lens Guard
+console.log('\n14) Mobile-First App Bar, Filter Bottom Sheet, 5-Tab Bottom Dock, Scrollable Segmented Controls, 2x2 Mobile KPIs & Stuck-Lens Guard:')
+
+const themeToggleSrc = fs.readFileSync(path.join(ROOT, 'src/components/ThemeToggle.tsx'), 'utf8')
+const mobileBottomNavSrc = fs.readFileSync(path.join(ROOT, 'src/components/mobile-bottom-nav.tsx'), 'utf8')
+const slidingPillTabsSrc = fs.readFileSync(path.join(ROOT, 'src/components/ui/SlidingPillTabs.tsx'), 'utf8')
+const globalFilterCtxSrc = fs.readFileSync(
+  path.join(ROOT, 'src/components/aether/GlobalFilterContext.tsx'),
+  'utf8',
+)
+const rootLayoutSrc = fs.readFileSync(path.join(ROOT, 'src/app/layout.tsx'), 'utf8')
+const aetherCssSrc = fs.readFileSync(path.join(ROOT, 'src/app/aether-v2.css'), 'utf8')
+const globalsCssSrc = fs.readFileSync(path.join(ROOT, 'src/app/globals.css'), 'utf8')
+const manifestJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'public/manifest.json'), 'utf8'))
+
+const themeEmojiMatches = (themeToggleSrc.match(/🌙|☀️|☀/g) ?? []).length
+assert(
+  themeEmojiMatches === 0 &&
+    themeToggleSrc.includes('Moon') &&
+    themeToggleSrc.includes('Sun') &&
+    topBarSrc.includes('h-14') &&
+    topBarSrc.includes('sticky top-0') &&
+    topBarSrc.includes('backdrop-blur-md') &&
+    topBarSrc.includes('lg:hidden') &&
+    topBarSrc.includes('hidden w-full max-w-[1920px]') &&
+    topBarSrc.includes('lg:block') &&
+    topBarSrc.includes('SlidersHorizontal') &&
+    topBarSrc.includes('rounded-t-3xl') &&
+    sidebarSrc.includes('lg:flex') &&
+    aetherCssSrc.includes('@media (min-width: 1024px)') &&
+    erpShellReexportSrc.includes('px-4 sm:px-6 xl:px-10 pt-0 lg:pt-2 pb-24 lg:pb-8') &&
+    shellSrc.includes('px-4 sm:px-6 xl:px-10 pt-0 lg:pt-2 pb-24 lg:pb-8') &&
+    govDrawerSrc.includes('lg:inline-flex'),
+  'Compact 56px (h-14) frosted Mobile App Bar + SlidersHorizontal rounded-t-3xl Filter Bottom Sheet + lg: (1024px) shell breakpoint + ThemeToggle zero duplicate moon/sun emojis',
+  `themeEmojis=${themeEmojiMatches}`,
+)
+
+const dockIcons = ['LayoutDashboard', 'TrendingUp', 'Sparkles', 'Activity', 'Grid2x2']
+assert(
+  dockIcons.every((ic) => mobileBottomNavSrc.includes(ic)) &&
+    mobileBottomNavSrc.includes('SIDEBAR_SECTIONS') &&
+    mobileBottomNavSrc.includes('isNavItemActive') &&
+    mobileBottomNavSrc.includes('useOptionalGovernance') &&
+    mobileBottomNavSrc.includes('ThemeToggle') &&
+    mobileBottomNavSrc.includes('grid-cols-5') &&
+    mobileBottomNavSrc.includes('h-16') &&
+    mobileBottomNavSrc.includes('lg:hidden') &&
+    mobileBottomNavSrc.includes('rounded-t-3xl') &&
+    mobileBottomNavSrc.includes('pb-[env(safe-area-inset-bottom)]') &&
+    mobileBottomNavSrc.includes("import Link from 'next/link'") &&
+    !/<a\s+href=/i.test(mobileBottomNavSrc),
+  '5-Tab Native-Grade Mobile Bottom Dock (LayoutDashboard, TrendingUp, Sparkles, Activity, Grid2x2) + Full 13-Page SIDEBAR_SECTIONS Launcher Sheet with Manager PIN & ThemeToggle',
+  dockIcons.join(', '),
+)
+
+const childStudioFiles = [
+  'src/components/aether/FullJourney360.tsx',
+  'src/components/aether/CoresHubStudio.tsx',
+  'src/components/aether/BeforeAfterStudio.tsx',
+  'src/components/aether/DeliveryRadarV5.tsx',
+  'src/components/aether/BoothStudyV5.tsx',
+  'src/components/aether/GrowthPlaybookV5.tsx',
+  'src/components/erp/feryal-governance-studio.tsx',
+  'src/components/aether/FeryalMultimodalBar.tsx',
+  'src/components/erp/StrategicPlanningStudio.tsx',
+  'src/components/erp/RegulationsComplianceStudio.tsx',
+  'src/components/erp/WarehouseDailyChainStudio.tsx',
+  'src/components/erp/OrderPrepSlaStudio.tsx',
+  'src/components/erp/ops-expansion/DeliverySlaStudio.tsx',
+  'src/components/erp/ops-expansion/SocialReviewsStudio.tsx',
+  'src/components/erp/ops-expansion/WeekdayComparisonStudio.tsx',
+]
+
+const duplicateH1Offenders = []
+const ovalWrapBubbleOffenders = []
+const segmentedAuditFiles = [
+  ...childStudioFiles,
+  'src/components/aether/TopFilterBar.tsx',
+  'src/components/ui/SlidingPillTabs.tsx',
+  'src/components/mobile-bottom-nav.tsx',
+]
+
+for (const rel of childStudioFiles) {
+  const s = fs.readFileSync(path.join(ROOT, rel), 'utf8')
+  if (/<h1\b/i.test(s)) duplicateH1Offenders.push(rel)
+}
+
+for (const rel of segmentedAuditFiles) {
+  const s = fs.readFileSync(path.join(ROOT, rel), 'utf8')
+  for (const line of s.split(/\r?\n/)) {
+    if ((/\bflex-wrap\b/.test(line) || /\bflex-col\b/.test(line)) && /\brounded-full\b/.test(line)) {
+      ovalWrapBubbleOffenders.push(rel)
+      break
+    }
+  }
+}
+
+assert(
+  duplicateH1Offenders.length === 0 &&
+    ovalWrapBubbleOffenders.length === 0 &&
+    slidingPillTabsSrc.includes('overflow-x-auto no-scrollbar p-1 rounded-2xl') &&
+    slidingPillTabsSrc.includes('shrink-0') &&
+    slidingPillTabsSrc.includes('whitespace-nowrap') &&
+    slidingPillTabsSrc.includes('rounded-xl'),
+  'Zero duplicate <h1> route headers across child ERP studios & zero flex-wrap/flex-col + rounded-full oval tab bubbles across all 18 shell/studio files',
+  `h1Offenders=${duplicateH1Offenders.length}, ovalBubbleOffenders=${ovalWrapBubbleOffenders.length}`,
+)
+
+const kpiBearingStudios = [
+  'src/components/aether/FullJourney360.tsx',
+  'src/components/aether/CoresHubStudio.tsx',
+  'src/components/aether/BeforeAfterStudio.tsx',
+  'src/components/aether/DeliveryRadarV5.tsx',
+  'src/components/aether/BoothStudyV5.tsx',
+  'src/components/erp/StrategicPlanningStudio.tsx',
+  'src/components/erp/RegulationsComplianceStudio.tsx',
+  'src/components/erp/WarehouseDailyChainStudio.tsx',
+  'src/components/erp/OrderPrepSlaStudio.tsx',
+  'src/components/erp/ops-expansion/DeliverySlaStudio.tsx',
+  'src/components/erp/ops-expansion/SocialReviewsStudio.tsx',
+  'src/components/erp/ops-expansion/WeekdayComparisonStudio.tsx',
+]
+
+const kpi2x2Offenders = []
+const tableScrollOffenders = []
+for (const rel of kpiBearingStudios) {
+  const s = fs.readFileSync(path.join(ROOT, rel), 'utf8')
+  const has2x2 = /\bgrid-cols-2\s+(?:lg|xl):grid-cols-4\b/.test(s)
+  const hasSingleCol4 = /\bgrid-cols-1\b[^\n]*(?:lg|xl):grid-cols-4\b/.test(s)
+  const hasCompactPad = /\bp-3\.5\s+sm:p-5\b/.test(s)
+  const hasScrollSeg = /\boverflow-x-auto\s+no-scrollbar\b/.test(s) && /\brounded-2xl\b/.test(s)
+  if (!has2x2 || hasSingleCol4 || !hasCompactPad || !hasScrollSeg) {
+    kpi2x2Offenders.push(rel)
+  }
+  if (/<table\b/i.test(s) && !/\boverflow-x-auto\b/.test(s)) {
+    tableScrollOffenders.push(rel)
+  }
+}
+
+assert(
+  kpi2x2Offenders.length === 0 && tableScrollOffenders.length === 0,
+  'All 12 KPI-bearing ERP studios render 2x2 mobile KPI grids (grid-cols-2 lg/xl:grid-cols-4, p-3.5 sm:p-5), scrollable rounded-2xl segmented controls & overflow-x-auto wide tables',
+  `kpiOffenders=${kpi2x2Offenders.length}, tableOffenders=${tableScrollOffenders.length}`,
+)
+
+assert(
+  aetherCssSrc.includes('#F6F7F8') &&
+    aetherCssSrc.includes('#FFFFFF') &&
+    aetherCssSrc.includes('#09110E') &&
+    aetherCssSrc.includes('#101C17') &&
+    aetherCssSrc.includes('.no-scrollbar') &&
+    aetherCssSrc.includes('@keyframes ae-sheet-up') &&
+    globalsCssSrc.includes('.no-scrollbar') &&
+    rootLayoutSrc.includes('export const viewport: Viewport') &&
+    rootLayoutSrc.includes("viewportFit: 'cover'") &&
+    rootLayoutSrc.includes('#F6F7F8') &&
+    rootLayoutSrc.includes('#09110E') &&
+    manifestJson.background_color === '#F6F7F8' &&
+    manifestJson.theme_color === '#09110E',
+  'Warm Alabaster (#F6F7F8 / #FFFFFF) & Obsidian-Emerald (#09110E / #101C17) Unslop surfaces, .no-scrollbar utility, layout.tsx viewportFit: cover & PWA manifest colors verified',
+)
+
+const stuckLensAndSubtitleProbeScript = `
+import {
+  computeGlobalWorkspace,
+  buildFilterSubtitle,
+  DEFAULT_GLOBAL_FILTERS,
+} from './src/lib/aether/global-filter-engine';
+
+function countOccurrences(haystack: string, needle: string): number {
+  if (!needle) return 0;
+  return haystack.toLowerCase().split(needle.toLowerCase()).length - 1;
+}
+
+const comboQuiet = {
+  ...DEFAULT_GLOBAL_FILTERS,
+  kuwaitSlice: 'quiet-hours' as const,
+  lens: 'quiet-hours' as const,
+};
+const wsHomeQuiet = computeGlobalWorkspace(comboQuiet, null, '/erp');
+const quietEnCount = countOccurrences(wsHomeQuiet.subtitleEn, 'Quiet Hours');
+const quietArCount = countOccurrences(wsHomeQuiet.subtitleAr, 'الساعات الهادئة');
+
+const comboPayday = {
+  ...DEFAULT_GLOBAL_FILTERS,
+  kuwaitSlice: 'payday' as const,
+  lens: 'payday-weekend' as const,
+};
+const subPaydayEn = buildFilterSubtitle(comboPayday, false);
+const subPaydayAr = buildFilterSubtitle(comboPayday, true);
+const paydayEnCount = countOccurrences(subPaydayEn, 'Payday');
+const paydayArCount = countOccurrences(subPaydayAr, 'الرواتب');
+
+const subRoutes = ['/erp/cores', '/erp/prep-sla', '/erp/planning', '/erp/feryal-ai', '/erp/regulations'];
+let subpageLeaks = 0;
+for (const route of subRoutes) {
+  const wsSub = computeGlobalWorkspace(comboQuiet, null, route);
+  if (
+    wsSub.filters.lens !== 'all' ||
+    wsSub.filters.kuwaitSlice !== 'all' ||
+    wsSub.subtitleEn.includes('Quiet Hours') ||
+    wsSub.subtitleAr.includes('الساعات الهادئة')
+  ) {
+    subpageLeaks += 1;
+  }
+}
+
+console.log(JSON.stringify({
+  quietEnCount,
+  quietArCount,
+  paydayEnCount,
+  paydayArCount,
+  subpageLeaks,
+  homeSubtitleEn: wsHomeQuiet.subtitleEn,
+  subSubtitleEn: computeGlobalWorkspace(comboQuiet, null, '/erp/cores').subtitleEn,
+}));
+`
+
+const lensProbeRaw = execFileSync(process.execPath, [tsxCli, '-e', stuckLensAndSubtitleProbeScript], {
+  cwd: ROOT,
+  encoding: 'utf8',
+}).trim()
+const lensProbe = JSON.parse(lensProbeRaw.split('\n').pop() ?? '{}')
+
+assert(
+  globalFilterCtxSrc.includes('usePathname') &&
+    globalFilterCtxSrc.includes("pathname !== '/erp'") &&
+    lensProbe.quietEnCount === 1 &&
+    lensProbe.quietArCount === 1 &&
+    lensProbe.paydayEnCount === 1 &&
+    lensProbe.paydayArCount === 1 &&
+    lensProbe.subpageLeaks === 0,
+  'Runtime Stuck-Lens subpage guard (auto-reset/ignore lens & kuwaitSlice when pathname !== /erp) & zero duplicate "Quiet Hours" / "Payday" subtitle segments verified',
+  `quietEn=${lensProbe.quietEnCount}, quietAr=${lensProbe.quietArCount}, subpageLeaks=${lensProbe.subpageLeaks}`,
 )
 
 console.log('\n----------------------------------------------------------------------')

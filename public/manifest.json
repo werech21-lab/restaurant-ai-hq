@@ -4,20 +4,20 @@
   "description": "نظام AetherBI لإدارة الموارد والمبيعات والمخزون",
   "lang": "ar",
   "dir": "rtl",
-  "start_url": "/dashboard",
+  "start_url": "/erp",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#0f172a",
-  "theme_color": "#1e40af",
+  "background_color": "#F6F7F8",
+  "theme_color": "#09110E",
   "icons": [
     { "src": "/icons/icon-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "/icons/icon-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "/icons/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
   ],
   "shortcuts": [
-    { "name": "نقطة البيع POS", "short_name": "الكاشير", "url": "/pos", "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }] },
-    { "name": "فاتورة جديدة", "short_name": "فاتورة", "url": "/sales", "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }] },
-    { "name": "المخزون", "short_name": "المخزون", "url": "/inventory", "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }] }
+    { "name": "ملخص الشركة", "short_name": "الرئيسية", "url": "/erp", "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }] },
+    { "name": "المبيعات والمينيو", "short_name": "المبيعات", "url": "/erp/cores", "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }] },
+    { "name": "المستشارة فريال", "short_name": "فريال", "url": "/erp/feryal-ai", "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }] }
   ]
 }

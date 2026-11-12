@@ -1,6 +1,7 @@
 'use client'
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import {
   APPROVED_BRANCH_IDS,
   APPROVED_BRAND_IDS,
@@ -42,8 +43,12 @@ interface GlobalFilterContextValue {
 
 const GlobalFilterContext = createContext<GlobalFilterContextValue | null>(null)
 
-function sanitizeFilters(raw: Partial<GlobalFilters> | null | undefined): Required<GlobalFilters> {
+function sanitizeFilters(
+  raw: Partial<GlobalFilters> | null | undefined,
+  pathname?: string | null,
+): Required<GlobalFilters> {
   if (!raw) return DEFAULT_GLOBAL_FILTERS
+  const isSubpage = Boolean(pathname && pathname !== '/erp')
   const period: GlobalPeriod =
     raw.period === 'today' ||
     raw.period === 'week' ||
@@ -60,8 +65,9 @@ function sanitizeFilters(raw: Partial<GlobalFilters> | null | undefined): Requir
     customFrom = customTo
     customTo = tmp
   }
-  const kuwaitSlice: KuwaitSlice =
-    raw.kuwaitSlice && (APPROVED_KUWAIT_SLICES as readonly string[]).includes(raw.kuwaitSlice)
+  const kuwaitSlice: KuwaitSlice = isSubpage
+    ? 'all'
+    : raw.kuwaitSlice && (APPROVED_KUWAIT_SLICES as readonly string[]).includes(raw.kuwaitSlice)
       ? (raw.kuwaitSlice as KuwaitSlice)
       : 'all'
   const brand: GlobalBrand =
@@ -79,14 +85,18 @@ function sanitizeFilters(raw: Partial<GlobalFilters> | null | undefined): Requir
     raw.channel && (APPROVED_CHANNEL_IDS as readonly string[]).includes(raw.channel)
       ? (raw.channel as GlobalChannel)
       : 'all'
-  const lens: ProfitLens =
-    raw.lens && (APPROVED_PROFIT_LENSES as readonly string[]).includes(raw.lens)
+  const lens: ProfitLens = isSubpage
+    ? 'all'
+    : raw.lens && (APPROVED_PROFIT_LENSES as readonly string[]).includes(raw.lens)
       ? (raw.lens as ProfitLens)
       : 'all'
   return { period, customFrom, customTo, kuwaitSlice, brand, branch, channel, lens }
 }
 
 export function GlobalFilterProvider({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname() ?? ''
+  const isSubpage = Boolean(pathname && pathname !== '/erp')
+
   const [filters, setFilters] = useState<Required<GlobalFilters>>(DEFAULT_GLOBAL_FILTERS)
   const [hydrated, setHydrated] = useState(false)
   const [liveSummary, setLiveSummary] = useState<OdooLiveSummary | null>(null)
@@ -94,6 +104,7 @@ export function GlobalFilterProvider({ children }: { children: React.ReactNode }
   // Hydrate from URL query params first, then localStorage
   useEffect(() => {
     try {
+      const currentPath = window.location.pathname
       const sp = new URLSearchParams(window.location.search)
       const hasUrl =
         sp.has('period') ||
@@ -106,22 +117,25 @@ export function GlobalFilterProvider({ children }: { children: React.ReactNode }
         sp.has('lens')
       if (hasUrl) {
         setFilters(
-          sanitizeFilters({
-            period: (sp.get('period') as GlobalPeriod) || undefined,
-            customFrom: sp.get('from') || undefined,
-            customTo: sp.get('to') || undefined,
-            kuwaitSlice: (sp.get('slice') as KuwaitSlice) || undefined,
-            brand: (sp.get('brand') as GlobalBrand) || undefined,
-            branch: (sp.get('branch') as GlobalBranch) || undefined,
-            channel: (sp.get('channel') as GlobalChannel) || undefined,
-            lens: (sp.get('lens') as ProfitLens) || undefined,
-          }),
+          sanitizeFilters(
+            {
+              period: (sp.get('period') as GlobalPeriod) || undefined,
+              customFrom: sp.get('from') || undefined,
+              customTo: sp.get('to') || undefined,
+              kuwaitSlice: (sp.get('slice') as KuwaitSlice) || undefined,
+              brand: (sp.get('brand') as GlobalBrand) || undefined,
+              branch: (sp.get('branch') as GlobalBranch) || undefined,
+              channel: (sp.get('channel') as GlobalChannel) || undefined,
+              lens: (sp.get('lens') as ProfitLens) || undefined,
+            },
+            currentPath,
+          ),
         )
       } else {
         const saved =
           window.localStorage.getItem(STORAGE_KEY) ?? window.localStorage.getItem('aether.globalFilters.v1')
         if (saved) {
-          setFilters(sanitizeFilters(JSON.parse(saved) as Partial<GlobalFilters>))
+          setFilters(sanitizeFilters(JSON.parse(saved) as Partial<GlobalFilters>, currentPath))
         }
       }
     } catch {
@@ -130,46 +144,80 @@ export function GlobalFilterProvider({ children }: { children: React.ReactNode }
     setHydrated(true)
   }, [])
 
+  // Auto-reset filters.lens & filters.kuwaitSlice to 'all' (and strip ?lens= & ?slice=)
+  // whenever navigating away from /erp so subpages NEVER get stuck on Quiet Hours!
+  useEffect(() => {
+    if (!pathname || pathname === '/erp') return
+    setFilters((prev) => {
+      if (prev.lens === 'all' && prev.kuwaitSlice === 'all') return prev
+      return { ...prev, lens: 'all', kuwaitSlice: 'all' }
+    })
+    try {
+      const url = new URL(window.location.href)
+      if (url.searchParams.has('lens') || url.searchParams.has('slice')) {
+        url.searchParams.delete('lens')
+        url.searchParams.delete('slice')
+        window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash)
+      }
+    } catch {
+      // ignore history errors
+    }
+  }, [pathname])
+
+  const effectiveFilters = useMemo<Required<GlobalFilters>>(
+    () =>
+      isSubpage
+        ? {
+            ...filters,
+            lens: 'all',
+            kuwaitSlice: 'all',
+          }
+        : filters,
+    [filters, isSubpage],
+  )
+
   // Persist to localStorage & lightweight URL query sync
   useEffect(() => {
     if (!hydrated) return
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(filters))
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(effectiveFilters))
       const url = new URL(window.location.href)
-      if (filters.period === 'month') {
+      if (effectiveFilters.period === 'month') {
         url.searchParams.delete('period')
         url.searchParams.delete('from')
         url.searchParams.delete('to')
       } else {
-        url.searchParams.set('period', filters.period)
-        if (filters.period === 'custom') {
-          url.searchParams.set('from', filters.customFrom)
-          url.searchParams.set('to', filters.customTo)
+        url.searchParams.set('period', effectiveFilters.period)
+        if (effectiveFilters.period === 'custom') {
+          url.searchParams.set('from', effectiveFilters.customFrom)
+          url.searchParams.set('to', effectiveFilters.customTo)
         } else {
           url.searchParams.delete('from')
           url.searchParams.delete('to')
         }
       }
-      if (filters.kuwaitSlice === 'all') url.searchParams.delete('slice')
-      else url.searchParams.set('slice', filters.kuwaitSlice)
-      if (filters.brand === 'all') url.searchParams.delete('brand')
-      else url.searchParams.set('brand', filters.brand)
-      if (filters.branch === 'all') url.searchParams.delete('branch')
-      else url.searchParams.set('branch', filters.branch)
-      if (filters.channel === 'all') url.searchParams.delete('channel')
-      else url.searchParams.set('channel', filters.channel)
-      if (filters.lens === 'all') url.searchParams.delete('lens')
-      else url.searchParams.set('lens', filters.lens)
+      if (isSubpage || effectiveFilters.kuwaitSlice === 'all') url.searchParams.delete('slice')
+      else url.searchParams.set('slice', effectiveFilters.kuwaitSlice)
+      if (effectiveFilters.brand === 'all') url.searchParams.delete('brand')
+      else url.searchParams.set('brand', effectiveFilters.brand)
+      if (effectiveFilters.branch === 'all') url.searchParams.delete('branch')
+      else url.searchParams.set('branch', effectiveFilters.branch)
+      if (effectiveFilters.channel === 'all') url.searchParams.delete('channel')
+      else url.searchParams.set('channel', effectiveFilters.channel)
+      if (isSubpage || effectiveFilters.lens === 'all') url.searchParams.delete('lens')
+      else url.searchParams.set('lens', effectiveFilters.lens)
       window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash)
     } catch {
       // ignore history/storage errors
     }
-  }, [filters, hydrated])
+  }, [effectiveFilters, hydrated, isSubpage])
 
   // Background fetch of /api/odoo-sync for live bucket updates + listen for manual sync events
   useEffect(() => {
     let active = true
-    fetch(`/api/odoo-sync?period=${encodeURIComponent(filters.period)}`, { credentials: 'same-origin' })
+    fetch(`/api/odoo-sync?period=${encodeURIComponent(effectiveFilters.period)}`, {
+      credentials: 'same-origin',
+    })
       .then((res) => (res.ok ? (res.json() as Promise<OdooLiveSummary>) : null))
       .then((data) => {
         if (active && data && data.totals) setLiveSummary(data)
@@ -187,7 +235,7 @@ export function GlobalFilterProvider({ children }: { children: React.ReactNode }
       active = false
       window.removeEventListener('aether:odoo-sync', onSyncEvent)
     }
-  }, [filters.period])
+  }, [effectiveFilters.period])
 
   const setPeriod = useCallback((period: GlobalPeriod) => setFilters((f) => ({ ...f, period })), [])
   const setCustomRange = useCallback((from: string, to: string) => {
@@ -229,20 +277,32 @@ export function GlobalFilterProvider({ children }: { children: React.ReactNode }
   }, [])
   const resetFilters = useCallback(() => setFilters(DEFAULT_GLOBAL_FILTERS), [])
 
-  const workspace = useMemo(() => computeGlobalWorkspace(filters, liveSummary), [filters, liveSummary])
+  const workspace = useMemo(
+    () => computeGlobalWorkspace(effectiveFilters, liveSummary, pathname),
+    [effectiveFilters, liveSummary, pathname],
+  )
 
   const buildShareDeepLinkText = useCallback(
-    (pathname: string, isAr: boolean): string => {
+    (targetPath: string, isAr: boolean): string => {
       const origin = typeof window !== 'undefined' ? window.location.origin : ''
       const params = new URLSearchParams()
-      if (filters.period !== 'month') params.set('period', filters.period)
-      if (filters.kuwaitSlice !== 'all') params.set('slice', filters.kuwaitSlice)
-      if (filters.brand !== 'all') params.set('brand', filters.brand)
-      if (filters.branch !== 'all') params.set('branch', filters.branch)
-      if (filters.channel !== 'all') params.set('channel', filters.channel)
-      if (filters.lens !== 'all') params.set('lens', filters.lens)
+      const allowHomeSlices = targetPath === '/erp'
+      if (effectiveFilters.period !== 'month') params.set('period', effectiveFilters.period)
+      if (effectiveFilters.period === 'custom') {
+        params.set('from', effectiveFilters.customFrom)
+        params.set('to', effectiveFilters.customTo)
+      }
+      if (allowHomeSlices && effectiveFilters.kuwaitSlice !== 'all') {
+        params.set('slice', effectiveFilters.kuwaitSlice)
+      }
+      if (effectiveFilters.brand !== 'all') params.set('brand', effectiveFilters.brand)
+      if (effectiveFilters.branch !== 'all') params.set('branch', effectiveFilters.branch)
+      if (effectiveFilters.channel !== 'all') params.set('channel', effectiveFilters.channel)
+      if (allowHomeSlices && effectiveFilters.lens !== 'all') {
+        params.set('lens', effectiveFilters.lens)
+      }
       const qs = params.toString()
-      const deepUrl = `${origin}${pathname}${qs ? `?${qs}` : ''}`
+      const deepUrl = `${origin}${targetPath}${qs ? `?${qs}` : ''}`
       const salesFmt = Math.round(workspace.salesKwd).toLocaleString('en-US')
       const ordFmt = workspace.orders.toLocaleString('en-US')
 
@@ -261,12 +321,12 @@ export function GlobalFilterProvider({ children }: { children: React.ReactNode }
         `🔗 Deep Link: ${deepUrl}`,
       ].join('\n')
     },
-    [filters, workspace],
+    [effectiveFilters, workspace],
   )
 
   const value = useMemo<GlobalFilterContextValue>(
     () => ({
-      filters,
+      filters: effectiveFilters,
       workspace,
       liveSummary,
       setPeriod,
@@ -280,7 +340,7 @@ export function GlobalFilterProvider({ children }: { children: React.ReactNode }
       buildShareDeepLinkText,
     }),
     [
-      filters,
+      effectiveFilters,
       workspace,
       liveSummary,
       setPeriod,

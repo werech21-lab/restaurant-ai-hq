@@ -196,25 +196,20 @@ export function GrowthPlaybookV5({
       dir={isAr ? 'rtl' : 'ltr'}
       className={
         embedded
-          ? 'w-full max-w-[1920px] mx-auto space-y-5'
-          : 'w-full max-w-[1920px] mx-auto space-y-5 px-5 py-6 sm:px-8'
+          ? 'w-full max-w-[1920px] mx-auto space-y-4'
+          : 'w-full max-w-[1920px] mx-auto space-y-4 pb-8'
       }
     >
-      <section className="ae-bento-card flex flex-col gap-5 p-6 lg:flex-row lg:items-center lg:justify-between">
-        <div className="min-w-0 space-y-1.5">
-          {!embedded && (
-            <h1 className="text-[24px] font-extrabold tracking-tight text-slate-950 sm:text-[28px] dark:text-white">
-              {T('Growth & Margin Playbook', 'فرص النمو وتحسين الهامش')}
-            </h1>
-          )}
-          <p className="max-w-3xl text-[14px] leading-relaxed text-slate-600 dark:text-slate-300">
+      <section className="ae-bento-card flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] sm:p-5 lg:flex-row lg:items-center lg:justify-between dark:bg-[#101C17] dark:ring-emerald-500/10">
+        <div className="min-w-0 space-y-1">
+          <p className="max-w-3xl text-[13.5px] leading-relaxed text-slate-600 dark:text-slate-300">
             {T(
               `${scoped.length} verified Odoo opportunities · ${AETHER_BRAIN_META.periodEn} · combined lift +${fmt0(AETHER_BRAIN_META.totalMonthlyKwd)} KWD/mo.`,
               `${scoped.length} فرصة موثقة من مبيعات ومشتريات أودو ١٧ · ${AETHER_BRAIN_META.periodAr} · أثر شهري مجمع +${fmt0(AETHER_BRAIN_META.totalMonthlyKwd)} د.ك.`,
             )}
           </p>
           {scan.status === 'done' && (
-            <p className="text-[13.5px] font-medium text-emerald-700 dark:text-emerald-400">
+            <p className="text-[13px] font-medium text-emerald-700 dark:text-emerald-400">
               {T(
                 `${scan.live ? 'Live Odoo' : 'Last Odoo snapshot'} · ${fmt0(scan.net ?? 0)} KWD net sales · ${fmt0(scan.orders ?? 0)} orders`,
                 `${scan.live ? 'أودو مباشر' : 'آخر لقطة من أودو'} · صافي المبيعات ${fmt0(scan.net ?? 0)} د.ك · ${fmt0(scan.orders ?? 0)} طلباً`,
@@ -223,15 +218,15 @@ export function GrowthPlaybookV5({
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-4">
+        <div className="flex max-w-full items-center gap-3 overflow-x-auto no-scrollbar">
           {totalVisible > 0 && (
-            <div className="ae-bento-subcard rounded-2xl px-4 py-2 text-end">
-              <div className="text-[11.5px] font-semibold text-slate-500 dark:text-slate-400">
+            <div className="ae-bento-subcard shrink-0 rounded-xl px-3.5 py-1.5 text-end">
+              <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
                 {T('Monthly Potential', 'الأثر الشهري المعروض')}
               </div>
               <div
                 dir="ltr"
-                className="text-[26px] font-extrabold tabular-nums text-emerald-700 dark:text-emerald-400"
+                className="text-xl sm:text-2xl font-semibold tracking-tight tabular-nums text-emerald-700 dark:text-emerald-400"
               >
                 +{fmt0(totalVisible)} {isAr ? 'د.ك' : 'KWD'}
               </div>
@@ -242,7 +237,7 @@ export function GrowthPlaybookV5({
             type="button"
             onClick={rescan}
             disabled={scan.status === 'scanning'}
-            className="btn-colored inline-flex shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-full bg-emerald-600 px-5 py-2.5 text-[14px] font-bold text-white shadow-sm transition-all hover:bg-emerald-700 active:scale-95 disabled:opacity-60 dark:bg-emerald-500 dark:text-[#04130D] dark:hover:bg-emerald-400"
+            className="btn-colored inline-flex h-10 shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-xl bg-emerald-600 px-4 text-[13px] font-bold text-white shadow-sm transition-all hover:bg-emerald-700 active:scale-95 disabled:opacity-60 dark:bg-emerald-500 dark:text-[#04130D] dark:hover:bg-emerald-400"
           >
             <RefreshCw className={`h-4 w-4 ${scan.status === 'scanning' ? 'animate-spin' : ''}`} />
             {scanLabel}
@@ -262,7 +257,7 @@ export function GrowthPlaybookV5({
             <button
               type="button"
               onClick={onClearOnly}
-              className="cursor-pointer rounded-full bg-white px-3 py-1 text-[12.5px] font-semibold text-emerald-800 transition-colors hover:bg-emerald-100 dark:bg-[#111A22] dark:text-emerald-200"
+              className="cursor-pointer rounded-xl bg-white px-3 py-1 text-[12.5px] font-semibold text-emerald-800 transition-colors hover:bg-emerald-100 dark:bg-[#101C17] dark:text-emerald-200"
             >
               {T('Show all', 'عرض الكل')}
             </button>
@@ -270,27 +265,32 @@ export function GrowthPlaybookV5({
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div
+        role="tablist"
+        aria-label={T('Opportunity Domains', 'مجالات الفرص')}
+        className="flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar p-1 rounded-2xl bg-neutral-100/90 ring-1 ring-slate-900/[0.04] dark:bg-white/[0.06] dark:ring-emerald-500/10"
+      >
         {FINDING_DOMAINS.map((d) => {
           const active = domain === d.id
           return (
             <button
               key={d.id}
               type="button"
-              aria-pressed={active}
+              role="tab"
+              aria-selected={active}
               onClick={() => setDomain(d.id)}
-              className={`inline-flex cursor-pointer items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-[13.5px] font-bold ring-1 transition-colors ${
+              className={`inline-flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-2 text-[13px] font-medium transition-all duration-150 ${
                 active
-                  ? 'btn-colored bg-emerald-600 text-white ring-emerald-600/80 shadow-sm dark:bg-emerald-500 dark:text-[#04130D]'
-                  : 'bg-white text-slate-700 ring-slate-900/[0.06] shadow-[0_1px_2px_rgba(15,23,42,0.03)] hover:bg-emerald-50/60 dark:bg-[#111A22] dark:text-slate-200 dark:ring-white/[0.08]'
+                  ? 'btn-colored bg-emerald-600 font-semibold text-white shadow-sm dark:bg-emerald-500 dark:text-[#04130D]'
+                  : 'text-slate-600 hover:bg-white/80 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
               }`}
             >
-              {isAr ? d.ar : d.en}
+              <span>{isAr ? d.ar : d.en}</span>
               <span
-                className={`rounded-full px-1.5 text-[11px] font-extrabold tabular-nums ${
+                className={`rounded-md px-1.5 py-0.5 text-[11px] font-extrabold tabular-nums ${
                   active
                     ? 'bg-white/20 text-white dark:bg-[#04130D]/20 dark:text-[#04130D]'
-                    : 'bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-300'
+                    : 'bg-white text-slate-700 dark:bg-white/10 dark:text-slate-300'
                 }`}
               >
                 {counts[d.id] ?? 0}
@@ -301,7 +301,7 @@ export function GrowthPlaybookV5({
       </div>
 
       {/* Compact 3-Column Growth Play Cards: Scope Pill + KWD Lift + Unique Title + 2-Line Insight + 1 Governance Action */}
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {visible.map((f) => {
           const refKey = `playbook:${f.id}`
           const approval = approvalsByRef[refKey]
@@ -317,17 +317,17 @@ export function GrowthPlaybookV5({
           return (
             <article
               key={f.id}
-              className="ae-bento-card flex flex-col justify-between gap-4 p-5"
+              className="ae-bento-card flex flex-col justify-between gap-4 rounded-2xl bg-white p-4 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10"
             >
               <div className="space-y-2.5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11.5px] font-semibold text-slate-700 dark:bg-white/[0.08] dark:text-slate-200">
+                  <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-[11.5px] font-semibold text-slate-700 dark:bg-white/[0.08] dark:text-slate-200">
                     {isAr ? scope.ar : scope.en}
                   </span>
                   {f.monthlyKwd > 0 && (
                     <span
                       dir="ltr"
-                      className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-extrabold tabular-nums text-emerald-700 ring-1 ring-emerald-500/20 dark:bg-emerald-950/60 dark:text-emerald-300"
+                      className="rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-extrabold tabular-nums text-emerald-700 ring-1 ring-emerald-500/20 dark:bg-emerald-950/60 dark:text-emerald-300"
                     >
                       {isAr ? `+${fmt0(f.monthlyKwd)} د.ك/شهر` : `+${fmt0(f.monthlyKwd)} KWD/mo`}
                     </span>
@@ -343,14 +343,14 @@ export function GrowthPlaybookV5({
                 </p>
               </div>
 
-              <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3 dark:border-white/[0.06]">
+              <footer className="flex items-center justify-between gap-2 border-t border-slate-100 pt-3 dark:border-white/[0.06]">
                 {approval?.status === 'approved' ? (
-                  <span className="inline-flex h-8 items-center gap-1.5 rounded-full bg-emerald-50 px-3 text-xs font-bold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                  <span className="inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl bg-emerald-50 px-3 text-xs font-bold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
                     <ShieldCheck className="h-3.5 w-3.5" />
                     <span>{T('Approved ✓', 'معتمد رسمياً ✓')}</span>
                   </span>
                 ) : approval?.status === 'pending' ? (
-                  <span className="inline-flex h-8 items-center gap-1.5 rounded-full bg-amber-50 px-3 text-xs font-bold text-amber-900 dark:bg-amber-950/60 dark:text-amber-200">
+                  <span className="inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl bg-amber-50 px-3 text-xs font-bold text-amber-900 dark:bg-amber-950/60 dark:text-amber-200">
                     <Bell className="h-3.5 w-3.5" />
                     <span>{T('Pending Approval 🔔', 'بانتظار الاعتماد 🔔')}</span>
                   </span>
@@ -358,7 +358,7 @@ export function GrowthPlaybookV5({
                   <button
                     type="button"
                     onClick={() => handleSubmitFinding(f)}
-                    className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-amber-50 px-3 text-xs font-bold text-amber-900 transition-colors hover:bg-amber-100 dark:bg-amber-950/60 dark:text-amber-200"
+                    className="inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl bg-amber-50 px-3 text-xs font-bold text-amber-900 transition-colors hover:bg-amber-100 dark:bg-amber-950/60 dark:text-amber-200"
                   >
                     <span>{T('Submit for Approval 🔔', 'رفع للاعتماد 🔔')}</span>
                   </button>
@@ -366,7 +366,7 @@ export function GrowthPlaybookV5({
 
                 <Link
                   href={feryalHref(prompt)}
-                  className="inline-flex h-8 items-center gap-1 rounded-full bg-emerald-50 px-3 text-xs font-bold text-emerald-800 transition-colors hover:bg-emerald-100 dark:bg-emerald-950/70 dark:text-emerald-200"
+                  className="inline-flex h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-xl bg-emerald-50 px-3 text-xs font-bold text-emerald-800 transition-colors hover:bg-emerald-100 dark:bg-emerald-950/70 dark:text-emerald-200"
                 >
                   <Sparkles className="h-3.5 w-3.5" />
                   <span>{T('Ask Feryal ✨', 'اسأل فريال ✨')}</span>

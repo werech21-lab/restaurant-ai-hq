@@ -34,7 +34,7 @@ export function FeryalMediaPickerButton({
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null)
   const cameraRef = useRef<HTMLInputElement | null>(null)
-  const hCls = size === 'lg' ? 'h-[52px]' : 'h-[48px]'
+  const hCls = size === 'lg' ? 'h-[48px] sm:h-[52px]' : 'h-[44px] sm:h-[48px]'
 
   useEffect(() => {
     if (openPickerRef) {
@@ -90,7 +90,7 @@ export function FeryalMediaPickerButton({
             : 'Attach photo (JPG/PNG/WEBP) or video (MP4/WEBM/MOV) for Feryal Vision'
         }
         aria-label={isAr ? 'إرفاق صورة أو فيديو' : 'Attach photo or video'}
-        className={`relative inline-flex ${hCls} shrink-0 cursor-pointer items-center gap-1.5 rounded-2xl bg-[#F7F7F8] px-3.5 text-xs font-semibold text-neutral-700 transition-all duration-150 hover:bg-emerald-50 hover:text-emerald-800 disabled:opacity-45 dark:bg-[#0D1614] dark:text-slate-200 dark:hover:bg-emerald-950/60 dark:hover:text-emerald-300`}
+        className={`relative inline-flex ${hCls} shrink-0 cursor-pointer items-center gap-1.5 rounded-2xl bg-[#F6F7F8] px-3 sm:px-3.5 text-xs font-semibold text-neutral-700 transition-all duration-150 hover:bg-emerald-50 hover:text-emerald-800 disabled:opacity-45 dark:bg-[#09110E] dark:text-slate-200 dark:hover:bg-emerald-950/60 dark:hover:text-emerald-300`}
       >
         {processing ? (
           <Loader2 className="h-4 w-4 animate-spin text-emerald-600 dark:text-emerald-400" />
@@ -107,7 +107,7 @@ export function FeryalMediaPickerButton({
               : 'Photo / Video'}
         </span>
         {attachmentCount && attachmentCount > 0 ? (
-          <span className="btn-colored inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-emerald-600 px-1.5 text-[10.5px] font-bold tabular-nums text-white">
+          <span className="btn-colored inline-flex h-5 min-w-[20px] items-center justify-center rounded-md bg-emerald-600 px-1.5 text-[10.5px] font-bold tabular-nums text-white">
             {attachmentCount}
           </span>
         ) : null}
@@ -119,7 +119,7 @@ export function FeryalMediaPickerButton({
         onClick={() => cameraRef.current?.click()}
         title={isAr ? 'التقاط مباشر بالكاميرا (طبق / مطبخ / فاتورة)' : 'Live Camera Capture'}
         aria-label={isAr ? 'التقاط بالكاميرا' : 'Capture with camera'}
-        className={`inline-flex ${hCls} w-[46px] shrink-0 cursor-pointer items-center justify-center rounded-2xl bg-[#F7F7F8] text-neutral-700 transition-all duration-150 hover:bg-emerald-50 hover:text-emerald-800 disabled:opacity-45 dark:bg-[#0D1614] dark:text-slate-200 dark:hover:bg-emerald-950/60 dark:hover:text-emerald-300`}
+        className={`inline-flex ${hCls} w-[42px] sm:w-[46px] shrink-0 cursor-pointer items-center justify-center rounded-2xl bg-[#F6F7F8] text-neutral-700 transition-all duration-150 hover:bg-emerald-50 hover:text-emerald-800 disabled:opacity-45 dark:bg-[#09110E] dark:text-slate-200 dark:hover:bg-emerald-950/60 dark:hover:text-emerald-300`}
       >
         <Camera className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
       </button>
@@ -139,13 +139,13 @@ export function FeryalVisionQuickBar({
   onOpenPicker?: () => void
 }) {
   return (
-    <div className="mb-2.5 flex flex-wrap items-center gap-1.5">
+    <div className="mb-2.5 flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar p-1 rounded-2xl bg-neutral-100/90 dark:bg-white/[0.06]">
       {onOpenPicker ? (
         <button
           type="button"
           disabled={disabled}
           onClick={onOpenPicker}
-          className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-500/20 transition-colors hover:bg-emerald-100 disabled:opacity-50 dark:bg-emerald-950/60 dark:text-emerald-300 dark:ring-emerald-500/30"
+          className="inline-flex shrink-0 whitespace-nowrap cursor-pointer items-center gap-1.5 rounded-xl bg-white px-3.5 py-2 text-[13px] font-semibold text-emerald-800 shadow-sm ring-1 ring-emerald-500/20 transition-all duration-150 hover:bg-emerald-50 disabled:opacity-50 dark:bg-emerald-500/20 dark:text-emerald-200 dark:ring-emerald-500/30"
         >
           <Camera className="h-3.5 w-3.5" />
           <span>{isAr ? 'إرفاق صورة / فيديو 👁️' : 'Upload Photo / Video 👁️'}</span>
@@ -158,7 +158,7 @@ export function FeryalVisionQuickBar({
           type="button"
           disabled={disabled}
           onClick={() => onSelectVisionPrompt(isAr ? preset.promptAr : preset.promptEn)}
-          className="inline-flex cursor-pointer items-center gap-1 rounded-full bg-[#F7F7F8] px-3 py-1 text-xs font-medium text-neutral-700 transition-colors hover:bg-emerald-50 hover:text-emerald-800 disabled:opacity-50 dark:bg-[#0D1614] dark:text-slate-300 dark:hover:bg-emerald-950/50 dark:hover:text-emerald-200"
+          className="inline-flex shrink-0 whitespace-nowrap cursor-pointer items-center gap-1 rounded-xl px-3.5 py-2 text-[13px] font-medium text-neutral-600 transition-all duration-150 hover:bg-white/75 hover:text-neutral-900 disabled:opacity-50 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white"
         >
           <span>{isAr ? preset.badgeAr : preset.badgeEn}</span>
         </button>
@@ -178,7 +178,7 @@ export function FeryalVisionCompliancePill({
   const badge = getComplianceBadgeMeta(tier)
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${badge.pillClassName}`}
+      className={`inline-flex shrink-0 whitespace-nowrap items-center gap-1 rounded-lg px-2.5 py-0.5 text-xs font-semibold ${badge.pillClassName}`}
     >
       <span>{isAr ? badge.ar : badge.en}</span>
     </span>
@@ -205,7 +205,7 @@ export function FeryalPendingAttachmentsTray({
   if (attachments.length === 0 && !processing && !errorText) return null
 
   return (
-    <div className="mb-3 space-y-2.5 rounded-2xl bg-[#F7F7F8] p-3 dark:bg-[#0D1614]">
+    <div className="mb-3 space-y-2.5 rounded-2xl bg-[#F6F7F8] p-3 dark:bg-[#09110E]">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-xs font-semibold text-neutral-800 dark:text-slate-200">
           <Sparkles className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
@@ -224,7 +224,7 @@ export function FeryalPendingAttachmentsTray({
           <button
             type="button"
             onClick={onClearAll}
-            className="cursor-pointer rounded-full bg-white px-2.5 py-0.5 text-[11.5px] font-semibold text-neutral-600 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:text-rose-600 dark:bg-[#111A22] dark:text-slate-300"
+            className="shrink-0 whitespace-nowrap cursor-pointer rounded-xl bg-white px-2.5 py-1 text-[11.5px] font-semibold text-neutral-600 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:text-rose-600 dark:bg-[#101C17] dark:text-slate-300"
           >
             {isAr ? 'مسح المرفقات' : 'Clear all'}
           </button>
@@ -242,10 +242,10 @@ export function FeryalPendingAttachmentsTray({
           {attachments.map((att) => (
             <div
               key={att.id}
-              className="group relative flex max-w-full items-start gap-3 rounded-xl bg-white p-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-[#111A22]"
+              className="group relative flex max-w-full items-start gap-3 rounded-xl bg-white p-2.5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10"
             >
               {att.kind === 'video' && att.videoPreviewUrl ? (
-                <div className="relative h-24 w-36 shrink-0 overflow-hidden rounded-lg bg-neutral-100 dark:bg-[#0D1614]">
+                <div className="relative h-24 w-36 shrink-0 overflow-hidden rounded-lg bg-neutral-100 dark:bg-[#09110E]">
                   <video
                     src={att.videoPreviewUrl}
                     poster={att.previewDataUrl}
@@ -256,7 +256,7 @@ export function FeryalPendingAttachmentsTray({
                   />
                 </div>
               ) : (
-                <div className="relative h-20 w-24 shrink-0 overflow-hidden rounded-lg bg-neutral-100 dark:bg-[#0D1614]">
+                <div className="relative h-20 w-24 shrink-0 overflow-hidden rounded-lg bg-neutral-100 dark:bg-[#09110E]">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={att.previewDataUrl}
@@ -277,7 +277,7 @@ export function FeryalPendingAttachmentsTray({
                   {att.name}
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-neutral-500 dark:text-slate-400">
-                  <span className="rounded-full bg-emerald-50 px-2 py-0.5 font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                  <span className="rounded-md bg-emerald-50 px-2 py-0.5 font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
                     {att.kind === 'video'
                       ? isAr
                         ? `فيديو (${formatDurationClock(att.durationSec)}) · ${att.extractedFrames?.length ?? 0} لقطات`
@@ -297,7 +297,7 @@ export function FeryalPendingAttachmentsTray({
                       <div
                         key={fr.index}
                         title={fr.timestampLabel}
-                        className="relative h-7 w-9 overflow-hidden rounded bg-neutral-100 dark:bg-[#0D1614]"
+                        className="relative h-7 w-9 overflow-hidden rounded bg-neutral-100 dark:bg-[#09110E]"
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
@@ -315,7 +315,7 @@ export function FeryalPendingAttachmentsTray({
                 type="button"
                 onClick={() => onRemove(att.id)}
                 aria-label={isAr ? 'إزالة المرفق' : 'Remove attachment'}
-                className="absolute end-1.5 top-1.5 inline-flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-neutral-100 text-neutral-600 transition-colors hover:bg-rose-100 hover:text-rose-700 dark:bg-emerald-950/60 dark:text-slate-300"
+                className="absolute end-1.5 top-1.5 inline-flex h-5 w-5 cursor-pointer items-center justify-center rounded-lg bg-neutral-100 text-neutral-600 transition-colors hover:bg-rose-100 hover:text-rose-700 dark:bg-emerald-950/60 dark:text-slate-300"
               >
                 <X className="h-3 w-3" />
               </button>
@@ -325,8 +325,8 @@ export function FeryalPendingAttachmentsTray({
       ) : null}
 
       {attachments.length > 0 && onApplyPresetPrompt ? (
-        <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-          <span className="text-[11.5px] font-medium text-neutral-400">
+        <div className="flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar p-1 rounded-2xl bg-neutral-100/90 dark:bg-white/[0.06]">
+          <span className="shrink-0 whitespace-nowrap ps-2 text-[12px] font-medium text-neutral-500 dark:text-slate-400">
             {isAr ? 'فحص سريع:' : 'Quick inspection:'}
           </span>
           {FERYAL_VISION_QUICK_PRESETS.map((preset) => (
@@ -334,7 +334,7 @@ export function FeryalPendingAttachmentsTray({
               key={preset.id}
               type="button"
               onClick={() => onApplyPresetPrompt(isAr ? preset.promptAr : preset.promptEn)}
-              className="cursor-pointer rounded-full bg-white px-2.5 py-1 text-[11.5px] font-semibold text-neutral-700 shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-colors hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#111A22] dark:text-slate-200 dark:hover:bg-emerald-950/60"
+              className="shrink-0 whitespace-nowrap cursor-pointer rounded-xl bg-white px-3.5 py-2 text-[13px] font-medium text-neutral-700 shadow-sm ring-1 ring-slate-900/[0.05] transition-all duration-150 hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#101C17] dark:text-slate-200 dark:ring-emerald-500/20 dark:hover:bg-emerald-950/60"
             >
               {isAr ? preset.badgeAr : preset.badgeEn}
             </button>
@@ -359,10 +359,10 @@ export function FeryalMessageAttachmentsGallery({
       {attachmentsMeta.map((att) => (
         <div
           key={att.id}
-          className="overflow-hidden rounded-xl bg-white/95 p-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.06)] dark:bg-[#111A22]/95"
+          className="overflow-hidden rounded-xl bg-white/95 p-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.06)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17]/95 dark:ring-emerald-500/10"
         >
           <div className="flex items-center gap-2.5">
-            <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-lg bg-neutral-100 dark:bg-[#0D1614]">
+            <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-lg bg-neutral-100 dark:bg-[#09110E]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={att.thumbDataUrl}
@@ -394,7 +394,7 @@ export function FeryalMessageAttachmentsGallery({
                   {att.frameThumbs.map((ft, idx) => (
                     <div
                       key={`${att.id}-f-${idx}`}
-                      className="h-6 w-8 overflow-hidden rounded bg-neutral-100 dark:bg-[#0D1614]"
+                      className="h-6 w-8 overflow-hidden rounded bg-neutral-100 dark:bg-[#09110E]"
                       title={ft.timestampLabel}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}

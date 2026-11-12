@@ -43,7 +43,6 @@ function EmeraldPillTabs<K extends string>({
   value,
   onChange,
   ariaLabel,
-  size = 'md',
   className = '',
 }: {
   options: readonly EmeraldPillOption<K>[]
@@ -53,16 +52,11 @@ function EmeraldPillTabs<K extends string>({
   size?: 'sm' | 'md'
   className?: string
 }) {
-  const btnPadding =
-    size === 'sm'
-      ? 'h-8 px-3 text-[12.5px]'
-      : 'h-9 px-3.5 py-1.5 text-[13px] sm:text-[13.5px]'
-
   return (
     <div
       role="tablist"
       aria-label={ariaLabel}
-      className={`inline-flex flex-wrap items-center gap-1 rounded-full bg-[#F1F5F9] p-1 ring-1 ring-slate-900/[0.06] select-none dark:bg-[#0C141B] dark:ring-white/[0.08] ${className}`}
+      className={`flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar p-1 rounded-2xl bg-neutral-100/90 ring-1 ring-slate-900/[0.04] select-none dark:bg-white/[0.06] dark:ring-emerald-500/10 ${className}`}
     >
       {options.map((opt) => {
         const active = opt.id === value
@@ -73,9 +67,9 @@ function EmeraldPillTabs<K extends string>({
             role="tab"
             aria-selected={active}
             onClick={() => onChange(opt.id)}
-            className={`inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-full font-bold whitespace-nowrap transition-all duration-150 focus:outline-none ${btnPadding} ${
+            className={`inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-2 text-[13px] font-medium transition-all duration-150 focus:outline-none ${
               active
-                ? 'btn-colored bg-emerald-600 text-white shadow-sm dark:bg-emerald-500 dark:text-[#04130D]'
+                ? 'btn-colored bg-emerald-600 font-semibold text-white shadow-sm dark:bg-emerald-500 dark:text-[#04130D]'
                 : 'text-slate-600 hover:bg-white/80 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
             }`}
           >
@@ -83,7 +77,7 @@ function EmeraldPillTabs<K extends string>({
             <span>{opt.label}</span>
             {opt.badge !== undefined ? (
               <span
-                className={`rounded-full px-1.5 py-0.5 text-[11px] font-extrabold tabular-nums ${
+                className={`rounded-md px-1.5 py-0.5 text-[11px] font-extrabold tabular-nums ${
                   active
                     ? 'bg-white/20 text-white dark:bg-[#04130D]/20 dark:text-[#04130D]'
                     : 'bg-white text-slate-700 dark:bg-white/10 dark:text-slate-300'
@@ -1183,27 +1177,22 @@ export function DeliveryRadarV5() {
   }
 
   return (
-    <div dir={isAr ? 'rtl' : 'ltr'} className="w-full max-w-[1920px] mx-auto space-y-5 pb-10">
-      {/* Finance V2 Executive Masthead */}
-      <header className="ae-bento-card flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-        <div className="min-w-0 space-y-1">
-          <h1 className="text-[24px] font-extrabold tracking-tight text-slate-950 sm:text-[28px] dark:text-white">
-            {T('Delivery Radar', 'مراقبة التوصيل')}
-          </h1>
-          <p className="text-[14px] font-medium text-slate-500 dark:text-slate-400">
-            {isAr ? workspace.subtitleAr : workspace.subtitleEn}
-          </p>
-        </div>
+    <div dir={isAr ? 'rtl' : 'ltr'} className="w-full max-w-[1920px] mx-auto space-y-4 pb-10">
+      {/* Slim Context & Action Bar (Single Active Page Title in TopFilterBar) */}
+      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+        <p className="truncate px-1 text-xs sm:text-[13.5px] font-medium text-slate-500 dark:text-slate-400">
+          {isAr ? workspace.subtitleAr : workspace.subtitleEn}
+        </p>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex max-w-full items-center gap-2 overflow-x-auto no-scrollbar">
           <button
             type="button"
             onClick={() => setTmpModalOpen(true)}
-            className="ae-bento-subcard inline-flex h-10 cursor-pointer items-center gap-2 rounded-full px-4 text-[13px] font-extrabold text-sky-900 ring-1 ring-sky-500/20 transition duration-150 hover:bg-sky-50 dark:text-sky-200 dark:ring-sky-400/25 dark:hover:bg-sky-950/40"
+            className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-xl bg-white px-3.5 text-[13px] font-semibold text-sky-900 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-sky-500/20 transition duration-150 hover:bg-sky-50 dark:bg-[#101C17] dark:text-sky-200 dark:ring-sky-400/25 dark:hover:bg-sky-950/40"
           >
             <Settings2 className="h-3.5 w-3.5 text-sky-600 dark:text-sky-400" />
             <span>{T('Company Driver Branches (TMP) ⚙️', 'فروع سائقي الشركة (TMP) ⚙️')}</span>
-            <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[11.5px] font-black tabular-nums text-sky-900 dark:bg-sky-900/70 dark:text-sky-100">
+            <span className="rounded-md bg-sky-100 px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-sky-900 dark:bg-sky-900/70 dark:text-sky-100">
               {tmpBranches.length}
             </span>
           </button>
@@ -1211,17 +1200,17 @@ export function DeliveryRadarV5() {
           <button
             type="button"
             onClick={exportCsv}
-            className="ae-bento-subcard inline-flex h-10 cursor-pointer items-center gap-2 rounded-full px-4 text-[13px] font-bold text-slate-900 transition duration-150 hover:opacity-90 dark:text-white"
+            className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-xl bg-white px-3.5 text-[13px] font-semibold text-slate-900 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-900/[0.04] transition duration-150 hover:opacity-90 dark:bg-[#101C17] dark:text-white dark:ring-emerald-500/10"
           >
             <Download className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
             {T('Export CSV', 'تحميل الجدول')}
           </button>
         </div>
-      </header>
+      </div>
 
       {/* Non-App Channel Helper Banner */}
       {isNonAppChannelSelected ? (
-        <div className="ae-bento-card flex flex-wrap items-center justify-between gap-3 p-4">
+        <div className="ae-bento-card flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10">
           <p className="text-[14px] font-semibold text-slate-700 dark:text-slate-200">
             {T(
               'You selected an in-store or direct channel. Switch channel to view delivery apps.',
@@ -1231,29 +1220,29 @@ export function DeliveryRadarV5() {
           <button
             type="button"
             onClick={() => setChannel('all')}
-            className="btn-colored rounded-full bg-emerald-600 px-4 py-2 text-[13px] font-bold text-white shadow-sm transition duration-150 hover:bg-emerald-700 dark:bg-emerald-500 dark:text-[#04130D] dark:hover:bg-emerald-400"
+            className="btn-colored rounded-xl bg-emerald-600 px-4 py-2 text-[13px] font-bold text-white shadow-sm transition duration-150 hover:bg-emerald-700 dark:bg-emerald-500 dark:text-[#04130D] dark:hover:bg-emerald-400"
           >
             {T('Show All Apps', 'عرض كل القنوات')}
           </button>
         </div>
       ) : null}
 
-      {/* 4 Top Status KPI Cards */}
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="ae-kpi-card p-5">
-          <div className="flex items-center justify-between gap-2 text-[13.5px] font-bold text-slate-600 dark:text-slate-300">
+      {/* 4 Top Status KPI Cards (Compact 2x2 Mobile Grid) */}
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="ae-kpi-card rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10">
+          <div className="flex items-center justify-between gap-1.5 text-xs sm:text-[13.5px] font-semibold text-slate-600 dark:text-slate-300">
             <span>{T('Verified Stopped', 'متوقف فعلياً 🔴')}</span>
-            <XCircle className="h-4 w-4 text-rose-600 dark:text-rose-400" />
+            <XCircle className="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400" />
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-[28px] font-extrabold tabular-nums text-rose-700 sm:text-[32px] dark:text-rose-400">
+          <div className="mt-1.5 sm:mt-2 flex flex-wrap items-baseline gap-1.5">
+            <span className="text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-rose-700 dark:text-rose-400">
               {summary.stoppedCount}
             </span>
-            <span className="text-[13px] font-medium text-slate-400 dark:text-slate-400">
+            <span className="text-[11.5px] sm:text-[13px] font-medium text-slate-400 dark:text-slate-400">
               · {summary.tgoOnlyCount} {T('Tgo Only ⚪', 'توصيل Tgo فقط ⚪')}
             </span>
           </div>
-          <p className="mt-1 text-[13.5px] text-slate-500 dark:text-slate-400">
+          <p className="mt-1 text-[11.5px] sm:text-[13px] leading-snug text-slate-500 dark:text-slate-400">
             {T(
               'Had real Odoo receipts and dropped to zero (Tgo-only excluded).',
               'كان عليها فواتير فعلية بأودو وتوقفت إلى صفر (مع عزل Tgo فقط).',
@@ -1261,20 +1250,20 @@ export function DeliveryRadarV5() {
           </p>
         </div>
 
-        <div className="ae-kpi-card p-5">
-          <div className="flex items-center justify-between gap-2 text-[13.5px] font-bold text-slate-600 dark:text-slate-300">
+        <div className="ae-kpi-card rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10">
+          <div className="flex items-center justify-between gap-1.5 text-xs sm:text-[13.5px] font-semibold text-slate-600 dark:text-slate-300">
             <span>{T('Low & TMP Upside', 'حسابات ضعيفة وفرص TMP')}</span>
-            <Lightbulb className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            <Lightbulb className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-[28px] font-extrabold tabular-nums text-amber-700 sm:text-[32px] dark:text-amber-400">
+          <div className="mt-1.5 sm:mt-2 flex flex-wrap items-baseline gap-1.5">
+            <span className="text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-amber-700 dark:text-amber-400">
               {summary.stalledCount}
             </span>
-            <span className="text-[13px] font-semibold text-emerald-700 dark:text-emerald-400">
+            <span className="text-[11.5px] sm:text-[13px] font-semibold text-emerald-700 dark:text-emerald-400">
               · {summary.tmpOppCount} {T('TMP Driver 💡', 'فرصة سائق TMP 💡')}
             </span>
           </div>
-          <p className="mt-1 text-[13.5px] text-slate-500 dark:text-slate-400">
+          <p className="mt-1 text-[11.5px] sm:text-[13px] leading-snug text-slate-500 dark:text-slate-400">
             {T(
               `${summary.activeCount} active 🟢 · 12% TMP spread beats driver cost.`,
               `${summary.activeCount} شغال 🟢 · وفر ١٢٪ بـ TMP يغطي راتب السائق.`,
@@ -1282,17 +1271,15 @@ export function DeliveryRadarV5() {
           </p>
         </div>
 
-        <div className="ae-kpi-card p-5">
-          <div className="flex items-center justify-between gap-2 text-[13.5px] font-bold text-slate-600 dark:text-slate-300">
+        <div className="ae-kpi-card rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10">
+          <div className="flex items-center justify-between gap-1.5 text-xs sm:text-[13.5px] font-semibold text-slate-600 dark:text-slate-300">
             <span>{T('Delivery Sales', 'مبيعات التوصيل')}</span>
-            <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
           </div>
-          <div dir="ltr" className="mt-2 flex items-baseline gap-2 text-[28px] font-extrabold tabular-nums text-slate-950 sm:text-[32px] dark:text-white">
-            <span>
-              {fmtAmount(summary.totalSalesKwd)} {isAr ? 'د.ك' : 'KWD'}
-            </span>
+          <div dir="ltr" className="mt-1.5 sm:mt-2 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-slate-950 dark:text-white">
+            {fmtAmount(summary.totalSalesKwd)} {isAr ? 'د.ك' : 'KWD'}
           </div>
-          <p className="mt-1 text-[13.5px] text-slate-500 dark:text-slate-400">
+          <p className="mt-1 text-[11.5px] sm:text-[13px] leading-snug text-slate-500 dark:text-slate-400">
             {T(
               `${f0(summary.totalOrders)} orders · Net ${fmtAmount(summary.totalNetKwd)} KWD.`,
               `${f0(summary.totalOrders)} طلب · الصافي بعد العمولة ${fmtAmount(summary.totalNetKwd)} د.ك.`,
@@ -1300,15 +1287,15 @@ export function DeliveryRadarV5() {
           </p>
         </div>
 
-        <div className="ae-kpi-card p-5">
-          <div className="flex items-center justify-between gap-2 text-[13.5px] font-bold text-slate-600 dark:text-slate-300">
+        <div className="ae-kpi-card rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10">
+          <div className="flex items-center justify-between gap-1.5 text-xs sm:text-[13.5px] font-semibold text-slate-600 dark:text-slate-300">
             <span>{T('Commission Gap', 'فرق العمولات الفعلي')}</span>
-            <AlertTriangle className="h-4 w-4 text-rose-600 dark:text-rose-400" />
+            <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400" />
           </div>
-          <div dir="ltr" className="mt-2 text-[28px] font-extrabold tabular-nums text-rose-700 sm:text-[32px] dark:text-rose-400">
+          <div dir="ltr" className="mt-1.5 sm:mt-2 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-rose-700 dark:text-rose-400">
             {summary.totalVarianceKwd > 0.05 ? `-${fmtAmount(summary.totalVarianceKwd)}` : '0'} {isAr ? 'د.ك' : 'KWD'}
           </div>
-          <p className="mt-1 text-[13.5px] text-slate-500 dark:text-slate-400">
+          <p className="mt-1 text-[11.5px] sm:text-[13px] leading-snug text-slate-500 dark:text-slate-400">
             {T(
               'Verified fee variance on active sales only (0 fake gaps on 0 KWD rows).',
               'فروقات عمولة محققة على المبيعات الفعلية فقط (صفر فجوات وهمية).',
@@ -1318,8 +1305,8 @@ export function DeliveryRadarV5() {
       </section>
 
       {/* Executive Delivery Plan Governance & Zero-Collision TMP (15%) vs Tgo (27%) Mix Row */}
-      <section className="grid grid-cols-1 gap-5 xl:grid-cols-12">
-        <div className="ae-bento-card flex flex-col justify-between space-y-4 p-5 sm:p-6 xl:col-span-8">
+      <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+        <div className="ae-bento-card flex flex-col justify-between space-y-4 rounded-2xl bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] sm:p-6 xl:col-span-8 dark:bg-[#101C17] dark:ring-emerald-500/10">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="space-y-1">
               <div className="flex flex-wrap items-center gap-2">
@@ -1330,7 +1317,7 @@ export function DeliveryRadarV5() {
                   )}
                 </h2>
                 {lockedDeliveryCap || deliveryApproval?.status === 'approved' ? (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11.5px] font-bold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
+                  <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-0.5 text-[11.5px] font-bold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
                     <ShieldCheck className="h-3.5 w-3.5" />
                     <span>
                       {T(
@@ -1340,7 +1327,7 @@ export function DeliveryRadarV5() {
                     </span>
                   </span>
                 ) : deliveryApproval?.status === 'pending' ? (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-[11.5px] font-bold text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
+                  <span className="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-2.5 py-0.5 text-[11.5px] font-bold text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
                     <Bell className="h-3.5 w-3.5" />
                     <span>{T('Awaiting Manager PIN', 'بانتظار ختم المدير')}</span>
                   </span>
@@ -1428,12 +1415,12 @@ export function DeliveryRadarV5() {
           </div>
 
           {/* Action Bar: Request Manager Approval + PIN Seal + Printable A4 Circular */}
-          <div className="flex flex-wrap items-center justify-between gap-2.5 pt-1">
-            <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-col gap-2.5 pt-1 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex max-w-full items-center gap-2 overflow-x-auto no-scrollbar">
               <button
                 type="button"
                 onClick={handleRequestDeliveryApproval}
-                className="btn-colored inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-emerald-600 px-4 text-[13px] font-bold text-white shadow-sm transition duration-150 hover:bg-emerald-700 dark:bg-emerald-500 dark:text-[#04130D] dark:hover:bg-emerald-400"
+                className="btn-colored inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl bg-emerald-600 px-4 text-[13px] font-bold text-white shadow-sm transition duration-150 hover:bg-emerald-700 dark:bg-emerald-500 dark:text-[#04130D] dark:hover:bg-emerald-400"
               >
                 <Bell className="h-3.5 w-3.5" />
                 <span>
@@ -1454,7 +1441,7 @@ export function DeliveryRadarV5() {
                       deliveryApproval.titleEn,
                     )
                   }
-                  className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-emerald-50 px-3.5 text-[12px] font-bold text-emerald-900 transition duration-150 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-200"
+                  className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl bg-emerald-50 px-3.5 text-[12px] font-bold text-emerald-900 transition duration-150 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-200"
                 >
                   <Lock className="h-3.5 w-3.5" />
                   <span>{T('Approve with PIN ✅', 'موافقة واعتماد بـ PIN ✅')}</span>
@@ -1465,7 +1452,7 @@ export function DeliveryRadarV5() {
                 <button
                   type="button"
                   onClick={handlePrintDeliveryCircular}
-                  className="ae-bento-subcard inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-[12px] font-bold text-slate-800 transition duration-150 hover:bg-emerald-50 hover:text-emerald-900 dark:text-slate-100 dark:hover:bg-emerald-950/50"
+                  className="ae-bento-subcard inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 text-[12px] font-bold text-slate-800 transition duration-150 hover:bg-emerald-50 hover:text-emerald-900 dark:text-slate-100 dark:hover:bg-emerald-950/50"
                 >
                   <FileText className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                   <span>
@@ -1501,7 +1488,7 @@ export function DeliveryRadarV5() {
                   'مراقب أودو ١٧ نشط • افتح جرس الاعتمادات لمراجعة المخالفات 🔔',
                 )}
               </span>
-              <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[11.5px] font-bold tabular-nums text-amber-800 ring-1 ring-amber-500/20 dark:bg-amber-950/60 dark:text-amber-200">
+              <span className="rounded-lg bg-amber-50 px-2.5 py-0.5 text-[11.5px] font-bold tabular-nums text-amber-800 ring-1 ring-amber-500/20 dark:bg-amber-950/60 dark:text-amber-200">
                 {isAr ? `${activeDeliveryBreachCount} تنبيه` : `${activeDeliveryBreachCount} active`}
               </span>
             </button>
@@ -1509,7 +1496,7 @@ export function DeliveryRadarV5() {
         </div>
 
         {/* 4-Col Zero-Collision TMP (15%) vs Tgo (27%) & Apps Donut */}
-        <div className="ae-bento-card flex flex-col justify-between p-5 sm:p-6 xl:col-span-4">
+        <div className="ae-bento-card flex flex-col justify-between rounded-2xl bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] sm:p-6 xl:col-span-4 dark:bg-[#101C17] dark:ring-emerald-500/10">
           <div className="mb-3 space-y-0.5">
             <h2 className="text-[16px] font-semibold tracking-tight text-slate-950 dark:text-white">
               {T('TMP (15%) vs Tgo (27%) Mix', 'توزيع TMP (١٥٪) مقابل Tgo (٢٧٪)')}
@@ -1540,9 +1527,9 @@ export function DeliveryRadarV5() {
       </section>
 
       {/* Single Unified Forensic Delivery Radar Table */}
-      <section className="ae-bento-card space-y-4 p-5 sm:p-6">
+      <section className="ae-bento-card space-y-4 rounded-2xl bg-white px-3.5 py-4 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] sm:p-6 dark:bg-[#101C17] dark:ring-emerald-500/10">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-          <div className="overflow-x-auto pb-0.5">
+          <div className="min-w-0 max-w-full">
             <EmeraldPillTabs<QuickFilter>
               value={quickFilter}
               onChange={setQuickFilter}
@@ -1564,14 +1551,14 @@ export function DeliveryRadarV5() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <div className="relative min-w-[205px] flex-1 sm:flex-initial">
+            <div className="relative min-w-[190px] flex-1 sm:flex-initial">
               <Search className="pointer-events-none absolute start-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
               <input
                 type="search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={T('Search branch, brand, app…', 'ابحث بالفرع أو المطعم أو التطبيق…')}
-                className="ae-bento-subcard h-9 w-full rounded-full ps-8 pe-3 text-[13.5px] font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/35 dark:text-white"
+                className="ae-bento-subcard h-9 w-full rounded-xl ps-8 pe-3 text-[13.5px] font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/35 dark:text-white"
               />
             </div>
 
@@ -1590,7 +1577,7 @@ export function DeliveryRadarV5() {
               <button
                 type="button"
                 onClick={resetLocalFilters}
-                className="btn-colored inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-emerald-600 px-3 text-[12.5px] font-bold text-white shadow-sm transition duration-150 hover:bg-emerald-700 dark:bg-emerald-500 dark:text-[#04130D]"
+                className="btn-colored inline-flex h-9 shrink-0 cursor-pointer items-center gap-1 rounded-xl bg-emerald-600 px-3 text-[12.5px] font-bold text-white shadow-sm transition duration-150 hover:bg-emerald-700 dark:bg-emerald-500 dark:text-[#04130D]"
               >
                 <RotateCcw className="h-3 w-3" />
                 {T('All', 'الكل')}
@@ -1600,9 +1587,10 @@ export function DeliveryRadarV5() {
         </div>
 
         {/* Forensic Table: الفرع | المطعم | التطبيق | الحالة | الطلبات | المبيعات | العمولة | الصافي | الفرق والتوثيق */}
-        <div className="max-h-[680px] overflow-auto rounded-2xl ring-1 ring-slate-950/[0.04] dark:ring-white/[0.06]">
-          <table className="w-full min-w-[1040px] border-collapse bg-white text-[14px] dark:bg-[#111A22]">
-            <thead className="sticky top-0 z-10 bg-[#F4F6F9] text-slate-600 shadow-[0_1px_0_rgba(15,23,42,0.05)] dark:bg-[#0C141B] dark:text-slate-300 dark:shadow-[0_1px_0_rgba(255,255,255,0.06)]">
+        <div className="overflow-x-auto -mx-3.5 px-3.5 sm:mx-0 sm:px-0">
+          <div className="max-h-[680px] overflow-y-auto rounded-2xl ring-1 ring-slate-950/[0.04] dark:ring-emerald-500/10">
+            <table className="w-full min-w-[1040px] border-collapse bg-white text-[14px] dark:bg-[#101C17]">
+              <thead className="sticky top-0 z-10 bg-[#F4F6F9] text-slate-600 shadow-[0_1px_0_rgba(15,23,42,0.05)] dark:bg-[#09110E] dark:text-slate-300 dark:shadow-[0_1px_0_rgba(255,255,255,0.06)]">
               <tr>
                 <th className="px-4 py-3 text-start text-[13px] font-bold whitespace-nowrap">
                   {T('Branch', 'الفرع')}
@@ -1684,7 +1672,7 @@ export function DeliveryRadarV5() {
                           <div className="flex flex-wrap items-center gap-1.5">
                             <StatusBadge status={r.status} isAr={isAr} />
                             {r.tmpHireOpportunity ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100/90 px-2.5 py-0.5 text-[11px] font-extrabold text-amber-950 ring-1 ring-amber-500/30 whitespace-nowrap dark:bg-amber-500/20 dark:text-amber-200">
+                              <span className="inline-flex items-center gap-1 rounded-lg bg-amber-100/90 px-2.5 py-0.5 text-[11px] font-extrabold text-amber-950 ring-1 ring-amber-500/30 whitespace-nowrap dark:bg-amber-500/20 dark:text-amber-200">
                                 <span>
                                   {isAr
                                     ? `فرصة تعيين سائق TMP 💡 (+${f0(r.tmpNetMonthlySavingKwd)} د.ك/ش)`
@@ -1786,6 +1774,7 @@ export function DeliveryRadarV5() {
               )}
             </tbody>
           </table>
+          </div>
         </div>
       </section>
 
@@ -1879,11 +1868,11 @@ export function DeliveryRadarV5() {
                     })}
                 </div>
 
-                <div className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200/80 pt-4 dark:border-white/10">
+                <div className="mt-5 flex items-center justify-between gap-2 border-t border-slate-200/80 pt-4 dark:border-white/10">
                   <button
                     type="button"
                     onClick={resetTmpBranchesToAuto}
-                    className="ae-bento-subcard inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-[12px] font-bold text-slate-700 dark:text-slate-200"
+                    className="ae-bento-subcard inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-xl px-3.5 text-[12px] font-bold text-slate-700 dark:text-slate-200"
                   >
                     <RotateCcw className="h-3.5 w-3.5" />
                     <span>{T('Auto-Detect from Odoo', 'اكتشاف تلقائي من أودو')}</span>
@@ -1892,7 +1881,7 @@ export function DeliveryRadarV5() {
                   <button
                     type="button"
                     onClick={() => setTmpModalOpen(false)}
-                    className="btn-colored inline-flex h-9 cursor-pointer items-center rounded-full bg-emerald-600 px-4 text-[13px] font-bold text-white shadow-sm transition hover:bg-emerald-700 dark:bg-emerald-500 dark:text-[#04130D]"
+                    className="btn-colored inline-flex h-9 cursor-pointer items-center rounded-xl bg-emerald-600 px-4 text-[13px] font-bold text-white shadow-sm transition hover:bg-emerald-700 dark:bg-emerald-500 dark:text-[#04130D]"
                   >
                     {T('Save & Close', 'حفظ وإغلاق')}
                   </button>
@@ -1915,7 +1904,7 @@ export function DeliveryRadarV5() {
               onClick={() => setProofRowId(null)}
             >
               <div
-                className="h-full w-full max-w-lg overflow-y-auto bg-white p-5 shadow-2xl sm:p-6 dark:bg-[#0E161E]"
+                className="h-full w-full max-w-lg overflow-y-auto bg-white p-5 shadow-2xl sm:p-6 dark:bg-[#101C17] dark:ring-1 dark:ring-emerald-500/10"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex items-start justify-between gap-3 border-b border-slate-200 pb-4 dark:border-white/10">

@@ -269,18 +269,31 @@ export function getChannelLabel(c: GlobalChannel, isAr: boolean): string {
 }
 
 export function buildFilterSubtitle(f: GlobalFilters, isAr: boolean): string {
-  const parts = [getBrandLabel(f.brand, isAr), getBranchLabel(f.branch, isAr)]
-  if (f.channel !== 'all') parts.push(getChannelLabel(f.channel, isAr))
+  const rawParts = [getBrandLabel(f.brand, isAr), getBranchLabel(f.branch, isAr)]
+  if (f.channel !== 'all') rawParts.push(getChannelLabel(f.channel, isAr))
   if (f.period === 'custom' && f.customFrom && f.customTo) {
-    parts.push(`${f.customFrom} → ${f.customTo}`)
+    rawParts.push(`${f.customFrom} → ${f.customTo}`)
   } else {
-    parts.push(getPeriodLabel(f.period, isAr))
+    rawParts.push(getPeriodLabel(f.period, isAr))
   }
   const ks = f.kuwaitSlice ?? 'all'
-  if (ks !== 'all') parts.push(getKuwaitSliceLabel(ks, isAr))
   const ln = f.lens ?? 'all'
-  if (ln !== 'all') parts.push(getProfitLensLabel(ln, isAr))
-  return parts.join(' • ')
+  if (ks !== 'all') rawParts.push(getKuwaitSliceLabel(ks, isAr))
+  const overlapsSliceAndLens =
+    (ks === 'quiet-hours' && ln === 'quiet-hours') ||
+    ((ks === 'payday' || ks === 'weekend') && ln === 'payday-weekend')
+  if (ln !== 'all' && !overlapsSliceAndLens) {
+    rawParts.push(getProfitLensLabel(ln, isAr))
+  }
+  const seen = new Set<string>()
+  const deduped: string[] = []
+  for (const seg of rawParts) {
+    const key = seg.trim().toLowerCase()
+    if (!key || seen.has(key)) continue
+    seen.add(key)
+    deduped.push(seg)
+  }
+  return deduped.join(' • ')
 }
 
 // ---------------------------------------------------------------------------
@@ -1146,17 +1159,19 @@ function computeCustomRangeOdooTotals(
 export function computeGlobalWorkspace(
   rawFilters: GlobalFilters,
   liveSummary?: OdooLiveSummary | null,
+  pathname?: string | null,
 ): GlobalWorkspaceSlice {
   const customNorm = normalizeIsoRange(rawFilters.customFrom, rawFilters.customTo)
+  const enforceHomeOnlyLens = Boolean(pathname && pathname !== '/erp')
   const filters: Required<GlobalFilters> = {
     period: rawFilters.period ?? 'month',
     customFrom: customNorm.from,
     customTo: customNorm.to,
-    kuwaitSlice: rawFilters.kuwaitSlice ?? 'all',
+    kuwaitSlice: enforceHomeOnlyLens ? 'all' : (rawFilters.kuwaitSlice ?? 'all'),
     brand: rawFilters.brand ?? 'all',
     branch: rawFilters.branch ?? 'all',
     channel: rawFilters.channel ?? 'all',
-    lens: rawFilters.lens ?? 'all',
+    lens: enforceHomeOnlyLens ? 'all' : (rawFilters.lens ?? 'all'),
   }
 
   const rawBuckets = (ODOO as unknown as { buckets?: Partial<Record<OdooPeriodBucketKey, OdooBucketSummary>> }).buckets

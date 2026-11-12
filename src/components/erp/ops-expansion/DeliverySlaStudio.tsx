@@ -42,12 +42,22 @@ import {
 const PAGE_SIZE = 12
 
 const CARD_CLS =
-  'ae-bento-card rounded-2xl border border-neutral-200/70 bg-white p-5 sm:p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:border-white/[0.06] dark:bg-[#0D1614]'
+  'ae-bento-card rounded-2xl bg-white p-3.5 sm:p-6 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10'
 const KPI_CLS =
-  'ae-kpi-card rounded-2xl border border-neutral-200/70 bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:border-white/[0.06] dark:bg-[#0D1614]'
-const SUBCARD_CLS = 'rounded-2xl bg-[#F7F7F8] dark:bg-[#111E1B]'
+  'ae-kpi-card rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10'
+const SUBCARD_CLS =
+  'rounded-2xl bg-[#F6F7F8] ring-1 ring-slate-900/[0.03] dark:bg-[#0B1410] dark:ring-emerald-500/[0.08]'
+const SEGMENT_TRACK_CLS =
+  'flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar p-1 rounded-2xl bg-neutral-100/90 dark:bg-white/[0.06]'
+const SEGMENT_BTN_CLS =
+  'shrink-0 whitespace-nowrap rounded-xl px-3.5 py-2 text-[13px] font-medium transition-all duration-150 cursor-pointer'
+const SEGMENT_BTN_ACTIVE_CLS =
+  'bg-white font-semibold text-emerald-900 shadow-[0_1px_2px_rgba(15,23,42,0.06)] ring-1 ring-slate-900/[0.05] dark:bg-emerald-500/20 dark:text-emerald-200 dark:ring-emerald-400/25'
+const SEGMENT_BTN_IDLE_CLS =
+  'text-slate-600 hover:bg-white/70 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
+const TABLE_SCROLL_CLS = 'overflow-x-auto -mx-3.5 px-3.5 sm:mx-0 sm:px-0'
 const INPUT_CLS =
-  'h-10 w-full rounded-xl border border-neutral-200/70 bg-[#F7F7F8] px-3.5 text-[14px] font-medium text-neutral-900 transition focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600/30 dark:border-white/[0.08] dark:bg-[#111E1B] dark:text-white dark:focus:bg-[#0D1614]'
+  'h-10 w-full rounded-xl bg-[#F6F7F8] px-3.5 text-[14px] font-medium text-neutral-900 ring-1 ring-slate-200/80 transition focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600/30 dark:bg-[#0B1410] dark:text-white dark:ring-emerald-500/15 dark:focus:bg-[#101C17]'
 
 export function tierBadgeCls(tier: TrafficLightTier): string {
   if (tier === 'green') {
@@ -285,136 +295,94 @@ export function DeliverySlaStudio() {
           <button
             type="button"
             onClick={() => openDrawer('approvals')}
-            className="cursor-pointer rounded-full border border-emerald-300/70 bg-white px-3 py-1 text-[12.5px] font-semibold text-emerald-800 transition hover:bg-emerald-100 dark:border-emerald-500/40 dark:bg-[#0D1614] dark:text-emerald-200"
+            className="cursor-pointer rounded-xl border border-emerald-300/70 bg-white px-3 py-1 text-[12.5px] font-semibold text-emerald-800 transition hover:bg-emerald-100 dark:border-emerald-500/40 dark:bg-[#101C17] dark:text-emerald-200"
           >
             {isAr ? 'فتح جرس المدير' : 'Open Bell'}
           </button>
         </div>
       )}
 
-      {/* ───────────── 1. Header & Traffic-Light SLA Rules ───────────── */}
-      <header className={CARD_CLS}>
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="space-y-1.5">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-[12px] font-bold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-                <Bike className="h-3.5 w-3.5" />
-                {isAr
-                  ? 'قياس صافي زمن الطريق: لحظة استلام السائق ← تسليم الزبون'
-                  : 'Pure Rider Transit SLA: Bag Pickup → Customer Doorstep'}
-              </span>
-              <span className="inline-flex items-center rounded-full border border-neutral-200/80 bg-[#F7F7F8] px-3 py-1 text-[12px] font-medium text-neutral-600 dark:border-white/[0.08] dark:bg-[#111E1B] dark:text-slate-300">
-                {isAr ? workspace.subtitleAr : workspace.subtitleEn}
-              </span>
-            </div>
-            <h1 className="text-[22px] font-extrabold tracking-tight text-neutral-950 sm:text-[26px] dark:text-white">
+      {/* ───────────── 1. Slim Contextual Bar & Collapsible Trip Logger ───────────── */}
+      <div className={`${CARD_CLS} !p-3.5 sm:!p-4`}>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+              <Bike className="h-4 w-4" />
+            </span>
+            <p className="min-w-0 text-[13px] sm:text-[13.5px] font-medium leading-snug text-slate-600 dark:text-slate-300">
               {isAr
-                ? 'مراقبة مدة توصيل الطلبات وتقييم الأداء اللوني'
-                : 'Rider Delivery Duration SLA & Traffic-Light Monitor'}
-            </h1>
-            <p className="max-w-4xl text-[14px] leading-relaxed text-neutral-600 dark:text-slate-400">
-              {isAr
-                ? 'تتبع دقيق لمدة التوصيل من لحظة استلام السائق للكيس الجاهز ولغاية توصيله للزبون عبر الفروع الـ 7 والبراندات الـ 6 وأساطيل التوصيل، مرتبط مباشرة بشريط الفلتر العلوي الموحد.'
-                : 'Monitors exact rider pickup-to-doorstep transit duration across all 7 branches, 6 brands, and 6 delivery fleets, synchronized directly with the unified global filter bar.'}
+                ? `استلام السائق ← باب الزبون • 🟢 ≤ 22 د • 🟡 22.1–32 د • 🔴 > 32 د • ${workspace.subtitleAr}`
+                : `Pickup → Doorstep • 🟢 ≤ 22m • 🟡 22.1–32m • 🔴 > 32m • ${workspace.subtitleEn}`}
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
             <button
               type="button"
               onClick={() => setShowLogForm((v) => !v)}
-              className="btn-colored inline-flex cursor-pointer items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-[13px] font-bold text-white shadow-sm transition hover:bg-emerald-700"
+              className="btn-colored inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl bg-emerald-600 px-3.5 text-[13px] font-semibold text-white shadow-xs transition hover:bg-emerald-700"
               style={{ color: '#FFFFFF' }}
             >
-              <Plus className="h-4 w-4" />
-              {isAr ? '+ تسجيل رحلة توصيل' : '+ Log Rider Trip'}
+              <Plus className="h-4 w-4 shrink-0" />
+              <span>{isAr ? '+ تسجيل رحلة توصيل' : '+ Log Rider Trip'}</span>
             </button>
 
             <button
               type="button"
               onClick={handleCopyReport}
-              className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-neutral-200/70 bg-[#F7F7F8] px-3.5 py-2 text-[13px] font-semibold text-neutral-800 transition hover:bg-neutral-200/70 dark:border-white/[0.08] dark:bg-[#111E1B] dark:text-slate-200"
+              className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl bg-[#F6F7F8] px-3.5 text-[13px] font-semibold text-neutral-800 ring-1 ring-slate-900/[0.05] transition hover:bg-neutral-200/70 dark:bg-[#0B1410] dark:text-slate-200 dark:ring-emerald-500/15"
             >
               {copiedSummary ? (
-                <Check className="h-4 w-4 text-emerald-600" />
+                <Check className="h-4 w-4 shrink-0 text-emerald-600" />
               ) : (
-                <Copy className="h-4 w-4" />
+                <Copy className="h-4 w-4 shrink-0" />
               )}
-              {copiedSummary
-                ? isAr
-                  ? 'تم النسخ ✓'
-                  : 'Copied ✓'
-                : isAr
-                  ? 'نسخ الملخص'
-                  : 'Copy Summary'}
+              <span>
+                {copiedSummary
+                  ? isAr
+                    ? 'تم النسخ ✓'
+                    : 'Copied ✓'
+                  : isAr
+                    ? 'نسخ الملخص'
+                    : 'Copy Summary'}
+              </span>
             </button>
-          </div>
-        </div>
-
-        {/* Strict 3-Tier Legend */}
-        <div className={`mt-4 grid grid-cols-1 gap-3 p-3 sm:grid-cols-3 ${SUBCARD_CLS}`}>
-          <div className="flex items-center justify-between rounded-xl border border-neutral-200/60 bg-white px-4 py-2.5 dark:border-white/[0.06] dark:bg-[#0D1614]">
-            <span className="text-[13.5px] font-bold text-emerald-800 dark:text-emerald-300">
-              {isAr ? '🟢 أخضر — جيد (Good)' : '🟢 Green — Good'}
-            </span>
-            <span className="tabular-nums rounded-full bg-emerald-50 px-2.5 py-0.5 text-[12.5px] font-extrabold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-              ≤ 22.0 {isAr ? 'دقيقة' : 'min'}
-            </span>
-          </div>
-          <div className="flex items-center justify-between rounded-xl border border-neutral-200/60 bg-white px-4 py-2.5 dark:border-white/[0.06] dark:bg-[#0D1614]">
-            <span className="text-[13.5px] font-bold text-amber-800 dark:text-amber-200">
-              {isAr ? '🟡 أصفر — متوسط (Warning)' : '🟡 Yellow — Average'}
-            </span>
-            <span className="tabular-nums rounded-full bg-amber-50 px-2.5 py-0.5 text-[12.5px] font-extrabold text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
-              22.1 – 32.0 {isAr ? 'دقيقة' : 'min'}
-            </span>
-          </div>
-          <div className="flex items-center justify-between rounded-xl border border-neutral-200/60 bg-white px-4 py-2.5 dark:border-white/[0.06] dark:bg-[#0D1614]">
-            <span className="text-[13.5px] font-bold text-rose-700 dark:text-rose-300">
-              {isAr ? '🔴 أحمر — حرج (Critical)' : '🔴 Red — Critical'}
-            </span>
-            <span className="tabular-nums rounded-full bg-rose-50 px-2.5 py-0.5 text-[12.5px] font-extrabold text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
-              &gt; 32.0 {isAr ? 'دقيقة' : 'min'}
-            </span>
           </div>
         </div>
 
         {/* Collapsible Trip Logger (inherits active Global Filter Brand/Branch, zero duplicate dropdowns) */}
         {showLogForm && (
-          <form onSubmit={handleLogTrip} className={`mt-4 space-y-3.5 p-4 ${SUBCARD_CLS}`}>
+          <form onSubmit={handleLogTrip} className={`mt-3.5 space-y-3.5 p-3.5 sm:p-4 ${SUBCARD_CLS}`}>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[14px] font-bold text-neutral-900 dark:text-white">
-                  {isAr
-                    ? 'توثيق رحلة توصيل ميدانية جديدة:'
-                    : 'Log Field Rider Trip:'}
+                <span className="text-[13.5px] font-bold text-neutral-900 dark:text-white">
+                  {isAr ? 'توثيق رحلة توصيل ميدانية جديدة:' : 'Log Field Rider Trip:'}
                 </span>
-                <span className="rounded-full border border-neutral-200/80 bg-white px-3 py-0.5 text-[12.5px] font-semibold text-neutral-700 dark:border-white/[0.08] dark:bg-[#0D1614] dark:text-slate-300">
+                <span className="rounded-xl bg-white px-2.5 py-0.5 text-[12px] font-semibold text-neutral-700 ring-1 ring-slate-900/[0.05] dark:bg-[#101C17] dark:text-slate-300 dark:ring-emerald-500/15">
                   {getBrandLabel(resolvedBrand, isAr)} · {getBranchLabel(resolvedBranch, isAr)}
                 </span>
               </div>
               <span
-                className={`rounded-full px-3 py-1 text-[12.5px] font-extrabold tabular-nums ${tierBadgeCls(previewGrade.tier)}`}
+                className={`rounded-xl px-3 py-1 text-[12px] font-extrabold tabular-nums ${tierBadgeCls(previewGrade.tier)}`}
               >
                 {tierEmoji(previewGrade.tier)} {previewMins.toFixed(1)} {isAr ? 'د — ' : 'm — '}
                 {isAr ? previewGrade.labelAr : previewGrade.labelEn}
               </span>
             </div>
 
-            <div className="flex flex-wrap items-center gap-1.5">
+            <div role="tablist" className={SEGMENT_TRACK_CLS}>
               {DELIVERY_FLEETS.map((fl) => {
                 const active = fFleet === fl.id
                 return (
                   <button
                     key={fl.id}
                     type="button"
+                    role="tab"
+                    aria-selected={active}
                     onClick={() => setFFleet(fl.id)}
-                    className={`cursor-pointer rounded-full px-3 py-1.5 text-[12.5px] font-semibold transition ${
-                      active
-                        ? 'btn-colored bg-emerald-600 text-white shadow-sm'
-                        : 'border border-neutral-200/70 bg-white text-neutral-700 hover:bg-neutral-100 dark:border-white/[0.08] dark:bg-[#0D1614] dark:text-slate-300'
+                    className={`${SEGMENT_BTN_CLS} ${
+                      active ? SEGMENT_BTN_ACTIVE_CLS : SEGMENT_BTN_IDLE_CLS
                     }`}
-                    style={active ? { color: '#FFFFFF' } : undefined}
                   >
                     {isAr ? fl.shortAr : fl.shortEn}
                   </button>
@@ -471,115 +439,91 @@ export function DeliverySlaStudio() {
             </div>
           </form>
         )}
-      </header>
+      </div>
 
-      {/* ───────────── 2. KPI Summary Strip (28px–32px Crisp Values) ───────────── */}
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      {/* ───────────── 2. KPI Summary Strip (`2x2` Mobile Grid) ───────────── */}
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <div className={KPI_CLS}>
-          <div className="flex items-center justify-between">
-            <span className="text-[13px] font-semibold text-neutral-500 dark:text-slate-400">
-              {isAr ? 'متوسط مدة التوصيل للزبون' : 'Mean Pickup-to-Door'}
+          <div className="flex items-center justify-between gap-1.5">
+            <span className="text-[12.5px] sm:text-[13.5px] font-medium text-neutral-500 dark:text-slate-400">
+              {isAr ? 'متوسط التوصيل للزبون' : 'Mean Pickup-to-Door'}
             </span>
-            <Timer className="h-4 w-4 text-neutral-400" />
+            <Timer className="h-4 w-4 shrink-0 text-neutral-400" />
           </div>
-          <div className="mt-2.5 flex items-baseline gap-2 tabular-nums">
-            <span className="text-[28px] sm:text-[32px] leading-none font-extrabold tracking-tight text-neutral-950 dark:text-white">
+          <div className="mt-1.5 flex items-baseline gap-1.5 tabular-nums">
+            <span className="text-xl sm:text-3xl font-semibold tracking-tight text-neutral-950 dark:text-white">
               {snap.meanMinutes.toFixed(1)}
             </span>
-            <span className="text-[13.5px] font-bold text-neutral-500">
-              {isAr ? 'دقيقة' : 'min'}
+            <span className="text-[12px] sm:text-[13.5px] font-semibold text-neutral-500">
+              {isAr ? 'د' : 'min'}
             </span>
             <span
-              className={`ms-auto rounded-full px-2.5 py-0.5 text-[12px] font-extrabold ${tierBadgeCls(snap.overallTier)}`}
+              className={`ms-auto rounded-lg px-2 py-0.5 text-[11px] font-bold ${tierBadgeCls(snap.overallTier)}`}
             >
               {tierEmoji(snap.overallTier)}
             </span>
           </div>
-          <p className="mt-2 text-[12.5px] text-neutral-500 tabular-nums dark:text-slate-400">
-            {isAr ? `إجمالي ${snap.totalTrips} رحلة موثقة` : `Across ${snap.totalTrips} audited trips`}
+          <p className="mt-1.5 text-[11.5px] sm:text-[12.5px] leading-snug text-neutral-500 tabular-nums dark:text-slate-400">
+            {isAr
+              ? `${snap.totalTrips} رحلة • الأسرع: ${snap.bestFleet.shortAr} (${snap.bestFleet.meanMinutes.toFixed(1)} د)`
+              : `${snap.totalTrips} trips • Best: ${snap.bestFleet.shortEn} (${snap.bestFleet.meanMinutes.toFixed(1)}m)`}
           </p>
         </div>
 
         <div className={KPI_CLS}>
-          <div className="flex items-center justify-between">
-            <span className="text-[13px] font-bold text-emerald-800 dark:text-emerald-300">
-              {isAr ? '🟢 أخضر — جيد (≤ 22 د)' : '🟢 Green — Good (≤22m)'}
+          <div className="flex items-center justify-between gap-1.5">
+            <span className="text-[12.5px] sm:text-[13.5px] font-semibold text-emerald-800 dark:text-emerald-300">
+              {isAr ? '🟢 جيد (≤ 22 د)' : '🟢 Good (≤22m)'}
             </span>
           </div>
-          <div className="mt-2.5 flex items-baseline gap-2 tabular-nums">
-            <span className="text-[28px] sm:text-[32px] leading-none font-extrabold tracking-tight text-emerald-700 dark:text-emerald-300">
+          <div className="mt-1.5 flex items-baseline gap-1.5 tabular-nums">
+            <span className="text-xl sm:text-3xl font-semibold tracking-tight text-emerald-700 dark:text-emerald-300">
               {snap.greenPct.toFixed(1)}%
             </span>
-            <span className="text-[13px] font-semibold text-neutral-500">
-              ({snap.greenCount})
-            </span>
+            <span className="text-[12px] font-semibold text-neutral-500">({snap.greenCount})</span>
           </div>
-          <p className="mt-2 text-[12.5px] text-neutral-500 dark:text-slate-400">
+          <p className="mt-1.5 text-[11.5px] sm:text-[12.5px] leading-snug text-neutral-500 dark:text-slate-400">
             {isAr ? 'وصول ساخن ومقرمش للزبون' : 'Arrived hot & crisp on time'}
           </p>
         </div>
 
         <div className={KPI_CLS}>
-          <div className="flex items-center justify-between">
-            <span className="text-[13px] font-bold text-amber-800 dark:text-amber-200">
-              {isAr ? '🟡 أصفر — متوسط (22–32 د)' : '🟡 Yellow — Avg (22–32m)'}
+          <div className="flex items-center justify-between gap-1.5">
+            <span className="text-[12.5px] sm:text-[13.5px] font-semibold text-amber-800 dark:text-amber-200">
+              {isAr ? '🟡 متوسط (22–32 د)' : '🟡 Avg (22–32m)'}
             </span>
-            <Clock className="h-4 w-4 text-amber-500" />
+            <Clock className="h-4 w-4 shrink-0 text-amber-500" />
           </div>
-          <div className="mt-2.5 flex items-baseline gap-2 tabular-nums">
-            <span className="text-[28px] sm:text-[32px] leading-none font-extrabold tracking-tight text-amber-700 dark:text-amber-300">
+          <div className="mt-1.5 flex items-baseline gap-1.5 tabular-nums">
+            <span className="text-xl sm:text-3xl font-semibold tracking-tight text-amber-700 dark:text-amber-300">
               {snap.yellowPct.toFixed(1)}%
             </span>
-            <span className="text-[13px] font-semibold text-neutral-500">
-              ({snap.yellowCount})
-            </span>
+            <span className="text-[12px] font-semibold text-neutral-500">({snap.yellowCount})</span>
           </div>
-          <p className="mt-2 text-[12.5px] text-neutral-500 dark:text-slate-400">
-            {isAr ? 'إنذار مبكر — زحمة ذروة أو مشي مولات' : 'Peak traffic or mall walk window'}
+          <p className="mt-1.5 text-[11.5px] sm:text-[12.5px] leading-snug text-neutral-500 dark:text-slate-400">
+            {isAr ? 'زحمة ذروة أو مشي مولات' : 'Peak traffic or mall walk'}
           </p>
         </div>
 
         <div className={KPI_CLS}>
-          <div className="flex items-center justify-between">
-            <span className="text-[13px] font-bold text-rose-700 dark:text-rose-300">
-              {isAr ? '🔴 أحمر حرج (> 32 د)' : '🔴 Red Critical (>32m)'}
+          <div className="flex items-center justify-between gap-1.5">
+            <span className="text-[12.5px] sm:text-[13.5px] font-semibold text-rose-700 dark:text-rose-300">
+              {isAr ? '🔴 حرج (> 32 د)' : '🔴 Critical (>32m)'}
             </span>
-            <AlertTriangle className="h-4 w-4 text-rose-500" />
+            <AlertTriangle className="h-4 w-4 shrink-0 text-rose-500" />
           </div>
-          <div className="mt-2.5 flex items-baseline gap-2 tabular-nums">
-            <span className="text-[28px] sm:text-[32px] leading-none font-extrabold tracking-tight text-rose-700 dark:text-rose-300">
+          <div className="mt-1.5 flex items-baseline gap-1.5 tabular-nums">
+            <span className="text-xl sm:text-3xl font-semibold tracking-tight text-rose-700 dark:text-rose-300">
               {snap.redPct.toFixed(1)}%
             </span>
-            <span className="rounded-full bg-rose-50 px-2.5 py-0.5 text-[12px] font-bold text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
-              {snap.coldFoodRiskOrders} {isAr ? 'حرج' : 'critical'}
+            <span className="rounded-lg bg-rose-50 px-2 py-0.5 text-[11px] font-bold text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
+              {snap.coldFoodRiskOrders}
             </span>
           </div>
-          <p className="mt-2 text-[12.5px] text-rose-700/90 dark:text-rose-300/90 tabular-nums">
+          <p className="mt-1.5 text-[11.5px] sm:text-[12.5px] leading-snug text-rose-700/90 tabular-nums dark:text-rose-300/90">
             {isAr
-              ? `مطالبات تعويض مقدرة ~${snap.estimatedClaimableKwd} ${kwd}/شهر`
-              : `Est. SLA claim value ~${snap.estimatedClaimableKwd} ${kwd}/mo`}
-          </p>
-        </div>
-
-        <div className={KPI_CLS}>
-          <div className="flex items-center justify-between">
-            <span className="text-[13px] font-semibold text-neutral-500 dark:text-slate-400">
-              {isAr ? 'الأسرع مقابل الأبطأ' : 'Fastest vs Slowest'}
-            </span>
-            <Trophy className="h-4 w-4 text-emerald-600" />
-          </div>
-          <div className="mt-2.5 flex items-baseline gap-2 tabular-nums">
-            <span className="text-[28px] sm:text-[32px] leading-none font-extrabold tracking-tight text-emerald-700 dark:text-emerald-300">
-              {snap.bestFleet.meanMinutes.toFixed(1)}
-            </span>
-            <span className="text-[13px] font-semibold text-neutral-500">
-              {isAr ? `د (${snap.bestFleet.shortAr})` : `m (${snap.bestFleet.shortEn})`}
-            </span>
-          </div>
-          <p className="mt-2 text-[12.5px] text-neutral-500 tabular-nums dark:text-slate-400">
-            {isAr
-              ? `الأبطأ: ${snap.worstFleet.shortAr} (${snap.worstFleet.meanMinutes.toFixed(1)} د)`
-              : `Slowest: ${snap.worstFleet.shortEn} (${snap.worstFleet.meanMinutes.toFixed(1)}m)`}
+              ? `تعويض مقدر ~${snap.estimatedClaimableKwd} ${kwd}/شهر`
+              : `Claimable ~${snap.estimatedClaimableKwd} ${kwd}/mo`}
           </p>
         </div>
       </section>
@@ -588,30 +532,40 @@ export function DeliverySlaStudio() {
       <section className={CARD_CLS}>
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2 className="text-[17px] font-extrabold text-neutral-950 dark:text-white">
+            <h2 className="text-[16px] sm:text-[17px] font-extrabold text-neutral-950 dark:text-white">
               {isAr
                 ? 'مصفوفة متوسط مدة التوصيل: الفروع السبعة × أساطيل ومنصات التوصيل'
                 : 'Branch × Delivery Fleet Mean Transit Matrix (Minutes & Traffic-Light)'}
             </h2>
-            <p className="text-[13.5px] text-neutral-500 dark:text-slate-400">
+            <p className="text-[13px] sm:text-[13.5px] text-neutral-500 dark:text-slate-400">
               {isAr
                 ? 'تُظهر بالضبط أين يتفوق أسطولنا الداخلي و TMP مقابل تأخيرات دمج الطلبات في المولات'
                 : 'Pinpoints exact pickup-to-doorstep averages per branch and delivery fleet'}
             </p>
           </div>
+          <span className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-50 px-3 py-1.5 text-[12px] font-semibold tabular-nums text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+            <Trophy className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+            <span>
+              {isAr
+                ? `${snap.bestFleet.shortAr} (${snap.bestFleet.meanMinutes.toFixed(1)} د) مقابل ${snap.worstFleet.shortAr} (${snap.worstFleet.meanMinutes.toFixed(1)} د)`
+                : `${snap.bestFleet.shortEn} (${snap.bestFleet.meanMinutes.toFixed(1)}m) vs ${snap.worstFleet.shortEn} (${snap.worstFleet.meanMinutes.toFixed(1)}m)`}
+            </span>
+          </span>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className={TABLE_SCROLL_CLS}>
           <table className="w-full min-w-[920px] border-collapse text-start text-[14px] sm:text-[14.5px] tabular-nums">
             <thead>
-              <tr className="border-b border-neutral-200/80 bg-[#F7F7F8] text-[12.5px] font-bold text-neutral-600 dark:border-white/[0.08] dark:bg-[#111E1B] dark:text-slate-300">
-                <th className="px-4 py-3 text-start">{isAr ? 'الفرع' : 'Branch'}</th>
+              <tr className="border-b border-neutral-200/80 bg-[#F6F7F8] text-[12.5px] font-bold text-neutral-600 dark:border-white/[0.08] dark:bg-[#0B1410] dark:text-slate-300">
+                <th className="sticky start-0 z-10 bg-[#F6F7F8] px-4 py-3 text-start whitespace-nowrap dark:bg-[#0B1410]">
+                  {isAr ? 'الفرع' : 'Branch'}
+                </th>
                 {DELIVERY_FLEETS.map((fl) => (
-                  <th key={fl.id} className="px-3 py-3 text-center">
+                  <th key={fl.id} className="px-3 py-3 text-center whitespace-nowrap">
                     {isAr ? fl.shortAr : fl.shortEn}
                   </th>
                 ))}
-                <th className="px-4 py-3 text-center">
+                <th className="px-4 py-3 text-center whitespace-nowrap">
                   {isAr ? 'متوسط الفرع' : 'Branch Mean'}
                 </th>
               </tr>
@@ -620,9 +574,9 @@ export function DeliverySlaStudio() {
               {snap.branchFleetMatrix.map((row) => (
                 <tr
                   key={row.branchId}
-                  className="transition hover:bg-[#F7F7F8]/70 dark:hover:bg-white/[0.03]"
+                  className="transition hover:bg-[#F6F7F8]/70 dark:hover:bg-white/[0.03]"
                 >
-                  <td className="px-4 py-3.5 font-bold text-neutral-950 dark:text-white">
+                  <td className="sticky start-0 z-10 bg-white px-4 py-3.5 font-bold whitespace-nowrap text-neutral-950 dark:bg-[#101C17] dark:text-white">
                     {isAr ? row.branchAr : row.branchEn}
                   </td>
                   {DELIVERY_FLEETS.map((fl) => {
@@ -657,8 +611,8 @@ export function DeliverySlaStudio() {
               ))}
             </tbody>
             <tfoot>
-              <tr className="border-t border-neutral-200/80 bg-[#F7F7F8] font-extrabold text-neutral-950 dark:border-white/[0.08] dark:bg-[#111E1B] dark:text-white">
-                <td className="px-4 py-3.5">
+              <tr className="border-t border-neutral-200/80 bg-[#F6F7F8] font-extrabold text-neutral-950 dark:border-white/[0.08] dark:bg-[#0B1410] dark:text-white">
+                <td className="sticky start-0 z-10 bg-[#F6F7F8] px-4 py-3.5 whitespace-nowrap dark:bg-[#0B1410]">
                   {isAr ? 'متوسط الأسطول الكلي' : 'Fleet Overall Mean'}
                 </td>
                 {snap.fleetSummaries.map((fl) => (
@@ -705,7 +659,7 @@ export function DeliverySlaStudio() {
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex max-w-full flex-col gap-2.5 sm:flex-row sm:items-center">
             <div className="relative w-full sm:w-64">
               <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
               <input
@@ -721,7 +675,7 @@ export function DeliverySlaStudio() {
               />
             </div>
 
-            <div className="flex flex-wrap items-center gap-1.5">
+            <div role="tablist" className={SEGMENT_TRACK_CLS}>
               {(
                 [
                   { id: 'all', ar: `الكل (${snap.totalTrips})`, en: `All (${snap.totalTrips})` },
@@ -735,13 +689,12 @@ export function DeliverySlaStudio() {
                   <button
                     key={p.id}
                     type="button"
+                    role="tab"
+                    aria-selected={active}
                     onClick={() => setTierFilter(p.id)}
-                    className={`cursor-pointer rounded-full px-3 py-1.5 text-[12.5px] font-bold transition ${
-                      active
-                        ? 'btn-colored bg-emerald-600 text-white shadow-sm'
-                        : 'border border-neutral-200/70 bg-[#F7F7F8] text-neutral-700 hover:bg-neutral-200/70 dark:border-white/[0.08] dark:bg-[#111E1B] dark:text-slate-300'
+                    className={`${SEGMENT_BTN_CLS} ${
+                      active ? SEGMENT_BTN_ACTIVE_CLS : SEGMENT_BTN_IDLE_CLS
                     }`}
-                    style={active ? { color: '#FFFFFF' } : undefined}
                   >
                     {isAr ? p.ar : p.en}
                   </button>
@@ -751,19 +704,21 @@ export function DeliverySlaStudio() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className={TABLE_SCROLL_CLS}>
           <table className="w-full min-w-[1040px] border-collapse text-start text-[14px] sm:text-[14.5px] tabular-nums">
             <thead>
-              <tr className="border-b border-neutral-200/80 bg-[#F7F7F8] text-[12.5px] font-bold text-neutral-600 dark:border-white/[0.08] dark:bg-[#111E1B] dark:text-slate-300">
-                <th className="px-3.5 py-3 text-start">{isAr ? 'رقم الطلب' : 'Order Ref'}</th>
-                <th className="px-3.5 py-3 text-start">{isAr ? 'المطعم والفرع' : 'Brand & Branch'}</th>
-                <th className="px-3.5 py-3 text-start">{isAr ? 'المنصة والسائق' : 'Fleet & Rider'}</th>
-                <th className="px-3 py-3 text-center">{isAr ? 'الاستلام' : 'Pickup'}</th>
-                <th className="px-3 py-3 text-center">{isAr ? 'التسليم' : 'Delivered'}</th>
-                <th className="px-3 py-3 text-center">{isAr ? 'المدة الصافية' : 'Transit'}</th>
-                <th className="px-3.5 py-3 text-start">{isAr ? 'المنطقة والملاحظة' : 'Zone & Audit Note'}</th>
-                <th className="px-3 py-3 text-center">{isAr ? 'الحالة' : 'SLA Tier'}</th>
-                <th className="px-3.5 py-3 text-end">{isAr ? 'الإجراء' : 'Action'}</th>
+              <tr className="border-b border-neutral-200/80 bg-[#F6F7F8] text-[12.5px] font-bold text-neutral-600 dark:border-white/[0.08] dark:bg-[#0B1410] dark:text-slate-300">
+                <th className="sticky start-0 z-10 bg-[#F6F7F8] px-3.5 py-3 text-start whitespace-nowrap dark:bg-[#0B1410]">
+                  {isAr ? 'رقم الطلب' : 'Order Ref'}
+                </th>
+                <th className="px-3.5 py-3 text-start whitespace-nowrap">{isAr ? 'المطعم والفرع' : 'Brand & Branch'}</th>
+                <th className="px-3.5 py-3 text-start whitespace-nowrap">{isAr ? 'المنصة والسائق' : 'Fleet & Rider'}</th>
+                <th className="px-3 py-3 text-center whitespace-nowrap">{isAr ? 'الاستلام' : 'Pickup'}</th>
+                <th className="px-3 py-3 text-center whitespace-nowrap">{isAr ? 'التسليم' : 'Delivered'}</th>
+                <th className="px-3 py-3 text-center whitespace-nowrap">{isAr ? 'المدة الصافية' : 'Transit'}</th>
+                <th className="px-3.5 py-3 text-start whitespace-nowrap">{isAr ? 'المنطقة والملاحظة' : 'Zone & Audit Note'}</th>
+                <th className="px-3 py-3 text-center whitespace-nowrap">{isAr ? 'الحالة' : 'SLA Tier'}</th>
+                <th className="px-3.5 py-3 text-end whitespace-nowrap">{isAr ? 'الإجراء' : 'Action'}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100 dark:divide-white/[0.05]">
@@ -772,9 +727,9 @@ export function DeliverySlaStudio() {
                 return (
                   <tr
                     key={t.id}
-                    className="transition hover:bg-[#F7F7F8]/70 dark:hover:bg-white/[0.03]"
+                    className="transition hover:bg-[#F6F7F8]/70 dark:hover:bg-white/[0.03]"
                   >
-                    <td className="px-3.5 py-3.5 font-mono font-bold text-neutral-950 dark:text-white">
+                    <td className="sticky start-0 z-10 bg-white px-3.5 py-3.5 font-mono font-bold whitespace-nowrap text-neutral-950 dark:bg-[#101C17] dark:text-white">
                       <div>{t.orderRef}</div>
                       <div className="font-sans text-[12px] font-normal text-neutral-400">
                         {t.date} · {t.orderKwd.toFixed(2)} {kwd}
@@ -874,7 +829,7 @@ export function DeliverySlaStudio() {
               type="button"
               disabled={safePage <= 1}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-lg border border-neutral-200/70 bg-white px-3 text-[12.5px] font-bold text-neutral-700 disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/[0.08] dark:bg-[#0D1614] dark:text-slate-200"
+              className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-xl border border-neutral-200/70 bg-white px-3 text-[12.5px] font-bold text-neutral-700 disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/[0.08] dark:bg-[#101C17] dark:text-slate-200"
             >
               {isAr ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
               {isAr ? 'السابق' : 'Prev'}
@@ -886,7 +841,7 @@ export function DeliverySlaStudio() {
               type="button"
               disabled={safePage >= totalPages}
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-lg border border-neutral-200/70 bg-white px-3 text-[12.5px] font-bold text-neutral-700 disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/[0.08] dark:bg-[#0D1614] dark:text-slate-200"
+              className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-xl border border-neutral-200/70 bg-white px-3 text-[12.5px] font-bold text-neutral-700 disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/[0.08] dark:bg-[#101C17] dark:text-slate-200"
             >
               {isAr ? 'التالي' : 'Next'}
               {isAr ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}

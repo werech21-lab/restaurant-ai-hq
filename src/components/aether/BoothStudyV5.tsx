@@ -33,7 +33,6 @@ function EmeraldPillTabs<K extends string>({
   value,
   onChange,
   ariaLabel,
-  size = 'md',
 }: {
   options: readonly { id: K; label: string }[]
   value: K
@@ -41,16 +40,11 @@ function EmeraldPillTabs<K extends string>({
   ariaLabel?: string
   size?: 'sm' | 'md'
 }) {
-  const btnPadding =
-    size === 'sm'
-      ? 'h-8 px-3 text-[12.5px]'
-      : 'h-9 px-3.5 py-1.5 text-[13px] sm:text-[13.5px]'
-
   return (
     <div
       role="tablist"
       aria-label={ariaLabel}
-      className="inline-flex flex-wrap items-center gap-1 rounded-full bg-[#F1F5F9] p-1 ring-1 ring-slate-900/[0.06] select-none dark:bg-[#0C141B] dark:ring-white/[0.08]"
+      className="flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar p-1 rounded-2xl bg-neutral-100/90 ring-1 ring-slate-900/[0.04] select-none dark:bg-white/[0.06] dark:ring-emerald-500/10"
     >
       {options.map((opt) => {
         const active = opt.id === value
@@ -61,9 +55,9 @@ function EmeraldPillTabs<K extends string>({
             role="tab"
             aria-selected={active}
             onClick={() => onChange(opt.id)}
-            className={`inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-full font-bold whitespace-nowrap transition-all duration-150 focus:outline-none ${btnPadding} ${
+            className={`inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-2 text-[13px] font-medium transition-all duration-150 focus:outline-none ${
               active
-                ? 'btn-colored bg-emerald-600 text-white shadow-sm dark:bg-emerald-500 dark:text-[#04130D]'
+                ? 'btn-colored bg-emerald-600 font-semibold text-white shadow-sm dark:bg-emerald-500 dark:text-[#04130D]'
                 : 'text-slate-600 hover:bg-white/80 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
             }`}
           >
@@ -81,7 +75,8 @@ const f3 = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 3, 
 
 type BoothPreset = 'month30' | 'weekend4' | 'season90' | 'custom'
 
-const card = 'ae-bento-card p-6'
+const card =
+  'ae-bento-card rounded-2xl bg-white p-4 sm:p-6 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10'
 const input =
   'ae-bento-subcard w-full rounded-xl px-3.5 py-2.5 text-[14px] font-semibold text-slate-900 transition duration-150 focus:outline-none focus:ring-2 focus:ring-emerald-500/35 dark:text-white'
 
@@ -498,21 +493,9 @@ export function BoothStudyV5() {
   }
 
   return (
-    <div dir={isAr ? 'rtl' : 'ltr'} className="w-full max-w-[1920px] mx-auto space-y-5 pb-10">
-      {/* Finance V2 × Verdelo Executive Masthead */}
-      <header className="ae-bento-card flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-        <div className="space-y-1">
-          <h1 className="text-[24px] font-extrabold tracking-tight text-slate-950 sm:text-[28px] dark:text-white">
-            {T('Booth Calculator', 'حاسبة المعارض')}
-          </h1>
-          <p className="text-[14px] font-medium text-slate-500 dark:text-slate-400">
-            {T(
-              'Calculate booth profit or loss before signing the contract.',
-              'احسب ربح أو خسارة أي معرض موسمي قبل توقيع العقد.',
-            )}
-          </p>
-        </div>
-
+    <div dir={isAr ? 'rtl' : 'ltr'} className="w-full max-w-[1920px] mx-auto space-y-4 pb-10">
+      {/* Slim Preset & Context Bar (Single Active Page Title in TopFilterBar) */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <EmeraldPillTabs<BoothPreset>
           value={preset}
           onChange={applyPreset}
@@ -525,71 +508,78 @@ export function BoothStudyV5() {
             { id: 'custom', label: T('Custom', 'مخصص') },
           ]}
         />
-      </header>
 
-      {/* 4 Top KPI Summary Cards (Finance V2 × Verdelo Micro-Lift) */}
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="ae-kpi-card p-5">
-          <div className="flex items-center justify-between gap-2 text-[13.5px] font-bold text-slate-500 dark:text-slate-400">
+        <p className="truncate px-1 text-xs sm:text-[13.5px] font-medium text-slate-500 dark:text-slate-400">
+          {T(
+            'Calculate booth profit or loss before signing the contract.',
+            'احسب ربح أو خسارة أي معرض موسمي قبل توقيع العقد.',
+          )}
+        </p>
+      </div>
+
+      {/* 4 Top KPI Summary Cards (Compact 2x2 Mobile Grid) */}
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="ae-kpi-card rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10">
+          <div className="flex items-center justify-between gap-1.5 text-xs sm:text-[13.5px] font-semibold text-slate-500 dark:text-slate-400">
             <span>{T('Decision', 'قرار الدخول')}</span>
             <span
               className={
                 model.verdict === 'go'
-                  ? 'text-emerald-600 dark:text-emerald-400'
+                  ? 'shrink-0 text-emerald-600 dark:text-emerald-400'
                   : model.verdict === 'conditional'
-                    ? 'text-amber-600 dark:text-amber-400'
-                    : 'text-rose-600 dark:text-rose-400'
+                    ? 'shrink-0 text-amber-600 dark:text-amber-400'
+                    : 'shrink-0 text-rose-600 dark:text-rose-400'
               }
             >
               {verdictUi.icon}
             </span>
           </div>
-          <div className="mt-2 text-[28px] font-extrabold tracking-tight text-slate-950 sm:text-[30px] dark:text-white">
+          <div className="mt-1.5 sm:mt-2 text-lg sm:text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">
             {isAr ? verdictUi.ar : verdictUi.en}
           </div>
-          <p className="mt-1 text-[13.5px] text-slate-500 dark:text-slate-400">
+          <p className="mt-1 text-[11.5px] sm:text-[13px] leading-snug text-slate-500 dark:text-slate-400">
             {isAr ? `${brandOpt.ar} • ${days} يوم` : `${brandOpt.en} • ${days} days`}
           </p>
         </div>
 
-        <div className="ae-kpi-card p-5">
-          <div className="text-[13.5px] font-bold text-slate-500 dark:text-slate-400">
+        <div className="ae-kpi-card rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10">
+          <div className="text-xs sm:text-[13.5px] font-semibold text-slate-500 dark:text-slate-400">
             {T('Expected Net', 'الصافي المتوقع')}
           </div>
           <div
             dir="ltr"
-            className={`mt-2 text-[28px] font-extrabold tabular-nums sm:text-[32px] ${
+            className={`mt-1.5 sm:mt-2 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums ${
               base.profit >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
             }`}
           >
             {base.profit >= 0 ? '+' : '-'}
             {kwd(Math.abs(base.profit))}
           </div>
-          <p className="mt-1 text-[13.5px] text-slate-500 dark:text-slate-400">
+          <p className="mt-1 text-[11.5px] sm:text-[13px] leading-snug text-slate-500 dark:text-slate-400">
             {T(`Sales ${kwd(base.revenue)}`, `من إجمالي مبيعات ${kwd(base.revenue)}`)}
           </p>
         </div>
 
-        <div className="ae-kpi-card p-5">
-          <div className="text-[13.5px] font-bold text-slate-500 dark:text-slate-400">
+        <div className="ae-kpi-card rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10">
+          <div className="text-xs sm:text-[13.5px] font-semibold text-slate-500 dark:text-slate-400">
             {T('Break-Even', 'طلبات التعادل')}
           </div>
-          <div className="mt-2 text-[28px] font-extrabold tabular-nums text-slate-950 sm:text-[32px] dark:text-white">
-            {be ? `${f0(be)} ${T('orders/day', 'طلب/يوم')}` : '—'}
+          <div className="mt-1.5 sm:mt-2 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-slate-950 dark:text-white">
+            {be ? `${f0(be)} ${T('orders/d', 'طلب/يوم')}` : '—'}
           </div>
-          <p className="mt-1 text-[13.5px] text-slate-500 dark:text-slate-400">
+          <p className="mt-1 text-[11.5px] sm:text-[13px] leading-snug text-slate-500 dark:text-slate-400">
             {T(`Order profit ${f3(model.gpPerOrder)} KWD`, `ربح الطلب الواحد ${f3(model.gpPerOrder)} د.ك`)}
           </p>
         </div>
 
-        <div className="ae-kpi-card p-5">
-          <div className="text-[13.5px] font-bold text-slate-500 dark:text-slate-400">
+        <div className="ae-kpi-card rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10">
+          <div className="text-xs sm:text-[13.5px] font-semibold text-slate-500 dark:text-slate-400">
             {T('Safe Rent Limit', 'أعلى إيجار مناسب')}
           </div>
-          <div dir="ltr" className="mt-2 text-[28px] font-extrabold tabular-nums text-slate-950 sm:text-[32px] dark:text-white">
+          <div dir="ltr" className="mt-1.5 sm:mt-2 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-slate-950 dark:text-white">
             {kwd(model.rentCeiling)}
           </div>
-          <p className="mt-1 text-[13.5px] text-slate-500 dark:text-slate-400">
+          <p className="mt-1 text-[11.5px] sm:text-[13px] leading-snug text-slate-500 dark:text-slate-400">
             {rent > model.rentCeiling
               ? T(`Ask ${kwd(rent - model.rentCeiling)} off`, `فاوض لتخفيض ${kwd(rent - model.rentCeiling)}`)
               : T('Rent is within safe limit', 'الإيجار الحالي ضمن السقف الآمن')}
@@ -598,8 +588,8 @@ export function BoothStudyV5() {
       </section>
 
       {/* Finance V2 Bento Split: 8-Col Skerry Capsule Scenarios + 4-Col Cost Donut */}
-      <section className="grid grid-cols-1 gap-5 xl:grid-cols-12">
-        <div className="ae-bento-card space-y-4 p-5 sm:p-6 xl:col-span-8">
+      <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+        <div className={`${card} space-y-4 xl:col-span-8`}>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h2 className="text-[16px] font-semibold tracking-tight text-slate-950 dark:text-white">
@@ -615,7 +605,7 @@ export function BoothStudyV5() {
             <div className="flex flex-wrap items-center gap-1.5 text-[11.5px] font-bold tabular-nums">
               <span
                 dir="ltr"
-                className={`rounded-full px-2.5 py-1 ${
+                className={`rounded-lg px-2.5 py-1 ${
                   low.profit >= 0
                     ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200'
                     : 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-200'
@@ -626,7 +616,7 @@ export function BoothStudyV5() {
               </span>
               <span
                 dir="ltr"
-                className={`rounded-full px-2.5 py-1 ${
+                className={`rounded-lg px-2.5 py-1 ${
                   base.profit >= 0
                     ? 'bg-emerald-50 text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-200'
                     : 'bg-rose-50 text-rose-800 dark:bg-rose-950/60 dark:text-rose-200'
@@ -637,7 +627,7 @@ export function BoothStudyV5() {
               </span>
               <span
                 dir="ltr"
-                className="rounded-full bg-sky-50 px-2.5 py-1 text-sky-900 dark:bg-sky-950/50 dark:text-sky-200"
+                className="rounded-lg bg-sky-50 px-2.5 py-1 text-sky-900 dark:bg-sky-950/50 dark:text-sky-200"
               >
                 130%: {high.profit >= 0 ? '+' : '-'}
                 {kwd(Math.abs(high.profit))}
@@ -679,7 +669,7 @@ export function BoothStudyV5() {
           </div>
         </div>
 
-        <div className="ae-bento-card flex flex-col justify-between p-5 sm:p-6 xl:col-span-4">
+        <div className={`${card} flex flex-col justify-between xl:col-span-4`}>
           <div className="mb-3">
             <h2 className="text-[16px] font-semibold tracking-tight text-slate-950 dark:text-white">
               {T('Sales Breakdown', 'توزيع مبيعات المعرض')}
@@ -884,12 +874,12 @@ export function BoothStudyV5() {
                     )}
                   </h2>
                   {lockedBoothCap || boothApproval?.status === 'approved' ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11.5px] font-bold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
+                    <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-0.5 text-[11.5px] font-bold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
                       <ShieldCheck className="h-3.5 w-3.5" />
                       <span>{T('Sealed by Manager PIN', 'معتمد بختم الإدارة التنفيذية')}</span>
                     </span>
                   ) : boothApproval?.status === 'pending' ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-[11.5px] font-bold text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
+                    <span className="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-2.5 py-0.5 text-[11.5px] font-bold text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
                       <Bell className="h-3.5 w-3.5" />
                       <span>{T('Awaiting Manager PIN', 'بانتظار موافقة المدير')}</span>
                     </span>
@@ -951,12 +941,12 @@ export function BoothStudyV5() {
             </div>
 
             {/* Action Buttons */}
-            <div className="flex flex-wrap items-center justify-between gap-2.5">
-              <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex max-w-full items-center gap-2 overflow-x-auto no-scrollbar">
                 <button
                   type="button"
                   onClick={handleRequestBoothApproval}
-                  className="btn-colored inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-emerald-600 px-4 text-[13px] font-bold text-white shadow-sm transition duration-150 hover:bg-emerald-700 dark:bg-emerald-500 dark:text-[#04130D] dark:hover:bg-emerald-400"
+                  className="btn-colored inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl bg-emerald-600 px-4 text-[13px] font-bold text-white shadow-sm transition duration-150 hover:bg-emerald-700 dark:bg-emerald-500 dark:text-[#04130D] dark:hover:bg-emerald-400"
                 >
                   <Bell className="h-3.5 w-3.5" />
                   <span>
@@ -977,7 +967,7 @@ export function BoothStudyV5() {
                         boothApproval.titleEn,
                       )
                     }
-                    className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-emerald-50 px-3.5 text-[12px] font-bold text-emerald-900 transition duration-150 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-200"
+                    className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl bg-emerald-50 px-3.5 text-[12px] font-bold text-emerald-900 transition duration-150 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-200"
                   >
                     <Lock className="h-3.5 w-3.5" />
                     <span>{T('Approve with Manager PIN ✅', 'اعتماد المشاركة بـ PIN المدير ✅')}</span>
@@ -988,7 +978,7 @@ export function BoothStudyV5() {
                   <button
                     type="button"
                     onClick={handlePrintBoothCircular}
-                    className="ae-bento-subcard inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-[12px] font-bold text-slate-800 transition duration-150 hover:bg-emerald-50 hover:text-emerald-900 dark:text-slate-100 dark:hover:bg-emerald-950/50"
+                    className="ae-bento-subcard inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 text-[12px] font-bold text-slate-800 transition duration-150 hover:bg-emerald-50 hover:text-emerald-900 dark:text-slate-100 dark:hover:bg-emerald-950/50"
                   >
                     <FileText className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                     <span>{T('Circulate Booth Plan 📄', 'تعميم خطة المعرض 📄')}</span>
@@ -1016,7 +1006,7 @@ export function BoothStudyV5() {
                     'مراقب أودو ١٧ نشط • افتح جرس الاعتمادات لمراجعة المخالفات 🔔',
                   )}
                 </span>
-                <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[11.5px] font-bold tabular-nums text-amber-800 ring-1 ring-amber-500/20 dark:bg-amber-950/60 dark:text-amber-200">
+                <span className="rounded-lg bg-amber-50 px-2.5 py-0.5 text-[11.5px] font-bold tabular-nums text-amber-800 ring-1 ring-amber-500/20 dark:bg-amber-950/60 dark:text-amber-200">
                   {isAr ? `${activeBoothBreachCount} تنبيه` : `${activeBoothBreachCount} active`}
                 </span>
               </button>
@@ -1106,35 +1096,37 @@ export function BoothStudyV5() {
                 </div>
               </div>
 
-              <div className="w-full overflow-x-auto rounded-xl ring-1 ring-slate-950/[0.04] dark:ring-white/[0.06]">
-                <table className="w-full min-w-[400px] text-[14px]">
-                  <thead className="bg-[#F4F6F9] text-slate-600 dark:bg-[#0C141B] dark:text-slate-300">
-                    <tr>
-                      <th className="px-3 py-2.5 text-start font-bold">{T('Case', 'الإقبال')}</th>
-                      <th className="px-3 py-2.5 text-end font-bold">{T('Orders', 'الطلبات')}</th>
-                      <th className="px-3 py-2.5 text-end font-bold">{T('Sales', 'المبيعات')}</th>
-                      <th className="px-3 py-2.5 text-end font-bold">{T('Net', 'الصافي')}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-white/[0.06]">
-                    {model.scenarios.map((s) => (
-                      <tr key={s.id} className="hover:bg-emerald-50/30 dark:hover:bg-emerald-500/[0.05]">
-                        <td className="whitespace-nowrap px-3 py-2.5 font-bold text-slate-900 dark:text-white">
-                          {isAr ? s.ar : s.en}
-                        </td>
-                        <td className="px-3 py-2.5 text-end tabular-nums">{f0(s.orders)}</td>
-                        <td className="whitespace-nowrap px-3 py-2.5 text-end tabular-nums">{kwd(s.revenue)}</td>
-                        <td
-                          className={`whitespace-nowrap px-3 py-2.5 text-end font-extrabold tabular-nums ${
-                            s.profit >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
-                          }`}
-                        >
-                          {kwd(s.profit)}
-                        </td>
+              <div className="overflow-x-auto -mx-3.5 px-3.5 sm:mx-0 sm:px-0">
+                <div className="w-full overflow-hidden rounded-xl ring-1 ring-slate-950/[0.04] dark:ring-emerald-500/10">
+                  <table className="w-full min-w-[400px] text-[14px]">
+                    <thead className="bg-[#F4F6F9] text-slate-600 dark:bg-[#09110E] dark:text-slate-300">
+                      <tr>
+                        <th className="whitespace-nowrap px-3 py-2.5 text-start font-bold">{T('Case', 'الإقبال')}</th>
+                        <th className="whitespace-nowrap px-3 py-2.5 text-end font-bold">{T('Orders', 'الطلبات')}</th>
+                        <th className="whitespace-nowrap px-3 py-2.5 text-end font-bold">{T('Sales', 'المبيعات')}</th>
+                        <th className="whitespace-nowrap px-3 py-2.5 text-end font-bold">{T('Net', 'الصافي')}</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-white/[0.06]">
+                      {model.scenarios.map((s) => (
+                        <tr key={s.id} className="hover:bg-emerald-50/30 dark:hover:bg-emerald-500/[0.05]">
+                          <td className="whitespace-nowrap px-3 py-2.5 font-bold text-slate-900 dark:text-white">
+                            {isAr ? s.ar : s.en}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-2.5 text-end tabular-nums">{f0(s.orders)}</td>
+                          <td className="whitespace-nowrap px-3 py-2.5 text-end tabular-nums">{kwd(s.revenue)}</td>
+                          <td
+                            className={`whitespace-nowrap px-3 py-2.5 text-end font-extrabold tabular-nums ${
+                              s.profit >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
+                            }`}
+                          >
+                            {kwd(s.profit)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </section>
           </div>

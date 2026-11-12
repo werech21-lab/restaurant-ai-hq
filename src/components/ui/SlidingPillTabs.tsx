@@ -15,7 +15,7 @@ export interface SlidingPillTabsProps<T extends string> {
   value: T
   onChange: (next: T) => void
   ariaLabel?: string
-  /** 'muted' (#EEF1F6 / #0C131A) for in-card switchers; 'white' (#FFFFFF / #111A22) for floating canvas strips */
+  /** 'muted' (#EEF1F6 / #0C1612) for in-card switchers; 'white' (#FFFFFF / #101C17) for floating canvas strips */
   surface?: 'muted' | 'white'
   size?: 'sm' | 'md'
   className?: string
@@ -24,9 +24,9 @@ export interface SlidingPillTabsProps<T extends string> {
 const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect
 
 /**
- * Verdelo-Signature Sliding Pill Segmented Control.
- * Smoothly glides an active capsule indicator (#0B1220 in Light Mode, #10B981 in Obsidian-Emerald Dark Mode)
- * across options in both RTL (Arabic) and LTR (English) with snappy spring physics and zero layout jump.
+ * Verdelo-Signature Horizontal Scrollable Sliding Pill Segmented Control.
+ * Smoothly glides an active emerald indicator across options in both RTL (Arabic)
+ * and LTR (English) on a single touch-scrollable `rounded-2xl` track.
  */
 export function SlidingPillTabs<T extends string>({
   options,
@@ -83,6 +83,19 @@ export function SlidingPillTabs<T extends string>({
 
   useEffect(() => {
     const container = containerRef.current
+    const btn = btnRefs.current.get(value)
+    if (container && btn && container.scrollWidth > container.clientWidth) {
+      const targetLeft = btn.offsetLeft - container.clientWidth / 2 + btn.offsetWidth / 2
+      try {
+        container.scrollTo({ left: targetLeft, behavior: animate ? 'smooth' : 'auto' })
+      } catch {
+        // ignore scrollTo fallback
+      }
+    }
+  }, [animate, value])
+
+  useEffect(() => {
+    const container = containerRef.current
     if (!container || typeof ResizeObserver === 'undefined') return
     const ro = new ResizeObserver(() => measure())
     ro.observe(container)
@@ -97,8 +110,8 @@ export function SlidingPillTabs<T extends string>({
 
   const btnPadding =
     size === 'sm'
-      ? 'h-7 px-3 text-[12px]'
-      : 'h-8.5 px-3.5 py-1.5 text-[12.5px] sm:text-[13px]'
+      ? 'h-7.5 px-3 py-1.5 text-[12px]'
+      : 'px-3.5 py-2 text-[13px]'
 
   return (
     <div
@@ -106,7 +119,7 @@ export function SlidingPillTabs<T extends string>({
       role="tablist"
       aria-label={ariaLabel}
       data-surface={surface}
-      className={`ae-sliding-tabs relative inline-flex flex-wrap items-center gap-0.5 select-none ${className}`}
+      className={`ae-sliding-tabs relative flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar p-1 rounded-2xl select-none ${className}`}
     >
       {pillBox ? (
         <span
@@ -119,10 +132,10 @@ export function SlidingPillTabs<T extends string>({
             height: `${pillBox.height}px`,
             transform: `translate3d(${pillBox.left}px, ${pillBox.top}px, 0)`,
             transition: animate
-              ? 'transform 200ms cubic-bezier(0.22, 1.18, 0.36, 1), width 200ms cubic-bezier(0.22, 1.18, 0.36, 1), height 180ms ease'
+              ? 'transform 160ms cubic-bezier(0.22, 1.12, 0.36, 1), width 160ms cubic-bezier(0.22, 1.12, 0.36, 1), height 160ms ease'
               : 'none',
           }}
-          className="pointer-events-none absolute z-0 rounded-full"
+          className="pointer-events-none absolute z-0 rounded-xl"
         />
       ) : null}
 
@@ -141,14 +154,14 @@ export function SlidingPillTabs<T extends string>({
             data-sliding-pill-btn="true"
             data-active={active}
             onClick={() => onChange(opt.id)}
-            className={`relative z-10 inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-full font-bold whitespace-nowrap focus:outline-none ${btnPadding} ${
-              !pillBox && active ? 'bg-[#0B1220] text-white dark:bg-[#10B981] dark:text-[#04130D]' : ''
+            className={`relative z-10 inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-xl font-semibold whitespace-nowrap transition-all duration-[160ms] focus:outline-none ${btnPadding} ${
+              !pillBox && active ? 'btn-colored bg-emerald-600 text-white dark:bg-[#10B981] dark:text-[#04130D]' : ''
             }`}
           >
             {opt.icon ? <span className="shrink-0">{opt.icon}</span> : null}
             <span>{opt.label}</span>
             {opt.badge !== undefined ? (
-              <span className="rounded-full bg-black/10 px-1.5 py-0.2 text-[10.5px] font-extrabold tabular-nums dark:bg-white/15">
+              <span className="rounded-lg bg-black/10 px-1.5 py-0.5 text-[10.5px] font-bold tabular-nums dark:bg-white/15">
                 {opt.badge}
               </span>
             ) : null}

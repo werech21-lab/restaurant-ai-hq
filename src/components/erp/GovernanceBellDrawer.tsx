@@ -128,6 +128,7 @@ export interface GovernanceContextValue {
 }
 
 export type DrawerTabId = 'all' | 'approvals' | 'breaches' | 'sealed'
+export const OPEN_GOV_DRAWER_EVENT = 'aether:open-gov-drawer'
 
 const GovernanceContext = createContext<GovernanceContextValue | null>(null)
 
@@ -208,6 +209,11 @@ export function GovernanceProvider({ children }: { children: React.ReactNode }) 
 
     const onGovUpdate = () => syncFromStorage()
     const onStorage = () => syncFromStorage()
+    const onExternalOpen = (e: Event) => {
+      const requestedTab = (e as CustomEvent<DrawerTabId | undefined>).detail ?? 'all'
+      setDrawerTab(requestedTab)
+      setDrawerOpen(true)
+    }
     const onFocusOrVisible = () => {
       if (typeof document === 'undefined' || document.visibilityState === 'visible') {
         void syncGovernanceFromServer().then((changed) => {
@@ -218,6 +224,7 @@ export function GovernanceProvider({ children }: { children: React.ReactNode }) 
 
     window.addEventListener(GOVERNANCE_UPDATED_EVENT, onGovUpdate)
     window.addEventListener('storage', onStorage)
+    window.addEventListener(OPEN_GOV_DRAWER_EVENT, onExternalOpen)
     window.addEventListener('focus', onFocusOrVisible)
     document.addEventListener('visibilitychange', onFocusOrVisible)
 
@@ -236,6 +243,7 @@ export function GovernanceProvider({ children }: { children: React.ReactNode }) 
     return () => {
       window.removeEventListener(GOVERNANCE_UPDATED_EVENT, onGovUpdate)
       window.removeEventListener('storage', onStorage)
+      window.removeEventListener(OPEN_GOV_DRAWER_EVENT, onExternalOpen)
       window.removeEventListener('focus', onFocusOrVisible)
       document.removeEventListener('visibilitychange', onFocusOrVisible)
       window.clearInterval(sessionTick)
@@ -653,6 +661,10 @@ function GovernanceToast({ ar, en }: { ar: string; en: string }) {
   )
 }
 
+export function useOptionalGovernance(): GovernanceContextValue | null {
+  return useContext(GovernanceContext)
+}
+
 export function useGovernance(): GovernanceContextValue {
   const ctx = useContext(GovernanceContext)
   if (!ctx) {
@@ -687,7 +699,7 @@ export function GovernanceBellTrigger() {
   return (
     <div className="flex items-center gap-1.5">
       {session.active ? (
-        <div className="hidden items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11.5px] font-semibold text-emerald-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:inline-flex dark:bg-emerald-950/60 dark:text-emerald-200">
+        <div className="hidden items-center gap-1 rounded-xl bg-emerald-50 px-2.5 py-1 text-[11.5px] font-semibold text-emerald-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)] lg:inline-flex dark:bg-emerald-950/60 dark:text-emerald-200">
           <span>{isAr ? 'وضع المدير نشط 🔓' : 'Manager Active 🔓'}</span>
           <span dir="ltr" className="font-mono text-[11px] tabular-nums opacity-80">
             {formatCountdown(session.remainingSeconds)}
@@ -696,7 +708,7 @@ export function GovernanceBellTrigger() {
             type="button"
             onClick={lockSession}
             title={isAr ? 'قفل الصلاحية فوراً' : 'Lock Executive Session'}
-            className="ms-1 cursor-pointer rounded-full bg-white px-2 py-0.5 text-[10.5px] font-semibold text-neutral-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors duration-150 hover:bg-rose-50 hover:text-rose-700 dark:bg-neutral-900 dark:text-slate-200"
+            className="ms-1 cursor-pointer rounded-lg bg-white px-2 py-0.5 text-[10.5px] font-semibold text-slate-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors duration-150 hover:bg-rose-50 hover:text-rose-700 dark:bg-[#101C17] dark:text-slate-200"
           >
             {isAr ? 'قفل الصلاحية 🔒' : 'Lock 🔒'}
           </button>
@@ -715,10 +727,10 @@ export function GovernanceBellTrigger() {
               ? 'فتح صلاحية المدير بالرمز السري (٤ أرقام)'
               : 'Unlock Manager Session (4-digit PIN)'
           }
-          className="ae-capsule hidden cursor-pointer items-center gap-1.5 px-3 py-1.5 text-xs font-semibold transition-colors duration-150 sm:inline-flex"
+          className="ae-capsule hidden h-9 cursor-pointer items-center gap-1.5 px-3 py-1.5 text-xs font-semibold transition-colors duration-150 lg:inline-flex"
         >
           <Lock className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-          <span className="hidden lg:inline">{isAr ? 'صلاحية المدير' : 'Manager PIN'}</span>
+          <span>{isAr ? 'صلاحية المدير' : 'Manager PIN'}</span>
         </button>
       )}
 
@@ -735,10 +747,10 @@ export function GovernanceBellTrigger() {
             ? `${pendingApprovals.length} بانتظار الموافقة · ${activeBreaches.length} مخالفات أودو حية`
             : `${pendingApprovals.length} Pending Approvals · ${activeBreaches.length} Active Odoo Breaches`
         }
-        className="ae-capsule relative inline-flex h-9 cursor-pointer items-center gap-1.5 px-3 text-xs font-semibold transition-all duration-150 active:scale-95"
+        className="ae-capsule relative inline-flex h-8 cursor-pointer items-center gap-1 rounded-xl px-2.5 text-xs font-semibold transition-all duration-[160ms] active:scale-95 lg:h-9 lg:gap-1.5 lg:px-3"
       >
         <Bell
-          className={`h-4 w-4 ${
+          className={`h-4 w-4 shrink-0 ${
             activeBreaches.length > 0
               ? 'text-rose-600 dark:text-rose-400'
               : 'text-emerald-600 dark:text-emerald-400'
@@ -748,7 +760,7 @@ export function GovernanceBellTrigger() {
           <span
             dir="ltr"
             style={{ color: '#FFFFFF' }}
-            className={`btn-colored inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold tabular-nums text-white ${
+            className={`btn-colored inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full px-1.5 text-[10.5px] font-bold tabular-nums text-white lg:h-5 lg:min-w-5 lg:text-[11px] ${
               activeBreaches.length > 0 ? 'bg-rose-600' : 'bg-emerald-600'
             }`}
           >
@@ -757,7 +769,7 @@ export function GovernanceBellTrigger() {
         ) : (
           <span
             dir="ltr"
-            className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-emerald-50 px-1.5 text-[11px] font-semibold tabular-nums text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+            className="inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-emerald-50 px-1.5 text-[10.5px] font-semibold tabular-nums text-emerald-700 lg:h-5 lg:min-w-5 lg:text-[11px] dark:bg-emerald-950/60 dark:text-emerald-300"
           >
             0
           </span>
@@ -980,7 +992,7 @@ function GovernanceSlideOverDrawer({
                       titleEn: 'Unlock 15-Minute Executive Session',
                     })
                   }
-                  className="ae-btn-primary cursor-pointer rounded-full px-3 py-1 font-semibold"
+                  className="btn-colored cursor-pointer rounded-xl bg-emerald-600 px-3 py-1 font-semibold text-white transition-colors duration-150 hover:bg-emerald-700 dark:bg-emerald-500 dark:text-[#04130D]"
                 >
                   {isAr ? 'فتح الصلاحية 🔓' : 'Unlock PIN 🔓'}
                 </button>
@@ -996,7 +1008,7 @@ function GovernanceSlideOverDrawer({
                   })
                 }
                 title={isAr ? 'تغيير رمز المدير ⚙️' : 'Change Manager PIN ⚙️'}
-                className="inline-flex cursor-pointer items-center gap-1 rounded-full bg-white px-2.5 py-1 font-medium text-neutral-600 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors duration-150 hover:text-neutral-950 dark:bg-neutral-900 dark:text-slate-300"
+                className="inline-flex cursor-pointer items-center gap-1 rounded-xl bg-white px-2.5 py-1 font-medium text-neutral-600 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors duration-150 hover:text-neutral-950 dark:bg-[#101C17] dark:text-slate-300"
               >
                 <Settings className="h-3.5 w-3.5" />
                 <span>{isAr ? 'تغيير رمز المدير ⚙️' : 'PIN ⚙️'}</span>
@@ -1005,7 +1017,7 @@ function GovernanceSlideOverDrawer({
           </div>
 
           {/* Filter Pills */}
-          <div className="mt-3 flex flex-wrap gap-1.5">
+          <div className="mt-3 flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar rounded-2xl bg-neutral-100/90 p-1 dark:bg-white/[0.06]">
             {tabs.map((t) => {
               const active = tab === t.id
               return (
@@ -1013,18 +1025,18 @@ function GovernanceSlideOverDrawer({
                   key={t.id}
                   type="button"
                   onClick={() => onTabChange(t.id)}
-                  className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-all duration-150 ${
+                  className={`inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-all duration-150 ${
                     active
-                      ? 'bg-emerald-600 text-white shadow-xs'
-                      : 'bg-[#F7F7F8] text-neutral-600 hover:bg-neutral-200/70 dark:bg-white/[0.05] dark:text-slate-300'
+                      ? 'btn-colored bg-emerald-600 text-white shadow-xs dark:bg-emerald-500 dark:text-[#04130D]'
+                      : 'text-neutral-600 hover:bg-white hover:text-neutral-950 dark:text-slate-300 dark:hover:bg-white/[0.06]'
                   }`}
                 >
                   <span>{isAr ? t.ar : t.en}</span>
                   <span
                     dir="ltr"
-                    className={`rounded-full px-1.5 py-0.2 text-[10.5px] tabular-nums ${
+                    className={`rounded-lg px-1.5 py-0.2 text-[10.5px] tabular-nums ${
                       active
-                        ? 'bg-white/20 text-white'
+                        ? 'bg-white/20 text-white dark:bg-black/15 dark:text-[#04130D]'
                         : 'bg-white text-neutral-700 dark:bg-white/10 dark:text-slate-200'
                     }`}
                   >

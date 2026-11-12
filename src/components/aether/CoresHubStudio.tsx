@@ -65,17 +65,19 @@ function EmeraldPillTabs<K extends string>({
   value,
   onChange,
   ariaLabel,
+  trailing,
 }: {
   options: readonly { id: K; label: string; icon?: React.ReactNode }[]
   value: K
   onChange: (next: K) => void
   ariaLabel?: string
+  trailing?: React.ReactNode
 }) {
   return (
     <div
       role="tablist"
       aria-label={ariaLabel}
-      className="inline-flex flex-wrap items-center gap-1 rounded-full bg-[#F1F5F9] p-1 ring-1 ring-slate-900/[0.06] select-none dark:bg-[#0C141B] dark:ring-white/[0.08]"
+      className="flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar p-1 rounded-2xl bg-neutral-100/90 ring-1 ring-slate-900/[0.04] select-none dark:bg-white/[0.06] dark:ring-emerald-500/10"
     >
       {options.map((opt) => {
         const active = opt.id === value
@@ -86,9 +88,9 @@ function EmeraldPillTabs<K extends string>({
             role="tab"
             aria-selected={active}
             onClick={() => onChange(opt.id)}
-            className={`inline-flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-bold whitespace-nowrap transition-all duration-150 focus:outline-none sm:text-[13.5px] ${
+            className={`inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-2 text-[13px] font-medium transition-all duration-150 focus:outline-none ${
               active
-                ? 'btn-colored bg-emerald-600 text-white shadow-sm dark:bg-emerald-500 dark:text-[#04130D]'
+                ? 'btn-colored bg-emerald-600 font-semibold text-white shadow-sm dark:bg-emerald-500 dark:text-[#04130D]'
                 : 'text-slate-600 hover:bg-white/80 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
             }`}
           >
@@ -97,6 +99,12 @@ function EmeraldPillTabs<K extends string>({
           </button>
         )
       })}
+      {trailing ? (
+        <>
+          <span aria-hidden="true" className="mx-0.5 h-5 w-px shrink-0 bg-neutral-300/70 dark:bg-white/10" />
+          {trailing}
+        </>
+      ) : null}
     </div>
   )
 }
@@ -128,14 +136,14 @@ const fArInt = (n: number) =>
     .replace(/\d/g, (d) => '٠١٢٣٤٥٦٧٨٩'[Number(d)] ?? d)
 
 const CARD_CLS =
-  'ae-bento-card bg-white p-5 sm:p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)] dark:bg-[#111A22]'
+  'ae-bento-card rounded-2xl bg-white p-4 sm:p-6 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10'
 const KPI_CARD_CLS =
-  'ae-kpi-card bg-white p-5 sm:p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)] dark:bg-[#111A22]'
+  'ae-kpi-card rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10'
 const SOFT_SCOPE_PILL_CLS =
-  'bg-neutral-100 text-neutral-800 dark:bg-emerald-950/70 dark:text-emerald-200 font-medium text-[12.5px] px-2.5 py-1 rounded-full'
+  'bg-neutral-100 text-neutral-800 dark:bg-emerald-950/70 dark:text-emerald-200 font-medium text-[12.5px] px-2.5 py-1 rounded-lg'
 
 const INPUT_CLS =
-  'h-10 w-full rounded-xl bg-white px-3 text-[14px] font-medium text-neutral-900 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 dark:bg-[#0F1821] dark:text-white'
+  'h-10 w-full rounded-xl bg-white px-3 text-[14px] font-medium text-neutral-900 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ring-1 ring-slate-900/[0.06] transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 dark:bg-[#09110E] dark:text-white dark:ring-emerald-500/15'
 
 const BRAND_CHOICES = GLOBAL_BRAND_OPTIONS.filter(
   (b): b is { id: Exclude<GlobalBrand, 'all'>; ar: string; en: string } => b.id !== 'all',
@@ -803,40 +811,34 @@ export function CoresHubStudio() {
 
   return (
     <div dir={isAr ? 'rtl' : 'ltr'} className="w-full max-w-[1920px] mx-auto space-y-4 pb-10">
-      {/* ───────────── Page Header & 3 Crisp Core EmeraldPillTabs + Social Reviews Link Pill ───────────── */}
-      <header className="ae-bento-card flex flex-col gap-3 bg-white px-5 py-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] lg:flex-row lg:items-center lg:justify-between dark:bg-[#111A22]">
-        <div>
-          <h1 className="text-[22px] font-extrabold tracking-tight text-neutral-950 sm:text-[25px] dark:text-white">
-            {isAr ? 'المبيعات والتسويق والمنتجات' : 'Sales, Marketing & Menu'}
-          </h1>
-          <p className="mt-0.5 text-[14px] text-neutral-500 dark:text-slate-400">
-            {isAr ? workspace.subtitleAr : workspace.subtitleEn}
-          </p>
-        </div>
+      {/* ───────────── Slim Segmented Core Bar + Inline Social Reviews Cross-Link ───────────── */}
+      <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+        <EmeraldPillTabs<CoreTabId>
+          ariaLabel={isAr ? 'أقسام المركز' : 'Core Hub Tabs'}
+          value={activeTab}
+          onChange={setActiveTab}
+          options={CORE_TABS.map((t) => {
+            const Icon = t.icon
+            return {
+              id: t.id,
+              label: isAr ? t.ar : t.en,
+              icon: <Icon className="h-3.5 w-3.5" />,
+            }
+          })}
+          trailing={
+            <Link
+              href="/erp/social-reviews"
+              className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-xl bg-white px-3.5 py-2 text-[13px] font-medium text-slate-700 shadow-xs ring-1 ring-slate-900/[0.05] transition-all duration-150 hover:text-emerald-700 dark:bg-[#101C17] dark:text-slate-200 dark:ring-emerald-500/15 dark:hover:text-emerald-300"
+            >
+              <span>{isAr ? 'التقييمات ومنصات التواصل ↗' : 'Social & App Reviews ↗'}</span>
+            </Link>
+          }
+        />
 
-        <div className="flex flex-wrap items-center gap-2.5">
-          <EmeraldPillTabs<CoreTabId>
-            ariaLabel={isAr ? 'أقسام المركز' : 'Core Hub Tabs'}
-            value={activeTab}
-            onChange={setActiveTab}
-            options={CORE_TABS.map((t) => {
-              const Icon = t.icon
-              return {
-                id: t.id,
-                label: isAr ? t.ar : t.en,
-                icon: <Icon className="h-3.5 w-3.5" />,
-              }
-            })}
-          />
-
-          <Link
-            href="/erp/social-reviews"
-            className="ae-bento-subcard inline-flex h-10 items-center gap-1.5 rounded-full px-4 text-[13.5px] font-bold text-slate-700 transition-colors duration-150 hover:text-emerald-700 dark:text-slate-200 dark:hover:text-emerald-300"
-          >
-            <span>{isAr ? 'التقييمات ومنصات التواصل ↗' : 'Social & App Reviews ↗'}</span>
-          </Link>
-        </div>
-      </header>
+        <p className="truncate px-1 text-xs font-medium text-neutral-500 dark:text-slate-400">
+          {isAr ? workspace.subtitleAr : workspace.subtitleEn}
+        </p>
+      </div>
 
       {/* =====================================================================
           TAB 1: التسويق وإعلانات المشاهير (Marketing, Social/Influencer ROI & 6 Growth Plays)
@@ -844,32 +846,32 @@ export function CoresHubStudio() {
       {activeTab === 'marketing' ? (
         <div className="space-y-4">
           {/* 1. 4 Crisp Non-Duplicate Odoo-Derived Marketing KPIs ("One Metric, One Place") */}
-          <section className="ae-stagger grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <section className="ae-stagger grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             {/* KPI 1: Return per 1 KWD Ad (4.6x) */}
             <article className={`${KPI_CARD_CLS} ae-glow-emerald`}>
-              <div className="text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
+              <div className="text-xs sm:text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
                 {isAr ? 'عائد كل ١ د.ك إعلان' : 'Return per 1 KWD Ad'}
               </div>
               <div
                 dir="ltr"
-                className="mt-2 text-[28px] font-black tracking-tight tabular-nums text-emerald-700 sm:text-[32px] dark:text-emerald-400"
+                className="mt-1.5 sm:mt-2 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-emerald-700 dark:text-emerald-400"
               >
                 {f1(snap.marketing.kpis.roasPer1Kwd)}x
               </div>
-              <p className="mt-1 text-[13.5px] text-neutral-500 dark:text-slate-400">
+              <p className="mt-1 text-[11.5px] sm:text-[13px] leading-snug text-neutral-500 dark:text-slate-400">
                 {isAr ? 'مبيعات لكل ١ د.ك عروض وإعلان' : 'Sales per 1 KWD promo & ad spend'}
               </p>
             </article>
 
             {/* KPI 2: Discounts & Ad Spend (1,158 KWD) */}
             <article className={`${KPI_CARD_CLS} ae-glow-amber`}>
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
+              <div className="flex flex-wrap items-center justify-between gap-1">
+                <span className="text-xs sm:text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
                   {isAr ? 'تكلفة الخصومات والإعلانات' : 'Discounts & Ad Spend'}
                 </span>
                 <span
                   dir="ltr"
-                  className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[11.5px] font-bold tabular-nums text-amber-800 dark:bg-amber-950/60 dark:text-amber-300"
+                  className="rounded-lg bg-amber-50 px-2 py-0.5 text-[10.5px] sm:text-[11.5px] font-bold tabular-nums text-amber-800 dark:bg-amber-950/60 dark:text-amber-300"
                 >
                   {f1(snap.marketing.kpis.marketingCostPctOfSales)}%{' '}
                   {isAr ? 'من المبيعات' : 'of sales'}
@@ -877,35 +879,35 @@ export function CoresHubStudio() {
               </div>
               <div
                 dir="ltr"
-                className="mt-2 text-[28px] font-black tracking-tight tabular-nums text-neutral-950 sm:text-[32px] dark:text-white"
+                className="mt-1.5 sm:mt-2 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-neutral-950 dark:text-white"
               >
                 {f0(snap.marketing.kpis.totalMarketingCostKwd)} {kwdSuffix}
               </div>
-              <p className="mt-1 text-[13.5px] text-neutral-500 dark:text-slate-400">
+              <p className="mt-1 text-[11.5px] sm:text-[13px] leading-snug text-neutral-500 dark:text-slate-400">
                 {isAr ? 'خصومات الكاشير والتطبيقات والحملات' : 'POS discounts, app promos & ads'}
               </p>
             </article>
 
             {/* KPI 3: Net Cash After Ads (4,205 KWD) */}
             <article className={`${KPI_CARD_CLS} ae-glow-emerald`}>
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
+              <div className="flex flex-wrap items-center justify-between gap-1">
+                <span className="text-xs sm:text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
                   {isAr ? 'الصافي النقدي بعد الإعلانات' : 'Net Cash After Ads'}
                 </span>
                 <span
                   dir="ltr"
-                  className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11.5px] font-bold tabular-nums text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+                  className="rounded-lg bg-emerald-50 px-2 py-0.5 text-[10.5px] sm:text-[11.5px] font-bold tabular-nums text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
                 >
                   {isAr ? 'فائض العروض' : 'Net Surplus'}
                 </span>
               </div>
               <div
                 dir="ltr"
-                className="mt-2 text-[28px] font-black tracking-tight tabular-nums text-emerald-700 sm:text-[32px] dark:text-emerald-400"
+                className="mt-1.5 sm:mt-2 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-emerald-700 dark:text-emerald-400"
               >
                 {f0(snap.marketing.kpis.netAfterAdSpendKwd)} {kwdSuffix}
               </div>
-              <p className="mt-1 text-[13.5px] text-neutral-500 dark:text-slate-400">
+              <p className="mt-1 text-[11.5px] sm:text-[13px] leading-snug text-neutral-500 dark:text-slate-400">
                 {isAr
                   ? 'مبيعات العروض بعد خصم تكلفة الإعلان والخصم'
                   : 'Promo sales retained after discounts & ad spend'}
@@ -914,13 +916,13 @@ export function CoresHubStudio() {
 
             {/* KPI 4: Promo vs Organic Avg Bill */}
             <article className={`${KPI_CARD_CLS} ae-glow-sky`}>
-              <div className="flex items-center justify-between gap-2">
-                <span className="truncate text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
+              <div className="flex flex-wrap items-center justify-between gap-1">
+                <span className="truncate text-xs sm:text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
                   {isAr ? 'متوسط فاتورة العرض مقابل الطبيعي' : 'Promo vs Organic Avg Bill'}
                 </span>
                 <span
                   dir="ltr"
-                  className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11.5px] font-bold tabular-nums ${
+                  className={`shrink-0 rounded-lg px-2 py-0.5 text-[10.5px] sm:text-[11.5px] font-bold tabular-nums ${
                     snap.marketing.kpis.aovDeltaPct >= 0
                       ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
                       : 'bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
@@ -932,14 +934,14 @@ export function CoresHubStudio() {
               </div>
               <div
                 dir="ltr"
-                className="mt-2 text-[28px] font-black tracking-tight tabular-nums text-neutral-950 dark:text-white"
+                className="mt-1.5 sm:mt-2 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-neutral-950 dark:text-white"
               >
                 {f2(snap.marketing.kpis.promoAovKwd)}{' '}
-                <span className="text-[14px] font-semibold text-neutral-400">
+                <span className="text-xs sm:text-[14px] font-medium text-neutral-400">
                   vs {f2(snap.marketing.kpis.organicAovKwd)} {kwdSuffix}
                 </span>
               </div>
-              <p className="mt-1 text-[13.5px] text-neutral-500 dark:text-slate-400">
+              <p className="mt-1 text-[11.5px] sm:text-[13px] leading-snug text-neutral-500 dark:text-slate-400">
                 {isAr
                   ? `فرق السلة: ${snap.marketing.kpis.aovDeltaKwd >= 0 ? '+' : ''}${f2(snap.marketing.kpis.aovDeltaKwd)} د.ك للطلب`
                   : `Basket delta: ${snap.marketing.kpis.aovDeltaKwd >= 0 ? '+' : ''}${f2(snap.marketing.kpis.aovDeltaKwd)} KWD/order`}
@@ -1025,12 +1027,12 @@ export function CoresHubStudio() {
                 </p>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex max-w-full items-center gap-2 overflow-x-auto no-scrollbar">
                 <button
                   type="button"
                   onClick={() => setShowDemoCampaigns((v) => !v)}
                   aria-pressed={showDemoCampaigns}
-                  className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-xs font-medium transition-all duration-150 ${
+                  className={`inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 text-xs font-medium transition-all duration-150 ${
                     showDemoCampaigns
                       ? 'bg-amber-50 text-amber-900 dark:bg-amber-950/60 dark:text-amber-200'
                       : 'bg-neutral-100 text-neutral-800 hover:bg-neutral-200/80 dark:bg-emerald-950/70 dark:text-emerald-200 dark:hover:bg-emerald-900/70'
@@ -1051,7 +1053,7 @@ export function CoresHubStudio() {
                   <button
                     type="button"
                     onClick={resetCampaignForm}
-                    className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-neutral-100 px-3.5 text-xs font-medium text-neutral-800 transition-colors duration-150 hover:bg-neutral-200/80 dark:bg-white/[0.08] dark:text-slate-200"
+                    className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl bg-neutral-100 px-3.5 text-xs font-medium text-neutral-800 transition-colors duration-150 hover:bg-neutral-200/80 dark:bg-white/[0.08] dark:text-slate-200"
                   >
                     <span>{isAr ? 'إغلاق النموذج ✕' : 'Close Form ✕'}</span>
                   </button>
@@ -1059,7 +1061,7 @@ export function CoresHubStudio() {
                   <button
                     type="button"
                     onClick={() => setIsAdFormOpen(true)}
-                    className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-emerald-600 px-4 text-[13px] font-bold text-white shadow-sm transition-all duration-150 hover:bg-emerald-700 active:scale-[0.99]"
+                    className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl bg-emerald-600 px-4 text-[13px] font-bold text-white shadow-sm transition-all duration-150 hover:bg-emerald-700 active:scale-[0.99]"
                   >
                     <span>
                       {isAr
@@ -1187,11 +1189,11 @@ export function CoresHubStudio() {
                     />
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex max-w-full items-center gap-2 overflow-x-auto no-scrollbar">
                     <button
                       type="button"
                       onClick={resetCampaignForm}
-                      className="h-9 rounded-full bg-neutral-100 px-4 text-xs font-medium text-neutral-700 transition-colors duration-150 hover:bg-neutral-200/80 dark:bg-white/10 dark:text-slate-200"
+                      className="h-9 shrink-0 whitespace-nowrap rounded-xl bg-neutral-100 px-4 text-xs font-medium text-neutral-700 transition-colors duration-150 hover:bg-neutral-200/80 dark:bg-white/10 dark:text-slate-200"
                     >
                       {isAr ? 'إلغاء' : 'Cancel'}
                     </button>
@@ -1202,14 +1204,14 @@ export function CoresHubStudio() {
                         submitCampaignApproval(saved)
                         resetCampaignForm()
                       }}
-                      className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-amber-50 px-4 text-xs font-semibold text-amber-900 transition-all duration-150 hover:bg-amber-100 dark:bg-amber-950/60 dark:text-amber-200"
+                      className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl bg-amber-50 px-4 text-xs font-semibold text-amber-900 transition-all duration-150 hover:bg-amber-100 dark:bg-amber-950/60 dark:text-amber-200"
                     >
                       <Bell className="h-3.5 w-3.5" />
                       <span>{isAr ? 'طلب موافقة المدير 🔔' : 'Request Manager Approval 🔔'}</span>
                     </button>
                     <button
                       type="submit"
-                      className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-emerald-600 px-5 text-[13px] font-bold text-white shadow-sm transition-all duration-150 hover:bg-emerald-700 active:scale-[0.99]"
+                      className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl bg-emerald-600 px-5 text-[13px] font-bold text-white shadow-sm transition-all duration-150 hover:bg-emerald-700 active:scale-[0.99]"
                     >
                       <Plus className="h-3.5 w-3.5" />
                       <span>
@@ -1260,7 +1262,7 @@ export function CoresHubStudio() {
                   return (
                     <article
                       key={ev.campaign.id}
-                      className="flex flex-col justify-between rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-150 dark:bg-[#111A22]"
+                      className="flex flex-col justify-between rounded-2xl bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] transition-all duration-150 dark:bg-[#101C17] dark:ring-emerald-500/10"
                     >
                       <div>
                         <div className="flex flex-wrap items-start justify-between gap-2">
@@ -1269,21 +1271,21 @@ export function CoresHubStudio() {
                             <span className={SOFT_SCOPE_PILL_CLS}>
                               {isAr ? ev.brandAr : ev.brandEn}
                             </span>
-                            <span className="bg-neutral-100 text-neutral-700 dark:bg-white/[0.08] dark:text-slate-200 font-medium text-xs px-2.5 py-1 rounded-full">
+                            <span className="bg-neutral-100 text-neutral-700 dark:bg-white/[0.08] dark:text-slate-200 font-medium text-xs px-2.5 py-1 rounded-lg">
                               {isAr ? ev.adTypeAr : ev.adTypeEn}
                             </span>
                             {isDemo ? (
-                              <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
+                              <span className="rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
                                 {isAr ? 'مثال توضيحي' : 'Demo'}
                               </span>
                             ) : null}
                             {approvalRec?.status === 'approved' ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                              <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
                                 <ShieldCheck className="h-3 w-3" />
                                 <span>{isAr ? 'معتمد بختم المدير ✅' : 'Manager Sealed ✅'}</span>
                               </span>
                             ) : approvalRec?.status === 'pending' ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
+                              <span className="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
                                 <Bell className="h-3 w-3" />
                                 <span>{isAr ? 'بانتظار الموافقة 🔔' : 'Pending Approval 🔔'}</span>
                               </span>
@@ -1292,7 +1294,7 @@ export function CoresHubStudio() {
                               <button
                                 type="button"
                                 onClick={() => openDrawer('breaches')}
-                                className="inline-flex cursor-pointer items-center gap-1 rounded-full bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100 dark:bg-rose-950/60 dark:text-rose-300"
+                                className="inline-flex cursor-pointer items-center gap-1 rounded-lg bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100 dark:bg-rose-950/60 dark:text-rose-300"
                               >
                                 <ShieldAlert className="h-3 w-3" />
                                 <span>{isAr ? '🚨 مخالفة لقرار معتمد' : '🚨 Compliance Alert'}</span>
@@ -1303,7 +1305,7 @@ export function CoresHubStudio() {
                             </span>
                           </div>
 
-                          <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${badgeCls}`}>
+                          <span className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${badgeCls}`}>
                             {isAr ? ev.verdictAr : ev.verdictEn}
                           </span>
                         </div>
@@ -1322,7 +1324,7 @@ export function CoresHubStudio() {
 
                         {/* 3-Box Metrics Row */}
                         <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
-                          <div className="rounded-xl bg-[#F7F7F8] p-3 dark:bg-[#0C141B]">
+                          <div className="rounded-xl bg-[#F7F7F8] p-3 dark:bg-[#09110E]">
                             <div className="text-xs text-neutral-400">
                               {isAr
                                 ? `${ev.windowDays} أيام قبل ← ${ev.windowDays} أيام الحملة`
@@ -1341,7 +1343,7 @@ export function CoresHubStudio() {
                             </div>
                           </div>
 
-                          <div className="rounded-xl bg-[#F7F7F8] p-3 dark:bg-[#0C141B]">
+                          <div className="rounded-xl bg-[#F7F7F8] p-3 dark:bg-[#09110E]">
                             <div className="text-xs text-neutral-400">
                               {isAr ? 'زيادة المبيعات الفعلية' : 'Real Sales Lift'}
                             </div>
@@ -1363,7 +1365,7 @@ export function CoresHubStudio() {
                             </div>
                           </div>
 
-                          <div className="rounded-xl bg-[#F7F7F8] p-3 dark:bg-[#0C141B]">
+                          <div className="rounded-xl bg-[#F7F7F8] p-3 dark:bg-[#09110E]">
                             <div className="text-xs text-neutral-400">
                               {isAr ? 'الربح الصافي بعد الإعلان' : 'Net Profit After Ad'}
                             </div>
@@ -1388,12 +1390,12 @@ export function CoresHubStudio() {
                       </div>
 
                       {/* Action Bar */}
-                      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 pt-1">
-                        <div className="flex flex-wrap items-center gap-1.5">
+                      <div className="mt-3 flex items-center justify-between gap-2 pt-1">
+                        <div className="flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar">
                           <button
                             type="button"
                             onClick={() => copyText(ev.campaign.id, formatCampaignWhatsapp(ev))}
-                            className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-neutral-100 px-3 text-xs font-medium text-neutral-900 transition-colors duration-150 hover:bg-neutral-200/80 dark:bg-emerald-950/70 dark:text-emerald-200 dark:hover:bg-emerald-900/70"
+                            className="inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl bg-neutral-100 px-3 text-xs font-medium text-neutral-900 transition-colors duration-150 hover:bg-neutral-200/80 dark:bg-emerald-950/70 dark:text-emerald-200 dark:hover:bg-emerald-900/70"
                           >
                             {copiedId === ev.campaign.id ? (
                               <>
@@ -1409,7 +1411,7 @@ export function CoresHubStudio() {
                             <button
                               type="button"
                               onClick={() => submitCampaignApproval(ev.campaign, ev)}
-                              className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-amber-50 px-3 text-xs font-semibold text-amber-900 transition-colors duration-150 hover:bg-amber-100 dark:bg-amber-950/60 dark:text-amber-200"
+                              className="inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-xl bg-amber-50 px-3 text-xs font-semibold text-amber-900 transition-colors duration-150 hover:bg-amber-100 dark:bg-amber-950/60 dark:text-amber-200"
                             >
                               <span>{isAr ? 'طلب موافقة المدير 🔔' : 'Request Approval 🔔'}</span>
                             </button>
@@ -1419,7 +1421,7 @@ export function CoresHubStudio() {
                             <button
                               type="button"
                               onClick={() => handleEditCampaign(ev.campaign)}
-                              className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-neutral-100 px-3 text-xs font-medium text-neutral-700 transition-colors duration-150 hover:bg-neutral-200/80 hover:text-neutral-950 dark:bg-white/10 dark:text-slate-300"
+                              className="inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-xl bg-neutral-100 px-3 text-xs font-medium text-neutral-700 transition-colors duration-150 hover:bg-neutral-200/80 hover:text-neutral-950 dark:bg-white/10 dark:text-slate-300"
                             >
                               <Edit3 className="h-3 w-3" />
                               <span>{isAr ? 'تعديل' : 'Edit'}</span>
@@ -1432,7 +1434,7 @@ export function CoresHubStudio() {
                             type="button"
                             onClick={() => handleDeleteCampaign(ev.campaign.id)}
                             aria-label={isAr ? 'حذف الحملة' : 'Delete campaign'}
-                            className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full px-2.5 text-xs font-medium text-neutral-400 transition-colors duration-150 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40"
+                            className="inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 rounded-xl px-2.5 text-xs font-medium text-neutral-400 transition-colors duration-150 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -1461,9 +1463,9 @@ export function CoresHubStudio() {
                 </p>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex max-w-full items-center gap-2 overflow-x-auto no-scrollbar">
                 {/* Dish of the Week Spotlight Pill */}
-                <div className="inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-1.5 text-xs shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-[#111A22]">
+                <div className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl bg-white px-3.5 py-1.5 text-xs shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10">
                   <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
                   <span className="text-neutral-400">
                     {isAr ? 'طبق الأسبوع:' : 'Dish of Week:'}
@@ -1473,7 +1475,7 @@ export function CoresHubStudio() {
                   </span>
                   <span
                     dir="ltr"
-                    className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+                    className="rounded-lg bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
                   >
                     {snap.marketing.dishOfTheWeek.marginPct}%
                   </span>
@@ -1490,7 +1492,7 @@ export function CoresHubStudio() {
                         .join('\n\n'),
                     )
                   }
-                  className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-emerald-600 px-4 text-[13px] font-bold text-white shadow-sm transition-all duration-150 hover:bg-emerald-700 active:scale-[0.99]"
+                  className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl bg-emerald-600 px-4 text-[13px] font-bold text-white shadow-sm transition-all duration-150 hover:bg-emerald-700 active:scale-[0.99]"
                 >
                   {copiedId === 'all-6-plays' ? (
                     <>
@@ -1529,7 +1531,7 @@ export function CoresHubStudio() {
                         <span
                           dir="ltr"
                           title={isAr ? 'نطاق العائد الصافي (متحفظ – واقعي)' : 'Conservative – Realistic Net Upside'}
-                          className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold tabular-nums text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-200"
+                          className="rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold tabular-nums text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-200"
                         >
                           {isAr ? play.upsideBadgeAr : play.upsideBadgeEn}
                         </span>
@@ -1554,13 +1556,13 @@ export function CoresHubStudio() {
                     </div>
 
                     {/* Clean Governance Action (`رفع للاعتماد 🔔` / `اسأل فريال ✨`) + Subtle Details Toggle */}
-                    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-neutral-100 pt-3 dark:border-white/[0.06]">
-                      <div className="flex flex-wrap items-center gap-1.5">
+                    <div className="flex items-center justify-between gap-2 border-t border-neutral-100 pt-3 dark:border-white/[0.06]">
+                      <div className="flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar">
                         {playApproval?.status === 'approved' ? (
                           <button
                             type="button"
                             onClick={() => openDrawer('approvals')}
-                            className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-emerald-50 px-3 text-xs font-semibold text-emerald-800 transition-colors duration-150 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-300"
+                            className="inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-xl bg-emerald-50 px-3 text-xs font-semibold text-emerald-800 transition-colors duration-150 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-300"
                           >
                             <ShieldCheck className="h-3.5 w-3.5" />
                             <span>{isAr ? 'معتمد رسمياً ✓' : 'Approved ✓'}</span>
@@ -1569,7 +1571,7 @@ export function CoresHubStudio() {
                           <button
                             type="button"
                             onClick={() => openDrawer('approvals')}
-                            className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-amber-50 px-3 text-xs font-semibold text-amber-900 transition-colors duration-150 hover:bg-amber-100 dark:bg-amber-950/60 dark:text-amber-200"
+                            className="inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-xl bg-amber-50 px-3 text-xs font-semibold text-amber-900 transition-colors duration-150 hover:bg-amber-100 dark:bg-amber-950/60 dark:text-amber-200"
                           >
                             <Bell className="h-3.5 w-3.5" />
                             <span>{isAr ? 'بانتظار الاعتماد 🔔' : 'Pending Approval 🔔'}</span>
@@ -1592,7 +1594,7 @@ export function CoresHubStudio() {
                                 href: '/erp/cores?tab=marketing',
                               })
                             }
-                            className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-amber-50 px-3 text-xs font-semibold text-amber-900 transition-colors duration-150 hover:bg-amber-100 dark:bg-amber-950/60 dark:text-amber-200"
+                            className="inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-xl bg-amber-50 px-3 text-xs font-semibold text-amber-900 transition-colors duration-150 hover:bg-amber-100 dark:bg-amber-950/60 dark:text-amber-200"
                           >
                             <span>{isAr ? 'رفع للاعتماد 🔔' : 'Submit for Approval 🔔'}</span>
                           </button>
@@ -1600,7 +1602,7 @@ export function CoresHubStudio() {
 
                         <Link
                           href={`/erp/feryal-ai?prompt=${encodeURIComponent(feryalPrompt)}`}
-                          className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-emerald-50 px-3 text-xs font-semibold text-emerald-800 transition-colors duration-150 hover:bg-emerald-100 dark:bg-emerald-950/70 dark:text-emerald-200 dark:hover:bg-emerald-900/70"
+                          className="inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-xl bg-emerald-50 px-3 text-xs font-semibold text-emerald-800 transition-colors duration-150 hover:bg-emerald-100 dark:bg-emerald-950/70 dark:text-emerald-200 dark:hover:bg-emerald-900/70"
                         >
                           <span>{isAr ? 'اسأل فريال ✨' : 'Ask Feryal ✨'}</span>
                         </Link>
@@ -1610,7 +1612,7 @@ export function CoresHubStudio() {
                         type="button"
                         aria-expanded={isExpanded}
                         onClick={() => togglePlayDrawer(play.id)}
-                        className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full px-2.5 text-xs font-medium text-neutral-400 transition-colors duration-150 hover:bg-neutral-100 hover:text-neutral-900 dark:text-slate-400 dark:hover:bg-white/[0.06] dark:hover:text-white"
+                        className="inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-xl px-2.5 text-xs font-medium text-neutral-400 transition-colors duration-150 hover:bg-neutral-100 hover:text-neutral-900 dark:text-slate-400 dark:hover:bg-white/[0.06] dark:hover:text-white"
                       >
                         <span>{isAr ? 'التفاصيل' : 'Details'}</span>
                         <ChevronDown
@@ -1634,24 +1636,24 @@ export function CoresHubStudio() {
       {activeTab === 'sales' ? (
         <div className="space-y-4">
           {/* 4 Non-Redundant Executive Sales KPIs */}
-          <section className="ae-stagger grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <section className="ae-stagger grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             {/* KPI 1: Total Net Sales + Orders + Avg Bill in One Anchor Card */}
             <article className={`${KPI_CARD_CLS} ae-glow-emerald`}>
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
+              <div className="flex flex-wrap items-center justify-between gap-1">
+                <span className="text-xs sm:text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
                   {isAr ? 'صافي المبيعات والطلبات' : 'Total Net Sales'}
                 </span>
-                <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-[11.5px] font-semibold text-neutral-700 dark:bg-white/[0.08] dark:text-slate-200">
+                <span className="rounded-lg bg-neutral-100 px-2 py-0.5 text-[10.5px] sm:text-[11.5px] font-semibold text-neutral-700 dark:bg-white/[0.08] dark:text-slate-200">
                   {getPeriodLabel(filters.period, isAr)}
                 </span>
               </div>
               <div
                 dir="ltr"
-                className="mt-2 text-[28px] font-black tracking-tight tabular-nums text-neutral-950 sm:text-[32px] dark:text-white"
+                className="mt-1.5 sm:mt-2 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-neutral-950 dark:text-white"
               >
                 {f0(workspace.salesKwd)} {kwdSuffix}
               </div>
-              <p dir="ltr" className="mt-1 text-[13.5px] tabular-nums text-neutral-500 dark:text-slate-400">
+              <p dir="ltr" className="mt-1 text-[11.5px] sm:text-[13px] leading-snug tabular-nums text-neutral-500 dark:text-slate-400">
                 {f0(workspace.orders)} {isAr ? 'طلب' : 'orders'} • {isAr ? 'متوسط' : 'Avg'}{' '}
                 {f2(workspace.aovKwd)} {kwdSuffix}
               </p>
@@ -1659,24 +1661,24 @@ export function CoresHubStudio() {
 
             {/* KPI 2: Zero-Commission Sales (Dine-In + Direct Takeaway) */}
             <article className={`${KPI_CARD_CLS} ae-glow-emerald`}>
-              <div className="flex items-center justify-between gap-2">
-                <span className="truncate text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
+              <div className="flex flex-wrap items-center justify-between gap-1">
+                <span className="truncate text-xs sm:text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
                   {isAr ? 'مبيعات بدون عمولة (صالة ومباشر)' : 'Zero-Commission Sales'}
                 </span>
                 <span
                   dir="ltr"
-                  className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11.5px] font-bold tabular-nums text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+                  className="shrink-0 rounded-lg bg-emerald-50 px-2 py-0.5 text-[10.5px] sm:text-[11.5px] font-bold tabular-nums text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
                 >
                   {f1(snap.sales.zeroCommSharePct)}%
                 </span>
               </div>
               <div
                 dir="ltr"
-                className="mt-2 text-[28px] font-black tracking-tight tabular-nums text-emerald-700 sm:text-[32px] dark:text-emerald-400"
+                className="mt-1.5 sm:mt-2 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-emerald-700 dark:text-emerald-400"
               >
                 {f0(snap.sales.zeroCommDisplayKwd)} {kwdSuffix}
               </div>
-              <p className="mt-1 text-[13.5px] tabular-nums text-neutral-500 dark:text-slate-400">
+              <p className="mt-1 text-[11.5px] sm:text-[13px] leading-snug tabular-nums text-neutral-500 dark:text-slate-400">
                 {isAr
                   ? `صالة وسفري مباشر • ${f0(snap.sales.zeroCommOrders)} طلب`
                   : `Dine-In + Takeaway • ${f0(snap.sales.zeroCommOrders)} orders`}
@@ -1685,11 +1687,11 @@ export function CoresHubStudio() {
 
             {/* KPI 3: Peak Sales Hour + Strongest Day Badge */}
             <article className={`${KPI_CARD_CLS} ae-glow-sky`}>
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
+              <div className="flex flex-wrap items-center justify-between gap-1">
+                <span className="text-xs sm:text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
                   {isAr ? 'ذروة المبيعات اليومية' : 'Peak Sales Hour'}
                 </span>
-                <span className="shrink-0 rounded-full bg-sky-50 px-2.5 py-0.5 text-[11.5px] font-semibold text-sky-800 dark:bg-sky-950/60 dark:text-sky-300">
+                <span className="shrink-0 rounded-lg bg-sky-50 px-2 py-0.5 text-[10.5px] sm:text-[11.5px] font-semibold text-sky-800 dark:bg-sky-950/60 dark:text-sky-300">
                   {isAr
                     ? `الأقوى: ${snap.sales.strongestDayLabelAr}`
                     : `Top: ${snap.sales.strongestDayLabelEn}`}
@@ -1697,12 +1699,12 @@ export function CoresHubStudio() {
               </div>
               <div
                 dir="ltr"
-                className="mt-2 text-[26px] font-black tracking-tight tabular-nums text-neutral-950 sm:text-[28px] dark:text-white"
+                className="mt-1.5 sm:mt-2 text-xl sm:text-2xl font-semibold tracking-tight tabular-nums text-neutral-950 dark:text-white"
               >
                 {isAr ? snap.sales.peakHourShortAr : snap.sales.peakHourShortEn} •{' '}
                 {f0(snap.sales.peakHourDisplayKwd)} {kwdSuffix}
               </div>
-              <p className="mt-1 text-[13.5px] tabular-nums text-neutral-500 dark:text-slate-400">
+              <p className="mt-1 text-[11.5px] sm:text-[13px] leading-snug tabular-nums text-neutral-500 dark:text-slate-400">
                 {isAr
                   ? `${f0(snap.sales.peakHourOrders)} طلب (${f1(snap.sales.peakHourSharePct)}% من اليوم)`
                   : `${f0(snap.sales.peakHourOrders)} orders (${f1(snap.sales.peakHourSharePct)}% of day)`}
@@ -1711,24 +1713,24 @@ export function CoresHubStudio() {
 
             {/* KPI 4: Quiet Window (3–6 PM) + Recoverable Upside Badge */}
             <article className={`${KPI_CARD_CLS} ae-glow-amber`}>
-              <div className="flex items-center justify-between gap-2">
-                <span className="truncate text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
+              <div className="flex flex-wrap items-center justify-between gap-1">
+                <span className="truncate text-xs sm:text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
                   {isAr ? 'مبيعات الساعات الهادئة (٣–٦ م)' : 'Quiet Window (3–6 PM)'}
                 </span>
                 <span
                   dir="ltr"
-                  className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11.5px] font-bold tabular-nums text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+                  className="shrink-0 rounded-lg bg-emerald-50 px-2 py-0.5 text-[10.5px] sm:text-[11.5px] font-bold tabular-nums text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
                 >
                   +{f0(snap.sales.quietWindowUpsideKwd)} {kwdSuffix}
                 </span>
               </div>
               <div
                 dir="ltr"
-                className="mt-2 text-[28px] font-black tracking-tight tabular-nums text-neutral-950 sm:text-[32px] dark:text-white"
+                className="mt-1.5 sm:mt-2 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-neutral-950 dark:text-white"
               >
                 {f0(snap.sales.quietWindowDisplayKwd)} {kwdSuffix}
               </div>
-              <p className="mt-1 text-[13.5px] tabular-nums text-neutral-500 dark:text-slate-400">
+              <p className="mt-1 text-[11.5px] sm:text-[13px] leading-snug tabular-nums text-neutral-500 dark:text-slate-400">
                 {isAr
                   ? `${f1(snap.sales.quietWindowSharePct)}% من المبيعات • جاهزة لعروض العصر`
                   : `${f1(snap.sales.quietWindowSharePct)}% of sales • recoverable combo upside`}
@@ -1933,13 +1935,13 @@ export function CoresHubStudio() {
       {activeTab === 'menu' ? (
         <div className="space-y-4">
           {/* 4 Crisp Non-Redundant Menu KPIs ("One Metric, One Place" — Gross Margin % lives in the Donut) */}
-          <section className="ae-stagger grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <section className="ae-stagger grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <article className={`${KPI_CARD_CLS} ae-glow-sky`}>
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
+              <div className="flex flex-wrap items-center justify-between gap-1">
+                <span className="text-xs sm:text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
                   {isAr ? 'الأصناف النشطة' : 'Active Menu Items'}
                 </span>
-                <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-[11.5px] font-semibold tabular-nums text-neutral-700 dark:bg-white/[0.08] dark:text-slate-200">
+                <span className="rounded-lg bg-neutral-100 px-2 py-0.5 text-[10.5px] sm:text-[11.5px] font-semibold tabular-nums text-neutral-700 dark:bg-white/[0.08] dark:text-slate-200">
                   {isAr
                     ? `⭐ ${snap.menu.quadrantCounts.golden} · 💎 ${snap.menu.quadrantCounts['box-gem']}`
                     : `⭐ ${snap.menu.quadrantCounts.golden} · 💎 ${snap.menu.quadrantCounts['box-gem']}`}
@@ -1947,54 +1949,54 @@ export function CoresHubStudio() {
               </div>
               <div
                 dir="ltr"
-                className="mt-2 text-[28px] font-black tracking-tight tabular-nums text-neutral-950 sm:text-[32px] dark:text-white"
+                className="mt-1.5 sm:mt-2 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-neutral-950 dark:text-white"
               >
                 {f0(snap.menu.totalActiveSkus)} {isAr ? 'صنف' : 'items'}
               </div>
-              <p className="mt-1 text-[13.5px] text-neutral-500 dark:text-slate-400">
+              <p className="mt-1 text-[11.5px] sm:text-[13px] leading-snug text-neutral-500 dark:text-slate-400">
                 {isAr ? 'مربوطة بوصفات العارضية ونقاط البيع' : 'Linked to Ardiya BOM & POS sales'}
               </p>
             </article>
 
             <article className={`${KPI_CARD_CLS} ae-glow-emerald`}>
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
+              <div className="flex flex-wrap items-center justify-between gap-1">
+                <span className="text-xs sm:text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
                   {isAr ? 'الأطباق المباعة' : 'Total Units Sold'}
                 </span>
                 <span
                   dir="ltr"
-                  className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-[11.5px] font-semibold tabular-nums text-neutral-700 dark:bg-white/[0.08] dark:text-slate-200"
+                  className="rounded-lg bg-neutral-100 px-2 py-0.5 text-[10.5px] sm:text-[11.5px] font-semibold tabular-nums text-neutral-700 dark:bg-white/[0.08] dark:text-slate-200"
                 >
                   {f0(snap.menu.totalSalesKwd)} {kwdSuffix}
                 </span>
               </div>
               <div
                 dir="ltr"
-                className="mt-2 text-[28px] font-black tracking-tight tabular-nums text-neutral-950 sm:text-[32px] dark:text-white"
+                className="mt-1.5 sm:mt-2 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-neutral-950 dark:text-white"
               >
                 {f0(snap.menu.totalUnitsSold)} {isAr ? 'طبق' : 'units'}
               </div>
-              <p className="mt-1 text-[13.5px] text-neutral-500 dark:text-slate-400">
+              <p className="mt-1 text-[11.5px] sm:text-[13px] leading-snug text-neutral-500 dark:text-slate-400">
                 {isAr ? 'مطابق ١٠٠٪ لصافي مبيعات أودو' : '100% reconciled to Odoo net sales'}
               </p>
             </article>
 
             <article className={`${KPI_CARD_CLS} ae-glow-emerald`}>
-              <div className="flex items-center justify-between gap-2">
-                <span className="truncate text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
+              <div className="flex flex-wrap items-center justify-between gap-1">
+                <span className="truncate text-xs sm:text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
                   {isAr ? 'فرصة تحسين التسعير والكومبو' : 'Menu Optimization Upside'}
                 </span>
-                <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11.5px] font-bold tabular-nums text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+                <span className="shrink-0 rounded-lg bg-emerald-50 px-2 py-0.5 text-[10.5px] sm:text-[11.5px] font-bold tabular-nums text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
                   {isAr ? 'ثبات 95%' : '95% Retention'}
                 </span>
               </div>
               <div
                 dir="ltr"
-                className="mt-2 text-[28px] font-black tracking-tight tabular-nums text-emerald-700 sm:text-[32px] dark:text-emerald-400"
+                className="mt-1.5 sm:mt-2 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-emerald-700 dark:text-emerald-400"
               >
                 +{f0(snap.menu.optimizationUpsideKwd)} {kwdSuffix}
               </div>
-              <p className="mt-1 text-[13.5px] text-neutral-500 dark:text-slate-400">
+              <p className="mt-1 text-[11.5px] sm:text-[13px] leading-snug text-neutral-500 dark:text-slate-400">
                 {isAr
                   ? 'صافي متحفظ بعد خصم عمولة التطبيقات'
                   : 'Conservative net gain after app fees'}
@@ -2005,8 +2007,8 @@ export function CoresHubStudio() {
               onClick={() => snap.menu.topProfitDish && openDishSimulator(snap.menu.topProfitDish)}
               className={`${KPI_CARD_CLS} ae-glow-amber cursor-pointer transition-transform duration-150 hover:scale-[1.005]`}
             >
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-medium text-neutral-500 dark:text-slate-400">
+              <div className="flex flex-wrap items-center justify-between gap-1">
+                <span className="text-xs sm:text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
                   {isAr ? 'أعلى صنف ربحاً' : 'Top Profit Dish'}
                 </span>
                 {snap.menu.topProfitDish ? (
@@ -2015,12 +2017,12 @@ export function CoresHubStudio() {
                   </span>
                 ) : null}
               </div>
-              <div className="mt-2 truncate text-[17.5px] font-semibold tracking-tight text-neutral-950 dark:text-white">
+              <div className="mt-1.5 sm:mt-2 truncate text-base sm:text-xl font-semibold tracking-tight text-neutral-950 dark:text-white">
                 {snap.menu.topProfitDish?.name ?? '—'}
               </div>
               <p
                 dir="ltr"
-                className="mt-1 text-xs font-semibold tabular-nums text-emerald-700 dark:text-emerald-400"
+                className="mt-1 text-[11.5px] sm:text-xs font-semibold tabular-nums text-emerald-700 dark:text-emerald-400"
               >
                 {snap.menu.topProfitDish
                   ? `+${f0(snap.menu.topProfitDish.netProfitKwd)} ${kwdSuffix} · ${f0(snap.menu.topProfitDish.unitsSold)} ${isAr ? 'طبق' : 'units'}`
@@ -2033,7 +2035,7 @@ export function CoresHubStudio() {
           <section className="grid grid-cols-1 gap-4 lg:grid-cols-12">
             {/* Left 8-Col: Horizontal Executive Dish Ranking (Zero Truncated Vertical X-Axis Labels!) */}
             <div className={`${CARD_CLS} flex flex-col justify-between lg:col-span-8`}>
-              <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <h2 className="text-[17px] font-semibold tracking-tight text-neutral-950 dark:text-white">
                     {isAr
@@ -2048,7 +2050,10 @@ export function CoresHubStudio() {
                 </div>
 
                 {/* Instant View Mode Switcher */}
-                <div className="inline-flex items-center gap-1 rounded-full bg-[#F7F7F8] p-1 dark:bg-white/[0.05]">
+                <div
+                  role="tablist"
+                  className="flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar p-1 rounded-2xl bg-neutral-100/90 dark:bg-white/[0.06]"
+                >
                   {(
                     [
                       { id: 'split', ar: 'جنباً إلى جنب', en: 'Side-by-Side' },
@@ -2061,11 +2066,13 @@ export function CoresHubStudio() {
                       <button
                         key={v.id}
                         type="button"
+                        role="tab"
+                        aria-selected={active}
                         onClick={() => setMenuRankView(v.id)}
-                        className={`cursor-pointer rounded-full px-3 py-1 text-xs font-medium transition-all duration-150 ${
+                        className={`shrink-0 cursor-pointer whitespace-nowrap rounded-xl px-3.5 py-2 text-[13px] font-medium transition-all duration-150 ${
                           active
-                            ? 'bg-white font-semibold text-neutral-950 shadow-[0_1px_2px_rgba(0,0,0,0.06)] dark:bg-emerald-950/80 dark:text-emerald-200'
-                            : 'text-neutral-500 hover:text-neutral-900 dark:text-slate-400 dark:hover:text-white'
+                            ? 'bg-white font-semibold text-neutral-950 shadow-[0_1px_2px_rgba(0,0,0,0.06)] dark:bg-emerald-500 dark:text-[#04130D]'
+                            : 'text-neutral-600 hover:text-neutral-900 dark:text-slate-300 dark:hover:text-white'
                         }`}
                       >
                         {isAr ? v.ar : v.en}
@@ -2297,10 +2304,10 @@ export function CoresHubStudio() {
           </section>
 
           {/* Paginated Menu Engineering Matrix Table (12 Rows Default + Search + 4 Quadrant Pills + Simulator Trigger) */}
-          <section className={`${CARD_CLS} overflow-hidden p-0`}>
+          <section className={`${CARD_CLS} px-3.5 py-4 sm:p-6`}>
             {/* Table Header: Title + Search + Sort + 4 Menu Engineering Matrix Pills */}
-            <div className="space-y-3.5 px-5 pt-5 pb-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="space-y-3.5 pb-4">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                   <h3 className="text-[17px] font-semibold tracking-tight text-neutral-950 dark:text-white">
                     {isAr
@@ -2316,7 +2323,7 @@ export function CoresHubStudio() {
 
                 {/* Instant Dish & Brand Search + Sort Selector */}
                 <div className="flex flex-wrap items-center gap-2">
-                  <div className="relative w-64 sm:w-72">
+                  <div className="relative flex-1 sm:w-72 sm:flex-none">
                     <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
                     <input
                       type="text"
@@ -2325,14 +2332,14 @@ export function CoresHubStudio() {
                       placeholder={
                         isAr ? 'ابحث عن طبق أو مطعم... 🔍' : 'Search dish or brand... 🔍'
                       }
-                      className="h-9 w-full rounded-full bg-[#F7F7F8] ps-9 pe-8 text-xs font-medium text-neutral-900 transition-all duration-150 placeholder:text-neutral-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600/30 dark:bg-white/[0.06] dark:text-white"
+                      className="h-9 w-full rounded-xl bg-[#F7F7F8] ps-9 pe-8 text-xs font-medium text-neutral-900 transition-all duration-150 placeholder:text-neutral-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600/30 dark:bg-white/[0.06] dark:text-white"
                     />
                     {dishSearch ? (
                       <button
                         type="button"
                         onClick={() => setDishSearch('')}
                         aria-label={isAr ? 'مسح البحث' : 'Clear search'}
-                        className="absolute end-2.5 top-1/2 -translate-y-1/2 cursor-pointer rounded-full p-0.5 text-neutral-400 hover:text-neutral-700 dark:hover:text-white"
+                        className="absolute end-2.5 top-1/2 -translate-y-1/2 cursor-pointer rounded-lg p-0.5 text-neutral-400 hover:text-neutral-700 dark:hover:text-white"
                       >
                         <X className="h-3.5 w-3.5" />
                       </button>
@@ -2342,7 +2349,7 @@ export function CoresHubStudio() {
                   <select
                     value={dishSort}
                     onChange={(e) => setDishSort(e.target.value as MenuSortKey)}
-                    className="h-9 cursor-pointer rounded-full bg-[#F7F7F8] px-3.5 text-xs font-medium text-neutral-800 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 dark:bg-white/[0.06] dark:text-slate-200"
+                    className="h-9 cursor-pointer rounded-xl bg-[#F7F7F8] px-3.5 text-xs font-medium text-neutral-800 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 dark:bg-white/[0.06] dark:text-slate-200"
                   >
                     <option value="profit">{isAr ? 'الأعلى ربحاً' : 'Highest Profit'}</option>
                     <option value="units">{isAr ? 'الأكثر طلباً' : 'Most Units Sold'}</option>
@@ -2353,8 +2360,11 @@ export function CoresHubStudio() {
               </div>
 
               {/* 4 Menu Engineering Matrix Filter Pills + All */}
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex flex-wrap items-center gap-1.5" role="tablist">
+              <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+                <div
+                  role="tablist"
+                  className="flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar p-1 rounded-2xl bg-neutral-100/90 dark:bg-white/[0.06]"
+                >
                   {TAG_FILTERS.map((tf) => {
                     const isSelected = dishTagFilter === tf.id
                     const count =
@@ -2369,18 +2379,18 @@ export function CoresHubStudio() {
                         aria-selected={isSelected}
                         title={isAr ? tf.subAr : tf.subEn}
                         onClick={() => setDishTagFilter(tf.id)}
-                        className={`inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full px-3 text-xs transition-all duration-150 ${
+                        className={`inline-flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-2 text-[13px] font-medium transition-all duration-150 ${
                           isSelected
-                            ? 'bg-emerald-600 font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.08)] dark:bg-emerald-500 dark:text-neutral-950'
-                            : 'bg-[#F7F7F8] font-medium text-neutral-700 hover:bg-neutral-200/70 dark:bg-white/[0.05] dark:text-slate-200 dark:hover:bg-white/[0.09]'
+                            ? 'bg-emerald-600 font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.08)] dark:bg-emerald-500 dark:text-[#04130D]'
+                            : 'text-neutral-700 hover:bg-white/80 dark:text-slate-200 dark:hover:bg-white/[0.09]'
                         }`}
                       >
                         <span>{isAr ? tf.ar : tf.en}</span>
                         <span
                           dir="ltr"
-                          className={`rounded-full px-1.5 py-0.5 text-[10.5px] tabular-nums ${
+                          className={`rounded-md px-1.5 py-0.5 text-[10.5px] tabular-nums ${
                             isSelected
-                              ? 'bg-white/20 text-white dark:bg-slate-950/20 dark:text-neutral-950'
+                              ? 'bg-white/20 text-white dark:bg-slate-950/20 dark:text-[#04130D]'
                               : 'bg-white text-neutral-500 dark:bg-white/10 dark:text-slate-300'
                           }`}
                         >
@@ -2393,7 +2403,7 @@ export function CoresHubStudio() {
 
                 <span
                   dir="ltr"
-                  className="rounded-full bg-[#F7F7F8] px-3 py-1 text-[13px] font-medium tabular-nums text-neutral-600 dark:bg-white/[0.06] dark:text-slate-300"
+                  className="self-start whitespace-nowrap rounded-xl bg-[#F7F7F8] px-3 py-1.5 text-xs font-medium tabular-nums text-neutral-600 lg:self-auto dark:bg-white/[0.06] dark:text-slate-300"
                 >
                   {isAr ? 'إجمالي المينيو المطابق:' : 'Reconciled Menu Sales:'}{' '}
                   {f0(snap.menu.totalSalesKwd)} {kwdSuffix}
@@ -2402,18 +2412,18 @@ export function CoresHubStudio() {
             </div>
 
             {/* Crisp Executive Table (Default 12 rows — Zero 50-Row Wall!) */}
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[860px] text-start text-[14px]">
+            <div className="overflow-x-auto -mx-3.5 px-3.5 sm:mx-0 sm:px-0">
+              <table className="w-full min-w-[820px] text-start text-[14px]">
                 <thead>
-                  <tr className="bg-[#F7F7F8] text-[13px] font-semibold text-neutral-500 dark:bg-white/[0.04] dark:text-slate-400">
-                    <th className="px-5 py-3 text-start">{isAr ? 'الطبق' : 'Dish'}</th>
-                    <th className="px-3 py-3 text-start">{isAr ? 'المطعم' : 'Brand'}</th>
-                    <th className="px-3 py-3 text-end">{isAr ? 'الكمية' : 'Qty Sold'}</th>
-                    <th className="px-3 py-3 text-end">{isAr ? 'سعر البيع' : 'Price'}</th>
-                    <th className="px-3 py-3 text-end">{isAr ? 'تكلفة الطبق %' : 'Unit Cost (%)'}</th>
-                    <th className="px-3 py-3 text-end">{isAr ? 'المبيعات' : 'Sales KWD'}</th>
-                    <th className="px-3 py-3 text-end">{isAr ? 'الربح الصافي' : 'Net Profit'}</th>
-                    <th className="px-5 py-3 text-end">
+                  <tr className="rounded-xl bg-[#F7F7F8] text-[13px] font-semibold text-neutral-500 dark:bg-white/[0.04] dark:text-slate-400">
+                    <th className="whitespace-nowrap px-4 py-3 text-start">{isAr ? 'الطبق' : 'Dish'}</th>
+                    <th className="whitespace-nowrap px-3 py-3 text-start">{isAr ? 'المطعم' : 'Brand'}</th>
+                    <th className="whitespace-nowrap px-3 py-3 text-end">{isAr ? 'الكمية' : 'Qty Sold'}</th>
+                    <th className="whitespace-nowrap px-3 py-3 text-end">{isAr ? 'سعر البيع' : 'Price'}</th>
+                    <th className="whitespace-nowrap px-3 py-3 text-end">{isAr ? 'تكلفة الطبق %' : 'Unit Cost (%)'}</th>
+                    <th className="whitespace-nowrap px-3 py-3 text-end">{isAr ? 'المبيعات' : 'Sales KWD'}</th>
+                    <th className="whitespace-nowrap px-3 py-3 text-end">{isAr ? 'الربح الصافي' : 'Net Profit'}</th>
+                    <th className="whitespace-nowrap px-4 py-3 text-end">
                       {isAr ? 'التوصية والمحاكاة' : 'Matrix Action'}
                     </th>
                   </tr>
@@ -2449,37 +2459,37 @@ export function CoresHubStudio() {
                           onClick={() => openDishSimulator(d)}
                           className="cursor-pointer transition-colors duration-150 hover:bg-[#F7F7F8]/90 dark:hover:bg-white/[0.04]"
                         >
-                          <td className="px-5 py-3">
+                          <td className="px-4 py-3">
                             <div className="font-semibold text-neutral-950 dark:text-white">
                               {d.name}
                             </div>
-                            <div className="mt-0.5 text-[11px] text-neutral-400">
+                            <div className="mt-0.5 whitespace-nowrap text-[11px] text-neutral-400">
                               {isAr ? d.tagAr : d.tagEn}
                             </div>
                           </td>
-                          <td className="px-3 py-3">
+                          <td className="whitespace-nowrap px-3 py-3">
                             <span className={SOFT_SCOPE_PILL_CLS}>
                               {isAr ? d.brandAr : d.brandEn}
                             </span>
                           </td>
                           <td
                             dir="ltr"
-                            className="px-3 py-3 text-end font-semibold tabular-nums text-neutral-800 dark:text-slate-200"
+                            className="whitespace-nowrap px-3 py-3 text-end font-semibold tabular-nums text-neutral-800 dark:text-slate-200"
                           >
                             {f0(d.unitsSold)}
                           </td>
                           <td
                             dir="ltr"
-                            className="px-3 py-3 text-end tabular-nums text-neutral-700 dark:text-slate-300"
+                            className="whitespace-nowrap px-3 py-3 text-end tabular-nums text-neutral-700 dark:text-slate-300"
                           >
                             {f2(d.unitPriceKwd)}
                           </td>
-                          <td dir="ltr" className="px-3 py-3 text-end tabular-nums">
+                          <td dir="ltr" className="whitespace-nowrap px-3 py-3 text-end tabular-nums">
                             <span className="text-neutral-600 dark:text-slate-300">
                               {f2(d.unitCostKwd)}
                             </span>{' '}
                             <span
-                              className={`inline-block rounded-full px-1.5 py-0.5 text-[11px] font-semibold ${
+                              className={`inline-block rounded-lg px-1.5 py-0.5 text-[11px] font-semibold ${
                                 costHigh
                                   ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'
                                   : 'bg-neutral-100 text-neutral-600 dark:bg-white/[0.06] dark:text-slate-300'
@@ -2490,27 +2500,27 @@ export function CoresHubStudio() {
                           </td>
                           <td
                             dir="ltr"
-                            className="px-3 py-3 text-end font-semibold tabular-nums text-neutral-900 dark:text-white"
+                            className="whitespace-nowrap px-3 py-3 text-end font-semibold tabular-nums text-neutral-900 dark:text-white"
                           >
                             {f1(d.salesKwd)}
                           </td>
                           <td
                             dir="ltr"
-                            className="px-3 py-3 text-end font-semibold tabular-nums text-emerald-700 dark:text-emerald-400"
+                            className="whitespace-nowrap px-3 py-3 text-end font-semibold tabular-nums text-emerald-700 dark:text-emerald-400"
                           >
                             +{f1(d.netProfitKwd)}{' '}
                             <span className="text-[11.5px] font-medium text-neutral-400">
                               ({f1(d.marginPct)}%)
                             </span>
                           </td>
-                          <td className="px-5 py-3 text-end">
+                          <td className="whitespace-nowrap px-4 py-3 text-end">
                             <button
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation()
                                 openDishSimulator(d)
                               }}
-                              className={`inline-flex cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold transition-colors duration-150 ${actionBadgeCls}`}
+                              className={`inline-flex cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-1 text-xs font-semibold transition-colors duration-150 ${actionBadgeCls}`}
                             >
                               <span>{isAr ? d.actionBadgeAr : d.actionBadgeEn}</span>
                               <Calculator className="h-3 w-3 opacity-75" />
@@ -2525,7 +2535,7 @@ export function CoresHubStudio() {
             </div>
 
             {/* Clean Executive Pagination Bar (12 / 25 / عرض الكل + السابق / التالي) */}
-            <div className="flex flex-wrap items-center justify-between gap-3 bg-[#F7F7F8]/80 px-5 py-3.5 text-xs dark:bg-white/[0.03]">
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[#F7F7F8]/80 px-4 py-3 text-xs dark:bg-white/[0.03]">
               <div className="flex flex-wrap items-center gap-3">
                 <span className="font-medium text-neutral-600 dark:text-slate-300">
                   {isAr
@@ -2534,7 +2544,7 @@ export function CoresHubStudio() {
                 </span>
 
                 {/* Page Size Pills: 12 / 25 / عرض الكل */}
-                <div className="inline-flex items-center gap-1 rounded-full bg-white p-1 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-[#111A22]">
+                <div className="flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar p-1 rounded-2xl bg-neutral-100/90 dark:bg-white/[0.06]">
                   {([12, 25, 'all'] as const).map((sz) => {
                     const active = menuPageSize === sz
                     return (
@@ -2542,10 +2552,10 @@ export function CoresHubStudio() {
                         key={String(sz)}
                         type="button"
                         onClick={() => setMenuPageSize(sz)}
-                        className={`cursor-pointer rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors duration-150 ${
+                        className={`shrink-0 cursor-pointer whitespace-nowrap rounded-xl px-3 py-1 text-xs font-medium transition-all duration-150 ${
                           active
-                            ? 'bg-emerald-600 font-semibold text-white dark:bg-emerald-500 dark:text-neutral-950'
-                            : 'text-neutral-600 hover:bg-neutral-100 dark:text-slate-300 dark:hover:bg-white/[0.06]'
+                            ? 'bg-white font-semibold text-neutral-950 shadow-xs dark:bg-emerald-500 dark:text-[#04130D]'
+                            : 'text-neutral-600 hover:bg-white/70 dark:text-slate-300 dark:hover:bg-white/[0.06]'
                         }`}
                       >
                         {sz === 'all' ? (isAr ? 'عرض الكل' : 'Show All') : sz}
@@ -2562,7 +2572,7 @@ export function CoresHubStudio() {
                     type="button"
                     disabled={safeMenuPage <= 1}
                     onClick={() => setMenuPage((p) => Math.max(1, p - 1))}
-                    className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-white px-3 text-xs font-medium text-neutral-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors duration-150 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-45 dark:bg-[#111A22] dark:text-slate-200 dark:hover:bg-white/[0.08]"
+                    className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-xl bg-white px-3 text-xs font-medium text-neutral-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors duration-150 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-45 dark:bg-[#101C17] dark:text-slate-200 dark:hover:bg-white/[0.08]"
                   >
                     {isAr ? (
                       <ChevronRight className="h-3.5 w-3.5" />
@@ -2583,7 +2593,7 @@ export function CoresHubStudio() {
                     type="button"
                     disabled={safeMenuPage >= menuTotalPages}
                     onClick={() => setMenuPage((p) => Math.min(menuTotalPages, p + 1))}
-                    className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-white px-3 text-xs font-medium text-neutral-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors duration-150 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-45 dark:bg-[#111A22] dark:text-slate-200 dark:hover:bg-white/[0.08]"
+                    className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-xl bg-white px-3 text-xs font-medium text-neutral-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors duration-150 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-45 dark:bg-[#101C17] dark:text-slate-200 dark:hover:bg-white/[0.08]"
                   >
                     <span>{isAr ? 'التالي' : 'Next'}</span>
                     {isAr ? (
@@ -2617,7 +2627,7 @@ export function CoresHubStudio() {
           <div
             dir={isAr ? 'rtl' : 'ltr'}
             onClick={(e) => e.stopPropagation()}
-            className="flex h-full w-full max-w-lg flex-col justify-between overflow-y-auto bg-white p-6 shadow-2xl dark:bg-[#0E161E]"
+            className="flex h-full w-full max-w-lg flex-col justify-between overflow-y-auto bg-white p-5 sm:p-6 shadow-2xl dark:bg-[#101C17] dark:ring-1 dark:ring-emerald-500/10"
           >
             <div className="space-y-5">
               {/* Drawer Header */}
@@ -2627,7 +2637,7 @@ export function CoresHubStudio() {
                     <span className={SOFT_SCOPE_PILL_CLS}>
                       {isAr ? selectedDish.brandAr : selectedDish.brandEn}
                     </span>
-                    <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                    <span className="rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
                       {isAr ? selectedDish.tagAr : selectedDish.tagEn}
                     </span>
                   </div>
@@ -2643,7 +2653,7 @@ export function CoresHubStudio() {
                   type="button"
                   onClick={() => setSelectedDish(null)}
                   aria-label={isAr ? 'إغلاق الحاسبة' : 'Close simulator'}
-                  className="inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-[#F7F7F8] text-neutral-600 transition-colors duration-150 hover:bg-neutral-200/80 dark:bg-white/[0.08] dark:text-slate-200"
+                  className="inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-[#F7F7F8] text-neutral-600 transition-colors duration-150 hover:bg-neutral-200/80 dark:bg-white/[0.08] dark:text-slate-200"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -2711,12 +2721,12 @@ export function CoresHubStudio() {
                   </label>
                   <span
                     dir="ltr"
-                    className="rounded-full bg-white px-2.5 py-0.5 text-xs font-semibold tabular-nums text-emerald-700 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-emerald-950/60 dark:text-emerald-300"
+                    className="rounded-lg bg-white px-2.5 py-0.5 text-xs font-semibold tabular-nums text-emerald-700 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-emerald-950/60 dark:text-emerald-300"
                   >
                     {f2(selectedDish.unitPriceKwd)} → {f2(simResult.newPriceKwd)} {kwdSuffix}
                   </span>
                 </div>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar p-1 rounded-2xl bg-neutral-100/90 dark:bg-white/[0.06]">
                   {[
                     { val: 0, ar: 'بدون رفع', en: '0 fils' },
                     { val: 0.05, ar: '+٥٠ فلس', en: '+50 fils' },
@@ -2731,10 +2741,10 @@ export function CoresHubStudio() {
                         key={p.val}
                         type="button"
                         onClick={() => setSimDeltaPrice(p.val)}
-                        className={`cursor-pointer rounded-full px-3 py-1 text-xs font-medium transition-all duration-150 ${
+                        className={`shrink-0 cursor-pointer whitespace-nowrap rounded-xl px-3 py-1.5 text-xs font-medium transition-all duration-150 ${
                           active
-                            ? 'bg-emerald-600 font-semibold text-white dark:bg-emerald-500 dark:text-neutral-950'
-                            : 'bg-white text-neutral-700 hover:bg-neutral-100 dark:bg-[#111A22] dark:text-slate-200'
+                            ? 'bg-emerald-600 font-semibold text-white dark:bg-emerald-500 dark:text-[#04130D]'
+                            : 'bg-white text-neutral-700 hover:bg-neutral-100 dark:bg-[#101C17] dark:text-slate-200'
                         }`}
                       >
                         {isAr ? p.ar : p.en}
@@ -2759,7 +2769,7 @@ export function CoresHubStudio() {
                     -{simCostSavePct}% ({f2(simResult.newUnitCostKwd)} {kwdSuffix})
                   </span>
                 </div>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar p-1 rounded-2xl bg-neutral-100/90 dark:bg-white/[0.06]">
                   {[0, 3, 5, 8].map((pct) => {
                     const active = simCostSavePct === pct
                     return (
@@ -2767,10 +2777,10 @@ export function CoresHubStudio() {
                         key={pct}
                         type="button"
                         onClick={() => setSimCostSavePct(pct)}
-                        className={`cursor-pointer rounded-full px-3 py-1 text-xs font-medium transition-all duration-150 ${
+                        className={`shrink-0 cursor-pointer whitespace-nowrap rounded-xl px-3 py-1.5 text-xs font-medium transition-all duration-150 ${
                           active
-                            ? 'bg-emerald-600 font-semibold text-white dark:bg-emerald-500 dark:text-neutral-950'
-                            : 'bg-white text-neutral-700 hover:bg-neutral-100 dark:bg-[#111A22] dark:text-slate-200'
+                            ? 'bg-emerald-600 font-semibold text-white dark:bg-emerald-500 dark:text-[#04130D]'
+                            : 'bg-white text-neutral-700 hover:bg-neutral-100 dark:bg-[#101C17] dark:text-slate-200'
                         }`}
                       >
                         {pct === 0 ? (isAr ? 'الحالي (0%)' : 'Current (0%)') : `-${pct}%`}
@@ -2786,7 +2796,7 @@ export function CoresHubStudio() {
                   <div className="text-xs font-semibold text-neutral-800 dark:text-slate-200">
                     {isAr ? 'ثبات الكمية المحافظ' : 'Volume Retention'}
                   </div>
-                  <div className="flex flex-wrap gap-1">
+                  <div className="flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar p-1 rounded-2xl bg-neutral-100/90 dark:bg-white/[0.06]">
                     {[94, 95, 96, 97].map((ret) => {
                       const active = simRetentionPct === ret
                       return (
@@ -2794,10 +2804,10 @@ export function CoresHubStudio() {
                           key={ret}
                           type="button"
                           onClick={() => setSimRetentionPct(ret)}
-                          className={`cursor-pointer rounded-full px-2.5 py-1 text-xs tabular-nums transition-all duration-150 ${
+                          className={`shrink-0 cursor-pointer whitespace-nowrap rounded-xl px-2.5 py-1 text-xs tabular-nums transition-all duration-150 ${
                             active
-                              ? 'bg-emerald-600 font-semibold text-white dark:bg-emerald-500 dark:text-neutral-950'
-                              : 'bg-white text-neutral-700 dark:bg-[#111A22] dark:text-slate-200'
+                              ? 'bg-emerald-600 font-semibold text-white dark:bg-emerald-500 dark:text-[#04130D]'
+                              : 'bg-white text-neutral-700 dark:bg-[#101C17] dark:text-slate-200'
                           }`}
                         >
                           {ret}%
@@ -2811,7 +2821,7 @@ export function CoresHubStudio() {
                   <div className="text-xs font-semibold text-neutral-800 dark:text-slate-200">
                     {isAr ? 'دفعة تثبيت بالتطبيقات' : 'App Top-Slot Lift'}
                   </div>
-                  <div className="flex flex-wrap gap-1">
+                  <div className="flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar p-1 rounded-2xl bg-neutral-100/90 dark:bg-white/[0.06]">
                     {[0, 6, 12].map((lift) => {
                       const active = simPromoLiftPct === lift
                       return (
@@ -2819,10 +2829,10 @@ export function CoresHubStudio() {
                           key={lift}
                           type="button"
                           onClick={() => setSimPromoLiftPct(lift)}
-                          className={`cursor-pointer rounded-full px-2.5 py-1 text-xs tabular-nums transition-all duration-150 ${
+                          className={`shrink-0 cursor-pointer whitespace-nowrap rounded-xl px-2.5 py-1 text-xs tabular-nums transition-all duration-150 ${
                             active
                               ? 'bg-sky-600 font-semibold text-white dark:bg-sky-500 dark:text-neutral-950'
-                              : 'bg-white text-neutral-700 dark:bg-[#111A22] dark:text-slate-200'
+                              : 'bg-white text-neutral-700 dark:bg-[#101C17] dark:text-slate-200'
                           }`}
                         >
                           {lift === 0 ? '0%' : `+${lift}%`}

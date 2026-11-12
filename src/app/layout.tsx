@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { cookies } from 'next/headers'
 import { IBM_Plex_Sans_Arabic, Inter, Cairo } from 'next/font/google'
 import { GlobalAutoTranslator } from '@/components/GlobalAutoTranslator'
@@ -29,6 +29,16 @@ const cairo = Cairo({
   variable: '--font-cairo',
   weight: ['400', '500', '600', '700', '800', '900'],
 })
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#F6F7F8' },
+    { media: '(prefers-color-scheme: dark)', color: '#09110E' },
+  ],
+}
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://aetherbi.com'),
@@ -78,7 +88,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           }}
         />
       </head>
-      <body className={`${ibmPlexArabic.className} min-h-full antialiased md:pb-0`} suppressHydrationWarning>
+      <body className={`${ibmPlexArabic.className} min-h-full antialiased lg:pb-0`} suppressHydrationWarning>
         <ThemeProvider initialTheme={theme}>
           <LanguageProvider initialLocale={locale}>
             <GlobalAutoTranslator />

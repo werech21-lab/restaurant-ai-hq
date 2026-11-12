@@ -7,8 +7,8 @@ import { useI18n } from '@/lib/i18n'
 
 /**
  * Tactile Executive Theme Switcher:
- * - Light Studio ("Finance V2" #F4F6F9 / #FFFFFF)
- * - Dark Obsidian-Emerald ("Verdelo" #090F15 / #111A22 / #10B981)
+ * - Light Studio ("Alabaster" #F6F7F8 / #FFFFFF)
+ * - Dark Obsidian-Emerald ("Verdelo" #09110E / #101C17 / #10B981)
  */
 export function ThemeToggle({ className = '' }: { className?: string }) {
   const { theme, toggleTheme } = useTheme()
@@ -24,11 +24,11 @@ export function ThemeToggle({ className = '' }: { className?: string }) {
 
   const ariaLabel = isDark
     ? isAr
-      ? 'التبديل إلى الوضع النهاري (Finance V2)'
-      : 'Switch to Finance V2 Light Mode'
+      ? 'التبديل إلى الوضع النهاري'
+      : 'Switch to Light Mode'
     : isAr
-      ? 'التبديل إلى الوضع الليلي الزمردي (Verdelo)'
-      : 'Switch to Verdelo Emerald Dark Mode'
+      ? 'التبديل إلى الوضع الزمردي الداكن'
+      : 'Switch to Emerald Dark Mode'
 
   return (
     <button
@@ -37,19 +37,19 @@ export function ThemeToggle({ className = '' }: { className?: string }) {
       aria-label={ariaLabel}
       title={ariaLabel}
       data-no-translate=""
-      className={`group relative inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3 text-[12px] font-bold transition-all duration-150 active:scale-95 ${
+      className={`group relative inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-xl px-3 text-[12px] font-semibold transition-all duration-[160ms] active:scale-95 ${
         isDark
-          ? 'bg-[#111A22] text-emerald-300 ring-1 ring-emerald-500/30 hover:ring-emerald-400/60'
-          : 'bg-white text-slate-800 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ring-1 ring-slate-900/[0.05] hover:bg-slate-50 hover:ring-slate-900/15'
+          ? 'bg-[#101C17] text-emerald-300 ring-1 ring-emerald-500/25 hover:ring-emerald-400/50'
+          : 'bg-white text-slate-800 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ring-1 ring-slate-900/[0.06] hover:bg-slate-50 hover:ring-slate-900/15'
       } ${className}`}
     >
       {isDark ? (
-        <Sun className="h-3.5 w-3.5 text-amber-400 transition-transform duration-200 group-hover:rotate-12" />
+        <Sun className="h-3.5 w-3.5 shrink-0 text-amber-400 transition-transform duration-200 group-hover:rotate-12" />
       ) : (
-        <Moon className="h-3.5 w-3.5 text-emerald-600 transition-transform duration-200 group-hover:-rotate-12" />
+        <Moon className="h-3.5 w-3.5 shrink-0 text-emerald-600 transition-transform duration-200 group-hover:-rotate-12" />
       )}
       <span className="whitespace-nowrap tracking-tight">
-        {isDark ? (isAr ? 'نهاري ☀️' : 'Light ☀️') : isAr ? 'ليلي 🌙' : 'Emerald 🌙'}
+        {isDark ? (isAr ? 'نهاري' : 'Light') : isAr ? 'زمردي' : 'Emerald'}
       </span>
     </button>
   )

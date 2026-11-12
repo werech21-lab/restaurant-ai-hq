@@ -23,8 +23,20 @@ import {
 } from '@/lib/warehouse-prep-engine'
 
 const CARD_CLS =
-  'ae-bento-card rounded-2xl border border-neutral-200/70 bg-white p-5 sm:p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:border-white/[0.06] dark:bg-[#0D1614]'
-const SUBCARD_CLS = 'rounded-2xl bg-[#F7F7F8] dark:bg-[#111E1B]'
+  'ae-bento-card rounded-2xl bg-white p-3.5 sm:p-6 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10'
+const KPI_CARD_CLS =
+  'ae-kpi-card rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10'
+const SUBCARD_CLS =
+  'rounded-2xl bg-[#F6F7F8] ring-1 ring-slate-900/[0.03] dark:bg-[#0B1410] dark:ring-emerald-500/[0.08]'
+const SEGMENT_TRACK_CLS =
+  'flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar p-1 rounded-2xl bg-neutral-100/90 dark:bg-white/[0.06]'
+const SEGMENT_BTN_CLS =
+  'shrink-0 whitespace-nowrap rounded-xl px-3.5 py-2 text-[13px] font-medium transition-all duration-150 cursor-pointer'
+const SEGMENT_BTN_ACTIVE_CLS =
+  'bg-white font-semibold text-emerald-900 shadow-[0_1px_2px_rgba(15,23,42,0.06)] ring-1 ring-slate-900/[0.05] dark:bg-emerald-500/20 dark:text-emerald-200 dark:ring-emerald-400/25'
+const SEGMENT_BTN_IDLE_CLS =
+  'text-slate-600 hover:bg-white/70 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
+const TABLE_SCROLL_CLS = 'overflow-x-auto -mx-3.5 px-3.5 sm:mx-0 sm:px-0'
 const TICKETS_PER_PAGE = 12
 
 const f0 = (n: number) => Math.round(Number.isFinite(n) ? n : 0).toLocaleString('en-US')
@@ -168,77 +180,67 @@ export function OrderPrepSlaStudio() {
       className="w-full max-w-[1920px] mx-auto space-y-6 pb-12 font-sans text-[14px] sm:text-[15px] text-neutral-900 antialiased dark:text-slate-100"
     >
       {toastMsg ? (
-        <div className="fixed bottom-6 end-6 z-50 flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-[13.5px] font-semibold text-emerald-800 shadow-xl ring-1 ring-emerald-500/25 dark:bg-[#0D1614] dark:text-emerald-300">
+        <div className="fixed bottom-20 lg:bottom-6 end-6 z-50 flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-[13.5px] font-semibold text-emerald-800 shadow-xl ring-1 ring-emerald-500/25 dark:bg-[#101C17] dark:text-emerald-300 dark:ring-emerald-500/20">
           <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
           <span>{isAr ? toastMsg.ar : toastMsg.en}</span>
         </div>
       ) : null}
 
-      {/* ───────────── 1. Studio Header ───────────── */}
-      <header className={`${CARD_CLS} flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between`}>
-        <div className="space-y-1.5">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
-              <Timer className="h-5 w-5" />
-            </span>
-            <h1 className="text-[21px] font-bold tracking-tight text-neutral-950 sm:text-[24px] dark:text-white">
-              {T(
-                'Kitchen Order Preparation SLA Monitor',
-                'مراقبة زمن تجهيز المطبخ حسب البراند والفرع (KDS SLA)',
-              )}
-            </h1>
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-[12px] font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-              <ShieldCheck className="h-3.5 w-3.5" />
-              <span>{T('6 Brands · 7 Locations', '٦ براندات · ٧ فروع نشطة')}</span>
-            </span>
-          </div>
-          <p className="text-[14px] leading-relaxed text-neutral-500 dark:text-slate-400">
+      {/* ───────────── 1. Slim Contextual Bar ───────────── */}
+      <div className={`${CARD_CLS} !p-3.5 sm:!p-4 flex flex-wrap items-center justify-between gap-3`}>
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+            <Timer className="h-4 w-4" />
+          </span>
+          <p className="min-w-0 text-[13px] sm:text-[13.5px] font-medium leading-snug text-slate-600 dark:text-slate-300">
             {T(
-              'Exact duration from POS/KDS order arrival to kitchen handoff — classified into Green (<=12.0m), Yellow (12.1–18.0m), and Red (>18.0m).',
-              'قياس دقيق من لحظة وصول الطلب للفرع ولغاية جاهزية التسليم: أخضر ≤ 12.0 دقيقة، أصفر 12.1–18.0 دقيقة، وأحمر حرج > 18.0 دقيقة.',
+              'KDS Prep SLA: Green <= 12.0m • Yellow 12.1–18.0m • Red > 18.0m',
+              'زمن تجهيز المطبخ (KDS): أخضر ≤ 12.0 د • أصفر 12.1–18.0 د • أحمر حرج > 18.0 د',
             )}
           </p>
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-emerald-50 px-2.5 py-1 text-[11.5px] font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+            <ShieldCheck className="h-3.5 w-3.5" />
+            <span>{T('6 Brands · 7 Branches', '٦ براندات · ٧ فروع')}</span>
+          </span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
-          <Link
-            href={`/erp/feryal-ai?prompt=${encodeURIComponent(
-              isAr
-                ? `حلّلي مدة تجهيز الطلبات بالمطابخ: المعدل الوسطي العام ${f1(snap.avgPrepMinutes)} دقيقة (P90 = ${f1(snap.p90PrepMinutes)} دقيقة)، أخضر جيد ${f1(snap.greenPct)}%، أصفر وسط ${f1(snap.yellowPct)}%، وأحمر حرج ${f1(snap.redPct)}%. أعطيني خطة تسريع فورية للفروع الأبطأ.`
-                : `Analyze kitchen order prep SLA: avg ${f1(snap.avgPrepMinutes)}m (P90 ${f1(snap.p90PrepMinutes)}m), Green ${f1(snap.greenPct)}%, Yellow ${f1(snap.yellowPct)}%, Red ${f1(snap.redPct)}%.`,
-            )}`}
-            className="inline-flex h-9 items-center gap-1.5 rounded-full bg-emerald-50 px-4 text-[13px] font-semibold text-emerald-800 transition-colors hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-200"
-          >
-            <Sparkles className="h-4 w-4" />
-            <span>{T('Ask Feryal ✨', 'اسأل فريال ✨')}</span>
-          </Link>
-        </div>
-      </header>
+        <Link
+          href={`/erp/feryal-ai?prompt=${encodeURIComponent(
+            isAr
+              ? `حلّلي مدة تجهيز الطلبات بالمطابخ: المعدل الوسطي العام ${f1(snap.avgPrepMinutes)} دقيقة (P90 = ${f1(snap.p90PrepMinutes)} دقيقة)، أخضر جيد ${f1(snap.greenPct)}%، أصفر وسط ${f1(snap.yellowPct)}%، وأحمر حرج ${f1(snap.redPct)}%. أعطيني خطة تسريع فورية للفروع الأبطأ.`
+              : `Analyze kitchen order prep SLA: avg ${f1(snap.avgPrepMinutes)}m (P90 ${f1(snap.p90PrepMinutes)}m), Green ${f1(snap.greenPct)}%, Yellow ${f1(snap.yellowPct)}%, Red ${f1(snap.redPct)}%.`,
+          )}`}
+          className="inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl bg-emerald-50 px-3.5 text-[13px] font-semibold text-emerald-800 ring-1 ring-emerald-500/20 transition-colors hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-200 dark:ring-emerald-400/25"
+        >
+          <Sparkles className="h-4 w-4 shrink-0" />
+          <span>{T('Ask Feryal ✨', 'اسأل فريال ✨')}</span>
+        </Link>
+      </div>
 
-      {/* ───────────── 2. Top 4 Traffic-Light SLA Summary KPIs (`28px–34px`) ───────────── */}
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <div className={`${CARD_CLS} space-y-2`}>
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
-              {T('Overall Average Prep Time', 'المعدل الوسطي لتجهيز الطلب')}
+      {/* ───────────── 2. Top 4 Traffic-Light SLA Summary KPIs (`2x2` Mobile Grid) ───────────── */}
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className={`${KPI_CARD_CLS} space-y-1.5`}>
+          <div className="flex items-center justify-between gap-1.5">
+            <span className="text-[12.5px] sm:text-[13.5px] font-medium text-neutral-500 dark:text-slate-400">
+              {T('Avg Prep Time', 'المعدل الوسطي للتجهيز')}
             </span>
             <PrepTrafficBadge tier={snap.overallTier} isAr={isAr} compact />
           </div>
           <div className="flex items-baseline justify-between gap-2">
-            <div className="text-[28px] sm:text-[32px] leading-none font-extrabold tracking-tight tabular-nums text-neutral-950 dark:text-white">
+            <div className="text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-neutral-950 dark:text-white">
               {f1(snap.avgPrepMinutes)}{' '}
-              <span className="text-[13.5px] font-semibold text-neutral-500">
-                {isAr ? 'دقيقة' : 'min'}
+              <span className="text-[12px] sm:text-[14px] font-semibold text-neutral-500">
+                {isAr ? 'د' : 'min'}
               </span>
             </div>
-            <span className="font-mono text-[13px] font-semibold tabular-nums text-neutral-500 dark:text-slate-400">
+            <span className="font-mono text-[11.5px] sm:text-[13px] font-semibold tabular-nums text-neutral-500 dark:text-slate-400">
               {snap.avgDurationMmSs}
             </span>
           </div>
-          <p className="text-[12.5px] tabular-nums text-neutral-400">
+          <p className="text-[11.5px] sm:text-[12.5px] leading-snug tabular-nums text-neutral-400">
             {T(
-              `P90 Peak Time: ${f1(snap.p90PrepMinutes)} min · ${f0(snap.totalTickets)} audited tickets`,
-              `زمن الذروة P90: ${f1(snap.p90PrepMinutes)} د · ${f0(snap.totalTickets)} طلب مدقق`,
+              `P90: ${f1(snap.p90PrepMinutes)}m · ${f0(snap.totalTickets)} tickets`,
+              `ذروة P90: ${f1(snap.p90PrepMinutes)} د · ${f0(snap.totalTickets)} طلب`,
             )}
           </p>
         </div>
@@ -246,69 +248,69 @@ export function OrderPrepSlaStudio() {
         <button
           type="button"
           onClick={() => setTierFilter(tierFilter === 'green' ? 'all' : 'green')}
-          className={`${CARD_CLS} cursor-pointer space-y-2 text-start transition-all duration-150 hover:-translate-y-0.5 ${
-            tierFilter === 'green' ? 'ring-2 ring-emerald-500/50' : ''
+          className={`${KPI_CARD_CLS} cursor-pointer space-y-1.5 text-start transition-all duration-150 hover:-translate-y-0.5 ${
+            tierFilter === 'green' ? 'ring-2 ring-emerald-500/60' : ''
           }`}
         >
-          <div className="flex items-center justify-between gap-2">
-            <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[12px] font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
-              {T('🟢 Good (<= 12.0 min)', '🟢 أخضر — جيد (≤ 12.0 د)')}
+          <div className="flex items-center justify-between gap-1.5">
+            <span className="rounded-xl bg-emerald-50 px-2 py-0.5 text-[11.5px] sm:text-[12px] font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
+              {T('🟢 <= 12.0m', '🟢 ≤ 12.0 د')}
             </span>
-            <span className="text-[13px] font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">
-              {f0(snap.greenCount)} {isAr ? 'طلب' : 'orders'}
+            <span className="text-[12px] font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">
+              {f0(snap.greenCount)}
             </span>
           </div>
-          <div className="text-[28px] sm:text-[32px] leading-none font-extrabold tracking-tight tabular-nums text-emerald-700 dark:text-emerald-400">
+          <div className="text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-emerald-700 dark:text-emerald-400">
             {f1(snap.greenPct)}%
           </div>
-          <p className="text-[12.5px] text-neutral-400">
-            {T('Handed off smoothly within target SLA', 'طلبات جُهزت وسُلمت ضمن الزمن المثالي')}
+          <p className="text-[11.5px] sm:text-[12.5px] leading-snug text-neutral-400">
+            {T('Handed off within target SLA', 'سُلمت ضمن الزمن المثالي')}
           </p>
         </button>
 
         <button
           type="button"
           onClick={() => setTierFilter(tierFilter === 'yellow' ? 'all' : 'yellow')}
-          className={`${CARD_CLS} cursor-pointer space-y-2 text-start transition-all duration-150 hover:-translate-y-0.5 ${
-            tierFilter === 'yellow' ? 'ring-2 ring-amber-500/50' : ''
+          className={`${KPI_CARD_CLS} cursor-pointer space-y-1.5 text-start transition-all duration-150 hover:-translate-y-0.5 ${
+            tierFilter === 'yellow' ? 'ring-2 ring-amber-500/60' : ''
           }`}
         >
-          <div className="flex items-center justify-between gap-2">
-            <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[12px] font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
-              {T('🟡 Medium (12.1 – 18.0 min)', '🟡 أصفر — وسط (12.1 – 18.0 د)')}
+          <div className="flex items-center justify-between gap-1.5">
+            <span className="rounded-xl bg-amber-50 px-2 py-0.5 text-[11.5px] sm:text-[12px] font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
+              {T('🟡 12.1–18.0m', '🟡 12.1–18.0 د')}
             </span>
-            <span className="text-[13px] font-semibold tabular-nums text-amber-800 dark:text-amber-300">
-              {f0(snap.yellowCount)} {isAr ? 'طلب' : 'orders'}
+            <span className="text-[12px] font-semibold tabular-nums text-amber-800 dark:text-amber-300">
+              {f0(snap.yellowCount)}
             </span>
           </div>
-          <div className="text-[28px] sm:text-[32px] leading-none font-extrabold tracking-tight tabular-nums text-amber-700 dark:text-amber-300">
+          <div className="text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-amber-700 dark:text-amber-300">
             {f1(snap.yellowPct)}%
           </div>
-          <p className="text-[12.5px] text-neutral-400">
-            {T('Moderate station pressure — shift watch', 'ضغط متوسط بالمطبخ تحت متابعة الوردية')}
+          <p className="text-[11.5px] sm:text-[12.5px] leading-snug text-neutral-400">
+            {T('Moderate station pressure', 'ضغط متوسط تحت المتابعة')}
           </p>
         </button>
 
         <button
           type="button"
           onClick={() => setTierFilter(tierFilter === 'red' ? 'all' : 'red')}
-          className={`${CARD_CLS} cursor-pointer space-y-2 text-start transition-all duration-150 hover:-translate-y-0.5 ${
-            tierFilter === 'red' ? 'ring-2 ring-rose-500/50' : ''
+          className={`${KPI_CARD_CLS} cursor-pointer space-y-1.5 text-start transition-all duration-150 hover:-translate-y-0.5 ${
+            tierFilter === 'red' ? 'ring-2 ring-rose-500/60' : ''
           }`}
         >
-          <div className="flex items-center justify-between gap-2">
-            <span className="rounded-full bg-rose-50 px-2.5 py-1 text-[12px] font-semibold text-rose-700 dark:bg-rose-950/60 dark:text-rose-200">
-              {T('🔴 Critical (> 18.0 min)', '🔴 أحمر — حرج (> 18.0 د)')}
+          <div className="flex items-center justify-between gap-1.5">
+            <span className="rounded-xl bg-rose-50 px-2 py-0.5 text-[11.5px] sm:text-[12px] font-semibold text-rose-700 dark:bg-rose-950/60 dark:text-rose-200">
+              {T('🔴 > 18.0m', '🔴 > 18.0 د')}
             </span>
-            <span className="text-[13px] font-semibold tabular-nums text-rose-700 dark:text-rose-300">
-              {f0(snap.redCount)} {isAr ? 'طلب' : 'orders'}
+            <span className="text-[12px] font-semibold tabular-nums text-rose-700 dark:text-rose-300">
+              {f0(snap.redCount)}
             </span>
           </div>
-          <div className="text-[28px] sm:text-[32px] leading-none font-extrabold tracking-tight tabular-nums text-rose-600 dark:text-rose-400">
+          <div className="text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-rose-600 dark:text-rose-400">
             {f1(snap.redPct)}%
           </div>
-          <p className="text-[12.5px] text-neutral-400">
-            {T('Critical outliers eligible for Escalate ↗', 'حالات التأخير الحرجة المؤهلة للتصعيد المباشر')}
+          <p className="text-[11.5px] sm:text-[12.5px] leading-snug text-neutral-400">
+            {T('Critical delays for Escalate ↗', 'حالات حرجة مؤهلة للتصعيد')}
           </p>
         </button>
       </section>
@@ -332,26 +334,28 @@ export function OrderPrepSlaStudio() {
             </p>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className={TABLE_SCROLL_CLS}>
             <table className="w-full min-w-[560px] border-collapse text-start text-[14px] sm:text-[14.5px]">
               <thead>
                 <tr className="border-b border-neutral-100 text-[12.5px] font-semibold text-neutral-500 dark:border-white/[0.06] dark:text-slate-400">
-                  <th className="py-2.5 pe-2 text-start">{T('Branch', 'الفرع')}</th>
-                  <th className="px-2 py-2.5 text-start">{T('Avg Prep', 'المعدل الوسطي')}</th>
-                  <th className="px-2 py-2.5 text-start">{T('P90 Peak', 'ذروة P90')}</th>
-                  <th className="px-2 py-2.5 text-start">
+                  <th className="sticky start-0 z-10 bg-white py-2.5 pe-2 text-start whitespace-nowrap dark:bg-[#101C17]">
+                    {T('Branch', 'الفرع')}
+                  </th>
+                  <th className="px-2 py-2.5 text-start whitespace-nowrap">{T('Avg Prep', 'المعدل الوسطي')}</th>
+                  <th className="px-2 py-2.5 text-start whitespace-nowrap">{T('P90 Peak', 'ذروة P90')}</th>
+                  <th className="px-2 py-2.5 text-start whitespace-nowrap">
                     {T('🟢 / 🟡 / 🔴 Mix', 'توزيع الأخضر / الأصفر / الأحمر')}
                   </th>
-                  <th className="py-2.5 ps-2 text-end">{T('Grade', 'التصنيف')}</th>
+                  <th className="py-2.5 ps-2 text-end whitespace-nowrap">{T('Grade', 'التصنيف')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100 dark:divide-white/[0.05]">
                 {snap.branchMatrix.map((row) => (
                   <tr
                     key={row.id}
-                    className="transition-colors hover:bg-[#F7F7F8]/80 dark:hover:bg-white/[0.03]"
+                    className="transition-colors hover:bg-[#F6F7F8]/80 dark:hover:bg-white/[0.03]"
                   >
-                    <td className="py-3 pe-2 font-semibold text-neutral-950 dark:text-white">
+                    <td className="sticky start-0 z-10 bg-white py-3 pe-2 font-semibold whitespace-nowrap text-neutral-950 dark:bg-[#101C17] dark:text-white">
                       <div>{isAr ? row.nameAr : row.nameEn}</div>
                       <div className="text-[12px] font-normal text-neutral-400">
                         {f0(row.ticketCount)} {isAr ? 'طلب' : 'tickets'}
@@ -367,7 +371,7 @@ export function OrderPrepSlaStudio() {
                       {f1(row.p90PrepMinutes)} {isAr ? 'د' : 'm'}
                     </td>
                     <td className="px-2 py-3">
-                      <div className="flex h-2 w-36 overflow-hidden rounded-full bg-neutral-100 dark:bg-[#111E1B]">
+                      <div className="flex h-2 w-36 overflow-hidden rounded-full bg-neutral-100 dark:bg-white/[0.08]">
                         <div style={{ width: `${row.greenPct}%` }} className="bg-emerald-500/85" />
                         <div style={{ width: `${row.yellowPct}%` }} className="bg-amber-400/90" />
                         <div style={{ width: `${row.redPct}%` }} className="bg-rose-500/85" />
@@ -403,26 +407,28 @@ export function OrderPrepSlaStudio() {
             </p>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className={TABLE_SCROLL_CLS}>
             <table className="w-full min-w-[560px] border-collapse text-start text-[14px] sm:text-[14.5px]">
               <thead>
                 <tr className="border-b border-neutral-100 text-[12.5px] font-semibold text-neutral-500 dark:border-white/[0.06] dark:text-slate-400">
-                  <th className="py-2.5 pe-2 text-start">{T('Brand', 'البراند')}</th>
-                  <th className="px-2 py-2.5 text-start">{T('Avg Prep', 'المعدل الوسطي')}</th>
-                  <th className="px-2 py-2.5 text-start">{T('P90 Peak', 'ذروة P90')}</th>
-                  <th className="px-2 py-2.5 text-start">
+                  <th className="sticky start-0 z-10 bg-white py-2.5 pe-2 text-start whitespace-nowrap dark:bg-[#101C17]">
+                    {T('Brand', 'البراند')}
+                  </th>
+                  <th className="px-2 py-2.5 text-start whitespace-nowrap">{T('Avg Prep', 'المعدل الوسطي')}</th>
+                  <th className="px-2 py-2.5 text-start whitespace-nowrap">{T('P90 Peak', 'ذروة P90')}</th>
+                  <th className="px-2 py-2.5 text-start whitespace-nowrap">
                     {T('🟢 / 🟡 / 🔴 Mix', 'توزيع الأخضر / الأصفر / الأحمر')}
                   </th>
-                  <th className="py-2.5 ps-2 text-end">{T('Grade', 'التصنيف')}</th>
+                  <th className="py-2.5 ps-2 text-end whitespace-nowrap">{T('Grade', 'التصنيف')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100 dark:divide-white/[0.05]">
                 {snap.brandMatrix.map((row) => (
                   <tr
                     key={row.id}
-                    className="transition-colors hover:bg-[#F7F7F8]/80 dark:hover:bg-white/[0.03]"
+                    className="transition-colors hover:bg-[#F6F7F8]/80 dark:hover:bg-white/[0.03]"
                   >
-                    <td className="py-3 pe-2 font-semibold text-neutral-950 dark:text-white">
+                    <td className="sticky start-0 z-10 bg-white py-3 pe-2 font-semibold whitespace-nowrap text-neutral-950 dark:bg-[#101C17] dark:text-white">
                       <div>{isAr ? row.nameAr : row.nameEn}</div>
                       <div className="text-[12px] font-normal text-neutral-400">
                         {f0(row.ticketCount)} {isAr ? 'طلب' : 'tickets'}
@@ -438,7 +444,7 @@ export function OrderPrepSlaStudio() {
                       {f1(row.p90PrepMinutes)} {isAr ? 'د' : 'm'}
                     </td>
                     <td className="px-2 py-3">
-                      <div className="flex h-2 w-36 overflow-hidden rounded-full bg-neutral-100 dark:bg-[#111E1B]">
+                      <div className="flex h-2 w-36 overflow-hidden rounded-full bg-neutral-100 dark:bg-white/[0.08]">
                         <div style={{ width: `${row.greenPct}%` }} className="bg-emerald-500/85" />
                         <div style={{ width: `${row.yellowPct}%` }} className="bg-amber-400/90" />
                         <div style={{ width: `${row.redPct}%` }} className="bg-rose-500/85" />
@@ -475,13 +481,15 @@ export function OrderPrepSlaStudio() {
               )}
             </p>
           </div>
-          <div className="overflow-x-auto">
+          <div className={TABLE_SCROLL_CLS}>
             <table className="w-full min-w-[880px] border-collapse text-start text-[14px]">
               <thead>
                 <tr className="border-b border-neutral-100 text-[12.5px] font-semibold text-neutral-500 dark:border-white/[0.06] dark:text-slate-400">
-                  <th className="py-2.5 pe-3 text-start">{T('Brand \\ Branch', 'البراند \\ الفرع')}</th>
+                  <th className="sticky start-0 z-10 bg-white py-2.5 pe-3 text-start whitespace-nowrap dark:bg-[#101C17]">
+                    {T('Brand \\ Branch', 'البراند \\ الفرع')}
+                  </th>
                   {snap.branchMatrix.map((loc) => (
-                    <th key={loc.id} className="px-2 py-2.5 text-center">
+                    <th key={loc.id} className="px-2 py-2.5 text-center whitespace-nowrap">
                       {isAr ? loc.nameAr : loc.nameEn}
                     </th>
                   ))}
@@ -490,7 +498,7 @@ export function OrderPrepSlaStudio() {
               <tbody className="divide-y divide-neutral-100 dark:divide-white/[0.05]">
                 {snap.brandMatrix.map((br) => (
                   <tr key={br.id}>
-                    <td className="py-3 pe-3 font-semibold text-neutral-950 dark:text-white">
+                    <td className="sticky start-0 z-10 bg-white py-3 pe-3 font-semibold whitespace-nowrap text-neutral-950 dark:bg-[#101C17] dark:text-white">
                       {isAr ? br.nameAr : br.nameEn}
                     </td>
                     {snap.branchMatrix.map((loc) => {
@@ -556,14 +564,14 @@ export function OrderPrepSlaStudio() {
             <button
               type="button"
               onClick={() => setSelectedHour(null)}
-              className="cursor-pointer rounded-full bg-[#F7F7F8] px-3.5 py-1.5 text-[13px] font-semibold text-neutral-700 hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#111E1B] dark:text-slate-200"
+              className="shrink-0 cursor-pointer whitespace-nowrap rounded-xl bg-neutral-100/90 px-3.5 py-2 text-[13px] font-medium text-neutral-700 hover:bg-emerald-50 hover:text-emerald-800 dark:bg-white/[0.06] dark:text-slate-200"
             >
               {T('Clear Hour Filter ✕', 'إلغاء فلتر الساعة ✕')}
             </button>
           ) : null}
         </div>
 
-        <div className="grid grid-cols-7 gap-2.5 sm:grid-cols-14">
+        <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-3.5 px-3.5 pb-1 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-14 sm:overflow-visible">
           {snap.hourlyBottlenecks.map((h) => {
             const active = selectedHour === h.hourIndex
             const barHeightPct = Math.max(16, Math.round((h.totalTickets / maxHourTickets) * 100))
@@ -578,7 +586,7 @@ export function OrderPrepSlaStudio() {
                 key={h.hourIndex}
                 type="button"
                 onClick={() => setSelectedHour(active ? null : h.hourIndex)}
-                className={`${SUBCARD_CLS} flex cursor-pointer flex-col items-center justify-between p-2.5 text-center transition-all duration-150 ${
+                className={`${SUBCARD_CLS} flex w-[56px] shrink-0 sm:w-auto cursor-pointer flex-col items-center justify-between p-2.5 text-center transition-all duration-150 ${
                   active ? 'ring-2 ring-emerald-500' : 'hover:ring-1 hover:ring-neutral-300'
                 }`}
               >
@@ -631,84 +639,93 @@ export function OrderPrepSlaStudio() {
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            {(
-              [
-                { id: 'all', ar: 'الكل', en: 'All' },
-                { id: 'green', ar: '🟢 أخضر', en: '🟢 Good' },
-                { id: 'yellow', ar: '🟡 أصفر', en: '🟡 Medium' },
-                { id: 'red', ar: '🔴 حرج', en: '🔴 Critical' },
-              ] as const
-            ).map((pill) => (
-              <button
-                key={pill.id}
-                type="button"
-                onClick={() => setTierFilter(pill.id)}
-                className={`cursor-pointer rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-all duration-150 ${
-                  tierFilter === pill.id
-                    ? 'bg-emerald-600 text-white shadow-sm'
-                    : `${SUBCARD_CLS} text-neutral-700 hover:bg-emerald-50 hover:text-emerald-800 dark:text-slate-200`
-                }`}
-              >
-                {isAr ? pill.ar : pill.en}
-              </button>
-            ))}
-
-            <div className={`${SUBCARD_CLS} inline-flex h-9 items-center gap-1.5 px-3.5`}>
-              <Search className="h-4 w-4 text-neutral-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={T('Search order / branch…', 'ابحث برقم الطلب أو الفرع…')}
-                className="w-40 bg-transparent text-[13px] text-neutral-900 placeholder:text-neutral-400 focus:outline-none dark:text-white"
-              />
+          <div className="flex max-w-full flex-col gap-2.5 sm:flex-row sm:items-center">
+            <div role="tablist" className={SEGMENT_TRACK_CLS}>
+              {(
+                [
+                  { id: 'all', ar: 'الكل', en: 'All' },
+                  { id: 'green', ar: '🟢 أخضر', en: '🟢 Good' },
+                  { id: 'yellow', ar: '🟡 أصفر', en: '🟡 Medium' },
+                  { id: 'red', ar: '🔴 حرج', en: '🔴 Critical' },
+                ] as const
+              ).map((pill) => {
+                const active = tierFilter === pill.id
+                return (
+                  <button
+                    key={pill.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => setTierFilter(pill.id)}
+                    className={`${SEGMENT_BTN_CLS} ${
+                      active ? SEGMENT_BTN_ACTIVE_CLS : SEGMENT_BTN_IDLE_CLS
+                    }`}
+                  >
+                    {isAr ? pill.ar : pill.en}
+                  </button>
+                )
+              })}
             </div>
 
-            <div className="flex items-center gap-1.5 text-[13px]">
-              <span className="tabular-nums text-neutral-500 dark:text-slate-400">
-                {safePage}/{totalPages}
-              </span>
-              <button
-                type="button"
-                disabled={safePage <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-[#F7F7F8] text-neutral-700 hover:bg-emerald-50 disabled:opacity-40 dark:bg-[#111E1B] dark:text-slate-200"
-                aria-label={T('Previous page', 'السابق')}
-              >
-                {isAr ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-              </button>
-              <button
-                type="button"
-                disabled={safePage >= totalPages}
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-[#F7F7F8] text-neutral-700 hover:bg-emerald-50 disabled:opacity-40 dark:bg-[#111E1B] dark:text-slate-200"
-                aria-label={T('Next page', 'التالي')}
-              >
-                {isAr ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-              </button>
+            <div className="flex items-center gap-2">
+              <div className={`${SUBCARD_CLS} inline-flex h-9 flex-1 sm:flex-initial items-center gap-1.5 px-3.5`}>
+                <Search className="h-4 w-4 shrink-0 text-neutral-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={T('Search order / branch…', 'ابحث برقم الطلب أو الفرع…')}
+                  className="w-full sm:w-40 bg-transparent text-[13px] text-neutral-900 placeholder:text-neutral-400 focus:outline-none dark:text-white"
+                />
+              </div>
+
+              <div className="flex shrink-0 items-center gap-1.5 text-[13px]">
+                <span className="tabular-nums text-neutral-500 dark:text-slate-400">
+                  {safePage}/{totalPages}
+                </span>
+                <button
+                  type="button"
+                  disabled={safePage <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-xl bg-[#F6F7F8] text-neutral-700 hover:bg-emerald-50 disabled:opacity-40 dark:bg-[#0B1410] dark:text-slate-200"
+                  aria-label={T('Previous page', 'السابق')}
+                >
+                  {isAr ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+                </button>
+                <button
+                  type="button"
+                  disabled={safePage >= totalPages}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-xl bg-[#F6F7F8] text-neutral-700 hover:bg-emerald-50 disabled:opacity-40 dark:bg-[#0B1410] dark:text-slate-200"
+                  aria-label={T('Next page', 'التالي')}
+                >
+                  {isAr ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className={TABLE_SCROLL_CLS}>
           <table className="w-full min-w-[1120px] border-collapse text-start text-[14px] sm:text-[14.5px]">
             <thead>
               <tr className="border-b border-neutral-100 text-[12.5px] font-semibold text-neutral-500 dark:border-white/[0.06] dark:text-slate-400">
-                <th className="py-3 pe-3 text-start">{T('Order ID', 'رقم الطلب')}</th>
-                <th className="px-2.5 py-3 text-start">
+                <th className="sticky start-0 z-10 bg-white py-3 pe-3 text-start whitespace-nowrap dark:bg-[#101C17]">
+                  {T('Order ID', 'رقم الطلب')}
+                </th>
+                <th className="px-2.5 py-3 text-start whitespace-nowrap">
                   {T('Arrived at Branch', 'لحظة وصول الطلب')}
                 </th>
-                <th className="px-2.5 py-3 text-start">{T('Ready Handoff', 'لحظة الجاهزية')}</th>
-                <th className="px-2.5 py-3 text-start">
+                <th className="px-2.5 py-3 text-start whitespace-nowrap">{T('Ready Handoff', 'لحظة الجاهزية')}</th>
+                <th className="px-2.5 py-3 text-start whitespace-nowrap">
                   {T('Prep Duration', 'مدة التجهيز (mm:ss)')}
                 </th>
-                <th className="px-2.5 py-3 text-start">{T('Brand', 'البراند')}</th>
-                <th className="px-2.5 py-3 text-start">{T('Branch', 'الفرع')}</th>
-                <th className="px-2.5 py-3 text-start">{T('Channel', 'القناة')}</th>
-                <th className="px-2.5 py-3 text-start">{T('Grade', 'التصنيف')}</th>
-                <th className="px-2.5 py-3 text-start">{T('Diagnosis', 'التشخيص')}</th>
-                <th className="py-3 ps-3 text-end">{T('Action', 'الإجراء')}</th>
+                <th className="px-2.5 py-3 text-start whitespace-nowrap">{T('Brand', 'البراند')}</th>
+                <th className="px-2.5 py-3 text-start whitespace-nowrap">{T('Branch', 'الفرع')}</th>
+                <th className="px-2.5 py-3 text-start whitespace-nowrap">{T('Channel', 'القناة')}</th>
+                <th className="px-2.5 py-3 text-start whitespace-nowrap">{T('Grade', 'التصنيف')}</th>
+                <th className="px-2.5 py-3 text-start whitespace-nowrap">{T('Diagnosis', 'التشخيص')}</th>
+                <th className="py-3 ps-3 text-end whitespace-nowrap">{T('Action', 'الإجراء')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100 dark:divide-white/[0.05]">
@@ -718,9 +735,9 @@ export function OrderPrepSlaStudio() {
                 return (
                   <tr
                     key={t.orderId}
-                    className="transition-colors hover:bg-[#F7F7F8]/70 dark:hover:bg-white/[0.03]"
+                    className="transition-colors hover:bg-[#F6F7F8]/70 dark:hover:bg-white/[0.03]"
                   >
-                    <td className="py-3.5 pe-3 font-mono font-semibold tabular-nums text-neutral-950 dark:text-white">
+                    <td className="sticky start-0 z-10 bg-white py-3.5 pe-3 font-mono font-semibold whitespace-nowrap tabular-nums text-neutral-950 dark:bg-[#101C17] dark:text-white">
                       <div>{t.orderId}</div>
                       <div className="font-sans text-[12px] font-normal text-neutral-400">
                         {t.dateIso}

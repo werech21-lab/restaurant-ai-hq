@@ -53,7 +53,7 @@ export async function Shell({ children }: { children: React.ReactNode }) {
               </div>
               <Sidebar user={user} enabledKeys={visibleKeys} />
               <div className="ae-content-col w-full flex-1 min-w-0">
-                <div className="ae-page w-full max-w-[1920px] mx-auto px-5 sm:px-7 xl:px-10 min-w-0 space-y-3 pt-2 pb-20 md:pb-8 text-[14.5px] leading-relaxed">
+                <div className="ae-page w-full max-w-[1920px] mx-auto px-4 sm:px-6 xl:px-10 pt-0 lg:pt-2 pb-24 lg:pb-8 min-w-0 space-y-3 text-[14.5px] leading-relaxed">
                   <TopFilterBar
                     companyNameAr={company.name}
                     notifications={<GovernanceBellTrigger />}

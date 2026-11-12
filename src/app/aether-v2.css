@@ -1,18 +1,21 @@
 /* ==========================================================================
-   AETHER BI V12 — "FINANCE V2 × VERDELO × SKERRY" SIGNATURE DESIGN SYSTEM
+   AETHER BI V14 — "FINANCE V2 × VERDELO × SKERRY" MOBILE-FIRST DESIGN SYSTEM
    --------------------------------------------------------------------------
-   1. Finance V2 Light Studio (Default):
-      - Sidebar Rail : Deep Slate #0B1220
-      - Canvas       : Warm-Cool Porcelain #F4F6F9
-      - Bento Cards  : Pure White #FFFFFF · Multi-layer ambient elevation
-                       0 1px 2px rgba(15,23,42,0.03), 0 8px 24px -6px rgba(15,23,42,0.045)
+   1. Finance V2 Warm-Alabaster Light Studio (Default):
+      - Sidebar Rail : Deep Slate #0B1220 (Desktop >= 1024px)
+      - Canvas       : Warm Alabaster #F6F7F8
+      - Bento Cards  : Pure White #FFFFFF · rounded-2xl (1rem)
+                       shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)]
+                       ring-1 ring-slate-900/[0.04]
    2. Verdelo Obsidian-Emerald Dark Theme (Optional Toggle):
-      - Sidebar Rail : Deep Obsidian #070C12
-      - Canvas       : Obsidian-Emerald #090F15
-      - Bento Cards  : Elevated Slate-Obsidian #111A22 · ring-1 rgba(255,255,255,0.06)
+      - Sidebar Rail : Deep Obsidian-Emerald #070E0B
+      - Canvas       : Rich Obsidian-Emerald #09110E
+      - Bento Cards  : Elevated Emerald-Obsidian #101C17 · ring-1 ring-emerald-500/10
       - Accent       : Signature Emerald #10B981
-   3. Skerry Collapsible Rail & Capsule Geometry:
+   3. Skerry Collapsible Rail & Native-Grade Mobile Chrome:
+      - Clean desktop/mobile breakpoint at lg: (1024px)
       - Smooth 260px <-> 76px rail collapse (--ae-rail-w) in RTL & LTR
+      - 56px frosted mobile header + silky bottom sheets + 5-tab bottom dock
       - Zero purple AI gradients · Zero harsh 1px solid dark borders · Crisp tabular-nums
    ========================================================================== */
 
@@ -24,7 +27,7 @@ html[data-rail-collapsed='true'] {
   --ae-rail-w: 76px;
 }
 
-/* ---------- 1. Outer Architectural Studio Shell (#F7F7F8 / #090F15) ---------- */
+/* ---------- 1. Outer Architectural Studio Shell (#F6F7F8 / #09110E) ---------- */
 #ae-root,
 html[data-theme='light'] #ae-root,
 html.light-mode #ae-root,
@@ -34,7 +37,7 @@ html.light-mode #ae-root .app-content,
 html:not(.dark) #ae-root .app-content {
   position: relative;
   color: #0f172a !important;
-  background-color: #F7F7F8 !important;
+  background-color: #F6F7F8 !important;
 }
 
 #ae-root {
@@ -49,7 +52,7 @@ html[data-theme='dark'] #ae-root .app-content,
 html.dark #ae-root main,
 html[data-theme='dark'] #ae-root main {
   color: #f8fafc !important;
-  background-color: #090F15 !important;
+  background-color: #09110E !important;
 }
 
 #ae-root .ae-ambient {
@@ -64,7 +67,7 @@ html[data-theme='dark'] #ae-root main {
   position: absolute;
   border-radius: 9999px;
   filter: blur(80px);
-  opacity: 0.38;
+  opacity: 0.34;
 }
 
 #ae-root .ae-ambient span:nth-child(1) {
@@ -72,7 +75,7 @@ html[data-theme='dark'] #ae-root main {
   height: 40rem;
   inset-inline-start: -10rem;
   top: -14rem;
-  background: radial-gradient(circle, rgba(16, 185, 129, 0.09), transparent 68%);
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.08), transparent 68%);
 }
 
 #ae-root .ae-ambient span:nth-child(2) {
@@ -80,7 +83,7 @@ html[data-theme='dark'] #ae-root main {
   height: 34rem;
   inset-inline-end: -8rem;
   top: 24%;
-  background: radial-gradient(circle, rgba(14, 165, 233, 0.07), transparent 68%);
+  background: radial-gradient(circle, rgba(14, 165, 233, 0.055), transparent 68%);
 }
 
 #ae-root .ae-ambient span:nth-child(3) {
@@ -88,21 +91,21 @@ html[data-theme='dark'] #ae-root main {
   height: 30rem;
   inset-inline-start: 35%;
   bottom: -14rem;
-  background: radial-gradient(circle, rgba(16, 185, 129, 0.05), transparent 68%);
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.045), transparent 68%);
 }
 
 html.dark #ae-root .ae-ambient span:nth-child(1),
 html[data-theme='dark'] #ae-root .ae-ambient span:nth-child(1) {
-  background: radial-gradient(circle, rgba(16, 185, 129, 0.16), transparent 68%);
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.14), transparent 68%);
 }
 
 html.dark #ae-root .ae-ambient span:nth-child(2),
 html[data-theme='dark'] #ae-root .ae-ambient span:nth-child(2) {
-  background: radial-gradient(circle, rgba(20, 184, 166, 0.10), transparent 68%);
+  background: radial-gradient(circle, rgba(20, 184, 166, 0.09), transparent 68%);
 }
 
-/* ---------- 2. Skerry Collapsible Deep-Slate Sidebar (#0B1220 / #070C12) ---------- */
-@media (min-width: 768px) {
+/* ---------- 2. Skerry Collapsible Deep-Slate Sidebar (`lg:` 1024px Breakpoint) ---------- */
+@media (min-width: 1024px) {
   #ae-root {
     display: flex;
     align-items: flex-start;
@@ -122,7 +125,7 @@ html[data-theme='dark'] #ae-root .ae-ambient span:nth-child(2) {
   }
 }
 
-/* Deep Obsidian-Slate Rail in BOTH Light (#0B1220) & Dark (#070C12) */
+/* Deep Obsidian-Slate Rail in BOTH Light (#0B1220) & Dark (#070E0B) */
 #ae-sidebar,
 html[data-theme='light'] #ae-sidebar,
 html.light-mode #ae-sidebar,
@@ -140,15 +143,15 @@ html:not(.dark) #ae-sidebar {
 
 html.dark #ae-sidebar,
 html[data-theme='dark'] #ae-sidebar {
-  background: #070C12 !important;
-  box-shadow: 1px 0 0 rgba(255, 255, 255, 0.05) !important;
+  background: #070E0B !important;
+  box-shadow: 1px 0 0 rgba(16, 185, 129, 0.12) !important;
   color: #cbd5e1 !important;
 }
 
 html.dark [dir='rtl'] #ae-sidebar,
 html.dark #ae-sidebar[dir='rtl'],
 html[data-theme='dark'] #ae-sidebar[dir='rtl'] {
-  box-shadow: -1px 0 0 rgba(255, 255, 255, 0.05) !important;
+  box-shadow: -1px 0 0 rgba(16, 185, 129, 0.12) !important;
 }
 
 /* Protect dark-rail typography and surfaces from global light-mode overrides */
@@ -270,12 +273,15 @@ html[data-theme='light'] #ae-sidebar .ae-side-logout:hover {
   color: #ffffff !important;
 }
 
-/* ---------- 3. Verdelo Sliding Pill Segmented Controls ---------- */
+/* ---------- 3. Verdelo Horizontal Scrollable Sliding Pill Controls ---------- */
 #ae-root .ae-sliding-tabs {
   position: relative;
-  display: inline-flex;
+  display: flex;
+  max-width: 100%;
   align-items: center;
-  border-radius: 9999px;
+  gap: 0.375rem;
+  overflow-x: auto;
+  border-radius: 1rem;
   padding: 0.25rem;
   background-color: #EEF1F6 !important;
   box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04) !important;
@@ -283,31 +289,34 @@ html[data-theme='light'] #ae-sidebar .ae-side-logout:hover {
 
 html.dark #ae-root .ae-sliding-tabs,
 html[data-theme='dark'] #ae-root .ae-sliding-tabs {
-  background-color: #0C131A !important;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06) !important;
+  background-color: #0C1612 !important;
+  box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.10) !important;
 }
 
 #ae-root .ae-sliding-tabs[data-surface='white'] {
   background-color: #FFFFFF !important;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03), 0 8px 24px -6px rgba(15, 23, 42, 0.045), 0 0 0 1px rgba(15, 23, 42, 0.04) !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.02), 0 0 0 1px rgba(15, 23, 42, 0.04) !important;
 }
 
 html.dark #ae-root .ae-sliding-tabs[data-surface='white'],
 html[data-theme='dark'] #ae-root .ae-sliding-tabs[data-surface='white'] {
-  background-color: #111A22 !important;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 8px 20px -6px rgba(0, 0, 0, 0.45) !important;
+  background-color: #101C17 !important;
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.10), 0 8px 20px -6px rgba(0, 0, 0, 0.45) !important;
 }
 
 #ae-root [data-sliding-pill-indicator='true'],
 html[data-theme='light'] #ae-root [data-sliding-pill-indicator='true'] {
-  background-color: #0B1220 !important;
-  box-shadow: 0 2px 8px -2px rgba(11, 18, 32, 0.28) !important;
+  background-color: #059669 !important;
+  border-radius: 0.75rem;
+  box-shadow: 0 2px 8px -2px rgba(5, 150, 105, 0.28) !important;
   border: none !important;
+  transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1), width 160ms cubic-bezier(0.22, 1, 0.36, 1), opacity 160ms ease;
 }
 
 html.dark #ae-root [data-sliding-pill-indicator='true'],
 html[data-theme='dark'] #ae-root [data-sliding-pill-indicator='true'] {
   background-color: #10B981 !important;
+  border-radius: 0.75rem;
   box-shadow: 0 2px 12px -2px rgba(16, 185, 129, 0.38) !important;
 }
 
@@ -316,7 +325,7 @@ html[data-theme='dark'] #ae-root [data-sliding-pill-indicator='true'] {
   border: none !important;
   box-shadow: none !important;
   color: #475569 !important;
-  transition: color 160ms ease;
+  transition: color 160ms ease, background-color 160ms ease;
 }
 
 #ae-root button[data-sliding-pill-btn='true']:hover {
@@ -347,21 +356,21 @@ html[data-theme='dark'] #ae-root button[data-sliding-pill-btn='true'][data-activ
   color: #04130D !important;
 }
 
-/* ---------- 4. Single-Row Executive Command Bar ---------- */
+/* ---------- 4. Single-Row Desktop Executive Command Bar ---------- */
 #ae-topbar {
-  background: rgba(255, 255, 255, 0.92) !important;
+  background: rgba(255, 255, 255, 0.94) !important;
   -webkit-backdrop-filter: blur(20px) saturate(160%);
   backdrop-filter: blur(20px) saturate(160%);
   border: none !important;
-  border-radius: 20px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03), 0 8px 24px -6px rgba(15, 23, 42, 0.045), 0 0 0 1px rgba(15, 23, 42, 0.04) !important;
+  border-radius: 1rem;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.02), 0 0 0 1px rgba(15, 23, 42, 0.04) !important;
   color: #0f172a !important;
 }
 
 html.dark #ae-topbar,
 html[data-theme='dark'] #ae-topbar {
-  background: rgba(17, 26, 34, 0.9) !important;
-  box-shadow: 0 10px 28px -6px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.06) !important;
+  background: rgba(16, 28, 23, 0.92) !important;
+  box-shadow: 0 10px 28px -6px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(16, 185, 129, 0.12) !important;
   color: #f8fafc !important;
 }
 
@@ -376,13 +385,13 @@ html[data-theme='dark'] #ae-topbar .ae-top-title {
 
 #ae-topbar .ae-top-link {
   color: #64748b !important;
-  border-radius: 9999px;
-  transition: background-color 150ms ease, color 150ms ease;
+  border-radius: 0.75rem;
+  transition: background-color 160ms ease, color 160ms ease;
 }
 
 #ae-topbar .ae-top-link:hover {
   color: #0f172a !important;
-  background: #F4F6F9 !important;
+  background: #F6F7F8 !important;
 }
 
 html.dark #ae-topbar .ae-top-link,
@@ -397,16 +406,16 @@ html[data-theme='dark'] #ae-topbar .ae-top-link:hover {
 }
 
 #ae-topbar .ae-capsule {
-  background: #F4F6F9 !important;
+  background: #F6F7F8 !important;
   border: none !important;
   box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.05) !important;
   color: #334155 !important;
-  border-radius: 9999px;
-  transition: background-color 150ms ease, box-shadow 150ms ease;
+  border-radius: 0.75rem;
+  transition: background-color 160ms ease, box-shadow 160ms ease;
 }
 
 #ae-topbar .ae-capsule:hover {
-  background: #e9eef5 !important;
+  background: #eef1f5 !important;
   color: #0f172a !important;
   box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.12) !important;
 }
@@ -414,7 +423,7 @@ html[data-theme='dark'] #ae-topbar .ae-top-link:hover {
 html.dark #ae-topbar .ae-capsule,
 html[data-theme='dark'] #ae-topbar .ae-capsule {
   background: rgba(255, 255, 255, 0.055) !important;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.12) !important;
   color: #e2e8f0 !important;
 }
 
@@ -432,7 +441,7 @@ html[data-theme='dark'] #ae-topbar .ae-capsule kbd {
   color: #f8fafc !important;
 }
 
-/* ---------- 5. Generous Fluid Studio Canvas (1600px max) ---------- */
+/* ---------- 5. Generous Fluid Studio Canvas (1920px max) ---------- */
 #ae-canvas {
   position: relative;
   background-color: transparent !important;
@@ -453,15 +462,16 @@ html[data-theme='dark'] #ae-canvas {
   background-color: transparent !important;
 }
 
-/* ---------- 6. Finance V2 × Verdelo Bento Cards (#FFFFFF / #111A22) ---------- */
+/* ---------- 6. Unslop Bento Cards (#FFFFFF / #101C17 · rounded-2xl) ---------- */
 #ae-root .ae-bento-card,
 #ae-root .ae-studio-card,
 #ae-root .ae-tile {
   position: relative;
   background-color: #FFFFFF !important;
-  border-radius: 20px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 6px 20px -6px rgba(15, 23, 42, 0.035) !important;
+  border-radius: 1rem;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.02), 0 0 0 1px rgba(15, 23, 42, 0.04) !important;
   border: none !important;
+  transition: box-shadow 160ms ease, background-color 160ms ease;
 }
 
 html.dark #ae-root .ae-bento-card,
@@ -472,16 +482,16 @@ html.dark #ae-root .ae-tile,
 html[data-theme='dark'] #ae-root .ae-tile,
 html.dark #ae-root .app-content .bg-white:not([role='tooltip']),
 html[data-theme='dark'] #ae-root .app-content .bg-white:not([role='tooltip']) {
-  background-color: #111A22 !important;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 12px 28px -8px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.06) !important;
-  border-color: rgba(255, 255, 255, 0.06) !important;
+  background-color: #101C17 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35), 0 8px 24px -8px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(16, 185, 129, 0.10) !important;
+  border-color: rgba(16, 185, 129, 0.10) !important;
 }
 
 #ae-root .ae-kpi-card {
   position: relative;
   background-color: #FFFFFF !important;
-  border-radius: 18px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 6px 20px -6px rgba(15, 23, 42, 0.035) !important;
+  border-radius: 1rem;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.02), 0 0 0 1px rgba(15, 23, 42, 0.04) !important;
   border: none !important;
   transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 160ms ease;
 }
@@ -493,21 +503,21 @@ html[data-theme='dark'] #ae-root .app-content .bg-white:not([role='tooltip']) {
 
 html.dark #ae-root .ae-kpi-card,
 html[data-theme='dark'] #ae-root .ae-kpi-card {
-  background-color: #111A22 !important;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 26px -8px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.06) !important;
+  background-color: #101C17 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.38), 0 10px 26px -8px rgba(0, 0, 0, 0.48), 0 0 0 1px rgba(16, 185, 129, 0.10) !important;
 }
 
 html.dark #ae-root .ae-kpi-card:hover,
 html[data-theme='dark'] #ae-root .ae-kpi-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 28px -6px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(16, 185, 129, 0.32) !important;
+  box-shadow: 0 8px 28px -6px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(16, 185, 129, 0.30) !important;
 }
 
 #ae-root .ae-studio-subcard,
 #ae-root .ae-bento-subcard,
 #ae-root .ae-tile-soft {
-  background-color: #F4F6F9 !important;
-  border-radius: 16px;
+  background-color: #F6F7F8 !important;
+  border-radius: 0.875rem;
   box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.035) !important;
   border: none !important;
 }
@@ -518,20 +528,21 @@ html.dark #ae-root .ae-bento-subcard,
 html[data-theme='dark'] #ae-root .ae-bento-subcard,
 html.dark #ae-root .ae-tile-soft,
 html[data-theme='dark'] #ae-root .ae-tile-soft,
+html.dark #ae-root .app-content .bg-\[\#F6F7F8\]:not([role='tooltip'] *),
 html.dark #ae-root .app-content .bg-\[\#F7F7F8\]:not([role='tooltip'] *),
 html.dark #ae-root .app-content .bg-\[\#F4F6F9\]:not([role='tooltip'] *),
 html.dark #ae-root .app-content .bg-\[\#F6F7F9\]:not([role='tooltip'] *) {
-  background-color: #0C141B !important;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.055) !important;
+  background-color: #0C1612 !important;
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.08) !important;
 }
 
 /* Primary action dark buttons keep high-contrast text in both themes */
 #ae-root button.ae-btn-primary,
 html[data-theme='light'] #ae-root button.ae-btn-primary {
-  background-color: #0B1220 !important;
+  background-color: #059669 !important;
   color: #FFFFFF !important;
   border: none !important;
-  box-shadow: 0 2px 8px -2px rgba(11, 18, 32, 0.22) !important;
+  box-shadow: 0 2px 8px -2px rgba(5, 150, 105, 0.24) !important;
 }
 
 #ae-root button.ae-btn-primary *,
@@ -584,24 +595,24 @@ html.dark #ae-root button.bg-\[\#0B1220\] * {
   color: #04130D !important;
 }
 
-/* Dark mode tables inside #ae-root match Obsidian-Emerald (#0C141B / #111A22) */
+/* Dark mode tables inside #ae-root match Obsidian-Emerald (#0C1612 / #101C17) */
 html.dark #ae-root .app-content thead th,
 html[data-theme='dark'] #ae-root .app-content thead th {
-  background-color: #0C141B !important;
+  background-color: #0C1612 !important;
   color: #94a3b8 !important;
-  border-color: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(16, 185, 129, 0.10) !important;
 }
 
 html.dark #ae-root .app-content tbody td,
 html[data-theme='dark'] #ae-root .app-content tbody td,
 html.dark #ae-root .app-content tfoot td,
 html[data-theme='dark'] #ae-root .app-content tfoot td {
-  border-color: rgba(255, 255, 255, 0.05) !important;
+  border-color: rgba(16, 185, 129, 0.08) !important;
 }
 
 html.dark #ae-root .app-content tbody tr:hover,
 html[data-theme='dark'] #ae-root .app-content tbody tr:hover {
-  background-color: rgba(16, 185, 129, 0.05) !important;
+  background-color: rgba(16, 185, 129, 0.06) !important;
 }
 
 /* Tooltip contrast guarantee in both Light & Dark themes */
@@ -627,7 +638,7 @@ html[data-theme='dark'] #ae-root .app-content tbody tr:hover {
 }
 
 #ae-root .ae-lift {
-  transition: transform 180ms cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 180ms ease;
+  transition: transform 160ms cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 160ms ease;
   will-change: transform;
 }
 
@@ -664,16 +675,16 @@ html[data-theme='dark'] #ae-root .ae-icon-badge {
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
-  border-radius: 9999px;
-  background-color: #0B1220 !important;
+  border-radius: 0.75rem;
+  background-color: #059669 !important;
   color: #ffffff !important;
   padding: 0.5rem 1rem;
   font-size: 0.75rem;
   font-weight: 600;
   line-height: 1rem;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 1px 2px rgba(5, 150, 105, 0.18);
   border: none !important;
-  transition: background-color 150ms ease, transform 150ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: background-color 160ms ease, transform 160ms cubic-bezier(0.34, 1.56, 0.64, 1);
   cursor: pointer;
   white-space: nowrap;
 }
@@ -688,7 +699,7 @@ html[data-theme='dark'] #ae-root .ae-pill-dark {
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
-  border-radius: 9999px;
+  border-radius: 0.75rem;
   background-color: rgba(255, 255, 255, 0.95) !important;
   color: #334155 !important;
   padding: 0.5rem 1rem;
@@ -697,16 +708,16 @@ html[data-theme='dark'] #ae-root .ae-pill-dark {
   line-height: 1rem;
   box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.06) !important;
   border: none !important;
-  transition: background-color 150ms ease, transform 150ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: background-color 160ms ease, transform 160ms cubic-bezier(0.34, 1.56, 0.64, 1);
   cursor: pointer;
   white-space: nowrap;
 }
 
 html.dark #ae-root .ae-pill-light,
 html[data-theme='dark'] #ae-root .ae-pill-light {
-  background-color: #111A22 !important;
+  background-color: #101C17 !important;
   color: #e2e8f0 !important;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.12) !important;
 }
 
 #ae-root .ae-pill-sm {
@@ -719,7 +730,7 @@ html[data-theme='dark'] #ae-root .ae-pill-light {
   display: inline-flex;
   align-items: center;
   gap: 0.125rem;
-  border-radius: 9999px;
+  border-radius: 1rem;
   padding: 0.1875rem;
   background-color: rgba(15, 23, 42, 0.05) !important;
 }
@@ -730,13 +741,13 @@ html[data-theme='dark'] #ae-root .ae-seg {
 }
 
 #ae-root .ae-seg > button {
-  border-radius: 9999px;
+  border-radius: 0.75rem;
   padding: 0.375rem 0.875rem;
   font-size: 0.75rem;
   font-weight: 600;
   color: #475569 !important;
   background: transparent !important;
-  transition: background-color 150ms ease, color 150ms ease;
+  transition: background-color 160ms ease, color 160ms ease;
   white-space: nowrap;
 }
 
@@ -746,9 +757,9 @@ html[data-theme='dark'] #ae-root .ae-seg > button {
 }
 
 #ae-root .ae-seg > button[data-active='true'] {
-  background-color: #0B1220 !important;
+  background-color: #059669 !important;
   color: #ffffff !important;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.14);
+  box-shadow: 0 1px 2px rgba(5, 150, 105, 0.2);
 }
 
 html.dark #ae-root .ae-seg > button[data-active='true'],
@@ -794,7 +805,7 @@ html[data-theme='dark'] #ae-root .ae-chip {
 #ae-root .ae-select {
   appearance: none;
   -webkit-appearance: none;
-  border-radius: 9999px !important;
+  border-radius: 0.75rem !important;
   padding: 0.45rem 2rem 0.45rem 0.9rem !important;
   font-size: 0.75rem !important;
   font-weight: 600 !important;
@@ -817,13 +828,13 @@ html[data-theme='dark'] #ae-root .ae-chip {
 
 html.dark #ae-root .ae-select,
 html[data-theme='dark'] #ae-root .ae-select {
-  background-color: #111A22 !important;
+  background-color: #101C17 !important;
   color: #f1f5f9 !important;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.09) !important;
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.12) !important;
 }
 
 #ae-root .ae-input {
-  border-radius: 9999px !important;
+  border-radius: 0.75rem !important;
   padding: 0.5rem 0.95rem;
   font-size: 0.75rem !important;
   background-color: #ffffff !important;
@@ -839,9 +850,9 @@ html[data-theme='dark'] #ae-root .ae-select {
 
 html.dark #ae-root .ae-input,
 html[data-theme='dark'] #ae-root .ae-input {
-  background-color: #111A22 !important;
+  background-color: #101C17 !important;
   color: #f1f5f9 !important;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.09) !important;
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.12) !important;
 }
 
 /* ---------- 8. Typography ---------- */
@@ -892,8 +903,19 @@ html[data-theme='dark'] #ae-root .ae-meta {
   }
 }
 
+@keyframes ae-sheet-up {
+  from {
+    opacity: 0.92;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 #ae-root .ae-stagger > * {
-  animation: ae-rise 360ms cubic-bezier(0.22, 1.2, 0.36, 1) both;
+  animation: ae-rise 320ms cubic-bezier(0.22, 1.2, 0.36, 1) both;
 }
 
 #ae-root .ae-stagger > *:nth-child(1) { animation-delay: 0ms; }
@@ -903,7 +925,7 @@ html[data-theme='dark'] #ae-root .ae-meta {
 #ae-root .ae-stagger > *:nth-child(n + 5) { animation-delay: 160ms; }
 
 #ae-root .ae-pop {
-  animation: ae-pop 180ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation: ae-pop 160ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
 #ae-root .ae-bar-grow {
@@ -923,7 +945,8 @@ html[data-theme='dark'] #ae-root .ae-meta {
 @media (prefers-reduced-motion: reduce) {
   #ae-root .ae-stagger > *,
   #ae-root .ae-pop,
-  #ae-root .ae-bar-grow {
+  #ae-root .ae-bar-grow,
+  .ae-bottom-sheet {
     animation: none !important;
   }
   #ae-root .ae-lift:hover,
@@ -948,9 +971,9 @@ html[data-theme='dark'] #ae-root .ae-meta {
 
 html.dark #ae-root .ae-palette,
 html[data-theme='dark'] #ae-root .ae-palette {
-  background: #111A22 !important;
+  background: #101C17 !important;
   color: #e2e8f0 !important;
-  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(16, 185, 129, 0.12) !important;
 }
 
 #ae-root .ae-palette input {
@@ -977,6 +1000,8 @@ html[data-theme='dark'] #ae-root .ae-palette-item[data-active='true'] {
   }
   #ae-sidebar,
   #ae-topbar,
+  .ae-mobile-appbar,
+  .ae-mobile-dock,
   #ae-root .ae-ambient,
   #ae-root .ae-filterbar,
   #ae-root .no-print {
@@ -1039,4 +1064,98 @@ html[data-theme='dark'] #ae-topbar .ae-top-live {
 #ae-root .ae-table-wrap table td {
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+}
+
+/* ---------- 14. Native-Grade Mobile Frosted App Bar, Bottom Dock & Sheets ---------- */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.backdrop-blur-xs {
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+
+.ae-mobile-appbar,
+html[data-theme='light'] .ae-mobile-appbar,
+html.light-mode .ae-mobile-appbar,
+html:not(.dark) .ae-mobile-appbar {
+  background-color: rgba(255, 255, 255, 0.90) !important;
+  border: none !important;
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.06) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(160%);
+  backdrop-filter: blur(12px) saturate(160%);
+}
+
+html.dark .ae-mobile-appbar,
+html[data-theme='dark'] .ae-mobile-appbar {
+  background-color: rgba(11, 21, 18, 0.90) !important;
+  border: none !important;
+  box-shadow: 0 1px 0 rgba(16, 185, 129, 0.12) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(160%);
+  backdrop-filter: blur(12px) saturate(160%);
+}
+
+.ae-mobile-dock,
+html[data-theme='light'] .ae-mobile-dock,
+html.light-mode .ae-mobile-dock,
+html:not(.dark) .ae-mobile-dock {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border: none !important;
+  box-shadow: 0 -1px 0 rgba(0, 0, 0, 0.06) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  backdrop-filter: blur(16px) saturate(160%);
+}
+
+html.dark .ae-mobile-dock,
+html[data-theme='dark'] .ae-mobile-dock {
+  background-color: rgba(11, 21, 18, 0.95) !important;
+  border: none !important;
+  box-shadow: 0 -1px 0 rgba(16, 185, 129, 0.12) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  backdrop-filter: blur(16px) saturate(160%);
+}
+
+.ae-sheet-backdrop,
+html[data-theme='light'] .ae-sheet-backdrop,
+html.light-mode .ae-sheet-backdrop,
+html:not(.dark) .ae-sheet-backdrop,
+html.dark .ae-sheet-backdrop,
+html[data-theme='dark'] .ae-sheet-backdrop {
+  background-color: rgba(2, 6, 23, 0.42) !important;
+  border: none !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+
+.ae-bottom-sheet,
+html[data-theme='light'] .ae-bottom-sheet,
+html.light-mode .ae-bottom-sheet,
+html:not(.dark) .ae-bottom-sheet {
+  background-color: #FFFFFF !important;
+  border: none !important;
+  box-shadow: 0 -12px 40px -8px rgba(15, 23, 42, 0.16), 0 0 0 1px rgba(15, 23, 42, 0.05) !important;
+  animation: ae-sheet-up 160ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+html.dark .ae-bottom-sheet,
+html[data-theme='dark'] .ae-bottom-sheet {
+  background-color: #101C17 !important;
+  border: none !important;
+  box-shadow: 0 -12px 40px -8px rgba(0, 0, 0, 0.62), 0 0 0 1px rgba(16, 185, 129, 0.15) !important;
+  animation: ae-sheet-up 160ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Ensure Manager PIN pad modal always sits above mobile bottom sheets & drawers */
+#vf-exec-pin-backdrop {
+  z-index: 130 !important;
 }
