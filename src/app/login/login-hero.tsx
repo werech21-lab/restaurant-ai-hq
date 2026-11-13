@@ -1,12 +1,16 @@
 'use client'
 
+import { useId } from 'react'
 import { Activity, Building2, Lock, ShieldCheck } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
 
 /**
- * Crisp inline vector Venture Foods emerald brand emblem (zero external assets, never 404s).
+ * Crisp inline vector Venture Foods emerald brand emblem (`#059669` -> `#064E3B`, unique `useId()` defs so multiple instances never collide across responsive breakpoints).
  */
 export function VentureFoodsEmblem({ className = 'h-11 w-11' }: { className?: string }) {
+  const rawId = useId().replace(/[^a-zA-Z0-9_-]/g, '')
+  const gradId = `vf-emblem-bg-${rawId}`
+
   return (
     <svg
       viewBox="0 0 48 48"
@@ -16,12 +20,13 @@ export function VentureFoodsEmblem({ className = 'h-11 w-11' }: { className?: st
       className={className}
     >
       <defs>
-        <linearGradient id="vf-emblem-bg" x1="6" y1="4" x2="42" y2="44" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#10B981" />
-          <stop offset="100%" stopColor="#047857" />
+        <linearGradient id={gradId} x1="6" y1="4" x2="42" y2="44" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#059669" />
+          <stop offset="100%" stopColor="#064E3B" />
         </linearGradient>
       </defs>
-      <rect x="2" y="2" width="44" height="44" rx="13" fill="url(#vf-emblem-bg)" />
+      <rect x="2" y="2" width="44" height="44" rx="13" fill="#059669" />
+      <rect x="2" y="2" width="44" height="44" rx="13" fill={`url(#${gradId})`} />
       <rect
         x="2.75"
         y="2.75"
@@ -29,24 +34,24 @@ export function VentureFoodsEmblem({ className = 'h-11 w-11' }: { className?: st
         height="42.5"
         rx="12.25"
         stroke="#FFFFFF"
-        strokeOpacity="0.22"
+        strokeOpacity="0.28"
         strokeWidth="1.5"
       />
       <path
-        d="M12.5 16.5L19.8 32.5L26.2 18.8"
+        d="M12.2 16.5L19.6 32.5L26.2 18.4"
         stroke="#FFFFFF"
-        strokeWidth="3.2"
+        strokeWidth="3.4"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       <path
-        d="M25.5 32.5V16.5H35.5M25.5 24.2H33.2"
-        stroke="#ECFDF5"
-        strokeWidth="3.1"
+        d="M25.5 32.5V16.5H35.8M25.5 24.2H33.5"
+        stroke="#FFFFFF"
+        strokeWidth="3.3"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <circle cx="35.5" cy="31.5" r="2.2" fill="#A7F3D0" />
+      <circle cx="35.6" cy="31.5" r="2.3" fill="#6EE7B7" />
     </svg>
   )
 }

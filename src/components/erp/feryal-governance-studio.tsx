@@ -115,7 +115,7 @@ const STUDIO_PANEL_CLS =
   'ae-bento-card w-full max-w-full min-w-0 h-auto overflow-x-hidden rounded-2xl bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10'
 
 const SIDEBAR_PANEL_CLS =
-  'ae-bento-card w-full max-w-full min-w-0 h-auto lg:max-h-[760px] overflow-x-hidden rounded-2xl bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10'
+  'ae-bento-card w-full max-w-full min-w-0 h-auto lg:min-h-[calc(100vh-148px)] lg:max-h-[calc(100vh-148px)] overflow-x-hidden rounded-2xl bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10'
 
 const SUBCARD_CLS = 'rounded-2xl bg-[#F6F7F8] dark:bg-[#09110E]'
 
@@ -1019,9 +1019,9 @@ export function FeryalGovernanceStudio({
   void FERYAL_EXECUTIVE_MODES
 
   const utilityPillIdle =
-    'inline-flex shrink-0 md:shrink min-w-0 cursor-pointer items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-[12px] font-medium whitespace-nowrap md:whitespace-normal text-neutral-600 transition-all duration-150 hover:bg-white/90 hover:text-neutral-900 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
+    'inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl px-2 py-1 text-[11.5px] font-medium whitespace-nowrap text-neutral-600 transition-all duration-150 hover:bg-white/90 hover:text-neutral-900 sm:px-2.5 sm:py-1.5 sm:text-[12px] dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
   const utilityPillActive =
-    'inline-flex shrink-0 md:shrink min-w-0 cursor-pointer items-center gap-1.5 rounded-xl bg-white px-2.5 py-1.5 text-[12px] font-semibold whitespace-nowrap md:whitespace-normal text-emerald-800 shadow-sm ring-1 ring-slate-900/[0.06] transition-all duration-150 dark:bg-emerald-500/20 dark:text-emerald-200 dark:ring-emerald-500/30'
+    'inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl bg-white px-2 py-1 text-[11.5px] font-semibold whitespace-nowrap text-emerald-800 shadow-sm ring-1 ring-slate-900/[0.06] transition-all duration-150 sm:px-2.5 sm:py-1.5 sm:text-[12px] dark:bg-emerald-500/20 dark:text-emerald-200 dark:ring-emerald-500/30'
 
   return (
     <div
@@ -1086,7 +1086,7 @@ export function FeryalGovernanceStudio({
             }}
             className={`${
               isExpanded ? 'lg:col-span-12' : 'lg:col-span-8 xl:col-span-9'
-            } ${STUDIO_PANEL_CLS} flex flex-col transition-shadow ${
+            } ${STUDIO_PANEL_CLS} min-h-[calc(100vh-148px)] flex flex-col justify-between transition-shadow ${
               isDragActive && !isAuditor ? 'ring-2 ring-emerald-500/45' : ''
             }`}
           >
@@ -1115,22 +1115,22 @@ export function FeryalGovernanceStudio({
                   </span>
                 </div>
 
-                {/* Horizontally Scrollable on <768px / Wrapping on Desktop Studio Action Pills */}
-                <div className="flex w-full md:w-auto min-w-0 max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar md:flex-wrap">
+                {/* Wrapping Mobile-Safe Studio Action Pills (Zero clipping on 390px) */}
+                <div className="flex w-full md:w-auto min-w-0 max-w-full flex-wrap items-center gap-1.5">
                   {!isAuditor ? (
                     <button
                       type="button"
                       disabled={isCopilotThinking}
                       aria-expanded={bigBetMenuOpen}
                       onClick={() => setBigBetMenuOpen((v) => !v)}
-                      className="inline-flex shrink-0 md:shrink min-w-0 cursor-pointer items-center gap-1.5 rounded-xl bg-emerald-50 px-3 py-1.5 text-[12px] font-semibold whitespace-nowrap md:whitespace-normal text-emerald-800 ring-1 ring-emerald-500/25 transition-all duration-150 hover:bg-emerald-100 disabled:opacity-50 dark:bg-emerald-950/60 dark:text-emerald-200 dark:ring-emerald-500/35"
+                      className="inline-flex shrink-0 min-w-0 cursor-pointer items-center gap-1.5 rounded-xl bg-emerald-50 px-2.5 py-1.5 text-[11.5px] font-semibold whitespace-nowrap text-emerald-800 ring-1 ring-emerald-500/25 transition-all duration-150 hover:bg-emerald-100 disabled:opacity-50 sm:px-3 sm:text-[12px] dark:bg-emerald-950/60 dark:text-emerald-200 dark:ring-emerald-500/35"
                     >
                       <Rocket className="h-3.5 w-3.5 shrink-0" />
                       <span>{T('Big-Bet Generator 🚀', 'ابتكار الحلول الكبرى 🚀')}</span>
                     </button>
                   ) : null}
 
-                  <div className="flex shrink-0 md:shrink min-w-0 max-w-full items-center gap-1 rounded-2xl bg-neutral-100/90 p-1 md:flex-wrap dark:bg-white/[0.06]">
+                  <div className="flex w-full sm:w-auto min-w-0 max-w-full flex-wrap items-center gap-1 rounded-2xl bg-neutral-100/90 p-1 dark:bg-white/[0.06]">
                     <button
                       type="button"
                       onClick={() => setMemoryOpen(true)}
@@ -1331,11 +1331,11 @@ export function FeryalGovernanceStudio({
               ) : null}
             </div>
 
-            {/* 3. Main Studio Body: Compact Top-Aligned Zero-Void Onboarding (0 messages) OR Active Stream */}
+            {/* 3. Main Studio Body: Balanced Full-Height Onboarding (0 messages) OR Active Stream */}
             <div
               ref={chatScrollRef}
-              className={`w-full max-w-full min-w-0 overflow-x-hidden px-3.5 py-3.5 sm:px-5 sm:py-4 ${
-                hasUserMessages ? 'max-h-[58vh] space-y-4 overflow-y-auto' : 'space-y-3.5'
+              className={`w-full max-w-full min-w-0 flex-1 overflow-x-hidden px-3.5 py-3.5 sm:px-5 sm:py-4 ${
+                hasUserMessages ? 'max-h-[62vh] space-y-4 overflow-y-auto' : 'space-y-3.5'
               }`}
               aria-live="polite"
             >
@@ -1826,6 +1826,93 @@ export function FeryalGovernanceStudio({
                         </button>
                       )
                     })}
+                  </div>
+
+                  {/* Verified Executive Audit Briefings & Institutional Memory Preview (Fills desktop canvas with live Odoo 17 intelligence) */}
+                  <div
+                    className={`${SUBCARD_CLS} w-full max-w-full min-w-0 space-y-3 rounded-2xl p-3.5 sm:p-4`}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-100 pb-2.5 dark:border-white/[0.06]">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <Brain className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                        <h3 className="min-w-0 text-[13.5px] font-bold whitespace-normal break-words text-neutral-950 dark:text-white">
+                          {T(
+                            'Verified Executive Audit Briefings & Institutional Memory Preview',
+                            'ملخصات المراجعة التنفيذية المعتمدة ومعاينة الذاكرة المؤسسية',
+                          )}
+                        </h3>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="rounded-lg bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold tabular-nums text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
+                          {T(
+                            `${memoryCountBadge} Active Memory Rules`,
+                            `${memoryCountBadge} قواعد ذاكرة مؤسسية نشطة`,
+                          )}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setMemoryOpen(true)}
+                          className="cursor-pointer rounded-lg bg-[#F6F7F8] px-2.5 py-0.5 text-[11px] font-semibold text-neutral-700 transition-colors hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#09110E] dark:text-slate-200"
+                        >
+                          {T('Inspect Memory ↗', 'مراجعة الذاكرة ↗')}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[#F6F7F8] px-3 py-2 text-[11.5px] font-medium tabular-nums text-neutral-600 dark:bg-[#09110E] dark:text-slate-300">
+                      <span className="min-w-0 break-words whitespace-normal font-semibold text-neutral-800 dark:text-slate-100">
+                        {isAr ? workspace.subtitleAr : workspace.subtitleEn}
+                      </span>
+                      <span dir="ltr" className="font-semibold text-emerald-700 dark:text-emerald-300">
+                        {Math.round(workspace.salesKwd).toLocaleString('en-US')} KWD •{' '}
+                        {workspace.orders.toLocaleString('en-US')} {isAr ? 'طلب' : 'orders'} •{' '}
+                        {workspace.weightedNetPct.toFixed(1)}% {isAr ? 'صافي مرجّح' : 'net margin'}
+                      </span>
+                    </div>
+
+                    <div className="grid w-full max-w-full min-w-0 grid-cols-1 gap-2.5 md:grid-cols-3">
+                      {workspace.feryalNotes.slice(0, 3).map((note) => (
+                        <article
+                          key={`preview-${note.id}`}
+                          className="flex min-w-0 flex-col justify-between gap-2 rounded-xl bg-[#F6F7F8] p-3 ring-1 ring-slate-900/[0.04] dark:bg-[#09110E] dark:ring-white/[0.06]"
+                        >
+                          <div className="space-y-1.5">
+                            <div className="flex flex-wrap items-center justify-between gap-1.5">
+                              <span className="min-w-0 text-[12.5px] font-bold whitespace-normal break-words text-neutral-900 dark:text-white">
+                                {isAr ? note.titleAr : note.titleEn}
+                              </span>
+                              <span
+                                dir="ltr"
+                                className="rounded-md bg-emerald-50 px-2 py-0.5 text-[10.5px] font-bold tabular-nums text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
+                              >
+                                {isAr ? note.benefitAr : note.benefitEn}
+                              </span>
+                            </div>
+                            <p className="text-[12px] leading-relaxed whitespace-normal break-words text-neutral-600 dark:text-slate-300">
+                              {isAr ? note.summaryAr : note.summaryEn}
+                            </p>
+                          </div>
+
+                          {!isAuditor ? (
+                            <button
+                              type="button"
+                              disabled={isCopilotThinking}
+                              onClick={() =>
+                                void handleSendQuery(isAr ? note.promptAr : note.promptEn)
+                              }
+                              className="cursor-pointer self-start rounded-lg bg-white px-2.5 py-1 text-[11px] font-semibold text-emerald-800 ring-1 ring-emerald-500/20 transition-colors hover:bg-emerald-50 disabled:opacity-50 dark:bg-[#101C17] dark:text-emerald-200"
+                            >
+                              {T('Run Briefing ▸', 'تشغيل التحليل ▸')}
+                            </button>
+                          ) : (
+                            <span className="text-[10.5px] font-semibold text-amber-800 dark:text-amber-300">
+                              {T('Verified Odoo 17 Audit Record', 'سجل مراجعة معتمد من أودو 17')}
+                            </span>
+                          )}
+                        </article>
+                      ))}
+                    </div>
                   </div>
                 </div>
               ) : null}

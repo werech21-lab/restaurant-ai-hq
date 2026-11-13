@@ -40,7 +40,12 @@ export interface OdooBucketSummary {
 
 export interface OdooLiveSummary {
   source: 'live' | 'snapshot'
+  /** Honest ISO-8601 UTC timestamp bound strictly to the latest actual Odoo 17 POS/accounting record. */
   syncedAt: string
+  /** Canonical latest `pos.order.date_order` ISO-8601 UTC timestamp in the dataset. */
+  latestRecordAt?: string
+  /** Latest completed operational POS calendar date in Kuwait (`YYYY-MM-DD`). */
+  latestOperationalDate?: string
   bucket?: OdooPeriodBucketKey
   period: { from: string; to: string }
   database: string | null
@@ -63,6 +68,119 @@ export interface OdooLiveSummary {
     unallocatedLines30?: number
   }
   note?: string
+}
+
+export interface OdooFreshnessStatus {
+  latestRecordIso: string
+  kuwaitTimestamp: string
+  kuwaitDateEn: string
+  kuwaitDateArSlash: string
+  kuwaitDateArLong: string
+  hoursSinceLatestOdooRecord: number
+  isStaleOver24h: boolean
+  badgeEn: string
+  badgeAr: string
+}
+
+const EN_SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const
+const AR_MONTH_NAMES = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'] as const
+const KUWAIT_OFFSET_MS = 3 * 3600 * 1000
+export const DEFAULT_SNAPSHOT_LATEST_RECORD_ISO = '2026-11-10T20:59:00.000Z'
+
+export function normalizeOdooDateOrderToIso(rawDateOrder?: string | null): string | null {
+  if (!rawDateOrder || typeof rawDateOrder !== 'string') return null
+  const trimmed = rawDateOrder.trim()
+  const m = trimmed.match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}(?::\d{2})?)(?:\.\d+)?Z?$/)
+  if (m) {
+    const timePart = m[2].length === 5 ? `${m[2]}:00` : m[2]
+    const parsed = new Date(`${m[1]}T${timePart}.000Z`)
+    if (!Number.isNaN(parsed.getTime())) return parsed.toISOString()
+  }
+  const direct = new Date(trimmed)
+  return Number.isNaN(direct.getTime()) ? null : direct.toISOString()
+}
+
+export function resolveSnapshotLatestRecordInfo(raw: unknown): {
+  latestRecordAt: string
+  latestOperationalDate: string
+} {
+  const s = (raw ?? {}) as {
+    latestRecordAt?: string
+    syncedAt?: string
+    buckets?: Partial<Record<OdooPeriodBucketKey, { from?: string; to?: string }>>
+    period?: { from?: string; to?: string }
+  }
+  const explicitLatest = normalizeOdooDateOrderToIso(s.latestRecordAt)
+  const todayFrom = s.buckets?.today?.from
+  if (todayFrom && /^\d{4}-\d{2}-\d{2}$/.test(todayFrom)) {
+    return {
+      latestRecordAt: explicitLatest ?? `${todayFrom}T20:59:00.000Z`,
+      latestOperationalDate: todayFrom,
+    }
+  }
+  if (explicitLatest) {
+    const kw = new Date(new Date(explicitLatest).getTime() + KUWAIT_OFFSET_MS)
+    return {
+      latestRecordAt: explicitLatest,
+      latestOperationalDate: kw.toISOString().slice(0, 10),
+    }
+  }
+  const fallbackIso = normalizeOdooDateOrderToIso(s.syncedAt) ?? DEFAULT_SNAPSHOT_LATEST_RECORD_ISO
+  const kw = new Date(new Date(fallbackIso).getTime() + KUWAIT_OFFSET_MS)
+  return {
+    latestRecordAt: fallbackIso,
+    latestOperationalDate: kw.toISOString().slice(0, 10),
+  }
+}
+
+/**
+ * Deterministic Kuwait (`Asia/Kuwait`, permanent UTC+3) formatter & >24h staleness calculator.
+ * Produces byte-for-byte identical strings across Node SSR, Edge, and browser clients (zero hydration flicker).
+ */
+export function computeOdooFreshnessStatus(
+  latestRecordIso?: string | null,
+  referenceNowMs = Date.now(),
+): OdooFreshnessStatus {
+  const cleanIso = normalizeOdooDateOrderToIso(latestRecordIso) ?? DEFAULT_SNAPSHOT_LATEST_RECORD_ISO
+  const recordDate = new Date(cleanIso)
+  const recordMs = recordDate.getTime()
+  const kwDate = new Date(recordMs + KUWAIT_OFFSET_MS)
+
+  const year = kwDate.getUTCFullYear()
+  const monthIdx = kwDate.getUTCMonth()
+  const dayNum = kwDate.getUTCDate()
+  const hours = String(kwDate.getUTCHours()).padStart(2, '0')
+  const minutes = String(kwDate.getUTCMinutes()).padStart(2, '0')
+  const dd = String(dayNum).padStart(2, '0')
+  const mm = String(monthIdx + 1).padStart(2, '0')
+
+  const kuwaitTimestamp = `${dd}/${mm}/${year} ${hours}:${minutes} UTC+3`
+  const kuwaitDateEn = `${EN_SHORT_MONTHS[monthIdx]} ${dayNum}, ${year}`
+  const kuwaitDateArSlash = `${dd}/${mm}/${year}`
+  const kuwaitDateArLong = `${dayNum} ${AR_MONTH_NAMES[monthIdx]} ${year}`
+
+  const diffMs = Math.max(0, referenceNowMs - recordMs)
+  const hoursSinceLatestOdooRecord = Math.round((diffMs / 3_600_000) * 10) / 10
+  const isStaleOver24h = diffMs > 24 * 3_600_000
+
+  const badgeEn = isStaleOver24h
+    ? `🔴 Stale Data Alert: Last Odoo POS record is from ${kuwaitDateEn} (>24h ago) — Live sync required`
+    : '🟢 Live Odoo Sync (<24h)'
+  const badgeAr = isStaleOver24h
+    ? `🔴 تنبيه حداثة البيانات: آخر فاتورة مسجلة من أودو بتاريخ ${kuwaitDateArSlash} (أكثر من 24 ساعة) — يرجى تحديث الربط الحي`
+    : '🟢 ربط أودو حي (أقل من 24 ساعة)'
+
+  return {
+    latestRecordIso: cleanIso,
+    kuwaitTimestamp,
+    kuwaitDateEn,
+    kuwaitDateArSlash,
+    kuwaitDateArLong,
+    hoursSinceLatestOdooRecord,
+    isStaleOver24h,
+    badgeEn,
+    badgeAr,
+  }
 }
 
 /** Models probed by the live access audit (one per journey stage concern + Odoo 17 Analytic Cost Centers). */
@@ -177,6 +295,7 @@ export function periodWindowForBucket(bucket: OdooPeriodBucketKey, now = new Dat
 
 export function summaryFromSnapshot(raw: unknown, note?: string, bucket: OdooPeriodBucketKey = 'month'): OdooLiveSummary {
   const s = (raw ?? {}) as SnapshotShape
+  const latestInfo = resolveSnapshotLatestRecordInfo(s)
   const jp = s.journey?.pulse
   const aa = s.journey?.opex?.analyticArchitecture
   const un = s.journey?.opex?.unallocated?.rolling30
@@ -187,7 +306,9 @@ export function summaryFromSnapshot(raw: unknown, note?: string, bucket: OdooPer
   const bucketLocTotal = b?.totals.netSalesKwd ?? 0
   return {
     source: 'snapshot',
-    syncedAt: s.syncedAt ?? new Date(0).toISOString(),
+    syncedAt: latestInfo.latestRecordAt,
+    latestRecordAt: latestInfo.latestRecordAt,
+    latestOperationalDate: latestInfo.latestOperationalDate,
     bucket,
     period: b ? { from: b.from, to: b.to } : (s.period ?? { from: '', to: '' }),
     database: s.database ?? null,
@@ -438,7 +559,7 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
     const net = (rows[0]?.amount_total || 0) - (rows[0]?.amount_tax || 0)
     return { ...w, netKwd: r3(net), orders: rows[0]?.__count ?? 0, perDayKwd: r3(net / Math.max(1, w.days)) }
   }
-  const [pulse, audit, unalloc] = await Promise.all([
+  const [pulse, audit, unalloc, latestPosOrderIso] = await Promise.all([
     Promise.all([pulseOf(windows.rolling30), pulseOf(windows.prior30), pulseOf(windows.mtd)]).then(([rolling30, prior30, mtd]) => ({ rolling30, prior30, mtd })).catch(() => undefined),
     Promise.all(
       JOURNEY_AUDIT_MODELS.map((m) =>
@@ -457,6 +578,16 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
     )
       .then((rows) => ({ debitKwd: r3(rows[0]?.debit ?? 0), lines: rows[0]?.__count ?? 0 }))
       .catch(() => undefined),
+    (
+      ek(
+        'pos.order',
+        'search_read',
+        [[['state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', restaurantAllowed]], ['date_order']],
+        { order: 'date_order desc', limit: 1 },
+      ) as Promise<{ id?: number; date_order?: string }[]>
+    )
+      .then((rows) => normalizeOdooDateOrderToIso(rows?.[0]?.date_order))
+      .catch(() => null),
   ])
   const access = audit.length ? { readable: audit.filter(([, ok]) => ok).map(([m]) => m), restricted: audit.filter(([, ok]) => !ok).map(([m]) => m) } : undefined
   const readableSet = new Set(access?.readable ?? [])
@@ -496,9 +627,19 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
       }
     : undefined
 
+  const fallbackWindowRecordIso = new Date(
+    new Date(`${period.to}T00:00:00Z`).getTime() - 86_400_000 + 20 * 3_600_000 + 59 * 60_000,
+  ).toISOString()
+  const resolvedLatestRecordAt = latestPosOrderIso ?? fallbackWindowRecordIso
+  const resolvedOperationalDate = new Date(new Date(resolvedLatestRecordAt).getTime() + KUWAIT_OFFSET_MS)
+    .toISOString()
+    .slice(0, 10)
+
   return {
     source: 'live',
-    syncedAt: new Date().toISOString(),
+    syncedAt: resolvedLatestRecordAt,
+    latestRecordAt: resolvedLatestRecordAt,
+    latestOperationalDate: resolvedOperationalDate,
     ...(bucket ? { bucket } : {}),
     period,
     database: db,

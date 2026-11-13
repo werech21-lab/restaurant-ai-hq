@@ -77,41 +77,40 @@ export function LoginForm({ nextPath = '/erp' }: LoginFormProps) {
 
   return (
     <div className="w-full max-w-md min-w-0 rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm sm:p-8 dark:border-white/[0.08] dark:bg-[#0F1720]">
-      {/* Mobile-only Venture Foods header & official scope */}
-      <div className="mb-5 border-b border-slate-200/80 pb-4 lg:hidden dark:border-white/[0.08]">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2.5">
-            <VentureFoodsEmblem className="h-9 w-9 shrink-0" />
-            <div className="min-w-0">
-              <div className="text-xs font-bold tracking-wide text-emerald-700 dark:text-emerald-400" dir="ltr">
-                Venture Foods · Aether BI
-              </div>
-              <p className="truncate text-sm font-bold text-slate-900 dark:text-slate-100">
-                {companyName}
-              </p>
+      {/* Mobile-only Venture Foods header & official scope (zero overflow on 390px) */}
+      <div className="mb-5 min-w-0 border-b border-slate-200/80 pb-4 lg:hidden dark:border-white/[0.08]">
+        <div className="flex min-w-0 items-start gap-3">
+          <VentureFoodsEmblem className="h-10 w-10 shrink-0 rounded-xl shadow-sm ring-1 ring-emerald-900/15" />
+          <div className="min-w-0 flex-1">
+            <div className="text-xs font-bold tracking-wide text-emerald-700 dark:text-emerald-400" dir="ltr">
+              Venture Foods · Aether BI
             </div>
+            <p className="mt-0.5 min-w-0 break-words whitespace-normal text-xs font-bold leading-snug text-slate-900 sm:text-sm dark:text-slate-100">
+              {companyName}
+            </p>
           </div>
         </div>
-        <p className="mt-2 text-xs font-medium tabular-nums text-slate-600 dark:text-slate-400">
+        <p className="mt-2 min-w-0 break-words whitespace-normal text-xs font-medium tabular-nums text-slate-600 dark:text-slate-400">
           {isAr
             ? '6 مطاعم • 7 فروع • 8 قنوات'
             : '6 Brands • 7 Branches • 8 Channels'}
         </p>
       </div>
 
-      {/* Desktop card header */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
+      {/* Desktop & mobile card header with high-contrast emerald emblem */}
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
           <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
             <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden />
             <span>
               {isAr ? 'وصول تنفيذي محمي' : 'Protected Executive Access'}
             </span>
           </div>
-          <h2 className="mt-3 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl dark:text-slate-50">
+          <h2 className="mt-3 min-w-0 break-words whitespace-normal text-xl font-bold tracking-tight text-slate-900 sm:text-2xl dark:text-slate-50">
             {t('login.title')}
           </h2>
         </div>
+        <VentureFoodsEmblem className="hidden h-11 w-11 shrink-0 rounded-2xl shadow-sm ring-1 ring-emerald-900/15 lg:block" />
       </div>
 
       <p className="mt-1.5 text-sm leading-relaxed text-slate-600 dark:text-slate-400">

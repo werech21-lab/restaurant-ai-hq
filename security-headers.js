@@ -4,7 +4,7 @@
 // styles; a nonce-based policy needs per-request middleware and is a separate piece of work. Everything else is closed:
 // no plugins, no framing, no foreign form targets, and network calls only to this origin, approved AI HTTPS APIs, and the configured Supabase project.
 
-const PERMISSIONS_POLICY_VALUE = 'camera=(self), microphone=(self), geolocation=(), browsing-topics=()'
+const PERMISSIONS_POLICY_VALUE = 'camera=(self), microphone=(self), geolocation=()'
 
 function originOf(value) {
   if (!value) return null

@@ -281,6 +281,134 @@ export function getPeriodLabel(p: GlobalPeriod, isAr: boolean): string {
   return isAr ? opt.ar : opt.en
 }
 
+const PERIOD_EN_MONTHS = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+] as const
+
+const PERIOD_AR_MONTHS = [
+  'يناير',
+  'فبراير',
+  'مارس',
+  'أبريل',
+  'مايو',
+  'يونيو',
+  'يوليو',
+  'أغسطس',
+  'سبتمبر',
+  'أكتوبر',
+  'نوفمبر',
+  'ديسمبر',
+] as const
+
+function shiftIsoDateDays(iso: string, deltaDays: number): string {
+  const ms = Date.parse(`${iso}T12:00:00Z`)
+  if (!Number.isFinite(ms)) return iso
+  return new Date(ms + deltaDays * 86_400_000).toISOString().slice(0, 10)
+}
+
+function parseIsoYmd(iso: string): { year: number; monthIdx: number; day: number } | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso)
+  if (!m) return null
+  const year = Number(m[1])
+  const monthIdx = Number(m[2]) - 1
+  const day = Number(m[3])
+  if (monthIdx < 0 || monthIdx > 11 || day < 1 || day > 31) return null
+  return { year, monthIdx, day }
+}
+
+export function formatInclusiveIsoRangeLabels(
+  fromIso: string,
+  toInclusiveIso: string,
+): { labelEn: string; labelAr: string } {
+  const a = parseIsoYmd(fromIso)
+  const b = parseIsoYmd(toInclusiveIso)
+  if (!a || !b) {
+    return {
+      labelEn: fromIso === toInclusiveIso ? fromIso : `${fromIso} – ${toInclusiveIso}`,
+      labelAr: fromIso === toInclusiveIso ? fromIso : `${fromIso} – ${toInclusiveIso}`,
+    }
+  }
+  if (fromIso === toInclusiveIso) {
+    return {
+      labelEn: `${PERIOD_EN_MONTHS[a.monthIdx]} ${a.day}, ${a.year}`,
+      labelAr: `${a.day} ${PERIOD_AR_MONTHS[a.monthIdx]} ${a.year}`,
+    }
+  }
+  if (a.year === b.year) {
+    return {
+      labelEn: `${PERIOD_EN_MONTHS[a.monthIdx]} ${a.day} – ${PERIOD_EN_MONTHS[b.monthIdx]} ${b.day}, ${b.year}`,
+      labelAr: `${a.day} ${PERIOD_AR_MONTHS[a.monthIdx]} – ${b.day} ${PERIOD_AR_MONTHS[b.monthIdx]} ${b.year}`,
+    }
+  }
+  return {
+    labelEn: `${PERIOD_EN_MONTHS[a.monthIdx]} ${a.day}, ${a.year} – ${PERIOD_EN_MONTHS[b.monthIdx]} ${b.day}, ${b.year}`,
+    labelAr: `${a.day} ${PERIOD_AR_MONTHS[a.monthIdx]} ${a.year} – ${b.day} ${PERIOD_AR_MONTHS[b.monthIdx]} ${b.year}`,
+  }
+}
+
+/**
+ * Resolves the concrete inclusive calendar date window for any Period selection (`today`, `week`, `month`, `year`, `custom`)
+ * directly from the Odoo 17 dataset buckets (where bucket `to` is exclusive `[from, to)`).
+ */
+export function formatPeriodCalendarWindow(
+  period: GlobalPeriod,
+  opts?: {
+    customFrom?: string
+    customTo?: string
+    liveSummary?: OdooLiveSummary | null
+  },
+): {
+  fromIso: string
+  toInclusiveIso: string
+  labelEn: string
+  labelAr: string
+} {
+  if (period === 'custom') {
+    const isoRe = /^\d{4}-\d{2}-\d{2}$/
+    let f = opts?.customFrom && isoRe.test(opts.customFrom) ? opts.customFrom : DEFAULT_CUSTOM_FROM
+    let t = opts?.customTo && isoRe.test(opts.customTo) ? opts.customTo : DEFAULT_CUSTOM_TO
+    if (f > t) {
+      const tmp = f
+      f = t
+      t = tmp
+    }
+    const labels = formatInclusiveIsoRangeLabels(f, t)
+    return { fromIso: f, toInclusiveIso: t, ...labels }
+  }
+
+  const snapBuckets = (
+    ODOO as unknown as {
+      buckets?: Partial<Record<OdooPeriodBucketKey, OdooBucketSummary>>
+    }
+  ).buckets
+  let bkt = opts?.liveSummary?.buckets?.[period] ?? snapBuckets?.[period]
+  if (
+    period === 'today' &&
+    (!bkt || (bkt.totals?.restaurantOrders ?? 0) <= 0) &&
+    snapBuckets?.today
+  ) {
+    bkt = snapBuckets.today
+  }
+
+  const fromIso = bkt?.from ?? (period === 'year' ? '2026-01-01' : '2026-10-12')
+  const rawExclTo = bkt?.to ?? '2026-11-11'
+  const shiftedEnd = shiftIsoDateDays(rawExclTo, -1)
+  const toInclusiveIso = shiftedEnd >= fromIso ? shiftedEnd : fromIso
+  const labels = formatInclusiveIsoRangeLabels(fromIso, toInclusiveIso)
+  return { fromIso, toInclusiveIso, ...labels }
+}
+
 export function getKuwaitSliceLabel(s: KuwaitSlice, isAr: boolean): string {
   const opt = GLOBAL_KUWAIT_SLICE_OPTIONS.find((x) => x.id === s) ?? GLOBAL_KUWAIT_SLICE_OPTIONS[0]
   return isAr ? opt.ar : opt.en
@@ -306,14 +434,21 @@ export function getChannelLabel(c: GlobalChannel, isAr: boolean): string {
   return isAr ? opt.ar : opt.en
 }
 
-export function buildFilterSubtitle(f: GlobalFilters, isAr: boolean): string {
+export function buildFilterSubtitle(
+  f: GlobalFilters,
+  isAr: boolean,
+  liveSummary?: OdooLiveSummary | null,
+): string {
   const rawParts = [getBrandLabel(f.brand, isAr), getBranchLabel(f.branch, isAr)]
   if (f.channel !== 'all') rawParts.push(getChannelLabel(f.channel, isAr))
-  if (f.period === 'custom' && f.customFrom && f.customTo) {
-    rawParts.push(`${f.customFrom} → ${f.customTo}`)
-  } else {
-    rawParts.push(getPeriodLabel(f.period, isAr))
-  }
+  const periodWindow = formatPeriodCalendarWindow(f.period ?? 'month', {
+    customFrom: f.customFrom,
+    customTo: f.customTo,
+    liveSummary,
+  })
+  const cleanPeriodBase = getPeriodLabel(f.period ?? 'month', isAr).replace(/\s*📅$/, '')
+  const windowLabel = isAr ? periodWindow.labelAr : periodWindow.labelEn
+  rawParts.push(`${cleanPeriodBase} (${windowLabel})`)
   const ks = f.kuwaitSlice ?? 'all'
   const ln = f.lens ?? 'all'
   if (ks !== 'all') rawParts.push(getKuwaitSliceLabel(ks, isAr))
@@ -1088,6 +1223,8 @@ export interface GlobalWorkspaceSlice {
   todayFallbackDate: string | null
   subtitleAr: string
   subtitleEn: string
+  periodCalendarWindowAr: string
+  periodCalendarWindowEn: string
   periodRangeLabelAr: string
   periodRangeLabelEn: string
   periodDays: number
@@ -2090,21 +2227,25 @@ export function computeGlobalWorkspace(
     },
   ]
 
+  const resolvedPeriodWindow = formatPeriodCalendarWindow(filters.period, {
+    customFrom: filters.customFrom,
+    customTo: filters.customTo,
+    liveSummary,
+  })
+  const periodCalendarWindowAr = resolvedPeriodWindow.labelAr
+  const periodCalendarWindowEn = resolvedPeriodWindow.labelEn
+
   const periodRangeLabelAr =
     filters.period === 'custom'
-      ? `${filters.customFrom} → ${filters.customTo} (${formatArDays(periodDays)})`
-      : activeBkt
-        ? `${activeBkt.from} → ${activeBkt.to}${isTodayFallback ? ' (آخر يوم عمل مكتمل)' : ''}`
-        : getPeriodLabel(filters.period, true)
+      ? `${periodCalendarWindowAr} (${formatArDays(periodDays)})`
+      : `${periodCalendarWindowAr}${isTodayFallback ? ' (آخر يوم عمل مكتمل)' : ''}`
   const periodRangeLabelEn =
     filters.period === 'custom'
-      ? `${filters.customFrom} → ${filters.customTo} (${periodDays}d)`
-      : activeBkt
-        ? `${activeBkt.from} → ${activeBkt.to}${isTodayFallback ? ' (last full POS day)' : ''}`
-        : getPeriodLabel(filters.period, false)
+      ? `${periodCalendarWindowEn} (${periodDays}d)`
+      : `${periodCalendarWindowEn}${isTodayFallback ? ' (last full POS day)' : ''}`
 
-  const subtitleAr = buildFilterSubtitle(filters, true)
-  const subtitleEn = buildFilterSubtitle(filters, false)
+  const subtitleAr = buildFilterSubtitle(filters, true, liveSummary)
+  const subtitleEn = buildFilterSubtitle(filters, false, liveSummary)
 
   const peerClauseAr = showPeerComparison ? ` مقابل متوسط المجموعة ${groupWeightedNetPct.toFixed(1)}%` : ''
   const peerClauseEn = showPeerComparison ? ` vs ${groupWeightedNetPct.toFixed(1)}% group avg` : ''
@@ -2118,6 +2259,8 @@ export function computeGlobalWorkspace(
     todayFallbackDate,
     subtitleAr,
     subtitleEn,
+    periodCalendarWindowAr,
+    periodCalendarWindowEn,
     periodRangeLabelAr,
     periodRangeLabelEn,
     periodDays,

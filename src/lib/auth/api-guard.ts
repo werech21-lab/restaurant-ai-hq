@@ -14,7 +14,7 @@ import {
 import { SESSION_COOKIE, verifySessionToken } from '@/lib/session'
 
 export const ENTERPRISE_PERMISSIONS_POLICY =
-  'camera=(self), microphone=(self), geolocation=(), browsing-topics=()'
+  'camera=(self), microphone=(self), geolocation=()'
 
 export const ENTERPRISE_API_SECURITY_HEADERS: Record<string, string> = {
   'Cache-Control': 'no-store, max-age=0',

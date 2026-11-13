@@ -96,7 +96,7 @@ describe('security headers', () => {
     expect(production.get('Referrer-Policy')).toBe('strict-origin-when-cross-origin')
     expect(production.get('Cross-Origin-Opener-Policy')).toBe('same-origin')
     expect(production.get('Permissions-Policy')).toBe(
-      'camera=(self), microphone=(self), geolocation=(), browsing-topics=()',
+      'camera=(self), microphone=(self), geolocation=()',
     )
     expect(production.get('Content-Security-Policy')).toBeTruthy()
   })

@@ -119,6 +119,7 @@ export function FeryalSidebarNotebooks({
   }, [chats])
 
   const handleCreateNotebook = () => {
+    if (isAuditor) return
     const created = createNotebook(newNotebookName)
     if (created) {
       setNewNotebookName('')
@@ -128,6 +129,7 @@ export function FeryalSidebarNotebooks({
   }
 
   const handleExportJson = async () => {
+    if (isAuditor) return
     try {
       const json = await exportFeryalWorkspaceJson()
       const blob = new Blob([json], { type: 'application/json;charset=utf-8' })
@@ -397,19 +399,27 @@ export function FeryalSidebarNotebooks({
           <div className="min-h-0 flex-1 space-y-3.5 overflow-y-auto pe-1">
             {groupedChats.length === 0 ? (
               <div className="rounded-2xl bg-[#F7F7F8] p-5 text-center dark:bg-[#0D1614]">
-                <p className="text-[13.5px] font-semibold text-neutral-800 dark:text-slate-200">
+                <p className="text-[13px] font-semibold leading-relaxed text-neutral-800 dark:text-slate-200">
                   {searchQuery
                     ? isAr
                       ? 'لا توجد محادثات مطابقة لبحثك'
                       : 'No conversations match your search'
-                    : isAr
-                      ? 'تُحفظ محادثاتك تلقائياً فور إرسال أول سؤال'
-                      : 'Chats auto-save automatically once you send a message'}
+                    : isAuditor
+                      ? isAr
+                        ? 'جلسة مراجعة للقراءة فقط — إنشاء المحادثات وتصدير النسخ الاحتياطية محصور بالإدارة التنفيذية'
+                        : 'Read-Only Audit Session — Thread creation and data backup export are restricted to executive management'
+                      : isAr
+                        ? 'تُحفظ محادثاتك تلقائياً فور إرسال أول سؤال'
+                        : 'Chats auto-save automatically once you send a message'}
                 </p>
-                <p className="mt-1 text-xs text-neutral-500 dark:text-slate-400">
-                  {isAr
-                    ? 'عناوين عربية ذكية من ٤–٦ كلمات مصنّفة داخل دفاتر المواضيع.'
-                    : 'Auto-titled in 4–6 words and organized into Topic Notebooks.'}
+                <p className="mt-1.5 text-xs leading-relaxed text-neutral-500 dark:text-slate-400">
+                  {isAuditor
+                    ? isAr
+                      ? 'يمكنك استعراض تبويب أهم ملاحظات اليوم ⚡ أو مراجعة ملخصات أودو 17 المعتمدة في الاستوديو.'
+                      : "Browse Today's Notes ⚡ or inspect verified Odoo 17 briefings in the main studio."
+                    : isAr
+                      ? 'عناوين عربية ذكية من ٤–٦ كلمات مصنّفة داخل دفاتر المواضيع.'
+                      : 'Auto-titled in 4–6 words and organized into Topic Notebooks.'}
                 </p>
               </div>
             ) : (
@@ -577,29 +587,35 @@ export function FeryalSidebarNotebooks({
             )}
           </div>
 
-          {/* 1-Click JSON Backup & Restore Footer */}
+          {/* 1-Click JSON Backup & Restore Footer (Strictly hidden for Read-Only Auditor) */}
           <div className="flex items-center justify-between gap-2 border-t border-neutral-100 pt-2.5 text-[11.5px] dark:border-white/[0.06]">
-            {backupToast ? (
-              <span className="font-semibold text-emerald-700 dark:text-emerald-400">
-                {backupToast}
+            {isAuditor ? (
+              <span className="min-w-0 break-words whitespace-normal font-medium text-amber-800 dark:text-amber-300">
+                {isAr
+                  ? 'وضع قراءة فقط — التصدير والاستعادة مقفلان'
+                  : 'Read-only audit lock — backup export disabled'}
               </span>
             ) : (
-              <span className="truncate font-medium text-neutral-400">
-                {isAr ? 'حفظ تلقائي دائم (IndexedDB)' : 'Real-time IndexedDB Auto-Save'}
-              </span>
-            )}
-            <div className="flex shrink-0 items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => void handleExportJson()}
-                className="inline-flex cursor-pointer items-center gap-1 rounded-full bg-[#F7F7F8] px-2.5 py-1 font-semibold text-neutral-700 hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#0D1614] dark:text-slate-200"
-                title={isAr ? 'تنزيل نسخة احتياطية JSON للمحادثات والذاكرة' : 'Export JSON backup'}
-              >
-                <Download className="h-3 w-3" />
-                <span>{isAr ? 'نسخ JSON' : 'Backup'}</span>
-              </button>
-              {!isAuditor ? (
-                <>
+              <>
+                {backupToast ? (
+                  <span className="font-semibold text-emerald-700 dark:text-emerald-400">
+                    {backupToast}
+                  </span>
+                ) : (
+                  <span className="truncate font-medium text-neutral-400">
+                    {isAr ? 'حفظ تلقائي دائم (IndexedDB)' : 'Real-time IndexedDB Auto-Save'}
+                  </span>
+                )}
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => void handleExportJson()}
+                    className="inline-flex cursor-pointer items-center gap-1 rounded-full bg-[#F7F7F8] px-2.5 py-1 font-semibold text-neutral-700 hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#0D1614] dark:text-slate-200"
+                    title={isAr ? 'تنزيل نسخة احتياطية JSON للمحادثات والذاكرة' : 'Export JSON backup'}
+                  >
+                    <Download className="h-3 w-3" />
+                    <span>{isAr ? 'نسخ JSON' : 'Backup'}</span>
+                  </button>
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
@@ -616,9 +632,9 @@ export function FeryalSidebarNotebooks({
                     onChange={(e) => void handleImportFile(e)}
                     className="hidden"
                   />
-                </>
-              ) : null}
-            </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       ) : (

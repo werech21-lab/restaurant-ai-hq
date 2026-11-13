@@ -2029,8 +2029,9 @@ console.log('\n17) Final CISO Permissions-Policy, Read-Only Auditor 403 Guard & 
 // 17.1 Permissions-Policy Scoped microphone=(self) & camera=(self) — ZERO wildcard microphone policy Anywhere
 const secHeadersJsSrc = fs.readFileSync(path.join(ROOT, 'security-headers.js'), 'utf8')
 const publicHeadersSrc = fs.readFileSync(path.join(ROOT, 'public/_headers'), 'utf8')
-const expectedPermPolicy = 'camera=(self), microphone=(self), geolocation=(), browsing-topics=()'
+const expectedPermPolicy = 'camera=(self), microphone=(self), geolocation=()'
 const micWildcardPat = ['microphone=', '*'].join('')
+const deprecatedTopicsPat = ['browsing-', 'topics'].join('')
 
 function collectRepoAuditFiles(dir, out = []) {
   for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -2043,10 +2044,15 @@ function collectRepoAuditFiles(dir, out = []) {
 }
 
 const micWildcardOffenders = []
+const deprecatedTopicsOffenders = []
 for (const f of collectRepoAuditFiles(ROOT)) {
+  const rel = path.relative(ROOT, f).replace(/\\/g, '/')
   const txt = fs.readFileSync(f, 'utf8')
   if (txt.includes(micWildcardPat)) {
-    micWildcardOffenders.push(path.relative(ROOT, f).replace(/\\/g, '/'))
+    micWildcardOffenders.push(rel)
+  }
+  if (rel !== 'scripts/verify-brain-integrity.mjs' && txt.includes(deprecatedTopicsPat)) {
+    deprecatedTopicsOffenders.push(rel)
   }
 }
 
@@ -2060,9 +2066,10 @@ assert(
     publicHeadersSrc.includes('camera=(self)') &&
     middlewareSrc.includes('microphone=(self)') &&
     middlewareSrc.includes('camera=(self)') &&
-    micWildcardOffenders.length === 0,
-  `17.1 Permissions-Policy Hardening: security-headers.js, public/_headers & src/middleware.ts emit camera=(self), microphone=(self), geolocation=(), browsing-topics=() with ZERO ${micWildcardPat} anywhere`,
-  `micWildcards=${micWildcardOffenders.length}`,
+    micWildcardOffenders.length === 0 &&
+    deprecatedTopicsOffenders.length === 0,
+  `17.1 Permissions-Policy Hardening: security-headers.js, public/_headers & src/middleware.ts emit camera=(self), microphone=(self), geolocation=() with ZERO ${micWildcardPat} and ZERO ${deprecatedTopicsPat} warnings anywhere`,
+  `micWildcards=${micWildcardOffenders.length}, deprecatedTopics=${deprecatedTopicsOffenders.length}`,
 )
 
 // 17.2 Dedicated Read-Only Auditor Role ('auditor' + auditor@venturefoodskw.com) & Runtime 403 Mutation Guard
@@ -2550,13 +2557,13 @@ const gmBuiltProdHeaders = gmSecHeadersCjs.buildSecurityHeaders({
 const gmHeaderMap = Object.fromEntries(gmBuiltProdHeaders.map((h) => [h.key, h.value]))
 
 assert(
-  gmHeaderMap['Permissions-Policy'] === 'camera=(self), microphone=(self), geolocation=(), browsing-topics=()' &&
+  gmHeaderMap['Permissions-Policy'] === 'camera=(self), microphone=(self), geolocation=()' &&
     !gmHeaderMap['Permissions-Policy'].includes(micWildcardPat) &&
     gmHeaderMap['X-Frame-Options'] === 'DENY' &&
     gmHeaderMap['X-Content-Type-Options'] === 'nosniff' &&
     gmHeaderMap['Referrer-Policy'] === 'strict-origin-when-cross-origin' &&
     nextConfigSrc.includes('noindex, nofollow, noarchive') &&
-    gmPublicHeadersSrc.includes('Permissions-Policy: camera=(self), microphone=(self), geolocation=(), browsing-topics=()') &&
+    gmPublicHeadersSrc.includes('Permissions-Policy: camera=(self), microphone=(self), geolocation=()') &&
     gmPublicHeadersSrc.includes('X-Frame-Options: DENY') &&
     gmPublicHeadersSrc.includes('X-Content-Type-Options: nosniff') &&
     gmPublicHeadersSrc.includes('Referrer-Policy: strict-origin-when-cross-origin') &&
@@ -2803,7 +2810,7 @@ assert(
     gmProbe.mwHeaders?.xfo === 'DENY' &&
     gmProbe.mwHeaders?.xcto === 'nosniff' &&
     gmProbe.mwHeaders?.ref === 'strict-origin-when-cross-origin' &&
-    gmProbe.mwHeaders?.pp === 'camera=(self), microphone=(self), geolocation=(), browsing-topics=()',
+    gmProbe.mwHeaders?.pp === 'camera=(self), microphone=(self), geolocation=()',
   '19.2 Auth Rate-Limiter & CSRF & Constant-Time Hash Gate: /api/auth/login enforces Origin check (403), timingSafeEqual, and sliding-window 429 throttle with Retry-After after 8 failed attempts',
   `statuses=${JSON.stringify(gmProbe.loginStatuses)}, retryAfter=${gmProbe.retryAfterSec}s, csrf=${gmProbe.csrfStatus}`,
 )
@@ -3331,6 +3338,137 @@ assert(
     coresSrc.includes('liveFormPreview') &&
     topBarSrc.includes('computeCustomSpanDays'),
   '23.3 All 4 Comparison Touchpoints Wired: /erp/weekday-comparison (Date & Sales Comparison), /erp/before-after (Before vs After + Governance 1-click Compare Window ↗), /erp/cores (Influencer Custom Baseline + Target Branch + Live Preview) & TopFilterBar Custom Date Span',
+)
+
+// 24. Investor-Ready Honest Odoo Freshness, Explicit Period Dates, >24h Stale Alert & UI/Auditor Polish Gate
+console.log('\n24) Investor-Ready Honest Odoo Freshness, Explicit Period Dates & UI/Auditor Polish Gate:')
+
+const s24LiveSyncCoreSrc = fs.readFileSync(
+  path.join(ROOT, 'src/lib/odoo/live-sync-core.ts'),
+  'utf8',
+)
+const s24OdooSyncRouteSrc = fs.readFileSync(
+  path.join(ROOT, 'src/app/api/odoo-sync/route.ts'),
+  'utf8',
+)
+const s24LoginFormSrc = fs.readFileSync(
+  path.join(ROOT, 'src/app/login/login-form.tsx'),
+  'utf8',
+)
+
+const s24HonestSyncProbeScript = `
+import snapshot from './src/lib/odoo-live-snapshot.json';
+import {
+  summaryFromSnapshot,
+  computeOdooFreshnessStatus,
+} from './src/lib/odoo/live-sync-core';
+import {
+  formatPeriodCalendarWindow,
+  buildFilterSubtitle,
+  DEFAULT_GLOBAL_FILTERS,
+} from './src/lib/aether/global-filter-engine';
+
+const snapSummary = summaryFromSnapshot(snapshot, undefined, 'month');
+const staleCheck = computeOdooFreshnessStatus(
+  snapSummary.latestRecordAt,
+  Date.parse('2026-11-13T12:00:00.000Z'),
+);
+const liveCheck = computeOdooFreshnessStatus(
+  '2026-11-13T08:30:00.000Z',
+  Date.parse('2026-11-13T12:00:00.000Z'),
+);
+
+const wToday = formatPeriodCalendarWindow('today');
+const wWeek = formatPeriodCalendarWindow('week');
+const wMonth = formatPeriodCalendarWindow('month');
+const wYear = formatPeriodCalendarWindow('year');
+const wCustom = formatPeriodCalendarWindow('custom', {
+  customFrom: '2026-10-20',
+  customTo: '2026-11-05',
+});
+
+const subMonthEn = buildFilterSubtitle(DEFAULT_GLOBAL_FILTERS, false);
+const subMonthAr = buildFilterSubtitle(DEFAULT_GLOBAL_FILTERS, true);
+
+console.log(JSON.stringify({
+  latestRecordAt: snapSummary.latestRecordAt,
+  syncedAtMatchesLatest: snapSummary.syncedAt === snapSummary.latestRecordAt,
+  kuwaitTimestamp: staleCheck.kuwaitTimestamp,
+  staleOver24h: staleCheck.isStaleOver24h,
+  staleBadgeEn: staleCheck.badgeEn,
+  staleBadgeAr: staleCheck.badgeAr,
+  liveOver24h: liveCheck.isStaleOver24h,
+  liveBadgeEn: liveCheck.badgeEn,
+  todayEn: wToday.labelEn,
+  todayAr: wToday.labelAr,
+  weekEn: wWeek.labelEn,
+  monthEn: wMonth.labelEn,
+  monthAr: wMonth.labelAr,
+  yearEn: wYear.labelEn,
+  customEn: wCustom.labelEn,
+  subMonthEn,
+  subMonthAr,
+}));
+`
+
+const s24Raw = execFileSync(process.execPath, [tsxCli, '-e', s24HonestSyncProbeScript], {
+  cwd: ROOT,
+  encoding: 'utf8',
+}).trim()
+const s24Probe = JSON.parse(s24Raw.split('\n').pop() ?? '{}')
+
+assert(
+  !s24LiveSyncCoreSrc.includes('new Date().toISOString()') &&
+    !s24OdooSyncRouteSrc.includes('new Date().toISOString()') &&
+    !execFooterSrc.includes('new Date().toISOString()') &&
+    !execFooterSrc.includes('hydratedNowIso') &&
+    s24Probe.latestRecordAt === '2026-11-10T20:59:00.000Z' &&
+    s24Probe.syncedAtMatchesLatest === true &&
+    s24Probe.kuwaitTimestamp === '10/11/2026 23:59 UTC+3' &&
+    s24Probe.staleOver24h === true &&
+    s24Probe.staleBadgeEn ===
+      '🔴 Stale Data Alert: Last Odoo POS record is from Nov 10, 2026 (>24h ago) — Live sync required' &&
+    s24Probe.staleBadgeAr ===
+      '🔴 تنبيه حداثة البيانات: آخر فاتورة مسجلة من أودو بتاريخ 10/11/2026 (أكثر من 24 ساعة) — يرجى تحديث الربط الحي' &&
+    s24Probe.liveOver24h === false &&
+    s24Probe.liveBadgeEn === '🟢 Live Odoo Sync (<24h)' &&
+    execFooterSrc.includes('{!roleProfile.isAuditor ? (') &&
+    execFooterSrc.includes('Sync Now'),
+  '24.1 Honest Odoo Record Timestamp & >24h Red Stale Alert: Zero new Date() faking, zero SSR hydration flicker, deterministic 10/11/2026 23:59 UTC+3 record timestamp, automatic >24h red stale alert + <24h green live badge, and Sync Now strictly hidden for auditor',
+  `latest=${s24Probe.latestRecordAt}, stamp=${s24Probe.kuwaitTimestamp}, stale=${s24Probe.staleOver24h}`,
+)
+
+assert(
+  s24Probe.todayEn === 'Nov 10, 2026' &&
+    s24Probe.todayAr === '10 نوفمبر 2026' &&
+    s24Probe.weekEn === 'Nov 4 – Nov 10, 2026' &&
+    s24Probe.monthEn === 'Oct 12 – Nov 10, 2026' &&
+    s24Probe.monthAr === '12 أكتوبر – 10 نوفمبر 2026' &&
+    s24Probe.customEn === 'Oct 20 – Nov 5, 2026' &&
+    s24Probe.subMonthEn.includes('Month (Oct 12 – Nov 10, 2026)') &&
+    s24Probe.subMonthAr.includes('الشهر (12 أكتوبر – 10 نوفمبر 2026)') &&
+    topBarSrc.includes('Period: ${activePeriodShortLabel} (${activePeriodRangeText})') &&
+    topBarSrc.includes('الفترة: ${activePeriodShortLabel} (${activePeriodRangeText})'),
+  '24.2 Explicit Period Calendar Windows: Today, Week, Month, Year & Custom display exact calendar date ranges in TopFilterBar, PeriodDropdownPopover & workspace subtitles (e.g. Month (Oct 12 – Nov 10, 2026))',
+  `monthEn=${s24Probe.monthEn}, monthAr=${s24Probe.monthAr}`,
+)
+
+assert(
+  s24LoginFormSrc.includes('min-w-0 break-words whitespace-normal text-xs font-bold leading-snug') &&
+    !s24LoginFormSrc.includes('truncate text-sm font-bold') &&
+    loginHeroSrc.includes('useId()') &&
+    loginHeroSrc.includes('#059669') &&
+    loginHeroSrc.includes('#064E3B') &&
+    feryalStudioSrc.includes('min-h-[calc(100vh-148px)] flex flex-col justify-between') &&
+    feryalStudioSrc.includes('Verified Executive Audit Briefings & Institutional Memory Preview') &&
+    feryalNotebooksSrc.includes(
+      'Read-Only Audit Session — Thread creation and data backup export are restricted to executive management',
+    ) &&
+    feryalNotebooksSrc.includes(
+      'جلسة مراجعة للقراءة فقط — إنشاء المحادثات وتصدير النسخ الاحتياطية محصور بالإدارة التنفيذية',
+    ) &&
+    feryalNotebooksSrc.includes('Read-only audit lock — backup export disabled'),
+  '24.3 /login Mobile Wrap & High-Contrast Emblem + /erp/feryal-ai Full-Height Layout & Strict Auditor Backup Lock: Zero 390px login text clipping, unique SVG gradient IDs, full-height Feryal studio with audit briefings preview, and Backup hidden for auditor',
 )
 
 console.log('\n----------------------------------------------------------------------')

@@ -6,7 +6,7 @@ import {
 } from '@/lib/auth/exec-session'
 
 export const PERMISSIONS_POLICY_VALUE =
-  'camera=(self), microphone=(self), geolocation=(), browsing-topics=()'
+  'camera=(self), microphone=(self), geolocation=()'
 const ROBOTS_TAG_VALUE = 'noindex, nofollow, noarchive'
 
 const PUBLIC_EXACT_PATHS = new Set([

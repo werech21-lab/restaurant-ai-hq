@@ -38,12 +38,14 @@ import {
 import { RAIL_TOGGLE_EVENT } from '@/components/erp-sidebar'
 import { routeTitle } from '@/lib/aether/route-titles'
 import {
+  formatPeriodCalendarWindow,
   GLOBAL_KUWAIT_SLICE_OPTIONS,
   GLOBAL_PERIOD_OPTIONS,
   GLOBAL_PROFIT_LENS_OPTIONS,
   type FilterOption,
   type GlobalPeriod,
 } from '@/lib/aether/global-filter-engine'
+import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
 
 export const ERP_SUBTAB_EVENT = 'aether:erp-subtab'
 export type ErpOverviewSubtab = 'summary' | 'plays'
@@ -124,6 +126,7 @@ function PeriodDropdownPopover({
   activePeriod,
   draftFrom,
   draftTo,
+  liveSummary,
   onSelectPeriod,
   onChangeFrom,
   onChangeTo,
@@ -135,6 +138,7 @@ function PeriodDropdownPopover({
   activePeriod: GlobalPeriod
   draftFrom: string
   draftTo: string
+  liveSummary?: OdooLiveSummary | null
   onSelectPeriod: (next: GlobalPeriod) => void
   onChangeFrom: (val: string) => void
   onChangeTo: (val: string) => void
@@ -149,16 +153,22 @@ function PeriodDropdownPopover({
       role="listbox"
       aria-label={isAr ? 'الفترة الزمنية' : 'Time Period'}
       dir={isAr ? 'rtl' : 'ltr'}
-      className="w-[min(92vw,310px)] space-y-2 rounded-2xl bg-white p-3 text-slate-800 shadow-[0_20px_50px_rgba(15,23,42,0.16)] ring-1 ring-slate-900/[0.07] dark:bg-[#101C17] dark:text-slate-100 dark:ring-emerald-500/20"
+      className="w-[min(92vw,336px)] space-y-2 rounded-2xl bg-white p-3 text-slate-800 shadow-[0_20px_50px_rgba(15,23,42,0.16)] ring-1 ring-slate-900/[0.07] dark:bg-[#101C17] dark:text-slate-100 dark:ring-emerald-500/20"
     >
       <div className="px-1 text-[11px] font-bold text-slate-400 dark:text-slate-400">
-        {isAr ? 'اختر الفترة الزمنية' : 'Select Time Period'}
+        {isAr ? 'اختر الفترة الزمنية ونطاق التاريخ' : 'Select Time Period & Date Window'}
       </div>
 
       <div className="space-y-1">
         {GLOBAL_PERIOD_OPTIONS.map((p) => {
           const active = p.id === activePeriod
           const label = cleanPeriodOptionLabel(p.id, isAr ? p.ar : p.en, isAr)
+          const optWindow = formatPeriodCalendarWindow(p.id, {
+            customFrom: draftFrom,
+            customTo: draftTo,
+            liveSummary,
+          })
+          const rangeText = isAr ? optWindow.labelAr : optWindow.labelEn
           return (
             <button
               key={p.id}
@@ -177,7 +187,18 @@ function PeriodDropdownPopover({
                   : 'text-slate-700 hover:bg-[#F6F7F8] hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/[0.06] dark:hover:text-white'
               }`}
             >
-              <span>{label}</span>
+              <span className="min-w-0 flex-1">
+                <span>{label}</span>
+                <span
+                  className={`ms-1.5 text-[11px] font-medium tabular-nums ${
+                    active
+                      ? 'text-white/90 dark:text-[#04130D]/80'
+                      : 'text-slate-400 dark:text-slate-400'
+                  }`}
+                >
+                  ({rangeText})
+                </span>
+              </span>
               {active ? <Check className="h-3.5 w-3.5 shrink-0" /> : null}
             </button>
           )
@@ -707,6 +728,7 @@ export function TopFilterBar({
   const {
     filters,
     workspace,
+    liveSummary,
     setPeriod,
     setCustomRange,
     setKuwaitSlice,
@@ -841,9 +863,12 @@ export function TopFilterBar({
     isAr ? activePeriodMeta.ar : activePeriodMeta.en,
     isAr,
   )
+  const activePeriodRangeText = isAr
+    ? workspace.periodCalendarWindowAr
+    : workspace.periodCalendarWindowEn
   const periodDropdownLabel = isAr
-    ? `الفترة: ${activePeriodShortLabel}`
-    : `Period: ${activePeriodShortLabel}`
+    ? `الفترة: ${activePeriodShortLabel} (${activePeriodRangeText})`
+    : `Period: ${activePeriodShortLabel} (${activePeriodRangeText})`
 
   const handleApplyMobileSheet = () => {
     if (filters.period === 'custom') {
@@ -921,6 +946,7 @@ export function TopFilterBar({
                         activePeriod={filters.period}
                         draftFrom={draftFrom}
                         draftTo={draftTo}
+                        liveSummary={liveSummary}
                         onSelectPeriod={setPeriod}
                         onChangeFrom={setDraftFrom}
                         onChangeTo={setDraftTo}
@@ -1040,6 +1066,13 @@ export function TopFilterBar({
             </div>
           </div>
         </div>
+
+        {/* Compact <640px Explicit Period Date Window Subtitle (`Period: Month (Oct 12 – Nov 10, 2026)`) */}
+        {showPosFilters ? (
+          <div className="flex items-center justify-between gap-2 pb-1.5 text-[11px] font-medium tabular-nums text-slate-500 sm:hidden dark:text-slate-400">
+            <span className="min-w-0 truncate">{periodDropdownLabel}</span>
+          </div>
+        ) : null}
       </header>
 
       {/* =====================================================================
@@ -1291,6 +1324,7 @@ export function TopFilterBar({
                         activePeriod={filters.period}
                         draftFrom={draftFrom}
                         draftTo={draftTo}
+                        liveSummary={liveSummary}
                         onSelectPeriod={setPeriod}
                         onChangeFrom={setDraftFrom}
                         onChangeTo={setDraftTo}

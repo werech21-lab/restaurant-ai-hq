@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import snapshot from '@/lib/odoo-live-snapshot.json'
 import {
+  computeOdooFreshnessStatus,
   fetchLiveOdooSummary,
   hasOdooCredentials,
   isSameSiteRequest,
@@ -129,8 +130,7 @@ export async function handleOdooSyncRequest(request: NextRequest) {
   }
 
   const bucket = parseBucketKey(request.nextUrl.searchParams.get('period'))
-  const nowIso = new Date().toISOString()
-  const kuwaitSyncStamp = formatKuwaitSyncStamp(nowIso)
+  const referenceNowMs = Date.now()
 
   // Read-only auditor sessions receive a clean 200 OK status snapshot with zero live write/RPC calls
   if (caller.isAuditor) {
@@ -142,21 +142,28 @@ export async function handleOdooSyncRequest(request: NextRequest) {
         'Read-only auditor session: displaying verified Odoo 17 ledger snapshot.',
         bucket,
       )
+    const honestIso = base.latestRecordAt ?? base.syncedAt
+    const freshness = computeOdooFreshnessStatus(honestIso, referenceNowMs)
     return NextResponse.json(
       {
         ...base,
         ok: true,
         readOnly: true,
         role: 'auditor',
-        syncedAt: nowIso,
-        kuwaitSyncedAt: kuwaitSyncStamp,
+        syncedAt: freshness.latestRecordIso,
+        latestRecordAt: freshness.latestRecordIso,
+        kuwaitSyncedAt: formatKuwaitSyncStamp(freshness.latestRecordIso),
+        hoursSinceLatestOdooRecord: freshness.hoursSinceLatestOdooRecord,
+        isStaleOver24h: freshness.isStaleOver24h,
       },
       { status: 200, headers: responseHeaders },
     )
   }
 
   const cached = cacheByBucket.get(bucket)
-  if (cached && Date.now() - cached.at < MIN_INTERVAL_MS) {
+  if (cached && referenceNowMs - cached.at < MIN_INTERVAL_MS) {
+    const honestIso = cached.data.latestRecordAt ?? cached.data.syncedAt
+    const freshness = computeOdooFreshnessStatus(honestIso, referenceNowMs)
     return NextResponse.json(
       {
         ...cached.data,
@@ -164,7 +171,11 @@ export async function handleOdooSyncRequest(request: NextRequest) {
         readOnly: false,
         role: caller.role,
         cached: true,
-        kuwaitSyncedAt: formatKuwaitSyncStamp(cached.data.syncedAt || nowIso),
+        syncedAt: freshness.latestRecordIso,
+        latestRecordAt: freshness.latestRecordIso,
+        kuwaitSyncedAt: formatKuwaitSyncStamp(freshness.latestRecordIso),
+        hoursSinceLatestOdooRecord: freshness.hoursSinceLatestOdooRecord,
+        isStaleOver24h: freshness.isStaleOver24h,
       },
       { status: 200, headers: responseHeaders },
     )
@@ -180,18 +191,26 @@ export async function handleOdooSyncRequest(request: NextRequest) {
   if (!hasOdooCredentials(env)) {
     const snap = summaryFromSnapshot(
       snapshot,
-      'Verified Odoo 17 General Ledger & POS synchronized.',
+      'Verified Odoo 17 General Ledger & POS snapshot.',
       bucket,
     )
-    const freshSnap: OdooLiveSummary = { ...snap, syncedAt: nowIso }
-    cacheByBucket.set(bucket, { at: Date.now(), data: freshSnap })
+    const honestIso = snap.latestRecordAt ?? snap.syncedAt
+    const freshness = computeOdooFreshnessStatus(honestIso, referenceNowMs)
+    const honestSnap: OdooLiveSummary = {
+      ...snap,
+      syncedAt: freshness.latestRecordIso,
+      latestRecordAt: freshness.latestRecordIso,
+    }
+    cacheByBucket.set(bucket, { at: referenceNowMs, data: honestSnap })
     return NextResponse.json(
       {
-        ...freshSnap,
+        ...honestSnap,
         ok: true,
         readOnly: false,
         role: caller.role,
-        kuwaitSyncedAt: kuwaitSyncStamp,
+        kuwaitSyncedAt: formatKuwaitSyncStamp(freshness.latestRecordIso),
+        hoursSinceLatestOdooRecord: freshness.hoursSinceLatestOdooRecord,
+        isStaleOver24h: freshness.isStaleOver24h,
       },
       { status: 200, headers: responseHeaders },
     )
@@ -209,9 +228,12 @@ export async function handleOdooSyncRequest(request: NextRequest) {
       snapSummary.buckets || live.buckets
         ? { ...(snapSummary.buckets ?? {}), ...(live.buckets ?? {}) }
         : undefined
+    const honestIso = live.latestRecordAt ?? live.syncedAt
+    const freshness = computeOdooFreshnessStatus(honestIso, Date.now())
     const data: OdooLiveSummary = {
       ...live,
-      syncedAt: nowIso,
+      syncedAt: freshness.latestRecordIso,
+      latestRecordAt: freshness.latestRecordIso,
       ...(mergedBuckets ? { buckets: mergedBuckets } : {}),
     }
     cacheByBucket.set(bucket, { at: Date.now(), data })
@@ -221,7 +243,9 @@ export async function handleOdooSyncRequest(request: NextRequest) {
         ok: true,
         readOnly: false,
         role: caller.role,
-        kuwaitSyncedAt: kuwaitSyncStamp,
+        kuwaitSyncedAt: formatKuwaitSyncStamp(freshness.latestRecordIso),
+        hoursSinceLatestOdooRecord: freshness.hoursSinceLatestOdooRecord,
+        isStaleOver24h: freshness.isStaleOver24h,
       },
       { status: 200, headers: responseHeaders },
     )
@@ -232,14 +256,22 @@ export async function handleOdooSyncRequest(request: NextRequest) {
       `Live Odoo pull fallback (${reason}); showing verified Odoo 17 ledger snapshot.`,
       bucket,
     )
-    const freshFallback: OdooLiveSummary = { ...fallback, syncedAt: nowIso }
+    const honestIso = fallback.latestRecordAt ?? fallback.syncedAt
+    const freshness = computeOdooFreshnessStatus(honestIso, Date.now())
+    const honestFallback: OdooLiveSummary = {
+      ...fallback,
+      syncedAt: freshness.latestRecordIso,
+      latestRecordAt: freshness.latestRecordIso,
+    }
     return NextResponse.json(
       {
-        ...freshFallback,
+        ...honestFallback,
         ok: true,
         readOnly: false,
         role: caller.role,
-        kuwaitSyncedAt: kuwaitSyncStamp,
+        kuwaitSyncedAt: formatKuwaitSyncStamp(freshness.latestRecordIso),
+        hoursSinceLatestOdooRecord: freshness.hoursSinceLatestOdooRecord,
+        isStaleOver24h: freshness.isStaleOver24h,
       },
       { status: 200, headers: responseHeaders },
     )
