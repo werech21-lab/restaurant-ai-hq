@@ -260,7 +260,10 @@ export function BeforeAfterStudio() {
   }, [])
 
   // Live Custom Comparison Engine Result (periodB = Before, periodA = After)
-  const comparison = useMemo(() => computeErpComparison(query), [query])
+  const comparison = useMemo(
+    () => computeErpComparison(query, liveSummary),
+    [query, liveSummary],
+  )
 
   const mergedApprovedDecisions = useMemo<ApprovedDecisionItem[]>(() => {
     const fromGov: ApprovedDecisionItem[] = approvals

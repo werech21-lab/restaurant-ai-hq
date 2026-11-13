@@ -18,6 +18,7 @@ import {
 } from '@/components/erp-sidebar'
 import { GovernanceProvider } from '@/components/erp/GovernanceBellDrawer'
 import { ExecutiveFooter } from '@/components/erp/ExecutiveFooter'
+import { OdooLiveStatusStrip } from '@/components/erp/OdooLiveStatusStrip'
 import {
   normalizeExecSessionRole,
   type ExecSessionRole,
@@ -106,7 +107,7 @@ export async function ErpShell({ children }: { children: React.ReactNode }) {
       }}
     >
       <BiFilterProvider>
-        <GlobalFilterProvider>
+        <GlobalFilterProvider isAuditor={isAuditor}>
           <GovernanceProvider isAuditor={isAuditor} sessionRole={sessionRole}>
             <div
               id="ae-root"
@@ -134,6 +135,7 @@ export async function ErpShell({ children }: { children: React.ReactNode }) {
                     sessionRole={sessionRole}
                     userEmail={user.email}
                   />
+                  <OdooLiveStatusStrip isAuditor={isAuditor} sessionRole={sessionRole} />
                   <main className="w-full max-w-none min-w-0">
                     <div id="ae-canvas" className="app-content w-full min-w-0 space-y-3 text-[14.5px]">
                       <GlobalFilterBar />

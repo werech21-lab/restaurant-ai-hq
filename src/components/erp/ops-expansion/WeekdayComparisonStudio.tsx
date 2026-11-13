@@ -115,7 +115,7 @@ export function WeekdayComparisonStudio() {
   const { locale } = useI18n()
   const isAr = locale !== 'en'
   const kwd = isAr ? 'د.ك' : 'KWD'
-  const { filters, workspace } = useGlobalFilter()
+  const { filters, workspace, liveSummary } = useGlobalFilter()
   const { requestApproval, getApprovalByRef, openDrawer } = useGovernance()
 
   const [query, setQuery] = useState<ErpComparisonQuery>(() => ({
@@ -139,7 +139,10 @@ export function WeekdayComparisonStudio() {
   const [copiedReport, setCopiedReport] = useState(false)
   const [toastMsg, setToastMsg] = useState<{ ar: string; en: string } | null>(null)
 
-  const comparison = useMemo(() => computeErpComparison(query), [query])
+  const comparison = useMemo(
+    () => computeErpComparison(query, liveSummary),
+    [query, liveSummary],
+  )
   const rollingWeekdays = useMemo(
     () => computeWeekdayComparisonData(workspace),
     [workspace],

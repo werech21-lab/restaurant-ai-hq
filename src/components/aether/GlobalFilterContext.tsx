@@ -25,11 +25,14 @@ import {
 import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
 
 const STORAGE_KEY = 'aether.globalFilters.v2'
+const SILENT_POLL_INTERVAL_MS = 180_000 // 3 minutes silent live Odoo 17 polling
 
 interface GlobalFilterContextValue {
   filters: Required<GlobalFilters>
   workspace: GlobalWorkspaceSlice
   liveSummary: OdooLiveSummary | null
+  syncingOdoo: boolean
+  triggerOdooSyncNow: () => Promise<void>
   setPeriod: (period: GlobalPeriod) => void
   setCustomRange: (from: string, to: string) => void
   setKuwaitSlice: (slice: KuwaitSlice) => void
@@ -93,13 +96,20 @@ function sanitizeFilters(
   return { period, customFrom, customTo, kuwaitSlice, brand, branch, channel, lens }
 }
 
-export function GlobalFilterProvider({ children }: { children: React.ReactNode }) {
+export function GlobalFilterProvider({
+  children,
+  isAuditor = false,
+}: {
+  children: React.ReactNode
+  isAuditor?: boolean
+}) {
   const pathname = usePathname() ?? ''
   const isSubpage = Boolean(pathname && pathname !== '/erp')
 
   const [filters, setFilters] = useState<Required<GlobalFilters>>(DEFAULT_GLOBAL_FILTERS)
   const [hydrated, setHydrated] = useState(false)
   const [liveSummary, setLiveSummary] = useState<OdooLiveSummary | null>(null)
+  const [syncingOdoo, setSyncingOdoo] = useState(false)
 
   // Hydrate from URL query params first, then localStorage
   useEffect(() => {
@@ -212,19 +222,38 @@ export function GlobalFilterProvider({ children }: { children: React.ReactNode }
     }
   }, [effectiveFilters, hydrated, isSubpage])
 
-  // Background fetch of /api/odoo-sync for live bucket updates + listen for manual sync events
+  // Background fetch of /api/erp/odoo-sync + silent 3-minute polling on active executive sessions
   useEffect(() => {
     let active = true
-    fetch(`/api/odoo-sync?period=${encodeURIComponent(effectiveFilters.period)}`, {
-      credentials: 'same-origin',
-    })
-      .then((res) => (res.ok ? (res.json() as Promise<OdooLiveSummary>) : null))
-      .then((data) => {
-        if (active && data && data.totals) setLiveSummary(data)
+    const periodKey =
+      effectiveFilters.period === 'custom' ? 'month' : effectiveFilters.period
+
+    const pullSilentStatus = () => {
+      fetch(`/api/erp/odoo-sync?period=${encodeURIComponent(periodKey)}`, {
+        method: 'GET',
+        cache: 'no-store',
+        credentials: 'same-origin',
+        headers: { accept: 'application/json' },
       })
-      .catch(() => {
-        // Silent fallback to build-time Odoo snapshot
-      })
+        .then((res) => (res.ok ? (res.json() as Promise<OdooLiveSummary>) : null))
+        .then((data) => {
+          if (active && data && data.totals) setLiveSummary(data)
+        })
+        .catch(() => {
+          // Silent fallback to verified baseline Odoo snapshot
+        })
+    }
+
+    pullSilentStatus()
+
+    const pollTimer = !isAuditor
+      ? window.setInterval(() => {
+          if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+            return
+          }
+          pullSilentStatus()
+        }, SILENT_POLL_INTERVAL_MS)
+      : null
 
     const onSyncEvent = (ev: Event) => {
       const detail = (ev as CustomEvent<OdooLiveSummary>).detail
@@ -233,9 +262,38 @@ export function GlobalFilterProvider({ children }: { children: React.ReactNode }
     window.addEventListener('aether:odoo-sync', onSyncEvent)
     return () => {
       active = false
+      if (pollTimer !== null) window.clearInterval(pollTimer)
       window.removeEventListener('aether:odoo-sync', onSyncEvent)
     }
-  }, [effectiveFilters.period])
+  }, [effectiveFilters.period, isAuditor])
+
+  const triggerOdooSyncNow = useCallback(async () => {
+    if (isAuditor) return
+    setSyncingOdoo(true)
+    try {
+      const periodKey =
+        effectiveFilters.period === 'custom' ? 'month' : effectiveFilters.period
+      const res = await fetch(
+        `/api/erp/odoo-sync?period=${encodeURIComponent(periodKey)}`,
+        {
+          method: 'POST',
+          cache: 'no-store',
+          credentials: 'same-origin',
+          headers: { accept: 'application/json' },
+        },
+      )
+      if (!res.ok) return
+      const fresh = (await res.json()) as OdooLiveSummary
+      if (fresh && fresh.totals) {
+        setLiveSummary(fresh)
+        window.dispatchEvent(new CustomEvent('aether:odoo-sync', { detail: fresh }))
+      }
+    } catch {
+      // Keep existing snapshot on transient network error
+    } finally {
+      setSyncingOdoo(false)
+    }
+  }, [effectiveFilters.period, isAuditor])
 
   const setPeriod = useCallback((period: GlobalPeriod) => setFilters((f) => ({ ...f, period })), [])
   const setCustomRange = useCallback((from: string, to: string) => {
@@ -329,6 +387,8 @@ export function GlobalFilterProvider({ children }: { children: React.ReactNode }
       filters: effectiveFilters,
       workspace,
       liveSummary,
+      syncingOdoo,
+      triggerOdooSyncNow,
       setPeriod,
       setCustomRange,
       setKuwaitSlice,
@@ -343,6 +403,8 @@ export function GlobalFilterProvider({ children }: { children: React.ReactNode }
       effectiveFilters,
       workspace,
       liveSummary,
+      syncingOdoo,
+      triggerOdooSyncNow,
       setPeriod,
       setCustomRange,
       setKuwaitSlice,
@@ -366,6 +428,8 @@ export function useGlobalFilter(): GlobalFilterContextValue {
       filters: DEFAULT_GLOBAL_FILTERS,
       workspace: fallbackWorkspace,
       liveSummary: null,
+      syncingOdoo: false,
+      triggerOdooSyncNow: async () => {},
       setPeriod: () => {},
       setCustomRange: () => {},
       setKuwaitSlice: () => {},

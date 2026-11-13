@@ -13,11 +13,31 @@ import registry from './pos-registry.json'
 export interface OdooEnv {
   ODOO_URL?: string
   ODOO_DB?: string
+  ODOO_USERNAME?: string
   ODOO_LOGIN?: string
   ODOO_API_KEY?: string
 }
 
 export type OdooPeriodBucketKey = 'today' | 'week' | 'month' | 'year'
+
+export interface OdooStockTransferSummary {
+  readable: boolean
+  recentDoneCount: number
+  pendingCount: number
+  latestTransferAt: string | null
+  routes: {
+    origin: string
+    destination: string
+    state: string
+    scheduledDate: string | null
+  }[]
+}
+
+export interface OdooReceivableClearingSummary {
+  readable: boolean
+  openReceivableKwd: number
+  openLinesCount: number
+}
 
 export interface OdooBucketSummary {
   key: OdooPeriodBucketKey
@@ -40,20 +60,43 @@ export interface OdooBucketSummary {
 
 export interface OdooLiveSummary {
   source: 'live' | 'snapshot'
+  /** Live connection telemetry (safe for client consumption; ZERO secrets/URLs/DB names). */
+  connected?: boolean
+  sourceMode?: 'odoo17-live' | 'verified-baseline'
+  envConfigured?: boolean
   /** Honest ISO-8601 UTC timestamp bound strictly to the latest actual Odoo 17 POS/accounting record. */
   syncedAt: string
   /** Canonical latest `pos.order.date_order` ISO-8601 UTC timestamp in the dataset. */
   latestRecordAt?: string
+  /** Formatted Kuwait (`Asia/Kuwait`, UTC+3) timestamp of `latestRecordAt`. */
+  kuwaitSyncedAt?: string
   /** Latest completed operational POS calendar date in Kuwait (`YYYY-MM-DD`). */
   latestOperationalDate?: string
+  /** Hours elapsed since `latestRecordAt`. */
+  hoursSinceLatestRecord?: number
+  hoursSinceLatestOdooRecord?: number
+  isStaleOver24h?: boolean
+  todayOrdersCount?: number
+  todaySalesKwd?: number
+  lastCheckedAt?: string
+  readOnly?: boolean
   bucket?: OdooPeriodBucketKey
   period: { from: string; to: string }
+  /** Strictly `null` in all browser-facing responses so `ODOO_DB` never leaves the server. */
   database: string | null
   totals: { netSalesKwd: number; orders: number; aovKwd: number }
   brands: { id: string; brand: string; netKwd: number; sharePct: number }[]
   branches: { id: string; name: string; unit: string; netSalesKwd: number; orders: number; sharePct: number }[]
   channels: { name: string; amountKwd: number }[]
   buckets?: Partial<Record<OdooPeriodBucketKey, OdooBucketSummary>>
+  /** Live Kuwait daily POS series (`YYYY-MM-DD`) overlaid on Custom Range & Comparison Engine. */
+  dailySeries?: { day: string; orders: number; netKwd: number }[]
+  /** Live Kuwait 24-hour POS distribution (`0..23`) overlaid on Hourly Comparison Curves. */
+  hourlySeries?: { hour: number; orders: number; netKwd: number }[]
+  /** Optional Ardiya Central Kitchen -> Branch transfer telemetry from `stock.picking`. */
+  stockTransfers?: OdooStockTransferSummary
+  /** Optional open aggregator/receivable clearing balance from `account.move.line`. */
+  aggregatorReceivables?: OdooReceivableClearingSummary
   /** Rolling 30-day vs prior 30-day vs month-to-date totals (whitelisted registers, Kuwait calendar days). */
   journeyPulse?: Record<'rolling30' | 'prior30' | 'mtd', { from: string; to: string; days: number; netKwd: number; orders: number; perDayKwd: number }>
   /** Read-permission audit of the 7 journey stages for the BI service user. */
@@ -80,6 +123,8 @@ export interface OdooFreshnessStatus {
   isStaleOver24h: boolean
   badgeEn: string
   badgeAr: string
+  liveConnectedBadgeEn: string
+  liveConnectedBadgeAr: string
 }
 
 const EN_SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const
@@ -170,6 +215,9 @@ export function computeOdooFreshnessStatus(
     ? `🔴 تنبيه حداثة البيانات: آخر فاتورة مسجلة من أودو بتاريخ ${kuwaitDateArSlash} (أكثر من 24 ساعة) — يرجى تحديث الربط الحي`
     : '🟢 ربط أودو حي (أقل من 24 ساعة)'
 
+  const liveConnectedBadgeEn = `🟢 Live Odoo 17 • Latest POS Order: ${kuwaitTimestamp}`
+  const liveConnectedBadgeAr = `🟢 متصل حياً بأودو 17 • آخر فاتورة: ${kuwaitTimestamp}`
+
   return {
     latestRecordIso: cleanIso,
     kuwaitTimestamp,
@@ -180,6 +228,8 @@ export function computeOdooFreshnessStatus(
     isStaleOver24h,
     badgeEn,
     badgeAr,
+    liveConnectedBadgeEn,
+    liveConnectedBadgeAr,
   }
 }
 
@@ -250,7 +300,12 @@ export function channelOfPaymentMethod(pm: string): string {
 }
 
 export function hasOdooCredentials(env: OdooEnv): boolean {
-  return Boolean(env.ODOO_URL && env.ODOO_DB && env.ODOO_LOGIN && env.ODOO_API_KEY)
+  return Boolean(
+    env.ODOO_URL &&
+      env.ODOO_DB &&
+      (env.ODOO_USERNAME || env.ODOO_LOGIN) &&
+      env.ODOO_API_KEY,
+  )
 }
 
 /* ------------------------------------------------------------- snapshot */
@@ -306,12 +361,14 @@ export function summaryFromSnapshot(raw: unknown, note?: string, bucket: OdooPer
   const bucketLocTotal = b?.totals.netSalesKwd ?? 0
   return {
     source: 'snapshot',
+    connected: false,
+    sourceMode: 'verified-baseline',
     syncedAt: latestInfo.latestRecordAt,
     latestRecordAt: latestInfo.latestRecordAt,
     latestOperationalDate: latestInfo.latestOperationalDate,
     bucket,
     period: b ? { from: b.from, to: b.to } : (s.period ?? { from: '', to: '' }),
-    database: s.database ?? null,
+    database: null,
     totals: b
       ? { netSalesKwd: b.totals.netSalesKwd, orders: b.totals.orders, aovKwd: b.totals.aovKwd }
       : s.totals
@@ -415,7 +472,8 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
   }
 
   const db = String(env.ODOO_DB)
-  const uid = await call('common', 'authenticate', [db, env.ODOO_LOGIN, env.ODOO_API_KEY, {}])
+  const loginUser = String(env.ODOO_USERNAME || env.ODOO_LOGIN || '')
+  const uid = await call('common', 'authenticate', [db, loginUser, env.ODOO_API_KEY, {}])
   if (typeof uid !== 'number' || uid <= 0) throw new Error('Odoo refused the service account')
   const ek = (model: string, method: string, args: unknown[], kwargs: Record<string, unknown> = {}) =>
     call('object', 'execute_kw', [db, uid, env.ODOO_API_KEY, model, method, args, kwargs])
@@ -637,12 +695,14 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
 
   return {
     source: 'live',
+    connected: true,
+    sourceMode: 'odoo17-live',
     syncedAt: resolvedLatestRecordAt,
     latestRecordAt: resolvedLatestRecordAt,
     latestOperationalDate: resolvedOperationalDate,
     ...(bucket ? { bucket } : {}),
     period,
-    database: db,
+    database: null,
     totals: { netSalesKwd: targetNet, orders: totalOrders, aovKwd: totalOrders ? r3(targetNet / totalOrders) : 0 },
     brands: ACTIVE_BRAND_IDS.filter((bid) => (reconciledBrandNet.get(bid) ?? 0) > 0).map((bid) => {
       const nv = reconciledBrandNet.get(bid) ?? 0

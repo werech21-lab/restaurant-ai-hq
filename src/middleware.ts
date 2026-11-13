@@ -99,13 +99,34 @@ function isProtectedApiPath(pathname: string): boolean {
   return pathname.startsWith('/api/')
 }
 
+function constantTimeStringEqual(a: string, b: string): boolean {
+  if (a.length === 0 || a.length !== b.length) return false
+  let diff = 0
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i)
+  }
+  return diff === 0
+}
+
+function isAuthorizedCronRequest(request: NextRequest, pathname: string): boolean {
+  if (
+    pathname !== '/api/erp/odoo-sync' &&
+    pathname !== '/api/odoo-sync' &&
+    pathname !== '/api/aggregator-radar/alert'
+  ) {
+    return false
+  }
+  const cronSecret = (process.env.CRON_SECRET ?? '').trim()
+  if (!cronSecret) return false
+  const authHeader = request.headers.get('authorization') ?? ''
+  return constantTimeStringEqual(authHeader, `Bearer ${cronSecret}`)
+}
+
 function isAuditorRestrictedMutationPath(pathname: string): boolean {
   if (
     pathname === '/api/auth/login' ||
     pathname === '/api/auth/logout' ||
-    pathname === '/api/v1/governance/telemetry' ||
-    pathname === '/api/erp/odoo-sync' ||
-    pathname === '/api/odoo-sync'
+    pathname === '/api/v1/governance/telemetry'
   ) {
     return false
   }
@@ -183,7 +204,7 @@ export async function middleware(request: NextRequest) {
       )
     }
 
-    if (isPublicAssetOrRoute(path)) {
+    if (isPublicAssetOrRoute(path) || isAuthorizedCronRequest(request, path)) {
       return withSecurityHeaders(NextResponse.next())
     }
 

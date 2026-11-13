@@ -2,6 +2,10 @@
   "framework": "nextjs",
   "crons": [
     {
+      "path": "/api/erp/odoo-sync",
+      "schedule": "0 3 * * *"
+    },
+    {
       "path": "/api/aggregator-radar/alert",
       "schedule": "59 20 * * *"
     }

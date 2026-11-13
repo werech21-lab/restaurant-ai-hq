@@ -79,7 +79,7 @@ export function ExecutiveFooter({
 } = {}) {
   const { locale } = useI18n()
   const isAr = locale === 'ar'
-  const { liveSummary } = useGlobalFilter()
+  const { liveSummary, syncingOdoo, triggerOdooSyncNow } = useGlobalFilter()
   const gov = useOptionalGovernance()
   const activeRole: ExecSessionRole =
     sessionRole ?? gov?.sessionRole ?? (gov?.isAuditor ? 'auditor' : 'admin')
@@ -94,7 +94,16 @@ export function ExecutiveFooter({
 
   const triggerLedgerSync = useCallback(async (silent = false) => {
     if (roleProfile.isAuditor) return
-    if (!silent) setSyncing(true)
+    if (!silent) {
+      setSyncing(true)
+      try {
+        await triggerOdooSyncNow()
+        setReferenceNowMs(Date.now())
+      } finally {
+        setSyncing(false)
+      }
+      return
+    }
     try {
       const res = await fetch('/api/erp/odoo-sync', {
         method: 'GET',
@@ -116,10 +125,8 @@ export function ExecutiveFooter({
       window.dispatchEvent(new CustomEvent('aether:odoo-sync', { detail: summary }))
     } catch {
       // silent fallback to verified Odoo 17 snapshot
-    } finally {
-      if (!silent) setSyncing(false)
     }
-  }, [roleProfile.isAuditor])
+  }, [roleProfile.isAuditor, triggerOdooSyncNow])
 
   useEffect(() => {
     // Auditor read-only sessions never trigger background write syncs on page load
@@ -171,22 +178,31 @@ export function ExecutiveFooter({
         }`}
       >
         <span className="min-w-0 flex-1 whitespace-normal break-words leading-snug">
-          {isAr ? freshness.badgeAr : freshness.badgeEn}
+          {!freshness.isStaleOver24h
+            ? isAr
+              ? freshness.liveConnectedBadgeAr
+              : freshness.liveConnectedBadgeEn
+            : isAr
+              ? freshness.badgeAr
+              : freshness.badgeEn}
         </span>
 
         {!roleProfile.isAuditor ? (
           <button
             type="button"
             onClick={() => void triggerLedgerSync(false)}
-            disabled={syncing}
+            disabled={syncing || syncingOdoo}
+            aria-label={isAr ? 'تحديث الربط الآن' : 'Sync Odoo Now — Sync Now'}
             className={`inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl px-3 py-1 text-[11.5px] font-bold transition-colors disabled:opacity-60 ${
               freshness.isStaleOver24h
                 ? 'btn-colored bg-rose-600 text-white hover:bg-rose-700 dark:bg-rose-500 dark:text-white'
                 : 'bg-white text-emerald-900 ring-1 ring-emerald-500/25 hover:bg-emerald-100/70 dark:bg-[#101C17] dark:text-emerald-200'
             }`}
           >
-            <RefreshCw className={`h-3 w-3 shrink-0 ${syncing ? 'animate-spin' : ''}`} />
-            <span>{isAr ? 'تحديث الربط الآن' : 'Sync Now'}</span>
+            <RefreshCw
+              className={`h-3 w-3 shrink-0 ${syncing || syncingOdoo ? 'animate-spin' : ''}`}
+            />
+            <span>{isAr ? 'تحديث ربط أودو الآن' : 'Sync Odoo Now'}</span>
           </button>
         ) : null}
       </div>

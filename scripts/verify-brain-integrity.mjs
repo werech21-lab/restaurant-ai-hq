@@ -3471,6 +3471,301 @@ assert(
   '24.3 /login Mobile Wrap & High-Contrast Emblem + /erp/feryal-ai Full-Height Layout & Strict Auditor Backup Lock: Zero 390px login text clipping, unique SVG gradient IDs, full-height Feryal studio with audit briefings preview, and Backup hidden for auditor',
 )
 
+// ============================================================================
+// SECTION 25: Real-Time Odoo 17 Live JSON-RPC Connector, RBAC, Zero-Secret
+//             Sanitization, Live Overlay Reconciliation & Diagnostic CLI
+// ============================================================================
+console.log('\n[25] Verifying Odoo 17 Live JSON-RPC Connector, RBAC & Secret Hygiene...')
+
+const s25ConnectorPath = path.join(ROOT, 'src/lib/odoo-live-connector.ts')
+const s25ConnectorSrc = fs.existsSync(s25ConnectorPath)
+  ? fs.readFileSync(s25ConnectorPath, 'utf8')
+  : ''
+const s25SyncRouteSrc = fs.readFileSync(
+  path.join(ROOT, 'src/app/api/odoo-sync/route.ts'),
+  'utf8',
+)
+const s25ErpSyncRouteSrc = fs.readFileSync(
+  path.join(ROOT, 'src/app/api/erp/odoo-sync/route.ts'),
+  'utf8',
+)
+const s25StatusStripPath = path.join(ROOT, 'src/components/erp/OdooLiveStatusStrip.tsx')
+const s25StatusStripSrc = fs.existsSync(s25StatusStripPath)
+  ? fs.readFileSync(s25StatusStripPath, 'utf8')
+  : ''
+const s25DiagCliPath = path.join(ROOT, 'scripts/test-odoo-connection.mjs')
+const s25DiagCliSrc = fs.existsSync(s25DiagCliPath)
+  ? fs.readFileSync(s25DiagCliPath, 'utf8')
+  : ''
+const s25EnvExampleSrc = fs.readFileSync(path.join(ROOT, '.env.example'), 'utf8')
+const s25VercelJson = JSON.parse(
+  fs.readFileSync(path.join(ROOT, 'vercel.json'), 'utf8'),
+)
+const s25GlobalFilterCtxSrc = fs.readFileSync(
+  path.join(ROOT, 'src/components/aether/GlobalFilterContext.tsx'),
+  'utf8',
+)
+
+// Walk all client components under src/ and ensure ZERO import odoo-live-connector
+function collectClientImportingConnector(dir) {
+  const offenders = []
+  for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, ent.name)
+    if (ent.isDirectory()) {
+      offenders.push(...collectClientImportingConnector(full))
+    } else if (/\.(ts|tsx|js|jsx)$/.test(ent.name)) {
+      const content = fs.readFileSync(full, 'utf8')
+      const head = content.slice(0, 260)
+      const isClient = head.includes("'use client'") || head.includes('"use client"')
+      if (isClient && content.includes('odoo-live-connector')) {
+        offenders.push(path.relative(ROOT, full))
+      }
+    }
+  }
+  return offenders
+}
+
+const s25ClientOffenders = collectClientImportingConnector(path.join(ROOT, 'src'))
+const s25TrackedEnvRaw = execFileSync('git', ['ls-files', '.env*'], {
+  cwd: ROOT,
+  encoding: 'utf8',
+})
+  .trim()
+  .split(/\r?\n/)
+  .filter(Boolean)
+const s25ForbiddenTrackedEnv = s25TrackedEnvRaw.filter(
+  (f) => f !== '.env.example' && f !== '.env.staging.example',
+)
+const s25HexKeyRegex = /\b[a-f0-9]{40}\b/i
+const s25HardcodedKeyLeaks = [
+  ['odoo-live-connector.ts', s25ConnectorSrc],
+  ['api/odoo-sync/route.ts', s25SyncRouteSrc],
+  ['api/erp/odoo-sync/route.ts', s25ErpSyncRouteSrc],
+  ['scripts/test-odoo-connection.mjs', s25DiagCliSrc],
+  ['.env.example', s25EnvExampleSrc],
+].filter(([, txt]) => s25HexKeyRegex.test(txt))
+
+assert(
+  s25ConnectorSrc.includes("typeof window !== 'undefined'") &&
+    s25ConnectorSrc.includes('process.env.ODOO_URL') &&
+    s25ConnectorSrc.includes('process.env.ODOO_DB') &&
+    s25ConnectorSrc.includes('process.env.ODOO_USERNAME') &&
+    s25ConnectorSrc.includes('process.env.ODOO_API_KEY') &&
+    s25ConnectorSrc.includes('export async function authenticateOdoo') &&
+    s25ConnectorSrc.includes('export async function executeOdooKw') &&
+    s25ConnectorSrc.includes('export async function fetchLiveOdooSnapshot') &&
+    s25ClientOffenders.length === 0 &&
+    s25ForbiddenTrackedEnv.length === 0 &&
+    s25HardcodedKeyLeaks.length === 0 &&
+    s25EnvExampleSrc.includes('ODOO_URL=\n') &&
+    s25EnvExampleSrc.includes('ODOO_DB=\n') &&
+    s25EnvExampleSrc.includes('ODOO_USERNAME=\n') &&
+    s25EnvExampleSrc.includes('ODOO_API_KEY=\n') &&
+    s25EnvExampleSrc.includes('CRON_SECRET=') &&
+    s25DiagCliSrc.includes('Aether BI — Safe Odoo 17 JSON-RPC Live Diagnostic'),
+  '25.1 Server-Only Odoo 17 Connector, Untracked .env.local & Zero Hardcoded Secrets: Server-only guard active, zero client imports, .env.local untracked, safe empty .env.example placeholders, and diagnostic CLI clean',
+  `clientOffenders=${s25ClientOffenders.length}, trackedForbiddenEnv=${s25ForbiddenTrackedEnv.length}, leaks=${s25HardcodedKeyLeaks.length}`,
+)
+
+const s25RbacAndOverlayProbe = `
+import { NextRequest } from 'next/server';
+import { middleware } from './src/middleware';
+import {
+  createExecSessionToken,
+  EXEC_SESSION_COOKIE,
+  DEFAULT_ABDULLAH_EMAIL,
+  DEFAULT_GM_EMAIL,
+  DEFAULT_DGM_EMAIL,
+  DEFAULT_AUDITOR_EMAIL,
+} from './src/lib/auth/exec-session';
+import { GET as syncGet, POST as syncPost } from './src/app/api/erp/odoo-sync/route';
+import { computeGlobalWorkspace, DEFAULT_GLOBAL_FILTERS } from './src/lib/aether/global-filter-engine';
+import { computeErpComparison } from './src/lib/erp-comparison-engine';
+
+;(async () => {
+  // Inject synthetic unreachable credentials + cron secret to verify zero leak on error/fallback & Cron auth
+  process.env.ODOO_URL = 'https://127.0.0.1:9';
+  process.env.ODOO_DB = 'synthetic_secret_db_probe';
+  process.env.ODOO_USERNAME = 'synthetic_secret_user_probe';
+  process.env.ODOO_API_KEY = 'aaaa1111bbbb2222cccc3333dddd4444eeee5555';
+  process.env.CRON_SECRET = 'cron_probe_secret_99887766';
+
+  const makeReq = (method: 'GET' | 'POST', token?: string, authBearer?: string) => {
+    const headers: Record<string, string> = {};
+    if (token) headers.cookie = EXEC_SESSION_COOKIE + '=' + token;
+    if (authBearer) headers.authorization = 'Bearer ' + authBearer;
+    return new NextRequest('https://aetherbi.com/api/erp/odoo-sync?period=today', {
+      method,
+      headers,
+    });
+  };
+
+  const tAdmin = await createExecSessionToken(DEFAULT_ABDULLAH_EMAIL, 'admin');
+  const tGm = await createExecSessionToken(DEFAULT_GM_EMAIL, 'gm');
+  const tDgm = await createExecSessionToken(DEFAULT_DGM_EMAIL, 'dgm');
+  const tAuditor = await createExecSessionToken(DEFAULT_AUDITOR_EMAIL, 'auditor');
+
+  // Middleware checks on POST for auditor vs cron
+  const mwAudPost = await middleware(makeReq('POST', tAuditor));
+  const mwAudGet = await middleware(makeReq('GET', tAuditor));
+  const mwCronPost = await middleware(makeReq('POST', undefined, 'cron_probe_secret_99887766'));
+  const mwBadCronPost = await middleware(makeReq('POST', undefined, 'wrong_secret'));
+
+  // Route handler GET checks across unauth + 4 roles + Cron
+  const rGetUnauth = await syncGet(makeReq('GET'));
+  const rGetAdmin = await syncGet(makeReq('GET', tAdmin));
+  const rGetGm = await syncGet(makeReq('GET', tGm));
+  const rGetDgm = await syncGet(makeReq('GET', tDgm));
+  const rGetAud = await syncGet(makeReq('GET', tAuditor));
+
+  // Route handler POST checks across unauth + auditor (403) + admin/gm/dgm (200) + Cron (200)
+  const rPostUnauth = await syncPost(makeReq('POST'));
+  const rPostAud = await syncPost(makeReq('POST', tAuditor));
+  const rPostAdmin = await syncPost(makeReq('POST', tAdmin));
+  const rPostCron = await syncPost(makeReq('POST', undefined, 'cron_probe_secret_99887766'));
+  const rPostBadCron = await syncPost(makeReq('POST', undefined, 'wrong_secret'));
+
+  const adminGetText = await rGetAdmin.text();
+  const adminPostText = await rPostAdmin.text();
+  const audGetJson = await rGetAud.json();
+  const adminPostJson = JSON.parse(adminPostText);
+
+  const combinedPayloadText = adminGetText + '\\n' + adminPostText + '\\n' + JSON.stringify(audGetJson);
+  const leakedAnySecret =
+    combinedPayloadText.includes('synthetic_secret_db_probe') ||
+    combinedPayloadText.includes('synthetic_secret_user_probe') ||
+    combinedPayloadText.includes('aaaa1111bbbb2222cccc3333dddd4444eeee5555') ||
+    combinedPayloadText.includes('127.0.0.1:9');
+
+  // Verify live snapshot overlay into computeGlobalWorkspace & computeErpComparison (0.000 KWD gap)
+  const mockLive: any = {
+    source: 'live',
+    connected: true,
+    sourceMode: 'odoo17-live',
+    syncedAt: '2026-11-13T12:20:00.000Z',
+    latestRecordAt: '2026-11-13T12:20:00.000Z',
+    database: null,
+    period: { from: '2026-11-13', to: '2026-11-14' },
+    totals: { netSalesKwd: 2450.5, orders: 410, aovKwd: 5.977 },
+    brands: [],
+    branches: [],
+    channels: [],
+    buckets: {
+      today: {
+        key: 'today',
+        from: '2026-11-13',
+        to: '2026-11-14',
+        days: 1,
+        totals: {
+          netSalesKwd: 2450.5,
+          orders: 410,
+          aovKwd: 5.977,
+          restaurantNetKwd: 2450.5,
+          restaurantOrders: 410,
+        },
+      },
+    },
+    dailySeries: [
+      { day: '2026-11-12', orders: 780, netKwd: 4120.25 },
+      { day: '2026-11-13', orders: 410, netKwd: 2450.5 },
+    ],
+  };
+
+  const wsToday = computeGlobalWorkspace({ ...DEFAULT_GLOBAL_FILTERS, period: 'today' }, mockLive, '/erp');
+  const cmpLive = computeErpComparison(
+    {
+      mode: 'date-vs-date',
+      granularity: 'single',
+      periodA: { from: '2026-11-13', to: '2026-11-13' },
+      periodB: { from: '2026-11-12', to: '2026-11-12' },
+      brandIds: 'all',
+      branchIds: 'all',
+      channelIds: 'all',
+    },
+    mockLive,
+  );
+
+  const brandSumA = cmpLive.byBrand.reduce((s, r) => s + r.valueA, 0);
+  const branchSumA = cmpLive.byBranch.reduce((s, r) => s + r.valueA, 0);
+  const channelSumA = cmpLive.byChannel.reduce((s, r) => s + r.valueA, 0);
+  const cmpGap = Math.max(
+    Math.abs(brandSumA - cmpLive.selectionA.netSalesKwd),
+    Math.abs(branchSumA - cmpLive.selectionA.netSalesKwd),
+    Math.abs(channelSumA - cmpLive.selectionA.netSalesKwd),
+  );
+
+  console.log(JSON.stringify({
+    mwAudPost: mwAudPost.status,
+    mwAudGet: mwAudGet.status,
+    mwCronPost: mwCronPost.status,
+    mwBadCronPost: mwBadCronPost.status,
+    getCodes: [rGetUnauth.status, rGetAdmin.status, rGetGm.status, rGetDgm.status, rGetAud.status],
+    postCodes: [rPostUnauth.status, rPostAud.status, rPostAdmin.status, rPostCron.status, rPostBadCron.status],
+    audReadOnly: audGetJson.readOnly === true,
+    hasTelemetryFields:
+      typeof adminPostJson.connected === 'boolean' &&
+      typeof adminPostJson.sourceMode === 'string' &&
+      typeof adminPostJson.latestRecordAt === 'string' &&
+      typeof adminPostJson.hoursSinceLatestRecord === 'number' &&
+      typeof adminPostJson.isStaleOver24h === 'boolean' &&
+      typeof adminPostJson.todayOrdersCount === 'number' &&
+      typeof adminPostJson.todaySalesKwd === 'number' &&
+      typeof adminPostJson.lastCheckedAt === 'string' &&
+      adminPostJson.database === null,
+    leakedAnySecret,
+    wsTodaySales: wsToday.salesKwd,
+    wsTodayOrders: wsToday.orders,
+    cmpLiveSalesA: cmpLive.selectionA.netSalesKwd,
+    cmpLiveOrdersA: cmpLive.selectionA.completedOrders,
+    cmpLiveSalesB: cmpLive.selectionB.netSalesKwd,
+    cmpGap: Math.round(cmpGap * 1000) / 1000,
+  }));
+})();
+`
+
+const s25Raw = execFileSync(process.execPath, [tsxCli, '-e', s25RbacAndOverlayProbe], {
+  cwd: ROOT,
+  encoding: 'utf8',
+}).trim()
+const s25Probe = JSON.parse(s25Raw.split('\n').pop() ?? '{}')
+
+assert(
+  s25Probe.mwAudPost === 403 &&
+    s25Probe.mwAudGet === 200 &&
+    s25Probe.mwCronPost === 200 &&
+    s25Probe.mwBadCronPost === 401 &&
+    JSON.stringify(s25Probe.getCodes) === '[401,200,200,200,200]' &&
+    JSON.stringify(s25Probe.postCodes) === '[401,403,200,200,401]' &&
+    s25Probe.audReadOnly === true &&
+    s25Probe.hasTelemetryFields === true &&
+    s25Probe.leakedAnySecret === false,
+  '25.2 /api/erp/odoo-sync RBAC, Cron Bearer Auth & Zero Secret Leak: GET returns [401,200,200,200,200], POST enforces 403 for auditor & 200 for admin/Cron, and zero URL/DB/username/API-key substrings leak in JSON responses',
+  `get=${JSON.stringify(s25Probe.getCodes)}, post=${JSON.stringify(s25Probe.postCodes)}, leak=${s25Probe.leakedAnySecret}`,
+)
+
+const s25HasOdooCron =
+  Array.isArray(s25VercelJson.crons) &&
+  s25VercelJson.crons.some(
+    (c) => c.path === '/api/erp/odoo-sync' && typeof c.schedule === 'string',
+  )
+
+assert(
+  s25HasOdooCron &&
+    s25GlobalFilterCtxSrc.includes('SILENT_POLL_INTERVAL_MS = 180_000') &&
+    s25GlobalFilterCtxSrc.includes('triggerOdooSyncNow') &&
+    s25StatusStripSrc.includes('Sync Odoo Now') &&
+    s25StatusStripSrc.includes('!roleProfile.isAuditor') &&
+    execFooterSrc.includes('Sync Odoo Now') &&
+    s25Probe.wsTodaySales === 2450.5 &&
+    s25Probe.wsTodayOrders === 410 &&
+    s25Probe.cmpLiveSalesA === 2450.5 &&
+    s25Probe.cmpLiveOrdersA === 410 &&
+    s25Probe.cmpLiveSalesB === 4120.25 &&
+    s25Probe.cmpGap === 0,
+  '25.3 Live Snapshot Overlay, Auto-Clearing <24h Status Strip, Cron & 3-Min Polling: Live Odoo 17 orders & KWD overlay cleanly onto /erp & Comparison Engine with 0.000 KWD gap, vercel.json cron + 180s polling active, and Sync Odoo Now gated to executives',
+  `wsToday=${s25Probe.wsTodaySales}, cmpA=${s25Probe.cmpLiveSalesA}, cmpGap=${s25Probe.cmpGap}`,
+)
+
 console.log('\n----------------------------------------------------------------------')
 if (failed > 0) {
   console.error(`❌ Verification FAILED: ${failed} failed, ${passed} passed.`)

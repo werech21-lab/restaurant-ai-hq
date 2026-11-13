@@ -1289,13 +1289,23 @@ function computeCustomRangeOdooTotals(
   days: number,
   monthGroupSales: number,
   monthGroupOrders: number,
+  liveDailySeries?: { day: string; orders: number; netKwd: number }[],
 ): { salesKwd: number; orders: number } {
   const fullDays = (ODOO.timeProfile?.daily ?? []).filter((d) => d.orders >= 150)
-  const dayMap = new Map<string, (typeof fullDays)[number]>(fullDays.map((d) => [d.day, d]))
+  const dayMap = new Map<string, { day: string; orders: number; netKwd: number }>(
+    fullDays.map((d) => [d.day, d]),
+  )
+  if (Array.isArray(liveDailySeries)) {
+    for (const ld of liveDailySeries) {
+      if (ld && ld.day && ld.orders > 0 && ld.netKwd > 0) {
+        dayMap.set(ld.day, ld)
+      }
+    }
+  }
   const avgDailyNet = monthGroupSales / 30
   const avgDailyOrd = monthGroupOrders / 30
 
-  if (days <= 62 && fullDays.length > 0) {
+  if (days <= 62 && (fullDays.length > 0 || dayMap.size > 0)) {
     const weekdayBuckets: Record<number, { net: number; ord: number; n: number }> = {}
     for (const d of fullDays) {
       const dow = new Date(`${d.day}T12:00:00Z`).getUTCDay()
@@ -1396,6 +1406,7 @@ export function computeGlobalWorkspace(
           customNorm.days,
           monthGroupSales,
           monthGroupOrders,
+          liveSummary?.dailySeries,
         )
       : null
 
@@ -2029,10 +2040,15 @@ export function computeGlobalWorkspace(
     15,
     Math.round(hostMonthlyBase * (filters.period === 'year' ? 12 : periodScale) * (branch === 'all' ? 1 : 0.35)),
   )
+  const baseClearingKwd =
+    liveSummary?.aggregatorReceivables?.readable &&
+    (liveSummary.aggregatorReceivables.openReceivableKwd ?? 0) > 0
+      ? liveSummary.aggregatorReceivables.openReceivableKwd
+      : s.delivery.openClearingKwd
   const deliveryDuesKwd = Math.max(
     0,
     Math.round(
-      s.delivery.openClearingKwd *
+      baseClearingKwd *
         (channel === 'dine-in' ? 0 : branch === 'avenues' ? 0 : dimFactorForPlay),
     ),
   )

@@ -15,6 +15,7 @@
  */
 
 import { ODOO } from '@/lib/odoo/odoo-dataset'
+import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
 import { BRANCH_TRUE_CASH } from '@/lib/full-journey-enterprise-brain'
 import {
   APPROVED_BRANCH_IDS,
@@ -704,7 +705,10 @@ export function getCompatibleBranchesForBrands(
 }
 
 /** Deterministic daily group factor + micro-entity modulation for any calendar date YYYY-MM-DD */
-function getDateGroupProfile(isoDate: string): {
+function getDateGroupProfile(
+  isoDate: string,
+  liveDailyLookup?: ReadonlyMap<string, { netKwd: number; orders: number }>,
+): {
   salesDayShareOf30: number
   ordersDayShareOf30: number
   isWeekend: boolean
@@ -716,6 +720,17 @@ function getDateGroupProfile(isoDate: string): {
   const dom = dt.getUTCDate()
   const isWeekend = dow === 4 || dow === 5 || dow === 6
   const isPayday = dom >= 22 && dom <= 29
+
+  const liveHit = liveDailyLookup?.get(isoDate)
+  if (liveHit && liveHit.orders > 0 && liveHit.netKwd > 0) {
+    return {
+      salesDayShareOf30: safeDiv(liveHit.netKwd, CALIBRATED_BASE.totalSales30, 1 / 30),
+      ordersDayShareOf30: safeDiv(liveHit.orders, CALIBRATED_BASE.totalOrders30, 1 / 30),
+      isWeekend,
+      isPayday,
+      dow,
+    }
+  }
 
   const realHit = CALIBRATED_BASE.realDayLookup.get(isoDate)
   if (realHit) {
@@ -757,6 +772,7 @@ function getDateGroupProfile(isoDate: string): {
 function computeCellMetricsForDate(
   isoDate: string,
   cellFilter: (c: AtomicCell) => boolean,
+  liveDailyLookup?: ReadonlyMap<string, { netKwd: number; orders: number }>,
 ): {
   byCell: Map<
     AtomicCell,
@@ -776,7 +792,7 @@ function computeCellMetricsForDate(
   totalOpexCost: number
   totalNetPocket: number
 } {
-  const dayProf = getDateGroupProfile(isoDate)
+  const dayProf = getDateGroupProfile(isoDate, liveDailyLookup)
   const matchingCells = CALIBRATED_BASE.cells.filter(cellFilter)
 
   if (matchingCells.length === 0) {
@@ -913,6 +929,7 @@ interface AggregatedSliceRaw {
 function aggregateSliceOverDates(
   dates: string[],
   cellFilter: (c: AtomicCell) => boolean,
+  liveDailyLookup?: ReadonlyMap<string, { netKwd: number; orders: number }>,
 ): AggregatedSliceRaw {
   const byBrand = {} as AggregatedSliceRaw['byBrand']
   for (const b of APPROVED_BRAND_IDS) {
@@ -936,7 +953,7 @@ function aggregateSliceOverDates(
   let totalNetPocket = 0
 
   for (const dateIso of dates) {
-    const dayRes = computeCellMetricsForDate(dateIso, cellFilter)
+    const dayRes = computeCellMetricsForDate(dateIso, cellFilter, liveDailyLookup)
     perDate.push({
       dateIso,
       sales: dayRes.totalSales,
@@ -1188,14 +1205,19 @@ function buildHourly14ChartBuckets(
   sliceB: ComparisonSliceTotals,
   seedTagA: string,
   seedTagB: string,
+  liveDailyLookup?: ReadonlyMap<string, { netKwd: number; orders: number }>,
+  liveHourlyWeights?: Readonly<Record<number, number>>,
 ): ComparisonChartBucket[] {
-  const profA = getDateGroupProfile(sliceA.fromIso)
-  const profB = getDateGroupProfile(sliceB.fromIso)
+  const profA = getDateGroupProfile(sliceA.fromIso, liveDailyLookup)
+  const profB = getDateGroupProfile(sliceB.fromIso, liveDailyLookup)
 
   const rawSalesWeightsA: number[] = []
   const rawSalesWeightsB: number[] = []
   for (const h of OPERATING_HOURS_14) {
-    const baseW = CALIBRATED_BASE.hourlyWeights[h.hour24] ?? h.baseWeight
+    const baseW =
+      liveHourlyWeights?.[h.hour24] ??
+      CALIBRATED_BASE.hourlyWeights[h.hour24] ??
+      h.baseWeight
     const wkA = profA.isWeekend ? h.weekendBoost : 1
     const wkB = profB.isWeekend ? h.weekendBoost : 1
     const jA = 0.94 + fnv1aUnit(`hrA:${seedTagA}:${sliceA.fromIso}:${h.hour24}`) * 0.12
@@ -1546,7 +1568,10 @@ function pickInsightPair(rows: EntityVarianceRow[]): {
  * Primary Pure Calculation Entrypoint:
  * Computes a complete, reconciled `ErpComparisonResult` for any custom Date-vs-Date or Entity-vs-Entity query.
  */
-export function computeErpComparison(query: ErpComparisonQuery): ErpComparisonResult {
+export function computeErpComparison(
+  query: ErpComparisonQuery,
+  liveSummary?: OdooLiveSummary | null,
+): ErpComparisonResult {
   const mode: ComparisonModeType = query.mode === 'entity-vs-entity' ? 'entity-vs-entity' : 'date-vs-date'
   const granularity: ComparisonGranularity = query.granularity === 'range' ? 'range' : 'single'
 
@@ -1613,8 +1638,37 @@ export function computeErpComparison(query: ErpComparisonQuery): ErpComparisonRe
 
   const isScopeCompatible = CALIBRATED_BASE.cells.some(filterA) || CALIBRATED_BASE.cells.some(filterB)
 
-  const rawA = aggregateSliceOverDates(normA.dates, filterA)
-  const rawB = aggregateSliceOverDates(normB.dates, filterB)
+  let liveDailyLookup: Map<string, { netKwd: number; orders: number }> | undefined
+  if (Array.isArray(liveSummary?.dailySeries) && liveSummary.dailySeries.length > 0) {
+    liveDailyLookup = new Map()
+    for (const d of liveSummary.dailySeries) {
+      if (d && d.day && d.orders > 0 && d.netKwd > 0) {
+        liveDailyLookup.set(d.day, { netKwd: d.netKwd, orders: d.orders })
+      }
+    }
+  }
+
+  let liveHourlyWeights: Record<number, number> | undefined
+  if (Array.isArray(liveSummary?.hourlySeries) && liveSummary.hourlySeries.length > 0) {
+    let sumH = 0
+    const temp: Record<number, number> = {}
+    for (const slot of OPERATING_HOURS_14) {
+      const hit = liveSummary.hourlySeries.find((x) => x.hour === slot.hour24)
+      const val = hit && hit.netKwd > 0 ? hit.netKwd : 0
+      temp[slot.hour24] = val
+      sumH += val
+    }
+    if (sumH > 0) {
+      liveHourlyWeights = {}
+      for (const slot of OPERATING_HOURS_14) {
+        liveHourlyWeights[slot.hour24] =
+          temp[slot.hour24] > 0 ? temp[slot.hour24] / sumH : slot.baseWeight * 0.25
+      }
+    }
+  }
+
+  const rawA = aggregateSliceOverDates(normA.dates, filterA, liveDailyLookup)
+  const rawB = aggregateSliceOverDates(normB.dates, filterB, liveDailyLookup)
 
   const entityLabelAEn =
     mode === 'entity-vs-entity'
@@ -1725,6 +1779,8 @@ export function computeErpComparison(query: ErpComparisonQuery): ErpComparisonRe
         selectionB,
         mode === 'entity-vs-entity' ? `entA:${entityAId}` : 'dateA',
         mode === 'entity-vs-entity' ? `entB:${entityBId}` : 'dateB',
+        liveDailyLookup,
+        liveHourlyWeights,
       )
     : buildDailyAlignedChartBuckets(
         rawA,
