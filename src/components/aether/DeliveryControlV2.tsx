@@ -204,8 +204,8 @@ export function DeliveryControlV2() {
           />
         </div>
         <div className="ae-tile flex flex-col items-center justify-around gap-4 p-5 lg:col-span-4">
-          <CircularGauge value={LEDGER.marginPct} max={40} color="#059669" label={<><Num className="text-xl text-slate-900 dark:text-white">{pct(LEDGER.marginPct)}</Num><span className="text-[10px] text-slate-500">{T('net margin', 'صافي الهامش')}</span></>} caption={T('Group net operating margin', 'صافي هامش التشغيل للمجموعة')} />
-          <CircularGauge value={AGGREGATOR_SHARE} color="#0284C7" label={<><Num className="text-xl text-slate-900 dark:text-white">{pct(AGGREGATOR_SHARE)}</Num><span className="text-[10px] text-slate-500">{T('of sales', 'من المبيعات')}</span></>} caption={T('Aggregator share of Odoo POS sales', 'حصة المنصات من مبيعات أودو')} />
+          <CircularGauge value={LEDGER.marginPct} max={40} color="#059669" label={<><Num className="text-xl text-slate-900 dark:text-white">{pct(LEDGER.marginPct)}</Num><span className="text-xs text-slate-500">{T('net margin', 'صافي الهامش')}</span></>} caption={T('Group net operating margin', 'صافي هامش التشغيل للمجموعة')} />
+          <CircularGauge value={AGGREGATOR_SHARE} color="#0284C7" label={<><Num className="text-xl text-slate-900 dark:text-white">{pct(AGGREGATOR_SHARE)}</Num><span className="text-xs text-slate-500">{T('of sales', 'من المبيعات')}</span></>} caption={T('Aggregator share of Odoo POS sales', 'حصة المنصات من مبيعات أودو')} />
         </div>
       </section>
 
@@ -244,7 +244,7 @@ export function DeliveryControlV2() {
               </tbody>
             </table>
           </div>
-          <p className="text-[11px] text-slate-500">
+          <p className="text-xs text-slate-500">
             {eTmp.net > eTgo.net
               ? T(
                   `TMP earns ${fmt(eTmp.net - eTgo.net, 3)} KWD more per order after own-rider cost — route high-AOV combos to TMP where rider capacity allows.`,
@@ -262,7 +262,7 @@ export function DeliveryControlV2() {
               <Num className="text-base text-slate-900 dark:text-white">{pct(capPct)}</Num>
             </div>
             <input type="range" min={1.5} max={8} step={0.1} value={capPct} onChange={(e) => setCapPct(Number(e.target.value))} className="w-full accent-sky-600" aria-label={T('Promo cap', 'سقف الخصم')} />
-            <div className="flex justify-between text-[10px] text-slate-400">
+            <div className="flex justify-between text-xs text-slate-400">
               <Num>1.5%</Num>
               <button type="button" onClick={() => setCapPct(LEDGER.keetaCapPct)} className="font-semibold text-sky-600 hover:underline">
                 {T('Approved 3.5%', 'المعتمد 3.5%')}
@@ -276,7 +276,7 @@ export function DeliveryControlV2() {
               { label: T('Capped spend', 'الإنفاق بعد السقف'), value: cappedSpend, color: '#0284C7' },
             ].map((b) => (
               <div key={b.label} className="space-y-1" dir={isAr ? 'rtl' : 'ltr'}>
-                <div className="flex justify-between text-[11px] text-slate-500">
+                <div className="flex justify-between text-xs text-slate-500">
                   <span>{b.label}</span>
                   <Num className="text-slate-900 dark:text-white">{kwd(b.value, lang, 0)}</Num>
                 </div>
@@ -301,7 +301,7 @@ export function DeliveryControlV2() {
               <Send className="h-3.5 w-3.5" />
               {dispatch === 'sending' ? T('Dispatching…', 'جارٍ الإرسال…') : T('Dispatch cap via Composio', 'إرسال السقف عبر كومبوزيو')}
             </button>
-            {dispatch === 'done' ? <span className="text-[11px] font-semibold text-emerald-600">{dispatchMsg}</span> : null}
+            {dispatch === 'done' ? <span className="text-xs font-semibold text-emerald-600">{dispatchMsg}</span> : null}
           </div>
         </div>
       </section>

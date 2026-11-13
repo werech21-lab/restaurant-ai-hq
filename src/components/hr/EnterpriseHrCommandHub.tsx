@@ -510,7 +510,7 @@ export function EnterpriseHrCommandHub({
         </div>
 
         {/* Authorized Alert Recipients Banner */}
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/10 bg-black/30 px-4 py-2.5 text-[11px] text-mist-300">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/10 bg-black/30 px-4 py-2.5 text-xs text-mist-300">
           <span>
             {en
               ? '🛡️ Linked Compliance & Airport Arrival Dispatch Recipients:'
@@ -564,7 +564,7 @@ export function EnterpriseHrCommandHub({
                 {en ? 'Total Registered Employees (Odoo Sync)' : 'إجمالي الموظفين المسجلين (المعتمد في أودو)'}
               </p>
               <p className="mt-1 text-2xl font-black text-white">{VENTURE_EMPLOYEES.length}</p>
-              <p className="mt-1 text-[11px] text-emerald-300">
+              <p className="mt-1 text-xs text-emerald-300">
                 {en ? 'Across 6 Brands, 7 Active Branches & Central Kitchen' : 'موزعين على 6 مطاعم و7 فروع نشطة والمطبخ المركزي'}
               </p>
             </article>
@@ -573,7 +573,7 @@ export function EnterpriseHrCommandHub({
                 {en ? 'Historical Employment Contracts' : 'إجمالي عقود العمل المعتمدة والمؤرشفة'}
               </p>
               <p className="mt-1 text-2xl font-black text-gold-300">618</p>
-              <p className="mt-1 text-[11px] text-mist-400">
+              <p className="mt-1 text-xs text-mist-400">
                 {en ? 'Kuwait Labor Law Art. 24 & 51 Compliant' : 'متوافقة مع قانون العمل الكويتي رقم 6/2010'}
               </p>
             </article>
@@ -582,7 +582,7 @@ export function EnterpriseHrCommandHub({
                 {en ? 'Historical Payslips (hr.payslip)' : 'قسائم الرواتب التاريخية المستوردة من أودو'}
               </p>
               <p className="mt-1 text-2xl font-black text-emerald-300">1,000</p>
-              <p className="mt-1 text-[11px] text-mist-400">
+              <p className="mt-1 text-xs text-mist-400">
                 {en ? '3-Decimal Precision (0.000 KWD)' : 'بدقة 3 خانات عشرية (0.000 د.ك)'}
               </p>
             </article>
@@ -591,7 +591,7 @@ export function EnterpriseHrCommandHub({
                 {en ? 'Active Overseas Visa 18 Pipeline' : 'مرشحو الاستقدام الخارجي (فيزا 18 نشطة)'}
               </p>
               <p className="mt-1 text-2xl font-black text-sky-300">{candidates.length}</p>
-              <p className="mt-1 text-[11px] text-mist-400">
+              <p className="mt-1 text-xs text-mist-400">
                 {en ? 'India · Philippines · Egypt · Nepal · Sri Lanka' : 'الهند · الفلبين · مصر · نيبال · سريلانكا'}
               </p>
             </article>
@@ -608,7 +608,7 @@ export function EnterpriseHrCommandHub({
                     <span>🏢</span>
                     <span>{en ? 'DEPARTMENT' : 'الأقسام الإدارية'}</span>
                   </h3>
-                  <span className="text-[10px] text-mist-400 font-mono">{en ? '166 Staff' : '166 موظفاً'}</span>
+                  <span className="text-xs text-mist-400 font-mono">{en ? '166 Staff' : '166 موظفاً'}</span>
                 </div>
                 <div className="space-y-1 max-h-[320px] overflow-y-auto pr-1">
                   {VENTURE_DEPARTMENTS.map((dept) => {
@@ -630,7 +630,7 @@ export function EnterpriseHrCommandHub({
                             : isArabic ? dept.ar : dept.en}
                         </span>
                         <span
-                          className={`rounded-lg px-2 py-0.5 text-[10px] font-mono shrink-0 ${
+                          className={`rounded-lg px-2 py-0.5 text-xs font-mono shrink-0 ${
                             isSelected ? 'bg-amber-400 text-black font-black' : 'bg-white/10 text-mist-300'
                           }`}
                         >
@@ -649,7 +649,7 @@ export function EnterpriseHrCommandHub({
                     <span>📍</span>
                     <span>{en ? 'WORK LOCATION' : 'مواقع العمل والفروع'}</span>
                   </h3>
-                  <span className="text-[10px] text-mist-400 font-mono">{en ? '9 Locations' : '9 مواقع عمل'}</span>
+                  <span className="text-xs text-mist-400 font-mono">{en ? '9 Locations' : '9 مواقع عمل'}</span>
                 </div>
                 <div className="space-y-1 max-h-[320px] overflow-y-auto pr-1">
                   {VENTURE_WORK_LOCATIONS.map((loc) => {
@@ -671,7 +671,7 @@ export function EnterpriseHrCommandHub({
                             : isArabic ? loc.ar : loc.en}
                         </span>
                         <span
-                          className={`rounded-lg px-2 py-0.5 text-[10px] font-mono shrink-0 ${
+                          className={`rounded-lg px-2 py-0.5 text-xs font-mono shrink-0 ${
                             isSelected ? 'bg-sky-400 text-black font-black' : 'bg-white/10 text-mist-300'
                           }`}
                         >
@@ -718,7 +718,7 @@ export function EnterpriseHrCommandHub({
                         setSearchQ('')
                         setStatusFilter('ALL')
                       }}
-                      className="rounded-xl border border-white/15 bg-white/5 px-2.5 py-1.5 text-[11px] font-semibold text-mist-300 hover:text-white"
+                      className="rounded-xl border border-white/15 bg-white/5 px-2.5 py-1.5 text-xs font-semibold text-mist-300 hover:text-white"
                     >
                       {en ? '✕ Reset Filters' : '✕ مسح الفلاتر'}
                     </button>
@@ -854,14 +854,14 @@ export function EnterpriseHrCommandHub({
                                   {emp.flag}
                                 </span>
                               </div>
-                              <span className="text-[10px] text-mist-400 block font-mono" dir="ltr">
+                              <span className="text-xs text-mist-400 block font-mono" dir="ltr">
                                 {emp.phone}
                               </span>
                             </div>
                           </div>
 
                           <span
-                            className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                            className={`rounded-full px-2 py-0.5 text-xs font-bold ${
                               emp.status === 'ACTIVE'
                                 ? 'border border-emerald-400/30 bg-emerald-500/10 text-emerald-300'
                                 : 'border border-amber-400/30 bg-amber-500/10 text-amber-300'
@@ -878,7 +878,7 @@ export function EnterpriseHrCommandHub({
                           <h4 className="text-sm font-black text-white group-hover:text-amber-300 transition-colors line-clamp-1">
                             {isArabic ? emp.nameAr : emp.nameEn}
                           </h4>
-                          <p className="text-[11px] text-mist-400 font-medium line-clamp-1" dir="ltr">
+                          <p className="text-xs text-mist-400 font-medium line-clamp-1" dir="ltr">
                             {emp.nameEn}
                           </p>
                         </div>
@@ -888,18 +888,18 @@ export function EnterpriseHrCommandHub({
                           <p className="text-xs font-bold text-amber-200/90 line-clamp-1">
                             💼 {isArabic ? emp.jobTitleAr : emp.jobTitleEn}
                           </p>
-                          <p className="text-[11px] text-mist-300 line-clamp-1">
+                          <p className="text-xs text-mist-300 line-clamp-1">
                             🏢 {isArabic ? emp.departmentAr : emp.department}
                           </p>
-                          <p className="text-[11px] text-mist-400 line-clamp-1">
+                          <p className="text-xs text-mist-400 line-clamp-1">
                             📍 {isArabic ? emp.workLocationAr : emp.workLocation}
                           </p>
                         </div>
 
                         {/* Identifiers & Salary */}
-                        <div className="mt-3 pt-2.5 border-t border-white/5 space-y-1 text-[11px]">
+                        <div className="mt-3 pt-2.5 border-t border-white/5 space-y-1 text-xs">
                           <div className="flex items-center justify-between text-mist-300">
-                            <span className="font-mono text-mist-400 text-[10px]" dir="ltr">
+                            <span className="font-mono text-mist-400 text-xs" dir="ltr">
                               ID: {emp.civilId}
                             </span>
                             <span className="font-mono text-emerald-300 font-bold" dir="ltr">
@@ -980,7 +980,7 @@ export function EnterpriseHrCommandHub({
                                     }
                                   }}
                                 />
-                                <div className="hidden h-full w-full items-center justify-center bg-white/5 text-[10px] font-bold text-white">
+                                <div className="hidden h-full w-full items-center justify-center bg-white/5 text-xs font-bold text-white">
                                   {emp.nameEn.slice(0, 2)}
                                 </div>
                               </div>
@@ -989,7 +989,7 @@ export function EnterpriseHrCommandHub({
                                   <span>{isArabic ? emp.nameAr : emp.nameEn}</span>
                                   <span className="text-xs">{emp.flag}</span>
                                 </div>
-                                <div className="text-[10px] text-mist-400 font-medium" dir="ltr">
+                                <div className="text-xs text-mist-400 font-medium" dir="ltr">
                                   {emp.nameEn}
                                 </div>
                               </div>
@@ -997,11 +997,11 @@ export function EnterpriseHrCommandHub({
                           </td>
                           <td className="px-3 py-2.5 text-mist-200">
                             <div>{isArabic ? emp.jobTitleAr : emp.jobTitleEn}</div>
-                            <div className="text-[10px] text-mist-400" dir="ltr">{emp.phone}</div>
+                            <div className="text-xs text-mist-400" dir="ltr">{emp.phone}</div>
                           </td>
                           <td className="px-3 py-2.5 text-mist-300">
                             <div>{isArabic ? emp.departmentAr : emp.department}</div>
-                            <div className="text-[10px] text-mist-400">📍 {isArabic ? emp.workLocationAr : emp.workLocation}</div>
+                            <div className="text-xs text-mist-400">📍 {isArabic ? emp.workLocationAr : emp.workLocation}</div>
                           </td>
                           <td className="px-3 py-2.5 font-mono text-mist-200" dir="ltr">
                             {emp.basicSalary.toFixed(3)}
@@ -1015,7 +1015,7 @@ export function EnterpriseHrCommandHub({
                           <td className="px-3 py-2.5">
                             <div className="flex items-center gap-2">
                               <span
-                                className={`rounded-lg px-2 py-0.5 text-[10px] font-bold ${
+                                className={`rounded-lg px-2 py-0.5 text-xs font-bold ${
                                   emp.status === 'ACTIVE'
                                     ? 'border border-emerald-400/30 bg-emerald-500/10 text-emerald-300'
                                     : 'border border-amber-400/30 bg-amber-500/10 text-amber-300'
@@ -1029,7 +1029,7 @@ export function EnterpriseHrCommandHub({
                                   e.stopPropagation()
                                   setSelectedProfileEmployee(emp)
                                 }}
-                                className="rounded-lg border border-amber-400/30 bg-amber-500/15 px-2 py-1 text-[10px] font-bold text-amber-200 hover:bg-amber-500/30"
+                                className="rounded-lg border border-amber-400/30 bg-amber-500/15 px-2 py-1 text-xs font-bold text-amber-200 hover:bg-amber-500/30"
                               >
                                 {en ? '360° Profile' : 'الملف الشامل'}
                               </button>
@@ -1146,22 +1146,22 @@ export function EnterpriseHrCommandHub({
             <div className="rounded-2xl border border-white/10 bg-[#0f141c] p-4">
               <p className="text-xs text-mist-400">{en ? 'Total Custodians' : 'أصحاب العهد المعتمدون'}</p>
               <p className="mt-1 text-2xl font-black text-white">9</p>
-              <p className="mt-1 text-[11px] text-emerald-300">{en ? 'Across Ops, Kitchen, HR & PRO' : 'العمليات، الصيانة، الموارد البشرية والتعقيب'}</p>
+              <p className="mt-1 text-xs text-emerald-300">{en ? 'Across Ops, Kitchen, HR & PRO' : 'العمليات، الصيانة، الموارد البشرية والتعقيب'}</p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-[#0f141c] p-4">
               <p className="text-xs text-mist-400">{en ? 'Total Audited Custody OPEX' : 'إجمالي المصروفات المدققة'}</p>
               <p className="mt-1 text-2xl font-black text-emerald-300">51,154.950 {en ? 'KWD' : 'د.ك'}</p>
-              <p className="mt-1 text-[11px] text-mist-400">{en ? '2,213 Audited Transactions' : '2,213 معاملة مدققة'}</p>
+              <p className="mt-1 text-xs text-mist-400">{en ? '2,213 Audited Transactions' : '2,213 معاملة مدققة'}</p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-[#0f141c] p-4">
               <p className="text-xs text-mist-400">{en ? 'Submitted Expense Sheets' : 'تقارير التصفية المرفوعة'}</p>
               <p className="mt-1 text-2xl font-black text-amber-300">{ODOO_REAL_EXPENSE_SHEETS.length}</p>
-              <p className="mt-1 text-[11px] text-mist-400">{en ? 'All Reports Odoo Module' : 'سجل تقارير العهد المعتمدة في أودو'}</p>
+              <p className="mt-1 text-xs text-mist-400">{en ? 'All Reports Odoo Module' : 'سجل تقارير العهد المعتمدة في أودو'}</p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-[#0f141c] p-4">
               <p className="text-xs text-mist-400">{en ? 'Sanad Clearances & Residencies' : 'كشوفات سند للإقامات'}</p>
               <p className="mt-1 text-2xl font-black text-sky-300">{ODOO_SANAD_STATEMENT_DETAILS.length}</p>
-              <p className="mt-1 text-[11px] text-mist-400">{en ? 'Health Insurance & PAM Permits' : 'الضمان الصحي وأذونات العمل'}</p>
+              <p className="mt-1 text-xs text-mist-400">{en ? 'Health Insurance & PAM Permits' : 'الضمان الصحي وأذونات العمل'}</p>
             </div>
           </div>
 
@@ -1177,8 +1177,8 @@ export function EnterpriseHrCommandHub({
                     <span className="font-bold text-white text-xs">{en ? c.nameEn : c.nameAr}</span>
                     <span className="font-mono text-xs font-black text-emerald-400">{c.totalKwd.toFixed(3)} {en ? 'KWD' : 'د.ك'}</span>
                   </div>
-                  <p className="text-[11px] text-mist-400">{en ? c.roleEn : c.roleAr}</p>
-                  <div className="flex items-center justify-between text-[10px] text-slate-500 pt-2 border-t border-white/5 font-mono">
+                  <p className="text-xs text-mist-400">{en ? c.roleEn : c.roleAr}</p>
+                  <div className="flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-white/5 font-mono">
                     <span>{c.txCount} {en ? 'txns' : 'معاملة'}</span>
                     <span className="text-amber-400">{c.accountCode}</span>
                   </div>
@@ -1233,14 +1233,14 @@ export function EnterpriseHrCommandHub({
                       <td className="px-3 py-2.5 text-slate-400">{en ? sheet.costCenterEn : sheet.costCenterAr}</td>
                       <td className="px-3 py-2.5 text-end font-mono font-bold text-emerald-400">{sheet.amountKwd.toFixed(3)} {en ? 'KWD' : 'د.ك'}</td>
                       <td className="px-3 py-2.5 text-center">
-                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                        <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-bold ${
                           sheet.adminApproval === 'approved' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
                         }`}>
                           {sheet.adminApproval === 'approved' ? (en ? '🟢 Approved' : '🟢 معتمد إدارياً') : (en ? '🔵 Submitted' : '🔵 مرسل للاعتماد')}
                         </span>
                       </td>
                       <td className="px-3 py-2.5 text-center">
-                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                        <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-bold ${
                           sheet.paymentStatus === 'paid' ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/15 text-rose-300 border border-rose-500/30'
                         }`}>
                           {sheet.paymentStatus === 'paid' ? (en ? '🟢 Paid' : '🟢 تم الدفع') : (en ? '🔴 Not Paid' : '🔴 غير مدفوع')}
@@ -1425,7 +1425,7 @@ export function EnterpriseHrCommandHub({
                 const count = candidates.filter((c) => c.stage === stg.key).length
                 return (
                   <div key={stg.key} className={`rounded-2xl border p-3 ${stg.badgeColor}`}>
-                    <p className="text-[11px] font-bold">{en ? stg.en : stg.ar}</p>
+                    <p className="text-xs font-bold">{en ? stg.en : stg.ar}</p>
                     <p className="mt-1 text-xl font-black">{count}</p>
                   </div>
                 )
@@ -1453,17 +1453,17 @@ export function EnterpriseHrCommandHub({
                       <tr key={c.id} className="border-t border-white/5 align-top">
                         <td className="px-3 py-3 font-mono" dir="ltr">
                           <p className="font-bold text-gold-300">{c.refCode}</p>
-                          <p className="text-[11px] text-mist-400">Pass: {c.passportNo}</p>
+                          <p className="text-xs text-mist-400">Pass: {c.passportNo}</p>
                         </td>
                         <td className="px-3 py-3">
                           <p className="font-bold text-white">{en ? c.fullNameEn : c.fullNameAr}</p>
-                          <p className="text-[11px] text-emerald-300">
+                          <p className="text-xs text-emerald-300">
                             🌍 {en ? c.nationalityEn : c.nationalityAr}
                           </p>
                         </td>
                         <td className="px-3 py-3">
                           <p className="font-semibold text-mist-100">{en ? c.roleEn : c.roleAr}</p>
-                          <p className="text-[11px] text-mist-400">
+                          <p className="text-xs text-mist-400">
                             {en ? `${c.brandEn} · ${c.branchEn}` : `${c.brandAr} · ${c.branchAr}`}
                           </p>
                         </td>
@@ -1484,11 +1484,11 @@ export function EnterpriseHrCommandHub({
                         </td>
                         <td className="px-3 py-3 font-mono" dir="ltr">
                           <p className="text-sky-300">{c.visa18Number}</p>
-                          <p className="text-[11px] text-mist-400">ETA: {c.arrivalEta}</p>
+                          <p className="text-xs text-mist-400">ETA: {c.arrivalEta}</p>
                         </td>
                         <td className="px-3 py-3 font-mono" dir="ltr">
                           <p className="font-bold text-emerald-300">{totalCost.toFixed(3)} KWD</p>
-                          <p className="text-[10px] text-mist-400">
+                          <p className="text-xs text-mist-400">
                             Salary: {c.offeredBasicKwd.toFixed(3)} KWD
                           </p>
                         </td>
@@ -1498,7 +1498,7 @@ export function EnterpriseHrCommandHub({
                             onClick={() =>
                               void dispatchInstantHrAlert('overseas_arrival', c.fullNameEn)
                             }
-                            className="rounded-xl border border-amber-400/40 bg-amber-500/15 px-2.5 py-1 text-[11px] font-bold text-amber-200 hover:bg-amber-500/25"
+                            className="rounded-xl border border-amber-400/40 bg-amber-500/15 px-2.5 py-1 text-xs font-bold text-amber-200 hover:bg-amber-500/25"
                           >
                             {en ? '✈️ Alert Airport Arrival' : '✈️ إشعار وصول المطار'}
                           </button>
@@ -1572,11 +1572,11 @@ export function EnterpriseHrCommandHub({
                       <td className="px-3 py-2.5 font-mono font-bold text-white" dir="ltr">
                         {task.govFeeKwd.toFixed(3)} KWD
                       </td>
-                      <td className="px-3 py-2.5 text-[11px] text-mist-300" dir="ltr">
+                      <td className="px-3 py-2.5 text-xs text-mist-300" dir="ltr">
                         {task.dueDate} · {task.assignedPro}
                       </td>
                       <td className="px-3 py-2.5">
-                        <span className="rounded-lg border border-sky-400/30 bg-sky-500/15 px-2 py-0.5 text-[10px] font-bold text-sky-200">
+                        <span className="rounded-lg border border-sky-400/30 bg-sky-500/15 px-2 py-0.5 text-xs font-bold text-sky-200">
                           {task.status}
                         </span>
                       </td>
@@ -1623,7 +1623,7 @@ export function EnterpriseHrCommandHub({
                           <p className="font-bold text-white">
                             [{emp.code}] {emp.name}
                           </p>
-                          <p className="text-[11px] text-mist-400">{emp.department}</p>
+                          <p className="text-xs text-mist-400">{emp.department}</p>
                         </td>
                         <td className="px-3 py-2.5 font-mono text-mist-200" dir="ltr">
                           {civExp}
@@ -1639,7 +1639,7 @@ export function EnterpriseHrCommandHub({
                         </td>
                         <td className="px-3 py-2.5 font-mono font-bold" dir="ltr">
                           <span
-                            className={`rounded-lg px-2 py-0.5 text-[11px] ${
+                            className={`rounded-lg px-2 py-0.5 text-xs ${
                               minDays <= 30
                                 ? 'bg-red-500/20 text-red-300'
                                 : minDays <= 60
@@ -1703,10 +1703,10 @@ export function EnterpriseHrCommandHub({
                       <td className="px-4 py-3 text-center font-mono text-slate-500 font-bold">{item.rank}</td>
                       <td className="px-4 py-3">
                         <span className="font-black text-white block">{en ? item.roleEn : item.roleAr}</span>
-                        <span className="text-[10px] text-slate-400">{en ? item.roleAr : item.roleEn}</span>
+                        <span className="text-xs text-slate-400">{en ? item.roleAr : item.roleEn}</span>
                       </td>
                       <td className="px-4 py-3 text-center">
-                        <span className="inline-flex rounded-full bg-slate-800 px-2 py-0.5 text-[10px] text-slate-300 font-semibold border border-slate-700">
+                        <span className="inline-flex rounded-full bg-slate-800 px-2 py-0.5 text-xs text-slate-300 font-semibold border border-slate-700">
                           {en ? item.categoryEn : item.categoryAr}
                         </span>
                       </td>
@@ -1717,7 +1717,7 @@ export function EnterpriseHrCommandHub({
                         {item.salaryKwd.toFixed(3)} {en ? 'KWD' : 'د.ك'}
                       </td>
                       <td className="px-4 py-3 text-center">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-400 border border-emerald-500/20">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-400 border border-emerald-500/20">
                           <span>✓</span>
                           {en ? item.statusEn : item.statusAr}
                         </span>
@@ -1840,7 +1840,7 @@ export function EnterpriseHrCommandHub({
                 />
               </label>
               <div className="rounded-xl border border-gold-400/30 bg-gold-500/10 p-2.5">
-                <label className="flex items-center gap-1.5 text-[11px] font-bold text-gold-200">
+                <label className="flex items-center gap-1.5 text-xs font-bold text-gold-200">
                   <input
                     type="checkbox"
                     checked={calcIsKuwaitiPifss}
@@ -1916,7 +1916,7 @@ export function EnterpriseHrCommandHub({
                               setActiveTab('letters')
                             }
                           }}
-                          className="rounded-lg border border-gold-300/40 bg-gold-400/10 px-2.5 py-1 text-[11px] font-bold text-gold-200 hover:bg-gold-400/20"
+                          className="rounded-lg border border-gold-300/40 bg-gold-400/10 px-2.5 py-1 text-xs font-bold text-gold-200 hover:bg-gold-400/20"
                         >
                           {en ? '📄 Print Payslip' : '📄 طباعة قسيمة راتب'}
                         </a>
@@ -1976,12 +1976,12 @@ export function EnterpriseHrCommandHub({
                       </td>
                       <td className="px-3 py-3">
                         <p className="text-white">{en ? lv.destinationEn : lv.destinationAr}</p>
-                        <p className="font-mono text-[11px] text-emerald-300" dir="ltr">
+                        <p className="font-mono text-xs text-emerald-300" dir="ltr">
                           {lv.airlineRef} · {lv.ticketCostKwd.toFixed(3)} KWD
                         </p>
                       </td>
                       <td className="px-3 py-3">
-                        <span className="rounded-lg border border-emerald-400/30 bg-emerald-500/15 px-2.5 py-0.5 text-[10px] font-bold text-emerald-200">
+                        <span className="rounded-lg border border-emerald-400/30 bg-emerald-500/15 px-2.5 py-0.5 text-xs font-bold text-emerald-200">
                           {lv.status}
                         </span>
                       </td>
@@ -2110,7 +2110,7 @@ export function EnterpriseHrCommandHub({
                         <p className="font-bold text-white">
                           [{row.employeeCode}] {en ? row.employeeNameEn : row.employeeNameAr}
                         </p>
-                        <p className="text-[11px] text-mist-400">
+                        <p className="text-xs text-mist-400">
                           {en ? row.branchEn : row.branchAr}
                         </p>
                       </td>
@@ -2162,7 +2162,7 @@ export function EnterpriseHrCommandHub({
                     <span className="font-mono text-xs font-bold text-gold-300" dir="ltr">
                       {flat.flatCode}
                     </span>
-                    <span className="rounded-lg border border-emerald-400/30 bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-bold text-emerald-200">
+                    <span className="rounded-lg border border-emerald-400/30 bg-emerald-500/15 px-2.5 py-0.5 text-xs font-bold text-emerald-200">
                       {flat.occupiedCount} / {flat.capacity} {en ? 'Beds Occupied' : 'مقيم حالياً'}
                     </span>
                   </div>
@@ -2188,7 +2188,7 @@ export function EnterpriseHrCommandHub({
                       Lease Exp: {flat.leaseExpiryDate}
                     </span>
                   </div>
-                  <p className="border-t border-white/10 pt-2 text-[11px] text-sky-300">
+                  <p className="border-t border-white/10 pt-2 text-xs text-sky-300">
                     🚌 {en ? flat.busRouteEn : flat.busRouteAr} ({en ? flat.driverNameEn : flat.driverNameAr})
                   </p>
                 </article>
@@ -2312,7 +2312,7 @@ export function EnterpriseHrCommandHub({
                     ? `${eosbCalculation.years}y · ${eosbCalculation.months}m · ${eosbCalculation.days}d`
                     : `${eosbCalculation.years} سنة · ${eosbCalculation.months} شهر · ${eosbCalculation.days} يوم`}
                 </p>
-                <p className="mt-1 text-[11px] text-emerald-300">
+                <p className="mt-1 text-xs text-emerald-300">
                   {en
                     ? `Remuneration Base: ${eosbCalculation.remunerationBaseKwd.toFixed(3)} KWD (26-day rate: ${eosbCalculation.dailyWage26Kwd.toFixed(3)} KWD)`
                     : `الراتب الشامل للحساب: ${eosbCalculation.remunerationBaseKwd.toFixed(3)} د.ك (أجر اليوم /26: ${eosbCalculation.dailyWage26Kwd.toFixed(3)} د.ك)`}
@@ -2326,7 +2326,7 @@ export function EnterpriseHrCommandHub({
                 <p className="mt-1 font-mono text-xl font-black text-gold-300" dir="ltr">
                   {eosbCalculation.netIndemnityPayableKwd.toFixed(3)} KWD
                 </p>
-                <p className="mt-1 text-[11px] text-mist-300">
+                <p className="mt-1 text-xs text-mist-300">
                   {en
                     ? eosbCalculation.resignationEntitlementLabelEn
                     : eosbCalculation.resignationEntitlementLabelAr}
@@ -2342,7 +2342,7 @@ export function EnterpriseHrCommandHub({
                 <p className="mt-1 font-mono text-xl font-black text-sky-300" dir="ltr">
                   {(eosbCalculation.leaveEncashmentKwd + eosbCalculation.finalMonthSalaryKwd).toFixed(3)} KWD
                 </p>
-                <p className="mt-1 text-[11px] text-mist-400" dir="ltr">
+                <p className="mt-1 text-xs text-mist-400" dir="ltr">
                   Leave: {eosbCalculation.leaveEncashmentKwd.toFixed(3)} + Days:{' '}
                   {eosbCalculation.finalMonthSalaryKwd.toFixed(3)} KWD
                 </p>
@@ -2355,7 +2355,7 @@ export function EnterpriseHrCommandHub({
                 <p className="mt-1 font-mono text-2xl font-black text-white" dir="ltr">
                   {eosbCalculation.finalSettlementNetKwd.toFixed(3)} KWD
                 </p>
-                <p className="mt-1 text-[11px] text-emerald-200">
+                <p className="mt-1 text-xs text-emerald-200">
                   {en ? 'After deducting outstanding loans' : 'بعد خصم رصيد السلف المتبقي'}
                 </p>
               </div>

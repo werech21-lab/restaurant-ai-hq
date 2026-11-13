@@ -713,7 +713,7 @@ export function RegulationsComplianceStudio() {
                   {/* Cost Impact vs Penalty Shielded Pills */}
                   <div className="flex flex-wrap items-center gap-2">
                     <div className="ae-bento-subcard px-3.5 py-1.5 text-end">
-                      <div className="text-[11.5px] text-slate-500 dark:text-slate-400">
+                      <div className="text-[13px] text-slate-500 dark:text-slate-400">
                         {isAr ? 'تكلفة الامتثال' : 'Cost Impact'}
                       </div>
                       <div
@@ -725,7 +725,7 @@ export function RegulationsComplianceStudio() {
                     </div>
 
                     <div className="rounded-2xl bg-emerald-50/80 px-3.5 py-1.5 text-end ring-1 ring-emerald-500/15 dark:bg-emerald-950/40 dark:ring-emerald-400/20">
-                      <div className="text-[11.5px] text-emerald-800 dark:text-emerald-300">
+                      <div className="text-[13px] text-emerald-800 dark:text-emerald-300">
                         {isAr ? 'غرامات متفاداة' : 'Fines Shielded'}
                       </div>
                       <div

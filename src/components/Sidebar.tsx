@@ -23,7 +23,7 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
             <span dir="ltr">BI</span>
           </div>
           <div className="min-w-0">
-            <p dir="ltr" className="text-[11px] font-semibold tracking-[0.18em] text-gold-400">Aether BI</p>
+            <p dir="ltr" className="text-xs font-semibold tracking-[0.18em] text-gold-400">Aether BI</p>
             <h1 className="truncate text-[15px] font-bold text-mist-100">{t('brand')}</h1>
           </div>
         </div>

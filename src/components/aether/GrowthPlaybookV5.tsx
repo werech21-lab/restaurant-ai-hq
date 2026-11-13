@@ -221,7 +221,7 @@ export function GrowthPlaybookV5({
         <div className="flex max-w-full items-center gap-3 overflow-x-auto no-scrollbar">
           {totalVisible > 0 && (
             <div className="ae-bento-subcard shrink-0 rounded-xl px-3.5 py-1.5 text-end">
-              <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+              <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                 {T('Monthly Potential', 'الأثر الشهري المعروض')}
               </div>
               <div
@@ -287,7 +287,7 @@ export function GrowthPlaybookV5({
             >
               <span>{isAr ? d.ar : d.en}</span>
               <span
-                className={`rounded-md px-1.5 py-0.5 text-[11px] font-extrabold tabular-nums ${
+                className={`rounded-md px-1.5 py-0.5 text-xs font-extrabold tabular-nums ${
                   active
                     ? 'bg-white/20 text-white dark:bg-[#04130D]/20 dark:text-[#04130D]'
                     : 'bg-white text-slate-700 dark:bg-white/10 dark:text-slate-300'
@@ -321,7 +321,7 @@ export function GrowthPlaybookV5({
             >
               <div className="space-y-2.5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-[11.5px] font-semibold text-slate-700 dark:bg-white/[0.08] dark:text-slate-200">
+                  <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-[13px] font-semibold text-slate-700 dark:bg-white/[0.08] dark:text-slate-200">
                     {isAr ? scope.ar : scope.en}
                   </span>
                   {f.monthlyKwd > 0 && (

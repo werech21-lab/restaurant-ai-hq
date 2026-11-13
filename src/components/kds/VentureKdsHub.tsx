@@ -760,31 +760,31 @@ export function VentureKdsHub({
       {/* SLA Penalty Shield Alert Bar */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-3.5">
-          <div className="text-[11px] font-medium text-slate-400">{isAr ? 'التذاكر النشطة بالمطبخ' : 'Active Kitchen Tickets'}</div>
+          <div className="text-xs font-medium text-slate-400">{isAr ? 'التذاكر النشطة بالمطبخ' : 'Active Kitchen Tickets'}</div>
           <div className="text-xl font-black text-white mt-1">{filteredTickets.length} <span className="text-xs text-slate-400">{isAr ? 'تذكرة' : 'tickets'}</span></div>
-          <div className="text-[10px] text-slate-400 mt-0.5">
+          <div className="text-xs text-slate-400 mt-0.5">
             {isAr ? `الموقع: ${currentKitchen.nameAr.split('(')[0].trim()}` : `Location: ${currentKitchen.nameEn.split('(')[0].trim()}`}
           </div>
         </div>
 
         <div className={`rounded-xl border p-3.5 ${penaltyRiskCount > 0 ? 'border-rose-500/50 bg-rose-950/40 animate-pulse' : 'border-slate-800 bg-slate-900/80'}`}>
-          <div className="text-[11px] font-medium text-slate-400">{isAr ? 'خطر غرامة تأخير المنصات (> 20 دقيقة)' : 'Penalty Risk (>20m)'}</div>
+          <div className="text-xs font-medium text-slate-400">{isAr ? 'خطر غرامة تأخير المنصات (> 20 دقيقة)' : 'Penalty Risk (>20m)'}</div>
           <div className={`text-xl font-black mt-1 ${penaltyRiskCount > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
             {penaltyRiskCount} <span className="text-xs text-slate-400">{isAr ? 'تذاكر معرضة للغرامة' : 'at penalty risk'}</span>
           </div>
-          <div className="text-[10px] text-rose-300 mt-0.5">{isAr ? 'غرامة تأخير طلبات/ديليفرو 1.500 د.ك' : 'Risk of 1.500 KWD delivery penalty'}</div>
+          <div className="text-xs text-rose-300 mt-0.5">{isAr ? 'غرامة تأخير طلبات/ديليفرو 1.500 د.ك' : 'Risk of 1.500 KWD delivery penalty'}</div>
         </div>
 
         <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-3.5">
-          <div className="text-[11px] font-medium text-slate-400">{isAr ? 'اقتراب من الحد الزمني المسموح (15 - 20 دقيقة)' : 'Approaching Prep Limit (15-20m)'}</div>
+          <div className="text-xs font-medium text-slate-400">{isAr ? 'اقتراب من الحد الزمني المسموح (15 - 20 دقيقة)' : 'Approaching Prep Limit (15-20m)'}</div>
           <div className="text-xl font-black text-amber-400 mt-1">{approachingSlaCount} <span className="text-xs text-slate-400">{isAr ? 'تذكرة تحذير' : 'warning tickets'}</span></div>
-          <div className="text-[10px] text-amber-300/80 mt-0.5">{isAr ? 'أولوية تحضير وتجهيز فورية' : 'High prep priority'}</div>
+          <div className="text-xs text-amber-300/80 mt-0.5">{isAr ? 'أولوية تحضير وتجهيز فورية' : 'High prep priority'}</div>
         </div>
 
         <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-3.5">
-          <div className="text-[11px] font-medium text-slate-400">{isAr ? 'متوسط سرعة إعداد التذكرة' : 'Avg Ticket Prep Velocity'}</div>
+          <div className="text-xs font-medium text-slate-400">{isAr ? 'متوسط سرعة إعداد التذكرة' : 'Avg Ticket Prep Velocity'}</div>
           <div className="text-xl font-black text-emerald-400 mt-1">7.4 <span className="text-xs text-slate-400">{isAr ? 'دقائق' : 'minutes'}</span></div>
-          <div className="text-[10px] text-emerald-400/80 mt-0.5">{isAr ? 'ضمن المعيار الذهبي المعتمد للشركة' : 'Within corporate target (<9m)'}</div>
+          <div className="text-xs text-emerald-400/80 mt-0.5">{isAr ? 'ضمن المعيار الذهبي المعتمد للشركة' : 'Within corporate target (<9m)'}</div>
         </div>
       </div>
 
@@ -878,11 +878,11 @@ export function VentureKdsHub({
                       <div>
                         <div className="flex items-center gap-1.5">
                           <span className="font-mono text-sm font-black text-white">{ticket.ticketNo}</span>
-                          <span className="text-[10px] text-slate-400 font-mono">
+                          <span className="text-xs text-slate-400 font-mono">
                             ({isAr ? ticket.orderRefAr : ticket.orderRefEn})
                           </span>
                         </div>
-                        <div className="text-[11px] font-bold text-amber-400 mt-0.5">
+                        <div className="text-xs font-bold text-amber-400 mt-0.5">
                           {isAr ? ticket.brandNameAr : ticket.brandNameEn}
                         </div>
                       </div>
@@ -906,10 +906,10 @@ export function VentureKdsHub({
 
                     {/* Channel & Station Tag */}
                     <div className="flex items-center justify-between gap-1 mt-2.5">
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${ticket.channelBadge}`}>
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${ticket.channelBadge}`}>
                         {isAr ? ticket.channelAr : ticket.channelEn}
                       </span>
-                      <span className="rounded bg-slate-800 px-2 py-0.5 text-[10px] text-slate-300">
+                      <span className="rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-300">
                         {isAr ? ticket.stationAr : ticket.stationEn}
                       </span>
                     </div>
@@ -923,10 +923,10 @@ export function VentureKdsHub({
                               <span className="font-mono text-amber-400 mr-1">{item.qty}x</span>
                               {isAr ? item.nameAr : item.nameEn}
                             </span>
-                            <span className="font-mono text-[10px] text-indigo-400">{item.sku}</span>
+                            <span className="font-mono text-xs text-indigo-400">{item.sku}</span>
                           </div>
                           {(item.notesAr || item.notesEn) && (
-                            <div className="rounded bg-slate-950/80 px-2 py-1 text-[10px] font-medium text-rose-300 border border-rose-500/20">
+                            <div className="rounded bg-slate-950/80 px-2 py-1 text-xs font-medium text-rose-300 border border-rose-500/20">
                               ⚠️ {isAr ? item.notesAr : item.notesEn}
                             </div>
                           )}
@@ -987,13 +987,13 @@ export function VentureKdsHub({
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-sm font-black text-white">{ticket.ticketNo}</span>
                       <span className="text-xs font-bold text-amber-400">({isAr ? ticket.brandNameAr : ticket.brandNameEn})</span>
-                      <span className="rounded bg-slate-800 px-2 py-0.5 text-[10px] text-slate-300">
+                      <span className="rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-300">
                         {isAr ? ticket.orderRefAr : ticket.orderRefEn}
                       </span>
                     </div>
 
                     <div className="text-right">
-                      <span className="text-[11px] text-slate-400">{isAr ? 'إجمالي تكلفة الطبق المحسوبة:' : 'Calculated Food Cost:'}</span>
+                      <span className="text-xs text-slate-400">{isAr ? 'إجمالي تكلفة الطبق المحسوبة:' : 'Calculated Food Cost:'}</span>
                       <span className="font-mono text-sm font-black text-emerald-400 ml-2">
                         {totalTicketCogs.toFixed(3)} {isAr ? 'د.ك' : 'KWD'}
                       </span>
@@ -1007,10 +1007,10 @@ export function VentureKdsHub({
                         <span>{item.qty}x {isAr ? item.nameAr : item.nameEn} ({item.sku})</span>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-[11px]">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
                         {/* Raw materials */}
                         <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-2 space-y-1">
-                          <div className="text-[10px] font-bold text-blue-400">{isAr ? 'مواد خام (لحوم/دواجن/خضار)' : 'Raw Materials RW01'}</div>
+                          <div className="text-xs font-bold text-blue-400">{isAr ? 'مواد خام (لحوم/دواجن/خضار)' : 'Raw Materials RW01'}</div>
                           {item.rawIngredients.map((r, ri) => (
                             <div key={ri} className="flex justify-between text-slate-300">
                               <span>{isAr ? r.nameAr : r.nameEn} ({r.qty})</span>
@@ -1021,7 +1021,7 @@ export function VentureKdsHub({
 
                         {/* Central Preps */}
                         <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-2 space-y-1">
-                          <div className="text-[10px] font-bold text-amber-400">{isAr ? 'تحضيرات المطبخ المركزي (صوصات وتتبيل)' : 'Central Kitchen Preps PP03'}</div>
+                          <div className="text-xs font-bold text-amber-400">{isAr ? 'تحضيرات المطبخ المركزي (صوصات وتتبيل)' : 'Central Kitchen Preps PP03'}</div>
                           {item.prepIngredients.length === 0 ? (
                             <div className="text-slate-500">{isAr ? 'لا توجد تحضيرات مسبقة' : 'No preps required'}</div>
                           ) : (
@@ -1036,7 +1036,7 @@ export function VentureKdsHub({
 
                         {/* Packaging Disposables */}
                         <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-2 space-y-1">
-                          <div className="text-[10px] font-bold text-purple-400">{isAr ? 'مواد التغليف والاستهلاك' : 'Packaging & Disposables PI02'}</div>
+                          <div className="text-xs font-bold text-purple-400">{isAr ? 'مواد التغليف والاستهلاك' : 'Packaging & Disposables PI02'}</div>
                           {item.packagingItems.map((k, ki) => (
                             <div key={ki} className="flex justify-between text-slate-300">
                               <span>{isAr ? k.nameAr : k.nameEn}</span>
@@ -1153,7 +1153,7 @@ export function VentureKdsHub({
             <div className="overflow-x-auto">
               <table className="w-full text-right text-xs">
                 <thead>
-                  <tr className="border-b border-slate-800 text-slate-400 text-[11px]">
+                  <tr className="border-b border-slate-800 text-slate-400 text-xs">
                     <th className="py-2.5 px-2">{isAr ? 'المرجع' : 'Ref'}</th>
                     <th className="py-2.5 px-2">{isAr ? 'الوقت والصنف' : 'Time & Item'}</th>
                     <th className="py-2.5 px-2">{isAr ? 'السبب والمسوغ' : 'Reason'}</th>
@@ -1167,11 +1167,11 @@ export function VentureKdsHub({
                       <td className="py-2.5 px-2 font-mono text-slate-400">{log.id}</td>
                       <td className="py-2.5 px-2">
                         <div className="font-bold text-white">{log.item}</div>
-                        <div className="text-[10px] text-slate-400">{log.time} · {log.cook}</div>
+                        <div className="text-xs text-slate-400">{log.time} · {log.cook}</div>
                       </td>
-                      <td className="py-2.5 px-2 text-slate-300 text-[11px]">{log.reason}</td>
+                      <td className="py-2.5 px-2 text-slate-300 text-xs">{log.reason}</td>
                       <td className="py-2.5 px-2 font-mono font-bold text-rose-400 text-left">{log.cost.toFixed(3)}</td>
-                      <td className="py-2.5 px-2 font-mono text-[10px] text-indigo-400">{log.gl}</td>
+                      <td className="py-2.5 px-2 font-mono text-xs text-indigo-400">{log.gl}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1207,14 +1207,14 @@ export function VentureKdsHub({
               <div key={idx} className="rounded-xl border border-slate-800 bg-slate-950/70 p-4 space-y-3">
                 <div className="font-bold text-white text-xs">{isAr ? st.stationAr : st.stationEn}</div>
                 <div className="flex justify-between items-baseline pt-2 border-t border-slate-800">
-                  <span className="text-slate-400 text-[11px]">{isAr ? 'متوسط زمن الإعداد:' : 'Avg Prep Time:'}</span>
+                  <span className="text-slate-400 text-xs">{isAr ? 'متوسط زمن الإعداد:' : 'Avg Prep Time:'}</span>
                   <span className={`font-mono text-sm font-black ${st.badge}`}>{st.avgTime}</span>
                 </div>
-                <div className="flex justify-between text-slate-400 text-[11px]">
+                <div className="flex justify-between text-slate-400 text-xs">
                   <span>{isAr ? 'الطاقة بساعة الذروة:' : 'Peak Throughput:'}</span>
                   <span className="font-mono text-white font-bold">{st.throughput}</span>
                 </div>
-                <div className="flex justify-between text-slate-400 text-[11px]">
+                <div className="flex justify-between text-slate-400 text-xs">
                   <span>{isAr ? 'تكلفة العمالة/الطلب:' : 'Labor Cost/Ticket:'}</span>
                   <span className="font-mono text-indigo-400 font-bold">{st.laborCost}</span>
                 </div>

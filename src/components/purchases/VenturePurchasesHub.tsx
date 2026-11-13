@@ -563,7 +563,7 @@ export function VenturePurchasesHub({
             <ShoppingCart size={18} className="text-blue-400" />
           </div>
           <div className="mt-2 text-2xl font-black text-white font-mono">52,634.000 {isAr ? "د.ك" : "KWD"}</div>
-          <p className="text-[11px] text-blue-200/70 mt-1">
+          <p className="text-xs text-blue-200/70 mt-1">
             {isAr ? "148 أمر شراء وتوريد معتمد خلال الدورة" : "148 approved purchase orders this cycle"}
           </p>
         </div>
@@ -576,7 +576,7 @@ export function VenturePurchasesHub({
             <Clock size={18} className="text-amber-400" />
           </div>
           <div className="mt-2 text-2xl font-black text-amber-400 font-mono">12 {isAr ? "طلبية نشطة" : "Active Orders"}</div>
-          <p className="text-[11px] text-amber-200/70 mt-1">
+          <p className="text-xs text-amber-200/70 mt-1">
             {isAr ? "تصل اليوم لرمبة الاستلام بالمطبخ المركزي" : "Arriving at commissary receiving dock today"}
           </p>
         </div>
@@ -589,7 +589,7 @@ export function VenturePurchasesHub({
             <TrendingUp size={18} className="text-emerald-400" />
           </div>
           <div className="mt-2 text-2xl font-black text-emerald-400 font-mono">3,840.000 {isAr ? "د.ك" : "KWD"}</div>
-          <p className="text-[11px] text-emerald-200/70 mt-1">
+          <p className="text-xs text-emerald-200/70 mt-1">
             {isAr ? "خصم كميات وعقود مباشرة مع كبار الموردين" : "Volume rebates and direct vendor agreements"}
           </p>
         </div>
@@ -602,7 +602,7 @@ export function VenturePurchasesHub({
             <ShieldCheck size={18} className="text-purple-400" />
           </div>
           <div className="mt-2 text-2xl font-black text-white font-mono">98.4%</div>
-          <p className="text-[11px] text-purple-200/70 mt-1">
+          <p className="text-xs text-purple-200/70 mt-1">
             {isAr ? "التزام دقيق بشروط التوريد وسلامة الأغذية" : "Strict adherence to quality & SLA specs"}
           </p>
         </div>
@@ -733,7 +733,7 @@ export function VenturePurchasesHub({
                       </td>
                       <td className="px-4 py-3 text-center whitespace-nowrap">
                         <span
-                          className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold border ${
+                          className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold border ${
                             row.statusCode === "BILLED"
                               ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
                               : row.statusCode === "IN_TRANSIT"
@@ -800,7 +800,7 @@ export function VenturePurchasesHub({
                       </td>
                       <td className="px-4 py-3 font-bold text-white">
                         {m.supplier}
-                        <span className="block text-[11px] font-mono text-slate-400 mt-0.5">
+                        <span className="block text-xs font-mono text-slate-400 mt-0.5">
                           {m.bill} · {m.grn}
                         </span>
                       </td>
@@ -819,7 +819,7 @@ export function VenturePurchasesHub({
                       </td>
                       <td className="px-4 py-3 text-center">
                         <span
-                          className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold border ${
+                          className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold border ${
                             m.ok
                               ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
                               : "bg-rose-500/10 text-rose-400 border-rose-500/20"
@@ -978,7 +978,7 @@ export function VenturePurchasesHub({
                         {sup.iban}
                       </td>
                       <td className="px-4 py-3 text-center whitespace-nowrap">
-                        <span className="inline-flex rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-bold text-emerald-400 border border-emerald-500/20">
+                        <span className="inline-flex rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-bold text-emerald-400 border border-emerald-500/20">
                           {sup.statusAr}
                         </span>
                       </td>
@@ -1039,7 +1039,7 @@ export function VenturePurchasesHub({
                       <td className="px-4 py-3 text-amber-400 font-medium">{gl.credit}</td>
                       <td className="px-4 py-3 font-mono font-bold text-white text-right whitespace-nowrap">{gl.amt}</td>
                       <td className="px-4 py-3 text-center whitespace-nowrap">
-                        <span className="inline-flex rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-bold text-emerald-400 border border-emerald-500/20">
+                        <span className="inline-flex rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-bold text-emerald-400 border border-emerald-500/20">
                           {gl.status}
                         </span>
                       </td>
@@ -1098,7 +1098,7 @@ export function VenturePurchasesHub({
                         <span className="rounded bg-slate-800 px-2 py-0.5 text-slate-300 font-semibold">{pr.urgencyAr}</span>
                       </td>
                       <td className="px-4 py-3 text-center whitespace-nowrap">
-                        <span className="inline-flex rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-bold text-emerald-400 border border-emerald-500/20">
+                        <span className="inline-flex rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-bold text-emerald-400 border border-emerald-500/20">
                           {pr.statusAr}
                         </span>
                       </td>

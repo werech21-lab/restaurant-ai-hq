@@ -36,13 +36,13 @@ export default function ErpErrorShield({
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-16" dir="ltr">
       <div className="rounded-2xl border border-[#30363d] bg-gradient-to-br from-[#0d1117] via-[#161b22] to-[#1c2128] p-8 text-center text-gray-100 shadow-xl">
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-300/90">ERP Recovery · Dark Obsidian</p>
+        <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-300/90">ERP Recovery · Dark Obsidian</p>
         <h1 className="mt-3 text-2xl font-black text-white">Page recovery shield</h1>
         <p className="mt-2 text-sm text-gray-400">
           This ERP screen hit a client exception. Reset restores the last verified view cleanly.
         </p>
         {error?.message ? (
-          <p className="mt-4 break-words rounded-lg border border-red-500/20 bg-red-950/40 px-3 py-2 font-mono text-[11px] text-red-200">
+          <p className="mt-4 break-words rounded-lg border border-red-500/20 bg-red-950/40 px-3 py-2 font-mono text-xs text-red-200">
             {error.message}
           </p>
         ) : null}

@@ -207,7 +207,7 @@ export function AetherBiExecutiveDashboard({ locale: _unused }: { locale?: strin
           <div className="flex flex-col gap-3 border-b border-slate-100 dark:border-slate-700 pb-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-sm font-extrabold text-slate-900 dark:text-slate-50">{T('Performance trend', 'منحنى الأداء المالي والطلبات')}</h2>
-              <p className="mt-0.5 text-[11px] text-slate-400">{T(`Odoo daily totals (${DAILY_TREND.length} days), KWD`, `إجماليات أودو اليومية (${DAILY_TREND.length} يوماً) بالدينار الكويتي`)}</p>
+              <p className="mt-0.5 text-xs text-slate-400">{T(`Odoo daily totals (${DAILY_TREND.length} days), KWD`, `إجماليات أودو اليومية (${DAILY_TREND.length} يوماً) بالدينار الكويتي`)}</p>
             </div>
             <div className="ae-seg flex-wrap" role="group">
               {metricTabs.map((m) => (
@@ -239,7 +239,7 @@ export function AetherBiExecutiveDashboard({ locale: _unused }: { locale?: strin
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-700 pb-3">
             <div>
               <h2 className="text-sm font-extrabold text-slate-900 dark:text-slate-50">{T('Distribution', 'التوزيع النسبي')}</h2>
-              <p className="text-[11px] text-slate-400">{T('Income statement or channels', 'حسب قائمة الدخل أو القنوات')}</p>
+              <p className="text-xs text-slate-400">{T('Income statement or channels', 'حسب قائمة الدخل أو القنوات')}</p>
             </div>
             <div className="ae-seg" role="group">
               <button type="button" onClick={() => setDonut('pnl')} data-active={donut === 'pnl' ? 'true' : 'false'} aria-pressed={donut === 'pnl'}>{T('P&L', 'قائمة الدخل')}</button>
@@ -253,9 +253,9 @@ export function AetherBiExecutiveDashboard({ locale: _unused }: { locale?: strin
               ))}
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-              <span className="text-[10px] font-semibold text-slate-400">{T('Approved total', 'الإجمالي المعتمد')}</span>
+              <span className="text-xs font-semibold text-slate-400">{T('Approved total', 'الإجمالي المعتمد')}</span>
               <span className="text-xs font-extrabold"><Num>{kwd(fmt3(NET_SALES))}</Num></span>
-              <span className="text-[10px] font-bold text-emerald-600"><Num>100%</Num></span>
+              <span className="text-xs font-bold text-emerald-600"><Num>100%</Num></span>
             </div>
           </div>
           <div className="space-y-2">
@@ -266,7 +266,7 @@ export function AetherBiExecutiveDashboard({ locale: _unused }: { locale?: strin
                   <span className="font-semibold text-slate-700 dark:text-slate-200">{T(s.en, s.ar)}</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Num className="text-[11px] text-slate-500 dark:text-slate-400">{kwd(fmt3(s.value))}</Num>
+                  <Num className="text-xs text-slate-500 dark:text-slate-400">{kwd(fmt3(s.value))}</Num>
                   <Num className="w-12 text-end font-extrabold">{s.pct}%</Num>
                 </div>
               </div>
@@ -325,7 +325,7 @@ export function AetherBiExecutiveDashboard({ locale: _unused }: { locale?: strin
             </tbody>
           </table>
         </div>
-        <p className="text-[11px] text-slate-500 dark:text-slate-400">
+        <p className="text-xs text-slate-500 dark:text-slate-400">
           {T(
             'Monthly impact figures are management estimates, not values computed from Odoo; they assume each action is fully achieved.',
             'أرقام الأثر الشهري تقديرات إدارية وليست قيماً محسوبة من أودو، وتفترض تحقق كل إجراء بالكامل.',

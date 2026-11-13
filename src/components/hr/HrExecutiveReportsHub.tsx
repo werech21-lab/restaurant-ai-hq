@@ -349,15 +349,15 @@ export function HrExecutiveReportsHub({ en, employees }: Props) {
                 }`}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="rounded-md border border-emerald-400/30 bg-emerald-950/60 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
+                  <span className="rounded-md border border-emerald-400/30 bg-emerald-950/60 px-2 py-0.5 text-xs font-bold text-emerald-300">
                     {rpt.badge}
                   </span>
-                  <span className="text-[11px] font-mono text-mist-400">#{rpt.id}</span>
+                  <span className="text-xs font-mono text-mist-400">#{rpt.id}</span>
                 </div>
                 <p className="mt-2 text-xs font-black text-white">
                   {en ? rpt.titleEn : rpt.titleAr}
                 </p>
-                <p className="mt-1 text-[11px] leading-relaxed text-mist-400">
+                <p className="mt-1 text-xs leading-relaxed text-mist-400">
                   {en ? rpt.subtitleEn : rpt.subtitleAr}
                 </p>
               </button>

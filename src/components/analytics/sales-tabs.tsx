@@ -199,7 +199,7 @@ export function DailyCurve({ ratio = 1 }: { ratio?: number }) {
           title={T('Sales trend', 'منحنى المبيعات')}
           sub={T('Sampled every 3 days (11 points), KWD. Week and month views average the sampled days; they are not totals.', 'عينة كل 3 أيام (11 نقطة) بالدينار. عرض الأسبوع والشهر متوسط للأيام المعروضة وليس إجمالياً.')}
         />
-        <div className="inline-flex rounded-lg bg-gray-100 p-0.5 text-[11px] font-semibold">
+        <div className="inline-flex rounded-lg bg-gray-100 p-0.5 text-xs font-semibold">
           {tabs.map(([k, en, arT]) => (
             <button key={k} type="button" onClick={() => setGran(k)} className={`rounded-md px-3 py-1 ${gran === k ? 'bg-white shadow-sm' : 'text-gray-500'}`} style={gran === k ? { color: BLUE } : undefined}>
               {T(en, arT)}
@@ -209,9 +209,9 @@ export function DailyCurve({ ratio = 1 }: { ratio?: number }) {
       </div>
       {gran === 'month' ? (
         <div className="grid grid-cols-3 gap-3 py-6 text-center">
-          <div><div className="text-[11px] text-gray-500">{T('Average per sampled day', 'متوسط اليوم المعروض')}</div><div className="mt-1 text-xl font-bold text-gray-900"><Num>{fmt0(avg)} {ar ? 'د.ك' : 'KWD'}</Num></div></div>
-          <div><div className="text-[11px] text-gray-500">{T('Lowest sampled day', 'أدنى يوم معروض')}</div><div className="mt-1 text-xl font-bold text-gray-900"><Num>{fmt0(Math.min(...all))} {ar ? 'د.ك' : 'KWD'}</Num></div></div>
-          <div><div className="text-[11px] text-gray-500">{T('Highest sampled day', 'أعلى يوم معروض')}</div><div className="mt-1 text-xl font-bold text-gray-900"><Num>{fmt0(Math.max(...all))} {ar ? 'د.ك' : 'KWD'}</Num></div></div>
+          <div><div className="text-xs text-gray-500">{T('Average per sampled day', 'متوسط اليوم المعروض')}</div><div className="mt-1 text-xl font-bold text-gray-900"><Num>{fmt0(avg)} {ar ? 'د.ك' : 'KWD'}</Num></div></div>
+          <div><div className="text-xs text-gray-500">{T('Lowest sampled day', 'أدنى يوم معروض')}</div><div className="mt-1 text-xl font-bold text-gray-900"><Num>{fmt0(Math.min(...all))} {ar ? 'د.ك' : 'KWD'}</Num></div></div>
+          <div><div className="text-xs text-gray-500">{T('Highest sampled day', 'أعلى يوم معروض')}</div><div className="mt-1 text-xl font-bold text-gray-900"><Num>{fmt0(Math.max(...all))} {ar ? 'د.ك' : 'KWD'}</Num></div></div>
         </div>
       ) : (
         <LineChartV2
@@ -231,14 +231,14 @@ export function RevenueConcentration() {
   const { T } = useT()
   return (
     <div className={card}>
-      <div className="mb-1.5 flex items-center justify-between text-[11px]">
+      <div className="mb-1.5 flex items-center justify-between text-xs">
         <span className="font-medium text-gray-500">{T('Revenue concentration', 'تركّز الإيرادات')}</span>
         <span className="font-bold text-gray-900">{T('Top 32 of 364 items = 80% of sales', 'أعلى 32 صنفاً من أصل 364 = 80% من المبيعات')}</span>
       </div>
       <div className="h-2.5 w-full overflow-hidden rounded-full bg-gray-100" dir="ltr">
         <div className="h-full rounded-full" style={{ width: '80%', background: BLUE }} />
       </div>
-      <div className="mt-1 text-[10px] text-gray-400">{T('332 items generate only the remaining 20% of sales.', '332 صنفاً فقط تحقق الـ 20% المتبقية من المبيعات.')}</div>
+      <div className="mt-1 text-xs text-gray-400">{T('332 items generate only the remaining 20% of sales.', '332 صنفاً فقط تحقق الـ 20% المتبقية من المبيعات.')}</div>
     </div>
   )
 }
@@ -256,10 +256,10 @@ export function NeedsAttention() {
         {sorted.map((r) => (
           <li key={r.id} className="rounded-md border border-gray-100 border-s-[3px] border-s-rose-600 bg-rose-50/40 p-2.5">
             <div className="flex items-start justify-between gap-2">
-              <span className="text-[11px] font-bold text-gray-900">{ar ? r.deptAr : r.deptEn}</span>
-              <span className="whitespace-nowrap text-[11px] font-bold text-emerald-700"><Num>+{fmt0(r.impact)} {ar ? 'د.ك' : 'KWD'}</Num></span>
+              <span className="text-xs font-bold text-gray-900">{ar ? r.deptAr : r.deptEn}</span>
+              <span className="whitespace-nowrap text-xs font-bold text-emerald-700"><Num>+{fmt0(r.impact)} {ar ? 'د.ك' : 'KWD'}</Num></span>
             </div>
-            <p className="mt-0.5 text-[10.5px] leading-relaxed text-gray-600">{ar ? r.issueAr : r.issueEn}</p>
+            <p className="mt-0.5 text-xs leading-relaxed text-gray-600">{ar ? r.issueAr : r.issueEn}</p>
           </li>
         ))}
       </ul>
@@ -772,9 +772,9 @@ function ThickDonut({ segs, total, unit }: { segs: { key: string; value: number;
         })}
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-        <span className="text-[10px] font-semibold tracking-wider text-gray-500">{T('TOTAL', 'الإجمالي')}</span>
+        <span className="text-xs font-semibold tracking-wider text-gray-500">{T('TOTAL', 'الإجمالي')}</span>
         <span className="text-[15px] font-bold leading-tight text-gray-900 tabular-nums">{fmt0(total)}</span>
-        <span className="text-[10px] text-gray-500">{unit}</span>
+        <span className="text-xs text-gray-500">{unit}</span>
       </div>
     </div>
   )
@@ -789,12 +789,12 @@ function DonutCard({ title, sub, segs, total, unit, rows }: { title: string; sub
         <div className="w-full space-y-3">
           {rows.map((r) => (
             <div key={r.key}>
-              <div className="flex items-baseline justify-between gap-2 text-[11px]">
+              <div className="flex items-baseline justify-between gap-2 text-xs">
                 <span className="flex items-center gap-1.5 font-semibold text-gray-800"><span className="h-2.5 w-2.5 rounded-full" style={{ background: r.color }} />{r.label}</span>
                 <span className="font-bold text-gray-900"><Num>{fmt1(r.pct)}%</Num></span>
               </div>
               <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-gray-100" dir="ltr"><div className="h-full rounded-full" style={{ width: `${r.pct}%`, background: r.color }} /></div>
-              <div className="mt-0.5 text-[10px] text-gray-500"><Num>{r.note}</Num></div>
+              <div className="mt-0.5 text-xs text-gray-500"><Num>{r.note}</Num></div>
             </div>
           ))}
         </div>
@@ -850,7 +850,7 @@ export function PeakHoursTab({ view }: { view: SalesView }) {
           rows={PAYMENT_SPLIT.map((p, i) => ({ key: p.key, label: ar ? p.ar : p.key, pct: p.pct, color: ['#0891B2', '#D97706', '#94A3B8'][i], note: `${unit} ${fmt0(view.net * (p.pct / 100))} · ${fmt0(view.orders * (p.pct / 100))} ${T('orders', 'طلب')}` }))}
         />
       </div>
-      <p className="text-[10px] text-gray-400">
+      <p className="text-xs text-gray-400">
         {T('The payment split is the group split applied to the selection; the dataset has no payment data per brand or channel.', 'توزيع طرق الدفع هو توزيع المجموعة مطبَّق على التحديد؛ ولا توجد بيانات دفع لكل علامة أو قناة.')}
       </p>
       <div className={card}>
@@ -858,7 +858,7 @@ export function PeakHoursTab({ view }: { view: SalesView }) {
         <div dir="ltr" className="select-none">
           {WEEKDAYS.map((d, di) => (
             <div key={d} className="mb-1 grid items-center gap-1" style={{ gridTemplateColumns: '36px repeat(24, minmax(0, 1fr))' }}>
-              <span className="text-[10px] font-semibold text-gray-500">{ar ? weekdayLabelAr(di).slice(0, 3) : d}</span>
+              <span className="text-xs font-semibold text-gray-500">{ar ? weekdayLabelAr(di).slice(0, 3) : d}</span>
               {cells[di].map((c) => {
                 const pos = c.hour < 5 ? 'left-0' : c.hour > 18 ? 'right-0' : 'left-1/2 -translate-x-1/2'
                 const arrow = c.hour < 5 ? { left: 10 } : c.hour > 18 ? { right: 10 } : { left: '50%', marginLeft: -6 }
@@ -888,16 +888,16 @@ export function PeakHoursTab({ view }: { view: SalesView }) {
             <span />
             {Array.from({ length: 24 }, (_, h) => {
               const tick = HOUR_TICKS.find(([x]) => x === h)
-              return <span key={h} className={`whitespace-nowrap text-[10px] text-gray-400 ${h === 23 ? 'justify-self-end' : ''}`}>{tick ? tick[1] : ''}</span>
+              return <span key={h} className={`whitespace-nowrap text-xs text-gray-400 ${h === 23 ? 'justify-self-end' : ''}`}>{tick ? tick[1] : ''}</span>
             })}
           </div>
-          <div className="mt-3 flex items-center justify-end gap-2 text-[10px] text-gray-500">
+          <div className="mt-3 flex items-center justify-end gap-2 text-xs text-gray-500">
             <span>{T('Fewer', 'أقل')}</span>
             {HEAT_SHADES.map((s) => <span key={s} className="h-3 w-3 rounded-sm" style={{ backgroundColor: s }} />)}
             <span>{T('More', 'أكثر')}</span>
           </div>
         </div>
-        <p className="mt-2 text-[10px] leading-relaxed text-gray-400">
+        <p className="mt-2 text-xs leading-relaxed text-gray-400">
           {T(
             'Estimate: weekday weights come from the dated sample days of October and hour weights from the October hourly data, applied to the selected totals. The hourly data covers 11:00 to 00:59, so the other hours are empty. Odoo order timestamps by weekday and hour are not in the project dataset.',
             'تقدير: أوزان أيام الأسبوع من أيام العينة المؤرَّخة في أكتوبر وأوزان الساعات من البيانات الساعية لأكتوبر، مطبَّقة على الإجماليات المحددة. تغطي البيانات الساعية 11:00 حتى 00:59 لذلك تظهر بقية الساعات فارغة. أوقات الطلبات في أودو حسب اليوم والساعة غير موجودة في بيانات المشروع.',
@@ -935,7 +935,7 @@ export function OperationsTab({ view }: { view: SalesView }) {
         <Kpi label={T('Food cost of the selection', 'تكلفة الأغذية للتحديد')} value={<Num>{unit} {fmt0(cogsKwd)}</Num>} note={view.isFiltered ? T('Net sales × food cost %', 'صافي المبيعات × نسبة تكلفة الأغذية') : T('Group total', 'إجمالي المجموعة')} />
         <Kpi label={T('Branch availability on platforms', 'توافر الفروع على المنصات')} value={<Num>99.1%</Num>} tone="text-emerald-700" />
       </div>
-      <p className="text-[10px] text-gray-400">{T('Operating indicators were supplied with the request; they are not yet read from Odoo or the platform feeds. Food cost follows the brand filter; preparation time, accuracy and availability are group-level and are not split by brand or channel.', 'المؤشرات التشغيلية مقدّمة مع الطلب؛ وهي غير مقروءة بعد من أودو أو من تغذية المنصات. تتبع تكلفة الأغذية فلتر العلامة؛ أما زمن التحضير والدقة والتوافر فهي على مستوى المجموعة ولا تُقسَّم حسب العلامة أو القناة.')}</p>
+      <p className="text-xs text-gray-400">{T('Operating indicators were supplied with the request; they are not yet read from Odoo or the platform feeds. Food cost follows the brand filter; preparation time, accuracy and availability are group-level and are not split by brand or channel.', 'المؤشرات التشغيلية مقدّمة مع الطلب؛ وهي غير مقروءة بعد من أودو أو من تغذية المنصات. تتبع تكلفة الأغذية فلتر العلامة؛ أما زمن التحضير والدقة والتوافر فهي على مستوى المجموعة ولا تُقسَّم حسب العلامة أو القناة.')}</p>
       <div className={card}>
         <Title title={T('Operating actions to raise efficiency and cut waste', 'الإجراءات التشغيلية لرفع الكفاءة وتقليل الهدر')} />
         <RecTable

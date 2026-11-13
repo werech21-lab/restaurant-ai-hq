@@ -3,7 +3,7 @@
   "crons": [
     {
       "path": "/api/erp/odoo-sync",
-      "schedule": "0 3 * * *"
+      "schedule": "*/15 * * * *"
     },
     {
       "path": "/api/aggregator-radar/alert",

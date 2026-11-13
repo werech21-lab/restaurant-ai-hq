@@ -161,7 +161,7 @@ export function SlidingPillTabs<T extends string>({
             {opt.icon ? <span className="shrink-0">{opt.icon}</span> : null}
             <span>{opt.label}</span>
             {opt.badge !== undefined ? (
-              <span className="rounded-lg bg-black/10 px-1.5 py-0.5 text-[10.5px] font-bold tabular-nums dark:bg-white/15">
+              <span className="rounded-lg bg-black/10 px-1.5 py-0.5 text-xs font-bold tabular-nums dark:bg-white/15">
                 {opt.badge}
               </span>
             ) : null}

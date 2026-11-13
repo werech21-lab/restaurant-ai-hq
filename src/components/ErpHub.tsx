@@ -54,7 +54,7 @@ export default function ErpHub({
           <details key={sector.id} open className="rounded-2xl border border-gold-300/15 bg-ink-900/80 px-4 py-3">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-2">
               <h3 id={`sector-${sector.id}`} className="text-base font-semibold text-gold-300">{t(sector.title)}</h3>
-              <span className="rounded-full border border-gold-300/20 px-2 py-0.5 text-[11px] text-mist-100">{t('hub.status.ready')}</span>
+              <span className="rounded-full border border-gold-300/20 px-2 py-0.5 text-xs text-mist-100">{t('hub.status.ready')}</span>
             </summary>
             <p className="mt-1 text-xs text-mist-400">{summaryText(sectorSummary(sector.id, metrics), t)}</p>
             <ul className="mt-3 grid gap-2 border-s border-gold-300/20 ps-3 sm:grid-cols-2" suppressHydrationWarning>

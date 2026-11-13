@@ -81,7 +81,7 @@ function EmeraldPillTabs<K extends string>({
             <span>{opt.label}</span>
             {opt.badge !== undefined ? (
               <span
-                className={`rounded-lg px-1.5 py-0.5 text-[11px] font-bold tabular-nums ${
+                className={`rounded-lg px-1.5 py-0.5 text-xs font-bold tabular-nums ${
                   active
                     ? 'bg-white/20 text-white dark:bg-[#04130D]/20 dark:text-[#04130D]'
                     : 'bg-white text-slate-700 dark:bg-white/10 dark:text-slate-300'
@@ -382,7 +382,7 @@ export function FullJourney360() {
   }, [weeklyPills])
 
   return (
-    <div dir={isAr ? 'rtl' : 'ltr'} className="w-full max-w-[1920px] mx-auto space-y-4 sm:space-y-5 pb-12">
+    <div dir={isAr ? 'rtl' : 'ltr'} className="w-full max-w-[1920px] mx-auto space-y-4 sm:space-y-5 pb-28 sm:pb-12">
       {/* =====================================================================
           SPEC #3 PART 2: EXECUTIVE PAGE HEADER ROW (`Executive Dashboard` + CTAs)
          ===================================================================== */}
@@ -392,12 +392,12 @@ export function FullJourney360() {
             <h2 className="text-xl sm:text-[24px] font-semibold tracking-tight text-slate-950 dark:text-white">
               {T('Executive Dashboard', 'لوحة القيادة التنفيذية')}
             </h2>
-            <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11.5px] font-semibold text-emerald-800 ring-1 ring-emerald-500/20 dark:bg-emerald-500/15 dark:text-emerald-300 dark:ring-emerald-400/20">
+            <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-[13px] font-semibold text-emerald-800 ring-1 ring-emerald-500/20 dark:bg-emerald-500/15 dark:text-emerald-300 dark:ring-emerald-400/20">
               {T('Company Summary', 'ملخص الشركة')}
             </span>
             {workspace.diagnosticStrip.showPeerComparison &&
             (isAr ? workspace.diagnosticStrip.benchmarkAr : workspace.diagnosticStrip.benchmarkEn) ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11.5px] font-semibold tabular-nums text-emerald-800 ring-1 ring-emerald-500/20 dark:bg-emerald-950/60 dark:text-emerald-300">
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[13px] font-semibold tabular-nums text-emerald-800 ring-1 ring-emerald-500/20 dark:bg-emerald-950/60 dark:text-emerald-300">
                 <span>
                   {workspace.diagnosticStrip.tone === 'emerald'
                     ? '🟢'
@@ -480,11 +480,11 @@ export function FullJourney360() {
             <div className="mt-3.5 flex flex-wrap items-center gap-1.5">
               <span
                 dir="ltr"
-                className="ae-hero-pill inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-0.5 text-[11px] sm:text-[11.5px] font-semibold tabular-nums text-white backdrop-blur-sm"
+                className="ae-hero-pill inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-0.5 text-xs sm:text-[13px] font-semibold tabular-nums text-white backdrop-blur-sm"
               >
                 ▲ {salesDeltaBadgePct} {T('vs prior period', 'مقارنة بالفترة السابقة')}
               </span>
-              <span className="whitespace-normal text-[11.5px] font-medium tabular-nums text-white/85">
+              <span className="whitespace-normal text-[13px] font-medium tabular-nums text-white/85">
                 {isAr ? `• متوسط ${f2(workspace.aovKwd)} د.ك` : `• AOV ${f2(workspace.aovKwd)} KWD`}
               </span>
             </div>
@@ -515,11 +515,11 @@ export function FullJourney360() {
             <div className="mt-3.5 flex flex-wrap items-center gap-1.5">
               <span
                 dir="ltr"
-                className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] sm:text-[11.5px] font-semibold tabular-nums text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
+                className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs sm:text-[13px] font-semibold tabular-nums text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
               >
                 ▲ {f1(beforeRentRatio * 100)}% • {fmtKwdVal(beforeRentKwd)}
               </span>
-              <span className="whitespace-normal text-[11.5px] font-medium text-slate-600 dark:text-[#8FA39B]">
+              <span className="whitespace-normal text-[13px] font-medium text-slate-600 dark:text-[#8FA39B]">
                 {isAr ? 'بعد المواد والتوصيل' : 'left before rent'}
               </span>
             </div>
@@ -550,7 +550,7 @@ export function FullJourney360() {
             <div className="mt-3.5 space-y-1">
               <span
                 dir="ltr"
-                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] sm:text-[11.5px] font-semibold tabular-nums ${
+                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs sm:text-[13px] font-semibold tabular-nums ${
                   netPocketPct >= 12
                     ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
                     : 'bg-amber-50 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300'
@@ -558,7 +558,7 @@ export function FullJourney360() {
               >
                 ▲ {f1(netPocketPct)}% {T('net pocket share', 'نسبة الصافي')}
               </span>
-              <p className="whitespace-normal text-[11.5px] font-medium leading-snug text-slate-600 dark:text-slate-300">
+              <p className="whitespace-normal text-[13px] font-medium leading-snug text-slate-600 dark:text-slate-300">
                 {isAr
                   ? 'الصافي الفعلي بعد الإيجار وكافة المصاريف'
                   : 'Actual net cash after rent & all expenses'}
@@ -588,7 +588,7 @@ export function FullJourney360() {
             </div>
 
             <div className="mt-3.5 flex flex-wrap items-center justify-between gap-1.5">
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] sm:text-[11.5px] font-semibold tabular-nums text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs sm:text-[13px] font-semibold tabular-nums text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
                 7/7 {T('Branches', 'فروع')} •{' '}
                 {isAr ? formatArOpportunities(workspace.plays.length) : `${workspace.plays.length} plays`}
               </span>
@@ -653,14 +653,14 @@ export function FullJourney360() {
                       {isSelected ? (
                         <span
                           dir="ltr"
-                          className="mb-2 inline-flex items-center whitespace-nowrap rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10.5px] font-bold tabular-nums text-emerald-800 ring-1 ring-emerald-500/35 dark:bg-emerald-400/20 dark:text-emerald-200 dark:ring-emerald-400/40"
+                          className="mb-2 inline-flex items-center whitespace-nowrap rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-bold tabular-nums text-emerald-800 ring-1 ring-emerald-500/35 dark:bg-emerald-400/20 dark:text-emerald-200 dark:ring-emerald-400/40"
                         >
                           {day.perfIndexPct}%
                         </span>
                       ) : (
                         <span
                           dir="ltr"
-                          className="mb-2 text-[10px] font-medium tabular-nums text-slate-400 opacity-0 transition-opacity duration-150 group-hover:opacity-100 dark:text-[#8FA39B]"
+                          className="mb-2 text-xs font-medium tabular-nums text-slate-400 opacity-0 transition-opacity duration-150 group-hover:opacity-100 dark:text-[#8FA39B]"
                         >
                           {day.perfIndexPct}%
                         </span>
@@ -685,15 +685,15 @@ export function FullJourney360() {
                     </div>
 
                     <span
-                      className={`mt-2.5 text-[12px] font-semibold tracking-tight ${
+                      className={`mt-2.5 text-[12.5px] font-semibold tracking-tight ${
                         isSelected
                           ? 'text-emerald-700 dark:text-emerald-300'
-                          : 'text-slate-500 dark:text-[#8FA39B]'
+                          : 'text-slate-600 dark:text-slate-300'
                       }`}
                     >
                       {isAr ? day.dayNameAr : day.letterEn}
                     </span>
-                    <span className="text-[10px] font-medium tabular-nums text-slate-400 dark:text-[#8FA39B]/80">
+                    <span className="text-xs font-medium tabular-nums text-slate-600 dark:text-slate-300">
                       {day.shortDate}
                     </span>
                   </button>
@@ -712,7 +712,7 @@ export function FullJourney360() {
                 <h2 className="text-[15.5px] sm:text-[16.5px] font-semibold tracking-tight text-slate-950 dark:text-white">
                   {T('Start Here This Week', 'ابدأ من هنا هذا الأسبوع')}
                 </h2>
-                <span className="inline-flex items-center rounded-full bg-rose-500/15 px-2.5 py-0.5 text-[11px] font-bold text-rose-700 dark:text-rose-300">
+                <span className="inline-flex items-center rounded-full bg-rose-500/15 px-2.5 py-0.5 text-xs font-bold text-rose-700 dark:text-rose-300">
                   {T('#1 Priority', 'الأولوية #1')}
                 </span>
               </div>
@@ -740,7 +740,7 @@ export function FullJourney360() {
                     : fmtKwdVal(0)}
                 </div>
 
-                <div className="mt-2 flex items-center gap-1.5 text-[11.5px] font-medium text-slate-600 dark:text-[#8FA39B]">
+                <div className="mt-2 flex items-center gap-1.5 text-[13px] font-medium text-slate-600 dark:text-[#8FA39B]">
                   <Clock className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
                   <span className="whitespace-normal">
                     {T(
@@ -760,11 +760,11 @@ export function FullJourney360() {
                   <span className="text-[12px] font-semibold text-amber-950 dark:text-amber-200">
                     {T('Aggregator Collection', 'متابعة تحصيل المنصات')}
                   </span>
-                  <span className="rounded-md bg-amber-100/90 px-1.5 py-0.5 text-[10.5px] font-bold text-amber-900 dark:bg-amber-900/60 dark:text-amber-200">
+                  <span className="rounded-md bg-amber-100/90 px-1.5 py-0.5 text-xs font-bold text-amber-900 dark:bg-amber-900/60 dark:text-amber-200">
                     {T('Cumulative Balance', 'رصيد متراكم')}
                   </span>
                 </div>
-                <p className="mt-1 whitespace-normal text-[11px] font-medium text-slate-600 dark:text-[#8FA39B]">
+                <p className="mt-1 whitespace-normal text-xs font-medium text-slate-600 dark:text-[#8FA39B]">
                   {T(
                     '(Open cumulative balance from prior periods under collection)',
                     '(رصيد متراكم مفتوح من فترات سابقة قيد التحصيل)',
@@ -794,7 +794,7 @@ export function FullJourney360() {
                 </h2>
                 <Link
                   href="/erp/weekday-comparison"
-                  className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#F6F7F8] px-2.5 py-1 text-[11.5px] font-semibold text-slate-700 ring-1 ring-slate-900/[0.06] transition-colors hover:text-emerald-700 dark:bg-[#141F1B] dark:text-emerald-300 dark:ring-emerald-400/[0.12] dark:hover:bg-white/[0.08]"
+                  className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#F6F7F8] px-2.5 py-1 text-[13px] font-semibold text-slate-700 ring-1 ring-slate-900/[0.06] transition-colors hover:text-emerald-700 dark:bg-[#141F1B] dark:text-emerald-300 dark:ring-emerald-400/[0.12] dark:hover:bg-white/[0.08]"
                 >
                   <Plus className="h-3 w-3" />
                   <span>{T('View All', 'عرض الكل')}</span>
@@ -819,7 +819,7 @@ export function FullJourney360() {
                             : topBranch.labelEn
                           : T('Lead Branch', 'الفرع المتصدر')}
                       </p>
-                      <p className="mt-0.5 text-[11px] font-medium text-slate-500 dark:text-[#8FA39B]">
+                      <p className="mt-0.5 text-xs font-medium text-slate-600 dark:text-slate-300">
                         {T('Peak POS Revenue · Today', 'أعلى إيراد نقاط بيع · اليوم')}
                       </p>
                     </div>
@@ -845,7 +845,7 @@ export function FullJourney360() {
                       <p className="whitespace-normal text-[12.5px] font-semibold leading-tight text-slate-900 dark:text-white">
                         {T('Quiet Hours Upside (3–6 PM)', 'فرصة الساعات الهادئة (3–6 م)')}
                       </p>
-                      <p className="mt-0.5 text-[11px] font-medium text-slate-500 dark:text-[#8FA39B]">
+                      <p className="mt-0.5 text-xs font-medium text-slate-600 dark:text-slate-300">
                         {T('Due: Daily 15:00 KWT', 'التنفيذ: يومياً 3:00 عصراً')}
                       </p>
                     </div>
@@ -875,7 +875,7 @@ export function FullJourney360() {
                       <p className="whitespace-normal text-[12.5px] font-semibold leading-tight text-slate-900 dark:text-white">
                         {T('Aggregator Settlement', 'تسوية ذمم المنصات')}
                       </p>
-                      <p className="mt-0.5 text-[11px] font-medium text-slate-500 dark:text-[#8FA39B]">
+                      <p className="mt-0.5 text-xs font-medium text-slate-600 dark:text-slate-300">
                         {T('Due: Weekly Treasury Run', 'الاستحقاق: دورة الخزينة الأسبوعية')}
                       </p>
                     </div>
@@ -905,7 +905,7 @@ export function FullJourney360() {
                       <p className="whitespace-normal text-[12.5px] font-semibold leading-tight text-slate-900 dark:text-white">
                         {T('Kitchen Prep & Rider SLA', 'التزام التحضير والتوصيل')}
                       </p>
-                      <p className="mt-0.5 text-[11px] font-medium text-slate-500 dark:text-[#8FA39B]">
+                      <p className="mt-0.5 text-xs font-medium text-slate-600 dark:text-slate-300">
                         {T('Peak Window: 19:00 – 23:00', 'ذروة المساء: 7:00 – 11:00 م')}
                       </p>
                     </div>
@@ -1048,7 +1048,7 @@ export function FullJourney360() {
 
                       {badgeLabel ? (
                         <span
-                          className={`shrink-0 rounded-lg px-2 py-0.5 text-[11px] font-bold tabular-nums ${CARD_BADGE_TONE[c.accent]}`}
+                          className={`shrink-0 rounded-lg px-2 py-0.5 text-xs font-bold tabular-nums ${CARD_BADGE_TONE[c.accent]}`}
                         >
                           {badgeLabel}
                         </span>

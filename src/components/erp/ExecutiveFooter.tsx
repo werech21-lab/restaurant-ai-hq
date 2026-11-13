@@ -19,7 +19,7 @@ import {
 } from '@/lib/odoo/live-sync-core'
 
 const LAST_SYNC_STORAGE_KEY = 'vf_last_silent_odoo_sync_ts_v12'
-const SIX_HOURS_MS = 6 * 60 * 60 * 1000
+const FIFTEEN_MINUTES_MS = 15 * 60 * 1000
 
 const SNAPSHOT_LATEST_RECORD_ISO =
   resolveSnapshotLatestRecordInfo(ODOO_SNAPSHOT).latestRecordAt ||
@@ -88,7 +88,9 @@ export function ExecutiveFooter({
       ? 'auditor'
       : (sessionRole ?? gov?.sessionRole ?? (gov?.isAuditor ? 'auditor' : 'admin'))
   const roleProfile = resolveExecRoleProfile(activeRole)
+  const isAdminRole = activeRole === 'admin'
   const [syncing, setSyncing] = useState(false)
+  const [adminDiagOpen, setAdminDiagOpen] = useState(false)
   const [lastSyncedRecordIso, setLastSyncedRecordIso] = useState<string | undefined>(undefined)
   const [referenceNowMs, setReferenceNowMs] = useState<number>(DETERMINISTIC_SSR_REF_NOW_MS)
 
@@ -141,20 +143,26 @@ export function ExecutiveFooter({
   }, [roleProfile.isAuditor, triggerOdooSyncNow])
 
   useEffect(() => {
-    // Auditor read-only sessions never trigger background write syncs on page load
+    // Auditor read-only sessions never trigger background write syncs; executives refresh silently every 15 minutes
     if (roleProfile.isAuditor) return undefined
+    let initTimer: number | undefined
     try {
       const last = Number(window.localStorage.getItem(LAST_SYNC_STORAGE_KEY) || '0')
-      if (!last || Date.now() - last > SIX_HOURS_MS) {
-        const timer = window.setTimeout(() => {
+      if (!last || Date.now() - last > FIFTEEN_MINUTES_MS) {
+        initTimer = window.setTimeout(() => {
           void triggerLedgerSync(true)
         }, 1400)
-        return () => window.clearTimeout(timer)
       }
     } catch {
       // ignore storage errors
     }
-    return undefined
+    const intervalId = window.setInterval(() => {
+      void triggerLedgerSync(true)
+    }, FIFTEEN_MINUTES_MS)
+    return () => {
+      if (initTimer !== undefined) window.clearTimeout(initTimer)
+      window.clearInterval(intervalId)
+    }
   }, [roleProfile.isAuditor, triggerLedgerSync])
 
   const activeLatestRecordIso =
@@ -174,13 +182,17 @@ export function ExecutiveFooter({
     [activeLatestRecordIso, referenceNowMs],
   )
 
+  const cleanExecutiveStatusSentence = isAr
+    ? `البيانات محدّثة حتى ${freshness.kuwaitDateArLong}`
+    : `Data updated through ${freshness.kuwaitDateEn}`
+
   return (
     <footer
       dir={isAr ? 'rtl' : 'ltr'}
       aria-label={isAr ? 'تذييل المنصة التنفيذي الرسمي' : 'Official Executive Platform Footer'}
-      className="no-print mt-8 space-y-3 border-t border-slate-200/70 pt-4 pb-2 text-xs tabular-nums text-slate-600 dark:border-white/[0.07] dark:text-slate-300"
+      className="no-print mt-8 space-y-3 border-t border-slate-200/70 pt-4 pb-2 text-[13px] tabular-nums text-slate-600 dark:border-white/[0.07] dark:text-slate-300"
     >
-      {/* Single Calm Executive Data-Freshness Status Banner */}
+      {/* Single Calm Executive Data-Freshness Status Bar (ONLY location across all /erp/* pages) */}
       <div
         role="status"
         data-latest-odoo-record-at={freshness.kuwaitIso}
@@ -191,56 +203,102 @@ export function ExecutiveFooter({
               ? 'cached'
               : 'live'
         }
-        className={`flex flex-wrap items-center justify-between gap-2.5 rounded-2xl px-3.5 py-2.5 text-xs font-semibold ring-1 ${
+        className={`relative flex flex-wrap items-center justify-between gap-2.5 rounded-2xl px-4 py-2.5 text-[13px] font-semibold ring-1 ${
           freshness.isStaleOver24h
-            ? 'bg-slate-100/90 text-slate-800 ring-slate-900/10 dark:bg-[#101C17] dark:text-slate-200 dark:ring-white/10'
+            ? 'bg-slate-100/90 text-slate-800 ring-slate-900/10 dark:bg-[#101815] dark:text-slate-200 dark:ring-white/10'
             : liveSummary?.sourceMode === 'cached-live'
               ? 'bg-amber-50/90 text-amber-900 ring-amber-500/30 dark:bg-amber-950/40 dark:text-amber-200 dark:ring-amber-500/30'
               : 'bg-emerald-50/85 text-emerald-900 ring-emerald-500/25 dark:bg-emerald-950/40 dark:text-emerald-200 dark:ring-emerald-500/30'
         }`}
       >
-        <span className="min-w-0 flex-1 whitespace-normal break-words leading-snug">
-          {freshness.isStaleOver24h
-            ? isAr
-              ? freshness.badgeAr
-              : freshness.badgeEn
-            : liveSummary?.sourceMode === 'cached-live'
-              ? isAr
-                ? freshness.cachedSnapshotBadgeAr
-                : freshness.cachedSnapshotBadgeEn
-              : isAr
-                ? freshness.liveConnectedBadgeAr
-                : freshness.liveConnectedBadgeEn}
-        </span>
-
-        {!roleProfile.isAuditor ? (
-          <button
-            type="button"
-            onClick={() => void triggerLedgerSync(false)}
-            disabled={syncing || syncingOdoo || syncCooldownSec > 0}
-            aria-label={isAr ? 'تحديث الربط الآن' : 'Refresh — Sync Odoo Now — Sync Now'}
-            className={`inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl px-3 py-1 text-xs font-bold transition-colors disabled:opacity-60 ${
-              freshness.isStaleOver24h
-                ? 'bg-white text-slate-800 ring-1 ring-slate-900/10 hover:bg-slate-50 dark:bg-[#09110E] dark:text-slate-100'
-                : liveSummary?.sourceMode === 'cached-live'
-                  ? 'bg-white text-amber-900 ring-1 ring-amber-500/30 hover:bg-amber-100/70 dark:bg-[#101C17] dark:text-amber-200'
-                  : 'bg-white text-emerald-900 ring-1 ring-emerald-500/25 hover:bg-emerald-100/70 dark:bg-[#101C17] dark:text-emerald-200'
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+          <span
+            aria-hidden
+            className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${
+              freshness.isStaleOver24h ? 'bg-amber-500' : 'bg-emerald-500'
             }`}
-          >
-            <RefreshCw
-              className={`h-3 w-3 shrink-0 ${syncing || syncingOdoo ? 'animate-spin' : ''}`}
-            />
-            <span>
-              {syncCooldownSec > 0
-                ? isAr
-                  ? `تحديث (${syncCooldownSec}ث)`
-                  : `Refresh (${syncCooldownSec}s)`
-                : isAr
-                  ? 'تحديث'
-                  : 'Refresh'}
-            </span>
-          </button>
-        ) : null}
+          />
+          <span className="min-w-0 whitespace-normal break-words leading-snug">
+            {cleanExecutiveStatusSentence}
+          </span>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-2">
+          {/* Strictly Admin-Only (`role === 'admin'`) Technical Sync Diagnostics Popover */}
+          {isAdminRole ? (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setAdminDiagOpen((v) => !v)}
+                aria-expanded={adminDiagOpen}
+                className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl bg-white/90 px-2.5 py-1 text-xs font-semibold text-slate-700 ring-1 ring-slate-900/10 transition-colors hover:bg-white dark:bg-[#141F1B] dark:text-emerald-200 dark:ring-emerald-400/20"
+              >
+                <span>{isAr ? 'تشخيص المزامنة' : 'Sync Diagnostics'}</span>
+              </button>
+
+              {adminDiagOpen ? (
+                <div
+                  role="dialog"
+                  aria-label={isAr ? 'تفاصيل تشخيص مسؤول النظام' : 'System Admin Sync Diagnostics'}
+                  className="absolute bottom-full end-0 z-50 mb-2 w-72 space-y-1.5 rounded-2xl bg-white p-3.5 text-xs font-medium text-slate-700 shadow-xl ring-1 ring-slate-900/10 dark:bg-[#101815] dark:text-slate-200 dark:ring-emerald-400/20"
+                >
+                  <div className="font-bold text-slate-900 dark:text-white">
+                    {isAr ? 'تشخيص مسؤول النظام فقط' : 'Admin-Only Sync Telemetry'}
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span>{isAr ? 'الوضع:' : 'Mode:'}</span>
+                    <span dir="ltr" className="font-mono font-semibold text-emerald-700 dark:text-emerald-300">
+                      {liveSummary?.sourceMode ?? 'verified-baseline'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span>{isAr ? 'جدولة التحديث:' : 'Auto-Refresh:'}</span>
+                    <span>{isAr ? 'كل 15 دقيقة' : 'Every 15 min'}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span>{isAr ? 'عمر آخر سجل:' : 'Record Age:'}</span>
+                    <span dir="ltr" className="font-mono">
+                      {freshness.hoursSinceLatestOdooRecord}h
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span>{isAr ? 'تنبيه >24 ساعة:' : '>24h Watchdog:'}</span>
+                    <span>Email + WhatsApp</span>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {!roleProfile.isAuditor ? (
+            <button
+              type="button"
+              onClick={() => void triggerLedgerSync(false)}
+              disabled={syncing || syncingOdoo || syncCooldownSec > 0}
+              aria-label={isAr ? 'تحديث الربط الآن' : 'Refresh — Sync Odoo Now — Sync Now'}
+              className={`inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl px-3 py-1 text-xs font-bold transition-colors disabled:opacity-60 ${
+                freshness.isStaleOver24h
+                  ? 'bg-white text-slate-800 ring-1 ring-slate-900/10 hover:bg-slate-50 dark:bg-[#090E0C] dark:text-slate-100'
+                  : liveSummary?.sourceMode === 'cached-live'
+                    ? 'bg-white text-amber-900 ring-1 ring-amber-500/30 hover:bg-amber-100/70 dark:bg-[#141F1B] dark:text-amber-200'
+                    : 'bg-white text-emerald-900 ring-1 ring-emerald-500/25 hover:bg-emerald-100/70 dark:bg-[#141F1B] dark:text-emerald-200'
+              }`}
+            >
+              <RefreshCw
+                className={`h-3.5 w-3.5 shrink-0 ${syncing || syncingOdoo ? 'animate-spin' : ''}`}
+              />
+              <span>
+                {syncCooldownSec > 0
+                  ? isAr
+                    ? `تحديث (${syncCooldownSec}ث)`
+                    : `Refresh (${syncCooldownSec}s)`
+                  : isAr
+                    ? 'تحديث'
+                    : 'Refresh'}
+              </span>
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-2.5">
@@ -255,7 +313,7 @@ export function ExecutiveFooter({
                   ? 'تاريخ ووقت آخر فاتورة مسجلة فعلياً في أودو 17 (وضع المراجعة للقراءة فقط — توقيت الكويت)'
                   : 'Actual latest Odoo 17 POS record timestamp (Read-only auditor mode — Kuwait time)'
               }
-              className="inline-flex items-center gap-1.5 rounded-xl px-2 py-1 text-start text-xs font-medium tabular-nums text-slate-600 dark:text-slate-300"
+              className="inline-flex items-center gap-1.5 rounded-xl px-2 py-1 text-start text-[13px] font-medium tabular-nums text-slate-600 dark:text-slate-300"
             >
               <span
                 aria-hidden
@@ -264,9 +322,9 @@ export function ExecutiveFooter({
                 }`}
               />
               <span>
-                {isAr ? 'آخر مزامنة أودو 17:' : 'Latest Odoo 17 Record:'}
+                {isAr ? 'آخر سجل من أودو:' : 'Last record from Odoo:'}
               </span>
-              <span dir="ltr" className="font-mono text-[11.5px] font-semibold tabular-nums">
+              <span dir="ltr" className="font-mono text-xs font-semibold tabular-nums">
                 {syncStamp}
               </span>
             </span>
@@ -280,10 +338,10 @@ export function ExecutiveFooter({
                   ? 'اضغط لتحديث ومطابقة أحدث فواتير أودو 17 الآن (توقيت الكويت)'
                   : 'Click to pull latest live Odoo 17 POS & ledger records now (Kuwait time)'
               }
-              className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl px-2 py-1 text-start text-xs font-medium tabular-nums text-slate-600 transition-colors hover:bg-slate-100/80 hover:text-slate-900 disabled:opacity-60 dark:text-slate-300 dark:hover:bg-white/[0.05] dark:hover:text-white"
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl px-2 py-1 text-start text-[13px] font-medium tabular-nums text-slate-600 transition-colors hover:bg-slate-100/80 hover:text-slate-900 disabled:opacity-60 dark:text-slate-300 dark:hover:bg-white/[0.05] dark:hover:text-white"
             >
               {syncing ? (
-                <RefreshCw className="h-3 w-3 shrink-0 animate-spin text-emerald-600 dark:text-emerald-400" />
+                <RefreshCw className="h-3.5 w-3.5 shrink-0 animate-spin text-emerald-600 dark:text-emerald-400" />
               ) : (
                 <span
                   aria-hidden
@@ -293,9 +351,9 @@ export function ExecutiveFooter({
                 />
               )}
               <span>
-                {isAr ? 'آخر مزامنة أودو 17:' : 'Latest Odoo 17 Record:'}
+                {isAr ? 'آخر سجل من أودو:' : 'Last record from Odoo:'}
               </span>
-              <span dir="ltr" className="font-mono text-[11.5px] font-semibold tabular-nums">
+              <span dir="ltr" className="font-mono text-xs font-semibold tabular-nums">
                 {syncStamp}
               </span>
             </button>

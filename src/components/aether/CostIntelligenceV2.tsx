@@ -104,16 +104,16 @@ export function CostIntelligenceV2() {
                 </div>
                 <div className="flex items-end justify-between gap-2">
                   <div>
-                    <div className="text-[11px] text-slate-500">
+                    <div className="text-xs text-slate-500">
                       {T('Contract', 'المتعاقد')} <Num>{fmt(c.contract, 3)}</Num> → {T('invoice', 'الفاتورة')}
                     </div>
                     <Num className={`text-lg ${c.creepPct >= PRICE_CREEP_ALERT_PCT ? 'text-rose-600' : 'text-slate-900 dark:text-white'}`}>
-                      {fmt(c.latest, 3)} <span className="text-[11px] font-semibold text-slate-500">/ {isAr ? c.unitAr : c.unitEn}</span>
+                      {fmt(c.latest, 3)} <span className="text-xs font-semibold text-slate-500">/ {isAr ? c.unitAr : c.unitEn}</span>
                     </Num>
                   </div>
                   <Sparkline data={c.invoices} color={TONE_HEX[lv.tone]} width={84} height={30} />
                 </div>
-                <div className="flex items-center justify-between text-[11px]">
+                <div className="flex items-center justify-between text-xs">
                   <Num className={c.creepPct > 0 ? 'text-rose-600' : 'text-emerald-600'}>
                     {c.creepPct > 0 ? '+' : ''}
                     {pct(c.creepPct)}
@@ -128,7 +128,7 @@ export function CostIntelligenceV2() {
                     setIngredient(c.id)
                     setIncrease(null)
                   }}
-                  className={ingredient === c.id ? 'btn-colored inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]' : 'ae-pill-light ae-pill-sm'}
+                  className={ingredient === c.id ? 'btn-colored inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]' : 'ae-pill-light ae-pill-sm'}
                 >
                   <FlaskConical className="h-3 w-3" />
                   {T('Simulate margin impact', 'محاكاة أثر الهامش')}
@@ -183,7 +183,7 @@ export function CostIntelligenceV2() {
                 <Num className="text-base text-slate-900 dark:text-white">+{pct(pctUsed)}</Num>
               </div>
               <input type="range" min={0} max={25} step={0.5} value={pctUsed} onChange={(e) => setIncrease(Number(e.target.value))} className="w-full accent-rose-600" aria-label={T('Vendor price increase', 'زيادة سعر المورد')} />
-              <div className="flex justify-between text-[10px] text-slate-400">
+              <div className="flex justify-between text-xs text-slate-400">
                 <Num>0%</Num>
                 <button type="button" className="font-semibold text-sky-600 hover:underline" onClick={() => setIncrease(null)}>
                   {T('Use live invoice creep', 'استخدم الارتفاع الفعلي')}
@@ -193,11 +193,11 @@ export function CostIntelligenceV2() {
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div className="ae-tile p-3">
-                <div className="text-[10px] text-slate-500">{T('Margin erosion', 'تآكل الهامش')}</div>
+                <div className="text-xs text-slate-500">{T('Margin erosion', 'تآكل الهامش')}</div>
                 <Num className="text-lg text-rose-600">−{kwd(erosion.totalErosion, lang, digits || 1)}</Num>
               </div>
               <div className="ae-tile p-3">
-                <div className="text-[10px] text-slate-500">{T('Items exposed', 'الأصناف المتأثرة')}</div>
+                <div className="text-xs text-slate-500">{T('Items exposed', 'الأصناف المتأثرة')}</div>
                 <Num className="text-lg text-slate-900 dark:text-white">{erosion.affected} / 32</Num>
               </div>
             </div>
@@ -221,7 +221,7 @@ export function CostIntelligenceV2() {
                     <tr key={r.item.id} className={r.qty === 0 ? 'opacity-50' : ''}>
                       <td className="px-3 py-2">
                         <div className="font-semibold text-slate-900 dark:text-white">{isAr ? r.item.ar : r.item.en}</div>
-                        <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
+                        <div className="flex items-center gap-1.5 text-xs text-slate-500">
                           {brandName(r.item.brand)} · <Badge tone={q.tone} className="!py-0">{isAr ? q.ar : q.en}</Badge>
                         </div>
                       </td>
@@ -232,7 +232,7 @@ export function CostIntelligenceV2() {
                       <td className="px-3 py-2 text-end"><Num className="text-rose-600">{fmt(r.erosion, 1)}</Num></td>
                       <td className="px-3 py-2">
                         <Badge tone={mv.tone}>{isAr ? mv.ar : mv.en}</Badge>
-                        {r.move === 'reprice' ? <Num className="ms-1 text-[10px] text-slate-500">+{pct(r.priceToRestore)}</Num> : null}
+                        {r.move === 'reprice' ? <Num className="ms-1 text-xs text-slate-500">+{pct(r.priceToRestore)}</Num> : null}
                       </td>
                     </tr>
                   )
@@ -266,7 +266,7 @@ export function CostIntelligenceV2() {
                 {isAr ? c.ar : c.en}
               </div>
               <Num className="text-xl text-slate-900 dark:text-white">{kwd(c.value, lang, digits || 2)}</Num>
-              <Num className="text-[11px] text-slate-500">{pct(c.share * 100, 0)}</Num>
+              <Num className="text-xs text-slate-500">{pct(c.share * 100, 0)}</Num>
             </div>
           ))}
         </div>

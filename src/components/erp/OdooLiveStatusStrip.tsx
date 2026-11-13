@@ -135,7 +135,7 @@ export function OdooLiveStatusStrip({
           disabled={syncingOdoo || syncCooldownSec > 0}
           aria-label={isAr ? 'تحديث ربط أودو الآن' : 'Refresh — Sync Odoo Now'}
           title={isAr ? 'تحديث ربط أودو الآن' : 'Refresh — Sync Odoo Now'}
-          className={`inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl px-3 py-1 text-[11.5px] font-bold transition-colors disabled:opacity-60 ${
+          className={`inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl px-3 py-1 text-[13px] font-bold transition-colors disabled:opacity-60 ${
             stripTone === 'live'
               ? 'bg-white text-emerald-900 ring-1 ring-emerald-500/25 hover:bg-emerald-100/70 dark:bg-[#101C17] dark:text-emerald-200'
               : stripTone === 'cached'

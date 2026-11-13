@@ -569,24 +569,24 @@ export function VentureRecipesHub({
       {/* Top CFO KPI Cards Bar */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-3.5">
-          <div className="text-[11px] font-medium text-slate-400">{isAr ? 'متوسط نسبة تكلفة الغذاء' : 'Avg Food Cost %'}</div>
+          <div className="text-xs font-medium text-slate-400">{isAr ? 'متوسط نسبة تكلفة الغذاء' : 'Avg Food Cost %'}</div>
           <div className="text-xl font-black text-emerald-400 mt-1">27.8%</div>
-          <div className="text-[10px] text-slate-400 mt-0.5">{isAr ? 'الهدف المعتمد للشركة: < 29%' : 'Corporate Target: <29%'}</div>
+          <div className="text-xs text-slate-400 mt-0.5">{isAr ? 'الهدف المعتمد للشركة: < 29%' : 'Corporate Target: <29%'}</div>
         </div>
         <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-3.5">
-          <div className="text-[11px] font-medium text-slate-400">{isAr ? 'متوسط نسبة تكلفة التغليف' : 'Avg Packaging Cost %'}</div>
+          <div className="text-xs font-medium text-slate-400">{isAr ? 'متوسط نسبة تكلفة التغليف' : 'Avg Packaging Cost %'}</div>
           <div className="text-xl font-black text-indigo-400 mt-1">3.2%</div>
-          <div className="text-[10px] text-slate-400 mt-0.5">{isAr ? '0.175 د.ك للطلب' : '0.175 KWD/order'}</div>
+          <div className="text-xs text-slate-400 mt-0.5">{isAr ? '0.175 د.ك للطلب' : '0.175 KWD/order'}</div>
         </div>
         <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-3.5">
-          <div className="text-[11px] font-medium text-slate-400">{isAr ? 'عجز الانحراف الشهري الفعلي' : 'Monthly Variance Loss'}</div>
+          <div className="text-xs font-medium text-slate-400">{isAr ? 'عجز الانحراف الشهري الفعلي' : 'Monthly Variance Loss'}</div>
           <div className="text-xl font-black text-rose-400 mt-1">-1,286.900 <span className="text-xs text-slate-400">د.ك</span></div>
-          <div className="text-[10px] text-rose-300 mt-0.5">{isAr ? 'أغلبها زيادة أوزان غرف اللحوم' : 'Mainly meat over-portioning'}</div>
+          <div className="text-xs text-rose-300 mt-0.5">{isAr ? 'أغلبها زيادة أوزان غرف اللحوم' : 'Mainly meat over-portioning'}</div>
         </div>
         <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-3.5">
-          <div className="text-[11px] font-medium text-slate-400">{isAr ? 'الوصفات المعتمدة النشطة' : 'Active Recipe SKUs'}</div>
+          <div className="text-xs font-medium text-slate-400">{isAr ? 'الوصفات المعتمدة النشطة' : 'Active Recipe SKUs'}</div>
           <div className="text-xl font-black text-white mt-1">364 <span className="text-xs text-slate-400">صنفاً</span></div>
-          <div className="text-[10px] text-slate-400 mt-0.5">{isAr ? 'عبر 6 مطاعم والمطبخ المركزي' : 'Across 6 brands + Central Kitchen'}</div>
+          <div className="text-xs text-slate-400 mt-0.5">{isAr ? 'عبر 6 مطاعم والمطبخ المركزي' : 'Across 6 brands + Central Kitchen'}</div>
         </div>
       </div>
 
@@ -655,7 +655,7 @@ export function VentureRecipesHub({
                 <button
                   key={b.id}
                   onClick={() => setSelectedBrandFilter(b.id)}
-                  className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition-all ${
+                  className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-all ${
                     selectedBrandFilter === b.id
                       ? 'bg-emerald-600 text-white shadow-sm'
                       : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800'
@@ -693,12 +693,12 @@ export function VentureRecipesHub({
                     >
                       <div className="flex items-center justify-between">
                         <span className="font-mono text-xs font-black text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20">{rec.sku}</span>
-                        <span className="text-[10px] text-slate-400">{isAr ? rec.brandNameAr : rec.brandNameEn}</span>
+                        <span className="text-xs text-slate-400">{isAr ? rec.brandNameAr : rec.brandNameEn}</span>
                       </div>
                       <h4 className="mt-1.5 text-xs font-bold text-white leading-tight">{isAr ? rec.nameAr : rec.nameEn}</h4>
                       <div className="mt-2 flex items-center justify-between text-xs pt-2 border-t border-slate-800/80">
-                        <span className="text-slate-400 text-[11px]">{isAr ? 'سعر البيع:' : 'Price:'} <strong className="text-white">{rec.sellingPrice.toFixed(3)}</strong> {isAr ? 'د.ك' : 'KWD'}</span>
-                        <span className="font-mono font-bold text-emerald-400 text-[11px]">
+                        <span className="text-slate-400 text-xs">{isAr ? 'سعر البيع:' : 'Price:'} <strong className="text-white">{rec.sellingPrice.toFixed(3)}</strong> {isAr ? 'د.ك' : 'KWD'}</span>
+                        <span className="font-mono font-bold text-emerald-400 text-xs">
                           {isAr ? `نسبة التكلفة: ${costPct.toFixed(1)}%` : `${costPct.toFixed(1)}% Cost`}
                         </span>
                       </div>
@@ -748,19 +748,19 @@ export function VentureRecipesHub({
               {/* Price & Cost Waterfall KPI */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="rounded-xl border border-slate-800 bg-slate-950 p-3">
-                  <div className="text-[10px] text-slate-400">{isAr ? 'المواد الخام الأولية' : 'Raw Materials'}</div>
+                  <div className="text-xs text-slate-400">{isAr ? 'المواد الخام الأولية' : 'Raw Materials'}</div>
                   <div className="text-sm font-black text-blue-400 font-mono mt-0.5">{rawSum.toFixed(3)} {isAr ? 'د.ك' : 'KWD'}</div>
                 </div>
                 <div className="rounded-xl border border-slate-800 bg-slate-950 p-3">
-                  <div className="text-[10px] text-slate-400">{isAr ? 'تحضيرات المطبخ المركزي' : 'Central Kitchen Preps'}</div>
+                  <div className="text-xs text-slate-400">{isAr ? 'تحضيرات المطبخ المركزي' : 'Central Kitchen Preps'}</div>
                   <div className="text-sm font-black text-amber-400 font-mono mt-0.5">{prepSum.toFixed(3)} {isAr ? 'د.ك' : 'KWD'}</div>
                 </div>
                 <div className="rounded-xl border border-slate-800 bg-slate-950 p-3">
-                  <div className="text-[10px] text-slate-400">{isAr ? 'مواد التغليف والسفري' : 'Packaging & Takeaway'}</div>
+                  <div className="text-xs text-slate-400">{isAr ? 'مواد التغليف والسفري' : 'Packaging & Takeaway'}</div>
                   <div className="text-sm font-black text-purple-400 font-mono mt-0.5">{packSum.toFixed(3)} {isAr ? 'د.ك' : 'KWD'}</div>
                 </div>
                 <div className="rounded-xl border border-slate-800 bg-slate-950 p-3">
-                  <div className="text-[10px] text-slate-400">{isAr ? 'إجمالي التكلفة / نسبة الغذاء' : 'Total Cost / Food Cost %'}</div>
+                  <div className="text-xs text-slate-400">{isAr ? 'إجمالي التكلفة / نسبة الغذاء' : 'Total Cost / Food Cost %'}</div>
                   <div className="text-sm font-black text-emerald-400 font-mono mt-0.5">{totalCost.toFixed(3)} {isAr ? 'د.ك' : 'KWD'} ({actualCostPercent.toFixed(1)}%)</div>
                 </div>
               </div>
@@ -774,7 +774,7 @@ export function VentureRecipesHub({
                 <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/60">
                   <table className="w-full text-right text-xs">
                     <thead>
-                      <tr className="border-b border-slate-800 text-[11px] text-slate-400">
+                      <tr className="border-b border-slate-800 text-xs text-slate-400">
                         <th className="py-2 px-3">{isAr ? 'كود المادة' : 'SKU'}</th>
                         <th className="py-2 px-3">{isAr ? 'المكون الخام' : 'Ingredient'}</th>
                         <th className="py-2 px-3">{isAr ? 'الكمية / الوزن' : 'Qty / Portion'}</th>
@@ -816,7 +816,7 @@ export function VentureRecipesHub({
                     ) : (
                       <>
                         <thead>
-                          <tr className="border-b border-slate-800 text-[11px] text-slate-400">
+                          <tr className="border-b border-slate-800 text-xs text-slate-400">
                             <th className="py-2 px-3">{isAr ? 'كود التحضير' : 'SKU'}</th>
                             <th className="py-2 px-3">{isAr ? 'اسم الصوص / التتبيلة' : 'Prep Name'}</th>
                             <th className="py-2 px-3">{isAr ? 'الكمية' : 'Qty'}</th>
@@ -848,7 +848,7 @@ export function VentureRecipesHub({
                 <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/60">
                   <table className="w-full text-right text-xs">
                     <thead>
-                      <tr className="border-b border-slate-800 text-[11px] text-slate-400">
+                      <tr className="border-b border-slate-800 text-xs text-slate-400">
                         <th className="py-2 px-3">{isAr ? 'كود التغليف' : 'SKU'}</th>
                         <th className="py-2 px-3">{isAr ? 'الصنف / العلبة' : 'Package Item'}</th>
                         <th className="py-2 px-3">{isAr ? 'الكمية' : 'Qty'}</th>
@@ -913,7 +913,7 @@ export function VentureRecipesHub({
                     <td className="py-3 px-3 font-mono text-left text-rose-400 font-black">{row.diffKwd.toFixed(3)} {isAr ? 'د.ك' : 'KWD'}</td>
                     <td className="py-3 px-3 text-xs text-slate-300">{isAr ? row.causeAr : row.causeEn}</td>
                     <td className="py-3 px-3 text-center">
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${
                         row.riskEn === 'HIGH'
                           ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
                           : row.riskEn === 'MEDIUM'
@@ -931,7 +931,7 @@ export function VentureRecipesHub({
                   <td className="py-3 px-3 text-slate-200">{isAr ? 'إجمالي الخسارة المالية للانحراف' : 'Total Audited Variance Loss'}</td>
                   <td colSpan={3}></td>
                   <td className="py-3 px-3 text-left font-mono text-rose-400 text-sm font-black">-1,286.900 د.ك</td>
-                  <td colSpan={2} className="py-3 px-3 text-[11px] text-slate-400 font-sans">
+                  <td colSpan={2} className="py-3 px-3 text-xs text-slate-400 font-sans">
                     {isAr ? 'تتطلب تدريب الطهاة على وزن قطع الستيك وضبط معايرة الفرايز' : 'Requires portion control recalibration'}
                   </td>
                 </tr>
@@ -1016,11 +1016,11 @@ export function VentureRecipesHub({
                       <td className="py-3 px-3 font-mono text-center font-bold text-white">{netMarginPct.toFixed(1)}%</td>
                       <td className="py-3 px-3 text-xs text-slate-300">
                         {row.commission > 0.12 ? (
-                          <span className="text-amber-400 font-mono text-[11px]">
+                          <span className="text-amber-400 font-mono text-xs">
                             {isAr ? `يُنصح برفع السعر إلى ${optimalPrice.toFixed(3)} د.ك لحماية هامش 60%` : `Recommend ${optimalPrice.toFixed(3)} KWD on app`}
                           </span>
                         ) : (
-                          <span className="text-emerald-400 text-[11px]">
+                          <span className="text-emerald-400 text-xs">
                             {isAr ? 'السعر مثالي ويحقق هامشاً ممتازاً' : 'Optimal margin achieved'}
                           </span>
                         )}
@@ -1076,7 +1076,7 @@ export function VentureRecipesHub({
                   <div className="text-rose-400 font-bold">
                     {isAr ? 'تآكل الهامش الربحي:' : 'Margin Erosion:'} {alert.marginErosion}
                   </div>
-                  <div className="text-emerald-400 text-[11px] bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20">
+                  <div className="text-emerald-400 text-xs bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20">
                     💡 {alert.actionAr}
                   </div>
                 </div>
@@ -1123,19 +1123,19 @@ export function VentureRecipesHub({
           {/* Batch Costing Model */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="rounded-xl border border-slate-800 bg-slate-950 p-4 space-y-2">
-              <div className="text-[11px] text-slate-400">{isAr ? 'المنتج الوسيط التحضيري' : 'Target Sub-Recipe'}</div>
+              <div className="text-xs text-slate-400">{isAr ? 'المنتج الوسيط التحضيري' : 'Target Sub-Recipe'}</div>
               <div className="text-base font-black text-white">{isAr ? 'صوص الترافل المميز (تحضير المطبخ المركزي)' : 'Truffle Sauce (PP03-TRF)'}</div>
               <div className="text-xs text-amber-400">{isAr ? 'تحضير مسبق للستيك والدجاج الكانتون' : "Special Prep for Frank's & China Garden"}</div>
             </div>
 
             <div className="rounded-xl border border-slate-800 bg-slate-950 p-4 space-y-2">
-              <div className="text-[11px] text-slate-400">{isAr ? 'نسبة الفاقد أثناء الطهي والتبريد' : 'Cooking & Cooling Yield %'}</div>
+              <div className="text-xs text-slate-400">{isAr ? 'نسبة الفاقد أثناء الطهي والتبريد' : 'Cooking & Cooling Yield %'}</div>
               <div className="text-base font-black text-emerald-400 font-mono">92.0% {isAr ? 'صافي التصافي' : 'Net Yield'}</div>
               <div className="text-xs text-slate-400">{isAr ? '8% فاقد تبخر وانكماش طبيعي' : '8% evaporation loss'}</div>
             </div>
 
             <div className="rounded-xl border border-slate-800 bg-slate-950 p-4 space-y-2">
-              <div className="text-[11px] text-slate-400">{isAr ? 'سعر التحويل الداخلي للفروع' : 'Internal Transfer Cost / Liter'}</div>
+              <div className="text-xs text-slate-400">{isAr ? 'سعر التحويل الداخلي للفروع' : 'Internal Transfer Cost / Liter'}</div>
               <div className="text-lg font-black text-indigo-400 font-mono">2.850 {isAr ? 'د.ك / لتر' : 'KWD / Liter'}</div>
               <div className="text-xs text-emerald-400">{isAr ? 'محمل بنصيب العمالة والتشغيل بالمطبخ المركزي' : 'Includes labor & overhead allocation'}</div>
             </div>
@@ -1147,7 +1147,7 @@ export function VentureRecipesHub({
             </h4>
             <table className="w-full text-right text-xs">
               <thead>
-                <tr className="border-b border-slate-800 text-[11px] text-slate-400 font-sans">
+                <tr className="border-b border-slate-800 text-xs text-slate-400 font-sans">
                   <th className="py-2 px-3">{isAr ? 'المكون الخام' : 'Raw Ingredient'}</th>
                   <th className="py-2 px-3 text-left">{isAr ? 'الكمية المحسوبة' : 'Calculated Qty'}</th>
                   <th className="py-2 px-3 text-left">{isAr ? 'سعر الوحدة' : 'Unit Cost'}</th>

@@ -97,7 +97,7 @@ export default function Topbar({
           </Glyph>
         </button>
         <div className="min-w-0">
-          <p className="hidden text-[11px] text-gold-400/80 sm:block">{t('brandMark')}</p>
+          <p className="hidden text-xs text-gold-400/80 sm:block">{t('brandMark')}</p>
           <h2 className="truncate text-sm font-semibold tracking-tight text-mist-100 sm:text-base">{title}</h2>
         </div>
       </div>

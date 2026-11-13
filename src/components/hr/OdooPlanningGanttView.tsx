@@ -107,7 +107,7 @@ export function OdooPlanningGanttView({ locale }: Props) {
                 <h3 className="mt-2 text-sm font-black text-white leading-tight">
                   {isAr ? unit.nameAr : unit.nameEn}
                 </h3>
-                <p className="mt-1 text-[11px] text-slate-400 leading-normal">
+                <p className="mt-1 text-xs text-slate-400 leading-normal">
                   {isAr ? unit.subtextAr : unit.subtextEn}
                 </p>
               </div>
@@ -185,7 +185,7 @@ export function OdooPlanningGanttView({ locale }: Props) {
                       <span className="font-black text-white block text-sm">
                         {isAr ? item.roleAr : item.roleEn}
                       </span>
-                      <span className="text-[11px] text-slate-400">
+                      <span className="text-xs text-slate-400">
                         {isAr ? item.roleEn : item.roleAr}
                       </span>
                     </td>
@@ -322,7 +322,7 @@ export function OdooPlanningGanttView({ locale }: Props) {
                   {GANTT_DAYS_CONFIG.map((day) => (
                     <th key={day.key} className="px-2 py-3 text-center min-w-[130px]">
                       <span className="block text-white font-bold">{isAr ? day.nameAr : day.nameEn}</span>
-                      <span className="text-[10px] text-slate-500 font-mono">{isAr ? '8 ساعات' : '8h Planned'}</span>
+                      <span className="text-xs text-slate-500 font-mono">{isAr ? '8 ساعات' : '8h Planned'}</span>
                     </th>
                   ))}
                   <th className="px-3 py-3 text-center w-24">
@@ -336,14 +336,14 @@ export function OdooPlanningGanttView({ locale }: Props) {
                     {/* Employee Profile Header Column */}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2.5">
-                        <span className="font-mono text-[11px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded">
+                        <span className="font-mono text-xs font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded">
                           #{row.empCode}
                         </span>
                         <div>
                           <p className="font-black text-white text-xs leading-tight">
                             {isAr ? row.empNameAr : row.empNameEn}
                           </p>
-                          <p className="text-[10px] text-slate-400 leading-tight">
+                          <p className="text-xs text-slate-400 leading-tight">
                             {isAr ? row.jobTitleAr : row.jobTitleEn}
                           </p>
                           <p className="text-[9px] text-emerald-400 font-semibold mt-0.5">
@@ -373,7 +373,7 @@ export function OdooPlanningGanttView({ locale }: Props) {
                                 : 'border-slate-800 bg-slate-900/40 text-slate-500'
                             }`}
                           >
-                            <span className="block text-[11px] font-black leading-tight">
+                            <span className="block text-xs font-black leading-tight">
                               {isMorning
                                 ? isAr
                                   ? 'صباحي'
@@ -390,7 +390,7 @@ export function OdooPlanningGanttView({ locale }: Props) {
                                 ? 'إجازة'
                                 : 'Day Off'}
                             </span>
-                            <span className="block text-[10px] font-mono mt-0.5 opacity-80 leading-none">
+                            <span className="block text-xs font-mono mt-0.5 opacity-80 leading-none">
                               {isAr ? day.timeRangeAr : day.timeRangeEn}
                             </span>
                           </div>
@@ -429,27 +429,27 @@ export function OdooPlanningGanttView({ locale }: Props) {
         {/* Live Planning KPIs Bar */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div className="rounded-2xl border border-white/10 bg-[#121824] p-3 text-center">
-            <span className="text-[11px] text-slate-400">{isAr ? 'إجمالي الساعات المجدولة' : 'Weekly Scheduled Hours'}</span>
+            <span className="text-xs text-slate-400">{isAr ? 'إجمالي الساعات المجدولة' : 'Weekly Scheduled Hours'}</span>
             <p className="mt-1 text-xl font-black text-white font-mono">7,968 {isAr ? 'ساعة' : 'Hrs'}</p>
-            <span className="text-[10px] text-emerald-400 font-bold">{isAr ? '166 موظفاً × 48 ساعة' : '166 Staff × 48h'}</span>
+            <span className="text-xs text-emerald-400 font-bold">{isAr ? '166 موظفاً × 48 ساعة' : '166 Staff × 48h'}</span>
           </div>
 
           <div className="rounded-2xl border border-white/10 bg-[#121824] p-3 text-center">
-            <span className="text-[11px] text-slate-400">{isAr ? 'تغطية ساعات الذروة' : 'Peak Hours Coverage'}</span>
+            <span className="text-xs text-slate-400">{isAr ? 'تغطية ساعات الذروة' : 'Peak Hours Coverage'}</span>
             <p className="mt-1 text-xl font-black text-amber-400 font-mono">100%</p>
-            <span className="text-[10px] text-slate-400">{isAr ? 'الخميس والجمعة والسبت' : 'Thu, Fri & Sat Fully Covered'}</span>
+            <span className="text-xs text-slate-400">{isAr ? 'الخميس والجمعة والسبت' : 'Thu, Fri & Sat Fully Covered'}</span>
           </div>
 
           <div className="rounded-2xl border border-white/10 bg-[#121824] p-3 text-center">
-            <span className="text-[11px] text-slate-400">{isAr ? 'ساعات إسناد كشتة المارينا' : 'Kashta Marina Event Support'}</span>
+            <span className="text-xs text-slate-400">{isAr ? 'ساعات إسناد كشتة المارينا' : 'Kashta Marina Event Support'}</span>
             <p className="mt-1 text-xl font-black text-emerald-400 font-mono">240 {isAr ? 'ساعة' : 'Hrs'}</p>
-            <span className="text-[10px] text-emerald-300">{isAr ? 'شفتات إسناد إضافية' : 'Event Shifts Active'}</span>
+            <span className="text-xs text-emerald-300">{isAr ? 'شفتات إسناد إضافية' : 'Event Shifts Active'}</span>
           </div>
 
           <div className="rounded-2xl border border-white/10 bg-[#121824] p-3 text-center">
-            <span className="text-[11px] text-slate-400">{isAr ? 'مطابقة قانون العمل الكويتي' : 'Kuwait Labor Law Compliance'}</span>
+            <span className="text-xs text-slate-400">{isAr ? 'مطابقة قانون العمل الكويتي' : 'Kuwait Labor Law Compliance'}</span>
             <p className="mt-1 text-xl font-black text-blue-400 font-mono">مادة 64</p>
-            <span className="text-[10px] text-slate-400">{isAr ? 'يوم راحة أسبوعي إلزامي' : 'Mandatory 24h Day Off'}</span>
+            <span className="text-xs text-slate-400">{isAr ? 'يوم راحة أسبوعي إلزامي' : 'Mandatory 24h Day Off'}</span>
           </div>
         </div>
       </div>

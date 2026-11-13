@@ -242,11 +242,11 @@ export function OdooExpenseSheetModal({
                 <span className="text-sm font-black text-white">
                   {isAr ? `تقرير تصفية عهدة مجمع (${reportNo})` : `Expense Report Sheet (${reportNo})`}
                 </span>
-                <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-300 border border-amber-500/30">
+                <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-bold text-amber-300 border border-amber-500/30">
                   {isAr ? 'موديول hr.expense.sheet أودو' : 'Odoo hr.expense.sheet Module'}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-xs text-slate-400">
                 {isAr
                   ? 'تجميع واعتماد المصروفات الدورية وإصدار شيكات الصرف'
                   : 'Aggregate periodic expenses, approve & issue settlement cheques'}
@@ -360,7 +360,7 @@ export function OdooExpenseSheetModal({
           </div>
 
           {/* 5-Stage Approval Pipeline */}
-          <div className="flex items-center rounded-xl border border-white/10 bg-slate-900/90 p-0.5 text-[11px] font-bold">
+          <div className="flex items-center rounded-xl border border-white/10 bg-slate-900/90 p-0.5 text-xs font-bold">
             {pipelineStages.map((stg, idx) => {
               const isCurrent = stg.id === stage
               const isPassed = idx < currentStageIndex
@@ -466,7 +466,7 @@ export function OdooExpenseSheetModal({
                   <span className="text-xs font-black text-white">
                     {isAr ? 'جدول بنود المصروفات المشمولة في كشف التصفية:' : 'Expenses Included In This Sheet:'}
                   </span>
-                  <p className="text-[11px] text-slate-400">
+                  <p className="text-xs text-slate-400">
                     {isAr
                       ? `تم إدراج ${lines.length} حركات مدققة`
                       : `${lines.length} Audited Expense Lines`}
@@ -485,7 +485,7 @@ export function OdooExpenseSheetModal({
               {/* Table */}
               <div className="overflow-x-auto rounded-xl border border-slate-800">
                 <table className="w-full text-right text-xs">
-                  <thead className="bg-slate-900/90 text-slate-400 border-b border-slate-800 text-[11px]">
+                  <thead className="bg-slate-900/90 text-slate-400 border-b border-slate-800 text-xs">
                     <tr>
                       <th className="px-3 py-2">{isAr ? 'التاريخ' : 'Date'}</th>
                       <th className="px-3 py-2">{isAr ? 'فئة المصروف والبيان' : 'Category & Description'}</th>
@@ -494,7 +494,7 @@ export function OdooExpenseSheetModal({
                       <th className="px-2 py-2 text-center">✕</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800/80 bg-slate-950/40 text-[11px]">
+                  <tbody className="divide-y divide-slate-800/80 bg-slate-950/40 text-xs">
                     {lines.map((line) => (
                       <tr key={line.id} className="hover:bg-slate-900/40">
                         <td className="px-3 py-2 font-mono text-slate-400 whitespace-nowrap">
@@ -504,7 +504,7 @@ export function OdooExpenseSheetModal({
                           <span className="block font-bold text-slate-200">
                             {line.category}
                           </span>
-                          <span className="block text-[10px] text-slate-400 truncate max-w-xs">
+                          <span className="block text-xs text-slate-400 truncate max-w-xs">
                             {isAr ? line.descriptionAr : line.descriptionEn}
                           </span>
                         </td>
@@ -579,7 +579,7 @@ export function OdooExpenseSheetModal({
                     {isAr ? 'سجل التدقيق والمحادثة' : 'Audit Trail & Chatter'}
                   </span>
                 </div>
-                <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] text-slate-400 font-mono">
+                <span className="rounded-full bg-slate-800 px-2 py-0.5 text-xs text-slate-400 font-mono">
                   {chatterLogs.length}
                 </span>
               </div>
@@ -595,7 +595,7 @@ export function OdooExpenseSheetModal({
                     key={tab.id}
                     type="button"
                     onClick={() => setActiveChatterTab(tab.id)}
-                    className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition-all ${
+                    className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-all ${
                       activeChatterTab === tab.id
                         ? 'bg-slate-700 text-white'
                         : 'text-slate-400 hover:text-slate-200'
@@ -636,7 +636,7 @@ export function OdooExpenseSheetModal({
                     key={log.id}
                     className="rounded-xl border border-slate-800/80 bg-slate-900/40 p-3 space-y-1"
                   >
-                    <div className="flex items-center justify-between text-[10px]">
+                    <div className="flex items-center justify-between text-xs">
                       <span className="font-bold text-slate-300">{log.author}</span>
                       <span className="text-slate-500">{log.time}</span>
                     </div>
@@ -649,7 +649,7 @@ export function OdooExpenseSheetModal({
             {/* Cheque & Bank Settlement Notice */}
             <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 flex items-center gap-2.5">
               <span className="text-lg">🏦</span>
-              <div className="text-[10px] leading-tight">
+              <div className="text-xs leading-tight">
                 <p className="font-bold text-amber-400">
                   {isAr ? 'بنك الكويت الوطني — حساب سداد العهد' : 'NBK Corporate Custody Account'}
                 </p>

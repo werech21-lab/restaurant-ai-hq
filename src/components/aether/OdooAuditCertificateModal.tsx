@@ -234,7 +234,7 @@ export function OdooAuditCertificatePill({ isAr }: { isAr: boolean }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-emerald-50 px-3 text-[11.5px] font-extrabold text-emerald-800 ring-1 ring-emerald-500/25 transition-all duration-150 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-300 dark:ring-emerald-400/30 dark:hover:bg-emerald-900/60"
+        className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-emerald-50 px-3 text-[13px] font-extrabold text-emerald-800 ring-1 ring-emerald-500/25 transition-all duration-150 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-300 dark:ring-emerald-400/30 dark:hover:bg-emerald-900/60"
       >
         <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
         <span className="whitespace-nowrap">
@@ -259,7 +259,7 @@ export function OdooAuditCertificatePill({ isAr }: { isAr: boolean }) {
                 {/* Modal Header */}
                 <div className="flex items-start justify-between gap-3 border-b border-slate-200/80 pb-4 dark:border-white/10">
                   <div className="space-y-1">
-                    <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-extrabold text-emerald-800 ring-1 ring-emerald-500/25 dark:bg-emerald-950/60 dark:text-emerald-300">
+                    <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-extrabold text-emerald-800 ring-1 ring-emerald-500/25 dark:bg-emerald-950/60 dark:text-emerald-300">
                       <CheckCircle2 className="h-3.5 w-3.5" />
                       <span>
                         {auditData.allPassed
@@ -294,13 +294,13 @@ export function OdooAuditCertificatePill({ isAr }: { isAr: boolean }) {
                 {/* Real Odoo Scanned Counts (4 Bento Tiles) */}
                 <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
                   <div className="ae-bento-subcard rounded-2xl p-3">
-                    <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                    <div className="text-xs font-bold text-slate-500 dark:text-slate-400">
                       {isAr ? 'إيصالات الكاشير' : 'POS Receipts'}
                     </div>
                     <div dir="ltr" className="mt-1 text-[17px] font-black tabular-nums text-slate-950 dark:text-white">
                       {fInt(auditData.posOrdersYtd)}
                     </div>
-                    <div className="mt-0.5 text-[10.5px] font-semibold text-slate-500 dark:text-slate-400">
+                    <div className="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
                       {isAr
                         ? `${fInt(auditData.posOrders30d)} آخر ٣٠ يوم`
                         : `${fInt(auditData.posOrders30d)} last 30d`}
@@ -308,13 +308,13 @@ export function OdooAuditCertificatePill({ isAr }: { isAr: boolean }) {
                   </div>
 
                   <div className="ae-bento-subcard rounded-2xl p-3">
-                    <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                    <div className="text-xs font-bold text-slate-500 dark:text-slate-400">
                       {isAr ? 'فواتير الموردين' : 'Vendor Bills'}
                     </div>
                     <div dir="ltr" className="mt-1 text-[17px] font-black tabular-nums text-slate-950 dark:text-white">
                       {fInt(auditData.vendorBillsYtd)}
                     </div>
-                    <div className="mt-0.5 text-[10.5px] font-semibold text-slate-500 dark:text-slate-400">
+                    <div className="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
                       {isAr
                         ? `${fInt(auditData.activeBoms)} وصفة إنتاج`
                         : `${fInt(auditData.activeBoms)} active BOMs`}
@@ -322,13 +322,13 @@ export function OdooAuditCertificatePill({ isAr }: { isAr: boolean }) {
                   </div>
 
                   <div className="ae-bento-subcard rounded-2xl p-3">
-                    <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                    <div className="text-xs font-bold text-slate-500 dark:text-slate-400">
                       {isAr ? 'قيود ومخزون' : 'Ledger & Stock'}
                     </div>
                     <div dir="ltr" className="mt-1 text-[17px] font-black tabular-nums text-slate-950 dark:text-white">
                       {fInt(auditData.accountMoveLinesYtd)}
                     </div>
-                    <div className="mt-0.5 text-[10.5px] font-semibold text-slate-500 dark:text-slate-400">
+                    <div className="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
                       {isAr
                         ? `${fInt(auditData.stockMovesYtd)} حركة مخزون`
                         : `${fInt(auditData.stockMovesYtd)} stock moves`}
@@ -336,13 +336,13 @@ export function OdooAuditCertificatePill({ isAr }: { isAr: boolean }) {
                   </div>
 
                   <div className="ae-bento-subcard rounded-2xl p-3">
-                    <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                    <div className="text-xs font-bold text-slate-500 dark:text-slate-400">
                       {isAr ? 'المطاعم والفروع' : 'Brands & Branches'}
                     </div>
                     <div dir="ltr" className="mt-1 text-[17px] font-black tabular-nums text-emerald-700 dark:text-emerald-400">
                       {auditData.brandsCount} × {auditData.branchesCount} + EXB
                     </div>
-                    <div className="mt-0.5 text-[10.5px] font-semibold text-slate-500 dark:text-slate-400">
+                    <div className="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
                       {isAr
                         ? `${auditData.whitelistedRegisters} كاشير معتمد`
                         : `${auditData.whitelistedRegisters} POS registers`}
@@ -364,13 +364,13 @@ export function OdooAuditCertificatePill({ isAr }: { isAr: boolean }) {
                         <div className="font-extrabold text-slate-900 dark:text-white">
                           {isAr ? a.titleAr : a.titleEn}
                         </div>
-                        <div dir="ltr" className="font-mono text-[11.5px] font-semibold text-slate-600 dark:text-slate-300">
+                        <div dir="ltr" className="font-mono text-[13px] font-semibold text-slate-600 dark:text-slate-300">
                           {isAr ? a.formulaAr : a.formulaEn}
                         </div>
                       </div>
                       <span
                         dir="ltr"
-                        className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11.5px] font-extrabold tabular-nums text-emerald-800 ring-1 ring-emerald-500/25 dark:bg-emerald-950/60 dark:text-emerald-300"
+                        className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[13px] font-extrabold tabular-nums text-emerald-800 ring-1 ring-emerald-500/25 dark:bg-emerald-950/60 dark:text-emerald-300"
                       >
                         <Check className="h-3.5 w-3.5" />
                         <span>

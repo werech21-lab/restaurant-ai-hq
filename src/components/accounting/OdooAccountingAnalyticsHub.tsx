@@ -318,7 +318,7 @@ export function OdooAccountingAnalyticsHub({ isAr, locale }: OdooAccountingAnaly
 
           <div className="flex flex-wrap items-center gap-3">
             <div className="text-right">
-              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 block">
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400 block">
                 {isAr ? 'حالة المزامنة مع أودو:' : 'Odoo Sync Status:'}
               </span>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
@@ -338,7 +338,7 @@ export function OdooAccountingAnalyticsHub({ isAr, locale }: OdooAccountingAnaly
             <div className="mt-1 text-2xl font-black text-slate-900 dark:text-white font-mono">
               51,154.950 <span className="text-xs font-sans text-slate-500">{isAr ? 'د.ك' : 'KWD'}</span>
             </div>
-            <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold mt-0.5 block">
+            <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold mt-0.5 block">
               {isAr ? '2,213 قيد مالي مدقق' : '2,213 verified entries'}
             </span>
           </div>
@@ -350,7 +350,7 @@ export function OdooAccountingAnalyticsHub({ isAr, locale }: OdooAccountingAnaly
             <div className="mt-1 text-2xl font-black text-rose-700 dark:text-rose-400 font-mono">
               61.86%
             </div>
-            <span className="text-[11px] text-slate-600 dark:text-slate-400 font-bold mt-0.5 block">
+            <span className="text-xs text-slate-600 dark:text-slate-400 font-bold mt-0.5 block">
               {isAr ? '31,646.750 د.ك (1,412 حركة)' : '31,646.750 KWD (1,412 txns)'}
             </span>
           </div>
@@ -362,7 +362,7 @@ export function OdooAccountingAnalyticsHub({ isAr, locale }: OdooAccountingAnaly
             <div className="mt-1 text-2xl font-black text-indigo-700 dark:text-indigo-300 font-mono">
               78 / 100
             </div>
-            <span className="text-[11px] text-indigo-600 dark:text-indigo-400 font-bold mt-0.5 block">
+            <span className="text-xs text-indigo-600 dark:text-indigo-400 font-bold mt-0.5 block">
               {isAr ? 'فرص تحسين مرتفعة في العقود' : 'High savings potential'}
             </span>
           </div>
@@ -374,7 +374,7 @@ export function OdooAccountingAnalyticsHub({ isAr, locale }: OdooAccountingAnaly
             <div className="mt-1 text-2xl font-black text-emerald-700 dark:text-emerald-400 font-mono">
               32,880.000 <span className="text-xs font-sans">{isAr ? 'د.ك' : 'KWD'}</span>
             </div>
-            <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold mt-0.5 block">
+            <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold mt-0.5 block">
               {isAr ? '2,740.000 د.ك شهرياً عند التنفيذ' : '2,740 KWD monthly run-rate'}
             </span>
           </div>
@@ -406,7 +406,7 @@ export function OdooAccountingAnalyticsHub({ isAr, locale }: OdooAccountingAnaly
             <div key={cat.rank} className="rounded-xl border border-slate-200/80 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-950/40 p-3 space-y-1.5">
               <div className="flex flex-wrap items-center justify-between text-xs gap-2">
                 <div className="flex items-center gap-2">
-                  <span className={`h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                  <span className={`h-5 w-5 rounded-full flex items-center justify-center text-xs font-bold ${
                     cat.isTop80
                       ? 'bg-rose-500/20 text-rose-700 dark:text-rose-400 border border-rose-500/30'
                       : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
@@ -417,7 +417,7 @@ export function OdooAccountingAnalyticsHub({ isAr, locale }: OdooAccountingAnaly
                     {isAr ? cat.nameAr : cat.nameEn}
                   </span>
                   {cat.isTop80 && (
-                    <span className="rounded-md bg-rose-500/10 px-2 py-0.5 text-[10px] font-bold text-rose-600 dark:text-rose-400 border border-rose-500/20">
+                    <span className="rounded-md bg-rose-500/10 px-2 py-0.5 text-xs font-bold text-rose-600 dark:text-rose-400 border border-rose-500/20">
                       {isAr ? 'بند باريتو حرج' : 'Pareto 80/20 Driver'}
                     </span>
                   )}
@@ -429,7 +429,7 @@ export function OdooAccountingAnalyticsHub({ isAr, locale }: OdooAccountingAnaly
                   <span className="text-emerald-700 dark:text-emerald-400 font-black">
                     ({cat.pct}%)
                   </span>
-                  <span className="text-[11px] text-slate-400">
+                  <span className="text-xs text-slate-400">
                     {isAr ? `تراكمي: ${cat.cumulativePct}%` : `Cum: ${cat.cumulativePct}%`}
                   </span>
                 </div>
@@ -512,7 +512,7 @@ export function OdooAccountingAnalyticsHub({ isAr, locale }: OdooAccountingAnaly
                     <div className="font-bold text-slate-900 dark:text-white">
                       {isAr ? c.nameAr : c.nameEn}
                     </div>
-                    <div className="text-[10px] text-slate-400 font-mono">
+                    <div className="text-xs text-slate-400 font-mono">
                       #{c.id.toUpperCase()}
                     </div>
                   </td>
@@ -523,7 +523,7 @@ export function OdooAccountingAnalyticsHub({ isAr, locale }: OdooAccountingAnaly
                     {c.txCount}
                   </td>
                   <td className="py-3 px-3.5 text-end font-mono font-black text-slate-900 dark:text-white whitespace-nowrap">
-                    {c.amountKwd.toLocaleString(undefined, { minimumFractionDigits: 3 })} <span className="text-[10px] font-sans text-slate-500">{isAr ? 'د.ك' : 'KWD'}</span>
+                    {c.amountKwd.toLocaleString(undefined, { minimumFractionDigits: 3 })} <span className="text-xs font-sans text-slate-500">{isAr ? 'د.ك' : 'KWD'}</span>
                   </td>
                   <td className="py-3 px-3.5 text-center font-mono font-bold whitespace-nowrap">
                     <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-black ${
@@ -537,7 +537,7 @@ export function OdooAccountingAnalyticsHub({ isAr, locale }: OdooAccountingAnaly
                     </span>
                   </td>
                   <td className="py-3 px-3.5 text-center whitespace-nowrap">
-                    <span className="text-[11px] font-bold">
+                    <span className="text-xs font-bold">
                       {isAr ? c.riskAr : c.riskEn}
                     </span>
                   </td>
@@ -545,7 +545,7 @@ export function OdooAccountingAnalyticsHub({ isAr, locale }: OdooAccountingAnaly
                     <p className="text-slate-600 dark:text-slate-400 leading-snug">
                       {isAr ? c.actionAr : c.actionEn}
                     </p>
-                    <p className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
+                    <p className="text-xs font-bold text-emerald-700 dark:text-emerald-400">
                       💰 {isAr ? `توفير متاح: +${c.monthlySavingsKwd.toFixed(3)} د.ك شهرياً` : `Savings: +${c.monthlySavingsKwd.toFixed(3)} KWD/mo`}
                     </p>
                   </td>
@@ -603,10 +603,10 @@ export function OdooAccountingAnalyticsHub({ isAr, locale }: OdooAccountingAnaly
             >
               <div className="space-y-2.5">
                 <div className="flex items-start justify-between gap-2">
-                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
                     {alert.badgeAr}
                   </span>
-                  <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
+                  <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 text-xs font-bold text-emerald-700 dark:text-emerald-400">
                     +{alert.monthlySavingsKwd.toFixed(3)} {isAr ? 'د.ك شهرياً' : 'KWD/mo'}
                   </span>
                 </div>
@@ -637,7 +637,7 @@ export function OdooAccountingAnalyticsHub({ isAr, locale }: OdooAccountingAnaly
               </div>
 
               <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
-                <span className="text-[11px] text-slate-500 font-mono">
+                <span className="text-xs text-slate-500 font-mono">
                   {isAr ? `سنوياً: ${alert.annualSavingsKwd.toLocaleString()} د.ك` : `Annual: ${alert.annualSavingsKwd.toLocaleString()} KWD`}
                 </span>
                 <button

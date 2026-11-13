@@ -438,7 +438,7 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
             </div>
             <div className="flex flex-wrap items-center gap-2 text-[12.5px] text-slate-400">
               {aiForecastModel ? (
-                <span className="ae-bento-subcard rounded-xl px-3 py-0.5 text-[11.5px] font-semibold text-emerald-800 dark:text-emerald-300">
+                <span className="ae-bento-subcard rounded-xl px-3 py-0.5 text-[13px] font-semibold text-emerald-800 dark:text-emerald-300">
                   {aiForecastModel}
                 </span>
               ) : null}
@@ -591,7 +591,7 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
                 {/* 3 Core Numbers: Projected Sales | Costs (التكاليف KWD) | Net Cash */}
                 <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-2.5">
                   <div className="ae-bento-subcard p-2.5 sm:p-3">
-                    <div className="text-[11px] sm:text-[12px] font-medium text-slate-500 dark:text-slate-400">
+                    <div className="text-xs sm:text-[12px] font-medium text-slate-500 dark:text-slate-400">
                       {isAr ? 'المبيعات المتوقعة' : 'Projected Sales'}
                     </div>
                     <div
@@ -600,11 +600,11 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
                     >
                       {f0(sc.projectedSalesKwd)}
                     </div>
-                    <div className="text-[11px] sm:text-[12px] text-slate-400">{kwd}</div>
+                    <div className="text-xs sm:text-[12px] text-slate-400">{kwd}</div>
                   </div>
 
                   <div className="ae-bento-subcard p-2.5 sm:p-3">
-                    <div className="text-[11px] sm:text-[12px] font-medium text-slate-500 dark:text-slate-400">
+                    <div className="text-xs sm:text-[12px] font-medium text-slate-500 dark:text-slate-400">
                       {isAr ? 'التكاليف' : 'Total Costs'}
                     </div>
                     <div
@@ -613,11 +613,11 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
                     >
                       {f0(sc.projectedCostsKwd)}
                     </div>
-                    <div className="text-[11px] sm:text-[12px] text-slate-400">{kwd}</div>
+                    <div className="text-xs sm:text-[12px] text-slate-400">{kwd}</div>
                   </div>
 
                   <div className="rounded-2xl bg-emerald-50/80 p-2.5 sm:p-3 ring-1 ring-emerald-500/15 dark:bg-emerald-950/35 dark:ring-emerald-400/20">
-                    <div className="text-[11px] sm:text-[12px] font-medium text-emerald-800 dark:text-emerald-300">
+                    <div className="text-xs sm:text-[12px] font-medium text-emerald-800 dark:text-emerald-300">
                       {isAr ? 'صافي الكاش' : 'Net Cash'}
                     </div>
                     <div
@@ -629,7 +629,7 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
                     </div>
                     <div
                       dir="ltr"
-                      className="text-[11px] sm:text-[12px] font-semibold tabular-nums text-emerald-700/85 dark:text-emerald-400"
+                      className="text-xs sm:text-[12px] font-semibold tabular-nums text-emerald-700/85 dark:text-emerald-400"
                     >
                       {f1(sc.netMarginPct)}% {kwd}
                     </div>
@@ -921,7 +921,7 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
 
                     <div className="flex flex-wrap items-center gap-2">
                       <div className="ae-bento-subcard px-3.5 py-1.5 text-end">
-                        <div className="text-[11.5px] text-slate-500 dark:text-slate-400">
+                        <div className="text-[13px] text-slate-500 dark:text-slate-400">
                           {isAr ? 'سقف التكلفة' : 'Cost Cap'}
                         </div>
                         <div
@@ -933,7 +933,7 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
                       </div>
 
                       <div className="rounded-2xl bg-emerald-50/80 px-3.5 py-1.5 text-end ring-1 ring-emerald-500/15 dark:bg-emerald-950/40 dark:ring-emerald-400/20">
-                        <div className="text-[11.5px] text-emerald-800 dark:text-emerald-300">
+                        <div className="text-[13px] text-emerald-800 dark:text-emerald-300">
                           {isAr ? 'العائد الشهري' : 'Monthly Gain'}
                         </div>
                         <div

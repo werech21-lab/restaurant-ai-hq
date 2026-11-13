@@ -414,7 +414,7 @@ export function Sidebar({
               <p className="ae-side-strong truncate text-sm font-semibold leading-tight tracking-tight">
                 {isAr ? 'فنتشر فودز' : 'Venture Foods'}
               </p>
-              <p className="ae-side-muted truncate text-[11px] font-medium leading-tight">
+              <p className="ae-side-muted truncate text-xs font-medium leading-tight">
                 {isAr ? 'منصة إيثر' : 'Aether BI'}
               </p>
             </div>
@@ -450,10 +450,10 @@ export function Sidebar({
               : 'mt-3.5 max-h-24 space-y-1 px-3 py-2 opacity-100'
           }`}
         >
-          <p className="ae-side-strong text-[11.5px] font-semibold">
+          <p className="ae-side-strong text-[13px] font-semibold">
             {isAr ? 'شركة فنتشر فودز لإدارة المطاعم ذ.م.م' : 'Venture Foods Restaurants Co. W.L.L.'}
           </p>
-          <p className="ae-side-muted inline-flex items-center justify-center gap-1.5 text-[11px] font-semibold">
+          <p className="ae-side-muted inline-flex items-center justify-center gap-1.5 text-xs font-semibold">
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
             {isAr ? '6 مطاعم · 7 فروع · 8 قنوات' : '6 Brands · 7 Branches · 8 Channels'}
           </p>
@@ -491,7 +491,7 @@ export function Sidebar({
                   <div aria-hidden className="mx-2 my-1.5 h-px bg-white/[0.08]" />
                 ) : null}
                 <div className="ae-rail-section-hdr px-3 pb-1 pt-0.5" aria-hidden={collapsed}>
-                  <span className="ae-side-muted whitespace-nowrap text-[10.5px] font-bold uppercase tracking-wider">
+                  <span className="ae-side-muted whitespace-nowrap text-xs font-bold uppercase tracking-wider">
                     {sectionLabel}
                   </span>
                 </div>
@@ -585,17 +585,17 @@ export function Sidebar({
               <div className="ae-side-card space-y-1 px-3 py-2 text-start">
                 <div className="inline-flex items-center gap-1.5">
                   <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" />
-                  <span className="ae-side-strong text-[11.5px] font-bold leading-snug">
+                  <span className="ae-side-strong text-[13px] font-bold leading-snug">
                     {isAr ? roleProfile.accountLabelAr : roleProfile.accountLabelEn}
                   </span>
                 </div>
-                <p className="ae-side-muted text-[10.5px] leading-snug">
+                <p className="ae-side-muted text-xs leading-snug">
                   {isAr ? 'حساب مراجعة — قراءة فقط' : 'Read-Only Auditor'}
                 </p>
                 {user.email ? (
                   <p
                     dir="ltr"
-                    className="ae-side-muted truncate font-mono text-[10.5px] leading-snug"
+                    className="ae-side-muted truncate font-mono text-xs leading-snug"
                   >
                     {user.email}
                   </p>
@@ -610,7 +610,7 @@ export function Sidebar({
                   <p className="ae-side-strong break-words text-xs font-semibold leading-snug">
                     {isAr ? roleProfile.accountLabelAr : roleProfile.accountLabelEn}
                   </p>
-                  <p className="ae-side-muted break-words text-[11px] leading-snug">
+                  <p className="ae-side-muted break-words text-xs leading-snug">
                     {isAr ? roleProfile.titleAr : roleProfile.titleEn}
                   </p>
                 </div>

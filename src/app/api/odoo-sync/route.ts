@@ -8,6 +8,7 @@ import {
   sanitizeOdooPublicPayload,
   triggerManualOdooSync,
 } from '@/lib/odoo-live-connector'
+import { dispatchAdminStalenessAlertIfNeeded } from '@/lib/odoo-staleness-notifier'
 import { ENTERPRISE_API_SECURITY_HEADERS } from '@/lib/auth/api-guard'
 import {
   EXEC_SESSION_COOKIE,
@@ -144,9 +145,11 @@ export async function handleOdooSyncGetRequest(request: NextRequest) {
           referenceNowMs: nowMs,
         })
       : getReadOnlyOdooSnapshotStatus(periodParam, nowMs)
+    const { diagnosticCode: _omitAuditorDiag, ...cleanRoPayload } = roPayload
+    void _omitAuditorDiag
     return NextResponse.json(
       sanitizeOdooPublicPayload({
-        ...roPayload,
+        ...cleanRoPayload,
         ok: true,
         readOnly: true,
         role: 'auditor',
@@ -162,9 +165,30 @@ export async function handleOdooSyncGetRequest(request: NextRequest) {
     referenceNowMs: Date.now(),
   })
 
+  const staleTelemetry = await dispatchAdminStalenessAlertIfNeeded({
+    hoursSinceLatestRecord: payload.hoursSinceLatestRecord,
+    isStaleOver24h: payload.isStaleOver24h,
+    latestRecordAt: payload.latestRecordAt,
+    kuwaitTimestamp: payload.kuwaitSyncedAt,
+  })
+
+  const isAdminCaller = caller.role === 'admin'
+  const { diagnosticCode, ...restPayload } = payload
+
   return NextResponse.json(
     sanitizeOdooPublicPayload({
-      ...payload,
+      ...restPayload,
+      ...(isAdminCaller || caller.isCron ? { diagnosticCode } : {}),
+      ...(isAdminCaller
+        ? {
+            adminAlertDispatched: staleTelemetry.adminAlertDispatched,
+            alertChannels: staleTelemetry.channels,
+            stalenessAlert: {
+              adminAlertDispatched: staleTelemetry.adminAlertDispatched,
+              channels: staleTelemetry.channels,
+            },
+          }
+        : {}),
       ok: true,
       readOnly: false,
       role: caller.role,
@@ -222,9 +246,30 @@ export async function handleOdooSyncPostRequest(request: NextRequest) {
     referenceNowMs: Date.now(),
   })
 
+  const staleTelemetry = await dispatchAdminStalenessAlertIfNeeded({
+    hoursSinceLatestRecord: syncedPayload.hoursSinceLatestRecord,
+    isStaleOver24h: syncedPayload.isStaleOver24h,
+    latestRecordAt: syncedPayload.latestRecordAt,
+    kuwaitTimestamp: syncedPayload.kuwaitSyncedAt,
+  })
+
+  const isAdminCaller = caller.role === 'admin'
+  const { diagnosticCode, ...restSyncedPayload } = syncedPayload
+
   return NextResponse.json(
     sanitizeOdooPublicPayload({
-      ...syncedPayload,
+      ...restSyncedPayload,
+      ...(isAdminCaller || caller.isCron ? { diagnosticCode } : {}),
+      ...(isAdminCaller
+        ? {
+            adminAlertDispatched: staleTelemetry.adminAlertDispatched,
+            alertChannels: staleTelemetry.channels,
+            stalenessAlert: {
+              adminAlertDispatched: staleTelemetry.adminAlertDispatched,
+              channels: staleTelemetry.channels,
+            },
+          }
+        : {}),
       ok: true,
       readOnly: false,
       role: caller.role,

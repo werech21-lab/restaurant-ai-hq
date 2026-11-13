@@ -44,7 +44,7 @@ export const TONE_BADGE: Record<Tone, string> = {
 
 export function Badge({ tone = 'slate', children, className = '' }: { tone?: Tone; children: ReactNode; className?: string }) {
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${TONE_BADGE[tone]} ${className}`}>
+    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${TONE_BADGE[tone]} ${className}`}>
       {children}
     </span>
   )
@@ -170,7 +170,7 @@ export function StatsCardV2({
       </div>
       {target ? (
         <div className="space-y-1">
-          <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
             <span>{target.label}</span>
             <Num className="font-bold">{fmt(Math.min(100, Math.max(0, target.progress)), 0)}%</Num>
           </div>
@@ -284,7 +284,7 @@ export function CircularGauge({
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center text-center">{label}</div>
       </div>
-      {caption ? <div className="text-center text-[11px] font-semibold text-slate-500 dark:text-slate-400">{caption}</div> : null}
+      {caption ? <div className="text-center text-xs font-semibold text-slate-500 dark:text-slate-400">{caption}</div> : null}
     </div>
   )
 }
@@ -488,7 +488,7 @@ export function RoundedBars({
               style={{ opacity: dim ? 0.4 : 1, transition: 'opacity 160ms ease' }}
               title={r.label}
             >
-              <span className="ae-num whitespace-nowrap text-[10px] font-bold text-slate-500 dark:text-slate-400">{r.top ?? formatTop?.(r) ?? ''}</span>
+              <span className="ae-num whitespace-nowrap text-xs font-bold text-slate-500 dark:text-slate-400">{r.top ?? formatTop?.(r) ?? ''}</span>
               {/* Background track column keeps the chart dense; bars get executive thickness */}
               <div className="flex h-full w-full max-w-[104px] items-end justify-center gap-1.5 rounded-xl bg-slate-100/80 px-1.5 pt-1.5 transition-colors group-hover:bg-slate-200/70 dark:bg-white/5 dark:group-hover:bg-white/10">
                 <div
@@ -508,12 +508,12 @@ export function RoundedBars({
       </div>
       <div className="mt-2 flex gap-2 sm:gap-3">
         {rows.map((r) => (
-          <span key={r.key} className="min-w-0 flex-1 truncate text-center text-[10px] font-semibold text-slate-500 dark:text-slate-400" title={r.label}>
+          <span key={r.key} className="min-w-0 flex-1 truncate text-center text-xs font-semibold text-slate-500 dark:text-slate-400" title={r.label}>
             {r.label}
           </span>
         ))}
       </div>
-      <div className="mt-3 flex flex-wrap items-center gap-4 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+      <div className="mt-3 flex flex-wrap items-center gap-4 text-xs font-semibold text-slate-500 dark:text-slate-400">
         <span className="inline-flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: seriesA.color }} />
           {seriesA.label}

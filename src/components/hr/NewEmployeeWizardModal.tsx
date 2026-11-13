@@ -439,7 +439,7 @@ export function NewEmployeeWizardModal({ open, onClose, en }: Props) {
                 </label>
 
                 <div className="rounded-xl border border-gold-400/30 bg-gold-500/10 p-3">
-                  <p className="text-[11px] font-semibold text-gold-200">
+                  <p className="text-xs font-semibold text-gold-200">
                     {en ? 'Total Net Contract Package' : 'صافي الراتب التعاقدي الشهري'}
                   </p>
                   <p className="mt-1 text-xl font-black text-gold-300" dir="ltr">

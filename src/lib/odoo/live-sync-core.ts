@@ -386,6 +386,13 @@ export function summaryFromSnapshot(raw: unknown, note?: string, bucket: OdooPer
   const bucketBrandTotal = bucketBrandEntries ? bucketBrandEntries.reduce((acc, [, v]) => acc + v.netKwd, 0) : 0
   const bucketLocEntries = b?.byLocation ? Object.entries(b.byLocation) : null
   const bucketLocTotal = b?.totals.netSalesKwd ?? 0
+  const fromIso = b ? b.from : (s.period?.from ?? '')
+  const rawExclTo = b ? b.to : (s.period?.to ?? '')
+  const shiftedInclusiveEnd = /^\d{4}-\d{2}-\d{2}$/.test(rawExclTo)
+    ? new Date(Date.parse(`${rawExclTo}T12:00:00Z`) - 86_400_000).toISOString().slice(0, 10)
+    : rawExclTo
+  const canonicalInclusiveTo =
+    fromIso && shiftedInclusiveEnd >= fromIso ? shiftedInclusiveEnd : fromIso || shiftedInclusiveEnd
   return {
     source: 'snapshot',
     connected: false,
@@ -397,7 +404,7 @@ export function summaryFromSnapshot(raw: unknown, note?: string, bucket: OdooPer
     kuwaitSyncedAt: latestFreshness.kuwaitTimestamp,
     latestOperationalDate: latestInfo.latestOperationalDate,
     bucket,
-    period: b ? { from: b.from, to: b.to } : (s.period ?? { from: '', to: '' }),
+    period: { from: fromIso, to: canonicalInclusiveTo },
     database: null,
     totals: b
       ? { netSalesKwd: b.totals.netSalesKwd, orders: b.totals.orders, aovKwd: b.totals.aovKwd }

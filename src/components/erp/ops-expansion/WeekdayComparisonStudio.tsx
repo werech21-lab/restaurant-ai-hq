@@ -473,7 +473,7 @@ export function WeekdayComparisonStudio() {
                 <span className="text-[13.5px] font-semibold tracking-tight text-slate-900 tabular-nums dark:text-white">
                   {isAr ? comparison.insights.headlineAr : comparison.insights.headlineEn}
                 </span>
-                <span className="rounded-lg bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:bg-white/[0.07] dark:text-slate-300">
+                <span className="rounded-lg bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-white/[0.07] dark:text-slate-300">
                   {isAr ? comparison.scopeSummaryAr : comparison.scopeSummaryEn}
                 </span>
               </div>
@@ -544,25 +544,25 @@ export function WeekdayComparisonStudio() {
                   {formatKpiPrimaryValue(kpi)}
                 </span>
                 {kpi.unit === 'KWD' && (
-                  <span className="text-[11.5px] font-semibold text-slate-500">{kwd}</span>
+                  <span className="text-[13px] font-semibold text-slate-500">{kwd}</span>
                 )}
                 {kpi.unit === 'orders' && (
-                  <span className="text-[11.5px] font-semibold text-slate-500">
+                  <span className="text-[13px] font-semibold text-slate-500">
                     {isAr ? 'طلب' : 'ord'}
                   </span>
                 )}
               </div>
 
               <div className="mt-2 flex items-center justify-between gap-1.5 tabular-nums">
-                <span className={`rounded-lg px-2 py-0.5 text-[11px] font-semibold ${badgeTone}`}>
+                <span className={`rounded-lg px-2 py-0.5 text-xs font-semibold ${badgeTone}`}>
                   {formatKpiDeltaBadge(kpi)}
                 </span>
                 {kpi.id === 'foodAndAggregatorCost' && typeof kpi.shareOfSalesA === 'number' ? (
-                  <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                     {kpi.shareOfSalesA.toFixed(1)}% {isAr ? 'من المبيعات' : 'of sales'}
                   </span>
                 ) : (
-                  <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                  <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
                     {kpi.unit === 'pct'
                       ? `${kpi.deltaBps && kpi.deltaBps > 0 ? '+' : ''}${kpi.deltaBps ?? 0} bps`
                       : `${fmtSigned0(kpi.deltaAbs)} ${kpi.unit === 'KWD' ? kwd : ''}`}
@@ -570,7 +570,7 @@ export function WeekdayComparisonStudio() {
                 )}
               </div>
 
-              <p className="mt-2 border-t border-slate-100 pt-1.5 text-[11.5px] leading-snug text-slate-500 tabular-nums dark:border-white/[0.06] dark:text-slate-400">
+              <p className="mt-2 border-t border-slate-100 pt-1.5 text-[13px] leading-snug text-slate-500 tabular-nums dark:border-white/[0.06] dark:text-slate-400">
                 {isAr ? 'مقارنة بـ:' : 'vs B:'}{' '}
                 <span className="font-semibold text-slate-700 dark:text-slate-200">
                   {formatKpiSecondaryValue(kpi)}
@@ -665,7 +665,7 @@ export function WeekdayComparisonStudio() {
                     B: <strong>{fmt0(pair.b)}</strong> {pair.unitLabel}
                   </span>
                   <span
-                    className={`rounded-md px-1.5 py-0.5 text-[11px] font-bold ${
+                    className={`rounded-md px-1.5 py-0.5 text-xs font-bold ${
                       pair.delta >= 0
                         ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200'
                         : 'bg-rose-50 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200'
@@ -733,7 +733,7 @@ export function WeekdayComparisonStudio() {
                         : 'hover:bg-white/60 dark:hover:bg-white/[0.04]'
                     }`}
                   >
-                    <span className="mb-1 text-[10px] font-semibold tracking-tight text-slate-600 tabular-nums dark:text-slate-300">
+                    <span className="mb-1 text-xs font-semibold tracking-tight text-slate-600 tabular-nums dark:text-slate-300">
                       {fmt0(pair.a)}
                     </span>
                     <div className="flex h-[156px] w-full items-end justify-center gap-1 rounded-lg bg-slate-200/45 px-1 py-1 dark:bg-white/[0.03]">
@@ -748,7 +748,7 @@ export function WeekdayComparisonStudio() {
                         title={`${bkt.metaB}: ${fmt0(pair.b)} ${pair.unitLabel}`}
                       />
                     </div>
-                    <span className="mt-1.5 text-[10.5px] font-semibold text-slate-600 tabular-nums dark:text-slate-300">
+                    <span className="mt-1.5 text-xs font-semibold text-slate-600 tabular-nums dark:text-slate-300">
                       {isAr ? bkt.labelAr : bkt.labelEn}
                     </span>
                   </button>
@@ -780,7 +780,7 @@ export function WeekdayComparisonStudio() {
                           : 'hover:bg-white/60 dark:hover:bg-white/[0.04]'
                       }`}
                     >
-                      <span className="mb-1 text-[10px] font-semibold tracking-tight text-slate-600 tabular-nums dark:text-slate-300">
+                      <span className="mb-1 text-xs font-semibold tracking-tight text-slate-600 tabular-nums dark:text-slate-300">
                         {fmt0(pair.a)}
                       </span>
                       <div className="flex h-[156px] w-full items-end justify-center gap-1 rounded-lg bg-slate-200/45 px-1 py-1 dark:bg-white/[0.03]">
@@ -795,7 +795,7 @@ export function WeekdayComparisonStudio() {
                           title={`${bkt.metaB}: ${fmt0(pair.b)} ${pair.unitLabel}`}
                         />
                       </div>
-                      <span className="mt-1.5 text-[10.5px] font-semibold text-slate-700 tabular-nums dark:text-slate-200">
+                      <span className="mt-1.5 text-xs font-semibold text-slate-700 tabular-nums dark:text-slate-200">
                         {bkt.labelEn}
                       </span>
                       <span className="text-[9.5px] text-slate-400 tabular-nums">{bkt.metaB}</span>
@@ -960,7 +960,7 @@ export function WeekdayComparisonStudio() {
                         <div className="font-semibold text-slate-950 dark:text-white">
                           {isAr ? row.nameAr : row.nameEn}
                         </div>
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                        <div className="text-xs text-slate-500 dark:text-slate-400">
                           {isAr ? row.subMetaAr : row.subMetaEn} • {row.shareOfTotalAPct.toFixed(1)}%
                         </div>
                       </td>
@@ -981,18 +981,18 @@ export function WeekdayComparisonStudio() {
                       </td>
                       <td className="py-3 px-3">
                         <span
-                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold ${tierBadgeCls(row.tier)}`}
+                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[13px] font-semibold ${tierBadgeCls(row.tier)}`}
                         >
                           {tierDot(row.tier)} {fmtSignedPct(row.deltaPct)}
                         </span>
                       </td>
                       <td className="py-3 px-3 text-slate-700 dark:text-slate-300">
                         {fmt0(row.ordersA)}{' '}
-                        <span className="text-[11.5px] text-slate-400">/ {fmt0(row.ordersB)}</span>
+                        <span className="text-[13px] text-slate-400">/ {fmt0(row.ordersB)}</span>
                       </td>
                       <td className="py-3 px-3 font-semibold text-emerald-700 dark:text-emerald-300">
                         {fmt0(row.netProfitA)} {kwd}
-                        <span className="ms-1.5 text-[11px] font-medium text-slate-400">
+                        <span className="ms-1.5 text-xs font-medium text-slate-400">
                           ({fmtSigned0(row.netProfitDeltaKwd)})
                         </span>
                       </td>
@@ -1001,7 +1001,7 @@ export function WeekdayComparisonStudio() {
                           {row.marginPctA.toFixed(1)}%
                         </span>{' '}
                         <span
-                          className={`text-[11.5px] font-semibold ${
+                          className={`text-[13px] font-semibold ${
                             row.marginDeltaPp >= 0
                               ? 'text-emerald-700 dark:text-emerald-300'
                               : 'text-rose-600 dark:text-rose-400'
@@ -1067,7 +1067,7 @@ export function WeekdayComparisonStudio() {
                     {comparison.selectionA.netPocketMarginPct.toFixed(1)}% (
                     {fmtSignedPp(comparison.kpis.netPocketMargin.deltaPct)})
                   </td>
-                  <td className="py-3 ps-3 text-end text-[11.5px] text-emerald-700 dark:text-emerald-300">
+                  <td className="py-3 ps-3 text-end text-[13px] text-emerald-700 dark:text-emerald-300">
                     0.000 {kwd}
                   </td>
                 </tr>
@@ -1099,7 +1099,7 @@ export function WeekdayComparisonStudio() {
                     >
                       <td className="py-3 pe-3 font-semibold text-slate-950 dark:text-white">
                         {isAr ? r.weekdayAr : r.weekdayEn}
-                        <div className="text-[11px] font-normal text-slate-400">
+                        <div className="text-xs font-normal text-slate-400">
                           {r.thisDate} vs {r.lastDate}
                         </div>
                       </td>
@@ -1111,7 +1111,7 @@ export function WeekdayComparisonStudio() {
                       </td>
                       <td className="py-3 px-3">
                         <span
-                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold ${tierBadgeCls(r.tier)}`}
+                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[13px] font-semibold ${tierBadgeCls(r.tier)}`}
                         >
                           {tierDot(r.tier)} {fmtSigned0(r.varianceDisplayKwd)} {kwd} (
                           {fmtSignedPct(r.variancePct)})
@@ -1136,7 +1136,7 @@ export function WeekdayComparisonStudio() {
                                 periodB: { from: r.lastDate, to: r.lastDate },
                               }))
                             }
-                            className="cursor-pointer rounded-lg bg-emerald-50 px-2.5 py-1 text-[11.5px] font-semibold text-emerald-800 ring-1 ring-emerald-600/20 transition hover:bg-emerald-100 dark:bg-emerald-500/15 dark:text-emerald-200"
+                            className="cursor-pointer rounded-lg bg-emerald-50 px-2.5 py-1 text-[13px] font-semibold text-emerald-800 ring-1 ring-emerald-600/20 transition hover:bg-emerald-100 dark:bg-emerald-500/15 dark:text-emerald-200"
                           >
                             {isAr ? 'مقارنة بالتقويم ↗' : 'Load Dates ↗'}
                           </button>
@@ -1144,7 +1144,7 @@ export function WeekdayComparisonStudio() {
                             <button
                               type="button"
                               onClick={() => handleEscalateWeakDay(r)}
-                              className="cursor-pointer rounded-lg bg-rose-50 px-2.5 py-1 text-[11.5px] font-semibold text-rose-800 ring-1 ring-rose-600/20 transition hover:bg-rose-100 dark:bg-rose-950/50 dark:text-rose-200"
+                              className="cursor-pointer rounded-lg bg-rose-50 px-2.5 py-1 text-[13px] font-semibold text-rose-800 ring-1 ring-rose-600/20 transition hover:bg-rose-100 dark:bg-rose-950/50 dark:text-rose-200"
                             >
                               {existingApproval
                                 ? isAr

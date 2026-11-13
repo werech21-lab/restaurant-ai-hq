@@ -452,7 +452,7 @@ export function SocialReviewsStudio() {
             </span>
             <span className="text-[12.5px] sm:text-[14px] font-bold text-amber-500">★ / 5.0</span>
           </div>
-          <p className="mt-1.5 text-[11.5px] sm:text-[12.5px] leading-snug text-neutral-500 tabular-nums dark:text-slate-400">
+          <p className="mt-1.5 text-[13px] sm:text-[12.5px] leading-snug text-neutral-500 tabular-nums dark:text-slate-400">
             {isAr
               ? `إجمالي ${snap.totalReviews} تقييم مرصود`
               : `Across ${snap.totalReviews} reviews`}
@@ -474,7 +474,7 @@ export function SocialReviewsStudio() {
               ({snap.positiveCount})
             </span>
           </div>
-          <p className="mt-1.5 text-[11.5px] sm:text-[12.5px] leading-snug text-neutral-500 dark:text-slate-400">
+          <p className="mt-1.5 text-[13px] sm:text-[12.5px] leading-snug text-neutral-500 dark:text-slate-400">
             {isAr ? 'ثبات الطعم وسرعة أسطولنا' : 'Flavor consistency & speed'}
           </p>
         </div>
@@ -493,7 +493,7 @@ export function SocialReviewsStudio() {
               ({snap.neutralCount})
             </span>
           </div>
-          <p className="mt-1.5 text-[11.5px] sm:text-[12.5px] leading-snug text-neutral-500 dark:text-slate-400">
+          <p className="mt-1.5 text-[13px] sm:text-[12.5px] leading-snug text-neutral-500 dark:text-slate-400">
             {isAr ? 'ملاحظات اعتيادية للتحسين' : 'Routine constructive notes'}
           </p>
         </div>
@@ -509,11 +509,11 @@ export function SocialReviewsStudio() {
             <span className="text-xl sm:text-3xl font-semibold tracking-tight text-rose-700 dark:text-rose-300">
               {snap.negativePct.toFixed(1)}%
             </span>
-            <span className="rounded-lg bg-rose-50 px-2 py-0.5 text-[11px] font-bold text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
+            <span className="rounded-lg bg-rose-50 px-2 py-0.5 text-xs font-bold text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
               {snap.negativeCount}
             </span>
           </div>
-          <p className="mt-1.5 text-[11.5px] sm:text-[12.5px] leading-snug text-rose-700/90 dark:text-rose-300/90">
+          <p className="mt-1.5 text-[13px] sm:text-[12.5px] leading-snug text-rose-700/90 dark:text-rose-300/90">
             {isAr ? 'مؤهل لشارة تصعيد ↗ بالأسفل' : 'Flagged for Escalate ↗'}
           </p>
         </div>
@@ -701,7 +701,7 @@ export function SocialReviewsStudio() {
                 }`}
               >
                 <span>{isAr ? pill.ar : pill.en}</span>
-                <span className="text-[11px] opacity-80">{pill.avgStars.toFixed(1)}★</span>
+                <span className="text-xs opacity-80">{pill.avgStars.toFixed(1)}★</span>
               </button>
             )
           })}
@@ -737,7 +737,7 @@ export function SocialReviewsStudio() {
                       <div className="text-[12.5px] font-medium text-neutral-600 dark:text-slate-300">
                         {rev.customerHandle}
                       </div>
-                      <div className="text-[11.5px] text-neutral-400">{rev.timestamp}</div>
+                      <div className="text-[13px] text-neutral-400">{rev.timestamp}</div>
                     </td>
 
                     <td className="px-3.5 py-3.5 whitespace-nowrap">

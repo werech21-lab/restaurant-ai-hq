@@ -401,7 +401,7 @@ export function ExecutivePinModal({
               <span>{successMsg}</span>
             </p>
           ) : (
-            <p className="text-[11.5px] text-neutral-400 dark:text-slate-400">
+            <p className="text-[13px] text-neutral-400 dark:text-slate-400">
               {isAr
                 ? 'التحقق التلقائي فور إدخال الرقم الرابع • الجلسة ١٥ دقيقة'
                 : 'Auto-verifies on 4th digit • 15-minute Executive Session'}

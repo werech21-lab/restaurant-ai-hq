@@ -67,13 +67,13 @@ export function ThreeWayReconciliationTab() {
           { label: T('= bank', '= البنك'), value: sum('bank') },
         ].map((s, i) => (
           <span key={i} className={`ae-tile-soft inline-flex flex-col px-3 py-2 ${s.label.startsWith('=') ? 'ring-1 ring-sky-300/60' : ''}`} dir={isAr ? 'rtl' : 'ltr'}>
-            <span className="text-[10px] text-slate-500">{s.label}</span>
+            <span className="text-xs text-slate-500">{s.label}</span>
             <Num className={s.value < 0 ? 'text-rose-600' : 'text-slate-900 dark:text-white'}>{fmt(s.value, digits || 3)}</Num>
           </span>
         ))}
       </div>
       <ReorderableTable columns={columns} rows={rows} rowKey={(r) => r.id} csvName={`aetherbi-3way-reconciliation-${filters.period}.csv`} maxHeight={520} />
-      <p className="text-[11px] text-slate-500">
+      <p className="text-xs text-slate-500">
         {T(
           'Expected settlement applies each contract commission and approved promotions to Odoo POS sales. Discrepancies and settlement timing follow the October aggregator statement pattern; connect live statements and the bank feed to replace them.',
           'التسوية المتوقعة تطبق عمولة كل عقد والخصومات المعتمدة على مبيعات نقاط البيع في أودو. الفروقات وتوقيت التسويات تتبع نمط كشوف المنصات لشهر أكتوبر؛ اربط الكشوف الفعلية وحركة البنك لاستبدالها.',
@@ -129,7 +129,7 @@ export function ChargebacksTab() {
             </button>
           ))}
         </div>
-        <Link href={feryalHref(T('Summarise our open aggregator chargebacks and the fastest recovery plan.', 'لخصي مطالبات الاسترداد المفتوحة لدى المنصات وأسرع خطة استرداد.'))} className="btn-colored ms-auto inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]">
+        <Link href={feryalHref(T('Summarise our open aggregator chargebacks and the fastest recovery plan.', 'لخصي مطالبات الاسترداد المفتوحة لدى المنصات وأسرع خطة استرداد.'))} className="btn-colored ms-auto inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]">
           <Sparkles className="h-3 w-3" />
           {T('Ask Feryal', 'اسأل فريال')}
         </Link>
@@ -148,12 +148,12 @@ export function ChargebacksTab() {
                 <div className="grid grid-cols-1 items-center gap-3 lg:grid-cols-12">
                   <div className="space-y-1 lg:col-span-6">
                     <div className="flex flex-wrap items-center gap-2">
-                      <Num className="text-[11px] text-slate-400">{c.id}</Num>
+                      <Num className="text-xs text-slate-400">{c.id}</Num>
                       <Badge tone={st.tone}>{isAr ? st.ar : st.en}</Badge>
                       <Badge tone="slate">{n.ch}</Badge>
                     </div>
                     <p className="text-sm font-semibold text-slate-900 dark:text-white">{isAr ? t.ar : t.en}</p>
-                    <p className="text-[11px] text-slate-500">
+                    <p className="text-xs text-slate-500">
                       {n.bd} · {n.br} · <Num>{c.orderRef}</Num> · <Num>{c.date}</Num>
                     </p>
                   </div>
@@ -162,7 +162,7 @@ export function ChargebacksTab() {
                     <Num className="text-base text-rose-600">{kwd(c.amount, lang, 3)}</Num>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 lg:col-span-4 lg:justify-end">
-                    <button type="button" onClick={() => setOpen(open === c.id ? null : c.id)} className="btn-colored inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]">
+                    <button type="button" onClick={() => setOpen(open === c.id ? null : c.id)} className="btn-colored inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]">
                       <FileWarning className="h-3 w-3" />
                       {open === c.id ? T('Hide claim', 'إخفاء المطالبة') : T('Generate dispute claim', 'إعداد مطالبة الاعتراض')}
                     </button>
@@ -190,7 +190,7 @@ export function ChargebacksTab() {
                           copy(c.id, claim)
                           if (c.status === 'detected') setStatus((s) => ({ ...s, [c.id]: 'claim-generated' }))
                         }}
-                        className="btn-colored inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]"
+                        className="btn-colored inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]"
                       >
                         {copied === c.id ? <Check className="h-3 w-3" /> : <ClipboardCopy className="h-3 w-3" />}
                         {copied === c.id ? T('Copied', 'تم النسخ') : T('Copy claim', 'نسخ المطالبة')}
@@ -256,7 +256,7 @@ export function OrderWaterfallTab() {
         title={T('True per-order net profit waterfall', 'شلال صافي الربح الحقيقي لكل طلب')}
         subtitle={T('Gross basket → commission → marketing discount → food COGS → packaging (→ own rider) = net pocket profit', 'السلة الإجمالية ← العمولة ← الخصم ← تكلفة الأغذية ← التغليف (← سائق المطعم) = صافي الربح')}
         actions={
-          <Link href={feryalHref(T('Compare the per-order net pocket profit across Talabat Tgo, TMP, Keeta, Deliveroo and Jahez.', 'قارني صافي الربح لكل طلب بين طلبات جو وسوق طلبات وكيتا وديليفرو وجاهز.'))} className="btn-colored inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]">
+          <Link href={feryalHref(T('Compare the per-order net pocket profit across Talabat Tgo, TMP, Keeta, Deliveroo and Jahez.', 'قارني صافي الربح لكل طلب بين طلبات جو وسوق طلبات وكيتا وديليفرو وجاهز.'))} className="btn-colored inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]">
             <Sparkles className="h-3 w-3" />
             {T('Ask Feryal', 'اسأل فريال')}
           </Link>
@@ -270,7 +270,7 @@ export function OrderWaterfallTab() {
               {d.channel.id === best.channel.id ? <Badge tone="emerald">{T('Best', 'الأفضل')}</Badge> : null}
             </div>
             <Waterfall steps={d.steps} max={max} />
-            <ul className="space-y-1 text-[11px]">
+            <ul className="space-y-1 text-xs">
               {d.steps.map((s) => (
                 <li key={s.key} className={`flex justify-between ${s.key === 'net' ? 'border-t border-slate-100 pt-1 font-bold dark:border-slate-700/50' : ''}`}>
                   <span className="text-slate-600 dark:text-slate-300">{isAr ? s.ar : s.en}</span>
@@ -280,18 +280,18 @@ export function OrderWaterfallTab() {
             </ul>
             <div className="mt-auto grid grid-cols-2 gap-2">
               <div className="ae-tile-soft p-2 text-center">
-                <div className="text-[10px] text-slate-500">{T('Pocket margin', 'هامش الطلب')}</div>
+                <div className="text-xs text-slate-500">{T('Pocket margin', 'هامش الطلب')}</div>
                 <Num className="text-sm text-emerald-600">{pct(d.pocketPct)}</Num>
               </div>
               <div className="ae-tile-soft p-2 text-center">
-                <div className="text-[10px] text-slate-500">{T('Per month', 'شهرياً')}</div>
+                <div className="text-xs text-slate-500">{T('Per month', 'شهرياً')}</div>
                 <Num className="text-sm text-slate-900 dark:text-white">{kwd(d.monthlyPocket, lang, 0)}</Num>
               </div>
             </div>
           </div>
         ))}
       </div>
-      <p className="text-[11px] text-slate-500">
+      <p className="text-xs text-slate-500">
         {T(
           `Per-order averages from October channel sales, contract commission rates, approved promotions, ${LEDGER.cogsPct}% food cost, 0.180 KWD packaging per delivery order and 0.350 KWD own-rider cost on TMP. Net pocket profit is before salaries, rent and overheads.`,
           `متوسطات لكل طلب من مبيعات القنوات لشهر أكتوبر ونسب العمولات التعاقدية والخصومات المعتمدة وتكلفة أغذية ${LEDGER.cogsPct}% وتغليف 0.180 د.ك لكل طلب توصيل وتكلفة سائق 0.350 د.ك في سوق طلبات. صافي الربح قبل الرواتب والإيجار والمصاريف العامة.`,

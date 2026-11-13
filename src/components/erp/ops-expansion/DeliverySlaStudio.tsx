@@ -537,12 +537,12 @@ export function DeliverySlaStudio() {
               {isAr ? 'د' : 'min'}
             </span>
             <span
-              className={`ms-auto rounded-lg px-2 py-0.5 text-[11px] font-bold ${tierBadgeCls(snap.overallTier)}`}
+              className={`ms-auto rounded-lg px-2 py-0.5 text-xs font-bold ${tierBadgeCls(snap.overallTier)}`}
             >
               {tierEmoji(snap.overallTier)}
             </span>
           </div>
-          <p className="mt-1.5 text-[11.5px] sm:text-[12.5px] leading-snug text-neutral-500 tabular-nums dark:text-slate-400">
+          <p className="mt-1.5 text-[13px] sm:text-[12.5px] leading-snug text-neutral-500 tabular-nums dark:text-slate-400">
             {isAr
               ? `${snap.totalTrips} رحلة • الأسرع: ${snap.bestFleet.shortAr} (${snap.bestFleet.meanMinutes.toFixed(1)} د)`
               : `${snap.totalTrips} trips • Best: ${snap.bestFleet.shortEn} (${snap.bestFleet.meanMinutes.toFixed(1)}m)`}
@@ -561,7 +561,7 @@ export function DeliverySlaStudio() {
             </span>
             <span className="text-[12px] font-semibold text-neutral-500">({snap.greenCount})</span>
           </div>
-          <p className="mt-1.5 text-[11.5px] sm:text-[12.5px] leading-snug text-neutral-500 dark:text-slate-400">
+          <p className="mt-1.5 text-[13px] sm:text-[12.5px] leading-snug text-neutral-500 dark:text-slate-400">
             {isAr ? 'وصول ساخن ومقرمش للزبون' : 'Arrived hot & crisp on time'}
           </p>
         </div>
@@ -579,7 +579,7 @@ export function DeliverySlaStudio() {
             </span>
             <span className="text-[12px] font-semibold text-neutral-500">({snap.yellowCount})</span>
           </div>
-          <p className="mt-1.5 text-[11.5px] sm:text-[12.5px] leading-snug text-neutral-500 dark:text-slate-400">
+          <p className="mt-1.5 text-[13px] sm:text-[12.5px] leading-snug text-neutral-500 dark:text-slate-400">
             {isAr ? 'زحمة ذروة أو مشي مولات' : 'Peak traffic or mall walk'}
           </p>
         </div>
@@ -595,11 +595,11 @@ export function DeliverySlaStudio() {
             <span className="text-xl sm:text-3xl font-semibold tracking-tight text-rose-700 dark:text-rose-300">
               {snap.redPct.toFixed(1)}%
             </span>
-            <span className="rounded-lg bg-rose-50 px-2 py-0.5 text-[11px] font-bold text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
+            <span className="rounded-lg bg-rose-50 px-2 py-0.5 text-xs font-bold text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
               {snap.coldFoodRiskOrders}
             </span>
           </div>
-          <p className="mt-1.5 text-[11.5px] sm:text-[12.5px] leading-snug text-rose-700/90 tabular-nums dark:text-rose-300/90">
+          <p className="mt-1.5 text-[13px] sm:text-[12.5px] leading-snug text-rose-700/90 tabular-nums dark:text-rose-300/90">
             {isAr
               ? `تعويض مقدر ~${snap.estimatedClaimableKwd} ${kwd}/شهر`
               : `Claimable ~${snap.estimatedClaimableKwd} ${kwd}/mo`}
@@ -788,7 +788,7 @@ export function DeliverySlaStudio() {
                     : 'hover:bg-white/80 dark:hover:bg-[#101C17]/70'
                 }`}
               >
-                <span className={`whitespace-nowrap text-[11px] font-bold tabular-nums ${valueTextCls}`}>
+                <span className={`whitespace-nowrap text-xs font-bold tabular-nums ${valueTextCls}`}>
                   {h.avgMinutes.toFixed(1)}
                   {isAr ? 'د' : 'm'}
                 </span>
@@ -802,7 +802,7 @@ export function DeliverySlaStudio() {
                   />
                 </div>
 
-                <span className="whitespace-nowrap text-[10.5px] sm:text-[11px] font-semibold tabular-nums text-neutral-600 dark:text-slate-300">
+                <span className="whitespace-nowrap text-xs font-semibold tabular-nums text-neutral-600 dark:text-slate-300">
                   {isAr ? h.labelAr : h.labelEn}
                 </span>
               </button>

@@ -185,7 +185,7 @@ export function OfficialCircularPrintModal({
                   ? 'ورق رسمي A4 للتعميم والأرشفة (PDF / طباعة)'
                   : 'Official A4 Corporate Circular (Print / Save PDF)'}
               </p>
-              <p dir="ltr" className="font-mono text-[11px] tabular-nums text-neutral-400">
+              <p dir="ltr" className="font-mono text-xs tabular-nums text-neutral-400">
                 {serialRef} {activeSealId ? `· ${activeSealId}` : ''}
               </p>
             </div>
@@ -292,7 +292,7 @@ export function OfficialCircularPrintModal({
           {/* 2. Subject & Scope Metadata Box */}
           <section className="mt-5 rounded-xl bg-[#F7F7F8] p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="rounded-full bg-emerald-100 px-3 py-0.5 text-[11px] font-bold text-emerald-900">
+              <span className="rounded-full bg-emerald-100 px-3 py-0.5 text-xs font-bold text-emerald-900">
                 {classText}
               </span>
               {doc.effectiveWindow ? (
@@ -339,7 +339,7 @@ export function OfficialCircularPrintModal({
                   key={`${doc.circularKey}-rule-${idx}`}
                   className="flex items-start gap-2.5 rounded-xl bg-[#F7F7F8] px-3.5 py-2.5 text-xs leading-relaxed text-slate-800"
                 >
-                  <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-700 text-[11px] font-bold tabular-nums text-white">
+                  <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-700 text-xs font-bold tabular-nums text-white">
                     {idx + 1}
                   </span>
                   <span className="font-medium">{rule}</span>
@@ -396,14 +396,14 @@ export function OfficialCircularPrintModal({
                 {isAr ? 'توقيع وختم الإدارة العامة' : 'Executive Signature & Stamp'}
               </div>
               <div className="my-2 flex items-center justify-between">
-                <span className="font-mono text-[11px] font-bold text-emerald-800">{serialRef}</span>
+                <span className="font-mono text-xs font-bold text-emerald-800">{serialRef}</span>
                 {activeSealId ? (
-                  <span className="rounded-full bg-emerald-700 px-2.5 py-0.5 text-[10px] font-bold text-white">
+                  <span className="rounded-full bg-emerald-700 px-2.5 py-0.5 text-xs font-bold text-white">
                     VERIFIED SEAL ✓
                   </span>
                 ) : null}
               </div>
-              <div className="border-t border-dashed border-slate-300 pt-1.5 text-[11px] text-slate-500">
+              <div className="border-t border-dashed border-slate-300 pt-1.5 text-xs text-slate-500">
                 {isAr
                   ? 'يسري العمل بهذا التعميم فور صدوره ويُراقب آلياً عبر جرس الامتثال'
                   : 'Effective immediately upon issuance; monitored live by Odoo Watchdog'}
@@ -424,7 +424,7 @@ export function OfficialCircularPrintModal({
                 <button
                   type="button"
                   onClick={() => onConfirmAllBranches(doc.circularKey)}
-                  className="no-print cursor-pointer rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-100"
+                  className="no-print cursor-pointer rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
                 >
                   {isAr ? 'تأكيد استلام الـ 7 فروع إلكترونياً ✓' : 'Confirm All 7 Digital Receipts ✓'}
                 </button>
@@ -470,7 +470,7 @@ export function OfficialCircularPrintModal({
                                 branchId as Exclude<GlobalBranch, 'all'>,
                               )
                             }
-                            className={`inline-flex cursor-pointer items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
+                            className={`inline-flex cursor-pointer items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                               confirmed
                                 ? 'bg-emerald-50 text-emerald-800'
                                 : 'bg-slate-100 text-slate-600'

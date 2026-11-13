@@ -517,7 +517,7 @@ export function ExecutiveCommandPalette() {
           />
           <kbd
             dir="ltr"
-            className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[10px] font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-300"
+            className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-xs font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-300"
           >
             ESC
           </kbd>
@@ -543,7 +543,7 @@ export function ExecutiveCommandPalette() {
           ) : (
             results.groups.map((g) => (
               <div key={g.group} className="mb-1.5">
-                <div className="px-3 pb-1 pt-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                <div className="px-3 pb-1 pt-2 text-xs font-bold uppercase tracking-wider text-slate-400">
                   {isAr ? GROUP_LABEL[g.group].ar : GROUP_LABEL[g.group].en}
                 </div>
                 {g.items.map((c) => {
@@ -565,7 +565,7 @@ export function ExecutiveCommandPalette() {
                           {isAr ? c.ar : c.en}
                         </span>
                         {(isAr ? c.hintAr : c.hintEn) ? (
-                          <span className="block truncate text-[11.5px] font-medium text-slate-500">
+                          <span className="block truncate text-[13px] font-medium text-slate-500">
                             {isAr ? c.hintAr : c.hintEn}
                           </span>
                         ) : null}
@@ -580,14 +580,14 @@ export function ExecutiveCommandPalette() {
             ))
           )}
         </div>
-        <div className="flex items-center justify-between border-t border-slate-200/60 px-5 py-2.5 text-[11px] text-slate-500 dark:border-slate-700/60">
+        <div className="flex items-center justify-between border-t border-slate-200/60 px-5 py-2.5 text-xs text-slate-500 dark:border-slate-700/60">
           <span>
             {T(
               '↑ ↓ to navigate · Enter to jump · Esc to close',
               '↑ ↓ للتنقل · إدخال للانتقال الفوري · Esc للإغلاق',
             )}
           </span>
-          <span dir="ltr" className="font-mono text-[10px] font-bold">
+          <span dir="ltr" className="font-mono text-xs font-bold">
             ⌘K
           </span>
         </div>

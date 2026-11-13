@@ -121,7 +121,7 @@ export function BeforeAfterDualBarChart({
             >
               <span
                 dir={isAr ? 'rtl' : 'ltr'}
-                className="-translate-y-2 whitespace-nowrap text-[11px] sm:text-xs font-semibold tabular-nums text-slate-600 dark:text-slate-300"
+                className="-translate-y-2 whitespace-nowrap text-xs font-semibold tabular-nums text-slate-600 dark:text-slate-300"
               >
                 {fmtAxis(maxVal * ratio)}
               </span>
@@ -147,7 +147,7 @@ export function BeforeAfterDualBarChart({
                 return (
                   <span
                     dir="ltr"
-                    className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-extrabold tabular-nums ${
+                    className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-extrabold tabular-nums ${
                       isGood ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
                     }`}
                   >
@@ -198,7 +198,7 @@ export function BeforeAfterDualBarChart({
               </div>
 
               {activeDatum.extraLines?.map((line) => (
-                <div key={line.label} className="flex items-center justify-between gap-2 text-[11.5px]">
+                <div key={line.label} className="flex items-center justify-between gap-2 text-[13px]">
                   <span className="text-slate-500">{line.label}</span>
                   <span
                     dir="ltr"
@@ -271,7 +271,7 @@ export function BeforeAfterDualBarChart({
                 <div className="mt-2 flex h-4 items-center justify-center">
                   <span
                     dir="ltr"
-                    className={`whitespace-nowrap text-center text-[11px] sm:text-xs font-bold tabular-nums text-slate-600 dark:text-slate-300 ${
+                    className={`whitespace-nowrap text-center text-xs font-bold tabular-nums text-slate-600 dark:text-slate-300 ${
                       data.length > 7
                         ? (idx % 3 === 0 || idx === data.length - 1) && idx !== data.length - 2
                           ? ''
@@ -379,7 +379,7 @@ export function InteractiveHoverBarChart({
             >
               <span
                 dir={isAr ? 'rtl' : 'ltr'}
-                className="-translate-y-2 whitespace-nowrap text-[11px] sm:text-xs font-semibold tabular-nums text-slate-600 dark:text-slate-300"
+                className="-translate-y-2 whitespace-nowrap text-xs font-semibold tabular-nums text-slate-600 dark:text-slate-300"
               >
                 {fmtAxis(maxVal * ratio)}
               </span>
@@ -400,7 +400,7 @@ export function InteractiveHoverBarChart({
               <span className="whitespace-normal break-words font-extrabold text-slate-950">{activeDatum.tooltipTitle}</span>
               {activeDatum.badgeText ? (
                 <span
-                  className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-extrabold ${
+                  className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-extrabold ${
                     activeDatum.badgeTone === 'emerald'
                       ? 'bg-emerald-50 text-emerald-700'
                       : activeDatum.badgeTone === 'rose'
@@ -521,7 +521,7 @@ export function InteractiveHoverBarChart({
                 <div className="mt-2 flex h-4 items-center justify-center">
                   <span
                     dir="ltr"
-                    className={`whitespace-nowrap text-center text-[10px] sm:text-[10.5px] font-bold tabular-nums text-slate-600 dark:text-slate-300 ${
+                    className={`whitespace-nowrap text-center text-xs font-bold tabular-nums text-slate-600 dark:text-slate-300 ${
                       data.length > 7
                         ? (idx % 3 === 0 || idx === data.length - 1) && idx !== data.length - 2
                           ? ''
@@ -676,7 +676,7 @@ export function SalesNetComboChart({
               <span className="font-extrabold text-slate-950">{activeDatum.tooltipTitle}</span>
               <span
                 dir="ltr"
-                className="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-extrabold tabular-nums text-emerald-700"
+                className="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-extrabold tabular-nums text-emerald-700"
               >
                 {activeDatum.netMarginPct.toFixed(1)}%
               </span>
@@ -717,7 +717,7 @@ export function SalesNetComboChart({
               <span
                 key={`sales-${ratio}`}
                 dir={isAr ? 'rtl' : 'ltr'}
-                className="whitespace-nowrap text-[11px] sm:text-xs font-semibold leading-none tabular-nums text-slate-600 dark:text-slate-300"
+                className="whitespace-nowrap text-xs font-semibold leading-none tabular-nums text-slate-600 dark:text-slate-300"
               >
                 {formatCompactKwdTick(maxSales * ratio, isAr)}
               </span>
@@ -851,7 +851,7 @@ export function SalesNetComboChart({
                   <div key={`lbl-${d.id}`} className="flex items-center justify-center">
                     <span
                       dir={/^\d/.test(displayLabel) ? 'ltr' : undefined}
-                      className={`whitespace-nowrap text-center text-[11px] sm:text-xs font-bold tabular-nums text-slate-600 dark:text-slate-300 ${
+                      className={`whitespace-nowrap text-center text-xs font-bold tabular-nums text-slate-600 dark:text-slate-300 ${
                         data.length > 7
                           ? (idx % 3 === 0 || idx === data.length - 1) && idx !== data.length - 2
                             ? ''
@@ -873,7 +873,7 @@ export function SalesNetComboChart({
               <span
                 key={`net-${ratio}`}
                 dir={isAr ? 'rtl' : 'ltr'}
-                className="whitespace-nowrap text-[11px] sm:text-xs font-bold leading-none tabular-nums text-emerald-700 dark:text-emerald-400"
+                className="whitespace-nowrap text-xs font-bold leading-none tabular-nums text-emerald-700 dark:text-emerald-400"
               >
                 {formatCompactKwdTick(minNet + netSpan * ratio, isAr)}
               </span>
@@ -967,7 +967,7 @@ export function InteractiveHorizontalRankList({
                     {item.label}
                   </span>
                   {item.active ? (
-                    <span className="shrink-0 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
+                    <span className="shrink-0 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
                       {isAr ? 'مفعل' : 'Active'}
                     </span>
                   ) : null}
@@ -987,7 +987,7 @@ export function InteractiveHorizontalRankList({
                 {item.badgeText ? (
                   <span
                     dir="ltr"
-                    className="rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold tabular-nums text-neutral-700 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-white/10 dark:text-slate-200"
+                    className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold tabular-nums text-neutral-700 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-white/10 dark:text-slate-200"
                   >
                     {item.badgeText}
                   </span>
@@ -1196,13 +1196,13 @@ export function InteractiveDonutChart({
           {centerSubValue && !hoveredSlice ? (
             <span
               dir={isAr ? 'rtl' : 'ltr'}
-              className="mt-1 max-w-[92px] whitespace-nowrap text-[10.5px] font-semibold tabular-nums text-emerald-600 dark:text-emerald-400"
+              className="mt-1 max-w-[92px] whitespace-nowrap text-xs font-semibold tabular-nums text-emerald-600 dark:text-emerald-400"
             >
               {centerSubValue}
             </span>
           ) : null}
           {centerLabel ? (
-            <span className="mt-1.5 max-w-[92px] whitespace-normal text-[11px] font-semibold leading-tight text-slate-600 dark:text-slate-300">
+            <span className="mt-1.5 max-w-[92px] whitespace-normal text-xs font-semibold leading-tight text-slate-600 dark:text-slate-300">
               {centerLabel}
             </span>
           ) : null}

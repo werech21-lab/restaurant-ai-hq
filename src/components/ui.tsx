@@ -62,7 +62,7 @@ export function PageHeader({ title, subtitle }: { title: string; subtitle: strin
   const { t } = useI18n()
   return (
     <header className="mb-6 sm:mb-9">
-      <p className="text-[11px] font-medium text-gold-400">{t('brand')}</p>
+      <p className="text-xs font-medium text-gold-400">{t('brand')}</p>
       <h1 className="mt-2 text-2xl font-semibold tracking-tight text-mist-100 sm:text-[1.7rem] md:text-3xl">{title}</h1>
       <p className="mt-2 max-w-2xl text-sm leading-7 text-mist-400">{subtitle}</p>
     </header>

@@ -6,8 +6,6 @@ import { usePathname } from 'next/navigation'
 import { ChevronLeft, ChevronRight, PanelLeft, Search } from 'lucide-react'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { openCommandPalette } from '@/components/aether/BiFilterContext'
-import { OdooAuditCertificatePill } from '@/components/aether/OdooAuditCertificateModal'
-import { OdooSyncPill } from '@/components/aether/OdooSyncPill'
 import { BRAIN_BAR_ROUTES } from '@/components/aether/TopBrainSwitcher'
 import { RAIL_TOGGLE_EVENT } from '@/components/erp-sidebar'
 import { ROOT_TITLE, routeTitle } from '@/lib/aether/route-titles'
@@ -82,11 +80,9 @@ export function PanelHeaderBar({
             </span>
           </>
         ) : null}
-        <OdooSyncPill isAr={isAr} />
-        <OdooAuditCertificatePill isAr={isAr} />
       </nav>
 
-      {/* Fast ⌘K Quick Palette, Notifications, and fallback Theme/Language on non-ERP routes */}
+      {/* Fast ⌘K Quick Palette, Notifications, and fallback Theme on non-ERP routes */}
       <div className="relative z-[60] flex shrink-0 items-center gap-2 overflow-visible">
         <button
           type="button"
@@ -96,7 +92,7 @@ export function PanelHeaderBar({
         >
           <Search className="h-3.5 w-3.5 opacity-70" />
           <span className="hidden md:inline">{isAr ? 'بحث سريع' : 'Quick Search'}</span>
-          <kbd dir="ltr" className="rounded-md px-1.5 py-0.5 font-mono text-[10px] font-bold">
+          <kbd dir="ltr" className="rounded-md px-1.5 py-0.5 font-mono text-xs font-bold">
             ⌘K
           </kbd>
         </button>

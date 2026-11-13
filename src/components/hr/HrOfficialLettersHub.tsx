@@ -175,7 +175,7 @@ export function HrOfficialLettersHub({ en, employees }: Props) {
             <p className="text-xs text-mist-300 print:text-gray-700">
               State of Kuwait · Commercial Reg. & PAM File: PAM-2018-70001 · Tel: +965 22469500
             </p>
-            <p className="text-[11px] text-mist-400 print:text-gray-600">
+            <p className="text-xs text-mist-400 print:text-gray-600">
               China Garden · The Noodle Bar · Karak Cafeteria · Farm Brown · Frank&apos;s Steak · Tahina
             </p>
           </div>
@@ -416,7 +416,7 @@ export function HrOfficialLettersHub({ en, employees }: Props) {
               {en ? 'HR & Admin Manager' : 'مديرة الموارد البشرية والشؤون الإدارية'}
             </p>
             <p className="mt-1 text-mist-300 print:text-gray-700">Sheyam Hekmat</p>
-            <p className="text-[11px] text-mist-400" dir="ltr">
+            <p className="text-xs text-mist-400" dir="ltr">
               sheyamh@venturefoodskw.com
             </p>
           </div>
@@ -424,7 +424,7 @@ export function HrOfficialLettersHub({ en, employees }: Props) {
             <p className="font-bold text-gold-300 print:text-black">
               {en ? 'Official Company Stamp' : 'الختم الرسمي للشركة'}
             </p>
-            <div className="mx-auto mt-2 flex h-14 w-36 items-center justify-center rounded-xl border border-dashed border-gold-400/50 text-[10px] font-bold text-gold-300 print:border-black print:text-black">
+            <div className="mx-auto mt-2 flex h-14 w-36 items-center justify-center rounded-xl border border-dashed border-gold-400/50 text-xs font-bold text-gold-300 print:border-black print:text-black">
               VENTURE FOODS W.L.L. · KUWAIT
             </div>
           </div>
@@ -433,7 +433,7 @@ export function HrOfficialLettersHub({ en, employees }: Props) {
               {en ? 'Employee Signature / Thumbprint' : 'توقيع وبصمة الموظف'}
             </p>
             <p className="mt-1 text-mist-300 print:text-gray-700">{selectedEmp?.name}</p>
-            <p className="text-[11px] font-mono text-mist-400" dir="ltr">
+            <p className="text-xs font-mono text-mist-400" dir="ltr">
               Civil ID: {civilId}
             </p>
           </div>

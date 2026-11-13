@@ -252,7 +252,7 @@ export function BrainControlsInline() {
             >
               <span>{isAr ? opt.shortAr : opt.shortEn}</span>
               <span
-                className={`text-[10.5px] font-medium ${
+                className={`text-xs font-medium ${
                   active
                     ? 'text-emerald-50/90 dark:text-[#04130D]/80'
                     : 'text-slate-400 dark:text-slate-400'
@@ -339,7 +339,7 @@ export function BrainControlsInline() {
             </div>
 
             <div className="rounded-2xl bg-[#F4F6F9] p-3 ring-1 ring-slate-950/[0.05] dark:bg-white/[0.05] dark:ring-white/[0.08]">
-              <div className="mb-2 flex items-center justify-between text-[11px] font-extrabold text-slate-500 dark:text-slate-400">
+              <div className="mb-2 flex items-center justify-between text-xs font-extrabold text-slate-500 dark:text-slate-400">
                 <span>{isAr ? 'الأنماط التنفيذية المعتمدة' : 'Active Executive Modes'}</span>
                 <span className="text-emerald-600 dark:text-emerald-400">
                   {isAr ? 'جاهز' : 'Verified'}
@@ -351,7 +351,7 @@ export function BrainControlsInline() {
                     <span className={`h-2 w-2 rounded-full ${deepActive ? 'bg-emerald-500' : 'bg-amber-500'}`} />
                     {isAr ? 'تحليل استراتيجي معمّق' : 'Deep Strategic'}
                   </span>
-                  <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+                  <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
                     {isAr ? 'نشط' : 'Active'}
                   </span>
                 </div>
@@ -361,7 +361,7 @@ export function BrainControlsInline() {
                     <span className={`h-2 w-2 rounded-full ${fastReady ? 'bg-emerald-500' : 'bg-amber-500'}`} />
                     {isAr ? 'إجابة تنفيذية سريعة' : 'Fast Executive'}
                   </span>
-                  <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+                  <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
                     {isAr ? 'نشط' : 'Active'}
                   </span>
                 </div>
@@ -371,7 +371,7 @@ export function BrainControlsInline() {
                     <span className={`h-2 w-2 rounded-full ${visionReady ? 'bg-emerald-500' : 'bg-amber-500'}`} />
                     {isAr ? 'فحص الصور والفيديو' : 'Vision & Video Inspector'}
                   </span>
-                  <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+                  <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
                     {isAr ? 'نشط' : 'Active'}
                   </span>
                 </div>
@@ -380,10 +380,10 @@ export function BrainControlsInline() {
 
             <div className="mt-2.5 flex items-center justify-between gap-2 rounded-2xl bg-emerald-50/70 px-3 py-2.5 ring-1 ring-emerald-500/20 dark:bg-emerald-950/30 dark:ring-emerald-400/20">
               <div className="min-w-0">
-                <div className="text-[11.5px] font-extrabold text-slate-900 dark:text-white">
+                <div className="text-[13px] font-extrabold text-slate-900 dark:text-white">
                   {isAr ? 'وضع الاستجابة الاقتصادية السريعة ⚡' : 'Fast Economy Routing ⚡'}
                 </div>
-                <div className="whitespace-normal break-words text-[10.5px] font-medium text-slate-600 dark:text-slate-300">
+                <div className="whitespace-normal break-words text-xs font-medium text-slate-600 dark:text-slate-300">
                   {economyMode
                     ? isAr
                       ? 'توجيه كافة الاستشارات اليومية للسرعة القصوى'
@@ -418,7 +418,7 @@ export function BrainControlsInline() {
 
             <div className="mt-2.5 space-y-2">
               <label className="block space-y-1">
-                <span className="text-[11.5px] font-bold text-slate-800 dark:text-slate-200">
+                <span className="text-[13px] font-bold text-slate-800 dark:text-slate-200">
                   {isAr ? 'مفتاح التحليل الاستراتيجي المعمّق (اختياري)' : 'Deep Strategic API Key (Optional)'}
                 </span>
                 <input
@@ -436,7 +436,7 @@ export function BrainControlsInline() {
               </label>
 
               <label className="block space-y-1">
-                <span className="text-[11.5px] font-bold text-slate-700 dark:text-slate-300">
+                <span className="text-[13px] font-bold text-slate-700 dark:text-slate-300">
                   {isAr ? 'مفتاح الإجابة التنفيذية السريعة والصور (اختياري)' : 'Fast Executive & Vision API Key (Optional)'}
                 </span>
                 <input
@@ -454,7 +454,7 @@ export function BrainControlsInline() {
               </label>
 
               <label className="block space-y-1">
-                <span className="text-[11.5px] font-bold text-slate-700 dark:text-slate-300">
+                <span className="text-[13px] font-bold text-slate-700 dark:text-slate-300">
                   {isAr ? 'مفتاح المحرك المساند متعدد الزوايا (اختياري)' : 'Auxiliary Multi-Angle Key (Optional)'}
                 </span>
                 <input
@@ -472,7 +472,7 @@ export function BrainControlsInline() {
               </label>
 
               <label className="block space-y-1">
-                <span className="text-[11.5px] font-bold text-slate-700 dark:text-slate-300">
+                <span className="text-[13px] font-bold text-slate-700 dark:text-slate-300">
                   {isAr ? 'مفتاح النطق الصوتي (اختياري)' : 'Voice Synthesis Key (Optional)'}
                 </span>
                 <input

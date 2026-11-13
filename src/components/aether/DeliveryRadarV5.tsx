@@ -77,7 +77,7 @@ function EmeraldPillTabs<K extends string>({
             <span>{opt.label}</span>
             {opt.badge !== undefined ? (
               <span
-                className={`rounded-md px-1.5 py-0.5 text-[11px] font-extrabold tabular-nums ${
+                className={`rounded-md px-1.5 py-0.5 text-xs font-extrabold tabular-nums ${
                   active
                     ? 'bg-white/20 text-white dark:bg-[#04130D]/20 dark:text-[#04130D]'
                     : 'bg-white text-slate-700 dark:bg-white/10 dark:text-slate-300'
@@ -268,20 +268,20 @@ interface ForensicAccountRow {
 function ModePill({ mode, dual }: { mode: DeliveryMode; dual?: boolean }) {
   if (dual) {
     return (
-      <span className="inline-flex items-center rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-bold text-neutral-700 whitespace-nowrap dark:bg-white/10 dark:text-slate-200">
+      <span className="inline-flex items-center rounded-md bg-neutral-100 px-2 py-0.5 text-xs font-bold text-neutral-700 whitespace-nowrap dark:bg-white/10 dark:text-slate-200">
         Tgo+TMP
       </span>
     )
   }
   if (mode === 'TMP') {
     return (
-      <span className="inline-flex items-center rounded-md bg-sky-50 px-2 py-0.5 text-[11px] font-bold text-sky-800 whitespace-nowrap dark:bg-sky-950/60 dark:text-sky-200">
+      <span className="inline-flex items-center rounded-md bg-sky-50 px-2 py-0.5 text-xs font-bold text-sky-800 whitespace-nowrap dark:bg-sky-950/60 dark:text-sky-200">
         TMP 15%
       </span>
     )
   }
   return (
-    <span className="inline-flex items-center rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-700 whitespace-nowrap dark:bg-white/10 dark:text-slate-200">
+    <span className="inline-flex items-center rounded-md bg-neutral-100 px-2 py-0.5 text-xs font-semibold text-neutral-700 whitespace-nowrap dark:bg-white/10 dark:text-slate-200">
       Tgo
     </span>
   )
@@ -1192,7 +1192,7 @@ export function DeliveryRadarV5() {
           >
             <Settings2 className="h-3.5 w-3.5 text-sky-600 dark:text-sky-400" />
             <span>{T('Company Driver Branches (TMP) ⚙️', 'فروع سائقي الشركة (TMP) ⚙️')}</span>
-            <span className="rounded-md bg-sky-100 px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-sky-900 dark:bg-sky-900/70 dark:text-sky-100">
+            <span className="rounded-md bg-sky-100 px-1.5 py-0.5 text-xs font-bold tabular-nums text-sky-900 dark:bg-sky-900/70 dark:text-sky-100">
               {tmpBranches.length}
             </span>
           </button>
@@ -1238,11 +1238,11 @@ export function DeliveryRadarV5() {
             <span className="text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-rose-700 dark:text-rose-400">
               {summary.stoppedCount}
             </span>
-            <span className="text-[11.5px] sm:text-[13px] font-medium text-slate-400 dark:text-slate-400">
+            <span className="text-[13px] sm:text-[13px] font-medium text-slate-400 dark:text-slate-400">
               · {summary.tgoOnlyCount} {T('Tgo Only ⚪', 'توصيل Tgo فقط ⚪')}
             </span>
           </div>
-          <p className="mt-1 text-[11.5px] sm:text-[13px] leading-snug text-slate-500 dark:text-slate-400">
+          <p className="mt-1 text-[13px] sm:text-[13px] leading-snug text-slate-500 dark:text-slate-400">
             {T(
               'Had real Odoo receipts and dropped to zero (Tgo-only excluded).',
               'كان عليها فواتير فعلية بأودو وتوقفت إلى صفر (مع عزل Tgo فقط).',
@@ -1259,11 +1259,11 @@ export function DeliveryRadarV5() {
             <span className="text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-amber-700 dark:text-amber-400">
               {summary.stalledCount}
             </span>
-            <span className="text-[11.5px] sm:text-[13px] font-semibold text-emerald-700 dark:text-emerald-400">
+            <span className="text-[13px] sm:text-[13px] font-semibold text-emerald-700 dark:text-emerald-400">
               · {summary.tmpOppCount} {T('TMP Driver 💡', 'فرصة سائق TMP 💡')}
             </span>
           </div>
-          <p className="mt-1 text-[11.5px] sm:text-[13px] leading-snug text-slate-500 dark:text-slate-400">
+          <p className="mt-1 text-[13px] sm:text-[13px] leading-snug text-slate-500 dark:text-slate-400">
             {T(
               `${summary.activeCount} active 🟢 · 12% TMP spread beats driver cost.`,
               `${summary.activeCount} شغال 🟢 · وفر ١٢٪ بـ TMP يغطي راتب السائق.`,
@@ -1279,7 +1279,7 @@ export function DeliveryRadarV5() {
           <div dir="ltr" className="mt-1.5 sm:mt-2 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-slate-950 dark:text-white">
             {fmtAmount(summary.totalSalesKwd)} {isAr ? 'د.ك' : 'KWD'}
           </div>
-          <p className="mt-1 text-[11.5px] sm:text-[13px] leading-snug text-slate-500 dark:text-slate-400">
+          <p className="mt-1 text-[13px] sm:text-[13px] leading-snug text-slate-500 dark:text-slate-400">
             {T(
               `${f0(summary.totalOrders)} orders · Net ${fmtAmount(summary.totalNetKwd)} KWD.`,
               `${f0(summary.totalOrders)} طلب · الصافي بعد العمولة ${fmtAmount(summary.totalNetKwd)} د.ك.`,
@@ -1295,7 +1295,7 @@ export function DeliveryRadarV5() {
           <div dir="ltr" className="mt-1.5 sm:mt-2 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-rose-700 dark:text-rose-400">
             {summary.totalVarianceKwd > 0.05 ? `-${fmtAmount(summary.totalVarianceKwd)}` : '0'} {isAr ? 'د.ك' : 'KWD'}
           </div>
-          <p className="mt-1 text-[11.5px] sm:text-[13px] leading-snug text-slate-500 dark:text-slate-400">
+          <p className="mt-1 text-[13px] sm:text-[13px] leading-snug text-slate-500 dark:text-slate-400">
             {T(
               'Verified fee variance on active sales only (0 fake gaps on 0 KWD rows).',
               'فروقات عمولة محققة على المبيعات الفعلية فقط (صفر فجوات وهمية).',
@@ -1317,7 +1317,7 @@ export function DeliveryRadarV5() {
                   )}
                 </h2>
                 {lockedDeliveryCap || deliveryApproval?.status === 'approved' ? (
-                  <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-0.5 text-[11.5px] font-bold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
+                  <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-0.5 text-[13px] font-bold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
                     <ShieldCheck className="h-3.5 w-3.5" />
                     <span>
                       {T(
@@ -1327,7 +1327,7 @@ export function DeliveryRadarV5() {
                     </span>
                   </span>
                 ) : deliveryApproval?.status === 'pending' ? (
-                  <span className="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-2.5 py-0.5 text-[11.5px] font-bold text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
+                  <span className="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-2.5 py-0.5 text-[13px] font-bold text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
                     <Bell className="h-3.5 w-3.5" />
                     <span>{T('Awaiting Manager PIN', 'بانتظار ختم المدير')}</span>
                   </span>
@@ -1342,7 +1342,7 @@ export function DeliveryRadarV5() {
             </div>
 
             <div className="ae-bento-subcard rounded-2xl px-3.5 py-2 text-end">
-              <div className="text-[11px] font-semibold text-neutral-400 dark:text-slate-400">
+              <div className="text-xs font-semibold text-neutral-400 dark:text-slate-400">
                 {T('Projected Savings', 'الوفر الشهري المتوقع')}
               </div>
               <div dir="ltr" className="text-[18px] font-extrabold tabular-nums text-emerald-700 dark:text-emerald-400">
@@ -1354,7 +1354,7 @@ export function DeliveryRadarV5() {
           {/* 3 Crisp Unslop Cap Inputs */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <label className="ae-bento-subcard space-y-1 rounded-2xl p-3">
-              <span className="block text-[11.5px] font-semibold text-slate-600 dark:text-slate-300">
+              <span className="block text-[13px] font-semibold text-slate-600 dark:text-slate-300">
                 {T('Target TMP (15%) Share %', 'حصة TMP (١٥٪) المستهدفة %')}
               </span>
               <div className="flex items-center justify-between gap-2">
@@ -1367,14 +1367,14 @@ export function DeliveryRadarV5() {
                   onChange={(e) => setTargetTmpSharePct(Math.min(95, Math.max(10, Number(e.target.value) || 0)))}
                   className="w-24 rounded-xl bg-white px-2.5 py-1.5 text-[14px] font-extrabold tabular-nums text-slate-950 focus:outline-none focus:ring-2 focus:ring-emerald-500/35 dark:bg-white/10 dark:text-white"
                 />
-                <span className="text-[11px] font-medium tabular-nums text-neutral-400">
+                <span className="text-xs font-medium tabular-nums text-neutral-400">
                   {T(`Now ${f1(deliveryMixStats.currentTmpSharePct)}%`, `حالياً ${f1(deliveryMixStats.currentTmpSharePct)}%`)}
                 </span>
               </div>
             </label>
 
             <label className="ae-bento-subcard space-y-1 rounded-2xl p-3">
-              <span className="block text-[11.5px] font-semibold text-slate-600 dark:text-slate-300">
+              <span className="block text-[13px] font-semibold text-slate-600 dark:text-slate-300">
                 {T('Max Blended Fee Cap %', 'سقف العمولة المرجحة %')}
               </span>
               <div className="flex items-center justify-between gap-2">
@@ -1387,14 +1387,14 @@ export function DeliveryRadarV5() {
                   onChange={(e) => setCommissionCapPct(Math.min(30, Math.max(10, Number(e.target.value) || 0)))}
                   className="w-24 rounded-xl bg-white px-2.5 py-1.5 text-[14px] font-extrabold tabular-nums text-slate-950 focus:outline-none focus:ring-2 focus:ring-emerald-500/35 dark:bg-white/10 dark:text-white"
                 />
-                <span className="text-[11px] font-medium tabular-nums text-neutral-400">
+                <span className="text-xs font-medium tabular-nums text-neutral-400">
                   {T(`Now ${f1(deliveryMixStats.effectiveCommissionPct)}%`, `حالياً ${f1(deliveryMixStats.effectiveCommissionPct)}%`)}
                 </span>
               </div>
             </label>
 
             <label className="ae-bento-subcard space-y-1 rounded-2xl p-3">
-              <span className="block text-[11.5px] font-semibold text-slate-600 dark:text-slate-300">
+              <span className="block text-[13px] font-semibold text-slate-600 dark:text-slate-300">
                 {T('Aggregator Promo Cap %', 'سقف عروض التطبيقات %')}
               </span>
               <div className="flex items-center justify-between gap-2">
@@ -1407,7 +1407,7 @@ export function DeliveryRadarV5() {
                   onChange={(e) => setPromoDiscountCapPct(Math.min(15, Math.max(0, Number(e.target.value) || 0)))}
                   className="w-24 rounded-xl bg-white px-2.5 py-1.5 text-[14px] font-extrabold tabular-nums text-slate-950 focus:outline-none focus:ring-2 focus:ring-emerald-500/35 dark:bg-white/10 dark:text-white"
                 />
-                <span className="text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+                <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">
                   {T('Odoo Guarded', 'مراقب بأودو')}
                 </span>
               </div>
@@ -1467,7 +1467,7 @@ export function DeliveryRadarV5() {
                 {T('Sent to Manager Bell across devices ✓', 'تم الرفع لجرس المدير ومزامنة الأجهزة ✓')}
               </span>
             ) : lockedDeliveryCap ? (
-              <span className="text-[11.5px] font-medium tabular-nums text-neutral-400">
+              <span className="text-[13px] font-medium tabular-nums text-neutral-400">
                 {isAr
                   ? `السقف المعتمد: TMP ${lockedDeliveryCap.targetTmpSharePct}% · عروض ${f1(lockedDeliveryCap.promoDiscountCapPct)}%`
                   : `Locked Cap: TMP ${lockedDeliveryCap.targetTmpSharePct}% · Promo ${f1(lockedDeliveryCap.promoDiscountCapPct)}%`}
@@ -1488,7 +1488,7 @@ export function DeliveryRadarV5() {
                   'مراقب أودو ١٧ نشط • افتح جرس الاعتمادات لمراجعة المخالفات 🔔',
                 )}
               </span>
-              <span className="rounded-lg bg-amber-50 px-2.5 py-0.5 text-[11.5px] font-bold tabular-nums text-amber-800 ring-1 ring-amber-500/20 dark:bg-amber-950/60 dark:text-amber-200">
+              <span className="rounded-lg bg-amber-50 px-2.5 py-0.5 text-[13px] font-bold tabular-nums text-amber-800 ring-1 ring-amber-500/20 dark:bg-amber-950/60 dark:text-amber-200">
                 {isAr ? `${activeDeliveryBreachCount} تنبيه` : `${activeDeliveryBreachCount} active`}
               </span>
             </button>
@@ -1672,7 +1672,7 @@ export function DeliveryRadarV5() {
                           <div className="flex flex-wrap items-center gap-1.5">
                             <StatusBadge status={r.status} isAr={isAr} />
                             {r.tmpHireOpportunity ? (
-                              <span className="inline-flex items-center gap-1 rounded-lg bg-amber-100/90 px-2.5 py-0.5 text-[11px] font-extrabold text-amber-950 ring-1 ring-amber-500/30 whitespace-nowrap dark:bg-amber-500/20 dark:text-amber-200">
+                              <span className="inline-flex items-center gap-1 rounded-lg bg-amber-100/90 px-2.5 py-0.5 text-xs font-extrabold text-amber-950 ring-1 ring-amber-500/30 whitespace-nowrap dark:bg-amber-500/20 dark:text-amber-200">
                                 <span>
                                   {isAr
                                     ? `فرصة تعيين سائق TMP 💡 (+${f0(r.tmpNetMonthlySavingKwd)} د.ك/ش)`
@@ -1681,7 +1681,7 @@ export function DeliveryRadarV5() {
                               </span>
                             ) : null}
                           </div>
-                          <span className="text-[11.5px] font-medium text-neutral-500 dark:text-slate-400">
+                          <span className="text-[13px] font-medium text-neutral-500 dark:text-slate-400">
                             {isAr ? r.noteAr : r.noteEn}
                           </span>
                         </div>
@@ -1711,15 +1711,15 @@ export function DeliveryRadarV5() {
                       {/* 7. العمولة */}
                       <td dir="ltr" className="px-4 py-3 text-center whitespace-nowrap">
                         {r.actualPct === null ? (
-                          <span className="inline-flex items-center rounded-md bg-neutral-100 px-2 py-0.5 text-[11.5px] font-bold tabular-nums text-neutral-600 dark:bg-white/10 dark:text-slate-300">
+                          <span className="inline-flex items-center rounded-md bg-neutral-100 px-2 py-0.5 text-[13px] font-bold tabular-nums text-neutral-600 dark:bg-white/10 dark:text-slate-300">
                             {f1(r.contractPct)}%
                           </span>
                         ) : hasCommissionGap || r.divertedToTgo ? (
-                          <span className="inline-flex items-center gap-1 rounded-md bg-rose-50 px-2 py-0.5 text-[11.5px] font-extrabold tabular-nums text-rose-800 ring-1 ring-rose-500/20 dark:bg-rose-950/50 dark:text-rose-200">
+                          <span className="inline-flex items-center gap-1 rounded-md bg-rose-50 px-2 py-0.5 text-[13px] font-extrabold tabular-nums text-rose-800 ring-1 ring-rose-500/20 dark:bg-rose-950/50 dark:text-rose-200">
                             {f1(r.contractPct)}% → {f1(r.actualPct)}%
                           </span>
                         ) : (
-                          <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-0.5 text-[11.5px] font-bold tabular-nums text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+                          <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-0.5 text-[13px] font-bold tabular-nums text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
                             {f1(r.actualPct)}%
                           </span>
                         )}
@@ -1747,7 +1747,7 @@ export function DeliveryRadarV5() {
                             type="button"
                             onClick={() => setProofRowId(r.id)}
                             title={T('Verify Row in Odoo 🔍', 'توثيق السطر من أودو 🔍')}
-                            className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-full bg-sky-50 px-2.5 text-[11px] font-extrabold text-sky-900 ring-1 ring-sky-500/20 transition duration-150 hover:bg-sky-100 dark:bg-sky-950/60 dark:text-sky-200 dark:ring-sky-400/25"
+                            className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-full bg-sky-50 px-2.5 text-xs font-extrabold text-sky-900 ring-1 ring-sky-500/20 transition duration-150 hover:bg-sky-100 dark:bg-sky-950/60 dark:text-sky-200 dark:ring-sky-400/25"
                           >
                             <FileSearch className="h-3 w-3" />
                             <span>{T('Odoo Proof 🔍', 'توثيق السطر من أودو 🔍')}</span>
@@ -1840,7 +1840,7 @@ export function DeliveryRadarV5() {
                               <div className="text-[13.5px] font-extrabold text-slate-950 dark:text-white">
                                 {isAr ? meta.ar : meta.en}
                               </div>
-                              <div className="text-[11.5px] font-medium text-slate-500 dark:text-slate-400">
+                              <div className="text-[13px] font-medium text-slate-500 dark:text-slate-400">
                                 {isAr
                                   ? `طلبات TMP آخر ٣٠ يوم: ${f0(econ?.tmpOrders30 ?? 0)} • مبيعات Tgo: ${f0(econ?.tgoSales30Kwd ?? 0)} د.ك`
                                   : `30d TMP orders: ${f0(econ?.tmpOrders30 ?? 0)} • Tgo sales: ${f0(econ?.tgoSales30Kwd ?? 0)} KWD`}
@@ -1849,17 +1849,17 @@ export function DeliveryRadarV5() {
                           </div>
 
                           {checked ? (
-                            <span className="rounded-full bg-emerald-600 px-2.5 py-0.5 text-[11px] font-bold text-white">
+                            <span className="rounded-full bg-emerald-600 px-2.5 py-0.5 text-xs font-bold text-white">
                               {isAr ? 'سائق شركة نشط' : 'Active TMP'}
                             </span>
                           ) : econ?.recommendHireDriver ? (
-                            <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-extrabold text-amber-950 dark:bg-amber-500/20 dark:text-amber-200">
+                            <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-extrabold text-amber-950 dark:bg-amber-500/20 dark:text-amber-200">
                               {isAr
                                 ? `فرصة سائق 💡 (+${f0(econ.netAfterDriverKwd)} د.ك)`
                                 : `Hire Driver 💡 (+${f0(econ.netAfterDriverKwd)} KWD)`}
                             </span>
                           ) : (
-                            <span className="rounded-full bg-slate-200/70 px-2.5 py-0.5 text-[11px] font-bold text-slate-700 dark:bg-white/10 dark:text-slate-300">
+                            <span className="rounded-full bg-slate-200/70 px-2.5 py-0.5 text-xs font-bold text-slate-700 dark:bg-white/10 dark:text-slate-300">
                               {isAr ? 'Tgo فقط ⚪' : 'Tgo Only ⚪'}
                             </span>
                           )}
@@ -1942,7 +1942,7 @@ export function DeliveryRadarV5() {
                       <span
                         key={cfg.id}
                         dir="ltr"
-                        className="rounded-lg bg-slate-100 px-2.5 py-1 font-mono text-[11.5px] font-bold text-slate-800 dark:bg-white/10 dark:text-slate-200"
+                        className="rounded-lg bg-slate-100 px-2.5 py-1 font-mono text-[13px] font-bold text-slate-800 dark:bg-white/10 dark:text-slate-200"
                       >
                         #{cfg.id} {cfg.name}
                       </span>
@@ -1960,7 +1960,7 @@ export function DeliveryRadarV5() {
                       <span
                         key={pm.id}
                         dir="ltr"
-                        className="rounded-lg bg-emerald-50 px-2.5 py-1 font-mono text-[11.5px] font-bold text-emerald-900 ring-1 ring-emerald-500/20 dark:bg-emerald-950/50 dark:text-emerald-200"
+                        className="rounded-lg bg-emerald-50 px-2.5 py-1 font-mono text-[13px] font-bold text-emerald-900 ring-1 ring-emerald-500/20 dark:bg-emerald-950/50 dark:text-emerald-200"
                       >
                         #{pm.id} {pm.name}
                       </span>
@@ -1990,7 +1990,7 @@ export function DeliveryRadarV5() {
                             <div dir="ltr" className="font-mono font-extrabold text-slate-900 dark:text-white">
                               #{rc.orderName}
                             </div>
-                            <div dir="ltr" className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                            <div dir="ltr" className="text-xs font-medium text-slate-500 dark:text-slate-400">
                               {rc.dateKuwait} • {rc.posRef || rc.posConfigName}
                             </div>
                           </div>

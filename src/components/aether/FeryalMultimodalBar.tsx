@@ -107,7 +107,7 @@ export function FeryalMediaPickerButton({
               : 'Photo / Video'}
         </span>
         {attachmentCount && attachmentCount > 0 ? (
-          <span className="btn-colored inline-flex h-5 min-w-[20px] items-center justify-center rounded-md bg-emerald-600 px-1.5 text-[10.5px] font-bold tabular-nums text-white">
+          <span className="btn-colored inline-flex h-5 min-w-[20px] items-center justify-center rounded-md bg-emerald-600 px-1.5 text-xs font-bold tabular-nums text-white">
             {attachmentCount}
           </span>
         ) : null}
@@ -224,7 +224,7 @@ export function FeryalPendingAttachmentsTray({
           <button
             type="button"
             onClick={onClearAll}
-            className="shrink-0 whitespace-nowrap cursor-pointer rounded-xl bg-white px-2.5 py-1 text-[11.5px] font-semibold text-neutral-600 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:text-rose-600 dark:bg-[#101C17] dark:text-slate-300"
+            className="shrink-0 whitespace-nowrap cursor-pointer rounded-xl bg-white px-2.5 py-1 text-[13px] font-semibold text-neutral-600 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:text-rose-600 dark:bg-[#101C17] dark:text-slate-300"
           >
             {isAr ? 'مسح المرفقات' : 'Clear all'}
           </button>
@@ -264,7 +264,7 @@ export function FeryalPendingAttachmentsTray({
                     className="h-full w-full object-cover"
                   />
                   {att.kind === 'video' ? (
-                    <span className="absolute bottom-1 start-1 inline-flex items-center gap-1 rounded-md bg-emerald-950/85 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-emerald-100">
+                    <span className="absolute bottom-1 start-1 inline-flex items-center gap-1 rounded-md bg-emerald-950/85 px-1.5 py-0.5 text-xs font-semibold tabular-nums text-emerald-100">
                       <Film className="h-2.5 w-2.5" />
                       {formatDurationClock(att.durationSec)}
                     </span>
@@ -276,7 +276,7 @@ export function FeryalPendingAttachmentsTray({
                 <div className="truncate text-xs font-semibold text-neutral-900 dark:text-white">
                   {att.name}
                 </div>
-                <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-neutral-500 dark:text-slate-400">
+                <div className="flex flex-wrap items-center gap-1.5 text-xs text-neutral-500 dark:text-slate-400">
                   <span className="rounded-md bg-emerald-50 px-2 py-0.5 font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
                     {att.kind === 'video'
                       ? isAr
@@ -370,7 +370,7 @@ export function FeryalMessageAttachmentsGallery({
                 className="h-full w-full object-cover"
               />
               {att.kind === 'video' ? (
-                <span className="absolute bottom-1 start-1 inline-flex items-center gap-1 rounded bg-emerald-950/85 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-emerald-100">
+                <span className="absolute bottom-1 start-1 inline-flex items-center gap-1 rounded bg-emerald-950/85 px-1.5 py-0.5 text-xs font-semibold tabular-nums text-emerald-100">
                   <Film className="h-2.5 w-2.5" />
                   {formatDurationClock(att.durationSec)}
                 </span>
@@ -380,7 +380,7 @@ export function FeryalMessageAttachmentsGallery({
               <div className="max-w-[180px] truncate text-xs font-semibold text-neutral-900 dark:text-white">
                 {att.name}
               </div>
-              <div className="mt-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
+              <div className="mt-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-300">
                 {att.kind === 'video'
                   ? isAr
                     ? `🎥 فيديو محلّل (${att.frameCount ?? 6} لقطات زمنية)`

@@ -450,7 +450,7 @@ export function SmartPhotoDocAutoMatcherModal({
                 <h2 className="text-base sm:text-lg font-black text-white">
                   محرك المطابقة التلقائية لصور وأوراق الموظفين
                 </h2>
-                <span className="rounded-lg bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-300 border border-amber-500/30">
+                <span className="rounded-lg bg-amber-500/20 px-2 py-0.5 text-xs font-bold text-amber-300 border border-amber-500/30">
                   Auto-Matcher AI
                 </span>
               </div>
@@ -591,23 +591,23 @@ export function SmartPhotoDocAutoMatcherModal({
           {items.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
               <div className="rounded-2xl border border-white/10 bg-[#121824] p-3 text-center">
-                <span className="text-[10px] text-mist-400 font-bold block">إجمالي الملفات</span>
+                <span className="text-xs text-mist-400 font-bold block">إجمالي الملفات</span>
                 <span className="text-xl font-black text-white">{totalCount}</span>
               </div>
               <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-center">
-                <span className="text-[10px] text-emerald-300 font-bold block">تطابق ناجح</span>
+                <span className="text-xs text-emerald-300 font-bold block">تطابق ناجح</span>
                 <span className="text-xl font-black text-emerald-400">{matchedCount}</span>
               </div>
               <div className="rounded-2xl border border-sky-500/30 bg-sky-500/10 p-3 text-center">
-                <span className="text-[10px] text-sky-300 font-bold block">صور شخصية (Avatars)</span>
+                <span className="text-xs text-sky-300 font-bold block">صور شخصية (Avatars)</span>
                 <span className="text-xl font-black text-sky-400">{avatarCount}</span>
               </div>
               <div className="rounded-2xl border border-purple-500/30 bg-purple-500/10 p-3 text-center">
-                <span className="text-[10px] text-purple-300 font-bold block">مستندات رسمية (Vault)</span>
+                <span className="text-xs text-purple-300 font-bold block">مستندات رسمية (Vault)</span>
                 <span className="text-xl font-black text-purple-400">{docCount}</span>
               </div>
               <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3 text-center col-span-2 sm:col-span-1">
-                <span className="text-[10px] text-amber-300 font-bold block">بحاجة لمراجعة</span>
+                <span className="text-xs text-amber-300 font-bold block">بحاجة لمراجعة</span>
                 <span className="text-xl font-black text-amber-400">{unmatchedCount}</span>
               </div>
             </div>
@@ -721,9 +721,9 @@ export function SmartPhotoDocAutoMatcherModal({
                           {it.fileName}
                         </p>
                         <div className="flex items-center gap-2">
-                          <span className="font-mono text-[10px] text-mist-400">{it.fileSize}</span>
+                          <span className="font-mono text-xs text-mist-400">{it.fileSize}</span>
                           <span
-                            className={`rounded-md border px-2 py-0.5 text-[10px] font-bold ${
+                            className={`rounded-md border px-2 py-0.5 text-xs font-bold ${
                               it.matchConfidence === 'high'
                                 ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
                                 : it.matchConfidence === 'medium'
@@ -790,7 +790,7 @@ export function SmartPhotoDocAutoMatcherModal({
                         <button
                           type="button"
                           onClick={() => handleToggleExclude(it.id)}
-                          className={`rounded-xl border px-2.5 py-1.5 text-[11px] font-bold transition-all ${
+                          className={`rounded-xl border px-2.5 py-1.5 text-xs font-bold transition-all ${
                             it.excluded
                               ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
                               : 'border-white/15 bg-white/5 text-mist-300 hover:text-white'

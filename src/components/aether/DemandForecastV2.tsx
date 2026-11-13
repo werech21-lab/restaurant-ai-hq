@@ -162,14 +162,14 @@ export function DemandForecastV2({ anchor }: { anchor: string }) {
           />
           <div className="flex flex-wrap gap-1.5">
             {forecast.map((d, i) => (
-              <button key={d.date} type="button" onClick={() => setSelectedIdx(i)} className={i === selectedIdx ? 'btn-colored inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]' : 'ae-pill-light ae-pill-sm'}>
+              <button key={d.date} type="button" onClick={() => setSelectedIdx(i)} className={i === selectedIdx ? 'btn-colored inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]' : 'ae-pill-light ae-pill-sm'}>
                 {dayLabel(d.date, lang)}
                 {d.weekendSurge ? <span className="text-amber-500">●</span> : null}
                 {d.salaryWeek ? <span className="text-emerald-500">●</span> : null}
               </button>
             ))}
           </div>
-          <div className="flex flex-wrap gap-4 text-[11px] text-slate-500">
+          <div className="flex flex-wrap gap-4 text-xs text-slate-500">
             <span><span className="text-amber-500">●</span> {T('Thu/Fri weekend surge', 'ذروة نهاية الأسبوع الخميس والجمعة')}</span>
             <span><span className="text-emerald-500">●</span> {T('Salary week ×1.12 (24th–29th)', 'أسبوع الرواتب ×1.12 (24–29)')}</span>
           </div>
@@ -205,7 +205,7 @@ export function DemandForecastV2({ anchor }: { anchor: string }) {
               { key: 'del', label: T('Delivery', 'التوصيل'), value: day.delivery, base: BASE_CHANNEL_MIX.delivery, color: '#0F766E' },
             ].map((c) => (
               <div key={c.key} className="space-y-1">
-                <div className="flex justify-between text-[11px] text-slate-500">
+                <div className="flex justify-between text-xs text-slate-500">
                   <span>{c.label}</span>
                   <Num className="text-slate-900 dark:text-white">
                     {fmt(c.value)} · {pct((c.value / day.orders) * 100, 0)}
@@ -217,7 +217,7 @@ export function DemandForecastV2({ anchor }: { anchor: string }) {
               </div>
             ))}
           </div>
-          <p className="text-[11px] leading-relaxed text-slate-500">
+          <p className="text-xs leading-relaxed text-slate-500">
             {day.deliveryShift > 0
               ? T(`${pct(day.deliveryShift * 100, 0)} of dine-in demand migrates to delivery on this day.`, `${pct(day.deliveryShift * 100, 0)} من طلب الصالة يتحول إلى التوصيل في هذا اليوم.`)
               : T('Mild weather lifts dine-in traffic slightly above the base mix.', 'الطقس المعتدل يرفع حركة الصالة قليلاً فوق المزيج الأساسي.')}
@@ -278,20 +278,20 @@ export function DemandForecastV2({ anchor }: { anchor: string }) {
               <Num className="text-base text-slate-900 dark:text-white">{pct(buffer, 0)}</Num>
             </div>
             <input type="range" min={2} max={PREP_BUFFER.current} step={1} value={buffer} onChange={(e) => setBuffer(Number(e.target.value))} className="w-full accent-emerald-600" aria-label={T('Safety buffer', 'هامش الأمان')} />
-            <div className="flex justify-between text-[10px] text-slate-400">
+            <div className="flex justify-between text-xs text-slate-400">
               <span>{T('Lean 2%', 'مرن 2%')}</span>
               <span>{T('Target 4%', 'المستهدف 4%')}</span>
               <span>{T('Legacy 12%', 'السابق 12%')}</span>
             </div>
             <div className="space-y-1.5 pt-2">
-              <div className="flex justify-between text-[11px] text-slate-500">
+              <div className="flex justify-between text-xs text-slate-500">
                 <span>{T('Waste reduction toward target', 'خفض الهدر نحو المستهدف')}</span>
                 <Num className="font-bold text-emerald-600">{pct(Math.min(100, savings.progress * 100), 0)}</Num>
               </div>
               <div className="h-2.5 overflow-hidden rounded-full bg-slate-200/70 dark:bg-white/10" dir="ltr">
                 <div className="h-full rounded-full bg-emerald-500 transition-[width] duration-300" style={{ width: `${Math.min(100, savings.progress * 100)}%` }} />
               </div>
-              <div className="flex justify-between text-[11px] text-slate-500">
+              <div className="flex justify-between text-xs text-slate-500">
                 <Num className="text-emerald-600">+{kwd(savings.monthly, lang, 0)}</Num>
                 <span>
                   {T('of', 'من')} <Num>{kwd(savings.target, lang, 0)}</Num> {T('/ month', '/ شهرياً')}
@@ -300,16 +300,16 @@ export function DemandForecastV2({ anchor }: { anchor: string }) {
             </div>
             <div className="grid grid-cols-2 gap-2 pt-1">
               <div className="ae-tile p-2.5">
-                <div className="text-[10px] text-slate-500">{T('Prep batch cost', 'تكلفة دفعة التحضير')}</div>
+                <div className="text-xs text-slate-500">{T('Prep batch cost', 'تكلفة دفعة التحضير')}</div>
                 <Num className="text-sm text-slate-900 dark:text-white">{kwd(sheetCost, lang, 1)}</Num>
               </div>
               <div className="ae-tile p-2.5">
-                <div className="text-[10px] text-slate-500">{T('Avoided waste', 'الهدر المتجنب')}</div>
+                <div className="text-xs text-slate-500">{T('Avoided waste', 'الهدر المتجنب')}</div>
                 <Num className="text-sm text-emerald-600">{kwd(sheetAvoided, lang, 1)}</Num>
               </div>
             </div>
             {approvedAt ? (
-              <p className="ae-pop flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600">
+              <p className="ae-pop flex items-center gap-1.5 text-xs font-semibold text-emerald-600">
                 <CheckCircle2 className="h-3.5 w-3.5" />
                 {T('Approved and exported at', 'تم الاعتماد والتصدير في')} <Num>{approvedAt}</Num>
               </p>
@@ -331,7 +331,7 @@ export function DemandForecastV2({ anchor }: { anchor: string }) {
                   <tr key={p.id}>
                     <td className="px-3 py-2">
                       <div className="font-semibold text-slate-900 dark:text-white">{isAr ? p.ar : p.en}</div>
-                      <div className="text-[10px] text-slate-500">{isAr ? p.unitAr : p.unitEn}</div>
+                      <div className="text-xs text-slate-500">{isAr ? p.unitAr : p.unitEn}</div>
                     </td>
                     <td className="px-3 py-2 text-end"><Num>{fmt(p.need, p.decimals)}</Num></td>
                     <td className="px-3 py-2 text-end"><Num className="text-slate-900 dark:text-white">{fmt(p.par, p.decimals)}</Num></td>
@@ -354,7 +354,7 @@ export function DemandForecastV2({ anchor }: { anchor: string }) {
         <ReorderableTable columns={staffColumns} rows={staffing} rowKey={(r) => r.id} csvName={`aetherbi-crew-plan-${day.date}.csv`} maxHeight={440} />
       </section>
 
-      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+      <p className="text-xs text-slate-500 dark:text-slate-400">
         {T(
           `Forecasts start from the ${LEDGER.periodLabelEn} Odoo run-rate (${fmt(LEDGER.orders)} orders) and apply Kuwait weekday, salary-week and seasonal climate patterns. Filtered views allocate proportionally by brand, branch and channel.`,
           `تنطلق التوقعات من معدل أودو لشهر ${LEDGER.periodLabelAr} (${fmt(LEDGER.orders)} طلباً) وتطبق أنماط أيام الأسبوع وأسبوع الرواتب والمناخ الموسمي في الكويت. العروض المفلترة توزع نسبياً حسب العلامة والفرع والقناة.`,

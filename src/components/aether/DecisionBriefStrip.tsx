@@ -38,7 +38,7 @@ export function DecisionBriefStrip({ anchor }: { anchor: string }) {
                   <span className="ae-icon-badge">
                     <Icon className="h-4 w-4" />
                   </span>
-                  <span className="text-[11px] font-semibold text-slate-500">{isAr ? RANK[c.id].ar : RANK[c.id].en}</span>
+                  <span className="text-xs font-semibold text-slate-500">{isAr ? RANK[c.id].ar : RANK[c.id].en}</span>
                 </div>
                 <h3 className="text-sm font-semibold leading-snug text-slate-900 dark:text-white">{isAr ? c.titleAr : c.titleEn}</h3>
                 <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">{isAr ? c.bodyAr : c.bodyEn}</p>
@@ -48,7 +48,7 @@ export function DecisionBriefStrip({ anchor }: { anchor: string }) {
                   <span style={{ color: TONE_HEX[c.tone] }}>{isAr ? c.metricAr : c.metricEn}</span>
                 </Num>
                 <div className="no-print flex flex-wrap gap-2">
-                  <Link href={c.href} className="btn-colored inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]">
+                  <Link href={c.href} className="btn-colored inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]">
                     {T('Open', 'فتح')}
                     <ArrowUpRight className={`h-3 w-3 ${isAr ? '-scale-x-100' : ''}`} />
                   </Link>

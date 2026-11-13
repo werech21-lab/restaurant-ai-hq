@@ -175,7 +175,7 @@ export function EmployeeProfileModal360({ employee, isOpen, onClose, locale }: P
               🪪
             </span>
             <div>
-              <p className="text-[11px] font-medium text-mist-400">
+              <p className="text-xs font-medium text-mist-400">
                 {en ? 'Employees Directory / 360° Profile Dossier' : 'سجل الموظفين / الملف الشامل للموظف'}
               </p>
               <h2 className="text-base font-black text-white flex items-center gap-2">
@@ -235,7 +235,7 @@ export function EmployeeProfileModal360({ employee, isOpen, onClose, locale }: P
                   {employee.documents.length + (customDocs[employee.code]?.length || 0)}
                 </span>
               </div>
-              <span className="mt-1 text-[11px] font-bold">{en ? 'Documents' : 'المستندات'}</span>
+              <span className="mt-1 text-xs font-bold">{en ? 'Documents' : 'المستندات'}</span>
               <span className="text-[9px] text-mist-400">
                 {en
                   ? `${employee.documents.length + (customDocs[employee.code]?.length || 0)} Files`
@@ -257,7 +257,7 @@ export function EmployeeProfileModal360({ employee, isOpen, onClose, locale }: P
                 <span>🏖️</span>
                 <span className="font-black text-emerald-300 text-base">{employee.leaves.balance} d</span>
               </div>
-              <span className="mt-1 text-[11px] font-bold">{en ? 'Leave Balance' : 'رصيد الإجازات'}</span>
+              <span className="mt-1 text-xs font-bold">{en ? 'Leave Balance' : 'رصيد الإجازات'}</span>
               <span className="text-[9px] text-mist-400">{en ? `Time Off: ${employee.leaves.taken} d` : `مستخدم: ${employee.leaves.taken} يوم`}</span>
             </button>
 
@@ -271,7 +271,7 @@ export function EmployeeProfileModal360({ employee, isOpen, onClose, locale }: P
                 <span>💳</span>
                 <span className="font-black text-white text-base">{employee.loans.toFixed(3)}</span>
               </div>
-              <span className="mt-1 text-[11px] font-bold">{en ? 'Loans' : 'السلف والقروض'}</span>
+              <span className="mt-1 text-xs font-bold">{en ? 'Loans' : 'السلف والقروض'}</span>
               <span className="text-[9px] text-mist-400">{en ? '0.000 KWD' : 'لا توجد سلف قائمة'}</span>
             </button>
 
@@ -285,7 +285,7 @@ export function EmployeeProfileModal360({ employee, isOpen, onClose, locale }: P
                 <span>⏱️</span>
                 <span className="font-black text-sky-300 text-base">48h</span>
               </div>
-              <span className="mt-1 text-[11px] font-bold">{en ? 'Planning / Shifts' : 'الشفتات والتخطيط'}</span>
+              <span className="mt-1 text-xs font-bold">{en ? 'Planning / Shifts' : 'الشفتات والتخطيط'}</span>
               <span className="text-[9px] text-mist-400">{en ? 'Asia/Kuwait' : 'شفتات الكويت القياسية'}</span>
             </button>
 
@@ -299,7 +299,7 @@ export function EmployeeProfileModal360({ employee, isOpen, onClose, locale }: P
                 <span>📦</span>
                 <span className="font-black text-amber-300 text-base">{employee.custodyCount}</span>
               </div>
-              <span className="mt-1 text-[11px] font-bold">{en ? 'Custody' : 'العهد المستلمة'}</span>
+              <span className="mt-1 text-xs font-bold">{en ? 'Custody' : 'العهد المستلمة'}</span>
               <span className="text-[9px] text-mist-400">{en ? 'Active Equipment' : 'عهدة معدات مسجلة'}</span>
             </button>
 
@@ -313,7 +313,7 @@ export function EmployeeProfileModal360({ employee, isOpen, onClose, locale }: P
                 <span>📑</span>
                 <span className="font-bold text-white text-xs">{employee.hireDate}</span>
               </div>
-              <span className="mt-1 text-[11px] font-bold">{en ? 'Contract Start' : 'تاريخ مباشرة العمل'}</span>
+              <span className="mt-1 text-xs font-bold">{en ? 'Contract Start' : 'تاريخ مباشرة العمل'}</span>
               <span className="text-[9px] text-mist-400">{en ? 'Fixed Term (3Y)' : 'عقد محدد 3 سنوات'}</span>
             </button>
 
@@ -327,7 +327,7 @@ export function EmployeeProfileModal360({ employee, isOpen, onClose, locale }: P
                 <span>⚖️</span>
                 <span className="font-black text-gold-300 text-xs">{eosbEstimated}</span>
               </div>
-              <span className="mt-1 text-[11px] font-bold">{en ? 'EOSB Accrued' : 'نهاية الخدمة'}</span>
+              <span className="mt-1 text-xs font-bold">{en ? 'EOSB Accrued' : 'نهاية الخدمة'}</span>
               <span className="text-[9px] text-mist-400">{en ? 'Kuwait Law Art. 51' : 'المادة 51 قانون العمل'}</span>
             </button>
           </div>
@@ -373,7 +373,7 @@ export function EmployeeProfileModal360({ employee, isOpen, onClose, locale }: P
                     title={en ? 'Click to change photo' : 'انقر لتغيير الصورة الشخصية'}
                   >
                     <span className="text-2xl">📷</span>
-                    <span className="text-[10px] mt-0.5 font-bold">{en ? 'Change' : 'تغيير'}</span>
+                    <span className="text-xs mt-0.5 font-bold">{en ? 'Change' : 'تغيير'}</span>
                   </button>
                 </div>
                 <span
@@ -402,7 +402,7 @@ export function EmployeeProfileModal360({ employee, isOpen, onClose, locale }: P
                       {employee.flag}
                     </span>
                     <span
-                      className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
+                      className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
                         employee.status === 'ACTIVE'
                           ? 'border border-emerald-400/40 bg-emerald-500/10 text-emerald-300'
                           : 'border border-amber-400/40 bg-amber-500/10 text-amber-300'
@@ -442,7 +442,7 @@ export function EmployeeProfileModal360({ employee, isOpen, onClose, locale }: P
             {/* Quick 2-Column Key Facts Grid */}
             <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 border-t border-white/10 pt-4 text-xs">
               <div className="space-y-1">
-                <span className="text-mist-400 block text-[11px]">{en ? 'Mobile Phone' : 'رقم الجوال الشخصي'}</span>
+                <span className="text-mist-400 block text-xs">{en ? 'Mobile Phone' : 'رقم الجوال الشخصي'}</span>
                 <a
                   href={`tel:${employee.mobile}`}
                   className="font-mono font-bold text-white hover:text-amber-300 flex items-center gap-1.5"
@@ -454,7 +454,7 @@ export function EmployeeProfileModal360({ employee, isOpen, onClose, locale }: P
               </div>
 
               <div className="space-y-1">
-                <span className="text-mist-400 block text-[11px]">{en ? 'Work Phone / Desk' : 'هاتف العمل والمكتب'}</span>
+                <span className="text-mist-400 block text-xs">{en ? 'Work Phone / Desk' : 'هاتف العمل والمكتب'}</span>
                 <span className="font-mono font-bold text-white flex items-center gap-1.5" dir="ltr">
                   <span>☎️</span>
                   <span>{employee.phone}</span>
@@ -462,10 +462,10 @@ export function EmployeeProfileModal360({ employee, isOpen, onClose, locale }: P
               </div>
 
               <div className="space-y-1">
-                <span className="text-mist-400 block text-[11px]">{en ? 'Company Email' : 'البريد الإلكتروني للعمل'}</span>
+                <span className="text-mist-400 block text-xs">{en ? 'Company Email' : 'البريد الإلكتروني للعمل'}</span>
                 <a
                   href={`mailto:${employee.email}`}
-                  className="font-mono text-mist-200 hover:text-white truncate block text-[11px]"
+                  className="font-mono text-mist-200 hover:text-white truncate block text-xs"
                   dir="ltr"
                 >
                   {employee.email}
@@ -473,7 +473,7 @@ export function EmployeeProfileModal360({ employee, isOpen, onClose, locale }: P
               </div>
 
               <div className="space-y-1">
-                <span className="text-mist-400 block text-[11px]">{en ? 'Direct Manager' : 'المدير المباشر'}</span>
+                <span className="text-mist-400 block text-xs">{en ? 'Direct Manager' : 'المدير المباشر'}</span>
                 <span className="font-bold text-amber-200 flex items-center gap-1.5">
                   <span>👤</span>
                   <span>{isArabic ? employee.managerNameAr : employee.managerNameEn}</span>
@@ -579,20 +579,20 @@ export function EmployeeProfileModal360({ employee, isOpen, onClose, locale }: P
                 <div className="flex flex-col items-center space-y-3">
                   {/* Top Node: CEO */}
                   <div className="rounded-2xl border border-gold-400/40 bg-gold-500/10 px-6 py-2.5 text-center shadow-lg">
-                    <p className="text-[11px] font-bold text-gold-300">{en ? 'Executive Leadership' : 'الرئيس التنفيذي العام'}</p>
+                    <p className="text-xs font-bold text-gold-300">{en ? 'Executive Leadership' : 'الرئيس التنفيذي العام'}</p>
                     <p className="text-sm font-black text-white">أحمد عصام محمد الإبراهيم (CEO)</p>
                   </div>
                   <div className="h-5 w-0.5 bg-white/20"></div>
 
                   {/* Middle Node: Current Employee */}
                   <div className="rounded-2xl border-2 border-amber-400 bg-amber-500/20 px-6 py-3 text-center shadow-xl">
-                    <p className="text-[11px] font-bold text-amber-300">
+                    <p className="text-xs font-bold text-amber-300">
                       {isArabic ? employee.jobTitleAr : employee.jobTitleEn}
                     </p>
                     <p className="text-base font-black text-white">
                       {isArabic ? employee.nameAr : employee.nameEn}
                     </p>
-                    <p className="text-[10px] text-mist-300 mt-0.5">#{employee.code} · {isArabic ? employee.departmentAr : employee.department}</p>
+                    <p className="text-xs text-mist-300 mt-0.5">#{employee.code} · {isArabic ? employee.departmentAr : employee.department}</p>
                   </div>
                   <div className="h-5 w-0.5 bg-white/20"></div>
 
@@ -601,7 +601,7 @@ export function EmployeeProfileModal360({ employee, isOpen, onClose, locale }: P
                     <p className="font-bold text-white">
                       {en ? 'Operations & Branch Execution Team' : 'فريق التشغيل والدعم الميداني بالفروع'}
                     </p>
-                    <p className="text-[10px] text-mist-400">
+                    <p className="text-xs text-mist-400">
                       {en ? 'Reporting & Cross-Functional Coordination' : 'تنسيق تشغيلي وإداري مباشر'}
                     </p>
                   </div>
@@ -620,7 +620,7 @@ export function EmployeeProfileModal360({ employee, isOpen, onClose, locale }: P
                     <h3 className="text-xs font-black uppercase tracking-wider text-gold-300">
                       {en ? 'Public Authority for Manpower (PAM / Asahal)' : 'الهيئة العامة للقوى العاملة (أسهل)'}
                     </h3>
-                    <span className="rounded-lg bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-300 border border-emerald-500/20">
+                    <span className="rounded-lg bg-emerald-500/15 px-2 py-0.5 text-xs font-bold text-emerald-300 border border-emerald-500/20">
                       {en ? 'Active & Valid' : 'ملف ساري ومطابق'}
                     </span>
                   </div>
@@ -656,7 +656,7 @@ export function EmployeeProfileModal360({ employee, isOpen, onClose, locale }: P
                     <h3 className="text-xs font-black uppercase tracking-wider text-gold-300">
                       {en ? 'Civil ID & Municipality Health Card' : 'البطاقة المدنية PACI وكرت البلدية'}
                     </h3>
-                    <span className="rounded-lg bg-sky-500/15 px-2 py-0.5 text-[10px] font-bold text-sky-300 border border-sky-500/20">
+                    <span className="rounded-lg bg-sky-500/15 px-2 py-0.5 text-xs font-bold text-sky-300 border border-sky-500/20">
                       {en ? 'PACI Verified' : 'مطابق للرقم الموحد'}
                     </span>
                   </div>
@@ -692,7 +692,7 @@ export function EmployeeProfileModal360({ employee, isOpen, onClose, locale }: P
                     <h3 className="text-xs font-black uppercase tracking-wider text-emerald-300">
                       {en ? 'WPS Banking & Salary Transfer Details (Kuwait Ministry of Social Affairs & Labor)' : 'بيانات حساب تحويل الراتب المصرفي WPS (نظام حماية الأجور الكويتي)'}
                     </h3>
-                    <p className="text-[11px] text-mist-400 mt-0.5">
+                    <p className="text-xs text-mist-400 mt-0.5">
                       {en ? 'Linked directly to official monthly WPS payroll text file' : 'مرتبط تلقائياً بملف صرف الرواتب الشهري المعتمد للبنوك'}
                     </p>
                   </div>
@@ -703,19 +703,19 @@ export function EmployeeProfileModal360({ employee, isOpen, onClose, locale }: P
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
                   <div className="rounded-xl border border-white/5 bg-black/30 p-3">
-                    <span className="text-[11px] text-mist-400 block mb-1">{en ? 'Bank Name' : 'اسم البنك المصرفي'}</span>
+                    <span className="text-xs text-mist-400 block mb-1">{en ? 'Bank Name' : 'اسم البنك المصرفي'}</span>
                     <span className="font-bold text-white text-sm">{employee.bankName}</span>
-                    <span className="text-[10px] text-mist-400 block mt-0.5">{employee.bankNameAr}</span>
+                    <span className="text-xs text-mist-400 block mt-0.5">{employee.bankNameAr}</span>
                   </div>
 
                   <div className="rounded-xl border border-white/5 bg-black/30 p-3">
-                    <span className="text-[11px] text-mist-400 block mb-1">{en ? 'Account Number' : 'رقم الحساب الجاري'}</span>
+                    <span className="text-xs text-mist-400 block mb-1">{en ? 'Account Number' : 'رقم الحساب الجاري'}</span>
                     <span className="font-mono font-bold text-white text-sm" dir="ltr">{employee.bankAccount}</span>
-                    <span className="text-[10px] text-emerald-400 block mt-0.5">Salary Account · حساب رواتب</span>
+                    <span className="text-xs text-emerald-400 block mt-0.5">Salary Account · حساب رواتب</span>
                   </div>
 
                   <div className="rounded-xl border border-white/5 bg-black/30 p-3">
-                    <span className="text-[11px] text-mist-400 block mb-1">{en ? 'International Bank Account (IBAN)' : 'الآيبان البنكي المعتمد (IBAN)'}</span>
+                    <span className="text-xs text-mist-400 block mb-1">{en ? 'International Bank Account (IBAN)' : 'الآيبان البنكي المعتمد (IBAN)'}</span>
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-mono font-bold text-gold-300 text-xs truncate" dir="ltr">
                         {employee.iban}
@@ -723,7 +723,7 @@ export function EmployeeProfileModal360({ employee, isOpen, onClose, locale }: P
                       <button
                         type="button"
                         onClick={copyIban}
-                        className="rounded-lg bg-white/10 px-2 py-1 text-[10px] font-bold text-white hover:bg-white/20 shrink-0"
+                        className="rounded-lg bg-white/10 px-2 py-1 text-xs font-bold text-white hover:bg-white/20 shrink-0"
                       >
                         {copiedIban ? '✓ تم النسخ' : 'نسخ 📋'}
                       </button>
@@ -786,14 +786,14 @@ export function EmployeeProfileModal360({ employee, isOpen, onClose, locale }: P
                         <p className="text-xs font-bold text-sky-200">
                           {isArabic ? doc.nameAr : doc.nameEn}
                         </p>
-                        <p className="font-mono text-[11px] text-mist-300" dir="ltr">
+                        <p className="font-mono text-xs text-mist-300" dir="ltr">
                           {doc.fileName} · {doc.size}
                         </p>
                         <div className="flex items-center gap-2 pt-0.5">
-                          <span className="rounded-md bg-sky-500/20 px-2 py-0.5 text-[10px] font-bold text-sky-300 border border-sky-500/30">
+                          <span className="rounded-md bg-sky-500/20 px-2 py-0.5 text-xs font-bold text-sky-300 border border-sky-500/30">
                             {isArabic ? doc.statusAr : doc.statusEn}
                           </span>
-                          <span className="text-[10px] text-mist-400">
+                          <span className="text-xs text-mist-400">
                             {en ? `Uploaded: ${doc.uploadDate}` : `تاريخ الأرشفة: ${doc.uploadDate}`}
                           </span>
                         </div>
@@ -807,14 +807,14 @@ export function EmployeeProfileModal360({ employee, isOpen, onClose, locale }: P
                             href={doc.dataUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center justify-center rounded-lg border border-white/15 bg-white/5 px-2.5 py-1 text-[11px] font-semibold text-mist-200 hover:border-white/30 hover:text-white"
+                            className="inline-flex items-center justify-center rounded-lg border border-white/15 bg-white/5 px-2.5 py-1 text-xs font-semibold text-mist-200 hover:border-white/30 hover:text-white"
                           >
                             {en ? 'Preview' : 'معاينة'}
                           </a>
                           <a
                             href={doc.dataUrl}
                             download={doc.fileName}
-                            className="inline-flex items-center justify-center rounded-lg bg-sky-500/20 border border-sky-500/30 px-2.5 py-1 text-[11px] font-bold text-sky-200 hover:bg-sky-500/30"
+                            className="inline-flex items-center justify-center rounded-lg bg-sky-500/20 border border-sky-500/30 px-2.5 py-1 text-xs font-bold text-sky-200 hover:bg-sky-500/30"
                           >
                             {en ? 'Download' : 'تحميل'}
                           </a>
@@ -838,14 +838,14 @@ export function EmployeeProfileModal360({ employee, isOpen, onClose, locale }: P
                         <p className="text-xs font-bold text-white">
                           {isArabic ? doc.nameAr : doc.nameEn}
                         </p>
-                        <p className="font-mono text-[11px] text-mist-400" dir="ltr">
+                        <p className="font-mono text-xs text-mist-400" dir="ltr">
                           {doc.fileName} · {doc.size}
                         </p>
                         <div className="flex items-center gap-2 pt-0.5">
-                          <span className="rounded-md bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-300 border border-emerald-500/20">
+                          <span className="rounded-md bg-emerald-500/15 px-2 py-0.5 text-xs font-bold text-emerald-300 border border-emerald-500/20">
                             {isArabic ? doc.statusAr : doc.statusEn}
                           </span>
-                          <span className="text-[10px] text-mist-400">
+                          <span className="text-xs text-mist-400">
                             {en ? `Uploaded: ${doc.uploadDate}` : `تاريخ الأرشفة: ${doc.uploadDate}`}
                           </span>
                         </div>
@@ -858,7 +858,7 @@ export function EmployeeProfileModal360({ employee, isOpen, onClose, locale }: P
                         onClick={() =>
                           alert(en ? `Previewing ${doc.fileName}…` : `جاري معاينة مستند ${doc.fileName} في نافذة آمنة…`)
                         }
-                        className="rounded-lg border border-white/15 bg-white/5 px-2.5 py-1 text-[11px] font-semibold text-mist-200 hover:border-white/30 hover:text-white"
+                        className="rounded-lg border border-white/15 bg-white/5 px-2.5 py-1 text-xs font-semibold text-mist-200 hover:border-white/30 hover:text-white"
                       >
                         {en ? 'Preview' : 'معاينة'}
                       </button>
@@ -867,7 +867,7 @@ export function EmployeeProfileModal360({ employee, isOpen, onClose, locale }: P
                         onClick={() =>
                           alert(en ? `Downloading ${doc.fileName}…` : `جاري تحميل ${doc.fileName}…`)
                         }
-                        className="rounded-lg bg-amber-500/20 border border-amber-500/30 px-2.5 py-1 text-[11px] font-bold text-amber-200 hover:bg-amber-500/30"
+                        className="rounded-lg bg-amber-500/20 border border-amber-500/30 px-2.5 py-1 text-xs font-bold text-amber-200 hover:bg-amber-500/30"
                       >
                         {en ? 'Download' : 'تحميل'}
                       </button>
@@ -954,25 +954,25 @@ export function EmployeeProfileModal360({ employee, isOpen, onClose, locale }: P
                 </h3>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
                   <div className="rounded-xl border border-white/5 bg-black/40 p-3">
-                    <span className="text-mist-400 text-[11px] block">{en ? 'Basic Salary' : 'الراتب الأساسي'}</span>
+                    <span className="text-mist-400 text-xs block">{en ? 'Basic Salary' : 'الراتب الأساسي'}</span>
                     <span className="font-mono font-black text-white text-base" dir="ltr">
                       {employee.basicSalary.toFixed(3)} د.ك
                     </span>
                   </div>
                   <div className="rounded-xl border border-white/5 bg-black/40 p-3">
-                    <span className="text-mist-400 text-[11px] block">{en ? 'Allowances' : 'إجمالي البدلات'}</span>
+                    <span className="text-mist-400 text-xs block">{en ? 'Allowances' : 'إجمالي البدلات'}</span>
                     <span className="font-mono font-black text-amber-300 text-base" dir="ltr">
                       +{employee.allowances.toFixed(3)} د.ك
                     </span>
                   </div>
                   <div className="rounded-xl border border-white/5 bg-black/40 p-3">
-                    <span className="text-mist-400 text-[11px] block">{en ? 'Deductions' : 'الخصومات'}</span>
+                    <span className="text-mist-400 text-xs block">{en ? 'Deductions' : 'الخصومات'}</span>
                     <span className="font-mono font-black text-rose-400 text-base" dir="ltr">
                       -{employee.deductions.toFixed(3)} د.ك
                     </span>
                   </div>
                   <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/15 p-3">
-                    <span className="text-emerald-300 text-[11px] font-bold block">{en ? 'Net Package' : 'صافي الراتب المستحق'}</span>
+                    <span className="text-emerald-300 text-xs font-bold block">{en ? 'Net Package' : 'صافي الراتب المستحق'}</span>
                     <span className="font-mono font-black text-emerald-300 text-base" dir="ltr">
                       {employee.netSalary.toFixed(3)} د.ك
                     </span>
@@ -989,9 +989,9 @@ export function EmployeeProfileModal360({ employee, isOpen, onClose, locale }: P
                   <div key={c.tag} className="flex items-center justify-between rounded-xl border border-white/5 bg-black/30 px-3.5 py-2 text-xs">
                     <div>
                       <p className="font-bold text-white">{isArabic ? c.nameAr : c.nameEn}</p>
-                      <p className="font-mono text-[10px] text-mist-400">Tag: {c.tag} · Date: {c.date}</p>
+                      <p className="font-mono text-xs text-mist-400">Tag: {c.tag} · Date: {c.date}</p>
                     </div>
-                    <span className="rounded-lg bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-300 border border-amber-500/20">
+                    <span className="rounded-lg bg-amber-500/15 px-2 py-0.5 text-xs font-bold text-amber-300 border border-amber-500/20">
                       عهدة قيد الاستخدام
                     </span>
                   </div>
@@ -1043,7 +1043,7 @@ export function EmployeeProfileModal360({ employee, isOpen, onClose, locale }: P
                         <p className="text-xs text-white font-medium">
                           {isArabic ? log.actionAr : log.actionEn}
                         </p>
-                        <div className="flex items-center gap-3 text-[10px] text-mist-400 font-mono">
+                        <div className="flex items-center gap-3 text-xs text-mist-400 font-mono">
                           <span>{log.date}</span>
                           <span>•</span>
                           <span className="text-amber-300/80">{log.user}</span>

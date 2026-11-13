@@ -393,7 +393,7 @@ export function VenturePosHub({
               value={selectedCashier}
               onChange={(e) => setSelectedCashier(e.target.value)}
               aria-label={isAr ? 'اختيار الكاشير أو المشرف' : 'Select Cashier or Supervisor'}
-              className="rounded-xl border border-slate-700 bg-slate-900/90 px-2.5 py-1 text-[11px] font-bold text-slate-300 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="rounded-xl border border-slate-700 bg-slate-900/90 px-2.5 py-1 text-xs font-bold text-slate-300 focus:outline-none focus:ring-1 focus:ring-emerald-500"
             >
               <option value="AUTO">
                 {isAr ? 'تلقائي: طاقم الفرع المناوب' : 'Auto: Duty Branch Staff'}
@@ -504,7 +504,7 @@ export function VenturePosHub({
             <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-3.5 shadow-md">
               <div className="text-xs font-bold text-slate-300 mb-2 flex items-center justify-between">
                 <span>{isAr ? 'نوع الطلب وقناة البيع (حساب العمولات والتغليف التلقائي):' : 'Order Channel & Commission Engine:'}</span>
-                <span className="font-mono text-emerald-400 text-[11px]">
+                <span className="font-mono text-emerald-400 text-xs">
                   {isAr ? `العمولة: ${(currentChannelObj.commissionRate * 100).toFixed(0)}%` : `Fee: ${(currentChannelObj.commissionRate * 100).toFixed(0)}%`}
                 </span>
               </div>
@@ -522,7 +522,7 @@ export function VenturePosHub({
                       }`}
                     >
                       <span className="font-bold">{isAr ? ch.labelAr : ch.labelEn}</span>
-                      <span className="text-[10px] text-slate-400 mt-0.5">
+                      <span className="text-xs text-slate-400 mt-0.5">
                         {isAr ? ch.subLabelAr : ch.subLabelEn}
                       </span>
                     </button>
@@ -578,10 +578,10 @@ export function VenturePosHub({
                 >
                   <div>
                     <div className="flex items-center justify-between gap-1">
-                      <span className="font-mono text-[10px] font-bold text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20">
+                      <span className="font-mono text-xs font-bold text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20">
                         {item.code}
                       </span>
-                      <span className="text-[10px] text-slate-400">
+                      <span className="text-xs text-slate-400">
                         {isAr ? item.brandNameAr : item.brandNameEn}
                       </span>
                     </div>
@@ -589,7 +589,7 @@ export function VenturePosHub({
                     <h4 className="mt-2 text-xs font-black text-white group-hover:text-emerald-400 transition-colors">
                       {isAr ? item.nameAr : item.nameEn}
                     </h4>
-                    <p className="text-[10px] text-slate-400 mt-0.5">
+                    <p className="text-xs text-slate-400 mt-0.5">
                       {isAr ? item.categoryAr : item.categoryEn}
                     </p>
                   </div>
@@ -597,7 +597,7 @@ export function VenturePosHub({
                   <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between">
                     <div>
                       <div className="text-sm font-black text-emerald-400">
-                        {item.sellingPrice.toFixed(3)} <span className="text-[10px] text-slate-400">{isAr ? 'د.ك' : 'KWD'}</span>
+                        {item.sellingPrice.toFixed(3)} <span className="text-xs text-slate-400">{isAr ? 'د.ك' : 'KWD'}</span>
                       </div>
                       <div className="text-[9px] text-slate-400">
                         {isAr ? `تغليف PI02: ${item.packagingCost.toFixed(3)} د.ك` : `Packaging: ${item.packagingCost.toFixed(3)} KWD`}
@@ -630,10 +630,10 @@ export function VenturePosHub({
                       {isAr ? 'فاتورة الطلب الحالية' : 'Active Order Basket'}
                     </h3>
                     <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${currentChannelObj.badgeColor}`}>
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${currentChannelObj.badgeColor}`}>
                         {isAr ? currentChannelObj.labelAr : currentChannelObj.labelEn}
                       </span>
-                      <span className="text-[10px] text-slate-400">
+                      <span className="text-xs text-slate-400">
                         {isAr ? 'رقم الطلب الندائي: #108' : 'Calling Order: #108'}
                       </span>
                     </div>
@@ -669,7 +669,7 @@ export function VenturePosHub({
                               {isAr ? item.nameAr : item.nameEn}
                             </span>
                           </div>
-                          <div className="text-[10px] text-slate-400">
+                          <div className="text-xs text-slate-400">
                             {item.sellingPrice.toFixed(3)} × {qty} = <span className="font-bold text-emerald-400">{(item.sellingPrice * qty).toFixed(3)}</span> د.ك
                           </div>
                         </div>
@@ -700,7 +700,7 @@ export function VenturePosHub({
                 {/* 0-KD Staff Meal Authorization PIN */}
                 {currentChannelObj.isStaffMeal && (
                   <div className="rounded-xl border border-purple-500/40 bg-purple-950/40 p-2.5 space-y-1.5">
-                    <div className="text-[11px] font-bold text-purple-300 flex items-center gap-1">
+                    <div className="text-xs font-bold text-purple-300 flex items-center gap-1">
                       <UserCheck size={13} />
                       {isAr ? 'اعتماد وجبة موظف مجانية (0 د.ك)' : 'Authorize 0-KD Staff Meal'}
                     </div>
@@ -841,7 +841,7 @@ export function VenturePosHub({
                   onChange={(e) => setBlindCashCount(e.target.value)}
                   className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3.5 py-2.5 font-mono text-sm font-bold text-emerald-400 focus:outline-none focus:border-emerald-500"
                 />
-                <p className="text-[11px] text-slate-500">
+                <p className="text-xs text-slate-500">
                   {isAr ? 'إجمالي فئات النقدية (20، 10، 5، 1، الفكة)' : 'Sum of counted notes and coins in register'}
                 </p>
               </div>
@@ -858,7 +858,7 @@ export function VenturePosHub({
                   onChange={(e) => setBlindKnetSlips(e.target.value)}
                   className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3.5 py-2.5 font-mono text-sm font-bold text-blue-400 focus:outline-none focus:border-blue-500"
                 />
-                <p className="text-[11px] text-slate-500">
+                <p className="text-xs text-slate-500">
                   {isAr ? 'تقرير التسوية من جهاز نقاط البيع البنكي' : 'Batch close slip from bank terminal'}
                 </p>
               </div>
@@ -875,7 +875,7 @@ export function VenturePosHub({
                   onChange={(e) => setBlindVisaSlips(e.target.value)}
                   className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3.5 py-2.5 font-mono text-sm font-bold text-purple-400 focus:outline-none focus:border-purple-500"
                 />
-                <p className="text-[11px] text-slate-500">
+                <p className="text-xs text-slate-500">
                   {isAr ? 'تسوية فيزا وماستركارد الدولية' : 'International card settlement total'}
                 </p>
               </div>
@@ -913,24 +913,24 @@ export function VenturePosHub({
               <div className="mt-6 space-y-4 pt-6 border-t border-slate-800">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div className="rounded-xl border border-slate-800 bg-slate-950 p-3.5">
-                    <div className="text-[11px] text-slate-400">{isAr ? 'مبيعات النظام الدفترية' : 'Book Register Sales'}</div>
+                    <div className="text-xs text-slate-400">{isAr ? 'مبيعات النظام الدفترية' : 'Book Register Sales'}</div>
                     <div className="text-base font-black text-white mt-1">1,750.600 <span className="text-xs text-slate-400">د.ك</span></div>
-                    <div className="text-[10px] text-slate-500">142 {isAr ? 'فاتورة مكتملة' : 'closed orders'}</div>
+                    <div className="text-xs text-slate-500">142 {isAr ? 'فاتورة مكتملة' : 'closed orders'}</div>
                   </div>
                   <div className="rounded-xl border border-slate-800 bg-slate-950 p-3.5">
-                    <div className="text-[11px] text-slate-400">{isAr ? 'المجموع الفعلي المعدود' : 'Total Counted'}</div>
+                    <div className="text-xs text-slate-400">{isAr ? 'المجموع الفعلي المعدود' : 'Total Counted'}</div>
                     <div className="text-base font-black text-emerald-400 mt-1">1,750.600 <span className="text-xs text-slate-400">د.ك</span></div>
-                    <div className="text-[10px] text-slate-500">{isAr ? 'نقداً + كي نت + بطاقات ائتمان' : 'Cash + K-Net + Visa'}</div>
+                    <div className="text-xs text-slate-500">{isAr ? 'نقداً + كي نت + بطاقات ائتمان' : 'Cash + K-Net + Visa'}</div>
                   </div>
                   <div className="rounded-xl border border-slate-800 bg-slate-950 p-3.5">
-                    <div className="text-[11px] text-slate-400">{isAr ? 'الفارق والعجز/الزيادة' : 'Variance (Over/Short)'}</div>
+                    <div className="text-xs text-slate-400">{isAr ? 'الفارق والعجز/الزيادة' : 'Variance (Over/Short)'}</div>
                     <div className="text-base font-black text-emerald-400 mt-1">0.000 <span className="text-xs text-slate-400">د.ك</span></div>
-                    <div className="text-[10px] text-emerald-400/90 font-bold">{isAr ? 'متطابق تماماً 100%' : '100% Balanced'}</div>
+                    <div className="text-xs text-emerald-400/90 font-bold">{isAr ? 'متطابق تماماً 100%' : '100% Balanced'}</div>
                   </div>
                   <div className="rounded-xl border border-slate-800 bg-slate-950 p-3.5">
-                    <div className="text-[11px] text-slate-400">{isAr ? 'حالة القيد الآلي' : 'GL Voucher Status'}</div>
+                    <div className="text-xs text-slate-400">{isAr ? 'حالة القيد الآلي' : 'GL Voucher Status'}</div>
                     <div className="text-base font-black text-indigo-400 mt-1">JV-POS-OCT-3101</div>
-                    <div className="text-[10px] text-slate-400">{isAr ? 'جاهز للترحيل الفوري' : 'Ready to post'}</div>
+                    <div className="text-xs text-slate-400">{isAr ? 'جاهز للترحيل الفوري' : 'Ready to post'}</div>
                   </div>
                 </div>
               </div>
@@ -986,7 +986,7 @@ export function VenturePosHub({
                     <td className="py-3 px-3 text-center text-slate-400">{row.rate}</td>
                     <td className="py-3 px-3 text-left text-rose-400">-{row.fee.toFixed(3)}</td>
                     <td className="py-3 px-3 text-left font-black text-emerald-400">{row.net.toFixed(3)}</td>
-                    <td className="py-3 px-3 text-center text-slate-400 font-sans text-[11px]">{row.cycle}</td>
+                    <td className="py-3 px-3 text-center text-slate-400 font-sans text-xs">{row.cycle}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1045,7 +1045,7 @@ export function VenturePosHub({
                   <tr key={idx} className="hover:bg-slate-800/40 transition-colors font-sans">
                     <td className="py-3 px-3 font-mono font-bold text-slate-300">{row.ref}</td>
                     <td className="py-3 px-3">
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${row.typeColor}`}>
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${row.typeColor}`}>
                         {isAr ? row.typeAr : row.typeEn}
                       </span>
                     </td>
@@ -1053,7 +1053,7 @@ export function VenturePosHub({
                     <td className="py-3 px-3 font-mono font-black text-rose-400 text-left">{row.amount.toFixed(3)}</td>
                     <td className="py-3 px-3 text-slate-300 text-xs">{isAr ? row.reasonAr : row.reasonEn}</td>
                     <td className="py-3 px-3 text-slate-300">{isAr ? row.managerAr : row.managerEn}</td>
-                    <td className="py-3 px-3 font-mono text-[11px] text-indigo-400">{isAr ? row.ccAr : row.ccEn}</td>
+                    <td className="py-3 px-3 font-mono text-xs text-indigo-400">{isAr ? row.ccAr : row.ccEn}</td>
                   </tr>
                 ))}
               </tbody>

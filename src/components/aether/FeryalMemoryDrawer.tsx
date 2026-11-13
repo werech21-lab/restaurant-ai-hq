@@ -140,7 +140,7 @@ export function FeryalMemoryDrawer({
               <div className="text-[20px] font-extrabold tabular-nums text-slate-950 dark:text-white">
                 {memory.rules.length}
               </div>
-              <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+              <div className="text-xs font-bold text-slate-500 dark:text-slate-400">
                 {isAr ? 'قواعد الشركة' : 'Firm Rules'}
               </div>
             </div>
@@ -148,7 +148,7 @@ export function FeryalMemoryDrawer({
               <div className="text-[20px] font-extrabold tabular-nums text-emerald-700 dark:text-emerald-400">
                 {memory.outcomes.length}
               </div>
-              <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+              <div className="text-xs font-bold text-slate-500 dark:text-slate-400">
                 {isAr ? 'خطة رابحة ✅' : 'Proven Wins'}
               </div>
             </div>
@@ -156,7 +156,7 @@ export function FeryalMemoryDrawer({
               <div className="text-[20px] font-extrabold tabular-nums text-slate-950 dark:text-white">
                 {memory.preferences.length}
               </div>
-              <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+              <div className="text-xs font-bold text-slate-500 dark:text-slate-400">
                 {isAr ? 'تفضيلات الإدارة' : 'Preferences'}
               </div>
             </div>
@@ -164,7 +164,7 @@ export function FeryalMemoryDrawer({
               <div className="text-[20px] font-extrabold tabular-nums text-slate-950 dark:text-white">
                 {memory.snapshots.length}
               </div>
-              <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+              <div className="text-xs font-bold text-slate-500 dark:text-slate-400">
                 {isAr ? 'لقطات أودو' : 'Snapshots'}
               </div>
             </div>
@@ -178,7 +178,7 @@ export function FeryalMemoryDrawer({
                   {isAr ? '+ علّم فريال معلومة دائمة' : '+ Teach Feryal a Permanent Rule'}
                 </span>
                 {teachSaved ? (
-                  <span className="text-[11.5px] font-bold text-emerald-600 dark:text-emerald-400">
+                  <span className="text-[13px] font-bold text-emerald-600 dark:text-emerald-400">
                     {isAr ? 'تم الحفظ في الذاكرة الدائمة ✓' : 'Saved to permanent memory ✓'}
                   </span>
                 ) : null}
@@ -190,7 +190,7 @@ export function FeryalMemoryDrawer({
                     key={c.id}
                     type="button"
                     onClick={() => setTeachCat(c.id)}
-                    className={`cursor-pointer rounded-full px-2.5 py-1 text-[11px] font-bold transition-all ${
+                    className={`cursor-pointer rounded-full px-2.5 py-1 text-xs font-bold transition-all ${
                       teachCat === c.id
                         ? 'btn-colored bg-emerald-600 text-white dark:bg-[#10B981] dark:text-[#04130D]'
                         : 'ae-bento-subcard text-slate-600 dark:text-slate-300'
@@ -238,7 +238,7 @@ export function FeryalMemoryDrawer({
                 <div key={r.id} className="ae-bento-subcard rounded-2xl p-3.5">
                   <div className="mb-1 flex items-center justify-between gap-2">
                     <span
-                      className={`rounded-full px-2 py-0.5 text-[10.5px] font-bold ${
+                      className={`rounded-full px-2 py-0.5 text-xs font-bold ${
                         r.source === 'preseeded'
                           ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
                           : 'bg-sky-50 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300'
@@ -287,7 +287,7 @@ export function FeryalMemoryDrawer({
                 <button
                   type="button"
                   onClick={() => setShowAddOutcome((v) => !v)}
-                  className="text-[11.5px] font-bold text-emerald-700 hover:underline dark:text-emerald-400"
+                  className="text-[13px] font-bold text-emerald-700 hover:underline dark:text-emerald-400"
                 >
                   {isAr ? '+ تسجيل خطة رابحة' : '+ Log Winner'}
                 </button>
@@ -339,7 +339,7 @@ export function FeryalMemoryDrawer({
               {memory.outcomes.map((o) => (
                 <div key={o.id} className="ae-bento-subcard space-y-2 rounded-2xl p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-extrabold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-extrabold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
                       <CheckCircle2 className="h-3.5 w-3.5" />
                       {isAr ? 'خطة مجرّبة ورابحة ✅' : 'Proven Winner ✅'}
                     </span>
@@ -350,7 +350,7 @@ export function FeryalMemoryDrawer({
                   <div className="text-[13.5px] font-extrabold text-slate-950 dark:text-white">
                     {isAr ? o.titleAr : o.titleEn}
                   </div>
-                  <div className="text-[11.5px] font-semibold text-slate-500 dark:text-slate-400">
+                  <div className="text-[13px] font-semibold text-slate-500 dark:text-slate-400">
                     {isAr
                       ? `${o.originBrandAr} • ${o.originBranchAr} — ${o.afterMetricAr}`
                       : `${o.originBrandEn} • ${o.originBranchEn}`}
@@ -394,7 +394,7 @@ export function FeryalMemoryDrawer({
               {isAr ? '٣. سجل لقطات أودو الطولية (تتبع الاتجاه)' : '3. Longitudinal Odoo Daily Snapshots'}
             </h3>
             <div className="ae-bento-subcard overflow-x-auto rounded-2xl p-3">
-              <table className="w-full text-start text-[11.5px]">
+              <table className="w-full text-start text-[13px]">
                 <thead>
                   <tr className="border-b border-slate-200/70 text-slate-500 dark:border-white/10">
                     <th className="pb-2 text-start font-bold">{isAr ? 'التاريخ' : 'Date'}</th>

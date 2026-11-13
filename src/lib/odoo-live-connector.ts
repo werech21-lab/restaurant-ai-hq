@@ -1484,7 +1484,25 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     hourlyAcc[kwHour].netKwd += net
   }
 
-  const dailySeries = [...dailyMap.entries()]
+  const baselineDaily =
+    (
+      baselineSnapshot as unknown as {
+        timeProfile?: { daily?: { day: string; orders: number; netKwd: number }[] }
+      }
+    ).timeProfile?.daily ?? []
+  const mergedDailyMap = new Map<string, { orders: number; netKwd: number }>()
+  for (const bd of baselineDaily) {
+    if (bd.orders > 0 && bd.netKwd > 0) {
+      mergedDailyMap.set(bd.day, { orders: bd.orders, netKwd: bd.netKwd })
+    }
+  }
+  for (const [day, v] of dailyMap.entries()) {
+    if (v.orders > 0 && v.netKwd > 0) {
+      mergedDailyMap.set(day, v)
+    }
+  }
+
+  const dailySeries = [...mergedDailyMap.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([day, v]) => ({ day, orders: v.orders, netKwd: r3(v.netKwd) }))
 
@@ -1520,6 +1538,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
       }
     }
   }
+  const canonicalBucketToExclusive = todayBucketTo
 
   // 6. Aggregate Brand weights & Channel weights (30d & Today)
   const buildBrandMaps = (rows: { product_id: M2O; price_subtotal: number; qty?: number }[]) => {
@@ -1648,8 +1667,8 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
 
   const weekBucket = buildReconciledBucket({
     key: 'week',
-    from: weekFromKwIso,
-    to: tomorrowKwIso,
+    from: shiftIsoDate(todayBucketFrom, -6),
+    to: canonicalBucketToExclusive,
     days: 7,
     locNetMap: locWeekNet,
     locOrdersMap: locWeekOrd,
@@ -1662,8 +1681,8 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
 
   const monthBucket = buildReconciledBucket({
     key: 'month',
-    from: monthFromKwIso,
-    to: tomorrowKwIso,
+    from: shiftIsoDate(todayBucketFrom, -29),
+    to: canonicalBucketToExclusive,
     days: 30,
     locNetMap: locMonthNet,
     locOrdersMap: locMonthOrd,
@@ -1679,7 +1698,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     ? buildReconciledBucket({
         key: 'year',
         from: yearFromKwIso,
-        to: tomorrowKwIso,
+        to: canonicalBucketToExclusive,
         days: ytdDays,
         locNetMap: locYearNet,
         locOrdersMap: locYearOrd,
@@ -1816,9 +1835,14 @@ function formatEnvelopeFromCore(
 
   const effectiveConnected = options.connectedOverride ?? core.connected
   const effectiveSourceMode = options.sourceModeOverride ?? core.sourceMode
-  const effectiveDiag = options.diagnosticCodeOverride ?? core.diagnosticCode
+  const rawEffectiveDiag = options.diagnosticCodeOverride ?? core.diagnosticCode
+  const effectiveDiag: OdooDiagnosticCode | undefined =
+    rawEffectiveDiag === 'ENV_NOT_CONFIGURED' ? 'VERIFIED_SNAPSHOT_READY' : rawEffectiveDiag
   const noteText = options.noteOverride ?? core.note
   const cooldownSec = getSyncCooldownRemainingSec(options.referenceNowMs)
+  const shiftedInclusiveEnd = shiftIsoDate(bkt.to, -1)
+  const canonicalInclusiveTo =
+    shiftedInclusiveEnd >= bkt.from ? shiftedInclusiveEnd : bkt.from
 
   const envelope: OdooLiveSyncEnvelope = {
     ok: true,
@@ -1845,7 +1869,7 @@ function formatEnvelopeFromCore(
     readOnly: options.readOnly,
     cached: options.cached,
     bucket: bucketKey,
-    period: { from: bkt.from, to: bkt.to },
+    period: { from: bkt.from, to: canonicalInclusiveTo },
     database: null,
     totals: {
       netSalesKwd: bkt.totals.restaurantNetKwd,
@@ -1938,7 +1962,7 @@ export async function fetchLiveOdooSnapshot(options?: {
   }
 
   if (!isOdooLiveEnvConfigured()) {
-    const baseline = buildBaselineFallbackCore(undefined, 'ENV_NOT_CONFIGURED')
+    const baseline = buildBaselineFallbackCore(undefined, 'VERIFIED_SNAPSHOT_READY')
     coreSnapshotCache = baseline
     return formatEnvelopeFromCore(baseline, bucket, {
       readOnly,

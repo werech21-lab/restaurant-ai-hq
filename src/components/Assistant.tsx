@@ -147,14 +147,14 @@ export default function Assistant({ onOpen }: { onOpen: (id: SectionId) => void 
           </div>
 
           <div className="border-t border-gold-300/10 px-3 py-3">
-            <p className="mb-2 text-[11px] text-mist-500">{t('assistant.suggestions')}</p>
+            <p className="mb-2 text-xs text-mist-500">{t('assistant.suggestions')}</p>
             <div className="mb-3 flex flex-wrap gap-1.5">
               {suggestions.map((question) => (
                 <button
                   key={question}
                   type="button"
                   onClick={() => ask(question)}
-                  className="cursor-pointer rounded-full border border-[#30363d] bg-[#161b22] px-2.5 py-1 text-start text-[11px] leading-5 text-gray-200 transition hover:border-blue-500/50 hover:text-white"
+                  className="cursor-pointer rounded-full border border-[#30363d] bg-[#161b22] px-2.5 py-1 text-start text-xs leading-5 text-gray-200 transition hover:border-blue-500/50 hover:text-white"
                 >
                   {question}
                 </button>

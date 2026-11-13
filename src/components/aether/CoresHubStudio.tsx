@@ -934,7 +934,7 @@ export function CoresHubStudio() {
               >
                 {f1(snap.marketing.kpis.roasPer1Kwd)}x
               </div>
-              <p className="mt-1 text-[11.5px] sm:text-[13px] leading-snug text-neutral-500 dark:text-slate-400">
+              <p className="mt-1 text-[13px] sm:text-[13px] leading-snug text-neutral-500 dark:text-slate-400">
                 {isAr ? 'مبيعات لكل 1 د.ك عروض وإعلان' : 'Sales per 1 KWD promo & ad spend'}
               </p>
             </article>
@@ -947,7 +947,7 @@ export function CoresHubStudio() {
                 </span>
                 <span
                   dir="ltr"
-                  className="rounded-lg bg-amber-50 px-2 py-0.5 text-[10.5px] sm:text-[11.5px] font-bold tabular-nums text-amber-800 dark:bg-amber-950/60 dark:text-amber-300"
+                  className="rounded-lg bg-amber-50 px-2 py-0.5 text-xs sm:text-[13px] font-bold tabular-nums text-amber-800 dark:bg-amber-950/60 dark:text-amber-300"
                 >
                   {f1(snap.marketing.kpis.marketingCostPctOfSales)}%{' '}
                   {isAr ? 'من المبيعات' : 'of sales'}
@@ -959,7 +959,7 @@ export function CoresHubStudio() {
               >
                 {f0(snap.marketing.kpis.totalMarketingCostKwd)} {kwdSuffix}
               </div>
-              <p className="mt-1 text-[11.5px] sm:text-[13px] leading-snug text-neutral-500 dark:text-slate-400">
+              <p className="mt-1 text-[13px] sm:text-[13px] leading-snug text-neutral-500 dark:text-slate-400">
                 {isAr ? 'خصومات الكاشير والتطبيقات والحملات' : 'POS discounts, app promos & ads'}
               </p>
             </article>
@@ -972,7 +972,7 @@ export function CoresHubStudio() {
                 </span>
                 <span
                   dir="ltr"
-                  className="rounded-lg bg-emerald-50 px-2 py-0.5 text-[10.5px] sm:text-[11.5px] font-bold tabular-nums text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+                  className="rounded-lg bg-emerald-50 px-2 py-0.5 text-xs sm:text-[13px] font-bold tabular-nums text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
                 >
                   {isAr ? 'فائض العروض' : 'Net Surplus'}
                 </span>
@@ -983,7 +983,7 @@ export function CoresHubStudio() {
               >
                 {f0(snap.marketing.kpis.netAfterAdSpendKwd)} {kwdSuffix}
               </div>
-              <p className="mt-1 text-[11.5px] sm:text-[13px] leading-snug text-neutral-500 dark:text-slate-400">
+              <p className="mt-1 text-[13px] sm:text-[13px] leading-snug text-neutral-500 dark:text-slate-400">
                 {isAr
                   ? 'مبيعات العروض بعد خصم تكلفة الإعلان والخصم'
                   : 'Promo sales retained after discounts & ad spend'}
@@ -998,7 +998,7 @@ export function CoresHubStudio() {
                 </span>
                 <span
                   dir="ltr"
-                  className={`shrink-0 rounded-lg px-2 py-0.5 text-[10.5px] sm:text-[11.5px] font-bold tabular-nums ${
+                  className={`shrink-0 rounded-lg px-2 py-0.5 text-xs sm:text-[13px] font-bold tabular-nums ${
                     snap.marketing.kpis.aovDeltaPct >= 0
                       ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
                       : 'bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
@@ -1017,7 +1017,7 @@ export function CoresHubStudio() {
                   vs {f2(snap.marketing.kpis.organicAovKwd)} {kwdSuffix}
                 </span>
               </div>
-              <p className="mt-1 text-[11.5px] sm:text-[13px] leading-snug text-neutral-500 dark:text-slate-400">
+              <p className="mt-1 text-[13px] sm:text-[13px] leading-snug text-neutral-500 dark:text-slate-400">
                 {isAr
                   ? `فرق السلة: ${snap.marketing.kpis.aovDeltaKwd >= 0 ? '+' : ''}${f2(snap.marketing.kpis.aovDeltaKwd)} د.ك للطلب`
                   : `Basket delta: ${snap.marketing.kpis.aovDeltaKwd >= 0 ? '+' : ''}${f2(snap.marketing.kpis.aovDeltaKwd)} KWD/order`}
@@ -1232,13 +1232,13 @@ export function CoresHubStudio() {
                       <span className="text-xs font-semibold text-emerald-900 dark:text-emerald-300">
                         {isAr ? 'فترة الإعلان / العرض (بعد)' : 'Ad / Promo Date Window (After)'}
                       </span>
-                      <span className="text-[11px] font-semibold text-emerald-700 tabular-nums dark:text-emerald-300">
+                      <span className="text-xs font-semibold text-emerald-700 tabular-nums dark:text-emerald-300">
                         {liveFormPreview.windowDays} {isAr ? 'يوم' : 'days'}
                       </span>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="mb-1 block text-[11px] text-neutral-500">
+                        <label className="mb-1 block text-xs text-neutral-500">
                           {isAr ? 'من تاريخ' : 'Start Date'}
                         </label>
                         <input
@@ -1250,7 +1250,7 @@ export function CoresHubStudio() {
                         />
                       </div>
                       <div>
-                        <label className="mb-1 block text-[11px] text-neutral-500">
+                        <label className="mb-1 block text-xs text-neutral-500">
                           {isAr ? 'إلى تاريخ' : 'End Date'}
                         </label>
                         <input
@@ -1277,7 +1277,7 @@ export function CoresHubStudio() {
                             setFormCompareStartDate(shiftIsoDate(formStartDate, -span))
                             setFormCompareEndDate(shiftIsoDate(formStartDate, -1))
                           }}
-                          className="cursor-pointer rounded-md bg-neutral-100 px-2 py-0.5 text-[10.5px] font-semibold text-neutral-700 hover:bg-emerald-50 hover:text-emerald-800 dark:bg-white/10 dark:text-slate-300"
+                          className="cursor-pointer rounded-md bg-neutral-100 px-2 py-0.5 text-xs font-semibold text-neutral-700 hover:bg-emerald-50 hover:text-emerald-800 dark:bg-white/10 dark:text-slate-300"
                         >
                           {isAr ? 'الأيام السابقة' : 'Prior Days'}
                         </button>
@@ -1287,7 +1287,7 @@ export function CoresHubStudio() {
                             setFormCompareStartDate(shiftIsoDate(formStartDate, -7))
                             setFormCompareEndDate(shiftIsoDate(formEndDate, -7))
                           }}
-                          className="cursor-pointer rounded-md bg-neutral-100 px-2 py-0.5 text-[10.5px] font-semibold text-neutral-700 hover:bg-emerald-50 hover:text-emerald-800 dark:bg-white/10 dark:text-slate-300"
+                          className="cursor-pointer rounded-md bg-neutral-100 px-2 py-0.5 text-xs font-semibold text-neutral-700 hover:bg-emerald-50 hover:text-emerald-800 dark:bg-white/10 dark:text-slate-300"
                         >
                           {isAr ? 'نفس الأيام الأسبوع الماضي' : 'Same Days Last Week'}
                         </button>
@@ -1295,7 +1295,7 @@ export function CoresHubStudio() {
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="mb-1 block text-[11px] text-neutral-500">
+                        <label className="mb-1 block text-xs text-neutral-500">
                           {isAr ? 'مقارنة من' : 'Compare From'}
                         </label>
                         <input
@@ -1306,7 +1306,7 @@ export function CoresHubStudio() {
                         />
                       </div>
                       <div>
-                        <label className="mb-1 block text-[11px] text-neutral-500">
+                        <label className="mb-1 block text-xs text-neutral-500">
                           {isAr ? 'مقارنة إلى' : 'Compare To'}
                         </label>
                         <input
@@ -1323,7 +1323,7 @@ export function CoresHubStudio() {
                 {/* Live Instant Odoo Before-vs-After Preview Strip */}
                 <div className="mt-3 grid grid-cols-2 gap-2.5 rounded-xl bg-white p-3 ring-1 ring-slate-900/[0.05] lg:grid-cols-4 dark:bg-[#101C17] dark:ring-emerald-500/15">
                   <div className="tabular-nums">
-                    <div className="text-[11px] font-medium text-neutral-500 dark:text-slate-400">
+                    <div className="text-xs font-medium text-neutral-500 dark:text-slate-400">
                       {isAr ? 'المبيعات قبل ← بعد' : 'Before → After Sales'}
                     </div>
                     <div dir="ltr" className="mt-0.5 text-[13.5px] font-semibold text-neutral-950 dark:text-white">
@@ -1331,7 +1331,7 @@ export function CoresHubStudio() {
                     </div>
                   </div>
                   <div className="tabular-nums">
-                    <div className="text-[11px] font-medium text-neutral-500 dark:text-slate-400">
+                    <div className="text-xs font-medium text-neutral-500 dark:text-slate-400">
                       {isAr ? 'الزيادة الفعلية والطلبات' : 'Real Sales & Order Lift'}
                     </div>
                     <div
@@ -1348,7 +1348,7 @@ export function CoresHubStudio() {
                     </div>
                   </div>
                   <div className="tabular-nums">
-                    <div className="text-[11px] font-medium text-neutral-500 dark:text-slate-400">
+                    <div className="text-xs font-medium text-neutral-500 dark:text-slate-400">
                       {isAr ? 'تكلفة الأكل + العمولة' : 'Food + Aggregator Cost'}
                     </div>
                     <div dir="ltr" className="mt-0.5 text-[13.5px] font-semibold text-neutral-800 dark:text-slate-200">
@@ -1356,7 +1356,7 @@ export function CoresHubStudio() {
                     </div>
                   </div>
                   <div className="tabular-nums">
-                    <div className="text-[11px] font-medium text-neutral-500 dark:text-slate-400">
+                    <div className="text-xs font-medium text-neutral-500 dark:text-slate-400">
                       {isAr ? 'صافي الربح بعد الإعلان' : 'Net Pocket After Ad'}
                     </div>
                     <div
@@ -1690,7 +1690,7 @@ export function CoresHubStudio() {
                   </span>
                   <span
                     dir="ltr"
-                    className="shrink-0 rounded-lg bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+                    className="shrink-0 rounded-lg bg-emerald-50 px-2 py-0.5 text-xs font-semibold tabular-nums text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
                   >
                     {snap.marketing.dishOfTheWeek.marginPct}%
                   </span>
@@ -1858,7 +1858,7 @@ export function CoresHubStudio() {
                 <span className="text-xs sm:text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
                   {isAr ? 'صافي المبيعات والطلبات' : 'Total Net Sales'}
                 </span>
-                <span className="rounded-lg bg-neutral-100 px-2 py-0.5 text-[10.5px] sm:text-[11.5px] font-semibold text-neutral-700 dark:bg-white/[0.08] dark:text-slate-200">
+                <span className="rounded-lg bg-neutral-100 px-2 py-0.5 text-xs sm:text-[13px] font-semibold text-neutral-700 dark:bg-white/[0.08] dark:text-slate-200">
                   {getPeriodLabel(filters.period, isAr)}
                 </span>
               </div>
@@ -1868,7 +1868,7 @@ export function CoresHubStudio() {
               >
                 {f0(workspace.salesKwd)} {kwdSuffix}
               </div>
-              <p dir="ltr" className="mt-1 text-[11.5px] sm:text-[13px] leading-snug tabular-nums text-neutral-500 dark:text-slate-400">
+              <p dir="ltr" className="mt-1 text-[13px] sm:text-[13px] leading-snug tabular-nums text-neutral-500 dark:text-slate-400">
                 {f0(workspace.orders)} {isAr ? 'طلب' : 'orders'} • {isAr ? 'متوسط' : 'Avg'}{' '}
                 {f2(workspace.aovKwd)} {kwdSuffix}
               </p>
@@ -1882,7 +1882,7 @@ export function CoresHubStudio() {
                 </span>
                 <span
                   dir="ltr"
-                  className="shrink-0 rounded-lg bg-emerald-50 px-2 py-0.5 text-[10.5px] sm:text-[11.5px] font-bold tabular-nums text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+                  className="shrink-0 rounded-lg bg-emerald-50 px-2 py-0.5 text-xs sm:text-[13px] font-bold tabular-nums text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
                 >
                   {f1(snap.sales.zeroCommSharePct)}%
                 </span>
@@ -1893,7 +1893,7 @@ export function CoresHubStudio() {
               >
                 {f0(snap.sales.zeroCommDisplayKwd)} {kwdSuffix}
               </div>
-              <p className="mt-1 text-[11.5px] sm:text-[13px] leading-snug tabular-nums text-neutral-500 dark:text-slate-400">
+              <p className="mt-1 text-[13px] sm:text-[13px] leading-snug tabular-nums text-neutral-500 dark:text-slate-400">
                 {isAr
                   ? `صالة وسفري مباشر • ${f0(snap.sales.zeroCommOrders)} طلب`
                   : `Dine-In + Takeaway • ${f0(snap.sales.zeroCommOrders)} orders`}
@@ -1906,7 +1906,7 @@ export function CoresHubStudio() {
                 <span className="text-xs sm:text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
                   {isAr ? 'ذروة المبيعات اليومية' : 'Peak Sales Hour'}
                 </span>
-                <span className="shrink-0 rounded-lg bg-sky-50 px-2 py-0.5 text-[10.5px] sm:text-[11.5px] font-semibold text-sky-800 dark:bg-sky-950/60 dark:text-sky-300">
+                <span className="shrink-0 rounded-lg bg-sky-50 px-2 py-0.5 text-xs sm:text-[13px] font-semibold text-sky-800 dark:bg-sky-950/60 dark:text-sky-300">
                   {isAr
                     ? `الأقوى: ${snap.sales.strongestDayLabelAr}`
                     : `Top: ${snap.sales.strongestDayLabelEn}`}
@@ -1919,7 +1919,7 @@ export function CoresHubStudio() {
                 {isAr ? snap.sales.peakHourShortAr : snap.sales.peakHourShortEn} •{' '}
                 {f0(snap.sales.peakHourDisplayKwd)} {kwdSuffix}
               </div>
-              <p className="mt-1 text-[11.5px] sm:text-[13px] leading-snug tabular-nums text-neutral-500 dark:text-slate-400">
+              <p className="mt-1 text-[13px] sm:text-[13px] leading-snug tabular-nums text-neutral-500 dark:text-slate-400">
                 {isAr
                   ? `${f0(snap.sales.peakHourOrders)} طلب (${f1(snap.sales.peakHourSharePct)}% من اليوم)`
                   : `${f0(snap.sales.peakHourOrders)} orders (${f1(snap.sales.peakHourSharePct)}% of day)`}
@@ -1934,7 +1934,7 @@ export function CoresHubStudio() {
                 </span>
                 <span
                   dir="ltr"
-                  className="shrink-0 rounded-lg bg-emerald-50 px-2 py-0.5 text-[10.5px] sm:text-[11.5px] font-bold tabular-nums text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+                  className="shrink-0 rounded-lg bg-emerald-50 px-2 py-0.5 text-xs sm:text-[13px] font-bold tabular-nums text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
                 >
                   +{f0(snap.sales.quietWindowUpsideKwd)} {kwdSuffix}
                 </span>
@@ -1945,7 +1945,7 @@ export function CoresHubStudio() {
               >
                 {f0(snap.sales.quietWindowDisplayKwd)} {kwdSuffix}
               </div>
-              <p className="mt-1 text-[11.5px] sm:text-[13px] leading-snug tabular-nums text-neutral-500 dark:text-slate-400">
+              <p className="mt-1 text-[13px] sm:text-[13px] leading-snug tabular-nums text-neutral-500 dark:text-slate-400">
                 {isAr
                   ? `${f1(snap.sales.quietWindowSharePct)}% من المبيعات • جاهزة لعروض العصر`
                   : `${f1(snap.sales.quietWindowSharePct)}% of sales • recoverable combo upside`}
@@ -2043,14 +2043,14 @@ export function CoresHubStudio() {
                     <button
                       type="button"
                       onClick={() => setBrand('all')}
-                      className="cursor-pointer rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 transition-colors duration-150 hover:bg-emerald-100 dark:bg-emerald-950/70 dark:text-emerald-200"
+                      className="cursor-pointer rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 transition-colors duration-150 hover:bg-emerald-100 dark:bg-emerald-950/70 dark:text-emerald-200"
                     >
                       {isAr ? 'الكل ✕' : 'All ✕'}
                     </button>
                   ) : null}
                   <span
                     dir="ltr"
-                    className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-medium tabular-nums text-neutral-700 dark:bg-white/[0.08] dark:text-slate-200"
+                    className="rounded-full bg-neutral-100 px-2.5 py-1 text-xs font-medium tabular-nums text-neutral-700 dark:bg-white/[0.08] dark:text-slate-200"
                   >
                     100.0% · {f0(workspace.salesKwd)} {kwdSuffix}
                   </span>
@@ -2081,14 +2081,14 @@ export function CoresHubStudio() {
                     <button
                       type="button"
                       onClick={() => setBranch('all')}
-                      className="cursor-pointer rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 transition-colors duration-150 hover:bg-emerald-100 dark:bg-emerald-950/70 dark:text-emerald-200"
+                      className="cursor-pointer rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 transition-colors duration-150 hover:bg-emerald-100 dark:bg-emerald-950/70 dark:text-emerald-200"
                     >
                       {isAr ? 'الكل ✕' : 'All ✕'}
                     </button>
                   ) : null}
                   <span
                     dir="ltr"
-                    className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-medium tabular-nums text-neutral-700 dark:bg-white/[0.08] dark:text-slate-200"
+                    className="rounded-full bg-neutral-100 px-2.5 py-1 text-xs font-medium tabular-nums text-neutral-700 dark:bg-white/[0.08] dark:text-slate-200"
                   >
                     100.0% · {f0(workspace.salesKwd)} {kwdSuffix}
                   </span>
@@ -2119,14 +2119,14 @@ export function CoresHubStudio() {
                     <button
                       type="button"
                       onClick={() => setChannel('all')}
-                      className="cursor-pointer rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 transition-colors duration-150 hover:bg-emerald-100 dark:bg-emerald-950/70 dark:text-emerald-200"
+                      className="cursor-pointer rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 transition-colors duration-150 hover:bg-emerald-100 dark:bg-emerald-950/70 dark:text-emerald-200"
                     >
                       {isAr ? 'الكل ✕' : 'All ✕'}
                     </button>
                   ) : null}
                   <span
                     dir="ltr"
-                    className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-medium tabular-nums text-neutral-700 dark:bg-white/[0.08] dark:text-slate-200"
+                    className="rounded-full bg-neutral-100 px-2.5 py-1 text-xs font-medium tabular-nums text-neutral-700 dark:bg-white/[0.08] dark:text-slate-200"
                   >
                     100.0% · {f0(workspace.salesKwd)} {kwdSuffix}
                   </span>
@@ -2156,7 +2156,7 @@ export function CoresHubStudio() {
                 <span className="text-xs sm:text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
                   {isAr ? 'الأصناف النشطة' : 'Active Menu Items'}
                 </span>
-                <span className="rounded-lg bg-neutral-100 px-2 py-0.5 text-[10.5px] sm:text-[11.5px] font-semibold tabular-nums text-neutral-700 dark:bg-white/[0.08] dark:text-slate-200">
+                <span className="rounded-lg bg-neutral-100 px-2 py-0.5 text-xs sm:text-[13px] font-semibold tabular-nums text-neutral-700 dark:bg-white/[0.08] dark:text-slate-200">
                   {isAr
                     ? `⭐ ${snap.menu.quadrantCounts.golden} · 💎 ${snap.menu.quadrantCounts['box-gem']}`
                     : `⭐ ${snap.menu.quadrantCounts.golden} · 💎 ${snap.menu.quadrantCounts['box-gem']}`}
@@ -2168,7 +2168,7 @@ export function CoresHubStudio() {
               >
                 {f0(snap.menu.totalActiveSkus)} {isAr ? 'صنف' : 'items'}
               </div>
-              <p className="mt-1 text-[11.5px] sm:text-[13px] leading-snug text-neutral-500 dark:text-slate-400">
+              <p className="mt-1 text-[13px] sm:text-[13px] leading-snug text-neutral-500 dark:text-slate-400">
                 {isAr ? 'مربوطة بوصفات العارضية ونقاط البيع' : 'Linked to Ardiya BOM & POS sales'}
               </p>
             </article>
@@ -2180,7 +2180,7 @@ export function CoresHubStudio() {
                 </span>
                 <span
                   dir="ltr"
-                  className="rounded-lg bg-neutral-100 px-2 py-0.5 text-[10.5px] sm:text-[11.5px] font-semibold tabular-nums text-neutral-700 dark:bg-white/[0.08] dark:text-slate-200"
+                  className="rounded-lg bg-neutral-100 px-2 py-0.5 text-xs sm:text-[13px] font-semibold tabular-nums text-neutral-700 dark:bg-white/[0.08] dark:text-slate-200"
                 >
                   {f0(snap.menu.totalSalesKwd)} {kwdSuffix}
                 </span>
@@ -2191,7 +2191,7 @@ export function CoresHubStudio() {
               >
                 {f0(snap.menu.totalUnitsSold)} {isAr ? 'طبق' : 'units'}
               </div>
-              <p className="mt-1 text-[11.5px] sm:text-[13px] leading-snug text-neutral-500 dark:text-slate-400">
+              <p className="mt-1 text-[13px] sm:text-[13px] leading-snug text-neutral-500 dark:text-slate-400">
                 {isAr ? 'مطابق 100% لصافي مبيعات أودو' : '100% reconciled to Odoo net sales'}
               </p>
             </article>
@@ -2201,7 +2201,7 @@ export function CoresHubStudio() {
                 <span className="whitespace-normal text-xs sm:text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
                   {isAr ? 'فرصة تحسين التسعير والكومبو' : 'Menu Optimization Upside'}
                 </span>
-                <span className="shrink-0 rounded-lg bg-emerald-50 px-2 py-0.5 text-[10.5px] sm:text-[11.5px] font-bold tabular-nums text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+                <span className="shrink-0 rounded-lg bg-emerald-50 px-2 py-0.5 text-xs sm:text-[13px] font-bold tabular-nums text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
                   {isAr ? 'ثبات 95%' : '95% Retention'}
                 </span>
               </div>
@@ -2211,7 +2211,7 @@ export function CoresHubStudio() {
               >
                 +{f0(snap.menu.optimizationUpsideKwd)} {kwdSuffix}
               </div>
-              <p className="mt-1 text-[11.5px] sm:text-[13px] leading-snug text-neutral-500 dark:text-slate-400">
+              <p className="mt-1 text-[13px] sm:text-[13px] leading-snug text-neutral-500 dark:text-slate-400">
                 {isAr
                   ? 'صافي متحفظ بعد خصم عمولة التطبيقات'
                   : 'Conservative net gain after app fees'}
@@ -2237,7 +2237,7 @@ export function CoresHubStudio() {
               </div>
               <p
                 dir="ltr"
-                className="mt-1 text-[11.5px] sm:text-xs font-semibold tabular-nums text-emerald-700 dark:text-emerald-400"
+                className="mt-1 text-[13px] sm:text-xs font-semibold tabular-nums text-emerald-700 dark:text-emerald-400"
               >
                 {snap.menu.topProfitDish
                   ? `+${f0(snap.menu.topProfitDish.netProfitKwd)} ${kwdSuffix} · ${f0(snap.menu.topProfitDish.unitsSold)} ${isAr ? 'طبق' : 'units'}`
@@ -2311,7 +2311,7 @@ export function CoresHubStudio() {
                           ? 'أعلى 8 أطباق تدرّ صافياً بالجيب 🟢'
                           : 'Top 8 Profit Heroes 🟢'}
                       </h3>
-                      <span className="text-[11px] font-medium text-neutral-400">
+                      <span className="text-xs font-medium text-neutral-400">
                         {isAr ? 'الربح الصافي بعد الأكل' : 'Net Dish Profit'}
                       </span>
                     </div>
@@ -2337,7 +2337,7 @@ export function CoresHubStudio() {
                               <div className="flex min-w-0 items-start gap-2">
                                 <span
                                   dir="ltr"
-                                  className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-[11px] font-semibold tabular-nums text-emerald-700 dark:text-emerald-300"
+                                  className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-xs font-semibold tabular-nums text-emerald-700 dark:text-emerald-300"
                                 >
                                   {idx + 1}
                                 </span>
@@ -2353,9 +2353,9 @@ export function CoresHubStudio() {
                               </span>
                             </div>
 
-                            <div className="mt-1.5 flex flex-wrap items-center justify-between gap-1.5 text-[11.5px]">
+                            <div className="mt-1.5 flex flex-wrap items-center justify-between gap-1.5 text-[13px]">
                               <div className="flex flex-wrap items-center gap-1.5">
-                                <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-medium text-neutral-700 shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:bg-emerald-950/60 dark:text-emerald-200">
+                                <span className="rounded-full bg-white px-2 py-0.5 text-xs font-medium text-neutral-700 shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:bg-emerald-950/60 dark:text-emerald-200">
                                   {isAr ? d.brandAr : d.brandEn}
                                 </span>
                                 <span dir="ltr" className="tabular-nums text-neutral-500 dark:text-slate-400">
@@ -2392,7 +2392,7 @@ export function CoresHubStudio() {
                           ? 'أخطر 8 أطباق عالية التكلفة أو ضعيفة الهامش 🔴'
                           : 'Top 8 Margin Bleeders / Price Gaps 🔴'}
                       </h3>
-                      <span className="text-[11px] font-medium text-neutral-400">
+                      <span className="text-xs font-medium text-neutral-400">
                         {isAr ? 'تضخم وصفة العارضية' : 'Ardiya BOM Creep'}
                       </span>
                     </div>
@@ -2418,7 +2418,7 @@ export function CoresHubStudio() {
                               <div className="flex min-w-0 items-start gap-2">
                                 <span
                                   dir="ltr"
-                                  className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-rose-500/15 text-[11px] font-semibold tabular-nums text-rose-700 dark:text-rose-300"
+                                  className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-rose-500/15 text-xs font-semibold tabular-nums text-rose-700 dark:text-rose-300"
                                 >
                                   {idx + 1}
                                 </span>
@@ -2428,15 +2428,15 @@ export function CoresHubStudio() {
                               </div>
                               <span
                                 dir="ltr"
-                                className="shrink-0 rounded-full bg-rose-50 px-2 py-0.5 text-[11.5px] font-semibold tabular-nums text-rose-700 dark:bg-rose-950/60 dark:text-rose-300"
+                                className="shrink-0 rounded-full bg-rose-50 px-2 py-0.5 text-[13px] font-semibold tabular-nums text-rose-700 dark:bg-rose-950/60 dark:text-rose-300"
                               >
                                 {isAr ? 'تكلفة' : 'Cost'} {f1(d.foodCostPct)}%
                               </span>
                             </div>
 
-                            <div className="mt-1.5 flex flex-wrap items-center justify-between gap-1.5 text-[11.5px]">
+                            <div className="mt-1.5 flex flex-wrap items-center justify-between gap-1.5 text-[13px]">
                               <div className="flex flex-wrap items-center gap-1.5">
-                                <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-medium text-neutral-700 shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:bg-emerald-950/60 dark:text-emerald-200">
+                                <span className="rounded-full bg-white px-2 py-0.5 text-xs font-medium text-neutral-700 shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:bg-emerald-950/60 dark:text-emerald-200">
                                   {isAr ? d.brandAr : d.brandEn}
                                 </span>
                                 <span dir="ltr" className="tabular-nums text-neutral-500 dark:text-slate-400">
@@ -2603,7 +2603,7 @@ export function CoresHubStudio() {
                         <span>{isAr ? tf.ar : tf.en}</span>
                         <span
                           dir="ltr"
-                          className={`rounded-md px-1.5 py-0.5 text-[10.5px] tabular-nums ${
+                          className={`rounded-md px-1.5 py-0.5 text-xs tabular-nums ${
                             isSelected
                               ? 'bg-white/20 text-white dark:bg-slate-950/20 dark:text-[#04130D]'
                               : 'bg-white text-neutral-500 dark:bg-white/10 dark:text-slate-300'
@@ -2678,7 +2678,7 @@ export function CoresHubStudio() {
                             <div className="font-semibold text-neutral-950 dark:text-white">
                               {d.name}
                             </div>
-                            <div className="mt-0.5 whitespace-nowrap text-[11px] text-neutral-400">
+                            <div className="mt-0.5 whitespace-nowrap text-xs text-neutral-400">
                               {isAr ? d.tagAr : d.tagEn}
                             </div>
                           </td>
@@ -2704,7 +2704,7 @@ export function CoresHubStudio() {
                               {f2(d.unitCostKwd)}
                             </span>{' '}
                             <span
-                              className={`inline-block rounded-lg px-1.5 py-0.5 text-[11px] font-semibold ${
+                              className={`inline-block rounded-lg px-1.5 py-0.5 text-xs font-semibold ${
                                 costHigh
                                   ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'
                                   : 'bg-neutral-100 text-neutral-600 dark:bg-white/[0.06] dark:text-slate-300'
@@ -2724,7 +2724,7 @@ export function CoresHubStudio() {
                             className="whitespace-nowrap px-3 py-3 text-end font-semibold tabular-nums text-emerald-700 dark:text-emerald-400"
                           >
                             +{f1(d.netProfitKwd)}{' '}
-                            <span className="text-[11.5px] font-medium text-neutral-400">
+                            <span className="text-[13px] font-medium text-neutral-400">
                               ({f1(d.marginPct)}%)
                             </span>
                           </td>
@@ -2877,7 +2877,7 @@ export function CoresHubStudio() {
               {/* 4 Current Baseline Tiles */}
               <div className="grid grid-cols-2 gap-2.5">
                 <div className="rounded-2xl bg-[#F7F7F8] p-3.5 dark:bg-white/[0.04]">
-                  <div className="text-[11px] font-medium text-neutral-400">
+                  <div className="text-xs font-medium text-neutral-400">
                     {isAr ? 'سعر البيع الحالي' : 'Current Price'}
                   </div>
                   <div
@@ -2889,7 +2889,7 @@ export function CoresHubStudio() {
                 </div>
 
                 <div className="rounded-2xl bg-[#F7F7F8] p-3.5 dark:bg-white/[0.04]">
-                  <div className="text-[11px] font-medium text-neutral-400">
+                  <div className="text-xs font-medium text-neutral-400">
                     {isAr ? 'تكلفة العارضية والتغليف' : 'Ardiya BOM + Pack'}
                   </div>
                   <div
@@ -2904,7 +2904,7 @@ export function CoresHubStudio() {
                 </div>
 
                 <div className="rounded-2xl bg-[#F7F7F8] p-3.5 dark:bg-white/[0.04]">
-                  <div className="text-[11px] font-medium text-neutral-400">
+                  <div className="text-xs font-medium text-neutral-400">
                     {isAr ? 'الكمية الشهرية (30 يوماً)' : 'Monthly Volume (30d)'}
                   </div>
                   <div
@@ -2916,7 +2916,7 @@ export function CoresHubStudio() {
                 </div>
 
                 <div className="rounded-2xl bg-[#F7F7F8] p-3.5 dark:bg-white/[0.04]">
-                  <div className="text-[11px] font-medium text-neutral-400">
+                  <div className="text-xs font-medium text-neutral-400">
                     {isAr ? 'عمولة القناة المعتمدة' : 'Effective Channel Fee'}
                   </div>
                   <div

@@ -40,7 +40,7 @@ export function GlobalFilterBar() {
           <Filter className="h-3.5 w-3.5" />
         </span>
         <div className="me-1 hidden min-w-0 flex-col leading-tight lg:flex">
-          <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{T('Live BI context', 'سياق التحليل المباشر')}</span>
+          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{T('Live BI context', 'سياق التحليل المباشر')}</span>
           <span className="text-xs font-semibold text-slate-900 dark:text-slate-100">
             {T('6 Brands • 7 Branches • 8 Channels', '6 مطاعم • 7 فروع • 8 قنوات')}
           </span>
@@ -97,12 +97,12 @@ export function GlobalFilterBar() {
               </button>
             </span>
           ))}
-          <button type="button" onClick={reset} className="btn-colored inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]">
+          <button type="button" onClick={reset} className="btn-colored inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]">
             <RotateCcw className="h-3 w-3" />
             {T('Reset to Full Group Ledger', 'العودة إلى دفتر المجموعة الكامل')}
           </button>
           {view.filtered ? (
-            <span className="text-[11px] text-slate-500 dark:text-slate-400">
+            <span className="text-xs text-slate-500 dark:text-slate-400">
               {T(
                 `Proportional allocation of the Odoo group ledger · ${fmt(view.salesShare * 100, 2)}% of group sales`,
                 `توزيع نسبي من دفتر أودو للمجموعة · ${fmt(view.salesShare * 100, 2)}% من مبيعات المجموعة`,

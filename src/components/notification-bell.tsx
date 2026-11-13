@@ -260,14 +260,14 @@ export function NotificationBell({
             <div className="flex items-start justify-between gap-2 border-b border-white/10 px-4 py-3">
               <div>
                 <p className="text-sm font-black text-white">{en ? 'Live Notifications Center' : 'مركز التنبيهات الفورية'}</p>
-                <p className="text-[11px] text-gray-400">
+                <p className="text-xs text-gray-400">
                   {en ? `${unreadCount} unread · Dark Obsidian` : `${unreadCount} غير مقروء · Dark Obsidian`}
                 </p>
               </div>
               <div className="flex items-center gap-1">
                 <button
                   type="button"
-                  className="rounded-lg border border-white/10 px-2 py-1 text-[11px] font-semibold text-emerald-200 hover:bg-white/5"
+                  className="rounded-lg border border-white/10 px-2 py-1 text-xs font-semibold text-emerald-200 hover:bg-white/5"
                   onClick={markAllRead}
                 >
                   {en ? 'Mark all as read' : 'تحديد الكل كمقروء'}
@@ -289,7 +289,7 @@ export function NotificationBell({
                   key={t.id}
                   type="button"
                   onClick={() => setTab(t.id)}
-                  className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold ${
+                  className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${
                     tab === t.id ? 'bg-emerald-600/30 text-emerald-100' : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'
                   }`}
                 >
@@ -325,7 +325,7 @@ export function NotificationBell({
               )}
             </ul>
 
-            <div className="grid grid-cols-3 gap-1 border-t border-white/10 p-2 text-center text-[11px]">
+            <div className="grid grid-cols-3 gap-1 border-t border-white/10 p-2 text-center text-xs">
               <a href="/erp/aggregator-radar" className="rounded-lg px-2 py-2 font-semibold text-red-200 hover:bg-white/5">
                 {en ? 'Radar' : 'الرادار'}
               </a>
@@ -359,7 +359,7 @@ export function NotificationBell({
       >
         <Bell size={18} />
         {badge > 0 ? (
-          <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1.5 text-[10px] leading-none font-bold text-white">
+          <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1.5 text-xs leading-none font-bold text-white">
             {badge > 99 ? '99+' : badge}
           </span>
         ) : null}

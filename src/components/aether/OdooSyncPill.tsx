@@ -129,7 +129,7 @@ export function OdooSyncPill({ isAr }: { isAr: boolean }) {
       title={title}
       aria-live="polite"
       aria-busy={state.status === 'syncing'}
-      className="ae-top-live ms-1 hidden shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1 text-[11px] font-semibold transition hover:opacity-90 sm:inline-flex"
+      className="ae-top-live ms-1 hidden shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold transition hover:opacity-90 sm:inline-flex"
     >
       {state.status === 'syncing' ? (
         <RefreshCw className="h-3 w-3 animate-spin" aria-hidden />

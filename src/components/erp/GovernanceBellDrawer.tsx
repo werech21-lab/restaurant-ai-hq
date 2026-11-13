@@ -838,16 +838,16 @@ export function GovernanceBellTrigger({
     <div className="inline-flex items-center gap-1.5">
       {showInlinePin ? (
         session.active ? (
-          <div className="hidden items-center gap-1 rounded-xl bg-emerald-50 px-2.5 py-1 text-[11.5px] font-semibold text-emerald-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)] lg:inline-flex dark:bg-emerald-950/60 dark:text-emerald-200">
+          <div className="hidden items-center gap-1 rounded-xl bg-emerald-50 px-2.5 py-1 text-[13px] font-semibold text-emerald-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)] lg:inline-flex dark:bg-emerald-950/60 dark:text-emerald-200">
             <span>{isAr ? 'وضع المدير نشط 🔓' : 'Manager Active 🔓'}</span>
-            <span dir="ltr" className="font-mono text-[11px] tabular-nums opacity-80">
+            <span dir="ltr" className="font-mono text-xs tabular-nums opacity-80">
               {formatCountdown(session.remainingSeconds)}
             </span>
             <button
               type="button"
               onClick={lockSession}
               title={isAr ? 'قفل الصلاحية فوراً' : 'Lock Executive Session'}
-              className="ms-1 cursor-pointer rounded-lg bg-white px-2 py-0.5 text-[10.5px] font-semibold text-slate-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors duration-150 hover:bg-rose-50 hover:text-rose-700 dark:bg-[#101C17] dark:text-slate-200"
+              className="ms-1 cursor-pointer rounded-lg bg-white px-2 py-0.5 text-xs font-semibold text-slate-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors duration-150 hover:bg-rose-50 hover:text-rose-700 dark:bg-[#101C17] dark:text-slate-200"
             >
               {isAr ? 'قفل الصلاحية 🔒' : 'Lock 🔒'}
             </button>
@@ -900,7 +900,7 @@ export function GovernanceBellTrigger({
           <span
             dir="ltr"
             style={{ color: '#FFFFFF' }}
-            className={`btn-colored inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full px-1.5 text-[10.5px] font-bold tabular-nums text-white lg:h-5 lg:min-w-5 lg:text-[11px] ${
+            className={`btn-colored inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full px-1.5 text-xs font-bold tabular-nums text-white lg:h-5 lg:min-w-5 lg:text-xs ${
               activeBreaches.length > 0 ? 'bg-rose-600' : 'bg-emerald-600'
             }`}
           >
@@ -909,7 +909,7 @@ export function GovernanceBellTrigger({
         ) : (
           <span
             dir="ltr"
-            className="inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-emerald-50 px-1.5 text-[10.5px] font-semibold tabular-nums text-emerald-700 lg:h-5 lg:min-w-5 lg:text-[11px] dark:bg-emerald-950/60 dark:text-emerald-300"
+            className="inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-emerald-50 px-1.5 text-xs font-semibold tabular-nums text-emerald-700 lg:h-5 lg:min-w-5 lg:text-xs dark:bg-emerald-950/60 dark:text-emerald-300"
           >
             0
           </span>
@@ -1103,7 +1103,7 @@ function GovernanceSlideOverDrawer({
                       : 'Read-Only Auditor (PIN & Mutations Disabled)'}
                   </span>
                 </div>
-                <span className="inline-flex items-center gap-1 rounded-xl bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-900 ring-1 ring-amber-500/25 dark:bg-amber-950/60 dark:text-amber-200">
+                <span className="inline-flex items-center gap-1 rounded-xl bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-900 ring-1 ring-amber-500/25 dark:bg-amber-950/60 dark:text-amber-200">
                   {isAr ? 'وضع المراجعة — قراءة فقط' : 'Read-Only Auditor Session'}
                 </span>
               </>
@@ -1115,7 +1115,7 @@ function GovernanceSlideOverDrawer({
                     <span>{isAr ? 'وضع المدير نشط 🔓' : 'Executive Session Active 🔓'}</span>
                     <span
                       dir="ltr"
-                      className="rounded-full bg-emerald-100/80 px-2 py-0.5 font-mono text-[11px] tabular-nums text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
+                      className="rounded-full bg-emerald-100/80 px-2 py-0.5 font-mono text-xs tabular-nums text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
                     >
                       {formatCountdown(session.remainingSeconds)}
                     </span>
@@ -1193,7 +1193,7 @@ function GovernanceSlideOverDrawer({
                   <span>{isAr ? t.ar : t.en}</span>
                   <span
                     dir="ltr"
-                    className={`rounded-lg px-1.5 py-0.2 text-[10.5px] tabular-nums ${
+                    className={`rounded-lg px-1.5 py-0.2 text-xs tabular-nums ${
                       active
                         ? 'bg-white/20 text-white dark:bg-black/15 dark:text-[#04130D]'
                         : 'bg-white text-neutral-700 dark:bg-white/10 dark:text-slate-200'
@@ -1221,7 +1221,7 @@ function GovernanceSlideOverDrawer({
                       : 'Continuous Odoo 17 Compliance Watchdog'}
                   </span>
                 </span>
-                <span className="text-[11px] tabular-nums text-neutral-400">
+                <span className="text-xs tabular-nums text-neutral-400">
                   {activeBreaches.length} {isAr ? 'نشطة' : 'active'}
                 </span>
               </div>
@@ -1237,7 +1237,7 @@ function GovernanceSlideOverDrawer({
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span
-                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
+                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                           b.frozen
                             ? 'bg-neutral-100 text-neutral-700 dark:bg-white/10 dark:text-slate-300'
                             : isProceduralOverrun
@@ -1262,7 +1262,7 @@ function GovernanceSlideOverDrawer({
                       </span>
 
                       {isProceduralOverrun ? (
-                        <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold tabular-nums text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
+                        <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
                           {isAr
                             ? (b.badgeLabelAr ??
                               `+${(b.capOverrunKwd ?? b.monthlyLeakKwd).toLocaleString('en-US')} د.ك تجاوز سقف بدون إذن مسبق`)
@@ -1272,7 +1272,7 @@ function GovernanceSlideOverDrawer({
                       ) : (
                         <span
                           dir="ltr"
-                          className="rounded-full bg-rose-50 px-2.5 py-0.5 text-[11px] font-semibold tabular-nums text-rose-700 dark:bg-rose-950/60 dark:text-rose-300"
+                          className="rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-rose-700 dark:bg-rose-950/60 dark:text-rose-300"
                         >
                           -{b.monthlyLeakKwd.toLocaleString('en-US')} {isAr ? 'د.ك/شهر' : 'KWD/mo'}
                         </span>
@@ -1285,7 +1285,7 @@ function GovernanceSlideOverDrawer({
                     <p className="mt-1 text-xs text-neutral-500 dark:text-slate-300">
                       {isAr ? b.odooMetricProofAr : b.odooMetricProofEn}
                     </p>
-                    <div className="mt-2 rounded-xl bg-[#F7F7F8] px-3 py-2 text-[11.5px] text-neutral-600 dark:bg-neutral-950 dark:text-slate-300">
+                    <div className="mt-2 rounded-xl bg-[#F7F7F8] px-3 py-2 text-[13px] text-neutral-600 dark:bg-neutral-950 dark:text-slate-300">
                       {isAr ? b.approvedRuleLimitAr : b.approvedRuleLimitEn}
                     </div>
 
@@ -1460,7 +1460,7 @@ function GovernanceSlideOverDrawer({
                 <span className="text-xs font-semibold text-neutral-700 dark:text-slate-200">
                   {isAr ? 'طلبات بانتظار موافقة المدير 🔔' : 'Pending Manager Approvals 🔔'}
                 </span>
-                <span className="text-[11px] tabular-nums text-neutral-400">
+                <span className="text-xs tabular-nums text-neutral-400">
                   {pendingApprovals.length}
                 </span>
               </div>
@@ -1478,10 +1478,10 @@ function GovernanceSlideOverDrawer({
                     className="rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-neutral-900"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-[11px] font-medium text-neutral-700 dark:bg-emerald-950/60 dark:text-emerald-200">
+                      <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-medium text-neutral-700 dark:bg-emerald-950/60 dark:text-emerald-200">
                         {isAr ? req.departmentAr : req.departmentEn}
                       </span>
-                      <div dir="ltr" className="flex items-center gap-2 text-[11px] font-semibold tabular-nums">
+                      <div dir="ltr" className="flex items-center gap-2 text-xs font-semibold tabular-nums">
                         {req.budgetOrCostKwd > 0 ? (
                           <span className="rounded-full bg-amber-50 px-2 py-0.5 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
                             {isAr ? `التكلفة: ${req.budgetOrCostKwd} د.ك` : `Cost: ${req.budgetOrCostKwd} KWD`}
@@ -1561,7 +1561,7 @@ function GovernanceSlideOverDrawer({
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span
-                        className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
+                        className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                           item.status === 'approved'
                             ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
                             : 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'
@@ -1578,7 +1578,7 @@ function GovernanceSlideOverDrawer({
                       {item.seal ? (
                         <span
                           dir="ltr"
-                          className="font-mono text-[11px] font-semibold text-emerald-700 dark:text-emerald-400"
+                          className="font-mono text-xs font-semibold text-emerald-700 dark:text-emerald-400"
                         >
                           {item.seal.sealId}
                         </span>
@@ -1588,7 +1588,7 @@ function GovernanceSlideOverDrawer({
                       {isAr ? item.titleAr : item.titleEn}
                     </h3>
                     {item.seal ? (
-                      <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                      <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 text-xs">
                         <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50/80 px-2 py-0.5 font-semibold text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200">
                           <span>
                             {isAr ? 'صفة المعتمد:' : 'Approver Role:'}{' '}

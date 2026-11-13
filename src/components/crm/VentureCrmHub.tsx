@@ -132,22 +132,22 @@ export function VentureCrmHub({
             <div className="rounded-xl border border-slate-800 bg-[#0f172a]/60 p-4">
               <span className="text-xs text-slate-400">{isAr ? 'قيمة عقود الكاترينج النشطة' : 'Active Catering Value'}</span>
               <p className="mt-1 text-2xl font-black text-amber-400">38,900.000 {isAr ? 'د.ك' : 'KWD'}</p>
-              <span className="text-[11px] text-slate-500">{isAr ? 'عقود تموين وبوفيهات شركات' : '14 active enterprise contracts'}</span>
+              <span className="text-xs text-slate-500">{isAr ? 'عقود تموين وبوفيهات شركات' : '14 active enterprise contracts'}</span>
             </div>
             <div className="rounded-xl border border-slate-800 bg-[#0f172a]/60 p-4">
               <span className="text-xs text-slate-400">{isAr ? 'الوجبات الموردة شهرياً' : 'Monthly Meals Supplied'}</span>
               <p className="mt-1 text-2xl font-black text-emerald-400">12,400 {isAr ? 'وجبة' : 'Meals'}</p>
-              <span className="text-[11px] text-slate-500">{isAr ? 'من المطبخ المركزي' : 'Prepared at Central Kitchen'}</span>
+              <span className="text-xs text-slate-500">{isAr ? 'من المطبخ المركزي' : 'Prepared at Central Kitchen'}</span>
             </div>
             <div className="rounded-xl border border-slate-800 bg-[#0f172a]/60 p-4">
               <span className="text-xs text-slate-400">{isAr ? 'متوسط قيمة العقد' : 'Avg Deal Size'}</span>
               <p className="mt-1 text-2xl font-black text-purple-400">2,780.000 {isAr ? 'د.ك' : 'KWD'}</p>
-              <span className="text-[11px] text-slate-500">{isAr ? 'عقود ربع سنوية وسنوية' : 'Quarterly & annual basis'}</span>
+              <span className="text-xs text-slate-500">{isAr ? 'عقود ربع سنوية وسنوية' : 'Quarterly & annual basis'}</span>
             </div>
             <div className="rounded-xl border border-slate-800 bg-[#0f172a]/60 p-4">
               <span className="text-xs text-slate-400">{isAr ? 'نسبة التحصيل والالتزام' : 'Collection Rate'}</span>
               <p className="mt-1 text-2xl font-black text-blue-400">96.8%</p>
-              <span className="text-[11px] text-slate-500">{isAr ? 'تحصيل بموجب فواتير رسمية' : 'Official tax invoices'}</span>
+              <span className="text-xs text-slate-500">{isAr ? 'تحصيل بموجب فواتير رسمية' : 'Official tax invoices'}</span>
             </div>
           </div>
 
@@ -331,7 +331,7 @@ export function VentureCrmHub({
               <div key={idx} className="rounded-2xl border border-slate-800 bg-[#0d131f] p-5 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="rounded bg-slate-800 px-2 py-0.5 text-xs font-semibold text-purple-300">{c.brand}</span>
-                  <span className="inline-flex rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-bold text-emerald-400 border border-emerald-500/20">نشطة</span>
+                  <span className="inline-flex rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-bold text-emerald-400 border border-emerald-500/20">نشطة</span>
                 </div>
                 <h4 className="text-base font-bold text-white">{c.title}</h4>
                 <div className="text-xs space-y-1 text-slate-400">

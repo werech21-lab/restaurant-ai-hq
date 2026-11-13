@@ -84,7 +84,7 @@ function EmeraldPillTabs<K extends string>({
             <span>{opt.label}</span>
             {opt.badge !== undefined ? (
               <span
-                className={`rounded-md px-1.5 py-0.5 text-[11px] font-extrabold tabular-nums ${
+                className={`rounded-md px-1.5 py-0.5 text-xs font-extrabold tabular-nums ${
                   active
                     ? 'bg-white/20 text-white dark:bg-[#04130D]/20 dark:text-[#04130D]'
                     : 'bg-white text-slate-700 dark:bg-white/10 dark:text-slate-300'
@@ -883,7 +883,7 @@ export function BeforeAfterStudio() {
                     ? `قبل (${comparison.selectionB.shortLabelAr}) ← بعد (${comparison.selectionA.shortLabelAr}): ${fmtSignedKwd(comparison.kpis.netSales.deltaAbs, true)} (${fmtSignedPct(comparison.kpis.netSales.deltaPct)})`
                     : `Before (${comparison.selectionB.shortLabelEn}) → After (${comparison.selectionA.shortLabelEn}): ${fmtSignedKwd(comparison.kpis.netSales.deltaAbs, false)} (${fmtSignedPct(comparison.kpis.netSales.deltaPct)})`}
                 </span>
-                <span className="rounded-lg bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:bg-white/[0.07] dark:text-slate-300">
+                <span className="rounded-lg bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-white/[0.07] dark:text-slate-300">
                   {isAr ? comparison.scopeSummaryAr : comparison.scopeSummaryEn}
                 </span>
               </div>
@@ -957,12 +957,12 @@ export function BeforeAfterStudio() {
               </div>
 
               <div className="mt-2 flex items-center justify-between gap-1.5 tabular-nums">
-                <span className={`rounded-lg px-2 py-0.5 text-[11px] font-semibold ${badgeTone}`}>
+                <span className={`rounded-lg px-2 py-0.5 text-xs font-semibold ${badgeTone}`}>
                   {arrow}{' '}
                   {kpi.unit === 'pct' ? fmtSignedPp(kpi.deltaPct) : fmtSignedPct(kpi.deltaPct)}
                 </span>
                 {kpi.id === 'foodAndAggregatorCost' && typeof kpi.shareOfSalesA === 'number' && (
-                  <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                  <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
                     {f1(kpi.shareOfSalesB ?? 0)}% → {f1(kpi.shareOfSalesA)}%
                   </span>
                 )}
@@ -970,7 +970,7 @@ export function BeforeAfterStudio() {
 
               <p
                 dir="ltr"
-                className="mt-2 border-t border-slate-100 pt-1.5 text-[11.5px] text-neutral-500 tabular-nums dark:border-white/[0.06] dark:text-slate-400"
+                className="mt-2 border-t border-slate-100 pt-1.5 text-[13px] text-neutral-500 tabular-nums dark:border-white/[0.06] dark:text-slate-400"
               >
                 {formatKpiVal(kpi, 'before')} →{' '}
                 <strong className="text-slate-800 dark:text-slate-100">
@@ -1082,7 +1082,7 @@ export function BeforeAfterStudio() {
                         : 'hover:bg-white/60 dark:hover:bg-white/[0.04]'
                     }`}
                   >
-                    <span className="mb-1 text-[10px] font-semibold text-slate-600 tabular-nums dark:text-slate-300">
+                    <span className="mb-1 text-xs font-semibold text-slate-600 tabular-nums dark:text-slate-300">
                       {f0(p.after)}
                     </span>
                     <div className="flex h-[140px] w-full items-end justify-center gap-1 rounded-lg bg-slate-200/45 px-1 py-1 dark:bg-white/[0.03]">
@@ -1097,7 +1097,7 @@ export function BeforeAfterStudio() {
                         title={`After (${bkt.metaA}): ${f0(p.after)} ${p.unit}`}
                       />
                     </div>
-                    <span className="mt-1.5 text-[10.5px] font-semibold text-slate-700 tabular-nums dark:text-slate-200">
+                    <span className="mt-1.5 text-xs font-semibold text-slate-700 tabular-nums dark:text-slate-200">
                       {bkt.labelEn}
                     </span>
                   </button>
@@ -1211,7 +1211,7 @@ export function BeforeAfterStudio() {
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span
                             dir="ltr"
-                            className="rounded-lg bg-[#F7F7F8] px-2 py-0.5 font-mono text-[11px] font-semibold text-neutral-600 dark:bg-[#09110E] dark:text-slate-300"
+                            className="rounded-lg bg-[#F7F7F8] px-2 py-0.5 font-mono text-xs font-semibold text-neutral-600 dark:bg-[#09110E] dark:text-slate-300"
                           >
                             {row.sealId}
                           </span>
@@ -1221,7 +1221,7 @@ export function BeforeAfterStudio() {
                           <button
                             type="button"
                             onClick={() => handleLoadDecisionIntoEngine(row)}
-                            className="cursor-pointer rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 ring-1 ring-emerald-600/20 transition hover:bg-emerald-100 dark:bg-emerald-500/15 dark:text-emerald-200"
+                            className="cursor-pointer rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-600/20 transition hover:bg-emerald-100 dark:bg-emerald-500/15 dark:text-emerald-200"
                           >
                             {isLoadedInStudio
                               ? T('Loaded ✓', 'مُحمّل ✓')

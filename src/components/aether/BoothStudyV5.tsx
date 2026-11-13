@@ -537,7 +537,7 @@ export function BoothStudyV5() {
           <div className="mt-1.5 sm:mt-2 text-lg sm:text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">
             {isAr ? verdictUi.ar : verdictUi.en}
           </div>
-          <p className="mt-1 text-[11.5px] sm:text-[13px] leading-snug text-slate-500 dark:text-slate-400">
+          <p className="mt-1 text-[13px] sm:text-[13px] leading-snug text-slate-500 dark:text-slate-400">
             {isAr ? `${brandOpt.ar} • ${days} يوم` : `${brandOpt.en} • ${days} days`}
           </p>
         </div>
@@ -555,7 +555,7 @@ export function BoothStudyV5() {
             {base.profit >= 0 ? '+' : '-'}
             {kwd(Math.abs(base.profit))}
           </div>
-          <p className="mt-1 text-[11.5px] sm:text-[13px] leading-snug text-slate-500 dark:text-slate-400">
+          <p className="mt-1 text-[13px] sm:text-[13px] leading-snug text-slate-500 dark:text-slate-400">
             {T(`Sales ${kwd(base.revenue)}`, `من إجمالي مبيعات ${kwd(base.revenue)}`)}
           </p>
         </div>
@@ -567,7 +567,7 @@ export function BoothStudyV5() {
           <div className="mt-1.5 sm:mt-2 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-slate-950 dark:text-white">
             {be ? `${f0(be)} ${T('orders/d', 'طلب/يوم')}` : '—'}
           </div>
-          <p className="mt-1 text-[11.5px] sm:text-[13px] leading-snug text-slate-500 dark:text-slate-400">
+          <p className="mt-1 text-[13px] sm:text-[13px] leading-snug text-slate-500 dark:text-slate-400">
             {T(`Order profit ${f3(model.gpPerOrder)} KWD`, `ربح الطلب الواحد ${f3(model.gpPerOrder)} د.ك`)}
           </p>
         </div>
@@ -579,7 +579,7 @@ export function BoothStudyV5() {
           <div dir="ltr" className="mt-1.5 sm:mt-2 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-slate-950 dark:text-white">
             {kwd(model.rentCeiling)}
           </div>
-          <p className="mt-1 text-[11.5px] sm:text-[13px] leading-snug text-slate-500 dark:text-slate-400">
+          <p className="mt-1 text-[13px] sm:text-[13px] leading-snug text-slate-500 dark:text-slate-400">
             {rent > model.rentCeiling
               ? T(`Ask ${kwd(rent - model.rentCeiling)} off`, `فاوض لتخفيض ${kwd(rent - model.rentCeiling)}`)
               : T('Rent is within safe limit', 'الإيجار الحالي ضمن السقف الآمن')}
@@ -602,7 +602,7 @@ export function BoothStudyV5() {
                 )}
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-1.5 text-[11.5px] font-bold tabular-nums">
+            <div className="flex flex-wrap items-center gap-1.5 text-[13px] font-bold tabular-nums">
               <span
                 dir="ltr"
                 className={`rounded-lg px-2.5 py-1 ${
@@ -874,12 +874,12 @@ export function BoothStudyV5() {
                     )}
                   </h2>
                   {lockedBoothCap || boothApproval?.status === 'approved' ? (
-                    <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-0.5 text-[11.5px] font-bold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
+                    <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-0.5 text-[13px] font-bold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
                       <ShieldCheck className="h-3.5 w-3.5" />
                       <span>{T('Sealed by Manager PIN', 'معتمد بختم الإدارة التنفيذية')}</span>
                     </span>
                   ) : boothApproval?.status === 'pending' ? (
-                    <span className="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-2.5 py-0.5 text-[11.5px] font-bold text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
+                    <span className="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-2.5 py-0.5 text-[13px] font-bold text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
                       <Bell className="h-3.5 w-3.5" />
                       <span>{T('Awaiting Manager PIN', 'بانتظار موافقة المدير')}</span>
                     </span>
@@ -897,31 +897,31 @@ export function BoothStudyV5() {
             {/* Budget Cap vs Live Odoo EXB Actuals */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="ae-bento-subcard rounded-2xl p-3">
-                <div className="text-[11px] font-semibold text-neutral-400 dark:text-slate-400">
+                <div className="text-xs font-semibold text-neutral-400 dark:text-slate-400">
                   {T('Planned Booth Budget Cap', 'سقف ميزانية المعرض')}
                 </div>
                 <div dir="ltr" className="mt-1 text-[17px] font-extrabold tabular-nums text-slate-950 dark:text-white">
                   {kwd(lockedBoothCap?.totalBudgetCapKwd ?? totalBoothBudgetKwd)}
                 </div>
-                <div className="mt-0.5 text-[11px] font-medium tabular-nums text-neutral-400">
+                <div className="mt-0.5 text-xs font-medium tabular-nums text-neutral-400">
                   {T('Fixed + Food COGS', 'التكاليف الثابتة + المواد')}
                 </div>
               </div>
 
               <div className="ae-bento-subcard rounded-2xl p-3">
-                <div className="text-[11px] font-semibold text-neutral-400 dark:text-slate-400">
+                <div className="text-xs font-semibold text-neutral-400 dark:text-slate-400">
                   {T('Daily Cost Cap', 'سقف الصرف اليومي')}
                 </div>
                 <div dir="ltr" className="mt-1 text-[17px] font-extrabold tabular-nums text-emerald-700 dark:text-emerald-400">
                   {kwd(lockedBoothCap?.dailyCostCapKwd ?? dailyCostCapKwd)}/{isAr ? 'يوم' : 'day'}
                 </div>
-                <div className="mt-0.5 text-[11px] font-medium tabular-nums text-neutral-400">
+                <div className="mt-0.5 text-xs font-medium tabular-nums text-neutral-400">
                   {startDate} {'->'} {endDate}
                 </div>
               </div>
 
               <div className="ae-bento-subcard rounded-2xl p-3">
-                <div className="text-[11px] font-semibold text-neutral-400 dark:text-slate-400">
+                <div className="text-xs font-semibold text-neutral-400 dark:text-slate-400">
                   {T('Live Odoo EXB Spend', 'صرف أودو EXB الفعلي')}
                 </div>
                 <div
@@ -934,7 +934,7 @@ export function BoothStudyV5() {
                 >
                   {kwd(exbActualSpendKwd)}
                 </div>
-                <div className="mt-0.5 text-[11px] font-medium tabular-nums text-neutral-400">
+                <div className="mt-0.5 text-xs font-medium tabular-nums text-neutral-400">
                   {T(`${kwd(exbActualDailyCostKwd)}/day · Reg 26–29`, `${kwd(exbActualDailyCostKwd)}/يوم · كاشير ٢٦–٢٩`)}
                 </div>
               </div>
@@ -1006,7 +1006,7 @@ export function BoothStudyV5() {
                     'مراقب أودو ١٧ نشط • افتح جرس الاعتمادات لمراجعة المخالفات 🔔',
                   )}
                 </span>
-                <span className="rounded-lg bg-amber-50 px-2.5 py-0.5 text-[11.5px] font-bold tabular-nums text-amber-800 ring-1 ring-amber-500/20 dark:bg-amber-950/60 dark:text-amber-200">
+                <span className="rounded-lg bg-amber-50 px-2.5 py-0.5 text-[13px] font-bold tabular-nums text-amber-800 ring-1 ring-amber-500/20 dark:bg-amber-950/60 dark:text-amber-200">
                   {isAr ? `${activeBoothBreachCount} تنبيه` : `${activeBoothBreachCount} active`}
                 </span>
               </button>
@@ -1077,19 +1077,19 @@ export function BoothStudyV5() {
 
               <div className="grid grid-cols-3 gap-2.5 text-center">
                 <div className="ae-bento-subcard rounded-xl p-3">
-                  <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{T('Avg Bill', 'متوسط الفاتورة')}</div>
+                  <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">{T('Avg Bill', 'متوسط الفاتورة')}</div>
                   <div className="mt-0.5 text-[15px] font-extrabold tabular-nums text-slate-950 dark:text-white">
                     {isAr ? `${f3(basket)} د.ك` : `${f3(basket)} KWD`}
                   </div>
                 </div>
                 <div className="ae-bento-subcard rounded-xl p-3">
-                  <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{T('Order Profit', 'ربح الطلب')}</div>
+                  <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">{T('Order Profit', 'ربح الطلب')}</div>
                   <div className="mt-0.5 text-[15px] font-extrabold tabular-nums text-slate-950 dark:text-white">
                     {isAr ? `${f3(model.gpPerOrder)} د.ك` : `${f3(model.gpPerOrder)} KWD`}
                   </div>
                 </div>
                 <div className="ae-bento-subcard rounded-xl p-3">
-                  <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{T('Break-even', 'طلبات التعادل')}</div>
+                  <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">{T('Break-even', 'طلبات التعادل')}</div>
                   <div className="mt-0.5 text-[15px] font-extrabold tabular-nums text-slate-950 dark:text-white">
                     {be ? f0(be) : '—'}
                   </div>

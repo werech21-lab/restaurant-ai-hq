@@ -555,7 +555,7 @@ export function ExecutiveComparisonControlBar({
             {resolvedTitleA}
           </span>
         </div>
-        <span className="rounded-lg bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold tracking-tight text-emerald-800 tabular-nums dark:bg-emerald-500/20 dark:text-emerald-200">
+        <span className="rounded-lg bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold tracking-tight text-emerald-800 tabular-nums dark:bg-emerald-500/20 dark:text-emerald-200">
           {query.granularity === 'single'
             ? badgeA.full
             : isAr
@@ -581,7 +581,7 @@ export function ExecutiveComparisonControlBar({
       ) : (
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <label className="flex items-center gap-1.5">
-            <span className="w-9 shrink-0 text-[11.5px] font-medium text-slate-500 dark:text-slate-400">
+            <span className="w-9 shrink-0 text-[13px] font-medium text-slate-500 dark:text-slate-400">
               {isAr ? 'من' : 'From'}
             </span>
             <input
@@ -598,7 +598,7 @@ export function ExecutiveComparisonControlBar({
             />
           </label>
           <label className="flex items-center gap-1.5">
-            <span className="w-9 shrink-0 text-[11.5px] font-medium text-slate-500 dark:text-slate-400">
+            <span className="w-9 shrink-0 text-[13px] font-medium text-slate-500 dark:text-slate-400">
               {isAr ? 'إلى' : 'To'}
             </span>
             <input
@@ -628,7 +628,7 @@ export function ExecutiveComparisonControlBar({
             {resolvedTitleB}
           </span>
         </div>
-        <span className="rounded-lg bg-slate-200/70 px-2 py-0.5 text-[11px] font-semibold tracking-tight text-slate-700 tabular-nums dark:bg-white/10 dark:text-slate-300">
+        <span className="rounded-lg bg-slate-200/70 px-2 py-0.5 text-xs font-semibold tracking-tight text-slate-700 tabular-nums dark:bg-white/10 dark:text-slate-300">
           {query.granularity === 'single'
             ? badgeB.full
             : isAr
@@ -654,7 +654,7 @@ export function ExecutiveComparisonControlBar({
       ) : (
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <label className="flex items-center gap-1.5">
-            <span className="w-9 shrink-0 text-[11.5px] font-medium text-slate-500 dark:text-slate-400">
+            <span className="w-9 shrink-0 text-[13px] font-medium text-slate-500 dark:text-slate-400">
               {isAr ? 'من' : 'From'}
             </span>
             <input
@@ -671,7 +671,7 @@ export function ExecutiveComparisonControlBar({
             />
           </label>
           <label className="flex items-center gap-1.5">
-            <span className="w-9 shrink-0 text-[11.5px] font-medium text-slate-500 dark:text-slate-400">
+            <span className="w-9 shrink-0 text-[13px] font-medium text-slate-500 dark:text-slate-400">
               {isAr ? 'إلى' : 'To'}
             </span>
             <input
@@ -692,13 +692,13 @@ export function ExecutiveComparisonControlBar({
 
       {/* 1-Click Quick-Fill Helper Chips (populate custom date without locking user) */}
       <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-        <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+        <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
           {isAr ? 'تعبئة سريعة:' : 'Quick fill:'}
         </span>
         <button
           type="button"
           onClick={() => applyQuickComparePreset('yesterday')}
-          className="cursor-pointer rounded-lg bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-900/[0.07] transition-all duration-150 hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#101C17] dark:text-slate-300 dark:ring-white/10 dark:hover:bg-emerald-500/15 dark:hover:text-emerald-200"
+          className="cursor-pointer rounded-lg bg-white px-2 py-0.5 text-xs font-semibold text-slate-700 ring-1 ring-slate-900/[0.07] transition-all duration-150 hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#101C17] dark:text-slate-300 dark:ring-white/10 dark:hover:bg-emerald-500/15 dark:hover:text-emerald-200"
         >
           {query.granularity === 'single'
             ? isAr
@@ -711,14 +711,14 @@ export function ExecutiveComparisonControlBar({
         <button
           type="button"
           onClick={() => applyQuickComparePreset('last-week')}
-          className="cursor-pointer rounded-lg bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-900/[0.07] transition-all duration-150 hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#101C17] dark:text-slate-300 dark:ring-white/10 dark:hover:bg-emerald-500/15 dark:hover:text-emerald-200"
+          className="cursor-pointer rounded-lg bg-white px-2 py-0.5 text-xs font-semibold text-slate-700 ring-1 ring-slate-900/[0.07] transition-all duration-150 hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#101C17] dark:text-slate-300 dark:ring-white/10 dark:hover:bg-emerald-500/15 dark:hover:text-emerald-200"
         >
           {isAr ? 'نفس اليوم الأسبوع الماضي' : 'Same Day Last Week'}
         </button>
         <button
           type="button"
           onClick={() => applyQuickComparePreset('last-month')}
-          className="cursor-pointer rounded-lg bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-900/[0.07] transition-all duration-150 hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#101C17] dark:text-slate-300 dark:ring-white/10 dark:hover:bg-emerald-500/15 dark:hover:text-emerald-200"
+          className="cursor-pointer rounded-lg bg-white px-2 py-0.5 text-xs font-semibold text-slate-700 ring-1 ring-slate-900/[0.07] transition-all duration-150 hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#101C17] dark:text-slate-300 dark:ring-white/10 dark:hover:bg-emerald-500/15 dark:hover:text-emerald-200"
         >
           {isAr ? 'نفس اليوم الشهر الماضي' : 'Same Day Last Month'}
         </button>
@@ -756,7 +756,7 @@ export function ExecutiveComparisonControlBar({
               {isSlotA ? resolvedTitleA : resolvedTitleB}
             </span>
           </div>
-          <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+          <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
             {entityDim === 'brand'
               ? isAr
                 ? 'مطعم معتمد'
@@ -933,7 +933,7 @@ export function ExecutiveComparisonControlBar({
               type="button"
               onClick={handleSwap}
               title={isAr ? 'اضغط لتبديل التاريخين' : 'Click to swap dates'}
-              className="inline-flex h-9 cursor-pointer items-center gap-1 rounded-xl bg-emerald-50 px-3 text-[11.5px] font-extrabold tracking-wider text-emerald-800 ring-1 ring-emerald-600/20 transition-all duration-150 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-300 dark:ring-emerald-500/30"
+              className="inline-flex h-9 cursor-pointer items-center gap-1 rounded-xl bg-emerald-50 px-3 text-[13px] font-extrabold tracking-wider text-emerald-800 ring-1 ring-emerald-600/20 transition-all duration-150 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-300 dark:ring-emerald-500/30"
             >
               <GitCompareArrows className="h-3.5 w-3.5" />
               <span>{isAr ? 'مقابل' : 'VS'}</span>
@@ -996,7 +996,7 @@ export function ExecutiveComparisonControlBar({
               <button
                 type="button"
                 onClick={handleSwap}
-                className="inline-flex h-9 cursor-pointer items-center gap-1 rounded-xl bg-emerald-50 px-3 text-[11.5px] font-extrabold tracking-wider text-emerald-800 ring-1 ring-emerald-600/20 transition-all duration-150 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-300 dark:ring-emerald-500/30"
+                className="inline-flex h-9 cursor-pointer items-center gap-1 rounded-xl bg-emerald-50 px-3 text-[13px] font-extrabold tracking-wider text-emerald-800 ring-1 ring-emerald-600/20 transition-all duration-150 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-300 dark:ring-emerald-500/30"
               >
                 <GitCompareArrows className="h-3.5 w-3.5" />
                 <span>{isAr ? 'مقابل' : 'VS'}</span>
@@ -1011,7 +1011,7 @@ export function ExecutiveComparisonControlBar({
                 <span className="text-[12px] font-semibold tracking-tight text-slate-700 dark:text-slate-200">
                   {isAr ? 'فترة التقييم' : 'Evaluation Date / Range'}
                 </span>
-                <span className="text-[11px] font-semibold text-emerald-700 tabular-nums dark:text-emerald-300">
+                <span className="text-xs font-semibold text-emerald-700 tabular-nums dark:text-emerald-300">
                   {query.granularity === 'single'
                     ? badgeA.full
                     : isAr
@@ -1089,7 +1089,7 @@ export function ExecutiveComparisonControlBar({
             {openMenu === 'brand' && (
               <div className="absolute start-0 top-full z-40 mt-1.5 w-68 rounded-2xl bg-white p-2.5 shadow-xl ring-1 ring-slate-900/10 dark:bg-[#101C17] dark:ring-emerald-500/25">
                 <div className="mb-1.5 flex items-center justify-between px-2 py-1">
-                  <span className="text-[11.5px] font-semibold text-slate-500 dark:text-slate-400">
+                  <span className="text-[13px] font-semibold text-slate-500 dark:text-slate-400">
                     {isAr ? 'اختر مطعماً أو أكثر (6)' : 'Select 1 or more Brands (6)'}
                   </span>
                   <button
@@ -1098,7 +1098,7 @@ export function ExecutiveComparisonControlBar({
                       syncScopeToGlobal('all', query.branchIds, query.channelIds)
                       onQueryChange((prev) => ({ ...prev, brandIds: 'all' }))
                     }}
-                    className="cursor-pointer text-[11.5px] font-semibold text-emerald-700 hover:underline dark:text-emerald-300"
+                    className="cursor-pointer text-[13px] font-semibold text-emerald-700 hover:underline dark:text-emerald-300"
                   >
                     {isAr ? 'تحديد الكل' : 'All 6'}
                   </button>
@@ -1124,7 +1124,7 @@ export function ExecutiveComparisonControlBar({
                         <div className="flex flex-col">
                           <span>{isAr ? b.ar : b.en}</span>
                           {!activeInSelectedBranches && (
-                            <span className="text-[10.5px] text-amber-600 dark:text-amber-400">
+                            <span className="text-xs text-amber-600 dark:text-amber-400">
                               {isAr ? 'خارج الفرع المحدد' : 'Not in selected branch'}
                             </span>
                           )}
@@ -1166,7 +1166,7 @@ export function ExecutiveComparisonControlBar({
             {openMenu === 'branch' && (
               <div className="absolute start-0 top-full z-40 mt-1.5 w-72 rounded-2xl bg-white p-2.5 shadow-xl ring-1 ring-slate-900/10 dark:bg-[#101C17] dark:ring-emerald-500/25">
                 <div className="mb-1.5 flex items-center justify-between px-2 py-1">
-                  <span className="text-[11.5px] font-semibold text-slate-500 dark:text-slate-400">
+                  <span className="text-[13px] font-semibold text-slate-500 dark:text-slate-400">
                     {isAr ? 'اختر فرعاً أو أكثر (7)' : 'Select 1 or more Branches (7)'}
                   </span>
                   <button
@@ -1175,7 +1175,7 @@ export function ExecutiveComparisonControlBar({
                       syncScopeToGlobal(query.brandIds, 'all', query.channelIds)
                       onQueryChange((prev) => ({ ...prev, branchIds: 'all' }))
                     }}
-                    className="cursor-pointer text-[11.5px] font-semibold text-emerald-700 hover:underline dark:text-emerald-300"
+                    className="cursor-pointer text-[13px] font-semibold text-emerald-700 hover:underline dark:text-emerald-300"
                   >
                     {isAr ? 'تحديد الكل' : 'All 7'}
                   </button>
@@ -1201,7 +1201,7 @@ export function ExecutiveComparisonControlBar({
                         <div className="flex flex-col">
                           <span>{isAr ? br.ar : br.en}</span>
                           {!compatibleWithBrand && (
-                            <span className="text-[10.5px] text-amber-600 dark:text-amber-400">
+                            <span className="text-xs text-amber-600 dark:text-amber-400">
                               {isAr ? 'لا يشغّل المطعم المحدد' : 'Brand inactive in this branch'}
                             </span>
                           )}
@@ -1243,7 +1243,7 @@ export function ExecutiveComparisonControlBar({
             {openMenu === 'channel' && (
               <div className="absolute start-0 top-full z-40 mt-1.5 w-68 rounded-2xl bg-white p-2.5 shadow-xl ring-1 ring-slate-900/10 dark:bg-[#101C17] dark:ring-emerald-500/25">
                 <div className="mb-1.5 flex items-center justify-between px-2 py-1">
-                  <span className="text-[11.5px] font-semibold text-slate-500 dark:text-slate-400">
+                  <span className="text-[13px] font-semibold text-slate-500 dark:text-slate-400">
                     {isAr ? 'اختر قناة بيع أو أكثر (8)' : 'Select Sales Channels (8)'}
                   </span>
                   <button
@@ -1252,7 +1252,7 @@ export function ExecutiveComparisonControlBar({
                       syncScopeToGlobal(query.brandIds, query.branchIds, 'all')
                       onQueryChange((prev) => ({ ...prev, channelIds: 'all' }))
                     }}
-                    className="cursor-pointer text-[11.5px] font-semibold text-emerald-700 hover:underline dark:text-emerald-300"
+                    className="cursor-pointer text-[13px] font-semibold text-emerald-700 hover:underline dark:text-emerald-300"
                   >
                     {isAr ? 'تحديد الكل' : 'All 8'}
                   </button>
@@ -1292,7 +1292,7 @@ export function ExecutiveComparisonControlBar({
         </div>
 
         {/* Reconciliation & Ledger Integrity Pill */}
-        <div className="flex items-center gap-2 text-[11.5px] font-medium text-slate-500 tabular-nums dark:text-slate-400">
+        <div className="flex items-center gap-2 text-[13px] font-medium text-slate-500 tabular-nums dark:text-slate-400">
           <span className="h-2 w-2 rounded-full bg-emerald-500" />
           <span>
             {isAr

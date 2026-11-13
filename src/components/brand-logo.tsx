@@ -25,7 +25,7 @@ export function BrandLogo({
       {showText ? (
         <div className="min-w-0">
           <p className={cx("truncate text-sm font-bold leading-5", title)}>{VENTURE_FOODS.nameAr}</p>
-          <p className={cx("truncate text-[11px] font-semibold tracking-wide", sub)} dir="ltr">
+          <p className={cx("truncate text-xs font-semibold tracking-wide", sub)} dir="ltr">
             Venture Foods · Kuwait
           </p>
         </div>

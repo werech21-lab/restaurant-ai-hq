@@ -190,7 +190,7 @@ export function FeryalSidebarNotebooks({
             {isAr ? 'محادثاتي ودفاتري 💬' : 'Chats & Notebooks 💬'}
           </span>
           {chats.length > 0 ? (
-            <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10.5px] font-bold tabular-nums text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200">
+            <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-xs font-bold tabular-nums text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200">
               {chats.length}
             </span>
           ) : null}
@@ -254,7 +254,7 @@ export function FeryalSidebarNotebooks({
                 <button
                   type="button"
                   onClick={() => setAddingNotebook((v) => !v)}
-                  className="inline-flex cursor-pointer items-center gap-1 rounded-full px-2 py-0.5 text-[11.5px] font-semibold text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/50"
+                  className="inline-flex cursor-pointer items-center gap-1 rounded-full px-2 py-0.5 text-[13px] font-semibold text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/50"
                 >
                   <FolderPlus className="h-3 w-3" />
                   <span>{isAr ? '+ دفتر جديد' : '+ New Notebook'}</span>
@@ -289,7 +289,7 @@ export function FeryalSidebarNotebooks({
               <button
                 type="button"
                 onClick={() => onSelectNotebook('all')}
-                className={`inline-flex cursor-pointer items-center gap-1 rounded-full px-2.5 py-1 text-[11.5px] font-semibold transition-all ${
+                className={`inline-flex cursor-pointer items-center gap-1 rounded-full px-2.5 py-1 text-[13px] font-semibold transition-all ${
                   activeNotebookId === 'all'
                     ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-600/25 dark:bg-emerald-950/60 dark:text-emerald-200 dark:ring-emerald-500/35'
                     : 'bg-[#F7F7F8] text-neutral-700 hover:bg-emerald-50/70 dark:bg-[#0D1614] dark:text-slate-200'
@@ -319,7 +319,7 @@ export function FeryalSidebarNotebooks({
                           }
                           if (e.key === 'Escape') setEditingNbId(null)
                         }}
-                        className="w-28 bg-transparent text-[11.5px] font-semibold text-neutral-900 focus:outline-none dark:text-white"
+                        className="w-28 bg-transparent text-[13px] font-semibold text-neutral-900 focus:outline-none dark:text-white"
                       />
                       <button
                         type="button"
@@ -347,7 +347,7 @@ export function FeryalSidebarNotebooks({
                     <button
                       type="button"
                       onClick={() => onSelectNotebook(isSelected ? 'all' : nb.id)}
-                      className={`inline-flex cursor-pointer items-center gap-1 rounded-full px-2.5 py-1 text-[11.5px] font-semibold transition-all ${
+                      className={`inline-flex cursor-pointer items-center gap-1 rounded-full px-2.5 py-1 text-[13px] font-semibold transition-all ${
                         isSelected
                           ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-600/25 dark:bg-emerald-950/60 dark:text-emerald-200 dark:ring-emerald-500/35'
                           : 'bg-[#F7F7F8] text-neutral-700 hover:bg-emerald-50/70 dark:bg-[#0D1614] dark:text-slate-200'
@@ -425,7 +425,7 @@ export function FeryalSidebarNotebooks({
             ) : (
               groupedChats.map((group) => (
                 <div key={group.id} className="space-y-1.5">
-                  <div className="px-1 text-[11px] font-semibold uppercase tracking-wide text-neutral-400 dark:text-slate-500">
+                  <div className="px-1 text-xs font-semibold uppercase tracking-wide text-neutral-400 dark:text-slate-500">
                     {isAr ? group.labelAr : group.labelEn}
                   </div>
 
@@ -542,7 +542,7 @@ export function FeryalSidebarNotebooks({
                               ) : null}
                             </div>
 
-                            <div className="flex flex-wrap items-center justify-between gap-1 text-[11px] font-medium text-neutral-400">
+                            <div className="flex flex-wrap items-center justify-between gap-1 text-xs font-medium text-neutral-400">
                               {nb ? (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-0.5 text-neutral-600 dark:bg-[#111A22] dark:text-slate-300">
                                   <span>{nb.icon}</span>
@@ -566,7 +566,7 @@ export function FeryalSidebarNotebooks({
                                       void moveChatToNotebook(chat.id, dest.id)
                                       setMovingChatId(null)
                                     }}
-                                    className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                                    className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
                                       chat.notebookId === dest.id
                                         ? 'btn-colored bg-emerald-600 text-white'
                                         : 'bg-white text-neutral-700 ring-1 ring-neutral-200 dark:bg-[#111A22] dark:text-slate-200 dark:ring-white/10'
@@ -588,7 +588,7 @@ export function FeryalSidebarNotebooks({
           </div>
 
           {/* 1-Click JSON Backup & Restore Footer (Strictly hidden for Read-Only Auditor) */}
-          <div className="flex items-center justify-between gap-2 border-t border-neutral-100 pt-2.5 text-[11.5px] dark:border-white/[0.06]">
+          <div className="flex items-center justify-between gap-2 border-t border-neutral-100 pt-2.5 text-[13px] dark:border-white/[0.06]">
             {isAuditor ? (
               <span className="min-w-0 break-words whitespace-normal font-medium text-amber-800 dark:text-amber-300">
                 {isAr
@@ -657,7 +657,7 @@ export function FeryalSidebarNotebooks({
                 <h3 className="text-[14px] font-semibold text-neutral-950 dark:text-white">
                   {isAr ? note.titleAr : note.titleEn}
                 </h3>
-                <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold tabular-nums text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
+                <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
                   {isAr ? note.benefitAr : note.benefitEn}
                 </span>
               </div>

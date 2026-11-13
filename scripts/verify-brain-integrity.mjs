@@ -2254,7 +2254,7 @@ assert(
     chartsSrc.includes('المبيعات (ألف د.ك)') &&
     chartsSrc.includes('الصافي بالجيب (ألف د.ك)') &&
     !/\btruncate\b/.test(chartsSrc) &&
-    execFooterSrc.includes('آخر مزامنة أودو 17:') &&
+    (execFooterSrc.includes('آخر سجل من أودو:') || execFooterSrc.includes('آخر مزامنة أودو 17:')) &&
     execFooterSrc.includes('مصدر البيانات: دفتر الأستاذ العام ونقاط البيع Odoo 17') &&
     execFooterSrc.includes('6 مطاعم • 7 فروع • 8 قنوات') &&
     execFooterSrc.includes('v2.8'),
@@ -4217,7 +4217,7 @@ assert(
 assert(
   s29TopBar.includes('Search metrics, branches, or ask Feryal...') &&
     s29TopBar.includes('⌘K') &&
-    s29TopBar.includes('data-utility="odoo-live-status"') &&
+    s29TopBar.includes("isAr ? 'اللغة:' : 'Language:'") &&
     s29FullJourney.includes('Executive Dashboard') &&
     s29FullJourney.includes('ae-hero-emerald-card') &&
     s29FullJourney.includes('from-[#0D6E44]') &&
@@ -4226,7 +4226,188 @@ assert(
     s29FullJourney.includes('repeating-linear-gradient(45deg, rgba(16,185,129,0.16)') &&
     s29FullJourney.includes('Branch & Priority Pulse') &&
     s29FullJourney.includes('Open Action / Ask Feryal'),
-  '29.2 Executive Utility Header, Hero Emerald KPI Card & 3-Column Bento Analytics Row: Pill ⌘K search, quick action circles, عربي | EN 1-click switch, Hero Net Sales gradient card, 7-day diagonal-hatched pill analytics chart, Start Here focus & Branch Pulse verified',
+  '29.2 Executive Utility Header, Hero Emerald KPI Card & 3-Column Bento Analytics Row: Pill ⌘K search, Account & Menu single Language switcher, Hero Net Sales gradient card, 7-day diagonal-hatched pill analytics chart, Start Here focus & Branch Pulse verified',
+)
+
+// ============================================================================
+// SECTION 30: Boudy 3-Phase Complete Release Gate (Sync + UI + Mobile/Feryal/Fonts)
+// ============================================================================
+console.log('\n30) Boudy 3-Phase Complete Release Gate:')
+
+const s30VercelJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'vercel.json'), 'utf8'))
+const s30ErpSyncRouteSrc = fs.readFileSync(
+  path.join(ROOT, 'src/app/api/erp/odoo-sync/route.ts'),
+  'utf8',
+)
+const s30ExecFooterSrc = fs.readFileSync(
+  path.join(ROOT, 'src/components/erp/ExecutiveFooter.tsx'),
+  'utf8',
+)
+const s30MobileNavSrc = fs.readFileSync(
+  path.join(ROOT, 'src/components/mobile-bottom-nav.tsx'),
+  'utf8',
+)
+const s30FeryalSrc = fs.readFileSync(
+  path.join(ROOT, 'src/components/erp/feryal-governance-studio.tsx'),
+  'utf8',
+)
+
+const s30CronMatch = Array.isArray(s30VercelJson.crons)
+  ? s30VercelJson.crons.find((c) => c.path === '/api/erp/odoo-sync')
+  : null
+
+const s30Phase1ProbeScript = `
+import { NextRequest } from 'next/server';
+import {
+  EXEC_SESSION_COOKIE,
+  createExecSessionToken,
+  DEFAULT_ABDULLAH_EMAIL,
+  DEFAULT_GM_EMAIL,
+  DEFAULT_AUDITOR_EMAIL,
+} from './src/lib/auth/exec-session';
+import { GET as erpSyncGet } from './src/app/api/erp/odoo-sync/route';
+import { bustOdooLiveCache, fetchLiveOdooSnapshot } from './src/lib/odoo-live-connector';
+import { summaryFromSnapshot } from './src/lib/odoo/live-sync-core';
+import snapshot from './src/lib/odoo-live-snapshot.json';
+import {
+  dispatchAdminStalenessAlertIfNeeded,
+  resetOdooStalenessAlertDedupForTests,
+} from './src/lib/odoo-staleness-notifier';
+
+(async () => {
+  // Strip ODOO_* env vars inside isolated child process to verify ENV_NOT_CONFIGURED is NEVER returned
+  delete process.env.ODOO_URL;
+  delete process.env.ODOO_DB;
+  delete process.env.ODOO_USERNAME;
+  delete process.env.ODOO_API_KEY;
+  bustOdooLiveCache({ resetCooldown: true, clearLastKnownGood: true });
+
+  const snapMonth = await fetchLiveOdooSnapshot({
+    period: 'month',
+    forceRefresh: true,
+    referenceNowMs: Date.parse('2026-11-13T16:00:00.000Z'),
+  });
+  const snapSummaryMonth = summaryFromSnapshot(snapshot, undefined, 'month');
+
+  resetOdooStalenessAlertDedupForTests();
+  const freshAlert = await dispatchAdminStalenessAlertIfNeeded({
+    hoursSinceLatestRecord: 2.5,
+    isStaleOver24h: false,
+    latestRecordAt: snapMonth.latestRecordAt,
+    kuwaitTimestamp: snapMonth.kuwaitSyncedAt,
+  });
+  const staleAlert1 = await dispatchAdminStalenessAlertIfNeeded({
+    hoursSinceLatestRecord: 28.5,
+    isStaleOver24h: true,
+    latestRecordAt: '2026-11-10T10:00:00.000Z',
+    kuwaitTimestamp: '10/11/2026 13:00 UTC+3',
+    referenceNowMs: 1_700_000_000_000,
+    dryRun: true,
+  });
+  const staleAlertDedup = await dispatchAdminStalenessAlertIfNeeded({
+    hoursSinceLatestRecord: 29.0,
+    isStaleOver24h: true,
+    latestRecordAt: '2026-11-10T10:00:00.000Z',
+    kuwaitTimestamp: '10/11/2026 13:00 UTC+3',
+    referenceNowMs: 1_700_000_000_000 + 60_000,
+    dryRun: true,
+  });
+
+  const tAdmin = await createExecSessionToken(DEFAULT_ABDULLAH_EMAIL, 'admin');
+  const tGm = await createExecSessionToken(DEFAULT_GM_EMAIL, 'gm');
+  const tAud = await createExecSessionToken(DEFAULT_AUDITOR_EMAIL, 'auditor');
+
+  const adminRes = await erpSyncGet(new NextRequest('https://aetherbi.com/api/erp/odoo-sync?period=month', {
+    headers: { cookie: EXEC_SESSION_COOKIE + '=' + tAdmin },
+  }));
+  const gmRes = await erpSyncGet(new NextRequest('https://aetherbi.com/api/erp/odoo-sync?period=month', {
+    headers: { cookie: EXEC_SESSION_COOKIE + '=' + tGm },
+  }));
+  const audRes = await erpSyncGet(new NextRequest('https://aetherbi.com/api/erp/odoo-sync?period=month', {
+    headers: { cookie: EXEC_SESSION_COOKIE + '=' + tAud },
+  }));
+
+  const adminJson = await adminRes.json();
+  const gmJson = await gmRes.json();
+  const audJson = await audRes.json();
+
+  console.log(JSON.stringify({
+    diagNeverEnvNotConfigured: snapMonth.diagnosticCode !== 'ENV_NOT_CONFIGURED' && adminJson.diagnosticCode !== 'ENV_NOT_CONFIGURED',
+    periodTo: snapMonth.period?.to,
+    summaryPeriodTo: snapSummaryMonth.period?.to,
+    lastDailySeriesDate: snapMonth.dailySeries?.[snapMonth.dailySeries.length - 1]?.day,
+    isStaleRef: snapMonth.isStaleOver24h,
+    freshAlertDispatched: freshAlert.adminAlertDispatched,
+    staleAlert1Dispatched: staleAlert1.adminAlertDispatched,
+    staleAlertChannels: staleAlert1.channels,
+    staleAlertDeduplicated: staleAlertDedup.deduplicated === true,
+    adminHasAlertField:
+      typeof adminJson.adminAlertDispatched === 'boolean' &&
+      Array.isArray(adminJson.stalenessAlert?.channels) &&
+      Array.isArray(adminJson.channels) &&
+      adminJson.channels.length === 8,
+    gmHasNoAdminAlertField:
+      gmJson.adminAlertDispatched === undefined &&
+      gmJson.stalenessAlert === undefined &&
+      gmJson.diagnosticCode === undefined,
+    audHasNoAdminAlertField:
+      audJson.adminAlertDispatched === undefined &&
+      audJson.stalenessAlert === undefined &&
+      audJson.diagnosticCode === undefined,
+  }));
+})();
+`
+
+const s30Raw = execFileSync(
+  process.execPath,
+  [tsxCli, '-r', serverOnlyShimPath, '-e', s30Phase1ProbeScript],
+  { cwd: ROOT, encoding: 'utf8' },
+).trim()
+const s30Probe = JSON.parse(s30Raw.split('\n').pop() ?? '{}')
+
+assert(
+  s30CronMatch?.schedule === '*/15 * * * *' &&
+    s30ErpSyncRouteSrc.includes('export const revalidate = 900') &&
+    s30ExecFooterSrc.includes('FIFTEEN_MINUTES_MS = 15 * 60 * 1000') &&
+    s30ExecFooterSrc.includes('آخر سجل من أودو:') &&
+    s30ExecFooterSrc.includes('Last record from Odoo:') &&
+    s30Probe.diagNeverEnvNotConfigured === true &&
+    s30Probe.isStaleRef === false &&
+    s30Probe.freshAlertDispatched === false &&
+    s30Probe.staleAlert1Dispatched === true &&
+    Array.isArray(s30Probe.staleAlertChannels) &&
+    s30Probe.staleAlertChannels.includes('email') &&
+    s30Probe.staleAlertChannels.includes('whatsapp') &&
+    s30Probe.staleAlertDeduplicated === true &&
+    s30Probe.adminHasAlertField === true &&
+    s30Probe.gmHasNoAdminAlertField === true &&
+    s30Probe.audHasNoAdminAlertField === true,
+  '30.1 Phase 1 Live Odoo Sync, 15m Cron/Poll, Honest Record Footer & Admin-Only >24h Email/WhatsApp Alert: */15 * * * * cron + revalidate=900 + 15m silent poll, zero ENV_NOT_CONFIGURED, honest Last record from Odoo footer, and deduplicated >24h alert gated strictly to admin',
+  `cron="${s30CronMatch?.schedule ?? ''}", periodTo="${s30Probe.periodTo}", adminAlert=${s30Probe.staleAlert1Dispatched}`,
+)
+
+const s30TinyFontRegex = /text-\[(?:10|10\.5|11|11\.5)px\]/
+const s30TinyFontOffenders = s28UiFiles.filter((fp) =>
+  s30TinyFontRegex.test(fs.readFileSync(fp, 'utf8')),
+)
+
+assert(
+  !s29TopBar.includes("setLocale(isAr ? 'en' : 'ar')") &&
+    (s29TopBar.match(/onSetLocale\(/g) ?? []).length === 2 &&
+    !s29TopBar.includes('data-utility="odoo-live-status"') &&
+    !s30MobileNavSrc.includes('setLocale') &&
+    s29TopBar.includes('<div className="hidden sm:block">') &&
+    s30ExecFooterSrc.includes('البيانات محدّثة حتى') &&
+    s30ExecFooterSrc.includes('Data updated through') &&
+    s30Probe.periodTo === '2026-11-13' &&
+    s30Probe.summaryPeriodTo === '2026-11-13' &&
+    s30Probe.lastDailySeriesDate === '2026-11-13' &&
+    s30FeryalSrc.includes('ملخص اليوم وآخر التنبيهات') &&
+    s30FeryalSrc.includes("Today's Executive Summary & Latest Alerts") &&
+    s29FullJourney.includes('pb-28 sm:pb-12') &&
+    s30TinyFontOffenders.length === 0,
+  '30.2 Phase 2 & 3 Single Language Toggle, Unified 2026-11-13 End Date, 3-Control <sm Header, Feryal Today Summary & +1 Font Scale: Single Account & Menu language row, single clean status bar, unified 2026-11-13 across header/API/chart, 3-control mobile header + pb-28 sm:pb-12, Feryal summary/alerts & 0 tiny 10px/11px classes',
+  `tinyFontOffenders=${s30TinyFontOffenders.length}, periodTo=${s30Probe.periodTo}, lastDaily=${s30Probe.lastDailySeriesDate}`,
 )
 
 console.log('\n----------------------------------------------------------------------')

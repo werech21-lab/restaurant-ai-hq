@@ -64,7 +64,7 @@ function readDomAuditorFlag(): boolean {
  */
 export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: boolean } = {}) {
   const pathname = usePathname()
-  const { locale, setLocale } = useI18n()
+  const { locale } = useI18n()
   const isAr = locale === 'ar'
   const gov = useOptionalGovernance()
 
@@ -222,23 +222,13 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
                 <h2 className="whitespace-nowrap text-[15px] font-bold tracking-tight text-slate-900 dark:text-white">
                   {isAr ? 'فنتشر فودز' : 'Venture Foods'}
                 </h2>
-                <p className="whitespace-nowrap text-[11.5px] font-medium text-slate-500 dark:text-slate-400">
+                <p className="whitespace-nowrap text-[13px] font-medium text-slate-500 dark:text-slate-400">
                   {isAr ? '6 مطاعم · 7 فروع · 8 قنوات' : '6 Brands · 7 Branches · 8 Channels'}
                 </p>
               </div>
 
               <div className="flex shrink-0 items-center gap-1.5">
-                <ThemeToggle className="h-8 !gap-1 !px-2 text-[11px]" />
-
-                <button
-                  type="button"
-                  dir="ltr"
-                  data-no-translate=""
-                  onClick={() => setLocale(isAr ? 'en' : 'ar')}
-                  className="inline-flex h-8 cursor-pointer items-center justify-center rounded-xl bg-neutral-100 px-2 text-[11.5px] font-bold text-slate-700 ring-1 ring-slate-900/[0.05] transition-colors hover:bg-neutral-200/80 dark:bg-white/[0.07] dark:text-slate-200 dark:ring-emerald-500/15"
-                >
-                  {isAr ? 'EN' : 'AR'}
-                </button>
+                <ThemeToggle className="h-8 !gap-1 !px-2 text-xs" />
 
                 <button
                   type="button"
@@ -264,7 +254,7 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
                   <span>{isAr ? 'وضع المدير نشط 🔓' : 'Manager Active 🔓'}</span>
                   <span
                     dir="ltr"
-                    className="rounded-lg bg-emerald-100/80 px-1.5 py-0.5 font-mono text-[11px] tabular-nums text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
+                    className="rounded-lg bg-emerald-100/80 px-1.5 py-0.5 font-mono text-xs tabular-nums text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
                   >
                     {formatSessionTimer(activeSession.remainingSeconds)}
                   </span>
@@ -291,7 +281,7 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
                 ) : null}
 
                 {isAuditor ? (
-                  <span className="inline-flex h-8 items-center gap-1 rounded-xl bg-amber-50 px-2.5 text-[11px] font-bold text-amber-900 ring-1 ring-amber-500/20 dark:bg-amber-950/60 dark:text-amber-200">
+                  <span className="inline-flex h-8 items-center gap-1 rounded-xl bg-amber-50 px-2.5 text-xs font-bold text-amber-900 ring-1 ring-amber-500/20 dark:bg-amber-950/60 dark:text-amber-200">
                     <Lock className="h-3 w-3 shrink-0" />
                     <span>{isAr ? 'وضع المراجعة — قراءة فقط' : 'Read-Only'}</span>
                   </span>
@@ -319,7 +309,7 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
             <div className="space-y-4">
               {SIDEBAR_SECTIONS.map((section) => (
                 <div key={section.id} className="space-y-1.5">
-                  <div className="px-1 text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">
+                  <div className="px-1 text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">
                     {isAr ? section.labelAr : section.labelEn}
                   </div>
                   <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
@@ -386,7 +376,7 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
           <Link
             href="/erp"
             aria-current={homeActive ? 'page' : undefined}
-            className={`flex flex-col items-center justify-center gap-1 py-1.5 text-[11px] transition-colors duration-[160ms] ${
+            className={`flex flex-col items-center justify-center gap-1 py-1.5 text-xs transition-colors duration-[160ms] ${
               homeActive
                 ? 'font-bold text-emerald-600 dark:text-emerald-400'
                 : 'font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
@@ -400,7 +390,7 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
           <Link
             href="/erp/cores"
             aria-current={salesActive ? 'page' : undefined}
-            className={`flex flex-col items-center justify-center gap-1 py-1.5 text-[11px] transition-colors duration-[160ms] ${
+            className={`flex flex-col items-center justify-center gap-1 py-1.5 text-xs transition-colors duration-[160ms] ${
               salesActive
                 ? 'font-bold text-emerald-600 dark:text-emerald-400'
                 : 'font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
@@ -414,7 +404,7 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
           <Link
             href="/erp/feryal-ai"
             aria-current={feryalActive ? 'page' : undefined}
-            className="flex flex-col items-center justify-center gap-0.5 py-1 text-[11px]"
+            className="flex flex-col items-center justify-center gap-0.5 py-1 text-xs"
           >
             <span
               className={`btn-colored flex h-9 w-12 items-center justify-center rounded-2xl transition-all duration-[160ms] active:scale-95 ${
@@ -440,7 +430,7 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
           <Link
             href="/erp/prep-sla"
             aria-current={opsActive ? 'page' : undefined}
-            className={`flex flex-col items-center justify-center gap-1 py-1.5 text-[11px] transition-colors duration-[160ms] ${
+            className={`flex flex-col items-center justify-center gap-1 py-1.5 text-xs transition-colors duration-[160ms] ${
               opsActive
                 ? 'font-bold text-emerald-600 dark:text-emerald-400'
                 : 'font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
@@ -456,7 +446,7 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
             onClick={() => setSheetOpen((v) => !v)}
             aria-expanded={sheetOpen}
             aria-label={isAr ? 'فتح جميع الأقسام (13 شاشة)' : 'Open All 13 Modules'}
-            className={`flex cursor-pointer flex-col items-center justify-center gap-1 py-1.5 text-[11px] transition-colors duration-[160ms] ${
+            className={`flex cursor-pointer flex-col items-center justify-center gap-1 py-1.5 text-xs transition-colors duration-[160ms] ${
               menuActive
                 ? 'font-bold text-emerald-600 dark:text-emerald-400'
                 : 'font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'

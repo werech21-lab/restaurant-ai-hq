@@ -272,26 +272,26 @@ export function AutomatedGlBridge({
         {/* Live Balance Summary KPI Cards */}
         <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-3.5">
-            <div className="text-[11px] font-medium text-slate-400">{isAr ? 'إجمالي المدين' : 'Total Debit Postings'}</div>
+            <div className="text-xs font-medium text-slate-400">{isAr ? 'إجمالي المدين' : 'Total Debit Postings'}</div>
             <div className="text-lg font-black text-emerald-400 mt-1">{totalDebits.toFixed(3)} <span className="text-xs text-slate-400">{isAr ? 'د.ك' : 'KWD'}</span></div>
-            <div className="text-[10px] text-slate-400 mt-0.5">{isAr ? 'الأصول والمصروفات' : 'Assets & Direct Costs'}</div>
+            <div className="text-xs text-slate-400 mt-0.5">{isAr ? 'الأصول والمصروفات' : 'Assets & Direct Costs'}</div>
           </div>
           <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-3.5">
-            <div className="text-[11px] font-medium text-slate-400">{isAr ? 'إجمالي الدائن' : 'Total Credit Postings'}</div>
+            <div className="text-xs font-medium text-slate-400">{isAr ? 'إجمالي الدائن' : 'Total Credit Postings'}</div>
             <div className="text-lg font-black text-cyan-400 mt-1">{totalCredits.toFixed(3)} <span className="text-xs text-slate-400">{isAr ? 'د.ك' : 'KWD'}</span></div>
-            <div className="text-[10px] text-slate-400 mt-0.5">{isAr ? 'الإيرادات والمخزون' : 'Revenues & Inventory'}</div>
+            <div className="text-xs text-slate-400 mt-0.5">{isAr ? 'الإيرادات والمخزون' : 'Revenues & Inventory'}</div>
           </div>
           <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-3.5">
-            <div className="text-[11px] font-medium text-slate-400">{isAr ? 'فارق التوازن' : 'Imbalance / Diff'}</div>
+            <div className="text-xs font-medium text-slate-400">{isAr ? 'فارق التوازن' : 'Imbalance / Diff'}</div>
             <div className={`text-lg font-black mt-1 ${imbalance === 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
               {imbalance.toFixed(3)} <span className="text-xs text-slate-400">{isAr ? 'د.ك' : 'KWD'}</span>
             </div>
-            <div className="text-[10px] text-emerald-400/90 mt-0.5">{isAr ? 'متزن محاسبياً 100%' : '100% Balanced'}</div>
+            <div className="text-xs text-emerald-400/90 mt-0.5">{isAr ? 'متزن محاسبياً 100%' : '100% Balanced'}</div>
           </div>
           <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-3.5">
-            <div className="text-[11px] font-medium text-slate-400">{isAr ? 'ربط شجرة حسابات أودو' : 'Odoo COA Linkage'}</div>
+            <div className="text-xs font-medium text-slate-400">{isAr ? 'ربط شجرة حسابات أودو' : 'Odoo COA Linkage'}</div>
             <div className="text-lg font-black text-indigo-400 mt-1">820 <span className="text-xs text-slate-400">{isAr ? 'حساباً' : 'Accounts'}</span></div>
-            <div className="text-[10px] text-slate-400 mt-0.5">{isAr ? 'ترحيل ومزامنة فورية' : 'Real-time GL posting'}</div>
+            <div className="text-xs text-slate-400 mt-0.5">{isAr ? 'ترحيل ومزامنة فورية' : 'Real-time GL posting'}</div>
           </div>
         </div>
       </div>
@@ -355,10 +355,10 @@ export function AutomatedGlBridge({
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-sm font-black text-white">{entry.voucherNo}</span>
-                      <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[11px] font-semibold text-slate-300">
+                      <span className="rounded-full bg-slate-800 px-2 py-0.5 text-xs font-semibold text-slate-300">
                         {isAr ? entry.sourceLabelAr : entry.sourceLabelEn}
                       </span>
-                      <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
+                      <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-xs font-bold text-emerald-400">
                         {entry.status}
                       </span>
                     </div>
@@ -371,9 +371,9 @@ export function AutomatedGlBridge({
                 <div className="flex items-center gap-4">
                   <div className="text-right">
                     <div className="text-xs font-bold text-white">
-                      {entry.totalDebit.toFixed(3)} <span className="text-[10px] text-slate-400">{isAr ? 'د.ك' : 'KWD'}</span>
+                      {entry.totalDebit.toFixed(3)} <span className="text-xs text-slate-400">{isAr ? 'د.ك' : 'KWD'}</span>
                     </div>
-                    <div className="text-[10px] text-emerald-400 font-mono">Debit = Credit</div>
+                    <div className="text-xs text-emerald-400 font-mono">Debit = Credit</div>
                   </div>
                   <div className="text-slate-400">
                     {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
@@ -386,7 +386,7 @@ export function AutomatedGlBridge({
                 <div className="border-t border-slate-800 p-4 bg-slate-950/70">
                   <div className="flex items-center justify-between pb-3 text-xs font-semibold text-slate-400 border-b border-slate-800/80">
                     <span>{isAr ? 'تفاصيل أسطر القيد المحاسبي المزدوج في دفتر اليومية' : 'Double-Entry General Ledger Voucher Lines'}</span>
-                    <span className="font-mono text-emerald-400 text-[11px]">
+                    <span className="font-mono text-emerald-400 text-xs">
                       {isAr ? 'دقة التوازن: 0.000 د.ك' : 'Balance Precision: 0.000 KWD'}
                     </span>
                   </div>
@@ -394,7 +394,7 @@ export function AutomatedGlBridge({
                   <div className="overflow-x-auto mt-2">
                     <table className="w-full text-right text-xs">
                       <thead>
-                        <tr className="border-b border-slate-800 text-[11px] text-slate-400">
+                        <tr className="border-b border-slate-800 text-xs text-slate-400">
                           <th className="py-2 px-3 text-left font-mono">{isAr ? 'رمز الحساب' : 'Code'}</th>
                           <th className="py-2 px-3">{isAr ? 'اسم الحساب في شجرة أودو' : 'Odoo Account Name'}</th>
                           <th className="py-2 px-3">{isAr ? 'مركز التكلفة التحليلي' : 'Analytic CC'}</th>
@@ -412,7 +412,7 @@ export function AutomatedGlBridge({
                               {isAr ? l.accountNameAr : l.accountNameEn}
                             </td>
                             <td className="py-2.5 px-3">
-                              <span className="rounded bg-slate-800 px-2 py-0.5 text-[10px] font-mono text-slate-300">
+                              <span className="rounded bg-slate-800 px-2 py-0.5 text-xs font-mono text-slate-300">
                                 {l.analyticCostCenter ?? 'CORP-GEN'}
                               </span>
                             </td>

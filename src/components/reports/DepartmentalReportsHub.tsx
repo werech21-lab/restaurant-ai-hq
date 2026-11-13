@@ -326,22 +326,22 @@ export function DepartmentalReportsHub({ initialReportId, locale = 'ar', liveDbC
             <div className="rounded-2xl border border-slate-800 bg-[#0d131f] p-4 shadow-lg">
               <span className="text-xs font-bold text-slate-400">{isAr ? 'التقارير المعتمدة' : 'Audited Reports'}</span>
               <p className="mt-1 text-2xl font-black text-emerald-400 font-mono">{allReports.length} {isAr ? 'تقريراً' : 'Reports'}</p>
-              <span className="text-[11px] text-slate-500">{isAr ? 'تغطي كافة العمليات' : '100% Operations Coverage'}</span>
+              <span className="text-xs text-slate-500">{isAr ? 'تغطي كافة العمليات' : '100% Operations Coverage'}</span>
             </div>
             <div className="rounded-2xl border border-slate-800 bg-[#0d131f] p-4 shadow-lg">
               <span className="text-xs font-bold text-slate-400">{isAr ? 'القطاعات التشغيلية' : 'Departments'}</span>
               <p className="mt-1 text-2xl font-black text-blue-400 font-mono">7 {isAr ? 'أقسام رئيسية' : 'Divisions'}</p>
-              <span className="text-[11px] text-slate-500">{isAr ? 'هيكل مؤسسي موحد' : 'Unified Hierarchy'}</span>
+              <span className="text-xs text-slate-500">{isAr ? 'هيكل مؤسسي موحد' : 'Unified Hierarchy'}</span>
             </div>
             <div className="rounded-2xl border border-slate-800 bg-[#0d131f] p-4 shadow-lg">
               <span className="text-xs font-bold text-slate-400">{isAr ? 'سجلات Odoo الموثقة' : 'Odoo Ingested Data'}</span>
               <p className="mt-1 text-2xl font-black text-purple-400 font-mono">9,662 {isAr ? 'سجلاً' : 'Records'}</p>
-              <span className="text-[11px] text-slate-500">{isAr ? 'تطابق SHA-256 بنسبة 100%' : '100% Cryptographic Match'}</span>
+              <span className="text-xs text-slate-500">{isAr ? 'تطابق SHA-256 بنسبة 100%' : '100% Cryptographic Match'}</span>
             </div>
             <div className="rounded-2xl border border-slate-800 bg-[#0d131f] p-4 shadow-lg">
               <span className="text-xs font-bold text-slate-400">{isAr ? 'مبيعات أكتوبر 2026' : 'October 2026 Sales'}</span>
               <p className="mt-1 text-2xl font-black text-amber-400 font-mono">167,092.160 {isAr ? 'د.ك' : 'KWD'}</p>
-              <span className="text-[11px] text-slate-500">{isAr ? '30,543 طلباً مدققاً' : '30,543 Audited Orders'}</span>
+              <span className="text-xs text-slate-500">{isAr ? '30,543 طلباً مدققاً' : '30,543 Audited Orders'}</span>
             </div>
           </div>
 
@@ -604,10 +604,10 @@ export function DepartmentalReportsHub({ initialReportId, locale = 'ar', liveDbC
                     >
                       <div>
                         <div className="mb-2 flex items-center justify-between">
-                          <span className="rounded bg-slate-800 px-2 py-0.5 font-mono text-[10px] font-bold text-emerald-400">
+                          <span className="rounded bg-slate-800 px-2 py-0.5 font-mono text-xs font-bold text-emerald-400">
                             {report.code}
                           </span>
-                          <span className="text-[11px] text-slate-500 font-mono">
+                          <span className="text-xs text-slate-500 font-mono">
                             {report.auditedDate}
                           </span>
                         </div>
@@ -622,7 +622,7 @@ export function DepartmentalReportsHub({ initialReportId, locale = 'ar', liveDbC
 
                       <div className="mt-5 flex items-center justify-between border-t border-slate-800/80 pt-3">
                         <div>
-                          <span className="block text-[10px] text-slate-500 font-semibold">{isAr ? 'المؤشر الرئيسي' : 'Headline Metric'}</span>
+                          <span className="block text-xs text-slate-500 font-semibold">{isAr ? 'المؤشر الرئيسي' : 'Headline Metric'}</span>
                           <span className="font-mono text-sm font-black text-amber-400">
                             {isAr ? report.headlineMetricAr : report.headlineMetricEn}
                           </span>
@@ -751,13 +751,13 @@ export function DepartmentalReportsHub({ initialReportId, locale = 'ar', liveDbC
                 className="flex flex-col justify-between rounded-2xl border border-slate-800 bg-[#0f172a]/70 p-4 shadow-md"
               >
                 <div>
-                  <span className="text-[11px] font-bold text-slate-400">
+                  <span className="text-xs font-bold text-slate-400">
                     {isAr ? kpi.labelAr : kpi.labelEn}
                   </span>
                   <p className="mt-1 text-lg font-black text-white font-mono">{kpi.value}</p>
                 </div>
                 {(kpi.change || kpi.subtextAr) && (
-                  <div className="mt-2 flex items-center justify-between text-[10px] pt-2 border-t border-slate-800/80">
+                  <div className="mt-2 flex items-center justify-between text-xs pt-2 border-t border-slate-800/80">
                     {kpi.change && (
                       <span
                         className={`font-bold ${

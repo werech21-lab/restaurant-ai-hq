@@ -148,7 +148,7 @@ export function AlertsCenterV2() {
                       <Badge tone={sev.tone}>{isAr ? sev.ar : sev.en}</Badge>
                       <Badge tone={cat.tone}>{isAr ? cat.ar : cat.en}</Badge>
                       {a.entries ? (
-                        <span className="text-[11px] text-slate-500">
+                        <span className="text-xs text-slate-500">
                           <Num>{fmt(a.entries)}</Num> {T('entries', 'قيداً')}
                         </span>
                       ) : null}
@@ -156,7 +156,7 @@ export function AlertsCenterV2() {
                     <h3 className="text-sm font-semibold text-slate-900 dark:text-white">{isAr ? a.titleAr : a.titleEn}</h3>
                     <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">{isAr ? a.bodyAr : a.bodyEn}</p>
                     {d?.status === 'done' ? (
-                      <p className="ae-pop text-[11px] font-semibold text-emerald-600">
+                      <p className="ae-pop text-xs font-semibold text-emerald-600">
                         <Num>{d.time}</Num> · {d.message}
                       </p>
                     ) : null}
@@ -175,7 +175,7 @@ export function AlertsCenterV2() {
                   ) : null}
                 </div>
                 <div className="flex flex-wrap items-center gap-2 lg:col-span-3 lg:justify-end">
-                  <Link href={feryalHref(isAr ? a.askAr : a.askEn)} className="btn-colored inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]">
+                  <Link href={feryalHref(isAr ? a.askAr : a.askEn)} className="btn-colored inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]">
                     <Sparkles className="h-3 w-3" />
                     {T('Ask Feryal to Resolve', 'اطلب من فريال المعالجة')}
                   </Link>
@@ -189,7 +189,7 @@ export function AlertsCenterV2() {
                     <CheckCircle2 className="h-3 w-3" />
                     {acknowledged ? T('Reopen', 'إعادة فتح') : T('Acknowledge', 'تأكيد الاطلاع')}
                   </button>
-                  <Link href={a.href} className="inline-flex items-center gap-1 text-[11px] font-semibold text-sky-700 hover:underline dark:text-sky-300">
+                  <Link href={a.href} className="inline-flex items-center gap-1 text-xs font-semibold text-sky-700 hover:underline dark:text-sky-300">
                     {T('Open', 'فتح')}
                     <ArrowUpRight className={`h-3 w-3 ${isAr ? '-scale-x-100' : ''}`} />
                   </Link>
@@ -200,7 +200,7 @@ export function AlertsCenterV2() {
         )}
       </section>
 
-      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+      <p className="text-xs text-slate-500 dark:text-slate-400">
         {T(
           `Impacts reconcile to the five approved levers (${kwd(6840, 'en', 0)} per month) on the ${LEDGER.periodLabelEn} Odoo ledger.`,
           `الآثار مطابقة للروافع الخمس المعتمدة (${kwd(6840, 'ar', 0)} شهرياً) على دفتر أودو لشهر ${LEDGER.periodLabelAr}.`,

@@ -382,22 +382,22 @@ export function VentureAccountingHub({
             <div className="rounded-xl border border-slate-800 bg-[#0f172a]/60 p-4">
               <span className="text-xs text-slate-400">{isAr ? 'إيرادات المبيعات (أكتوبر 2026)' : 'October 2026 Sales'}</span>
               <p className="mt-1 text-2xl font-black text-amber-400">167,092.000 {isAr ? 'د.ك' : 'KWD'}</p>
-              <span className="text-[11px] text-slate-500">{isAr ? '30,543 طلباً معتمداً' : '30,543 orders'}</span>
+              <span className="text-xs text-slate-500">{isAr ? '30,543 طلباً معتمداً' : '30,543 orders'}</span>
             </div>
             <div className="rounded-xl border border-slate-800 bg-[#0f172a]/60 p-4">
               <span className="text-xs text-slate-400">{isAr ? 'تكلفة الأغذية والمواد التموينية والتعبئة' : 'Food Cost (COGS)'}</span>
               <p className="mt-1 text-2xl font-black text-rose-400">52,634.000 {isAr ? 'د.ك' : 'KWD'}</p>
-              <span className="text-[11px] text-slate-500">{isAr ? '31.5% نسبة تكلفة الغذاء' : '31.5% of revenue'}</span>
+              <span className="text-xs text-slate-500">{isAr ? '31.5% نسبة تكلفة الغذاء' : '31.5% of revenue'}</span>
             </div>
             <div className="rounded-xl border border-slate-800 bg-[#0f172a]/60 p-4">
               <span className="text-xs text-slate-400">{isAr ? 'مجمل الربح الإجمالي' : 'Gross Profit'}</span>
               <p className="mt-1 text-2xl font-black text-emerald-400">114,458.000 {isAr ? 'د.ك' : 'KWD'}</p>
-              <span className="text-[11px] text-slate-500">{isAr ? '68.5% هامش إجمالي' : '68.5% gross margin'}</span>
+              <span className="text-xs text-slate-500">{isAr ? '68.5% هامش إجمالي' : '68.5% gross margin'}</span>
             </div>
             <div className="rounded-xl border border-slate-800 bg-[#0f172a]/60 p-4">
               <span className="text-xs text-slate-400">{isAr ? 'صافي الربح التشغيلي قبل الإهلاك' : 'Operating EBITDA'}</span>
               <p className="mt-1 text-2xl font-black text-cyan-400">38,410.000 {isAr ? 'د.ك' : 'KWD'}</p>
-              <span className="text-[11px] text-slate-500">{isAr ? '23.0% عائد تشغيلي صافي' : '23.0% net margin'}</span>
+              <span className="text-xs text-slate-500">{isAr ? '23.0% عائد تشغيلي صافي' : '23.0% net margin'}</span>
             </div>
           </div>
 
@@ -642,55 +642,55 @@ export function VentureAccountingHub({
             {/* KPI Cards Grid */}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
               <div className="rounded-2xl border border-emerald-500/30 bg-emerald-950/20 p-4 space-y-1">
-                <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider">
+                <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">
                   {isAr ? 'إجمالي المصروفات المدققة' : 'Total Audited OPEX'}
                 </span>
                 <p className="text-xl font-black text-white font-mono">51,154.950 {isAr ? 'د.ك' : 'KWD'}</p>
-                <div className="flex items-center justify-between text-[11px] text-slate-400">
+                <div className="flex items-center justify-between text-xs text-slate-400">
                   <span>{isAr ? '2,213 معاملة' : '2,213 Txns'}</span>
                   <span className="text-emerald-400 font-bold">100%</span>
                 </div>
               </div>
 
               <div className="rounded-2xl border border-blue-500/30 bg-blue-950/20 p-4 space-y-1">
-                <span className="text-[11px] font-bold text-blue-400 uppercase tracking-wider">
+                <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">
                   {isAr ? 'كشوفات (سند) للتعقيب والإقامات' : 'Sanad PRO Clearance'}
                 </span>
                 <p className="text-xl font-black text-white font-mono">31,646.750 {isAr ? 'د.ك' : 'KWD'}</p>
-                <div className="flex items-center justify-between text-[11px] text-slate-400">
+                <div className="flex items-center justify-between text-xs text-slate-400">
                   <span>{isAr ? '844 معاملة' : '844 Txns'}</span>
                   <span className="text-blue-400 font-bold">61.86%</span>
                 </div>
               </div>
 
               <div className="rounded-2xl border border-amber-500/30 bg-amber-950/20 p-4 space-y-1">
-                <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider">
+                <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">
                   {isAr ? 'صيانة المطابخ والفروع (ربيع طه)' : 'Kitchen Maintenance (Rabih)'}
                 </span>
                 <p className="text-xl font-black text-white font-mono">10,899.720 {isAr ? 'د.ك' : 'KWD'}</p>
-                <div className="flex items-center justify-between text-[11px] text-slate-400">
+                <div className="flex items-center justify-between text-xs text-slate-400">
                   <span>{isAr ? '538 معاملة' : '538 Txns'}</span>
                   <span className="text-amber-400 font-bold">21.31%</span>
                 </div>
               </div>
 
               <div className="rounded-2xl border border-purple-500/30 bg-purple-950/20 p-4 space-y-1">
-                <span className="text-[11px] font-bold text-purple-400 uppercase tracking-wider">
+                <span className="text-xs font-bold text-purple-400 uppercase tracking-wider">
                   {isAr ? 'الموارد البشرية والإدارية (شيام)' : 'HR & Admin (Shyam)'}
                 </span>
                 <p className="text-xl font-black text-white font-mono">7,053.980 {isAr ? 'د.ك' : 'KWD'}</p>
-                <div className="flex items-center justify-between text-[11px] text-slate-400">
+                <div className="flex items-center justify-between text-xs text-slate-400">
                   <span>{isAr ? '713 معاملة' : '713 Txns'}</span>
                   <span className="text-purple-400 font-bold">13.79%</span>
                 </div>
               </div>
 
               <div className="rounded-2xl border border-rose-500/30 bg-rose-950/20 p-4 space-y-1 col-span-2 sm:col-span-1">
-                <span className="text-[11px] font-bold text-rose-400 uppercase tracking-wider">
+                <span className="text-xs font-bold text-rose-400 uppercase tracking-wider">
                   {isAr ? 'المرور والتراخيص والمطافئ (أمجد)' : 'Traffic & Licensing (Amjad)'}
                 </span>
                 <p className="text-xl font-black text-white font-mono">1,389.000 {isAr ? 'د.ك' : 'KWD'}</p>
-                <div className="flex items-center justify-between text-[11px] text-slate-400">
+                <div className="flex items-center justify-between text-xs text-slate-400">
                   <span>{isAr ? '92 معاملة' : '92 Txns'}</span>
                   <span className="text-rose-400 font-bold">2.72%</span>
                 </div>
@@ -750,7 +750,7 @@ export function VentureAccountingHub({
                       }`}
                     >
                       <span>{isAr ? st.labelAr : st.labelEn}</span>
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-mono ${
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-mono ${
                         active ? 'bg-slate-300 text-black' : 'bg-slate-800 text-slate-400'
                       }`}>
                         {st.count}
@@ -822,26 +822,26 @@ export function VentureAccountingHub({
                   {/* Executive KPI Summary Bar */}
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                     <div className="rounded-2xl border border-white/10 bg-[#0d131f] p-4 space-y-1">
-                      <span className="text-[11px] font-bold text-slate-400">
+                      <span className="text-xs font-bold text-slate-400">
                         {isAr ? 'إجمالي تقارير التصفية المرفوعة' : 'Total Expense Sheets'}
                       </span>
                       <p className="text-xl font-black text-white font-mono">
                         {totalFilteredKwd.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} {isAr ? 'د.ك' : 'KWD'}
                       </p>
-                      <div className="flex items-center justify-between text-[11px] text-slate-500 font-mono">
+                      <div className="flex items-center justify-between text-xs text-slate-500 font-mono">
                         <span>{filteredExpenseSheets.length} {isAr ? 'تقارير' : 'reports'}</span>
                         <span className="text-emerald-400 font-bold">100%</span>
                       </div>
                     </div>
 
                     <div className="rounded-2xl border border-emerald-500/20 bg-emerald-950/20 p-4 space-y-1">
-                      <span className="text-[11px] font-bold text-emerald-300">
+                      <span className="text-xs font-bold text-emerald-300">
                         {isAr ? '🟢 معتمد إدارياً (جاهز للصرف)' : '🟢 Approved (Ready to Pay)'}
                       </span>
                       <p className="text-xl font-black text-emerald-400 font-mono">
                         {approvedKwd.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} {isAr ? 'د.ك' : 'KWD'}
                       </p>
-                      <div className="flex items-center justify-between text-[11px] text-slate-400">
+                      <div className="flex items-center justify-between text-xs text-slate-400">
                         <span>{filteredExpenseSheets.filter((r) => r.adminApproval === 'approved').length} {isAr ? 'معتمد' : 'Approved'}</span>
                         <span className="text-emerald-400 font-bold">
                           {totalFilteredKwd > 0 ? ((approvedKwd / totalFilteredKwd) * 100).toFixed(1) : 0}%
@@ -850,13 +850,13 @@ export function VentureAccountingHub({
                     </div>
 
                     <div className="rounded-2xl border border-rose-500/20 bg-rose-950/20 p-4 space-y-1">
-                      <span className="text-[11px] font-bold text-rose-300">
+                      <span className="text-xs font-bold text-rose-300">
                         {isAr ? '🔴 غير مدفوع — بانتظار الشيك' : '🔴 Not Paid — Pending Cheque'}
                       </span>
                       <p className="text-xl font-black text-rose-400 font-mono">
                         {unpaidKwd.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} {isAr ? 'د.ك' : 'KWD'}
                       </p>
-                      <div className="flex items-center justify-between text-[11px] text-slate-400">
+                      <div className="flex items-center justify-between text-xs text-slate-400">
                         <span>{filteredExpenseSheets.filter((r) => r.paymentStatus === 'not_paid').length} {isAr ? 'بانتظار الصرف' : 'Unpaid'}</span>
                         <span className="text-rose-400 font-bold">
                           {totalFilteredKwd > 0 ? ((unpaidKwd / totalFilteredKwd) * 100).toFixed(1) : 0}%
@@ -865,13 +865,13 @@ export function VentureAccountingHub({
                     </div>
 
                     <div className="rounded-2xl border border-blue-500/20 bg-blue-950/20 p-4 space-y-1">
-                      <span className="text-[11px] font-bold text-blue-300">
+                      <span className="text-xs font-bold text-blue-300">
                         {isAr ? '🟢 تم الدفع وإصدار الشيك' : '🟢 Paid & Cheque Issued'}
                       </span>
                       <p className="text-xl font-black text-blue-400 font-mono">
                         {paidKwd.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} {isAr ? 'د.ك' : 'KWD'}
                       </p>
-                      <div className="flex items-center justify-between text-[11px] text-slate-400">
+                      <div className="flex items-center justify-between text-xs text-slate-400">
                         <span>{filteredExpenseSheets.filter((r) => r.paymentStatus === 'paid').length} {isAr ? 'شيكات مسددة' : 'Paid'}</span>
                         <span className="text-blue-400 font-bold">
                           {totalFilteredKwd > 0 ? ((paidKwd / totalFilteredKwd) * 100).toFixed(1) : 0}%
@@ -890,7 +890,7 @@ export function VentureAccountingHub({
                             <span>👥</span>
                             <span>{isAr ? 'أصحاب العهد والمندوبون (أودو)' : 'Custodians & Representatives'}</span>
                           </h4>
-                          <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-mono text-slate-400">
+                          <span className="rounded-full bg-slate-800 px-2 py-0.5 text-xs font-mono text-slate-400">
                             {ODOO_EXPENSE_SHEET_CUSTODIANS.length - 1} {isAr ? 'أصحاب عهد' : 'Custodians'}
                           </span>
                         </div>
@@ -930,7 +930,7 @@ export function VentureAccountingHub({
                                     {isAr ? cust.nameAr : cust.nameEn}
                                   </span>
                                   <span
-                                    className={`rounded px-1.5 py-0.5 text-[10px] font-mono shrink-0 font-bold ${
+                                    className={`rounded px-1.5 py-0.5 text-xs font-mono shrink-0 font-bold ${
                                       isSelected
                                         ? 'bg-amber-400 text-black'
                                         : 'bg-slate-800 text-slate-300'
@@ -939,7 +939,7 @@ export function VentureAccountingHub({
                                     {stats.count}
                                   </span>
                                 </div>
-                                <div className="mt-1 flex items-center justify-between text-[10px] text-slate-400 w-full">
+                                <div className="mt-1 flex items-center justify-between text-xs text-slate-400 w-full">
                                   <span className="truncate max-w-[170px]">
                                     {isAr ? cust.roleAr : cust.roleEn}
                                   </span>
@@ -1084,7 +1084,7 @@ export function VentureAccountingHub({
                                     {/* Report No & Date */}
                                     <td className="px-3 py-3 font-mono">
                                       <span className="font-bold text-amber-300 block">{sheet.reportNo}</span>
-                                      <span className="text-[10px] text-slate-500">{sheet.date}</span>
+                                      <span className="text-xs text-slate-500">{sheet.date}</span>
                                     </td>
 
                                     {/* Custodian Name */}
@@ -1092,7 +1092,7 @@ export function VentureAccountingHub({
                                       <span className="font-bold text-white block">
                                         {isAr ? sheet.custodianNameAr : sheet.custodianNameEn}
                                       </span>
-                                      <span className="text-[10px] text-slate-500 font-mono">
+                                      <span className="text-xs text-slate-500 font-mono">
                                         {sheet.accountCode}
                                       </span>
                                     </td>
@@ -1102,14 +1102,14 @@ export function VentureAccountingHub({
                                       <p className="font-bold text-white leading-tight">
                                         {isAr ? sheet.titleAr : sheet.titleEn}
                                       </p>
-                                      <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">
+                                      <p className="text-xs text-slate-400 mt-0.5 leading-snug">
                                         {isAr ? sheet.descriptionAr : sheet.descriptionEn}
                                       </p>
                                     </td>
 
                                     {/* Cost Center */}
                                     <td className="px-3 py-3 text-center">
-                                      <span className="inline-flex rounded-full bg-slate-800 px-2 py-0.5 text-[11px] text-slate-200 border border-slate-700">
+                                      <span className="inline-flex rounded-full bg-slate-800 px-2 py-0.5 text-xs text-slate-200 border border-slate-700">
                                         {isAr ? sheet.costCenterAr : sheet.costCenterEn}
                                       </span>
                                     </td>
@@ -1127,12 +1127,12 @@ export function VentureAccountingHub({
                                     {/* Admin Approval Status */}
                                     <td className="px-3 py-3 text-center">
                                       {sheet.adminApproval === 'approved' ? (
-                                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-bold text-emerald-400 border border-emerald-500/20">
+                                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-bold text-emerald-400 border border-emerald-500/20">
                                           <CheckCircle2 size={12} />
                                           {isAr ? '🟢 معتمد إدارياً' : 'Approved'}
                                         </span>
                                       ) : (
-                                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2.5 py-0.5 text-[11px] font-bold text-blue-400 border border-blue-500/20">
+                                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2.5 py-0.5 text-xs font-bold text-blue-400 border border-blue-500/20">
                                           <span className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse" />
                                           {isAr ? '🔵 مرسل للاعتماد' : 'Submitted'}
                                         </span>
@@ -1143,24 +1143,24 @@ export function VentureAccountingHub({
                                     <td className="px-4 py-3 text-center">
                                       {sheet.paymentStatus === 'paid' ? (
                                         <div className="space-y-0.5">
-                                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-black text-emerald-400 border border-emerald-500/30">
+                                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-black text-emerald-400 border border-emerald-500/30">
                                             <CheckCircle2 size={12} />
                                             {isAr ? '🟢 تم الدفع وإصدار الشيك' : 'Paid & Cheque Issued'}
                                           </span>
                                           {sheet.paymentChequeRef && (
-                                            <span className="block text-[10px] font-mono text-slate-400">
+                                            <span className="block text-xs font-mono text-slate-400">
                                               {sheet.paymentChequeRef} · {sheet.paymentDate}
                                             </span>
                                           )}
                                         </div>
                                       ) : sheet.paymentStatus === 'in_settlement' ? (
-                                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2.5 py-0.5 text-[11px] font-black text-amber-400 border border-amber-500/30">
+                                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-black text-amber-400 border border-amber-500/30">
                                           <AlertTriangle size={12} />
                                           {isAr ? '🟠 قيد التسوية البنكية' : 'In Settlement'}
                                         </span>
                                       ) : (
                                         <div className="flex flex-col items-center gap-1">
-                                          <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/15 px-2.5 py-0.5 text-[11px] font-black text-rose-400 border border-rose-500/30">
+                                          <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/15 px-2.5 py-0.5 text-xs font-black text-rose-400 border border-rose-500/30">
                                             <span className="h-1.5 w-1.5 rounded-full bg-rose-400" />
                                             {isAr ? '🔴 غير مدفوع — بانتظار إصدار الشيك' : 'Not Paid — Pending Cheque'}
                                           </span>
@@ -1171,7 +1171,7 @@ export function VentureAccountingHub({
                                                 setSelectedSheetIds([sheet.id])
                                                 setShowChequeModal(true)
                                               }}
-                                              className="text-[10px] text-emerald-400 hover:underline font-bold"
+                                              className="text-xs text-emerald-400 hover:underline font-bold"
                                             >
                                               {isAr ? 'صرف شيك الآن ↵' : 'Pay via Cheque ↵'}
                                             </button>
@@ -1217,7 +1217,7 @@ export function VentureAccountingHub({
                               <h3 className="text-base font-black text-white">
                                 {isAr ? 'إصدار شيك سداد مالي وترحيل محاسبي' : 'Issue Payment Cheque & Post to Ledger'}
                               </h3>
-                              <p className="text-[11px] text-slate-400">
+                              <p className="text-xs text-slate-400">
                                 {isAr ? 'تحويل التقارير المعتمدة من غير مدفوع 🔴 إلى مدفوع 🟢' : 'Convert approved reports from Not Paid 🔴 to Paid 🟢'}
                               </p>
                             </div>
@@ -1254,7 +1254,7 @@ export function VentureAccountingHub({
                           {/* Bank & Cheque Reference Inputs */}
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div className="space-y-1.5">
-                              <label className="text-[11px] font-bold text-slate-400 block">
+                              <label className="text-xs font-bold text-slate-400 block">
                                 {isAr ? 'الحساب البنكي المسحوب عليه الشيك:' : 'Paying Bank Account:'}
                               </label>
                               <select
@@ -1268,7 +1268,7 @@ export function VentureAccountingHub({
                             </div>
 
                             <div className="space-y-1.5">
-                              <label className="text-[11px] font-bold text-slate-400 block">
+                              <label className="text-xs font-bold text-slate-400 block">
                                 {isAr ? 'رقم الشيك / المرجع المصرفي:' : 'Cheque / Ref No:'}
                               </label>
                               <input
@@ -1282,7 +1282,7 @@ export function VentureAccountingHub({
                           </div>
 
                           {/* Posting Note */}
-                          <div className="rounded-xl border border-blue-500/20 bg-blue-950/20 p-3 text-[11px] text-blue-300 leading-relaxed">
+                          <div className="rounded-xl border border-blue-500/20 bg-blue-950/20 p-3 text-xs text-blue-300 leading-relaxed">
                             <span>ℹ️ </span>
                             {isAr
                               ? 'سيتم ترحيل قيد الصرف تلقائياً إلى دفتر اليومية المحاسبي وتحميل كل بند ومصروف على مركز تكلفة الفرع والبراند المعني فور اعتماد الشيك.'
@@ -1354,7 +1354,7 @@ export function VentureAccountingHub({
                           <td className="px-4 py-3 text-center font-mono text-xs text-slate-500">{c.rank}</td>
                           <td className="px-4 py-3">
                             <span className="font-bold text-white block">{isAr ? c.nameAr : c.nameEn}</span>
-                            <span className="text-[11px] text-slate-500">{isAr ? c.nameEn : c.nameAr}</span>
+                            <span className="text-xs text-slate-500">{isAr ? c.nameEn : c.nameAr}</span>
                           </td>
                           <td className="px-4 py-3 text-center font-mono text-xs text-amber-300">
                             <span className="rounded bg-amber-500/10 border border-amber-500/20 px-2 py-0.5">
@@ -1424,49 +1424,49 @@ export function VentureAccountingHub({
                 {/* Settlement Indicator Metrics Bar (Real Odoo 365 Days Status) */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div className="rounded-2xl border border-white/10 bg-[#0d131f] p-3.5 space-y-1">
-                    <span className="text-[11px] font-bold text-slate-400">
+                    <span className="text-xs font-bold text-slate-400">
                       {isAr ? 'إجمالي معاملات آخر 365 يوماً' : 'Total Txns (Last 365 Days)'}
                     </span>
                     <p className="text-xl font-black text-white font-mono">
                       {ODOO_SETTLEMENT_METRICS.txCount365.toLocaleString()} {isAr ? 'معاملة' : 'txns'}
                     </p>
-                    <span className="text-[10px] text-emerald-400 font-semibold">
+                    <span className="text-xs text-emerald-400 font-semibold">
                       {isAr ? 'مدققة من شاشات أودو' : 'Audited via Odoo'}
                     </span>
                   </div>
 
                   <div className="rounded-2xl border border-amber-500/20 bg-amber-950/20 p-3.5 space-y-1">
-                    <span className="text-[11px] font-bold text-amber-300">
+                    <span className="text-xs font-bold text-amber-300">
                       {isAr ? 'بانتظار الرفع' : 'Pending Upload'}
                     </span>
                     <p className="text-xl font-black text-amber-400 font-mono">
                       {ODOO_SETTLEMENT_METRICS.pendingUploadKwd.toFixed(3)} {isAr ? 'د.ك' : 'KWD'}
                     </p>
-                    <span className="text-[10px] text-slate-400">
+                    <span className="text-xs text-slate-400">
                       {isAr ? 'فواتير قيد التجهيز' : 'Draft Invoices'}
                     </span>
                   </div>
 
                   <div className="rounded-2xl border border-blue-500/20 bg-blue-950/20 p-3.5 space-y-1">
-                    <span className="text-[11px] font-bold text-blue-300">
+                    <span className="text-xs font-bold text-blue-300">
                       {isAr ? 'بانتظار الاعتماد' : 'Pending Approval'}
                     </span>
                     <p className="text-xl font-black text-blue-400 font-mono">
                       {ODOO_SETTLEMENT_METRICS.pendingApprovalKwd.toFixed(3)} {isAr ? 'د.ك' : 'KWD'}
                     </p>
-                    <span className="text-[10px] text-emerald-300 font-semibold">
+                    <span className="text-xs text-emerald-300 font-semibold">
                       {isAr ? 'صفر — تم اعتماد الكشوف' : '0.000 — 100% Approved'}
                     </span>
                   </div>
 
                   <div className="rounded-2xl border border-emerald-500/20 bg-emerald-950/20 p-3.5 space-y-1">
-                    <span className="text-[11px] font-bold text-emerald-300">
+                    <span className="text-xs font-bold text-emerald-300">
                       {isAr ? 'مستحقة الصرف والشيكات' : 'Payable Cheques & Dues'}
                     </span>
                     <p className="text-xl font-black text-emerald-400 font-mono">
                       {ODOO_SETTLEMENT_METRICS.payableChequesKwd.toFixed(3)} {isAr ? 'د.ك' : 'KWD'}
                     </p>
-                    <span className="text-[10px] text-emerald-400">
+                    <span className="text-xs text-emerald-400">
                       {isAr ? 'جاهزة لإصدار الشيكات' : 'Ready for Payment'}
                     </span>
                   </div>
@@ -1491,7 +1491,7 @@ export function VentureAccountingHub({
                           <tr key={c.id} className="hover:bg-slate-900/40 transition-colors">
                             <td className="px-4 py-3">
                               <span className="font-bold text-white block">{isAr ? c.nameAr : c.nameEn}</span>
-                              <span className="text-[11px] text-slate-500">{isAr ? c.nameEn : c.nameAr}</span>
+                              <span className="text-xs text-slate-500">{isAr ? c.nameEn : c.nameAr}</span>
                             </td>
                             <td className="px-4 py-3 text-xs text-slate-300">
                               {isAr ? c.roleAr : c.roleEn}
@@ -1588,7 +1588,7 @@ export function VentureAccountingHub({
                           <tr key={item.id} className="hover:bg-slate-900/40 transition-colors">
                             <td className="px-4 py-3">
                               <span className="font-mono font-bold text-amber-400 block">{item.id}</span>
-                              <span className="text-[11px] text-slate-500 font-mono">{item.date}</span>
+                              <span className="text-xs text-slate-500 font-mono">{item.date}</span>
                             </td>
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-2">
@@ -1601,7 +1601,7 @@ export function VentureAccountingHub({
                                   <span className="font-bold text-white block text-xs">
                                     {isAr ? item.employeeNameAr : item.employeeNameEn}
                                   </span>
-                                  <span className="text-[10px] text-slate-500">
+                                  <span className="text-xs text-slate-500">
                                     {isAr ? item.employeeNameEn : item.employeeNameAr}
                                   </span>
                                 </div>
@@ -1615,13 +1615,13 @@ export function VentureAccountingHub({
                                 {isAr ? item.costCenterAr : item.costCenterEn}
                               </span>
                             </td>
-                            <td className="px-4 py-3 text-center font-mono text-[11px] text-amber-300">
+                            <td className="px-4 py-3 text-center font-mono text-xs text-amber-300">
                               {item.accountCode}
                             </td>
                             <td className="px-4 py-3 text-right font-mono font-bold text-emerald-400">
                               {item.amountKwd.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} {isAr ? 'د.ك' : 'KWD'}
                             </td>
-                            <td className="px-4 py-3 text-center font-mono text-[11px] text-slate-400">
+                            <td className="px-4 py-3 text-center font-mono text-xs text-slate-400">
                               {item.docRef}
                             </td>
                             <td className="px-4 py-3 text-center">
@@ -1673,26 +1673,26 @@ export function VentureAccountingHub({
                           <tr key={item.id} className="hover:bg-slate-900/40 transition-colors">
                             <td className="px-4 py-3">
                               <span className="font-mono font-bold text-amber-400 block">{item.id}</span>
-                              <span className="text-[11px] text-slate-500 font-mono">{item.date}</span>
+                              <span className="text-xs text-slate-500 font-mono">{item.date}</span>
                             </td>
                             <td className="px-4 py-3">
                               <span className="font-bold text-white block text-xs">
                                 {isAr ? item.descAr : item.descEn}
                               </span>
-                              <span className="text-[10px] text-slate-400">
+                              <span className="text-xs text-slate-400">
                                 {isAr ? item.categoryAr : item.categoryEn}
                               </span>
                             </td>
                             <td className="px-4 py-3 text-xs text-slate-300">
                               <span className="block text-slate-200 font-semibold">{isAr ? item.beneficiaryAr : item.beneficiaryEn}</span>
-                              <span className="text-[10px] text-slate-500">{isAr ? item.custodianAr : item.custodianEn}</span>
+                              <span className="text-xs text-slate-500">{isAr ? item.custodianAr : item.custodianEn}</span>
                             </td>
                             <td className="px-4 py-3 text-center text-xs">
                               <span className="inline-flex rounded-full bg-slate-800/90 border border-slate-700 px-2.5 py-0.5 font-semibold text-slate-200">
                                 {isAr ? `${item.branchAr} | ${item.brandAr}` : `${item.branchEn} | ${item.brandEn}`}
                               </span>
                             </td>
-                            <td className="px-4 py-3 text-center font-mono text-[11px] text-amber-300">
+                            <td className="px-4 py-3 text-center font-mono text-xs text-amber-300">
                               <span className="rounded bg-amber-500/10 border border-amber-500/20 px-2 py-0.5">
                                 {item.accountCode}
                               </span>
@@ -1700,7 +1700,7 @@ export function VentureAccountingHub({
                             <td className="px-4 py-3 text-right font-mono font-bold text-emerald-400 text-sm">
                               {item.amountKwd.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} {isAr ? 'د.ك' : 'KWD'}
                             </td>
-                            <td className="px-4 py-3 text-center font-mono text-[11px] text-slate-400">
+                            <td className="px-4 py-3 text-center font-mono text-xs text-slate-400">
                               {item.docRef}
                             </td>
                             <td className="px-4 py-3 text-center">
@@ -1767,7 +1767,7 @@ export function VentureAccountingHub({
                           <tr key={item.id} className="hover:bg-slate-900/40 transition-colors">
                             <td className="px-4 py-3">
                               <span className="font-mono font-bold text-amber-400 block">{item.id}</span>
-                              <span className="text-[11px] text-slate-500 font-mono">{item.date}</span>
+                              <span className="text-xs text-slate-500 font-mono">{item.date}</span>
                             </td>
                             <td className="px-4 py-3 text-xs font-bold text-white">
                               {isAr ? item.costCenterAr : item.costCenterEn}
@@ -1780,13 +1780,13 @@ export function VentureAccountingHub({
                                 {isAr ? item.branchAr : item.branchEn}
                               </span>
                             </td>
-                            <td className="px-4 py-3 text-center font-mono text-[11px] text-amber-300">
+                            <td className="px-4 py-3 text-center font-mono text-xs text-amber-300">
                               {item.accountCode}
                             </td>
                             <td className="px-4 py-3 text-right font-mono font-bold text-emerald-400">
                               {item.amountKwd.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} {isAr ? 'د.ك' : 'KWD'}
                             </td>
-                            <td className="px-4 py-3 text-center font-mono text-[11px] text-slate-400">
+                            <td className="px-4 py-3 text-center font-mono text-xs text-slate-400">
                               {item.docRef}
                             </td>
                             <td className="px-4 py-3 text-center">
@@ -1988,7 +1988,7 @@ export function VentureAccountingHub({
               <div className="mt-2 text-xl font-black text-emerald-400 font-mono">
                 {VENTURE_FOODS_EVENTS.reduce((acc, e) => acc + e.revenue.grossSalesKwd, 0).toLocaleString('en-US', { minimumFractionDigits: 3 })} KWD
               </div>
-              <span className="text-[10px] text-slate-500">{isAr ? 'من 6 فعاليات ومخيمات موثقة' : 'Across 6 events & camps'}</span>
+              <span className="text-xs text-slate-500">{isAr ? 'من 6 فعاليات ومخيمات موثقة' : 'Across 6 events & camps'}</span>
             </div>
 
             <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
@@ -1996,7 +1996,7 @@ export function VentureAccountingHub({
               <div className="mt-2 text-xl font-black text-gold-300 font-mono">
                 {VENTURE_FOODS_EVENTS.reduce((acc, e) => acc + e.profitability.netProfitKwd, 0).toLocaleString('en-US', { minimumFractionDigits: 3 })} KWD
               </div>
-              <span className="text-[10px] text-emerald-400 font-bold">▲ 43.4% {isAr ? 'هامش ربح صافي' : 'Net margin'}</span>
+              <span className="text-xs text-emerald-400 font-bold">▲ 43.4% {isAr ? 'هامش ربح صافي' : 'Net margin'}</span>
             </div>
 
             <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
@@ -2004,7 +2004,7 @@ export function VentureAccountingHub({
               <div className="mt-2 text-xl font-black text-cyan-300 font-mono">
                 {VENTURE_FOODS_EVENTS.filter(e => e.costs.securityDepositStatus === 'pending').reduce((acc, e) => acc + e.costs.securityDepositKwd, 0).toLocaleString('en-US', { minimumFractionDigits: 3 })} KWD
               </div>
-              <span className="text-[10px] text-amber-400">{isAr ? 'بانتظار خطابات إخلاء الطرف' : 'Awaiting site clearances'}</span>
+              <span className="text-xs text-amber-400">{isAr ? 'بانتظار خطابات إخلاء الطرف' : 'Awaiting site clearances'}</span>
             </div>
 
             <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
@@ -2012,7 +2012,7 @@ export function VentureAccountingHub({
               <div className="mt-2 text-xl font-black text-purple-300 font-mono">
                 ▲ 77.3%
               </div>
-              <span className="text-[10px] text-slate-400">{isAr ? 'استرداد كامل خلال 5-26 يوم' : '5-26 days payback'}</span>
+              <span className="text-xs text-slate-400">{isAr ? 'استرداد كامل خلال 5-26 يوم' : '5-26 days payback'}</span>
             </div>
           </div>
 
@@ -2041,7 +2041,7 @@ export function VentureAccountingHub({
                   {VENTURE_FOODS_EVENTS.map((evt) => (
                     <tr key={evt.id} className="hover:bg-white/[0.02]">
                       <td className="px-4 py-3 font-sans">
-                        <span className="font-mono text-gold-400 font-bold text-[11px]">{evt.costCenterCode}</span>
+                        <span className="font-mono text-gold-400 font-bold text-xs">{evt.costCenterCode}</span>
                         <div className="font-bold text-white text-xs">{isAr ? evt.nameAr : evt.nameEn}</div>
                       </td>
                       <td className="px-3 py-3 text-center text-slate-300">{evt.daysCount}</td>
@@ -2051,7 +2051,7 @@ export function VentureAccountingHub({
                       <td className="px-3 py-3 text-end font-bold text-emerald-400">{evt.revenue.grossSalesKwd.toFixed(3)}</td>
                       <td className="px-3 py-3 text-end font-bold text-gold-300">{evt.profitability.netProfitKwd.toFixed(3)}</td>
                       <td className="px-3 py-3 text-center font-sans">
-                        <span className={`rounded-md px-2 py-0.5 text-[10px] font-bold ${
+                        <span className={`rounded-md px-2 py-0.5 text-xs font-bold ${
                           evt.costs.securityDepositStatus === 'refunded'
                             ? 'bg-emerald-500/20 text-emerald-300'
                             : 'bg-amber-500/20 text-amber-300'
@@ -2103,25 +2103,25 @@ export function VentureAccountingHub({
             <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
               <span className="text-xs font-semibold text-slate-400">{isAr ? 'إجمالي الإيجارات الشهرية' : 'Total Monthly Leases'}</span>
               <div className="mt-2 text-xl font-black text-amber-400 font-mono">27,850.000 KWD</div>
-              <span className="text-[10px] text-slate-500">{isAr ? 'فروع 18,200 + سكن 4,600 + مخازن 5,050' : '10 branches + 4 housing + 3 hubs'}</span>
+              <span className="text-xs text-slate-500">{isAr ? 'فروع 18,200 + سكن 4,600 + مخازن 5,050' : '10 branches + 4 housing + 3 hubs'}</span>
             </div>
 
             <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
               <span className="text-xs font-semibold text-slate-400">{isAr ? 'نسبة عبء الإيجار من المبيعات' : 'Rent-to-Sales Ratio'}</span>
               <div className="mt-2 text-xl font-black text-emerald-400 font-mono">10.89%</div>
-              <span className="text-[10px] text-emerald-300 font-bold">🟢 {isAr ? 'ضمن المعدل العالمي الممتاز (< 15%)' : 'Healthy benchmark (< 15%)'}</span>
+              <span className="text-xs text-emerald-300 font-bold">🟢 {isAr ? 'ضمن المعدل العالمي الممتاز (< 15%)' : 'Healthy benchmark (< 15%)'}</span>
             </div>
 
             <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
               <span className="text-xs font-semibold text-slate-400">{isAr ? 'التأمينات الإيجارية المستردة (حساب 110400)' : 'Security Deposits in GL'}</span>
               <div className="mt-2 text-xl font-black text-cyan-300 font-mono">24,500.000 KWD</div>
-              <span className="text-[10px] text-slate-400">{isAr ? 'تأمينات فروع وسكنات معتمدة' : 'Recoverable upon vacate'}</span>
+              <span className="text-xs text-slate-400">{isAr ? 'تأمينات فروع وسكنات معتمدة' : 'Recoverable upon vacate'}</span>
             </div>
 
             <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
               <span className="text-xs font-semibold text-slate-400">{isAr ? 'عقود تتطلب التجديد قريباً' : 'Expiring Soon'}</span>
               <div className="mt-2 text-xl font-black text-rose-400 font-mono">2 {isAr ? 'عقود' : 'Leases'}</div>
-              <span className="text-[10px] text-rose-300 font-bold">{isAr ? 'بنيد القار والمهبولة (نوفمبر/ديسمبر 2026)' : 'Bneid Al-Qar & Mahboula'}</span>
+              <span className="text-xs text-rose-300 font-bold">{isAr ? 'بنيد القار والمهبولة (نوفمبر/ديسمبر 2026)' : 'Bneid Al-Qar & Mahboula'}</span>
             </div>
           </div>
 
@@ -2131,7 +2131,7 @@ export function VentureAccountingHub({
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">
                 {isAr ? '1. عقود إيجارات الفروع الـ 10 ونسبة عبء الإيجار من مبيعات أكتوبر 2026' : '1. 10 Branch Leases & October 2026 Rent-to-Sales Burden'}
               </h4>
-              <span className="text-[11px] text-slate-400 font-mono">18,200.000 KWD / 167,092.000 KWD = 10.89%</span>
+              <span className="text-xs text-slate-400 font-mono">18,200.000 KWD / 167,092.000 KWD = 10.89%</span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-start text-xs">
@@ -2168,7 +2168,7 @@ export function VentureAccountingHub({
                         <td className="px-3 py-3 text-end font-mono font-bold text-amber-300">{row.rent.toFixed(3)} KWD</td>
                         <td className="px-3 py-3 text-end font-mono text-slate-300">{row.sales.toLocaleString()} KWD</td>
                         <td className="px-3 py-3 text-center">
-                          <span className={`font-mono font-bold px-2 py-0.5 rounded text-[11px] ${
+                          <span className={`font-mono font-bold px-2 py-0.5 rounded text-xs ${
                             ratio < 11 ? 'bg-emerald-500/20 text-emerald-300' : ratio < 14 ? 'bg-amber-500/20 text-amber-300' : 'bg-rose-500/20 text-rose-300'
                           }`}>
                             {ratio.toFixed(2)}%
@@ -2177,7 +2177,7 @@ export function VentureAccountingHub({
                         <td className="px-3 py-3 text-slate-400">{row.landlord}</td>
                         <td className="px-3 py-3 text-center font-mono text-slate-300">{row.expiry}</td>
                         <td className="px-3 py-3 text-center">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          <span className={`px-2 py-0.5 rounded text-xs font-bold ${
                             row.status === 'EXPIRING' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : 'bg-emerald-500/20 text-emerald-300'
                           }`}>
                             {isAr ? row.statusAr : row.status}
@@ -2209,11 +2209,11 @@ export function VentureAccountingHub({
                   <div key={i} className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950/60 p-3 text-xs">
                     <div>
                       <div className="font-bold text-white">{isAr ? flat.building : flat.en}</div>
-                      <div className="text-[11px] text-slate-400 mt-0.5">{flat.staff} • {flat.landlord}</div>
+                      <div className="text-xs text-slate-400 mt-0.5">{flat.staff} • {flat.landlord}</div>
                     </div>
                     <div className="text-end">
                       <div className="font-mono font-bold text-amber-300">{flat.rent.toFixed(3)} KWD</div>
-                      <div className="text-[10px] text-cyan-400 font-mono">تأمين: {flat.deposit} KWD</div>
+                      <div className="text-xs text-cyan-400 font-mono">تأمين: {flat.deposit} KWD</div>
                     </div>
                   </div>
                 ))}
@@ -2240,11 +2240,11 @@ export function VentureAccountingHub({
                   <div key={i} className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950/60 p-3 text-xs">
                     <div>
                       <div className="font-bold text-white">{isAr ? wh.name : wh.en}</div>
-                      <div className="text-[11px] text-slate-400 mt-0.5">{wh.area} • {wh.gl} • {wh.landlord}</div>
+                      <div className="text-xs text-slate-400 mt-0.5">{wh.area} • {wh.gl} • {wh.landlord}</div>
                     </div>
                     <div className="text-end">
                       <div className="font-mono font-bold text-amber-300">{wh.rent.toFixed(3)} KWD</div>
-                      <div className="text-[10px] text-emerald-400 font-bold">{isAr ? 'عقد طويل الأجل' : 'Long-Term Lease'}</div>
+                      <div className="text-xs text-emerald-400 font-bold">{isAr ? 'عقد طويل الأجل' : 'Long-Term Lease'}</div>
                     </div>
                   </div>
                 ))}
@@ -2289,25 +2289,25 @@ export function VentureAccountingHub({
             <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
               <span className="text-xs font-semibold text-slate-400">{isAr ? 'حجم الأسطول النشط' : 'Active Fleet Size'}</span>
               <div className="mt-2 text-xl font-black text-sky-400 font-mono">18 {isAr ? 'مركبة' : 'Units'}</div>
-              <span className="text-[10px] text-slate-500">{isAr ? '6 سيارات فان مبردة + 8 دراجات + 4 عمليات' : '6 Vans + 8 Bikes + 4 SUVs'}</span>
+              <span className="text-xs text-slate-500">{isAr ? '6 سيارات فان مبردة + 8 دراجات + 4 عمليات' : '6 Vans + 8 Bikes + 4 SUVs'}</span>
             </div>
 
             <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
               <span className="text-xs font-semibold text-slate-400">{isAr ? 'صيانة الكراجات وقطع الغيار (حساب 503010)' : 'Garage Repairs & Parts'}</span>
               <div className="mt-2 text-xl font-black text-amber-400 font-mono">1,280.000 KWD</div>
-              <span className="text-[10px] text-slate-400">{isAr ? 'كراجات الشويخ والري المعتمدة' : 'Approved Shuwaikh workshops'}</span>
+              <span className="text-xs text-slate-400">{isAr ? 'كراجات الشويخ والري المعتمدة' : 'Approved Shuwaikh workshops'}</span>
             </div>
 
             <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
               <span className="text-xs font-semibold text-slate-400">{isAr ? 'محروقات وبترول الأسطول (حساب 503020)' : 'Fuel & Petrol (Monthly)'}</span>
               <div className="mt-2 text-xl font-black text-emerald-400 font-mono">1,420.000 KWD</div>
-              <span className="text-[10px] text-emerald-300 font-bold">{isAr ? 'كروت الأولى وبترول الوطنية' : 'Oula & KNPC Fuel Cards'}</span>
+              <span className="text-xs text-emerald-300 font-bold">{isAr ? 'كروت الأولى وبترول الوطنية' : 'Oula & KNPC Fuel Cards'}</span>
             </div>
 
             <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
               <span className="text-xs font-semibold text-slate-400">{isAr ? 'المخالفات المرورية المربوطة بالرواتب' : 'Driver Traffic Fines'}</span>
               <div className="mt-2 text-xl font-black text-rose-400 font-mono">285.000 KWD</div>
-              <span className="text-[10px] text-rose-300 font-bold">100% {isAr ? 'مربوطة بخصم مسير الرواتب (حساب 210500)' : 'Linked to WPS Payroll'}</span>
+              <span className="text-xs text-rose-300 font-bold">100% {isAr ? 'مربوطة بخصم مسير الرواتب (حساب 210500)' : 'Linked to WPS Payroll'}</span>
             </div>
           </div>
 
@@ -2317,7 +2317,7 @@ export function VentureAccountingHub({
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">
                 {isAr ? '1. فواتير وتصليحات كراجات صيانة المركبات والتبريد (حساب 503010)' : '1. Garage Repair Orders & Chiller Maintenance (GL 503010)'}
               </h4>
-              <span className="text-[11px] text-slate-400 font-mono">{isAr ? 'كراجات الشويخ الصناعية المعتمدة' : 'Shuwaikh Industrial Hub'}</span>
+              <span className="text-xs text-slate-400 font-mono">{isAr ? 'كراجات الشويخ الصناعية المعتمدة' : 'Shuwaikh Industrial Hub'}</span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-start text-xs">
@@ -2342,7 +2342,7 @@ export function VentureAccountingHub({
                     <tr key={idx} className="hover:bg-white/[0.02]">
                       <td className="px-4 py-3">
                         <span className="font-mono font-bold text-sky-400 text-xs">{row.plate}</span>
-                        <div className="text-[11px] text-slate-300">{row.vehicle}</div>
+                        <div className="text-xs text-slate-300">{row.vehicle}</div>
                       </td>
                       <td className="px-3 py-3 text-slate-300">{row.garage}</td>
                       <td className="px-3 py-3 text-slate-300">{row.work}</td>
@@ -2362,7 +2362,7 @@ export function VentureAccountingHub({
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">
                 {isAr ? '2. رادار المخالفات المرورية وربطها التلقائي بخصومات رواتب السائقين (حساب 210500)' : '2. Traffic Violations & Automated Driver Payroll Deductions (GL 210500)'}
               </h4>
-              <span className="text-[11px] text-rose-400 font-mono font-bold">{isAr ? 'إجمالي المخالفات المسجلة: 285.000 د.ك' : 'Total Fines: 285.000 KWD'}</span>
+              <span className="text-xs text-rose-400 font-mono font-bold">{isAr ? 'إجمالي المخالفات المسجلة: 285.000 د.ك' : 'Total Fines: 285.000 KWD'}</span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-start text-xs">
@@ -2388,7 +2388,7 @@ export function VentureAccountingHub({
                     <tr key={idx} className="hover:bg-white/[0.02]">
                       <td className="px-4 py-3">
                         <span className="font-mono font-bold text-rose-400 text-xs">{fine.ref}</span>
-                        <div className="text-[10px] text-slate-400">{fine.date}</div>
+                        <div className="text-xs text-slate-400">{fine.date}</div>
                       </td>
                       <td className="px-3 py-3 font-mono text-sky-400">{fine.plate}</td>
                       <td className="px-3 py-3 text-slate-300">{fine.desc}</td>
@@ -2396,7 +2396,7 @@ export function VentureAccountingHub({
                       <td className="px-3 py-3 text-end font-mono font-bold text-rose-400">{fine.fine.toFixed(3)} KWD</td>
                       <td className="px-3 py-3 text-center text-slate-300 font-medium">{fine.month}</td>
                       <td className="px-3 py-3 text-center">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${fine.statusBadge}`}>
+                        <span className={`px-2 py-0.5 rounded text-xs font-bold ${fine.statusBadge}`}>
                           {fine.glStatus}
                         </span>
                       </td>

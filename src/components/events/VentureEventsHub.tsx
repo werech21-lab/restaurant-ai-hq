@@ -357,7 +357,7 @@ export default function VentureEventsHub() {
                   ? 'استوديو تخطيط ودراسة جدوى الفعاليات القادمة الذكي'
                   : 'Next-Gen Future Event Planner, AI Feasibility & EXB Menu Studio'}
               </span>
-              <span className="rounded-full bg-gold-300/20 px-1.5 py-0.2 text-[10px] text-gold-200">{isAr ? 'س.ت: 412891' : 'CR 412891'}</span>
+              <span className="rounded-full bg-gold-300/20 px-1.5 py-0.2 text-xs text-gold-200">{isAr ? 'س.ت: 412891' : 'CR 412891'}</span>
             </div>
 
             <h1 className="text-2xl font-black tracking-tight text-white sm:text-3xl lg:text-4xl">
@@ -422,31 +422,31 @@ export default function VentureEventsHub() {
         {/* ----------------- REAL-TIME SUMMARY PILLS FOR UPCOMING EVENT ----------------- */}
         <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
           <div className="rounded-2xl border border-white/5 bg-black/40 p-3">
-            <span className="text-[10px] text-mist-400 uppercase font-bold">{isAr ? 'مدة الفعالية' : 'Duration'}</span>
+            <span className="text-xs text-mist-400 uppercase font-bold">{isAr ? 'مدة الفعالية' : 'Duration'}</span>
             <div className="text-base font-black text-white">{calculatedDays} {isAr ? 'يوماً' : 'Days'}</div>
-            <span className="text-[10px] text-gold-400">{boothCount} بوث ({totalBoothAreaSqM} م²)</span>
+            <span className="text-xs text-gold-400">{boothCount} بوث ({totalBoothAreaSqM} م²)</span>
           </div>
 
           <div className="rounded-2xl border border-white/5 bg-black/40 p-3">
-            <span className="text-[10px] text-mist-400 uppercase font-bold">{isAr ? 'الإيجار اليومي' : 'Daily Rent'}</span>
+            <span className="text-xs text-mist-400 uppercase font-bold">{isAr ? 'الإيجار اليومي' : 'Daily Rent'}</span>
             <div className="text-base font-black text-white">
               {threeScenarios.dailyRentKwd.toFixed(3)}{' '}
-              <span className="text-[10px] text-gold-400">{isAr ? 'د.ك/يوم' : 'KWD/d'}</span>
+              <span className="text-xs text-gold-400">{isAr ? 'د.ك/يوم' : 'KWD/d'}</span>
             </div>
-            <span className="text-[10px] text-mist-400">{isAr ? 'إجمالي:' : 'Total:'} {totalRentKwd.toLocaleString()} د.ك</span>
+            <span className="text-xs text-mist-400">{isAr ? 'إجمالي:' : 'Total:'} {totalRentKwd.toLocaleString()} د.ك</span>
           </div>
 
           <div className="rounded-2xl border border-white/5 bg-black/40 p-3">
-            <span className="text-[10px] text-mist-400 uppercase font-bold">{isAr ? 'مبيعات التعادل اليومية' : 'Daily Break-Even'}</span>
+            <span className="text-xs text-mist-400 uppercase font-bold">{isAr ? 'مبيعات التعادل اليومية' : 'Daily Break-Even'}</span>
             <div className="text-base font-black text-cyan-300">
               {threeScenarios.realistic.dailyBreakEvenSalesKwd.toFixed(0)}{' '}
-              <span className="text-[10px] text-gold-400">{isAr ? 'د.ك/يوم' : 'KWD/d'}</span>
+              <span className="text-xs text-gold-400">{isAr ? 'د.ك/يوم' : 'KWD/d'}</span>
             </div>
-            <span className="text-[10px] text-mist-400">{threeScenarios.realistic.dailyBreakEvenOrders} {isAr ? 'طلباً/يوم' : 'orders/d'}</span>
+            <span className="text-xs text-mist-400">{threeScenarios.realistic.dailyBreakEvenOrders} {isAr ? 'طلباً/يوم' : 'orders/d'}</span>
           </div>
 
           <div className="rounded-2xl border border-white/5 bg-black/40 p-3">
-            <span className="text-[10px] text-mist-400 uppercase font-bold">{isAr ? 'نسبة الإيجار للمبيعات' : 'Rent % of Sales'}</span>
+            <span className="text-xs text-mist-400 uppercase font-bold">{isAr ? 'نسبة الإيجار للمبيعات' : 'Rent % of Sales'}</span>
             <div className="flex items-center gap-1.5">
               <span className={`text-base font-black ${threeScenarios.realistic.rentWarning ? 'text-rose-400' : 'text-emerald-400'}`}>
                 {threeScenarios.realistic.rentToSalesPercent.toFixed(1)}%
@@ -455,26 +455,26 @@ export default function VentureEventsHub() {
                 <span className="h-2 w-2 rounded-full bg-rose-500 animate-ping" />
               )}
             </div>
-            <span className={`text-[10px] font-bold ${threeScenarios.realistic.rentWarning ? 'text-rose-400' : 'text-emerald-400'}`}>
+            <span className={`text-xs font-bold ${threeScenarios.realistic.rentWarning ? 'text-rose-400' : 'text-emerald-400'}`}>
               {threeScenarios.realistic.rentWarning ? (isAr ? 'تحذير > 30%' : 'High > 30%') : (isAr ? 'ممتاز < 30%' : 'Healthy < 30%')}
             </span>
           </div>
 
           <div className="rounded-2xl border border-white/5 bg-black/40 p-3">
-            <span className="text-[10px] text-mist-400 uppercase font-bold">{isAr ? 'صافي الربح المتوقع' : 'Realistic Net Profit'}</span>
+            <span className="text-xs text-mist-400 uppercase font-bold">{isAr ? 'صافي الربح المتوقع' : 'Realistic Net Profit'}</span>
             <div className="text-base font-black text-gold-300">
               {threeScenarios.realistic.netProfitKwd.toLocaleString('en-US', { minimumFractionDigits: 0 })}{' '}
-              <span className="text-[10px] text-gold-400">{isAr ? 'د.ك' : 'KWD'}</span>
+              <span className="text-xs text-gold-400">{isAr ? 'د.ك' : 'KWD'}</span>
             </div>
-            <span className="text-[10px] text-emerald-400 font-bold">▲ {threeScenarios.realistic.roiPercent.toFixed(1)}% {isAr ? 'عائد استثمار' : 'ROI'}</span>
+            <span className="text-xs text-emerald-400 font-bold">▲ {threeScenarios.realistic.roiPercent.toFixed(1)}% {isAr ? 'عائد استثمار' : 'ROI'}</span>
           </div>
 
           <div className="rounded-2xl border border-white/5 bg-black/40 p-3">
-            <span className="text-[10px] text-mist-400 uppercase font-bold">{isAr ? 'يوم استرداد رأس المال' : 'BEP Day'}</span>
+            <span className="text-xs text-mist-400 uppercase font-bold">{isAr ? 'يوم استرداد رأس المال' : 'BEP Day'}</span>
             <div className="text-base font-black text-emerald-400">
               {isAr ? `اليوم ${threeScenarios.realistic.breakEvenDay}` : `Day ${threeScenarios.realistic.breakEvenDay}`}
             </div>
-            <span className="text-[10px] text-mist-400">
+            <span className="text-xs text-mist-400">
               {isAr ? `من أصل ${calculatedDays} يوماً` : `of ${calculatedDays} days`}
             </span>
           </div>
@@ -622,7 +622,7 @@ export default function VentureEventsHub() {
                 <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                   {/* Name */}
                   <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-mist-300">{isAr ? 'اسم الفعالية القادمة:' : 'Event Name:'}</label>
+                    <label className="text-xs font-bold text-mist-300">{isAr ? 'اسم الفعالية القادمة:' : 'Event Name:'}</label>
                     <input
                       type="text"
                       value={eventNameAr}
@@ -633,7 +633,7 @@ export default function VentureEventsHub() {
 
                   {/* Location & Map */}
                   <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-mist-300">{isAr ? 'الموقع ورابط الخريطة:' : 'Location & Map:'}</label>
+                    <label className="text-xs font-bold text-mist-300">{isAr ? 'الموقع ورابط الخريطة:' : 'Location & Map:'}</label>
                     <input
                       type="text"
                       value={locationAr}
@@ -644,7 +644,7 @@ export default function VentureEventsHub() {
 
                   {/* Start Date */}
                   <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-mist-300">{isAr ? 'تاريخ البدء:' : 'Start Date:'}</label>
+                    <label className="text-xs font-bold text-mist-300">{isAr ? 'تاريخ البدء:' : 'Start Date:'}</label>
                     <input
                       type="date"
                       value={startDate}
@@ -655,7 +655,7 @@ export default function VentureEventsHub() {
 
                   {/* End Date */}
                   <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-mist-300">
+                    <label className="text-xs font-bold text-mist-300">
                       {isAr ? `تاريخ الانتهاء (${calculatedDays} يوماً):` : `End Date (${calculatedDays}d):`}
                     </label>
                     <input
@@ -668,7 +668,7 @@ export default function VentureEventsHub() {
 
                   {/* Total Rent */}
                   <div className="space-y-1">
-                    <div className="flex justify-between text-[11px]">
+                    <div className="flex justify-between text-xs">
                       <span className="font-bold text-mist-300">{isAr ? 'إجمالي الإيجار المطلوب:' : 'Total Booth Rent:'}</span>
                       <span className="font-bold text-gold-300">{totalRentKwd} {isAr ? 'د.ك' : 'KWD'}</span>
                     </div>
@@ -681,14 +681,14 @@ export default function VentureEventsHub() {
                       onChange={(e) => setTotalRentKwd(Number(e.target.value))}
                       className="w-full accent-gold-400"
                     />
-                    <div className="text-[10px] text-mist-400">
+                    <div className="text-xs text-mist-400">
                       {isAr ? 'الإيجار اليومي:' : 'Daily:'} {threeScenarios.dailyRentKwd.toFixed(3)} {isAr ? 'د.ك/يوم' : 'KWD/d'}
                     </div>
                   </div>
 
                   {/* Booths & Dimensions */}
                   <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-mist-300">
+                    <label className="text-xs font-bold text-mist-300">
                       {isAr ? `عدد البوثات والأبعاد (${totalBoothAreaSqM} م²):` : `Booths (${totalBoothAreaSqM} sqm):`}
                     </label>
                     <div className="grid grid-cols-2 gap-2">
@@ -702,7 +702,7 @@ export default function VentureEventsHub() {
                         <option value={3}>3 بوثات (3x)</option>
                         <option value={4}>4 بوثات مجمع (4x)</option>
                       </select>
-                      <span className="rounded-xl border border-white/10 bg-black/40 px-2 py-1.5 text-[11px] text-center font-mono text-mist-300">
+                      <span className="rounded-xl border border-white/10 bg-black/40 px-2 py-1.5 text-xs text-center font-mono text-mist-300">
                         {boothLengthM}m × {boothWidthM}m
                       </span>
                     </div>
@@ -710,7 +710,7 @@ export default function VentureEventsHub() {
 
                   {/* Fitout Setup */}
                   <div className="space-y-1">
-                    <div className="flex justify-between text-[11px]">
+                    <div className="flex justify-between text-xs">
                       <span className="font-bold text-mist-300">{isAr ? 'تكلفة الديكور والـ Fit-out:' : 'Fit-out & Decor:'}</span>
                       <span className="font-bold text-white">{fitoutKwd} {isAr ? 'د.ك' : 'KWD'}</span>
                     </div>
@@ -727,7 +727,7 @@ export default function VentureEventsHub() {
 
                   {/* Staff Crew */}
                   <div className="space-y-1">
-                    <div className="flex justify-between text-[11px]">
+                    <div className="flex justify-between text-xs">
                       <span className="font-bold text-mist-300">{isAr ? 'عدد العمالة الميدانية:' : 'Crew Staff Count:'}</span>
                       <span className="font-bold text-white">{staffCount} {isAr ? 'موظفاً' : 'staff'}</span>
                     </div>
@@ -744,7 +744,7 @@ export default function VentureEventsHub() {
 
                   {/* Expected AOV */}
                   <div className="space-y-1">
-                    <div className="flex justify-between text-[11px]">
+                    <div className="flex justify-between text-xs">
                       <span className="font-bold text-mist-300">{isAr ? 'متوسط قيمة الطلب المستهدف:' : 'Expected AOV:'}</span>
                       <span className="font-bold text-gold-300">{expectedAovKwd.toFixed(3)} {isAr ? 'د.ك' : 'KWD'}</span>
                     </div>
@@ -761,7 +761,7 @@ export default function VentureEventsHub() {
 
                   {/* Target Daily Baseline Orders */}
                   <div className="space-y-1">
-                    <div className="flex justify-between text-[11px]">
+                    <div className="flex justify-between text-xs">
                       <span className="font-bold text-mist-300">{isAr ? 'الطلبات اليومية الأساسية:' : 'Baseline Orders/Day:'}</span>
                       <span className="font-bold text-emerald-400">{baselineDailyOrders} {isAr ? 'طلب' : 'orders'}</span>
                     </div>
@@ -778,7 +778,7 @@ export default function VentureEventsHub() {
 
                   {/* Estimated COGS % */}
                   <div className="space-y-1">
-                    <div className="flex justify-between text-[11px]">
+                    <div className="flex justify-between text-xs">
                       <span className="font-bold text-mist-300">{isAr ? 'نسبة تكلفة الأطعمة والتغليف:' : 'Target COGS %:'}</span>
                       <span className="font-bold text-emerald-400">{estimatedCogsPct}%</span>
                     </div>
@@ -795,7 +795,7 @@ export default function VentureEventsHub() {
 
                   {/* Multi-Brand Selectors */}
                   <div className="space-y-1.5 sm:col-span-2 lg:col-span-4 border-t border-white/5 pt-3">
-                    <label className="text-[11px] font-bold text-mist-300">
+                    <label className="text-xs font-bold text-mist-300">
                       {isAr ? 'البراندات المشاركة في الفعالية (انقر لاختيار براند أو أكثر):' : 'Participating Brands (Select one or more):'}
                     </label>
                     <div className="flex flex-wrap gap-2">
@@ -952,7 +952,7 @@ export default function VentureEventsHub() {
                         <td className="px-5 py-3 font-sans font-bold text-white flex items-center gap-2">
                           <span>{isAr ? 'إيجار البوث ونسبة الإيجار للمبيعات' : 'Booth Rent & Rent % of Sales'}</span>
                           {threeScenarios.realistic.rentWarning && (
-                            <span className="rounded bg-rose-500/20 px-1.5 py-0.5 text-[10px] text-rose-300 font-bold">
+                            <span className="rounded bg-rose-500/20 px-1.5 py-0.5 text-xs text-rose-300 font-bold">
                               {isAr ? 'تحذير > 30%' : 'Alert > 30%'}
                             </span>
                           )}
@@ -997,19 +997,19 @@ export default function VentureEventsHub() {
                         </td>
                         <td className="px-4 py-4 text-end font-bold text-amber-300 text-sm">
                           {threeScenarios.conservative.netProfitKwd.toLocaleString('en-US', { minimumFractionDigits: 3 })} {isAr ? 'د.ك' : 'KWD'}
-                          <div className="text-[10px] text-mist-400 font-normal">
+                          <div className="text-xs text-mist-400 font-normal">
                             ({threeScenarios.conservative.netProfitMarginPercent.toFixed(1)}% {isAr ? 'هامش' : 'margin'})
                           </div>
                         </td>
                         <td className="px-5 py-4 text-end font-black text-gold-300 bg-gold-400/10 text-base">
                           {threeScenarios.realistic.netProfitKwd.toLocaleString('en-US', { minimumFractionDigits: 3 })} {isAr ? 'د.ك' : 'KWD'}
-                          <div className="text-[10px] text-emerald-400 font-bold">
+                          <div className="text-xs text-emerald-400 font-bold">
                             ({threeScenarios.realistic.netProfitMarginPercent.toFixed(1)}% {isAr ? 'هامش صافي' : 'net margin'})
                           </div>
                         </td>
                         <td className="px-4 py-4 text-end font-black text-emerald-400 text-base">
                           {threeScenarios.optimistic.netProfitKwd.toLocaleString('en-US', { minimumFractionDigits: 3 })} {isAr ? 'د.ك' : 'KWD'}
-                          <div className="text-[10px] text-emerald-300 font-bold">
+                          <div className="text-xs text-emerald-300 font-bold">
                             ({threeScenarios.optimistic.netProfitMarginPercent.toFixed(1)}% {isAr ? 'هامش صافي' : 'net margin'})
                           </div>
                         </td>
@@ -1382,7 +1382,7 @@ export default function VentureEventsHub() {
                             </td>
                             <td className="px-5 py-3 font-sans">
                               <div className="font-bold text-white">{isAr ? item.nameAr : item.nameEn}</div>
-                              <div className="text-[10px] text-mist-400">{isAr ? item.categoryAr : item.categoryEn}</div>
+                              <div className="text-xs text-mist-400">{isAr ? item.categoryAr : item.categoryEn}</div>
                             </td>
                             <td className="px-3 py-3 font-sans text-mist-300">{isAr ? item.brandNameAr : item.brandNameEn}</td>
                             <td className="px-3 py-3 text-end text-mist-400">{item.standardBranchPriceKwd.toFixed(3)}</td>
@@ -1392,7 +1392,7 @@ export default function VentureEventsHub() {
                             </td>
                             <td className="px-3 py-3 text-end text-rose-300 font-bold">{item.foodPackagingCogsKwd.toFixed(3)}</td>
                             <td className="px-3 py-3 text-center font-bold text-emerald-400">{marginPct.toFixed(1)}%</td>
-                            <td className="px-3 py-3 text-center font-sans text-cyan-300 text-[11px]">
+                            <td className="px-3 py-3 text-center font-sans text-cyan-300 text-xs">
                               {item.prepTimeSeconds}s
                             </td>
                           </tr>
@@ -1474,7 +1474,7 @@ export default function VentureEventsHub() {
                         <td className="px-3 py-4 text-center text-purple-300 font-black">
                           ▲ {threeScenarios.realistic.roiPercent.toFixed(1)}%
                         </td>
-                        <td className="px-4 py-4 font-sans text-[11px]">
+                        <td className="px-4 py-4 font-sans text-xs">
                           <span className={`rounded-md px-2 py-0.5 font-bold ${plannedEventVerdict.color}`}>
                             {plannedEventVerdict.status === 'highly_viable' ? 'عالية الجدوى' : 'تتطلب تفاوض'}
                           </span>
@@ -1486,7 +1486,7 @@ export default function VentureEventsHub() {
                         <tr key={bench.id} className="hover:bg-white/[0.02]">
                           <td className="px-5 py-3.5 font-sans font-medium text-white">
                             {isAr ? bench.nameAr : bench.nameEn}
-                            <div className="text-[10px] text-mist-400">{bench.periodSeason}</div>
+                            <div className="text-xs text-mist-400">{bench.periodSeason}</div>
                           </td>
                           <td className="px-3 py-3.5 text-center text-mist-300">{bench.daysCount} d</td>
                           <td className="px-3 py-3.5 text-end text-mist-400">{bench.dailyRentKwd.toFixed(3)}</td>
@@ -1495,7 +1495,7 @@ export default function VentureEventsHub() {
                           <td className="px-3 py-3.5 text-center text-mist-300">{bench.rentToSalesPercent.toFixed(1)}%</td>
                           <td className="px-4 py-3.5 text-end font-bold text-gold-300">{bench.netProfitKwd.toLocaleString()}</td>
                           <td className="px-3 py-3.5 text-center text-purple-300">▲ {bench.roiPercent.toFixed(1)}%</td>
-                          <td className="px-4 py-3.5 font-sans text-[11px] text-mist-400 line-clamp-1">
+                          <td className="px-4 py-3.5 font-sans text-xs text-mist-400 line-clamp-1">
                             {isAr ? bench.verdictAr : bench.verdictEn}
                           </td>
                         </tr>
@@ -1541,13 +1541,13 @@ export default function VentureEventsHub() {
                     {/* Left Corridor */}
                     <div className="col-span-3 rounded-xl border border-white/5 bg-white/5 p-4 flex flex-col justify-center text-mist-400">
                       <span>🚶 {isAr ? 'ممر المشاة' : 'Walkway'}</span>
-                      <span className="text-[10px] text-mist-500">{isAr ? 'تدفق الزوار 100%' : 'High Traffic'}</span>
+                      <span className="text-xs text-mist-500">{isAr ? 'تدفق الزوار 100%' : 'High Traffic'}</span>
                     </div>
 
                     {/* VENTURE FOODS BOOTHS (HERO) */}
                     <div className="col-span-6 rounded-2xl border-2 border-gold-400 bg-gradient-to-br from-gold-400/20 to-amber-600/20 p-5 shadow-xl">
                       <div className="flex items-center justify-between">
-                        <span className="rounded bg-gold-400 px-2 py-0.5 text-[10px] font-black text-black">
+                        <span className="rounded bg-gold-400 px-2 py-0.5 text-xs font-black text-black">
                           VENTURE FOODS W.L.L.
                         </span>
                         <span className="font-mono text-xs font-bold text-gold-300">
@@ -1557,7 +1557,7 @@ export default function VentureEventsHub() {
                       <h4 className="mt-2 text-base font-black text-white">
                         {selectedBrands.join(' + ')}
                       </h4>
-                      <div className="mt-2 flex flex-wrap justify-center gap-2 text-[10px]">
+                      <div className="mt-2 flex flex-wrap justify-center gap-2 text-xs">
                         <span className="rounded bg-black/60 px-2 py-1 text-cyan-300">⚡ 3-Phase 32A Power</span>
                         <span className="rounded bg-black/60 px-2 py-1 text-emerald-300">📶 POS 5G Router</span>
                         <span className="rounded bg-black/60 px-2 py-1 text-amber-300">🚚 Central Kitchen Van Gate</span>
@@ -1567,7 +1567,7 @@ export default function VentureEventsHub() {
                     {/* Right Corridor */}
                     <div className="col-span-3 rounded-xl border border-white/5 bg-white/5 p-4 flex flex-col justify-center text-mist-400">
                       <span>🍽️ {isAr ? 'منطقة الجلوس' : 'Food Court'}</span>
-                      <span className="text-[10px] text-mist-500">{isAr ? 'طاولات الطعام' : 'Dining Area'}</span>
+                      <span className="text-xs text-mist-500">{isAr ? 'طاولات الطعام' : 'Dining Area'}</span>
                     </div>
 
                     {/* Bottom Logistics Bay */}
@@ -1611,7 +1611,7 @@ export default function VentureEventsHub() {
                           {isAr ? t.titleAr : t.titleEn}
                         </span>
                       </div>
-                      <span className="text-[11px] text-mist-400 font-mono">{t.assignee}</span>
+                      <span className="text-xs text-mist-400 font-mono">{t.assignee}</span>
                     </div>
                   ))}
                 </div>
@@ -1624,14 +1624,14 @@ export default function VentureEventsHub() {
                   <div>
                     <h2 className="text-xl font-black tracking-tight">شركة فنتشر فودز لإدارة المطاعم ذ.م.م.</h2>
                     <p className="text-xs font-bold text-slate-700">VENTURE FOODS RESTAURANT MANAGEMENT CO. W.L.L. (CR 412891)</p>
-                    <p className="text-[11px] text-slate-600">Central Kitchen & HQ · State of Kuwait</p>
+                    <p className="text-xs text-slate-600">Central Kitchen & HQ · State of Kuwait</p>
                   </div>
                   <div className="text-end">
                     <span className="rounded bg-slate-900 px-3 py-1 text-xs font-black text-white">
                       EXPO PARTICIPATION APPROVAL PACK
                     </span>
-                    <p className="mt-1 text-[11px] font-mono text-slate-600">Ref: VF-EXB-{new Date().getFullYear()}-04</p>
-                    <p className="text-[10px] text-slate-500">Date: {new Date().toLocaleDateString('en-GB')}</p>
+                    <p className="mt-1 text-xs font-mono text-slate-600">Ref: VF-EXB-{new Date().getFullYear()}-04</p>
+                    <p className="text-xs text-slate-500">Date: {new Date().toLocaleDateString('en-GB')}</p>
                   </div>
                 </div>
 
@@ -1706,7 +1706,7 @@ export default function VentureEventsHub() {
                 {/* Approved EXB Menu Sample */}
                 <div className="mt-6 text-xs">
                   <h4 className="font-black text-sm text-slate-900 mb-2">3. قائمة أسعار المعرض المعتمدة (Approved EXB Menu & Pricing)</h4>
-                  <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-800">
+                  <div className="grid grid-cols-2 gap-2 text-xs text-slate-800">
                     {exbMenuList.filter((i) => i.activeOnMenu).slice(0, 8).map((item) => (
                       <div key={item.code} className="border-b border-slate-200 pb-1 flex justify-between">
                         <span><strong>{item.code}:</strong> {item.nameAr}</span>
@@ -1722,28 +1722,28 @@ export default function VentureEventsHub() {
                   <div className="grid grid-cols-4 gap-4 text-center text-xs">
                     <div className="border border-slate-300 rounded p-3">
                       <div className="font-bold text-slate-900">إدارة العمليات (Operations)</div>
-                      <div className="text-[10px] text-slate-600 mt-1">Choukrallah Nassif</div>
+                      <div className="text-xs text-slate-600 mt-1">Choukrallah Nassif</div>
                       <div className="mt-6 border-b border-slate-400"></div>
                       <div className="text-[9px] text-slate-500 mt-1">التوقيع / التاريخ</div>
                     </div>
 
                     <div className="border border-slate-300 rounded p-3">
                       <div className="font-bold text-slate-900">الإدارة المالية (Finance)</div>
-                      <div className="text-[10px] text-slate-600 mt-1">Hesham (Controller)</div>
+                      <div className="text-xs text-slate-600 mt-1">Hesham (Controller)</div>
                       <div className="mt-6 border-b border-slate-400"></div>
                       <div className="text-[9px] text-slate-500 mt-1">التوقيع / التاريخ</div>
                     </div>
 
                     <div className="border border-slate-300 rounded p-3">
                       <div className="font-bold text-slate-900">أمين السر والشؤون القانونية</div>
-                      <div className="text-[10px] text-slate-600 mt-1">Abdullah Abdulghafar</div>
+                      <div className="text-xs text-slate-600 mt-1">Abdullah Abdulghafar</div>
                       <div className="mt-6 border-b border-slate-400"></div>
                       <div className="text-[9px] text-slate-500 mt-1">التوقيع / التاريخ</div>
                     </div>
 
                     <div className="border-2 border-slate-900 rounded p-3 bg-slate-50">
                       <div className="font-black text-slate-900">اعتماد الشركاء والمدير العام</div>
-                      <div className="text-[10px] text-slate-700 mt-1">Ahmed Al-Abdulmohsen & Ahmed Al-Ebrahim</div>
+                      <div className="text-xs text-slate-700 mt-1">Ahmed Al-Abdulmohsen & Ahmed Al-Ebrahim</div>
                       <div className="mt-6 border-b-2 border-slate-900"></div>
                       <div className="text-[9px] text-slate-600 mt-1">الختم والتوقيع الرسمي</div>
                     </div>
@@ -1790,9 +1790,9 @@ export default function VentureEventsHub() {
                   {VENTURE_FOODS_EVENTS.map((evt) => (
                     <tr key={evt.id} className="hover:bg-white/[0.02]">
                       <td className="px-5 py-3.5 font-sans">
-                        <span className="font-mono text-gold-400 font-bold text-[11px]">{evt.code}</span>
+                        <span className="font-mono text-gold-400 font-bold text-xs">{evt.code}</span>
                         <div className="font-bold text-white text-xs">{isAr ? evt.nameAr : evt.nameEn}</div>
-                        <div className="text-[10px] text-mist-400">{evt.primaryBrands.join(' + ')}</div>
+                        <div className="text-xs text-mist-400">{evt.primaryBrands.join(' + ')}</div>
                       </td>
                       <td className="px-3 py-3.5 text-center text-white">{evt.daysCount} d</td>
                       <td className="px-3 py-3.5 text-end text-rose-300">{evt.costs.totalCostsKwd.toFixed(3)}</td>
@@ -1801,7 +1801,7 @@ export default function VentureEventsHub() {
                       <td className="px-4 py-3.5 text-end font-bold text-gold-300">{evt.profitability.netProfitKwd.toFixed(3)}</td>
                       <td className="px-3 py-3.5 text-center text-purple-300 font-bold">▲ {evt.profitability.roiPercent.toFixed(1)}%</td>
                       <td className="px-3 py-3.5 text-center font-sans">
-                        <span className={`rounded px-2 py-0.5 text-[10px] font-bold ${
+                        <span className={`rounded px-2 py-0.5 text-xs font-bold ${
                           evt.costs.securityDepositStatus === 'refunded'
                             ? 'bg-emerald-500/20 text-emerald-300'
                             : 'bg-amber-500/20 text-amber-300'

@@ -213,7 +213,7 @@ export function OrderPrepSlaStudio() {
               'زمن تجهيز المطبخ (KDS): أخضر ≤ 12.0 د • أصفر 12.1–18.0 د • أحمر حرج > 18.0 د',
             )}
           </p>
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-emerald-50 px-2.5 py-1 text-[11.5px] font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-emerald-50 px-2.5 py-1 text-[13px] font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
             <ShieldCheck className="h-3.5 w-3.5" />
             <span>{T('6 Brands · 7 Branches', '٦ براندات · ٧ فروع')}</span>
           </span>
@@ -248,11 +248,11 @@ export function OrderPrepSlaStudio() {
                 {isAr ? 'د' : 'min'}
               </span>
             </div>
-            <span className="font-mono text-[11.5px] sm:text-[13px] font-semibold tabular-nums text-neutral-500 dark:text-slate-400">
+            <span className="font-mono text-[13px] sm:text-[13px] font-semibold tabular-nums text-neutral-500 dark:text-slate-400">
               {snap.avgDurationMmSs}
             </span>
           </div>
-          <p className="text-[11.5px] sm:text-[12.5px] leading-snug tabular-nums text-neutral-400">
+          <p className="text-[13px] sm:text-[12.5px] leading-snug tabular-nums text-neutral-400">
             {T(
               `P90: ${f1(snap.p90PrepMinutes)}m · ${f0(snap.totalTickets)} tickets`,
               `ذروة P90: ${f1(snap.p90PrepMinutes)} د · ${f0(snap.totalTickets)} طلب`,
@@ -268,7 +268,7 @@ export function OrderPrepSlaStudio() {
           }`}
         >
           <div className="flex items-center justify-between gap-1.5">
-            <span className="rounded-xl bg-emerald-50 px-2 py-0.5 text-[11.5px] sm:text-[12px] font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
+            <span className="rounded-xl bg-emerald-50 px-2 py-0.5 text-[13px] sm:text-[12px] font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
               {T('🟢 <= 12.0m', '🟢 ≤ 12.0 د')}
             </span>
             <span className="text-[12px] font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">
@@ -278,7 +278,7 @@ export function OrderPrepSlaStudio() {
           <div className="text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-emerald-700 dark:text-emerald-400">
             {f1(snap.greenPct)}%
           </div>
-          <p className="text-[11.5px] sm:text-[12.5px] leading-snug text-neutral-400">
+          <p className="text-[13px] sm:text-[12.5px] leading-snug text-neutral-400">
             {T('Handed off within target SLA', 'سُلمت ضمن الزمن المثالي')}
           </p>
         </button>
@@ -291,7 +291,7 @@ export function OrderPrepSlaStudio() {
           }`}
         >
           <div className="flex items-center justify-between gap-1.5">
-            <span className="rounded-xl bg-amber-50 px-2 py-0.5 text-[11.5px] sm:text-[12px] font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
+            <span className="rounded-xl bg-amber-50 px-2 py-0.5 text-[13px] sm:text-[12px] font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
               {T('🟡 12.1–18.0m', '🟡 12.1–18.0 د')}
             </span>
             <span className="text-[12px] font-semibold tabular-nums text-amber-800 dark:text-amber-300">
@@ -301,7 +301,7 @@ export function OrderPrepSlaStudio() {
           <div className="text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-amber-700 dark:text-amber-300">
             {f1(snap.yellowPct)}%
           </div>
-          <p className="text-[11.5px] sm:text-[12.5px] leading-snug text-neutral-400">
+          <p className="text-[13px] sm:text-[12.5px] leading-snug text-neutral-400">
             {T('Moderate station pressure', 'ضغط متوسط تحت المتابعة')}
           </p>
         </button>
@@ -314,7 +314,7 @@ export function OrderPrepSlaStudio() {
           }`}
         >
           <div className="flex items-center justify-between gap-1.5">
-            <span className="rounded-xl bg-rose-50 px-2 py-0.5 text-[11.5px] sm:text-[12px] font-semibold text-rose-700 dark:bg-rose-950/60 dark:text-rose-200">
+            <span className="rounded-xl bg-rose-50 px-2 py-0.5 text-[13px] sm:text-[12px] font-semibold text-rose-700 dark:bg-rose-950/60 dark:text-rose-200">
               {T('🔴 > 18.0m', '🔴 > 18.0 د')}
             </span>
             <span className="text-[12px] font-semibold tabular-nums text-rose-700 dark:text-rose-300">
@@ -324,7 +324,7 @@ export function OrderPrepSlaStudio() {
           <div className="text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-rose-600 dark:text-rose-400">
             {f1(snap.redPct)}%
           </div>
-          <p className="text-[11.5px] sm:text-[12.5px] leading-snug text-neutral-400">
+          <p className="text-[13px] sm:text-[12.5px] leading-snug text-neutral-400">
             {T('Critical delays for Escalate ↗', 'حالات حرجة مؤهلة للتصعيد')}
           </p>
         </button>
@@ -358,7 +358,7 @@ export function OrderPrepSlaStudio() {
                     <span className="truncate text-[14px] font-semibold text-neutral-950 dark:text-white">
                       {isAr ? row.nameAr : row.nameEn}
                     </span>
-                    <span className="shrink-0 text-[11.5px] font-normal tabular-nums text-neutral-400 dark:text-slate-400">
+                    <span className="shrink-0 text-[13px] font-normal tabular-nums text-neutral-400 dark:text-slate-400">
                       · {f0(row.ticketCount)} {isAr ? 'طلب' : 'tickets'}
                     </span>
                   </div>
@@ -376,7 +376,7 @@ export function OrderPrepSlaStudio() {
                       <span className="font-bold text-neutral-950 dark:text-white">
                         {f1(row.avgPrepMinutes)} {isAr ? 'د' : 'm'}
                       </span>{' '}
-                      <span className="font-mono text-[11px] font-normal text-neutral-400">
+                      <span className="font-mono text-xs font-normal text-neutral-400">
                         ({row.avgDurationMmSs})
                       </span>
                     </div>
@@ -397,7 +397,7 @@ export function OrderPrepSlaStudio() {
                   </div>
                 </div>
 
-                <div className="text-[11.5px] font-medium tabular-nums text-neutral-600 dark:text-slate-300">
+                <div className="text-[13px] font-medium tabular-nums text-neutral-600 dark:text-slate-300">
                   🟢 {f1(row.greenPct)}% · 🟡 {f1(row.yellowPct)}% · 🔴 {f1(row.redPct)}%
                 </div>
               </div>
@@ -486,7 +486,7 @@ export function OrderPrepSlaStudio() {
                     <span className="truncate text-[14px] font-semibold text-neutral-950 dark:text-white">
                       {isAr ? row.nameAr : row.nameEn}
                     </span>
-                    <span className="shrink-0 text-[11.5px] font-normal tabular-nums text-neutral-400 dark:text-slate-400">
+                    <span className="shrink-0 text-[13px] font-normal tabular-nums text-neutral-400 dark:text-slate-400">
                       · {f0(row.ticketCount)} {isAr ? 'طلب' : 'tickets'}
                     </span>
                   </div>
@@ -504,7 +504,7 @@ export function OrderPrepSlaStudio() {
                       <span className="font-bold text-neutral-950 dark:text-white">
                         {f1(row.avgPrepMinutes)} {isAr ? 'د' : 'm'}
                       </span>{' '}
-                      <span className="font-mono text-[11px] font-normal text-neutral-400">
+                      <span className="font-mono text-xs font-normal text-neutral-400">
                         ({row.avgDurationMmSs})
                       </span>
                     </div>
@@ -525,7 +525,7 @@ export function OrderPrepSlaStudio() {
                   </div>
                 </div>
 
-                <div className="text-[11.5px] font-medium tabular-nums text-neutral-600 dark:text-slate-300">
+                <div className="text-[13px] font-medium tabular-nums text-neutral-600 dark:text-slate-300">
                   🟢 {f1(row.greenPct)}% · 🟡 {f1(row.yellowPct)}% · 🔴 {f1(row.redPct)}%
                 </div>
               </div>
@@ -735,7 +735,7 @@ export function OrderPrepSlaStudio() {
                     : 'hover:bg-white/80 dark:hover:bg-[#101C17]/70'
                 }`}
               >
-                <span className={`whitespace-nowrap text-[11px] font-bold tabular-nums ${valueTextCls}`}>
+                <span className={`whitespace-nowrap text-xs font-bold tabular-nums ${valueTextCls}`}>
                   {hasTickets ? `${f1(h.avgPrepMinutes)}${isAr ? 'د' : 'm'}` : '—'}
                 </span>
 
@@ -748,7 +748,7 @@ export function OrderPrepSlaStudio() {
                   />
                 </div>
 
-                <span className="whitespace-nowrap text-[10.5px] sm:text-[11px] font-semibold tabular-nums text-neutral-600 dark:text-slate-300">
+                <span className="whitespace-nowrap text-xs font-semibold tabular-nums text-neutral-600 dark:text-slate-300">
                   {isAr ? h.labelAr : h.labelEn}
                 </span>
               </button>

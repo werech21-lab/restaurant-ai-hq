@@ -303,11 +303,11 @@ export function OdooExpenseSingleModal({
                 <span className="text-sm font-black text-white">
                   {isAr ? 'تسجيل مصروف فردي جديد (Odoo hr.expense)' : 'New Expense Record (Odoo hr.expense)'}
                 </span>
-                <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-500/30">
+                <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-bold text-emerald-400 border border-emerald-500/30">
                   {isAr ? 'النموذج الرسمي المعتمد' : 'Official Form'}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-xs text-slate-400">
                 {isAr
                   ? 'شركة فنتشر فودز لإدارة المطاعم ذ.م.م. — ترخيص 2021/22838'
                   : 'Venture Foods Restaurants Management Co. W.L.L. — Lic. 2021/22838'}
@@ -388,7 +388,7 @@ export function OdooExpenseSingleModal({
           </div>
 
           {/* Status Pipeline Ribbon */}
-          <div className="flex items-center rounded-xl border border-white/10 bg-slate-900/90 p-0.5 text-[11px] font-bold">
+          <div className="flex items-center rounded-xl border border-white/10 bg-slate-900/90 p-0.5 text-xs font-bold">
             {pipelineStages.map((stage, idx) => {
               const isCurrent = stage.id === status
               const isPassed = idx < currentStageIndex && status !== 'refused'
@@ -517,7 +517,7 @@ export function OdooExpenseSingleModal({
                   <span className="text-xs font-bold text-slate-400">
                     {isAr ? 'المبلغ الإجمالي بالدينار الكويتي' : 'Total Amount (KWD)'}
                   </span>
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-xs text-slate-500">
                     {isAr ? 'شامل الرسوم والضرائب إن وجدت' : 'Includes all official fees & taxes'}
                   </p>
                 </div>
@@ -550,7 +550,7 @@ export function OdooExpenseSingleModal({
                 <button
                   type="button"
                   onClick={() => setShowAnalyticPopover(!showAnalyticPopover)}
-                  className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[11px] font-bold text-amber-300 hover:bg-amber-500/20"
+                  className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-xs font-bold text-amber-300 hover:bg-amber-500/20"
                 >
                   {showAnalyticPopover
                     ? (isAr ? 'إخفاء المحاور ▲' : 'Hide Axes ▲')
@@ -568,7 +568,7 @@ export function OdooExpenseSingleModal({
                   return (
                     <div
                       key={split.id}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-900/80 px-3 py-2 border border-slate-800 text-[11px]"
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-900/80 px-3 py-2 border border-slate-800 text-xs"
                     >
                       <div className="flex items-center gap-2">
                         <span className="font-mono font-bold text-amber-400">
@@ -578,7 +578,7 @@ export function OdooExpenseSingleModal({
                           {isAr ? loc?.nameAr : loc?.nameEn} · {isAr ? brd?.nameAr : brd?.nameEn}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 text-slate-400 text-[10px]">
+                      <div className="flex items-center gap-2 text-slate-400 text-xs">
                         {split.vehicleId !== 'none' && (
                           <span className="rounded bg-slate-800 px-1.5 py-0.5 text-blue-300">
                             🚗 {isAr ? veh?.nameAr : veh?.nameEn}
@@ -605,7 +605,7 @@ export function OdooExpenseSingleModal({
                     <button
                       type="button"
                       onClick={handleAddSplit}
-                      className="flex items-center gap-1 rounded-lg bg-emerald-600 px-2 py-1 text-[10px] font-bold text-white hover:bg-emerald-500"
+                      className="flex items-center gap-1 rounded-lg bg-emerald-600 px-2 py-1 text-xs font-bold text-white hover:bg-emerald-500"
                     >
                       <Plus size={11} />
                       <span>{isAr ? 'إضافة سطر تقسيم' : 'Add Split Line'}</span>
@@ -619,12 +619,12 @@ export function OdooExpenseSingleModal({
                         className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 space-y-2.5"
                       >
                         <div className="flex items-center justify-between">
-                          <span className="text-[11px] font-bold text-slate-400">
+                          <span className="text-xs font-bold text-slate-400">
                             {isAr ? `سطر التوزيع #${idx + 1}` : `Distribution Line #${idx + 1}`}
                           </span>
                           <div className="flex items-center gap-2">
                             <div className="flex items-center gap-1">
-                              <span className="text-[11px] text-slate-400">{isAr ? 'النسبة:' : 'Pct:'}</span>
+                              <span className="text-xs text-slate-400">{isAr ? 'النسبة:' : 'Pct:'}</span>
                               <input
                                 type="number"
                                 min="1"
@@ -650,10 +650,10 @@ export function OdooExpenseSingleModal({
                         </div>
 
                         {/* 4 AXIS DROPDOWNS */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                           {/* Axis 1: Location */}
                           <div>
-                            <label className="block text-[10px] text-slate-400 mb-0.5">
+                            <label className="block text-xs text-slate-400 mb-0.5">
                               {isAr ? 'المحور 1: الفرع / الموقع' : 'Axis 1: Branch / Location'}
                             </label>
                             <select
@@ -671,7 +671,7 @@ export function OdooExpenseSingleModal({
 
                           {/* Axis 2: Brand */}
                           <div>
-                            <label className="block text-[10px] text-slate-400 mb-0.5">
+                            <label className="block text-xs text-slate-400 mb-0.5">
                               {isAr ? 'المحور 2: العلامة التجارية' : 'Axis 2: Brand'}
                             </label>
                             <select
@@ -689,7 +689,7 @@ export function OdooExpenseSingleModal({
 
                           {/* Axis 3: Fleet Vehicle */}
                           <div>
-                            <label className="block text-[10px] text-slate-400 mb-0.5">
+                            <label className="block text-xs text-slate-400 mb-0.5">
                               {isAr ? 'المحور 3: المركبة والأسطول' : 'Axis 3: Fleet Vehicle'}
                             </label>
                             <select
@@ -707,7 +707,7 @@ export function OdooExpenseSingleModal({
 
                           {/* Axis 4: Events & Expos */}
                           <div>
-                            <label className="block text-[10px] text-slate-400 mb-0.5">
+                            <label className="block text-xs text-slate-400 mb-0.5">
                               {isAr ? 'المحور 4: الفعاليات والمعارض' : 'Axis 4: Exhibitions & Camps'}
                             </label>
                             <select
@@ -773,7 +773,7 @@ export function OdooExpenseSingleModal({
                     {isAr ? 'سجل التدقيق والمحادثة (Chatter)' : 'Audit Trail & Chatter'}
                   </span>
                 </div>
-                <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] text-slate-400 font-mono">
+                <span className="rounded-full bg-slate-800 px-2 py-0.5 text-xs text-slate-400 font-mono">
                   {chatterLogs.length}
                 </span>
               </div>
@@ -790,7 +790,7 @@ export function OdooExpenseSingleModal({
                     key={tab.id}
                     type="button"
                     onClick={() => setActiveChatterTab(tab.id)}
-                    className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition-all ${
+                    className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-all ${
                       activeChatterTab === tab.id
                         ? 'bg-slate-700 text-white'
                         : 'text-slate-400 hover:text-slate-200'
@@ -822,7 +822,7 @@ export function OdooExpenseSingleModal({
                   <button
                     type="button"
                     onClick={handleAttachReceipt}
-                    className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-emerald-400"
+                    className="flex items-center gap-1 text-xs text-slate-400 hover:text-emerald-400"
                   >
                     <Paperclip size={12} />
                     <span>{isAr ? 'إرفاق ملف' : 'Attach File'}</span>
@@ -845,7 +845,7 @@ export function OdooExpenseSingleModal({
                     key={log.id}
                     className="rounded-xl border border-slate-800/80 bg-slate-900/40 p-3 space-y-1"
                   >
-                    <div className="flex items-center justify-between text-[10px]">
+                    <div className="flex items-center justify-between text-xs">
                       <span className="font-bold text-slate-300">{log.author}</span>
                       <span className="text-slate-500">{log.time}</span>
                     </div>
@@ -858,7 +858,7 @@ export function OdooExpenseSingleModal({
             {/* Document Verification Badge */}
             <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 flex items-center gap-2.5">
               <span className="text-lg">🛡️</span>
-              <div className="text-[10px] leading-tight">
+              <div className="text-xs leading-tight">
                 <p className="font-bold text-emerald-400">
                   {isAr ? 'نظام التدقيق الرقمي المباشر' : 'Live Digital Audit Engine'}
                 </p>

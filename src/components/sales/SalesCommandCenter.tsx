@@ -157,7 +157,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                     ? 'مركز قيادة المبيعات، القنوات، وهندسة المنيو'
                     : 'Enterprise Sales, Channel & Menu Command Center'}
                 </h1>
-                <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
+                <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-xs font-bold text-emerald-400">
                   Oct 2026 Live
                 </span>
               </div>
@@ -218,7 +218,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
         <div className="mx-auto mt-4 grid max-w-[1600px] grid-cols-2 gap-2 sm:grid-cols-4">
           {/* Brand Filter */}
           <div className="flex flex-col gap-1">
-            <label className="text-[11px] font-semibold text-slate-400">
+            <label className="text-xs font-semibold text-slate-400">
               {isAr ? 'العلامة التجارية (Brand)' : 'Brand'}
             </label>
             <select
@@ -238,7 +238,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
 
           {/* Channel Filter */}
           <div className="flex flex-col gap-1">
-            <label className="text-[11px] font-semibold text-slate-400">
+            <label className="text-xs font-semibold text-slate-400">
               {isAr ? 'قناة البيع (Sales Channel)' : 'Channel'}
             </label>
             <select
@@ -263,7 +263,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
 
           {/* Branch Filter */}
           <div className="flex flex-col gap-1">
-            <label className="text-[11px] font-semibold text-slate-400">
+            <label className="text-xs font-semibold text-slate-400">
               {isAr ? 'الفرع (Branch)' : 'Branch'}
             </label>
             <select
@@ -282,7 +282,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
 
           {/* Period Filter */}
           <div className="flex flex-col gap-1">
-            <label className="text-[11px] font-semibold text-slate-400">
+            <label className="text-xs font-semibold text-slate-400">
               {isAr ? 'الفترة الزمنية (Period)' : 'Period'}
             </label>
             <select
@@ -426,13 +426,13 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                   key={idx}
                   className="rounded-2xl border border-white/10 bg-slate-900/60 p-4 backdrop-blur-sm"
                 >
-                  <p className="text-[11px] font-semibold text-slate-400">
+                  <p className="text-xs font-semibold text-slate-400">
                     {isAr ? kpi.labelAr : kpi.labelEn}
                   </p>
                   <p className="mt-1 text-lg font-black tracking-tight text-white sm:text-xl">
                     {kpi.value}
                   </p>
-                  <p className="mt-1 text-[10px] text-slate-500">
+                  <p className="mt-1 text-xs text-slate-500">
                     {isAr ? kpi.subAr : kpi.subEn}
                   </p>
                 </div>
@@ -491,7 +491,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                     <h3 className="text-sm font-bold text-white">
                       {isAr ? 'أداء المطاعم الـ 6 (انقر للفلترة)' : '6 Brands Breakdown (Click to filter)'}
                     </h3>
-                    <p className="text-[11px] text-slate-400">
+                    <p className="text-xs text-slate-400">
                       {isAr ? 'اضغط على أي براند لتخصيص كامل اللوحة' : 'Click any bar to filter entire dashboard'}
                     </p>
                   </div>
@@ -540,7 +540,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                     <h3 className="text-sm font-bold text-white">
                       {isAr ? 'أداء قنوات البيع الـ 11 (انقر للفلترة)' : '11 Sales Channels (Click to filter)'}
                     </h3>
-                    <p className="text-[11px] text-slate-400">
+                    <p className="text-xs text-slate-400">
                       {isAr ? 'مبيعات الصالة 35.3% مقابل منصات التوصيل' : 'Dine-in vs Delivery aggregators'}
                     </p>
                   </div>
@@ -590,7 +590,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                   <h3 className="text-sm font-bold text-white">
                     {isAr ? 'جدول أداء البراندات المالي والتشغيلي' : 'Brand Scorecard Detailed Performance'}
                   </h3>
-                  <p className="text-[11px] text-slate-400">
+                  <p className="text-xs text-slate-400">
                     {isAr ? 'الأرقام المالية المعتمدة لشهر أكتوبر 2026' : 'Audited financial metrics for Oct 2026'}
                   </p>
                 </div>
@@ -646,7 +646,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                         <td className="px-4 py-3 text-end font-mono text-rose-400">{b.discountRatePercent}%</td>
                         <td className="px-4 py-3 text-slate-200">
                           {isAr ? b.bestSellerAr : b.bestSellerEn}
-                          <span className="ms-1.5 text-[10px] text-slate-500 font-mono">
+                          <span className="ms-1.5 text-xs text-slate-500 font-mono">
                             ({b.bestSellerSalesKwd.toLocaleString()} KWD)
                           </span>
                         </td>
@@ -667,41 +667,41 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
             {/* Summary Cards */}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-4">
-                <p className="text-[11px] font-semibold text-slate-400">
+                <p className="text-xs font-semibold text-slate-400">
                   {isAr ? 'إجمالي مبيعات منصات التوصيل' : 'Gross Aggregator Sales'}
                 </p>
                 <p className="mt-1 text-xl font-black text-white">106,818 KWD</p>
-                <p className="mt-1 text-[10px] text-slate-500">
+                <p className="mt-1 text-xs text-slate-500">
                   {isAr ? '64.1% من إجمالي مبيعات فنتشر فودز' : '64.1% of total enterprise sales'}
                 </p>
               </div>
 
               <div className="rounded-2xl border border-rose-500/20 bg-rose-950/20 p-4">
-                <p className="text-[11px] font-semibold text-rose-300">
+                <p className="text-xs font-semibold text-rose-300">
                   {isAr ? 'عمولات المنصات المقتطعة' : 'Aggregator Commissions'}
                 </p>
                 <p className="mt-1 text-xl font-black text-rose-400">17,002.27 KWD</p>
-                <p className="mt-1 text-[10px] text-rose-500">
+                <p className="mt-1 text-xs text-rose-500">
                   {isAr ? 'متوسط العمولة الفعلي 15.9%' : 'Blended commission: 15.9%'}
                 </p>
               </div>
 
               <div className="rounded-2xl border border-emerald-500/20 bg-emerald-950/20 p-4">
-                <p className="text-[11px] font-semibold text-emerald-300">
+                <p className="text-xs font-semibold text-emerald-300">
                   {isAr ? 'صافي التحصيل البنكي الفعلي' : 'Net Banking Inflow'}
                 </p>
                 <p className="mt-1 text-xl font-black text-emerald-400">88,605.73 KWD</p>
-                <p className="mt-1 text-[10px] text-emerald-500">
+                <p className="mt-1 text-xs text-emerald-500">
                   {isAr ? 'موزع بين الوطني NBK والتجاري CBK' : 'Deposited in NBK & CBK accounts'}
                 </p>
               </div>
 
               <div className="rounded-2xl border border-amber-500/20 bg-amber-950/20 p-4">
-                <p className="text-[11px] font-semibold text-amber-300">
+                <p className="text-xs font-semibold text-amber-300">
                   {isAr ? 'فروقات التسوية وقيد المراجعة' : 'Reconciliation Variances'}
                 </p>
                 <p className="mt-1 text-xl font-black text-amber-400">644.79 KWD</p>
-                <p className="mt-1 text-[10px] text-amber-500">
+                <p className="mt-1 text-xs text-amber-500">
                   {isAr ? '51 طلباً ملغى / مسترد قيد المطالبة' : '51 disputed orders under claim'}
                 </p>
               </div>
@@ -716,7 +716,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                       ? 'جدول تدقيق عمولات المنصات والتسويات البنكية (أكتوبر 2026)'
                       : 'Aggregator Commission & Bank Settlement Audit'}
                   </h3>
-                  <p className="text-[11px] text-slate-400">
+                  <p className="text-xs text-slate-400">
                     {isAr
                       ? 'مقارنة دقيقة للعمولة التعاقدية ورسوم التسويق وصافي الإيداع الفعلي'
                       : 'Comparison of contractual commission, marketing fees & bank deposits'}
@@ -766,7 +766,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap bg-emerald-50 text-emerald-800 border border-emerald-300 dark:bg-emerald-950/70 dark:text-emerald-300 dark:border-emerald-700/60 shadow-xs">
                                   {isAr ? '🚚 أسطول فنتشر فودز · 10%' : '🚚 Venture Fleet · 10%'}
                                 </span>
-                                <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 pr-1">
+                                <span className="text-xs font-medium text-slate-500 dark:text-slate-400 pr-1">
                                   {isAr ? 'توصيل خاص بالشركة · معرف #101513' : 'Own Fleet · ID #101513'}
                                 </span>
                               </>
@@ -775,7 +775,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap bg-rose-50 text-rose-800 border border-rose-300 dark:bg-rose-950/70 dark:text-rose-300 dark:border-rose-700/60 shadow-xs">
                                   {isAr ? '🚨 توصيل المنصة · 17% (فرق +7%)' : '🚨 Platform Fleet · 17% (+7% gap)'}
                                 </span>
-                                <span className="text-[11px] font-medium text-rose-600/80 dark:text-rose-400/80 pr-1">
+                                <span className="text-xs font-medium text-rose-600/80 dark:text-rose-400/80 pr-1">
                                   {isAr ? 'سائق المنصة · معرف #101512' : 'Aggregator Driver · ID #101512'}
                                 </span>
                               </>
@@ -784,7 +784,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                                 <span className="font-bold text-slate-900 dark:text-white">
                                   {isAr ? row.channelAr : row.channel}
                                 </span>
-                                <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                                <span className="text-xs text-slate-500 dark:text-slate-400">
                                   {row.settlementCycle}
                                 </span>
                               </>
@@ -816,12 +816,12 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                             <span className="text-emerald-400">0.00</span>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-center text-[11px] text-slate-400">
+                        <td className="px-4 py-3 text-center text-xs text-slate-400">
                           {row.bank}
                         </td>
                         <td className="px-4 py-3 text-center">
                           <span
-                            className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                            className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-bold ${
                               row.payoutStatus === 'Settled'
                                 ? 'bg-emerald-500/20 text-emerald-300'
                                 : row.payoutStatus === 'Disputed'
@@ -894,14 +894,14 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
               >
                 <div className="flex items-center justify-between">
                   <span className="text-2xl">⭐</span>
-                  <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
+                  <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-bold text-emerald-400">
                     114 {isAr ? 'صنف' : 'items'}
                   </span>
                 </div>
                 <h4 className="mt-2 text-sm font-bold text-white">
                   {isAr ? 'الأصناف الذهبية الرائدة (Top Performers)' : 'Top Performers'}
                 </h4>
-                <p className="text-[11px] text-slate-400">
+                <p className="text-xs text-slate-400">
                   {isAr ? 'ربحية عالية + شعبية عالية' : 'High Margin + High Popularity'}
                 </p>
                 <p className="mt-2 text-xs font-mono font-bold text-emerald-400">
@@ -921,14 +921,14 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
               >
                 <div className="flex items-center justify-between">
                   <span className="text-2xl">🐎</span>
-                  <span className="rounded-full bg-sky-500/20 px-2 py-0.5 text-[10px] font-bold text-sky-400">
+                  <span className="rounded-full bg-sky-500/20 px-2 py-0.5 text-xs font-bold text-sky-400">
                     82 {isAr ? 'صنف' : 'items'}
                   </span>
                 </div>
                 <h4 className="mt-2 text-sm font-bold text-white">
                   {isAr ? 'الأصناف عالية الطلب (High-Demand Staples)' : 'High-Demand Staples'}
                 </h4>
-                <p className="text-[11px] text-slate-400">
+                <p className="text-xs text-slate-400">
                   {isAr ? 'شعبية عالية + ربحية منخفضة' : 'High Popularity + Low Margin'}
                 </p>
                 <p className="mt-2 text-xs font-mono font-bold text-sky-400">
@@ -948,14 +948,14 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
               >
                 <div className="flex items-center justify-between">
                   <span className="text-2xl">🧩</span>
-                  <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-400">
+                  <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-bold text-amber-400">
                     96 {isAr ? 'صنف' : 'items'}
                   </span>
                 </div>
                 <h4 className="mt-2 text-sm font-bold text-white">
                   {isAr ? 'أصناف واعدة عالية الربح (High-Margin Opportunities)' : 'High-Margin Opportunities'}
                 </h4>
-                <p className="text-[11px] text-slate-400">
+                <p className="text-xs text-slate-400">
                   {isAr ? 'ربحية عالية + شعبية منخفضة' : 'High Margin + Low Popularity'}
                 </p>
                 <p className="mt-2 text-xs font-mono font-bold text-amber-400">
@@ -975,14 +975,14 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
               >
                 <div className="flex items-center justify-between">
                   <span className="text-2xl">🐕</span>
-                  <span className="rounded-full bg-rose-500/20 px-2 py-0.5 text-[10px] font-bold text-rose-400">
+                  <span className="rounded-full bg-rose-500/20 px-2 py-0.5 text-xs font-bold text-rose-400">
                     72 {isAr ? 'صنف' : 'items'}
                   </span>
                 </div>
                 <h4 className="mt-2 text-sm font-bold text-white">
                   {isAr ? 'الأصناف الراكدة ضعيفة الأداء (Slow-Moving Items)' : 'Slow-Moving Items'}
                 </h4>
-                <p className="text-[11px] text-slate-400">
+                <p className="text-xs text-slate-400">
                   {isAr ? 'ربحية منخفضة + شعبية منخفضة' : 'Low Margin + Low Popularity'}
                 </p>
                 <p className="mt-2 text-xs font-mono font-bold text-rose-400">
@@ -1068,7 +1068,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                         </td>
                         <td className="px-4 py-3 text-center">
                           <span
-                            className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                            className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-bold ${
                               item.classification === 'TopPerformer'
                                 ? 'bg-emerald-500/20 text-emerald-300'
                                 : item.classification === 'HighDemand'
@@ -1124,7 +1124,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                     <span className="rounded-lg bg-emerald-500/10 px-2 py-0.5 text-xs font-bold text-emerald-400">
                       #{play.id}
                     </span>
-                    <span className="text-[10px] font-semibold text-slate-500">Playbook</span>
+                    <span className="text-xs font-semibold text-slate-500">Playbook</span>
                   </div>
                   <h4 className="mt-2 text-sm font-bold text-white">
                     {isAr ? play.titleAr : play.titleEn}
@@ -1132,7 +1132,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                   <p className="mt-1 text-xs text-slate-400">
                     {isAr ? play.taglineAr : play.taglineEn}
                   </p>
-                  <div className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-950/20 p-2.5 text-[11px] font-semibold text-emerald-300">
+                  <div className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-950/20 p-2.5 text-xs font-semibold text-emerald-300">
                     ⚡ {isAr ? play.expectedImpactAr : play.expectedImpactEn}
                   </div>
                 </div>
@@ -1146,7 +1146,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                   <h3 className="text-sm font-bold text-white">
                     {isAr ? 'سجل الأصناف الراكدة وتطبيق خطط المعالجة' : 'Slow Mover SKUs & Playbook Dispatch'}
                   </h3>
-                  <p className="text-[11px] text-slate-400">
+                  <p className="text-xs text-slate-400">
                     {isAr ? 'الأصناف التي حققت أقل من 25 طلباً خلال الشهر' : 'Items with under 25 units sold in Oct'}
                   </p>
                 </div>
@@ -1172,7 +1172,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                         <tr key={sm.id} className="hover:bg-white/[0.02]">
                           <td className="px-4 py-3 font-bold text-white">
                             {isAr ? sm.nameAr : sm.nameEn}
-                            <div className="text-[10px] text-slate-500">{isAr ? sm.categoryAr : sm.categoryEn}</div>
+                            <div className="text-xs text-slate-500">{isAr ? sm.categoryAr : sm.categoryEn}</div>
                           </td>
                           <td className="px-4 py-3 text-slate-300">{sm.brand}</td>
                           <td className="px-4 py-3 text-end font-mono">{sm.priceKwd.toFixed(3)}</td>
@@ -1185,7 +1185,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                           </td>
                           <td className="px-4 py-3 text-center">
                             {executed ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2.5 py-1 text-[10px] font-bold text-emerald-300">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2.5 py-1 text-xs font-bold text-emerald-300">
                                 <CheckCircle2 size={12} />
                                 {isAr ? 'تم التطبيق' : 'Executed'}
                               </span>
@@ -1200,7 +1200,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                                       : `Dispatched playbook for ${sm.nameEn}`
                                   )
                                 }}
-                                className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-[11px] font-bold text-emerald-400 hover:bg-emerald-500 hover:text-black transition-all"
+                                className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-bold text-emerald-400 hover:bg-emerald-500 hover:text-black transition-all"
                               >
                                 {isAr ? 'تطبيق الخطة ⚡' : 'Execute ⚡'}
                               </button>
@@ -1228,7 +1228,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                   <h3 className="text-sm font-bold text-white">
                     {isAr ? 'مقارنة أداء الفروع الـ 10 لشركة فنتشر فودز' : '10 Venture Foods Branches Performance'}
                   </h3>
-                  <p className="text-[11px] text-slate-400">
+                  <p className="text-xs text-slate-400">
                     {isAr ? 'المبيعات، الطلبات، متوسط الفاتورة، ونسب التوصيل' : 'Sales, orders, AOV & delivery share'}
                   </p>
                 </div>
@@ -1287,7 +1287,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                         </td>
                         <td className="px-4 py-3 text-end font-mono text-sky-400">{br.deliveryPercent}%</td>
                         <td className="px-4 py-3 text-end font-mono text-amber-400">{br.dineInPercent}%</td>
-                        <td className="px-4 py-3 text-slate-300 text-[11px]">
+                        <td className="px-4 py-3 text-slate-300 text-xs">
                           {isAr ? br.peakHourAr : br.peakHourEn}
                         </td>
                         <td className="px-4 py-3 text-end font-mono">{br.staffCount}</td>
@@ -1305,11 +1305,11 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                   <h3 className="text-sm font-bold text-white">
                     {isAr ? 'الخريطة الحرارية لساعات اليوم (Hourly Sales Heatmap)' : 'Hourly Sales Heatmap (11 AM - 12 AM)'}
                   </h3>
-                  <p className="text-[11px] text-slate-400">
+                  <p className="text-xs text-slate-400">
                     {isAr ? 'توزيع الطلبات والمبيعات على ساعات النهار والليل' : 'Hourly distribution of orders & sales volume'}
                   </p>
                 </div>
-                <div className="flex items-center gap-2 text-[10px]">
+                <div className="flex items-center gap-2 text-xs">
                   <span className="flex items-center gap-1 text-slate-400">
                     <span className="h-2 w-2 rounded-full bg-slate-700" /> {isAr ? 'هادئ' : 'Off-peak'}
                   </span>
@@ -1361,7 +1361,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                       <p className="mt-2 text-base font-black font-mono text-white">
                         {slot.salesKwd.toLocaleString()} KWD
                       </p>
-                      <p className="text-[10px] text-slate-400 font-mono">
+                      <p className="text-xs text-slate-400 font-mono">
                         {slot.orders.toLocaleString()} {isAr ? 'طلب' : 'orders'}
                       </p>
                     </div>
@@ -1400,7 +1400,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                 </div>
                 <div className="mt-3 text-xs text-slate-300">
                   <p>9,940 {isAr ? 'مشروب مباع' : 'units sold'} · 6,684 KWD</p>
-                  <p className="mt-1 text-[11px] text-sky-300">
+                  <p className="mt-1 text-xs text-sky-300">
                     ⭐ {isAr ? 'الأكثر مبيعاً: ليموناضة نعناع طازجة' : 'Top: Fresh Mint Lemonade'}
                   </p>
                 </div>
@@ -1427,7 +1427,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                 </div>
                 <div className="mt-3 text-xs text-slate-300">
                   <p>18,450 {isAr ? 'مقبلات مباعة' : 'units sold'} · 25,064 KWD</p>
-                  <p className="mt-1 text-[11px] text-emerald-300">
+                  <p className="mt-1 text-xs text-emerald-300">
                     ⭐ {isAr ? 'الأكثر مبيعاً: سبرينج رولز وديناميت شرمب' : 'Top: Spring Rolls & Dynamite Shrimp'}
                   </p>
                 </div>
@@ -1454,7 +1454,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                 </div>
                 <div className="mt-3 text-xs text-slate-300">
                   <p>2,100 {isAr ? 'حلوى مباعة' : 'units sold'} · 1,671 KWD</p>
-                  <p className="mt-1 text-[11px] text-amber-300">
+                  <p className="mt-1 text-xs text-amber-300">
                     ⚡ {isAr ? 'فرصة تطوير: كيك الزعفران والموز المقلي' : 'Opportunity: Saffron Cake'}
                   </p>
                 </div>
@@ -1476,19 +1476,19 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                 <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-4">
                   <p className="text-xs font-bold text-slate-300">{isAr ? 'زيادة مبيعات المشروبات المستهدفة' : 'Beverage Growth Potential'}</p>
                   <p className="mt-1 text-xl font-black text-emerald-400">+2,900 KWD</p>
-                  <p className="text-[10px] text-slate-500">{isAr ? '+2,320 علبة مشروب طازج' : '+2,320 fresh drink units'}</p>
+                  <p className="text-xs text-slate-500">{isAr ? '+2,320 علبة مشروب طازج' : '+2,320 fresh drink units'}</p>
                 </div>
 
                 <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-4">
                   <p className="text-xs font-bold text-slate-300">{isAr ? 'زيادة مبيعات المقبلات المستهدفة' : 'Starters Growth Potential'}</p>
                   <p className="mt-1 text-xl font-black text-emerald-400">+4,150 KWD</p>
-                  <p className="text-[10px] text-slate-500">{isAr ? '+2,500 سبرينج رولز وبطاطا' : '+2,500 side portions'}</p>
+                  <p className="text-xs text-slate-500">{isAr ? '+2,500 سبرينج رولز وبطاطا' : '+2,500 side portions'}</p>
                 </div>
 
                 <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-4">
                   <p className="text-xs font-bold text-slate-300">{isAr ? 'زيادة الحلويات المستهدفة' : 'Dessert Growth Potential'}</p>
                   <p className="mt-1 text-xl font-black text-emerald-400">+1,350 KWD</p>
-                  <p className="text-[10px] text-slate-500">{isAr ? '+950 قطعة حلوى' : '+950 dessert units'}</p>
+                  <p className="text-xs text-slate-500">{isAr ? '+950 قطعة حلوى' : '+950 dessert units'}</p>
                 </div>
               </div>
             </div>
@@ -1566,10 +1566,10 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                 >
                   <div>
                     <div className="flex items-center justify-between">
-                      <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold text-slate-300">
+                      <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs font-bold text-slate-300">
                         {isAr ? rep.categoryAr : rep.categoryEn}
                       </span>
-                      <span className="text-[10px] font-mono text-slate-500">#{rep.id}</span>
+                      <span className="text-xs font-mono text-slate-500">#{rep.id}</span>
                     </div>
                     <h4 className="mt-3 text-sm font-bold text-white">
                       {isAr ? rep.titleAr : rep.titleEn}
@@ -1580,7 +1580,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                   </div>
 
                   <div className="mt-5 border-t border-white/5 pt-4 flex items-center justify-between">
-                    <span className="text-[10px] font-mono text-slate-500 truncate max-w-[160px]">
+                    <span className="text-xs font-mono text-slate-500 truncate max-w-[160px]">
                       {rep.filename}
                     </span>
                     <button

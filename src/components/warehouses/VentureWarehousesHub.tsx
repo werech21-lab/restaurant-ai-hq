@@ -669,7 +669,7 @@ export function VentureWarehousesHub({
             <Warehouse size={18} className="text-amber-400" />
           </div>
           <div className="mt-2 text-2xl font-black text-white font-mono">59,411.500 {isAr ? "د.ك" : "KWD"}</div>
-          <p className="text-[11px] text-amber-200/70 mt-1">
+          <p className="text-xs text-amber-200/70 mt-1">
             {isAr ? "عبر 10 مواقع رسمية نشطة لشركة فنتشر فودز" : "Across 10 official active Venture Foods locations"}
           </p>
         </div>
@@ -682,7 +682,7 @@ export function VentureWarehousesHub({
             <Building2 size={18} className="text-cyan-400" />
           </div>
           <div className="mt-2 text-2xl font-black text-cyan-400 font-mono">24,150.000 {isAr ? "د.ك" : "KWD"}</div>
-          <p className="text-[11px] text-cyan-200/70 mt-1">
+          <p className="text-xs text-cyan-200/70 mt-1">
             {isAr ? "يمثل 40.6% من إجمالي المخزون التشغيلي" : "Represents 40.6% of company operational stock"}
           </p>
         </div>
@@ -695,7 +695,7 @@ export function VentureWarehousesHub({
             <Truck size={18} className="text-blue-400" />
           </div>
           <div className="mt-2 text-2xl font-black text-white font-mono">1,845.250 {isAr ? "د.ك" : "KWD"}</div>
-          <p className="text-[11px] text-blue-200/70 mt-1">
+          <p className="text-xs text-blue-200/70 mt-1">
             {isAr ? "6 شحنات مبردة جارية بانتظار مطابقة الوزن" : "6 active refrigerated dispatches awaiting scale sign-off"}
           </p>
         </div>
@@ -708,7 +708,7 @@ export function VentureWarehousesHub({
             <ShieldCheck size={18} className="text-emerald-400" />
           </div>
           <div className="mt-2 text-2xl font-black text-emerald-400 font-mono">100% {isAr ? "مطابقة" : "Compliant"}</div>
-          <p className="text-[11px] text-emerald-200/70 mt-1">
+          <p className="text-xs text-emerald-200/70 mt-1">
             {isAr ? "رصد آلي مستمر لدرجات الحرارة والحساسات" : "24/7 continuous IoT sensors & telemetry"}
           </p>
         </div>
@@ -830,15 +830,15 @@ export function VentureWarehousesHub({
                 <div>
                   {/* Top Bar of Card */}
                   <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
-                    <span className="rounded bg-slate-800 px-2.5 py-1 font-mono text-[11px] font-bold text-amber-400" dir="ltr">
+                    <span className="rounded bg-slate-800 px-2.5 py-1 font-mono text-xs font-bold text-amber-400" dir="ltr">
                       {wh.code}
                     </span>
                     {wh.isCommissary ? (
-                      <span className="rounded-full bg-amber-500/20 px-2.5 py-0.5 text-[10px] font-bold text-amber-300 border border-amber-500/30">
+                      <span className="rounded-full bg-amber-500/20 px-2.5 py-0.5 text-xs font-bold text-amber-300 border border-amber-500/30">
                         {isAr ? "المطبخ المركزي الرئيسي" : "Master Central Kitchen"}
                       </span>
                     ) : (
-                      <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-500/20">
+                      <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-bold text-emerald-400 border border-emerald-500/20">
                         {isAr ? "مخزن فرع نشط" : "Active Branch Store"}
                       </span>
                     )}
@@ -851,20 +851,20 @@ export function VentureWarehousesHub({
                   <p className="text-xs text-amber-300/80 mt-1 font-medium">
                     {isAr ? wh.brandRolesAr : wh.brandRolesEn}
                   </p>
-                  <p className="text-[11px] text-slate-400 mt-1">
+                  <p className="text-xs text-slate-400 mt-1">
                     📍 {isAr ? wh.areaAr : wh.areaEn}
                   </p>
 
                   {/* Stock Value & Readiness */}
                   <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
                     <div className="rounded-xl bg-slate-950/70 p-2.5 border border-slate-800/60">
-                      <span className="text-[10px] text-slate-400 block">{isAr ? "قيمة المخزون الفعلي" : "Stock Valuation"}</span>
+                      <span className="text-xs text-slate-400 block">{isAr ? "قيمة المخزون الفعلي" : "Stock Valuation"}</span>
                       <strong className="text-sm font-black text-amber-400 font-mono">
                         {wh.stockValueKwd.toFixed(3)} {isAr ? "د.ك" : "KWD"}
                       </strong>
                     </div>
                     <div className="rounded-xl bg-slate-950/70 p-2.5 border border-slate-800/60">
-                      <span className="text-[10px] text-slate-400 block">{isAr ? "الجاهزية التشغيلية" : "Readiness Score"}</span>
+                      <span className="text-xs text-slate-400 block">{isAr ? "الجاهزية التشغيلية" : "Readiness Score"}</span>
                       <strong className="text-sm font-black text-emerald-400 font-mono">
                         {wh.readinessScore}%
                       </strong>
@@ -872,7 +872,7 @@ export function VentureWarehousesHub({
                   </div>
 
                   {/* Items Breakdown */}
-                  <div className="mt-3 flex items-center justify-between text-[11px] text-slate-400 border-t border-slate-800/60 pt-2.5">
+                  <div className="mt-3 flex items-center justify-between text-xs text-slate-400 border-t border-slate-800/60 pt-2.5">
                     <span>
                       {isAr ? "مواد خام:" : "Raw:"} <strong className="text-white">{wh.skuCount.raw}</strong>
                     </span>
@@ -885,7 +885,7 @@ export function VentureWarehousesHub({
                   </div>
 
                   {/* Chiller & Freezer Telemetry */}
-                  <div className="mt-2.5 flex items-center justify-between text-[11px] rounded-xl bg-slate-950/70 p-2.5 border border-slate-800/50">
+                  <div className="mt-2.5 flex items-center justify-between text-xs rounded-xl bg-slate-950/70 p-2.5 border border-slate-800/50">
                     <span className="flex items-center gap-1 text-cyan-400 font-medium">
                       <ThermometerSnowflake size={13} />
                       {isAr ? "المبرد:" : "Chiller:"} <strong className="font-mono">{wh.chillerTemp}</strong>
@@ -896,7 +896,7 @@ export function VentureWarehousesHub({
                   </div>
 
                   {/* Responsible Manager (Real Odoo Staff) */}
-                  <div className="mt-2.5 text-[11px] text-slate-300 bg-slate-800/50 rounded-lg px-2.5 py-1.5 border border-slate-700/40">
+                  <div className="mt-2.5 text-xs text-slate-300 bg-slate-800/50 rounded-lg px-2.5 py-1.5 border border-slate-700/40">
                     <span className="text-slate-500 font-semibold">{isAr ? "المسؤول: " : "Supervisor: "}</span>
                     <span className="font-bold text-white">{isAr ? wh.managerAr : wh.managerEn}</span>
                   </div>
@@ -912,7 +912,7 @@ export function VentureWarehousesHub({
                   >
                     <span>{isAr ? "طلب تزويد لهذا الفرع ←" : "Dispatch Requisition ←"}</span>
                   </button>
-                  <span className="text-[10px] text-emerald-400 flex items-center gap-1 font-bold">
+                  <span className="text-xs text-emerald-400 flex items-center gap-1 font-bold">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                     {isAr ? "متصل ونشط" : "Online"}
                   </span>
@@ -992,7 +992,7 @@ export function VentureWarehousesHub({
                       </td>
                       <td className="px-4 py-3 text-center">
                         <span
-                          className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold border ${
+                          className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold border ${
                             tr.statusCode === "RECEIVED"
                               ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
                               : tr.statusCode === "IN_TRANSIT"
@@ -1013,12 +1013,12 @@ export function VentureWarehousesHub({
                                   : `✅ Transfer ${tr.id} weight confirmed and posted to GL 1132`
                               )
                             }
-                            className="rounded-lg bg-emerald-600 px-2.5 py-1 text-[10px] font-black text-white hover:bg-emerald-500 transition cursor-pointer whitespace-nowrap shadow-sm"
+                            className="rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-black text-white hover:bg-emerald-500 transition cursor-pointer whitespace-nowrap shadow-sm"
                           >
                             {isAr ? "⚖️ تأكيد وزن الفرع" : "Confirm Weight"}
                           </button>
                         ) : (
-                          <span className="text-[10px] text-slate-400 font-semibold">{isAr ? "مرحل ومقفل" : "Posted"}</span>
+                          <span className="text-xs text-slate-400 font-semibold">{isAr ? "مرحل ومقفل" : "Posted"}</span>
                         )}
                       </td>
                     </tr>
@@ -1089,7 +1089,7 @@ export function VentureWarehousesHub({
                         {unit.safeRange}
                       </td>
                       <td className="px-4 py-3 text-center">
-                        <span className="inline-flex rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-bold text-emerald-400 border border-emerald-500/20">
+                        <span className="inline-flex rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-bold text-emerald-400 border border-emerald-500/20">
                           {isAr ? unit.doorStatusAr : unit.doorStatusEn}
                         </span>
                       </td>
@@ -1183,7 +1183,7 @@ export function VentureWarehousesHub({
                         {isAr ? item.causeAr : item.causeEn}
                       </td>
                       <td className="px-4 py-3 text-center">
-                        <span className="inline-flex rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-bold text-emerald-400 border border-emerald-500/20">
+                        <span className="inline-flex rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-bold text-emerald-400 border border-emerald-500/20">
                           {isAr ? item.auditStatusAr : item.auditStatusEn}
                         </span>
                       </td>

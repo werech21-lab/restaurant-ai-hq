@@ -361,7 +361,7 @@ export function OdooAiCommandCenter() {
             </span>
             <span className="text-xs font-bold text-slate-500">{isAr ? 'د.ك' : 'KWD'}</span>
           </div>
-          <div className="mt-2 flex items-center justify-between text-[11px]">
+          <div className="mt-2 flex items-center justify-between text-xs">
             <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-0.5">
               <TrendingUp size={12} />
               <span>+14.8% {isAr ? 'مقارنة بسبتمبر' : 'vs Sept'}</span>
@@ -382,7 +382,7 @@ export function OdooAiCommandCenter() {
             </span>
             <span className="text-xs font-bold text-slate-500">{isAr ? 'د.ك' : 'KWD'}</span>
           </div>
-          <div className="mt-2 flex items-center justify-between text-[11px]">
+          <div className="mt-2 flex items-center justify-between text-xs">
             <span className="font-bold text-emerald-700 dark:text-emerald-300">
               {isAr ? 'هامش صافي:' : 'Margin:'} {kpiData.netMarginPct}%
             </span>
@@ -404,7 +404,7 @@ export function OdooAiCommandCenter() {
               {isAr ? 'المستهدف:' : 'Target:'} {kpiData.targetCogsPct}%
             </span>
           </div>
-          <div className="mt-2 flex items-center justify-between text-[11px]">
+          <div className="mt-2 flex items-center justify-between text-xs">
             <span className="text-rose-600 dark:text-rose-400 font-bold">
               {isAr ? 'انحراف طفيف: +0.8%' : 'Variance: +0.8%'}
             </span>
@@ -424,7 +424,7 @@ export function OdooAiCommandCenter() {
             </span>
             <span className="text-xs font-bold text-slate-500">{isAr ? 'مطابق بالفلس' : 'Exact Fils'}</span>
           </div>
-          <div className="mt-2 flex items-center justify-between text-[11px]">
+          <div className="mt-2 flex items-center justify-between text-xs">
             <span className="text-slate-700 dark:text-slate-300 font-mono font-bold">
               {kpiData.reconciledCount.toLocaleString()} {isAr ? 'حركة' : 'txns'}
             </span>
@@ -506,7 +506,7 @@ export function OdooAiCommandCenter() {
                     <h3 className="text-sm font-black text-slate-900 dark:text-white">
                       {isAr ? alert.titleAr : alert.titleEn}
                     </h3>
-                    <span className="text-[10px] font-mono text-slate-400">#{alert.id}</span>
+                    <span className="text-xs font-mono text-slate-400">#{alert.id}</span>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
                     <span className="font-bold text-slate-800 dark:text-slate-200">
@@ -525,7 +525,7 @@ export function OdooAiCommandCenter() {
                 <div className="flex flex-col sm:items-end gap-2 shrink-0">
                   {alert.impactKwd > 0 && (
                     <div className="text-end">
-                      <span className="text-[10px] text-slate-400 block">{isAr ? 'الأثر المالي المباشر' : 'Direct Impact'}</span>
+                      <span className="text-xs text-slate-400 block">{isAr ? 'الأثر المالي المباشر' : 'Direct Impact'}</span>
                       <span className="font-mono text-base font-black text-rose-600 dark:text-rose-400">
                         {alert.impactKwd.toLocaleString(undefined, { minimumFractionDigits: 3 })} {isAr ? 'د.ك' : 'KWD'}
                       </span>
@@ -657,10 +657,10 @@ export function OdooAiCommandCenter() {
             >
               <div className="space-y-2.5">
                 <div className="flex items-start justify-between gap-2">
-                  <span className="rounded-md bg-purple-100 dark:bg-purple-950/70 px-2 py-0.5 text-[10px] font-bold text-purple-700 dark:text-purple-300">
+                  <span className="rounded-md bg-purple-100 dark:bg-purple-950/70 px-2 py-0.5 text-xs font-bold text-purple-700 dark:text-purple-300">
                     {isAr ? rec.brandAr : rec.brandEn}
                   </span>
-                  <span className="text-[11px] font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                  <span className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">
                     {rec.confidenceScore}% {isAr ? 'دقة الثقة' : 'Confidence'}
                   </span>
                 </div>
@@ -671,7 +671,7 @@ export function OdooAiCommandCenter() {
 
                 {/* Root Cause */}
                 <div className="rounded-xl bg-rose-50 dark:bg-rose-950/30 p-2.5 text-xs text-rose-900 dark:text-rose-200">
-                  <span className="font-bold block text-[11px] mb-0.5">
+                  <span className="font-bold block text-xs mb-0.5">
                     {isAr ? '🔍 السبب الجذري المكتشف في أودو:' : '🔍 Odoo Root Cause:'}
                   </span>
                   {isAr ? rec.rootCauseAr : rec.rootCauseEn}
@@ -679,7 +679,7 @@ export function OdooAiCommandCenter() {
 
                 {/* Actionable Plan */}
                 <div className="rounded-xl bg-blue-50 dark:bg-blue-950/30 p-2.5 text-xs text-blue-900 dark:text-blue-200">
-                  <span className="font-bold block text-[11px] mb-0.5">
+                  <span className="font-bold block text-xs mb-0.5">
                     {isAr ? '⚡ الإجراء المقترح للتنفيذ:' : '⚡ Recommended Action:'}
                   </span>
                   {isAr ? rec.actionAr : rec.actionEn}

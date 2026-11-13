@@ -63,7 +63,7 @@ export function PanelSpotlight() {
         title="Ctrl+K"
       >
         <span>{ar ? 'بحث شامل' : 'Spotlight'}</span>
-        <kbd className="rounded border border-white/15 bg-black/30 px-1.5 py-0.5 font-mono text-[10px] text-mist-400">{ar ? 'سريع' : 'Ctrl+K'}</kbd>
+        <kbd className="rounded border border-white/15 bg-black/30 px-1.5 py-0.5 font-mono text-xs text-mist-400">{ar ? 'سريع' : 'Ctrl+K'}</kbd>
       </button>
 
       {open ? (
@@ -85,7 +85,7 @@ export function PanelSpotlight() {
                 placeholder={ar ? 'ابحث عن موظف، صنف، فاتورة، قيد، فرع، وثيقة…' : 'Search employees, items, invoices, journals, docs…'}
                 className="w-full bg-transparent text-base text-white outline-none placeholder:text-mist-500"
               />
-              <p className="mt-1 text-[11px] text-mist-500">{busy ? (ar ? 'جاري البحث…' : 'Searching…') : (ar ? 'البحث السريع في جميع سجلات المنصة' : 'Ctrl/Cmd + K')}</p>
+              <p className="mt-1 text-xs text-mist-500">{busy ? (ar ? 'جاري البحث…' : 'Searching…') : (ar ? 'البحث السريع في جميع سجلات المنصة' : 'Ctrl/Cmd + K')}</p>
             </div>
             <ul className="max-h-[55vh] overflow-y-auto">
               {hits.map((hit) => (
@@ -95,7 +95,7 @@ export function PanelSpotlight() {
                     className="flex w-full items-start gap-3 border-b border-white/5 px-4 py-3 text-start hover:bg-emerald-950/30"
                     onClick={() => go(hit.href)}
                   >
-                    <span className="mt-0.5 rounded-md border border-emerald-500/30 bg-emerald-950/40 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-300">
+                    <span className="mt-0.5 rounded-md border border-emerald-500/30 bg-emerald-950/40 px-2 py-0.5 text-xs font-bold uppercase text-emerald-300">
                       {hit.kind}
                     </span>
                     <span className="min-w-0 flex-1">

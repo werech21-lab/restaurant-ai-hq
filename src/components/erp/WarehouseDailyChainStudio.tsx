@@ -262,14 +262,14 @@ export function WarehouseDailyChainStudio() {
                 `مخزن ومطبخ العارضية المركزي ⟵ الفروع الـ ٧ • ${heroMetrics.modeTitleAr}`,
               )}
             </p>
-            <span className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-emerald-50 px-2.5 py-1 text-[11.5px] font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-emerald-50 px-2.5 py-1 text-[13px] font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
               <ShieldCheck className="h-3.5 w-3.5" />
               <span>
                 {T('0.000 Drift · 7 Branches', 'تطابق 0.000 · ٧ فروع')}
               </span>
             </span>
             <span
-              className={`shrink-0 rounded-xl px-2.5 py-1 text-[11.5px] font-semibold tabular-nums ${
+              className={`shrink-0 rounded-xl px-2.5 py-1 text-[13px] font-semibold tabular-nums ${
                 heroMetrics.stage3GapKwd === 0
                   ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
                   : 'bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-200'
@@ -355,7 +355,7 @@ export function WarehouseDailyChainStudio() {
         {/* Node 1 */}
         <article className={`${KPI_CARD_CLS} flex flex-col justify-between`}>
           <div className="flex items-center justify-between gap-1.5">
-            <span className="inline-flex items-center gap-1 rounded-xl bg-emerald-50 px-2.5 py-1 text-[11.5px] sm:text-[12px] font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+            <span className="inline-flex items-center gap-1 rounded-xl bg-emerald-50 px-2.5 py-1 text-[13px] sm:text-[12px] font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
               <Package className="h-3.5 w-3.5 shrink-0" />
               <span className="truncate">{T('1. Warehouse Stock', '١. رصيد المخزن')}</span>
             </span>
@@ -374,7 +374,7 @@ export function WarehouseDailyChainStudio() {
               {f1(heroMetrics.stage1StockKg)} {unitLabel}
             </div>
           </div>
-          <p className="text-[11.5px] sm:text-[12.5px] leading-snug text-neutral-500 dark:text-slate-400">
+          <p className="text-[13px] sm:text-[12.5px] leading-snug text-neutral-500 dark:text-slate-400">
             {isAr ? heroMetrics.stage1SubAr : heroMetrics.stage1SubEn}
           </p>
         </article>
@@ -382,7 +382,7 @@ export function WarehouseDailyChainStudio() {
         {/* Node 2 */}
         <article className={`${KPI_CARD_CLS} flex flex-col justify-between`}>
           <div className="flex items-center justify-between gap-1.5">
-            <span className="inline-flex items-center gap-1 rounded-xl bg-sky-50 px-2.5 py-1 text-[11.5px] sm:text-[12px] font-semibold text-sky-800 dark:bg-sky-950/60 dark:text-sky-300">
+            <span className="inline-flex items-center gap-1 rounded-xl bg-sky-50 px-2.5 py-1 text-[13px] sm:text-[12px] font-semibold text-sky-800 dark:bg-sky-950/60 dark:text-sky-300">
               <Truck className="h-3.5 w-3.5 shrink-0" />
               <span className="truncate">{T('2. Daily Outbound', '٢. المنصرف الخارج')}</span>
             </span>
@@ -402,7 +402,7 @@ export function WarehouseDailyChainStudio() {
               {isAr ? 'أمر' : 'mv'}
             </div>
           </div>
-          <p className="text-[11.5px] sm:text-[12.5px] leading-snug text-neutral-500 dark:text-slate-400">
+          <p className="text-[13px] sm:text-[12.5px] leading-snug text-neutral-500 dark:text-slate-400">
             {T(
               'Daily dispatches leaving Ardiya Central Warehouse.',
               'الكميات الخارجة يومياً من مخزن ومطبخ العارضية المركزي.',
@@ -413,7 +413,7 @@ export function WarehouseDailyChainStudio() {
         {/* Node 3 */}
         <article className={`${KPI_CARD_CLS} flex flex-col justify-between`}>
           <div className="flex items-center justify-between gap-1.5">
-            <span className="inline-flex items-center gap-1 rounded-xl bg-amber-50 px-2.5 py-1 text-[11.5px] sm:text-[12px] font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
+            <span className="inline-flex items-center gap-1 rounded-xl bg-amber-50 px-2.5 py-1 text-[13px] sm:text-[12px] font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
               <Store className="h-3.5 w-3.5 shrink-0" />
               <span className="truncate">{T('3. Branch Received', '٣. المستلم بالفرع')}</span>
             </span>
@@ -432,7 +432,7 @@ export function WarehouseDailyChainStudio() {
               {f1(heroMetrics.stage3RecvKg)} {unitLabel}
             </div>
           </div>
-          <p className="text-[11.5px] sm:text-[12.5px] leading-snug text-neutral-500 dark:text-slate-400">
+          <p className="text-[13px] sm:text-[12.5px] leading-snug text-neutral-500 dark:text-slate-400">
             {heroMetrics.stage3GapKwd === 0
               ? T('100% signed across branches (0.00 gap).', 'مستلم وموقع بالكامل (فرق النقل = 0).')
               : T(
@@ -445,11 +445,11 @@ export function WarehouseDailyChainStudio() {
         {/* Node 4 */}
         <article className={`${KPI_CARD_CLS} flex flex-col justify-between`}>
           <div className="flex items-center justify-between gap-1.5">
-            <span className="inline-flex items-center gap-1 rounded-xl bg-emerald-50 px-2.5 py-1 text-[11.5px] sm:text-[12px] font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+            <span className="inline-flex items-center gap-1 rounded-xl bg-emerald-50 px-2.5 py-1 text-[13px] sm:text-[12px] font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
               <ShoppingBag className="h-3.5 w-3.5 shrink-0" />
               <span className="truncate">{T('4. Sold & Waste', '٤. المباع والهدر')}</span>
             </span>
-            <span className="shrink-0 rounded-lg bg-[#F6F7F8] px-2 py-0.5 text-[11px] font-bold tabular-nums text-emerald-700 dark:bg-[#0B1410] dark:text-emerald-300">
+            <span className="shrink-0 rounded-lg bg-[#F6F7F8] px-2 py-0.5 text-xs font-bold tabular-nums text-emerald-700 dark:bg-[#0B1410] dark:text-emerald-300">
               {f0(heroMetrics.stage4Orders)}
             </span>
           </div>
@@ -467,7 +467,7 @@ export function WarehouseDailyChainStudio() {
               )}
             </div>
           </div>
-          <p className="text-[11.5px] sm:text-[12.5px] leading-snug text-neutral-500 dark:text-slate-400">
+          <p className="text-[13px] sm:text-[12.5px] leading-snug text-neutral-500 dark:text-slate-400">
             {T(
               `BOM ${f1(heroMetrics.stage4TheoKwd)} vs Actual ${f1(heroMetrics.stage4ConsumedKwd)} KWD.`,
               `معياري ${f1(heroMetrics.stage4TheoKwd)} مقابل فعلي ${f1(heroMetrics.stage4ConsumedKwd)} د.ك.`,

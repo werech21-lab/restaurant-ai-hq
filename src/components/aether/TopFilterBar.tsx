@@ -13,7 +13,6 @@ import {
   LogOut,
   Moon,
   PanelLeft,
-  RefreshCw,
   RotateCcw,
   Search,
   Share2,
@@ -200,10 +199,10 @@ function PeriodDropdownPopover({
               <span className="min-w-0 flex-1">
                 <span>{label}</span>
                 <span
-                  className={`ms-1.5 text-[11px] font-medium tabular-nums ${
+                  className={`ms-1.5 text-xs font-medium tabular-nums ${
                     active
                       ? 'text-white/90 dark:text-[#04130D]/80'
-                      : 'text-slate-400 dark:text-slate-400'
+                      : 'text-slate-600 dark:text-slate-300'
                   }`}
                 >
                   ({rangeText})
@@ -218,7 +217,7 @@ function PeriodDropdownPopover({
       {activePeriod === 'custom' ? (
         <div className="space-y-2 border-t border-slate-200/70 pt-2.5 dark:border-white/[0.08]">
           <div className="flex items-center justify-between gap-1.5">
-            <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-[10.5px] font-bold text-emerald-800 tabular-nums dark:bg-emerald-500/20 dark:text-emerald-200">
+            <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-800 tabular-nums dark:bg-emerald-500/20 dark:text-emerald-200">
               {isAr ? `${spanDays} يوم` : `${spanDays} Days`}
             </span>
             <div className="flex items-center gap-1">
@@ -241,7 +240,7 @@ function PeriodDropdownPopover({
                     onChangeFrom(q.from)
                     onChangeTo(q.to)
                   }}
-                  className="cursor-pointer rounded-md bg-[#F6F7F8] px-1.5 py-0.5 text-[10.5px] font-semibold text-slate-600 hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#09110E] dark:text-slate-300"
+                  className="cursor-pointer rounded-md bg-[#F6F7F8] px-1.5 py-0.5 text-xs font-semibold text-slate-600 hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#09110E] dark:text-slate-300"
                 >
                   {q.label}
                 </button>
@@ -250,24 +249,24 @@ function PeriodDropdownPopover({
           </div>
 
           <div className="grid grid-cols-2 gap-2">
-            <label className="space-y-1 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+            <label className="space-y-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
               <span>{isAr ? 'من تاريخ' : 'From Date'}</span>
               <input
                 type="date"
                 dir="ltr"
                 value={draftFrom}
                 onChange={(e) => onChangeFrom(e.target.value)}
-                className="h-8 w-full rounded-xl bg-[#F6F7F8] px-2 text-[11.5px] font-bold tabular-nums text-slate-900 ring-1 ring-slate-900/[0.06] outline-none focus:ring-2 focus:ring-emerald-500/40 dark:bg-[#09110E] dark:text-white"
+                className="h-8 w-full rounded-xl bg-[#F6F7F8] px-2 text-xs font-bold tabular-nums text-slate-900 ring-1 ring-slate-900/[0.06] outline-none focus:ring-2 focus:ring-emerald-500/40 dark:bg-[#09110E] dark:text-white"
               />
             </label>
-            <label className="space-y-1 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+            <label className="space-y-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
               <span>{isAr ? 'إلى تاريخ' : 'To Date'}</span>
               <input
                 type="date"
                 dir="ltr"
                 value={draftTo}
                 onChange={(e) => onChangeTo(e.target.value)}
-                className="h-8 w-full rounded-xl bg-[#F6F7F8] px-2 text-[11.5px] font-bold tabular-nums text-slate-900 ring-1 ring-slate-900/[0.06] outline-none focus:ring-2 focus:ring-emerald-500/40 dark:bg-[#09110E] dark:text-white"
+                className="h-8 w-full rounded-xl bg-[#F6F7F8] px-2 text-xs font-bold tabular-nums text-slate-900 ring-1 ring-slate-900/[0.06] outline-none focus:ring-2 focus:ring-emerald-500/40 dark:bg-[#09110E] dark:text-white"
               />
             </label>
           </div>
@@ -289,7 +288,7 @@ function PeriodDropdownPopover({
                 onClose()
                 onOpenScopeFilters()
               }}
-              className="inline-flex h-8 w-full cursor-pointer items-center justify-center rounded-xl bg-[#F6F7F8] px-3 text-[11.5px] font-semibold text-slate-700 transition-colors hover:bg-emerald-50 hover:text-emerald-900 dark:bg-[#09110E] dark:text-slate-200"
+              className="inline-flex h-8 w-full cursor-pointer items-center justify-center rounded-xl bg-[#F6F7F8] px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-emerald-50 hover:text-emerald-900 dark:bg-[#09110E] dark:text-slate-200"
             >
               {isAr ? 'تحديد المطاعم والفروع مع الفترة ▸' : 'Pair with Brand & Branch Filters ▸'}
             </button>
@@ -360,7 +359,7 @@ function FilterChipGroup<T extends string>({
 }) {
   return (
     <div className="space-y-2">
-      <div className="text-[11.5px] font-bold text-slate-500 dark:text-slate-400">{label}</div>
+      <div className="text-xs font-bold text-slate-600 dark:text-slate-300">{label}</div>
       <div
         className={
           twoColGrid
@@ -384,7 +383,7 @@ function FilterChipGroup<T extends string>({
             >
               <span className="inline-flex items-center gap-1.5">
                 {showHealthMeta && opt.healthDot ? (
-                  <span className="shrink-0 text-[10.5px] leading-none" aria-hidden>
+                  <span className="shrink-0 text-xs leading-none" aria-hidden>
                     {opt.healthDot}
                   </span>
                 ) : null}
@@ -394,7 +393,7 @@ function FilterChipGroup<T extends string>({
               {showHealthMeta && typeof opt.weightedNetPct === 'number' ? (
                 <span
                   dir="ltr"
-                  className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-bold tabular-nums ${
+                  className={`shrink-0 rounded-md px-1.5 py-0.5 text-xs font-bold tabular-nums ${
                     active
                       ? 'bg-white/20 text-white dark:bg-slate-950/20 dark:text-[#04130D]'
                       : 'bg-white text-slate-600 dark:bg-white/10 dark:text-slate-300'
@@ -468,16 +467,16 @@ function AccountWorkspaceMenuPanel({
       <div className="flex items-center justify-between gap-2 border-b border-slate-200/70 pb-2.5 dark:border-white/[0.08]">
         <div className="min-w-0">
           {auditorMode ? (
-            <span className="inline-flex items-center gap-1.5 rounded-xl bg-amber-50 px-2.5 py-0.5 text-[11.5px] font-bold text-amber-900 ring-1 ring-amber-500/25 dark:bg-amber-950/60 dark:text-amber-200">
+            <span className="inline-flex items-center gap-1.5 rounded-xl bg-amber-50 px-2.5 py-0.5 text-xs font-bold text-amber-900 ring-1 ring-amber-500/25 dark:bg-amber-950/60 dark:text-amber-200">
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />
               <span>{isAr ? roleProfile.accountLabelAr : roleProfile.accountLabelEn}</span>
             </span>
           ) : (
             <div className="space-y-0.5">
-              <div className="text-[12.5px] font-bold text-slate-900 dark:text-white">
+              <div className="text-[13px] font-bold text-slate-900 dark:text-white">
                 {isAr ? roleProfile.accountLabelAr : roleProfile.accountLabelEn}
               </div>
-              <div className="text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
+              <div className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
                 {isAr ? roleProfile.titleAr : roleProfile.titleEn}
               </div>
             </div>
@@ -485,7 +484,7 @@ function AccountWorkspaceMenuPanel({
           {userEmail ? (
             <div
               dir="ltr"
-              className="mt-0.5 truncate font-mono text-[11px] text-slate-400 dark:text-slate-400"
+              className="mt-0.5 truncate font-mono text-xs text-slate-600 dark:text-slate-300"
             >
               {userEmail}
             </div>
@@ -523,7 +522,7 @@ function AccountWorkspaceMenuPanel({
         <span
           dir="ltr"
           style={badgeCount > 0 ? { color: '#FFFFFF' } : undefined}
-          className={`inline-flex h-5 min-w-5 items-center justify-center rounded-lg px-1.5 text-[11px] font-bold tabular-nums ${
+          className={`inline-flex h-5 min-w-5 items-center justify-center rounded-lg px-1.5 text-xs font-bold tabular-nums ${
             badgeCount > 0
               ? hasBreaches
                 ? 'btn-colored bg-rose-600 text-white'
@@ -538,11 +537,11 @@ function AccountWorkspaceMenuPanel({
       {/* 2. Role / Manager PIN Control (Executive PIN unlock vs Auditor Read-Only badge) */}
       {auditorMode ? (
         <div className="flex items-center justify-between gap-2 rounded-xl bg-amber-50/75 px-3 py-2.5 ring-1 ring-amber-500/20 dark:bg-amber-950/35 dark:ring-amber-400/20">
-          <div className="inline-flex items-center gap-1.5 text-[12px] font-bold text-amber-900 dark:text-amber-200">
+          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-900 dark:text-amber-200">
             <Lock className="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
             <span>{isAr ? 'حساب مراجعة — قراءة فقط' : 'Read-Only Auditor'}</span>
           </div>
-          <span className="rounded-lg bg-white/80 px-2 py-0.5 text-[10.5px] font-semibold text-amber-800 dark:bg-white/10 dark:text-amber-200">
+          <span className="rounded-lg bg-white/80 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-white/10 dark:text-amber-200">
             {isAr ? 'مقفل' : 'Disabled'}
           </span>
         </div>
@@ -551,13 +550,13 @@ function AccountWorkspaceMenuPanel({
           {gov.session.active ? (
             <>
               <div className="min-w-0">
-                <div className="inline-flex items-center gap-1.5 text-[12px] font-bold text-emerald-700 dark:text-emerald-300">
+                <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-300">
                   <Unlock className="h-3.5 w-3.5 shrink-0" />
                   <span>{isAr ? 'صلاحية المدير نشطة' : 'Manager Session Active'}</span>
                 </div>
                 <div
                   dir="ltr"
-                  className="mt-0.5 font-mono text-[11px] font-semibold tabular-nums text-slate-500 dark:text-slate-400"
+                  className="mt-0.5 font-mono text-xs font-semibold tabular-nums text-slate-600 dark:text-slate-300"
                 >
                   {formatPinCountdown(gov.session.remainingSeconds)}
                 </div>
@@ -568,7 +567,7 @@ function AccountWorkspaceMenuPanel({
                   gov.lockSession()
                   onCloseMenu()
                 }}
-                className="inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 rounded-xl bg-white px-2.5 text-[11.5px] font-semibold text-rose-700 ring-1 ring-rose-500/20 transition-colors hover:bg-rose-50 dark:bg-[#101C17] dark:text-rose-300"
+                className="inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 rounded-xl bg-white px-2.5 text-xs font-semibold text-rose-700 ring-1 ring-rose-500/20 transition-colors hover:bg-rose-50 dark:bg-[#101C17] dark:text-rose-300"
               >
                 <Lock className="h-3 w-3" />
                 <span>{isAr ? 'قفل' : 'Lock'}</span>
@@ -589,7 +588,7 @@ function AccountWorkspaceMenuPanel({
                     titleEn: 'Unlock 15-Minute Manager Session',
                   })
                 }}
-                className="btn-colored inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 rounded-xl bg-emerald-600 px-3 text-[11.5px] font-bold text-white transition-colors hover:bg-emerald-700 dark:bg-emerald-500 dark:text-[#04130D]"
+                className="btn-colored inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 rounded-xl bg-emerald-600 px-3 text-xs font-bold text-white transition-colors hover:bg-emerald-700 dark:bg-emerald-500 dark:text-[#04130D]"
               >
                 <Unlock className="h-3 w-3" />
                 <span>{isAr ? 'تفعيل' : 'Unlock'}</span>
@@ -601,17 +600,17 @@ function AccountWorkspaceMenuPanel({
 
       {/* 3. Theme Switcher (`الوضع النهاري / الليلي`) */}
       <div className="flex items-center justify-between gap-2 rounded-xl px-2.5 py-1.5">
-        <span className="text-[12.5px] font-medium text-slate-700 dark:text-slate-200">
+        <span className="text-[13px] font-medium text-slate-700 dark:text-slate-200">
           {isAr ? 'الوضع النهاري / الليلي' : 'Light / Dark Theme'}
         </span>
         <ThemeToggle />
       </div>
 
-      {/* 4. Language Toggle (`العربية / English`) */}
+      {/* 4. Single Language Toggle (`Language: العربية | English`) */}
       <div className="flex items-center justify-between gap-2 rounded-xl px-2.5 py-1.5">
-        <span className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-slate-700 dark:text-slate-200">
+        <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-slate-700 dark:text-slate-200">
           <Globe className="h-3.5 w-3.5 text-slate-400" />
-          <span>{isAr ? 'اللغة' : 'Language'}</span>
+          <span>{isAr ? 'اللغة:' : 'Language:'}</span>
         </span>
         <div
           dir="ltr"
@@ -621,7 +620,7 @@ function AccountWorkspaceMenuPanel({
           <button
             type="button"
             onClick={() => onSetLocale('ar')}
-            className={`cursor-pointer rounded-lg px-2.5 py-1 text-[11.5px] font-semibold transition-all ${
+            className={`cursor-pointer rounded-lg px-2.5 py-1 text-xs font-semibold transition-all ${
               locale === 'ar'
                 ? 'btn-colored bg-emerald-600 text-white shadow-xs dark:bg-emerald-500 dark:text-[#04130D]'
                 : 'text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white'
@@ -632,7 +631,7 @@ function AccountWorkspaceMenuPanel({
           <button
             type="button"
             onClick={() => onSetLocale('en')}
-            className={`cursor-pointer rounded-lg px-2.5 py-1 text-[11.5px] font-semibold transition-all ${
+            className={`cursor-pointer rounded-lg px-2.5 py-1 text-xs font-semibold transition-all ${
               locale === 'en'
                 ? 'btn-colored bg-emerald-600 text-white shadow-xs dark:bg-emerald-500 dark:text-[#04130D]'
                 : 'text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white'
@@ -649,7 +648,7 @@ function AccountWorkspaceMenuPanel({
           type="button"
           onClick={onShareWhatsApp}
           title={isAr ? 'مشاركة التقرير عبر واتساب' : 'Share Report via WhatsApp'}
-          className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-start text-[12.5px] font-medium text-slate-700 transition-colors hover:bg-[#F6F7F8] hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/[0.06]"
+          className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-start text-[13px] font-medium text-slate-700 transition-colors hover:bg-[#F6F7F8] hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/[0.06]"
         >
           <span className="inline-flex items-center gap-2">
             {sharedCopied ? (
@@ -673,7 +672,7 @@ function AccountWorkspaceMenuPanel({
         <button
           type="button"
           onClick={onOpenCommandSearch}
-          className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-start text-[12.5px] font-medium text-slate-700 transition-colors hover:bg-[#F6F7F8] hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/[0.06]"
+          className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-start text-[13px] font-medium text-slate-700 transition-colors hover:bg-[#F6F7F8] hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/[0.06]"
         >
           <span className="inline-flex items-center gap-2">
             <Search className="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400" />
@@ -681,7 +680,7 @@ function AccountWorkspaceMenuPanel({
           </span>
           <kbd
             dir="ltr"
-            className="rounded-md bg-neutral-100 px-1.5 py-0.5 font-mono text-[10.5px] font-bold text-slate-600 dark:bg-white/[0.08] dark:text-slate-300"
+            className="rounded-md bg-neutral-100 px-1.5 py-0.5 font-mono text-xs font-bold text-slate-600 dark:bg-white/[0.08] dark:text-slate-300"
           >
             ⌘K
           </kbd>
@@ -739,7 +738,9 @@ export function TopFilterBar({
   const pathname = usePathname() ?? ''
   const { locale, setLocale } = useI18n()
   const isAr = locale === 'ar'
-  const isBrainBarRoute = Boolean(pathname && BRAIN_BAR_ROUTES.has(pathname))
+  const isBrainBarRoute = Boolean(
+    pathname && (BRAIN_BAR_ROUTES.has(pathname) || pathname.startsWith('/erp')),
+  )
 
   useDocumentTitle(pathname, isAr, isBrainBarRoute)
 
@@ -749,9 +750,6 @@ export function TopFilterBar({
     filters,
     workspace,
     liveSummary,
-    syncingOdoo,
-    syncCooldownSec,
-    triggerOdooSyncNow,
     setPeriod,
     setCustomRange,
     setKuwaitSlice,
@@ -787,7 +785,6 @@ export function TopFilterBar({
         : isAr
           ? 'ع.ع'
           : 'AA'
-  const odooLiveFresh = liveSummary ? liveSummary.isStaleOver24h !== true : true
 
   const [sharedCopied, setSharedCopied] = useState(false)
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false)
@@ -938,8 +935,8 @@ export function TopFilterBar({
     <>
       {/* =====================================================================
           1. MOBILE & TABLET COMPACT 56px STICKY FROSTED APP BAR (`lg:hidden`)
-             Strictly 4 Ultra-Clean Controls:
-             (1) Period Dropdown  •  (2) Filters  •  (3) Bell  •  (4) Account Menu
+             Strictly 3 Ultra-Clean Controls on `<sm` (`390px`) Phones:
+             (1) Period Dropdown  •  (2) Filters  •  (3) Account & Menu (Bell hidden `<sm`)
          ===================================================================== */}
       <header
         aria-label={isAr ? 'الشريط العلوي للجوال' : 'Mobile Executive App Bar'}
@@ -952,7 +949,7 @@ export function TopFilterBar({
             <Link
               href="/erp"
               aria-label={isAr ? 'ملخص الشركة' : 'Overview'}
-              className="btn-colored flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-[11px] font-black text-white shadow-xs transition-transform duration-150 active:scale-95"
+              className="btn-colored flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-xs font-black text-white shadow-xs transition-transform duration-150 active:scale-95"
             >
               VF
             </Link>
@@ -964,8 +961,8 @@ export function TopFilterBar({
             </span>
           </div>
 
-          {/* End: 4 Clean Controls — Period Dropdown + Filters + Bell + Account Menu */}
-          <div className="flex shrink-0 items-center gap-2">
+          {/* End: Strictly 3 Clean Controls on `<sm` — Period + Filters + Account & Menu */}
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
             {showPosFilters ? (
               <>
                 {/* Control (1): Compact Period Dropdown */}
@@ -980,7 +977,7 @@ export function TopFilterBar({
                     aria-haspopup="listbox"
                     aria-expanded={periodDropdownOpen}
                     aria-label={periodDropdownLabel}
-                    className={`inline-flex h-8 cursor-pointer items-center gap-1 rounded-xl px-2 text-[11.5px] font-semibold transition-all duration-[160ms] active:scale-95 sm:px-2.5 ${
+                    className={`inline-flex h-8 cursor-pointer items-center gap-1 rounded-xl px-2 text-xs font-semibold transition-all duration-[160ms] active:scale-95 sm:px-2.5 ${
                       periodDropdownOpen || filters.period !== 'month'
                         ? 'bg-emerald-50 text-emerald-900 ring-1 ring-emerald-500/35 dark:bg-emerald-500/15 dark:text-emerald-200 dark:ring-emerald-400/35'
                         : 'bg-neutral-100/90 text-slate-700 ring-1 ring-slate-900/[0.05] dark:bg-white/[0.06] dark:text-slate-200 dark:ring-emerald-500/15'
@@ -1039,7 +1036,7 @@ export function TopFilterBar({
                     <span
                       dir="ltr"
                       style={{ color: '#FFFFFF' }}
-                      className="btn-colored inline-flex h-4 min-w-4 items-center justify-center rounded-md bg-emerald-600 px-1 text-[10px] font-bold tabular-nums text-white"
+                      className="btn-colored inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-md bg-emerald-600 px-1 text-xs font-bold tabular-nums text-white"
                     >
                       {mobileActiveFilterCount}
                     </span>
@@ -1048,10 +1045,12 @@ export function TopFilterBar({
               </>
             ) : null}
 
-            {/* Control (3): Bell (`GovernanceBellTrigger`) */}
-            <GovernanceBellTrigger />
+            {/* Tablet-only (`sm:block`) Bell — hidden on `<sm` (`390px`) phones where Notifications live inside Account & Menu */}
+            <div className="hidden sm:block">
+              <GovernanceBellTrigger />
+            </div>
 
-            {/* Control (4): Account Menu (`القائمة والحساب` — houses single Language switcher) */}
+            {/* Control (3): Account & Menu (`القائمة والحساب` — houses single Language switcher & Notifications) */}
             <div className="relative shrink-0">
               <button
                 type="button"
@@ -1063,7 +1062,7 @@ export function TopFilterBar({
                 aria-haspopup="menu"
                 aria-expanded={accountMenuOpen}
                 aria-label={isAr ? 'القائمة والحساب' : 'Account & Menu'}
-                className={`relative inline-flex h-8 cursor-pointer items-center gap-1 rounded-xl px-2 text-[11.5px] font-semibold transition-all duration-[160ms] active:scale-95 sm:px-2.5 ${
+                className={`relative inline-flex h-8 cursor-pointer items-center gap-1 rounded-xl px-2 text-xs font-semibold transition-all duration-[160ms] active:scale-95 sm:px-2.5 ${
                   accountMenuOpen || (!auditorMode && gov?.session.active)
                     ? 'bg-emerald-50 text-emerald-900 ring-1 ring-emerald-500/35 dark:bg-emerald-500/15 dark:text-emerald-200 dark:ring-emerald-400/35'
                     : auditorMode
@@ -1121,9 +1120,9 @@ export function TopFilterBar({
           </div>
         </div>
 
-        {/* Compact <640px Explicit Period Date Window Subtitle (`Period: Month (Oct 12 – Nov 10, 2026)`) */}
+        {/* Compact <640px Explicit Period Date Window Subtitle (`Period: Month (Oct 15 – Nov 13, 2026)`) */}
         {showPosFilters ? (
-          <div className="flex items-center justify-between gap-2 pb-1.5 text-[11px] font-medium tabular-nums text-slate-500 sm:hidden dark:text-slate-400">
+          <div className="flex items-center justify-between gap-2 pb-1.5 text-xs font-medium tabular-nums text-slate-600 sm:hidden dark:text-slate-300">
             <span className="min-w-0 truncate">{periodDropdownLabel}</span>
           </div>
         ) : null}
@@ -1155,7 +1154,7 @@ export function TopFilterBar({
                 <h2 className="text-[15px] font-bold text-slate-900 dark:text-white">
                   {isAr ? 'فلاتر التحليل الموحدة' : 'Unified Executive Filters'}
                 </h2>
-                <p className="mt-0.5 text-[11.5px] font-medium text-slate-500 dark:text-slate-400">
+                <p className="mt-0.5 text-xs font-medium text-slate-600 dark:text-slate-300">
                   {toWesternNumerals(isAr ? workspace.subtitleAr : workspace.subtitleEn)}
                 </p>
               </div>
@@ -1173,10 +1172,10 @@ export function TopFilterBar({
               {/* Period + Custom Dates */}
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center justify-between gap-1.5">
-                  <div className="text-[11.5px] font-bold text-slate-500 dark:text-slate-400">
+                  <div className="text-xs font-bold text-slate-600 dark:text-slate-300">
                     {isAr ? 'الفترة الزمنية' : 'Time Period'}
                   </div>
-                  <span className="rounded-lg bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200">
+                  <span className="rounded-lg bg-emerald-50 px-2 py-0.5 text-xs font-semibold tabular-nums text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200">
                     {periodDropdownLabel}
                   </span>
                 </div>
@@ -1189,7 +1188,7 @@ export function TopFilterBar({
 
                 {filters.period === 'custom' ? (
                   <div className="grid grid-cols-2 gap-2 rounded-2xl bg-[#F6F7F8] p-3 ring-1 ring-slate-900/[0.04] dark:bg-[#09110E] dark:ring-emerald-500/15">
-                    <label className="space-y-1 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                    <label className="space-y-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
                       <span>{isAr ? 'من تاريخ' : 'Start Date'}</span>
                       <input
                         type="date"
@@ -1199,7 +1198,7 @@ export function TopFilterBar({
                         className="h-9 w-full rounded-xl bg-white px-2.5 text-xs font-bold tabular-nums text-slate-900 ring-1 ring-slate-900/[0.06] outline-none focus:ring-2 focus:ring-emerald-500/40 dark:bg-[#101C17] dark:text-white"
                       />
                     </label>
-                    <label className="space-y-1 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                    <label className="space-y-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
                       <span>{isAr ? 'إلى تاريخ' : 'End Date'}</span>
                       <input
                         type="date"
@@ -1287,7 +1286,7 @@ export function TopFilterBar({
 
       {/* =====================================================================
           3. DESKTOP OBSIDIAN-EMERALD UTILITY & EXECUTIVE CONTROL BAR (`hidden lg:block`)
-             [Rail + Pill Search ⌘K] ... [Period • Filters] • [Odoo Live • Bell • Theme • عربي|EN] • [Executive Profile Pill]
+             [Rail + Pill Search ⌘K] ... [Period • Filters] • [Bell • Theme] • [Executive Profile Pill (houses single Language toggle)]
          ===================================================================== */}
       <header
         id="ae-topbar"
@@ -1322,7 +1321,7 @@ export function TopFilterBar({
                   ? 'ابحث في المؤشرات أو الفروع أو اسأل فريال (Ctrl+K)'
                   : 'Search metrics, branches, or ask Feryal (Ctrl+K)'
               }
-              className="group inline-flex h-9 min-w-[210px] max-w-[350px] flex-1 cursor-pointer items-center justify-between gap-2.5 rounded-full bg-[#F6F7F8] px-3.5 text-[12.5px] text-slate-500 ring-1 ring-slate-900/[0.06] transition-all duration-150 hover:bg-white hover:text-slate-900 hover:ring-emerald-500/35 dark:bg-[#141F1B] dark:text-[#8FA39B] dark:ring-emerald-400/[0.09] dark:hover:text-white dark:hover:ring-emerald-400/30"
+              className="group inline-flex h-9 min-w-[210px] max-w-[350px] flex-1 cursor-pointer items-center justify-between gap-2.5 rounded-full bg-[#F6F7F8] px-3.5 text-[13px] text-slate-600 ring-1 ring-slate-900/[0.06] transition-all duration-150 hover:bg-white hover:text-slate-900 hover:ring-emerald-500/35 dark:bg-[#141F1B] dark:text-[#8FA39B] dark:ring-emerald-400/[0.09] dark:hover:text-white dark:hover:ring-emerald-400/30"
             >
               <span className="inline-flex min-w-0 items-center gap-2">
                 <Search className="h-3.5 w-3.5 shrink-0 text-emerald-600 transition-transform duration-150 group-hover:scale-105 dark:text-emerald-400" />
@@ -1334,7 +1333,7 @@ export function TopFilterBar({
               </span>
               <kbd
                 dir="ltr"
-                className="shrink-0 rounded-full bg-white px-2 py-0.5 font-mono text-[10.5px] font-semibold text-slate-600 ring-1 ring-slate-900/[0.06] dark:bg-white/[0.07] dark:text-emerald-200 dark:ring-white/10"
+                className="shrink-0 rounded-full bg-white px-2 py-0.5 font-mono text-xs font-semibold text-slate-600 ring-1 ring-slate-900/[0.06] dark:bg-white/[0.07] dark:text-emerald-200 dark:ring-white/10"
               >
                 ⌘K
               </kbd>
@@ -1350,7 +1349,7 @@ export function TopFilterBar({
             ) : null}
 
             {auditorMode ? (
-              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[11.5px] font-bold text-amber-900 ring-1 ring-amber-500/25 dark:bg-amber-950/60 dark:text-amber-200">
+              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-900 ring-1 ring-amber-500/25 dark:bg-amber-950/60 dark:text-amber-200">
                 <Lock className="h-3 w-3 shrink-0 text-amber-600 dark:text-amber-400" />
                 <span>{isAr ? 'حساب مراجعة — قراءة فقط' : 'Read-Only Auditor'}</span>
               </span>
@@ -1358,7 +1357,7 @@ export function TopFilterBar({
           </div>
 
           {/* End Utility & Filter Cluster:
-              [Period • Filters] + [Odoo Live Circle • Bell Circle • Theme Circle • عربي|EN Switch] + [Executive Profile Pill] */}
+              [Period • Filters] + [Bell Circle • Theme Circle] + [Executive Profile Pill -> single Language row] */}
           <div className="relative z-[60] flex flex-wrap items-center justify-end gap-1.5 xl:gap-2 overflow-visible">
             {showPosFilters ? (
               <>
@@ -1373,7 +1372,7 @@ export function TopFilterBar({
                     }}
                     aria-haspopup="listbox"
                     aria-expanded={periodDropdownOpen}
-                    className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-[12px] font-semibold transition-all duration-[160ms] focus:outline-none ${
+                    className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold transition-all duration-[160ms] focus:outline-none ${
                       periodDropdownOpen || filters.period !== 'month'
                         ? 'bg-emerald-50/90 text-emerald-950 ring-1 ring-emerald-500/45 dark:bg-emerald-950/55 dark:text-emerald-200 dark:ring-emerald-400/45'
                         : 'bg-[#F6F7F8] text-slate-700 ring-1 ring-slate-900/[0.06] hover:bg-white hover:text-slate-950 dark:bg-[#141F1B] dark:text-slate-200 dark:ring-emerald-400/[0.09] dark:hover:bg-white/[0.08]'
@@ -1388,7 +1387,7 @@ export function TopFilterBar({
                             ? `تعويض تلقائي لآخر يوم تشغيل مكتمل في نقاط البيع (${workspace.todayFallbackDate ?? ''})`
                             : `Auto-fallback to last completed POS operating day (${workspace.todayFallbackDate ?? ''})`
                         }
-                        className="rounded-md bg-amber-100/80 px-1.5 py-0.5 text-[10px] font-bold text-amber-900 dark:bg-amber-900/60 dark:text-amber-200"
+                        className="rounded-md bg-amber-100/80 px-1.5 py-0.5 text-xs font-bold text-amber-900 dark:bg-amber-900/60 dark:text-amber-200"
                       >
                         {isAr ? 'آخر يوم مكتمل' : 'Last Full Day'}
                       </span>
@@ -1429,7 +1428,7 @@ export function TopFilterBar({
                   }}
                   aria-haspopup="dialog"
                   aria-expanded={filtersPopoverOpen}
-                  className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-[12px] font-semibold transition-all duration-[160ms] focus:outline-none ${
+                  className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold transition-all duration-[160ms] focus:outline-none ${
                     filtersPopoverOpen || nonDefaultSliceCount > 0
                       ? 'bg-emerald-50/90 text-emerald-950 ring-1 ring-emerald-500/45 dark:bg-emerald-950/55 dark:text-emerald-200 dark:ring-emerald-400/45'
                       : 'bg-[#F6F7F8] text-slate-700 ring-1 ring-slate-900/[0.06] hover:bg-white hover:text-slate-950 dark:bg-[#141F1B] dark:text-slate-200 dark:ring-emerald-400/[0.09] dark:hover:bg-white/[0.08]'
@@ -1441,7 +1440,7 @@ export function TopFilterBar({
                     <span
                       dir="ltr"
                       style={{ color: '#FFFFFF' }}
-                      className="btn-colored inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-emerald-600 px-1.5 text-[10.5px] font-bold tabular-nums text-white"
+                      className="btn-colored inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-emerald-600 px-1.5 text-xs font-bold tabular-nums text-white"
                     >
                       {nonDefaultSliceCount}
                     </span>
@@ -1455,37 +1454,10 @@ export function TopFilterBar({
               </>
             ) : null}
 
-            {/* Quick Action Circle (1): Odoo Live Status & Instant Sync */}
-            <button
-              type="button"
-              data-utility="odoo-live-status"
-              disabled={auditorMode || syncingOdoo || syncCooldownSec > 0}
-              onClick={() => {
-                if (!auditorMode) void triggerOdooSyncNow()
-              }}
-              title={
-                isAr
-                  ? `حالة اتصال أودو المباشر${liveSummary?.kuwaitSyncedAt ? ` • ${liveSummary.kuwaitSyncedAt}` : ''}`
-                  : `Odoo Live Status${liveSummary?.kuwaitSyncedAt ? ` • ${liveSummary.kuwaitSyncedAt}` : ''}`
-              }
-              aria-label={isAr ? 'حالة اتصال أودو المباشر' : 'Odoo Live Status'}
-              className="relative inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-[#F6F7F8] text-slate-700 ring-1 ring-slate-900/[0.06] transition-all duration-150 hover:bg-white hover:text-emerald-700 disabled:cursor-default disabled:opacity-75 dark:bg-[#141F1B] dark:text-emerald-300 dark:ring-emerald-400/[0.09] dark:hover:bg-white/[0.08]"
-            >
-              <RefreshCw
-                className={`h-3.5 w-3.5 ${syncingOdoo ? 'animate-spin text-emerald-500' : ''}`}
-              />
-              <span
-                aria-hidden
-                className={`absolute end-1.5 top-1.5 h-2 w-2 rounded-full ring-2 ring-white dark:ring-[#141F1B] ${
-                  odooLiveFresh ? 'bg-emerald-500' : 'bg-amber-400'
-                }`}
-              />
-            </button>
-
-            {/* Quick Action Circle (2): Notifications & Governance Bell */}
+            {/* Quick Action Circle (1): Notifications & Governance Bell */}
             <GovernanceBellTrigger />
 
-            {/* Quick Action Circle (3): Light / Obsidian-Emerald Theme Toggle */}
+            {/* Quick Action Circle (2): Light / Obsidian-Emerald Theme Toggle */}
             <button
               type="button"
               onClick={toggleTheme}
@@ -1508,40 +1480,7 @@ export function TopFilterBar({
               )}
             </button>
 
-            {/* Quick Action Pill (4): 1-Click `عربي | EN` Switch */}
-            <button
-              type="button"
-              dir="ltr"
-              data-no-translate=""
-              onClick={() => setLocale(isAr ? 'en' : 'ar')}
-              title={isAr ? 'Switch to English (LTR)' : 'التبديل إلى العربية (RTL)'}
-              aria-label={isAr ? 'Switch language to English' : 'تغيير اللغة إلى العربية'}
-              className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1 rounded-full bg-[#F6F7F8] px-2.5 text-[11.5px] font-semibold ring-1 ring-slate-900/[0.06] transition-all duration-150 hover:bg-white dark:bg-[#141F1B] dark:ring-emerald-400/[0.09] dark:hover:bg-white/[0.08]"
-            >
-              <span
-                className={
-                  isAr
-                    ? 'font-bold text-emerald-700 dark:text-emerald-300'
-                    : 'text-slate-500 dark:text-[#8FA39B]'
-                }
-              >
-                عربي
-              </span>
-              <span aria-hidden className="text-slate-300 dark:text-white/20">
-                |
-              </span>
-              <span
-                className={
-                  !isAr
-                    ? 'font-bold text-emerald-700 dark:text-emerald-300'
-                    : 'text-slate-500 dark:text-[#8FA39B]'
-                }
-              >
-                EN
-              </span>
-            </button>
-
-            {/* Sleek Executive Profile Pill (`Avatar + Name + Corporate Email` -> opens Account & Menu) */}
+            {/* Sleek Executive Profile Pill (`Avatar + Name + Corporate Email` -> opens Account & Menu with single Language toggle) */}
             <div className="relative shrink-0">
               <button
                 type="button"
@@ -1563,7 +1502,7 @@ export function TopFilterBar({
               >
                 <span
                   style={{ color: '#FFFFFF' }}
-                  className="btn-colored relative inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#0F764A] via-[#10935B] to-[#064E3B] text-[11px] font-bold tracking-tight text-white shadow-sm"
+                  className="btn-colored relative inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#0F764A] via-[#10935B] to-[#064E3B] text-xs font-bold tracking-tight text-white shadow-sm"
                 >
                   {execAvatarInitials}
                   {hasUnreadNotifications ? (
@@ -1577,12 +1516,12 @@ export function TopFilterBar({
                 </span>
 
                 <span className="hidden xl:block min-w-0 leading-tight">
-                  <span className="block max-w-[155px] truncate text-[12px] font-semibold tracking-tight text-slate-900 dark:text-white">
+                  <span className="block max-w-[155px] truncate text-[13px] font-semibold tracking-tight text-slate-900 dark:text-white">
                     {isAr ? topRoleProfile.nameAr : topRoleProfile.nameEn}
                   </span>
                   <span
                     dir={userEmail ? 'ltr' : undefined}
-                    className="block max-w-[165px] truncate text-[10.5px] font-medium text-slate-500 dark:text-[#8FA39B]"
+                    className="block max-w-[165px] truncate text-xs font-medium text-slate-600 dark:text-[#8FA39B]"
                   >
                     {userEmail || (isAr ? topRoleProfile.titleAr : topRoleProfile.titleEn)}
                   </span>
@@ -1669,10 +1608,10 @@ export function TopFilterBar({
               {/* 0. Time Period + Custom From/To Range right inside Desktop Unified Filters */}
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center justify-between gap-1.5">
-                  <div className="text-[11.5px] font-bold text-slate-500 dark:text-slate-400">
+                  <div className="text-xs font-bold text-slate-600 dark:text-slate-300">
                     {isAr ? 'الفترة الزمنية والتقويم المخصص' : 'Time Period & Custom Date Range'}
                   </div>
-                  <span className="rounded-lg bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold tabular-nums text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200">
+                  <span className="rounded-lg bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200">
                     {periodDropdownLabel}
                   </span>
                 </div>
@@ -1684,7 +1623,7 @@ export function TopFilterBar({
                 />
                 {filters.period === 'custom' ? (
                   <div className="grid grid-cols-1 gap-2 rounded-2xl bg-[#F6F7F8] p-3 ring-1 ring-slate-900/[0.04] sm:grid-cols-3 dark:bg-[#09110E] dark:ring-emerald-500/15">
-                    <label className="space-y-1 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                    <label className="space-y-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
                       <span>{isAr ? 'من تاريخ' : 'From Date'}</span>
                       <input
                         type="date"
@@ -1697,7 +1636,7 @@ export function TopFilterBar({
                         className="h-9 w-full rounded-xl bg-white px-2.5 text-xs font-bold tabular-nums text-slate-900 ring-1 ring-slate-900/[0.06] outline-none focus:ring-2 focus:ring-emerald-500/40 dark:bg-[#101C17] dark:text-white"
                       />
                     </label>
-                    <label className="space-y-1 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                    <label className="space-y-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
                       <span>{isAr ? 'إلى تاريخ' : 'To Date'}</span>
                       <input
                         type="date"
@@ -1774,7 +1713,7 @@ export function TopFilterBar({
               ) : null}
 
               <div className="flex items-center justify-between gap-2 border-t border-slate-200/70 pt-3 dark:border-white/[0.08]">
-                <span className="text-[11.5px] font-medium tabular-nums text-slate-500 dark:text-slate-400">
+                <span className="text-xs font-medium tabular-nums text-slate-600 dark:text-slate-300">
                   {toWesternNumerals(
                     isAr ? workspace.periodRangeLabelAr : workspace.periodRangeLabelEn,
                   )}
