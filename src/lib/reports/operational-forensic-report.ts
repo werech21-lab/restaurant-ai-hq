@@ -403,8 +403,8 @@ export function renderOperationalReportText(sections: OperationalReportSections,
   const L = locale
   const title =
     L === 'ar'
-      ? 'التقرير التشغيلي والجنائي اليومي المفصل — فنتشر فودز (7 براندات و9 فروع نشطة — ملخص نهاية اليوم 11:59 مساءً بتوقيت الكويت)'
-      : 'DAILY OPERATIONAL & FORENSIC REPORT — VENTURE FOODS (ALL 7 BRANDS & 9 ACTIVE BRANCHES — END OF DAY SUMMARY 11:59 PM KW TIME)'
+      ? 'التقرير التشغيلي والجنائي اليومي المفصل — فنتشر فودز (6 مطاعم و7 فروع نشطة — ملخص نهاية اليوم 11:59 مساءً بتوقيت الكويت)'
+      : 'DAILY OPERATIONAL & FORENSIC REPORT — VENTURE FOODS (ALL 6 BRANDS & 7 ACTIVE BRANCHES — END OF DAY SUMMARY 11:59 PM KW TIME)'
 
   const lines: string[] = []
   lines.push(title)

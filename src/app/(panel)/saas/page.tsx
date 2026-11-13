@@ -7,7 +7,7 @@ import { ShieldCheck, Building2, Store, Users, Database, Layers, CheckCircle2, A
 
 export const metadata = {
   title: "الهيكل المؤسسي والترخيص | Venture Foods W.L.L.",
-  description: "الهيكل المؤسسي الرسمي لشركة فنتشر فودز لإدارة المطاعم ذ.م.م. - 7 براندات، 10 فروع، والمطبخ المركزي",
+  description: "الهيكل المؤسسي الرسمي لشركة فنتشر فودز لإدارة المطاعم ذ.م.م. - 6 مطاعم • 7 فروع • 8 قنوات، والمطبخ المركزي",
 };
 
 async function CorporateStructureContent() {
@@ -52,7 +52,7 @@ async function CorporateStructureContent() {
             <span className="text-xs font-semibold">العلامات التجارية</span>
             <Building2 size={18} className="text-amber-400" />
           </div>
-          <p className="mt-2 text-2xl font-black text-white">7 براندات</p>
+          <p className="mt-2 text-2xl font-black text-white">6 مطاعم</p>
           <p className="text-xs text-slate-400">مملوكة ومطورة داخلياً 100%</p>
         </div>
 
@@ -89,7 +89,7 @@ async function CorporateStructureContent() {
         <div className="mb-4 flex items-center justify-between">
           <h2 className="flex items-center gap-2 text-lg font-bold text-white">
             <Layers className="text-amber-400" size={20} />
-            العلامات التجارية لشركة فنتشر فودز (7 Brands)
+            العلامات التجارية لشركة فنتشر فودز (6 Brands)
           </h2>
           <span className="rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-300">
             جميع الحقوق والوصفات مسجلة ومملوكة

@@ -836,7 +836,7 @@ export function CoresHubStudio() {
           }
         />
 
-        <p className="truncate px-1 text-xs font-medium text-neutral-500 dark:text-slate-400">
+        <p className="whitespace-normal px-1 text-xs font-medium text-neutral-500 dark:text-slate-400">
           {isAr ? workspace.subtitleAr : workspace.subtitleEn}
         </p>
       </div>
@@ -918,7 +918,7 @@ export function CoresHubStudio() {
             {/* KPI 4: Promo vs Organic Avg Bill */}
             <article className={`${KPI_CARD_CLS} ae-glow-sky`}>
               <div className="flex flex-wrap items-center justify-between gap-1">
-                <span className="truncate text-xs sm:text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
+                <span className="whitespace-normal text-xs sm:text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
                   {isAr ? 'متوسط فاتورة العرض مقابل الطبيعي' : 'Promo vs Organic Avg Bill'}
                 </span>
                 <span
@@ -1665,7 +1665,7 @@ export function CoresHubStudio() {
             {/* KPI 2: Zero-Commission Sales (Dine-In + Direct Takeaway) */}
             <article className={`${KPI_CARD_CLS} ae-glow-emerald`}>
               <div className="flex flex-wrap items-center justify-between gap-1">
-                <span className="truncate text-xs sm:text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
+                <span className="whitespace-normal text-xs sm:text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
                   {isAr ? 'مبيعات بدون عمولة (صالة ومباشر)' : 'Zero-Commission Sales'}
                 </span>
                 <span
@@ -1717,7 +1717,7 @@ export function CoresHubStudio() {
             {/* KPI 4: Quiet Window (3–6 PM) + Recoverable Upside Badge */}
             <article className={`${KPI_CARD_CLS} ae-glow-amber`}>
               <div className="flex flex-wrap items-center justify-between gap-1">
-                <span className="truncate text-xs sm:text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
+                <span className="whitespace-normal text-xs sm:text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
                   {isAr ? 'مبيعات الساعات الهادئة (3–6 م)' : 'Quiet Window (3–6 PM)'}
                 </span>
                 <span
@@ -1986,7 +1986,7 @@ export function CoresHubStudio() {
 
             <article className={`${KPI_CARD_CLS} ae-glow-emerald`}>
               <div className="flex flex-wrap items-center justify-between gap-1">
-                <span className="truncate text-xs sm:text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
+                <span className="whitespace-normal text-xs sm:text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
                   {isAr ? 'فرصة تحسين التسعير والكومبو' : 'Menu Optimization Upside'}
                 </span>
                 <span className="shrink-0 rounded-lg bg-emerald-50 px-2 py-0.5 text-[10.5px] sm:text-[11.5px] font-bold tabular-nums text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">

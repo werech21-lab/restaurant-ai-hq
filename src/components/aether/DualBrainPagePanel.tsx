@@ -9,10 +9,12 @@ import {
   askDualHeavyBrain,
   BRAIN_HEALTH_EVENT,
   BRAIN_MODE_EVENT,
+  FERYAL_PRIMARY_MODES,
   getActiveBrainMode,
-  getExecutiveModeLabel,
+  getPrimaryModeBadge,
   normalizeBrainMode,
   probeDualBrainHealth,
+  setActiveBrainMode,
   type BrainLiveHealth,
   type BrainMode,
   type DualBrainResponse,
@@ -91,7 +93,7 @@ export function DualBrainPagePanel({
     }
   }, [filters, isAr, mode, pageContext, promptAr, promptEn, workspace])
 
-  const buttonLabel = getExecutiveModeLabel(mode, isAr)
+  const buttonLabel = getPrimaryModeBadge(mode, isAr)
 
   const whatsappText = result
     ? isAr
@@ -141,8 +143,8 @@ export function DualBrainPagePanel({
   const hasMultipleBrains = individualPanels.length >= 2
   const statusNote = isAr ? result?.statusNoteAr : result?.statusNoteEn
 
-  const liveClaudeId = isAr ? 'تحليل استراتيجي معمّق' : 'Deep Strategic'
-  const liveGeminiId = isAr ? 'إجابة تنفيذية سريعة' : 'Fast Executive'
+  const liveClaudeId = isAr ? 'دقيق · تحليل دقيق' : 'Deep & Precise'
+  const liveGeminiId = isAr ? 'سريع · إجابة سريعة' : 'Fast Answer'
   const liveGrokId = isAr ? 'فحص الصور والفيديو' : 'Vision & Video Inspector'
   const claudeReady = Boolean(health?.claudeReady ?? true)
   const geminiReady = Boolean(health?.geminiReady ?? true)
@@ -166,35 +168,37 @@ export function DualBrainPagePanel({
               </span>
             ) : null}
           </div>
-          <p className="truncate text-[12.5px] font-medium text-slate-500 dark:text-slate-400">
+          <p className="whitespace-normal break-words text-[12.5px] font-medium text-slate-500 dark:text-slate-400">
             {isAr
               ? `${pageTitleAr} • ${workspace.subtitleAr}`
               : `${pageTitleEn} • ${workspace.subtitleEn}`}
           </p>
 
-          {/* Friendly 3 Executive Mode Status Pills */}
+          {/* Friendly 2-Option Mode Toggle (`دقيق` / `سريع`) + Vision Readiness */}
           <div className="flex flex-wrap items-center gap-1.5 pt-0.5 text-[11.5px]">
-            <span
-              className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-0.5 font-semibold ring-1 ${
-                mode === 'triple' || mode === 'grok'
-                  ? 'bg-emerald-50/80 text-emerald-900 ring-emerald-500/20 dark:bg-emerald-950/40 dark:text-emerald-200 dark:ring-emerald-500/30'
-                  : 'bg-slate-900/[0.02] text-slate-500 ring-slate-900/[0.05] dark:bg-white/[0.03] dark:text-slate-400 dark:ring-white/[0.06]'
-              }`}
-            >
-              <span className={`h-1.5 w-1.5 rounded-full ${claudeReady ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-              <span>{liveClaudeId}</span>
-            </span>
-
-            <span
-              className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-0.5 font-semibold ring-1 ${
-                mode === 'gemini'
-                  ? 'bg-emerald-50/80 text-emerald-900 ring-emerald-500/20 dark:bg-emerald-950/40 dark:text-emerald-200 dark:ring-emerald-500/30'
-                  : 'bg-slate-900/[0.02] text-slate-500 ring-slate-900/[0.05] dark:bg-white/[0.03] dark:text-slate-400 dark:ring-white/[0.06]'
-              }`}
-            >
-              <span className={`h-1.5 w-1.5 rounded-full ${geminiReady ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-              <span>{liveGeminiId}</span>
-            </span>
+            {FERYAL_PRIMARY_MODES.map((opt) => {
+              const active = opt.id === 'gemini' ? mode === 'gemini' : mode !== 'gemini'
+              const dotReady = opt.id === 'gemini' ? geminiReady : claudeReady
+              const labelText = opt.id === 'gemini' ? liveGeminiId : liveClaudeId
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => {
+                    setMode(opt.id)
+                    setActiveBrainMode(opt.id)
+                  }}
+                  className={`inline-flex cursor-pointer items-center gap-1.5 rounded-xl px-2.5 py-0.5 font-semibold ring-1 transition-colors ${
+                    active
+                      ? 'bg-emerald-50/80 text-emerald-900 ring-emerald-500/20 dark:bg-emerald-950/40 dark:text-emerald-200 dark:ring-emerald-500/30'
+                      : 'bg-slate-900/[0.02] text-slate-500 ring-slate-900/[0.05] hover:bg-slate-900/[0.05] dark:bg-white/[0.03] dark:text-slate-400 dark:ring-white/[0.06]'
+                  }`}
+                >
+                  <span className={`h-1.5 w-1.5 rounded-full ${dotReady ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                  <span>{labelText}</span>
+                </button>
+              )
+            })}
 
             <span
               className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-0.5 font-semibold ring-1 ${

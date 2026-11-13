@@ -586,7 +586,7 @@ export function VentureRecipesHub({
         <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-3.5">
           <div className="text-[11px] font-medium text-slate-400">{isAr ? 'الوصفات المعتمدة النشطة' : 'Active Recipe SKUs'}</div>
           <div className="text-xl font-black text-white mt-1">364 <span className="text-xs text-slate-400">صنفاً</span></div>
-          <div className="text-[10px] text-slate-400 mt-0.5">{isAr ? 'عبر العلامات السبع والمطبخ المركزي' : 'Across 7 brands + Central Kitchen'}</div>
+          <div className="text-[10px] text-slate-400 mt-0.5">{isAr ? 'عبر 6 مطاعم والمطبخ المركزي' : 'Across 6 brands + Central Kitchen'}</div>
         </div>
       </div>
 

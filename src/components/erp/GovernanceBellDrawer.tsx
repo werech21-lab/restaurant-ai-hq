@@ -70,6 +70,7 @@ interface PendingPinRequest {
 }
 
 export interface GovernanceContextValue {
+  isAuditor: boolean
   store: PersistedGovernanceStore
   session: ExecutiveSessionState
   approvals: GovernanceApprovalRequest[]
@@ -129,6 +130,7 @@ export interface GovernanceContextValue {
 
 export type DrawerTabId = 'all' | 'approvals' | 'breaches' | 'sealed'
 export const OPEN_GOV_DRAWER_EVENT = 'aether:open-gov-drawer'
+export const AUDITOR_ROLE_EVENT = 'aether:auditor-role'
 
 const GovernanceContext = createContext<GovernanceContextValue | null>(null)
 
@@ -172,7 +174,13 @@ export function buildStopDirectiveCircularDoc(
   }
 }
 
-export function GovernanceProvider({ children }: { children: React.ReactNode }) {
+export function GovernanceProvider({
+  children,
+  isAuditor = false,
+}: {
+  children: React.ReactNode
+  isAuditor?: boolean
+}) {
   const [store, setStore] = useState<PersistedGovernanceStore>(INITIAL_SSR_STORE)
   const [session, setSession] = useState<ExecutiveSessionState>({
     active: false,
@@ -188,20 +196,56 @@ export function GovernanceProvider({ children }: { children: React.ReactNode }) 
   const [toastMsg, setToastMsg] = useState<{ ar: string; en: string } | null>(null)
   const pendingCallbackRef = useRef<(() => void) | undefined>(undefined)
 
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.dataset.auditor = isAuditor ? 'true' : 'false'
+    }
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent(AUDITOR_ROLE_EVENT, { detail: isAuditor }))
+    }
+  }, [isAuditor])
+
   const syncFromStorage = useCallback(() => {
     setStore(loadGovernanceStore())
-    setSession(getExecutiveSession())
+    setSession(
+      isAuditor
+        ? { active: false, unlockedAt: null, expiresAt: null, remainingSeconds: 0 }
+        : getExecutiveSession(),
+    )
+  }, [isAuditor])
+
+  const pullReadOnlyServerStore = useCallback(async (): Promise<boolean> => {
+    try {
+      const res = await fetch('/api/erp/governance', {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+        cache: 'no-store',
+      })
+      if (!res.ok) return false
+      const json = (await res.json()) as { ok?: boolean; store?: PersistedGovernanceStore }
+      if (json?.ok && json.store) {
+        setStore(json.store)
+        return true
+      }
+      return false
+    } catch {
+      return false
+    }
   }, [])
 
   const triggerCrossDeviceSync = useCallback(async () => {
     setSyncingCrossDevice(true)
     try {
-      const changed = await syncGovernanceFromServer()
-      if (changed) syncFromStorage()
+      if (isAuditor) {
+        await pullReadOnlyServerStore()
+      } else {
+        const changed = await syncGovernanceFromServer()
+        if (changed) syncFromStorage()
+      }
     } finally {
       setSyncingCrossDevice(false)
     }
-  }, [syncFromStorage])
+  }, [isAuditor, pullReadOnlyServerStore, syncFromStorage])
 
   useEffect(() => {
     syncFromStorage()
@@ -216,9 +260,13 @@ export function GovernanceProvider({ children }: { children: React.ReactNode }) 
     }
     const onFocusOrVisible = () => {
       if (typeof document === 'undefined' || document.visibilityState === 'visible') {
-        void syncGovernanceFromServer().then((changed) => {
-          if (changed) syncFromStorage()
-        })
+        if (isAuditor) {
+          void pullReadOnlyServerStore()
+        } else {
+          void syncGovernanceFromServer().then((changed) => {
+            if (changed) syncFromStorage()
+          })
+        }
       }
     }
 
@@ -229,14 +277,20 @@ export function GovernanceProvider({ children }: { children: React.ReactNode }) 
     document.addEventListener('visibilitychange', onFocusOrVisible)
 
     const sessionTick = window.setInterval(() => {
-      setSession(getExecutiveSession())
+      if (!isAuditor) {
+        setSession(getExecutiveSession())
+      }
     }, 1000)
 
     const crossDevicePoll = window.setInterval(() => {
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-        void syncGovernanceFromServer().then((changed) => {
-          if (changed) syncFromStorage()
-        })
+        if (isAuditor) {
+          void pullReadOnlyServerStore()
+        } else {
+          void syncGovernanceFromServer().then((changed) => {
+            if (changed) syncFromStorage()
+          })
+        }
       }
     }, 12000)
 
@@ -249,7 +303,7 @@ export function GovernanceProvider({ children }: { children: React.ReactNode }) 
       window.clearInterval(sessionTick)
       window.clearInterval(crossDevicePoll)
     }
-  }, [syncFromStorage, triggerCrossDeviceSync])
+  }, [isAuditor, pullReadOnlyServerStore, syncFromStorage, triggerCrossDeviceSync])
 
   const showToast = useCallback((ar: string, en: string) => {
     setToastMsg({ ar, en })
@@ -258,24 +312,61 @@ export function GovernanceProvider({ children }: { children: React.ReactNode }) 
     }, 3200)
   }, [])
 
-  const requireManagerPin = useCallback((opts: PendingPinRequest) => {
-    const liveSession = getExecutiveSession()
-    if (liveSession.active && opts.mode !== 'change') {
-      opts.onSuccess?.()
-      return
-    }
-    pendingCallbackRef.current = opts.onSuccess
-    setPinPrompt(opts)
-  }, [])
+  const notifyAuditorReadOnly = useCallback(() => {
+    showToast(
+      'وضع المراجعة — قراءة فقط • الاعتمادات والتعديلات مقفلة 🔒',
+      'Read-Only Auditor Session • Approvals & mutations are disabled 🔒',
+    )
+  }, [showToast])
+
+  const requireManagerPin = useCallback(
+    (opts: PendingPinRequest) => {
+      if (isAuditor) {
+        notifyAuditorReadOnly()
+        return
+      }
+      const liveSession = getExecutiveSession()
+      if (liveSession.active && opts.mode !== 'change') {
+        opts.onSuccess?.()
+        return
+      }
+      pendingCallbackRef.current = opts.onSuccess
+      setPinPrompt(opts)
+    },
+    [isAuditor, notifyAuditorReadOnly],
+  )
 
   const lockSession = useCallback(() => {
+    if (isAuditor) return
     lockExecutiveSession()
     setSession(getExecutiveSession())
     showToast('تم قفل صلاحية المدير التنفيذي 🔒', 'Executive Session locked 🔒')
-  }, [showToast])
+  }, [isAuditor, showToast])
 
   const requestApproval = useCallback(
     (input: Parameters<typeof submitApprovalRequest>[0]) => {
+      if (isAuditor) {
+        notifyAuditorReadOnly()
+        const existing = store.approvals.find((a) => a.refKey === input.refKey)
+        if (existing) return existing
+        return {
+          id: `readonly-${input.refKey}`,
+          refKey: input.refKey,
+          domain: input.domain,
+          titleAr: input.titleAr,
+          titleEn: input.titleEn,
+          summaryAr: input.summaryAr,
+          summaryEn: input.summaryEn,
+          departmentAr: input.departmentAr,
+          departmentEn: input.departmentEn,
+          budgetOrCostKwd: input.budgetOrCostKwd,
+          expectedMonthlyReturnKwd: input.expectedMonthlyReturnKwd,
+          href: input.href,
+          createdAtIso: new Date().toISOString(),
+          status: 'pending' as const,
+          meta: input.meta,
+        } satisfies GovernanceApprovalRequest
+      }
       const created = submitApprovalRequest(input)
       syncFromStorage()
       showToast(
@@ -284,7 +375,7 @@ export function GovernanceProvider({ children }: { children: React.ReactNode }) 
       )
       return created
     },
-    [showToast, syncFromStorage],
+    [isAuditor, notifyAuditorReadOnly, showToast, store.approvals, syncFromStorage],
   )
 
   const getApprovalByRef = useCallback(
@@ -409,18 +500,26 @@ export function GovernanceProvider({ children }: { children: React.ReactNode }) 
 
   const toggleBranchReceipt = useCallback(
     (circularKey: string, branchId: Exclude<GlobalBranch, 'all'>) => {
+      if (isAuditor) {
+        notifyAuditorReadOnly()
+        return
+      }
       toggleBranchCircularReceipt(circularKey, branchId)
       syncFromStorage()
     },
-    [syncFromStorage],
+    [isAuditor, notifyAuditorReadOnly, syncFromStorage],
   )
 
   const confirmAllBranchesReceipt = useCallback(
     (circularKey: string) => {
+      if (isAuditor) {
+        notifyAuditorReadOnly()
+        return
+      }
       markAllBranchesReceived(circularKey)
       syncFromStorage()
     },
-    [syncFromStorage],
+    [isAuditor, notifyAuditorReadOnly, syncFromStorage],
   )
 
   const issueOfficialCircularWithPin = useCallback(
@@ -482,14 +581,18 @@ export function GovernanceProvider({ children }: { children: React.ReactNode }) 
 
   const openBreachStopCircularPrint = useCallback(
     (breach: ComplianceBreachItem) => {
-      const liveStore = loadGovernanceStore()
+      const liveStore = isAuditor ? store : loadGovernanceStore()
       setPrintDoc(buildStopDirectiveCircularDoc(breach, liveStore))
     },
-    [],
+    [isAuditor, store],
   )
 
   const flagRegressionToWatchdog = useCallback(
     (input: Omit<FlaggedDecisionRegression, 'flaggedAtIso'>) => {
+      if (isAuditor) {
+        notifyAuditorReadOnly()
+        return
+      }
       flagDecisionRegressionInStore(input)
       syncFromStorage()
       showToast(
@@ -497,7 +600,7 @@ export function GovernanceProvider({ children }: { children: React.ReactNode }) 
         'Post-decision regression flagged to Compliance Watchdog 🔔🚨',
       )
     },
-    [showToast, syncFromStorage],
+    [isAuditor, notifyAuditorReadOnly, showToast, syncFromStorage],
   )
 
   const approvals = store.approvals
@@ -518,6 +621,7 @@ export function GovernanceProvider({ children }: { children: React.ReactNode }) 
 
   const value = useMemo<GovernanceContextValue>(
     () => ({
+      isAuditor,
       store,
       session,
       approvals,
@@ -557,6 +661,7 @@ export function GovernanceProvider({ children }: { children: React.ReactNode }) 
       flagRegressionToWatchdog,
       freezeBreachWithPin,
       getApprovalByRef,
+      isAuditor,
       issueOfficialCircularWithPin,
       liveBadgeCount,
       lockSession,
@@ -591,37 +696,41 @@ export function GovernanceProvider({ children }: { children: React.ReactNode }) 
         doc={printDoc}
         store={store}
         onClose={() => setPrintDoc(null)}
-        onToggleBranchReceipt={toggleBranchReceipt}
-        onConfirmAllBranches={confirmAllBranchesReceipt}
-        onSealNow={(docToSeal) => {
-          issueOfficialCircularWithPin({
-            circularKey: docToSeal.circularKey,
-            kind: docToSeal.kind,
-            titleAr: docToSeal.titleAr,
-            titleEn: docToSeal.titleEn,
-            circularBodyAr: docToSeal.bodyAr ?? docToSeal.titleAr,
-            circularBodyEn: docToSeal.bodyEn ?? docToSeal.titleEn,
-            scopeAr: docToSeal.scopeAr,
-            scopeEn: docToSeal.scopeEn,
-            mandatoryRulesAr: docToSeal.mandatoryRulesAr,
-            mandatoryRulesEn: docToSeal.mandatoryRulesEn,
-            financialSummaryAr: docToSeal.financialSummaryAr,
-            financialSummaryEn: docToSeal.financialSummaryEn,
-            effectiveWindow: docToSeal.effectiveWindow,
-            onIssued: (meta) => {
-              setPrintDoc((prev) =>
-                prev
-                  ? {
-                      ...prev,
-                      sealId: meta.sealId,
-                      serialRef: meta.serialRef,
-                      issuedAtIso: meta.issuedAtIso,
-                    }
-                  : null,
-              )
-            },
-          })
-        }}
+        onToggleBranchReceipt={isAuditor ? undefined : toggleBranchReceipt}
+        onConfirmAllBranches={isAuditor ? undefined : confirmAllBranchesReceipt}
+        onSealNow={
+          isAuditor
+            ? undefined
+            : (docToSeal) => {
+                issueOfficialCircularWithPin({
+                  circularKey: docToSeal.circularKey,
+                  kind: docToSeal.kind,
+                  titleAr: docToSeal.titleAr,
+                  titleEn: docToSeal.titleEn,
+                  circularBodyAr: docToSeal.bodyAr ?? docToSeal.titleAr,
+                  circularBodyEn: docToSeal.bodyEn ?? docToSeal.titleEn,
+                  scopeAr: docToSeal.scopeAr,
+                  scopeEn: docToSeal.scopeEn,
+                  mandatoryRulesAr: docToSeal.mandatoryRulesAr,
+                  mandatoryRulesEn: docToSeal.mandatoryRulesEn,
+                  financialSummaryAr: docToSeal.financialSummaryAr,
+                  financialSummaryEn: docToSeal.financialSummaryEn,
+                  effectiveWindow: docToSeal.effectiveWindow,
+                  onIssued: (meta) => {
+                    setPrintDoc((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            sealId: meta.sealId,
+                            serialRef: meta.serialRef,
+                            issuedAtIso: meta.issuedAtIso,
+                          }
+                        : null,
+                    )
+                  },
+                })
+              }
+        }
       />
       <ExecutivePinModal
         open={Boolean(pinPrompt)}
@@ -800,6 +909,7 @@ function GovernanceSlideOverDrawer({
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
   const {
+    isAuditor,
     session,
     approvals,
     pendingApprovals,
@@ -954,70 +1064,88 @@ function GovernanceSlideOverDrawer({
             </div>
           </div>
 
-          {/* Executive Session Control Bar */}
+          {/* Executive Session Control Bar / Auditor Read-Only Notice */}
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-[#F7F7F8] px-3.5 py-2.5 text-xs dark:bg-neutral-950">
-            {session.active ? (
-              <div className="flex items-center gap-2 font-semibold text-emerald-700 dark:text-emerald-300">
-                <Unlock className="h-4 w-4" />
-                <span>{isAr ? 'وضع المدير نشط 🔓' : 'Executive Session Active 🔓'}</span>
-                <span
-                  dir="ltr"
-                  className="rounded-full bg-emerald-100/80 px-2 py-0.5 font-mono text-[11px] tabular-nums text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
-                >
-                  {formatCountdown(session.remainingSeconds)}
+            {isAuditor ? (
+              <>
+                <div className="flex items-center gap-2 font-semibold text-amber-800 dark:text-amber-300">
+                  <Lock className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                  <span>
+                    {isAr
+                      ? 'حساب مراجعة — قراءة فقط (الاعتماد والتجميد مقفل)'
+                      : 'Read-Only Auditor (PIN & Mutations Disabled)'}
+                  </span>
+                </div>
+                <span className="inline-flex items-center gap-1 rounded-xl bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-900 ring-1 ring-amber-500/25 dark:bg-amber-950/60 dark:text-amber-200">
+                  {isAr ? 'وضع المراجعة — قراءة فقط' : 'Read-Only Auditor Session'}
                 </span>
-              </div>
+              </>
             ) : (
-              <div className="flex items-center gap-2 font-medium text-neutral-600 dark:text-slate-300">
-                <Lock className="h-4 w-4 text-neutral-400" />
-                <span>
-                  {isAr
-                    ? 'الاعتماد وإيقاف الصرف يتطلب رمز المدير (٤ أرقام)'
-                    : 'Approvals & freezes require 4-digit Manager PIN'}
-                </span>
-              </div>
+              <>
+                {session.active ? (
+                  <div className="flex items-center gap-2 font-semibold text-emerald-700 dark:text-emerald-300">
+                    <Unlock className="h-4 w-4" />
+                    <span>{isAr ? 'وضع المدير نشط 🔓' : 'Executive Session Active 🔓'}</span>
+                    <span
+                      dir="ltr"
+                      className="rounded-full bg-emerald-100/80 px-2 py-0.5 font-mono text-[11px] tabular-nums text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
+                    >
+                      {formatCountdown(session.remainingSeconds)}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 font-medium text-neutral-600 dark:text-slate-300">
+                    <Lock className="h-4 w-4 text-neutral-400" />
+                    <span>
+                      {isAr
+                        ? 'الاعتماد وإيقاف الصرف يتطلب رمز المدير (٤ أرقام)'
+                        : 'Approvals & freezes require 4-digit Manager PIN'}
+                    </span>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-1.5">
+                  {session.active ? (
+                    <button
+                      type="button"
+                      onClick={lockSession}
+                      className="cursor-pointer rounded-full bg-white px-3 py-1 font-semibold text-neutral-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors duration-150 hover:bg-rose-50 hover:text-rose-700 dark:bg-neutral-900 dark:text-slate-200"
+                    >
+                      {isAr ? 'قفل الصلاحية 🔒' : 'Lock Session 🔒'}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        requireManagerPin({
+                          titleAr: 'فتح صلاحية المدير لمدة ١٥ دقيقة',
+                          titleEn: 'Unlock 15-Minute Executive Session',
+                        })
+                      }
+                      className="btn-colored cursor-pointer rounded-xl bg-emerald-600 px-3 py-1 font-semibold text-white transition-colors duration-150 hover:bg-emerald-700 dark:bg-emerald-500 dark:text-[#04130D]"
+                    >
+                      {isAr ? 'فتح الصلاحية 🔓' : 'Unlock PIN 🔓'}
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      requireManagerPin({
+                        mode: 'change',
+                        titleAr: 'تغيير رمز المدير السري',
+                        titleEn: 'Change Manager PIN',
+                      })
+                    }
+                    title={isAr ? 'تغيير رمز المدير ⚙️' : 'Change Manager PIN ⚙️'}
+                    className="inline-flex cursor-pointer items-center gap-1 rounded-xl bg-white px-2.5 py-1 font-medium text-neutral-600 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors duration-150 hover:text-neutral-950 dark:bg-[#101C17] dark:text-slate-300"
+                  >
+                    <Settings className="h-3.5 w-3.5" />
+                    <span>{isAr ? 'تغيير رمز المدير ⚙️' : 'PIN ⚙️'}</span>
+                  </button>
+                </div>
+              </>
             )}
-
-            <div className="flex items-center gap-1.5">
-              {session.active ? (
-                <button
-                  type="button"
-                  onClick={lockSession}
-                  className="cursor-pointer rounded-full bg-white px-3 py-1 font-semibold text-neutral-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors duration-150 hover:bg-rose-50 hover:text-rose-700 dark:bg-neutral-900 dark:text-slate-200"
-                >
-                  {isAr ? 'قفل الصلاحية 🔒' : 'Lock Session 🔒'}
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() =>
-                    requireManagerPin({
-                      titleAr: 'فتح صلاحية المدير لمدة ١٥ دقيقة',
-                      titleEn: 'Unlock 15-Minute Executive Session',
-                    })
-                  }
-                  className="btn-colored cursor-pointer rounded-xl bg-emerald-600 px-3 py-1 font-semibold text-white transition-colors duration-150 hover:bg-emerald-700 dark:bg-emerald-500 dark:text-[#04130D]"
-                >
-                  {isAr ? 'فتح الصلاحية 🔓' : 'Unlock PIN 🔓'}
-                </button>
-              )}
-
-              <button
-                type="button"
-                onClick={() =>
-                  requireManagerPin({
-                    mode: 'change',
-                    titleAr: 'تغيير رمز المدير السري',
-                    titleEn: 'Change Manager PIN',
-                  })
-                }
-                title={isAr ? 'تغيير رمز المدير ⚙️' : 'Change Manager PIN ⚙️'}
-                className="inline-flex cursor-pointer items-center gap-1 rounded-xl bg-white px-2.5 py-1 font-medium text-neutral-600 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors duration-150 hover:text-neutral-950 dark:bg-[#101C17] dark:text-slate-300"
-              >
-                <Settings className="h-3.5 w-3.5" />
-                <span>{isAr ? 'تغيير رمز المدير ⚙️' : 'PIN ⚙️'}</span>
-              </button>
-            </div>
           </div>
 
           {/* Filter Pills */}
@@ -1135,7 +1263,37 @@ function GovernanceSlideOverDrawer({
                     </div>
 
                     <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                      {!b.frozen ? (
+                      {isAuditor ? (
+                        <>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="inline-flex h-8 items-center gap-1 rounded-xl bg-amber-50 px-3 text-xs font-semibold text-amber-900 ring-1 ring-amber-500/20 dark:bg-amber-950/60 dark:text-amber-200">
+                              <Lock className="h-3 w-3 shrink-0" />
+                              <span>
+                                {isAr ? 'وضع المراجعة — قراءة فقط' : 'Read-Only Auditor Session'}
+                              </span>
+                            </span>
+
+                            <button
+                              type="button"
+                              onClick={() => openBreachStopCircularPrint(b)}
+                              className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-xl bg-[#F7F7F8] px-2.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-200/70 dark:bg-white/10 dark:text-slate-200"
+                            >
+                              <FileText className="h-3.5 w-3.5 text-emerald-600" />
+                              <span>
+                                {isAr ? 'طباعة / تصدير تعميم رسمي 📄' : 'Print Circular 📄'}
+                              </span>
+                            </button>
+                          </div>
+
+                          <Link
+                            href={b.href}
+                            onClick={onClose}
+                            className="text-xs font-medium text-neutral-500 hover:text-emerald-700 dark:text-slate-300 dark:hover:text-emerald-300"
+                          >
+                            {isAr ? 'فتح المصدر للمراجعة ↗' : 'Review Source ↗'}
+                          </Link>
+                        </>
+                      ) : !b.frozen ? (
                         <>
                           <div className="flex flex-wrap items-center gap-1.5">
                             <button
@@ -1318,25 +1476,34 @@ function GovernanceSlideOverDrawer({
                     </p>
 
                     <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => approveItemWithPin(req.id, req.titleAr, req.titleEn)}
-                          className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-emerald-600 px-3.5 text-xs font-semibold text-white transition-colors duration-150 hover:bg-emerald-700"
-                        >
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          <span>{isAr ? 'موافقة واعتماد ✅' : 'Approve & Seal ✅'}</span>
-                        </button>
+                      {isAuditor ? (
+                        <span className="inline-flex h-8 items-center gap-1 rounded-xl bg-amber-50 px-3 text-xs font-semibold text-amber-900 ring-1 ring-amber-500/20 dark:bg-amber-950/60 dark:text-amber-200">
+                          <Lock className="h-3 w-3 shrink-0" />
+                          <span>
+                            {isAr ? 'وضع المراجعة — قراءة فقط' : 'Read-Only Auditor Session'}
+                          </span>
+                        </span>
+                      ) : (
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => approveItemWithPin(req.id, req.titleAr, req.titleEn)}
+                            className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-emerald-600 px-3.5 text-xs font-semibold text-white transition-colors duration-150 hover:bg-emerald-700"
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            <span>{isAr ? 'موافقة واعتماد ✅' : 'Approve & Seal ✅'}</span>
+                          </button>
 
-                        <button
-                          type="button"
-                          onClick={() => rejectItemWithPin(req.id, req.titleAr, req.titleEn)}
-                          className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-neutral-100 px-3 text-xs font-medium text-neutral-700 transition-colors duration-150 hover:bg-rose-50 hover:text-rose-700 dark:bg-white/10 dark:text-slate-200"
-                        >
-                          <XCircle className="h-3.5 w-3.5" />
-                          <span>{isAr ? 'رفض ❌' : 'Reject ❌'}</span>
-                        </button>
-                      </div>
+                          <button
+                            type="button"
+                            onClick={() => rejectItemWithPin(req.id, req.titleAr, req.titleEn)}
+                            className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-neutral-100 px-3 text-xs font-medium text-neutral-700 transition-colors duration-150 hover:bg-rose-50 hover:text-rose-700 dark:bg-white/10 dark:text-slate-200"
+                          >
+                            <XCircle className="h-3.5 w-3.5" />
+                            <span>{isAr ? 'رفض ❌' : 'Reject ❌'}</span>
+                          </button>
+                        </div>
+                      )}
 
                       <Link
                         href={req.href}

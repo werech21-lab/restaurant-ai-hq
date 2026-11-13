@@ -671,7 +671,7 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
                     onChange={(e) => setSelectedBrand(e.target.value)}
                     className="w-full rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-slate-200 text-xs focus:border-emerald-500"
                   >
-                    <option value="ALL">{isAr ? 'جميع البراندات الـ 7 الرسمية + المقر الرئيسي' : 'All 7 Brands + HQ'}</option>
+                    <option value="ALL">{isAr ? 'جميع المطاعم الـ 6 الرسمية + المقر الرئيسي' : 'All 6 Brands + HQ'}</option>
                     {KUWAIT_DIMENSION_BRANDS.map((b) => (
                       <option key={b.code} value={b.code}>{b.code} · {isAr ? b.nameAr : b.nameEn}</option>
                     ))}

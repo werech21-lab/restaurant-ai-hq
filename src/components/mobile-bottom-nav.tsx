@@ -10,6 +10,7 @@ import {
   Grid2x2,
   LayoutDashboard,
   Lock,
+  ShieldCheck,
   Sparkles,
   TrendingUp,
   Unlock,
@@ -20,6 +21,7 @@ import { ThemeToggle } from '@/components/ThemeToggle'
 import { isNavItemActive, SIDEBAR_SECTIONS } from '@/components/erp-sidebar'
 import { ExecutivePinModal } from '@/components/erp/ExecutivePinModal'
 import {
+  AUDITOR_ROLE_EVENT,
   OPEN_GOV_DRAWER_EVENT,
   useOptionalGovernance,
 } from '@/components/erp/GovernanceBellDrawer'
@@ -48,12 +50,19 @@ function formatSessionTimer(sec: number): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
+function readDomAuditorFlag(): boolean {
+  if (typeof document === 'undefined') return false
+  if (document.documentElement.dataset.auditor === 'true') return true
+  const root = document.getElementById('ae-root')
+  return root?.dataset.auditor === 'true'
+}
+
 /**
  * Native-Grade 5-Tab Mobile Bottom Dock (`lg:hidden`) +
  * Full 13-Page Categorized "All Modules" Navigation Bottom Sheet.
  * Safe both inside and outside `GovernanceProvider`.
  */
-export function MobileBottomNav() {
+export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: boolean } = {}) {
   const pathname = usePathname()
   const { locale, setLocale } = useI18n()
   const isAr = locale === 'ar'
@@ -61,6 +70,7 @@ export function MobileBottomNav() {
 
   const [sheetOpen, setSheetOpen] = useState(false)
   const [standalonePinOpen, setStandalonePinOpen] = useState(false)
+  const [domAuditor, setDomAuditor] = useState(false)
   const [fallbackSession, setFallbackSession] = useState<ExecutiveSessionState>({
     active: false,
     unlockedAt: null,
@@ -69,10 +79,21 @@ export function MobileBottomNav() {
   })
   const [fallbackBadgeCount, setFallbackBadgeCount] = useState(0)
 
-  // Close sheet automatically on route navigation
+  // Close sheet automatically on route navigation & refresh auditor flag from shell DOM
   useEffect(() => {
     setSheetOpen(false)
+    setDomAuditor(readDomAuditorFlag())
   }, [pathname])
+
+  useEffect(() => {
+    setDomAuditor(readDomAuditorFlag())
+    const onRoleEvent = (e: Event) => {
+      const detail = (e as CustomEvent<boolean | undefined>).detail
+      setDomAuditor(typeof detail === 'boolean' ? detail : readDomAuditorFlag())
+    }
+    window.addEventListener(AUDITOR_ROLE_EVENT, onRoleEvent)
+    return () => window.removeEventListener(AUDITOR_ROLE_EVENT, onRoleEvent)
+  }, [])
 
   // Escape key closes sheet
   useEffect(() => {
@@ -84,11 +105,17 @@ export function MobileBottomNav() {
     return () => window.removeEventListener('keydown', onEsc)
   }, [sheetOpen])
 
+  const isAuditor = Boolean(isAuditorProp ?? gov?.isAuditor ?? domAuditor)
+
   // Keep standalone Manager PIN session & badge count synced even when mounted in RootLayout outside GovernanceProvider
   const syncFallbackGovernance = useCallback(() => {
     if (gov) return
     try {
-      setFallbackSession(getExecutiveSession())
+      setFallbackSession(
+        isAuditor
+          ? { active: false, unlockedAt: null, expiresAt: null, remainingSeconds: 0 }
+          : getExecutiveSession(),
+      )
       const st = loadGovernanceStore()
       const pending = st.approvals.filter((a) => a.status === 'pending').length
       const breaches = evaluateLiveOdooBreaches(st).filter((b) => !b.frozen).length
@@ -96,7 +123,7 @@ export function MobileBottomNav() {
     } catch {
       // safe SSR / cold-start fallback
     }
-  }, [gov])
+  }, [gov, isAuditor])
 
   useEffect(() => {
     if (gov) return
@@ -114,13 +141,18 @@ export function MobileBottomNav() {
 
   if (!pathname || HIDDEN_ROUTES.has(pathname)) return null
 
-  const activeSession = gov ? gov.session : fallbackSession
+  const activeSession = isAuditor
+    ? { active: false, unlockedAt: null, expiresAt: null, remainingSeconds: 0 }
+    : gov
+      ? gov.session
+      : fallbackSession
   const badgeCount = gov ? gov.liveBadgeCount : fallbackBadgeCount
 
   const handleUnlockPin = () => {
+    if (isAuditor) return
     if (gov) {
       gov.requireManagerPin({
-        titleAr: 'تفعيل وضع المدير لمدة ١٥ دقيقة',
+        titleAr: 'تفعيل وضع المدير لمدة 15 دقيقة',
         titleEn: 'Unlock 15-Minute Manager Session',
       })
     } else {
@@ -129,6 +161,7 @@ export function MobileBottomNav() {
   }
 
   const handleLockPin = () => {
+    if (isAuditor) return
     if (gov) {
       gov.lockSession()
     } else {
@@ -190,7 +223,7 @@ export function MobileBottomNav() {
                   {isAr ? 'فنتشر فودز' : 'Venture Foods'}
                 </h2>
                 <p className="whitespace-nowrap text-[11.5px] font-medium text-slate-500 dark:text-slate-400">
-                  {isAr ? '6 مطاعم · 7 فروع' : '6 Brands · 7 Branches'}
+                  {isAr ? '6 مطاعم · 7 فروع · 8 قنوات' : '6 Brands · 7 Branches · 8 Channels'}
                 </p>
               </div>
 
@@ -218,9 +251,14 @@ export function MobileBottomNav() {
               </div>
             </div>
 
-            {/* Manager PIN Session Status & Bell Bar */}
+            {/* Manager PIN Session / Auditor Read-Only Status & Bell Bar */}
             <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-[#F6F7F8] px-3.5 py-2.5 ring-1 ring-slate-900/[0.04] dark:bg-[#09110E] dark:ring-emerald-500/15">
-              {activeSession.active ? (
+              {isAuditor ? (
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
+                  <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                  <span>{isAr ? 'حساب مراجعة — قراءة فقط' : 'Read-Only Auditor'}</span>
+                </div>
+              ) : activeSession.active ? (
                 <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
                   <Unlock className="h-3.5 w-3.5 shrink-0" />
                   <span>{isAr ? 'وضع المدير نشط 🔓' : 'Manager Active 🔓'}</span>
@@ -246,13 +284,18 @@ export function MobileBottomNav() {
                     className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-xl bg-white px-2.5 text-xs font-semibold text-slate-700 ring-1 ring-slate-900/[0.06] transition-colors hover:bg-emerald-50 dark:bg-[#101C17] dark:text-slate-200 dark:ring-emerald-500/15"
                   >
                     <Bell className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                    <span dir="ltr" className="tabular-nums font-bold">
+                    <span dir="ltr" className="font-bold tabular-nums">
                       {badgeCount}
                     </span>
                   </button>
                 ) : null}
 
-                {activeSession.active ? (
+                {isAuditor ? (
+                  <span className="inline-flex h-8 items-center gap-1 rounded-xl bg-amber-50 px-2.5 text-[11px] font-bold text-amber-900 ring-1 ring-amber-500/20 dark:bg-amber-950/60 dark:text-amber-200">
+                    <Lock className="h-3 w-3 shrink-0" />
+                    <span>{isAr ? 'وضع المراجعة — قراءة فقط' : 'Read-Only'}</span>
+                  </span>
+                ) : activeSession.active ? (
                   <button
                     type="button"
                     onClick={handleLockPin}
@@ -322,10 +365,10 @@ export function MobileBottomNav() {
       ) : null}
 
       {/* Standalone PIN modal fallback when outside GovernanceProvider */}
-      {!gov ? (
+      {!gov && !isAuditor ? (
         <ExecutivePinModal
           open={standalonePinOpen}
-          actionTitleAr="تفعيل وضع المدير لمدة ١٥ دقيقة"
+          actionTitleAr="تفعيل وضع المدير لمدة 15 دقيقة"
           actionTitleEn="Unlock 15-Minute Manager Session"
           onClose={() => setStandalonePinOpen(false)}
           onVerified={() => syncFallbackGovernance()}

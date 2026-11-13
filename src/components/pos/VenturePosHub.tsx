@@ -413,8 +413,8 @@ export function VenturePosHub({
           </h1>
           <p className="mt-2 text-xs leading-relaxed text-slate-400 max-w-4xl">
             {isAr
-              ? 'نظام نقاط البيع الموحد للعلامات التجارية الست، إغلاق الوردية الأعمى ومطابقة الصندوق، تسوية كي نت والبنوك، ورقابة الهدر والإلغاءات'
-              : 'Unified POS system for all 7 brands, blind shift close & cash reconciliation, K-Net & bank settlement, and waste & void control'}
+              ? 'نظام نقاط البيع الموحد للمطاعم الـ 6، إغلاق الوردية الأعمى ومطابقة الصندوق، تسوية كي نت والبنوك، ورقابة الهدر والإلغاءات'
+              : 'Unified POS system for all 6 brands, blind shift close & cash reconciliation, K-Net & bank settlement, and waste & void control'}
           </p>
         </div>
 
@@ -534,7 +534,7 @@ export function VenturePosHub({
             {/* Brand Filter Pills */}
             <div className="flex flex-wrap items-center gap-1.5">
               {[
-                { id: 'ALL', labelAr: 'جميع البراندات الـ 6', labelEn: 'All 7 Brands' },
+                { id: 'ALL', labelAr: 'جميع المطاعم الـ 6', labelEn: 'All 6 Brands' },
                 { id: 'chinagarden', labelAr: 'تشاينا جاردن', labelEn: 'China Garden' },
                 { id: 'franks', labelAr: "فرانكس", labelEn: "Frank's" },
                 { id: 'tahina', labelAr: 'شاورما طحينة', labelEn: 'Tahina' },

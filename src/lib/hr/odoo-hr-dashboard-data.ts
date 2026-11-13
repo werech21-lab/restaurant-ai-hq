@@ -341,7 +341,7 @@ export const ODOO_GANTT_SCHEDULE_ROWS: OdooEmployeeShiftSchedule[] = [
     branchAr: 'المقر الرئيسي والميدان',
     branchEn: 'Head Office & Field Operations',
     brandAr: 'كافة البراندات الـ 6',
-    brandEn: 'All 7 Brands',
+    brandEn: 'All 6 Brands',
     weeklyHours: 48,
     days: [
       { dayKey: 'sat', dayNameAr: 'السبت', dayNameEn: 'Saturday', type: 'evening_peak', timeRangeAr: '4:00 م - 12:00 ص', timeRangeEn: '4:00 PM - 12:00 AM', hours: 8 },

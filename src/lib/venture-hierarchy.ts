@@ -1,5 +1,5 @@
 /**
- * Canonical Venture Foods Kuwait operating map: 7 brands × 10 branches.
+ * Canonical Venture Foods Kuwait operating map: 6 brands • 7 branches • 8 channels.
  * Branch `id` is stable and synced onto `Warehouse.code`.
  */
 export const VENTURE_BRANDS = [

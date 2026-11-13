@@ -16,9 +16,10 @@ import {
   BRAIN_MODE_EVENT,
   buildGrokUltraClipboardBrief,
   FERYAL_EXECUTIVE_MODES,
+  FERYAL_PRIMARY_MODES,
   getActiveBrainMode,
   getClaudeSonnetOnly,
-  getExecutiveModeLabel,
+  getPrimaryModeBadge,
   normalizeBrainMode,
   probeDualBrainHealth,
   setActiveBrainMode,
@@ -217,9 +218,9 @@ export function BrainControlsInline() {
 
   const fastReady = health ? health.geminiReady : hasGeminiApiKey()
   const visionReady = deepActive || fastReady
-  const activeModeId: 'triple' | 'gemini' | 'claude' =
-    mode === 'gemini' ? 'gemini' : mode === 'claude' ? 'claude' : 'triple'
-  const activeModeLabel = getExecutiveModeLabel(activeModeId, isAr)
+  const activeModeId: 'triple' | 'gemini' = mode === 'gemini' ? 'gemini' : 'triple'
+  const activeModeLabel = getPrimaryModeBadge(activeModeId, isAr)
+  void FERYAL_EXECUTIVE_MODES
 
   if (!pathname || !AI_SWITCHER_ROUTES.has(pathname)) {
     return null
@@ -227,13 +228,13 @@ export function BrainControlsInline() {
 
   return (
     <div className="flex min-w-0 max-w-full flex-wrap items-center gap-1.5">
-      {/* 3 Friendly Executive Modes Switcher */}
+      {/* Friendly 2-Option Executive Mode Switcher (`دقيق` / `سريع`) */}
       <div
         role="tablist"
-        aria-label={isAr ? 'اختيار نمط فريال التنفيذي' : 'Select Feryal Executive Mode'}
-        className="flex min-w-0 max-w-full flex-wrap items-center gap-1 rounded-2xl bg-white p-1 shadow-[0_1px_2px_rgba(15,23,42,0.03)] ring-1 ring-slate-900/[0.06] dark:bg-[#111A22] dark:ring-white/[0.08]"
+        aria-label={isAr ? 'اختيار نمط الإجابة' : 'Select Answer Mode'}
+        className="flex min-w-0 max-w-full items-center gap-1 overflow-x-auto no-scrollbar rounded-2xl bg-white p-1 shadow-[0_1px_2px_rgba(15,23,42,0.03)] ring-1 ring-slate-900/[0.06] dark:bg-[#111A22] dark:ring-white/[0.08]"
       >
-        {FERYAL_EXECUTIVE_MODES.map((opt) => {
+        {FERYAL_PRIMARY_MODES.map((opt) => {
           const active = activeModeId === opt.id
           return (
             <button
@@ -241,14 +242,24 @@ export function BrainControlsInline() {
               type="button"
               role="tab"
               aria-selected={active}
+              title={isAr ? `${opt.shortAr} — ${opt.subAr}` : `${opt.shortEn} — ${opt.subEn}`}
               onClick={() => handleSelectMode(opt.id)}
-              className={`inline-flex min-h-[30px] min-w-0 cursor-pointer items-center justify-center rounded-xl px-3 py-1 text-[12px] font-bold whitespace-normal transition-all duration-150 focus:outline-none ${
+              className={`inline-flex shrink-0 min-h-[30px] cursor-pointer items-center gap-1.5 rounded-xl px-3 py-1 text-[12px] font-bold transition-all duration-150 focus:outline-none ${
                 active
                   ? 'btn-colored bg-emerald-600 text-white shadow-sm dark:bg-emerald-500 dark:text-[#04130D]'
                   : 'text-slate-600 hover:bg-[#F4F6F9] hover:text-slate-950 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
               }`}
             >
-              <span>{isAr ? opt.ar : opt.en}</span>
+              <span>{isAr ? opt.shortAr : opt.shortEn}</span>
+              <span
+                className={`text-[10.5px] font-medium ${
+                  active
+                    ? 'text-emerald-50/90 dark:text-[#04130D]/80'
+                    : 'text-slate-400 dark:text-slate-400'
+                }`}
+              >
+                ({isAr ? opt.subAr : opt.subEn})
+              </span>
             </button>
           )
         })}
@@ -372,7 +383,7 @@ export function BrainControlsInline() {
                 <div className="text-[11.5px] font-extrabold text-slate-900 dark:text-white">
                   {isAr ? 'وضع الاستجابة الاقتصادية السريعة ⚡' : 'Fast Economy Routing ⚡'}
                 </div>
-                <div className="truncate text-[10.5px] font-medium text-slate-600 dark:text-slate-300">
+                <div className="whitespace-normal break-words text-[10.5px] font-medium text-slate-600 dark:text-slate-300">
                   {economyMode
                     ? isAr
                       ? 'توجيه كافة الاستشارات اليومية للسرعة القصوى'

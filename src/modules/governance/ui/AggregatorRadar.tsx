@@ -635,7 +635,7 @@ export default function AggregatorRadar(_props: AggregatorRadarProps) {
               onChange={(e) => setBrandFilter(e.target.value)}
               className="ae-select w-full min-w-0"
             >
-              <option value="ALL">{T('All 7 Brands', 'كل العلامات (7)')}</option>
+              <option value="ALL">{T('All 6 Brands', 'كل المطاعم (6)')}</option>
               {VENTURE_BRANDS.map((b) => (
                 <option key={b.id} value={b.id}>
                   {isEn ? b.nameEn : b.nameAr}

@@ -18,6 +18,7 @@ import {
   Mic,
   MicOff,
   Minimize2,
+  Paperclip,
   Rocket,
   RotateCcw,
   Scale,
@@ -37,8 +38,10 @@ import {
   askDualHeavyBrain,
   BRAIN_MODE_EVENT,
   FERYAL_EXECUTIVE_MODES,
+  FERYAL_PRIMARY_MODES,
   getActiveBrainMode,
   getExecutiveModeLabel,
+  getPrimaryModeBadge,
   normalizeBrainMode,
   setActiveBrainMode,
   type BrainMode,
@@ -120,8 +123,8 @@ const f0 = (n: number) => Math.round(Number.isFinite(n) ? n : 0).toLocaleString(
 
 const welcomeText = (lang: 'ar' | 'en') =>
   lang === 'ar'
-    ? 'هلا بك، أنا فريال. اختر نمط التحليل أعلاه أو ارفع صور JPG / PNG وفيديو MP4 لفحص جودة الأطباق ونظافة المطبخ وفواتير كل مورد معتمد، أو اسألني مباشرة عن أرقام أودو 17 عبر الفروع الـ 7 ومطبخ العارضية.'
-    : "Welcome — I'm Feryal. Choose your executive mode above, upload JPG / PNG photos or MP4 video to audit dish quality, kitchen hygiene, and approved supplier invoices, or ask directly across live Odoo 17 data for all 7 branches."
+    ? 'هلا بك، أنا فريال. اختر نمط الإجابة أعلاه: دقيق (تحليل دقيق) أو سريع (إجابة سريعة)، أو اضغط 📎 إرفاق صورة / فيديو لفحص جودة الأطباق ونظافة المطبخ وفواتير الموردين، أو اسألني مباشرة عن أرقام أودو 17 عبر 6 مطاعم • 7 فروع • 8 قنوات.'
+    : "Welcome — I'm Feryal. Choose Deep & Precise or Fast Answer above, click 📎 Attach Photo / Video to inspect dish quality, kitchen hygiene, and supplier invoices, or ask directly across live Odoo 17 data (6 Brands • 7 Branches • 8 Channels)."
 
 type ChatMessage = StoredChatMessage
 
@@ -463,7 +466,6 @@ export function FeryalGovernanceStudio() {
           processed.push(item)
         }
         setPendingAttachments((prev) => [...prev, ...processed].slice(0, 6))
-        handleSelectStudioMode('claude')
       } catch {
         setMediaErrorText(
           isAr
@@ -741,9 +743,7 @@ export function FeryalGovernanceStudio() {
     if (ingestedPromptSigRef.current === incomingPrompt) return
 
     ingestedPromptSigRef.current = incomingPrompt
-    setIngestedDeepLinkLabel(
-      incomingPrompt.length > 96 ? `${incomingPrompt.slice(0, 96)}…` : incomingPrompt,
-    )
+    setIngestedDeepLinkLabel(incomingPrompt)
 
     try {
       const cleanUrl = new URL(window.location.href)
@@ -1013,22 +1013,22 @@ export function FeryalGovernanceStudio() {
     [messages],
   )
 
-  const selectedExecutiveModeId: 'triple' | 'gemini' | 'claude' =
-    activeBrainMode === 'gemini' ? 'gemini' : activeBrainMode === 'claude' ? 'claude' : 'triple'
+  const selectedPrimaryModeId: 'triple' | 'gemini' =
+    activeBrainMode === 'gemini' ? 'gemini' : 'triple'
+  void FERYAL_EXECUTIVE_MODES
 
   const utilityPillIdle =
-    'inline-flex min-w-0 cursor-pointer items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-[12px] font-medium whitespace-normal text-neutral-600 transition-all duration-150 hover:bg-white/90 hover:text-neutral-900 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
+    'inline-flex shrink-0 md:shrink min-w-0 cursor-pointer items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-[12px] font-medium whitespace-nowrap md:whitespace-normal text-neutral-600 transition-all duration-150 hover:bg-white/90 hover:text-neutral-900 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
   const utilityPillActive =
-    'inline-flex min-w-0 cursor-pointer items-center gap-1.5 rounded-xl bg-white px-2.5 py-1.5 text-[12px] font-semibold whitespace-normal text-emerald-800 shadow-sm ring-1 ring-slate-900/[0.06] transition-all duration-150 dark:bg-emerald-500/20 dark:text-emerald-200 dark:ring-emerald-500/30'
+    'inline-flex shrink-0 md:shrink min-w-0 cursor-pointer items-center gap-1.5 rounded-xl bg-white px-2.5 py-1.5 text-[12px] font-semibold whitespace-nowrap md:whitespace-normal text-emerald-800 shadow-sm ring-1 ring-slate-900/[0.06] transition-all duration-150 dark:bg-emerald-500/20 dark:text-emerald-200 dark:ring-emerald-500/30'
 
   return (
     <div
       dir={isAr ? 'rtl' : 'ltr'}
-      className="mx-auto w-full max-w-[1920px] min-w-0 overflow-x-hidden pb-6 font-sans text-[15px] text-neutral-900 antialiased dark:text-slate-100"
+      className="mx-auto w-full max-w-[1920px] min-w-0 overflow-x-hidden pt-0 pb-6 font-sans text-[15px] text-neutral-900 antialiased dark:text-slate-100"
     >
+      <audio ref={audioPlayerRef} hidden className="hidden" preload="none" />
       <div className="w-full max-w-full min-w-0 space-y-3 overflow-x-hidden">
-        <audio ref={audioPlayerRef} className="hidden" preload="none" />
-
         {toastNotice ? (
           <div className="fixed bottom-6 end-6 z-50 flex max-w-[calc(100vw-2rem)] items-center gap-2 rounded-2xl bg-white px-4 py-3 text-xs font-semibold text-emerald-800 shadow-xl ring-1 ring-emerald-500/25 dark:bg-[#101C17] dark:text-emerald-300">
             <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
@@ -1038,12 +1038,12 @@ export function FeryalGovernanceStudio() {
 
         {ingestedDeepLinkLabel ? (
           <div className="flex w-full max-w-full min-w-0 flex-wrap items-center justify-between gap-2 rounded-2xl bg-emerald-50/85 px-4 py-2.5 text-xs font-medium text-emerald-900 ring-1 ring-emerald-500/20 dark:bg-emerald-950/45 dark:text-emerald-200">
-            <div className="flex min-w-0 flex-1 items-center gap-2">
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
               <Sparkles className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
               <span className="shrink-0 font-semibold">
                 {T('Prompt Auto-Executed:', 'تم تشغيل السؤال تلقائياً:')}
               </span>
-              <span className="min-w-0 truncate text-emerald-800/90 dark:text-emerald-300">
+              <span className="min-w-0 whitespace-normal break-words text-emerald-800/90 dark:text-emerald-300">
                 {ingestedDeepLinkLabel}
               </span>
             </div>
@@ -1085,8 +1085,8 @@ export function FeryalGovernanceStudio() {
               isDragActive ? 'ring-2 ring-emerald-500/45' : ''
             }`}
           >
-            {/* 1. Wrapping Top Studio Bar (ZERO horizontal overflow or text clipping on 390px or 1440px) */}
-            <div className="w-full max-w-full min-w-0 space-y-2.5 border-b border-neutral-100 px-3.5 py-3 sm:px-5 dark:border-white/[0.06]">
+            {/* 1. Zero-Overflow Top Studio Bar (`6 مطاعم • 7 فروع • 8 قنوات` + Scrollable/Wrapped Utility Chips) */}
+            <div className="w-full max-w-full min-w-0 space-y-2.5 border-b border-neutral-100 px-3.5 py-2.5 sm:px-5 sm:py-3 dark:border-white/[0.06]">
               <div className="flex w-full max-w-full min-w-0 flex-wrap items-center justify-between gap-2">
                 <div className="flex min-w-0 flex-wrap items-center gap-2">
                   <span className="inline-flex min-w-0 items-center gap-1.5 rounded-xl bg-emerald-50 px-3 py-1 text-xs font-semibold whitespace-normal text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
@@ -1100,26 +1100,26 @@ export function FeryalGovernanceStudio() {
                   </span>
                   <span className="inline-flex min-w-0 items-center rounded-xl bg-[#F6F7F8] px-2.5 py-1 text-[11.5px] font-semibold tabular-nums whitespace-normal text-neutral-600 dark:bg-[#09110E] dark:text-slate-300">
                     {T(
-                      '6 Brands · 7 Branches · Approved Supplier',
-                      '6 علامات · 7 فروع · مورد معتمد',
+                      '6 Brands • 7 Branches • 8 Channels',
+                      '6 مطاعم • 7 فروع • 8 قنوات',
                     )}
                   </span>
                 </div>
 
-                {/* Wrapping Studio Action Pills (Unclipped `ابتكار الحلول الكبرى 🚀`, `ذاكرة وتطور فريال 🧠`, Voice & Chat Controls) */}
-                <div className="flex min-w-0 max-w-full flex-wrap items-center gap-1.5">
+                {/* Horizontally Scrollable on <768px / Wrapping on Desktop Studio Action Pills */}
+                <div className="flex w-full md:w-auto min-w-0 max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar md:flex-wrap">
                   <button
                     type="button"
                     disabled={isCopilotThinking}
                     aria-expanded={bigBetMenuOpen}
                     onClick={() => setBigBetMenuOpen((v) => !v)}
-                    className="inline-flex min-w-0 cursor-pointer items-center gap-1.5 rounded-xl bg-emerald-50 px-3 py-1.5 text-[12px] font-semibold whitespace-normal text-emerald-800 ring-1 ring-emerald-500/25 transition-all duration-150 hover:bg-emerald-100 disabled:opacity-50 dark:bg-emerald-950/60 dark:text-emerald-200 dark:ring-emerald-500/35"
+                    className="inline-flex shrink-0 md:shrink min-w-0 cursor-pointer items-center gap-1.5 rounded-xl bg-emerald-50 px-3 py-1.5 text-[12px] font-semibold whitespace-nowrap md:whitespace-normal text-emerald-800 ring-1 ring-emerald-500/25 transition-all duration-150 hover:bg-emerald-100 disabled:opacity-50 dark:bg-emerald-950/60 dark:text-emerald-200 dark:ring-emerald-500/35"
                   >
                     <Rocket className="h-3.5 w-3.5 shrink-0" />
                     <span>{T('Big-Bet Generator 🚀', 'ابتكار الحلول الكبرى 🚀')}</span>
                   </button>
 
-                  <div className="flex min-w-0 max-w-full flex-wrap items-center gap-1 rounded-2xl bg-neutral-100/90 p-1 dark:bg-white/[0.06]">
+                  <div className="flex shrink-0 md:shrink min-w-0 max-w-full items-center gap-1 rounded-2xl bg-neutral-100/90 p-1 md:flex-wrap dark:bg-white/[0.06]">
                     <button
                       type="button"
                       onClick={() => setMemoryOpen(true)}
@@ -1195,41 +1195,72 @@ export function FeryalGovernanceStudio() {
                 </div>
               </div>
 
-              {/* 2. Friendly 3-Mode Executive Selector (Strictly zero raw technical model slugs) */}
-              <div
-                role="tablist"
-                aria-label={T('Select Feryal Executive Mode', 'اختيار نمط فريال التنفيذي')}
-                className="grid w-full max-w-full min-w-0 grid-cols-1 gap-1.5 rounded-2xl bg-[#F6F7F8] p-1.5 sm:grid-cols-3 dark:bg-[#09110E]"
-              >
-                {FERYAL_EXECUTIVE_MODES.map((opt) => {
-                  const active = selectedExecutiveModeId === opt.id
-                  return (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      role="tab"
-                      aria-selected={active}
-                      onClick={() => {
-                        handleSelectStudioMode(opt.id)
-                        if (opt.id === 'claude' && pendingAttachments.length === 0 && !hasUserMessages) {
-                          inputFieldRef.current?.focus()
-                        }
-                      }}
-                      className={`flex min-w-0 cursor-pointer flex-col items-start justify-center rounded-xl px-3 py-2 text-start transition-all duration-150 ${
-                        active
-                          ? 'bg-white text-emerald-900 shadow-sm ring-1 ring-emerald-500/30 dark:bg-[#101C17] dark:text-emerald-200 dark:ring-emerald-500/40'
-                          : 'text-neutral-600 hover:bg-white/70 hover:text-neutral-900 dark:text-slate-300 dark:hover:bg-white/[0.05] dark:hover:text-white'
-                      }`}
-                    >
-                      <span className="w-full min-w-0 text-[12.5px] font-bold whitespace-normal break-words">
-                        {isAr ? opt.ar : opt.en}
+              {/* 2. Friendly 2-Option Mode Selector (`دقيق` / `سريع`) + Dedicated Photo/Video Attachment Button (`📎 إرفاق صورة / فيديو`) */}
+              <div className="flex w-full max-w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div
+                  role="tablist"
+                  aria-label={T('Select Answer Mode', 'اختيار نمط الإجابة')}
+                  className="grid w-full sm:w-auto sm:min-w-[360px] max-w-full min-w-0 grid-cols-2 gap-1.5 rounded-2xl bg-[#F6F7F8] p-1.5 dark:bg-[#09110E]"
+                >
+                  {FERYAL_PRIMARY_MODES.map((opt) => {
+                    const active = selectedPrimaryModeId === opt.id
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        role="tab"
+                        aria-selected={active}
+                        title={isAr ? `${opt.shortAr} (${opt.subAr}) — ${opt.descAr}` : `${opt.shortEn} — ${opt.descEn}`}
+                        onClick={() => handleSelectStudioMode(opt.id)}
+                        className={`flex min-w-0 cursor-pointer flex-col items-start justify-center rounded-xl px-3.5 py-2 text-start transition-all duration-150 ${
+                          active
+                            ? 'bg-white text-emerald-900 shadow-sm ring-1 ring-emerald-500/30 dark:bg-[#101C17] dark:text-emerald-200 dark:ring-emerald-500/40'
+                            : 'text-neutral-600 hover:bg-white/70 hover:text-neutral-900 dark:text-slate-300 dark:hover:bg-white/[0.05] dark:hover:text-white'
+                        }`}
+                      >
+                        <span className="w-full min-w-0 text-[13.5px] font-bold whitespace-normal break-words">
+                          {isAr ? opt.shortAr : opt.shortEn}
+                        </span>
+                        <span className="mt-0.5 w-full min-w-0 text-[11.5px] font-medium whitespace-normal break-words text-neutral-500 dark:text-slate-400">
+                          {isAr ? opt.subAr : opt.subEn}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* Dedicated Multimodal Photo / Video Attachment Action Cluster */}
+                <div className="flex w-full sm:w-auto min-w-0 max-w-full flex-wrap items-center gap-1.5">
+                  <button
+                    type="button"
+                    disabled={isCopilotThinking || isProcessingMedia}
+                    onClick={() => openPickerRef.current?.()}
+                    title={T(
+                      'Attach JPG / PNG / WEBP photos or MP4 / WEBM / MOV videos for visual audit',
+                      'إرفاق صورة (JPG / PNG) أو فيديو (MP4) لفحص الأطباق والمطبخ وفواتير الموردين',
+                    )}
+                    className="inline-flex flex-1 sm:flex-initial min-h-[42px] min-w-0 cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-emerald-50 px-3.5 py-2 text-[12.5px] font-semibold whitespace-normal text-emerald-900 ring-1 ring-emerald-500/25 transition-all duration-150 hover:bg-emerald-100 disabled:opacity-50 dark:bg-emerald-950/60 dark:text-emerald-200 dark:ring-emerald-500/35"
+                  >
+                    <Paperclip className="h-3.5 w-3.5 shrink-0 text-emerald-700 dark:text-emerald-300" />
+                    <span>{T('📎 Attach Photo / Video', '📎 إرفاق صورة / فيديو')}</span>
+                    {pendingAttachments.length > 0 ? (
+                      <span className="btn-colored inline-flex h-5 min-w-[20px] items-center justify-center rounded-md bg-emerald-600 px-1.5 text-[10.5px] font-bold tabular-nums text-white">
+                        {pendingAttachments.length}
                       </span>
-                      <span className="mt-0.5 line-clamp-1 w-full min-w-0 text-[11px] font-normal text-neutral-500 dark:text-slate-400">
-                        {isAr ? opt.descAr : opt.descEn}
-                      </span>
-                    </button>
-                  )
-                })}
+                    ) : null}
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={isCopilotThinking || isProcessingMedia}
+                    onClick={() => openCameraRef.current?.()}
+                    title={T('Live Camera Capture', 'التقاط مباشر بالكاميرا')}
+                    className="inline-flex min-h-[42px] min-w-0 cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-[#F6F7F8] px-3 py-2 text-[12px] font-semibold whitespace-normal text-neutral-700 ring-1 ring-slate-900/[0.05] transition-all duration-150 hover:bg-emerald-50 hover:text-emerald-900 disabled:opacity-50 dark:bg-[#09110E] dark:text-slate-200 dark:ring-white/[0.08]"
+                  >
+                    <Camera className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                    <span>{T('Camera', 'الكاميرا')}</span>
+                  </button>
+                </div>
               </div>
 
               {/* Inline Unclipped Big-Bet Strategy Drawer (Never overflows viewport on 390px or 1440px) */}
@@ -1372,7 +1403,7 @@ export function FeryalGovernanceStudio() {
                     ? isAr
                       ? 'فحص الصور والفيديو'
                       : 'Vision & Video Inspector'
-                    : getExecutiveModeLabel(activeBrainMode, isAr)
+                    : getPrimaryModeBadge(activeBrainMode, isAr)
                   : undefined
                 const noteText = !mine ? (isAr ? m.statusNoteAr : m.statusNoteEn) : undefined
 
@@ -1668,8 +1699,8 @@ export function FeryalGovernanceStudio() {
                           <ImagePlus className="h-3.5 w-3.5 shrink-0" />
                           <span>
                             {T(
-                              'Upload JPG / PNG Photos & MP4 Video',
-                              'رفع صور JPG / PNG وفيديو MP4',
+                              '📎 Attach Photo / Video (JPG / PNG / MP4)',
+                              '📎 إرفاق صورة / فيديو (JPG / PNG / MP4)',
                             )}
                           </span>
                         </button>
@@ -1691,7 +1722,6 @@ export function FeryalGovernanceStudio() {
                           key={`empty-${preset.id}`}
                           type="button"
                           onClick={() => {
-                            handleSelectStudioMode('claude')
                             setInputText(isAr ? preset.promptAr : preset.promptEn)
                             openPickerRef.current?.()
                           }}
@@ -1768,16 +1798,16 @@ export function FeryalGovernanceStudio() {
             {/* 4. Input Composer Dock (Unclipped Wrapping Vision Bar when active + Composer) */}
             <div className="w-full max-w-full min-w-0 border-t border-neutral-100 bg-white px-3.5 pb-3.5 pt-2.5 sm:px-5 sm:pb-4 sm:pt-3 dark:border-white/[0.06] dark:bg-[#101C17]">
               {(hasUserMessages || pendingAttachments.length > 0) ? (
-                <div className="mb-2.5 flex w-full max-w-full min-w-0 flex-wrap items-center gap-1.5 rounded-2xl bg-neutral-100/90 p-1.5 dark:bg-white/[0.06]">
+                <div className="mb-2.5 flex w-full max-w-full min-w-0 items-center gap-1.5 overflow-x-auto no-scrollbar md:flex-wrap rounded-2xl bg-neutral-100/90 p-1.5 dark:bg-white/[0.06]">
                   <button
                     type="button"
                     disabled={isCopilotThinking || isProcessingMedia}
                     onClick={() => openPickerRef.current?.()}
-                    className="inline-flex min-w-0 cursor-pointer items-center gap-1.5 rounded-xl bg-white px-3 py-1.5 text-[12px] font-semibold whitespace-normal text-emerald-800 shadow-sm ring-1 ring-emerald-500/20 transition-all duration-150 hover:bg-emerald-50 disabled:opacity-50 dark:bg-emerald-500/20 dark:text-emerald-200 dark:ring-emerald-500/30"
+                    className="inline-flex shrink-0 md:shrink min-w-0 cursor-pointer items-center gap-1.5 rounded-xl bg-white px-3 py-1.5 text-[12px] font-semibold whitespace-nowrap md:whitespace-normal text-emerald-800 shadow-sm ring-1 ring-emerald-500/20 transition-all duration-150 hover:bg-emerald-50 disabled:opacity-50 dark:bg-emerald-500/20 dark:text-emerald-200 dark:ring-emerald-500/30"
                   >
-                    <Camera className="h-3.5 w-3.5 shrink-0" />
+                    <Paperclip className="h-3.5 w-3.5 shrink-0" />
                     <span>
-                      {T('Upload JPG / PNG & MP4', 'رفع صور JPG / PNG وفيديو MP4')}
+                      {T('📎 Attach Photo / Video', '📎 إرفاق صورة / فيديو')}
                     </span>
                   </button>
 
@@ -1787,11 +1817,10 @@ export function FeryalGovernanceStudio() {
                       type="button"
                       disabled={isCopilotThinking || isProcessingMedia}
                       onClick={() => {
-                        handleSelectStudioMode('claude')
                         setInputText(isAr ? preset.promptAr : preset.promptEn)
                         inputFieldRef.current?.focus()
                       }}
-                      className="inline-flex min-w-0 cursor-pointer items-center gap-1 rounded-xl px-2.5 py-1.5 text-[12px] font-medium whitespace-normal break-words text-neutral-600 transition-all duration-150 hover:bg-white/80 hover:text-neutral-900 disabled:opacity-50 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white"
+                      className="inline-flex shrink-0 md:shrink min-w-0 cursor-pointer items-center gap-1 rounded-xl px-2.5 py-1.5 text-[12px] font-medium whitespace-nowrap md:whitespace-normal break-words text-neutral-600 transition-all duration-150 hover:bg-white/80 hover:text-neutral-900 disabled:opacity-50 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white"
                     >
                       <span>{isAr ? preset.badgeAr : preset.badgeEn}</span>
                     </button>
@@ -1866,8 +1895,8 @@ export function FeryalGovernanceStudio() {
                     }
                   }}
                   placeholder={T(
-                    'Attach a photo/video (dish, kitchen, fridge, invoice) or ask Feryal anything…',
-                    'أرفق صورة أو فيديو (طبق، مطبخ، ثلاجة، فاتورة مورد معتمد) أو اسأل فريال مباشرة…',
+                    'Ask in Deep & Precise or Fast Answer mode, or click 📎 Attach Photo / Video…',
+                    'اسأل بنمط دقيق أو سريع، أو اضغط 📎 إرفاق صورة / فيديو لفحص الأطباق والمطبخ والفواتير…',
                   )}
                   className={`${SUBCARD_CLS} min-h-[48px] min-w-0 flex-1 resize-none px-3.5 py-3 text-[14.5px] leading-relaxed text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 sm:min-h-[50px] sm:px-4 dark:text-white`}
                 />

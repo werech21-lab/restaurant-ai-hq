@@ -208,7 +208,7 @@ export const ANALYTICS_AR: Record<string, string> = {
   'Odoo Journal (2,213)': 'قيود أودو (2,213)',
   '30.6% rev': '30.6% من الإيراد',
   'Fils verified': 'مدقّق حتى الفلس',
-  'Menu Tail · All 7 Brands': 'ذيل المنيو · العلامات السبع',
+  'Menu Tail · All 6 Brands': 'ذيل المنيو · المطاعم الـ 6',
   'Bottom 332 Menu SKUs': 'أدنى 332 صنفاً في المنيو',
   'Odoo POS Items': 'أصناف نقاط البيع في أودو',
   '20.0% sales': '20.0% من المبيعات',

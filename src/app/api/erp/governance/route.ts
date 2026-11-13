@@ -3,6 +3,10 @@ import os from 'os'
 import path from 'path'
 import { NextResponse, type NextRequest } from 'next/server'
 import { Pool } from 'pg'
+import {
+  EXEC_SESSION_COOKIE,
+  verifyExecSessionToken,
+} from '@/lib/auth/exec-session'
 import { prisma } from '@/lib/db'
 import { sslOptions } from '@/lib/db-ssl'
 import { APPROVED_BRANCH_IDS, type GlobalBranch } from '@/lib/aether/global-filter-engine'
@@ -300,6 +304,33 @@ async function saveEnvelopeToDatabase(
   return saved
 }
 
+const GOVERNANCE_RESPONSE_HEADERS = {
+  'Cache-Control': 'no-store, max-age=0',
+  'X-Robots-Tag': 'noindex, nofollow, noarchive',
+  'Permissions-Policy':
+    'camera=(self), microphone=(self), geolocation=(), browsing-topics=()',
+}
+
+async function guardReadOnlyAuditor(
+  request: NextRequest,
+): Promise<NextResponse | null> {
+  const rawToken =
+    request.cookies.get(EXEC_SESSION_COOKIE)?.value ??
+    request.cookies.get('aether_exec_session')?.value
+  const session = await verifyExecSessionToken(rawToken)
+  if (session?.role === 'auditor') {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: 'Read-only auditor session',
+        errorAr: 'حساب مراجعة للقراءة فقط — التعديل والاعتماد غير متاحين.',
+      },
+      { status: 403, headers: GOVERNANCE_RESPONSE_HEADERS },
+    )
+  }
+  return null
+}
+
 export async function GET() {
   const env = await loadEnvelopeFromDatabase()
   return NextResponse.json(
@@ -311,11 +342,14 @@ export async function GET() {
       pinHash: env.pinHash,
       store: env.store,
     },
-    { headers: { 'Cache-Control': 'no-store, max-age=0' } },
+    { headers: GOVERNANCE_RESPONSE_HEADERS },
   )
 }
 
 export async function POST(request: NextRequest) {
+  const auditorBlocked = await guardReadOnlyAuditor(request)
+  if (auditorBlocked) return auditorBlocked
+
   try {
     const body = (await request.json()) as {
       store?: PersistedGovernanceStore
@@ -332,22 +366,28 @@ export async function POST(request: NextRequest) {
         : current.pinHash
 
     const saved = await saveEnvelopeToDatabase(merged, nextPinHash)
-    return NextResponse.json({
-      ok: true,
-      backend: saved.backend,
-      updatedAtIso: saved.updatedAtIso,
-      pinHash: saved.pinHash,
-      store: saved.store,
-    })
+    return NextResponse.json(
+      {
+        ok: true,
+        backend: saved.backend,
+        updatedAtIso: saved.updatedAtIso,
+        pinHash: saved.pinHash,
+        store: saved.store,
+      },
+      { headers: GOVERNANCE_RESPONSE_HEADERS },
+    )
   } catch {
     return NextResponse.json(
       { ok: false, error: 'Invalid governance sync payload' },
-      { status: 400 },
+      { status: 400, headers: GOVERNANCE_RESPONSE_HEADERS },
     )
   }
 }
 
 export async function PATCH(request: NextRequest) {
+  const auditorBlocked = await guardReadOnlyAuditor(request)
+  if (auditorBlocked) return auditorBlocked
+
   try {
     const body = (await request.json()) as {
       action?: string
@@ -482,17 +522,35 @@ export async function PATCH(request: NextRequest) {
     }
 
     const saved = await saveEnvelopeToDatabase(nextStore, nextPinHash)
-    return NextResponse.json({
-      ok: true,
-      backend: saved.backend,
-      updatedAtIso: saved.updatedAtIso,
-      pinHash: saved.pinHash,
-      store: saved.store,
-    })
+    return NextResponse.json(
+      {
+        ok: true,
+        backend: saved.backend,
+        updatedAtIso: saved.updatedAtIso,
+        pinHash: saved.pinHash,
+        store: saved.store,
+      },
+      { headers: GOVERNANCE_RESPONSE_HEADERS },
+    )
   } catch {
     return NextResponse.json(
       { ok: false, error: 'Failed to apply governance patch' },
-      { status: 400 },
+      { status: 400, headers: GOVERNANCE_RESPONSE_HEADERS },
     )
   }
+}
+
+export async function PUT(request: NextRequest) {
+  const auditorBlocked = await guardReadOnlyAuditor(request)
+  if (auditorBlocked) return auditorBlocked
+  return POST(request)
+}
+
+export async function DELETE(request: NextRequest) {
+  const auditorBlocked = await guardReadOnlyAuditor(request)
+  if (auditorBlocked) return auditorBlocked
+  return NextResponse.json(
+    { ok: false, error: 'Method not allowed' },
+    { status: 405, headers: GOVERNANCE_RESPONSE_HEADERS },
+  )
 }

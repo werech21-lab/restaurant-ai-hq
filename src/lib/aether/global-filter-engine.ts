@@ -987,7 +987,7 @@ function formatConsolidatedScopeLabel(
   if (brandText && branchText) return `${brandText} • ${branchText}`
   if (branchText) return branchText
   if (brandText) return brandText
-  return isAr ? 'كل العلامات والفروع السبعة' : 'All 6 Brands & 7 Branches'
+  return isAr ? 'كل المطاعم الـ 6 والفروع الـ 7' : 'All 6 Brands & 7 Branches'
 }
 
 function matchesProfitLens(p: JourneyPlay, lens: ProfitLens): boolean {
@@ -1952,9 +1952,9 @@ export function computeGlobalWorkspace(
       valueAr: fKwd(deliveryDuesKwd, true),
       valueEn: fKwd(deliveryDuesKwd, false),
       descAr:
-        'مبالغ مستحقة لدى طلبات وكيتا وديليفرو وجاهز وسنونو (رصيد مفتوح قيد التحصيل يشمل فترات سابقة).',
+        'مبالغ مستحقة لدى طلبات وكيتا وديليفرو وجاهز وسنونو (رصيد متراكم مفتوح من فترات سابقة قيد التحصيل).',
       descEn:
-        'Unsettled aggregator payouts across Talabat, Keeta & Deliveroo (Open unsettled balance including prior periods).',
+        'Unsettled aggregator payouts across Talabat, Keeta & Deliveroo (Open cumulative balance from prior periods under collection).',
       accent: 'amber',
       statusDot: '🟠',
       statusLabelAr: 'رصيد/التزام تحت المتابعة',
@@ -2080,8 +2080,8 @@ export function computeGlobalWorkspace(
       id: 'note-delivery',
       titleAr: 'منصة توصيل طلبات TMP و Tgo',
       titleEn: 'Dual TMP & Tgo',
-      summaryAr: `مراجعة الحسابات المتوقفة فعلياً ومتابعة تحصيل ذمم منصات التوصيل المتراكمة (${fKwd(deliveryDuesKwd, true)} — رصيد مفتوح قيد التحصيل يشمل فترات سابقة).`,
-      summaryEn: `Check verified stopped accounts and collect cumulative aggregator receivables (${fKwd(deliveryDuesKwd, false)} — open unsettled balance including prior periods).`,
+      summaryAr: `مراجعة الحسابات المتوقفة فعلياً ومتابعة تحصيل ذمم منصات التوصيل المتراكمة (${fKwd(deliveryDuesKwd, true)} — رصيد متراكم مفتوح من فترات سابقة قيد التحصيل).`,
+      summaryEn: `Check verified stopped accounts and collect cumulative aggregator receivables (${fKwd(deliveryDuesKwd, false)} — open cumulative balance from prior periods under collection).`,
       benefitAr: fKwd(deliveryDuesKwd, true),
       benefitEn: fKwd(deliveryDuesKwd, false),
       promptAr: `أعطني ملخصاً سريعاً لحسابات منصة توصيل طلبات TMP (15%) و Tgo وذمم منصات التوصيل المتراكمة في (${buildFilterSubtitle(filters, true)}).`,

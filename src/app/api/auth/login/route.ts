@@ -2,12 +2,14 @@ import bcrypt from 'bcryptjs'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import {
+  authenticateExecutiveCredentials,
   createExecSessionToken,
   EXEC_SESSION_COOKIE,
   execCookieOptions,
   isSecureRequest,
   sanitizeExecNextPath,
   verifyExecutiveCredentials,
+  type ExecSessionRole,
 } from '@/lib/auth/exec-session'
 import {
   SESSION_COOKIE,
@@ -16,6 +18,8 @@ import {
 } from '@/lib/session'
 
 const ROBOTS_HEADER = 'noindex, nofollow, noarchive'
+const PERMISSIONS_POLICY_HEADER =
+  'camera=(self), microphone=(self), geolocation=(), browsing-topics=()'
 
 async function parseLoginCredentials(request: Request): Promise<{
   email: string
@@ -70,12 +74,17 @@ export async function POST(request: Request) {
   const safeNext = sanitizeExecNextPath(next, '/erp')
 
   let authenticatedEmail: string | null = null
+  let authenticatedRole: ExecSessionRole = 'executive'
   let prismaUserId: string | null = null
 
   if (email && password) {
     const isExecValid = await verifyExecutiveCredentials(email, password)
     if (isExecValid) {
-      authenticatedEmail = email
+      const matched = await authenticateExecutiveCredentials(email, password)
+      if (matched.valid) {
+        authenticatedEmail = matched.email
+        authenticatedRole = matched.role
+      }
     } else if (password.length >= 8 && email !== 'admin@aetherbi.com') {
       try {
         const dbUser = await prisma.user.findUnique({
@@ -91,6 +100,7 @@ export async function POST(request: Request) {
           const matches = await bcrypt.compare(password, dbUser.passwordHash)
           if (matches) {
             authenticatedEmail = dbUser.email.trim().toLowerCase()
+            authenticatedRole = 'executive'
             prismaUserId = dbUser.id
           }
         }
@@ -113,6 +123,7 @@ export async function POST(request: Request) {
         status: 401,
         headers: {
           'X-Robots-Tag': ROBOTS_HEADER,
+          'Permissions-Policy': PERMISSIONS_POLICY_HEADER,
           'Cache-Control': 'no-store',
         },
       },
@@ -120,16 +131,21 @@ export async function POST(request: Request) {
   }
 
   const isSecure = isSecureRequest(request)
-  const execToken = await createExecSessionToken(authenticatedEmail)
+  const execToken = await createExecSessionToken(
+    authenticatedEmail,
+    authenticatedRole,
+  )
   const response = NextResponse.json(
     {
       ok: true,
+      role: authenticatedRole,
       redirectTo: safeNext || '/erp',
     },
     {
       status: 200,
       headers: {
         'X-Robots-Tag': ROBOTS_HEADER,
+        'Permissions-Policy': PERMISSIONS_POLICY_HEADER,
         'Cache-Control': 'no-store',
       },
     },

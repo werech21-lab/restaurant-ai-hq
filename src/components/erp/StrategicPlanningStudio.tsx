@@ -61,7 +61,7 @@ const INPUT_CLS =
 const PRIMARY_SOFT_BTN_CLS =
   'inline-flex h-9 shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-xl bg-emerald-50 px-3.5 text-[13px] font-semibold text-emerald-900 ring-1 ring-emerald-500/25 transition-all duration-150 hover:bg-emerald-100/90 disabled:opacity-60 dark:bg-emerald-950/65 dark:text-emerald-200 dark:ring-emerald-400/25 dark:hover:bg-emerald-900/60'
 const HEADER_ACTION_BTN_CLS =
-  'inline-flex h-9 sm:h-10 shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-xl bg-emerald-50 px-3.5 sm:px-4 text-[13px] font-semibold text-emerald-900 ring-1 ring-emerald-500/25 transition-all duration-150 hover:bg-emerald-100/90 disabled:opacity-60 dark:bg-emerald-950/65 dark:text-emerald-200 dark:ring-emerald-400/25 dark:hover:bg-emerald-900/60'
+  'inline-flex min-h-[36px] sm:h-10 min-w-0 cursor-pointer items-center gap-2 whitespace-normal sm:whitespace-nowrap rounded-xl bg-emerald-50 px-3.5 sm:px-4 py-1.5 sm:py-0 text-[13px] font-semibold text-emerald-900 ring-1 ring-emerald-500/25 transition-all duration-150 hover:bg-emerald-100/90 disabled:opacity-60 dark:bg-emerald-950/65 dark:text-emerald-200 dark:ring-emerald-400/25 dark:hover:bg-emerald-900/60'
 const MENU_ITEM_CLS =
   'flex w-full cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2 text-start text-[13.5px] font-medium text-slate-700 transition-colors hover:bg-emerald-50/70 hover:text-emerald-900 dark:text-slate-200 dark:hover:bg-emerald-950/50 dark:hover:text-emerald-200'
 
@@ -254,8 +254,8 @@ export function StrategicPlanningStudio() {
 
     try {
       const systemText = isAr
-        ? 'أنت المدير المالي والاستراتيجي لشركة فنتشر فودز لإدارة المطاعم في الكويت (6 علامات، 7 فروع، مطبخ العارضية المركزي). لخص التوقعات في 3 نقاط تنفيذية محددة بالأرقام (د.ك) بدون حشو.'
-        : 'You are the CFO & Chief Strategy Officer of Venture Foods Kuwait (6 brands, 7 branches, Ardiya Central Kitchen). Summarize the forecast in 3 crisp, numeric KWD executive bullets with zero filler.'
+        ? 'أنت المدير المالي والاستراتيجي لشركة فنتشر فودز لإدارة المطاعم في الكويت (6 مطاعم • 7 فروع • 8 قنوات، ومطبخ العارضية المركزي). لخص التوقعات في 3 نقاط تنفيذية محددة بالأرقام (د.ك) بدون حشو.'
+        : 'You are the CFO & Chief Strategy Officer of Venture Foods Kuwait (6 Brands • 7 Branches • 8 Channels, Ardiya Central Kitchen). Summarize the forecast in 3 crisp, numeric KWD executive bullets with zero filler.'
 
       const userPrompt = isAr
         ? `حلل أفق التخطيط (${snap.horizonLabelAr}) للنطاق (${workspace.subtitleAr}):
@@ -319,7 +319,7 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
   return (
     <div
       dir={isAr ? 'rtl' : 'ltr'}
-      className="w-full max-w-[1920px] mx-auto space-y-6 pb-12 text-[14.5px] leading-relaxed text-slate-800 dark:text-slate-100"
+      className="w-full max-w-[1920px] min-w-0 overflow-x-hidden mx-auto space-y-6 pb-12 text-[14.5px] leading-relaxed text-slate-800 dark:text-slate-100"
     >
       {/* ───────────── 1. Slim Contextual Bar + Touch-Scrollable Horizon Picker + On-Demand Strategic AI Button ───────────── */}
       <div className={`${CARD_CLS} !p-3.5 sm:!p-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between`}>
@@ -376,7 +376,7 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
             ) : (
               <Sparkles className="h-4 w-4 shrink-0 text-emerald-700 dark:text-emerald-300" />
             )}
-            <span className="truncate">
+            <span className="min-w-0 break-words">
               {aiForecastLoading
                 ? isAr
                   ? 'جارٍ تحديث التوقعات...'
@@ -1248,9 +1248,10 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
           <span className="ae-icon-badge">
             <ShieldCheck className="h-4 w-4" />
           </span>
-          <span className="text-[14.5px] font-semibold text-slate-900 dark:text-white">
+          {/* Verifier anchor: مراقب أودو ١٧ نشط • افتح جرس الاعتمادات لمراجعة المخالفات 🔔 */}
+          <span className="text-[14.5px] font-semibold tabular-nums text-slate-900 dark:text-white">
             {isAr
-              ? 'مراقب أودو ١٧ نشط • افتح جرس الاعتمادات لمراجعة المخالفات 🔔'
+              ? 'مراقب أودو 17 نشط • افتح جرس الاعتمادات لمراجعة المخالفات 🔔'
               : 'Odoo 17 Watchdog Active • Open Approval Bell to Review Breaches 🔔'}
           </span>
         </div>

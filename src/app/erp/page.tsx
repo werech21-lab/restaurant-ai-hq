@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic'
 
 export const metadata = {
   title: 'ملخص الشركة | فنتشر فودز',
-  description: 'المركز المالي التنفيذي الموحد وأهم المؤشرات والتوجيهات المباشرة من أودو ١٧.',
+  description: 'المركز المالي التنفيذي الموحد وأهم المؤشرات والتوجيهات المباشرة من أودو 17.',
 }
 
 export default async function ExecutiveCenterPage() {

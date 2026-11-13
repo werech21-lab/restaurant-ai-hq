@@ -62,8 +62,8 @@ function labelsFor(brandId: VentureBrandId | null, branchId: VentureBranchId | n
     }
   }
   return {
-    labelAr: 'كل العلامات التجارية — كل مواقع المطاعم (7)',
-    labelEn: 'All 7 brands — All 7 restaurant locations',
+    labelAr: '6 مطاعم • 7 فروع • 8 قنوات',
+    labelEn: '6 Brands • 7 Branches • 8 Channels',
   }
 }
 

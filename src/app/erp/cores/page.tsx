@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic'
 export const metadata = {
   title: 'المبيعات والتسويق والمينيو | فنتشر فودز',
   description:
-    'مركز المبيعات والقنوات وحاسبة إعلانات المشاهير وهندسة المينيو المباشرة من أودو ١٧.',
+    'مركز المبيعات والقنوات وحاسبة إعلانات المشاهير وهندسة المينيو المباشرة من أودو 17.',
 }
 
 export default async function CoresHubPage() {

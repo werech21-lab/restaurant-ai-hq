@@ -4,7 +4,7 @@ import React, { useEffect, useId, useRef, useState } from 'react'
 
 /**
  * Normalizes YYYY-MM-DD ("2026-10-29") or MM-DD ("10-29", "11-01") date labels
- * into compact DD/MM ("29/10", "01/11") so X-axis ticks never truncate into "1." on 390px mobile.
+ * into compact DD/MM ("29/10", "01/11") so X-axis ticks never clip into "1." on 390px mobile.
  */
 export function formatCompactAxisLabel(raw: string): string {
   const s = (raw ?? '').trim()
@@ -139,7 +139,7 @@ export function BeforeAfterDualBarChart({
             className="pointer-events-none absolute top-2 z-30 w-56 sm:w-64 max-w-[calc(100%-16px)] -translate-x-1/2 rounded-2xl bg-white p-3 sm:p-3.5 text-[12px] sm:text-[12.5px] text-slate-950 shadow-lg ring-1 ring-slate-900/5 transition-all duration-100 rtl:translate-x-1/2"
           >
             <div className="mb-2 flex items-center justify-between gap-2 border-b border-slate-100 pb-1.5">
-              <span className="truncate font-extrabold text-slate-950">{activeDatum.tooltipTitle}</span>
+              <span className="whitespace-normal break-words font-extrabold text-slate-950">{activeDatum.tooltipTitle}</span>
               {(() => {
                 const rawDelta = activeDatum.after - activeDatum.before
                 const higherGood = activeDatum.higherIsBetter !== false
@@ -397,7 +397,7 @@ export function InteractiveHoverBarChart({
             className="pointer-events-none absolute top-2 z-30 w-56 sm:w-64 max-w-[calc(100%-16px)] -translate-x-1/2 rounded-2xl bg-white p-3 sm:p-3.5 text-[12px] sm:text-[12.5px] text-slate-950 shadow-lg ring-1 ring-slate-900/5 transition-all duration-100 rtl:translate-x-1/2"
           >
             <div className="mb-2 flex items-center justify-between gap-2 border-b border-slate-100 pb-1.5">
-              <span className="truncate font-extrabold text-slate-950">{activeDatum.tooltipTitle}</span>
+              <span className="whitespace-normal break-words font-extrabold text-slate-950">{activeDatum.tooltipTitle}</span>
               {activeDatum.badgeText ? (
                 <span
                   className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-extrabold ${
@@ -619,11 +619,13 @@ export function SalesNetComboChart({
   })
 
   const linePath =
-    points.length > 0
+    points.length > 1
       ? points
           .map((pt, i) => `${i === 0 ? 'M' : 'L'} ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`)
           .join(' ')
-      : ''
+      : points.length === 1
+        ? `M 0 ${points[0].y.toFixed(1)} L ${plotSize.w.toFixed(1)} ${points[0].y.toFixed(1)}`
+        : ''
 
   const areaPath =
     points.length > 1
@@ -696,6 +698,16 @@ export function SalesNetComboChart({
             </div>
           </div>
         ) : null}
+
+        {/* Explicit Y-Axis Unit Titles: Sales (K KWD / ألف د.ك) & Net Profit (K KWD / ألف د.ك) */}
+        <div className="mb-2 flex items-center justify-between gap-2 text-[11px] sm:text-[11.5px]">
+          <span className="whitespace-nowrap font-bold text-slate-600 dark:text-slate-300">
+            {isAr ? 'المبيعات (ألف د.ك)' : 'Sales (K KWD)'}
+          </span>
+          <span className="whitespace-nowrap font-bold text-emerald-700 dark:text-emerald-400">
+            {isAr ? 'الصافي بالجيب (ألف د.ك)' : 'Net Profit (K KWD)'}
+          </span>
+        </div>
 
         {/* 3-Column Dual-Scale Grid: [Start=Sales Axis] [Center=Bars+Line Plot] [End=Emerald Net Axis] */}
         <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-stretch gap-1.5 sm:gap-2.5">
@@ -800,7 +812,7 @@ export function SalesNetComboChart({
                   />
                 ) : null}
 
-                {points.length > 1 ? (
+                {linePath ? (
                   <path
                     d={linePath}
                     fill="none"
@@ -951,7 +963,7 @@ export function InteractiveHorizontalRankList({
                       style={{ backgroundColor: item.color }}
                     />
                   ) : null}
-                  <span className="truncate font-semibold tracking-tight text-neutral-950 dark:text-white">
+                  <span className="whitespace-normal break-words font-semibold tracking-tight text-neutral-950 dark:text-white">
                     {item.label}
                   </span>
                   {item.active ? (
@@ -963,7 +975,7 @@ export function InteractiveHorizontalRankList({
                 {item.subLabel ? (
                   <p
                     dir="ltr"
-                    className={`mt-0.5 truncate text-[11.5px] tabular-nums text-neutral-500 dark:text-slate-400 ${
+                    className={`mt-0.5 whitespace-normal break-words text-[11.5px] tabular-nums text-neutral-500 dark:text-slate-400 ${
                       isAr ? 'text-end' : 'text-start'
                     }`}
                   >
@@ -1283,7 +1295,7 @@ export function InteractiveDonutChart({
     return (
       <div
         dir={isAr ? 'rtl' : 'ltr'}
-        className="grid grid-cols-1 md:grid-cols-[200px_minmax(0,1fr)] items-center gap-6"
+        className="grid grid-cols-1 sm:grid-cols-[185px_minmax(0,1fr)] md:grid-cols-[200px_minmax(0,1fr)] items-center gap-5"
       >
         {ringBlock}
         {legendBlock}

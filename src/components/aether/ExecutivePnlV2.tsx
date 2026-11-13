@@ -40,7 +40,7 @@ export function ExecutivePnlV2() {
     const br = BRANCHES.find((x) => x.id === filters.branch)
     if (b) parts.push(isAr ? b.ar : b.en)
     if (br) parts.push(isAr ? br.ar : br.en)
-    return parts.length ? parts.join(' · ') : T(`Consolidated group · ${LEDGER.brands} brands · ${LEDGER.branches} restaurant locations`, `المجموعة الموحدة · ${LEDGER.brands} علامات · ${LEDGER.branches} مواقع مطاعم`)
+    return parts.length ? parts.join(' · ') : T(`Consolidated group · 6 Brands • ${LEDGER.branches} Branches`, `المجموعة الموحدة · 6 مطاعم • ${LEDGER.branches} فروع`)
   }, [filters.brand, filters.branch, isAr, T])
 
   const askVariance = (l: PnlRow) =>

@@ -326,7 +326,7 @@ export function NewEmployeeWizardModal({ open, onClose, en }: Props) {
               </label>
 
               <label className="block text-xs font-semibold text-mist-300">
-                {en ? 'Assigned Brand (7 Brands / CK)' : 'البراند التابع له'}
+                {en ? 'Assigned Brand (6 Brands / CK)' : 'البراند التابع له'}
                 <select
                   value={brand}
                   onChange={(e) => setBrand(e.target.value)}

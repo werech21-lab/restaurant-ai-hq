@@ -127,7 +127,7 @@ export function AetherBiExecutiveDashboard({ locale: _unused }: { locale?: strin
             <span>{T('Venture Foods Restaurant Management W.L.L. · live Odoo sync (whitelisted POS registers)', 'شركة فنتشر فودز لإدارة المطاعم ذ.م.م. · مزامنة أودو المباشرة (سجلات نقاط البيع المعتمدة)')}</span>
           </div>
           <h1 className="mt-1 text-xl font-extrabold text-slate-900 dark:text-slate-50 md:text-2xl">{T('Financial & Analytical Report and Recommendations', 'التقرير المالي والتحليلي ومحرك التوصيات')}</h1>
-          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{T(`${LEDGER.brands} brands, ${LEDGER.channels} sales channels, ${LEDGER.branches} restaurant locations plus exhibitions and school canteens. Browsing uses no AI tokens.`, `${LEDGER.brands} علامات و${LEDGER.channels} قنوات بيع و${LEDGER.branches} مواقع مطاعم إضافة إلى المعارض والمقاصف المدرسية. التصفح لا يستهلك أي توكنات.`)}</p>
+          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{T(`6 Brands • ${LEDGER.branches} Branches • ${LEDGER.channels} Channels plus exhibitions and school canteens. Browsing uses no AI tokens.`, `6 مطاعم • ${LEDGER.branches} فروع • ${LEDGER.channels} قنوات إضافة إلى المعارض والمقاصف المدرسية. التصفح لا يستهلك أي توكنات.`)}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2 self-start lg:self-auto">
           <Link href="/erp/sales-scorecard" className="ae-pill-light ae-pill-sm">

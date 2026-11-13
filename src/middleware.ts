@@ -5,6 +5,8 @@ import {
   verifyExecSessionToken,
 } from '@/lib/auth/exec-session'
 
+export const PERMISSIONS_POLICY_VALUE =
+  'camera=(self), microphone=(self), geolocation=(), browsing-topics=()'
 const ROBOTS_TAG_VALUE = 'noindex, nofollow, noarchive'
 
 const PUBLIC_EXACT_PATHS = new Set([
@@ -31,6 +33,17 @@ const PROTECTED_API_PREFIXES = [
   '/api/v1',
 ]
 
+const AUDITOR_BLOCKED_MUTATION_PREFIXES = [
+  '/api/erp/governance',
+  '/api/v1/governance',
+  '/api/executive-directive',
+  '/api/aggregator-radar/alert',
+  '/api/ingest',
+  '/api/hr/ingest-folder',
+]
+
+const MUTATION_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
+
 const PROTECTED_PAGE_PREFIXES = [
   '/erp',
   '/dashboard',
@@ -49,8 +62,9 @@ const PROTECTED_PAGE_PREFIXES = [
   '/recipes',
 ]
 
-function withNoIndex(response: NextResponse): NextResponse {
+function withSecurityHeaders(response: NextResponse): NextResponse {
   response.headers.set('X-Robots-Tag', ROBOTS_TAG_VALUE)
+  response.headers.set('Permissions-Policy', PERMISSIONS_POLICY_VALUE)
   return response
 }
 
@@ -65,12 +79,27 @@ function isProtectedApiPath(pathname: string): boolean {
   if (PUBLIC_EXACT_PATHS.has(pathname)) return false
   if (
     PROTECTED_API_PREFIXES.some(
-      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`) || pathname.startsWith(prefix),
+      (prefix) =>
+        pathname === prefix ||
+        pathname.startsWith(`${prefix}/`) ||
+        pathname.startsWith(prefix),
     )
   ) {
     return true
   }
   return pathname.startsWith('/api/')
+}
+
+function isAuditorRestrictedMutationPath(pathname: string): boolean {
+  if (pathname === '/api/auth/login' || pathname === '/api/auth/logout') {
+    return false
+  }
+  return AUDITOR_BLOCKED_MUTATION_PREFIXES.some(
+    (prefix) =>
+      pathname === prefix ||
+      pathname.startsWith(`${prefix}/`) ||
+      pathname.startsWith(prefix),
+  )
 }
 
 export async function middleware(request: NextRequest) {
@@ -82,7 +111,9 @@ export async function middleware(request: NextRequest) {
       const canonicalUrl = request.nextUrl.clone()
       canonicalUrl.host = 'aetherbi.com'
       canonicalUrl.protocol = 'https'
-      return withNoIndex(NextResponse.redirect(canonicalUrl, { status: 301 }))
+      return withSecurityHeaders(
+        NextResponse.redirect(canonicalUrl, { status: 301 }),
+      )
     }
 
     const rawToken =
@@ -91,9 +122,30 @@ export async function middleware(request: NextRequest) {
     const execSession = await verifyExecSessionToken(rawToken)
 
     if (execSession) {
+      const method = request.method.toUpperCase()
+      if (
+        execSession.role === 'auditor' &&
+        MUTATION_METHODS.has(method) &&
+        isAuditorRestrictedMutationPath(path)
+      ) {
+        return withSecurityHeaders(
+          NextResponse.json(
+            {
+              ok: false,
+              error: 'Read-only auditor session',
+              errorAr:
+                'حساب مراجعة للقراءة فقط — التعديل والاعتماد غير متاحين.',
+            },
+            { status: 403 },
+          ),
+        )
+      }
+
       if (path === '/') {
         const erpUrl = new URL('/erp', request.url)
-        return withNoIndex(NextResponse.redirect(erpUrl, { status: 307 }))
+        return withSecurityHeaders(
+          NextResponse.redirect(erpUrl, { status: 307 }),
+        )
       }
       if (path === '/login') {
         const safeNext = sanitizeExecNextPath(
@@ -101,23 +153,27 @@ export async function middleware(request: NextRequest) {
           '/erp',
         )
         const destUrl = new URL(safeNext, request.url)
-        return withNoIndex(NextResponse.redirect(destUrl, { status: 307 }))
+        return withSecurityHeaders(
+          NextResponse.redirect(destUrl, { status: 307 }),
+        )
       }
-      return withNoIndex(NextResponse.next())
+      return withSecurityHeaders(NextResponse.next())
     }
 
     // Unauthenticated handling:
     if (path === '/') {
       const loginUrl = new URL('/login', request.url)
-      return withNoIndex(NextResponse.redirect(loginUrl, { status: 307 }))
+      return withSecurityHeaders(
+        NextResponse.redirect(loginUrl, { status: 307 }),
+      )
     }
 
     if (isPublicAssetOrRoute(path)) {
-      return withNoIndex(NextResponse.next())
+      return withSecurityHeaders(NextResponse.next())
     }
 
     if (isProtectedApiPath(path)) {
-      return withNoIndex(
+      return withSecurityHeaders(
         NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
       )
     }
@@ -132,20 +188,24 @@ export async function middleware(request: NextRequest) {
       const loginUrl = new URL('/login', request.url)
       const requestedPath = `${path}${request.nextUrl.search}`
       loginUrl.searchParams.set('next', requestedPath)
-      return withNoIndex(NextResponse.redirect(loginUrl, { status: 307 }))
+      return withSecurityHeaders(
+        NextResponse.redirect(loginUrl, { status: 307 }),
+      )
     }
 
-    return withNoIndex(NextResponse.redirect(new URL('/login', request.url), { status: 307 }))
+    return withSecurityHeaders(
+      NextResponse.redirect(new URL('/login', request.url), { status: 307 }),
+    )
   } catch {
     if (path.startsWith('/api/') && !PUBLIC_EXACT_PATHS.has(path)) {
-      return withNoIndex(
+      return withSecurityHeaders(
         NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
       )
     }
     if (PUBLIC_EXACT_PATHS.has(path)) {
-      return withNoIndex(NextResponse.next())
+      return withSecurityHeaders(NextResponse.next())
     }
-    return withNoIndex(
+    return withSecurityHeaders(
       NextResponse.redirect(new URL('/login', request.url), { status: 307 }),
     )
   }

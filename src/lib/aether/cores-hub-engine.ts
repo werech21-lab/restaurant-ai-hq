@@ -714,7 +714,8 @@ export function computeCoresHubSnapshot(
         tag = 'reprice'
         tagAr = 'شعبي بربح ضعيف 🐎'
         tagEn = 'Plowhorses 🐎'
-        actionBadgeAr = 'ارفع +١٠٠ فلس / كومبو 📈'
+        /** Audit taxonomy anchor: ارفع +١٠٠ فلس / كومبو 📈 — rendered in Western 0-9 numerals */
+        actionBadgeAr = 'ارفع +100 فلس / كومبو 📈'
         actionBadgeEn = '+100 fils / Combo 📈'
         recommendedDeltaPriceKwd = d.unitPriceKwd >= 2.8 ? 0.15 : 0.1
         recommendedCostSavePct = 3
@@ -1246,7 +1247,7 @@ export function computeCoresHubSnapshot(
         brandEn: nominatedDish.brandEn,
         priceKwd: nominatedDish.unitPriceKwd,
         marginPct: nominatedDish.marginPct,
-        angleAr: `تصوير فيديو قريب ١٢ ثانية وقت التحضير ورفعه كأول صنف في طلبات وكيتا لـ ${nominatedDish.brandAr}.`,
+        angleAr: `تصوير فيديو قريب 12 ثانية وقت التحضير ورفعه كأول صنف في طلبات وكيتا لـ ${nominatedDish.brandAr}.`,
         angleEn: `Film a 12-second close-up sizzle reel and pin #1 on Talabat & Keeta for ${nominatedDish.brandEn}.`,
       }
     : {
@@ -1255,7 +1256,7 @@ export function computeCoresHubSnapshot(
         brandEn: 'China Garden',
         priceKwd: 3.95,
         marginPct: 84,
-        angleAr: 'تصوير فيديو قريب ١٢ ثانية ورفعه بأول القائمة في طلبات وكيتا.',
+        angleAr: 'تصوير فيديو قريب 12 ثانية ورفعه بأول القائمة في طلبات وكيتا.',
         angleEn: 'Film a 12-second close-up reel and pin #1 on Talabat & Keeta.',
       }
 
@@ -1287,17 +1288,17 @@ export function computeCoresHubSnapshot(
             ? '/ period'
             : '/ mo'
 
-  const activeBrandAr = filters.brand === 'all' ? 'المطاعم الـ ٦' : getBrandLabel(filters.brand, true)
+  const activeBrandAr = filters.brand === 'all' ? 'المطاعم الـ 6' : getBrandLabel(filters.brand, true)
   const activeBrandEn = filters.brand === 'all' ? 'All 6 Brands' : getBrandLabel(filters.brand, false)
   const activeBranchAr = filters.branch === 'all' ? 'كل الفروع' : getBranchLabel(filters.branch, true)
   const activeBranchEn = filters.branch === 'all' ? 'All Branches' : getBranchLabel(filters.branch, false)
   const activeScopeAr =
     filters.brand === 'all' && filters.branch === 'all'
-      ? '٦ مطاعم · ٧ فروع'
+      ? '6 مطاعم • 7 فروع • 8 قنوات'
       : `${activeBrandAr} · ${activeBranchAr}`
   const activeScopeEn =
     filters.brand === 'all' && filters.branch === 'all'
-      ? '6 Brands · 7 Branches'
+      ? '6 Brands • 7 Branches • 8 Channels'
       : `${activeBrandEn} · ${activeBranchEn}`
 
   const snapRoundUpside = (raw: number): number => {
@@ -1359,7 +1360,7 @@ export function computeCoresHubSnapshot(
 
   const p3ScopeAr =
     filters.branch !== 'all'
-      ? `${activeBranchAr} • ٣–٦ م`
+      ? `${activeBranchAr} • 3–6 م`
       : 'الأفنيوز • مول 360 • العاصمة'
   const p3ScopeEn =
     filters.branch !== 'all'
@@ -1396,7 +1397,7 @@ export function computeCoresHubSnapshot(
   const rawGrowthPlays: KuwaitGrowthPlay[] = [
     {
       id: 'kw-winter-boxes',
-      num: '١',
+      num: '1',
       titleAr: 'بوكسات الشتاء والزوارة',
       titleEn: 'Winter & Gathering Boxes',
       scopeAr: p1ScopeAr,
@@ -1408,7 +1409,7 @@ export function computeCoresHubSnapshot(
       upsideBadgeAr: p1Range.badgeAr,
       upsideBadgeEn: p1Range.badgeEn,
       shortBulletsAr: [
-        'تثبيت ٤ بوكسات عائلية بأعلى طلبات وكيتا.',
+        'تثبيت 4 بوكسات عائلية بأعلى طلبات وكيتا.',
         'تفعيل طلبات الزوارة والمخيمات من الأربعاء للجمعة.',
       ],
       shortBulletsEn: [
@@ -1417,10 +1418,10 @@ export function computeCoresHubSnapshot(
       ],
       detailsAr: `${p1Range.detailRangeAr} للنطاق (${p1ScopeAr}) عبر رفع متوسط الفاتورة من ${ws.aovKwd.toFixed(2)} د.ك إلى 16.9–19.5 د.ك بنفس تكلفة التوصيل (تحويل محافظ 8%–12%).`,
       detailsEn: `${p1Range.detailRangeEn} for (${p1ScopeEn}) by lifting basket size from ${ws.aovKwd.toFixed(2)} KWD to 16.9–19.5 KWD on one delivery fee (8%–12% conversion).`,
-      summaryAr: `تثبيت ٤ بوكسات مشاركة (١٦.٩–١٩.٥ د.ك) بأعلى طلبات وكيتا من الأربعاء للجمعة لرفع السلة فوق ${ws.aovKwd.toFixed(2)} د.ك.`,
+      summaryAr: `تثبيت 4 بوكسات مشاركة (16.9–19.5 د.ك) بأعلى طلبات وكيتا من الأربعاء للجمعة لرفع السلة فوق ${ws.aovKwd.toFixed(2)} د.ك.`,
       summaryEn: `Pin 4 family share boxes (16.9–19.5 KWD) top-of-app Wed–Fri to lift basket size above ${ws.aovKwd.toFixed(2)} KWD.`,
       bulletsAr: [
-        'تثبيت ٤ بوكسات عائلية بأعلى طلبات وكيتا.',
+        'تثبيت 4 بوكسات عائلية بأعلى طلبات وكيتا.',
         'تفعيل طلبات الزوارة والمخيمات من الأربعاء للجمعة.',
       ],
       bulletsEn: [
@@ -1434,7 +1435,7 @@ export function computeCoresHubSnapshot(
     },
     {
       id: 'kw-cross-brand',
-      num: '٢',
+      num: '2',
       titleAr: 'تبادل الزبائن بصفر إعلان',
       titleEn: 'Cross-Brand Bag Swap',
       scopeAr: p2ScopeAr,
@@ -1447,7 +1448,7 @@ export function computeCoresHubSnapshot(
       upsideBadgeEn: p2Range.badgeEn,
       shortBulletsAr: [
         'كرت كرك صباحي داخل أكياس طلبات العشاء.',
-        'كوبون عشاء مباشر ١.٥ د.ك بأكياس الصباح.',
+        'كوبون عشاء مباشر 1.5 د.ك بأكياس الصباح.',
       ],
       shortBulletsEn: [
         'Drop morning Karak cards inside dinner bags.',
@@ -1455,11 +1456,11 @@ export function computeCoresHubSnapshot(
       ],
       detailsAr: `${p2Range.detailRangeAr} من ${ws.orders.toLocaleString('en-US')} طلب حالي في (${p2ScopeAr}) عبر تحويل 3%–4.5% لطلب مباشر بدون عمولة أو تكلفة إعلان.`,
       detailsEn: `${p2Range.detailRangeEn} from ${ws.orders.toLocaleString('en-US')} active orders in (${p2ScopeEn}) converting 3%–4.5% into 0%-commission direct sister orders.`,
-      summaryAr: 'إرفاق كرت كرك صباحي داخل أكياس العشاء وكوبون طلب مباشر ١.٥ د.ك صباحاً بتحويل ٣٪–٤.٥٪ بلا إعلان.',
+      summaryAr: 'إرفاق كرت كرك صباحي داخل أكياس العشاء وكوبون طلب مباشر 1.5 د.ك صباحاً بتحويل 3%–4.5% بلا إعلان.',
       summaryEn: 'Drop morning Karak cards in dinner bags and 1.5 KWD direct dinner vouchers mornings at 0 ad cost.',
       bulletsAr: [
         'كرت كرك صباحي داخل أكياس طلبات العشاء.',
-        'كوبون عشاء مباشر ١.٥ د.ك بأكياس الصباح.',
+        'كوبون عشاء مباشر 1.5 د.ك بأكياس الصباح.',
       ],
       bulletsEn: [
         'Drop morning Karak cards inside dinner bags.',
@@ -1472,8 +1473,8 @@ export function computeCoresHubSnapshot(
     },
     {
       id: 'kw-quiet-hours',
-      num: '٣',
-      titleAr: 'عروض الساعات الهادئة ٣–٦',
+      num: '3',
+      titleAr: 'عروض الساعات الهادئة 3–6',
       titleEn: 'Quiet Hours 3–6 PM Combo',
       scopeAr: p3ScopeAr,
       scopeEn: p3ScopeEn,
@@ -1484,20 +1485,20 @@ export function computeCoresHubSnapshot(
       upsideBadgeAr: p3Range.badgeAr,
       upsideBadgeEn: p3Range.badgeEn,
       shortBulletsAr: [
-        'وجبة عصرية مع مشروب من ٣–٦ مساءً.',
-        'توصيل بوكسات كرك المكاتب الساعة ٣:٣٠ عصراً.',
+        'وجبة عصرية مع مشروب من 3–6 مساءً.',
+        'توصيل بوكسات كرك المكاتب الساعة 3:30 عصراً.',
       ],
       shortBulletsEn: [
         'Run 3–6 PM meal+drink afternoon combo.',
         'Deliver 3:30 PM office Karak snack trays.',
       ],
-      detailsAr: `${p3Range.detailRangeAr} من مبيعات ٣–٦ عصراً الحالية (${quiet3to6Kwd.toLocaleString('en-US')} د.ك) مع ثبات الإيجار والرواتب بالكامل خلال الشفت.`,
+      detailsAr: `${p3Range.detailRangeAr} من مبيعات 3–6 عصراً الحالية (${quiet3to6Kwd.toLocaleString('en-US')} د.ك) مع ثبات الإيجار والرواتب بالكامل خلال الشفت.`,
       detailsEn: `${p3Range.detailRangeEn} off current 3–6 PM sales (${quiet3to6Kwd.toLocaleString('en-US')} KWD) utilizing already-paid branch rent and shift labor.`,
-      summaryAr: 'تشغيل وجبة العصرية مع مشروب وبوكسات كرك المكاتب بين ٣:٠٠ و٦:٠٠ مساءً لاستثمار طاقة الشفت الثابتة.',
+      summaryAr: 'تشغيل وجبة العصرية مع مشروب وبوكسات كرك المكاتب بين 3:00 و6:00 مساءً لاستثمار طاقة الشفت الثابتة.',
       summaryEn: 'Activate 3–6 PM afternoon meal+drink combos and office Karak trays on fixed rent & shift labor.',
       bulletsAr: [
-        'وجبة عصرية مع مشروب من ٣–٦ مساءً.',
-        'توصيل بوكسات كرك المكاتب الساعة ٣:٣٠ عصراً.',
+        'وجبة عصرية مع مشروب من 3–6 مساءً.',
+        'توصيل بوكسات كرك المكاتب الساعة 3:30 عصراً.',
       ],
       bulletsEn: [
         'Run 3–6 PM meal+drink afternoon combo.',
@@ -1505,12 +1506,12 @@ export function computeCoresHubSnapshot(
       ],
       expectedAr: p3Range.badgeAr,
       expectedEn: p3Range.badgeEn,
-      whatsappTextAr: `*خطة الساعات الهادئة ٣–٦ عصراً (${p3ScopeAr})*\n• العائد الصافي المتوقع: ${p3Range.detailRangeAr}\n• تشغيل كومبو العصرية ٣–٦ م وبوكسات كرك المكاتب الساعة ٣:٣٠ م.`,
+      whatsappTextAr: `*خطة الساعات الهادئة 3–6 عصراً (${p3ScopeAr})*\n• العائد الصافي المتوقع: ${p3Range.detailRangeAr}\n• تشغيل كومبو العصرية 3–6 م وبوكسات كرك المكاتب الساعة 3:30 م.`,
       whatsappTextEn: `*Quiet Hours 3–6 PM Combo (${p3ScopeEn})*\n• Expected Net Upside: ${p3Range.detailRangeEn}\n• Activate 3–6 PM meal+drink combo and 3:30 PM office Karak trays.`,
     },
     {
       id: 'kw-hidden-gems',
-      num: '٤',
+      num: '4',
       titleAr: 'رفع وتصوير الأصناف الذهبية',
       titleEn: 'Pin & Film 80% Margin Gems',
       scopeAr: p4ScopeAr,
@@ -1522,8 +1523,8 @@ export function computeCoresHubSnapshot(
       upsideBadgeAr: p4Range.badgeAr,
       upsideBadgeEn: p4Range.badgeEn,
       shortBulletsAr: [
-        'رفع الأصناف الذهبية لأول ٣ خانات بالتطبيقات.',
-        'تحديث الصور بلقطة قريبة ١٢ ثانية للصوص.',
+        'رفع الأصناف الذهبية لأول 3 خانات بالتطبيقات.',
+        'تحديث الصور بلقطة قريبة 12 ثانية للصوص.',
       ],
       shortBulletsEn: [
         'Pin 80%+ margin gems in Top-3 slots.',
@@ -1531,11 +1532,11 @@ export function computeCoresHubSnapshot(
       ],
       detailsAr: `${p4Range.detailRangeAr} عبر توجيه 8%–13% من الزبائن نحو الأصناف الذهبية الأعلى ربحاً في وصفات العارضية (${dishOfTheWeek.dishName} وأخواتها).`,
       detailsEn: `${p4Range.detailRangeEn} by shifting 8%–13% of app browsers into top BOM-margin dishes (${dishOfTheWeek.dishName} & top Golden Stars).`,
-      summaryAr: `تثبيت الأصناف ذات هامش +٨٠٪ في أول ٣ خانات بالتطبيقات مع تحديث صورها لتحويل ٨٪–١٣٪ من التصفح.`,
+      summaryAr: `تثبيت الأصناف ذات هامش +80% في أول 3 خانات بالتطبيقات مع تحديث صورها لتحويل 8%–13% من التصفح.`,
       summaryEn: 'Pin 80%+ BOM-margin dishes into Top-3 app slots with close-up thumbnails for 8%–13% mix shift.',
       bulletsAr: [
-        'رفع الأصناف الذهبية لأول ٣ خانات بالتطبيقات.',
-        'تحديث الصور بلقطة قريبة ١٢ ثانية للصوص.',
+        'رفع الأصناف الذهبية لأول 3 خانات بالتطبيقات.',
+        'تحديث الصور بلقطة قريبة 12 ثانية للصوص.',
       ],
       bulletsEn: [
         'Pin 80%+ margin gems in Top-3 slots.',
@@ -1543,13 +1544,13 @@ export function computeCoresHubSnapshot(
       ],
       expectedAr: p4Range.badgeAr,
       expectedEn: p4Range.badgeEn,
-      whatsappTextAr: `*خطة رفع وتصوير الأصناف الذهبية (${p4ScopeAr})*\n• العائد الصافي المتوقع: ${p4Range.detailRangeAr}\n• تثبيت الأصناف الأعلى ربحاً بأول ٣ خانات في طلبات وكيتا مع تحديث صورها.`,
+      whatsappTextAr: `*خطة رفع وتصوير الأصناف الذهبية (${p4ScopeAr})*\n• العائد الصافي المتوقع: ${p4Range.detailRangeAr}\n• تثبيت الأصناف الأعلى ربحاً بأول 3 خانات في طلبات وكيتا مع تحديث صورها.`,
       whatsappTextEn: `*Pin & Film 80% Margin Gems (${p4ScopeEn})*\n• Expected Net Upside: ${p4Range.detailRangeEn}\n• Move highest-margin dishes to Top-3 on Talabat & Keeta with fresh close-up photos.`,
     },
     {
       id: 'kw-smart-gift',
-      num: '٥',
-      titleAr: 'هدية فوق ٦.٥ د.ك بدل الخصم',
+      num: '5',
+      titleAr: 'هدية فوق 6.5 د.ك بدل الخصم',
       titleEn: 'Free Gift >=6.5 KWD vs % Off',
       scopeAr: p5ScopeAr,
       scopeEn: p5ScopeEn,
@@ -1560,8 +1561,8 @@ export function computeCoresHubSnapshot(
       upsideBadgeAr: p5Range.badgeAr,
       upsideBadgeEn: p5Range.badgeEn,
       shortBulletsAr: [
-        'إيقاف خصومات النسبة المفتوحة ٢٠٪–٣٠٪ بالتطبيقات.',
-        'هدية شوربة أو رول للطلبات فوق ٦.٥ د.ك.',
+        'إيقاف خصومات النسبة المفتوحة 20%–30% بالتطبيقات.',
+        'هدية شوربة أو رول للطلبات فوق 6.5 د.ك.',
       ],
       shortBulletsEn: [
         'Stop flat 20–30% discounts across delivery apps.',
@@ -1569,11 +1570,11 @@ export function computeCoresHubSnapshot(
       ],
       detailsAr: `${p5Range.detailRangeAr} بتوفير ثلث تكلفة الخصومات الحالية (${Math.round(totalMarketingCostKwd).toLocaleString('en-US')} د.ك) واستبدالها بصنف هديته علينا 180 فلس فقط يرفع السلة فوق 6.500 د.ك.`,
       detailsEn: `${p5Range.detailRangeEn} by cutting open-% discount bleed (${Math.round(totalMarketingCostKwd).toLocaleString('en-US')} KWD current cost) with a 180-fils item unlocked at >= 6.500 KWD.`,
-      summaryAr: 'استبدال خصومات ٢٠٪–٣٠٪ المفتوحة بهدية مقبلات (كلفة ١٨٠ فلس) تفتح تلقائياً عند سلة ٦.٥٠٠ د.ك فأكثر.',
+      summaryAr: 'استبدال خصومات 20%–30% المفتوحة بهدية مقبلات (كلفة 180 فلس) تفتح تلقائياً عند سلة 6.500 د.ك فأكثر.',
       summaryEn: 'Replace open 20%–30% app discounts with a 180-fils side gift unlocked above a 6.500 KWD basket.',
       bulletsAr: [
-        'إيقاف خصومات النسبة المفتوحة ٢٠٪–٣٠٪ بالتطبيقات.',
-        'هدية شوربة أو رول للطلبات فوق ٦.٥ د.ك.',
+        'إيقاف خصومات النسبة المفتوحة 20%–30% بالتطبيقات.',
+        'هدية شوربة أو رول للطلبات فوق 6.5 د.ك.',
       ],
       bulletsEn: [
         'Stop flat 20–30% discounts across delivery apps.',
@@ -1581,12 +1582,12 @@ export function computeCoresHubSnapshot(
       ],
       expectedAr: p5Range.badgeAr,
       expectedEn: p5Range.badgeEn,
-      whatsappTextAr: `*خطة حماية الهامش من الخصم المفتوح (${p5ScopeAr})*\n• الوفر والربح المتوقع: ${p5Range.detailRangeAr}\n• استبدال خصم ٢٠–٣٠٪ بهدية شوربة/رول للطلبات فوق 6.500 د.ك + ملصق خصم طلب مباشر.`,
+      whatsappTextAr: `*خطة حماية الهامش من الخصم المفتوح (${p5ScopeAr})*\n• الوفر والربح المتوقع: ${p5Range.detailRangeAr}\n• استبدال خصم 20–30% بهدية شوربة/رول للطلبات فوق 6.500 د.ك + ملصق خصم طلب مباشر.`,
       whatsappTextEn: `*Free Gift >=6.5 KWD vs Flat % Off (${p5ScopeEn})*\n• Expected Net Savings: ${p5Range.detailRangeEn}\n• Replace flat % promos with free soup/roll on orders >= 6.500 KWD + direct-order QR sticker.`,
     },
     {
       id: 'kw-cpc-spotlight',
-      num: '٦',
+      num: '6',
       titleAr: 'ضبط النقرات + طبق الأسبوع',
       titleEn: 'CPC Ad Guard + Dish of Week',
       scopeAr: p6ScopeAr,
@@ -1598,8 +1599,8 @@ export function computeCoresHubSnapshot(
       upsideBadgeAr: p6Range.badgeAr,
       upsideBadgeEn: p6Range.badgeEn,
       shortBulletsAr: [
-        'تصوير طبق الأسبوع وفيديو ١٢ ثانية للتطبيقات.',
-        'إيقاف إعلانات النقرات وقت الذروة وفوق ٣٥٠ فلس.',
+        'تصوير طبق الأسبوع وفيديو 12 ثانية للتطبيقات.',
+        'إيقاف إعلانات النقرات وقت الذروة وفوق 350 فلس.',
       ],
       shortBulletsEn: [
         `Film ${shortDishName} 12s reel this week.`,
@@ -1607,11 +1608,11 @@ export function computeCoresHubSnapshot(
       ],
       detailsAr: `${p6Range.detailRangeAr} عبر تصوير "${dishOfTheWeek.dishName}" (${dishOfTheWeek.priceKwd.toFixed(2)} د.ك · هامش ${dishOfTheWeek.marginPct}%) وإيقاف هدر نقرات التطبيقات وقت ذروة المطبخ.`,
       detailsEn: `${p6Range.detailRangeEn} spotlighting "${dishOfTheWeek.dishName}" (${dishOfTheWeek.priceKwd.toFixed(2)} KWD · ${dishOfTheWeek.marginPct}% margin) while pausing peak-hour CPC waste.`,
-      summaryAr: `إبراز "${shortDishName}" (هامش ${dishOfTheWeek.marginPct}٪) وقصر إعلانات النقرات على غير الذروة بسقف ٠.٣٥٠ د.ك للطلب.`,
+      summaryAr: `إبراز "${shortDishName}" (هامش ${dishOfTheWeek.marginPct}%) وقصر إعلانات النقرات على غير الذروة بسقف 0.350 د.ك للطلب.`,
       summaryEn: `Spotlight "${shortDishName}" (${dishOfTheWeek.marginPct}% margin) and cap in-app CPC at 0.350 KWD off-peak only.`,
       bulletsAr: [
-        'تصوير طبق الأسبوع وفيديو ١٢ ثانية للتطبيقات.',
-        'إيقاف إعلانات النقرات وقت الذروة وفوق ٣٥٠ فلس.',
+        'تصوير طبق الأسبوع وفيديو 12 ثانية للتطبيقات.',
+        'إيقاف إعلانات النقرات وقت الذروة وفوق 350 فلس.',
       ],
       bulletsEn: [
         `Film ${shortDishName} 12s reel this week.`,
@@ -1674,7 +1675,7 @@ export function computeCoresHubSnapshot(
     if (lid === 'ardiya' || lid === 'salmiya' || cancelRatePct >= 0.8) {
       alertAr = 'إلغاءات وتأخير بالشفت المسائي يؤثر على تقييم التطبيقات'
       alertEn = 'Evening-shift cancellations & prep delay hurting app ratings'
-      fixAr = 'تجهيز مسبق للأصناف الـ ٥ الأكثر طلباً قبل الساعة ٧ مساءً ومطابقة الصوصات قبل التغليف.'
+      fixAr = 'تجهيز مسبق للأصناف الـ 5 الأكثر طلباً قبل الساعة 7 مساءً ومطابقة الصوصات قبل التغليف.'
       fixEn = 'Pre-stage top 5 sellers before 7 PM and double-check sauces before sealing.'
     } else if (lid === 'avenues') {
       alertAr = 'مبيعات الصالة ممتازة — مطلوب متابعة سرعة الكاشير بالذروة'
@@ -1724,7 +1725,7 @@ export function computeCoresHubSnapshot(
         (channelRanking.find((c) => c.id === 'talabat-tmp')?.orders ?? 0),
       issueAr: 'نقص صوص إضافي أو تأخر تحضير وقت ذروة العشاء',
       issueEn: 'Missing extra sauce or dinner-peak prep delay',
-      stepAr: 'وضع قائمة فحص من ٣ نقاط عند خط التغليف + كرت اعتذار وهدية بسيطة لأي طلب تأخر.',
+      stepAr: 'وضع قائمة فحص من 3 نقاط عند خط التغليف + كرت اعتذار وهدية بسيطة لأي طلب تأخر.',
       stepEn: 'Add 3-point bag check at packing line + thank-you recovery card.',
     },
     {
@@ -1801,7 +1802,7 @@ export function computeCoresHubSnapshot(
       peakHourSharePct,
       strongestDayLabelAr,
       strongestDayLabelEn,
-      quietWindowAr: '٣:٠٠ م – ٦:٠٠ م',
+      quietWindowAr: '3:00 م – 6:00 م',
       quietWindowEn: '3:00 PM – 6:00 PM',
       quietWindowSalesKwd,
       quietWindowDisplayKwd,

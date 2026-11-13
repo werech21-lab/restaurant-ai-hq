@@ -8,6 +8,7 @@ import { E2E_COOKIE, e2eEnabled, e2eUserId } from '@/lib/auth/e2e-session'
 import {
   EXEC_SESSION_COOKIE,
   verifyExecSessionToken,
+  type ExecSessionRole,
 } from '@/lib/auth/exec-session'
 import {
   getPanelSessionUser,
@@ -40,12 +41,15 @@ const membershipSql = `select m.tenant_id, m.permission_flags as flags,
      left join role_permissions rp on rp.role_id = m.role_id
      where m.user_id = $1 and m.status = 'active'`
 
-async function resolveExecSessionEmail(): Promise<string | null> {
+async function resolveExecSession(): Promise<{
+  email: string
+  role: ExecSessionRole
+} | null> {
   try {
     const jar = await cookies()
     const execToken = jar.get(EXEC_SESSION_COOKIE)?.value
     const payload = await verifyExecSessionToken(execToken)
-    return payload ? payload.sub : null
+    return payload ? { email: payload.sub, role: payload.role } : null
   } catch {
     return null
   }
@@ -85,9 +89,13 @@ async function resolveUserId(missingClient: 'throw' | 'none'): Promise<string | 
 export async function requirePageUser(nextPath?: string): Promise<string> {
   let resolvedId: string | null = null
   try {
-    const execEmail = await resolveExecSessionEmail()
-    if (execEmail) {
-      resolvedId = panelBridgeUserId('usr_venture_exec_001')
+    const execSession = await resolveExecSession()
+    if (execSession) {
+      resolvedId = panelBridgeUserId(
+        execSession.role === 'auditor'
+          ? 'usr_venture_auditor_001'
+          : 'usr_venture_exec_001',
+      )
     } else {
       const userId = await resolveUserId('none')
       if (userId) {
@@ -134,12 +142,25 @@ export async function authenticateUser(permission: Permission, requestedTenant: 
     throw new AppError(400, 'tenant_invalid', 'The tenant must be a UUID.')
   }
 
-  const execEmail = await resolveExecSessionEmail()
-  if (execEmail) {
+  const execSession = await resolveExecSession()
+  if (execSession) {
     const tenantId = requestedTenant ?? (await resolvePanelBridgeTenantId()) ?? '00000000-0000-0000-0000-000000000001'
-    const granted = panelBridgePermissionSet()
+    const fullSet = panelBridgePermissionSet()
+    const granted: ReadonlySet<string> =
+      execSession.role === 'auditor'
+        ? new Set([...fullSet].filter((p) => p.endsWith('.read')))
+        : fullSet
+
+    if (!granted.has(permission)) {
+      throw new AppError(403, 'forbidden', 'Read-only auditor session')
+    }
+
     return {
-      userId: panelBridgeUserId('usr_venture_exec_001'),
+      userId: panelBridgeUserId(
+        execSession.role === 'auditor'
+          ? 'usr_venture_auditor_001'
+          : 'usr_venture_exec_001',
+      ),
       tenantId,
       permissions: granted,
     }
@@ -183,9 +204,13 @@ export async function authenticateUser(permission: Permission, requestedTenant: 
  */
 export async function readSessionPermissions(): Promise<string[]> {
   try {
-    const execEmail = await resolveExecSessionEmail()
-    if (execEmail) {
-      return [...panelBridgePermissionSet()].sort()
+    const execSession = await resolveExecSession()
+    if (execSession) {
+      const fullSet = [...panelBridgePermissionSet()]
+      if (execSession.role === 'auditor') {
+        return fullSet.filter((p) => p.endsWith('.read')).sort()
+      }
+      return fullSet.sort()
     }
 
     const userId = await resolveUserId('none')
@@ -214,11 +239,15 @@ export async function readSessionPermissions(): Promise<string[]> {
 
 /** The signed-in user without any tenant. Only for calls a person makes before they belong to a company. */
 export async function authenticateSession(): Promise<SessionUser> {
-  const execEmail = await resolveExecSessionEmail()
-  if (execEmail) {
+  const execSession = await resolveExecSession()
+  if (execSession) {
     return {
-      userId: panelBridgeUserId('usr_venture_exec_001'),
-      email: execEmail,
+      userId: panelBridgeUserId(
+        execSession.role === 'auditor'
+          ? 'usr_venture_auditor_001'
+          : 'usr_venture_exec_001',
+      ),
+      email: execSession.email,
       emailConfirmed: true,
     }
   }

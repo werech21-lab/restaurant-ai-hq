@@ -129,8 +129,8 @@ export function BrandSalesAnalyticsDashboard({ locale = 'ar' }: Props) {
             </h1>
             <p className="max-w-3xl text-xs sm:text-sm text-mist-400">
               {en
-                ? 'Multi-brand consolidated analytics: 7 Brands · 11 Channels · 364 Menu Items · Interactive click-to-filter cross-filtering with slow-movers playbook automation.'
-                : 'التحليل التفاعلي الشامل لمبيعات المجموعة: 7 براندات · 11 قناة بيع · 364 صنف منيو · فلاتر النقر المباشر اللحظية مع محرك تحريك الأصناف الراكدة.'}
+                ? 'Multi-brand consolidated analytics: 6 Brands • 7 Branches • 8 Channels · 364 Menu Items · Interactive click-to-filter cross-filtering with slow-movers playbook automation.'
+                : 'التحليل التفاعلي الشامل لمبيعات المجموعة: 6 مطاعم • 7 فروع • 8 قنوات · 364 صنف منيو · فلاتر النقر المباشر اللحظية مع محرك تحريك الأصناف الراكدة.'}
             </p>
           </div>
 

@@ -42,6 +42,35 @@ import type { FeryalMediaAttachment } from '@/lib/feryal-multimodal'
 
 export type BrainMode = 'triple' | 'claude' | 'gemini' | 'grok' | 'dual'
 
+export const FERYAL_PRIMARY_MODES: readonly {
+  id: 'triple' | 'gemini'
+  shortAr: string
+  shortEn: string
+  subAr: string
+  subEn: string
+  descAr: string
+  descEn: string
+}[] = [
+  {
+    id: 'triple',
+    shortAr: 'دقيق',
+    shortEn: 'Deep & Precise',
+    subAr: 'تحليل دقيق',
+    subEn: 'Deep Analysis',
+    descAr: 'تحليل دقيق واستراتيجي متعدد الزوايا لأرقام أودو 17',
+    descEn: 'Multi-angle forensic CFO & operational synthesis on live Odoo 17 data',
+  },
+  {
+    id: 'gemini',
+    shortAr: 'سريع',
+    shortEn: 'Fast Answer',
+    subAr: 'إجابة سريعة',
+    subEn: 'Quick Summary',
+    descAr: 'إجابة سريعة ومباشرة بالخطوات والأرقام المعتمدة',
+    descEn: 'Rapid executive answer with direct actions and verified KWD figures',
+  },
+] as const
+
 export const FERYAL_EXECUTIVE_MODES: readonly {
   id: 'triple' | 'gemini' | 'claude'
   ar: string
@@ -71,6 +100,16 @@ export const FERYAL_EXECUTIVE_MODES: readonly {
     descEn: 'Visual audit for dishes, kitchen hygiene, chillers, and supplier invoices',
   },
 ] as const
+
+export function getPrimaryModeBadge(mode?: BrainMode | string | null, isAr = false): string {
+  if (mode === 'gemini') {
+    return isAr ? 'سريع · إجابة سريعة' : 'Fast Answer'
+  }
+  if (mode === 'claude') {
+    return isAr ? 'فحص الصور والفيديو' : 'Vision & Video Inspector'
+  }
+  return isAr ? 'دقيق · تحليل دقيق' : 'Deep & Precise'
+}
 
 export function getExecutiveModeLabel(mode?: BrainMode | string | null, isAr = false): string {
   if (mode === 'gemini') {
@@ -1946,11 +1985,11 @@ export function buildGrokUltraClipboardBrief(
     .join('\n')
 
   if (isAr) {
-    return `ملخص تنفيذي لتحليل استراتيجي معمّق — شركة فنتشر فودز الكويت (Odoo 17)
+    return `ملخص تنفيذي لتحليل استراتيجي معمّق — شركة فنتشر فودز الكويت (6 مطاعم • 7 فروع • 8 قنوات · Odoo 17)
 • الصفحة: ${pageTitle || 'ملخص الشركة'}
 • الفلتر النشط: ${ws.subtitleAr}
 • المطاعم المعتمدة فقط (6 مطاعم): تشاينا جاردن، فرانكس، طحينة، فارم براون، ذا نودل بار، كرك كافتيريا
-• الفروع النشطة فقط (7 مواقع + بوثات المعارض): الأفنيوز، مول 360، العاصمة، بروميناد، السالمية، الكوت، مطبخ العارضية
+• الفروع النشطة فقط (7 فروع + بوثات المعارض): الأفنيوز، مول 360، العاصمة، بروميناد، السالمية، الكوت، مطبخ العارضية
 • القاعدة المؤسسية للتوريد: المشتريات تشتري من الموردين ← نقل واستلام في المخزن ← توزيع المخزن ومطبخ العارضية على الفروع
 • قاعدة التوصيل المزدوج: تعاقد Tgo في كل الفروع + سائقو الشركة على TMP بعمولة 15% في الفروع المعتمدة
 
@@ -1969,11 +2008,11 @@ ${top3}
 حلّل هذه الأرقام عبر 3 زوايا (1: زيادة الصافي بالجيب، 2: ضبط المخزن والعارضية والفروع، 3: تعظيم سائقي TMP 15% وكشف أي تسرب خفي) بلغة كويتية عملية بسيطة وبأرقام محددة بالدينار الكويتي (متحفظ | مرجّح | أعلى).`
   }
 
-  return `Executive Deep Strategic Brief — Venture Foods Kuwait (Odoo 17)
+  return `Executive Deep Strategic Brief — Venture Foods Kuwait (6 Brands • 7 Branches • 8 Channels · Odoo 17)
 • Page: ${pageTitle || 'Company Summary'}
 • Active Filter: ${ws.subtitleEn}
 • Strictly 6 Approved Brands: China Garden, Frank's, Tahina, Farm Brown, The Noodle Bar, Karak Cafeteria
-• Strictly 7 Active Locations + EXB Booths: The Avenues, 360, Assima, Promenade, Salmiya, Al-Kout, Ardiya
+• Strictly 7 Active Branches + EXB Booths: The Avenues, 360, Assima, Promenade, Salmiya, Al-Kout, Ardiya
 • Supply-Chain Rule: Procurement -> Central Warehouse receiving -> Warehouse & Ardiya dispatch to branches
 • Dual Delivery Fleet: Talabat Tgo across all branches + in-house company drivers on TMP (15% fee) in designated branches
 

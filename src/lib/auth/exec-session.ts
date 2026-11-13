@@ -2,18 +2,27 @@ export const EXEC_SESSION_COOKIE = 'aether_exec_session'
 export const EXEC_SESSION_MAX_AGE = 12 * 60 * 60 // 43200s (12h)
 
 export const DEFAULT_ADMIN_EMAIL = 'admin@venturefoodskw.com'
+export const DEFAULT_AUDITOR_EMAIL = 'auditor@venturefoodskw.com'
 const DEFAULT_PASSWORD_SALT = 'vf-aether-exec-2026-v1:'
-const DEFAULT_PASSWORD_SHA256 =
+const DEFAULT_ADMIN_PASSWORD_SHA256 =
   '218deb04287696d7cfc35ba2a0c8863ea54e678dc562d8c5e4cc04731529ecd3'
+const DEFAULT_AUDITOR_PASSWORD_SHA256 =
+  '93126eacc43acc1b7030b2c2960d5f9aeadcb2a14d3258a6126f119bde3a4dba'
 
 const FALLBACK_SESSION_SECRET = 'vf-aether-exec-hmac-2026-prod-v2'
 
+export type ExecSessionRole = 'executive' | 'auditor'
+
 export type ExecSessionPayload = {
   sub: string
-  role: 'exec_admin'
+  role: ExecSessionRole
   iat: number
   exp: number
 }
+
+export type ExecCredentialResult =
+  | { valid: true; email: string; role: ExecSessionRole }
+  | { valid: false }
 
 function getSessionSecret(): string {
   const fromEnv =
@@ -24,6 +33,12 @@ function getSessionSecret(): string {
 
 export function getExpectedExecEmail(): string {
   return (process.env.AETHER_ADMIN_EMAIL || DEFAULT_ADMIN_EMAIL)
+    .trim()
+    .toLowerCase()
+}
+
+export function getExpectedAuditorEmail(): string {
+  return (process.env.AETHER_AUDITOR_EMAIL || DEFAULT_AUDITOR_EMAIL)
     .trim()
     .toLowerCase()
 }
@@ -102,53 +117,109 @@ async function hmacSha256(secret: string, message: string): Promise<Uint8Array> 
 }
 
 /**
- * Verifies executive credentials using salted SHA-256 and constant-time byte comparison.
- * Supports runtime overrides via AETHER_ADMIN_EMAIL and AETHER_ADMIN_PASSWORD.
+ * Authenticates Executive Admin ('executive') or Read-Only Auditor ('auditor')
+ * using salted SHA-256 digests and constant-time byte comparisons.
+ * Supports runtime overrides via AETHER_ADMIN_EMAIL / AETHER_ADMIN_PASSWORD
+ * and AETHER_AUDITOR_EMAIL / AETHER_AUDITOR_PASSWORD.
+ */
+export async function authenticateExecutiveCredentials(
+  email: string,
+  password: string,
+): Promise<ExecCredentialResult> {
+  const normalizedEmail = String(email || '').trim().toLowerCase()
+  const rawPassword = typeof password === 'string' ? password : ''
+  const expectedAdminEmail = getExpectedExecEmail()
+  const expectedAuditorEmail = getExpectedAuditorEmail()
+
+  const envAdminPassword = process.env.AETHER_ADMIN_PASSWORD
+  const envAuditorPassword = process.env.AETHER_AUDITOR_PASSWORD
+
+  const [
+    emailDigest,
+    adminEmailDigest,
+    auditorEmailDigest,
+    inputPassDigest,
+    expectedAdminPassDigest,
+    expectedAuditorPassDigest,
+  ] = await Promise.all([
+    sha256Bytes(normalizedEmail),
+    sha256Bytes(expectedAdminEmail),
+    sha256Bytes(expectedAuditorEmail),
+    sha256Bytes(`${DEFAULT_PASSWORD_SALT}${rawPassword}`),
+    typeof envAdminPassword === 'string' && envAdminPassword.length > 0
+      ? sha256Bytes(`${DEFAULT_PASSWORD_SALT}${envAdminPassword}`)
+      : Promise.resolve(hexToBytes(DEFAULT_ADMIN_PASSWORD_SHA256)),
+    typeof envAuditorPassword === 'string' && envAuditorPassword.length > 0
+      ? sha256Bytes(`${DEFAULT_PASSWORD_SALT}${envAuditorPassword}`)
+      : Promise.resolve(hexToBytes(DEFAULT_AUDITOR_PASSWORD_SHA256)),
+  ])
+
+  const nonEmpty = normalizedEmail.length > 0 && rawPassword.length > 0
+
+  const adminEmailMatches = timingSafeEqualBytes(emailDigest, adminEmailDigest)
+  const adminPassMatches = timingSafeEqualBytes(
+    inputPassDigest,
+    expectedAdminPassDigest,
+  )
+
+  const auditorEmailMatches = timingSafeEqualBytes(
+    emailDigest,
+    auditorEmailDigest,
+  )
+  const auditorPassMatches = timingSafeEqualBytes(
+    inputPassDigest,
+    expectedAuditorPassDigest,
+  )
+
+  if (nonEmpty && adminEmailMatches && adminPassMatches) {
+    return {
+      valid: true,
+      email: expectedAdminEmail,
+      role: 'executive',
+    }
+  }
+
+  if (nonEmpty && auditorEmailMatches && auditorPassMatches) {
+    return {
+      valid: true,
+      email: expectedAuditorEmail,
+      role: 'auditor',
+    }
+  }
+
+  return { valid: false }
+}
+
+/**
+ * Boolean credential verifier returning true when either Executive Admin or Read-Only Auditor matches.
  */
 export async function verifyExecutiveCredentials(
   email: string,
   password: string,
 ): Promise<boolean> {
-  const normalizedEmail = String(email || '').trim().toLowerCase()
-  const rawPassword = typeof password === 'string' ? password : ''
-  const expectedEmail = getExpectedExecEmail()
-
-  const [emailDigest, expectedEmailDigest, inputPassDigest] = await Promise.all([
-    sha256Bytes(normalizedEmail),
-    sha256Bytes(expectedEmail),
-    sha256Bytes(`${DEFAULT_PASSWORD_SALT}${rawPassword}`),
-  ])
-
-  const envPassword = process.env.AETHER_ADMIN_PASSWORD
-  const expectedPassDigest =
-    typeof envPassword === 'string' && envPassword.length > 0
-      ? await sha256Bytes(`${DEFAULT_PASSWORD_SALT}${envPassword}`)
-      : hexToBytes(DEFAULT_PASSWORD_SHA256)
-
-  const emailMatches = timingSafeEqualBytes(emailDigest, expectedEmailDigest)
-  const passwordMatches = timingSafeEqualBytes(
-    inputPassDigest,
-    expectedPassDigest,
-  )
-
-  return (
-    normalizedEmail.length > 0 &&
-    rawPassword.length > 0 &&
-    emailMatches &&
-    passwordMatches
-  )
+  const result = await authenticateExecutiveCredentials(email, password)
+  return result.valid
 }
 
 /**
- * Signs an executive session payload (12h expiry) using HMAC-SHA256 via Web Crypto API.
+ * Signs an executive or read-only auditor session payload (12h expiry) using HMAC-SHA256 via Web Crypto API.
  */
-export async function createExecSessionToken(email: string): Promise<string> {
+export async function createExecSessionToken(
+  email: string,
+  role?: ExecSessionRole,
+): Promise<string> {
   const sub = String(email || DEFAULT_ADMIN_EMAIL).trim().toLowerCase()
+  const resolvedRole: ExecSessionRole =
+    role === 'auditor' || role === 'executive'
+      ? role
+      : sub === getExpectedAuditorEmail()
+        ? 'auditor'
+        : 'executive'
   const iat = Math.floor(Date.now() / 1000)
   const exp = iat + EXEC_SESSION_MAX_AGE
   const payload: ExecSessionPayload = {
     sub,
-    role: 'exec_admin',
+    role: resolvedRole,
     iat,
     exp,
   }
@@ -161,7 +232,8 @@ export async function createExecSessionToken(email: string): Promise<string> {
 }
 
 /**
- * Verifies an HMAC-SHA256 executive session token on Edge, RSC, or Node Route Handlers.
+ * Verifies an HMAC-SHA256 session token on Edge, RSC, or Node Route Handlers.
+ * Normalizes legacy 'exec_admin' tokens to 'executive'.
  */
 export async function verifyExecSessionToken(
   token: string | undefined | null,
@@ -182,13 +254,25 @@ export async function verifyExecSessionToken(
     if (!timingSafeEqualBytes(providedSig, expectedSig)) return null
 
     const decodedJson = new TextDecoder().decode(payloadBytes)
-    const parsed = JSON.parse(decodedJson) as Partial<ExecSessionPayload>
+    const parsed = JSON.parse(decodedJson) as {
+      sub?: unknown
+      role?: unknown
+      iat?: unknown
+      exp?: unknown
+    }
+
+    const normalizedRole: ExecSessionRole | null =
+      parsed?.role === 'auditor'
+        ? 'auditor'
+        : parsed?.role === 'executive' || parsed?.role === 'exec_admin'
+          ? 'executive'
+          : null
 
     if (
       !parsed ||
       typeof parsed.sub !== 'string' ||
       parsed.sub.trim().length === 0 ||
-      parsed.role !== 'exec_admin' ||
+      !normalizedRole ||
       typeof parsed.iat !== 'number' ||
       !Number.isFinite(parsed.iat) ||
       typeof parsed.exp !== 'number' ||
@@ -204,7 +288,7 @@ export async function verifyExecSessionToken(
 
     return {
       sub: parsed.sub.trim().toLowerCase(),
-      role: 'exec_admin',
+      role: normalizedRole,
       iat: parsed.iat,
       exp: parsed.exp,
     }

@@ -13,7 +13,7 @@ export function LoginHero() {
       <div className="relative z-10 min-w-0">
         <div className="mb-8 flex items-center justify-between gap-4">
           <span className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-medium tabular-nums text-emerald-300">
-            Aether BI v2.6 Enterprise
+            Aether BI v2.7 Enterprise
           </span>
           <LanguageSwitch />
         </div>

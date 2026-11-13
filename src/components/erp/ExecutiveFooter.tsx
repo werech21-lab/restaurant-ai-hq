@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { RefreshCw } from 'lucide-react'
+import { Database, RefreshCw } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { OdooAuditCertificatePill } from '@/components/aether/OdooAuditCertificateModal'
@@ -13,6 +13,10 @@ const SIX_HOURS_MS = 6 * 60 * 60 * 1000
 
 const PROOF_SYNCED_AT =
   (RECEIPTS_PROOF as unknown as { syncedAt?: string }).syncedAt ?? '2026-11-11T18:00:00Z'
+
+function toWesternDigits(value: string): string {
+  return value.replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+}
 
 function formatWesternSyncStamp(iso?: string): string {
   const target = iso ? new Date(iso) : new Date(PROOF_SYNCED_AT)
@@ -27,16 +31,20 @@ function formatWesternSyncStamp(iso?: string): string {
       minute: '2-digit',
       hour12: false,
     }).format(target)
-    return `${formatted.replace(',', '')} UTC+3`
+    return toWesternDigits(`${formatted.replace(',', '')} UTC+3`)
   } catch {
-    return `${target.toISOString().slice(0, 16).replace('T', ' ')} UTC`
+    return toWesternDigits(`${target.toISOString().slice(0, 16).replace('T', ' ')} UTC`)
   }
 }
 
 /**
  * Clean Official Executive Footer (`src/components/erp/ExecutiveFooter.tsx`)
- * Single canonical home for the Odoo 17 Audit & Reconciliation Certificate badge,
- * live ledger sync heartbeat, Venture Foods 6x7x8 official entity scope, and release tag.
+ * Single canonical home for:
+ * 1) Odoo 17 Last Sync Time (`آخر مزامنة أودو 17` / `Odoo 17 Last Sync`)
+ * 2) Data Source (`دفتر الأستاذ العام ونقاط البيع Odoo 17` / `Odoo 17 General Ledger & POS`)
+ * 3) Audit Certificate (`<OdooAuditCertificatePill />`)
+ * 4) Venture Foods 6x7x8 Official Entity Scope
+ * 5) Release `v2.7`
  */
 export function ExecutiveFooter() {
   const { locale } = useI18n()
@@ -94,11 +102,11 @@ export function ExecutiveFooter() {
     <footer
       dir={isAr ? 'rtl' : 'ltr'}
       aria-label={isAr ? 'تذييل المنصة التنفيذي الرسمي' : 'Official Executive Platform Footer'}
-      className="no-print border-t border-slate-200/70 dark:border-white/[0.07] pt-5 pb-2 mt-8 text-xs text-slate-500 dark:text-slate-400"
+      className="no-print mt-8 border-t border-slate-200/70 pt-5 pb-2 text-xs tabular-nums text-slate-500 dark:border-white/[0.07] dark:text-slate-400"
     >
       <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-2.5">
-        {/* Start Group: 1) Odoo 17 Verified Audit Badge + 2) Calm Ledger Sync Timestamp */}
-        <div className="flex flex-wrap items-center gap-x-3.5 gap-y-2">
+        {/* Start Group: 1) Audit Certificate + 2) Odoo 17 Last Sync Time + 3) Data Source */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <OdooAuditCertificatePill isAr={isAr} />
 
           <button
@@ -110,7 +118,7 @@ export function ExecutiveFooter() {
                 ? 'اضغط لتحديث ومطابقة دفتر أودو 17 الآن'
                 : 'Click to refresh live Odoo 17 ledger sync now'
             }
-            className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl px-2 py-1 text-start text-xs font-medium text-slate-500 transition-colors hover:bg-slate-100/80 hover:text-slate-800 disabled:opacity-60 dark:text-slate-400 dark:hover:bg-white/[0.05] dark:hover:text-slate-200"
+            className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl px-2 py-1 text-start text-xs font-medium tabular-nums text-slate-600 transition-colors hover:bg-slate-100/80 hover:text-slate-900 disabled:opacity-60 dark:text-slate-300 dark:hover:bg-white/[0.05] dark:hover:text-white"
           >
             {syncing ? (
               <RefreshCw className="h-3 w-3 shrink-0 animate-spin text-emerald-600 dark:text-emerald-400" />
@@ -120,21 +128,29 @@ export function ExecutiveFooter() {
                 className="inline-block h-2 w-2 shrink-0 rounded-full bg-emerald-500"
               />
             )}
-            <span className="tabular-nums">
-              {isAr
-                ? 'آخر مزامنة دفتر أودو 17: محدث تلقائياً • مطابقة 100%'
-                : 'Odoo 17 Ledger Sync: Verified Live • 0.000 KWD Variance'}
+            <span>
+              {isAr ? 'آخر مزامنة أودو 17:' : 'Odoo 17 Last Sync:'}
             </span>
-            <span
-              dir="ltr"
-              className="hidden font-mono text-[11px] tabular-nums text-slate-400 sm:inline dark:text-slate-500"
-            >
-              ({syncStamp})
+            <span dir="ltr" className="font-mono text-[11.5px] font-semibold tabular-nums">
+              {syncStamp}
             </span>
           </button>
+
+          <span aria-hidden className="hidden text-slate-300 sm:inline dark:text-white/15">
+            •
+          </span>
+
+          <span className="inline-flex items-center gap-1.5 tabular-nums text-slate-500 dark:text-slate-400">
+            <Database className="h-3.5 w-3.5 shrink-0 text-emerald-600/80 dark:text-emerald-400/80" />
+            <span>
+              {isAr
+                ? 'مصدر البيانات: دفتر الأستاذ العام ونقاط البيع Odoo 17'
+                : 'Data Source: Odoo 17 General Ledger & POS'}
+            </span>
+          </span>
         </div>
 
-        {/* End Group: 3) Official Entity Scope (6x7x8) + 4) Platform Release */}
+        {/* End Group: 4) Official Entity Scope (6x7x8) + 5) Platform Release v2.7 */}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 tabular-nums">
           <span className="font-medium text-slate-600 dark:text-slate-300">
             {isAr
@@ -144,11 +160,8 @@ export function ExecutiveFooter() {
           <span aria-hidden className="text-slate-300 dark:text-white/15">
             •
           </span>
-          <span
-            dir="ltr"
-            className="font-semibold tracking-tight tabular-nums text-slate-600 dark:text-slate-300"
-          >
-            Aether BI v2.6 Enterprise
+          <span className="rounded-lg bg-slate-100 px-2 py-0.5 font-semibold tracking-tight tabular-nums text-slate-700 dark:bg-white/[0.06] dark:text-slate-200">
+            {isAr ? 'الإصدار v2.7' : 'Aether BI Release v2.7'}
           </span>
         </div>
       </div>

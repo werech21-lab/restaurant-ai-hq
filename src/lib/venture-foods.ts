@@ -8,5 +8,5 @@ export const VENTURE_FOODS = {
   timezone: "Asia/Kuwait",
   address: "دولة الكويت",
   invoiceFooter: "شكراً لتعاملكم مع شركة فنتشر فودز لإدارة المطاعم ذ.م.م.",
-  brandsLabel: "7 Brands · 10 Branches",
+  brandsLabel: "6 Brands • 7 Branches • 8 Channels",
 } as const;

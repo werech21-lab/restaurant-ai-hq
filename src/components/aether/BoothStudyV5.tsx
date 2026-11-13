@@ -675,7 +675,7 @@ export function BoothStudyV5() {
               {T('Sales Breakdown', 'توزيع مبيعات المعرض')}
             </h2>
             <p className="text-xs text-neutral-400 dark:text-slate-400">
-              {T('Where expected booth sales go', 'وين تروح مبيعات البوث المتوقعة')}
+              {T('How expected booth sales are allocated', 'كيف تتوزع مبيعات البوث المتوقعة؟')}
             </p>
           </div>
           <InteractiveDonutChart

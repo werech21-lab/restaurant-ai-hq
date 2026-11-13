@@ -163,8 +163,8 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
               </div>
               <p className="text-xs text-slate-400">
                 {isAr
-                  ? 'شركة فنتشر فودز لإدارة المطاعم ذ.م.م. · 7 براندات · 10 فروع · 11 قناة بيع · 364 صنفاً'
-                  : 'Venture Foods Restaurant Management W.L.L. · 7 Brands · 10 Branches · 11 Channels'}
+                  ? 'شركة فنتشر فودز لإدارة المطاعم ذ.م.م. · 6 مطاعم • 7 فروع • 8 قنوات · 364 صنفاً'
+                  : 'Venture Foods Restaurant Management W.L.L. · 6 Brands • 7 Branches • 8 Channels'}
               </p>
             </div>
           </div>
@@ -226,7 +226,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
               onChange={(e) => setSelectedBrand(e.target.value as BrandKey)}
               className="rounded-xl border border-white/10 bg-slate-900/90 px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-emerald-500"
             >
-              <option value="ALL">{isAr ? 'جميع البراندات (All 7 Brands)' : 'All 7 Brands'}</option>
+              <option value="ALL">{isAr ? 'جميع المطاعم (6 مطاعم)' : 'All 6 Brands'}</option>
               <option value="China Garden">China Garden (تشاينا جاردن)</option>
               <option value="Frank's">{"Frank's (فرانكس ستيك)"}</option>
               <option value="Tahina">Tahina (شاورما طحينة)</option>
@@ -489,7 +489,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                 <div className="flex items-center justify-between pb-4">
                   <div>
                     <h3 className="text-sm font-bold text-white">
-                      {isAr ? 'أداء البراندات الـ 6 (انقر للفلترة)' : '7 Brands Breakdown (Click to filter)'}
+                      {isAr ? 'أداء المطاعم الـ 6 (انقر للفلترة)' : '6 Brands Breakdown (Click to filter)'}
                     </h3>
                     <p className="text-[11px] text-slate-400">
                       {isAr ? 'اضغط على أي براند لتخصيص كامل اللوحة' : 'Click any bar to filter entire dashboard'}

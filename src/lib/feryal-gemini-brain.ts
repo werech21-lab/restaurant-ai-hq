@@ -230,13 +230,13 @@ export async function analyzeEventContractWithGemini({
   const breakEvenOrders = durationDays > 0 && exbGrossPerOrder > 0 ? Math.ceil(boothRentKwd / durationDays / exbGrossPerOrder) : 0;
   const defaultResult: ContractDeepAuditResult = {
     risksAr: [
-      `البند 4 (القوة القاهرة والأحوال الجوية): ينص العقد الحالي على عدم استرداد الإيجار (${boothRentKwd.toLocaleString()} د.ك) عند إغلاق الفعالية بسبب الأمطار الغزيرة أو الغبار.`,
+      `البند 4 (القوة القاهرة والأحوال الجوية): ينص العقد الحالي على عدم استرداد الإيجار (${boothRentKwd.toLocaleString('en-US')} د.ك) عند إغلاق الفعالية بسبب الأمطار الغزيرة أو الغبار.`,
       'البند 7 (رسوم الخدمات والنظافة والأمن): رسوم خدمات مفتوحة غير مسقفة قد ترفع التكلفة الفعلية فوق القيمة الإيجارية المتفق عليها.',
       'البند 9 (المواصفات الفنية والكهرباء): عدم النص صراحةً على توفير قاطع كهرباء ثلاثي الطور بقدرة 60 أمبير مستقل لتشغيل قلايات البوث وأجهزة الووك.',
       'البند 11 (غرامات التأخير والتراخيص): غرامات يومية عن أي تأخير في إصدار ترخيص بلدية الكويت المؤقت أو الشهادات الصحية حتى لو كان التأخير من المنظم.',
     ],
     risksEn: [
-      `Clause 4 (Force Majeure & Weather): Contract states booth rent (${boothRentKwd.toLocaleString()} KWD) is non-refundable during rain or dust storm closures.`,
+      `Clause 4 (Force Majeure & Weather): Contract states booth rent (${boothRentKwd.toLocaleString('en-US')} KWD) is non-refundable during rain or dust storm closures.`,
       'Clause 7 (Uncapped Service & Cleaning Fees): Open-ended organizer service charges that could inflate the total lease cost beyond the agreed rent.',
       'Clause 9 (Technical & 3-Phase Power): No explicit guarantee of a dedicated 3-Phase (60 Amp) breaker required for Wok stations and commercial fryers.',
       'Clause 11 (Delay Penalties & MOCI/Municipality Permits): Daily penalties even if temporary municipality license issuance is delayed by the organizer.',

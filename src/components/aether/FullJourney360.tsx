@@ -427,7 +427,7 @@ export function FullJourney360() {
                   )}
                 </span>
                 <span className="rounded-md bg-amber-100/90 px-2 py-0.5 text-[11px] font-bold text-amber-900 dark:bg-amber-900/60 dark:text-amber-200">
-                  {T('Cumulative Balance', 'رصيد تراكمي')}
+                  {T('Cumulative Balance', 'رصيد متراكم')}
                 </span>
               </div>
               <ArrowUpRight className="h-4 w-4 shrink-0 text-amber-700 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 rtl:group-hover:-translate-x-0.5 dark:text-amber-400" />
@@ -443,8 +443,8 @@ export function FullJourney360() {
               </span>
               <span className="whitespace-normal text-[11.5px] font-medium text-slate-600 dark:text-slate-300">
                 {T(
-                  '(Open unsettled balance including prior periods)',
-                  '(رصيد مفتوح قيد التحصيل يشمل فترات سابقة)',
+                  '(Open cumulative balance from prior periods under collection)',
+                  '(رصيد متراكم مفتوح من فترات سابقة قيد التحصيل)',
                 )}
               </span>
             </div>
@@ -699,9 +699,18 @@ export function FullJourney360() {
 
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
             {workspace.summaryCards.map((c) => {
-              const badgeLabel = isAr
-                ? c.badgeAr ?? c.statusLabelAr
-                : c.badgeEn ?? c.statusLabelEn
+              const badgeLabel =
+                c.id === 'delivery-dues'
+                  ? isAr
+                    ? 'رصيد متراكم'
+                    : c.badgeEn ?? 'Cumulative Balance'
+                  : c.id === 'branch-discipline'
+                    ? isAr
+                      ? c.statusLabelAr
+                      : c.statusLabelEn
+                    : isAr
+                      ? c.badgeAr ?? c.statusLabelAr
+                      : c.badgeEn ?? c.statusLabelEn
 
               return (
                 <article
@@ -729,7 +738,21 @@ export function FullJourney360() {
                     <div
                       className={`text-2xl sm:text-[28px] font-semibold tracking-tight tabular-nums ${ACCENT_RING[c.accent]}`}
                     >
-                      {isAr ? c.valueAr : <span dir="ltr">{c.valueEn}</span>}
+                      {c.id === 'branch-discipline' ? (
+                        isAr ? (
+                          <span>
+                            {`${c.valueAr} (${c.badgeAr ?? 'المستهدف: 85+'})`}
+                          </span>
+                        ) : (
+                          <span dir="ltr">
+                            {`${c.valueEn} (${c.badgeEn ?? 'Target: 85+'})`}
+                          </span>
+                        )
+                      ) : isAr ? (
+                        c.valueAr
+                      ) : (
+                        <span dir="ltr">{c.valueEn}</span>
+                      )}
                     </div>
 
                     <p className="whitespace-normal text-[13.5px] sm:text-[14px] leading-relaxed text-slate-600 dark:text-slate-300">

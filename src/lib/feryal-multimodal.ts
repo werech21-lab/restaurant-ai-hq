@@ -611,10 +611,10 @@ export function buildDefaultMediaPrompt(
     if (hasVideo) {
       return 'شاهدي الفيديو المرفق وحلّلي كل لقطاته الزمنية بدقة (سرعة التجهيز، الازدحام، الجودة، أو النظافة) وحددي درجة المطابقة (🟢 مطابق / 🟡 ملاحظة متوسطة / 🔴 مخالفة حرجة) مع خطة العمل.'
     }
-    return 'افحصي الصورة المرفقة بدقة (جودة الطبق، النظافة والثلاجات، المخزن، أو فاتورة مورد) وحددي درجة المطابقة (🟢 مطابق / 🟡 ملاحظة متوسطة / 🔴 مخالفة حرجة) مع الملاحظات البصرية الدقيقة.'
+    return 'افحصي الصورة المرفقة بدقة عبر معايير فنتشر فودز (6 مطاعم • 7 فروع • 8 قنوات — جودة الطبق، النظافة والثلاجات، المخزن، أو فاتورة مورد) وحددي درجة المطابقة (🟢 مطابق / 🟡 ملاحظة متوسطة / 🔴 مخالفة حرجة) مع الملاحظات البصرية الدقيقة.'
   }
   if (hasVideo && hasImage) {
-    return 'Inspect the attached photos and video carefully, assign a compliance score (🟢 Compliant / 🟡 Medium Observation / 🔴 Critical Violation), cite exact visual findings, and give an immediate Venture Foods action plan.'
+    return 'Inspect the attached photos and video carefully across Venture Foods standards (6 Brands • 7 Branches • 8 Channels), assign a compliance score (🟢 Compliant / 🟡 Medium Observation / 🔴 Critical Violation), cite exact visual findings, and give an immediate action plan.'
   }
   if (hasVideo) {
     return 'Analyze the attached video across all timeline keyframes, score compliance (🟢 Compliant / 🟡 Medium Observation / 🔴 Critical Violation), and provide an immediate operational recommendation.'

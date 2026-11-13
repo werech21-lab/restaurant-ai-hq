@@ -8,6 +8,16 @@ type Builders = {
   buildSecurityHeaders: (options: { supabaseUrl: string | undefined; isProduction: boolean }) => Header[]
 }
 
+const APPROVED_AI_CONNECT_ORIGINS = [
+  'https://generativelanguage.googleapis.com',
+  'https://*.googleapis.com',
+  'https://api.x.ai',
+  'https://*.x.ai',
+  'https://api.openai.com',
+  'https://translate.google.com',
+  'https://*.openai.com',
+]
+
 function load(): Builders {
   const require = createRequire(path.join(process.cwd(), 'package.json'))
   const loaded: unknown = require('./security-headers.js')
@@ -38,13 +48,19 @@ describe('content security policy', () => {
     expect(directive(production, 'default-src')).toEqual(["'self'"])
   })
 
-  it('lets the browser call only this origin and the configured Supabase project', () => {
-    expect(directive(production, 'connect-src')).toEqual(["'self'", SUPABASE, 'wss://abcdefgh.supabase.co'])
-    expect(production).not.toMatch(/connect-src[^;]*\*/)
+  it('lets the browser call only this origin, approved AI HTTPS endpoints and the configured Supabase project', () => {
+    expect(directive(production, 'connect-src')).toEqual([
+      "'self'",
+      ...APPROVED_AI_CONNECT_ORIGINS,
+      SUPABASE,
+      'wss://abcdefgh.supabase.co',
+    ])
+    expect(directive(production, 'connect-src')).not.toContain('*')
   })
 
   it('allows no wildcard source anywhere and no eval in production', () => {
     expect(production).not.toMatch(/(^|[ ;])\*([ ;]|$)/)
+    expect(directive(production, 'media-src')).not.toContain('*')
     expect(directive(production, 'script-src')).not.toContain("'unsafe-eval'")
     expect(production).toContain('upgrade-insecure-requests')
   })
@@ -55,9 +71,12 @@ describe('content security policy', () => {
     expect(development).not.toContain('upgrade-insecure-requests')
   })
 
-  it('falls back to this origin alone when Supabase is not configured or the URL is malformed', () => {
+  it('omits Supabase origins when Supabase is not configured or the URL is malformed', () => {
     for (const supabaseUrl of [undefined, '', 'not a url']) {
-      expect(directive(buildContentSecurityPolicy({ supabaseUrl, isProduction: true }), 'connect-src')).toEqual(["'self'"])
+      expect(directive(buildContentSecurityPolicy({ supabaseUrl, isProduction: true }), 'connect-src')).toEqual([
+        "'self'",
+        ...APPROVED_AI_CONNECT_ORIGINS,
+      ])
     }
   })
 
@@ -71,12 +90,14 @@ describe('content security policy', () => {
 describe('security headers', () => {
   const production = new Map(buildSecurityHeaders({ supabaseUrl: SUPABASE, isProduction: true }).map((header) => [header.key, header.value]))
 
-  it('sets the standard protections', () => {
+  it('sets the standard protections and scopes camera and microphone strictly to self', () => {
     expect(production.get('X-Frame-Options')).toBe('DENY')
     expect(production.get('X-Content-Type-Options')).toBe('nosniff')
     expect(production.get('Referrer-Policy')).toBe('strict-origin-when-cross-origin')
     expect(production.get('Cross-Origin-Opener-Policy')).toBe('same-origin')
-    expect(production.get('Permissions-Policy')).toContain('camera=()')
+    expect(production.get('Permissions-Policy')).toBe(
+      'camera=(self), microphone=(self), geolocation=(), browsing-topics=()',
+    )
     expect(production.get('Content-Security-Policy')).toBeTruthy()
   })
 

@@ -7,6 +7,8 @@ import {
 import { SESSION_COOKIE, sessionCookieOptions } from '@/lib/session'
 
 const ROBOTS_HEADER = 'noindex, nofollow, noarchive'
+const PERMISSIONS_POLICY_HEADER =
+  'camera=(self), microphone=(self), geolocation=(), browsing-topics=()'
 
 function clearAuthCookies(response: NextResponse, isSecure: boolean) {
   response.cookies.set(EXEC_SESSION_COOKIE, '', {
@@ -39,6 +41,7 @@ export async function POST(request: Request) {
       status: 303,
       headers: {
         'X-Robots-Tag': ROBOTS_HEADER,
+        'Permissions-Policy': PERMISSIONS_POLICY_HEADER,
         'Cache-Control': 'no-store',
       },
     })
@@ -52,6 +55,7 @@ export async function POST(request: Request) {
       status: 200,
       headers: {
         'X-Robots-Tag': ROBOTS_HEADER,
+        'Permissions-Policy': PERMISSIONS_POLICY_HEADER,
         'Cache-Control': 'no-store',
       },
     },
@@ -66,6 +70,7 @@ export async function GET(request: Request) {
     status: 303,
     headers: {
       'X-Robots-Tag': ROBOTS_HEADER,
+      'Permissions-Policy': PERMISSIONS_POLICY_HEADER,
       'Cache-Control': 'no-store',
     },
   })

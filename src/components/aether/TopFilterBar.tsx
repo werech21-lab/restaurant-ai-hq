@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
+  Bell,
   Check,
   ChevronDown,
   Globe,
@@ -26,6 +27,7 @@ import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { BRAIN_BAR_ROUTES } from '@/components/aether/TopBrainSwitcher'
 import {
   GovernanceBellTrigger,
+  OPEN_GOV_DRAWER_EVENT,
   useOptionalGovernance,
 } from '@/components/erp/GovernanceBellDrawer'
 import { RAIL_TOGGLE_EVENT } from '@/components/erp-sidebar'
@@ -166,7 +168,7 @@ function FilterChipGroup<T extends string>({
         className={
           twoColGrid
             ? 'grid grid-cols-1 gap-1.5 sm:grid-cols-2'
-            : 'flex flex-wrap items-center gap-1.5'
+            : 'flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5 sm:flex-wrap sm:overflow-visible'
         }
       >
         {options.map((opt) => {
@@ -177,7 +179,7 @@ function FilterChipGroup<T extends string>({
               key={opt.id}
               type="button"
               onClick={() => onChange(opt.id)}
-              className={`inline-flex cursor-pointer items-center justify-between gap-2 rounded-xl px-3 py-2 text-start text-[12.5px] leading-snug whitespace-normal transition-all duration-[160ms] ${
+              className={`inline-flex shrink-0 cursor-pointer items-center justify-between gap-2 rounded-xl px-3 py-2 text-start text-[12.5px] leading-snug whitespace-nowrap sm:whitespace-normal transition-all duration-[160ms] ${
                 active
                   ? 'btn-colored bg-emerald-600 font-semibold text-white shadow-sm dark:bg-emerald-500 dark:text-[#04130D]'
                   : 'bg-neutral-100/90 font-medium text-slate-700 hover:bg-neutral-200/70 hover:text-slate-950 dark:bg-white/[0.05] dark:text-slate-200 dark:hover:bg-white/[0.10]'
@@ -217,6 +219,8 @@ function FilterChipGroup<T extends string>({
 function AccountWorkspaceMenuPanel({
   isAr,
   locale,
+  auditorMode,
+  userEmail,
   onSetLocale,
   sharedCopied,
   onShareWhatsApp,
@@ -227,6 +231,8 @@ function AccountWorkspaceMenuPanel({
 }: {
   isAr: boolean
   locale: Locale
+  auditorMode: boolean
+  userEmail?: string
   onSetLocale: (next: Locale) => void
   sharedCopied: boolean
   onShareWhatsApp: () => void
@@ -236,34 +242,102 @@ function AccountWorkspaceMenuPanel({
   onCloseMenu: () => void
 }) {
   const gov = useOptionalGovernance()
+  const badgeCount = gov?.liveBadgeCount ?? 0
+  const hasBreaches = (gov?.activeBreaches.length ?? 0) > 0
+
+  const handleOpenNotifications = () => {
+    onCloseMenu()
+    if (gov) {
+      gov.openDrawer('all')
+    } else {
+      window.dispatchEvent(new CustomEvent(OPEN_GOV_DRAWER_EVENT, { detail: 'all' }))
+    }
+  }
 
   return (
     <div
       role="menu"
-      aria-label={isAr ? 'حساب الإدارة والإعدادات' : 'Executive Account & Workspace Menu'}
+      aria-label={isAr ? 'القائمة والحساب' : 'Account & Menu'}
       dir={isAr ? 'rtl' : 'ltr'}
-      className="w-[min(92vw,320px)] space-y-2 rounded-2xl bg-white p-3.5 text-slate-800 shadow-[0_20px_50px_rgba(15,23,42,0.16)] ring-1 ring-slate-900/[0.07] dark:bg-[#101C17] dark:text-slate-100 dark:ring-emerald-500/20"
+      className="w-[min(92vw,330px)] space-y-2 rounded-2xl bg-white p-3.5 text-slate-800 shadow-[0_20px_50px_rgba(15,23,42,0.16)] ring-1 ring-slate-900/[0.07] dark:bg-[#101C17] dark:text-slate-100 dark:ring-emerald-500/20"
     >
       {/* Account Identity Header */}
       <div className="flex items-center justify-between gap-2 border-b border-slate-200/70 pb-2.5 dark:border-white/[0.08]">
         <div className="min-w-0">
-          <div className="text-[12.5px] font-bold text-slate-900 dark:text-white">
-            {isAr ? 'الإدارة التنفيذية • فنتشر فودز' : 'Executive Office • Venture Foods'}
-          </div>
+          {auditorMode ? (
+            <span className="inline-flex items-center gap-1.5 rounded-xl bg-amber-50 px-2.5 py-0.5 text-[11.5px] font-bold text-amber-900 ring-1 ring-amber-500/25 dark:bg-amber-950/60 dark:text-amber-200">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />
+              <span>{isAr ? 'حساب مراجعة — قراءة فقط' : 'Read-Only Auditor'}</span>
+            </span>
+          ) : (
+            <div className="text-[12.5px] font-bold text-slate-900 dark:text-white">
+              {isAr ? 'الإدارة التنفيذية • فنتشر فودز' : 'Executive Office • Venture Foods'}
+            </div>
+          )}
           <div
             dir="ltr"
-            className="truncate font-mono text-[11px] text-slate-400 dark:text-slate-400"
+            className="mt-0.5 truncate font-mono text-[11px] text-slate-400 dark:text-slate-400"
           >
-            admin@venturefoodskw.com
+            {userEmail ||
+              (auditorMode ? 'auditor@venturefoodskw.com' : 'admin@venturefoodskw.com')}
           </div>
         </div>
-        <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+        <span
+          className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${
+            auditorMode
+              ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300'
+              : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
+          }`}
+        >
           <ShieldCheck className="h-4 w-4" />
         </span>
       </div>
 
-      {/* 1. Manager PIN Lock / Unlock (`صلاحية المدير`) — ZERO breach count badge & ZERO PIN hint */}
-      {gov ? (
+      {/* 1. Notifications & Approvals (`الإشعارات والاعتمادات 🔔`) — displays pending count ONCE */}
+      <button
+        type="button"
+        onClick={handleOpenNotifications}
+        className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-xl bg-[#F6F7F8] px-3 py-2.5 text-start text-[12.5px] font-semibold text-slate-800 transition-colors hover:bg-emerald-50/70 dark:bg-[#09110E] dark:text-slate-100 dark:hover:bg-emerald-950/40"
+      >
+        <span className="inline-flex items-center gap-2">
+          <Bell
+            className={`h-4 w-4 shrink-0 ${
+              hasBreaches
+                ? 'text-rose-600 dark:text-rose-400'
+                : 'text-emerald-600 dark:text-emerald-400'
+            }`}
+          />
+          <span>
+            {isAr ? 'الإشعارات والاعتمادات 🔔' : 'Notifications & Approvals 🔔'}
+          </span>
+        </span>
+        <span
+          dir="ltr"
+          style={badgeCount > 0 ? { color: '#FFFFFF' } : undefined}
+          className={`inline-flex h-5 min-w-5 items-center justify-center rounded-lg px-1.5 text-[11px] font-bold tabular-nums ${
+            badgeCount > 0
+              ? hasBreaches
+                ? 'btn-colored bg-rose-600 text-white'
+                : 'btn-colored bg-emerald-600 text-white'
+              : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
+          }`}
+        >
+          {badgeCount}
+        </span>
+      </button>
+
+      {/* 2. Role / Manager PIN Control (Executive PIN unlock vs Auditor Read-Only badge) */}
+      {auditorMode ? (
+        <div className="flex items-center justify-between gap-2 rounded-xl bg-amber-50/75 px-3 py-2.5 ring-1 ring-amber-500/20 dark:bg-amber-950/35 dark:ring-amber-400/20">
+          <div className="inline-flex items-center gap-1.5 text-[12px] font-bold text-amber-900 dark:text-amber-200">
+            <Lock className="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+            <span>{isAr ? 'حساب مراجعة — قراءة فقط' : 'Read-Only Auditor'}</span>
+          </div>
+          <span className="rounded-lg bg-white/80 px-2 py-0.5 text-[10.5px] font-semibold text-amber-800 dark:bg-white/10 dark:text-amber-200">
+            {isAr ? 'مقفل' : 'Disabled'}
+          </span>
+        </div>
+      ) : gov ? (
         <div className="flex items-center justify-between gap-2 rounded-xl bg-[#F6F7F8] px-3 py-2.5 dark:bg-[#09110E]">
           {gov.session.active ? (
             <>
@@ -316,7 +390,7 @@ function AccountWorkspaceMenuPanel({
         </div>
       ) : null}
 
-      {/* 2. Theme Switcher (`الوضع النهاري / الليلي`) */}
+      {/* 3. Theme Switcher (`الوضع النهاري / الليلي`) */}
       <div className="flex items-center justify-between gap-2 rounded-xl px-2.5 py-1.5">
         <span className="text-[12.5px] font-medium text-slate-700 dark:text-slate-200">
           {isAr ? 'الوضع النهاري / الليلي' : 'Light / Dark Theme'}
@@ -324,7 +398,7 @@ function AccountWorkspaceMenuPanel({
         <ThemeToggle />
       </div>
 
-      {/* 3. Language Toggle (`العربية / English`) */}
+      {/* 4. Language Toggle (`العربية / English`) */}
       <div className="flex items-center justify-between gap-2 rounded-xl px-2.5 py-1.5">
         <span className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-slate-700 dark:text-slate-200">
           <Globe className="h-3.5 w-3.5 text-slate-400" />
@@ -361,11 +435,11 @@ function AccountWorkspaceMenuPanel({
       </div>
 
       <div className="border-t border-slate-200/70 pt-1.5 dark:border-white/[0.08]">
-        {/* 4. WhatsApp Executive Summary Share (`مشاركة عبر واتساب`) */}
+        {/* 5. WhatsApp Executive Summary Share (`مشاركة التقرير عبر واتساب`) */}
         <button
           type="button"
           onClick={onShareWhatsApp}
-          title={isAr ? 'مشاركة للواتساب 📲' : 'Share WhatsApp 📲'}
+          title={isAr ? 'مشاركة التقرير عبر واتساب' : 'Share Report via WhatsApp'}
           className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-start text-[12.5px] font-medium text-slate-700 transition-colors hover:bg-[#F6F7F8] hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/[0.06]"
         >
           <span className="inline-flex items-center gap-2">
@@ -380,13 +454,13 @@ function AccountWorkspaceMenuPanel({
                   ? 'تم نسخ الملخص للواتساب ✅'
                   : 'Summary Copied for WhatsApp ✅'
                 : isAr
-                  ? 'مشاركة عبر واتساب'
-                  : 'WhatsApp Executive Summary'}
+                  ? 'مشاركة التقرير عبر واتساب'
+                  : 'Share Report via WhatsApp'}
             </span>
           </span>
         </button>
 
-        {/* 5. Quick Command Search (`البحث السريع ⌘K`) */}
+        {/* 6. Quick Command Search (`البحث السريع ⌘K`) */}
         <button
           type="button"
           onClick={onOpenCommandSearch}
@@ -394,7 +468,7 @@ function AccountWorkspaceMenuPanel({
         >
           <span className="inline-flex items-center gap-2">
             <Search className="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400" />
-            <span>{isAr ? 'البحث السريع' : 'Quick Command Search'}</span>
+            <span>{isAr ? 'البحث السريع' : 'Quick Search'}</span>
           </span>
           <kbd
             dir="ltr"
@@ -405,7 +479,7 @@ function AccountWorkspaceMenuPanel({
         </button>
       </div>
 
-      {/* 6. Real Sign Out (`تسجيل الخروج` / `Sign Out`) */}
+      {/* 7. Real Sign Out (`تسجيل الخروج` / `Sign Out`) */}
       <div className="border-t border-slate-200/70 pt-1.5 dark:border-white/[0.08]">
         <button
           type="button"
@@ -434,19 +508,23 @@ function AccountWorkspaceMenuPanel({
 export interface TopFilterBarProps {
   companyNameAr?: string
   notifications?: React.ReactNode
+  isAuditor?: boolean
+  userEmail?: string
 }
 
 /**
- * Slim 4-Item Executive Top Bar (`src/components/aether/TopFilterBar.tsx`):
- * - Desktop (`hidden lg:block`): Calm single horizontal bar containing ONLY:
- *   1) Period Selector (`اليوم | الأسبوع | الشهر | السنة | مخصص`)
- *   2) Unified `فلاتر` (`Filters`) Popover Button (`SlidersHorizontal` + active count badge)
- *   3) Bell `🔔` (`<GovernanceBellTrigger />` showing live badge count ONCE)
- *   4) Account & Workspace Menu (`حساب الإدارة ▾` / `Executive Account ▾`)
- * - Mobile & Tablet (`lg:hidden`): Clean `56px` (`h-14`) sticky frosted App Bar +
- *   silky `rounded-t-3xl` Filter Bottom Sheet + compact Account menu.
+ * Ultra-Clean 3-Control Executive Top Bar (`src/components/aether/TopFilterBar.tsx`):
+ * Displays strictly 3 controls in the header control cluster:
+ *   1) Period Selector (`اليوم | الأسبوع | الشهر | السنة | مخصص` — horizontally scrollable on `< 768px`)
+ *   2) Single `فلاتر` (`Filters`) button (with active filter count badge & unclipped/scrollable filter chips)
+ *   3) `القائمة والحساب` (`Account & Menu`) button housing Notifications, PIN/Auditor Role, Theme, Language, Share, Search, and Sign Out.
  */
-export function TopFilterBar({ companyNameAr = '', notifications }: TopFilterBarProps = {}) {
+export function TopFilterBar({
+  companyNameAr = '',
+  notifications,
+  isAuditor = false,
+  userEmail,
+}: TopFilterBarProps = {}) {
   const pathname = usePathname() ?? ''
   const { locale, setLocale } = useI18n()
   const isAr = locale === 'ar'
@@ -469,6 +547,11 @@ export function TopFilterBar({ companyNameAr = '', notifications }: TopFilterBar
   } = useGlobalFilter()
 
   const gov = useOptionalGovernance()
+  const auditorMode = Boolean(
+    isAuditor ||
+      gov?.isAuditor ||
+      (typeof userEmail === 'string' && userEmail.toLowerCase().includes('auditor')),
+  )
 
   const [sharedCopied, setSharedCopied] = useState(false)
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false)
@@ -540,12 +623,11 @@ export function TopFilterBar({ companyNameAr = '', notifications }: TopFilterBar
     }
   }, [signingOut])
 
-  const bellSlot = notifications ?? <GovernanceBellTrigger />
-
   if (!isBrainBarRoute) {
+    const fallbackNotifications = notifications ?? <GovernanceBellTrigger />
     return (
       <header id="ae-topbar" className="no-print sticky top-2 z-40 w-full overflow-visible">
-        <PanelHeaderBar companyNameAr={companyNameAr} notifications={bellSlot} />
+        <PanelHeaderBar companyNameAr={companyNameAr} notifications={fallbackNotifications} />
       </header>
     )
   }
@@ -573,6 +655,8 @@ export function TopFilterBar({ companyNameAr = '', notifications }: TopFilterBar
     nonDefaultSliceCount + (filters.period !== 'month' ? 1 : 0)
 
   const hasAnyActiveFilter = nonDefaultSliceCount > 0 || filters.period !== 'month'
+  const hasUnreadNotifications = (gov?.liveBadgeCount ?? 0) > 0
+  const hasActiveBreaches = (gov?.activeBreaches.length ?? 0) > 0
 
   const handleApplyMobileSheet = () => {
     if (filters.period === 'custom') {
@@ -585,109 +669,184 @@ export function TopFilterBar({ companyNameAr = '', notifications }: TopFilterBar
     <>
       {/* =====================================================================
           1. MOBILE & TABLET COMPACT 56px STICKY FROSTED APP BAR (`lg:hidden`)
+             Strictly 3 Controls: (a) Scrollable Period Strip, (b) `فلاتر`, (c) `القائمة والحساب`
          ===================================================================== */}
       <header
         aria-label={isAr ? 'الشريط العلوي للجوال' : 'Mobile Executive App Bar'}
         dir={isAr ? 'rtl' : 'ltr'}
-        className="ae-mobile-appbar no-print sticky top-0 z-40 -mx-4 flex h-14 items-center justify-between gap-1.5 bg-white/90 px-3.5 shadow-[0_1px_0_rgba(15,23,42,0.06)] backdrop-blur-md sm:-mx-6 sm:px-6 lg:hidden dark:bg-[#0B1512]/90 dark:shadow-[0_1px_0_rgba(16,185,129,0.12)]"
+        className="ae-mobile-appbar no-print sticky top-0 z-40 -mx-4 bg-white/90 px-3.5 shadow-[0_1px_0_rgba(15,23,42,0.06)] backdrop-blur-md sm:-mx-6 sm:px-6 lg:hidden dark:bg-[#0B1512]/90 dark:shadow-[0_1px_0_rgba(16,185,129,0.12)]"
       >
-        {/* Start: VF Brand Badge + Single Concise Active Page Title */}
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <Link
-            href="/erp"
-            aria-label={isAr ? 'ملخص الشركة' : 'Overview'}
-            className="btn-colored flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-[11px] font-black text-white shadow-xs transition-transform duration-150 active:scale-95"
-          >
-            VF
-          </Link>
-          <span
-            className="truncate text-[14px] font-semibold tracking-tight text-slate-900 sm:text-[15px] dark:text-white"
-            aria-current="page"
-          >
-            {mobilePageTitle}
-          </span>
+        <div className="flex h-14 items-center justify-between gap-1.5">
+          {/* Start: VF Brand Badge + Single Concise Active Page Title */}
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <Link
+              href="/erp"
+              aria-label={isAr ? 'ملخص الشركة' : 'Overview'}
+              className="btn-colored flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-[11px] font-black text-white shadow-xs transition-transform duration-150 active:scale-95"
+            >
+              VF
+            </Link>
+            <span
+              className="truncate text-[14px] font-semibold tracking-tight text-slate-900 sm:text-[15px] dark:text-white"
+              aria-current="page"
+            >
+              {mobilePageTitle}
+            </span>
+          </div>
+
+          {/* End: Control (b) `فلاتر` + Control (c) `القائمة والحساب` */}
+          <div className="flex shrink-0 items-center gap-1.5">
+            {showPosFilters ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setAccountMenuOpen(false)
+                  setMobileSheetOpen(true)
+                }}
+                aria-expanded={mobileSheetOpen}
+                aria-label={isAr ? 'فتح فلاتر التحليل' : 'Open Filters'}
+                className={`inline-flex h-8 cursor-pointer items-center gap-1 rounded-xl px-2 text-[11.5px] font-semibold transition-all duration-[160ms] active:scale-95 sm:px-2.5 ${
+                  mobileActiveFilterCount > 0
+                    ? 'bg-emerald-50 text-emerald-900 ring-1 ring-emerald-500/35 dark:bg-emerald-500/15 dark:text-emerald-200 dark:ring-emerald-400/35'
+                    : 'bg-neutral-100/90 text-slate-700 ring-1 ring-slate-900/[0.05] dark:bg-white/[0.06] dark:text-slate-200 dark:ring-emerald-500/15'
+                }`}
+              >
+                <SlidersHorizontal className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                <span className="whitespace-nowrap">{isAr ? 'فلاتر' : 'Filters'}</span>
+                {mobileActiveFilterCount > 0 ? (
+                  <span
+                    dir="ltr"
+                    style={{ color: '#FFFFFF' }}
+                    className="btn-colored inline-flex h-4 min-w-4 items-center justify-center rounded-md bg-emerald-600 px-1 text-[10px] font-bold tabular-nums text-white"
+                  >
+                    {mobileActiveFilterCount}
+                  </span>
+                ) : null}
+              </button>
+            ) : null}
+
+            <div ref={mobileAccountRef} className="relative">
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileSheetOpen(false)
+                  setAccountMenuOpen((v) => !v)
+                }}
+                aria-haspopup="menu"
+                aria-expanded={accountMenuOpen}
+                aria-label={isAr ? 'القائمة والحساب' : 'Account & Menu'}
+                className={`relative inline-flex h-8 cursor-pointer items-center gap-1 rounded-xl px-2 text-[11.5px] font-semibold transition-all duration-[160ms] active:scale-95 sm:px-2.5 ${
+                  accountMenuOpen || (!auditorMode && gov?.session.active)
+                    ? 'bg-emerald-50 text-emerald-900 ring-1 ring-emerald-500/35 dark:bg-emerald-500/15 dark:text-emerald-200 dark:ring-emerald-400/35'
+                    : auditorMode
+                      ? 'bg-amber-50/90 text-amber-950 ring-1 ring-amber-500/25 dark:bg-amber-950/40 dark:text-amber-200 dark:ring-amber-400/25'
+                      : 'bg-neutral-100/90 text-slate-700 ring-1 ring-slate-900/[0.05] dark:bg-white/[0.06] dark:text-slate-200 dark:ring-emerald-500/15'
+                }`}
+              >
+                <ShieldCheck
+                  className={`h-3.5 w-3.5 shrink-0 ${
+                    auditorMode
+                      ? 'text-amber-600 dark:text-amber-400'
+                      : 'text-emerald-600 dark:text-emerald-400'
+                  }`}
+                />
+                <span className="whitespace-nowrap">
+                  {isAr ? 'القائمة والحساب' : 'Account & Menu'}
+                </span>
+                {hasUnreadNotifications ? (
+                  <span
+                    aria-hidden
+                    className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${
+                      hasActiveBreaches ? 'bg-rose-500' : 'bg-emerald-500'
+                    }`}
+                  />
+                ) : null}
+                <ChevronDown
+                  className={`h-3 w-3 shrink-0 opacity-75 transition-transform duration-150 ${
+                    accountMenuOpen ? 'rotate-180' : ''
+                  }`}
+                />
+              </button>
+
+              {accountMenuOpen ? (
+                <div className="absolute end-0 top-full z-50 mt-2 lg:hidden">
+                  <AccountWorkspaceMenuPanel
+                    isAr={isAr}
+                    locale={locale}
+                    auditorMode={auditorMode}
+                    userEmail={userEmail}
+                    onSetLocale={setLocale}
+                    sharedCopied={sharedCopied}
+                    onShareWhatsApp={() => void copyShareDeepLink()}
+                    onOpenCommandSearch={() => {
+                      setAccountMenuOpen(false)
+                      openCommandPalette()
+                    }}
+                    onSignOut={() => void handleSignOut()}
+                    signingOut={signingOut}
+                    onCloseMenu={() => setAccountMenuOpen(false)}
+                  />
+                </div>
+              ) : null}
+            </div>
+          </div>
         </div>
 
-        {/* End: 1) Unified `فلاتر` Button + 2) Bell 🔔 Once + 3) Compact `حساب الإدارة ▾` */}
-        <div className="flex shrink-0 items-center gap-1.5">
-          {showPosFilters ? (
-            <button
-              type="button"
-              onClick={() => {
-                setAccountMenuOpen(false)
-                setMobileSheetOpen(true)
-              }}
-              aria-expanded={mobileSheetOpen}
-              aria-label={isAr ? 'فتح فلاتر التحليل' : 'Open Filters'}
-              className={`inline-flex h-8 cursor-pointer items-center gap-1 rounded-xl px-2 text-[11.5px] font-semibold transition-all duration-[160ms] active:scale-95 sm:px-2.5 ${
-                mobileActiveFilterCount > 0
-                  ? 'bg-emerald-50 text-emerald-900 ring-1 ring-emerald-500/35 dark:bg-emerald-500/15 dark:text-emerald-200 dark:ring-emerald-400/35'
-                  : 'bg-neutral-100/90 text-slate-700 ring-1 ring-slate-900/[0.05] dark:bg-white/[0.06] dark:text-slate-200 dark:ring-emerald-500/15'
-              }`}
-            >
-              <SlidersHorizontal className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-              <span className="whitespace-nowrap">{isAr ? 'فلاتر' : 'Filters'}</span>
-              {mobileActiveFilterCount > 0 ? (
-                <span
-                  dir="ltr"
-                  style={{ color: '#FFFFFF' }}
-                  className="btn-colored inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-600 px-1 text-[10px] font-bold tabular-nums text-white"
-                >
-                  {mobileActiveFilterCount}
+        {/* Control (a) on `< 1024px` (`< 768px` smartphone & tablet): Horizontally Scrollable Period Selector */}
+        {showPosFilters ? (
+          <div className="space-y-2 pb-2.5">
+            <div className="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
+              <EmeraldPillTabs
+                ariaLabel={isAr ? 'الفترة' : 'Period'}
+                value={filters.period}
+                onChange={setPeriod}
+                options={GLOBAL_PERIOD_OPTIONS.map((p) => ({
+                  id: p.id,
+                  label: cleanPeriodOptionLabel(p.id, isAr ? p.ar : p.en, isAr),
+                }))}
+              />
+
+              {auditorMode ? (
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-amber-50 px-2.5 py-1 text-[11px] font-bold whitespace-nowrap text-amber-900 ring-1 ring-amber-500/25 dark:bg-amber-950/60 dark:text-amber-200">
+                  <Lock className="h-3 w-3 shrink-0" />
+                  <span>{isAr ? 'حساب مراجعة — قراءة فقط' : 'Read-Only Auditor'}</span>
                 </span>
               ) : null}
-            </button>
-          ) : null}
+            </div>
 
-          {bellSlot}
-
-          <div ref={mobileAccountRef} className="relative">
-            <button
-              type="button"
-              onClick={() => {
-                setMobileSheetOpen(false)
-                setAccountMenuOpen((v) => !v)
-              }}
-              aria-haspopup="menu"
-              aria-expanded={accountMenuOpen}
-              aria-label={isAr ? 'حساب الإدارة' : 'Executive Account'}
-              className={`inline-flex h-8 cursor-pointer items-center gap-1 rounded-xl px-2 text-[11.5px] font-semibold transition-all duration-[160ms] active:scale-95 sm:px-2.5 ${
-                accountMenuOpen || gov?.session.active
-                  ? 'bg-emerald-50 text-emerald-900 ring-1 ring-emerald-500/35 dark:bg-emerald-500/15 dark:text-emerald-200 dark:ring-emerald-400/35'
-                  : 'bg-neutral-100/90 text-slate-700 ring-1 ring-slate-900/[0.05] dark:bg-white/[0.06] dark:text-slate-200 dark:ring-emerald-500/15'
-              }`}
-            >
-              <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-              <span className="hidden whitespace-nowrap sm:inline">
-                {isAr ? 'حساب الإدارة' : 'Executive Account'}
-              </span>
-              <ChevronDown
-                className={`h-3 w-3 shrink-0 opacity-75 transition-transform duration-150 ${
-                  accountMenuOpen ? 'rotate-180' : ''
-                }`}
-              />
-            </button>
-
-            {accountMenuOpen ? (
-              <div className="absolute end-0 top-full z-50 mt-2 lg:hidden">
-                <AccountWorkspaceMenuPanel
-                  isAr={isAr}
-                  locale={locale}
-                  onSetLocale={setLocale}
-                  sharedCopied={sharedCopied}
-                  onShareWhatsApp={() => void copyShareDeepLink()}
-                  onOpenCommandSearch={() => {
-                    setAccountMenuOpen(false)
-                    openCommandPalette()
-                  }}
-                  onSignOut={() => void handleSignOut()}
-                  signingOut={signingOut}
-                  onCloseMenu={() => setAccountMenuOpen(false)}
-                />
+            {filters.period === 'custom' ? (
+              <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-[#F6F7F8] p-2.5 ring-1 ring-slate-900/[0.04] dark:bg-[#09110E] dark:ring-emerald-500/15">
+                <label className="inline-flex flex-1 items-center gap-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                  <span className="whitespace-nowrap">{isAr ? 'من تاريخ' : 'Start Date'}</span>
+                  <input
+                    type="date"
+                    dir="ltr"
+                    value={draftFrom}
+                    onChange={(e) => setDraftFrom(e.target.value)}
+                    className="h-8 min-w-[120px] flex-1 rounded-xl bg-white px-2 text-[11.5px] font-bold tabular-nums text-slate-900 ring-1 ring-slate-900/[0.06] outline-none focus:ring-2 focus:ring-emerald-500/40 dark:bg-[#101C17] dark:text-white"
+                  />
+                </label>
+                <label className="inline-flex flex-1 items-center gap-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                  <span className="whitespace-nowrap">{isAr ? 'إلى تاريخ' : 'End Date'}</span>
+                  <input
+                    type="date"
+                    dir="ltr"
+                    value={draftTo}
+                    onChange={(e) => setDraftTo(e.target.value)}
+                    className="h-8 min-w-[120px] flex-1 rounded-xl bg-white px-2 text-[11.5px] font-bold tabular-nums text-slate-900 ring-1 ring-slate-900/[0.06] outline-none focus:ring-2 focus:ring-emerald-500/40 dark:bg-[#101C17] dark:text-white"
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setCustomRange(draftFrom, draftTo)}
+                  className="btn-colored inline-flex h-8 shrink-0 cursor-pointer items-center rounded-xl bg-emerald-600 px-3 text-[11.5px] font-bold text-white transition-colors hover:bg-emerald-700 dark:bg-emerald-500 dark:text-[#04130D]"
+                >
+                  {isAr ? 'تطبيق' : 'Apply'}
+                </button>
               </div>
             ) : null}
           </div>
-        </div>
+        ) : null}
       </header>
 
       {/* =====================================================================
@@ -845,8 +1004,8 @@ export function TopFilterBar({ companyNameAr = '', notifications }: TopFilterBar
       ) : null}
 
       {/* =====================================================================
-          3. DESKTOP SLIM 4-ITEM EXECUTIVE TOP BAR (`hidden lg:block`)
-             [Rail + Title]  |  1) Period  •  2) فلاتر (Badge)  ...  3) 🔔  •  4) حساب الإدارة ▾
+          3. DESKTOP ULTRA-CLEAN 3-CONTROL EXECUTIVE TOP BAR (`hidden lg:block`)
+             [Rail + Title]  ...  1) Period  •  2) فلاتر  •  3) القائمة والحساب ▾
          ===================================================================== */}
       <header
         id="ae-topbar"
@@ -856,10 +1015,10 @@ export function TopFilterBar({ companyNameAr = '', notifications }: TopFilterBar
       >
         <div
           ref={desktopBarRef}
-          className="relative flex items-center justify-between gap-3 rounded-2xl bg-white/95 px-3.5 py-2 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.05] backdrop-blur-md dark:bg-[#101C17]/95 dark:ring-emerald-500/15"
+          className="relative flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white/95 px-3.5 py-2 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.05] backdrop-blur-md dark:bg-[#101C17]/95 dark:ring-emerald-500/15"
         >
-          {/* Start Side: Sidebar Rail Toggle + Page Title + (1) Period Selector + (2) Unified `فلاتر` Button */}
-          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+          {/* Start Side: Sidebar Rail Toggle + Page Title + Optional Auditor Pill */}
+          <div className="flex min-w-0 items-center gap-2">
             <button
               type="button"
               onClick={() => window.dispatchEvent(new CustomEvent(RAIL_TOGGLE_EVENT))}
@@ -874,21 +1033,26 @@ export function TopFilterBar({ companyNameAr = '', notifications }: TopFilterBar
 
             {page ? (
               <span
-                className="ae-top-title me-0.5 truncate px-1 text-[15px] font-extrabold tracking-tight"
+                className="ae-top-title truncate px-1 text-[15px] font-extrabold tracking-tight"
                 aria-current="page"
               >
                 {isAr ? page.ar : page.en}
               </span>
             ) : null}
 
+            {auditorMode ? (
+              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-amber-50 px-2.5 py-1 text-[11.5px] font-bold text-amber-900 ring-1 ring-amber-500/25 dark:bg-amber-950/60 dark:text-amber-200">
+                <Lock className="h-3 w-3 shrink-0 text-amber-600 dark:text-amber-400" />
+                <span>{isAr ? 'حساب مراجعة — قراءة فقط' : 'Read-Only Auditor'}</span>
+              </span>
+            ) : null}
+          </div>
+
+          {/* End Control Cluster: Strictly ONLY 3 Controls: (a) Period, (b) `فلاتر`, (c) `القائمة والحساب` */}
+          <div className="relative z-[60] flex flex-wrap items-center justify-end gap-2 overflow-visible">
             {showPosFilters ? (
               <>
-                <span
-                  aria-hidden
-                  className="mx-0.5 h-5 w-px shrink-0 bg-slate-200/80 dark:bg-white/10"
-                />
-
-                {/* Control 1: Period Selector (`اليوم | الأسبوع | الشهر | السنة | مخصص`) */}
+                {/* Control (a): Period Selector (`اليوم | الأسبوع | الشهر | السنة | مخصص`) */}
                 <EmeraldPillTabs
                   ariaLabel={isAr ? 'الفترة' : 'Period'}
                   value={filters.period}
@@ -944,7 +1108,7 @@ export function TopFilterBar({ companyNameAr = '', notifications }: TopFilterBar
                   </span>
                 ) : null}
 
-                {/* Control 2: Single Unified `فلاتر` (`Filters`) Popover Button + Active Count Badge */}
+                {/* Control (b): Single Unified `فلاتر` (`Filters`) Button + Active Count Badge */}
                 <button
                   type="button"
                   onClick={() => {
@@ -965,7 +1129,7 @@ export function TopFilterBar({ companyNameAr = '', notifications }: TopFilterBar
                     <span
                       dir="ltr"
                       style={{ color: '#FFFFFF' }}
-                      className="btn-colored inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-emerald-600 px-1.5 text-[10.5px] font-bold tabular-nums text-white"
+                      className="btn-colored inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-md bg-emerald-600 px-1.5 text-[10.5px] font-bold tabular-nums text-white"
                     >
                       {nonDefaultSliceCount}
                     </span>
@@ -978,14 +1142,8 @@ export function TopFilterBar({ companyNameAr = '', notifications }: TopFilterBar
                 </button>
               </>
             ) : null}
-          </div>
 
-          {/* End Side: (3) Bell `🔔` Once + (4) Account & Workspace Menu (`حساب الإدارة ▾`) */}
-          <div className="relative z-[60] flex shrink-0 items-center gap-2 overflow-visible">
-            {/* Control 3: Bell `🔔` (shows pending/breach badge ONCE) */}
-            {bellSlot}
-
-            {/* Control 4: Account & Workspace Menu (`حساب الإدارة ▾` / `Executive Account ▾`) */}
+            {/* Control (c): `القائمة والحساب` (`Account & Menu`) */}
             <div className="relative">
               <button
                 type="button"
@@ -996,19 +1154,35 @@ export function TopFilterBar({ companyNameAr = '', notifications }: TopFilterBar
                 aria-haspopup="menu"
                 aria-expanded={accountMenuOpen}
                 className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-xl px-3.5 text-[12.5px] font-semibold transition-all duration-[160ms] focus:outline-none ${
-                  accountMenuOpen || gov?.session.active
+                  accountMenuOpen || (!auditorMode && gov?.session.active)
                     ? 'bg-emerald-50/80 text-emerald-950 ring-1 ring-emerald-500/45 dark:bg-emerald-950/50 dark:text-emerald-200 dark:ring-emerald-400/50'
-                    : 'bg-neutral-100/90 text-slate-700 ring-1 ring-slate-900/[0.05] hover:bg-white hover:text-slate-950 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-emerald-500/10 dark:hover:bg-white/[0.10]'
+                    : auditorMode
+                      ? 'bg-amber-50/80 text-amber-950 ring-1 ring-amber-500/30 dark:bg-amber-950/45 dark:text-amber-200 dark:ring-amber-400/30'
+                      : 'bg-neutral-100/90 text-slate-700 ring-1 ring-slate-900/[0.05] hover:bg-white hover:text-slate-950 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-emerald-500/10 dark:hover:bg-white/[0.10]'
                 }`}
               >
-                {gov?.session.active ? (
+                {!auditorMode && gov?.session.active ? (
                   <Unlock className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
                 ) : (
-                  <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                  <ShieldCheck
+                    className={`h-3.5 w-3.5 shrink-0 ${
+                      auditorMode
+                        ? 'text-amber-600 dark:text-amber-400'
+                        : 'text-emerald-600 dark:text-emerald-400'
+                    }`}
+                  />
                 )}
                 <span className="whitespace-nowrap">
-                  {isAr ? 'حساب الإدارة' : 'Executive Account'}
+                  {isAr ? 'القائمة والحساب' : 'Account & Menu'}
                 </span>
+                {hasUnreadNotifications ? (
+                  <span
+                    aria-hidden
+                    className={`inline-block h-2 w-2 shrink-0 rounded-full ${
+                      hasActiveBreaches ? 'bg-rose-500' : 'bg-emerald-500'
+                    }`}
+                  />
+                ) : null}
                 <ChevronDown
                   className={`h-3.5 w-3.5 opacity-70 transition-transform duration-150 ${
                     accountMenuOpen ? 'rotate-180' : ''
@@ -1021,6 +1195,8 @@ export function TopFilterBar({ companyNameAr = '', notifications }: TopFilterBar
                   <AccountWorkspaceMenuPanel
                     isAr={isAr}
                     locale={locale}
+                    auditorMode={auditorMode}
+                    userEmail={userEmail}
                     onSetLocale={setLocale}
                     sharedCopied={sharedCopied}
                     onShareWhatsApp={() => void copyShareDeepLink()}
@@ -1045,7 +1221,7 @@ export function TopFilterBar({ companyNameAr = '', notifications }: TopFilterBar
               role="dialog"
               aria-label={isAr ? 'فلاتر التحليل الموحدة' : 'Unified Executive Filters'}
               dir={isAr ? 'rtl' : 'ltr'}
-              className="absolute start-0 top-full z-50 mt-2 max-h-[82dvh] w-full max-w-[720px] space-y-4 overflow-y-auto rounded-2xl bg-white p-5 shadow-[0_24px_60px_rgba(15,23,42,0.16)] ring-1 ring-slate-900/[0.07] dark:bg-[#101C17] dark:ring-emerald-500/20"
+              className="absolute end-0 top-full z-50 mt-2 max-h-[82dvh] w-full max-w-[720px] space-y-4 overflow-y-auto rounded-2xl bg-white p-5 shadow-[0_24px_60px_rgba(15,23,42,0.16)] ring-1 ring-slate-900/[0.07] dark:bg-[#101C17] dark:ring-emerald-500/20"
             >
               <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200/70 pb-3 dark:border-white/[0.08]">
                 <div className="min-w-0">

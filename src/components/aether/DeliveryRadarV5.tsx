@@ -212,7 +212,7 @@ const MONITORED_CHANNELS: readonly {
   contractPct: number
 }[] = [
   { key: 'talabat-tgo', platformKey: 'Talabat', en: 'Talabat Tgo', ar: 'طلبات Tgo', defaultMode: 'Tgo', contractPct: 27.0 },
-  { key: 'talabat-tmp', platformKey: 'Talabat', en: 'Talabat TMP', ar: 'طلبات TMP (15%)', defaultMode: 'TMP', contractPct: 15.0 },
+  { key: 'talabat-tmp', platformKey: 'Talabat', en: 'Talabat TMP', ar: 'منصة توصيل طلبات TMP (15%)', defaultMode: 'TMP', contractPct: 15.0 },
   { key: 'keeta', platformKey: 'Keeta', en: 'Keeta', ar: 'كيتا', defaultMode: 'Tgo', contractPct: 12.0 },
   { key: 'deliveroo', platformKey: 'Deliveroo', en: 'Deliveroo', ar: 'ديليفرو', defaultMode: 'Tgo', contractPct: 18.0 },
   { key: 'jahez', platformKey: 'Jahez', en: 'Jahez', ar: 'جاهز', defaultMode: 'Tgo', contractPct: 15.0 },
@@ -896,7 +896,7 @@ export function DeliveryRadarV5() {
     return [
       {
         id: 'tmp',
-        label: T('Talabat TMP (15%)', 'طلبات TMP (١٥٪)'),
+        label: T('Talabat TMP (15%)', 'منصة توصيل طلبات TMP (15%)'),
         value: deliveryMixStats.tmpSalesKwd,
         valueFormatted: `${fmtAmount(deliveryMixStats.tmpSalesKwd)} ${unit}`,
         pctFormatted: fmtPct(deliveryMixStats.tmpSalesKwd),
@@ -904,7 +904,7 @@ export function DeliveryRadarV5() {
       },
       {
         id: 'tgo',
-        label: T('Talabat Tgo (27%)', 'طلبات Tgo (٢٧٪)'),
+        label: T('Talabat Tgo (27%)', 'طلبات Tgo (27%)'),
         value: deliveryMixStats.tgoSalesKwd,
         valueFormatted: `${fmtAmount(deliveryMixStats.tgoSalesKwd)} ${unit}`,
         pctFormatted: fmtPct(deliveryMixStats.tgoSalesKwd),
@@ -1543,7 +1543,7 @@ export function DeliveryRadarV5() {
                 { id: 'tgo-only', label: isAr ? 'توصيل Tgo فقط ⚪' : 'Tgo Only ⚪', badge: summary.tgoOnlyCount },
                 { id: 'tmp-opp', label: isAr ? 'فرصة سائق TMP 💡' : 'TMP Hire 💡', badge: summary.tmpOppCount },
                 { id: 'tgo', label: isAr ? 'طلبات Tgo' : 'Talabat Tgo', badge: summary.tgoCount },
-                { id: 'tmp', label: isAr ? 'طلبات TMP' : 'Talabat TMP', badge: summary.tmpCount },
+                { id: 'tmp', label: isAr ? 'منصة توصيل طلبات TMP' : 'Talabat TMP', badge: summary.tmpCount },
                 { id: 'keeta', label: isAr ? 'كيتا' : 'Keeta', badge: summary.keetaCount },
                 { id: 'gap', label: isAr ? 'فروقات عمولة' : 'Fee Gaps', badge: summary.gapCount },
               ]}

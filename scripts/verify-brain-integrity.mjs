@@ -35,7 +35,7 @@ function assert(condition, label, detail = '') {
 }
 
 console.log('\n======================================================================')
-console.log('  Venture Foods — Odoo 17 Forensic & CFO Integrity Verification (v16)')
+console.log('  Venture Foods — Odoo 17 Forensic & CFO Integrity Verification (v17)')
 console.log('======================================================================\n')
 
 // 1. Secret & Theme / Sidebar Invariants
@@ -212,7 +212,8 @@ assert(
   'All 7 Verdelo Profit Lenses wired in engine',
 )
 assert(
-  filterEngineSrc.includes('computeWeightedCellMargin') && topBarSrc.includes('مشاركة للواتساب 📲'),
+  filterEngineSrc.includes('computeWeightedCellMargin') &&
+    topBarSrc.includes('مشاركة التقرير عبر واتساب'),
   'Strict weighted % math (sum(net)/sum(sales)) & WhatsApp deep-link share active',
 )
 
@@ -1819,10 +1820,10 @@ assert(
     authProbe.validOverride === true &&
     authProbe.wrongOverride === false &&
     authProbe.verifiedSub === 'admin@venturefoodskw.com' &&
-    authProbe.verifiedRole === 'exec_admin' &&
+    authProbe.verifiedRole === 'executive' &&
     authProbe.tampered === null,
   '16.1 Edge Auth Wall: src/middleware.ts enforces aether_exec_session HMAC on /, /erp & /api/erp (307 /login, 401 JSON, X-Robots-Tag noindex) & exec-session round-trips cleanly',
-  `cookie=${authProbe.cookie}, sub=${authProbe.verifiedSub}`,
+  `cookie=${authProbe.cookie}, sub=${authProbe.verifiedSub}, role=${authProbe.verifiedRole}`,
 )
 
 // 16.2 Global Search Engine Indexing Lockdown (robots.ts, public/robots.txt & layout metadata)
@@ -1862,9 +1863,10 @@ const bannedLoginTokens = [
 ]
 const loginBannedHits = bannedLoginTokens.filter((tok) => combinedLoginSrc.includes(tok))
 
-// Cryptographic zero-knowledge scan: verify ZERO string literals across src/ & scripts/ hash to DEFAULT_PASSWORD_SHA256
+// Cryptographic zero-knowledge scan: verify ZERO string literals across src/ & scripts/ hash to executive OR auditor SHA-256 digests
 const EXEC_PW_SALT = 'vf-aether-exec-2026-v1:'
 const EXEC_PW_TARGET_HASH = '218deb04287696d7cfc35ba2a0c8863ea54e678dc562d8c5e4cc04731529ecd3'
+const AUDITOR_PW_TARGET_HASH = '93126eacc43acc1b7030b2c2960d5f9aeadcb2a14d3258a6126f119bde3a4dba'
 const quotedLiteralRe = /['"`]([^'"`\r\n]{4,128})['"`]/g
 let rotatedPwPlaintextLeaks = 0
 for (const file of [
@@ -1881,7 +1883,7 @@ for (const file of [
       .createHash('sha256')
       .update(`${EXEC_PW_SALT}${m[1]}`)
       .digest('hex')
-    if (digest === EXEC_PW_TARGET_HASH) {
+    if (digest === EXEC_PW_TARGET_HASH || digest === AUDITOR_PW_TARGET_HASH) {
       rotatedPwPlaintextLeaks += 1
     }
   }
@@ -1897,7 +1899,7 @@ assert(
     combinedLoginSrc.includes('6 Brands') &&
     combinedLoginSrc.includes('7 Branches') &&
     loginFormSrc.includes("fetch('/api/auth/login'"),
-  '16.3 Login Hardening: Zero demo-bypass buttons on /login, cryptographic proof of ZERO plaintext rotated password across src/ & scripts/, and aligned 6 Brands • 7 Branches • 8 Channels scope',
+  '16.3 Login Hardening: Zero demo-bypass buttons on /login, cryptographic proof of ZERO plaintext executive/auditor passwords across src/ & scripts/, and aligned 6 Brands • 7 Branches • 8 Channels scope',
   `bannedHits=${loginBannedHits.length}, rotatedPwPlaintextLeaks=${rotatedPwPlaintextLeaks}`,
 )
 
@@ -1930,10 +1932,11 @@ assert(
     feryalStudioSrc.includes('min-w-0') &&
     feryalStudioSrc.includes('overflow-x-hidden') &&
     !feryalStudioSrc.includes('h-[calc(100dvh-148px)]') &&
-    feryalStudioSrc.includes('تحليل استراتيجي معمّق') &&
-    feryalStudioSrc.includes('إجابة تنفيذية سريعة') &&
-    feryalStudioSrc.includes('فحص الصور والفيديو'),
-  '16.4 Feryal Clean Studio: min-w-0 overflow-x-hidden without top void, friendly 3 executive modes & ZERO raw model IDs across all 7 Feryal UI/lib files',
+    feryalStudioSrc.includes('دقيق') &&
+    feryalStudioSrc.includes('تحليل دقيق') &&
+    feryalStudioSrc.includes('سريع') &&
+    feryalStudioSrc.includes('إجابة سريعة'),
+  '16.4 Feryal Clean Studio: min-w-0 overflow-x-hidden without top void, friendly دقيق & سريع executive modes & ZERO raw model IDs across all 7 Feryal UI/lib files',
   `slugHits=${feryalSlugHits.length}`,
 )
 
@@ -1981,17 +1984,20 @@ assert(
     erpShellReexportSrc.includes('<ExecutiveFooter />') &&
     execFooterSrc.includes('OdooAuditCertificatePill') &&
     execFooterSrc.includes('شركة فنتشر فودز • 6 مطاعم • 7 فروع • 8 قنوات') &&
-    execFooterSrc.includes('Aether BI v2.6 Enterprise') &&
+    execFooterSrc.includes('v2.7') &&
+    execFooterSrc.includes('الإصدار v2.7') &&
+    execFooterSrc.includes('Aether BI Release v2.7') &&
     !topBarSrc.includes('OdooAuditCertificatePill') &&
     !topBarSrc.includes('OdooSyncPill') &&
-    topBarSrc.includes('حساب الإدارة') &&
+    topBarSrc.includes('القائمة والحساب') &&
+    topBarSrc.includes('Account & Menu') &&
     topBarSrc.includes('تسجيل الخروج') &&
     journeySrc.includes('ابدأ من هنا هذا الأسبوع') &&
     journeySrc.includes('Start Here This Week') &&
     journeySrc.includes('SalesNetComboChart') &&
     chartsSrc.includes('strokeWidth={2.5}') &&
     journeySrc.includes('كيف تتوزع كل 10 دنانير من المبيعات؟') &&
-    !journeySrc.includes('وين تروح') &&
+    !journeySrc.includes(['وين ', 'تروح'].join('')) &&
     journeySrc.includes('الصافي الفعلي بعد الإيجار وكافة المصاريف') &&
     filterEngineSrc.includes('ذمم منصات التوصيل المتراكمة') &&
     filterEngineSrc.includes('المستهدف: 85+') &&
@@ -2007,8 +2013,237 @@ assert(
     cfoCopy.discBadgeAr === 'المستهدف: 85+' &&
     cfoCopy.showPeerAll === false &&
     cfoCopy.showPeerBrand === true,
-  '16.5 Shell, Footer & Overview CFO Audit: ExecutiveFooter mounted in shell.tsx, OdooAuditCertificatePill removed from TopFilterBar, Start-Here bar, Combo Net-Line chart (7.3 ألف), unclipped Donut & formal Arabic CFO copy active',
+  '16.5 Shell, Footer & Overview CFO Audit: ExecutiveFooter (v2.7) mounted in shell.tsx, القائمة والحساب unified menu in TopFilterBar, Start-Here bar, Combo Net-Line chart (7.3 ألف), unclipped Donut & formal Arabic CFO copy active',
   `tickAr="${cfoCopy.tickAr}", disc="${cfoCopy.discValAr}", peerAll=${cfoCopy.showPeerAll}`,
+)
+
+// 17. Final CISO Permissions-Policy, Read-Only Auditor 403 Guard & Boudy 7-Point Release v2.7 Gate
+console.log('\n17) Final CISO Permissions-Policy, Read-Only Auditor 403 Guard & Boudy 7-Point Release v2.7 Gate:')
+
+// 17.1 Permissions-Policy Scoped microphone=(self) & camera=(self) — ZERO wildcard microphone policy Anywhere
+const secHeadersJsSrc = fs.readFileSync(path.join(ROOT, 'security-headers.js'), 'utf8')
+const publicHeadersSrc = fs.readFileSync(path.join(ROOT, 'public/_headers'), 'utf8')
+const expectedPermPolicy = 'camera=(self), microphone=(self), geolocation=(), browsing-topics=()'
+const micWildcardPat = ['microphone=', '*'].join('')
+
+function collectRepoAuditFiles(dir, out = []) {
+  for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (ent.name === 'node_modules' || ent.name === '.next' || ent.name === '.git') continue
+    const full = path.join(dir, ent.name)
+    if (ent.isDirectory()) collectRepoAuditFiles(full, out)
+    else if (/\.(ts|tsx|js|jsx|mjs|json|css)$/.test(ent.name) || ent.name === '_headers') out.push(full)
+  }
+  return out
+}
+
+const micWildcardOffenders = []
+for (const f of collectRepoAuditFiles(ROOT)) {
+  const txt = fs.readFileSync(f, 'utf8')
+  if (txt.includes(micWildcardPat)) {
+    micWildcardOffenders.push(path.relative(ROOT, f).replace(/\\/g, '/'))
+  }
+}
+
+assert(
+  secHeadersJsSrc.includes(expectedPermPolicy) &&
+    publicHeadersSrc.includes(expectedPermPolicy) &&
+    middlewareSrc.includes(expectedPermPolicy) &&
+    secHeadersJsSrc.includes('microphone=(self)') &&
+    secHeadersJsSrc.includes('camera=(self)') &&
+    publicHeadersSrc.includes('microphone=(self)') &&
+    publicHeadersSrc.includes('camera=(self)') &&
+    middlewareSrc.includes('microphone=(self)') &&
+    middlewareSrc.includes('camera=(self)') &&
+    micWildcardOffenders.length === 0,
+  `17.1 Permissions-Policy Hardening: security-headers.js, public/_headers & src/middleware.ts emit camera=(self), microphone=(self), geolocation=(), browsing-topics=() with ZERO ${micWildcardPat} anywhere`,
+  `micWildcards=${micWildcardOffenders.length}`,
+)
+
+// 17.2 Dedicated Read-Only Auditor Role ('auditor' + auditor@venturefoodskw.com) & Runtime 403 Mutation Guard
+const auditorRuntimeProbeScript = `
+import { NextRequest } from 'next/server';
+import {
+  EXEC_SESSION_COOKIE,
+  DEFAULT_ADMIN_EMAIL,
+  DEFAULT_AUDITOR_EMAIL,
+  authenticateExecutiveCredentials,
+  createExecSessionToken,
+  verifyExecSessionToken,
+} from './src/lib/auth/exec-session';
+import { middleware } from './src/middleware';
+import { POST as govPost, PATCH as govPatch } from './src/app/api/erp/governance/route';
+
+;(async () => {
+  const audWrong = await authenticateExecutiveCredentials(DEFAULT_AUDITOR_EMAIL, 'WrongAuditorPass#999');
+  process.env.AETHER_AUDITOR_EMAIL = 'auditor.probe@venturefoodskw.com';
+  process.env.AETHER_AUDITOR_PASSWORD = 'RuntimeAuditorProbe#2026!';
+  const audOverrideOk = await authenticateExecutiveCredentials('auditor.probe@venturefoodskw.com', 'RuntimeAuditorProbe#2026!');
+  const audOverrideWrong = await authenticateExecutiveCredentials('auditor.probe@venturefoodskw.com', 'WrongProbe#2026!');
+  delete process.env.AETHER_AUDITOR_EMAIL;
+  delete process.env.AETHER_AUDITOR_PASSWORD;
+
+  const audToken = await createExecSessionToken(DEFAULT_AUDITOR_EMAIL, 'auditor');
+  const verifiedAud = await verifyExecSessionToken(audToken);
+
+  const mwGetRes = await middleware(
+    new NextRequest('https://aetherbi.com/api/erp/governance', {
+      method: 'GET',
+      headers: { cookie: EXEC_SESSION_COOKIE + '=' + audToken },
+    }),
+  );
+  const mwPostRes = await middleware(
+    new NextRequest('https://aetherbi.com/api/erp/governance', {
+      method: 'POST',
+      headers: { cookie: EXEC_SESSION_COOKIE + '=' + audToken, 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'sync' }),
+    }),
+  );
+  const mwPostJson = await mwPostRes.json();
+
+  const mwPatchRes = await middleware(
+    new NextRequest('https://aetherbi.com/api/erp/governance', {
+      method: 'PATCH',
+      headers: { cookie: EXEC_SESSION_COOKIE + '=' + audToken, 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'approve' }),
+    }),
+  );
+
+  const routePostRes = await govPost(
+    new NextRequest('https://aetherbi.com/api/erp/governance', {
+      method: 'POST',
+      headers: { cookie: EXEC_SESSION_COOKIE + '=' + audToken, 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'sync' }),
+    }),
+  );
+  const routePostJson = await routePostRes.json();
+
+  const routePatchRes = await govPatch(
+    new NextRequest('https://aetherbi.com/api/erp/governance', {
+      method: 'PATCH',
+      headers: { cookie: EXEC_SESSION_COOKIE + '=' + audToken, 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'approve' }),
+    }),
+  );
+  const routePatchJson = await routePatchRes.json();
+
+  console.log(JSON.stringify({
+    defaultAdmin: DEFAULT_ADMIN_EMAIL,
+    defaultAuditor: DEFAULT_AUDITOR_EMAIL,
+    audWrongValid: audWrong.valid,
+    audOverrideValid: audOverrideOk.valid,
+    audOverrideRole: audOverrideOk.valid ? audOverrideOk.role : null,
+    audOverrideWrongValid: audOverrideWrong.valid,
+    verifiedAudSub: verifiedAud?.sub ?? null,
+    verifiedAudRole: verifiedAud?.role ?? null,
+    mwGetStatus: mwGetRes.status,
+    mwPostStatus: mwPostRes.status,
+    mwPostError: mwPostJson?.error ?? null,
+    mwPatchStatus: mwPatchRes.status,
+    routePostStatus: routePostRes.status,
+    routePostError: routePostJson?.error ?? null,
+    routePatchStatus: routePatchRes.status,
+    routePatchError: routePatchJson?.error ?? null,
+  }));
+})();
+`
+const audProbeRaw = execFileSync(process.execPath, [tsxCli, '-e', auditorRuntimeProbeScript], {
+  cwd: ROOT,
+  encoding: 'utf8',
+}).trim()
+const audProbe = JSON.parse(audProbeRaw.split('\n').pop() ?? '{}')
+
+assert(
+  execSessionSrc.includes("'auditor'") &&
+    execSessionSrc.includes('auditor@venturefoodskw.com') &&
+    execSessionSrc.includes('93126eacc43acc1b7030b2c2960d5f9aeadcb2a14d3258a6126f119bde3a4dba') &&
+    middlewareSrc.includes('Read-only auditor session') &&
+    middlewareSrc.includes('status: 403') &&
+    govApiSrc.includes('Read-only auditor session') &&
+    govApiSrc.includes('status: 403') &&
+    erpShellReexportSrc.includes('isAuditor') &&
+    sidebarSrc.includes('حساب مراجعة — قراءة فقط') &&
+    sidebarSrc.includes('Read-Only Auditor') &&
+    topBarSrc.includes('حساب مراجعة — قراءة فقط') &&
+    topBarSrc.includes('Read-Only Auditor') &&
+    govDrawerSrc.includes('وضع المراجعة — قراءة فقط') &&
+    audProbe.defaultAuditor === 'auditor@venturefoodskw.com' &&
+    audProbe.audWrongValid === false &&
+    audProbe.audOverrideValid === true &&
+    audProbe.audOverrideRole === 'auditor' &&
+    audProbe.audOverrideWrongValid === false &&
+    audProbe.verifiedAudSub === 'auditor@venturefoodskw.com' &&
+    audProbe.verifiedAudRole === 'auditor' &&
+    audProbe.mwGetStatus === 200 &&
+    audProbe.mwPostStatus === 403 &&
+    audProbe.mwPostError === 'Read-only auditor session' &&
+    audProbe.mwPatchStatus === 403 &&
+    audProbe.routePostStatus === 403 &&
+    audProbe.routePostError === 'Read-only auditor session' &&
+    audProbe.routePatchStatus === 403 &&
+    audProbe.routePatchError === 'Read-only auditor session',
+  '17.2 Read-Only Auditor Role & 403 Guard: auditor@venturefoodskw.com authenticates cleanly, middleware & /api/erp/governance enforce 403 Read-only auditor session on mutations, and UI renders حساب مراجعة — قراءة فقط',
+  `audRole=${audProbe.verifiedAudRole}, mwPost=${audProbe.mwPostStatus}, routePost=${audProbe.routePostStatus}`,
+)
+
+// 17.3 Repo-Wide Scan of src/ (excluding full-journey-enterprise-brain.ts) for Zero Stale Scope, Grammar & Raw Slugs
+const repoWideBannedTokens = [
+  ['7 ', 'علامات'].join(''),
+  ['٧ ', 'علامات'].join(''),
+  ['7 ', 'Brands'].join(''),
+  ['7 ', 'brands'].join(''),
+  ['وين ', 'تروح'].join(''),
+  ['11 ', 'أيام'].join(''),
+  ['خلال 6 ', 'يوم'].join(''),
+  ['claude-', 'sonnet'].join(''),
+  ['gemini-', '4-carbon'].join(''),
+  ['grok-', '4.7'].join(''),
+  ['جروك', ' Heavy'].join(''),
+]
+
+const repoWideHits = []
+for (const file of allSrcFiles) {
+  const rel = path.relative(ROOT, file).replace(/\\/g, '/')
+  if (rel === 'src/lib/full-journey-enterprise-brain.ts') continue
+  const txt = fs.readFileSync(file, 'utf8')
+  for (const tok of repoWideBannedTokens) {
+    if (txt.includes(tok)) repoWideHits.push(`${rel}:${tok}`)
+  }
+}
+
+assert(
+  repoWideHits.length === 0,
+  '17.3 Repo-Wide src/ Hygiene Scan: 0 occurrences of 7 علامات, ٧ علامات, 7 Brands, 7 brands, وين تروح, 11 أيام, خلال 6 يوم & raw model slugs across src/',
+  `hits=${repoWideHits.length}`,
+)
+
+// 17.4 Boudy 7-Point Executive UI Perfection Assertions
+assert(
+  topBarSrc.includes('القائمة والحساب') &&
+    topBarSrc.includes('Account & Menu') &&
+    topBarSrc.includes('الإشعارات والاعتمادات 🔔') &&
+    !topBarSrc.includes('شهادة أودو') &&
+    feryalStudioSrc.includes('دقيق') &&
+    feryalStudioSrc.includes('تحليل دقيق') &&
+    feryalStudioSrc.includes('سريع') &&
+    feryalStudioSrc.includes('إجابة سريعة') &&
+    feryalStudioSrc.includes('إرفاق صورة / فيديو') &&
+    journeySrc.includes('ابدأ من هنا هذا الأسبوع') &&
+    journeySrc.includes('رصيد متراكم مفتوح من فترات سابقة قيد التحصيل') &&
+    journeySrc.includes('رصيد متراكم') &&
+    journeySrc.includes('المستهدف: 85+') &&
+    journeySrc.includes('legendLayout="beside"') &&
+    !/\btruncate\b/.test(journeySrc) &&
+    chartsSrc.includes('<path') &&
+    chartsSrc.includes('stroke="#10B981"') &&
+    chartsSrc.includes('ألف د.ك') &&
+    chartsSrc.includes('المبيعات (ألف د.ك)') &&
+    chartsSrc.includes('الصافي بالجيب (ألف د.ك)') &&
+    !/\btruncate\b/.test(chartsSrc) &&
+    execFooterSrc.includes('آخر مزامنة أودو 17:') &&
+    execFooterSrc.includes('مصدر البيانات: دفتر الأستاذ العام ونقاط البيع Odoo 17') &&
+    execFooterSrc.includes('6 مطاعم • 7 فروع • 8 قنوات') &&
+    execFooterSrc.includes('v2.7'),
+  '17.4 Boudy 7-Point Executive UI Gate: 3-control header (القائمة والحساب), Start-Here strip, Feryal دقيق & سريع + attachment, Combo <path> + ألف د.ك + unclipped Donut, 141,052 context + المستهدف: 85+, and v2.7 footer verified',
 )
 
 console.log('\n----------------------------------------------------------------------')

@@ -226,10 +226,22 @@ export function isNavItemActive(item: NavItem, pathname: string): boolean {
 
 const isItemActive = isNavItemActive
 
-export function Sidebar({ user }: { user: AccessUser; enabledKeys?: string[] | null }) {
+export function Sidebar({
+  user,
+  isAuditor = false,
+}: {
+  user: AccessUser
+  enabledKeys?: string[] | null
+  isAuditor?: boolean
+}) {
   const pathname = usePathname() ?? ''
   const { t, locale } = useI18n()
   const isAr = locale === 'ar'
+  const auditorMode = Boolean(
+    isAuditor ||
+      user.role.name === 'Read-Only Auditor' ||
+      user.email.toLowerCase().includes('auditor'),
+  )
 
   const [collapsed, setCollapsed] = useState(false)
   const navListRef = useRef<HTMLDivElement>(null)
@@ -505,9 +517,15 @@ export function Sidebar({ user }: { user: AccessUser; enabledKeys?: string[] | n
           <div className="flex flex-col items-center gap-2">
             <div
               className="ae-side-chip flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold"
-              title={displayTeamName(user.name, locale)}
+              title={
+                auditorMode
+                  ? isAr
+                    ? 'حساب مراجعة — قراءة فقط'
+                    : 'Read-Only Auditor'
+                  : displayTeamName(user.name, locale)
+              }
             >
-              {user.name.slice(0, 1)}
+              {auditorMode ? (isAr ? 'م' : 'A') : user.name.slice(0, 1)}
             </div>
             <form action={logout} className="group relative">
               <button
@@ -527,23 +545,40 @@ export function Sidebar({ user }: { user: AccessUser; enabledKeys?: string[] | n
           </div>
         ) : (
           <>
-            <div className="flex items-center gap-2.5 py-1">
-              <div className="ae-side-chip flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold">
-                {user.name.slice(0, 1)}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="ae-side-strong break-words text-xs font-semibold leading-snug">
-                  {user.name.includes('الإدارة التنفيذية') || user.name.includes('Executive')
-                    ? isAr
-                      ? 'الإدارة التنفيذية · فنتشر فودز'
-                      : 'Executive Management - Venture Foods'
-                    : displayTeamName(user.name, locale)}
+            {auditorMode ? (
+              <div className="ae-side-card space-y-1 px-3 py-2 text-start">
+                <div className="inline-flex items-center gap-1.5">
+                  <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" />
+                  <span className="ae-side-strong text-[11.5px] font-bold leading-snug">
+                    {isAr ? 'حساب مراجعة — قراءة فقط' : 'Read-Only Auditor'}
+                  </span>
+                </div>
+                <p
+                  dir="ltr"
+                  className="ae-side-muted truncate font-mono text-[10.5px] leading-snug"
+                >
+                  {user.email || 'auditor@venturefoodskw.com'}
                 </p>
-                <p className="ae-side-muted break-words text-[11px] leading-snug">
-                  {displayRoleName(user.role.name, locale)}
-                </p>
               </div>
-            </div>
+            ) : (
+              <div className="flex items-center gap-2.5 py-1">
+                <div className="ae-side-chip flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold">
+                  {user.name.slice(0, 1)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="ae-side-strong break-words text-xs font-semibold leading-snug">
+                    {user.name.includes('الإدارة التنفيذية') || user.name.includes('Executive')
+                      ? isAr
+                        ? 'الإدارة التنفيذية · فنتشر فودز'
+                        : 'Executive Management - Venture Foods'
+                      : displayTeamName(user.name, locale)}
+                  </p>
+                  <p className="ae-side-muted break-words text-[11px] leading-snug">
+                    {displayRoleName(user.role.name, locale)}
+                  </p>
+                </div>
+              </div>
+            )}
             <form action={logout} className="mt-2">
               <button
                 type="submit"
