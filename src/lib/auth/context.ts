@@ -55,6 +55,24 @@ async function resolveExecSession(): Promise<{
   }
 }
 
+export async function resolveServerExecSessionRole(): Promise<ExecSessionRole> {
+  const execSession = await resolveExecSession()
+  if (execSession) return execSession.role
+  try {
+    const panel = await getPanelSessionUser()
+    if (
+      panel &&
+      typeof panel.email === 'string' &&
+      panel.email.toLowerCase().includes('auditor')
+    ) {
+      return 'auditor'
+    }
+  } catch {
+    // fall through
+  }
+  return 'admin'
+}
+
 /**
  * Supabase when a real session exists. The local cookie is consulted only while the e2e gate is open.
  * API calls treat a missing Supabase client as a misconfigured server. Pages treat it as signed out.

@@ -198,7 +198,7 @@ export async function GET(req: NextRequest) {
  * POST Handler - Supports JSON and raw streaming calls
  */
 export async function POST(req: NextRequest) {
-  const authGuard = await requireExecApiSession(req, { allowAuditor: true })
+  const authGuard = await requireExecApiSession(req, { allowAuditor: false })
   if (!authGuard.ok) return authGuard.response
 
   const burst = executiveAiBurstLimiter.check(`tts:${authGuard.session.sub}`)

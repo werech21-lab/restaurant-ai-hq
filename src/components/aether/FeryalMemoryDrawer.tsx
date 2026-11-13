@@ -17,6 +17,7 @@ export interface FeryalMemoryDrawerProps {
   open: boolean
   onClose: () => void
   isAr: boolean
+  isAuditor?: boolean
   onAskScalePlan: (prompt: string) => void
 }
 
@@ -31,6 +32,7 @@ export function FeryalMemoryDrawer({
   open,
   onClose,
   isAr,
+  isAuditor = false,
   onAskScalePlan,
 }: FeryalMemoryDrawerProps) {
   const [memory, setMemory] = useState<FeryalMemoryState>(() => getFeryalMemorySync())
@@ -169,58 +171,60 @@ export function FeryalMemoryDrawer({
           </div>
 
           {/* + علّم فريال معلومة دائمة */}
-          <form onSubmit={handleTeachSubmit} className="ae-bento-card space-y-3 p-4">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[13.5px] font-extrabold text-slate-950 dark:text-white">
-                {isAr ? '+ علّم فريال معلومة دائمة' : '+ Teach Feryal a Permanent Rule'}
-              </span>
-              {teachSaved ? (
-                <span className="text-[11.5px] font-bold text-emerald-600 dark:text-emerald-400">
-                  {isAr ? 'تم الحفظ في الذاكرة الدائمة ✓' : 'Saved to permanent memory ✓'}
+          {!isAuditor ? (
+            <form onSubmit={handleTeachSubmit} className="ae-bento-card space-y-3 p-4">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[13.5px] font-extrabold text-slate-950 dark:text-white">
+                  {isAr ? '+ علّم فريال معلومة دائمة' : '+ Teach Feryal a Permanent Rule'}
                 </span>
-              ) : null}
-            </div>
+                {teachSaved ? (
+                  <span className="text-[11.5px] font-bold text-emerald-600 dark:text-emerald-400">
+                    {isAr ? 'تم الحفظ في الذاكرة الدائمة ✓' : 'Saved to permanent memory ✓'}
+                  </span>
+                ) : null}
+              </div>
 
-            <div className="flex flex-wrap gap-1.5">
-              {CATEGORY_OPTIONS.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => setTeachCat(c.id)}
-                  className={`cursor-pointer rounded-full px-2.5 py-1 text-[11px] font-bold transition-all ${
-                    teachCat === c.id
-                      ? 'bg-[#0B1220] text-white dark:bg-[#10B981] dark:text-[#04130D]'
-                      : 'ae-bento-subcard text-slate-600 dark:text-slate-300'
-                  }`}
-                >
-                  {isAr ? c.ar : c.en}
-                </button>
-              ))}
-            </div>
+              <div className="flex flex-wrap gap-1.5">
+                {CATEGORY_OPTIONS.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => setTeachCat(c.id)}
+                    className={`cursor-pointer rounded-full px-2.5 py-1 text-[11px] font-bold transition-all ${
+                      teachCat === c.id
+                        ? 'bg-[#0B1220] text-white dark:bg-[#10B981] dark:text-[#04130D]'
+                        : 'ae-bento-subcard text-slate-600 dark:text-slate-300'
+                    }`}
+                  >
+                    {isAr ? c.ar : c.en}
+                  </button>
+                ))}
+              </div>
 
-            <textarea
-              rows={2}
-              value={teachText}
-              onChange={(e) => setTeachText(e.target.value)}
-              placeholder={
-                isAr
-                  ? 'مثال: عقد الدواجن الجديد مع المورد ثابت بسعر أقل ٦٪ ويُستلم في المخزن المركزي كل أحد وأربعاء…'
-                  : 'Example: New poultry contract is 6% lower and delivered to Central Warehouse every Sun & Wed…'
-              }
-              className="ae-bento-subcard w-full rounded-xl p-3 text-[13px] leading-relaxed text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500/50 dark:text-white"
-            />
+              <textarea
+                rows={2}
+                value={teachText}
+                onChange={(e) => setTeachText(e.target.value)}
+                placeholder={
+                  isAr
+                    ? 'مثال: عقد الدواجن الجديد مع المورد ثابت بسعر أقل ٦٪ ويُستلم في المخزن المركزي كل أحد وأربعاء…'
+                    : 'Example: New poultry contract is 6% lower and delivered to Central Warehouse every Sun & Wed…'
+                }
+                className="ae-bento-subcard w-full rounded-xl p-3 text-[13px] leading-relaxed text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500/50 dark:text-white"
+              />
 
-            <button
-              type="submit"
-              disabled={teachText.trim().length < 4}
-              className="ae-btn-primary inline-flex h-9 w-full cursor-pointer items-center justify-center gap-1.5 rounded-full px-4 text-[12.5px] font-extrabold disabled:opacity-40"
-            >
-              <Plus className="h-4 w-4" />
-              <span>
-                {isAr ? 'حفظ وتثبيت في ذاكرة العقل الثلاثي' : 'Save to Council Memory'}
-              </span>
-            </button>
-          </form>
+              <button
+                type="submit"
+                disabled={teachText.trim().length < 4}
+                className="ae-btn-primary inline-flex h-9 w-full cursor-pointer items-center justify-center gap-1.5 rounded-full px-4 text-[12.5px] font-extrabold disabled:opacity-40"
+              >
+                <Plus className="h-4 w-4" />
+                <span>
+                  {isAr ? 'حفظ وتثبيت في ذاكرة العقل الثلاثي' : 'Save to Council Memory'}
+                </span>
+              </button>
+            </form>
+          ) : null}
 
           {/* Layer 1: Confirmed Institutional & Learned Rules */}
           <section className="space-y-2.5">
@@ -252,7 +256,7 @@ export function FeryalMemoryDrawer({
                             ? 'تعليم مباشر من الإدارة'
                             : 'Taught by Executive'}
                     </span>
-                    {r.source !== 'preseeded' ? (
+                    {!isAuditor && r.source !== 'preseeded' ? (
                       <button
                         type="button"
                         onClick={() => removeLearnedRule(r.id)}
@@ -279,16 +283,18 @@ export function FeryalMemoryDrawer({
                   ? '٢. نتائج قبل/بعد وتعميم الخطط الرابحة'
                   : '2. Proven Winners & Cross-Branch Scaling'}
               </h3>
-              <button
-                type="button"
-                onClick={() => setShowAddOutcome((v) => !v)}
-                className="text-[11.5px] font-bold text-emerald-700 hover:underline dark:text-emerald-400"
-              >
-                {isAr ? '+ تسجيل خطة رابحة' : '+ Log Winner'}
-              </button>
+              {!isAuditor ? (
+                <button
+                  type="button"
+                  onClick={() => setShowAddOutcome((v) => !v)}
+                  className="text-[11.5px] font-bold text-emerald-700 hover:underline dark:text-emerald-400"
+                >
+                  {isAr ? '+ تسجيل خطة رابحة' : '+ Log Winner'}
+                </button>
+              ) : null}
             </div>
 
-            {showAddOutcome ? (
+            {!isAuditor && showAddOutcome ? (
               <form onSubmit={handleRecordOutcome} className="ae-bento-subcard space-y-2 rounded-2xl p-3.5">
                 <input
                   type="text"
@@ -356,25 +362,27 @@ export function FeryalMemoryDrawer({
                     </span>
                     {isAr ? o.scaleSuggestionAr : o.scaleSuggestionEn}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onAskScalePlan(
-                        isAr
-                          ? `اعتمدت الشركة "${o.titleAr}" كخطة مجرّبة ورابحة ✅ في (${o.originBrandAr} - ${o.originBranchAr}) بعائد +${o.monthlyGainKwd} د.ك شهرياً. ضع خطة تنفيذية لتعميمها فوراً على باقي فروع وعلامات فنتشر فودز المناسبة مع الجدول المالي.`
-                          : `We verified "${o.titleEn}" as a Proven Winner ✅ at (${o.originBrandEn} - ${o.originBranchEn}) yielding +${o.monthlyGainKwd} KWD/mo. Build an immediate rollout plan across our other eligible Venture Foods brands and branches.`,
-                      )
-                      onClose()
-                    }}
-                    className="ae-btn-primary inline-flex h-8 w-full cursor-pointer items-center justify-center gap-1.5 rounded-full text-[12px] font-bold"
-                  >
-                    <Sparkles className="h-3.5 w-3.5" />
-                    <span>
-                      {isAr
-                        ? 'اطلب خطة تعميمها على باقي الفروع'
-                        : 'Generate Cross-Branch Rollout Plan'}
-                    </span>
-                  </button>
+                  {!isAuditor ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onAskScalePlan(
+                          isAr
+                            ? `اعتمدت الشركة "${o.titleAr}" كخطة مجرّبة ورابحة ✅ في (${o.originBrandAr} - ${o.originBranchAr}) بعائد +${o.monthlyGainKwd} د.ك شهرياً. ضع خطة تنفيذية لتعميمها فوراً على باقي فروع وعلامات فنتشر فودز المناسبة مع الجدول المالي.`
+                            : `We verified "${o.titleEn}" as a Proven Winner ✅ at (${o.originBrandEn} - ${o.originBranchEn}) yielding +${o.monthlyGainKwd} KWD/mo. Build an immediate rollout plan across our other eligible Venture Foods brands and branches.`,
+                        )
+                        onClose()
+                      }}
+                      className="ae-btn-primary inline-flex h-8 w-full cursor-pointer items-center justify-center gap-1.5 rounded-full text-[12px] font-bold"
+                    >
+                      <Sparkles className="h-3.5 w-3.5" />
+                      <span>
+                        {isAr
+                          ? 'اطلب خطة تعميمها على باقي الفروع'
+                          : 'Generate Cross-Branch Rollout Plan'}
+                      </span>
+                    </button>
+                  ) : null}
                 </div>
               ))}
             </div>

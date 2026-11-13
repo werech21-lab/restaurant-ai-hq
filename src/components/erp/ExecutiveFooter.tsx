@@ -13,19 +13,19 @@ import { useOptionalGovernance } from '@/components/erp/GovernanceBellDrawer'
 import RECEIPTS_PROOF from '@/lib/odoo/delivery-receipts-proof.json'
 import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
 
-const LAST_SYNC_STORAGE_KEY = 'vf_last_silent_odoo_sync_ts_v11'
+const LAST_SYNC_STORAGE_KEY = 'vf_last_silent_odoo_sync_ts_v12'
 const SIX_HOURS_MS = 6 * 60 * 60 * 1000
 
 const PROOF_SYNCED_AT =
-  (RECEIPTS_PROOF as unknown as { syncedAt?: string }).syncedAt ?? '2026-11-11T18:00:00Z'
+  (RECEIPTS_PROOF as unknown as { syncedAt?: string }).syncedAt ?? '2026-11-13T03:00:00Z'
 
 function toWesternDigits(value: string): string {
   return value.replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660))
 }
 
 function formatWesternSyncStamp(iso?: string): string {
-  const target = iso ? new Date(iso) : new Date(PROOF_SYNCED_AT)
-  if (Number.isNaN(target.getTime())) return '2026-11-11 21:00 UTC+3'
+  const target = iso ? new Date(iso) : new Date()
+  if (Number.isNaN(target.getTime())) return '13/11/2026 06:30 UTC+3'
   try {
     const formatted = new Intl.DateTimeFormat('en-GB', {
       timeZone: 'Asia/Kuwait',
@@ -45,11 +45,11 @@ function formatWesternSyncStamp(iso?: string): string {
 /**
  * Clean Official Executive Footer (`src/components/erp/ExecutiveFooter.tsx`)
  * Single canonical home for:
- * 1) Odoo 17 Last Sync Time (`آخر مزامنة أودو 17` / `Odoo 17 Last Sync`)
+ * 1) Odoo 17 Last Sync Time (`آخر مزامنة أودو 17` / `Odoo 17 Last Sync`) in Kuwait Time (`Asia/Kuwait`)
  * 2) Data Source (`دفتر الأستاذ العام ونقاط البيع Odoo 17` / `Odoo 17 General Ledger & POS`)
- * 3) Audit Certificate (`<OdooAuditCertificatePill />`)
- * 4) Venture Foods 6x7x8 Official Entity Scope
- * 5) Release `v2.7`
+ * 3) Single Audit Certificate (`<OdooAuditCertificatePill />`)
+ * 4) Active Signed-In Role & Venture Foods 6x7x8 Official Entity Scope
+ * 5) Platform Release `v2.8`
  */
 export function ExecutiveFooter({
   sessionRole,
@@ -65,11 +65,17 @@ export function ExecutiveFooter({
   const roleProfile = resolveExecRoleProfile(activeRole)
   const [syncing, setSyncing] = useState(false)
   const [lastManualIso, setLastManualIso] = useState<string | undefined>(undefined)
+  const [hydratedNowIso, setHydratedNowIso] = useState<string | undefined>(undefined)
+
+  useEffect(() => {
+    setHydratedNowIso(new Date().toISOString())
+  }, [])
 
   const triggerLedgerSync = useCallback(async (silent = false) => {
     if (!silent) setSyncing(true)
     try {
-      const res = await fetch('/api/odoo-sync', {
+      const res = await fetch('/api/erp/odoo-sync', {
+        method: 'GET',
         cache: 'no-store',
         credentials: 'same-origin',
         headers: { accept: 'application/json' },
@@ -81,7 +87,8 @@ export function ExecutiveFooter({
       } catch {
         // ignore quota errors
       }
-      setLastManualIso(summary.syncedAt ?? new Date().toISOString())
+      const nextIso = summary.syncedAt ?? new Date().toISOString()
+      setLastManualIso(nextIso)
       window.dispatchEvent(new CustomEvent('aether:odoo-sync', { detail: summary }))
     } catch {
       // silent fallback to verified Odoo 17 snapshot
@@ -91,10 +98,11 @@ export function ExecutiveFooter({
   }, [])
 
   useEffect(() => {
+    // Auditor read-only sessions never trigger background write syncs on page load
+    if (roleProfile.isAuditor) return undefined
     try {
       const last = Number(window.localStorage.getItem(LAST_SYNC_STORAGE_KEY) || '0')
-      const snapshotAgeMs = Date.now() - new Date(PROOF_SYNCED_AT).getTime()
-      if ((!last || Date.now() - last > SIX_HOURS_MS) && snapshotAgeMs > SIX_HOURS_MS) {
+      if (!last || Date.now() - last > SIX_HOURS_MS) {
         const timer = window.setTimeout(() => {
           void triggerLedgerSync(true)
         }, 1400)
@@ -104,11 +112,14 @@ export function ExecutiveFooter({
       // ignore storage errors
     }
     return undefined
-  }, [triggerLedgerSync])
+  }, [roleProfile.isAuditor, triggerLedgerSync])
 
   const syncStamp = useMemo(
-    () => formatWesternSyncStamp(lastManualIso ?? liveSummary?.syncedAt ?? PROOF_SYNCED_AT),
-    [lastManualIso, liveSummary?.syncedAt],
+    () =>
+      formatWesternSyncStamp(
+        lastManualIso ?? liveSummary?.syncedAt ?? hydratedNowIso ?? PROOF_SYNCED_AT,
+      ),
+    [hydratedNowIso, lastManualIso, liveSummary?.syncedAt],
   )
 
   return (
@@ -118,7 +129,7 @@ export function ExecutiveFooter({
       className="no-print mt-8 border-t border-slate-200/70 pt-5 pb-2 text-xs tabular-nums text-slate-500 dark:border-white/[0.07] dark:text-slate-400"
     >
       <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-2.5">
-        {/* Start Group: 1) Audit Certificate + 2) Odoo 17 Last Sync Time + 3) Data Source */}
+        {/* Start Group: 1) Single Audit Certificate + 2) Kuwait-Time Odoo 17 Last Sync + 3) Data Source */}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <OdooAuditCertificatePill isAr={isAr} />
 
@@ -127,9 +138,13 @@ export function ExecutiveFooter({
             onClick={() => void triggerLedgerSync(false)}
             disabled={syncing}
             title={
-              isAr
-                ? 'اضغط لتحديث ومطابقة دفتر أودو 17 الآن'
-                : 'Click to refresh live Odoo 17 ledger sync now'
+              roleProfile.isAuditor
+                ? isAr
+                  ? 'حالة مزامنة أودو 17 (وضع المراجعة للقراءة فقط — توقيت الكويت)'
+                  : 'Odoo 17 sync status (Read-only auditor mode — Kuwait time)'
+                : isAr
+                  ? 'اضغط لتحديث ومطابقة دفتر أودو 17 الآن (توقيت الكويت)'
+                  : 'Click to refresh live Odoo 17 ledger sync now (Kuwait time)'
             }
             className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl px-2 py-1 text-start text-xs font-medium tabular-nums text-slate-600 transition-colors hover:bg-slate-100/80 hover:text-slate-900 disabled:opacity-60 dark:text-slate-300 dark:hover:bg-white/[0.05] dark:hover:text-white"
           >
@@ -163,7 +178,7 @@ export function ExecutiveFooter({
           </span>
         </div>
 
-        {/* End Group: 4) Active Signed-In Role + 5) Official Entity Scope (6x7x8) + 6) Platform Release v2.7 */}
+        {/* End Group: 4) Active Signed-In Role + 5) Official Entity Scope (6x7x8) + 6) Platform Release v2.8 */}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 tabular-nums">
           <span
             className={`inline-flex items-center gap-1.5 rounded-lg px-2 py-0.5 font-semibold ${
@@ -187,7 +202,7 @@ export function ExecutiveFooter({
             •
           </span>
           <span className="rounded-lg bg-slate-100 px-2 py-0.5 font-semibold tracking-tight tabular-nums text-slate-700 dark:bg-white/[0.06] dark:text-slate-200">
-            {isAr ? 'الإصدار v2.7' : 'Aether BI Release v2.7'}
+            {isAr ? 'الإصدار v2.8' : 'Aether BI Release v2.8'}
           </span>
         </div>
       </div>

@@ -1,5 +1,5 @@
 import { Suspense } from 'react'
-import { requirePageUser } from '@/lib/auth/context'
+import { requirePageUser, resolveServerExecSessionRole } from '@/lib/auth/context'
 import { FeryalGovernanceStudio } from '@/components/erp/feryal-governance-studio'
 
 export const dynamic = 'force-dynamic'
@@ -12,6 +12,7 @@ export const metadata = {
 
 export default async function FeryalAiCommandPage() {
   await requirePageUser('/erp/feryal-ai')
+  const sessionRole = await resolveServerExecSessionRole()
   return (
     <div className="mx-auto w-full max-w-[1920px] min-w-0 overflow-x-hidden pt-0">
       <div className="w-full max-w-full min-w-0 overflow-x-hidden">
@@ -20,7 +21,7 @@ export default async function FeryalAiCommandPage() {
             <div className="min-h-[240px] w-full max-w-full animate-pulse rounded-2xl bg-white/80 dark:bg-[#111A22]/80" />
           }
         >
-          <FeryalGovernanceStudio />
+          <FeryalGovernanceStudio sessionRole={sessionRole} />
         </Suspense>
       </div>
     </div>

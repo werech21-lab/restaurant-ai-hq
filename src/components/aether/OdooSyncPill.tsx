@@ -26,7 +26,7 @@ export function OdooSyncPill({ isAr }: { isAr: boolean }) {
       return silent ? prev : { ...prev, status: 'syncing' }
     })
     try {
-      const res = await fetch('/api/odoo-sync', { cache: 'no-store', credentials: 'same-origin', headers: { accept: 'application/json' } })
+      const res = await fetch('/api/erp/odoo-sync', { cache: 'no-store', credentials: 'same-origin', headers: { accept: 'application/json' } })
       if (res.status === 401) {
         if (!silent) setState({ status: 'unauthorized' })
         return
@@ -55,9 +55,13 @@ export function OdooSyncPill({ isAr }: { isAr: boolean }) {
     }
     window.addEventListener('aether:odoo-sync', onExternalSync)
     try {
+      const isAuditorDom =
+        typeof document !== 'undefined' &&
+        (document.documentElement.dataset.auditor === 'true' ||
+          document.documentElement.dataset.sessionRole === 'auditor')
       const last = Number(window.localStorage.getItem(LAST_SYNC_STORAGE_KEY) || '0')
       const snapshotAgeMs = Date.now() - new Date(JOURNEY_META.syncedAt).getTime()
-      if ((!last || Date.now() - last > SIX_HOURS_MS) && snapshotAgeMs > SIX_HOURS_MS) {
+      if (!isAuditorDom && (!last || Date.now() - last > SIX_HOURS_MS) && snapshotAgeMs > SIX_HOURS_MS) {
         const timer = window.setTimeout(() => {
           void sync(true)
         }, 1200)

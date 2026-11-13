@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   Bell,
+  Calendar,
   Check,
   ChevronDown,
   Globe,
@@ -106,6 +107,107 @@ function formatPinCountdown(sec: number): string {
 function cleanPeriodOptionLabel(periodId: GlobalPeriod, rawLabel: string, isAr: boolean): string {
   if (periodId === 'custom') return isAr ? 'مخصص' : 'Custom'
   return toWesternNumerals(rawLabel)
+}
+
+function PeriodDropdownPopover({
+  isAr,
+  activePeriod,
+  draftFrom,
+  draftTo,
+  onSelectPeriod,
+  onChangeFrom,
+  onChangeTo,
+  onApplyCustomRange,
+  onClose,
+}: {
+  isAr: boolean
+  activePeriod: GlobalPeriod
+  draftFrom: string
+  draftTo: string
+  onSelectPeriod: (next: GlobalPeriod) => void
+  onChangeFrom: (val: string) => void
+  onChangeTo: (val: string) => void
+  onApplyCustomRange: () => void
+  onClose: () => void
+}) {
+  return (
+    <div
+      role="listbox"
+      aria-label={isAr ? 'الفترة الزمنية' : 'Time Period'}
+      dir={isAr ? 'rtl' : 'ltr'}
+      className="w-[min(92vw,290px)] space-y-2 rounded-2xl bg-white p-3 text-slate-800 shadow-[0_20px_50px_rgba(15,23,42,0.16)] ring-1 ring-slate-900/[0.07] dark:bg-[#101C17] dark:text-slate-100 dark:ring-emerald-500/20"
+    >
+      <div className="px-1 text-[11px] font-bold text-slate-400 dark:text-slate-400">
+        {isAr ? 'اختر الفترة الزمنية' : 'Select Time Period'}
+      </div>
+
+      <div className="space-y-1">
+        {GLOBAL_PERIOD_OPTIONS.map((p) => {
+          const active = p.id === activePeriod
+          const label = cleanPeriodOptionLabel(p.id, isAr ? p.ar : p.en, isAr)
+          return (
+            <button
+              key={p.id}
+              type="button"
+              role="option"
+              aria-selected={active}
+              onClick={() => {
+                onSelectPeriod(p.id)
+                if (p.id !== 'custom') {
+                  onClose()
+                }
+              }}
+              className={`flex w-full cursor-pointer items-center justify-between gap-2 rounded-xl px-3 py-2 text-start text-[12.5px] font-semibold transition-all duration-150 ${
+                active
+                  ? 'btn-colored bg-emerald-600 text-white shadow-xs dark:bg-emerald-500 dark:text-[#04130D]'
+                  : 'text-slate-700 hover:bg-[#F6F7F8] hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/[0.06] dark:hover:text-white'
+              }`}
+            >
+              <span>{label}</span>
+              {active ? <Check className="h-3.5 w-3.5 shrink-0" /> : null}
+            </button>
+          )
+        })}
+      </div>
+
+      {activePeriod === 'custom' ? (
+        <div className="space-y-2 border-t border-slate-200/70 pt-2.5 dark:border-white/[0.08]">
+          <div className="grid grid-cols-2 gap-2">
+            <label className="space-y-1 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+              <span>{isAr ? 'من تاريخ' : 'Start Date'}</span>
+              <input
+                type="date"
+                dir="ltr"
+                value={draftFrom}
+                onChange={(e) => onChangeFrom(e.target.value)}
+                className="h-8 w-full rounded-xl bg-[#F6F7F8] px-2 text-[11.5px] font-bold tabular-nums text-slate-900 ring-1 ring-slate-900/[0.06] outline-none focus:ring-2 focus:ring-emerald-500/40 dark:bg-[#09110E] dark:text-white"
+              />
+            </label>
+            <label className="space-y-1 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+              <span>{isAr ? 'إلى تاريخ' : 'End Date'}</span>
+              <input
+                type="date"
+                dir="ltr"
+                value={draftTo}
+                onChange={(e) => onChangeTo(e.target.value)}
+                className="h-8 w-full rounded-xl bg-[#F6F7F8] px-2 text-[11.5px] font-bold tabular-nums text-slate-900 ring-1 ring-slate-900/[0.06] outline-none focus:ring-2 focus:ring-emerald-500/40 dark:bg-[#09110E] dark:text-white"
+              />
+            </label>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              onApplyCustomRange()
+              onClose()
+            }}
+            className="btn-colored inline-flex h-8 w-full cursor-pointer items-center justify-center rounded-xl bg-emerald-600 px-3 text-xs font-bold text-white transition-colors hover:bg-emerald-700 dark:bg-emerald-500 dark:text-[#04130D]"
+          >
+            {isAr ? 'تطبيق الفترة المخصصة' : 'Apply Custom Range'}
+          </button>
+        </div>
+      ) : null}
+    </div>
+  )
 }
 
 function EmeraldPillTabs<T extends string>({
@@ -573,6 +675,7 @@ export function TopFilterBar({
 
   const [sharedCopied, setSharedCopied] = useState(false)
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false)
+  const [periodDropdownOpen, setPeriodDropdownOpen] = useState(false)
   const [filtersPopoverOpen, setFiltersPopoverOpen] = useState(false)
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
@@ -580,7 +683,7 @@ export function TopFilterBar({
   const [draftTo, setDraftTo] = useState(filters.customTo)
 
   const desktopBarRef = useRef<HTMLDivElement>(null)
-  const mobileAccountRef = useRef<HTMLDivElement>(null)
+  const mobileBarRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setDraftFrom(filters.customFrom)
@@ -589,15 +692,17 @@ export function TopFilterBar({
 
   useEffect(() => {
     setMobileSheetOpen(false)
+    setPeriodDropdownOpen(false)
     setFiltersPopoverOpen(false)
     setAccountMenuOpen(false)
   }, [pathname])
 
   useEffect(() => {
-    if (!mobileSheetOpen && !filtersPopoverOpen && !accountMenuOpen) return
+    if (!mobileSheetOpen && !periodDropdownOpen && !filtersPopoverOpen && !accountMenuOpen) return
     const onEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setMobileSheetOpen(false)
+        setPeriodDropdownOpen(false)
         setFiltersPopoverOpen(false)
         setAccountMenuOpen(false)
       }
@@ -605,7 +710,8 @@ export function TopFilterBar({
     const onDocMouseDown = (e: MouseEvent) => {
       const target = e.target as Node
       if (desktopBarRef.current && desktopBarRef.current.contains(target)) return
-      if (mobileAccountRef.current && mobileAccountRef.current.contains(target)) return
+      if (mobileBarRef.current && mobileBarRef.current.contains(target)) return
+      setPeriodDropdownOpen(false)
       setFiltersPopoverOpen(false)
       setAccountMenuOpen(false)
     }
@@ -615,7 +721,7 @@ export function TopFilterBar({
       window.removeEventListener('keydown', onEsc)
       document.removeEventListener('mousedown', onDocMouseDown)
     }
-  }, [accountMenuOpen, filtersPopoverOpen, mobileSheetOpen])
+  }, [accountMenuOpen, filtersPopoverOpen, mobileSheetOpen, periodDropdownOpen])
 
   const copyShareDeepLink = useCallback(async () => {
     if (!pathname) return
@@ -676,6 +782,17 @@ export function TopFilterBar({
   const hasUnreadNotifications = (gov?.liveBadgeCount ?? 0) > 0
   const hasActiveBreaches = (gov?.activeBreaches.length ?? 0) > 0
 
+  const activePeriodMeta =
+    GLOBAL_PERIOD_OPTIONS.find((p) => p.id === filters.period) ?? GLOBAL_PERIOD_OPTIONS[2]
+  const activePeriodShortLabel = cleanPeriodOptionLabel(
+    activePeriodMeta.id,
+    isAr ? activePeriodMeta.ar : activePeriodMeta.en,
+    isAr,
+  )
+  const periodDropdownLabel = isAr
+    ? `الفترة: ${activePeriodShortLabel}`
+    : `Period: ${activePeriodShortLabel}`
+
   const handleApplyMobileSheet = () => {
     if (filters.period === 'custom') {
       setCustomRange(draftFrom, draftTo)
@@ -687,14 +804,15 @@ export function TopFilterBar({
     <>
       {/* =====================================================================
           1. MOBILE & TABLET COMPACT 56px STICKY FROSTED APP BAR (`lg:hidden`)
-             Strictly 3 Controls: (a) Scrollable Period Strip, (b) `فلاتر`, (c) `القائمة والحساب`
+             Strictly 4 Ultra-Clean Controls:
+             (1) Period Dropdown  •  (2) Filters  •  (3) Bell  •  (4) Account Menu
          ===================================================================== */}
       <header
         aria-label={isAr ? 'الشريط العلوي للجوال' : 'Mobile Executive App Bar'}
         dir={isAr ? 'rtl' : 'ltr'}
         className="ae-mobile-appbar no-print sticky top-0 z-40 -mx-4 bg-white/90 px-3.5 shadow-[0_1px_0_rgba(15,23,42,0.06)] backdrop-blur-md sm:-mx-6 sm:px-6 lg:hidden dark:bg-[#0B1512]/90 dark:shadow-[0_1px_0_rgba(16,185,129,0.12)]"
       >
-        <div className="flex h-14 items-center justify-between gap-1.5">
+        <div ref={mobileBarRef} className="relative flex h-14 items-center justify-between gap-1.5">
           {/* Start: VF Brand Badge + Single Concise Active Page Title */}
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <Link
@@ -712,41 +830,97 @@ export function TopFilterBar({
             </span>
           </div>
 
-          {/* End: Control (b) `فلاتر` + Control (c) `القائمة والحساب` */}
-          <div className="flex shrink-0 items-center gap-1.5">
+          {/* End: 4 Controls — Period Dropdown + Filters + Bell + Account Menu */}
+          <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
             {showPosFilters ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setAccountMenuOpen(false)
-                  setMobileSheetOpen(true)
-                }}
-                aria-expanded={mobileSheetOpen}
-                aria-label={isAr ? 'فتح فلاتر التحليل' : 'Open Filters'}
-                className={`inline-flex h-8 cursor-pointer items-center gap-1 rounded-xl px-2 text-[11.5px] font-semibold transition-all duration-[160ms] active:scale-95 sm:px-2.5 ${
-                  mobileActiveFilterCount > 0
-                    ? 'bg-emerald-50 text-emerald-900 ring-1 ring-emerald-500/35 dark:bg-emerald-500/15 dark:text-emerald-200 dark:ring-emerald-400/35'
-                    : 'bg-neutral-100/90 text-slate-700 ring-1 ring-slate-900/[0.05] dark:bg-white/[0.06] dark:text-slate-200 dark:ring-emerald-500/15'
-                }`}
-              >
-                <SlidersHorizontal className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                <span className="whitespace-nowrap">{isAr ? 'فلاتر' : 'Filters'}</span>
-                {mobileActiveFilterCount > 0 ? (
-                  <span
-                    dir="ltr"
-                    style={{ color: '#FFFFFF' }}
-                    className="btn-colored inline-flex h-4 min-w-4 items-center justify-center rounded-md bg-emerald-600 px-1 text-[10px] font-bold tabular-nums text-white"
+              <>
+                {/* Control (1): Compact Period Dropdown */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAccountMenuOpen(false)
+                      setMobileSheetOpen(false)
+                      setPeriodDropdownOpen((v) => !v)
+                    }}
+                    aria-haspopup="listbox"
+                    aria-expanded={periodDropdownOpen}
+                    aria-label={periodDropdownLabel}
+                    className={`inline-flex h-8 cursor-pointer items-center gap-1 rounded-xl px-2 text-[11.5px] font-semibold transition-all duration-[160ms] active:scale-95 sm:px-2.5 ${
+                      periodDropdownOpen || filters.period !== 'month'
+                        ? 'bg-emerald-50 text-emerald-900 ring-1 ring-emerald-500/35 dark:bg-emerald-500/15 dark:text-emerald-200 dark:ring-emerald-400/35'
+                        : 'bg-neutral-100/90 text-slate-700 ring-1 ring-slate-900/[0.05] dark:bg-white/[0.06] dark:text-slate-200 dark:ring-emerald-500/15'
+                    }`}
                   >
-                    {mobileActiveFilterCount}
+                    <Calendar className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                    <span className="whitespace-nowrap sm:hidden">{activePeriodShortLabel}</span>
+                    <span className="hidden whitespace-nowrap sm:inline">{periodDropdownLabel}</span>
+                    <ChevronDown
+                      className={`h-3 w-3 shrink-0 opacity-75 transition-transform duration-150 ${
+                        periodDropdownOpen ? 'rotate-180' : ''
+                      }`}
+                    />
+                  </button>
+
+                  {periodDropdownOpen ? (
+                    <div className="absolute end-0 top-full z-50 mt-2 lg:hidden">
+                      <PeriodDropdownPopover
+                        isAr={isAr}
+                        activePeriod={filters.period}
+                        draftFrom={draftFrom}
+                        draftTo={draftTo}
+                        onSelectPeriod={setPeriod}
+                        onChangeFrom={setDraftFrom}
+                        onChangeTo={setDraftTo}
+                        onApplyCustomRange={() => setCustomRange(draftFrom, draftTo)}
+                        onClose={() => setPeriodDropdownOpen(false)}
+                      />
+                    </div>
+                  ) : null}
+                </div>
+
+                {/* Control (2): Filters (`فلاتر`) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPeriodDropdownOpen(false)
+                    setAccountMenuOpen(false)
+                    setMobileSheetOpen(true)
+                  }}
+                  aria-expanded={mobileSheetOpen}
+                  aria-label={isAr ? 'فتح فلاتر التحليل' : 'Open Filters'}
+                  className={`inline-flex h-8 cursor-pointer items-center gap-1 rounded-xl px-2 text-[11.5px] font-semibold transition-all duration-[160ms] active:scale-95 sm:px-2.5 ${
+                    mobileActiveFilterCount > 0
+                      ? 'bg-emerald-50 text-emerald-900 ring-1 ring-emerald-500/35 dark:bg-emerald-500/15 dark:text-emerald-200 dark:ring-emerald-400/35'
+                      : 'bg-neutral-100/90 text-slate-700 ring-1 ring-slate-900/[0.05] dark:bg-white/[0.06] dark:text-slate-200 dark:ring-emerald-500/15'
+                  }`}
+                >
+                  <SlidersHorizontal className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                  <span className="hidden whitespace-nowrap sm:inline">
+                    {isAr ? 'فلاتر' : 'Filters'}
                   </span>
-                ) : null}
-              </button>
+                  {mobileActiveFilterCount > 0 ? (
+                    <span
+                      dir="ltr"
+                      style={{ color: '#FFFFFF' }}
+                      className="btn-colored inline-flex h-4 min-w-4 items-center justify-center rounded-md bg-emerald-600 px-1 text-[10px] font-bold tabular-nums text-white"
+                    >
+                      {mobileActiveFilterCount}
+                    </span>
+                  ) : null}
+                </button>
+              </>
             ) : null}
 
-            <div ref={mobileAccountRef} className="relative">
+            {/* Control (3): Bell (`GovernanceBellTrigger`) */}
+            <GovernanceBellTrigger />
+
+            {/* Control (4): Account Menu (`القائمة والحساب`) */}
+            <div className="relative">
               <button
                 type="button"
                 onClick={() => {
+                  setPeriodDropdownOpen(false)
                   setMobileSheetOpen(false)
                   setAccountMenuOpen((v) => !v)
                 }}
@@ -768,7 +942,7 @@ export function TopFilterBar({
                       : 'text-emerald-600 dark:text-emerald-400'
                   }`}
                 />
-                <span className="whitespace-nowrap">
+                <span className="hidden whitespace-nowrap sm:inline">
                   {isAr ? 'القائمة والحساب' : 'Account & Menu'}
                 </span>
                 {hasUnreadNotifications ? (
@@ -810,62 +984,6 @@ export function TopFilterBar({
             </div>
           </div>
         </div>
-
-        {/* Control (a) on `< 1024px` (`< 768px` smartphone & tablet): Horizontally Scrollable Period Selector */}
-        {showPosFilters ? (
-          <div className="space-y-2 pb-2.5">
-            <div className="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
-              <EmeraldPillTabs
-                ariaLabel={isAr ? 'الفترة' : 'Period'}
-                value={filters.period}
-                onChange={setPeriod}
-                options={GLOBAL_PERIOD_OPTIONS.map((p) => ({
-                  id: p.id,
-                  label: cleanPeriodOptionLabel(p.id, isAr ? p.ar : p.en, isAr),
-                }))}
-              />
-
-              {auditorMode ? (
-                <span className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-amber-50 px-2.5 py-1 text-[11px] font-bold whitespace-nowrap text-amber-900 ring-1 ring-amber-500/25 dark:bg-amber-950/60 dark:text-amber-200">
-                  <Lock className="h-3 w-3 shrink-0" />
-                  <span>{isAr ? 'حساب مراجعة — قراءة فقط' : 'Read-Only Auditor'}</span>
-                </span>
-              ) : null}
-            </div>
-
-            {filters.period === 'custom' ? (
-              <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-[#F6F7F8] p-2.5 ring-1 ring-slate-900/[0.04] dark:bg-[#09110E] dark:ring-emerald-500/15">
-                <label className="inline-flex flex-1 items-center gap-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
-                  <span className="whitespace-nowrap">{isAr ? 'من تاريخ' : 'Start Date'}</span>
-                  <input
-                    type="date"
-                    dir="ltr"
-                    value={draftFrom}
-                    onChange={(e) => setDraftFrom(e.target.value)}
-                    className="h-8 min-w-[120px] flex-1 rounded-xl bg-white px-2 text-[11.5px] font-bold tabular-nums text-slate-900 ring-1 ring-slate-900/[0.06] outline-none focus:ring-2 focus:ring-emerald-500/40 dark:bg-[#101C17] dark:text-white"
-                  />
-                </label>
-                <label className="inline-flex flex-1 items-center gap-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
-                  <span className="whitespace-nowrap">{isAr ? 'إلى تاريخ' : 'End Date'}</span>
-                  <input
-                    type="date"
-                    dir="ltr"
-                    value={draftTo}
-                    onChange={(e) => setDraftTo(e.target.value)}
-                    className="h-8 min-w-[120px] flex-1 rounded-xl bg-white px-2 text-[11.5px] font-bold tabular-nums text-slate-900 ring-1 ring-slate-900/[0.06] outline-none focus:ring-2 focus:ring-emerald-500/40 dark:bg-[#101C17] dark:text-white"
-                  />
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setCustomRange(draftFrom, draftTo)}
-                  className="btn-colored inline-flex h-8 shrink-0 cursor-pointer items-center rounded-xl bg-emerald-600 px-3 text-[11.5px] font-bold text-white transition-colors hover:bg-emerald-700 dark:bg-emerald-500 dark:text-[#04130D]"
-                >
-                  {isAr ? 'تطبيق' : 'Apply'}
-                </button>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
       </header>
 
       {/* =====================================================================
@@ -1067,70 +1185,71 @@ export function TopFilterBar({
             ) : null}
           </div>
 
-          {/* End Control Cluster: Strictly ONLY 3 Controls: (a) Period, (b) `فلاتر`, (c) `القائمة والحساب` */}
+          {/* End Control Cluster: Strictly 4 Ultra-Clean Controls:
+              (1) Period Dropdown  •  (2) Filters  •  (3) Bell  •  (4) Account Menu */}
           <div className="relative z-[60] flex flex-wrap items-center justify-end gap-2 overflow-visible">
             {showPosFilters ? (
               <>
-                {/* Control (a): Period Selector (`اليوم | الأسبوع | الشهر | السنة | مخصص`) */}
-                <EmeraldPillTabs
-                  ariaLabel={isAr ? 'الفترة' : 'Period'}
-                  value={filters.period}
-                  onChange={setPeriod}
-                  options={GLOBAL_PERIOD_OPTIONS.map((p) => ({
-                    id: p.id,
-                    label: cleanPeriodOptionLabel(p.id, isAr ? p.ar : p.en, isAr),
-                  }))}
-                />
-
-                {filters.period === 'custom' ? (
-                  <div className="inline-flex items-center gap-1.5 rounded-2xl bg-[#F6F7F8] px-2.5 py-1 ring-1 ring-slate-900/[0.05] dark:bg-[#09110E] dark:ring-emerald-500/15">
-                    <label className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-slate-600 dark:text-slate-300">
-                      <span>{isAr ? 'من تاريخ' : 'Start Date'}</span>
-                      <input
-                        type="date"
-                        dir="ltr"
-                        value={draftFrom}
-                        onChange={(e) => setDraftFrom(e.target.value)}
-                        className="h-7 rounded-xl bg-white px-2 text-[11.5px] font-bold tabular-nums text-slate-900 ring-1 ring-slate-900/[0.06] outline-none focus:ring-2 focus:ring-emerald-500/40 dark:bg-[#101C17] dark:text-white"
-                      />
-                    </label>
-                    <label className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-slate-600 dark:text-slate-300">
-                      <span>{isAr ? 'إلى تاريخ' : 'End Date'}</span>
-                      <input
-                        type="date"
-                        dir="ltr"
-                        value={draftTo}
-                        onChange={(e) => setDraftTo(e.target.value)}
-                        className="h-7 rounded-xl bg-white px-2 text-[11.5px] font-bold tabular-nums text-slate-900 ring-1 ring-slate-900/[0.06] outline-none focus:ring-2 focus:ring-emerald-500/40 dark:bg-[#101C17] dark:text-white"
-                      />
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setCustomRange(draftFrom, draftTo)}
-                      className="btn-colored inline-flex h-7 cursor-pointer items-center rounded-xl bg-emerald-600 px-2.5 text-[11.5px] font-bold text-white transition-colors hover:bg-emerald-700 dark:bg-emerald-500 dark:text-[#04130D]"
-                    >
-                      {isAr ? 'تطبيق' : 'Apply'}
-                    </button>
-                  </div>
-                ) : null}
-
-                {filters.period === 'today' && workspace.isTodayFallback ? (
-                  <span
-                    title={
-                      isAr
-                        ? `تعويض تلقائي لآخر يوم تشغيل مكتمل في نقاط البيع (${workspace.todayFallbackDate ?? ''})`
-                        : `Auto-fallback to last completed POS operating day (${workspace.todayFallbackDate ?? ''})`
-                    }
-                    className="inline-flex h-8 items-center gap-1 rounded-xl bg-amber-50 px-2.5 text-[11px] font-bold text-amber-900 ring-1 ring-amber-500/20 dark:bg-amber-950/50 dark:text-amber-200"
+                {/* Control (1): Single Sleek Period Dropdown (`الفترة: الشهر ▾` / `Period: Month ▾`) */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFiltersPopoverOpen(false)
+                      setAccountMenuOpen(false)
+                      setPeriodDropdownOpen((v) => !v)
+                    }}
+                    aria-haspopup="listbox"
+                    aria-expanded={periodDropdownOpen}
+                    className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-xl px-3.5 text-[12.5px] font-semibold transition-all duration-[160ms] focus:outline-none ${
+                      periodDropdownOpen || filters.period !== 'month'
+                        ? 'bg-emerald-50/80 text-emerald-950 ring-1 ring-emerald-500/45 dark:bg-emerald-950/50 dark:text-emerald-200 dark:ring-emerald-400/50'
+                        : 'bg-neutral-100/90 text-slate-700 ring-1 ring-slate-900/[0.05] hover:bg-white hover:text-slate-950 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-emerald-500/10 dark:hover:bg-white/[0.10]'
+                    }`}
                   >
-                    <span>{isAr ? 'آخر يوم مكتمل' : 'Last Full Day'}</span>
-                  </span>
-                ) : null}
+                    <Calendar className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                    <span className="whitespace-nowrap">{periodDropdownLabel}</span>
+                    {filters.period === 'today' && workspace.isTodayFallback ? (
+                      <span
+                        title={
+                          isAr
+                            ? `تعويض تلقائي لآخر يوم تشغيل مكتمل في نقاط البيع (${workspace.todayFallbackDate ?? ''})`
+                            : `Auto-fallback to last completed POS operating day (${workspace.todayFallbackDate ?? ''})`
+                        }
+                        className="rounded-md bg-amber-100/80 px-1.5 py-0.5 text-[10px] font-bold text-amber-900 dark:bg-amber-900/60 dark:text-amber-200"
+                      >
+                        {isAr ? 'آخر يوم مكتمل' : 'Last Full Day'}
+                      </span>
+                    ) : null}
+                    <ChevronDown
+                      className={`h-3.5 w-3.5 opacity-70 transition-transform duration-150 ${
+                        periodDropdownOpen ? 'rotate-180' : ''
+                      }`}
+                    />
+                  </button>
 
-                {/* Control (b): Single Unified `فلاتر` (`Filters`) Button + Active Count Badge */}
+                  {periodDropdownOpen ? (
+                    <div className="absolute end-0 top-full z-50 mt-2">
+                      <PeriodDropdownPopover
+                        isAr={isAr}
+                        activePeriod={filters.period}
+                        draftFrom={draftFrom}
+                        draftTo={draftTo}
+                        onSelectPeriod={setPeriod}
+                        onChangeFrom={setDraftFrom}
+                        onChangeTo={setDraftTo}
+                        onApplyCustomRange={() => setCustomRange(draftFrom, draftTo)}
+                        onClose={() => setPeriodDropdownOpen(false)}
+                      />
+                    </div>
+                  ) : null}
+                </div>
+
+                {/* Control (2): Single Unified `فلاتر` (`Filters`) Button + Active Count Badge */}
                 <button
                   type="button"
                   onClick={() => {
+                    setPeriodDropdownOpen(false)
                     setAccountMenuOpen(false)
                     setFiltersPopoverOpen((v) => !v)
                   }}
@@ -1162,11 +1281,15 @@ export function TopFilterBar({
               </>
             ) : null}
 
-            {/* Control (c): `القائمة والحساب` (`Account & Menu`) */}
+            {/* Control (3): Live Governance & Odoo Breach Bell (`🔔`) */}
+            <GovernanceBellTrigger />
+
+            {/* Control (4): `القائمة والحساب` (`Account & Menu`) */}
             <div className="relative">
               <button
                 type="button"
                 onClick={() => {
+                  setPeriodDropdownOpen(false)
                   setFiltersPopoverOpen(false)
                   setAccountMenuOpen((v) => !v)
                 }}

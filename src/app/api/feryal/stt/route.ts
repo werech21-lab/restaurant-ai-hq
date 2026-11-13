@@ -22,7 +22,7 @@ const ALLOWED_AUDIO_MIMES = new Set([
 ])
 
 export async function POST(req: NextRequest) {
-  const authGuard = await requireExecApiSession(req, { allowAuditor: true })
+  const authGuard = await requireExecApiSession(req, { allowAuditor: false })
   if (!authGuard.ok) return authGuard.response
 
   const burst = executiveAiBurstLimiter.check(`stt:${authGuard.session.sub}`)

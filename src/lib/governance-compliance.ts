@@ -696,6 +696,14 @@ export function loadGovernanceStore(): PersistedGovernanceStore {
   }
 }
 
+function isReadOnlyAuditorDom(): boolean {
+  if (typeof document === 'undefined') return false
+  return (
+    document.documentElement.dataset.auditor === 'true' ||
+    document.documentElement.dataset.sessionRole === 'auditor'
+  )
+}
+
 export function saveGovernanceStore(
   next: PersistedGovernanceStore,
   opts?: { skipRemotePush?: boolean },
@@ -708,7 +716,7 @@ export function saveGovernanceStore(
     }
     window.localStorage.setItem(GOVERNANCE_STORAGE_KEY, JSON.stringify(stamped))
     emitGovernanceSync()
-    if (!opts?.skipRemotePush) {
+    if (!opts?.skipRemotePush && !isReadOnlyAuditorDom()) {
       void pushGovernanceStoreToServer(stamped)
     }
   } catch {}
@@ -718,7 +726,7 @@ export function saveGovernanceStore(
 export async function pushGovernanceStoreToServer(
   store: PersistedGovernanceStore,
 ): Promise<PersistedGovernanceStore | null> {
-  if (typeof window === 'undefined') return null
+  if (typeof window === 'undefined' || isReadOnlyAuditorDom()) return null
   try {
     const pinHash = ensureManagerPinInitialized()
     const res = await fetch('/api/erp/governance', {
@@ -751,7 +759,7 @@ export async function pushGovernanceStoreToServer(
 export async function pushGovernancePatchToServer(
   payload: Record<string, unknown>,
 ): Promise<void> {
-  if (typeof window === 'undefined') return
+  if (typeof window === 'undefined' || isReadOnlyAuditorDom()) return
   try {
     await fetch('/api/erp/governance', {
       method: 'PATCH',
@@ -794,8 +802,9 @@ export async function syncGovernanceFromServer(): Promise<boolean> {
     if (changed) {
       saveGovernanceStore(merged, { skipRemotePush: true })
     }
-    // If local had richer state than a freshly initialized server, push merged up once
+    // If local had richer state than a freshly initialized server, push merged up once (never in read-only auditor mode)
     if (
+      !isReadOnlyAuditorDom() &&
       json.seededOnly &&
       (currentLocal.approvals.length > SEEDED_APPROVAL_REQUESTS.length ||
         Object.keys(currentLocal.issuedCirculars).length > 0 ||

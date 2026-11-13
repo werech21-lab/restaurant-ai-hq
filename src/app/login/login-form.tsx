@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from 'react'
 import { Lock, ShieldCheck } from 'lucide-react'
+import { VentureFoodsEmblem } from '@/app/login/login-hero'
 import { LanguageSwitch, useI18n } from '@/lib/i18n'
 
 type LoginFormProps = {
@@ -79,15 +80,20 @@ export function LoginForm({ nextPath = '/erp' }: LoginFormProps) {
       {/* Mobile-only Venture Foods header & official scope */}
       <div className="mb-5 border-b border-slate-200/80 pb-4 lg:hidden dark:border-white/[0.08]">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="text-xs font-semibold tracking-wide text-emerald-700 dark:text-emerald-400">
-            Aether BI Enterprise
-          </span>
+          <div className="flex items-center gap-2.5">
+            <VentureFoodsEmblem className="h-9 w-9 shrink-0" />
+            <div className="min-w-0">
+              <div className="text-xs font-bold tracking-wide text-emerald-700 dark:text-emerald-400" dir="ltr">
+                Venture Foods · Aether BI
+              </div>
+              <p className="truncate text-sm font-bold text-slate-900 dark:text-slate-100">
+                {companyName}
+              </p>
+            </div>
+          </div>
           <LanguageSwitch />
         </div>
-        <p className="mt-2 text-sm font-bold text-slate-900 dark:text-slate-100">
-          {companyName}
-        </p>
-        <p className="mt-1 text-xs font-medium tabular-nums text-slate-600 dark:text-slate-400">
+        <p className="mt-2 text-xs font-medium tabular-nums text-slate-600 dark:text-slate-400">
           {isAr
             ? '6 مطاعم • 7 فروع • 8 قنوات'
             : '6 Brands • 7 Branches • 8 Channels'}

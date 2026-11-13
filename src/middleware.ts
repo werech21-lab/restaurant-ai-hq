@@ -35,6 +35,8 @@ const PROTECTED_API_PREFIXES = [
 
 const AUDITOR_BLOCKED_MUTATION_PREFIXES = [
   '/api/erp',
+  '/api/feryal',
+  '/api/ai',
   '/api/v1',
   '/api/executive-directive',
   '/api/aggregator-radar',
@@ -98,7 +100,13 @@ function isProtectedApiPath(pathname: string): boolean {
 }
 
 function isAuditorRestrictedMutationPath(pathname: string): boolean {
-  if (pathname === '/api/auth/login' || pathname === '/api/auth/logout') {
+  if (
+    pathname === '/api/auth/login' ||
+    pathname === '/api/auth/logout' ||
+    pathname === '/api/v1/governance/telemetry' ||
+    pathname === '/api/erp/odoo-sync' ||
+    pathname === '/api/odoo-sync'
+  ) {
     return false
   }
   return AUDITOR_BLOCKED_MUTATION_PREFIXES.some(

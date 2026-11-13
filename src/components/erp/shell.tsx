@@ -140,7 +140,7 @@ export async function ErpShell({ children }: { children: React.ReactNode }) {
                       {children}
                     </div>
                   </main>
-                  <ExecutiveFooter />
+                  <ExecutiveFooter sessionRole={sessionRole} />
                 </div>
               </div>
               <ExecutiveCommandPalette />

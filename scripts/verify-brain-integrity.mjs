@@ -1987,12 +1987,12 @@ const cfoCopy = JSON.parse(cfoCopyRaw.split('\n').pop() ?? '{}')
 assert(
   fs.existsSync(execFooterPath) &&
     erpShellReexportSrc.includes('ExecutiveFooter') &&
-    erpShellReexportSrc.includes('<ExecutiveFooter />') &&
+    erpShellReexportSrc.includes('<ExecutiveFooter') &&
     execFooterSrc.includes('OdooAuditCertificatePill') &&
     execFooterSrc.includes('شركة فنتشر فودز • 6 مطاعم • 7 فروع • 8 قنوات') &&
-    execFooterSrc.includes('v2.7') &&
-    execFooterSrc.includes('الإصدار v2.7') &&
-    execFooterSrc.includes('Aether BI Release v2.7') &&
+    execFooterSrc.includes('v2.8') &&
+    execFooterSrc.includes('الإصدار v2.8') &&
+    execFooterSrc.includes('Aether BI Release v2.8') &&
     !topBarSrc.includes('OdooAuditCertificatePill') &&
     !topBarSrc.includes('OdooSyncPill') &&
     topBarSrc.includes('القائمة والحساب') &&
@@ -2249,8 +2249,8 @@ assert(
     execFooterSrc.includes('آخر مزامنة أودو 17:') &&
     execFooterSrc.includes('مصدر البيانات: دفتر الأستاذ العام ونقاط البيع Odoo 17') &&
     execFooterSrc.includes('6 مطاعم • 7 فروع • 8 قنوات') &&
-    execFooterSrc.includes('v2.7'),
-  '17.4 Boudy 7-Point Executive UI Gate: 3-control header (القائمة والحساب), Start-Here strip, Feryal دقيق & سريع + attachment, Combo <path> + ألف د.ك + unclipped Donut, 141,052 context + المستهدف: 85+, and v2.7 footer verified',
+    execFooterSrc.includes('v2.8'),
+  '17.4 Boudy 7-Point Executive UI Gate: 4-control header (القائمة والحساب), Start-Here strip, Feryal دقيق & سريع + attachment, Combo <path> + ألف د.ك + unclipped Donut, 141,052 context + المستهدف: 85+, and v2.8 footer verified',
 )
 
 // 18. Multi-Executive Named RBAC (System Admin, GM, DGM & Read-Only Auditor) & Governance Audit Stamps
@@ -2887,6 +2887,126 @@ assert(
     gmProbe.sidebarCounts?.uniqueEn === 13,
   '19.4 Zero Client Key/PIN Leaks, Zero Duplicate Titles & Dead-Code Purge: 0 client ai-keys imports, 0 plaintext PIN/Base64 keys, 0 console.log, 21 dead files purged & all 13 unique ERP routes intact',
   `clientAiKeyImporters=${clientAiKeyImporters.length}, survivingDead=${survivingDeadFiles.length}, missingRoutes=${missingSidebarRouteFiles.length}`,
+)
+
+// 20. Final Boudy Closure v2.8 Gate (Odoo Sync 200 OK, Auditor Governance 200 OK, Feryal Auditor Lockdown, SVG Login & Single Period Dropdown)
+console.log('\n20) Final Boudy Closure v2.8 Gate:')
+
+const feryalNotebooksSrc = fs.readFileSync(
+  path.join(ROOT, 'src/components/aether/FeryalSidebarNotebooks.tsx'),
+  'utf8',
+)
+const feryalMemorySrc = fs.readFileSync(
+  path.join(ROOT, 'src/components/aether/FeryalMemoryDrawer.tsx'),
+  'utf8',
+)
+
+const closureProbeScript = `
+import { NextRequest } from 'next/server';
+import { middleware } from './src/middleware';
+import {
+  EXEC_SESSION_COOKIE,
+  DEFAULT_ABDULLAH_EMAIL,
+  DEFAULT_GM_EMAIL,
+  DEFAULT_DGM_EMAIL,
+  DEFAULT_AUDITOR_EMAIL,
+  createExecSessionToken,
+} from './src/lib/auth/exec-session';
+import { GET as odooSyncGet, POST as odooSyncPost } from './src/app/api/erp/odoo-sync/route';
+import { GET as govGet, POST as govPost } from './src/app/api/erp/governance/route';
+import { GET as govMetricsGet, POST as govMetricsPost } from './src/app/api/erp/governance/metrics/route';
+import { POST as telemetryPost } from './src/app/api/v1/governance/telemetry/route';
+import { GET as erpFeryalGet, POST as erpFeryalPost } from './src/app/api/erp/feryal/route';
+import { POST as feryalPost } from './src/app/api/feryal/route';
+import { POST as visionPost } from './src/app/api/erp/feryal/vision/route';
+
+;(async () => {
+  const tokAdmin = await createExecSessionToken(DEFAULT_ABDULLAH_EMAIL, 'admin');
+  const tokGm = await createExecSessionToken(DEFAULT_GM_EMAIL, 'gm');
+  const tokDgm = await createExecSessionToken(DEFAULT_DGM_EMAIL, 'dgm');
+  const tokAud = await createExecSessionToken(DEFAULT_AUDITOR_EMAIL, 'auditor');
+
+  // 1) Odoo sync 401 when unauth, 200 OK for admin/gm/dgm & 200 OK readOnly for auditor
+  const syncUnauth = await odooSyncGet(new NextRequest('https://aetherbi.com/api/erp/odoo-sync'));
+  const syncAdmin = await odooSyncGet(new NextRequest('https://aetherbi.com/api/erp/odoo-sync', { headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokAdmin } }));
+  const syncGm = await odooSyncPost(new NextRequest('https://aetherbi.com/api/erp/odoo-sync', { method: 'POST', headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokGm } }));
+  const syncDgm = await odooSyncGet(new NextRequest('https://aetherbi.com/api/erp/odoo-sync', { headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokDgm } }));
+  const syncAud = await odooSyncGet(new NextRequest('https://aetherbi.com/api/erp/odoo-sync', { headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokAud } }));
+  const syncAudJson = await syncAud.json();
+
+  // 2) Auditor read-only governance metrics & telemetry 200 OK, mutations 403
+  const govAudGet = await govGet(new NextRequest('https://aetherbi.com/api/erp/governance', { headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokAud } }));
+  const govMetricsAudGet = await govMetricsGet(new NextRequest('https://aetherbi.com/api/erp/governance/metrics', { headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokAud } }));
+  const govMetricsAudPost = await govMetricsPost(new NextRequest('https://aetherbi.com/api/erp/governance/metrics', { method: 'POST', headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokAud } }));
+  const mwTelemetryAud = await middleware(new NextRequest('https://aetherbi.com/api/v1/governance/telemetry', { method: 'POST', headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokAud } }));
+  const telemetryAud = await telemetryPost(new NextRequest('https://aetherbi.com/api/v1/governance/telemetry', { method: 'POST', headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokAud, 'content-type': 'application/json' }, body: JSON.stringify({ eventType: 'page_view', route: '/erp' }) }));
+  const telemetryAudJson = await telemetryAud.json();
+  const govAudPost = await govPost(new NextRequest('https://aetherbi.com/api/erp/governance', { method: 'POST', headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokAud, 'content-type': 'application/json' }, body: '{}' }));
+
+  // 3) Auditor Feryal write/upload endpoints strictly 403 (GET status 200 OK)
+  const erpFeryalAudGet = await erpFeryalGet(new NextRequest('https://aetherbi.com/api/erp/feryal', { headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokAud } }));
+  const mwFeryalAudPost = await middleware(new NextRequest('https://aetherbi.com/api/feryal', { method: 'POST', headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokAud } }));
+  const erpFeryalAudPost = await erpFeryalPost(new NextRequest('https://aetherbi.com/api/erp/feryal', { method: 'POST', headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokAud, 'content-type': 'application/json' }, body: '{"message":"test"}' }));
+  const feryalAudPost = await feryalPost(new NextRequest('https://aetherbi.com/api/feryal', { method: 'POST', headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokAud, 'content-type': 'application/json' }, body: '{"message":"test"}' }));
+  const visionAudPost = await visionPost(new NextRequest('https://aetherbi.com/api/erp/feryal/vision', { method: 'POST', headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokAud, 'content-type': 'application/json' }, body: '{}' }));
+
+  console.log(JSON.stringify({
+    syncStatuses: [syncUnauth.status, syncAdmin.status, syncGm.status, syncDgm.status, syncAud.status],
+    syncAudReadOnly: Boolean(syncAudJson?.readOnly) && Boolean(syncAudJson?.kuwaitSyncedAt),
+    govReadStatuses: [govAudGet.status, govMetricsAudGet.status, mwTelemetryAud.status, telemetryAud.status],
+    telemetryReadOnly: Boolean(telemetryAudJson?.readOnly) && telemetryAudJson?.recorded === false,
+    govMutStatuses: [govAudPost.status, govMetricsAudPost.status],
+    feryalGetStatus: erpFeryalAudGet.status,
+    feryalPostStatuses: [mwFeryalAudPost.status, erpFeryalAudPost.status, feryalAudPost.status, visionAudPost.status],
+  }));
+})();
+`
+const closureRaw = execFileSync(process.execPath, [tsxCli, '-e', closureProbeScript], {
+  cwd: ROOT,
+  encoding: 'utf8',
+}).trim()
+const closureProbe = JSON.parse(closureRaw.split('\n').pop() ?? '{}')
+
+assert(
+  JSON.stringify(closureProbe.syncStatuses) === JSON.stringify([401, 200, 200, 200, 200]) &&
+    closureProbe.syncAudReadOnly === true &&
+    execFooterSrc.includes('/api/erp/odoo-sync') &&
+    execFooterSrc.includes("timeZone: 'Asia/Kuwait'") &&
+    execFooterSrc.includes('الإصدار v2.8'),
+  '20.1 Odoo Sync 200 OK & Kuwait Sync Timestamp: /api/erp/odoo-sync verifies aether_exec_session (200 OK for admin/gm/dgm & read-only auditor, 401 unauth) and Footer renders Asia/Kuwait timestamp + Release v2.8',
+  `syncStatuses=${JSON.stringify(closureProbe.syncStatuses)}, readOnly=${closureProbe.syncAudReadOnly}`,
+)
+
+assert(
+  JSON.stringify(closureProbe.govReadStatuses) === JSON.stringify([200, 200, 200, 200]) &&
+    closureProbe.telemetryReadOnly === true &&
+    JSON.stringify(closureProbe.govMutStatuses) === JSON.stringify([403, 403]),
+  '20.2 Auditor Read-Only Governance Metrics 200 OK: GET /api/erp/governance, GET /api/erp/governance/metrics & telemetry return 200 OK with zero 403 errors while mutations return 403 Forbidden',
+  `read=${JSON.stringify(closureProbe.govReadStatuses)}, mut=${JSON.stringify(closureProbe.govMutStatuses)}`,
+)
+
+assert(
+  closureProbe.feryalGetStatus === 200 &&
+    JSON.stringify(closureProbe.feryalPostStatuses) === JSON.stringify([403, 403, 403, 403]) &&
+    feryalStudioSrc.includes('وضع المراجعة للقراءة فقط — استعراض التحليلات والسجلات بدون صلاحية تعديل أو رفع ملفات') &&
+    feryalStudioSrc.includes('Read-Only Auditor Mode — Inspection Only') &&
+    feryalStudioSrc.includes('<span className="whitespace-nowrap">{T(\'6 Brands\', \'6 مطاعم\')}</span>') &&
+    feryalNotebooksSrc.includes('isAuditor') &&
+    feryalMemorySrc.includes('isAuditor'),
+  '20.3 Feryal Auditor Read-Only Lockdown & Mobile RTL Pill: All POST mutations on /api/erp/feryal/** & /api/feryal return 403 for auditor, write/upload controls hidden for auditor, and 6 مطاعم • 7 فروع • 8 قنوات uses non-wrapping RTL spans',
+  `feryalPost=${JSON.stringify(closureProbe.feryalPostStatuses)}`,
+)
+
+assert(
+  !/<img\b/i.test(combinedLoginSrc) &&
+    !combinedLoginSrc.includes('venture-foods-logo-dark.svg') &&
+    loginHeroSrc.includes('<svg') &&
+    loginHeroSrc.includes('VentureFoodsEmblem') &&
+    loginHeroSrc.includes('شركة فنتشر فودز لإدارة المطاعم ذ.م.م • 6 مطاعم • 7 فروع • 8 قنوات • منصة إيثر لذكاء الأعمال والحوكمة المرتبطة بأودو 17') &&
+    topBarSrc.includes('PeriodDropdownPopover') &&
+    topBarSrc.includes('الفترة: ${activePeriodShortLabel}') &&
+    topBarSrc.includes('<GovernanceBellTrigger />'),
+  '20.4 Crisp Inline SVG Login Emblem, Balanced 2-Column Overview & Single Header Period Dropdown: 0 broken <img> tags on /login, balanced 2-column Venture Foods overview card, and 4-control header (Period Dropdown + Filters + Bell + Account Menu)',
 )
 
 console.log('\n----------------------------------------------------------------------')
