@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from 'react'
 import { Lock, ShieldCheck } from 'lucide-react'
 import { VentureFoodsEmblem } from '@/app/login/login-hero'
-import { LanguageSwitch, useI18n } from '@/lib/i18n'
+import { useI18n } from '@/lib/i18n'
 
 type LoginFormProps = {
   nextPath?: string
@@ -91,7 +91,6 @@ export function LoginForm({ nextPath = '/erp' }: LoginFormProps) {
               </p>
             </div>
           </div>
-          <LanguageSwitch />
         </div>
         <p className="mt-2 text-xs font-medium tabular-nums text-slate-600 dark:text-slate-400">
           {isAr
@@ -112,9 +111,6 @@ export function LoginForm({ nextPath = '/erp' }: LoginFormProps) {
           <h2 className="mt-3 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl dark:text-slate-50">
             {t('login.title')}
           </h2>
-        </div>
-        <div className="hidden shrink-0 lg:block">
-          <LanguageSwitch />
         </div>
       </div>
 

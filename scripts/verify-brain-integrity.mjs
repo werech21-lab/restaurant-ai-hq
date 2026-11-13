@@ -3009,6 +3009,46 @@ assert(
   '20.4 Crisp Inline SVG Login Emblem, Balanced 2-Column Overview & Single Header Period Dropdown: 0 broken <img> tags on /login, balanced 2-column Venture Foods overview card, and 4-control header (Period Dropdown + Filters + Bell + Account Menu)',
 )
 
+// 21. Default English (en / ltr) & 1-Click AR/EN Header + Login Pill Gate
+console.log('\n21) Default English (LTR) & 1-Click AR/EN Toggle Gate:')
+
+const i18nServerSrc = fs.readFileSync(path.join(ROOT, 'src/lib/i18n/server.ts'), 'utf8')
+const navLangAutoFiles = []
+for (const file of allSrcFiles) {
+  const rel = path.relative(ROOT, file).replace(/\\/g, '/')
+  if (rel === 'src/lib/full-journey-enterprise-brain.ts') continue
+  const txt = fs.readFileSync(file, 'utf8')
+  if (txt.includes('navigator.language')) {
+    navLangAutoFiles.push(rel)
+  }
+}
+
+assert(
+  rootLayoutSrc.includes("let locale: Locale = 'en'") &&
+    rootLayoutSrc.includes("locale = raw === 'ar' ? 'ar' : 'en'") &&
+    rootLayoutSrc.includes("dir={locale === 'ar' ? 'rtl' : 'ltr'}") &&
+    !rootLayoutSrc.includes('AetherBI Enterprise ERP & BI على aetherbi.com') &&
+    i18nServerSrc.includes("return 'en'") &&
+    !i18nServerSrc.includes("return 'ar'") &&
+    navLangAutoFiles.length === 0,
+  '21.1 Strict Default English SSR (<html lang="en" dir="ltr">): RootLayout & getLocale() default strictly to en/ltr on first load with zero navigator.language auto-switching',
+  `navLang=${navLangAutoFiles.length}`,
+)
+
+assert(
+  i18nSrc.includes("let resolved: Locale = 'en'") &&
+    i18nSrc.includes("resolved = saved === 'ar' ? 'ar' : 'en'") &&
+    i18nSrc.includes('data-language-switch=""') &&
+    i18nSrc.includes('عربي') &&
+    i18nSrc.includes('EN') &&
+    i18nSrc.includes('onClick={() => setLocale(nextLocale)}') &&
+    loginPageSrc.includes('<LanguageSwitch />') &&
+    loginPageSrc.includes('end-4 top-4') &&
+    topBarSrc.includes('<LanguageSwitch compact />') &&
+    topBarSrc.includes('<LanguageSwitch />'),
+  '21.2 Strict EN Client Init & 1-Click عربي | EN Toggle Pill: LanguageProvider initializes strictly to en unless explicit ?lang=ar or localStorage ar, and renders 1-click عربي | EN pill on /login top corner + /erp mobile & desktop headers',
+)
+
 console.log('\n----------------------------------------------------------------------')
 if (failed > 0) {
   console.error(`❌ Verification FAILED: ${failed} failed, ${passed} passed.`)

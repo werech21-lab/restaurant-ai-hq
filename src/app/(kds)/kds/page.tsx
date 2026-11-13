@@ -12,13 +12,13 @@ export const dynamic = 'force-dynamic'
 
 async function KdsContent() {
   await connection()
-  const locale = await getLocale().catch(() => 'ar')
-  return <VentureKdsHub locale={locale === 'en' ? 'en' : 'ar'} />
+  const locale = await getLocale().catch(() => 'en')
+  return <VentureKdsHub locale={locale === 'ar' ? 'ar' : 'en'} />
 }
 
 export default function KdsPage() {
   return (
-    <Suspense fallback={<div className="p-8 font-bold text-mist-100">جاري تحميل شاشة تحضير المطبخ...</div>}>
+    <Suspense fallback={<div className="p-8 font-bold text-mist-100">Loading Kitchen Display System...</div>}>
       <KdsContent />
     </Suspense>
   )

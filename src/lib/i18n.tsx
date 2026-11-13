@@ -1,7 +1,8 @@
 'use client'
 
-import { createContext, useContext, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
+import { Globe } from 'lucide-react'
 import { panelAr, panelEn } from '@/lib/i18n/panel-messages'
 
 export type Locale = 'ar' | 'en'
@@ -4906,14 +4907,70 @@ export function LanguageProvider({ initialLocale, children }: { initialLocale: L
   const router = useRouter()
   const [locale, setLocaleState] = useState<Locale>(initialLocale)
 
+  const persistLocale = useCallback((next: Locale) => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.lang = next
+      document.documentElement.dir = next === 'ar' ? 'rtl' : 'ltr'
+      writeLocaleCookies(next)
+    }
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.setItem(storageKey, next)
+        window.localStorage.setItem('NEXT_LOCALE', next)
+        window.localStorage.setItem('aetherbi_locale', next)
+      } catch {
+        // Ignore storage write restriction in private browsing.
+      }
+    }
+  }, [])
+
+  // Initialize strictly to English ('en') unless explicit '?lang=ar' URL param or explicit 'ar' localStorage toggle is saved.
+  // Never auto-switch from browser language preferences.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    let resolved: Locale = 'en'
+    try {
+      const urlParam = new URLSearchParams(window.location.search).get('lang')?.toLowerCase()
+      if (urlParam === 'ar' || urlParam === 'en') {
+        resolved = urlParam
+      } else {
+        const saved =
+          window.localStorage.getItem(storageKey) ||
+          window.localStorage.getItem('NEXT_LOCALE') ||
+          window.localStorage.getItem('aetherbi_locale') ||
+          ''
+        resolved = saved === 'ar' ? 'ar' : 'en'
+      }
+    } catch {
+      resolved = 'en'
+    }
+    persistLocale(resolved)
+    setLocaleState(resolved)
+    if (resolved !== initialLocale) {
+      router.refresh()
+    }
+  }, [initialLocale, persistLocale, router])
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    document.documentElement.lang = locale
+    document.documentElement.dir = locale === 'ar' ? 'rtl' : 'ltr'
+  }, [locale])
+
   function setLocale(next: Locale) {
     setLocaleState(next)
-    document.documentElement.lang = next
-    document.documentElement.dir = next === 'ar' ? 'rtl' : 'ltr'
-    writeLocaleCookies(next)
-    window.localStorage.setItem(storageKey, next)
-    window.localStorage.setItem('NEXT_LOCALE', next)
-    window.localStorage.setItem('aetherbi_locale', next)
+    persistLocale(next)
+    if (typeof window !== 'undefined') {
+      try {
+        const url = new URL(window.location.href)
+        if (url.searchParams.has('lang')) {
+          url.searchParams.set('lang', next)
+          window.history.replaceState(window.history.state, '', url.toString())
+        }
+      } catch {
+        // Ignore URL update edge cases.
+      }
+    }
     router.refresh()
   }
 
@@ -4921,7 +4978,7 @@ export function LanguageProvider({ initialLocale, children }: { initialLocale: L
     locale,
     dir: locale === 'ar' ? 'rtl' : 'ltr',
     setLocale,
-    t: (key) => messages[locale][key] ?? messages.ar[key] ?? String(key),
+    t: (key) => messages[locale][key] ?? messages.en[key] ?? String(key),
     companyName: locale === 'en' ? panelEn['panel.company.en'] : panelAr['panel.company.ar'],
     money: (value) => formatLocaleMoney(value, locale),
   }
@@ -4935,41 +4992,56 @@ export function useI18n() {
   return value
 }
 
-export function LanguageSwitch({ className = '' }: { className?: string }) {
-  const { locale, setLocale, t } = useI18n()
+export function LanguageSwitch({
+  className = '',
+  compact = false,
+}: {
+  className?: string
+  compact?: boolean
+}) {
+  const { locale, setLocale } = useI18n()
+  const isAr = locale === 'ar'
+  const nextLocale: Locale = isAr ? 'en' : 'ar'
+
   return (
-    <div
+    <button
+      type="button"
       dir="ltr"
-      role="group"
       data-language-switch=""
       data-no-translate=""
-      aria-label={t('language')}
-      className={`inline-flex items-center gap-1 rounded-full border border-gold-300/20 bg-ink-900/80 p-0.5 text-[11px] font-semibold ${className}`}
+      onClick={() => setLocale(nextLocale)}
+      aria-pressed={isAr}
+      aria-label={isAr ? 'Switch language to English' : 'التبديل إلى اللغة العربية'}
+      title={isAr ? 'Switch to English (LTR)' : 'التبديل إلى العربية (RTL)'}
+      className={`inline-flex shrink-0 cursor-pointer items-center rounded-xl bg-white/95 font-semibold text-slate-700 shadow-xs ring-1 ring-slate-900/[0.08] transition-all duration-[160ms] hover:bg-white hover:text-slate-950 hover:ring-emerald-500/35 active:scale-95 dark:bg-[#101C17]/95 dark:text-slate-200 dark:ring-emerald-500/20 dark:hover:bg-[#14251E] ${
+        compact ? 'h-8 gap-1 px-1.5 text-[11px]' : 'h-9 gap-1.5 px-2.5 text-[12px]'
+      } ${className}`}
     >
-      <span className="px-1.5 text-mist-400" aria-hidden>
-        🌐
-      </span>
-      <button
-        type="button"
-        aria-pressed={locale === 'en'}
-        onClick={() => setLocale('en')}
-        className={`cursor-pointer rounded-full px-2.5 py-1 transition ${
-          locale === 'en' ? 'bg-gold-400 text-ink-950' : 'text-mist-300 hover:text-mist-100'
-        }`}
-      >
-        EN
-      </button>
-      <button
-        type="button"
-        aria-pressed={locale === 'ar'}
-        onClick={() => setLocale('ar')}
-        className={`cursor-pointer rounded-full px-2.5 py-1 transition ${
-          locale === 'ar' ? 'bg-gold-400 text-ink-950' : 'text-mist-300 hover:text-mist-100'
+      {!compact ? (
+        <Globe className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
+      ) : null}
+      <span
+        className={`rounded-md px-1.5 py-0.5 font-bold transition-colors ${
+          isAr
+            ? 'btn-colored bg-emerald-600 text-white shadow-xs dark:bg-emerald-500 dark:text-[#04130D]'
+            : 'text-slate-500 dark:text-slate-400'
         }`}
       >
         عربي
-      </button>
-    </div>
+      </span>
+      <span aria-hidden className="text-[10px] font-medium text-slate-300 dark:text-white/25">
+        |
+      </span>
+      <span
+        className={`rounded-md px-1.5 py-0.5 font-bold tracking-wide transition-colors ${
+          !isAr
+            ? 'btn-colored bg-emerald-600 text-white shadow-xs dark:bg-emerald-500 dark:text-[#04130D]'
+            : 'text-slate-500 dark:text-slate-400'
+        }`}
+      >
+        EN
+      </span>
+    </button>
   )
 }
 

@@ -20,7 +20,7 @@ import {
   Unlock,
   X,
 } from 'lucide-react'
-import { useI18n, type Locale } from '@/lib/i18n'
+import { LanguageSwitch, useI18n, type Locale } from '@/lib/i18n'
 import {
   resolveExecRoleProfile,
   type ExecSessionRole,
@@ -915,7 +915,10 @@ export function TopFilterBar({
             {/* Control (3): Bell (`GovernanceBellTrigger`) */}
             <GovernanceBellTrigger />
 
-            {/* Control (4): Account Menu (`القائمة والحساب`) */}
+            {/* Control (4): 1-Click `عربي | EN` Language Pill (Always visible on mobile header) */}
+            <LanguageSwitch compact />
+
+            {/* Control (5): Account Menu (`القائمة والحساب`) */}
             <div className="relative">
               <button
                 type="button"
@@ -1284,7 +1287,10 @@ export function TopFilterBar({
             {/* Control (3): Live Governance & Odoo Breach Bell (`🔔`) */}
             <GovernanceBellTrigger />
 
-            {/* Control (4): `القائمة والحساب` (`Account & Menu`) */}
+            {/* Control (4): 1-Click `عربي | EN` Language Pill directly next to Account Menu */}
+            <LanguageSwitch />
+
+            {/* Control (5): `القائمة والحساب` (`Account & Menu`) */}
             <div className="relative">
               <button
                 type="button"

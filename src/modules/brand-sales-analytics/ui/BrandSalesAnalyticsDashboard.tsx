@@ -19,8 +19,8 @@ type Props = {
   locale?: string
 }
 
-export function BrandSalesAnalyticsDashboard({ locale = 'ar' }: Props) {
-  const [lang, setLang] = useState<'ar' | 'en'>(locale === 'en' ? 'en' : 'ar')
+export function BrandSalesAnalyticsDashboard({ locale = 'en' }: Props) {
+  const [lang, setLang] = useState<'ar' | 'en'>(locale === 'ar' ? 'ar' : 'en')
   const en = lang === 'en'
   const [isLightMode, setIsLightMode] = useState(false)
 

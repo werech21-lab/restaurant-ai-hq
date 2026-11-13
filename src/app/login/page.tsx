@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { LoginForm } from '@/app/login/login-form'
 import { LoginHero } from '@/app/login/login-hero'
+import { LanguageSwitch } from '@/lib/i18n'
 import {
   EXEC_SESSION_COOKIE,
   sanitizeExecNextPath,
@@ -56,8 +57,12 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   }
 
   return (
-    <main className="grid min-h-screen w-full min-w-0 overflow-x-hidden bg-[#F6F7F8] text-slate-900 dark:bg-[#090F15] dark:text-slate-100 lg:grid-cols-2">
-      <section className="flex min-w-0 items-center justify-center px-4 py-8 sm:px-8 lg:px-12">
+    <main className="relative grid min-h-screen w-full min-w-0 overflow-x-hidden bg-[#F6F7F8] text-slate-900 dark:bg-[#090F15] dark:text-slate-100 lg:grid-cols-2">
+      {/* Prominent 1-click top-corner AR / EN language pill before sign-in */}
+      <div className="fixed end-4 top-4 z-40 sm:end-6 sm:top-5">
+        <LanguageSwitch />
+      </div>
+      <section className="flex min-w-0 items-center justify-center px-4 pb-8 pt-16 sm:px-8 lg:px-12 lg:py-8">
         <div className="w-full max-w-md min-w-0">
           <LoginForm nextPath={safeNext} />
         </div>

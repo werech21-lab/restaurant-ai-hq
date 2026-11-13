@@ -1,7 +1,7 @@
 'use client'
 
 import { Activity, Building2, Lock, ShieldCheck } from 'lucide-react'
-import { LanguageSwitch, useI18n } from '@/lib/i18n'
+import { useI18n } from '@/lib/i18n'
 
 /**
  * Crisp inline vector Venture Foods emerald brand emblem (zero external assets, never 404s).
@@ -60,13 +60,12 @@ export function LoginHero() {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_20%_10%,rgba(16,185,129,0.16),transparent_52%),radial-gradient(ellipse_at_85%_85%,rgba(14,165,233,0.10),transparent_48%)]" />
 
       <div className="relative z-10 w-full max-w-xl min-w-0 rounded-3xl border border-white/10 bg-white/[0.035] p-8 shadow-2xl backdrop-blur-md xl:p-9">
-        {/* Top Release Pill & Language Switch */}
+        {/* Top Release Pill */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-5">
           <span className="inline-flex items-center gap-2 rounded-full border border-emerald-400/25 bg-emerald-500/10 px-3 py-1 text-xs font-semibold tabular-nums text-emerald-300">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
             <span>Aether BI v2.8 Enterprise</span>
           </span>
-          <LanguageSwitch />
         </div>
 
         {/* Brand Identity Lockup with Inline Emerald Vector SVG Emblem */}

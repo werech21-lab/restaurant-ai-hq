@@ -3,7 +3,7 @@ import type { Locale } from '@/lib/i18n'
 
 const LOCALE_COOKIES = ['NEXT_LOCALE', 'ai-hq-locale', 'vf_lang'] as const
 
-/** Server locale from cookies (EN only when explicitly set). */
+/** Server locale from cookies (defaults to EN; AR only when explicitly set). */
 export async function getLocale(): Promise<Locale> {
   try {
     const store = await cookies()
@@ -14,7 +14,7 @@ export async function getLocale(): Promise<Locale> {
   } catch {
     // Cookie store unavailable during cold start.
   }
-  return 'ar'
+  return 'en'
 }
 
 /** Strict bilingual pick — never mix languages. */
