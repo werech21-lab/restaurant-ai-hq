@@ -347,10 +347,24 @@ export function Sidebar({
 
   useIsomorphicLayoutEffect(() => {
     measureIndicator()
-    const raf = window.requestAnimationFrame(() => {
+    const prefersReduced =
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+    let raf = 0
+    const startTs = typeof performance !== 'undefined' ? performance.now() : 0
+    const trackDurationMs = prefersReduced ? 0 : 560
+
+    const step = (now: number) => {
       measureIndicator()
       setAnimateIndicator(true)
-    })
+      if (now - startTs < trackDurationMs) {
+        raf = window.requestAnimationFrame(step)
+      }
+    }
+
+    raf = window.requestAnimationFrame(step)
     return () => window.cancelAnimationFrame(raf)
   }, [measureIndicator, pathname, collapsed, locale])
 
@@ -374,13 +388,16 @@ export function Sidebar({
     <aside
       id="ae-sidebar"
       data-collapsed={collapsed}
-      className={`no-print sticky top-0 z-30 hidden h-screen shrink-0 flex-col lg:flex ${
+      style={{
+        clipPath: 'inset(0px 0px 0px 0px round 0px)',
+      }}
+      className={`no-print sticky top-0 z-30 hidden h-screen shrink-0 flex-col transition-[width,clip-path] duration-[520ms] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none lg:flex ${
         collapsed ? 'overflow-visible' : 'overflow-y-auto'
       }`}
       dir={isAr ? 'rtl' : 'ltr'}
     >
       {/* Brand Header + Tactile Collapse/Expand Trigger */}
-      <div className={`shrink-0 pt-5 pb-3 ${collapsed ? 'px-2.5' : 'px-4'}`}>
+      <div className={`shrink-0 pt-5 pb-3 transition-[padding] duration-[520ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${collapsed ? 'px-2.5' : 'px-4'}`}>
         <div className={`flex items-center ${collapsed ? 'flex-col gap-2.5' : 'justify-between gap-2'}`}>
           <Link
             href="/erp"
@@ -393,16 +410,14 @@ export function Sidebar({
             >
               VF
             </div>
-            {!collapsed ? (
-              <div className="min-w-0">
-                <p className="ae-side-strong truncate text-sm font-bold leading-tight tracking-tight">
-                  {isAr ? 'فنتشر فودز' : 'Venture Foods'}
-                </p>
-                <p className="ae-side-muted truncate text-[11px] font-medium leading-tight">
-                  {isAr ? 'منصة إيثر' : 'Aether BI'}
-                </p>
-              </div>
-            ) : null}
+            <div className="ae-rail-clip-label min-w-0">
+              <p className="ae-side-strong truncate text-sm font-semibold leading-tight tracking-tight">
+                {isAr ? 'فنتشر فودز' : 'Venture Foods'}
+              </p>
+              <p className="ae-side-muted truncate text-[11px] font-medium leading-tight">
+                {isAr ? 'منصة إيثر' : 'Aether BI'}
+              </p>
+            </div>
           </Link>
 
           <div className="group relative shrink-0">
@@ -426,24 +441,29 @@ export function Sidebar({
           </div>
         </div>
 
-        {/* Company badge card — cleanly hidden in 76px icon rail mode */}
-        {!collapsed ? (
-          <div className="ae-side-card mt-3.5 space-y-1 px-3 py-2 text-center leading-relaxed">
-            <p className="ae-side-strong text-[11.5px] font-semibold">
-              {isAr ? 'شركة فنتشر فودز لإدارة المطاعم ذ.م.م' : 'Venture Foods Restaurants Co. W.L.L.'}
-            </p>
-            <p className="ae-side-muted inline-flex items-center justify-center gap-1.5 text-[11px] font-semibold">
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
-              {isAr ? '6 مطاعم · 7 فروع · 8 قنوات' : '6 Brands · 7 Branches · 8 Channels'}
-            </p>
-          </div>
-        ) : null}
+        {/* Company badge card — smoothly fades in 76px icon rail mode */}
+        <div
+          aria-hidden={collapsed}
+          className={`ae-side-card overflow-hidden text-center leading-relaxed transition-[max-height,opacity,margin,padding] duration-[480ms] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none ${
+            collapsed
+              ? 'pointer-events-none mt-0 max-h-0 px-3 py-0 opacity-0'
+              : 'mt-3.5 max-h-24 space-y-1 px-3 py-2 opacity-100'
+          }`}
+        >
+          <p className="ae-side-strong text-[11.5px] font-semibold">
+            {isAr ? 'شركة فنتشر فودز لإدارة المطاعم ذ.م.م' : 'Venture Foods Restaurants Co. W.L.L.'}
+          </p>
+          <p className="ae-side-muted inline-flex items-center justify-center gap-1.5 text-[11px] font-semibold">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            {isAr ? '6 مطاعم · 7 فروع · 8 قنوات' : '6 Brands · 7 Branches · 8 Channels'}
+          </p>
+        </div>
       </div>
 
       {/* 4 Categorized Executive Navigation Sections with Smooth Sliding Emerald Active Pill */}
       <nav
         aria-label={isAr ? 'القائمة الرئيسية' : 'Main Navigation'}
-        className={`flex-1 pt-1.5 pb-5 ${collapsed ? 'overflow-visible px-2.5' : 'px-3'}`}
+        className={`flex-1 pt-1.5 pb-5 transition-[padding] duration-[520ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${collapsed ? 'overflow-visible px-2.5' : 'px-3'}`}
       >
         <div ref={navListRef} className="relative space-y-3.5">
           {indicator ? (
@@ -454,12 +474,12 @@ export function Sidebar({
                 height: `${indicator.height}px`,
                 transform: `translate3d(0, ${indicator.top}px, 0)`,
                 transition: animateIndicator
-                  ? 'transform 200ms cubic-bezier(0.22, 1.18, 0.36, 1), height 180ms ease'
+                  ? 'transform 460ms cubic-bezier(0.16, 1, 0.3, 1), height 280ms cubic-bezier(0.16, 1, 0.3, 1)'
                   : 'none',
               }}
-              className="ae-side-pill-indicator pointer-events-none absolute inset-x-0 z-0 rounded-2xl"
+              className="ae-side-pill-indicator pointer-events-none absolute inset-x-0 z-0 rounded-2xl bg-gradient-to-r from-emerald-600/90 to-emerald-500/80 text-white shadow-sm"
             >
-              <span className="absolute inset-y-2 start-1 w-1 rounded-full bg-[#10B981]" />
+              <span className="absolute inset-y-2 start-1 w-1 rounded-full bg-white/80" />
             </div>
           ) : null}
 
@@ -467,17 +487,14 @@ export function Sidebar({
             const sectionLabel = isAr ? section.labelAr : section.labelEn
             return (
               <div key={section.id} className="space-y-0.5">
-                {collapsed ? (
-                  sectionIndex > 0 ? (
-                    <div aria-hidden className="mx-2 my-1.5 h-px bg-white/[0.08]" />
-                  ) : null
-                ) : (
-                  <div className="px-3 pb-1 pt-0.5">
-                    <span className="ae-side-muted text-[10.5px] font-bold uppercase tracking-wider">
-                      {sectionLabel}
-                    </span>
-                  </div>
-                )}
+                {collapsed && sectionIndex > 0 ? (
+                  <div aria-hidden className="mx-2 my-1.5 h-px bg-white/[0.08]" />
+                ) : null}
+                <div className="ae-rail-section-hdr px-3 pb-1 pt-0.5" aria-hidden={collapsed}>
+                  <span className="ae-side-muted whitespace-nowrap text-[10.5px] font-bold uppercase tracking-wider">
+                    {sectionLabel}
+                  </span>
+                </div>
 
                 {section.items.map((item) => {
                   const Icon = item.icon
@@ -495,12 +512,16 @@ export function Sidebar({
                         data-active={active}
                         aria-current={active ? 'page' : undefined}
                         aria-label={collapsed ? label : undefined}
-                        className={`ae-side-link relative z-10 flex items-center rounded-2xl py-2 text-[13.5px] font-medium ${
-                          collapsed ? 'justify-center px-0' : 'gap-2.5 px-3'
+                        className={`ae-side-link relative z-10 flex items-center rounded-2xl py-2 text-[13.5px] font-medium transition-[padding,gap,color] duration-[480ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                          active
+                            ? 'bg-gradient-to-r from-emerald-600/90 to-emerald-500/80 text-white shadow-sm'
+                            : ''
+                        } ${
+                          collapsed ? 'justify-center gap-0 px-0' : 'gap-2.5 px-3'
                         }`}
                       >
                         <Icon size={17} className="ae-side-icon shrink-0" />
-                        {!collapsed ? <span className="leading-snug">{label}</span> : null}
+                        <span className="ae-rail-clip-label leading-snug">{label}</span>
                       </Link>
 
                       {collapsed ? (

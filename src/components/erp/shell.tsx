@@ -110,8 +110,9 @@ export async function ErpShell({ children }: { children: React.ReactNode }) {
           <GovernanceProvider isAuditor={isAuditor} sessionRole={sessionRole}>
             <div
               id="ae-root"
-              className="relative z-0 text-[14.5px] leading-relaxed"
+              className="relative z-0 bg-[#F6F7F8] text-[14.5px] leading-relaxed dark:bg-[#090E0C]"
               data-erp-shell="persistent"
+              data-rail-choreography="252px-76px-clip-flip"
               data-auditor={isAuditor ? 'true' : 'false'}
               data-session-role={sessionRole}
             >
@@ -126,7 +127,7 @@ export async function ErpShell({ children }: { children: React.ReactNode }) {
                 isAuditor={isAuditor}
                 sessionRole={sessionRole}
               />
-              <div className="ae-content-col w-full flex-1 min-w-0">
+              <div className="ae-content-col w-full flex-1 min-w-0 transition-[max-width,transform] duration-[520ms] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none">
                 <div className="ae-page w-full max-w-[1920px] mx-auto px-4 sm:px-6 xl:px-10 pt-0 lg:pt-2 pb-28 sm:pb-12 lg:pb-8 min-w-0 space-y-3 text-[14.5px] leading-relaxed">
                   <TopFilterBar
                     companyNameAr={company.name}

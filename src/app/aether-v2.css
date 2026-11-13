@@ -20,14 +20,16 @@
    ========================================================================== */
 
 :root {
-  --ae-rail-w: 260px;
+  --ae-rail-w: 252px;
+  --ae-rail-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --ae-rail-dur: 520ms;
 }
 
 html[data-rail-collapsed='true'] {
   --ae-rail-w: 76px;
 }
 
-/* ---------- 1. Outer Architectural Studio Shell (#F6F7F8 / #09110E) ---------- */
+/* ---------- 1. Outer Architectural Studio Shell (#F6F7F8 / #090E0C · legacy #09110E) ---------- */
 #ae-root,
 html[data-theme='light'] #ae-root,
 html.light-mode #ae-root,
@@ -52,7 +54,7 @@ html[data-theme='dark'] #ae-root .app-content,
 html.dark #ae-root main,
 html[data-theme='dark'] #ae-root main {
   color: #f8fafc !important;
-  background-color: #09110E !important;
+  background-color: #090E0C !important;
 }
 
 #ae-root .ae-ambient {
@@ -104,7 +106,7 @@ html[data-theme='dark'] #ae-root .ae-ambient span:nth-child(2) {
   background: radial-gradient(circle, rgba(20, 184, 166, 0.09), transparent 68%);
 }
 
-/* ---------- 2. Skerry Collapsible Deep-Slate Sidebar (`lg:` 1024px Breakpoint) ---------- */
+/* ---------- 2. Skerry Collapsible Obsidian-Forest Sidebar (`lg:` 1024px Breakpoint) ---------- */
 @media (min-width: 1024px) {
   #ae-root {
     display: flex;
@@ -113,7 +115,12 @@ html[data-theme='dark'] #ae-root .ae-ambient span:nth-child(2) {
 
   #ae-sidebar {
     width: var(--ae-rail-w) !important;
-    transition: width 200ms cubic-bezier(0.22, 1, 0.36, 1);
+    clip-path: inset(0px 0px 0px 0px round 0px);
+    will-change: width, clip-path;
+    transition:
+      width 520ms cubic-bezier(0.16, 1, 0.3, 1),
+      clip-path 520ms cubic-bezier(0.16, 1, 0.3, 1),
+      box-shadow 320ms ease;
   }
 
   #ae-root .ae-content-col {
@@ -122,10 +129,54 @@ html[data-theme='dark'] #ae-root .ae-ambient span:nth-child(2) {
     padding-inline-start: 0 !important;
     padding-left: 0 !important;
     padding-right: 0 !important;
+    transition: transform 520ms cubic-bezier(0.16, 1, 0.3, 1);
   }
 }
 
-/* Deep Obsidian-Slate Rail in BOTH Light (#0B1220) & Dark (#070E0B) */
+.ae-rail-clip-label {
+  display: inline-block;
+  overflow: hidden;
+  white-space: nowrap;
+  clip-path: inset(0 0% 0 0);
+  opacity: 1;
+  max-width: 180px;
+  transition:
+    clip-path 480ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 320ms cubic-bezier(0.16, 1, 0.3, 1),
+    max-width 520ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#ae-sidebar[data-collapsed='true'] .ae-rail-clip-label {
+  clip-path: inset(0 100% 0 0);
+  opacity: 0;
+  max-width: 0px;
+  pointer-events: none;
+}
+
+[dir='rtl'] #ae-sidebar[data-collapsed='true'] .ae-rail-clip-label,
+#ae-sidebar[dir='rtl'][data-collapsed='true'] .ae-rail-clip-label {
+  clip-path: inset(0 0 0 100%);
+}
+
+.ae-rail-section-hdr {
+  overflow: hidden;
+  max-height: 28px;
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity 300ms cubic-bezier(0.16, 1, 0.3, 1),
+    max-height 480ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 480ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#ae-sidebar[data-collapsed='true'] .ae-rail-section-hdr {
+  max-height: 0px;
+  opacity: 0;
+  transform: translateY(-4px);
+  pointer-events: none;
+}
+
+/* Deep Obsidian-Forest Rail in Light (#0B1220) & Dark (#101815) */
 #ae-sidebar,
 html[data-theme='light'] #ae-sidebar,
 html.light-mode #ae-sidebar,
@@ -143,15 +194,15 @@ html:not(.dark) #ae-sidebar {
 
 html.dark #ae-sidebar,
 html[data-theme='dark'] #ae-sidebar {
-  background: #070E0B !important;
-  box-shadow: 1px 0 0 rgba(16, 185, 129, 0.12) !important;
+  background: #101815 !important;
+  box-shadow: 1px 0 0 rgba(52, 211, 153, 0.09), 0 8px 24px -8px rgba(0, 0, 0, 0.45) !important;
   color: #cbd5e1 !important;
 }
 
 html.dark [dir='rtl'] #ae-sidebar,
 html.dark #ae-sidebar[dir='rtl'],
 html[data-theme='dark'] #ae-sidebar[dir='rtl'] {
-  box-shadow: -1px 0 0 rgba(16, 185, 129, 0.12) !important;
+  box-shadow: -1px 0 0 rgba(52, 211, 153, 0.09), 0 8px 24px -8px rgba(0, 0, 0, 0.45) !important;
 }
 
 /* Protect dark-rail typography and surfaces from global light-mode overrides */
@@ -235,18 +286,18 @@ html[data-theme='light'] #ae-sidebar .ae-side-link:hover {
 #ae-sidebar .ae-side-link[data-active='true'],
 html[data-theme='light'] #ae-sidebar .ae-side-link[data-active='true'] {
   color: #ffffff !important;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 #ae-sidebar .ae-side-link[data-active='true'] .ae-side-icon,
 html[data-theme='light'] #ae-sidebar .ae-side-link[data-active='true'] .ae-side-icon {
-  color: #10B981 !important;
+  color: #ffffff !important;
 }
 
 #ae-sidebar .ae-side-pill-indicator,
 html[data-theme='light'] #ae-sidebar .ae-side-pill-indicator {
-  background: rgba(16, 185, 129, 0.13) !important;
-  box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.28), 0 4px 16px -4px rgba(16, 185, 129, 0.22) !important;
+  background: linear-gradient(90deg, rgba(5, 150, 105, 0.90) 0%, rgba(16, 185, 129, 0.80) 100%) !important;
+  box-shadow: 0 4px 16px -4px rgba(16, 185, 129, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
 }
 
 #ae-sidebar .ae-side-divider {
@@ -369,8 +420,8 @@ html[data-theme='dark'] #ae-root button[data-sliding-pill-btn='true'][data-activ
 
 html.dark #ae-topbar,
 html[data-theme='dark'] #ae-topbar {
-  background: rgba(16, 28, 23, 0.92) !important;
-  box-shadow: 0 10px 28px -6px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(16, 185, 129, 0.12) !important;
+  background: rgba(16, 24, 21, 0.94) !important;
+  box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(52, 211, 153, 0.09) !important;
   color: #f8fafc !important;
 }
 
@@ -462,7 +513,7 @@ html[data-theme='dark'] #ae-canvas {
   background-color: transparent !important;
 }
 
-/* ---------- 6. Unslop Bento Cards (#FFFFFF / #101C17 · rounded-2xl) ---------- */
+/* ---------- 6. Unslop Bento Cards (#FFFFFF / #101815 & #141F1B · legacy #101C17 · rounded-2xl) ---------- */
 #ae-root .ae-bento-card,
 #ae-root .ae-studio-card,
 #ae-root .ae-tile {
@@ -480,11 +531,11 @@ html.dark #ae-root .ae-studio-card,
 html[data-theme='dark'] #ae-root .ae-studio-card,
 html.dark #ae-root .ae-tile,
 html[data-theme='dark'] #ae-root .ae-tile,
-html.dark #ae-root .app-content .bg-white:not([role='tooltip']),
-html[data-theme='dark'] #ae-root .app-content .bg-white:not([role='tooltip']) {
-  background-color: #101C17 !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35), 0 8px 24px -8px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(16, 185, 129, 0.10) !important;
-  border-color: rgba(16, 185, 129, 0.10) !important;
+html.dark #ae-root .app-content .bg-white:not([role='tooltip']):not(.ae-hero-circle-btn),
+html[data-theme='dark'] #ae-root .app-content .bg-white:not([role='tooltip']):not(.ae-hero-circle-btn) {
+  background-color: #101815 !important;
+  box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(52, 211, 153, 0.09) !important;
+  border-color: rgba(52, 211, 153, 0.09) !important;
 }
 
 #ae-root .ae-kpi-card {
@@ -503,14 +554,34 @@ html[data-theme='dark'] #ae-root .app-content .bg-white:not([role='tooltip']) {
 
 html.dark #ae-root .ae-kpi-card,
 html[data-theme='dark'] #ae-root .ae-kpi-card {
-  background-color: #101C17 !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.38), 0 10px 26px -8px rgba(0, 0, 0, 0.48), 0 0 0 1px rgba(16, 185, 129, 0.10) !important;
+  background-color: #111A17 !important;
+  box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(52, 211, 153, 0.09) !important;
 }
 
 html.dark #ae-root .ae-kpi-card:hover,
 html[data-theme='dark'] #ae-root .ae-kpi-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 28px -6px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(16, 185, 129, 0.30) !important;
+  background-color: #141F1B !important;
+  box-shadow: 0 12px 28px -6px rgba(0, 0, 0, 0.58), 0 0 0 1px rgba(52, 211, 153, 0.24) !important;
+}
+
+/* Ensure Hero Emerald Card keeps multi-stop emerald gradient inside #ae-root in BOTH themes */
+#ae-root .ae-hero-emerald-card,
+html.dark #ae-root .ae-hero-emerald-card,
+html[data-theme='dark'] #ae-root .ae-hero-emerald-card,
+html[data-theme='light'] #ae-root .ae-hero-emerald-card,
+html.light-mode #ae-root .ae-hero-emerald-card {
+  background-color: #0F764A !important;
+  background-image: linear-gradient(135deg, #0D6E44 0%, #10935B 52%, #12A163 100%) !important;
+  box-shadow: 0 14px 30px -8px rgba(15, 118, 74, 0.45), 0 0 0 1px rgba(110, 231, 183, 0.25) !important;
+  color: #FFFFFF !important;
+}
+
+#ae-root .ae-hero-emerald-card:hover,
+html.dark #ae-root .ae-hero-emerald-card:hover,
+html[data-theme='dark'] #ae-root .ae-hero-emerald-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 36px -8px rgba(16, 185, 129, 0.52), 0 0 0 1px rgba(167, 243, 208, 0.4) !important;
 }
 
 #ae-root .ae-studio-subcard,
@@ -532,8 +603,8 @@ html.dark #ae-root .app-content .bg-\[\#F6F7F8\]:not([role='tooltip'] *),
 html.dark #ae-root .app-content .bg-\[\#F7F7F8\]:not([role='tooltip'] *),
 html.dark #ae-root .app-content .bg-\[\#F4F6F9\]:not([role='tooltip'] *),
 html.dark #ae-root .app-content .bg-\[\#F6F7F9\]:not([role='tooltip'] *) {
-  background-color: #0C1612 !important;
-  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.08) !important;
+  background-color: #141F1B !important;
+  box-shadow: 0 0 0 1px rgba(52, 211, 153, 0.09) !important;
 }
 
 /* Primary action dark buttons keep high-contrast text in both themes */
@@ -948,6 +1019,12 @@ html[data-theme='dark'] #ae-root .ae-meta {
   #ae-root .ae-bar-grow,
   .ae-bottom-sheet {
     animation: none !important;
+  }
+  #ae-sidebar,
+  #ae-root .ae-content-col,
+  .ae-rail-clip-label,
+  .ae-rail-section-hdr {
+    transition: none !important;
   }
   #ae-root .ae-lift:hover,
   #ae-root .ae-kpi-card:hover {

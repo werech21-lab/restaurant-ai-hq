@@ -6,21 +6,27 @@
 html[data-theme='dark'],
 html.dark {
   color-scheme: dark;
-  --ink-950: 7 8 11;
-  --ink-900: 13 16 21;
-  --ink-800: 19 24 31;
-  --ink-700: 28 35 45;
-  --ink-600: 44 54 68;
-  --mist-100: 244 240 232;
-  --mist-300: 201 194 182;
-  --mist-400: 157 150 139;
-  --mist-500: 111 106 98;
+  --ink-950: 9 14 12;
+  --ink-900: 16 24 21;
+  --ink-800: 20 31 27;
+  --ink-700: 28 42 36;
+  --ink-600: 44 62 54;
+  --obsidian-canvas: #090E0C;
+  --obsidian-card: #101815;
+  --obsidian-card-elevated: #141F1B;
+  --obsidian-kpi: #111A17;
+  --obsidian-sub: #8FA39B;
+  --obsidian-ring: rgba(52, 211, 153, 0.09);
+  --mist-100: 248 250 252;
+  --mist-300: 203 213 225;
+  --mist-400: 143 163 155;
+  --mist-500: 111 128 121;
   --gold-300: 244 224 184;
   --gold-400: 231 201 138;
   --gold-500: 201 161 90;
   --gold-600: 154 116 54;
-  --shadow-card: inset 0 1px 0 rgba(244, 224, 184, 0.12), 0 18px 40px -32px rgba(0, 0, 0, 0.85);
-  --shadow-lift: inset 0 1px 0 rgba(244, 224, 184, 0.16), 0 22px 44px -30px rgba(0, 0, 0, 0.55);
+  --shadow-card: 0 0 0 1px rgba(52, 211, 153, 0.09), 0 8px 24px -8px rgba(0, 0, 0, 0.45);
+  --shadow-lift: 0 0 0 1px rgba(52, 211, 153, 0.18), 0 14px 32px -10px rgba(0, 0, 0, 0.55);
 }
 
 html[data-theme='light'],
@@ -180,7 +186,7 @@ html[data-theme='dark'] .diyar-glow-container {
   min-width: 0;
 }
 
-/* Dark Mode Table, Surface & Text Engine */
+/* Dark Mode Table, Surface & Text Engine — Deep Obsidian-Emerald (#090E0C) */
 html.dark body,
 html[data-theme='dark'] body,
 html.dark .app-shell,
@@ -197,7 +203,7 @@ html.dark .bg-\[\#F6F7F8\],
 html[data-theme='dark'] .bg-\[\#F6F7F8\],
 html.dark .bg-\[\#F4F6F9\],
 html[data-theme='dark'] .bg-\[\#F4F6F9\] {
-  background-color: #09110E !important;
+  background-color: #090E0C !important;
   color: #F8FAFC !important;
 }
 
@@ -1179,4 +1185,97 @@ html.light-mode .bg-\[\#F6F7F8\],
 html.light .bg-\[\#F6F7F8\],
 html:not(.dark) .bg-\[\#F6F7F8\] {
   background-color: #F6F7F8 !important;
+}
+
+/* ==========================================================================
+   OBSIDIAN-EMERALD HERO CARD, CTA PILLS & DIAGONAL-HATCHED PILL BARS
+   Guaranteed color fidelity across BOTH Obsidian-Emerald Dark & Crisp Light Mode
+   ========================================================================== */
+.ae-hero-emerald-card,
+html[data-theme='light'] .ae-hero-emerald-card,
+html.light-mode .ae-hero-emerald-card,
+html.light .ae-hero-emerald-card,
+html:not(.dark) .ae-hero-emerald-card {
+  background-color: #0F764A !important;
+  background-image: linear-gradient(135deg, #0F764A 0%, #10935B 52%, #064E3B 100%) !important;
+  color: #FFFFFF !important;
+  border: none !important;
+  box-shadow: 0 12px 30px -8px rgba(15, 118, 74, 0.42), 0 0 0 1px rgba(110, 231, 183, 0.24) !important;
+}
+
+.ae-hero-emerald-card :not(.ae-hero-circle-btn):not(.ae-hero-circle-btn *),
+html[data-theme='light'] .ae-hero-emerald-card :not(.ae-hero-circle-btn):not(.ae-hero-circle-btn *),
+html.light-mode .ae-hero-emerald-card :not(.ae-hero-circle-btn):not(.ae-hero-circle-btn *),
+html:not(.dark) .ae-hero-emerald-card :not(.ae-hero-circle-btn):not(.ae-hero-circle-btn *) {
+  color: #FFFFFF !important;
+}
+
+.ae-hero-emerald-card .ae-hero-pill,
+html[data-theme='light'] .ae-hero-emerald-card .ae-hero-pill,
+html.light-mode .ae-hero-emerald-card .ae-hero-pill,
+html:not(.dark) .ae-hero-emerald-card .ae-hero-pill {
+  background-color: rgba(255, 255, 255, 0.16) !important;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  color: #FFFFFF !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22) !important;
+}
+
+.ae-hero-emerald-card .ae-hero-circle-btn,
+html[data-theme='light'] .ae-hero-emerald-card .ae-hero-circle-btn,
+html.light-mode .ae-hero-emerald-card .ae-hero-circle-btn,
+html:not(.dark) .ae-hero-emerald-card .ae-hero-circle-btn {
+  background-color: #FFFFFF !important;
+  color: #022C22 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18) !important;
+}
+
+.ae-hero-emerald-card .ae-hero-circle-btn *,
+html[data-theme='light'] .ae-hero-emerald-card .ae-hero-circle-btn *,
+html.light-mode .ae-hero-emerald-card .ae-hero-circle-btn *,
+html:not(.dark) .ae-hero-emerald-card .ae-hero-circle-btn * {
+  color: #022C22 !important;
+}
+
+.ae-emerald-cta-pill,
+html[data-theme='light'] .ae-emerald-cta-pill,
+html.light-mode .ae-emerald-cta-pill,
+html:not(.dark) .ae-emerald-cta-pill {
+  background-color: #0F764A !important;
+  background-image: linear-gradient(135deg, #0F764A 0%, #10935B 55%, #064E3B 100%) !important;
+  color: #FFFFFF !important;
+  border: none !important;
+  box-shadow: 0 8px 20px -6px rgba(16, 185, 129, 0.42), 0 0 0 1px rgba(52, 211, 153, 0.28) !important;
+}
+
+.ae-emerald-cta-pill *,
+html[data-theme='light'] .ae-emerald-cta-pill *,
+html.light-mode .ae-emerald-cta-pill *,
+html:not(.dark) .ae-emerald-cta-pill * {
+  color: #FFFFFF !important;
+}
+
+.ae-emerald-peak-pill,
+html[data-theme='light'] .ae-emerald-peak-pill,
+html.light-mode .ae-emerald-peak-pill,
+html:not(.dark) .ae-emerald-peak-pill {
+  background-color: #10B981 !important;
+  background-image: linear-gradient(0deg, #059669 0%, #34D399 100%) !important;
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.35) !important;
+  border: none !important;
+}
+
+.ae-pill-hatch,
+html[data-theme='light'] .ae-pill-hatch,
+html.light-mode .ae-pill-hatch,
+html:not(.dark) .ae-pill-hatch {
+  background-color: rgba(16, 185, 129, 0.05) !important;
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(16, 185, 129, 0.16) 0px,
+    rgba(16, 185, 129, 0.16) 4px,
+    rgba(16, 185, 129, 0.04) 4px,
+    rgba(16, 185, 129, 0.04) 9px
+  ) !important;
+  box-shadow: inset 0 0 0 1px rgba(52, 211, 153, 0.18) !important;
 }

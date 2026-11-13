@@ -4184,6 +4184,51 @@ assert(
   `monthTo=${s28Probe.monthToIso}, lastBar=${s28Probe.lastMonthBarId}, weekLastBar=${s28Probe.lastWeekBarId}`,
 )
 
+// 29. Obsidian-Emerald Bento Dashboard, Diagonal-Hatched Pill Analytics & Silky Collapsible Rail Gate
+console.log(
+  '\n29) Obsidian-Emerald Bento Dashboard, Diagonal-Hatched Pill Analytics & Silky Collapsible Rail Gate:',
+)
+
+const s29GlobalsCss = fs.readFileSync(path.join(ROOT, 'src/app/globals.css'), 'utf8')
+const s29AetherCss = fs.readFileSync(path.join(ROOT, 'src/app/aether-v2.css'), 'utf8')
+const s29ErpShell = fs.readFileSync(path.join(ROOT, 'src/components/erp/shell.tsx'), 'utf8')
+const s29Sidebar = fs.readFileSync(path.join(ROOT, 'src/components/erp-sidebar.tsx'), 'utf8')
+const s29TopBar = fs.readFileSync(path.join(ROOT, 'src/components/aether/TopFilterBar.tsx'), 'utf8')
+const s29FullJourney = fs.readFileSync(
+  path.join(ROOT, 'src/components/aether/FullJourney360.tsx'),
+  'utf8',
+)
+
+assert(
+  s29GlobalsCss.includes('#090E0C') &&
+    s29GlobalsCss.includes('#101815') &&
+    s29GlobalsCss.includes('#141F1B') &&
+    s29GlobalsCss.includes('#111A17') &&
+    s29GlobalsCss.includes('#8FA39B') &&
+    s29AetherCss.includes('--ae-rail-w: 252px') &&
+    s29AetherCss.includes('--ae-rail-w: 76px') &&
+    s29AetherCss.includes('cubic-bezier(0.16, 1, 0.3, 1)') &&
+    s29ErpShell.includes('dark:bg-[#090E0C]') &&
+    s29Sidebar.includes('from-emerald-600/90 to-emerald-500/80') &&
+    s29Sidebar.includes('ae-rail-clip-label'),
+  '29.1 Obsidian-Emerald Surface System & Silky 252px <-> 76px Collapsible Rail: #090E0C canvas, #101815/#141F1B/#111A17 matte surfaces, #8FA39B subtitles, 520ms cubic-bezier(0.16,1,0.3,1) rail choreography & emerald gradient active route pills verified',
+)
+
+assert(
+  s29TopBar.includes('Search metrics, branches, or ask Feryal...') &&
+    s29TopBar.includes('⌘K') &&
+    s29TopBar.includes('data-utility="odoo-live-status"') &&
+    s29FullJourney.includes('Executive Dashboard') &&
+    s29FullJourney.includes('ae-hero-emerald-card') &&
+    s29FullJourney.includes('from-[#0D6E44]') &&
+    s29FullJourney.includes('to-[#12A163]') &&
+    s29FullJourney.includes('Weekly Performance Analytics') &&
+    s29FullJourney.includes('repeating-linear-gradient(45deg, rgba(16,185,129,0.16)') &&
+    s29FullJourney.includes('Branch & Priority Pulse') &&
+    s29FullJourney.includes('Open Action / Ask Feryal'),
+  '29.2 Executive Utility Header, Hero Emerald KPI Card & 3-Column Bento Analytics Row: Pill ⌘K search, quick action circles, عربي | EN 1-click switch, Hero Net Sales gradient card, 7-day diagonal-hatched pill analytics chart, Start Here focus & Branch Pulse verified',
+)
+
 console.log('\n----------------------------------------------------------------------')
 if (failed > 0) {
   console.error(`❌ Verification FAILED: ${failed} failed, ${passed} passed.`)

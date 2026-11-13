@@ -11,16 +11,20 @@ import {
   Globe,
   Lock,
   LogOut,
+  Moon,
   PanelLeft,
+  RefreshCw,
   RotateCcw,
   Search,
   Share2,
   ShieldCheck,
   SlidersHorizontal,
+  Sun,
   Unlock,
   X,
 } from 'lucide-react'
 import { useI18n, type Locale } from '@/lib/i18n'
+import { useTheme } from '@/lib/theme'
 import {
   resolveExecRoleProfile,
   type ExecSessionRole,
@@ -739,10 +743,15 @@ export function TopFilterBar({
 
   useDocumentTitle(pathname, isAr, isBrainBarRoute)
 
+  const { theme, toggleTheme } = useTheme()
+
   const {
     filters,
     workspace,
     liveSummary,
+    syncingOdoo,
+    syncCooldownSec,
+    triggerOdooSyncNow,
     setPeriod,
     setCustomRange,
     setKuwaitSlice,
@@ -762,6 +771,23 @@ export function TopFilterBar({
       gov?.isAuditor ||
       (typeof userEmail === 'string' && userEmail.toLowerCase().includes('auditor')),
   )
+  const topRoleProfile = resolveExecRoleProfile(auditorMode ? 'auditor' : sessionRole)
+  const execAvatarInitials = auditorMode
+    ? isAr
+      ? 'م'
+      : 'AU'
+    : topRoleProfile.role === 'gm'
+      ? isAr
+        ? 'م.ع'
+        : 'GM'
+      : topRoleProfile.role === 'dgm'
+        ? isAr
+          ? 'ن.م'
+          : 'DG'
+        : isAr
+          ? 'ع.ع'
+          : 'AA'
+  const odooLiveFresh = liveSummary ? liveSummary.isStaleOver24h !== true : true
 
   const [sharedCopied, setSharedCopied] = useState(false)
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false)
@@ -1260,8 +1286,8 @@ export function TopFilterBar({
       ) : null}
 
       {/* =====================================================================
-          3. DESKTOP ULTRA-CLEAN 3-CONTROL EXECUTIVE TOP BAR (`hidden lg:block`)
-             [Rail + Title]  ...  1) Period  •  2) فلاتر  •  3) القائمة والحساب ▾
+          3. DESKTOP OBSIDIAN-EMERALD UTILITY & EXECUTIVE CONTROL BAR (`hidden lg:block`)
+             [Rail + Pill Search ⌘K] ... [Period • Filters] • [Odoo Live • Bell • Theme • عربي|EN] • [Executive Profile Pill]
          ===================================================================== */}
       <header
         id="ae-topbar"
@@ -1271,25 +1297,52 @@ export function TopFilterBar({
       >
         <div
           ref={desktopBarRef}
-          className="relative flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white/95 px-3.5 py-2 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.05] backdrop-blur-md dark:bg-[#101C17]/95 dark:ring-emerald-500/15"
+          className="relative flex flex-wrap items-center justify-between gap-2.5 rounded-2xl bg-white/95 px-3.5 py-2.5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.05] backdrop-blur-md dark:bg-[#101815]/95 dark:shadow-[0_8px_24px_-8px_rgba(0,0,0,0.45)] dark:ring-emerald-400/[0.09]"
         >
-          {/* Start Side: Sidebar Rail Toggle + Page Title + Optional Auditor Pill */}
-          <div className="flex min-w-0 items-center gap-2">
+          {/* Start Side: Sidebar Rail Toggle + Compact Pill Search Input (`⌘K`) + Optional Auditor Pill */}
+          <div className="flex min-w-0 flex-1 items-center gap-2.5">
             <button
               type="button"
               onClick={() => window.dispatchEvent(new CustomEvent(RAIL_TOGGLE_EVENT))}
-              className="ae-capsule inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-xl"
+              className="ae-capsule inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full"
               title={
                 isAr ? 'طي أو توسيع القائمة الجانبية (Ctrl+B)' : 'Toggle sidebar rail (Ctrl+B)'
               }
               aria-label={isAr ? 'طي أو توسيع القائمة الجانبية' : 'Toggle sidebar rail'}
             >
-              <PanelLeft className="h-4 w-4 opacity-75" />
+              <PanelLeft className="h-4 w-4 opacity-80" />
+            </button>
+
+            {/* Compact Pill Search Input (`Search metrics, branches, or ask Feryal...` + `⌘K`) */}
+            <button
+              type="button"
+              onClick={openCommandPalette}
+              aria-label={
+                isAr
+                  ? 'ابحث في المؤشرات أو الفروع أو اسأل فريال (Ctrl+K)'
+                  : 'Search metrics, branches, or ask Feryal (Ctrl+K)'
+              }
+              className="group inline-flex h-9 min-w-[210px] max-w-[350px] flex-1 cursor-pointer items-center justify-between gap-2.5 rounded-full bg-[#F6F7F8] px-3.5 text-[12.5px] text-slate-500 ring-1 ring-slate-900/[0.06] transition-all duration-150 hover:bg-white hover:text-slate-900 hover:ring-emerald-500/35 dark:bg-[#141F1B] dark:text-[#8FA39B] dark:ring-emerald-400/[0.09] dark:hover:text-white dark:hover:ring-emerald-400/30"
+            >
+              <span className="inline-flex min-w-0 items-center gap-2">
+                <Search className="h-3.5 w-3.5 shrink-0 text-emerald-600 transition-transform duration-150 group-hover:scale-105 dark:text-emerald-400" />
+                <span className="truncate font-medium">
+                  {isAr
+                    ? 'ابحث في المؤشرات أو الفروع أو اسأل فريال...'
+                    : 'Search metrics, branches, or ask Feryal...'}
+                </span>
+              </span>
+              <kbd
+                dir="ltr"
+                className="shrink-0 rounded-full bg-white px-2 py-0.5 font-mono text-[10.5px] font-semibold text-slate-600 ring-1 ring-slate-900/[0.06] dark:bg-white/[0.07] dark:text-emerald-200 dark:ring-white/10"
+              >
+                ⌘K
+              </kbd>
             </button>
 
             {page ? (
               <span
-                className="ae-top-title truncate px-1 text-[15px] font-extrabold tracking-tight"
+                className="ae-top-title hidden 2xl:inline truncate px-1 text-[13.5px] font-semibold tracking-tight text-slate-700 dark:text-[#8FA39B]"
                 aria-current="page"
               >
                 {isAr ? page.ar : page.en}
@@ -1297,19 +1350,19 @@ export function TopFilterBar({
             ) : null}
 
             {auditorMode ? (
-              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-amber-50 px-2.5 py-1 text-[11.5px] font-bold text-amber-900 ring-1 ring-amber-500/25 dark:bg-amber-950/60 dark:text-amber-200">
+              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[11.5px] font-bold text-amber-900 ring-1 ring-amber-500/25 dark:bg-amber-950/60 dark:text-amber-200">
                 <Lock className="h-3 w-3 shrink-0 text-amber-600 dark:text-amber-400" />
                 <span>{isAr ? 'حساب مراجعة — قراءة فقط' : 'Read-Only Auditor'}</span>
               </span>
             ) : null}
           </div>
 
-          {/* End Control Cluster: Strictly 4 Ultra-Clean Controls:
-              (1) Period Dropdown  •  (2) Filters  •  (3) Bell  •  (4) Account Menu */}
-          <div className="relative z-[60] flex flex-wrap items-center justify-end gap-2 overflow-visible">
+          {/* End Utility & Filter Cluster:
+              [Period • Filters] + [Odoo Live Circle • Bell Circle • Theme Circle • عربي|EN Switch] + [Executive Profile Pill] */}
+          <div className="relative z-[60] flex flex-wrap items-center justify-end gap-1.5 xl:gap-2 overflow-visible">
             {showPosFilters ? (
               <>
-                {/* Control (1): Single Sleek Period Dropdown (`الفترة: الشهر ▾` / `Period: Month ▾`) */}
+                {/* Control (1): Sleek Pill Period Dropdown (`الفترة: الشهر ▾` / `Period: Month ▾`) */}
                 <div className="relative">
                   <button
                     type="button"
@@ -1320,10 +1373,10 @@ export function TopFilterBar({
                     }}
                     aria-haspopup="listbox"
                     aria-expanded={periodDropdownOpen}
-                    className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-xl px-3.5 text-[12.5px] font-semibold transition-all duration-[160ms] focus:outline-none ${
+                    className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-[12px] font-semibold transition-all duration-[160ms] focus:outline-none ${
                       periodDropdownOpen || filters.period !== 'month'
-                        ? 'bg-emerald-50/80 text-emerald-950 ring-1 ring-emerald-500/45 dark:bg-emerald-950/50 dark:text-emerald-200 dark:ring-emerald-400/50'
-                        : 'bg-neutral-100/90 text-slate-700 ring-1 ring-slate-900/[0.05] hover:bg-white hover:text-slate-950 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-emerald-500/10 dark:hover:bg-white/[0.10]'
+                        ? 'bg-emerald-50/90 text-emerald-950 ring-1 ring-emerald-500/45 dark:bg-emerald-950/55 dark:text-emerald-200 dark:ring-emerald-400/45'
+                        : 'bg-[#F6F7F8] text-slate-700 ring-1 ring-slate-900/[0.06] hover:bg-white hover:text-slate-950 dark:bg-[#141F1B] dark:text-slate-200 dark:ring-emerald-400/[0.09] dark:hover:bg-white/[0.08]'
                     }`}
                   >
                     <Calendar className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
@@ -1366,7 +1419,7 @@ export function TopFilterBar({
                   ) : null}
                 </div>
 
-                {/* Control (2): Single Unified `فلاتر` (`Filters`) Button + Active Count Badge */}
+                {/* Control (2): Single Unified `فلاتر` (`Filters`) Pill + Active Count Badge */}
                 <button
                   type="button"
                   onClick={() => {
@@ -1376,10 +1429,10 @@ export function TopFilterBar({
                   }}
                   aria-haspopup="dialog"
                   aria-expanded={filtersPopoverOpen}
-                  className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-xl px-3.5 text-[12.5px] font-semibold transition-all duration-[160ms] focus:outline-none ${
+                  className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-[12px] font-semibold transition-all duration-[160ms] focus:outline-none ${
                     filtersPopoverOpen || nonDefaultSliceCount > 0
-                      ? 'bg-emerald-50/80 text-emerald-950 ring-1 ring-emerald-500/45 dark:bg-emerald-950/50 dark:text-emerald-200 dark:ring-emerald-400/50'
-                      : 'bg-neutral-100/90 text-slate-700 ring-1 ring-slate-900/[0.05] hover:bg-white hover:text-slate-950 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-emerald-500/10 dark:hover:bg-white/[0.10]'
+                      ? 'bg-emerald-50/90 text-emerald-950 ring-1 ring-emerald-500/45 dark:bg-emerald-950/55 dark:text-emerald-200 dark:ring-emerald-400/45'
+                      : 'bg-[#F6F7F8] text-slate-700 ring-1 ring-slate-900/[0.06] hover:bg-white hover:text-slate-950 dark:bg-[#141F1B] dark:text-slate-200 dark:ring-emerald-400/[0.09] dark:hover:bg-white/[0.08]'
                   }`}
                 >
                   <SlidersHorizontal className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
@@ -1388,7 +1441,7 @@ export function TopFilterBar({
                     <span
                       dir="ltr"
                       style={{ color: '#FFFFFF' }}
-                      className="btn-colored inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-md bg-emerald-600 px-1.5 text-[10.5px] font-bold tabular-nums text-white"
+                      className="btn-colored inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-emerald-600 px-1.5 text-[10.5px] font-bold tabular-nums text-white"
                     >
                       {nonDefaultSliceCount}
                     </span>
@@ -1402,10 +1455,93 @@ export function TopFilterBar({
               </>
             ) : null}
 
-            {/* Control (3): Live Governance & Odoo Breach Bell (`🔔`) */}
+            {/* Quick Action Circle (1): Odoo Live Status & Instant Sync */}
+            <button
+              type="button"
+              data-utility="odoo-live-status"
+              disabled={auditorMode || syncingOdoo || syncCooldownSec > 0}
+              onClick={() => {
+                if (!auditorMode) void triggerOdooSyncNow()
+              }}
+              title={
+                isAr
+                  ? `حالة اتصال أودو المباشر${liveSummary?.kuwaitSyncedAt ? ` • ${liveSummary.kuwaitSyncedAt}` : ''}`
+                  : `Odoo Live Status${liveSummary?.kuwaitSyncedAt ? ` • ${liveSummary.kuwaitSyncedAt}` : ''}`
+              }
+              aria-label={isAr ? 'حالة اتصال أودو المباشر' : 'Odoo Live Status'}
+              className="relative inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-[#F6F7F8] text-slate-700 ring-1 ring-slate-900/[0.06] transition-all duration-150 hover:bg-white hover:text-emerald-700 disabled:cursor-default disabled:opacity-75 dark:bg-[#141F1B] dark:text-emerald-300 dark:ring-emerald-400/[0.09] dark:hover:bg-white/[0.08]"
+            >
+              <RefreshCw
+                className={`h-3.5 w-3.5 ${syncingOdoo ? 'animate-spin text-emerald-500' : ''}`}
+              />
+              <span
+                aria-hidden
+                className={`absolute end-1.5 top-1.5 h-2 w-2 rounded-full ring-2 ring-white dark:ring-[#141F1B] ${
+                  odooLiveFresh ? 'bg-emerald-500' : 'bg-amber-400'
+                }`}
+              />
+            </button>
+
+            {/* Quick Action Circle (2): Notifications & Governance Bell */}
             <GovernanceBellTrigger />
 
-            {/* Control (4): `القائمة والحساب` (`Account & Menu` — houses single Language switcher) */}
+            {/* Quick Action Circle (3): Light / Obsidian-Emerald Theme Toggle */}
+            <button
+              type="button"
+              onClick={toggleTheme}
+              title={
+                theme === 'dark'
+                  ? isAr
+                    ? 'التبديل إلى الوضع النهاري'
+                    : 'Switch to Light Mode'
+                  : isAr
+                    ? 'التبديل إلى وضع الزمرد الداكن'
+                    : 'Switch to Obsidian-Emerald Mode'
+              }
+              aria-label={isAr ? 'تبديل المظهر' : 'Toggle theme'}
+              className="inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-[#F6F7F8] text-slate-700 ring-1 ring-slate-900/[0.06] transition-all duration-150 hover:bg-white hover:text-slate-950 dark:bg-[#141F1B] dark:text-amber-300 dark:ring-emerald-400/[0.09] dark:hover:bg-white/[0.08]"
+            >
+              {theme === 'dark' ? (
+                <Sun className="h-4 w-4" />
+              ) : (
+                <Moon className="h-4 w-4" />
+              )}
+            </button>
+
+            {/* Quick Action Pill (4): 1-Click `عربي | EN` Switch */}
+            <button
+              type="button"
+              dir="ltr"
+              data-no-translate=""
+              onClick={() => setLocale(isAr ? 'en' : 'ar')}
+              title={isAr ? 'Switch to English (LTR)' : 'التبديل إلى العربية (RTL)'}
+              aria-label={isAr ? 'Switch language to English' : 'تغيير اللغة إلى العربية'}
+              className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1 rounded-full bg-[#F6F7F8] px-2.5 text-[11.5px] font-semibold ring-1 ring-slate-900/[0.06] transition-all duration-150 hover:bg-white dark:bg-[#141F1B] dark:ring-emerald-400/[0.09] dark:hover:bg-white/[0.08]"
+            >
+              <span
+                className={
+                  isAr
+                    ? 'font-bold text-emerald-700 dark:text-emerald-300'
+                    : 'text-slate-500 dark:text-[#8FA39B]'
+                }
+              >
+                عربي
+              </span>
+              <span aria-hidden className="text-slate-300 dark:text-white/20">
+                |
+              </span>
+              <span
+                className={
+                  !isAr
+                    ? 'font-bold text-emerald-700 dark:text-emerald-300'
+                    : 'text-slate-500 dark:text-[#8FA39B]'
+                }
+              >
+                EN
+              </span>
+            </button>
+
+            {/* Sleek Executive Profile Pill (`Avatar + Name + Corporate Email` -> opens Account & Menu) */}
             <div className="relative shrink-0">
               <button
                 type="button"
@@ -1416,38 +1552,48 @@ export function TopFilterBar({
                 }}
                 aria-haspopup="menu"
                 aria-expanded={accountMenuOpen}
-                className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-xl px-3.5 text-[12.5px] font-semibold transition-all duration-[160ms] focus:outline-none ${
+                aria-label={isAr ? 'القائمة والحساب' : 'Account & Menu'}
+                className={`inline-flex h-10 cursor-pointer items-center gap-2.5 rounded-full py-1 ps-1.5 pe-3 text-start transition-all duration-[160ms] focus:outline-none ${
                   accountMenuOpen || (!auditorMode && gov?.session.active)
-                    ? 'bg-emerald-50/80 text-emerald-950 ring-1 ring-emerald-500/45 dark:bg-emerald-950/50 dark:text-emerald-200 dark:ring-emerald-400/50'
+                    ? 'bg-emerald-50/90 text-emerald-950 ring-1 ring-emerald-500/45 dark:bg-emerald-950/55 dark:text-emerald-100 dark:ring-emerald-400/45'
                     : auditorMode
-                      ? 'bg-amber-50/80 text-amber-950 ring-1 ring-amber-500/30 dark:bg-amber-950/45 dark:text-amber-200 dark:ring-amber-400/30'
-                      : 'bg-neutral-100/90 text-slate-700 ring-1 ring-slate-900/[0.05] hover:bg-white hover:text-slate-950 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-emerald-500/10 dark:hover:bg-white/[0.10]'
+                      ? 'bg-amber-50/85 text-amber-950 ring-1 ring-amber-500/30 dark:bg-amber-950/45 dark:text-amber-200 dark:ring-amber-400/30'
+                      : 'bg-[#F6F7F8] text-slate-800 ring-1 ring-slate-900/[0.06] hover:bg-white dark:bg-[#141F1B] dark:text-slate-100 dark:ring-emerald-400/[0.09] dark:hover:bg-white/[0.08]'
                 }`}
               >
-                {!auditorMode && gov?.session.active ? (
-                  <Unlock className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                ) : (
-                  <ShieldCheck
-                    className={`h-3.5 w-3.5 shrink-0 ${
-                      auditorMode
-                        ? 'text-amber-600 dark:text-amber-400'
-                        : 'text-emerald-600 dark:text-emerald-400'
-                    }`}
-                  />
-                )}
-                <span className="whitespace-nowrap">
+                <span
+                  style={{ color: '#FFFFFF' }}
+                  className="btn-colored relative inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#0F764A] via-[#10935B] to-[#064E3B] text-[11px] font-bold tracking-tight text-white shadow-sm"
+                >
+                  {execAvatarInitials}
+                  {hasUnreadNotifications ? (
+                    <span
+                      aria-hidden
+                      className={`absolute -end-0.5 -top-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-white dark:ring-[#141F1B] ${
+                        hasActiveBreaches ? 'bg-rose-500' : 'bg-emerald-400'
+                      }`}
+                    />
+                  ) : null}
+                </span>
+
+                <span className="hidden xl:block min-w-0 leading-tight">
+                  <span className="block max-w-[155px] truncate text-[12px] font-semibold tracking-tight text-slate-900 dark:text-white">
+                    {isAr ? topRoleProfile.nameAr : topRoleProfile.nameEn}
+                  </span>
+                  <span
+                    dir={userEmail ? 'ltr' : undefined}
+                    className="block max-w-[165px] truncate text-[10.5px] font-medium text-slate-500 dark:text-[#8FA39B]"
+                  >
+                    {userEmail || (isAr ? topRoleProfile.titleAr : topRoleProfile.titleEn)}
+                  </span>
+                </span>
+
+                <span className="sr-only">
                   {isAr ? 'القائمة والحساب' : 'Account & Menu'}
                 </span>
-                {hasUnreadNotifications ? (
-                  <span
-                    aria-hidden
-                    className={`inline-block h-2 w-2 shrink-0 rounded-full ${
-                      hasActiveBreaches ? 'bg-rose-500' : 'bg-emerald-500'
-                    }`}
-                  />
-                ) : null}
+
                 <ChevronDown
-                  className={`h-3.5 w-3.5 opacity-70 transition-transform duration-150 ${
+                  className={`h-3.5 w-3.5 shrink-0 opacity-70 transition-transform duration-150 ${
                     accountMenuOpen ? 'rotate-180' : ''
                   }`}
                 />
