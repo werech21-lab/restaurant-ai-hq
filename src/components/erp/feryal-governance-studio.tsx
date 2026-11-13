@@ -1086,7 +1086,7 @@ export function FeryalGovernanceStudio({
             }}
             className={`${
               isExpanded ? 'lg:col-span-12' : 'lg:col-span-8 xl:col-span-9'
-            } ${STUDIO_PANEL_CLS} min-h-[calc(100vh-148px)] flex flex-col justify-between transition-shadow ${
+            } ${STUDIO_PANEL_CLS} lg:min-h-[calc(100vh-148px)] flex flex-col justify-between transition-shadow ${
               isDragActive && !isAuditor ? 'ring-2 ring-emerald-500/45' : ''
             }`}
           >
@@ -1334,8 +1334,8 @@ export function FeryalGovernanceStudio({
             {/* 3. Main Studio Body: Balanced Full-Height Onboarding (0 messages) OR Active Stream */}
             <div
               ref={chatScrollRef}
-              className={`w-full max-w-full min-w-0 flex-1 overflow-x-hidden px-3.5 py-3.5 sm:px-5 sm:py-4 ${
-                hasUserMessages ? 'max-h-[62vh] space-y-4 overflow-y-auto' : 'space-y-3.5'
+              className={`w-full max-w-full min-w-0 flex-1 overflow-x-hidden px-3 py-3 sm:px-5 sm:py-4 ${
+                hasUserMessages ? 'max-h-[62vh] space-y-3.5 overflow-y-auto' : 'space-y-2.5 sm:space-y-3.5'
               }`}
               aria-live="polite"
             >
@@ -1828,11 +1828,131 @@ export function FeryalGovernanceStudio({
                     })}
                   </div>
 
+                  {/* 2-Column Executive Pulse: Today's Branch Highlights + Recent Governance & Kitchen/Delivery SLA Alerts */}
+                  <div className="grid w-full max-w-full min-w-0 grid-cols-1 gap-2.5 lg:grid-cols-2 lg:gap-3.5">
+                    {/* Column 1: Today's Branch Highlights */}
+                    <div
+                      className={`${SUBCARD_CLS} flex min-w-0 flex-col justify-between gap-2.5 rounded-2xl p-3 sm:p-3.5 ring-1 ring-slate-900/[0.04] dark:ring-white/[0.06]`}
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-200/60 pb-2 dark:border-white/[0.06]">
+                        <div className="flex min-w-0 items-center gap-1.5">
+                          <TrendingUp className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                          <h3 className="text-[13px] font-bold tracking-tight text-neutral-950 dark:text-white">
+                            {T("Today's Branch Highlights", 'أبرز مؤشرات الفروع اليوم')}
+                          </h3>
+                        </div>
+                        <span
+                          dir="ltr"
+                          className="rounded-lg bg-emerald-50 px-2 py-0.5 text-xs font-semibold tabular-nums text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
+                        >
+                          {workspace.weightedNetPct.toFixed(1)}% {T('net pocket', 'صافي الجيب')}
+                        </span>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        {workspace.cascadingOptions.branches
+                          .filter((b) => b.id !== 'all' && (b.salesKwd ?? 0) > 0)
+                          .sort((a, b) => (b.salesKwd ?? 0) - (a.salesKwd ?? 0))
+                          .slice(0, 3)
+                          .map((br) => (
+                            <div
+                              key={`pulse-br-${br.id}`}
+                              className="flex items-center justify-between gap-2 rounded-xl bg-white px-3 py-2 text-xs ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-white/[0.06]"
+                            >
+                              <div className="flex min-w-0 items-center gap-1.5 font-semibold text-slate-800 dark:text-slate-100">
+                                <span aria-hidden>{br.healthDot ?? '🟢'}</span>
+                                <span className="truncate">{isAr ? br.ar : br.en}</span>
+                              </div>
+                              <div
+                                dir="ltr"
+                                className="flex shrink-0 items-center gap-2 font-semibold tabular-nums text-slate-700 dark:text-slate-200"
+                              >
+                                <span>{f0(br.salesKwd ?? 0)} KWD</span>
+                                <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                                  {(br.weightedNetPct ?? workspace.weightedNetPct).toFixed(1)}%
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+
+                      {!isAuditor ? (
+                        <button
+                          type="button"
+                          disabled={isCopilotThinking}
+                          onClick={() =>
+                            void handleSendQuery(
+                              T(
+                                'Compare top 3 branches vs lagging branches today and list immediate net-pocket actions.',
+                                'قارن أفضل 3 فروع مقابل الفروع الأقل أداءً اليوم واقترح خطوات فورية لرفع صافي الجيب.',
+                              ),
+                            )
+                          }
+                          className="cursor-pointer self-start rounded-lg bg-white px-2.5 py-1 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-500/20 transition-colors hover:bg-emerald-50 disabled:opacity-50 dark:bg-[#101C17] dark:text-emerald-200"
+                        >
+                          {T('Inspect Branch Pulse ▸', 'تحليل نبض الفروع ▸')}
+                        </button>
+                      ) : null}
+                    </div>
+
+                    {/* Column 2: Recent Governance & Kitchen/Delivery SLA Alerts */}
+                    <div
+                      className={`${SUBCARD_CLS} flex min-w-0 flex-col justify-between gap-2.5 rounded-2xl p-3 sm:p-3.5 ring-1 ring-slate-900/[0.04] dark:ring-white/[0.06]`}
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-200/60 pb-2 dark:border-white/[0.06]">
+                        <div className="flex min-w-0 items-center gap-1.5">
+                          <Bell className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                          <h3 className="text-[13px] font-bold tracking-tight text-neutral-950 dark:text-white">
+                            {T(
+                              'Recent Governance & Kitchen/Delivery SLA Alerts',
+                              'أحدث تنبيهات الحوكمة والمطبخ والتوصيل',
+                            )}
+                          </h3>
+                        </div>
+                        <span className="rounded-lg bg-amber-50 px-2 py-0.5 text-xs font-semibold tabular-nums text-amber-900 dark:bg-amber-950/60 dark:text-amber-200">
+                          {T(
+                            `${govSnap.activeBreaches.length} Active Watchdogs`,
+                            `${govSnap.activeBreaches.length} تنبيهات رقابية نشطة`,
+                          )}
+                        </span>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        {govSnap.activeBreaches.slice(0, 3).map((b) => (
+                          <div
+                            key={`pulse-breach-${b.id}`}
+                            className="flex items-center justify-between gap-2 rounded-xl bg-white px-3 py-2 text-xs ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-white/[0.06]"
+                          >
+                            <span className="min-w-0 flex-1 truncate font-semibold text-slate-800 dark:text-slate-100">
+                              {isAr ? b.breachHeadlineAr : b.breachHeadlineEn}
+                            </span>
+                            <span
+                              dir="ltr"
+                              className="shrink-0 rounded-md bg-rose-50 px-1.5 py-0.5 font-semibold tabular-nums text-rose-700 dark:bg-rose-950/60 dark:text-rose-300"
+                            >
+                              {f0(b.monthlyLeakKwd)} KWD
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => openDrawer('breaches')}
+                          className="cursor-pointer rounded-lg bg-white px-2.5 py-1 text-xs font-semibold text-slate-800 ring-1 ring-slate-900/10 transition-colors hover:bg-emerald-50 hover:text-emerald-900 dark:bg-[#101C17] dark:text-slate-200 dark:ring-white/10"
+                        >
+                          {T('Open Governance Bell 🔔', 'فتح جرس الحوكمة 🔔')}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Verified Executive Audit Briefings & Institutional Memory Preview (Fills desktop canvas with live Odoo 17 intelligence) */}
                   <div
-                    className={`${SUBCARD_CLS} w-full max-w-full min-w-0 space-y-3 rounded-2xl p-3.5 sm:p-4`}
+                    className={`${SUBCARD_CLS} w-full max-w-full min-w-0 space-y-2.5 rounded-2xl p-3 sm:p-4`}
                   >
-                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-100 pb-2.5 dark:border-white/[0.06]">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-100 pb-2 dark:border-white/[0.06]">
                       <div className="flex min-w-0 items-center gap-2">
                         <Brain className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
                         <h3 className="min-w-0 text-[13.5px] font-semibold tracking-tight whitespace-normal break-words text-neutral-950 dark:text-white">
@@ -1844,7 +1964,7 @@ export function FeryalGovernanceStudio({
                       </div>
 
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="rounded-lg bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold tabular-nums text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
+                        <span className="rounded-lg bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
                           {T(
                             `${memoryCountBadge} Active Memory Rules`,
                             `${memoryCountBadge} قواعد ذاكرة مؤسسية نشطة`,
@@ -1853,14 +1973,14 @@ export function FeryalGovernanceStudio({
                         <button
                           type="button"
                           onClick={() => setMemoryOpen(true)}
-                          className="cursor-pointer rounded-lg bg-[#F6F7F8] px-2.5 py-0.5 text-[11px] font-semibold text-neutral-700 transition-colors hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#09110E] dark:text-slate-200"
+                          className="cursor-pointer rounded-lg bg-[#F6F7F8] px-2.5 py-0.5 text-xs font-semibold text-neutral-700 transition-colors hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#09110E] dark:text-slate-200"
                         >
                           {T('Inspect Memory ↗', 'مراجعة الذاكرة ↗')}
                         </button>
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[#F6F7F8] px-3 py-2 text-[11.5px] font-medium tabular-nums text-neutral-600 dark:bg-[#09110E] dark:text-slate-300">
+                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[#F6F7F8] px-3 py-2 text-xs font-medium tabular-nums text-slate-600 dark:bg-[#09110E] dark:text-slate-300">
                       <span className="min-w-0 break-words whitespace-normal font-semibold text-neutral-800 dark:text-slate-100">
                         {isAr ? workspace.subtitleAr : workspace.subtitleEn}
                       </span>
@@ -1872,10 +1992,10 @@ export function FeryalGovernanceStudio({
                     </div>
 
                     <div className="grid w-full max-w-full min-w-0 grid-cols-1 gap-2.5 md:grid-cols-3">
-                      {workspace.feryalNotes.slice(0, 3).map((note) => (
+                      {workspace.feryalNotes.slice(0, 3).map((note, noteIdx) => (
                         <article
                           key={`preview-${note.id}`}
-                          className="flex min-w-0 flex-col justify-between gap-2 rounded-xl bg-[#F6F7F8] p-3 ring-1 ring-slate-900/[0.04] dark:bg-[#09110E] dark:ring-white/[0.06]"
+                          className={`${noteIdx === 2 ? 'hidden md:flex' : 'flex'} min-w-0 flex-col justify-between gap-2 rounded-xl bg-[#F6F7F8] p-3 ring-1 ring-slate-900/[0.04] dark:bg-[#09110E] dark:ring-white/[0.06]`}
                         >
                           <div className="space-y-1.5">
                             <div className="flex flex-wrap items-center justify-between gap-1.5">

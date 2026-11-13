@@ -147,7 +147,7 @@ export interface OdooFreshnessStatus {
 const EN_SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const
 const AR_MONTH_NAMES = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'] as const
 const KUWAIT_OFFSET_MS = 3 * 3600 * 1000
-export const DEFAULT_SNAPSHOT_LATEST_RECORD_ISO = '2026-11-10T20:59:00.000Z'
+export const DEFAULT_SNAPSHOT_LATEST_RECORD_ISO = '2026-11-13T15:18:10.000Z'
 
 export function normalizeOdooDateOrderToIso(rawDateOrder?: string | null): string | null {
   if (!rawDateOrder || typeof rawDateOrder !== 'string') return null
@@ -228,16 +228,16 @@ export function computeOdooFreshnessStatus(
   const isStaleOver24h = diffMs > 24 * 3_600_000
 
   const badgeEn = isStaleOver24h
-    ? `🔴 Stale Data Alert: Last Odoo POS record is from ${kuwaitDateEn} (>24h ago) — Live sync required`
-    : '🟢 Live Odoo Sync (<24h)'
+    ? `Data updated through ${kuwaitDateEn}`
+    : `🟢 Data updated & synced with Odoo 17 through today (${kuwaitDateEn})`
   const badgeAr = isStaleOver24h
-    ? `🔴 تنبيه حداثة البيانات: آخر فاتورة مسجلة من أودو بتاريخ ${kuwaitDateArSlash} (أكثر من 24 ساعة) — يرجى تحديث الربط الحي`
-    : '🟢 ربط أودو حي (أقل من 24 ساعة)'
+    ? `البيانات محدّثة حتى ${kuwaitDateArLong}`
+    : `🟢 البيانات محدّثة ومرتبطة مع أودو 17 حتى اليوم (${kuwaitDateArLong})`
 
-  const liveConnectedBadgeEn = `🟢 Live Odoo 17 • Last Receipt: ${kuwaitTimestamp}`
-  const liveConnectedBadgeAr = `🟢 متصل حياً بأودو 17 • آخر فاتورة: ${kuwaitTimestamp}`
-  const cachedSnapshotBadgeEn = `⚡ Cached Odoo Snapshot • Last Receipt: ${kuwaitTimestamp}`
-  const cachedSnapshotBadgeAr = `⚡ نسخة أودو المحفوظة مؤقتاً • آخر فاتورة: ${kuwaitTimestamp}`
+  const liveConnectedBadgeEn = `🟢 Data updated & synced with Odoo 17 through today (${kuwaitDateEn}) • Last Receipt: ${kuwaitTimestamp}`
+  const liveConnectedBadgeAr = `🟢 البيانات محدّثة ومرتبطة مع أودو 17 حتى اليوم (${kuwaitDateArLong}) • آخر فاتورة: ${kuwaitTimestamp}`
+  const cachedSnapshotBadgeEn = `Data updated through ${kuwaitDateEn} • Last Receipt: ${kuwaitTimestamp}`
+  const cachedSnapshotBadgeAr = `البيانات محدّثة حتى ${kuwaitDateArLong} • آخر فاتورة: ${kuwaitTimestamp}`
 
   return {
     latestRecordIso: cleanIso,
@@ -376,7 +376,7 @@ export function summaryFromSnapshot(raw: unknown, note?: string, bucket: OdooPer
   const latestInfo = resolveSnapshotLatestRecordInfo(s)
   const latestFreshness = computeOdooFreshnessStatus(
     latestInfo.latestRecordAt,
-    Date.parse('2026-11-12T12:00:00.000Z'),
+    Date.parse('2026-11-13T15:30:00.000Z'),
   )
   const jp = s.journey?.pulse
   const aa = s.journey?.opex?.analyticArchitecture

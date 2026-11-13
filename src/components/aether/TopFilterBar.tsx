@@ -20,7 +20,7 @@ import {
   Unlock,
   X,
 } from 'lucide-react'
-import { LanguageSwitch, useI18n, type Locale } from '@/lib/i18n'
+import { useI18n, type Locale } from '@/lib/i18n'
 import {
   resolveExecRoleProfile,
   type ExecSessionRole,
@@ -161,7 +161,7 @@ function PeriodDropdownPopover({
       dir={isAr ? 'rtl' : 'ltr'}
       className="w-[min(92vw,336px)] space-y-2 rounded-2xl bg-white p-3 text-slate-800 shadow-[0_20px_50px_rgba(15,23,42,0.16)] ring-1 ring-slate-900/[0.07] dark:bg-[#101C17] dark:text-slate-100 dark:ring-emerald-500/20"
     >
-      <div className="px-1 text-[11px] font-bold text-slate-400 dark:text-slate-400">
+      <div className="px-1 text-xs font-bold text-slate-600 dark:text-slate-300">
         {isAr ? 'اختر الفترة الزمنية ونطاق التاريخ' : 'Select Time Period & Date Window'}
       </div>
 
@@ -223,7 +223,7 @@ function PeriodDropdownPopover({
                   liveSummary?.latestOperationalDate &&
                   /^\d{4}-\d{2}-\d{2}$/.test(liveSummary.latestOperationalDate)
                     ? liveSummary.latestOperationalDate
-                    : '2026-11-10'
+                    : '2026-11-13'
                 return [
                   { label: '7d', from: shiftCalendarIso(anchorToIso, -6), to: anchorToIso },
                   { label: '14d', from: shiftCalendarIso(anchorToIso, -13), to: anchorToIso },
@@ -920,7 +920,7 @@ export function TopFilterBar({
         dir={isAr ? 'rtl' : 'ltr'}
         className="ae-mobile-appbar no-print sticky top-0 z-40 -mx-4 bg-white/90 px-3.5 shadow-[0_1px_0_rgba(15,23,42,0.06)] backdrop-blur-md sm:-mx-6 sm:px-6 lg:hidden dark:bg-[#0B1512]/90 dark:shadow-[0_1px_0_rgba(16,185,129,0.12)]"
       >
-        <div ref={mobileBarRef} className="relative flex h-14 items-center justify-between gap-1.5">
+        <div ref={mobileBarRef} className="relative flex h-14 items-center justify-between gap-2">
           {/* Start: VF Brand Badge + Single Concise Active Page Title */}
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <Link
@@ -931,19 +931,19 @@ export function TopFilterBar({
               VF
             </Link>
             <span
-              className="truncate text-[14px] font-semibold tracking-tight text-slate-900 sm:text-[15px] dark:text-white"
+              className="min-w-0 truncate text-[14px] font-semibold tracking-tight text-slate-900 sm:text-[15px] dark:text-white"
               aria-current="page"
             >
               {mobilePageTitle}
             </span>
           </div>
 
-          {/* End: 4 Controls — Period Dropdown + Filters + Bell + Account Menu */}
-          <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
+          {/* End: 4 Clean Controls — Period Dropdown + Filters + Bell + Account Menu */}
+          <div className="flex shrink-0 items-center gap-2">
             {showPosFilters ? (
               <>
                 {/* Control (1): Compact Period Dropdown */}
-                <div className="relative">
+                <div className="relative shrink-0">
                   <button
                     type="button"
                     onClick={() => {
@@ -999,7 +999,7 @@ export function TopFilterBar({
                   }}
                   aria-expanded={mobileSheetOpen}
                   aria-label={isAr ? 'فتح فلاتر التحليل' : 'Open Filters'}
-                  className={`inline-flex h-8 cursor-pointer items-center gap-1 rounded-xl px-2 text-[11.5px] font-semibold transition-all duration-[160ms] active:scale-95 sm:px-2.5 ${
+                  className={`inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 rounded-xl px-2 text-xs font-semibold transition-all duration-[160ms] active:scale-95 sm:px-2.5 ${
                     mobileActiveFilterCount > 0
                       ? 'bg-emerald-50 text-emerald-900 ring-1 ring-emerald-500/35 dark:bg-emerald-500/15 dark:text-emerald-200 dark:ring-emerald-400/35'
                       : 'bg-neutral-100/90 text-slate-700 ring-1 ring-slate-900/[0.05] dark:bg-white/[0.06] dark:text-slate-200 dark:ring-emerald-500/15'
@@ -1025,11 +1025,8 @@ export function TopFilterBar({
             {/* Control (3): Bell (`GovernanceBellTrigger`) */}
             <GovernanceBellTrigger />
 
-            {/* Control (4): 1-Click `عربي | EN` Language Pill (Always visible on mobile header) */}
-            <LanguageSwitch compact />
-
-            {/* Control (5): Account Menu (`القائمة والحساب`) */}
-            <div className="relative">
+            {/* Control (4): Account Menu (`القائمة والحساب` — houses single Language switcher) */}
+            <div className="relative shrink-0">
               <button
                 type="button"
                 onClick={() => {
@@ -1408,11 +1405,8 @@ export function TopFilterBar({
             {/* Control (3): Live Governance & Odoo Breach Bell (`🔔`) */}
             <GovernanceBellTrigger />
 
-            {/* Control (4): 1-Click `عربي | EN` Language Pill directly next to Account Menu */}
-            <LanguageSwitch />
-
-            {/* Control (5): `القائمة والحساب` (`Account & Menu`) */}
-            <div className="relative">
+            {/* Control (4): `القائمة والحساب` (`Account & Menu` — houses single Language switcher) */}
+            <div className="relative shrink-0">
               <button
                 type="button"
                 onClick={() => {

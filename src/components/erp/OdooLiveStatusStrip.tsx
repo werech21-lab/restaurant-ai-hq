@@ -21,7 +21,7 @@ const SNAPSHOT_LATEST_RECORD_ISO =
   DEFAULT_SNAPSHOT_LATEST_RECORD_ISO
 
 /** Deterministic SSR reference clock so initial HTML never flickers on hydration. */
-const DETERMINISTIC_SSR_REF_NOW_MS = Date.parse('2026-11-12T12:00:00.000Z')
+const DETERMINISTIC_SSR_REF_NOW_MS = Date.parse('2026-11-13T15:30:00.000Z')
 
 export function OdooLiveStatusStrip({
   isAuditor = false,
@@ -69,8 +69,6 @@ export function OdooLiveStatusStrip({
     !freshness.isStaleOver24h &&
     !isCachedFallback
   const isHealthyUnder24h = !freshness.isStaleOver24h && !isCachedFallback
-  const missingServerEnv =
-    liveSummary !== null && liveSummary.envConfigured === false && !liveSummary.connected
 
   const todayOrders = liveSummary?.todayOrders ?? liveSummary?.todayOrdersCount ?? 0
   const todaySalesKwd = liveSummary?.todaySalesKwd ?? 0
@@ -87,7 +85,7 @@ export function OdooLiveStatusStrip({
       ? 'bg-emerald-50/85 text-emerald-950 ring-emerald-500/25 dark:bg-emerald-950/35 dark:text-emerald-100 dark:ring-emerald-500/30'
       : stripTone === 'cached'
         ? 'bg-amber-50/90 text-amber-950 ring-amber-500/30 dark:bg-amber-950/40 dark:text-amber-100 dark:ring-amber-500/30'
-        : 'bg-rose-50/90 text-rose-950 ring-rose-500/25 dark:bg-rose-950/40 dark:text-rose-100 dark:ring-rose-500/30'
+        : 'bg-slate-100/90 text-slate-800 ring-slate-900/10 dark:bg-[#101C17] dark:text-slate-200 dark:ring-white/10'
 
   const statusText =
     stripTone === 'cached'
@@ -117,7 +115,7 @@ export function OdooLiveStatusStrip({
 
         {(isLiveConnectedAndFresh || isCachedFallback) && todayOrders > 0 ? (
           <span
-            className={`inline-flex shrink-0 items-center rounded-lg bg-white/85 px-2 py-0.5 text-[11px] font-bold ring-1 dark:bg-[#101C17] ${
+            className={`inline-flex shrink-0 items-center rounded-lg bg-white/85 px-2.5 py-0.5 text-xs font-bold ring-1 dark:bg-[#101C17] ${
               isCachedFallback
                 ? 'text-amber-900 ring-amber-500/25 dark:text-amber-200'
                 : 'text-emerald-900 ring-emerald-500/20 dark:text-emerald-200'
@@ -126,14 +124,6 @@ export function OdooLiveStatusStrip({
             {isAr
               ? `اليوم: ${todayOrders.toLocaleString('en-US')} طلب • ${Math.round(todaySalesKwd).toLocaleString('en-US')} د.ك`
               : `Today: ${todayOrders.toLocaleString('en-US')} orders • ${Math.round(todaySalesKwd).toLocaleString('en-US')} KWD`}
-          </span>
-        ) : null}
-
-        {missingServerEnv ? (
-          <span className="text-[11px] font-medium text-rose-800/90 dark:text-rose-200/90">
-            {isAr
-              ? '• لتفعيل الربط الحي تلقائياً أضف مفاتيح أودو في إعدادات البيئة على Vercel'
-              : '• Add ODOO_URL, ODOO_DB, ODOO_USERNAME & ODOO_API_KEY in Vercel env vars for live sync'}
           </span>
         ) : null}
       </div>

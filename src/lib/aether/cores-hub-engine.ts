@@ -19,6 +19,7 @@ import {
   APPROVED_CHANNEL_IDS,
   computeGlobalWorkspace,
   computeWeightedCellMargin,
+  formatPeriodCalendarWindow,
   getBranchLabel,
   getBrandLabel,
   getChannelLabel,
@@ -593,7 +594,25 @@ export function computeCoresHubSnapshot(
 ): CoresHubSnapshot {
   const ws = computeGlobalWorkspace(filters, liveSummary)
   const approvedSet = new Set<string>(APPROVED_BRAND_IDS)
-  const fullDays = (ODOO.timeProfile?.daily ?? []).filter((d) => d.orders >= 150)
+  const canonicalPeriodWin = formatPeriodCalendarWindow(filters.period ?? 'month', {
+    customFrom: filters.customFrom,
+    customTo: filters.customTo,
+    liveSummary,
+  })
+  const mergedDailyMap = new Map<string, { day: string; orders: number; netKwd: number }>()
+  for (const d of ODOO.timeProfile?.daily ?? []) {
+    if (d.orders > 0 && d.netKwd > 0) {
+      mergedDailyMap.set(d.day, d)
+    }
+  }
+  for (const d of liveSummary?.dailySeries ?? []) {
+    if (d.orders > 0 && d.netKwd > 0) {
+      mergedDailyMap.set(d.day, d)
+    }
+  }
+  const fullDays = [...mergedDailyMap.values()]
+    .filter((d) => d.day <= canonicalPeriodWin.toInclusiveIso)
+    .sort((a, b) => a.day.localeCompare(b.day))
 
   // =========================================================================
   // 1. MENU & PRODUCTS CORE (computed first so Marketing can spotlight gems!)
@@ -893,7 +912,10 @@ export function computeCoresHubSnapshot(
   if (filters.period === 'today') {
     timeline = hourly.filter((_, i) => i % 2 === 0 || hourly[i].salesKwd === peakHour?.salesKwd)
   } else if (filters.period === 'week') {
-    const last7 = fullDays.slice(-7)
+    const inWeek = fullDays.filter(
+      (d) => d.day >= canonicalPeriodWin.fromIso && d.day <= canonicalPeriodWin.toInclusiveIso,
+    )
+    const last7 = inWeek.length > 0 ? inWeek.slice(-7) : fullDays.slice(-7)
     const dayAr = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']
     const dayEn = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
     timeline = reconcileSalesRows(

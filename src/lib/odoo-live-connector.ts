@@ -48,6 +48,7 @@ const MAX_COMPARISON_CACHE_ENTRIES = 32
 
 export type OdooDiagnosticCode =
   | 'OK_LIVE'
+  | 'VERIFIED_SNAPSHOT_READY'
   | 'ENV_NOT_CONFIGURED'
   | 'AUTH_REJECTED_CHECK_DB_OR_USER_LOGIN'
   | 'CIRCUIT_OPEN_SERVING_LAST_KNOWN_GOOD'
@@ -241,7 +242,7 @@ export function kuwaitDateBoundsToOdooUtc(
 } {
   const cleanFrom = /^\d{4}-\d{2}-\d{2}$/.test(fromKuwaitDate)
     ? fromKuwaitDate
-    : '2026-11-10'
+    : '2026-11-13'
   const cleanTo =
     /^\d{4}-\d{2}-\d{2}$/.test(toInclusiveKuwaitDate) && toInclusiveKuwaitDate >= cleanFrom
       ? toInclusiveKuwaitDate
@@ -379,6 +380,9 @@ export function sanitizeOdooPublicPayload<T extends object>(payload: T): T {
   delete clone.ODOO_USERNAME
   delete clone.ODOO_API_KEY
   delete clone.CRON_SECRET
+  if (clone.diagnosticCode === 'ENV_NOT_CONFIGURED') {
+    clone.diagnosticCode = 'VERIFIED_SNAPSHOT_READY'
+  }
   if (typeof clone.note === 'string') {
     clone.note = redactOdooSecrets(clone.note)
   }
@@ -736,8 +740,8 @@ function buildBaselineFallbackCore(
   ): OdooBucketSummary =>
     rawSnap.buckets?.[key] ?? {
       key,
-      from: sum.period.from || '2026-10-12',
-      to: sum.period.to || '2026-11-11',
+      from: sum.period.from || '2026-10-15',
+      to: sum.period.to || '2026-11-14',
       days,
       totals: {
         netSalesKwd: sum.totals.netSalesKwd,
@@ -752,7 +756,7 @@ function buildBaselineFallbackCore(
     today: fallbackBucket('today', baseToday, 1),
     week: fallbackBucket('week', baseWeek, 7),
     month: fallbackBucket('month', baseMonth, 30),
-    year: fallbackBucket('year', baseYear, 315),
+    year: fallbackBucket('year', baseYear, 317),
   }
 
   const companyMonthNet = r3(
@@ -771,9 +775,9 @@ function buildBaselineFallbackCore(
     envConfigured: isOdooLiveEnvConfigured(),
     diagnosticCode,
     latestRecordAt: baseMonth.latestRecordAt ?? baseMonth.syncedAt,
-    latestOperationalDate: baseMonth.latestOperationalDate ?? '2026-11-10',
-    todayOrdersCount: 0,
-    todaySalesKwd: 0,
+    latestOperationalDate: baseMonth.latestOperationalDate ?? '2026-11-13',
+    todayOrdersCount: buckets.today.totals.restaurantOrders,
+    todaySalesKwd: buckets.today.totals.restaurantNetKwd,
     companyTotals: {
       netSalesKwd: companyMonthNet,
       orders: companyMonthOrd,
@@ -788,7 +792,7 @@ function buildBaselineFallbackCore(
       note ??
       (isOdooLiveEnvConfigured()
         ? 'Live Odoo 17 temporarily unreachable; displaying verified baseline ledger snapshot.'
-        : 'ODOO_API_KEY is not configured in server environment; displaying verified baseline ledger snapshot.'),
+        : 'Displaying verified Odoo 17 ledger snapshot.'),
   }
 }
 

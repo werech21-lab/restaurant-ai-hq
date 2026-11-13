@@ -1,11 +1,11 @@
 {
-  "source": "https://venturefoods.walnutss.com",
-  "database": "venturefoods",
+  "source": "odoo17-verified",
+  "database": "odoo17",
   "serverVersion": "16.0+e",
-  "syncedAt": "2026-11-11T06:15:27.180Z",
+  "syncedAt": "2026-11-13T15:18:10.000Z",
   "period": {
-    "from": "2026-10-12",
-    "to": "2026-11-11"
+    "from": "2026-10-15",
+    "to": "2026-11-14"
   },
   "scope": {
     "allowedPosConfigIds": [
@@ -58,87 +58,77 @@
   "buckets": {
     "today": {
       "key": "today",
-      "from": "2026-11-10",
-      "to": "2026-11-11",
+      "from": "2026-11-13",
+      "to": "2026-11-14",
       "days": 1,
-      "isLatestOperationalDay": true,
+      "isLatestOperationalDay": false,
       "totals": {
-        "netSalesKwd": 3455.216,
-        "orders": 676,
-        "aovKwd": 5.111,
-        "restaurantNetKwd": 3455.216,
-        "restaurantOrders": 676
+        "netSalesKwd": 3303.057,
+        "orders": 542,
+        "aovKwd": 6.197,
+        "restaurantNetKwd": 2671.027,
+        "restaurantOrders": 431
       },
       "byBrand": {
         "china-garden": {
-          "netKwd": 3079.35,
-          "itemSalesKwd": 3172.99,
-          "orders": 576,
-          "qty": 1288
+          "netKwd": 2552.868,
+          "orders": 412,
+          "qty": 1066
         },
         "franks": {
-          "netKwd": 203.308,
-          "itemSalesKwd": 209.49,
-          "orders": 30,
-          "qty": 76
+          "netKwd": 68.73,
+          "orders": 11,
+          "qty": 25
         },
         "tahina": {
-          "netKwd": 18.051,
-          "itemSalesKwd": 18.6,
-          "orders": 11,
-          "qty": 16
+          "netKwd": 17.195,
+          "orders": 3,
+          "qty": 11
         },
         "farm-brown": {
-          "netKwd": 83.729,
-          "itemSalesKwd": 86.275,
-          "orders": 39,
-          "qty": 67
+          "netKwd": 19.056,
+          "orders": 3,
+          "qty": 9
         },
         "noodle-bar": {
-          "netKwd": 54.978,
-          "itemSalesKwd": 56.65,
-          "orders": 9,
-          "qty": 19
+          "netKwd": 3.576,
+          "orders": 1,
+          "qty": 1
         },
         "karak-cafeteria": {
-          "netKwd": 15.8,
-          "itemSalesKwd": 16.28,
-          "orders": 3,
-          "qty": 17
+          "netKwd": 9.602,
+          "orders": 2,
+          "qty": 9
         }
       },
       "byLocation": {
-        "promenade": {
-          "netKwd": 678.801,
-          "orders": 147,
-          "hallShopKwd": 194.233,
-          "hallShopOrders": 79,
-          "directTakeawayKwd": 0,
-          "directTakeawayOrders": 0,
+        "avenues": {
+          "netKwd": 437.25,
+          "orders": 93,
           "uiChannels": {
             "dine-in": {
-              "netKwd": 194.233,
-              "orders": 79
+              "netKwd": 437.25,
+              "orders": 93
             },
             "takeaway-direct": {
               "netKwd": 0,
               "orders": 0
             },
             "talabat-tgo": {
-              "netKwd": 257.567,
-              "orders": 36
+              "netKwd": 0,
+              "orders": 0
             },
             "talabat-tmp": {
               "netKwd": 0,
               "orders": 0
             },
             "keeta": {
-              "netKwd": 188.201,
-              "orders": 35
+              "netKwd": 0,
+              "orders": 0
             },
             "deliveroo": {
-              "netKwd": 38.8,
-              "orders": 6
+              "netKwd": 0,
+              "orders": 0
             },
             "jahez": {
               "netKwd": 0,
@@ -151,120 +141,108 @@
           }
         },
         "360-mall": {
-          "netKwd": 639.006,
-          "orders": 122,
-          "hallShopKwd": 250.907,
-          "hallShopOrders": 79,
-          "directTakeawayKwd": 1.9,
-          "directTakeawayOrders": 1,
+          "netKwd": 424.675,
+          "orders": 73,
           "uiChannels": {
             "dine-in": {
-              "netKwd": 250.907,
-              "orders": 79
+              "netKwd": 180.425,
+              "orders": 31
             },
             "takeaway-direct": {
-              "netKwd": 1.9,
-              "orders": 1
+              "netKwd": 0,
+              "orders": 0
             },
             "talabat-tgo": {
-              "netKwd": 291.148,
-              "orders": 42
-            },
-            "talabat-tmp": {
-              "netKwd": 0,
-              "orders": 0
-            },
-            "keeta": {
-              "netKwd": 71.001,
-              "orders": 10
-            },
-            "deliveroo": {
-              "netKwd": 24.05,
-              "orders": 4
-            },
-            "jahez": {
-              "netKwd": 0,
-              "orders": 0
-            },
-            "snoonu": {
-              "netKwd": 0,
-              "orders": 0
-            }
-          }
-        },
-        "ardiya": {
-          "netKwd": 560.505,
-          "orders": 91,
-          "hallShopKwd": 0,
-          "hallShopOrders": 0,
-          "directTakeawayKwd": 22.4,
-          "directTakeawayOrders": 3,
-          "uiChannels": {
-            "dine-in": {
-              "netKwd": 0,
-              "orders": 0
-            },
-            "takeaway-direct": {
-              "netKwd": 22.4,
-              "orders": 3
-            },
-            "talabat-tgo": {
-              "netKwd": 149.3,
+              "netKwd": 144.75,
               "orders": 25
             },
             "talabat-tmp": {
-              "netKwd": 147.1,
-              "orders": 17
+              "netKwd": 0,
+              "orders": 0
             },
             "keeta": {
-              "netKwd": 230.8,
-              "orders": 43
+              "netKwd": 88.15,
+              "orders": 15
             },
             "deliveroo": {
-              "netKwd": 7.15,
-              "orders": 1
+              "netKwd": 11.35,
+              "orders": 2
             },
             "jahez": {
               "netKwd": 0,
               "orders": 0
             },
             "snoonu": {
-              "netKwd": 3.755,
-              "orders": 2
+              "netKwd": 0,
+              "orders": 0
             }
           }
         },
         "assima": {
-          "netKwd": 350.399,
-          "orders": 87,
-          "hallShopKwd": 203.497,
-          "hallShopOrders": 61,
-          "directTakeawayKwd": 0,
-          "directTakeawayOrders": 0,
+          "netKwd": 379.927,
+          "orders": 59,
           "uiChannels": {
             "dine-in": {
-              "netKwd": 203.497,
-              "orders": 61
+              "netKwd": 300.627,
+              "orders": 47
             },
             "takeaway-direct": {
               "netKwd": 0,
               "orders": 0
             },
             "talabat-tgo": {
-              "netKwd": 93.351,
-              "orders": 16
+              "netKwd": 61.5,
+              "orders": 10
             },
             "talabat-tmp": {
               "netKwd": 0,
               "orders": 0
             },
             "keeta": {
-              "netKwd": 53.551,
-              "orders": 10
+              "netKwd": 7.5,
+              "orders": 1
             },
             "deliveroo": {
+              "netKwd": 10.3,
+              "orders": 2
+            },
+            "jahez": {
               "netKwd": 0,
               "orders": 0
+            },
+            "snoonu": {
+              "netKwd": 0,
+              "orders": 0
+            }
+          }
+        },
+        "promenade": {
+          "netKwd": 372.35,
+          "orders": 58,
+          "uiChannels": {
+            "dine-in": {
+              "netKwd": 98.55,
+              "orders": 15
+            },
+            "takeaway-direct": {
+              "netKwd": 22.5,
+              "orders": 4
+            },
+            "talabat-tgo": {
+              "netKwd": 138.75,
+              "orders": 22
+            },
+            "talabat-tmp": {
+              "netKwd": 28.6,
+              "orders": 4
+            },
+            "keeta": {
+              "netKwd": 77.75,
+              "orders": 12
+            },
+            "deliveroo": {
+              "netKwd": 6.2,
+              "orders": 1
             },
             "jahez": {
               "netKwd": 0,
@@ -277,82 +255,74 @@
           }
         },
         "salmiya": {
-          "netKwd": 507.105,
-          "orders": 78,
-          "hallShopKwd": 16.5,
-          "hallShopOrders": 4,
-          "directTakeawayKwd": 0,
-          "directTakeawayOrders": 0,
+          "netKwd": 411.5,
+          "orders": 45,
           "uiChannels": {
             "dine-in": {
-              "netKwd": 16.5,
-              "orders": 4
+              "netKwd": 0,
+              "orders": 0
             },
             "takeaway-direct": {
               "netKwd": 0,
               "orders": 0
             },
             "talabat-tgo": {
-              "netKwd": 336.24,
-              "orders": 47
+              "netKwd": 220.55,
+              "orders": 24
             },
             "talabat-tmp": {
-              "netKwd": 0,
-              "orders": 0
+              "netKwd": 22.5,
+              "orders": 2
             },
             "keeta": {
-              "netKwd": 126.95,
-              "orders": 23
+              "netKwd": 161.4,
+              "orders": 18
             },
             "deliveroo": {
-              "netKwd": 10.7,
-              "orders": 2
+              "netKwd": 5.45,
+              "orders": 1
             },
             "jahez": {
               "netKwd": 0,
               "orders": 0
             },
             "snoonu": {
-              "netKwd": 16.715,
-              "orders": 2
+              "netKwd": 1.6,
+              "orders": 1
             }
           }
         },
         "al-kout": {
-          "netKwd": 458.414,
-          "orders": 83,
-          "hallShopKwd": 191.297,
-          "hallShopOrders": 41,
-          "directTakeawayKwd": 0,
-          "directTakeawayOrders": 0,
+          "netKwd": 363.925,
+          "orders": 65,
           "uiChannels": {
             "dine-in": {
-              "netKwd": 191.297,
-              "orders": 41
+              "netKwd": 258.025,
+              "orders": 46
             },
             "takeaway-direct": {
               "netKwd": 0,
               "orders": 0
             },
             "talabat-tgo": {
-              "netKwd": 153.316,
-              "orders": 23
+              "netKwd": 78.1,
+              "orders": 14
             },
             "talabat-tmp": {
               "netKwd": 0,
               "orders": 0
             },
             "keeta": {
-              "netKwd": 99.851,
-              "orders": 17
+              "netKwd": 27.8,
+              "orders": 5
             },
             "deliveroo": {
               "netKwd": 0,
               "orders": 0
             },
             "jahez": {
-              "netKwd": 13.95,
-              "orders": 2
+              "netKwd": 0,
+              "orders": 0
             },
             "snoonu": {
               "netKwd": 0,
@@ -360,37 +330,33 @@
             }
           }
         },
-        "avenues": {
-          "netKwd": 260.986,
-          "orders": 68,
-          "hallShopKwd": 260.986,
-          "hallShopOrders": 68,
-          "directTakeawayKwd": 0,
-          "directTakeawayOrders": 0,
+        "ardiya": {
+          "netKwd": 281.4,
+          "orders": 38,
           "uiChannels": {
             "dine-in": {
-              "netKwd": 260.986,
-              "orders": 68
+              "netKwd": 0,
+              "orders": 0
             },
             "takeaway-direct": {
-              "netKwd": 0,
-              "orders": 0
+              "netKwd": 46.25,
+              "orders": 6
             },
             "talabat-tgo": {
-              "netKwd": 0,
-              "orders": 0
+              "netKwd": 106.65,
+              "orders": 14
             },
             "talabat-tmp": {
-              "netKwd": 0,
-              "orders": 0
+              "netKwd": 22.8,
+              "orders": 3
             },
             "keeta": {
-              "netKwd": 0,
-              "orders": 0
+              "netKwd": 90.05,
+              "orders": 12
             },
             "deliveroo": {
-              "netKwd": 0,
-              "orders": 0
+              "netKwd": 15.65,
+              "orders": 2
             },
             "jahez": {
               "netKwd": 0,
@@ -443,36 +409,36 @@
       },
       "uiChannels": {
         "dine-in": {
-          "netKwd": 1117.42,
-          "orders": 332
+          "netKwd": 1274.877,
+          "orders": 232
         },
         "takeaway-direct": {
-          "netKwd": 24.3,
-          "orders": 4
+          "netKwd": 68.75,
+          "orders": 10
         },
         "talabat-tgo": {
-          "netKwd": 1280.922,
-          "orders": 189
+          "netKwd": 750.3,
+          "orders": 109
         },
         "talabat-tmp": {
-          "netKwd": 147.1,
-          "orders": 17
+          "netKwd": 73.9,
+          "orders": 9
         },
         "keeta": {
-          "netKwd": 770.354,
-          "orders": 138
+          "netKwd": 452.65,
+          "orders": 63
         },
         "deliveroo": {
-          "netKwd": 80.7,
-          "orders": 13
+          "netKwd": 48.95,
+          "orders": 8
         },
         "jahez": {
-          "netKwd": 13.95,
-          "orders": 2
+          "netKwd": 0,
+          "orders": 0
         },
         "snoonu": {
-          "netKwd": 20.47,
-          "orders": 4
+          "netKwd": 1.6,
+          "orders": 1
         }
       },
       "accounting": {
@@ -486,8 +452,8 @@
     },
     "week": {
       "key": "week",
-      "from": "2026-11-04",
-      "to": "2026-11-11",
+      "from": "2026-11-07",
+      "to": "2026-11-14",
       "days": 7,
       "isLatestOperationalDay": false,
       "totals": {
@@ -918,8 +884,8 @@
     },
     "month": {
       "key": "month",
-      "from": "2026-10-12",
-      "to": "2026-11-11",
+      "from": "2026-10-15",
+      "to": "2026-11-14",
       "days": 30,
       "isLatestOperationalDay": false,
       "totals": {
@@ -1351,8 +1317,8 @@
     "year": {
       "key": "year",
       "from": "2026-01-01",
-      "to": "2026-11-12",
-      "days": 315,
+      "to": "2026-11-14",
+      "days": 317,
       "isLatestOperationalDay": false,
       "totals": {
         "netSalesKwd": 1410559.48,
@@ -3635,21 +3601,6 @@
   "timeProfile": {
     "daily": [
       {
-        "day": "2026-10-12",
-        "orders": 614,
-        "netKwd": 3418.554
-      },
-      {
-        "day": "2026-10-13",
-        "orders": 616,
-        "netKwd": 3055.37
-      },
-      {
-        "day": "2026-10-14",
-        "orders": 680,
-        "netKwd": 3470.901
-      },
-      {
         "day": "2026-10-15",
         "orders": 1033,
         "netKwd": 5567.343
@@ -3676,8 +3627,8 @@
       },
       {
         "day": "2026-10-20",
-        "orders": 822,
-        "netKwd": 3903.201
+        "orders": 713,
+        "netKwd": 3669.051
       },
       {
         "day": "2026-10-21",
@@ -3691,88 +3642,88 @@
       },
       {
         "day": "2026-10-23",
-        "orders": 1309,
-        "netKwd": 7196.527
+        "orders": 1176,
+        "netKwd": 6875.777
       },
       {
         "day": "2026-10-24",
-        "orders": 1097,
-        "netKwd": 5449.271
+        "orders": 903,
+        "netKwd": 5015.371
       },
       {
         "day": "2026-10-25",
-        "orders": 721,
-        "netKwd": 3628.836
+        "orders": 648,
+        "netKwd": 3482.886
       },
       {
         "day": "2026-10-26",
-        "orders": 839,
-        "netKwd": 3883.707
+        "orders": 724,
+        "netKwd": 3626.757
       },
       {
         "day": "2026-10-27",
-        "orders": 842,
-        "netKwd": 3868.518
+        "orders": 711,
+        "netKwd": 3582.368
       },
       {
         "day": "2026-10-28",
-        "orders": 969,
-        "netKwd": 4575.208
+        "orders": 780,
+        "netKwd": 4105.658
       },
       {
         "day": "2026-10-29",
-        "orders": 1318,
-        "netKwd": 6222.823
+        "orders": 1064,
+        "netKwd": 5621.023
       },
       {
         "day": "2026-10-30",
-        "orders": 1389,
-        "netKwd": 7491.459
+        "orders": 1200,
+        "netKwd": 6877.459
       },
       {
         "day": "2026-10-31",
-        "orders": 1000,
-        "netKwd": 5126.122
+        "orders": 888,
+        "netKwd": 4892.422
       },
       {
         "day": "2026-11-01",
-        "orders": 598,
-        "netKwd": 2915.519
+        "orders": 596,
+        "netKwd": 2909.519
       },
       {
         "day": "2026-11-02",
-        "orders": 674,
-        "netKwd": 3456.006
+        "orders": 668,
+        "netKwd": 3428.456
       },
       {
         "day": "2026-11-03",
-        "orders": 631,
-        "netKwd": 3392.903
+        "orders": 620,
+        "netKwd": 3340.853
       },
       {
         "day": "2026-11-04",
-        "orders": 695,
-        "netKwd": 4018.289
+        "orders": 678,
+        "netKwd": 3942.039
       },
       {
         "day": "2026-11-05",
-        "orders": 982,
-        "netKwd": 4900.231
+        "orders": 881,
+        "netKwd": 4602.981
       },
       {
         "day": "2026-11-06",
-        "orders": 1217,
-        "netKwd": 6388.881
+        "orders": 1119,
+        "netKwd": 6032.531
       },
       {
         "day": "2026-11-07",
-        "orders": 811,
-        "netKwd": 4777.611
+        "orders": 804,
+        "netKwd": 4759.911
       },
       {
         "day": "2026-11-08",
-        "orders": 580,
-        "netKwd": 2943.061
+        "orders": 573,
+        "netKwd": 2925.911
       },
       {
         "day": "2026-11-09",
@@ -3781,30 +3732,40 @@
       },
       {
         "day": "2026-11-10",
-        "orders": 674,
-        "netKwd": 3390.246
+        "orders": 661,
+        "netKwd": 3351.446
       },
       {
         "day": "2026-11-11",
-        "orders": 41,
-        "netKwd": 239.645
+        "orders": 696,
+        "netKwd": 3629.534
+      },
+      {
+        "day": "2026-11-12",
+        "orders": 946,
+        "netKwd": 4911.383
+      },
+      {
+        "day": "2026-11-13",
+        "orders": 431,
+        "netKwd": 2671.027
       }
     ],
     "hourly": [
       {
         "hour": 0,
-        "orders": 563,
-        "netKwd": 3195.75
+        "orders": 572,
+        "netKwd": 3244.25
       },
       {
         "hour": 1,
-        "orders": 549,
-        "netKwd": 2752.294
+        "orders": 457,
+        "netKwd": 2563.049
       },
       {
         "hour": 2,
-        "orders": 82,
-        "netKwd": 192.2
+        "orders": 5,
+        "netKwd": 18.05
       },
       {
         "hour": 3,
@@ -3813,103 +3774,103 @@
       },
       {
         "hour": 4,
-        "orders": 129,
-        "netKwd": 310.85
+        "orders": 0,
+        "netKwd": 0
       },
       {
         "hour": 5,
-        "orders": 37,
-        "netKwd": 81.35
+        "orders": 0,
+        "netKwd": 0
       },
       {
         "hour": 6,
-        "orders": 133,
-        "netKwd": 346.3
+        "orders": 0,
+        "netKwd": 0
       },
       {
         "hour": 7,
-        "orders": 11,
-        "netKwd": 37.376
+        "orders": 5,
+        "netKwd": 22.976
       },
       {
         "hour": 8,
-        "orders": 9,
-        "netKwd": 46.238
+        "orders": 8,
+        "netKwd": 44.838
       },
       {
         "hour": 9,
-        "orders": 13,
-        "netKwd": 12
+        "orders": 4,
+        "netKwd": 11.6
       },
       {
         "hour": 10,
-        "orders": 38,
-        "netKwd": 89.95
+        "orders": 12,
+        "netKwd": 42.15
       },
       {
         "hour": 11,
-        "orders": 692,
-        "netKwd": 3315.066
+        "orders": 595,
+        "netKwd": 3146.382
       },
       {
         "hour": 12,
-        "orders": 1199,
-        "netKwd": 6239.03
+        "orders": 1158,
+        "netKwd": 6408.136
       },
       {
         "hour": 13,
-        "orders": 1867,
-        "netKwd": 9456.97
+        "orders": 1697,
+        "netKwd": 9420.558
       },
       {
         "hour": 14,
-        "orders": 2294,
-        "netKwd": 10722.122
+        "orders": 2197,
+        "netKwd": 10749.446
       },
       {
         "hour": 15,
-        "orders": 2303,
-        "netKwd": 10674.642
+        "orders": 2171,
+        "netKwd": 10524.062
       },
       {
         "hour": 16,
-        "orders": 1850,
-        "netKwd": 8358.757
+        "orders": 1840,
+        "netKwd": 8518.885
       },
       {
         "hour": 17,
-        "orders": 1702,
-        "netKwd": 8106.245
+        "orders": 1683,
+        "netKwd": 8172.077
       },
       {
         "hour": 18,
-        "orders": 2072,
-        "netKwd": 10721.915
+        "orders": 1937,
+        "netKwd": 10232.829
       },
       {
         "hour": 19,
-        "orders": 2606,
-        "netKwd": 14756.201
+        "orders": 2433,
+        "netKwd": 14272.446
       },
       {
         "hour": 20,
-        "orders": 2625,
-        "netKwd": 15452.011
+        "orders": 2494,
+        "netKwd": 14629.972
       },
       {
         "hour": 21,
-        "orders": 2465,
-        "netKwd": 13872.774
+        "orders": 2364,
+        "netKwd": 13431.812
       },
       {
         "hour": 22,
-        "orders": 1679,
-        "netKwd": 9600.246
+        "orders": 1661,
+        "netKwd": 9574.625
       },
       {
         "hour": 23,
-        "orders": 900,
-        "netKwd": 5357.406
+        "orders": 886,
+        "netKwd": 5211.024
       }
     ],
     "weekHour": [
@@ -9171,8 +9132,8 @@
     },
     "pulse": {
       "rolling30": {
-        "from": "2026-10-12",
-        "to": "2026-11-11",
+        "from": "2026-10-15",
+        "to": "2026-11-14",
         "days": 30,
         "netKwd": 129211.693,
         "orders": 24057,
@@ -9225,8 +9186,8 @@
         }
       },
       "prior30": {
-        "from": "2026-09-12",
-        "to": "2026-10-12",
+        "from": "2026-09-15",
+        "to": "2026-10-15",
         "days": 30,
         "netKwd": 120703.61,
         "orders": 21436,
@@ -9275,12 +9236,12 @@
       },
       "mtd": {
         "from": "2026-11-01",
-        "to": "2026-11-12",
-        "days": 11,
-        "netKwd": 38622.524,
-        "orders": 7204,
-        "aovKwd": 5.361,
-        "perDayKwd": 3511.139,
+        "to": "2026-11-14",
+        "days": 13,
+        "netKwd": 49853.688,
+        "orders": 9282,
+        "aovKwd": 5.371,
+        "perDayKwd": 3834.899,
         "allUnitsNetKwd": 39511.624,
         "allUnitsOrders": 7466,
         "cancelledOrders": 35,
@@ -20372,5 +20333,6 @@
         "18327": 3
       }
     }
-  }
+  },
+  "latestRecordAt": "2026-11-13T15:18:10.000Z"
 }

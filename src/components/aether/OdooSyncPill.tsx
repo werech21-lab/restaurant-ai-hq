@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
 import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
+import { formatPeriodCalendarWindow } from '@/lib/aether/global-filter-engine'
 import { JOURNEY_META } from '@/lib/full-journey-enterprise-brain'
 
 type SyncState = { status: 'idle' | 'syncing' | 'done' | 'error' | 'unauthorized'; summary?: OdooLiveSummary; message?: string }
@@ -77,10 +78,12 @@ export function OdooSyncPill({ isAr }: { isAr: boolean }) {
   }, [sync])
 
   const s = state.summary
-  const r30From = s?.period?.from ?? JOURNEY_META.rolling.from
-  const r30To = s?.period?.to ?? JOURNEY_META.rolling.to
-  const mtdLabelAr = `نوفمبر 2026 (${JOURNEY_META.mtd.days} أيام)`
-  const mtdLabelEn = `Nov 2026 MTD (${JOURNEY_META.mtd.days}d)`
+  const canonicalMonthWin = formatPeriodCalendarWindow('month', { liveSummary: s ?? null })
+  const r30From = canonicalMonthWin.fromIso
+  const r30To = canonicalMonthWin.toInclusiveIso
+  const mtdDays = s?.journeyPulse?.mtd?.days ?? 13
+  const mtdLabelAr = `نوفمبر 2026 (${mtdDays} يوماً)`
+  const mtdLabelEn = `Nov 2026 MTD (${mtdDays}d)`
 
   const label =
     state.status === 'syncing'

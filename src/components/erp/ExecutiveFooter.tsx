@@ -26,7 +26,7 @@ const SNAPSHOT_LATEST_RECORD_ISO =
   DEFAULT_SNAPSHOT_LATEST_RECORD_ISO
 
 /** Deterministic SSR reference timestamp so initial server & client HTML match byte-for-byte before post-mount clock refresh. */
-const DETERMINISTIC_SSR_REF_NOW_MS = Date.parse('2026-11-12T12:00:00.000Z')
+const DETERMINISTIC_SSR_REF_NOW_MS = Date.parse('2026-11-13T15:30:00.000Z')
 
 function toWesternDigits(value: string): string {
   return value.replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660))
@@ -178,9 +178,9 @@ export function ExecutiveFooter({
     <footer
       dir={isAr ? 'rtl' : 'ltr'}
       aria-label={isAr ? 'تذييل المنصة التنفيذي الرسمي' : 'Official Executive Platform Footer'}
-      className="no-print mt-8 space-y-3 border-t border-slate-200/70 pt-4 pb-2 text-xs tabular-nums text-slate-500 dark:border-white/[0.07] dark:text-slate-400"
+      className="no-print mt-8 space-y-3 border-t border-slate-200/70 pt-4 pb-2 text-xs tabular-nums text-slate-600 dark:border-white/[0.07] dark:text-slate-300"
     >
-      {/* Honest Data-Freshness Status Banner: Red >24h Stale Alert, Amber Cached Snapshot, or Green <=24h Live Sync */}
+      {/* Single Calm Executive Data-Freshness Status Banner */}
       <div
         role="status"
         data-latest-odoo-record-at={freshness.kuwaitIso}
@@ -191,9 +191,9 @@ export function ExecutiveFooter({
               ? 'cached'
               : 'live'
         }
-        className={`flex flex-wrap items-center justify-between gap-2.5 rounded-2xl px-3.5 py-2 text-[12px] font-semibold ring-1 ${
+        className={`flex flex-wrap items-center justify-between gap-2.5 rounded-2xl px-3.5 py-2.5 text-xs font-semibold ring-1 ${
           freshness.isStaleOver24h
-            ? 'bg-rose-50/90 text-rose-900 ring-rose-500/25 dark:bg-rose-950/40 dark:text-rose-200 dark:ring-rose-500/30'
+            ? 'bg-slate-100/90 text-slate-800 ring-slate-900/10 dark:bg-[#101C17] dark:text-slate-200 dark:ring-white/10'
             : liveSummary?.sourceMode === 'cached-live'
               ? 'bg-amber-50/90 text-amber-900 ring-amber-500/30 dark:bg-amber-950/40 dark:text-amber-200 dark:ring-amber-500/30'
               : 'bg-emerald-50/85 text-emerald-900 ring-emerald-500/25 dark:bg-emerald-950/40 dark:text-emerald-200 dark:ring-emerald-500/30'
@@ -219,9 +219,9 @@ export function ExecutiveFooter({
             onClick={() => void triggerLedgerSync(false)}
             disabled={syncing || syncingOdoo || syncCooldownSec > 0}
             aria-label={isAr ? 'تحديث الربط الآن' : 'Refresh — Sync Odoo Now — Sync Now'}
-            className={`inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl px-3 py-1 text-[11.5px] font-bold transition-colors disabled:opacity-60 ${
+            className={`inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl px-3 py-1 text-xs font-bold transition-colors disabled:opacity-60 ${
               freshness.isStaleOver24h
-                ? 'btn-colored bg-rose-600 text-white hover:bg-rose-700 dark:bg-rose-500 dark:text-white'
+                ? 'bg-white text-slate-800 ring-1 ring-slate-900/10 hover:bg-slate-50 dark:bg-[#09110E] dark:text-slate-100'
                 : liveSummary?.sourceMode === 'cached-live'
                   ? 'bg-white text-amber-900 ring-1 ring-amber-500/30 hover:bg-amber-100/70 dark:bg-[#101C17] dark:text-amber-200'
                   : 'bg-white text-emerald-900 ring-1 ring-emerald-500/25 hover:bg-emerald-100/70 dark:bg-[#101C17] dark:text-emerald-200'
@@ -305,7 +305,7 @@ export function ExecutiveFooter({
             •
           </span>
 
-          <span className="inline-flex items-center gap-1.5 tabular-nums text-slate-500 dark:text-slate-400">
+          <span className="inline-flex items-center gap-1.5 tabular-nums text-slate-600 dark:text-slate-300">
             <Database className="h-3.5 w-3.5 shrink-0 text-emerald-600/80 dark:text-emerald-400/80" />
             <span>
               {isAr

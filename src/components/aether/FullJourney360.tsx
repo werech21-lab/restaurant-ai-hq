@@ -367,7 +367,7 @@ export function FullJourney360() {
               {T('Start Here This Week', 'ابدأ من هنا هذا الأسبوع')}
             </h2>
           </div>
-          <span className="text-[12px] font-medium text-slate-500 dark:text-slate-400">
+          <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
             {T(
               '3 direct high-impact actions backed by verified Odoo ledger figures',
               '3 أولويات تنفيذية فورية بأرقام دفتر أودو المعتمدة',
@@ -401,7 +401,7 @@ export function FullJourney360() {
                     : procurementCard.valueEn
                   : fmtKwdVal(0)}
               </span>
-              <span className="whitespace-normal text-[11.5px] font-medium text-slate-600 dark:text-slate-300">
+              <span className="whitespace-normal text-xs font-medium text-slate-600 dark:text-slate-300">
                 {T(
                   'Kitchen gap & supplier price variance',
                   'فروقات أسعار الموردين وهدر المطبخ الصافي',
@@ -441,7 +441,7 @@ export function FullJourney360() {
                     : receivablesCard.valueEn
                   : fmtKwdVal(0)}
               </span>
-              <span className="whitespace-normal text-[11.5px] font-medium text-slate-600 dark:text-slate-300">
+              <span className="whitespace-normal text-xs font-medium text-slate-600 dark:text-slate-300">
                 {T(
                   '(Open cumulative balance from prior periods under collection)',
                   '(رصيد متراكم مفتوح من فترات سابقة قيد التحصيل)',
@@ -478,7 +478,7 @@ export function FullJourney360() {
                     : quietHoursCard.valueEn
                   : `+${fmtKwdVal(0)}`}
               </span>
-              <span className="whitespace-normal text-[11.5px] font-medium text-slate-600 dark:text-slate-300">
+              <span className="whitespace-normal text-xs font-medium text-slate-600 dark:text-slate-300">
                 {T(
                   'Monetize afternoon kitchen capacity with zero new rent',
                   'استثمار طاقة المطابخ عصراً بدون إيجار إضافي',
@@ -502,7 +502,7 @@ export function FullJourney360() {
                 {f0(workspace.orders)} {T('orders', 'طلب')}
               </span>
             </div>
-            <p className="mt-2.5 sm:mt-3.5 whitespace-normal text-[12.5px] sm:text-[14px] font-semibold leading-snug text-slate-500 dark:text-slate-400">
+            <p className="mt-2.5 sm:mt-3.5 whitespace-normal text-[13px] sm:text-[14px] font-semibold leading-snug text-slate-600 dark:text-slate-300">
               {T('Sales', 'المبيعات')}
             </p>
             <div
@@ -511,7 +511,7 @@ export function FullJourney360() {
             >
               {fmtKwdVal(workspace.salesKwd)}
             </div>
-            <p className="mt-1.5 whitespace-normal text-[11.5px] sm:text-[13px] font-medium leading-snug tabular-nums text-slate-500 dark:text-slate-400">
+            <p className="mt-1.5 whitespace-normal text-xs sm:text-[13px] font-medium leading-snug tabular-nums text-slate-600 dark:text-slate-300">
               {isAr ? `متوسط الفاتورة ${f2(workspace.aovKwd)} د.ك` : `Avg bill ${f2(workspace.aovKwd)} KWD`}
             </p>
           </article>
@@ -524,12 +524,12 @@ export function FullJourney360() {
               </span>
               <span
                 dir="ltr"
-                className="shrink-0 rounded-lg bg-sky-50 px-2 py-0.5 text-[11px] sm:text-[12px] font-bold tabular-nums text-sky-700 dark:bg-sky-950/50 dark:text-sky-300"
+                className="shrink-0 rounded-lg bg-sky-50 px-2 py-0.5 text-xs font-bold tabular-nums text-sky-700 dark:bg-sky-950/50 dark:text-sky-300"
               >
                 {f1(beforeRentRatio * 100)}%
               </span>
             </div>
-            <p className="mt-2.5 sm:mt-3.5 whitespace-normal text-[12.5px] sm:text-[14px] font-semibold leading-snug text-slate-500 dark:text-slate-400">
+            <p className="mt-2.5 sm:mt-3.5 whitespace-normal text-[13px] sm:text-[14px] font-semibold leading-snug text-slate-600 dark:text-slate-300">
               {T('Left Before Rent', 'الباقي قبل الإيجار')}
             </p>
             <div
@@ -538,7 +538,7 @@ export function FullJourney360() {
             >
               {fmtKwdVal(beforeRentKwd)}
             </div>
-            <p className="mt-1.5 whitespace-normal text-[11.5px] sm:text-[13px] font-medium leading-snug text-slate-500 dark:text-slate-400">
+            <p className="mt-1.5 whitespace-normal text-xs sm:text-[13px] font-medium leading-snug text-slate-600 dark:text-slate-300">
               {isAr
                 ? 'بعد خصم تكلفة المواد الغذائية وعمولات التوصيل'
                 : 'After food cost & delivery commissions'}
@@ -553,7 +553,7 @@ export function FullJourney360() {
               </span>
               <span
                 dir="ltr"
-                className={`shrink-0 rounded-lg px-2 py-0.5 text-[11px] sm:text-[12px] font-bold tabular-nums ${
+                className={`shrink-0 rounded-lg px-2 py-0.5 text-xs font-bold tabular-nums ${
                   netPocketPct >= 12
                     ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
                     : 'bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300'
@@ -562,7 +562,7 @@ export function FullJourney360() {
                 {f1(netPocketPct)}%
               </span>
             </div>
-            <p className="mt-2.5 sm:mt-3.5 whitespace-normal text-[12.5px] sm:text-[14px] font-semibold leading-snug text-slate-500 dark:text-slate-400">
+            <p className="mt-2.5 sm:mt-3.5 whitespace-normal text-[13px] sm:text-[14px] font-semibold leading-snug text-slate-600 dark:text-slate-300">
               {T('Net in Pocket', 'الصافي بالجيب')}
             </p>
             <div
@@ -571,7 +571,7 @@ export function FullJourney360() {
             >
               {fmtKwdVal(netPocketKwd)}
             </div>
-            <p className="mt-1.5 whitespace-normal text-[11.5px] sm:text-[13px] font-medium leading-snug text-slate-500 dark:text-slate-400">
+            <p className="mt-1.5 whitespace-normal text-xs sm:text-[13px] font-medium leading-snug text-slate-600 dark:text-slate-300">
               {isAr
                 ? 'الصافي الفعلي بعد الإيجار وكافة المصاريف'
                 : 'Actual net cash after rent & all expenses'}
@@ -587,11 +587,11 @@ export function FullJourney360() {
               <span className="inline-flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300">
                 <Lightbulb className="h-4 w-4" />
               </span>
-              <span className="shrink-0 rounded-lg bg-emerald-50 px-2 py-0.5 text-[11px] sm:text-[12px] font-bold tabular-nums text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
+              <span className="shrink-0 rounded-lg bg-emerald-50 px-2 py-0.5 text-xs font-bold tabular-nums text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
                 {isAr ? formatArOpportunities(workspace.plays.length) : `${workspace.plays.length} plays`}
               </span>
             </div>
-            <p className="mt-2.5 sm:mt-3.5 whitespace-normal text-[12.5px] sm:text-[14px] font-semibold leading-snug text-slate-500 dark:text-slate-400">
+            <p className="mt-2.5 sm:mt-3.5 whitespace-normal text-[13px] sm:text-[14px] font-semibold leading-snug text-slate-600 dark:text-slate-300">
               {T('Profit Opportunities', 'فرص زيادة الربح')}
             </p>
             <div
@@ -618,7 +618,7 @@ export function FullJourney360() {
                 <h2 className="text-[17px] sm:text-[18px] font-bold tracking-tight text-slate-950 dark:text-white">
                   {T('Sales & Net in Pocket', 'المبيعات والصافي بالجيب')}
                 </h2>
-                <p className="whitespace-normal text-[13px] sm:text-[14px] font-medium text-slate-500 dark:text-slate-400">
+                <p className="whitespace-normal text-[13px] sm:text-[14px] font-medium text-slate-600 dark:text-slate-300">
                   {T(
                     'Tap or hover any bar to inspect exact KWD & net profit',
                     'اضغط أو مرر على أي عمود لعرض التفاصيل بالدينار وصافي الربح',
@@ -655,7 +655,7 @@ export function FullJourney360() {
                   'كيف تتوزع كل 10 دنانير من المبيعات؟',
                 )}
               </h2>
-              <p className="whitespace-normal text-[13px] sm:text-[14px] font-medium text-slate-500 dark:text-slate-400">
+              <p className="whitespace-normal text-[13px] sm:text-[14px] font-medium text-slate-600 dark:text-slate-300">
                 {T('Exact breakdown per 10 KWD of net sales', 'توزيع كل 10 دنانير من المبيعات الصافية')}
               </p>
             </div>

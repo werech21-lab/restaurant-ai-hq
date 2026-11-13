@@ -121,7 +121,7 @@ export function BeforeAfterDualBarChart({
             >
               <span
                 dir={isAr ? 'rtl' : 'ltr'}
-                className="-translate-y-2 whitespace-nowrap text-[10px] sm:text-[10.5px] font-semibold tabular-nums text-slate-400 dark:text-slate-500"
+                className="-translate-y-2 whitespace-nowrap text-[11px] sm:text-xs font-semibold tabular-nums text-slate-600 dark:text-slate-300"
               >
                 {fmtAxis(maxVal * ratio)}
               </span>
@@ -271,7 +271,7 @@ export function BeforeAfterDualBarChart({
                 <div className="mt-2 flex h-4 items-center justify-center">
                   <span
                     dir="ltr"
-                    className={`whitespace-nowrap text-center text-[10px] sm:text-[11px] font-bold tabular-nums text-slate-600 dark:text-slate-300 ${
+                    className={`whitespace-nowrap text-center text-[11px] sm:text-xs font-bold tabular-nums text-slate-600 dark:text-slate-300 ${
                       data.length > 7
                         ? (idx % 3 === 0 || idx === data.length - 1) && idx !== data.length - 2
                           ? ''
@@ -379,7 +379,7 @@ export function InteractiveHoverBarChart({
             >
               <span
                 dir={isAr ? 'rtl' : 'ltr'}
-                className="-translate-y-2 whitespace-nowrap text-[10px] sm:text-[10.5px] font-semibold tabular-nums text-slate-400 dark:text-slate-500"
+                className="-translate-y-2 whitespace-nowrap text-[11px] sm:text-xs font-semibold tabular-nums text-slate-600 dark:text-slate-300"
               >
                 {fmtAxis(maxVal * ratio)}
               </span>
@@ -644,7 +644,7 @@ export function SalesNetComboChart({
           <span className="inline-flex items-center gap-2 font-semibold text-slate-700 dark:text-slate-200">
             <span className="h-3 w-2.5 rounded-sm bg-[#CBD5E1] ring-1 ring-slate-400/30 dark:bg-[#334155]" />
             <span>{salesLegend}</span>
-            <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500">
+            <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
               ({isAr ? 'المحور الأيمن' : 'Left Axis'})
             </span>
           </span>
@@ -654,7 +654,7 @@ export function SalesNetComboChart({
               <span className="absolute h-2 w-2 rounded-full bg-[#10B981] ring-1 ring-white" />
             </span>
             <span>{netLegend}</span>
-            <span className="text-[11px] font-semibold text-emerald-600/80 dark:text-emerald-400/80">
+            <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
               ({isAr ? 'المحور الأيسر المستقل' : 'Right Axis'})
             </span>
           </span>
@@ -700,7 +700,7 @@ export function SalesNetComboChart({
         ) : null}
 
         {/* Explicit Y-Axis Unit Titles: Sales (K KWD / ألف د.ك) & Net Profit (K KWD / ألف د.ك) */}
-        <div className="mb-2 flex items-center justify-between gap-2 text-[11px] sm:text-[11.5px]">
+        <div className="mb-2 flex items-center justify-between gap-2 text-xs">
           <span className="whitespace-nowrap font-bold text-slate-600 dark:text-slate-300">
             {isAr ? 'المبيعات (ألف د.ك)' : 'Sales (K KWD)'}
           </span>
@@ -717,7 +717,7 @@ export function SalesNetComboChart({
               <span
                 key={`sales-${ratio}`}
                 dir={isAr ? 'rtl' : 'ltr'}
-                className="whitespace-nowrap text-[10px] sm:text-[10.5px] font-semibold leading-none tabular-nums text-slate-500 dark:text-slate-400"
+                className="whitespace-nowrap text-[11px] sm:text-xs font-semibold leading-none tabular-nums text-slate-600 dark:text-slate-300"
               >
                 {formatCompactKwdTick(maxSales * ratio, isAr)}
               </span>
@@ -851,7 +851,7 @@ export function SalesNetComboChart({
                   <div key={`lbl-${d.id}`} className="flex items-center justify-center">
                     <span
                       dir={/^\d/.test(displayLabel) ? 'ltr' : undefined}
-                      className={`whitespace-nowrap text-center text-[10px] sm:text-[10.5px] font-bold tabular-nums text-slate-600 dark:text-slate-300 ${
+                      className={`whitespace-nowrap text-center text-[11px] sm:text-xs font-bold tabular-nums text-slate-600 dark:text-slate-300 ${
                         data.length > 7
                           ? (idx % 3 === 0 || idx === data.length - 1) && idx !== data.length - 2
                             ? ''
@@ -873,7 +873,7 @@ export function SalesNetComboChart({
               <span
                 key={`net-${ratio}`}
                 dir={isAr ? 'rtl' : 'ltr'}
-                className="whitespace-nowrap text-[10px] sm:text-[10.5px] font-bold leading-none tabular-nums text-emerald-700 dark:text-emerald-400"
+                className="whitespace-nowrap text-[11px] sm:text-xs font-bold leading-none tabular-nums text-emerald-700 dark:text-emerald-400"
               >
                 {formatCompactKwdTick(minNet + netSpan * ratio, isAr)}
               </span>
@@ -975,7 +975,7 @@ export function InteractiveHorizontalRankList({
                 {item.subLabel ? (
                   <p
                     dir="ltr"
-                    className={`mt-0.5 whitespace-normal break-words text-[11.5px] tabular-nums text-neutral-500 dark:text-slate-400 ${
+                    className={`mt-0.5 whitespace-normal break-words text-xs font-medium tabular-nums text-slate-600 dark:text-slate-300 ${
                       isAr ? 'text-end' : 'text-start'
                     }`}
                   >
@@ -1202,7 +1202,7 @@ export function InteractiveDonutChart({
             </span>
           ) : null}
           {centerLabel ? (
-            <span className="mt-1.5 max-w-[92px] whitespace-normal text-[10.5px] font-medium leading-tight text-neutral-400 dark:text-slate-400">
+            <span className="mt-1.5 max-w-[92px] whitespace-normal text-[11px] font-semibold leading-tight text-slate-600 dark:text-slate-300">
               {centerLabel}
             </span>
           ) : null}
@@ -1272,7 +1272,7 @@ export function InteractiveDonutChart({
             </div>
             <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 ps-4.5">
               {s.subLabel ? (
-                <p className="whitespace-normal text-[11px] font-medium leading-snug text-neutral-500 dark:text-slate-400 tabular-nums">
+                <p className="whitespace-normal text-xs font-medium leading-snug text-slate-600 dark:text-slate-300 tabular-nums">
                   {s.subLabel}
                 </p>
               ) : (
@@ -1280,7 +1280,7 @@ export function InteractiveDonutChart({
               )}
               <span
                 dir="ltr"
-                className="shrink-0 rounded-md bg-white/80 px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-neutral-600 dark:bg-white/[0.08] dark:text-slate-300"
+                className="shrink-0 rounded-md bg-white/80 px-1.5 py-0.5 text-xs font-bold tabular-nums text-slate-700 dark:bg-white/[0.08] dark:text-slate-200"
               >
                 {s.pctFormatted}
               </span>

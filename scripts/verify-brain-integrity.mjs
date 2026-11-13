@@ -1392,8 +1392,8 @@ assert(
     topBarSrc.includes('rounded-t-3xl') &&
     sidebarSrc.includes('lg:flex') &&
     aetherCssSrc.includes('@media (min-width: 1024px)') &&
-    erpShellReexportSrc.includes('px-4 sm:px-6 xl:px-10 pt-0 lg:pt-2 pb-24 lg:pb-8') &&
-    shellSrc.includes('px-4 sm:px-6 xl:px-10 pt-0 lg:pt-2 pb-24 lg:pb-8') &&
+    erpShellReexportSrc.includes('px-4 sm:px-6 xl:px-10 pt-0 lg:pt-2 pb-28 sm:pb-12 lg:pb-8') &&
+    shellSrc.includes('px-4 sm:px-6 xl:px-10 pt-0 lg:pt-2 pb-28 sm:pb-12 lg:pb-8') &&
     govDrawerSrc.includes('lg:inline-flex'),
   'Compact 56px (h-14) frosted Mobile App Bar + SlidersHorizontal rounded-t-3xl Filter Bottom Sheet + lg: (1024px) shell breakpoint + ThemeToggle zero duplicate moon/sun emojis',
   `themeEmojis=${themeEmojiMatches}`,
@@ -3052,9 +3052,10 @@ assert(
     i18nSrc.includes('onClick={() => setLocale(nextLocale)}') &&
     loginPageSrc.includes('<LanguageSwitch />') &&
     loginPageSrc.includes('end-4 top-4') &&
-    topBarSrc.includes('<LanguageSwitch compact />') &&
-    topBarSrc.includes('<LanguageSwitch />'),
-  '21.2 Strict EN Client Init & 1-Click عربي | EN Toggle Pill: LanguageProvider initializes strictly to en unless explicit ?lang=ar or localStorage ar, and renders 1-click عربي | EN pill on /login top corner + /erp mobile & desktop headers',
+    !topBarSrc.includes('<LanguageSwitch') &&
+    topBarSrc.includes("onSetLocale('ar')") &&
+    topBarSrc.includes("onSetLocale('en')"),
+  '21.2 Strict EN Client Init & Single Clean Language Switcher: LanguageProvider initializes strictly to en unless explicit ?lang=ar or localStorage ar, /login keeps top-corner toggle, and /erp/* centralizes Language switcher exclusively inside Account & Menu',
 )
 
 // 22. Horizontal 14-Column Capsule Charts & Compiled Grid Tracks Gate
@@ -3371,12 +3372,12 @@ import {
 
 const snapSummary = summaryFromSnapshot(snapshot, undefined, 'month');
 const staleCheck = computeOdooFreshnessStatus(
-  snapSummary.latestRecordAt,
-  Date.parse('2026-11-13T12:00:00.000Z'),
+  '2026-11-10T20:59:00.000Z',
+  Date.parse('2026-11-13T16:00:00.000Z'),
 );
 const liveCheck = computeOdooFreshnessStatus(
-  '2026-11-13T08:30:00.000Z',
-  Date.parse('2026-11-13T12:00:00.000Z'),
+  snapSummary.latestRecordAt,
+  Date.parse('2026-11-13T16:00:00.000Z'),
 );
 
 const wToday = formatPeriodCalendarWindow('today');
@@ -3394,12 +3395,13 @@ const subMonthAr = buildFilterSubtitle(DEFAULT_GLOBAL_FILTERS, true);
 console.log(JSON.stringify({
   latestRecordAt: snapSummary.latestRecordAt,
   syncedAtMatchesLatest: snapSummary.syncedAt === snapSummary.latestRecordAt,
-  kuwaitTimestamp: staleCheck.kuwaitTimestamp,
+  kuwaitTimestamp: liveCheck.kuwaitTimestamp,
   staleOver24h: staleCheck.isStaleOver24h,
   staleBadgeEn: staleCheck.badgeEn,
   staleBadgeAr: staleCheck.badgeAr,
   liveOver24h: liveCheck.isStaleOver24h,
   liveBadgeEn: liveCheck.badgeEn,
+  liveBadgeAr: liveCheck.badgeAr,
   todayEn: wToday.labelEn,
   todayAr: wToday.labelAr,
   weekEn: wWeek.labelEn,
@@ -3423,34 +3425,33 @@ assert(
     !s24OdooSyncRouteSrc.includes('new Date().toISOString()') &&
     !execFooterSrc.includes('new Date().toISOString()') &&
     !execFooterSrc.includes('hydratedNowIso') &&
-    s24Probe.latestRecordAt === '2026-11-10T20:59:00.000Z' &&
+    s24Probe.latestRecordAt === '2026-11-13T15:18:10.000Z' &&
     s24Probe.syncedAtMatchesLatest === true &&
-    s24Probe.kuwaitTimestamp === '10/11/2026 23:59 UTC+3' &&
+    s24Probe.kuwaitTimestamp === '13/11/2026 18:18 UTC+3' &&
     s24Probe.staleOver24h === true &&
-    s24Probe.staleBadgeEn ===
-      '🔴 Stale Data Alert: Last Odoo POS record is from Nov 10, 2026 (>24h ago) — Live sync required' &&
-    s24Probe.staleBadgeAr ===
-      '🔴 تنبيه حداثة البيانات: آخر فاتورة مسجلة من أودو بتاريخ 10/11/2026 (أكثر من 24 ساعة) — يرجى تحديث الربط الحي' &&
+    s24Probe.staleBadgeEn === 'Data updated through Nov 10, 2026' &&
+    s24Probe.staleBadgeAr === 'البيانات محدّثة حتى 10 نوفمبر 2026' &&
     s24Probe.liveOver24h === false &&
-    s24Probe.liveBadgeEn === '🟢 Live Odoo Sync (<24h)' &&
+    s24Probe.liveBadgeEn === '🟢 Data updated & synced with Odoo 17 through today (Nov 13, 2026)' &&
+    s24Probe.liveBadgeAr === '🟢 البيانات محدّثة ومرتبطة مع أودو 17 حتى اليوم (13 نوفمبر 2026)' &&
     execFooterSrc.includes('{!roleProfile.isAuditor ? (') &&
     execFooterSrc.includes('Sync Now'),
-  '24.1 Honest Odoo Record Timestamp & >24h Red Stale Alert: Zero new Date() faking, zero SSR hydration flicker, deterministic 10/11/2026 23:59 UTC+3 record timestamp, automatic >24h red stale alert + <24h green live badge, and Sync Now strictly hidden for auditor',
+  '24.1 Honest Odoo Record Timestamp & Calm Executive Sync Copy: Zero new Date() faking, zero SSR hydration flicker, deterministic 13/11/2026 18:18 UTC+3 record timestamp, calm human-friendly freshness copy, and Sync Now strictly hidden for auditor',
   `latest=${s24Probe.latestRecordAt}, stamp=${s24Probe.kuwaitTimestamp}, stale=${s24Probe.staleOver24h}`,
 )
 
 assert(
-  s24Probe.todayEn === 'Nov 10, 2026' &&
-    s24Probe.todayAr === '10 نوفمبر 2026' &&
-    s24Probe.weekEn === 'Nov 4 – Nov 10, 2026' &&
-    s24Probe.monthEn === 'Oct 12 – Nov 10, 2026' &&
-    s24Probe.monthAr === '12 أكتوبر – 10 نوفمبر 2026' &&
+  s24Probe.todayEn === 'Nov 13, 2026' &&
+    s24Probe.todayAr === '13 نوفمبر 2026' &&
+    s24Probe.weekEn === 'Nov 7 – Nov 13, 2026' &&
+    s24Probe.monthEn === 'Oct 15 – Nov 13, 2026' &&
+    s24Probe.monthAr === '15 أكتوبر – 13 نوفمبر 2026' &&
     s24Probe.customEn === 'Oct 20 – Nov 5, 2026' &&
-    s24Probe.subMonthEn.includes('Month (Oct 12 – Nov 10, 2026)') &&
-    s24Probe.subMonthAr.includes('الشهر (12 أكتوبر – 10 نوفمبر 2026)') &&
+    s24Probe.subMonthEn.includes('Month (Oct 15 – Nov 13, 2026)') &&
+    s24Probe.subMonthAr.includes('الشهر (15 أكتوبر – 13 نوفمبر 2026)') &&
     topBarSrc.includes('Period: ${activePeriodShortLabel} (${activePeriodRangeText})') &&
     topBarSrc.includes('الفترة: ${activePeriodShortLabel} (${activePeriodRangeText})'),
-  '24.2 Explicit Period Calendar Windows: Today, Week, Month, Year & Custom display exact calendar date ranges in TopFilterBar, PeriodDropdownPopover & workspace subtitles (e.g. Month (Oct 12 – Nov 10, 2026))',
+  '24.2 Explicit Period Calendar Windows: Today, Week, Month, Year & Custom display exact calendar date ranges in TopFilterBar, PeriodDropdownPopover & workspace subtitles (Month (Oct 15 – Nov 13, 2026))',
   `monthEn=${s24Probe.monthEn}, monthAr=${s24Probe.monthAr}`,
 )
 
@@ -3460,7 +3461,7 @@ assert(
     loginHeroSrc.includes('useId()') &&
     loginHeroSrc.includes('#059669') &&
     loginHeroSrc.includes('#064E3B') &&
-    feryalStudioSrc.includes('min-h-[calc(100vh-148px)] flex flex-col justify-between') &&
+    feryalStudioSrc.includes('lg:min-h-[calc(100vh-148px)] flex flex-col justify-between') &&
     feryalStudioSrc.includes('Verified Executive Audit Briefings & Institutional Memory Preview') &&
     feryalNotebooksSrc.includes(
       'Read-Only Audit Session — Thread creation and data backup export are restricted to executive management',
@@ -3931,13 +3932,13 @@ assert(
     s26Probe.compAudReadOnly === true &&
     s26Probe.compGap === 0 &&
     s26Probe.compNetA > 0 &&
-    s26LiveSyncCoreSrc.includes('🟢 Live Odoo 17 • Last Receipt:') &&
-    s26LiveSyncCoreSrc.includes('⚡ Cached Odoo Snapshot • Last Receipt:') &&
+    s26LiveSyncCoreSrc.includes('🟢 Data updated & synced with Odoo 17 through today') &&
+    s26LiveSyncCoreSrc.includes('• Last Receipt:') &&
     s25StatusStripSrc.includes("stripTone === 'cached'") &&
     s25StatusStripSrc.includes('Refresh') &&
     s26WeekdayStudioSrc.includes('/api/erp/live-comparison') &&
     s26BeforeAfterSrc.includes('/api/erp/live-comparison'),
-  '26.3 Unified /api/erp/live-comparison & 3-State Live/Cached/Stale Badge: Returns [401,200,200,200,200] across roles with 0.000 KWD gap, wires /erp/weekday-comparison + /erp/before-after, and renders Live Emerald, Cached Amber & Stale Red states',
+  '26.3 Unified /api/erp/live-comparison & Calm 3-State Live/Cached/Historical Badge: Returns [401,200,200,200,200] across roles with 0.000 KWD gap, wires /erp/weekday-comparison + /erp/before-after, and renders calm human-friendly sync states',
   `compStatuses=${JSON.stringify(s26Probe.compStatuses)}, gap=${s26Probe.compGap}, netA=${s26Probe.compNetA}`,
 )
 
@@ -4093,6 +4094,94 @@ assert(
     !s27PorcelainRaw.includes('.env.local'),
   '27.2 13/13 /erp/* Route Completeness, Honest latestOdooRecordAt Binding, Explicit Period: Window & Zero Tracked .env.local: All 13 /erp/* routes present, OdooLiveStatusStrip + ExecutiveFooter bound to latestOdooRecordAt, TopFilterBar renders explicit Period: calendar windows, and 0 tracked .env.local files',
   `erpRoutes=${s27ErpRouteFiles.length - s27MissingErpRoutes.length}/13, trackedEnvLocal="${s27TrackedEnvLocal}"`,
+)
+
+// ============================================================================
+// SECTION 28: Boudy 7-Point Final Polish & Cloud Sync Gate
+// ============================================================================
+console.log('\n28) Boudy 7-Point Final Polish & Cloud Sync Gate:')
+
+const s28ErpShellSrc = fs.readFileSync(path.join(ROOT, 'src/components/erp/shell.tsx'), 'utf8')
+const s28PanelChromeSrc = fs.readFileSync(path.join(ROOT, 'src/components/panel-chrome.tsx'), 'utf8')
+const s28FeryalSrc = fs.readFileSync(
+  path.join(ROOT, 'src/components/erp/feryal-governance-studio.tsx'),
+  'utf8',
+)
+const s28FullJourneySrc = fs.readFileSync(
+  path.join(ROOT, 'src/components/aether/FullJourney360.tsx'),
+  'utf8',
+)
+const s28ChartsSrc = fs.readFileSync(
+  path.join(ROOT, 'src/components/aether/InteractiveHoverCharts.tsx'),
+  'utf8',
+)
+
+function collectErpUiFiles(dir, acc = []) {
+  if (!fs.existsSync(dir)) return acc
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name)
+    if (entry.isDirectory()) collectErpUiFiles(full, acc)
+    else if (/\.(tsx|jsx)$/.test(entry.name)) acc.push(full)
+  }
+  return acc
+}
+
+const s28UiFiles = [
+  ...collectErpUiFiles(path.join(ROOT, 'src/components')),
+  ...collectErpUiFiles(path.join(ROOT, 'src/app/erp')),
+]
+const s28TechBannerRegex = /\b(Vercel|ODOO_API_KEY|ODOO_URL|ODOO_DB|ODOO_USERNAME|ENV_NOT_CONFIGURED)\b/i
+const s28TechLeakFiles = s28UiFiles.filter((fp) =>
+  s28TechBannerRegex.test(fs.readFileSync(fp, 'utf8')),
+)
+
+assert(
+  s28TechLeakFiles.length === 0 &&
+    !s28ErpShellSrc.includes('OdooLiveStatusStrip') &&
+    s28ErpShellSrc.includes('<ExecutiveFooter') &&
+    !s27TopFilterBarSrc.includes('<LanguageSwitch') &&
+    !s28PanelChromeSrc.includes('<LanguageSwitch') &&
+    s28ErpShellSrc.includes('pb-28 sm:pb-12'),
+  '28.1 Zero Technical Banner Leaks, Single Footer Sync Location, Single Account Language Switcher & Mobile Nav Clearance: 0 Vercel/ODOO_* strings in /erp UI, single sync banner in ExecutiveFooter, single language switcher in Account & Menu, and pb-28 sm:pb-12 clearance',
+  `techLeaks=${s28TechLeakFiles.length}`,
+)
+
+const s28TimelineProbeScript = `
+import { computeCoresHubSnapshot } from './src/lib/aether/cores-hub-engine';
+import { DEFAULT_GLOBAL_FILTERS, formatPeriodCalendarWindow } from './src/lib/aether/global-filter-engine';
+
+const winMonth = formatPeriodCalendarWindow('month');
+const snapMonth = computeCoresHubSnapshot(DEFAULT_GLOBAL_FILTERS, []);
+const lastBar = snapMonth.sales.timeline[snapMonth.sales.timeline.length - 1];
+
+const winWeek = formatPeriodCalendarWindow('week');
+const snapWeek = computeCoresHubSnapshot({ ...DEFAULT_GLOBAL_FILTERS, period: 'week' }, []);
+const lastWeekBar = snapWeek.sales.timeline[snapWeek.sales.timeline.length - 1];
+
+console.log(JSON.stringify({
+  monthToIso: winMonth.toInclusiveIso,
+  lastMonthBarId: lastBar?.id ?? '',
+  weekToIso: winWeek.toInclusiveIso,
+  lastWeekBarId: lastWeekBar?.id ?? '',
+}));
+`
+const s28Raw = execFileSync(process.execPath, [tsxCli, '-e', s28TimelineProbeScript], {
+  cwd: ROOT,
+  encoding: 'utf8',
+}).trim()
+const s28Probe = JSON.parse(s28Raw.split('\n').pop() ?? '{}')
+
+assert(
+  s28Probe.monthToIso === '2026-11-13' &&
+    s28Probe.lastMonthBarId === '2026-11-13' &&
+    s28Probe.weekToIso === '2026-11-13' &&
+    s28Probe.lastWeekBarId === '2026-11-13' &&
+    s28FeryalSrc.includes("Today's Branch Highlights") &&
+    s28FeryalSrc.includes('Recent Governance & Kitchen/Delivery SLA Alerts') &&
+    s28FullJourneySrc.includes('text-slate-600 dark:text-slate-300') &&
+    s28ChartsSrc.includes('text-xs font-medium leading-snug text-slate-600 dark:text-slate-300'),
+  '28.2 Canonical Date Alignment (Nov 13, 2026 / 13/11), Feryal 2-Col Executive Pulse & Boosted Subtitle Contrast: Header Period, API & Chart last bar align 100% on 2026-11-13, Feryal desktop canvas filled, and KPI/chart subtitles boosted',
+  `monthTo=${s28Probe.monthToIso}, lastBar=${s28Probe.lastMonthBarId}, weekLastBar=${s28Probe.lastWeekBarId}`,
 )
 
 console.log('\n----------------------------------------------------------------------')

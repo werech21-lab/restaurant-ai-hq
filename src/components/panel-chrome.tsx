@@ -11,7 +11,7 @@ import { OdooSyncPill } from '@/components/aether/OdooSyncPill'
 import { BRAIN_BAR_ROUTES } from '@/components/aether/TopBrainSwitcher'
 import { RAIL_TOGGLE_EVENT } from '@/components/erp-sidebar'
 import { ROOT_TITLE, routeTitle } from '@/lib/aether/route-titles'
-import { LanguageSwitch, useI18n } from '@/lib/i18n'
+import { useI18n } from '@/lib/i18n'
 
 /** Keeps the browser tab <title> strictly in the active language and never allows legacy fallback titles. */
 function useDocumentTitle(pathname: string, isAr: boolean) {
@@ -101,12 +101,7 @@ export function PanelHeaderBar({
           </kbd>
         </button>
         {notifications}
-        {!hasUnifiedControlBar ? (
-          <>
-            <ThemeToggle />
-            <LanguageSwitch />
-          </>
-        ) : null}
+        {!hasUnifiedControlBar ? <ThemeToggle /> : null}
       </div>
     </div>
   )
