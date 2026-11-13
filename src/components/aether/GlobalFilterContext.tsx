@@ -32,6 +32,7 @@ interface GlobalFilterContextValue {
   workspace: GlobalWorkspaceSlice
   liveSummary: OdooLiveSummary | null
   syncingOdoo: boolean
+  syncCooldownSec: number
   triggerOdooSyncNow: () => Promise<void>
   setPeriod: (period: GlobalPeriod) => void
   setCustomRange: (from: string, to: string) => void
@@ -110,6 +111,15 @@ export function GlobalFilterProvider({
   const [hydrated, setHydrated] = useState(false)
   const [liveSummary, setLiveSummary] = useState<OdooLiveSummary | null>(null)
   const [syncingOdoo, setSyncingOdoo] = useState(false)
+  const [syncCooldownSec, setSyncCooldownSec] = useState(0)
+
+  useEffect(() => {
+    if (syncCooldownSec <= 0) return undefined
+    const timer = window.setTimeout(() => {
+      setSyncCooldownSec((s) => Math.max(0, s - 1))
+    }, 1000)
+    return () => window.clearTimeout(timer)
+  }, [syncCooldownSec])
 
   // Hydrate from URL query params first, then localStorage
   useEffect(() => {
@@ -237,7 +247,12 @@ export function GlobalFilterProvider({
       })
         .then((res) => (res.ok ? (res.json() as Promise<OdooLiveSummary>) : null))
         .then((data) => {
-          if (active && data && data.totals) setLiveSummary(data)
+          if (active && data && data.totals) {
+            setLiveSummary(data)
+            if (typeof data.syncCooldownRemainingSec === 'number') {
+              setSyncCooldownSec(Math.max(0, Math.round(data.syncCooldownRemainingSec)))
+            }
+          }
         })
         .catch(() => {
           // Silent fallback to verified baseline Odoo snapshot
@@ -268,7 +283,7 @@ export function GlobalFilterProvider({
   }, [effectiveFilters.period, isAuditor])
 
   const triggerOdooSyncNow = useCallback(async () => {
-    if (isAuditor) return
+    if (isAuditor || syncCooldownSec > 0) return
     setSyncingOdoo(true)
     try {
       const periodKey =
@@ -286,6 +301,11 @@ export function GlobalFilterProvider({
       const fresh = (await res.json()) as OdooLiveSummary
       if (fresh && fresh.totals) {
         setLiveSummary(fresh)
+        setSyncCooldownSec(
+          typeof fresh.syncCooldownRemainingSec === 'number' && fresh.syncCooldownRemainingSec > 0
+            ? Math.round(fresh.syncCooldownRemainingSec)
+            : 30,
+        )
         window.dispatchEvent(new CustomEvent('aether:odoo-sync', { detail: fresh }))
       }
     } catch {
@@ -293,7 +313,52 @@ export function GlobalFilterProvider({
     } finally {
       setSyncingOdoo(false)
     }
-  }, [effectiveFilters.period, isAuditor])
+  }, [effectiveFilters.period, isAuditor, syncCooldownSec])
+
+  // Hydrate custom global date ranges from /api/erp/live-comparison so Company Summary & Comparison stay 100% unified
+  useEffect(() => {
+    if (effectiveFilters.period !== 'custom') return undefined
+    let active = true
+    const qs = new URLSearchParams({
+      dateA: effectiveFilters.customFrom,
+      toA: effectiveFilters.customTo,
+      dateB: effectiveFilters.customFrom,
+      toB: effectiveFilters.customTo,
+      granularity: 'range',
+    })
+    fetch(`/api/erp/live-comparison?${qs.toString()}`, {
+      method: 'GET',
+      cache: 'no-store',
+      credentials: 'same-origin',
+      headers: { accept: 'application/json' },
+    })
+      .then((res) =>
+        res.ok
+          ? (res.json() as Promise<{ dailySeries?: { day: string; orders: number; netKwd: number }[] }>)
+          : null,
+      )
+      .then((payload) => {
+        if (!active || !Array.isArray(payload?.dailySeries) || payload.dailySeries.length === 0) {
+          return
+        }
+        setLiveSummary((prev) => {
+          if (!prev) return prev
+          const merged = new Map<string, { day: string; orders: number; netKwd: number }>()
+          for (const d of prev.dailySeries ?? []) merged.set(d.day, d)
+          for (const d of payload.dailySeries ?? []) merged.set(d.day, d)
+          return {
+            ...prev,
+            dailySeries: [...merged.values()].sort((a, b) => a.day.localeCompare(b.day)),
+          }
+        })
+      })
+      .catch(() => {
+        // silent fallback
+      })
+    return () => {
+      active = false
+    }
+  }, [effectiveFilters.period, effectiveFilters.customFrom, effectiveFilters.customTo])
 
   const setPeriod = useCallback((period: GlobalPeriod) => setFilters((f) => ({ ...f, period })), [])
   const setCustomRange = useCallback((from: string, to: string) => {
@@ -388,6 +453,7 @@ export function GlobalFilterProvider({
       workspace,
       liveSummary,
       syncingOdoo,
+      syncCooldownSec,
       triggerOdooSyncNow,
       setPeriod,
       setCustomRange,
@@ -404,6 +470,7 @@ export function GlobalFilterProvider({
       workspace,
       liveSummary,
       syncingOdoo,
+      syncCooldownSec,
       triggerOdooSyncNow,
       setPeriod,
       setCustomRange,
@@ -429,6 +496,7 @@ export function useGlobalFilter(): GlobalFilterContextValue {
       workspace: fallbackWorkspace,
       liveSummary: null,
       syncingOdoo: false,
+      syncCooldownSec: 0,
       triggerOdooSyncNow: async () => {},
       setPeriod: () => {},
       setCustomRange: () => {},

@@ -19,15 +19,13 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# local env files
+# local & environment secret files (strictly block all .env* except safe template .env.example)
 .env
-.env*.local
+.env*
+!.env.example
 
 # typescript
 *.tsbuildinfo
-# staging and production env files hold real credentials
-.env.staging
-.env.production
 
 # local browser suite output
 /playwright-report/

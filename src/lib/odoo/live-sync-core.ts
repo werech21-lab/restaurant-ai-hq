@@ -62,12 +62,14 @@ export interface OdooLiveSummary {
   source: 'live' | 'snapshot'
   /** Live connection telemetry (safe for client consumption; ZERO secrets/URLs/DB names). */
   connected?: boolean
-  sourceMode?: 'odoo17-live' | 'verified-baseline'
+  sourceMode?: 'odoo17-live' | 'cached-live' | 'verified-baseline'
   envConfigured?: boolean
   /** Honest ISO-8601 UTC timestamp bound strictly to the latest actual Odoo 17 POS/accounting record. */
   syncedAt: string
   /** Canonical latest `pos.order.date_order` ISO-8601 UTC timestamp in the dataset. */
   latestRecordAt?: string
+  /** Exact `Asia/Kuwait` (`+03:00`) ISO-8601 representation of `latestRecordAt`. */
+  latestRecordKuwaitIso?: string
   /** Formatted Kuwait (`Asia/Kuwait`, UTC+3) timestamp of `latestRecordAt`. */
   kuwaitSyncedAt?: string
   /** Latest completed operational POS calendar date in Kuwait (`YYYY-MM-DD`). */
@@ -76,8 +78,12 @@ export interface OdooLiveSummary {
   hoursSinceLatestRecord?: number
   hoursSinceLatestOdooRecord?: number
   isStaleOver24h?: boolean
+  todayOrders?: number
   todayOrdersCount?: number
   todaySalesKwd?: number
+  syncCooldownRemainingSec?: number
+  diagnosticCode?: string
+  rateLimitedCooldown?: boolean
   lastCheckedAt?: string
   readOnly?: boolean
   bucket?: OdooPeriodBucketKey
@@ -85,6 +91,12 @@ export interface OdooLiveSummary {
   /** Strictly `null` in all browser-facing responses so `ODOO_DB` never leaves the server. */
   database: string | null
   totals: { netSalesKwd: number; orders: number; aovKwd: number }
+  companyTotals?: {
+    netSalesKwd: number
+    orders: number
+    unmappedTerminalsNetKwd: number
+    unmappedTerminalsOrders: number
+  }
   brands: { id: string; brand: string; netKwd: number; sharePct: number }[]
   branches: { id: string; name: string; unit: string; netSalesKwd: number; orders: number; sharePct: number }[]
   channels: { name: string; amountKwd: number }[]
@@ -115,6 +127,7 @@ export interface OdooLiveSummary {
 
 export interface OdooFreshnessStatus {
   latestRecordIso: string
+  kuwaitIso: string
   kuwaitTimestamp: string
   kuwaitDateEn: string
   kuwaitDateArSlash: string
@@ -125,6 +138,8 @@ export interface OdooFreshnessStatus {
   badgeAr: string
   liveConnectedBadgeEn: string
   liveConnectedBadgeAr: string
+  cachedSnapshotBadgeEn: string
+  cachedSnapshotBadgeAr: string
 }
 
 const EN_SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const
@@ -199,6 +214,8 @@ export function computeOdooFreshnessStatus(
   const dd = String(dayNum).padStart(2, '0')
   const mm = String(monthIdx + 1).padStart(2, '0')
 
+  const seconds = String(kwDate.getUTCSeconds()).padStart(2, '0')
+  const kuwaitIso = `${year}-${mm}-${dd}T${hours}:${minutes}:${seconds}+03:00`
   const kuwaitTimestamp = `${dd}/${mm}/${year} ${hours}:${minutes} UTC+3`
   const kuwaitDateEn = `${EN_SHORT_MONTHS[monthIdx]} ${dayNum}, ${year}`
   const kuwaitDateArSlash = `${dd}/${mm}/${year}`
@@ -215,11 +232,14 @@ export function computeOdooFreshnessStatus(
     ? `🔴 تنبيه حداثة البيانات: آخر فاتورة مسجلة من أودو بتاريخ ${kuwaitDateArSlash} (أكثر من 24 ساعة) — يرجى تحديث الربط الحي`
     : '🟢 ربط أودو حي (أقل من 24 ساعة)'
 
-  const liveConnectedBadgeEn = `🟢 Live Odoo 17 • Latest POS Order: ${kuwaitTimestamp}`
+  const liveConnectedBadgeEn = `🟢 Live Odoo 17 • Last Receipt: ${kuwaitTimestamp}`
   const liveConnectedBadgeAr = `🟢 متصل حياً بأودو 17 • آخر فاتورة: ${kuwaitTimestamp}`
+  const cachedSnapshotBadgeEn = `⚡ Cached Odoo Snapshot • Last Receipt: ${kuwaitTimestamp}`
+  const cachedSnapshotBadgeAr = `⚡ نسخة أودو المحفوظة مؤقتاً • آخر فاتورة: ${kuwaitTimestamp}`
 
   return {
     latestRecordIso: cleanIso,
+    kuwaitIso,
     kuwaitTimestamp,
     kuwaitDateEn,
     kuwaitDateArSlash,
@@ -230,6 +250,8 @@ export function computeOdooFreshnessStatus(
     badgeAr,
     liveConnectedBadgeEn,
     liveConnectedBadgeAr,
+    cachedSnapshotBadgeEn,
+    cachedSnapshotBadgeAr,
   }
 }
 
@@ -274,7 +296,6 @@ type Registry = {
 }
 const REG = registry as unknown as Registry
 export const ALLOWED_POS_CONFIG_IDS: readonly number[] = REG.allowedPosConfigIds
-const ALLOWED_HOST = 'venturefoods.walnutss.com'
 
 type M2O = [number, string] | false
 const m2oId = (v: unknown): number | null => (Array.isArray(v) ? (v[0] as number) : null)
@@ -450,9 +471,11 @@ function reconcileAmounts(rawMap: Map<string, number>, keys: readonly string[], 
 
 export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(), timeoutMs = 25_000, bucket?: OdooPeriodBucketKey): Promise<OdooLiveSummary> {
   if (!hasOdooCredentials(env)) throw new Error('Odoo credentials are not configured on the server')
-  const base = String(env.ODOO_URL).replace(/\/+$/, '')
+  const base = String(env.ODOO_URL).trim().replace(/\/+$/, '')
   const url = new URL(base)
-  if (url.protocol !== 'https:' || url.hostname !== ALLOWED_HOST) throw new Error('ODOO_URL is not the Venture Foods Odoo host')
+  if (url.protocol !== 'https:' && url.hostname !== 'localhost' && url.hostname !== '127.0.0.1') {
+    throw new Error('ODOO_URL must use HTTPS')
+  }
   const deadline = Date.now() + timeoutMs
   let id = 0
 

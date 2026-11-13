@@ -2,10 +2,10 @@ import { timingSafeEqual } from 'node:crypto'
 import { NextResponse, type NextRequest } from 'next/server'
 import { isSameSiteRequest } from '@/lib/odoo/live-sync-core'
 import {
-  bustOdooLiveCache,
   fetchLiveOdooSnapshot,
   getReadOnlyOdooSnapshotStatus,
   sanitizeOdooPublicPayload,
+  triggerManualOdooSync,
 } from '@/lib/odoo-live-connector'
 import { ENTERPRISE_API_SECURITY_HEADERS } from '@/lib/auth/api-guard'
 import {
@@ -20,13 +20,13 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 export const maxDuration = 30
 
-const responseHeaders: Record<string, string> = {
+export const odooSyncResponseHeaders: Record<string, string> = {
   ...ENTERPRISE_API_SECURITY_HEADERS,
   'cache-control': 'no-store, max-age=0',
   'x-content-type-options': 'nosniff',
 }
 
-interface VerifiedSyncCaller {
+export interface VerifiedSyncCaller {
   userId: string
   role: ExecSessionRole | 'cron'
   isAuditor: boolean
@@ -42,7 +42,7 @@ function verifyCronBearerHeader(authHeader: string | null): boolean {
   return timingSafeEqual(expected, candidate)
 }
 
-async function resolveVerifiedSyncCaller(
+export async function resolveVerifiedSyncCaller(
   request: NextRequest,
 ): Promise<VerifiedSyncCaller | null> {
   if (verifyCronBearerHeader(request.headers.get('authorization'))) {
@@ -104,16 +104,15 @@ async function resolveVerifiedSyncCaller(
 
 /**
  * GET `/api/odoo-sync` & `/api/erp/odoo-sync`:
- * - Authenticated for `admin`, `gm`, `dgm`, and `auditor` (`200 OK`), plus valid Vercel Cron bearer token.
- * - `auditor` receives a read-only telemetry/snapshot response (`readOnly: true`, `200 OK`).
- * - Executive roles (`admin`, `gm`, `dgm`) receive live Odoo 17 telemetry + 60s server-cached snapshot overlay.
- * - Strictly sanitized: ZERO secrets, ZERO `ODOO_URL`, ZERO `ODOO_DB`, ZERO `ODOO_USERNAME`, ZERO `ODOO_API_KEY`.
+ * - `200 OK` for `admin`, `gm`, `dgm`, and `auditor`, plus valid Vercel Cron bearer token.
+ * - Returns clean, secret-free telemetry:
+ *   `{ connected, sourceMode, latestRecordAt, hoursSinceLatestRecord, isStaleOver24h, todaySalesKwd, todayOrders, syncCooldownRemainingSec, diagnosticCode }`
  */
 export async function handleOdooSyncGetRequest(request: NextRequest) {
   if (!isSameSiteRequest(request.headers)) {
     return NextResponse.json(
       { ok: false, error: 'cross_site_refused' },
-      { status: 403, headers: responseHeaders },
+      { status: 403, headers: odooSyncResponseHeaders },
     )
   }
 
@@ -127,7 +126,7 @@ export async function handleOdooSyncGetRequest(request: NextRequest) {
       },
       {
         status: 401,
-        headers: { ...responseHeaders, 'www-authenticate': 'Session' },
+        headers: { ...odooSyncResponseHeaders, 'www-authenticate': 'Session' },
       },
     )
   }
@@ -143,7 +142,7 @@ export async function handleOdooSyncGetRequest(request: NextRequest) {
         readOnly: true,
         role: 'auditor',
       }),
-      { status: 200, headers: responseHeaders },
+      { status: 200, headers: odooSyncResponseHeaders },
     )
   }
 
@@ -161,22 +160,22 @@ export async function handleOdooSyncGetRequest(request: NextRequest) {
       readOnly: false,
       role: caller.role,
     }),
-    { status: 200, headers: responseHeaders },
+    { status: 200, headers: odooSyncResponseHeaders },
   )
 }
 
 /**
  * POST `/api/odoo-sync` & `/api/erp/odoo-sync`:
- * - Authorized ONLY for executive roles (`admin`, `gm`, `dgm`) OR valid `Authorization: Bearer ${process.env.CRON_SECRET}`.
+ * - Authorized ONLY for `admin`, `gm`, `dgm`, or `Authorization: Bearer ${process.env.CRON_SECRET}`.
  * - `auditor` strictly receives `403 Forbidden`.
- * - Busts the 60s server cache, forces an immediate live incremental pull from Odoo 17,
- *   updates `latestRecordAt` from newest `pos.order.date_order`, and returns fresh sanitized KPIs.
+ * - Enforces a 30-second rate-limit cooldown (`syncCooldownRemainingSec`) so rapid clicks never overload Odoo,
+ *   busts cache when ready, pulls fresh live Odoo 17 `read_group` aggregates, and returns updated totals + `latestRecordAt`.
  */
 export async function handleOdooSyncPostRequest(request: NextRequest) {
   if (!isSameSiteRequest(request.headers)) {
     return NextResponse.json(
       { ok: false, error: 'cross_site_refused' },
-      { status: 403, headers: responseHeaders },
+      { status: 403, headers: odooSyncResponseHeaders },
     )
   }
 
@@ -190,7 +189,7 @@ export async function handleOdooSyncPostRequest(request: NextRequest) {
       },
       {
         status: 401,
-        headers: { ...responseHeaders, 'www-authenticate': 'Session' },
+        headers: { ...odooSyncResponseHeaders, 'www-authenticate': 'Session' },
       },
     )
   }
@@ -203,28 +202,26 @@ export async function handleOdooSyncPostRequest(request: NextRequest) {
         message: 'Read-only auditor session cannot trigger live Odoo sync.',
         errorAr: 'حساب مراجعة للقراءة فقط — تحديث ربط أودو محصور بالإدارة التنفيذية.',
       },
-      { status: 403, headers: responseHeaders },
+      { status: 403, headers: odooSyncResponseHeaders },
     )
   }
 
   const periodParam = request.nextUrl.searchParams.get('period')
-  bustOdooLiveCache()
-  const freshPayload = await fetchLiveOdooSnapshot({
+  const syncedPayload = await triggerManualOdooSync({
     period: periodParam,
-    forceRefresh: true,
-    readOnly: false,
+    isCron: caller.isCron,
     referenceNowMs: Date.now(),
   })
 
   return NextResponse.json(
     sanitizeOdooPublicPayload({
-      ...freshPayload,
+      ...syncedPayload,
       ok: true,
       readOnly: false,
       role: caller.role,
       manualRefresh: true,
     }),
-    { status: 200, headers: responseHeaders },
+    { status: 200, headers: odooSyncResponseHeaders },
   )
 }
 

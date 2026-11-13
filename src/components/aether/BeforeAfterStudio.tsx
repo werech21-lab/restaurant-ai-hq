@@ -259,10 +259,86 @@ export function BeforeAfterStudio() {
     }
   }, [])
 
+  const [extraDailySeries, setExtraDailySeries] = useState<
+    { day: string; orders: number; netKwd: number }[]
+  >([])
+
+  useEffect(() => {
+    let active = true
+    const qs = new URLSearchParams({
+      dateA: query.periodA.from,
+      toA: query.periodA.to,
+      dateB: query.periodB.from,
+      toB: query.periodB.to,
+      mode: query.mode,
+      granularity: query.granularity,
+      brand: query.brandIds === 'all' ? 'all' : query.brandIds.join(','),
+      branch: query.branchIds === 'all' ? 'all' : query.branchIds.join(','),
+      channel: query.channelIds === 'all' ? 'all' : query.channelIds.join(','),
+    })
+    fetch(`/api/erp/live-comparison?${qs.toString()}`, {
+      method: 'GET',
+      cache: 'no-store',
+      credentials: 'same-origin',
+      headers: { accept: 'application/json' },
+    })
+      .then((res) =>
+        res.ok
+          ? (res.json() as Promise<{ dailySeries?: { day: string; orders: number; netKwd: number }[] }>)
+          : null,
+      )
+      .then((payload) => {
+        if (active && Array.isArray(payload?.dailySeries) && payload.dailySeries.length > 0) {
+          setExtraDailySeries(payload.dailySeries)
+        }
+      })
+      .catch(() => {
+        // silent fallback to liveSummary / verified baseline
+      })
+    return () => {
+      active = false
+    }
+  }, [
+    query.periodA.from,
+    query.periodA.to,
+    query.periodB.from,
+    query.periodB.to,
+    query.mode,
+    query.granularity,
+    query.brandIds,
+    query.branchIds,
+    query.channelIds,
+  ])
+
+  const mergedLiveSummary = useMemo(() => {
+    if (extraDailySeries.length === 0) return liveSummary
+    const map = new Map<string, { day: string; orders: number; netKwd: number }>()
+    for (const d of liveSummary?.dailySeries ?? []) map.set(d.day, d)
+    for (const d of extraDailySeries) map.set(d.day, d)
+    const mergedDaily = [...map.values()].sort((a, b) => a.day.localeCompare(b.day))
+    if (!liveSummary) {
+      return {
+        source: 'live' as const,
+        syncedAt: '2026-11-10T20:59:00.000Z',
+        period: { from: query.periodA.from, to: query.periodA.to },
+        database: null,
+        totals: { netSalesKwd: 0, orders: 0, aovKwd: 0 },
+        brands: [],
+        branches: [],
+        channels: [],
+        dailySeries: mergedDaily,
+      }
+    }
+    return {
+      ...liveSummary,
+      dailySeries: mergedDaily,
+    }
+  }, [liveSummary, extraDailySeries, query.periodA.from, query.periodA.to])
+
   // Live Custom Comparison Engine Result (periodB = Before, periodA = After)
   const comparison = useMemo(
-    () => computeErpComparison(query, liveSummary),
-    [query, liveSummary],
+    () => computeErpComparison(query, mergedLiveSummary),
+    [query, mergedLiveSummary],
   )
 
   const mergedApprovedDecisions = useMemo<ApprovedDecisionItem[]>(() => {

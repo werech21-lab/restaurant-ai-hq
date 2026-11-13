@@ -23,6 +23,7 @@ const requireCjs = createRequire(import.meta.url)
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(__dirname, '..')
+const serverOnlyShimPath = path.join(__dirname, 'tsx-server-only-shim.cjs')
 
 let passed = 0
 let failed = 0
@@ -2968,7 +2969,7 @@ import { POST as visionPost } from './src/app/api/erp/feryal/vision/route';
   }));
 })();
 `
-const closureRaw = execFileSync(process.execPath, [tsxCli, '-e', closureProbeScript], {
+const closureRaw = execFileSync(process.execPath, [tsxCli, '-r', serverOnlyShimPath, '-e', closureProbeScript], {
   cwd: ROOT,
   encoding: 'utf8',
 }).trim()
@@ -3587,7 +3588,7 @@ import { computeErpComparison } from './src/lib/erp-comparison-engine';
   process.env.ODOO_URL = 'https://127.0.0.1:9';
   process.env.ODOO_DB = 'synthetic_secret_db_probe';
   process.env.ODOO_USERNAME = 'synthetic_secret_user_probe';
-  process.env.ODOO_API_KEY = 'aaaa1111bbbb2222cccc3333dddd4444eeee5555';
+  process.env.ODOO_API_KEY = 'synthetic_probe_api_key_z9y8x7w6';
   process.env.CRON_SECRET = 'cron_probe_secret_99887766';
 
   const makeReq = (method: 'GET' | 'POST', token?: string, authBearer?: string) => {
@@ -3634,7 +3635,7 @@ import { computeErpComparison } from './src/lib/erp-comparison-engine';
   const leakedAnySecret =
     combinedPayloadText.includes('synthetic_secret_db_probe') ||
     combinedPayloadText.includes('synthetic_secret_user_probe') ||
-    combinedPayloadText.includes('aaaa1111bbbb2222cccc3333dddd4444eeee5555') ||
+    combinedPayloadText.includes('synthetic_probe_api_key_z9y8x7w6') ||
     combinedPayloadText.includes('127.0.0.1:9');
 
   // Verify live snapshot overlay into computeGlobalWorkspace & computeErpComparison (0.000 KWD gap)
@@ -3723,7 +3724,7 @@ import { computeErpComparison } from './src/lib/erp-comparison-engine';
 })();
 `
 
-const s25Raw = execFileSync(process.execPath, [tsxCli, '-e', s25RbacAndOverlayProbe], {
+const s25Raw = execFileSync(process.execPath, [tsxCli, '-r', serverOnlyShimPath, '-e', s25RbacAndOverlayProbe], {
   cwd: ROOT,
   encoding: 'utf8',
 }).trim()
@@ -3764,6 +3765,178 @@ assert(
     s25Probe.cmpGap === 0,
   '25.3 Live Snapshot Overlay, Auto-Clearing <24h Status Strip, Cron & 3-Min Polling: Live Odoo 17 orders & KWD overlay cleanly onto /erp & Comparison Engine with 0.000 KWD gap, vercel.json cron + 180s polling active, and Sync Odoo Now gated to executives',
   `wsToday=${s25Probe.wsTodaySales}, cmpA=${s25Probe.cmpLiveSalesA}, cmpGap=${s25Probe.cmpGap}`,
+)
+
+console.log('\n[26] Verifying Battle-Hardened Odoo 17 Production Engine, Kuwait UTC+3 Timezone Math, Cooldown & /api/erp/live-comparison...')
+
+const s26GitignoreSrc = fs.readFileSync(path.join(ROOT, '.gitignore'), 'utf8')
+const s26PorcelainRaw = execFileSync('git', ['status', '--porcelain'], {
+  cwd: ROOT,
+  encoding: 'utf8',
+})
+const s26LiveCompRoutePath = path.join(ROOT, 'src/app/api/erp/live-comparison/route.ts')
+const s26LiveCompRouteSrc = fs.existsSync(s26LiveCompRoutePath)
+  ? fs.readFileSync(s26LiveCompRoutePath, 'utf8')
+  : ''
+const s26LiveSyncCoreSrc = fs.readFileSync(
+  path.join(ROOT, 'src/lib/odoo/live-sync-core.ts'),
+  'utf8',
+)
+const s26WeekdayStudioSrc = fs.readFileSync(
+  path.join(ROOT, 'src/components/erp/ops-expansion/WeekdayComparisonStudio.tsx'),
+  'utf8',
+)
+const s26BeforeAfterSrc = fs.readFileSync(
+  path.join(ROOT, 'src/components/aether/BeforeAfterStudio.tsx'),
+  'utf8',
+)
+
+const s26ScriptsFiles = fs
+  .readdirSync(path.join(ROOT, 'scripts'))
+  .filter((f) => /\.(mjs|js|ts)$/.test(f))
+  .map((f) => [f, fs.readFileSync(path.join(ROOT, 'scripts', f), 'utf8')])
+
+const s26ForbiddenHostRegex = new RegExp('walnut' + 'ss', 'i')
+const s26UrlOrKeyOffenders = [
+  ['src/lib/odoo-live-connector.ts', s25ConnectorSrc],
+  ['src/lib/odoo/live-sync-core.ts', s26LiveSyncCoreSrc],
+  ['src/app/api/odoo-sync/route.ts', s25SyncRouteSrc],
+  ['src/app/api/erp/odoo-sync/route.ts', s25ErpSyncRouteSrc],
+  ['src/app/api/erp/live-comparison/route.ts', s26LiveCompRouteSrc],
+  ['src/components/erp/OdooLiveStatusStrip.tsx', s25StatusStripSrc],
+  ['.env.example', s25EnvExampleSrc],
+  ...s26ScriptsFiles,
+].filter(([, txt]) => s26ForbiddenHostRegex.test(txt) || s25HexKeyRegex.test(txt))
+
+assert(
+  s25ConnectorSrc.includes("import 'server-only'") &&
+    s26GitignoreSrc.includes('.env*') &&
+    s26GitignoreSrc.includes('!.env.example') &&
+    !s26PorcelainRaw.includes('.env.local') &&
+    s26UrlOrKeyOffenders.length === 0,
+  '26.1 Strict Secret Hygiene, .gitignore .env* Guard & Zero Hardcoded Odoo URLs/Keys: import server-only active, .gitignore blocks .env* except .env.example, git status --porcelain has zero .env.local, and zero hardcoded Odoo URLs/keys in connector or scripts/',
+  `offenders=${s26UrlOrKeyOffenders.length}`,
+)
+
+const s26ProductionProbeScript = `
+import { NextRequest } from 'next/server';
+import {
+  normalizeOdooBaseUrl,
+  kuwaitDateBoundsToOdooUtc,
+  odooUtcToKuwaitIso,
+  ODOO_RPC_TIMEOUT_MS,
+  MANUAL_SYNC_COOLDOWN_MS,
+  bustOdooLiveCache,
+} from './src/lib/odoo-live-connector';
+import {
+  createExecSessionToken,
+  EXEC_SESSION_COOKIE,
+  DEFAULT_ABDULLAH_EMAIL,
+  DEFAULT_GM_EMAIL,
+  DEFAULT_DGM_EMAIL,
+  DEFAULT_AUDITOR_EMAIL,
+} from './src/lib/auth/exec-session';
+import { POST as syncPost } from './src/app/api/erp/odoo-sync/route';
+import { GET as liveCompGet } from './src/app/api/erp/live-comparison/route';
+
+;(async () => {
+  // Force clean local baseline mode (no network wait) to test unit math, 30s cooldown & live-comparison RBAC
+  delete process.env.ODOO_URL;
+  delete process.env.ODOO_DB;
+  delete process.env.ODOO_USERNAME;
+  delete process.env.ODOO_API_KEY;
+  bustOdooLiveCache({ resetCooldown: true, clearLastKnownGood: true });
+
+  const norm1 = normalizeOdooBaseUrl('  https://erp.example.com///  ');
+  const norm2 = normalizeOdooBaseUrl('https://erp.example.com');
+  const kwBounds = kuwaitDateBoundsToOdooUtc('2026-11-13', '2026-11-13');
+  const kwIsoObj = odooUtcToKuwaitIso('2026-11-13 12:49:15');
+
+  const tAdmin = await createExecSessionToken(DEFAULT_ABDULLAH_EMAIL, 'admin');
+  const tGm = await createExecSessionToken(DEFAULT_GM_EMAIL, 'gm');
+  const tDgm = await createExecSessionToken(DEFAULT_DGM_EMAIL, 'dgm');
+  const tAud = await createExecSessionToken(DEFAULT_AUDITOR_EMAIL, 'auditor');
+
+  // Test 30s manual sync cooldown on rapid second POST
+  const post1 = await syncPost(new NextRequest('https://aetherbi.com/api/erp/odoo-sync?period=today', {
+    method: 'POST',
+    headers: { cookie: EXEC_SESSION_COOKIE + '=' + tAdmin },
+  }));
+  const post1Json = await post1.json();
+
+  const post2 = await syncPost(new NextRequest('https://aetherbi.com/api/erp/odoo-sync?period=today', {
+    method: 'POST',
+    headers: { cookie: EXEC_SESSION_COOKIE + '=' + tAdmin },
+  }));
+  const post2Json = await post2.json();
+
+  // Test GET /api/erp/live-comparison across unauth + all 4 roles
+  const makeCompReq = (tok?: string) =>
+    new NextRequest(
+      'https://aetherbi.com/api/erp/live-comparison?dateA=2026-11-10&toA=2026-11-10&dateB=2026-11-03&toB=2026-11-03&brand=china-garden&branch=avenues',
+      { headers: tok ? { cookie: EXEC_SESSION_COOKIE + '=' + tok } : {} },
+    );
+
+  const cUnauth = await liveCompGet(makeCompReq());
+  const cAdmin = await liveCompGet(makeCompReq(tAdmin));
+  const cGm = await liveCompGet(makeCompReq(tGm));
+  const cDgm = await liveCompGet(makeCompReq(tDgm));
+  const cAud = await liveCompGet(makeCompReq(tAud));
+
+  const cAdminJson = await cAdmin.json();
+  const cAudJson = await cAud.json();
+
+  console.log(JSON.stringify({
+    normOk: norm1 === 'https://erp.example.com' && norm2 === 'https://erp.example.com',
+    timeoutMs: ODOO_RPC_TIMEOUT_MS,
+    cooldownConstMs: MANUAL_SYNC_COOLDOWN_MS,
+    kwBounds,
+    kwIsoObj,
+    post1Cooldown: post1Json.rateLimitedCooldown ?? false,
+    post2Cooldown: post2Json.rateLimitedCooldown === true && post2Json.syncCooldownRemainingSec > 0 && post2Json.diagnosticCode === 'MANUAL_SYNC_COOLDOWN_ACTIVE',
+    compStatuses: [cUnauth.status, cAdmin.status, cGm.status, cDgm.status, cAud.status],
+    compAudReadOnly: cAudJson.readOnly === true && cAudJson.database === null,
+    compGap: cAdminJson?.comparison?.reconciliation?.maxSalesGapKwd ?? -1,
+    compNetA: cAdminJson?.comparison?.selectionA?.netSalesKwd ?? 0,
+  }));
+})();
+`
+
+const s26Raw = execFileSync(process.execPath, [tsxCli, '-r', serverOnlyShimPath, '-e', s26ProductionProbeScript], {
+  cwd: ROOT,
+  encoding: 'utf8',
+}).trim()
+const s26Probe = JSON.parse(s26Raw.split('\n').pop() ?? '{}')
+
+assert(
+  s26Probe.normOk === true &&
+    s26Probe.timeoutMs === 8000 &&
+    s26Probe.cooldownConstMs === 30000 &&
+    s26Probe.kwBounds?.fromUtc === '2026-11-12 21:00:00' &&
+    s26Probe.kwBounds?.toInclusiveUtc === '2026-11-13 20:59:59' &&
+    s26Probe.kwBounds?.toExclusiveUtc === '2026-11-13 21:00:00' &&
+    s26Probe.kwIsoObj?.kuwaitIso === '2026-11-13T15:49:15+03:00' &&
+    s26Probe.kwIsoObj?.kuwaitDate === '2026-11-13' &&
+    s26Probe.kwIsoObj?.kuwaitHour === 15 &&
+    s26Probe.post1Cooldown === false &&
+    s26Probe.post2Cooldown === true,
+  '26.2 URL Slash Normalization, 8000ms Timeout, Kuwait UTC+3 Timezone Math & 30s Cooldown: Trailing slashes stripped, 8s RPC timeout enforced, Kuwait <-> UTC boundaries exact to the second, and rapid manual POST cooldown active',
+  `fromUtc=${s26Probe.kwBounds?.fromUtc}, kwIso=${s26Probe.kwIsoObj?.kuwaitIso}, cooldownHit=${s26Probe.post2Cooldown}`,
+)
+
+assert(
+  JSON.stringify(s26Probe.compStatuses) === '[401,200,200,200,200]' &&
+    s26Probe.compAudReadOnly === true &&
+    s26Probe.compGap === 0 &&
+    s26Probe.compNetA > 0 &&
+    s26LiveSyncCoreSrc.includes('🟢 Live Odoo 17 • Last Receipt:') &&
+    s26LiveSyncCoreSrc.includes('⚡ Cached Odoo Snapshot • Last Receipt:') &&
+    s25StatusStripSrc.includes("stripTone === 'cached'") &&
+    s25StatusStripSrc.includes('Refresh') &&
+    s26WeekdayStudioSrc.includes('/api/erp/live-comparison') &&
+    s26BeforeAfterSrc.includes('/api/erp/live-comparison'),
+  '26.3 Unified /api/erp/live-comparison & 3-State Live/Cached/Stale Badge: Returns [401,200,200,200,200] across roles with 0.000 KWD gap, wires /erp/weekday-comparison + /erp/before-after, and renders Live Emerald, Cached Amber & Stale Red states',
+  `compStatuses=${JSON.stringify(s26Probe.compStatuses)}, gap=${s26Probe.compGap}, netA=${s26Probe.compNetA}`,
 )
 
 console.log('\n----------------------------------------------------------------------')
