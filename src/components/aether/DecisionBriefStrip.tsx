@@ -48,7 +48,7 @@ export function DecisionBriefStrip({ anchor }: { anchor: string }) {
                   <span style={{ color: TONE_HEX[c.tone] }}>{isAr ? c.metricAr : c.metricEn}</span>
                 </Num>
                 <div className="no-print flex flex-wrap gap-2">
-                  <Link href={c.href} className="ae-pill-dark ae-pill-sm">
+                  <Link href={c.href} className="btn-colored inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]">
                     {T('Open', 'فتح')}
                     <ArrowUpRight className={`h-3 w-3 ${isAr ? '-scale-x-100' : ''}`} />
                   </Link>

@@ -162,7 +162,7 @@ export function DeliveryControlV2() {
             <Radar className="h-3.5 w-3.5" />
             {T('Commission radar', 'رادار العمولات')}
           </Link>
-          <Link href={feryalHref(T('Compare Talabat Tgo versus TMP unit economics per order.', 'قارني اقتصاديات الطلب بين طلبات جو وسوق طلبات.'))} className="ae-pill-dark">
+          <Link href={feryalHref(T('Compare Talabat Tgo versus TMP unit economics per order.', 'قارني اقتصاديات الطلب بين طلبات جو وسوق طلبات.'))} className="btn-colored inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]">
             <Sparkles className="h-3.5 w-3.5" />
             {T('Ask Feryal', 'اسأل فريال')}
           </Link>
@@ -297,7 +297,7 @@ export function DeliveryControlV2() {
             </div>
           </div>
           <div className="mt-auto flex flex-wrap items-center gap-2">
-            <button type="button" onClick={dispatchCap} disabled={dispatch === 'sending'} className="ae-pill-dark">
+            <button type="button" onClick={dispatchCap} disabled={dispatch === 'sending'} className="btn-colored inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-emerald-500 disabled:opacity-50 dark:bg-emerald-500 dark:text-[#04130D]">
               <Send className="h-3.5 w-3.5" />
               {dispatch === 'sending' ? T('Dispatching…', 'جارٍ الإرسال…') : T('Dispatch cap via Composio', 'إرسال السقف عبر كومبوزيو')}
             </button>

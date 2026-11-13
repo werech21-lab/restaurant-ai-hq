@@ -97,7 +97,7 @@ export function GlobalFilterBar() {
               </button>
             </span>
           ))}
-          <button type="button" onClick={reset} className="ae-pill-dark ae-pill-sm">
+          <button type="button" onClick={reset} className="btn-colored inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]">
             <RotateCcw className="h-3 w-3" />
             {T('Reset to Full Group Ledger', 'العودة إلى دفتر المجموعة الكامل')}
           </button>

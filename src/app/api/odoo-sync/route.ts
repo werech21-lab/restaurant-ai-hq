@@ -2,6 +2,7 @@ import { timingSafeEqual } from 'node:crypto'
 import { NextResponse, type NextRequest } from 'next/server'
 import { isSameSiteRequest } from '@/lib/odoo/live-sync-core'
 import {
+  canAuditorFetchColdLiveOdoo,
   fetchLiveOdooSnapshot,
   getReadOnlyOdooSnapshotStatus,
   sanitizeOdooPublicPayload,
@@ -134,7 +135,15 @@ export async function handleOdooSyncGetRequest(request: NextRequest) {
   const periodParam = request.nextUrl.searchParams.get('period')
 
   if (caller.isAuditor) {
-    const roPayload = getReadOnlyOdooSnapshotStatus(periodParam, Date.now())
+    const nowMs = Date.now()
+    const roPayload = canAuditorFetchColdLiveOdoo(nowMs)
+      ? await fetchLiveOdooSnapshot({
+          period: periodParam,
+          forceRefresh: false,
+          readOnly: true,
+          referenceNowMs: nowMs,
+        })
+      : getReadOnlyOdooSnapshotStatus(periodParam, nowMs)
     return NextResponse.json(
       sanitizeOdooPublicPayload({
         ...roPayload,

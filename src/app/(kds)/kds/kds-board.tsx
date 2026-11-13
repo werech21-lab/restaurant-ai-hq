@@ -1,8 +1,7 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useCallback, useEffect, useState, useTransition } from 'react'
 import { bumpTicketAction, markReadyAction, startPrepAction, toggleItemDoneAction } from '@/app/actions/kds'
-import { GlobalScopeFilter } from '@/components/GlobalScopeFilter'
 import { LanguageSwitch, useI18n } from '@/lib/i18n'
 
 type Ticket = {
@@ -47,7 +46,7 @@ export function KdsBoard() {
   const [pending, start] = useTransition()
   const [now, setNow] = useState(0)
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
     try {
       const res = await fetch('/api/kds/tickets', { cache: 'no-store' })
       if (!res.ok) throw new Error('fetch failed')
@@ -61,7 +60,7 @@ export function KdsBoard() {
     } catch {
       setError(locale === 'en' ? 'Unable to load kitchen tickets' : 'تعذر تحميل تذاكر المطبخ')
     }
-  }
+  }, [locale])
 
   useEffect(() => {
     void refresh()
@@ -71,7 +70,7 @@ export function KdsBoard() {
       window.clearInterval(poll)
       window.clearInterval(clock)
     }
-  }, [locale])
+  }, [refresh])
 
   return (
     <div className="min-h-screen">

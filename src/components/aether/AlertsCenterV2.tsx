@@ -175,7 +175,7 @@ export function AlertsCenterV2() {
                   ) : null}
                 </div>
                 <div className="flex flex-wrap items-center gap-2 lg:col-span-3 lg:justify-end">
-                  <Link href={feryalHref(isAr ? a.askAr : a.askEn)} className="ae-pill-dark ae-pill-sm">
+                  <Link href={feryalHref(isAr ? a.askAr : a.askEn)} className="btn-colored inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]">
                     <Sparkles className="h-3 w-3" />
                     {T('Ask Feryal to Resolve', 'اطلب من فريال المعالجة')}
                   </Link>

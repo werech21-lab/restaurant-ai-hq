@@ -488,7 +488,7 @@ export function FeryalGovernanceStudio({
         setIsProcessingMedia(false)
       }
     },
-    [handleSelectStudioMode, isAr, isAuditor],
+    [isAr, isAuditor],
   )
 
   useEffect(() => {
@@ -702,7 +702,7 @@ export function FeryalGovernanceStudio({
         setIsCopilotThinking(false)
       }
     },
-    [activeBrainMode, filters, inputText, isAr, pendingAttachments, playFeryalSpeech, workspace],
+    [activeBrainMode, filters, inputText, isAr, isAuditor, pendingAttachments, playFeryalSpeech, workspace],
   )
 
   useEffect(() => {
@@ -936,7 +936,7 @@ export function FeryalGovernanceStudio({
         window.setTimeout(() => setMicToast(null), 4000)
       }
     }
-  }, [isAr, stopAllMicTracks, stopPlayback])
+  }, [isAr, isAuditor, stopAllMicTracks, stopPlayback])
 
   useEffect(() => {
     startListeningRef.current = startListening
@@ -1835,7 +1835,7 @@ export function FeryalGovernanceStudio({
                     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-100 pb-2.5 dark:border-white/[0.06]">
                       <div className="flex min-w-0 items-center gap-2">
                         <Brain className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                        <h3 className="min-w-0 text-[13.5px] font-bold whitespace-normal break-words text-neutral-950 dark:text-white">
+                        <h3 className="min-w-0 text-[13.5px] font-semibold tracking-tight whitespace-normal break-words text-neutral-950 dark:text-white">
                           {T(
                             'Verified Executive Audit Briefings & Institutional Memory Preview',
                             'ملخصات المراجعة التنفيذية المعتمدة ومعاينة الذاكرة المؤسسية',

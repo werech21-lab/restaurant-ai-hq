@@ -1786,7 +1786,7 @@ export function DeliveryRadarV5() {
               aria-modal="true"
               aria-label={T('Company Driver Branches (TMP)', 'فروع سائقي الشركة (TMP)')}
               dir={isAr ? 'rtl' : 'ltr'}
-              className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-xs"
+              className="fixed inset-0 z-[120] flex items-center justify-center bg-[#09110E]/55 p-4 backdrop-blur-xs"
               onClick={() => setTmpModalOpen(false)}
             >
               <div
@@ -1900,7 +1900,7 @@ export function DeliveryRadarV5() {
               aria-modal="true"
               aria-label={T('Odoo Row Proof', 'توثيق السطر من أودو')}
               dir={isAr ? 'rtl' : 'ltr'}
-              className="fixed inset-0 z-[125] flex justify-end bg-slate-950/50 backdrop-blur-xs"
+              className="fixed inset-0 z-[125] flex justify-end bg-[#09110E]/50 backdrop-blur-xs"
               onClick={() => setProofRowId(null)}
             >
               <div

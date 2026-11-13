@@ -167,13 +167,13 @@ export function OfficialCircularPrintModal({
         aria-label={isAr ? 'تعميم رسمي قابل للطباعة' : 'Printable Official Executive Circular'}
         dir={isAr ? 'rtl' : 'ltr'}
         onClick={onClose}
-        className="fixed inset-0 z-[135] flex flex-col items-center overflow-y-auto bg-neutral-950/60 p-3 backdrop-blur-xs sm:p-6"
+        className="fixed inset-0 z-[135] flex flex-col items-center overflow-y-auto bg-[#09110E]/60 p-3 backdrop-blur-xs sm:p-6"
       >
         {/* Top Floating Action Bar (Hidden in Print) */}
         <div
           id="vf-official-circular-toolbar"
           onClick={(e) => e.stopPropagation()}
-          className="mb-3 flex w-full max-w-[850px] flex-wrap items-center justify-between gap-2 rounded-2xl bg-white px-4 py-3 shadow-[0_8px_28px_rgba(15,23,42,0.18)] dark:bg-[#111A22]"
+          className="mb-3 flex w-full max-w-[850px] flex-wrap items-center justify-between gap-2 rounded-2xl bg-white px-4 py-3 shadow-[0_8px_28px_rgba(15,23,42,0.18)] dark:bg-[#101C17]"
         >
           <div className="flex items-center gap-2">
             <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300">
@@ -206,7 +206,7 @@ export function OfficialCircularPrintModal({
             <button
               type="button"
               onClick={handlePrint}
-              className="ae-btn-primary inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-4 text-xs font-semibold transition-all duration-150"
+              className="btn-colored inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-emerald-600 px-4 text-xs font-semibold text-white transition-all duration-150 hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]"
             >
               <Printer className="h-3.5 w-3.5" />
               <span>{isAr ? 'طباعة / تصدير PDF 🖨️' : 'Print / Save PDF 🖨️'}</span>
@@ -215,7 +215,7 @@ export function OfficialCircularPrintModal({
             <button
               type="button"
               onClick={() => void handleCopy()}
-              className="inline-flex h-9 cursor-pointer items-center gap-1 rounded-full bg-[#F7F7F8] px-3 text-xs font-medium text-neutral-800 hover:bg-neutral-200/70 dark:bg-[#0C141B] dark:text-slate-200"
+              className="inline-flex h-9 cursor-pointer items-center gap-1 rounded-full bg-[#F7F7F8] px-3 text-xs font-medium text-neutral-800 hover:bg-neutral-200/70 dark:bg-[#09110E] dark:text-slate-200"
             >
               {copied ? (
                 <>

@@ -2837,7 +2837,7 @@ export function CoresHubStudio() {
               : `Price & Cost Simulator — ${selectedDish.name}`
           }
           onClick={() => setSelectedDish(null)}
-          className="fixed inset-0 z-50 flex justify-end bg-slate-950/45 backdrop-blur-[2px] transition-opacity duration-150"
+          className="fixed inset-0 z-50 flex justify-end bg-[#09110E]/45 backdrop-blur-[2px] transition-opacity duration-150"
         >
           <div
             dir={isAr ? 'rtl' : 'ltr'}

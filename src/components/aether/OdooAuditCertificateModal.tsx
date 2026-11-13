@@ -249,7 +249,7 @@ export function OdooAuditCertificatePill({ isAr }: { isAr: boolean }) {
               aria-modal="true"
               aria-label={isAr ? 'شهادة فحص ومطابقة أودو' : 'Odoo Audit & Reconciliation Certificate'}
               dir={isAr ? 'rtl' : 'ltr'}
-              className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-xs"
+              className="fixed inset-0 z-[120] flex items-center justify-center bg-[#09110E]/55 p-4 backdrop-blur-xs"
               onClick={() => setOpen(false)}
             >
               <div
@@ -416,7 +416,7 @@ export function OdooAuditCertificatePill({ isAr }: { isAr: boolean }) {
                   <button
                     type="button"
                     onClick={() => window.print()}
-                    className="ae-btn-primary inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-4 text-[12.5px] font-bold transition-all"
+                    className="btn-colored inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-emerald-600 px-4 text-[12.5px] font-bold text-white transition-all hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]"
                   >
                     <Printer className="h-3.5 w-3.5" />
                     <span>{isAr ? 'طباعة 🖨️' : 'Print 🖨️'}</span>

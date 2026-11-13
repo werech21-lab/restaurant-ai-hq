@@ -12,7 +12,7 @@ export const metadata = {
 export default async function DeliverySlaPage() {
   await requirePageUser('/erp/delivery-sla')
   return (
-    <div className="w-full max-w-[1920px] mx-auto">
+    <div className="w-full max-w-[1920px] mx-auto min-w-0">
       <DeliverySlaStudio />
     </div>
   )

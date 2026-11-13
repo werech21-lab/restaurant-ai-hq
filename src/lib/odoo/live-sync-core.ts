@@ -374,6 +374,10 @@ export function periodWindowForBucket(bucket: OdooPeriodBucketKey, now = new Dat
 export function summaryFromSnapshot(raw: unknown, note?: string, bucket: OdooPeriodBucketKey = 'month'): OdooLiveSummary {
   const s = (raw ?? {}) as SnapshotShape
   const latestInfo = resolveSnapshotLatestRecordInfo(s)
+  const latestFreshness = computeOdooFreshnessStatus(
+    latestInfo.latestRecordAt,
+    Date.parse('2026-11-12T12:00:00.000Z'),
+  )
   const jp = s.journey?.pulse
   const aa = s.journey?.opex?.analyticArchitecture
   const un = s.journey?.opex?.unallocated?.rolling30
@@ -388,6 +392,9 @@ export function summaryFromSnapshot(raw: unknown, note?: string, bucket: OdooPer
     sourceMode: 'verified-baseline',
     syncedAt: latestInfo.latestRecordAt,
     latestRecordAt: latestInfo.latestRecordAt,
+    latestOdooRecordAt: latestFreshness.kuwaitIso,
+    latestRecordKuwaitIso: latestFreshness.kuwaitIso,
+    kuwaitSyncedAt: latestFreshness.kuwaitTimestamp,
     latestOperationalDate: latestInfo.latestOperationalDate,
     bucket,
     period: b ? { from: b.from, to: b.to } : (s.period ?? { from: '', to: '' }),
@@ -484,16 +491,23 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
   const call = async (service: string, method: string, args: unknown[]): Promise<unknown> => {
     const remaining = deadline - Date.now()
     if (remaining <= 0) throw new Error('Odoo live sync timed out')
-    const res = await fetch(`${base}/jsonrpc`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', accept: 'application/json' },
-      body: JSON.stringify({ jsonrpc: '2.0', method: 'call', id: ++id, params: { service, method, args } }),
-      signal: AbortSignal.timeout(remaining),
-    })
-    if (!res.ok) throw new Error(`Odoo HTTP ${res.status}`)
-    const json = (await res.json()) as { result?: unknown; error?: { data?: { message?: string }; message?: string } }
-    if (json.error) throw new Error(json.error.data?.message || json.error.message || 'Odoo error')
-    return json.result
+    const perCallTimeoutMs = Math.min(8_000, Math.max(1_000, remaining))
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), perCallTimeoutMs)
+    try {
+      const res = await fetch(`${base}/jsonrpc`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', accept: 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', method: 'call', id: ++id, params: { service, method, args } }),
+        signal: controller.signal,
+      })
+      if (!res.ok) throw new Error(`Odoo HTTP ${res.status}`)
+      const json = (await res.json()) as { result?: unknown; error?: { data?: { message?: string }; message?: string } }
+      if (json.error) throw new Error(json.error.data?.message || json.error.message || 'Odoo error')
+      return json.result
+    } finally {
+      clearTimeout(timer)
+    }
   }
 
   const db = String(env.ODOO_DB)
@@ -527,9 +541,17 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
   }
   const brandOfRoot = new Map(REG.brands.filter((b) => b.posRoot).map((b) => [b.posRoot as string, b]))
 
-  const orderDomain = [['date_order', '>=', `${period.from} 00:00:00`], ['date_order', '<', `${period.to} 00:00:00`], ['state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', restaurantAllowed]]
-  const bySession = (await ek('pos.order', 'read_group', [orderDomain, ['amount_total:sum', 'amount_tax:sum'], ['session_id']], { lazy: false })) as { session_id: M2O; amount_total: number; amount_tax: number; __count: number }[]
-  const byPayment = (await ek('pos.payment', 'read_group', [[['pos_order_id.date_order', '>=', `${period.from} 00:00:00`], ['pos_order_id.date_order', '<', `${period.to} 00:00:00`], ['pos_order_id.state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', restaurantAllowed]], ['amount:sum'], ['session_id', 'payment_method_id']], { lazy: false })) as { session_id: M2O; payment_method_id: M2O; amount: number; __count?: number }[]
+  const kwDateToUtc = (kwIsoDate: string) =>
+    new Date(Date.parse(`${kwIsoDate}T00:00:00.000Z`) - KUWAIT_OFFSET_MS)
+      .toISOString()
+      .slice(0, 19)
+      .replace('T', ' ')
+  const periodFromUtc = kwDateToUtc(period.from)
+  const periodToUtc = kwDateToUtc(period.to)
+
+  const orderDomain = [['date_order', '>=', periodFromUtc], ['date_order', '<', periodToUtc], ['state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', restaurantAllowed]]
+  const bySession = (await ek('pos.order', 'read_group', [orderDomain, ['amount_total:sum', 'amount_tax:sum'], ['session_id']], { lazy: false, context: { tz: 'Asia/Kuwait' } })) as { session_id: M2O; amount_total: number; amount_tax: number; __count: number }[]
+  const byPayment = (await ek('pos.payment', 'read_group', [[['pos_order_id.date_order', '>=', periodFromUtc], ['pos_order_id.date_order', '<', periodToUtc], ['pos_order_id.state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', restaurantAllowed]], ['amount:sum'], ['session_id', 'payment_method_id']], { lazy: false, context: { tz: 'Asia/Kuwait' } })) as { session_id: M2O; payment_method_id: M2O; amount: number; __count?: number }[]
   const sessionIds = [...new Set([...bySession, ...byPayment].map((g) => m2oId(g.session_id)).filter((x): x is number => x !== null))]
   const sessions = sessionIds.length ? ((await ek('pos.session', 'read', [sessionIds, ['id', 'config_id']])) as { id: number; config_id: M2O }[]) : []
   const configOfSession = new Map(sessions.map((s) => [s.id, m2oId(s.config_id)]))
@@ -608,8 +630,8 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
     aggUiChannels[ck].netKwd = reconciledAggUi.get(ck) ?? 0
   }
 
-  const lineDomain = [['order_id.date_order', '>=', `${period.from} 00:00:00`], ['order_id.date_order', '<', `${period.to} 00:00:00`], ['order_id.state', 'in', ['paid', 'done', 'invoiced']], ['order_id.session_id.config_id', 'in', restaurantAllowed]]
-  const byProduct = (await ek('pos.order.line', 'read_group', [lineDomain, ['price_subtotal:sum', 'qty:sum'], ['product_id']], { lazy: false })) as { product_id: M2O; price_subtotal: number; qty?: number }[]
+  const lineDomain = [['order_id.date_order', '>=', periodFromUtc], ['order_id.date_order', '<', periodToUtc], ['order_id.state', 'in', ['paid', 'done', 'invoiced']], ['order_id.session_id.config_id', 'in', restaurantAllowed]]
+  const byProduct = (await ek('pos.order.line', 'read_group', [lineDomain, ['price_subtotal:sum', 'qty:sum'], ['product_id']], { lazy: false, context: { tz: 'Asia/Kuwait' } })) as { product_id: M2O; price_subtotal: number; qty?: number }[]
   const productIds = byProduct.map((g) => m2oId(g.product_id)).filter((x): x is number => x !== null)
   const products = productIds.length ? ((await ek('product.product', 'read', [productIds, ['id', 'pos_categ_id']])) as { id: number; pos_categ_id: M2O }[]) : []
   const categOf = new Map(products.map((p) => [p.id, m2oId(p.pos_categ_id)]))
@@ -638,7 +660,7 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
   // Journey pulse (3 grouped totals) and the access audit run in parallel; neither may fail the summary.
   const windows = journeyWindows()
   const pulseOf = async (w: { from: string; to: string; days: number }) => {
-    const rows = (await ek('pos.order', 'read_group', [[['date_order', '>=', `${w.from} 00:00:00`], ['date_order', '<', `${w.to} 00:00:00`], ['state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', restaurantAllowed]], ['amount_total:sum', 'amount_tax:sum'], []], { lazy: false })) as { amount_total: number; amount_tax: number; __count: number }[]
+    const rows = (await ek('pos.order', 'read_group', [[['date_order', '>=', kwDateToUtc(w.from)], ['date_order', '<', kwDateToUtc(w.to)], ['state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', restaurantAllowed]], ['amount_total:sum', 'amount_tax:sum'], []], { lazy: false, context: { tz: 'Asia/Kuwait' } })) as { amount_total: number; amount_tax: number; __count: number }[]
     const net = (rows[0]?.amount_total || 0) - (rows[0]?.amount_tax || 0)
     return { ...w, netKwd: r3(net), orders: rows[0]?.__count ?? 0, perDayKwd: r3(net / Math.max(1, w.days)) }
   }
@@ -714,6 +736,7 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
     new Date(`${period.to}T00:00:00Z`).getTime() - 86_400_000 + 20 * 3_600_000 + 59 * 60_000,
   ).toISOString()
   const resolvedLatestRecordAt = latestPosOrderIso ?? fallbackWindowRecordIso
+  const liveFreshness = computeOdooFreshnessStatus(resolvedLatestRecordAt, Date.now())
   const resolvedOperationalDate = new Date(new Date(resolvedLatestRecordAt).getTime() + KUWAIT_OFFSET_MS)
     .toISOString()
     .slice(0, 10)
@@ -724,6 +747,12 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
     sourceMode: 'odoo17-live',
     syncedAt: resolvedLatestRecordAt,
     latestRecordAt: resolvedLatestRecordAt,
+    latestOdooRecordAt: liveFreshness.kuwaitIso,
+    latestRecordKuwaitIso: liveFreshness.kuwaitIso,
+    kuwaitSyncedAt: liveFreshness.kuwaitTimestamp,
+    hoursSinceLatestRecord: liveFreshness.hoursSinceLatestOdooRecord,
+    hoursSinceLatestOdooRecord: liveFreshness.hoursSinceLatestOdooRecord,
+    isStaleOver24h: liveFreshness.isStaleOver24h,
     latestOperationalDate: resolvedOperationalDate,
     ...(bucket ? { bucket } : {}),
     period,

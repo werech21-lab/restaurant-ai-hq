@@ -129,7 +129,7 @@ export function ChargebacksTab() {
             </button>
           ))}
         </div>
-        <Link href={feryalHref(T('Summarise our open aggregator chargebacks and the fastest recovery plan.', 'لخصي مطالبات الاسترداد المفتوحة لدى المنصات وأسرع خطة استرداد.'))} className="ae-pill-dark ae-pill-sm ms-auto">
+        <Link href={feryalHref(T('Summarise our open aggregator chargebacks and the fastest recovery plan.', 'لخصي مطالبات الاسترداد المفتوحة لدى المنصات وأسرع خطة استرداد.'))} className="btn-colored ms-auto inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]">
           <Sparkles className="h-3 w-3" />
           {T('Ask Feryal', 'اسأل فريال')}
         </Link>
@@ -162,7 +162,7 @@ export function ChargebacksTab() {
                     <Num className="text-base text-rose-600">{kwd(c.amount, lang, 3)}</Num>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 lg:col-span-4 lg:justify-end">
-                    <button type="button" onClick={() => setOpen(open === c.id ? null : c.id)} className="ae-pill-dark ae-pill-sm">
+                    <button type="button" onClick={() => setOpen(open === c.id ? null : c.id)} className="btn-colored inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]">
                       <FileWarning className="h-3 w-3" />
                       {open === c.id ? T('Hide claim', 'إخفاء المطالبة') : T('Generate dispute claim', 'إعداد مطالبة الاعتراض')}
                     </button>
@@ -190,7 +190,7 @@ export function ChargebacksTab() {
                           copy(c.id, claim)
                           if (c.status === 'detected') setStatus((s) => ({ ...s, [c.id]: 'claim-generated' }))
                         }}
-                        className="ae-pill-dark ae-pill-sm"
+                        className="btn-colored inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]"
                       >
                         {copied === c.id ? <Check className="h-3 w-3" /> : <ClipboardCopy className="h-3 w-3" />}
                         {copied === c.id ? T('Copied', 'تم النسخ') : T('Copy claim', 'نسخ المطالبة')}
@@ -256,7 +256,7 @@ export function OrderWaterfallTab() {
         title={T('True per-order net profit waterfall', 'شلال صافي الربح الحقيقي لكل طلب')}
         subtitle={T('Gross basket → commission → marketing discount → food COGS → packaging (→ own rider) = net pocket profit', 'السلة الإجمالية ← العمولة ← الخصم ← تكلفة الأغذية ← التغليف (← سائق المطعم) = صافي الربح')}
         actions={
-          <Link href={feryalHref(T('Compare the per-order net pocket profit across Talabat Tgo, TMP, Keeta, Deliveroo and Jahez.', 'قارني صافي الربح لكل طلب بين طلبات جو وسوق طلبات وكيتا وديليفرو وجاهز.'))} className="ae-pill-dark ae-pill-sm">
+          <Link href={feryalHref(T('Compare the per-order net pocket profit across Talabat Tgo, TMP, Keeta, Deliveroo and Jahez.', 'قارني صافي الربح لكل طلب بين طلبات جو وسوق طلبات وكيتا وديليفرو وجاهز.'))} className="btn-colored inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]">
             <Sparkles className="h-3 w-3" />
             {T('Ask Feryal', 'اسأل فريال')}
           </Link>

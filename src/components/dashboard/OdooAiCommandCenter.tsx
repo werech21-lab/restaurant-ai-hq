@@ -3,22 +3,16 @@
 import React, { useState, useMemo } from 'react'
 import {
   TrendingUp,
-  AlertTriangle,
   CheckCircle2,
   Brain,
   Sparkles,
   ShieldAlert,
-  Wrench,
-  Truck,
   ArrowUpRight,
   Flame,
   Send,
-  Building2,
   DollarSign,
   PieChart as PieIcon,
   RefreshCw,
-  Layers,
-  FileSpreadsheet,
 } from 'lucide-react'
 import {
   ResponsiveContainer,
@@ -92,64 +86,67 @@ export function OdooAiCommandCenter() {
   }
 
   // 2. LIVE ANOMALIES & RADAR ALERTS FROM ODOO
-  const liveAlerts: OdooAlertItem[] = [
-    {
-      id: 'ALT-KOUT-01',
-      titleAr: 'نزيف عمولات المنصات 17% وتكرار أعطال التبريد',
-      titleEn: '17% Commission Bleed & Repeated Fridge Breakdowns',
-      branchAr: 'فرع الكوت مول — الفحيحيل',
-      branchEn: 'Al Kout Mall — Fahaheel',
-      severity: 'CRITICAL',
-      categoryAr: 'عمولات التوصيل والصيانة',
-      categoryEn: 'Delivery Fees & Maintenance',
-      impactKwd: 2840.400,
-      descriptionAr: 'ارتفاع حصة منصات التوصيل (17%) إلى 34.8% مع تكلفة صيانة ثلاجات متكررة لربيع بلغت 2,840.400 د.ك خلال 30 يوماً.',
-      descriptionEn: 'Platform delivery share reached 34.8% alongside repetitive chiller repair costs totaling 2,840.400 KWD in 30 days.',
-      timestamp: 'منذ 14 دقيقة',
-    },
-    {
-      id: 'ALT-SALMIYA-02',
-      titleAr: 'تكرار صيانة كمبريسور التكييف وارتفاع استهلاك الدجاج',
-      titleEn: 'A/C Compressor Maintenance & Chicken Consumption Spikes',
-      branchAr: 'فرع السالمية (شارع سالم المبارك)',
-      branchEn: 'Salmiya (Salem Al-Mubarak)',
-      severity: 'CRITICAL',
-      categoryAr: 'تكلفة الأغذية والصيانة',
-      categoryEn: 'Food Cost & Maintenance',
-      impactKwd: 1885.330,
-      descriptionAr: 'انحراف تكلفة الأغذية إلى 26.8% (المعياري 24%) مع 1,885.330 د.ك مصاريف صيانة تكييف مكررة.',
-      descriptionEn: 'Food cost variance reached 26.8% with 1,885.330 KWD spent on repetitive HVAC repairs.',
-      timestamp: 'منذ 32 دقيقة',
-    },
-    {
-      id: 'ALT-MAK-03',
-      titleAr: 'انخفاض نسبة التصافي لوصفة الدجاج المتبل (PP03)',
-      titleEn: 'Yield Anomaly in Seasoned Chicken Batch (PP03)',
-      branchAr: 'المطبخ المركزي',
-      branchEn: 'Central Kitchen',
-      severity: 'WARNING',
-      categoryAr: 'إنتاج وتصنيع المطبخ المركزي',
-      categoryEn: 'Commissary Batch Yield',
-      impactKwd: 640.200,
-      descriptionAr: 'انخفض معدل التصافي بعد التتبيل من 94.5% إلى 89.2% مما يشير إلى زيادة وزن التقطيع أو هدر بالسوائل.',
-      descriptionEn: 'Post-marination yield dropped from 94.5% to 89.2% indicating over-trimming or seasoning liquid loss.',
-      timestamp: 'منذ ساعة',
-    },
-    {
-      id: 'ALT-AVENUES-04',
-      titleAr: 'أداء قياسي لمبيعات الصالات وانضباط كامل لتكلفة الأغذية',
-      titleEn: 'Peak Dine-in Revenue & Optimal Food Cost Compliance',
-      branchAr: 'فرع مجمع الأفنيوز — الري',
-      branchEn: 'The Avenues Mall — Rai',
-      severity: 'HEALTHY',
-      categoryAr: 'كفاءة تشغيلية ممتازة',
-      categoryEn: 'Operational Excellence',
-      impactKwd: 0.000,
-      descriptionAr: 'تحقيق 38,425.320 د.ك مبيعات بهامش ربح صافٍ 26.8% وتكلفة أغذية منضبطة عند 24.2%.',
-      descriptionEn: 'Generated 38,425.320 KWD sales with 26.8% net margin and strictly controlled 24.2% food cost.',
-      timestamp: 'مستمر ومستقر',
-    },
-  ]
+  const liveAlerts = useMemo<OdooAlertItem[]>(
+    () => [
+      {
+        id: 'ALT-KOUT-01',
+        titleAr: 'نزيف عمولات المنصات 17% وتكرار أعطال التبريد',
+        titleEn: '17% Commission Bleed & Repeated Fridge Breakdowns',
+        branchAr: 'فرع الكوت مول — الفحيحيل',
+        branchEn: 'Al Kout Mall — Fahaheel',
+        severity: 'CRITICAL',
+        categoryAr: 'عمولات التوصيل والصيانة',
+        categoryEn: 'Delivery Fees & Maintenance',
+        impactKwd: 2840.400,
+        descriptionAr: 'ارتفاع حصة منصات التوصيل (17%) إلى 34.8% مع تكلفة صيانة ثلاجات متكررة لربيع بلغت 2,840.400 د.ك خلال 30 يوماً.',
+        descriptionEn: 'Platform delivery share reached 34.8% alongside repetitive chiller repair costs totaling 2,840.400 KWD in 30 days.',
+        timestamp: 'منذ 14 دقيقة',
+      },
+      {
+        id: 'ALT-SALMIYA-02',
+        titleAr: 'تكرار صيانة كمبريسور التكييف وارتفاع استهلاك الدجاج',
+        titleEn: 'A/C Compressor Maintenance & Chicken Consumption Spikes',
+        branchAr: 'فرع السالمية (شارع سالم المبارك)',
+        branchEn: 'Salmiya (Salem Al-Mubarak)',
+        severity: 'CRITICAL',
+        categoryAr: 'تكلفة الأغذية والصيانة',
+        categoryEn: 'Food Cost & Maintenance',
+        impactKwd: 1885.330,
+        descriptionAr: 'انحراف تكلفة الأغذية إلى 26.8% (المعياري 24%) مع 1,885.330 د.ك مصاريف صيانة تكييف مكررة.',
+        descriptionEn: 'Food cost variance reached 26.8% with 1,885.330 KWD spent on repetitive HVAC repairs.',
+        timestamp: 'منذ 32 دقيقة',
+      },
+      {
+        id: 'ALT-MAK-03',
+        titleAr: 'انخفاض نسبة التصافي لوصفة الدجاج المتبل (PP03)',
+        titleEn: 'Yield Anomaly in Seasoned Chicken Batch (PP03)',
+        branchAr: 'المطبخ المركزي',
+        branchEn: 'Central Kitchen',
+        severity: 'WARNING',
+        categoryAr: 'إنتاج وتصنيع المطبخ المركزي',
+        categoryEn: 'Commissary Batch Yield',
+        impactKwd: 640.200,
+        descriptionAr: 'انخفض معدل التصافي بعد التتبيل من 94.5% إلى 89.2% مما يشير إلى زيادة وزن التقطيع أو هدر بالسوائل.',
+        descriptionEn: 'Post-marination yield dropped from 94.5% to 89.2% indicating over-trimming or seasoning liquid loss.',
+        timestamp: 'منذ ساعة',
+      },
+      {
+        id: 'ALT-AVENUES-04',
+        titleAr: 'أداء قياسي لمبيعات الصالات وانضباط كامل لتكلفة الأغذية',
+        titleEn: 'Peak Dine-in Revenue & Optimal Food Cost Compliance',
+        branchAr: 'فرع مجمع الأفنيوز — الري',
+        branchEn: 'The Avenues Mall — Rai',
+        severity: 'HEALTHY',
+        categoryAr: 'كفاءة تشغيلية ممتازة',
+        categoryEn: 'Operational Excellence',
+        impactKwd: 0.000,
+        descriptionAr: 'تحقيق 38,425.320 د.ك مبيعات بهامش ربح صافٍ 26.8% وتكلفة أغذية منضبطة عند 24.2%.',
+        descriptionEn: 'Generated 38,425.320 KWD sales with 26.8% net margin and strictly controlled 24.2% food cost.',
+        timestamp: 'مستمر ومستقر',
+      },
+    ],
+    []
+  )
 
   // 3. COMPARATIVE CHART DATA (9 Active Branches + Central Kitchen)
   const branchChartData = [
@@ -285,7 +282,7 @@ export function OdooAiCommandCenter() {
   const filteredAlerts = useMemo(() => {
     if (filterSeverity === 'ALL') return liveAlerts
     return liveAlerts.filter((a) => a.severity === filterSeverity)
-  }, [filterSeverity])
+  }, [filterSeverity, liveAlerts])
 
   return (
     <div className="w-full space-y-6 text-slate-900 dark:text-slate-100">

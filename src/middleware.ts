@@ -38,6 +38,8 @@ const AUDITOR_BLOCKED_MUTATION_PREFIXES = [
   '/api/feryal',
   '/api/ai',
   '/api/v1',
+  '/api/odoo-sync',
+  '/api/download',
   '/api/executive-directive',
   '/api/aggregator-radar',
   '/api/ingest',
@@ -47,6 +49,8 @@ const AUDITOR_BLOCKED_MUTATION_PREFIXES = [
   '/api/kds',
   '/api/odoo-ai-analysis',
 ]
+
+const AUDITOR_BLOCKED_ANY_METHOD_PREFIXES = ['/api/download/backup']
 
 const MUTATION_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 
@@ -74,6 +78,10 @@ function withSecurityHeaders(response: NextResponse): NextResponse {
   response.headers.set('X-Frame-Options', 'DENY')
   response.headers.set('X-Content-Type-Options', 'nosniff')
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+  response.headers.set('Cross-Origin-Opener-Policy', 'same-origin')
+  if (process.env.NODE_ENV === 'production') {
+    response.headers.set('Strict-Transport-Security', 'max-age=31536000')
+  }
   return response
 }
 
@@ -122,6 +130,12 @@ function isAuthorizedCronRequest(request: NextRequest, pathname: string): boolea
   return constantTimeStringEqual(authHeader, `Bearer ${cronSecret}`)
 }
 
+function isAuditorBlockedReadOrExportPath(pathname: string): boolean {
+  return AUDITOR_BLOCKED_ANY_METHOD_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  )
+}
+
 function isAuditorRestrictedMutationPath(pathname: string): boolean {
   if (
     pathname === '/api/auth/login' ||
@@ -130,12 +144,17 @@ function isAuditorRestrictedMutationPath(pathname: string): boolean {
   ) {
     return false
   }
-  return AUDITOR_BLOCKED_MUTATION_PREFIXES.some(
-    (prefix) =>
-      pathname === prefix ||
-      pathname.startsWith(`${prefix}/`) ||
-      pathname.startsWith(prefix),
-  )
+  if (
+    AUDITOR_BLOCKED_MUTATION_PREFIXES.some(
+      (prefix) =>
+        pathname === prefix ||
+        pathname.startsWith(`${prefix}/`) ||
+        pathname.startsWith(prefix),
+    )
+  ) {
+    return true
+  }
+  return pathname.startsWith('/api/')
 }
 
 export async function middleware(request: NextRequest) {
@@ -161,8 +180,8 @@ export async function middleware(request: NextRequest) {
       const method = request.method.toUpperCase()
       if (
         execSession.role === 'auditor' &&
-        MUTATION_METHODS.has(method) &&
-        isAuditorRestrictedMutationPath(path)
+        (isAuditorBlockedReadOrExportPath(path) ||
+          (MUTATION_METHODS.has(method) && isAuditorRestrictedMutationPath(path)))
       ) {
         return withSecurityHeaders(
           NextResponse.json(

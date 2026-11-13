@@ -121,6 +121,12 @@ function computeCustomSpanDays(fromIso: string, toIso: string): number {
   return Number.isFinite(diff) && diff > 0 ? diff : 1
 }
 
+function shiftCalendarIso(baseIso: string, deltaDays: number): string {
+  const ms = Date.parse(`${baseIso}T12:00:00Z`)
+  if (!Number.isFinite(ms)) return baseIso
+  return new Date(ms + deltaDays * 86_400_000).toISOString().slice(0, 10)
+}
+
 function PeriodDropdownPopover({
   isAr,
   activePeriod,
@@ -212,11 +218,18 @@ function PeriodDropdownPopover({
               {isAr ? `${spanDays} يوم` : `${spanDays} Days`}
             </span>
             <div className="flex items-center gap-1">
-              {[
-                { label: '7d', from: '2026-11-05', to: '2026-11-11' },
-                { label: '14d', from: '2026-10-29', to: '2026-11-11' },
-                { label: '30d', from: '2026-10-13', to: '2026-11-11' },
-              ].map((q) => (
+              {(() => {
+                const anchorToIso =
+                  liveSummary?.latestOperationalDate &&
+                  /^\d{4}-\d{2}-\d{2}$/.test(liveSummary.latestOperationalDate)
+                    ? liveSummary.latestOperationalDate
+                    : '2026-11-10'
+                return [
+                  { label: '7d', from: shiftCalendarIso(anchorToIso, -6), to: anchorToIso },
+                  { label: '14d', from: shiftCalendarIso(anchorToIso, -13), to: anchorToIso },
+                  { label: '30d', from: shiftCalendarIso(anchorToIso, -29), to: anchorToIso },
+                ]
+              })().map((q) => (
                 <button
                   key={q.label}
                   type="button"
@@ -291,7 +304,7 @@ function EmeraldPillTabs<T extends string>({
 }: {
   ariaLabel: string
   value: T
-  options: readonly { id: T; label: string }[]
+  options: readonly { id: T; label: string; title?: string }[]
   onChange: (next: T) => void
 }) {
   return (
@@ -307,6 +320,7 @@ function EmeraldPillTabs<T extends string>({
             key={opt.id}
             type="button"
             role="tab"
+            title={opt.title}
             aria-selected={active}
             onClick={() => onChange(opt.id)}
             className={`inline-flex shrink-0 cursor-pointer items-center justify-center rounded-xl px-3 py-1.5 text-[12.5px] font-semibold whitespace-nowrap transition-all duration-[160ms] focus:outline-none ${
@@ -743,6 +757,8 @@ export function TopFilterBar({
   const gov = useOptionalGovernance()
   const auditorMode = Boolean(
     isAuditor ||
+      sessionRole === 'auditor' ||
+      liveSummary?.readOnly === true ||
       gov?.isAuditor ||
       (typeof userEmail === 'string' && userEmail.toLowerCase().includes('auditor')),
   )
@@ -869,6 +885,21 @@ export function TopFilterBar({
   const periodDropdownLabel = isAr
     ? `الفترة: ${activePeriodShortLabel} (${activePeriodRangeText})`
     : `Period: ${activePeriodShortLabel} (${activePeriodRangeText})`
+
+  const periodPillOptions = GLOBAL_PERIOD_OPTIONS.map((p) => {
+    const shortLbl = cleanPeriodOptionLabel(p.id, isAr ? p.ar : p.en, isAr)
+    const win = formatPeriodCalendarWindow(p.id, {
+      customFrom: draftFrom,
+      customTo: draftTo,
+      liveSummary,
+    })
+    const winText = isAr ? win.labelAr : win.labelEn
+    return {
+      id: p.id,
+      label: shortLbl,
+      title: `${shortLbl} (${winText})`,
+    }
+  })
 
   const handleApplyMobileSheet = () => {
     if (filters.period === 'custom') {
@@ -1118,17 +1149,19 @@ export function TopFilterBar({
             <div className="space-y-4">
               {/* Period + Custom Dates */}
               <div className="space-y-2">
-                <div className="text-[11.5px] font-bold text-slate-500 dark:text-slate-400">
-                  {isAr ? 'الفترة الزمنية' : 'Time Period'}
+                <div className="flex flex-wrap items-center justify-between gap-1.5">
+                  <div className="text-[11.5px] font-bold text-slate-500 dark:text-slate-400">
+                    {isAr ? 'الفترة الزمنية' : 'Time Period'}
+                  </div>
+                  <span className="rounded-lg bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200">
+                    {periodDropdownLabel}
+                  </span>
                 </div>
                 <EmeraldPillTabs
                   ariaLabel={isAr ? 'الفترة' : 'Period'}
                   value={filters.period}
                   onChange={setPeriod}
-                  options={GLOBAL_PERIOD_OPTIONS.map((p) => ({
-                    id: p.id,
-                    label: cleanPeriodOptionLabel(p.id, isAr ? p.ar : p.en, isAr),
-                  }))}
+                  options={periodPillOptions}
                 />
 
                 {filters.period === 'custom' ? (
@@ -1495,17 +1528,19 @@ export function TopFilterBar({
 
               {/* 0. Time Period + Custom From/To Range right inside Desktop Unified Filters */}
               <div className="space-y-2">
-                <div className="text-[11.5px] font-bold text-slate-500 dark:text-slate-400">
-                  {isAr ? 'الفترة الزمنية والتقويم المخصص' : 'Time Period & Custom Date Range'}
+                <div className="flex flex-wrap items-center justify-between gap-1.5">
+                  <div className="text-[11.5px] font-bold text-slate-500 dark:text-slate-400">
+                    {isAr ? 'الفترة الزمنية والتقويم المخصص' : 'Time Period & Custom Date Range'}
+                  </div>
+                  <span className="rounded-lg bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold tabular-nums text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200">
+                    {periodDropdownLabel}
+                  </span>
                 </div>
                 <EmeraldPillTabs
                   ariaLabel={isAr ? 'الفترة' : 'Period'}
                   value={filters.period}
                   onChange={setPeriod}
-                  options={GLOBAL_PERIOD_OPTIONS.map((p) => ({
-                    id: p.id,
-                    label: cleanPeriodOptionLabel(p.id, isAr ? p.ar : p.en, isAr),
-                  }))}
+                  options={periodPillOptions}
                 />
                 {filters.period === 'custom' ? (
                   <div className="grid grid-cols-1 gap-2 rounded-2xl bg-[#F6F7F8] p-3 ring-1 ring-slate-900/[0.04] sm:grid-cols-3 dark:bg-[#09110E] dark:ring-emerald-500/15">

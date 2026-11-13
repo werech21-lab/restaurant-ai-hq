@@ -32,7 +32,7 @@ export function OdooExtendedMeta({
       {mapped.length > 0 ? (
         <dl className="grid gap-2 sm:grid-cols-2">
           {mapped.map((row) => (
-            <div key={row.key} className="rounded-lg border border-[#30363d] bg-black/20 px-3 py-2 text-sm">
+            <div key={row.key} className="rounded-lg border border-[#30363d] bg-[#09110E]/20 px-3 py-2 text-sm">
               <dt className="text-xs text-gray-400">
                 {row.labelAr} · {row.labelEn}
               </dt>

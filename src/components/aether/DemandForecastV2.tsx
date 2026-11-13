@@ -131,7 +131,7 @@ export function DemandForecastV2({ anchor }: { anchor: string }) {
               </button>
             ))}
           </div>
-          <Link href={feryalHref(T(`Brief me on the ${horizon}-day demand forecast and the Ardiya prep plan.`, `أعطيني موجزاً عن توقع الطلب لـ ${horizon} يوماً وخطة تحضير العارضية.`))} className="ae-pill-dark">
+          <Link href={feryalHref(T(`Brief me on the ${horizon}-day demand forecast and the Ardiya prep plan.`, `أعطيني موجزاً عن توقع الطلب لـ ${horizon} يوماً وخطة تحضير العارضية.`))} className="btn-colored inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]">
             <Sparkles className="h-3.5 w-3.5" />
             {T('Feryal briefing', 'موجز فريال')}
           </Link>
@@ -162,7 +162,7 @@ export function DemandForecastV2({ anchor }: { anchor: string }) {
           />
           <div className="flex flex-wrap gap-1.5">
             {forecast.map((d, i) => (
-              <button key={d.date} type="button" onClick={() => setSelectedIdx(i)} className={i === selectedIdx ? 'ae-pill-dark ae-pill-sm' : 'ae-pill-light ae-pill-sm'}>
+              <button key={d.date} type="button" onClick={() => setSelectedIdx(i)} className={i === selectedIdx ? 'btn-colored inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]' : 'ae-pill-light ae-pill-sm'}>
                 {dayLabel(d.date, lang)}
                 {d.weekendSurge ? <span className="text-amber-500">●</span> : null}
                 {d.salaryWeek ? <span className="text-emerald-500">●</span> : null}
@@ -263,7 +263,7 @@ export function DemandForecastV2({ anchor }: { anchor: string }) {
                   approve()
                   exportSheet()
                 }}
-                className="ae-pill-dark no-print"
+                className="btn-colored no-print inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]"
               >
                 <Download className="h-3.5 w-3.5" />
                 {T('Approve & Export Prep Sheet', 'اعتماد وتصدير ورقة التحضير')}

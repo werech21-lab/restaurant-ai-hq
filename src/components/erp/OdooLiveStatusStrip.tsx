@@ -35,9 +35,10 @@ export function OdooLiveStatusStrip({
   const { liveSummary, syncingOdoo, syncCooldownSec, triggerOdooSyncNow } = useGlobalFilter()
   const gov = useOptionalGovernance()
 
-  const activeRole: ExecSessionRole = isAuditor
-    ? 'auditor'
-    : (sessionRole ?? gov?.sessionRole ?? (gov?.isAuditor ? 'auditor' : 'admin'))
+  const activeRole: ExecSessionRole =
+    isAuditor || liveSummary?.readOnly === true
+      ? 'auditor'
+      : (sessionRole ?? gov?.sessionRole ?? (gov?.isAuditor ? 'auditor' : 'admin'))
   const roleProfile = resolveExecRoleProfile(activeRole)
 
   const [referenceNowMs, setReferenceNowMs] = useState<number>(DETERMINISTIC_SSR_REF_NOW_MS)
@@ -74,11 +75,12 @@ export function OdooLiveStatusStrip({
   const todayOrders = liveSummary?.todayOrders ?? liveSummary?.todayOrdersCount ?? 0
   const todaySalesKwd = liveSummary?.todaySalesKwd ?? 0
 
-  const stripTone: 'live' | 'cached' | 'stale' = isCachedFallback
-    ? 'cached'
-    : isHealthyUnder24h
-      ? 'live'
-      : 'stale'
+  const stripTone: 'live' | 'cached' | 'stale' =
+    !freshness.isStaleOver24h && isCachedFallback
+      ? 'cached'
+      : isHealthyUnder24h
+        ? 'live'
+        : 'stale'
 
   const stripToneClasses =
     stripTone === 'live'
@@ -92,7 +94,7 @@ export function OdooLiveStatusStrip({
       ? isAr
         ? freshness.cachedSnapshotBadgeAr
         : freshness.cachedSnapshotBadgeEn
-      : isLiveConnectedAndFresh || isHealthyUnder24h
+      : stripTone === 'live'
         ? isAr
           ? freshness.liveConnectedBadgeAr
           : freshness.liveConnectedBadgeEn

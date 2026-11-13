@@ -98,17 +98,17 @@ export function FeryalMemoryDrawer({
   return (
     <div
       dir={isAr ? 'rtl' : 'ltr'}
-      className="fixed inset-0 z-50 flex justify-end bg-slate-950/45 backdrop-blur-[2px]"
+      className="fixed inset-0 z-50 flex justify-end bg-[#09110E]/45 backdrop-blur-[2px]"
       onClick={onClose}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="flex h-full w-full max-w-[560px] flex-col overflow-hidden bg-white shadow-2xl dark:bg-[#0D151D]"
+        className="flex h-full w-full max-w-[560px] flex-col overflow-hidden bg-white shadow-2xl dark:bg-[#101C17]"
       >
         {/* Drawer Header */}
         <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 dark:border-white/[0.08]">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#0B1220] text-white dark:bg-[#10B981] dark:text-[#04130D]">
+            <div className="btn-colored flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-600 text-white dark:bg-[#10B981] dark:text-[#04130D]">
               <Brain className="h-5 w-5" />
             </div>
             <div>
@@ -192,7 +192,7 @@ export function FeryalMemoryDrawer({
                     onClick={() => setTeachCat(c.id)}
                     className={`cursor-pointer rounded-full px-2.5 py-1 text-[11px] font-bold transition-all ${
                       teachCat === c.id
-                        ? 'bg-[#0B1220] text-white dark:bg-[#10B981] dark:text-[#04130D]'
+                        ? 'btn-colored bg-emerald-600 text-white dark:bg-[#10B981] dark:text-[#04130D]'
                         : 'ae-bento-subcard text-slate-600 dark:text-slate-300'
                     }`}
                   >
@@ -216,7 +216,7 @@ export function FeryalMemoryDrawer({
               <button
                 type="submit"
                 disabled={teachText.trim().length < 4}
-                className="ae-btn-primary inline-flex h-9 w-full cursor-pointer items-center justify-center gap-1.5 rounded-full px-4 text-[12.5px] font-extrabold disabled:opacity-40"
+                className="btn-colored inline-flex h-9 w-full cursor-pointer items-center justify-center gap-1.5 rounded-full bg-emerald-600 px-4 text-[12.5px] font-extrabold text-white transition hover:bg-emerald-500 disabled:opacity-40 dark:bg-emerald-500 dark:text-[#04130D]"
               >
                 <Plus className="h-4 w-4" />
                 <span>
@@ -301,7 +301,7 @@ export function FeryalMemoryDrawer({
                   value={outTitle}
                   onChange={(e) => setOutTitle(e.target.value)}
                   placeholder={isAr ? 'اسم الخطة المجرّبة…' : 'Tested play title…'}
-                  className="h-8 w-full rounded-xl bg-white px-3 text-[12px] text-slate-900 ring-1 ring-slate-200 dark:bg-[#0B1220] dark:text-white"
+                  className="h-8 w-full rounded-xl bg-white px-3 text-[12px] text-slate-900 ring-1 ring-slate-200 dark:bg-[#09110E] dark:text-white dark:ring-white/10"
                 />
                 <div className="grid grid-cols-3 gap-2">
                   <input
@@ -309,26 +309,26 @@ export function FeryalMemoryDrawer({
                     value={outBrand}
                     onChange={(e) => setOutBrand(e.target.value)}
                     placeholder={isAr ? 'المطعم' : 'Brand'}
-                    className="h-8 rounded-xl bg-white px-2.5 text-[12px] text-slate-900 ring-1 ring-slate-200 dark:bg-[#0B1220] dark:text-white"
+                    className="h-8 rounded-xl bg-white px-2.5 text-[12px] text-slate-900 ring-1 ring-slate-200 dark:bg-[#09110E] dark:text-white dark:ring-white/10"
                   />
                   <input
                     type="text"
                     value={outBranch}
                     onChange={(e) => setOutBranch(e.target.value)}
                     placeholder={isAr ? 'الفرع' : 'Branch'}
-                    className="h-8 rounded-xl bg-white px-2.5 text-[12px] text-slate-900 ring-1 ring-slate-200 dark:bg-[#0B1220] dark:text-white"
+                    className="h-8 rounded-xl bg-white px-2.5 text-[12px] text-slate-900 ring-1 ring-slate-200 dark:bg-[#09110E] dark:text-white dark:ring-white/10"
                   />
                   <input
                     type="number"
                     value={outGain}
                     onChange={(e) => setOutGain(e.target.value)}
                     placeholder="KWD/mo"
-                    className="h-8 rounded-xl bg-white px-2.5 text-[12px] text-slate-900 ring-1 ring-slate-200 dark:bg-[#0B1220] dark:text-white"
+                    className="h-8 rounded-xl bg-white px-2.5 text-[12px] text-slate-900 ring-1 ring-slate-200 dark:bg-[#09110E] dark:text-white dark:ring-white/10"
                   />
                 </div>
                 <button
                   type="submit"
-                  className="ae-btn-primary h-8 w-full rounded-full text-[12px] font-bold"
+                  className="btn-colored h-8 w-full rounded-full bg-emerald-600 text-[12px] font-bold text-white transition hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]"
                 >
                   {isAr ? 'اعتماد كخطة مجرّبة ورابحة ✅' : 'Mark as Proven Winner ✅'}
                 </button>
@@ -373,7 +373,7 @@ export function FeryalMemoryDrawer({
                         )
                         onClose()
                       }}
-                      className="ae-btn-primary inline-flex h-8 w-full cursor-pointer items-center justify-center gap-1.5 rounded-full text-[12px] font-bold"
+                      className="btn-colored inline-flex h-8 w-full cursor-pointer items-center justify-center gap-1.5 rounded-full bg-emerald-600 text-[12px] font-bold text-white transition hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]"
                     >
                       <Sparkles className="h-3.5 w-3.5" />
                       <span>

@@ -454,12 +454,39 @@ CRITICAL RULES:
     }
 
     // Default response
-    return NextResponse.json({
-      success: true,
-      masterData: ODOO_MASTER,
-      availableServices: ['chat', 'perplexity', 'firecrawl', 'playwright', 'composio'],
-    })
+    return NextResponse.json(
+      {
+        success: true,
+        masterData: ODOO_MASTER,
+        availableServices: ['chat', 'perplexity', 'firecrawl', 'playwright', 'composio'],
+      },
+      { headers: ENTERPRISE_API_SECURITY_HEADERS },
+    )
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error?.message || 'Server error' }, { status: 500 })
+    return NextResponse.json(
+      { success: false, error: error?.message || 'Server error' },
+      { status: 500, headers: ENTERPRISE_API_SECURITY_HEADERS },
+    )
   }
+}
+
+async function disallowFeryalMutation(req: NextRequest) {
+  const authGuard = await requireExecApiSession(req, { allowAuditor: false })
+  if (!authGuard.ok) return authGuard.response
+  return NextResponse.json(
+    { ok: false, error: 'Method not allowed' },
+    { status: 405, headers: ENTERPRISE_API_SECURITY_HEADERS },
+  )
+}
+
+export async function PUT(req: NextRequest) {
+  return disallowFeryalMutation(req)
+}
+
+export async function PATCH(req: NextRequest) {
+  return disallowFeryalMutation(req)
+}
+
+export async function DELETE(req: NextRequest) {
+  return disallowFeryalMutation(req)
 }

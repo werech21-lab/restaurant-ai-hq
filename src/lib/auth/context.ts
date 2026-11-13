@@ -41,10 +41,19 @@ const membershipSql = `select m.tenant_id, m.permission_flags as flags,
      left join role_permissions rp on rp.role_id = m.role_id
      where m.user_id = $1 and m.status = 'active'`
 
-async function resolveExecSession(): Promise<{
+async function resolveExecSession(request?: NextRequest): Promise<{
   email: string
   role: ExecSessionRole
 } | null> {
+  if (request) {
+    const reqToken =
+      request.cookies.get(EXEC_SESSION_COOKIE)?.value ??
+      request.cookies.get('aether_exec_session')?.value
+    if (reqToken) {
+      const payload = await verifyExecSessionToken(reqToken)
+      if (payload) return { email: payload.sub, role: payload.role }
+    }
+  }
   try {
     const jar = await cookies()
     const execToken = jar.get(EXEC_SESSION_COOKIE)?.value
@@ -149,18 +158,22 @@ export async function authenticate(request: NextRequest, permission: Permission)
   if (requestedTenant !== null && !tenantHeader.safeParse(requestedTenant).success) {
     throw new AppError(400, 'tenant_invalid', 'The x-tenant-id header must be a UUID.')
   }
-  return authenticateUser(permission, requestedTenant)
+  return authenticateUser(permission, requestedTenant, request)
 }
 
 /**
  * The same checks for callers that have no NextRequest, such as server actions.
  */
-export async function authenticateUser(permission: Permission, requestedTenant: string | null): Promise<AuthContext> {
+export async function authenticateUser(
+  permission: Permission,
+  requestedTenant: string | null,
+  request?: NextRequest,
+): Promise<AuthContext> {
   if (requestedTenant !== null && !tenantHeader.safeParse(requestedTenant).success) {
     throw new AppError(400, 'tenant_invalid', 'The tenant must be a UUID.')
   }
 
-  const execSession = await resolveExecSession()
+  const execSession = await resolveExecSession(request)
   if (execSession) {
     const tenantId = requestedTenant ?? (await resolvePanelBridgeTenantId()) ?? '00000000-0000-0000-0000-000000000001'
     const fullSet = panelBridgePermissionSet()
@@ -255,7 +268,14 @@ export async function readSessionPermissions(): Promise<string[]> {
 
     const panel = await getPanelSessionUser()
     if (panel) {
-      return [...panelBridgePermissionSet()].sort()
+      const fullPanelSet = [...panelBridgePermissionSet()]
+      const isAuditorPanel =
+        ('isAuditor' in panel && Boolean((panel as { isAuditor?: boolean }).isAuditor)) ||
+        (typeof panel.email === 'string' && panel.email.toLowerCase().includes('auditor'))
+      if (isAuditorPanel) {
+        return fullPanelSet.filter((p) => p.endsWith('.read')).sort()
+      }
+      return fullPanelSet.sort()
     }
   } catch {
     // fall through

@@ -588,3 +588,24 @@ export async function POST(req: NextRequest) {
     { headers: ENTERPRISE_API_SECURITY_HEADERS },
   )
 }
+
+async function disallowVisionMutation(req: NextRequest) {
+  const authGuard = await requireExecApiSession(req, { allowAuditor: false })
+  if (!authGuard.ok) return authGuard.response
+  return NextResponse.json(
+    { ok: false, error: 'Method not allowed' },
+    { status: 405, headers: ENTERPRISE_API_SECURITY_HEADERS },
+  )
+}
+
+export async function PUT(req: NextRequest) {
+  return disallowVisionMutation(req)
+}
+
+export async function PATCH(req: NextRequest) {
+  return disallowVisionMutation(req)
+}
+
+export async function DELETE(req: NextRequest) {
+  return disallowVisionMutation(req)
+}

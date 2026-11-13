@@ -75,7 +75,7 @@ export function CostIntelligenceV2() {
             )}
           </p>
         </div>
-        <Link href={feryalHref(T('Which supplier price increases threaten our margin most and what counter-moves do you recommend?', 'أي ارتفاعات أسعار الموردين تهدد هامشنا أكثر وما الإجراءات المضادة التي توصين بها؟'))} className="ae-pill-dark">
+        <Link href={feryalHref(T('Which supplier price increases threaten our margin most and what counter-moves do you recommend?', 'أي ارتفاعات أسعار الموردين تهدد هامشنا أكثر وما الإجراءات المضادة التي توصين بها؟'))} className="btn-colored inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]">
           <Sparkles className="h-3.5 w-3.5" />
           {T('Ask Feryal', 'اسأل فريال')}
         </Link>
@@ -128,7 +128,7 @@ export function CostIntelligenceV2() {
                     setIngredient(c.id)
                     setIncrease(null)
                   }}
-                  className={ingredient === c.id ? 'ae-pill-dark ae-pill-sm' : 'ae-pill-light ae-pill-sm'}
+                  className={ingredient === c.id ? 'btn-colored inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]' : 'ae-pill-light ae-pill-sm'}
                 >
                   <FlaskConical className="h-3 w-3" />
                   {T('Simulate margin impact', 'محاكاة أثر الهامش')}
@@ -151,7 +151,7 @@ export function CostIntelligenceV2() {
                   ? `حللي أثر ارتفاع سعر ${erosion.supplier.ar} بنسبة ${fmt(pctUsed, 1)}% على هامش أعلى 32 صنفاً (تآكل ${fmt(erosion.totalErosion)} د.ك) والإجراءات المضادة.`
                   : `Analyse a ${fmt(pctUsed, 1)}% price increase on ${erosion.supplier.en} across our top 32 items (${fmt(erosion.totalErosion)} KWD erosion) and the counter-moves.`,
               )}
-              className="ae-pill-dark"
+              className="btn-colored inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]"
             >
               <Sparkles className="h-3.5 w-3.5" />
               {T('Ask Feryal', 'اسأل فريال')}

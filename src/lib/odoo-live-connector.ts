@@ -323,6 +323,17 @@ export function isOdooLiveEnvConfigured(): boolean {
   return readServerOdooConfig() !== null
 }
 
+/** True when an `auditor` GET on a cold worker can safely run a read-only Odoo `read_group` pull. */
+export function canAuditorFetchColdLiveOdoo(referenceNowMs = Date.now()): boolean {
+  return (
+    isOdooLiveEnvConfigured() &&
+    coreSnapshotCache === null &&
+    lastKnownGoodSnapshot === null &&
+    consecutiveUpstreamFailures === 0 &&
+    circuitOpenUntilMs <= referenceNowMs
+  )
+}
+
 /** Returns remaining manual sync cooldown in whole seconds (`0` when ready). */
 export function getSyncCooldownRemainingSec(referenceNowMs = Date.now()): number {
   if (lastManualSyncAtMs <= 0) return 0
@@ -331,7 +342,7 @@ export function getSyncCooldownRemainingSec(referenceNowMs = Date.now()): number
   return Math.max(1, Math.ceil((MANUAL_SYNC_COOLDOWN_MS - elapsedMs) / 1000))
 }
 
-/** Strips all Odoo credentials, hostnames, DB names, usernames, and hex tokens from any string. */
+/** Strips all Odoo credentials, hostnames, DB names, usernames, cron secrets, and hex tokens from any string. */
 export function redactOdooSecrets(rawMessage: unknown): string {
   let msg = typeof rawMessage === 'string' ? rawMessage : String(rawMessage ?? '')
   const secrets = [
@@ -341,6 +352,7 @@ export function redactOdooSecrets(rawMessage: unknown): string {
     process.env.ODOO_DB,
     process.env.ODOO_URL,
     normalizeOdooBaseUrl(process.env.ODOO_URL),
+    process.env.CRON_SECRET,
   ]
   for (const s of secrets) {
     const trimmed = (s ?? '').trim()
@@ -1014,6 +1026,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     productLines30Rows,
     productLinesTodayRows,
     ytdAggRows,
+    ytdCompanyAggRows,
     prior30AggRows,
     stockTransfers,
     aggregatorReceivables,
@@ -1178,6 +1191,24 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
               ['date_order', '<', boundsYear.toUtc],
               ['state', 'in', ['paid', 'done', 'invoiced']],
               ['session_id.config_id', 'in', restaurantConfigIds],
+            ],
+            ['amount_total:sum', 'amount_tax:sum'],
+            [],
+          ],
+          { lazy: false },
+        ),
+      [],
+    ),
+    safeSubQuery(
+      () =>
+        executeOdooKw<{ amount_total?: number; amount_tax?: number; __count?: number }[]>(
+          'pos.order',
+          'read_group',
+          [
+            [
+              ['date_order', '>=', boundsYear.fromUtc],
+              ['date_order', '<', boundsYear.toUtc],
+              ['state', 'in', ['paid', 'done', 'invoiced']],
             ],
             ['amount_total:sum', 'amount_tax:sum'],
             [],
@@ -1538,7 +1569,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   const hasTodayPayments = paymentsTodayRows.some((p) => (Number(p.amount) || 0) > 0)
   const locUiToday = hasTodayPayments && !todayIsFallbackDay ? locUiTodayRaw : locUi30
 
-  // 7. Build YTD bucket (`year`)
+  // 7. Build YTD bucket (`year`) preserving unmapped terminals in company totals
   const ytdTotalNet = r3(
     Math.max(
       0,
@@ -1547,6 +1578,16 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     ),
   )
   const ytdTotalOrd = Math.max(0, Number(ytdAggRows?.[0]?.__count ?? 0))
+  const ytdCompanyNet = r3(
+    Math.max(
+      ytdTotalNet,
+      (Number(ytdCompanyAggRows?.[0]?.amount_total) || 0) -
+        (Number(ytdCompanyAggRows?.[0]?.amount_tax) || 0),
+    ),
+  )
+  const ytdCompanyOrd = Math.max(ytdTotalOrd, Number(ytdCompanyAggRows?.[0]?.__count ?? 0))
+  const unmappedYearNet = Math.max(0, r3(ytdCompanyNet - ytdTotalNet))
+  const unmappedYearOrd = Math.max(0, ytdCompanyOrd - ytdTotalOrd)
   const monthSumNet = ACTIVE_BRANCH_IDS.reduce((s, l) => s + (locMonthNet.get(l) ?? 0), 0)
   const monthSumOrd = ACTIVE_BRANCH_IDS.reduce((s, l) => s + (locMonthOrd.get(l) ?? 0), 0)
   const locYearNet = new Map<string, number>()
@@ -1638,6 +1679,8 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
         days: ytdDays,
         locNetMap: locYearNet,
         locOrdersMap: locYearOrd,
+        unmappedNetKwd: unmappedYearNet,
+        unmappedOrders: unmappedYearOrd,
         brandRawWeights: brand30.netMap,
         brandQtyWeights: brand30.qtyMap,
         locUiRawMap: locUi30,

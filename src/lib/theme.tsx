@@ -50,9 +50,7 @@ export function ThemeProvider({ initialTheme = 'light', children }: { initialThe
         (window.localStorage.getItem(STORAGE_KEY_AETHER) as Theme | null) ||
         (window.localStorage.getItem(STORAGE_KEY_LEGACY) as Theme | null)
       if (stored === 'light' || stored === 'dark') {
-        if (stored !== theme) {
-          setThemeState(stored)
-        }
+        setThemeState((prev) => (prev === stored ? prev : stored))
         applyThemeToDOM(stored)
       } else {
         applyThemeToDOM(initialTheme)

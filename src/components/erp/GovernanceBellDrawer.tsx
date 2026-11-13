@@ -1014,7 +1014,7 @@ function GovernanceSlideOverDrawer({
     <div
       id="vf-gov-drawer-backdrop"
       dir={isAr ? 'rtl' : 'ltr'}
-      className="fixed inset-0 z-50 flex justify-end bg-neutral-950/35 backdrop-blur-[2px] transition-opacity duration-200"
+      className="fixed inset-0 z-50 flex justify-end bg-[#09110E]/35 backdrop-blur-[2px] transition-opacity duration-200"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose()
       }}

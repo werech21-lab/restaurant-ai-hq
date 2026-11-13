@@ -25,7 +25,7 @@ export const metadata: Metadata = {
  */
 export default async function ErpLayout({ children }: { children: ReactNode }) {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#F7F7F8] dark:bg-[#090F15]" />}>
+    <Suspense fallback={<div className="min-h-screen bg-[#F7F7F8] dark:bg-[#09110E]" />}>
       <ErpShell>
         <div className="relative w-full max-w-none min-w-0 text-[14.5px]">
           <GovernancePulse />

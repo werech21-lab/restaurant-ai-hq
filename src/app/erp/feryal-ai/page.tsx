@@ -14,11 +14,11 @@ export default async function FeryalAiCommandPage() {
   await requirePageUser('/erp/feryal-ai')
   const sessionRole = await resolveServerExecSessionRole()
   return (
-    <div className="mx-auto w-full max-w-[1920px] min-w-0 overflow-x-hidden pt-0">
+    <div className="w-full max-w-[1920px] mx-auto min-w-0 overflow-x-hidden pt-0">
       <div className="w-full max-w-full min-w-0 overflow-x-hidden">
         <Suspense
           fallback={
-            <div className="min-h-[240px] w-full max-w-full animate-pulse rounded-2xl bg-white/80 dark:bg-[#111A22]/80" />
+            <div className="min-h-[240px] w-full max-w-full animate-pulse rounded-2xl bg-white/80 dark:bg-[#101C17]/80" />
           }
         >
           <FeryalGovernanceStudio sessionRole={sessionRole} />

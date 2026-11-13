@@ -12,7 +12,7 @@ export const metadata = {
 export default async function SocialReviewsPage() {
   await requirePageUser('/erp/social-reviews')
   return (
-    <div className="w-full max-w-[1920px] mx-auto">
+    <div className="w-full max-w-[1920px] mx-auto min-w-0">
       <SocialReviewsStudio />
     </div>
   )

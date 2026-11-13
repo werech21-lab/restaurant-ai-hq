@@ -243,14 +243,41 @@ export async function POST(req: NextRequest) {
     }
 
     const b64 = speech.buffer.toString('base64')
-    return NextResponse.json({
-      ok: true,
-      engine: speech.engine,
-      audioDataUrl: `data:audio/mpeg;base64,${b64}`,
-      contentType: 'audio/mpeg',
-    })
+    return NextResponse.json(
+      {
+        ok: true,
+        engine: speech.engine,
+        audioDataUrl: `data:audio/mpeg;base64,${b64}`,
+        contentType: 'audio/mpeg',
+      },
+      { headers: ENTERPRISE_API_SECURITY_HEADERS },
+    )
   } catch (error: any) {
     console.error('TTS POST error:', error)
-    return NextResponse.json({ ok: false, error: error?.message || 'Server error' }, { status: 500 })
+    return NextResponse.json(
+      { ok: false, error: error?.message || 'Server error' },
+      { status: 500, headers: ENTERPRISE_API_SECURITY_HEADERS },
+    )
   }
+}
+
+async function disallowTtsMutation(req: NextRequest) {
+  const authGuard = await requireExecApiSession(req, { allowAuditor: false })
+  if (!authGuard.ok) return authGuard.response
+  return NextResponse.json(
+    { ok: false, error: 'Method not allowed' },
+    { status: 405, headers: ENTERPRISE_API_SECURITY_HEADERS },
+  )
+}
+
+export async function PUT(req: NextRequest) {
+  return disallowTtsMutation(req)
+}
+
+export async function PATCH(req: NextRequest) {
+  return disallowTtsMutation(req)
+}
+
+export async function DELETE(req: NextRequest) {
+  return disallowTtsMutation(req)
 }

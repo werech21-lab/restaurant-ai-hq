@@ -29,3 +29,24 @@ export async function POST(request: NextRequest) {
   if (!auth.ok) return auth.response
   return handleFeryalPost(request)
 }
+
+async function disallowMutationMethod(request: NextRequest) {
+  const auth = await requireExecApiSession(request, { allowAuditor: false })
+  if (!auth.ok) return auth.response
+  return NextResponse.json(
+    { ok: false, error: 'Method not allowed' },
+    { status: 405, headers: ENTERPRISE_API_SECURITY_HEADERS },
+  )
+}
+
+export async function PUT(request: NextRequest) {
+  return disallowMutationMethod(request)
+}
+
+export async function PATCH(request: NextRequest) {
+  return disallowMutationMethod(request)
+}
+
+export async function DELETE(request: NextRequest) {
+  return disallowMutationMethod(request)
+}

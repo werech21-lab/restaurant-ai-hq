@@ -53,10 +53,11 @@ const ODOO_USERNAME = (
   ''
 ).trim()
 const ODOO_API_KEY = (process.env.ODOO_API_KEY || localEnv.ODOO_API_KEY || '').trim()
+const CRON_SECRET = (process.env.CRON_SECRET || localEnv.CRON_SECRET || '').trim()
 
 function sanitizeDiagnosticMessage(msg) {
   let clean = String(msg || 'Unknown error')
-  for (const secret of [ODOO_API_KEY, ODOO_USERNAME, ODOO_DB, baseUrl]) {
+  for (const secret of [ODOO_API_KEY, ODOO_USERNAME, ODOO_DB, baseUrl, CRON_SECRET]) {
     if (secret && secret.length >= 3) {
       clean = clean.split(secret).join('[REDACTED]')
     }

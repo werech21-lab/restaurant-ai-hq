@@ -13,10 +13,10 @@ export const metadata = {
 export default async function WarehouseDailyChainPage() {
   await requirePageUser('/erp/warehouse-chain')
   return (
-    <div className="w-full max-w-[1920px] mx-auto">
+    <div className="w-full max-w-[1920px] mx-auto min-w-0">
       <Suspense
         fallback={
-          <div className="h-[600px] w-full animate-pulse rounded-3xl bg-white/60 dark:bg-[#0D1614]/60" />
+          <div className="h-[600px] w-full animate-pulse rounded-3xl bg-white/60 dark:bg-[#101C17]/60" />
         }
       >
         <WarehouseDailyChainStudio />

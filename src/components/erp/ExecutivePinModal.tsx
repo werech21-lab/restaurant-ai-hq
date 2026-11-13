@@ -276,7 +276,7 @@ export function ExecutivePinModal({
     <div
       id="vf-exec-pin-backdrop"
       dir={isAr ? 'rtl' : 'ltr'}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-950/35 p-4 backdrop-blur-[2px] transition-opacity duration-150"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[#09110E]/35 p-4 backdrop-blur-[2px] transition-opacity duration-150"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose()
       }}

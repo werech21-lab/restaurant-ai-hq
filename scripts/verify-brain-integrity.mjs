@@ -3951,6 +3951,150 @@ assert(
   `syncLatest=${s26Probe.latestOdooRecordAtSync}, compLatest=${s26Probe.latestOdooRecordAtComp}`,
 )
 
+// ============================================================================
+// SECTION 27: Ultimate Gold Master A-to-Z Final Audit Gate
+// ============================================================================
+console.log('\n[27] Ultimate Gold Master A-to-Z Final Audit Gate')
+
+const s27ConsoleLogNeedle = ['console.', 'log('].join('')
+const s27ConsoleLogOffenders = []
+for (const file of allSrcFiles) {
+  const txt = fs.readFileSync(file, 'utf8')
+  if (txt.includes(s27ConsoleLogNeedle)) {
+    s27ConsoleLogOffenders.push(path.relative(ROOT, file).replace(/\\/g, '/'))
+  }
+}
+
+const s27ErpUiDirs = [
+  path.join(ROOT, 'src/app/erp'),
+  path.join(ROOT, 'src/components/erp'),
+  path.join(ROOT, 'src/components/aether'),
+]
+const s27ErpUiFiles = s27ErpUiDirs.flatMap((dir) => collectAllSrcCodeFiles(dir))
+const s27SolidBlackLightPillRe =
+  /(?<![a-zA-Z0-9_:-])(?:bg-black|bg-slate-950|bg-neutral-950|ae-btn-primary|ae-pill-dark)(?![a-zA-Z0-9_/-])/
+const s27BlackPillOffenders = []
+for (const file of s27ErpUiFiles) {
+  const txt = fs.readFileSync(file, 'utf8')
+  if (s27SolidBlackLightPillRe.test(txt)) {
+    s27BlackPillOffenders.push(path.relative(ROOT, file).replace(/\\/g, '/'))
+  }
+}
+
+const s27MiddlewareSrc = fs.readFileSync(path.join(ROOT, 'src/middleware.ts'), 'utf8')
+const s27NextConfigSrc = fs.readFileSync(path.join(ROOT, 'next.config.js'), 'utf8')
+const s27SecHeadersSrc = fs.readFileSync(path.join(ROOT, 'security-headers.js'), 'utf8')
+const s27PublicHeadersSrc = fs.readFileSync(path.join(ROOT, 'public/_headers'), 'utf8')
+
+const s27HeaderRuntimeProbe = `
+import { NextRequest } from 'next/server';
+import { middleware } from './src/middleware';
+const { buildSecurityHeaders } = require('./security-headers.js');
+
+;(async () => {
+  const mwRes = await middleware(new NextRequest('https://aetherbi.com/login'));
+  const built = buildSecurityHeaders({ supabaseUrl: '', isProduction: true });
+  const map = Object.fromEntries(built.map((h: { key: string; value: string }) => [h.key, h.value]));
+  console.log(JSON.stringify({
+    mwPerm: mwRes.headers.get('Permissions-Policy'),
+    mwFrame: mwRes.headers.get('X-Frame-Options'),
+    mwNosniff: mwRes.headers.get('X-Content-Type-Options'),
+    mwRobots: mwRes.headers.get('X-Robots-Tag'),
+    cfgPerm: map['Permissions-Policy'] ?? null,
+    cfgFrame: map['X-Frame-Options'] ?? null,
+    cfgNosniff: map['X-Content-Type-Options'] ?? null,
+    cfgHsts: map['Strict-Transport-Security'] ?? null,
+  }));
+})();
+`
+const s27HeaderRaw = execFileSync(process.execPath, [tsxCli, '-e', s27HeaderRuntimeProbe], {
+  cwd: ROOT,
+  encoding: 'utf8',
+}).trim()
+const s27Headers = JSON.parse(s27HeaderRaw.split('\n').pop() ?? '{}')
+
+assert(
+  s27ConsoleLogOffenders.length === 0 &&
+    s25ClientOffenders.length === 0 &&
+    s27BlackPillOffenders.length === 0 &&
+    s22DynamicGridViolations.length === 0 &&
+    s22UncompiledGridViolations.length === 0 &&
+    s27Headers.mwPerm === 'camera=(self), microphone=(self), geolocation=()' &&
+    s27Headers.cfgPerm === 'camera=(self), microphone=(self), geolocation=()' &&
+    s27Headers.mwFrame === 'DENY' &&
+    s27Headers.cfgFrame === 'DENY' &&
+    s27Headers.mwNosniff === 'nosniff' &&
+    s27Headers.cfgNosniff === 'nosniff' &&
+    typeof s27Headers.mwRobots === 'string' &&
+    s27Headers.mwRobots.includes('noindex, nofollow') &&
+    s27NextConfigSrc.includes('X-Robots-Tag') &&
+    s27NextConfigSrc.includes('noindex, nofollow') &&
+    s27PublicHeadersSrc.includes('Permissions-Policy: camera=(self), microphone=(self), geolocation=()') &&
+    s27PublicHeadersSrc.includes('X-Frame-Options: DENY') &&
+    s27PublicHeadersSrc.includes('X-Content-Type-Options: nosniff') &&
+    s27PublicHeadersSrc.includes('X-Robots-Tag: noindex, nofollow') &&
+    s27SecHeadersSrc.includes("key: 'X-Frame-Options', value: 'DENY'") &&
+    s27MiddlewareSrc.includes("response.headers.set('X-Frame-Options', 'DENY')") &&
+    s27MiddlewareSrc.includes("response.headers.set('X-Content-Type-Options', 'nosniff')"),
+  '27.1 Codebase Purity, Unslop UI Craft & CISO HTTP Headers Gate: Zero console.log( in src/, zero client imports of odoo-live-connector, zero solid black light-mode pills or uncompiled grid-cols-*, and exact Permissions-Policy / X-Frame-Options: DENY / X-Content-Type-Options: nosniff / X-Robots-Tag: noindex, nofollow headers',
+  `consoleLogs=${s27ConsoleLogOffenders.length}, clientConnector=${s25ClientOffenders.length}, blackPills=${s27BlackPillOffenders.length}, uncompiledGrids=${s22UncompiledGridViolations.length}`,
+)
+
+const s27ErpRouteFiles = [
+  'src/app/erp/page.tsx',
+  'src/app/erp/cores/page.tsx',
+  'src/app/erp/before-after/page.tsx',
+  'src/app/erp/weekday-comparison/page.tsx',
+  'src/app/erp/prep-sla/page.tsx',
+  'src/app/erp/delivery-sla/page.tsx',
+  'src/app/erp/warehouse-chain/page.tsx',
+  'src/app/erp/aggregator-radar/page.tsx',
+  'src/app/erp/social-reviews/page.tsx',
+  'src/app/erp/events-intelligence/page.tsx',
+  'src/app/erp/planning/page.tsx',
+  'src/app/erp/regulations/page.tsx',
+  'src/app/erp/feryal-ai/page.tsx',
+]
+const s27MissingErpRoutes = s27ErpRouteFiles.filter(
+  (rel) => !fs.existsSync(path.join(ROOT, rel)),
+)
+const s27StatusStripSrc = fs.readFileSync(
+  path.join(ROOT, 'src/components/erp/OdooLiveStatusStrip.tsx'),
+  'utf8',
+)
+const s27ExecFooterSrc = fs.readFileSync(
+  path.join(ROOT, 'src/components/erp/ExecutiveFooter.tsx'),
+  'utf8',
+)
+const s27TopFilterBarSrc = fs.readFileSync(
+  path.join(ROOT, 'src/components/aether/TopFilterBar.tsx'),
+  'utf8',
+)
+const s27TrackedEnvLocal = execFileSync('git', ['ls-files', '.env.local'], {
+  cwd: ROOT,
+  encoding: 'utf8',
+}).trim()
+const s27PorcelainRaw = execFileSync('git', ['status', '--porcelain'], {
+  cwd: ROOT,
+  encoding: 'utf8',
+})
+
+assert(
+  s27ErpRouteFiles.length === 13 &&
+    s27MissingErpRoutes.length === 0 &&
+    s27StatusStripSrc.includes('latestOdooRecordAt') &&
+    s27ExecFooterSrc.includes('latestOdooRecordAt') &&
+    !s27StatusStripSrc.includes('new Date().toISOString()') &&
+    !s27ExecFooterSrc.includes('new Date().toISOString()') &&
+    s27TopFilterBarSrc.includes('Period: ${activePeriodShortLabel} (${activePeriodRangeText})') &&
+    s27TopFilterBarSrc.includes('الفترة: ${activePeriodShortLabel} (${activePeriodRangeText})') &&
+    s27TrackedEnvLocal === '' &&
+    s25ForbiddenTrackedEnv.length === 0 &&
+    !s27PorcelainRaw.includes('.env.local'),
+  '27.2 13/13 /erp/* Route Completeness, Honest latestOdooRecordAt Binding, Explicit Period: Window & Zero Tracked .env.local: All 13 /erp/* routes present, OdooLiveStatusStrip + ExecutiveFooter bound to latestOdooRecordAt, TopFilterBar renders explicit Period: calendar windows, and 0 tracked .env.local files',
+  `erpRoutes=${s27ErpRouteFiles.length - s27MissingErpRoutes.length}/13, trackedEnvLocal="${s27TrackedEnvLocal}"`,
+)
+
 console.log('\n----------------------------------------------------------------------')
 if (failed > 0) {
   console.error(`❌ Verification FAILED: ${failed} failed, ${passed} passed.`)

@@ -41,7 +41,7 @@ export function Modal({
   }, [onClose])
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-[#09110E]/60 p-4" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"

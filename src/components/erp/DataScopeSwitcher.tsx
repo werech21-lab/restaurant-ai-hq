@@ -17,7 +17,7 @@ type Props = {
 /** Hot = last 90 days (fast). Archive = full Odoo history. Optional date range overrides both. */
 export function DataScopeSwitcher({ value, onChange }: Props) {
   return (
-    <div className="flex flex-wrap items-end gap-2 rounded-xl border border-[#30363d] bg-black/20 p-3">
+    <div className="flex flex-wrap items-end gap-2 rounded-xl border border-[#30363d] bg-[#09110E]/20 p-3">
       <button
         type="button"
         className={value.scope === 'hot' && !value.from && !value.to ? primaryButton : secondaryButton}

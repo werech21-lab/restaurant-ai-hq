@@ -367,7 +367,7 @@ export default function FinanceDashboard({ initialInvoiceId = null }: { initialI
       </div>
 
       {selection ? (
-        <div className="fixed inset-0 z-40 flex justify-end bg-black/60" onClick={() => setSelection(null)}>
+        <div className="fixed inset-0 z-40 flex justify-end bg-[#09110E]/60" onClick={() => setSelection(null)}>
           <aside
             role="dialog"
             aria-modal="true"

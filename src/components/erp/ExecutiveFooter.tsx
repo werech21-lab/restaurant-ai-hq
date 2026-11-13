@@ -73,8 +73,10 @@ function formatWesternSyncStamp(iso: string): string {
  * 5) Active Signed-In Role & Venture Foods 6x7x8 Official Entity Scope + Platform Release `v2.8`
  */
 export function ExecutiveFooter({
+  isAuditor = false,
   sessionRole,
 }: {
+  isAuditor?: boolean
   sessionRole?: ExecSessionRole
 } = {}) {
   const { locale } = useI18n()
@@ -82,7 +84,9 @@ export function ExecutiveFooter({
   const { liveSummary, syncingOdoo, syncCooldownSec, triggerOdooSyncNow } = useGlobalFilter()
   const gov = useOptionalGovernance()
   const activeRole: ExecSessionRole =
-    sessionRole ?? gov?.sessionRole ?? (gov?.isAuditor ? 'auditor' : 'admin')
+    isAuditor || liveSummary?.readOnly === true
+      ? 'auditor'
+      : (sessionRole ?? gov?.sessionRole ?? (gov?.isAuditor ? 'auditor' : 'admin'))
   const roleProfile = resolveExecRoleProfile(activeRole)
   const [syncing, setSyncing] = useState(false)
   const [lastSyncedRecordIso, setLastSyncedRecordIso] = useState<string | undefined>(undefined)
@@ -181,32 +185,32 @@ export function ExecutiveFooter({
         role="status"
         data-latest-odoo-record-at={freshness.kuwaitIso}
         data-odoo-freshness={
-          liveSummary?.sourceMode === 'cached-live'
-            ? 'cached'
-            : freshness.isStaleOver24h
-              ? 'stale'
+          freshness.isStaleOver24h
+            ? 'stale'
+            : liveSummary?.sourceMode === 'cached-live'
+              ? 'cached'
               : 'live'
         }
         className={`flex flex-wrap items-center justify-between gap-2.5 rounded-2xl px-3.5 py-2 text-[12px] font-semibold ring-1 ${
-          liveSummary?.sourceMode === 'cached-live'
-            ? 'bg-amber-50/90 text-amber-900 ring-amber-500/30 dark:bg-amber-950/40 dark:text-amber-200 dark:ring-amber-500/30'
-            : freshness.isStaleOver24h
-              ? 'bg-rose-50/90 text-rose-900 ring-rose-500/25 dark:bg-rose-950/40 dark:text-rose-200 dark:ring-rose-500/30'
+          freshness.isStaleOver24h
+            ? 'bg-rose-50/90 text-rose-900 ring-rose-500/25 dark:bg-rose-950/40 dark:text-rose-200 dark:ring-rose-500/30'
+            : liveSummary?.sourceMode === 'cached-live'
+              ? 'bg-amber-50/90 text-amber-900 ring-amber-500/30 dark:bg-amber-950/40 dark:text-amber-200 dark:ring-amber-500/30'
               : 'bg-emerald-50/85 text-emerald-900 ring-emerald-500/25 dark:bg-emerald-950/40 dark:text-emerald-200 dark:ring-emerald-500/30'
         }`}
       >
         <span className="min-w-0 flex-1 whitespace-normal break-words leading-snug">
-          {liveSummary?.sourceMode === 'cached-live'
+          {freshness.isStaleOver24h
             ? isAr
-              ? freshness.cachedSnapshotBadgeAr
-              : freshness.cachedSnapshotBadgeEn
-            : !freshness.isStaleOver24h
+              ? freshness.badgeAr
+              : freshness.badgeEn
+            : liveSummary?.sourceMode === 'cached-live'
               ? isAr
-                ? freshness.liveConnectedBadgeAr
-                : freshness.liveConnectedBadgeEn
+                ? freshness.cachedSnapshotBadgeAr
+                : freshness.cachedSnapshotBadgeEn
               : isAr
-                ? freshness.badgeAr
-                : freshness.badgeEn}
+                ? freshness.liveConnectedBadgeAr
+                : freshness.liveConnectedBadgeEn}
         </span>
 
         {!roleProfile.isAuditor ? (
@@ -216,10 +220,10 @@ export function ExecutiveFooter({
             disabled={syncing || syncingOdoo || syncCooldownSec > 0}
             aria-label={isAr ? 'تحديث الربط الآن' : 'Refresh — Sync Odoo Now — Sync Now'}
             className={`inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl px-3 py-1 text-[11.5px] font-bold transition-colors disabled:opacity-60 ${
-              liveSummary?.sourceMode === 'cached-live'
-                ? 'bg-white text-amber-900 ring-1 ring-amber-500/30 hover:bg-amber-100/70 dark:bg-[#101C17] dark:text-amber-200'
-                : freshness.isStaleOver24h
-                  ? 'btn-colored bg-rose-600 text-white hover:bg-rose-700 dark:bg-rose-500 dark:text-white'
+              freshness.isStaleOver24h
+                ? 'btn-colored bg-rose-600 text-white hover:bg-rose-700 dark:bg-rose-500 dark:text-white'
+                : liveSummary?.sourceMode === 'cached-live'
+                  ? 'bg-white text-amber-900 ring-1 ring-amber-500/30 hover:bg-amber-100/70 dark:bg-[#101C17] dark:text-amber-200'
                   : 'bg-white text-emerald-900 ring-1 ring-emerald-500/25 hover:bg-emerald-100/70 dark:bg-[#101C17] dark:text-emerald-200'
             }`}
           >
@@ -270,7 +274,7 @@ export function ExecutiveFooter({
             <button
               type="button"
               onClick={() => void triggerLedgerSync(false)}
-              disabled={syncing}
+              disabled={syncing || syncingOdoo || syncCooldownSec > 0}
               title={
                 isAr
                   ? 'اضغط لتحديث ومطابقة أحدث فواتير أودو 17 الآن (توقيت الكويت)'
