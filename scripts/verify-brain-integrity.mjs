@@ -3125,6 +3125,214 @@ assert(
   '22.2 Horizontal 14-Column Capsule Strips Across /erp/prep-sla, /erp/delivery-sla & /erp/weekday-comparison: Proportional SLA minute bars, Green/Amber/Red thresholds, left-to-right 12 PM–1 AM layout & compact click-to-inspect strip active',
 )
 
+// 23. Universal Custom Comparison Engine & Executive Comparison Control Bar Gate
+console.log('\n23) Universal Custom Comparison Engine & Executive Comparison Control Bar Gate:')
+
+const s23EnginePath = path.join(ROOT, 'src/lib/erp-comparison-engine.ts')
+const s23ControlBarPath = path.join(ROOT, 'src/components/erp/ExecutiveComparisonControlBar.tsx')
+const s23SocialCampsPath = path.join(ROOT, 'src/lib/aether/social-campaigns.ts')
+const s23WeekdayPagePath = path.join(ROOT, 'src/app/erp/weekday-comparison/page.tsx')
+
+const s23EngineSrc = fs.existsSync(s23EnginePath) ? fs.readFileSync(s23EnginePath, 'utf8') : ''
+const s23ControlBarSrc = fs.existsSync(s23ControlBarPath)
+  ? fs.readFileSync(s23ControlBarPath, 'utf8')
+  : ''
+const s23SocialCampsSrc = fs.existsSync(s23SocialCampsPath)
+  ? fs.readFileSync(s23SocialCampsPath, 'utf8')
+  : ''
+const s23WeekdayPageSrc = fs.existsSync(s23WeekdayPagePath)
+  ? fs.readFileSync(s23WeekdayPagePath, 'utf8')
+  : ''
+
+const s23ComparisonProbeScript = `
+import {
+  computeErpComparison,
+  buildComparisonCsv,
+  OPERATING_HOURS_14,
+  DEFAULT_COMPARISON_DATE_A,
+  DEFAULT_COMPARISON_DATE_B,
+  DEFAULT_RANGE_FROM_A,
+  DEFAULT_RANGE_TO_A,
+  DEFAULT_RANGE_FROM_B,
+  DEFAULT_RANGE_TO_B,
+  type ErpComparisonQuery,
+} from './src/lib/erp-comparison-engine';
+
+const baseSingle: ErpComparisonQuery = {
+  mode: 'date-vs-date',
+  granularity: 'single',
+  periodA: { from: DEFAULT_COMPARISON_DATE_A, to: DEFAULT_COMPARISON_DATE_A },
+  periodB: { from: DEFAULT_COMPARISON_DATE_B, to: DEFAULT_COMPARISON_DATE_B },
+  brandIds: 'all',
+  branchIds: 'all',
+  channelIds: 'all',
+  entityDimension: 'brand',
+  entityA: 'china-garden',
+  entityB: 'franks',
+};
+
+const queries: ErpComparisonQuery[] = [
+  baseSingle,
+  {
+    ...baseSingle,
+    granularity: 'range',
+    periodA: { from: DEFAULT_RANGE_FROM_A, to: DEFAULT_RANGE_TO_A },
+    periodB: { from: DEFAULT_RANGE_FROM_B, to: DEFAULT_RANGE_TO_B },
+  },
+  { ...baseSingle, brandIds: ['china-garden', 'franks'] },
+  { ...baseSingle, branchIds: ['avenues', 'salmiya'] },
+  { ...baseSingle, channelIds: ['dine-in', 'talabat-tgo'] },
+  // Incompatible Brand x Branch guard check (zero NaN / zero division errors)
+  { ...baseSingle, brandIds: ['noodle-bar'], branchIds: ['al-kout'] },
+  { ...baseSingle, brandIds: ['karak-cafeteria'], branchIds: ['360-mall'] },
+  // Entity-vs-Entity modes
+  { ...baseSingle, mode: 'entity-vs-entity', entityDimension: 'brand', entityA: 'china-garden', entityB: 'franks' },
+  { ...baseSingle, mode: 'entity-vs-entity', entityDimension: 'branch', entityA: 'avenues', entityB: 'salmiya' },
+];
+
+let maxSalesGap = 0;
+let maxProfitGap = 0;
+let maxOrdersGap = 0;
+let maxChartGap = 0;
+let nanCount = 0;
+let polarityChecksOk = true;
+
+function scanFinite(val: unknown): void {
+  if (typeof val === 'number' && !Number.isFinite(val)) nanCount += 1;
+}
+
+for (const q of queries) {
+  const res = computeErpComparison(q);
+  if (res.reconciliation.maxSalesGapKwd > maxSalesGap) maxSalesGap = res.reconciliation.maxSalesGapKwd;
+  if (res.reconciliation.maxProfitGapKwd > maxProfitGap) maxProfitGap = res.reconciliation.maxProfitGapKwd;
+  if (res.reconciliation.maxOrdersGap > maxOrdersGap) maxOrdersGap = res.reconciliation.maxOrdersGap;
+  if (res.reconciliation.maxChartSalesGapKwd > maxChartGap) maxChartGap = res.reconciliation.maxChartSalesGapKwd;
+
+  for (const kpi of res.kpiList) {
+    scanFinite(kpi.valueA);
+    scanFinite(kpi.valueB);
+    scanFinite(kpi.deltaAbs);
+    scanFinite(kpi.deltaPct);
+  }
+  const costKpi = res.kpis.foodAndAggregatorCost;
+  if (costKpi.polarity !== 'lower-is-better') polarityChecksOk = false;
+  if (typeof costKpi.shareOfSalesA === 'number' && typeof costKpi.shareOfSalesB === 'number') {
+    const shareDiff = costKpi.shareOfSalesA - costKpi.shareOfSalesB;
+    const expectedFavorable = Math.abs(shareDiff) >= 0.05 ? shareDiff < 0 : costKpi.deltaAbs <= 0.005;
+    if (costKpi.isFavorable !== expectedFavorable) polarityChecksOk = false;
+  }
+
+  for (const b of res.chartBuckets) {
+    scanFinite(b.seriesA);
+    scanFinite(b.seriesB);
+    scanFinite(b.ordersA);
+    scanFinite(b.ordersB);
+    scanFinite(b.profitA);
+    scanFinite(b.profitB);
+    scanFinite(b.cumulativeA);
+    scanFinite(b.cumulativeB);
+  }
+  for (const r of [...res.byBrand, ...res.byBranch, ...res.byChannel]) {
+    scanFinite(r.valueA);
+    scanFinite(r.valueB);
+    scanFinite(r.deltaKwd);
+    scanFinite(r.deltaPct);
+    scanFinite(r.sharePctA);
+    scanFinite(r.marginPctA);
+  }
+}
+
+const singleRes = computeErpComparison(baseSingle);
+const rangeRes = computeErpComparison(queries[1]);
+const csvSample = buildComparisonCsv(singleRes, false);
+
+console.log(JSON.stringify({
+  queriesChecked: queries.length,
+  hoursCount: OPERATING_HOURS_14.length,
+  singleBuckets: singleRes.chartBuckets.length,
+  rangeBuckets: rangeRes.chartBuckets.length,
+  brandRows: singleRes.byBrand.length,
+  branchRows: singleRes.byBranch.length,
+  channelRows: singleRes.byChannel.length,
+  kpiCount: singleRes.kpiList.length,
+  maxSalesGap,
+  maxProfitGap,
+  maxOrdersGap,
+  maxChartGap,
+  nanCount,
+  polarityChecksOk,
+  csvHasBom: csvSample.charCodeAt(0) === 0xFEFF,
+  csvLines: csvSample.split(/\\r?\\n/).filter(Boolean).length,
+}));
+`
+
+const s23ProbeRaw = execFileSync(process.execPath, [tsxCli, '-e', s23ComparisonProbeScript], {
+  cwd: ROOT,
+  encoding: 'utf8',
+}).trim()
+const s23Probe = JSON.parse(s23ProbeRaw.split('\n').pop() ?? '{}')
+
+assert(
+  fs.existsSync(s23EnginePath) &&
+    s23Probe.queriesChecked === 9 &&
+    s23Probe.hoursCount === 14 &&
+    s23Probe.singleBuckets === 14 &&
+    s23Probe.rangeBuckets === 7 &&
+    s23Probe.brandRows === 6 &&
+    s23Probe.branchRows === 7 &&
+    s23Probe.channelRows === 8 &&
+    s23Probe.kpiCount === 6 &&
+    s23Probe.maxSalesGap === 0 &&
+    s23Probe.maxProfitGap === 0 &&
+    s23Probe.maxOrdersGap === 0 &&
+    s23Probe.maxChartGap === 0 &&
+    s23Probe.nanCount === 0 &&
+    s23Probe.polarityChecksOk === true &&
+    s23Probe.csvHasBom === true &&
+    s23Probe.csvLines >= 25,
+  '23.1 Universal Custom Comparison Engine (src/lib/erp-comparison-engine.ts): 0.000 KWD reconciliation gap across Single-Day (14h), Custom Range (7d), Multi-Select Brand/Branch/Channel, incompatible Brand×Branch (0 NaN), Entity-vs-Entity, inverted cost polarity & UTF-8 BOM CSV',
+  `salesGap=${s23Probe.maxSalesGap}, profitGap=${s23Probe.maxProfitGap}, ordersGap=${s23Probe.maxOrdersGap}, chartGap=${s23Probe.maxChartGap}, nan=${s23Probe.nanCount}, polarity=${s23Probe.polarityChecksOk}, csvLines=${s23Probe.csvLines}`,
+)
+
+assert(
+  fs.existsSync(s23ControlBarPath) &&
+    !/<select\b/i.test(s23ControlBarSrc) &&
+    s23ControlBarSrc.includes('Date vs Custom Date') &&
+    s23ControlBarSrc.includes('Brand / Branch vs Another') &&
+    s23ControlBarSrc.includes('Single Day') &&
+    s23ControlBarSrc.includes('Custom Range (From–To)') &&
+    s23ControlBarSrc.includes('Swap A ⇄ B') &&
+    s23ControlBarSrc.includes('Same Day Last Week') &&
+    s23ControlBarSrc.includes('Same Day Last Month') &&
+    s23ControlBarSrc.includes('Export CSV') &&
+    s23ControlBarSrc.includes('Share Link') &&
+    s23ControlBarSrc.includes('type="date"'),
+  '23.2 Reusable ExecutiveComparisonControlBar.tsx: 3-row Unslop UI bar (Date vs Custom Date / Entity vs Entity, Single Day / Custom Range, Swap A ⇄ B, 1-click date presets, custom Brand/Branch/Channel multi-select popovers & zero native <select>)',
+)
+
+assert(
+  routeTitlesSrc.includes("en: 'Date & Sales Comparison'") &&
+    routeTitlesSrc.includes("ar: 'مقارنة التواريخ والمبيعات'") &&
+    sidebarSrc.includes("labelEn: 'Date & Sales Comparison'") &&
+    sidebarSrc.includes("labelAr: 'مقارنة التواريخ والمبيعات'") &&
+    s23WeekdayPageSrc.includes('Date & Sales Comparison') &&
+    s22WeekdaySrc.includes('<ExecutiveComparisonControlBar') &&
+    s22WeekdaySrc.includes('Cumulative Curve') &&
+    s22WeekdaySrc.includes('7-Weekday Rolling') &&
+    beforeAfterSrc.includes('<ExecutiveComparisonControlBar') &&
+    beforeAfterSrc.includes('order="b-first"') &&
+    beforeAfterSrc.includes('Compare Window ↗') &&
+    beforeAfterSrc.includes('تحميل التواريخ ↗') &&
+    s23SocialCampsSrc.includes('compareStartDate') &&
+    s23SocialCampsSrc.includes('compareEndDate') &&
+    s23SocialCampsSrc.includes('branch?: GlobalBranch') &&
+    coresSrc.includes('Custom Baseline Compare Window') &&
+    coresSrc.includes('Before → After Sales') &&
+    coresSrc.includes('liveFormPreview') &&
+    topBarSrc.includes('computeCustomSpanDays'),
+  '23.3 All 4 Comparison Touchpoints Wired: /erp/weekday-comparison (Date & Sales Comparison), /erp/before-after (Before vs After + Governance 1-click Compare Window ↗), /erp/cores (Influencer Custom Baseline + Target Branch + Live Preview) & TopFilterBar Custom Date Span',
+)
+
 console.log('\n----------------------------------------------------------------------')
 if (failed > 0) {
   console.error(`❌ Verification FAILED: ${failed} failed, ${passed} passed.`)

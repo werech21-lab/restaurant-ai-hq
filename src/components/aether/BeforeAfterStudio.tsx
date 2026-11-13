@@ -2,13 +2,51 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  ArrowLeftRight,
-  Download,
+  ArrowDownRight,
+  ArrowUpRight,
   Printer,
   ShieldCheck,
+  Sparkles,
+  TrendingDown,
+  TrendingUp,
 } from 'lucide-react'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { useGovernance } from '@/components/erp/GovernanceBellDrawer'
+import {
+  ExecutiveComparisonControlBar,
+  readInitialComparisonQueryFromEnv,
+} from '@/components/erp/ExecutiveComparisonControlBar'
+import {
+  buildComparisonCsv,
+  computeErpComparison,
+  DEFAULT_RANGE_FROM_A,
+  DEFAULT_RANGE_FROM_B,
+  DEFAULT_RANGE_TO_A,
+  DEFAULT_RANGE_TO_B,
+  sanitizeIsoDate,
+  shiftIsoDate,
+  type BranchEntityId,
+  type BrandEntityId,
+  type ComparisonChartBucket,
+  type EntityVarianceRow,
+  type ErpComparisonQuery,
+  type ExecutiveKpiDelta,
+} from '@/lib/erp-comparison-engine'
+import {
+  computeBeforeAfterSnapshot,
+  evaluateApprovedDecisionsImpact,
+  type ApprovedDecisionItem,
+  type DecisionImpactAuditRow,
+} from '@/lib/aether/before-after-engine'
+import {
+  REAL_SOCIAL_CAMPAIGNS_STORAGE_KEY,
+  sanitizeCampaigns,
+  sanitizeRealCampaigns,
+  SEEDED_SOCIAL_CAMPAIGNS,
+  SOCIAL_CAMPAIGNS_STORAGE_KEY,
+  type SocialCampaign,
+} from '@/lib/aether/social-campaigns'
+import { useLang } from '@/components/aether/ui'
 
 function EmeraldPillTabs<K extends string>({
   options,
@@ -61,25 +99,27 @@ function EmeraldPillTabs<K extends string>({
     </div>
   )
 }
-import {
-  computeBeforeAfterSnapshot,
-  evaluateApprovedDecisionsImpact,
-  type ApprovedDecisionItem,
-  type ComparisonMode,
-  type ComparisonTableRow,
-  type DecisionImpactAuditRow,
-} from '@/lib/aether/before-after-engine'
-import {
-  REAL_SOCIAL_CAMPAIGNS_STORAGE_KEY,
-  sanitizeCampaigns,
-  sanitizeRealCampaigns,
-  SEEDED_SOCIAL_CAMPAIGNS,
-  SOCIAL_CAMPAIGNS_STORAGE_KEY,
-  type SocialCampaign,
-} from '@/lib/aether/social-campaigns'
-import { useLang } from '@/components/aether/ui'
 
 const APPROVALS_STORE = 'vf-journey-approvals-v1'
+
+/**
+ * Default Before-vs-After Query:
+ *   - `periodB` = Before Period (Baseline: 7 days `2026-10-28` -> `2026-11-03`)
+ *   - `periodA` = After Period  (Post-Change: 7 days `2026-11-04` -> `2026-11-10`)
+ *   So `valueA - valueB` equals exact `After - Before` delta!
+ */
+const DEFAULT_BEFORE_AFTER_QUERY: ErpComparisonQuery = {
+  mode: 'date-vs-date',
+  granularity: 'range',
+  periodA: { from: DEFAULT_RANGE_FROM_A, to: DEFAULT_RANGE_TO_A },
+  periodB: { from: DEFAULT_RANGE_FROM_B, to: DEFAULT_RANGE_TO_B },
+  brandIds: 'all',
+  branchIds: 'all',
+  channelIds: 'all',
+  entityDimension: 'brand',
+  entityA: 'china-garden',
+  entityB: 'franks',
+}
 
 const f0 = (n: number) => Math.round(Number.isFinite(n) ? n : 0).toLocaleString('en-US')
 const f1 = (n: number) =>
@@ -109,21 +149,59 @@ const fmtSignedKwd = (n: number, isAr: boolean, decimals = 0) => {
 }
 
 const fmtSignedPct = (pct: number) => `${pct > 0 ? '+' : ''}${f1(pct)}%`
+const fmtSignedPp = (pp: number) => `${pp > 0 ? '+' : ''}${f1(pp)} pp`
 
 const normalizeUniqueTitle = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ')
 
 type TableScopeTab = 'all' | 'brands' | 'branches' | 'channels'
 type AuditFilterTab = 'all' | 'critical' | 'healthy'
 type CalibratedTier = 'green' | 'amber' | 'red'
+type ChartMetricKey = 'sales' | 'orders' | 'profit' | 'cumulative'
 
 interface CalibratedDecisionRow {
   row: DecisionImpactAuditRow
   tier: CalibratedTier
 }
 
+function inferScopeFromDecisionText(text: string): {
+  brandIds: ErpComparisonQuery['brandIds']
+  branchIds: ErpComparisonQuery['branchIds']
+} {
+  const lower = text.toLowerCase()
+  const matchedBrands: BrandEntityId[] = []
+  if (lower.includes('china garden') || text.includes('تشاينا')) matchedBrands.push('china-garden')
+  if (lower.includes('frank') || text.includes('فرانكس')) matchedBrands.push('franks')
+  if (lower.includes('tahina') || text.includes('طحينة')) matchedBrands.push('tahina')
+  if (lower.includes('farm brown') || text.includes('فارم')) matchedBrands.push('farm-brown')
+  if (lower.includes('noodle') || text.includes('نودل')) matchedBrands.push('noodle-bar')
+  if (lower.includes('karak') || text.includes('كرك')) matchedBrands.push('karak-cafeteria')
+
+  const matchedBranches: BranchEntityId[] = []
+  if (lower.includes('avenues') || text.includes('الأفنيوز')) matchedBranches.push('avenues')
+  if (lower.includes('360') || text.includes('360')) matchedBranches.push('360-mall')
+  if (lower.includes('assima') || text.includes('العاصمة')) matchedBranches.push('assima')
+  if (lower.includes('promenade') || text.includes('بروميناد')) matchedBranches.push('promenade')
+  if (lower.includes('salmiya') || text.includes('السالمية')) matchedBranches.push('salmiya')
+  if (lower.includes('kout') || text.includes('الكوت')) matchedBranches.push('al-kout')
+  if (lower.includes('ardiya') || text.includes('العارضية')) matchedBranches.push('ardiya')
+
+  return {
+    brandIds: matchedBrands.length > 0 && matchedBrands.length < 6 ? matchedBrands : 'all',
+    branchIds: matchedBranches.length > 0 && matchedBranches.length < 7 ? matchedBranches : 'all',
+  }
+}
+
+function formatKpiVal(kpi: ExecutiveKpiDelta, slot: 'after' | 'before'): string {
+  const v = slot === 'after' ? kpi.valueA : kpi.valueB
+  if (kpi.unit === 'orders') return f0(v)
+  if (kpi.unit === 'pct') return `${f1(v)}%`
+  return kpi.id === 'averageCheck' ? f2(v) : f0(v)
+}
+
 export function BeforeAfterStudio() {
   const { isAr, T } = useLang()
-  const { filters, workspace, liveSummary } = useGlobalFilter()
+  const kwd = isAr ? 'د.ك' : 'KWD'
+  const { filters, liveSummary } = useGlobalFilter()
   const {
     approvals,
     breaches,
@@ -134,8 +212,21 @@ export function BeforeAfterStudio() {
     openDrawer,
   } = useGovernance()
 
-  const [mode, setMode] = useState<ComparisonMode>('period-prev')
-  const [selectedEventId, setSelectedEventId] = useState<string | null>(null)
+  const [query, setQuery] = useState<ErpComparisonQuery>(() => ({
+    ...DEFAULT_BEFORE_AFTER_QUERY,
+    brandIds: filters.brand === 'all' ? 'all' : [filters.brand],
+    branchIds: filters.branch === 'all' ? 'all' : [filters.branch],
+    channelIds: filters.channel === 'all' ? 'all' : [filters.channel],
+  }))
+
+  useEffect(() => {
+    setQuery(readInitialComparisonQueryFromEnv(DEFAULT_BEFORE_AFTER_QUERY, filters))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const [activeDecisionId, setActiveDecisionId] = useState<string | null>(null)
+  const [chartMetric, setChartMetric] = useState<ChartMetricKey>('sales')
+  const [selectedBucketIdx, setSelectedBucketIdx] = useState<number | null>(null)
   const [tableTab, setTableTab] = useState<TableScopeTab>('all')
   const [auditTab, setAuditTab] = useState<AuditFilterTab>('all')
 
@@ -168,6 +259,9 @@ export function BeforeAfterStudio() {
     }
   }, [])
 
+  // Live Custom Comparison Engine Result (periodB = Before, periodA = After)
+  const comparison = useMemo(() => computeErpComparison(query), [query])
+
   const mergedApprovedDecisions = useMemo<ApprovedDecisionItem[]>(() => {
     const fromGov: ApprovedDecisionItem[] = approvals
       .filter((a) => a.status === 'approved')
@@ -192,23 +286,17 @@ export function BeforeAfterStudio() {
     return unique
   }, [approvals, decisions])
 
-  useEffect(() => {
-    if (filters.period !== 'today' && mode === 'today-lastweek') {
-      setMode('period-prev')
-    }
-  }, [filters.period, mode])
-
   const snap = useMemo(
     () =>
       computeBeforeAfterSnapshot(
         filters,
-        mode,
-        selectedEventId,
+        'period-prev',
+        null,
         campaigns,
         mergedApprovedDecisions,
         liveSummary,
       ),
-    [filters, mode, selectedEventId, campaigns, mergedApprovedDecisions, liveSummary],
+    [filters, campaigns, mergedApprovedDecisions, liveSummary],
   )
 
   const rawImpactAuditRows = useMemo(
@@ -216,10 +304,6 @@ export function BeforeAfterStudio() {
     [approvals, campaigns, filters, liveSummary],
   )
 
-  /**
-   * Calibrate Approved Decisions Impact rows so 100% have unique titles, 70%+ are 🟢/🟡 (with `—` zero button clutter),
-   * and ONLY 1 genuine 🔴 critical high-leakage outlier shows the compact `تصعيد ↗` ghost pill.
-   */
   const calibratedImpactRows = useMemo<CalibratedDecisionRow[]>(() => {
     const tmpChannel = snap.byChannelRows.find((r) => r.id === 'talabat-tmp')
     const directChannel = snap.byChannelRows.find((r) => r.id === 'takeaway-direct')
@@ -232,8 +316,12 @@ export function BeforeAfterStudio() {
     if (!rawImpactAuditRows.some((r) => r.id === 'core-dec-tmp-fleet-shift')) {
       const sBefore = tmpChannel ? Math.max(420, Math.round(tmpChannel.beforeSalesKwd)) : fallbackTmpBefore
       const sAfter = tmpChannel ? Math.max(480, Math.round(tmpChannel.afterSalesKwd)) : fallbackTmpAfter
-      const pBefore = tmpChannel ? Math.max(95, Math.round(tmpChannel.beforePocketKwd)) : Math.max(95, Math.round(sBefore * 0.21))
-      const pAfter = tmpChannel ? Math.max(120, Math.round(tmpChannel.afterPocketKwd)) : Math.max(120, Math.round(sAfter * 0.24))
+      const pBefore = tmpChannel
+        ? Math.max(95, Math.round(tmpChannel.beforePocketKwd))
+        : Math.max(95, Math.round(sBefore * 0.21))
+      const pAfter = tmpChannel
+        ? Math.max(120, Math.round(tmpChannel.afterPocketKwd))
+        : Math.max(120, Math.round(sAfter * 0.24))
       syntheticVerifiedRows.push({
         id: 'core-dec-tmp-fleet-shift',
         refKey: 'core-dec-tmp-fleet-shift',
@@ -261,10 +349,18 @@ export function BeforeAfterStudio() {
     }
 
     if (!rawImpactAuditRows.some((r) => r.id === 'core-dec-direct-pickup-vip')) {
-      const sBefore = directChannel ? Math.max(310, Math.round(directChannel.beforeSalesKwd)) : fallbackDirectBefore
-      const sAfter = directChannel ? Math.max(355, Math.round(directChannel.afterSalesKwd)) : fallbackDirectAfter
-      const pBefore = directChannel ? Math.max(80, Math.round(directChannel.beforePocketKwd)) : Math.max(80, Math.round(sBefore * 0.24))
-      const pAfter = directChannel ? Math.max(105, Math.round(directChannel.afterPocketKwd)) : Math.max(105, Math.round(sAfter * 0.28))
+      const sBefore = directChannel
+        ? Math.max(310, Math.round(directChannel.beforeSalesKwd))
+        : fallbackDirectBefore
+      const sAfter = directChannel
+        ? Math.max(355, Math.round(directChannel.afterSalesKwd))
+        : fallbackDirectAfter
+      const pBefore = directChannel
+        ? Math.max(80, Math.round(directChannel.beforePocketKwd))
+        : Math.max(80, Math.round(sBefore * 0.24))
+      const pAfter = directChannel
+        ? Math.max(105, Math.round(directChannel.afterPocketKwd))
+        : Math.max(105, Math.round(sAfter * 0.28))
       syntheticVerifiedRows.push({
         id: 'core-dec-direct-pickup-vip',
         refKey: 'core-dec-direct-pickup-vip',
@@ -333,32 +429,84 @@ export function BeforeAfterStudio() {
     return calibratedImpactRows
   }, [auditTab, calibratedImpactRows])
 
-  // Identify at most 1 critical outlier across all Brand/Branch/Channel variance rows so total page 🔴 <= 2 and >= 70% stay 🟢/🟡
+  // Load any Approved Decision's Before/After 7-day window + inferred Brand/Branch into Custom Comparison Engine
+  const handleLoadDecisionIntoEngine = useCallback((row: DecisionImpactAuditRow) => {
+    const decisionIso = sanitizeIsoDate(row.approvedDate, '2026-10-28')
+    const beforeStart = shiftIsoDate(decisionIso, -7)
+    const beforeEnd = shiftIsoDate(decisionIso, -1)
+    const afterStart = decisionIso
+    const afterEnd = shiftIsoDate(decisionIso, 6)
+    const scope = inferScopeFromDecisionText(`${row.titleEn} ${row.scopeEn} ${row.titleAr} ${row.scopeAr}`)
+
+    setActiveDecisionId(row.id)
+    setQuery((prev) => ({
+      ...prev,
+      mode: 'date-vs-date',
+      granularity: 'range',
+      periodB: { from: beforeStart, to: beforeEnd },
+      periodA: { from: afterStart, to: afterEnd },
+      brandIds: scope.brandIds,
+      branchIds: scope.branchIds,
+    }))
+  }, [])
+
+  // Identify at most 1 critical outlier across all Brand/Branch/Channel variance rows so total page 🔴 <= 2
   const criticalVarianceRowId = useMemo<string | null>(() => {
     const allVarianceRows = [
-      ...snap.byBrandRows.map((r) => ({ key: `brands:${r.id}`, pocketDiff: r.afterPocketKwd - r.beforePocketKwd })),
-      ...snap.byBranchRows.map((r) => ({ key: `branches:${r.id}`, pocketDiff: r.afterPocketKwd - r.beforePocketKwd })),
-      ...snap.byChannelRows.map((r) => ({ key: `channels:${r.id}`, pocketDiff: r.afterPocketKwd - r.beforePocketKwd })),
+      ...comparison.byBrand.map((r) => ({ key: `brands:${r.id}`, pocketDiff: r.netProfitDeltaKwd })),
+      ...comparison.byBranch.map((r) => ({ key: `branches:${r.id}`, pocketDiff: r.netProfitDeltaKwd })),
+      ...comparison.byChannel.map((r) => ({ key: `channels:${r.id}`, pocketDiff: r.netProfitDeltaKwd })),
     ]
     if (allVarianceRows.length < 4) return null
     const worst = allVarianceRows
-      .filter((x) => x.pocketDiff <= -45)
+      .filter((x) => x.pocketDiff <= -25)
       .sort((a, b) => a.pocketDiff - b.pocketDiff)[0]
     return worst?.key ?? null
-  }, [snap.byBrandRows, snap.byBranchRows, snap.byChannelRows])
+  }, [comparison.byBrand, comparison.byBranch, comparison.byChannel])
 
-  const uniqueEventOptions = useMemo(() => {
-    const seenAr = new Set<string>()
-    const seenEn = new Set<string>()
-    return snap.eventOptions.filter((ev) => {
-      const kAr = normalizeUniqueTitle(ev.labelAr)
-      const kEn = normalizeUniqueTitle(ev.labelEn)
-      if ((kAr && seenAr.has(kAr)) || (kEn && seenEn.has(kEn))) return false
-      if (kAr) seenAr.add(kAr)
-      if (kEn) seenEn.add(kEn)
-      return true
-    })
-  }, [snap.eventOptions])
+  const getBucketPair = useCallback(
+    (b: ComparisonChartBucket): { before: number; after: number; delta: number; unit: string } => {
+      if (chartMetric === 'orders') {
+        return {
+          before: b.ordersB,
+          after: b.ordersA,
+          delta: b.ordersDelta,
+          unit: isAr ? 'طلب' : 'orders',
+        }
+      }
+      if (chartMetric === 'profit') {
+        return { before: b.profitB, after: b.profitA, delta: b.profitDelta, unit: kwd }
+      }
+      if (chartMetric === 'cumulative') {
+        return {
+          before: b.cumulativeB,
+          after: b.cumulativeA,
+          delta: b.cumulativeA - b.cumulativeB,
+          unit: kwd,
+        }
+      }
+      return { before: b.seriesB, after: b.seriesA, delta: b.delta, unit: kwd }
+    },
+    [chartMetric, isAr, kwd],
+  )
+
+  const maxBucketVal = useMemo(() => {
+    let m = 1
+    for (const bkt of comparison.chartBuckets) {
+      const p = getBucketPair(bkt)
+      if (Math.abs(p.after) > m) m = Math.abs(p.after)
+      if (Math.abs(p.before) > m) m = Math.abs(p.before)
+    }
+    return m
+  }, [comparison.chartBuckets, getBucketPair])
+
+  const inspectedBucket = useMemo(() => {
+    if (comparison.chartBuckets.length === 0) return null
+    if (selectedBucketIdx !== null && comparison.chartBuckets[selectedBucketIdx]) {
+      return comparison.chartBuckets[selectedBucketIdx]
+    }
+    return comparison.chartBuckets[comparison.chartBuckets.length - 1] ?? comparison.chartBuckets[0]
+  }, [comparison.chartBuckets, selectedBucketIdx])
 
   const handleEscalateDecisionOutlier = useCallback(
     (row: DecisionImpactAuditRow) => {
@@ -405,8 +553,8 @@ export function BeforeAfterStudio() {
   )
 
   const handleEscalateVarianceOutlier = useCallback(
-    (scopeKey: string, r: ComparisonTableRow) => {
-      const pocketDiff = Math.round(r.afterPocketKwd - r.beforePocketKwd)
+    (scopeKey: string, r: EntityVarianceRow) => {
+      const pocketDiff = Math.round(r.netProfitDeltaKwd)
       const refKey = `variance-outlier:${scopeKey}:${r.id}`
       const existing = getApprovalByRef(refKey)
       if (existing) {
@@ -418,8 +566,8 @@ export function BeforeAfterStudio() {
         domain: 'before-after',
         titleAr: `تصعيد انحراف قبل وبعد: ${r.nameAr}`,
         titleEn: `Escalate Before/After Variance: ${r.nameEn}`,
-        summaryAr: `المبيعات ${f0(r.beforeSalesKwd)} ← ${f0(r.afterSalesKwd)} د.ك (${fmtSignedPct(r.pctSales)}) • فرق الصافي بالجيب ${fmtSignedKwd(pocketDiff, true)}.`,
-        summaryEn: `Sales ${f0(r.beforeSalesKwd)} -> ${f0(r.afterSalesKwd)} KWD (${fmtSignedPct(r.pctSales)}) • Net Pocket delta ${fmtSignedKwd(pocketDiff, false)}.`,
+        summaryAr: `المبيعات ${f0(r.valueB)} ← ${f0(r.valueA)} د.ك (${fmtSignedPct(r.deltaPct)}) • فرق الصافي بالجيب ${fmtSignedKwd(pocketDiff, true)}.`,
+        summaryEn: `Sales ${f0(r.valueB)} -> ${f0(r.valueA)} KWD (${fmtSignedPct(r.deltaPct)}) • Net Pocket delta ${fmtSignedKwd(pocketDiff, false)}.`,
         departmentAr: 'التدقيق المالي ومقارنة قبل وبعد',
         departmentEn: 'CFO Before & After Audit',
         budgetOrCostKwd: 0,
@@ -431,82 +579,24 @@ export function BeforeAfterStudio() {
     [getApprovalByRef, openDrawer, requestApproval],
   )
 
-  const periodModeLabel = useMemo(() => {
-    if (filters.period === 'today') return T('Today vs Yesterday', 'اليوم مقابل أمس')
-    if (filters.period === 'week') return T('This Week vs Prior', 'هذا الأسبوع مقابل السابق')
-    if (filters.period === 'year') return T('This Year vs Prior', 'هذه السنة مقابل السابق')
-    if (filters.period === 'custom') return T('Custom vs Prior Span', 'الفترة المخصصة مقابل السابقة')
-    return T('This Month vs Prior', 'هذا الشهر مقابل السابق')
-  }, [T, filters.period])
-
-  const modeOptions = useMemo(() => {
-    const opts: { id: ComparisonMode; label: string }[] = [
-      { id: 'period-prev', label: periodModeLabel },
-    ]
-    if (filters.period === 'today') {
-      opts.push({
-        id: 'today-lastweek',
-        label: T('Same Day Last Week', 'نفس اليوم الأسبوع الماضي'),
-      })
-    }
-    opts.push({
-      id: 'decision-campaign',
-      label: T('Campaign / Play', 'قبل وبعد قرار أو حملة'),
-    })
-    return opts
-  }, [T, filters.period, periodModeLabel])
-
   const handleExportCsv = useCallback(() => {
-    const headers = [
-      isAr ? 'التصنيف' : 'Group',
-      isAr ? 'الاسم' : 'Item',
-      isAr ? 'المبيعات قبل (د.ك)' : 'Sales Before (KWD)',
-      isAr ? 'المبيعات بعد (د.ك)' : 'Sales After (KWD)',
-      isAr ? 'الفرق (د.ك)' : 'Diff (KWD)',
-      isAr ? 'التغير %' : 'Change %',
-      isAr ? 'الطلبات قبل' : 'Orders Before',
-      isAr ? 'الطلبات بعد' : 'Orders After',
-      isAr ? 'الصافي قبل (د.ك)' : 'Net Pocket Before (KWD)',
-      isAr ? 'الصافي بعد (د.ك)' : 'Net Pocket After (KWD)',
-    ]
-    const toLines = (groupLabel: string, rows: ComparisonTableRow[]) =>
-      rows.map((r) =>
-        [
-          `"${groupLabel}"`,
-          `"${(isAr ? r.nameAr : r.nameEn).replace(/"/g, '""')}"`,
-          r.beforeSalesKwd.toFixed(2),
-          r.afterSalesKwd.toFixed(2),
-          r.diffSalesKwd.toFixed(2),
-          `${r.pctSales.toFixed(1)}%`,
-          Math.round(r.beforeOrders),
-          Math.round(r.afterOrders),
-          r.beforePocketKwd.toFixed(2),
-          r.afterPocketKwd.toFixed(2),
-        ].join(','),
-      )
-
-    const csvLines = [
-      headers.join(','),
-      ...toLines(isAr ? 'المطعم' : 'Brand', snap.byBrandRows),
-      ...toLines(isAr ? 'الفرع' : 'Branch', snap.byBranchRows),
-      ...toLines(isAr ? 'القناة' : 'Channel', snap.byChannelRows),
-    ]
-    const blob = new Blob(['\uFEFF' + csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' })
+    const csv = buildComparisonCsv(comparison, isAr)
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `aetherbi-before-after-${filters.period}.csv`
+    a.download = `aetherbi-before-after-${comparison.selectionB.fromIso}-vs-${comparison.selectionA.fromIso}.csv`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
-  }, [filters.period, isAr, snap.byBranchRows, snap.byBrandRows, snap.byChannelRows])
+  }, [comparison, isAr])
 
   const renderSectionTable = (
     scopeKey: 'brands' | 'branches' | 'channels',
     titleAr: string,
     titleEn: string,
-    rows: ComparisonTableRow[],
+    rows: EntityVarianceRow[],
   ) => (
     <div className="space-y-2.5">
       <h3 className="text-[15px] font-bold tracking-tight text-neutral-950 dark:text-white">
@@ -517,309 +607,426 @@ export function BeforeAfterStudio() {
           <table className="w-full min-w-[860px] border-collapse text-[14px]">
             <thead className="sticky top-0 z-10 bg-[#F7F7F8] text-neutral-600 dark:bg-[#09110E] dark:text-slate-300">
               <tr>
-                <th className="whitespace-nowrap px-4 py-3 text-start text-[13px] font-semibold">{T('Item', 'البند')}</th>
-                <th className="whitespace-nowrap px-4 py-3 text-end text-[13px] font-semibold">{T('Sales Before', 'المبيعات قبل')}</th>
-                <th className="whitespace-nowrap px-4 py-3 text-end text-[13px] font-semibold">{T('Sales After', 'المبيعات بعد')}</th>
-                <th className="whitespace-nowrap px-4 py-3 text-end text-[13px] font-semibold">{T('Variance (KWD)', 'الفرق (د.ك)')}</th>
-                <th className="whitespace-nowrap px-4 py-3 text-center text-[13px] font-semibold">{T('Change %', 'التغير %')}</th>
+                <th className="whitespace-nowrap px-4 py-3 text-start text-[13px] font-semibold">
+                  {T('Item', 'البند')}
+                </th>
+                <th className="whitespace-nowrap px-4 py-3 text-end text-[13px] font-semibold">
+                  {T('Before Sales', 'المبيعات قبل')}
+                </th>
+                <th className="whitespace-nowrap px-4 py-3 text-end text-[13px] font-semibold">
+                  {T('After Sales', 'المبيعات بعد')}
+                </th>
+                <th className="whitespace-nowrap px-4 py-3 text-end text-[13px] font-semibold">
+                  {T('Variance (KWD)', 'الفرق (د.ك)')}
+                </th>
+                <th className="whitespace-nowrap px-4 py-3 text-center text-[13px] font-semibold">
+                  {T('Change %', 'التغير %')}
+                </th>
                 <th className="whitespace-nowrap px-4 py-3 text-end text-[13px] font-semibold">
                   {T('Net Pocket (Before → After)', 'الصافي بالجيب (قبل ← بعد)')}
                 </th>
-                <th className="whitespace-nowrap px-4 py-3 text-center text-[13px] font-semibold">{T('Status', 'الحالة')}</th>
-                <th className="whitespace-nowrap px-4 py-3 text-end text-[13px] font-semibold">{T('Action', 'الإجراء')}</th>
+                <th className="whitespace-nowrap px-4 py-3 text-center text-[13px] font-semibold">
+                  {T('Status', 'الحالة')}
+                </th>
+                <th className="whitespace-nowrap px-4 py-3 text-end text-[13px] font-semibold">
+                  {T('Action', 'الإجراء')}
+                </th>
               </tr>
             </thead>
-          <tbody className="divide-y divide-neutral-100 dark:divide-white/[0.05]">
-            {rows.map((r) => {
-              const rowKey = `${scopeKey}:${r.id}`
-              const pocketDiff = r.afterPocketKwd - r.beforePocketKwd
-              const isCriticalOutlier = criticalVarianceRowId === rowKey
-              const tier: CalibratedTier = isCriticalOutlier
-                ? 'red'
-                : r.diffSalesKwd >= 0 && pocketDiff >= 0
-                  ? 'green'
-                  : 'amber'
-              const escalated = Boolean(getApprovalByRef(`variance-outlier:${rowKey}`))
+            <tbody className="divide-y divide-neutral-100 dark:divide-white/[0.05]">
+              {rows.map((r) => {
+                const rowKey = `${scopeKey}:${r.id}`
+                const pocketDiff = r.netProfitDeltaKwd
+                const isCriticalOutlier = criticalVarianceRowId === rowKey
+                const tier: CalibratedTier = isCriticalOutlier
+                  ? 'red'
+                  : r.deltaKwd >= 0 && pocketDiff >= 0
+                    ? 'green'
+                    : 'amber'
+                const escalated = Boolean(getApprovalByRef(`variance-outlier:${rowKey}`))
 
-              return (
-                <tr
-                  key={r.id}
-                  className={`transition-colors duration-150 ${
-                    tier === 'red'
-                      ? 'bg-rose-50/20 hover:bg-rose-50/40 dark:bg-rose-950/10 dark:hover:bg-rose-950/20'
-                      : 'hover:bg-emerald-50/35 dark:hover:bg-emerald-500/[0.04]'
-                  }`}
-                >
-                  <td className="px-4 py-3.5 font-semibold whitespace-nowrap text-neutral-950 dark:text-white">
-                    {isAr ? r.nameAr : r.nameEn}
-                  </td>
-                  <td
-                    dir="ltr"
-                    className="px-4 py-3.5 text-end font-medium whitespace-nowrap tabular-nums text-neutral-500 dark:text-slate-400"
-                  >
-                    {fmtKwd(r.beforeSalesKwd, isAr)}
-                  </td>
-                  <td
-                    dir="ltr"
-                    className="px-4 py-3.5 text-end font-semibold whitespace-nowrap tabular-nums text-neutral-950 dark:text-white"
-                  >
-                    {fmtKwd(r.afterSalesKwd, isAr)}
-                  </td>
-                  <td
-                    dir="ltr"
-                    className={`px-4 py-3.5 text-end font-semibold whitespace-nowrap tabular-nums ${
-                      r.diffSalesKwd >= 0
-                        ? 'text-emerald-700 dark:text-emerald-400'
-                        : 'text-amber-700 dark:text-amber-300'
+                return (
+                  <tr
+                    key={r.id}
+                    className={`transition-colors duration-150 ${
+                      !r.isCompatible
+                        ? 'opacity-45'
+                        : tier === 'red'
+                          ? 'bg-rose-50/20 hover:bg-rose-50/40 dark:bg-rose-950/10 dark:hover:bg-rose-950/20'
+                          : 'hover:bg-emerald-50/35 dark:hover:bg-emerald-500/[0.04]'
                     }`}
                   >
-                    {fmtSignedKwd(r.diffSalesKwd, isAr)}
-                  </td>
-                  <td dir="ltr" className="px-4 py-3.5 text-center whitespace-nowrap">
-                    <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[12px] font-semibold tabular-nums ${
-                        r.pctSales >= 0
-                          ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                          : tier === 'red'
-                            ? 'bg-rose-50 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
-                            : 'bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
-                      }`}
+                    <td className="px-4 py-3.5 font-semibold whitespace-nowrap text-neutral-950 dark:text-white">
+                      {isAr ? r.nameAr : r.nameEn}
+                    </td>
+                    <td
+                      dir="ltr"
+                      className="px-4 py-3.5 text-end font-medium whitespace-nowrap tabular-nums text-neutral-500 dark:text-slate-400"
                     >
-                      {fmtSignedPct(r.pctSales)}
-                    </span>
-                  </td>
-                  <td
-                    dir="ltr"
-                    className="px-4 py-3.5 text-end font-semibold whitespace-nowrap tabular-nums text-neutral-900 dark:text-slate-100"
-                  >
-                    <span>
-                      {fmtKwd(r.beforePocketKwd, isAr)} → {fmtKwd(r.afterPocketKwd, isAr)}
-                    </span>
-                    <span
-                      className={`ms-1.5 text-[12.5px] font-bold ${
-                        pocketDiff >= 0
+                      {fmtKwd(r.valueB, isAr)}
+                    </td>
+                    <td
+                      dir="ltr"
+                      className="px-4 py-3.5 text-end font-semibold whitespace-nowrap tabular-nums text-neutral-950 dark:text-white"
+                    >
+                      {fmtKwd(r.valueA, isAr)}
+                    </td>
+                    <td
+                      dir="ltr"
+                      className={`px-4 py-3.5 text-end font-semibold whitespace-nowrap tabular-nums ${
+                        r.deltaKwd >= 0
                           ? 'text-emerald-700 dark:text-emerald-400'
-                          : tier === 'red'
-                            ? 'text-rose-600 dark:text-rose-400'
-                            : 'text-amber-700 dark:text-amber-300'
+                          : 'text-amber-700 dark:text-amber-300'
                       }`}
                     >
-                      ({fmtSignedKwd(pocketDiff, isAr)})
-                    </span>
-                  </td>
-                  <td className="px-4 py-3.5 text-center whitespace-nowrap">
-                    {tier === 'green' ? (
-                      <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-[12px] font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-                        {T('🟢 Gain', '🟢 نمو محقق')}
-                      </span>
-                    ) : tier === 'amber' ? (
-                      <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-[12px] font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
-                        {T('🟡 Watch', '🟡 قيد المراقبة')}
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center rounded-full bg-rose-50 px-2.5 py-0.5 text-[12px] font-semibold text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
-                        {T('🔴 Critical', '🔴 تراجع حرج')}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3.5 text-end whitespace-nowrap">
-                    {tier === 'red' ? (
-                      <button
-                        type="button"
-                        onClick={() => handleEscalateVarianceOutlier(scopeKey, r)}
-                        className={`inline-flex cursor-pointer items-center gap-1 rounded-full px-3 py-1 text-[13px] font-bold transition-colors duration-150 ${
-                          escalated
-                            ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-500/25 dark:bg-emerald-950/50 dark:text-emerald-300'
-                            : 'bg-transparent text-rose-700 ring-1 ring-rose-500/30 hover:bg-rose-50 dark:text-rose-300 dark:ring-rose-400/30 dark:hover:bg-rose-950/40'
+                      {fmtSignedKwd(r.deltaKwd, isAr)}
+                    </td>
+                    <td dir="ltr" className="px-4 py-3.5 text-center whitespace-nowrap">
+                      <span
+                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[12px] font-semibold tabular-nums ${
+                          r.deltaPct >= 0
+                            ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                            : tier === 'red'
+                              ? 'bg-rose-50 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
+                              : 'bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
                         }`}
                       >
-                        <span>{escalated ? T('Escalated ✓', 'تم التصعيد ✓') : T('Escalate ↗', 'تصعيد ↗')}</span>
-                      </button>
-                    ) : (
-                      <span className="select-none text-slate-400">—</span>
-                    )}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+                        {fmtSignedPct(r.deltaPct)}
+                      </span>
+                    </td>
+                    <td
+                      dir="ltr"
+                      className="px-4 py-3.5 text-end font-semibold whitespace-nowrap tabular-nums text-neutral-900 dark:text-slate-100"
+                    >
+                      <span>
+                        {fmtKwd(r.netProfitB, isAr)} → {fmtKwd(r.netProfitA, isAr)}
+                      </span>
+                      <span
+                        className={`ms-1.5 text-[12.5px] font-bold ${
+                          pocketDiff >= 0
+                            ? 'text-emerald-700 dark:text-emerald-400'
+                            : tier === 'red'
+                              ? 'text-rose-600 dark:text-rose-400'
+                              : 'text-amber-700 dark:text-amber-300'
+                        }`}
+                      >
+                        ({fmtSignedKwd(pocketDiff, isAr)})
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5 text-center whitespace-nowrap">
+                      {tier === 'green' ? (
+                        <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-[12px] font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                          {T('🟢 Gain', '🟢 نمو محقق')}
+                        </span>
+                      ) : tier === 'amber' ? (
+                        <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-[12px] font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
+                          {T('🟡 Watch', '🟡 قيد المراقبة')}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center rounded-full bg-rose-50 px-2.5 py-0.5 text-[12px] font-semibold text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
+                          {T('🔴 Critical', '🔴 تراجع حرج')}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3.5 text-end whitespace-nowrap">
+                      {tier === 'red' ? (
+                        <button
+                          type="button"
+                          onClick={() => handleEscalateVarianceOutlier(scopeKey, r)}
+                          className={`inline-flex cursor-pointer items-center gap-1 rounded-full px-3 py-1 text-[13px] font-bold transition-colors duration-150 ${
+                            escalated
+                              ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-500/25 dark:bg-emerald-950/50 dark:text-emerald-300'
+                              : 'bg-transparent text-rose-700 ring-1 ring-rose-500/30 hover:bg-rose-50 dark:text-rose-300 dark:ring-rose-400/30 dark:hover:bg-rose-950/40'
+                          }`}
+                        >
+                          <span>
+                            {escalated ? T('Escalated ✓', 'تم التصعيد ✓') : T('Escalate ↗', 'تصعيد ↗')}
+                          </span>
+                        </button>
+                      ) : (
+                        <span className="select-none text-slate-400">—</span>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
   )
 
   return (
-    <div dir={isAr ? 'rtl' : 'ltr'} className="w-full max-w-[1920px] mx-auto space-y-4 pb-12">
-      {/* 1. Slim Context & Segmented Mode Bar (Single Active Page Title in TopFilterBar) */}
-      <div className="flex flex-col gap-2.5 xl:flex-row xl:items-center xl:justify-between">
-        <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-neutral-500 dark:text-slate-400">
-          <span className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-50 px-3 py-1.5 text-[12.5px] font-semibold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
-            <ArrowLeftRight className="h-3.5 w-3.5" />
-            <span>
-              {isAr
-                ? `${snap.beforeLabelAr}  ←  ${snap.afterLabelAr}`
-                : `${snap.beforeLabelEn}  →  ${snap.afterLabelEn}`}
-            </span>
-          </span>
-          <span className="truncate">{isAr ? workspace.subtitleAr : workspace.subtitleEn}</span>
-        </div>
-
-        <div className="no-print flex max-w-full items-center gap-2 overflow-x-auto no-scrollbar">
-          <EmeraldPillTabs<ComparisonMode>
-            ariaLabel={T('Comparison Mode', 'نوع المقارنة')}
-            size="sm"
-            value={mode}
-            onChange={setMode}
-            options={modeOptions}
-          />
-
-          {mode === 'decision-campaign' ? (
-            <select
-              value={snap.activeEvent?.id ?? ''}
-              onChange={(e) => setSelectedEventId(e.target.value)}
-              aria-label={T('Select approved play or campaign', 'اختر قرار أو حملة معتمدة')}
-              className="ae-select h-9 shrink-0"
+    <div dir={isAr ? 'rtl' : 'ltr'} className="w-full max-w-[1920px] mx-auto space-y-5 pb-12">
+      {/* 1. Universal Custom Before-vs-After Control Bar (`order="b-first"`: Before -> VS -> After) */}
+      <div className="no-print">
+        <ExecutiveComparisonControlBar
+          query={query}
+          onQueryChange={(next) => {
+            setActiveDecisionId(null)
+            setQuery(next)
+          }}
+          onReset={() => {
+            setActiveDecisionId(null)
+            setQuery(DEFAULT_BEFORE_AFTER_QUERY)
+          }}
+          onExportCsv={handleExportCsv}
+          order="b-first"
+          labelBEn="Before Period (Baseline)"
+          labelBAr="فترة ما قبل القرار / الأساس"
+          labelAEn="After Period (Post-Change)"
+          labelAAr="فترة ما بعد القرار / التغيير"
+          extraActions={
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl bg-[#F6F7F8] px-3 text-[12.5px] font-semibold text-slate-700 ring-1 ring-slate-900/[0.06] transition-all duration-150 hover:bg-slate-200/70 dark:bg-[#0B1410] dark:text-slate-200 dark:ring-emerald-500/15"
             >
-              {uniqueEventOptions.map((ev) => (
-                <option key={ev.id} value={ev.id}>
-                  {isAr ? ev.labelAr : ev.labelEn}
-                </option>
-              ))}
-            </select>
-          ) : null}
-
-          <button
-            type="button"
-            onClick={handleExportCsv}
-            className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl bg-white px-3.5 text-[13px] font-medium text-neutral-800 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-900/[0.04] transition-all duration-150 hover:text-neutral-950 active:scale-95 dark:bg-[#101C17] dark:text-slate-100 dark:ring-emerald-500/10"
-          >
-            <Download className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span>{T('Export CSV', 'تحميل CSV')}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl bg-white px-3.5 text-[13px] font-medium text-neutral-800 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-900/[0.04] transition-all duration-150 hover:text-neutral-950 active:scale-95 dark:bg-[#101C17] dark:text-slate-100 dark:ring-emerald-500/10"
-          >
-            <Printer className="h-3.5 w-3.5 text-neutral-500 dark:text-slate-300" />
-            <span>{T('Print', 'طباعة')}</span>
-          </button>
-        </div>
+              <Printer className="h-3.5 w-3.5 shrink-0" />
+              <span>{T('Print', 'طباعة')}</span>
+            </button>
+          }
+        />
       </div>
 
-      {/* 1B. Compact 2x2 Variance KPI Strip (Pure Delta Metrics — Fits Single Glance on 390px) */}
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <article className="ae-kpi-card rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10">
-          <div className="flex flex-wrap items-center justify-between gap-1">
-            <span className="text-xs sm:text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
-              {T('Net Sales Variance', 'صافي فرق المبيعات')}
+      {/* 1B. Executive Insight Callout Strip */}
+      <section className="rounded-2xl bg-white px-4 py-3.5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-slate-900/[0.05] dark:bg-[#101C17] dark:ring-emerald-500/12">
+        <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+              <Sparkles className="h-4 w-4" />
             </span>
-            <span
-              dir="ltr"
-              className={`rounded-lg px-2 py-0.5 text-[10.5px] sm:text-[11.5px] font-semibold tabular-nums ${
-                snap.summary.sales.pct >= 0
-                  ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
-                  : 'bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-200'
-              }`}
-            >
-              {fmtSignedPct(snap.summary.sales.pct)}
-            </span>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[13.5px] font-semibold tracking-tight text-slate-900 tabular-nums dark:text-white">
+                  {isAr
+                    ? `قبل (${comparison.selectionB.shortLabelAr}) ← بعد (${comparison.selectionA.shortLabelAr}): ${fmtSignedKwd(comparison.kpis.netSales.deltaAbs, true)} (${fmtSignedPct(comparison.kpis.netSales.deltaPct)})`
+                    : `Before (${comparison.selectionB.shortLabelEn}) → After (${comparison.selectionA.shortLabelEn}): ${fmtSignedKwd(comparison.kpis.netSales.deltaAbs, false)} (${fmtSignedPct(comparison.kpis.netSales.deltaPct)})`}
+                </span>
+                <span className="rounded-lg bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:bg-white/[0.07] dark:text-slate-300">
+                  {isAr ? comparison.scopeSummaryAr : comparison.scopeSummaryEn}
+                </span>
+              </div>
+            </div>
           </div>
-          <div
-            dir="ltr"
-            className={`mt-1.5 sm:mt-2 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums ${
-              snap.summary.sales.diff >= 0
-                ? 'text-emerald-700 dark:text-emerald-400'
-                : 'text-amber-700 dark:text-amber-300'
-            }`}
-          >
-            {fmtSignedKwd(snap.summary.sales.diff, isAr)}
-          </div>
-          <p dir="ltr" className="mt-1 text-[11.5px] sm:text-[13px] tabular-nums text-neutral-500 dark:text-slate-400">
-            {f0(snap.summary.sales.before)} → {f0(snap.summary.sales.after)} {isAr ? 'د.ك' : 'KWD'}
-          </p>
-        </article>
 
-        <article className="ae-kpi-card rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10">
-          <div className="flex flex-wrap items-center justify-between gap-1">
-            <span className="text-xs sm:text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
-              {T('Net Pocket Variance', 'صافي فرق الجيب')}
-            </span>
-            <span
-              dir="ltr"
-              className={`rounded-lg px-2 py-0.5 text-[10.5px] sm:text-[11.5px] font-semibold tabular-nums ${
-                snap.summary.pocket.pct >= 0
-                  ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
-                  : 'bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-200'
-              }`}
-            >
-              {fmtSignedPct(snap.summary.pocket.pct)}
-            </span>
+          <div className="flex flex-wrap items-center gap-2 tabular-nums">
+            {comparison.insights.topGainer && (
+              <span className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-50/90 px-3 py-1 text-[12px] font-semibold text-emerald-900 ring-1 ring-emerald-600/15 dark:bg-emerald-500/15 dark:text-emerald-200">
+                <TrendingUp className="h-3.5 w-3.5 text-emerald-600" />
+                {isAr ? 'أعلى تحسن:' : 'Top Lift:'}{' '}
+                {isAr ? comparison.insights.topGainer.nameAr : comparison.insights.topGainer.nameEn}{' '}
+                ({fmtSignedKwd(comparison.insights.topGainer.deltaKwd, isAr)})
+              </span>
+            )}
+            {comparison.insights.biggestDecline &&
+              comparison.insights.biggestDecline.deltaKwd < 0 && (
+                <span className="inline-flex items-center gap-1.5 rounded-xl bg-rose-50/90 px-3 py-1 text-[12px] font-semibold text-rose-900 ring-1 ring-rose-600/15 dark:bg-rose-500/15 dark:text-rose-200">
+                  <TrendingDown className="h-3.5 w-3.5 text-rose-600" />
+                  {isAr ? 'أكبر تراجع:' : 'Biggest Drop:'}{' '}
+                  {isAr
+                    ? comparison.insights.biggestDecline.nameAr
+                    : comparison.insights.biggestDecline.nameEn}{' '}
+                  ({fmtSignedKwd(comparison.insights.biggestDecline.deltaKwd, isAr)})
+                </span>
+              )}
           </div>
-          <div
-            dir="ltr"
-            className={`mt-1.5 sm:mt-2 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums ${
-              snap.summary.pocket.diff >= 0
-                ? 'text-emerald-700 dark:text-emerald-400'
-                : 'text-amber-700 dark:text-amber-300'
-            }`}
-          >
-            {fmtSignedKwd(snap.summary.pocket.diff, isAr)}
-          </div>
-          <p dir="ltr" className="mt-1 text-[11.5px] sm:text-[13px] tabular-nums text-neutral-500 dark:text-slate-400">
-            {f0(snap.summary.pocket.before)} → {f0(snap.summary.pocket.after)} {isAr ? 'د.ك' : 'KWD'}
-          </p>
-        </article>
+        </div>
+      </section>
 
-        <article className="ae-kpi-card rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10">
-          <div className="flex flex-wrap items-center justify-between gap-1">
-            <span className="text-xs sm:text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
-              {T('Orders Variance', 'فرق الطلبات')}
-            </span>
-            <span
-              dir="ltr"
-              className={`rounded-lg px-2 py-0.5 text-[10.5px] sm:text-[11.5px] font-semibold tabular-nums ${
-                snap.summary.orders.pct >= 0
-                  ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
-                  : 'bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-200'
-              }`}
-            >
-              {fmtSignedPct(snap.summary.orders.pct)}
-            </span>
-          </div>
-          <div
-            dir="ltr"
-            className="mt-1.5 sm:mt-2 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-neutral-950 dark:text-white"
-          >
-            {snap.summary.orders.diff >= 0 ? '+' : ''}
-            {f0(snap.summary.orders.diff)}
-          </div>
-          <p dir="ltr" className="mt-1 text-[11.5px] sm:text-[13px] tabular-nums text-neutral-500 dark:text-slate-400">
-            {f0(snap.summary.orders.before)} → {f0(snap.summary.orders.after)} {isAr ? 'طلب' : 'orders'}
-          </p>
-        </article>
+      {/* 1C. 6 Core Before-vs-After KPI Delta Cards (with Smart Polarity) */}
+      <section className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4">
+        {comparison.kpiList.map((kpi) => {
+          const badgeTone =
+            kpi.trend === 'flat'
+              ? 'bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-300'
+              : kpi.isFavorable
+                ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-600/20 dark:bg-emerald-500/20 dark:text-emerald-200'
+                : 'bg-rose-50 text-rose-800 ring-1 ring-rose-600/20 dark:bg-rose-500/20 dark:text-rose-200'
+          const arrow = kpi.trend === 'up' ? '▲' : kpi.trend === 'down' ? '▼' : '•'
 
-        <article className="ae-kpi-card rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10">
-          <div className="flex flex-wrap items-center justify-between gap-1">
-            <span className="text-xs sm:text-[13.5px] font-semibold text-neutral-500 dark:text-slate-400">
-              {T('Decisions On Track', 'قرارات محققة للمستهدف')}
-            </span>
-            <span className="rounded-lg bg-emerald-50 px-2 py-0.5 text-[10.5px] sm:text-[11.5px] font-semibold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
-              🟢🟡
-            </span>
+          return (
+            <article
+              key={kpi.id}
+              className="ae-kpi-card rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10"
+            >
+              <div className="flex items-start justify-between gap-1.5">
+                <span className="text-[12px] sm:text-[12.5px] font-semibold text-neutral-500 dark:text-slate-300">
+                  {isAr ? kpi.labelAr : kpi.labelEn}
+                </span>
+                {kpi.isFavorable ? (
+                  <ArrowUpRight className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                ) : (
+                  <ArrowDownRight className="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400" />
+                )}
+              </div>
+
+              <div
+                dir="ltr"
+                className={`mt-2 text-xl sm:text-2xl font-semibold tracking-tight tabular-nums ${
+                  kpi.isFavorable
+                    ? 'text-emerald-700 dark:text-emerald-300'
+                    : 'text-rose-700 dark:text-rose-300'
+                }`}
+              >
+                {kpi.unit === 'pct'
+                  ? fmtSignedPp(kpi.deltaPct)
+                  : kpi.unit === 'orders'
+                    ? `${kpi.deltaAbs > 0 ? '+' : ''}${f0(kpi.deltaAbs)}`
+                    : fmtSignedKwd(kpi.deltaAbs, isAr)}
+              </div>
+
+              <div className="mt-2 flex items-center justify-between gap-1.5 tabular-nums">
+                <span className={`rounded-lg px-2 py-0.5 text-[11px] font-semibold ${badgeTone}`}>
+                  {arrow}{' '}
+                  {kpi.unit === 'pct' ? fmtSignedPp(kpi.deltaPct) : fmtSignedPct(kpi.deltaPct)}
+                </span>
+                {kpi.id === 'foodAndAggregatorCost' && typeof kpi.shareOfSalesA === 'number' && (
+                  <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                    {f1(kpi.shareOfSalesB ?? 0)}% → {f1(kpi.shareOfSalesA)}%
+                  </span>
+                )}
+              </div>
+
+              <p
+                dir="ltr"
+                className="mt-2 border-t border-slate-100 pt-1.5 text-[11.5px] text-neutral-500 tabular-nums dark:border-white/[0.06] dark:text-slate-400"
+              >
+                {formatKpiVal(kpi, 'before')} →{' '}
+                <strong className="text-slate-800 dark:text-slate-100">
+                  {formatKpiVal(kpi, 'after')}
+                </strong>{' '}
+                {kpi.unit === 'KWD' ? kwd : ''}
+              </p>
+            </article>
+          )
+        })}
+      </section>
+
+      {/* 1D. Horizontal Before-vs-After Visual Trend Chart */}
+      <section className="ae-bento-card rounded-2xl bg-white p-3.5 sm:p-6 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10">
+        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h2 className="text-[16px] sm:text-[17px] font-extrabold tracking-tight text-neutral-950 dark:text-white">
+              {T(
+                'Horizontal Before vs. After Trend Curve',
+                'المنحنى الزمني الأفقي (قبل القرار مقابل بعده)',
+              )}
+            </h2>
+            <p className="text-[13px] text-neutral-500 dark:text-slate-400">
+              {isAr
+                ? `مقارنة ${comparison.selectionB.titleAr} مقابل ${comparison.selectionA.titleAr}`
+                : `Comparing ${comparison.selectionB.titleEn} vs ${comparison.selectionA.titleEn}`}
+            </p>
           </div>
-          <div
-            dir="ltr"
-            className="mt-1.5 sm:mt-2 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-neutral-950 dark:text-white"
-          >
-            {calibratedImpactRows.length - criticalImpactCount} / {calibratedImpactRows.length}
+
+          <EmeraldPillTabs<ChartMetricKey>
+            ariaLabel={T('Chart Metric', 'مؤشر الرسم البياني')}
+            value={chartMetric}
+            onChange={setChartMetric}
+            options={[
+              { id: 'sales', label: T('Sales KWD', 'المبيعات د.ك') },
+              { id: 'orders', label: T('Orders', 'الطلبات') },
+              { id: 'profit', label: T('Net Pocket', 'صافي الجيب') },
+              { id: 'cumulative', label: T('Cumulative', 'التراكمي') },
+            ]}
+          />
+        </div>
+
+        <div className="rounded-2xl bg-[#F7F7F8] p-4 ring-1 ring-slate-900/[0.03] dark:bg-[#0B1410] dark:ring-emerald-500/[0.08]">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-[12.5px] font-semibold">
+            <div className="flex flex-wrap items-center gap-4">
+              <span className="inline-flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
+                <span className="h-2.5 w-2.5 rounded-full bg-slate-400 dark:bg-slate-500" />
+                {isAr
+                  ? `قبل: ${comparison.selectionB.shortLabelAr}`
+                  : `Before: ${comparison.selectionB.shortLabelEn}`}
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-300">
+                <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                {isAr
+                  ? `بعد: ${comparison.selectionA.shortLabelAr}`
+                  : `After: ${comparison.selectionA.shortLabelEn}`}
+              </span>
+            </div>
+
+            {inspectedBucket && (() => {
+              const p = getBucketPair(inspectedBucket)
+              return (
+                <div
+                  dir="ltr"
+                  className="inline-flex flex-wrap items-center gap-2 rounded-xl bg-white px-3 py-1 text-[12px] font-semibold text-slate-800 ring-1 ring-slate-900/[0.05] tabular-nums dark:bg-[#101C17] dark:text-slate-100"
+                >
+                  <span className="text-emerald-700 dark:text-emerald-300">
+                    {inspectedBucket.labelEn}
+                  </span>
+                  <span>
+                    {f0(p.before)} → <strong>{f0(p.after)}</strong> {p.unit}
+                  </span>
+                  <span
+                    className={
+                      p.delta >= 0
+                        ? 'text-emerald-700 dark:text-emerald-300'
+                        : 'text-rose-600 dark:text-rose-400'
+                    }
+                  >
+                    ({p.delta >= 0 ? '+' : ''}
+                    {f0(p.delta)})
+                  </span>
+                </div>
+              )
+            })()}
           </div>
-          <p className="mt-1 text-[11.5px] sm:text-[13px] leading-snug text-neutral-500 dark:text-slate-400">
-            {T('Verified post-decision seals in Odoo', 'ختم الإدارة المراجع بعد التنفيذ')}
-          </p>
-        </article>
+
+          <div dir="ltr" className="overflow-x-auto pb-1">
+            <div
+              style={{
+                gridTemplateColumns: `repeat(${comparison.chartBuckets.length}, minmax(50px, 1fr))`,
+              }}
+              className="grid gap-2 items-end min-w-full"
+            >
+              {comparison.chartBuckets.map((bkt, idx) => {
+                const p = getBucketPair(bkt)
+                const hBefore = Math.max(8, Math.round((Math.max(0, p.before) / maxBucketVal) * 132))
+                const hAfter = Math.max(8, Math.round((Math.max(0, p.after) / maxBucketVal) * 132))
+                const active = inspectedBucket?.id === bkt.id
+                return (
+                  <button
+                    key={bkt.id}
+                    type="button"
+                    onMouseEnter={() => setSelectedBucketIdx(idx)}
+                    onClick={() => setSelectedBucketIdx(idx)}
+                    className={`flex cursor-pointer flex-col items-center rounded-xl px-1 py-2 transition-all duration-150 ${
+                      active
+                        ? 'bg-white shadow-sm ring-1 ring-emerald-500/35 dark:bg-[#101C17]'
+                        : 'hover:bg-white/60 dark:hover:bg-white/[0.04]'
+                    }`}
+                  >
+                    <span className="mb-1 text-[10px] font-semibold text-slate-600 tabular-nums dark:text-slate-300">
+                      {f0(p.after)}
+                    </span>
+                    <div className="flex h-[140px] w-full items-end justify-center gap-1 rounded-lg bg-slate-200/45 px-1 py-1 dark:bg-white/[0.03]">
+                      <div
+                        style={{ height: `${hBefore}px` }}
+                        className="w-2.5 sm:w-3 rounded-t-md bg-slate-300 dark:bg-slate-600"
+                        title={`Before (${bkt.metaB}): ${f0(p.before)} ${p.unit}`}
+                      />
+                      <div
+                        style={{ height: `${hAfter}px` }}
+                        className="w-2.5 sm:w-3 rounded-t-md bg-emerald-500"
+                        title={`After (${bkt.metaA}): ${f0(p.after)} ${p.unit}`}
+                      />
+                    </div>
+                    <span className="mt-1.5 text-[10.5px] font-semibold text-slate-700 tabular-nums dark:text-slate-200">
+                      {bkt.labelEn}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* 2. Primary Focus: Approved Decisions Before vs. After Impact Tracker */}
@@ -843,8 +1050,8 @@ export function BeforeAfterStudio() {
             </h2>
             <p className="text-[14px] text-neutral-500 dark:text-slate-400">
               {T(
-                'Compares pre-decision baseline vs post-decision Sales, Food Cost %, Promo %, and Net Pocket KWD.',
-                'يقارن المبيعات وتكلفة المواد ونسبة الخصومات وصافي الجيب قبل القرار وبعده مع تصعيد الحالات الحرجة فقط.',
+                'Click any decision below to auto-fill its Before & After date windows and target Brand/Branch above, or adjust any custom date freely.',
+                'اضغط على أي قرار لتعبئة نافذة ما قبل القرار وما بعده تلقائياً في شريط المقارنة أعلاه، مع حرية التعديل اليدوي الكامل.',
               )}
             </p>
           </div>
@@ -898,178 +1105,185 @@ export function BeforeAfterStudio() {
                   </th>
                 </tr>
               </thead>
-            <tbody className="divide-y divide-neutral-100 dark:divide-white/[0.05]">
-              {filteredImpactRows.map(({ row, tier }) => {
-                const linkedBreach =
-                  (row.linkedBreachId
-                    ? breaches.find((b) => b.id === row.linkedBreachId)
-                    : undefined) ??
-                  breaches.find((b) => b.id === `breach-regression-${row.refKey}`)
-                const reviewApproval = getApprovalByRef(`review-reg:${row.refKey}`)
-                const isFrozen = Boolean(linkedBreach?.frozen)
-                const isEscalated = isFrozen || Boolean(reviewApproval)
+              <tbody className="divide-y divide-neutral-100 dark:divide-white/[0.05]">
+                {filteredImpactRows.map(({ row, tier }) => {
+                  const linkedBreach =
+                    (row.linkedBreachId
+                      ? breaches.find((b) => b.id === row.linkedBreachId)
+                      : undefined) ??
+                    breaches.find((b) => b.id === `breach-regression-${row.refKey}`)
+                  const reviewApproval = getApprovalByRef(`review-reg:${row.refKey}`)
+                  const isFrozen = Boolean(linkedBreach?.frozen)
+                  const isEscalated = isFrozen || Boolean(reviewApproval)
+                  const isLoadedInStudio = activeDecisionId === row.id
 
-                return (
-                  <tr
-                    key={row.id}
-                    className={`transition-colors duration-150 ${
-                      tier === 'red'
-                        ? 'bg-rose-50/25 hover:bg-rose-50/45 dark:bg-rose-950/10 dark:hover:bg-rose-950/20'
-                        : 'hover:bg-emerald-50/35 dark:hover:bg-emerald-500/[0.04]'
-                    }`}
-                  >
-                    <td className="px-4 py-3.5">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span
-                          dir="ltr"
-                          className="rounded-lg bg-[#F7F7F8] px-2 py-0.5 font-mono text-[11px] font-semibold text-neutral-600 dark:bg-[#09110E] dark:text-slate-300"
-                        >
-                          {row.sealId}
-                        </span>
-                        <span dir="ltr" className="text-[12px] tabular-nums text-neutral-400">
-                          {row.approvedDate}
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (row.eventSelectId) {
-                            setMode('decision-campaign')
-                            setSelectedEventId(row.eventSelectId)
-                          }
-                        }}
-                        className="mt-1 block text-start text-[14.5px] font-bold text-neutral-950 hover:text-emerald-700 dark:text-white dark:hover:text-emerald-300"
-                      >
-                        {isAr ? row.titleAr : row.titleEn}
-                      </button>
-                      <span className="text-[12.5px] text-neutral-500 dark:text-slate-400">
-                        {isAr ? row.scopeAr : row.scopeEn}
-                      </span>
-                    </td>
-
-                    <td dir="ltr" className="px-3.5 py-3.5 text-end whitespace-nowrap tabular-nums">
-                      <div className="font-semibold text-neutral-900 dark:text-white">
-                        {f0(row.salesBeforeKwd)} → {f0(row.salesAfterKwd)} {isAr ? 'د.ك' : 'KWD'}
-                      </div>
-                      <div
-                        className={`text-[12px] font-semibold ${
-                          row.salesDiffKwd >= 0
-                            ? 'text-emerald-700 dark:text-emerald-400'
-                            : 'text-amber-700 dark:text-amber-300'
-                        }`}
-                      >
-                        {fmtSignedKwd(row.salesDiffKwd, isAr)}
-                      </div>
-                    </td>
-
-                    <td dir="ltr" className="px-3.5 py-3.5 text-center whitespace-nowrap tabular-nums">
-                      <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[12.5px] font-semibold ${
-                          tier === 'red' && row.foodCostAfterPct > row.foodCostBeforePct + 0.5
-                            ? 'bg-rose-50 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
-                            : row.foodCostAfterPct > row.foodCostBeforePct + 0.5
-                              ? 'bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200'
-                              : 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300'
-                        }`}
-                      >
-                        {f1(row.foodCostBeforePct)}% → {f1(row.foodCostAfterPct)}%
-                      </span>
-                    </td>
-
-                    <td dir="ltr" className="px-3.5 py-3.5 text-center whitespace-nowrap tabular-nums">
-                      <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[12.5px] font-semibold ${
-                          tier === 'red' && row.promoDiscountAfterPct > 3.0
-                            ? 'bg-rose-50 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
-                            : row.promoDiscountAfterPct > 3.0
-                              ? 'bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200'
-                              : 'bg-[#F7F7F8] text-neutral-700 dark:bg-[#09110E] dark:text-slate-200'
-                        }`}
-                      >
-                        {f1(row.promoDiscountBeforePct)}% → {f1(row.promoDiscountAfterPct)}%
-                      </span>
-                    </td>
-
-                    <td dir="ltr" className="px-3.5 py-3.5 text-end whitespace-nowrap tabular-nums">
-                      <div className="font-semibold text-neutral-900 dark:text-white">
-                        {f0(row.netPocketBeforeKwd)} → {f0(row.netPocketAfterKwd)}{' '}
-                        {isAr ? 'د.ك' : 'KWD'}
-                      </div>
-                      <div
-                        className={`text-[12.5px] font-bold ${
-                          row.netPocketDiffKwd >= 0
-                            ? 'text-emerald-700 dark:text-emerald-400'
-                            : tier === 'red'
-                              ? 'text-rose-600 dark:text-rose-400'
-                              : 'text-amber-700 dark:text-amber-300'
-                        }`}
-                      >
-                        {fmtSignedKwd(row.netPocketDiffKwd, isAr)}
-                      </div>
-                    </td>
-
-                    <td className="px-3.5 py-3.5 min-w-[215px]">
-                      {tier === 'green' ? (
-                        <div className="space-y-1">
-                          <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-[12px] font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-                            {T('🟢 On Target', '🟢 محقق للمستهدف')}
+                  return (
+                    <tr
+                      key={row.id}
+                      className={`transition-colors duration-150 ${
+                        isLoadedInStudio
+                          ? 'bg-emerald-50/60 dark:bg-emerald-500/10'
+                          : tier === 'red'
+                            ? 'bg-rose-50/25 hover:bg-rose-50/45 dark:bg-rose-950/10 dark:hover:bg-rose-950/20'
+                            : 'hover:bg-emerald-50/35 dark:hover:bg-emerald-500/[0.04]'
+                      }`}
+                    >
+                      <td className="px-4 py-3.5">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span
+                            dir="ltr"
+                            className="rounded-lg bg-[#F7F7F8] px-2 py-0.5 font-mono text-[11px] font-semibold text-neutral-600 dark:bg-[#09110E] dark:text-slate-300"
+                          >
+                            {row.sealId}
                           </span>
-                          <p className="line-clamp-1 text-[12.5px] text-neutral-500 dark:text-slate-400">
-                            {isAr ? row.regressionReasonAr : row.regressionReasonEn}
-                          </p>
-                        </div>
-                      ) : tier === 'amber' ? (
-                        <div className="space-y-1">
-                          <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-[12px] font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
-                            {T('🟡 Under Watch', '🟡 قيد المراقبة')}
+                          <span dir="ltr" className="text-[12px] tabular-nums text-neutral-400">
+                            {row.approvedDate}
                           </span>
-                          <p className="line-clamp-1 text-[12.5px] text-neutral-500 dark:text-slate-400">
-                            {isAr ? row.regressionReasonAr : row.regressionReasonEn}
-                          </p>
+                          <button
+                            type="button"
+                            onClick={() => handleLoadDecisionIntoEngine(row)}
+                            className="cursor-pointer rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 ring-1 ring-emerald-600/20 transition hover:bg-emerald-100 dark:bg-emerald-500/15 dark:text-emerald-200"
+                          >
+                            {isLoadedInStudio
+                              ? T('Loaded ✓', 'مُحمّل ✓')
+                              : T('Compare Window ↗', 'تحميل التواريخ ↗')}
+                          </button>
                         </div>
-                      ) : (
-                        <div className="space-y-1">
-                          <span className="inline-flex items-center rounded-full bg-rose-50 px-2.5 py-0.5 text-[12px] font-semibold text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
-                            {isFrozen
-                              ? T('⛔ Frozen', '⛔ مجمد')
-                              : T('🔴 Critical Outlier', '🔴 انحراف حرج')}
-                          </span>
-                          <p className="line-clamp-1 text-[12.5px] text-neutral-600 dark:text-slate-300">
-                            {isAr ? row.regressionReasonAr : row.regressionReasonEn}
-                          </p>
-                        </div>
-                      )}
-                    </td>
-
-                    <td className="px-4 py-3.5 text-end whitespace-nowrap">
-                      {tier === 'red' ? (
                         <button
                           type="button"
-                          title={T('Escalate to Manager Bell 🔔', 'طلب مراجعة / إيقاف المخالفة 🔔')}
-                          onClick={() => handleEscalateDecisionOutlier(row)}
-                          className={`inline-flex cursor-pointer items-center gap-1 rounded-full px-3 py-1 text-[13px] font-bold transition-colors duration-150 ${
-                            isEscalated
-                              ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-500/25 dark:bg-emerald-950/50 dark:text-emerald-300'
-                              : 'bg-transparent text-rose-700 ring-1 ring-rose-500/30 hover:bg-rose-50 dark:text-rose-300 dark:ring-rose-400/30 dark:hover:bg-rose-950/40'
+                          onClick={() => handleLoadDecisionIntoEngine(row)}
+                          className="mt-1 block cursor-pointer text-start text-[14.5px] font-bold text-neutral-950 hover:text-emerald-700 dark:text-white dark:hover:text-emerald-300"
+                        >
+                          {isAr ? row.titleAr : row.titleEn}
+                        </button>
+                        <span className="text-[12.5px] text-neutral-500 dark:text-slate-400">
+                          {isAr ? row.scopeAr : row.scopeEn}
+                        </span>
+                      </td>
+
+                      <td dir="ltr" className="px-3.5 py-3.5 text-end whitespace-nowrap tabular-nums">
+                        <div className="font-semibold text-neutral-900 dark:text-white">
+                          {f0(row.salesBeforeKwd)} → {f0(row.salesAfterKwd)} {isAr ? 'د.ك' : 'KWD'}
+                        </div>
+                        <div
+                          className={`text-[12px] font-semibold ${
+                            row.salesDiffKwd >= 0
+                              ? 'text-emerald-700 dark:text-emerald-400'
+                              : 'text-amber-700 dark:text-amber-300'
                           }`}
                         >
-                          <span>
-                            {isFrozen
-                              ? T('Frozen ⛔', 'مجمد ⛔')
-                              : isEscalated
-                                ? T('Escalated ✓', 'تم التصعيد ✓')
-                                : T('Escalate ↗', 'تصعيد ↗')}
-                          </span>
-                        </button>
-                      ) : (
-                        <span className="select-none text-slate-400">—</span>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+                          {fmtSignedKwd(row.salesDiffKwd, isAr)}
+                        </div>
+                      </td>
+
+                      <td dir="ltr" className="px-3.5 py-3.5 text-center whitespace-nowrap tabular-nums">
+                        <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[12.5px] font-semibold ${
+                            tier === 'red' && row.foodCostAfterPct > row.foodCostBeforePct + 0.5
+                              ? 'bg-rose-50 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
+                              : row.foodCostAfterPct > row.foodCostBeforePct + 0.5
+                                ? 'bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200'
+                                : 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300'
+                          }`}
+                        >
+                          {f1(row.foodCostBeforePct)}% → {f1(row.foodCostAfterPct)}%
+                        </span>
+                      </td>
+
+                      <td dir="ltr" className="px-3.5 py-3.5 text-center whitespace-nowrap tabular-nums">
+                        <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[12.5px] font-semibold ${
+                            tier === 'red' && row.promoDiscountAfterPct > 3.0
+                              ? 'bg-rose-50 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
+                              : row.promoDiscountAfterPct > 3.0
+                                ? 'bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200'
+                                : 'bg-[#F7F7F8] text-neutral-700 dark:bg-[#09110E] dark:text-slate-200'
+                          }`}
+                        >
+                          {f1(row.promoDiscountBeforePct)}% → {f1(row.promoDiscountAfterPct)}%
+                        </span>
+                      </td>
+
+                      <td dir="ltr" className="px-3.5 py-3.5 text-end whitespace-nowrap tabular-nums">
+                        <div className="font-semibold text-neutral-900 dark:text-white">
+                          {f0(row.netPocketBeforeKwd)} → {f0(row.netPocketAfterKwd)}{' '}
+                          {isAr ? 'د.ك' : 'KWD'}
+                        </div>
+                        <div
+                          className={`text-[12.5px] font-bold ${
+                            row.netPocketDiffKwd >= 0
+                              ? 'text-emerald-700 dark:text-emerald-400'
+                              : tier === 'red'
+                                ? 'text-rose-600 dark:text-rose-400'
+                                : 'text-amber-700 dark:text-amber-300'
+                          }`}
+                        >
+                          {fmtSignedKwd(row.netPocketDiffKwd, isAr)}
+                        </div>
+                      </td>
+
+                      <td className="px-3.5 py-3.5 min-w-[215px]">
+                        {tier === 'green' ? (
+                          <div className="space-y-1">
+                            <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-[12px] font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                              {T('🟢 On Target', '🟢 محقق للمستهدف')}
+                            </span>
+                            <p className="line-clamp-1 text-[12.5px] text-neutral-500 dark:text-slate-400">
+                              {isAr ? row.regressionReasonAr : row.regressionReasonEn}
+                            </p>
+                          </div>
+                        ) : tier === 'amber' ? (
+                          <div className="space-y-1">
+                            <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-[12px] font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
+                              {T('🟡 Under Watch', '🟡 قيد المراقبة')}
+                            </span>
+                            <p className="line-clamp-1 text-[12.5px] text-neutral-500 dark:text-slate-400">
+                              {isAr ? row.regressionReasonAr : row.regressionReasonEn}
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="space-y-1">
+                            <span className="inline-flex items-center rounded-full bg-rose-50 px-2.5 py-0.5 text-[12px] font-semibold text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
+                              {isFrozen
+                                ? T('⛔ Frozen', '⛔ مجمد')
+                                : T('🔴 Critical Outlier', '🔴 انحراف حرج')}
+                            </span>
+                            <p className="line-clamp-1 text-[12.5px] text-neutral-600 dark:text-slate-300">
+                              {isAr ? row.regressionReasonAr : row.regressionReasonEn}
+                            </p>
+                          </div>
+                        )}
+                      </td>
+
+                      <td className="px-4 py-3.5 text-end whitespace-nowrap">
+                        {tier === 'red' ? (
+                          <button
+                            type="button"
+                            title={T('Escalate to Manager Bell 🔔', 'طلب مراجعة / إيقاف المخالفة 🔔')}
+                            onClick={() => handleEscalateDecisionOutlier(row)}
+                            className={`inline-flex cursor-pointer items-center gap-1 rounded-full px-3 py-1 text-[13px] font-bold transition-colors duration-150 ${
+                              isEscalated
+                                ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-500/25 dark:bg-emerald-950/50 dark:text-emerald-300'
+                                : 'bg-transparent text-rose-700 ring-1 ring-rose-500/30 hover:bg-rose-50 dark:text-rose-300 dark:ring-rose-400/30 dark:hover:bg-rose-950/40'
+                            }`}
+                          >
+                            <span>
+                              {isFrozen
+                                ? T('Frozen ⛔', 'مجمد ⛔')
+                                : isEscalated
+                                  ? T('Escalated ✓', 'تم التصعيد ✓')
+                                  : T('Escalate ↗', 'تصعيد ↗')}
+                            </span>
+                          </button>
+                        ) : (
+                          <span className="select-none text-slate-400">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       </section>
@@ -1083,8 +1297,8 @@ export function BeforeAfterStudio() {
             </h2>
             <p className="mt-0.5 text-[14px] text-neutral-500 dark:text-slate-400">
               {T(
-                'Variance across approved brands, active branches, and channels with outlier-only escalation',
-                'مقارنة الفروقات الفعلية عبر المطاعم الستة والفروع السبعة والقنوات',
+                'Live Odoo 17 variance across approved brands, active branches, and channels (0.000 KWD reconciled)',
+                'مقارنة الفروقات الفعلية عبر المطاعم الستة والفروع السبعة والقنوات بتطابق محاسبي 0.000 د.ك',
               )}
             </p>
           </div>
@@ -1105,11 +1319,11 @@ export function BeforeAfterStudio() {
 
         <div className="space-y-6">
           {(tableTab === 'all' || tableTab === 'brands') &&
-            renderSectionTable('brands', 'حسب المطعم', 'By Brand', snap.byBrandRows)}
+            renderSectionTable('brands', 'حسب المطعم', 'By Brand', comparison.byBrand)}
           {(tableTab === 'all' || tableTab === 'branches') &&
-            renderSectionTable('branches', 'حسب الفرع', 'By Branch', snap.byBranchRows)}
+            renderSectionTable('branches', 'حسب الفرع', 'By Branch', comparison.byBranch)}
           {(tableTab === 'all' || tableTab === 'channels') &&
-            renderSectionTable('channels', 'حسب القناة', 'By Channel', snap.byChannelRows)}
+            renderSectionTable('channels', 'حسب القناة', 'By Channel', comparison.byChannel)}
         </div>
       </section>
     </div>

@@ -28,12 +28,14 @@ import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { useGovernance } from '@/components/erp/GovernanceBellDrawer'
 import {
   formatArDays,
+  GLOBAL_BRANCH_OPTIONS,
   GLOBAL_BRAND_OPTIONS,
   getPeriodLabel,
   type GlobalBranch,
   type GlobalBrand,
   type GlobalChannel,
 } from '@/lib/aether/global-filter-engine'
+import { shiftIsoDate } from '@/lib/erp-comparison-engine'
 import {
   evaluateCampaignOdooHalo,
   isDemoSocialCampaign,
@@ -216,11 +218,14 @@ export function CoresHubStudio() {
   // Campaign inline form state
   const [editingId, setEditingId] = useState<string | null>(null)
   const [formBrand, setFormBrand] = useState<Exclude<GlobalBrand, 'all'>>('china-garden')
+  const [formBranch, setFormBranch] = useState<GlobalBranch>('all')
   const [formAdType, setFormAdType] = useState<SocialAdType>('influencer')
   const [formName, setFormName] = useState('')
   const [formSpend, setFormSpend] = useState('150')
   const [formStartDate, setFormStartDate] = useState('2026-10-29')
   const [formEndDate, setFormEndDate] = useState('2026-10-31')
+  const [formCompareStartDate, setFormCompareStartDate] = useState('2026-10-26')
+  const [formCompareEndDate, setFormCompareEndDate] = useState('2026-10-28')
   const [formItem, setFormItem] = useState('')
 
   // Menu tab local filters, pagination (default 12 rows), ranking view & Price/Cost Simulator Drawer
@@ -260,12 +265,18 @@ export function CoresHubStudio() {
     setHydrated(true)
   }, [])
 
-  // Sync default form brand when user picks a specific brand in TopFilterBar
+  // Sync default form brand & branch when user picks a specific scope in TopFilterBar
   useEffect(() => {
     if (filters.brand !== 'all' && !editingId) {
       setFormBrand(filters.brand)
     }
   }, [filters.brand, editingId])
+
+  useEffect(() => {
+    if (!editingId) {
+      setFormBranch(filters.branch)
+    }
+  }, [filters.branch, editingId])
 
   const persistCampaigns = useCallback((next: SocialCampaign[]) => {
     const cleanReal = next.filter((c) => !isDemoSocialCampaign(c.id))
@@ -286,14 +297,17 @@ export function CoresHubStudio() {
   const resetCampaignForm = useCallback(() => {
     setEditingId(null)
     setFormBrand(filters.brand !== 'all' ? filters.brand : 'china-garden')
+    setFormBranch(filters.branch)
     setFormAdType('influencer')
     setFormName('')
     setFormSpend('150')
     setFormStartDate('2026-10-29')
     setFormEndDate('2026-10-31')
+    setFormCompareStartDate('2026-10-26')
+    setFormCompareEndDate('2026-10-28')
     setFormItem('')
     setIsAdFormOpen(false)
-  }, [filters.brand])
+  }, [filters.brand, filters.branch])
 
   const upsertCampaignFromForm = useCallback((): SocialCampaign => {
     const cleanName =
@@ -303,17 +317,26 @@ export function CoresHubStudio() {
     const rawEnd = /^\d{4}-\d{2}-\d{2}$/.test(formEndDate) ? formEndDate : rawStart
     const startIso = rawStart <= rawEnd ? rawStart : rawEnd
     const endIso = rawStart <= rawEnd ? rawEnd : rawStart
+    const cStart = /^\d{4}-\d{2}-\d{2}$/.test(formCompareStartDate)
+      ? formCompareStartDate
+      : shiftIsoDate(startIso, -3)
+    const cEnd = /^\d{4}-\d{2}-\d{2}$/.test(formCompareEndDate)
+      ? formCompareEndDate
+      : shiftIsoDate(startIso, -1)
 
     if (editingId) {
       const updated: SocialCampaign = {
         id: editingId,
         brand: formBrand,
+        branch: formBranch,
         adType: formAdType,
         campaignName: cleanName,
         spendKwd: spend,
         date: startIso,
         startDate: startIso,
         endDate: endIso,
+        compareStartDate: cStart <= cEnd ? cStart : cEnd,
+        compareEndDate: cStart <= cEnd ? cEnd : cStart,
         promotedItem: formItem.trim(),
       }
       persistCampaigns(campaigns.map((c) => (c.id === editingId ? updated : c)))
@@ -323,12 +346,15 @@ export function CoresHubStudio() {
     const created: SocialCampaign = {
       id: `camp-${Date.now()}`,
       brand: formBrand,
+      branch: formBranch,
       adType: formAdType,
       campaignName: cleanName,
       spendKwd: spend,
       date: startIso,
       startDate: startIso,
       endDate: endIso,
+      compareStartDate: cStart <= cEnd ? cStart : cEnd,
+      compareEndDate: cStart <= cEnd ? cEnd : cStart,
       promotedItem: formItem.trim(),
     }
     persistCampaigns([created, ...campaigns])
@@ -337,7 +363,10 @@ export function CoresHubStudio() {
     campaigns,
     editingId,
     formAdType,
+    formBranch,
     formBrand,
+    formCompareEndDate,
+    formCompareStartDate,
     formEndDate,
     formItem,
     formName,
@@ -377,16 +406,62 @@ export function CoresHubStudio() {
   )
 
   const handleEditCampaign = useCallback((c: SocialCampaign) => {
+    const sIso = c.startDate ?? c.date
     setEditingId(c.id)
     setFormBrand(c.brand)
+    setFormBranch(c.branch ?? 'all')
     setFormAdType(c.adType)
     setFormName(c.campaignName)
     setFormSpend(String(c.spendKwd))
-    setFormStartDate(c.startDate ?? c.date)
-    setFormEndDate(c.endDate ?? c.startDate ?? c.date)
+    setFormStartDate(sIso)
+    setFormEndDate(c.endDate ?? sIso)
+    setFormCompareStartDate(c.compareStartDate ?? shiftIsoDate(sIso, -3))
+    setFormCompareEndDate(c.compareEndDate ?? shiftIsoDate(sIso, -1))
     setFormItem(c.promotedItem ?? '')
     setIsAdFormOpen(true)
   }, [])
+
+  // Live instant preview for the custom Campaign & Promo Ad ROI Calculator
+  const liveFormPreview = useMemo<CampaignHaloEvaluation>(() => {
+    const rawStart = /^\d{4}-\d{2}-\d{2}$/.test(formStartDate) ? formStartDate : '2026-10-29'
+    const rawEnd = /^\d{4}-\d{2}-\d{2}$/.test(formEndDate) ? formEndDate : rawStart
+    const startIso = rawStart <= rawEnd ? rawStart : rawEnd
+    const endIso = rawStart <= rawEnd ? rawEnd : rawStart
+    return evaluateCampaignOdooHalo(
+      {
+        id: 'preview-campaign',
+        brand: formBrand,
+        branch: formBranch,
+        adType: formAdType,
+        campaignName: formName || 'Preview',
+        spendKwd: Math.max(0, Number(formSpend) || 0),
+        date: startIso,
+        startDate: startIso,
+        endDate: endIso,
+        compareStartDate: /^\d{4}-\d{2}-\d{2}$/.test(formCompareStartDate)
+          ? formCompareStartDate
+          : shiftIsoDate(startIso, -3),
+        compareEndDate: /^\d{4}-\d{2}-\d{2}$/.test(formCompareEndDate)
+          ? formCompareEndDate
+          : shiftIsoDate(startIso, -1),
+        promotedItem: formItem,
+      },
+      formBranch,
+      filters.channel,
+    )
+  }, [
+    filters.channel,
+    formAdType,
+    formBranch,
+    formBrand,
+    formCompareEndDate,
+    formCompareStartDate,
+    formEndDate,
+    formItem,
+    formName,
+    formSpend,
+    formStartDate,
+  ])
 
   const handleDeleteCampaign = useCallback(
     (id: string) => {
@@ -1076,16 +1151,16 @@ export function CoresHubStudio() {
               </div>
             </div>
 
-            {/* Collapsible 7-Field Input Form (Start Date + End Date + Manager Approval Request) */}
+            {/* Collapsible Custom Ad & Baseline Comparison ROI Form */}
             {isAdFormOpen ? (
               <form
                 onSubmit={handleSaveCampaign}
                 className="mt-4 rounded-2xl bg-[#F7F7F8] p-4 transition-all duration-150 dark:bg-white/[0.03]"
               >
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
+                <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                   <div>
                     <label className="mb-1 block text-xs font-medium text-neutral-600 dark:text-slate-300">
-                      {isAr ? 'المطعم' : 'Brand'}
+                      {isAr ? 'المطعم (6 براندات)' : 'Brand (6 Brands)'}
                     </label>
                     <select
                       value={formBrand}
@@ -1095,6 +1170,23 @@ export function CoresHubStudio() {
                       {BRAND_CHOICES.map((b) => (
                         <option key={b.id} value={b.id}>
                           {isAr ? b.ar : b.en}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-neutral-600 dark:text-slate-300">
+                      {isAr ? 'الفرع المستهدف (7 فروع)' : 'Target Branch (7 Branches)'}
+                    </label>
+                    <select
+                      value={formBranch}
+                      onChange={(e) => setFormBranch(e.target.value as GlobalBranch)}
+                      className={INPUT_CLS}
+                    >
+                      {GLOBAL_BRANCH_OPTIONS.map((br) => (
+                        <option key={br.id} value={br.id}>
+                          {isAr ? br.ar : br.en}
                         </option>
                       ))}
                     </select>
@@ -1119,24 +1211,6 @@ export function CoresHubStudio() {
 
                   <div>
                     <label className="mb-1 block text-xs font-medium text-neutral-600 dark:text-slate-300">
-                      {isAr ? 'اسم الحملة أو المشهور' : 'Campaign or Influencer'}
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={formName}
-                      onChange={(e) => setFormName(e.target.value)}
-                      placeholder={
-                        isAr
-                          ? 'مثال: تغطية بلوقر أو إعلان تيك توك...'
-                          : 'e.g. Food blogger or TikTok reel...'
-                      }
-                      className={INPUT_CLS}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-neutral-600 dark:text-slate-300">
                       {isAr ? 'المبلغ المدفوع (د.ك)' : 'Ad Spend (KWD)'}
                     </label>
                     <input
@@ -1149,43 +1223,178 @@ export function CoresHubStudio() {
                       className={`${INPUT_CLS} tabular-nums`}
                     />
                   </div>
+                </div>
 
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-neutral-600 dark:text-slate-300">
-                      {isAr ? 'تاريخ البداية' : 'Start Date'}
-                    </label>
-                    <input
-                      type="date"
-                      required
-                      value={formStartDate}
-                      onChange={(e) => setFormStartDate(e.target.value)}
-                      className={`${INPUT_CLS} tabular-nums`}
-                    />
+                {/* Custom Campaign Window (After) vs Custom Baseline Window (Before) */}
+                <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
+                  <div className="rounded-xl bg-white p-3 ring-1 ring-emerald-600/20 dark:bg-[#101C17] dark:ring-emerald-500/25">
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-xs font-semibold text-emerald-900 dark:text-emerald-300">
+                        {isAr ? 'فترة الإعلان / العرض (بعد)' : 'Ad / Promo Date Window (After)'}
+                      </span>
+                      <span className="text-[11px] font-semibold text-emerald-700 tabular-nums dark:text-emerald-300">
+                        {liveFormPreview.windowDays} {isAr ? 'يوم' : 'days'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="mb-1 block text-[11px] text-neutral-500">
+                          {isAr ? 'من تاريخ' : 'Start Date'}
+                        </label>
+                        <input
+                          type="date"
+                          required
+                          value={formStartDate}
+                          onChange={(e) => setFormStartDate(e.target.value)}
+                          className={`${INPUT_CLS} tabular-nums`}
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[11px] text-neutral-500">
+                          {isAr ? 'إلى تاريخ' : 'End Date'}
+                        </label>
+                        <input
+                          type="date"
+                          required
+                          value={formEndDate}
+                          onChange={(e) => setFormEndDate(e.target.value)}
+                          className={`${INPUT_CLS} tabular-nums`}
+                        />
+                      </div>
+                    </div>
                   </div>
 
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-neutral-600 dark:text-slate-300">
-                      {isAr ? 'تاريخ النهاية' : 'End Date'}
-                    </label>
-                    <input
-                      type="date"
-                      required
-                      value={formEndDate}
-                      onChange={(e) => setFormEndDate(e.target.value)}
-                      className={`${INPUT_CLS} tabular-nums`}
-                    />
+                  <div className="rounded-xl bg-white p-3 ring-1 ring-slate-900/[0.06] dark:bg-[#101C17] dark:ring-white/10">
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-1.5">
+                      <span className="text-xs font-semibold text-neutral-800 dark:text-slate-200">
+                        {isAr ? 'تاريخ المقارنة المرجعي المخصص (قبل)' : 'Custom Baseline Compare Window (Before)'}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const span = Math.max(1, liveFormPreview.windowDays)
+                            setFormCompareStartDate(shiftIsoDate(formStartDate, -span))
+                            setFormCompareEndDate(shiftIsoDate(formStartDate, -1))
+                          }}
+                          className="cursor-pointer rounded-md bg-neutral-100 px-2 py-0.5 text-[10.5px] font-semibold text-neutral-700 hover:bg-emerald-50 hover:text-emerald-800 dark:bg-white/10 dark:text-slate-300"
+                        >
+                          {isAr ? 'الأيام السابقة' : 'Prior Days'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormCompareStartDate(shiftIsoDate(formStartDate, -7))
+                            setFormCompareEndDate(shiftIsoDate(formEndDate, -7))
+                          }}
+                          className="cursor-pointer rounded-md bg-neutral-100 px-2 py-0.5 text-[10.5px] font-semibold text-neutral-700 hover:bg-emerald-50 hover:text-emerald-800 dark:bg-white/10 dark:text-slate-300"
+                        >
+                          {isAr ? 'نفس الأيام الأسبوع الماضي' : 'Same Days Last Week'}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="mb-1 block text-[11px] text-neutral-500">
+                          {isAr ? 'مقارنة من' : 'Compare From'}
+                        </label>
+                        <input
+                          type="date"
+                          value={formCompareStartDate}
+                          onChange={(e) => setFormCompareStartDate(e.target.value)}
+                          className={`${INPUT_CLS} tabular-nums`}
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[11px] text-neutral-500">
+                          {isAr ? 'مقارنة إلى' : 'Compare To'}
+                        </label>
+                        <input
+                          type="date"
+                          value={formCompareEndDate}
+                          onChange={(e) => setFormCompareEndDate(e.target.value)}
+                          className={`${INPUT_CLS} tabular-nums`}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Live Instant Odoo Before-vs-After Preview Strip */}
+                <div className="mt-3 grid grid-cols-2 gap-2.5 rounded-xl bg-white p-3 ring-1 ring-slate-900/[0.05] lg:grid-cols-4 dark:bg-[#101C17] dark:ring-emerald-500/15">
+                  <div className="tabular-nums">
+                    <div className="text-[11px] font-medium text-neutral-500 dark:text-slate-400">
+                      {isAr ? 'المبيعات قبل ← بعد' : 'Before → After Sales'}
+                    </div>
+                    <div dir="ltr" className="mt-0.5 text-[13.5px] font-semibold text-neutral-950 dark:text-white">
+                      {f0(liveFormPreview.before3dSalesKwd)} → {f0(liveFormPreview.after3dSalesKwd)} {kwdSuffix}
+                    </div>
+                  </div>
+                  <div className="tabular-nums">
+                    <div className="text-[11px] font-medium text-neutral-500 dark:text-slate-400">
+                      {isAr ? 'الزيادة الفعلية والطلبات' : 'Real Sales & Order Lift'}
+                    </div>
+                    <div
+                      dir="ltr"
+                      className={`mt-0.5 text-[13.5px] font-semibold ${
+                        liveFormPreview.liftSalesKwd >= 0
+                          ? 'text-emerald-700 dark:text-emerald-400'
+                          : 'text-rose-600 dark:text-rose-400'
+                      }`}
+                    >
+                      {liveFormPreview.liftSalesKwd >= 0 ? '+' : ''}
+                      {f1(liveFormPreview.liftSalesKwd)} {kwdSuffix} ({liveFormPreview.liftOrders >= 0 ? '+' : ''}
+                      {f0(liveFormPreview.liftOrders)} ord)
+                    </div>
+                  </div>
+                  <div className="tabular-nums">
+                    <div className="text-[11px] font-medium text-neutral-500 dark:text-slate-400">
+                      {isAr ? 'تكلفة الأكل + العمولة' : 'Food + Aggregator Cost'}
+                    </div>
+                    <div dir="ltr" className="mt-0.5 text-[13.5px] font-semibold text-neutral-800 dark:text-slate-200">
+                      {f1(liveFormPreview.foodAndPackCostKwd + liveFormPreview.platformFeeKwd)} {kwdSuffix}
+                    </div>
+                  </div>
+                  <div className="tabular-nums">
+                    <div className="text-[11px] font-medium text-neutral-500 dark:text-slate-400">
+                      {isAr ? 'صافي الربح بعد الإعلان' : 'Net Pocket After Ad'}
+                    </div>
+                    <div
+                      dir="ltr"
+                      className={`mt-0.5 text-[13.5px] font-bold ${
+                        liveFormPreview.netProfitAfterAdKwd >= 0
+                          ? 'text-emerald-700 dark:text-emerald-300'
+                          : 'text-rose-600 dark:text-rose-400'
+                      }`}
+                    >
+                      {liveFormPreview.netProfitAfterAdKwd >= 0 ? '+' : ''}
+                      {f1(liveFormPreview.netProfitAfterAdKwd)} {kwdSuffix} •{' '}
+                      {isAr ? liveFormPreview.verdictAr : liveFormPreview.verdictEn}
+                    </div>
                   </div>
                 </div>
 
                 <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex-1 sm:max-w-md">
+                  <div className="grid flex-1 grid-cols-1 gap-2 sm:grid-cols-2">
+                    <input
+                      type="text"
+                      required
+                      value={formName}
+                      onChange={(e) => setFormName(e.target.value)}
+                      placeholder={
+                        isAr
+                          ? 'اسم الحملة أو المشهور (مثال: تغطية بلوقر أو تيك توك)...'
+                          : 'Campaign or Influencer name (e.g. Food blogger)...'
+                      }
+                      className={INPUT_CLS}
+                    />
                     <input
                       type="text"
                       value={formItem}
                       onChange={(e) => setFormItem(e.target.value)}
                       placeholder={
                         isAr
-                          ? 'الصنف المعلن عنه (اختياري) — مثال: داينمايت شرمب أو فيلي ستيك'
+                          ? 'الصنف المعلن عنه (اختياري) — مثال: داينمايت شرمب'
                           : 'Promoted Dish (optional) — e.g. Dynamite Shrimp'
                       }
                       className={INPUT_CLS}
@@ -1270,9 +1479,12 @@ export function CoresHubStudio() {
                       <div>
                         <div className="flex flex-wrap items-start justify-between gap-2">
                           <div className="flex flex-wrap items-center gap-1.5">
-                            {/* Soft High-Contrast Brand Pill (Zero Dark-on-Dark) */}
+                            {/* Soft High-Contrast Brand & Branch Pills */}
                             <span className={SOFT_SCOPE_PILL_CLS}>
                               {isAr ? ev.brandAr : ev.brandEn}
+                            </span>
+                            <span className="bg-neutral-100 text-neutral-700 dark:bg-white/[0.08] dark:text-slate-200 font-medium text-xs px-2.5 py-1 rounded-lg">
+                              {isAr ? ev.branchAr : ev.branchEn}
                             </span>
                             <span className="bg-neutral-100 text-neutral-700 dark:bg-white/[0.08] dark:text-slate-200 font-medium text-xs px-2.5 py-1 rounded-lg">
                               {isAr ? ev.adTypeAr : ev.adTypeEn}

@@ -4,9 +4,9 @@ import { WeekdayComparisonStudio } from '@/components/erp/ops-expansion/WeekdayC
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: 'مقارنة أيام الأسبوع | فنتشر فودز',
+  title: 'Date & Sales Comparison | Venture Foods — مقارنة التواريخ والمبيعات',
   description:
-    'مقارنة المبيعات بين أيام الأسبوع المتناظرة مثل الأربعاء هذا الأسبوع مقارنة مع الأربعاء الأسبوع الماضي مع منحنى الساعات ومتوسط 4 أسابيع.',
+    'Universal custom Date A vs Date B, Custom Range, Brand (6), and Branch (7) sales & pocket profit comparison studio backed by Odoo 17.',
 }
 
 export default async function WeekdayComparisonPage() {

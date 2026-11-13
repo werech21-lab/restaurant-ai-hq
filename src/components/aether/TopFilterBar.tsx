@@ -109,6 +109,16 @@ function cleanPeriodOptionLabel(periodId: GlobalPeriod, rawLabel: string, isAr: 
   return toWesternNumerals(rawLabel)
 }
 
+function computeCustomSpanDays(fromIso: string, toIso: string): number {
+  const m1 = /^\d{4}-\d{2}-\d{2}$/.test(fromIso)
+  const m2 = /^\d{4}-\d{2}-\d{2}$/.test(toIso)
+  if (!m1 || !m2) return 1
+  const a = new Date(`${fromIso}T00:00:00Z`).getTime()
+  const b = new Date(`${toIso}T00:00:00Z`).getTime()
+  const diff = Math.round(Math.abs(b - a) / 86_400_000) + 1
+  return Number.isFinite(diff) && diff > 0 ? diff : 1
+}
+
 function PeriodDropdownPopover({
   isAr,
   activePeriod,
@@ -118,6 +128,7 @@ function PeriodDropdownPopover({
   onChangeFrom,
   onChangeTo,
   onApplyCustomRange,
+  onOpenScopeFilters,
   onClose,
 }: {
   isAr: boolean
@@ -128,14 +139,17 @@ function PeriodDropdownPopover({
   onChangeFrom: (val: string) => void
   onChangeTo: (val: string) => void
   onApplyCustomRange: () => void
+  onOpenScopeFilters?: () => void
   onClose: () => void
 }) {
+  const spanDays = computeCustomSpanDays(draftFrom, draftTo)
+
   return (
     <div
       role="listbox"
       aria-label={isAr ? 'الفترة الزمنية' : 'Time Period'}
       dir={isAr ? 'rtl' : 'ltr'}
-      className="w-[min(92vw,290px)] space-y-2 rounded-2xl bg-white p-3 text-slate-800 shadow-[0_20px_50px_rgba(15,23,42,0.16)] ring-1 ring-slate-900/[0.07] dark:bg-[#101C17] dark:text-slate-100 dark:ring-emerald-500/20"
+      className="w-[min(92vw,310px)] space-y-2 rounded-2xl bg-white p-3 text-slate-800 shadow-[0_20px_50px_rgba(15,23,42,0.16)] ring-1 ring-slate-900/[0.07] dark:bg-[#101C17] dark:text-slate-100 dark:ring-emerald-500/20"
     >
       <div className="px-1 text-[11px] font-bold text-slate-400 dark:text-slate-400">
         {isAr ? 'اختر الفترة الزمنية' : 'Select Time Period'}
@@ -172,9 +186,34 @@ function PeriodDropdownPopover({
 
       {activePeriod === 'custom' ? (
         <div className="space-y-2 border-t border-slate-200/70 pt-2.5 dark:border-white/[0.08]">
+          <div className="flex items-center justify-between gap-1.5">
+            <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-[10.5px] font-bold text-emerald-800 tabular-nums dark:bg-emerald-500/20 dark:text-emerald-200">
+              {isAr ? `${spanDays} يوم` : `${spanDays} Days`}
+            </span>
+            <div className="flex items-center gap-1">
+              {[
+                { label: '7d', from: '2026-11-05', to: '2026-11-11' },
+                { label: '14d', from: '2026-10-29', to: '2026-11-11' },
+                { label: '30d', from: '2026-10-13', to: '2026-11-11' },
+              ].map((q) => (
+                <button
+                  key={q.label}
+                  type="button"
+                  onClick={() => {
+                    onChangeFrom(q.from)
+                    onChangeTo(q.to)
+                  }}
+                  className="cursor-pointer rounded-md bg-[#F6F7F8] px-1.5 py-0.5 text-[10.5px] font-semibold text-slate-600 hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#09110E] dark:text-slate-300"
+                >
+                  {q.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-2">
             <label className="space-y-1 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
-              <span>{isAr ? 'من تاريخ' : 'Start Date'}</span>
+              <span>{isAr ? 'من تاريخ' : 'From Date'}</span>
               <input
                 type="date"
                 dir="ltr"
@@ -184,7 +223,7 @@ function PeriodDropdownPopover({
               />
             </label>
             <label className="space-y-1 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
-              <span>{isAr ? 'إلى تاريخ' : 'End Date'}</span>
+              <span>{isAr ? 'إلى تاريخ' : 'To Date'}</span>
               <input
                 type="date"
                 dir="ltr"
@@ -204,6 +243,19 @@ function PeriodDropdownPopover({
           >
             {isAr ? 'تطبيق الفترة المخصصة' : 'Apply Custom Range'}
           </button>
+          {onOpenScopeFilters ? (
+            <button
+              type="button"
+              onClick={() => {
+                onApplyCustomRange()
+                onClose()
+                onOpenScopeFilters()
+              }}
+              className="inline-flex h-8 w-full cursor-pointer items-center justify-center rounded-xl bg-[#F6F7F8] px-3 text-[11.5px] font-semibold text-slate-700 transition-colors hover:bg-emerald-50 hover:text-emerald-900 dark:bg-[#09110E] dark:text-slate-200"
+            >
+              {isAr ? 'تحديد المطاعم والفروع مع الفترة ▸' : 'Pair with Brand & Branch Filters ▸'}
+            </button>
+          ) : null}
         </div>
       ) : null}
     </div>
@@ -873,6 +925,7 @@ export function TopFilterBar({
                         onChangeFrom={setDraftFrom}
                         onChangeTo={setDraftTo}
                         onApplyCustomRange={() => setCustomRange(draftFrom, draftTo)}
+                        onOpenScopeFilters={() => setMobileSheetOpen(true)}
                         onClose={() => setPeriodDropdownOpen(false)}
                       />
                     </div>
@@ -1242,6 +1295,7 @@ export function TopFilterBar({
                         onChangeFrom={setDraftFrom}
                         onChangeTo={setDraftTo}
                         onApplyCustomRange={() => setCustomRange(draftFrom, draftTo)}
+                        onOpenScopeFilters={() => setFiltersPopoverOpen(true)}
                         onClose={() => setPeriodDropdownOpen(false)}
                       />
                     </div>
@@ -1403,6 +1457,59 @@ export function TopFilterBar({
                     <X className="h-4 w-4" />
                   </button>
                 </div>
+              </div>
+
+              {/* 0. Time Period + Custom From/To Range right inside Desktop Unified Filters */}
+              <div className="space-y-2">
+                <div className="text-[11.5px] font-bold text-slate-500 dark:text-slate-400">
+                  {isAr ? 'الفترة الزمنية والتقويم المخصص' : 'Time Period & Custom Date Range'}
+                </div>
+                <EmeraldPillTabs
+                  ariaLabel={isAr ? 'الفترة' : 'Period'}
+                  value={filters.period}
+                  onChange={setPeriod}
+                  options={GLOBAL_PERIOD_OPTIONS.map((p) => ({
+                    id: p.id,
+                    label: cleanPeriodOptionLabel(p.id, isAr ? p.ar : p.en, isAr),
+                  }))}
+                />
+                {filters.period === 'custom' ? (
+                  <div className="grid grid-cols-1 gap-2 rounded-2xl bg-[#F6F7F8] p-3 ring-1 ring-slate-900/[0.04] sm:grid-cols-3 dark:bg-[#09110E] dark:ring-emerald-500/15">
+                    <label className="space-y-1 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                      <span>{isAr ? 'من تاريخ' : 'From Date'}</span>
+                      <input
+                        type="date"
+                        dir="ltr"
+                        value={draftFrom}
+                        onChange={(e) => {
+                          setDraftFrom(e.target.value)
+                          setCustomRange(e.target.value, draftTo)
+                        }}
+                        className="h-9 w-full rounded-xl bg-white px-2.5 text-xs font-bold tabular-nums text-slate-900 ring-1 ring-slate-900/[0.06] outline-none focus:ring-2 focus:ring-emerald-500/40 dark:bg-[#101C17] dark:text-white"
+                      />
+                    </label>
+                    <label className="space-y-1 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                      <span>{isAr ? 'إلى تاريخ' : 'To Date'}</span>
+                      <input
+                        type="date"
+                        dir="ltr"
+                        value={draftTo}
+                        onChange={(e) => {
+                          setDraftTo(e.target.value)
+                          setCustomRange(draftFrom, e.target.value)
+                        }}
+                        className="h-9 w-full rounded-xl bg-white px-2.5 text-xs font-bold tabular-nums text-slate-900 ring-1 ring-slate-900/[0.06] outline-none focus:ring-2 focus:ring-emerald-500/40 dark:bg-[#101C17] dark:text-white"
+                      />
+                    </label>
+                    <div className="flex flex-col justify-end">
+                      <span className="inline-flex h-9 items-center justify-center rounded-xl bg-emerald-50 px-3 text-xs font-bold text-emerald-800 tabular-nums dark:bg-emerald-500/20 dark:text-emerald-200">
+                        {isAr
+                          ? `نطاق نشط: ${computeCustomSpanDays(draftFrom, draftTo)} يوم`
+                          : `Active Span: ${computeCustomSpanDays(draftFrom, draftTo)} Days`}
+                      </span>
+                    </div>
+                  </div>
+                ) : null}
               </div>
 
               {/* 1. Brand (`المطعم / العلامة`) */}

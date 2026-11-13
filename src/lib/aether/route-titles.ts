@@ -30,8 +30,8 @@ const ROUTE_TITLES: { match: string; exact?: boolean; title: RouteTitle }[] = [
   {
     match: '/erp/weekday-comparison',
     title: {
-      en: 'Weekday Sales Comparison',
-      ar: 'مقارنة أيام الأسبوع',
+      en: 'Date & Sales Comparison',
+      ar: 'مقارنة التواريخ والمبيعات',
       mobileEn: 'Weekdays',
       mobileAr: 'أيام الأسبوع',
     },

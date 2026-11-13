@@ -5,7 +5,9 @@
 
 import { ODOO } from '@/lib/odoo/odoo-dataset'
 import {
+  APPROVED_BRANCH_IDS,
   APPROVED_BRAND_IDS,
+  getBranchLabel,
   getBrandLabel,
   type GlobalBranch,
   type GlobalBrand,
@@ -17,12 +19,16 @@ export type SocialAdType = 'snapchat' | 'tiktok' | 'instagram' | 'influencer' | 
 export interface SocialCampaign {
   id: string
   brand: Exclude<GlobalBrand, 'all'>
+  branch?: GlobalBranch
   adType: SocialAdType
   campaignName: string
   spendKwd: number
   date: string // YYYY-MM-DD (campaign start date)
   startDate?: string // YYYY-MM-DD
   endDate?: string // YYYY-MM-DD
+  /** Optional custom baseline comparison window (overrides automatic prior N days when set) */
+  compareStartDate?: string // YYYY-MM-DD
+  compareEndDate?: string // YYYY-MM-DD
   promotedItem?: string
 }
 
@@ -32,10 +38,14 @@ export interface CampaignHaloEvaluation {
   campaign: SocialCampaign
   brandAr: string
   brandEn: string
+  branchAr: string
+  branchEn: string
   adTypeAr: string
   adTypeEn: string
   startDate: string
   endDate: string
+  compareStartDate: string
+  compareEndDate: string
   windowDays: number
   beforeRangeLabel: string
   afterRangeLabel: string
@@ -158,6 +168,7 @@ export function isDemoSocialCampaign(id: string): boolean {
 function parseValidCampaignList(raw: unknown, excludeDemoIds: boolean): SocialCampaign[] {
   if (!Array.isArray(raw)) return []
   const validBrands = new Set<string>(APPROVED_BRAND_IDS)
+  const validBranches = new Set<string>(APPROVED_BRANCH_IDS)
   const validTypes = new Set<string>(SOCIAL_AD_TYPE_OPTIONS.map((t) => t.id))
   const out: SocialCampaign[] = []
   for (const item of raw) {
@@ -169,6 +180,8 @@ function parseValidCampaignList(raw: unknown, excludeDemoIds: boolean): SocialCa
     if (excludeDemoIds && DEMO_SOCIAL_CAMPAIGN_IDS.has(id)) continue
     const adType: SocialAdType =
       rec.adType && validTypes.has(rec.adType) ? (rec.adType as SocialAdType) : 'instagram'
+    const branch: GlobalBranch =
+      rec.branch && validBranches.has(rec.branch) ? (rec.branch as GlobalBranch) : 'all'
     const spend = Math.max(0, safeNum(Number(rec.spendKwd), 0))
     const rawStart =
       typeof rec.startDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rec.startDate)
@@ -182,9 +195,18 @@ function parseValidCampaignList(raw: unknown, excludeDemoIds: boolean): SocialCa
         : shiftIsoDate(rawStart, 2)
     const startDate = rawStart <= rawEnd ? rawStart : rawEnd
     const endDate = rawStart <= rawEnd ? rawEnd : rawStart
+    const compareStartDate =
+      typeof rec.compareStartDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rec.compareStartDate)
+        ? rec.compareStartDate
+        : undefined
+    const compareEndDate =
+      typeof rec.compareEndDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rec.compareEndDate)
+        ? rec.compareEndDate
+        : undefined
     out.push({
       id,
       brand: rec.brand as Exclude<GlobalBrand, 'all'>,
+      branch,
       adType,
       campaignName:
         typeof rec.campaignName === 'string' && rec.campaignName.trim()
@@ -194,6 +216,8 @@ function parseValidCampaignList(raw: unknown, excludeDemoIds: boolean): SocialCa
       date: startDate,
       startDate,
       endDate,
+      compareStartDate,
+      compareEndDate,
       promotedItem: typeof rec.promotedItem === 'string' ? rec.promotedItem.trim() : '',
     })
   }
@@ -212,14 +236,17 @@ export function sanitizeCampaigns(raw: unknown): SocialCampaign[] {
 
 /**
  * Evaluates a social/influencer/in-app campaign against actual Odoo POS daily sales:
- * Compares 3 days BEFORE [D-3..D-1] vs 3 days DURING/AFTER [D..D+2] for that brand
- * (sliced proportionally if a specific Branch or Channel filter is active).
+ * Compares custom baseline date range (or prior N days) BEFORE vs N days DURING/AFTER
+ * for the selected Brand, Branch (All 7 or specific branch), and Channel.
  */
 export function evaluateCampaignOdooHalo(
   campaign: SocialCampaign,
   activeBranch: GlobalBranch = 'all',
   activeChannel: GlobalChannel = 'all',
 ): CampaignHaloEvaluation {
+  const effectiveBranch: GlobalBranch =
+    campaign.branch && campaign.branch !== 'all' ? campaign.branch : activeBranch
+
   // Complete operational days from Odoo (exclude partial morning sync days < 150 orders)
   const fullDays = (ODOO.timeProfile?.daily ?? []).filter((d) => d.orders >= 150)
   const dayMap = new Map<string, (typeof fullDays)[number]>(fullDays.map((d) => [d.day, d]))
@@ -259,8 +286,8 @@ export function evaluateCampaignOdooHalo(
   let sliceShare = Math.max(0.008, Math.min(0.92, brandNet30 / Math.max(1, groupRestNet30)))
 
   // Apply branch share if filtered
-  if (activeBranch !== 'all') {
-    const locRow = ODOO.restaurants.find((r) => r.id === activeBranch)
+  if (effectiveBranch !== 'all') {
+    const locRow = ODOO.restaurants.find((r) => r.id === effectiveBranch)
     const locBrand = locRow?.brands.find((x) => x.brand === campaign.brand)
     const branchRatio =
       locBrand && brandNet30 > 0
@@ -306,11 +333,35 @@ export function evaluateCampaignOdooHalo(
 
   const beforeDates: string[] = []
   const afterDates: string[] = []
-  for (let i = windowDays; i >= 1; i--) {
-    beforeDates.push(shiftIsoDate(effectiveStart, -i))
-  }
   for (let i = 0; i < windowDays; i++) {
     afterDates.push(shiftIsoDate(effectiveStart, i))
+  }
+
+  if (campaign.compareStartDate && /^\d{4}-\d{2}-\d{2}$/.test(campaign.compareStartDate)) {
+    const cStartRaw = campaign.compareStartDate
+    const cEndRaw =
+      campaign.compareEndDate && /^\d{4}-\d{2}-\d{2}$/.test(campaign.compareEndDate)
+        ? campaign.compareEndDate
+        : shiftIsoDate(cStartRaw, windowDays - 1)
+    const cStart = cStartRaw <= cEndRaw ? cStartRaw : cEndRaw
+    const cEnd = cStartRaw <= cEndRaw ? cEndRaw : cStartRaw
+    const cDays = Math.max(
+      1,
+      Math.min(
+        60,
+        Math.round(
+          (new Date(`${cEnd}T00:00:00Z`).getTime() - new Date(`${cStart}T00:00:00Z`).getTime()) /
+            86_400_000,
+        ) + 1,
+      ),
+    )
+    for (let i = 0; i < cDays; i++) {
+      beforeDates.push(shiftIsoDate(cStart, i))
+    }
+  } else {
+    for (let i = windowDays; i >= 1; i--) {
+      beforeDates.push(shiftIsoDate(effectiveStart, -i))
+    }
   }
 
   let before3dSalesKwd = 0
@@ -368,10 +419,14 @@ export function evaluateCampaignOdooHalo(
     campaign,
     brandAr: getBrandLabel(campaign.brand, true),
     brandEn: getBrandLabel(campaign.brand, false),
+    branchAr: effectiveBranch === 'all' ? 'كل الفروع السبعة' : getBranchLabel(effectiveBranch, true),
+    branchEn: effectiveBranch === 'all' ? 'All 7 Branches' : getBranchLabel(effectiveBranch, false),
     adTypeAr: adOpt.ar,
     adTypeEn: adOpt.en,
     startDate: effectiveStart,
     endDate: afterDates[afterDates.length - 1] ?? effectiveEnd,
+    compareStartDate: beforeDates[0] ?? shiftIsoDate(effectiveStart, -windowDays),
+    compareEndDate: beforeDates[beforeDates.length - 1] ?? shiftIsoDate(effectiveStart, -1),
     windowDays,
     beforeRangeLabel: `${beforeDates[0].slice(5)} → ${beforeDates[beforeDates.length - 1].slice(5)}`,
     afterRangeLabel: `${afterDates[0].slice(5)} → ${afterDates[afterDates.length - 1].slice(5)}`,
