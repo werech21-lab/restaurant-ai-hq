@@ -1820,7 +1820,7 @@ assert(
     authProbe.validOverride === true &&
     authProbe.wrongOverride === false &&
     authProbe.verifiedSub === 'admin@venturefoodskw.com' &&
-    authProbe.verifiedRole === 'executive' &&
+    authProbe.verifiedRole === 'admin' &&
     authProbe.tampered === null,
   '16.1 Edge Auth Wall: src/middleware.ts enforces aether_exec_session HMAC on /, /erp & /api/erp (307 /login, 401 JSON, X-Robots-Tag noindex) & exec-session round-trips cleanly',
   `cookie=${authProbe.cookie}, sub=${authProbe.verifiedSub}, role=${authProbe.verifiedRole}`,
@@ -1863,10 +1863,15 @@ const bannedLoginTokens = [
 ]
 const loginBannedHits = bannedLoginTokens.filter((tok) => combinedLoginSrc.includes(tok))
 
-// Cryptographic zero-knowledge scan: verify ZERO string literals across src/ & scripts/ hash to executive OR auditor SHA-256 digests
+// Cryptographic zero-knowledge scan: verify ZERO string literals across src/ & scripts/ hash to ANY of the 5 named executive/auditor SHA-256 digests
 const EXEC_PW_SALT = 'vf-aether-exec-2026-v1:'
-const EXEC_PW_TARGET_HASH = '218deb04287696d7cfc35ba2a0c8863ea54e678dc562d8c5e4cc04731529ecd3'
-const AUDITOR_PW_TARGET_HASH = '93126eacc43acc1b7030b2c2960d5f9aeadcb2a14d3258a6126f119bde3a4dba'
+const ALL_PROTECTED_PW_HASHES = new Set([
+  'bbe373a80dede4fb8bc435555707b1213a25f7387bee13f342c7e486cbc20fda', // abdullah@ (System Admin)
+  '218deb04287696d7cfc35ba2a0c8863ea54e678dc562d8c5e4cc04731529ecd3', // admin@ (System Admin alias)
+  '0778d6bf621ae9947a3cf0961371e5df3ebdb437545f45611a13c5afe0fa1080', // gm@ (General Manager)
+  '7c5a104c7a8b070cc8e2d98826a8c3fee478819ca69f73d6360e033db79302c2', // dgm@ (Deputy GM)
+  '93126eacc43acc1b7030b2c2960d5f9aeadcb2a14d3258a6126f119bde3a4dba', // auditor@ (Read-Only Auditor)
+])
 const quotedLiteralRe = /['"`]([^'"`\r\n]{4,128})['"`]/g
 let rotatedPwPlaintextLeaks = 0
 for (const file of [
@@ -1883,7 +1888,7 @@ for (const file of [
       .createHash('sha256')
       .update(`${EXEC_PW_SALT}${m[1]}`)
       .digest('hex')
-    if (digest === EXEC_PW_TARGET_HASH || digest === AUDITOR_PW_TARGET_HASH) {
+    if (ALL_PROTECTED_PW_HASHES.has(digest)) {
       rotatedPwPlaintextLeaks += 1
     }
   }
@@ -2244,6 +2249,287 @@ assert(
     execFooterSrc.includes('6 مطاعم • 7 فروع • 8 قنوات') &&
     execFooterSrc.includes('v2.7'),
   '17.4 Boudy 7-Point Executive UI Gate: 3-control header (القائمة والحساب), Start-Here strip, Feryal دقيق & سريع + attachment, Combo <path> + ألف د.ك + unclipped Donut, 141,052 context + المستهدف: 85+, and v2.7 footer verified',
+)
+
+// 18. Multi-Executive Named RBAC (System Admin, GM, DGM & Read-Only Auditor) & Governance Audit Stamps
+console.log('\n18) Multi-Executive Named RBAC & Governance Audit Stamps Gate:')
+
+const roleMetaPath = path.join(ROOT, 'src/lib/auth/exec-role-meta.ts')
+const roleMetaSrc = fs.existsSync(roleMetaPath) ? fs.readFileSync(roleMetaPath, 'utf8') : ''
+const circularPrintSrc = fs.readFileSync(
+  path.join(ROOT, 'src/components/erp/OfficialCircularPrintModal.tsx'),
+  'utf8',
+)
+
+const multiExecProbeScript = `
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import { NextRequest } from 'next/server';
+import {
+  EXEC_SESSION_COOKIE,
+  DEFAULT_ABDULLAH_EMAIL,
+  DEFAULT_ADMIN_EMAIL,
+  DEFAULT_GM_EMAIL,
+  DEFAULT_DGM_EMAIL,
+  DEFAULT_AUDITOR_EMAIL,
+  authenticateExecutiveCredentials,
+  createExecSessionToken,
+  verifyExecSessionToken,
+} from './src/lib/auth/exec-session';
+import { createDigitalSeal } from './src/lib/governance-compliance';
+import {
+  PATCH as govPatch,
+  PUT as govPut,
+  DELETE as govDelete,
+} from './src/app/api/erp/governance/route';
+
+;(async () => {
+  const tmpGovPath = path.join(os.tmpdir(), 'vf-aether-governance-sync-v1.json');
+  const hadTmpGov = fs.existsSync(tmpGovPath);
+  const prevTmpGovRaw = hadTmpGov ? fs.readFileSync(tmpGovPath, 'utf8') : null;
+  // 1) Runtime env-override credential verification across Abdullah (admin), GM (gm), DGM (dgm)
+  process.env.AETHER_ABDULLAH_PASSWORD = 'ProbeAbdullah#2026!';
+  process.env.AETHER_GM_PASSWORD = 'ProbeGM#2026!';
+  process.env.AETHER_DGM_PASSWORD = 'ProbeDGM#2026!';
+
+  const abdAuth = await authenticateExecutiveCredentials(DEFAULT_ABDULLAH_EMAIL, 'ProbeAbdullah#2026!');
+  const gmAuth = await authenticateExecutiveCredentials(DEFAULT_GM_EMAIL, 'ProbeGM#2026!');
+  const dgmAuth = await authenticateExecutiveCredentials(DEFAULT_DGM_EMAIL, 'ProbeDGM#2026!');
+  const crossWrong = await authenticateExecutiveCredentials(DEFAULT_GM_EMAIL, 'ProbeDGM#2026!');
+
+  delete process.env.AETHER_ABDULLAH_PASSWORD;
+  delete process.env.AETHER_GM_PASSWORD;
+  delete process.env.AETHER_DGM_PASSWORD;
+
+  // 2) Session token round-trip for all 5 named logins + legacy 'executive' normalization
+  const tokAbd = await createExecSessionToken(DEFAULT_ABDULLAH_EMAIL, 'admin');
+  const tokAlias = await createExecSessionToken(DEFAULT_ADMIN_EMAIL, 'executive');
+  const tokGm = await createExecSessionToken(DEFAULT_GM_EMAIL, 'gm');
+  const tokDgm = await createExecSessionToken(DEFAULT_DGM_EMAIL, 'dgm');
+  const tokAud = await createExecSessionToken(DEFAULT_AUDITOR_EMAIL, 'auditor');
+
+  const verAbd = await verifyExecSessionToken(tokAbd);
+  const verAlias = await verifyExecSessionToken(tokAlias);
+  const verGm = await verifyExecSessionToken(tokGm);
+  const verDgm = await verifyExecSessionToken(tokDgm);
+  const verAud = await verifyExecSessionToken(tokAud);
+
+  // 3) DigitalSeal unit stamps
+  const sealAdmin = createDigitalSeal('admin');
+  const sealGm = createDigitalSeal('gm');
+  const sealDgm = createDigitalSeal('dgm');
+
+  // 4) Server /api/erp/governance audit stamping for admin, gm, dgm & 403 block for auditor (with clean restore)
+  // Upsert 3 probe approval items so admin, gm, and dgm each approve one on the server
+  for (const r of ['admin', 'gm', 'dgm']) {
+    await govPatch(
+      new NextRequest('https://aetherbi.com/api/erp/governance', {
+        method: 'PATCH',
+        headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokAbd, 'content-type': 'application/json' },
+        body: JSON.stringify({
+          action: 'upsertApproval',
+          approval: {
+            id: 'probe-req-' + r,
+            refKey: 'probe:rbac-' + r,
+            domain: 'planning',
+            titleAr: 'اختبار صلاحية ' + r,
+            titleEn: 'RBAC Probe ' + r,
+            summaryAr: 'اختبار ختم الصلاحية',
+            summaryEn: 'Audit stamp probe',
+            departmentAr: 'الحوكمة',
+            departmentEn: 'Governance',
+            budgetOrCostKwd: 100,
+            expectedMonthlyReturnKwd: 250,
+            href: '/erp/planning',
+            createdAtIso: new Date().toISOString(),
+            status: 'pending',
+          },
+        }),
+      }),
+    );
+  }
+
+  const approveAdminRes = await govPatch(
+    new NextRequest('https://aetherbi.com/api/erp/governance', {
+      method: 'PATCH',
+      headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokAbd, 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'approve', approvalId: 'probe-req-admin' }),
+    }),
+  );
+  const approveGmRes = await govPatch(
+    new NextRequest('https://aetherbi.com/api/erp/governance', {
+      method: 'PATCH',
+      headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokGm, 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'approve', approvalId: 'probe-req-gm' }),
+    }),
+  );
+  const approveDgmRes = await govPatch(
+    new NextRequest('https://aetherbi.com/api/erp/governance', {
+      method: 'PATCH',
+      headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokDgm, 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'approve', approvalId: 'probe-req-dgm' }),
+    }),
+  );
+
+  const cirGmRes = await govPatch(
+    new NextRequest('https://aetherbi.com/api/erp/governance', {
+      method: 'PATCH',
+      headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokGm, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        action: 'issueCircular',
+        circularKey: 'probe:cir-gm',
+        circularRecord: {
+          issuedAtIso: new Date().toISOString(),
+          sealId: 'VF-SEAL-2026-9901',
+          titleAr: 'تعميم المدير العام',
+          titleEn: 'GM Circular',
+        },
+      }),
+    }),
+  );
+  const cirDgmRes = await govPatch(
+    new NextRequest('https://aetherbi.com/api/erp/governance', {
+      method: 'PATCH',
+      headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokDgm, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        action: 'issueCircular',
+        circularKey: 'probe:cir-dgm',
+        circularRecord: {
+          issuedAtIso: new Date().toISOString(),
+          sealId: 'VF-SEAL-2026-9902',
+          titleAr: 'تعميم نائب المدير العام',
+          titleEn: 'DGM Circular',
+        },
+      }),
+    }),
+  );
+
+  const finalStateJson = await cirDgmRes.json();
+  const finalApprovals = finalStateJson?.store?.approvals ?? [];
+  const stampedAdmin = finalApprovals.find((a) => a.id === 'probe-req-admin')?.seal;
+  const stampedGm = finalApprovals.find((a) => a.id === 'probe-req-gm')?.seal;
+  const stampedDgm = finalApprovals.find((a) => a.id === 'probe-req-dgm')?.seal;
+  const stampedCirGm = finalStateJson?.store?.issuedCirculars?.['probe:cir-gm'];
+  const stampedCirDgm = finalStateJson?.store?.issuedCirculars?.['probe:cir-dgm'];
+
+  // Auditor strict 403 across PUT & DELETE as well
+  const audPutRes = await govPut(
+    new NextRequest('https://aetherbi.com/api/erp/governance', {
+      method: 'PUT',
+      headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokAud, 'content-type': 'application/json' },
+      body: JSON.stringify({ store: finalStateJson.store }),
+    }),
+  );
+  const audDeleteRes = await govDelete(
+    new NextRequest('https://aetherbi.com/api/erp/governance', {
+      method: 'DELETE',
+      headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokAud },
+    }),
+  );
+
+  // Restore exact pre-probe tmpdir file state
+  try {
+    if (hadTmpGov && prevTmpGovRaw !== null) {
+      fs.writeFileSync(tmpGovPath, prevTmpGovRaw, 'utf8');
+    } else if (fs.existsSync(tmpGovPath)) {
+      fs.unlinkSync(tmpGovPath);
+    }
+  } catch {}
+
+  console.log(JSON.stringify({
+    abdValid: abdAuth.valid && abdAuth.role === 'admin' && abdAuth.nameAr === 'عبدالله عويرة',
+    gmValid: gmAuth.valid && gmAuth.role === 'gm' && gmAuth.titleAr === 'المدير العام',
+    dgmValid: dgmAuth.valid && dgmAuth.role === 'dgm' && dgmAuth.titleAr === 'نائب المدير العام',
+    crossWrongValid: crossWrong.valid,
+    roles: [verAbd?.role, verAlias?.role, verGm?.role, verDgm?.role, verAud?.role],
+    sealRolesAr: [sealAdmin.approverRoleAr, sealGm.approverRoleAr, sealDgm.approverRoleAr],
+    patchStatuses: [approveAdminRes.status, approveGmRes.status, approveDgmRes.status, cirGmRes.status, cirDgmRes.status],
+    serverApprovalsAr: [stampedAdmin?.approverRoleAr, stampedGm?.approverRoleAr, stampedDgm?.approverRoleAr],
+    serverApprovalsCode: [stampedAdmin?.approverRole, stampedGm?.approverRole, stampedDgm?.approverRole],
+    serverCircularsAr: [stampedCirGm?.approverRoleAr, stampedCirDgm?.approverRoleAr],
+    audPutStatus: audPutRes.status,
+    audDeleteStatus: audDeleteRes.status,
+  }));
+})();
+`
+
+const multiExecRaw = execFileSync(process.execPath, [tsxCli, '-e', multiExecProbeScript], {
+  cwd: ROOT,
+  encoding: 'utf8',
+}).trim()
+const multiExec = JSON.parse(multiExecRaw.split('\n').pop() ?? '{}')
+
+// Verify ZERO hardcoded named @venturefoodskw.com emails in /login or any 'use client' file
+const namedAccountEmails = [
+  'abdullah@venturefoodskw.com',
+  'admin@venturefoodskw.com',
+  'gm@venturefoodskw.com',
+  'dgm@venturefoodskw.com',
+  'auditor@venturefoodskw.com',
+]
+const clientEmailLeaks = []
+for (const file of allSrcFiles) {
+  const rel = path.relative(ROOT, file).replace(/\\/g, '/')
+  const txt = fs.readFileSync(file, 'utf8')
+  const isClientOrLogin =
+    rel.startsWith('src/app/login/') || /^['"]use client['"]/m.test(txt.slice(0, 200))
+  if (!isClientOrLogin) continue
+  for (const em of namedAccountEmails) {
+    if (txt.includes(em)) clientEmailLeaks.push(`${rel}:${em}`)
+  }
+}
+
+assert(
+  execSessionSrc.includes('bbe373a80dede4fb8bc435555707b1213a25f7387bee13f342c7e486cbc20fda') &&
+    execSessionSrc.includes('218deb04287696d7cfc35ba2a0c8863ea54e678dc562d8c5e4cc04731529ecd3') &&
+    execSessionSrc.includes('0778d6bf621ae9947a3cf0961371e5df3ebdb437545f45611a13c5afe0fa1080') &&
+    execSessionSrc.includes('7c5a104c7a8b070cc8e2d98826a8c3fee478819ca69f73d6360e033db79302c2') &&
+    execSessionSrc.includes('93126eacc43acc1b7030b2c2960d5f9aeadcb2a14d3258a6126f119bde3a4dba') &&
+    multiExec.abdValid === true &&
+    multiExec.gmValid === true &&
+    multiExec.dgmValid === true &&
+    multiExec.crossWrongValid === false &&
+    JSON.stringify(multiExec.roles) === JSON.stringify(['admin', 'admin', 'gm', 'dgm', 'auditor']) &&
+    clientEmailLeaks.length === 0,
+  '18.1 Named Executive Accounts: abdullah@ & admin@ (admin), gm@ (gm), dgm@ (dgm) & auditor@ (auditor) verify via salted SHA-256 with ZERO emails/passwords in /login or client bundles',
+  `roles=${JSON.stringify(multiExec.roles)}, clientEmailLeaks=${clientEmailLeaks.length}`,
+)
+
+assert(
+  JSON.stringify(multiExec.sealRolesAr) ===
+    JSON.stringify(['مسؤول النظام', 'المدير العام', 'نائب المدير العام']) &&
+    JSON.stringify(multiExec.patchStatuses) === JSON.stringify([200, 200, 200, 200, 200]) &&
+    JSON.stringify(multiExec.serverApprovalsCode) === JSON.stringify(['admin', 'gm', 'dgm']) &&
+    JSON.stringify(multiExec.serverApprovalsAr) ===
+      JSON.stringify(['مسؤول النظام', 'المدير العام', 'نائب المدير العام']) &&
+    JSON.stringify(multiExec.serverCircularsAr) ===
+      JSON.stringify(['المدير العام', 'نائب المدير العام']) &&
+    multiExec.audPutStatus === 403 &&
+    multiExec.audDeleteStatus === 403,
+  '18.2 Governance Audit Stamps & RBAC: admin, gm & dgm stamp exact approverRole (مسؤول النظام / المدير العام / نائب المدير العام) on approvals & circulars; auditor stays 403 Read-Only',
+  `approvals=${JSON.stringify(multiExec.serverApprovalsAr)}, circulars=${JSON.stringify(multiExec.serverCircularsAr)}`,
+)
+
+assert(
+  fs.existsSync(roleMetaPath) &&
+    roleMetaSrc.includes('عبدالله عويرة • مسؤول النظام') &&
+    roleMetaSrc.includes('مسؤول النظام والسكرتير التنفيذي') &&
+    roleMetaSrc.includes('System Admin & Executive Secretary') &&
+    roleMetaSrc.includes('Abdullah Awirah') &&
+    roleMetaSrc.includes('المدير العام') &&
+    roleMetaSrc.includes('General Manager') &&
+    roleMetaSrc.includes('نائب المدير العام') &&
+    roleMetaSrc.includes('Deputy General Manager') &&
+    roleMetaSrc.includes('مراجع — قراءة فقط') &&
+    roleMetaSrc.includes('Read-Only Auditor') &&
+    erpShellReexportSrc.includes('sessionRole={sessionRole}') &&
+    topBarSrc.includes('roleProfile.accountLabelAr') &&
+    execFooterSrc.includes('roleProfile.accountLabelAr') &&
+    sidebarSrc.includes('roleProfile.accountLabelAr') &&
+    govDrawerSrc.includes('approverRoleAr') &&
+    circularPrintSrc.includes('activeApproverRoleAr'),
+  '18.3 Role Identity UI & Circular Stamp Wiring: TopFilterBar Account Menu, ExecutiveFooter, Sidebar, GovernanceBellDrawer & OfficialCircularPrintModal display exact active role & approverRole',
 )
 
 console.log('\n----------------------------------------------------------------------')

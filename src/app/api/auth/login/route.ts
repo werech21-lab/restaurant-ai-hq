@@ -7,6 +7,7 @@ import {
   EXEC_SESSION_COOKIE,
   execCookieOptions,
   isSecureRequest,
+  resolveExecRoleProfile,
   sanitizeExecNextPath,
   verifyExecutiveCredentials,
   type ExecSessionRole,
@@ -74,7 +75,7 @@ export async function POST(request: Request) {
   const safeNext = sanitizeExecNextPath(next, '/erp')
 
   let authenticatedEmail: string | null = null
-  let authenticatedRole: ExecSessionRole = 'executive'
+  let authenticatedRole: ExecSessionRole = 'admin'
   let prismaUserId: string | null = null
 
   if (email && password) {
@@ -100,7 +101,7 @@ export async function POST(request: Request) {
           const matches = await bcrypt.compare(password, dbUser.passwordHash)
           if (matches) {
             authenticatedEmail = dbUser.email.trim().toLowerCase()
-            authenticatedRole = 'executive'
+            authenticatedRole = 'admin'
             prismaUserId = dbUser.id
           }
         }
@@ -131,6 +132,7 @@ export async function POST(request: Request) {
   }
 
   const isSecure = isSecureRequest(request)
+  const profile = resolveExecRoleProfile(authenticatedRole)
   const execToken = await createExecSessionToken(
     authenticatedEmail,
     authenticatedRole,
@@ -139,6 +141,10 @@ export async function POST(request: Request) {
     {
       ok: true,
       role: authenticatedRole,
+      nameAr: profile.nameAr,
+      nameEn: profile.nameEn,
+      titleAr: profile.titleAr,
+      titleEn: profile.titleEn,
       redirectTo: safeNext || '/erp',
     },
     {

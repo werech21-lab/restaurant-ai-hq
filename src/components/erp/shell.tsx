@@ -18,6 +18,10 @@ import {
 } from '@/components/erp-sidebar'
 import { GovernanceProvider } from '@/components/erp/GovernanceBellDrawer'
 import { ExecutiveFooter } from '@/components/erp/ExecutiveFooter'
+import {
+  normalizeExecSessionRole,
+  type ExecSessionRole,
+} from '@/lib/auth/exec-role-meta'
 import { getCompany } from '@/lib/company'
 import { LOCKED_MODULES } from '@/lib/modules'
 import { enabledModuleKeys } from '@/lib/modules-db'
@@ -47,33 +51,36 @@ function decodeBase64UrlPayload(segment: string): Record<string, unknown> | null
   }
 }
 
-async function resolveAuditorSessionFlag(user: {
+async function resolveActiveSessionRole(user: {
   email?: string
   role?: { name?: string }
   sessionRole?: string
   isAuditor?: boolean
-}): Promise<boolean> {
-  if (user.isAuditor === true || user.sessionRole === 'auditor') return true
+}): Promise<ExecSessionRole> {
   if (
+    user.isAuditor === true ||
+    user.sessionRole === 'auditor' ||
     user.role?.name === 'Read-Only Auditor' ||
     (typeof user.email === 'string' && user.email.toLowerCase().includes('auditor'))
   ) {
-    return true
+    return 'auditor'
   }
+  const fromUser = normalizeExecSessionRole(user.sessionRole)
   try {
     const cookieStore = await cookies()
     const rawToken = cookieStore.get('aether_exec_session')?.value
     if (rawToken && rawToken.includes('.')) {
       const payload = decodeBase64UrlPayload(rawToken.split('.')[0] ?? '')
-      if (payload?.role === 'auditor') return true
+      const fromCookie = normalizeExecSessionRole(payload?.role)
+      if (fromCookie) return fromCookie
       if (typeof payload?.sub === 'string' && payload.sub.toLowerCase().includes('auditor')) {
-        return true
+        return 'auditor'
       }
     }
   } catch {
     // safe fallback when cookies are unavailable
   }
-  return false
+  return fromUser ?? 'admin'
 }
 
 /**
@@ -84,7 +91,7 @@ async function resolveAuditorSessionFlag(user: {
 export async function ErpShell({ children }: { children: React.ReactNode }) {
   await connection()
   const user = await requireUser()
-  const isAuditor = await resolveAuditorSessionFlag(
+  const sessionRole = await resolveActiveSessionRole(
     user as {
       email?: string
       role?: { name?: string }
@@ -92,6 +99,7 @@ export async function ErpShell({ children }: { children: React.ReactNode }) {
       isAuditor?: boolean
     },
   )
+  const isAuditor = sessionRole === 'auditor'
   const scope = await getActiveScope()
   const [enabledKeys, company] = await Promise.all([enabledModuleKeys(), getCompany()])
   const locked = new Set<string>(LOCKED_MODULES)
@@ -111,25 +119,31 @@ export async function ErpShell({ children }: { children: React.ReactNode }) {
     >
       <BiFilterProvider>
         <GlobalFilterProvider>
-          <GovernanceProvider isAuditor={isAuditor}>
+          <GovernanceProvider isAuditor={isAuditor} sessionRole={sessionRole}>
             <div
               id="ae-root"
               className="relative z-0 text-[14.5px] leading-relaxed"
               data-erp-shell="persistent"
               data-auditor={isAuditor ? 'true' : 'false'}
-              data-session-role={isAuditor ? 'auditor' : 'executive'}
+              data-session-role={sessionRole}
             >
               <div className="ae-ambient" aria-hidden>
                 <span />
                 <span />
                 <span />
               </div>
-              <Sidebar user={user} enabledKeys={visibleKeys} isAuditor={isAuditor} />
+              <Sidebar
+                user={user}
+                enabledKeys={visibleKeys}
+                isAuditor={isAuditor}
+                sessionRole={sessionRole}
+              />
               <div className="ae-content-col w-full flex-1 min-w-0">
                 <div className="ae-page w-full max-w-[1920px] mx-auto px-4 sm:px-6 xl:px-10 pt-0 lg:pt-2 pb-24 lg:pb-8 min-w-0 space-y-3 text-[14.5px] leading-relaxed">
                   <TopFilterBar
                     companyNameAr={company.name}
                     isAuditor={isAuditor}
+                    sessionRole={sessionRole}
                     userEmail={user.email}
                   />
                   <main className="w-full max-w-none min-w-0">

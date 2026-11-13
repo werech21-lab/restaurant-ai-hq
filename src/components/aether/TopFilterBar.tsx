@@ -20,6 +20,10 @@ import {
   X,
 } from 'lucide-react'
 import { useI18n, type Locale } from '@/lib/i18n'
+import {
+  resolveExecRoleProfile,
+  type ExecSessionRole,
+} from '@/lib/auth/exec-role-meta'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { PanelHeaderBar } from '@/components/panel-chrome'
 import { openCommandPalette } from '@/components/aether/BiFilterContext'
@@ -220,6 +224,7 @@ function AccountWorkspaceMenuPanel({
   isAr,
   locale,
   auditorMode,
+  sessionRole,
   userEmail,
   onSetLocale,
   sharedCopied,
@@ -232,6 +237,7 @@ function AccountWorkspaceMenuPanel({
   isAr: boolean
   locale: Locale
   auditorMode: boolean
+  sessionRole?: ExecSessionRole
   userEmail?: string
   onSetLocale: (next: Locale) => void
   sharedCopied: boolean
@@ -242,6 +248,10 @@ function AccountWorkspaceMenuPanel({
   onCloseMenu: () => void
 }) {
   const gov = useOptionalGovernance()
+  const activeRole: ExecSessionRole = auditorMode
+    ? 'auditor'
+    : (sessionRole ?? gov?.sessionRole ?? 'admin')
+  const roleProfile = resolveExecRoleProfile(activeRole)
   const badgeCount = gov?.liveBadgeCount ?? 0
   const hasBreaches = (gov?.activeBreaches.length ?? 0) > 0
 
@@ -267,20 +277,26 @@ function AccountWorkspaceMenuPanel({
           {auditorMode ? (
             <span className="inline-flex items-center gap-1.5 rounded-xl bg-amber-50 px-2.5 py-0.5 text-[11.5px] font-bold text-amber-900 ring-1 ring-amber-500/25 dark:bg-amber-950/60 dark:text-amber-200">
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />
-              <span>{isAr ? 'حساب مراجعة — قراءة فقط' : 'Read-Only Auditor'}</span>
+              <span>{isAr ? roleProfile.accountLabelAr : roleProfile.accountLabelEn}</span>
             </span>
           ) : (
-            <div className="text-[12.5px] font-bold text-slate-900 dark:text-white">
-              {isAr ? 'الإدارة التنفيذية • فنتشر فودز' : 'Executive Office • Venture Foods'}
+            <div className="space-y-0.5">
+              <div className="text-[12.5px] font-bold text-slate-900 dark:text-white">
+                {isAr ? roleProfile.accountLabelAr : roleProfile.accountLabelEn}
+              </div>
+              <div className="text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
+                {isAr ? roleProfile.titleAr : roleProfile.titleEn}
+              </div>
             </div>
           )}
-          <div
-            dir="ltr"
-            className="mt-0.5 truncate font-mono text-[11px] text-slate-400 dark:text-slate-400"
-          >
-            {userEmail ||
-              (auditorMode ? 'auditor@venturefoodskw.com' : 'admin@venturefoodskw.com')}
-          </div>
+          {userEmail ? (
+            <div
+              dir="ltr"
+              className="mt-0.5 truncate font-mono text-[11px] text-slate-400 dark:text-slate-400"
+            >
+              {userEmail}
+            </div>
+          ) : null}
         </div>
         <span
           className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${
@@ -509,6 +525,7 @@ export interface TopFilterBarProps {
   companyNameAr?: string
   notifications?: React.ReactNode
   isAuditor?: boolean
+  sessionRole?: ExecSessionRole
   userEmail?: string
 }
 
@@ -523,6 +540,7 @@ export function TopFilterBar({
   companyNameAr = '',
   notifications,
   isAuditor = false,
+  sessionRole,
   userEmail,
 }: TopFilterBarProps = {}) {
   const pathname = usePathname() ?? ''
@@ -774,6 +792,7 @@ export function TopFilterBar({
                     isAr={isAr}
                     locale={locale}
                     auditorMode={auditorMode}
+                    sessionRole={sessionRole}
                     userEmail={userEmail}
                     onSetLocale={setLocale}
                     sharedCopied={sharedCopied}
@@ -1196,6 +1215,7 @@ export function TopFilterBar({
                     isAr={isAr}
                     locale={locale}
                     auditorMode={auditorMode}
+                    sessionRole={sessionRole}
                     userEmail={userEmail}
                     onSetLocale={setLocale}
                     sharedCopied={sharedCopied}

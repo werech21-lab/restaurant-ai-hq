@@ -29,6 +29,10 @@ import {
   XCircle,
 } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
+import {
+  normalizeExecSessionRole,
+  type ExecSessionRole,
+} from '@/lib/auth/exec-role-meta'
 import type { GlobalBranch } from '@/lib/aether/global-filter-engine'
 import { ExecutivePinModal } from '@/components/erp/ExecutivePinModal'
 import { OfficialCircularPrintModal } from '@/components/erp/OfficialCircularPrintModal'
@@ -71,6 +75,7 @@ interface PendingPinRequest {
 
 export interface GovernanceContextValue {
   isAuditor: boolean
+  sessionRole: ExecSessionRole
   store: PersistedGovernanceStore
   session: ExecutiveSessionState
   approvals: GovernanceApprovalRequest[]
@@ -155,6 +160,11 @@ export function buildStopDirectiveCircularDoc(
     scopeEn: breach.affectedScopeEn,
     issuedAtIso: frozenIso,
     sealId: issued?.sealId || (breach.frozen ? `VF-STOP-${frozenIso.slice(0, 4)}-2026` : undefined),
+    approverRole: issued?.approverRole,
+    approverRoleAr: issued?.approverRoleAr,
+    approverRoleEn: issued?.approverRoleEn,
+    approvedByAr: issued?.approvedByAr,
+    approvedByEn: issued?.approvedByEn,
     financialSummaryAr: `إيقاف تسرب شهري مرصود بأودو بقيمة ${breach.monthlyLeakKwd.toLocaleString('en-US')} د.ك/شهر`,
     financialSummaryEn: `Halts verified Odoo leakage of ${breach.monthlyLeakKwd.toLocaleString('en-US')} KWD/mo`,
     mandatoryRulesAr: [
@@ -177,10 +187,15 @@ export function buildStopDirectiveCircularDoc(
 export function GovernanceProvider({
   children,
   isAuditor = false,
+  sessionRole,
 }: {
   children: React.ReactNode
   isAuditor?: boolean
+  sessionRole?: ExecSessionRole
 }) {
+  const resolvedRole: ExecSessionRole = isAuditor
+    ? 'auditor'
+    : (normalizeExecSessionRole(sessionRole) ?? 'admin')
   const [store, setStore] = useState<PersistedGovernanceStore>(INITIAL_SSR_STORE)
   const [session, setSession] = useState<ExecutiveSessionState>({
     active: false,
@@ -199,11 +214,12 @@ export function GovernanceProvider({
   useEffect(() => {
     if (typeof document !== 'undefined') {
       document.documentElement.dataset.auditor = isAuditor ? 'true' : 'false'
+      document.documentElement.dataset.sessionRole = resolvedRole
     }
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent(AUDITOR_ROLE_EVENT, { detail: isAuditor }))
     }
-  }, [isAuditor])
+  }, [isAuditor, resolvedRole])
 
   const syncFromStorage = useCallback(() => {
     setStore(loadGovernanceStore())
@@ -389,18 +405,20 @@ export function GovernanceProvider({
         titleAr: `اعتماد وختم: ${titleAr}`,
         titleEn: `Approve & Seal: ${titleEn}`,
         onSuccess: () => {
-          const item = approveRequestById(id)
+          const item = approveRequestById(id, resolvedRole)
           syncFromStorage()
           if (item?.seal) {
+            const roleAr = item.seal.approverRoleAr ?? 'مسؤول النظام'
+            const roleEn = item.seal.approverRoleEn ?? 'System Admin'
             showToast(
-              `تم الاعتماد بالختم الرقمي (${item.seal.sealId}) ومزامنته ✅`,
-              `Approved & synced with Digital Seal (${item.seal.sealId}) ✅`,
+              `تم الاعتماد بصفة (${roleAr}) بالختم الرقمي (${item.seal.sealId}) ✅`,
+              `Approved as (${roleEn}) with Digital Seal (${item.seal.sealId}) ✅`,
             )
           }
         },
       })
     },
-    [requireManagerPin, showToast, syncFromStorage],
+    [requireManagerPin, resolvedRole, showToast, syncFromStorage],
   )
 
   const rejectItemWithPin = useCallback(
@@ -438,6 +456,7 @@ export function GovernanceProvider({
               bodyAr: breach.stopDirectiveAr,
               bodyEn: breach.stopDirectiveEn,
             },
+            resolvedRole,
           )
           syncFromStorage()
           if (broadcastDirective && typeof navigator !== 'undefined' && navigator.clipboard) {
@@ -459,7 +478,7 @@ export function GovernanceProvider({
         },
       })
     },
-    [requireManagerPin, showToast, syncFromStorage],
+    [requireManagerPin, resolvedRole, showToast, syncFromStorage],
   )
 
   const retroactiveApproveBreachWithPin = useCallback(
@@ -468,16 +487,16 @@ export function GovernanceProvider({
         titleAr: 'اعتماد استثنائي بأثر رجعي وختم التجاوز ✅',
         titleEn: 'Retroactive Executive Approval & Digital Seal ✅',
         onSuccess: () => {
-          const seal = retroactivelyApproveBreachById(breach)
+          const seal = retroactivelyApproveBreachById(breach, resolvedRole)
           syncFromStorage()
           showToast(
-            `تم الاعتماد الاستثنائي بأثر رجعي بالختم (${seal.sealId}) ✅`,
-            `Retroactive approval sealed (${seal.sealId}) ✅`,
+            `تم الاعتماد الاستثنائي بصفة (${seal.approverRoleAr ?? 'مسؤول النظام'}) بالختم (${seal.sealId}) ✅`,
+            `Retroactive approval sealed by (${seal.approverRoleEn ?? 'System Admin'}) (${seal.sealId}) ✅`,
           )
         },
       })
     },
-    [requireManagerPin, showToast, syncFromStorage],
+    [requireManagerPin, resolvedRole, showToast, syncFromStorage],
   )
 
   const unfreezeBreachWithPin = useCallback(
@@ -543,36 +562,42 @@ export function GovernanceProvider({
         titleAr: `تعميم رسمي مختوم: ${opts.titleAr}`,
         titleEn: `Issue Stamped Circular: ${opts.titleEn}`,
         onSuccess: () => {
-          const meta = recordIssuedCircular(opts.circularKey, opts.titleAr, opts.titleEn, {
-            kind: opts.kind,
-            scopeAr: opts.scopeAr,
-            scopeEn: opts.scopeEn,
-            mandatoryRulesAr: opts.mandatoryRulesAr,
-            mandatoryRulesEn: opts.mandatoryRulesEn,
-            financialSummaryAr: opts.financialSummaryAr,
-            financialSummaryEn: opts.financialSummaryEn,
-            effectiveWindow: opts.effectiveWindow,
-            bodyAr: opts.circularBodyAr,
-            bodyEn: opts.circularBodyEn,
-          })
+          const meta = recordIssuedCircular(
+            opts.circularKey,
+            opts.titleAr,
+            opts.titleEn,
+            {
+              kind: opts.kind,
+              scopeAr: opts.scopeAr,
+              scopeEn: opts.scopeEn,
+              mandatoryRulesAr: opts.mandatoryRulesAr,
+              mandatoryRulesEn: opts.mandatoryRulesEn,
+              financialSummaryAr: opts.financialSummaryAr,
+              financialSummaryEn: opts.financialSummaryEn,
+              effectiveWindow: opts.effectiveWindow,
+              bodyAr: opts.circularBodyAr,
+              bodyEn: opts.circularBodyEn,
+            },
+            resolvedRole,
+          )
           syncFromStorage()
           if (typeof navigator !== 'undefined' && navigator.clipboard) {
             const isDocAr =
               typeof document !== 'undefined' ? document.documentElement.lang !== 'en' : true
             const stampedText = isDocAr
-              ? `${opts.circularBodyAr}\n\n🔐 المرجع: ${meta.serialRef} · الختم التنفيذي: ${meta.sealId}`
-              : `${opts.circularBodyEn}\n\n🔐 Ref: ${meta.serialRef} · Digital Executive Seal: ${meta.sealId}`
+              ? `${opts.circularBodyAr}\n\n🔐 المرجع: ${meta.serialRef} · صفة المعتمد: ${meta.approverRoleAr ?? 'مسؤول النظام'} · الختم التنفيذي: ${meta.sealId}`
+              : `${opts.circularBodyEn}\n\n🔐 Ref: ${meta.serialRef} · Approver Role: ${meta.approverRoleEn ?? 'System Admin'} · Digital Executive Seal: ${meta.sealId}`
             void navigator.clipboard.writeText(stampedText).catch(() => {})
           }
           opts.onIssued?.(meta)
           showToast(
-            `تم إصدار التعميم (${meta.serialRef}) بالختم (${meta.sealId}) 📋`,
-            `Official circular (${meta.serialRef}) sealed (${meta.sealId}) 📋`,
+            `تم إصدار التعميم (${meta.serialRef}) بصفة (${meta.approverRoleAr ?? 'مسؤول النظام'}) والختم (${meta.sealId}) 📋`,
+            `Official circular (${meta.serialRef}) sealed by (${meta.approverRoleEn ?? 'System Admin'}) (${meta.sealId}) 📋`,
           )
         },
       })
     },
-    [requireManagerPin, showToast, syncFromStorage],
+    [requireManagerPin, resolvedRole, showToast, syncFromStorage],
   )
 
   const openCircularPrintModal = useCallback((doc: OfficialCircularDocument) => {
@@ -622,6 +647,7 @@ export function GovernanceProvider({
   const value = useMemo<GovernanceContextValue>(
     () => ({
       isAuditor,
+      sessionRole: resolvedRole,
       store,
       session,
       approvals,
@@ -672,6 +698,7 @@ export function GovernanceProvider({
       rejectItemWithPin,
       requestApproval,
       requireManagerPin,
+      resolvedRole,
       retroactiveApproveBreachWithPin,
       session,
       store,
@@ -1561,9 +1588,19 @@ function GovernanceSlideOverDrawer({
                       {isAr ? item.titleAr : item.titleEn}
                     </h3>
                     {item.seal ? (
-                      <p dir="ltr" className="mt-1 text-[11px] tabular-nums text-neutral-400">
-                        {item.seal.approvedAtIso.slice(0, 16).replace('T', ' ')} UTC
-                      </p>
+                      <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                        <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50/80 px-2 py-0.5 font-semibold text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200">
+                          <span>
+                            {isAr ? 'صفة المعتمد:' : 'Approver Role:'}{' '}
+                            {isAr
+                              ? (item.seal.approverRoleAr ?? item.seal.approvedByAr)
+                              : (item.seal.approverRoleEn ?? item.seal.approvedByEn)}
+                          </span>
+                        </span>
+                        <span dir="ltr" className="tabular-nums text-neutral-400">
+                          {item.seal.approvedAtIso.slice(0, 16).replace('T', ' ')} UTC
+                        </span>
+                      </div>
                     ) : null}
                   </article>
                 ))

@@ -1,28 +1,74 @@
+import {
+  EXEC_ROLE_PROFILES,
+  normalizeExecSessionRole,
+  resolveExecRoleProfile,
+  type ExecApproverRole,
+  type ExecRoleProfile,
+  type ExecSessionRole,
+} from '@/lib/auth/exec-role-meta'
+
+export {
+  EXEC_ROLE_PROFILES,
+  normalizeExecSessionRole,
+  resolveExecRoleProfile,
+  type ExecApproverRole,
+  type ExecRoleProfile,
+  type ExecSessionRole,
+}
+
 export const EXEC_SESSION_COOKIE = 'aether_exec_session'
 export const EXEC_SESSION_MAX_AGE = 12 * 60 * 60 // 43200s (12h)
 
+export const DEFAULT_ABDULLAH_EMAIL = 'abdullah@venturefoodskw.com'
 export const DEFAULT_ADMIN_EMAIL = 'admin@venturefoodskw.com'
+export const DEFAULT_GM_EMAIL = 'gm@venturefoodskw.com'
+export const DEFAULT_DGM_EMAIL = 'dgm@venturefoodskw.com'
 export const DEFAULT_AUDITOR_EMAIL = 'auditor@venturefoodskw.com'
+
 const DEFAULT_PASSWORD_SALT = 'vf-aether-exec-2026-v1:'
+
+const DEFAULT_ABDULLAH_PASSWORD_SHA256 =
+  'bbe373a80dede4fb8bc435555707b1213a25f7387bee13f342c7e486cbc20fda'
 const DEFAULT_ADMIN_PASSWORD_SHA256 =
   '218deb04287696d7cfc35ba2a0c8863ea54e678dc562d8c5e4cc04731529ecd3'
+const DEFAULT_GM_PASSWORD_SHA256 =
+  '0778d6bf621ae9947a3cf0961371e5df3ebdb437545f45611a13c5afe0fa1080'
+const DEFAULT_DGM_PASSWORD_SHA256 =
+  '7c5a104c7a8b070cc8e2d98826a8c3fee478819ca69f73d6360e033db79302c2'
 const DEFAULT_AUDITOR_PASSWORD_SHA256 =
   '93126eacc43acc1b7030b2c2960d5f9aeadcb2a14d3258a6126f119bde3a4dba'
 
 const FALLBACK_SESSION_SECRET = 'vf-aether-exec-hmac-2026-prod-v2'
 
-export type ExecSessionRole = 'executive' | 'auditor'
-
 export type ExecSessionPayload = {
   sub: string
   role: ExecSessionRole
+  nameAr: string
+  nameEn: string
+  titleAr: string
+  titleEn: string
   iat: number
   exp: number
 }
 
 export type ExecCredentialResult =
-  | { valid: true; email: string; role: ExecSessionRole }
+  | {
+      valid: true
+      email: string
+      role: ExecSessionRole
+      nameAr: string
+      nameEn: string
+      titleAr: string
+      titleEn: string
+    }
   | { valid: false }
+
+interface NamedAccountSpec {
+  role: ExecSessionRole
+  expectedEmail: string
+  envPassword: string | undefined
+  defaultPasswordSha256: string
+}
 
 function getSessionSecret(): string {
   const fromEnv =
@@ -31,8 +77,26 @@ function getSessionSecret(): string {
   return fromEnv && fromEnv.length > 0 ? fromEnv : FALLBACK_SESSION_SECRET
 }
 
+export function getExpectedAbdullahEmail(): string {
+  return (process.env.AETHER_ABDULLAH_EMAIL || DEFAULT_ABDULLAH_EMAIL)
+    .trim()
+    .toLowerCase()
+}
+
 export function getExpectedExecEmail(): string {
   return (process.env.AETHER_ADMIN_EMAIL || DEFAULT_ADMIN_EMAIL)
+    .trim()
+    .toLowerCase()
+}
+
+export function getExpectedGmEmail(): string {
+  return (process.env.AETHER_GM_EMAIL || DEFAULT_GM_EMAIL)
+    .trim()
+    .toLowerCase()
+}
+
+export function getExpectedDgmEmail(): string {
+  return (process.env.AETHER_DGM_EMAIL || DEFAULT_DGM_EMAIL)
     .trim()
     .toLowerCase()
 }
@@ -41,6 +105,49 @@ export function getExpectedAuditorEmail(): string {
   return (process.env.AETHER_AUDITOR_EMAIL || DEFAULT_AUDITOR_EMAIL)
     .trim()
     .toLowerCase()
+}
+
+function getNamedAccountSpecs(): NamedAccountSpec[] {
+  return [
+    {
+      role: 'admin',
+      expectedEmail: getExpectedAbdullahEmail(),
+      envPassword: process.env.AETHER_ABDULLAH_PASSWORD,
+      defaultPasswordSha256: DEFAULT_ABDULLAH_PASSWORD_SHA256,
+    },
+    {
+      role: 'admin',
+      expectedEmail: getExpectedExecEmail(),
+      envPassword: process.env.AETHER_ADMIN_PASSWORD,
+      defaultPasswordSha256: DEFAULT_ADMIN_PASSWORD_SHA256,
+    },
+    {
+      role: 'gm',
+      expectedEmail: getExpectedGmEmail(),
+      envPassword: process.env.AETHER_GM_PASSWORD,
+      defaultPasswordSha256: DEFAULT_GM_PASSWORD_SHA256,
+    },
+    {
+      role: 'dgm',
+      expectedEmail: getExpectedDgmEmail(),
+      envPassword: process.env.AETHER_DGM_PASSWORD,
+      defaultPasswordSha256: DEFAULT_DGM_PASSWORD_SHA256,
+    },
+    {
+      role: 'auditor',
+      expectedEmail: getExpectedAuditorEmail(),
+      envPassword: process.env.AETHER_AUDITOR_PASSWORD,
+      defaultPasswordSha256: DEFAULT_AUDITOR_PASSWORD_SHA256,
+    },
+  ]
+}
+
+function inferRoleFromEmail(email: string): ExecSessionRole {
+  const clean = email.trim().toLowerCase()
+  if (clean === getExpectedAuditorEmail()) return 'auditor'
+  if (clean === getExpectedGmEmail()) return 'gm'
+  if (clean === getExpectedDgmEmail()) return 'dgm'
+  return 'admin'
 }
 
 function hexToBytes(hex: string): Uint8Array {
@@ -117,10 +224,12 @@ async function hmacSha256(secret: string, message: string): Promise<Uint8Array> 
 }
 
 /**
- * Authenticates Executive Admin ('executive') or Read-Only Auditor ('auditor')
- * using salted SHA-256 digests and constant-time byte comparisons.
- * Supports runtime overrides via AETHER_ADMIN_EMAIL / AETHER_ADMIN_PASSWORD
- * and AETHER_AUDITOR_EMAIL / AETHER_AUDITOR_PASSWORD.
+ * Authenticates named Venture Foods executive accounts:
+ *   - System Admin ('admin'): abdullah@venturefoodskw.com + alias admin@venturefoodskw.com
+ *   - General Manager ('gm'): gm@venturefoodskw.com
+ *   - Deputy General Manager ('dgm'): dgm@venturefoodskw.com
+ *   - Read-Only Auditor ('auditor'): auditor@venturefoodskw.com
+ * Verified via salted SHA-256 digests and constant-time byte comparisons across all accounts.
  */
 export async function authenticateExecutiveCredentials(
   email: string,
@@ -128,62 +237,42 @@ export async function authenticateExecutiveCredentials(
 ): Promise<ExecCredentialResult> {
   const normalizedEmail = String(email || '').trim().toLowerCase()
   const rawPassword = typeof password === 'string' ? password : ''
-  const expectedAdminEmail = getExpectedExecEmail()
-  const expectedAuditorEmail = getExpectedAuditorEmail()
-
-  const envAdminPassword = process.env.AETHER_ADMIN_PASSWORD
-  const envAuditorPassword = process.env.AETHER_AUDITOR_PASSWORD
-
-  const [
-    emailDigest,
-    adminEmailDigest,
-    auditorEmailDigest,
-    inputPassDigest,
-    expectedAdminPassDigest,
-    expectedAuditorPassDigest,
-  ] = await Promise.all([
-    sha256Bytes(normalizedEmail),
-    sha256Bytes(expectedAdminEmail),
-    sha256Bytes(expectedAuditorEmail),
-    sha256Bytes(`${DEFAULT_PASSWORD_SALT}${rawPassword}`),
-    typeof envAdminPassword === 'string' && envAdminPassword.length > 0
-      ? sha256Bytes(`${DEFAULT_PASSWORD_SALT}${envAdminPassword}`)
-      : Promise.resolve(hexToBytes(DEFAULT_ADMIN_PASSWORD_SHA256)),
-    typeof envAuditorPassword === 'string' && envAuditorPassword.length > 0
-      ? sha256Bytes(`${DEFAULT_PASSWORD_SALT}${envAuditorPassword}`)
-      : Promise.resolve(hexToBytes(DEFAULT_AUDITOR_PASSWORD_SHA256)),
-  ])
-
   const nonEmpty = normalizedEmail.length > 0 && rawPassword.length > 0
 
-  const adminEmailMatches = timingSafeEqualBytes(emailDigest, adminEmailDigest)
-  const adminPassMatches = timingSafeEqualBytes(
-    inputPassDigest,
-    expectedAdminPassDigest,
-  )
+  const specs = getNamedAccountSpecs()
 
-  const auditorEmailMatches = timingSafeEqualBytes(
-    emailDigest,
-    auditorEmailDigest,
-  )
-  const auditorPassMatches = timingSafeEqualBytes(
-    inputPassDigest,
-    expectedAuditorPassDigest,
-  )
+  const [emailDigest, inputPassDigest, ...specDigests] = await Promise.all([
+    sha256Bytes(normalizedEmail),
+    sha256Bytes(`${DEFAULT_PASSWORD_SALT}${rawPassword}`),
+    ...specs.flatMap((spec) => [
+      sha256Bytes(spec.expectedEmail),
+      typeof spec.envPassword === 'string' && spec.envPassword.length > 0
+        ? sha256Bytes(`${DEFAULT_PASSWORD_SALT}${spec.envPassword}`)
+        : Promise.resolve(hexToBytes(spec.defaultPasswordSha256)),
+    ]),
+  ])
 
-  if (nonEmpty && adminEmailMatches && adminPassMatches) {
-    return {
-      valid: true,
-      email: expectedAdminEmail,
-      role: 'executive',
+  let matchedSpec: NamedAccountSpec | null = null
+  for (let i = 0; i < specs.length; i++) {
+    const expectedEmailDigest = specDigests[i * 2]
+    const expectedPassDigest = specDigests[i * 2 + 1]
+    const emailMatches = timingSafeEqualBytes(emailDigest, expectedEmailDigest)
+    const passMatches = timingSafeEqualBytes(inputPassDigest, expectedPassDigest)
+    if (nonEmpty && emailMatches && passMatches && !matchedSpec) {
+      matchedSpec = specs[i]
     }
   }
 
-  if (nonEmpty && auditorEmailMatches && auditorPassMatches) {
+  if (matchedSpec) {
+    const profile = resolveExecRoleProfile(matchedSpec.role)
     return {
       valid: true,
-      email: expectedAuditorEmail,
-      role: 'auditor',
+      email: matchedSpec.expectedEmail,
+      role: matchedSpec.role,
+      nameAr: profile.nameAr,
+      nameEn: profile.nameEn,
+      titleAr: profile.titleAr,
+      titleEn: profile.titleEn,
     }
   }
 
@@ -191,7 +280,7 @@ export async function authenticateExecutiveCredentials(
 }
 
 /**
- * Boolean credential verifier returning true when either Executive Admin or Read-Only Auditor matches.
+ * Boolean credential verifier returning true when any configured named executive or auditor account matches.
  */
 export async function verifyExecutiveCredentials(
   email: string,
@@ -202,24 +291,25 @@ export async function verifyExecutiveCredentials(
 }
 
 /**
- * Signs an executive or read-only auditor session payload (12h expiry) using HMAC-SHA256 via Web Crypto API.
+ * Signs a named executive or read-only auditor session payload (12h expiry) using HMAC-SHA256 via Web Crypto API.
  */
 export async function createExecSessionToken(
   email: string,
-  role?: ExecSessionRole,
+  role?: ExecSessionRole | 'executive',
 ): Promise<string> {
   const sub = String(email || DEFAULT_ADMIN_EMAIL).trim().toLowerCase()
-  const resolvedRole: ExecSessionRole =
-    role === 'auditor' || role === 'executive'
-      ? role
-      : sub === getExpectedAuditorEmail()
-        ? 'auditor'
-        : 'executive'
+  const normalizedRole =
+    normalizeExecSessionRole(role) ?? inferRoleFromEmail(sub)
+  const profile = resolveExecRoleProfile(normalizedRole)
   const iat = Math.floor(Date.now() / 1000)
   const exp = iat + EXEC_SESSION_MAX_AGE
   const payload: ExecSessionPayload = {
     sub,
-    role: resolvedRole,
+    role: normalizedRole,
+    nameAr: profile.nameAr,
+    nameEn: profile.nameEn,
+    titleAr: profile.titleAr,
+    titleEn: profile.titleEn,
     iat,
     exp,
   }
@@ -233,7 +323,7 @@ export async function createExecSessionToken(
 
 /**
  * Verifies an HMAC-SHA256 session token on Edge, RSC, or Node Route Handlers.
- * Normalizes legacy 'exec_admin' tokens to 'executive'.
+ * Normalizes legacy 'executive' / 'exec_admin' tokens to 'admin'.
  */
 export async function verifyExecSessionToken(
   token: string | undefined | null,
@@ -257,16 +347,15 @@ export async function verifyExecSessionToken(
     const parsed = JSON.parse(decodedJson) as {
       sub?: unknown
       role?: unknown
+      nameAr?: unknown
+      nameEn?: unknown
+      titleAr?: unknown
+      titleEn?: unknown
       iat?: unknown
       exp?: unknown
     }
 
-    const normalizedRole: ExecSessionRole | null =
-      parsed?.role === 'auditor'
-        ? 'auditor'
-        : parsed?.role === 'executive' || parsed?.role === 'exec_admin'
-          ? 'executive'
-          : null
+    const normalizedRole = normalizeExecSessionRole(parsed?.role)
 
     if (
       !parsed ||
@@ -286,9 +375,26 @@ export async function verifyExecSessionToken(
       return null
     }
 
+    const profile = resolveExecRoleProfile(normalizedRole)
     return {
       sub: parsed.sub.trim().toLowerCase(),
       role: normalizedRole,
+      nameAr:
+        typeof parsed.nameAr === 'string' && parsed.nameAr.trim().length > 0
+          ? parsed.nameAr.trim()
+          : profile.nameAr,
+      nameEn:
+        typeof parsed.nameEn === 'string' && parsed.nameEn.trim().length > 0
+          ? parsed.nameEn.trim()
+          : profile.nameEn,
+      titleAr:
+        typeof parsed.titleAr === 'string' && parsed.titleAr.trim().length > 0
+          ? parsed.titleAr.trim()
+          : profile.titleAr,
+      titleEn:
+        typeof parsed.titleEn === 'string' && parsed.titleEn.trim().length > 0
+          ? parsed.titleEn.trim()
+          : profile.titleEn,
       iat: parsed.iat,
       exp: parsed.exp,
     }

@@ -4,8 +4,8 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import {
   DEFAULT_ADMIN_EMAIL,
-  DEFAULT_AUDITOR_EMAIL,
   EXEC_SESSION_COOKIE,
+  resolveExecRoleProfile,
   verifyExecSessionToken,
   type ExecSessionRole,
 } from "@/lib/auth/exec-session";
@@ -15,38 +15,43 @@ import { SESSION_COOKIE, verifySessionToken } from "@/lib/session";
 export type ErpAuthenticatedUser = AccessUser & {
   sessionRole?: ExecSessionRole;
   isAuditor?: boolean;
+  titleAr?: string;
+  titleEn?: string;
+  nameAr?: string;
+  nameEn?: string;
 };
 
-function buildExecutiveAdminUser(
+function buildNamedExecutiveUser(
+  role: ExecSessionRole,
   email = DEFAULT_ADMIN_EMAIL,
 ): ErpAuthenticatedUser {
-  return {
-    id: "usr_venture_exec_001",
-    name: "الإدارة التنفيذية · فنتشر فودز",
-    email: email || DEFAULT_ADMIN_EMAIL,
-    sessionRole: "executive",
-    isAuditor: false,
-    role: {
-      id: "role_executive_admin",
-      name: "Executive Admin",
-      isAdmin: true,
-      permissions: [],
-    },
+  const profile = resolveExecRoleProfile(role);
+  const roleIdMap: Record<ExecSessionRole, string> = {
+    admin: "role_system_admin",
+    gm: "role_general_manager",
+    dgm: "role_deputy_gm",
+    auditor: "role_auditor_readonly",
   };
-}
+  const userIdMap: Record<ExecSessionRole, string> = {
+    admin: "usr_venture_admin_001",
+    gm: "usr_venture_gm_001",
+    dgm: "usr_venture_dgm_001",
+    auditor: "usr_venture_auditor_001",
+  };
 
-function buildReadOnlyAuditorUser(
-  email = DEFAULT_AUDITOR_EMAIL,
-): ErpAuthenticatedUser {
   return {
-    id: "usr_venture_auditor_001",
-    name: "حساب مراجعة — قراءة فقط",
-    email: email || DEFAULT_AUDITOR_EMAIL,
-    sessionRole: "auditor",
-    isAuditor: true,
+    id: userIdMap[profile.role],
+    name: profile.role === "auditor" ? profile.titleAr : profile.nameAr,
+    email: email || DEFAULT_ADMIN_EMAIL,
+    sessionRole: profile.role,
+    isAuditor: profile.isAuditor,
+    titleAr: profile.titleAr,
+    titleEn: profile.titleEn,
+    nameAr: profile.nameAr,
+    nameEn: profile.nameEn,
     role: {
-      id: "role_auditor_readonly",
-      name: "Read-Only Auditor",
+      id: roleIdMap[profile.role],
+      name: profile.titleEn,
       isAdmin: true,
       permissions: [],
     },
@@ -59,9 +64,9 @@ export const getCurrentSessionRole = cache(
       const jar = await cookies();
       const execToken = jar.get(EXEC_SESSION_COOKIE)?.value;
       const execSession = await verifyExecSessionToken(execToken);
-      return execSession?.role === "auditor" ? "auditor" : "executive";
+      return execSession?.role ?? "admin";
     } catch {
-      return "executive";
+      return "admin";
     }
   },
 );
@@ -73,10 +78,7 @@ export const getCurrentUser = cache(
       const execToken = jar.get(EXEC_SESSION_COOKIE)?.value;
       const execSession = await verifyExecSessionToken(execToken);
       if (execSession) {
-        if (execSession.role === "auditor") {
-          return buildReadOnlyAuditorUser(execSession.sub);
-        }
-        return buildExecutiveAdminUser(execSession.sub);
+        return buildNamedExecutiveUser(execSession.role, execSession.sub);
       }
 
       const token = jar.get(SESSION_COOKIE)?.value;
@@ -94,7 +96,7 @@ export const getCurrentUser = cache(
         id: user.id,
         name: user.name,
         email: user.email,
-        sessionRole: "executive",
+        sessionRole: "admin",
         isAuditor: false,
         role: {
           id: user.role.id,

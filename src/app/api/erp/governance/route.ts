@@ -7,6 +7,11 @@ import {
   EXEC_SESSION_COOKIE,
   verifyExecSessionToken,
 } from '@/lib/auth/exec-session'
+import {
+  resolveExecRoleProfile,
+  toExecApproverRole,
+  type ExecApproverRole,
+} from '@/lib/auth/exec-role-meta'
 import { prisma } from '@/lib/db'
 import { sslOptions } from '@/lib/db-ssl'
 import { APPROVED_BRANCH_IDS, type GlobalBranch } from '@/lib/aether/global-filter-engine'
@@ -331,6 +336,88 @@ async function guardReadOnlyAuditor(
   return null
 }
 
+async function resolveAuthenticatedApproverRole(
+  request: NextRequest,
+  fallbackRole?: unknown,
+): Promise<ExecApproverRole> {
+  const rawToken =
+    request.cookies.get(EXEC_SESSION_COOKIE)?.value ??
+    request.cookies.get('aether_exec_session')?.value
+  const session = await verifyExecSessionToken(rawToken)
+  if (session && session.role !== 'auditor') {
+    return toExecApproverRole(session.role)
+  }
+  return toExecApproverRole(fallbackRole)
+}
+
+function stampIncomingStoreWithApprover(
+  incoming: PersistedGovernanceStore,
+  previous: PersistedGovernanceStore,
+  approverRole: ExecApproverRole,
+): PersistedGovernanceStore {
+  const profile = resolveExecRoleProfile(approverRole)
+  const prevByRef = new Map(previous.approvals.map((a) => [a.refKey, a]))
+
+  const stampedApprovals = incoming.approvals.map((item) => {
+    if (item.status !== 'approved' || !item.seal) return item
+    const prev = prevByRef.get(item.refKey)
+    const newlyApproved =
+      !prev ||
+      prev.status !== 'approved' ||
+      prev.seal?.sealId !== item.seal.sealId
+    if (newlyApproved || !item.seal.approverRole) {
+      const roleToStamp = newlyApproved
+        ? approverRole
+        : toExecApproverRole(item.seal.approverRole ?? approverRole)
+      const roleProfile = resolveExecRoleProfile(roleToStamp)
+      return {
+        ...item,
+        seal: {
+          ...item.seal,
+          approverRole: roleToStamp,
+          approverRoleAr: roleProfile.approverRoleAr,
+          approverRoleEn: roleProfile.approverRoleEn,
+          approvedByAr: roleProfile.sealAuthorityAr,
+          approvedByEn: roleProfile.sealAuthorityEn,
+        },
+      }
+    }
+    return item
+  })
+
+  const stampedCirculars: Record<string, IssuedCircularRecord> = {
+    ...incoming.issuedCirculars,
+  }
+  for (const [key, rec] of Object.entries(stampedCirculars)) {
+    if (!rec) continue
+    const prevRec = previous.issuedCirculars[key]
+    const newlyIssued = !prevRec || prevRec.sealId !== rec.sealId
+    if (newlyIssued || !rec.approverRole) {
+      const roleToStamp = newlyIssued
+        ? approverRole
+        : toExecApproverRole(rec.approverRole ?? approverRole)
+      const roleProfile =
+        roleToStamp === approverRole
+          ? profile
+          : resolveExecRoleProfile(roleToStamp)
+      stampedCirculars[key] = {
+        ...rec,
+        approverRole: roleToStamp,
+        approverRoleAr: roleProfile.approverRoleAr,
+        approverRoleEn: roleProfile.approverRoleEn,
+        approvedByAr: roleProfile.sealAuthorityAr,
+        approvedByEn: roleProfile.sealAuthorityEn,
+      }
+    }
+  }
+
+  return {
+    ...incoming,
+    approvals: stampedApprovals,
+    issuedCirculars: stampedCirculars,
+  }
+}
+
 export async function GET() {
   const env = await loadEnvelopeFromDatabase()
   return NextResponse.json(
@@ -355,9 +442,13 @@ export async function POST(request: NextRequest) {
       store?: PersistedGovernanceStore
       pinHash?: string
     }
+    const approverRole = await resolveAuthenticatedApproverRole(request)
     const current = await loadEnvelopeFromDatabase()
-    const incomingStore = body?.store
+    const normalizedIncoming = body?.store
       ? normalizeGovernanceStore(body.store)
+      : current.store
+    const incomingStore = body?.store
+      ? stampIncomingStoreWithApprover(normalizedIncoming, current.store, approverRole)
       : current.store
     const merged = mergeGovernanceStores(incomingStore, current.store)
     const nextPinHash =
@@ -392,6 +483,7 @@ export async function PATCH(request: NextRequest) {
     const body = (await request.json()) as {
       action?: string
       pinHash?: string
+      approverRole?: ExecApproverRole
       approval?: GovernanceApprovalRequest
       approvalId?: string
       rejectionNote?: string
@@ -401,6 +493,11 @@ export async function PATCH(request: NextRequest) {
       circularRecord?: IssuedCircularRecord & { circularKey?: string }
     }
 
+    const serverApproverRole = await resolveAuthenticatedApproverRole(
+      request,
+      body.approverRole,
+    )
+    const approverProfile = resolveExecRoleProfile(serverApproverRole)
     const current = await loadEnvelopeFromDatabase()
     let nextStore = normalizeGovernanceStore(current.store)
     let nextPinHash = current.pinHash
@@ -425,7 +522,7 @@ export async function PATCH(request: NextRequest) {
       }
       case 'approve': {
         if (body.approvalId) {
-          const seal = createDigitalSeal()
+          const seal = createDigitalSeal(serverApproverRole)
           nextStore = {
             ...nextStore,
             approvals: nextStore.approvals.map((a) =>
@@ -507,11 +604,22 @@ export async function PATCH(request: NextRequest) {
         if (body.circularKey && body.circularRecord) {
           const serialRef =
             body.circularRecord.serialRef ?? buildCircularSerialRef(body.circularKey)
+          const sealRef = createDigitalSeal(serverApproverRole)
           nextStore = {
             ...nextStore,
             issuedCirculars: {
               ...nextStore.issuedCirculars,
-              [body.circularKey]: { ...body.circularRecord, serialRef },
+              [body.circularKey]: {
+                ...body.circularRecord,
+                serialRef,
+                sealId: body.circularRecord.sealId || sealRef.sealId,
+                issuedAtIso: body.circularRecord.issuedAtIso || sealRef.approvedAtIso,
+                approverRole: serverApproverRole,
+                approverRoleAr: approverProfile.approverRoleAr,
+                approverRoleEn: approverProfile.approverRoleEn,
+                approvedByAr: approverProfile.sealAuthorityAr,
+                approvedByEn: approverProfile.sealAuthorityEn,
+              },
             },
           }
         }

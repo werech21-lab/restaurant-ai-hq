@@ -24,10 +24,13 @@ import {
   Truck,
 } from 'lucide-react'
 import { logout } from '@/app/actions/auth'
+import {
+  resolveExecRoleProfile,
+  type ExecSessionRole,
+} from '@/lib/auth/exec-role-meta'
 import { useI18n } from '@/lib/i18n'
 import type { AccessUser } from '@/lib/permissions'
 import { can } from '@/lib/permissions'
-import { displayRoleName, displayTeamName } from '@/lib/venture-foods-team'
 
 const RAIL_STORAGE_KEY = 'aetherbi_rail_collapsed_v1'
 export const RAIL_TOGGLE_EVENT = 'aetherbi:toggle-rail'
@@ -229,18 +232,24 @@ const isItemActive = isNavItemActive
 export function Sidebar({
   user,
   isAuditor = false,
+  sessionRole,
 }: {
   user: AccessUser
   enabledKeys?: string[] | null
   isAuditor?: boolean
+  sessionRole?: ExecSessionRole
 }) {
   const pathname = usePathname() ?? ''
   const { t, locale } = useI18n()
   const isAr = locale === 'ar'
   const auditorMode = Boolean(
     isAuditor ||
+      sessionRole === 'auditor' ||
       user.role.name === 'Read-Only Auditor' ||
       user.email.toLowerCase().includes('auditor'),
+  )
+  const roleProfile = resolveExecRoleProfile(
+    auditorMode ? 'auditor' : (sessionRole ?? 'admin'),
   )
 
   const [collapsed, setCollapsed] = useState(false)
@@ -522,10 +531,16 @@ export function Sidebar({
                   ? isAr
                     ? 'حساب مراجعة — قراءة فقط'
                     : 'Read-Only Auditor'
-                  : displayTeamName(user.name, locale)
+                  : isAr
+                    ? roleProfile.accountLabelAr
+                    : roleProfile.accountLabelEn
               }
             >
-              {auditorMode ? (isAr ? 'م' : 'A') : user.name.slice(0, 1)}
+              {auditorMode
+                ? isAr
+                  ? 'م'
+                  : 'A'
+                : (isAr ? roleProfile.nameAr : roleProfile.nameEn).slice(0, 1)}
             </div>
             <form action={logout} className="group relative">
               <button
@@ -550,31 +565,32 @@ export function Sidebar({
                 <div className="inline-flex items-center gap-1.5">
                   <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" />
                   <span className="ae-side-strong text-[11.5px] font-bold leading-snug">
-                    {isAr ? 'حساب مراجعة — قراءة فقط' : 'Read-Only Auditor'}
+                    {isAr ? roleProfile.accountLabelAr : roleProfile.accountLabelEn}
                   </span>
                 </div>
-                <p
-                  dir="ltr"
-                  className="ae-side-muted truncate font-mono text-[10.5px] leading-snug"
-                >
-                  {user.email || 'auditor@venturefoodskw.com'}
+                <p className="ae-side-muted text-[10.5px] leading-snug">
+                  {isAr ? 'حساب مراجعة — قراءة فقط' : 'Read-Only Auditor'}
                 </p>
+                {user.email ? (
+                  <p
+                    dir="ltr"
+                    className="ae-side-muted truncate font-mono text-[10.5px] leading-snug"
+                  >
+                    {user.email}
+                  </p>
+                ) : null}
               </div>
             ) : (
               <div className="flex items-center gap-2.5 py-1">
                 <div className="ae-side-chip flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold">
-                  {user.name.slice(0, 1)}
+                  {(isAr ? roleProfile.nameAr : roleProfile.nameEn).slice(0, 1)}
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="ae-side-strong break-words text-xs font-semibold leading-snug">
-                    {user.name.includes('الإدارة التنفيذية') || user.name.includes('Executive')
-                      ? isAr
-                        ? 'الإدارة التنفيذية · فنتشر فودز'
-                        : 'Executive Management - Venture Foods'
-                      : displayTeamName(user.name, locale)}
+                    {isAr ? roleProfile.accountLabelAr : roleProfile.accountLabelEn}
                   </p>
                   <p className="ae-side-muted break-words text-[11px] leading-snug">
-                    {displayRoleName(user.role.name, locale)}
+                    {isAr ? roleProfile.titleAr : roleProfile.titleEn}
                   </p>
                 </div>
               </div>

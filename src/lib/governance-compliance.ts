@@ -18,6 +18,12 @@
 import { ODOO } from '@/lib/odoo/odoo-dataset'
 import JOURNEY_RAW from '@/lib/odoo/odoo-journey.json'
 import {
+  resolveExecRoleProfile,
+  toExecApproverRole,
+  type ExecApproverRole,
+  type ExecSessionRole,
+} from '@/lib/auth/exec-role-meta'
+import {
   APPROVED_BRANCH_IDS,
   getBranchLabel,
   type GlobalBranch,
@@ -189,6 +195,9 @@ export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'frozen'
 export interface DigitalExecutiveSeal {
   sealId: string
   approvedAtIso: string
+  approverRole?: ExecApproverRole
+  approverRoleAr?: string
+  approverRoleEn?: string
   approvedByAr: string
   approvedByEn: string
 }
@@ -312,6 +321,11 @@ export interface OfficialCircularDocument {
   issuedAtIso: string
   effectiveWindow?: string
   sealId?: string
+  approverRole?: ExecApproverRole
+  approverRoleAr?: string
+  approverRoleEn?: string
+  approvedByAr?: string
+  approvedByEn?: string
   financialSummaryAr?: string
   financialSummaryEn?: string
   mandatoryRulesAr: string[]
@@ -324,6 +338,11 @@ export interface IssuedCircularRecord {
   issuedAtIso: string
   sealId: string
   serialRef?: string
+  approverRole?: ExecApproverRole
+  approverRoleAr?: string
+  approverRoleEn?: string
+  approvedByAr?: string
+  approvedByEn?: string
   kind?: OfficialCircularKind
   titleAr: string
   titleEn: string
@@ -347,6 +366,9 @@ export interface ApprovedDeliveryCapRule {
   approvedTmpBranches: string[]
   sealId: string
   approvedAtIso: string
+  approverRole?: ExecApproverRole
+  approverRoleAr?: string
+  approverRoleEn?: string
 }
 
 export interface ApprovedBoothPlanRule {
@@ -365,6 +387,9 @@ export interface ApprovedBoothPlanRule {
   expectedNetKwd: number
   sealId: string
   approvedAtIso: string
+  approverRole?: ExecApproverRole
+  approverRoleAr?: string
+  approverRoleEn?: string
 }
 
 export interface FlaggedDecisionRegression {
@@ -784,14 +809,19 @@ export async function syncGovernanceFromServer(): Promise<boolean> {
   }
 }
 
-export function createDigitalSeal(): DigitalExecutiveSeal {
+export function createDigitalSeal(role?: ExecSessionRole): DigitalExecutiveSeal {
   const now = new Date()
   const rand = Math.floor(1000 + Math.random() * 9000)
+  const approverRole = toExecApproverRole(role)
+  const profile = resolveExecRoleProfile(approverRole)
   return {
     sealId: `VF-SEAL-${now.getUTCFullYear()}-${rand}`,
     approvedAtIso: now.toISOString(),
-    approvedByAr: 'الإدارة التنفيذية المعتمدة (ختم رقمي موثق)',
-    approvedByEn: 'Executive Management (Verified Digital Seal)',
+    approverRole,
+    approverRoleAr: profile.approverRoleAr,
+    approverRoleEn: profile.approverRoleEn,
+    approvedByAr: profile.sealAuthorityAr,
+    approvedByEn: profile.sealAuthorityEn,
   }
 }
 
@@ -845,10 +875,13 @@ export function submitApprovalRequest(input: {
   return item
 }
 
-export function approveRequestById(id: string): GovernanceApprovalRequest | null {
+export function approveRequestById(
+  id: string,
+  role?: ExecSessionRole,
+): GovernanceApprovalRequest | null {
   const store = loadGovernanceStore()
   let updated: GovernanceApprovalRequest | null = null
-  const seal = createDigitalSeal()
+  const seal = createDigitalSeal(role)
   const nextApprovals = store.approvals.map((a) => {
     if (a.id !== id) return a
     updated = {
@@ -880,6 +913,9 @@ export function approveRequestById(id: string): GovernanceApprovalRequest | null
       approvedTmpBranches: dc.approvedTmpBranches,
       sealId: seal.sealId,
       approvedAtIso: seal.approvedAtIso,
+      approverRole: seal.approverRole,
+      approverRoleAr: seal.approverRoleAr,
+      approverRoleEn: seal.approverRoleEn,
     }
   }
 
@@ -902,6 +938,9 @@ export function approveRequestById(id: string): GovernanceApprovalRequest | null
       expectedNetKwd: bc.expectedNetKwd,
       sealId: seal.sealId,
       approvedAtIso: seal.approvedAtIso,
+      approverRole: seal.approverRole,
+      approverRoleAr: seal.approverRoleAr,
+      approverRoleEn: seal.approverRoleEn,
     }
   }
 
@@ -949,9 +988,10 @@ export function unfreezeBreachById(breachId: string): void {
 
 export function retroactivelyApproveBreachById(
   breach: ComplianceBreachItem,
+  role?: ExecSessionRole,
 ): DigitalExecutiveSeal {
   const store = loadGovernanceStore()
-  const seal = createDigitalSeal()
+  const seal = createDigitalSeal(role)
   const nextFrozen = { ...store.frozenBreachIds }
   delete nextFrozen[breach.id]
   const nextResolved = { ...store.resolvedBreachIds, [breach.id]: seal.approvedAtIso }
@@ -1016,9 +1056,17 @@ export function recordIssuedCircular(
   titleAr: string,
   titleEn: string,
   details?: Partial<Omit<IssuedCircularRecord, 'issuedAtIso' | 'sealId' | 'titleAr' | 'titleEn'>>,
-): { issuedAtIso: string; sealId: string; serialRef: string } {
+  role?: ExecSessionRole,
+): {
+  issuedAtIso: string
+  sealId: string
+  serialRef: string
+  approverRole?: ExecApproverRole
+  approverRoleAr?: string
+  approverRoleEn?: string
+} {
   const store = loadGovernanceStore()
-  const seal = createDigitalSeal()
+  const seal = createDigitalSeal(role)
   const serialRef =
     details?.serialRef ??
     store.issuedCirculars[circularKey]?.serialRef ??
@@ -1027,6 +1075,11 @@ export function recordIssuedCircular(
     issuedAtIso: seal.approvedAtIso,
     sealId: seal.sealId,
     serialRef,
+    approverRole: seal.approverRole,
+    approverRoleAr: seal.approverRoleAr,
+    approverRoleEn: seal.approverRoleEn,
+    approvedByAr: seal.approvedByAr,
+    approvedByEn: seal.approvedByEn,
     titleAr,
     titleEn,
     ...details,
@@ -1035,7 +1088,14 @@ export function recordIssuedCircular(
     ...store,
     issuedCirculars: { ...store.issuedCirculars, [circularKey]: meta },
   })
-  return { issuedAtIso: meta.issuedAtIso, sealId: meta.sealId, serialRef }
+  return {
+    issuedAtIso: meta.issuedAtIso,
+    sealId: meta.sealId,
+    serialRef,
+    approverRole: meta.approverRole,
+    approverRoleAr: meta.approverRoleAr,
+    approverRoleEn: meta.approverRoleEn,
+  }
 }
 
 export function flagDecisionRegressionInStore(input: Omit<FlaggedDecisionRegression, 'flaggedAtIso'>): void {

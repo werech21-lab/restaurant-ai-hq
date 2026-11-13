@@ -64,6 +64,10 @@ export function OfficialCircularPrintModal({
 
   const issuedMeta = store.issuedCirculars[doc.circularKey]
   const activeSealId = issuedMeta?.sealId || doc.sealId
+  const activeApproverRoleAr = issuedMeta?.approverRoleAr || doc.approverRoleAr
+  const activeApproverRoleEn = issuedMeta?.approverRoleEn || doc.approverRoleEn
+  const activeApprovedByAr = issuedMeta?.approvedByAr || doc.approvedByAr
+  const activeApprovedByEn = issuedMeta?.approvedByEn || doc.approvedByEn
   const activeIssuedIso = issuedMeta?.issuedAtIso || doc.issuedAtIso || new Date().toISOString()
   const serialRef = issuedMeta?.serialRef || doc.serialRef || buildCircularSerialRef(doc.circularKey)
   const formattedDate = activeIssuedIso.slice(0, 10)
@@ -88,7 +92,7 @@ export function OfficialCircularPrintModal({
         `• القواعد الإلزامية في أودو ١٧:`,
         ...doc.mandatoryRulesAr.map((r, i) => `  ${i + 1}. ${r}`),
         activeSealId
-          ? `• معتمد رسمياً بختم الإدارة التنفيذية: ${activeSealId}`
+          ? `• معتمد رسمياً (${activeApproverRoleAr ?? 'الإدارة التنفيذية'}) — الختم: ${activeSealId}`
           : `• الحالة: بانتظار ختم المدير التنفيذي`,
       ]
         .filter(Boolean)
@@ -102,7 +106,7 @@ export function OfficialCircularPrintModal({
         `• Mandatory Odoo 17 Rules:`,
         ...doc.mandatoryRulesEn.map((r, i) => `  ${i + 1}. ${r}`),
         activeSealId
-          ? `• Verified Executive Digital Seal: ${activeSealId}`
+          ? `• Verified Executive Digital Seal (${activeApproverRoleEn ?? 'Executive Management'}): ${activeSealId}`
           : `• Status: Pending Executive PIN Seal`,
       ]
         .filter(Boolean)
@@ -370,12 +374,18 @@ export function OfficialCircularPrintModal({
                 </div>
                 <div>
                   <span className="text-slate-500">
-                    {isAr ? 'جهة الاعتماد: ' : 'Issuing Authority: '}
+                    {isAr ? 'جهة وصفة الاعتماد: ' : 'Issuing Authority & Role: '}
                   </span>
                   <span className="font-semibold text-slate-900">
                     {isAr
-                      ? 'المدير التنفيذي — شركة فنتشر فودز (تحقق برمز PIN الموثق)'
-                      : 'Executive Managing Director — Venture Foods Co. (PIN Verified)'}
+                      ? (activeApprovedByAr ??
+                        (activeApproverRoleAr
+                          ? `${activeApproverRoleAr} — شركة فنتشر فودز (تحقق برمز PIN الموثق)`
+                          : 'الإدارة التنفيذية — شركة فنتشر فودز (تحقق برمز PIN الموثق)'))
+                      : (activeApprovedByEn ??
+                        (activeApproverRoleEn
+                          ? `${activeApproverRoleEn} — Venture Foods Co. (PIN Verified)`
+                          : 'Executive Management — Venture Foods Co. (PIN Verified)'))}
                   </span>
                 </div>
               </div>

@@ -1,10 +1,15 @@
 'use client'
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { Database, RefreshCw } from 'lucide-react'
+import { Database, RefreshCw, ShieldCheck } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
+import {
+  resolveExecRoleProfile,
+  type ExecSessionRole,
+} from '@/lib/auth/exec-role-meta'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { OdooAuditCertificatePill } from '@/components/aether/OdooAuditCertificateModal'
+import { useOptionalGovernance } from '@/components/erp/GovernanceBellDrawer'
 import RECEIPTS_PROOF from '@/lib/odoo/delivery-receipts-proof.json'
 import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
 
@@ -46,10 +51,18 @@ function formatWesternSyncStamp(iso?: string): string {
  * 4) Venture Foods 6x7x8 Official Entity Scope
  * 5) Release `v2.7`
  */
-export function ExecutiveFooter() {
+export function ExecutiveFooter({
+  sessionRole,
+}: {
+  sessionRole?: ExecSessionRole
+} = {}) {
   const { locale } = useI18n()
   const isAr = locale === 'ar'
   const { liveSummary } = useGlobalFilter()
+  const gov = useOptionalGovernance()
+  const activeRole: ExecSessionRole =
+    sessionRole ?? gov?.sessionRole ?? (gov?.isAuditor ? 'auditor' : 'admin')
+  const roleProfile = resolveExecRoleProfile(activeRole)
   const [syncing, setSyncing] = useState(false)
   const [lastManualIso, setLastManualIso] = useState<string | undefined>(undefined)
 
@@ -150,8 +163,21 @@ export function ExecutiveFooter() {
           </span>
         </div>
 
-        {/* End Group: 4) Official Entity Scope (6x7x8) + 5) Platform Release v2.7 */}
+        {/* End Group: 4) Active Signed-In Role + 5) Official Entity Scope (6x7x8) + 6) Platform Release v2.7 */}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 tabular-nums">
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-lg px-2 py-0.5 font-semibold ${
+              roleProfile.isAuditor
+                ? 'bg-amber-50 text-amber-900 ring-1 ring-amber-500/20 dark:bg-amber-950/50 dark:text-amber-200'
+                : 'bg-emerald-50/80 text-emerald-900 ring-1 ring-emerald-500/20 dark:bg-emerald-950/50 dark:text-emerald-200'
+            }`}
+          >
+            <ShieldCheck className="h-3 w-3 shrink-0" />
+            <span>{isAr ? roleProfile.accountLabelAr : roleProfile.accountLabelEn}</span>
+          </span>
+          <span aria-hidden className="text-slate-300 dark:text-white/15">
+            •
+          </span>
           <span className="font-medium text-slate-600 dark:text-slate-300">
             {isAr
               ? 'شركة فنتشر فودز • 6 مطاعم • 7 فروع • 8 قنوات'
