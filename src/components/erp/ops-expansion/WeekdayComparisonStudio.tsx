@@ -474,34 +474,41 @@ export function WeekdayComparisonStudio() {
             )}
           </div>
 
-          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 sm:grid sm:grid-cols-14 sm:overflow-visible">
+          <div dir="ltr" className="grid grid-cols-7 lg:grid-cols-14 gap-2 items-end">
             {activeRow.hourlyCurve.map((pt) => {
-              const hThis = Math.max(8, Math.round((pt.thisWeekKwd / maxHourKwd) * 130))
-              const hLast = Math.max(8, Math.round((pt.lastWeekKwd / maxHourKwd) * 130))
+              const hThis = Math.max(10, Math.round((pt.thisWeekKwd / maxHourKwd) * 108))
+              const hLast = Math.max(10, Math.round((pt.lastWeekKwd / maxHourKwd) * 108))
               const isHover = hoveredHour === pt.hour
               return (
-                <div
+                <button
                   key={pt.hour}
+                  type="button"
                   onMouseEnter={() => setHoveredHour(pt.hour)}
                   onMouseLeave={() => setHoveredHour(null)}
-                  className={`flex w-[46px] shrink-0 sm:w-auto flex-col items-center rounded-xl py-2 transition ${
-                    isHover ? 'bg-white dark:bg-[#101C17]' : ''
+                  onClick={() => setHoveredHour(isHover ? null : pt.hour)}
+                  className={`flex min-w-0 cursor-pointer flex-col items-center justify-end rounded-xl px-1 py-2 transition ${
+                    isHover
+                      ? 'bg-white ring-2 ring-emerald-500/70 shadow-xs dark:bg-[#101C17]'
+                      : 'hover:bg-white/70 dark:hover:bg-[#101C17]/60'
                   }`}
                 >
-                  <div className="flex h-[136px] items-end justify-center gap-1">
+                  <span className="mb-1 whitespace-nowrap text-[10.5px] font-bold tabular-nums text-emerald-700 dark:text-emerald-300">
+                    {Math.round(pt.thisWeekKwd)}
+                  </span>
+                  <div className="flex h-28 w-full items-end justify-center gap-1">
                     <div
                       style={{ height: `${hThis}px` }}
-                      className="w-2.5 rounded-full bg-emerald-500 transition-all duration-200 sm:w-3"
+                      className="w-2.5 rounded-t-md rounded-b-xs bg-emerald-500 transition-all duration-200 sm:w-3"
                     />
                     <div
                       style={{ height: `${hLast}px` }}
-                      className="w-2.5 rounded-full bg-neutral-300 transition-all duration-200 dark:bg-slate-600 sm:w-3"
+                      className="w-2.5 rounded-t-md rounded-b-xs bg-neutral-300 transition-all duration-200 dark:bg-slate-600 sm:w-3"
                     />
                   </div>
-                  <span className="mt-2 text-[11px] font-bold text-neutral-600 tabular-nums dark:text-slate-400">
+                  <span className="mt-1.5 whitespace-nowrap text-[10.5px] sm:text-[11px] font-bold text-neutral-600 tabular-nums dark:text-slate-400">
                     {pt.label}
                   </span>
-                </div>
+                </button>
               )
             })}
           </div>

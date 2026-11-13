@@ -144,10 +144,25 @@ export function OrderPrepSlaStudio() {
     return map
   }, [snap.brandBranchCells])
 
-  const maxHourTickets = useMemo(
-    () => Math.max(1, ...snap.hourlyBottlenecks.map((h) => h.totalTickets)),
+  const maxHourPrepMin = useMemo(
+    () => Math.max(20, ...snap.hourlyBottlenecks.map((h) => h.avgPrepMinutes)),
     [snap.hourlyBottlenecks],
   )
+
+  const activeHourBucket = useMemo(
+    () =>
+      selectedHour !== null
+        ? snap.hourlyBottlenecks.find((h) => h.hourIndex === selectedHour) ?? null
+        : null,
+    [selectedHour, snap.hourlyBottlenecks],
+  )
+
+  const activeHourTopTicket = useMemo(() => {
+    if (selectedHour === null) return null
+    const sub = snap.tickets.filter((t) => t.hourIndex === selectedHour)
+    if (sub.length === 0) return null
+    return [...sub].sort((a, b) => b.prepSeconds - a.prepSeconds)[0] ?? null
+  }, [selectedHour, snap.tickets])
 
   const handleEscalateTicketDelay = useCallback(
     (t: PrepSlaOrderTicket) => {
@@ -651,20 +666,20 @@ export function OrderPrepSlaStudio() {
 
       {/* ───────────── 4. Peak-Hour Bottleneck Strip (12 PM – 1 AM) ───────────── */}
       <section className={CARD_CLS}>
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2.5">
-            <Flame className="h-5 w-5 text-rose-500" />
+            <Flame className="h-5 w-5 shrink-0 text-rose-500" />
             <div>
-              <h2 className="text-[17px] font-bold tracking-tight text-neutral-950 dark:text-white">
+              <h2 className="text-[16px] sm:text-[17px] font-bold tracking-tight text-neutral-950 dark:text-white">
                 {T(
                   'Peak-Hour Bottleneck Strip (12 PM – 1 AM)',
                   'شريط ساعات الذروة والاختناق بالمطابخ (12 ظهراً – 1 صباحاً)',
                 )}
               </h2>
-              <p className="text-[13.5px] text-neutral-500 dark:text-slate-400">
+              <p className="text-[13px] text-neutral-500 dark:text-slate-400">
                 {T(
-                  'Click any hour capsule to inspect tickets from that service window.',
-                  'اضغط على أي ساعة لتصفية تذاكر الطلبات الخاصة بها بالأسفل.',
+                  'Proportional prep minutes across 14 operating hours (🟢 ≤ 12.0m • 🟡 12.1–18.0m • 🔴 > 18.0m). Click any hour column to inspect tickets.',
+                  'متوسط دقائق التجهيز عبر ١٤ ساعة تشغيل (🟢 ≤ 12.0 د • 🟡 12.1–18.0 د • 🔴 > 18.0 د). اضغط على أي ساعة لتصفية التذاكر.',
                 )}
               </p>
             </div>
@@ -674,60 +689,121 @@ export function OrderPrepSlaStudio() {
             <button
               type="button"
               onClick={() => setSelectedHour(null)}
-              className="shrink-0 cursor-pointer whitespace-nowrap rounded-xl bg-neutral-100/90 px-3.5 py-2 text-[13px] font-medium text-neutral-700 hover:bg-emerald-50 hover:text-emerald-800 dark:bg-white/[0.06] dark:text-slate-200"
+              className="shrink-0 cursor-pointer whitespace-nowrap rounded-xl bg-neutral-100/90 px-3 py-1.5 text-[12.5px] font-semibold text-neutral-700 hover:bg-emerald-50 hover:text-emerald-800 dark:bg-white/[0.06] dark:text-slate-200"
             >
               {T('Clear Hour Filter ✕', 'إلغاء فلتر الساعة ✕')}
             </button>
           ) : null}
         </div>
 
-        <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-3.5 px-3.5 pb-1 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-14 sm:overflow-visible">
+        <div
+          dir="ltr"
+          className="grid grid-cols-7 lg:grid-cols-14 gap-2 items-end rounded-2xl bg-[#F6F7F8] p-2.5 sm:p-3.5 ring-1 ring-slate-900/[0.03] dark:bg-[#0B1410] dark:ring-emerald-500/[0.08]"
+        >
           {snap.hourlyBottlenecks.map((h) => {
             const active = selectedHour === h.hourIndex
-            const barHeightPct = Math.max(16, Math.round((h.totalTickets / maxHourTickets) * 100))
-            const barColor =
-              h.redCount > 0 && h.redSharePct >= 25
-                ? 'bg-rose-500/85'
-                : h.avgPrepMinutes > 12
-                  ? 'bg-amber-400/90'
-                  : 'bg-emerald-500/85'
+            const hasTickets = h.totalTickets > 0
+            const barHeightPct = hasTickets
+              ? Math.max(18, Math.min(100, Math.round((h.avgPrepMinutes / maxHourPrepMin) * 100)))
+              : 10
+            const isRed = hasTickets && h.avgPrepMinutes > 18.0
+            const isAmber = hasTickets && h.avgPrepMinutes > 12.0 && h.avgPrepMinutes <= 18.0
+            const barColor = !hasTickets
+              ? 'bg-neutral-300 dark:bg-slate-700'
+              : isRed
+                ? 'bg-rose-500'
+                : isAmber
+                  ? 'bg-amber-400'
+                  : 'bg-emerald-500'
+            const valueTextCls = !hasTickets
+              ? 'text-neutral-400 dark:text-slate-500'
+              : isRed
+                ? 'text-rose-700 dark:text-rose-300'
+                : isAmber
+                  ? 'text-amber-700 dark:text-amber-300'
+                  : 'text-emerald-700 dark:text-emerald-300'
+
             return (
               <button
                 key={h.hourIndex}
                 type="button"
                 onClick={() => setSelectedHour(active ? null : h.hourIndex)}
-                className={`${SUBCARD_CLS} flex w-[56px] shrink-0 sm:w-auto cursor-pointer flex-col items-center justify-between p-2.5 text-center transition-all duration-150 ${
-                  active ? 'ring-2 ring-emerald-500' : 'hover:ring-1 hover:ring-neutral-300'
+                aria-pressed={active}
+                className={`group flex min-w-0 cursor-pointer flex-col items-center justify-end rounded-xl px-1 py-2 text-center transition-all duration-150 ${
+                  active
+                    ? 'bg-white ring-2 ring-emerald-500 shadow-xs dark:bg-[#101C17]'
+                    : 'hover:bg-white/80 dark:hover:bg-[#101C17]/70'
                 }`}
               >
-                <span className="text-[11.5px] font-semibold tabular-nums text-neutral-600 dark:text-slate-300">
-                  {isAr ? h.labelAr : h.labelEn}
+                <span className={`whitespace-nowrap text-[11px] font-bold tabular-nums ${valueTextCls}`}>
+                  {hasTickets ? `${f1(h.avgPrepMinutes)}${isAr ? 'د' : 'm'}` : '—'}
                 </span>
 
-                <div className="my-2 flex h-20 w-full items-end justify-center">
+                <div className="my-1.5 flex h-24 w-full items-end justify-center">
                   <div
                     style={{ height: `${barHeightPct}%` }}
-                    className={`w-4 rounded-full transition-all ${barColor}`}
+                    className={`w-3.5 sm:w-4 rounded-t-lg rounded-b-sm transition-all duration-200 ${barColor} ${
+                      active ? 'opacity-100 scale-x-110' : 'opacity-90 group-hover:opacity-100'
+                    }`}
                   />
                 </div>
 
-                <div className="space-y-0.5 tabular-nums">
-                  <div className="text-[12px] font-bold text-neutral-900 dark:text-white">
-                    {h.totalTickets > 0 ? `${f1(h.avgPrepMinutes)}${isAr ? 'د' : 'm'}` : '—'}
-                  </div>
-                  <div
-                    className={`text-[11px] font-semibold ${
-                      h.redCount > 0
-                        ? 'text-rose-600 dark:text-rose-400'
-                        : 'text-emerald-700 dark:text-emerald-400'
-                    }`}
-                  >
-                    {h.redCount > 0 ? `🔴 ${h.redCount}` : '🟢 0'}
-                  </div>
-                </div>
+                <span className="whitespace-nowrap text-[10.5px] sm:text-[11px] font-semibold tabular-nums text-neutral-600 dark:text-slate-300">
+                  {isAr ? h.labelAr : h.labelEn}
+                </span>
               </button>
             )
           })}
+        </div>
+
+        {/* Compact single-row ticket-inspection strip (zero vertical bloat) */}
+        <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[#F6F7F8]/80 px-3.5 py-2 text-[12.5px] tabular-nums ring-1 ring-slate-900/[0.03] dark:bg-[#0B1410]/80 dark:ring-emerald-500/[0.08]">
+          {activeHourBucket ? (
+            <>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span className="font-bold text-neutral-950 dark:text-white">
+                  ⏰ {isAr ? activeHourBucket.labelAr : activeHourBucket.labelEn}
+                </span>
+                <span className="font-semibold text-neutral-700 dark:text-slate-200">
+                  {T('Avg Prep:', 'متوسط التجهيز:')}{' '}
+                  <strong>
+                    {f1(activeHourBucket.avgPrepMinutes)}
+                    {isAr ? ' د' : 'm'}
+                  </strong>
+                </span>
+                <span className="text-neutral-600 dark:text-slate-300">
+                  {f0(activeHourBucket.totalTickets)} {T('tickets', 'تذكرة')} (🟢{' '}
+                  {activeHourBucket.greenCount} · 🟡 {activeHourBucket.yellowCount} · 🔴{' '}
+                  {activeHourBucket.redCount})
+                </span>
+                {activeHourTopTicket ? (
+                  <span className="text-neutral-500 dark:text-slate-400">
+                    • {T('Peak ticket:', 'أطول تذكرة:')} {activeHourTopTicket.orderId} (
+                    {activeHourTopTicket.durationMmSs} —{' '}
+                    {isAr ? activeHourTopTicket.branchNameAr : activeHourTopTicket.branchNameEn})
+                  </span>
+                ) : null}
+              </div>
+              <span className="text-[12px] font-semibold text-emerald-700 dark:text-emerald-300">
+                {T('Filtered ledger below ↓', 'تمت تصفية الجدول بالأسفل ↓')}
+              </span>
+            </>
+          ) : (
+            <div className="flex w-full flex-wrap items-center justify-between gap-2 text-neutral-500 dark:text-slate-400">
+              <span>
+                {T(
+                  '🟢 ≤ 12.0m On-Target  •  🟡 12.1–18.0m Watch  •  🔴 > 18.0m Critical Bottleneck',
+                  '🟢 ≤ 12.0 د ممتاز  •  🟡 12.1–18.0 د متوسط  •  🔴 > 18.0 د اختناق حرج',
+                )}
+              </span>
+              <span className="text-[12px] font-medium">
+                {T(
+                  'Select any hour column above to inspect & filter its tickets',
+                  'اختر أي عمود ساعة أعلاه لفحص وتصفية تذاكرها',
+                )}
+              </span>
+            </div>
+          )}
         </div>
       </section>
 

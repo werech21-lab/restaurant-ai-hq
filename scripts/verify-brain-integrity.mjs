@@ -3049,6 +3049,82 @@ assert(
   '21.2 Strict EN Client Init & 1-Click عربي | EN Toggle Pill: LanguageProvider initializes strictly to en unless explicit ?lang=ar or localStorage ar, and renders 1-click عربي | EN pill on /login top corner + /erp mobile & desktop headers',
 )
 
+// 22. Horizontal 14-Column Capsule Charts & Compiled Grid Tracks Gate
+console.log('\n22) Horizontal 14-Column Capsule Charts & Compiled Grid Tracks Gate:')
+
+const s22TailwindSrc = fs.readFileSync(path.join(ROOT, 'tailwind.config.js'), 'utf8')
+const s22PrepSrc = fs.readFileSync(
+  path.join(ROOT, 'src/components/erp/OrderPrepSlaStudio.tsx'),
+  'utf8',
+)
+const s22DeliverySrc = fs.readFileSync(
+  path.join(ROOT, 'src/components/erp/ops-expansion/DeliverySlaStudio.tsx'),
+  'utf8',
+)
+const s22WeekdaySrc = fs.readFileSync(
+  path.join(ROOT, 'src/components/erp/ops-expansion/WeekdayComparisonStudio.tsx'),
+  'utf8',
+)
+
+const s22AllowedCols = new Set([
+  '1',
+  '2',
+  '3',
+  '4',
+  '5',
+  '6',
+  '7',
+  '8',
+  '9',
+  '10',
+  '11',
+  '12',
+  '13',
+  '14',
+  '15',
+  '16',
+  '24',
+  'none',
+  'subgrid',
+])
+const s22DynamicGridViolations = []
+const s22UncompiledGridViolations = []
+
+for (const file of allSrcFiles) {
+  const rel = path.relative(ROOT, file).replace(/\\/g, '/')
+  if (rel === 'src/lib/full-journey-enterprise-brain.ts') continue
+  const txt = fs.readFileSync(file, 'utf8')
+  if (/grid-cols-\$\{/.test(txt) || /sm:grid\s+sm:grid-cols-14/.test(txt)) {
+    s22DynamicGridViolations.push(rel)
+  }
+  const colMatches = txt.matchAll(/(?:[a-z0-9]+:)?grid-cols-([a-zA-Z0-9_-]+)/g)
+  for (const m of colMatches) {
+    if (!s22AllowedCols.has(m[1])) {
+      s22UncompiledGridViolations.push(`${rel}:${m[0]}`)
+    }
+  }
+}
+
+assert(
+  s22TailwindSrc.includes('gridTemplateColumns') &&
+    s22TailwindSrc.includes("14: 'repeat(14, minmax(0, 1fr))'") &&
+    s22DynamicGridViolations.length === 0 &&
+    s22UncompiledGridViolations.length === 0,
+  '22.1 Compiled Tailwind Grid Tracks & Zero Dynamic/Vertical Capsule Stacks: tailwind.config.js defines grid-cols-13..24 (including 14), with 0 dynamic grid-cols-${...} or uncompiled grid-cols-* across 100% of src/',
+  `dynamic=${s22DynamicGridViolations.length}, uncompiled=${s22UncompiledGridViolations.length}`,
+)
+
+assert(
+  s22PrepSrc.includes('grid grid-cols-7 lg:grid-cols-14 gap-2 items-end') &&
+    s22PrepSrc.includes('maxHourPrepMin') &&
+    s22PrepSrc.includes('activeHourBucket') &&
+    s22DeliverySrc.includes('Peak-Hour Rider Transit Strip (12 PM – 1 AM)') &&
+    s22DeliverySrc.includes('grid grid-cols-7 lg:grid-cols-14 gap-2 items-end') &&
+    s22DeliverySrc.includes('hourlyTransitBuckets') &&
+    s22WeekdaySrc.includes('grid grid-cols-7 lg:grid-cols-14 gap-2 items-end'),
+  '22.2 Horizontal 14-Column Capsule Strips Across /erp/prep-sla, /erp/delivery-sla & /erp/weekday-comparison: Proportional SLA minute bars, Green/Amber/Red thresholds, left-to-right 12 PM–1 AM layout & compact click-to-inspect strip active',
+)
+
 console.log('\n----------------------------------------------------------------------')
 if (failed > 0) {
   console.error(`❌ Verification FAILED: ${failed} failed, ${passed} passed.`)

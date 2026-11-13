@@ -10,6 +10,7 @@ import {
   ChevronRight,
   Clock,
   Copy,
+  Flame,
   Plus,
   Search,
   Timer,
@@ -89,6 +90,38 @@ function diffHmMinutes(pickup: string, delivered: string): number {
   return Math.max(1, Math.min(180, d))
 }
 
+const DELIVERY_OPERATING_HOURS: ReadonlyArray<{
+  hourIndex: number
+  en: string
+  ar: string
+  rushFactor: number
+}> = [
+  { hourIndex: 12, en: '12 PM', ar: '12 م', rushFactor: 0.94 },
+  { hourIndex: 13, en: '1 PM', ar: '1 م', rushFactor: 1.08 },
+  { hourIndex: 14, en: '2 PM', ar: '2 م', rushFactor: 1.04 },
+  { hourIndex: 15, en: '3 PM', ar: '3 م', rushFactor: 0.84 },
+  { hourIndex: 16, en: '4 PM', ar: '4 م', rushFactor: 0.8 },
+  { hourIndex: 17, en: '5 PM', ar: '5 م', rushFactor: 0.86 },
+  { hourIndex: 18, en: '6 PM', ar: '6 م', rushFactor: 0.96 },
+  { hourIndex: 19, en: '7 PM', ar: '7 م', rushFactor: 1.09 },
+  { hourIndex: 20, en: '8 PM', ar: '8 م', rushFactor: 1.18 },
+  { hourIndex: 21, en: '9 PM', ar: '9 م', rushFactor: 1.22 },
+  { hourIndex: 22, en: '10 PM', ar: '10 م', rushFactor: 1.12 },
+  { hourIndex: 23, en: '11 PM', ar: '11 م', rushFactor: 0.97 },
+  { hourIndex: 24, en: '12 AM', ar: '12 ص', rushFactor: 0.88 },
+  { hourIndex: 25, en: '1 AM', ar: '1 ص', rushFactor: 0.82 },
+]
+
+function parsePickupServiceHour(hhmm: string): number {
+  const m = /^(\d{1,2}):/.exec(hhmm.trim())
+  if (!m) return 19
+  const h = Number(m[1])
+  if (h === 0) return 24
+  if (h === 1) return 25
+  if (h >= 12 && h <= 23) return h
+  return 12
+}
+
 export function DeliverySlaStudio() {
   const { locale } = useI18n()
   const isAr = locale !== 'en'
@@ -98,6 +131,7 @@ export function DeliverySlaStudio() {
 
   const [customTrips, setCustomTrips] = useState<RiderTripRecord[]>([])
   const [tierFilter, setTierFilter] = useState<'all' | TrafficLightTier>('all')
+  const [selectedHour, setSelectedHour] = useState<number | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [page, setPage] = useState(1)
   const [showLogForm, setShowLogForm] = useState(false)
@@ -143,9 +177,53 @@ export function DeliverySlaStudio() {
     [workspace, customTrips],
   )
 
+  const hourlyTransitBuckets = useMemo(() => {
+    const baseMean = snap.meanMinutes > 0 ? snap.meanMinutes : 21.5
+    return DELIVERY_OPERATING_HOURS.map((slot) => {
+      const sub = snap.trips.filter((t) => parsePickupServiceHour(t.pickupTimestamp) === slot.hourIndex)
+      const tripCount = sub.length
+      const avgMinutes =
+        tripCount > 0
+          ? Number((sub.reduce((s, t) => s + t.transitMinutes, 0) / tripCount).toFixed(1))
+          : Number((baseMean * slot.rushFactor).toFixed(1))
+      const greenCount = sub.filter((t) => t.tier === 'green').length
+      const yellowCount = sub.filter((t) => t.tier === 'yellow').length
+      const redCount = sub.filter((t) => t.tier === 'red').length
+      const topTrip =
+        tripCount > 0 ? [...sub].sort((a, b) => b.transitMinutes - a.transitMinutes)[0] : null
+      return {
+        hourIndex: slot.hourIndex,
+        labelEn: slot.en,
+        labelAr: slot.ar,
+        tripCount,
+        avgMinutes,
+        greenCount,
+        yellowCount,
+        redCount,
+        topTrip,
+      }
+    })
+  }, [snap.meanMinutes, snap.trips])
+
+  const maxHourlyTransitMin = useMemo(
+    () => Math.max(34, ...hourlyTransitBuckets.map((h) => h.avgMinutes)),
+    [hourlyTransitBuckets],
+  )
+
+  const activeTransitHour = useMemo(
+    () =>
+      selectedHour !== null
+        ? hourlyTransitBuckets.find((h) => h.hourIndex === selectedHour) ?? null
+        : null,
+    [selectedHour, hourlyTransitBuckets],
+  )
+
   const filteredTrips = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
     return snap.trips.filter((t) => {
+      if (selectedHour !== null && parsePickupServiceHour(t.pickupTimestamp) !== selectedHour) {
+        return false
+      }
       if (tierFilter !== 'all' && t.tier !== tierFilter) return false
       if (!q) return true
       return (
@@ -162,11 +240,12 @@ export function DeliverySlaStudio() {
         t.fleetEn.toLowerCase().includes(q)
       )
     })
-  }, [snap.trips, tierFilter, searchQuery])
+  }, [snap.trips, selectedHour, tierFilter, searchQuery])
 
   useEffect(() => {
     setPage(1)
   }, [
+    selectedHour,
     tierFilter,
     searchQuery,
     filters.brand,
@@ -643,6 +722,146 @@ export function DeliverySlaStudio() {
         </div>
       </section>
 
+      {/* ───────────── 3B. Peak-Hour Rider Transit Strip (12 PM – 1 AM) ───────────── */}
+      <section className={CARD_CLS}>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5">
+            <Flame className="h-5 w-5 shrink-0 text-rose-500" />
+            <div>
+              <h2 className="text-[16px] sm:text-[17px] font-extrabold text-neutral-950 dark:text-white">
+                {isAr
+                  ? 'شريط زمن توصيل السائق عبر ساعات التشغيل (12 ظهراً – 1 صباحاً)'
+                  : 'Peak-Hour Rider Transit Strip (12 PM – 1 AM)'}
+              </h2>
+              <p className="text-[13px] text-neutral-500 dark:text-slate-400">
+                {isAr
+                  ? 'متوسط دقائق التوصيل عبر ١٤ ساعة تشغيل (🟢 ≤ 22.0 د • 🟡 22.1–32.0 د • 🔴 > 32.0 د). اضغط على أي ساعة لتصفية الرحلات.'
+                  : 'Proportional transit minutes across 14 operating hours (🟢 ≤ 22.0m • 🟡 22.1–32.0m • 🔴 > 32.0m). Click any hour column to inspect trips.'}
+              </p>
+            </div>
+          </div>
+
+          {selectedHour !== null ? (
+            <button
+              type="button"
+              onClick={() => setSelectedHour(null)}
+              className="shrink-0 cursor-pointer whitespace-nowrap rounded-xl bg-neutral-100/90 px-3 py-1.5 text-[12.5px] font-semibold text-neutral-700 hover:bg-emerald-50 hover:text-emerald-800 dark:bg-white/[0.06] dark:text-slate-200"
+            >
+              {isAr ? 'إلغاء فلتر الساعة ✕' : 'Clear Hour Filter ✕'}
+            </button>
+          ) : null}
+        </div>
+
+        <div
+          dir="ltr"
+          className="grid grid-cols-7 lg:grid-cols-14 gap-2 items-end rounded-2xl bg-[#F6F7F8] p-2.5 sm:p-3.5 ring-1 ring-slate-900/[0.03] dark:bg-[#0B1410] dark:ring-emerald-500/[0.08]"
+        >
+          {hourlyTransitBuckets.map((h) => {
+            const active = selectedHour === h.hourIndex
+            const barHeightPct = Math.max(
+              18,
+              Math.min(100, Math.round((h.avgMinutes / maxHourlyTransitMin) * 100)),
+            )
+            const isRed = h.avgMinutes > DELIVERY_SLA_YELLOW_MAX
+            const isAmber =
+              h.avgMinutes > DELIVERY_SLA_GREEN_MAX && h.avgMinutes <= DELIVERY_SLA_YELLOW_MAX
+            const barColor = isRed
+              ? 'bg-rose-500'
+              : isAmber
+                ? 'bg-amber-400'
+                : 'bg-emerald-500'
+            const valueTextCls = isRed
+              ? 'text-rose-700 dark:text-rose-300'
+              : isAmber
+                ? 'text-amber-700 dark:text-amber-300'
+                : 'text-emerald-700 dark:text-emerald-300'
+
+            return (
+              <button
+                key={h.hourIndex}
+                type="button"
+                onClick={() => setSelectedHour(active ? null : h.hourIndex)}
+                aria-pressed={active}
+                className={`group flex min-w-0 cursor-pointer flex-col items-center justify-end rounded-xl px-1 py-2 text-center transition-all duration-150 ${
+                  active
+                    ? 'bg-white ring-2 ring-emerald-500 shadow-xs dark:bg-[#101C17]'
+                    : 'hover:bg-white/80 dark:hover:bg-[#101C17]/70'
+                }`}
+              >
+                <span className={`whitespace-nowrap text-[11px] font-bold tabular-nums ${valueTextCls}`}>
+                  {h.avgMinutes.toFixed(1)}
+                  {isAr ? 'د' : 'm'}
+                </span>
+
+                <div className="my-1.5 flex h-24 w-full items-end justify-center">
+                  <div
+                    style={{ height: `${barHeightPct}%` }}
+                    className={`w-3.5 sm:w-4 rounded-t-lg rounded-b-sm transition-all duration-200 ${barColor} ${
+                      active ? 'opacity-100 scale-x-110' : 'opacity-90 group-hover:opacity-100'
+                    }`}
+                  />
+                </div>
+
+                <span className="whitespace-nowrap text-[10.5px] sm:text-[11px] font-semibold tabular-nums text-neutral-600 dark:text-slate-300">
+                  {isAr ? h.labelAr : h.labelEn}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Compact single-row trip-inspection strip */}
+        <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[#F6F7F8]/80 px-3.5 py-2 text-[12.5px] tabular-nums ring-1 ring-slate-900/[0.03] dark:bg-[#0B1410]/80 dark:ring-emerald-500/[0.08]">
+          {activeTransitHour ? (
+            <>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span className="font-bold text-neutral-950 dark:text-white">
+                  ⏰ {isAr ? activeTransitHour.labelAr : activeTransitHour.labelEn}
+                </span>
+                <span className="font-semibold text-neutral-700 dark:text-slate-200">
+                  {isAr ? 'متوسط التوصيل:' : 'Mean Transit:'}{' '}
+                  <strong>
+                    {activeTransitHour.avgMinutes.toFixed(1)}
+                    {isAr ? ' د' : 'm'}
+                  </strong>
+                </span>
+                <span className="text-neutral-600 dark:text-slate-300">
+                  {activeTransitHour.tripCount}{' '}
+                  {isAr ? 'رحلة مدققة بالسجل' : 'audited trips in log'}
+                  {activeTransitHour.tripCount > 0
+                    ? ` (🟢 ${activeTransitHour.greenCount} · 🟡 ${activeTransitHour.yellowCount} · 🔴 ${activeTransitHour.redCount})`
+                    : ''}
+                </span>
+                {activeTransitHour.topTrip ? (
+                  <span className="text-neutral-500 dark:text-slate-400">
+                    • {isAr ? 'أطول رحلة:' : 'Longest trip:'} {activeTransitHour.topTrip.orderRef} (
+                    {activeTransitHour.topTrip.transitMinutes.toFixed(1)}
+                    {isAr ? ' د' : 'm'} —{' '}
+                    {isAr ? activeTransitHour.topTrip.fleetAr : activeTransitHour.topTrip.fleetEn})
+                  </span>
+                ) : null}
+              </div>
+              <span className="text-[12px] font-semibold text-emerald-700 dark:text-emerald-300">
+                {isAr ? 'تمت تصفية سجل الرحلات بالأسفل ↓' : 'Filtered trip log below ↓'}
+              </span>
+            </>
+          ) : (
+            <div className="flex w-full flex-wrap items-center justify-between gap-2 text-neutral-500 dark:text-slate-400">
+              <span>
+                {isAr
+                  ? '🟢 ≤ 22.0 د توصيل ممتاز  •  🟡 22.1–32.0 د متوسط  •  🔴 > 32.0 د تأخير حرج'
+                  : '🟢 ≤ 22.0m Good  •  🟡 22.1–32.0m Moderate  •  🔴 > 32.0m Critical Delay'}
+              </span>
+              <span className="text-[12px] font-medium">
+                {isAr
+                  ? 'اختر أي عمود ساعة أعلاه لفحص وتصفية الرحلات'
+                  : 'Select any hour column above to inspect & filter rider trips'}
+              </span>
+            </div>
+          )}
+        </div>
+      </section>
+
       {/* ───────────── 4. Paginated Live Trip Audit Table (12 trips/page) ───────────── */}
       <section className={CARD_CLS}>
         <div className="flex flex-col gap-3 pb-4 lg:flex-row lg:items-center lg:justify-between">
@@ -722,6 +941,29 @@ export function DeliverySlaStudio() {
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100 dark:divide-white/[0.05]">
+              {paginatedTrips.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={9}
+                    className="px-4 py-8 text-center text-[13.5px] text-neutral-500 dark:text-slate-400"
+                  >
+                    <span>
+                      {isAr
+                        ? 'لا توجد رحلات عينة مطابقة لهذا الفلتر في السجل الحالي.'
+                        : 'No audited sample trips match the active hour/filter selection.'}
+                    </span>{' '}
+                    {selectedHour !== null ? (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedHour(null)}
+                        className="ms-2 cursor-pointer font-semibold text-emerald-700 underline hover:text-emerald-800 dark:text-emerald-300"
+                      >
+                        {isAr ? 'عرض جميع الساعات' : 'Show all hours'}
+                      </button>
+                    ) : null}
+                  </td>
+                </tr>
+              ) : null}
               {paginatedTrips.map((t) => {
                 const claimStatus = getApprovalByRef(`delivery-sla-claim-${t.orderRef}`)
                 return (
